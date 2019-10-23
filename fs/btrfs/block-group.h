@@ -50,6 +50,7 @@ struct btrfs_block_group_cache {
 	spinlock_t lock;
 	u64 pinned;
 	u64 reserved;
+	u64 used;
 	u64 delalloc_bytes;
 	u64 bytes_super;
 	u64 flags;

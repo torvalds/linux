@@ -4405,7 +4405,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 
 	WARN_ON(rc->block_group->pinned > 0);
 	WARN_ON(rc->block_group->reserved > 0);
-	WARN_ON(btrfs_block_group_used(&rc->block_group->item) > 0);
+	WARN_ON(rc->block_group->used > 0);
 out:
 	if (err && rw)
 		btrfs_dec_block_group_ro(rc->block_group);

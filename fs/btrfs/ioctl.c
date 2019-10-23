@@ -4039,8 +4039,7 @@ static void get_block_group_info(struct list_head *groups_list,
 	list_for_each_entry(block_group, groups_list, list) {
 		space->flags = block_group->flags;
 		space->total_bytes += block_group->key.offset;
-		space->used_bytes +=
-			btrfs_block_group_used(&block_group->item);
+		space->used_bytes += block_group->used;
 	}
 }
 

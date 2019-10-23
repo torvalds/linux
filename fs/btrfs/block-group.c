@@ -656,8 +656,7 @@ static noinline void caching_thread(struct btrfs_work *work)
 
 		spin_lock(&block_group->space_info->lock);
 		spin_lock(&block_group->lock);
-		bytes_used = block_group->key.offset -
-			btrfs_block_group_used(&block_group->item);
+		bytes_used = block_group->key.offset - block_group->used;
 		block_group->space_info->bytes_used += bytes_used >> 1;
 		spin_unlock(&block_group->lock);
 		spin_unlock(&block_group->space_info->lock);
@@ -762,8 +761,7 @@ int btrfs_cache_block_group(struct btrfs_block_group_cache *cache,
 
 			spin_lock(&cache->space_info->lock);
 			spin_lock(&cache->lock);
-			bytes_used = cache->key.offset -
-				btrfs_block_group_used(&cache->item);
+			bytes_used = cache->key.offset - cache->used;
 			cache->space_info->bytes_used += bytes_used >> 1;
 			spin_unlock(&cache->lock);
 			spin_unlock(&cache->space_info->lock);
@@ -1209,7 +1207,7 @@ static int inc_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 	}
 
 	num_bytes = cache->key.offset - cache->reserved - cache->pinned -
-		    cache->bytes_super - btrfs_block_group_used(&cache->item);
+		    cache->bytes_super - cache->used;
 	sinfo_used = btrfs_space_info_used(sinfo, true);
 
 	/*
@@ -1278,8 +1276,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		down_write(&space_info->groups_sem);
 		spin_lock(&block_group->lock);
 		if (block_group->reserved || block_group->pinned ||
-		    btrfs_block_group_used(&block_group->item) ||
-		    block_group->ro ||
+		    block_group->used || block_group->ro ||
 		    list_is_singular(&block_group->list)) {
 			/*
 			 * We want to bail if we made new allocations or have
@@ -1719,6 +1716,8 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		need_clear = 1;
 
 	while (1) {
+		struct btrfs_block_group_item bgi;
+
 		ret = find_first_block_group(info, path, &key);
 		if (ret > 0)
 			break;
@@ -1750,9 +1749,12 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 				cache->disk_cache_state = BTRFS_DC_CLEAR;
 		}
 
-		read_extent_buffer(leaf, &cache->item,
+		read_extent_buffer(leaf, &bgi,
 				   btrfs_item_ptr_offset(leaf, path->slots[0]),
-				   sizeof(cache->item));
+				   sizeof(bgi));
+		/* Duplicate as the item is still partially used */
+		memcpy(&cache->item, &bgi, sizeof(bgi));
+		cache->used = btrfs_block_group_used(&bgi);
 		cache->flags = btrfs_block_group_flags(&cache->item);
 		if (!mixed &&
 		    ((cache->flags & BTRFS_BLOCK_GROUP_METADATA) &&
@@ -1791,11 +1793,11 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		 * the space in and be done with it.  This saves us _a_lot_ of
 		 * time, particularly in the full case.
 		 */
-		if (found_key.offset == btrfs_block_group_used(&cache->item)) {
+		if (found_key.offset == cache->used) {
 			cache->last_byte_to_unpin = (u64)-1;
 			cache->cached = BTRFS_CACHE_FINISHED;
 			btrfs_free_excluded_extents(cache);
-		} else if (btrfs_block_group_used(&cache->item) == 0) {
+		} else if (cache->used == 0) {
 			cache->last_byte_to_unpin = (u64)-1;
 			cache->cached = BTRFS_CACHE_FINISHED;
 			add_new_free_space(cache, found_key.objectid,
@@ -1813,7 +1815,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 
 		trace_btrfs_add_block_group(info, cache, 0);
 		btrfs_update_space_info(info, cache->flags, found_key.offset,
-					btrfs_block_group_used(&cache->item),
+					cache->used,
 					cache->bytes_super, &space_info);
 
 		cache->space_info = space_info;
@@ -1823,7 +1825,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		set_avail_alloc_bits(info, cache->flags);
 		if (btrfs_chunk_readonly(info, cache->key.objectid)) {
 			inc_block_group_ro(cache, 1);
-		} else if (btrfs_block_group_used(&cache->item) == 0) {
+		} else if (cache->used == 0) {
 			ASSERT(list_empty(&cache->bg_list));
 			btrfs_mark_bg_unused(cache);
 		}
@@ -1877,7 +1879,12 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 			goto next;
 
 		spin_lock(&block_group->lock);
+		/*
+		 * Copy partially filled item from the cache and ovewrite used
+		 * that has the correct value
+		 */
 		memcpy(&item, &block_group->item, sizeof(item));
+		btrfs_set_block_group_used(&item, block_group->used);
 		memcpy(&key, &block_group->key, sizeof(key));
 		spin_unlock(&block_group->lock);
 
@@ -1910,7 +1917,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 	if (!cache)
 		return -ENOMEM;
 
-	btrfs_set_block_group_used(&cache->item, bytes_used);
+	cache->used = bytes_used;
 	btrfs_set_block_group_chunk_objectid(&cache->item,
 					     BTRFS_FIRST_CHUNK_TREE_OBJECTID);
 	btrfs_set_block_group_flags(&cache->item, type);
@@ -2102,8 +2109,7 @@ void btrfs_dec_block_group_ro(struct btrfs_block_group_cache *cache)
 	spin_lock(&cache->lock);
 	if (!--cache->ro) {
 		num_bytes = cache->key.offset - cache->reserved -
-			    cache->pinned - cache->bytes_super -
-			    btrfs_block_group_used(&cache->item);
+			    cache->pinned - cache->bytes_super - cache->used;
 		sinfo->bytes_readonly -= num_bytes;
 		list_del_init(&cache->ro_list);
 	}
@@ -2120,6 +2126,7 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	struct btrfs_root *extent_root = fs_info->extent_root;
 	unsigned long bi;
 	struct extent_buffer *leaf;
+	struct btrfs_block_group_item bgi;
 
 	ret = btrfs_search_slot(trans, extent_root, &cache->key, path, 0, 1);
 	if (ret) {
@@ -2130,7 +2137,10 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 
 	leaf = path->nodes[0];
 	bi = btrfs_item_ptr_offset(leaf, path->slots[0]);
-	write_extent_buffer(leaf, &cache->item, bi, sizeof(cache->item));
+	/* Partial copy of item, update the rest from memory */
+	memcpy(&bgi, &cache->item, sizeof(bgi));
+	btrfs_set_block_group_used(&bgi, cache->used);
+	write_extent_buffer(leaf, &bgi, bi, sizeof(bgi));
 	btrfs_mark_buffer_dirty(leaf);
 fail:
 	btrfs_release_path(path);
@@ -2674,11 +2684,11 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 		    cache->disk_cache_state < BTRFS_DC_CLEAR)
 			cache->disk_cache_state = BTRFS_DC_CLEAR;
 
-		old_val = btrfs_block_group_used(&cache->item);
+		old_val = cache->used;
 		num_bytes = min(total, cache->key.offset - byte_in_group);
 		if (alloc) {
 			old_val += num_bytes;
-			btrfs_set_block_group_used(&cache->item, old_val);
+			cache->used = old_val;
 			cache->reserved -= num_bytes;
 			cache->space_info->bytes_reserved -= num_bytes;
 			cache->space_info->bytes_used += num_bytes;
@@ -2687,7 +2697,7 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 			spin_unlock(&cache->space_info->lock);
 		} else {
 			old_val -= num_bytes;
-			btrfs_set_block_group_used(&cache->item, old_val);
+			cache->used = old_val;
 			cache->pinned += num_bytes;
 			btrfs_space_info_update_bytes_pinned(info,
 					cache->space_info, num_bytes);

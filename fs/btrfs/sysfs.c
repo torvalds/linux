@@ -404,7 +404,7 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 		if (&attr->attr == BTRFS_ATTR_PTR(raid, total_bytes))
 			val += block_group->key.offset;
 		else
-			val += btrfs_block_group_used(&block_group->item);
+			val += block_group->used;
 	}
 	up_read(&sinfo->groups_sem);
 	return snprintf(buf, PAGE_SIZE, "%llu\n", val);

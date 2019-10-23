@@ -716,8 +716,7 @@ TRACE_EVENT(btrfs_add_block_group,
 		__entry->offset		= block_group->key.objectid;
 		__entry->size		= block_group->key.offset;
 		__entry->flags		= block_group->flags;
-		__entry->bytes_used	=
-			btrfs_block_group_used(&block_group->item);
+		__entry->bytes_used	= block_group->used;
 		__entry->bytes_super	= block_group->bytes_super;
 		__entry->create		= create;
 	),
@@ -1859,7 +1858,7 @@ DECLARE_EVENT_CLASS(btrfs__block_group,
 	TP_fast_assign_btrfs(bg_cache->fs_info,
 		__entry->bytenr = bg_cache->key.objectid,
 		__entry->len	= bg_cache->key.offset,
-		__entry->used	= btrfs_block_group_used(&bg_cache->item);
+		__entry->used	= bg_cache->used;
 		__entry->flags	= bg_cache->flags;
 	),
 
