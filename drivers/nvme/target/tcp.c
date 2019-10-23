@@ -813,13 +813,11 @@ free_crypto:
 static void nvmet_tcp_handle_req_failure(struct nvmet_tcp_queue *queue,
 		struct nvmet_tcp_cmd *cmd, struct nvmet_req *req)
 {
+	size_t data_len = le32_to_cpu(req->cmd->common.dptr.sgl.length);
 	int ret;
 
-	/* recover the expected data transfer length */
-	req->data_len = le32_to_cpu(req->cmd->common.dptr.sgl.length);
-
 	if (!nvme_is_write(cmd->req.cmd) ||
-	    req->data_len > cmd->req.port->inline_data_size) {
+	    data_len > cmd->req.port->inline_data_size) {
 		nvmet_prepare_receive_pdu(queue);
 		return;
 	}
