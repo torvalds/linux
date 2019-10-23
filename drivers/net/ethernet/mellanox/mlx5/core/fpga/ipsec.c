@@ -602,7 +602,7 @@ static bool mlx5_is_fpga_ipsec_rule(struct mlx5_core_dev *dev,
 				    const u32 *match_c,
 				    const u32 *match_v)
 {
-	u32 ipsec_dev_caps = mlx5_accel_ipsec_device_caps(dev);
+	u32 ipsec_dev_caps = mlx5_fpga_ipsec_device_caps(dev);
 	bool ipv6_flow;
 
 	ipv6_flow = mlx5_fs_is_outer_ipv6_flow(dev, match_c, match_v);
