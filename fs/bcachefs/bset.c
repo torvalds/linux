@@ -282,9 +282,8 @@ static inline void bch2_btree_node_iter_next_check(struct btree_node_iter *iter,
 
 /* Auxiliary search trees */
 
-#define BFLOAT_FAILED_UNPACKED	(U8_MAX - 0)
-#define BFLOAT_FAILED_OVERFLOW	(U8_MAX - 1)
-#define BFLOAT_FAILED		(U8_MAX - 1)
+#define BFLOAT_FAILED_UNPACKED	U8_MAX
+#define BFLOAT_FAILED		U8_MAX
 
 #define KEY_WORDS		BITS_TO_LONGS(1 << BKEY_EXPONENT_BITS)
 
@@ -792,23 +791,6 @@ static void make_bfloat(struct btree *b, struct bset_tree *t,
 		mantissa |= ~(~0U << -exponent);
 
 	bfloat_mantissa_set(f, j, mantissa);
-
-	/*
-	 * f->mantissa must compare >= the original key - for transitivity with
-	 * the comparison in bset_search_tree. If we're dropping set bits,
-	 * increment it:
-	 */
-	if (exponent > (int) bch2_bkey_ffs(b, m)) {
-		if (j < BFLOAT_32BIT_NR
-		    ? f->mantissa32 == U32_MAX
-		    : f->mantissa16 == U16_MAX)
-			f->exponent = BFLOAT_FAILED_OVERFLOW;
-
-		if (j < BFLOAT_32BIT_NR)
-			f->mantissa32++;
-		else
-			f->mantissa16++;
-	}
 }
 
 /* bytes remaining - only valid for last bset: */
@@ -1298,16 +1280,6 @@ static struct bkey_packed *bset_search_write_set(const struct btree *b,
 	return rw_aux_to_bkey(b, t, l);
 }
 
-noinline
-static int bset_search_tree_slowpath(const struct btree *b,
-				struct bset_tree *t, struct bpos *search,
-				const struct bkey_packed *packed_search,
-				unsigned n)
-{
-	return bkey_cmp_p_or_unp(b, tree_to_bkey(b, t, n),
-				 packed_search, search) < 0;
-}
-
 static inline void prefetch_four_cachelines(void *p)
 {
 #ifdef CONFIG_X86_64
@@ -1327,6 +1299,22 @@ static inline void prefetch_four_cachelines(void *p)
 #endif
 }
 
+static inline bool bkey_mantissa_bits_dropped(const struct btree *b,
+					      const struct bkey_float *f,
+					      unsigned idx)
+{
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	unsigned key_bits_start = b->format.key_u64s * 64 - b->nr_key_bits;
+
+	return f->exponent > key_bits_start;
+#else
+	unsigned key_bits_end = high_bit_offset + b->nr_key_bits;
+	unsigned mantissa_bits = n < BFLOAT_32BIT_NR ? 32 : 16;
+
+	return f->exponent + mantissa_bits < key_bits_end;
+#endif
+}
+
 __flatten
 static struct bkey_packed *bset_search_tree(const struct btree *b,
 				struct bset_tree *t,
@@ -1335,7 +1323,9 @@ static struct bkey_packed *bset_search_tree(const struct btree *b,
 {
 	struct ro_aux_tree *base = ro_aux_tree_base(b, t);
 	struct bkey_float *f;
-	unsigned inorder, n = 1;
+	struct bkey_packed *k;
+	unsigned inorder, n = 1, l, r;
+	int cmp;
 
 	do {
 		if (likely(n << 4 < t->size))
@@ -1343,13 +1333,26 @@ static struct bkey_packed *bset_search_tree(const struct btree *b,
 
 		f = bkey_float_get(base, n);
 
-		if (packed_search &&
-		    likely(f->exponent < BFLOAT_FAILED))
-			n = n * 2 + (bfloat_mantissa(f, n) <
-				     bkey_mantissa(packed_search, f, n));
-		else
-			n = n * 2 + bset_search_tree_slowpath(b, t,
-						search, packed_search, n);
+		if (!unlikely(packed_search))
+			goto slowpath;
+		if (unlikely(f->exponent >= BFLOAT_FAILED))
+			goto slowpath;
+
+		l = bfloat_mantissa(f, n);
+		r = bkey_mantissa(packed_search, f, n);
+
+		if (unlikely(l == r) && bkey_mantissa_bits_dropped(b, f, n))
+			goto slowpath;
+
+		n = n * 2 + (l < r);
+		continue;
+slowpath:
+		k = tree_to_bkey(b, t, n);
+		cmp = bkey_cmp_p_or_unp(b, k, packed_search, search);
+		if (!cmp)
+			return k;
+
+		n = n * 2 + (cmp < 0);
 	} while (n < t->size);
 
 	inorder = __eytzinger1_to_inorder(n >> 1, t->size, t->extra);
@@ -1783,14 +1786,9 @@ void bch2_btree_keys_stats(struct btree *b, struct bset_stats *stats)
 			stats->floats += t->size - 1;
 
 			for (j = 1; j < t->size; j++)
-				switch (bkey_float(b, t, j)->exponent) {
-				case BFLOAT_FAILED_UNPACKED:
-					stats->failed_unpacked++;
-					break;
-				case BFLOAT_FAILED_OVERFLOW:
-					stats->failed_overflow++;
-					break;
-				}
+				stats->failed +=
+					bkey_float(b, t, j)->exponent ==
+					BFLOAT_FAILED;
 		}
 	}
 }
@@ -1817,18 +1815,10 @@ void bch2_bfloat_to_text(struct printbuf *out, struct btree *b,
 		return;
 
 	switch (bkey_float(b, t, j)->exponent) {
-	case BFLOAT_FAILED_UNPACKED:
+	case BFLOAT_FAILED:
 		uk = bkey_unpack_key(b, k);
 		pr_buf(out,
 		       "    failed unpacked at depth %u\n"
-		       "\t%llu:%llu\n",
-		       ilog2(j),
-		       uk.p.inode, uk.p.offset);
-		break;
-	case BFLOAT_FAILED_OVERFLOW:
-		uk = bkey_unpack_key(b, k);
-		pr_buf(out,
-		       "    failed overflow at depth %u\n"
 		       "\t%llu:%llu\n",
 		       ilog2(j),
 		       uk.p.inode, uk.p.offset);

@@ -910,8 +910,7 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 	       "    nr packed keys %u\n"
 	       "    nr unpacked keys %u\n"
 	       "    floats %zu\n"
-	       "    failed unpacked %zu\n"
-	       "    failed overflow %zu\n",
+	       "    failed unpacked %zu\n",
 	       f->key_u64s,
 	       f->bits_per_field[0],
 	       f->bits_per_field[1],
@@ -928,6 +927,5 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 	       b->nr.packed_keys,
 	       b->nr.unpacked_keys,
 	       stats.floats,
-	       stats.failed_unpacked,
-	       stats.failed_overflow);
+	       stats.failed);
 }

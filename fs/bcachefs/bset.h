@@ -597,8 +597,7 @@ struct bset_stats {
 	} sets[BSET_TREE_NR_TYPES];
 
 	size_t floats;
-	size_t failed_unpacked;
-	size_t failed_overflow;
+	size_t failed;
 };
 
 void bch2_btree_keys_stats(struct btree *, struct bset_stats *);
