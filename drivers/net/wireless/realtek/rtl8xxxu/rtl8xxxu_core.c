@@ -4484,11 +4484,6 @@ static u16
 rtl8xxxu_wireless_mode(struct ieee80211_hw *hw, struct ieee80211_sta *sta)
 {
 	u16 network_type = WIRELESS_MODE_UNKNOWN;
-	u32 rate_mask;
-
-	rate_mask = (sta->supp_rates[0] & 0xfff) |
-		    (sta->ht_cap.mcs.rx_mask[0] << 12) |
-		    (sta->ht_cap.mcs.rx_mask[0] << 20);
 
 	if (hw->conf.chandef.chan->band == NL80211_BAND_5GHZ) {
 		if (sta->vht_cap.vht_supported)
