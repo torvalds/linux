@@ -4,6 +4,7 @@
 #
 
 obj-$(CONFIG_COMMON_CLK_ROCKCHIP) += clk-rockchip.o
+obj-$(CONFIG_COMMON_CLK_ROCKCHIP_REGMAP) += regmap/
 
 clk-rockchip-y += clk.o
 clk-rockchip-y += clk-pll.o
