@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright 2019 NXP
 
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/io.h>
 #include <linux/fsl/mc.h>
@@ -90,6 +91,7 @@ int dpdmai_open(struct fsl_mc_io *mc_io, u32 cmd_flags,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dpdmai_open);
 
 /**
  * dpdmai_close() - Close the control session of the object
@@ -113,6 +115,7 @@ int dpdmai_close(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
+EXPORT_SYMBOL_GPL(dpdmai_close);
 
 /**
  * dpdmai_create() - Create the DPDMAI object
@@ -177,6 +180,7 @@ int dpdmai_enable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
+EXPORT_SYMBOL_GPL(dpdmai_enable);
 
 /**
  * dpdmai_disable() - Disable the DPDMAI, stop sending and receiving frames.
@@ -197,6 +201,7 @@ int dpdmai_disable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
+EXPORT_SYMBOL_GPL(dpdmai_disable);
 
 /**
  * dpdmai_reset() - Reset the DPDMAI, returns the object to initial state.
@@ -217,6 +222,7 @@ int dpdmai_reset(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
+EXPORT_SYMBOL_GPL(dpdmai_reset);
 
 /**
  * dpdmai_get_attributes() - Retrieve DPDMAI attributes.
@@ -252,6 +258,7 @@ int dpdmai_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dpdmai_get_attributes);
 
 /**
  * dpdmai_set_rx_queue() - Set Rx queue configuration
@@ -285,6 +292,7 @@ int dpdmai_set_rx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
+EXPORT_SYMBOL_GPL(dpdmai_set_rx_queue);
 
 /**
  * dpdmai_get_rx_queue() - Retrieve Rx queue attributes.
@@ -325,6 +333,7 @@ int dpdmai_get_rx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dpdmai_get_rx_queue);
 
 /**
  * dpdmai_get_tx_queue() - Retrieve Tx queue attributes.
@@ -364,3 +373,6 @@ int dpdmai_get_tx_queue(struct fsl_mc_io *mc_io, u32 cmd_flags,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dpdmai_get_tx_queue);
+
+MODULE_LICENSE("GPL v2");
