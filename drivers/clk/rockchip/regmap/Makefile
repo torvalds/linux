@@ -10,3 +10,4 @@ clk-rockchip-regmap-objs := clk-regmap-mux.o \
 			    clk-regmap-pll.o
 
 obj-$(CONFIG_CLK_RK618) += clk-rk618.o
+obj-$(CONFIG_CLK_RK628) += clk-rk628.o

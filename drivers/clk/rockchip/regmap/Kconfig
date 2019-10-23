@@ -8,3 +8,9 @@ config CLK_RK618
 	depends on MFD_RK618
 	default MFD_RK618
 	select COMMON_CLK_ROCKCHIP_REGMAP
+
+config CLK_RK628
+	tristate "Clock driver for Rockchip RK628"
+	depends on MFD_RK628
+	default MFD_RK628
+	select COMMON_CLK_ROCKCHIP_REGMAP
