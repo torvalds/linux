@@ -1437,7 +1437,7 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	if (val & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
 		DRM_DEBUG_KMS("PSR VSC SDP uncorrectable error, disabling PSR\n");
 	if (val & DP_PSR_LINK_CRC_ERROR)
-		DRM_ERROR("PSR Link CRC error, disabling PSR\n");
+		DRM_DEBUG_KMS("PSR Link CRC error, disabling PSR\n");
 
 	if (val & ~errors)
 		DRM_ERROR("PSR_ERROR_STATUS unhandled errors %x\n",
