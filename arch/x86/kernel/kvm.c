@@ -570,13 +570,6 @@ static void kvm_smp_send_call_func_ipi(const struct cpumask *mask)
 	}
 }
 
-static void __init kvm_smp_prepare_cpus(unsigned int max_cpus)
-{
-	native_smp_prepare_cpus(max_cpus);
-	if (kvm_para_has_hint(KVM_HINTS_REALTIME))
-		static_branch_disable(&virt_spin_lock_key);
-}
-
 static void __init kvm_smp_prepare_boot_cpu(void)
 {
 	/*
@@ -671,7 +664,6 @@ static void __init kvm_guest_init(void)
 	}
 
 #ifdef CONFIG_SMP
-	smp_ops.smp_prepare_cpus = kvm_smp_prepare_cpus;
 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
 	if (pv_sched_yield_supported()) {
 		smp_ops.send_call_func_ipi = kvm_smp_send_call_func_ipi;
@@ -879,8 +871,10 @@ void __init kvm_spinlock_init(void)
 	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
 		return;
 
-	if (kvm_para_has_hint(KVM_HINTS_REALTIME))
+	if (kvm_para_has_hint(KVM_HINTS_REALTIME)) {
+		static_branch_disable(&virt_spin_lock_key);
 		return;
+	}
 
 	/* Don't use the pvqspinlock code if there is only 1 vCPU. */
 	if (num_possible_cpus() == 1)
