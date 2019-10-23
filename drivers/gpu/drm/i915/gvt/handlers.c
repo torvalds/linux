@@ -2796,7 +2796,7 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(CHICKEN_PIPESL_1(PIPE_C), D_BDW_PLUS);
 
 	MMIO_D(WM_MISC, D_BDW);
-	MMIO_D(_MMIO(BDW_EDP_PSR_BASE), D_BDW);
+	MMIO_D(_MMIO(_SRD_CTL_EDP), D_BDW);
 
 	MMIO_D(_MMIO(0x6671c), D_BDW_PLUS);
 	MMIO_D(_MMIO(0x66c00), D_BDW_PLUS);

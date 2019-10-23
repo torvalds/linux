@@ -247,8 +247,7 @@ static struct intel_shared_dpll *
 intel_find_shared_dpll(struct intel_atomic_state *state,
 		       const struct intel_crtc *crtc,
 		       const struct intel_dpll_hw_state *pll_state,
-		       enum intel_dpll_id range_min,
-		       enum intel_dpll_id range_max)
+		       unsigned long dpll_mask)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll, *unused_pll = NULL;
@@ -257,7 +256,9 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
-	for (i = range_min; i <= range_max; i++) {
+	WARN_ON(dpll_mask & ~(BIT(I915_NUM_PLLS) - 1));
+
+	for_each_set_bit(i, &dpll_mask, I915_NUM_PLLS) {
 		pll = &dev_priv->shared_dplls[i];
 
 		/* Only want to check enabled timings first */
@@ -464,8 +465,8 @@ static bool ibx_get_dpll(struct intel_atomic_state *state,
 	} else {
 		pll = intel_find_shared_dpll(state, crtc,
 					     &crtc_state->dpll_hw_state,
-					     DPLL_ID_PCH_PLL_A,
-					     DPLL_ID_PCH_PLL_B);
+					     BIT(DPLL_ID_PCH_PLL_B) |
+					     BIT(DPLL_ID_PCH_PLL_A));
 	}
 
 	if (!pll)
@@ -814,7 +815,8 @@ hsw_ddi_hdmi_get_dpll(struct intel_atomic_state *state,
 
 	pll = intel_find_shared_dpll(state, crtc,
 				     &crtc_state->dpll_hw_state,
-				     DPLL_ID_WRPLL1, DPLL_ID_WRPLL2);
+				     BIT(DPLL_ID_WRPLL2) |
+				     BIT(DPLL_ID_WRPLL1));
 
 	if (!pll)
 		return NULL;
@@ -877,7 +879,7 @@ static bool hsw_get_dpll(struct intel_atomic_state *state,
 
 		pll = intel_find_shared_dpll(state, crtc,
 					     &crtc_state->dpll_hw_state,
-					     DPLL_ID_SPLL, DPLL_ID_SPLL);
+					     BIT(DPLL_ID_SPLL));
 	} else {
 		return false;
 	}
@@ -1447,13 +1449,13 @@ static bool skl_get_dpll(struct intel_atomic_state *state,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
 		pll = intel_find_shared_dpll(state, crtc,
 					     &crtc_state->dpll_hw_state,
-					     DPLL_ID_SKL_DPLL0,
-					     DPLL_ID_SKL_DPLL0);
+					     BIT(DPLL_ID_SKL_DPLL0));
 	else
 		pll = intel_find_shared_dpll(state, crtc,
 					     &crtc_state->dpll_hw_state,
-					     DPLL_ID_SKL_DPLL1,
-					     DPLL_ID_SKL_DPLL3);
+					     BIT(DPLL_ID_SKL_DPLL3) |
+					     BIT(DPLL_ID_SKL_DPLL2) |
+					     BIT(DPLL_ID_SKL_DPLL1));
 	if (!pll)
 		return false;
 
@@ -2401,8 +2403,9 @@ static bool cnl_get_dpll(struct intel_atomic_state *state,
 
 	pll = intel_find_shared_dpll(state, crtc,
 				     &crtc_state->dpll_hw_state,
-				     DPLL_ID_SKL_DPLL0,
-				     DPLL_ID_SKL_DPLL2);
+				     BIT(DPLL_ID_SKL_DPLL2) |
+				     BIT(DPLL_ID_SKL_DPLL1) |
+				     BIT(DPLL_ID_SKL_DPLL0));
 	if (!pll) {
 		DRM_DEBUG_KMS("No PLL selected\n");
 		return false;
@@ -2520,6 +2523,18 @@ static const struct skl_wrpll_params icl_tbt_pll_19_2MHz_values = {
 	.pdiv = 0x4 /* 5 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0,
 };
 
+static const struct skl_wrpll_params tgl_tbt_pll_19_2MHz_values = {
+	.dco_integer = 0x54, .dco_fraction = 0x3000,
+	/* the following params are unused */
+	.pdiv = 0, .kdiv = 0, .qdiv_mode = 0, .qdiv_ratio = 0,
+};
+
+static const struct skl_wrpll_params tgl_tbt_pll_24MHz_values = {
+	.dco_integer = 0x43, .dco_fraction = 0x4000,
+	/* the following params are unused */
+	.pdiv = 0, .kdiv = 0, .qdiv_mode = 0, .qdiv_ratio = 0,
+};
+
 static bool icl_calc_dp_combo_pll(struct intel_crtc_state *crtc_state,
 				  struct skl_wrpll_params *pll_params)
 {
@@ -2547,8 +2562,34 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 
-	*pll_params = dev_priv->cdclk.hw.ref == 24000 ?
-			icl_tbt_pll_24MHz_values : icl_tbt_pll_19_2MHz_values;
+	if (INTEL_GEN(dev_priv) >= 12) {
+		switch (dev_priv->cdclk.hw.ref) {
+		default:
+			MISSING_CASE(dev_priv->cdclk.hw.ref);
+			/* fall-through */
+		case 19200:
+		case 38400:
+			*pll_params = tgl_tbt_pll_19_2MHz_values;
+			break;
+		case 24000:
+			*pll_params = tgl_tbt_pll_24MHz_values;
+			break;
+		}
+	} else {
+		switch (dev_priv->cdclk.hw.ref) {
+		default:
+			MISSING_CASE(dev_priv->cdclk.hw.ref);
+			/* fall-through */
+		case 19200:
+		case 38400:
+			*pll_params = icl_tbt_pll_19_2MHz_values;
+			break;
+		case 24000:
+			*pll_params = icl_tbt_pll_24MHz_values;
+			break;
+		}
+	}
+
 	return true;
 }
 
@@ -2607,7 +2648,8 @@ enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port)
 
 static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				     u32 *target_dco_khz,
-				     struct intel_dpll_hw_state *state)
+				     struct intel_dpll_hw_state *state,
+				     bool is_dkl)
 {
 	u32 dco_min_freq, dco_max_freq;
 	int div1_vals[] = {7, 5, 3, 2};
@@ -2629,8 +2671,13 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				continue;
 
 			if (div2 >= 2) {
+				/*
+				 * Note: a_divratio not matching TGL BSpec
+				 * algorithm but matching hardcoded values and
+				 * working on HW for DP alt-mode at least
+				 */
 				a_divratio = is_dp ? 10 : 5;
-				tlinedrv = 2;
+				tlinedrv = is_dkl ? 1 : 2;
 			} else {
 				a_divratio = 5;
 				tlinedrv = 0;
@@ -2693,11 +2740,12 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	u64 tmp;
 	bool use_ssc = false;
 	bool is_dp = !intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI);
+	bool is_dkl = INTEL_GEN(dev_priv) >= 12;
 
 	memset(pll_state, 0, sizeof(*pll_state));
 
 	if (!icl_mg_pll_find_divisors(clock, is_dp, use_ssc, &dco_khz,
-				      pll_state)) {
+				      pll_state, is_dkl)) {
 		DRM_DEBUG_KMS("Failed to find divisors for clock %d\n", clock);
 		return false;
 	}
@@ -2705,8 +2753,11 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	m1div = 2;
 	m2div_int = dco_khz / (refclk_khz * m1div);
 	if (m2div_int > 255) {
-		m1div = 4;
-		m2div_int = dco_khz / (refclk_khz * m1div);
+		if (!is_dkl) {
+			m1div = 4;
+			m2div_int = dco_khz / (refclk_khz * m1div);
+		}
+
 		if (m2div_int > 255) {
 			DRM_DEBUG_KMS("Failed to find mdiv for clock %d\n",
 				      clock);
@@ -2786,60 +2837,94 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	}
 	ssc_steplog = 4;
 
-	pll_state->mg_pll_div0 = (m2div_rem > 0 ? MG_PLL_DIV0_FRACNEN_H : 0) |
-				  MG_PLL_DIV0_FBDIV_FRAC(m2div_frac) |
-				  MG_PLL_DIV0_FBDIV_INT(m2div_int);
+	/* write pll_state calculations */
+	if (is_dkl) {
+		pll_state->mg_pll_div0 = DKL_PLL_DIV0_INTEG_COEFF(int_coeff) |
+					 DKL_PLL_DIV0_PROP_COEFF(prop_coeff) |
+					 DKL_PLL_DIV0_FBPREDIV(m1div) |
+					 DKL_PLL_DIV0_FBDIV_INT(m2div_int);
 
-	pll_state->mg_pll_div1 = MG_PLL_DIV1_IREF_NDIVRATIO(iref_ndiv) |
-				 MG_PLL_DIV1_DITHER_DIV_2 |
-				 MG_PLL_DIV1_NDIVRATIO(1) |
-				 MG_PLL_DIV1_FBPREDIV(m1div);
+		pll_state->mg_pll_div1 = DKL_PLL_DIV1_IREF_TRIM(iref_trim) |
+					 DKL_PLL_DIV1_TDC_TARGET_CNT(tdc_targetcnt);
 
-	pll_state->mg_pll_lf = MG_PLL_LF_TDCTARGETCNT(tdc_targetcnt) |
-			       MG_PLL_LF_AFCCNTSEL_512 |
-			       MG_PLL_LF_GAINCTRL(1) |
-			       MG_PLL_LF_INT_COEFF(int_coeff) |
-			       MG_PLL_LF_PROP_COEFF(prop_coeff);
+		pll_state->mg_pll_ssc = DKL_PLL_SSC_IREF_NDIV_RATIO(iref_ndiv) |
+					DKL_PLL_SSC_STEP_LEN(ssc_steplen) |
+					DKL_PLL_SSC_STEP_NUM(ssc_steplog) |
+					(use_ssc ? DKL_PLL_SSC_EN : 0);
 
-	pll_state->mg_pll_frac_lock = MG_PLL_FRAC_LOCK_TRUELOCK_CRIT_32 |
-				      MG_PLL_FRAC_LOCK_EARLYLOCK_CRIT_32 |
-				      MG_PLL_FRAC_LOCK_LOCKTHRESH(10) |
-				      MG_PLL_FRAC_LOCK_DCODITHEREN |
-				      MG_PLL_FRAC_LOCK_FEEDFWRDGAIN(feedfwgain);
-	if (use_ssc || m2div_rem > 0)
-		pll_state->mg_pll_frac_lock |= MG_PLL_FRAC_LOCK_FEEDFWRDCAL_EN;
+		pll_state->mg_pll_bias = (m2div_frac ? DKL_PLL_BIAS_FRAC_EN_H : 0) |
+					  DKL_PLL_BIAS_FBDIV_FRAC(m2div_frac);
 
-	pll_state->mg_pll_ssc = (use_ssc ? MG_PLL_SSC_EN : 0) |
-				MG_PLL_SSC_TYPE(2) |
-				MG_PLL_SSC_STEPLENGTH(ssc_steplen) |
-				MG_PLL_SSC_STEPNUM(ssc_steplog) |
-				MG_PLL_SSC_FLLEN |
-				MG_PLL_SSC_STEPSIZE(ssc_stepsize);
+		pll_state->mg_pll_tdc_coldst_bias =
+				DKL_PLL_TDC_SSC_STEP_SIZE(ssc_stepsize) |
+				DKL_PLL_TDC_FEED_FWD_GAIN(feedfwgain);
 
-	pll_state->mg_pll_tdc_coldst_bias = MG_PLL_TDC_COLDST_COLDSTART |
-					    MG_PLL_TDC_COLDST_IREFINT_EN |
-					    MG_PLL_TDC_COLDST_REFBIAS_START_PULSE_W(iref_pulse_w) |
-					    MG_PLL_TDC_TDCOVCCORR_EN |
-					    MG_PLL_TDC_TDCSEL(3);
-
-	pll_state->mg_pll_bias = MG_PLL_BIAS_BIAS_GB_SEL(3) |
-				 MG_PLL_BIAS_INIT_DCOAMP(0x3F) |
-				 MG_PLL_BIAS_BIAS_BONUS(10) |
-				 MG_PLL_BIAS_BIASCAL_EN |
-				 MG_PLL_BIAS_CTRIM(12) |
-				 MG_PLL_BIAS_VREF_RDAC(4) |
-				 MG_PLL_BIAS_IREFTRIM(iref_trim);
-
-	if (refclk_khz == 38400) {
-		pll_state->mg_pll_tdc_coldst_bias_mask = MG_PLL_TDC_COLDST_COLDSTART;
-		pll_state->mg_pll_bias_mask = 0;
 	} else {
-		pll_state->mg_pll_tdc_coldst_bias_mask = -1U;
-		pll_state->mg_pll_bias_mask = -1U;
-	}
+		pll_state->mg_pll_div0 =
+			(m2div_rem > 0 ? MG_PLL_DIV0_FRACNEN_H : 0) |
+			MG_PLL_DIV0_FBDIV_FRAC(m2div_frac) |
+			MG_PLL_DIV0_FBDIV_INT(m2div_int);
 
-	pll_state->mg_pll_tdc_coldst_bias &= pll_state->mg_pll_tdc_coldst_bias_mask;
-	pll_state->mg_pll_bias &= pll_state->mg_pll_bias_mask;
+		pll_state->mg_pll_div1 =
+			MG_PLL_DIV1_IREF_NDIVRATIO(iref_ndiv) |
+			MG_PLL_DIV1_DITHER_DIV_2 |
+			MG_PLL_DIV1_NDIVRATIO(1) |
+			MG_PLL_DIV1_FBPREDIV(m1div);
+
+		pll_state->mg_pll_lf =
+			MG_PLL_LF_TDCTARGETCNT(tdc_targetcnt) |
+			MG_PLL_LF_AFCCNTSEL_512 |
+			MG_PLL_LF_GAINCTRL(1) |
+			MG_PLL_LF_INT_COEFF(int_coeff) |
+			MG_PLL_LF_PROP_COEFF(prop_coeff);
+
+		pll_state->mg_pll_frac_lock =
+			MG_PLL_FRAC_LOCK_TRUELOCK_CRIT_32 |
+			MG_PLL_FRAC_LOCK_EARLYLOCK_CRIT_32 |
+			MG_PLL_FRAC_LOCK_LOCKTHRESH(10) |
+			MG_PLL_FRAC_LOCK_DCODITHEREN |
+			MG_PLL_FRAC_LOCK_FEEDFWRDGAIN(feedfwgain);
+		if (use_ssc || m2div_rem > 0)
+			pll_state->mg_pll_frac_lock |=
+				MG_PLL_FRAC_LOCK_FEEDFWRDCAL_EN;
+
+		pll_state->mg_pll_ssc =
+			(use_ssc ? MG_PLL_SSC_EN : 0) |
+			MG_PLL_SSC_TYPE(2) |
+			MG_PLL_SSC_STEPLENGTH(ssc_steplen) |
+			MG_PLL_SSC_STEPNUM(ssc_steplog) |
+			MG_PLL_SSC_FLLEN |
+			MG_PLL_SSC_STEPSIZE(ssc_stepsize);
+
+		pll_state->mg_pll_tdc_coldst_bias =
+			MG_PLL_TDC_COLDST_COLDSTART |
+			MG_PLL_TDC_COLDST_IREFINT_EN |
+			MG_PLL_TDC_COLDST_REFBIAS_START_PULSE_W(iref_pulse_w) |
+			MG_PLL_TDC_TDCOVCCORR_EN |
+			MG_PLL_TDC_TDCSEL(3);
+
+		pll_state->mg_pll_bias =
+			MG_PLL_BIAS_BIAS_GB_SEL(3) |
+			MG_PLL_BIAS_INIT_DCOAMP(0x3F) |
+			MG_PLL_BIAS_BIAS_BONUS(10) |
+			MG_PLL_BIAS_BIASCAL_EN |
+			MG_PLL_BIAS_CTRIM(12) |
+			MG_PLL_BIAS_VREF_RDAC(4) |
+			MG_PLL_BIAS_IREFTRIM(iref_trim);
+
+		if (refclk_khz == 38400) {
+			pll_state->mg_pll_tdc_coldst_bias_mask =
+				MG_PLL_TDC_COLDST_COLDSTART;
+			pll_state->mg_pll_bias_mask = 0;
+		} else {
+			pll_state->mg_pll_tdc_coldst_bias_mask = -1U;
+			pll_state->mg_pll_bias_mask = -1U;
+		}
+
+		pll_state->mg_pll_tdc_coldst_bias &=
+			pll_state->mg_pll_tdc_coldst_bias_mask;
+		pll_state->mg_pll_bias &= pll_state->mg_pll_bias_mask;
+	}
 
 	return true;
 }
@@ -2893,7 +2978,7 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 		&crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum port port = encoder->port;
-	bool has_dpll4 = false;
+	unsigned long dpll_mask;
 
 	if (!icl_calc_dpll_state(crtc_state, encoder, &port_dpll->hw_state)) {
 		DRM_DEBUG_KMS("Could not calculate combo PHY PLL state.\n");
@@ -2902,16 +2987,19 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 	}
 
 	if (IS_ELKHARTLAKE(dev_priv) && port != PORT_A)
-		has_dpll4 = true;
+		dpll_mask =
+			BIT(DPLL_ID_EHL_DPLL4) |
+			BIT(DPLL_ID_ICL_DPLL1) |
+			BIT(DPLL_ID_ICL_DPLL0);
+	else
+		dpll_mask = BIT(DPLL_ID_ICL_DPLL1) | BIT(DPLL_ID_ICL_DPLL0);
 
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
-						DPLL_ID_ICL_DPLL0,
-						has_dpll4 ? DPLL_ID_EHL_DPLL4
-							  : DPLL_ID_ICL_DPLL1);
+						dpll_mask);
 	if (!port_dpll->pll) {
-		DRM_DEBUG_KMS("No combo PHY PLL found for port %c\n",
-			      port_name(encoder->port));
+		DRM_DEBUG_KMS("No combo PHY PLL found for [ENCODER:%d:%s]\n",
+			      encoder->base.base.id, encoder->base.name);
 		return false;
 	}
 
@@ -2941,8 +3029,7 @@ static bool icl_get_tc_phy_dplls(struct intel_atomic_state *state,
 
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
-						DPLL_ID_ICL_TBTPLL,
-						DPLL_ID_ICL_TBTPLL);
+						BIT(DPLL_ID_ICL_TBTPLL));
 	if (!port_dpll->pll) {
 		DRM_DEBUG_KMS("No TBT-ALT PLL found\n");
 		return false;
@@ -2961,8 +3048,7 @@ static bool icl_get_tc_phy_dplls(struct intel_atomic_state *state,
 							 encoder->port));
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
-						dpll_id,
-						dpll_id);
+						BIT(dpll_id));
 	if (!port_dpll->pll) {
 		DRM_DEBUG_KMS("No MG PHY PLL found\n");
 		goto err_unreference_tbt_pll;
@@ -3079,6 +3165,78 @@ static bool mg_pll_get_hw_state(struct drm_i915_private *dev_priv,
 
 	hw_state->mg_pll_tdc_coldst_bias &= hw_state->mg_pll_tdc_coldst_bias_mask;
 	hw_state->mg_pll_bias &= hw_state->mg_pll_bias_mask;
+
+	ret = true;
+out:
+	intel_display_power_put(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref);
+	return ret;
+}
+
+static bool dkl_pll_get_hw_state(struct drm_i915_private *dev_priv,
+				 struct intel_shared_dpll *pll,
+				 struct intel_dpll_hw_state *hw_state)
+{
+	const enum intel_dpll_id id = pll->info->id;
+	enum tc_port tc_port = icl_pll_id_to_tc_port(id);
+	intel_wakeref_t wakeref;
+	bool ret = false;
+	u32 val;
+
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_DISPLAY_CORE);
+	if (!wakeref)
+		return false;
+
+	val = I915_READ(MG_PLL_ENABLE(tc_port));
+	if (!(val & PLL_ENABLE))
+		goto out;
+
+	/*
+	 * All registers read here have the same HIP_INDEX_REG even though
+	 * they are on different building blocks
+	 */
+	I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x2));
+
+	hw_state->mg_refclkin_ctl = I915_READ(DKL_REFCLKIN_CTL(tc_port));
+	hw_state->mg_refclkin_ctl &= MG_REFCLKIN_CTL_OD_2_MUX_MASK;
+
+	hw_state->mg_clktop2_hsclkctl =
+		I915_READ(DKL_CLKTOP2_HSCLKCTL(tc_port));
+	hw_state->mg_clktop2_hsclkctl &=
+		MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
+		MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
+		MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
+		MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK;
+
+	hw_state->mg_clktop2_coreclkctl1 =
+		I915_READ(DKL_CLKTOP2_CORECLKCTL1(tc_port));
+	hw_state->mg_clktop2_coreclkctl1 &=
+		MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
+
+	hw_state->mg_pll_div0 = I915_READ(DKL_PLL_DIV0(tc_port));
+	hw_state->mg_pll_div0 &= (DKL_PLL_DIV0_INTEG_COEFF_MASK |
+				  DKL_PLL_DIV0_PROP_COEFF_MASK |
+				  DKL_PLL_DIV0_FBPREDIV_MASK |
+				  DKL_PLL_DIV0_FBDIV_INT_MASK);
+
+	hw_state->mg_pll_div1 = I915_READ(DKL_PLL_DIV1(tc_port));
+	hw_state->mg_pll_div1 &= (DKL_PLL_DIV1_IREF_TRIM_MASK |
+				  DKL_PLL_DIV1_TDC_TARGET_CNT_MASK);
+
+	hw_state->mg_pll_ssc = I915_READ(DKL_PLL_SSC(tc_port));
+	hw_state->mg_pll_ssc &= (DKL_PLL_SSC_IREF_NDIV_RATIO_MASK |
+				 DKL_PLL_SSC_STEP_LEN_MASK |
+				 DKL_PLL_SSC_STEP_NUM_MASK |
+				 DKL_PLL_SSC_EN);
+
+	hw_state->mg_pll_bias = I915_READ(DKL_PLL_BIAS(tc_port));
+	hw_state->mg_pll_bias &= (DKL_PLL_BIAS_FRAC_EN_H |
+				  DKL_PLL_BIAS_FBDIV_FRAC_MASK);
+
+	hw_state->mg_pll_tdc_coldst_bias =
+		I915_READ(DKL_PLL_TDC_COLDST_BIAS(tc_port));
+	hw_state->mg_pll_tdc_coldst_bias &= (DKL_PLL_TDC_SSC_STEP_SIZE_MASK |
+					     DKL_PLL_TDC_FEED_FWD_GAIN_MASK);
 
 	ret = true;
 out:
@@ -3220,6 +3378,75 @@ static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
 	POSTING_READ(MG_PLL_TDC_COLDST_BIAS(tc_port));
 }
 
+static void dkl_pll_write(struct drm_i915_private *dev_priv,
+			  struct intel_shared_dpll *pll)
+{
+	struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
+	enum tc_port tc_port = icl_pll_id_to_tc_port(pll->info->id);
+	u32 val;
+
+	/*
+	 * All registers programmed here have the same HIP_INDEX_REG even
+	 * though on different building block
+	 */
+	I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, 0x2));
+
+	/* All the registers are RMW */
+	val = I915_READ(DKL_REFCLKIN_CTL(tc_port));
+	val &= ~MG_REFCLKIN_CTL_OD_2_MUX_MASK;
+	val |= hw_state->mg_refclkin_ctl;
+	I915_WRITE(DKL_REFCLKIN_CTL(tc_port), val);
+
+	val = I915_READ(DKL_CLKTOP2_CORECLKCTL1(tc_port));
+	val &= ~MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
+	val |= hw_state->mg_clktop2_coreclkctl1;
+	I915_WRITE(DKL_CLKTOP2_CORECLKCTL1(tc_port), val);
+
+	val = I915_READ(DKL_CLKTOP2_HSCLKCTL(tc_port));
+	val &= ~(MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
+		 MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
+		 MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
+		 MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK);
+	val |= hw_state->mg_clktop2_hsclkctl;
+	I915_WRITE(DKL_CLKTOP2_HSCLKCTL(tc_port), val);
+
+	val = I915_READ(DKL_PLL_DIV0(tc_port));
+	val &= ~(DKL_PLL_DIV0_INTEG_COEFF_MASK |
+		 DKL_PLL_DIV0_PROP_COEFF_MASK |
+		 DKL_PLL_DIV0_FBPREDIV_MASK |
+		 DKL_PLL_DIV0_FBDIV_INT_MASK);
+	val |= hw_state->mg_pll_div0;
+	I915_WRITE(DKL_PLL_DIV0(tc_port), val);
+
+	val = I915_READ(DKL_PLL_DIV1(tc_port));
+	val &= ~(DKL_PLL_DIV1_IREF_TRIM_MASK |
+		 DKL_PLL_DIV1_TDC_TARGET_CNT_MASK);
+	val |= hw_state->mg_pll_div1;
+	I915_WRITE(DKL_PLL_DIV1(tc_port), val);
+
+	val = I915_READ(DKL_PLL_SSC(tc_port));
+	val &= ~(DKL_PLL_SSC_IREF_NDIV_RATIO_MASK |
+		 DKL_PLL_SSC_STEP_LEN_MASK |
+		 DKL_PLL_SSC_STEP_NUM_MASK |
+		 DKL_PLL_SSC_EN);
+	val |= hw_state->mg_pll_ssc;
+	I915_WRITE(DKL_PLL_SSC(tc_port), val);
+
+	val = I915_READ(DKL_PLL_BIAS(tc_port));
+	val &= ~(DKL_PLL_BIAS_FRAC_EN_H |
+		 DKL_PLL_BIAS_FBDIV_FRAC_MASK);
+	val |= hw_state->mg_pll_bias;
+	I915_WRITE(DKL_PLL_BIAS(tc_port), val);
+
+	val = I915_READ(DKL_PLL_TDC_COLDST_BIAS(tc_port));
+	val &= ~(DKL_PLL_TDC_SSC_STEP_SIZE_MASK |
+		 DKL_PLL_TDC_FEED_FWD_GAIN_MASK);
+	val |= hw_state->mg_pll_tdc_coldst_bias;
+	I915_WRITE(DKL_PLL_TDC_COLDST_BIAS(tc_port), val);
+
+	POSTING_READ(DKL_PLL_TDC_COLDST_BIAS(tc_port));
+}
+
 static void icl_pll_power_enable(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll,
 				 i915_reg_t enable_reg)
@@ -3312,7 +3539,10 @@ static void mg_pll_enable(struct drm_i915_private *dev_priv,
 
 	icl_pll_power_enable(dev_priv, pll, enable_reg);
 
-	icl_mg_pll_write(dev_priv, pll);
+	if (INTEL_GEN(dev_priv) >= 12)
+		dkl_pll_write(dev_priv, pll);
+	else
+		icl_mg_pll_write(dev_priv, pll);
 
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
@@ -3467,11 +3697,22 @@ static const struct intel_dpll_mgr ehl_pll_mgr = {
 	.dump_hw_state = icl_dump_hw_state,
 };
 
+static const struct intel_shared_dpll_funcs dkl_pll_funcs = {
+	.enable = mg_pll_enable,
+	.disable = mg_pll_disable,
+	.get_hw_state = dkl_pll_get_hw_state,
+};
+
 static const struct dpll_info tgl_plls[] = {
 	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0,  0 },
 	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1,  0 },
 	{ "TBT PLL",  &tbt_pll_funcs, DPLL_ID_ICL_TBTPLL, 0 },
-	/* TODO: Add typeC plls */
+	{ "TC PLL 1", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL1, 0 },
+	{ "TC PLL 2", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL2, 0 },
+	{ "TC PLL 3", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL3, 0 },
+	{ "TC PLL 4", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL4, 0 },
+	{ "TC PLL 5", &dkl_pll_funcs, DPLL_ID_TGL_MGPLL5, 0 },
+	{ "TC PLL 6", &dkl_pll_funcs, DPLL_ID_TGL_MGPLL6, 0 },
 	{ },
 };
 
@@ -3479,6 +3720,7 @@ static const struct intel_dpll_mgr tgl_pll_mgr = {
 	.dpll_info = tgl_plls,
 	.get_dplls = icl_get_dplls,
 	.put_dplls = icl_put_dplls,
+	.update_active_dpll = icl_update_active_dpll,
 	.dump_hw_state = icl_dump_hw_state,
 };
 

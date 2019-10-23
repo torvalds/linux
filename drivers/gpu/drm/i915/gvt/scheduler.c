@@ -365,7 +365,8 @@ static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 					  struct i915_gem_context *ctx)
 {
 	struct intel_vgpu_mm *mm = workload->shadow_mm;
-	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ctx->vm);
+	struct i915_ppgtt *ppgtt =
+		i915_vm_to_ppgtt(i915_gem_context_get_vm_rcu(ctx));
 	int i = 0;
 
 	if (mm->ppgtt_mm.root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
@@ -378,6 +379,8 @@ static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 			px_dma(pd) = mm->ppgtt_mm.shadow_pdps[i];
 		}
 	}
+
+	i915_vm_put(&ppgtt->vm);
 }
 
 static int
@@ -385,10 +388,7 @@ intel_gvt_workload_req_alloc(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct intel_vgpu_submission *s = &vgpu->submission;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct i915_request *rq;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	if (workload->req)
 		return 0;
@@ -415,10 +415,9 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct intel_vgpu_submission *s = &vgpu->submission;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int ret;
 
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	lockdep_assert_held(&vgpu->vgpu_lock);
 
 	if (workload->shadow)
 		return 0;
@@ -580,8 +579,6 @@ static void update_vreg_in_ctx(struct intel_vgpu_workload *workload)
 
 static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 {
-	struct intel_vgpu *vgpu = workload->vgpu;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_vgpu_shadow_bb *bb, *pos;
 
 	if (list_empty(&workload->shadow_bb))
@@ -589,8 +586,6 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 
 	bb = list_first_entry(&workload->shadow_bb,
 			struct intel_vgpu_shadow_bb, list);
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
 
 	list_for_each_entry_safe(bb, pos, &workload->shadow_bb, list) {
 		if (bb->obj) {
@@ -609,8 +604,6 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 		list_del(&bb->list);
 		kfree(bb);
 	}
-
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 static int prepare_workload(struct intel_vgpu_workload *workload)
@@ -685,7 +678,6 @@ err_unpin_mm:
 static int dispatch_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct i915_request *rq;
 	int ring_id = workload->ring_id;
 	int ret;
@@ -694,7 +686,6 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 		ring_id, workload);
 
 	mutex_lock(&vgpu->vgpu_lock);
-	mutex_lock(&dev_priv->drm.struct_mutex);
 
 	ret = intel_gvt_workload_req_alloc(workload);
 	if (ret)
@@ -729,7 +720,6 @@ out:
 err_req:
 	if (ret)
 		workload->status = ret;
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 	mutex_unlock(&vgpu->vgpu_lock);
 	return ret;
 }
@@ -887,7 +877,7 @@ void intel_vgpu_clean_workloads(struct intel_vgpu *vgpu,
 	intel_engine_mask_t tmp;
 
 	/* free the unsubmited workloads in the queues. */
-	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
+	for_each_engine_masked(engine, &dev_priv->gt, engine_mask, tmp) {
 		list_for_each_entry_safe(pos, n,
 			&s->workload_q_head[engine->id], list) {
 			list_del_init(&pos->list);
@@ -1233,20 +1223,18 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
+	struct i915_ppgtt *ppgtt;
 	enum intel_engine_id i;
 	int ret;
 
-	mutex_lock(&i915->drm.struct_mutex);
-
 	ctx = i915_gem_context_create_kernel(i915, I915_PRIORITY_MAX);
-	if (IS_ERR(ctx)) {
-		ret = PTR_ERR(ctx);
-		goto out_unlock;
-	}
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	i915_gem_context_set_force_single_submission(ctx);
 
-	i915_context_ppgtt_root_save(s, i915_vm_to_ppgtt(ctx->vm));
+	ppgtt = i915_vm_to_ppgtt(i915_gem_context_get_vm_rcu(ctx));
+	i915_context_ppgtt_root_save(s, ppgtt);
 
 	for_each_engine(engine, i915, i) {
 		struct intel_context *ce;
@@ -1291,12 +1279,12 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	atomic_set(&s->running_workload_num, 0);
 	bitmap_zero(s->tlb_handle_pending, I915_NUM_ENGINES);
 
+	i915_vm_put(&ppgtt->vm);
 	i915_gem_context_put(ctx);
-	mutex_unlock(&i915->drm.struct_mutex);
 	return 0;
 
 out_shadow_ctx:
-	i915_context_ppgtt_root_restore(s, i915_vm_to_ppgtt(ctx->vm));
+	i915_context_ppgtt_root_restore(s, ppgtt);
 	for_each_engine(engine, i915, i) {
 		if (IS_ERR(s->shadow[i]))
 			break;
@@ -1304,9 +1292,8 @@ out_shadow_ctx:
 		intel_context_unpin(s->shadow[i]);
 		intel_context_put(s->shadow[i]);
 	}
+	i915_vm_put(&ppgtt->vm);
 	i915_gem_context_put(ctx);
-out_unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
 	return ret;
 }
 
@@ -1597,9 +1584,9 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	 */
 	if (list_empty(workload_q_head(vgpu, ring_id))) {
 		intel_runtime_pm_get(&dev_priv->runtime_pm);
-		mutex_lock(&dev_priv->drm.struct_mutex);
+		mutex_lock(&vgpu->vgpu_lock);
 		ret = intel_gvt_scan_and_shadow_workload(workload);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
+		mutex_unlock(&vgpu->vgpu_lock);
 		intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
 	}
 

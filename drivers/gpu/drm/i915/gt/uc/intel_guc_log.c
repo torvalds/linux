@@ -607,7 +607,6 @@ out_unlock:
 void intel_guc_log_relay_flush(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	intel_wakeref_t wakeref;
 
 	/*
@@ -616,7 +615,7 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 	 */
 	flush_work(&log->relay.flush_work);
 
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+	with_intel_runtime_pm(guc_to_gt(guc)->uncore->rpm, wakeref)
 		guc_action_flush_log(guc);
 
 	/* GuC would have updated log buffer by now, so capture it */

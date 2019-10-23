@@ -155,7 +155,6 @@ static void clear_pages_dma_fence_cb(struct dma_fence *fence,
 static void clear_pages_worker(struct work_struct *work)
 {
 	struct clear_pages_work *w = container_of(work, typeof(*w), work);
-	struct drm_i915_private *i915 = w->ce->engine->i915;
 	struct drm_i915_gem_object *obj = w->sleeve->vma->obj;
 	struct i915_vma *vma = w->sleeve->vma;
 	struct i915_request *rq;
@@ -173,11 +172,9 @@ static void clear_pages_worker(struct work_struct *work)
 	obj->read_domains = I915_GEM_GPU_DOMAINS;
 	obj->write_domain = 0;
 
-	/* XXX: we need to kill this */
-	mutex_lock(&i915->drm.struct_mutex);
 	err = i915_vma_pin(vma, 0, 0, PIN_USER);
 	if (unlikely(err))
-		goto out_unlock;
+		goto out_signal;
 
 	batch = intel_emit_vma_fill_blt(w->ce, vma, w->value);
 	if (IS_ERR(batch)) {
@@ -211,7 +208,7 @@ static void clear_pages_worker(struct work_struct *work)
 	 * keep track of the GPU activity within this vma/request, and
 	 * propagate the signal from the request to w->dma.
 	 */
-	err = i915_active_ref(&vma->active, rq->timeline, rq);
+	err = __i915_vma_move_to_active(vma, rq);
 	if (err)
 		goto out_request;
 
@@ -229,8 +226,6 @@ out_batch:
 	intel_emit_vma_release(w->ce, batch);
 out_unpin:
 	i915_vma_unpin(vma);
-out_unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
 out_signal:
 	if (unlikely(err)) {
 		dma_fence_set_error(&w->dma, err);

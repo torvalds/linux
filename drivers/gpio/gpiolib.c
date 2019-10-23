@@ -86,6 +86,7 @@ static int gpiochip_add_irqchip(struct gpio_chip *gpiochip,
 				struct lock_class_key *lock_key,
 				struct lock_class_key *request_key);
 static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip);
+static int gpiochip_irqchip_init_hw(struct gpio_chip *gpiochip);
 static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gpiochip);
 static void gpiochip_irqchip_free_valid_mask(struct gpio_chip *gpiochip);
 
@@ -1406,6 +1407,10 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 
 	machine_gpiochip_add(chip);
 
+	ret = gpiochip_irqchip_init_hw(chip);
+	if (ret)
+		goto err_remove_acpi_chip;
+
 	ret = gpiochip_irqchip_init_valid_mask(chip);
 	if (ret)
 		goto err_remove_acpi_chip;
@@ -1621,6 +1626,16 @@ static struct gpio_chip *find_chip_by_name(const char *name)
 /*
  * The following is irqchip helper code for gpiochips.
  */
+
+static int gpiochip_irqchip_init_hw(struct gpio_chip *gc)
+{
+	struct gpio_irq_chip *girq = &gc->irq;
+
+	if (!girq->init_hw)
+		return 0;
+
+	return girq->init_hw(gc);
+}
 
 static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gc)
 {
@@ -2446,8 +2461,13 @@ static inline int gpiochip_add_irqchip(struct gpio_chip *gpiochip,
 {
 	return 0;
 }
-
 static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip) {}
+
+static inline int gpiochip_irqchip_init_hw(struct gpio_chip *gpiochip)
+{
+	return 0;
+}
+
 static inline int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gpiochip)
 {
 	return 0;
@@ -3070,8 +3090,10 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 		if (!ret)
 			goto set_output_value;
 		/* Emulate open drain by not actively driving the line high */
-		if (value)
-			return gpiod_direction_input(desc);
+		if (value) {
+			ret = gpiod_direction_input(desc);
+			goto set_output_flag;
+		}
 	}
 	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags)) {
 		ret = gpio_set_config(gc, gpio_chip_hwgpio(desc),
@@ -3079,8 +3101,10 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 		if (!ret)
 			goto set_output_value;
 		/* Emulate open source by not actively driving the line low */
-		if (!value)
-			return gpiod_direction_input(desc);
+		if (!value) {
+			ret = gpiod_direction_input(desc);
+			goto set_output_flag;
+		}
 	} else {
 		gpio_set_config(gc, gpio_chip_hwgpio(desc),
 				PIN_CONFIG_DRIVE_PUSH_PULL);
@@ -3088,6 +3112,17 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 
 set_output_value:
 	return gpiod_direction_output_raw_commit(desc, value);
+
+set_output_flag:
+	/*
+	 * When emulating open-source or open-drain functionalities by not
+	 * actively driving the line (setting mode to input) we still need to
+	 * set the IS_OUT flag or otherwise we won't be able to set the line
+	 * value anymore.
+	 */
+	if (ret == 0)
+		set_bit(FLAG_IS_OUT, &desc->flags);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gpiod_direction_output);
 
@@ -3448,8 +3483,6 @@ static void gpio_set_open_drain_value_commit(struct gpio_desc *desc, bool value)
 
 	if (value) {
 		ret = chip->direction_input(chip, offset);
-		if (!ret)
-			clear_bit(FLAG_IS_OUT, &desc->flags);
 	} else {
 		ret = chip->direction_output(chip, offset, 0);
 		if (!ret)
@@ -3479,8 +3512,6 @@ static void gpio_set_open_source_value_commit(struct gpio_desc *desc, bool value
 			set_bit(FLAG_IS_OUT, &desc->flags);
 	} else {
 		ret = chip->direction_input(chip, offset);
-		if (!ret)
-			clear_bit(FLAG_IS_OUT, &desc->flags);
 	}
 	trace_gpio_direction(desc_to_gpio(desc), !value, ret);
 	if (ret < 0)

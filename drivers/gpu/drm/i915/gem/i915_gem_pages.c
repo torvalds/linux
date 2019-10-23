@@ -18,6 +18,9 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 
 	lockdep_assert_held(&obj->mm.lock);
 
+	if (i915_gem_object_is_volatile(obj))
+		obj->mm.madv = I915_MADV_DONTNEED;
+
 	/* Make the pages coherent with the GPU (flushing any swapin). */
 	if (obj->cache_dirty) {
 		obj->write_domain = 0;
@@ -71,6 +74,7 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 			list = &i915->mm.shrink_list;
 		list_add_tail(&obj->mm.link, list);
 
+		atomic_set(&obj->mm.shrink_pin, 0);
 		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 	}
 }
@@ -158,6 +162,9 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 	pages = fetch_and_zero(&obj->mm.pages);
 	if (IS_ERR_OR_NULL(pages))
 		return pages;
+
+	if (i915_gem_object_is_volatile(obj))
+		obj->mm.madv = I915_MADV_WILLNEED;
 
 	i915_gem_object_make_unshrinkable(obj);
 

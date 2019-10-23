@@ -97,7 +97,7 @@ static inline void plic_irq_toggle(const struct cpumask *mask,
 	}
 }
 
-static void plic_irq_enable(struct irq_data *d)
+static void plic_irq_unmask(struct irq_data *d)
 {
 	unsigned int cpu = cpumask_any_and(irq_data_get_affinity_mask(d),
 					   cpu_online_mask);
@@ -106,7 +106,7 @@ static void plic_irq_enable(struct irq_data *d)
 	plic_irq_toggle(cpumask_of(cpu), d->hwirq, 1);
 }
 
-static void plic_irq_disable(struct irq_data *d)
+static void plic_irq_mask(struct irq_data *d)
 {
 	plic_irq_toggle(cpu_possible_mask, d->hwirq, 0);
 }
@@ -125,10 +125,8 @@ static int plic_set_affinity(struct irq_data *d,
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
-	if (!irqd_irq_disabled(d)) {
-		plic_irq_toggle(cpu_possible_mask, d->hwirq, 0);
-		plic_irq_toggle(cpumask_of(cpu), d->hwirq, 1);
-	}
+	plic_irq_toggle(cpu_possible_mask, d->hwirq, 0);
+	plic_irq_toggle(cpumask_of(cpu), d->hwirq, 1);
 
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
@@ -136,14 +134,18 @@ static int plic_set_affinity(struct irq_data *d,
 }
 #endif
 
+static void plic_irq_eoi(struct irq_data *d)
+{
+	struct plic_handler *handler = this_cpu_ptr(&plic_handlers);
+
+	writel(d->hwirq, handler->hart_base + CONTEXT_CLAIM);
+}
+
 static struct irq_chip plic_chip = {
 	.name		= "SiFive PLIC",
-	/*
-	 * There is no need to mask/unmask PLIC interrupts.  They are "masked"
-	 * by reading claim and "unmasked" when writing it back.
-	 */
-	.irq_enable	= plic_irq_enable,
-	.irq_disable	= plic_irq_disable,
+	.irq_mask	= plic_irq_mask,
+	.irq_unmask	= plic_irq_unmask,
+	.irq_eoi	= plic_irq_eoi,
 #ifdef CONFIG_SMP
 	.irq_set_affinity = plic_set_affinity,
 #endif
@@ -152,7 +154,7 @@ static struct irq_chip plic_chip = {
 static int plic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 			      irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &plic_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &plic_chip, handle_fasteoi_irq);
 	irq_set_chip_data(irq, NULL);
 	irq_set_noprobe(irq);
 	return 0;
@@ -188,7 +190,6 @@ static void plic_handle_irq(struct pt_regs *regs)
 					hwirq);
 		else
 			generic_handle_irq(irq);
-		writel(hwirq, claim);
 	}
 	csr_set(sie, SIE_SEIE);
 }

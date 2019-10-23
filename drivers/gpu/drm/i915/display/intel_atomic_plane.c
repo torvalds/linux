@@ -144,6 +144,7 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					struct intel_plane_state *new_plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(new_plane_state->base.plane);
+	const struct drm_framebuffer *fb = new_plane_state->base.fb;
 	int ret;
 
 	new_crtc_state->active_planes &= ~BIT(plane->id);
@@ -164,11 +165,11 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 		new_crtc_state->active_planes |= BIT(plane->id);
 
 	if (new_plane_state->base.visible &&
-	    is_planar_yuv_format(new_plane_state->base.fb->format->format))
+	    drm_format_info_is_yuv_semiplanar(fb->format))
 		new_crtc_state->nv12_planes |= BIT(plane->id);
 
 	if (new_plane_state->base.visible &&
-	    new_plane_state->base.fb->format->format == DRM_FORMAT_C8)
+	    fb->format->format == DRM_FORMAT_C8)
 		new_crtc_state->c8_planes |= BIT(plane->id);
 
 	if (new_plane_state->base.visible || old_plane_state->base.visible)
@@ -194,14 +195,11 @@ get_crtc_from_states(const struct intel_plane_state *old_plane_state,
 	return NULL;
 }
 
-static int intel_plane_atomic_check(struct drm_plane *_plane,
-				    struct drm_plane_state *_new_plane_state)
+int intel_plane_atomic_check(struct intel_atomic_state *state,
+			     struct intel_plane *plane)
 {
-	struct intel_plane *plane = to_intel_plane(_plane);
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(_new_plane_state->state);
 	struct intel_plane_state *new_plane_state =
-		to_intel_plane_state(_new_plane_state);
+		intel_atomic_get_new_plane_state(state, plane);
 	const struct intel_plane_state *old_plane_state =
 		intel_atomic_get_old_plane_state(state, plane);
 	struct intel_crtc *crtc =
@@ -320,9 +318,9 @@ void skl_update_planes_on_crtc(struct intel_atomic_state *state,
 
 		if (new_plane_state->base.visible) {
 			intel_update_plane(plane, new_crtc_state, new_plane_state);
-		} else if (new_plane_state->slave) {
+		} else if (new_plane_state->planar_slave) {
 			struct intel_plane *master =
-				new_plane_state->linked_plane;
+				new_plane_state->planar_linked_plane;
 
 			/*
 			 * We update the slave plane from this function because
@@ -368,5 +366,4 @@ void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
 const struct drm_plane_helper_funcs intel_plane_helper_funcs = {
 	.prepare_fb = intel_prepare_plane_fb,
 	.cleanup_fb = intel_cleanup_plane_fb,
-	.atomic_check = intel_plane_atomic_check,
 };

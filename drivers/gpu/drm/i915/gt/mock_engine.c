@@ -240,6 +240,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	struct mock_engine *engine;
 
 	GEM_BUG_ON(id >= I915_NUM_ENGINES);
+	GEM_BUG_ON(!i915->gt.uncore);
 
 	engine = kzalloc(sizeof(*engine) + PAGE_SIZE, GFP_KERNEL);
 	if (!engine)
@@ -248,9 +249,11 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	/* minimal engine setup for requests */
 	engine->base.i915 = i915;
 	engine->base.gt = &i915->gt;
+	engine->base.uncore = i915->gt.uncore;
 	snprintf(engine->base.name, sizeof(engine->base.name), "%s", name);
 	engine->base.id = id;
 	engine->base.mask = BIT(id);
+	engine->base.legacy_idx = INVALID_ENGINE;
 	engine->base.instance = id;
 	engine->base.status_page.addr = (void *)(engine + 1);
 
@@ -264,6 +267,9 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.reset.reset = mock_reset;
 	engine->base.reset.finish = mock_reset_finish;
 	engine->base.cancel_requests = mock_cancel_requests;
+
+	i915->gt.engine[id] = &engine->base;
+	i915->gt.engine_class[0][id] = &engine->base;
 
 	/* fake hw queue */
 	spin_lock_init(&engine->hw_lock);

@@ -155,21 +155,30 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	llist_for_each_entry_safe(obj, on, freed, freed) {
-		struct i915_vma *vma, *vn;
-
 		trace_i915_gem_object_destroy(obj);
 
-		mutex_lock(&i915->drm.struct_mutex);
+		if (!list_empty(&obj->vma.list)) {
+			struct i915_vma *vma;
 
-		list_for_each_entry_safe(vma, vn, &obj->vma.list, obj_link) {
-			GEM_BUG_ON(i915_vma_is_active(vma));
-			vma->flags &= ~I915_VMA_PIN_MASK;
-			i915_vma_destroy(vma);
+			/*
+			 * Note that the vma keeps an object reference while
+			 * it is active, so it *should* not sleep while we
+			 * destroy it. Our debug code errs insits it *might*.
+			 * For the moment, play along.
+			 */
+			spin_lock(&obj->vma.lock);
+			while ((vma = list_first_entry_or_null(&obj->vma.list,
+							       struct i915_vma,
+							       obj_link))) {
+				GEM_BUG_ON(vma->obj != obj);
+				spin_unlock(&obj->vma.lock);
+
+				i915_vma_destroy(vma);
+
+				spin_lock(&obj->vma.lock);
+			}
+			spin_unlock(&obj->vma.lock);
 		}
-		GEM_BUG_ON(!list_empty(&obj->vma.list));
-		GEM_BUG_ON(!RB_EMPTY_ROOT(&obj->vma.tree));
-
-		mutex_unlock(&i915->drm.struct_mutex);
 
 		GEM_BUG_ON(atomic_read(&obj->bind_count));
 		GEM_BUG_ON(obj->userfault_count);

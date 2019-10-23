@@ -11,6 +11,7 @@
 #include "intel_engine_pool.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
+#include "intel_rc6.h"
 
 static int __engine_unpark(struct intel_wakeref *wf)
 {
@@ -103,7 +104,7 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 		/* Context switch failed, hope for the best! Maybe reset? */
 		goto out_unlock;
 
-	intel_timeline_enter(rq->timeline);
+	intel_timeline_enter(i915_request_timeline(rq));
 
 	/* Check again on the next retirement. */
 	engine->wakeref_serial = engine->serial + 1;
@@ -121,6 +122,19 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 out_unlock:
 	__timeline_mark_unlock(engine->kernel_context, flags);
 	return result;
+}
+
+static void call_idle_barriers(struct intel_engine_cs *engine)
+{
+	struct llist_node *node, *next;
+
+	llist_for_each_safe(node, next, llist_del_all(&engine->barrier_tasks)) {
+		struct dma_fence_cb *cb =
+			container_of((struct list_head *)node,
+				     typeof(*cb), node);
+
+		cb->func(NULL, cb);
+	}
 }
 
 static int __engine_park(struct intel_wakeref *wf)
@@ -141,6 +155,8 @@ static int __engine_park(struct intel_wakeref *wf)
 		return -EBUSY;
 
 	GEM_TRACE("%s\n", engine->name);
+
+	call_idle_barriers(engine); /* cleanup after wedging */
 
 	intel_engine_disarm_breadcrumbs(engine);
 	intel_engine_pool_park(&engine->pool);
@@ -169,7 +185,7 @@ static const struct intel_wakeref_ops wf_ops = {
 
 void intel_engine_init__pm(struct intel_engine_cs *engine)
 {
-	struct intel_runtime_pm *rpm = &engine->i915->runtime_pm;
+	struct intel_runtime_pm *rpm = engine->uncore->rpm;
 
 	intel_wakeref_init(&engine->wakeref, rpm, &wf_ops);
 }

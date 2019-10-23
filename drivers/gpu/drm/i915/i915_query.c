@@ -7,6 +7,7 @@
 #include <linux/nospec.h>
 
 #include "i915_drv.h"
+#include "i915_perf.h"
 #include "i915_query.h"
 #include <uapi/drm/i915_drm.h>
 
@@ -37,8 +38,6 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	struct drm_i915_query_topology_info topo;
 	u32 slice_length, subslice_length, eu_length, total_length;
-	u8 subslice_stride = GEN_SSEU_STRIDE(sseu->max_subslices);
-	u8 eu_stride = GEN_SSEU_STRIDE(sseu->max_eus_per_subslice);
 	int ret;
 
 	if (query_item->flags != 0)
@@ -50,8 +49,8 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 	BUILD_BUG_ON(sizeof(u8) != sizeof(sseu->slice_mask));
 
 	slice_length = sizeof(sseu->slice_mask);
-	subslice_length = sseu->max_slices * subslice_stride;
-	eu_length = sseu->max_slices * sseu->max_subslices * eu_stride;
+	subslice_length = sseu->max_slices * sseu->ss_stride;
+	eu_length = sseu->max_slices * sseu->max_subslices * sseu->eu_stride;
 	total_length = sizeof(topo) + slice_length + subslice_length +
 		       eu_length;
 
@@ -69,9 +68,9 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 	topo.max_eus_per_subslice = sseu->max_eus_per_subslice;
 
 	topo.subslice_offset = slice_length;
-	topo.subslice_stride = subslice_stride;
+	topo.subslice_stride = sseu->ss_stride;
 	topo.eu_offset = slice_length + subslice_length;
-	topo.eu_stride = eu_stride;
+	topo.eu_stride = sseu->eu_stride;
 
 	if (__copy_to_user(u64_to_user_ptr(query_item->data_ptr),
 			   &topo, sizeof(topo)))
@@ -142,10 +141,305 @@ query_engine_info(struct drm_i915_private *i915,
 	return len;
 }
 
+static int can_copy_perf_config_registers_or_number(u32 user_n_regs,
+						    u64 user_regs_ptr,
+						    u32 kernel_n_regs)
+{
+	/*
+	 * We'll just put the number of registers, and won't copy the
+	 * register.
+	 */
+	if (user_n_regs == 0)
+		return 0;
+
+	if (user_n_regs < kernel_n_regs)
+		return -EINVAL;
+
+	if (!access_ok(u64_to_user_ptr(user_regs_ptr),
+		       2 * sizeof(u32) * kernel_n_regs))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int copy_perf_config_registers_or_number(const struct i915_oa_reg *kernel_regs,
+						u32 kernel_n_regs,
+						u64 user_regs_ptr,
+						u32 *user_n_regs)
+{
+	u32 r;
+
+	if (*user_n_regs == 0) {
+		*user_n_regs = kernel_n_regs;
+		return 0;
+	}
+
+	*user_n_regs = kernel_n_regs;
+
+	for (r = 0; r < kernel_n_regs; r++) {
+		u32 __user *user_reg_ptr =
+			u64_to_user_ptr(user_regs_ptr + sizeof(u32) * r * 2);
+		u32 __user *user_val_ptr =
+			u64_to_user_ptr(user_regs_ptr + sizeof(u32) * r * 2 +
+					sizeof(u32));
+		int ret;
+
+		ret = __put_user(i915_mmio_reg_offset(kernel_regs[r].addr),
+				 user_reg_ptr);
+		if (ret)
+			return -EFAULT;
+
+		ret = __put_user(kernel_regs[r].value, user_val_ptr);
+		if (ret)
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int query_perf_config_data(struct drm_i915_private *i915,
+				  struct drm_i915_query_item *query_item,
+				  bool use_uuid)
+{
+	struct drm_i915_query_perf_config __user *user_query_config_ptr =
+		u64_to_user_ptr(query_item->data_ptr);
+	struct drm_i915_perf_oa_config __user *user_config_ptr =
+		u64_to_user_ptr(query_item->data_ptr +
+				sizeof(struct drm_i915_query_perf_config));
+	struct drm_i915_perf_oa_config user_config;
+	struct i915_perf *perf = &i915->perf;
+	struct i915_oa_config *oa_config;
+	char uuid[UUID_STRING_LEN + 1];
+	u64 config_id;
+	u32 flags, total_size;
+	int ret;
+
+	if (!perf->i915)
+		return -ENODEV;
+
+	total_size =
+		sizeof(struct drm_i915_query_perf_config) +
+		sizeof(struct drm_i915_perf_oa_config);
+
+	if (query_item->length == 0)
+		return total_size;
+
+	if (query_item->length < total_size) {
+		DRM_DEBUG("Invalid query config data item size=%u expected=%u\n",
+			  query_item->length, total_size);
+		return -EINVAL;
+	}
+
+	if (!access_ok(user_query_config_ptr, total_size))
+		return -EFAULT;
+
+	if (__get_user(flags, &user_query_config_ptr->flags))
+		return -EFAULT;
+
+	if (flags != 0)
+		return -EINVAL;
+
+	if (use_uuid) {
+		struct i915_oa_config *tmp;
+		int id;
+
+		BUILD_BUG_ON(sizeof(user_query_config_ptr->uuid) >= sizeof(uuid));
+
+		memset(&uuid, 0, sizeof(uuid));
+		if (__copy_from_user(uuid, user_query_config_ptr->uuid,
+				     sizeof(user_query_config_ptr->uuid)))
+			return -EFAULT;
+
+		oa_config = NULL;
+		rcu_read_lock();
+		idr_for_each_entry(&perf->metrics_idr, tmp, id) {
+			if (!strcmp(tmp->uuid, uuid)) {
+				oa_config = i915_oa_config_get(tmp);
+				break;
+			}
+		}
+		rcu_read_unlock();
+	} else {
+		if (__get_user(config_id, &user_query_config_ptr->config))
+			return -EFAULT;
+
+		oa_config = i915_perf_get_oa_config(perf, config_id);
+	}
+	if (!oa_config)
+		return -ENOENT;
+
+	if (__copy_from_user(&user_config, user_config_ptr,
+			     sizeof(user_config))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = can_copy_perf_config_registers_or_number(user_config.n_boolean_regs,
+						       user_config.boolean_regs_ptr,
+						       oa_config->b_counter_regs_len);
+	if (ret)
+		goto out;
+
+	ret = can_copy_perf_config_registers_or_number(user_config.n_flex_regs,
+						       user_config.flex_regs_ptr,
+						       oa_config->flex_regs_len);
+	if (ret)
+		goto out;
+
+	ret = can_copy_perf_config_registers_or_number(user_config.n_mux_regs,
+						       user_config.mux_regs_ptr,
+						       oa_config->mux_regs_len);
+	if (ret)
+		goto out;
+
+	ret = copy_perf_config_registers_or_number(oa_config->b_counter_regs,
+						   oa_config->b_counter_regs_len,
+						   user_config.boolean_regs_ptr,
+						   &user_config.n_boolean_regs);
+	if (ret)
+		goto out;
+
+	ret = copy_perf_config_registers_or_number(oa_config->flex_regs,
+						   oa_config->flex_regs_len,
+						   user_config.flex_regs_ptr,
+						   &user_config.n_flex_regs);
+	if (ret)
+		goto out;
+
+	ret = copy_perf_config_registers_or_number(oa_config->mux_regs,
+						   oa_config->mux_regs_len,
+						   user_config.mux_regs_ptr,
+						   &user_config.n_mux_regs);
+	if (ret)
+		goto out;
+
+	memcpy(user_config.uuid, oa_config->uuid, sizeof(user_config.uuid));
+
+	if (__copy_to_user(user_config_ptr, &user_config,
+			   sizeof(user_config))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = total_size;
+
+out:
+	i915_oa_config_put(oa_config);
+	return ret;
+}
+
+static size_t sizeof_perf_config_list(size_t count)
+{
+	return sizeof(struct drm_i915_query_perf_config) + sizeof(u64) * count;
+}
+
+static size_t sizeof_perf_metrics(struct i915_perf *perf)
+{
+	struct i915_oa_config *tmp;
+	size_t i;
+	int id;
+
+	i = 1;
+	rcu_read_lock();
+	idr_for_each_entry(&perf->metrics_idr, tmp, id)
+		i++;
+	rcu_read_unlock();
+
+	return sizeof_perf_config_list(i);
+}
+
+static int query_perf_config_list(struct drm_i915_private *i915,
+				  struct drm_i915_query_item *query_item)
+{
+	struct drm_i915_query_perf_config __user *user_query_config_ptr =
+		u64_to_user_ptr(query_item->data_ptr);
+	struct i915_perf *perf = &i915->perf;
+	u64 *oa_config_ids = NULL;
+	int alloc, n_configs;
+	u32 flags;
+	int ret;
+
+	if (!perf->i915)
+		return -ENODEV;
+
+	if (query_item->length == 0)
+		return sizeof_perf_metrics(perf);
+
+	if (get_user(flags, &user_query_config_ptr->flags))
+		return -EFAULT;
+
+	if (flags != 0)
+		return -EINVAL;
+
+	n_configs = 1;
+	do {
+		struct i915_oa_config *tmp;
+		u64 *ids;
+		int id;
+
+		ids = krealloc(oa_config_ids,
+			       n_configs * sizeof(*oa_config_ids),
+			       GFP_KERNEL);
+		if (!ids)
+			return -ENOMEM;
+
+		alloc = fetch_and_zero(&n_configs);
+
+		ids[n_configs++] = 1ull; /* reserved for test_config */
+		rcu_read_lock();
+		idr_for_each_entry(&perf->metrics_idr, tmp, id) {
+			if (n_configs < alloc)
+				ids[n_configs] = id;
+			n_configs++;
+		}
+		rcu_read_unlock();
+
+		oa_config_ids = ids;
+	} while (n_configs > alloc);
+
+	if (query_item->length < sizeof_perf_config_list(n_configs)) {
+		DRM_DEBUG("Invalid query config list item size=%u expected=%zu\n",
+			  query_item->length,
+			  sizeof_perf_config_list(n_configs));
+		kfree(oa_config_ids);
+		return -EINVAL;
+	}
+
+	if (put_user(n_configs, &user_query_config_ptr->config)) {
+		kfree(oa_config_ids);
+		return -EFAULT;
+	}
+
+	ret = copy_to_user(user_query_config_ptr + 1,
+			   oa_config_ids,
+			   n_configs * sizeof(*oa_config_ids));
+	kfree(oa_config_ids);
+	if (ret)
+		return -EFAULT;
+
+	return sizeof_perf_config_list(n_configs);
+}
+
+static int query_perf_config(struct drm_i915_private *i915,
+			     struct drm_i915_query_item *query_item)
+{
+	switch (query_item->flags) {
+	case DRM_I915_QUERY_PERF_CONFIG_LIST:
+		return query_perf_config_list(i915, query_item);
+	case DRM_I915_QUERY_PERF_CONFIG_DATA_FOR_UUID:
+		return query_perf_config_data(i915, query_item, true);
+	case DRM_I915_QUERY_PERF_CONFIG_DATA_FOR_ID:
+		return query_perf_config_data(i915, query_item, false);
+	default:
+		return -EINVAL;
+	}
+}
+
 static int (* const i915_query_funcs[])(struct drm_i915_private *dev_priv,
 					struct drm_i915_query_item *query_item) = {
 	query_topology_info,
 	query_engine_info,
+	query_perf_config,
 };
 
 int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)

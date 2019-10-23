@@ -43,10 +43,21 @@ static inline int intel_gt_pm_wait_for_idle(struct intel_gt *gt)
 }
 
 void intel_gt_pm_init_early(struct intel_gt *gt);
+void intel_gt_pm_init(struct intel_gt *gt);
+void intel_gt_pm_disable(struct intel_gt *gt);
+void intel_gt_pm_fini(struct intel_gt *gt);
 
 void intel_gt_sanitize(struct intel_gt *gt, bool force);
+
 int intel_gt_resume(struct intel_gt *gt);
+void intel_gt_suspend(struct intel_gt *gt);
+
 void intel_gt_runtime_suspend(struct intel_gt *gt);
 int intel_gt_runtime_resume(struct intel_gt *gt);
+
+static inline bool is_mock_gt(const struct intel_gt *gt)
+{
+	return I915_SELFTEST_ONLY(gt->awake == -ENODEV);
+}
 
 #endif /* INTEL_GT_PM_H */

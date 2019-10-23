@@ -280,7 +280,7 @@ static void intel_dvo_pre_enable(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
-	int pipe = crtc->pipe;
+	enum pipe pipe = crtc->pipe;
 	u32 dvo_val;
 	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
 	i915_reg_t dvo_srcdim_reg = intel_dvo->dev.dvo_srcdim_reg;
@@ -505,7 +505,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		intel_encoder->type = INTEL_OUTPUT_DVO;
 		intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 		intel_encoder->port = port;
-		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
+		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B);
 
 		switch (dvo->type) {
 		case INTEL_DVO_CHIP_TMDS:

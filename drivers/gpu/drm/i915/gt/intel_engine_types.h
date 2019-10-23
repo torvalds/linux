@@ -148,6 +148,7 @@ enum intel_engine_id {
 	VECS1,
 #define _VECS(n) (VECS0 + (n))
 	I915_NUM_ENGINES
+#define INVALID_ENGINE ((enum intel_engine_id)-1)
 };
 
 struct st_preempt_hang {
@@ -303,10 +304,12 @@ struct intel_engine_cs {
 	u8 uabi_class;
 	u8 uabi_instance;
 
+	u32 uabi_capabilities;
 	u32 context_size;
 	u32 mmio_base;
 
-	u32 uabi_capabilities;
+	unsigned int context_tag;
+#define NUM_CONTEXT_TAG roundup_pow_of_two(2 * EXECLIST_MAX_PORTS)
 
 	struct rb_node uabi_node;
 
@@ -481,6 +484,7 @@ struct intel_engine_cs {
 #define I915_ENGINE_HAS_SEMAPHORES   BIT(3)
 #define I915_ENGINE_NEEDS_BREADCRUMB_TASKLET BIT(4)
 #define I915_ENGINE_IS_VIRTUAL       BIT(5)
+#define I915_ENGINE_HAS_RELATIVE_MMIO BIT(6)
 	unsigned int flags;
 
 	/*
@@ -576,20 +580,24 @@ intel_engine_is_virtual(const struct intel_engine_cs *engine)
 	return engine->flags & I915_ENGINE_IS_VIRTUAL;
 }
 
-#define instdone_slice_mask(dev_priv__) \
-	(IS_GEN(dev_priv__, 7) ? \
-	 1 : RUNTIME_INFO(dev_priv__)->sseu.slice_mask)
+static inline bool
+intel_engine_has_relative_mmio(const struct intel_engine_cs * const engine)
+{
+	return engine->flags & I915_ENGINE_HAS_RELATIVE_MMIO;
+}
 
-#define instdone_subslice_mask(dev_priv__) \
-	(IS_GEN(dev_priv__, 7) ? \
-	 1 : RUNTIME_INFO(dev_priv__)->sseu.subslice_mask[0])
+#define instdone_has_slice(dev_priv___, sseu___, slice___) \
+	((IS_GEN(dev_priv___, 7) ? 1 : ((sseu___)->slice_mask)) & BIT(slice___))
 
-#define for_each_instdone_slice_subslice(dev_priv__, slice__, subslice__) \
-	for ((slice__) = 0, (subslice__) = 0; \
-	     (slice__) < I915_MAX_SLICES; \
-	     (subslice__) = ((subslice__) + 1) < I915_MAX_SUBSLICES ? (subslice__) + 1 : 0, \
-	       (slice__) += ((subslice__) == 0)) \
-		for_each_if((BIT(slice__) & instdone_slice_mask(dev_priv__)) && \
-			    (BIT(subslice__) & instdone_subslice_mask(dev_priv__)))
+#define instdone_has_subslice(dev_priv__, sseu__, slice__, subslice__) \
+	(IS_GEN(dev_priv__, 7) ? (1 & BIT(subslice__)) : \
+	 intel_sseu_has_subslice(sseu__, 0, subslice__))
 
+#define for_each_instdone_slice_subslice(dev_priv_, sseu_, slice_, subslice_) \
+	for ((slice_) = 0, (subslice_) = 0; (slice_) < I915_MAX_SLICES; \
+	     (subslice_) = ((subslice_) + 1) % I915_MAX_SUBSLICES, \
+	     (slice_) += ((subslice_) == 0)) \
+		for_each_if((instdone_has_slice(dev_priv_, sseu_, slice_)) && \
+			    (instdone_has_subslice(dev_priv_, sseu_, slice_, \
+						    subslice_)))
 #endif /* __INTEL_ENGINE_TYPES_H__ */

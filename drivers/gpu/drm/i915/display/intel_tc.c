@@ -23,32 +23,38 @@ static const char *tc_port_mode_name(enum tc_port_mode mode)
 	return names[mode];
 }
 
-static bool has_modular_fia(struct drm_i915_private *i915)
+static void
+tc_port_load_fia_params(struct drm_i915_private *i915,
+			struct intel_digital_port *dig_port)
 {
-	if (!INTEL_INFO(i915)->display.has_modular_fia)
-		return false;
+	enum port port = dig_port->base.port;
+	enum tc_port tc_port = intel_port_to_tc(i915, port);
+	u32 modular_fia;
 
-	return intel_uncore_read(&i915->uncore,
-				 PORT_TX_DFLEXDPSP(FIA1)) & MODULAR_FIA_MASK;
-}
-
-static enum phy_fia tc_port_to_fia(struct drm_i915_private *i915,
-				   enum tc_port tc_port)
-{
-	if (!has_modular_fia(i915))
-		return FIA1;
+	if (INTEL_INFO(i915)->display.has_modular_fia) {
+		modular_fia = intel_uncore_read(&i915->uncore,
+						PORT_TX_DFLEXDPSP(FIA1));
+		modular_fia &= MODULAR_FIA_MASK;
+	} else {
+		modular_fia = 0;
+	}
 
 	/*
 	 * Each Modular FIA instance houses 2 TC ports. In SOC that has more
 	 * than two TC ports, there are multiple instances of Modular FIA.
 	 */
-	return tc_port / 2;
+	if (modular_fia) {
+		dig_port->tc_phy_fia = tc_port / 2;
+		dig_port->tc_phy_fia_idx = tc_port % 2;
+	} else {
+		dig_port->tc_phy_fia = FIA1;
+		dig_port->tc_phy_fia_idx = tc_port;
+	}
 }
 
 u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 lane_mask;
 
@@ -57,8 +63,23 @@ u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 
 	WARN_ON(lane_mask == 0xffffffff);
 
-	return (lane_mask & DP_LANE_ASSIGNMENT_MASK(tc_port)) >>
-	       DP_LANE_ASSIGNMENT_SHIFT(tc_port);
+	lane_mask &= DP_LANE_ASSIGNMENT_MASK(dig_port->tc_phy_fia_idx);
+	return lane_mask >> DP_LANE_ASSIGNMENT_SHIFT(dig_port->tc_phy_fia_idx);
+}
+
+u32 intel_tc_port_get_pin_assignment_mask(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_uncore *uncore = &i915->uncore;
+	u32 pin_mask;
+
+	pin_mask = intel_uncore_read(uncore,
+				     PORT_TX_DFLEXPA1(dig_port->tc_phy_fia));
+
+	WARN_ON(pin_mask == 0xffffffff);
+
+	return (pin_mask & DP_PIN_ASSIGNMENT_MASK(dig_port->tc_phy_fia_idx)) >>
+	       DP_PIN_ASSIGNMENT_SHIFT(dig_port->tc_phy_fia_idx);
 }
 
 int intel_tc_port_fia_max_lane_count(struct intel_digital_port *dig_port)
@@ -95,7 +116,6 @@ void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
 				      int required_lanes)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
 	bool lane_reversal = dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
@@ -104,19 +124,21 @@ void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
 
 	val = intel_uncore_read(uncore,
 				PORT_TX_DFLEXDPMLE1(dig_port->tc_phy_fia));
-	val &= ~DFLEXDPMLE1_DPMLETC_MASK(tc_port);
+	val &= ~DFLEXDPMLE1_DPMLETC_MASK(dig_port->tc_phy_fia_idx);
 
 	switch (required_lanes) {
 	case 1:
-		val |= lane_reversal ? DFLEXDPMLE1_DPMLETC_ML3(tc_port) :
-			DFLEXDPMLE1_DPMLETC_ML0(tc_port);
+		val |= lane_reversal ?
+			DFLEXDPMLE1_DPMLETC_ML3(dig_port->tc_phy_fia_idx) :
+			DFLEXDPMLE1_DPMLETC_ML0(dig_port->tc_phy_fia_idx);
 		break;
 	case 2:
-		val |= lane_reversal ? DFLEXDPMLE1_DPMLETC_ML3_2(tc_port) :
-			DFLEXDPMLE1_DPMLETC_ML1_0(tc_port);
+		val |= lane_reversal ?
+			DFLEXDPMLE1_DPMLETC_ML3_2(dig_port->tc_phy_fia_idx) :
+			DFLEXDPMLE1_DPMLETC_ML1_0(dig_port->tc_phy_fia_idx);
 		break;
 	case 4:
-		val |= DFLEXDPMLE1_DPMLETC_ML3_0(tc_port);
+		val |= DFLEXDPMLE1_DPMLETC_ML3_0(dig_port->tc_phy_fia_idx);
 		break;
 	default:
 		MISSING_CASE(required_lanes);
@@ -164,9 +186,9 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 		return mask;
 	}
 
-	if (val & TC_LIVE_STATE_TBT(tc_port))
+	if (val & TC_LIVE_STATE_TBT(dig_port->tc_phy_fia_idx))
 		mask |= BIT(TC_PORT_TBT_ALT);
-	if (val & TC_LIVE_STATE_TC(tc_port))
+	if (val & TC_LIVE_STATE_TC(dig_port->tc_phy_fia_idx))
 		mask |= BIT(TC_PORT_DP_ALT);
 
 	if (intel_uncore_read(uncore, SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port))
@@ -182,7 +204,6 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
 
@@ -194,14 +215,13 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 		return false;
 	}
 
-	return val & DP_PHY_MODE_STATUS_COMPLETED(tc_port);
+	return val & DP_PHY_MODE_STATUS_COMPLETED(dig_port->tc_phy_fia_idx);
 }
 
 static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 				     bool enable)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
 
@@ -215,9 +235,9 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 		return false;
 	}
 
-	val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
+	val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx);
 	if (!enable)
-		val |= DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
+		val |= DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx);
 
 	intel_uncore_write(uncore,
 			   PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia), val);
@@ -232,7 +252,6 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
 
@@ -244,7 +263,7 @@ static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
 		return true;
 	}
 
-	return !(val & DP_PHY_MODE_STATUS_NOT_SAFE(tc_port));
+	return !(val & DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx));
 }
 
 /*
@@ -540,5 +559,5 @@ void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	mutex_init(&dig_port->tc_lock);
 	dig_port->tc_legacy_port = is_legacy;
 	dig_port->tc_link_refcount = 0;
-	dig_port->tc_phy_fia = tc_port_to_fia(i915, tc_port);
+	tc_port_load_fia_params(i915, dig_port);
 }

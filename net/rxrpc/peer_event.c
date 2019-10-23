@@ -147,10 +147,16 @@ void rxrpc_error_report(struct sock *sk)
 {
 	struct sock_exterr_skb *serr;
 	struct sockaddr_rxrpc srx;
-	struct rxrpc_local *local = sk->sk_user_data;
+	struct rxrpc_local *local;
 	struct rxrpc_peer *peer;
 	struct sk_buff *skb;
 
+	rcu_read_lock();
+	local = rcu_dereference_sk_user_data(sk);
+	if (unlikely(!local)) {
+		rcu_read_unlock();
+		return;
+	}
 	_enter("%p{%d}", sk, local->debug_id);
 
 	/* Clear the outstanding error value on the socket so that it doesn't
@@ -160,6 +166,7 @@ void rxrpc_error_report(struct sock *sk)
 
 	skb = sock_dequeue_err_skb(sk);
 	if (!skb) {
+		rcu_read_unlock();
 		_leave("UDP socket errqueue empty");
 		return;
 	}
@@ -167,11 +174,11 @@ void rxrpc_error_report(struct sock *sk)
 	serr = SKB_EXT_ERR(skb);
 	if (!skb->len && serr->ee.ee_origin == SO_EE_ORIGIN_TIMESTAMPING) {
 		_leave("UDP empty message");
+		rcu_read_unlock();
 		rxrpc_free_skb(skb, rxrpc_skb_freed);
 		return;
 	}
 
-	rcu_read_lock();
 	peer = rxrpc_lookup_peer_icmp_rcu(local, skb, &srx);
 	if (peer && !rxrpc_get_peer_maybe(peer))
 		peer = NULL;

@@ -9,6 +9,27 @@
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
 
+/**
+ * DOC: GuC
+ *
+ * The GuC is a microcontroller inside the GT HW, introduced in gen9. The GuC is
+ * designed to offload some of the functionality usually performed by the host
+ * driver; currently the main operations it can take care of are:
+ *
+ * - Authentication of the HuC, which is required to fully enable HuC usage.
+ * - Low latency graphics context scheduling (a.k.a. GuC submission).
+ * - GT Power management.
+ *
+ * The enable_guc module parameter can be used to select which of those
+ * operations to enable within GuC. Note that not all the operations are
+ * supported on all gen9+ platforms.
+ *
+ * Enabling the GuC is not mandatory and therefore the firmware is only loaded
+ * if at least one of the operations is selected. However, not loading the GuC
+ * might result in the loss of some features that do require the GuC (currently
+ * just the HuC, but more are expected to land in the future).
+ */
+
 static void gen8_guc_raise_irq(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
@@ -548,9 +569,15 @@ int intel_guc_resume(struct intel_guc *guc)
 }
 
 /**
- * DOC: GuC Address Space
+ * DOC: GuC Memory Management
  *
- * The layout of GuC address space is shown below:
+ * GuC can't allocate any memory for its own usage, so all the allocations must
+ * be handled by the host driver. GuC accesses the memory via the GGTT, with the
+ * exception of the top and bottom parts of the 4GB address space, which are
+ * instead re-mapped by the GuC HW to memory location of the FW itself (WOPCM)
+ * or other parts of the HW. The driver must take care not to place objects that
+ * the GuC is going to access in these reserved ranges. The layout of the GuC
+ * address space is shown below:
  *
  * ::
  *

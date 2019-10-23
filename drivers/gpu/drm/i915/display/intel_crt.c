@@ -994,9 +994,9 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	crt->base.type = INTEL_OUTPUT_ANALOG;
 	crt->base.cloneable = (1 << INTEL_OUTPUT_DVO) | (1 << INTEL_OUTPUT_HDMI);
 	if (IS_I830(dev_priv))
-		crt->base.crtc_mask = (1 << 0);
+		crt->base.crtc_mask = BIT(PIPE_A);
 	else
-		crt->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+		crt->base.crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
 
 	if (IS_GEN(dev_priv, 2))
 		connector->interlace_allowed = 0;

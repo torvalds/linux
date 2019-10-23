@@ -224,17 +224,7 @@ static int guc_enable_communication(struct intel_guc *guc)
 	return 0;
 }
 
-static void guc_stop_communication(struct intel_guc *guc)
-{
-	intel_guc_ct_stop(&guc->ct);
-
-	guc->send = intel_guc_send_nop;
-	guc->handler = intel_guc_to_host_event_handler_nop;
-
-	guc_clear_mmio_msg(guc);
-}
-
-static void guc_disable_communication(struct intel_guc *guc)
+static void __guc_stop_communication(struct intel_guc *guc)
 {
 	/*
 	 * Events generated during or after CT disable are logged by guc in
@@ -247,6 +237,20 @@ static void guc_disable_communication(struct intel_guc *guc)
 
 	guc->send = intel_guc_send_nop;
 	guc->handler = intel_guc_to_host_event_handler_nop;
+}
+
+static void guc_stop_communication(struct intel_guc *guc)
+{
+	intel_guc_ct_stop(&guc->ct);
+
+	__guc_stop_communication(guc);
+
+	DRM_INFO("GuC communication stopped\n");
+}
+
+static void guc_disable_communication(struct intel_guc *guc)
+{
+	__guc_stop_communication(guc);
 
 	intel_guc_ct_disable(&guc->ct);
 
@@ -537,7 +541,9 @@ void intel_uc_fini_hw(struct intel_uc *uc)
 	if (intel_uc_supports_guc_submission(uc))
 		intel_guc_submission_disable(guc);
 
-	guc_disable_communication(guc);
+	if (guc_communication_enabled(guc))
+		guc_disable_communication(guc);
+
 	__uc_sanitize(uc);
 }
 
@@ -581,7 +587,7 @@ void intel_uc_suspend(struct intel_uc *uc)
 	if (!intel_guc_is_running(guc))
 		return;
 
-	with_intel_runtime_pm(&uc_to_gt(uc)->i915->runtime_pm, wakeref)
+	with_intel_runtime_pm(uc_to_gt(uc)->uncore->rpm, wakeref)
 		intel_uc_runtime_suspend(uc);
 }
 
