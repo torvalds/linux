@@ -110,7 +110,6 @@ static int exynos_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 		if (ret) {
 			DRM_DEV_ERROR(dp->dev,
 				      "Failed to attach bridge to drm\n");
-			bridge->next = NULL;
 			return ret;
 		}
 	}
