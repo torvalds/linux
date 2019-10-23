@@ -167,9 +167,9 @@ void ql_sem_unlock(struct ql_adapter *qdev, u32 sem_mask)
 int ql_wait_reg_rdy(struct ql_adapter *qdev, u32 reg, u32 bit, u32 err_bit)
 {
 	u32 temp;
-	int count = UDELAY_COUNT;
+	int count;
 
-	while (count) {
+	for (count = 0; count < UDELAY_COUNT; count++) {
 		temp = ql_read32(qdev, reg);
 
 		/* check for errors */
@@ -181,7 +181,6 @@ int ql_wait_reg_rdy(struct ql_adapter *qdev, u32 reg, u32 bit, u32 err_bit)
 		} else if (temp & bit)
 			return 0;
 		udelay(UDELAY_DELAY);
-		count--;
 	}
 	netif_alert(qdev, probe, qdev->ndev,
 		    "Timed out waiting for reg %x to come ready.\n", reg);
@@ -193,17 +192,16 @@ int ql_wait_reg_rdy(struct ql_adapter *qdev, u32 reg, u32 bit, u32 err_bit)
  */
 static int ql_wait_cfg(struct ql_adapter *qdev, u32 bit)
 {
-	int count = UDELAY_COUNT;
+	int count;
 	u32 temp;
 
-	while (count) {
+	for (count = 0; count < UDELAY_COUNT; count++) {
 		temp = ql_read32(qdev, CFG);
 		if (temp & CFG_LE)
 			return -EIO;
 		if (!(temp & bit))
 			return 0;
 		udelay(UDELAY_DELAY);
-		count--;
 	}
 	return -ETIMEDOUT;
 }
