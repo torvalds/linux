@@ -12,8 +12,6 @@ staging directory.
   Comments on configuring v4l2 subdevs for CIO2 and ImgU.
 
 - uAPI documentation:
-  Further clarification on some ambiguities such as data type conversion of
-  IEFD CU inputs. (Sakari)
   Move acronyms to doc-rst file. (Mauro)
 
 - Switch to yavta from v4l2n in driver docs.
