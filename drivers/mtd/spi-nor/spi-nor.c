@@ -451,7 +451,7 @@ static int spi_nor_read_sr(struct spi_nor *nor, u8 *sr)
 	}
 
 	if (ret)
-		pr_err("error %d reading SR\n", ret);
+		dev_err(nor->dev, "error %d reading SR\n", ret);
 
 	return ret;
 }
@@ -482,7 +482,7 @@ static int spi_nor_read_fsr(struct spi_nor *nor, u8 *fsr)
 	}
 
 	if (ret)
-		pr_err("error %d reading FSR\n", ret);
+		dev_err(nor->dev, "error %d reading FSR\n", ret);
 
 	return ret;
 }
