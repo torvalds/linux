@@ -4641,6 +4641,14 @@ M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 S:	Maintained
 F:	drivers/net/fddi/defxx.*
 
+DEINTERLACE DRIVERS FOR ALLWINNER H3
+M:	Jernej Skrabec <jernej.skrabec@siol.net>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/platform/sunxi/sun8i-di/
+F:	Documentation/devicetree/bindings/media/allwinner,sun8i-h3-deinterlace.yaml
+
 DELL SMBIOS DRIVER
 M:	Pali Rohár <pali.rohar@gmail.com>
 M:	Mario Limonciello <mario.limonciello@dell.com>
