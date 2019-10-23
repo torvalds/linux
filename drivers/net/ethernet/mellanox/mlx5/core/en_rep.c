@@ -1674,10 +1674,46 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 	mlx5e_close_drop_rq(&priv->drop_rq);
 }
 
+static int mlx5e_init_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)
+{
+	struct mlx5_rep_uplink_priv *uplink_priv;
+	struct net_device *netdev;
+	struct mlx5e_priv *priv;
+	int err;
+
+	netdev = rpriv->netdev;
+	priv = netdev_priv(netdev);
+	uplink_priv = &rpriv->uplink_priv;
+
+	mutex_init(&uplink_priv->unready_flows_lock);
+	INIT_LIST_HEAD(&uplink_priv->unready_flows);
+
+	/* init shared tc flow table */
+	err = mlx5e_tc_esw_init(&uplink_priv->tc_ht);
+	if (err)
+		return err;
+
+	mlx5_init_port_tun_entropy(&uplink_priv->tun_entropy, priv->mdev);
+
+	/* init indirect block notifications */
+	INIT_LIST_HEAD(&uplink_priv->tc_indr_block_priv_list);
+	uplink_priv->netdevice_nb.notifier_call = mlx5e_nic_rep_netdevice_event;
+	err = register_netdevice_notifier(&uplink_priv->netdevice_nb);
+	if (err) {
+		mlx5_core_err(priv->mdev, "Failed to register netdev notifier\n");
+		goto tc_esw_cleanup;
+	}
+
+	return 0;
+
+tc_esw_cleanup:
+	mlx5e_tc_esw_cleanup(&uplink_priv->tc_ht);
+	return err;
+}
+
 static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
-	struct mlx5_rep_uplink_priv *uplink_priv;
 	int err;
 
 	err = mlx5e_create_tises(priv);
@@ -1687,35 +1723,27 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 	}
 
 	if (rpriv->rep->vport == MLX5_VPORT_UPLINK) {
-		uplink_priv = &rpriv->uplink_priv;
-
-		mutex_init(&uplink_priv->unready_flows_lock);
-		INIT_LIST_HEAD(&uplink_priv->unready_flows);
-
-		/* init shared tc flow table */
-		err = mlx5e_tc_esw_init(&uplink_priv->tc_ht);
+		err = mlx5e_init_uplink_rep_tx(rpriv);
 		if (err)
 			goto destroy_tises;
-
-		mlx5_init_port_tun_entropy(&uplink_priv->tun_entropy, priv->mdev);
-
-		/* init indirect block notifications */
-		INIT_LIST_HEAD(&uplink_priv->tc_indr_block_priv_list);
-		uplink_priv->netdevice_nb.notifier_call = mlx5e_nic_rep_netdevice_event;
-		err = register_netdevice_notifier(&uplink_priv->netdevice_nb);
-		if (err) {
-			mlx5_core_err(priv->mdev, "Failed to register netdev notifier\n");
-			goto tc_esw_cleanup;
-		}
 	}
 
 	return 0;
 
-tc_esw_cleanup:
-	mlx5e_tc_esw_cleanup(&uplink_priv->tc_ht);
 destroy_tises:
 	mlx5e_destroy_tises(priv);
 	return err;
+}
+
+static void mlx5e_cleanup_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)
+{
+	/* clean indirect TC block notifications */
+	unregister_netdevice_notifier(&rpriv->uplink_priv.netdevice_nb);
+	mlx5e_rep_indr_clean_block_privs(rpriv);
+
+	/* delete shared tc flow table */
+	mlx5e_tc_esw_cleanup(&rpriv->uplink_priv.tc_ht);
+	mutex_destroy(&rpriv->uplink_priv.unready_flows_lock);
 }
 
 static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
@@ -1724,15 +1752,8 @@ static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 
 	mlx5e_destroy_tises(priv);
 
-	if (rpriv->rep->vport == MLX5_VPORT_UPLINK) {
-		/* clean indirect TC block notifications */
-		unregister_netdevice_notifier(&rpriv->uplink_priv.netdevice_nb);
-		mlx5e_rep_indr_clean_block_privs(rpriv);
-
-		/* delete shared tc flow table */
-		mlx5e_tc_esw_cleanup(&rpriv->uplink_priv.tc_ht);
-		mutex_destroy(&rpriv->uplink_priv.unready_flows_lock);
-	}
+	if (rpriv->rep->vport == MLX5_VPORT_UPLINK)
+		mlx5e_cleanup_uplink_rep_tx(rpriv);
 }
 
 static void mlx5e_rep_enable(struct mlx5e_priv *priv)
