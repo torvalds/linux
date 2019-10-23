@@ -377,7 +377,7 @@ static const struct chv_community southwest_community = {
 	.gpio_ranges = southwest_gpio_ranges,
 	.ngpio_ranges = ARRAY_SIZE(southwest_gpio_ranges),
 	/*
-	 * Southwest community can benerate GPIO interrupts only for the
+	 * Southwest community can generate GPIO interrupts only for the
 	 * first 8 interrupts. The upper half (8-15) can only be used to
 	 * trigger GPEs.
 	 */
