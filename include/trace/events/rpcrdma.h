@@ -85,6 +85,44 @@ DECLARE_EVENT_CLASS(xprtrdma_rxprt,
 				),					\
 				TP_ARGS(r_xprt))
 
+DECLARE_EVENT_CLASS(xprtrdma_connect_class,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
+		int rc
+	),
+
+	TP_ARGS(r_xprt, rc),
+
+	TP_STRUCT__entry(
+		__field(const void *, r_xprt)
+		__field(int, rc)
+		__field(int, connect_status)
+		__string(addr, rpcrdma_addrstr(r_xprt))
+		__string(port, rpcrdma_portstr(r_xprt))
+	),
+
+	TP_fast_assign(
+		__entry->r_xprt = r_xprt;
+		__entry->rc = rc;
+		__entry->connect_status = r_xprt->rx_ep.rep_connected;
+		__assign_str(addr, rpcrdma_addrstr(r_xprt));
+		__assign_str(port, rpcrdma_portstr(r_xprt));
+	),
+
+	TP_printk("peer=[%s]:%s r_xprt=%p: rc=%d connect status=%d",
+		__get_str(addr), __get_str(port), __entry->r_xprt,
+		__entry->rc, __entry->connect_status
+	)
+);
+
+#define DEFINE_CONN_EVENT(name)						\
+		DEFINE_EVENT(xprtrdma_connect_class, xprtrdma_##name,	\
+				TP_PROTO(				\
+					const struct rpcrdma_xprt *r_xprt, \
+					int rc				\
+				),					\
+				TP_ARGS(r_xprt, rc))
+
 DECLARE_EVENT_CLASS(xprtrdma_rdch_event,
 	TP_PROTO(
 		const struct rpc_task *task,
@@ -333,47 +371,44 @@ TRACE_EVENT(xprtrdma_cm_event,
 	)
 );
 
-TRACE_EVENT(xprtrdma_disconnect,
+DEFINE_CONN_EVENT(connect);
+DEFINE_CONN_EVENT(disconnect);
+
+DEFINE_RXPRT_EVENT(xprtrdma_create);
+DEFINE_RXPRT_EVENT(xprtrdma_op_destroy);
+DEFINE_RXPRT_EVENT(xprtrdma_remove);
+DEFINE_RXPRT_EVENT(xprtrdma_reinsert);
+DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
+DEFINE_RXPRT_EVENT(xprtrdma_op_close);
+
+TRACE_EVENT(xprtrdma_op_connect,
 	TP_PROTO(
 		const struct rpcrdma_xprt *r_xprt,
-		int status
+		unsigned long delay
 	),
 
-	TP_ARGS(r_xprt, status),
+	TP_ARGS(r_xprt, delay),
 
 	TP_STRUCT__entry(
 		__field(const void *, r_xprt)
-		__field(int, status)
-		__field(int, connected)
+		__field(unsigned long, delay)
 		__string(addr, rpcrdma_addrstr(r_xprt))
 		__string(port, rpcrdma_portstr(r_xprt))
 	),
 
 	TP_fast_assign(
 		__entry->r_xprt = r_xprt;
-		__entry->status = status;
-		__entry->connected = r_xprt->rx_ep.rep_connected;
+		__entry->delay = delay;
 		__assign_str(addr, rpcrdma_addrstr(r_xprt));
 		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),
 
-	TP_printk("peer=[%s]:%s r_xprt=%p: status=%d %sconnected",
-		__get_str(addr), __get_str(port),
-		__entry->r_xprt, __entry->status,
-		__entry->connected == 1 ? "still " : "dis"
+	TP_printk("peer=[%s]:%s r_xprt=%p delay=%lu",
+		__get_str(addr), __get_str(port), __entry->r_xprt,
+		__entry->delay
 	)
 );
 
-DEFINE_RXPRT_EVENT(xprtrdma_conn_start);
-DEFINE_RXPRT_EVENT(xprtrdma_conn_tout);
-DEFINE_RXPRT_EVENT(xprtrdma_create);
-DEFINE_RXPRT_EVENT(xprtrdma_op_destroy);
-DEFINE_RXPRT_EVENT(xprtrdma_remove);
-DEFINE_RXPRT_EVENT(xprtrdma_reinsert);
-DEFINE_RXPRT_EVENT(xprtrdma_reconnect);
-DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
-DEFINE_RXPRT_EVENT(xprtrdma_op_close);
-DEFINE_RXPRT_EVENT(xprtrdma_op_connect);
 
 TRACE_EVENT(xprtrdma_op_set_cto,
 	TP_PROTO(

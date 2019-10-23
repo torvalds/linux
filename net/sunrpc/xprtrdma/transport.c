@@ -527,13 +527,12 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	unsigned long delay;
 
-	trace_xprtrdma_op_connect(r_xprt);
-
 	delay = 0;
 	if (r_xprt->rx_ep.rep_connected != 0) {
 		delay = xprt_reconnect_delay(xprt);
 		xprt_reconnect_backoff(xprt, RPCRDMA_INIT_REEST_TO);
 	}
+	trace_xprtrdma_op_connect(r_xprt, delay);
 	queue_delayed_work(xprtiod_workqueue, &r_xprt->rx_connect_worker,
 			   delay);
 }

@@ -297,8 +297,6 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt, struct rpcrdma_ia *ia)
 	struct rdma_cm_id *id;
 	int rc;
 
-	trace_xprtrdma_conn_start(xprt);
-
 	init_completion(&ia->ri_done);
 	init_completion(&ia->ri_remove_done);
 
@@ -314,10 +312,8 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt, struct rpcrdma_ia *ia)
 	if (rc)
 		goto out;
 	rc = wait_for_completion_interruptible_timeout(&ia->ri_done, wtimeout);
-	if (rc < 0) {
-		trace_xprtrdma_conn_tout(xprt);
+	if (rc < 0)
 		goto out;
-	}
 
 	rc = ia->ri_async_rc;
 	if (rc)
@@ -328,10 +324,8 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt, struct rpcrdma_ia *ia)
 	if (rc)
 		goto out;
 	rc = wait_for_completion_interruptible_timeout(&ia->ri_done, wtimeout);
-	if (rc < 0) {
-		trace_xprtrdma_conn_tout(xprt);
+	if (rc < 0)
 		goto out;
-	}
 	rc = ia->ri_async_rc;
 	if (rc)
 		goto out;
@@ -644,8 +638,6 @@ static int rpcrdma_ep_reconnect(struct rpcrdma_xprt *r_xprt,
 	struct rdma_cm_id *id, *old;
 	int err, rc;
 
-	trace_xprtrdma_reconnect(r_xprt);
-
 	rpcrdma_ep_disconnect(&r_xprt->rx_ep, ia);
 
 	rc = -EHOSTUNREACH;
@@ -744,6 +736,7 @@ out:
 		ep->rep_connected = rc;
 
 out_noupdate:
+	trace_xprtrdma_connect(r_xprt, rc);
 	return rc;
 }
 
