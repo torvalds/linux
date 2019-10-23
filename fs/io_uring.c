@@ -1877,7 +1877,7 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 {
 	struct io_ring_ctx *ctx;
-	struct io_kiocb *req;
+	struct io_kiocb *req, *prev;
 	unsigned long flags;
 
 	req = container_of(timer, struct io_kiocb, timeout.timer);
@@ -1885,6 +1885,15 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	atomic_inc(&ctx->cq_timeouts);
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
+	/*
+	 * Adjust the reqs sequence before the current one because it
+	 * will consume a slot in the cq_ring and the the cq_tail pointer
+	 * will be increased, otherwise other timeout reqs may return in
+	 * advance without waiting for enough wait_nr.
+	 */
+	prev = req;
+	list_for_each_entry_continue_reverse(prev, &ctx->timeout_list, list)
+		prev->sequence++;
 	list_del(&req->list);
 
 	io_cqring_fill_event(ctx, req->user_data, -ETIME);
