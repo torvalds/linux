@@ -1912,6 +1912,7 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct list_head *entry;
 	struct timespec64 ts;
+	unsigned span = 0;
 
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
@@ -1960,9 +1961,17 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		if (ctx->cached_sq_head < nxt_sq_head)
 			tmp += UINT_MAX;
 
-		if (tmp >= tmp_nxt)
+		if (tmp > tmp_nxt)
 			break;
+
+		/*
+		 * Sequence of reqs after the insert one and itself should
+		 * be adjusted because each timeout req consumes a slot.
+		 */
+		span++;
+		nxt->sequence++;
 	}
+	req->sequence -= span;
 	list_add(&req->list, entry);
 	spin_unlock_irq(&ctx->completion_lock);
 
