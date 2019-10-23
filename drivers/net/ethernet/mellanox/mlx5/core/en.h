@@ -52,6 +52,7 @@
 #include "wq.h"
 #include "mlx5_core.h"
 #include "en_stats.h"
+#include "en/dcbnl.h"
 #include "en/fs.h"
 #include "lib/hv_vhca.h"
 
@@ -68,8 +69,6 @@ struct page_pool;
 #define MLX5E_HW2SW_MTU(params, hwmtu) ((hwmtu) - ((params)->hard_mtu))
 #define MLX5E_SW2HW_MTU(params, swmtu) ((swmtu) + ((params)->hard_mtu))
 
-#define MLX5E_MAX_PRIORITY      8
-#define MLX5E_MAX_DSCP          64
 #define MLX5E_MAX_NUM_TC	8
 
 #define MLX5_RX_HEADROOM NET_SKB_PAD
@@ -242,10 +241,6 @@ enum mlx5e_priv_flag {
 
 #define MLX5E_GET_PFLAG(params, pflag) (!!((params)->pflags & (BIT(pflag))))
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-#define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
-#endif
-
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
@@ -269,42 +264,6 @@ struct mlx5e_params {
 	unsigned int sw_mtu;
 	int hard_mtu;
 };
-
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-struct mlx5e_cee_config {
-	/* bw pct for priority group */
-	u8                         pg_bw_pct[CEE_DCBX_MAX_PGS];
-	u8                         prio_to_pg_map[CEE_DCBX_MAX_PRIO];
-	bool                       pfc_setting[CEE_DCBX_MAX_PRIO];
-	bool                       pfc_enable;
-};
-
-enum {
-	MLX5_DCB_CHG_RESET,
-	MLX5_DCB_NO_CHG,
-	MLX5_DCB_CHG_NO_RESET,
-};
-
-struct mlx5e_dcbx {
-	enum mlx5_dcbx_oper_mode   mode;
-	struct mlx5e_cee_config    cee_cfg; /* pending configuration */
-	u8                         dscp_app_cnt;
-
-	/* The only setting that cannot be read from FW */
-	u8                         tc_tsa[IEEE_8021QAZ_MAX_TCS];
-	u8                         cap;
-
-	/* Buffer configuration */
-	bool                       manual_buffer;
-	u32                        cable_len;
-	u32                        xoff;
-};
-
-struct mlx5e_dcbx_dp {
-	u8                         dscp2prio[MLX5E_MAX_DSCP];
-	u8                         trust_state;
-};
-#endif
 
 enum {
 	MLX5E_RQ_STATE_ENABLED,
@@ -1068,13 +1027,6 @@ static inline bool mlx5_tx_swp_supported(struct mlx5_core_dev *mdev)
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-extern const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops;
-int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets);
-void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv);
-void mlx5e_dcbnl_init_app(struct mlx5e_priv *priv);
-void mlx5e_dcbnl_delete_app(struct mlx5e_priv *priv);
-#endif
 
 int mlx5e_create_tir(struct mlx5_core_dev *mdev, struct mlx5e_tir *tir,
 		     u32 *in);
