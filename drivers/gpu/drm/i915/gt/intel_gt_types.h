@@ -27,14 +27,6 @@ struct i915_ggtt;
 struct intel_engine_cs;
 struct intel_uncore;
 
-struct intel_hangcheck {
-	/* For hangcheck timer */
-#define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
-#define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
-
-	struct delayed_work work;
-};
-
 struct intel_gt {
 	struct drm_i915_private *i915;
 	struct intel_uncore *uncore;
@@ -68,7 +60,6 @@ struct intel_gt {
 	struct list_head closed_vma;
 	spinlock_t closed_lock; /* guards the list of closed_vma */
 
-	struct intel_hangcheck hangcheck;
 	struct intel_reset reset;
 
 	/**

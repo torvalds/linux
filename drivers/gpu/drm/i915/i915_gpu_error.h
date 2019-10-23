@@ -34,7 +34,6 @@ struct i915_gpu_state {
 	ktime_t boottime;
 	ktime_t uptime;
 	unsigned long capture;
-	unsigned long epoch;
 
 	struct drm_i915_private *i915;
 
@@ -86,7 +85,6 @@ struct i915_gpu_state {
 
 		/* Software tracked state */
 		bool idle;
-		unsigned long hangcheck_timestamp;
 		int num_requests;
 		u32 reset_count;
 

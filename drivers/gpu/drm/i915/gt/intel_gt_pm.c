@@ -47,7 +47,6 @@ static int __gt_unpark(struct intel_wakeref *wf)
 
 	i915_pmu_gt_unparked(i915);
 
-	intel_gt_queue_hangcheck(gt);
 	intel_gt_unpark_requests(gt);
 
 	return 0;

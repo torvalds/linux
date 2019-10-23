@@ -91,38 +91,6 @@ struct intel_gt;
 /* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.
  */
-enum intel_engine_hangcheck_action {
-	ENGINE_IDLE = 0,
-	ENGINE_WAIT,
-	ENGINE_ACTIVE_SEQNO,
-	ENGINE_ACTIVE_HEAD,
-	ENGINE_ACTIVE_SUBUNITS,
-	ENGINE_WAIT_KICK,
-	ENGINE_DEAD,
-};
-
-static inline const char *
-hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
-{
-	switch (a) {
-	case ENGINE_IDLE:
-		return "idle";
-	case ENGINE_WAIT:
-		return "wait";
-	case ENGINE_ACTIVE_SEQNO:
-		return "active seqno";
-	case ENGINE_ACTIVE_HEAD:
-		return "active head";
-	case ENGINE_ACTIVE_SUBUNITS:
-		return "active subunits";
-	case ENGINE_WAIT_KICK:
-		return "wait kick";
-	case ENGINE_DEAD:
-		return "dead";
-	}
-
-	return "unknown";
-}
 
 static inline unsigned int
 execlists_num_ports(const struct intel_engine_execlists * const execlists)

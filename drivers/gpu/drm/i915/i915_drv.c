@@ -1548,10 +1548,7 @@ void i915_driver_remove(struct drm_i915_private *i915)
 
 	i915_driver_modeset_remove(i915);
 
-	/* Free error state after interrupts are fully disabled. */
-	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
 	i915_reset_error_state(i915);
-
 	i915_gem_driver_remove(i915);
 
 	intel_power_domains_driver_remove(i915);

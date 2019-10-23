@@ -4,6 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include <linux/sort.h>
+
 #include "i915_drv.h"
 
 #include "intel_gt_requests.h"
@@ -150,11 +152,180 @@ static int live_idle_pulse(void *arg)
 	return err;
 }
 
+static int cmp_u32(const void *_a, const void *_b)
+{
+	const u32 *a = _a, *b = _b;
+
+	return *a - *b;
+}
+
+static int __live_heartbeat_fast(struct intel_engine_cs *engine)
+{
+	struct intel_context *ce;
+	struct i915_request *rq;
+	ktime_t t0, t1;
+	u32 times[5];
+	int err;
+	int i;
+
+	ce = intel_context_create(engine->kernel_context->gem_context,
+				  engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	intel_engine_pm_get(engine);
+
+	err = intel_engine_set_heartbeat(engine, 1);
+	if (err)
+		goto err_pm;
+
+	for (i = 0; i < ARRAY_SIZE(times); i++) {
+		/* Manufacture a tick */
+		do {
+			while (READ_ONCE(engine->heartbeat.systole))
+				flush_delayed_work(&engine->heartbeat.work);
+
+			engine->serial++; /* quick, pretend we are not idle! */
+			flush_delayed_work(&engine->heartbeat.work);
+			if (!delayed_work_pending(&engine->heartbeat.work)) {
+				pr_err("%s: heartbeat did not start\n",
+				       engine->name);
+				err = -EINVAL;
+				goto err_pm;
+			}
+
+			rcu_read_lock();
+			rq = READ_ONCE(engine->heartbeat.systole);
+			if (rq)
+				rq = i915_request_get_rcu(rq);
+			rcu_read_unlock();
+		} while (!rq);
+
+		t0 = ktime_get();
+		while (rq == READ_ONCE(engine->heartbeat.systole))
+			yield(); /* work is on the local cpu! */
+		t1 = ktime_get();
+
+		i915_request_put(rq);
+		times[i] = ktime_us_delta(t1, t0);
+	}
+
+	sort(times, ARRAY_SIZE(times), sizeof(times[0]), cmp_u32, NULL);
+
+	pr_info("%s: Heartbeat delay: %uus [%u, %u]\n",
+		engine->name,
+		times[ARRAY_SIZE(times) / 2],
+		times[0],
+		times[ARRAY_SIZE(times) - 1]);
+
+	/* Min work delay is 2 * 2 (worst), +1 for scheduling, +1 for slack */
+	if (times[ARRAY_SIZE(times) / 2] > jiffies_to_usecs(6)) {
+		pr_err("%s: Heartbeat delay was %uus, expected less than %dus\n",
+		       engine->name,
+		       times[ARRAY_SIZE(times) / 2],
+		       jiffies_to_usecs(6));
+		err = -EINVAL;
+	}
+
+	intel_engine_set_heartbeat(engine, CONFIG_DRM_I915_HEARTBEAT_INTERVAL);
+err_pm:
+	intel_engine_pm_put(engine);
+	intel_context_put(ce);
+	return err;
+}
+
+static int live_heartbeat_fast(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err;
+
+	/* Check that the heartbeat ticks at the desired rate. */
+	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
+		return 0;
+
+	for_each_engine(engine, gt, id) {
+		err = __live_heartbeat_fast(engine);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
+static int __live_heartbeat_off(struct intel_engine_cs *engine)
+{
+	int err;
+
+	intel_engine_pm_get(engine);
+
+	engine->serial++;
+	flush_delayed_work(&engine->heartbeat.work);
+	if (!delayed_work_pending(&engine->heartbeat.work)) {
+		pr_err("%s: heartbeat not running\n",
+		       engine->name);
+		err = -EINVAL;
+		goto err_pm;
+	}
+
+	err = intel_engine_set_heartbeat(engine, 0);
+	if (err)
+		goto err_pm;
+
+	engine->serial++;
+	flush_delayed_work(&engine->heartbeat.work);
+	if (delayed_work_pending(&engine->heartbeat.work)) {
+		pr_err("%s: heartbeat still running\n",
+		       engine->name);
+		err = -EINVAL;
+		goto err_beat;
+	}
+
+	if (READ_ONCE(engine->heartbeat.systole)) {
+		pr_err("%s: heartbeat still allocated\n",
+		       engine->name);
+		err = -EINVAL;
+		goto err_beat;
+	}
+
+err_beat:
+	intel_engine_set_heartbeat(engine, CONFIG_DRM_I915_HEARTBEAT_INTERVAL);
+err_pm:
+	intel_engine_pm_put(engine);
+	return err;
+}
+
+static int live_heartbeat_off(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err;
+
+	/* Check that we can turn off heartbeat and not interrupt VIP */
+	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
+		return 0;
+
+	for_each_engine(engine, gt, id) {
+		if (!intel_engine_has_preemption(engine))
+			continue;
+
+		err = __live_heartbeat_off(engine);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 int intel_heartbeat_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_idle_flush),
 		SUBTEST(live_idle_pulse),
+		SUBTEST(live_heartbeat_fast),
+		SUBTEST(live_heartbeat_off),
 	};
 	int saved_hangcheck;
 	int err;

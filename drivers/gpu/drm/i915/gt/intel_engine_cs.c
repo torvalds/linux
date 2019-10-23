@@ -308,6 +308,8 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->instance = info->instance;
 	__sprint_engine_name(engine);
 
+	engine->props.heartbeat_interval_ms =
+		CONFIG_DRM_I915_HEARTBEAT_INTERVAL;
 	engine->props.preempt_timeout_ms =
 		CONFIG_DRM_I915_PREEMPT_TIMEOUT;
 	engine->props.stop_timeout_ms =
@@ -609,7 +611,6 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_active(engine, ENGINE_PHYSICAL);
 	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlists(engine);
-	intel_engine_init_hangcheck(engine);
 	intel_engine_init_cmd_parser(engine);
 	intel_engine_init__pm(engine);
 
@@ -1470,8 +1471,13 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		drm_printf(m, "*** WEDGED ***\n");
 
 	drm_printf(m, "\tAwake? %d\n", atomic_read(&engine->wakeref.count));
-	drm_printf(m, "\tHangcheck: %d ms ago\n",
-		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp));
+
+	rcu_read_lock();
+	rq = READ_ONCE(engine->heartbeat.systole);
+	if (rq)
+		drm_printf(m, "\tHeartbeat: %d ms ago\n",
+			   jiffies_to_msecs(jiffies - rq->emitted_jiffies));
+	rcu_read_unlock();
 	drm_printf(m, "\tReset count: %d (global %d)\n",
 		   i915_reset_engine_count(error, engine),
 		   i915_reset_count(error));

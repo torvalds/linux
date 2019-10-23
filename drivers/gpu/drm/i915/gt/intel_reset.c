@@ -1024,8 +1024,6 @@ void intel_gt_reset(struct intel_gt *gt,
 	if (ret)
 		goto taint;
 
-	intel_gt_queue_hangcheck(gt);
-
 finish:
 	reset_finish(gt, awake);
 unlock:
@@ -1353,4 +1351,5 @@ void __intel_fini_wedge(struct intel_wedge_me *w)
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftest_reset.c"
+#include "selftest_hangcheck.c"
 #endif

@@ -15,6 +15,7 @@
 #include <linux/rbtree.h>
 #include <linux/timer.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 #include "i915_gem.h"
 #include "i915_pmu.h"
@@ -74,14 +75,6 @@ struct intel_instdone {
 	u32 slice_common;
 	u32 sampler[I915_MAX_SLICES][I915_MAX_SUBSLICES];
 	u32 row[I915_MAX_SLICES][I915_MAX_SUBSLICES];
-};
-
-struct intel_engine_hangcheck {
-	u64 acthd;
-	u32 last_ring;
-	u32 last_head;
-	unsigned long action_timestamp;
-	struct intel_instdone instdone;
 };
 
 struct intel_ring {
@@ -331,6 +324,11 @@ struct intel_engine_cs {
 
 	intel_engine_mask_t saturated; /* submitting semaphores too late? */
 
+	struct {
+		struct delayed_work work;
+		struct i915_request *systole;
+	} heartbeat;
+
 	unsigned long serial;
 
 	unsigned long wakeref_serial;
@@ -481,8 +479,6 @@ struct intel_engine_cs {
 	/* status_notifier: list of callbacks for context-switch changes */
 	struct atomic_notifier_head context_status_notifier;
 
-	struct intel_engine_hangcheck hangcheck;
-
 #define I915_ENGINE_NEEDS_CMD_PARSER BIT(0)
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
 #define I915_ENGINE_HAS_PREEMPTION   BIT(2)
@@ -549,6 +545,7 @@ struct intel_engine_cs {
 	} stats;
 
 	struct {
+		unsigned long heartbeat_interval_ms;
 		unsigned long preempt_timeout_ms;
 		unsigned long stop_timeout_ms;
 	} props;

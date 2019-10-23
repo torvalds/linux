@@ -76,8 +76,6 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	intel_gt_suspend(&i915->gt);
 	intel_uc_suspend(&i915->gt.uc);
 
-	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
-
 	i915_gem_drain_freed_objects(i915);
 }
 

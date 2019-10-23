@@ -12,6 +12,17 @@ config DRM_I915_USERFAULT_AUTOSUSPEND
 	  May be 0 to disable the extra delay and solely use the device level
 	  runtime pm autosuspend delay tunable.
 
+config DRM_I915_HEARTBEAT_INTERVAL
+	int "Interval between heartbeat pulses (ms)"
+	default 2500 # milliseconds
+	help
+	  The driver sends a periodic heartbeat down all active engines to
+	  check the health of the GPU and undertake regular house-keeping of
+	  internal driver state.
+
+	  May be 0 to disable heartbeats and therefore disable automatic GPU
+	  hang detection.
+
 config DRM_I915_PREEMPT_TIMEOUT
 	int "Preempt timeout (ms, jiffy granularity)"
 	default 100 # milliseconds
