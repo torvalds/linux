@@ -38,28 +38,30 @@
 #include "rt700.h"
 
 static int rt700_index_write(struct regmap *regmap,
-			     unsigned int reg, unsigned int value)
+				unsigned int reg, unsigned int value)
 {
 	int ret;
-	unsigned int addr = (RT700_PRIV_INDEX_W_H << 16) | reg;
+	unsigned int addr = (RT700_PRIV_INDEX_W_H << 8) | reg;
 
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0)
-		pr_err("Failed to set private value: %08x <= %04x %d\n", ret, addr, value);
+		pr_err("Failed to set private value: %06x <= %04x ret=%d\n",
+			addr, value, ret);
 
 	return ret;
 }
 
 static int rt700_index_read(struct regmap *regmap,
-			    unsigned int reg, unsigned int *value)
+				unsigned int reg, unsigned int *value)
 {
 	int ret;
-	unsigned int addr = (RT700_PRIV_INDEX_W_H << 16) | reg;
+	unsigned int addr = (RT700_PRIV_INDEX_W_H << 8) | reg;
 
 	*value = 0;
 	ret = regmap_read(regmap, addr, value);
 	if (ret < 0)
-		pr_err("Failed to get private value: %08x => %04x %d\n", ret, addr, *value);
+		pr_err("Failed to get private value: %06x => %04x ret=%d\n",
+			addr, *value, ret);
 
 	return ret;
 }
@@ -115,7 +117,7 @@ static int rt700_headset_detect(struct rt700_priv *rt700)
 	int ret;
 
 	ret = rt700_index_read(rt700->regmap,
-			       RT700_COMBO_JACK_AUTO_CTL2, &buf);
+					RT700_COMBO_JACK_AUTO_CTL2, &buf);
 	if (ret < 0)
 		goto io_error;
 
@@ -328,8 +330,8 @@ static int rt700_set_jack_detect(struct snd_soc_component *component,
 }
 
 static void rt700_get_gain(struct rt700_priv *rt700, unsigned int addr_h,
-			   unsigned int addr_l, unsigned int val_h,
-			   unsigned int *r_val, unsigned int *l_val)
+				unsigned int addr_l, unsigned int val_h,
+				unsigned int *r_val, unsigned int *l_val)
 {
 	/* R Channel */
 	*r_val = (val_h << 8);
@@ -343,7 +345,7 @@ static void rt700_get_gain(struct rt700_priv *rt700, unsigned int addr_h,
 
 /* For Verb-Set Amplifier Gain (Verb ID = 3h) */
 static int rt700_set_amp_gain_put(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
+				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_context *dapm =
@@ -384,7 +386,7 @@ static int rt700_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 
 	if (dapm->bias_level <= SND_SOC_BIAS_STANDBY)
 		regmap_write(rt700->regmap,
-			     RT700_SET_AUDIO_POWER_STATE, AC_PWRST_D0);
+				RT700_SET_AUDIO_POWER_STATE, AC_PWRST_D0);
 
 	/* R Channel */
 	if (mc->invert) {
@@ -407,16 +409,20 @@ static int rt700_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 		if (val_ll == val_lr) {
 			/* Set both L/R channels at the same time */
 			val_h = (1 << mc->shift) | (3 << 4);
-			regmap_write(rt700->regmap, addr_h, (val_h << 8 | val_ll));
-			regmap_write(rt700->regmap, addr_l, (val_h << 8 | val_ll));
+			regmap_write(rt700->regmap,
+				addr_h, (val_h << 8 | val_ll));
+			regmap_write(rt700->regmap,
+				addr_l, (val_h << 8 | val_ll));
 		} else {
 			/* Lch*/
 			val_h = (1 << mc->shift) | (1 << 5);
-			regmap_write(rt700->regmap, addr_h, (val_h << 8 | val_ll));
+			regmap_write(rt700->regmap,
+				addr_h, (val_h << 8 | val_ll));
 
 			/* Rch */
 			val_h = (1 << mc->shift) | (1 << 4);
-			regmap_write(rt700->regmap, addr_l, (val_h << 8 | val_lr));
+			regmap_write(rt700->regmap,
+				addr_l, (val_h << 8 | val_lr));
 		}
 		/* check result */
 		if (mc->shift == RT700_DIR_OUT_SFT) /* output */
@@ -425,19 +431,19 @@ static int rt700_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 			val_h = 0x0;
 
 		rt700_get_gain(rt700, addr_h, addr_l, val_h,
-			       &read_rl, &read_ll);
+					&read_rl, &read_ll);
 		if (read_rl == val_lr && read_ll == val_ll)
 			break;
 	}
 
 	if (dapm->bias_level <= SND_SOC_BIAS_STANDBY)
 		regmap_write(rt700->regmap,
-			     RT700_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
+				RT700_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
 	return 0;
 }
 
 static int rt700_set_amp_gain_get(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
+				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt700_priv *rt700 = snd_soc_component_get_drvdata(component);
@@ -475,32 +481,34 @@ static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -1725, 75, 0);
 static const DECLARE_TLV_DB_SCALE(mic_vol_tlv, 0, 1000, 0);
 
 static const struct snd_kcontrol_new rt700_snd_controls[] = {
-	SOC_DOUBLE_R_EXT_TLV("DAC Front Playback Volume", RT700_SET_GAIN_DAC1_H,
-			    RT700_SET_GAIN_DAC1_L, RT700_DIR_OUT_SFT, 0x57, 0,
-			    rt700_set_amp_gain_get, rt700_set_amp_gain_put,
-			    out_vol_tlv),
-	SOC_DOUBLE_R_EXT("ADC 08 Capture Switch", RT700_SET_GAIN_ADC2_H,
-			    RT700_SET_GAIN_ADC2_L, RT700_DIR_IN_SFT, 1, 1,
-			    rt700_set_amp_gain_get, rt700_set_amp_gain_put),
-	SOC_DOUBLE_R_EXT("ADC 09 Capture Switch", RT700_SET_GAIN_ADC1_H,
-			    RT700_SET_GAIN_ADC1_L, RT700_DIR_IN_SFT, 1, 1,
-			    rt700_set_amp_gain_get, rt700_set_amp_gain_put),
-	SOC_DOUBLE_R_EXT_TLV("ADC 08 Capture Volume", RT700_SET_GAIN_ADC2_H,
-			    RT700_SET_GAIN_ADC2_L, RT700_DIR_IN_SFT, 0x3f, 0,
-			    rt700_set_amp_gain_get, rt700_set_amp_gain_put,
-			    in_vol_tlv),
-	SOC_DOUBLE_R_EXT_TLV("ADC 09 Capture Volume", RT700_SET_GAIN_ADC1_H,
-			    RT700_SET_GAIN_ADC1_L, RT700_DIR_IN_SFT, 0x3f, 0,
-			    rt700_set_amp_gain_get, rt700_set_amp_gain_put,
-			    in_vol_tlv),
-	SOC_DOUBLE_R_EXT_TLV("AMIC Volume", RT700_SET_GAIN_AMIC_H,
-			    RT700_SET_GAIN_AMIC_L, RT700_DIR_IN_SFT, 3, 0,
-			    rt700_set_amp_gain_get, rt700_set_amp_gain_put,
-			    mic_vol_tlv),
+	SOC_DOUBLE_R_EXT_TLV("DAC Front Playback Volume",
+		RT700_SET_GAIN_DAC1_H, RT700_SET_GAIN_DAC1_L,
+		RT700_DIR_OUT_SFT, 0x57, 0,
+		rt700_set_amp_gain_get, rt700_set_amp_gain_put, out_vol_tlv),
+	SOC_DOUBLE_R_EXT("ADC 08 Capture Switch",
+		RT700_SET_GAIN_ADC2_H, RT700_SET_GAIN_ADC2_L,
+		RT700_DIR_IN_SFT, 1, 1,
+		rt700_set_amp_gain_get, rt700_set_amp_gain_put),
+	SOC_DOUBLE_R_EXT("ADC 09 Capture Switch",
+		RT700_SET_GAIN_ADC1_H,	RT700_SET_GAIN_ADC1_L,
+		RT700_DIR_IN_SFT, 1, 1,
+		rt700_set_amp_gain_get, rt700_set_amp_gain_put),
+	SOC_DOUBLE_R_EXT_TLV("ADC 08 Capture Volume",
+		RT700_SET_GAIN_ADC2_H,	RT700_SET_GAIN_ADC2_L,
+		RT700_DIR_IN_SFT, 0x3f, 0,
+		rt700_set_amp_gain_get, rt700_set_amp_gain_put, in_vol_tlv),
+	SOC_DOUBLE_R_EXT_TLV("ADC 09 Capture Volume",
+		RT700_SET_GAIN_ADC1_H, RT700_SET_GAIN_ADC1_L,
+		RT700_DIR_IN_SFT, 0x3f, 0,
+		rt700_set_amp_gain_get, rt700_set_amp_gain_put, in_vol_tlv),
+	SOC_DOUBLE_R_EXT_TLV("AMIC Volume",
+		RT700_SET_GAIN_AMIC_H,	RT700_SET_GAIN_AMIC_L,
+		RT700_DIR_IN_SFT, 3, 0,
+		rt700_set_amp_gain_get, rt700_set_amp_gain_put, mic_vol_tlv),
 };
 
 static int rt700_mux_get(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol)
+			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_kcontrol_component(kcontrol);
@@ -529,7 +537,7 @@ static int rt700_mux_get(struct snd_kcontrol *kcontrol,
 }
 
 static int rt700_mux_put(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol)
+			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_kcontrol_component(kcontrol);
@@ -572,7 +580,7 @@ static int rt700_mux_put(struct snd_kcontrol *kcontrol,
 	}
 
 	snd_soc_dapm_mux_update_power(dapm, kcontrol,
-					      item[0], e, NULL);
+						item[0], e, NULL);
 
 	return change;
 }
@@ -608,7 +616,7 @@ static SOC_ENUM_SINGLE_DECL(
 
 static const struct snd_kcontrol_new rt700_hp_mux =
 	SOC_DAPM_ENUM_EXT("HP Mux", rt700_hp_enum,
-			  rt700_mux_get, rt700_mux_put);
+			rt700_mux_get, rt700_mux_put);
 
 static int rt700_dac_front_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
@@ -867,7 +875,7 @@ static int rt700_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 }
 
 static void rt700_shutdown(struct snd_pcm_substream *substream,
-			   struct snd_soc_dai *dai)
+				struct snd_soc_dai *dai)
 {
 	struct sdw_stream_data *stream;
 
@@ -877,8 +885,8 @@ static void rt700_shutdown(struct snd_pcm_substream *substream,
 }
 
 static int rt700_pcm_hw_params(struct snd_pcm_substream *substream,
-			       struct snd_pcm_hw_params *params,
-			       struct snd_soc_dai *dai)
+					struct snd_pcm_hw_params *params,
+					struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt700_priv *rt700 = snd_soc_component_get_drvdata(component);
@@ -929,7 +937,7 @@ static int rt700_pcm_hw_params(struct snd_pcm_substream *substream,
 	port_config.num = port;
 
 	retval = sdw_stream_add_slave(rt700->slave, &stream_config,
-				      &port_config, 1, stream->sdw_stream);
+					&port_config, 1, stream->sdw_stream);
 	if (retval) {
 		dev_err(dai->dev, "Unable to configure port\n");
 		return retval;
@@ -972,7 +980,7 @@ static int rt700_pcm_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int rt700_pcm_hw_free(struct snd_pcm_substream *substream,
-			     struct snd_soc_dai *dai)
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt700_priv *rt700 = snd_soc_component_get_drvdata(component);
@@ -1085,7 +1093,7 @@ int rt700_clock_config(struct device *dev)
 }
 
 int rt700_init(struct device *dev, struct regmap *sdw_regmap,
-	       struct regmap *regmap, struct sdw_slave *slave)
+			struct regmap *regmap, struct sdw_slave *slave)
 
 {
 	struct rt700_priv *rt700;
@@ -1108,9 +1116,9 @@ int rt700_init(struct device *dev, struct regmap *sdw_regmap,
 	rt700->first_init = false;
 
 	ret =  devm_snd_soc_register_component(dev,
-					  &soc_codec_dev_rt700,
-					  rt700_dai,
-					  ARRAY_SIZE(rt700_dai));
+					&soc_codec_dev_rt700,
+					rt700_dai,
+					ARRAY_SIZE(rt700_dai));
 
 	dev_dbg(&slave->dev, "%s\n", __func__);
 

@@ -38,14 +38,14 @@ static bool rt700_readable_register(struct device *dev, unsigned int reg)
 	case 0x8300 ... 0x83ff:
 	case 0x9c00 ... 0x9cff:
 	case 0xb900 ... 0xb9ff:
-	case 0x7520001a:
-	case 0x75200045:
-	case 0x75200046:
-	case 0x75200048:
-	case 0x7520004a:
-	case 0x7520006b:
-	case 0x75200080:
-	case 0x75200081:
+	case 0x75201a:
+	case 0x752045:
+	case 0x752046:
+	case 0x752048:
+	case 0x75204a:
+	case 0x75206b:
+	case 0x752080:
+	case 0x752081:
 		return true;
 	default:
 		return false;
@@ -72,10 +72,10 @@ static bool rt700_volatile_register(struct device *dev, unsigned int reg)
 	case 0x9c00 ... 0x9cff:
 	case 0xb900 ... 0xb9ff:
 	case 0xff01:
-	case 0x7520001a:
-	case 0x75200046:
-	case 0x75200080:
-	case 0x75200081:
+	case 0x75201a:
+	case 0x752046:
+	case 0x752080:
+	case 0x752081:
 		return true;
 	default:
 		return false;
@@ -97,20 +97,21 @@ static int rt700_sdw_read(void *context, unsigned int reg, unsigned int *val)
 	mask = reg & 0xf000;
 
 	if (is_index_reg) { /* index registers */
-		val2 = reg & 0xffff;
-		reg = reg >> 16;
+		val2 = reg & 0xff;
+		reg = reg >> 8;
 		nid = reg & 0xff;
-		ret = regmap_write(rt700->sdw_regmap, reg, ((val2 >> 8) & 0xff));
+		ret = regmap_write(rt700->sdw_regmap, reg, 0);
 		if (ret < 0)
 			return ret;
 		reg2 = reg + 0x1000;
 		reg2 |= 0x80;
-		ret = regmap_write(rt700->sdw_regmap, reg2, (val2 & 0xff));
+		ret = regmap_write(rt700->sdw_regmap, reg2, val2);
 		if (ret < 0)
 			return ret;
 
 		reg3 = RT700_PRIV_DATA_R_H | nid;
-		ret = regmap_write(rt700->sdw_regmap, reg3, ((*val >> 8) & 0xff));
+		ret = regmap_write(rt700->sdw_regmap,
+			reg3, ((*val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		reg4 = reg3 + 0x1000;
@@ -126,7 +127,8 @@ static int rt700_sdw_read(void *context, unsigned int reg, unsigned int *val)
 	} else if (mask == 0x7000) {
 		reg += 0x2000;
 		reg |= 0x800;
-		ret = regmap_write(rt700->sdw_regmap, reg, ((*val >> 8) & 0xff));
+		ret = regmap_write(rt700->sdw_regmap,
+			reg, ((*val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		reg2 = reg + 0x1000;
@@ -137,14 +139,16 @@ static int rt700_sdw_read(void *context, unsigned int reg, unsigned int *val)
 	} else if ((reg & 0xff00) == 0x8300) { /* for R channel */
 		reg2 = reg - 0x1000;
 		reg2 &= ~0x80;
-		ret = regmap_write(rt700->sdw_regmap, reg2, ((*val >> 8) & 0xff));
+		ret = regmap_write(rt700->sdw_regmap,
+			reg2, ((*val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		ret = regmap_write(rt700->sdw_regmap, reg, (*val & 0xff));
 		if (ret < 0)
 			return ret;
 	} else if (mask == 0x9000) {
-		ret = regmap_write(rt700->sdw_regmap, reg, ((*val >> 8) & 0xff));
+		ret = regmap_write(rt700->sdw_regmap,
+			reg, ((*val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		reg2 = reg + 0x1000;
@@ -168,29 +172,35 @@ static int rt700_sdw_read(void *context, unsigned int reg, unsigned int *val)
 		sdw_data_2 = 0;
 		sdw_data_1 = 0;
 		sdw_data_0 = 0;
-		ret = regmap_read(rt700->sdw_regmap, RT700_READ_HDA_3, &sdw_data_3);
+		ret = regmap_read(rt700->sdw_regmap,
+			RT700_READ_HDA_3, &sdw_data_3);
 		if (ret < 0)
 			return ret;
-		ret = regmap_read(rt700->sdw_regmap, RT700_READ_HDA_2, &sdw_data_2);
+		ret = regmap_read(rt700->sdw_regmap,
+			RT700_READ_HDA_2, &sdw_data_2);
 		if (ret < 0)
 			return ret;
-		ret = regmap_read(rt700->sdw_regmap, RT700_READ_HDA_1, &sdw_data_1);
+		ret = regmap_read(rt700->sdw_regmap,
+			RT700_READ_HDA_1, &sdw_data_1);
 		if (ret < 0)
 			return ret;
-		ret = regmap_read(rt700->sdw_regmap, RT700_READ_HDA_0, &sdw_data_0);
+		ret = regmap_read(rt700->sdw_regmap,
+			RT700_READ_HDA_0, &sdw_data_0);
 		if (ret < 0)
 			return ret;
-		*val = ((sdw_data_3 & 0xff) << 24) | ((sdw_data_2 & 0xff) << 16) |
-			 ((sdw_data_1 & 0xff) << 8) | (sdw_data_0 & 0xff);
+		*val = ((sdw_data_3 & 0xff) << 24) |
+			((sdw_data_2 & 0xff) << 16) |
+			((sdw_data_1 & 0xff) << 8) | (sdw_data_0 & 0xff);
 	}
 
 	if (is_hda_reg == 0)
 		dev_dbg(dev, "[%s] %04x => %08x\n", __func__, reg, *val);
 	else if (is_index_reg)
-		dev_dbg(dev, "[%s] %04x %04x %04x %04x => %08x\n", __func__,
-			reg, reg2, reg3, reg4, *val);
+		dev_dbg(dev, "[%s] %04x %04x %04x %04x => %08x\n",
+			__func__, reg, reg2, reg3, reg4, *val);
 	else
-		dev_dbg(dev, "[%s] %04x %04x => %08x\n", __func__, reg, reg2, *val);
+		dev_dbg(dev, "[%s] %04x %04x => %08x\n",
+			__func__, reg, reg2, *val);
 
 	return 0;
 }
@@ -209,20 +219,21 @@ static int rt700_sdw_write(void *context, unsigned int reg, unsigned int val)
 	mask = reg & 0xf000;
 
 	if (is_index_reg) { /* index registers */
-		val2 = reg & 0xffff;
-		reg = reg >> 16;
+		val2 = reg & 0xff;
+		reg = reg >> 8;
 		nid = reg & 0xff;
-		ret = regmap_write(rt700->sdw_regmap, reg, ((val2 >> 8) & 0xff));
+		ret = regmap_write(rt700->sdw_regmap, reg, 0);
 		if (ret < 0)
 			return ret;
 		reg2 = reg + 0x1000;
 		reg2 |= 0x80;
-		ret = regmap_write(rt700->sdw_regmap, reg2, (val2 & 0xff));
+		ret = regmap_write(rt700->sdw_regmap, reg2, val2);
 		if (ret < 0)
 			return ret;
 
 		reg3 = RT700_PRIV_DATA_W_H | nid;
-		ret = regmap_write(rt700->sdw_regmap, reg3, ((val >> 8) & 0xff));
+		ret = regmap_write(rt700->sdw_regmap,
+			reg3, ((val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		reg4 = reg3 + 0x1000;
@@ -240,7 +251,8 @@ static int rt700_sdw_write(void *context, unsigned int reg, unsigned int val)
 		if (ret < 0)
 			return ret;
 	} else if (mask == 0x7000) {
-		ret = regmap_write(rt700->sdw_regmap, reg, ((val >> 8) & 0xff));
+		ret = regmap_write(rt700->sdw_regmap,
+			reg, ((val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		reg2 = reg + 0x1000;
@@ -251,7 +263,8 @@ static int rt700_sdw_write(void *context, unsigned int reg, unsigned int val)
 	} else if ((reg & 0xff00) == 0x8300) {  /* for R channel */
 		reg2 = reg - 0x1000;
 		reg2 &= ~0x80;
-		ret = regmap_write(rt700->sdw_regmap, reg2, ((val >> 8) & 0xff));
+		ret = regmap_write(rt700->sdw_regmap,
+			reg2, ((val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		ret = regmap_write(rt700->sdw_regmap, reg, (val & 0xff));
@@ -262,20 +275,21 @@ static int rt700_sdw_write(void *context, unsigned int reg, unsigned int val)
 	if (reg2 == 0)
 		dev_dbg(dev, "[%s] %04x <= %04x\n", __func__, reg, val);
 	else if (is_index_reg)
-		dev_dbg(dev, "[%s] %04x %04x %04x %04x <= %04x %04x\n", __func__,
-			reg, reg2, reg3, reg4, val2, val);
+		dev_dbg(dev, "[%s] %04x %04x %04x %04x <= %04x %04x\n",
+			__func__, reg, reg2, reg3, reg4, val2, val);
 	else
-		dev_dbg(dev, "[%s] %04x %04x <= %04x\n", __func__, reg, reg2, val);
+		dev_dbg(dev, "[%s] %04x %04x <= %04x\n",
+			__func__, reg, reg2, val);
 
 	return 0;
 }
 
 static const struct regmap_config rt700_regmap = {
-	.reg_bits = 32,
+	.reg_bits = 24,
 	.val_bits = 32,
 	.readable_reg = rt700_readable_register, /* Readable registers */
 	.volatile_reg = rt700_volatile_register, /* volatile register */
-	.max_register = 0x75580000, /* Maximum number of register */
+	.max_register = 0x755800, /* Maximum number of register */
 	.reg_defaults = rt700_reg_defaults, /* Defaults */
 	.num_reg_defaults = ARRAY_SIZE(rt700_reg_defaults),
 	.cache_type = REGCACHE_RBTREE,
@@ -297,7 +311,7 @@ static const struct regmap_config rt700_sdw_regmap = {
 };
 
 static int rt700_update_status(struct sdw_slave *slave,
-			       enum sdw_slave_status status)
+					enum sdw_slave_status status)
 {
 	struct rt700_priv *rt700 = dev_get_drvdata(&slave->dev);
 
@@ -329,14 +343,14 @@ static int rt700_read_prop(struct sdw_slave *slave)
 	prop->paging_support = false;
 
 	/* first we need to allocate memory for set bits in port lists */
-	prop->source_ports = 0x14;	/* BITMAP: 00010100 */
-	prop->sink_ports = 0xA;	/* BITMAP:  00001010 */
+	prop->source_ports = 0x14; /* BITMAP: 00010100 */
+	prop->sink_ports = 0xA; /* BITMAP:  00001010 */
 
 	nval = hweight32(prop->source_ports);
 	num_of_ports += nval;
 	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					  sizeof(*prop->src_dpn_prop),
-					  GFP_KERNEL);
+						sizeof(*prop->src_dpn_prop),
+						GFP_KERNEL);
 	if (!prop->src_dpn_prop)
 		return -ENOMEM;
 
@@ -355,8 +369,8 @@ static int rt700_read_prop(struct sdw_slave *slave)
 	nval = hweight32(prop->sink_ports);
 	num_of_ports += nval;
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					   sizeof(*prop->sink_dpn_prop),
-					   GFP_KERNEL);
+						sizeof(*prop->sink_dpn_prop),
+						GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
 		return -ENOMEM;
 
@@ -373,8 +387,8 @@ static int rt700_read_prop(struct sdw_slave *slave)
 
 	/* Allocate port_ready based on num_of_ports */
 	slave->port_ready = devm_kcalloc(&slave->dev, num_of_ports,
-					 sizeof(*slave->port_ready),
-					 GFP_KERNEL);
+					sizeof(*slave->port_ready),
+					GFP_KERNEL);
 	if (!slave->port_ready)
 		return -ENOMEM;
 
@@ -389,7 +403,7 @@ static int rt700_read_prop(struct sdw_slave *slave)
 }
 
 static int rt700_bus_config(struct sdw_slave *slave,
-			    struct sdw_bus_params *params)
+				struct sdw_bus_params *params)
 {
 	struct rt700_priv *rt700 = dev_get_drvdata(&slave->dev);
 	int ret;
@@ -404,7 +418,7 @@ static int rt700_bus_config(struct sdw_slave *slave,
 }
 
 static int rt700_interrupt_callback(struct sdw_slave *slave,
-				    struct sdw_slave_intr_status *status)
+					struct sdw_slave_intr_status *status)
 {
 	struct rt700_priv *rt700 = dev_get_drvdata(&slave->dev);
 
@@ -431,7 +445,7 @@ static struct sdw_slave_ops rt700_slave_ops = {
 };
 
 static int rt700_sdw_probe(struct sdw_slave *slave,
-			   const struct sdw_device_id *id)
+				const struct sdw_device_id *id)
 {
 	struct regmap *sdw_regmap, *regmap;
 
@@ -443,7 +457,8 @@ static int rt700_sdw_probe(struct sdw_slave *slave,
 	if (!sdw_regmap)
 		return -EINVAL;
 
-	regmap = devm_regmap_init(&slave->dev, NULL, &slave->dev, &rt700_regmap);
+	regmap = devm_regmap_init(&slave->dev, NULL,
+		&slave->dev, &rt700_regmap);
 	if (!regmap)
 		return -EINVAL;
 
@@ -494,7 +509,7 @@ static int rt700_dev_resume(struct device *dev)
 		return 0;
 
 	time = wait_for_completion_timeout(&slave->enumeration_complete,
-					   msecs_to_jiffies(RT700_PROBE_TIMEOUT));
+				msecs_to_jiffies(RT700_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(&slave->dev, "Enumeration not complete, timed out\n");
 		return -ETIMEDOUT;
@@ -502,7 +517,7 @@ static int rt700_dev_resume(struct device *dev)
 
 	regcache_cache_only(rt700->regmap, false);
 	regcache_sync_region(rt700->regmap, 0x3000, 0x8fff);
-	regcache_sync_region(rt700->regmap, 0x75200010, 0x7520006b);
+	regcache_sync_region(rt700->regmap, 0x752010, 0x75206b);
 
 	return 0;
 }
