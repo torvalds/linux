@@ -1656,6 +1656,12 @@ void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t, bool use_de
 		t->sda_fall_ns = t->scl_fall_ns;
 
 	device_property_read_u32(dev, "i2c-sda-hold-time-ns", &t->sda_hold_ns);
+
+	device_property_read_u32(dev, "i2c-digital-filter-width-ns",
+				 &t->digital_filter_width_ns);
+
+	device_property_read_u32(dev, "i2c-analog-filter-cutoff-frequency",
+				 &t->analog_filter_cutoff_freq_hz);
 }
 EXPORT_SYMBOL_GPL(i2c_parse_fw_timings);
 
