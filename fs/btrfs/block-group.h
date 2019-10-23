@@ -44,7 +44,6 @@ struct btrfs_caching_control {
 
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
-	struct btrfs_block_group_item item;
 	struct btrfs_fs_info *fs_info;
 	struct inode *inode;
 	spinlock_t lock;

@@ -1752,8 +1752,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		read_extent_buffer(leaf, &bgi,
 				   btrfs_item_ptr_offset(leaf, path->slots[0]),
 				   sizeof(bgi));
-		/* Duplicate as the item is still partially used */
-		memcpy(&cache->item, &bgi, sizeof(bgi));
+		/* cache::chunk_objectid is unused */
 		cache->used = btrfs_block_group_used(&bgi);
 		cache->flags = btrfs_block_group_flags(&bgi);
 		if (!mixed &&
@@ -1879,12 +1878,9 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 			goto next;
 
 		spin_lock(&block_group->lock);
-		/*
-		 * Copy partially filled item from the cache and ovewrite used
-		 * that has the correct value
-		 */
-		memcpy(&item, &block_group->item, sizeof(item));
 		btrfs_set_block_group_used(&item, block_group->used);
+		btrfs_set_block_group_chunk_objectid(&item,
+				BTRFS_FIRST_CHUNK_TREE_OBJECTID);
 		btrfs_set_block_group_flags(&item, block_group->flags);
 		memcpy(&key, &block_group->key, sizeof(key));
 		spin_unlock(&block_group->lock);
@@ -1919,8 +1915,6 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 		return -ENOMEM;
 
 	cache->used = bytes_used;
-	btrfs_set_block_group_chunk_objectid(&cache->item,
-					     BTRFS_FIRST_CHUNK_TREE_OBJECTID);
 	cache->flags = type;
 	cache->last_byte_to_unpin = (u64)-1;
 	cache->cached = BTRFS_CACHE_FINISHED;
@@ -2136,9 +2130,9 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 
 	leaf = path->nodes[0];
 	bi = btrfs_item_ptr_offset(leaf, path->slots[0]);
-	/* Partial copy of item, update the rest from memory */
-	memcpy(&bgi, &cache->item, sizeof(bgi));
 	btrfs_set_block_group_used(&bgi, cache->used);
+	btrfs_set_block_group_chunk_objectid(&bgi,
+			BTRFS_FIRST_CHUNK_TREE_OBJECTID);
 	btrfs_set_block_group_flags(&bgi, cache->flags);
 	write_extent_buffer(leaf, &bgi, bi, sizeof(bgi));
 	btrfs_mark_buffer_dirty(leaf);
