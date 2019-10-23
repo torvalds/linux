@@ -177,11 +177,11 @@ out_flushed:
 	rpcrdma_recv_buffer_put(rep);
 }
 
-static void
-rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
-			       struct rdma_conn_param *param)
+static void rpcrdma_update_cm_private(struct rpcrdma_xprt *r_xprt,
+				      struct rdma_conn_param *param)
 {
 	const struct rpcrdma_connect_private *pmsg = param->private_data;
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	unsigned int rsize, wsize;
 
 	/* Default settings for RPC-over-RDMA Version One */
@@ -197,13 +197,11 @@ rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
 		wsize = rpcrdma_decode_buffer_size(pmsg->cp_recv_size);
 	}
 
-	if (rsize < r_xprt->rx_ep.rep_inline_recv)
-		r_xprt->rx_ep.rep_inline_recv = rsize;
-	if (wsize < r_xprt->rx_ep.rep_inline_send)
-		r_xprt->rx_ep.rep_inline_send = wsize;
-	dprintk("RPC:       %s: max send %u, max recv %u\n", __func__,
-		r_xprt->rx_ep.rep_inline_send,
-		r_xprt->rx_ep.rep_inline_recv);
+	if (rsize < ep->rep_inline_recv)
+		ep->rep_inline_recv = rsize;
+	if (wsize < ep->rep_inline_send)
+		ep->rep_inline_send = wsize;
+
 	rpcrdma_set_max_header_sizes(r_xprt);
 }
 
@@ -257,7 +255,8 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_ESTABLISHED:
 		++xprt->connect_cookie;
 		ep->rep_connected = 1;
-		rpcrdma_update_connect_private(r_xprt, &event->param.conn);
+		rpcrdma_update_cm_private(r_xprt, &event->param.conn);
+		trace_xprtrdma_inline_thresh(r_xprt);
 		wake_up_all(&ep->rep_connect_wait);
 		break;
 	case RDMA_CM_EVENT_CONNECT_ERROR:

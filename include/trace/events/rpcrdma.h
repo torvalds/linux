@@ -371,6 +371,42 @@ TRACE_EVENT(xprtrdma_cm_event,
 	)
 );
 
+TRACE_EVENT(xprtrdma_inline_thresh,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt
+	),
+
+	TP_ARGS(r_xprt),
+
+	TP_STRUCT__entry(
+		__field(const void *, r_xprt)
+		__field(unsigned int, inline_send)
+		__field(unsigned int, inline_recv)
+		__field(unsigned int, max_send)
+		__field(unsigned int, max_recv)
+		__string(addr, rpcrdma_addrstr(r_xprt))
+		__string(port, rpcrdma_portstr(r_xprt))
+	),
+
+	TP_fast_assign(
+		const struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+
+		__entry->r_xprt = r_xprt;
+		__entry->inline_send = ep->rep_inline_send;
+		__entry->inline_recv = ep->rep_inline_recv;
+		__entry->max_send = ep->rep_max_inline_send;
+		__entry->max_recv = ep->rep_max_inline_recv;
+		__assign_str(addr, rpcrdma_addrstr(r_xprt));
+		__assign_str(port, rpcrdma_portstr(r_xprt));
+	),
+
+	TP_printk("peer=[%s]:%s r_xprt=%p neg send/recv=%u/%u, calc send/recv=%u/%u",
+		__get_str(addr), __get_str(port), __entry->r_xprt,
+		__entry->inline_send, __entry->inline_recv,
+		__entry->max_send, __entry->max_recv
+	)
+);
+
 DEFINE_CONN_EVENT(connect);
 DEFINE_CONN_EVENT(disconnect);
 

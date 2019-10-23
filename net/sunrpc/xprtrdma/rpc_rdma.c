@@ -78,8 +78,6 @@ static unsigned int rpcrdma_max_call_header_size(unsigned int maxsegs)
 	size += rpcrdma_segment_maxsz * sizeof(__be32);
 	size += sizeof(__be32);	/* list discriminator */
 
-	dprintk("RPC:       %s: max call header size = %u\n",
-		__func__, size);
 	return size;
 }
 
@@ -100,8 +98,6 @@ static unsigned int rpcrdma_max_reply_header_size(unsigned int maxsegs)
 	size += maxsegs * rpcrdma_segment_maxsz * sizeof(__be32);
 	size += sizeof(__be32);	/* list discriminator */
 
-	dprintk("RPC:       %s: max reply header size = %u\n",
-		__func__, size);
 	return size;
 }
 
