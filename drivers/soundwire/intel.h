@@ -7,7 +7,7 @@
 /**
  * struct sdw_intel_link_res - Soundwire Intel link resource structure,
  * typically populated by the controller driver.
- * @pdev: platform_device
+ * @md: master device
  * @mmio_base: mmio base of SoundWire registers
  * @registers: Link IO registers base
  * @shim: Audio shim pointer
@@ -17,7 +17,7 @@
  * @dev: device implementing hw_params and free callbacks
  */
 struct sdw_intel_link_res {
-	struct platform_device *pdev;
+	struct sdw_master_device *md;
 	void __iomem *mmio_base; /* not strictly needed, useful for debug */
 	void __iomem *registers;
 	void __iomem *shim;
@@ -26,5 +26,9 @@ struct sdw_intel_link_res {
 	const struct sdw_intel_ops *ops;
 	struct device *dev;
 };
+
+#define SDW_INTEL_QUIRK_MASK_BUS_DISABLE      BIT(1)
+
+extern struct sdw_md_driver intel_sdw_driver;
 
 #endif /* __SDW_INTEL_LOCAL_H */
