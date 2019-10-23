@@ -219,6 +219,7 @@ obj-$(CONFIG_MFD_INTEL_PMC_BXT)	+= intel_pmc_bxt.o
 obj-$(CONFIG_MFD_PALMAS)	+= palmas.o
 obj-$(CONFIG_MFD_VIPERBOARD)    += viperboard.o
 obj-$(CONFIG_MFD_RC5T583)	+= rc5t583.o rc5t583-irq.o
+obj-$(CONFIG_MFD_RK628)		+= rk628.o
 obj-$(CONFIG_MFD_RK630)		+= rk630.o
 obj-$(CONFIG_MFD_RK630_I2C)	+= rk630-i2c.o
 obj-$(CONFIG_MFD_RK630_SPI)	+= rk630-spi.o
