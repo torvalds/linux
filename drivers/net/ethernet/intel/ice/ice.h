@@ -331,6 +331,7 @@ enum ice_pf_flags {
 	ICE_FLAG_NO_MEDIA,
 	ICE_FLAG_FW_LLDP_AGENT,
 	ICE_FLAG_ETHTOOL_CTXT,		/* set when ethtool holds RTNL lock */
+	ICE_FLAG_LEGACY_RX,
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 

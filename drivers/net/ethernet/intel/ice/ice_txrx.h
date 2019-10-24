@@ -7,7 +7,9 @@
 #include "ice_type.h"
 
 #define ICE_DFLT_IRQ_WORK	256
+#define ICE_RXBUF_3072		3072
 #define ICE_RXBUF_2048		2048
+#define ICE_RXBUF_1536		1536
 #define ICE_MAX_CHAINED_RX_BUFS	5
 #define ICE_MAX_BUF_TXD		8
 #define ICE_MIN_TX_LEN		17
@@ -261,6 +263,17 @@ struct ice_ring_container {
 /* iterator for handling rings in ring container */
 #define ice_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos; pos = pos->next)
+
+static inline unsigned int ice_rx_pg_order(struct ice_ring *ring)
+{
+#if (PAGE_SIZE < 8192)
+	if (ring->rx_buf_len > (PAGE_SIZE / 2))
+		return 1;
+#endif
+	return 0;
+}
+
+#define ice_rx_pg_size(_ring) (PAGE_SIZE << ice_rx_pg_order(_ring))
 
 union ice_32b_rx_flex_desc;
 

@@ -156,6 +156,7 @@ struct ice_priv_flag {
 static const struct ice_priv_flag ice_gstrings_priv_flags[] = {
 	ICE_PRIV_FLAG("link-down-on-close", ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA),
 	ICE_PRIV_FLAG("fw-lldp-agent", ICE_FLAG_FW_LLDP_AGENT),
+	ICE_PRIV_FLAG("legacy-rx", ICE_FLAG_LEGACY_RX),
 };
 
 #define ICE_PRIV_FLAG_ARRAY_SIZE	ARRAY_SIZE(ice_gstrings_priv_flags)
@@ -1255,6 +1256,11 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 				dev_dbg(&pf->pdev->dev,
 					"Fail to enable MIB change events\n");
 		}
+	}
+	if (test_bit(ICE_FLAG_LEGACY_RX, change_flags)) {
+		/* down and up VSI so that changes of Rx cfg are reflected. */
+		ice_down(vsi);
+		ice_up(vsi);
 	}
 	clear_bit(ICE_FLAG_ETHTOOL_CTXT, pf->flags);
 	return ret;

@@ -310,10 +310,11 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 		 */
 		dma_sync_single_range_for_cpu(dev, rx_buf->dma,
 					      rx_buf->page_offset,
-					      ICE_RXBUF_2048, DMA_FROM_DEVICE);
+					      rx_ring->rx_buf_len,
+					      DMA_FROM_DEVICE);
 
 		/* free resources associated with mapping */
-		dma_unmap_page_attrs(dev, rx_buf->dma, PAGE_SIZE,
+		dma_unmap_page_attrs(dev, rx_buf->dma, ice_rx_pg_size(rx_ring),
 				     DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
 		__page_frag_cache_drain(rx_buf->page, rx_buf->pagecnt_bias);
 
@@ -529,21 +530,21 @@ ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
 	}
 
 	/* alloc new page for storage */
-	page = alloc_page(GFP_ATOMIC | __GFP_NOWARN);
+	page = dev_alloc_pages(ice_rx_pg_order(rx_ring));
 	if (unlikely(!page)) {
 		rx_ring->rx_stats.alloc_page_failed++;
 		return false;
 	}
 
 	/* map page for use */
-	dma = dma_map_page_attrs(rx_ring->dev, page, 0, PAGE_SIZE,
+	dma = dma_map_page_attrs(rx_ring->dev, page, 0, ice_rx_pg_size(rx_ring),
 				 DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
 
 	/* if mapping failed free memory back to system since
 	 * there isn't much point in holding memory we can't use
 	 */
 	if (dma_mapping_error(rx_ring->dev, dma)) {
-		__free_pages(page, 0);
+		__free_pages(page, ice_rx_pg_order(rx_ring));
 		rx_ring->rx_stats.alloc_page_failed++;
 		return false;
 	}
@@ -592,7 +593,7 @@ bool ice_alloc_rx_bufs(struct ice_ring *rx_ring, u16 cleaned_count)
 		/* sync the buffer for use by the device */
 		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
 						 bi->page_offset,
-						 ICE_RXBUF_2048,
+						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
 
 		/* Refresh the desc even if buffer_addrs didn't change
@@ -663,9 +664,6 @@ ice_rx_buf_adjust_pg_offset(struct ice_rx_buf *rx_buf, unsigned int size)
  */
 static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
 {
-#if (PAGE_SIZE >= 8192)
-	unsigned int last_offset = PAGE_SIZE - ICE_RXBUF_2048;
-#endif
 	unsigned int pagecnt_bias = rx_buf->pagecnt_bias;
 	struct page *page = rx_buf->page;
 
@@ -678,7 +676,9 @@ static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
 	if (unlikely((page_count(page) - pagecnt_bias) > 1))
 		return false;
 #else
-	if (rx_buf->page_offset > last_offset)
+#define ICE_LAST_OFFSET \
+	(SKB_WITH_OVERHEAD(PAGE_SIZE) - ICE_RXBUF_2048)
+	if (rx_buf->page_offset > ICE_LAST_OFFSET)
 		return false;
 #endif /* PAGE_SIZE < 8192) */
 
@@ -696,6 +696,7 @@ static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
 
 /**
  * ice_add_rx_frag - Add contents of Rx buffer to sk_buff as a frag
+ * @rx_ring: Rx descriptor ring to transact packets on
  * @rx_buf: buffer containing page to add
  * @skb: sk_buff to place the data into
  * @size: packet length from rx_desc
@@ -705,13 +706,13 @@ static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
  * The function will then update the page offset.
  */
 static void
-ice_add_rx_frag(struct ice_rx_buf *rx_buf, struct sk_buff *skb,
-		unsigned int size)
+ice_add_rx_frag(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
+		struct sk_buff *skb, unsigned int size)
 {
 #if (PAGE_SIZE >= 8192)
 	unsigned int truesize = SKB_DATA_ALIGN(size);
 #else
-	unsigned int truesize = ICE_RXBUF_2048;
+	unsigned int truesize = ice_rx_pg_size(rx_ring) / 2;
 #endif
 
 	if (!size)
@@ -830,7 +831,7 @@ ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 #if (PAGE_SIZE >= 8192)
 		unsigned int truesize = SKB_DATA_ALIGN(size);
 #else
-		unsigned int truesize = ICE_RXBUF_2048;
+		unsigned int truesize = ice_rx_pg_size(rx_ring) / 2;
 #endif
 		skb_add_rx_frag(skb, 0, rx_buf->page,
 				rx_buf->page_offset + headlen, size, truesize);
@@ -873,8 +874,9 @@ static void ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 		rx_ring->rx_stats.page_reuse_count++;
 	} else {
 		/* we are not reusing the buffer so unmap it */
-		dma_unmap_page_attrs(rx_ring->dev, rx_buf->dma, PAGE_SIZE,
-				     DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
+		dma_unmap_page_attrs(rx_ring->dev, rx_buf->dma,
+				     ice_rx_pg_size(rx_ring), DMA_FROM_DEVICE,
+				     ICE_RX_DMA_ATTR);
 		__page_frag_cache_drain(rx_buf->page, rx_buf->pagecnt_bias);
 	}
 
@@ -1008,9 +1010,15 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		rcu_read_unlock();
 		if (xdp_res) {
 			if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR)) {
+				unsigned int truesize;
+
+#if (PAGE_SIZE < 8192)
+				truesize = ice_rx_pg_size(rx_ring) / 2;
+#else
+				truesize = SKB_DATA_ALIGN(size);
+#endif
 				xdp_xmit |= xdp_res;
-				ice_rx_buf_adjust_pg_offset(rx_buf,
-							    ICE_RXBUF_2048);
+				ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
 			} else {
 				rx_buf->pagecnt_bias++;
 			}
@@ -1023,7 +1031,7 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		}
 construct_skb:
 		if (skb)
-			ice_add_rx_frag(rx_buf, skb, size);
+			ice_add_rx_frag(rx_ring, rx_buf, skb, size);
 		else
 			skb = ice_construct_skb(rx_ring, rx_buf, &xdp);
 
