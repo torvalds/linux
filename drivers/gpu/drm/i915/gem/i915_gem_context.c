@@ -69,9 +69,10 @@
 
 #include <drm/i915_drm.h>
 
-#include "gt/intel_lrc_reg.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_engine_user.h"
+#include "gt/intel_lrc_reg.h"
+#include "gt/intel_ring.h"
 
 #include "i915_gem_context.h"
 #include "i915_globals.h"

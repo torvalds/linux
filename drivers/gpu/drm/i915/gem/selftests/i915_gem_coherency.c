@@ -8,6 +8,7 @@
 
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_ring.h"
 
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"

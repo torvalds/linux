@@ -19,6 +19,7 @@
 #include "gt/intel_engine_pool.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_ring.h"
 
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"

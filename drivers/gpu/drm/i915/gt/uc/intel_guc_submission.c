@@ -6,12 +6,13 @@
 #include <linux/circ_buf.h>
 
 #include "gem/i915_gem_context.h"
-
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_lrc_reg.h"
+#include "gt/intel_ring.h"
+
 #include "intel_guc_submission.h"
 
 #include "i915_drv.h"

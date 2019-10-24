@@ -9,6 +9,7 @@
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
 #include "intel_gt_requests.h"
+#include "intel_ring.h"
 
 #include "../selftests/i915_random.h"
 #include "../i915_selftest.h"

@@ -7,6 +7,7 @@
 #include <linux/debugobjects.h>
 
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_ring.h"
 
 #include "i915_drv.h"
 #include "i915_active.h"

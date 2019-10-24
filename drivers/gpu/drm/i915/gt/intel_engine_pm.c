@@ -13,6 +13,7 @@
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_rc6.h"
+#include "intel_ring.h"
 
 static int __engine_unpark(struct intel_wakeref *wf)
 {

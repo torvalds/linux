@@ -145,6 +145,7 @@
 #include "intel_lrc_reg.h"
 #include "intel_mocs.h"
 #include "intel_reset.h"
+#include "intel_ring.h"
 #include "intel_workarounds.h"
 
 #define RING_EXECLIST_QFULL		(1 << 0x2)

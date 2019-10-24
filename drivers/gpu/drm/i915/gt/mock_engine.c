@@ -23,6 +23,7 @@
  */
 
 #include "gem/i915_gem_context.h"
+#include "gt/intel_ring.h"
 
 #include "i915_drv.h"
 #include "intel_context.h"

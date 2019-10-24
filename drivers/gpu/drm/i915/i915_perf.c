@@ -200,6 +200,7 @@
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_lrc_reg.h"
+#include "gt/intel_ring.h"
 
 #include "i915_drv.h"
 #include "i915_perf.h"

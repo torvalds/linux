@@ -89,11 +89,12 @@ gt-y += \
 	gt/intel_gt_requests.o \
 	gt/intel_llc.o \
 	gt/intel_lrc.o \
+	gt/intel_mocs.o \
 	gt/intel_rc6.o \
 	gt/intel_renderstate.o \
 	gt/intel_reset.o \
-	gt/intel_ringbuffer.o \
-	gt/intel_mocs.o \
+	gt/intel_ring.o \
+	gt/intel_ring_submission.o \
 	gt/intel_sseu.o \
 	gt/intel_timeline.o \
 	gt/intel_workarounds.o

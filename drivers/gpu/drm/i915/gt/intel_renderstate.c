@@ -27,6 +27,7 @@
 
 #include "i915_drv.h"
 #include "intel_renderstate.h"
+#include "intel_ring.h"
 
 struct intel_renderstate {
 	const struct intel_renderstate_rodata *rodata;

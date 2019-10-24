@@ -26,6 +26,7 @@
 #include "intel_gt.h"
 #include "intel_mocs.h"
 #include "intel_lrc.h"
+#include "intel_ring.h"
 
 /* structures required */
 struct drm_i915_mocs_entry {

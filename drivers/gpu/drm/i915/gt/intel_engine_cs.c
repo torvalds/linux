@@ -37,6 +37,7 @@
 #include "intel_context.h"
 #include "intel_lrc.h"
 #include "intel_reset.h"
+#include "intel_ring.h"
 
 /* Haswell does have the CXT_SIZE register however it does not appear to be
  * valid. Now, docs explain in dwords what is in the context object. The full
