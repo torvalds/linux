@@ -323,6 +323,8 @@ struct hisi_sas_hw {
 	const struct hisi_sas_debugfs_reg *debugfs_reg_port;
 };
 
+#define HISI_SAS_MAX_DEBUGFS_DUMP (50)
+
 struct hisi_sas_debugfs_cq {
 	struct hisi_sas_cq *cq;
 	void *complete_hdr;
@@ -440,15 +442,16 @@ struct hisi_hba {
 
 	/* debugfs memories */
 	/* Put Global AXI and RAS Register into register array */
-	struct hisi_sas_debugfs_regs debugfs_regs[DEBUGFS_REGS_NUM];
-	struct hisi_sas_debugfs_port debugfs_port_reg[HISI_SAS_MAX_PHYS];
-	struct hisi_sas_debugfs_cq debugfs_cq[HISI_SAS_MAX_QUEUES];
-	struct hisi_sas_debugfs_dq debugfs_dq[HISI_SAS_MAX_QUEUES];
-	struct hisi_sas_debugfs_iost debugfs_iost;
-	struct hisi_sas_debugfs_itct debugfs_itct;
+	struct hisi_sas_debugfs_regs debugfs_regs[HISI_SAS_MAX_DEBUGFS_DUMP][DEBUGFS_REGS_NUM];
+	struct hisi_sas_debugfs_port debugfs_port_reg[HISI_SAS_MAX_DEBUGFS_DUMP][HISI_SAS_MAX_PHYS];
+	struct hisi_sas_debugfs_cq debugfs_cq[HISI_SAS_MAX_DEBUGFS_DUMP][HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_debugfs_dq debugfs_dq[HISI_SAS_MAX_DEBUGFS_DUMP][HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_debugfs_iost debugfs_iost[HISI_SAS_MAX_DEBUGFS_DUMP];
+	struct hisi_sas_debugfs_itct debugfs_itct[HISI_SAS_MAX_DEBUGFS_DUMP];
+	struct hisi_sas_debugfs_iost_cache debugfs_iost_cache[HISI_SAS_MAX_DEBUGFS_DUMP];
+	struct hisi_sas_debugfs_itct_cache debugfs_itct_cache[HISI_SAS_MAX_DEBUGFS_DUMP];
+
 	u64 debugfs_timestamp;
-	struct hisi_sas_debugfs_iost_cache debugfs_iost_cache;
-	struct hisi_sas_debugfs_itct_cache debugfs_itct_cache;
 
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_dump_dentry;
