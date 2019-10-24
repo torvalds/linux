@@ -64,6 +64,7 @@ struct fscrypt_operations {
 	bool (*has_stable_inodes)(struct super_block *sb);
 	void (*get_ino_and_lblk_bits)(struct super_block *sb,
 				      int *ino_bits_ret, int *lblk_bits_ret);
+	bool (*inline_crypt_enabled)(struct super_block *sb);
 };
 
 static inline bool fscrypt_has_encryption_key(const struct inode *inode)
@@ -542,6 +543,65 @@ static inline void fscrypt_set_ops(struct super_block *sb,
 }
 
 #endif	/* !CONFIG_FS_ENCRYPTION */
+
+/* inline_crypt.c */
+#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
+extern bool fscrypt_inode_uses_inline_crypto(const struct inode *inode);
+
+extern bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode);
+
+extern int fscrypt_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
+				     u64 first_lblk, gfp_t gfp_mask);
+
+extern int fscrypt_set_bio_crypt_ctx_bh(struct bio *bio,
+					const struct buffer_head *first_bh,
+					gfp_t gfp_mask);
+
+extern bool fscrypt_mergeable_bio(struct bio *bio, const struct inode *inode,
+				  u64 next_lblk);
+
+extern bool fscrypt_mergeable_bio_bh(struct bio *bio,
+				     const struct buffer_head *next_bh);
+
+#else /* CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
+static inline bool fscrypt_inode_uses_inline_crypto(const struct inode *inode)
+{
+	return false;
+}
+
+static inline bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode)
+{
+	return IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode);
+}
+
+static inline int fscrypt_set_bio_crypt_ctx(struct bio *bio,
+					    const struct inode *inode,
+					    u64 first_lblk, gfp_t gfp_mask)
+{
+	return 0;
+}
+
+static inline int fscrypt_set_bio_crypt_ctx_bh(
+					struct bio *bio,
+					const struct buffer_head *first_bh,
+					gfp_t gfp_mask)
+{
+	return 0;
+}
+
+static inline bool fscrypt_mergeable_bio(struct bio *bio,
+					 const struct inode *inode,
+					 u64 next_lblk)
+{
+	return true;
+}
+
+static inline bool fscrypt_mergeable_bio_bh(struct bio *bio,
+					    const struct buffer_head *next_bh)
+{
+	return true;
+}
+#endif /* !CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
 
 /**
  * fscrypt_require_key - require an inode's encryption key
