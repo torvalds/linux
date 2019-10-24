@@ -62,10 +62,10 @@ static void drm_cache_flush_clflush(struct page *pages[],
 {
 	unsigned long i;
 
-	mb();
+	mb(); /*Full memory barrier used before so that CLFLUSH is ordered*/
 	for (i = 0; i < num_pages; i++)
 		drm_clflush_page(*pages++);
-	mb();
+	mb(); /*Also used after CLFLUSH so that all cache is flushed*/
 }
 #endif
 
