@@ -91,7 +91,8 @@ The most straightforward way to allocate memory is to use a function
 from the kmalloc() family. And, to be on the safe side it's best to use
 routines that set memory to zero, like kzalloc(). If you need to
 allocate memory for an array, there are kmalloc_array() and kcalloc()
-helpers.
+helpers. The helpers struct_size(), array_size() and array3_size() can
+be used to safely calculate object sizes without overflowing.
 
 The maximal size of a chunk that can be allocated with `kmalloc` is
 limited. The actual limit depends on the hardware and the kernel
