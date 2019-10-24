@@ -1225,42 +1225,31 @@ setup_rings:
  * ice_vsi_cfg_txqs - Configure the VSI for Tx
  * @vsi: the VSI being configured
  * @rings: Tx ring array to be configured
- * @offset: offset within vsi->txq_map
  *
  * Return 0 on success and a negative value on error
  * Configure the Tx VSI for operation.
  */
 static int
-ice_vsi_cfg_txqs(struct ice_vsi *vsi, struct ice_ring **rings, int offset)
+ice_vsi_cfg_txqs(struct ice_vsi *vsi, struct ice_ring **rings)
 {
 	struct ice_aqc_add_tx_qgrp *qg_buf;
-	struct ice_pf *pf = vsi->back;
-	u16 q_idx = 0, i;
+	u16 q_idx = 0;
 	int err = 0;
-	u8 tc;
 
-	qg_buf = devm_kzalloc(&pf->pdev->dev, sizeof(*qg_buf), GFP_KERNEL);
+	qg_buf = kzalloc(sizeof(*qg_buf), GFP_KERNEL);
 	if (!qg_buf)
 		return -ENOMEM;
 
 	qg_buf->num_txqs = 1;
 
-	/* set up and configure the Tx queues for each enabled TC */
-	ice_for_each_traffic_class(tc) {
-		if (!(vsi->tc_cfg.ena_tc & BIT(tc)))
-			break;
-
-		for (i = 0; i < vsi->tc_cfg.tc_info[tc].qcount_tx; i++) {
-			err = ice_vsi_cfg_txq(vsi, rings[q_idx], i + offset,
-					      qg_buf, tc);
-			if (err)
-				goto err_cfg_txqs;
-
-			q_idx++;
-		}
+	for (q_idx = 0; q_idx < vsi->num_txq; q_idx++) {
+		err = ice_vsi_cfg_txq(vsi, rings[q_idx], qg_buf);
+		if (err)
+			goto err_cfg_txqs;
 	}
+
 err_cfg_txqs:
-	devm_kfree(&pf->pdev->dev, qg_buf);
+	kfree(qg_buf);
 	return err;
 }
 
@@ -1273,7 +1262,7 @@ err_cfg_txqs:
  */
 int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi)
 {
-	return ice_vsi_cfg_txqs(vsi, vsi->tx_rings, 0);
+	return ice_vsi_cfg_txqs(vsi, vsi->tx_rings);
 }
 
 /**
@@ -1463,34 +1452,24 @@ static int
 ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 		      u16 rel_vmvf_num, struct ice_ring **rings)
 {
-	u16 i, q_idx = 0;
-	int status;
-	u8 tc;
+	u16 q_idx;
 
 	if (vsi->num_txq > ICE_LAN_TXQ_MAX_QDIS)
 		return -EINVAL;
 
-	/* set up the Tx queue list to be disabled for each enabled TC */
-	ice_for_each_traffic_class(tc) {
-		if (!(vsi->tc_cfg.ena_tc & BIT(tc)))
-			break;
+	for (q_idx = 0; q_idx < vsi->num_txq; q_idx++) {
+		struct ice_txq_meta txq_meta = { };
+		int status;
 
-		for (i = 0; i < vsi->tc_cfg.tc_info[tc].qcount_tx; i++) {
-			struct ice_txq_meta txq_meta = { };
+		if (!rings || !rings[q_idx])
+			return -EINVAL;
 
-			if (!rings || !rings[q_idx])
-				return -EINVAL;
+		ice_fill_txq_meta(vsi, rings[q_idx], &txq_meta);
+		status = ice_vsi_stop_tx_ring(vsi, rst_src, rel_vmvf_num,
+					      rings[q_idx], &txq_meta);
 
-			ice_fill_txq_meta(vsi, rings[q_idx], &txq_meta);
-			status = ice_vsi_stop_tx_ring(vsi, rst_src,
-						      rel_vmvf_num,
-						      rings[q_idx], &txq_meta);
-
-			if (status)
-				return status;
-
-			q_idx++;
-		}
+		if (status)
+			return status;
 	}
 
 	return 0;

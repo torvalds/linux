@@ -191,6 +191,21 @@ static void ice_cfg_itr_gran(struct ice_hw *hw)
 }
 
 /**
+ * ice_calc_q_handle - calculate the queue handle
+ * @vsi: VSI that ring belongs to
+ * @ring: ring to get the absolute queue index
+ * @tc: traffic class number
+ */
+static u16 ice_calc_q_handle(struct ice_vsi *vsi, struct ice_ring *ring, u8 tc)
+{
+	/* Idea here for calculation is that we subtract the number of queue
+	 * count from TC that ring belongs to from it's absolute queue index
+	 * and as a result we get the queue's index within TC.
+	 */
+	return ring->q_index - vsi->tc_cfg.tc_info[tc].qoffset;
+}
+
+/**
  * ice_setup_tx_ctx - setup a struct ice_tlan_ctx instance
  * @ring: The Tx ring to configure
  * @tlan_ctx: Pointer to the Tx LAN queue context structure to be initialized
@@ -522,13 +537,11 @@ void ice_vsi_free_q_vectors(struct ice_vsi *vsi)
  * ice_vsi_cfg_txq - Configure single Tx queue
  * @vsi: the VSI that queue belongs to
  * @ring: Tx ring to be configured
- * @tc_q_idx: queue index within given TC
  * @qg_buf: queue group buffer
- * @tc: TC that Tx ring belongs to
  */
 int
-ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring, u16 tc_q_idx,
-		struct ice_aqc_add_tx_qgrp *qg_buf, u8 tc)
+ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring,
+		struct ice_aqc_add_tx_qgrp *qg_buf)
 {
 	struct ice_tlan_ctx tlan_ctx = { 0 };
 	struct ice_aqc_add_txqs_perq *txq;
@@ -536,6 +549,7 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring, u16 tc_q_idx,
 	u8 buf_len = sizeof(*qg_buf);
 	enum ice_status status;
 	u16 pf_q;
+	u8 tc;
 
 	pf_q = ring->reg_idx;
 	ice_setup_tx_ctx(ring, &tlan_ctx, pf_q);
@@ -549,10 +563,15 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring, u16 tc_q_idx,
 	 */
 	ring->tail = pf->hw.hw_addr + QTX_COMM_DBELL(pf_q);
 
+	if (IS_ENABLED(CONFIG_DCB))
+		tc = ring->dcb_tc;
+	else
+		tc = 0;
+
 	/* Add unique software queue handle of the Tx queue per
 	 * TC into the VSI Tx ring
 	 */
-	ring->q_handle = tc_q_idx;
+	ring->q_handle = ice_calc_q_handle(vsi, ring, tc);
 
 	status = ice_ena_vsi_txq(vsi->port_info, vsi->idx, tc, ring->q_handle,
 				 1, qg_buf, buf_len, NULL);
