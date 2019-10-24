@@ -92,15 +92,13 @@ static inline enum mod_hdcp_status check_no_max_cascade(struct mod_hdcp *hdcp)
 	enum mod_hdcp_status status;
 
 	if (is_dp_hdcp(hdcp))
-		status = (hdcp->auth.msg.hdcp1.binfo_dp &
-				BINFO_MAX_CASCADE_EXCEEDED_MASK_DP) ?
-			MOD_HDCP_STATUS_HDCP1_MAX_CASCADE_EXCEEDED_FAILURE :
-			MOD_HDCP_STATUS_SUCCESS;
+		status = DRM_HDCP_MAX_CASCADE_EXCEEDED(hdcp->auth.msg.hdcp1.binfo_dp >> 8)
+				 ? MOD_HDCP_STATUS_HDCP1_MAX_CASCADE_EXCEEDED_FAILURE
+				 : MOD_HDCP_STATUS_SUCCESS;
 	else
-		status = (hdcp->auth.msg.hdcp1.bstatus &
-				BSTATUS_MAX_CASCADE_EXCEEDED_MASK) ?
-				MOD_HDCP_STATUS_HDCP1_MAX_CASCADE_EXCEEDED_FAILURE :
-				MOD_HDCP_STATUS_SUCCESS;
+		status = DRM_HDCP_MAX_CASCADE_EXCEEDED(hdcp->auth.msg.hdcp1.bstatus >> 8)
+				 ? MOD_HDCP_STATUS_HDCP1_MAX_CASCADE_EXCEEDED_FAILURE
+				 : MOD_HDCP_STATUS_SUCCESS;
 	return status;
 }
 

@@ -35,8 +35,6 @@
 /* TODO:
  * Replace below defines with these
  *
- * #define DRM_HDCP_MAX_CASCADE_EXCEEDED(x)        (x & BIT(3))
- * #define DRM_HDCP_MAX_CASCADE_EXCEEDED(x)        (x & BIT(3))
  * #define HDCP_2_2_HDMI_RXSTATUS_MSG_SZ_HI(x)     ((x) & 0x3)
  * #define HDCP_2_2_HDMI_RXSTATUS_READY(x)         ((x) & BIT(2))
  * #define HDCP_2_2_HDMI_RXSTATUS_REAUTH_REQ(x)    ((x) & BIT(3))
@@ -46,8 +44,6 @@
  * split the HDMI rxstatus into 2bytes before we can use usptream defs
  */
 
-#define BSTATUS_MAX_CASCADE_EXCEEDED_MASK		0x0800
-#define BINFO_MAX_CASCADE_EXCEEDED_MASK_DP		0x0800
 #define RXSTATUS_MSG_SIZE_MASK				0x03FF
 #define RXSTATUS_READY_MASK				0x0400
 #define RXSTATUS_REAUTH_REQUEST_MASK			0x0800
