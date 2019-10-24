@@ -337,18 +337,26 @@
 					regulator-always-on;
 				};
 
-				sm0 {
+				core_vdd_reg: sm0 {
 					regulator-name = "+1.2vs_sm0,vdd_core";
 					regulator-min-microvolt = <1200000>;
-					regulator-max-microvolt = <1200000>;
+					regulator-max-microvolt = <1225000>;
+					regulator-coupled-with = <&rtc_vdd_reg &cpu_vdd_reg>;
+					regulator-coupled-max-spread = <170000 450000>;
 					regulator-always-on;
+
+					nvidia,tegra-core-regulator;
 				};
 
-				sm1 {
+				cpu_vdd_reg: sm1 {
 					regulator-name = "+1.0vs_sm1,vdd_cpu";
-					regulator-min-microvolt = <1000000>;
-					regulator-max-microvolt = <1000000>;
+					regulator-min-microvolt = <750000>;
+					regulator-max-microvolt = <1100000>;
+					regulator-coupled-with = <&core_vdd_reg &rtc_vdd_reg>;
+					regulator-coupled-max-spread = <450000 450000>;
 					regulator-always-on;
+
+					nvidia,tegra-cpu-regulator;
 				};
 
 				sm2_reg: sm2 {
@@ -367,10 +375,15 @@
 					regulator-always-on;
 				};
 
-				ldo2 {
+				rtc_vdd_reg: ldo2 {
 					regulator-name = "+1.2vs_ldo2,vdd_rtc";
 					regulator-min-microvolt = <1200000>;
-					regulator-max-microvolt = <1200000>;
+					regulator-max-microvolt = <1225000>;
+					regulator-coupled-with = <&core_vdd_reg &cpu_vdd_reg>;
+					regulator-coupled-max-spread = <170000 450000>;
+					regulator-always-on;
+
+					nvidia,tegra-rtc-regulator;
 				};
 
 				ldo3 {
