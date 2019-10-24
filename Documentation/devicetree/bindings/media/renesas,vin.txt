@@ -44,7 +44,7 @@ on Gen3 and RZ/G2 platforms to a CSI-2 receiver.
 Additionally, an alias named vinX will need to be created to specify
 which video input device this is.
 
-The per-board settings Gen2 platforms:
+The per-board settings for Gen2 and RZ/G1 platforms:
 
 - port - sub-node describing a single endpoint connected to the VIN
   from external SoC pins as described in video-interfaces.txt[1].
@@ -64,7 +64,7 @@ The per-board settings Gen2 platforms:
     - data-enable-active: polarity of CLKENB signal, see [1] for
       description. Default is active high.
 
-The per-board settings Gen3 and RZ/G2 platforms:
+The per-board settings for Gen3 and RZ/G2 platforms:
 
 Gen3 and RZ/G2 platforms can support both a single connected parallel input
 source from external SoC pins (port@0) and/or multiple parallel input sources
