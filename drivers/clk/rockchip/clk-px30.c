@@ -133,6 +133,7 @@ static const struct rockchip_cpuclk_reg_data px30_cpuclk_data = {
 	.mux_core_main = 0,
 	.mux_core_shift = 7,
 	.mux_core_mask = 0x1,
+	.pll_name = "pll_apll",
 };
 
 PNAME(mux_pll_p)		= { "xin24m"};
