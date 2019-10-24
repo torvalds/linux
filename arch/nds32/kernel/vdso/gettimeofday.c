@@ -81,22 +81,20 @@ static notrace int do_realtime_coarse(struct __kernel_old_timespec *ts,
 static notrace int do_monotonic_coarse(struct __kernel_old_timespec *ts,
 				       struct vdso_data *vdata)
 {
-	struct timespec tomono;
 	u32 seq;
+	u64 ns;
 
 	do {
 		seq = vdso_read_begin(vdata);
 
-		ts->tv_sec = vdata->xtime_coarse_sec;
-		ts->tv_nsec = vdata->xtime_coarse_nsec;
-
-		tomono.tv_sec = vdata->wtm_clock_sec;
-		tomono.tv_nsec = vdata->wtm_clock_nsec;
+		ts->tv_sec = vdata->xtime_coarse_sec + vdata->wtm_clock_sec;
+		ns = vdata->xtime_coarse_nsec + vdata->wtm_clock_nsec;
 
 	} while (vdso_read_retry(vdata, seq));
 
-	ts->tv_sec += tomono.tv_sec;
-	timespec_add_ns(ts, tomono.tv_nsec);
+	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
+	ts->tv_nsec = ns;
+
 	return 0;
 }
 
@@ -135,26 +133,25 @@ static notrace int do_realtime(struct __kernel_old_timespec *ts, struct vdso_dat
 
 static notrace int do_monotonic(struct __kernel_old_timespec *ts, struct vdso_data *vdata)
 {
-	struct timespec tomono;
-	u64 nsecs;
+	u64 ns;
 	u32 seq;
 
 	do {
 		seq = vdso_read_begin(vdata);
 
 		ts->tv_sec = vdata->xtime_clock_sec;
-		nsecs = vdata->xtime_clock_nsec;
-		nsecs += vgetsns(vdata);
-		nsecs >>= vdata->cs_shift;
+		ns = vdata->xtime_clock_nsec;
+		ns += vgetsns(vdata);
+		ns >>= vdata->cs_shift;
 
-		tomono.tv_sec = vdata->wtm_clock_sec;
-		tomono.tv_nsec = vdata->wtm_clock_nsec;
+		ts->tv_sec += vdata->wtm_clock_sec;
+		ns += vdata->wtm_clock_nsec;
 
 	} while (vdso_read_retry(vdata, seq));
 
-	ts->tv_sec += tomono.tv_sec;
-	ts->tv_nsec = 0;
-	timespec_add_ns(ts, nsecs + tomono.tv_nsec);
+	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
+	ts->tv_nsec = ns;
+
 	return 0;
 }
 
