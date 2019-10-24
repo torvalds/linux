@@ -88,7 +88,7 @@ Selecting memory allocator
 ==========================
 
 The most straightforward way to allocate memory is to use a function
-from the :c:func:`kmalloc` family. And, to be on the safe size it's
+from the :c:func:`kmalloc` family. And, to be on the safe side it's
 best to use routines that set memory to zero, like
 :c:func:`kzalloc`. If you need to allocate memory for an array, there
 are :c:func:`kmalloc_array` and :c:func:`kcalloc` helpers.
