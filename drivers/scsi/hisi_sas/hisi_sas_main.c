@@ -2743,7 +2743,7 @@ static void hisi_sas_debugfs_snapshot_port_reg(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_debugfs_snapshot_global_reg(struct hisi_hba *hisi_hba)
 {
-	u32 *databuf = hisi_hba->debugfs_regs[DEBUGFS_GLOBAL];
+	u32 *databuf = hisi_hba->debugfs_regs[DEBUGFS_GLOBAL].data;
 	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	const struct hisi_sas_debugfs_reg *global =
 			hw->debugfs_reg_array[DEBUGFS_GLOBAL];
@@ -2755,7 +2755,7 @@ static void hisi_sas_debugfs_snapshot_global_reg(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_debugfs_snapshot_axi_reg(struct hisi_hba *hisi_hba)
 {
-	u32 *databuf = hisi_hba->debugfs_regs[DEBUGFS_AXI];
+	u32 *databuf = hisi_hba->debugfs_regs[DEBUGFS_AXI].data;
 	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	const struct hisi_sas_debugfs_reg *axi =
 			hw->debugfs_reg_array[DEBUGFS_AXI];
@@ -2768,7 +2768,7 @@ static void hisi_sas_debugfs_snapshot_axi_reg(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_debugfs_snapshot_ras_reg(struct hisi_hba *hisi_hba)
 {
-	u32 *databuf = hisi_hba->debugfs_regs[DEBUGFS_RAS];
+	u32 *databuf = hisi_hba->debugfs_regs[DEBUGFS_RAS].data;
 	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	const struct hisi_sas_debugfs_reg *ras =
 			hw->debugfs_reg_array[DEBUGFS_RAS];
@@ -2852,11 +2852,12 @@ static void hisi_sas_debugfs_print_reg(u32 *regs_val, const void *ptr,
 
 static int hisi_sas_debugfs_global_show(struct seq_file *s, void *p)
 {
-	struct hisi_hba *hisi_hba = s->private;
+	struct hisi_sas_debugfs_regs *global = s->private;
+	struct hisi_hba *hisi_hba = global->hisi_hba;
 	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	const void *reg_global = hw->debugfs_reg_array[DEBUGFS_GLOBAL];
 
-	hisi_sas_debugfs_print_reg(hisi_hba->debugfs_regs[DEBUGFS_GLOBAL],
+	hisi_sas_debugfs_print_reg(global->data,
 				   reg_global, s);
 
 	return 0;
@@ -2878,11 +2879,12 @@ static const struct file_operations hisi_sas_debugfs_global_fops = {
 
 static int hisi_sas_debugfs_axi_show(struct seq_file *s, void *p)
 {
-	struct hisi_hba *hisi_hba = s->private;
+	struct hisi_sas_debugfs_regs *axi = s->private;
+	struct hisi_hba *hisi_hba = axi->hisi_hba;
 	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	const void *reg_axi = hw->debugfs_reg_array[DEBUGFS_AXI];
 
-	hisi_sas_debugfs_print_reg(hisi_hba->debugfs_regs[DEBUGFS_AXI],
+	hisi_sas_debugfs_print_reg(axi->data,
 				   reg_axi, s);
 
 	return 0;
@@ -2904,11 +2906,12 @@ static const struct file_operations hisi_sas_debugfs_axi_fops = {
 
 static int hisi_sas_debugfs_ras_show(struct seq_file *s, void *p)
 {
-	struct hisi_hba *hisi_hba = s->private;
+	struct hisi_sas_debugfs_regs *ras = s->private;
+	struct hisi_hba *hisi_hba = ras->hisi_hba;
 	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	const void *reg_ras = hw->debugfs_reg_array[DEBUGFS_RAS];
 
-	hisi_sas_debugfs_print_reg(hisi_hba->debugfs_regs[DEBUGFS_RAS],
+	hisi_sas_debugfs_print_reg(ras->data,
 				   reg_ras, s);
 
 	return 0;
@@ -3209,7 +3212,8 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 	debugfs_create_u64("timestamp", 0400, dump_dentry,
 			   debugfs_timestamp);
 
-	debugfs_create_file("global", 0400, dump_dentry, hisi_hba,
+	debugfs_create_file("global", 0400, dump_dentry,
+			    &hisi_hba->debugfs_regs[DEBUGFS_GLOBAL],
 			    &hisi_sas_debugfs_global_fops);
 
 	/* Create port dir and files */
@@ -3253,10 +3257,12 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 	debugfs_create_file("itct_cache", 0400, dump_dentry, hisi_hba,
 			    &hisi_sas_debugfs_itct_cache_fops);
 
-	debugfs_create_file("axi", 0400, dump_dentry, hisi_hba,
+	debugfs_create_file("axi", 0400, dump_dentry,
+			    &hisi_hba->debugfs_regs[DEBUGFS_AXI],
 			    &hisi_sas_debugfs_axi_fops);
 
-	debugfs_create_file("ras", 0400, dump_dentry, hisi_hba,
+	debugfs_create_file("ras", 0400, dump_dentry,
+			    &hisi_hba->debugfs_regs[DEBUGFS_RAS],
 			    &hisi_sas_debugfs_ras_fops);
 
 	return;
@@ -3718,7 +3724,7 @@ static void hisi_sas_debugfs_release(struct hisi_hba *hisi_hba)
 		devm_kfree(dev, hisi_hba->debugfs_cq[i].complete_hdr);
 
 	for (i = 0; i < DEBUGFS_REGS_NUM; i++)
-		devm_kfree(dev, hisi_hba->debugfs_regs[i]);
+		devm_kfree(dev, hisi_hba->debugfs_regs[i].data);
 
 	for (i = 0; i < hisi_hba->n_phy; i++)
 		devm_kfree(dev, hisi_hba->debugfs_port_reg[i]);
@@ -3728,15 +3734,19 @@ static int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba)
 {
 	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	struct device *dev = hisi_hba->dev;
-	int p, c, d;
+	int p, c, d, r;
 	size_t sz;
 
-	sz = hw->debugfs_reg_array[DEBUGFS_GLOBAL]->count * 4;
-	hisi_hba->debugfs_regs[DEBUGFS_GLOBAL] =
-				devm_kmalloc(dev, sz, GFP_KERNEL);
+	for (r = 0; r < DEBUGFS_REGS_NUM; r++) {
+		struct hisi_sas_debugfs_regs *regs =
+				&hisi_hba->debugfs_regs[r];
 
-	if (!hisi_hba->debugfs_regs[DEBUGFS_GLOBAL])
-		goto fail;
+		sz = hw->debugfs_reg_array[r]->count * 4;
+		regs->data = devm_kmalloc(dev, sz, GFP_KERNEL);
+		if (!regs->data)
+			goto fail;
+		regs->hisi_hba = hisi_hba;
+	}
 
 	sz = hw->debugfs_reg_port->count * 4;
 	for (p = 0; p < hisi_hba->n_phy; p++) {
@@ -3746,20 +3756,6 @@ static int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba)
 		if (!hisi_hba->debugfs_port_reg[p])
 			goto fail;
 	}
-
-	sz = hw->debugfs_reg_array[DEBUGFS_AXI]->count * 4;
-	hisi_hba->debugfs_regs[DEBUGFS_AXI] =
-		devm_kmalloc(dev, sz, GFP_KERNEL);
-
-	if (!hisi_hba->debugfs_regs[DEBUGFS_AXI])
-		goto fail;
-
-	sz = hw->debugfs_reg_array[DEBUGFS_RAS]->count * 4;
-	hisi_hba->debugfs_regs[DEBUGFS_RAS] =
-		devm_kmalloc(dev, sz, GFP_KERNEL);
-
-	if (!hisi_hba->debugfs_regs[DEBUGFS_RAS])
-		goto fail;
 
 	sz = hw->complete_hdr_size * HISI_SAS_QUEUE_SLOTS;
 	for (c = 0; c < hisi_hba->queue_count; c++) {
