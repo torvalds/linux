@@ -2626,7 +2626,7 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * @hw: the hardware
  * @skb: the skb
  *
- * Free a transmit skb. Use this funtion when some failure
+ * Free a transmit skb. Use this function when some failure
  * to transmit happened and thus status cannot be reported.
  */
 void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
