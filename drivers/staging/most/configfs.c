@@ -487,7 +487,7 @@ static struct config_item *most_snd_grp_make_item(struct config_group *group,
 		return ERR_PTR(-ENOMEM);
 
 	config_item_init_type_name(&mdev_link->item, name, &mdev_link_type);
-	mdev_link->create_link = 0;
+	mdev_link->create_link = false;
 	strcpy(mdev_link->name, name);
 	strcpy(mdev_link->comp, "sound");
 	return &mdev_link->item;
