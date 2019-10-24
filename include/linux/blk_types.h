@@ -153,10 +153,10 @@ struct bio {
 	unsigned short		bi_write_hint;
 	blk_status_t		bi_status;
 	u8			bi_partno;
+	atomic_t		__bi_remaining;
 
 	struct bvec_iter	bi_iter;
 
-	atomic_t		__bi_remaining;
 	bio_end_io_t		*bi_end_io;
 
 	void			*bi_private;
