@@ -30,8 +30,9 @@
  * flags reused in each byte, with master0 using the ls-byte, etc.
  */
 
-#define SDW_INTEL_MASTER_DISABLE_PM_RUNTIME BIT(0)
-#define SDW_INTEL_MASTER_DISABLE_CLOCK_STOP BIT(1)
+#define SDW_INTEL_MASTER_DISABLE_PM_RUNTIME		BIT(0)
+#define SDW_INTEL_MASTER_DISABLE_CLOCK_STOP		BIT(1)
+#define SDW_INTEL_MASTER_DISABLE_PM_RUNTIME_IDLE	BIT(2)
 
 static int md_flags;
 module_param_named(sdw_md_flags, md_flags, int, 0444);
@@ -1330,6 +1331,22 @@ static int intel_master_startup(struct sdw_master_device *md)
 		pm_runtime_enable(&md->dev);
 	}
 
+	/*
+	 * Slave devices have an pm_runtime of 'Unsupported' until
+	 * they report as ATTACHED. If they don't, e.g. because there
+	 * are no Slave devices populated or if the power-on is
+	 * delayed or dependent on a power switch, the Master will
+	 * remain active and prevent its parent from suspending.
+	 *
+	 * Conditionally force the pm_runtime core to re-evaluate the
+	 * Master status in the absence of any Slave activity. A quirk
+	 * is provided to e.g. deal with Slaves that may be powered on
+	 * with a delay. A more complete solution would require the
+	 * definition of Master properties.
+	 */
+	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME_IDLE))
+		pm_runtime_idle(&md->dev);
+
 	return 0;
 
 err_interrupt:
@@ -1443,6 +1460,7 @@ static int intel_resume(struct device *dev)
 	struct sdw_master_device *md = to_sdw_master_device(dev);
 	struct sdw_cdns *cdns = dev_get_drvdata(dev);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	int link_flags;
 	int ret;
 
 	if (cdns->bus.prop.hw_disabled) {
@@ -1463,6 +1481,10 @@ static int intel_resume(struct device *dev)
 		pm_runtime_enable(dev);
 
 		md->pm_runtime_suspended = false;
+
+		link_flags = md_flags >> (sdw->cdns.bus.link_id * 8);
+		if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME_IDLE))
+			pm_runtime_idle(&md->dev);
 	}
 
 	ret = intel_init(sdw);
