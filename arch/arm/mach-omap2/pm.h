@@ -107,6 +107,11 @@ extern u16 pm44xx_errata;
 #define IS_PM44XX_ERRATUM(id)		0
 #endif
 
+#define OMAP4_VP_CONFIG_ERROROFFSET	0x00
+#define OMAP4_VP_VSTEPMIN_VSTEPMIN	0x01
+#define OMAP4_VP_VSTEPMAX_VSTEPMAX	0x04
+#define OMAP4_VP_VLIMITTO_TIMEOUT_US	200
+
 #ifdef CONFIG_POWER_AVS_OMAP
 extern int omap_devinit_smartreflex(void);
 extern void omap_enable_smartreflex_on_init(void);
@@ -129,6 +134,15 @@ static inline int omap3_twl_init(void)
 	return -EINVAL;
 }
 static inline int omap4_twl_init(void)
+{
+	return -EINVAL;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_MFD_CPCAP)
+extern int omap4_cpcap_init(void);
+#else
+static inline int omap4_cpcap_init(void)
 {
 	return -EINVAL;
 }

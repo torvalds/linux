@@ -148,6 +148,7 @@ int __init omap2_common_pm_late_init(void)
 	/* Init the voltage layer */
 	omap3_twl_init();
 	omap4_twl_init();
+	omap4_cpcap_init();
 	omap_voltage_late_init();
 
 	/* Smartreflex device init */
