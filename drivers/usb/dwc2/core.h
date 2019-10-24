@@ -134,7 +134,7 @@ struct dwc2_hsotg_req;
  * @target_frame: Targeted frame num to setup next ISOC transfer
  * @frame_overrun: Indicates SOF number overrun in DSTS
  *
- * This is the driver's state for each registered enpoint, allowing it
+ * This is the driver's state for each registered endpoint, allowing it
  * to keep track of transactions that need doing. Each endpoint has a
  * lock to protect the state, to try and avoid using an overall lock
  * for the host controller as much as possible.

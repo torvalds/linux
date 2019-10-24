@@ -138,7 +138,7 @@ struct mv_u3d_op_regs {
 	u32	doorbell;	/* doorbell register */
 };
 
-/* control enpoint enable registers */
+/* control endpoint enable registers */
 struct epxcr {
 	u32	epxoutcr0;	/* ep out control 0 register */
 	u32	epxoutcr1;	/* ep out control 1 register */
