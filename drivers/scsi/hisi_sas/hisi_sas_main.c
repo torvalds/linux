@@ -2732,7 +2732,7 @@ static void hisi_sas_debugfs_snapshot_port_reg(struct hisi_hba *hisi_hba)
 	u32 *databuf;
 
 	for (phy_cnt = 0; phy_cnt < hisi_hba->n_phy; phy_cnt++) {
-		databuf = (u32 *)hisi_hba->debugfs_port_reg[phy_cnt];
+		databuf = hisi_hba->debugfs_port_reg[phy_cnt].data;
 		for (i = 0; i < port->count; i++, databuf++) {
 			offset = port->base_off + 4 * i;
 			*databuf = port->read_port_reg(hisi_hba, phy_cnt,
@@ -2933,13 +2933,13 @@ static const struct file_operations hisi_sas_debugfs_ras_fops = {
 
 static int hisi_sas_debugfs_port_show(struct seq_file *s, void *p)
 {
-	struct hisi_sas_phy *phy = s->private;
+	struct hisi_sas_debugfs_port *port = s->private;
+	struct hisi_sas_phy *phy = port->phy;
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
 	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	const struct hisi_sas_debugfs_reg *reg_port = hw->debugfs_reg_port;
-	u32 *databuf = hisi_hba->debugfs_port_reg[phy->sas_phy.id];
 
-	hisi_sas_debugfs_print_reg(databuf, reg_port, s);
+	hisi_sas_debugfs_print_reg(port->data, reg_port, s);
 
 	return 0;
 }
@@ -3221,7 +3221,8 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 	for (p = 0; p < hisi_hba->n_phy; p++) {
 		snprintf(name, 256, "%d", p);
 
-		debugfs_create_file(name, 0400, dentry, &hisi_hba->phy[p],
+		debugfs_create_file(name, 0400, dentry,
+				    &hisi_hba->debugfs_port_reg[p],
 				    &hisi_sas_debugfs_port_fops);
 	}
 
@@ -3727,7 +3728,7 @@ static void hisi_sas_debugfs_release(struct hisi_hba *hisi_hba)
 		devm_kfree(dev, hisi_hba->debugfs_regs[i].data);
 
 	for (i = 0; i < hisi_hba->n_phy; i++)
-		devm_kfree(dev, hisi_hba->debugfs_port_reg[i]);
+		devm_kfree(dev, hisi_hba->debugfs_port_reg[i].data);
 }
 
 static int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba)
@@ -3750,11 +3751,13 @@ static int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba)
 
 	sz = hw->debugfs_reg_port->count * 4;
 	for (p = 0; p < hisi_hba->n_phy; p++) {
-		hisi_hba->debugfs_port_reg[p] =
-			devm_kmalloc(dev, sz, GFP_KERNEL);
+		struct hisi_sas_debugfs_port *port =
+				&hisi_hba->debugfs_port_reg[p];
 
-		if (!hisi_hba->debugfs_port_reg[p])
+		port->data = devm_kmalloc(dev, sz, GFP_KERNEL);
+		if (!port->data)
 			goto fail;
+		port->phy = &hisi_hba->phy[p];
 	}
 
 	sz = hw->complete_hdr_size * HISI_SAS_QUEUE_SLOTS;

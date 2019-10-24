@@ -338,6 +338,11 @@ struct hisi_sas_debugfs_regs {
 	u32 *data;
 };
 
+struct hisi_sas_debugfs_port {
+	struct hisi_sas_phy *phy;
+	u32 *data;
+};
+
 struct hisi_hba {
 	/* This must be the first element, used by SHOST_TO_SAS_HA */
 	struct sas_ha_struct *p;
@@ -420,7 +425,7 @@ struct hisi_hba {
 	/* debugfs memories */
 	/* Put Global AXI and RAS Register into register array */
 	struct hisi_sas_debugfs_regs debugfs_regs[DEBUGFS_REGS_NUM];
-	u32 *debugfs_port_reg[HISI_SAS_MAX_PHYS];
+	struct hisi_sas_debugfs_port debugfs_port_reg[HISI_SAS_MAX_PHYS];
 	struct hisi_sas_debugfs_cq debugfs_cq[HISI_SAS_MAX_QUEUES];
 	struct hisi_sas_debugfs_dq debugfs_dq[HISI_SAS_MAX_QUEUES];
 	struct hisi_sas_iost *debugfs_iost;
