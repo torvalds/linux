@@ -205,9 +205,7 @@ struct ice_ring {
 	unsigned int size;		/* length of descriptor ring in bytes */
 	u32 txq_teid;			/* Added Tx queue TEID */
 	u16 rx_buf_len;
-#ifdef CONFIG_DCB
 	u8 dcb_tc;			/* Traffic class of ring */
-#endif /* CONFIG_DCB */
 } ____cacheline_internodealigned_in_smp;
 
 struct ice_ring_container {

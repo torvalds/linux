@@ -5,6 +5,7 @@
 #define _ICE_DCB_LIB_H_
 
 #include "ice.h"
+#include "ice_base.h"
 #include "ice_lib.h"
 
 #ifdef CONFIG_DCB
