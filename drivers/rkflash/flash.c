@@ -217,7 +217,7 @@ static u32 flash_read_page(u8 cs, u32 page_addr, u32 *p_data, u32 *p_spare)
 				    __func__, page_addr, ret);
 	}
 	rkflash_print_dio("%s %x %x retry=%x\n",
-			   __func__, page_addr, p_data[0], i);
+			  __func__, page_addr, p_data[0], i);
 
 	return ret;
 }
@@ -329,7 +329,7 @@ static void flash_die_info_init(void)
 			nand_para.blk_per_plane;
 }
 
-static void flash_print_info(void)
+static void flash_show_info(void)
 {
 	rkflash_print_info("No.0 FLASH ID: %x %x %x %x %x %x\n",
 			   nand_para.nand_id[0],
@@ -427,7 +427,7 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 {
 	u32 cs;
 
-	rkflash_print_info("...%s enter...\n", __func__);
+	rkflash_print_error("...%s enter...\n", __func__);
 	g_nand_idb_res_blk_num = MAX_IDB_RESERVED_BLOCK;
 	g_nand_ecc_en = 0;
 
@@ -483,7 +483,7 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 	}
 	flash_die_info_init();
 	flash_bch_sel(nand_para.ecc_bits);
-	flash_print_info();
+	flash_show_info();
 	flash_ftl_ops_init();
 
 	return 0;

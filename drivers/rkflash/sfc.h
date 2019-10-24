@@ -184,7 +184,6 @@ int sfc_init(void __iomem *reg_addr);
 int sfc_request(u32 sfcmd, u32 sfctrl, u32 addr, void *data);
 u16 sfc_get_version(void);
 void sfc_clean_irq(void);
-int rksfc_get_reg_addr(unsigned long *p_sfc_addr);
 void sfc_handle_irq(void);
 unsigned long rksfc_dma_map_single(unsigned long ptr, int size, int dir);
 void rksfc_dma_unmap_single(unsigned long ptr, int size, int dir);

@@ -57,12 +57,6 @@ void rksfc_dma_unmap_single(unsigned long ptr, int size, int dir)
 #endif
 }
 
-int rksfc_get_reg_addr(unsigned long *p_sfc_addr)
-{
-	*p_sfc_addr = (unsigned long)g_sfc_info.reg_base;
-	return 0;
-}
-
 static irqreturn_t rksfc_interrupt(int irq, void *dev_id)
 {
 	sfc_clean_irq();

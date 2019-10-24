@@ -120,16 +120,6 @@ struct NAND_PARA_INFO_T {
 	u8	reversd2[6];	/* 32 bytes */
 };
 
-struct FLASH_INFO_T {
-	u16	block_size;
-	u8	ecc_bits;
-	u32	flash_size;
-	u16	page_size;
-	u8	access_time;
-	u8	manufacturer_name;
-	u8	flash_mask;
-};
-
 extern struct nand_phy_info	g_nand_phy_info;
 extern struct nand_ops		g_nand_ops;
 extern void __iomem *nandc_base;

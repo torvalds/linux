@@ -707,8 +707,8 @@ u32 sfc_nand_init(void)
 	u8 status, id_byte[8];
 
 	sfc_nand_read_id(id_byte);
-	rkflash_print_info("sfc_nand id: %x %x %x\n",
-			   id_byte[0], id_byte[1], id_byte[2]);
+	rkflash_print_error("sfc_nand id: %x %x %x\n",
+			    id_byte[0], id_byte[1], id_byte[2]);
 	if (id_byte[0] == 0xFF || id_byte[0] == 0x00)
 		return FTL_NO_FLASH;
 
@@ -764,3 +764,7 @@ struct SFNAND_DEV *sfc_nand_get_private_dev(void)
 	return &sfc_nand_dev;
 }
 
+struct nand_info *sfc_nand_get_nand_info(void)
+{
+	return p_nand_info;
+}

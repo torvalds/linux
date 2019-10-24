@@ -574,8 +574,8 @@ int snor_init(struct SFNOR_DEV *p_dev)
 
 	memset(p_dev, 0, sizeof(struct SFNOR_DEV));
 	snor_read_id(id_byte);
-	rkflash_print_info("sfc nor id: %x %x %x\n",
-			   id_byte[0], id_byte[1], id_byte[2]);
+	rkflash_print_error("sfc nor id: %x %x %x\n",
+			    id_byte[0], id_byte[1], id_byte[2]);
 	if (0xFF == id_byte[0] || 0x00 == id_byte[0])
 		return SFC_ERROR;
 
