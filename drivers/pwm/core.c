@@ -20,6 +20,9 @@
 
 #include <dt-bindings/pwm/pwm.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/pwm.h>
+
 #define MAX_PWMS 1024
 
 static DEFINE_MUTEX(pwm_lookup_lock);
@@ -114,8 +117,10 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 		}
 	}
 
-	if (pwm->chip->ops->get_state)
+	if (pwm->chip->ops->get_state) {
 		pwm->chip->ops->get_state(pwm->chip, pwm, &pwm->state);
+		trace_pwm_get(pwm, &pwm->state);
+	}
 
 	set_bit(PWMF_REQUESTED, &pwm->flags);
 	pwm->label = label;
@@ -471,6 +476,8 @@ int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
 		err = chip->ops->apply(chip, pwm, state);
 		if (err)
 			return err;
+
+		trace_pwm_apply(pwm, state);
 
 		pwm->state = *state;
 	} else {
