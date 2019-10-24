@@ -667,7 +667,7 @@ __poll_t vcc_poll(struct file *file, struct socket *sock, poll_table *wait)
 		mask |= EPOLLHUP;
 
 	/* readable? */
-	if (!skb_queue_empty(&sk->sk_receive_queue))
+	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* writable? */
