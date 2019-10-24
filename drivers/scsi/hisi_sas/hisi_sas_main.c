@@ -1573,7 +1573,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	struct Scsi_Host *shost = hisi_hba->shost;
 	int rc;
 
-	if (hisi_sas_debugfs_enable && hisi_hba->debugfs_itct)
+	if (hisi_sas_debugfs_enable && hisi_hba->debugfs_itct.itct)
 		queue_work(hisi_hba->wq, &hisi_hba->debugfs_work);
 
 	if (!hisi_hba->hw->soft_reset)
@@ -2065,7 +2065,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 
 	/* Internal abort timed out */
 	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
-		if (hisi_sas_debugfs_enable && hisi_hba->debugfs_itct)
+		if (hisi_sas_debugfs_enable && hisi_hba->debugfs_itct.itct)
 			queue_work(hisi_hba->wq, &hisi_hba->debugfs_work);
 
 		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
@@ -2782,7 +2782,7 @@ static void hisi_sas_debugfs_snapshot_ras_reg(struct hisi_hba *hisi_hba)
 static void hisi_sas_debugfs_snapshot_itct_reg(struct hisi_hba *hisi_hba)
 {
 	void *cachebuf = hisi_hba->debugfs_itct_cache;
-	void *databuf = hisi_hba->debugfs_itct;
+	void *databuf = hisi_hba->debugfs_itct.itct;
 	struct hisi_sas_itct *itct;
 	int i;
 
@@ -3129,13 +3129,13 @@ static const struct file_operations hisi_sas_debugfs_iost_cache_fops = {
 static int hisi_sas_debugfs_itct_show(struct seq_file *s, void *p)
 {
 	int i;
-	struct hisi_hba *hisi_hba = s->private;
-	struct hisi_sas_itct *debugfs_itct = hisi_hba->debugfs_itct;
+	struct hisi_sas_debugfs_itct *debugfs_itct = s->private;
+	struct hisi_sas_itct *itct = debugfs_itct->itct;
 
-	for (i = 0; i < HISI_SAS_MAX_ITCT_ENTRIES; i++, debugfs_itct++) {
-		__le64 *itct = &debugfs_itct->qw0;
+	for (i = 0; i < HISI_SAS_MAX_ITCT_ENTRIES; i++, itct++) {
+		__le64 *data = &itct->qw0;
 
-		hisi_sas_show_row_64(s, i, sizeof(*debugfs_itct), itct);
+		hisi_sas_show_row_64(s, i, sizeof(*itct), data);
 	}
 
 	return 0;
@@ -3253,7 +3253,8 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 	debugfs_create_file("iost_cache", 0400, dump_dentry, hisi_hba,
 			    &hisi_sas_debugfs_iost_cache_fops);
 
-	debugfs_create_file("itct", 0400, dump_dentry, hisi_hba,
+	debugfs_create_file("itct", 0400, dump_dentry,
+			    &hisi_hba->debugfs_itct,
 			    &hisi_sas_debugfs_itct_fops);
 
 	debugfs_create_file("itct_cache", 0400, dump_dentry, hisi_hba,
@@ -3806,8 +3807,8 @@ static int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba)
 	/* New memory allocation must be locate before itct */
 	sz = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
 
-	hisi_hba->debugfs_itct = devm_kmalloc(dev, sz, GFP_KERNEL);
-	if (!hisi_hba->debugfs_itct)
+	hisi_hba->debugfs_itct.itct = devm_kmalloc(dev, sz, GFP_KERNEL);
+	if (!hisi_hba->debugfs_itct.itct)
 		goto fail;
 
 	return 0;
