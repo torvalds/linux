@@ -246,20 +246,30 @@ static int nft_block_setup(struct nft_base_chain *basechain,
 	return err;
 }
 
+static void nft_flow_block_offload_init(struct flow_block_offload *bo,
+					struct net *net,
+					enum flow_block_command cmd,
+					struct nft_base_chain *basechain,
+					struct netlink_ext_ack *extack)
+{
+	memset(bo, 0, sizeof(*bo));
+	bo->net		= net;
+	bo->block	= &basechain->flow_block;
+	bo->command	= cmd;
+	bo->binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
+	bo->extack	= extack;
+	INIT_LIST_HEAD(&bo->cb_list);
+}
+
 static int nft_block_offload_cmd(struct nft_base_chain *chain,
 				 struct net_device *dev,
 				 enum flow_block_command cmd)
 {
 	struct netlink_ext_ack extack = {};
-	struct flow_block_offload bo = {};
+	struct flow_block_offload bo;
 	int err;
 
-	bo.net = dev_net(dev);
-	bo.block = &chain->flow_block;
-	bo.command = cmd;
-	bo.binder_type = FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
-	bo.extack = &extack;
-	INIT_LIST_HEAD(&bo.cb_list);
+	nft_flow_block_offload_init(&bo, dev_net(dev), cmd, chain, &extack);
 
 	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
 	if (err < 0)
@@ -275,17 +285,12 @@ static void nft_indr_block_ing_cmd(struct net_device *dev,
 				   enum flow_block_command cmd)
 {
 	struct netlink_ext_ack extack = {};
-	struct flow_block_offload bo = {};
+	struct flow_block_offload bo;
 
 	if (!chain)
 		return;
 
-	bo.net = dev_net(dev);
-	bo.block = &chain->flow_block;
-	bo.command = cmd;
-	bo.binder_type = FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
-	bo.extack = &extack;
-	INIT_LIST_HEAD(&bo.cb_list);
+	nft_flow_block_offload_init(&bo, dev_net(dev), cmd, chain, &extack);
 
 	cb(dev, cb_priv, TC_SETUP_BLOCK, &bo);
 
@@ -296,15 +301,10 @@ static int nft_indr_block_offload_cmd(struct nft_base_chain *chain,
 				      struct net_device *dev,
 				      enum flow_block_command cmd)
 {
-	struct flow_block_offload bo = {};
 	struct netlink_ext_ack extack = {};
+	struct flow_block_offload bo;
 
-	bo.net = dev_net(dev);
-	bo.block = &chain->flow_block;
-	bo.command = cmd;
-	bo.binder_type = FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
-	bo.extack = &extack;
-	INIT_LIST_HEAD(&bo.cb_list);
+	nft_flow_block_offload_init(&bo, dev_net(dev), cmd, chain, &extack);
 
 	flow_indr_block_call(dev, &bo, cmd);
 
