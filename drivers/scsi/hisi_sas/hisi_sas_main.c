@@ -2781,7 +2781,7 @@ static void hisi_sas_debugfs_snapshot_ras_reg(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_debugfs_snapshot_itct_reg(struct hisi_hba *hisi_hba)
 {
-	void *cachebuf = hisi_hba->debugfs_itct_cache;
+	void *cachebuf = hisi_hba->debugfs_itct_cache.cache;
 	void *databuf = hisi_hba->debugfs_itct.itct;
 	struct hisi_sas_itct *itct;
 	int i;
@@ -3155,9 +3155,8 @@ static const struct file_operations hisi_sas_debugfs_itct_fops = {
 
 static int hisi_sas_debugfs_itct_cache_show(struct seq_file *s, void *p)
 {
-	struct hisi_hba *hisi_hba = s->private;
-	struct hisi_sas_iost_itct_cache *itct_cache =
-		(struct hisi_sas_iost_itct_cache *)hisi_hba->debugfs_itct_cache;
+	struct hisi_sas_debugfs_itct_cache *debugfs_itct_cache = s->private;
+	struct hisi_sas_iost_itct_cache *itct_cache = debugfs_itct_cache->cache;
 	u32 cache_size = HISI_SAS_IOST_ITCT_CACHE_DW_SZ * 4;
 	int i, tab_idx;
 	__le64 *itct;
@@ -3257,7 +3256,8 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 			    &hisi_hba->debugfs_itct,
 			    &hisi_sas_debugfs_itct_fops);
 
-	debugfs_create_file("itct_cache", 0400, dump_dentry, hisi_hba,
+	debugfs_create_file("itct_cache", 0400, dump_dentry,
+			    &hisi_hba->debugfs_itct_cache,
 			    &hisi_sas_debugfs_itct_cache_fops);
 
 	debugfs_create_file("axi", 0400, dump_dentry,
@@ -3717,7 +3717,7 @@ static void hisi_sas_debugfs_release(struct hisi_hba *hisi_hba)
 	int i;
 
 	devm_kfree(dev, hisi_hba->debugfs_iost_cache.cache);
-	devm_kfree(dev, hisi_hba->debugfs_itct_cache);
+	devm_kfree(dev, hisi_hba->debugfs_itct_cache.cache);
 	devm_kfree(dev, hisi_hba->debugfs_iost.iost);
 
 	for (i = 0; i < hisi_hba->queue_count; i++)
@@ -3800,8 +3800,8 @@ static int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba)
 	sz = HISI_SAS_IOST_ITCT_CACHE_NUM *
 	     sizeof(struct hisi_sas_iost_itct_cache);
 
-	hisi_hba->debugfs_itct_cache = devm_kmalloc(dev, sz, GFP_KERNEL);
-	if (!hisi_hba->debugfs_itct_cache)
+	hisi_hba->debugfs_itct_cache.cache = devm_kmalloc(dev, sz, GFP_KERNEL);
+	if (!hisi_hba->debugfs_itct_cache.cache)
 		goto fail;
 
 	/* New memory allocation must be locate before itct */

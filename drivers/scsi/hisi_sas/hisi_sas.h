@@ -355,6 +355,10 @@ struct hisi_sas_debugfs_iost_cache {
 	struct hisi_sas_iost_itct_cache *cache;
 };
 
+struct hisi_sas_debugfs_itct_cache {
+	struct hisi_sas_iost_itct_cache *cache;
+};
+
 struct hisi_hba {
 	/* This must be the first element, used by SHOST_TO_SAS_HA */
 	struct sas_ha_struct *p;
@@ -444,7 +448,7 @@ struct hisi_hba {
 	struct hisi_sas_debugfs_itct debugfs_itct;
 	u64 debugfs_timestamp;
 	struct hisi_sas_debugfs_iost_cache debugfs_iost_cache;
-	u64 *debugfs_itct_cache;
+	struct hisi_sas_debugfs_itct_cache debugfs_itct_cache;
 
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_dump_dentry;
