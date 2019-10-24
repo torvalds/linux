@@ -1873,7 +1873,7 @@ void tipc_link_failover_prepare(struct tipc_link *l, struct tipc_link *tnl,
 
 	tipc_link_create_dummy_tnl_msg(tnl, xmitq);
 
-	/* This failover link enpoint was never established before,
+	/* This failover link endpoint was never established before,
 	 * so it has not received anything from peer.
 	 * Otherwise, it must be a normal failover situation or the
 	 * node has entered SELF_DOWN_PEER_LEAVING and both peer nodes
