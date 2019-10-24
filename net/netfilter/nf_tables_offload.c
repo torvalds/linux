@@ -316,6 +316,20 @@ static int nft_indr_block_offload_cmd(struct nft_base_chain *chain,
 
 #define FLOW_SETUP_BLOCK TC_SETUP_BLOCK
 
+static int nft_chain_offload_cmd(struct nft_base_chain *basechain,
+				 struct net_device *dev,
+				 enum flow_block_command cmd)
+{
+	int err;
+
+	if (dev->netdev_ops->ndo_setup_tc)
+		err = nft_block_offload_cmd(basechain, dev, cmd);
+	else
+		err = nft_indr_block_offload_cmd(basechain, dev, cmd);
+
+	return err;
+}
+
 static int nft_flow_block_chain(struct nft_base_chain *basechain,
 				const struct net_device *this_dev,
 				enum flow_block_command cmd)
@@ -329,11 +343,7 @@ static int nft_flow_block_chain(struct nft_base_chain *basechain,
 		if (this_dev && this_dev != dev)
 			continue;
 
-		if (dev->netdev_ops->ndo_setup_tc)
-			err = nft_block_offload_cmd(basechain, dev, cmd);
-		else
-			err = nft_indr_block_offload_cmd(basechain, dev, cmd);
-
+		err = nft_chain_offload_cmd(basechain, dev, cmd);
 		if (err < 0)
 			return err;
 	}
