@@ -49,6 +49,9 @@
 #include <linux/sunrpc/svcauth.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/cache.h>
+
+#include <trace/events/rpcgss.h>
+
 #include "gss_rpc_upcall.h"
 
 
@@ -1270,9 +1273,8 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 	if (status)
 		goto out;
 
-	dprintk("RPC:       svcauth_gss: gss major status = %d "
-			"minor status = %d\n",
-			ud.major_status, ud.minor_status);
+	trace_rpcgss_accept_upcall(rqstp->rq_xid, ud.major_status,
+				   ud.minor_status);
 
 	switch (ud.major_status) {
 	case GSS_S_CONTINUE_NEEDED:

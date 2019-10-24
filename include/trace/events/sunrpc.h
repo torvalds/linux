@@ -14,6 +14,26 @@
 #include <linux/net.h>
 #include <linux/tracepoint.h>
 
+TRACE_DEFINE_ENUM(RPC_AUTH_OK);
+TRACE_DEFINE_ENUM(RPC_AUTH_BADCRED);
+TRACE_DEFINE_ENUM(RPC_AUTH_REJECTEDCRED);
+TRACE_DEFINE_ENUM(RPC_AUTH_BADVERF);
+TRACE_DEFINE_ENUM(RPC_AUTH_REJECTEDVERF);
+TRACE_DEFINE_ENUM(RPC_AUTH_TOOWEAK);
+TRACE_DEFINE_ENUM(RPCSEC_GSS_CREDPROBLEM);
+TRACE_DEFINE_ENUM(RPCSEC_GSS_CTXPROBLEM);
+
+#define rpc_show_auth_stat(status)					\
+	__print_symbolic(status,					\
+		{ RPC_AUTH_OK,			"AUTH_OK" },		\
+		{ RPC_AUTH_BADCRED,		"BADCRED" },		\
+		{ RPC_AUTH_REJECTEDCRED,	"REJECTEDCRED" },	\
+		{ RPC_AUTH_BADVERF,		"BADVERF" },		\
+		{ RPC_AUTH_REJECTEDVERF,	"REJECTEDVERF" },	\
+		{ RPC_AUTH_TOOWEAK,		"TOOWEAK" },		\
+		{ RPCSEC_GSS_CREDPROBLEM,	"GSS_CREDPROBLEM" },	\
+		{ RPCSEC_GSS_CTXPROBLEM,	"GSS_CTXPROBLEM" })	\
+
 DECLARE_EVENT_CLASS(rpc_task_status,
 
 	TP_PROTO(const struct rpc_task *task),
@@ -864,6 +884,41 @@ TRACE_EVENT(svc_recv,
 	TP_printk("addr=%s xid=0x%08x len=%d flags=%s",
 			__get_str(addr), __entry->xid, __entry->len,
 			show_rqstp_flags(__entry->flags))
+);
+
+#define svc_show_status(status)				\
+	__print_symbolic(status,			\
+		{ SVC_GARBAGE,	"SVC_GARBAGE" },	\
+		{ SVC_SYSERR,	"SVC_SYSERR" },		\
+		{ SVC_VALID,	"SVC_VALID" },		\
+		{ SVC_NEGATIVE,	"SVC_NEGATIVE" },	\
+		{ SVC_OK,	"SVC_OK" },		\
+		{ SVC_DROP,	"SVC_DROP" },		\
+		{ SVC_CLOSE,	"SVC_CLOSE" },		\
+		{ SVC_DENIED,	"SVC_DENIED" },		\
+		{ SVC_PENDING,	"SVC_PENDING" },	\
+		{ SVC_COMPLETE,	"SVC_COMPLETE" })
+
+TRACE_EVENT(svc_authenticate,
+	TP_PROTO(const struct svc_rqst *rqst, int auth_res, __be32 auth_stat),
+
+	TP_ARGS(rqst, auth_res, auth_stat),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(unsigned long, svc_status)
+		__field(unsigned long, auth_stat)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->svc_status = auth_res;
+		__entry->auth_stat = be32_to_cpu(auth_stat);
+	),
+
+	TP_printk("xid=0x%08x auth_res=%s auth_stat=%s",
+			__entry->xid, svc_show_status(__entry->svc_status),
+			rpc_show_auth_stat(__entry->auth_stat))
 );
 
 TRACE_EVENT(svc_process,

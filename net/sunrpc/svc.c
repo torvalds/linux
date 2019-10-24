@@ -1337,6 +1337,8 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		auth_stat = rpc_autherr_badcred;
 		auth_res = progp->pg_authenticate(rqstp);
 	}
+	if (auth_res != SVC_OK)
+		trace_svc_authenticate(rqstp, auth_res, auth_stat);
 	switch (auth_res) {
 	case SVC_OK:
 		break;

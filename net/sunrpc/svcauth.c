@@ -19,6 +19,8 @@
 #include <linux/err.h>
 #include <linux/hash.h>
 
+#include <trace/events/sunrpc.h>
+
 #define RPCDBG_FACILITY	RPCDBG_AUTH
 
 
