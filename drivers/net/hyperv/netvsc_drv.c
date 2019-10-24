@@ -2335,8 +2335,6 @@ static int netvsc_probe(struct hv_device *dev,
 		NETIF_F_HW_VLAN_CTAG_RX;
 	net->vlan_features = net->features;
 
-	netdev_lockdep_set_classes(net);
-
 	/* MTU range: 68 - 1500 or 65521 */
 	net->min_mtu = NETVSC_MTU_MIN;
 	if (nvdev->nvsp_version >= NVSP_PROTOCOL_VERSION_2)
