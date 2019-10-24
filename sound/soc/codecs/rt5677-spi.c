@@ -145,7 +145,7 @@ static int rt5677_spi_hw_free(
 			snd_soc_component_get_drvdata(component);
 
 	mutex_lock(&rt5677_dsp->dma_lock);
-	rt5677_dsp->substream = 0;
+	rt5677_dsp->substream = NULL;
 	mutex_unlock(&rt5677_dsp->dma_lock);
 
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
@@ -362,7 +362,7 @@ done:
 	mutex_unlock(&rt5677_dsp->dma_lock);
 }
 
-struct page *rt5677_spi_pcm_page(
+static struct page *rt5677_spi_pcm_page(
 		struct snd_soc_component *component,
 		struct snd_pcm_substream *substream,
 		unsigned long offset)
