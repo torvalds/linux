@@ -1294,7 +1294,7 @@ static int ffsMoveFile(struct inode *old_parent_inode, struct file_id_t *fid,
 			new_clu.flags = new_fid->flags;
 
 			if (!is_dir_empty(sb, &new_clu)) {
-				ret = FFS_FILEEXIST;
+				ret = -EEXIST;
 				goto out;
 			}
 		}
@@ -2162,7 +2162,7 @@ static int ffsRemoveDir(struct inode *inode, struct file_id_t *fid)
 	clu_to_free.flags = fid->flags;
 
 	if (!is_dir_empty(sb, &clu_to_free)) {
-		ret = FFS_FILEEXIST;
+		ret = -EEXIST;
 		goto out;
 	}
 
@@ -2364,7 +2364,7 @@ static int exfat_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	if (err) {
 		if (err == FFS_INVALIDPATH)
 			err = -EINVAL;
-		else if (err == FFS_FILEEXIST)
+		else if (err == -EEXIST)
 			err = -EEXIST;
 		else if (err == -ENOSPC)
 			err = -ENOSPC;
@@ -2575,7 +2575,7 @@ static int exfat_symlink(struct inode *dir, struct dentry *dentry,
 	if (err) {
 		if (err == FFS_INVALIDPATH)
 			err = -EINVAL;
-		else if (err == FFS_FILEEXIST)
+		else if (err == -EEXIST)
 			err = -EEXIST;
 		else if (err == -ENOSPC)
 			err = -ENOSPC;
@@ -2645,7 +2645,7 @@ static int exfat_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	if (err) {
 		if (err == FFS_INVALIDPATH)
 			err = -EINVAL;
-		else if (err == FFS_FILEEXIST)
+		else if (err == -EEXIST)
 			err = -EEXIST;
 		else if (err == -ENOSPC)
 			err = -ENOSPC;
@@ -2699,7 +2699,7 @@ static int exfat_rmdir(struct inode *dir, struct dentry *dentry)
 	if (err) {
 		if (err == FFS_INVALIDPATH)
 			err = -EINVAL;
-		else if (err == FFS_FILEEXIST)
+		else if (err == -EEXIST)
 			err = -ENOTEMPTY;
 		else if (err == -ENOENT)
 			err = -ENOENT;
@@ -2756,7 +2756,7 @@ static int exfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 			err = -EPERM;
 		else if (err == FFS_INVALIDPATH)
 			err = -EINVAL;
-		else if (err == FFS_FILEEXIST)
+		else if (err == -EEXIST)
 			err = -EEXIST;
 		else if (err == -ENOENT)
 			err = -ENOENT;

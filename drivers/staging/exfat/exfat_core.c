@@ -2828,7 +2828,7 @@ s32 fat_generate_dos_name(struct super_block *sb, struct chain_t *p_dir,
 	}
 
 	if ((count == 0) || (count >= 1024))
-		return FFS_FILEEXIST;
+		return -EEXIST;
 	fat_attach_count_to_dos_name(p_dosname->name, count);
 
 	/* Now dos_name has DOS~????.EXT */
