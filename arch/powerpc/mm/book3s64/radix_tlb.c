@@ -732,17 +732,12 @@ local:
 	}
 	preempt_enable();
 }
+
 void radix__flush_all_mm(struct mm_struct *mm)
 {
 	__flush_all_mm(mm, false);
 }
 EXPORT_SYMBOL(radix__flush_all_mm);
-
-void radix__flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
-{
-	tlb->need_flush_all = 1;
-}
-EXPORT_SYMBOL(radix__flush_tlb_pwc);
 
 void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 				 int psize)
@@ -1003,12 +998,12 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	if (tlb->fullmm) {
 		__flush_all_mm(mm, true);
 	} else if ( (psize = radix_get_mmu_psize(page_size)) == -1) {
-		if (!tlb->need_flush_all)
+		if (!tlb->freed_tables)
 			radix__flush_tlb_mm(mm);
 		else
 			radix__flush_all_mm(mm);
 	} else {
-		if (!tlb->need_flush_all)
+		if (!tlb->freed_tables)
 			radix__flush_tlb_range_psize(mm, start, end, psize);
 		else
 			radix__flush_tlb_pwc_range_psize(mm, start, end, psize);
