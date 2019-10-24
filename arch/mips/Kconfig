@@ -755,6 +755,33 @@ config SGI_IP28
 	  This is the SGI Indigo2 with R10000 processor.  To compile a Linux
 	  kernel that runs on these, say Y here.
 
+config SGI_IP30
+	bool "SGI IP30 (Octane/Octane2)"
+	select ARCH_HAS_PHYS_TO_DMA
+	select FW_ARC
+	select FW_ARC64
+	select BOOT_ELF64
+	select CEVT_R4K
+	select CSRC_R4K
+	select SYNC_R4K if SMP
+	select ZONE_DMA32
+	select HAVE_PCI
+	select IRQ_MIPS_CPU
+	select IRQ_DOMAIN_HIERARCHY
+	select NR_CPUS_DEFAULT_2
+	select PCI_DRIVERS_GENERIC
+	select PCI_XTALK_BRIDGE
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_HAS_CPU_R10000
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_SMP
+	select MIPS_L1_CACHE_SHIFT_7
+	select ARC_MEMORY
+	help
+	  These are the SGI Octane and Octane2 graphics workstations.  To
+	  compile a Linux kernel that runs on these, say Y here.
+
 config SGI_IP32
 	bool "SGI IP32 (O2)"
 	select ARC_MEMORY
