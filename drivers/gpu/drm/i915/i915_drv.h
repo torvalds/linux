@@ -1551,6 +1551,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 }
 
 #define IS_MOBILE(dev_priv)	(INTEL_INFO(dev_priv)->is_mobile)
+#define IS_DGFX(dev_priv)   (INTEL_INFO(dev_priv)->is_dgfx)
 
 #define IS_I830(dev_priv)	IS_PLATFORM(dev_priv, INTEL_I830)
 #define IS_I845G(dev_priv)	IS_PLATFORM(dev_priv, INTEL_I845G)
