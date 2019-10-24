@@ -4,6 +4,8 @@
  */
 
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_irq.h"
+#include "gt/intel_gt_pm_irq.h"
 #include "intel_guc.h"
 #include "intel_guc_ads.h"
 #include "intel_guc_submission.h"
@@ -75,6 +77,93 @@ void intel_guc_init_send_regs(struct intel_guc *guc)
 					FW_REG_READ | FW_REG_WRITE);
 	}
 	guc->send_regs.fw_domains = fw_domains;
+}
+
+static void gen9_reset_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+
+	spin_lock_irq(&gt->irq_lock);
+	gen6_gt_pm_reset_iir(gt, gt->pm_guc_events);
+	spin_unlock_irq(&gt->irq_lock);
+}
+
+static void gen9_enable_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+
+	spin_lock_irq(&gt->irq_lock);
+	if (!guc->interrupts.enabled) {
+		WARN_ON_ONCE(intel_uncore_read(gt->uncore, GEN8_GT_IIR(2)) &
+			     gt->pm_guc_events);
+		guc->interrupts.enabled = true;
+		gen6_gt_pm_enable_irq(gt, gt->pm_guc_events);
+	}
+	spin_unlock_irq(&gt->irq_lock);
+}
+
+static void gen9_disable_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+
+	spin_lock_irq(&gt->irq_lock);
+	guc->interrupts.enabled = false;
+
+	gen6_gt_pm_disable_irq(gt, gt->pm_guc_events);
+
+	spin_unlock_irq(&gt->irq_lock);
+	intel_synchronize_irq(gt->i915);
+
+	gen9_reset_guc_interrupts(guc);
+}
+
+static void gen11_reset_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	spin_lock_irq(&gt->irq_lock);
+	gen11_gt_reset_one_iir(gt, 0, GEN11_GUC);
+	spin_unlock_irq(&gt->irq_lock);
+}
+
+static void gen11_enable_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	spin_lock_irq(&gt->irq_lock);
+	if (!guc->interrupts.enabled) {
+		u32 events = REG_FIELD_PREP(ENGINE1_MASK, GUC_INTR_GUC2HOST);
+
+		WARN_ON_ONCE(gen11_gt_reset_one_iir(gt, 0, GEN11_GUC));
+		intel_uncore_write(gt->uncore,
+				   GEN11_GUC_SG_INTR_ENABLE, events);
+		intel_uncore_write(gt->uncore,
+				   GEN11_GUC_SG_INTR_MASK, ~events);
+		guc->interrupts.enabled = true;
+	}
+	spin_unlock_irq(&gt->irq_lock);
+}
+
+static void gen11_disable_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	spin_lock_irq(&gt->irq_lock);
+	guc->interrupts.enabled = false;
+
+	intel_uncore_write(gt->uncore, GEN11_GUC_SG_INTR_MASK, ~0);
+	intel_uncore_write(gt->uncore, GEN11_GUC_SG_INTR_ENABLE, 0);
+
+	spin_unlock_irq(&gt->irq_lock);
+	intel_synchronize_irq(gt->i915);
+
+	gen11_reset_guc_interrupts(guc);
 }
 
 void intel_guc_init_early(struct intel_guc *guc)
