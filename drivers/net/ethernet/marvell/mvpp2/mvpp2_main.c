@@ -2959,6 +2959,10 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		if (rx_status & MVPP2_RXD_ERR_SUMMARY)
 			goto err_drop_frame;
 
+		dma_sync_single_for_cpu(dev->dev.parent, dma_addr,
+					rx_bytes + MVPP2_MH_SIZE,
+					DMA_FROM_DEVICE);
+
 		if (bm_pool->frag_size > PAGE_SIZE)
 			frag_size = 0;
 		else
@@ -2976,8 +2980,9 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 			goto err_drop_frame;
 		}
 
-		dma_unmap_single(dev->dev.parent, dma_addr,
-				 bm_pool->buf_size, DMA_FROM_DEVICE);
+		dma_unmap_single_attrs(dev->dev.parent, dma_addr,
+				       bm_pool->buf_size, DMA_FROM_DEVICE,
+				       DMA_ATTR_SKIP_CPU_SYNC);
 
 		rcvd_pkts++;
 		rcvd_bytes += rx_bytes;
