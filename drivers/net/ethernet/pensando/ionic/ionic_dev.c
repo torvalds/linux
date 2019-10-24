@@ -84,6 +84,49 @@ void ionic_dev_teardown(struct ionic *ionic)
 }
 
 /* Devcmd Interface */
+int ionic_heartbeat_check(struct ionic *ionic)
+{
+	struct ionic_dev *idev = &ionic->idev;
+	unsigned long hb_time;
+	u32 fw_status;
+	u32 hb;
+
+	/* wait a little more than one second before testing again */
+	hb_time = jiffies;
+	if (time_before(hb_time, (idev->last_hb_time + (HZ * 2))))
+		return 0;
+
+	/* firmware is useful only if fw_status is non-zero */
+	fw_status = ioread32(&idev->dev_info_regs->fw_status);
+	if (!fw_status)
+		return -ENXIO;
+
+	/* early FW has no heartbeat, else FW will return non-zero */
+	hb = ioread32(&idev->dev_info_regs->fw_heartbeat);
+	if (!hb)
+		return 0;
+
+	/* are we stalled? */
+	if (hb == idev->last_hb) {
+		/* only complain once for each stall seen */
+		if (idev->last_hb_time != 1) {
+			dev_info(ionic->dev, "FW heartbeat stalled at %d\n",
+				 idev->last_hb);
+			idev->last_hb_time = 1;
+		}
+
+		return -ENXIO;
+	}
+
+	if (idev->last_hb_time == 1)
+		dev_info(ionic->dev, "FW heartbeat restored at %d\n", hb);
+
+	idev->last_hb = hb;
+	idev->last_hb_time = hb_time;
+
+	return 0;
+}
+
 u8 ionic_dev_cmd_status(struct ionic_dev *idev)
 {
 	return ioread8(&idev->dev_cmd_regs->comp.comp.status);
