@@ -2962,6 +2962,7 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		dma_sync_single_for_cpu(dev->dev.parent, dma_addr,
 					rx_bytes + MVPP2_MH_SIZE,
 					DMA_FROM_DEVICE);
+		prefetch(data);
 
 		if (bm_pool->frag_size > PAGE_SIZE)
 			frag_size = 0;
