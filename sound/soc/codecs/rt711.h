@@ -26,7 +26,7 @@ struct  rt711_priv {
 	struct delayed_work jack_btn_check_work;
 	struct work_struct calibration_work;
 	struct mutex calibrate_mutex; /* for headset calibration */
-	int jack_type;
+	int jack_type, jd_src;
 };
 
 struct sdw_stream_data {
@@ -54,6 +54,8 @@ struct sdw_stream_data {
 
 /* Index (NID:20h) */
 #define RT711_DAC_DC_CALI_CTL1				0x00
+#define RT711_JD_CTL2				0x09
+#define RT711_CC_DET1				0x11
 #define RT711_PARA_VERB_CTL				0x1a
 #define RT711_COMBO_JACK_AUTO_CTL1				0x45
 #define RT711_COMBO_JACK_AUTO_CTL2				0x46
@@ -171,6 +173,15 @@ struct sdw_stream_data {
 /* DAC DC offset calibration control-1 (0x00)(NID:20h) */
 #define RT711_DAC_DC_CALI_TRIGGER (0x1 << 15)
 
+/* jack detect control 2 (0x09)(NID:20h) */
+#define RT711_JD2_2PORT_200K_DECODE_HP (0x1 << 13)
+#define RT711_HP_JD_SEL_JD1 (0x0 << 1)
+#define RT711_HP_JD_SEL_JD2 (0x1 << 1)
+
+/* CC DET1 (0x11)(NID:20h) */
+#define RT711_HP_JD_FINAL_RESULT_CTL_JD12 (0x1 << 10)
+#define RT711_HP_JD_FINAL_RESULT_CTL_CCDET (0x0 << 10)
+
 /* Parameter & Verb control (0x1a)(NID:20h) */
 #define RT711_HIDDEN_REG_SW_RESET (0x1 << 14)
 
@@ -201,6 +212,12 @@ enum {
 	RT711_AIF1,
 	RT711_AIF2,
 	RT711_AIFS,
+};
+
+enum rt711_jd_src {
+	RT711_JD_NULL,
+	RT711_JD1,
+	RT711_JD2
 };
 
 int rt711_io_init(struct device *dev, struct sdw_slave *slave);

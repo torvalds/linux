@@ -51,7 +51,7 @@ static int rt711_index_write(struct regmap *regmap,
 	return ret;
 }
 
-static unsigned int rt711_index_read(struct regmap *regmap,
+static int rt711_index_read(struct regmap *regmap,
 		unsigned int nid, unsigned int reg, unsigned int *value)
 {
 	int ret;
@@ -66,14 +66,28 @@ static unsigned int rt711_index_read(struct regmap *regmap,
 	return ret;
 }
 
+static int rt711_index_update_bits(struct regmap *regmap, unsigned int nid,
+			unsigned int reg, unsigned int mask, unsigned int val)
+{
+	unsigned int tmp, orig;
+	int ret;
+
+	ret = rt711_index_read(regmap, nid, reg, &orig);
+	if (ret < 0)
+		return ret;
+
+	tmp = orig & ~mask;
+	tmp |= val & mask;
+
+	return rt711_index_write(regmap, nid, reg, tmp);
+}
+
 static void rt711_reset(struct regmap *regmap)
 {
-	unsigned int val;
-
 	regmap_write(regmap, RT711_FUNC_RESET, 0);
-	rt711_index_read(regmap, RT711_VENDOR_REG, RT711_PARA_VERB_CTL, &val);
-	rt711_index_write(regmap, RT711_VENDOR_REG,
-		RT711_PARA_VERB_CTL, (val | RT711_HIDDEN_REG_SW_RESET));
+	rt711_index_update_bits(regmap, RT711_VENDOR_REG,
+		RT711_PARA_VERB_CTL, RT711_HIDDEN_REG_SW_RESET,
+		RT711_HIDDEN_REG_SW_RESET);
 }
 
 static int rt711_calibration(struct rt711_priv *rt711)
@@ -90,16 +104,13 @@ static int rt711_calibration(struct rt711_priv *rt711)
 	dev = regmap_get_device(regmap);
 
 	/* Calibration manual mode */
-	rt711_index_read(regmap, RT711_VENDOR_REG, RT711_FSM_CTL, &val);
-	val &= 0xfffffff0;
-	rt711_index_write(regmap, RT711_VENDOR_REG, RT711_FSM_CTL, val);
+	rt711_index_update_bits(regmap, RT711_VENDOR_REG, RT711_FSM_CTL,
+		0xf, 0x0);
 
 	/* trigger */
-	rt711_index_read(regmap, RT711_VENDOR_CALI,
-		RT711_DAC_DC_CALI_CTL1, &val);
-	val |= RT711_DAC_DC_CALI_TRIGGER;
-	rt711_index_write(regmap, RT711_VENDOR_CALI,
-			RT711_DAC_DC_CALI_CTL1, val);
+	rt711_index_update_bits(regmap, RT711_VENDOR_CALI,
+		RT711_DAC_DC_CALI_CTL1, RT711_DAC_DC_CALI_TRIGGER,
+		RT711_DAC_DC_CALI_TRIGGER);
 
 	/* wait for calibration process */
 	rt711_index_read(regmap, RT711_VENDOR_CALI,
@@ -120,10 +131,8 @@ static int rt711_calibration(struct rt711_priv *rt711)
 	}
 
 	/* depop mode */
-	rt711_index_read(regmap, RT711_VENDOR_REG, RT711_FSM_CTL, &val);
-	val &= 0xfffffff0;
-	val |= RT711_DEPOP_CTL;
-	rt711_index_write(regmap, RT711_VENDOR_REG, RT711_FSM_CTL, val);
+	rt711_index_update_bits(regmap, RT711_VENDOR_REG,
+		RT711_FSM_CTL, 0xf, RT711_DEPOP_CTL);
 
 	regmap_write(rt711->regmap,
 		RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
@@ -362,6 +371,25 @@ static void rt711_jack_init(struct rt711_priv *rt711)
 			0x10, 0x2420);
 		rt711_index_write(rt711->regmap, RT711_VENDOR_REG,
 			0x19, 0x2e11);
+
+		switch (rt711->jd_src) {
+		case RT711_JD1:
+			/* default settings was already for JD1 */
+			break;
+		case RT711_JD2:
+			rt711_index_update_bits(rt711->regmap, RT711_VENDOR_REG,
+				RT711_JD_CTL2, RT711_JD2_2PORT_200K_DECODE_HP |
+				RT711_HP_JD_SEL_JD2,
+				RT711_JD2_2PORT_200K_DECODE_HP |
+				RT711_HP_JD_SEL_JD2);
+			rt711_index_update_bits(rt711->regmap, RT711_VENDOR_REG,
+				RT711_CC_DET1, RT711_HP_JD_FINAL_RESULT_CTL_JD12,
+				RT711_HP_JD_FINAL_RESULT_CTL_JD12);
+			break;
+		default:
+			dev_warn(rt711->component->dev, "Wrong JD source\n");
+			break;
+		}
 
 		dev_dbg(&rt711->slave->dev, "in %s enable\n", __func__);
 
@@ -1093,6 +1121,14 @@ static void rt711_calibration_work(struct work_struct *work)
 	rt711_calibration(rt711);
 }
 
+static int rt711_parse_dt(struct rt711_priv *rt711, struct device *dev)
+{
+	device_property_read_u32(dev, "realtek,jd-src",
+		&rt711->jd_src);
+
+	return 0;
+}
+
 int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 			struct regmap *regmap, struct sdw_slave *slave)
 {
@@ -1114,6 +1150,10 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 	 */
 	rt711->hw_init = false;
 	rt711->first_init = false;
+
+	/* JD source uses JD2 in default */
+	rt711->jd_src = RT711_JD2;
+	rt711_parse_dt(rt711, &slave->dev);
 
 	ret =  devm_snd_soc_register_component(dev,
 						&soc_codec_dev_rt711,
