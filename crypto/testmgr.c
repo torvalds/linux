@@ -4023,6 +4023,34 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
+		.alg = "blake2b-160",
+		.test = alg_test_hash,
+		.fips_allowed = 0,
+		.suite = {
+			.hash = __VECS(blake2b_160_tv_template)
+		}
+	}, {
+		.alg = "blake2b-256",
+		.test = alg_test_hash,
+		.fips_allowed = 0,
+		.suite = {
+			.hash = __VECS(blake2b_256_tv_template)
+		}
+	}, {
+		.alg = "blake2b-384",
+		.test = alg_test_hash,
+		.fips_allowed = 0,
+		.suite = {
+			.hash = __VECS(blake2b_384_tv_template)
+		}
+	}, {
+		.alg = "blake2b-512",
+		.test = alg_test_hash,
+		.fips_allowed = 0,
+		.suite = {
+			.hash = __VECS(blake2b_512_tv_template)
+		}
+	}, {
 		.alg = "cbc(aes)",
 		.test = alg_test_skcipher,
 		.fips_allowed = 1,
