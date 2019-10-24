@@ -74,7 +74,6 @@ static bool rt715_volatile_register(struct device *dev, unsigned int reg)
 	case 0x2220 ... 0x2223: /* decoded HD-A */
 	case 0x9c00 ... 0x9cff:
 	case 0xb900 ... 0xb9ff:
-	case 0x75200039:
 		return true;
 	default:
 		return false;
