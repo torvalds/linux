@@ -18,32 +18,26 @@
 
 	display0: disp0 {
 		compatible = "fsl,imx-parallel-display";
-		interface-pix-fmt = "rgb565";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ipu_disp0>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
-		display-timings {
-			claawvga {
-				native-mode;
-				clock-frequency = <27000000>;
-				hactive = <800>;
-				vactive = <480>;
-				hback-porch = <40>;
-				hfront-porch = <60>;
-				vback-porch = <10>;
-				vfront-porch = <10>;
-				hsync-len = <20>;
-				vsync-len = <10>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <1>;
-				pixelclk-active = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			display0_in: endpoint {
+				remote-endpoint = <&ipu_di0_disp0>;
 			};
 		};
 
-		port {
-			display0_in: endpoint {
-				remote-endpoint = <&ipu_di0_disp0>;
+		port@1 {
+			reg = <1>;
+
+			display_out: endpoint {
+				remote-endpoint = <&panel_in>;
 			};
 		};
 	};
@@ -81,6 +75,16 @@
 			label = "Heartbeat";
 			gpios = <&gpio7 7 0>;
 			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	panel {
+		compatible = "sii,43wvf1g";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&display_out>;
+			};
 		};
 	};
 
