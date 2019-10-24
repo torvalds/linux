@@ -711,6 +711,7 @@
 				clocks = <&clks IMX6UL_CLK_GPT2_BUS>,
 					 <&clks IMX6UL_CLK_GPT2_SERIAL>;
 				clock-names = "ipg", "per";
+				status = "disabled";
 			};
 
 			sdma: sdma@20ec000 {
