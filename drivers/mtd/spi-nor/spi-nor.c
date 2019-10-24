@@ -812,14 +812,7 @@ static int spi_nor_write_sr_cr(struct spi_nor *nor, u8 *sr_cr)
 		return -EINVAL;
 	}
 
-	ret = spi_nor_wait_till_ready(nor);
-	if (ret) {
-		dev_err(nor->dev,
-			"timeout while writing configuration register\n");
-		return ret;
-	}
-
-	return 0;
+	return spi_nor_wait_till_ready(nor);
 }
 
 /* Write status register and ensure bits in mask match written values */
@@ -1853,10 +1846,8 @@ static int spansion_no_read_cr_quad_enable(struct spi_nor *nor)
 
 	/* Keep the current value of the Status Register. */
 	ret = spi_nor_read_sr(nor, sr_cr);
-	if (ret) {
-		dev_err(nor->dev, "error while reading status register\n");
+	if (ret)
 		return ret;
-	}
 
 	sr_cr[1] = CR_QUAD_EN_SPAN;
 
@@ -1878,16 +1869,13 @@ static int spansion_no_read_cr_quad_enable(struct spi_nor *nor)
  */
 static int spansion_read_cr_quad_enable(struct spi_nor *nor)
 {
-	struct device *dev = nor->dev;
 	u8 *sr_cr = nor->bouncebuf;
 	int ret;
 
 	/* Check current Quad Enable bit value. */
 	ret = spi_nor_read_cr(nor, &sr_cr[1]);
-	if (ret) {
-		dev_err(dev, "error while reading configuration register\n");
+	if (ret)
 		return ret;
-	}
 
 	if (sr_cr[1] & CR_QUAD_EN_SPAN)
 		return 0;
@@ -1896,10 +1884,8 @@ static int spansion_read_cr_quad_enable(struct spi_nor *nor)
 
 	/* Keep the current value of the Status Register. */
 	ret = spi_nor_read_sr(nor, sr_cr);
-	if (ret) {
-		dev_err(dev, "error while reading status register\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = spi_nor_write_sr_cr(nor, sr_cr);
 	if (ret)
@@ -1954,10 +1940,8 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 	}
 
 	ret = spi_nor_wait_till_ready(nor);
-	if (ret) {
-		dev_err(nor->dev, "timeout while writing status register 2\n");
+	if (ret)
 		return ret;
-	}
 
 	/* Read back and check it. */
 	ret = spi_nor_read_sr2(nor, sr2);
@@ -1987,10 +1971,8 @@ static int spi_nor_clear_sr_bp(struct spi_nor *nor)
 	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
 
 	ret = spi_nor_read_sr(nor, nor->bouncebuf);
-	if (ret) {
-		dev_err(nor->dev, "error while reading status register\n");
+	if (ret)
 		return ret;
-	}
 
 	spi_nor_write_enable(nor);
 
@@ -2000,10 +1982,7 @@ static int spi_nor_clear_sr_bp(struct spi_nor *nor)
 		return ret;
 	}
 
-	ret = spi_nor_wait_till_ready(nor);
-	if (ret)
-		dev_err(nor->dev, "timeout while writing status register\n");
-	return ret;
+	return spi_nor_wait_till_ready(nor);
 }
 
 /**
@@ -2027,11 +2006,8 @@ static int spi_nor_spansion_clear_sr_bp(struct spi_nor *nor)
 
 	/* Check current Quad Enable bit value. */
 	ret = spi_nor_read_cr(nor, &sr_cr[1]);
-	if (ret) {
-		dev_err(nor->dev,
-			"error while reading configuration register\n");
+	if (ret)
 		return ret;
-	}
 
 	/*
 	 * When the configuration register Quad Enable bit is one, only the
@@ -2039,18 +2015,12 @@ static int spi_nor_spansion_clear_sr_bp(struct spi_nor *nor)
 	 */
 	if (sr_cr[1] & CR_QUAD_EN_SPAN) {
 		ret = spi_nor_read_sr(nor, sr_cr);
-		if (ret) {
-			dev_err(nor->dev,
-				"error while reading status register\n");
+		if (ret)
 			return ret;
-		}
 
 		sr_cr[0] &= ~mask;
 
-		ret = spi_nor_write_sr_cr(nor, sr_cr);
-		if (ret)
-			dev_err(nor->dev, "16-bit write register failed\n");
-		return ret;
+		return spi_nor_write_sr_cr(nor, sr_cr);
 	}
 
 	/*
