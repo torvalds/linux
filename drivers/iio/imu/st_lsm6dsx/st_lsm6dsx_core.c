@@ -1084,6 +1084,9 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			}, {
 				.hw_id = ST_ISM330DHCX_ID,
 				.name = ST_ISM330DHCX_DEV_NAME,
+			}, {
+				.hw_id = ST_LSM6DSRX_ID,
+				.name = ST_LSM6DSRX_DEV_NAME,
 			},
 		},
 		.channels = {
