@@ -6088,11 +6088,11 @@ static void hns_roce_v2_write_srqc(struct hns_roce_dev *hr_dev,
 	roce_set_field(srq_context->byte_44_idxbufpgsz_addr,
 		       SRQC_BYTE_44_SRQ_IDX_BA_PG_SZ_M,
 		       SRQC_BYTE_44_SRQ_IDX_BA_PG_SZ_S,
-		       hr_dev->caps.idx_ba_pg_sz);
+		       hr_dev->caps.idx_ba_pg_sz + PG_SHIFT_OFFSET);
 	roce_set_field(srq_context->byte_44_idxbufpgsz_addr,
 		       SRQC_BYTE_44_SRQ_IDX_BUF_PG_SZ_M,
 		       SRQC_BYTE_44_SRQ_IDX_BUF_PG_SZ_S,
-		       hr_dev->caps.idx_buf_pg_sz);
+		       hr_dev->caps.idx_buf_pg_sz + PG_SHIFT_OFFSET);
 
 	srq_context->idx_nxt_blk_addr =
 		cpu_to_le32(mtts_idx[1] >> PAGE_ADDR_SHIFT);
