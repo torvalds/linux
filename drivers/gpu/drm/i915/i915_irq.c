@@ -2861,9 +2861,11 @@ static inline void gen11_master_intr_enable(void __iomem * const regs)
 	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, GEN11_MASTER_IRQ);
 }
 
-static irqreturn_t gen11_irq_handler(int irq, void *arg)
+static __always_inline irqreturn_t
+__gen11_irq_handler(struct drm_i915_private * const i915,
+		    u32 (*intr_disable)(void __iomem * const regs),
+		    void (*intr_enable)(void __iomem * const regs))
 {
-	struct drm_i915_private * const i915 = arg;
 	void __iomem * const regs = i915->uncore.regs;
 	struct intel_gt *gt = &i915->gt;
 	u32 master_ctl;
@@ -2872,9 +2874,9 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 	if (!intel_irqs_enabled(i915))
 		return IRQ_NONE;
 
-	master_ctl = gen11_master_intr_disable(regs);
+	master_ctl = intr_disable(regs);
 	if (!master_ctl) {
-		gen11_master_intr_enable(regs);
+		intr_enable(regs);
 		return IRQ_NONE;
 	}
 
@@ -2896,11 +2898,18 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 
 	gu_misc_iir = gen11_gu_misc_irq_ack(gt, master_ctl);
 
-	gen11_master_intr_enable(regs);
+	intr_enable(regs);
 
 	gen11_gu_misc_irq_handler(gt, gu_misc_iir);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t gen11_irq_handler(int irq, void *arg)
+{
+	return __gen11_irq_handler(arg,
+				   gen11_master_intr_disable,
+				   gen11_master_intr_enable);
 }
 
 /* Called from drm generic code, passed 'crtc' which
