@@ -390,7 +390,7 @@ enum mod_hdcp_status mod_hdcp_read_rxstatus(struct mod_hdcp *hdcp)
 
 	if (is_dp_hdcp(hdcp)) {
 		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_RXSTATUS,
-				(uint8_t *)&hdcp->auth.msg.hdcp2.rxstatus,
+				&hdcp->auth.msg.hdcp2.rxstatus_dp,
 				1);
 	} else {
 		status = read(hdcp, MOD_HDCP_MESSAGE_ID_READ_RXSTATUS,

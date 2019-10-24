@@ -32,22 +32,6 @@
 #include <drm/drm_hdcp.h>
 #include <drm/drm_dp_helper.h>
 
-/* TODO:
- * Replace below defines with these
- *
- * #define HDCP_2_2_HDMI_RXSTATUS_MSG_SZ_HI(x)     ((x) & 0x3)
- * #define HDCP_2_2_HDMI_RXSTATUS_READY(x)         ((x) & BIT(2))
- * #define HDCP_2_2_HDMI_RXSTATUS_REAUTH_REQ(x)    ((x) & BIT(3))
- *
- * Currently we share rx_status between HDMI and DP, so we use 16bits
- * The upstream defines work with 1bytes at a time. So we need to
- * split the HDMI rxstatus into 2bytes before we can use usptream defs
- */
-
-#define RXSTATUS_MSG_SIZE_MASK				0x03FF
-#define RXSTATUS_READY_MASK				0x0400
-#define RXSTATUS_REAUTH_REQUEST_MASK			0x0800
-
 enum mod_hdcp_trans_input_result {
 	UNKNOWN = 0,
 	PASS,
@@ -150,7 +134,7 @@ struct mod_hdcp_message_hdcp1 {
 struct mod_hdcp_message_hdcp2 {
 	uint8_t		hdcp2version_hdmi;
 	uint8_t		rxcaps_dp[3];
-	uint16_t	rxstatus;
+	uint8_t		rxstatus[2];
 
 	uint8_t		ake_init[12];
 	uint8_t		ake_cert[534];
@@ -167,7 +151,7 @@ struct mod_hdcp_message_hdcp2 {
 	uint8_t		repeater_auth_stream_manage[68]; // 6 + 2 * 31
 	uint16_t	stream_manage_size;
 	uint8_t		repeater_auth_stream_ready[33];
-
+	uint8_t		rxstatus_dp;
 	uint8_t		content_stream_type_dp[2];
 };
 
