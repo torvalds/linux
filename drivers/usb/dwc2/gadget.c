@@ -3784,14 +3784,25 @@ irq_retry:
 		for (idx = 1; idx < hsotg->num_of_eps; idx++) {
 			hs_ep = hsotg->eps_out[idx];
 			/* Proceed only unmasked ISOC EPs */
-			if ((BIT(idx) & ~daintmsk) || !hs_ep->isochronous)
+			if (BIT(idx) & ~daintmsk)
 				continue;
 
 			epctrl = dwc2_readl(hsotg, DOEPCTL(idx));
 
-			if (epctrl & DXEPCTL_EPENA) {
+			//ISOC Ep's only
+			if ((epctrl & DXEPCTL_EPENA) && hs_ep->isochronous) {
 				epctrl |= DXEPCTL_SNAK;
 				epctrl |= DXEPCTL_EPDIS;
+				dwc2_writel(hsotg, epctrl, DOEPCTL(idx));
+				continue;
+			}
+
+			//Non-ISOC EP's
+			if (hs_ep->halted) {
+				if (!(epctrl & DXEPCTL_EPENA))
+					epctrl |= DXEPCTL_EPENA;
+				epctrl |= DXEPCTL_EPDIS;
+				epctrl |= DXEPCTL_STALL;
 				dwc2_writel(hsotg, epctrl, DOEPCTL(idx));
 			}
 		}
@@ -4310,19 +4321,20 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 		epctl = dwc2_readl(hs, epreg);
 
 		if (value) {
-			epctl |= DXEPCTL_STALL;
+			if (!(dwc2_readl(hs, GINTSTS) & GINTSTS_GOUTNAKEFF))
+				dwc2_set_bit(hs, DCTL, DCTL_SGOUTNAK);
+			// STALL bit will be set in GOUTNAKEFF interrupt handler
 		} else {
 			epctl &= ~DXEPCTL_STALL;
 			xfertype = epctl & DXEPCTL_EPTYPE_MASK;
 			if (xfertype == DXEPCTL_EPTYPE_BULK ||
 			    xfertype == DXEPCTL_EPTYPE_INTERRUPT)
 				epctl |= DXEPCTL_SETD0PID;
+			dwc2_writel(hs, epctl, epreg);
 		}
-		dwc2_writel(hs, epctl, epreg);
 	}
 
 	hs_ep->halted = value;
-
 	return 0;
 }
 
