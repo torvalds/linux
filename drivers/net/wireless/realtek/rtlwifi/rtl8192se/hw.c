@@ -1352,9 +1352,9 @@ static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 	/* SW/HW radio off or halt adapter!! For example S3/S4 */
 	} else {
 		/* LED function disable. Power range is about 8mA now. */
-		/* if write 0xF1 disconnet_pci power
+		/* if write 0xF1 disconnect_pci power
 		 *	 ifconfig wlan0 down power are both high 35:70 */
-		/* if write oxF9 disconnet_pci power
+		/* if write oxF9 disconnect_pci power
 		 * ifconfig wlan0 down power are both low  12:45*/
 		rtl_write_byte(rtlpriv, 0x03, 0xF9);
 	}
