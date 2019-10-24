@@ -52,6 +52,7 @@ struct io_worker {
 
 	struct rcu_head rcu;
 	struct mm_struct *mm;
+	struct files_struct *restore_files;
 };
 
 struct io_wq_nulls_list {
@@ -126,22 +127,36 @@ static void io_worker_release(struct io_worker *worker)
  */
 static bool __io_worker_unuse(struct io_wqe *wqe, struct io_worker *worker)
 {
+	bool dropped_lock = false;
+
+	if (current->files != worker->restore_files) {
+		__acquire(&wqe->lock);
+		spin_unlock_irq(&wqe->lock);
+		dropped_lock = true;
+
+		task_lock(current);
+		current->files = worker->restore_files;
+		task_unlock(current);
+	}
+
 	/*
 	 * If we have an active mm, we need to drop the wq lock before unusing
 	 * it. If we do, return true and let the caller retry the idle loop.
 	 */
 	if (worker->mm) {
-		__acquire(&wqe->lock);
-		spin_unlock_irq(&wqe->lock);
+		if (!dropped_lock) {
+			__acquire(&wqe->lock);
+			spin_unlock_irq(&wqe->lock);
+			dropped_lock = true;
+		}
 		__set_current_state(TASK_RUNNING);
 		set_fs(KERNEL_DS);
 		unuse_mm(worker->mm);
 		mmput(worker->mm);
 		worker->mm = NULL;
-		return true;
 	}
 
-	return false;
+	return dropped_lock;
 }
 
 static void io_worker_exit(struct io_worker *worker)
@@ -189,6 +204,7 @@ static void io_worker_start(struct io_wqe *wqe, struct io_worker *worker)
 	current->flags |= PF_IO_WORKER;
 
 	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
+	worker->restore_files = current->files;
 	atomic_inc(&wqe->nr_running);
 }
 
@@ -291,6 +307,12 @@ static void io_worker_handle_work(struct io_worker *worker)
 		if (!work)
 			break;
 next:
+		if ((work->flags & IO_WQ_WORK_NEEDS_FILES) &&
+		    current->files != work->files) {
+			task_lock(current);
+			current->files = work->files;
+			task_unlock(current);
+		}
 		if ((work->flags & IO_WQ_WORK_NEEDS_USER) && !worker->mm &&
 		    wq->mm && mmget_not_zero(wq->mm)) {
 			use_mm(wq->mm);

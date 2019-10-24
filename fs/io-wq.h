@@ -8,6 +8,7 @@ enum {
 	IO_WQ_WORK_HAS_MM	= 2,
 	IO_WQ_WORK_HASHED	= 4,
 	IO_WQ_WORK_NEEDS_USER	= 8,
+	IO_WQ_WORK_NEEDS_FILES	= 16,
 
 	IO_WQ_HASH_SHIFT	= 24,	/* upper 8 bits are used for hash key */
 };
@@ -22,12 +23,14 @@ struct io_wq_work {
 	struct list_head list;
 	void (*func)(struct io_wq_work **);
 	unsigned flags;
+	struct files_struct *files;
 };
 
 #define INIT_IO_WORK(work, _func)			\
 	do {						\
 		(work)->func = _func;			\
 		(work)->flags = 0;			\
+		(work)->files = NULL;			\
 	} while (0)					\
 
 struct io_wq *io_wq_create(unsigned concurrency, struct mm_struct *mm);
