@@ -84,6 +84,7 @@
 #define HISI_SAS_PROT_MASK (HISI_SAS_DIF_PROT_MASK | HISI_SAS_DIX_PROT_MASK)
 
 #define HISI_SAS_WAIT_PHYUP_TIMEOUT 20
+#define CLEAR_ITCT_TIMEOUT	20
 
 struct hisi_hba;
 
@@ -296,8 +297,8 @@ struct hisi_sas_hw {
 	void (*phy_set_linkrate)(struct hisi_hba *hisi_hba, int phy_no,
 			struct sas_phy_linkrates *linkrates);
 	enum sas_linkrate (*phy_get_max_linkrate)(void);
-	void (*clear_itct)(struct hisi_hba *hisi_hba,
-			    struct hisi_sas_device *dev);
+	int (*clear_itct)(struct hisi_hba *hisi_hba,
+			  struct hisi_sas_device *dev);
 	void (*free_device)(struct hisi_sas_device *sas_dev);
 	int (*get_wideport_bitmap)(struct hisi_hba *hisi_hba, int port_id);
 	void (*dereg_device)(struct hisi_hba *hisi_hba,
