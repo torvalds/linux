@@ -1447,6 +1447,7 @@ static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio
 	int ret;
 
 	flags &= ~BCH_READ_LAST_FRAGMENT;
+	flags |= BCH_READ_MUST_CLONE;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
