@@ -1883,65 +1883,6 @@ static int cgroup_reconfigure(struct fs_context *fc)
 	return 0;
 }
 
-/*
- * To reduce the fork() overhead for systems that are not actually using
- * their cgroups capability, we don't maintain the lists running through
- * each css_set to its tasks until we see the list actually used - in other
- * words after the first mount.
- */
-static bool use_task_css_set_links __read_mostly;
-
-void cgroup_enable_task_cg_lists(void)
-{
-	struct task_struct *p, *g;
-
-	/*
-	 * We need tasklist_lock because RCU is not safe against
-	 * while_each_thread(). Besides, a forking task that has passed
-	 * cgroup_post_fork() without seeing use_task_css_set_links = 1
-	 * is not guaranteed to have its child immediately visible in the
-	 * tasklist if we walk through it with RCU.
-	 */
-	read_lock(&tasklist_lock);
-	spin_lock_irq(&css_set_lock);
-
-	if (use_task_css_set_links)
-		goto out_unlock;
-
-	use_task_css_set_links = true;
-
-	do_each_thread(g, p) {
-		WARN_ON_ONCE(!list_empty(&p->cg_list) ||
-			     task_css_set(p) != &init_css_set);
-
-		/*
-		 * We should check if the process is exiting, otherwise
-		 * it will race with cgroup_exit() in that the list
-		 * entry won't be deleted though the process has exited.
-		 * Do it while holding siglock so that we don't end up
-		 * racing against cgroup_exit().
-		 *
-		 * Interrupts were already disabled while acquiring
-		 * the css_set_lock, so we do not need to disable it
-		 * again when acquiring the sighand->siglock here.
-		 */
-		spin_lock(&p->sighand->siglock);
-		if (!(p->flags & PF_EXITING)) {
-			struct css_set *cset = task_css_set(p);
-
-			if (!css_set_populated(cset))
-				css_set_update_populated(cset, true);
-			list_add_tail(&p->cg_list, &cset->tasks);
-			get_css_set(cset);
-			cset->nr_tasks++;
-		}
-		spin_unlock(&p->sighand->siglock);
-	} while_each_thread(g, p);
-out_unlock:
-	spin_unlock_irq(&css_set_lock);
-	read_unlock(&tasklist_lock);
-}
-
 static void init_cgroup_housekeeping(struct cgroup *cgrp)
 {
 	struct cgroup_subsys *ss;
@@ -2187,13 +2128,6 @@ static int cgroup_init_fs_context(struct fs_context *fc)
 	if (!ctx)
 		return -ENOMEM;
 
-	/*
-	 * The first time anyone tries to mount a cgroup, enable the list
-	 * linking each css_set to its tasks and fix up all existing tasks.
-	 */
-	if (!use_task_css_set_links)
-		cgroup_enable_task_cg_lists();
-
 	ctx->ns = current->nsproxy->cgroup_ns;
 	get_cgroup_ns(ctx->ns);
 	fc->fs_private = &ctx->kfc;
@@ -2371,9 +2305,8 @@ static void cgroup_migrate_add_task(struct task_struct *task,
 	if (task->flags & PF_EXITING)
 		return;
 
-	/* leave @task alone if post_fork() hasn't linked it yet */
-	if (list_empty(&task->cg_list))
-		return;
+	/* cgroup_threadgroup_rwsem protects racing against forks */
+	WARN_ON_ONCE(list_empty(&task->cg_list));
 
 	cset = task_css_set(task);
 	if (!cset->mg_src_cgrp)
@@ -4586,9 +4519,6 @@ repeat:
 void css_task_iter_start(struct cgroup_subsys_state *css, unsigned int flags,
 			 struct css_task_iter *it)
 {
-	/* no one should try to iterate before mounting cgroups */
-	WARN_ON_ONCE(!use_task_css_set_links);
-
 	memset(it, 0, sizeof(*it));
 
 	spin_lock_irq(&css_set_lock);
@@ -6022,61 +5952,37 @@ void cgroup_cancel_fork(struct task_struct *child)
 void cgroup_post_fork(struct task_struct *child)
 {
 	struct cgroup_subsys *ss;
+	struct css_set *cset;
 	int i;
 
-	/*
-	 * This may race against cgroup_enable_task_cg_lists().  As that
-	 * function sets use_task_css_set_links before grabbing
-	 * tasklist_lock and we just went through tasklist_lock to add
-	 * @child, it's guaranteed that either we see the set
-	 * use_task_css_set_links or cgroup_enable_task_cg_lists() sees
-	 * @child during its iteration.
-	 *
-	 * If we won the race, @child is associated with %current's
-	 * css_set.  Grabbing css_set_lock guarantees both that the
-	 * association is stable, and, on completion of the parent's
-	 * migration, @child is visible in the source of migration or
-	 * already in the destination cgroup.  This guarantee is necessary
-	 * when implementing operations which need to migrate all tasks of
-	 * a cgroup to another.
-	 *
-	 * Note that if we lose to cgroup_enable_task_cg_lists(), @child
-	 * will remain in init_css_set.  This is safe because all tasks are
-	 * in the init_css_set before cg_links is enabled and there's no
-	 * operation which transfers all tasks out of init_css_set.
-	 */
-	if (use_task_css_set_links) {
-		struct css_set *cset;
+	spin_lock_irq(&css_set_lock);
 
-		spin_lock_irq(&css_set_lock);
-		cset = task_css_set(current); /* current is @child's parent */
-		if (list_empty(&child->cg_list)) {
-			get_css_set(cset);
-			cset->nr_tasks++;
-			css_set_move_task(child, NULL, cset, false);
-		}
+	WARN_ON_ONCE(!list_empty(&child->cg_list));
+	cset = task_css_set(current); /* current is @child's parent */
+	get_css_set(cset);
+	cset->nr_tasks++;
+	css_set_move_task(child, NULL, cset, false);
+
+	/*
+	 * If the cgroup has to be frozen, the new task has too.  Let's set
+	 * the JOBCTL_TRAP_FREEZE jobctl bit to get the task into the
+	 * frozen state.
+	 */
+	if (unlikely(cgroup_task_freeze(child))) {
+		spin_lock(&child->sighand->siglock);
+		WARN_ON_ONCE(child->frozen);
+		child->jobctl |= JOBCTL_TRAP_FREEZE;
+		spin_unlock(&child->sighand->siglock);
 
 		/*
-		 * If the cgroup has to be frozen, the new task has too.
-		 * Let's set the JOBCTL_TRAP_FREEZE jobctl bit to get
-		 * the task into the frozen state.
+		 * Calling cgroup_update_frozen() isn't required here,
+		 * because it will be called anyway a bit later from
+		 * do_freezer_trap(). So we avoid cgroup's transient switch
+		 * from the frozen state and back.
 		 */
-		if (unlikely(cgroup_task_freeze(child))) {
-			spin_lock(&child->sighand->siglock);
-			WARN_ON_ONCE(child->frozen);
-			child->jobctl |= JOBCTL_TRAP_FREEZE;
-			spin_unlock(&child->sighand->siglock);
-
-			/*
-			 * Calling cgroup_update_frozen() isn't required here,
-			 * because it will be called anyway a bit later
-			 * from do_freezer_trap(). So we avoid cgroup's
-			 * transient switch from the frozen state and back.
-			 */
-		}
-
-		spin_unlock_irq(&css_set_lock);
 	}
+
+	spin_unlock_irq(&css_set_lock);
 
 	/*
 	 * Call ss->fork().  This must happen after @child is linked on
@@ -6101,29 +6007,19 @@ void cgroup_exit(struct task_struct *tsk)
 	struct css_set *cset;
 	int i;
 
-	/*
-	 * Unlink from @tsk from its css_set.  As migration path can't race
-	 * with us (thanks to cgroup_threadgroup_rwsem), we can check css_set
-	 * and cg_list without synchronization.
-	 */
+	spin_lock_irq(&css_set_lock);
+
+	WARN_ON_ONCE(list_empty(&tsk->cg_list));
 	cset = task_css_set(tsk);
+	css_set_move_task(tsk, cset, NULL, false);
+	list_add_tail(&tsk->cg_list, &cset->dying_tasks);
+	cset->nr_tasks--;
 
-	if (!list_empty(&tsk->cg_list)) {
-		spin_lock_irq(&css_set_lock);
-		css_set_move_task(tsk, cset, NULL, false);
-		list_add_tail(&tsk->cg_list, &cset->dying_tasks);
-		cset->nr_tasks--;
+	WARN_ON_ONCE(cgroup_task_frozen(tsk));
+	if (unlikely(cgroup_task_freeze(tsk)))
+		cgroup_update_frozen(task_dfl_cgroup(tsk));
 
-		WARN_ON_ONCE(cgroup_task_frozen(tsk));
-		if (unlikely(cgroup_task_freeze(tsk)))
-			cgroup_update_frozen(task_dfl_cgroup(tsk));
-
-		spin_unlock_irq(&css_set_lock);
-	} else {
-		/* Take reference to avoid freeing init_css_set in cgroup_free,
-		 * see cgroup_fork(). */
-		get_css_set(cset);
-	}
+	spin_unlock_irq(&css_set_lock);
 
 	/* see cgroup_post_fork() for details */
 	do_each_subsys_mask(ss, i, have_exit_callback) {
@@ -6140,12 +6036,10 @@ void cgroup_release(struct task_struct *task)
 		ss->release(task);
 	} while_each_subsys_mask();
 
-	if (use_task_css_set_links) {
-		spin_lock_irq(&css_set_lock);
-		css_set_skip_task_iters(task_css_set(task), task);
-		list_del_init(&task->cg_list);
-		spin_unlock_irq(&css_set_lock);
-	}
+	spin_lock_irq(&css_set_lock);
+	css_set_skip_task_iters(task_css_set(task), task);
+	list_del_init(&task->cg_list);
+	spin_unlock_irq(&css_set_lock);
 }
 
 void cgroup_free(struct task_struct *task)

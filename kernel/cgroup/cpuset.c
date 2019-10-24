@@ -928,8 +928,6 @@ static void rebuild_root_domains(void)
 	lockdep_assert_cpus_held();
 	lockdep_assert_held(&sched_domains_mutex);
 
-	cgroup_enable_task_cg_lists();
-
 	rcu_read_lock();
 
 	/*
