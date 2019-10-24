@@ -968,6 +968,9 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.set_rxnfc		= bcm_sf2_set_rxnfc,
 	.port_mirror_add	= b53_mirror_add,
 	.port_mirror_del	= b53_mirror_del,
+	.port_mdb_prepare	= b53_mdb_prepare,
+	.port_mdb_add		= b53_mdb_add,
+	.port_mdb_del		= b53_mdb_del,
 };
 
 struct bcm_sf2_of_data {
