@@ -1507,7 +1507,7 @@ TRACE_EVENT(svcrdma_dma_map_page,
 	TP_ARGS(rdma, page),
 
 	TP_STRUCT__entry(
-		__field(const void *, page);
+		__field(const void *, page)
 		__string(device, rdma->sc_cm_id->device->name)
 		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),

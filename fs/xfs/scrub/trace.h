@@ -329,7 +329,7 @@ TRACE_EVENT(xchk_btree_op_error,
 		__field(int, level)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, bno)
-		__field(int, ptr);
+		__field(int, ptr)
 		__field(int, error)
 		__field(void *, ret_ip)
 	),
@@ -414,7 +414,7 @@ TRACE_EVENT(xchk_btree_error,
 		__field(int, level)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, bno)
-		__field(int, ptr);
+		__field(int, ptr)
 		__field(void *, ret_ip)
 	),
 	TP_fast_assign(
@@ -452,7 +452,7 @@ TRACE_EVENT(xchk_ifork_btree_error,
 		__field(int, level)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, bno)
-		__field(int, ptr);
+		__field(int, ptr)
 		__field(void *, ret_ip)
 	),
 	TP_fast_assign(
