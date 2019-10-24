@@ -155,12 +155,19 @@ typedef void (*ionic_desc_cb)(struct ionic_queue *q,
 			      struct ionic_desc_info *desc_info,
 			      struct ionic_cq_info *cq_info, void *cb_arg);
 
+struct ionic_page_info {
+	struct page *page;
+	dma_addr_t dma_addr;
+};
+
 struct ionic_desc_info {
 	void *desc;
 	void *sg_desc;
 	struct ionic_desc_info *next;
 	unsigned int index;
 	unsigned int left;
+	unsigned int npages;
+	struct ionic_page_info pages[IONIC_RX_MAX_SG_ELEMS + 1];
 	ionic_desc_cb cb;
 	void *cb_arg;
 };
