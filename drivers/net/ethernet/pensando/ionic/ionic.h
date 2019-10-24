@@ -46,6 +46,8 @@ struct ionic {
 	DECLARE_BITMAP(intrs, IONIC_INTR_CTRL_REGS_MAX);
 	struct work_struct nb_work;
 	struct notifier_block nb;
+	struct timer_list watchdog_timer;
+	int watchdog_period;
 };
 
 struct ionic_admin_ctx {
