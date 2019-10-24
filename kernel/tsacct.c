@@ -36,6 +36,7 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 	/* Convert to seconds for btime (note y2106 limit) */
 	btime = ktime_get_real_seconds() - div_u64(delta, USEC_PER_SEC);
 	stats->ac_btime = clamp_t(time64_t, btime, 0, U32_MAX);
+	stats->ac_btime64 = btime;
 
 	if (thread_group_leader(tsk)) {
 		stats->ac_exitcode = tsk->exit_code;
