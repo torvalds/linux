@@ -406,6 +406,12 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	if (vsi->type == ICE_VSI_VF)
 		return 0;
 
+	/* configure Rx buffer alignment */
+	if (!vsi->netdev || test_bit(ICE_FLAG_LEGACY_RX, vsi->back->flags))
+		ice_clear_ring_build_skb_ena(ring);
+	else
+		ice_set_ring_build_skb_ena(ring);
+
 	/* init queue specific tail register */
 	ring->tail = hw->hw_addr + QRX_TAIL(pf_q);
 	writel(0, ring->tail);

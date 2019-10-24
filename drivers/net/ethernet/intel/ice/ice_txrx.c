@@ -415,7 +415,12 @@ err:
  */
 static unsigned int ice_rx_offset(struct ice_ring *rx_ring)
 {
-	return ice_is_xdp_ena_vsi(rx_ring->vsi) ? XDP_PACKET_HEADROOM : 0;
+	if (ice_ring_uses_build_skb(rx_ring))
+		return ICE_SKB_PAD;
+	else if (ice_is_xdp_ena_vsi(rx_ring->vsi))
+		return XDP_PACKET_HEADROOM;
+
+	return 0;
 }
 
 /**
@@ -710,7 +715,7 @@ ice_add_rx_frag(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 		struct sk_buff *skb, unsigned int size)
 {
 #if (PAGE_SIZE >= 8192)
-	unsigned int truesize = SKB_DATA_ALIGN(size);
+	unsigned int truesize = SKB_DATA_ALIGN(size + ice_rx_offset(rx_ring));
 #else
 	unsigned int truesize = ice_rx_pg_size(rx_ring) / 2;
 #endif
@@ -1008,27 +1013,28 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 
 		xdp_res = ice_run_xdp(rx_ring, &xdp, xdp_prog);
 		rcu_read_unlock();
-		if (xdp_res) {
-			if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR)) {
-				unsigned int truesize;
+		if (!xdp_res)
+			goto construct_skb;
+		if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR)) {
+			unsigned int truesize;
 
 #if (PAGE_SIZE < 8192)
-				truesize = ice_rx_pg_size(rx_ring) / 2;
+			truesize = ice_rx_pg_size(rx_ring) / 2;
 #else
-				truesize = SKB_DATA_ALIGN(size);
+			truesize = SKB_DATA_ALIGN(ice_rx_offset(rx_ring) +
+						  size);
 #endif
-				xdp_xmit |= xdp_res;
-				ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
-			} else {
-				rx_buf->pagecnt_bias++;
-			}
-			total_rx_bytes += size;
-			total_rx_pkts++;
-
-			cleaned_count++;
-			ice_put_rx_buf(rx_ring, rx_buf);
-			continue;
+			xdp_xmit |= xdp_res;
+			ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
+		} else {
+			rx_buf->pagecnt_bias++;
 		}
+		total_rx_bytes += size;
+		total_rx_pkts++;
+
+		cleaned_count++;
+		ice_put_rx_buf(rx_ring, rx_buf);
+		continue;
 construct_skb:
 		if (skb)
 			ice_add_rx_frag(rx_ring, rx_buf, skb, size);

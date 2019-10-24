@@ -1194,7 +1194,8 @@ void ice_vsi_cfg_frame_size(struct ice_vsi *vsi)
 		vsi->max_frame = ICE_AQ_SET_MAC_FRAME_SIZE_MAX;
 		vsi->rx_buf_len = ICE_RXBUF_2048;
 #if (PAGE_SIZE < 8192)
-	} else if (vsi->netdev->mtu <= ETH_DATA_LEN) {
+	} else if (!ICE_2K_TOO_SMALL_WITH_PADDING &&
+		   (vsi->netdev->mtu <= ETH_DATA_LEN)) {
 		vsi->max_frame = ICE_RXBUF_1536 - NET_IP_ALIGN;
 		vsi->rx_buf_len = ICE_RXBUF_1536 - NET_IP_ALIGN;
 #endif

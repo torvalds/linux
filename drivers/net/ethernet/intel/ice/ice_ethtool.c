@@ -624,7 +624,7 @@ static int ice_lbtest_receive_frames(struct ice_ring *rx_ring)
 			continue;
 
 		rx_buf = &rx_ring->rx_buf[i];
-		received_buf = page_address(rx_buf->page);
+		received_buf = page_address(rx_buf->page) + rx_buf->page_offset;
 
 		if (ice_lbtest_check_frame(received_buf))
 			valid_frames++;
