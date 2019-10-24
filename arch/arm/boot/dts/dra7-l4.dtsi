@@ -442,7 +442,6 @@
 
 		target-module@f4000 {			/* 0x4a0f4000, ap 23 04.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox1";
 			reg = <0xf4000 0x4>,
 			      <0xf4010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1899,7 +1898,6 @@
 
 		target-module@90000 {			/* 0x48090000, ap 55 12.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "rng";
 			reg = <0x91fe0 0x4>,
 			      <0x91fe4 0x4>;
 			reg-names = "rev", "sysc";
@@ -2090,7 +2088,6 @@
 
 		target-module@b2000 {			/* 0x480b2000, ap 37 52.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "hdq1w";
 			reg = <0xb2000 0x4>,
 			      <0xb2014 0x4>,
 			      <0xb2018 0x4>;
@@ -3199,7 +3196,6 @@
 
 		target-module@2000 {			/* 0x48802000, ap 95 7c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox13";
 			reg = <0x2000 0x4>,
 			      <0x2010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3528,7 +3524,6 @@
 
 		target-module@3a000 {			/* 0x4883a000, ap 33 3e.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox2";
 			reg = <0x3a000 0x4>,
 			      <0x3a010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3559,7 +3554,6 @@
 
 		target-module@3c000 {			/* 0x4883c000, ap 35 3a.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox3";
 			reg = <0x3c000 0x4>,
 			      <0x3c010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3590,7 +3584,6 @@
 
 		target-module@3e000 {			/* 0x4883e000, ap 37 46.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox4";
 			reg = <0x3e000 0x4>,
 			      <0x3e010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3621,7 +3614,6 @@
 
 		target-module@40000 {			/* 0x48840000, ap 39 64.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox5";
 			reg = <0x40000 0x4>,
 			      <0x40010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3652,7 +3644,6 @@
 
 		target-module@42000 {			/* 0x48842000, ap 41 4e.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox6";
 			reg = <0x42000 0x4>,
 			      <0x42010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3683,7 +3674,6 @@
 
 		target-module@44000 {			/* 0x48844000, ap 43 42.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox7";
 			reg = <0x44000 0x4>,
 			      <0x44010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3714,7 +3704,6 @@
 
 		target-module@46000 {			/* 0x48846000, ap 45 48.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox8";
 			reg = <0x46000 0x4>,
 			      <0x46010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3833,7 +3822,6 @@
 
 		target-module@5e000 {			/* 0x4885e000, ap 69 6c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox9";
 			reg = <0x5e000 0x4>,
 			      <0x5e010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3864,7 +3852,6 @@
 
 		target-module@60000 {			/* 0x48860000, ap 71 4a.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox10";
 			reg = <0x60000 0x4>,
 			      <0x60010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3895,7 +3882,6 @@
 
 		target-module@62000 {			/* 0x48862000, ap 73 74.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox11";
 			reg = <0x62000 0x4>,
 			      <0x62010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3926,7 +3912,6 @@
 
 		target-module@64000 {			/* 0x48864000, ap 67 52.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox12";
 			reg = <0x64000 0x4>,
 			      <0x64010 0x4>;
 			reg-names = "rev", "sysc";
@@ -4301,7 +4286,6 @@
 
 		target-module@4000 {			/* 0x4ae14000, ap 7 28.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "wd_timer2";
 			reg = <0x4000 0x4>,
 			      <0x4010 0x4>,
 			      <0x4014 0x4>;

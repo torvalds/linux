@@ -115,10 +115,6 @@
 	};
 };
 
-&cppi41dma  {
-	status = "okay";
-};
-
 &elm {
 	status = "okay";
 };
@@ -328,30 +324,12 @@
 	status = "okay";
 };
 
-&usb {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
 &usb0 {
 	dr_mode = "peripheral";
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
 };
 
 &usb1 {
 	dr_mode = "host";
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
 };
 
 &am33xx_pinmux {

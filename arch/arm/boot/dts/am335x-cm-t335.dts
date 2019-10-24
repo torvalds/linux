@@ -330,26 +330,6 @@ status = "okay";
 	};
 };
 
-&usb {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&cppi41dma  {
-	status = "okay";
-};
-
 &epwmss0 {
 	status = "okay";
 
