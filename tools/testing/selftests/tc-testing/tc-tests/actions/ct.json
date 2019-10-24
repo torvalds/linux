@@ -1,0 +1,314 @@
+[
+    {
+        "id": "696a",
+        "name": "Add simple ct action",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct index 42",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct zone 0 pipe.*index 42 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "9f20",
+        "name": "Add ct clear action",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct clear index 42",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct clear pipe.*index 42 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "5bea",
+        "name": "Try ct with zone",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct zone 404 index 42",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct zone 404 pipe.*index 42 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "d5d6",
+        "name": "Try ct with zone, commit",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct zone 404 commit index 42",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct commit zone 404 pipe.*index 42 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "029f",
+        "name": "Try ct with zone, commit, mark",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct zone 404 commit mark 0x42 index 42",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct commit mark 66 zone 404 pipe.*index 42 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "a58d",
+        "name": "Try ct with zone, commit, mark, nat",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct zone 404 commit mark 0x42 nat src addr 5.5.5.7 index 42",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct commit mark 66 zone 404 nat src addr 5.5.5.7 pipe.*index 42 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "901b",
+        "name": "Try ct with full nat ipv4 range syntax",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct commit nat src addr 5.5.5.7-5.5.6.0 port 1000-2000 index 44",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct commit zone 0 nat src addr 5.5.5.7-5.5.6.0 port 1000-2000 pipe.*index 44 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "072b",
+        "name": "Try ct with full nat ipv6 syntax",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct commit nat src addr 2001::1 port 1000-2000 index 44",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct commit zone 0 nat src addr 2001::1 port 1000-2000 pipe.*index 44 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "3420",
+        "name": "Try ct with full nat ipv6 range syntax",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct commit nat src addr 2001::1-2001::10 port 1000-2000 index 44",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct commit zone 0 nat src addr 2001::1-2001::10 port 1000-2000 pipe.*index 44 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "4470",
+        "name": "Try ct with full nat ipv6 range syntax + force",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct commit force nat src addr 2001::1-2001::10 port 1000-2000 index 44",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct commit force zone 0 nat src addr 2001::1-2001::10 port 1000-2000 pipe.*index 44 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "5d88",
+        "name": "Try ct with label",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct label 123123 index 44",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct zone 0 label 12312300000000000000000000000000 pipe.*index 44 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "04d4",
+        "name": "Try ct with label with mask",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct label 12312300000000000000000000000001/ffffffff000000000000000000000001 index 44",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct zone 0 label 12312300000000000000000000000001/ffffffff000000000000000000000001 pipe.*index 44 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "9751",
+        "name": "Try ct with mark + mask",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct mark 0x42/0xf0 index 42",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct mark 66/0xf0 zone 0 pipe.*index 42 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    }
+]

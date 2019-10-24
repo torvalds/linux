@@ -96,4 +96,4 @@ where
     <URL:http://www.uefi.org/sites/default/files/resources/_DSD-hierarchical-data-extension-UUID-v1.1.pdf>,
     referenced 2019-02-21.
 
-[7] Documentation/acpi/dsd/data-node-reference.txt
+[7] Documentation/firmware-guide/acpi/dsd/data-node-references.rst

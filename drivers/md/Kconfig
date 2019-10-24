@@ -453,7 +453,7 @@ config DM_INIT
 	Enable "dm-mod.create=" parameter to create mapped devices at init time.
 	This option is useful to allow mounting rootfs without requiring an
 	initramfs.
-	See Documentation/device-mapper/dm-init.txt for dm-mod.create="..."
+	See Documentation/admin-guide/device-mapper/dm-init.rst for dm-mod.create="..."
 	format.
 
 	If unsure, say N.

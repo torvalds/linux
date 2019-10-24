@@ -298,7 +298,7 @@ enabled, a configurable percentage of memory allocations will be made to
 fail; these failures can be restricted to a specific range of code.
 Running with fault injection enabled allows the programmer to see how the
 code responds when things go badly.  See
-Documentation/fault-injection/fault-injection.txt for more information on
+Documentation/fault-injection/fault-injection.rst for more information on
 how to use this facility.
 
 Other kinds of errors can be found with the "sparse" static analysis tool.

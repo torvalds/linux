@@ -253,7 +253,7 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		struct ip6_flowlabel *flowlabel;
 
 		flowlabel = fl6_sock_lookup(sk, fl6->flowlabel);
-		if (!flowlabel)
+		if (IS_ERR(flowlabel))
 			goto out;
 		fl6_sock_release(flowlabel);
 	}

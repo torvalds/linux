@@ -27,6 +27,8 @@
 		ethernet1 = &cp0_eth2;
 		ethernet2 = &cp1_eth0;
 		ethernet3 = &cp1_eth1;
+		i2c1 = &cp0_i2c0;
+		i2c2 = &cp1_i2c0;
 	};
 
 	cp0_reg_usb3_0_vbus: cp0-usb3-0-vbus {
@@ -70,11 +72,6 @@
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&cp1_reg_usb3_0_vbus>;
 	};
-};
-
-&i2c0 {
-	status = "okay";
-	clock-frequency = <100000>;
 };
 
 &spi0 {

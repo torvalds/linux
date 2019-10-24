@@ -174,6 +174,7 @@ static const struct {
 	QEDE_STAT(coalesced_bytes),
 
 	QEDE_STAT(link_change_count),
+	QEDE_STAT(ptp_skip_txts),
 };
 
 #define QEDE_NUM_STATS	ARRAY_SIZE(qede_stats_arr)

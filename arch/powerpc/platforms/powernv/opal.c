@@ -202,16 +202,18 @@ static int __init opal_register_exception_handlers(void)
 	glue = 0x7000;
 
 	/*
-	 * Check if we are running on newer firmware that exports
-	 * OPAL_HANDLE_HMI token. If yes, then don't ask OPAL to patch
-	 * the HMI interrupt and we catch it directly in Linux.
+	 * Only ancient OPAL firmware requires this.
+	 * Specifically, firmware from FW810.00 (released June 2014)
+	 * through FW810.20 (Released October 2014).
 	 *
-	 * For older firmware (i.e currently released POWER8 System Firmware
-	 * as of today <= SV810_087), we fallback to old behavior and let OPAL
-	 * patch the HMI vector and handle it inside OPAL firmware.
+	 * Check if we are running on newer (post Oct 2014) firmware that
+	 * exports the OPAL_HANDLE_HMI token. If yes, then don't ask OPAL to
+	 * patch the HMI interrupt and we catch it directly in Linux.
 	 *
-	 * For newer firmware (in development/yet to be released) we will
-	 * start catching/handling HMI directly in Linux.
+	 * For older firmware (i.e < FW810.20), we fallback to old behavior and
+	 * let OPAL patch the HMI vector and handle it inside OPAL firmware.
+	 *
+	 * For newer firmware we catch/handle the HMI directly in Linux.
 	 */
 	if (!opal_check_token(OPAL_HANDLE_HMI)) {
 		pr_info("Old firmware detected, OPAL handles HMIs.\n");
@@ -221,6 +223,11 @@ static int __init opal_register_exception_handlers(void)
 		glue += 128;
 	}
 
+	/*
+	 * Only applicable to ancient firmware, all modern
+	 * (post March 2015/skiboot 5.0) firmware will just return
+	 * OPAL_UNSUPPORTED.
+	 */
 	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
 #endif
 

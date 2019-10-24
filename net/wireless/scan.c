@@ -1092,17 +1092,17 @@ struct cfg80211_non_tx_bss {
 };
 
 /* Returned bss is reference counted and must be cleaned up appropriately. */
-static struct cfg80211_internal_bss *
+struct cfg80211_internal_bss *
 cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 		    struct cfg80211_internal_bss *tmp,
-		    bool signal_valid)
+		    bool signal_valid, unsigned long ts)
 {
 	struct cfg80211_internal_bss *found = NULL;
 
 	if (WARN_ON(!tmp->pub.channel))
 		return NULL;
 
-	tmp->ts = jiffies;
+	tmp->ts = ts;
 
 	spin_lock_bh(&rdev->bss_lock);
 
@@ -1425,7 +1425,8 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 
 	signal_valid = abs(data->chan->center_freq - channel->center_freq) <=
 		wiphy->max_adj_channel_rssi_comp;
-	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp, signal_valid);
+	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp, signal_valid,
+				  jiffies);
 	if (!res)
 		return NULL;
 
@@ -1842,7 +1843,8 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 
 	signal_valid = abs(data->chan->center_freq - channel->center_freq) <=
 		wiphy->max_adj_channel_rssi_comp;
-	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp, signal_valid);
+	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp, signal_valid,
+				  jiffies);
 	if (!res)
 		return NULL;
 
@@ -1971,6 +1973,27 @@ out:
 	spin_unlock_bh(&rdev->bss_lock);
 }
 EXPORT_SYMBOL(cfg80211_unlink_bss);
+
+void cfg80211_bss_iter(struct wiphy *wiphy,
+		       struct cfg80211_chan_def *chandef,
+		       void (*iter)(struct wiphy *wiphy,
+				    struct cfg80211_bss *bss,
+				    void *data),
+		       void *iter_data)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	struct cfg80211_internal_bss *bss;
+
+	spin_lock_bh(&rdev->bss_lock);
+
+	list_for_each_entry(bss, &rdev->bss_list, list) {
+		if (!chandef || cfg80211_is_sub_chan(chandef, bss->pub.channel))
+			iter(wiphy, &bss->pub, iter_data);
+	}
+
+	spin_unlock_bh(&rdev->bss_lock);
+}
+EXPORT_SYMBOL(cfg80211_bss_iter);
 
 #ifdef CONFIG_CFG80211_WEXT
 static struct cfg80211_registered_device *

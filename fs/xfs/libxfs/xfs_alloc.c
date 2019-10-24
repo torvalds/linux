@@ -13,7 +13,6 @@
 #include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
-#include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_alloc_btree.h"
@@ -21,7 +20,6 @@
 #include "xfs_extent_busy.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
-#include "xfs_cksum.h"
 #include "xfs_trace.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
@@ -41,8 +39,6 @@ struct workqueue_struct *xfs_alloc_wq;
 STATIC int xfs_alloc_ag_vextent_exact(xfs_alloc_arg_t *);
 STATIC int xfs_alloc_ag_vextent_near(xfs_alloc_arg_t *);
 STATIC int xfs_alloc_ag_vextent_size(xfs_alloc_arg_t *);
-STATIC int xfs_alloc_ag_vextent_small(xfs_alloc_arg_t *,
-		xfs_btree_cur_t *, xfs_agblock_t *, xfs_extlen_t *, int *);
 
 /*
  * Size of the AGFL.  For CRC-enabled filesystes we steal a couple of slots in
@@ -555,7 +551,7 @@ static xfs_failaddr_t
 xfs_agfl_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_mount *mp = bp->b_mount;
 	struct xfs_agfl	*agfl = XFS_BUF_TO_AGFL(bp);
 	int		i;
 
@@ -596,7 +592,7 @@ static void
 xfs_agfl_read_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_mount *mp = bp->b_mount;
 	xfs_failaddr_t	fa;
 
 	/*
@@ -621,7 +617,7 @@ static void
 xfs_agfl_write_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	xfs_failaddr_t		fa;
 
@@ -698,6 +694,107 @@ xfs_alloc_update_counters(
 /*
  * Allocation group level functions.
  */
+
+/*
+ * Deal with the case where only small freespaces remain. Either return the
+ * contents of the last freespace record, or allocate space from the freelist if
+ * there is nothing in the tree.
+ */
+STATIC int			/* error */
+xfs_alloc_ag_vextent_small(
+	struct xfs_alloc_arg	*args,	/* allocation argument structure */
+	struct xfs_btree_cur	*ccur,	/* optional by-size cursor */
+	xfs_agblock_t		*fbnop,	/* result block number */
+	xfs_extlen_t		*flenp,	/* result length */
+	int			*stat)	/* status: 0-freelist, 1-normal/none */
+{
+	int			error = 0;
+	xfs_agblock_t		fbno = NULLAGBLOCK;
+	xfs_extlen_t		flen = 0;
+	int			i = 0;
+
+	/*
+	 * If a cntbt cursor is provided, try to allocate the largest record in
+	 * the tree. Try the AGFL if the cntbt is empty, otherwise fail the
+	 * allocation. Make sure to respect minleft even when pulling from the
+	 * freelist.
+	 */
+	if (ccur)
+		error = xfs_btree_decrement(ccur, 0, &i);
+	if (error)
+		goto error;
+	if (i) {
+		error = xfs_alloc_get_rec(ccur, &fbno, &flen, &i);
+		if (error)
+			goto error;
+		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error);
+		goto out;
+	}
+
+	if (args->minlen != 1 || args->alignment != 1 ||
+	    args->resv == XFS_AG_RESV_AGFL ||
+	    (be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_flcount) <=
+	     args->minleft))
+		goto out;
+
+	error = xfs_alloc_get_freelist(args->tp, args->agbp, &fbno, 0);
+	if (error)
+		goto error;
+	if (fbno == NULLAGBLOCK)
+		goto out;
+
+	xfs_extent_busy_reuse(args->mp, args->agno, fbno, 1,
+			      xfs_alloc_allow_busy_reuse(args->datatype));
+
+	if (xfs_alloc_is_userdata(args->datatype)) {
+		struct xfs_buf	*bp;
+
+		bp = xfs_btree_get_bufs(args->mp, args->tp, args->agno, fbno);
+		if (!bp) {
+			error = -EFSCORRUPTED;
+			goto error;
+		}
+		xfs_trans_binval(args->tp, bp);
+	}
+	*fbnop = args->agbno = fbno;
+	*flenp = args->len = 1;
+	XFS_WANT_CORRUPTED_GOTO(args->mp,
+		fbno < be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length),
+		error);
+	args->wasfromfl = 1;
+	trace_xfs_alloc_small_freelist(args);
+
+	/*
+	 * If we're feeding an AGFL block to something that doesn't live in the
+	 * free space, we need to clear out the OWN_AG rmap.
+	 */
+	error = xfs_rmap_free(args->tp, args->agbp, args->agno, fbno, 1,
+			      &XFS_RMAP_OINFO_AG);
+	if (error)
+		goto error;
+
+	*stat = 0;
+	return 0;
+
+out:
+	/*
+	 * Can't do the allocation, give up.
+	 */
+	if (flen < args->minlen) {
+		args->agbno = NULLAGBLOCK;
+		trace_xfs_alloc_small_notenough(args);
+		flen = 0;
+	}
+	*fbnop = fbno;
+	*flenp = flen;
+	*stat = 1;
+	trace_xfs_alloc_small_done(args);
+	return 0;
+
+error:
+	trace_xfs_alloc_small_error(args);
+	return error;
+}
 
 /*
  * Allocate a variable extent in the allocation group agno.
@@ -1583,112 +1680,6 @@ out_nominleft:
 }
 
 /*
- * Deal with the case where only small freespaces remain.
- * Either return the contents of the last freespace record,
- * or allocate space from the freelist if there is nothing in the tree.
- */
-STATIC int			/* error */
-xfs_alloc_ag_vextent_small(
-	xfs_alloc_arg_t	*args,	/* allocation argument structure */
-	xfs_btree_cur_t	*ccur,	/* by-size cursor */
-	xfs_agblock_t	*fbnop,	/* result block number */
-	xfs_extlen_t	*flenp,	/* result length */
-	int		*stat)	/* status: 0-freelist, 1-normal/none */
-{
-	int		error;
-	xfs_agblock_t	fbno;
-	xfs_extlen_t	flen;
-	int		i;
-
-	if ((error = xfs_btree_decrement(ccur, 0, &i)))
-		goto error0;
-	if (i) {
-		if ((error = xfs_alloc_get_rec(ccur, &fbno, &flen, &i)))
-			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
-	}
-	/*
-	 * Nothing in the btree, try the freelist.  Make sure
-	 * to respect minleft even when pulling from the
-	 * freelist.
-	 */
-	else if (args->minlen == 1 && args->alignment == 1 &&
-		 args->resv != XFS_AG_RESV_AGFL &&
-		 (be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_flcount)
-		  > args->minleft)) {
-		error = xfs_alloc_get_freelist(args->tp, args->agbp, &fbno, 0);
-		if (error)
-			goto error0;
-		if (fbno != NULLAGBLOCK) {
-			xfs_extent_busy_reuse(args->mp, args->agno, fbno, 1,
-			      xfs_alloc_allow_busy_reuse(args->datatype));
-
-			if (xfs_alloc_is_userdata(args->datatype)) {
-				xfs_buf_t	*bp;
-
-				bp = xfs_btree_get_bufs(args->mp, args->tp,
-					args->agno, fbno, 0);
-				if (!bp) {
-					error = -EFSCORRUPTED;
-					goto error0;
-				}
-				xfs_trans_binval(args->tp, bp);
-			}
-			args->len = 1;
-			args->agbno = fbno;
-			XFS_WANT_CORRUPTED_GOTO(args->mp,
-				args->agbno + args->len <=
-				be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length),
-				error0);
-			args->wasfromfl = 1;
-			trace_xfs_alloc_small_freelist(args);
-
-			/*
-			 * If we're feeding an AGFL block to something that
-			 * doesn't live in the free space, we need to clear
-			 * out the OWN_AG rmap.
-			 */
-			error = xfs_rmap_free(args->tp, args->agbp, args->agno,
-					fbno, 1, &XFS_RMAP_OINFO_AG);
-			if (error)
-				goto error0;
-
-			*stat = 0;
-			return 0;
-		}
-		/*
-		 * Nothing in the freelist.
-		 */
-		else
-			flen = 0;
-	}
-	/*
-	 * Can't allocate from the freelist for some reason.
-	 */
-	else {
-		fbno = NULLAGBLOCK;
-		flen = 0;
-	}
-	/*
-	 * Can't do the allocation, give up.
-	 */
-	if (flen < args->minlen) {
-		args->agbno = NULLAGBLOCK;
-		trace_xfs_alloc_small_notenough(args);
-		flen = 0;
-	}
-	*fbnop = fbno;
-	*flenp = flen;
-	*stat = 1;
-	trace_xfs_alloc_small_done(args);
-	return 0;
-
-error0:
-	trace_xfs_alloc_small_error(args);
-	return error;
-}
-
-/*
  * Free the extent starting at agno/bno for length.
  */
 STATIC int
@@ -2095,7 +2086,7 @@ xfs_free_agfl_block(
 	if (error)
 		return error;
 
-	bp = xfs_btree_get_bufs(tp->t_mountp, tp, agno, agbno, 0);
+	bp = xfs_btree_get_bufs(tp->t_mountp, tp, agno, agbno);
 	if (!bp)
 		return -EFSCORRUPTED;
 	xfs_trans_binval(tp, bp);
@@ -2586,7 +2577,7 @@ static xfs_failaddr_t
 xfs_agf_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_agf		*agf = XFS_BUF_TO_AGF(bp);
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
@@ -2644,7 +2635,7 @@ static void
 xfs_agf_read_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_mount *mp = bp->b_mount;
 	xfs_failaddr_t	fa;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
@@ -2661,7 +2652,7 @@ static void
 xfs_agf_write_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	xfs_failaddr_t		fa;
 
@@ -3146,7 +3137,7 @@ xfs_alloc_has_record(
 
 /*
  * Walk all the blocks in the AGFL.  The @walk_fn can return any negative
- * error code or XFS_BTREE_QUERY_RANGE_ABORT.
+ * error code or XFS_ITER_*.
  */
 int
 xfs_agfl_walk(

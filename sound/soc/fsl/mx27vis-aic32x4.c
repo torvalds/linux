@@ -132,16 +132,19 @@ static const struct snd_soc_dapm_route aic32x4_dapm_routes[] = {
 	{"IN3_L", NULL, "Mic Bias"},
 };
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_CPU("imx-ssi.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic32x4.0-0018",
+				      "tlv320aic32x4-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("imx-ssi.0")));
+
 static struct snd_soc_dai_link mx27vis_aic32x4_dai = {
 	.name		= "tlv320aic32x4",
 	.stream_name	= "TLV320AIC32X4",
-	.codec_dai_name	= "tlv320aic32x4-hifi",
-	.platform_name	= "imx-ssi.0",
-	.codec_name	= "tlv320aic32x4.0-0018",
-	.cpu_dai_name	= "imx-ssi.0",
 	.dai_fmt	= SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_NB_NF |
 			  SND_SOC_DAIFMT_CBM_CFM,
 	.ops		= &mx27vis_aic32x4_snd_ops,
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static struct snd_soc_card mx27vis_aic32x4 = {

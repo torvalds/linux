@@ -41,7 +41,7 @@ static inline void chacha20_block(u32 *state, u8 *stream)
 }
 void hchacha_block(const u32 *in, u32 *out, int nrounds);
 
-void crypto_chacha_init(u32 *state, struct chacha_ctx *ctx, u8 *iv);
+void crypto_chacha_init(u32 *state, const struct chacha_ctx *ctx, const u8 *iv);
 
 int crypto_chacha20_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			   unsigned int keysize);

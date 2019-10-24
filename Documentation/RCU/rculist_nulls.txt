@@ -1,7 +1,7 @@
 Using hlist_nulls to protect read-mostly linked lists and
 objects using SLAB_TYPESAFE_BY_RCU allocations.
 
-Please read the basics in Documentation/RCU/listRCU.txt
+Please read the basics in Documentation/RCU/listRCU.rst
 
 Using special makers (called 'nulls') is a convenient way
 to solve following problem :

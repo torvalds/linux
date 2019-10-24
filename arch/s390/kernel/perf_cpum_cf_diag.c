@@ -34,7 +34,7 @@ struct cf_diag_csd {		/* Counter set data per CPU */
 	unsigned char start[PAGE_SIZE];	/* Counter set at event start */
 	unsigned char data[PAGE_SIZE];	/* Counter set at event delete */
 };
-DEFINE_PER_CPU(struct cf_diag_csd, cf_diag_csd);
+static DEFINE_PER_CPU(struct cf_diag_csd, cf_diag_csd);
 
 /* Counter sets are stored as data stream in a page sized memory buffer and
  * exported to user space via raw data attached to the event sample data.

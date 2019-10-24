@@ -149,7 +149,6 @@ DEFINE_SIMPLE_ATTRIBUTE(reset_fops, NULL, reset_set, "%llx\n");
 int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor)
 {
 	struct drm_device *dev;
-	struct dentry *ent;
 	int ret;
 
 	if (!minor)
@@ -166,11 +165,8 @@ int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor)
 		return ret;
 	}
 
-	ent = debugfs_create_file("reset", S_IWUGO,
-		minor->debugfs_root,
-		dev, &reset_fops);
-	if (!ent)
-		return -ENOMEM;
+	debugfs_create_file("reset", S_IWUGO, minor->debugfs_root, dev,
+			    &reset_fops);
 
 	return 0;
 }

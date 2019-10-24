@@ -231,24 +231,7 @@ static bool unescape_special(char **src, char **dst)
  * @src:	source buffer (escaped)
  * @dst:	destination buffer (unescaped)
  * @size:	size of the destination buffer (0 to unlimit)
- * @flags:	combination of the flags (bitwise OR):
- *	%UNESCAPE_SPACE:
- *		'\f' - form feed
- *		'\n' - new line
- *		'\r' - carriage return
- *		'\t' - horizontal tab
- *		'\v' - vertical tab
- *	%UNESCAPE_OCTAL:
- *		'\NNN' - byte with octal value NNN (1 to 3 digits)
- *	%UNESCAPE_HEX:
- *		'\xHH' - byte with hexadecimal value HH (1 to 2 digits)
- *	%UNESCAPE_SPECIAL:
- *		'\"' - double quote
- *		'\\' - backslash
- *		'\a' - alert (BEL)
- *		'\e' - escape
- *	%UNESCAPE_ANY:
- *		all previous together
+ * @flags:	combination of the flags.
  *
  * Description:
  * The function unquotes characters in the given string.
@@ -258,7 +241,25 @@ static bool unescape_special(char **src, char **dst)
  *
  * Caller must provide valid source and destination pointers. Be aware that
  * destination buffer will always be NULL-terminated. Source string must be
- * NULL-terminated as well.
+ * NULL-terminated as well.  The supported flags are::
+ *
+ *	UNESCAPE_SPACE:
+ *		'\f' - form feed
+ *		'\n' - new line
+ *		'\r' - carriage return
+ *		'\t' - horizontal tab
+ *		'\v' - vertical tab
+ *	UNESCAPE_OCTAL:
+ *		'\NNN' - byte with octal value NNN (1 to 3 digits)
+ *	UNESCAPE_HEX:
+ *		'\xHH' - byte with hexadecimal value HH (1 to 2 digits)
+ *	UNESCAPE_SPECIAL:
+ *		'\"' - double quote
+ *		'\\' - backslash
+ *		'\a' - alert (BEL)
+ *		'\e' - escape
+ *	UNESCAPE_ANY:
+ *		all previous together
  *
  * Return:
  * The amount of the characters processed to the destination buffer excluding
@@ -441,7 +442,29 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  * @isz:	source buffer size
  * @dst:	destination buffer (escaped)
  * @osz:	destination buffer size
- * @flags:	combination of the flags (bitwise OR):
+ * @flags:	combination of the flags
+ * @only:	NULL-terminated string containing characters used to limit
+ *		the selected escape class. If characters are included in @only
+ *		that would not normally be escaped by the classes selected
+ *		in @flags, they will be copied to @dst unescaped.
+ *
+ * Description:
+ * The process of escaping byte buffer includes several parts. They are applied
+ * in the following sequence.
+ *
+ *	1. The character is matched to the printable class, if asked, and in
+ *	   case of match it passes through to the output.
+ *	2. The character is not matched to the one from @only string and thus
+ *	   must go as-is to the output.
+ *	3. The character is checked if it falls into the class given by @flags.
+ *	   %ESCAPE_OCTAL and %ESCAPE_HEX are going last since they cover any
+ *	   character. Note that they actually can't go together, otherwise
+ *	   %ESCAPE_HEX will be ignored.
+ *
+ * Caller must provide valid source and destination pointers. Be aware that
+ * destination buffer will not be NULL-terminated, thus caller have to append
+ * it if needs.   The supported flags are::
+ *
  *	%ESCAPE_SPACE: (special white space, not space itself)
  *		'\f' - form feed
  *		'\n' - new line
@@ -464,26 +487,6 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *		all previous together
  *	%ESCAPE_HEX:
  *		'\xHH' - byte with hexadecimal value HH (2 digits)
- * @only:	NULL-terminated string containing characters used to limit
- *		the selected escape class. If characters are included in @only
- *		that would not normally be escaped by the classes selected
- *		in @flags, they will be copied to @dst unescaped.
- *
- * Description:
- * The process of escaping byte buffer includes several parts. They are applied
- * in the following sequence.
- *	1. The character is matched to the printable class, if asked, and in
- *	   case of match it passes through to the output.
- *	2. The character is not matched to the one from @only string and thus
- *	   must go as-is to the output.
- *	3. The character is checked if it falls into the class given by @flags.
- *	   %ESCAPE_OCTAL and %ESCAPE_HEX are going last since they cover any
- *	   character. Note that they actually can't go together, otherwise
- *	   %ESCAPE_HEX will be ignored.
- *
- * Caller must provide valid source and destination pointers. Be aware that
- * destination buffer will not be NULL-terminated, thus caller have to append
- * it if needs.
  *
  * Return:
  * The total size of the escaped output that would be generated for
@@ -539,6 +542,25 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 	return p - dst;
 }
 EXPORT_SYMBOL(string_escape_mem);
+
+int string_escape_mem_ascii(const char *src, size_t isz, char *dst,
+					size_t osz)
+{
+	char *p = dst;
+	char *end = p + osz;
+
+	while (isz--) {
+		unsigned char c = *src++;
+
+		if (!isprint(c) || !isascii(c) || c == '"' || c == '\\')
+			escape_hex(c, &p, end);
+		else
+			escape_passthrough(c, &p, end);
+	}
+
+	return p - dst;
+}
+EXPORT_SYMBOL(string_escape_mem_ascii);
 
 /*
  * Return an allocated string that has been escaped of special characters

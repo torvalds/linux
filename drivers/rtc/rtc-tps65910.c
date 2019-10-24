@@ -143,7 +143,7 @@ static int tps65910_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	struct tps65910 *tps = dev_get_drvdata(dev->parent);
 	int ret;
 
-	ret = regmap_bulk_read(tps->regmap, TPS65910_SECONDS, alarm_data,
+	ret = regmap_bulk_read(tps->regmap, TPS65910_ALARM_SECONDS, alarm_data,
 		NUM_TIME_REGS);
 	if (ret < 0) {
 		dev_err(dev, "rtc_read_alarm error %d\n", ret);

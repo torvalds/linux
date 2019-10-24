@@ -2554,10 +2554,9 @@ static int u132_get_frame(struct usb_hcd *hcd)
 		dev_err(&u132->platform_dev->dev, "device is being removed\n");
 		return -ESHUTDOWN;
 	} else {
-		int frame = 0;
 		dev_err(&u132->platform_dev->dev, "TODO: u132_get_frame\n");
 		mdelay(100);
-		return frame;
+		return 0;
 	}
 }
 

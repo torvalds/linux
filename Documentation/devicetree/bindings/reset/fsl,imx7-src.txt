@@ -45,6 +45,6 @@ Example:
         };
 
 
-For list of all valid reset indicies see
+For list of all valid reset indices see
 <dt-bindings/reset/imx7-reset.h> for i.MX7 and
 <dt-bindings/reset/imx8mq-reset.h> for i.MX8MQ

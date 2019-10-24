@@ -10,6 +10,7 @@
 #define NFSCACHE_H
 
 #include <linux/sunrpc/svc.h>
+#include "netns.h"
 
 /*
  * Representation of a reply cache entry.
@@ -77,8 +78,8 @@ enum {
 /* Checksum this amount of the request */
 #define RC_CSUMLEN		(256U)
 
-int	nfsd_reply_cache_init(void);
-void	nfsd_reply_cache_shutdown(void);
+int	nfsd_reply_cache_init(struct nfsd_net *);
+void	nfsd_reply_cache_shutdown(struct nfsd_net *);
 int	nfsd_cache_lookup(struct svc_rqst *);
 void	nfsd_cache_update(struct svc_rqst *, int, __be32 *);
 int	nfsd_reply_cache_stats_open(struct inode *, struct file *);

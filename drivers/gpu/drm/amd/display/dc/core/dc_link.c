@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 #include "atom.h"
 #include "dm_helpers.h"
@@ -42,6 +44,11 @@
 #include "fixed31_32.h"
 #include "dpcd_defs.h"
 #include "dmcu.h"
+#include "hw/clk_mgr.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#include "resource.h"
+#endif
+#include "hw/clk_mgr.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -216,8 +223,11 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 		return true;
 	}
 
-	if (link->connector_signal == SIGNAL_TYPE_EDP)
+	if (link->connector_signal == SIGNAL_TYPE_EDP) {
+		/*in case it is not on*/
+		link->dc->hwss.edp_power_control(link, true);
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+	}
 
 	/* todo: may need to lock gpio access */
 	hpd_pin = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
@@ -519,11 +529,30 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 	union lane_count_set lane_count_set = { {0} };
 	uint8_t link_bw_set;
 	uint8_t link_rate_set;
+	uint32_t read_dpcd_retry_cnt = 10;
+	enum dc_status status = DC_ERROR_UNEXPECTED;
+	int i;
+	union max_down_spread max_down_spread = { {0} };
 
 	// Read DPCD 00101h to find out the number of lanes currently set
-	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
-			&lane_count_set.raw, sizeof(lane_count_set));
-	link->cur_link_settings.lane_count = lane_count_set.bits.LANE_COUNT_SET;
+	for (i = 0; i < read_dpcd_retry_cnt; i++) {
+		status = core_link_read_dpcd(
+				link,
+				DP_LANE_COUNT_SET,
+				&lane_count_set.raw,
+				sizeof(lane_count_set));
+		/* First DPCD read after VDD ON can fail if the particular board
+		 * does not have HPD pin wired correctly. So if DPCD read fails,
+		 * which it should never happen, retry a few times. Target worst
+		 * case scenario of 80 ms.
+		 */
+		if (status == DC_OK) {
+			link->cur_link_settings.lane_count = lane_count_set.bits.LANE_COUNT_SET;
+			break;
+		}
+
+		msleep(8);
+	}
 
 	// Read DPCD 00100h to find if standard link rates are set
 	core_link_read_dpcd(link, DP_LINK_BW_SET,
@@ -546,6 +575,12 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 		link->cur_link_settings.link_rate = link_bw_set;
 		link->cur_link_settings.use_link_rate_set = false;
 	}
+	// Read DPCD 00003h to find the max down spread.
+	core_link_read_dpcd(link, DP_MAX_DOWNSPREAD,
+			&max_down_spread.raw, sizeof(max_down_spread));
+	link->cur_link_settings.link_spread =
+		max_down_spread.bits.MAX_DOWN_SPREAD ?
+		LINK_SPREAD_05_DOWNSPREAD_30KHZ : LINK_SPREAD_DISABLED;
 }
 
 static bool detect_dp(
@@ -677,23 +712,15 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	if (dc_is_virtual_signal(link->connector_signal))
 		return false;
 
+	if ((link->connector_signal == SIGNAL_TYPE_LVDS ||
+			link->connector_signal == SIGNAL_TYPE_EDP) &&
+			link->local_sink)
+		return true;
+
 	if (false == dc_link_detect_sink(link, &new_connection_type)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
-
-	if (link->connector_signal == SIGNAL_TYPE_EDP) {
-		/* On detect, we want to make sure current link settings are
-		 * up to date, especially if link was powered on by GOP.
-		 */
-		read_edp_current_link_settings_on_detect(link);
-		if (link->local_sink)
-			return true;
-	}
-
-	if (link->connector_signal == SIGNAL_TYPE_LVDS &&
-			link->local_sink)
-		return true;
 
 	prev_sink = link->local_sink;
 	if (prev_sink != NULL) {
@@ -704,6 +731,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 
 	if (new_connection_type != dc_connection_none) {
 		link->type = new_connection_type;
+		link->link_state_valid = false;
 
 		/* From Disconnected-to-Connected. */
 		switch (link->connector_signal) {
@@ -735,6 +763,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		}
 
 		case SIGNAL_TYPE_EDP: {
+			read_edp_current_link_settings_on_detect(link);
 			detect_edp_sink_caps(link);
 			sink_caps.transaction_type =
 				DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
@@ -906,10 +935,10 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 
 		/* Connectivity log: detection */
-		for (i = 0; i < sink->dc_edid.length / EDID_BLOCK_SIZE; i++) {
+		for (i = 0; i < sink->dc_edid.length / DC_EDID_BLOCK_SIZE; i++) {
 			CONN_DATA_DETECT(link,
-					&sink->dc_edid.raw_edid[i * EDID_BLOCK_SIZE],
-					EDID_BLOCK_SIZE,
+					&sink->dc_edid.raw_edid[i * DC_EDID_BLOCK_SIZE],
+					DC_EDID_BLOCK_SIZE,
 					"%s: [Block %d] ", sink->edid_caps.display_name, i);
 		}
 
@@ -960,6 +989,12 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 
 		link->type = dc_connection_none;
 		sink_caps.signal = SIGNAL_TYPE_NONE;
+		/* When we unplug a passive DP-HDMI dongle connection, dongle_max_pix_clk
+		 *  is not cleared. If we emulate a DP signal on this connection, it thinks
+		 *  the dongle is still there and limits the number of modes we can emulate.
+		 *  Clear dongle_max_pix_clk on disconnect to fix this
+		 */
+		link->dongle_max_pix_clk = 0;
 	}
 
 	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p dpcd same=%d edid same=%d\n",
@@ -1156,7 +1191,7 @@ static bool construct(
 	link->link_id = bios->funcs->get_connector_id(bios, init_params->connector_index);
 
 	if (link->link_id.type != OBJECT_TYPE_CONNECTOR) {
-		dm_error("%s: Invalid Connector ObjectID from Adapter Service for connector index:%d! type %d expected %d\n",
+		dm_output_to_console("%s: Invalid Connector ObjectID from Adapter Service for connector index:%d! type %d expected %d\n",
 			 __func__, init_params->connector_index,
 			 link->link_id.type, OBJECT_TYPE_CONNECTOR);
 		goto create_fail;
@@ -1474,6 +1509,10 @@ static enum dc_status enable_link_dp(
 	if (link_settings.link_rate == LINK_RATE_LOW)
 			skip_video_pattern = false;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	dp_set_fec_ready(link, true);
+#endif
+
 	if (perform_link_training_with_retries(
 			link,
 			&link_settings,
@@ -1485,6 +1524,9 @@ static enum dc_status enable_link_dp(
 	else
 		status = DC_FAIL_DP_LINK_TRAINING;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	dp_set_fec_enable(link, true);
+#endif
 	return status;
 }
 
@@ -2107,6 +2149,14 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 			dp_disable_link_phy(link, signal);
 		else
 			dp_disable_link_phy_mst(link, signal);
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+
+		if (dc_is_dp_sst_signal(signal) ||
+				link->mst_stream_alloc_table.stream_count == 0) {
+			dp_set_fec_enable(link, false);
+			dp_set_fec_ready(link, false);
+		}
+#endif
 	} else
 		link->link_enc->funcs->disable_output(link->link_enc, signal);
 
@@ -2278,7 +2328,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream) {
 				if (core_dc->current_state->res_ctx.
 						pipe_ctx[i].stream->link
-						== link)
+						== link) {
 					/* DMCU -1 for all controller id values,
 					 * therefore +1 here
 					 */
@@ -2286,6 +2336,13 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 						core_dc->current_state->
 						res_ctx.pipe_ctx[i].stream_res.tg->inst +
 						1;
+
+					/* Disable brightness ramping when the display is blanked
+					 * as it can hang the DMCU
+					 */
+					if (core_dc->current_state->res_ctx.pipe_ctx[i].plane_state == NULL)
+						frame_ramp = 0;
+				}
 			}
 		}
 		abm->funcs->set_backlight_level_pwm(
@@ -2337,7 +2394,8 @@ void core_link_resume(struct dc_link *link)
 static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
 {
 	struct fixed31_32 mbytes_per_sec;
-	uint32_t link_rate_in_mbytes_per_sec = dc_link_bandwidth_kbps(stream->link, &stream->link->cur_link_settings);
+	uint32_t link_rate_in_mbytes_per_sec = dc_link_bandwidth_kbps(stream->link,
+			&stream->link->cur_link_settings);
 	link_rate_in_mbytes_per_sec /= 8000; /* Kbits to MBytes */
 
 	mbytes_per_sec = dc_fixpt_from_int(link_rate_in_mbytes_per_sec);
@@ -2631,6 +2689,8 @@ void core_link_enable_stream(
 			stream->phy_pix_clk,
 			pipe_ctx->stream_res.audio != NULL);
 
+	pipe_ctx->stream->link->link_state_valid = true;
+
 	if (dc_is_dvi_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dvi_set_stream_attribute(
 			pipe_ctx->stream_res.stream_enc,
@@ -2700,33 +2760,76 @@ void core_link_enable_stream(
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 			allocate_mst_payload(pipe_ctx);
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		if (pipe_ctx->stream->timing.flags.DSC &&
+				(dc_is_dp_signal(pipe_ctx->stream->signal) ||
+				dc_is_virtual_signal(pipe_ctx->stream->signal))) {
+			dp_set_dsc_enable(pipe_ctx, true);
+			pipe_ctx->stream_res.tg->funcs->wait_for_state(
+					pipe_ctx->stream_res.tg,
+					CRTC_STATE_VBLANK);
+		}
+#endif
 		core_dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->link->cur_link_settings);
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			enable_stream_features(pipe_ctx);
 	}
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	else { // if (IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
+		if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
+				dc_is_virtual_signal(pipe_ctx->stream->signal))
+			dp_set_dsc_enable(pipe_ctx, true);
 
+	}
+#endif
 }
 
 void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->sink->link;
 
 	core_dc->hwss.blank_stream(pipe_ctx);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
 
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-		dal_ddc_service_write_scdc_data(
-			stream->link->ddc, 0,
-			stream->timing.flags.LTE_340MCSC_SCRAMBLE);
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
+		struct ext_hdmi_settings settings = {0};
+		enum engine_id eng_id = pipe_ctx->stream_res.stream_enc->id;
 
+		unsigned short masked_chip_caps = link->chip_caps &
+				EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK;
+		//Need to inform that sink is going to use legacy HDMI mode.
+		dal_ddc_service_write_scdc_data(
+			link->ddc,
+			165000,//vbios only handles 165Mhz.
+			false);
+		if (masked_chip_caps == EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT) {
+			/* DP159, Retimer settings */
+			if (get_ext_hdmi_settings(pipe_ctx, eng_id, &settings))
+				write_i2c_retimer_setting(pipe_ctx,
+						false, false, &settings);
+			else
+				write_i2c_default_retimer_setting(pipe_ctx,
+						false, false);
+		} else if (masked_chip_caps == EXT_DISPLAY_PATH_CAPS__HDMI20_PI3EQX1204) {
+			/* PI3EQX1204, Redriver settings */
+			write_i2c_redriver_setting(pipe_ctx, false);
+		}
+	}
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 
 	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	if (pipe_ctx->stream->timing.flags.DSC &&
+			dc_is_dp_signal(pipe_ctx->stream->signal)) {
+		dp_set_dsc_enable(pipe_ctx, false);
+	}
+#endif
 }
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
@@ -2794,6 +2897,14 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 	uint32_t bits_per_channel = 0;
 	uint32_t kbps;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	if (timing->flags.DSC) {
+		kbps = (timing->pix_clk_100hz * timing->dsc_cfg.bits_per_pixel);
+		kbps = kbps / 160 + ((kbps % 160) ? 1 : 0);
+		return kbps;
+	}
+#endif
+
 	switch (timing->display_color_depth) {
 	case COLOR_DEPTH_666:
 		bits_per_channel = 6;
@@ -2833,4 +2944,156 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 
 	return kbps;
 
+}
+
+void dc_link_set_drive_settings(struct dc *dc,
+				struct link_training_settings *lt_settings,
+				const struct dc_link *link)
+{
+
+	int i;
+
+	for (i = 0; i < dc->link_count; i++) {
+		if (dc->links[i] == link)
+			break;
+	}
+
+	if (i >= dc->link_count)
+		ASSERT_CRITICAL(false);
+
+	dc_link_dp_set_drive_settings(dc->links[i], lt_settings);
+}
+
+void dc_link_perform_link_training(struct dc *dc,
+				   struct dc_link_settings *link_setting,
+				   bool skip_video_pattern)
+{
+	int i;
+
+	for (i = 0; i < dc->link_count; i++)
+		dc_link_dp_perform_link_training(
+			dc->links[i],
+			link_setting,
+			skip_video_pattern);
+}
+
+void dc_link_set_preferred_link_settings(struct dc *dc,
+					 struct dc_link_settings *link_setting,
+					 struct dc_link *link)
+{
+	int i;
+	struct pipe_ctx *pipe;
+	struct dc_stream_state *link_stream;
+	struct dc_link_settings store_settings = *link_setting;
+
+	link->preferred_link_setting = store_settings;
+
+	/* Retrain with preferred link settings only relevant for
+	 * DP signal type
+	 * Check for non-DP signal or if passive dongle present
+	 */
+	if (!dc_is_dp_signal(link->connector_signal) ||
+		link->dongle_max_pix_clk > 0)
+		return;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream && pipe->stream->link) {
+			if (pipe->stream->link == link)
+				break;
+		}
+	}
+
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return;
+
+	link_stream = link->dc->current_state->res_ctx.pipe_ctx[i].stream;
+
+	/* Cannot retrain link if backend is off */
+	if (link_stream->dpms_off)
+		return;
+
+	if (link_stream)
+		decide_link_settings(link_stream, &store_settings);
+
+	if ((store_settings.lane_count != LANE_COUNT_UNKNOWN) &&
+		(store_settings.link_rate != LINK_RATE_UNKNOWN))
+		dp_retrain_link_dp_test(link, &store_settings, false);
+}
+
+void dc_link_enable_hpd(const struct dc_link *link)
+{
+	dc_link_dp_enable_hpd(link);
+}
+
+void dc_link_disable_hpd(const struct dc_link *link)
+{
+	dc_link_dp_disable_hpd(link);
+}
+
+
+void dc_link_set_test_pattern(struct dc_link *link,
+			      enum dp_test_pattern test_pattern,
+			      const struct link_training_settings *p_link_settings,
+			      const unsigned char *p_custom_pattern,
+			      unsigned int cust_pattern_size)
+{
+	if (link != NULL)
+		dc_link_dp_set_test_pattern(
+			link,
+			test_pattern,
+			p_link_settings,
+			p_custom_pattern,
+			cust_pattern_size);
+}
+
+uint32_t dc_link_bandwidth_kbps(
+	const struct dc_link *link,
+	const struct dc_link_settings *link_setting)
+{
+	uint32_t link_bw_kbps =
+		link_setting->link_rate * LINK_RATE_REF_FREQ_IN_KHZ; /* bytes per sec */
+
+	link_bw_kbps *= 8;   /* 8 bits per byte*/
+	link_bw_kbps *= link_setting->lane_count;
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	if (link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
+		/* Account for FEC overhead.
+		 * We have to do it based on caps,
+		 * and not based on FEC being set ready,
+		 * because FEC is set ready too late in
+		 * the process to correctly be picked up
+		 * by mode enumeration.
+		 *
+		 * There's enough zeros at the end of 'kbps'
+		 * that make the below operation 100% precise
+		 * for our purposes.
+		 * 'long long' makes it work even for HDMI 2.1
+		 * max bandwidth (and much, much bigger bandwidths
+		 * than that, actually).
+		 *
+		 * NOTE: Reducing link BW by 3% may not be precise
+		 * because it may be a stream BT that increases by 3%, and so
+		 * 1/1.03 = 0.970873 factor should have been used instead,
+		 * but the difference is minimal and is in a safe direction,
+		 * which all works well around potential ambiguity of DP 1.4a spec.
+		 */
+		link_bw_kbps = mul_u64_u32_shr(BIT_ULL(32) * 970LL / 1000,
+					       link_bw_kbps, 32);
+	}
+#endif
+
+	return link_bw_kbps;
+
+}
+
+const struct dc_link_settings *dc_link_get_link_cap(
+		const struct dc_link *link)
+{
+	if (link->preferred_link_setting.lane_count != LANE_COUNT_UNKNOWN &&
+			link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN)
+		return &link->preferred_link_setting;
+	return &link->verified_link_cap;
 }

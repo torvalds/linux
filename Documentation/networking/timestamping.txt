@@ -368,7 +368,7 @@ ts[1] used to hold hardware timestamps converted to system time.
 Instead, expose the hardware clock device on the NIC directly as
 a HW PTP clock source, to allow time conversion in userspace and
 optionally synchronize system time with a userspace PTP stack such
-as linuxptp. For the PTP clock API, see Documentation/ptp/ptp.txt.
+as linuxptp. For the PTP clock API, see Documentation/driver-api/ptp.rst.
 
 Note that if the SO_TIMESTAMP or SO_TIMESTAMPNS option is enabled
 together with SO_TIMESTAMPING using SOF_TIMESTAMPING_SOFTWARE, a false

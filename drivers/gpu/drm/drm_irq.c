@@ -51,13 +51,18 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drm_irq.h>
-#include <drm/drmP.h>
 
-#include <linux/interrupt.h>	/* For task queue support */
-
-#include <linux/vgaarb.h>
 #include <linux/export.h>
+#include <linux/interrupt.h>	/* For task queue support */
+#include <linux/pci.h>
+#include <linux/vgaarb.h>
+
+#include <drm/drm.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 
 #include "drm_internal.h"
 

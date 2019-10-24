@@ -31,6 +31,8 @@
  *
  */
 
+#ifdef CONFIG_MLX5_FPGA_IPSEC
+
 #include <linux/mlx5/device.h>
 
 #include "accel/ipsec.h"
@@ -74,6 +76,11 @@ int mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev)
 	return mlx5_fpga_ipsec_init(mdev);
 }
 
+void mlx5_accel_ipsec_build_fs_cmds(void)
+{
+	mlx5_fpga_ipsec_build_fs_cmds();
+}
+
 void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev)
 {
 	mlx5_fpga_ipsec_cleanup(mdev);
@@ -107,3 +114,5 @@ int mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 	return mlx5_fpga_esp_modify_xfrm(xfrm, attrs);
 }
 EXPORT_SYMBOL_GPL(mlx5_accel_esp_modify_xfrm);
+
+#endif

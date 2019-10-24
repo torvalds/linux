@@ -156,7 +156,7 @@ void ovs_netdev_detach_dev(struct vport *vport)
 static void netdev_destroy(struct vport *vport)
 {
 	rtnl_lock();
-	if (vport->dev->priv_flags & IFF_OVS_DATAPATH)
+	if (netif_is_ovs_port(vport->dev))
 		ovs_netdev_detach_dev(vport);
 	rtnl_unlock();
 
@@ -166,7 +166,7 @@ static void netdev_destroy(struct vport *vport)
 void ovs_netdev_tunnel_destroy(struct vport *vport)
 {
 	rtnl_lock();
-	if (vport->dev->priv_flags & IFF_OVS_DATAPATH)
+	if (netif_is_ovs_port(vport->dev))
 		ovs_netdev_detach_dev(vport);
 
 	/* We can be invoked by both explicit vport deletion and
@@ -186,7 +186,7 @@ EXPORT_SYMBOL_GPL(ovs_netdev_tunnel_destroy);
 /* Returns null if this device is not attached to a datapath. */
 struct vport *ovs_netdev_get_vport(struct net_device *dev)
 {
-	if (likely(dev->priv_flags & IFF_OVS_DATAPATH))
+	if (likely(netif_is_ovs_port(dev)))
 		return (struct vport *)
 			rcu_dereference_rtnl(dev->rx_handler_data);
 	else

@@ -343,7 +343,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		data->sample_time = MSEC_PER_SEC / 2;
 		break;
 	case tmp75b:  /* not one-shot mode, Conversion rate 37Hz */
-		clr_mask |= 1 << 15 | 0x3 << 13;
+		clr_mask |= 1 << 7 | 0x3 << 5;
 		data->resolution = 12;
 		data->sample_time = MSEC_PER_SEC / 37;
 		break;

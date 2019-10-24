@@ -14,14 +14,14 @@
 #include <net/sock.h>
 #include <net/af_vsock.h>
 
-/* The host side's design of the feature requires 6 exact 4KB pages for
- * recv/send rings respectively -- this is suboptimal considering memory
- * consumption, however unluckily we have to live with it, before the
- * host comes up with a better design in the future.
+/* Older (VMBUS version 'VERSION_WIN10' or before) Windows hosts have some
+ * stricter requirements on the hv_sock ring buffer size of six 4K pages. Newer
+ * hosts don't have this limitation; but, keep the defaults the same for compat.
  */
 #define PAGE_SIZE_4K		4096
 #define RINGBUFFER_HVS_RCV_SIZE (PAGE_SIZE_4K * 6)
 #define RINGBUFFER_HVS_SND_SIZE (PAGE_SIZE_4K * 6)
+#define RINGBUFFER_HVS_MAX_SIZE (PAGE_SIZE_4K * 64)
 
 /* The MTU is 16KB per the host side's design */
 #define HVS_MTU_SIZE		(1024 * 16)
@@ -46,8 +46,9 @@ struct hvs_recv_buf {
 };
 
 /* We can send up to HVS_MTU_SIZE bytes of payload to the host, but let's use
- * a small size, i.e. HVS_SEND_BUF_SIZE, to minimize the dynamically-allocated
- * buffer, because tests show there is no significant performance difference.
+ * a smaller size, i.e. HVS_SEND_BUF_SIZE, to maximize concurrency between the
+ * guest and the host processing as one VMBUS packet is the smallest processing
+ * unit.
  *
  * Note: the buffer can be eliminated in the future when we add new VMBus
  * ringbuffer APIs that allow us to directly copy data from userspace buffer
@@ -311,6 +312,11 @@ static void hvs_close_connection(struct vmbus_channel *chan)
 	lock_sock(sk);
 	hvs_do_close_lock_held(vsock_sk(sk), true);
 	release_sock(sk);
+
+	/* Release the refcnt for the channel that's opened in
+	 * hvs_open_connection().
+	 */
+	sock_put(sk);
 }
 
 static void hvs_open_connection(struct vmbus_channel *chan)
@@ -321,8 +327,11 @@ static void hvs_open_connection(struct vmbus_channel *chan)
 	struct sockaddr_vm addr;
 	struct sock *sk, *new = NULL;
 	struct vsock_sock *vnew = NULL;
-	struct hvsock *hvs, *hvs_new = NULL;
+	struct hvsock *hvs = NULL;
+	struct hvsock *hvs_new = NULL;
+	int rcvbuf;
 	int ret;
+	int sndbuf;
 
 	if_type = &chan->offermsg.offer.if_type;
 	if_instance = &chan->offermsg.offer.if_instance;
@@ -364,9 +373,34 @@ static void hvs_open_connection(struct vmbus_channel *chan)
 	}
 
 	set_channel_read_mode(chan, HV_CALL_DIRECT);
-	ret = vmbus_open(chan, RINGBUFFER_HVS_SND_SIZE,
-			 RINGBUFFER_HVS_RCV_SIZE, NULL, 0,
-			 hvs_channel_cb, conn_from_host ? new : sk);
+
+	/* Use the socket buffer sizes as hints for the VMBUS ring size. For
+	 * server side sockets, 'sk' is the parent socket and thus, this will
+	 * allow the child sockets to inherit the size from the parent. Keep
+	 * the mins to the default value and align to page size as per VMBUS
+	 * requirements.
+	 * For the max, the socket core library will limit the socket buffer
+	 * size that can be set by the user, but, since currently, the hv_sock
+	 * VMBUS ring buffer is physically contiguous allocation, restrict it
+	 * further.
+	 * Older versions of hv_sock host side code cannot handle bigger VMBUS
+	 * ring buffer size. Use the version number to limit the change to newer
+	 * versions.
+	 */
+	if (vmbus_proto_version < VERSION_WIN10_V5) {
+		sndbuf = RINGBUFFER_HVS_SND_SIZE;
+		rcvbuf = RINGBUFFER_HVS_RCV_SIZE;
+	} else {
+		sndbuf = max_t(int, sk->sk_sndbuf, RINGBUFFER_HVS_SND_SIZE);
+		sndbuf = min_t(int, sndbuf, RINGBUFFER_HVS_MAX_SIZE);
+		sndbuf = ALIGN(sndbuf, PAGE_SIZE);
+		rcvbuf = max_t(int, sk->sk_rcvbuf, RINGBUFFER_HVS_RCV_SIZE);
+		rcvbuf = min_t(int, rcvbuf, RINGBUFFER_HVS_MAX_SIZE);
+		rcvbuf = ALIGN(rcvbuf, PAGE_SIZE);
+	}
+
+	ret = vmbus_open(chan, sndbuf, rcvbuf, NULL, 0, hvs_channel_cb,
+			 conn_from_host ? new : sk);
 	if (ret != 0) {
 		if (conn_from_host) {
 			hvs_new->chan = NULL;
@@ -378,6 +412,9 @@ static void hvs_open_connection(struct vmbus_channel *chan)
 	}
 
 	set_per_channel_state(chan, conn_from_host ? new : sk);
+
+	/* This reference will be dropped by hvs_close_connection(). */
+	sock_hold(conn_from_host ? new : sk);
 	vmbus_set_chn_rescind_callback(chan, hvs_close_connection);
 
 	/* Set the pending send size to max packet size to always get
@@ -424,6 +461,7 @@ static u32 hvs_get_local_cid(void)
 static int hvs_sock_init(struct vsock_sock *vsk, struct vsock_sock *psk)
 {
 	struct hvsock *hvs;
+	struct sock *sk = sk_vsock(vsk);
 
 	hvs = kzalloc(sizeof(*hvs), GFP_KERNEL);
 	if (!hvs)
@@ -431,7 +469,8 @@ static int hvs_sock_init(struct vsock_sock *vsk, struct vsock_sock *psk)
 
 	vsk->trans = hvs;
 	hvs->vsk = vsk;
-
+	sk->sk_sndbuf = RINGBUFFER_HVS_SND_SIZE;
+	sk->sk_rcvbuf = RINGBUFFER_HVS_RCV_SIZE;
 	return 0;
 }
 
@@ -627,7 +666,9 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 	struct hvsock *hvs = vsk->trans;
 	struct vmbus_channel *chan = hvs->chan;
 	struct hvs_send_buf *send_buf;
-	ssize_t to_write, max_writable, ret;
+	ssize_t to_write, max_writable;
+	ssize_t ret = 0;
+	ssize_t bytes_written = 0;
 
 	BUILD_BUG_ON(sizeof(*send_buf) != PAGE_SIZE_4K);
 
@@ -635,20 +676,34 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 	if (!send_buf)
 		return -ENOMEM;
 
-	max_writable = hvs_channel_writable_bytes(chan);
-	to_write = min_t(ssize_t, len, max_writable);
-	to_write = min_t(ssize_t, to_write, HVS_SEND_BUF_SIZE);
+	/* Reader(s) could be draining data from the channel as we write.
+	 * Maximize bandwidth, by iterating until the channel is found to be
+	 * full.
+	 */
+	while (len) {
+		max_writable = hvs_channel_writable_bytes(chan);
+		if (!max_writable)
+			break;
+		to_write = min_t(ssize_t, len, max_writable);
+		to_write = min_t(ssize_t, to_write, HVS_SEND_BUF_SIZE);
+		/* memcpy_from_msg is safe for loop as it advances the offsets
+		 * within the message iterator.
+		 */
+		ret = memcpy_from_msg(send_buf->data, msg, to_write);
+		if (ret < 0)
+			goto out;
 
-	ret = memcpy_from_msg(send_buf->data, msg, to_write);
-	if (ret < 0)
-		goto out;
+		ret = hvs_send_data(hvs->chan, send_buf, to_write);
+		if (ret < 0)
+			goto out;
 
-	ret = hvs_send_data(hvs->chan, send_buf, to_write);
-	if (ret < 0)
-		goto out;
-
-	ret = to_write;
+		bytes_written += to_write;
+		len -= to_write;
+	}
 out:
+	/* If any data has been sent, return that */
+	if (bytes_written)
+		ret = bytes_written;
 	kfree(send_buf);
 	return ret;
 }

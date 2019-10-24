@@ -12,6 +12,7 @@
 /delete-node/ &crypto;
 
 &cpu0 {
+	clock-frequency = <900000000>;
 	operating-points = <
 		/* kHz	uV */
 		900000	1275000
@@ -32,6 +33,12 @@
 
 &ocotp {
 	compatible = "fsl,imx6ull-ocotp", "syscon";
+};
+
+&pxp {
+	compatible = "fsl,imx6ull-pxp";
+	interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &usdhc1 {

@@ -162,3 +162,37 @@ function get_node_cpus()
 
 	echo $node_cpu_list
 }
+
+# Given a single or range of port(s), return minimum and maximum port number.
+function parse_ports()
+{
+    local port_str=$1
+    local port_list
+    local min_port
+    local max_port
+
+    IFS="-" read -ra port_list <<< $port_str
+
+    min_port=${port_list[0]}
+    max_port=${port_list[1]:-$min_port}
+
+    echo $min_port $max_port
+}
+
+# Given a minimum and maximum port, verify port number.
+function validate_ports()
+{
+    local min_port=$1
+    local max_port=$2
+
+    # 0 < port < 65536
+    if [[ $min_port -gt 0 && $min_port -lt 65536 ]]; then
+	if [[ $max_port -gt 0 && $max_port -lt 65536 ]]; then
+	    if [[ $min_port -le $max_port ]]; then
+		return 0
+	    fi
+	fi
+    fi
+
+    err 5 "Invalid port(s): $min_port-$max_port"
+}

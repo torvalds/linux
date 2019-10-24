@@ -23,7 +23,7 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_i2c.h"
@@ -32,11 +32,13 @@
 #include "amdgpu_display.h"
 #include <asm/div64.h>
 
+#include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_vblank.h>
 
 static void amdgpu_display_flip_callback(struct dma_fence *f,
 					 struct dma_fence_cb *cb)
@@ -631,10 +633,6 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 					 amdgpu_dither_enum_list, sz);
 
 	if (amdgpu_device_has_dc_support(adev)) {
-		adev->mode_info.max_bpc_property =
-			drm_property_create_range(adev->ddev, 0, "max bpc", 8, 16);
-		if (!adev->mode_info.max_bpc_property)
-			return -ENOMEM;
 		adev->mode_info.abm_level_property =
 			drm_property_create_range(adev->ddev, 0,
 						"abm level", 0, 4);

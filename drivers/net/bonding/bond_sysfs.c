@@ -327,6 +327,18 @@ static ssize_t bonding_show_updelay(struct device *d,
 static DEVICE_ATTR(updelay, 0644,
 		   bonding_show_updelay, bonding_sysfs_store_option);
 
+static ssize_t bonding_show_peer_notif_delay(struct device *d,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n",
+		       bond->params.peer_notif_delay * bond->params.miimon);
+}
+static DEVICE_ATTR(peer_notif_delay, 0644,
+		   bonding_show_peer_notif_delay, bonding_sysfs_store_option);
+
 /* Show the LACP interval. */
 static ssize_t bonding_show_lacp(struct device *d,
 				 struct device_attribute *attr,
@@ -718,6 +730,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_arp_ip_target.attr,
 	&dev_attr_downdelay.attr,
 	&dev_attr_updelay.attr,
+	&dev_attr_peer_notif_delay.attr,
 	&dev_attr_lacp_rate.attr,
 	&dev_attr_ad_select.attr,
 	&dev_attr_xmit_hash_policy.attr,

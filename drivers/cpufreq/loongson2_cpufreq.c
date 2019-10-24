@@ -95,7 +95,8 @@ static int loongson2_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	policy->clk = cpuclk;
-	return cpufreq_generic_init(policy, &loongson2_clockmod_table[0], 0);
+	cpufreq_generic_init(policy, &loongson2_clockmod_table[0], 0);
+	return 0;
 }
 
 static int loongson2_cpufreq_exit(struct cpufreq_policy *policy)

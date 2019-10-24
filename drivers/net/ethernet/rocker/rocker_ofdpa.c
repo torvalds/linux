@@ -18,6 +18,7 @@
 #include <net/neighbour.h>
 #include <net/switchdev.h>
 #include <net/ip_fib.h>
+#include <net/nexthop.h>
 #include <net/arp.h>
 
 #include "rocker.h"
@@ -2282,8 +2283,8 @@ static int ofdpa_port_fib_ipv4(struct ofdpa_port *ofdpa_port,  __be32 dst,
 
 	/* XXX support ECMP */
 
-	nh = fi->fib_nh;
-	nh_on_port = (fi->fib_dev == ofdpa_port->dev);
+	nh = fib_info_nh(fi, 0);
+	nh_on_port = (nh->fib_nh_dev == ofdpa_port->dev);
 	has_gw = !!nh->fib_nh_gw4;
 
 	if (has_gw && nh_on_port) {
@@ -2733,11 +2734,13 @@ static int ofdpa_fib4_add(struct rocker *rocker,
 {
 	struct ofdpa *ofdpa = rocker->wpriv;
 	struct ofdpa_port *ofdpa_port;
+	struct fib_nh *nh;
 	int err;
 
 	if (ofdpa->fib_aborted)
 		return 0;
-	ofdpa_port = ofdpa_port_dev_lower_find(fen_info->fi->fib_dev, rocker);
+	nh = fib_info_nh(fen_info->fi, 0);
+	ofdpa_port = ofdpa_port_dev_lower_find(nh->fib_nh_dev, rocker);
 	if (!ofdpa_port)
 		return 0;
 	err = ofdpa_port_fib_ipv4(ofdpa_port, htonl(fen_info->dst),
@@ -2745,7 +2748,7 @@ static int ofdpa_fib4_add(struct rocker *rocker,
 				  fen_info->tb_id, 0);
 	if (err)
 		return err;
-	fen_info->fi->fib_nh->fib_nh_flags |= RTNH_F_OFFLOAD;
+	nh->fib_nh_flags |= RTNH_F_OFFLOAD;
 	return 0;
 }
 
@@ -2754,13 +2757,15 @@ static int ofdpa_fib4_del(struct rocker *rocker,
 {
 	struct ofdpa *ofdpa = rocker->wpriv;
 	struct ofdpa_port *ofdpa_port;
+	struct fib_nh *nh;
 
 	if (ofdpa->fib_aborted)
 		return 0;
-	ofdpa_port = ofdpa_port_dev_lower_find(fen_info->fi->fib_dev, rocker);
+	nh = fib_info_nh(fen_info->fi, 0);
+	ofdpa_port = ofdpa_port_dev_lower_find(nh->fib_nh_dev, rocker);
 	if (!ofdpa_port)
 		return 0;
-	fen_info->fi->fib_nh->fib_nh_flags &= ~RTNH_F_OFFLOAD;
+	nh->fib_nh_flags &= ~RTNH_F_OFFLOAD;
 	return ofdpa_port_fib_ipv4(ofdpa_port, htonl(fen_info->dst),
 				   fen_info->dst_len, fen_info->fi,
 				   fen_info->tb_id, OFDPA_OP_FLAG_REMOVE);
@@ -2780,14 +2785,16 @@ static void ofdpa_fib4_abort(struct rocker *rocker)
 
 	spin_lock_irqsave(&ofdpa->flow_tbl_lock, flags);
 	hash_for_each_safe(ofdpa->flow_tbl, bkt, tmp, flow_entry, entry) {
+		struct fib_nh *nh;
+
 		if (flow_entry->key.tbl_id !=
 		    ROCKER_OF_DPA_TABLE_ID_UNICAST_ROUTING)
 			continue;
-		ofdpa_port = ofdpa_port_dev_lower_find(flow_entry->fi->fib_dev,
-						       rocker);
+		nh = fib_info_nh(flow_entry->fi, 0);
+		ofdpa_port = ofdpa_port_dev_lower_find(nh->fib_nh_dev, rocker);
 		if (!ofdpa_port)
 			continue;
-		flow_entry->fi->fib_nh->fib_nh_flags &= ~RTNH_F_OFFLOAD;
+		nh->fib_nh_flags &= ~RTNH_F_OFFLOAD;
 		ofdpa_flow_tbl_del(ofdpa_port, OFDPA_OP_FLAG_REMOVE,
 				   flow_entry);
 	}

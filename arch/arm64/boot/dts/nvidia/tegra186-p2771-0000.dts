@@ -7,18 +7,70 @@
 #include "tegra186-p3310.dtsi"
 
 / {
-	model = "NVIDIA Tegra186 P2771-0000 Development Board";
+	model = "NVIDIA Jetson TX2 Developer Kit";
 	compatible = "nvidia,p2771-0000", "nvidia,tegra186";
+
+	aconnect {
+		status = "okay";
+
+		dma-controller@2930000 {
+			status = "okay";
+		};
+
+		interrupt-controller@2a40000 {
+			status = "okay";
+		};
+	};
 
 	i2c@3160000 {
 		power-monitor@42 {
 			compatible = "ti,ina3221";
 			reg = <0x42>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@0 {
+				reg = <0x0>;
+				label = "VDD_MUX";
+				shunt-resistor-micro-ohms = <20000>;
+			};
+
+			channel@1 {
+				reg = <0x1>;
+				label = "VDD_5V0_IO_SYS";
+				shunt-resistor-micro-ohms = <5000>;
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				label = "VDD_3V3_SYS";
+				shunt-resistor-micro-ohms = <10000>;
+			};
 		};
 
 		power-monitor@43 {
 			compatible = "ti,ina3221";
 			reg = <0x43>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@0 {
+				reg = <0x0>;
+				label = "VDD_3V3_IO_SLP";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+
+			channel@1 {
+				reg = <0x1>;
+				label = "VDD_1V8_IO";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				label = "VDD_M2_IN";
+				shunt-resistor-micro-ohms = <10000>;
+			};
 		};
 
 		exp1: gpio@74 {
@@ -31,6 +83,8 @@
 
 			#gpio-cells = <2>;
 			gpio-controller;
+
+			vcc-supply = <&vdd_3v3_sys>;
 		};
 
 		exp2: gpio@77 {
@@ -43,6 +97,8 @@
 
 			#gpio-cells = <2>;
 			gpio-controller;
+
+			vcc-supply = <&vdd_1v8>;
 		};
 	};
 
@@ -143,6 +199,19 @@
 		       <&{/padctl@3520000/pads/usb2/lanes/usb2-1}>,
 		       <&{/padctl@3520000/pads/usb3/lanes/usb3-0}>;
 		phy-names = "usb2-0", "usb2-1", "usb3-0";
+	};
+
+	i2c@c250000 {
+		/* carrier board ID EEPROM */
+		eeprom@57 {
+			compatible = "atmel,24c02";
+			reg = <0x57>;
+
+			address-bits = <8>;
+			page-size = <8>;
+			size = <256>;
+			read-only;
+		};
 	};
 
 	pcie@10003000 {
@@ -278,7 +347,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 
-			gpio = <&gpio TEGRA_MAIN_GPIO(L, 4) GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio TEGRA186_MAIN_GPIO(L, 4) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 
 			vin-supply = <&vdd_5v0_sys>;
@@ -292,7 +361,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 
-			gpio = <&gpio TEGRA_MAIN_GPIO(L, 5) GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio TEGRA186_MAIN_GPIO(L, 5) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 
 			vin-supply = <&vdd_5v0_sys>;

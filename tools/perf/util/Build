@@ -20,10 +20,13 @@ perf-y += parse-events.o
 perf-y += perf_regs.o
 perf-y += path.o
 perf-y += print_binary.o
+perf-y += rlimit.o
+perf-y += argv_split.o
 perf-y += rbtree.o
 perf-y += libstring.o
 perf-y += bitmap.o
 perf-y += hweight.o
+perf-y += zalloc.o
 perf-y += smt.o
 perf-y += strbuf.o
 perf-y += string.o
@@ -209,7 +212,15 @@ $(OUTPUT)util/kallsyms.o: ../lib/symbol/kallsyms.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
+$(OUTPUT)util/argv_split.o: ../lib/argv_split.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
 $(OUTPUT)util/bitmap.o: ../lib/bitmap.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)util/ctype.o: ../lib/ctype.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
@@ -230,5 +241,9 @@ $(OUTPUT)util/hweight.o: ../lib/hweight.c FORCE
 	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)util/vsprintf.o: ../lib/vsprintf.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)util/zalloc.o: ../lib/zalloc.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)

@@ -119,7 +119,8 @@ static int hw_idle(struct hl_device *hdev, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	hw_idle.is_idle = hdev->asic_funcs->is_device_idle(hdev, NULL, 0);
+	hw_idle.is_idle = hdev->asic_funcs->is_device_idle(hdev,
+					&hw_idle.busy_engines_mask, NULL);
 
 	return copy_to_user(out, &hw_idle,
 		min((size_t) max_size, sizeof(hw_idle))) ? -EFAULT : 0;
@@ -254,9 +255,17 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 	case HL_DEBUG_OP_BMON:
 	case HL_DEBUG_OP_SPMU:
 	case HL_DEBUG_OP_TIMESTAMP:
+		if (!hdev->in_debug) {
+			dev_err_ratelimited(hdev->dev,
+				"Rejecting debug configuration request because device not in debug mode\n");
+			return -EFAULT;
+		}
 		args->input_size =
 			min(args->input_size, hl_debug_struct_size[args->op]);
 		rc = debug_coresight(hdev, args);
+		break;
+	case HL_DEBUG_OP_SET_MODE:
+		rc = hl_device_set_debug_mode(hdev, (bool) args->enable);
 		break;
 	default:
 		dev_err(hdev->dev, "Invalid request %d\n", args->op);

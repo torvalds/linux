@@ -98,27 +98,12 @@ static int mlx5_set_entropy(struct mlx5_tun_entropy *tun_entropy,
 	 */
 	if (entropy_flags.gre_calc_supported &&
 	    reformat_type == MLX5_REFORMAT_TYPE_L2_TO_NVGRE) {
-		/* Other applications may change the global FW entropy
-		 * calculations settings. Check that the current entropy value
-		 * is the negative of the updated value.
-		 */
-		if (entropy_flags.force_enabled &&
-		    enable == entropy_flags.gre_calc_enabled) {
-			mlx5_core_warn(tun_entropy->mdev,
-				       "Unexpected GRE entropy calc setting - expected %d",
-				       !entropy_flags.gre_calc_enabled);
-			return -EOPNOTSUPP;
-		}
-		err = mlx5_set_port_gre_tun_entropy_calc(tun_entropy->mdev, enable,
-							 entropy_flags.force_supported);
+		if (!entropy_flags.force_supported)
+			return 0;
+		err = mlx5_set_port_gre_tun_entropy_calc(tun_entropy->mdev,
+							 enable, !enable);
 		if (err)
 			return err;
-		/* if we turn on the entropy we don't need to force it anymore */
-		if (entropy_flags.force_supported && enable) {
-			err = mlx5_set_port_gre_tun_entropy_calc(tun_entropy->mdev, 1, 0);
-			if (err)
-				return err;
-		}
 	} else if (entropy_flags.calc_supported) {
 		/* Other applications may change the global FW entropy
 		 * calculations settings. Check that the current entropy value

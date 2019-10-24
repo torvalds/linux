@@ -3,7 +3,6 @@
 #include <linux/string.h>
 
 #include "../../util/callchain.h"
-#include "../../util/util.h"
 #include "../../util/hist.h"
 #include "../../util/map.h"
 #include "../../util/map_groups.h"
@@ -13,7 +12,8 @@
 #include "../../util/srcline.h"
 #include "../../util/string2.h"
 #include "../../util/thread.h"
-#include "../../util/sane_ctype.h"
+#include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)
 {
@@ -516,7 +516,7 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 		 * dynamic entries are right-aligned but we want left-aligned
 		 * in the hierarchy mode
 		 */
-		printed += fprintf(fp, "%s%s", sep ?: "  ", ltrim(buf));
+		printed += fprintf(fp, "%s%s", sep ?: "  ", skip_spaces(buf));
 	}
 	printed += putc('\n', fp);
 
@@ -529,6 +529,30 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 
 out:
 	return printed;
+}
+
+static int hist_entry__block_fprintf(struct hist_entry *he,
+				     char *bf, size_t size,
+				     FILE *fp)
+{
+	struct block_hist *bh = container_of(he, struct block_hist, he);
+	int ret = 0;
+
+	for (unsigned int i = 0; i < bh->block_hists.nr_entries; i++) {
+		struct perf_hpp hpp = {
+			.buf		= bf,
+			.size		= size,
+			.skip		= false,
+		};
+
+		bh->block_idx = i;
+		hist_entry__snprintf(he, &hpp);
+
+		if (!hpp.skip)
+			ret += fprintf(fp, "%s\n", bf);
+	}
+
+	return ret;
 }
 
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
@@ -550,6 +574,9 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 	if (symbol_conf.report_hierarchy)
 		return hist_entry__hierarchy_fprintf(he, &hpp, hists, fp);
 
+	if (symbol_conf.report_block)
+		return hist_entry__block_fprintf(he, bf, size, fp);
+
 	hist_entry__snprintf(he, &hpp);
 
 	ret = fprintf(fp, "%s\n", bf);
@@ -566,10 +593,14 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 static int print_hierarchy_indent(const char *sep, int indent,
 				  const char *line, FILE *fp)
 {
+	int width;
+
 	if (sep != NULL || indent < 2)
 		return 0;
 
-	return fprintf(fp, "%-.*s", (indent - 2) * HIERARCHY_INDENT, line);
+	width = (indent - 2) * HIERARCHY_INDENT;
+
+	return fprintf(fp, "%-*.*s", width, width, line);
 }
 
 static int hists__fprintf_hierarchy_headers(struct hists *hists,
@@ -587,7 +618,7 @@ static int hists__fprintf_hierarchy_headers(struct hists *hists,
 	indent = hists->nr_hpp_node;
 
 	/* preserve max indent depth for column headers */
-	print_hierarchy_indent(sep, indent, spaces, fp);
+	print_hierarchy_indent(sep, indent, " ", fp);
 
 	/* the first hpp_list_node is for overhead columns */
 	fmt_node = list_first_entry(&hists->hpp_formats,
@@ -616,7 +647,7 @@ static int hists__fprintf_hierarchy_headers(struct hists *hists,
 
 			fmt->header(fmt, hpp, hists, 0, NULL);
 
-			header_width += fprintf(fp, "%s", trim(hpp->buf));
+			header_width += fprintf(fp, "%s", strim(hpp->buf));
 		}
 	}
 
@@ -816,7 +847,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		if (!h->leaf && !hist_entry__has_hierarchy_children(h, min_pcnt)) {
 			int depth = hists->nr_hpp_node + h->depth + 1;
 
-			print_hierarchy_indent(sep, depth, spaces, fp);
+			print_hierarchy_indent(sep, depth, " ", fp);
 			fprintf(fp, "%*sno entry >= %.2f%%\n", indent, "", min_pcnt);
 
 			if (max_rows && ++nr_rows >= max_rows)

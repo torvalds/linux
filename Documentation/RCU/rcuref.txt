@@ -12,6 +12,7 @@ please read on.
 Reference counting on elements of lists which are protected by traditional
 reader/writer spinlocks or semaphores are straightforward:
 
+CODE LISTING A:
 1.				2.
 add()				search_and_reference()
 {				{
@@ -28,7 +29,8 @@ add()				search_and_reference()
 release_referenced()			delete()
 {					{
     ...					    write_lock(&list_lock);
-    atomic_dec(&el->rc, relfunc)	    ...
+    if(atomic_dec_and_test(&el->rc))	    ...
+	kfree(el);
     ...					    remove_element
 }					    write_unlock(&list_lock);
  					    ...
@@ -44,6 +46,7 @@ search_and_reference() could potentially hold reference to an element which
 has already been deleted from the list/array.  Use atomic_inc_not_zero()
 in this scenario as follows:
 
+CODE LISTING B:
 1.					2.
 add()					search_and_reference()
 {					{
@@ -79,6 +82,7 @@ search_and_reference() code path.  In such cases, the
 atomic_dec_and_test() may be moved from delete() to el_free()
 as follows:
 
+CODE LISTING C:
 1.					2.
 add()					search_and_reference()
 {					{
@@ -114,6 +118,17 @@ element can therefore safely be freed.  This in turn guarantees that if
 any reader finds the element, that reader may safely acquire a reference
 without checking the value of the reference counter.
 
+A clear advantage of the RCU-based pattern in listing C over the one
+in listing B is that any call to search_and_reference() that locates
+a given object will succeed in obtaining a reference to that object,
+even given a concurrent invocation of delete() for that same object.
+Similarly, a clear advantage of both listings B and C over listing A is
+that a call to delete() is not delayed even if there are an arbitrarily
+large number of calls to search_and_reference() searching for the same
+object that delete() was invoked on.  Instead, all that is delayed is
+the eventual invocation of kfree(), which is usually not a problem on
+modern computer systems, even the small ones.
+
 In cases where delete() can sleep, synchronize_rcu() can be called from
 delete(), so that el_free() can be subsumed into delete as follows:
 
@@ -130,3 +145,7 @@ delete()
     	kfree(el);
     ...
 }
+
+As additional examples in the kernel, the pattern in listing C is used by
+reference counting of struct pid, while the pattern in listing B is used by
+struct posix_acl.

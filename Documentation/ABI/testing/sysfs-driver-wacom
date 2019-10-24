@@ -1,6 +1,6 @@
 What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/speed
 Date:		April 2010
-Kernel Version:	2.6.35
+KernelVersion:	2.6.35
 Contact:	linux-bluetooth@vger.kernel.org
 Description:
 		The /sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/speed file

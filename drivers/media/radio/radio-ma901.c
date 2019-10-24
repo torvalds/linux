@@ -191,8 +191,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(v->driver, "radio-ma901", sizeof(v->driver));
 	strscpy(v->card, "Masterkit MA901 USB FM Radio", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -398,6 +396,7 @@ static int usb_ma901radio_probe(struct usb_interface *intf,
 	radio->vdev.ioctl_ops = &usb_ma901radio_ioctl_ops;
 	radio->vdev.release = video_device_release_empty;
 	radio->vdev.lock = &radio->lock;
+	radio->vdev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;

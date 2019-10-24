@@ -203,10 +203,50 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	kmalloc_ok = save_kmalloc_ok;
 }
 
+static void time_travel_sleep(unsigned long long duration)
+{
+	unsigned long long next = time_travel_time + duration;
+
+	if (time_travel_mode != TT_MODE_INFCPU)
+		os_timer_disable();
+
+	if (time_travel_timer_mode != TT_TMR_DISABLED ||
+	    time_travel_timer_expiry < next) {
+		if (time_travel_timer_mode == TT_TMR_ONESHOT)
+			time_travel_set_timer_mode(TT_TMR_DISABLED);
+		/*
+		 * time_travel_time will be adjusted in the timer
+		 * IRQ handler so it works even when the signal
+		 * comes from the OS timer
+		 */
+		deliver_alarm();
+	} else {
+		time_travel_set_time(next);
+	}
+
+	if (time_travel_mode != TT_MODE_INFCPU) {
+		if (time_travel_timer_mode == TT_TMR_PERIODIC)
+			os_timer_set_interval(time_travel_timer_interval);
+		else if (time_travel_timer_mode == TT_TMR_ONESHOT)
+			os_timer_one_shot(time_travel_timer_expiry - next);
+	}
+}
+
+static void um_idle_sleep(void)
+{
+	unsigned long long duration = UM_NSEC_PER_SEC;
+
+	if (time_travel_mode != TT_MODE_OFF) {
+		time_travel_sleep(duration);
+	} else {
+		os_idle_sleep(duration);
+	}
+}
+
 void arch_cpu_idle(void)
 {
 	cpu_tasks[current_thread_info()->cpu].pid = os_getpid();
-	os_idle_sleep(UM_NSEC_PER_SEC);
+	um_idle_sleep();
 	local_irq_enable();
 }
 

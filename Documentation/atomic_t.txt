@@ -81,9 +81,11 @@ Non-RMW ops:
 
 The non-RMW ops are (typically) regular LOADs and STOREs and are canonically
 implemented using READ_ONCE(), WRITE_ONCE(), smp_load_acquire() and
-smp_store_release() respectively.
+smp_store_release() respectively. Therefore, if you find yourself only using
+the Non-RMW operations of atomic_t, you do not in fact need atomic_t at all
+and are doing it wrong.
 
-The one detail to this is that atomic_set{}() should be observable to the RMW
+A subtle detail of atomic_set{}() is that it should be observable to the RMW
 ops. That is:
 
   C atomic-set
@@ -187,12 +189,21 @@ The barriers:
 
   smp_mb__{before,after}_atomic()
 
-only apply to the RMW ops and can be used to augment/upgrade the ordering
-inherent to the used atomic op. These barriers provide a full smp_mb().
+only apply to the RMW atomic ops and can be used to augment/upgrade the
+ordering inherent to the op. These barriers act almost like a full smp_mb():
+smp_mb__before_atomic() orders all earlier accesses against the RMW op
+itself and all accesses following it, and smp_mb__after_atomic() orders all
+later accesses against the RMW op and all accesses preceding it. However,
+accesses between the smp_mb__{before,after}_atomic() and the RMW op are not
+ordered, so it is advisable to place the barrier right next to the RMW atomic
+op whenever possible.
 
 These helper barriers exist because architectures have varying implicit
 ordering on their SMP atomic primitives. For example our TSO architectures
 provide full ordered atomics and these barriers are no-ops.
+
+NOTE: when the atomic RmW ops are fully ordered, they should also imply a
+compiler barrier.
 
 Thus:
 
@@ -212,7 +223,9 @@ Further, while something like:
   atomic_dec(&X);
 
 is a 'typical' RELEASE pattern, the barrier is strictly stronger than
-a RELEASE. Similarly for something like:
+a RELEASE because it orders preceding instructions against both the read
+and write parts of the atomic_dec(), and against all following instructions
+as well. Similarly, something like:
 
   atomic_inc(&X);
   smp_mb__after_atomic();
@@ -244,7 +257,8 @@ strictly stronger than ACQUIRE. As illustrated:
 
 This should not happen; but a hypothetical atomic_inc_acquire() --
 (void)atomic_fetch_inc_acquire() for instance -- would allow the outcome,
-since then:
+because it would not order the W part of the RMW against the following
+WRITE_ONCE.  Thus:
 
   P1			P2
 

@@ -215,7 +215,7 @@ struct skl_mod_inst_map {
 struct skl_uuid_inst_map {
 	u16 inst_id;
 	u16 reserved;
-	uuid_le mod_uuid;
+	guid_t mod_uuid;
 } __packed;
 
 struct skl_kpb_params {
@@ -227,7 +227,7 @@ struct skl_kpb_params {
 };
 
 struct skl_module_inst_id {
-	uuid_le mod_uuid;
+	guid_t mod_uuid;
 	int module_id;
 	u32 instance_id;
 	int pvt_id;
@@ -360,7 +360,7 @@ struct skl_module_res {
 };
 
 struct skl_module {
-	uuid_le uuid;
+	guid_t uuid;
 	u8 loadable;
 	u8 input_pin_type;
 	u8 output_pin_type;
@@ -462,6 +462,8 @@ void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
 int skl_tplg_init(struct snd_soc_component *component,
 				struct hdac_bus *ebus);
+void skl_tplg_exit(struct snd_soc_component *component,
+				struct hdac_bus *bus);
 struct skl_module_cfg *skl_tplg_fe_get_cpr_module(
 		struct snd_soc_dai *dai, int stream);
 int skl_tplg_update_pipe_params(struct device *dev,

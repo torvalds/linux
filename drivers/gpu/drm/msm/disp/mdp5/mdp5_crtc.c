@@ -439,6 +439,18 @@ static void mdp5_crtc_atomic_disable(struct drm_crtc *crtc,
 	mdp5_crtc->enabled = false;
 }
 
+static void mdp5_crtc_vblank_on(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
+	struct mdp5_interface *intf = mdp5_cstate->pipeline.intf;
+	u32 count;
+
+	count = intf->mode == MDP5_INTF_DSI_MODE_COMMAND ? 0 : 0xffffffff;
+	drm_crtc_set_max_vblank_count(crtc, count);
+
+	drm_crtc_vblank_on(crtc);
+}
+
 static void mdp5_crtc_atomic_enable(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
 {
@@ -475,7 +487,7 @@ static void mdp5_crtc_atomic_enable(struct drm_crtc *crtc,
 	}
 
 	/* Restore vblank irq handling after power is enabled */
-	drm_crtc_vblank_on(crtc);
+	mdp5_crtc_vblank_on(crtc);
 
 	mdp5_crtc_mode_set_nofb(crtc);
 
@@ -771,6 +783,7 @@ static void get_roi(struct drm_crtc *crtc, uint32_t *roi_w, uint32_t *roi_h)
 
 static void mdp5_crtc_restore_cursor(struct drm_crtc *crtc)
 {
+	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_ARGB8888);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
@@ -789,7 +802,7 @@ static void mdp5_crtc_restore_cursor(struct drm_crtc *crtc)
 	width = mdp5_crtc->cursor.width;
 	height = mdp5_crtc->cursor.height;
 
-	stride = width * drm_format_plane_cpp(DRM_FORMAT_ARGB8888, 0);
+	stride = width * info->cpp[0];
 
 	get_roi(crtc, &roi_w, &roi_h);
 
@@ -991,23 +1004,6 @@ mdp5_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\tcmd_mode=%d\n", mdp5_cstate->cmd_mode);
 }
 
-static void mdp5_crtc_reset(struct drm_crtc *crtc)
-{
-	struct mdp5_crtc_state *mdp5_cstate;
-
-	if (crtc->state) {
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
-		kfree(to_mdp5_crtc_state(crtc->state));
-	}
-
-	mdp5_cstate = kzalloc(sizeof(*mdp5_cstate), GFP_KERNEL);
-
-	if (mdp5_cstate) {
-		mdp5_cstate->base.crtc = crtc;
-		crtc->state = &mdp5_cstate->base;
-	}
-}
-
 static struct drm_crtc_state *
 mdp5_crtc_duplicate_state(struct drm_crtc *crtc)
 {
@@ -1033,6 +1029,19 @@ static void mdp5_crtc_destroy_state(struct drm_crtc *crtc, struct drm_crtc_state
 	__drm_atomic_helper_crtc_destroy_state(state);
 
 	kfree(mdp5_cstate);
+}
+
+static void mdp5_crtc_reset(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc_state *mdp5_cstate =
+		kzalloc(sizeof(*mdp5_cstate), GFP_KERNEL);
+
+	if (crtc->state)
+		mdp5_crtc_destroy_state(crtc, crtc->state);
+
+	__drm_atomic_helper_crtc_reset(crtc, &mdp5_cstate->base);
+
+	drm_crtc_vblank_reset(crtc);
 }
 
 static const struct drm_crtc_funcs mdp5_crtc_funcs = {

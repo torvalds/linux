@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016 - 2019 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -119,8 +119,6 @@ int rvt_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
 
 	rdma_copy_ah_attr(&ah->attr, ah_attr);
 
-	atomic_set(&ah->refcount, 0);
-
 	if (dev->driver_f.notify_new_ah)
 		dev->driver_f.notify_new_ah(ibah->device, ah_attr, ah);
 
@@ -140,8 +138,6 @@ void rvt_destroy_ah(struct ib_ah *ibah, u32 destroy_flags)
 	struct rvt_dev_info *dev = ib_to_rvt(ibah->device);
 	struct rvt_ah *ah = ibah_to_rvtah(ibah);
 	unsigned long flags;
-
-	WARN_ON_ONCE(atomic_read(&ah->refcount));
 
 	spin_lock_irqsave(&dev->n_ahs_lock, flags);
 	dev->n_ahs_allocated--;

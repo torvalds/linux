@@ -1011,9 +1011,8 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 	if (WARN_ON(resp->n_reg_rules > NL80211_MAX_SUPP_REG_RULES))
 		return -E2BIG;
 
-	mac->rd = kzalloc(sizeof(*mac->rd) +
-			  sizeof(struct ieee80211_reg_rule) *
-			  resp->n_reg_rules, GFP_KERNEL);
+	mac->rd = kzalloc(struct_size(mac->rd, reg_rules, resp->n_reg_rules),
+			  GFP_KERNEL);
 	if (!mac->rd)
 		return -ENOMEM;
 

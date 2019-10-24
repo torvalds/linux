@@ -16,122 +16,32 @@
 
 #define TLBMISS_HANDLER_SETUP_PGD(pgd) \
 	setup_pgd(__pa(pgd), false)
+
 #define TLBMISS_HANDLER_SETUP_PGD_KERNEL(pgd) \
 	setup_pgd(__pa(pgd), true)
 
-#define cpu_context(cpu, mm)	((mm)->context.asid[cpu])
-#define cpu_asid(cpu, mm)	(cpu_context((cpu), (mm)) & ASID_MASK)
-#define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
+#define ASID_MASK		((1 << CONFIG_CPU_ASID_BITS) - 1)
+#define cpu_asid(mm)		(atomic64_read(&mm->context.asid) & ASID_MASK)
 
-#define ASID_FIRST_VERSION	(1 << CONFIG_CPU_ASID_BITS)
-#define ASID_INC		0x1
-#define ASID_MASK		(ASID_FIRST_VERSION - 1)
-#define ASID_VERSION_MASK	~ASID_MASK
+#define init_new_context(tsk,mm)	({ atomic64_set(&(mm)->context.asid, 0); 0; })
+#define activate_mm(prev,next)		switch_mm(prev, next, current)
 
 #define destroy_context(mm)		do {} while (0)
 #define enter_lazy_tlb(mm, tsk)		do {} while (0)
 #define deactivate_mm(tsk, mm)		do {} while (0)
 
-/*
- *  All unused by hardware upper bits will be considered
- *  as a software asid extension.
- */
+void check_and_switch_context(struct mm_struct *mm, unsigned int cpu);
+
 static inline void
-get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
-{
-	unsigned long asid = asid_cache(cpu);
-
-	asid += ASID_INC;
-	if (!(asid & ASID_MASK)) {
-		flush_tlb_all();	/* start new asid cycle */
-		if (!asid)		/* fix version if needed */
-			asid = ASID_FIRST_VERSION;
-	}
-	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
-}
-
-/*
- * Initialize the context related info for a new mm_struct
- * instance.
- */
-static inline int
-init_new_context(struct task_struct *tsk, struct mm_struct *mm)
-{
-	int i;
-
-	for_each_online_cpu(i)
-		cpu_context(i, mm) = 0;
-	return 0;
-}
-
-static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
-			struct task_struct *tsk)
+switch_mm(struct mm_struct *prev, struct mm_struct *next,
+	  struct task_struct *tsk)
 {
 	unsigned int cpu = smp_processor_id();
-	unsigned long flags;
 
-	local_irq_save(flags);
-	/* Check if our ASID is of an older version and thus invalid */
-	if ((cpu_context(cpu, next) ^ asid_cache(cpu)) & ASID_VERSION_MASK)
-		get_new_mmu_context(next, cpu);
-	write_mmu_entryhi(cpu_asid(cpu, next));
+	if (prev != next)
+		check_and_switch_context(next, cpu);
+
 	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
-
-	/*
-	 * Mark current->active_mm as not "active" anymore.
-	 * We don't want to mislead possible IPI tlb flush routines.
-	 */
-	cpumask_clear_cpu(cpu, mm_cpumask(prev));
-	cpumask_set_cpu(cpu, mm_cpumask(next));
-
-	local_irq_restore(flags);
+	write_mmu_entryhi(next->context.asid.counter);
 }
-
-/*
- * After we have set current->mm to a new value, this activates
- * the context for the new mm so we see the new mappings.
- */
-static inline void
-activate_mm(struct mm_struct *prev, struct mm_struct *next)
-{
-	unsigned long flags;
-	int cpu = smp_processor_id();
-
-	local_irq_save(flags);
-
-	/* Unconditionally get a new ASID.  */
-	get_new_mmu_context(next, cpu);
-
-	write_mmu_entryhi(cpu_asid(cpu, next));
-	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
-
-	/* mark mmu ownership change */
-	cpumask_clear_cpu(cpu, mm_cpumask(prev));
-	cpumask_set_cpu(cpu, mm_cpumask(next));
-
-	local_irq_restore(flags);
-}
-
-/*
- * If mm is currently active_mm, we can't really drop it. Instead,
- * we will get a new one for it.
- */
-static inline void
-drop_mmu_context(struct mm_struct *mm, unsigned int cpu)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))  {
-		get_new_mmu_context(mm, cpu);
-		write_mmu_entryhi(cpu_asid(cpu, mm));
-	} else {
-		/* will get a new context next time */
-		cpu_context(cpu, mm) = 0;
-	}
-
-	local_irq_restore(flags);
-}
-
 #endif /* __ASM_CSKY_MMU_CONTEXT_H */

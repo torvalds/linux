@@ -23,6 +23,8 @@
 #ifndef __R600_DPM_H__
 #define __R600_DPM_H__
 
+#include "radeon.h"
+
 #define R600_ASI_DFLT                                10000
 #define R600_BSP_DFLT                                0x41EB
 #define R600_BSU_DFLT                                0x2

@@ -106,7 +106,7 @@ void buserr(struct pt_regs *regs)
 	pr_err("User mode Bus Error\n");
 	show_regs(regs);
 
-	force_sig_fault(SIGSEGV, 0, (void __user *)regs->pc, current);
+	force_sig_fault(SIGSEGV, 0, (void __user *)regs->pc);
 }
 
 #define USR_BKPT 0x1464
@@ -120,6 +120,7 @@ asmlinkage void trap_c(struct pt_regs *regs)
 
 	switch (vector) {
 	case VEC_ZERODIV:
+		die_if_kernel("Kernel mode ZERO DIV", regs, vector);
 		sig = SIGFPE;
 		break;
 	/* ptrace */
@@ -128,6 +129,7 @@ asmlinkage void trap_c(struct pt_regs *regs)
 		sig = SIGTRAP;
 		break;
 	case VEC_ILLEGAL:
+		die_if_kernel("Kernel mode ILLEGAL", regs, vector);
 #ifndef CONFIG_CPU_NO_USER_BKPT
 		if (*(uint16_t *)instruction_pointer(regs) != USR_BKPT)
 #endif
@@ -139,6 +141,7 @@ asmlinkage void trap_c(struct pt_regs *regs)
 	case VEC_TRAP1:
 	/* jtagserver breakpoint */
 	case VEC_BREAKPOINT:
+		die_if_kernel("Kernel mode BKPT", regs, vector);
 		info.si_code = TRAP_BRKPT;
 		sig = SIGTRAP;
 		break;
@@ -150,8 +153,10 @@ asmlinkage void trap_c(struct pt_regs *regs)
 #endif
 #ifdef CONFIG_CPU_HAS_FPU
 	case VEC_FPE:
+		die_if_kernel("Kernel mode FPE", regs, vector);
 		return fpu_fpe(regs);
 	case VEC_PRIV:
+		die_if_kernel("Kernel mode PRIV", regs, vector);
 		if (fpu_libc_helper(regs))
 			return;
 #endif

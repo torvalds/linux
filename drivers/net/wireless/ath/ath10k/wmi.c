@@ -8309,7 +8309,7 @@ ath10k_wmi_fw_vdev_stats_fill(const struct ath10k_fw_stats_vdev *vdev,
 
 static void
 ath10k_wmi_fw_peer_stats_fill(const struct ath10k_fw_stats_peer *peer,
-			      char *buf, u32 *length)
+			      char *buf, u32 *length, bool extended_peer)
 {
 	u32 len = *length;
 	u32 buf_len = ATH10K_FW_STATS_BUF_SIZE;
@@ -8322,11 +8322,25 @@ ath10k_wmi_fw_peer_stats_fill(const struct ath10k_fw_stats_peer *peer,
 			"Peer TX rate", peer->peer_tx_rate);
 	len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
 			"Peer RX rate", peer->peer_rx_rate);
-	len += scnprintf(buf + len, buf_len - len, "%30s %llu\n",
-			"Peer RX duration", peer->rx_duration);
+	if (!extended_peer)
+		len += scnprintf(buf + len, buf_len - len, "%30s %llu\n",
+				"Peer RX duration", peer->rx_duration);
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	*length = len;
+}
+
+static void
+ath10k_wmi_fw_extd_peer_stats_fill(const struct ath10k_fw_extd_stats_peer *peer,
+				   char *buf, u32 *length)
+{
+	u32 len = *length;
+	u32 buf_len = ATH10K_FW_STATS_BUF_SIZE;
+
+	len += scnprintf(buf + len, buf_len - len, "%30s %pM\n",
+			"Peer MAC address", peer->peer_macaddr);
+	len += scnprintf(buf + len, buf_len - len, "%30s %llu\n",
+			"Peer RX duration", peer->rx_duration);
 }
 
 void ath10k_wmi_main_op_fw_stats_fill(struct ath10k *ar,
@@ -8374,7 +8388,8 @@ void ath10k_wmi_main_op_fw_stats_fill(struct ath10k *ar,
 				 "=================");
 
 	list_for_each_entry(peer, &fw_stats->peers, list) {
-		ath10k_wmi_fw_peer_stats_fill(peer, buf, &len);
+		ath10k_wmi_fw_peer_stats_fill(peer, buf, &len,
+					      fw_stats->extended);
 	}
 
 unlock:
@@ -8432,7 +8447,8 @@ void ath10k_wmi_10x_op_fw_stats_fill(struct ath10k *ar,
 				 "=================");
 
 	list_for_each_entry(peer, &fw_stats->peers, list) {
-		ath10k_wmi_fw_peer_stats_fill(peer, buf, &len);
+		ath10k_wmi_fw_peer_stats_fill(peer, buf, &len,
+					      fw_stats->extended);
 	}
 
 unlock:
@@ -8541,6 +8557,7 @@ void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 	const struct ath10k_fw_stats_pdev *pdev;
 	const struct ath10k_fw_stats_vdev_extd *vdev;
 	const struct ath10k_fw_stats_peer *peer;
+	const struct ath10k_fw_extd_stats_peer *extd_peer;
 	size_t num_peers;
 	size_t num_vdevs;
 
@@ -8603,7 +8620,15 @@ void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 				"=================");
 
 	list_for_each_entry(peer, &fw_stats->peers, list) {
-		ath10k_wmi_fw_peer_stats_fill(peer, buf, &len);
+		ath10k_wmi_fw_peer_stats_fill(peer, buf, &len,
+					      fw_stats->extended);
+	}
+
+	if (fw_stats->extended) {
+		list_for_each_entry(extd_peer, &fw_stats->peers_extd, list) {
+			ath10k_wmi_fw_extd_peer_stats_fill(extd_peer, buf,
+							   &len);
+		}
 	}
 
 unlock:

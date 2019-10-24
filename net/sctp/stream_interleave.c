@@ -1358,6 +1358,6 @@ void sctp_stream_interleave_init(struct sctp_stream *stream)
 	struct sctp_association *asoc;
 
 	asoc = container_of(stream, struct sctp_association, stream);
-	stream->si = asoc->intl_enable ? &sctp_stream_interleave_1
-				       : &sctp_stream_interleave_0;
+	stream->si = asoc->peer.intl_capable ? &sctp_stream_interleave_1
+					     : &sctp_stream_interleave_0;
 }

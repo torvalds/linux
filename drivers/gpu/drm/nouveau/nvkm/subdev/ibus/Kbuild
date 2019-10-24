@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/subdev/ibus/gf100.o
 nvkm-y += nvkm/subdev/ibus/gf117.o
 nvkm-y += nvkm/subdev/ibus/gk104.o

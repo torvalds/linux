@@ -20,14 +20,19 @@
  * Authors: Rafał Miłecki <zajec5@gmail.com>
  *          Alex Deucher <alexdeucher@gmail.com>
  */
-#include <drm/drmP.h>
-#include "radeon.h"
-#include "avivod.h"
-#include "atom.h"
-#include "r600_dpm.h"
-#include <linux/power_supply.h>
-#include <linux/hwmon.h>
+
 #include <linux/hwmon-sysfs.h>
+#include <linux/hwmon.h>
+#include <linux/power_supply.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_vblank.h>
+
+#include "atom.h"
+#include "avivod.h"
+#include "r600_dpm.h"
+#include "radeon.h"
 
 #define RADEON_IDLE_LOOP_MS 100
 #define RADEON_RECLOCK_DELAY_MS 200

@@ -1111,6 +1111,7 @@ static int smu10_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 static int smu10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			  void *value, int *size)
 {
+	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 	uint32_t sclk, mclk;
 	int ret = 0;
 
@@ -1131,6 +1132,10 @@ static int smu10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
 		*((uint32_t *)value) = smu10_thermal_get_temperature(hwmgr);
+		break;
+	case AMDGPU_PP_SENSOR_VCN_POWER_STATE:
+		*(uint32_t *)value =  smu10_data->vcn_power_gated ? 0 : 1;
+		*size = 4;
 		break;
 	default:
 		ret = -EINVAL;
@@ -1175,18 +1180,22 @@ static int smu10_powergate_sdma(struct pp_hwmgr *hwmgr, bool gate)
 
 static void smu10_powergate_vcn(struct pp_hwmgr *hwmgr, bool bgate)
 {
+	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+
 	if (bgate) {
 		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
 						AMD_IP_BLOCK_TYPE_VCN,
 						AMD_PG_STATE_GATE);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_PowerDownVcn, 0);
+		smu10_data->vcn_power_gated = true;
 	} else {
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_PowerUpVcn, 0);
 		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
 						AMD_IP_BLOCK_TYPE_VCN,
 						AMD_PG_STATE_UNGATE);
+		smu10_data->vcn_power_gated = false;
 	}
 }
 

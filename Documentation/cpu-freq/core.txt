@@ -95,7 +95,7 @@ flags	- flags of the cpufreq driver
 
 3. CPUFreq Table Generation with Operating Performance Point (OPP)
 ==================================================================
-For details about OPP, see Documentation/power/opp.txt
+For details about OPP, see Documentation/power/opp.rst
 
 dev_pm_opp_init_cpufreq_table -
 	This function provides a ready to use conversion routine to translate

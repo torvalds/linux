@@ -937,8 +937,13 @@ struct iwl_ftm_responder_stats {
 	__le16 reserved;
 } __packed; /* TOF_RESPONDER_STATISTICS_NTFY_S_VER_2 */
 
-#define IWL_CSI_CHUNK_CTL_NUM_MASK	0x3
-#define IWL_CSI_CHUNK_CTL_IDX_MASK	0xc
+#define IWL_CSI_MAX_EXPECTED_CHUNKS		16
+
+#define IWL_CSI_CHUNK_CTL_NUM_MASK_VER_1	0x0003
+#define IWL_CSI_CHUNK_CTL_IDX_MASK_VER_1	0x000c
+
+#define IWL_CSI_CHUNK_CTL_NUM_MASK_VER_2	0x00ff
+#define IWL_CSI_CHUNK_CTL_IDX_MASK_VER_2	0xff00
 
 struct iwl_csi_chunk_notification {
 	__le32 token;
@@ -946,6 +951,6 @@ struct iwl_csi_chunk_notification {
 	__le16 ctl;
 	__le32 size;
 	u8 data[];
-} __packed; /* CSI_CHUNKS_HDR_NTFY_API_S_VER_1 */
+} __packed; /* CSI_CHUNKS_HDR_NTFY_API_S_VER_1/VER_2 */
 
 #endif /* __iwl_fw_api_location_h__ */

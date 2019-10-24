@@ -146,7 +146,7 @@ struct media_device_info {
 #define MEDIA_ENT_FL_CONNECTOR			(1 << 1)
 
 /* OR with the entity id value to find the next entity */
-#define MEDIA_ENT_ID_FLAG_NEXT			(1 << 31)
+#define MEDIA_ENT_ID_FLAG_NEXT			(1U << 31)
 
 struct media_entity_desc {
 	__u32 id;

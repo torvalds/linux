@@ -124,11 +124,25 @@ int snd_dg00x_stream_get_external_rate(struct snd_dg00x *dg00x,
 
 static void finish_session(struct snd_dg00x *dg00x)
 {
-	__be32 data = cpu_to_be32(0x00000003);
+	__be32 data;
 
+	amdtp_stream_stop(&dg00x->tx_stream);
+	amdtp_stream_stop(&dg00x->rx_stream);
+
+	data = cpu_to_be32(0x00000003);
 	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
 			   DG00X_ADDR_BASE + DG00X_OFFSET_STREAMING_SET,
 			   &data, sizeof(data), 0);
+
+	// Unregister isochronous channels for both direction.
+	data = 0;
+	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
+			   &data, sizeof(data), 0);
+
+	// Just after finishing the session, the device may lost transmitting
+	// functionality for a short time.
+	msleep(50);
 }
 
 static int begin_session(struct snd_dg00x *dg00x)
@@ -137,11 +151,20 @@ static int begin_session(struct snd_dg00x *dg00x)
 	u32 curr;
 	int err;
 
+	// Register isochronous channels for both direction.
+	data = cpu_to_be32((dg00x->tx_resources.channel << 16) |
+			   dg00x->rx_resources.channel);
+	err = snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
+				 DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
+				 &data, sizeof(data), 0);
+	if (err < 0)
+		return err;
+
 	err = snd_fw_transaction(dg00x->unit, TCODE_READ_QUADLET_REQUEST,
 				 DG00X_ADDR_BASE + DG00X_OFFSET_STREAMING_STATE,
 				 &data, sizeof(data), 0);
 	if (err < 0)
-		goto error;
+		return err;
 	curr = be32_to_cpu(data);
 
 	if (curr == 0)
@@ -156,39 +179,23 @@ static int begin_session(struct snd_dg00x *dg00x)
 					 DG00X_OFFSET_STREAMING_SET,
 					 &data, sizeof(data), 0);
 		if (err < 0)
-			goto error;
+			break;
 
 		msleep(20);
 		curr--;
 	}
 
-	return 0;
-error:
-	finish_session(dg00x);
 	return err;
 }
 
-static void release_resources(struct snd_dg00x *dg00x)
+static int keep_resources(struct snd_dg00x *dg00x, struct amdtp_stream *stream,
+			  unsigned int rate)
 {
-	__be32 data = 0;
-
-	/* Unregister isochronous channels for both direction. */
-	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
-			   &data, sizeof(data), 0);
-
-	/* Release isochronous resources. */
-	fw_iso_resources_free(&dg00x->tx_resources);
-	fw_iso_resources_free(&dg00x->rx_resources);
-}
-
-static int keep_resources(struct snd_dg00x *dg00x, unsigned int rate)
-{
-	unsigned int i;
-	__be32 data;
+	struct fw_iso_resources *resources;
+	int i;
 	int err;
 
-	/* Check sampling rate. */
+	// Check sampling rate.
 	for (i = 0; i < SND_DG00X_RATE_COUNT; i++) {
 		if (snd_dg00x_stream_rates[i] == rate)
 			break;
@@ -196,41 +203,19 @@ static int keep_resources(struct snd_dg00x *dg00x, unsigned int rate)
 	if (i == SND_DG00X_RATE_COUNT)
 		return -EINVAL;
 
-	/* Keep resources for out-stream. */
-	err = amdtp_dot_set_parameters(&dg00x->rx_stream, rate,
+	if (stream == &dg00x->tx_stream)
+		resources = &dg00x->tx_resources;
+	else
+		resources = &dg00x->rx_resources;
+
+	err = amdtp_dot_set_parameters(stream, rate,
 				       snd_dg00x_stream_pcm_channels[i]);
 	if (err < 0)
 		return err;
-	err = fw_iso_resources_allocate(&dg00x->rx_resources,
-				amdtp_stream_get_max_payload(&dg00x->rx_stream),
+
+	return fw_iso_resources_allocate(resources,
+				amdtp_stream_get_max_payload(stream),
 				fw_parent_device(dg00x->unit)->max_speed);
-	if (err < 0)
-		return err;
-
-	/* Keep resources for in-stream. */
-	err = amdtp_dot_set_parameters(&dg00x->tx_stream, rate,
-				       snd_dg00x_stream_pcm_channels[i]);
-	if (err < 0)
-		return err;
-	err = fw_iso_resources_allocate(&dg00x->tx_resources,
-				amdtp_stream_get_max_payload(&dg00x->tx_stream),
-				fw_parent_device(dg00x->unit)->max_speed);
-	if (err < 0)
-		goto error;
-
-	/* Register isochronous channels for both direction. */
-	data = cpu_to_be32((dg00x->tx_resources.channel << 16) |
-			   dg00x->rx_resources.channel);
-	err = snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
-				 DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
-				 &data, sizeof(data), 0);
-	if (err < 0)
-		goto error;
-
-	return 0;
-error:
-	release_resources(dg00x);
-	return err;
 }
 
 int snd_dg00x_stream_init_duplex(struct snd_dg00x *dg00x)
@@ -272,28 +257,61 @@ void snd_dg00x_stream_destroy_duplex(struct snd_dg00x *dg00x)
 	fw_iso_resources_destroy(&dg00x->tx_resources);
 }
 
-int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x, unsigned int rate)
+int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate)
 {
 	unsigned int curr_rate;
+	int err;
+
+	err = snd_dg00x_stream_get_local_rate(dg00x, &curr_rate);
+	if (err < 0)
+		return err;
+	if (rate == 0)
+		rate = curr_rate;
+
+	if (dg00x->substreams_counter == 0 || curr_rate != rate) {
+		finish_session(dg00x);
+
+		fw_iso_resources_free(&dg00x->tx_resources);
+		fw_iso_resources_free(&dg00x->rx_resources);
+
+		err = snd_dg00x_stream_set_local_rate(dg00x, rate);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(dg00x, &dg00x->rx_stream, rate);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(dg00x, &dg00x->tx_stream, rate);
+		if (err < 0) {
+			fw_iso_resources_free(&dg00x->rx_resources);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
+{
+	unsigned int generation = dg00x->rx_resources.generation;
 	int err = 0;
 
 	if (dg00x->substreams_counter == 0)
-		goto end;
+		return 0;
 
-	/* Check current sampling rate. */
-	err = snd_dg00x_stream_get_local_rate(dg00x, &curr_rate);
-	if (err < 0)
-		goto error;
-	if (rate == 0)
-		rate = curr_rate;
-	if (curr_rate != rate ||
-	    amdtp_streaming_error(&dg00x->tx_stream) ||
-	    amdtp_streaming_error(&dg00x->rx_stream)) {
+	if (amdtp_streaming_error(&dg00x->tx_stream) ||
+	    amdtp_streaming_error(&dg00x->rx_stream))
 		finish_session(dg00x);
 
-		amdtp_stream_stop(&dg00x->tx_stream);
-		amdtp_stream_stop(&dg00x->rx_stream);
-		release_resources(dg00x);
+	if (generation != fw_parent_device(dg00x->unit)->card->generation) {
+		err = fw_iso_resources_update(&dg00x->tx_resources);
+		if (err < 0)
+			goto error;
+
+		err = fw_iso_resources_update(&dg00x->rx_resources);
+		if (err < 0)
+			goto error;
 	}
 
 	/*
@@ -301,14 +319,6 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x, unsigned int rate)
 	 * which source of clock is used.
 	 */
 	if (!amdtp_stream_running(&dg00x->rx_stream)) {
-		err = snd_dg00x_stream_set_local_rate(dg00x, rate);
-		if (err < 0)
-			goto error;
-
-		err = keep_resources(dg00x, rate);
-		if (err < 0)
-			goto error;
-
 		err = begin_session(dg00x);
 		if (err < 0)
 			goto error;
@@ -343,33 +353,22 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x, unsigned int rate)
 			goto error;
 		}
 	}
-end:
-	return err;
+
+	return 0;
 error:
 	finish_session(dg00x);
-
-	amdtp_stream_stop(&dg00x->tx_stream);
-	amdtp_stream_stop(&dg00x->rx_stream);
-	release_resources(dg00x);
 
 	return err;
 }
 
 void snd_dg00x_stream_stop_duplex(struct snd_dg00x *dg00x)
 {
-	if (dg00x->substreams_counter > 0)
-		return;
+	if (dg00x->substreams_counter == 0) {
+		finish_session(dg00x);
 
-	amdtp_stream_stop(&dg00x->tx_stream);
-	amdtp_stream_stop(&dg00x->rx_stream);
-	finish_session(dg00x);
-	release_resources(dg00x);
-
-	/*
-	 * Just after finishing the session, the device may lost transmitting
-	 * functionality for a short time.
-	 */
-	msleep(50);
+		fw_iso_resources_free(&dg00x->tx_resources);
+		fw_iso_resources_free(&dg00x->rx_resources);
+	}
 }
 
 void snd_dg00x_stream_update_duplex(struct snd_dg00x *dg00x)

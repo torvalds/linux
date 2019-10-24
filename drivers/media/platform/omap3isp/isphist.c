@@ -475,9 +475,9 @@ int omap3isp_hist_init(struct isp_device *isp)
 {
 	struct ispstat *hist = &isp->isp_hist;
 	struct omap3isp_hist_config *hist_cfg;
-	int ret = -1;
+	int ret;
 
-	hist_cfg = devm_kzalloc(isp->dev, sizeof(*hist_cfg), GFP_KERNEL);
+	hist_cfg = kzalloc(sizeof(*hist_cfg), GFP_KERNEL);
 	if (hist_cfg == NULL)
 		return -ENOMEM;
 
@@ -499,7 +499,7 @@ int omap3isp_hist_init(struct isp_device *isp)
 		if (IS_ERR(hist->dma_ch)) {
 			ret = PTR_ERR(hist->dma_ch);
 			if (ret == -EPROBE_DEFER)
-				return ret;
+				goto err;
 
 			hist->dma_ch = NULL;
 			dev_warn(isp->dev,
@@ -515,9 +515,12 @@ int omap3isp_hist_init(struct isp_device *isp)
 	hist->event_type = V4L2_EVENT_OMAP3ISP_HIST;
 
 	ret = omap3isp_stat_init(hist, "histogram", &hist_subdev_ops);
+
+err:
 	if (ret) {
-		if (hist->dma_ch)
+		if (!IS_ERR_OR_NULL(hist->dma_ch))
 			dma_release_channel(hist->dma_ch);
+		kfree(hist_cfg);
 	}
 
 	return ret;

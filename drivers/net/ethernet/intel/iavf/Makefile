@@ -12,4 +12,4 @@ subdir-ccflags-y += -I$(src)
 obj-$(CONFIG_IAVF) += iavf.o
 
 iavf-objs := iavf_main.o iavf_ethtool.o iavf_virtchnl.o \
-	     iavf_txrx.o iavf_common.o i40e_adminq.o iavf_client.o
+	     iavf_txrx.o iavf_common.o iavf_adminq.o iavf_client.o

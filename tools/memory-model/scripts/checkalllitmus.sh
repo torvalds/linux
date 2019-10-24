@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Run herd tests on all .litmus files in the litmus-tests directory
+# Run herd7 tests on all .litmus files in the litmus-tests directory
 # and check each file's result against a "Result:" comment within that
 # litmus test.  If the verification result does not match that specified
 # in the litmus test, this script prints an error message prefixed with

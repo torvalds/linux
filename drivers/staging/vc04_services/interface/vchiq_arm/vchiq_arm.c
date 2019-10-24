@@ -238,7 +238,7 @@ VCHIQ_STATUS_T vchiq_shutdown(VCHIQ_INSTANCE_T instance)
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p) called", __func__, instance);
 
-	if (mutex_lock_killable(&state->mutex) != 0)
+	if (mutex_lock_killable(&state->mutex))
 		return VCHIQ_RETRY;
 
 	/* Remove all services */
@@ -280,7 +280,7 @@ VCHIQ_STATUS_T vchiq_connect(VCHIQ_INSTANCE_T instance)
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p) called", __func__, instance);
 
-	if (mutex_lock_killable(&state->mutex) != 0) {
+	if (mutex_lock_killable(&state->mutex)) {
 		vchiq_log_trace(vchiq_core_log_level,
 			"%s: call to mutex_lock failed", __func__);
 		status = VCHIQ_RETRY;
@@ -532,7 +532,8 @@ add_completion(VCHIQ_INSTANCE_T instance, VCHIQ_REASON_T reason,
 		vchiq_log_trace(vchiq_arm_log_level,
 			"%s - completion queue full", __func__);
 		DEBUG_COUNT(COMPLETION_QUEUE_FULL_COUNT);
-		if (wait_for_completion_killable(&instance->remove_event)) {
+		if (wait_for_completion_interruptible(
+					&instance->remove_event)) {
 			vchiq_log_info(vchiq_arm_log_level,
 				"service_callback interrupted");
 			return VCHIQ_RETRY;
@@ -643,9 +644,8 @@ service_callback(VCHIQ_REASON_T reason, struct vchiq_header *header,
 			}
 
 			DEBUG_TRACE(SERVICE_CALLBACK_LINE);
-			if (wait_for_completion_killable(
-						&user_service->remove_event)
-				!= 0) {
+			if (wait_for_completion_interruptible(
+						&user_service->remove_event)) {
 				vchiq_log_info(vchiq_arm_log_level,
 					"%s interrupted", __func__);
 				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
@@ -849,7 +849,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		rc = mutex_lock_killable(&instance->state->mutex);
-		if (rc != 0) {
+		if (rc) {
 			vchiq_log_error(vchiq_arm_log_level,
 				"vchiq: connect: could not lock mutex for "
 				"state %d: %d",
@@ -873,9 +873,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		void *userdata;
 		int srvstate;
 
-		if (copy_from_user
-			 (&args, (const void __user *)arg,
-			  sizeof(args)) != 0) {
+		if (copy_from_user(&args, (const void __user *)arg,
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -939,7 +938,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				&(((struct vchiq_create_service __user *)
 					arg)->handle),
 				(const void *)&service->handle,
-				sizeof(service->handle)) != 0) {
+				sizeof(service->handle))) {
 				ret = -EFAULT;
 				vchiq_remove_service(service->handle);
 			}
@@ -978,7 +977,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		   has been closed until the client library calls the
 		   CLOSE_DELIVERED ioctl, signalling close_event. */
 		if (user_service->close_pending &&
-			wait_for_completion_killable(
+			wait_for_completion_interruptible(
 				&user_service->close_event))
 			status = VCHIQ_RETRY;
 		break;
@@ -1014,9 +1013,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VCHIQ_IOC_QUEUE_MESSAGE: {
 		struct vchiq_queue_message args;
 
-		if (copy_from_user
-			 (&args, (const void __user *)arg,
-			  sizeof(args)) != 0) {
+		if (copy_from_user(&args, (const void __user *)arg,
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1048,9 +1046,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			(cmd == VCHIQ_IOC_QUEUE_BULK_TRANSMIT) ?
 			VCHIQ_BULK_TRANSMIT : VCHIQ_BULK_RECEIVE;
 
-		if (copy_from_user
-			(&args, (const void __user *)arg,
-			sizeof(args)) != 0) {
+		if (copy_from_user(&args, (const void __user *)arg,
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1124,7 +1121,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				&(((struct vchiq_queue_bulk_transfer __user *)
 					arg)->mode),
 				(const void *)&mode_waiting,
-				sizeof(mode_waiting)) != 0)
+				sizeof(mode_waiting)))
 				ret = -EFAULT;
 		}
 	} break;
@@ -1139,7 +1136,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		if (copy_from_user(&args, (const void __user *)arg,
-			sizeof(args)) != 0) {
+			sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1154,10 +1151,10 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 			DEBUG_TRACE(AWAIT_COMPLETION_LINE);
 			mutex_unlock(&instance->completion_mutex);
-			rc = wait_for_completion_killable(
+			rc = wait_for_completion_interruptible(
 						&instance->insert_event);
 			mutex_lock(&instance->completion_mutex);
-			if (rc != 0) {
+			if (rc) {
 				DEBUG_TRACE(AWAIT_COMPLETION_LINE);
 				vchiq_log_info(vchiq_arm_log_level,
 					"AWAIT_COMPLETION interrupted");
@@ -1223,7 +1220,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					if (copy_from_user(&msgbuf,
 						(const void __user *)
 						&args.msgbufs[msgbufcount],
-						sizeof(msgbuf)) != 0) {
+						sizeof(msgbuf))) {
 						if (ret == 0)
 							ret = -EFAULT;
 						break;
@@ -1231,7 +1228,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 					/* Copy the message to user space */
 					if (copy_to_user(msgbuf, header,
-						msglen) != 0) {
+						msglen)) {
 						if (ret == 0)
 							ret = -EFAULT;
 						break;
@@ -1256,8 +1253,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					(size_t)args.buf + ret *
 					sizeof(struct vchiq_completion_data)),
 					completion,
-					sizeof(struct vchiq_completion_data))
-									!= 0) {
+					sizeof(struct vchiq_completion_data))) {
 						if (ret == 0)
 							ret = -EFAULT;
 					break;
@@ -1277,13 +1273,13 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					&((struct vchiq_await_completion *)arg)
 						->msgbufcount,
 					&msgbufcount,
-					sizeof(msgbufcount)) != 0) {
+					sizeof(msgbufcount))) {
 					ret = -EFAULT;
 				}
 			}
 		}
 
-		if (ret != 0)
+		if (ret)
 			complete(&instance->remove_event);
 		mutex_unlock(&instance->completion_mutex);
 		DEBUG_TRACE(AWAIT_COMPLETION_LINE);
@@ -1295,9 +1291,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct vchiq_header *header;
 
 		DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
-		if (copy_from_user
-			 (&args, (const void __user *)arg,
-			  sizeof(args)) != 0) {
+		if (copy_from_user(&args, (const void __user *)arg,
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1324,7 +1319,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			do {
 				spin_unlock(&msg_queue_spinlock);
 				DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
-				if (wait_for_completion_killable(
+				if (wait_for_completion_interruptible(
 					&user_service->insert_event)) {
 					vchiq_log_info(vchiq_arm_log_level,
 						"DEQUEUE_MESSAGE interrupted");
@@ -1383,7 +1378,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct vchiq_config config;
 
 		if (copy_from_user(&args, (const void __user *)arg,
-			sizeof(args)) != 0) {
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1402,9 +1397,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VCHIQ_IOC_SET_SERVICE_OPTION: {
 		struct vchiq_set_service_option args;
 
-		if (copy_from_user(
-			&args, (const void __user *)arg,
-			sizeof(args)) != 0) {
+		if (copy_from_user(&args, (const void __user *)arg,
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -2328,8 +2322,7 @@ vchiq_keepalive_thread_func(void *v)
 	while (1) {
 		long rc = 0, uc = 0;
 
-		if (wait_for_completion_killable(&arm_state->ka_evt)
-				!= 0) {
+		if (wait_for_completion_interruptible(&arm_state->ka_evt)) {
 			vchiq_log_error(vchiq_susp_log_level,
 				"%s interrupted", __func__);
 			flush_signals(current);
@@ -2561,72 +2554,6 @@ need_resume(struct vchiq_state *state)
 			vchiq_videocore_wanted(state);
 }
 
-static int
-block_resume(struct vchiq_arm_state *arm_state)
-{
-	int status = VCHIQ_SUCCESS;
-	const unsigned long timeout_val =
-				msecs_to_jiffies(FORCE_SUSPEND_TIMEOUT_MS);
-	int resume_count = 0;
-
-	/* Allow any threads which were blocked by the last force suspend to
-	 * complete if they haven't already.  Only give this one shot; if
-	 * blocked_count is incremented after blocked_blocker is completed
-	 * (which only happens when blocked_count hits 0) then those threads
-	 * will have to wait until next time around */
-	if (arm_state->blocked_count) {
-		reinit_completion(&arm_state->blocked_blocker);
-		write_unlock_bh(&arm_state->susp_res_lock);
-		vchiq_log_info(vchiq_susp_log_level, "%s wait for previously "
-			"blocked clients", __func__);
-		if (wait_for_completion_killable_timeout(
-				&arm_state->blocked_blocker, timeout_val)
-					<= 0) {
-			vchiq_log_error(vchiq_susp_log_level, "%s wait for "
-				"previously blocked clients failed", __func__);
-			status = VCHIQ_ERROR;
-			write_lock_bh(&arm_state->susp_res_lock);
-			goto out;
-		}
-		vchiq_log_info(vchiq_susp_log_level, "%s previously blocked "
-			"clients resumed", __func__);
-		write_lock_bh(&arm_state->susp_res_lock);
-	}
-
-	/* We need to wait for resume to complete if it's in process */
-	while (arm_state->vc_resume_state != VC_RESUME_RESUMED &&
-			arm_state->vc_resume_state > VC_RESUME_IDLE) {
-		if (resume_count > 1) {
-			status = VCHIQ_ERROR;
-			vchiq_log_error(vchiq_susp_log_level, "%s waited too "
-				"many times for resume", __func__);
-			goto out;
-		}
-		write_unlock_bh(&arm_state->susp_res_lock);
-		vchiq_log_info(vchiq_susp_log_level, "%s wait for resume",
-			__func__);
-		if (wait_for_completion_killable_timeout(
-				&arm_state->vc_resume_complete, timeout_val)
-					<= 0) {
-			vchiq_log_error(vchiq_susp_log_level, "%s wait for "
-				"resume failed (%s)", __func__,
-				resume_state_names[arm_state->vc_resume_state +
-							VC_RESUME_NUM_OFFSET]);
-			status = VCHIQ_ERROR;
-			write_lock_bh(&arm_state->susp_res_lock);
-			goto out;
-		}
-		vchiq_log_info(vchiq_susp_log_level, "%s resumed", __func__);
-		write_lock_bh(&arm_state->susp_res_lock);
-		resume_count++;
-	}
-	reinit_completion(&arm_state->resume_blocker);
-	arm_state->resume_blocked = 1;
-
-out:
-	return status;
-}
-
 static inline void
 unblock_resume(struct vchiq_arm_state *arm_state)
 {
@@ -2712,162 +2639,6 @@ out:
 	return;
 }
 
-static void
-output_timeout_error(struct vchiq_state *state)
-{
-	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
-	char err[50] = "";
-	int vc_use_count = arm_state->videocore_use_count;
-	int active_services = state->unused_service;
-	int i;
-
-	if (!arm_state->videocore_use_count) {
-		snprintf(err, sizeof(err), " Videocore usecount is 0");
-		goto output_msg;
-	}
-	for (i = 0; i < active_services; i++) {
-		struct vchiq_service *service_ptr = state->services[i];
-
-		if (service_ptr && service_ptr->service_use_count &&
-			(service_ptr->srvstate != VCHIQ_SRVSTATE_FREE)) {
-			snprintf(err, sizeof(err), " %c%c%c%c(%d) service has "
-				"use count %d%s", VCHIQ_FOURCC_AS_4CHARS(
-					service_ptr->base.fourcc),
-				 service_ptr->client_id,
-				 service_ptr->service_use_count,
-				 service_ptr->service_use_count ==
-					 vc_use_count ? "" : " (+ more)");
-			break;
-		}
-	}
-
-output_msg:
-	vchiq_log_error(vchiq_susp_log_level,
-		"timed out waiting for vc suspend (%d).%s",
-		 arm_state->autosuspend_override, err);
-
-}
-
-/* Try to get videocore into suspended state, regardless of autosuspend state.
-** We don't actually force suspend, since videocore may get into a bad state
-** if we force suspend at a bad time.  Instead, we wait for autosuspend to
-** determine a good point to suspend.  If this doesn't happen within 100ms we
-** report failure.
-**
-** Returns VCHIQ_SUCCESS if videocore suspended successfully, VCHIQ_RETRY if
-** videocore failed to suspend in time or VCHIQ_ERROR if interrupted.
-*/
-VCHIQ_STATUS_T
-vchiq_arm_force_suspend(struct vchiq_state *state)
-{
-	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
-	VCHIQ_STATUS_T status = VCHIQ_ERROR;
-	long rc = 0;
-	int repeat = -1;
-
-	if (!arm_state)
-		goto out;
-
-	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
-
-	write_lock_bh(&arm_state->susp_res_lock);
-
-	status = block_resume(arm_state);
-	if (status != VCHIQ_SUCCESS)
-		goto unlock;
-	if (arm_state->vc_suspend_state == VC_SUSPEND_SUSPENDED) {
-		/* Already suspended - just block resume and exit */
-		vchiq_log_info(vchiq_susp_log_level, "%s already suspended",
-			__func__);
-		status = VCHIQ_SUCCESS;
-		goto unlock;
-	} else if (arm_state->vc_suspend_state <= VC_SUSPEND_IDLE) {
-		/* initiate suspend immediately in the case that we're waiting
-		 * for the timeout */
-		stop_suspend_timer(arm_state);
-		if (!vchiq_videocore_wanted(state)) {
-			vchiq_log_info(vchiq_susp_log_level, "%s videocore "
-				"idle, initiating suspend", __func__);
-			status = vchiq_arm_vcsuspend(state);
-		} else if (arm_state->autosuspend_override <
-						FORCE_SUSPEND_FAIL_MAX) {
-			vchiq_log_info(vchiq_susp_log_level, "%s letting "
-				"videocore go idle", __func__);
-			status = VCHIQ_SUCCESS;
-		} else {
-			vchiq_log_warning(vchiq_susp_log_level, "%s failed too "
-				"many times - attempting suspend", __func__);
-			status = vchiq_arm_vcsuspend(state);
-		}
-	} else {
-		vchiq_log_info(vchiq_susp_log_level, "%s videocore suspend "
-			"in progress - wait for completion", __func__);
-		status = VCHIQ_SUCCESS;
-	}
-
-	/* Wait for suspend to happen due to system idle (not forced..) */
-	if (status != VCHIQ_SUCCESS)
-		goto unblock_resume;
-
-	do {
-		write_unlock_bh(&arm_state->susp_res_lock);
-
-		rc = wait_for_completion_killable_timeout(
-				&arm_state->vc_suspend_complete,
-				msecs_to_jiffies(FORCE_SUSPEND_TIMEOUT_MS));
-
-		write_lock_bh(&arm_state->susp_res_lock);
-		if (rc < 0) {
-			vchiq_log_warning(vchiq_susp_log_level, "%s "
-				"interrupted waiting for suspend", __func__);
-			status = VCHIQ_ERROR;
-			goto unblock_resume;
-		} else if (rc == 0) {
-			if (arm_state->vc_suspend_state > VC_SUSPEND_IDLE) {
-				/* Repeat timeout once if in progress */
-				if (repeat < 0) {
-					repeat = 1;
-					continue;
-				}
-			}
-			arm_state->autosuspend_override++;
-			output_timeout_error(state);
-
-			status = VCHIQ_RETRY;
-			goto unblock_resume;
-		}
-	} while (0 < (repeat--));
-
-	/* Check and report state in case we need to abort ARM suspend */
-	if (arm_state->vc_suspend_state != VC_SUSPEND_SUSPENDED) {
-		status = VCHIQ_RETRY;
-		vchiq_log_error(vchiq_susp_log_level,
-			"%s videocore suspend failed (state %s)", __func__,
-			suspend_state_names[arm_state->vc_suspend_state +
-						VC_SUSPEND_NUM_OFFSET]);
-		/* Reset the state only if it's still in an error state.
-		 * Something could have already initiated another suspend. */
-		if (arm_state->vc_suspend_state < VC_SUSPEND_IDLE)
-			set_suspend_state(arm_state, VC_SUSPEND_IDLE);
-
-		goto unblock_resume;
-	}
-
-	/* successfully suspended - unlock and exit */
-	goto unlock;
-
-unblock_resume:
-	/* all error states need to unblock resume before exit */
-	unblock_resume(arm_state);
-
-unlock:
-	write_unlock_bh(&arm_state->susp_res_lock);
-
-out:
-	vchiq_log_trace(vchiq_susp_log_level, "%s exit %d", __func__, status);
-	return status;
-}
-
 void
 vchiq_check_suspend(struct vchiq_state *state)
 {
@@ -2888,49 +2659,6 @@ vchiq_check_suspend(struct vchiq_state *state)
 
 out:
 	vchiq_log_trace(vchiq_susp_log_level, "%s exit", __func__);
-}
-
-int
-vchiq_arm_allow_resume(struct vchiq_state *state)
-{
-	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
-	int resume = 0;
-	int ret = -1;
-
-	if (!arm_state)
-		goto out;
-
-	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
-
-	write_lock_bh(&arm_state->susp_res_lock);
-	unblock_resume(arm_state);
-	resume = vchiq_check_resume(state);
-	write_unlock_bh(&arm_state->susp_res_lock);
-
-	if (resume) {
-		if (wait_for_completion_killable(
-			&arm_state->vc_resume_complete) < 0) {
-			vchiq_log_error(vchiq_susp_log_level,
-				"%s interrupted", __func__);
-			/* failed, cannot accurately derive suspend
-			 * state, so exit early. */
-			goto out;
-		}
-	}
-
-	read_lock_bh(&arm_state->susp_res_lock);
-	if (arm_state->vc_suspend_state == VC_SUSPEND_SUSPENDED) {
-		vchiq_log_info(vchiq_susp_log_level,
-				"%s: Videocore remains suspended", __func__);
-	} else {
-		vchiq_log_info(vchiq_susp_log_level,
-				"%s: Videocore resumed", __func__);
-		ret = 0;
-	}
-	read_unlock_bh(&arm_state->susp_res_lock);
-out:
-	vchiq_log_trace(vchiq_susp_log_level, "%s exit %d", __func__, ret);
-	return ret;
 }
 
 /* This function should be called with the write lock held */
@@ -3010,7 +2738,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 			vchiq_log_info(vchiq_susp_log_level, "%s %s resume "
 				"blocked - waiting...", __func__, entity);
 			if (wait_for_completion_killable(
-					&arm_state->resume_blocker) != 0) {
+					&arm_state->resume_blocker)) {
 				vchiq_log_error(vchiq_susp_log_level, "%s %s "
 					"wait for resume blocker interrupted",
 					__func__, entity);
@@ -3059,7 +2787,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		vchiq_log_info(vchiq_susp_log_level, "%s %s wait for resume",
 			__func__, entity);
 		if (wait_for_completion_killable(
-				&arm_state->vc_resume_complete) != 0) {
+				&arm_state->vc_resume_complete)) {
 			vchiq_log_error(vchiq_susp_log_level, "%s %s wait for "
 				"resume interrupted", __func__, entity);
 			ret = VCHIQ_ERROR;
@@ -3240,20 +2968,6 @@ static void suspend_timer_callback(struct timer_list *t)
 	vchiq_log_info(vchiq_susp_log_level,
 		"%s - suspend timer expired - check suspend", __func__);
 	vchiq_check_suspend(state);
-}
-
-VCHIQ_STATUS_T
-vchiq_use_service_no_resume(VCHIQ_SERVICE_HANDLE_T handle)
-{
-	VCHIQ_STATUS_T ret = VCHIQ_ERROR;
-	struct vchiq_service *service = find_service_by_handle(handle);
-
-	if (service) {
-		ret = vchiq_use_internal(service->state, service,
-				USE_TYPE_SERVICE_NO_RESUME);
-		unlock_service(service);
-	}
-	return ret;
 }
 
 VCHIQ_STATUS_T
@@ -3504,13 +3218,13 @@ static int vchiq_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, drvdata);
 
 	err = vchiq_platform_init(pdev, &g_state);
-	if (err != 0)
+	if (err)
 		goto failed_platform_init;
 
 	cdev_init(&vchiq_cdev, &vchiq_fops);
 	vchiq_cdev.owner = THIS_MODULE;
 	err = cdev_add(&vchiq_cdev, vchiq_devid, 1);
-	if (err != 0) {
+	if (err) {
 		vchiq_log_error(vchiq_arm_log_level,
 			"Unable to register device");
 		goto failed_platform_init;

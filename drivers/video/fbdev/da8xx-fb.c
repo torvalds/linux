@@ -1387,7 +1387,6 @@ static int fb_probe(struct platform_device *device)
 	da8xx_fb_info = framebuffer_alloc(sizeof(struct da8xx_fb_par),
 					&device->dev);
 	if (!da8xx_fb_info) {
-		dev_dbg(&device->dev, "Memory allocation failed for fb_info\n");
 		ret = -ENOMEM;
 		goto err_pm_runtime_disable;
 	}

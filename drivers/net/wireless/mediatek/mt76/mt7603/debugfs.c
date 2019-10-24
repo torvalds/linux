@@ -40,6 +40,35 @@ mt7603_radio_read(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int
+mt7603_edcca_set(void *data, u64 val)
+{
+	struct mt7603_dev *dev = data;
+
+	mutex_lock(&dev->mt76.mutex);
+
+	dev->ed_monitor_enabled = !!val;
+	dev->ed_monitor = dev->ed_monitor_enabled &&
+			  dev->mt76.region == NL80211_DFS_ETSI;
+	mt7603_init_edcca(dev);
+
+	mutex_unlock(&dev->mt76.mutex);
+
+	return 0;
+}
+
+static int
+mt7603_edcca_get(void *data, u64 *val)
+{
+	struct mt7603_dev *dev = data;
+
+	*val = dev->ed_monitor_enabled;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_edcca, mt7603_edcca_get,
+			 mt7603_edcca_set, "%lld\n");
+
 void mt7603_init_debugfs(struct mt7603_dev *dev)
 {
 	struct dentry *dir;
@@ -48,6 +77,7 @@ void mt7603_init_debugfs(struct mt7603_dev *dev)
 	if (!dir)
 		return;
 
+	debugfs_create_file("edcca", 0600, dir, dev, &fops_edcca);
 	debugfs_create_u32("reset_test", 0600, dir, &dev->reset_test);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "reset", dir,
 				    mt7603_reset_read);

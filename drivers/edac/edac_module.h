@@ -36,7 +36,7 @@ extern int edac_mc_get_log_ue(void);
 extern int edac_mc_get_log_ce(void);
 extern int edac_mc_get_panic_on_ue(void);
 extern int edac_get_poll_msec(void);
-extern int edac_mc_get_poll_msec(void);
+extern unsigned int edac_mc_get_poll_msec(void);
 
 unsigned edac_dimm_info_location(struct dimm_info *dimm, char *buf,
 				 unsigned len);
@@ -78,10 +78,10 @@ edac_debugfs_create_dir_at(const char *dirname, struct dentry *parent);
 struct dentry *
 edac_debugfs_create_file(const char *name, umode_t mode, struct dentry *parent,
 			 void *data, const struct file_operations *fops);
-struct dentry *
-edac_debugfs_create_x8(const char *name, umode_t mode, struct dentry *parent, u8 *value);
-struct dentry *
-edac_debugfs_create_x16(const char *name, umode_t mode, struct dentry *parent, u16 *value);
+void edac_debugfs_create_x8(const char *name, umode_t mode,
+			    struct dentry *parent, u8 *value);
+void edac_debugfs_create_x16(const char *name, umode_t mode,
+			     struct dentry *parent, u16 *value);
 #else
 static inline void edac_debugfs_init(void)					{ }
 static inline void edac_debugfs_exit(void)					{ }
@@ -92,12 +92,10 @@ edac_debugfs_create_dir_at(const char *dirname, struct dentry *parent)		{ return
 static inline struct dentry *
 edac_debugfs_create_file(const char *name, umode_t mode, struct dentry *parent,
 			 void *data, const struct file_operations *fops)	{ return NULL; }
-static inline struct dentry *
-edac_debugfs_create_x8(const char *name, umode_t mode,
-		       struct dentry *parent, u8 *value)			{ return NULL; }
-static inline struct dentry *
-edac_debugfs_create_x16(const char *name, umode_t mode,
-		       struct dentry *parent, u16 *value)			{ return NULL; }
+static inline void edac_debugfs_create_x8(const char *name, umode_t mode,
+					  struct dentry *parent, u8 *value)	{ }
+static inline void edac_debugfs_create_x16(const char *name, umode_t mode,
+					   struct dentry *parent, u16 *value)	{ }
 #endif
 
 /*

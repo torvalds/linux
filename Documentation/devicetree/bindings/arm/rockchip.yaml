@@ -316,6 +316,19 @@ properties:
           - const: haoyu,marsboard-rk3066
           - const: rockchip,rk3066a
 
+      - description: Hugsun X99 TV Box
+        items:
+          - const: hugsun,x99
+          - const: rockchip,rk3399
+
+      - description: Khadas Edge series boards
+        items:
+          - enum:
+              - khadas,edge
+              - khadas,edge-captain
+              - khadas,edge-v
+          - const: rockchip,rk3399
+
       - description: mqmaker MiQi
         items:
           - const: mqmaker,miqi

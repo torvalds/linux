@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: MIT
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>

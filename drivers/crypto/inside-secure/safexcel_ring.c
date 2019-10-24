@@ -145,6 +145,9 @@ struct safexcel_command_desc *safexcel_add_cdesc(struct safexcel_crypto_priv *pr
 			(lower_32_bits(context) & GENMASK(31, 2)) >> 2;
 		cdesc->control_data.context_hi = upper_32_bits(context);
 
+		if (priv->version == EIP197B || priv->version == EIP197D)
+			cdesc->control_data.options |= EIP197_OPTION_RC_AUTO;
+
 		/* TODO: large xform HMAC with SHA-384/512 uses refresh = 3 */
 		cdesc->control_data.refresh = 2;
 

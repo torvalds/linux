@@ -108,7 +108,7 @@ int utilfdt_read_err(const char *filename, char **buffp, size_t *len);
  * stderr.
  *
  * @param filename	The filename to write, or - for stdout
- * @param blob		Poiner to buffer containing fdt
+ * @param blob		Pointer to buffer containing fdt
  * @return 0 if ok, -1 on error
  */
 int utilfdt_write(const char *filename, const void *blob);
@@ -119,7 +119,7 @@ int utilfdt_write(const char *filename, const void *blob);
  * an error message for the user.
  *
  * @param filename	The filename to write, or - for stdout
- * @param blob		Poiner to buffer containing fdt
+ * @param blob		Pointer to buffer containing fdt
  * @return 0 if ok, else an errno value representing the error
  */
 int utilfdt_write_err(const char *filename, const void *blob);

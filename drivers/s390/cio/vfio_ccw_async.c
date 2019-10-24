@@ -70,7 +70,7 @@ static void vfio_ccw_async_region_release(struct vfio_ccw_private *private,
 
 }
 
-const struct vfio_ccw_regops vfio_ccw_async_region_ops = {
+static const struct vfio_ccw_regops vfio_ccw_async_region_ops = {
 	.read = vfio_ccw_async_region_read,
 	.write = vfio_ccw_async_region_write,
 	.release = vfio_ccw_async_region_release,

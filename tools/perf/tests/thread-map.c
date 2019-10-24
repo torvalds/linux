@@ -6,6 +6,7 @@
 #include "tests.h"
 #include "thread_map.h"
 #include "debug.h"
+#include <linux/zalloc.h>
 
 #define NAME	(const char *) "perf"
 #define NAMEUL	(unsigned long) NAME
@@ -133,7 +134,7 @@ int test__thread_map_remove(struct test *test __maybe_unused, int subtest __mayb
 			thread_map__remove(threads, 0));
 
 	for (i = 0; i < threads->nr; i++)
-		free(threads->map[i].comm);
+		zfree(&threads->map[i].comm);
 
 	free(threads);
 	return 0;

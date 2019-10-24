@@ -8,6 +8,7 @@
 
 #include <drv_types.h>
 #include <rtw_debug.h>
+#include <hal_btcoex.h>
 
 u32 GlobalDebugLevel = _drv_err_;
 
@@ -1350,7 +1351,7 @@ int proc_get_btcoex_dbg(struct seq_file *m, void *v)
 	char buf[512] = {0};
 	padapter = (struct adapter *)rtw_netdev_priv(dev);
 
-	rtw_btcoex_GetDBG(padapter, buf, 512);
+	hal_btcoex_GetDBG(padapter, buf, 512);
 
 	DBG_871X_SEL(m, "%s", buf);
 
@@ -1410,7 +1411,7 @@ ssize_t proc_set_btcoex_dbg(struct file *file, const char __user *buffer, size_t
 
 	DBG_871X(FUNC_ADPT_FMT ": input 0x%08X 0x%08X\n",
 		FUNC_ADPT_ARG(padapter), module[0], module[1]);
-	rtw_btcoex_SetDBG(padapter, module);
+	hal_btcoex_SetDBG(padapter, module);
 
 	return count;
 }
@@ -1428,7 +1429,7 @@ int proc_get_btcoex_info(struct seq_file *m, void *v)
 	if (!pbuf)
 		return -ENOMEM;
 
-	rtw_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);
+	hal_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);
 
 	DBG_871X_SEL(m, "%s\n", pbuf);
 

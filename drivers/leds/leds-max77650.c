@@ -64,7 +64,6 @@ static int max77650_led_probe(struct platform_device *pdev)
 {
 	struct device_node *of_node, *child;
 	struct max77650_led *leds, *led;
-	struct device *parent;
 	struct device *dev;
 	struct regmap *map;
 	const char *label;
@@ -72,7 +71,6 @@ static int max77650_led_probe(struct platform_device *pdev)
 	u32 reg;
 
 	dev = &pdev->dev;
-	parent = dev->parent;
 	of_node = dev->of_node;
 
 	if (!of_node)

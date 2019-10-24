@@ -238,7 +238,10 @@ your new subkey::
     work.
 
     If for some reason you prefer to stay with RSA subkeys, just replace
-    "ed25519" with "rsa2048" in the above command.
+    "ed25519" with "rsa2048" in the above command. Additionally, if you
+    plan to use a hardware device that does not support ED25519 ECC
+    keys, like Nitrokey Pro or a Yubikey, then you should use
+    "nistp256" instead or "ed25519."
 
 
 Back up your master key for disaster recovery
@@ -432,23 +435,23 @@ Available smartcard devices
 
 Unless all your laptops and workstations have smartcard readers, the
 easiest is to get a specialized USB device that implements smartcard
-functionality.  There are several options available:
+functionality. There are several options available:
 
 - `Nitrokey Start`_: Open hardware and Free Software, based on FSI
-  Japan's `Gnuk`_. Offers support for ECC keys, but fewest security
-  features (such as resistance to tampering or some side-channel
-  attacks).
-- `Nitrokey Pro`_: Similar to the Nitrokey Start, but more
-  tamper-resistant and offers more security features, but no ECC
-  support.
-- `Yubikey 4`_: proprietary hardware and software, but cheaper than
+  Japan's `Gnuk`_. One of the few available commercial devices that
+  support ED25519 ECC keys, but offer fewest security features (such as
+  resistance to tampering or some side-channel attacks).
+- `Nitrokey Pro 2`_: Similar to the Nitrokey Start, but more
+  tamper-resistant and offers more security features. Pro 2 supports ECC
+  cryptography (NISTP).
+- `Yubikey 5`_: proprietary hardware and software, but cheaper than
   Nitrokey Pro and comes available in the USB-C form that is more useful
   with newer laptops. Offers additional security features such as FIDO
-  U2F, but no ECC.
+  U2F, among others, and now finally supports ECC keys (NISTP).
 
 `LWN has a good review`_ of some of the above models, as well as several
-others. If you want to use ECC keys, your best bet among commercially
-available devices is the Nitrokey Start.
+others. Your choice will depend on cost, shipping availability in your
+geographical region, and open/proprietary hardware considerations.
 
 .. note::
 
@@ -457,8 +460,8 @@ available devices is the Nitrokey Start.
     Foundation.
 
 .. _`Nitrokey Start`: https://shop.nitrokey.com/shop/product/nitrokey-start-6
-.. _`Nitrokey Pro`: https://shop.nitrokey.com/shop/product/nitrokey-pro-3
-.. _`Yubikey 4`: https://www.yubico.com/product/yubikey-4-series/
+.. _`Nitrokey Pro 2`: https://shop.nitrokey.com/shop/product/nitrokey-pro-2-3
+.. _`Yubikey 5`: https://www.yubico.com/products/yubikey-5-overview/
 .. _Gnuk: http://www.fsij.org/doc-gnuk/
 .. _`LWN has a good review`: https://lwn.net/Articles/736231/
 .. _`qualify for a free Nitrokey Start`: https://www.kernel.org/nitrokey-digital-tokens-for-kernel-developers.html

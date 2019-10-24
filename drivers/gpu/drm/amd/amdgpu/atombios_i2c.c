@@ -22,7 +22,7 @@
  * Authors: Alex Deucher
  *
  */
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "atom.h"

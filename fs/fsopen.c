@@ -226,6 +226,8 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
 	case FSCONFIG_CMD_CREATE:
 		if (fc->phase != FS_CONTEXT_CREATE_PARAMS)
 			return -EBUSY;
+		if (!mount_capable(fc))
+			return -EPERM;
 		fc->phase = FS_CONTEXT_CREATING;
 		ret = vfs_get_tree(fc);
 		if (ret)

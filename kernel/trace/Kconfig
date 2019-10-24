@@ -597,9 +597,19 @@ config FTRACE_STARTUP_TEST
 	  functioning properly. It will do tests on all the configured
 	  tracers of ftrace.
 
+config EVENT_TRACE_STARTUP_TEST
+	bool "Run selftest on trace events"
+	depends on FTRACE_STARTUP_TEST
+	default y
+	help
+	  This option performs a test on all trace events in the system.
+	  It basically just enables each event and runs some code that
+	  will trigger events (not necessarily the event it enables)
+	  This may take some time run as there are a lot of events.
+
 config EVENT_TRACE_TEST_SYSCALLS
 	bool "Run selftest on syscall events"
-	depends on FTRACE_STARTUP_TEST
+	depends on EVENT_TRACE_STARTUP_TEST
 	help
 	 This option will also enable testing every syscall event.
 	 It only enables the event and disables it and runs various loads

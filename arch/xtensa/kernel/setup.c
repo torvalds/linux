@@ -405,10 +405,6 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 # endif
 #endif
-
-#ifdef CONFIG_PCI
-	platform_pcibios_init();
-#endif
 }
 
 static DEFINE_PER_CPU(struct cpu, cpu_data);
@@ -515,6 +511,7 @@ void cpu_reset(void)
 				      "add	%2, %2, %7\n\t"
 				      "addi	%0, %0, -1\n\t"
 				      "bnez	%0, 1b\n\t"
+				      "isync\n\t"
 				      /* Jump to identity mapping */
 				      "jx	%3\n"
 				      "2:\n\t"

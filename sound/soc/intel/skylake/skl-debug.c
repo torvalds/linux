@@ -251,3 +251,12 @@ err:
 	debugfs_remove_recursive(d->fs);
 	return NULL;
 }
+
+void skl_debugfs_exit(struct skl *skl)
+{
+	struct skl_debug *d = skl->debugfs;
+
+	debugfs_remove_recursive(d->fs);
+
+	d = NULL;
+}

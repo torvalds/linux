@@ -44,9 +44,6 @@
 				   MLX5_VPORT_UPLINK_PLACEHOLDER +	\
 				   MLX5_VPORT_ECPF_PLACEHOLDER(mdev))
 
-#define MLX5_TOTAL_VPORTS(mdev)	(MLX5_SPECIAL_VPORTS(mdev) +		\
-				 mlx5_core_max_vfs(mdev))
-
 #define MLX5_VPORT_MANAGER(mdev)					\
 	(MLX5_CAP_GEN(mdev, vport_group_manager) &&			\
 	 (MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&	\
@@ -58,6 +55,7 @@ enum {
 	MLX5_CAP_INLINE_MODE_NOT_REQUIRED,
 };
 
+/* Vport number for each function must keep unchanged */
 enum {
 	MLX5_VPORT_PF			= 0x0,
 	MLX5_VPORT_FIRST_VF		= 0x1,
@@ -69,7 +67,8 @@ u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport);
 int mlx5_modify_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
 				  u16 vport, u8 other_vport, u8 state);
 int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
-				     u16 vport, u8 *addr);
+				     u16 vport, bool other, u8 *addr);
+int mlx5_query_mac_address(struct mlx5_core_dev *mdev, u8 *addr);
 int mlx5_query_nic_vport_min_inline(struct mlx5_core_dev *mdev,
 				    u16 vport, u8 *min_inline);
 void mlx5_query_min_inline(struct mlx5_core_dev *mdev, u8 *min_inline);

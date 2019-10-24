@@ -57,7 +57,7 @@ struct runtime_instr_cb {
 	__u64 sf;
 	__u64 rsic;
 	__u64 reserved8;
-} __packed __aligned(8);
+} __attribute__((__packed__, __aligned__(8)));
 
 static inline void load_runtime_instr_cb(struct runtime_instr_cb *cb)
 {

@@ -4,6 +4,8 @@
  * Author: Vincent Abriou <vincent.abriou@st.com> for STMicroelectronics.
  */
 
+#include <drm/drm_print.h>
+
 #include "sti_hdmi_tx3g4c28phy.h"
 
 #define HDMI_SRZ_CFG                             0x504

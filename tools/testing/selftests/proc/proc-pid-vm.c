@@ -215,6 +215,11 @@ static const char str_vsyscall[] =
 "ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]\n";
 
 #ifdef __x86_64__
+static void sigaction_SIGSEGV(int _, siginfo_t *__, void *___)
+{
+	_exit(1);
+}
+
 /*
  * vsyscall page can't be unmapped, probe it with memory load.
  */
@@ -231,11 +236,19 @@ static void vsyscall(void)
 	if (pid == 0) {
 		struct rlimit rlim = {0, 0};
 		(void)setrlimit(RLIMIT_CORE, &rlim);
+
+		/* Hide "segfault at ffffffffff600000" messages. */
+		struct sigaction act;
+		memset(&act, 0, sizeof(struct sigaction));
+		act.sa_flags = SA_SIGINFO;
+		act.sa_sigaction = sigaction_SIGSEGV;
+		(void)sigaction(SIGSEGV, &act, NULL);
+
 		*(volatile int *)0xffffffffff600000UL;
 		exit(0);
 	}
-	wait(&wstatus);
-	if (WIFEXITED(wstatus)) {
+	waitpid(pid, &wstatus, 0);
+	if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) == 0) {
 		g_vsyscall = true;
 	}
 }

@@ -116,6 +116,9 @@
 		st,invalid-input-detect-mute;
 		/* 2 (half-bridge) and 1 (full-bridge) on-board power */
 		st,output-conf = /bits/ 8 <0x1>;
+		st,ch1-output-mapping = /bits/ 8 <0>;
+		st,ch2-output-mapping = /bits/ 8 <1>;
+		st,ch3-output-mapping = /bits/ 8 <2>;
 		st,needs_esd_watchdog;
 	};
 };

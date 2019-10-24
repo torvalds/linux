@@ -99,10 +99,7 @@ void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans_pcie *trans_pcie,
 	u16 len = byte_cnt;
 	__le16 bc_ent;
 
-	if (trans_pcie->bc_table_dword)
-		len = DIV_ROUND_UP(len, 4);
-
-	if (WARN_ON(len > 0xFFF || idx >= txq->n_window))
+	if (WARN(idx >= txq->n_window, "%d >= %d\n", idx, txq->n_window))
 		return;
 
 	filled_tfd_size = offsetof(struct iwl_tfh_tfd, tbs) +
@@ -117,11 +114,20 @@ void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans_pcie *trans_pcie,
 	 */
 	num_fetch_chunks = DIV_ROUND_UP(filled_tfd_size, 64) - 1;
 
-	bc_ent = cpu_to_le16(len | (num_fetch_chunks << 12));
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		/* Starting from 22560, the HW expects bytes */
+		WARN_ON(trans_pcie->bc_table_dword);
+		WARN_ON(len > 0x3FFF);
+		bc_ent = cpu_to_le16(len | (num_fetch_chunks << 14));
 		scd_bc_tbl_gen3->tfd_offset[idx] = bc_ent;
-	else
+	} else {
+		/* Until 22560, the HW expects DW */
+		WARN_ON(!trans_pcie->bc_table_dword);
+		len = DIV_ROUND_UP(len, 4);
+		WARN_ON(len > 0xFFF);
+		bc_ent = cpu_to_le16(len | (num_fetch_chunks << 12));
 		scd_bc_tbl->tfd_offset[idx] = bc_ent;
+	}
 }
 
 /*

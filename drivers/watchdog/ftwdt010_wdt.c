@@ -165,10 +165,8 @@ static int ftwdt010_wdt_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_watchdog_register_device(dev, &gwdt->wdd);
-	if (ret) {
-		dev_err(dev, "failed to register watchdog\n");
+	if (ret)
 		return ret;
-	}
 
 	/* Set up platform driver data */
 	platform_set_drvdata(pdev, gwdt);

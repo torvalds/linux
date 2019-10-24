@@ -18,6 +18,10 @@
 #define PDE_PFN_MASK			PAGE_MASK
 #define PASID_PDE_SHIFT			6
 #define MAX_NR_PASID_BITS		20
+#define PASID_TBL_ENTRIES		BIT(PASID_PDE_SHIFT)
+
+#define is_pasid_enabled(entry)		(((entry)->lo >> 3) & 0x1)
+#define get_pasid_dir_size(entry)	(1 << ((((entry)->lo >> 9) & 0x7) + 7))
 
 /*
  * Domain ID reserved for pasid entries programmed for first-level
@@ -48,6 +52,28 @@ struct pasid_table {
 	int			max_pasid;	/* max pasid */
 	struct list_head	dev;		/* device list */
 };
+
+/* Get PRESENT bit of a PASID directory entry. */
+static inline bool pasid_pde_is_present(struct pasid_dir_entry *pde)
+{
+	return READ_ONCE(pde->val) & PASID_PTE_PRESENT;
+}
+
+/* Get PASID table from a PASID directory entry. */
+static inline struct pasid_entry *
+get_pasid_table_from_pde(struct pasid_dir_entry *pde)
+{
+	if (!pasid_pde_is_present(pde))
+		return NULL;
+
+	return phys_to_virt(READ_ONCE(pde->val) & PDE_PFN_MASK);
+}
+
+/* Get PRESENT bit of a PASID table entry. */
+static inline bool pasid_pte_is_present(struct pasid_entry *pte)
+{
+	return READ_ONCE(pte->val[0]) & PASID_PTE_PRESENT;
+}
 
 extern u32 intel_pasid_max_id;
 int intel_pasid_alloc_id(void *ptr, int start, int end, gfp_t gfp);

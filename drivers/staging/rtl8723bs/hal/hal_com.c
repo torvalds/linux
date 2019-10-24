@@ -125,7 +125,7 @@ u8 hal_com_config_channel_plan(
 	if (0xFF == hw_channel_plan)
 		AutoLoadFail = true;
 
-	if (false == AutoLoadFail) {
+	if (!AutoLoadFail) {
 		u8 hw_chnlPlan;
 
 		hw_chnlPlan = hw_channel_plan & (~EEPROM_CHANNEL_PLAN_BY_HW_MASK);
@@ -961,12 +961,6 @@ clear_evt:
 	c2h_evt_clear(adapter);
 exit:
 	return ret;
-}
-
-
-u8  rtw_hal_networktype_to_raid(struct adapter *adapter, struct sta_info *psta)
-{
-	return networktype_to_raid_ex(adapter, psta);
 }
 
 u8 rtw_get_mgntframe_raid(struct adapter *adapter, unsigned char network_type)

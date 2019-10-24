@@ -4,6 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include "gem/selftests/igt_gem_utils.h"
+
 #include "igt_spinner.h"
 
 int igt_spinner_init(struct igt_spinner *spin, struct drm_i915_private *i915)
@@ -74,16 +76,11 @@ static int move_to_active(struct i915_vma *vma,
 {
 	int err;
 
+	i915_vma_lock(vma);
 	err = i915_vma_move_to_active(vma, rq, flags);
-	if (err)
-		return err;
+	i915_vma_unlock(vma);
 
-	if (!i915_gem_object_has_active_reference(vma->obj)) {
-		i915_gem_object_get(vma->obj);
-		i915_gem_object_set_active_reference(vma->obj);
-	}
-
-	return 0;
+	return err;
 }
 
 struct i915_request *
@@ -92,17 +89,16 @@ igt_spinner_create_request(struct igt_spinner *spin,
 			   struct intel_engine_cs *engine,
 			   u32 arbitration_command)
 {
-	struct i915_address_space *vm = &ctx->ppgtt->vm;
 	struct i915_request *rq = NULL;
 	struct i915_vma *hws, *vma;
 	u32 *batch;
 	int err;
 
-	vma = i915_vma_instance(spin->obj, vm, NULL);
+	vma = i915_vma_instance(spin->obj, ctx->vm, NULL);
 	if (IS_ERR(vma))
 		return ERR_CAST(vma);
 
-	hws = i915_vma_instance(spin->hws, vm, NULL);
+	hws = i915_vma_instance(spin->hws, ctx->vm, NULL);
 	if (IS_ERR(hws))
 		return ERR_CAST(hws);
 
@@ -114,7 +110,7 @@ igt_spinner_create_request(struct igt_spinner *spin,
 	if (err)
 		goto unpin_vma;
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto unpin_hws;

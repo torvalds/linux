@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <mach/hardware.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -207,6 +208,8 @@ static void __init em7210_init_machine(void)
 {
 	register_iop32x_gpio();
 	platform_device_register(&em7210_serial_device);
+	gpiod_add_lookup_table(&iop3xx_i2c0_gpio_lookup);
+	gpiod_add_lookup_table(&iop3xx_i2c1_gpio_lookup);
 	platform_device_register(&iop3xx_i2c0_device);
 	platform_device_register(&iop3xx_i2c1_device);
 	platform_device_register(&em7210_flash_device);

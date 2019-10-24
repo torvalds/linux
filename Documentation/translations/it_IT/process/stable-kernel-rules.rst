@@ -33,7 +33,7 @@ Regole sul tipo di patch che vengono o non vengono accettate nei sorgenti
  - Non deve includere alcuna correzione "banale" (correzioni grammaticali,
    pulizia dagli spazi bianchi, eccetera).
  - Deve rispettare le regole scritte in
-   :ref:`Documentation/translation/it_IT/process/submitting-patches.rst <it_submittingpatches>`
+   :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`
  - Questa patch o una equivalente deve esistere già nei sorgenti principali di
    Linux
 
@@ -43,7 +43,7 @@ Procedura per sottomettere patch per i sorgenti -stable
 
  - Se la patch contiene modifiche a dei file nelle cartelle net/ o drivers/net,
    allora seguite le linee guida descritte in
-   :ref:`Documentation/translation/it_IT/networking/netdev-FAQ.rst <it_netdev-FAQ>`;
+   :ref:`Documentation/translations/it_IT/networking/netdev-FAQ.rst <it_netdev-FAQ>`;
    ma solo dopo aver verificato al seguente indirizzo che la patch non sia
    già in coda:
    https://patchwork.ozlabs.org/bundle/davem/stable/?series=&submitter=&state=*&q=&archive=

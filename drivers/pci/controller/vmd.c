@@ -627,7 +627,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	 * 32-bit resources.  __pci_assign_resource() enforces that
 	 * artificial restriction to make sure everything will fit.
 	 *
-	 * The only way we could use a 64-bit non-prefechable MEMBAR is
+	 * The only way we could use a 64-bit non-prefetchable MEMBAR is
 	 * if its address is <4GB so that we can convert it to a 32-bit
 	 * resource.  To be visible to the host OS, all VMD endpoints must
 	 * be initially configured by platform BIOS, which includes setting

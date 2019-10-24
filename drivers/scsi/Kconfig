@@ -99,28 +99,6 @@ config CHR_DEV_ST
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/scsi/scsi.txt>. The module will be called st.
 
-config CHR_DEV_OSST
-	tristate "SCSI OnStream SC-x0 tape support"
-	depends on SCSI
-	---help---
-	  The OnStream SC-x0 SCSI tape drives cannot be driven by the
-	  standard st driver, but instead need this special osst driver and
-	  use the  /dev/osstX char device nodes (major 206).  Via usb-storage,
-	  you may be able to drive the USB-x0 and DI-x0 drives as well.
-	  Note that there is also a second generation of OnStream
-	  tape drives (ADR-x0) that supports the standard SCSI-2 commands for
-	  tapes (QIC-157) and can be driven by the standard driver st.
-	  For more information, you may have a look at the SCSI-HOWTO
-	  <http://www.tldp.org/docs.html#howto>  and
-	  <file:Documentation/scsi/osst.txt>  in the kernel source.
-	  More info on the OnStream driver may be found on
-	  <http://sourceforge.net/projects/osst/>
-	  Please also have a look at the standard st docu, as most of it
-	  applies to osst as well.
-
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/scsi/scsi.txt>. The module will be called osst.
-
 config BLK_DEV_SR
 	tristate "SCSI CDROM support"
 	depends on SCSI && BLK_DEV
@@ -183,7 +161,7 @@ config CHR_DEV_SCH
 	
 	  If you want to compile this as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt> and
+	  say M here and read <file:Documentation/kbuild/modules.rst> and
 	  <file:Documentation/scsi/scsi.txt>. The module will be called ch.o.
 	  If unsure, say N.
 
@@ -663,6 +641,41 @@ config SCSI_DMX3191D
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dmx3191d.
+
+config SCSI_FDOMAIN
+	tristate
+	depends on SCSI
+
+config SCSI_FDOMAIN_PCI
+	tristate "Future Domain TMC-3260/AHA-2920A PCI SCSI support"
+	depends on PCI && SCSI
+	select SCSI_FDOMAIN
+	help
+	  This is support for Future Domain's PCI SCSI host adapters (TMC-3260)
+	  and other adapters with PCI bus based on the Future Domain chipsets
+	  (Adaptec AHA-2920A).
+
+	  NOTE: Newer Adaptec AHA-2920C boards use the Adaptec AIC-7850 chip
+	  and should use the aic7xxx driver ("Adaptec AIC7xxx chipset SCSI
+	  controller support"). This Future Domain driver works with the older
+	  Adaptec AHA-2920A boards with a Future Domain chip on them.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fdomain_pci.
+
+config SCSI_FDOMAIN_ISA
+	tristate "Future Domain 16xx ISA SCSI support"
+	depends on ISA && SCSI
+	select CHECK_SIGNATURE
+	select SCSI_FDOMAIN
+	help
+	  This is support for Future Domain's 16-bit SCSI host adapters
+	  (TMC-1660/1680, TMC-1650/1670, TMC-1610M/MER/MEX) and other adapters
+	  with ISA bus based on the Future Domain chipsets (Quantum ISA-200S,
+	  ISA-250MG; and at least one IBM board).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fdomain_isa.
 
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
@@ -1474,7 +1487,7 @@ config ZFCP
 
           This driver is also available as a module. This module will be
           called zfcp. If you want to compile it as a module, say M here
-          and read <file:Documentation/kbuild/modules.txt>.
+          and read <file:Documentation/kbuild/modules.rst>.
 
 config SCSI_PMCRAID
 	tristate "PMC SIERRA Linux MaxRAID adapter support"
@@ -1510,9 +1523,9 @@ config SCSI_VIRTIO
 
 source "drivers/scsi/csiostor/Kconfig"
 
-endif # SCSI_LOWLEVEL
-
 source "drivers/scsi/pcmcia/Kconfig"
+
+endif # SCSI_LOWLEVEL
 
 source "drivers/scsi/device_handler/Kconfig"
 

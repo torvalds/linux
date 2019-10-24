@@ -307,23 +307,18 @@ static uint16_t scl_vop_cal_scale(enum scale_mode mode, uint32_t src,
 
 static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 			     uint32_t src_w, uint32_t src_h, uint32_t dst_w,
-			     uint32_t dst_h, uint32_t pixel_format)
+			     uint32_t dst_h, const struct drm_format_info *info)
 {
 	uint16_t yrgb_hor_scl_mode, yrgb_ver_scl_mode;
 	uint16_t cbcr_hor_scl_mode = SCALE_NONE;
 	uint16_t cbcr_ver_scl_mode = SCALE_NONE;
-	int hsub = drm_format_horz_chroma_subsampling(pixel_format);
-	int vsub = drm_format_vert_chroma_subsampling(pixel_format);
-	const struct drm_format_info *info;
 	bool is_yuv = false;
-	uint16_t cbcr_src_w = src_w / hsub;
-	uint16_t cbcr_src_h = src_h / vsub;
+	uint16_t cbcr_src_w = src_w / info->hsub;
+	uint16_t cbcr_src_h = src_h / info->vsub;
 	uint16_t vsu_mode;
 	uint16_t lb_mode;
 	uint32_t val;
 	int vskiplines;
-
-	info = drm_format_info(pixel_format);
 
 	if (info->is_yuv)
 		is_yuv = true;
@@ -823,8 +818,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		    (state->rotation & DRM_MODE_REFLECT_X) ? 1 : 0);
 
 	if (is_yuv) {
-		int hsub = drm_format_horz_chroma_subsampling(fb->format->format);
-		int vsub = drm_format_vert_chroma_subsampling(fb->format->format);
+		int hsub = fb->format->hsub;
+		int vsub = fb->format->vsub;
 		int bpp = fb->format->cpp[1];
 
 		uv_obj = fb->obj[1];
@@ -848,7 +843,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	if (win->phy->scl)
 		scl_vop_cal_scl_fac(vop, win, actual_w, actual_h,
 				    drm_rect_width(dest), drm_rect_height(dest),
-				    fb->format->format);
+				    fb->format);
 
 	VOP_WIN_SET(vop, win, act_info, act_info);
 	VOP_WIN_SET(vop, win, dsp_info, dsp_info);
@@ -1011,7 +1006,8 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 	struct vop *vop = to_vop(crtc);
 
 	adjusted_mode->clock =
-		clk_round_rate(vop->dclk, mode->clock * 1000) / 1000;
+		DIV_ROUND_UP(clk_round_rate(vop->dclk,
+					    adjusted_mode->clock * 1000), 1000);
 
 	return true;
 }
@@ -1215,17 +1211,6 @@ static void vop_crtc_destroy(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 }
 
-static void vop_crtc_reset(struct drm_crtc *crtc)
-{
-	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
-	kfree(crtc->state);
-
-	crtc->state = kzalloc(sizeof(struct rockchip_crtc_state), GFP_KERNEL);
-	if (crtc->state)
-		crtc->state->crtc = crtc;
-}
-
 static struct drm_crtc_state *vop_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *rockchip_state;
@@ -1245,6 +1230,17 @@ static void vop_crtc_destroy_state(struct drm_crtc *crtc,
 
 	__drm_atomic_helper_crtc_destroy_state(&s->base);
 	kfree(s);
+}
+
+static void vop_crtc_reset(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc_state *crtc_state =
+		kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+
+	if (crtc->state)
+		vop_crtc_destroy_state(crtc, crtc->state);
+
+	__drm_atomic_helper_crtc_reset(crtc, &crtc_state->base);
 }
 
 #ifdef CONFIG_DRM_ANALOGIX_DP

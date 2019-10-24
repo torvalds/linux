@@ -61,7 +61,6 @@ struct kgd_mem {
 
 	atomic_t invalid;
 	struct amdkfd_process_info *process_info;
-	struct page **user_pages;
 
 	struct amdgpu_sync sync;
 
@@ -136,10 +135,12 @@ int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 				uint32_t vmid, uint64_t gpu_addr,
 				uint32_t *ib_cmd, uint32_t ib_len);
 void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle);
+bool amdgpu_amdkfd_have_atomics_support(struct kgd_dev *kgd);
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void);
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void);
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void);
+struct kfd2kgd_calls *amdgpu_amdkfd_gfx_10_0_get_functions(void);
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid);
 
@@ -154,6 +155,10 @@ int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 				void **mem_obj, uint64_t *gpu_addr,
 				void **cpu_ptr, bool mqd_gfx9);
 void amdgpu_amdkfd_free_gtt_mem(struct kgd_dev *kgd, void *mem_obj);
+int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size, void **mem_obj);
+void amdgpu_amdkfd_free_gws(struct kgd_dev *kgd, void *mem_obj);
+int amdgpu_amdkfd_add_gws_to_process(void *info, void *gws, struct kgd_mem **mem);
+int amdgpu_amdkfd_remove_gws_from_process(void *info, void *mem);
 uint32_t amdgpu_amdkfd_get_fw_version(struct kgd_dev *kgd,
 				      enum kgd_engine_type type);
 void amdgpu_amdkfd_get_local_mem_info(struct kgd_dev *kgd,
@@ -169,6 +174,9 @@ int amdgpu_amdkfd_get_dmabuf_info(struct kgd_dev *kgd, int dma_buf_fd,
 				  uint32_t *flags);
 uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd);
 uint64_t amdgpu_amdkfd_get_hive_id(struct kgd_dev *kgd);
+uint64_t amdgpu_amdkfd_get_mmio_remap_phys_addr(struct kgd_dev *kgd);
+uint32_t amdgpu_amdkfd_get_num_gws(struct kgd_dev *kgd);
+uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *src);
 
 #define read_user_wptr(mmptr, wptr, dst)				\
 	({								\

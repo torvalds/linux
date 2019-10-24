@@ -205,6 +205,15 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for (i = 0; i < num_dai; i++) {
+		struct snd_soc_dai_link_component *dlc;
+
+		/* for CPU/Codec/Platform x 2 */
+		dlc = devm_kzalloc(&pdev->dev, 6 * sizeof(*dlc), GFP_KERNEL);
+		if (!dlc) {
+			dev_err(&pdev->dev, "failed to allocate dai_link\n");
+			return -ENOMEM;
+		}
+
 		ret = of_parse_phandle_with_args(audmix_np, "dais", NULL, i,
 						 &args);
 		if (ret < 0) {
@@ -231,13 +240,21 @@ static int imx_audmix_probe(struct platform_device *pdev)
 					       dai_name, "CPU-Capture");
 		}
 
+		priv->dai[i].cpus = &dlc[0];
+		priv->dai[i].codecs = &dlc[1];
+		priv->dai[i].platforms = &dlc[2];
+
+		priv->dai[i].num_cpus = 1;
+		priv->dai[i].num_codecs = 1;
+		priv->dai[i].num_platforms = 1;
+
 		priv->dai[i].name = dai_name;
 		priv->dai[i].stream_name = "HiFi-AUDMIX-FE";
-		priv->dai[i].codec_dai_name = "snd-soc-dummy-dai";
-		priv->dai[i].codec_name = "snd-soc-dummy";
-		priv->dai[i].cpu_of_node = args.np;
-		priv->dai[i].cpu_dai_name = dev_name(&cpu_pdev->dev);
-		priv->dai[i].platform_of_node = args.np;
+		priv->dai[i].codecs->dai_name = "snd-soc-dummy-dai";
+		priv->dai[i].codecs->name = "snd-soc-dummy";
+		priv->dai[i].cpus->of_node = args.np;
+		priv->dai[i].cpus->dai_name = dev_name(&cpu_pdev->dev);
+		priv->dai[i].platforms->of_node = args.np;
 		priv->dai[i].dynamic = 1;
 		priv->dai[i].dpcm_playback = 1;
 		priv->dai[i].dpcm_capture = (i == 0 ? 1 : 0);
@@ -252,12 +269,20 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		be_cp = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 				       "AUDMIX-Capture-%d", i);
 
+		priv->dai[num_dai + i].cpus = &dlc[3];
+		priv->dai[num_dai + i].codecs = &dlc[4];
+		priv->dai[num_dai + i].platforms = &dlc[5];
+
+		priv->dai[num_dai + i].num_cpus = 1;
+		priv->dai[num_dai + i].num_codecs = 1;
+		priv->dai[num_dai + i].num_platforms = 1;
+
 		priv->dai[num_dai + i].name = be_name;
-		priv->dai[num_dai + i].codec_dai_name = "snd-soc-dummy-dai";
-		priv->dai[num_dai + i].codec_name = "snd-soc-dummy";
-		priv->dai[num_dai + i].cpu_of_node = audmix_np;
-		priv->dai[num_dai + i].cpu_dai_name = be_name;
-		priv->dai[num_dai + i].platform_name = "snd-soc-dummy";
+		priv->dai[num_dai + i].codecs->dai_name = "snd-soc-dummy-dai";
+		priv->dai[num_dai + i].codecs->name = "snd-soc-dummy";
+		priv->dai[num_dai + i].cpus->of_node = audmix_np;
+		priv->dai[num_dai + i].cpus->dai_name = be_name;
+		priv->dai[num_dai + i].platforms->name = "snd-soc-dummy";
 		priv->dai[num_dai + i].no_pcm = 1;
 		priv->dai[num_dai + i].dpcm_playback = 1;
 		priv->dai[num_dai + i].dpcm_capture  = 1;

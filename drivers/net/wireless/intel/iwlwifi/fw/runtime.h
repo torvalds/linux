@@ -89,9 +89,7 @@ struct iwl_fwrt_shared_mem_cfg {
 	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 };
 
-enum iwl_fw_runtime_status {
-	IWL_FWRT_STATUS_DUMPING = 0,
-};
+#define IWL_FW_RUNTIME_DUMP_WK_NUM 5
 
 /**
  * struct iwl_fw_runtime - runtime data for firmware
@@ -100,7 +98,6 @@ enum iwl_fw_runtime_status {
  * @dev: device pointer
  * @ops: user ops
  * @ops_ctx: user ops context
- * @status: status flags
  * @fw_paging_db: paging database
  * @num_of_paging_blk: number of paging blocks
  * @num_of_pages_in_last_blk: number of pages in the last block
@@ -117,8 +114,6 @@ struct iwl_fw_runtime {
 	const struct iwl_fw_runtime_ops *ops;
 	void *ops_ctx;
 
-	unsigned long status;
-
 	/* Paging */
 	struct iwl_fw_paging fw_paging_db[NUM_OF_FW_PAGING_BLOCKS];
 	u16 num_of_paging_blk;
@@ -133,7 +128,12 @@ struct iwl_fw_runtime {
 	struct {
 		const struct iwl_fw_dump_desc *desc;
 		bool monitor_only;
-		struct delayed_work wk;
+		struct {
+			u8 idx;
+			enum iwl_fw_ini_trigger_id ini_trig_id;
+			struct delayed_work wk;
+		} wks[IWL_FW_RUNTIME_DUMP_WK_NUM];
+		unsigned long active_wks;
 
 		u8 conf;
 
@@ -145,8 +145,20 @@ struct iwl_fw_runtime {
 		u32 lmac_err_id[MAX_NUM_LMAC];
 		u32 umac_err_id;
 		void *fifo_iter;
-		enum iwl_fw_ini_trigger_id ini_trig_id;
 		struct timer_list periodic_trig;
+
+		u8 img_name[IWL_FW_INI_MAX_IMG_NAME_LEN];
+		u8 internal_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
+		u8 external_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
+
+		struct {
+			u8 type;
+			u8 subtype;
+			u32 lmac_major;
+			u32 lmac_minor;
+			u32 umac_major;
+			u32 umac_minor;
+		} fw_ver;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {

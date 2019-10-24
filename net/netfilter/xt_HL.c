@@ -29,7 +29,7 @@ ttl_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct ipt_TTL_info *info = par->targinfo;
 	int new_ttl;
 
-	if (!skb_make_writable(skb, skb->len))
+	if (skb_ensure_writable(skb, sizeof(*iph)))
 		return NF_DROP;
 
 	iph = ip_hdr(skb);
@@ -69,7 +69,7 @@ hl_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct ip6t_HL_info *info = par->targinfo;
 	int new_hl;
 
-	if (!skb_make_writable(skb, skb->len))
+	if (skb_ensure_writable(skb, sizeof(*ip6h)))
 		return NF_DROP;
 
 	ip6h = ipv6_hdr(skb);

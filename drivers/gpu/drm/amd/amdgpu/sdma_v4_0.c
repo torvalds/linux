@@ -21,8 +21,11 @@
  *
  */
 
+#include <linux/delay.h>
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
 #include "amdgpu.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_trace.h"
@@ -210,12 +213,14 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-		soc15_program_register_sequence(adev,
-						 golden_settings_sdma_4,
-						 ARRAY_SIZE(golden_settings_sdma_4));
-		soc15_program_register_sequence(adev,
-						 golden_settings_sdma_vg10,
-						 ARRAY_SIZE(golden_settings_sdma_vg10));
+		if (!amdgpu_virt_support_skip_setting(adev)) {
+			soc15_program_register_sequence(adev,
+							 golden_settings_sdma_4,
+							 ARRAY_SIZE(golden_settings_sdma_4));
+			soc15_program_register_sequence(adev,
+							 golden_settings_sdma_vg10,
+							 ARRAY_SIZE(golden_settings_sdma_vg10));
+		}
 		break;
 	case CHIP_VEGA12:
 		soc15_program_register_sequence(adev,
@@ -1090,7 +1095,7 @@ static int sdma_v4_0_load_microcode(struct amdgpu_device *adev)
 static int sdma_v4_0_start(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	int i, r;
+	int i, r = 0;
 
 	if (amdgpu_sriov_vf(adev)) {
 		sdma_v4_0_ctx_switch_enable(adev, false);
@@ -1207,7 +1212,7 @@ static int sdma_v4_0_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = le32_to_cpu(adev->wb.wb[index]);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -1521,8 +1526,25 @@ static int sdma_v4_0_late_init(void *handle)
 	}
 
 	/* handle resume path. */
-	if (*ras_if)
+	if (*ras_if) {
+		/* resend ras TA enable cmd during resume.
+		 * prepare to handle failure.
+		 */
+		ih_info.head = **ras_if;
+		r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
+		if (r) {
+			if (r == -EAGAIN) {
+				/* request a gpu reset. will run again. */
+				amdgpu_ras_request_reset_on_boot(adev,
+						AMDGPU_RAS_BLOCK__SDMA);
+				return 0;
+			}
+			/* fail to enable ras, cleanup all. */
+			goto irq;
+		}
+		/* enable successfully. continue. */
 		goto resume;
+	}
 
 	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
 	if (!*ras_if)
@@ -1531,8 +1553,14 @@ static int sdma_v4_0_late_init(void *handle)
 	**ras_if = ras_block;
 
 	r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
-	if (r)
+	if (r) {
+		if (r == -EAGAIN) {
+			amdgpu_ras_request_reset_on_boot(adev,
+					AMDGPU_RAS_BLOCK__SDMA);
+			r = 0;
+		}
 		goto feature;
+	}
 
 	ih_info.head = **ras_if;
 	fs_info.head = **ras_if;
@@ -1541,9 +1569,7 @@ static int sdma_v4_0_late_init(void *handle)
 	if (r)
 		goto interrupt;
 
-	r = amdgpu_ras_debugfs_create(adev, &fs_info);
-	if (r)
-		goto debugfs;
+	amdgpu_ras_debugfs_create(adev, &fs_info);
 
 	r = amdgpu_ras_sysfs_create(adev, &fs_info);
 	if (r)
@@ -1564,14 +1590,13 @@ irq:
 	amdgpu_ras_sysfs_remove(adev, *ras_if);
 sysfs:
 	amdgpu_ras_debugfs_remove(adev, *ras_if);
-debugfs:
 	amdgpu_ras_interrupt_remove_handler(adev, &ih_info);
 interrupt:
 	amdgpu_ras_feature_enable(adev, *ras_if, 0);
 feature:
 	kfree(*ras_if);
 	*ras_if = NULL;
-	return -EINVAL;
+	return r;
 }
 
 static int sdma_v4_0_sw_init(void *handle)

@@ -116,8 +116,6 @@ typedef struct {
 	/* Number of users of the external (Nest) MMU */
 	atomic_t copros;
 
-	/* NPU NMMU context */
-	struct npu_context *npu_context;
 	struct hash_mm_context *hash_context;
 
 	unsigned long vdso_base;

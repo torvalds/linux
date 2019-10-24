@@ -7,7 +7,7 @@
  * into PAGE_SIZE chunks).  They also assume the driver does not need
  * to touch the video data.
  *
- * (c) 2007 Mauro Carvalho Chehab, <mchehab@kernel.org>
+ * (c) 2007 Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 #include <linux/init.h>

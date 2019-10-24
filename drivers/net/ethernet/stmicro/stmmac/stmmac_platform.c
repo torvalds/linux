@@ -323,21 +323,6 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 		{},
 	};
 
-	/* If phy-handle property is passed from DT, use it as the PHY */
-	plat->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (plat->phy_node)
-		dev_dbg(dev, "Found phy-handle subnode\n");
-
-	/* If phy-handle is not specified, check if we have a fixed-phy */
-	if (!plat->phy_node && of_phy_is_fixed_link(np)) {
-		if ((of_phy_register_fixed_link(np) < 0))
-			return -ENODEV;
-
-		dev_dbg(dev, "Found fixed-link subnode\n");
-		plat->phy_node = of_node_get(np);
-		mdio = false;
-	}
-
 	if (of_match_node(need_mdio_ids, np)) {
 		plat->mdio_node = of_get_child_by_name(np, "mdio");
 	} else {
@@ -385,7 +370,21 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		return ERR_PTR(-ENOMEM);
 
 	*mac = of_get_mac_address(np);
+	if (IS_ERR(*mac)) {
+		if (PTR_ERR(*mac) == -EPROBE_DEFER)
+			return ERR_CAST(*mac);
+
+		*mac = NULL;
+	}
+
 	plat->interface = of_get_phy_mode(np);
+
+	/* Some wrapper drivers still rely on phy_node. Let's save it while
+	 * they are not converted to phylink. */
+	plat->phy_node = of_parse_phandle(np, "phy-handle", 0);
+
+	/* PHYLINK automatically parses the phy-handle property */
+	plat->phylink_node = np;
 
 	/* Get max speed of operation from device tree */
 	if (of_property_read_u32(np, "max-speed", &plat->max_speed))
@@ -581,10 +580,6 @@ error_pclk_get:
 void stmmac_remove_config_dt(struct platform_device *pdev,
 			     struct plat_stmmacenet_data *plat)
 {
-	struct device_node *np = pdev->dev.of_node;
-
-	if (of_phy_is_fixed_link(np))
-		of_phy_deregister_fixed_link(np);
 	of_node_put(plat->phy_node);
 	of_node_put(plat->mdio_node);
 }

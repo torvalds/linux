@@ -87,7 +87,7 @@ struct intel_vgpu_gm {
 
 /* Fences owned by a vGPU */
 struct intel_vgpu_fence {
-	struct drm_i915_fence_reg *regs[INTEL_GVT_MAX_NUM_FENCES];
+	struct i915_fence_reg *regs[INTEL_GVT_MAX_NUM_FENCES];
 	u32 base;
 	u32 size;
 };
@@ -149,9 +149,9 @@ struct intel_vgpu_submission_ops {
 struct intel_vgpu_submission {
 	struct intel_vgpu_execlist execlist[I915_NUM_ENGINES];
 	struct list_head workload_q_head[I915_NUM_ENGINES];
+	struct intel_context *shadow[I915_NUM_ENGINES];
 	struct kmem_cache *workloads;
 	atomic_t running_workload_num;
-	struct i915_gem_context *shadow_ctx;
 	union {
 		u64 i915_context_pml4;
 		u64 i915_context_pdps[GEN8_3LVL_PDPES];
@@ -390,7 +390,7 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 #define gvt_hidden_gmadr_end(gvt) (gvt_hidden_gmadr_base(gvt) \
 				   + gvt_hidden_sz(gvt) - 1)
 
-#define gvt_fence_sz(gvt) (gvt->dev_priv->num_fence_regs)
+#define gvt_fence_sz(gvt) ((gvt)->dev_priv->ggtt.num_fences)
 
 /* Aperture/GM space definitions for vGPU */
 #define vgpu_aperture_offset(vgpu)	((vgpu)->gm.low_gm_node.start)
@@ -584,12 +584,12 @@ enum {
 
 static inline void mmio_hw_access_pre(struct drm_i915_private *dev_priv)
 {
-	intel_runtime_pm_get(dev_priv);
+	intel_runtime_pm_get(&dev_priv->runtime_pm);
 }
 
 static inline void mmio_hw_access_post(struct drm_i915_private *dev_priv)
 {
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
 }
 
 /**

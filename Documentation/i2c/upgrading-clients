@@ -43,7 +43,7 @@ static int example_attach(struct i2c_adapter *adap, int addr, int kind)
 	example->client.adapter = adap;
 
 	i2c_set_clientdata(&state->i2c_client, state);
-	strlcpy(client->i2c_client.name, "example", I2C_NAME_SIZE);
+	strscpy(client->i2c_client.name, "example", sizeof(client->i2c_client.name));
 
 	ret = i2c_attach_client(&state->i2c_client);
 	if (ret < 0) {
@@ -138,7 +138,7 @@ can be removed:
 -	example->client.flags   = 0;
 -	example->client.adapter = adap;
 -
--	strlcpy(client->i2c_client.name, "example", I2C_NAME_SIZE);
+-	strscpy(client->i2c_client.name, "example", sizeof(client->i2c_client.name));
 
 The i2c_set_clientdata is now:
 

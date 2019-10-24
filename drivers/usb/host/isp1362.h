@@ -11,7 +11,7 @@
 
 #define USE_32BIT		0
 
-/* These options are mutually eclusive */
+/* These options are mutually exclusive */
 #define USE_PLATFORM_DELAY	0
 #define USE_NDELAY		0
 

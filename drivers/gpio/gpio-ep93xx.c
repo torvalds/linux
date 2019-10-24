@@ -393,16 +393,13 @@ static int ep93xx_gpio_add_bank(struct gpio_chip *gc, struct device *dev,
 static int ep93xx_gpio_probe(struct platform_device *pdev)
 {
 	struct ep93xx_gpio *epg;
-	struct resource *res;
 	int i;
-	struct device *dev = &pdev->dev;
 
-	epg = devm_kzalloc(dev, sizeof(*epg), GFP_KERNEL);
+	epg = devm_kzalloc(&pdev->dev, sizeof(*epg), GFP_KERNEL);
 	if (!epg)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	epg->base = devm_ioremap_resource(dev, res);
+	epg->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(epg->base))
 		return PTR_ERR(epg->base);
 

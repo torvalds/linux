@@ -4,6 +4,7 @@
 
 #ifndef _RMNET_MAP_H_
 #define _RMNET_MAP_H_
+#include <linux/if_rmnet.h>
 
 struct rmnet_map_control_command {
 	u8  command_name;
@@ -30,30 +31,6 @@ enum rmnet_map_commands {
 	RMNET_MAP_COMMAND_UNKNOWN,
 	RMNET_MAP_COMMAND_ENUM_LENGTH
 };
-
-struct rmnet_map_header {
-	u8  pad_len:6;
-	u8  reserved_bit:1;
-	u8  cd_bit:1;
-	u8  mux_id;
-	__be16 pkt_len;
-}  __aligned(1);
-
-struct rmnet_map_dl_csum_trailer {
-	u8  reserved1;
-	u8  valid:1;
-	u8  reserved2:7;
-	u16 csum_start_offset;
-	u16 csum_length;
-	__be16 csum_value;
-} __aligned(1);
-
-struct rmnet_map_ul_csum_header {
-	__be16 csum_start_offset;
-	u16 csum_insert_offset:14;
-	u16 udp_ip4_ind:1;
-	u16 csum_enabled:1;
-} __aligned(1);
 
 #define RMNET_MAP_GET_MUX_ID(Y) (((struct rmnet_map_header *) \
 				 (Y)->data)->mux_id)

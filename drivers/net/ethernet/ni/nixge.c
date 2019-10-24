@@ -990,7 +990,7 @@ static void nixge_ethtools_get_drvinfo(struct net_device *ndev,
 				       struct ethtool_drvinfo *ed)
 {
 	strlcpy(ed->driver, "nixge", sizeof(ed->driver));
-	strlcpy(ed->bus_info, "platform", sizeof(ed->driver));
+	strlcpy(ed->bus_info, "platform", sizeof(ed->bus_info));
 }
 
 static int nixge_ethtools_get_coalesce(struct net_device *ndev,

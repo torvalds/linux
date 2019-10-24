@@ -28,7 +28,7 @@
 
 MODULE_DESCRIPTION("driver for cx2388x/cx23416 based mpeg encoder cards");
 MODULE_AUTHOR("Jelle Foks <jelle@foks.us>, Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(CX88_VERSION);
 
 static unsigned int debug;
@@ -1136,6 +1136,10 @@ static int blackbird_register_video(struct cx8802_dev *dev)
 	dev->mpeg_dev.ctrl_handler = &dev->cxhdl.hdl;
 	video_set_drvdata(&dev->mpeg_dev, dev);
 	dev->mpeg_dev.queue = &dev->vb2_mpegq;
+	dev->mpeg_dev.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				    V4L2_CAP_VIDEO_CAPTURE;
+	if (dev->core->board.tuner_type != UNSET)
+		dev->mpeg_dev.device_caps |= V4L2_CAP_TUNER;
 	err = video_register_device(&dev->mpeg_dev, VFL_TYPE_GRABBER, -1);
 	if (err < 0) {
 		pr_info("can't register mpeg device\n");

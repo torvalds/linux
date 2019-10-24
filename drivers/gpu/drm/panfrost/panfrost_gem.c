@@ -53,6 +53,7 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 	int ret;
 	struct panfrost_device *pfdev = dev->dev_private;
 	struct panfrost_gem_object *obj;
+	u64 align;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
@@ -60,9 +61,12 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 
 	obj->base.base.funcs = &panfrost_gem_funcs;
 
+	size = roundup(size, PAGE_SIZE);
+	align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
+
 	spin_lock(&pfdev->mm_lock);
-	ret = drm_mm_insert_node(&pfdev->mm, &obj->node,
-				 roundup(size, PAGE_SIZE) >> PAGE_SHIFT);
+	ret = drm_mm_insert_node_generic(&pfdev->mm, &obj->node,
+					 size >> PAGE_SHIFT, align, 0, 0);
 	spin_unlock(&pfdev->mm_lock);
 	if (ret)
 		goto free_obj;

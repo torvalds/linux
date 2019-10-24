@@ -4,6 +4,7 @@
  * so it needs platform-specific support outside of the core.
  *
  * Copyright 2011 Jonathan Corbet corbet@lwn.net
+ * Copyright 2018 Lubomir Rintel <lkundrak@v3.sk>
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -21,12 +22,12 @@
 #include <linux/vmalloc.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/i2c/ov7670.h>
 #include <media/videobuf2-vmalloc.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
@@ -92,6 +93,9 @@ MODULE_PARM_DESC(buffer_mode,
 
 #define sensor_call(cam, o, f, args...) \
 	v4l2_subdev_call(cam->sensor, o, f, ##args)
+
+#define notifier_to_mcam(notifier) \
+	container_of(notifier, struct mcam_camera, notifier)
 
 static struct mcam_format_struct {
 	__u8 *desc;
@@ -200,7 +204,6 @@ struct mcam_vb_buffer {
 	struct list_head queue;
 	struct mcam_dma_desc *dma_desc;	/* Descriptor virtual address */
 	dma_addr_t dma_desc_pa;		/* Descriptor physical address */
-	int dma_desc_nent;		/* Number of mapped descriptors */
 };
 
 static inline struct mcam_vb_buffer *vb_to_mvb(struct vb2_v4l2_buffer *vb)
@@ -282,6 +285,8 @@ static void mcam_ctlr_stop(struct mcam_camera *cam)
 static void mcam_enable_mipi(struct mcam_camera *mcam)
 {
 	/* Using MIPI mode and enable MIPI */
+	if (mcam->calc_dphy)
+		mcam->calc_dphy(mcam);
 	cam_dbg(mcam, "camera: DPHY3=0x%x, DPHY5=0x%x, DPHY6=0x%x\n",
 			mcam->dphy[0], mcam->dphy[1], mcam->dphy[2]);
 	mcam_reg_write(mcam, REG_CSI2_DPHY3, mcam->dphy[0]);
@@ -301,9 +306,6 @@ static void mcam_enable_mipi(struct mcam_camera *mcam)
 		 */
 		mcam_reg_write(mcam, REG_CSI2_CTRL0,
 			CSI2_C0_MIPI_EN | CSI2_C0_ACT_LANE(mcam->lane));
-		mcam_reg_write(mcam, REG_CLKCTRL,
-			(mcam->mclk_src << 29) | mcam->mclk_div);
-
 		mcam->mipi_enabled = true;
 	}
 }
@@ -608,9 +610,11 @@ static void mcam_dma_contig_done(struct mcam_camera *cam, int frame)
 static void mcam_sg_next_buffer(struct mcam_camera *cam)
 {
 	struct mcam_vb_buffer *buf;
+	struct sg_table *sg_table;
 
 	buf = list_first_entry(&cam->buffers, struct mcam_vb_buffer, queue);
 	list_del_init(&buf->queue);
+	sg_table = vb2_dma_sg_plane_desc(&buf->vb_buf.vb2_buf, 0);
 	/*
 	 * Very Bad Not Good Things happen if you don't clear
 	 * C1_DESC_ENA before making any descriptor changes.
@@ -618,7 +622,7 @@ static void mcam_sg_next_buffer(struct mcam_camera *cam)
 	mcam_reg_clear_bit(cam, REG_CTRL1, C1_DESC_ENA);
 	mcam_reg_write(cam, REG_DMA_DESC_Y, buf->dma_desc_pa);
 	mcam_reg_write(cam, REG_DESC_LEN_Y,
-			buf->dma_desc_nent*sizeof(struct mcam_dma_desc));
+			sg_table->nents * sizeof(struct mcam_dma_desc));
 	mcam_reg_write(cam, REG_DESC_LEN_U, 0);
 	mcam_reg_write(cam, REG_DESC_LEN_V, 0);
 	mcam_reg_set_bit(cam, REG_CTRL1, C1_DESC_ENA);
@@ -791,12 +795,6 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 	 * Make sure it knows we want to use hsync/vsync.
 	 */
 	mcam_reg_write_mask(cam, REG_CTRL0, C0_SIF_HVSYNC, C0_SIFM_MASK);
-	/*
-	 * This field controls the generation of EOF(DVP only)
-	 */
-	if (cam->bus_type != V4L2_MBUS_CSI2_DPHY)
-		mcam_reg_set_bit(cam, REG_CTRL0,
-				C0_EOF_VSYNC | C0_VEDGE_CTRL);
 }
 
 
@@ -831,31 +829,6 @@ static void mcam_ctlr_irq_disable(struct mcam_camera *cam)
 {
 	mcam_reg_clear_bit(cam, REG_IRQMASK, FRAMEIRQS);
 }
-
-
-
-static void mcam_ctlr_init(struct mcam_camera *cam)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&cam->dev_lock, flags);
-	/*
-	 * Make sure it's not powered down.
-	 */
-	mcam_reg_clear_bit(cam, REG_CTRL1, C1_PWRDWN);
-	/*
-	 * Turn off the enable bit.  It sure should be off anyway,
-	 * but it's good to be sure.
-	 */
-	mcam_reg_clear_bit(cam, REG_CTRL0, C0_ENABLE);
-	/*
-	 * Clock the sensor appropriately.  Controller clock should
-	 * be 48MHz, sensor "typical" value is half that.
-	 */
-	mcam_reg_write_mask(cam, REG_CLKCTRL, 2, CLK_DIV_MASK);
-	spin_unlock_irqrestore(&cam->dev_lock, flags);
-}
-
 
 /*
  * Stop the controller, and don't return until we're really sure that no
@@ -900,14 +873,15 @@ static int mcam_ctlr_power_up(struct mcam_camera *cam)
 	int ret;
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
-	ret = cam->plat_power_up(cam);
-	if (ret) {
-		spin_unlock_irqrestore(&cam->dev_lock, flags);
-		return ret;
+	if (cam->plat_power_up) {
+		ret = cam->plat_power_up(cam);
+		if (ret) {
+			spin_unlock_irqrestore(&cam->dev_lock, flags);
+			return ret;
+		}
 	}
 	mcam_reg_clear_bit(cam, REG_CTRL1, C1_PWRDWN);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
-	msleep(5); /* Just to be sure */
 	return 0;
 }
 
@@ -922,9 +896,100 @@ static void mcam_ctlr_power_down(struct mcam_camera *cam)
 	 * power down routine.
 	 */
 	mcam_reg_set_bit(cam, REG_CTRL1, C1_PWRDWN);
-	cam->plat_power_down(cam);
+	if (cam->plat_power_down)
+		cam->plat_power_down(cam);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 }
+
+/* ---------------------------------------------------------------------- */
+/*
+ * Controller clocks.
+ */
+static void mcam_clk_enable(struct mcam_camera *mcam)
+{
+	unsigned int i;
+
+	for (i = 0; i < NR_MCAM_CLK; i++) {
+		if (!IS_ERR(mcam->clk[i]))
+			clk_prepare_enable(mcam->clk[i]);
+	}
+}
+
+static void mcam_clk_disable(struct mcam_camera *mcam)
+{
+	int i;
+
+	for (i = NR_MCAM_CLK - 1; i >= 0; i--) {
+		if (!IS_ERR(mcam->clk[i]))
+			clk_disable_unprepare(mcam->clk[i]);
+	}
+}
+
+/* ---------------------------------------------------------------------- */
+/*
+ * Master sensor clock.
+ */
+static int mclk_prepare(struct clk_hw *hw)
+{
+	struct mcam_camera *cam = container_of(hw, struct mcam_camera, mclk_hw);
+
+	clk_prepare(cam->clk[0]);
+	return 0;
+}
+
+static void mclk_unprepare(struct clk_hw *hw)
+{
+	struct mcam_camera *cam = container_of(hw, struct mcam_camera, mclk_hw);
+
+	clk_unprepare(cam->clk[0]);
+}
+
+static int mclk_enable(struct clk_hw *hw)
+{
+	struct mcam_camera *cam = container_of(hw, struct mcam_camera, mclk_hw);
+	int mclk_src;
+	int mclk_div;
+
+	/*
+	 * Clock the sensor appropriately.  Controller clock should
+	 * be 48MHz, sensor "typical" value is half that.
+	 */
+	if (cam->bus_type == V4L2_MBUS_CSI2_DPHY) {
+		mclk_src = cam->mclk_src;
+		mclk_div = cam->mclk_div;
+	} else {
+		mclk_src = 3;
+		mclk_div = 2;
+	}
+
+	clk_enable(cam->clk[0]);
+	mcam_reg_write(cam, REG_CLKCTRL, (mclk_src << 29) | mclk_div);
+	mcam_ctlr_power_up(cam);
+
+	return 0;
+}
+
+static void mclk_disable(struct clk_hw *hw)
+{
+	struct mcam_camera *cam = container_of(hw, struct mcam_camera, mclk_hw);
+
+	mcam_ctlr_power_down(cam);
+	clk_disable(cam->clk[0]);
+}
+
+static unsigned long mclk_recalc_rate(struct clk_hw *hw,
+				unsigned long parent_rate)
+{
+	return 48000000;
+}
+
+static const struct clk_ops mclk_ops = {
+	.prepare = mclk_prepare,
+	.unprepare = mclk_unprepare,
+	.enable = mclk_enable,
+	.disable = mclk_disable,
+	.recalc_rate = mclk_recalc_rate,
+};
 
 /* -------------------------------------------------------------------- */
 /*
@@ -950,7 +1015,6 @@ static int mcam_cam_init(struct mcam_camera *cam)
 	ret = __mcam_cam_reset(cam);
 	/* Get/set parameters? */
 	cam->state = S_IDLE;
-	mcam_ctlr_power_down(cam);
 	return ret;
 }
 
@@ -1016,13 +1080,6 @@ static int mcam_read_setup(struct mcam_camera *cam)
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	clear_bit(CF_DMA_ACTIVE, &cam->flags);
 	mcam_reset_buffers(cam);
-	/*
-	 * Update CSI2_DPHY value
-	 */
-	if (cam->calc_dphy)
-		cam->calc_dphy(cam);
-	cam_dbg(cam, "camera: DPHY sets: dphy3=0x%x, dphy5=0x%x, dphy6=0x%x\n",
-			cam->dphy[0], cam->dphy[1], cam->dphy[2]);
 	if (cam->bus_type == V4L2_MBUS_CSI2_DPHY)
 		mcam_enable_mipi(cam);
 	else
@@ -1159,12 +1216,6 @@ static void mcam_vb_stop_streaming(struct vb2_queue *vq)
 	if (cam->state != S_STREAMING)
 		return;
 	mcam_ctlr_stop_dma(cam);
-	/*
-	 * Reset the CCIC PHY after stopping streaming,
-	 * otherwise, the CCIC may be unstable.
-	 */
-	if (cam->ctlr_reset)
-		cam->ctlr_reset(cam);
 	/*
 	 * VB2 reclaims the buffers, so we need to forget
 	 * about them.
@@ -1592,9 +1643,10 @@ static int mcam_v4l_open(struct file *filp)
 	if (ret)
 		goto out;
 	if (v4l2_fh_is_singular_file(filp)) {
-		ret = mcam_ctlr_power_up(cam);
+		ret = sensor_call(cam, core, s_power, 1);
 		if (ret)
 			goto out;
+		mcam_clk_enable(cam);
 		__mcam_cam_reset(cam);
 		mcam_set_config_needed(cam, 1);
 	}
@@ -1616,7 +1668,8 @@ static int mcam_v4l_release(struct file *filp)
 	_vb2_fop_release(filp, NULL);
 	if (last_open) {
 		mcam_disable_mipi(cam);
-		mcam_ctlr_power_down(cam);
+		sensor_call(cam, core, s_power, 0);
+		mcam_clk_disable(cam);
 		if (cam->buffer_mode == B_vmalloc && alloc_bufs_at_read)
 			mcam_free_dma_bufs(cam);
 	}
@@ -1726,23 +1779,95 @@ EXPORT_SYMBOL_GPL(mccic_irq);
 /*
  * Registration and such.
  */
-static struct ov7670_config sensor_cfg = {
-	/*
-	 * Exclude QCIF mode, because it only captures a tiny portion
-	 * of the sensor FOV
-	 */
-	.min_width = 320,
-	.min_height = 240,
-};
 
+static int mccic_notify_bound(struct v4l2_async_notifier *notifier,
+	struct v4l2_subdev *subdev, struct v4l2_async_subdev *asd)
+{
+	struct mcam_camera *cam = notifier_to_mcam(notifier);
+	int ret;
+
+	mutex_lock(&cam->s_mutex);
+	if (cam->sensor) {
+		cam_err(cam, "sensor already bound\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	v4l2_set_subdev_hostdata(subdev, cam);
+	cam->sensor = subdev;
+
+	ret = mcam_cam_init(cam);
+	if (ret) {
+		cam->sensor = NULL;
+		goto out;
+	}
+
+	ret = mcam_setup_vb2(cam);
+	if (ret) {
+		cam->sensor = NULL;
+		goto out;
+	}
+
+	cam->vdev = mcam_v4l_template;
+	cam->vdev.v4l2_dev = &cam->v4l2_dev;
+	cam->vdev.lock = &cam->s_mutex;
+	cam->vdev.queue = &cam->vb_queue;
+	video_set_drvdata(&cam->vdev, cam);
+	ret = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);
+	if (ret) {
+		cam->sensor = NULL;
+		goto out;
+	}
+
+	cam_dbg(cam, "sensor %s bound\n", subdev->name);
+out:
+	mutex_unlock(&cam->s_mutex);
+	return ret;
+}
+
+static void mccic_notify_unbind(struct v4l2_async_notifier *notifier,
+	struct v4l2_subdev *subdev, struct v4l2_async_subdev *asd)
+{
+	struct mcam_camera *cam = notifier_to_mcam(notifier);
+
+	mutex_lock(&cam->s_mutex);
+	if (cam->sensor != subdev) {
+		cam_err(cam, "sensor %s not bound\n", subdev->name);
+		goto out;
+	}
+
+	video_unregister_device(&cam->vdev);
+	cam->sensor = NULL;
+	cam_dbg(cam, "sensor %s unbound\n", subdev->name);
+
+out:
+	mutex_unlock(&cam->s_mutex);
+}
+
+static int mccic_notify_complete(struct v4l2_async_notifier *notifier)
+{
+	struct mcam_camera *cam = notifier_to_mcam(notifier);
+	int ret;
+
+	/*
+	 * Get the v4l2 setup done.
+	 */
+	ret = v4l2_ctrl_handler_init(&cam->ctrl_handler, 10);
+	if (!ret)
+		cam->v4l2_dev.ctrl_handler = &cam->ctrl_handler;
+
+	return ret;
+}
+
+static const struct v4l2_async_notifier_operations mccic_notify_ops = {
+	.bound = mccic_notify_bound,
+	.unbind = mccic_notify_unbind,
+	.complete = mccic_notify_complete,
+};
 
 int mccic_register(struct mcam_camera *cam)
 {
-	struct i2c_board_info ov7670_info = {
-		.type = "ov7670",
-		.addr = 0x42 >> 1,
-		.platform_data = &sensor_cfg,
-	};
+	struct clk_init_data mclk_init = { };
 	int ret;
 
 	/*
@@ -1755,64 +1880,62 @@ int mccic_register(struct mcam_camera *cam)
 		printk(KERN_ERR "marvell-cam: Cafe can't do S/G I/O, attempting vmalloc mode instead\n");
 		cam->buffer_mode = B_vmalloc;
 	}
+
 	if (!mcam_buffer_mode_supported(cam->buffer_mode)) {
 		printk(KERN_ERR "marvell-cam: buffer mode %d unsupported\n",
 				cam->buffer_mode);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
+
 	/*
 	 * Register with V4L
 	 */
 	ret = v4l2_device_register(cam->dev, &cam->v4l2_dev);
 	if (ret)
-		return ret;
+		goto out;
 
 	mutex_init(&cam->s_mutex);
 	cam->state = S_NOTREADY;
 	mcam_set_config_needed(cam, 1);
 	cam->pix_format = mcam_def_pix_format;
 	cam->mbus_code = mcam_def_mbus_code;
-	mcam_ctlr_init(cam);
 
 	/*
-	 * Get the v4l2 setup done.
+	 * Register sensor notifier.
 	 */
-	ret = v4l2_ctrl_handler_init(&cam->ctrl_handler, 10);
-	if (ret)
-		goto out_unregister;
-	cam->v4l2_dev.ctrl_handler = &cam->ctrl_handler;
-
-	/*
-	 * Try to find the sensor.
-	 */
-	sensor_cfg.clock_speed = cam->clock_speed;
-	sensor_cfg.use_smbus = cam->use_smbus;
-	cam->sensor_addr = ov7670_info.addr;
-	cam->sensor = v4l2_i2c_new_subdev_board(&cam->v4l2_dev,
-			cam->i2c_adapter, &ov7670_info, NULL);
-	if (cam->sensor == NULL) {
-		ret = -ENODEV;
-		goto out_unregister;
+	v4l2_async_notifier_init(&cam->notifier);
+	ret = v4l2_async_notifier_add_subdev(&cam->notifier, &cam->asd);
+	if (ret) {
+		cam_warn(cam, "failed to add subdev to a notifier");
+		goto out;
 	}
 
-	ret = mcam_cam_init(cam);
-	if (ret)
-		goto out_unregister;
+	cam->notifier.ops = &mccic_notify_ops;
+	ret = v4l2_async_notifier_register(&cam->v4l2_dev, &cam->notifier);
+	if (ret < 0) {
+		cam_warn(cam, "failed to register a sensor notifier");
+		goto out;
+	}
 
-	ret = mcam_setup_vb2(cam);
-	if (ret)
-		goto out_unregister;
+	/*
+	 * Register sensor master clock.
+	 */
+	mclk_init.parent_names = NULL;
+	mclk_init.num_parents = 0;
+	mclk_init.ops = &mclk_ops;
+	mclk_init.name = "mclk";
 
-	mutex_lock(&cam->s_mutex);
-	cam->vdev = mcam_v4l_template;
-	cam->vdev.v4l2_dev = &cam->v4l2_dev;
-	cam->vdev.lock = &cam->s_mutex;
-	cam->vdev.queue = &cam->vb_queue;
-	video_set_drvdata(&cam->vdev, cam);
-	ret = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);
-	if (ret) {
-		mutex_unlock(&cam->s_mutex);
-		goto out_unregister;
+	of_property_read_string(cam->dev->of_node, "clock-output-names",
+							&mclk_init.name);
+
+	cam->mclk_hw.init = &mclk_init;
+
+	cam->mclk = devm_clk_register(cam->dev, &cam->mclk_hw);
+	if (IS_ERR(cam->mclk)) {
+		ret = PTR_ERR(cam->mclk);
+		dev_err(cam->dev, "can't register clock\n");
+		goto out;
 	}
 
 	/*
@@ -1823,11 +1946,10 @@ int mccic_register(struct mcam_camera *cam)
 			cam_warn(cam, "Unable to alloc DMA buffers at load will try again later.");
 	}
 
-	mutex_unlock(&cam->s_mutex);
 	return 0;
 
-out_unregister:
-	v4l2_ctrl_handler_free(&cam->ctrl_handler);
+out:
+	v4l2_async_notifier_unregister(&cam->notifier);
 	v4l2_device_unregister(&cam->v4l2_dev);
 	return ret;
 }
@@ -1843,12 +1965,12 @@ void mccic_shutdown(struct mcam_camera *cam)
 	 */
 	if (!list_empty(&cam->vdev.fh_list)) {
 		cam_warn(cam, "Removing a device with users!\n");
-		mcam_ctlr_power_down(cam);
+		sensor_call(cam, core, s_power, 0);
 	}
 	if (cam->buffer_mode == B_vmalloc)
 		mcam_free_dma_bufs(cam);
-	video_unregister_device(&cam->vdev);
 	v4l2_ctrl_handler_free(&cam->ctrl_handler);
+	v4l2_async_notifier_unregister(&cam->notifier);
 	v4l2_device_unregister(&cam->v4l2_dev);
 }
 EXPORT_SYMBOL_GPL(mccic_shutdown);
@@ -1865,7 +1987,8 @@ void mccic_suspend(struct mcam_camera *cam)
 		enum mcam_state cstate = cam->state;
 
 		mcam_ctlr_stop_dma(cam);
-		mcam_ctlr_power_down(cam);
+		sensor_call(cam, core, s_power, 0);
+		mcam_clk_disable(cam);
 		cam->state = cstate;
 	}
 	mutex_unlock(&cam->s_mutex);
@@ -1878,14 +2001,15 @@ int mccic_resume(struct mcam_camera *cam)
 
 	mutex_lock(&cam->s_mutex);
 	if (!list_empty(&cam->vdev.fh_list)) {
-		ret = mcam_ctlr_power_up(cam);
+		mcam_clk_enable(cam);
+		ret = sensor_call(cam, core, s_power, 1);
 		if (ret) {
 			mutex_unlock(&cam->s_mutex);
 			return ret;
 		}
 		__mcam_cam_reset(cam);
 	} else {
-		mcam_ctlr_power_down(cam);
+		sensor_call(cam, core, s_power, 0);
 	}
 	mutex_unlock(&cam->s_mutex);
 

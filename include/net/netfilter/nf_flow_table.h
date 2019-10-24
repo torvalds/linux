@@ -53,8 +53,6 @@ struct flow_offload_tuple {
 	u8				l4proto;
 	u8				dir;
 
-	int				oifidx;
-
 	u16				mtu;
 
 	struct dst_entry		*dst_cache;

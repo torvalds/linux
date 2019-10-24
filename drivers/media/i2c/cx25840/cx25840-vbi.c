@@ -86,6 +86,7 @@ int cx25840_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *
 	memset(svbi->service_lines, 0, sizeof(svbi->service_lines));
 	svbi->service_set = 0;
 	/* we're done if raw VBI is active */
+	/* TODO: this will have to be changed for generic_mode VBI */
 	if ((cx25840_read(client, 0x404) & 0x10) == 0)
 		return 0;
 
@@ -128,6 +129,7 @@ int cx25840_s_raw_fmt(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt)
 		cx25840_write(client, 0x54f, vbi_offset);
 	else
 		cx25840_write(client, 0x47f, vbi_offset);
+	/* TODO: this will have to be changed for generic_mode VBI */
 	cx25840_write(client, 0x404, 0x2e);
 	return 0;
 }
@@ -148,6 +150,7 @@ int cx25840_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *
 	cx25840_std_setup(client);
 
 	/* Sliced VBI */
+	/* TODO: this will have to be changed for generic_mode VBI */
 	cx25840_write(client, 0x404, 0x32);	/* Ancillary data */
 	cx25840_write(client, 0x406, 0x13);
 	if (is_cx23888(state))
@@ -202,6 +205,7 @@ int cx25840_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *
 	}
 
 	cx25840_write(client, state->vbi_regs_offset + 0x43c, 0x16);
+	/* TODO: this will have to be changed for generic_mode VBI */
 	if (is_cx23888(state))
 		cx25840_write(client, 0x428, is_pal ? 0x2a : 0x22);
 	else

@@ -448,25 +448,15 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
 
 static int vidioc_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 {
-	struct video_device *vdev = video_devdata(file);
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
 	strscpy((char *)cap->driver, "saa7146 v4l2", sizeof(cap->driver));
 	strscpy((char *)cap->card, dev->ext->name, sizeof(cap->card));
 	sprintf((char *)cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cap->device_caps =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_VIDEO_OVERLAY |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING;
-	cap->device_caps |= dev->ext_vv_data->capabilities;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
-		cap->device_caps &=
-			~(V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_OUTPUT);
-	else
-		cap->device_caps &=
-			~(V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY | V4L2_CAP_AUDIO);
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY |
+			    V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+			    V4L2_CAP_DEVICE_CAPS;
+	cap->capabilities |= dev->ext_vv_data->capabilities;
 	return 0;
 }
 

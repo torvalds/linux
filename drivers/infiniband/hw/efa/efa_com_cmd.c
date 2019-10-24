@@ -3,7 +3,6 @@
  * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
-#include "efa.h"
 #include "efa_com.h"
 #include "efa_com_cmd.h"
 
@@ -57,7 +56,7 @@ int efa_com_create_qp(struct efa_com_dev *edev,
 	res->send_sub_cq_idx = cmd_completion.send_sub_cq_idx;
 	res->recv_sub_cq_idx = cmd_completion.recv_sub_cq_idx;
 
-	return err;
+	return 0;
 }
 
 int efa_com_modify_qp(struct efa_com_dev *edev,
@@ -181,7 +180,7 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 	result->cq_idx = cmd_completion.cq_idx;
 	result->actual_depth = params->cq_depth;
 
-	return err;
+	return 0;
 }
 
 int efa_com_destroy_cq(struct efa_com_dev *edev,
@@ -307,7 +306,8 @@ int efa_com_create_ah(struct efa_com_dev *edev,
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
-		ibdev_err(edev->efa_dev, "Failed to create ah [%d]\n", err);
+		ibdev_err(edev->efa_dev, "Failed to create ah for %pI6 [%d]\n",
+			  ah_cmd.dest_addr, err);
 		return err;
 	}
 

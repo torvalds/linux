@@ -155,6 +155,7 @@ struct hdac_ext_stream *
 hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct sof_intel_hda_stream *hda_stream;
 	struct hdac_ext_stream *stream = NULL;
 	struct hdac_stream *s;
 
@@ -163,8 +164,15 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction)
 	/* get an unused stream */
 	list_for_each_entry(s, &bus->stream_list, list) {
 		if (s->direction == direction && !s->opened) {
-			s->opened = true;
 			stream = stream_to_hdac_ext_stream(s);
+			hda_stream = container_of(stream,
+						  struct sof_intel_hda_stream,
+						  hda_stream);
+			/* check if the host DMA channel is reserved */
+			if (hda_stream->host_reserved)
+				continue;
+
+			s->opened = true;
 			break;
 		}
 	}
@@ -209,6 +217,9 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 {
 	struct hdac_stream *hstream = &stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
+	u32 dma_start = SOF_HDA_SD_CTL_DMA_START;
+	int ret;
+	u32 run;
 
 	/* cmd must be for audio stream */
 	switch (cmd) {
@@ -226,6 +237,16 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 					SOF_HDA_SD_CTL_DMA_START |
 					SOF_HDA_CL_DMA_SD_INT_MASK);
 
+		ret = snd_sof_dsp_read_poll_timeout(sdev,
+					HDA_DSP_HDA_BAR,
+					sd_offset, run,
+					((run &	dma_start) == dma_start),
+					HDA_DSP_REG_POLL_INTERVAL_US,
+					HDA_DSP_STREAM_RUN_TIMEOUT);
+
+		if (ret)
+			return ret;
+
 		hstream->running = true;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -235,6 +256,15 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 					sd_offset,
 					SOF_HDA_SD_CTL_DMA_START |
 					SOF_HDA_CL_DMA_SD_INT_MASK, 0x0);
+
+		ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_HDA_BAR,
+						sd_offset, run,
+						!(run &	dma_start),
+						HDA_DSP_REG_POLL_INTERVAL_US,
+						HDA_DSP_STREAM_RUN_TIMEOUT);
+
+		if (ret)
+			return ret;
 
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, sd_offset +
 				  SOF_HDA_ADSP_REG_CL_SD_STS,
@@ -265,7 +295,9 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	struct hdac_stream *hstream = &stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 	int ret, timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
+	u32 dma_start = SOF_HDA_SD_CTL_DMA_START;
 	u32 val, mask;
+	u32 run;
 
 	if (!stream) {
 		dev_err(sdev->dev, "error: no stream available\n");
@@ -286,6 +318,16 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
 				SOF_HDA_CL_DMA_SD_INT_MASK |
 				SOF_HDA_SD_CTL_DMA_START, 0);
+
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_HDA_BAR,
+					    sd_offset, run,
+					    !(run & dma_start),
+					    HDA_DSP_REG_POLL_INTERVAL_US,
+					    HDA_DSP_STREAM_RUN_TIMEOUT);
+
+	if (ret)
+		return ret;
+
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 				sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
 				SOF_HDA_CL_DMA_SD_INT_MASK,
@@ -338,6 +380,16 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
 				SOF_HDA_CL_DMA_SD_INT_MASK |
 				SOF_HDA_SD_CTL_DMA_START, 0);
+
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_HDA_BAR,
+					    sd_offset, run,
+					    !(run & dma_start),
+					    HDA_DSP_REG_POLL_INTERVAL_US,
+					    HDA_DSP_STREAM_RUN_TIMEOUT);
+
+	if (ret)
+		return ret;
+
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 				sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
 				SOF_HDA_CL_DMA_SD_INT_MASK,
@@ -430,60 +482,63 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	return ret;
 }
 
+int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
+			   struct snd_pcm_substream *substream)
+{
+	struct hdac_stream *stream = substream->runtime->private_data;
+	struct hdac_ext_stream *link_dev = container_of(stream,
+							struct hdac_ext_stream,
+							hstream);
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	u32 mask = 0x1 << stream->index;
+
+	spin_lock_irq(&bus->reg_lock);
+	/* couple host and link DMA if link DMA channel is idle */
+	if (!link_dev->link_locked)
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
+					SOF_HDA_REG_PP_PPCTL, mask, 0);
+	spin_unlock_irq(&bus->reg_lock);
+
+	return 0;
+}
+
 irqreturn_t hda_dsp_stream_interrupt(int irq, void *context)
 {
 	struct hdac_bus *bus = context;
-	struct sof_intel_hda_dev *sof_hda = bus_to_sof_hda(bus);
-	u32 stream_mask;
+	int ret = IRQ_WAKE_THREAD;
 	u32 status;
-
-	if (!pm_runtime_active(bus->dev))
-		return IRQ_NONE;
 
 	spin_lock(&bus->reg_lock);
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
-	stream_mask = GENMASK(sof_hda->stream_max - 1, 0) | AZX_INT_CTRL_EN;
+	dev_vdbg(bus->dev, "stream irq, INTSTS status: 0x%x\n", status);
 
-	/* Not stream interrupt or register inaccessible, ignore it.*/
-	if (!(status & stream_mask) || status == 0xffffffff) {
-		spin_unlock(&bus->reg_lock);
-		return IRQ_NONE;
-	}
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* clear rirb int */
-	status = snd_hdac_chip_readb(bus, RIRBSTS);
-	if (status & RIRB_INT_MASK) {
-		if (status & RIRB_INT_RESPONSE)
-			snd_hdac_bus_update_rirb(bus);
-		snd_hdac_chip_writeb(bus, RIRBSTS, RIRB_INT_MASK);
-	}
-#endif
+	/* Register inaccessible, ignore it.*/
+	if (status == 0xffffffff)
+		ret = IRQ_NONE;
 
 	spin_unlock(&bus->reg_lock);
 
-	return snd_hdac_chip_readl(bus, INTSTS) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+	return ret;
 }
 
-irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
+static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 {
-	struct hdac_bus *bus = context;
 	struct sof_intel_hda_dev *sof_hda = bus_to_sof_hda(bus);
-	u32 status = snd_hdac_chip_readl(bus, INTSTS);
 	struct hdac_stream *s;
+	bool active = false;
 	u32 sd_status;
 
-	/* check streams */
 	list_for_each_entry(s, &bus->stream_list, list) {
-		if (status & (1 << s->index) && s->opened) {
+		if (status & BIT(s->index) && s->opened) {
 			sd_status = snd_hdac_stream_readb(s, SD_STS);
 
 			dev_vdbg(bus->dev, "stream %d status 0x%x\n",
 				 s->index, sd_status);
 
-			snd_hdac_stream_writeb(s, SD_STS, SD_INT_MASK);
+			snd_hdac_stream_writeb(s, SD_STS, sd_status);
 
+			active = true;
 			if (!s->substream ||
 			    !s->running ||
 			    (sd_status & SOF_HDA_CL_DMA_SD_INT_COMPLETE) == 0)
@@ -492,8 +547,48 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 			/* Inform ALSA only in case not do that with IPC */
 			if (sof_hda->no_ipc_position)
 				snd_sof_pcm_period_elapsed(s->substream);
-
 		}
+	}
+
+	return active;
+}
+
+irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
+{
+	struct hdac_bus *bus = context;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	u32 rirb_status;
+#endif
+	bool active;
+	u32 status;
+	int i;
+
+	/*
+	 * Loop 10 times to handle missed interrupts caused by
+	 * unsolicited responses from the codec
+	 */
+	for (i = 0, active = true; i < 10 && active; i++) {
+		spin_lock_irq(&bus->reg_lock);
+
+		status = snd_hdac_chip_readl(bus, INTSTS);
+
+		/* check streams */
+		active = hda_dsp_stream_check(bus, status);
+
+		/* check and clear RIRB interrupt */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+		if (status & AZX_INT_CTRL_EN) {
+			rirb_status = snd_hdac_chip_readb(bus, RIRBSTS);
+			if (rirb_status & RIRB_INT_MASK) {
+				active = true;
+				if (rirb_status & RIRB_INT_RESPONSE)
+					snd_hdac_bus_update_rirb(bus);
+				snd_hdac_chip_writeb(bus, RIRBSTS,
+						     RIRB_INT_MASK);
+			}
+		}
+#endif
+		spin_unlock_irq(&bus->reg_lock);
 	}
 
 	return IRQ_HANDLED;
@@ -564,6 +659,8 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		if (!hda_stream)
 			return -ENOMEM;
 
+		hda_stream->sdev = sdev;
+
 		stream = &hda_stream->hda_stream;
 
 		stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
@@ -616,6 +713,8 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 					  GFP_KERNEL);
 		if (!hda_stream)
 			return -ENOMEM;
+
+		hda_stream->sdev = sdev;
 
 		stream = &hda_stream->hda_stream;
 

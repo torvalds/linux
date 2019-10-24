@@ -51,7 +51,7 @@ static void guc_policies_init(struct guc_policies *policies)
 	policies->max_num_work_items = POLICY_MAX_NUM_WI;
 
 	for (p = 0; p < GUC_CLIENT_PRIORITY_NUM; p++) {
-		for (i = GUC_RENDER_ENGINE; i < GUC_MAX_ENGINES_NUM; i++) {
+		for (i = 0; i < GUC_MAX_ENGINE_CLASSES; i++) {
 			policy = &policies->policy[p][i];
 
 			guc_policy_init(policy);
@@ -61,91 +61,142 @@ static void guc_policies_init(struct guc_policies *policies)
 	policies->is_valid = 1;
 }
 
+static void guc_ct_pool_entries_init(struct guc_ct_pool_entry *pool, u32 num)
+{
+	memset(pool, 0, num * sizeof(*pool));
+}
+
 /*
  * The first 80 dwords of the register state context, containing the
  * execlists and ppgtt registers.
  */
 #define LR_HW_CONTEXT_SIZE	(80 * sizeof(u32))
 
+/* The ads obj includes the struct itself and buffers passed to GuC */
+struct __guc_ads_blob {
+	struct guc_ads ads;
+	struct guc_policies policies;
+	struct guc_mmio_reg_state reg_state;
+	struct guc_gt_system_info system_info;
+	struct guc_clients_info clients_info;
+	struct guc_ct_pool_entry ct_pool[GUC_CT_POOL_SIZE];
+	u8 reg_state_buffer[GUC_S3_SAVE_SPACE_PAGES * PAGE_SIZE];
+} __packed;
+
+static int __guc_ads_init(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct __guc_ads_blob *blob;
+	const u32 skipped_size = LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE;
+	u32 base;
+	u8 engine_class;
+
+	blob = i915_gem_object_pin_map(guc->ads_vma->obj, I915_MAP_WB);
+	if (IS_ERR(blob))
+		return PTR_ERR(blob);
+
+	/* GuC scheduling policies */
+	guc_policies_init(&blob->policies);
+
+	/*
+	 * GuC expects a per-engine-class context image and size
+	 * (minus hwsp and ring context). The context image will be
+	 * used to reinitialize engines after a reset. It must exist
+	 * and be pinned in the GGTT, so that the address won't change after
+	 * we have told GuC where to find it. The context size will be used
+	 * to validate that the LRC base + size fall within allowed GGTT.
+	 */
+	for (engine_class = 0; engine_class <= MAX_ENGINE_CLASS; ++engine_class) {
+		if (engine_class == OTHER_CLASS)
+			continue;
+		/*
+		 * TODO: Set context pointer to default state to allow
+		 * GuC to re-init guilty contexts after internal reset.
+		 */
+		blob->ads.golden_context_lrca[engine_class] = 0;
+		blob->ads.eng_state_size[engine_class] =
+			intel_engine_context_size(dev_priv, engine_class) -
+			skipped_size;
+	}
+
+	/* System info */
+	blob->system_info.slice_enabled = hweight8(RUNTIME_INFO(dev_priv)->sseu.slice_mask);
+	blob->system_info.rcs_enabled = 1;
+	blob->system_info.bcs_enabled = 1;
+
+	blob->system_info.vdbox_enable_mask = VDBOX_MASK(dev_priv);
+	blob->system_info.vebox_enable_mask = VEBOX_MASK(dev_priv);
+	blob->system_info.vdbox_sfc_support_mask = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
+
+	base = intel_guc_ggtt_offset(guc, guc->ads_vma);
+
+	/* Clients info  */
+	guc_ct_pool_entries_init(blob->ct_pool, ARRAY_SIZE(blob->ct_pool));
+
+	blob->clients_info.clients_num = 1;
+	blob->clients_info.ct_pool_addr = base + ptr_offset(blob, ct_pool);
+	blob->clients_info.ct_pool_count = ARRAY_SIZE(blob->ct_pool);
+
+	/* ADS */
+	blob->ads.scheduler_policies = base + ptr_offset(blob, policies);
+	blob->ads.reg_state_buffer = base + ptr_offset(blob, reg_state_buffer);
+	blob->ads.reg_state_addr = base + ptr_offset(blob, reg_state);
+	blob->ads.gt_system_info = base + ptr_offset(blob, system_info);
+	blob->ads.clients_info = base + ptr_offset(blob, clients_info);
+
+	i915_gem_object_unpin_map(guc->ads_vma->obj);
+
+	return 0;
+}
+
 /**
- * intel_guc_ads_create() - creates GuC ADS
+ * intel_guc_ads_create() - allocates and initializes GuC ADS.
  * @guc: intel_guc struct
  *
+ * GuC needs memory block (Additional Data Struct), where it will store
+ * some data. Allocate and initialize such memory block for GuC use.
  */
 int intel_guc_ads_create(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct i915_vma *vma, *kernel_ctx_vma;
-	struct page *page;
-	/* The ads obj includes the struct itself and buffers passed to GuC */
-	struct {
-		struct guc_ads ads;
-		struct guc_policies policies;
-		struct guc_mmio_reg_state reg_state;
-		u8 reg_state_buffer[GUC_S3_SAVE_SPACE_PAGES * PAGE_SIZE];
-	} __packed *blob;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	const u32 skipped_offset = LRC_HEADER_PAGES * PAGE_SIZE;
-	const u32 skipped_size = LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE;
-	u32 base;
+	const u32 size = PAGE_ALIGN(sizeof(struct __guc_ads_blob));
+	struct i915_vma *vma;
+	int ret;
 
 	GEM_BUG_ON(guc->ads_vma);
 
-	vma = intel_guc_allocate_vma(guc, PAGE_ALIGN(sizeof(*blob)));
+	vma = intel_guc_allocate_vma(guc, size);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
 	guc->ads_vma = vma;
 
-	page = i915_vma_first_page(vma);
-	blob = kmap(page);
-
-	/* GuC scheduling policies */
-	guc_policies_init(&blob->policies);
-
-	/* MMIO reg state */
-	for_each_engine(engine, dev_priv, id) {
-		blob->reg_state.white_list[engine->guc_id].mmio_start =
-			engine->mmio_base + GUC_MMIO_WHITE_LIST_START;
-
-		/* Nothing to be saved or restored for now. */
-		blob->reg_state.white_list[engine->guc_id].count = 0;
-	}
-
-	/*
-	 * The GuC requires a "Golden Context" when it reinitialises
-	 * engines after a reset. Here we use the Render ring default
-	 * context, which must already exist and be pinned in the GGTT,
-	 * so its address won't change after we've told the GuC where
-	 * to find it. Note that we have to skip our header (1 page),
-	 * because our GuC shared data is there.
-	 */
-	kernel_ctx_vma = dev_priv->engine[RCS0]->kernel_context->state;
-	blob->ads.golden_context_lrca =
-		intel_guc_ggtt_offset(guc, kernel_ctx_vma) + skipped_offset;
-
-	/*
-	 * The GuC expects us to exclude the portion of the context image that
-	 * it skips from the size it is to read. It starts reading from after
-	 * the execlist context (so skipping the first page [PPHWSP] and 80
-	 * dwords). Weird guc is weird.
-	 */
-	for_each_engine(engine, dev_priv, id)
-		blob->ads.eng_state_size[engine->guc_id] =
-			engine->context_size - skipped_size;
-
-	base = intel_guc_ggtt_offset(guc, vma);
-	blob->ads.scheduler_policies = base + ptr_offset(blob, policies);
-	blob->ads.reg_state_buffer = base + ptr_offset(blob, reg_state_buffer);
-	blob->ads.reg_state_addr = base + ptr_offset(blob, reg_state);
-
-	kunmap(page);
+	ret = __guc_ads_init(guc);
+	if (ret)
+		goto err_vma;
 
 	return 0;
+
+err_vma:
+	i915_vma_unpin_and_release(&guc->ads_vma, 0);
+	return ret;
 }
 
 void intel_guc_ads_destroy(struct intel_guc *guc)
 {
 	i915_vma_unpin_and_release(&guc->ads_vma, 0);
+}
+
+/**
+ * intel_guc_ads_reset() - prepares GuC Additional Data Struct for reuse
+ * @guc: intel_guc struct
+ *
+ * GuC stores some data in ADS, which might be stale after a reset.
+ * Reinitialize whole ADS in case any part of it was corrupted during
+ * previous GuC run.
+ */
+void intel_guc_ads_reset(struct intel_guc *guc)
+{
+	if (!guc->ads_vma)
+		return;
+	__guc_ads_init(guc);
 }

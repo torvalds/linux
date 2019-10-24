@@ -302,6 +302,8 @@ extern struct platform_device iop3xx_dma_1_channel;
 extern struct platform_device iop3xx_aau_channel;
 extern struct platform_device iop3xx_i2c0_device;
 extern struct platform_device iop3xx_i2c1_device;
+extern struct gpiod_lookup_table iop3xx_i2c0_gpio_lookup;
+extern struct gpiod_lookup_table iop3xx_i2c1_gpio_lookup;
 
 #endif
 

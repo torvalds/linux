@@ -114,7 +114,7 @@ enum mlx5_accel_ipsec_cap {
 	MLX5_ACCEL_IPSEC_CAP_TX_IV_IS_ESN	= 1 << 7,
 };
 
-#ifdef CONFIG_MLX5_ACCEL
+#ifdef CONFIG_MLX5_FPGA_IPSEC
 
 u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev);
 

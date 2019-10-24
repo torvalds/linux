@@ -15,7 +15,7 @@ Description:
 		 9 - I/Os currently in progress
 		10 - time spent doing I/Os (ms)
 		11 - weighted time spent doing I/Os (ms)
-		For more details refer Documentation/iostats.txt
+		For more details refer Documentation/admin-guide/iostats.rst
 
 
 What:		/sys/block/<disk>/<part>/stat

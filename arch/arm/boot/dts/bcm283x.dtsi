@@ -431,6 +431,8 @@
 			reg = <0x7e204000 0x1000>;
 			interrupts = <2 22>;
 			clocks = <&clocks BCM2835_CLOCK_VPU>;
+			dmas = <&dma 6>, <&dma 7>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";

@@ -85,10 +85,6 @@ void dwmac4_dma_stop_rx(void __iomem *ioaddr, u32 chan)
 
 	value &= ~DMA_CONTROL_SR;
 	writel(value, ioaddr + DMA_CHAN_RX_CONTROL(chan));
-
-	value = readl(ioaddr + GMAC_CONFIG);
-	value &= ~GMAC_CONFIG_RE;
-	writel(value, ioaddr + GMAC_CONFIG);
 }
 
 void dwmac4_set_tx_ring_len(void __iomem *ioaddr, u32 len, u32 chan)

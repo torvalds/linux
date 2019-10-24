@@ -283,7 +283,7 @@ bad_area:
 		do_exit(SIGKILL);
 	}
 
-	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)addr, current);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)addr);
 }
 
 static struct ctl_table alignment_tbl[4] = {

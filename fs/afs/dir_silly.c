@@ -60,11 +60,6 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 		if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
 			afs_edit_dir_add(dvnode, &new->d_name,
 					 &vnode->fid, afs_edit_dir_for_silly_1);
-
-		/* vfs_unlink and the like do not issue this when a file is
-		 * sillyrenamed, so do it here.
-		 */
-		fsnotify_nameremove(old, 0);
 	}
 
 	kfree(scb);

@@ -115,14 +115,19 @@ static int tegra_rt5640_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+SND_SOC_DAILINK_DEFS(aif1,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "rt5640-aif1")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link tegra_rt5640_dai = {
 	.name = "RT5640",
 	.stream_name = "RT5640 PCM",
-	.codec_dai_name = "rt5640-aif1",
 	.init = tegra_rt5640_asoc_init,
 	.ops = &tegra_rt5640_ops,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(aif1),
 };
 
 static struct snd_soc_card snd_soc_tegra_rt5640 = {
@@ -165,25 +170,25 @@ static int tegra_rt5640_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	tegra_rt5640_dai.codec_of_node = of_parse_phandle(np,
+	tegra_rt5640_dai.codecs->of_node = of_parse_phandle(np,
 			"nvidia,audio-codec", 0);
-	if (!tegra_rt5640_dai.codec_of_node) {
+	if (!tegra_rt5640_dai.codecs->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,audio-codec' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	tegra_rt5640_dai.cpu_of_node = of_parse_phandle(np,
+	tegra_rt5640_dai.cpus->of_node = of_parse_phandle(np,
 			"nvidia,i2s-controller", 0);
-	if (!tegra_rt5640_dai.cpu_of_node) {
+	if (!tegra_rt5640_dai.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	tegra_rt5640_dai.platform_of_node = tegra_rt5640_dai.cpu_of_node;
+	tegra_rt5640_dai.platforms->of_node = tegra_rt5640_dai.cpus->of_node;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)

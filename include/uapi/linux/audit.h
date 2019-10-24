@@ -281,6 +281,7 @@
 #define AUDIT_OBJ_GID	110
 #define AUDIT_FIELD_COMPARE	111
 #define AUDIT_EXE	112
+#define AUDIT_SADDR_FAM	113
 
 #define AUDIT_ARG0      200
 #define AUDIT_ARG1      (AUDIT_ARG0+1)

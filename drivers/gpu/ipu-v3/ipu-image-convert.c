@@ -146,6 +146,7 @@ struct ipu_image_convert_ctx {
 	/* Source/destination image data and rotation mode */
 	struct ipu_image_convert_image in;
 	struct ipu_image_convert_image out;
+	struct ipu_ic_csc csc;
 	enum ipu_rotate_mode rot_mode;
 	u32 downsize_coeff_h;
 	u32 downsize_coeff_v;
@@ -1281,6 +1282,15 @@ static void init_idmac_channel(struct ipu_image_convert_ctx *ctx,
 	if (rot_mode)
 		ipu_cpmem_set_rotation(channel, rot_mode);
 
+	/*
+	 * Skip writing U and V components to odd rows in the output
+	 * channels for planar 4:2:0.
+	 */
+	if ((channel == chan->out_chan ||
+	     channel == chan->rotation_out_chan) &&
+	    image->fmt->planar && image->fmt->uv_height_dec == 2)
+		ipu_cpmem_skip_odd_chroma_rows(channel);
+
 	if (channel == chan->rotation_in_chan ||
 	    channel == chan->rotation_out_chan) {
 		burst_size = 8;
@@ -1310,7 +1320,6 @@ static int convert_start(struct ipu_image_convert_run *run, unsigned int tile)
 	struct ipu_image_convert_priv *priv = chan->priv;
 	struct ipu_image_convert_image *s_image = &ctx->in;
 	struct ipu_image_convert_image *d_image = &ctx->out;
-	enum ipu_color_space src_cs, dest_cs;
 	unsigned int dst_tile = ctx->out_tile_map[tile];
 	unsigned int dest_width, dest_height;
 	unsigned int col, row;
@@ -1319,9 +1328,6 @@ static int convert_start(struct ipu_image_convert_run *run, unsigned int tile)
 
 	dev_dbg(priv->ipu->dev, "%s: task %u: starting ctx %p run %p tile %u -> %u\n",
 		__func__, chan->ic_task, ctx, run, tile, dst_tile);
-
-	src_cs = ipu_pixelformat_to_colorspace(s_image->fmt->fourcc);
-	dest_cs = ipu_pixelformat_to_colorspace(d_image->fmt->fourcc);
 
 	if (ipu_rot_mode_is_irt(ctx->rot_mode)) {
 		/* swap width/height for resizer */
@@ -1345,13 +1351,12 @@ static int convert_start(struct ipu_image_convert_run *run, unsigned int tile)
 		s_image->tile[tile].height, dest_width, dest_height, rsc);
 
 	/* setup the IC resizer and CSC */
-	ret = ipu_ic_task_init_rsc(chan->ic,
-			       s_image->tile[tile].width,
-			       s_image->tile[tile].height,
-			       dest_width,
-			       dest_height,
-			       src_cs, dest_cs,
-			       rsc);
+	ret = ipu_ic_task_init_rsc(chan->ic, &ctx->csc,
+				   s_image->tile[tile].width,
+				   s_image->tile[tile].height,
+				   dest_width,
+				   dest_height,
+				   rsc);
 	if (ret) {
 		dev_err(priv->ipu->dev, "ipu_ic_task_init failed, %d\n", ret);
 		return ret;
@@ -2062,6 +2067,16 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 		goto out_free;
 
 	calc_tile_resize_coefficients(ctx);
+
+	ret = ipu_ic_calc_csc(&ctx->csc,
+			s_image->base.pix.ycbcr_enc,
+			s_image->base.pix.quantization,
+			ipu_pixelformat_to_colorspace(s_image->fmt->fourcc),
+			d_image->base.pix.ycbcr_enc,
+			d_image->base.pix.quantization,
+			ipu_pixelformat_to_colorspace(d_image->fmt->fourcc));
+	if (ret)
+		goto out_free;
 
 	dump_format(ctx, s_image);
 	dump_format(ctx, d_image);

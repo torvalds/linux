@@ -2647,8 +2647,6 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 			dev->pci_bus,
 			dev->pci_slot);
 
-		err = -ENODEV;
-
 		/* dvb stuff */
 		/* We have to init the queue for each frontend on a port. */
 		pr_info("%s: cx23885 based dvb card\n", dev->name);

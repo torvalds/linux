@@ -1012,16 +1012,6 @@ static int asoc_ssc_init(struct device *dev)
 	return 0;
 }
 
-static void asoc_ssc_exit(struct device *dev)
-{
-	struct ssc_device *ssc = dev_get_drvdata(dev);
-
-	if (ssc->pdata->use_dma)
-		atmel_pcm_dma_platform_unregister(dev);
-	else
-		atmel_pcm_pdc_platform_unregister(dev);
-}
-
 /**
  * atmel_ssc_set_audio - Allocate the specified SSC for audio use.
  */
@@ -1050,7 +1040,6 @@ void atmel_ssc_put_audio(int ssc_id)
 {
 	struct ssc_device *ssc = ssc_info[ssc_id].ssc;
 
-	asoc_ssc_exit(&ssc->pdev->dev);
 	ssc_free(ssc);
 }
 EXPORT_SYMBOL_GPL(atmel_ssc_put_audio);

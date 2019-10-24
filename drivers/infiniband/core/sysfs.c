@@ -43,6 +43,7 @@
 #include <rdma/ib_mad.h>
 #include <rdma/ib_pma.h>
 #include <rdma/ib_cache.h>
+#include <rdma/rdma_counter.h>
 
 struct ib_port;
 
@@ -800,9 +801,12 @@ static int update_hw_stats(struct ib_device *dev, struct rdma_hw_stats *stats,
 	return 0;
 }
 
-static ssize_t print_hw_stat(struct rdma_hw_stats *stats, int index, char *buf)
+static ssize_t print_hw_stat(struct ib_device *dev, int port_num,
+			     struct rdma_hw_stats *stats, int index, char *buf)
 {
-	return sprintf(buf, "%llu\n", stats->value[index]);
+	u64 v = rdma_counter_get_hwstat_value(dev, port_num, index);
+
+	return sprintf(buf, "%llu\n", stats->value[index] + v);
 }
 
 static ssize_t show_hw_stats(struct kobject *kobj, struct attribute *attr,
@@ -828,7 +832,7 @@ static ssize_t show_hw_stats(struct kobject *kobj, struct attribute *attr,
 	ret = update_hw_stats(dev, stats, hsa->port_num, hsa->index);
 	if (ret)
 		goto unlock;
-	ret = print_hw_stat(stats, hsa->index, buf);
+	ret = print_hw_stat(dev, hsa->port_num, stats, hsa->index, buf);
 unlock:
 	mutex_unlock(&stats->lock);
 
@@ -999,6 +1003,8 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 			goto err;
 		port->hw_stats_ag = hsag;
 		port->hw_stats = stats;
+		if (device->port_data)
+			device->port_data[port_num].hw_stats = stats;
 	} else {
 		struct kobject *kobj = &device->dev.kobj;
 		ret = sysfs_create_group(kobj, hsag);
@@ -1289,6 +1295,8 @@ const struct attribute_group ib_dev_attr_group = {
 
 void ib_free_port_attrs(struct ib_core_device *coredev)
 {
+	struct ib_device *device = rdma_device_to_ibdev(&coredev->dev);
+	bool is_full_dev = &device->coredev == coredev;
 	struct kobject *p, *t;
 
 	list_for_each_entry_safe(p, t, &coredev->port_list, entry) {
@@ -1298,6 +1306,8 @@ void ib_free_port_attrs(struct ib_core_device *coredev)
 		if (port->hw_stats_ag)
 			free_hsag(&port->kobj, port->hw_stats_ag);
 		kfree(port->hw_stats);
+		if (device->port_data && is_full_dev)
+			device->port_data[port->port_num].hw_stats = NULL;
 
 		if (port->pma_table)
 			sysfs_remove_group(p, port->pma_table);

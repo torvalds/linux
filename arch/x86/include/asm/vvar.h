@@ -32,19 +32,20 @@
 extern char __vvar_page;
 
 #define DECLARE_VVAR(offset, type, name)				\
-	extern type vvar_ ## name __attribute__((visibility("hidden")));
+	extern type vvar_ ## name[CS_BASES]				\
+	__attribute__((visibility("hidden")));
 
 #define VVAR(name) (vvar_ ## name)
 
 #define DEFINE_VVAR(type, name)						\
-	type name							\
+	type name[CS_BASES]						\
 	__attribute__((section(".vvar_" #name), aligned(16))) __visible
 
 #endif
 
 /* DECLARE_VVAR(offset, type, name) */
 
-DECLARE_VVAR(128, struct vsyscall_gtod_data, vsyscall_gtod_data)
+DECLARE_VVAR(128, struct vdso_data, _vdso_data)
 
 #undef DECLARE_VVAR
 

@@ -122,9 +122,7 @@ int drm_crtc_register_all(struct drm_device *dev)
 	int ret = 0;
 
 	drm_for_each_crtc(crtc, dev) {
-		if (drm_debugfs_crtc_add(crtc))
-			DRM_ERROR("Failed to initialize debugfs entry for CRTC '%s'.\n",
-				  crtc->name);
+		drm_debugfs_crtc_add(crtc);
 
 		if (crtc->funcs->late_register)
 			ret = crtc->funcs->late_register(crtc);

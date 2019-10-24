@@ -213,6 +213,14 @@ extern void ptp_clock_event(struct ptp_clock *ptp,
 extern int ptp_clock_index(struct ptp_clock *ptp);
 
 /**
+ * scaled_ppm_to_ppb() - convert scaled ppm to ppb
+ *
+ * @ppm:    Parts per million, but with a 16 bit binary fractional field
+ */
+
+extern s32 scaled_ppm_to_ppb(long ppm);
+
+/**
  * ptp_find_pin() - obtain the pin index of a given auxiliary function
  *
  * @ptp:    The clock obtained from ptp_clock_register().

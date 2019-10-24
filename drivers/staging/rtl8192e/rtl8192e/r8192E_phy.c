@@ -1427,7 +1427,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 				 "_rtl92e_set_rf_power_state() eRfOn!\n");
 			if ((priv->rtllib->eRFPowerState == eRfOff) &&
 			     RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC)) {
-				bool rtstatus = true;
+				bool rtstatus;
 				u32 InitilizeCount = 3;
 
 				do {

@@ -580,6 +580,18 @@
 	status = "okay";
 };
 
+&reg_vdd1p1 {
+	vin-supply = <&sw2_reg>;
+};
+
+&reg_vdd3p0 {
+	vin-supply = <&sw2_reg>;
+};
+
+&reg_vdd2p5 {
+	vin-supply = <&sw2_reg>;
+};
+
 &snvs_poweroff {
 	status = "okay";
 };

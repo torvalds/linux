@@ -69,10 +69,7 @@ z_erofs_pagevec_ctor_next_page(struct z_erofs_pagevec_ctor *ctor,
 		if (tags == Z_EROFS_PAGE_TYPE_EXCLUSIVE)
 			return tagptr_unfold_ptr(t);
 	}
-
-	if (unlikely(nr >= ctor->nr))
-		BUG();
-
+	DBG_BUGON(nr >= ctor->nr);
 	return NULL;
 }
 

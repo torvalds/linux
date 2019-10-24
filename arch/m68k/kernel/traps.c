@@ -431,7 +431,7 @@ static inline void bus_error030 (struct frame *fp)
 			pr_err("BAD KERNEL BUSERR\n");
 
 			die_if_kernel("Oops", &fp->ptregs,0);
-			force_sig(SIGKILL, current);
+			force_sig(SIGKILL);
 			return;
 		}
 	} else {
@@ -463,7 +463,7 @@ static inline void bus_error030 (struct frame *fp)
 				 !(ssw & RW) ? "write" : "read", addr,
 				 fp->ptregs.pc);
 			die_if_kernel ("Oops", &fp->ptregs, buserr_type);
-			force_sig (SIGBUS, current);
+			force_sig (SIGBUS);
 			return;
 		}
 
@@ -493,7 +493,7 @@ static inline void bus_error030 (struct frame *fp)
 			do_page_fault (&fp->ptregs, addr, 0);
        } else {
 		pr_debug("protection fault on insn access (segv).\n");
-		force_sig (SIGSEGV, current);
+		force_sig (SIGSEGV);
        }
 }
 #else
@@ -571,7 +571,7 @@ static inline void bus_error030 (struct frame *fp)
 			       !(ssw & RW) ? "write" : "read", addr,
 			       fp->ptregs.pc);
 			die_if_kernel("Oops",&fp->ptregs,mmusr);
-			force_sig(SIGSEGV, current);
+			force_sig(SIGSEGV);
 			return;
 		} else {
 #if 0
@@ -598,7 +598,7 @@ static inline void bus_error030 (struct frame *fp)
 #endif
 			pr_debug("Unknown SIGSEGV - 1\n");
 			die_if_kernel("Oops",&fp->ptregs,mmusr);
-			force_sig(SIGSEGV, current);
+			force_sig(SIGSEGV);
 			return;
 		}
 
@@ -621,7 +621,7 @@ static inline void bus_error030 (struct frame *fp)
 	buserr:
 		pr_err("BAD KERNEL BUSERR\n");
 		die_if_kernel("Oops",&fp->ptregs,0);
-		force_sig(SIGKILL, current);
+		force_sig(SIGKILL);
 		return;
 	}
 
@@ -660,7 +660,7 @@ static inline void bus_error030 (struct frame *fp)
 			addr, fp->ptregs.pc);
 		pr_debug("Unknown SIGSEGV - 2\n");
 		die_if_kernel("Oops",&fp->ptregs,mmusr);
-		force_sig(SIGSEGV, current);
+		force_sig(SIGSEGV);
 		return;
 	}
 
@@ -804,7 +804,7 @@ asmlinkage void buserr_c(struct frame *fp)
 	default:
 	  die_if_kernel("bad frame format",&fp->ptregs,0);
 	  pr_debug("Unknown SIGSEGV - 4\n");
-	  force_sig(SIGSEGV, current);
+	  force_sig(SIGSEGV);
 	}
 }
 
@@ -1127,7 +1127,7 @@ asmlinkage void trap_c(struct frame *fp)
 		addr = (void __user*) fp->un.fmtb.daddr;
 		break;
 	}
-	force_sig_fault(sig, si_code, addr, current);
+	force_sig_fault(sig, si_code, addr);
 }
 
 void die_if_kernel (char *str, struct pt_regs *fp, int nr)
@@ -1159,6 +1159,6 @@ asmlinkage void fpsp040_die(void)
 #ifdef CONFIG_M68KFPU_EMU
 asmlinkage void fpemu_signal(int signal, int code, void *addr)
 {
-	force_sig_fault(signal, code, addr, current);
+	force_sig_fault(signal, code, addr);
 }
 #endif

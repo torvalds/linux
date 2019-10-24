@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/amlogic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amlogic MesonX device tree bindings
+
+maintainers:
+  - Kevin Hilman <khilman@baylibre.com>
+
+description: |+
+  Work in progress statement:
+
+  Device tree files and bindings applying to Amlogic SoCs and boards are
+  considered "unstable". Any Amlogic device tree binding may change at
+  any time. Be sure to use a device tree binary and a kernel image
+  generated from the same source tree.
+
+  Please refer to Documentation/devicetree/bindings/ABI.txt for a definition of a
+  stable binding/ABI.
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: Boards with the Amlogic Meson6 SoC
+        items:
+          - enum:
+              - geniatech,atv1200
+          - const: amlogic,meson6
+
+      - description: Boards with the Amlogic Meson8 SoC
+        items:
+          - enum:
+              - minix,neo-x8
+          - const: amlogic,meson8
+
+      - description: Boards with the Amlogic Meson8m2 SoC
+        items:
+          - enum:
+              - tronsmart,mxiii-plus
+          - const: amlogic,meson8m2
+
+      - description: Boards with the Amlogic Meson8b SoC
+        items:
+          - enum:
+              - endless,ec100
+              - hardkernel,odroid-c1
+              - tronfy,mxq
+          - const: amlogic,meson8b
+
+      - description: Boards with the Amlogic Meson GXBaby SoC
+        items:
+          - enum:
+              - amlogic,p200
+              - amlogic,p201
+              - friendlyarm,nanopi-k2
+              - hardkernel,odroid-c2
+              - nexbox,a95x
+              - wetek,hub
+              - wetek,play2
+          - const: amlogic,meson-gxbb
+
+      - description: Tronsmart Vega S95 devices
+        items:
+          - enum:
+              - tronsmart,vega-s95-pro
+              - tronsmart,vega-s95-meta
+              - tronsmart,vega-s95-telos
+          - const: tronsmart,vega-s95
+          - const: amlogic,meson-gxbb
+
+      - description: Boards with the Amlogic Meson GXL S805X SoC
+        items:
+          - enum:
+              - amlogic,p241
+              - libretech,aml-s805x-ac
+          - const: amlogic,s805x
+          - const: amlogic,meson-gxl
+
+      - description: Boards with the Amlogic Meson GXL S905W SoC
+        items:
+          - enum:
+              - amlogic,p281
+              - oranth,tx3-mini
+          - const: amlogic,s905w
+          - const: amlogic,meson-gxl
+
+      - description: Boards with the Amlogic Meson GXL S905X SoC
+        items:
+          - enum:
+              - amediatech,x96-max
+              - amlogic,p212
+              - hwacom,amazetv
+              - khadas,vim
+              - libretech,cc
+              - nexbox,a95x
+              - seirobotics,sei510
+          - const: amlogic,s905x
+          - const: amlogic,meson-gxl
+
+      - description: Boards with the Amlogic Meson GXL S905D SoC
+        items:
+          - enum:
+              - amlogic,p230
+              - amlogic,p231
+              - phicomm,n1
+          - const: amlogic,s905d
+          - const: amlogic,meson-gxl
+
+      - description: Boards with the Amlogic Meson GXM S912 SoC
+        items:
+          - enum:
+              - amlogic,q200
+              - amlogic,q201
+              - khadas,vim2
+              - kingnovel,r-box-pro
+              - nexbox,a1
+              - tronsmart,vega-s96
+          - const: amlogic,s912
+          - const: amlogic,meson-gxm
+
+      - description: Boards with the Amlogic Meson AXG A113D SoC
+        items:
+          - enum:
+              - amlogic,s400
+          - const: amlogic,a113d
+          - const: amlogic,meson-axg
+
+      - description: Boards with the Amlogic Meson G12A S905D2 SoC
+        items:
+          - enum:
+              - amlogic,u200
+          - const: amlogic,g12a
+
+      - description: Boards with the Amlogic Meson G12B S922X SoC
+        items:
+          - enum:
+              - hardkernel,odroid-n2
+          - const: amlogic,g12b
+
+...

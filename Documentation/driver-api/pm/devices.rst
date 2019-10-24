@@ -225,7 +225,7 @@ system-wide transition to a sleep state even though its :c:member:`runtime_auto`
 flag is clear.
 
 For more information about the runtime power management framework, refer to
-:file:`Documentation/power/runtime_pm.txt`.
+:file:`Documentation/power/runtime_pm.rst`.
 
 
 Calling Drivers to Enter and Leave System Sleep States
@@ -728,7 +728,7 @@ it into account in any way.
 
 Devices may be defined as IRQ-safe which indicates to the PM core that their
 runtime PM callbacks may be invoked with disabled interrupts (see
-:file:`Documentation/power/runtime_pm.txt` for more information).  If an
+:file:`Documentation/power/runtime_pm.rst` for more information).  If an
 IRQ-safe device belongs to a PM domain, the runtime PM of the domain will be
 disallowed, unless the domain itself is defined as IRQ-safe. However, it
 makes sense to define a PM domain as IRQ-safe only if all the devices in it
@@ -795,7 +795,7 @@ so on) and the final state of the device must reflect the "active" runtime PM
 status in that case.
 
 During system-wide resume from a sleep state it's easiest to put devices into
-the full-power state, as explained in :file:`Documentation/power/runtime_pm.txt`.
+the full-power state, as explained in :file:`Documentation/power/runtime_pm.rst`.
 [Refer to that document for more information regarding this particular issue as
 well as for information on the device runtime power management framework in
 general.]

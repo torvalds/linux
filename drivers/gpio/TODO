@@ -90,6 +90,46 @@ GPIOLIB irqchip
 The GPIOLIB irqchip is a helper irqchip for "simple cases" that should
 try to cover any generic kind of irqchip cascaded from a GPIO.
 
+- Convert all the GPIOLIB_IRQCHIP users to pass an irqchip template,
+  parent and flags before calling [devm_]gpiochip_add[_data]().
+  Currently we set up the irqchip after setting up the gpiochip
+  using gpiochip_irqchip_add() and gpiochip_set_[chained|nested]_irqchip().
+  This is too complex, so convert all users over to just set up
+  the irqchip before registering the gpio_chip, typical example:
+
+  /* Typical state container with dynamic irqchip */
+  struct my_gpio {
+      struct gpio_chip gc;
+      struct irq_chip irq;
+  };
+
+  int irq; /* from platform etc */
+  struct my_gpio *g;
+  struct gpio_irq_chip *girq
+
+  /* Set up the irqchip dynamically */
+  g->irq.name = "my_gpio_irq";
+  g->irq.irq_ack = my_gpio_ack_irq;
+  g->irq.irq_mask = my_gpio_mask_irq;
+  g->irq.irq_unmask = my_gpio_unmask_irq;
+  g->irq.irq_set_type = my_gpio_set_irq_type;
+
+  /* Get a pointer to the gpio_irq_chip */
+  girq = &g->gc.irq;
+  girq->chip = &g->irq;
+  girq->parent_handler = ftgpio_gpio_irq_handler;
+  girq->num_parents = 1;
+  girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
+                               GFP_KERNEL);
+  if (!girq->parents)
+      return -ENOMEM;
+  girq->default_type = IRQ_TYPE_NONE;
+  girq->handler = handle_bad_irq;
+  girq->parents[0] = irq;
+
+  When this is done, we will delete the old APIs for instatiating
+  GPIOLIB_IRQCHIP and simplify the code.
+
 - Look over and identify any remaining easily converted drivers and
   dry-code conversions to gpiolib irqchip for maintainers to test
 

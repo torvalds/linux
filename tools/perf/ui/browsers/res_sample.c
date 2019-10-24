@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Display a menu with individual samples to browse with perf script */
-#include "util.h"
 #include "hist.h"
 #include "evsel.h"
 #include "hists.h"
@@ -8,6 +7,7 @@
 #include "config.h"
 #include "time-utils.h"
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
 static u64 context_len = 10 * NSEC_PER_MSEC;
 
@@ -46,14 +46,14 @@ int res_sample_browse(struct res_sample *res_samples, int num_res,
 		if (asprintf(&names[i], "%s: CPU %d tid %d", tbuf,
 			     res_samples[i].cpu, res_samples[i].tid) < 0) {
 			while (--i >= 0)
-				free(names[i]);
+				zfree(&names[i]);
 			free(names);
 			return -1;
 		}
 	}
 	choice = ui__popup_menu(num_res, names);
 	for (i = 0; i < num_res; i++)
-		free(names[i]);
+		zfree(&names[i]);
 	free(names);
 
 	if (choice < 0 || choice >= num_res)

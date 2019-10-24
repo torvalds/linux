@@ -26,13 +26,17 @@
 #define __I915_FENCE_REG_H__
 
 #include <linux/list.h>
+#include <linux/types.h>
 
+struct drm_i915_gem_object;
 struct drm_i915_private;
+struct i915_ggtt;
 struct i915_vma;
+struct sg_table;
 
 #define I965_FENCE_PAGE 4096UL
 
-struct drm_i915_fence_reg {
+struct i915_fence_reg {
 	struct list_head link;
 	struct drm_i915_private *i915;
 	struct i915_vma *vma;
@@ -48,5 +52,18 @@ struct drm_i915_fence_reg {
 	 */
 	bool dirty;
 };
+
+/* i915_gem_fence_reg.c */
+struct i915_fence_reg *i915_reserve_fence(struct drm_i915_private *i915);
+void i915_unreserve_fence(struct i915_fence_reg *fence);
+
+void i915_gem_restore_fences(struct drm_i915_private *i915);
+
+void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj,
+				       struct sg_table *pages);
+void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
+					 struct sg_table *pages);
+
+void i915_ggtt_init_fences(struct i915_ggtt *ggtt);
 
 #endif

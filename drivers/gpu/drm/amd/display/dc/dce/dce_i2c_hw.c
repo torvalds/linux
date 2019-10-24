@@ -22,6 +22,9 @@
  * Authors: AMD
  *
  */
+
+#include <linux/delay.h>
+
 #include "dce_i2c.h"
 #include "dce_i2c_hw.h"
 #include "reg_helper.h"
@@ -149,6 +152,36 @@ static void process_channel_reply(
 	}
 }
 
+static bool is_engine_available(struct dce_i2c_hw *dce_i2c_hw)
+{
+	unsigned int arbitrate;
+	unsigned int i2c_hw_status;
+
+	REG_GET(HW_STATUS, DC_I2C_DDC1_HW_STATUS, &i2c_hw_status);
+	if (i2c_hw_status == DC_I2C_STATUS__DC_I2C_STATUS_USED_BY_HW)
+		return false;
+
+	REG_GET(DC_I2C_ARBITRATION, DC_I2C_REG_RW_CNTL_STATUS, &arbitrate);
+	if (arbitrate == DC_I2C_REG_RW_CNTL_STATUS_DMCU_ONLY)
+		return false;
+
+	return true;
+}
+
+static bool is_hw_busy(struct dce_i2c_hw *dce_i2c_hw)
+{
+	uint32_t i2c_sw_status = 0;
+
+	REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
+	if (i2c_sw_status == DC_I2C_STATUS__DC_I2C_STATUS_IDLE)
+		return false;
+
+	if (is_engine_available(dce_i2c_hw))
+		return false;
+
+	return true;
+}
+
 static bool process_transaction(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct i2c_request_transaction_data *request)
@@ -158,6 +191,11 @@ static bool process_transaction(
 
 	bool last_transaction = false;
 	uint32_t value = 0;
+
+	if (is_hw_busy(dce_i2c_hw)) {
+		request->status = I2C_CHANNEL_OPERATION_ENGINE_BUSY;
+		return false;
+	}
 
 	last_transaction = ((dce_i2c_hw->transaction_count == 3) ||
 			(request->action == DCE_I2C_TRANSACTION_ACTION_I2C_WRITE) ||
@@ -268,6 +306,14 @@ static bool setup_engine(
 	struct dce_i2c_hw *dce_i2c_hw)
 {
 	uint32_t i2c_setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	uint32_t  reset_length = 0;
+#endif
+	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
+	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
+
+	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
+	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 
 	if (dce_i2c_hw->setup_limit != 0)
 		i2c_setup_limit = dce_i2c_hw->setup_limit;
@@ -286,31 +332,24 @@ static bool setup_engine(
 		REG_UPDATE_N(SETUP, 2,
 			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_TIME_LIMIT), i2c_setup_limit,
 			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_ENABLE), 1);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	} else {
+		reset_length = dce_i2c_hw->send_reset_length;
+		REG_UPDATE_N(SETUP, 3,
+			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_TIME_LIMIT), i2c_setup_limit,
+			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_SEND_RESET_LENGTH), reset_length,
+			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_ENABLE), 1);
+#endif
 	}
 	/* Program HW priority
 	 * set to High - interrupt software I2C at any time
 	 * Enable restart of SW I2C that was interrupted by HW
 	 * disable queuing of software while I2C is in use by HW
 	 */
-	REG_UPDATE_2(DC_I2C_ARBITRATION,
-		     DC_I2C_NO_QUEUED_SW_GO, 0,
-		     DC_I2C_SW_PRIORITY, DC_I2C_ARBITRATION__DC_I2C_SW_PRIORITY_NORMAL);
+	REG_UPDATE(DC_I2C_ARBITRATION,
+			DC_I2C_NO_QUEUED_SW_GO, 0);
 
 	return true;
-}
-
-static bool is_hw_busy(struct dce_i2c_hw *dce_i2c_hw)
-{
-	uint32_t i2c_sw_status = 0;
-
-	REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
-	if (i2c_sw_status == DC_I2C_STATUS__DC_I2C_STATUS_IDLE)
-		return false;
-
-	reset_hw_engine(dce_i2c_hw);
-
-	REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
-	return i2c_sw_status != DC_I2C_STATUS__DC_I2C_STATUS_IDLE;
 }
 
 static void release_engine(
@@ -322,8 +361,6 @@ static void release_engine(
 
 	set_speed(dce_i2c_hw, dce_i2c_hw->original_speed);
 
-	/* Release I2C */
-	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_DONE_USING_I2C_REG, 1);
 
 	/* Reset HW engine */
 	{
@@ -343,17 +380,10 @@ static void release_engine(
 	/* HW I2c engine - clock gating feature */
 	if (!dce_i2c_hw->engine_keep_power_up_count)
 		REG_UPDATE_N(SETUP, 1, FN(SETUP, DC_I2C_DDC1_ENABLE), 0);
+	/* Release I2C after reset, so HW or DMCU could use it */
+	REG_UPDATE_2(DC_I2C_ARBITRATION, DC_I2C_SW_DONE_USING_I2C_REG, 1,
+		DC_I2C_SW_USE_I2C_REG_REQ, 0);
 
-}
-
-static bool is_engine_available(struct dce_i2c_hw *dce_i2c_hw)
-{
-	unsigned int arbitrate;
-
-	REG_GET(DC_I2C_ARBITRATION, DC_I2C_REG_RW_CNTL_STATUS, &arbitrate);
-	if (arbitrate == DC_I2C_REG_RW_CNTL_STATUS_DMCU_ONLY)
-		return false;
-	return true;
 }
 
 struct dce_i2c_hw *acquire_i2c_hw_engine(
@@ -453,6 +483,7 @@ static void submit_channel_request_hw(
 		request->status = I2C_CHANNEL_OPERATION_ENGINE_BUSY;
 		return;
 	}
+	reset_hw_engine(dce_i2c_hw);
 
 	execute_transaction(dce_i2c_hw);
 
@@ -684,3 +715,23 @@ void dcn1_i2c_hw_construct(
 	dce_i2c_hw->setup_limit = I2C_SETUP_TIME_LIMIT_DCN;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+void dcn2_i2c_hw_construct(
+	struct dce_i2c_hw *dce_i2c_hw,
+	struct dc_context *ctx,
+	uint32_t engine_id,
+	const struct dce_i2c_registers *regs,
+	const struct dce_i2c_shift *shifts,
+	const struct dce_i2c_mask *masks)
+{
+	dcn1_i2c_hw_construct(dce_i2c_hw,
+			ctx,
+			engine_id,
+			regs,
+			shifts,
+			masks);
+	dce_i2c_hw->send_reset_length = I2C_SEND_RESET_LENGTH_9;
+	if (ctx->dc->debug.scl_reset_length10)
+		dce_i2c_hw->send_reset_length = I2C_SEND_RESET_LENGTH_10;
+}
+#endif

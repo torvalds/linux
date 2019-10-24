@@ -21,7 +21,7 @@ instructions).  Similarly, it knows how to follow switch statements, for
 which gcc sometimes uses jump tables.
 
 (Objtool also has an 'orc generate' subcommand which generates debuginfo
-for the ORC unwinder.  See Documentation/x86/orc-unwinder.txt in the
+for the ORC unwinder.  See Documentation/x86/orc-unwinder.rst in the
 kernel tree for more details.)
 
 
@@ -101,7 +101,7 @@ b) ORC (Oops Rewind Capability) unwind table generation
    band.  So it doesn't affect runtime performance and it can be
    reliable even when interrupts or exceptions are involved.
 
-   For more details, see Documentation/x86/orc-unwinder.txt.
+   For more details, see Documentation/x86/orc-unwinder.rst.
 
 c) Higher live patching compatibility rate
 

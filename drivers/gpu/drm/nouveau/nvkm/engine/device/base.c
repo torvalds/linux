@@ -1316,7 +1316,7 @@ nvaf_chipset = {
 	.i2c = g94_i2c_new,
 	.imem = nv50_instmem_new,
 	.mc = gt215_mc_new,
-	.mmu = g84_mmu_new,
+	.mmu = mcp77_mmu_new,
 	.mxm = nv50_mxm_new,
 	.pci = g94_pci_new,
 	.pmu = gt215_pmu_new,
@@ -2575,6 +2575,41 @@ nv167_chipset = {
 	.sec2 = tu102_sec2_new,
 };
 
+static const struct nvkm_device_chip
+nv168_chipset = {
+	.name = "TU116",
+	.bar = tu102_bar_new,
+	.bios = nvkm_bios_new,
+	.bus = gf100_bus_new,
+	.devinit = tu102_devinit_new,
+	.fault = tu102_fault_new,
+	.fb = gv100_fb_new,
+	.fuse = gm107_fuse_new,
+	.gpio = gk104_gpio_new,
+	.gsp = gv100_gsp_new,
+	.i2c = gm200_i2c_new,
+	.ibus = gm200_ibus_new,
+	.imem = nv50_instmem_new,
+	.ltc = gp102_ltc_new,
+	.mc = tu102_mc_new,
+	.mmu = tu102_mmu_new,
+	.pci = gp100_pci_new,
+	.pmu = gp102_pmu_new,
+	.therm = gp100_therm_new,
+	.timer = gk20a_timer_new,
+	.top = gk104_top_new,
+	.ce[0] = tu102_ce_new,
+	.ce[1] = tu102_ce_new,
+	.ce[2] = tu102_ce_new,
+	.ce[3] = tu102_ce_new,
+	.ce[4] = tu102_ce_new,
+	.disp = tu102_disp_new,
+	.dma = gv100_dma_new,
+	.fifo = tu102_fifo_new,
+	.nvdec[0] = gp102_nvdec_new,
+	.sec2 = tu102_sec2_new,
+};
+
 static int
 nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
 		       struct nvkm_notify *notify)
@@ -3052,6 +3087,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x164: device->chip = &nv164_chipset; break;
 		case 0x166: device->chip = &nv166_chipset; break;
 		case 0x167: device->chip = &nv167_chipset; break;
+		case 0x168: device->chip = &nv168_chipset; break;
 		default:
 			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
 			goto done;

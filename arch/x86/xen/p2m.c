@@ -817,9 +817,6 @@ static int __init xen_p2m_debugfs(void)
 {
 	struct dentry *d_xen = xen_init_debugfs();
 
-	if (d_xen == NULL)
-		return -ENOMEM;
-
 	d_mmu_debug = debugfs_create_dir("mmu", d_xen);
 
 	debugfs_create_file("p2m", 0600, d_mmu_debug, NULL, &p2m_dump_fops);

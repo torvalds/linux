@@ -175,7 +175,6 @@ static inline void scsi_autopm_put_host(struct Scsi_Host *h) {}
 #endif /* CONFIG_PM */
 
 extern struct async_domain scsi_sd_pm_domain;
-extern struct async_domain scsi_sd_probe_domain;
 
 /* scsi_dh.c */
 #ifdef CONFIG_SCSI_DH

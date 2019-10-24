@@ -15,10 +15,13 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_offload.h>
 /* For layer 4 checksum field offset. */
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/icmpv6.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
 
 /* add vlan header into the user buffer for if tag was removed by offloads */
 static bool
@@ -150,12 +153,195 @@ nla_put_failure:
 	return -1;
 }
 
+static int nft_payload_offload_ll(struct nft_offload_ctx *ctx,
+				  struct nft_flow_rule *flow,
+				  const struct nft_payload *priv)
+{
+	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
+
+	switch (priv->offset) {
+	case offsetof(struct ethhdr, h_source):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_ETH_ADDRS, eth_addrs,
+				  src, ETH_ALEN, reg);
+		break;
+	case offsetof(struct ethhdr, h_dest):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_ETH_ADDRS, eth_addrs,
+				  dst, ETH_ALEN, reg);
+		break;
+	}
+
+	return 0;
+}
+
+static int nft_payload_offload_ip(struct nft_offload_ctx *ctx,
+				  struct nft_flow_rule *flow,
+				  const struct nft_payload *priv)
+{
+	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
+
+	switch (priv->offset) {
+	case offsetof(struct iphdr, saddr):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_IPV4_ADDRS, ipv4, src,
+				  sizeof(struct in_addr), reg);
+		break;
+	case offsetof(struct iphdr, daddr):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_IPV4_ADDRS, ipv4, dst,
+				  sizeof(struct in_addr), reg);
+		break;
+	case offsetof(struct iphdr, protocol):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_BASIC, basic, ip_proto,
+				  sizeof(__u8), reg);
+		nft_offload_set_dependency(ctx, NFT_OFFLOAD_DEP_TRANSPORT);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int nft_payload_offload_ip6(struct nft_offload_ctx *ctx,
+				  struct nft_flow_rule *flow,
+				  const struct nft_payload *priv)
+{
+	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
+
+	switch (priv->offset) {
+	case offsetof(struct ipv6hdr, saddr):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_IPV6_ADDRS, ipv6, src,
+				  sizeof(struct in6_addr), reg);
+		break;
+	case offsetof(struct ipv6hdr, daddr):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_IPV6_ADDRS, ipv6, dst,
+				  sizeof(struct in6_addr), reg);
+		break;
+	case offsetof(struct ipv6hdr, nexthdr):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_BASIC, basic, ip_proto,
+				  sizeof(__u8), reg);
+		nft_offload_set_dependency(ctx, NFT_OFFLOAD_DEP_TRANSPORT);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int nft_payload_offload_nh(struct nft_offload_ctx *ctx,
+				  struct nft_flow_rule *flow,
+				  const struct nft_payload *priv)
+{
+	int err;
+
+	switch (ctx->dep.l3num) {
+	case htons(ETH_P_IP):
+		err = nft_payload_offload_ip(ctx, flow, priv);
+		break;
+	case htons(ETH_P_IPV6):
+		err = nft_payload_offload_ip6(ctx, flow, priv);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
+static int nft_payload_offload_tcp(struct nft_offload_ctx *ctx,
+				   struct nft_flow_rule *flow,
+				   const struct nft_payload *priv)
+{
+	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
+
+	switch (priv->offset) {
+	case offsetof(struct tcphdr, source):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_PORTS, tp, src,
+				  sizeof(__be16), reg);
+		break;
+	case offsetof(struct tcphdr, dest):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_PORTS, tp, dst,
+				  sizeof(__be16), reg);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int nft_payload_offload_udp(struct nft_offload_ctx *ctx,
+				   struct nft_flow_rule *flow,
+				   const struct nft_payload *priv)
+{
+	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
+
+	switch (priv->offset) {
+	case offsetof(struct udphdr, source):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_PORTS, tp, src,
+				  sizeof(__be16), reg);
+		break;
+	case offsetof(struct udphdr, dest):
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_PORTS, tp, dst,
+				  sizeof(__be16), reg);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int nft_payload_offload_th(struct nft_offload_ctx *ctx,
+				  struct nft_flow_rule *flow,
+				  const struct nft_payload *priv)
+{
+	int err;
+
+	switch (ctx->dep.protonum) {
+	case IPPROTO_TCP:
+		err = nft_payload_offload_tcp(ctx, flow, priv);
+		break;
+	case IPPROTO_UDP:
+		err = nft_payload_offload_udp(ctx, flow, priv);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
+static int nft_payload_offload(struct nft_offload_ctx *ctx,
+			       struct nft_flow_rule *flow,
+			       const struct nft_expr *expr)
+{
+	const struct nft_payload *priv = nft_expr_priv(expr);
+	int err;
+
+	switch (priv->base) {
+	case NFT_PAYLOAD_LL_HEADER:
+		err = nft_payload_offload_ll(ctx, flow, priv);
+		break;
+	case NFT_PAYLOAD_NETWORK_HEADER:
+		err = nft_payload_offload_nh(ctx, flow, priv);
+		break;
+	case NFT_PAYLOAD_TRANSPORT_HEADER:
+		err = nft_payload_offload_th(ctx, flow, priv);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+	return err;
+}
+
 static const struct nft_expr_ops nft_payload_ops = {
 	.type		= &nft_payload_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_payload)),
 	.eval		= nft_payload_eval,
 	.init		= nft_payload_init,
 	.dump		= nft_payload_dump,
+	.offload	= nft_payload_offload,
 };
 
 const struct nft_expr_ops nft_payload_fast_ops = {
@@ -164,6 +350,7 @@ const struct nft_expr_ops nft_payload_fast_ops = {
 	.eval		= nft_payload_eval,
 	.init		= nft_payload_init,
 	.dump		= nft_payload_dump,
+	.offload	= nft_payload_offload,
 };
 
 static inline void nft_csum_replace(__sum16 *sum, __wsum fsum, __wsum tsum)
@@ -240,7 +427,7 @@ static int nft_payload_l4csum_update(const struct nft_pktinfo *pkt,
 					  tsum));
 	}
 
-	if (!skb_make_writable(skb, l4csum_offset + sizeof(sum)) ||
+	if (skb_ensure_writable(skb, l4csum_offset + sizeof(sum)) ||
 	    skb_store_bits(skb, l4csum_offset, &sum, sizeof(sum)) < 0)
 		return -1;
 
@@ -256,7 +443,7 @@ static int nft_payload_csum_inet(struct sk_buff *skb, const u32 *src,
 		return -1;
 
 	nft_csum_replace(&sum, fsum, tsum);
-	if (!skb_make_writable(skb, csum_offset + sizeof(sum)) ||
+	if (skb_ensure_writable(skb, csum_offset + sizeof(sum)) ||
 	    skb_store_bits(skb, csum_offset, &sum, sizeof(sum)) < 0)
 		return -1;
 
@@ -309,7 +496,7 @@ static void nft_payload_set_eval(const struct nft_expr *expr,
 			goto err;
 	}
 
-	if (!skb_make_writable(skb, max(offset + priv->len, 0)) ||
+	if (skb_ensure_writable(skb, max(offset + priv->len, 0)) ||
 	    skb_store_bits(skb, offset, src, priv->len) < 0)
 		goto err;
 

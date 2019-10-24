@@ -134,11 +134,6 @@ static inline void mlx5_wq_cyc_update_db_record(struct mlx5_wq_cyc *wq)
 	*wq->db = cpu_to_be32(wq->wqe_ctr);
 }
 
-static inline u16 mlx5_wq_cyc_get_ctr_wrap_cnt(struct mlx5_wq_cyc *wq, u16 ctr)
-{
-	return ctr >> wq->fbc.log_sz;
-}
-
 static inline u16 mlx5_wq_cyc_ctr2ix(struct mlx5_wq_cyc *wq, u16 ctr)
 {
 	return ctr & wq->fbc.sz_m1;

@@ -435,7 +435,8 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, alm_irq, NULL,
 				wm831x_alm_irq,
-				IRQF_TRIGGER_RISING, "RTC alarm",
+				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				"RTC alarm",
 				wm831x_rtc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request alarm IRQ %d: %d\n",

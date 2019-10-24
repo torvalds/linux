@@ -120,7 +120,7 @@ config SPI_AXI_SPI_ENGINE
 config SPI_BCM2835
 	tristate "BCM2835 SPI controller"
 	depends on GPIOLIB
-	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on ARCH_BCM2835 || ARCH_BRCMSTB || COMPILE_TEST
 	help
 	  This selects a driver for the Broadcom BCM2835 SPI master.
 
@@ -131,7 +131,7 @@ config SPI_BCM2835
 
 config SPI_BCM2835AUX
 	tristate "BCM2835 SPI auxiliary controller"
-	depends on (ARCH_BCM2835 && GPIOLIB) || COMPILE_TEST
+	depends on ((ARCH_BCM2835 || ARCH_BRCMSTB) && GPIOLIB) || COMPILE_TEST
 	help
 	  This selects a driver for the Broadcom BCM2835 SPI aux master.
 
@@ -732,6 +732,16 @@ config SPI_SUN6I
 	depends on RESET_CONTROLLER
 	help
 	  This enables using the SPI controller on the Allwinner A31 SoCs.
+
+config SPI_SYNQUACER
+	tristate "Socionext's SynQuacer HighSpeed SPI controller"
+	depends on ARCH_SYNQUACER || COMPILE_TEST
+	help
+	  SPI driver for Socionext's High speed SPI controller which provides
+	  various operating modes for interfacing to serial peripheral devices
+	  that use the de-facto standard SPI protocol.
+
+	  It also supports the new dual-bit and quad-bit SPI protocol.
 
 config SPI_MXIC
         tristate "Macronix MX25F0A SPI controller"

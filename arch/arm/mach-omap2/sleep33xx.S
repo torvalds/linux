@@ -24,6 +24,7 @@
 #define BIT(nr)			(1 << (nr))
 
 	.arm
+	.arch armv7-a
 	.align 3
 
 ENTRY(am33xx_do_wfi)

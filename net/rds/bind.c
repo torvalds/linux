@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -239,34 +239,30 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out;
 	}
 
-	sock_set_flag(sk, SOCK_RCU_FREE);
-	ret = rds_add_bound(rs, binding_addr, &port, scope_id);
-	if (ret)
-		goto out;
-
-	if (rs->rs_transport) { /* previously bound */
+	/* The transport can be set using SO_RDS_TRANSPORT option before the
+	 * socket is bound.
+	 */
+	if (rs->rs_transport) {
 		trans = rs->rs_transport;
 		if (trans->laddr_check(sock_net(sock->sk),
 				       binding_addr, scope_id) != 0) {
 			ret = -ENOPROTOOPT;
-			rds_remove_bound(rs);
-		} else {
-			ret = 0;
+			goto out;
 		}
-		goto out;
-	}
-	trans = rds_trans_get_preferred(sock_net(sock->sk), binding_addr,
-					scope_id);
-	if (!trans) {
-		ret = -EADDRNOTAVAIL;
-		rds_remove_bound(rs);
-		pr_info_ratelimited("RDS: %s could not find a transport for %pI6c, load rds_tcp or rds_rdma?\n",
-				    __func__, binding_addr);
-		goto out;
+	} else {
+		trans = rds_trans_get_preferred(sock_net(sock->sk),
+						binding_addr, scope_id);
+		if (!trans) {
+			ret = -EADDRNOTAVAIL;
+			pr_info_ratelimited("RDS: %s could not find a transport for %pI6c, load rds_tcp or rds_rdma?\n",
+					    __func__, binding_addr);
+			goto out;
+		}
+		rs->rs_transport = trans;
 	}
 
-	rs->rs_transport = trans;
-	ret = 0;
+	sock_set_flag(sk, SOCK_RCU_FREE);
+	ret = rds_add_bound(rs, binding_addr, &port, scope_id);
 
 out:
 	release_sock(sk);

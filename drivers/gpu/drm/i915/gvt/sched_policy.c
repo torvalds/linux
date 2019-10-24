@@ -465,7 +465,7 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 		scheduler->current_vgpu = NULL;
 	}
 
-	intel_runtime_pm_get(dev_priv);
+	intel_runtime_pm_get(&dev_priv->runtime_pm);
 	spin_lock_bh(&scheduler->mmio_context_lock);
 	for (ring_id = 0; ring_id < I915_NUM_ENGINES; ring_id++) {
 		if (scheduler->engine_owner[ring_id] == vgpu) {
@@ -474,6 +474,6 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 		}
 	}
 	spin_unlock_bh(&scheduler->mmio_context_lock);
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
 	mutex_unlock(&vgpu->gvt->sched_lock);
 }

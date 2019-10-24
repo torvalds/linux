@@ -10,7 +10,7 @@ config USB_ACM
 	---help---
 	  This driver supports USB modems and ISDN adapters which support the
 	  Communication Device Class Abstract Control Model interface.
-	  Please read <file:Documentation/usb/acm.txt> for details.
+	  Please read <file:Documentation/usb/acm.rst> for details.
 
 	  If your modem only reports "Cls=ff(vend.)" in the descriptors in
 	  /sys/kernel/debug/usb/devices, then your modem will not work with this

@@ -79,11 +79,14 @@ config MISDN_NETJET
 	depends on PCI
 	depends on TTY
 	select MISDN_IPAC
-	select ISDN_HDLC
-	select ISDN_I4L
+	select MISDN_HDLC
 	help
 	  Enable support for Traverse Technologies NETJet PCI cards.
 
+config MISDN_HDLC
+	tristate
+	select CRC_CCITT
+	select BITREVERSE
 
 config MISDN_IPAC
 	tristate

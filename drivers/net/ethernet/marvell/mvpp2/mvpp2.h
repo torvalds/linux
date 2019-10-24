@@ -148,6 +148,8 @@
 #define MVPP22_CLS_C2_ATTR2			0x1b6c
 #define     MVPP22_CLS_C2_ATTR2_RSS_EN		BIT(30)
 #define MVPP22_CLS_C2_ATTR3			0x1b70
+#define MVPP22_CLS_C2_TCAM_CTRL			0x1b90
+#define     MVPP22_CLS_C2_TCAM_BYPASS_FIFO	BIT(0)
 
 /* Descriptor Manager Top Registers */
 #define MVPP2_RXQ_NUM_REG			0x2040
@@ -327,8 +329,26 @@
 #define     MVPP22_BM_ADDR_HIGH_VIRT_RLS_MASK	0xff00
 #define     MVPP22_BM_ADDR_HIGH_VIRT_RLS_SHIFT	8
 
+/* Packet Processor per-port counters */
+#define MVPP2_OVERRUN_ETH_DROP			0x7000
+#define MVPP2_CLS_ETH_DROP			0x7020
+
 /* Hit counters registers */
 #define MVPP2_CTRS_IDX				0x7040
+#define     MVPP22_CTRS_TX_CTR(port, txq)	((txq) | ((port) << 3) | BIT(7))
+#define MVPP2_TX_DESC_ENQ_CTR			0x7100
+#define MVPP2_TX_DESC_ENQ_TO_DDR_CTR		0x7104
+#define MVPP2_TX_BUFF_ENQ_TO_DDR_CTR		0x7108
+#define MVPP2_TX_DESC_ENQ_HW_FWD_CTR		0x710c
+#define MVPP2_RX_DESC_ENQ_CTR			0x7120
+#define MVPP2_TX_PKTS_DEQ_CTR			0x7130
+#define MVPP2_TX_PKTS_FULL_QUEUE_DROP_CTR	0x7200
+#define MVPP2_TX_PKTS_EARLY_DROP_CTR		0x7204
+#define MVPP2_TX_PKTS_BM_DROP_CTR		0x7208
+#define MVPP2_TX_PKTS_BM_MC_DROP_CTR		0x720c
+#define MVPP2_RX_PKTS_FULL_QUEUE_DROP_CTR	0x7220
+#define MVPP2_RX_PKTS_EARLY_DROP_CTR		0x7224
+#define MVPP2_RX_PKTS_BM_DROP_CTR		0x7228
 #define MVPP2_CLS_DEC_TBL_HIT_CTR		0x7700
 #define MVPP2_CLS_FLOW_TBL_HIT_CTR		0x7704
 
@@ -624,6 +644,7 @@
 #define MVPP2_N_RFS_RULES		(MVPP2_N_RFS_ENTRIES_PER_FLOW * 7)
 
 /* RSS constants */
+#define MVPP22_N_RSS_TABLES		8
 #define MVPP22_RSS_TABLE_ENTRIES	32
 
 /* IPv6 max L3 address size */
@@ -725,6 +746,10 @@ enum mvpp2_prs_l3_cast {
 /* Definitions */
 struct mvpp2_dbgfs_entries;
 
+struct mvpp2_rss_table {
+	u32 indir[MVPP22_RSS_TABLE_ENTRIES];
+};
+
 /* Shared Packet Processor resources */
 struct mvpp2 {
 	/* Shared registers' base addresses */
@@ -788,6 +813,9 @@ struct mvpp2 {
 
 	/* Debugfs entries private data */
 	struct mvpp2_dbgfs_entries *dbgfs_entries;
+
+	/* RSS Indirection tables */
+	struct mvpp2_rss_table *rss_tables[MVPP22_N_RSS_TABLES];
 };
 
 struct mvpp2_pcpu_stats {
@@ -905,6 +933,7 @@ struct mvpp2_port {
 
 	phy_interface_t phy_interface;
 	struct phylink *phylink;
+	struct phylink_config phylink_config;
 	struct phy *comphy;
 
 	struct mvpp2_bm_pool *pool_long;
@@ -919,12 +948,14 @@ struct mvpp2_port {
 
 	u32 tx_time_coal;
 
-	/* RSS indirection table */
-	u32 indir[MVPP22_RSS_TABLE_ENTRIES];
-
 	/* List of steering rules active on that port */
-	struct mvpp2_ethtool_fs *rfs_rules[MVPP2_N_RFS_RULES];
+	struct mvpp2_ethtool_fs *rfs_rules[MVPP2_N_RFS_ENTRIES_PER_FLOW];
 	int n_rfs_rules;
+
+	/* Each port has its own view of the rss contexts, so that it can number
+	 * them from 0
+	 */
+	int rss_ctx[MVPP22_N_RSS_TABLES];
 };
 
 /* The mvpp2_tx_desc and mvpp2_rx_desc structures describe the

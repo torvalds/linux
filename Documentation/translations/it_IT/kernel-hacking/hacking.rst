@@ -755,7 +755,7 @@ anche per avere patch pulite, c'è del lavoro amministrativo da fare:
 -  Solitamente vorrete un'opzione di configurazione per la vostra modifica
    al kernel. Modificate ``Kconfig`` nella cartella giusta. Il linguaggio
    Config è facile con copia ed incolla, e c'è una completa documentazione
-   nel file ``Documentation/kbuild/kconfig-language.txt``.
+   nel file ``Documentation/kbuild/kconfig-language.rst``.
 
    Nella descrizione della vostra opzione, assicuratevi di parlare sia agli
    utenti esperti sia agli utente che non sanno nulla del vostro lavoro.
@@ -767,7 +767,7 @@ anche per avere patch pulite, c'è del lavoro amministrativo da fare:
 -  Modificate il file ``Makefile``: le variabili CONFIG sono esportate qui,
    quindi potete solitamente aggiungere una riga come la seguete
    "obj-$(CONFIG_xxx) += xxx.o". La sintassi è documentata nel file
-   ``Documentation/kbuild/makefiles.txt``.
+   ``Documentation/kbuild/makefiles.rst``.
 
 -  Aggiungete voi stessi in ``CREDITS`` se avete fatto qualcosa di notevole,
    solitamente qualcosa che supera il singolo file (comunque il vostro nome

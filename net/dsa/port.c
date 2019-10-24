@@ -261,6 +261,18 @@ int dsa_port_bridge_flags(const struct dsa_port *dp, unsigned long flags,
 	return err;
 }
 
+int dsa_port_mrouter(struct dsa_port *dp, bool mrouter,
+		     struct switchdev_trans *trans)
+{
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return ds->ops->port_egress_floods ? 0 : -EOPNOTSUPP;
+
+	return ds->ops->port_egress_floods(ds, port, true, mrouter);
+}
+
 int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid)
 {
@@ -336,9 +348,6 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		.vlan = vlan,
 	};
 
-	/* Can be called from dsa_slave_port_obj_add() or
-	 * dsa_slave_vlan_rx_add_vid()
-	 */
 	if (!dp->bridge_dev || br_vlan_enabled(dp->bridge_dev))
 		return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
 
@@ -354,12 +363,6 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 		.vlan = vlan,
 	};
 
-	if (vlan->obj.orig_dev && netif_is_bridge_master(vlan->obj.orig_dev))
-		return -EOPNOTSUPP;
-
-	/* Can be called from dsa_slave_port_obj_del() or
-	 * dsa_slave_vlan_rx_kill_vid()
-	 */
 	if (!dp->bridge_dev || br_vlan_enabled(dp->bridge_dev))
 		return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
 
@@ -417,6 +420,108 @@ static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 	of_node_put(phy_dn);
 	return phydev;
 }
+
+void dsa_port_phylink_validate(struct phylink_config *config,
+			       unsigned long *supported,
+			       struct phylink_link_state *state)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->phylink_validate)
+		return;
+
+	ds->ops->phylink_validate(ds, dp->index, supported, state);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_validate);
+
+int dsa_port_phylink_mac_link_state(struct phylink_config *config,
+				    struct phylink_link_state *state)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+
+	/* Only called for SGMII and 802.3z */
+	if (!ds->ops->phylink_mac_link_state)
+		return -EOPNOTSUPP;
+
+	return ds->ops->phylink_mac_link_state(ds, dp->index, state);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_state);
+
+void dsa_port_phylink_mac_config(struct phylink_config *config,
+				 unsigned int mode,
+				 const struct phylink_link_state *state)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->phylink_mac_config)
+		return;
+
+	ds->ops->phylink_mac_config(ds, dp->index, mode, state);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_config);
+
+void dsa_port_phylink_mac_an_restart(struct phylink_config *config)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->phylink_mac_an_restart)
+		return;
+
+	ds->ops->phylink_mac_an_restart(ds, dp->index);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_an_restart);
+
+void dsa_port_phylink_mac_link_down(struct phylink_config *config,
+				    unsigned int mode,
+				    phy_interface_t interface)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct phy_device *phydev = NULL;
+	struct dsa_switch *ds = dp->ds;
+
+	if (dsa_is_user_port(ds, dp->index))
+		phydev = dp->slave->phydev;
+
+	if (!ds->ops->phylink_mac_link_down) {
+		if (ds->ops->adjust_link && phydev)
+			ds->ops->adjust_link(ds, dp->index, phydev);
+		return;
+	}
+
+	ds->ops->phylink_mac_link_down(ds, dp->index, mode, interface);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_down);
+
+void dsa_port_phylink_mac_link_up(struct phylink_config *config,
+				  unsigned int mode,
+				  phy_interface_t interface,
+				  struct phy_device *phydev)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->phylink_mac_link_up) {
+		if (ds->ops->adjust_link && phydev)
+			ds->ops->adjust_link(ds, dp->index, phydev);
+		return;
+	}
+
+	ds->ops->phylink_mac_link_up(ds, dp->index, mode, interface, phydev);
+}
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_up);
+
+const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
+	.validate = dsa_port_phylink_validate,
+	.mac_link_state = dsa_port_phylink_mac_link_state,
+	.mac_config = dsa_port_phylink_mac_config,
+	.mac_an_restart = dsa_port_phylink_mac_an_restart,
+	.mac_link_down = dsa_port_phylink_mac_link_down,
+	.mac_link_up = dsa_port_phylink_mac_link_up,
+};
 
 static int dsa_port_setup_phy_of(struct dsa_port *dp, bool enable)
 {
@@ -495,8 +600,53 @@ static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 	return 0;
 }
 
+static int dsa_port_phylink_register(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	struct device_node *port_dn = dp->dn;
+	int mode, err;
+
+	mode = of_get_phy_mode(port_dn);
+	if (mode < 0)
+		mode = PHY_INTERFACE_MODE_NA;
+
+	dp->pl_config.dev = ds->dev;
+	dp->pl_config.type = PHYLINK_DEV;
+
+	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(port_dn),
+				mode, &dsa_port_phylink_mac_ops);
+	if (IS_ERR(dp->pl)) {
+		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(dp->pl));
+		return PTR_ERR(dp->pl);
+	}
+
+	err = phylink_of_phy_connect(dp->pl, port_dn, 0);
+	if (err && err != -ENODEV) {
+		pr_err("could not attach to PHY: %d\n", err);
+		goto err_phy_connect;
+	}
+
+	rtnl_lock();
+	phylink_start(dp->pl);
+	rtnl_unlock();
+
+	return 0;
+
+err_phy_connect:
+	phylink_destroy(dp->pl);
+	return err;
+}
+
 int dsa_port_link_register_of(struct dsa_port *dp)
 {
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->adjust_link)
+		return dsa_port_phylink_register(dp);
+
+	dev_warn(ds->dev,
+		 "Using legacy PHYLIB callbacks. Please migrate to PHYLINK!\n");
+
 	if (of_phy_is_fixed_link(dp->dn))
 		return dsa_port_fixed_link_register_of(dp);
 	else
@@ -505,6 +655,16 @@ int dsa_port_link_register_of(struct dsa_port *dp)
 
 void dsa_port_link_unregister_of(struct dsa_port *dp)
 {
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->adjust_link) {
+		rtnl_lock();
+		phylink_disconnect_phy(dp->pl);
+		rtnl_unlock();
+		phylink_destroy(dp->pl);
+		return;
+	}
+
 	if (of_phy_is_fixed_link(dp->dn))
 		of_phy_deregister_fixed_link(dp->dn);
 	else

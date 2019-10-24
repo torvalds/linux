@@ -138,10 +138,10 @@ static void mv88e6352_tai_event_work(struct work_struct *ugly)
 	u32 raw_ts;
 	int err;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_tai_read(chip, MV88E6XXX_TAI_EVENT_STATUS,
 				 status, ARRAY_SIZE(status));
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	if (err) {
 		dev_err(chip->dev, "failed to read TAI status register\n");
@@ -158,18 +158,18 @@ static void mv88e6352_tai_event_work(struct work_struct *ugly)
 
 	/* Clear the valid bit so the next timestamp can come in */
 	status[0] &= ~MV88E6XXX_TAI_EVENT_STATUS_VALID;
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_EVENT_STATUS, status[0]);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	/* This is an external timestamp */
 	ev.type = PTP_CLOCK_EXTTS;
 
 	/* We only have one timestamping channel. */
 	ev.index = 0;
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	ev.timestamp = timecounter_cyc2time(&chip->tstamp_tc, raw_ts);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	ptp_clock_event(chip->ptp_clock, &ev);
 out:
@@ -192,12 +192,12 @@ static int mv88e6xxx_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	adj *= scaled_ppm;
 	diff = div_u64(adj, CC_MULT_DEM);
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	timecounter_read(&chip->tstamp_tc);
 	chip->tstamp_cc.mult = neg_adj ? mult - diff : mult + diff;
 
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return 0;
 }
@@ -206,9 +206,9 @@ static int mv88e6xxx_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct mv88e6xxx_chip *chip = ptp_to_chip(ptp);
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	timecounter_adjtime(&chip->tstamp_tc, delta);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return 0;
 }
@@ -219,9 +219,9 @@ static int mv88e6xxx_ptp_gettime(struct ptp_clock_info *ptp,
 	struct mv88e6xxx_chip *chip = ptp_to_chip(ptp);
 	u64 ns;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	ns = timecounter_read(&chip->tstamp_tc);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	*ts = ns_to_timespec64(ns);
 
@@ -236,9 +236,9 @@ static int mv88e6xxx_ptp_settime(struct ptp_clock_info *ptp,
 
 	ns = timespec64_to_ns(ts);
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	timecounter_init(&chip->tstamp_tc, &chip->tstamp_cc, ns);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return 0;
 }
@@ -256,7 +256,7 @@ static int mv88e6352_ptp_enable_extts(struct mv88e6xxx_chip *chip,
 	if (pin < 0)
 		return -EBUSY;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	if (on) {
 		func = MV88E6352_G2_SCRATCH_GPIO_PCTL_EVREQ;
@@ -278,7 +278,7 @@ static int mv88e6352_ptp_enable_extts(struct mv88e6xxx_chip *chip,
 	}
 
 out:
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return err;
 }

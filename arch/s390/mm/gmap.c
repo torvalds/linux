@@ -2424,8 +2424,8 @@ EXPORT_SYMBOL_GPL(gmap_pmdp_idte_global);
  * This function is assumed to be called with the guest_table_lock
  * held.
  */
-bool gmap_test_and_clear_dirty_pmd(struct gmap *gmap, pmd_t *pmdp,
-				   unsigned long gaddr)
+static bool gmap_test_and_clear_dirty_pmd(struct gmap *gmap, pmd_t *pmdp,
+					  unsigned long gaddr)
 {
 	if (pmd_val(*pmdp) & _SEGMENT_ENTRY_INVALID)
 		return false;

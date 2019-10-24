@@ -6,6 +6,9 @@
             "filter",
             "u32"
         ],
+        "plugins": {
+                "requires": "nsPlugin"
+        },
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
@@ -25,6 +28,9 @@
             "filter",
             "matchall"
         ],
+        "plugins": {
+                "requires": "nsPlugin"
+        },
         "setup": [
             "$TC qdisc add dev $DEV1 clsact",
             "$TC filter add dev $DEV1 protocol all pref 1 ingress handle 0x1234 matchall action ok"
@@ -39,12 +45,34 @@
         ]
     },
     {
+        "id": "2ff3",
+        "name": "Add flower with max handle and then dump it",
+        "category": [
+            "filter",
+            "flower"
+        ],
+        "setup": [
+            "$TC qdisc add dev $DEV2 ingress"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV2 protocol ip pref 1 parent ffff: handle 0xffffffff flower action ok",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter show dev $DEV2 ingress",
+        "matchPattern": "filter protocol ip pref 1 flower.*handle 0xffffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV2 ingress"
+        ]
+    },
+    {
         "id": "d052",
         "name": "Add 1M filters with the same action",
         "category": [
             "filter",
             "flower"
         ],
+        "plugins": {
+                "requires": "nsPlugin"
+        },
         "setup": [
             "$TC qdisc add dev $DEV2 ingress",
             "./tdc_batch.py $DEV2 $BATCH_FILE --share_action -n 1000000"
@@ -66,6 +94,9 @@
             "filter",
             "flower"
         ],
+        "plugins": {
+                "requires": "nsPlugin"
+        },
         "setup": [
             "$TC qdisc add dev $DEV2 ingress",
             "$TC filter add dev $DEV2 protocol ip prio 1 parent ffff: flower dst_mac e4:11:22:11:4a:51 src_mac e4:11:22:11:4a:50 ip_proto tcp src_ip 1.1.1.1 dst_ip 2.2.2.2 action drop"

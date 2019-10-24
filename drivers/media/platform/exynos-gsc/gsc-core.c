@@ -327,7 +327,7 @@ void gsc_check_src_scale_info(struct gsc_variant *var,
 	}
 }
 
-int gsc_enum_fmt_mplane(struct v4l2_fmtdesc *f)
+int gsc_enum_fmt(struct v4l2_fmtdesc *f)
 {
 	const struct gsc_fmt *fmt;
 

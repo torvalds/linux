@@ -1,3 +1,4 @@
+==================
 STM32F429 Overview
 ==================
 
@@ -21,6 +22,4 @@ Datasheet and reference manual are publicly available on ST website (STM32F429_)
 
 .. _STM32F429: http://www.st.com/web/en/catalog/mmc/FM141/SC1169/SS1577/LN1806?ecmp=stm32f429-439_pron_pr-ces2014_nov2013
 
-:Authors:
-
-Maxime Coquelin <mcoquelin.stm32@gmail.com>
+:Authors: Maxime Coquelin <mcoquelin.stm32@gmail.com>

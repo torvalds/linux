@@ -17,8 +17,8 @@ struct xsk_map {
 
 static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 {
-	int cpu, err = -EINVAL;
 	struct xsk_map *m;
+	int cpu, err;
 	u64 cost;
 
 	if (!capable(CAP_NET_ADMIN))
@@ -37,13 +37,9 @@ static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 
 	cost = (u64)m->map.max_entries * sizeof(struct xdp_sock *);
 	cost += sizeof(struct list_head) * num_possible_cpus();
-	if (cost >= U32_MAX - PAGE_SIZE)
-		goto free_m;
-
-	m->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
 
 	/* Notice returns -EPERM on if map size is larger than memlock limit */
-	err = bpf_map_precharge_memlock(m->map.pages);
+	err = bpf_map_charge_init(&m->map.memory, cost);
 	if (err)
 		goto free_m;
 
@@ -51,7 +47,7 @@ static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 
 	m->flush_list = alloc_percpu(struct list_head);
 	if (!m->flush_list)
-		goto free_m;
+		goto free_charge;
 
 	for_each_possible_cpu(cpu)
 		INIT_LIST_HEAD(per_cpu_ptr(m->flush_list, cpu));
@@ -65,6 +61,8 @@ static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 
 free_percpu:
 	free_percpu(m->flush_list);
+free_charge:
+	bpf_map_charge_finish(&m->map.memory);
 free_m:
 	kfree(m);
 	return ERR_PTR(err);
@@ -147,12 +145,17 @@ void __xsk_map_flush(struct bpf_map *map)
 
 	list_for_each_entry_safe(xs, tmp, flush_list, flush_node) {
 		xsk_flush(xs);
-		__list_del(xs->flush_node.prev, xs->flush_node.next);
-		xs->flush_node.prev = NULL;
+		__list_del_clearprev(&xs->flush_node);
 	}
 }
 
 static void *xsk_map_lookup_elem(struct bpf_map *map, void *key)
+{
+	WARN_ON_ONCE(!rcu_read_lock_held());
+	return __xsk_map_lookup_elem(map, *(u32 *)key);
+}
+
+static void *xsk_map_lookup_elem_sys_only(struct bpf_map *map, void *key)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
@@ -220,6 +223,7 @@ const struct bpf_map_ops xsk_map_ops = {
 	.map_free = xsk_map_free,
 	.map_get_next_key = xsk_map_get_next_key,
 	.map_lookup_elem = xsk_map_lookup_elem,
+	.map_lookup_elem_sys_only = xsk_map_lookup_elem_sys_only,
 	.map_update_elem = xsk_map_update_elem,
 	.map_delete_elem = xsk_map_delete_elem,
 	.map_check_btf = map_check_no_btf,

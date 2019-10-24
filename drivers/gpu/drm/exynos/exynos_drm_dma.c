@@ -4,11 +4,13 @@
 // Author: Inki Dae <inki.dae@samsung.com>
 // Author: Andrzej Hajda <a.hajda@samsung.com>
 
-#include <drm/drmP.h>
-#include <drm/exynos_drm.h>
 #include <linux/dma-iommu.h>
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
+#include <linux/platform_device.h>
+
+#include <drm/drm_print.h>
+#include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
 

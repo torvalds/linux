@@ -256,7 +256,7 @@ ENTRY(EV_TLBProtV)
 
 	EXCEPTION_PROLOGUE
 
-	mov r2, r9	; ECR set into r9 already
+	mov r2, r10	; ECR set into r10 already
 	lr  r0, [efa]	; Faulting Data address (not part of pt_regs saved above)
 
 	; Exception auto-disables further Intr/exceptions.

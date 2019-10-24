@@ -78,26 +78,6 @@ nsim_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
 	return nsim_bpf_setup_tc_block_cb(type, type_data, cb_priv);
 }
 
-static int
-nsim_setup_tc_block(struct net_device *dev, struct tc_block_offload *f)
-{
-	struct netdevsim *ns = netdev_priv(dev);
-
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block, nsim_setup_tc_block_cb,
-					     ns, ns, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, nsim_setup_tc_block_cb, ns);
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 static int nsim_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
 {
 	struct netdevsim *ns = netdev_priv(dev);
@@ -223,12 +203,19 @@ static int nsim_set_vf_link_state(struct net_device *dev, int vf, int state)
 	return 0;
 }
 
+static LIST_HEAD(nsim_block_cb_list);
+
 static int
 nsim_setup_tc(struct net_device *dev, enum tc_setup_type type, void *type_data)
 {
+	struct netdevsim *ns = netdev_priv(dev);
+
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return nsim_setup_tc_block(dev, type_data);
+		return flow_block_cb_setup_simple(type_data,
+						  &nsim_block_cb_list,
+						  nsim_setup_tc_block_cb,
+						  ns, ns, true);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -370,12 +357,18 @@ static int __init nsim_module_init(void)
 	if (err)
 		goto err_dev_exit;
 
-	err = rtnl_link_register(&nsim_link_ops);
+	err = nsim_fib_init();
 	if (err)
 		goto err_bus_exit;
 
+	err = rtnl_link_register(&nsim_link_ops);
+	if (err)
+		goto err_fib_exit;
+
 	return 0;
 
+err_fib_exit:
+	nsim_fib_exit();
 err_bus_exit:
 	nsim_bus_exit();
 err_dev_exit:
@@ -386,6 +379,7 @@ err_dev_exit:
 static void __exit nsim_module_exit(void)
 {
 	rtnl_link_unregister(&nsim_link_ops);
+	nsim_fib_exit();
 	nsim_bus_exit();
 	nsim_dev_exit();
 }

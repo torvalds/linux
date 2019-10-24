@@ -102,8 +102,7 @@
 		gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
 		enable-active-high;
 		gpios-states = <1>;
-		states = <1100000 0
-			  1300000 1>;
+		states = <1100000 0>, <1300000 1>;
 	};
 
 	wifi_pwrseq: wifi_pwrseq {

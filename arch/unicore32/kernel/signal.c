@@ -126,7 +126,7 @@ asmlinkage int __sys_rt_sigreturn(struct pt_regs *regs)
 	return regs->UCreg_00;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -383,7 +383,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 					regs->UCreg_pc = KERN_RESTART_CODE;
 				} else {
 					regs->UCreg_sp += 4;
-					force_sigsegv(0, current);
+					force_sigsegv(0);
 				}
 		}
 		if (regs->UCreg_00 == -ERESTARTNOHAND ||

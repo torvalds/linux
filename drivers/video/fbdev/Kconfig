@@ -31,7 +31,7 @@ menuconfig FB
 	  in the /dev directory, i.e. /dev/fb*.
 
 	  You need an utility program called fbset to make full use of frame
-	  buffer devices. Please read <file:Documentation/fb/framebuffer.txt>
+	  buffer devices. Please read <file:Documentation/fb/framebuffer.rst>
 	  and the Framebuffer-HOWTO at
 	  <http://www.munted.org.uk/programming/Framebuffer-HOWTO-1.3.html> for more
 	  information.
@@ -241,7 +241,7 @@ config FB_CIRRUS
 	  If you have a PCI-based system, this enables support for these
 	  chips: GD-543x, GD-544x, GD-5480.
 
-	  Please read the file <file:Documentation/fb/cirrusfb.txt>.
+	  Please read the file <file:Documentation/fb/cirrusfb.rst>.
 
 	  Say N unless you have such a graphics board or plan to get one
 	  before you next recompile the kernel.
@@ -289,7 +289,7 @@ config FB_ARMCLCD
 
 	  If you want to compile this as a module (=code which can be
 	  inserted into and removed from the running kernel), say M
-	  here and read <file:Documentation/kbuild/modules.txt>.  The module
+	  here and read <file:Documentation/kbuild/modules.rst>.  The module
 	  will be called amba-clcd.
 
 config FB_ACORN
@@ -332,7 +332,8 @@ config FB_SA1100
 
 config FB_IMX
 	tristate "Freescale i.MX1/21/25/27 LCD support"
-	depends on FB && ARCH_MXC
+	depends on FB && HAVE_CLK && HAS_IOMEM
+	depends on ARCH_MXC || COMPILE_TEST
 	select LCD_CLASS_DEVICE
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -614,7 +615,7 @@ config FB_UVESA
 
 	  This driver generally provides more features than vesafb but
 	  requires a userspace helper application called 'v86d'. See
-	  <file:Documentation/fb/uvesafb.txt> for more information.
+	  <file:Documentation/fb/uvesafb.rst> for more information.
 
 	  If unsure, say N.
 
@@ -629,7 +630,7 @@ config FB_VESA
 	  This is the frame buffer device driver for generic VESA 2.0
 	  compliant graphic cards. The older VESA 1.2 cards are not supported.
 	  You will get a boot time penguin logo at no additional cost. Please
-	  read <file:Documentation/fb/vesafb.txt>. If unsure, say Y.
+	  read <file:Documentation/fb/vesafb.rst>. If unsure, say Y.
 
 config FB_EFI
 	bool "EFI-based Framebuffer Support"
@@ -670,7 +671,8 @@ config FB_HGA
 
 config FB_GBE
 	bool "SGI Graphics Backend frame buffer support"
-	depends on (FB = y) && SGI_IP32
+	depends on (FB = y) && HAS_IOMEM
+	depends on SGI_IP32 || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -808,7 +810,8 @@ config FB_XVR1000
 
 config FB_PVR2
 	tristate "NEC PowerVR 2 display support"
-	depends on FB && SH_DREAMCAST
+	depends on FB && HAS_IOMEM
+	depends on SH_DREAMCAST || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -825,7 +828,7 @@ config FB_PVR2
 	  module load time.  The parameters look like "video=pvr2:XXX", where
 	  the meaning of XXX can be found at the end of the main source file
 	  (<file:drivers/video/pvr2fb.c>). Please see the file
-	  <file:Documentation/fb/pvr2fb.txt>.
+	  <file:Documentation/fb/pvr2fb.rst>.
 
 config FB_OPENCORES
 	tristate "OpenCores VGA/LCD core 2.0 framebuffer support"
@@ -856,7 +859,8 @@ config FB_S1D13XXX
 
 config FB_ATMEL
 	tristate "AT91 LCD Controller support"
-	depends on FB && OF && HAVE_FB_ATMEL
+	depends on FB && OF && HAVE_CLK && HAS_IOMEM
+	depends on HAVE_FB_ATMEL || COMPILE_TEST
 	select FB_BACKLIGHT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -987,7 +991,7 @@ config FB_I810
 	  module will be called i810fb.
 
 	  For more information, please read
-	  <file:Documentation/fb/intel810.txt>
+	  <file:Documentation/fb/intel810.rst>
 
 config FB_I810_GTF
 	bool "use VESA Generalized Timing Formula"
@@ -1057,7 +1061,7 @@ config FB_INTEL
 	  To compile this driver as a module, choose M here: the
 	  module will be called intelfb.
 
-	  For more information, please read <file:Documentation/fb/intelfb.txt>
+	  For more information, please read <file:Documentation/fb/intelfb.rst>
 
 config FB_INTEL_DEBUG
 	bool "Intel driver Debug Messages"
@@ -1094,7 +1098,7 @@ config FB_MATROX
 
 	  You can pass several parameters to the driver at boot time or at
 	  module load time. The parameters look like "video=matroxfb:XXX", and
-	  are described in <file:Documentation/fb/matroxfb.txt>.
+	  are described in <file:Documentation/fb/matroxfb.rst>.
 
 config FB_MATROX_MILLENIUM
 	bool "Millennium I/II support"
@@ -1245,7 +1249,7 @@ config FB_ATY128
 	help
 	  This driver supports graphics boards with the ATI Rage128 chips.
 	  Say Y if you have such a graphics board and read
-	  <file:Documentation/fb/aty128fb.txt>.
+	  <file:Documentation/fb/aty128fb.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called aty128fb.
@@ -1507,7 +1511,7 @@ config FB_VOODOO1
 
 	  WARNING: Do not use any application that uses the 3D engine
 	  (namely glide) while using this driver.
-	  Please read the <file:Documentation/fb/sstfb.txt> for supported
+	  Please read the <file:Documentation/fb/sstfb.rst> for supported
 	  options and other important info  support.
 
 config FB_VT8623
@@ -1539,7 +1543,7 @@ config FB_TRIDENT
 	  There are also integrated versions of these chips called CyberXXXX,
 	  CyberImage or CyberBlade. These chips are mostly found in laptops
 	  but also on some motherboards including early VIA EPIA motherboards.
-	  For more information, read <file:Documentation/fb/tridentfb.txt>
+	  For more information, read <file:Documentation/fb/tridentfb.rst>
 
 	  Say Y if you have such a graphics board.
 
@@ -1729,7 +1733,8 @@ config FB_68328
 
 config FB_PXA168
 	tristate "PXA168/910 LCD framebuffer support"
-	depends on FB && (CPU_PXA168 || CPU_PXA910)
+	depends on FB && HAVE_CLK && HAS_IOMEM
+	depends on CPU_PXA168 || CPU_PXA910 || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1752,7 +1757,7 @@ config FB_PXA
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called pxafb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If unsure, say N.
 
@@ -1778,7 +1783,7 @@ config FB_PXA_PARAMETERS
 	  single model of flatpanel then you can safely leave this
 	  option disabled.
 
-	  <file:Documentation/fb/pxafb.txt> describes the available parameters.
+	  <file:Documentation/fb/pxafb.rst> describes the available parameters.
 
 config PXA3XX_GCU
 	tristate "PXA3xx 2D graphics accelerator driver"
@@ -1833,7 +1838,7 @@ config FB_W100
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called w100fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If unsure, say N.
 
@@ -1862,7 +1867,7 @@ config FB_TMIO
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called tmiofb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If unsure, say N.
 
@@ -1873,7 +1878,8 @@ config FB_TMIO_ACCELL
 
 config FB_S3C
 	tristate "Samsung S3C framebuffer support"
-	depends on FB && (CPU_S3C2416 || ARCH_S3C64XX)
+	depends on FB && HAVE_CLK && HAS_IOMEM
+	depends on (CPU_S3C2416 || ARCH_S3C64XX) || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1908,7 +1914,7 @@ config FB_S3C2410
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called s3c2410fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If unsure, say N.
 config FB_S3C2410_DEBUG
@@ -1945,7 +1951,7 @@ config FB_SM501
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called sm501fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If unsure, say N.
 
@@ -2055,7 +2061,8 @@ config FB_SH7760
 
 config FB_DA8XX
 	tristate "DA8xx/OMAP-L1xx/AM335x Framebuffer support"
-	depends on FB && (ARCH_DAVINCI_DA8XX || SOC_AM33XX)
+	depends on FB && HAVE_CLK && HAS_IOMEM
+	depends on ARCH_DAVINCI_DA8XX || SOC_AM33XX || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2172,7 +2179,7 @@ config FB_EP93XX
 
 config FB_PRE_INIT_FB
 	bool "Don't reinitialize, use bootloader's GDC/Display configuration"
-	depends on FB && (FB_MB862XX_LIME || FB_MXS)
+	depends on FB && FB_MB862XX_LIME
 	---help---
 	  Select this option if display contents should be inherited as set by
 	  the bootloader.
@@ -2212,17 +2219,6 @@ config FB_JZ4740
 	select FB_SYS_IMAGEBLIT
 	help
 	  Framebuffer support for the JZ4740 SoC.
-
-config FB_MXS
-	tristate "MXS LCD framebuffer support"
-	depends on FB && (ARCH_MXS || ARCH_MXC)
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	select FB_MODE_HELPERS
-	select VIDEOMODE_HELPERS
-	help
-	  Framebuffer support for the MXS SoC.
 
 config FB_PUV3_UNIGFX
 	tristate "PKUnity v3 Unigfx framebuffer support"
@@ -2288,7 +2284,7 @@ config FB_SM712
 
 	  This driver is also available as a module. The module will be
 	  called sm712fb. If you want to compile it as a module, say M
-	  here and read <file:Documentation/kbuild/modules.txt>.
+	  here and read <file:Documentation/kbuild/modules.rst>.
 
 source "drivers/video/fbdev/omap/Kconfig"
 source "drivers/video/fbdev/omap2/Kconfig"

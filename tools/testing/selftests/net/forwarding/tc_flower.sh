@@ -3,7 +3,7 @@
 
 ALL_TESTS="match_dst_mac_test match_src_mac_test match_dst_ip_test \
 	match_src_ip_test match_ip_flags_test match_pcp_test match_vlan_test \
-	match_ip_tos_test"
+	match_ip_tos_test match_indev_test"
 NUM_NETIFS=2
 source tc_common.sh
 source lib.sh
@@ -308,6 +308,30 @@ match_ip_tos_test()
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 
 	log_test "ip_tos match ($tcflags)"
+}
+
+match_indev_test()
+{
+	RET=0
+
+	tc filter add dev $h2 ingress protocol ip pref 1 handle 101 flower \
+		$tcflags indev $h1 dst_mac $h2mac action drop
+	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
+		$tcflags indev $h2 dst_mac $h2mac action drop
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched on a wrong filter"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter"
+
+	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
+
+	log_test "indev match ($tcflags)"
 }
 
 setup_prepare()

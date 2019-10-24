@@ -101,6 +101,8 @@
 
 #define ENA_HW_HINTS_NO_TIMEOUT				0xFFFF
 
+#define ENA_FEATURE_MAX_QUEUE_EXT_VER	1
+
 enum ena_intr_moder_level {
 	ENA_INTR_MODER_LOWEST = 0,
 	ENA_INTR_MODER_LOW,
@@ -159,6 +161,7 @@ struct ena_com_llq_info {
 	u16 desc_list_entry_size;
 	u16 descs_num_before_header;
 	u16 descs_per_entry;
+	u16 max_entries_in_tx_burst;
 };
 
 struct ena_com_io_cq {
@@ -238,6 +241,7 @@ struct ena_com_io_sq {
 	u8 phase;
 	u8 desc_entry_size;
 	u8 dma_addr_bits;
+	u16 entries_in_tx_burst_left;
 } ____cacheline_aligned;
 
 struct ena_com_admin_cq {
@@ -280,6 +284,9 @@ struct ena_com_admin_queue {
 
 	/* Indicate if the admin queue should poll for completion */
 	bool polling;
+
+	/* Define if fallback to polling mode should occur */
+	bool auto_polling;
 
 	u16 curr_cmd_id;
 
@@ -377,6 +384,7 @@ struct ena_com_dev {
 
 struct ena_com_dev_get_features_ctx {
 	struct ena_admin_queue_feature_desc max_queues;
+	struct ena_admin_queue_ext_feature_desc max_queue_ext;
 	struct ena_admin_device_attr_feature_desc dev_attr;
 	struct ena_admin_feature_aenq_desc aenq;
 	struct ena_admin_feature_offload_desc offload;
@@ -535,6 +543,17 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling);
  * @return state
  */
 bool ena_com_get_ena_admin_polling_mode(struct ena_com_dev *ena_dev);
+
+/* ena_com_set_admin_auto_polling_mode - Enable autoswitch to polling mode
+ * @ena_dev: ENA communication layer struct
+ * @polling: Enable/Disable polling mode
+ *
+ * Set the autopolling mode.
+ * If autopolling is on:
+ * In case of missing interrupt when data is available switch to polling.
+ */
+void ena_com_set_admin_auto_polling_mode(struct ena_com_dev *ena_dev,
+					 bool polling);
 
 /* ena_com_admin_q_comp_intr_handler - admin queue interrupt handler
  * @ena_dev: ENA communication layer struct

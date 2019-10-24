@@ -26,19 +26,13 @@ struct v4l2_fh;
  *	:ref:`VIDIOC_QUERYCAP <vidioc_querycap>` ioctl
  * @vidioc_enum_fmt_vid_cap: pointer to the function that implements
  *	:ref:`VIDIOC_ENUM_FMT <vidioc_enum_fmt>` ioctl logic
- *	for video capture in single plane mode
+ *	for video capture in single and multi plane mode
  * @vidioc_enum_fmt_vid_overlay: pointer to the function that implements
  *	:ref:`VIDIOC_ENUM_FMT <vidioc_enum_fmt>` ioctl logic
  *	for video overlay
  * @vidioc_enum_fmt_vid_out: pointer to the function that implements
  *	:ref:`VIDIOC_ENUM_FMT <vidioc_enum_fmt>` ioctl logic
- *	for video output in single plane mode
- * @vidioc_enum_fmt_vid_cap_mplane: pointer to the function that implements
- *	:ref:`VIDIOC_ENUM_FMT <vidioc_enum_fmt>` ioctl logic
- *	for video capture in multiplane mode
- * @vidioc_enum_fmt_vid_out_mplane: pointer to the function that implements
- *	:ref:`VIDIOC_ENUM_FMT <vidioc_enum_fmt>` ioctl logic
- *	for video output in multiplane mode
+ *	for video output in single and multi plane mode
  * @vidioc_enum_fmt_sdr_cap: pointer to the function that implements
  *	:ref:`VIDIOC_ENUM_FMT <vidioc_enum_fmt>` ioctl logic
  *	for Software Defined Radio capture
@@ -313,10 +307,6 @@ struct v4l2_ioctl_ops {
 					   struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_vid_out)(struct file *file, void *fh,
 				       struct v4l2_fmtdesc *f);
-	int (*vidioc_enum_fmt_vid_cap_mplane)(struct file *file, void *fh,
-					      struct v4l2_fmtdesc *f);
-	int (*vidioc_enum_fmt_vid_out_mplane)(struct file *file, void *fh,
-					      struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_sdr_cap)(struct file *file, void *fh,
 				       struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_sdr_out)(struct file *file, void *fh,

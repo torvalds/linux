@@ -66,7 +66,7 @@ static int vdec_op_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }

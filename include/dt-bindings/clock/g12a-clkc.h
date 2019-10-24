@@ -136,5 +136,6 @@
 #define CLKID_VDEC_1				204
 #define CLKID_VDEC_HEVC				207
 #define CLKID_VDEC_HEVCF			210
+#define CLKID_TS				212
 
 #endif /* __G12A_CLKC_H */

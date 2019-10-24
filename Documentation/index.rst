@@ -1,3 +1,4 @@
+
 .. The Linux Kernel documentation master file, created by
    sphinx-quickstart on Fri Feb 12 13:51:46 2016.
    You can adapt this file completely to your liking, but it should at least
@@ -34,6 +35,7 @@ trying to get it to work optimally on a given system.
    :maxdepth: 2
 
    admin-guide/index
+   kbuild/index
 
 Firmware-related documentation
 ------------------------------
@@ -55,6 +57,7 @@ the kernel interface as seen by application developers.
    :maxdepth: 2
 
    userspace-api/index
+   ioctl/index
 
 
 Introduction to kernel development
@@ -75,6 +78,9 @@ merged much easier.
    kernel-hacking/index
    trace/index
    maintainer/index
+   fault-injection/index
+   livepatch/index
+
 
 Kernel API documentation
 ------------------------
@@ -90,8 +96,26 @@ needed).
 
    driver-api/index
    core-api/index
+   locking/index
+   accounting/index
+   block/index
+   cdrom/index
+   ide/index
+   fb/index
+   fpga/index
+   hid/index
+   iio/index
+   infiniband/index
+   leds/index
    media/index
+   netlabel/index
    networking/index
+   pcmcia/index
+   power/index
+   target/index
+   timers/index
+   watchdog/index
+   virtual/index
    input/index
    hwmon/index
    gpu/index
@@ -101,7 +125,11 @@ needed).
    filesystems/index
    vm/index
    bpf/index
+   usb/index
+   PCI/index
    misc-devices/index
+   mic/index
+   scheduler/index
 
 Architecture-specific documentation
 -----------------------------------
@@ -112,9 +140,18 @@ implementation.
 .. toctree::
    :maxdepth: 2
 
-   x86/index
    sh/index
+   arm/index
+   arm64/index
+   ia64/index
+   m68k/index
+   powerpc/index
+   riscv/index
+   s390/index
+   sh/index
+   sparc/index
    x86/index
+   xtensa/index
 
 Filesystem Documentation
 ------------------------

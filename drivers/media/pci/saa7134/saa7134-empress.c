@@ -287,6 +287,10 @@ static int empress_init(struct saa7134_dev *dev)
 	if (err)
 		return err;
 	dev->empress_dev->queue = q;
+	dev->empress_dev->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+					V4L2_CAP_VIDEO_CAPTURE;
+	if (dev->tuner_type != TUNER_ABSENT && dev->tuner_type != UNSET)
+		dev->empress_dev->device_caps |= V4L2_CAP_TUNER;
 
 	video_set_drvdata(dev->empress_dev, dev);
 	err = video_register_device(dev->empress_dev,VFL_TYPE_GRABBER,

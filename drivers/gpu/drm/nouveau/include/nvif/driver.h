@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVIF_DRIVER_H__
 #define __NVIF_DRIVER_H__
 #include <nvif/os.h>

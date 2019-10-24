@@ -20,6 +20,55 @@
 		{ NUD_NOARP, "noarp" },			\
 		{ NUD_PERMANENT, "permanent"})
 
+TRACE_EVENT(neigh_create,
+
+	TP_PROTO(struct neigh_table *tbl, struct net_device *dev,
+		 const void *pkey, const struct neighbour *n,
+		 bool exempt_from_gc),
+
+	TP_ARGS(tbl, dev, pkey, n, exempt_from_gc),
+
+	TP_STRUCT__entry(
+		__field(u32, family)
+		__dynamic_array(char,  dev,   IFNAMSIZ )
+		__field(int, entries)
+		__field(u8, created)
+		__field(u8, gc_exempt)
+		__array(u8, primary_key4, 4)
+		__array(u8, primary_key6, 16)
+	),
+
+	TP_fast_assign(
+		struct in6_addr *pin6;
+		__be32 *p32;
+
+		__entry->family = tbl->family;
+		__assign_str(dev, (dev ? dev->name : "NULL"));
+		__entry->entries = atomic_read(&tbl->gc_entries);
+		__entry->created = n != NULL;
+		__entry->gc_exempt = exempt_from_gc;
+		pin6 = (struct in6_addr *)__entry->primary_key6;
+		p32 = (__be32 *)__entry->primary_key4;
+
+		if (tbl->family == AF_INET)
+			*p32 = *(__be32 *)pkey;
+		else
+			*p32 = 0;
+
+#if IS_ENABLED(CONFIG_IPV6)
+		if (tbl->family == AF_INET6) {
+			pin6 = (struct in6_addr *)__entry->primary_key6;
+			*pin6 = *(struct in6_addr *)pkey;
+		}
+#endif
+	),
+
+	TP_printk("family %d dev %s entries %d primary_key4 %pI4 primary_key6 %pI6c created %d gc_exempt %d",
+		  __entry->family, __get_str(dev), __entry->entries,
+		  __entry->primary_key4, __entry->primary_key6,
+		  __entry->created, __entry->gc_exempt)
+);
+
 TRACE_EVENT(neigh_update,
 
 	TP_PROTO(struct neighbour *n, const u8 *lladdr, u8 new,

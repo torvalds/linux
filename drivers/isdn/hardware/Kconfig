@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-#
-# ISDN hardware drivers
-#
-comment "CAPI hardware drivers"
-
-source "drivers/isdn/hardware/avm/Kconfig"
-

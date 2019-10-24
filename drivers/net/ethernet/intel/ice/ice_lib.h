@@ -19,6 +19,14 @@ int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi);
 
 void ice_vsi_cfg_msix(struct ice_vsi *vsi);
 
+#ifdef CONFIG_PCI_IOV
+void
+ice_cfg_txq_interrupt(struct ice_vsi *vsi, u16 txq, u16 msix_idx, u16 itr_idx);
+
+void
+ice_cfg_rxq_interrupt(struct ice_vsi *vsi, u16 rxq, u16 msix_idx, u16 itr_idx);
+#endif /* CONFIG_PCI_IOV */
+
 int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid);
 
 int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid);
@@ -37,6 +45,8 @@ ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 
 int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena, bool vlan_promisc);
 
+void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create);
+
 void ice_vsi_delete(struct ice_vsi *vsi);
 
 int ice_vsi_clear(struct ice_vsi *vsi);
@@ -48,6 +58,8 @@ int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc);
 struct ice_vsi *
 ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	      enum ice_vsi_type type, u16 vf_id);
+
+void ice_napi_del(struct ice_vsi *vsi);
 
 int ice_vsi_release(struct ice_vsi *vsi);
 
@@ -63,6 +75,8 @@ int ice_vsi_rebuild(struct ice_vsi *vsi);
 bool ice_is_reset_in_progress(unsigned long *state);
 
 void ice_vsi_free_q_vectors(struct ice_vsi *vsi);
+
+void ice_trigger_sw_intr(struct ice_hw *hw, struct ice_q_vector *q_vector);
 
 void ice_vsi_put_qs(struct ice_vsi *vsi);
 

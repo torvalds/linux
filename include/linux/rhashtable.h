@@ -352,37 +352,38 @@ static inline void rht_unlock(struct bucket_table *tbl,
 static inline struct rhash_head __rcu *__rht_ptr(
 	struct rhash_lock_head *const *bkt)
 {
-	return (struct rhash_head __rcu *)((unsigned long)*bkt & ~BIT(0));
+	return (struct rhash_head __rcu *)
+		((unsigned long)*bkt & ~BIT(0) ?:
+		 (unsigned long)RHT_NULLS_MARKER(bkt));
 }
 
 /*
  * Where 'bkt' is a bucket and might be locked:
- *   rht_ptr() dereferences that pointer and clears the lock bit.
+ *   rht_ptr_rcu() dereferences that pointer and clears the lock bit.
+ *   rht_ptr() dereferences in a context where the bucket is locked.
  *   rht_ptr_exclusive() dereferences in a context where exclusive
  *            access is guaranteed, such as when destroying the table.
  */
+static inline struct rhash_head *rht_ptr_rcu(
+	struct rhash_lock_head *const *bkt)
+{
+	struct rhash_head __rcu *p = __rht_ptr(bkt);
+
+	return rcu_dereference(p);
+}
+
 static inline struct rhash_head *rht_ptr(
 	struct rhash_lock_head *const *bkt,
 	struct bucket_table *tbl,
 	unsigned int hash)
 {
-	struct rhash_head __rcu *p = __rht_ptr(bkt);
-
-	if (!p)
-		return RHT_NULLS_MARKER(bkt);
-
-	return rht_dereference_bucket_rcu(p, tbl, hash);
+	return rht_dereference_bucket(__rht_ptr(bkt), tbl, hash);
 }
 
 static inline struct rhash_head *rht_ptr_exclusive(
 	struct rhash_lock_head *const *bkt)
 {
-	struct rhash_head __rcu *p = __rht_ptr(bkt);
-
-	if (!p)
-		return RHT_NULLS_MARKER(bkt);
-
-	return rcu_dereference_protected(p, 1);
+	return rcu_dereference_protected(__rht_ptr(bkt), 1);
 }
 
 static inline void rht_assign_locked(struct rhash_lock_head **bkt,
@@ -509,7 +510,7 @@ static inline void rht_assign_unlock(struct bucket_table *tbl,
  */
 #define rht_for_each_rcu(pos, tbl, hash)			\
 	for (({barrier(); }),					\
-	     pos = rht_ptr(rht_bucket(tbl, hash), tbl, hash);	\
+	     pos = rht_ptr_rcu(rht_bucket(tbl, hash));		\
 	     !rht_is_a_nulls(pos);				\
 	     pos = rcu_dereference_raw(pos->next))
 
@@ -546,8 +547,7 @@ static inline void rht_assign_unlock(struct bucket_table *tbl,
  */
 #define rht_for_each_entry_rcu(tpos, pos, tbl, hash, member)		   \
 	rht_for_each_entry_rcu_from(tpos, pos,				   \
-				    rht_ptr(rht_bucket(tbl, hash),	   \
-					    tbl, hash),			   \
+				    rht_ptr_rcu(rht_bucket(tbl, hash)),	   \
 				    tbl, hash, member)
 
 /**
@@ -603,7 +603,7 @@ restart:
 	hash = rht_key_hashfn(ht, tbl, key, params);
 	bkt = rht_bucket(tbl, hash);
 	do {
-		rht_for_each_rcu_from(he, rht_ptr(bkt, tbl, hash), tbl, hash) {
+		rht_for_each_rcu_from(he, rht_ptr_rcu(bkt), tbl, hash) {
 			if (params.obj_cmpfn ?
 			    params.obj_cmpfn(&arg, rht_obj(ht, he)) :
 			    rhashtable_compare(&arg, rht_obj(ht, he)))

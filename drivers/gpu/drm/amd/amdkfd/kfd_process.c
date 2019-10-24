@@ -68,6 +68,68 @@ static struct kfd_process *create_process(const struct task_struct *thread,
 static void evict_process_worker(struct work_struct *work);
 static void restore_process_worker(struct work_struct *work);
 
+struct kfd_procfs_tree {
+	struct kobject *kobj;
+};
+
+static struct kfd_procfs_tree procfs;
+
+static ssize_t kfd_procfs_show(struct kobject *kobj, struct attribute *attr,
+			       char *buffer)
+{
+	int val = 0;
+
+	if (strcmp(attr->name, "pasid") == 0) {
+		struct kfd_process *p = container_of(attr, struct kfd_process,
+						     attr_pasid);
+		val = p->pasid;
+	} else {
+		pr_err("Invalid attribute");
+		return -EINVAL;
+	}
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", val);
+}
+
+static void kfd_procfs_kobj_release(struct kobject *kobj)
+{
+	kfree(kobj);
+}
+
+static const struct sysfs_ops kfd_procfs_ops = {
+	.show = kfd_procfs_show,
+};
+
+static struct kobj_type procfs_type = {
+	.release = kfd_procfs_kobj_release,
+	.sysfs_ops = &kfd_procfs_ops,
+};
+
+void kfd_procfs_init(void)
+{
+	int ret = 0;
+
+	procfs.kobj = kfd_alloc_struct(procfs.kobj);
+	if (!procfs.kobj)
+		return;
+
+	ret = kobject_init_and_add(procfs.kobj, &procfs_type,
+				   &kfd_device->kobj, "proc");
+	if (ret) {
+		pr_warn("Could not create procfs proc folder");
+		/* If we fail to create the procfs, clean up */
+		kfd_procfs_shutdown();
+	}
+}
+
+void kfd_procfs_shutdown(void)
+{
+	if (procfs.kobj) {
+		kobject_del(procfs.kobj);
+		kobject_put(procfs.kobj);
+		procfs.kobj = NULL;
+	}
+}
 
 int kfd_process_create_wq(void)
 {
@@ -206,6 +268,7 @@ struct kfd_process *kfd_create_process(struct file *filep)
 {
 	struct kfd_process *process;
 	struct task_struct *thread = current;
+	int ret;
 
 	if (!thread->mm)
 		return ERR_PTR(-EINVAL);
@@ -223,11 +286,36 @@ struct kfd_process *kfd_create_process(struct file *filep)
 
 	/* A prior open of /dev/kfd could have already created the process. */
 	process = find_process(thread);
-	if (process)
+	if (process) {
 		pr_debug("Process already found\n");
-	else
+	} else {
 		process = create_process(thread, filep);
 
+		if (!procfs.kobj)
+			goto out;
+
+		process->kobj = kfd_alloc_struct(process->kobj);
+		if (!process->kobj) {
+			pr_warn("Creating procfs kobject failed");
+			goto out;
+		}
+		ret = kobject_init_and_add(process->kobj, &procfs_type,
+					   procfs.kobj, "%d",
+					   (int)process->lead_thread->pid);
+		if (ret) {
+			pr_warn("Creating procfs pid directory failed");
+			goto out;
+		}
+
+		process->attr_pasid.name = "pasid";
+		process->attr_pasid.mode = KFD_SYSFS_FILE_MODE;
+		sysfs_attr_init(&process->attr_pasid);
+		ret = sysfs_create_file(process->kobj, &process->attr_pasid);
+		if (ret)
+			pr_warn("Creating pasid for pid %d failed",
+					(int)process->lead_thread->pid);
+	}
+out:
 	mutex_unlock(&kfd_processes_mutex);
 
 	return process;
@@ -354,6 +442,14 @@ static void kfd_process_wq_release(struct work_struct *work)
 {
 	struct kfd_process *p = container_of(work, struct kfd_process,
 					     release_work);
+
+	/* Remove the procfs files */
+	if (p->kobj) {
+		sysfs_remove_file(p->kobj, &p->attr_pasid);
+		kobject_del(p->kobj);
+		kobject_put(p->kobj);
+		p->kobj = NULL;
+	}
 
 	kfd_iommu_unbind_process(p);
 
@@ -1107,3 +1203,4 @@ int kfd_debugfs_mqds_by_process(struct seq_file *m, void *data)
 }
 
 #endif
+

@@ -107,12 +107,17 @@ static void program_pix_dur(struct timing_generator *tg, uint32_t pix_clk_100hz)
 
 static void program_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing,
+	int vready_offset,
+	int vstartup_start,
+	int vupdate_offset,
+	int vupdate_width,
+	const enum signal_type signal,
 	bool use_vbios)
 {
 	if (!use_vbios)
 		program_pix_dur(tg, timing->pix_clk_100hz);
 
-	dce110_tg_program_timing(tg, timing, use_vbios);
+	dce110_tg_program_timing(tg, timing, 0, 0, 0, 0, 0, use_vbios);
 }
 
 static void dce80_timing_generator_enable_advanced_request(

@@ -23,6 +23,10 @@ struct test arch_tests[] = {
 		.desc = "x86 instruction decoder - new instructions",
 		.func = test__insn_x86,
 	},
+	{
+		.desc = "Intel PT packet decoder",
+		.func = test__intel_pt_pkt_decoder,
+	},
 #endif
 #if defined(__x86_64__)
 	{

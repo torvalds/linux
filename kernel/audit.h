@@ -286,7 +286,7 @@ extern const char *audit_tree_path(struct audit_tree *tree);
 extern void audit_put_tree(struct audit_tree *tree);
 extern void audit_kill_trees(struct audit_context *context);
 
-extern int audit_signal_info(int sig, struct task_struct *t);
+extern int audit_signal_info_syscall(struct task_struct *t);
 extern void audit_filter_inodes(struct task_struct *tsk,
 				struct audit_context *ctx);
 extern struct list_head *audit_killed_trees(void);
@@ -317,7 +317,11 @@ extern struct list_head *audit_killed_trees(void);
 #define audit_tree_path(rule) ""	/* never called */
 #define audit_kill_trees(context) BUG()
 
-#define audit_signal_info(s, t) AUDIT_DISABLED
+static inline int audit_signal_info_syscall(struct task_struct *t)
+{
+	return 0;
+}
+
 #define audit_filter_inodes(t, c) AUDIT_DISABLED
 #endif /* CONFIG_AUDITSYSCALL */
 

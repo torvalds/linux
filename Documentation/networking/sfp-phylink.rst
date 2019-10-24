@@ -98,6 +98,7 @@ this documentation.
 4. Add::
 
 	struct phylink *phylink;
+	struct phylink_config phylink_config;
 
    to the driver's private data structure.  We shall refer to the
    driver's private data pointer as ``priv`` below, and the driver's
@@ -223,8 +224,10 @@ this documentation.
    .. code-block:: c
 
 	struct phylink *phylink;
+	priv->phylink_config.dev = &dev.dev;
+	priv->phylink_config.type = PHYLINK_NETDEV;
 
-	phylink = phylink_create(dev, node, phy_mode, &phylink_ops);
+	phylink = phylink_create(&priv->phylink_config, node, phy_mode, &phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
 		fail probe;

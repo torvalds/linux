@@ -138,7 +138,7 @@ static struct ordered_event *alloc_event(struct ordered_events *oe,
 
 	if (!list_empty(cache)) {
 		new = list_entry(cache->next, struct ordered_event, list);
-		list_del(&new->list);
+		list_del_init(&new->list);
 	} else if (oe->buffer) {
 		new = &oe->buffer->event[oe->buffer_idx];
 		if (++oe->buffer_idx == MAX_SAMPLE_BUFFER)
@@ -394,13 +394,13 @@ void ordered_events__free(struct ordered_events *oe)
 	 * yet, we need to free only allocated ones ...
 	 */
 	if (oe->buffer) {
-		list_del(&oe->buffer->list);
+		list_del_init(&oe->buffer->list);
 		ordered_events_buffer__free(oe->buffer, oe->buffer_idx, oe);
 	}
 
 	/* ... and continue with the rest */
 	list_for_each_entry_safe(buffer, tmp, &oe->to_free, list) {
-		list_del(&buffer->list);
+		list_del_init(&buffer->list);
 		ordered_events_buffer__free(buffer, MAX_SAMPLE_BUFFER, oe);
 	}
 }

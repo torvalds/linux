@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt)    "%s: " fmt, __func__
 
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -22,6 +23,9 @@
 #include <linux/of.h>
 
 #include "hwspinlock_internal.h"
+
+/* retry delay used in atomic context */
+#define HWSPINLOCK_RETRY_DELAY_US	100
 
 /* radix tree tags */
 #define HWSPINLOCK_UNUSED	(0) /* tags an hwspinlock as unused */
@@ -68,11 +72,11 @@ static DEFINE_MUTEX(hwspinlock_tree_lock);
  * user need some time-consuming or sleepable operations under the hardware
  * lock, they need one sleepable lock (like mutex) to protect the operations.
  *
- * If the mode is not HWLOCK_RAW, upon a successful return from this function,
- * preemption (and possibly interrupts) is disabled, so the caller must not
- * sleep, and is advised to release the hwspinlock as soon as possible. This is
- * required in order to minimize remote cores polling on the hardware
- * interconnect.
+ * If the mode is neither HWLOCK_IN_ATOMIC nor HWLOCK_RAW, upon a successful
+ * return from this function, preemption (and possibly interrupts) is disabled,
+ * so the caller must not sleep, and is advised to release the hwspinlock as
+ * soon as possible. This is required in order to minimize remote cores polling
+ * on the hardware interconnect.
  *
  * The user decides whether local interrupts are disabled or not, and if yes,
  * whether he wants their previous state to be saved. It is up to the user
@@ -112,6 +116,7 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 		ret = spin_trylock_irq(&hwlock->lock);
 		break;
 	case HWLOCK_RAW:
+	case HWLOCK_IN_ATOMIC:
 		ret = 1;
 		break;
 	default:
@@ -136,6 +141,7 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 			spin_unlock_irq(&hwlock->lock);
 			break;
 		case HWLOCK_RAW:
+		case HWLOCK_IN_ATOMIC:
 			/* Nothing to do */
 			break;
 		default:
@@ -179,11 +185,14 @@ EXPORT_SYMBOL_GPL(__hwspin_trylock);
  * user need some time-consuming or sleepable operations under the hardware
  * lock, they need one sleepable lock (like mutex) to protect the operations.
  *
- * If the mode is not HWLOCK_RAW, upon a successful return from this function,
- * preemption is disabled (and possibly local interrupts, too), so the caller
- * must not sleep, and is advised to release the hwspinlock as soon as possible.
- * This is required in order to minimize remote cores polling on the
- * hardware interconnect.
+ * If the mode is HWLOCK_IN_ATOMIC (called from an atomic context) the timeout
+ * is handled with busy-waiting delays, hence shall not exceed few msecs.
+ *
+ * If the mode is neither HWLOCK_IN_ATOMIC nor HWLOCK_RAW, upon a successful
+ * return from this function, preemption (and possibly interrupts) is disabled,
+ * so the caller must not sleep, and is advised to release the hwspinlock as
+ * soon as possible. This is required in order to minimize remote cores polling
+ * on the hardware interconnect.
  *
  * The user decides whether local interrupts are disabled or not, and if yes,
  * whether he wants their previous state to be saved. It is up to the user
@@ -198,7 +207,7 @@ int __hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int to,
 					int mode, unsigned long *flags)
 {
 	int ret;
-	unsigned long expire;
+	unsigned long expire, atomic_delay = 0;
 
 	expire = msecs_to_jiffies(to) + jiffies;
 
@@ -212,8 +221,15 @@ int __hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int to,
 		 * The lock is already taken, let's check if the user wants
 		 * us to try again
 		 */
-		if (time_is_before_eq_jiffies(expire))
-			return -ETIMEDOUT;
+		if (mode == HWLOCK_IN_ATOMIC) {
+			udelay(HWSPINLOCK_RETRY_DELAY_US);
+			atomic_delay += HWSPINLOCK_RETRY_DELAY_US;
+			if (atomic_delay > to * 1000)
+				return -ETIMEDOUT;
+		} else {
+			if (time_is_before_eq_jiffies(expire))
+				return -ETIMEDOUT;
+		}
 
 		/*
 		 * Allow platform-specific relax handlers to prevent
@@ -276,6 +292,7 @@ void __hwspin_unlock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 		spin_unlock_irq(&hwlock->lock);
 		break;
 	case HWLOCK_RAW:
+	case HWLOCK_IN_ATOMIC:
 		/* Nothing to do */
 		break;
 	default:
@@ -332,6 +349,11 @@ int of_hwspin_lock_get_id(struct device_node *np, int index)
 					 &args);
 	if (ret)
 		return ret;
+
+	if (!of_device_is_available(args.np)) {
+		ret = -ENOENT;
+		goto out;
+	}
 
 	/* Find the hwspinlock device: we need its base_id */
 	ret = -EPROBE_DEFER;

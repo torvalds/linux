@@ -6,6 +6,9 @@
 #ifndef _ICE_HW_AUTOGEN_H_
 #define _ICE_HW_AUTOGEN_H_
 
+#define PF0INT_ITR_0(_i)			(0x03000004 + ((_i) * 4096))
+#define PF0INT_ITR_1(_i)			(0x03000008 + ((_i) * 4096))
+#define PF0INT_ITR_2(_i)			(0x0300000C + ((_i) * 4096))
 #define QTX_COMM_DBELL(_DBQM)			(0x002C0000 + ((_DBQM) * 4))
 #define QTX_COMM_HEAD(_DBQM)			(0x000E0000 + ((_DBQM) * 4))
 #define QTX_COMM_HEAD_HEAD_S			0
@@ -155,6 +158,7 @@
 #define PFINT_OICR_HMC_ERR_M			BIT(26)
 #define PFINT_OICR_PE_CRITERR_M			BIT(28)
 #define PFINT_OICR_VFLR_M			BIT(29)
+#define PFINT_OICR_SWINT_M			BIT(31)
 #define PFINT_OICR_CTL				0x0016CA80
 #define PFINT_OICR_CTL_MSIX_INDX_M		ICE_M(0x7FF, 0)
 #define PFINT_OICR_CTL_ITR_INDX_S		11

@@ -5,6 +5,7 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <drm/drm_damage_helper.h>
 #include <drm/drm_print.h>
 #include "mdp5_kms.h"
 
@@ -643,10 +644,10 @@ static int calc_scalex_steps(struct drm_plane *plane,
 		uint32_t pixel_format, uint32_t src, uint32_t dest,
 		uint32_t phasex_steps[COMP_MAX])
 {
+	const struct drm_format_info *info = drm_format_info(pixel_format);
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	struct device *dev = mdp5_kms->dev->dev;
 	uint32_t phasex_step;
-	unsigned int hsub;
 	int ret;
 
 	ret = calc_phase_step(src, dest, &phasex_step);
@@ -655,11 +656,9 @@ static int calc_scalex_steps(struct drm_plane *plane,
 		return ret;
 	}
 
-	hsub = drm_format_horz_chroma_subsampling(pixel_format);
-
 	phasex_steps[COMP_0]   = phasex_step;
 	phasex_steps[COMP_3]   = phasex_step;
-	phasex_steps[COMP_1_2] = phasex_step / hsub;
+	phasex_steps[COMP_1_2] = phasex_step / info->hsub;
 
 	return 0;
 }
@@ -668,10 +667,10 @@ static int calc_scaley_steps(struct drm_plane *plane,
 		uint32_t pixel_format, uint32_t src, uint32_t dest,
 		uint32_t phasey_steps[COMP_MAX])
 {
+	const struct drm_format_info *info = drm_format_info(pixel_format);
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	struct device *dev = mdp5_kms->dev->dev;
 	uint32_t phasey_step;
-	unsigned int vsub;
 	int ret;
 
 	ret = calc_phase_step(src, dest, &phasey_step);
@@ -680,11 +679,9 @@ static int calc_scaley_steps(struct drm_plane *plane,
 		return ret;
 	}
 
-	vsub = drm_format_vert_chroma_subsampling(pixel_format);
-
 	phasey_steps[COMP_0]   = phasey_step;
 	phasey_steps[COMP_3]   = phasey_step;
-	phasey_steps[COMP_1_2] = phasey_step / vsub;
+	phasey_steps[COMP_1_2] = phasey_step / info->vsub;
 
 	return 0;
 }
@@ -692,8 +689,9 @@ static int calc_scaley_steps(struct drm_plane *plane,
 static uint32_t get_scale_config(const struct mdp_format *format,
 		uint32_t src, uint32_t dst, bool horz)
 {
+	const struct drm_format_info *info = drm_format_info(format->base.pixel_format);
 	bool scaling = format->is_yuv ? true : (src != dst);
-	uint32_t sub, pix_fmt = format->base.pixel_format;
+	uint32_t sub;
 	uint32_t ya_filter, uv_filter;
 	bool yuv = format->is_yuv;
 
@@ -701,8 +699,7 @@ static uint32_t get_scale_config(const struct mdp_format *format,
 		return 0;
 
 	if (yuv) {
-		sub = horz ? drm_format_horz_chroma_subsampling(pix_fmt) :
-			     drm_format_vert_chroma_subsampling(pix_fmt);
+		sub = horz ? info->hsub : info->vsub;
 		uv_filter = ((src / sub) <= dst) ?
 				   SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
 	}
@@ -747,7 +744,7 @@ static void mdp5_write_pixel_ext(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe,
 	uint32_t src_w, int pe_left[COMP_MAX], int pe_right[COMP_MAX],
 	uint32_t src_h, int pe_top[COMP_MAX], int pe_bottom[COMP_MAX])
 {
-	uint32_t pix_fmt = format->base.pixel_format;
+	const struct drm_format_info *info = drm_format_info(format->base.pixel_format);
 	uint32_t lr, tb, req;
 	int i;
 
@@ -756,8 +753,8 @@ static void mdp5_write_pixel_ext(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe,
 		uint32_t roi_h = src_h;
 
 		if (format->is_yuv && i == COMP_1_2) {
-			roi_w /= drm_format_horz_chroma_subsampling(pix_fmt);
-			roi_h /= drm_format_vert_chroma_subsampling(pix_fmt);
+			roi_w /= info->hsub;
+			roi_h /= info->vsub;
 		}
 
 		lr  = (pe_left[i] >= 0) ?
@@ -1091,6 +1088,8 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &mdp5_plane_helper_funcs);
 
 	mdp5_plane_install_properties(plane, &plane->base);
+
+	drm_plane_enable_fb_damage_clips(plane);
 
 	return plane;
 

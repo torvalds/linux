@@ -14,6 +14,7 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_irq.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "komeda_dev.h"
@@ -58,7 +59,6 @@ static struct drm_driver komeda_kms_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_PRIME | DRIVER_HAVE_IRQ,
 	.lastclose			= drm_fb_helper_lastclose,
-	.irq_handler			= komeda_kms_irq_handler,
 	.gem_free_object_unlocked	= drm_gem_cma_free_object,
 	.gem_vm_ops			= &drm_gem_cma_vm_ops,
 	.dumb_create			= komeda_gem_cma_dumb_create,
@@ -100,23 +100,127 @@ static const struct drm_mode_config_helper_funcs komeda_mode_config_helpers = {
 	.atomic_commit_tail = komeda_kms_commit_tail,
 };
 
+static int komeda_plane_state_list_add(struct drm_plane_state *plane_st,
+				       struct list_head *zorder_list)
+{
+	struct komeda_plane_state *new = to_kplane_st(plane_st);
+	struct komeda_plane_state *node, *last;
+
+	last = list_empty(zorder_list) ?
+	       NULL : list_last_entry(zorder_list, typeof(*last), zlist_node);
+
+	/* Considering the list sequence is zpos increasing, so if list is empty
+	 * or the zpos of new node bigger than the last node in list, no need
+	 * loop and just insert the new one to the tail of the list.
+	 */
+	if (!last || (new->base.zpos > last->base.zpos)) {
+		list_add_tail(&new->zlist_node, zorder_list);
+		return 0;
+	}
+
+	/* Build the list by zpos increasing */
+	list_for_each_entry(node, zorder_list, zlist_node) {
+		if (new->base.zpos < node->base.zpos) {
+			list_add_tail(&new->zlist_node, &node->zlist_node);
+			break;
+		} else if (node->base.zpos == new->base.zpos) {
+			struct drm_plane *a = node->base.plane;
+			struct drm_plane *b = new->base.plane;
+
+			/* Komeda doesn't support setting a same zpos for
+			 * different planes.
+			 */
+			DRM_DEBUG_ATOMIC("PLANE: %s and PLANE: %s are configured same zpos: %d.\n",
+					 a->name, b->name, node->base.zpos);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
+				      struct drm_crtc_state *crtc_st)
+{
+	struct drm_atomic_state *state = crtc_st->state;
+	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
+	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(crtc_st);
+	struct komeda_plane_state *kplane_st;
+	struct drm_plane_state *plane_st;
+	struct drm_plane *plane;
+	struct list_head zorder_list;
+	int order = 0, err;
+
+	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] calculating normalized zpos values\n",
+			 crtc->base.id, crtc->name);
+
+	INIT_LIST_HEAD(&zorder_list);
+
+	/* This loop also added all effected planes into the new state */
+	drm_for_each_plane_mask(plane, crtc->dev, crtc_st->plane_mask) {
+		plane_st = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_st))
+			return PTR_ERR(plane_st);
+
+		/* Build a list by zpos increasing */
+		err = komeda_plane_state_list_add(plane_st, &zorder_list);
+		if (err)
+			return err;
+	}
+
+	kcrtc_st->max_slave_zorder = 0;
+
+	list_for_each_entry(kplane_st, &zorder_list, zlist_node) {
+		plane_st = &kplane_st->base;
+		plane = plane_st->plane;
+
+		plane_st->normalized_zpos = order++;
+		/* When layer_split has been enabled, one plane will be handled
+		 * by two separated komeda layers (left/right), which may needs
+		 * two zorders.
+		 * - zorder: for left_layer for left display part.
+		 * - zorder + 1: will be reserved for right layer.
+		 */
+		if (to_kplane_st(plane_st)->layer_split)
+			order++;
+
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] zpos:%d, normalized zpos: %d\n",
+				 plane->base.id, plane->name,
+				 plane_st->zpos, plane_st->normalized_zpos);
+
+		/* calculate max slave zorder */
+		if (has_bit(drm_plane_index(plane), kcrtc->slave_planes))
+			kcrtc_st->max_slave_zorder =
+				max(plane_st->normalized_zpos,
+				    kcrtc_st->max_slave_zorder);
+	}
+
+	crtc_st->zpos_changed = true;
+
+	return 0;
+}
+
 static int komeda_kms_check(struct drm_device *dev,
 			    struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_st, *new_crtc_st;
+	struct drm_crtc_state *new_crtc_st;
 	int i, err;
 
 	err = drm_atomic_helper_check_modeset(dev, state);
 	if (err)
 		return err;
 
-	/* komeda need to re-calculate resource assumption in every commit
+	/* Komeda need to re-calculate resource assumption in every commit
 	 * so need to add all affected_planes (even unchanged) to
 	 * drm_atomic_state.
 	 */
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_st, new_crtc_st, i) {
+	for_each_new_crtc_in_state(state, crtc, new_crtc_st, i) {
 		err = drm_atomic_add_affected_planes(state, crtc);
+		if (err)
+			return err;
+
+		err = komeda_crtc_normalize_zpos(crtc, new_crtc_st);
 		if (err)
 			return err;
 	}
@@ -148,7 +252,7 @@ static void komeda_kms_mode_config_init(struct komeda_kms_dev *kms,
 	config->min_height	= 0;
 	config->max_width	= 4096;
 	config->max_height	= 4096;
-	config->allow_fb_modifiers = false;
+	config->allow_fb_modifiers = true;
 
 	config->funcs = &komeda_mode_config_funcs;
 	config->helper_private = &komeda_mode_config_helpers;
@@ -188,31 +292,47 @@ struct komeda_kms_dev *komeda_kms_attach(struct komeda_dev *mdev)
 	if (err)
 		goto cleanup_mode_config;
 
+	err = komeda_kms_add_wb_connectors(kms, mdev);
+	if (err)
+		goto cleanup_mode_config;
+
 	err = component_bind_all(mdev->dev, kms);
 	if (err)
 		goto cleanup_mode_config;
 
 	drm_mode_config_reset(drm);
 
-	err = drm_irq_install(drm, mdev->irq);
+	err = devm_request_irq(drm->dev, mdev->irq,
+			       komeda_kms_irq_handler, IRQF_SHARED,
+			       drm->driver->name, drm);
 	if (err)
-		goto cleanup_mode_config;
+		goto free_component_binding;
 
 	err = mdev->funcs->enable_irq(mdev);
 	if (err)
-		goto uninstall_irq;
+		goto free_component_binding;
+
+	drm->irq_enabled = true;
+
+	drm_kms_helper_poll_init(drm);
 
 	err = drm_dev_register(drm, 0);
 	if (err)
-		goto uninstall_irq;
+		goto free_interrupts;
 
 	return kms;
 
-uninstall_irq:
-	drm_irq_uninstall(drm);
+free_interrupts:
+	drm_kms_helper_poll_fini(drm);
+	drm->irq_enabled = false;
+	mdev->funcs->disable_irq(mdev);
+free_component_binding:
+	component_unbind_all(mdev->dev, drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
 	komeda_kms_cleanup_private_objs(kms);
+	drm->dev_private = NULL;
+	drm_dev_put(drm);
 free_kms:
 	kfree(kms);
 	return ERR_PTR(err);
@@ -223,12 +343,14 @@ void komeda_kms_detach(struct komeda_kms_dev *kms)
 	struct drm_device *drm = &kms->base;
 	struct komeda_dev *mdev = drm->dev_private;
 
-	mdev->funcs->disable_irq(mdev);
 	drm_dev_unregister(drm);
-	drm_irq_uninstall(drm);
+	drm_kms_helper_poll_fini(drm);
+	drm_atomic_helper_shutdown(drm);
+	drm->irq_enabled = false;
+	mdev->funcs->disable_irq(mdev);
 	component_unbind_all(mdev->dev, drm);
-	komeda_kms_cleanup_private_objs(kms);
 	drm_mode_config_cleanup(drm);
+	komeda_kms_cleanup_private_objs(kms);
 	drm->dev_private = NULL;
 	drm_dev_put(drm);
 }

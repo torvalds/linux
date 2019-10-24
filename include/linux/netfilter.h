@@ -336,11 +336,6 @@ int compat_nf_getsockopt(struct sock *sk, u_int8_t pf, int optval,
 		char __user *opt, int *len);
 #endif
 
-/* Call this before modifying an existing packet: ensures it is
-   modifiable and linear to the point you care about (writable_len).
-   Returns true or false. */
-int skb_make_writable(struct sk_buff *skb, unsigned int writable_len);
-
 struct flowi;
 struct nf_queue_entry;
 

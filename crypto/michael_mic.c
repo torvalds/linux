@@ -156,6 +156,7 @@ static struct shash_alg alg = {
 	.descsize		=	sizeof(struct michael_mic_desc_ctx),
 	.base			=	{
 		.cra_name		=	"michael_mic",
+		.cra_driver_name	=	"michael_mic-generic",
 		.cra_blocksize		=	8,
 		.cra_alignmask		=	3,
 		.cra_ctxsize		=	sizeof(struct michael_mic_ctx),

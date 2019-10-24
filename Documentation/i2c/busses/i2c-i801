@@ -37,6 +37,8 @@ Supported adapters:
   * Intel Cedar Fork (PCH)
   * Intel Ice Lake (PCH)
   * Intel Comet Lake (PCH)
+  * Intel Elkhart Lake (PCH)
+  * Intel Tiger Lake (PCH)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller
@@ -58,6 +60,7 @@ question doesn't work as intended for whatever reason. Bit values:
  0x02  disable the block buffer
  0x08  disable the I2C block read functionality
  0x10  don't use interrupts
+ 0x20  disable SMBus Host Notify
 
 
 Description
@@ -88,7 +91,7 @@ SMBus controller.
 Process Call Support
 --------------------
 
-Not supported.
+Block process call is supported on the 82801EB (ICH5) and later chips.
 
 
 I2C Block Read Support
@@ -118,16 +121,15 @@ BIOS to enable it, it means it has been hidden by the BIOS code. Asus is
 well known for first doing this on their P4B motherboard, and many other
 boards after that. Some vendor machines are affected as well.
 
-The first thing to try is the "i2c_ec" ACPI driver. It could be that the
+The first thing to try is the "i2c-scmi" ACPI driver. It could be that the
 SMBus was hidden on purpose because it'll be driven by ACPI. If the
-i2c_ec driver works for you, just forget about the i2c-i801 driver and
-don't try to unhide the ICH SMBus. Even if i2c_ec doesn't work, you
+i2c-scmi driver works for you, just forget about the i2c-i801 driver and
+don't try to unhide the ICH SMBus. Even if i2c-scmi doesn't work, you
 better make sure that the SMBus isn't used by the ACPI code. Try loading
-the "fan" and "thermal" drivers, and check in /proc/acpi/fan and
-/proc/acpi/thermal_zone. If you find anything there, it's likely that
-the ACPI is accessing the SMBus and it's safer not to unhide it. Only
-once you are certain that ACPI isn't using the SMBus, you can attempt
-to unhide it.
+the "fan" and "thermal" drivers, and check in /sys/class/thermal. If you
+find a thermal zone with type "acpitz", it's likely that the ACPI is
+accessing the SMBus and it's safer not to unhide it. Only once you are
+certain that ACPI isn't using the SMBus, you can attempt to unhide it.
 
 In order to unhide the SMBus, we need to change the value of a PCI
 register before the kernel enumerates the PCI devices. This is done in

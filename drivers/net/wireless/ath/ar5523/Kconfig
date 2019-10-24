@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: ISC
 config AR5523
        tristate "Atheros AR5523 wireless driver support"
        depends on MAC80211 && USB

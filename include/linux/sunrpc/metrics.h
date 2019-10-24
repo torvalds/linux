@@ -30,7 +30,7 @@
 #include <linux/ktime.h>
 #include <linux/spinlock.h>
 
-#define RPC_IOSTATS_VERS	"1.0"
+#define RPC_IOSTATS_VERS	"1.1"
 
 struct rpc_iostats {
 	spinlock_t		om_lock;
@@ -66,6 +66,11 @@ struct rpc_iostats {
 	ktime_t			om_queue,	/* queued for xmit */
 				om_rtt,		/* RPC RTT */
 				om_execute;	/* RPC execution */
+	/*
+	 * The count of operations that complete with tk_status < 0.
+	 * These statuses usually indicate error conditions.
+	 */
+	unsigned long           om_error_status;
 } ____cacheline_aligned;
 
 struct rpc_task;

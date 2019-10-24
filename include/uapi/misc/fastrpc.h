@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 
 #ifndef __QCOM_FASTRPC_H__
 #define __QCOM_FASTRPC_H__

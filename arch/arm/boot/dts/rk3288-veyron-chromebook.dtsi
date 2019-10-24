@@ -70,6 +70,21 @@
 		pinctrl-0 = <&ac_present_ap>;
 	};
 
+	lid_switch: lid-switch {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ap_lid_int_l>;
+
+		lid {
+			label = "Lid";
+			gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+			linux,code = <SW_LID>;
+			linux,input-type = <EV_SW>;
+			debounce-interval = <1>;
+		};
+	};
+
 	panel: panel {
 		compatible ="innolux,n116bge", "simple-panel";
 		status = "okay";
@@ -149,18 +164,6 @@
 	status = "okay";
 };
 
-&gpio_keys {
-	pinctrl-0 = <&pwr_key_l &ap_lid_int_l>;
-	lid {
-		label = "Lid";
-		gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
-		wakeup-source;
-		linux,code = <0>; /* SW_LID */
-		linux,input-type = <5>; /* EV_SW */
-		debounce-interval = <1>;
-	};
-};
-
 &pwm0 {
 	status = "okay";
 };
@@ -234,6 +237,7 @@
 
 		/* Wake only */
 		&suspend_l_wake
+		&bt_dev_wake_awake
 	>;
 	pinctrl-1 = <
 		/* Common for sleep and wake, but no owners */
@@ -243,6 +247,7 @@
 
 		/* Sleep only */
 		&suspend_l_sleep
+		&bt_dev_wake_sleep
 	>;
 
 	backlight {

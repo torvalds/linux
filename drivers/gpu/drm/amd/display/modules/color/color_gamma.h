@@ -79,6 +79,7 @@ struct freesync_hdr_tf_params {
 	unsigned int max_content; // luminance in nits
 	unsigned int min_display; // luminance in 1/10000 nits
 	unsigned int max_display; // luminance in nits
+	unsigned int skip_tm; // skip tm
 };
 
 void setup_x_points_distribution(void);

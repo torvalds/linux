@@ -168,8 +168,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(v->driver, "radio-keene", sizeof(v->driver));
 	strscpy(v->card, "Keene FM Transmitter", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_RADIO | V4L2_CAP_MODULATOR;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -361,6 +359,7 @@ static int usb_keene_probe(struct usb_interface *intf,
 	radio->vdev.lock = &radio->lock;
 	radio->vdev.release = video_device_release_empty;
 	radio->vdev.vfl_dir = VFL_DIR_TX;
+	radio->vdev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_MODULATOR;
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;

@@ -118,8 +118,4 @@ struct stmmac_counters {
 	unsigned int mmc_rx_icmp_err_octets;
 };
 
-void dwmac_mmc_ctrl(void __iomem *ioaddr, unsigned int mode);
-void dwmac_mmc_intr_all_mask(void __iomem *ioaddr);
-void dwmac_mmc_read(void __iomem *ioaddr, struct stmmac_counters *mmc);
-
 #endif /* __MMC_H__ */

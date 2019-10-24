@@ -45,7 +45,6 @@ config USB_DYNAMIC_MINORS
 config USB_OTG
 	bool "OTG support"
 	depends on PM
-	default n
 	help
 	  The most notable feature of USB OTG is support for a
 	  "Dual-Role" device, which can act as either a device

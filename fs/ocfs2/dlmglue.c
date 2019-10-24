@@ -426,6 +426,7 @@ static void ocfs2_remove_lockres_tracking(struct ocfs2_lock_res *res)
 static void ocfs2_init_lock_stats(struct ocfs2_lock_res *res)
 {
 	res->l_lock_refresh = 0;
+	res->l_lock_wait = 0;
 	memset(&res->l_lock_prmode, 0, sizeof(struct ocfs2_lock_stats));
 	memset(&res->l_lock_exmode, 0, sizeof(struct ocfs2_lock_stats));
 }
@@ -460,11 +461,28 @@ static void ocfs2_update_lock_stats(struct ocfs2_lock_res *res, int level,
 
 	if (ret)
 		stats->ls_fail++;
+
+	stats->ls_last = ktime_to_us(ktime_get_real());
 }
 
 static inline void ocfs2_track_lock_refresh(struct ocfs2_lock_res *lockres)
 {
 	lockres->l_lock_refresh++;
+}
+
+static inline void ocfs2_track_lock_wait(struct ocfs2_lock_res *lockres)
+{
+	struct ocfs2_mask_waiter *mw;
+
+	if (list_empty(&lockres->l_mask_waiters)) {
+		lockres->l_lock_wait = 0;
+		return;
+	}
+
+	mw = list_first_entry(&lockres->l_mask_waiters,
+				struct ocfs2_mask_waiter, mw_item);
+	lockres->l_lock_wait =
+			ktime_to_us(ktime_mono_to_real(mw->mw_lock_start));
 }
 
 static inline void ocfs2_init_start_time(struct ocfs2_mask_waiter *mw)
@@ -480,6 +498,9 @@ static inline void ocfs2_update_lock_stats(struct ocfs2_lock_res *res,
 {
 }
 static inline void ocfs2_track_lock_refresh(struct ocfs2_lock_res *lockres)
+{
+}
+static inline void ocfs2_track_lock_wait(struct ocfs2_lock_res *lockres)
 {
 }
 static inline void ocfs2_init_start_time(struct ocfs2_mask_waiter *mw)
@@ -875,6 +896,7 @@ static void lockres_set_flags(struct ocfs2_lock_res *lockres,
 		list_del_init(&mw->mw_item);
 		mw->mw_status = 0;
 		complete(&mw->mw_complete);
+		ocfs2_track_lock_wait(lockres);
 	}
 }
 static void lockres_or_flags(struct ocfs2_lock_res *lockres, unsigned long or)
@@ -1386,6 +1408,7 @@ static void lockres_add_mask_waiter(struct ocfs2_lock_res *lockres,
 	list_add_tail(&mw->mw_item, &lockres->l_mask_waiters);
 	mw->mw_mask = mask;
 	mw->mw_goal = goal;
+	ocfs2_track_lock_wait(lockres);
 }
 
 /* returns 0 if the mw that was removed was already satisfied, -EBUSY
@@ -1402,6 +1425,7 @@ static int __lockres_remove_mask_waiter(struct ocfs2_lock_res *lockres,
 
 		list_del_init(&mw->mw_item);
 		init_completion(&mw->mw_complete);
+		ocfs2_track_lock_wait(lockres);
 	}
 
 	return ret;
@@ -2989,6 +3013,8 @@ struct ocfs2_dlm_debug *ocfs2_new_dlm_debug(void)
 	kref_init(&dlm_debug->d_refcnt);
 	INIT_LIST_HEAD(&dlm_debug->d_lockres_tracking);
 	dlm_debug->d_locking_state = NULL;
+	dlm_debug->d_locking_filter = NULL;
+	dlm_debug->d_filter_secs = 0;
 out:
 	return dlm_debug;
 }
@@ -3079,16 +3105,42 @@ static void *ocfs2_dlm_seq_next(struct seq_file *m, void *v, loff_t *pos)
  *	- Lock stats printed
  * New in version 3
  *	- Max time in lock stats is in usecs (instead of nsecs)
+ * New in version 4
+ *	- Add last pr/ex unlock times and first lock wait time in usecs
  */
-#define OCFS2_DLM_DEBUG_STR_VERSION 3
+#define OCFS2_DLM_DEBUG_STR_VERSION 4
 static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 {
 	int i;
 	char *lvb;
 	struct ocfs2_lock_res *lockres = v;
+#ifdef CONFIG_OCFS2_FS_STATS
+	u64 now, last;
+	struct ocfs2_dlm_debug *dlm_debug =
+			((struct ocfs2_dlm_seq_priv *)m->private)->p_dlm_debug;
+#endif
 
 	if (!lockres)
 		return -EINVAL;
+
+#ifdef CONFIG_OCFS2_FS_STATS
+	if (!lockres->l_lock_wait && dlm_debug->d_filter_secs) {
+		now = ktime_to_us(ktime_get_real());
+		if (lockres->l_lock_prmode.ls_last >
+		    lockres->l_lock_exmode.ls_last)
+			last = lockres->l_lock_prmode.ls_last;
+		else
+			last = lockres->l_lock_exmode.ls_last;
+		/*
+		 * Use d_filter_secs field to filter lock resources dump,
+		 * the default d_filter_secs(0) value filters nothing,
+		 * otherwise, only dump the last N seconds active lock
+		 * resources.
+		 */
+		if (div_u64(now - last, 1000000) > dlm_debug->d_filter_secs)
+			return 0;
+	}
+#endif
 
 	seq_printf(m, "0x%x\t", OCFS2_DLM_DEBUG_STR_VERSION);
 
@@ -3131,6 +3183,9 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 # define lock_max_prmode(_l)		((_l)->l_lock_prmode.ls_max)
 # define lock_max_exmode(_l)		((_l)->l_lock_exmode.ls_max)
 # define lock_refresh(_l)		((_l)->l_lock_refresh)
+# define lock_last_prmode(_l)		((_l)->l_lock_prmode.ls_last)
+# define lock_last_exmode(_l)		((_l)->l_lock_exmode.ls_last)
+# define lock_wait(_l)			((_l)->l_lock_wait)
 #else
 # define lock_num_prmode(_l)		(0)
 # define lock_num_exmode(_l)		(0)
@@ -3141,6 +3196,9 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 # define lock_max_prmode(_l)		(0)
 # define lock_max_exmode(_l)		(0)
 # define lock_refresh(_l)		(0)
+# define lock_last_prmode(_l)		(0ULL)
+# define lock_last_exmode(_l)		(0ULL)
+# define lock_wait(_l)			(0ULL)
 #endif
 	/* The following seq_print was added in version 2 of this output */
 	seq_printf(m, "%u\t"
@@ -3151,7 +3209,10 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 		   "%llu\t"
 		   "%u\t"
 		   "%u\t"
-		   "%u\t",
+		   "%u\t"
+		   "%llu\t"
+		   "%llu\t"
+		   "%llu\t",
 		   lock_num_prmode(lockres),
 		   lock_num_exmode(lockres),
 		   lock_num_prmode_failed(lockres),
@@ -3160,7 +3221,10 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 		   lock_total_exmode(lockres),
 		   lock_max_prmode(lockres),
 		   lock_max_exmode(lockres),
-		   lock_refresh(lockres));
+		   lock_refresh(lockres),
+		   lock_last_prmode(lockres),
+		   lock_last_exmode(lockres),
+		   lock_wait(lockres));
 
 	/* End the line */
 	seq_printf(m, "\n");
@@ -3214,9 +3278,8 @@ static const struct file_operations ocfs2_dlm_debug_fops = {
 	.llseek =	seq_lseek,
 };
 
-static int ocfs2_dlm_init_debug(struct ocfs2_super *osb)
+static void ocfs2_dlm_init_debug(struct ocfs2_super *osb)
 {
-	int ret = 0;
 	struct ocfs2_dlm_debug *dlm_debug = osb->osb_dlm_debug;
 
 	dlm_debug->d_locking_state = debugfs_create_file("locking_state",
@@ -3224,16 +3287,11 @@ static int ocfs2_dlm_init_debug(struct ocfs2_super *osb)
 							 osb->osb_debug_root,
 							 osb,
 							 &ocfs2_dlm_debug_fops);
-	if (!dlm_debug->d_locking_state) {
-		ret = -EINVAL;
-		mlog(ML_ERROR,
-		     "Unable to create locking state debugfs file.\n");
-		goto out;
-	}
 
-	ocfs2_get_dlm_debug(dlm_debug);
-out:
-	return ret;
+	dlm_debug->d_locking_filter = debugfs_create_u32("locking_filter",
+						0600,
+						osb->osb_debug_root,
+						&dlm_debug->d_filter_secs);
 }
 
 static void ocfs2_dlm_shutdown_debug(struct ocfs2_super *osb)
@@ -3242,6 +3300,7 @@ static void ocfs2_dlm_shutdown_debug(struct ocfs2_super *osb)
 
 	if (dlm_debug) {
 		debugfs_remove(dlm_debug->d_locking_state);
+		debugfs_remove(dlm_debug->d_locking_filter);
 		ocfs2_put_dlm_debug(dlm_debug);
 	}
 }
@@ -3256,11 +3315,7 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 		goto local;
 	}
 
-	status = ocfs2_dlm_init_debug(osb);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
+	ocfs2_dlm_init_debug(osb);
 
 	/* launch downconvert thread */
 	osb->dc_task = kthread_run(ocfs2_downconvert_thread, osb, "ocfs2dc-%s",
@@ -4352,7 +4407,6 @@ static int ocfs2_downconvert_thread_should_wake(struct ocfs2_super *osb)
 
 static int ocfs2_downconvert_thread(void *arg)
 {
-	int status = 0;
 	struct ocfs2_super *osb = arg;
 
 	/* only quit once we've been asked to stop and there is no more
@@ -4370,7 +4424,7 @@ static int ocfs2_downconvert_thread(void *arg)
 	}
 
 	osb->dc_task = NULL;
-	return status;
+	return 0;
 }
 
 void ocfs2_wake_downconvert_thread(struct ocfs2_super *osb)

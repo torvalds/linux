@@ -11,4 +11,4 @@ Description:
 		example would be, if User A has shares = 1024 and user
 		B has shares = 2048, User B will get twice the CPU
 		bandwidth user A will. For more details refer
-		Documentation/scheduler/sched-design-CFS.txt
+		Documentation/scheduler/sched-design-CFS.rst

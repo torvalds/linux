@@ -105,9 +105,6 @@ enum {
 #define MAX8952_NUM_DVS_MODE	4
 
 struct max8952_platform_data {
-	int gpio_vid0;
-	int gpio_vid1;
-
 	u32 default_mode;
 	u32 dvs_mode[MAX8952_NUM_DVS_MODE]; /* MAX8952_DVS_MODEx_XXXXmV */
 

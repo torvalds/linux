@@ -10,21 +10,6 @@ config XEN_BALLOON
 	  the system to expand the domain's memory allocation, or alternatively
 	  return unneeded memory to the system.
 
-config XEN_SELFBALLOONING
-	bool "Dynamically self-balloon kernel memory to target"
-	depends on XEN && XEN_BALLOON && CLEANCACHE && SWAP && XEN_TMEM
-	help
-	  Self-ballooning dynamically balloons available kernel memory driven
-	  by the current usage of anonymous memory ("committed AS") and
-	  controlled by various sysfs-settable parameters.  Configuring
-	  FRONTSWAP is highly recommended; if it is not configured, self-
-	  ballooning is disabled by default. If FRONTSWAP is configured,
-	  frontswap-selfshrinking is enabled by default but can be disabled
-	  with the 'tmem.selfshrink=0' kernel boot parameter; and self-ballooning
-	  is enabled by default but can be disabled with the 'tmem.selfballooning=0'
-	  kernel boot parameter.  Note that systems without a sufficiently
-	  large swap device should not enable self-ballooning.
-
 config XEN_BALLOON_MEMORY_HOTPLUG
 	bool "Memory hotplug support for Xen balloon driver"
 	depends on XEN_BALLOON && MEMORY_HOTPLUG
@@ -190,14 +175,6 @@ config XEN_GRANT_DMA_ALLOC
 config SWIOTLB_XEN
 	def_bool y
 	select SWIOTLB
-
-config XEN_TMEM
-	tristate
-	depends on !ARM && !ARM64
-	default m if (CLEANCACHE || FRONTSWAP)
-	help
-	  Shim to interface in-kernel Transcendent Memory hooks
-	  (e.g. cleancache and frontswap) to Xen tmem hypercalls.
 
 config XEN_PCIDEV_BACKEND
 	tristate "Xen PCI-device backend driver"

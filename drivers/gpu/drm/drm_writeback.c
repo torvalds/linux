@@ -9,12 +9,14 @@
  * of such GNU licence.
  */
 
+#include <linux/dma-fence.h>
+
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_property.h>
 #include <drm/drm_writeback.h>
-#include <drm/drmP.h>
-#include <linux/dma-fence.h>
 
 /**
  * DOC: overview

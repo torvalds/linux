@@ -92,3 +92,11 @@ int compare_map_keys(int map1_fd, int map2_fd);
 int compare_stack_ips(int smap_fd, int amap_fd, int stack_trace_len);
 int extract_build_id(char *build_id, size_t size);
 void *spin_lock_thread(void *arg);
+
+#ifdef __x86_64__
+#define SYS_NANOSLEEP_KPROBE_NAME "__x64_sys_nanosleep"
+#elif defined(__s390x__)
+#define SYS_NANOSLEEP_KPROBE_NAME "__s390x_sys_nanosleep"
+#else
+#define SYS_NANOSLEEP_KPROBE_NAME "sys_nanosleep"
+#endif

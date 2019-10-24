@@ -24,6 +24,21 @@ struct intel_wopcm {
 	} guc;
 };
 
+/**
+ * intel_wopcm_guc_size()
+ * @wopcm:	intel_wopcm structure
+ *
+ * Returns size of the WOPCM shadowed region.
+ *
+ * Returns:
+ * 0 if GuC is not present or not in use.
+ * Otherwise, the GuC WOPCM size.
+ */
+static inline u32 intel_wopcm_guc_size(struct intel_wopcm *wopcm)
+{
+	return wopcm->guc.size;
+}
+
 void intel_wopcm_init_early(struct intel_wopcm *wopcm);
 int intel_wopcm_init(struct intel_wopcm *wopcm);
 int intel_wopcm_init_hw(struct intel_wopcm *wopcm);

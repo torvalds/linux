@@ -7,8 +7,10 @@
 
 struct cpu_topology {
 	u32	  core_sib;
+	u32	  die_sib;
 	u32	  thread_sib;
 	char	**core_siblings;
+	char	**die_siblings;
 	char	**thread_siblings;
 };
 

@@ -17,6 +17,15 @@
 #define CLIDR_CTYPE(clidr, level)	\
 	(((clidr) & CLIDR_CTYPE_MASK(level)) >> CLIDR_CTYPE_SHIFT(level))
 
+int cache_line_size(void)
+{
+	if (coherency_max_size != 0)
+		return coherency_max_size;
+
+	return cache_line_size_of_cpu();
+}
+EXPORT_SYMBOL_GPL(cache_line_size);
+
 static inline enum cache_type get_cache_type(int level)
 {
 	u64 clidr;

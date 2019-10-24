@@ -607,8 +607,8 @@ static int venc_enum_frameintervals(struct file *file, void *fh,
 
 static const struct v4l2_ioctl_ops venc_ioctl_ops = {
 	.vidioc_querycap = venc_querycap,
-	.vidioc_enum_fmt_vid_cap_mplane = venc_enum_fmt,
-	.vidioc_enum_fmt_vid_out_mplane = venc_enum_fmt,
+	.vidioc_enum_fmt_vid_cap = venc_enum_fmt,
+	.vidioc_enum_fmt_vid_out = venc_enum_fmt,
 	.vidioc_s_fmt_vid_cap_mplane = venc_s_fmt,
 	.vidioc_s_fmt_vid_out_mplane = venc_s_fmt,
 	.vidioc_g_fmt_vid_cap_mplane = venc_g_fmt,

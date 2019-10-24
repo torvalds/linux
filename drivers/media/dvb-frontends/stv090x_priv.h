@@ -237,7 +237,7 @@ struct stv090x_state {
 	struct stv090x_internal		*internal;
 
 	struct i2c_adapter		*i2c;
-	const struct stv090x_config	*config;
+	struct stv090x_config	*config;
 	struct dvb_frontend		frontend;
 
 	u32				*verbose; /* Cached module verbosity */

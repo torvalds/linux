@@ -45,7 +45,7 @@ static const char * const iommu_ports[] = {
 #define DPU_DEBUGFS_HWMASKNAME "hw_log_mask"
 
 static int dpu_kms_hw_init(struct msm_kms *kms);
-static int _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms);
+static void _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms);
 
 static unsigned long dpu_iomap_size(struct platform_device *pdev,
 				    const char *name)
@@ -131,8 +131,6 @@ static void dpu_debugfs_danger_init(struct dpu_kms *dpu_kms,
 		struct dentry *parent)
 {
 	struct dentry *entry = debugfs_create_dir("danger", parent);
-	if (IS_ERR_OR_NULL(entry))
-		return;
 
 	debugfs_create_file("danger_status", 0600, entry,
 			dpu_kms, &dpu_debugfs_danger_stats_fops);
@@ -207,32 +205,29 @@ void dpu_debugfs_setup_regset32(struct dpu_debugfs_regset32 *regset,
 	}
 }
 
-void *dpu_debugfs_create_regset32(const char *name, umode_t mode,
+void dpu_debugfs_create_regset32(const char *name, umode_t mode,
 		void *parent, struct dpu_debugfs_regset32 *regset)
 {
 	if (!name || !regset || !regset->dpu_kms || !regset->blk_len)
-		return NULL;
+		return;
 
 	/* make sure offset is a multiple of 4 */
 	regset->offset = round_down(regset->offset, 4);
 
-	return debugfs_create_file(name, mode, parent,
-			regset, &dpu_fops_regset32);
+	debugfs_create_file(name, mode, parent, regset, &dpu_fops_regset32);
 }
 
-static int _dpu_debugfs_init(struct dpu_kms *dpu_kms)
+static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 {
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
 	void *p = dpu_hw_util_get_log_mask_ptr();
 	struct dentry *entry;
 
 	if (!p)
 		return -EINVAL;
 
-	entry = debugfs_create_dir("debug", dpu_kms->dev->primary->debugfs_root);
-	if (IS_ERR_OR_NULL(entry))
-		return -ENODEV;
+	entry = debugfs_create_dir("debug", minor->debugfs_root);
 
-	/* allow root to be NULL */
 	debugfs_create_x32(DPU_DEBUGFS_HWMASKNAME, 0600, entry, p);
 
 	dpu_debugfs_danger_init(dpu_kms, entry);
@@ -567,13 +562,6 @@ fail:
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
-{
-	return _dpu_debugfs_init(to_dpu_kms(kms));
-}
-#endif
-
 static long dpu_kms_round_pixclk(struct msm_kms *kms, unsigned long rate,
 		struct drm_encoder *encoder)
 {
@@ -714,9 +702,12 @@ static const struct msm_kms_funcs kms_funcs = {
 #endif
 };
 
-static int _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
+static void _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 {
 	struct msm_mmu *mmu;
+
+	if (!dpu_kms->base.aspace)
+		return;
 
 	mmu = dpu_kms->base.aspace->mmu;
 
@@ -724,7 +715,7 @@ static int _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 			ARRAY_SIZE(iommu_ports));
 	msm_gem_address_space_put(dpu_kms->base.aspace);
 
-	return 0;
+	dpu_kms->base.aspace = NULL;
 }
 
 static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
@@ -743,25 +734,20 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 	aspace = msm_gem_address_space_create(dpu_kms->dev->dev,
 			domain, "dpu1");
 	if (IS_ERR(aspace)) {
-		ret = PTR_ERR(aspace);
-		goto fail;
+		iommu_domain_free(domain);
+		return PTR_ERR(aspace);
 	}
-
-	dpu_kms->base.aspace = aspace;
 
 	ret = aspace->mmu->funcs->attach(aspace->mmu, iommu_ports,
 			ARRAY_SIZE(iommu_ports));
 	if (ret) {
 		DPU_ERROR("failed to attach iommu %d\n", ret);
 		msm_gem_address_space_put(aspace);
-		goto fail;
+		return ret;
 	}
 
+	dpu_kms->base.aspace = aspace;
 	return 0;
-fail:
-	_dpu_kms_mmu_destroy(dpu_kms);
-
-	return ret;
 }
 
 static struct dss_clk *_dpu_kms_get_clk(struct dpu_kms *dpu_kms,

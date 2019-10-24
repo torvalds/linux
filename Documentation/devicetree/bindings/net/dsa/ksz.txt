@@ -12,10 +12,13 @@ Required properties:
   - "microchip,ksz8565"
   - "microchip,ksz9893"
   - "microchip,ksz9563"
+  - "microchip,ksz8563"
 
 Optional properties:
 
 - reset-gpios		: Should be a gpio specifier for a reset line
+- microchip,synclko-125 : Set if the output SYNCLKO frequency should be set to
+			  125MHz instead of 25MHz.
 
 See Documentation/devicetree/bindings/net/dsa/dsa.txt for a list of additional
 required and optional properties.

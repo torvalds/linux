@@ -89,7 +89,7 @@ config BLK_DEV_THROTTLING
 	one needs to mount and use blkio cgroup controller for creating
 	cgroups and specifying per device IO rate policies.
 
-	See Documentation/cgroup-v1/blkio-controller.txt for more information.
+	See Documentation/admin-guide/cgroup-v1/blkio-controller.rst for more information.
 
 config BLK_DEV_THROTTLING_LOW
 	bool "Block throttling .low limit interface support (EXPERIMENTAL)"
@@ -110,7 +110,7 @@ config BLK_CMDLINE_PARSER
 	which don't otherwise have any standardized method for listing the
 	partitions on a block device.
 
-	See Documentation/block/cmdline-partition.txt for more information.
+	See Documentation/block/cmdline-partition.rst for more information.
 
 config BLK_WBT
 	bool "Enable support for block device writeback throttling"

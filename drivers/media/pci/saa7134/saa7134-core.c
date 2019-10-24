@@ -1206,6 +1206,14 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	dev->video_dev->ctrl_handler = &dev->ctrl_handler;
 	dev->video_dev->lock = &dev->lock;
 	dev->video_dev->queue = &dev->video_vbq;
+	dev->video_dev->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				      V4L2_CAP_VIDEO_CAPTURE;
+	if (dev->tuner_type != TUNER_ABSENT && dev->tuner_type != UNSET)
+		dev->video_dev->device_caps |= V4L2_CAP_TUNER;
+
+	if (saa7134_no_overlay <= 0)
+		dev->video_dev->device_caps |= V4L2_CAP_VIDEO_OVERLAY;
+
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);
 	if (err < 0) {
@@ -1220,6 +1228,10 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	dev->vbi_dev->ctrl_handler = &dev->ctrl_handler;
 	dev->vbi_dev->lock = &dev->lock;
 	dev->vbi_dev->queue = &dev->vbi_vbq;
+	dev->vbi_dev->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				    V4L2_CAP_VBI_CAPTURE;
+	if (dev->tuner_type != TUNER_ABSENT && dev->tuner_type != UNSET)
+		dev->vbi_dev->device_caps |= V4L2_CAP_TUNER;
 
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);
@@ -1232,6 +1244,9 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
 		dev->radio_dev->ctrl_handler = &dev->radio_ctrl_handler;
 		dev->radio_dev->lock = &dev->lock;
+		dev->radio_dev->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
+		if (dev->has_rds)
+			dev->radio_dev->device_caps |= V4L2_CAP_RDS_CAPTURE;
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[dev->nr]);
 		if (err < 0)

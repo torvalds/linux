@@ -856,7 +856,7 @@ static ssize_t nx842_##_name##_show(struct device *dev,		\
 	rcu_read_lock();						\
 	local_devdata = rcu_dereference(devdata);			\
 	if (local_devdata)						\
-		p = snprintf(buf, PAGE_SIZE, "%ld\n",			\
+		p = snprintf(buf, PAGE_SIZE, "%lld\n",			\
 		       atomic64_read(&local_devdata->counters->_name));	\
 	rcu_read_unlock();						\
 	return p;							\
@@ -909,7 +909,7 @@ static ssize_t nx842_timehist_show(struct device *dev,
 	}
 
 	for (i = 0; i < (NX842_HIST_SLOTS - 2); i++) {
-		bytes = snprintf(p, bytes_remain, "%u-%uus:\t%ld\n",
+		bytes = snprintf(p, bytes_remain, "%u-%uus:\t%lld\n",
 			       i ? (2<<(i-1)) : 0, (2<<i)-1,
 			       atomic64_read(&times[i]));
 		bytes_remain -= bytes;
@@ -917,7 +917,7 @@ static ssize_t nx842_timehist_show(struct device *dev,
 	}
 	/* The last bucket holds everything over
 	 * 2<<(NX842_HIST_SLOTS - 2) us */
-	bytes = snprintf(p, bytes_remain, "%uus - :\t%ld\n",
+	bytes = snprintf(p, bytes_remain, "%uus - :\t%lld\n",
 			2<<(NX842_HIST_SLOTS - 2),
 			atomic64_read(&times[(NX842_HIST_SLOTS - 1)]));
 	p += bytes;

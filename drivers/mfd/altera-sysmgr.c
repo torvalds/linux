@@ -92,9 +92,9 @@ static struct regmap_config altr_sysmgr_regmap_cfg = {
  * Matching function used by driver_find_device().
  * Return: True if match is found, otherwise false.
  */
-static int sysmgr_match_phandle(struct device *dev, void *data)
+static int sysmgr_match_phandle(struct device *dev, const void *data)
 {
-	return dev->of_node == (struct device_node *)data;
+	return dev->of_node == (const struct device_node *)data;
 }
 
 /**

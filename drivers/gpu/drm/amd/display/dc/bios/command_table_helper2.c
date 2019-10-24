@@ -57,12 +57,13 @@ bool dal_bios_parser_init_cmd_tbl_helper2(
 		return true;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case DCN_VERSION_1_0:
+	case DCN_VERSION_1_01:
 		*h = dal_cmd_tbl_helper_dce112_get_table2();
 		return true;
 #endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
-	case DCN_VERSION_1_01:
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	case DCN_VERSION_2_0:
 		*h = dal_cmd_tbl_helper_dce112_get_table2();
 		return true;
 #endif

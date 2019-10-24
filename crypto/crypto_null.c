@@ -100,6 +100,7 @@ static struct shash_alg digest_null = {
 	.final  		=	null_final,
 	.base			=	{
 		.cra_name		=	"digest_null",
+		.cra_driver_name	=	"digest_null-generic",
 		.cra_blocksize		=	NULL_BLOCK_SIZE,
 		.cra_module		=	THIS_MODULE,
 	}
@@ -122,6 +123,7 @@ static struct skcipher_alg skcipher_null = {
 
 static struct crypto_alg null_algs[] = { {
 	.cra_name		=	"cipher_null",
+	.cra_driver_name	=	"cipher_null-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	NULL_BLOCK_SIZE,
 	.cra_ctxsize		=	0,
@@ -134,6 +136,7 @@ static struct crypto_alg null_algs[] = { {
 	.cia_decrypt		=	null_crypt } }
 }, {
 	.cra_name		=	"compress_null",
+	.cra_driver_name	=	"compress_null-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_COMPRESS,
 	.cra_blocksize		=	NULL_BLOCK_SIZE,
 	.cra_ctxsize		=	0,

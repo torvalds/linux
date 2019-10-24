@@ -547,7 +547,7 @@ static struct attribute *__lb_cmds_attrs[] = {
 	NULL,
 };
 
-struct attribute_group cros_ec_lightbar_attr_group = {
+static struct attribute_group cros_ec_lightbar_attr_group = {
 	.name = "lightbar",
 	.attrs = __lb_cmds_attrs,
 };
@@ -600,7 +600,7 @@ static int cros_ec_lightbar_remove(struct platform_device *pd)
 
 static int __maybe_unused cros_ec_lightbar_resume(struct device *dev)
 {
-	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev);
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
 
 	if (userspace_control)
 		return 0;
@@ -610,7 +610,7 @@ static int __maybe_unused cros_ec_lightbar_resume(struct device *dev)
 
 static int __maybe_unused cros_ec_lightbar_suspend(struct device *dev)
 {
-	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev);
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
 
 	if (userspace_control)
 		return 0;

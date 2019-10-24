@@ -281,14 +281,10 @@ static int aspeed_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct edac_mc_layer layers[2];
 	struct mem_ctl_info *mci;
-	struct device_node *np;
 	struct resource *res;
 	void __iomem *regs;
 	u32 reg04;
 	int rc;
-
-	/* setup regmap */
-	np = dev->of_node;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)

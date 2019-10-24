@@ -9,9 +9,8 @@
 
 #include "main.h"
 
+#include <linux/skbuff.h>
 #include <linux/types.h>
-
-struct sk_buff;
 
 int batadv_v_ogm_init(struct batadv_priv *bat_priv);
 void batadv_v_ogm_free(struct batadv_priv *bat_priv);

@@ -137,15 +137,14 @@ static int linear_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 
 #ifdef CONFIG_BLK_DEV_ZONED
 static int linear_report_zones(struct dm_target *ti, sector_t sector,
-			       struct blk_zone *zones, unsigned int *nr_zones,
-			       gfp_t gfp_mask)
+			       struct blk_zone *zones, unsigned int *nr_zones)
 {
 	struct linear_c *lc = (struct linear_c *) ti->private;
 	int ret;
 
 	/* Do report and remap it */
 	ret = blkdev_report_zones(lc->dev->bdev, linear_map_sector(ti, sector),
-				  zones, nr_zones, gfp_mask);
+				  zones, nr_zones);
 	if (ret != 0)
 		return ret;
 

@@ -84,6 +84,11 @@ returned during the enumeration process.
        -  Pointer to a links array allocated by the application. Ignored if
 	  NULL.
 
+    *  -  __u32
+       -  ``reserved[4]``
+       -  Reserved for future extensions. Drivers and applications must set
+          the array to zero.
+
 
 .. c:type:: media_pad_desc
 
@@ -135,7 +140,7 @@ returned during the enumeration process.
        -  Link flags, see :ref:`media-link-flag` for more details.
 
     *  -  __u32
-       -  ``reserved[4]``
+       -  ``reserved[2]``
        -  Reserved for future extensions. Drivers and applications must set
           the array to zero.
 

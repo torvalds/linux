@@ -19,13 +19,10 @@
  * Derived from drivers/drm/gpu/panel/panel-samsung-ld9040.c
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
-
-#include <linux/of_device.h>
 #include <linux/bitops.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -33,6 +30,10 @@
 #include <video/mipi_display.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 #define ILI9322_CHIP_ID			0x00
 #define ILI9322_CHIP_ID_MAGIC		0x96

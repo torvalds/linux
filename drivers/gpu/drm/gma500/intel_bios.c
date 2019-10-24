@@ -5,13 +5,13 @@
  * Authors:
  *    Eric Anholt <eric@anholt.net>
  */
-#include <drm/drmP.h>
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
+#include <drm/drm_dp_helper.h>
+
+#include "intel_bios.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "intel_bios.h"
 
 #define	SLAVE_ADDR1	0x70
 #define	SLAVE_ADDR2	0x72

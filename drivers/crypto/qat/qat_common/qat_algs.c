@@ -131,7 +131,6 @@ struct qat_alg_ablkcipher_ctx {
 	struct icp_qat_fw_la_bulk_req dec_fw_req;
 	struct qat_crypto_instance *inst;
 	struct crypto_tfm *tfm;
-	spinlock_t lock;	/* protects qat_alg_ablkcipher_ctx struct */
 };
 
 static int qat_get_inter_state_size(enum icp_qat_hw_auth_algo qat_hash_alg)
@@ -223,6 +222,9 @@ static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 		return -EFAULT;
 
 	offset = round_up(qat_get_inter_state_size(ctx->qat_hash_alg), 8);
+	if (offset < 0)
+		return -EFAULT;
+
 	hash_state_out = (__be32 *)(hash->sha.state1 + offset);
 	hash512_state_out = (__be64 *)hash_state_out;
 
@@ -253,7 +255,24 @@ static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 	return 0;
 }
 
-static void qat_alg_init_common_hdr(struct icp_qat_fw_comn_req_hdr *header)
+static void qat_alg_init_hdr_iv_updt(struct icp_qat_fw_comn_req_hdr *header)
+{
+	ICP_QAT_FW_LA_CIPH_IV_FLD_FLAG_SET(header->serv_specif_flags,
+					   ICP_QAT_FW_CIPH_IV_64BIT_PTR);
+	ICP_QAT_FW_LA_UPDATE_STATE_SET(header->serv_specif_flags,
+				       ICP_QAT_FW_LA_UPDATE_STATE);
+}
+
+static void qat_alg_init_hdr_no_iv_updt(struct icp_qat_fw_comn_req_hdr *header)
+{
+	ICP_QAT_FW_LA_CIPH_IV_FLD_FLAG_SET(header->serv_specif_flags,
+					   ICP_QAT_FW_CIPH_IV_16BYTE_DATA);
+	ICP_QAT_FW_LA_UPDATE_STATE_SET(header->serv_specif_flags,
+				       ICP_QAT_FW_LA_NO_UPDATE_STATE);
+}
+
+static void qat_alg_init_common_hdr(struct icp_qat_fw_comn_req_hdr *header,
+				    int aead)
 {
 	header->hdr_flags =
 		ICP_QAT_FW_COMN_HDR_FLAGS_BUILD(ICP_QAT_FW_COMN_REQ_FLAG_SET);
@@ -263,12 +282,12 @@ static void qat_alg_init_common_hdr(struct icp_qat_fw_comn_req_hdr *header)
 					    QAT_COMN_PTR_TYPE_SGL);
 	ICP_QAT_FW_LA_PARTIAL_SET(header->serv_specif_flags,
 				  ICP_QAT_FW_LA_PARTIAL_NONE);
-	ICP_QAT_FW_LA_CIPH_IV_FLD_FLAG_SET(header->serv_specif_flags,
-					   ICP_QAT_FW_CIPH_IV_16BYTE_DATA);
+	if (aead)
+		qat_alg_init_hdr_no_iv_updt(header);
+	else
+		qat_alg_init_hdr_iv_updt(header);
 	ICP_QAT_FW_LA_PROTO_SET(header->serv_specif_flags,
 				ICP_QAT_FW_LA_NO_PROTO);
-	ICP_QAT_FW_LA_UPDATE_STATE_SET(header->serv_specif_flags,
-				       ICP_QAT_FW_LA_NO_UPDATE_STATE);
 }
 
 static int qat_alg_aead_init_enc_session(struct crypto_aead *aead_tfm,
@@ -303,7 +322,7 @@ static int qat_alg_aead_init_enc_session(struct crypto_aead *aead_tfm,
 		return -EFAULT;
 
 	/* Request setup */
-	qat_alg_init_common_hdr(header);
+	qat_alg_init_common_hdr(header, 1);
 	header->service_cmd_id = ICP_QAT_FW_LA_CMD_CIPHER_HASH;
 	ICP_QAT_FW_LA_DIGEST_IN_BUFFER_SET(header->serv_specif_flags,
 					   ICP_QAT_FW_LA_DIGEST_IN_BUFFER);
@@ -390,7 +409,7 @@ static int qat_alg_aead_init_dec_session(struct crypto_aead *aead_tfm,
 		return -EFAULT;
 
 	/* Request setup */
-	qat_alg_init_common_hdr(header);
+	qat_alg_init_common_hdr(header, 1);
 	header->service_cmd_id = ICP_QAT_FW_LA_CMD_HASH_CIPHER;
 	ICP_QAT_FW_LA_DIGEST_IN_BUFFER_SET(header->serv_specif_flags,
 					   ICP_QAT_FW_LA_DIGEST_IN_BUFFER);
@@ -454,7 +473,7 @@ static void qat_alg_ablkcipher_init_com(struct qat_alg_ablkcipher_ctx *ctx,
 	struct icp_qat_fw_cipher_cd_ctrl_hdr *cd_ctrl = (void *)&req->cd_ctrl;
 
 	memcpy(cd->aes.key, key, keylen);
-	qat_alg_init_common_hdr(header);
+	qat_alg_init_common_hdr(header, 0);
 	header->service_cmd_id = ICP_QAT_FW_LA_CMD_CIPHER;
 	cd_pars->u.s.content_desc_params_sz =
 				sizeof(struct icp_qat_hw_cipher_algo_blk) >> 3;
@@ -576,45 +595,52 @@ bad_key:
 	return -EINVAL;
 }
 
-static int qat_alg_aead_setkey(struct crypto_aead *tfm, const uint8_t *key,
+static int qat_alg_aead_rekey(struct crypto_aead *tfm, const uint8_t *key,
+			      unsigned int keylen)
+{
+	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(tfm);
+
+	memset(ctx->enc_cd, 0, sizeof(*ctx->enc_cd));
+	memset(ctx->dec_cd, 0, sizeof(*ctx->dec_cd));
+	memset(&ctx->enc_fw_req, 0, sizeof(ctx->enc_fw_req));
+	memset(&ctx->dec_fw_req, 0, sizeof(ctx->dec_fw_req));
+
+	return qat_alg_aead_init_sessions(tfm, key, keylen,
+					  ICP_QAT_HW_CIPHER_CBC_MODE);
+}
+
+static int qat_alg_aead_newkey(struct crypto_aead *tfm, const uint8_t *key,
 			       unsigned int keylen)
 {
 	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(tfm);
+	struct qat_crypto_instance *inst = NULL;
+	int node = get_current_node();
 	struct device *dev;
+	int ret;
 
-	if (ctx->enc_cd) {
-		/* rekeying */
-		dev = &GET_DEV(ctx->inst->accel_dev);
-		memset(ctx->enc_cd, 0, sizeof(*ctx->enc_cd));
-		memset(ctx->dec_cd, 0, sizeof(*ctx->dec_cd));
-		memset(&ctx->enc_fw_req, 0, sizeof(ctx->enc_fw_req));
-		memset(&ctx->dec_fw_req, 0, sizeof(ctx->dec_fw_req));
-	} else {
-		/* new key */
-		int node = get_current_node();
-		struct qat_crypto_instance *inst =
-				qat_crypto_get_instance_node(node);
-		if (!inst) {
-			return -EINVAL;
-		}
-
-		dev = &GET_DEV(inst->accel_dev);
-		ctx->inst = inst;
-		ctx->enc_cd = dma_alloc_coherent(dev, sizeof(*ctx->enc_cd),
-						 &ctx->enc_cd_paddr,
-						 GFP_ATOMIC);
-		if (!ctx->enc_cd) {
-			return -ENOMEM;
-		}
-		ctx->dec_cd = dma_alloc_coherent(dev, sizeof(*ctx->dec_cd),
-						 &ctx->dec_cd_paddr,
-						 GFP_ATOMIC);
-		if (!ctx->dec_cd) {
-			goto out_free_enc;
-		}
+	inst = qat_crypto_get_instance_node(node);
+	if (!inst)
+		return -EINVAL;
+	dev = &GET_DEV(inst->accel_dev);
+	ctx->inst = inst;
+	ctx->enc_cd = dma_alloc_coherent(dev, sizeof(*ctx->enc_cd),
+					 &ctx->enc_cd_paddr,
+					 GFP_ATOMIC);
+	if (!ctx->enc_cd) {
+		ret = -ENOMEM;
+		goto out_free_inst;
 	}
-	if (qat_alg_aead_init_sessions(tfm, key, keylen,
-				       ICP_QAT_HW_CIPHER_CBC_MODE))
+	ctx->dec_cd = dma_alloc_coherent(dev, sizeof(*ctx->dec_cd),
+					 &ctx->dec_cd_paddr,
+					 GFP_ATOMIC);
+	if (!ctx->dec_cd) {
+		ret = -ENOMEM;
+		goto out_free_enc;
+	}
+
+	ret = qat_alg_aead_init_sessions(tfm, key, keylen,
+					 ICP_QAT_HW_CIPHER_CBC_MODE);
+	if (ret)
 		goto out_free_all;
 
 	return 0;
@@ -629,7 +655,21 @@ out_free_enc:
 	dma_free_coherent(dev, sizeof(struct qat_alg_cd),
 			  ctx->enc_cd, ctx->enc_cd_paddr);
 	ctx->enc_cd = NULL;
-	return -ENOMEM;
+out_free_inst:
+	ctx->inst = NULL;
+	qat_crypto_put_instance(inst);
+	return ret;
+}
+
+static int qat_alg_aead_setkey(struct crypto_aead *tfm, const uint8_t *key,
+			       unsigned int keylen)
+{
+	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(tfm);
+
+	if (ctx->enc_cd)
+		return qat_alg_aead_rekey(tfm, key, keylen);
+	else
+		return qat_alg_aead_newkey(tfm, key, keylen);
 }
 
 static void qat_alg_free_bufl(struct qat_crypto_instance *inst,
@@ -677,8 +717,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 	dma_addr_t blp;
 	dma_addr_t bloutp = 0;
 	struct scatterlist *sg;
-	size_t sz_out, sz = sizeof(struct qat_alg_buf_list) +
-			((1 + n) * sizeof(struct qat_alg_buf));
+	size_t sz_out, sz = struct_size(bufl, bufers, n + 1);
 
 	if (unlikely(!n))
 		return -EINVAL;
@@ -715,8 +754,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 		struct qat_alg_buf *bufers;
 
 		n = sg_nents(sglout);
-		sz_out = sizeof(struct qat_alg_buf_list) +
-			((1 + n) * sizeof(struct qat_alg_buf));
+		sz_out = struct_size(buflout, bufers, n + 1);
 		sg_nctr = 0;
 		buflout = kzalloc_node(sz_out, GFP_ATOMIC,
 				       dev_to_node(&GET_DEV(inst->accel_dev)));
@@ -801,11 +839,17 @@ static void qat_ablkcipher_alg_callback(struct icp_qat_fw_la_resp *qat_resp,
 	struct qat_crypto_instance *inst = ctx->inst;
 	struct ablkcipher_request *areq = qat_req->ablkcipher_req;
 	uint8_t stat_filed = qat_resp->comn_resp.comn_status;
+	struct device *dev = &GET_DEV(ctx->inst->accel_dev);
 	int res = 0, qat_res = ICP_QAT_FW_COMN_RESP_CRYPTO_STAT_GET(stat_filed);
 
 	qat_alg_free_bufl(inst, qat_req);
 	if (unlikely(qat_res != ICP_QAT_FW_COMN_STATUS_FLAG_OK))
 		res = -EINVAL;
+
+	memcpy(areq->info, qat_req->iv, AES_BLOCK_SIZE);
+	dma_free_coherent(dev, AES_BLOCK_SIZE, qat_req->iv,
+			  qat_req->iv_paddr);
+
 	areq->base.complete(&areq->base, res);
 }
 
@@ -905,50 +949,49 @@ static int qat_alg_aead_enc(struct aead_request *areq)
 	return -EINPROGRESS;
 }
 
-static int qat_alg_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
+static int qat_alg_ablkcipher_rekey(struct qat_alg_ablkcipher_ctx *ctx,
+				    const u8 *key, unsigned int keylen,
+				    int mode)
+{
+	memset(ctx->enc_cd, 0, sizeof(*ctx->enc_cd));
+	memset(ctx->dec_cd, 0, sizeof(*ctx->dec_cd));
+	memset(&ctx->enc_fw_req, 0, sizeof(ctx->enc_fw_req));
+	memset(&ctx->dec_fw_req, 0, sizeof(ctx->dec_fw_req));
+
+	return qat_alg_ablkcipher_init_sessions(ctx, key, keylen, mode);
+}
+
+static int qat_alg_ablkcipher_newkey(struct qat_alg_ablkcipher_ctx *ctx,
 				     const u8 *key, unsigned int keylen,
 				     int mode)
 {
-	struct qat_alg_ablkcipher_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct qat_crypto_instance *inst = NULL;
 	struct device *dev;
+	int node = get_current_node();
+	int ret;
 
-	spin_lock(&ctx->lock);
-	if (ctx->enc_cd) {
-		/* rekeying */
-		dev = &GET_DEV(ctx->inst->accel_dev);
-		memset(ctx->enc_cd, 0, sizeof(*ctx->enc_cd));
-		memset(ctx->dec_cd, 0, sizeof(*ctx->dec_cd));
-		memset(&ctx->enc_fw_req, 0, sizeof(ctx->enc_fw_req));
-		memset(&ctx->dec_fw_req, 0, sizeof(ctx->dec_fw_req));
-	} else {
-		/* new key */
-		int node = get_current_node();
-		struct qat_crypto_instance *inst =
-				qat_crypto_get_instance_node(node);
-		if (!inst) {
-			spin_unlock(&ctx->lock);
-			return -EINVAL;
-		}
-
-		dev = &GET_DEV(inst->accel_dev);
-		ctx->inst = inst;
-		ctx->enc_cd = dma_alloc_coherent(dev, sizeof(*ctx->enc_cd),
-						 &ctx->enc_cd_paddr,
-						 GFP_ATOMIC);
-		if (!ctx->enc_cd) {
-			spin_unlock(&ctx->lock);
-			return -ENOMEM;
-		}
-		ctx->dec_cd = dma_alloc_coherent(dev, sizeof(*ctx->dec_cd),
-						 &ctx->dec_cd_paddr,
-						 GFP_ATOMIC);
-		if (!ctx->dec_cd) {
-			spin_unlock(&ctx->lock);
-			goto out_free_enc;
-		}
+	inst = qat_crypto_get_instance_node(node);
+	if (!inst)
+		return -EINVAL;
+	dev = &GET_DEV(inst->accel_dev);
+	ctx->inst = inst;
+	ctx->enc_cd = dma_alloc_coherent(dev, sizeof(*ctx->enc_cd),
+					 &ctx->enc_cd_paddr,
+					 GFP_ATOMIC);
+	if (!ctx->enc_cd) {
+		ret = -ENOMEM;
+		goto out_free_instance;
 	}
-	spin_unlock(&ctx->lock);
-	if (qat_alg_ablkcipher_init_sessions(ctx, key, keylen, mode))
+	ctx->dec_cd = dma_alloc_coherent(dev, sizeof(*ctx->dec_cd),
+					 &ctx->dec_cd_paddr,
+					 GFP_ATOMIC);
+	if (!ctx->dec_cd) {
+		ret = -ENOMEM;
+		goto out_free_enc;
+	}
+
+	ret = qat_alg_ablkcipher_init_sessions(ctx, key, keylen, mode);
+	if (ret)
 		goto out_free_all;
 
 	return 0;
@@ -963,7 +1006,22 @@ out_free_enc:
 	dma_free_coherent(dev, sizeof(*ctx->enc_cd),
 			  ctx->enc_cd, ctx->enc_cd_paddr);
 	ctx->enc_cd = NULL;
-	return -ENOMEM;
+out_free_instance:
+	ctx->inst = NULL;
+	qat_crypto_put_instance(inst);
+	return ret;
+}
+
+static int qat_alg_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
+				     const u8 *key, unsigned int keylen,
+				     int mode)
+{
+	struct qat_alg_ablkcipher_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+
+	if (ctx->enc_cd)
+		return qat_alg_ablkcipher_rekey(ctx, key, keylen, mode);
+	else
+		return qat_alg_ablkcipher_newkey(ctx, key, keylen, mode);
 }
 
 static int qat_alg_ablkcipher_cbc_setkey(struct crypto_ablkcipher *tfm,
@@ -995,11 +1053,23 @@ static int qat_alg_ablkcipher_encrypt(struct ablkcipher_request *req)
 	struct qat_crypto_request *qat_req = ablkcipher_request_ctx(req);
 	struct icp_qat_fw_la_cipher_req_params *cipher_param;
 	struct icp_qat_fw_la_bulk_req *msg;
+	struct device *dev = &GET_DEV(ctx->inst->accel_dev);
 	int ret, ctr = 0;
 
+	if (req->nbytes == 0)
+		return 0;
+
+	qat_req->iv = dma_alloc_coherent(dev, AES_BLOCK_SIZE,
+					 &qat_req->iv_paddr, GFP_ATOMIC);
+	if (!qat_req->iv)
+		return -ENOMEM;
+
 	ret = qat_alg_sgl_to_bufl(ctx->inst, req->src, req->dst, qat_req);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		dma_free_coherent(dev, AES_BLOCK_SIZE, qat_req->iv,
+				  qat_req->iv_paddr);
 		return ret;
+	}
 
 	msg = &qat_req->req;
 	*msg = ctx->enc_fw_req;
@@ -1012,16 +1082,27 @@ static int qat_alg_ablkcipher_encrypt(struct ablkcipher_request *req)
 	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
 	cipher_param->cipher_length = req->nbytes;
 	cipher_param->cipher_offset = 0;
-	memcpy(cipher_param->u.cipher_IV_array, req->info, AES_BLOCK_SIZE);
+	cipher_param->u.s.cipher_IV_ptr = qat_req->iv_paddr;
+	memcpy(qat_req->iv, req->info, AES_BLOCK_SIZE);
 	do {
 		ret = adf_send_message(ctx->inst->sym_tx, (uint32_t *)msg);
 	} while (ret == -EAGAIN && ctr++ < 10);
 
 	if (ret == -EAGAIN) {
 		qat_alg_free_bufl(ctx->inst, qat_req);
+		dma_free_coherent(dev, AES_BLOCK_SIZE, qat_req->iv,
+				  qat_req->iv_paddr);
 		return -EBUSY;
 	}
 	return -EINPROGRESS;
+}
+
+static int qat_alg_ablkcipher_blk_encrypt(struct ablkcipher_request *req)
+{
+	if (req->nbytes % AES_BLOCK_SIZE != 0)
+		return -EINVAL;
+
+	return qat_alg_ablkcipher_encrypt(req);
 }
 
 static int qat_alg_ablkcipher_decrypt(struct ablkcipher_request *req)
@@ -1032,11 +1113,23 @@ static int qat_alg_ablkcipher_decrypt(struct ablkcipher_request *req)
 	struct qat_crypto_request *qat_req = ablkcipher_request_ctx(req);
 	struct icp_qat_fw_la_cipher_req_params *cipher_param;
 	struct icp_qat_fw_la_bulk_req *msg;
+	struct device *dev = &GET_DEV(ctx->inst->accel_dev);
 	int ret, ctr = 0;
 
+	if (req->nbytes == 0)
+		return 0;
+
+	qat_req->iv = dma_alloc_coherent(dev, AES_BLOCK_SIZE,
+					 &qat_req->iv_paddr, GFP_ATOMIC);
+	if (!qat_req->iv)
+		return -ENOMEM;
+
 	ret = qat_alg_sgl_to_bufl(ctx->inst, req->src, req->dst, qat_req);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		dma_free_coherent(dev, AES_BLOCK_SIZE, qat_req->iv,
+				  qat_req->iv_paddr);
 		return ret;
+	}
 
 	msg = &qat_req->req;
 	*msg = ctx->dec_fw_req;
@@ -1049,18 +1142,28 @@ static int qat_alg_ablkcipher_decrypt(struct ablkcipher_request *req)
 	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
 	cipher_param->cipher_length = req->nbytes;
 	cipher_param->cipher_offset = 0;
-	memcpy(cipher_param->u.cipher_IV_array, req->info, AES_BLOCK_SIZE);
+	cipher_param->u.s.cipher_IV_ptr = qat_req->iv_paddr;
+	memcpy(qat_req->iv, req->info, AES_BLOCK_SIZE);
 	do {
 		ret = adf_send_message(ctx->inst->sym_tx, (uint32_t *)msg);
 	} while (ret == -EAGAIN && ctr++ < 10);
 
 	if (ret == -EAGAIN) {
 		qat_alg_free_bufl(ctx->inst, qat_req);
+		dma_free_coherent(dev, AES_BLOCK_SIZE, qat_req->iv,
+				  qat_req->iv_paddr);
 		return -EBUSY;
 	}
 	return -EINPROGRESS;
 }
 
+static int qat_alg_ablkcipher_blk_decrypt(struct ablkcipher_request *req)
+{
+	if (req->nbytes % AES_BLOCK_SIZE != 0)
+		return -EINVAL;
+
+	return qat_alg_ablkcipher_decrypt(req);
+}
 static int qat_alg_aead_init(struct crypto_aead *tfm,
 			     enum icp_qat_hw_auth_algo hash,
 			     const char *hash_name)
@@ -1119,7 +1222,6 @@ static int qat_alg_ablkcipher_init(struct crypto_tfm *tfm)
 {
 	struct qat_alg_ablkcipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	spin_lock_init(&ctx->lock);
 	tfm->crt_ablkcipher.reqsize = sizeof(struct qat_crypto_request);
 	ctx->tfm = tfm;
 	return 0;
@@ -1221,8 +1323,8 @@ static struct crypto_alg qat_algs[] = { {
 	.cra_u = {
 		.ablkcipher = {
 			.setkey = qat_alg_ablkcipher_cbc_setkey,
-			.decrypt = qat_alg_ablkcipher_decrypt,
-			.encrypt = qat_alg_ablkcipher_encrypt,
+			.decrypt = qat_alg_ablkcipher_blk_decrypt,
+			.encrypt = qat_alg_ablkcipher_blk_encrypt,
 			.min_keysize = AES_MIN_KEY_SIZE,
 			.max_keysize = AES_MAX_KEY_SIZE,
 			.ivsize = AES_BLOCK_SIZE,
@@ -1233,7 +1335,7 @@ static struct crypto_alg qat_algs[] = { {
 	.cra_driver_name = "qat_aes_ctr",
 	.cra_priority = 4001,
 	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize = AES_BLOCK_SIZE,
+	.cra_blocksize = 1,
 	.cra_ctxsize = sizeof(struct qat_alg_ablkcipher_ctx),
 	.cra_alignmask = 0,
 	.cra_type = &crypto_ablkcipher_type,
@@ -1265,8 +1367,8 @@ static struct crypto_alg qat_algs[] = { {
 	.cra_u = {
 		.ablkcipher = {
 			.setkey = qat_alg_ablkcipher_xts_setkey,
-			.decrypt = qat_alg_ablkcipher_decrypt,
-			.encrypt = qat_alg_ablkcipher_encrypt,
+			.decrypt = qat_alg_ablkcipher_blk_decrypt,
+			.encrypt = qat_alg_ablkcipher_blk_encrypt,
 			.min_keysize = 2 * AES_MIN_KEY_SIZE,
 			.max_keysize = 2 * AES_MAX_KEY_SIZE,
 			.ivsize = AES_BLOCK_SIZE,

@@ -153,6 +153,9 @@ static void dsa_switch_mdb_add_bitmap(struct dsa_switch *ds,
 {
 	int port;
 
+	if (!ds->ops->port_mdb_add)
+		return;
+
 	for_each_set_bit(port, bitmap, ds->num_ports)
 		ds->ops->port_mdb_add(ds, port, mdb);
 }

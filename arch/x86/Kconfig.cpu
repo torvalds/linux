@@ -480,3 +480,16 @@ config CPU_SUP_UMC_32
 	  CPU might render the kernel unbootable.
 
 	  If unsure, say N.
+
+config CPU_SUP_ZHAOXIN
+	default y
+	bool "Support Zhaoxin processors" if PROCESSOR_SELECT
+	help
+	  This enables detection, tunings and quirks for Zhaoxin processors
+
+	  You need this enabled if you want your kernel to run on a
+	  Zhaoxin CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller. Disabling it on a Zhaoxin
+	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.

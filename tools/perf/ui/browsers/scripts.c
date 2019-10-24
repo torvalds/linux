@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "../../util/sort.h"
-#include "../../util/util.h"
 #include "../../util/hist.h"
 #include "../../util/debug.h"
 #include "../../util/symbol.h"
 #include "../browser.h"
 #include "../libslang.h"
 #include "config.h"
+#include <linux/zalloc.h>
 
 #define SCRIPT_NAMELEN	128
 #define SCRIPT_MAX_NO	64
@@ -142,7 +142,7 @@ static int list_scripts(char *script_name, bool *custom,
 out:
 	free(buf);
 	for (i = 0; i < max_std; i++)
-		free(paths[i]);
+		zfree(&paths[i]);
 	return ret;
 }
 

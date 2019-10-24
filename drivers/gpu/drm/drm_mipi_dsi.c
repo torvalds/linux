@@ -93,7 +93,7 @@ static struct bus_type mipi_dsi_bus_type = {
 	.pm = &mipi_dsi_device_pm_ops,
 };
 
-static int of_device_match(struct device *dev, void *data)
+static int of_device_match(struct device *dev, const void *data)
 {
 	return dev->of_node == data;
 }

@@ -357,7 +357,7 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 	ret = ad_sigma_delta_set_channel(sigma_delta,
 		indio_dev->channels[channel].address);
 	if (ret)
-		goto err_predisable;
+		return ret;
 
 	spi_bus_lock(sigma_delta->spi->master);
 	sigma_delta->bus_locked = true;
@@ -374,7 +374,6 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 
 err_unlock:
 	spi_bus_unlock(sigma_delta->spi->master);
-err_predisable:
 
 	return ret;
 }

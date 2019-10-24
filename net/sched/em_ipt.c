@@ -21,6 +21,7 @@
 struct em_ipt_match {
 	const struct xt_match *match;
 	u32 hook;
+	u8 nfproto;
 	u8 match_data[0] __aligned(8);
 };
 
@@ -71,10 +72,24 @@ static int policy_validate_match_data(struct nlattr **tb, u8 mrev)
 	return 0;
 }
 
+static int addrtype_validate_match_data(struct nlattr **tb, u8 mrev)
+{
+	if (mrev != 1) {
+		pr_err("only addrtype match revision 1 supported");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct em_ipt_xt_match em_ipt_xt_matches[] = {
 	{
 		.match_name = "policy",
 		.validate_match_data = policy_validate_match_data
+	},
+	{
+		.match_name = "addrtype",
+		.validate_match_data = addrtype_validate_match_data
 	},
 	{}
 };
@@ -115,6 +130,7 @@ static int em_ipt_change(struct net *net, void *data, int data_len,
 	struct em_ipt_match *im = NULL;
 	struct xt_match *match;
 	int mdata_len, ret;
+	u8 nfproto;
 
 	ret = nla_parse_deprecated(tb, TCA_EM_IPT_MAX, data, data_len,
 				   em_ipt_policy, NULL);
@@ -124,6 +140,15 @@ static int em_ipt_change(struct net *net, void *data, int data_len,
 	if (!tb[TCA_EM_IPT_HOOK] || !tb[TCA_EM_IPT_MATCH_NAME] ||
 	    !tb[TCA_EM_IPT_MATCH_DATA] || !tb[TCA_EM_IPT_NFPROTO])
 		return -EINVAL;
+
+	nfproto = nla_get_u8(tb[TCA_EM_IPT_NFPROTO]);
+	switch (nfproto) {
+	case NFPROTO_IPV4:
+	case NFPROTO_IPV6:
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	match = get_xt_match(tb);
 	if (IS_ERR(match)) {
@@ -140,6 +165,7 @@ static int em_ipt_change(struct net *net, void *data, int data_len,
 
 	im->match = match;
 	im->hook = nla_get_u32(tb[TCA_EM_IPT_HOOK]);
+	im->nfproto = nfproto;
 	nla_memcpy(im->match_data, tb[TCA_EM_IPT_MATCH_DATA], mdata_len);
 
 	ret = check_match(net, im, mdata_len);
@@ -182,15 +208,33 @@ static int em_ipt_match(struct sk_buff *skb, struct tcf_ematch *em,
 	const struct em_ipt_match *im = (const void *)em->data;
 	struct xt_action_param acpar = {};
 	struct net_device *indev = NULL;
+	u8 nfproto = im->match->family;
 	struct nf_hook_state state;
 	int ret;
+
+	switch (tc_skb_protocol(skb)) {
+	case htons(ETH_P_IP):
+		if (!pskb_network_may_pull(skb, sizeof(struct iphdr)))
+			return 0;
+		if (nfproto == NFPROTO_UNSPEC)
+			nfproto = NFPROTO_IPV4;
+		break;
+	case htons(ETH_P_IPV6):
+		if (!pskb_network_may_pull(skb, sizeof(struct ipv6hdr)))
+			return 0;
+		if (nfproto == NFPROTO_UNSPEC)
+			nfproto = NFPROTO_IPV6;
+		break;
+	default:
+		return 0;
+	}
 
 	rcu_read_lock();
 
 	if (skb->skb_iif)
 		indev = dev_get_by_index_rcu(em->net, skb->skb_iif);
 
-	nf_hook_state_init(&state, im->hook, im->match->family,
+	nf_hook_state_init(&state, im->hook, nfproto,
 			   indev ?: skb->dev, skb->dev, NULL, em->net, NULL);
 
 	acpar.match = im->match;
@@ -213,7 +257,7 @@ static int em_ipt_dump(struct sk_buff *skb, struct tcf_ematch *em)
 		return -EMSGSIZE;
 	if (nla_put_u8(skb, TCA_EM_IPT_MATCH_REVISION, im->match->revision) < 0)
 		return -EMSGSIZE;
-	if (nla_put_u8(skb, TCA_EM_IPT_NFPROTO, im->match->family) < 0)
+	if (nla_put_u8(skb, TCA_EM_IPT_NFPROTO, im->nfproto) < 0)
 		return -EMSGSIZE;
 	if (nla_put(skb, TCA_EM_IPT_MATCH_DATA,
 		    im->match->usersize ?: im->match->matchsize,

@@ -520,10 +520,13 @@ config CRYPTO_DEV_ATMEL_SHA
 	  To compile this driver as a module, choose M here: the module
 	  will be called atmel-sha.
 
+config CRYPTO_DEV_ATMEL_I2C
+	tristate
+
 config CRYPTO_DEV_ATMEL_ECC
 	tristate "Support for Microchip / Atmel ECC hw accelerator"
-	depends on ARCH_AT91 || COMPILE_TEST
 	depends on I2C
+	select CRYPTO_DEV_ATMEL_I2C
 	select CRYPTO_ECDH
 	select CRC16
 	help
@@ -533,6 +536,21 @@ config CRYPTO_DEV_ATMEL_ECC
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called atmel-ecc.
+
+config CRYPTO_DEV_ATMEL_SHA204A
+	tristate "Support for Microchip / Atmel SHA accelerator and RNG"
+	depends on I2C
+	select CRYPTO_DEV_ATMEL_I2C
+	select HW_RANDOM
+	select CRC16
+	help
+	  Microhip / Atmel SHA accelerator and RNG.
+	  Select this if you want to use the Microchip / Atmel SHA204A
+	  module as a random number generator. (Other functions of the
+	  chip are currently not exposed by this driver)
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called atmel-sha204a.
 
 config CRYPTO_DEV_CCP
 	bool "Support for AMD Secure Processor"

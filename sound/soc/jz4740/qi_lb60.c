@@ -41,15 +41,17 @@ static const struct snd_soc_dapm_route qi_lb60_routes[] = {
 	{"Speaker", NULL, "ROUT"},
 };
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_CPU("jz4740-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("jz4740-codec", "jz4740-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("jz4740-i2s")));
+
 static struct snd_soc_dai_link qi_lb60_dai = {
 	.name = "jz4740",
 	.stream_name = "jz4740",
-	.cpu_dai_name = "jz4740-i2s",
-	.platform_name = "jz4740-i2s",
-	.codec_dai_name = "jz4740-hifi",
-	.codec_name = "jz4740-codec",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBM_CFM,
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static struct snd_soc_card qi_lb60_card = {

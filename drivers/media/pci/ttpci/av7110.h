@@ -81,22 +81,10 @@ struct av7110;
 
 /* infrared remote control */
 struct infrared {
-	u16	key_map[256];
-	struct input_dev	*input_dev;
+	struct rc_dev		*rcdev;
 	char			input_phys[32];
-	struct timer_list	keyup_timer;
-	struct tasklet_struct	ir_tasklet;
-	void			(*ir_handler)(struct av7110 *av7110, u32 ircom);
-	u32			ir_command;
 	u32			ir_config;
-	u32			device_mask;
-	u8			protocol;
-	u8			inversion;
-	u16			last_key;
-	u16			last_toggle;
-	bool			keypressed;
 };
-
 
 /* place to store all the necessary device information */
 struct av7110 {
@@ -304,9 +292,10 @@ struct av7110 {
 extern int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 		       u16 subpid, u16 pcrpid);
 
-extern int av7110_check_ir_config(struct av7110 *av7110, int force);
-extern int av7110_ir_init(struct av7110 *av7110);
-extern void av7110_ir_exit(struct av7110 *av7110);
+void av7110_ir_handler(struct av7110 *av7110, u32 ircom);
+int av7110_set_ir_config(struct av7110 *av7110);
+int av7110_ir_init(struct av7110 *av7110);
+void av7110_ir_exit(struct av7110 *av7110);
 
 /* msp3400 i2c subaddresses */
 #define MSP_WR_DEM 0x10

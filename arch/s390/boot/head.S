@@ -361,6 +361,7 @@ ENTRY(startup_kdump)
 	.quad	0			# INITRD_SIZE
 	.quad	0			# OLDMEM_BASE
 	.quad	0			# OLDMEM_SIZE
+	.quad	kernel_version		# points to kernel version string
 
 	.org	COMMAND_LINE
 	.byte	"root=/dev/ram0 ro"

@@ -28,6 +28,12 @@ Optional video port nodes:
 - port@1: Second LVDS input port
 - port@3: Second digital CMOS/TTL parallel output
 
+The device can operate in single-link mode or dual-link mode. In single-link
+mode, all pixels are received on port@0, and port@1 shall not contain any
+endpoint. In dual-link mode, even-numbered pixels are received on port@0 and
+odd-numbered pixels on port@1, and both port@0 and port@1 shall contain
+endpoints.
+
 Example:
 --------
 

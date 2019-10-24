@@ -284,7 +284,7 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 			     const struct tegra_pingroup *g,
 			     enum tegra_pinconf_param param,
 			     bool report_err,
-			     s8 *bank, s16 *reg, s8 *bit, s8 *width)
+			     s8 *bank, s32 *reg, s8 *bit, s8 *width)
 {
 	switch (param) {
 	case TEGRA_PINCONF_PARAM_PULL:
@@ -443,7 +443,7 @@ static int tegra_pinconf_group_get(struct pinctrl_dev *pctldev,
 	const struct tegra_pingroup *g;
 	int ret;
 	s8 bank, bit, width;
-	s16 reg;
+	s32 reg;
 	u32 val, mask;
 
 	g = &pmx->soc->groups[group];
@@ -472,7 +472,7 @@ static int tegra_pinconf_group_set(struct pinctrl_dev *pctldev,
 	const struct tegra_pingroup *g;
 	int ret, i;
 	s8 bank, bit, width;
-	s16 reg;
+	s32 reg;
 	u32 val, mask;
 
 	g = &pmx->soc->groups[group];
@@ -540,7 +540,7 @@ static void tegra_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	const struct tegra_pingroup *g;
 	int i, ret;
 	s8 bank, bit, width;
-	s16 reg;
+	s32 reg;
 	u32 val;
 
 	g = &pmx->soc->groups[group];
@@ -613,10 +613,20 @@ static void tegra_pinctrl_clear_parked_bits(struct tegra_pmx *pmx)
 
 	for (i = 0; i < pmx->soc->ngroups; ++i) {
 		g = &pmx->soc->groups[i];
-		if (g->parked_bit >= 0) {
-			val = pmx_readl(pmx, g->mux_bank, g->mux_reg);
-			val &= ~(1 << g->parked_bit);
-			pmx_writel(pmx, val, g->mux_bank, g->mux_reg);
+		if (g->parked_bitmask > 0) {
+			unsigned int bank, reg;
+
+			if (g->mux_reg != -1) {
+				bank = g->mux_bank;
+				reg = g->mux_reg;
+			} else {
+				bank = g->drv_bank;
+				reg = g->drv_reg;
+			}
+
+			val = pmx_readl(pmx, bank, reg);
+			val &= ~g->parked_bitmask;
+			pmx_writel(pmx, val, bank, reg);
 		}
 	}
 }

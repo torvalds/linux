@@ -6,6 +6,14 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
+static const u32 vkms_formats[] = {
+	DRM_FORMAT_XRGB8888,
+};
+
+static const u32 vkms_cursor_formats[] = {
+	DRM_FORMAT_ARGB8888,
+};
+
 static struct drm_plane_state *
 vkms_plane_duplicate_state(struct drm_plane *plane)
 {

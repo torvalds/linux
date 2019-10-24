@@ -400,14 +400,8 @@ static int ak4118_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	return snd_soc_register_component(&i2c->dev, &soc_component_drv_ak4118,
-					  &ak4118_dai, 1);
-}
-
-static int ak4118_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_component(&i2c->dev);
-	return 0;
+	return devm_snd_soc_register_component(&i2c->dev,
+				&soc_component_drv_ak4118, &ak4118_dai, 1);
 }
 
 static const struct of_device_id ak4118_of_match[] = {
@@ -429,7 +423,6 @@ static struct i2c_driver ak4118_i2c_driver = {
 	},
 	.id_table = ak4118_id_table,
 	.probe  = ak4118_i2c_probe,
-	.remove = ak4118_i2c_remove,
 };
 
 module_i2c_driver(ak4118_i2c_driver);

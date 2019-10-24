@@ -342,7 +342,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_PAGE_FAULT	   = 0xc,
 	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE   = 0xd,
 
-	MLX5_EVENT_TYPE_HOST_PARAMS_CHANGE = 0xe,
+	MLX5_EVENT_TYPE_ESW_FUNCTIONS_CHANGED = 0xe,
 
 	MLX5_EVENT_TYPE_DCT_DRAINED        = 0x1c,
 
@@ -351,7 +351,7 @@ enum mlx5_event {
 
 	MLX5_EVENT_TYPE_DEVICE_TRACER      = 0x26,
 
-	MLX5_EVENT_TYPE_MAX                = MLX5_EVENT_TYPE_DEVICE_TRACER + 1,
+	MLX5_EVENT_TYPE_MAX                = 0x100,
 };
 
 enum {
@@ -437,11 +437,20 @@ enum {
 	MLX5_OPCODE_SET_PSV		= 0x20,
 	MLX5_OPCODE_GET_PSV		= 0x21,
 	MLX5_OPCODE_CHECK_PSV		= 0x22,
+	MLX5_OPCODE_DUMP		= 0x23,
 	MLX5_OPCODE_RGET_PSV		= 0x26,
 	MLX5_OPCODE_RCHECK_PSV		= 0x27,
 
 	MLX5_OPCODE_UMR			= 0x25,
 
+};
+
+enum {
+	MLX5_OPC_MOD_TLS_TIS_STATIC_PARAMS = 0x1,
+};
+
+enum {
+	MLX5_OPC_MOD_TLS_TIS_PROGRESS_PARAMS = 0x1,
 };
 
 enum {
@@ -510,6 +519,10 @@ struct mlx5_cmd_layout {
 	u8		status_own;
 };
 
+enum mlx5_fatal_assert_bit_offsets {
+	MLX5_RFR_OFFSET = 31,
+};
+
 struct health_buffer {
 	__be32		assert_var[5];
 	__be32		rsvd0[3];
@@ -518,10 +531,14 @@ struct health_buffer {
 	__be32		rsvd1[2];
 	__be32		fw_ver;
 	__be32		hw_id;
-	__be32		rsvd2;
+	__be32		rfr;
 	u8		irisc_index;
 	u8		synd;
 	__be16		ext_synd;
+};
+
+enum mlx5_initializing_bit_offsets {
+	MLX5_FW_RESET_SUPPORTED_OFFSET = 30,
 };
 
 enum mlx5_cmd_addr_l_sz_offset {
@@ -1077,6 +1094,9 @@ enum mlx5_cap_type {
 	MLX5_CAP_DEBUG,
 	MLX5_CAP_RESERVED_14,
 	MLX5_CAP_DEV_MEM,
+	MLX5_CAP_RESERVED_16,
+	MLX5_CAP_TLS,
+	MLX5_CAP_DEV_EVENT = 0x14,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1254,6 +1274,12 @@ enum mlx5_qcam_feature_groups {
 
 #define MLX5_CAP64_DEV_MEM(mdev, cap)\
 	MLX5_GET64(device_mem_cap, mdev->caps.hca_cur[MLX5_CAP_DEV_MEM], cap)
+
+#define MLX5_CAP_TLS(mdev, cap) \
+	MLX5_GET(tls_cap, (mdev)->caps.hca_cur[MLX5_CAP_TLS], cap)
+
+#define MLX5_CAP_DEV_EVENT(mdev, cap)\
+	MLX5_ADDR_OF(device_event_cap, (mdev)->caps.hca_cur[MLX5_CAP_DEV_EVENT], cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,

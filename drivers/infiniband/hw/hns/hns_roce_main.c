@@ -57,17 +57,16 @@ int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index)
 {
 	return gid_index * hr_dev->caps.num_ports + port;
 }
-EXPORT_SYMBOL_GPL(hns_get_gid_index);
 
 static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 {
 	u8 phy_port;
 	u32 i = 0;
 
-	if (!memcmp(hr_dev->dev_addr[port], addr, MAC_ADDR_OCTET_NUM))
+	if (!memcmp(hr_dev->dev_addr[port], addr, ETH_ALEN))
 		return 0;
 
-	for (i = 0; i < MAC_ADDR_OCTET_NUM; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		hr_dev->dev_addr[port][i] = addr[i];
 
 	phy_port = hr_dev->iboe.phy_port[port];
@@ -78,17 +77,12 @@ static int hns_roce_add_gid(const struct ib_gid_attr *attr, void **context)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(attr->device);
 	u8 port = attr->port_num - 1;
-	unsigned long flags;
 	int ret;
 
 	if (port >= hr_dev->caps.num_ports)
 		return -EINVAL;
 
-	spin_lock_irqsave(&hr_dev->iboe.lock, flags);
-
 	ret = hr_dev->hw->set_gid(hr_dev, port, attr->index, &attr->gid, attr);
-
-	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
 
 	return ret;
 }
@@ -98,17 +92,12 @@ static int hns_roce_del_gid(const struct ib_gid_attr *attr, void **context)
 	struct hns_roce_dev *hr_dev = to_hr_dev(attr->device);
 	struct ib_gid_attr zattr = { };
 	u8 port = attr->port_num - 1;
-	unsigned long flags;
 	int ret;
 
 	if (port >= hr_dev->caps.num_ports)
 		return -EINVAL;
 
-	spin_lock_irqsave(&hr_dev->iboe.lock, flags);
-
 	ret = hr_dev->hw->set_gid(hr_dev, port, attr->index, &zgid, &zattr);
-
-	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
 
 	return ret;
 }
@@ -272,7 +261,8 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u8 port_num,
 	props->active_mtu = mtu ? min(props->max_mtu, mtu) : IB_MTU_256;
 	props->state = (netif_running(net_dev) && netif_carrier_ok(net_dev)) ?
 			IB_PORT_ACTIVE : IB_PORT_DOWN;
-	props->phys_state = (props->state == IB_PORT_ACTIVE) ? 5 : 3;
+	props->phys_state = (props->state == IB_PORT_ACTIVE) ?
+			     HNS_ROCE_PHY_LINKUP : HNS_ROCE_PHY_DISABLED;
 
 	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
 
@@ -319,7 +309,7 @@ static int hns_roce_modify_port(struct ib_device *ib_dev, u8 port_num, int mask,
 static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 				   struct ib_udata *udata)
 {
-	int ret = 0;
+	int ret;
 	struct hns_roce_ucontext *context = to_hr_ucontext(uctx);
 	struct hns_roce_ib_alloc_ucontext_resp resp = {};
 	struct hns_roce_dev *hr_dev = to_hr_dev(uctx->device);
@@ -423,6 +413,11 @@ static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 }
 
 static const struct ib_device_ops hns_roce_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_HNS,
+	.uverbs_abi_ver = 1,
+	.uverbs_no_driver_id_binding = 1,
+
 	.add_gid = hns_roce_add_gid,
 	.alloc_pd = hns_roce_alloc_pd,
 	.alloc_ucontext = hns_roce_alloc_ucontext,
@@ -451,6 +446,7 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.reg_user_mr = hns_roce_reg_user_mr,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, hns_roce_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, hns_roce_cq, ib_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, hns_roce_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, hns_roce_ucontext, ibucontext),
 };
@@ -489,14 +485,12 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	ib_dev = &hr_dev->ib_dev;
 
-	ib_dev->owner			= THIS_MODULE;
 	ib_dev->node_type		= RDMA_NODE_IB_CA;
 	ib_dev->dev.parent		= dev;
 
 	ib_dev->phys_port_cnt		= hr_dev->caps.num_ports;
 	ib_dev->local_dma_lkey		= hr_dev->caps.reserved_lkey;
 	ib_dev->num_comp_vectors	= hr_dev->caps.num_comp_vectors;
-	ib_dev->uverbs_abi_ver		= 1;
 	ib_dev->uverbs_cmd_mask		=
 		(1ULL << IB_USER_VERBS_CMD_GET_CONTEXT) |
 		(1ULL << IB_USER_VERBS_CMD_QUERY_DEVICE) |
@@ -545,7 +539,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_srq_ops);
 	}
 
-	ib_dev->driver_id = RDMA_DRIVER_HNS;
 	ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_ops);
 	ib_set_device_ops(ib_dev, &hns_roce_dev_ops);
 	for (i = 0; i < hr_dev->caps.num_ports; i++) {
@@ -980,7 +973,6 @@ error_failed_cmq_init:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(hns_roce_init);
 
 void hns_roce_exit(struct hns_roce_dev *hr_dev)
 {
@@ -1001,7 +993,6 @@ void hns_roce_exit(struct hns_roce_dev *hr_dev)
 	if (hr_dev->hw->reset)
 		hr_dev->hw->reset(hr_dev, false);
 }
-EXPORT_SYMBOL_GPL(hns_roce_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Wei Hu <xavier.huwei@huawei.com>");

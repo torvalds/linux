@@ -57,7 +57,7 @@ out:
 static void nop_build_cp(struct ccw_device *cdev)
 {
 	struct ccw_request *req = &cdev->private->req;
-	struct ccw1 *cp = cdev->private->iccws;
+	struct ccw1 *cp = cdev->private->dma_area->iccws;
 
 	cp->cmd_code	= CCW_CMD_NOOP;
 	cp->cda		= 0;
@@ -134,9 +134,9 @@ err:
 static void spid_build_cp(struct ccw_device *cdev, u8 fn)
 {
 	struct ccw_request *req = &cdev->private->req;
-	struct ccw1 *cp = cdev->private->iccws;
+	struct ccw1 *cp = cdev->private->dma_area->iccws;
 	int i = pathmask_to_pos(req->lpm);
-	struct pgid *pgid = &cdev->private->pgid[i];
+	struct pgid *pgid = &cdev->private->dma_area->pgid[i];
 
 	pgid->inf.fc	= fn;
 	cp->cmd_code	= CCW_CMD_SET_PGID;
@@ -300,7 +300,7 @@ static int pgid_cmp(struct pgid *p1, struct pgid *p2)
 static void pgid_analyze(struct ccw_device *cdev, struct pgid **p,
 			 int *mismatch, u8 *reserved, u8 *reset)
 {
-	struct pgid *pgid = &cdev->private->pgid[0];
+	struct pgid *pgid = &cdev->private->dma_area->pgid[0];
 	struct pgid *first = NULL;
 	int lpm;
 	int i;
@@ -342,7 +342,7 @@ static u8 pgid_to_donepm(struct ccw_device *cdev)
 		lpm = 0x80 >> i;
 		if ((cdev->private->pgid_valid_mask & lpm) == 0)
 			continue;
-		pgid = &cdev->private->pgid[i];
+		pgid = &cdev->private->dma_area->pgid[i];
 		if (sch->opm & lpm) {
 			if (pgid->inf.ps.state1 != SNID_STATE1_GROUPED)
 				continue;
@@ -368,7 +368,8 @@ static void pgid_fill(struct ccw_device *cdev, struct pgid *pgid)
 	int i;
 
 	for (i = 0; i < 8; i++)
-		memcpy(&cdev->private->pgid[i], pgid, sizeof(struct pgid));
+		memcpy(&cdev->private->dma_area->pgid[i], pgid,
+		       sizeof(struct pgid));
 }
 
 /*
@@ -435,12 +436,12 @@ out:
 static void snid_build_cp(struct ccw_device *cdev)
 {
 	struct ccw_request *req = &cdev->private->req;
-	struct ccw1 *cp = cdev->private->iccws;
+	struct ccw1 *cp = cdev->private->dma_area->iccws;
 	int i = pathmask_to_pos(req->lpm);
 
 	/* Channel program setup. */
 	cp->cmd_code	= CCW_CMD_SENSE_PGID;
-	cp->cda		= (u32) (addr_t) &cdev->private->pgid[i];
+	cp->cda		= (u32) (addr_t) &cdev->private->dma_area->pgid[i];
 	cp->count	= sizeof(struct pgid);
 	cp->flags	= CCW_FLAG_SLI;
 	req->cp		= cp;
@@ -516,7 +517,8 @@ static void verify_start(struct ccw_device *cdev)
 	sch->lpm = sch->schib.pmcw.pam;
 
 	/* Initialize PGID data. */
-	memset(cdev->private->pgid, 0, sizeof(cdev->private->pgid));
+	memset(cdev->private->dma_area->pgid, 0,
+	       sizeof(cdev->private->dma_area->pgid));
 	cdev->private->pgid_valid_mask = 0;
 	cdev->private->pgid_todo_mask = sch->schib.pmcw.pam;
 	cdev->private->path_notoper_mask = 0;
@@ -626,7 +628,7 @@ struct stlck_data {
 static void stlck_build_cp(struct ccw_device *cdev, void *buf1, void *buf2)
 {
 	struct ccw_request *req = &cdev->private->req;
-	struct ccw1 *cp = cdev->private->iccws;
+	struct ccw1 *cp = cdev->private->dma_area->iccws;
 
 	cp[0].cmd_code = CCW_CMD_STLCK;
 	cp[0].cda = (u32) (addr_t) buf1;

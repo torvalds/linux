@@ -97,17 +97,19 @@ static int smc_clc_prfx_set4_rcu(struct dst_entry *dst, __be32 ipv4,
 				 struct smc_clc_msg_proposal_prefix *prop)
 {
 	struct in_device *in_dev = __in_dev_get_rcu(dst->dev);
+	const struct in_ifaddr *ifa;
 
 	if (!in_dev)
 		return -ENODEV;
-	for_ifa(in_dev) {
+
+	in_dev_for_each_ifa_rcu(ifa, in_dev) {
 		if (!inet_ifa_match(ipv4, ifa))
 			continue;
 		prop->prefix_len = inet_mask_len(ifa->ifa_mask);
 		prop->outgoing_subnet = ifa->ifa_address & ifa->ifa_mask;
 		/* prop->ipv6_prefixes_cnt = 0; already done by memset before */
 		return 0;
-	} endfor_ifa(in_dev);
+	}
 	return -ENOENT;
 }
 
@@ -190,14 +192,15 @@ static int smc_clc_prfx_match4_rcu(struct net_device *dev,
 				   struct smc_clc_msg_proposal_prefix *prop)
 {
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	const struct in_ifaddr *ifa;
 
 	if (!in_dev)
 		return -ENODEV;
-	for_ifa(in_dev) {
+	in_dev_for_each_ifa_rcu(ifa, in_dev) {
 		if (prop->prefix_len == inet_mask_len(ifa->ifa_mask) &&
 		    inet_ifa_match(prop->outgoing_subnet, ifa))
 			return 0;
-	} endfor_ifa(in_dev);
+	}
 
 	return -ENOENT;
 }

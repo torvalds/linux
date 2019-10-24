@@ -1111,6 +1111,6 @@ static struct i2c_driver imx214_i2c_driver = {
 
 module_i2c_driver(imx214_i2c_driver);
 
-MODULE_DESCRIPTION("Sony IMX214 Camera drier");
+MODULE_DESCRIPTION("Sony IMX214 Camera driver");
 MODULE_AUTHOR("Ricardo Ribalda <ricardo.ribalda@gmail.com>");
 MODULE_LICENSE("GPL v2");

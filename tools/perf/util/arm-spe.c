@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/zalloc.h>
 
 #include "cpumap.h"
 #include "color.h"
@@ -19,7 +20,6 @@
 #include "evlist.h"
 #include "machine.h"
 #include "session.h"
-#include "util.h"
 #include "thread.h"
 #include "debug.h"
 #include "auxtrace.h"

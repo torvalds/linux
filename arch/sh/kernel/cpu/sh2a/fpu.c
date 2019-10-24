@@ -568,5 +568,5 @@ BUILD_TRAP_HANDLER(fpu_error)
 		return;
 	}
 
-	force_sig(SIGFPE, tsk);
+	force_sig(SIGFPE);
 }

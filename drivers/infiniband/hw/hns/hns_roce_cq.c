@@ -205,7 +205,6 @@ void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	hns_roce_table_put(hr_dev, &cq_table->table, hr_cq->cqn);
 	hns_roce_bitmap_free(&cq_table->bitmap, hr_cq->cqn, BITMAP_NO_RR);
 }
-EXPORT_SYMBOL_GPL(hns_roce_free_cq);
 
 static int hns_roce_ib_get_cq_umem(struct hns_roce_dev *hr_dev,
 				   struct ib_udata *udata,
@@ -235,8 +234,7 @@ static int hns_roce_ib_get_cq_umem(struct hns_roce_dev *hr_dev,
 					&buf->hr_mtt);
 	} else {
 		ret = hns_roce_mtt_init(hr_dev, ib_umem_page_count(*umem),
-				(*umem)->page_shift,
-				&buf->hr_mtt);
+					PAGE_SHIFT, &buf->hr_mtt);
 	}
 	if (ret)
 		goto err_buf;
@@ -300,15 +298,15 @@ static void hns_roce_ib_free_cq_buf(struct hns_roce_dev *hr_dev,
 			  &buf->hr_buf);
 }
 
-struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
-				    const struct ib_cq_init_attr *attr,
-				    struct ib_udata *udata)
+int hns_roce_ib_create_cq(struct ib_cq *ib_cq,
+			  const struct ib_cq_init_attr *attr,
+			  struct ib_udata *udata)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_cq ucmd;
 	struct hns_roce_ib_create_cq_resp resp = {};
-	struct hns_roce_cq *hr_cq = NULL;
+	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
 	struct hns_roce_uar *uar = NULL;
 	int vector = attr->comp_vector;
 	int cq_entries = attr->cqe;
@@ -319,12 +317,8 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	if (cq_entries < 1 || cq_entries > hr_dev->caps.max_cqes) {
 		dev_err(dev, "Creat CQ failed. entries=%d, max=%d\n",
 			cq_entries, hr_dev->caps.max_cqes);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
-
-	hr_cq = kzalloc(sizeof(*hr_cq), GFP_KERNEL);
-	if (!hr_cq)
-		return ERR_PTR(-ENOMEM);
 
 	if (hr_dev->caps.min_cqes)
 		cq_entries = max(cq_entries, hr_dev->caps.min_cqes);
@@ -416,7 +410,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 			goto err_cqc;
 	}
 
-	return &hr_cq->ib_cq;
+	return 0;
 
 err_cqc:
 	hns_roce_free_cq(hr_dev, hr_cq);
@@ -428,9 +422,8 @@ err_dbmap:
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
-	if (udata)
-		ib_umem_release(hr_cq->umem);
-	else
+	ib_umem_release(hr_cq->umem);
+	if (!udata)
 		hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf,
 					hr_cq->ib_cq.cqe);
 
@@ -439,47 +432,37 @@ err_db:
 		hns_roce_free_db(hr_dev, &hr_cq->db);
 
 err_cq:
-	kfree(hr_cq);
-	return ERR_PTR(ret);
+	return ret;
 }
-EXPORT_SYMBOL_GPL(hns_roce_ib_create_cq);
 
-int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+void hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
-	int ret = 0;
 
 	if (hr_dev->hw->destroy_cq) {
-		ret = hr_dev->hw->destroy_cq(ib_cq, udata);
-	} else {
-		hns_roce_free_cq(hr_dev, hr_cq);
-		hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
-
-		if (udata) {
-			ib_umem_release(hr_cq->umem);
-
-			if (hr_cq->db_en == 1)
-				hns_roce_db_unmap_user(
-					rdma_udata_to_drv_context(
-						udata,
-						struct hns_roce_ucontext,
-						ibucontext),
-					&hr_cq->db);
-		} else {
-			/* Free the buff of stored cq */
-			hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf,
-						ib_cq->cqe);
-			if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)
-				hns_roce_free_db(hr_dev, &hr_cq->db);
-		}
-
-		kfree(hr_cq);
+		hr_dev->hw->destroy_cq(ib_cq, udata);
+		return;
 	}
 
-	return ret;
+	hns_roce_free_cq(hr_dev, hr_cq);
+	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
+
+	ib_umem_release(hr_cq->umem);
+	if (udata) {
+		if (hr_cq->db_en == 1)
+			hns_roce_db_unmap_user(rdma_udata_to_drv_context(
+						       udata,
+						       struct hns_roce_ucontext,
+						       ibucontext),
+					       &hr_cq->db);
+	} else {
+		/* Free the buff of stored cq */
+		hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf, ib_cq->cqe);
+		if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)
+			hns_roce_free_db(hr_dev, &hr_cq->db);
+	}
 }
-EXPORT_SYMBOL_GPL(hns_roce_ib_destroy_cq);
 
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)
 {
@@ -495,7 +478,6 @@ void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)
 	++cq->arm_sn;
 	cq->comp(cq);
 }
-EXPORT_SYMBOL_GPL(hns_roce_cq_completion);
 
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 {
@@ -517,7 +499,6 @@ void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 	if (atomic_dec_and_test(&cq->refcount))
 		complete(&cq->free);
 }
-EXPORT_SYMBOL_GPL(hns_roce_cq_event);
 
 int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev)
 {

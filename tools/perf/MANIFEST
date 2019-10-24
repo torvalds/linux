@@ -7,6 +7,8 @@ tools/lib/traceevent
 tools/lib/api
 tools/lib/bpf
 tools/lib/subcmd
+tools/lib/argv_split.c
+tools/lib/ctype.c
 tools/lib/hweight.c
 tools/lib/rbtree.c
 tools/lib/string.c
@@ -16,3 +18,4 @@ tools/lib/find_bit.c
 tools/lib/bitmap.c
 tools/lib/str_error_r.c
 tools/lib/vsprintf.c
+tools/lib/zalloc.c

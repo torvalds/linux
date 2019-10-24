@@ -346,7 +346,7 @@ int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
 
 	};
 	struct req_data {
-		u16 addr;
+		__le16 addr;
 		u8 val;
 		u8 pad;
 	} __packed;

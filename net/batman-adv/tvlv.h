@@ -10,8 +10,7 @@
 #include "main.h"
 
 #include <linux/types.h>
-
-struct batadv_ogm_packet;
+#include <uapi/linux/batadv_packet.h>
 
 void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
 				    u8 type, u8 version,

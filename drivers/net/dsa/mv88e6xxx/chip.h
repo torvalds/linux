@@ -58,6 +58,7 @@ enum mv88e6xxx_model {
 	MV88E6190X,
 	MV88E6191,
 	MV88E6240,
+	MV88E6250,
 	MV88E6290,
 	MV88E6320,
 	MV88E6321,
@@ -76,6 +77,7 @@ enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_6097,	/* 6046 6085 6096 6097 */
 	MV88E6XXX_FAMILY_6165,	/* 6123 6161 6165 */
 	MV88E6XXX_FAMILY_6185,	/* 6108 6121 6122 6131 6152 6155 6182 6185 */
+	MV88E6XXX_FAMILY_6250,	/* 6250 */
 	MV88E6XXX_FAMILY_6320,	/* 6320 6321 */
 	MV88E6XXX_FAMILY_6341,	/* 6141 6341 */
 	MV88E6XXX_FAMILY_6351,	/* 6171 6175 6350 6351 */
@@ -108,6 +110,12 @@ struct mv88e6xxx_info {
 	 * when it is non-zero, and use indirect access to internal registers.
 	 */
 	bool multi_chip;
+	/* Dual-chip Addressing Mode
+	 * Some chips respond to only half of the 32 SMI addresses,
+	 * allowing two to coexist on the same SMI interface.
+	 */
+	bool dual_chip;
+
 	enum dsa_tag_protocol tag_protocol;
 
 	/* Mask for FromPort and ToPort value of PortVec used in ATU Move
@@ -571,5 +579,15 @@ int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 			     int speed, int duplex, int pause,
 			     phy_interface_t mode);
 struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip);
+
+static inline void mv88e6xxx_reg_lock(struct mv88e6xxx_chip *chip)
+{
+	mutex_lock(&chip->reg_lock);
+}
+
+static inline void mv88e6xxx_reg_unlock(struct mv88e6xxx_chip *chip)
+{
+	mutex_unlock(&chip->reg_lock);
+}
 
 #endif /* _MV88E6XXX_CHIP_H */

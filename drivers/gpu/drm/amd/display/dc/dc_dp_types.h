@@ -512,4 +512,131 @@ union test_misc {
 	unsigned char raw;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* FEC capability DPCD register field bits-*/
+union dpcd_fec_capability {
+	struct {
+		uint8_t FEC_CAPABLE:1;
+		uint8_t UNCORRECTED_BLOCK_ERROR_COUNT_CAPABLE:1;
+		uint8_t CORRECTED_BLOCK_ERROR_COUNT_CAPABLE:1;
+		uint8_t BIT_ERROR_COUNT_CAPABLE:1;
+		uint8_t RESERVED:4;
+	} bits;
+	uint8_t raw;
+};
+
+/* DSC capability DPCD register field bits-*/
+struct dpcd_dsc_support {
+	uint8_t DSC_SUPPORT		:1;
+	uint8_t DSC_PASSTHROUGH_SUPPORT	:1;
+	uint8_t RESERVED		:6;
+};
+
+struct dpcd_dsc_algorithm_revision {
+	uint8_t DSC_VERSION_MAJOR	:4;
+	uint8_t DSC_VERSION_MINOR	:4;
+};
+
+struct dpcd_dsc_rc_buffer_block_size {
+	uint8_t RC_BLOCK_BUFFER_SIZE	:2;
+	uint8_t RESERVED		:6;
+};
+
+struct dpcd_dsc_slice_capability1 {
+	uint8_t ONE_SLICE_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t TWO_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t RESERVED				:1;
+	uint8_t FOUR_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t SIX_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t EIGHT_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t TEN_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+	uint8_t TWELVE_SLICES_PER_DP_DSC_SINK_DEVICE	:1;
+};
+
+struct dpcd_dsc_line_buffer_bit_depth {
+	uint8_t LINE_BUFFER_BIT_DEPTH	:4;
+	uint8_t RESERVED		:4;
+};
+
+struct dpcd_dsc_block_prediction_support {
+	uint8_t BLOCK_PREDICTION_SUPPORT:1;
+	uint8_t RESERVED		:7;
+};
+
+struct dpcd_maximum_bits_per_pixel_supported_by_the_decompressor {
+	uint8_t MAXIMUM_BITS_PER_PIXEL_SUPPORTED_BY_THE_DECOMPRESSOR_LOW	:7;
+	uint8_t MAXIMUM_BITS_PER_PIXEL_SUPPORTED_BY_THE_DECOMPRESSOR_HIGH	:7;
+	uint8_t RESERVED							:2;
+};
+
+struct dpcd_dsc_decoder_color_format_capabilities {
+	uint8_t RGB_SUPPORT			:1;
+	uint8_t Y_CB_CR_444_SUPPORT		:1;
+	uint8_t Y_CB_CR_SIMPLE_422_SUPPORT	:1;
+	uint8_t Y_CB_CR_NATIVE_422_SUPPORT	:1;
+	uint8_t Y_CB_CR_NATIVE_420_SUPPORT	:1;
+	uint8_t RESERVED			:3;
+};
+
+struct dpcd_dsc_decoder_color_depth_capabilities {
+	uint8_t RESERVED0			:1;
+	uint8_t EIGHT_BITS_PER_COLOR_SUPPORT	:1;
+	uint8_t TEN_BITS_PER_COLOR_SUPPORT	:1;
+	uint8_t TWELVE_BITS_PER_COLOR_SUPPORT	:1;
+	uint8_t RESERVED1			:4;
+};
+
+struct dpcd_peak_dsc_throughput_dsc_sink {
+	uint8_t THROUGHPUT_MODE_0:4;
+	uint8_t THROUGHPUT_MODE_1:4;
+};
+
+struct dpcd_dsc_slice_capabilities_2 {
+	uint8_t SIXTEEN_SLICES_PER_DSC_SINK_DEVICE	:1;
+	uint8_t TWENTY_SLICES_PER_DSC_SINK_DEVICE	:1;
+	uint8_t TWENTYFOUR_SLICES_PER_DSC_SINK_DEVICE	:1;
+	uint8_t RESERVED				:5;
+};
+
+struct dpcd_bits_per_pixel_increment{
+	uint8_t INCREMENT_OF_BITS_PER_PIXEL_SUPPORTED	:3;
+	uint8_t RESERVED				:5;
+};
+union dpcd_dsc_basic_capabilities {
+	struct {
+		struct dpcd_dsc_support dsc_support;
+		struct dpcd_dsc_algorithm_revision dsc_algorithm_revision;
+		struct dpcd_dsc_rc_buffer_block_size dsc_rc_buffer_block_size;
+		uint8_t dsc_rc_buffer_size;
+		struct dpcd_dsc_slice_capability1 dsc_slice_capabilities_1;
+		struct dpcd_dsc_line_buffer_bit_depth dsc_line_buffer_bit_depth;
+		struct dpcd_dsc_block_prediction_support dsc_block_prediction_support;
+		struct dpcd_maximum_bits_per_pixel_supported_by_the_decompressor maximum_bits_per_pixel_supported_by_the_decompressor;
+		struct dpcd_dsc_decoder_color_format_capabilities dsc_decoder_color_format_capabilities;
+		struct dpcd_dsc_decoder_color_depth_capabilities dsc_decoder_color_depth_capabilities;
+		struct dpcd_peak_dsc_throughput_dsc_sink peak_dsc_throughput_dsc_sink;
+		uint8_t dsc_maximum_slice_width;
+		struct dpcd_dsc_slice_capabilities_2 dsc_slice_capabilities_2;
+		uint8_t reserved;
+		struct dpcd_bits_per_pixel_increment bits_per_pixel_increment;
+	} fields;
+	uint8_t raw[16];
+};
+
+union dpcd_dsc_ext_capabilities {
+	struct {
+		uint8_t BRANCH_OVERALL_THROUGHPUT_0;
+		uint8_t BRANCH_OVERALL_THROUGHPUT_1;
+		uint8_t BRANCH_MAX_LINE_WIDTH;
+	} fields;
+	uint8_t raw[3];
+};
+
+struct dpcd_dsc_capabilities {
+	union dpcd_dsc_basic_capabilities dsc_basic_caps;
+	union dpcd_dsc_ext_capabilities dsc_ext_caps;
+};
+
+#endif /* CONFIG_DRM_AMD_DC_DSC_SUPPORT */
+
 #endif /* DC_DP_TYPES_H */

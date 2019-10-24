@@ -266,6 +266,9 @@ extern void radix__vmemmap_remove_mapping(unsigned long start,
 extern int radix__map_kernel_page(unsigned long ea, unsigned long pa,
 				 pgprot_t flags, unsigned int psz);
 
+extern int radix__ioremap_range(unsigned long ea, phys_addr_t pa,
+				unsigned long size, pgprot_t prot, int nid);
+
 static inline unsigned long radix__get_tree_size(void)
 {
 	unsigned long rts_field;

@@ -285,9 +285,13 @@ static int ttm_set_pages_caching(struct dma_pool *pool,
 
 static void __ttm_dma_free_page(struct dma_pool *pool, struct dma_page *d_page)
 {
+	unsigned long attrs = 0;
 	dma_addr_t dma = d_page->dma;
 	d_page->vaddr &= ~VADDR_FLAG_HUGE_POOL;
-	dma_free_coherent(pool->dev, pool->size, (void *)d_page->vaddr, dma);
+	if (pool->type & IS_HUGE)
+		attrs = DMA_ATTR_NO_WARN;
+
+	dma_free_attrs(pool->dev, pool->size, (void *)d_page->vaddr, dma, attrs);
 
 	kfree(d_page);
 	d_page = NULL;

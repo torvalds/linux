@@ -105,11 +105,4 @@ config SPI_INTEL_SPI_PLATFORM
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel-spi-platform.
 
-config SPI_STM32_QUADSPI
-	tristate "STM32 Quad SPI controller"
-	depends on ARCH_STM32 || COMPILE_TEST
-	help
-	  This enables support for the STM32 Quad SPI controller.
-	  We only connect the NOR to this controller.
-
 endif # MTD_SPI_NOR

@@ -144,7 +144,8 @@
 /* Hash Key extraction fields: */
 #define DEFAULT_HASH_KEY_EXTRACT_FIELDS		\
 	(KG_SCH_KN_IPSRC1 | KG_SCH_KN_IPDST1 | \
-	    KG_SCH_KN_L4PSRC | KG_SCH_KN_L4PDST)
+	 KG_SCH_KN_L4PSRC | KG_SCH_KN_L4PDST | \
+	 KG_SCH_KN_IPSEC_SPI)
 
 /* Default values to be used as hash key in case IPv4 or L4 (TCP, UDP)
  * don't exist in the frame

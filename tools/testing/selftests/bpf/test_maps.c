@@ -1418,7 +1418,7 @@ static void test_map_wronly(void)
 	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == EPERM);
 }
 
-static void prepare_reuseport_grp(int type, int map_fd,
+static void prepare_reuseport_grp(int type, int map_fd, size_t map_elem_size,
 				  __s64 *fds64, __u64 *sk_cookies,
 				  unsigned int n)
 {
@@ -1428,6 +1428,8 @@ static void prepare_reuseport_grp(int type, int map_fd,
 	const int optval = 1;
 	unsigned int i;
 	u64 sk_cookie;
+	void *value;
+	__s32 fd32;
 	__s64 fd64;
 	int err;
 
@@ -1449,8 +1451,14 @@ static void prepare_reuseport_grp(int type, int map_fd,
 		      "err:%d errno:%d\n", err, errno);
 
 		/* reuseport_array does not allow unbound sk */
-		err = bpf_map_update_elem(map_fd, &index0, &fd64,
-					  BPF_ANY);
+		if (map_elem_size == sizeof(__u64))
+			value = &fd64;
+		else {
+			assert(map_elem_size == sizeof(__u32));
+			fd32 = (__s32)fd64;
+			value = &fd32;
+		}
+		err = bpf_map_update_elem(map_fd, &index0, value, BPF_ANY);
 		CHECK(err != -1 || errno != EINVAL,
 		      "reuseport array update unbound sk",
 		      "sock_type:%d err:%d errno:%d\n",
@@ -1478,7 +1486,7 @@ static void prepare_reuseport_grp(int type, int map_fd,
 			 * reuseport_array does not allow
 			 * non-listening tcp sk.
 			 */
-			err = bpf_map_update_elem(map_fd, &index0, &fd64,
+			err = bpf_map_update_elem(map_fd, &index0, value,
 						  BPF_ANY);
 			CHECK(err != -1 || errno != EINVAL,
 			      "reuseport array update non-listening sk",
@@ -1541,7 +1549,7 @@ static void test_reuseport_array(void)
 	for (t = 0; t < ARRAY_SIZE(types); t++) {
 		type = types[t];
 
-		prepare_reuseport_grp(type, map_fd, grpa_fds64,
+		prepare_reuseport_grp(type, map_fd, sizeof(__u64), grpa_fds64,
 				      grpa_cookies, ARRAY_SIZE(grpa_fds64));
 
 		/* Test BPF_* update flags */
@@ -1649,7 +1657,8 @@ static void test_reuseport_array(void)
 				sizeof(__u32), sizeof(__u32), array_size, 0);
 	CHECK(map_fd == -1, "reuseport array create",
 	      "map_fd:%d, errno:%d\n", map_fd, errno);
-	prepare_reuseport_grp(SOCK_STREAM, map_fd, &fd64, &sk_cookie, 1);
+	prepare_reuseport_grp(SOCK_STREAM, map_fd, sizeof(__u32), &fd64,
+			      &sk_cookie, 1);
 	fd = fd64;
 	err = bpf_map_update_elem(map_fd, &index3, &fd, BPF_NOEXIST);
 	CHECK(err == -1, "reuseport array update 32 bit fd",

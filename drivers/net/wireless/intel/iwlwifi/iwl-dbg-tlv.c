@@ -81,9 +81,9 @@ void iwl_fw_dbg_copy_tlv(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
 		return;
 
 	if (ext)
-		data = &trans->apply_points_ext[apply_point];
+		data = &trans->dbg.apply_points_ext[apply_point];
 	else
-		data = &trans->apply_points[apply_point];
+		data = &trans->dbg.apply_points[apply_point];
 
 	/* add room for is_alloc field in &iwl_fw_ini_allocation_data struct */
 	if (le32_to_cpu(tlv->type) == IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION) {
@@ -172,14 +172,14 @@ void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data,
 		}
 
 		if (ext) {
-			trans->apply_points_ext[i].data = mem;
-			trans->apply_points_ext[i].size = size[i];
+			trans->dbg.apply_points_ext[i].data = mem;
+			trans->dbg.apply_points_ext[i].size = size[i];
 		} else {
-			trans->apply_points[i].data = mem;
-			trans->apply_points[i].size = size[i];
+			trans->dbg.apply_points[i].data = mem;
+			trans->dbg.apply_points[i].size = size[i];
 		}
 
-		trans->ini_valid = true;
+		trans->dbg.ini_valid = true;
 	}
 }
 
@@ -187,14 +187,14 @@ void iwl_fw_dbg_free(struct iwl_trans *trans)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(trans->apply_points); i++) {
-		kfree(trans->apply_points[i].data);
-		trans->apply_points[i].size = 0;
-		trans->apply_points[i].offset = 0;
+	for (i = 0; i < ARRAY_SIZE(trans->dbg.apply_points); i++) {
+		kfree(trans->dbg.apply_points[i].data);
+		trans->dbg.apply_points[i].size = 0;
+		trans->dbg.apply_points[i].offset = 0;
 
-		kfree(trans->apply_points_ext[i].data);
-		trans->apply_points_ext[i].size = 0;
-		trans->apply_points_ext[i].offset = 0;
+		kfree(trans->dbg.apply_points_ext[i].data);
+		trans->dbg.apply_points_ext[i].size = 0;
+		trans->dbg.apply_points_ext[i].offset = 0;
 	}
 }
 
@@ -221,6 +221,7 @@ static int iwl_parse_fw_dbg_tlv(struct iwl_trans *trans, const u8 *data,
 		data += sizeof(*tlv) + ALIGN(tlv_len, 4);
 
 		switch (tlv_type) {
+		case IWL_UCODE_TLV_TYPE_DEBUG_INFO:
 		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION:
 		case IWL_UCODE_TLV_TYPE_HCMD:
 		case IWL_UCODE_TLV_TYPE_REGIONS:
@@ -242,7 +243,7 @@ void iwl_load_fw_dbg_tlv(struct device *dev, struct iwl_trans *trans)
 	const struct firmware *fw;
 	int res;
 
-	if (trans->external_ini_loaded || !iwlwifi_mod_params.enable_ini)
+	if (trans->dbg.external_ini_loaded || !iwlwifi_mod_params.enable_ini)
 		return;
 
 	res = request_firmware(&fw, "iwl-dbg-tlv.ini", dev);
@@ -252,6 +253,6 @@ void iwl_load_fw_dbg_tlv(struct device *dev, struct iwl_trans *trans)
 	iwl_alloc_dbg_tlv(trans, fw->size, fw->data, true);
 	iwl_parse_fw_dbg_tlv(trans, fw->data, fw->size);
 
-	trans->external_ini_loaded = true;
+	trans->dbg.external_ini_loaded = true;
 	release_firmware(fw);
 }

@@ -13,6 +13,7 @@
 #include <linux/usb.h>
 #include <net/mac80211.h>
 #include <linux/completion.h>
+#include <linux/bitfield.h>
 #include "debug.h"
 
 #define	MASKBYTE0				0xff
@@ -597,7 +598,7 @@ enum ht_channel_width {
 	HT_CHANNEL_WIDTH_MAX,
 };
 
-/* Ref: 802.11i sepc D10.0 7.3.2.25.1
+/* Ref: 802.11i spec D10.0 7.3.2.25.1
  * Cipher Suites Encryption Algorithms
  */
 enum rt_enc_alg {

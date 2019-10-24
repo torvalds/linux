@@ -29,7 +29,7 @@ set_ect_ip(struct sk_buff *skb, const struct ipt_ECN_info *einfo)
 
 	if ((iph->tos & IPT_ECN_IP_MASK) != (einfo->ip_ect & IPT_ECN_IP_MASK)) {
 		__u8 oldtos;
-		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+		if (skb_ensure_writable(skb, sizeof(struct iphdr)))
 			return false;
 		iph = ip_hdr(skb);
 		oldtos = iph->tos;
@@ -58,7 +58,7 @@ set_ect_tcp(struct sk_buff *skb, const struct ipt_ECN_info *einfo)
 	     tcph->cwr == einfo->proto.tcp.cwr))
 		return true;
 
-	if (!skb_make_writable(skb, ip_hdrlen(skb) + sizeof(*tcph)))
+	if (skb_ensure_writable(skb, ip_hdrlen(skb) + sizeof(*tcph)))
 		return false;
 	tcph = (void *)ip_hdr(skb) + ip_hdrlen(skb);
 
