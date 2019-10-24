@@ -179,6 +179,8 @@ config BLK_SED_OPAL
 
 config BLK_INLINE_ENCRYPTION
 	bool "Enable inline encryption support in block layer"
+	select CRYPTO
+	select CRYPTO_BLKCIPHER
 	help
 	  Build the blk-crypto subsystem.
 	  Enabling this lets the block layer handle encryption,
