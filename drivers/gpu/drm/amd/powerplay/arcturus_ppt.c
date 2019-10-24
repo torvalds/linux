@@ -628,12 +628,17 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 			return ret;
 		}
 
+		/*
+		 * For DPM disabled case, there will be only one clock level.
+		 * And it's safe to assume that is always the current clock.
+		 */
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n", i,
 					clocks.data[i].clocks_in_khz / 1000,
-					arcturus_freqs_in_same_level(
+					(clocks.num_levels == 1) ? "*" :
+					(arcturus_freqs_in_same_level(
 					clocks.data[i].clocks_in_khz / 1000,
-					now / 100) ? "*" : "");
+					now / 100) ? "*" : ""));
 		break;
 
 	case SMU_MCLK:
@@ -653,9 +658,10 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				arcturus_freqs_in_same_level(
+				(clocks.num_levels == 1) ? "*" :
+				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now / 100) ? "*" : "");
+				now / 100) ? "*" : ""));
 		break;
 
 	case SMU_SOCCLK:
@@ -675,9 +681,10 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				arcturus_freqs_in_same_level(
+				(clocks.num_levels == 1) ? "*" :
+				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now / 100) ? "*" : "");
+				now / 100) ? "*" : ""));
 		break;
 
 	case SMU_FCLK:
@@ -697,9 +704,10 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		for (i = 0; i < single_dpm_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, single_dpm_table->dpm_levels[i].value,
-				arcturus_freqs_in_same_level(
+				(clocks.num_levels == 1) ? "*" :
+				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now / 100) ? "*" : "");
+				now / 100) ? "*" : ""));
 		break;
 
 	default:
