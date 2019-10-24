@@ -221,7 +221,6 @@ static inline u16 get_row_index(u16 i)
 #define FFS_NOTOPENED           12
 #define FFS_MAXOPENED           13
 #define FFS_EOF                 15
-#define FFS_DIRBUSY             16
 #define FFS_MEMORYERR           17
 #define FFS_NAMETOOLONG		18
 #define FFS_ERROR               19

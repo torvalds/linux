@@ -2703,7 +2703,7 @@ static int exfat_rmdir(struct inode *dir, struct dentry *dentry)
 			err = -ENOTEMPTY;
 		else if (err == -ENOENT)
 			err = -ENOENT;
-		else if (err == FFS_DIRBUSY)
+		else if (err == -EBUSY)
 			err = -EBUSY;
 		else
 			err = -EIO;
