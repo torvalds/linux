@@ -2711,10 +2711,10 @@ static void hisi_sas_debugfs_snapshot_dq_reg(struct hisi_hba *hisi_hba)
 	int i;
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
-		struct hisi_sas_cmd_hdr	*debugfs_cmd_hdr, *cmd_hdr;
+		struct hisi_sas_cmd_hdr *debugfs_cmd_hdr, *cmd_hdr;
 		int j;
 
-		debugfs_cmd_hdr = hisi_hba->debugfs_cmd_hdr[i];
+		debugfs_cmd_hdr = hisi_hba->debugfs_dq[i].hdr;
 		cmd_hdr = hisi_hba->cmd_hdr[i];
 
 		for (j = 0; j < HISI_SAS_QUEUE_SLOTS; j++)
@@ -3024,9 +3024,8 @@ static const struct file_operations hisi_sas_debugfs_cq_fops = {
 
 static void hisi_sas_dq_show_slot(struct seq_file *s, int slot, void *dq_ptr)
 {
-	struct hisi_sas_dq *dq = dq_ptr;
-	struct hisi_hba *hisi_hba = dq->hisi_hba;
-	void *cmd_queue = hisi_hba->debugfs_cmd_hdr[dq->id];
+	struct hisi_sas_debugfs_dq *debugfs_dq = dq_ptr;
+	void *cmd_queue = debugfs_dq->hdr;
 	__le32 *cmd_hdr = cmd_queue +
 		sizeof(struct hisi_sas_cmd_hdr) * slot;
 
@@ -3237,7 +3236,8 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 	for (d = 0; d < hisi_hba->queue_count; d++) {
 		snprintf(name, 256, "%d", d);
 
-		debugfs_create_file(name, 0400, dentry, &hisi_hba->dq[d],
+		debugfs_create_file(name, 0400, dentry,
+				    &hisi_hba->debugfs_dq[d],
 				    &hisi_sas_debugfs_dq_fops);
 	}
 
@@ -3712,7 +3712,7 @@ static void hisi_sas_debugfs_release(struct hisi_hba *hisi_hba)
 	devm_kfree(dev, hisi_hba->debugfs_iost);
 
 	for (i = 0; i < hisi_hba->queue_count; i++)
-		devm_kfree(dev, hisi_hba->debugfs_cmd_hdr[i]);
+		devm_kfree(dev, hisi_hba->debugfs_dq[i].hdr);
 
 	for (i = 0; i < hisi_hba->queue_count; i++)
 		devm_kfree(dev, hisi_hba->debugfs_cq[i].complete_hdr);
@@ -3774,11 +3774,13 @@ static int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba)
 
 	sz = sizeof(struct hisi_sas_cmd_hdr) * HISI_SAS_QUEUE_SLOTS;
 	for (d = 0; d < hisi_hba->queue_count; d++) {
-		hisi_hba->debugfs_cmd_hdr[d] =
-			devm_kmalloc(dev, sz, GFP_KERNEL);
+		struct hisi_sas_debugfs_dq *dq =
+				&hisi_hba->debugfs_dq[d];
 
-		if (!hisi_hba->debugfs_cmd_hdr[d])
+		dq->hdr = devm_kmalloc(dev, sz, GFP_KERNEL);
+		if (!dq->hdr)
 			goto fail;
+		dq->dq = &hisi_hba->dq[d];
 	}
 
 	sz = HISI_SAS_MAX_COMMANDS * sizeof(struct hisi_sas_iost);
