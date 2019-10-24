@@ -1525,10 +1525,9 @@ static bool raid10_make_request(struct mddev *mddev, struct bio *bio)
 	int chunk_sects = chunk_mask + 1;
 	int sectors = bio_sectors(bio);
 
-	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
-		md_flush_request(mddev, bio);
+	if (unlikely(bio->bi_opf & REQ_PREFLUSH)
+	    && md_flush_request(mddev, bio))
 		return true;
-	}
 
 	if (!md_write_start(mddev, bio))
 		return false;
