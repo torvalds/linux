@@ -852,17 +852,18 @@ static void copy_cmd_to_buffer(struct amd_iommu *iommu,
 			       struct iommu_cmd *cmd)
 {
 	u8 *target;
-
-	target = iommu->cmd_buf + iommu->cmd_buf_tail;
-
-	iommu->cmd_buf_tail += sizeof(*cmd);
-	iommu->cmd_buf_tail %= CMD_BUFFER_SIZE;
+	u32 tail;
 
 	/* Copy command to buffer */
+	tail = iommu->cmd_buf_tail;
+	target = iommu->cmd_buf + tail;
 	memcpy(target, cmd, sizeof(*cmd));
 
+	tail = (tail + sizeof(*cmd)) % CMD_BUFFER_SIZE;
+	iommu->cmd_buf_tail = tail;
+
 	/* Tell the IOMMU about it */
-	writel(iommu->cmd_buf_tail, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
+	writel(tail, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
 }
 
 static void build_completion_wait(struct iommu_cmd *cmd, u64 address)
