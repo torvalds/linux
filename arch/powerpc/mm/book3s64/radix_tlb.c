@@ -995,7 +995,7 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	 * that flushes the process table entry cache upon process teardown.
 	 * See the comment for radix in arch_exit_mmap().
 	 */
-	if (tlb->fullmm) {
+	if (tlb->fullmm || tlb->need_flush_all) {
 		__flush_all_mm(mm, true);
 	} else if ( (psize = radix_get_mmu_psize(page_size)) == -1) {
 		if (!tlb->freed_tables)
@@ -1008,7 +1008,6 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 		else
 			radix__flush_tlb_pwc_range_psize(mm, start, end, psize);
 	}
-	tlb->need_flush_all = 0;
 }
 
 static __always_inline void __radix__flush_tlb_range_psize(struct mm_struct *mm,

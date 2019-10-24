@@ -428,7 +428,7 @@ static inline void tlb_change_page_size(struct mmu_gather *tlb,
 {
 #ifdef CONFIG_HAVE_MMU_GATHER_PAGE_SIZE
 	if (tlb->page_size && tlb->page_size != page_size) {
-		if (!tlb->fullmm)
+		if (!tlb->fullmm && !tlb->need_flush_all)
 			tlb_flush_mmu(tlb);
 	}
 
