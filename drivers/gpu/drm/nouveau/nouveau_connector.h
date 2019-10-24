@@ -118,6 +118,12 @@ struct nouveau_connector {
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
 	struct nouveau_backlight *backlight;
 #endif
+	/*
+	 * Our connector property code expects a nouveau_conn_atom struct
+	 * even on pre-nv50 where we do not support atomic. This embedded
+	 * version gets used in the non atomic modeset case.
+	 */
+	struct nouveau_conn_atom properties_state;
 };
 
 static inline struct nouveau_connector *nouveau_connector(
