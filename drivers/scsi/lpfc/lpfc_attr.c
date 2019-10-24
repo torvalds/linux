@@ -1644,7 +1644,7 @@ lpfc_set_trunking(struct lpfc_hba *phba, char *buff_out)
 {
 	LPFC_MBOXQ_t *mbox = NULL;
 	unsigned long val = 0;
-	char *pval = 0;
+	char *pval = NULL;
 	int rc = 0;
 
 	if (!strncmp("enable", buff_out,
