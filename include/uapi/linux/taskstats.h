@@ -112,6 +112,7 @@ struct taskstats {
 	__u32	ac_gid;			/* Group ID */
 	__u32	ac_pid;			/* Process ID */
 	__u32	ac_ppid;		/* Parent process ID */
+	/* __u32 range means times from 1970 to 2106 */
 	__u32	ac_btime;		/* Begin time [sec since 1970] */
 	__u64	ac_etime __attribute__((aligned(8)));
 					/* Elapsed time [usec] */
