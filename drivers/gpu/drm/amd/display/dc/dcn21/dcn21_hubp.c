@@ -200,8 +200,8 @@ void hubp21_set_viewport(
 		int pte_row_height = 0;
 		int pte_rows = 0;
 
-		REG_GET(DCHUBP_REQ_SIZE_CONFIG,
-			PTE_ROW_HEIGHT_LINEAR, &pte_row_height);
+		REG_GET(DCHUBP_REQ_SIZE_CONFIG_C,
+			PTE_ROW_HEIGHT_LINEAR_C, &pte_row_height);
 
 		pte_row_height = 1 << (pte_row_height + 3);
 		pte_rows = (viewport_c->height / pte_row_height) + 1;
