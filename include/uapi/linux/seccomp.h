@@ -103,7 +103,7 @@ struct seccomp_notif {
  * SECCOMP_USER_NOTIF_FLAG_CONTINUE. Note that SECCOMP_RET_TRACE can equally
  * be overriden by SECCOMP_USER_NOTIF_FLAG_CONTINUE.
  */
-#define SECCOMP_USER_NOTIF_FLAG_CONTINUE BIT(0)
+#define SECCOMP_USER_NOTIF_FLAG_CONTINUE (1UL << 0)
 
 struct seccomp_notif_resp {
 	__u64 id;
