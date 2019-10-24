@@ -650,7 +650,7 @@ static const struct dcn10_stream_encoder_mask se_mask = {
 static void dcn21_pp_smu_destroy(struct pp_smu_funcs **pp_smu);
 
 static int dcn21_populate_dml_pipes_from_context(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes);
+		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes);
 
 static struct input_pixel_processor *dcn21_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
@@ -1053,10 +1053,10 @@ void dcn21_calculate_wm(
 	if (pipe_cnt != pipe_idx) {
 		if (dc->res_pool->funcs->populate_dml_pipes)
 			pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc,
-				&context->res_ctx, pipes);
+				context, pipes);
 		else
 			pipe_cnt = dcn21_populate_dml_pipes_from_context(dc,
-				&context->res_ctx, pipes);
+				context, pipes);
 	}
 
 	*out_pipe_cnt = pipe_cnt;
@@ -1591,10 +1591,11 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 }
 
 static int dcn21_populate_dml_pipes_from_context(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
+		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes)
 {
-	uint32_t pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, res_ctx, pipes);
+	uint32_t pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, context, pipes);
 	int i;
+	struct resource_context *res_ctx = &context->res_ctx;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 
