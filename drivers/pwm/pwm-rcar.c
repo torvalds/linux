@@ -161,11 +161,9 @@ static int rcar_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			  const struct pwm_state *state)
 {
 	struct rcar_pwm_chip *rp = to_rcar_pwm_chip(chip);
-	struct pwm_state cur_state;
 	int div, ret;
 
 	/* This HW/driver only supports normal polarity */
-	pwm_get_state(pwm, &cur_state);
 	if (state->polarity != PWM_POLARITY_NORMAL)
 		return -ENOTSUPP;
 
