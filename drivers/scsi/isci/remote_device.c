@@ -1504,7 +1504,7 @@ static enum sci_status isci_remote_device_construct(struct isci_port *iport,
  * This function builds the isci_remote_device when a libsas dev_found message
  *    is received.
  * @isci_host: This parameter specifies the isci host object.
- * @port: This parameter specifies the isci_port conected to this device.
+ * @port: This parameter specifies the isci_port connected to this device.
  *
  * pointer to new isci_remote_device.
  */

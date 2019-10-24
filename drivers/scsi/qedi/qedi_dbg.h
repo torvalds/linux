@@ -44,7 +44,7 @@ extern uint qedi_dbg_log;
 #define QEDI_LOG_LPORT		0x4000		/* lport logs */
 #define QEDI_LOG_ELS		0x8000		/* ELS logs */
 #define QEDI_LOG_NPIV		0x10000		/* NPIV logs */
-#define QEDI_LOG_SESS		0x20000		/* Conection setup, cleanup */
+#define QEDI_LOG_SESS		0x20000		/* Connection setup, cleanup */
 #define QEDI_LOG_UIO		0x40000		/* iSCSI UIO logs */
 #define QEDI_LOG_TID		0x80000         /* FW TID context acquire,
 						 * free
