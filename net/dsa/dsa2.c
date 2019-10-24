@@ -842,12 +842,15 @@ static int dsa_switch_add(struct dsa_switch *ds)
 
 static int dsa_switch_probe(struct dsa_switch *ds)
 {
-	struct dsa_chip_data *pdata = ds->dev->platform_data;
-	struct device_node *np = ds->dev->of_node;
+	struct dsa_chip_data *pdata;
+	struct device_node *np;
 	int err;
 
 	if (!ds->dev)
 		return -ENODEV;
+
+	pdata = ds->dev->platform_data;
+	np = ds->dev->of_node;
 
 	if (!ds->num_ports)
 		return -EINVAL;
