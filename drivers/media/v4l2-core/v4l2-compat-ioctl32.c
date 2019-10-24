@@ -465,6 +465,11 @@ struct v4l2_plane32 {
 		__s32		fd;
 	} m;
 	__u32			data_offset;
+	/*
+	 * few userspace clients and drivers use reserved fields
+	 * and it is up to them how these fields are used. v4l2
+	 * simply copy reserved fields between them.
+	 */
 	__u32			reserved[11];
 };
 
@@ -499,7 +504,9 @@ static int get_v4l2_plane32(struct v4l2_plane __user *p64,
 
 	if (copy_in_user(p64, p32, 2 * sizeof(__u32)) ||
 	    copy_in_user(&p64->data_offset, &p32->data_offset,
-			 sizeof(p64->data_offset)))
+			 sizeof(p64->data_offset)) ||
+	    copy_in_user(p64->reserved, p32->reserved,
+			 sizeof(p64->reserved)))
 		return -EFAULT;
 
 	switch (memory) {
@@ -531,7 +538,9 @@ static int put_v4l2_plane32(struct v4l2_plane __user *p64,
 
 	if (copy_in_user(p32, p64, 2 * sizeof(__u32)) ||
 	    copy_in_user(&p32->data_offset, &p64->data_offset,
-			 sizeof(p64->data_offset)))
+			 sizeof(p64->data_offset)) ||
+	    copy_in_user(p32->reserved, p64->reserved,
+			 sizeof(p32->reserved)))
 		return -EFAULT;
 
 	switch (memory) {
