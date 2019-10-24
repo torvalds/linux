@@ -1252,6 +1252,7 @@ bool nfs4_refresh_delegation_stateid(nfs4_stateid *dst, struct inode *inode)
 	delegation = rcu_dereference(NFS_I(inode)->delegation);
 	if (delegation != NULL &&
 	    nfs4_stateid_match_other(dst, &delegation->stateid) &&
+	    nfs4_stateid_is_newer(&delegation->stateid, dst) &&
 	    !test_bit(NFS_DELEGATION_REVOKED, &delegation->flags)) {
 		dst->seqid = delegation->stateid.seqid;
 		ret = true;
