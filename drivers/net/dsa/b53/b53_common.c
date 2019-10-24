@@ -1503,11 +1503,25 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 		idx = 1;
 	}
 
-	memset(&ent, 0, sizeof(ent));
-	ent.port = port;
+	/* For multicast address, the port is a bitmask and the validity
+	 * is determined by having at least one port being still active
+	 */
+	if (!is_multicast_ether_addr(addr)) {
+		ent.port = port;
+		ent.is_valid = is_valid;
+	} else {
+		if (is_valid)
+			ent.port |= BIT(port);
+		else
+			ent.port &= ~BIT(port);
+
+		ent.is_valid = !!(ent.port);
+	}
+
 	ent.is_valid = is_valid;
 	ent.vid = vid;
 	ent.is_static = true;
+	ent.is_age = false;
 	memcpy(ent.mac, addr, ETH_ALEN);
 	b53_arl_from_entry(&mac_vid, &fwd_entry, &ent);
 
@@ -1625,6 +1639,47 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 	return 0;
 }
 EXPORT_SYMBOL(b53_fdb_dump);
+
+int b53_mdb_prepare(struct dsa_switch *ds, int port,
+		    const struct switchdev_obj_port_mdb *mdb)
+{
+	struct b53_device *priv = ds->priv;
+
+	/* 5325 and 5365 require some more massaging, but could
+	 * be supported eventually
+	 */
+	if (is5325(priv) || is5365(priv))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+EXPORT_SYMBOL(b53_mdb_prepare);
+
+void b53_mdb_add(struct dsa_switch *ds, int port,
+		 const struct switchdev_obj_port_mdb *mdb)
+{
+	struct b53_device *priv = ds->priv;
+	int ret;
+
+	ret = b53_arl_op(priv, 0, port, mdb->addr, mdb->vid, true);
+	if (ret)
+		dev_err(ds->dev, "failed to add MDB entry\n");
+}
+EXPORT_SYMBOL(b53_mdb_add);
+
+int b53_mdb_del(struct dsa_switch *ds, int port,
+		const struct switchdev_obj_port_mdb *mdb)
+{
+	struct b53_device *priv = ds->priv;
+	int ret;
+
+	ret = b53_arl_op(priv, 0, port, mdb->addr, mdb->vid, false);
+	if (ret)
+		dev_err(ds->dev, "failed to delete MDB entry\n");
+
+	return ret;
+}
+EXPORT_SYMBOL(b53_mdb_del);
 
 int b53_br_join(struct dsa_switch *ds, int port, struct net_device *br)
 {
@@ -1994,6 +2049,9 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_fdb_del		= b53_fdb_del,
 	.port_mirror_add	= b53_mirror_add,
 	.port_mirror_del	= b53_mirror_del,
+	.port_mdb_prepare	= b53_mdb_prepare,
+	.port_mdb_add		= b53_mdb_add,
+	.port_mdb_del		= b53_mdb_del,
 };
 
 struct b53_chip_data {
