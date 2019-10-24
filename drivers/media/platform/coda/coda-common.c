@@ -2387,6 +2387,7 @@ int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
 
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	dst_vq->io_modes = VB2_DMABUF | VB2_MMAP;
+	dst_vq->dma_attrs = DMA_ATTR_NO_KERNEL_MAPPING;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 
 	return coda_queue_init(priv, dst_vq);
