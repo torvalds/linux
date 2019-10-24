@@ -141,7 +141,7 @@ long sii164InitChip(unsigned char edge_select,
 
 	/* Check if SII164 Chip exists */
 	if ((sii164GetVendorID() == SII164_VENDOR_ID) &&
-			(sii164GetDeviceID() == SII164_DEVICE_ID)) {
+	    (sii164GetDeviceID() == SII164_DEVICE_ID)) {
 		/*
 		 *  Initialize SII164 controller chip.
 		 */
