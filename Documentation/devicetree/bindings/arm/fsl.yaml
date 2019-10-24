@@ -121,6 +121,7 @@ properties:
               - fsl,imx6q-sabresd
               - technologic,imx6q-ts4900
               - technologic,imx6q-ts7970
+              - variscite,dt6customboard
           - const: fsl,imx6q
 
       - description: i.MX6QP based Boards
