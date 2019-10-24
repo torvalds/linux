@@ -822,6 +822,10 @@ static const struct intel_device_info intel_tigerlake_12_info = {
 	.has_rps = false, /* XXX disabled for debugging */
 };
 
+#define GEN12_DGFX_FEATURES \
+	GEN12_FEATURES, \
+	.is_dgfx = 1
+
 #undef GEN
 #undef PLATFORM
 
