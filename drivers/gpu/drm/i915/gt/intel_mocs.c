@@ -462,6 +462,12 @@ static void intel_mocs_init_global(struct intel_gt *gt)
 	struct drm_i915_mocs_table table;
 	unsigned int index;
 
+	/*
+	 * LLC and eDRAM control values are not applicable to dgfx
+	 */
+	if (IS_DGFX(gt->i915))
+		return;
+
 	GEM_BUG_ON(!HAS_GLOBAL_MOCS_REGISTERS(gt->i915));
 
 	if (!get_mocs_settings(gt->i915, &table))
