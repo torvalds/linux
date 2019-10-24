@@ -3819,7 +3819,7 @@ static int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba, int dump_index)
 
 	return 0;
 fail:
-	for (i = 0; i < HISI_SAS_MAX_DEBUGFS_DUMP; i++)
+	for (i = 0; i < hisi_sas_debugfs_dump_count; i++)
 		hisi_sas_debugfs_release(hisi_hba, i);
 	return -ENOMEM;
 }
@@ -3870,7 +3870,7 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 	hisi_hba->debugfs_dump_dentry =
 			debugfs_create_dir("dump", hisi_hba->debugfs_dir);
 
-	for (i = 0; i < HISI_SAS_MAX_DEBUGFS_DUMP; i++) {
+	for (i = 0; i < hisi_sas_debugfs_dump_count; i++) {
 		if (hisi_sas_debugfs_alloc(hisi_hba, i)) {
 			debugfs_remove_recursive(hisi_hba->debugfs_dir);
 			dev_dbg(dev, "failed to init debugfs!\n");
@@ -3909,14 +3909,24 @@ EXPORT_SYMBOL_GPL(hisi_sas_debugfs_enable);
 module_param_named(debugfs_enable, hisi_sas_debugfs_enable, bool, 0444);
 MODULE_PARM_DESC(hisi_sas_debugfs_enable, "Enable driver debugfs (default disabled)");
 
+u32 hisi_sas_debugfs_dump_count = 1;
+EXPORT_SYMBOL_GPL(hisi_sas_debugfs_dump_count);
+module_param_named(debugfs_dump_count, hisi_sas_debugfs_dump_count, uint, 0444);
+MODULE_PARM_DESC(hisi_sas_debugfs_dump_count, "Number of debugfs dumps to allow");
+
 static __init int hisi_sas_init(void)
 {
 	hisi_sas_stt = sas_domain_attach_transport(&hisi_sas_transport_ops);
 	if (!hisi_sas_stt)
 		return -ENOMEM;
 
-	if (hisi_sas_debugfs_enable)
+	if (hisi_sas_debugfs_enable) {
 		hisi_sas_debugfs_dir = debugfs_create_dir("hisi_sas", NULL);
+		if (hisi_sas_debugfs_dump_count > HISI_SAS_MAX_DEBUGFS_DUMP) {
+			pr_info("hisi_sas: Limiting debugfs dump count\n");
+			hisi_sas_debugfs_dump_count = HISI_SAS_MAX_DEBUGFS_DUMP;
+		}
+	}
 
 	return 0;
 }
