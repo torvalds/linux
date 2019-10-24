@@ -440,15 +440,9 @@ static void update_bmc_sta(struct adapter *padapter)
 				tx_ra_bitmap |= rtw_get_bit_value_from_ieee_value(psta->bssrateset[i] & 0x7f);
 		}
 
-		if (pcur_network->Configuration.DSConfig > 14) {
-			/* force to A mode. 5G doesn't support CCK rates */
-			network_type = WIRELESS_11A;
-			tx_ra_bitmap = 0x150; /*  6, 12, 24 Mbps */
-		} else {
-			/* force to b mode */
-			network_type = WIRELESS_11B;
-			tx_ra_bitmap = 0xf;
-		}
+		/* force to b mode */
+		network_type = WIRELESS_11B;
+		tx_ra_bitmap = 0xf;
 
 		raid = networktype_to_raid(network_type);
 		init_rate = get_highest_rate_idx(tx_ra_bitmap & 0x0fffffff) & 0x3f;
