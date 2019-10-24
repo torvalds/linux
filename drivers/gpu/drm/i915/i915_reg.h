@@ -5757,7 +5757,8 @@ enum {
 #define   PIPECONF_DOUBLE_WIDE	(1 << 30)
 #define   I965_PIPECONF_ACTIVE	(1 << 30)
 #define   PIPECONF_DSI_PLL_LOCKED	(1 << 29) /* vlv & pipe A only */
-#define   PIPECONF_FRAME_START_DELAY_MASK (3 << 27)
+#define   PIPECONF_FRAME_START_DELAY_MASK	(3 << 27) /* pre-hsw */
+#define   PIPECONF_FRAME_START_DELAY(x)		((x) << 27) /* pre-hsw: 0-3 */
 #define   PIPECONF_SINGLE_WIDE	0
 #define   PIPECONF_PIPE_UNLOCKED 0
 #define   PIPECONF_PIPE_LOCKED	(1 << 25)
@@ -7739,6 +7740,8 @@ enum {
 					    [TRANSCODER_B] = _CHICKEN_TRANS_B, \
 					    [TRANSCODER_C] = _CHICKEN_TRANS_C, \
 					    [TRANSCODER_D] = _CHICKEN_TRANS_D))
+#define  HSW_FRAME_START_DELAY_MASK	(3 << 27)
+#define  HSW_FRAME_START_DELAY(x)	((x) << 27) /* 0-3 */
 #define  VSC_DATA_SEL_SOFTWARE_CONTROL	(1 << 25) /* GLK and CNL+ */
 #define  DDI_TRAINING_OVERRIDE_ENABLE	(1 << 19)
 #define  DDI_TRAINING_OVERRIDE_VALUE	(1 << 18)
@@ -8457,10 +8460,8 @@ enum {
 #define  TRANS_STATE_MASK       (1 << 30)
 #define  TRANS_STATE_DISABLE    (0 << 30)
 #define  TRANS_STATE_ENABLE     (1 << 30)
-#define  TRANS_FSYNC_DELAY_HB1  (0 << 27)
-#define  TRANS_FSYNC_DELAY_HB2  (1 << 27)
-#define  TRANS_FSYNC_DELAY_HB3  (2 << 27)
-#define  TRANS_FSYNC_DELAY_HB4  (3 << 27)
+#define  TRANS_FRAME_START_DELAY_MASK	(3 << 27) /* ibx */
+#define  TRANS_FRAME_START_DELAY(x)	((x) << 27) /* ibx: 0-3 */
 #define  TRANS_INTERLACE_MASK   (7 << 21)
 #define  TRANS_PROGRESSIVE      (0 << 21)
 #define  TRANS_INTERLACED       (3 << 21)
@@ -8481,6 +8482,7 @@ enum {
 #define  TRANS_CHICKEN2_TIMING_OVERRIDE			(1 << 31)
 #define  TRANS_CHICKEN2_FDI_POLARITY_REVERSED		(1 << 29)
 #define  TRANS_CHICKEN2_FRAME_START_DELAY_MASK		(3 << 27)
+#define  TRANS_CHICKEN2_FRAME_START_DELAY(x)		((x) << 27) /* 0-3 */
 #define  TRANS_CHICKEN2_DISABLE_DEEP_COLOR_COUNTER	(1 << 26)
 #define  TRANS_CHICKEN2_DISABLE_DEEP_COLOR_MODESWITCH	(1 << 25)
 

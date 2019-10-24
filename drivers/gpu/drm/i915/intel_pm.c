@@ -6368,7 +6368,6 @@ static void cpt_init_clock_gating(struct drm_i915_private *dev_priv)
 		val &= ~TRANS_CHICKEN2_FDI_POLARITY_REVERSED;
 		if (dev_priv->vbt.fdi_rx_polarity_inverted)
 			val |= TRANS_CHICKEN2_FDI_POLARITY_REVERSED;
-		val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
 		val &= ~TRANS_CHICKEN2_DISABLE_DEEP_COLOR_COUNTER;
 		val &= ~TRANS_CHICKEN2_DISABLE_DEEP_COLOR_MODESWITCH;
 		I915_WRITE(TRANS_CHICKEN2(pipe), val);

@@ -1674,11 +1674,16 @@ static void ironlake_enable_pch_transcoder(const struct intel_crtc_state *crtc_s
 	assert_fdi_rx_enabled(dev_priv, pipe);
 
 	if (HAS_PCH_CPT(dev_priv)) {
-		/* Workaround: Set the timing override bit before enabling the
-		 * pch transcoder. */
 		reg = TRANS_CHICKEN2(pipe);
 		val = I915_READ(reg);
+		/*
+		 * Workaround: Set the timing override bit
+		 * before enabling the pch transcoder.
+		 */
 		val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
+		/* Configure frame start delay to match the CPU */
+		val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
+		val |= TRANS_CHICKEN2_FRAME_START_DELAY(0);
 		I915_WRITE(reg, val);
 	}
 
@@ -1687,6 +1692,10 @@ static void ironlake_enable_pch_transcoder(const struct intel_crtc_state *crtc_s
 	pipeconf_val = I915_READ(PIPECONF(pipe));
 
 	if (HAS_PCH_IBX(dev_priv)) {
+		/* Configure frame start delay to match the CPU */
+		val &= ~TRANS_FRAME_START_DELAY_MASK;
+		val |= TRANS_FRAME_START_DELAY(0);
+
 		/*
 		 * Make the BPC in transcoder be consistent with
 		 * that in pipeconf reg. For HDMI we must use 8bpc
@@ -1724,9 +1733,12 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	assert_fdi_tx_enabled(dev_priv, (enum pipe) cpu_transcoder);
 	assert_fdi_rx_enabled(dev_priv, PIPE_A);
 
-	/* Workaround: set timing override bit. */
 	val = I915_READ(TRANS_CHICKEN2(PIPE_A));
+	/* Workaround: set timing override bit. */
 	val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
+	/* Configure frame start delay to match the CPU */
+	val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
+	val |= TRANS_CHICKEN2_FRAME_START_DELAY(0);
 	I915_WRITE(TRANS_CHICKEN2(PIPE_A), val);
 
 	val = TRANS_ENABLE;
@@ -6583,6 +6595,19 @@ static void icl_pipe_mbus_enable(struct intel_crtc *crtc)
 	I915_WRITE(PIPE_MBUS_DBOX_CTL(pipe), val);
 }
 
+static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	i915_reg_t reg = CHICKEN_TRANS(crtc_state->cpu_transcoder);
+	u32 val;
+
+	val = I915_READ(reg);
+	val &= ~HSW_FRAME_START_DELAY_MASK;
+	val |= HSW_FRAME_START_DELAY(0);
+	I915_WRITE(reg, val);
+}
+
 static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 				struct intel_atomic_state *state)
 {
@@ -6625,8 +6650,10 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 					     &pipe_config->fdi_m_n, NULL);
 	}
 
-	if (!transcoder_is_dsi(cpu_transcoder))
+	if (!transcoder_is_dsi(cpu_transcoder)) {
+		hsw_set_frame_start_delay(pipe_config);
 		haswell_set_pipeconf(pipe_config);
+	}
 
 	if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 		bdw_set_pipemisc(pipe_config);
@@ -8523,6 +8550,8 @@ static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
 
 	pipeconf |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
 
+	pipeconf |= PIPECONF_FRAME_START_DELAY(0);
+
 	I915_WRITE(PIPECONF(crtc->pipe), pipeconf);
 	POSTING_READ(PIPECONF(crtc->pipe));
 }
@@ -9603,6 +9632,8 @@ static void ironlake_set_pipeconf(const struct intel_crtc_state *crtc_state)
 		val |= PIPECONF_OUTPUT_COLORSPACE_YUV709;
 
 	val |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
+
+	val |= PIPECONF_FRAME_START_DELAY(0);
 
 	I915_WRITE(PIPECONF(pipe), val);
 	POSTING_READ(PIPECONF(pipe));
@@ -17202,24 +17233,68 @@ static bool has_pch_trancoder(struct drm_i915_private *dev_priv,
 		(HAS_PCH_LPT_H(dev_priv) && pch_transcoder == PIPE_A);
 }
 
+static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+
+	if (INTEL_GEN(dev_priv) >= 9 ||
+	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
+		i915_reg_t reg = CHICKEN_TRANS(cpu_transcoder);
+		u32 val;
+
+		if (transcoder_is_dsi(cpu_transcoder))
+			return;
+
+		val = I915_READ(reg);
+		val &= ~HSW_FRAME_START_DELAY_MASK;
+		val |= HSW_FRAME_START_DELAY(0);
+		I915_WRITE(reg, val);
+	} else {
+		i915_reg_t reg = PIPECONF(cpu_transcoder);
+		u32 val;
+
+		val = I915_READ(reg);
+		val &= ~PIPECONF_FRAME_START_DELAY_MASK;
+		val |= PIPECONF_FRAME_START_DELAY(0);
+		I915_WRITE(reg, val);
+	}
+
+	if (!crtc_state->has_pch_encoder)
+		return;
+
+	if (HAS_PCH_IBX(dev_priv)) {
+		i915_reg_t reg = PCH_TRANSCONF(crtc->pipe);
+		u32 val;
+
+		val = I915_READ(reg);
+		val &= ~TRANS_FRAME_START_DELAY_MASK;
+		val |= TRANS_FRAME_START_DELAY(0);
+		I915_WRITE(reg, val);
+	} else {
+		i915_reg_t reg = TRANS_CHICKEN2(crtc->pipe);
+		u32 val;
+
+		val = I915_READ(reg);
+		val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
+		val |= TRANS_CHICKEN2_FRAME_START_DELAY(0);
+		I915_WRITE(reg, val);
+	}
+}
+
 static void intel_sanitize_crtc(struct intel_crtc *crtc,
 				struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
-	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-
-	/* Clear any frame start delays used for debugging left by the BIOS */
-	if (crtc->active && !transcoder_is_dsi(cpu_transcoder)) {
-		i915_reg_t reg = PIPECONF(cpu_transcoder);
-
-		I915_WRITE(reg,
-			   I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
-	}
 
 	if (crtc_state->hw.active) {
 		struct intel_plane *plane;
+
+		/* Clear any frame start delays used for debugging left by the BIOS */
+		intel_sanitize_frame_start_delay(crtc_state);
 
 		/* Disable everything but the primary plane */
 		for_each_intel_plane_on_crtc(dev, crtc, plane) {
