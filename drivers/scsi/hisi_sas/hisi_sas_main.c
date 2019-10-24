@@ -3194,6 +3194,7 @@ static const struct file_operations hisi_sas_debugfs_itct_cache_fops = {
 
 static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 {
+	u64 *debugfs_timestamp;
 	struct dentry *dump_dentry;
 	struct dentry *dentry;
 	char name[256];
@@ -3201,9 +3202,13 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 	int c;
 	int d;
 
+	debugfs_timestamp = &hisi_hba->debugfs_timestamp;
 	/* Create dump dir inside device dir */
 	dump_dentry = debugfs_create_dir("dump", hisi_hba->debugfs_dir);
 	hisi_hba->debugfs_dump_dentry = dump_dentry;
+
+	debugfs_create_u64("timestamp", 0400, dump_dentry,
+			   debugfs_timestamp);
 
 	debugfs_create_file("global", 0400, dump_dentry, hisi_hba,
 			    &hisi_sas_debugfs_global_fops);
@@ -3684,7 +3689,10 @@ void hisi_sas_debugfs_work_handler(struct work_struct *work)
 {
 	struct hisi_hba *hisi_hba =
 		container_of(work, struct hisi_hba, debugfs_work);
+	u64 timestamp = local_clock();
 
+	do_div(timestamp, NSEC_PER_MSEC);
+	hisi_hba->debugfs_timestamp = timestamp;
 	if (hisi_hba->debugfs_snapshot)
 		return;
 	hisi_hba->debugfs_snapshot = true;
