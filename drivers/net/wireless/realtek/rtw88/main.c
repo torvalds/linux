@@ -627,7 +627,7 @@ static u64 rtw_update_rate_mask(struct rtw_dev *rtwdev,
 {
 	struct rtw_hal *hal = &rtwdev->hal;
 	const struct cfg80211_bitrate_mask *mask = si->mask;
-	u64 cfg_mask = GENMASK(63, 0);
+	u64 cfg_mask = GENMASK_ULL(63, 0);
 	u8 rssi_level, band;
 
 	if (wireless_set != WIRELESS_CCK) {
