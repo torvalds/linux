@@ -24,6 +24,8 @@ atlantic-objs := aq_main.o \
 	aq_ethtool.o \
 	aq_drvinfo.o \
 	aq_filters.o \
+	aq_ptp.o \
+	aq_phy.o \
 	hw_atl/hw_atl_a0.o \
 	hw_atl/hw_atl_b0.o \
 	hw_atl/hw_atl_utils.o \

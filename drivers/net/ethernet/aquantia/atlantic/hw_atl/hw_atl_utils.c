@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File hw_atl_utils.c: Definition of common functions for Atlantic hardware
@@ -327,8 +327,7 @@ err_exit:
 	return err;
 }
 
-static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
-					 u32 cnt)
+int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p, u32 cnt)
 {
 	u32 val;
 	int err = 0;
@@ -964,4 +963,6 @@ const struct aq_fw_ops aq_fw_1x_ops = {
 	.set_eee_rate = NULL,
 	.get_eee_rate = NULL,
 	.set_flow_control = NULL,
+	.send_fw_request = NULL,
+	.enable_ptp = NULL,
 };

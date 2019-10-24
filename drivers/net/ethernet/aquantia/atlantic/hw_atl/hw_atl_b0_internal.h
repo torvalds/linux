@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File hw_atl_b0_internal.h: Definition of Atlantic B0 chip specific
@@ -64,8 +64,11 @@
 #define HW_ATL_B0_MPI_SPEED_MSK         0xFFFFU
 #define HW_ATL_B0_MPI_SPEED_SHIFT       16U
 
-#define HW_ATL_B0_TXBUF_MAX  160U
-#define HW_ATL_B0_RXBUF_MAX  320U
+#define HW_ATL_B0_TXBUF_MAX              160U
+#define HW_ATL_B0_PTP_TXBUF_SIZE           8U
+
+#define HW_ATL_B0_RXBUF_MAX              320U
+#define HW_ATL_B0_PTP_RXBUF_SIZE          16U
 
 #define HW_ATL_B0_RSS_REDIRECTION_MAX 64U
 #define HW_ATL_B0_RSS_REDIRECTION_BITS 3U

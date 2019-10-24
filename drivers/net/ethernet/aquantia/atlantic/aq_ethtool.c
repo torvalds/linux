@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File aq_ethtool.c: Definition of ethertool related functions. */
@@ -9,7 +9,10 @@
 #include "aq_ethtool.h"
 #include "aq_nic.h"
 #include "aq_vec.h"
+#include "aq_ptp.h"
 #include "aq_filters.h"
+
+#include <linux/ptp_clock_kernel.h>
 
 static void aq_ethtool_get_regs(struct net_device *ndev,
 				struct ethtool_regs *regs, void *p)
@@ -377,6 +380,35 @@ static int aq_ethtool_set_wol(struct net_device *ndev,
 	return err;
 }
 
+static int aq_ethtool_get_ts_info(struct net_device *ndev,
+				  struct ethtool_ts_info *info)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+
+	ethtool_op_get_ts_info(ndev, info);
+
+	if (!aq_nic->aq_ptp)
+		return 0;
+
+	info->so_timestamping |=
+		SOF_TIMESTAMPING_TX_HARDWARE |
+		SOF_TIMESTAMPING_RX_HARDWARE |
+		SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	info->tx_types = BIT(HWTSTAMP_TX_OFF) |
+			 BIT(HWTSTAMP_TX_ON);
+
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE);
+
+	info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+			    BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+			    BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
+
+	info->phc_index = ptp_clock_index(aq_ptp_get_ptp_clock(aq_nic->aq_ptp));
+
+	return 0;
+}
+
 static enum hw_atl_fw2x_rate eee_mask_to_ethtool_mask(u32 speed)
 {
 	u32 rate = 0;
@@ -604,4 +636,5 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.set_link_ksettings  = aq_ethtool_set_link_ksettings,
 	.get_coalesce	     = aq_ethtool_get_coalesce,
 	.set_coalesce	     = aq_ethtool_set_coalesce,
+	.get_ts_info         = aq_ethtool_get_ts_info,
 };

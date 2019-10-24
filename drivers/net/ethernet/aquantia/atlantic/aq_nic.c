@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File aq_nic.c: Definition of common code for NIC. */
@@ -12,6 +12,9 @@
 #include "aq_hw.h"
 #include "aq_pci_func.h"
 #include "aq_main.h"
+#include "aq_phy.h"
+#include "aq_ptp.h"
+#include "aq_filters.h"
 
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
@@ -145,6 +148,13 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 			self->aq_hw->aq_link_status.mbps);
 		aq_nic_update_interrupt_moderation_settings(self);
 
+		if (self->aq_ptp) {
+			aq_ptp_clock_init(self);
+			aq_ptp_tm_offset_set(self,
+					     self->aq_hw->aq_link_status.mbps);
+			aq_ptp_link_change(self);
+		}
+
 		/* Driver has to update flow control settings on RX block
 		 * on any link event.
 		 * We should query FW whether it negotiated FC.
@@ -191,6 +201,8 @@ static void aq_nic_service_task(struct work_struct *work)
 	struct aq_nic_s *self = container_of(work, struct aq_nic_s,
 					     service_task);
 	int err;
+
+	aq_ptp_service_task(self);
 
 	if (aq_utils_obj_test(&self->flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		return;
@@ -327,9 +339,26 @@ int aq_nic_init(struct aq_nic_s *self)
 	if (err < 0)
 		goto err_exit;
 
+	if (self->aq_nic_cfg.aq_hw_caps->media_type == AQ_HW_MEDIA_TYPE_TP) {
+		self->aq_hw->phy_id = HW_ATL_PHY_ID_MAX;
+		err = aq_phy_init(self->aq_hw);
+	}
+
 	for (i = 0U, aq_vec = self->aq_vec[0];
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_init(aq_vec, self->aq_hw_ops, self->aq_hw);
+
+	err = aq_ptp_init(self, self->irqvecs - 1);
+	if (err < 0)
+		goto err_exit;
+
+	err = aq_ptp_ring_alloc(self);
+	if (err < 0)
+		goto err_exit;
+
+	err = aq_ptp_ring_init(self);
+	if (err < 0)
+		goto err_exit;
 
 	netif_carrier_off(self->ndev);
 
@@ -361,6 +390,10 @@ int aq_nic_start(struct aq_nic_s *self)
 			goto err_exit;
 	}
 
+	err = aq_ptp_ring_start(self);
+	if (err < 0)
+		goto err_exit;
+
 	err = self->aq_hw_ops->hw_start(self->aq_hw);
 	if (err < 0)
 		goto err_exit;
@@ -387,6 +420,10 @@ int aq_nic_start(struct aq_nic_s *self)
 			if (err < 0)
 				goto err_exit;
 		}
+
+		err = aq_ptp_irq_alloc(self);
+		if (err < 0)
+			goto err_exit;
 
 		if (self->aq_nic_cfg.link_irq_vec) {
 			int irqvec = pci_irq_vector(self->pdev,
@@ -420,9 +457,8 @@ err_exit:
 	return err;
 }
 
-static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
-				   struct sk_buff *skb,
-				   struct aq_ring_s *ring)
+unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
+			    struct aq_ring_s *ring)
 {
 	unsigned int ret = 0U;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
@@ -953,9 +989,13 @@ int aq_nic_stop(struct aq_nic_s *self)
 	else
 		aq_pci_func_free_irqs(self);
 
+	aq_ptp_irq_free(self);
+
 	for (i = 0U, aq_vec = self->aq_vec[0];
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_stop(aq_vec);
+
+	aq_ptp_ring_stop(self);
 
 	return self->aq_hw_ops->hw_stop(self->aq_hw);
 }
@@ -971,6 +1011,11 @@ void aq_nic_deinit(struct aq_nic_s *self)
 	for (i = 0U, aq_vec = self->aq_vec[0];
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_deinit(aq_vec);
+
+	aq_ptp_unregister(self);
+	aq_ptp_ring_deinit(self);
+	aq_ptp_ring_free(self);
+	aq_ptp_free(self);
 
 	if (likely(self->aq_fw_ops->deinit)) {
 		mutex_lock(&self->fwreq_mutex);
@@ -1067,4 +1112,47 @@ void aq_nic_shutdown(struct aq_nic_s *self)
 
 err_exit:
 	rtnl_unlock();
+}
+
+u8 aq_nic_reserve_filter(struct aq_nic_s *self, enum aq_rx_filter_type type)
+{
+	u8 location = 0xFF;
+	u32 fltr_cnt;
+	u32 n_bit;
+
+	switch (type) {
+	case aq_rx_filter_ethertype:
+		location = AQ_RX_LAST_LOC_FETHERT - AQ_RX_FIRST_LOC_FETHERT -
+			   self->aq_hw_rx_fltrs.fet_reserved_count;
+		self->aq_hw_rx_fltrs.fet_reserved_count++;
+		break;
+	case aq_rx_filter_l3l4:
+		fltr_cnt = AQ_RX_LAST_LOC_FL3L4 - AQ_RX_FIRST_LOC_FL3L4;
+		n_bit = fltr_cnt - self->aq_hw_rx_fltrs.fl3l4.reserved_count;
+
+		self->aq_hw_rx_fltrs.fl3l4.active_ipv4 |= BIT(n_bit);
+		self->aq_hw_rx_fltrs.fl3l4.reserved_count++;
+		location = n_bit;
+		break;
+	default:
+		break;
+	}
+
+	return location;
+}
+
+void aq_nic_release_filter(struct aq_nic_s *self, enum aq_rx_filter_type type,
+			   u32 location)
+{
+	switch (type) {
+	case aq_rx_filter_ethertype:
+		self->aq_hw_rx_fltrs.fet_reserved_count--;
+		break;
+	case aq_rx_filter_l3l4:
+		self->aq_hw_rx_fltrs.fl3l4.reserved_count--;
+		self->aq_hw_rx_fltrs.fl3l4.active_ipv4 &= ~BIT(location);
+		break;
+	default:
+		break;
+	}
 }

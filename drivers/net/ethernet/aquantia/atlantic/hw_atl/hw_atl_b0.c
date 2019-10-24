@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File hw_atl_b0.c: Definition of Atlantic hardware specific functions. */
@@ -10,6 +10,7 @@
 #include "../aq_hw_utils.h"
 #include "../aq_ring.h"
 #include "../aq_nic.h"
+#include "../aq_phy.h"
 #include "hw_atl_b0.h"
 #include "hw_atl_utils.h"
 #include "hw_atl_llh.h"
@@ -48,6 +49,8 @@
 	.mtu = HW_ATL_B0_MTU_JUMBO,	  \
 	.mac_regs_count = 88,		  \
 	.hw_alive_check_addr = 0x10U
+
+#define FRAC_PER_NS 0x100000000LL
 
 const struct aq_hw_caps_s hw_atl_b0_caps_aqc100 = {
 	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
@@ -124,13 +127,16 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 	hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(self, 0U);
 	hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, 0U);
 
-	hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF, 0U);
-	hw_atl_tps_tx_pkt_shed_tc_data_weight_set(self, 0x64, 0U);
-	hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, 0x50, 0U);
-	hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0x1E, 0U);
+	tc = 0;
 
-	/* Tx buf size */
-	buff_size = HW_ATL_B0_TXBUF_MAX;
+	/* TX Packet Scheduler Data TC0 */
+	hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF, tc);
+	hw_atl_tps_tx_pkt_shed_tc_data_weight_set(self, 0x64, tc);
+	hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, 0x50, tc);
+	hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0x1E, tc);
+
+	/* Tx buf size TC0 */
+	buff_size = HW_ATL_B0_TXBUF_MAX - HW_ATL_B0_PTP_TXBUF_SIZE;
 
 	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, buff_size, tc);
 	hw_atl_tpb_tx_buff_hi_threshold_per_tc_set(self,
@@ -141,10 +147,15 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 						   (buff_size *
 						   (1024 / 32U) * 50U) /
 						   100U, tc);
+	/* Init TC2 for PTP_TX */
+	tc = 2;
+
+	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_TXBUF_SIZE,
+					       tc);
 
 	/* QoS Rx buf size per TC */
 	tc = 0;
-	buff_size = HW_ATL_B0_RXBUF_MAX;
+	buff_size = HW_ATL_B0_RXBUF_MAX - HW_ATL_B0_PTP_RXBUF_SIZE;
 
 	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, buff_size, tc);
 	hw_atl_rpb_rx_buff_hi_threshold_per_tc_set(self,
@@ -157,6 +168,14 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 						   100U, tc);
 
 	hw_atl_b0_set_fc(self, self->aq_nic_cfg->flow_control, tc);
+
+	/* Init TC2 for PTP_RX */
+	tc = 2;
+
+	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_RXBUF_SIZE,
+					       tc);
+	/* No flow control for PTP */
+	hw_atl_rpb_rx_xoff_en_per_tc_set(self, 0U, tc);
 
 	/* QoS 802.1p priority -> TC mapping */
 	for (i_priority = 8U; i_priority--;)
@@ -664,6 +683,46 @@ static int hw_atl_b0_hw_ring_rx_fill(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
+static int hw_atl_b0_hw_ring_hwts_rx_fill(struct aq_hw_s *self,
+					  struct aq_ring_s *ring)
+{
+	unsigned int i;
+
+	for (i = aq_ring_avail_dx(ring); i--;
+			ring->sw_tail = aq_ring_next_dx(ring, ring->sw_tail)) {
+		struct hw_atl_rxd_s *rxd =
+			(struct hw_atl_rxd_s *)
+			&ring->dx_ring[ring->sw_tail * HW_ATL_B0_RXD_SIZE];
+
+		rxd->buf_addr = ring->dx_ring_pa + ring->size * ring->dx_size;
+		rxd->hdr_addr = 0U;
+	}
+	/* Make sure descriptors are updated before bump tail*/
+	wmb();
+
+	hw_atl_reg_rx_dma_desc_tail_ptr_set(self, ring->sw_tail, ring->idx);
+
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl_b0_hw_ring_hwts_rx_receive(struct aq_hw_s *self,
+					     struct aq_ring_s *ring)
+{
+	while (ring->hw_head != ring->sw_tail) {
+		struct hw_atl_rxd_hwts_wb_s *hwts_wb =
+			(struct hw_atl_rxd_hwts_wb_s *)
+			(ring->dx_ring + (ring->hw_head * HW_ATL_B0_RXD_SIZE));
+
+		/* RxD is not done */
+		if (!(hwts_wb->sec_lw0 & 0x1U))
+			break;
+
+		ring->hw_head = aq_ring_next_dx(ring, ring->hw_head);
+	}
+
+	return aq_hw_err_from_flags(self);
+}
+
 static int hw_atl_b0_hw_ring_tx_head_update(struct aq_hw_s *self,
 					    struct aq_ring_s *ring)
 {
@@ -1005,6 +1064,228 @@ static int hw_atl_b0_hw_ring_rx_stop(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
+static int hw_atl_b0_tx_tc_mode_get(struct aq_hw_s *self, u32 *tc_mode)
+{
+	*tc_mode = hw_atl_rpb_tps_tx_tc_mode_get(self);
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl_b0_rx_tc_mode_get(struct aq_hw_s *self, u32 *tc_mode)
+{
+	*tc_mode = hw_atl_rpb_rpf_rx_traf_class_mode_get(self);
+	return aq_hw_err_from_flags(self);
+}
+
+#define get_ptp_ts_val_u64(self, indx) \
+	((u64)(hw_atl_pcs_ptp_clock_get(self, indx) & 0xffff))
+
+static void hw_atl_b0_get_ptp_ts(struct aq_hw_s *self, u64 *stamp)
+{
+	u64 ns;
+
+	hw_atl_pcs_ptp_clock_read_enable(self, 1);
+	hw_atl_pcs_ptp_clock_read_enable(self, 0);
+	ns = (get_ptp_ts_val_u64(self, 0) +
+	      (get_ptp_ts_val_u64(self, 1) << 16)) * NSEC_PER_SEC +
+	     (get_ptp_ts_val_u64(self, 3) +
+	      (get_ptp_ts_val_u64(self, 4) << 16));
+
+	*stamp = ns + self->ptp_clk_offset;
+}
+
+static void hw_atl_b0_adj_params_get(u64 freq, s64 adj, u32 *ns, u32 *fns)
+{
+	/* For accuracy, the digit is extended */
+	s64 base_ns = ((adj + NSEC_PER_SEC) * NSEC_PER_SEC);
+	u64 nsi_frac = 0;
+	u64 nsi;
+
+	base_ns = div64_s64(base_ns, freq);
+	nsi = div64_u64(base_ns, NSEC_PER_SEC);
+
+	if (base_ns != nsi * NSEC_PER_SEC) {
+		s64 divisor = div64_s64((s64)NSEC_PER_SEC * NSEC_PER_SEC,
+					base_ns - nsi * NSEC_PER_SEC);
+		nsi_frac = div64_s64(FRAC_PER_NS * NSEC_PER_SEC, divisor);
+	}
+
+	*ns = (u32)nsi;
+	*fns = (u32)nsi_frac;
+}
+
+static void
+hw_atl_b0_mac_adj_param_calc(struct hw_fw_request_ptp_adj_freq *ptp_adj_freq,
+			     u64 phyfreq, u64 macfreq)
+{
+	s64 adj_fns_val;
+	s64 fns_in_sec_phy = phyfreq * (ptp_adj_freq->fns_phy +
+					FRAC_PER_NS * ptp_adj_freq->ns_phy);
+	s64 fns_in_sec_mac = macfreq * (ptp_adj_freq->fns_mac +
+					FRAC_PER_NS * ptp_adj_freq->ns_mac);
+	s64 fault_in_sec_phy = FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_phy;
+	s64 fault_in_sec_mac = FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_mac;
+	/* MAC MCP counter freq is macfreq / 4 */
+	s64 diff_in_mcp_overflow = (fault_in_sec_mac - fault_in_sec_phy) *
+				   4 * FRAC_PER_NS;
+
+	diff_in_mcp_overflow = div64_s64(diff_in_mcp_overflow,
+					 AQ_HW_MAC_COUNTER_HZ);
+	adj_fns_val = (ptp_adj_freq->fns_mac + FRAC_PER_NS *
+		       ptp_adj_freq->ns_mac) + diff_in_mcp_overflow;
+
+	ptp_adj_freq->mac_ns_adj = div64_s64(adj_fns_val, FRAC_PER_NS);
+	ptp_adj_freq->mac_fns_adj = adj_fns_val - ptp_adj_freq->mac_ns_adj *
+				    FRAC_PER_NS;
+}
+
+static int hw_atl_b0_adj_sys_clock(struct aq_hw_s *self, s64 delta)
+{
+	self->ptp_clk_offset += delta;
+
+	return 0;
+}
+
+static int hw_atl_b0_set_sys_clock(struct aq_hw_s *self, u64 time, u64 ts)
+{
+	s64 delta = time - (self->ptp_clk_offset + ts);
+
+	return hw_atl_b0_adj_sys_clock(self, delta);
+}
+
+int hw_atl_b0_ts_to_sys_clock(struct aq_hw_s *self, u64 ts, u64 *time)
+{
+	*time = self->ptp_clk_offset + ts;
+	return 0;
+}
+
+static int hw_atl_b0_adj_clock_freq(struct aq_hw_s *self, s32 ppb)
+{
+	struct hw_fw_request_iface fwreq;
+	size_t size;
+
+	memset(&fwreq, 0, sizeof(fwreq));
+
+	fwreq.msg_id = HW_AQ_FW_REQUEST_PTP_ADJ_FREQ;
+	hw_atl_b0_adj_params_get(AQ_HW_MAC_COUNTER_HZ, ppb,
+				 &fwreq.ptp_adj_freq.ns_mac,
+				 &fwreq.ptp_adj_freq.fns_mac);
+	hw_atl_b0_adj_params_get(AQ_HW_PHY_COUNTER_HZ, ppb,
+				 &fwreq.ptp_adj_freq.ns_phy,
+				 &fwreq.ptp_adj_freq.fns_phy);
+	hw_atl_b0_mac_adj_param_calc(&fwreq.ptp_adj_freq,
+				     AQ_HW_PHY_COUNTER_HZ,
+				     AQ_HW_MAC_COUNTER_HZ);
+
+	size = sizeof(fwreq.msg_id) + sizeof(fwreq.ptp_adj_freq);
+	return self->aq_fw_ops->send_fw_request(self, &fwreq, size);
+}
+
+static int hw_atl_b0_gpio_pulse(struct aq_hw_s *self, u32 index,
+				u64 start, u32 period)
+{
+	struct hw_fw_request_iface fwreq;
+	size_t size;
+
+	memset(&fwreq, 0, sizeof(fwreq));
+
+	fwreq.msg_id = HW_AQ_FW_REQUEST_PTP_GPIO_CTRL;
+	fwreq.ptp_gpio_ctrl.index = index;
+	fwreq.ptp_gpio_ctrl.period = period;
+	/* Apply time offset */
+	fwreq.ptp_gpio_ctrl.start = start - self->ptp_clk_offset;
+
+	size = sizeof(fwreq.msg_id) + sizeof(fwreq.ptp_gpio_ctrl);
+	return self->aq_fw_ops->send_fw_request(self, &fwreq, size);
+}
+
+static int hw_atl_b0_extts_gpio_enable(struct aq_hw_s *self, u32 index,
+				       u32 enable)
+{
+	/* Enable/disable Sync1588 GPIO Timestamping */
+	aq_phy_write_reg(self, MDIO_MMD_PCS, 0xc611, enable ? 0x71 : 0);
+
+	return 0;
+}
+
+static int hw_atl_b0_get_sync_ts(struct aq_hw_s *self, u64 *ts)
+{
+	u64 sec_l;
+	u64 sec_h;
+	u64 nsec_l;
+	u64 nsec_h;
+
+	if (!ts)
+		return -1;
+
+	/* PTP external GPIO clock seconds count 15:0 */
+	sec_l = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc914);
+	/* PTP external GPIO clock seconds count 31:16 */
+	sec_h = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc915);
+	/* PTP external GPIO clock nanoseconds count 15:0 */
+	nsec_l = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc916);
+	/* PTP external GPIO clock nanoseconds count 31:16 */
+	nsec_h = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc917);
+
+	*ts = (nsec_h << 16) + nsec_l + ((sec_h << 16) + sec_l) * NSEC_PER_SEC;
+
+	return 0;
+}
+
+static u16 hw_atl_b0_rx_extract_ts(struct aq_hw_s *self, u8 *p,
+				   unsigned int len, u64 *timestamp)
+{
+	unsigned int offset = 14;
+	struct ethhdr *eth;
+	u64 sec;
+	u8 *ptr;
+	u32 ns;
+
+	if (len <= offset || !timestamp)
+		return 0;
+
+	/* The TIMESTAMP in the end of package has following format:
+	 * (big-endian)
+	 *   struct {
+	 *     uint64_t sec;
+	 *     uint32_t ns;
+	 *     uint16_t stream_id;
+	 *   };
+	 */
+	ptr = p + (len - offset);
+	memcpy(&sec, ptr, sizeof(sec));
+	ptr += sizeof(sec);
+	memcpy(&ns, ptr, sizeof(ns));
+
+	sec = be64_to_cpu(sec) & 0xffffffffffffllu;
+	ns = be32_to_cpu(ns);
+	*timestamp = sec * NSEC_PER_SEC + ns + self->ptp_clk_offset;
+
+	eth = (struct ethhdr *)p;
+
+	return (eth->h_proto == htons(ETH_P_1588)) ? 12 : 14;
+}
+
+static int hw_atl_b0_extract_hwts(struct aq_hw_s *self, u8 *p, unsigned int len,
+				  u64 *timestamp)
+{
+	struct hw_atl_rxd_hwts_wb_s *hwts_wb = (struct hw_atl_rxd_hwts_wb_s *)p;
+	u64 tmp, sec, ns;
+
+	sec = 0;
+	tmp = (hwts_wb->sec_lw0 >> 2) & 0x3ff;
+	sec += tmp;
+	tmp = (u64)((hwts_wb->sec_lw1 >> 16) & 0xffff) << 10;
+	sec += tmp;
+	tmp = (u64)(hwts_wb->sec_hw & 0xfff) << 26;
+	sec += tmp;
+	tmp = (u64)((hwts_wb->sec_hw >> 22) & 0x3ff) << 38;
+	sec += tmp;
+	ns = sec * NSEC_PER_SEC + hwts_wb->ns;
+	if (timestamp)
+		*timestamp = ns + self->ptp_clk_offset;
+	return 0;
+}
+
 static int hw_atl_b0_hw_fl3l4_clear(struct aq_hw_s *self,
 				    struct aq_rx_filter_l3l4 *data)
 {
@@ -1038,7 +1319,8 @@ static int hw_atl_b0_hw_fl3l4_set(struct aq_hw_s *self,
 
 	hw_atl_b0_hw_fl3l4_clear(self, data);
 
-	if (data->cmd) {
+	if (data->cmd & (HW_ATL_RX_ENABLE_CMP_DEST_ADDR_L3 |
+			 HW_ATL_RX_ENABLE_CMP_SRC_ADDR_L3)) {
 		if (!data->is_ipv6) {
 			hw_atl_rpfl3l4_ipv4_dest_addr_set(self,
 							  location,
@@ -1055,8 +1337,13 @@ static int hw_atl_b0_hw_fl3l4_set(struct aq_hw_s *self,
 							 data->ip_src);
 		}
 	}
-	hw_atl_rpf_l4_dpd_set(self, data->p_dst, location);
-	hw_atl_rpf_l4_spd_set(self, data->p_src, location);
+
+	if (data->cmd & (HW_ATL_RX_ENABLE_CMP_DEST_PORT_L4 |
+			 HW_ATL_RX_ENABLE_CMP_SRC_PORT_L4)) {
+		hw_atl_rpf_l4_dpd_set(self, data->p_dst, location);
+		hw_atl_rpf_l4_spd_set(self, data->p_src, location);
+	}
+
 	hw_atl_rpfl3l4_cmd_set(self, location, data->cmd);
 
 	return aq_hw_err_from_flags(self);
@@ -1177,6 +1464,23 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_get_regs                 = hw_atl_utils_hw_get_regs,
 	.hw_get_hw_stats             = hw_atl_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
-	.hw_set_offload              = hw_atl_b0_hw_offload_set,
+
+	.hw_tx_tc_mode_get       = hw_atl_b0_tx_tc_mode_get,
+	.hw_rx_tc_mode_get       = hw_atl_b0_rx_tc_mode_get,
+
+	.hw_ring_hwts_rx_fill        = hw_atl_b0_hw_ring_hwts_rx_fill,
+	.hw_ring_hwts_rx_receive     = hw_atl_b0_hw_ring_hwts_rx_receive,
+
+	.hw_get_ptp_ts           = hw_atl_b0_get_ptp_ts,
+	.hw_adj_sys_clock        = hw_atl_b0_adj_sys_clock,
+	.hw_set_sys_clock        = hw_atl_b0_set_sys_clock,
+	.hw_ts_to_sys_clock      = hw_atl_b0_ts_to_sys_clock,
+	.hw_adj_clock_freq       = hw_atl_b0_adj_clock_freq,
+	.hw_gpio_pulse           = hw_atl_b0_gpio_pulse,
+	.hw_extts_gpio_enable    = hw_atl_b0_extts_gpio_enable,
+	.hw_get_sync_ts          = hw_atl_b0_get_sync_ts,
+	.rx_extract_ts           = hw_atl_b0_rx_extract_ts,
+	.extract_hwts            = hw_atl_b0_extract_hwts,
+	.hw_set_offload          = hw_atl_b0_hw_offload_set,
 	.hw_set_fc                   = hw_atl_b0_set_fc,
 };
