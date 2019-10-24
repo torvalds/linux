@@ -498,7 +498,7 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 		return;
 	}
 
-	/*create a new connetor*/
+	/*create a new connector*/
 	dsi_connector = kzalloc(sizeof(struct mdfld_dsi_connector), GFP_KERNEL);
 	if (!dsi_connector) {
 		DRM_ERROR("No memory");
