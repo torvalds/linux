@@ -3705,6 +3705,52 @@ static const struct file_operations hisi_sas_debugfs_bist_enable_ops = {
 	.owner = THIS_MODULE,
 };
 
+static ssize_t hisi_sas_debugfs_phy_down_cnt_write(struct file *filp,
+						   const char __user *buf,
+						   size_t count, loff_t *ppos)
+{
+	struct seq_file *s = filp->private_data;
+	struct hisi_sas_phy *phy = s->private;
+	unsigned int set_val;
+	int res;
+
+	res = kstrtouint_from_user(buf, count, 0, &set_val);
+	if (res)
+		return res;
+
+	if (set_val > 0)
+		return -EINVAL;
+
+	atomic_set(&phy->down_cnt, 0);
+
+	return count;
+}
+
+static int hisi_sas_debugfs_phy_down_cnt_show(struct seq_file *s, void *p)
+{
+	struct hisi_sas_phy *phy = s->private;
+
+	seq_printf(s, "%d\n", atomic_read(&phy->down_cnt));
+
+	return 0;
+}
+
+static int hisi_sas_debugfs_phy_down_cnt_open(struct inode *inode,
+					      struct file *filp)
+{
+	return single_open(filp, hisi_sas_debugfs_phy_down_cnt_show,
+			   inode->i_private);
+}
+
+static const struct file_operations hisi_sas_debugfs_phy_down_cnt_ops = {
+	.open = hisi_sas_debugfs_phy_down_cnt_open,
+	.read = seq_read,
+	.write = hisi_sas_debugfs_phy_down_cnt_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
 void hisi_sas_debugfs_work_handler(struct work_struct *work)
 {
 	struct hisi_hba *hisi_hba =
@@ -3839,6 +3885,21 @@ fail:
 	return -ENOMEM;
 }
 
+static void hisi_sas_debugfs_phy_down_cnt_init(struct hisi_hba *hisi_hba)
+{
+	struct dentry *dir = debugfs_create_dir("phy_down_cnt",
+						hisi_hba->debugfs_dir);
+	char name[16];
+	int phy_no;
+
+	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
+		snprintf(name, 16, "%d", phy_no);
+		debugfs_create_file(name, 0600, dir,
+				    &hisi_hba->phy[phy_no],
+				    &hisi_sas_debugfs_phy_down_cnt_ops);
+	}
+}
+
 static void hisi_sas_debugfs_bist_init(struct hisi_hba *hisi_hba)
 {
 	hisi_hba->debugfs_bist_dentry =
@@ -3884,6 +3945,8 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 
 	hisi_hba->debugfs_dump_dentry =
 			debugfs_create_dir("dump", hisi_hba->debugfs_dir);
+
+	hisi_sas_debugfs_phy_down_cnt_init(hisi_hba);
 
 	for (i = 0; i < hisi_sas_debugfs_dump_count; i++) {
 		if (hisi_sas_debugfs_alloc(hisi_hba, i)) {

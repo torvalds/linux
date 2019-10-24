@@ -169,6 +169,7 @@ struct hisi_sas_phy {
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
 	int enable;
+	atomic_t down_cnt;
 };
 
 struct hisi_sas_port {
