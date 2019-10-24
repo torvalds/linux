@@ -578,7 +578,7 @@ static int ffsLookupFile(struct inode *inode, char *path, struct file_id_t *fid)
 	dentry = p_fs->fs_func->find_dir_entry(sb, &dir, &uni_name, num_entries,
 					       &dos_name, TYPE_ALL);
 	if (dentry < -1) {
-		ret = FFS_NOTFOUND;
+		ret = -ENOENT;
 		goto out;
 	}
 
@@ -2701,7 +2701,7 @@ static int exfat_rmdir(struct inode *dir, struct dentry *dentry)
 			err = -EINVAL;
 		else if (err == FFS_FILEEXIST)
 			err = -ENOTEMPTY;
-		else if (err == FFS_NOTFOUND)
+		else if (err == -ENOENT)
 			err = -ENOENT;
 		else if (err == FFS_DIRBUSY)
 			err = -EBUSY;
@@ -2758,7 +2758,7 @@ static int exfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 			err = -EINVAL;
 		else if (err == FFS_FILEEXIST)
 			err = -EEXIST;
-		else if (err == FFS_NOTFOUND)
+		else if (err == -ENOENT)
 			err = -ENOENT;
 		else if (err == -ENOSPC)
 			err = -ENOSPC;

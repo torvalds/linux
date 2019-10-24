@@ -216,7 +216,6 @@ static inline u16 get_row_index(u16 i)
 #define FFS_SEMAPHOREERR        6
 #define FFS_INVALIDPATH         7
 #define FFS_INVALIDFID          8
-#define FFS_NOTFOUND            9
 #define FFS_FILEEXIST           10
 #define FFS_PERMISSIONERR       11
 #define FFS_NOTOPENED           12
