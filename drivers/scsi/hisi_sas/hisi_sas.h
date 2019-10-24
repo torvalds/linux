@@ -343,6 +343,10 @@ struct hisi_sas_debugfs_port {
 	u32 *data;
 };
 
+struct hisi_sas_debugfs_iost {
+	struct hisi_sas_iost *iost;
+};
+
 struct hisi_hba {
 	/* This must be the first element, used by SHOST_TO_SAS_HA */
 	struct sas_ha_struct *p;
@@ -428,7 +432,7 @@ struct hisi_hba {
 	struct hisi_sas_debugfs_port debugfs_port_reg[HISI_SAS_MAX_PHYS];
 	struct hisi_sas_debugfs_cq debugfs_cq[HISI_SAS_MAX_QUEUES];
 	struct hisi_sas_debugfs_dq debugfs_dq[HISI_SAS_MAX_QUEUES];
-	struct hisi_sas_iost *debugfs_iost;
+	struct hisi_sas_debugfs_iost debugfs_iost;
 	struct hisi_sas_itct *debugfs_itct;
 	u64 *debugfs_iost_cache;
 	u64 debugfs_timestamp;

@@ -2801,7 +2801,7 @@ static void hisi_sas_debugfs_snapshot_iost_reg(struct hisi_hba *hisi_hba)
 {
 	int max_command_entries = HISI_SAS_MAX_COMMANDS;
 	void *cachebuf = hisi_hba->debugfs_iost_cache;
-	void *databuf = hisi_hba->debugfs_iost;
+	void *databuf = hisi_hba->debugfs_iost.iost;
 	struct hisi_sas_iost *iost;
 	int i;
 
@@ -3060,14 +3060,14 @@ static const struct file_operations hisi_sas_debugfs_dq_fops = {
 
 static int hisi_sas_debugfs_iost_show(struct seq_file *s, void *p)
 {
-	struct hisi_hba *hisi_hba = s->private;
-	struct hisi_sas_iost *debugfs_iost = hisi_hba->debugfs_iost;
+	struct hisi_sas_debugfs_iost *debugfs_iost = s->private;
+	struct hisi_sas_iost *iost = debugfs_iost->iost;
 	int i, max_command_entries = HISI_SAS_MAX_COMMANDS;
 
-	for (i = 0; i < max_command_entries; i++, debugfs_iost++) {
-		__le64 *iost = &debugfs_iost->qw0;
+	for (i = 0; i < max_command_entries; i++, iost++) {
+		__le64 *data = &iost->qw0;
 
-		hisi_sas_show_row_64(s, i, sizeof(*debugfs_iost), iost);
+		hisi_sas_show_row_64(s, i, sizeof(*iost), data);
 	}
 
 	return 0;
@@ -3246,7 +3246,8 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 				    &hisi_sas_debugfs_dq_fops);
 	}
 
-	debugfs_create_file("iost", 0400, dump_dentry, hisi_hba,
+	debugfs_create_file("iost", 0400, dump_dentry,
+			    &hisi_hba->debugfs_iost,
 			    &hisi_sas_debugfs_iost_fops);
 
 	debugfs_create_file("iost_cache", 0400, dump_dentry, hisi_hba,
@@ -3716,7 +3717,7 @@ static void hisi_sas_debugfs_release(struct hisi_hba *hisi_hba)
 
 	devm_kfree(dev, hisi_hba->debugfs_iost_cache);
 	devm_kfree(dev, hisi_hba->debugfs_itct_cache);
-	devm_kfree(dev, hisi_hba->debugfs_iost);
+	devm_kfree(dev, hisi_hba->debugfs_iost.iost);
 
 	for (i = 0; i < hisi_hba->queue_count; i++)
 		devm_kfree(dev, hisi_hba->debugfs_dq[i].hdr);
@@ -3784,8 +3785,8 @@ static int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba)
 
 	sz = HISI_SAS_MAX_COMMANDS * sizeof(struct hisi_sas_iost);
 
-	hisi_hba->debugfs_iost = devm_kmalloc(dev, sz, GFP_KERNEL);
-	if (!hisi_hba->debugfs_iost)
+	hisi_hba->debugfs_iost.iost = devm_kmalloc(dev, sz, GFP_KERNEL);
+	if (!hisi_hba->debugfs_iost.iost)
 		goto fail;
 
 	sz = HISI_SAS_IOST_ITCT_CACHE_NUM *
