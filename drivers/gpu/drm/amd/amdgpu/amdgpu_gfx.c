@@ -485,6 +485,19 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
 	return amdgpu_ring_test_helper(kiq_ring);
 }
 
+int amdgpu_gfx_kcq_queue_mask_transform(struct amdgpu_device *adev,
+					int queue_bit)
+{
+	int mec, pipe, queue;
+	int queue_kcq_bit = 0;
+
+	amdgpu_gfx_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
+
+	queue_kcq_bit = mec * 4 * 8 + pipe * 8 + queue;
+
+	return queue_kcq_bit;
+}
+
 int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 {
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
@@ -507,7 +520,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 			break;
 		}
 
-		queue_mask |= (1ull << i);
+		queue_mask |= (1ull << amdgpu_gfx_kcq_queue_mask_transform(adev, i));
 	}
 
 	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
