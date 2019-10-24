@@ -108,6 +108,7 @@
 &dss {
 	status = "ok";
 	vdds_dsi-supply = <&vpll2>;
+	vdda_video-supply = <&vpll2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&dss_dpi_pins1>;
 	port {

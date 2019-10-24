@@ -393,20 +393,20 @@
 			};
 		};
 
-		ocmcram: ocmcram@40300000 {
+		ocmcram: sram@40300000 {
 			compatible = "mmio-sram";
 			reg = <0x40300000 0x10000>; /* 64k */
 			ranges = <0x0 0x40300000 0x10000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			pm_sram_code: pm-sram-code@0 {
+			pm_sram_code: pm-code-sram@0 {
 				compatible = "ti,sram";
 				reg = <0x0 0x1000>;
 				protect-exec;
 			};
 
-			pm_sram_data: pm-sram-data@1000 {
+			pm_sram_data: pm-data-sram@1000 {
 				compatible = "ti,sram";
 				reg = <0x1000 0x1000>;
 				pool;

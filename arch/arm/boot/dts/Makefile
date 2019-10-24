@@ -756,6 +756,9 @@ dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-moxa-uc-2101.dtb \
 	am335x-moxa-uc-8100-me-t.dtb \
 	am335x-nano.dtb \
+	am335x-netcan-plus-1xx.dtb \
+	am335x-netcom-plus-2xx.dtb \
+	am335x-netcom-plus-8xx.dtb \
 	am335x-pdu001.dtb \
 	am335x-pepper.dtb \
 	am335x-phycore-rdk.dtb \
@@ -768,6 +771,7 @@ dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-wega-rdk.dtb \
 	am335x-osd3358-sm-red.dtb
 dtb-$(CONFIG_ARCH_OMAP4) += \
+	omap4-droid-bionic-xt875.dtb \
 	omap4-droid4-xt894.dtb \
 	omap4-duovero-parlor.dtb \
 	omap4-kc1.dtb \

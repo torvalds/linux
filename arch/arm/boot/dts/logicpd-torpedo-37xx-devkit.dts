@@ -50,6 +50,20 @@
 	};
 };
 
+&uart2 {
+	/delete-property/dma-names;
+	bluetooth {
+		compatible = "ti,wl1283-st";
+		enable-gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>; /* gpio 162 */
+		max-speed = <3000000>;
+	};
+};
+
+/* The DM3730 has a faster L3 than OMAP35, so increase pixel clock */
+&mt9p031_out {
+	pixel-clock-frequency = <90000000>;
+};
+
 &omap3_pmx_core {
 	mmc3_pins: pinmux_mm3_pins {
 		pinctrl-single,pins = <
