@@ -55,6 +55,8 @@
 #include "display/intel_tv.h"
 #include "display/intel_vdsc.h"
 
+#include "gt/intel_rps.h"
+
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_acpi.h"
@@ -14944,7 +14946,7 @@ static int do_rps_boost(struct wait_queue_entry *_wait,
 	 * vblank without our intervention, so leave RPS alone.
 	 */
 	if (!i915_request_started(rq))
-		gen6_rps_boost(rq);
+		intel_rps_boost(rq);
 	i915_request_put(rq);
 
 	drm_crtc_vblank_put(wait->crtc);
@@ -15138,7 +15140,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	 * maximum clocks following a vblank miss (see do_rps_boost()).
 	 */
 	if (!intel_state->rps_interactive) {
-		intel_rps_mark_interactive(dev_priv, true);
+		intel_rps_mark_interactive(&dev_priv->gt.rps, true);
 		intel_state->rps_interactive = true;
 	}
 
@@ -15163,7 +15165,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 
 	if (intel_state->rps_interactive) {
-		intel_rps_mark_interactive(dev_priv, false);
+		intel_rps_mark_interactive(&dev_priv->gt.rps, false);
 		intel_state->rps_interactive = false;
 	}
 

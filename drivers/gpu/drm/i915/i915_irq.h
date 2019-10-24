@@ -22,9 +22,6 @@ struct intel_gt;
 struct intel_guc;
 struct intel_uncore;
 
-void gen11_rps_irq_handler(struct intel_gt *gt, u32 pm_iir);
-void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
-
 void intel_irq_init(struct drm_i915_private *dev_priv);
 void intel_irq_fini(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);

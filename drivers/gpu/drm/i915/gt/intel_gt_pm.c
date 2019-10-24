@@ -12,8 +12,10 @@
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
+#include "intel_llc.h"
 #include "intel_pm.h"
 #include "intel_rc6.h"
+#include "intel_rps.h"
 #include "intel_wakeref.h"
 
 static int __gt_unpark(struct intel_wakeref *wf)
@@ -39,12 +41,7 @@ static int __gt_unpark(struct intel_wakeref *wf)
 	gt->awake = intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
 	GEM_BUG_ON(!gt->awake);
 
-	intel_enable_gt_powersave(i915);
-
-	i915_update_gfx_val(i915);
-	if (INTEL_GEN(i915) >= 6)
-		gen6_rps_busy(i915);
-
+	intel_rps_unpark(&gt->rps);
 	i915_pmu_gt_unparked(i915);
 
 	intel_gt_unpark_requests(gt);
@@ -64,8 +61,7 @@ static int __gt_park(struct intel_wakeref *wf)
 
 	i915_vma_parked(gt);
 	i915_pmu_gt_parked(i915);
-	if (INTEL_GEN(i915) >= 6)
-		gen6_rps_idle(i915);
+	intel_rps_park(&gt->rps);
 
 	/* Everything switched off, flush any residual interrupt just in case */
 	intel_synchronize_irq(i915);
@@ -97,6 +93,7 @@ void intel_gt_pm_init(struct intel_gt *gt)
 	 * user.
 	 */
 	intel_rc6_init(&gt->rc6);
+	intel_rps_init(&gt->rps);
 }
 
 static bool reset_engines(struct intel_gt *gt)
@@ -140,12 +137,6 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 			engine->reset.finish(engine);
 }
 
-void intel_gt_pm_disable(struct intel_gt *gt)
-{
-	if (!is_mock_gt(gt))
-		intel_sanitize_gt_powersave(gt->i915);
-}
-
 void intel_gt_pm_fini(struct intel_gt *gt)
 {
 	intel_rc6_fini(&gt->rc6);
@@ -164,8 +155,12 @@ int intel_gt_resume(struct intel_gt *gt)
 	 * allowing us to fixup the user contexts on their first pin.
 	 */
 	intel_gt_pm_get(gt);
+
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	intel_rc6_sanitize(&gt->rc6);
+
+	intel_rps_enable(&gt->rps);
+	intel_llc_enable(&gt->llc);
 
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
@@ -217,8 +212,11 @@ void intel_gt_suspend(struct intel_gt *gt)
 	/* We expect to be idle already; but also want to be independent */
 	wait_for_idle(gt);
 
-	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref) {
+		intel_rps_disable(&gt->rps);
 		intel_rc6_disable(&gt->rc6);
+		intel_llc_disable(&gt->llc);
+	}
 }
 
 void intel_gt_runtime_suspend(struct intel_gt *gt)

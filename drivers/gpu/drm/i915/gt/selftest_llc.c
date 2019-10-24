@@ -6,6 +6,7 @@
 
 #include "intel_pm.h" /* intel_gpu_freq() */
 #include "selftest_llc.h"
+#include "intel_rps.h"
 
 static int gen6_verify_ring_freq(struct intel_llc *llc)
 {
@@ -25,6 +26,8 @@ static int gen6_verify_ring_freq(struct intel_llc *llc)
 	for (gpu_freq = consts.min_gpu_freq;
 	     gpu_freq <= consts.max_gpu_freq;
 	     gpu_freq++) {
+		struct intel_rps *rps = &llc_to_gt(llc)->rps;
+
 		unsigned int ia_freq, ring_freq, found;
 		u32 val;
 
@@ -44,7 +47,7 @@ static int gen6_verify_ring_freq(struct intel_llc *llc)
 		if (found != ia_freq) {
 			pr_err("Min freq table(%d/[%d, %d]):%dMHz did not match expected CPU freq, found %d, expected %d\n",
 			       gpu_freq, consts.min_gpu_freq, consts.max_gpu_freq,
-			       intel_gpu_freq(i915, gpu_freq * (INTEL_GEN(i915) >= 9 ? GEN9_FREQ_SCALER : 1)),
+			       intel_gpu_freq(rps, gpu_freq * (INTEL_GEN(i915) >= 9 ? GEN9_FREQ_SCALER : 1)),
 			       found, ia_freq);
 			err = -EINVAL;
 			break;
@@ -54,7 +57,7 @@ static int gen6_verify_ring_freq(struct intel_llc *llc)
 		if (found != ring_freq) {
 			pr_err("Min freq table(%d/[%d, %d]):%dMHz did not match expected ring freq, found %d, expected %d\n",
 			       gpu_freq, consts.min_gpu_freq, consts.max_gpu_freq,
-			       intel_gpu_freq(i915, gpu_freq * (INTEL_GEN(i915) >= 9 ? GEN9_FREQ_SCALER : 1)),
+			       intel_gpu_freq(rps, gpu_freq * (INTEL_GEN(i915) >= 9 ? GEN9_FREQ_SCALER : 1)),
 			       found, ring_freq);
 			err = -EINVAL;
 			break;

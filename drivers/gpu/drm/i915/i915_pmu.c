@@ -12,6 +12,7 @@
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_rc6.h"
+#include "gt/intel_rps.h"
 
 #include "i915_drv.h"
 #include "i915_pmu.h"
@@ -358,25 +359,26 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uncore *uncore = gt->uncore;
 	struct i915_pmu *pmu = &i915->pmu;
+	struct intel_rps *rps = &gt->rps;
 
 	if (pmu->enable & config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY)) {
 		u32 val;
 
-		val = i915->gt_pm.rps.cur_freq;
+		val = rps->cur_freq;
 		if (intel_gt_pm_get_if_awake(gt)) {
 			val = intel_uncore_read_notrace(uncore, GEN6_RPSTAT1);
-			val = intel_get_cagf(i915, val);
+			val = intel_get_cagf(rps, val);
 			intel_gt_pm_put(gt);
 		}
 
 		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_ACT],
-				intel_gpu_freq(i915, val),
+				intel_gpu_freq(rps, val),
 				period_ns / 1000);
 	}
 
 	if (pmu->enable & config_enabled_mask(I915_PMU_REQUESTED_FREQUENCY)) {
 		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_REQ],
-				intel_gpu_freq(i915, i915->gt_pm.rps.cur_freq),
+				intel_gpu_freq(rps, rps->cur_freq),
 				period_ns / 1000);
 	}
 }

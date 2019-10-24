@@ -52,6 +52,7 @@
 #include "gt/intel_mocs.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_renderstate.h"
+#include "gt/intel_rps.h"
 #include "gt/intel_workarounds.h"
 
 #include "i915_drv.h"
@@ -1268,8 +1269,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		GEM_BUG_ON(ret == -EIO);
 		goto err_context;
 	}
-
-	intel_init_gt_powersave(dev_priv);
 
 	intel_uc_init(&dev_priv->gt.uc);
 

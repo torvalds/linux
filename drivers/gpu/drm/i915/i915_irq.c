@@ -45,6 +45,7 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_irq.h"
 #include "gt/intel_gt_pm_irq.h"
+#include "gt/intel_rps.h"
 
 #include "i915_drv.h"
 #include "i915_irq.h"
@@ -325,87 +326,6 @@ static i915_reg_t gen6_pm_iir(struct drm_i915_private *dev_priv)
 	WARN_ON_ONCE(INTEL_GEN(dev_priv) >= 11);
 
 	return INTEL_GEN(dev_priv) >= 8 ? GEN8_GT_IIR(2) : GEN6_PMIIR;
-}
-
-void gen11_reset_rps_interrupts(struct drm_i915_private *dev_priv)
-{
-	struct intel_gt *gt = &dev_priv->gt;
-
-	spin_lock_irq(&gt->irq_lock);
-
-	while (gen11_gt_reset_one_iir(gt, 0, GEN11_GTPM))
-		;
-
-	dev_priv->gt_pm.rps.pm_iir = 0;
-
-	spin_unlock_irq(&gt->irq_lock);
-}
-
-void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv)
-{
-	struct intel_gt *gt = &dev_priv->gt;
-
-	spin_lock_irq(&gt->irq_lock);
-	gen6_gt_pm_reset_iir(gt, GEN6_PM_RPS_EVENTS);
-	dev_priv->gt_pm.rps.pm_iir = 0;
-	spin_unlock_irq(&gt->irq_lock);
-}
-
-void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
-{
-	struct intel_gt *gt = &dev_priv->gt;
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-
-	if (READ_ONCE(rps->interrupts_enabled))
-		return;
-
-	spin_lock_irq(&gt->irq_lock);
-	WARN_ON_ONCE(rps->pm_iir);
-
-	if (INTEL_GEN(dev_priv) >= 11)
-		WARN_ON_ONCE(gen11_gt_reset_one_iir(gt, 0, GEN11_GTPM));
-	else
-		WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
-
-	rps->interrupts_enabled = true;
-	gen6_gt_pm_enable_irq(gt, dev_priv->pm_rps_events);
-
-	spin_unlock_irq(&gt->irq_lock);
-}
-
-u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915, u32 mask)
-{
-	return mask & ~i915->gt_pm.rps.pm_intrmsk_mbz;
-}
-
-void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
-{
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-	struct intel_gt *gt = &dev_priv->gt;
-
-	if (!READ_ONCE(rps->interrupts_enabled))
-		return;
-
-	spin_lock_irq(&gt->irq_lock);
-	rps->interrupts_enabled = false;
-
-	I915_WRITE(GEN6_PMINTRMSK, gen6_sanitize_rps_pm_mask(dev_priv, ~0u));
-
-	gen6_gt_pm_disable_irq(gt, GEN6_PM_RPS_EVENTS);
-
-	spin_unlock_irq(&gt->irq_lock);
-	intel_synchronize_irq(dev_priv);
-
-	/* Now that we will not be generating any more work, flush any
-	 * outstanding tasks. As we are called on the RPS idle path,
-	 * we will reset the GPU to minimum frequencies, so the current
-	 * state of the worker can be discarded.
-	 */
-	cancel_work_sync(&rps->work);
-	if (INTEL_GEN(dev_priv) >= 11)
-		gen11_reset_rps_interrupts(dev_priv);
-	else
-		gen6_reset_rps_interrupts(dev_priv);
 }
 
 void gen9_reset_guc_interrupts(struct intel_guc *guc)
@@ -1065,199 +985,6 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return position;
 }
 
-static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
-{
-	struct intel_uncore *uncore = &dev_priv->uncore;
-	u32 busy_up, busy_down, max_avg, min_avg;
-	u8 new_delay;
-
-	spin_lock(&mchdev_lock);
-
-	intel_uncore_write16(uncore,
-			     MEMINTRSTS,
-			     intel_uncore_read(uncore, MEMINTRSTS));
-
-	new_delay = dev_priv->ips.cur_delay;
-
-	intel_uncore_write16(uncore, MEMINTRSTS, MEMINT_EVAL_CHG);
-	busy_up = intel_uncore_read(uncore, RCPREVBSYTUPAVG);
-	busy_down = intel_uncore_read(uncore, RCPREVBSYTDNAVG);
-	max_avg = intel_uncore_read(uncore, RCBMAXAVG);
-	min_avg = intel_uncore_read(uncore, RCBMINAVG);
-
-	/* Handle RCS change request from hw */
-	if (busy_up > max_avg) {
-		if (dev_priv->ips.cur_delay != dev_priv->ips.max_delay)
-			new_delay = dev_priv->ips.cur_delay - 1;
-		if (new_delay < dev_priv->ips.max_delay)
-			new_delay = dev_priv->ips.max_delay;
-	} else if (busy_down < min_avg) {
-		if (dev_priv->ips.cur_delay != dev_priv->ips.min_delay)
-			new_delay = dev_priv->ips.cur_delay + 1;
-		if (new_delay > dev_priv->ips.min_delay)
-			new_delay = dev_priv->ips.min_delay;
-	}
-
-	if (ironlake_set_drps(dev_priv, new_delay))
-		dev_priv->ips.cur_delay = new_delay;
-
-	spin_unlock(&mchdev_lock);
-
-	return;
-}
-
-static void vlv_c0_read(struct drm_i915_private *dev_priv,
-			struct intel_rps_ei *ei)
-{
-	ei->ktime = ktime_get_raw();
-	ei->render_c0 = I915_READ(VLV_RENDER_C0_COUNT);
-	ei->media_c0 = I915_READ(VLV_MEDIA_C0_COUNT);
-}
-
-void gen6_rps_reset_ei(struct drm_i915_private *dev_priv)
-{
-	memset(&dev_priv->gt_pm.rps.ei, 0, sizeof(dev_priv->gt_pm.rps.ei));
-}
-
-static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
-{
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-	const struct intel_rps_ei *prev = &rps->ei;
-	struct intel_rps_ei now;
-	u32 events = 0;
-
-	if ((pm_iir & GEN6_PM_RP_UP_EI_EXPIRED) == 0)
-		return 0;
-
-	vlv_c0_read(dev_priv, &now);
-
-	if (prev->ktime) {
-		u64 time, c0;
-		u32 render, media;
-
-		time = ktime_us_delta(now.ktime, prev->ktime);
-
-		time *= dev_priv->czclk_freq;
-
-		/* Workload can be split between render + media,
-		 * e.g. SwapBuffers being blitted in X after being rendered in
-		 * mesa. To account for this we need to combine both engines
-		 * into our activity counter.
-		 */
-		render = now.render_c0 - prev->render_c0;
-		media = now.media_c0 - prev->media_c0;
-		c0 = max(render, media);
-		c0 *= 1000 * 100 << 8; /* to usecs and scale to threshold% */
-
-		if (c0 > time * rps->power.up_threshold)
-			events = GEN6_PM_RP_UP_THRESHOLD;
-		else if (c0 < time * rps->power.down_threshold)
-			events = GEN6_PM_RP_DOWN_THRESHOLD;
-	}
-
-	rps->ei = now;
-	return events;
-}
-
-static void gen6_pm_rps_work(struct work_struct *work)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(work, struct drm_i915_private, gt_pm.rps.work);
-	struct intel_gt *gt = &dev_priv->gt;
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-	bool client_boost = false;
-	int new_delay, adj, min, max;
-	u32 pm_iir = 0;
-
-	spin_lock_irq(&gt->irq_lock);
-	if (rps->interrupts_enabled) {
-		pm_iir = fetch_and_zero(&rps->pm_iir);
-		client_boost = atomic_read(&rps->num_waiters);
-	}
-	spin_unlock_irq(&gt->irq_lock);
-
-	/* Make sure we didn't queue anything we're not going to process. */
-	WARN_ON(pm_iir & ~dev_priv->pm_rps_events);
-	if ((pm_iir & dev_priv->pm_rps_events) == 0 && !client_boost)
-		goto out;
-
-	mutex_lock(&rps->lock);
-
-	pm_iir |= vlv_wa_c0_ei(dev_priv, pm_iir);
-
-	adj = rps->last_adj;
-	new_delay = rps->cur_freq;
-	min = rps->min_freq_softlimit;
-	max = rps->max_freq_softlimit;
-	if (client_boost)
-		max = rps->max_freq;
-	if (client_boost && new_delay < rps->boost_freq) {
-		new_delay = rps->boost_freq;
-		adj = 0;
-	} else if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
-		if (adj > 0)
-			adj *= 2;
-		else /* CHV needs even encode values */
-			adj = IS_CHERRYVIEW(dev_priv) ? 2 : 1;
-
-		if (new_delay >= rps->max_freq_softlimit)
-			adj = 0;
-	} else if (client_boost) {
-		adj = 0;
-	} else if (pm_iir & GEN6_PM_RP_DOWN_TIMEOUT) {
-		if (rps->cur_freq > rps->efficient_freq)
-			new_delay = rps->efficient_freq;
-		else if (rps->cur_freq > rps->min_freq_softlimit)
-			new_delay = rps->min_freq_softlimit;
-		adj = 0;
-	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
-		if (adj < 0)
-			adj *= 2;
-		else /* CHV needs even encode values */
-			adj = IS_CHERRYVIEW(dev_priv) ? -2 : -1;
-
-		if (new_delay <= rps->min_freq_softlimit)
-			adj = 0;
-	} else { /* unknown event */
-		adj = 0;
-	}
-
-	rps->last_adj = adj;
-
-	/*
-	 * Limit deboosting and boosting to keep ourselves at the extremes
-	 * when in the respective power modes (i.e. slowly decrease frequencies
-	 * while in the HIGH_POWER zone and slowly increase frequencies while
-	 * in the LOW_POWER zone). On idle, we will hit the timeout and drop
-	 * to the next level quickly, and conversely if busy we expect to
-	 * hit a waitboost and rapidly switch into max power.
-	 */
-	if ((adj < 0 && rps->power.mode == HIGH_POWER) ||
-	    (adj > 0 && rps->power.mode == LOW_POWER))
-		rps->last_adj = 0;
-
-	/* sysfs frequency interfaces may have snuck in while servicing the
-	 * interrupt
-	 */
-	new_delay += adj;
-	new_delay = clamp_t(int, new_delay, min, max);
-
-	if (intel_set_rps(dev_priv, new_delay)) {
-		DRM_DEBUG_DRIVER("Failed to set new GPU frequency\n");
-		rps->last_adj = 0;
-	}
-
-	mutex_unlock(&rps->lock);
-
-out:
-	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
-	spin_lock_irq(&gt->irq_lock);
-	if (rps->interrupts_enabled)
-		gen6_gt_pm_unmask_irq(gt, dev_priv->pm_rps_events);
-	spin_unlock_irq(&gt->irq_lock);
-}
-
-
 /**
  * ivybridge_parity_work - Workqueue called when a parity error interrupt
  * occurred.
@@ -1631,54 +1358,6 @@ static void i9xx_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 				     res1, res2);
 }
 
-/* The RPS events need forcewake, so we add them to a work queue and mask their
- * IMR bits until the work is done. Other interrupts can be processed without
- * the work queue. */
-void gen11_rps_irq_handler(struct intel_gt *gt, u32 pm_iir)
-{
-	struct drm_i915_private *i915 = gt->i915;
-	struct intel_rps *rps = &i915->gt_pm.rps;
-	const u32 events = i915->pm_rps_events & pm_iir;
-
-	lockdep_assert_held(&gt->irq_lock);
-
-	if (unlikely(!events))
-		return;
-
-	gen6_gt_pm_mask_irq(gt, events);
-
-	if (!rps->interrupts_enabled)
-		return;
-
-	rps->pm_iir |= events;
-	schedule_work(&rps->work);
-}
-
-void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
-{
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-	struct intel_gt *gt = &dev_priv->gt;
-
-	if (pm_iir & dev_priv->pm_rps_events) {
-		spin_lock(&gt->irq_lock);
-		gen6_gt_pm_mask_irq(gt, pm_iir & dev_priv->pm_rps_events);
-		if (rps->interrupts_enabled) {
-			rps->pm_iir |= pm_iir & dev_priv->pm_rps_events;
-			schedule_work(&rps->work);
-		}
-		spin_unlock(&gt->irq_lock);
-	}
-
-	if (INTEL_GEN(dev_priv) >= 8)
-		return;
-
-	if (pm_iir & PM_VEBOX_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[VECS0]);
-
-	if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
-		DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
-}
-
 static void i9xx_pipestat_irq_reset(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
@@ -1989,7 +1668,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (gt_iir)
 			gen6_gt_irq_handler(&dev_priv->gt, gt_iir);
 		if (pm_iir)
-			gen6_rps_irq_handler(dev_priv, pm_iir);
+			gen6_rps_irq_handler(&dev_priv->gt.rps, pm_iir);
 
 		if (hotplug_status)
 			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
@@ -2393,7 +2072,7 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 	}
 
 	if (IS_GEN(dev_priv, 5) && de_iir & DE_PCU_EVENT)
-		ironlake_rps_change_irq_handler(dev_priv);
+		gen5_rps_irq_handler(&dev_priv->gt.rps);
 }
 
 static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
@@ -2498,7 +2177,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		if (pm_iir) {
 			I915_WRITE(GEN6_PMIIR, pm_iir);
 			ret = IRQ_HANDLED;
-			gen6_rps_irq_handler(dev_priv, pm_iir);
+			gen6_rps_irq_handler(&dev_priv->gt.rps, pm_iir);
 		}
 	}
 
@@ -4281,12 +3960,9 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 void intel_irq_init(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	int i;
 
 	intel_hpd_init_work(dev_priv);
-
-	INIT_WORK(&rps->work, gen6_pm_rps_work);
 
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
 	for (i = 0; i < MAX_L3_SLICES; ++i)
@@ -4295,33 +3971,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	/* pre-gen11 the guc irqs bits are in the upper 16 bits of the pm reg */
 	if (HAS_GT_UC(dev_priv) && INTEL_GEN(dev_priv) < 11)
 		dev_priv->gt.pm_guc_events = GUC_INTR_GUC2HOST << 16;
-
-	/* Let's track the enabled rps events */
-	if (IS_VALLEYVIEW(dev_priv))
-		/* WaGsvRC0ResidencyMethod:vlv */
-		dev_priv->pm_rps_events = GEN6_PM_RP_UP_EI_EXPIRED;
-	else
-		dev_priv->pm_rps_events = (GEN6_PM_RP_UP_THRESHOLD |
-					   GEN6_PM_RP_DOWN_THRESHOLD |
-					   GEN6_PM_RP_DOWN_TIMEOUT);
-
-	/* We share the register with other engine */
-	if (INTEL_GEN(dev_priv) > 9)
-		GEM_WARN_ON(dev_priv->pm_rps_events & 0xffff0000);
-
-	rps->pm_intrmsk_mbz = 0;
-
-	/*
-	 * SNB,IVB,HSW can while VLV,CHV may hard hang on looping batchbuffer
-	 * if GEN6_PM_UP_EI_EXPIRED is masked.
-	 *
-	 * TODO: verify if this can be reproduced on VLV,CHV.
-	 */
-	if (INTEL_GEN(dev_priv) <= 7)
-		rps->pm_intrmsk_mbz |= GEN6_PM_RP_UP_EI_EXPIRED;
-
-	if (INTEL_GEN(dev_priv) >= 8)
-		rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 
 	dev->vblank_disable_immediate = true;
 

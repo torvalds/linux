@@ -545,94 +545,6 @@ struct i915_suspend_saved_registers {
 
 struct vlv_s0ix_state;
 
-struct intel_rps_ei {
-	ktime_t ktime;
-	u32 render_c0;
-	u32 media_c0;
-};
-
-struct intel_rps {
-	struct mutex lock; /* protects enabling and the worker */
-
-	/*
-	 * work, interrupts_enabled and pm_iir are protected by
-	 * dev_priv->irq_lock
-	 */
-	struct work_struct work;
-	bool interrupts_enabled;
-	u32 pm_iir;
-
-	/* PM interrupt bits that should never be masked */
-	u32 pm_intrmsk_mbz;
-
-	/* Frequencies are stored in potentially platform dependent multiples.
-	 * In other words, *_freq needs to be multiplied by X to be interesting.
-	 * Soft limits are those which are used for the dynamic reclocking done
-	 * by the driver (raise frequencies under heavy loads, and lower for
-	 * lighter loads). Hard limits are those imposed by the hardware.
-	 *
-	 * A distinction is made for overclocking, which is never enabled by
-	 * default, and is considered to be above the hard limit if it's
-	 * possible at all.
-	 */
-	u8 cur_freq;		/* Current frequency (cached, may not == HW) */
-	u8 min_freq_softlimit;	/* Minimum frequency permitted by the driver */
-	u8 max_freq_softlimit;	/* Max frequency permitted by the driver */
-	u8 max_freq;		/* Maximum frequency, RP0 if not overclocking */
-	u8 min_freq;		/* AKA RPn. Minimum frequency */
-	u8 boost_freq;		/* Frequency to request when wait boosting */
-	u8 idle_freq;		/* Frequency to request when we are idle */
-	u8 efficient_freq;	/* AKA RPe. Pre-determined balanced frequency */
-	u8 rp1_freq;		/* "less than" RP0 power/freqency */
-	u8 rp0_freq;		/* Non-overclocked max frequency. */
-	u16 gpll_ref_freq;	/* vlv/chv GPLL reference frequency */
-
-	int last_adj;
-
-	struct {
-		struct mutex mutex;
-
-		enum { LOW_POWER, BETWEEN, HIGH_POWER } mode;
-		unsigned int interactive;
-
-		u8 up_threshold; /* Current %busy required to uplock */
-		u8 down_threshold; /* Current %busy required to downclock */
-	} power;
-
-	bool enabled;
-	atomic_t num_waiters;
-	atomic_t boosts;
-
-	/* manual wa residency calculations */
-	struct intel_rps_ei ei;
-};
-
-struct intel_gen6_power_mgmt {
-	struct intel_rps rps;
-};
-
-/* defined intel_pm.c */
-extern spinlock_t mchdev_lock;
-
-struct intel_ilk_power_mgmt {
-	u8 cur_delay;
-	u8 min_delay;
-	u8 max_delay;
-	u8 fmax;
-	u8 fstart;
-
-	u64 last_count1;
-	unsigned long last_time1;
-	unsigned long chipset_power;
-	u64 last_count2;
-	u64 last_time2;
-	unsigned long gfx_power;
-	u8 corr;
-
-	int c_m;
-	int r_t;
-};
-
 #define MAX_L3_SLICES 2
 struct intel_l3_parity {
 	u32 *remap_info[MAX_L3_SLICES];
@@ -1069,7 +981,6 @@ struct drm_i915_private {
 		u32 irq_mask;
 		u32 de_irq_mask[I915_MAX_PIPES];
 	};
-	u32 pm_rps_events;
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
 	struct i915_hotplug hotplug;
@@ -1208,13 +1119,6 @@ struct drm_i915_private {
 	 * Cannot be determined by PCIID. You must always read a register.
 	 */
 	u32 edram_size_mb;
-
-	/* gen6+ GT PM state */
-	struct intel_gen6_power_mgmt gt_pm;
-
-	/* ilk-only ips/rps state. Everything in here is protected by the global
-	 * mchdev_lock in intel_pm.c */
-	struct intel_ilk_power_mgmt ips;
 
 	struct i915_power_domains power_domains;
 
