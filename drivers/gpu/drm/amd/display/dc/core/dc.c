@@ -1747,12 +1747,37 @@ static struct dc_stream_status *stream_get_status(
 
 static const enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
+static void validate_dcc_with_meta_address(
+	struct dc_plane_dcc_param *dcc,
+	struct dc_plane_address *address)
+{
+	if ((address->grph.meta_addr.quad_part == 0) &&
+		dcc->enable) {
+		ASSERT(!dcc->enable);
+		dcc->enable = false;
+	} else if ((address->grph.meta_addr.quad_part != 0) &&
+		!dcc->enable)
+		dcc->enable = true;
+
+	if (address->type != PLN_ADDR_TYPE_GRAPHICS) {
+		if ((address->grph_stereo.right_meta_addr.quad_part == 0) &&
+			dcc->enable) {
+			ASSERT(!dcc->enable);
+			dcc->enable = false;
+		} else if ((address->grph_stereo.right_meta_addr.quad_part != 0) &&
+			!dcc->enable)
+			dcc->enable = true;
+	}
+}
+
 static void copy_surface_update_to_plane(
 		struct dc_plane_state *surface,
 		struct dc_surface_update *srf_update)
 {
 	if (srf_update->flip_addr) {
 		surface->address = srf_update->flip_addr->address;
+		validate_dcc_with_meta_address(&surface->dcc, &surface->address);
+
 		surface->flip_immediate =
 			srf_update->flip_addr->flip_immediate;
 		surface->time.time_elapsed_in_us[surface->time.index] =
@@ -1801,6 +1826,8 @@ static void copy_surface_update_to_plane(
 				srf_update->plane_info->global_alpha_value;
 		surface->dcc =
 				srf_update->plane_info->dcc;
+		validate_dcc_with_meta_address(&surface->dcc, &surface->address);
+
 		surface->sdr_white_level =
 				srf_update->plane_info->sdr_white_level;
 		surface->layer_index =
