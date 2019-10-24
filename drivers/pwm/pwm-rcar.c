@@ -3,6 +3,9 @@
  * R-Car PWM Timer driver
  *
  * Copyright (C) 2015 Renesas Electronics Corporation
+ *
+ * Limitations:
+ * - The hardware cannot generate a 0% duty cycle.
  */
 
 #include <linux/clk.h>
