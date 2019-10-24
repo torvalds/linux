@@ -89,6 +89,9 @@ static struct mfd_cell crystal_cove_cht_dev[] = {
 		.resources = gpio_resources,
 	},
 	{
+		.name = "cht_crystal_cove_pmic",
+	},
+	{
 		.name = "crystal_cove_pwm",
 	},
 };
