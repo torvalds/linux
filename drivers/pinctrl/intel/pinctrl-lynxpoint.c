@@ -18,9 +18,9 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-/* LynxPoint chipset has support for 94 gpio pins */
+/* LynxPoint chipset has support for 95 GPIO pins */
 
-#define LP_NUM_GPIO	94
+#define LP_NUM_GPIO	95
 
 /* Bitmapped register offsets */
 #define LP_ACPI_OWNED	0x00 /* Bitmap, set by bios, 0: pin reserved for ACPI */
@@ -54,11 +54,11 @@ struct lp_gpio {
 /*
  * Lynxpoint gpios are controlled through both bitmapped registers and
  * per gpio specific registers. The bitmapped registers are in chunks of
- * 3 x 32bit registers to cover all 94 gpios
+ * 3 x 32bit registers to cover all 95 GPIOs
  *
  * per gpio specific registers consist of two 32bit registers per gpio
- * (LP_CONFIG1 and LP_CONFIG2), with 94 gpios there's a total of
- * 188 config registers.
+ * (LP_CONFIG1 and LP_CONFIG2), with 95 GPIOs there's a total of
+ * 190 config registers.
  *
  * A simplified view of the register layout look like this:
  *
@@ -67,7 +67,7 @@ struct lp_gpio {
  * LP_ACPI_OWNED[94:64] gpio ownerships for gpios 63-94
  * ...
  * LP_INT_ENABLE[31:0] ...
- * LP_INT_ENABLE[63:31] ...
+ * LP_INT_ENABLE[63:32] ...
  * LP_INT_ENABLE[94:64] ...
  * LP0_CONFIG1 (gpio 0) config1 reg for gpio 0 (per gpio registers)
  * LP0_CONFIG2 (gpio 0) config2 reg for gpio 0
