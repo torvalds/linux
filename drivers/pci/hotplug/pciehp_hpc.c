@@ -252,6 +252,22 @@ static bool pci_bus_check_dev(struct pci_bus *bus, int devfn)
 	return found;
 }
 
+static void pcie_wait_for_presence(struct pci_dev *pdev)
+{
+	int timeout = 1250;
+	u16 slot_status;
+
+	do {
+		pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
+		if (slot_status & PCI_EXP_SLTSTA_PDS)
+			return;
+		msleep(10);
+		timeout -= 10;
+	} while (timeout > 0);
+
+	pci_info(pdev, "Timeout waiting for Presence Detect\n");
+}
+
 int pciehp_check_link_status(struct controller *ctrl)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
@@ -260,6 +276,9 @@ int pciehp_check_link_status(struct controller *ctrl)
 
 	if (!pcie_wait_for_link(pdev, true))
 		return -1;
+
+	if (ctrl->inband_presence_disabled)
+		pcie_wait_for_presence(pdev);
 
 	found = pci_bus_check_dev(ctrl->pcie->port->subordinate,
 					PCI_DEVFN(0, 0));
