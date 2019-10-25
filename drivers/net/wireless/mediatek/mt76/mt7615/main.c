@@ -60,7 +60,7 @@ static int get_omac_idx(enum nl80211_iftype type, u32 mask)
 	default:
 		WARN_ON(1);
 		break;
-	};
+	}
 
 	return -1;
 }

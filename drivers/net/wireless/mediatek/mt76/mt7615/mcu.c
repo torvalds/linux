@@ -1076,7 +1076,7 @@ int mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	default:
 		WARN_ON(1);
 		break;
-	};
+	}
 
 	if (en) {
 		req.basic.conn_state = CONN_STATE_PORT_SECURE;
