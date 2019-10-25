@@ -11509,12 +11509,12 @@ s32 rtw_hal_set_wifi_btc_port_id_cmd(_adapter *adapter)
 }
 #endif
 
-#define LPS_ACTIVE_TIMEOUT	10 /*number of times*/
+#define LPS_ACTIVE_TIMEOUT	500 /*number of times*/
 void rtw_lps_state_chk(_adapter *adapter, u8 ps_mode)
 {
 	if (ps_mode == PS_MODE_ACTIVE) {
 		u8 ps_ready = _FALSE;
-		s8 leave_wait_count = LPS_ACTIVE_TIMEOUT;
+		s16 leave_wait_count = LPS_ACTIVE_TIMEOUT;
 
 		do {
 			if ((rtw_read8(adapter, REG_TCR) & BIT_PWRBIT_OW_EN) == 0) {
@@ -11525,8 +11525,8 @@ void rtw_lps_state_chk(_adapter *adapter, u8 ps_mode)
 		} while (leave_wait_count--);
 
 		if (ps_ready == _FALSE) {
-			RTW_ERR(FUNC_ADPT_FMT" PS_MODE_ACTIVE check failed\n", FUNC_ADPT_ARG(adapter));
-			rtw_warn_on(1);
+			RTW_WARN(FUNC_ADPT_FMT" PS_MODE_ACTIVE check failed\n", FUNC_ADPT_ARG(adapter));
+			/* rtw_warn_on(1); */
 		}
 	}
 }
