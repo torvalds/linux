@@ -9372,6 +9372,52 @@ static void print_verification_stats(struct bpf_verifier_env *env)
 		env->peak_states, env->longest_mark_read_walk);
 }
 
+static int check_attach_btf_id(struct bpf_verifier_env *env)
+{
+	struct bpf_prog *prog = env->prog;
+	u32 btf_id = prog->aux->attach_btf_id;
+	const struct btf_type *t;
+	const char *tname;
+
+	if (prog->type == BPF_PROG_TYPE_RAW_TRACEPOINT && btf_id) {
+		const char prefix[] = "btf_trace_";
+
+		t = btf_type_by_id(btf_vmlinux, btf_id);
+		if (!t) {
+			verbose(env, "attach_btf_id %u is invalid\n", btf_id);
+			return -EINVAL;
+		}
+		if (!btf_type_is_typedef(t)) {
+			verbose(env, "attach_btf_id %u is not a typedef\n",
+				btf_id);
+			return -EINVAL;
+		}
+		tname = btf_name_by_offset(btf_vmlinux, t->name_off);
+		if (!tname || strncmp(prefix, tname, sizeof(prefix) - 1)) {
+			verbose(env, "attach_btf_id %u points to wrong type name %s\n",
+				btf_id, tname);
+			return -EINVAL;
+		}
+		tname += sizeof(prefix) - 1;
+		t = btf_type_by_id(btf_vmlinux, t->type);
+		if (!btf_type_is_ptr(t))
+			/* should never happen in valid vmlinux build */
+			return -EINVAL;
+		t = btf_type_by_id(btf_vmlinux, t->type);
+		if (!btf_type_is_func_proto(t))
+			/* should never happen in valid vmlinux build */
+			return -EINVAL;
+
+		/* remember two read only pointers that are valid for
+		 * the life time of the kernel
+		 */
+		prog->aux->attach_func_name = tname;
+		prog->aux->attach_func_proto = t;
+		prog->aux->attach_btf_trace = true;
+	}
+	return 0;
+}
+
 int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 	      union bpf_attr __user *uattr)
 {
@@ -9435,8 +9481,12 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 		/* Either gcc or pahole or kernel are broken. */
 		verbose(env, "in-kernel BTF is malformed\n");
 		ret = PTR_ERR(btf_vmlinux);
-		goto err_unlock;
+		goto skip_full_check;
 	}
+
+	ret = check_attach_btf_id(env);
+	if (ret)
+		goto skip_full_check;
 
 	env->strict_alignment = !!(attr->prog_flags & BPF_F_STRICT_ALIGNMENT);
 	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
