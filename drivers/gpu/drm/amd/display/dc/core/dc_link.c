@@ -1511,15 +1511,6 @@ static enum dc_status enable_link_dp(
 	decide_link_settings(stream, &link_settings);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP) {
-		/* If link settings are different than current and link already enabled
-		 * then need to disable before programming to new rate.
-		 */
-		if (link->link_status.link_active &&
-			(link->cur_link_settings.lane_count != link_settings.lane_count ||
-			 link->cur_link_settings.link_rate != link_settings.link_rate)) {
-			dp_disable_link_phy(link, pipe_ctx->stream->signal);
-		}
-
 		/*in case it is not on*/
 		link->dc->hwss.edp_power_control(link, true);
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
@@ -2039,6 +2030,45 @@ static void write_i2c_redriver_setting(
 		ASSERT(i2c_success);
 }
 
+static void disable_link(struct dc_link *link, enum signal_type signal)
+{
+	/*
+	 * TODO: implement call for dp_set_hw_test_pattern
+	 * it is needed for compliance testing
+	 */
+
+	/* Here we need to specify that encoder output settings
+	 * need to be calculated as for the set mode,
+	 * it will lead to querying dynamic link capabilities
+	 * which should be done before enable output
+	 */
+
+	if (dc_is_dp_signal(signal)) {
+		/* SST DP, eDP */
+		if (dc_is_dp_sst_signal(signal))
+			dp_disable_link_phy(link, signal);
+		else
+			dp_disable_link_phy_mst(link, signal);
+
+		if (dc_is_dp_sst_signal(signal) ||
+				link->mst_stream_alloc_table.stream_count == 0) {
+			dp_set_fec_enable(link, false);
+			dp_set_fec_ready(link, false);
+		}
+	} else {
+		if (signal != SIGNAL_TYPE_VIRTUAL)
+			link->link_enc->funcs->disable_output(link->link_enc, signal);
+	}
+
+	if (signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		/* MST disable link only when no stream use the link */
+		if (link->mst_stream_alloc_table.stream_count <= 0)
+			link->link_status.link_active = false;
+	} else {
+		link->link_status.link_active = false;
+	}
+}
+
 static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -2123,6 +2153,19 @@ static enum dc_status enable_link(
 		struct pipe_ctx *pipe_ctx)
 {
 	enum dc_status status = DC_ERROR_UNEXPECTED;
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->link;
+
+	/* There's some scenarios where driver is unloaded with display
+	 * still enabled. When driver is reloaded, it may cause a display
+	 * to not light up if there is a mismatch between old and new
+	 * link settings. Need to call disable first before enabling at
+	 * new link settings.
+	 */
+	if (link->link_status.link_active) {
+		disable_link(link, pipe_ctx->stream->signal);
+	}
+
 	switch (pipe_ctx->stream->signal) {
 	case SIGNAL_TYPE_DISPLAY_PORT:
 		status = enable_link_dp(state, pipe_ctx);
@@ -2155,44 +2198,6 @@ static enum dc_status enable_link(
 		pipe_ctx->stream->link->link_status.link_active = true;
 
 	return status;
-}
-
-static void disable_link(struct dc_link *link, enum signal_type signal)
-{
-	/*
-	 * TODO: implement call for dp_set_hw_test_pattern
-	 * it is needed for compliance testing
-	 */
-
-	/* here we need to specify that encoder output settings
-	 * need to be calculated as for the set mode,
-	 * it will lead to querying dynamic link capabilities
-	 * which should be done before enable output */
-
-	if (dc_is_dp_signal(signal)) {
-		/* SST DP, eDP */
-		if (dc_is_dp_sst_signal(signal))
-			dp_disable_link_phy(link, signal);
-		else
-			dp_disable_link_phy_mst(link, signal);
-
-		if (dc_is_dp_sst_signal(signal) ||
-				link->mst_stream_alloc_table.stream_count == 0) {
-			dp_set_fec_enable(link, false);
-			dp_set_fec_ready(link, false);
-		}
-	} else {
-		if (signal != SIGNAL_TYPE_VIRTUAL)
-			link->link_enc->funcs->disable_output(link->link_enc, signal);
-	}
-
-	if (signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-		/* MST disable link only when no stream use the link */
-		if (link->mst_stream_alloc_table.stream_count <= 0)
-			link->link_status.link_active = false;
-	} else {
-		link->link_status.link_active = false;
-	}
 }
 
 static uint32_t get_timing_pixel_clock_100hz(const struct dc_crtc_timing *timing)
