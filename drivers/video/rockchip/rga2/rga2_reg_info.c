@@ -1182,8 +1182,8 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
                 req->alpha_mode_1 = 0x3848;
             }
             else if ((req_rga->alpha_rop_mode & 3) == 1) {
-                req->alpha_mode_0 = 0x483A;
-                req->alpha_mode_1 = 0x483A;
+		req->alpha_mode_0 = 0x384A;
+		req->alpha_mode_1 = 0x3A4A;
             }
             else if ((req_rga->alpha_rop_mode & 3) == 2) {
                 req->alpha_mode_0 = 0x384C;
@@ -1384,8 +1384,8 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
                 req->alpha_mode_1 = 0x3848;
             }
             else if ((req_rga->alpha_rop_mode & 3) == 1) {
-                req->alpha_mode_0 = 0x483A;
-                req->alpha_mode_1 = 0x483A;
+		req->alpha_mode_0 = 0x384A;
+		req->alpha_mode_1 = 0x3A4A;
             }
             else if ((req_rga->alpha_rop_mode & 3) == 2) {
                 req->alpha_mode_0 = 0x384C;
