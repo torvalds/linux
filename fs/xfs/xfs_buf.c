@@ -304,7 +304,7 @@ _xfs_buf_free_pages(
  * 	The buffer must not be on any hash - use xfs_buf_rele instead for
  * 	hashed and refcounted buffers
  */
-void
+static void
 xfs_buf_free(
 	xfs_buf_t		*bp)
 {
