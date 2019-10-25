@@ -346,8 +346,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	reg_len = resource_size(io_rc);
 
 	if (!devm_request_region(dev, lg->reg_base, reg_len, "lp-gpio")) {
-		dev_err(dev, "failed requesting IO region 0x%x\n",
-			(unsigned int)lg->reg_base);
+		dev_err(dev, "failed requesting IO region %pR\n", &io_rc);
 		return -EBUSY;
 	}
 
