@@ -102,11 +102,14 @@ functions meant to help out in such special cases:
 As might be expected, this function will create a debugfs file to represent
 a variable of type size_t.
 
-Similarly, there is a helper for variables of type unsigned long:
+Similarly, there are helpers for variables of type unsigned long, in decimal
+and hexadecimal:
 
     struct dentry *debugfs_create_ulong(const char *name, umode_t mode,
 					struct dentry *parent,
 					unsigned long *value);
+    void debugfs_create_xul(const char *name, umode_t mode,
+			    struct dentry *parent, unsigned long *value);
 
 Boolean values can be placed in debugfs with:
 
