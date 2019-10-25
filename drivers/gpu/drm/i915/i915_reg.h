@@ -684,6 +684,45 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OABUFFER_SIZE_8M    (6 << 3)
 #define OABUFFER_SIZE_16M   (7 << 3)
 
+/* Gen12 OAR unit */
+#define GEN12_OAR_OACONTROL _MMIO(0x2960)
+#define  GEN12_OAR_OACONTROL_COUNTER_FORMAT_SHIFT 1
+#define  GEN12_OAR_OACONTROL_COUNTER_ENABLE       (1 << 0)
+
+#define GEN12_OACTXCONTROL _MMIO(0x2360)
+#define GEN12_OAR_OASTATUS _MMIO(0x2968)
+
+/* Gen12 OAG unit */
+#define GEN12_OAG_OAHEADPTR _MMIO(0xdb00)
+#define  GEN12_OAG_OAHEADPTR_MASK 0xffffffc0
+#define GEN12_OAG_OATAILPTR _MMIO(0xdb04)
+#define  GEN12_OAG_OATAILPTR_MASK 0xffffffc0
+
+#define GEN12_OAG_OABUFFER  _MMIO(0xdb08)
+#define  GEN12_OAG_OABUFFER_BUFFER_SIZE_MASK  (0x7)
+#define  GEN12_OAG_OABUFFER_BUFFER_SIZE_SHIFT (3)
+#define  GEN12_OAG_OABUFFER_MEMORY_SELECT     (1 << 0) /* 0: PPGTT, 1: GGTT */
+
+#define GEN12_OAG_OAGLBCTXCTRL _MMIO(0x2b28)
+#define  GEN12_OAG_OAGLBCTXCTRL_TIMER_PERIOD_SHIFT 2
+#define  GEN12_OAG_OAGLBCTXCTRL_TIMER_ENABLE       (1 << 1)
+#define  GEN12_OAG_OAGLBCTXCTRL_COUNTER_RESUME     (1 << 0)
+
+#define GEN12_OAG_OACONTROL _MMIO(0xdaf4)
+#define  GEN12_OAG_OACONTROL_OA_COUNTER_FORMAT_SHIFT 2
+#define  GEN12_OAG_OACONTROL_OA_COUNTER_ENABLE       (1 << 0)
+
+#define GEN12_OAG_OA_DEBUG _MMIO(0xdaf8)
+#define  GEN12_OAG_OA_DEBUG_INCLUDE_CLK_RATIO          (1 << 6)
+#define  GEN12_OAG_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS  (1 << 5)
+#define  GEN12_OAG_OA_DEBUG_DISABLE_GO_1_0_REPORTS     (1 << 2)
+#define  GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS (1 << 1)
+
+#define GEN12_OAG_OASTATUS _MMIO(0xdafc)
+#define  GEN12_OAG_OASTATUS_COUNTER_OVERFLOW (1 << 2)
+#define  GEN12_OAG_OASTATUS_BUFFER_OVERFLOW  (1 << 1)
+#define  GEN12_OAG_OASTATUS_REPORT_LOST      (1 << 0)
+
 /*
  * Flexible, Aggregate EU Counter Registers.
  * Note: these aren't contiguous
@@ -920,6 +959,26 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OAREPORTTRIG8_NOA_SELECT_6_SHIFT    24
 #define OAREPORTTRIG8_NOA_SELECT_7_SHIFT    28
 
+/* Same layout as OASTARTTRIGX */
+#define GEN12_OAG_OASTARTTRIG1 _MMIO(0xd900)
+#define GEN12_OAG_OASTARTTRIG2 _MMIO(0xd904)
+#define GEN12_OAG_OASTARTTRIG3 _MMIO(0xd908)
+#define GEN12_OAG_OASTARTTRIG4 _MMIO(0xd90c)
+#define GEN12_OAG_OASTARTTRIG5 _MMIO(0xd910)
+#define GEN12_OAG_OASTARTTRIG6 _MMIO(0xd914)
+#define GEN12_OAG_OASTARTTRIG7 _MMIO(0xd918)
+#define GEN12_OAG_OASTARTTRIG8 _MMIO(0xd91c)
+
+/* Same layout as OAREPORTTRIGX */
+#define GEN12_OAG_OAREPORTTRIG1 _MMIO(0xd920)
+#define GEN12_OAG_OAREPORTTRIG2 _MMIO(0xd924)
+#define GEN12_OAG_OAREPORTTRIG3 _MMIO(0xd928)
+#define GEN12_OAG_OAREPORTTRIG4 _MMIO(0xd92c)
+#define GEN12_OAG_OAREPORTTRIG5 _MMIO(0xd930)
+#define GEN12_OAG_OAREPORTTRIG6 _MMIO(0xd934)
+#define GEN12_OAG_OAREPORTTRIG7 _MMIO(0xd938)
+#define GEN12_OAG_OAREPORTTRIG8 _MMIO(0xd93c)
+
 /* CECX_0 */
 #define OACEC_COMPARE_LESS_OR_EQUAL	6
 #define OACEC_COMPARE_NOT_EQUAL		5
@@ -935,6 +994,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OACEC_SELECT_NOA	(0 << 19)
 #define OACEC_SELECT_PREV	(1 << 19)
 #define OACEC_SELECT_BOOLEAN	(2 << 19)
+
+/* 11-bit array 0: pass-through, 1: negated */
+#define GEN12_OASCEC_NEGATE_MASK  0x7ff
+#define GEN12_OASCEC_NEGATE_SHIFT 21
 
 /* CECX_1 */
 #define OACEC_MASK_MASK		    0xffff
@@ -957,6 +1020,42 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OACEC6_1 _MMIO(0x27a4)
 #define OACEC7_0 _MMIO(0x27a8)
 #define OACEC7_1 _MMIO(0x27ac)
+
+/* Same layout as CECX_Y */
+#define GEN12_OAG_CEC0_0 _MMIO(0xd940)
+#define GEN12_OAG_CEC0_1 _MMIO(0xd944)
+#define GEN12_OAG_CEC1_0 _MMIO(0xd948)
+#define GEN12_OAG_CEC1_1 _MMIO(0xd94c)
+#define GEN12_OAG_CEC2_0 _MMIO(0xd950)
+#define GEN12_OAG_CEC2_1 _MMIO(0xd954)
+#define GEN12_OAG_CEC3_0 _MMIO(0xd958)
+#define GEN12_OAG_CEC3_1 _MMIO(0xd95c)
+#define GEN12_OAG_CEC4_0 _MMIO(0xd960)
+#define GEN12_OAG_CEC4_1 _MMIO(0xd964)
+#define GEN12_OAG_CEC5_0 _MMIO(0xd968)
+#define GEN12_OAG_CEC5_1 _MMIO(0xd96c)
+#define GEN12_OAG_CEC6_0 _MMIO(0xd970)
+#define GEN12_OAG_CEC6_1 _MMIO(0xd974)
+#define GEN12_OAG_CEC7_0 _MMIO(0xd978)
+#define GEN12_OAG_CEC7_1 _MMIO(0xd97c)
+
+/* Same layout as CECX_Y + negate 11-bit array */
+#define GEN12_OAG_SCEC0_0 _MMIO(0xdc00)
+#define GEN12_OAG_SCEC0_1 _MMIO(0xdc04)
+#define GEN12_OAG_SCEC1_0 _MMIO(0xdc08)
+#define GEN12_OAG_SCEC1_1 _MMIO(0xdc0c)
+#define GEN12_OAG_SCEC2_0 _MMIO(0xdc10)
+#define GEN12_OAG_SCEC2_1 _MMIO(0xdc14)
+#define GEN12_OAG_SCEC3_0 _MMIO(0xdc18)
+#define GEN12_OAG_SCEC3_1 _MMIO(0xdc1c)
+#define GEN12_OAG_SCEC4_0 _MMIO(0xdc20)
+#define GEN12_OAG_SCEC4_1 _MMIO(0xdc24)
+#define GEN12_OAG_SCEC5_0 _MMIO(0xdc28)
+#define GEN12_OAG_SCEC5_1 _MMIO(0xdc2c)
+#define GEN12_OAG_SCEC6_0 _MMIO(0xdc30)
+#define GEN12_OAG_SCEC6_1 _MMIO(0xdc34)
+#define GEN12_OAG_SCEC7_0 _MMIO(0xdc38)
+#define GEN12_OAG_SCEC7_1 _MMIO(0xdc3c)
 
 /* OA perf counters */
 #define OA_PERFCNT1_LO      _MMIO(0x91B8)
@@ -1037,6 +1136,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define MICRO_BP3_COUNT_STATUS01	_MMIO(0x9834)
 #define MICRO_BP3_COUNT_STATUS23	_MMIO(0x9838)
 #define MICRO_BP_FIRED_ARMED		_MMIO(0x983C)
+
+#define GEN12_OAA_DBG_REG _MMIO(0xdc44)
+#define GEN12_OAG_OA_PESS _MMIO(0x2b2c)
+#define GEN12_OAG_SPCTR_CNF _MMIO(0xdc40)
 
 #define GDT_CHICKEN_BITS    _MMIO(0x9840)
 #define   GT_NOA_ENABLE	    0x00000080

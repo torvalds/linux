@@ -247,7 +247,8 @@ i915-y += \
 	oa/i915_oa_cflgt2.o \
 	oa/i915_oa_cflgt3.o \
 	oa/i915_oa_cnl.o \
-	oa/i915_oa_icl.o
+	oa/i915_oa_icl.o \
+	oa/i915_oa_tgl.o
 i915-y += i915_perf.o
 
 # Post-mortem debug and GPU hang state capture
