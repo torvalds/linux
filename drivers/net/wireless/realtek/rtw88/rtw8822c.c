@@ -1006,7 +1006,7 @@ static void rtw8822c_rf_init(struct rtw_dev *rtwdev)
 	rtw8822c_rf_x2_check(rtwdev);
 }
 
-void rtw8822c_pwrtrack_init(struct rtw_dev *rtwdev)
+static void rtw8822c_pwrtrack_init(struct rtw_dev *rtwdev)
 {
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	u8 path;
