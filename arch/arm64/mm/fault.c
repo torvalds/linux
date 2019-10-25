@@ -32,8 +32,8 @@
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
-#include <asm/kasan.h>
 #include <asm/kprobes.h>
+#include <asm/processor.h>
 #include <asm/sysreg.h>
 #include <asm/system_misc.h>
 #include <asm/pgtable.h>
@@ -100,18 +100,6 @@ static void mem_abort_decode(unsigned int esr)
 
 	if (esr_is_data_abort(esr))
 		data_abort_decode(esr);
-}
-
-static inline bool is_ttbr0_addr(unsigned long addr)
-{
-	/* entry assembly clears tags for TTBR0 addrs */
-	return addr < TASK_SIZE;
-}
-
-static inline bool is_ttbr1_addr(unsigned long addr)
-{
-	/* TTBR1 addresses may have a tag if KASAN_SW_TAGS is in use */
-	return arch_kasan_reset_tag(addr) >= PAGE_OFFSET;
 }
 
 static inline unsigned long mm_to_pgd_phys(struct mm_struct *mm)
@@ -758,30 +746,8 @@ void do_el0_irq_bp_hardening(void)
 }
 NOKPROBE_SYMBOL(do_el0_irq_bp_hardening);
 
-void do_el0_ia_bp_hardening(unsigned long addr,  unsigned int esr,
-			    struct pt_regs *regs)
-{
-	/*
-	 * We've taken an instruction abort from userspace and not yet
-	 * re-enabled IRQs. If the address is a kernel address, apply
-	 * BP hardening prior to enabling IRQs and pre-emption.
-	 */
-	if (!is_ttbr0_addr(addr))
-		arm64_apply_bp_hardening();
-
-	local_daif_restore(DAIF_PROCCTX);
-	do_mem_abort(addr, esr, regs);
-}
-NOKPROBE_SYMBOL(do_el0_ia_bp_hardening);
-
 void do_sp_pc_abort(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
-	if (user_mode(regs)) {
-		if (!is_ttbr0_addr(instruction_pointer(regs)))
-			arm64_apply_bp_hardening();
-		local_daif_restore(DAIF_PROCCTX);
-	}
-
 	arm64_notify_die("SP/PC alignment exception", regs,
 			 SIGBUS, BUS_ADRALN, (void __user *)addr, esr);
 }

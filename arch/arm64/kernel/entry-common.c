@@ -14,6 +14,7 @@
 #include <asm/esr.h>
 #include <asm/exception.h>
 #include <asm/kprobes.h>
+#include <asm/mmu.h>
 #include <asm/sysreg.h>
 
 static void notrace el1_abort(struct pt_regs *regs, unsigned long esr)
@@ -112,9 +113,17 @@ static void notrace el0_ia(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
+	/*
+	 * We've taken an instruction abort from userspace and not yet
+	 * re-enabled IRQs. If the address is a kernel address, apply
+	 * BP hardening prior to enabling IRQs and pre-emption.
+	 */
+	if (!is_ttbr0_addr(far))
+		arm64_apply_bp_hardening();
+
 	user_exit_irqoff();
-	local_daif_restore(DAIF_PROCCTX_NOIRQ);
-	do_el0_ia_bp_hardening(far, esr, regs);
+	local_daif_restore(DAIF_PROCCTX);
+	do_mem_abort(far, esr, regs);
 }
 NOKPROBE_SYMBOL(el0_ia);
 
@@ -154,8 +163,11 @@ static void notrace el0_pc(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
+	if (!is_ttbr0_addr(instruction_pointer(regs)))
+		arm64_apply_bp_hardening();
+
 	user_exit_irqoff();
-	local_daif_restore(DAIF_PROCCTX_NOIRQ);
+	local_daif_restore(DAIF_PROCCTX);
 	do_sp_pc_abort(far, esr, regs);
 }
 NOKPROBE_SYMBOL(el0_pc);
