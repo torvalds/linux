@@ -660,7 +660,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 					case ACPI_DESC_TYPE_PARSER:
 
 						acpi_os_printf
-						    ("AmlOpcode 0x%04hX\n",
+						    ("AmlOpcode 0x%04X\n",
 						     descriptor->op.asl.
 						     aml_opcode);
 						break;

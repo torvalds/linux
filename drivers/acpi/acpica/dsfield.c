@@ -149,7 +149,6 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 
 	if (walk_state->deferred_node) {
 		node = walk_state->deferred_node;
-		status = AE_OK;
 	} else {
 		/* Execute flag should always be set when this function is entered */
 
@@ -636,8 +635,6 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 				}
 
 				/* Name already exists, just ignore this error */
-
-				status = AE_OK;
 			}
 
 			arg->common.node = node;

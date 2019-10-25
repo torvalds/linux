@@ -513,7 +513,6 @@ void acpi_db_display_results(void)
 		return;
 	}
 
-	obj_desc = walk_state->method_desc;
 	node = walk_state->method_node;
 
 	if (walk_state->results) {
@@ -565,7 +564,6 @@ void acpi_db_display_calling_tree(void)
 		return;
 	}
 
-	node = walk_state->method_node;
 	acpi_os_printf("Current Control Method Call Tree\n");
 
 	while (walk_state) {

@@ -689,7 +689,6 @@ acpi_db_command_dispatch(char *input_buffer,
 
 	param_count = acpi_db_get_line(input_buffer);
 	command_index = acpi_db_match_command(acpi_gbl_db_args[0]);
-	temp = 0;
 
 	/*
 	 * We don't want to add the !! command to the history buffer. It
