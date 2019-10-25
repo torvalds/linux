@@ -567,21 +567,6 @@ download_firmware_to_mem(struct rtw_dev *rtwdev, const u8 *data,
 	return 0;
 }
 
-static void update_firmware_info(struct rtw_dev *rtwdev,
-				 struct rtw_fw_state *fw)
-{
-	const struct rtw_fw_hdr *fw_hdr =
-				(const struct rtw_fw_hdr *)fw->firmware->data;
-
-	fw->h2c_version = le16_to_cpu(fw_hdr->h2c_fmt_ver);
-	fw->version = le16_to_cpu(fw_hdr->version);
-	fw->sub_version = fw_hdr->subversion;
-	fw->sub_index = fw_hdr->subindex;
-
-	rtw_info(rtwdev, "Firmware version %u.%u.%u, H2C version %u\n",
-		 fw->version, fw->sub_version, fw->sub_index, fw->h2c_version);
-}
-
 static int
 start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 {
@@ -697,8 +682,6 @@ int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
 	ret = download_firmware_validate(rtwdev);
 	if (ret)
 		goto dlfw_fail;
-
-	update_firmware_info(rtwdev, fw);
 
 	/* reset desc and index */
 	rtw_hci_setup(rtwdev);

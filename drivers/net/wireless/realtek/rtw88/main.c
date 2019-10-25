@@ -1022,12 +1022,22 @@ static void rtw_load_firmware_cb(const struct firmware *firmware, void *context)
 {
 	struct rtw_dev *rtwdev = context;
 	struct rtw_fw_state *fw = &rtwdev->fw;
+	const struct rtw_fw_hdr *fw_hdr;
 
 	if (!firmware)
 		rtw_err(rtwdev, "failed to request firmware\n");
 
+	fw_hdr = (const struct rtw_fw_hdr *)firmware->data;
+	fw->h2c_version = le16_to_cpu(fw_hdr->h2c_fmt_ver);
+	fw->version = le16_to_cpu(fw_hdr->version);
+	fw->sub_version = fw_hdr->subversion;
+	fw->sub_index = fw_hdr->subindex;
+
 	fw->firmware = firmware;
 	complete_all(&fw->completion);
+
+	rtw_info(rtwdev, "Firmware version %u.%u.%u, H2C version %u\n",
+		 fw->version, fw->sub_version, fw->sub_index, fw->h2c_version);
 }
 
 static int rtw_load_firmware(struct rtw_dev *rtwdev, const char *fw_name)
