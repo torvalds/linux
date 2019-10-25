@@ -491,7 +491,12 @@ static void bch2_set_page_dirty(struct bch_fs *c,
 		unsigned sectors = sectors_to_reserve(&s->s[i],
 						res->disk.nr_replicas);
 
-		BUG_ON(sectors > res->disk.sectors);
+		/*
+		 * This can happen if we race with the error path in
+		 * bch2_writepage_io_done():
+		 */
+		sectors = min_t(unsigned, sectors, res->disk.sectors);
+
 		s->s[i].replicas_reserved += sectors;
 		res->disk.sectors -= sectors;
 
