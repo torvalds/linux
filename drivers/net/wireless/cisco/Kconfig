@@ -17,7 +17,7 @@ config AIRO
 	depends on CFG80211 && ISA_DMA_API && (PCI || BROKEN)
 	select WIRELESS_EXT
 	select CRYPTO
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select WEXT_SPY
 	select WEXT_PRIV
 	---help---

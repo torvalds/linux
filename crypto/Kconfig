@@ -52,12 +52,12 @@ config CRYPTO_AEAD2
 	select CRYPTO_NULL2
 	select CRYPTO_RNG2
 
-config CRYPTO_BLKCIPHER
+config CRYPTO_SKCIPHER
 	tristate
-	select CRYPTO_BLKCIPHER2
+	select CRYPTO_SKCIPHER2
 	select CRYPTO_ALGAPI
 
-config CRYPTO_BLKCIPHER2
+config CRYPTO_SKCIPHER2
 	tristate
 	select CRYPTO_ALGAPI2
 	select CRYPTO_RNG2
@@ -123,7 +123,7 @@ config CRYPTO_MANAGER2
 	def_tristate CRYPTO_MANAGER || (CRYPTO_MANAGER!=n && CRYPTO_ALGAPI=y)
 	select CRYPTO_AEAD2
 	select CRYPTO_HASH2
-	select CRYPTO_BLKCIPHER2
+	select CRYPTO_SKCIPHER2
 	select CRYPTO_AKCIPHER2
 	select CRYPTO_KPP2
 	select CRYPTO_ACOMP2
@@ -169,7 +169,7 @@ config CRYPTO_NULL
 config CRYPTO_NULL2
 	tristate
 	select CRYPTO_ALGAPI2
-	select CRYPTO_BLKCIPHER2
+	select CRYPTO_SKCIPHER2
 	select CRYPTO_HASH2
 
 config CRYPTO_PCRYPT
@@ -184,7 +184,7 @@ config CRYPTO_PCRYPT
 
 config CRYPTO_CRYPTD
 	tristate "Software async crypto daemon"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_HASH
 	select CRYPTO_MANAGER
 	help
@@ -195,7 +195,7 @@ config CRYPTO_CRYPTD
 config CRYPTO_AUTHENC
 	tristate "Authenc support"
 	select CRYPTO_AEAD
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_HASH
 	select CRYPTO_NULL
@@ -217,7 +217,7 @@ config CRYPTO_SIMD
 config CRYPTO_GLUE_HELPER_X86
 	tristate
 	depends on X86
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 
 config CRYPTO_ENGINE
 	tristate
@@ -323,7 +323,7 @@ config CRYPTO_AEGIS128_AESNI_SSE2
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
 	select CRYPTO_AEAD
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_NULL
 	select CRYPTO_RNG_DEFAULT
 	select CRYPTO_MANAGER
@@ -346,7 +346,7 @@ comment "Block modes"
 
 config CRYPTO_CBC
 	tristate "CBC support"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
 	  CBC: Cipher Block Chaining mode
@@ -354,7 +354,7 @@ config CRYPTO_CBC
 
 config CRYPTO_CFB
 	tristate "CFB support"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
 	  CFB: Cipher FeedBack mode
@@ -362,7 +362,7 @@ config CRYPTO_CFB
 
 config CRYPTO_CTR
 	tristate "CTR support"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_SEQIV
 	select CRYPTO_MANAGER
 	help
@@ -371,7 +371,7 @@ config CRYPTO_CTR
 
 config CRYPTO_CTS
 	tristate "CTS support"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
 	  CTS: Cipher Text Stealing
@@ -386,7 +386,7 @@ config CRYPTO_CTS
 
 config CRYPTO_ECB
 	tristate "ECB support"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
 	  ECB: Electronic CodeBook mode
@@ -395,7 +395,7 @@ config CRYPTO_ECB
 
 config CRYPTO_LRW
 	tristate "LRW support"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_GF128MUL
 	help
@@ -407,7 +407,7 @@ config CRYPTO_LRW
 
 config CRYPTO_OFB
 	tristate "OFB support"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
 	  OFB: the Output Feedback mode makes a block cipher into a synchronous
@@ -419,7 +419,7 @@ config CRYPTO_OFB
 
 config CRYPTO_PCBC
 	tristate "PCBC support"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
 	  PCBC: Propagating Cipher Block Chaining mode
@@ -427,7 +427,7 @@ config CRYPTO_PCBC
 
 config CRYPTO_XTS
 	tristate "XTS support"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_ECB
 	help
@@ -437,7 +437,7 @@ config CRYPTO_XTS
 
 config CRYPTO_KEYWRAP
 	tristate "Key wrapping support"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
 	  Support for key wrapping (NIST SP800-38F / RFC3394) without
@@ -1085,7 +1085,7 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_AEAD
 	select CRYPTO_LIB_AES
 	select CRYPTO_ALGAPI
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_GLUE_HELPER_X86 if 64BIT
 	select CRYPTO_SIMD
 	help
@@ -1115,7 +1115,7 @@ config CRYPTO_AES_NI_INTEL
 config CRYPTO_AES_SPARC64
 	tristate "AES cipher algorithms (SPARC64)"
 	depends on SPARC64
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	help
 	  Use SPARC64 crypto opcodes for AES algorithm.
 
@@ -1142,7 +1142,7 @@ config CRYPTO_AES_SPARC64
 config CRYPTO_AES_PPC_SPE
 	tristate "AES cipher algorithms (PPC SPE)"
 	depends on PPC && SPE
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	help
 	  AES cipher algorithms (FIPS-197). Additionally the acceleration
 	  for popular block cipher modes ECB, CBC, CTR and XTS is supported.
@@ -1172,7 +1172,7 @@ config CRYPTO_LIB_ARC4
 
 config CRYPTO_ARC4
 	tristate "ARC4 cipher algorithm"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_ARC4
 	help
 	  ARC4 cipher algorithm.
@@ -1208,7 +1208,7 @@ config CRYPTO_BLOWFISH_COMMON
 config CRYPTO_BLOWFISH_X86_64
 	tristate "Blowfish cipher algorithm (x86_64)"
 	depends on X86 && 64BIT
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_BLOWFISH_COMMON
 	help
 	  Blowfish cipher algorithm (x86_64), by Bruce Schneier.
@@ -1239,7 +1239,7 @@ config CRYPTO_CAMELLIA_X86_64
 	tristate "Camellia cipher algorithm (x86_64)"
 	depends on X86 && 64BIT
 	depends on CRYPTO
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_GLUE_HELPER_X86
 	help
 	  Camellia cipher algorithm module (x86_64).
@@ -1256,7 +1256,7 @@ config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX)"
 	depends on X86 && 64BIT
 	depends on CRYPTO
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_CAMELLIA_X86_64
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SIMD
@@ -1293,7 +1293,7 @@ config CRYPTO_CAMELLIA_SPARC64
 	depends on SPARC64
 	depends on CRYPTO
 	select CRYPTO_ALGAPI
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	help
 	  Camellia cipher algorithm module (SPARC64).
 
@@ -1322,7 +1322,7 @@ config CRYPTO_CAST5
 config CRYPTO_CAST5_AVX_X86_64
 	tristate "CAST5 (CAST-128) cipher algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_CAST5
 	select CRYPTO_CAST_COMMON
 	select CRYPTO_SIMD
@@ -1344,7 +1344,7 @@ config CRYPTO_CAST6
 config CRYPTO_CAST6_AVX_X86_64
 	tristate "CAST6 (CAST-256) cipher algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_CAST6
 	select CRYPTO_CAST_COMMON
 	select CRYPTO_GLUE_HELPER_X86
@@ -1372,7 +1372,7 @@ config CRYPTO_DES_SPARC64
 	depends on SPARC64
 	select CRYPTO_ALGAPI
 	select CRYPTO_LIB_DES
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3),
 	  optimized using SPARC64 crypto opcodes.
@@ -1380,7 +1380,7 @@ config CRYPTO_DES_SPARC64
 config CRYPTO_DES3_EDE_X86_64
 	tristate "Triple DES EDE cipher algorithm (x86-64)"
 	depends on X86 && 64BIT
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_DES
 	help
 	  Triple DES EDE (FIPS 46-3) algorithm.
@@ -1393,7 +1393,7 @@ config CRYPTO_DES3_EDE_X86_64
 config CRYPTO_FCRYPT
 	tristate "FCrypt cipher algorithm"
 	select CRYPTO_ALGAPI
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	help
 	  FCrypt algorithm used by RxRPC.
 
@@ -1412,7 +1412,7 @@ config CRYPTO_KHAZAD
 
 config CRYPTO_SALSA20
 	tristate "Salsa20 stream cipher algorithm"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	help
 	  Salsa20 stream cipher algorithm.
 
@@ -1424,7 +1424,7 @@ config CRYPTO_SALSA20
 
 config CRYPTO_CHACHA20
 	tristate "ChaCha stream cipher algorithms"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	help
 	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms.
 
@@ -1446,7 +1446,7 @@ config CRYPTO_CHACHA20
 config CRYPTO_CHACHA20_X86_64
 	tristate "ChaCha stream cipher algorithms (x86_64/SSSE3/AVX2/AVX-512VL)"
 	depends on X86 && 64BIT
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_CHACHA20
 	help
 	  SSSE3, AVX2, and AVX-512VL optimized implementations of the ChaCha20,
@@ -1482,7 +1482,7 @@ config CRYPTO_SERPENT
 config CRYPTO_SERPENT_SSE2_X86_64
 	tristate "Serpent cipher algorithm (x86_64/SSE2)"
 	depends on X86 && 64BIT
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_SIMD
@@ -1501,7 +1501,7 @@ config CRYPTO_SERPENT_SSE2_X86_64
 config CRYPTO_SERPENT_SSE2_586
 	tristate "Serpent cipher algorithm (i586/SSE2)"
 	depends on X86 && !64BIT
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_SIMD
@@ -1520,7 +1520,7 @@ config CRYPTO_SERPENT_SSE2_586
 config CRYPTO_SERPENT_AVX_X86_64
 	tristate "Serpent cipher algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_SIMD
@@ -1651,7 +1651,7 @@ config CRYPTO_TWOFISH_X86_64
 config CRYPTO_TWOFISH_X86_64_3WAY
 	tristate "Twofish cipher algorithm (x86_64, 3-way parallel)"
 	depends on X86 && 64BIT
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
 	select CRYPTO_GLUE_HELPER_X86
@@ -1672,7 +1672,7 @@ config CRYPTO_TWOFISH_X86_64_3WAY
 config CRYPTO_TWOFISH_AVX_X86_64
 	tristate "Twofish cipher algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SIMD
 	select CRYPTO_TWOFISH_COMMON
@@ -1823,7 +1823,7 @@ config CRYPTO_USER_API_HASH
 config CRYPTO_USER_API_SKCIPHER
 	tristate "User-space interface for symmetric key cipher algorithms"
 	depends on NET
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_USER_API
 	help
 	  This option enables the user-spaces interface for symmetric
@@ -1842,7 +1842,7 @@ config CRYPTO_USER_API_AEAD
 	tristate "User-space interface for AEAD cipher algorithms"
 	depends on NET
 	select CRYPTO_AEAD
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_NULL
 	select CRYPTO_USER_API
 	help

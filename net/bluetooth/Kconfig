@@ -9,7 +9,7 @@ menuconfig BT
 	depends on RFKILL || !RFKILL
 	select CRC16
 	select CRYPTO
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_AES
 	imply CRYPTO_AES
 	select CRYPTO_CMAC
