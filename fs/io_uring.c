@@ -874,19 +874,11 @@ static void io_iopoll_reap_events(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 }
 
-static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
-			   long min)
+static int __io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
+			    long min)
 {
-	int iters, ret = 0;
+	int iters = 0, ret = 0;
 
-	/*
-	 * We disallow the app entering submit/complete with polling, but we
-	 * still need to lock the ring to prevent racing with polled issue
-	 * that got punted to a workqueue.
-	 */
-	mutex_lock(&ctx->uring_lock);
-
-	iters = 0;
 	do {
 		int tmin = 0;
 
@@ -922,6 +914,21 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
 		ret = 0;
 	} while (min && !*nr_events && !need_resched());
 
+	return ret;
+}
+
+static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
+			   long min)
+{
+	int ret;
+
+	/*
+	 * We disallow the app entering submit/complete with polling, but we
+	 * still need to lock the ring to prevent racing with polled issue
+	 * that got punted to a workqueue.
+	 */
+	mutex_lock(&ctx->uring_lock);
+	ret = __io_iopoll_check(ctx, nr_events, min);
 	mutex_unlock(&ctx->uring_lock);
 	return ret;
 }
@@ -2657,7 +2664,20 @@ static int io_sq_thread(void *data)
 			unsigned nr_events = 0;
 
 			if (ctx->flags & IORING_SETUP_IOPOLL) {
-				io_iopoll_check(ctx, &nr_events, 0);
+				/*
+				 * inflight is the count of the maximum possible
+				 * entries we submitted, but it can be smaller
+				 * if we dropped some of them. If we don't have
+				 * poll entries available, then we know that we
+				 * have nothing left to poll for. Reset the
+				 * inflight count to zero in that case.
+				 */
+				mutex_lock(&ctx->uring_lock);
+				if (!list_empty(&ctx->poll_list))
+					__io_iopoll_check(ctx, &nr_events, 0);
+				else
+					inflight = 0;
+				mutex_unlock(&ctx->uring_lock);
 			} else {
 				/*
 				 * Normal IO, just pretend everything completed.
