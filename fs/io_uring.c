@@ -2795,12 +2795,13 @@ out:
 		submit++;
 		io_submit_sqe(ctx, &s, statep, &link);
 	}
-	io_commit_sqring(ctx);
 
 	if (link)
 		io_queue_link_head(ctx, link, &link->submit, shadow_req);
 	if (statep)
 		io_submit_state_end(statep);
+
+	io_commit_sqring(ctx);
 
 	return submit;
 }
