@@ -393,6 +393,15 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
         case RGA2_FORMAT_YCrCb_422_P  : dst_format = 0x9; dst_cbcr_swp = 1; x_div = 2; y_div = 1; break;
         case RGA2_FORMAT_YCrCb_420_SP : dst_format = 0xa; dst_cbcr_swp = 1; x_div = 1; y_div = 2; break;
         case RGA2_FORMAT_YCrCb_420_P  : dst_format = 0xb; dst_cbcr_swp = 1; x_div = 2; y_div = 2; break;
+
+	case RGA2_FORMAT_YUYV_422     : dst_format = 0xc; dpw = 2; break;
+	case RGA2_FORMAT_YVYU_422     : dst_format = 0xc; dpw = 2; dst_cbcr_swp = 1; break;
+	case RGA2_FORMAT_YUYV_420     : dst_format = 0xd; dpw = 2; break;
+	case RGA2_FORMAT_YVYU_420     : dst_format = 0xd; dpw = 2; dst_cbcr_swp = 1; break;
+	case RGA2_FORMAT_UYVY_422     : dst_format = 0xe; dpw = 2; break;
+	case RGA2_FORMAT_VYUY_422     : dst_format = 0xe; dpw = 2; dst_cbcr_swp = 1; break;
+	case RGA2_FORMAT_UYVY_420     : dst_format = 0xf; dpw = 2; break;
+	case RGA2_FORMAT_VYUY_420     : dst_format = 0xf; dpw = 2; dst_cbcr_swp = 1; break;
     };
 
     reg = ((reg & (~m_RGA2_DST_INFO_SW_DST_FMT)) | (s_RGA2_DST_INFO_SW_DST_FMT(dst_format)));
@@ -448,18 +457,47 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
     u_lt_addr = u_addr;
     v_lt_addr = v_addr;
 
-    y_ld_addr = yrgb_addr + (msg->dst.act_h - 1) * (d_stride);
-    u_ld_addr = u_addr + ((msg->dst.act_h / y_div) - 1) * (d_uv_stride);
-    v_ld_addr = v_addr + ((msg->dst.act_h / y_div) - 1) * (d_uv_stride);
-
-    y_rt_addr = yrgb_addr + (msg->dst.act_w - 1) * dpw;
-    u_rt_addr = u_addr + (msg->dst.act_w / x_div) - 1;
-    v_rt_addr = v_addr + (msg->dst.act_w / x_div) - 1;
-
-    y_rd_addr = y_ld_addr + (msg->dst.act_w - 1) * dpw;
-    u_rd_addr = u_ld_addr + (msg->dst.act_w / x_div) - 1;
-    v_rd_addr = v_ld_addr + (msg->dst.act_w / x_div) - 1;
-
+	if (msg->dst.format < 0x18) {
+		/* 270 degree & Mirror V*/
+		y_ld_addr = yrgb_addr + (msg->dst.act_h - 1) * (d_stride);
+		u_ld_addr = u_addr + ((msg->dst.act_h / y_div) - 1) * (d_uv_stride);
+		v_ld_addr = v_addr + ((msg->dst.act_h / y_div) - 1) * (d_uv_stride);
+		/* 90 degree & Mirror H  */
+		y_rt_addr = yrgb_addr + (msg->dst.act_w - 1) * dpw;
+		u_rt_addr = u_addr + (msg->dst.act_w / x_div) - 1;
+		v_rt_addr = v_addr + (msg->dst.act_w / x_div) - 1;
+		/* 180 degree */
+		y_rd_addr = y_ld_addr + (msg->dst.act_w - 1) * dpw;
+		u_rd_addr = u_ld_addr + (msg->dst.act_w / x_div) - 1;
+		v_rd_addr = v_ld_addr + (msg->dst.act_w / x_div) - 1;
+	} else {
+		if (msg->dst.format == RGA2_FORMAT_YUYV_422 ||
+		    msg->dst.format == RGA2_FORMAT_YVYU_422 ||
+		    msg->dst.format == RGA2_FORMAT_UYVY_422 ||
+		    msg->dst.format == RGA2_FORMAT_VYUY_422) {
+			y_ld_addr = yrgb_addr + (msg->dst.act_h - 1) * (d_stride);
+			y_rt_addr = yrgb_addr + (msg->dst.act_w * 2 - 1);
+			y_rd_addr = y_ld_addr + (msg->dst.act_w * 2 - 1);
+			u_ld_addr = 0;
+			u_rt_addr = 0;
+			u_rd_addr = 0;
+			v_ld_addr = 0;
+			v_rt_addr = 0;
+			v_rd_addr = 0;
+		} else {
+			y_ld_addr = (RK_U32)msg->dst.yrgb_addr +
+			((msg->dst.y_offset + (msg->dst.act_h -1)) * d_stride) +
+			msg->dst.x_offset;
+			y_rt_addr = yrgb_addr + (msg->dst.act_w * 2 - 1);
+			y_rd_addr = y_ld_addr + (msg->dst.act_w - 1);
+			u_ld_addr = 0;
+			u_rt_addr = 0;
+			u_rd_addr = 0;
+			v_ld_addr = 0;
+			v_rt_addr = 0;
+			v_rd_addr = 0;
+		}
+	}
     if(rot_90_flag == 0)
     {
         if(y_mirr == 1)
@@ -561,6 +599,9 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
         *bRGA_DST_BASE2 = (RK_U32)v_addr;
     }
 
+	if (msg->dst.format >= 0x18) {
+		*bRGA_DST_BASE1 = msg->dst.x_offset;
+	}
     *bRGA_SRC_BASE3 = (RK_U32)s_y_lt_addr;
 }
 
@@ -956,8 +997,18 @@ static void format_name_convert(uint32_t *df, uint32_t sf)
         case 0xe: *df = RGA2_FORMAT_YCrCb_420_SP; break;
         case 0xf: *df = RGA2_FORMAT_YCrCb_420_P; break;
 
+	case 0x18: *df = RGA2_FORMAT_YVYU_422; break;
+	case 0x19: *df = RGA2_FORMAT_YVYU_420; break;
+	case 0x1a: *df = RGA2_FORMAT_VYUY_422; break;
+	case 0x1b: *df = RGA2_FORMAT_VYUY_420; break;
+	case 0x1c: *df = RGA2_FORMAT_YUYV_422; break;
+	case 0x1d: *df = RGA2_FORMAT_YUYV_420; break;
+	case 0x1e: *df = RGA2_FORMAT_UYVY_422; break;
+	case 0x1f: *df = RGA2_FORMAT_UYVY_420; break;
+
         case 0x20:*df = RGA2_FORMAT_YCbCr_420_SP_10B; break;
         case 0x21:*df = RGA2_FORMAT_YCrCb_420_SP_10B; break;
+
     }
 }
 

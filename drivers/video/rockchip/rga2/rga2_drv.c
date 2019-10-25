@@ -289,6 +289,23 @@ static const char *rga2_get_format_name(uint32_t format)
 	case RGA2_FORMAT_YCrCb_420_P:
 		return "YCrCb420P";
 
+	case RGA2_FORMAT_YVYU_422:
+		return "YVYU422";
+	case RGA2_FORMAT_YVYU_420:
+		return "YVYU420";
+	case RGA2_FORMAT_VYUY_422:
+		return "VYUY422";
+	case RGA2_FORMAT_VYUY_420:
+		return "VYUY420";
+	case RGA2_FORMAT_YUYV_422:
+		return "YUYV422";
+	case RGA2_FORMAT_YUYV_420:
+		return "YUYV420";
+	case RGA2_FORMAT_UYVY_422:
+		return "UYVY422";
+	case RGA2_FORMAT_UYVY_420:
+		return "UYVY420";
+
 	case RGA2_FORMAT_YCbCr_420_SP_10B:
 		return "YCrCb420SP10B";
 	case RGA2_FORMAT_YCrCb_420_SP_10B:
