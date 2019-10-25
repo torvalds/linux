@@ -256,12 +256,12 @@ static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 #undef CHECK_AND_PRINT_I
 }
 
-static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, bool is_5ghz,
+static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, enum nl80211_band band,
 				 u32 nvm_flags, const struct iwl_cfg *cfg)
 {
 	u32 flags = IEEE80211_CHAN_NO_HT40;
 
-	if (!is_5ghz && (nvm_flags & NVM_CHANNEL_40MHZ)) {
+	if (band == NL80211_BAND_2GHZ && (nvm_flags & NVM_CHANNEL_40MHZ)) {
 		if (ch_num <= LAST_2GHZ_HT_PLUS)
 			flags &= ~IEEE80211_CHAN_NO_HT40PLUS;
 		if (ch_num >= FIRST_2GHZ_HT_MINUS)
@@ -299,6 +299,13 @@ static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, bool is_5ghz,
 	return flags;
 }
 
+static enum nl80211_band iwl_nl80211_band_from_channel_idx(int ch_idx)
+{
+	if (ch_idx >= NUM_2GHZ_CHANNELS)
+		return NL80211_BAND_5GHZ;
+	return NL80211_BAND_2GHZ;
+}
+
 static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 				struct iwl_nvm_data *data,
 				const void * const nvm_ch_flags,
@@ -308,7 +315,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 	int n_channels = 0;
 	struct ieee80211_channel *channel;
 	u32 ch_flags;
-	int num_of_ch, num_2ghz_channels = NUM_2GHZ_CHANNELS;
+	int num_of_ch;
 	const u16 *nvm_chan;
 
 	if (cfg->uhb_supported) {
@@ -323,7 +330,8 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 	}
 
 	for (ch_idx = 0; ch_idx < num_of_ch; ch_idx++) {
-		bool is_5ghz = (ch_idx >= num_2ghz_channels);
+		enum nl80211_band band =
+			iwl_nl80211_band_from_channel_idx(ch_idx);
 
 		if (v4)
 			ch_flags =
@@ -332,12 +340,13 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			ch_flags =
 				__le16_to_cpup((__le16 *)nvm_ch_flags + ch_idx);
 
-		if (is_5ghz && !data->sku_cap_band_52ghz_enable)
+		if (band == NL80211_BAND_5GHZ &&
+		    !data->sku_cap_band_52ghz_enable)
 			continue;
 
 		/* workaround to disable wide channels in 5GHz */
 		if ((sbands_flags & IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ) &&
-		    is_5ghz) {
+		    band == NL80211_BAND_5GHZ) {
 			ch_flags &= ~(NVM_CHANNEL_40MHZ |
 				     NVM_CHANNEL_80MHZ |
 				     NVM_CHANNEL_160MHZ);
@@ -362,8 +371,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 		n_channels++;
 
 		channel->hw_value = nvm_chan[ch_idx];
-		channel->band = is_5ghz ?
-				NL80211_BAND_5GHZ : NL80211_BAND_2GHZ;
+		channel->band = band;
 		channel->center_freq =
 			ieee80211_channel_to_frequency(
 				channel->hw_value, channel->band);
@@ -379,7 +387,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 		/* don't put limitations in case we're using LAR */
 		if (!(sbands_flags & IWL_NVM_SBANDS_FLAGS_LAR))
 			channel->flags = iwl_get_channel_flags(nvm_chan[ch_idx],
-							       ch_idx, is_5ghz,
+							       ch_idx, band,
 							       ch_flags, cfg);
 		else
 			channel->flags = 0;

@@ -320,10 +320,45 @@ out:
 
 FWRT_DEBUGFS_WRITE_FILE_OPS(send_hcmd, 512);
 
+static ssize_t iwl_dbgfs_fw_dbg_domain_write(struct iwl_fw_runtime *fwrt,
+					     char *buf, size_t count)
+{
+	u32 new_domain;
+	int ret;
+
+	if (!iwl_trans_fw_running(fwrt->trans))
+		return -EIO;
+
+	ret = kstrtou32(buf, 0, &new_domain);
+	if (ret)
+		return ret;
+
+	if (new_domain != fwrt->trans->dbg.domains_bitmap) {
+		ret = iwl_dbg_tlv_gen_active_trigs(fwrt, new_domain);
+		if (ret)
+			return ret;
+
+		iwl_dbg_tlv_time_point(fwrt, IWL_FW_INI_TIME_POINT_PERIODIC,
+				       NULL);
+	}
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_fw_dbg_domain_read(struct iwl_fw_runtime *fwrt,
+					    size_t size, char *buf)
+{
+	return scnprintf(buf, size, "0x%08x\n",
+			 fwrt->trans->dbg.domains_bitmap);
+}
+
+FWRT_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_domain, 20);
+
 void iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 			    struct dentry *dbgfs_dir)
 {
 	INIT_DELAYED_WORK(&fwrt->timestamp.wk, iwl_fw_timestamp_marker_wk);
 	FWRT_DEBUGFS_ADD_FILE(timestamp_marker, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(send_hcmd, dbgfs_dir, 0200);
+	FWRT_DEBUGFS_ADD_FILE(fw_dbg_domain, dbgfs_dir, 0600);
 }

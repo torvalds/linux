@@ -1122,6 +1122,10 @@ struct iwl_mvm {
 		int responses[IWL_MVM_TOF_MAX_APS];
 	} ftm_initiator;
 
+	struct {
+		u8 d0i3_resp;
+	} cmd_ver;
+
 	struct ieee80211_vif *nan_vif;
 #define IWL_MAX_BAID	32
 	struct iwl_mvm_baid_data __rcu *baid_map[IWL_MAX_BAID];
@@ -1405,6 +1409,12 @@ static inline bool iwl_mvm_is_scan_ext_chan_supported(struct iwl_mvm *mvm)
 			  IWL_UCODE_TLV_API_SCAN_EXT_CHAN_VER);
 }
 
+static inline bool iwl_mvm_is_band_in_rx_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_API_BAND_IN_RX_DATA);
+}
+
 static inline bool iwl_mvm_has_new_rx_stats_api(struct iwl_mvm *mvm)
 {
 	return fw_has_api(&mvm->fw->ucode_capa,
@@ -1676,6 +1686,8 @@ void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
 void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
 				   struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_rx_missed_vap_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb);
 /* Bindings */
@@ -2071,6 +2083,19 @@ void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 			     struct dentry *dir);
 #endif
 
+static inline u8 iwl_mvm_phy_band_from_nl80211(enum nl80211_band band)
+{
+	switch (band) {
+	case NL80211_BAND_2GHZ:
+		return PHY_BAND_24;
+	case NL80211_BAND_5GHZ:
+		return PHY_BAND_5;
+	default:
+		WARN_ONCE(1, "Unsupported band (%u)\n", band);
+		return PHY_BAND_5;
+	}
+}
+
 /* Channel info utils */
 static inline bool iwl_mvm_has_ultra_hb_channel(struct iwl_mvm *mvm)
 {
@@ -2119,11 +2144,12 @@ iwl_mvm_set_chan_info_chandef(struct iwl_mvm *mvm,
 			      struct iwl_fw_channel_info *ci,
 			      struct cfg80211_chan_def *chandef)
 {
+	enum nl80211_band band = chandef->chan->band;
+
 	iwl_mvm_set_chan_info(mvm, ci, chandef->chan->hw_value,
-			      (chandef->chan->band == NL80211_BAND_2GHZ ?
-			       PHY_BAND_24 : PHY_BAND_5),
-			       iwl_mvm_get_channel_width(chandef),
-			       iwl_mvm_get_ctrl_pos(chandef));
+			      iwl_mvm_phy_band_from_nl80211(band),
+			      iwl_mvm_get_channel_width(chandef),
+			      iwl_mvm_get_ctrl_pos(chandef));
 }
 
 #endif /* __IWL_MVM_H__ */
