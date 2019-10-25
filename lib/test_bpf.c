@@ -6859,32 +6859,63 @@ err_page0:
 	return NULL;
 }
 
-static __init int test_skb_segment(void)
-{
+struct skb_segment_test {
+	const char *descr;
+	struct sk_buff *(*build_skb)(void);
 	netdev_features_t features;
+};
+
+static struct skb_segment_test skb_segment_tests[] __initconst = {
+	{
+		.descr = "gso_with_rx_frags",
+		.build_skb = build_test_skb,
+		.features = NETIF_F_SG | NETIF_F_GSO_PARTIAL | NETIF_F_IP_CSUM |
+			    NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM
+	}
+};
+
+static __init int test_skb_segment_single(const struct skb_segment_test *test)
+{
 	struct sk_buff *skb, *segs;
 	int ret = -1;
 
-	features = NETIF_F_SG | NETIF_F_GSO_PARTIAL | NETIF_F_IP_CSUM |
-		   NETIF_F_IPV6_CSUM;
-	features |= NETIF_F_RXCSUM;
-	skb = build_test_skb();
+	skb = test->build_skb();
 	if (!skb) {
 		pr_info("%s: failed to build_test_skb", __func__);
 		goto done;
 	}
 
-	segs = skb_segment(skb, features);
+	segs = skb_segment(skb, test->features);
 	if (!IS_ERR(segs)) {
 		kfree_skb_list(segs);
 		ret = 0;
-		pr_info("%s: success in skb_segment!", __func__);
-	} else {
-		pr_info("%s: failed in skb_segment!", __func__);
 	}
 	kfree_skb(skb);
 done:
 	return ret;
+}
+
+static __init int test_skb_segment(void)
+{
+	int i, err_cnt = 0, pass_cnt = 0;
+
+	for (i = 0; i < ARRAY_SIZE(skb_segment_tests); i++) {
+		const struct skb_segment_test *test = &skb_segment_tests[i];
+
+		pr_info("#%d %s ", i, test->descr);
+
+		if (test_skb_segment_single(test)) {
+			pr_cont("FAIL\n");
+			err_cnt++;
+		} else {
+			pr_cont("PASS\n");
+			pass_cnt++;
+		}
+	}
+
+	pr_info("%s: Summary: %d PASSED, %d FAILED\n", __func__,
+		pass_cnt, err_cnt);
+	return err_cnt ? -EINVAL : 0;
 }
 
 static __init int test_bpf(void)
