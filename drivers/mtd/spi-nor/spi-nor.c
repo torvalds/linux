@@ -2878,12 +2878,18 @@ write_err:
 static int spi_nor_check(struct spi_nor *nor)
 {
 	if (!nor->dev ||
+	    (!nor->spimem && !nor->controller_ops) ||
 	    (!nor->spimem && nor->controller_ops &&
 	    (!nor->controller_ops->read ||
 	     !nor->controller_ops->write ||
 	     !nor->controller_ops->read_reg ||
 	     !nor->controller_ops->write_reg))) {
 		pr_err("spi-nor: please fill all the necessary fields!\n");
+		return -EINVAL;
+	}
+
+	if (nor->spimem && nor->controller_ops) {
+		dev_err(nor->dev, "nor->spimem and nor->controller_ops are mutually exclusive, please set just one of them.\n");
 		return -EINVAL;
 	}
 
