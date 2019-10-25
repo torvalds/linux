@@ -480,7 +480,7 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			    acpi_ps_get_opcode_info((*op)->common.aml_opcode);
 			walk_state->opcode = (*op)->common.aml_opcode;
 
-			(void)walk_state->ascending_callback(walk_state);
+			status = walk_state->ascending_callback(walk_state);
 			(void)acpi_ps_next_parse_state(walk_state, *op, status);
 
 			status2 = acpi_ps_complete_this_op(walk_state, *op);
@@ -489,7 +489,6 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			}
 		}
 
-		status = AE_OK;
 		break;
 
 	case AE_CTRL_BREAK:
@@ -511,14 +510,13 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 		walk_state->opcode = (*op)->common.aml_opcode;
 
 		status = walk_state->ascending_callback(walk_state);
-		status = acpi_ps_next_parse_state(walk_state, *op, status);
+		(void)acpi_ps_next_parse_state(walk_state, *op, status);
 
 		status2 = acpi_ps_complete_this_op(walk_state, *op);
 		if (ACPI_FAILURE(status2)) {
 			return_ACPI_STATUS(status2);
 		}
 
-		status = AE_OK;
 		break;
 
 	case AE_CTRL_TERMINATE:
