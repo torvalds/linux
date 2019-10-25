@@ -174,7 +174,7 @@ static const u32 a72_b53_mach_compat[] = {
 static void __init a72_b53_rac_enable_all(struct device_node *np)
 {
 	unsigned int cpu;
-	u32 enable = 0, pref_dist;
+	u32 enable = 0, pref_dist, shift;
 
 	if (IS_ENABLED(CONFIG_CACHE_B15_RAC))
 		return;
@@ -184,9 +184,13 @@ static void __init a72_b53_rac_enable_all(struct device_node *np)
 
 	pref_dist = cbc_readl(RAC_CONFIG1_REG);
 	for_each_possible_cpu(cpu) {
+		shift = cpu * RAC_CPU_SHIFT + RACPREFDATA_SHIFT;
 		enable |= RAC_DATA_INST_EN_MASK << (cpu * RAC_CPU_SHIFT);
-		if (cpubiuctrl_regs == a72_cpubiuctrl_regs)
+		if (cpubiuctrl_regs == a72_cpubiuctrl_regs) {
+			enable &= ~(RACENPREF_MASK << shift);
+			enable |= 3 << shift;
 			pref_dist |= 1 << (cpu + DPREF_LINE_2_SHIFT);
+		}
 	}
 
 	cbc_writel(enable, RAC_CONFIG0_REG);
