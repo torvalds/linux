@@ -390,3 +390,35 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_unload_parent_table)
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_unload_table
+ *
+ * PARAMETERS:  table_index         - Index as returned by acpi_load_table
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Via the table_index representing an SSDT or OEMx table, unloads
+ *              the table and deletes all namespace objects associated with
+ *              that table. Unloading of the DSDT is not allowed.
+ *              Note: Mainly intended to support hotplug removal of SSDTs.
+ *
+ ******************************************************************************/
+acpi_status acpi_unload_table(u32 table_index)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_unload_table);
+
+	if (table_index == 1) {
+
+		/* table_index==1 means DSDT is the owner. DSDT cannot be unloaded */
+
+		return_ACPI_STATUS(AE_TYPE);
+	}
+
+	status = acpi_tb_unload_table(table_index);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_unload_table)

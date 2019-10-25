@@ -461,6 +461,9 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_load_table(struct acpi_table_header *table))
 
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
+			    acpi_unload_table(u32 table_index))
+
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_unload_parent_table(acpi_handle object))
 
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
