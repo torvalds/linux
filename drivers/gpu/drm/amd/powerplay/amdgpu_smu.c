@@ -1351,6 +1351,8 @@ static int smu_suspend(void *handle)
 	if (adev->asic_type >= CHIP_NAVI10 &&
 	    adev->gfx.rlc.funcs->stop)
 		adev->gfx.rlc.funcs->stop(adev);
+	if (smu->is_apu)
+		smu_set_gfx_cgpg(&adev->smu, false);
 
 	return 0;
 }
