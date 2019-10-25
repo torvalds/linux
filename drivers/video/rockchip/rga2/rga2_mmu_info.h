@@ -18,4 +18,3 @@ void rga2_dma_flush_range(void *pstart, void *pend);
 
 #endif
 
-

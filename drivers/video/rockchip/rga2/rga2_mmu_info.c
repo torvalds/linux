@@ -323,6 +323,7 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
         case RGA2_FORMAT_YCbCr_420_SP_10B:
         case RGA2_FORMAT_YCrCb_420_SP_10B:
             stride = (w + 3) & (~3);
+            stride = stride;
             size_yrgb = stride * h;
             size_uv = (stride * (h >> 1));
             start = MIN(yrgb_addr, uv_addr);
@@ -808,7 +809,7 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
         }
 
         /* flush data to DDR */
-	rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
+        rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
         rga2_mmu_buf_get(&rga2_mmu_buf, AllSize);
         reg->MMU_len = AllSize;
 
@@ -877,7 +878,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_reg *reg, struct rga2_req *
         }
 
         /* flush data to DDR */
-	rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
+        rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
         rga2_mmu_buf_get(&rga2_mmu_buf, AllSize);
 	reg->MMU_len = AllSize;
 
@@ -938,7 +939,7 @@ static int rga2_mmu_info_update_palette_table_mode(struct rga2_reg *reg, struct 
         }
 
         /* flush data to DDR */
-	rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
+        rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
         rga2_mmu_buf_get(&rga2_mmu_buf, AllSize);
         reg->MMU_len = AllSize;
 
@@ -1017,7 +1018,7 @@ static int rga2_mmu_info_update_patten_buff_mode(struct rga2_reg *reg, struct rg
         reg->MMU_base = MMU_Base;
 
         /* flush data to DDR */
-	rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
+        rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
         return 0;
 
     }
