@@ -193,6 +193,15 @@ static inline int snd_sof_dsp_set_clk(struct snd_sof_dev *sdev, u32 freq)
 	return 0;
 }
 
+static inline int snd_sof_dsp_set_power_state(struct snd_sof_dev *sdev,
+					      enum sof_d0_substate substate)
+{
+	if (sof_ops(sdev)->set_power_state)
+		return sof_ops(sdev)->set_power_state(sdev, substate);
+
+	return 0;
+}
+
 /* debug */
 static inline void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags)
 {
