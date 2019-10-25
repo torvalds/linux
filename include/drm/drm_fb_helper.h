@@ -235,7 +235,6 @@ void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper);
 
 void drm_fb_helper_deferred_io(struct fb_info *info,
 			       struct list_head *pagelist);
-int drm_fb_helper_defio_init(struct drm_fb_helper *fb_helper);
 
 ssize_t drm_fb_helper_sys_read(struct fb_info *info, char __user *buf,
 			       size_t count, loff_t *ppos);
