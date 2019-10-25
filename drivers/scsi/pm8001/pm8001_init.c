@@ -432,7 +432,7 @@ static int pm8001_ioremap(struct pm8001_hba_info *pm8001_ha)
 		} else {
 			pm8001_ha->io_mem[logicalBar].membase	= 0;
 			pm8001_ha->io_mem[logicalBar].memsize	= 0;
-			pm8001_ha->io_mem[logicalBar].memvirtaddr = 0;
+			pm8001_ha->io_mem[logicalBar].memvirtaddr = NULL;
 		}
 		logicalBar++;
 	}
