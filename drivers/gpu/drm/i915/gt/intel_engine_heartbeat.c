@@ -133,7 +133,7 @@ out:
 
 void intel_engine_unpark_heartbeat(struct intel_engine_cs *engine)
 {
-	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
+	if (!IS_ACTIVE(CONFIG_DRM_I915_HEARTBEAT_INTERVAL))
 		return;
 
 	next_heartbeat(engine);
@@ -156,7 +156,7 @@ int intel_engine_set_heartbeat(struct intel_engine_cs *engine,
 	int err;
 
 	/* Send one last pulse before to cleanup persistent hogs */
-	if (!delay && CONFIG_DRM_I915_PREEMPT_TIMEOUT) {
+	if (!delay && IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT)) {
 		err = intel_engine_pulse(engine);
 		if (err)
 			return err;

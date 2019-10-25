@@ -1447,7 +1447,7 @@ long i915_request_wait(struct i915_request *rq,
 	 * completion. That requires having a good predictor for the request
 	 * duration, which we currently lack.
 	 */
-	if (CONFIG_DRM_I915_SPIN_REQUEST &&
+	if (IS_ACTIVE(CONFIG_DRM_I915_SPIN_REQUEST) &&
 	    __i915_spin_request(rq, state, CONFIG_DRM_I915_SPIN_REQUEST)) {
 		dma_fence_signal(&rq->fence);
 		goto out;

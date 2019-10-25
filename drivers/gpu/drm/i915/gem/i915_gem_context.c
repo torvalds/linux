@@ -325,7 +325,8 @@ static bool __cancel_engine(struct intel_engine_cs *engine)
 	 * kill the banned context, we fallback to doing a local reset
 	 * instead.
 	 */
-	if (CONFIG_DRM_I915_PREEMPT_TIMEOUT && !intel_engine_pulse(engine))
+	if (IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT) &&
+	    !intel_engine_pulse(engine))
 		return true;
 
 	/* If we are unable to send a pulse, try resetting this engine. */
