@@ -511,6 +511,21 @@ char *acpi_db_get_next_token(char *string,
 		}
 		break;
 
+	case '{':
+
+		/* This is the start of a field unit, scan until closing brace */
+
+		string++;
+		start = string;
+		type = ACPI_TYPE_FIELD_UNIT;
+
+		/* Find end of buffer */
+
+		while (*string && (*string != '}')) {
+			string++;
+		}
+		break;
+
 	case '[':
 
 		/* This is the start of a package, scan until closing bracket */
