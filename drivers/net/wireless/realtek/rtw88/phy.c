@@ -2059,7 +2059,7 @@ s8 rtw_phy_pwrtrack_get_pwridx(struct rtw_dev *rtwdev,
 		return 0;
 	}
 
-	if (!swing_table || !swing_table->n || !swing_table->p) {
+	if (!swing_table) {
 		rtw_warn(rtwdev, "swing table not configured\n");
 		return 0;
 	}
