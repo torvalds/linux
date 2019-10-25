@@ -416,6 +416,12 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int lp_gpio_remove(struct platform_device *pdev)
+{
+	pm_runtime_disable(&pdev->dev);
+	return 0;
+}
+
 static int lp_gpio_runtime_suspend(struct device *dev)
 {
 	return 0;
@@ -454,12 +460,6 @@ static const struct acpi_device_id lynxpoint_gpio_acpi_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, lynxpoint_gpio_acpi_match);
-
-static int lp_gpio_remove(struct platform_device *pdev)
-{
-	pm_runtime_disable(&pdev->dev);
-	return 0;
-}
 
 static struct platform_driver lp_gpio_driver = {
 	.probe          = lp_gpio_probe,
