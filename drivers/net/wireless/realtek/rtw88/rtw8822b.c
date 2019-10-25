@@ -391,6 +391,7 @@ struct rtw8822b_rfe_info {
 
 static const struct rtw8822b_rfe_info rtw8822b_rfe_info[] = {
 	[2] = I2GE5G_CCUT(efem),
+	[3] = IFEM_EXT_CCUT(ifem),
 	[5] = IFEM_EXT_CCUT(ifem),
 };
 
@@ -664,7 +665,7 @@ static void rtw8822b_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 
 		rtw_write32_mask(rtwdev, REG_ADC160, BIT(30), 0x1);
 
-		if (rfe_option == 2) {
+		if (rfe_option == 2 || rfe_option == 3) {
 			rtw_write32_mask(rtwdev, REG_L1PKWT, 0x0000f000, 0x6);
 			rtw_write32_mask(rtwdev, REG_ADC40, BIT(10), 0x1);
 		}
@@ -2041,6 +2042,7 @@ static struct rtw_intf_phy_para_table phy_para_table_8822b = {
 
 static const struct rtw_rfe_def rtw8822b_rfe_defs[] = {
 	[2] = RTW_DEF_RFE(8822b, 2, 2),
+	[3] = RTW_DEF_RFE(8822b, 3, 0),
 	[5] = RTW_DEF_RFE(8822b, 5, 5),
 };
 
