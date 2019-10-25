@@ -901,7 +901,6 @@ static int fsl_soc_dma_probe(struct platform_device *pdev)
 	}
 
 	dma->dai.name = DRV_NAME;
-	dma->dai.ops = &fsl_dma_ops;
 	dma->dai.open = fsl_dma_open;
 	dma->dai.close = fsl_dma_close;
 	dma->dai.ioctl = snd_soc_pcm_lib_ioctl;
