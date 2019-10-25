@@ -643,8 +643,6 @@ xfs_ioc_space(
 	 */
 	switch (cmd) {
 	case XFS_IOC_ZERO_RANGE:
-	case XFS_IOC_RESVSP:
-	case XFS_IOC_RESVSP64:
 	case XFS_IOC_UNRESVSP:
 	case XFS_IOC_UNRESVSP64:
 		if (bf->l_len <= 0) {
@@ -669,12 +667,6 @@ xfs_ioc_space(
 	case XFS_IOC_ZERO_RANGE:
 		flags |= XFS_PREALLOC_SET;
 		error = xfs_zero_file_space(ip, bf->l_start, bf->l_len);
-		break;
-	case XFS_IOC_RESVSP:
-	case XFS_IOC_RESVSP64:
-		flags |= XFS_PREALLOC_SET;
-		error = xfs_alloc_file_space(ip, bf->l_start, bf->l_len,
-						XFS_BMAPI_PREALLOC);
 		break;
 	case XFS_IOC_UNRESVSP:
 	case XFS_IOC_UNRESVSP64:
@@ -2121,11 +2113,9 @@ xfs_file_ioctl(
 		return xfs_ioc_setlabel(filp, mp, arg);
 	case XFS_IOC_ALLOCSP:
 	case XFS_IOC_FREESP:
-	case XFS_IOC_RESVSP:
 	case XFS_IOC_UNRESVSP:
 	case XFS_IOC_ALLOCSP64:
 	case XFS_IOC_FREESP64:
-	case XFS_IOC_RESVSP64:
 	case XFS_IOC_UNRESVSP64:
 	case XFS_IOC_ZERO_RANGE: {
 		xfs_flock64_t		bf;
