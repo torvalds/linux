@@ -373,20 +373,6 @@ static const struct dce_abm_mask abm_mask = {
 		ABM_MASK_SH_LIST_DCN20(_MASK)
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
-static const struct dcn21_dmcub_registers dmcub_regs = {
-		DMCUB_REG_LIST_DCN()
-};
-
-static const struct dcn21_dmcub_shift dmcub_shift = {
-		DMCUB_COMMON_MASK_SH_LIST_BASE(__SHIFT)
-};
-
-static const struct dcn21_dmcub_mask dmcub_mask = {
-		DMCUB_COMMON_MASK_SH_LIST_BASE(_MASK)
-};
-#endif
-
 #define audio_regs(id)\
 [id] = {\
 		AUD_COMMON_REG_LIST(id)\
@@ -969,11 +955,6 @@ static void destruct(struct dcn21_resource_pool *pool)
 
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
-
-#ifdef CONFIG_DRM_AMD_DC_DMUB
-	if (pool->base.dmcub != NULL)
-		dcn21_dmcub_destroy(&pool->base.dmcub);
-#endif
 
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
@@ -1765,18 +1746,6 @@ static bool construct(
 		BREAK_TO_DEBUGGER();
 		goto create_fail;
 	}
-
-#ifdef CONFIG_DRM_AMD_DC_DMUB
-	pool->base.dmcub = dcn21_dmcub_create(ctx,
-			&dmcub_regs,
-			&dmcub_shift,
-			&dmcub_mask);
-	if (pool->base.dmcub == NULL) {
-		dm_error("DC: failed to create dmcub!\n");
-		BREAK_TO_DEBUGGER();
-		goto create_fail;
-	}
-#endif
 
 	pool->base.pp_smu = dcn21_pp_smu_create(ctx);
 
