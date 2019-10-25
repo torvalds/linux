@@ -1181,8 +1181,6 @@ struct hfa384x_usbctlx {
 	ctlx_cmdcb_t cmdcb;	/* Async command callback */
 	ctlx_usercb_t usercb;	/* Async user callback, */
 	void *usercb_data;	/*  at CTLX completion  */
-
-	int variant;		/* Identifies cmd variant */
 };
 
 struct hfa384x_usbctlxq {
