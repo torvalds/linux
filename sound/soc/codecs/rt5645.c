@@ -3636,6 +3636,12 @@ static const struct rt5645_platform_data lattepanda_board_platform_data = {
 	.inv_jd1_1 = true
 };
 
+static const struct rt5645_platform_data kahlee_platform_data = {
+	.dmic1_data_pin = RT5645_DMIC_DATA_GPIO5,
+	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
+	.jd_mode = 3,
+};
+
 static const struct dmi_system_id dmi_platform_data[] = {
 	{
 		.ident = "Chrome Buddy",
@@ -3741,6 +3747,13 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		  DMI_EXACT_MATCH(DMI_BOARD_VERSION, "Default string"),
 		},
 		.driver_data = (void *)&lattepanda_board_platform_data,
+	},
+	{
+		.ident = "Chrome Kahlee",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Kahlee"),
+		},
+		.driver_data = (void *)&kahlee_platform_data,
 	},
 	{ }
 };
