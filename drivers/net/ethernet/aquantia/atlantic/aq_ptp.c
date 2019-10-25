@@ -713,7 +713,7 @@ static int aq_ptp_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		aq_nic->aq_hw_ops->hw_irq_enable(aq_nic->aq_hw,
-					1 << aq_ptp->ptp_ring_param.vec_idx);
+					BIT_ULL(aq_ptp->ptp_ring_param.vec_idx));
 	}
 
 err_exit:
