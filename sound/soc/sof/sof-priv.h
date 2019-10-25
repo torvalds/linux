@@ -310,6 +310,7 @@ struct snd_sof_pcm_stream {
 	struct sof_ipc_stream_posn posn;
 	struct snd_pcm_substream *substream;
 	struct work_struct period_elapsed_work;
+	bool d0i3_compatible; /* DSP can be in D0I3 when this pcm is opened */
 };
 
 /* ALSA SOF PCM device */
