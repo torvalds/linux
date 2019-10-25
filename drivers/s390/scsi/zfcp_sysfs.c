@@ -693,6 +693,11 @@ struct device_attribute *zfcp_sysfs_shost_attrs[] = {
 									       \
 		diag_hdr = &adapter->diagnostics->port_data.header;	       \
 									       \
+		rc = zfcp_diag_update_buffer_limited(			       \
+			adapter, diag_hdr, zfcp_diag_update_port_data_buffer); \
+		if (rc != 0)						       \
+			goto out;					       \
+									       \
 		spin_lock_irqsave(&diag_hdr->access_lock, flags);	       \
 		rc = scnprintf(						       \
 			buf, (_prtsize) + 2, _prtfmt "\n",		       \

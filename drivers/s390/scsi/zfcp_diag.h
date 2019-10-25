@@ -71,6 +71,17 @@ void zfcp_diag_sysfs_destroy(struct zfcp_adapter *const adapter);
 void zfcp_diag_update_xdata(struct zfcp_diag_header *const hdr,
 			    const void *const data, const bool incomplete);
 
+/*
+ * Function-Type used in zfcp_diag_update_buffer_limited() for the function
+ * that does the buffer-implementation dependent work.
+ */
+typedef int (*zfcp_diag_update_buffer_func)(struct zfcp_adapter *const adapter);
+
+int zfcp_diag_update_port_data_buffer(struct zfcp_adapter *const adapter);
+int zfcp_diag_update_buffer_limited(struct zfcp_adapter *const adapter,
+				    struct zfcp_diag_header *const hdr,
+				    zfcp_diag_update_buffer_func buffer_update);
+
 /**
  * zfcp_diag_support_sfp() - Return %true if the @adapter supports reporting
  *			     SFP Data.
