@@ -9,7 +9,6 @@
 extern int
 xfs_ioc_space(
 	struct file		*filp,
-	unsigned int		cmd,
 	xfs_flock64_t		*bf);
 
 int

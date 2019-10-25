@@ -480,11 +480,14 @@ struct space_resv_32 {
 	__s32		l_pad[4];	/* reserve area */
 };
 
-#define FS_IOC_RESVSP_32		_IOW ('X', 40, struct space_resv_32)
+#define FS_IOC_RESVSP_32	_IOW ('X', 40, struct space_resv_32)
+#define FS_IOC_UNRESVSP_32	_IOW ('X', 41, struct space_resv_32)
 #define FS_IOC_RESVSP64_32	_IOW ('X', 42, struct space_resv_32)
+#define FS_IOC_UNRESVSP64_32	_IOW ('X', 43, struct space_resv_32)
+#define FS_IOC_ZERO_RANGE_32	_IOW ('X', 57, struct space_resv_32)
 
 /* just account for different alignment */
-static int compat_ioctl_preallocate(struct file *file,
+static int compat_ioctl_preallocate(struct file *file, int mode,
 			struct space_resv_32    __user *p32)
 {
 	struct space_resv	__user *p = compat_alloc_user_space(sizeof(*p));
@@ -498,7 +501,7 @@ static int compat_ioctl_preallocate(struct file *file,
 	    copy_in_user(&p->l_pad,	&p32->l_pad,	4*sizeof(u32)))
 		return -EFAULT;
 
-	return ioctl_preallocate(file, p);
+	return ioctl_preallocate(file, mode, p);
 }
 #endif
 
@@ -1022,12 +1025,30 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 #if defined(CONFIG_IA64) || defined(CONFIG_X86_64)
 	case FS_IOC_RESVSP_32:
 	case FS_IOC_RESVSP64_32:
-		error = compat_ioctl_preallocate(f.file, compat_ptr(arg));
+		error = compat_ioctl_preallocate(f.file, 0, compat_ptr(arg));
+		goto out_fput;
+	case FS_IOC_UNRESVSP_32:
+	case FS_IOC_UNRESVSP64_32:
+		error = compat_ioctl_preallocate(f.file, FALLOC_FL_PUNCH_HOLE,
+				compat_ptr(arg));
+		goto out_fput;
+	case FS_IOC_ZERO_RANGE_32:
+		error = compat_ioctl_preallocate(f.file, FALLOC_FL_ZERO_RANGE,
+				compat_ptr(arg));
 		goto out_fput;
 #else
 	case FS_IOC_RESVSP:
 	case FS_IOC_RESVSP64:
-		error = ioctl_preallocate(f.file, compat_ptr(arg));
+		error = ioctl_preallocate(f.file, 0, compat_ptr(arg));
+		goto out_fput;
+	case FS_IOC_UNRESVSP:
+	case FS_IOC_UNRESVSP64:
+		error = ioctl_preallocate(f.file, FALLOC_FL_PUNCH_HOLE,
+				compat_ptr(arg));
+		goto out_fput;
+	case FS_IOC_ZERO_RANGE:
+		error = ioctl_preallocate(f.file, FALLOC_FL_ZERO_RANGE,
+				compat_ptr(arg));
 		goto out_fput;
 #endif
 

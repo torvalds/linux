@@ -557,16 +557,13 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_ALLOCSP_32:
 	case XFS_IOC_FREESP_32:
 	case XFS_IOC_ALLOCSP64_32:
-	case XFS_IOC_FREESP64_32:
-	case XFS_IOC_RESVSP64_32:
-	case XFS_IOC_UNRESVSP64_32:
-	case XFS_IOC_ZERO_RANGE_32: {
+	case XFS_IOC_FREESP64_32: {
 		struct xfs_flock64	bf;
 
 		if (xfs_compat_flock64_copyin(&bf, arg))
 			return -EFAULT;
 		cmd = _NATIVE_IOC(cmd, struct xfs_flock64);
-		return xfs_ioc_space(filp, cmd, &bf);
+		return xfs_ioc_space(filp, &bf);
 	}
 	case XFS_IOC_FSGEOMETRY_V1_32:
 		return xfs_compat_ioc_fsgeometry_v1(mp, arg);
