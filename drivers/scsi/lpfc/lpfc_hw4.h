@@ -4822,8 +4822,8 @@ union lpfc_wqe128 {
 	struct send_frame_wqe send_frame;
 };
 
-#define MAGIC_NUMER_G6 0xFEAA0003
-#define MAGIC_NUMER_G7 0xFEAA0005
+#define MAGIC_NUMBER_G6 0xFEAA0003
+#define MAGIC_NUMBER_G7 0xFEAA0005
 
 struct lpfc_grp_hdr {
 	uint32_t size;

@@ -12418,9 +12418,9 @@ lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
 	 */
 	if (offset == ADD_STATUS_FW_NOT_SUPPORTED ||
 	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
-	     magic_number != MAGIC_NUMER_G6) ||
+	     magic_number != MAGIC_NUMBER_G6) ||
 	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC &&
-	     magic_number != MAGIC_NUMER_G7)) {
+	     magic_number != MAGIC_NUMBER_G7)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3030 This firmware version is not supported on"
 				" this HBA model. Device:%x Magic:%x Type:%x "
