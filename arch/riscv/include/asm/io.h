@@ -13,6 +13,7 @@
 
 #include <linux/types.h>
 #include <asm/mmiowb.h>
+#include <asm/pgtable.h>
 
 extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
 
@@ -160,6 +161,12 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 #define readq(c)	({ u64 __v; __io_br(); __v = readq_cpu(c); __io_ar(__v); __v; })
 #define writeq(v,c)	({ __io_bw(); writeq_cpu((v),(c)); __io_aw(); })
 #endif
+
+/*
+ *  I/O port access constants.
+ */
+#define IO_SPACE_LIMIT		(PCI_IO_SIZE - 1)
+#define PCI_IOBASE		((void __iomem *)PCI_IO_START)
 
 /*
  * Emulation routines for the port-mapped IO space used by some PCI drivers.
