@@ -2584,7 +2584,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		size_t *retlen, const u_char *buf)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
-	size_t actual;
+	size_t actual = 0;
 	int ret;
 
 	dev_dbg(nor->dev, "to 0x%08x, len %zd\n", (u32)to, len);
@@ -2597,9 +2597,8 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	nor->sst_write_second = false;
 
-	actual = to % 2;
 	/* Start write from odd address. */
-	if (actual) {
+	if (to % 2) {
 		nor->program_opcode = SPINOR_OP_BP;
 
 		/* write one byte. */
@@ -2610,8 +2609,10 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		ret = spi_nor_wait_till_ready(nor);
 		if (ret)
 			goto sst_write_err;
+
+		to++;
+		actual++;
 	}
-	to += actual;
 
 	/* Write out most of the data here. */
 	for (; actual < len - 1; actual += 2) {
