@@ -382,6 +382,9 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 	base_dev->phys_port_cnt = 1;
 	base_dev->dev.parent = parent;
 	base_dev->dev.dma_ops = &dma_virt_ops;
+	base_dev->dev.dma_parms = &sdev->dma_parms;
+	sdev->dma_parms = (struct device_dma_parameters)
+		{ .max_segment_size = SZ_2G };
 	base_dev->num_comp_vectors = num_possible_cpus();
 
 	ib_set_device_ops(base_dev, &siw_device_ops);
