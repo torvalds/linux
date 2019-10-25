@@ -34,6 +34,9 @@
  */
 int zfcp_diag_adapter_setup(struct zfcp_adapter *const adapter)
 {
+	/* set the timestamp so that the first test on age will always fail */
+	const unsigned long initial_timestamp =
+		jiffies - msecs_to_jiffies(ZFCP_DIAG_MAX_AGE);
 	struct zfcp_diag_adapter *diag;
 	struct zfcp_diag_header *hdr;
 
@@ -47,8 +50,15 @@ int zfcp_diag_adapter_setup(struct zfcp_adapter *const adapter)
 	spin_lock_init(&hdr->access_lock);
 	hdr->buffer = &diag->port_data.data;
 	hdr->buffer_size = sizeof(diag->port_data.data);
-	/* set the timestamp so that the first test on age will always fail */
-	hdr->timestamp = jiffies - msecs_to_jiffies(ZFCP_DIAG_MAX_AGE);
+	hdr->timestamp = initial_timestamp;
+
+	/* setup header for config_data */
+	hdr = &diag->config_data.header;
+
+	spin_lock_init(&hdr->access_lock);
+	hdr->buffer = &diag->config_data.data;
+	hdr->buffer_size = sizeof(diag->config_data.data);
+	hdr->timestamp = initial_timestamp;
 
 	adapter->diagnostics = diag;
 	return 0;

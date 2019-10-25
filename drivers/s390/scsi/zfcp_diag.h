@@ -43,12 +43,19 @@ struct zfcp_diag_header {
  * @port_data: data retrieved using exchange port data.
  * @port_data.header: header with metadata for the cache in @port_data.data.
  * @port_data.data: cached QTCB Bottom of command exchange port data.
+ * @config_data: data retrieved using exchange config data.
+ * @config_data.header: header with metadata for the cache in @config_data.data.
+ * @config_data.data: cached QTCB Bottom of command exchange config data.
  */
 struct zfcp_diag_adapter {
 	struct {
 		struct zfcp_diag_header		header;
 		struct fsf_qtcb_bottom_port	data;
 	} port_data;
+	struct {
+		struct zfcp_diag_header		header;
+		struct fsf_qtcb_bottom_config	data;
+	} config_data;
 };
 
 int zfcp_diag_adapter_setup(struct zfcp_adapter *const adapter);
