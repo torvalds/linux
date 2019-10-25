@@ -29,6 +29,7 @@
 #include <linux/kgdb.h>
 #include <linux/kref.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 
 #include <asm/byteorder.h>
 

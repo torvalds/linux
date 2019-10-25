@@ -457,10 +457,18 @@ static bool optc1_enable_crtc(struct timing_generator *optc)
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 1);
 
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	REG_SEQ_START();
+#endif
 	/* Enable CRTC */
 	REG_UPDATE_2(OTG_CONTROL,
 			OTG_DISABLE_POINT_CNTL, 3,
 			OTG_MASTER_EN, 1);
+
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	REG_SEQ_SUBMIT();
+	REG_SEQ_WAIT_DONE();
+#endif
 
 	return true;
 }

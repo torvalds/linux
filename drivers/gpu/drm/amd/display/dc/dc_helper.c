@@ -32,6 +32,76 @@
 #include "dm_services.h"
 #include <stdarg.h>
 
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+#include "dc.h"
+#include "dc_dmub_srv.h"
+
+static inline void submit_dmub_read_modify_write(
+	struct dc_reg_helper_state *offload,
+	const struct dc_context *ctx)
+{
+	struct dmub_rb_cmd_read_modify_write *cmd_buf = &offload->cmd_data.read_modify_write;
+	bool gather = false;
+
+	offload->should_burst_write =
+			(offload->same_addr_count == (DMUB_READ_MODIFY_WRITE_SEQ__MAX - 1));
+	cmd_buf->header.payload_bytes =
+			sizeof(struct dmub_cmd_read_modify_write_sequence) * offload->reg_seq_count;
+
+	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
+	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
+
+	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &cmd_buf->header);
+
+	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
+
+	memset(cmd_buf, 0, sizeof(*cmd_buf));
+
+	offload->reg_seq_count = 0;
+	offload->same_addr_count = 0;
+}
+
+static inline void submit_dmub_burst_write(
+	struct dc_reg_helper_state *offload,
+	const struct dc_context *ctx)
+{
+	struct dmub_rb_cmd_burst_write *cmd_buf = &offload->cmd_data.burst_write;
+	bool gather = false;
+
+	cmd_buf->header.payload_bytes =
+			sizeof(uint32_t) * offload->reg_seq_count;
+
+	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
+	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
+
+	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &cmd_buf->header);
+
+	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
+
+	memset(cmd_buf, 0, sizeof(*cmd_buf));
+
+	offload->reg_seq_count = 0;
+}
+
+static inline void submit_dmub_reg_wait(
+		struct dc_reg_helper_state *offload,
+		const struct dc_context *ctx)
+{
+	struct dmub_rb_cmd_reg_wait *cmd_buf = &offload->cmd_data.reg_wait;
+	bool gather = false;
+
+	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
+	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
+
+	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &cmd_buf->header);
+
+	memset(cmd_buf, 0, sizeof(*cmd_buf));
+	offload->reg_seq_count = 0;
+
+	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
+}
+#endif
+
 struct dc_reg_value_masks {
 	uint32_t value;
 	uint32_t mask;
@@ -77,6 +147,100 @@ static void set_reg_field_values(struct dc_reg_value_masks *field_value_mask,
 	}
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+static void dmub_flush_buffer_execute(
+		struct dc_reg_helper_state *offload,
+		const struct dc_context *ctx)
+{
+	submit_dmub_read_modify_write(offload, ctx);
+	dc_dmub_srv_cmd_execute(ctx->dmub_srv);
+}
+
+static void dmub_flush_burst_write_buffer_execute(
+		struct dc_reg_helper_state *offload,
+		const struct dc_context *ctx)
+{
+	submit_dmub_burst_write(offload, ctx);
+	dc_dmub_srv_cmd_execute(ctx->dmub_srv);
+}
+
+static bool dmub_reg_value_burst_set_pack(const struct dc_context *ctx, uint32_t addr,
+		uint32_t reg_val)
+{
+	struct dc_reg_helper_state *offload = &ctx->dmub_srv->reg_helper_offload;
+	struct dmub_rb_cmd_burst_write *cmd_buf = &offload->cmd_data.burst_write;
+
+	/* flush command if buffer is full */
+	if (offload->reg_seq_count == DMUB_BURST_WRITE_VALUES__MAX)
+		dmub_flush_burst_write_buffer_execute(offload, ctx);
+
+	if (offload->cmd_data.cmd_common.header.type == DMUB_CMD__REG_SEQ_BURST_WRITE &&
+			addr != cmd_buf->addr) {
+		dmub_flush_burst_write_buffer_execute(offload, ctx);
+		return false;
+	}
+
+	cmd_buf->header.type = DMUB_CMD__REG_SEQ_BURST_WRITE;
+	cmd_buf->addr = addr;
+	cmd_buf->write_values[offload->reg_seq_count] = reg_val;
+	offload->reg_seq_count++;
+
+	return true;
+}
+
+static uint32_t dmub_reg_value_pack(const struct dc_context *ctx, uint32_t addr,
+		struct dc_reg_value_masks *field_value_mask)
+{
+	struct dc_reg_helper_state *offload = &ctx->dmub_srv->reg_helper_offload;
+	struct dmub_rb_cmd_read_modify_write *cmd_buf = &offload->cmd_data.read_modify_write;
+	struct dmub_cmd_read_modify_write_sequence *seq;
+
+	/* flush command if buffer is full */
+	if (offload->cmd_data.cmd_common.header.type != DMUB_CMD__REG_SEQ_BURST_WRITE &&
+			offload->reg_seq_count == DMUB_READ_MODIFY_WRITE_SEQ__MAX)
+		dmub_flush_buffer_execute(offload, ctx);
+
+	if (offload->should_burst_write) {
+		if (dmub_reg_value_burst_set_pack(ctx, addr, field_value_mask->value))
+			return field_value_mask->value;
+		else
+			offload->should_burst_write = false;
+	}
+
+	/* pack commands */
+	cmd_buf->header.type = DMUB_CMD__REG_SEQ_READ_MODIFY_WRITE;
+	seq = &cmd_buf->seq[offload->reg_seq_count];
+
+	if (offload->reg_seq_count) {
+		if (cmd_buf->seq[offload->reg_seq_count - 1].addr == addr)
+			offload->same_addr_count++;
+		else
+			offload->same_addr_count = 0;
+	}
+
+	seq->addr = addr;
+	seq->modify_mask = field_value_mask->mask;
+	seq->modify_value = field_value_mask->value;
+	offload->reg_seq_count++;
+
+	return field_value_mask->value;
+}
+
+static void dmub_reg_wait_done_pack(const struct dc_context *ctx, uint32_t addr,
+		uint32_t mask, uint32_t shift, uint32_t condition_value, uint32_t time_out_us)
+{
+	struct dc_reg_helper_state *offload = &ctx->dmub_srv->reg_helper_offload;
+	struct dmub_rb_cmd_reg_wait *cmd_buf = &offload->cmd_data.reg_wait;
+
+	cmd_buf->header.type = DMUB_CMD__REG_REG_WAIT;
+	cmd_buf->reg_wait.addr = addr;
+	cmd_buf->reg_wait.condition_field_value = mask & (condition_value << shift);
+	cmd_buf->reg_wait.mask = mask;
+	cmd_buf->reg_wait.time_out_us = time_out_us;
+}
+
+#endif
+
 uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 		uint32_t addr, int n,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
@@ -92,6 +256,13 @@ uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 			field_value1, ap);
 
 	va_end(ap);
+
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	if (ctx->dmub_srv &&
+	    ctx->dmub_srv->reg_helper_offload.gather_in_progress)
+		return dmub_reg_value_pack(ctx, addr, &field_value_mask);
+		/* todo: return void so we can decouple code running in driver from register states */
+#endif
 
 	/* mmio write directly */
 	reg_val = dm_read_reg(ctx, addr);
@@ -118,6 +289,13 @@ uint32_t generic_reg_set_ex(const struct dc_context *ctx,
 
 	/* mmio write directly */
 	reg_val = (reg_val & ~field_value_mask.mask) | field_value_mask.value;
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	if (ctx->dmub_srv &&
+	    ctx->dmub_srv->reg_helper_offload.gather_in_progress) {
+		return dmub_reg_value_burst_set_pack(ctx, addr, reg_val);
+		/* todo: return void so we can decouple code running in driver from register states */
+	}
+#endif
 	dm_write_reg(ctx, addr, reg_val);
 	return reg_val;
 }
@@ -134,6 +312,16 @@ uint32_t dm_read_reg_func(
 		return 0;
 	}
 #endif
+
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	if (ctx->dmub_srv &&
+	    ctx->dmub_srv->reg_helper_offload.gather_in_progress &&
+	    !ctx->dmub_srv->reg_helper_offload.should_burst_write) {
+		ASSERT(false);
+		return 0;
+	}
+#endif
+
 	value = cgs_read_register(ctx->cgs_device, address);
 	trace_amdgpu_dc_rreg(&ctx->perf_trace->read_count, address, value);
 
@@ -299,6 +487,15 @@ void generic_reg_wait(const struct dc_context *ctx,
 	uint32_t reg_val;
 	int i;
 
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	if (ctx->dmub_srv &&
+	    ctx->dmub_srv->reg_helper_offload.gather_in_progress) {
+		dmub_reg_wait_done_pack(ctx, addr, mask, shift, condition_value,
+				delay_between_poll_us * time_out_num_tries);
+		return;
+	}
+#endif
+
 	/* something is terribly wrong if time out is > 200ms. (5Hz) */
 	ASSERT(delay_between_poll_us * time_out_num_tries <= 3000000);
 
@@ -345,6 +542,13 @@ uint32_t generic_read_indirect_reg(const struct dc_context *ctx,
 		uint32_t index)
 {
 	uint32_t value = 0;
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	// when reg read, there should not be any offload.
+	if (ctx->dmub_srv &&
+	    ctx->dmub_srv->reg_helper_offload.gather_in_progress) {
+		ASSERT(false);
+	}
+#endif
 
 	dm_write_reg(ctx, addr_index, index);
 	value = dm_read_reg(ctx, addr_data);
@@ -382,3 +586,72 @@ uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
 
 	return reg_val;
 }
+
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+void reg_sequence_start_gather(const struct dc_context *ctx)
+{
+	/* if reg sequence is supported and enabled, set flag to
+	 * indicate we want to have REG_SET, REG_UPDATE macro build
+	 * reg sequence command buffer rather than MMIO directly.
+	 */
+
+	if (ctx->dmub_srv && ctx->dc->debug.dmub_offload_enabled) {
+		struct dc_reg_helper_state *offload =
+			&ctx->dmub_srv->reg_helper_offload;
+
+		/* caller sequence mismatch.  need to debug caller.  offload will not work!!! */
+		ASSERT(!offload->gather_in_progress);
+
+		offload->gather_in_progress = true;
+	}
+}
+
+void reg_sequence_start_execute(const struct dc_context *ctx)
+{
+	struct dc_reg_helper_state *offload;
+
+	if (!ctx->dmub_srv)
+		return;
+
+	offload = &ctx->dmub_srv->reg_helper_offload;
+
+	if (offload && offload->gather_in_progress) {
+		offload->gather_in_progress = false;
+		offload->should_burst_write = false;
+		switch (offload->cmd_data.cmd_common.header.type) {
+		case DMUB_CMD__REG_SEQ_READ_MODIFY_WRITE:
+			submit_dmub_read_modify_write(offload, ctx);
+			break;
+		case DMUB_CMD__REG_REG_WAIT:
+			submit_dmub_reg_wait(offload, ctx);
+			break;
+		case DMUB_CMD__REG_SEQ_BURST_WRITE:
+			submit_dmub_burst_write(offload, ctx);
+			break;
+		default:
+			return;
+		}
+
+		dc_dmub_srv_cmd_execute(ctx->dmub_srv);
+	}
+}
+
+void reg_sequence_wait_done(const struct dc_context *ctx)
+{
+	/* callback to DM to poll for last submission done*/
+	struct dc_reg_helper_state *offload;
+
+	if (!ctx->dmub_srv)
+		return;
+
+	offload = &ctx->dmub_srv->reg_helper_offload;
+
+	if (offload &&
+	    ctx->dc->debug.dmub_offload_enabled &&
+	    !ctx->dc->debug.dmcub_emulation) {
+		dc_dmub_srv_wait_idle(ctx->dmub_srv);
+	}
+}
+
+
+#endif

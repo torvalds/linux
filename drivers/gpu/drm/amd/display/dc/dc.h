@@ -112,6 +112,9 @@ struct dc_caps {
 	bool disable_dp_clk_share;
 	bool psp_setup_panel_mode;
 	bool extended_aux_timeout_support;
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	bool dmcub_support;
+#endif
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	bool hw_3d_lut;
 #endif
@@ -401,6 +404,11 @@ struct dc_debug_options {
 	unsigned int force_odm_combine; //bit vector based on otg inst
 	unsigned int force_fclk_khz;
 	bool disable_tri_buf;
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	bool dmub_offload_enabled;
+	bool dmcub_emulation;
+	bool dmub_command_table; /* for testing only */
+#endif
 	struct dc_bw_validation_profile bw_val_profile;
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	bool disable_fec;
@@ -558,6 +566,10 @@ struct dc_init_data {
 	struct dc_bios *vbios_override;
 	enum dce_environment dce_environment;
 
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	struct dmub_offload_funcs *dmub_if;
+	struct dc_reg_helper_state *dmub_offload;
+#endif
 	struct dc_config flags;
 	uint32_t log_mask;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0

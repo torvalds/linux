@@ -1678,6 +1678,9 @@ static bool construct(
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	dc->caps.dmcub_support = true;
+#endif
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;

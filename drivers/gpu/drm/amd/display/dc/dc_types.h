@@ -48,6 +48,9 @@ struct dc_stream_state;
 struct dc_link;
 struct dc_sink;
 struct dal;
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+struct dc_dmub_srv;
+#endif
 
 /********************************
  * Environment definitions
@@ -109,6 +112,9 @@ struct dc_context {
 	uint32_t dc_sink_id_count;
 	uint32_t dc_stream_id_count;
 	uint64_t fbc_gpu_addr;
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	struct dc_dmub_srv *dmub_srv;
+#endif
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct cp_psp cp_psp;
 #endif
