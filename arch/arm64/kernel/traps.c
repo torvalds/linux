@@ -394,7 +394,7 @@ void arm64_notify_segfault(unsigned long addr)
 	force_signal_inject(SIGSEGV, code, addr);
 }
 
-asmlinkage void do_undefinstr(struct pt_regs *regs)
+void do_undefinstr(struct pt_regs *regs)
 {
 	/* check for AArch32 breakpoint instructions */
 	if (!aarch32_break_handler(regs))
@@ -669,7 +669,7 @@ static const struct sys64_hook cp15_64_hooks[] = {
 	{},
 };
 
-asmlinkage void do_cp15instr(unsigned int esr, struct pt_regs *regs)
+void do_cp15instr(unsigned int esr, struct pt_regs *regs)
 {
 	const struct sys64_hook *hook, *hook_base;
 
@@ -710,7 +710,7 @@ asmlinkage void do_cp15instr(unsigned int esr, struct pt_regs *regs)
 NOKPROBE_SYMBOL(do_cp15instr);
 #endif
 
-asmlinkage void do_sysinstr(unsigned int esr, struct pt_regs *regs)
+void do_sysinstr(unsigned int esr, struct pt_regs *regs)
 {
 	const struct sys64_hook *hook;
 
@@ -797,7 +797,7 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
  * bad_el0_sync handles unexpected, but potentially recoverable synchronous
  * exceptions taken from EL0. Unlike bad_mode, this returns.
  */
-asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
+void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 {
 	void __user *pc = (void __user *)instruction_pointer(regs);
 

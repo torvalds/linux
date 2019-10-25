@@ -733,8 +733,7 @@ static const struct fault_info fault_info[] = {
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 63"			},
 };
 
-asmlinkage void do_mem_abort(unsigned long addr, unsigned int esr,
-			     struct pt_regs *regs)
+void do_mem_abort(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
 	const struct fault_info *inf = esr_to_fault_info(esr);
 
@@ -752,15 +751,15 @@ asmlinkage void do_mem_abort(unsigned long addr, unsigned int esr,
 }
 NOKPROBE_SYMBOL(do_mem_abort);
 
-asmlinkage void do_el0_irq_bp_hardening(void)
+void do_el0_irq_bp_hardening(void)
 {
 	/* PC has already been checked in entry.S */
 	arm64_apply_bp_hardening();
 }
 NOKPROBE_SYMBOL(do_el0_irq_bp_hardening);
 
-asmlinkage void do_el0_ia_bp_hardening(unsigned long addr,  unsigned int esr,
-				       struct pt_regs *regs)
+void do_el0_ia_bp_hardening(unsigned long addr,  unsigned int esr,
+			    struct pt_regs *regs)
 {
 	/*
 	 * We've taken an instruction abort from userspace and not yet
@@ -775,8 +774,7 @@ asmlinkage void do_el0_ia_bp_hardening(unsigned long addr,  unsigned int esr,
 }
 NOKPROBE_SYMBOL(do_el0_ia_bp_hardening);
 
-asmlinkage void do_sp_pc_abort(unsigned long addr, unsigned int esr,
-			       struct pt_regs *regs)
+void do_sp_pc_abort(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
 	if (user_mode(regs)) {
 		if (!is_ttbr0_addr(instruction_pointer(regs)))
@@ -896,8 +894,8 @@ static int cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
 #endif /* CONFIG_ARM64_ERRATUM_1463225 */
 NOKPROBE_SYMBOL(cortex_a76_erratum_1463225_debug_handler);
 
-asmlinkage void do_debug_exception(unsigned long addr_if_watchpoint,
-				   unsigned int esr, struct pt_regs *regs)
+void do_debug_exception(unsigned long addr_if_watchpoint, unsigned int esr,
+			struct pt_regs *regs)
 {
 	const struct fault_info *inf = esr_to_debug_fault_info(esr);
 	unsigned long pc = instruction_pointer(regs);
