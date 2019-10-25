@@ -990,7 +990,6 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 	}
 	if (!qp->kernel_verbs) {
 		siw_dbg_qp(qp, "no kernel post_recv for user mapped sq\n");
-		up_read(&qp->state_lock);
 		*bad_wr = wr;
 		return -EINVAL;
 	}
