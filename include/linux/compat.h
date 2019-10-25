@@ -116,14 +116,7 @@ typedef __compat_gid32_t	compat_gid_t;
 struct compat_sel_arg_struct;
 struct rusage;
 
-struct compat_itimerval {
-	struct old_timeval32	it_interval;
-	struct old_timeval32	it_value;
-};
-
-struct itimerval;
-int get_compat_itimerval(struct itimerval *, const struct compat_itimerval __user *);
-int put_compat_itimerval(struct compat_itimerval __user *, const struct itimerval *);
+struct old_itimerval32;
 
 struct compat_tms {
 	compat_clock_t		tms_utime;
@@ -668,10 +661,10 @@ compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 
 /* kernel/itimer.c */
 asmlinkage long compat_sys_getitimer(int which,
-				     struct compat_itimerval __user *it);
+				     struct old_itimerval32 __user *it);
 asmlinkage long compat_sys_setitimer(int which,
-				     struct compat_itimerval __user *in,
-				     struct compat_itimerval __user *out);
+				     struct old_itimerval32 __user *in,
+				     struct old_itimerval32 __user *out);
 
 /* kernel/kexec.c */
 asmlinkage long compat_sys_kexec_load(compat_ulong_t entry,

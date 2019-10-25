@@ -112,18 +112,33 @@ SYSCALL_DEFINE2(getitimer, int, which, struct itimerval __user *, value)
 }
 
 #ifdef CONFIG_COMPAT
+struct old_itimerval32 {
+	struct old_timeval32	it_interval;
+	struct old_timeval32	it_value;
+};
+
+static int put_old_itimerval32(struct old_itimerval32 __user *o, const struct itimerval *i)
+{
+	struct old_itimerval32 v32;
+
+	v32.it_interval.tv_sec = i->it_interval.tv_sec;
+	v32.it_interval.tv_usec = i->it_interval.tv_usec;
+	v32.it_value.tv_sec = i->it_value.tv_sec;
+	v32.it_value.tv_usec = i->it_value.tv_usec;
+	return copy_to_user(o, &v32, sizeof(struct old_itimerval32)) ? -EFAULT : 0;
+}
+
 COMPAT_SYSCALL_DEFINE2(getitimer, int, which,
-		       struct compat_itimerval __user *, it)
+		       struct old_itimerval32 __user *, it)
 {
 	struct itimerval kit;
 	int error = do_getitimer(which, &kit);
 
-	if (!error && put_compat_itimerval(it, &kit))
+	if (!error && put_old_itimerval32(it, &kit))
 		error = -EFAULT;
 	return error;
 }
 #endif
-
 
 /*
  * The timer is automagically restarted, when interval != 0
@@ -310,15 +325,28 @@ SYSCALL_DEFINE3(setitimer, int, which, struct itimerval __user *, value,
 }
 
 #ifdef CONFIG_COMPAT
+static int get_old_itimerval32(struct itimerval *o, const struct old_itimerval32 __user *i)
+{
+	struct old_itimerval32 v32;
+
+	if (copy_from_user(&v32, i, sizeof(struct old_itimerval32)))
+		return -EFAULT;
+	o->it_interval.tv_sec = v32.it_interval.tv_sec;
+	o->it_interval.tv_usec = v32.it_interval.tv_usec;
+	o->it_value.tv_sec = v32.it_value.tv_sec;
+	o->it_value.tv_usec = v32.it_value.tv_usec;
+	return 0;
+}
+
 COMPAT_SYSCALL_DEFINE3(setitimer, int, which,
-		       struct compat_itimerval __user *, in,
-		       struct compat_itimerval __user *, out)
+		       struct old_itimerval32 __user *, in,
+		       struct old_itimerval32 __user *, out)
 {
 	struct itimerval kin, kout;
 	int error;
 
 	if (in) {
-		if (get_compat_itimerval(&kin, in))
+		if (get_old_itimerval32(&kin, in))
 			return -EFAULT;
 	} else {
 		memset(&kin, 0, sizeof(kin));
@@ -327,7 +355,7 @@ COMPAT_SYSCALL_DEFINE3(setitimer, int, which,
 	error = do_setitimer(which, &kin, out ? &kout : NULL);
 	if (error || !out)
 		return error;
-	if (put_compat_itimerval(out, &kout))
+	if (put_old_itimerval32(out, &kout))
 		return -EFAULT;
 	return 0;
 }
