@@ -11,6 +11,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/blktrace_api.h>
+#include <linux/jiffies.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <scsi/fc/fc_els.h>
@@ -19,6 +20,7 @@
 #include "zfcp_dbf.h"
 #include "zfcp_qdio.h"
 #include "zfcp_reqlist.h"
+#include "zfcp_diag.h"
 
 /* timeout for FSF requests sent during scsi_eh: abort or FCP TMF */
 #define ZFCP_FSF_SCSI_ER_TIMEOUT (10*HZ)
@@ -655,16 +657,26 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 
 static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 {
+	struct zfcp_diag_header *const diag_hdr =
+		&req->adapter->diagnostics->port_data.header;
 	struct fsf_qtcb *qtcb = req->qtcb;
+	struct fsf_qtcb_bottom_port *bottom = &qtcb->bottom.port;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		return;
 
 	switch (qtcb->header.fsf_status) {
 	case FSF_GOOD:
+		/*
+		 * usually we wait with an update till the cache is too old,
+		 * but because we have the data available, update it anyway
+		 */
+		zfcp_diag_update_xdata(diag_hdr, bottom, false);
+
 		zfcp_fsf_exchange_port_evaluate(req);
 		break;
 	case FSF_EXCHANGE_CONFIG_DATA_INCOMPLETE:
+		zfcp_diag_update_xdata(diag_hdr, bottom, true);
 		req->status |= ZFCP_STATUS_FSFREQ_XDATAINCOMPLETE;
 
 		zfcp_fsf_exchange_port_evaluate(req);

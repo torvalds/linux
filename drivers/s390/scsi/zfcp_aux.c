@@ -4,7 +4,7 @@
  *
  * Module interface and handling of zfcp data structures.
  *
- * Copyright IBM Corp. 2002, 2017
+ * Copyright IBM Corp. 2002, 2018
  */
 
 /*
@@ -25,6 +25,7 @@
  *            Martin Petermann
  *            Sven Schuetz
  *            Steffen Maier
+ *	      Benjamin Block
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -36,6 +37,7 @@
 #include "zfcp_ext.h"
 #include "zfcp_fc.h"
 #include "zfcp_reqlist.h"
+#include "zfcp_diag.h"
 
 #define ZFCP_BUS_ID_SIZE	20
 
@@ -356,6 +358,9 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	adapter->erp_action.adapter = adapter;
 
+	if (zfcp_diag_adapter_setup(adapter))
+		goto failed;
+
 	if (zfcp_qdio_setup(adapter))
 		goto failed;
 
@@ -449,6 +454,7 @@ void zfcp_adapter_release(struct kref *ref)
 	dev_set_drvdata(&adapter->ccw_device->dev, NULL);
 	zfcp_fc_gs_destroy(adapter);
 	zfcp_free_low_mem_buffers(adapter);
+	zfcp_diag_adapter_free(adapter);
 	kfree(adapter->req_list);
 	kfree(adapter->fc_stats);
 	kfree(adapter->stats_reset_data);
