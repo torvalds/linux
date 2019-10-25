@@ -407,6 +407,9 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 			       &zfcp_sysfs_adapter_attrs))
 		goto failed;
 
+	if (zfcp_diag_sysfs_setup(adapter))
+		goto failed;
+
 	/* report size limit per scatter-gather segment */
 	adapter->ccw_device->dev.dma_parms = &adapter->dma_parms;
 
@@ -431,6 +434,7 @@ void zfcp_adapter_unregister(struct zfcp_adapter *adapter)
 
 	zfcp_fc_wka_ports_force_offline(adapter->gs);
 	zfcp_scsi_adapter_unregister(adapter);
+	zfcp_diag_sysfs_destroy(adapter);
 	sysfs_remove_group(&cdev->dev.kobj, &zfcp_sysfs_adapter_attrs);
 
 	zfcp_erp_thread_kill(adapter);
