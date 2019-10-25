@@ -330,7 +330,7 @@ int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
 	/* Write to D0I3C after Command-In-Progress bit is cleared */
 	ret = hda_dsp_wait_d0i3c_done(sdev, retry);
 	if (ret < 0) {
-		dev_err(bus->dev, "CIP timeout before update D0I3C!\n");
+		dev_err(bus->dev, "CIP timeout before D0I3C update!\n");
 		return ret;
 	}
 
@@ -342,7 +342,7 @@ int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
 	retry = 50;
 	ret = hda_dsp_wait_d0i3c_done(sdev, retry);
 	if (ret < 0) {
-		dev_err(bus->dev, "CIP timeout after D0I3C updated!\n");
+		dev_err(bus->dev, "CIP timeout after D0I3C update!\n");
 		return ret;
 	}
 
