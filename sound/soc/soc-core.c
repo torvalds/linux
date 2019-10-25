@@ -125,6 +125,9 @@ static umode_t soc_dev_attr_is_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct snd_soc_pcm_runtime *rtd = dev_get_drvdata(dev);
 
+	if (!rtd)
+		return 0;
+
 	if (attr == &dev_attr_pmdown_time.attr)
 		return attr->mode; /* always visible */
 	return rtd->num_codecs ? attr->mode : 0; /* enabled only with codec */
@@ -274,43 +277,58 @@ static inline void snd_soc_debugfs_exit(void)
 
 #endif
 
+/*
+ * This is glue code between snd_pcm_lib_ioctl() and
+ * snd_soc_component_driver :: ioctl
+ */
+int snd_soc_pcm_lib_ioctl(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream,
+			  unsigned int cmd, void *arg)
+{
+	return snd_pcm_lib_ioctl(substream, cmd, arg);
+}
+EXPORT_SYMBOL_GPL(snd_soc_pcm_lib_ioctl);
+
 static int snd_soc_rtdcom_add(struct snd_soc_pcm_runtime *rtd,
 			      struct snd_soc_component *component)
 {
 	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *comp;
 
-	for_each_rtdcom(rtd, rtdcom) {
+	for_each_rtd_components(rtd, rtdcom, comp) {
 		/* already connected */
-		if (rtdcom->component == component)
+		if (comp == component)
 			return 0;
 	}
 
-	rtdcom = kmalloc(sizeof(*rtdcom), GFP_KERNEL);
+	/*
+	 * created rtdcom here will be freed when rtd->dev was freed.
+	 * see
+	 *	soc_free_pcm_runtime() :: device_unregister(rtd->dev)
+	 */
+	rtdcom = devm_kzalloc(rtd->dev, sizeof(*rtdcom), GFP_KERNEL);
 	if (!rtdcom)
 		return -ENOMEM;
 
 	rtdcom->component = component;
 	INIT_LIST_HEAD(&rtdcom->list);
 
+	/*
+	 * When rtd was freed, created rtdcom here will be
+	 * also freed.
+	 * And we don't need to call list_del(&rtdcom->list)
+	 * when freed, because rtd is also freed.
+	 */
 	list_add_tail(&rtdcom->list, &rtd->component_list);
 
 	return 0;
-}
-
-static void snd_soc_rtdcom_del_all(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_rtdcom_list *rtdcom1, *rtdcom2;
-
-	for_each_rtdcom_safe(rtd, rtdcom1, rtdcom2)
-		kfree(rtdcom1);
-
-	INIT_LIST_HEAD(&rtd->component_list);
 }
 
 struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 						const char *driver_name)
 {
 	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
 
 	if (!driver_name)
 		return NULL;
@@ -323,8 +341,8 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 	 * But, if many components which have same driver name are connected
 	 * to 1 rtd, this function will return 1st found component.
 	 */
-	for_each_rtdcom(rtd, rtdcom) {
-		const char *component_name = rtdcom->component->driver->name;
+	for_each_rtd_components(rtd, rtdcom, component) {
+		const char *component_name = component->driver->name;
 
 		if (!component_name)
 			continue;
@@ -355,58 +373,109 @@ EXPORT_SYMBOL_GPL(snd_soc_get_dai_substream);
 
 static const struct snd_soc_ops null_snd_soc_ops;
 
+static void soc_release_rtd_dev(struct device *dev)
+{
+	/* "dev" means "rtd->dev" */
+	kfree(dev);
+}
+
+static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
+{
+	if (!rtd)
+		return;
+
+	list_del(&rtd->list);
+
+	/*
+	 * we don't need to call kfree() for rtd->dev
+	 * see
+	 *	soc_release_rtd_dev()
+	 *
+	 * We don't need rtd->dev NULL check, because
+	 * it is alloced *before* rtd.
+	 * see
+	 *	soc_new_pcm_runtime()
+	 */
+	device_unregister(rtd->dev);
+}
+
 static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
+	struct device *dev;
+	int ret;
 
-	rtd = kzalloc(sizeof(struct snd_soc_pcm_runtime), GFP_KERNEL);
-	if (!rtd)
+	/*
+	 * for rtd->dev
+	 */
+	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	if (!dev)
 		return NULL;
 
+	dev->parent	= card->dev;
+	dev->release	= soc_release_rtd_dev;
+	dev->groups	= soc_dev_attr_groups;
+
+	dev_set_name(dev, "%s", dai_link->name);
+
+	ret = device_register(dev);
+	if (ret < 0) {
+		put_device(dev); /* soc_release_rtd_dev */
+		return NULL;
+	}
+
+	/*
+	 * for rtd
+	 */
+	rtd = devm_kzalloc(dev, sizeof(*rtd), GFP_KERNEL);
+	if (!rtd)
+		goto free_rtd;
+
+	rtd->dev = dev;
+	dev_set_drvdata(dev, rtd);
+
+	/*
+	 * for rtd->codec_dais
+	 */
+	rtd->codec_dais = devm_kcalloc(dev, dai_link->num_codecs,
+					sizeof(struct snd_soc_dai *),
+					GFP_KERNEL);
+	if (!rtd->codec_dais)
+		goto free_rtd;
+
+	/*
+	 * rtd remaining settings
+	 */
 	INIT_LIST_HEAD(&rtd->component_list);
+	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_PLAYBACK].be_clients);
+	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].be_clients);
+	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_PLAYBACK].fe_clients);
+	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].fe_clients);
+
 	rtd->card = card;
 	rtd->dai_link = dai_link;
 	if (!rtd->dai_link->ops)
 		rtd->dai_link->ops = &null_snd_soc_ops;
 
-	rtd->codec_dais = kcalloc(dai_link->num_codecs,
-					sizeof(struct snd_soc_dai *),
-					GFP_KERNEL);
-	if (!rtd->codec_dais) {
-		kfree(rtd);
-		return NULL;
-	}
-
-	return rtd;
-}
-
-static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
-{
-	kfree(rtd->codec_dais);
-	snd_soc_rtdcom_del_all(rtd);
-	kfree(rtd);
-}
-
-static void soc_add_pcm_runtime(struct snd_soc_card *card,
-		struct snd_soc_pcm_runtime *rtd)
-{
 	/* see for_each_card_rtds */
 	list_add_tail(&rtd->list, &card->rtd_list);
 	rtd->num = card->num_rtd;
 	card->num_rtd++;
+
+	return rtd;
+
+free_rtd:
+	soc_free_pcm_runtime(rtd);
+	return NULL;
 }
 
 static void soc_remove_pcm_runtimes(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd, *_rtd;
 
-	for_each_card_rtds_safe(card, rtd, _rtd) {
-		list_del(&rtd->list);
+	for_each_card_rtds_safe(card, rtd, _rtd)
 		soc_free_pcm_runtime(rtd);
-	}
-
-	card->num_rtd = 0;
 }
 
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
@@ -930,7 +999,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 		}
 	}
 
-	soc_add_pcm_runtime(card, rtd);
 	return 0;
 
 _err_defer:
@@ -1126,7 +1194,6 @@ static int soc_probe_dai(struct snd_soc_dai *dai, int order)
 	return 0;
 }
 
-static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd); /* remove me */
 static void soc_remove_link_dais(struct snd_soc_card *card)
 {
 	int i;
@@ -1136,10 +1203,6 @@ static void soc_remove_link_dais(struct snd_soc_card *card)
 
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
-
-			/* finalize rtd device */
-			soc_rtd_free(rtd);
-
 			/* remove the CODEC DAI */
 			for_each_rtd_codec_dai(rtd, i, codec_dai)
 				soc_remove_dai(codec_dai, order);
@@ -1187,9 +1250,7 @@ static void soc_remove_link_components(struct snd_soc_card *card)
 
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
-			for_each_rtdcom(rtd, rtdcom) {
-				component = rtdcom->component;
-
+			for_each_rtd_components(rtd, rtdcom, component) {
 				if (component->driver->remove_order != order)
 					continue;
 
@@ -1208,9 +1269,7 @@ static int soc_probe_link_components(struct snd_soc_card *card)
 
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
-			for_each_rtdcom(rtd, rtdcom) {
-				component = rtdcom->component;
-
+			for_each_rtd_components(rtd, rtdcom, component) {
 				if (component->driver->probe_order != order)
 					continue;
 
@@ -1222,23 +1281,6 @@ static int soc_probe_link_components(struct snd_soc_card *card)
 	}
 
 	return 0;
-}
-
-static void soc_remove_dai_links(struct snd_soc_card *card)
-{
-	struct snd_soc_dai_link *link, *_link;
-
-	soc_remove_link_dais(card);
-
-	soc_remove_link_components(card);
-
-	for_each_card_links_safe(card, link, _link) {
-		if (link->dobj.type == SND_SOC_DOBJ_DAI_LINK)
-			dev_warn(card->dev, "Topology forgot to remove link %s?\n",
-				link->name);
-
-		list_del(&link->list);
-	}
 }
 
 static int soc_init_dai_link(struct snd_soc_card *card,
@@ -1417,49 +1459,6 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
 
-static void soc_rtd_free(struct snd_soc_pcm_runtime *rtd)
-{
-	if (rtd->dev_registered) {
-		/* we don't need to call kfree() for rtd->dev */
-		device_unregister(rtd->dev);
-		rtd->dev_registered = 0;
-	}
-}
-
-static void soc_rtd_release(struct device *dev)
-{
-	kfree(dev);
-}
-
-static int soc_rtd_init(struct snd_soc_pcm_runtime *rtd, const char *name)
-{
-	int ret = 0;
-
-	/* register the rtd device */
-	rtd->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
-	if (!rtd->dev)
-		return -ENOMEM;
-	rtd->dev->parent = rtd->card->dev;
-	rtd->dev->release = soc_rtd_release;
-	rtd->dev->groups = soc_dev_attr_groups;
-	dev_set_name(rtd->dev, "%s", name);
-	dev_set_drvdata(rtd->dev, rtd);
-	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_PLAYBACK].be_clients);
-	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].be_clients);
-	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_PLAYBACK].fe_clients);
-	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].fe_clients);
-	ret = device_register(rtd->dev);
-	if (ret < 0) {
-		/* calling put_device() here to free the rtd->dev */
-		put_device(rtd->dev);
-		dev_err(rtd->card->dev,
-			"ASoC: failed to register runtime device: %d\n", ret);
-		return ret;
-	}
-	rtd->dev_registered = 1;
-	return 0;
-}
-
 static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 				struct snd_soc_pcm_runtime *rtd)
 {
@@ -1509,10 +1508,6 @@ static int soc_link_init(struct snd_soc_card *card,
 			return ret;
 	}
 
-	ret = soc_rtd_init(rtd, dai_link->name);
-	if (ret)
-		return ret;
-
 	/* add DPCM sysfs entries */
 	soc_dpcm_debugfs_add(rtd);
 
@@ -1523,9 +1518,7 @@ static int soc_link_init(struct snd_soc_card *card,
 	 * topology based drivers can use the DAI link id field to set PCM
 	 * device number and then use rtd + a base offset of the BEs.
 	 */
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->use_dai_pcm_id)
 			continue;
 
@@ -1853,7 +1846,7 @@ static void soc_check_tplg_fes(struct snd_soc_card *card)
 
 	for_each_component(component) {
 
-		/* does this component override FEs ? */
+		/* does this component override BEs ? */
 		if (!component->driver->ignore_machine)
 			continue;
 
@@ -1874,7 +1867,7 @@ match:
 				continue;
 			}
 
-			dev_info(card->dev, "info: override FE DAI link %s\n",
+			dev_info(card->dev, "info: override BE DAI link %s\n",
 				 card->dai_link[i].name);
 
 			/* override platform component */
@@ -1918,8 +1911,46 @@ match:
 	}
 }
 
+#define soc_setup_card_name(name, name1, name2, norm)		\
+	__soc_setup_card_name(name, sizeof(name), name1, name2, norm)
+static void __soc_setup_card_name(char *name, int len,
+				  const char *name1, const char *name2,
+				  int normalization)
+{
+	int i;
+
+	snprintf(name, len, "%s", name1 ? name1 : name2);
+
+	if (!normalization)
+		return;
+
+	/*
+	 * Name normalization
+	 *
+	 * The driver name is somewhat special, as it's used as a key for
+	 * searches in the user-space.
+	 *
+	 * ex)
+	 *	"abcd??efg" -> "abcd__efg"
+	 */
+	for (i = 0; i < len; i++) {
+		switch (name[i]) {
+		case '_':
+		case '-':
+		case '\0':
+			break;
+		default:
+			if (!isalnum(name[i]))
+				name[i] = '_';
+			break;
+		}
+	}
+}
+
 static void soc_cleanup_card_resources(struct snd_soc_card *card)
 {
+	struct snd_soc_dai_link *link, *_link;
+
 	/* free the ALSA card at first; this syncs with pending operations */
 	if (card->snd_card) {
 		snd_card_free(card->snd_card);
@@ -1927,7 +1958,12 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 	}
 
 	/* remove and free each DAI */
-	soc_remove_dai_links(card);
+	soc_remove_link_dais(card);
+	soc_remove_link_components(card);
+
+	for_each_card_links_safe(card, link, _link)
+		snd_soc_remove_dai_link(card, link);
+
 	soc_remove_pcm_runtimes(card);
 
 	/* remove auxiliary devices */
@@ -1978,6 +2014,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		goto probe_end;
 
 	/* add predefined DAI links to the list */
+	card->num_rtd = 0;
 	for_each_card_prelinks(card, i, dai_link) {
 		ret = snd_soc_add_dai_link(card, dai_link);
 		if (ret < 0)
@@ -2076,24 +2113,12 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	/* try to set some sane longname if DMI is available */
 	snd_soc_set_dmi_name(card, NULL);
 
-	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
-		 "%s", card->name);
-	snprintf(card->snd_card->longname, sizeof(card->snd_card->longname),
-		 "%s", card->long_name ? card->long_name : card->name);
-	snprintf(card->snd_card->driver, sizeof(card->snd_card->driver),
-		 "%s", card->driver_name ? card->driver_name : card->name);
-	for (i = 0; i < ARRAY_SIZE(card->snd_card->driver); i++) {
-		switch (card->snd_card->driver[i]) {
-		case '_':
-		case '-':
-		case '\0':
-			break;
-		default:
-			if (!isalnum(card->snd_card->driver[i]))
-				card->snd_card->driver[i] = '_';
-			break;
-		}
-	}
+	soc_setup_card_name(card->snd_card->shortname,
+			    card->name, NULL, 0);
+	soc_setup_card_name(card->snd_card->longname,
+			    card->long_name, card->name, 0);
+	soc_setup_card_name(card->snd_card->driver,
+			    card->driver_name, card->name, 1);
 
 	if (card->late_probe) {
 		ret = card->late_probe(card);
@@ -2400,7 +2425,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	INIT_LIST_HEAD(&card->dapm_dirty);
 	INIT_LIST_HEAD(&card->dobj_list);
 
-	card->num_rtd = 0;
 	card->instantiated = 0;
 	mutex_init(&card->mutex);
 	mutex_init(&card->dapm_mutex);
@@ -2417,9 +2441,6 @@ static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
 		card->instantiated = false;
 		snd_soc_dapm_shutdown(card);
 		snd_soc_flush_all_delayed_work(card);
-
-		/* remove all components used by DAI links on this card */
-		soc_remove_link_components(card);
 
 		soc_cleanup_card_resources(card);
 		if (!unregister)
@@ -2488,7 +2509,7 @@ static char *fmt_single_name(struct device *dev, int *id)
 			*id = 0;
 	}
 
-	return kstrdup(name, GFP_KERNEL);
+	return devm_kstrdup(dev, name, GFP_KERNEL);
 }
 
 /*
@@ -2505,7 +2526,7 @@ static inline char *fmt_multiple_name(struct device *dev,
 		return NULL;
 	}
 
-	return kstrdup(dai_drv->name, GFP_KERNEL);
+	return devm_kstrdup(dev, dai_drv->name, GFP_KERNEL);
 }
 
 /**
@@ -2521,8 +2542,6 @@ static void snd_soc_unregister_dais(struct snd_soc_component *component)
 		dev_dbg(component->dev, "ASoC: Unregistered DAI '%s'\n",
 			dai->name);
 		list_del(&dai->list);
-		kfree(dai->name);
-		kfree(dai);
 	}
 }
 
@@ -2536,7 +2555,7 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 
 	dev_dbg(dev, "ASoC: dynamically register DAI %s\n", dev_name(dev));
 
-	dai = kzalloc(sizeof(struct snd_soc_dai), GFP_KERNEL);
+	dai = devm_kzalloc(dev, sizeof(*dai), GFP_KERNEL);
 	if (dai == NULL)
 		return NULL;
 
@@ -2558,10 +2577,8 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 		else
 			dai->id = component->num_dai;
 	}
-	if (dai->name == NULL) {
-		kfree(dai);
+	if (!dai->name)
 		return NULL;
-	}
 
 	dai->component = component;
 	dai->dev = dev;
@@ -2747,7 +2764,6 @@ static void snd_soc_component_add(struct snd_soc_component *component)
 static void snd_soc_component_cleanup(struct snd_soc_component *component)
 {
 	snd_soc_unregister_dais(component);
-	kfree(component->name);
 }
 
 static void snd_soc_component_del_unlocked(struct snd_soc_component *component)

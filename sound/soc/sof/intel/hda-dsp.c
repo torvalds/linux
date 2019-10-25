@@ -42,6 +42,12 @@ int hda_dsp_core_reset_enter(struct snd_sof_dev *sdev, unsigned int core_mask)
 					((adspcs & reset) == reset),
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					HDA_DSP_RESET_TIMEOUT_US);
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: %s: timeout on HDA_DSP_REG_ADSPCS read\n",
+			__func__);
+		return ret;
+	}
 
 	/* has core entered reset ? */
 	adspcs = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
@@ -76,6 +82,13 @@ int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev, unsigned int core_mask)
 					    !(adspcs & crst),
 					    HDA_DSP_REG_POLL_INTERVAL_US,
 					    HDA_DSP_RESET_TIMEOUT_US);
+
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: %s: timeout on HDA_DSP_REG_ADSPCS read\n",
+			__func__);
+		return ret;
+	}
 
 	/* has core left reset ? */
 	adspcs = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
@@ -151,8 +164,12 @@ int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 					    (adspcs & cpa) == cpa,
 					    HDA_DSP_REG_POLL_INTERVAL_US,
 					    HDA_DSP_RESET_TIMEOUT_US);
-	if (ret < 0)
-		dev_err(sdev->dev, "error: timeout on core powerup\n");
+	if (ret < 0) {
+		dev_err(sdev->dev,
+			"error: %s: timeout on HDA_DSP_REG_ADSPCS read\n",
+			__func__);
+		return ret;
+	}
 
 	/* did core power up ? */
 	adspcs = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
@@ -171,17 +188,24 @@ int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	u32 adspcs;
+	int ret;
 
 	/* update bits */
 	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
 					 HDA_DSP_REG_ADSPCS,
 					 HDA_DSP_ADSPCS_SPA_MASK(core_mask), 0);
 
-	return snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
 				HDA_DSP_REG_ADSPCS, adspcs,
 				!(adspcs & HDA_DSP_ADSPCS_SPA_MASK(core_mask)),
 				HDA_DSP_REG_POLL_INTERVAL_US,
 				HDA_DSP_PD_TIMEOUT * USEC_PER_MSEC);
+	if (ret < 0)
+		dev_err(sdev->dev,
+			"error: %s: timeout on HDA_DSP_REG_ADSPCS read\n",
+			__func__);
+
+	return ret;
 }
 
 bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev,

@@ -15,6 +15,7 @@
 
 #include <sound/hdaudio.h>
 #include <sound/soc.h>
+#include <sound/control.h>
 
 #include <sound/sof.h>
 #include <sound/sof/stream.h> /* needs to be included before control.h */
@@ -28,10 +29,15 @@
 #include <uapi/sound/sof/fw.h>
 
 /* debug flags */
-#define SOF_DBG_REGS	BIT(1)
-#define SOF_DBG_MBOX	BIT(2)
-#define SOF_DBG_TEXT	BIT(3)
-#define SOF_DBG_PCI	BIT(4)
+#define SOF_DBG_ENABLE_TRACE	BIT(0)
+#define SOF_DBG_REGS		BIT(1)
+#define SOF_DBG_MBOX		BIT(2)
+#define SOF_DBG_TEXT		BIT(3)
+#define SOF_DBG_PCI		BIT(4)
+#define SOF_DBG_RETAIN_CTX	BIT(5)	/* prevent DSP D3 on FW exception */
+
+/* global debug state set by SOF_DBG_ flags */
+extern int sof_core_debug;
 
 /* max BARs mmaped devices can use */
 #define SND_SOF_BARS	8
@@ -128,7 +134,7 @@ struct snd_sof_dsp_ops {
 	 * FW ready checks for ABI compatibility and creates
 	 * memory windows at first boot
 	 */
-	int (*fw_ready)(struct snd_sof_dev *sdev, u32 msg_id); /* optional */
+	int (*fw_ready)(struct snd_sof_dev *sdev, u32 msg_id); /* mandatory */
 
 	/* connect pcm substream to a host stream */
 	int (*pcm_open)(struct snd_sof_dev *sdev,
@@ -205,6 +211,9 @@ struct snd_sof_dsp_ops {
 	/* DAI ops */
 	struct snd_soc_dai_driver *drv;
 	int num_drv;
+
+	/* ALSA HW info flags, will be stored in snd_pcm_runtime.hw.info */
+	u32 hw_info;
 };
 
 /* DSP architecture specific callbacks for oops and stack dumps */
@@ -305,6 +314,12 @@ struct snd_sof_pcm {
 	bool prepared[2]; /* PCM_PARAMS set successfully */
 };
 
+struct snd_sof_led_control {
+	unsigned int use_led;
+	unsigned int direction;
+	unsigned int led_value;
+};
+
 /* ALSA SOF Kcontrol device */
 struct snd_sof_control {
 	struct snd_sof_dev *sdev;
@@ -319,6 +334,8 @@ struct snd_sof_control {
 	u32 *volume_table; /* volume table computed from tlv data*/
 
 	struct list_head list;	/* list in sdev control list */
+
+	struct snd_sof_led_control led_ctl;
 };
 
 /* ASoC SOF DAPM widget */
@@ -434,6 +451,7 @@ struct snd_sof_dev {
 	int dma_trace_pages;
 	wait_queue_head_t trace_sleep;
 	u32 host_offset;
+	u32 dtrace_is_supported; /* set with Kconfig or module parameter */
 	u32 dtrace_is_enabled;
 	u32 dtrace_error;
 	u32 dtrace_draining;
@@ -575,6 +593,7 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 			struct sof_ipc_panic_info *panic_info,
 			void *stack, size_t stack_words);
 int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev);
+void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev);
 
 /*
  * Platform specific ops.
