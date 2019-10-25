@@ -270,7 +270,7 @@ static const struct reg_default rt715_reg_defaults[] = {
 	{ 0x8389, 0x97 },
 	{ 0x7327, 0x97 },
 	{ 0x83a7, 0x97 },
-	{ 0x75200039, 0xa500 },
+	{ 0x752039, 0xa500 },
 };
 
 #endif /* __RT715_H__ */

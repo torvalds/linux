@@ -45,7 +45,7 @@ static bool rt715_readable_register(struct device *dev, unsigned int reg)
 	case 0x8300 ... 0x83ff:
 	case 0x9c00 ... 0x9cff:
 	case 0xb900 ... 0xb9ff:
-	case 0x75200039:
+	case 0x752039:
 		return true;
 	default:
 		return false;
@@ -95,20 +95,21 @@ static int rt715_sdw_read(void *context, unsigned int reg, unsigned int *val)
 	mask = reg & 0xf000;
 
 	if (is_index_reg) { /* index registers */
-		val2 = reg & 0xffff;
-		reg = reg >> 16;
+		val2 = reg & 0xff;
+		reg = reg >> 8;
 		nid = reg & 0xff;
-		ret = regmap_write(rt715->sdw_regmap, reg, ((val2 >> 8) & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg, 0);
 		if (ret < 0)
 			return ret;
 		reg2 = reg + 0x1000;
 		reg2 |= 0x80;
-		ret = regmap_write(rt715->sdw_regmap, reg2, (val2 & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg2, val2);
 		if (ret < 0)
 			return ret;
 
 		reg3 = RT715_PRIV_DATA_R_H | nid;
-		ret = regmap_write(rt715->sdw_regmap, reg3, ((*val >> 8) & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg3,
+			((*val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		reg4 = reg3 + 0x1000;
@@ -124,7 +125,8 @@ static int rt715_sdw_read(void *context, unsigned int reg, unsigned int *val)
 	} else if (mask == 0x7000) {
 		reg += 0x2000;
 		reg |= 0x800;
-		ret = regmap_write(rt715->sdw_regmap, reg, ((*val >> 8) & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg,
+			((*val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		reg2 = reg + 0x1000;
@@ -135,14 +137,16 @@ static int rt715_sdw_read(void *context, unsigned int reg, unsigned int *val)
 	} else if ((reg & 0xff00) == 0x8300) { /* for R channel */
 		reg2 = reg - 0x1000;
 		reg2 &= ~0x80;
-		ret = regmap_write(rt715->sdw_regmap, reg2, ((*val >> 8) & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg2,
+			((*val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		ret = regmap_write(rt715->sdw_regmap, reg, (*val & 0xff));
 		if (ret < 0)
 			return ret;
 	} else if (mask == 0x9000) {
-		ret = regmap_write(rt715->sdw_regmap, reg, ((*val >> 8) & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg,
+			((*val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		reg2 = reg + 0x1000;
@@ -166,20 +170,25 @@ static int rt715_sdw_read(void *context, unsigned int reg, unsigned int *val)
 		sdw_data_2 = 0;
 		sdw_data_1 = 0;
 		sdw_data_0 = 0;
-		ret = regmap_read(rt715->sdw_regmap, RT715_READ_HDA_3, &sdw_data_3);
+		ret = regmap_read(rt715->sdw_regmap, RT715_READ_HDA_3,
+			&sdw_data_3);
 		if (ret < 0)
 			return ret;
-		ret = regmap_read(rt715->sdw_regmap, RT715_READ_HDA_2, &sdw_data_2);
+		ret = regmap_read(rt715->sdw_regmap, RT715_READ_HDA_2,
+			&sdw_data_2);
 		if (ret < 0)
 			return ret;
-		ret = regmap_read(rt715->sdw_regmap, RT715_READ_HDA_1, &sdw_data_1);
+		ret = regmap_read(rt715->sdw_regmap, RT715_READ_HDA_1,
+			&sdw_data_1);
 		if (ret < 0)
 			return ret;
-		ret = regmap_read(rt715->sdw_regmap, RT715_READ_HDA_0, &sdw_data_0);
+		ret = regmap_read(rt715->sdw_regmap, RT715_READ_HDA_0,
+			&sdw_data_0);
 		if (ret < 0)
 			return ret;
-		*val = ((sdw_data_3 & 0xff) << 24) | ((sdw_data_2 & 0xff) << 16) |
-			 ((sdw_data_1 & 0xff) << 8) | (sdw_data_0 & 0xff);
+		*val = ((sdw_data_3 & 0xff) << 24) |
+			((sdw_data_2 & 0xff) << 16) |
+			((sdw_data_1 & 0xff) << 8) | (sdw_data_0 & 0xff);
 	}
 
 	if (is_hda_reg == 0)
@@ -188,7 +197,8 @@ static int rt715_sdw_read(void *context, unsigned int reg, unsigned int *val)
 		dev_dbg(dev, "[%s] %04x %04x %04x %04x => %08x\n", __func__,
 			reg, reg2, reg3, reg4, *val);
 	else
-		dev_dbg(dev, "[%s] %04x %04x => %08x\n", __func__, reg, reg2, *val);
+		dev_dbg(dev, "[%s] %04x %04x => %08x\n",
+		__func__, reg, reg2, *val);
 
 	return 0;
 }
@@ -207,20 +217,21 @@ static int rt715_sdw_write(void *context, unsigned int reg, unsigned int val)
 	mask = reg & 0xf000;
 
 	if (is_index_reg) { /* index registers */
-		val2 = reg & 0xffff;
-		reg = reg >> 16;
+		val2 = reg & 0xff;
+		reg = reg >> 8;
 		nid = reg & 0xff;
-		ret = regmap_write(rt715->sdw_regmap, reg, ((val2 >> 8) & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg, 0);
 		if (ret < 0)
 			return ret;
 		reg2 = reg + 0x1000;
 		reg2 |= 0x80;
-		ret = regmap_write(rt715->sdw_regmap, reg2, (val2 & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg2, val2);
 		if (ret < 0)
 			return ret;
 
 		reg3 = RT715_PRIV_DATA_W_H | nid;
-		ret = regmap_write(rt715->sdw_regmap, reg3, ((val >> 8) & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg3,
+			((val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		reg4 = reg3 + 0x1000;
@@ -238,7 +249,8 @@ static int rt715_sdw_write(void *context, unsigned int reg, unsigned int val)
 		if (ret < 0)
 			return ret;
 	} else if (mask == 0x7000) {
-		ret = regmap_write(rt715->sdw_regmap, reg, ((val >> 8) & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg,
+			((val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		reg2 = reg + 0x1000;
@@ -249,7 +261,8 @@ static int rt715_sdw_write(void *context, unsigned int reg, unsigned int val)
 	} else if ((reg & 0xff00) == 0x8300) {  /* for R channel */
 		reg2 = reg - 0x1000;
 		reg2 &= ~0x80;
-		ret = regmap_write(rt715->sdw_regmap, reg2, ((val >> 8) & 0xff));
+		ret = regmap_write(rt715->sdw_regmap, reg2,
+			((val >> 8) & 0xff));
 		if (ret < 0)
 			return ret;
 		ret = regmap_write(rt715->sdw_regmap, reg, (val & 0xff));
@@ -260,20 +273,21 @@ static int rt715_sdw_write(void *context, unsigned int reg, unsigned int val)
 	if (reg2 == 0)
 		dev_dbg(dev, "[%s] %04x <= %04x\n", __func__, reg, val);
 	else if (is_index_reg)
-		dev_dbg(dev, "[%s] %04x %04x %04x %04x <= %04x %04x\n", __func__,
-			reg, reg2, reg3, reg4, val2, val);
+		dev_dbg(dev, "[%s] %04x %04x %04x %04x <= %04x %04x\n",
+			__func__, reg, reg2, reg3, reg4, val2, val);
 	else
-		dev_dbg(dev, "[%s] %04x %04x <= %04x\n", __func__, reg, reg2, val);
+		dev_dbg(dev, "[%s] %04x %04x <= %04x\n",
+		__func__, reg, reg2, val);
 
 	return 0;
 }
 
 static const struct regmap_config rt715_regmap = {
-	.reg_bits = 32,
+	.reg_bits = 24,
 	.val_bits = 32,
 	.readable_reg = rt715_readable_register, /* Readable registers */
 	.volatile_reg = rt715_volatile_register, /* volatile register */
-	.max_register = 0x75200039, /* Maximum number of register */
+	.max_register = 0x752039, /* Maximum number of register */
 	.reg_defaults = rt715_reg_defaults, /* Defaults */
 	.num_reg_defaults = ARRAY_SIZE(rt715_reg_defaults),
 	.cache_type = REGCACHE_RBTREE,
@@ -287,7 +301,6 @@ static const struct regmap_config rt715_sdw_regmap = {
 	.name = "sdw",
 	.reg_bits = 32, /* Total register space for SDW */
 	.val_bits = 8, /* Total number of bits in register */
-	.readable_reg = rt715_readable_register, /* Readable registers */
 	.max_register = 0xff01, /* Maximum number of register */
 	.cache_type = REGCACHE_NONE,
 	.use_single_read = true,
@@ -336,7 +349,7 @@ int hda_to_sdw(unsigned int nid, unsigned int verb, unsigned int payload,
 EXPORT_SYMBOL(hda_to_sdw);
 
 static int rt715_update_status(struct sdw_slave *slave,
-			       enum sdw_slave_status status)
+				enum sdw_slave_status status)
 {
 	struct rt715_priv *rt715 = dev_get_drvdata(&slave->dev);
 
@@ -364,14 +377,14 @@ static int rt715_read_prop(struct sdw_slave *slave)
 	prop->paging_support = false;
 
 	/* first we need to allocate memory for set bits in port lists */
-	prop->source_ports = 0x50;	/* BITMAP: 01010000 */
+	prop->source_ports = 0x50;/* BITMAP: 01010000 */
 	prop->sink_ports = 0x0;	/* BITMAP:  00000000 */
 
 	nval = hweight32(prop->source_ports);
 	num_of_ports += nval;
 	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					  sizeof(*prop->src_dpn_prop),
-					  GFP_KERNEL);
+					sizeof(*prop->src_dpn_prop),
+					GFP_KERNEL);
 	if (!prop->src_dpn_prop)
 		return -ENOMEM;
 
@@ -389,8 +402,8 @@ static int rt715_read_prop(struct sdw_slave *slave)
 	nval = hweight32(prop->sink_ports);
 	num_of_ports += nval;
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					   sizeof(*prop->sink_dpn_prop),
-					   GFP_KERNEL);
+					sizeof(*prop->sink_dpn_prop),
+					GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
 		return -ENOMEM;
 
@@ -406,8 +419,8 @@ static int rt715_read_prop(struct sdw_slave *slave)
 
 	/* Allocate port_ready based on num_of_ports */
 	slave->port_ready = devm_kcalloc(&slave->dev, num_of_ports,
-					 sizeof(*slave->port_ready),
-					 GFP_KERNEL);
+					sizeof(*slave->port_ready),
+					GFP_KERNEL);
 	if (!slave->port_ready)
 		return -ENOMEM;
 
@@ -422,7 +435,7 @@ static int rt715_read_prop(struct sdw_slave *slave)
 }
 
 static int rt715_bus_config(struct sdw_slave *slave,
-			    struct sdw_bus_params *params)
+				struct sdw_bus_params *params)
 {
 	struct rt715_priv *rt715 = dev_get_drvdata(&slave->dev);
 	int ret;
@@ -455,7 +468,8 @@ static int rt715_sdw_probe(struct sdw_slave *slave,
 	if (!sdw_regmap)
 		return -EINVAL;
 
-	regmap = devm_regmap_init(&slave->dev, NULL, &slave->dev, &rt715_regmap);
+	regmap = devm_regmap_init(&slave->dev, NULL, &slave->dev,
+		&rt715_regmap);
 	if (!regmap)
 		return -EINVAL;
 
@@ -502,7 +516,7 @@ static int rt715_dev_resume(struct device *dev)
 
 	regcache_cache_only(rt715->regmap, false);
 	regcache_sync_region(rt715->regmap, 0x3000, 0x8fff);
-	regcache_sync_region(rt715->regmap, 0x75200039, 0x75200039);
+	regcache_sync_region(rt715->regmap, 0x752039, 0x752039);
 
 	return 0;
 }

@@ -42,7 +42,7 @@ static int rt715_index_write(struct regmap *regmap, unsigned int reg,
 		unsigned int value)
 {
 	int ret;
-	unsigned int addr = ((RT715_PRIV_INDEX_W_H) << 16) | reg;
+	unsigned int addr = ((RT715_PRIV_INDEX_W_H) << 8) | reg;
 
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0) {
@@ -57,7 +57,7 @@ static unsigned int rt715_index_read(struct regmap *regmap, unsigned int reg,
 		unsigned int *value)
 {
 	int ret;
-	unsigned int addr = ((RT715_PRIV_INDEX_W_H) << 16) | reg;
+	unsigned int addr = ((RT715_PRIV_INDEX_W_H) << 8) | reg;
 
 	*value = 0;
 	ret = regmap_read(regmap, addr, value);
@@ -70,8 +70,8 @@ static unsigned int rt715_index_read(struct regmap *regmap, unsigned int reg,
 }
 
 static void rt715_get_gain(struct rt715_priv *rt715, unsigned int addr_h,
-			   unsigned int addr_l, unsigned int val_h,
-			   unsigned int *r_val, unsigned int *l_val)
+				unsigned int addr_l, unsigned int val_h,
+				unsigned int *r_val, unsigned int *l_val)
 {
 	/* R Channel */
 	*r_val = (val_h << 8);
@@ -85,7 +85,7 @@ static void rt715_get_gain(struct rt715_priv *rt715, unsigned int addr_h,
 
 /* For Verb-Set Amplifier Gain (Verb ID = 3h) */
 static int rt715_set_amp_gain_put(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
+					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_context *dapm =
@@ -148,16 +148,19 @@ static int rt715_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 		if (val_ll == val_lr) {
 			/* Set both L/R channels at the same time */
 			val_h = (1 << mc->shift) | (3 << 4);
-			regmap_write(rt715->regmap, addr_h, (val_h << 8 | val_ll));
-			regmap_write(rt715->regmap, addr_l, (val_h << 8 | val_ll));
+			regmap_write(rt715->regmap, addr_h,
+				(val_h << 8 | val_ll));
+			regmap_write(rt715->regmap, addr_l,
+				(val_h << 8 | val_ll));
 		} else {
 			/* Lch*/
 			val_h = (1 << mc->shift) | (1 << 5);
-			regmap_write(rt715->regmap, addr_h, (val_h << 8 | val_ll));
-
+			regmap_write(rt715->regmap, addr_h,
+				(val_h << 8 | val_ll));
 			/* Rch */
 			val_h = (1 << mc->shift) | (1 << 4);
-			regmap_write(rt715->regmap, addr_l, (val_h << 8 | val_lr));
+			regmap_write(rt715->regmap, addr_l,
+				(val_h << 8 | val_lr));
 		}
 		/* check result */
 		if (mc->shift == RT715_DIR_OUT_SFT) /* output */
@@ -173,7 +176,7 @@ static int rt715_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 	/* D0:power on state, D3: power saving mode */
 	if (dapm->bias_level <= SND_SOC_BIAS_STANDBY)
 		regmap_write(rt715->regmap,
-			     RT715_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
+				RT715_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
 	return 0;
 }
 
@@ -226,71 +229,71 @@ static const DECLARE_TLV_DB_SCALE(mic_vol_tlv, 0, 1000, 0);
 static const struct snd_kcontrol_new rt715_snd_controls[] = {
 	/* Capture switch */
 	SOC_DOUBLE_R_EXT("ADC 07 Capture Switch", RT715_SET_GAIN_MIC_ADC_H,
-			    RT715_SET_GAIN_MIC_ADC_L, RT715_DIR_IN_SFT, 1, 1,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put),
+			RT715_SET_GAIN_MIC_ADC_L, RT715_DIR_IN_SFT, 1, 1,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put),
 	SOC_DOUBLE_R_EXT("ADC 08 Capture Switch", RT715_SET_GAIN_LINE_ADC_H,
-			    RT715_SET_GAIN_LINE_ADC_L, RT715_DIR_IN_SFT, 1, 1,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put),
+			RT715_SET_GAIN_LINE_ADC_L, RT715_DIR_IN_SFT, 1, 1,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put),
 	SOC_DOUBLE_R_EXT("ADC 09 Capture Switch", RT715_SET_GAIN_MIX_ADC_H,
-			    RT715_SET_GAIN_MIX_ADC_L, RT715_DIR_IN_SFT, 1, 1,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put),
+			RT715_SET_GAIN_MIX_ADC_L, RT715_DIR_IN_SFT, 1, 1,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put),
 	SOC_DOUBLE_R_EXT("ADC 27 Capture Switch", RT715_SET_GAIN_MIX_ADC2_H,
-			    RT715_SET_GAIN_MIX_ADC2_L, RT715_DIR_IN_SFT, 1, 1,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put),
+			RT715_SET_GAIN_MIX_ADC2_L, RT715_DIR_IN_SFT, 1, 1,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put),
 	/* Volume Control */
 	SOC_DOUBLE_R_EXT_TLV("ADC 07 Capture Volume", RT715_SET_GAIN_MIC_ADC_H,
-			    RT715_SET_GAIN_MIC_ADC_L, RT715_DIR_IN_SFT, 0x3f, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    in_vol_tlv),
+			RT715_SET_GAIN_MIC_ADC_L, RT715_DIR_IN_SFT, 0x3f, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			in_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("ADC 08 Capture Volume", RT715_SET_GAIN_LINE_ADC_H,
-			    RT715_SET_GAIN_LINE_ADC_L, RT715_DIR_IN_SFT, 0x3f, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    in_vol_tlv),
+			RT715_SET_GAIN_LINE_ADC_L, RT715_DIR_IN_SFT, 0x3f, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			in_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("ADC 09 Capture Volume", RT715_SET_GAIN_MIX_ADC_H,
-			    RT715_SET_GAIN_MIX_ADC_L, RT715_DIR_IN_SFT, 0x3f, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    in_vol_tlv),
+			RT715_SET_GAIN_MIX_ADC_L, RT715_DIR_IN_SFT, 0x3f, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			in_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("ADC 27 Capture Volume", RT715_SET_GAIN_MIX_ADC2_H,
-			    RT715_SET_GAIN_MIX_ADC2_L, RT715_DIR_IN_SFT, 0x3f, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    in_vol_tlv),
+			RT715_SET_GAIN_MIX_ADC2_L, RT715_DIR_IN_SFT, 0x3f, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			in_vol_tlv),
 	/* MIC Boost Control */
 	SOC_DOUBLE_R_EXT_TLV("DMIC1 Boost", RT715_SET_GAIN_DMIC1_H,
-			    RT715_SET_GAIN_DMIC1_L, RT715_DIR_IN_SFT, 3, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    mic_vol_tlv),
+			RT715_SET_GAIN_DMIC1_L, RT715_DIR_IN_SFT, 3, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			mic_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("DMIC2 Boost", RT715_SET_GAIN_DMIC2_H,
-			    RT715_SET_GAIN_DMIC2_L, RT715_DIR_IN_SFT, 3, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    mic_vol_tlv),
+			RT715_SET_GAIN_DMIC2_L, RT715_DIR_IN_SFT, 3, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			mic_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("DMIC3 Boost", RT715_SET_GAIN_DMIC3_H,
-			    RT715_SET_GAIN_DMIC3_L, RT715_DIR_IN_SFT, 3, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    mic_vol_tlv),
+			RT715_SET_GAIN_DMIC3_L, RT715_DIR_IN_SFT, 3, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			mic_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("DMIC4 Boost", RT715_SET_GAIN_DMIC4_H,
-			    RT715_SET_GAIN_DMIC4_L, RT715_DIR_IN_SFT, 3, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    mic_vol_tlv),
+			RT715_SET_GAIN_DMIC4_L, RT715_DIR_IN_SFT, 3, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			mic_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("MIC1 Boost", RT715_SET_GAIN_MIC1_H,
-			    RT715_SET_GAIN_MIC1_L, RT715_DIR_IN_SFT, 3, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    mic_vol_tlv),
+			RT715_SET_GAIN_MIC1_L, RT715_DIR_IN_SFT, 3, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			mic_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("MIC2 Boost", RT715_SET_GAIN_MIC2_H,
-			    RT715_SET_GAIN_MIC2_L, RT715_DIR_IN_SFT, 3, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    mic_vol_tlv),
+			RT715_SET_GAIN_MIC2_L, RT715_DIR_IN_SFT, 3, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			mic_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("LINE1 Boost", RT715_SET_GAIN_LINE1_H,
-			    RT715_SET_GAIN_LINE1_L, RT715_DIR_IN_SFT, 3, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    mic_vol_tlv),
+			RT715_SET_GAIN_LINE1_L, RT715_DIR_IN_SFT, 3, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			mic_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("LINE2 Boost", RT715_SET_GAIN_LINE2_H,
-			    RT715_SET_GAIN_LINE2_L, RT715_DIR_IN_SFT, 3, 0,
-			    rt715_set_amp_gain_get, rt715_set_amp_gain_put,
-			    mic_vol_tlv),
+			RT715_SET_GAIN_LINE2_L, RT715_DIR_IN_SFT, 3, 0,
+			rt715_set_amp_gain_get, rt715_set_amp_gain_put,
+			mic_vol_tlv),
 };
 
 static int rt715_mux_get(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol)
+			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_kcontrol_component(kcontrol);
@@ -302,7 +305,8 @@ static int rt715_mux_get(struct snd_kcontrol *kcontrol,
 	reg = RT715_VERB_SET_CONNECT_SEL | e->reg;
 	ret = regmap_read(rt715->regmap, reg, &val);
 	if (ret < 0) {
-		dev_err(component->dev, "%s: sdw read failed: %d\n", __func__, ret);
+		dev_err(component->dev, "%s: sdw read failed: %d\n",
+			__func__, ret);
 		return ret;
 	}
 
@@ -319,7 +323,7 @@ static int rt715_mux_get(struct snd_kcontrol *kcontrol,
 }
 
 static int rt715_mux_put(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol)
+			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_kcontrol_component(kcontrol);
@@ -339,7 +343,8 @@ static int rt715_mux_put(struct snd_kcontrol *kcontrol,
 	reg = RT715_VERB_SET_CONNECT_SEL | e->reg;
 	ret = regmap_read(rt715->regmap, reg, &val2);
 	if (ret < 0) {
-		dev_err(component->dev, "%s: sdw read failed: %d\n", __func__, ret);
+		dev_err(component->dev, "%s: sdw read failed: %d\n",
+			__func__, ret);
 		return ret;
 	}
 
@@ -354,7 +359,7 @@ static int rt715_mux_put(struct snd_kcontrol *kcontrol,
 	}
 
 	snd_soc_dapm_mux_update_power(dapm, kcontrol,
-					      item[0], e, NULL);
+						item[0], e, NULL);
 
 	return change;
 }
@@ -551,7 +556,7 @@ static int rt715_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 }
 
 static void rt715_shutdown(struct snd_pcm_substream *substream,
-			   struct snd_soc_dai *dai)
+				struct snd_soc_dai *dai)
 
 {
 	struct sdw_stream_data *stream;
@@ -562,8 +567,8 @@ static void rt715_shutdown(struct snd_pcm_substream *substream,
 }
 
 static int rt715_pcm_hw_params(struct snd_pcm_substream *substream,
-			       struct snd_pcm_hw_params *params,
-			       struct snd_soc_dai *dai)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt715_priv *rt715 = snd_soc_component_get_drvdata(component);
@@ -608,7 +613,7 @@ static int rt715_pcm_hw_params(struct snd_pcm_substream *substream,
 	port_config.num = port;
 
 	retval = sdw_stream_add_slave(rt715->slave, &stream_config,
-				      &port_config, 1, stream->sdw_stream);
+					&port_config, 1, stream->sdw_stream);
 	if (retval) {
 		dev_err(dai->dev, "Unable to configure port\n");
 		return retval;
@@ -667,7 +672,7 @@ static int rt715_pcm_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int rt715_pcm_hw_free(struct snd_pcm_substream *substream,
-			     struct snd_soc_dai *dai)
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt715_priv *rt715 = snd_soc_component_get_drvdata(component);
@@ -786,9 +791,9 @@ int rt715_init(struct device *dev, struct regmap *sdw_regmap,
 	rt715->first_init = false;
 
 	ret = devm_snd_soc_register_component(dev,
-					      &soc_codec_dev_rt715,
-					      rt715_dai,
-					      ARRAY_SIZE(rt715_dai));
+						&soc_codec_dev_rt715,
+						rt715_dai,
+						ARRAY_SIZE(rt715_dai));
 
 	return ret;
 }
@@ -831,6 +836,8 @@ int rt715_io_init(struct device *dev, struct sdw_slave *slave)
 	/* Set Pin Widget */
 	regmap_write(rt715->regmap, RT715_SET_PIN_DMIC1, 0x20);
 	regmap_write(rt715->regmap, RT715_SET_PIN_DMIC2, 0x20);
+	regmap_write(rt715->regmap, RT715_SET_PIN_DMIC3, 0x20);
+	regmap_write(rt715->regmap, RT715_SET_PIN_DMIC4, 0x20);
 	/* Set Converter Stream */
 	regmap_write(rt715->regmap, RT715_SET_STREAMID_LINE_ADC, 0x10);
 	regmap_write(rt715->regmap, RT715_SET_STREAMID_MIX_ADC, 0x10);
@@ -845,6 +852,14 @@ int rt715_io_init(struct device *dev, struct sdw_slave *slave)
 	regmap_write(rt715->regmap, RT715_SET_DMIC2_CONFIG_DEFAULT2, 0x11);
 	regmap_write(rt715->regmap, RT715_SET_DMIC2_CONFIG_DEFAULT3, 0xa1);
 	regmap_write(rt715->regmap, RT715_SET_DMIC2_CONFIG_DEFAULT4, 0x81);
+	regmap_write(rt715->regmap, RT715_SET_DMIC3_CONFIG_DEFAULT1, 0xd0);
+	regmap_write(rt715->regmap, RT715_SET_DMIC3_CONFIG_DEFAULT2, 0x11);
+	regmap_write(rt715->regmap, RT715_SET_DMIC3_CONFIG_DEFAULT3, 0xa1);
+	regmap_write(rt715->regmap, RT715_SET_DMIC3_CONFIG_DEFAULT4, 0x81);
+	regmap_write(rt715->regmap, RT715_SET_DMIC4_CONFIG_DEFAULT1, 0xd1);
+	regmap_write(rt715->regmap, RT715_SET_DMIC4_CONFIG_DEFAULT2, 0x11);
+	regmap_write(rt715->regmap, RT715_SET_DMIC4_CONFIG_DEFAULT3, 0xa1);
+	regmap_write(rt715->regmap, RT715_SET_DMIC4_CONFIG_DEFAULT4, 0x81);
 
 	/* Finish Initial Settings, set power to D3 */
 	regmap_write(rt715->regmap, RT715_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
