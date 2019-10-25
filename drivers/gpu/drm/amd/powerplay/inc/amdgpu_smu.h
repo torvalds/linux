@@ -259,7 +259,6 @@ struct smu_table_context
 	struct smu_bios_boot_up_values	boot_values;
 	void                            *driver_pptable;
 	struct smu_table		*tables;
-	uint32_t			table_count;
 	struct smu_table		memory_pool;
 	uint8_t                         thermal_controller_type;
 	uint16_t			TDPODLimit;
@@ -322,6 +321,13 @@ struct mclock_latency_table {
 	struct mclk_latency_entries  entries[MAX_REGULAR_DPM_NUM];
 };
 
+enum smu_reset_mode
+{
+    SMU_RESET_MODE_0,
+    SMU_RESET_MODE_1,
+    SMU_RESET_MODE_2,
+};
+
 enum smu_baco_state
 {
 	SMU_BACO_STATE_ENTER = 0,
@@ -382,6 +388,7 @@ struct smu_context
 	uint32_t power_profile_mode;
 	uint32_t default_power_profile_mode;
 	bool pm_enabled;
+	bool is_apu;
 
 	uint32_t smc_if_version;
 
@@ -398,7 +405,7 @@ struct pptable_funcs {
 	int (*get_smu_table_index)(struct smu_context *smu, uint32_t index);
 	int (*get_smu_power_index)(struct smu_context *smu, uint32_t index);
 	int (*get_workload_type)(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile);
-	int (*run_afll_btc)(struct smu_context *smu);
+	int (*run_btc)(struct smu_context *smu);
 	int (*get_allowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	enum amd_pm_state_type (*get_current_power_state)(struct smu_context *smu);
 	int (*set_default_dpm_table)(struct smu_context *smu);
@@ -459,7 +466,8 @@ struct pptable_funcs {
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
 	void (*dump_pptable)(struct smu_context *smu);
 	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool asic_default);
-	int (*get_dpm_uclk_limited)(struct smu_context *smu, uint32_t *clock, bool max);
+	int (*get_dpm_clk_limited)(struct smu_context *smu, enum smu_clk_type clk_type,
+				   uint32_t dpm_level, uint32_t *freq);
 };
 
 struct smu_funcs
@@ -499,6 +507,7 @@ struct smu_funcs
 	int (*get_current_clk_freq)(struct smu_context *smu, enum smu_clk_type clk_id, uint32_t *value);
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
 	int (*start_thermal_control)(struct smu_context *smu);
+	int (*stop_thermal_control)(struct smu_context *smu);
 	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
 	int (*set_deep_sleep_dcefclk)(struct smu_context *smu, uint32_t clk);
@@ -538,7 +547,9 @@ struct smu_funcs
 	enum smu_baco_state (*baco_get_state)(struct smu_context *smu);
 	int (*baco_set_state)(struct smu_context *smu, enum smu_baco_state state);
 	int (*baco_reset)(struct smu_context *smu);
+	int (*mode2_reset)(struct smu_context *smu);
 	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
+	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
 };
 
 #define smu_init_microcode(smu) \
@@ -636,8 +647,6 @@ struct smu_funcs
 	((smu)->funcs->get_current_clk_freq? (smu)->funcs->get_current_clk_freq((smu), (clk_id), (value)) : 0)
 #define smu_print_clk_levels(smu, clk_type, buf) \
 	((smu)->ppt_funcs->print_clk_levels ? (smu)->ppt_funcs->print_clk_levels((smu), (clk_type), (buf)) : 0)
-#define smu_force_clk_levels(smu, clk_type, level) \
-	((smu)->ppt_funcs->force_clk_levels ? (smu)->ppt_funcs->force_clk_levels((smu), (clk_type), (level)) : 0)
 #define smu_get_od_percentage(smu, type) \
 	((smu)->ppt_funcs->get_od_percentage ? (smu)->ppt_funcs->get_od_percentage((smu), (type)) : 0)
 #define smu_set_od_percentage(smu, type, value) \
@@ -650,6 +659,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->set_thermal_fan_table ? (smu)->ppt_funcs->set_thermal_fan_table((smu)) : 0)
 #define smu_start_thermal_control(smu) \
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
+#define smu_stop_thermal_control(smu) \
+	((smu)->funcs->stop_thermal_control? (smu)->funcs->stop_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \
 	((smu)->ppt_funcs->read_sensor? (smu)->ppt_funcs->read_sensor((smu), (sensor), (data), (size)) : 0)
 #define smu_smc_read_sensor(smu, sensor, data, size) \
@@ -697,8 +708,8 @@ struct smu_funcs
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_power_index? (smu)->ppt_funcs->get_smu_power_index((smu), (src)) : -EINVAL) : -EINVAL)
 #define smu_workload_get_type(smu, profile) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_workload_type? (smu)->ppt_funcs->get_workload_type((smu), (profile)) : -EINVAL) : -EINVAL)
-#define smu_run_afll_btc(smu) \
-	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_afll_btc? (smu)->ppt_funcs->run_afll_btc((smu)) : 0) : 0)
+#define smu_run_btc(smu) \
+	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_btc? (smu)->ppt_funcs->run_btc((smu)) : 0) : 0)
 #define smu_get_allowed_feature_mask(smu, feature_mask, num) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_allowed_feature_mask? (smu)->ppt_funcs->get_allowed_feature_mask((smu), (feature_mask), (num)) : 0) : 0)
 #define smu_set_deep_sleep_dcefclk(smu, clk) \
@@ -751,21 +762,23 @@ struct smu_funcs
 		((smu)->funcs->get_dpm_ultimate_freq ? (smu)->funcs->get_dpm_ultimate_freq((smu), (param), (min), (max)) : 0)
 #define smu_get_max_sustainable_clocks_by_dc(smu, max_clocks) \
 	((smu)->funcs->get_max_sustainable_clocks_by_dc ? (smu)->funcs->get_max_sustainable_clocks_by_dc((smu), (max_clocks)) : 0)
-#define smu_get_uclk_dpm_states(smu, clocks_in_khz, num_states) \
-	((smu)->ppt_funcs->get_uclk_dpm_states ? (smu)->ppt_funcs->get_uclk_dpm_states((smu), (clocks_in_khz), (num_states)) : 0)
 #define smu_baco_is_support(smu) \
 	((smu)->funcs->baco_is_support? (smu)->funcs->baco_is_support((smu)) : false)
 #define smu_baco_get_state(smu, state) \
 	((smu)->funcs->baco_get_state? (smu)->funcs->baco_get_state((smu), (state)) : 0)
 #define smu_baco_reset(smu) \
 	((smu)->funcs->baco_reset? (smu)->funcs->baco_reset((smu)) : 0)
+#define smu_mode2_reset(smu) \
+	((smu)->funcs->mode2_reset? (smu)->funcs->mode2_reset((smu)) : 0)
 #define smu_asic_set_performance_level(smu, level) \
 	((smu)->ppt_funcs->set_performance_level? (smu)->ppt_funcs->set_performance_level((smu), (level)) : -EINVAL);
 #define smu_dump_pptable(smu) \
 	((smu)->ppt_funcs->dump_pptable ? (smu)->ppt_funcs->dump_pptable((smu)) : 0)
-#define smu_get_dpm_uclk_limited(smu, clock, max) \
-		((smu)->ppt_funcs->get_dpm_uclk_limited ? (smu)->ppt_funcs->get_dpm_uclk_limited((smu), (clock), (max)) : -EINVAL)
+#define smu_get_dpm_clk_limited(smu, clk_type, dpm_level, freq) \
+		((smu)->ppt_funcs->get_dpm_clk_limited ? (smu)->ppt_funcs->get_dpm_clk_limited((smu), (clk_type), (dpm_level), (freq)) : -EINVAL)
 
+#define smu_set_soft_freq_limited_range(smu, clk_type, min, max) \
+		((smu)->funcs->set_soft_freq_limited_range ? (smu)->funcs->set_soft_freq_limited_range((smu), (clk_type), (min), (max)) : -EINVAL)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
@@ -828,10 +841,14 @@ enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu);
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level);
 int smu_set_display_count(struct smu_context *smu, uint32_t count);
 bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type);
-int smu_feature_update_enable_state(struct smu_context *smu, uint64_t feature_mask, bool enabled);
 const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type type);
 const char *smu_get_feature_name(struct smu_context *smu, enum smu_feature_mask feature);
 size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf);
 int smu_sys_set_pp_feature_mask(struct smu_context *smu, uint64_t new_mask);
+int smu_force_clk_levels(struct smu_context *smu,
+			 enum smu_clk_type clk_type,
+			 uint32_t mask);
+int smu_set_mp1_state(struct smu_context *smu,
+		      enum pp_mp1_state mp1_state);
 
 #endif

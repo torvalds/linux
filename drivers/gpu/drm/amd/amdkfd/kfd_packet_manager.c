@@ -239,10 +239,13 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 	case CHIP_ARCTURUS:
 		pm->pmf = &kfd_v9_pm_funcs;
 		break;
 	case CHIP_NAVI10:
+	case CHIP_NAVI12:
+	case CHIP_NAVI14:
 		pm->pmf = &kfd_v10_pm_funcs;
 		break;
 	default:

@@ -26,6 +26,7 @@
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_rlc.h"
+#include "amdgpu_ras.h"
 
 /* delay 0.1 second to enable gfx off feature */
 #define GFX_OFF_DELAY_ENABLE         msecs_to_jiffies(100)
@@ -231,12 +232,10 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 
 void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
 {
-	int i, queue, pipe, me;
+	int i, queue, me;
 
 	for (i = 0; i < AMDGPU_MAX_GFX_QUEUES; ++i) {
 		queue = i % adev->gfx.me.num_queue_per_pipe;
-		pipe = (i / adev->gfx.me.num_queue_per_pipe)
-			% adev->gfx.me.num_pipe_per_me;
 		me = (i / adev->gfx.me.num_queue_per_pipe)
 		      / adev->gfx.me.num_pipe_per_me;
 
@@ -568,4 +567,103 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 	}
 
 	mutex_unlock(&adev->gfx.gfx_off_mutex);
+}
+
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
+{
+	int r;
+	struct ras_fs_if fs_info = {
+		.sysfs_name = "gfx_err_count",
+		.debugfs_name = "gfx_err_inject",
+	};
+	struct ras_ih_if ih_info = {
+		.cb = amdgpu_gfx_process_ras_data_cb,
+	};
+
+	if (!adev->gfx.ras_if) {
+		adev->gfx.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->gfx.ras_if)
+			return -ENOMEM;
+		adev->gfx.ras_if->block = AMDGPU_RAS_BLOCK__GFX;
+		adev->gfx.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->gfx.ras_if->sub_block_index = 0;
+		strcpy(adev->gfx.ras_if->name, "gfx");
+	}
+	fs_info.head = ih_info.head = *adev->gfx.ras_if;
+
+	r = amdgpu_ras_late_init(adev, adev->gfx.ras_if,
+				 &fs_info, &ih_info);
+	if (r)
+		goto free;
+
+	if (amdgpu_ras_is_supported(adev, adev->gfx.ras_if->block)) {
+		r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
+		if (r)
+			goto late_fini;
+	} else {
+		/* free gfx ras_if if ras is not supported */
+		r = 0;
+		goto free;
+	}
+
+	return 0;
+late_fini:
+	amdgpu_ras_late_fini(adev, adev->gfx.ras_if, &ih_info);
+free:
+	kfree(adev->gfx.ras_if);
+	adev->gfx.ras_if = NULL;
+	return r;
+}
+
+void amdgpu_gfx_ras_fini(struct amdgpu_device *adev)
+{
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX) &&
+			adev->gfx.ras_if) {
+		struct ras_common_if *ras_if = adev->gfx.ras_if;
+		struct ras_ih_if ih_info = {
+			.head = *ras_if,
+			.cb = amdgpu_gfx_process_ras_data_cb,
+		};
+
+		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
+		kfree(ras_if);
+	}
+}
+
+int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
+		void *err_data,
+		struct amdgpu_iv_entry *entry)
+{
+	/* TODO ue will trigger an interrupt.
+	 *
+	 * When “Full RAS” is enabled, the per-IP interrupt sources should
+	 * be disabled and the driver should only look for the aggregated
+	 * interrupt via sync flood
+	 */
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
+		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+		if (adev->gfx.funcs->query_ras_error_count)
+			adev->gfx.funcs->query_ras_error_count(adev, err_data);
+		amdgpu_ras_reset_gpu(adev, 0);
+	}
+	return AMDGPU_RAS_SUCCESS;
+}
+
+int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
+				  struct amdgpu_irq_src *source,
+				  struct amdgpu_iv_entry *entry)
+{
+	struct ras_common_if *ras_if = adev->gfx.ras_if;
+	struct ras_dispatch_if ih_data = {
+		.entry = entry,
+	};
+
+	if (!ras_if)
+		return 0;
+
+	ih_data.head = *ras_if;
+
+	DRM_ERROR("CP ECC ERROR IRQ\n");
+	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
+	return 0;
 }

@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.48"
+#define DC_VER "3.2.51.1"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -117,13 +117,13 @@ struct dc_caps {
 	struct dc_plane_cap planes[MAX_PLANES];
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 struct dc_bug_wa {
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	bool no_connect_phy_config;
 	bool dedcn20_305_wa;
+#endif
 	bool skip_clock_update;
 };
-#endif
 
 struct dc_dcc_surface_param {
 	struct dc_size surface_size;
@@ -252,11 +252,7 @@ enum wm_report_mode {
  */
 struct dc_clocks {
 	int dispclk_khz;
-	int max_supported_dppclk_khz;
-	int max_supported_dispclk_khz;
 	int dppclk_khz;
-	int bw_dppclk_khz; /*a copy of dppclk_khz*/
-	int bw_dispclk_khz;
 	int dcfclk_khz;
 	int socclk_khz;
 	int dcfclk_deep_sleep_khz;
@@ -270,6 +266,10 @@ struct dc_clocks {
 	 * optimization required
 	 */
 	bool prev_p_state_change_support;
+	int max_supported_dppclk_khz;
+	int max_supported_dispclk_khz;
+	int bw_dppclk_khz; /*a copy of dppclk_khz*/
+	int bw_dispclk_khz;
 };
 
 struct dc_bw_validation_profile {
@@ -347,6 +347,7 @@ struct dc_debug_options {
 	bool disable_hubp_power_gate;
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	bool disable_dsc_power_gate;
+	int dsc_min_slice_height_override;
 #endif
 	bool disable_pplib_wm_range;
 	enum wm_report_mode pplib_wm_report_mode;
@@ -462,9 +463,7 @@ struct dc {
 	struct dc_config config;
 	struct dc_debug_options debug;
 	struct dc_bounding_box_overrides bb_overrides;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	struct dc_bug_wa work_arounds;
-#endif
 	struct dc_context *ctx;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	struct dc_phy_addr_space_config vm_pa_config;
@@ -553,10 +552,16 @@ struct dc_init_data {
 };
 
 struct dc_callback_init {
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	struct cp_psp cp_psp;
+#else
 	uint8_t reserved;
+#endif
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
+void dc_hardware_init(struct dc *dc);
+
 int dc_get_vmid_use_vector(struct dc *dc);
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 void dc_setup_vm_context(struct dc *dc, struct dc_virtual_addr_space_config *va_config, int vmid);
@@ -565,6 +570,7 @@ int dc_setup_system_context(struct dc *dc, struct dc_phy_addr_space_config *pa_c
 #endif
 void dc_init_callbacks(struct dc *dc,
 		const struct dc_callback_init *init_params);
+void dc_deinit_callbacks(struct dc *dc);
 void dc_destroy(struct dc **dc);
 
 /*******************************************************************************

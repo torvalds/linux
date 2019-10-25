@@ -43,6 +43,8 @@
 
 #include "amdgpu_amdkfd.h"
 
+#include "amdgpu_ras.h"
+
 /*
  * KMS wrapper.
  * - 3.0.0 - initial driver
@@ -87,8 +89,6 @@
 #define KMS_DRIVER_MINOR	35
 #define KMS_DRIVER_PATCHLEVEL	0
 
-#define AMDGPU_MAX_TIMEOUT_PARAM_LENTH	256
-
 int amdgpu_vram_limit = 0;
 int amdgpu_vis_vram_limit = 0;
 int amdgpu_gart_size = -1; /* auto */
@@ -128,11 +128,6 @@ char *amdgpu_disable_cu = NULL;
 char *amdgpu_virtual_display = NULL;
 /* OverDrive(bit 14) disabled by default*/
 uint amdgpu_pp_feature_mask = 0xffffbfff;
-int amdgpu_ngg = 0;
-int amdgpu_prim_buf_per_se = 0;
-int amdgpu_pos_buf_per_se = 0;
-int amdgpu_cntl_sb_buf_per_se = 0;
-int amdgpu_param_buf_per_se = 0;
 int amdgpu_job_hang_limit = 0;
 int amdgpu_lbpw = -1;
 int amdgpu_compute_multipipe = -1;
@@ -146,12 +141,13 @@ int amdgpu_mcbp = 0;
 int amdgpu_discovery = -1;
 int amdgpu_mes = 0;
 int amdgpu_noretry = 1;
+int amdgpu_force_asic_type = -1;
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
 };
 int amdgpu_ras_enable = -1;
-uint amdgpu_ras_mask = 0xfffffffb;
+uint amdgpu_ras_mask = 0xffffffff;
 
 /**
  * DOC: vramlimit (int)
@@ -244,10 +240,13 @@ module_param_named(msi, amdgpu_msi, int, 0444);
  *
  * The format can be [Non-Compute] or [GFX,Compute,SDMA,Video]. That is there can be one or
  * multiple values specified. 0 and negative values are invalidated. They will be adjusted
- * to default timeout.
- *  - With one value specified, the setting will apply to all non-compute jobs.
- *  - With multiple values specified, the first one will be for GFX. The second one is for Compute.
- *    And the third and fourth ones are for SDMA and Video.
+ * to the default timeout.
+ *
+ * - With one value specified, the setting will apply to all non-compute jobs.
+ * - With multiple values specified, the first one will be for GFX.
+ *   The second one is for Compute. The third and fourth ones are
+ *   for SDMA and Video.
+ *
  * By default(with no lockup_timeout settings), the timeout for all non-compute(GFX, SDMA and Video)
  * jobs is 10000. And there is no timeout enforced on compute jobs.
  */
@@ -449,42 +448,6 @@ MODULE_PARM_DESC(virtual_display,
 module_param_named(virtual_display, amdgpu_virtual_display, charp, 0444);
 
 /**
- * DOC: ngg (int)
- * Set to enable Next Generation Graphics (1 = enable). The default is 0 (disabled).
- */
-MODULE_PARM_DESC(ngg, "Next Generation Graphics (1 = enable, 0 = disable(default depending on gfx))");
-module_param_named(ngg, amdgpu_ngg, int, 0444);
-
-/**
- * DOC: prim_buf_per_se (int)
- * Override the size of Primitive Buffer per Shader Engine in Byte. The default is 0 (depending on gfx).
- */
-MODULE_PARM_DESC(prim_buf_per_se, "the size of Primitive Buffer per Shader Engine (default depending on gfx)");
-module_param_named(prim_buf_per_se, amdgpu_prim_buf_per_se, int, 0444);
-
-/**
- * DOC: pos_buf_per_se (int)
- * Override the size of Position Buffer per Shader Engine in Byte. The default is 0 (depending on gfx).
- */
-MODULE_PARM_DESC(pos_buf_per_se, "the size of Position Buffer per Shader Engine (default depending on gfx)");
-module_param_named(pos_buf_per_se, amdgpu_pos_buf_per_se, int, 0444);
-
-/**
- * DOC: cntl_sb_buf_per_se (int)
- * Override the size of Control Sideband per Shader Engine in Byte. The default is 0 (depending on gfx).
- */
-MODULE_PARM_DESC(cntl_sb_buf_per_se, "the size of Control Sideband per Shader Engine (default depending on gfx)");
-module_param_named(cntl_sb_buf_per_se, amdgpu_cntl_sb_buf_per_se, int, 0444);
-
-/**
- * DOC: param_buf_per_se (int)
- * Override the size of Off-Chip Parameter Cache per Shader Engine in Byte.
- * The default is 0 (depending on gfx).
- */
-MODULE_PARM_DESC(param_buf_per_se, "the size of Off-Chip Parameter Cache per Shader Engine (default depending on gfx)");
-module_param_named(param_buf_per_se, amdgpu_param_buf_per_se, int, 0444);
-
-/**
  * DOC: job_hang_limit (int)
  * Set how much time allow a job hang and not drop it. The default is 0.
  */
@@ -615,6 +578,16 @@ module_param_named(mes, amdgpu_mes, int, 0444);
 MODULE_PARM_DESC(noretry,
 	"Disable retry faults (0 = retry enabled, 1 = retry disabled (default))");
 module_param_named(noretry, amdgpu_noretry, int, 0644);
+
+/**
+ * DOC: force_asic_type (int)
+ * A non negative value used to specify the asic type for all supported GPUs.
+ */
+MODULE_PARM_DESC(force_asic_type,
+	"A non negative value used to specify the asic type for all supported GPUs");
+module_param_named(force_asic_type, amdgpu_force_asic_type, int, 0444);
+
+
 
 #ifdef CONFIG_HSA_AMD
 /**
@@ -1022,6 +995,7 @@ static const struct pci_device_id pciidlist[] = {
 
 	/* Navi12 */
 	{0x1002, 0x7360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI12|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x7362, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI12|AMD_EXP_HW_SUPPORT},
 
 	{0, 0, 0}
 };
@@ -1127,7 +1101,10 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	DRM_ERROR("Device removal is currently not supported outside of fbcon\n");
+#ifdef MODULE
+	if (THIS_MODULE->state != MODULE_STATE_GOING)
+#endif
+		DRM_ERROR("Hotplug removal is not supported\n");
 	drm_dev_unplug(dev);
 	drm_dev_put(dev);
 	pci_disable_device(pdev);
@@ -1139,6 +1116,9 @@ amdgpu_pci_shutdown(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct amdgpu_device *adev = dev->dev_private;
+
+	if (amdgpu_ras_intr_triggered())
+		return;
 
 	/* if we are running in a VM, make sure the device
 	 * torn down properly on reboot/shutdown.
@@ -1345,66 +1325,6 @@ int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv)
 	file = filp->private_data;
 	*fpriv = file->driver_priv;
 	return 0;
-}
-
-int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
-{
-	char *input = amdgpu_lockup_timeout;
-	char *timeout_setting = NULL;
-	int index = 0;
-	long timeout;
-	int ret = 0;
-
-	/*
-	 * By default timeout for non compute jobs is 10000.
-	 * And there is no timeout enforced on compute jobs.
-	 */
-	adev->gfx_timeout = msecs_to_jiffies(10000);
-	adev->sdma_timeout = adev->video_timeout = adev->gfx_timeout;
-	adev->compute_timeout = MAX_SCHEDULE_TIMEOUT;
-
-	if (strnlen(input, AMDGPU_MAX_TIMEOUT_PARAM_LENTH)) {
-		while ((timeout_setting = strsep(&input, ",")) &&
-				strnlen(timeout_setting, AMDGPU_MAX_TIMEOUT_PARAM_LENTH)) {
-			ret = kstrtol(timeout_setting, 0, &timeout);
-			if (ret)
-				return ret;
-
-			if (timeout == 0) {
-				index++;
-				continue;
-			} else if (timeout < 0) {
-				timeout = MAX_SCHEDULE_TIMEOUT;
-			} else {
-				timeout = msecs_to_jiffies(timeout);
-			}
-
-			switch (index++) {
-			case 0:
-				adev->gfx_timeout = timeout;
-				break;
-			case 1:
-				adev->compute_timeout = timeout;
-				break;
-			case 2:
-				adev->sdma_timeout = timeout;
-				break;
-			case 3:
-				adev->video_timeout = timeout;
-				break;
-			default:
-				break;
-			}
-		}
-		/*
-		 * There is only one value specified and
-		 * it should apply to all non-compute jobs.
-		 */
-		if (index == 1)
-			adev->sdma_timeout = adev->video_timeout = adev->gfx_timeout;
-	}
-
-	return ret;
 }
 
 static bool

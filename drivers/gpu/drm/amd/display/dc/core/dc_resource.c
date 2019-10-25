@@ -1848,28 +1848,28 @@ static int acquire_resource_from_hw_enabled_state(
 		struct dc_stream_state *stream)
 {
 	struct dc_link *link = stream->link;
-	unsigned int inst, tg_inst;
+	unsigned int i, inst, tg_inst = 0;
 
 	/* Check for enabled DIG to identify enabled display */
 	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
 		return -1;
 
-	/* Check for which front end is used by this encoder.
-	 * Note the inst is 1 indexed, where 0 is undefined.
-	 * Note that DIG_FE can source from different OTG but our
-	 * current implementation always map 1-to-1, so this code makes
-	 * the same assumption and doesn't check OTG source.
-	 */
 	inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
 
-	/* Instance should be within the range of the pool */
-	if (inst >= pool->pipe_count)
-		return -1;
+	if (inst == ENGINE_ID_UNKNOWN)
+		return false;
 
-	if (inst >= pool->stream_enc_count)
-		return -1;
+	for (i = 0; i < pool->stream_enc_count; i++) {
+		if (pool->stream_enc[i]->id == inst) {
+			tg_inst = pool->stream_enc[i]->funcs->dig_source_otg(
+				pool->stream_enc[i]);
+			break;
+		}
+	}
 
-	tg_inst = pool->stream_enc[inst]->funcs->dig_source_otg(pool->stream_enc[inst]);
+	// tg_inst not found
+	if (i == pool->stream_enc_count)
+		return false;
 
 	if (tg_inst >= pool->timing_generator_count)
 		return false;

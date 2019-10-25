@@ -25,6 +25,7 @@
 #include "amdgpu.h"
 #include "amdgpu_xgmi.h"
 #include "amdgpu_smu.h"
+#include "amdgpu_ras.h"
 #include "df/df_3_6_offset.h"
 
 static DEFINE_MUTEX(xgmi_mutex);
@@ -435,5 +436,54 @@ void amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 	} else {
 		amdgpu_xgmi_sysfs_rem_dev_info(adev, hive);
 		mutex_unlock(&hive->hive_lock);
+	}
+}
+
+int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
+{
+	int r;
+	struct ras_ih_if ih_info = {
+		.cb = NULL,
+	};
+	struct ras_fs_if fs_info = {
+		.sysfs_name = "xgmi_wafl_err_count",
+		.debugfs_name = "xgmi_wafl_err_inject",
+	};
+
+	if (!adev->gmc.xgmi.supported ||
+	    adev->gmc.xgmi.num_physical_nodes == 0)
+		return 0;
+
+	if (!adev->gmc.xgmi.ras_if) {
+		adev->gmc.xgmi.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
+		if (!adev->gmc.xgmi.ras_if)
+			return -ENOMEM;
+		adev->gmc.xgmi.ras_if->block = AMDGPU_RAS_BLOCK__XGMI_WAFL;
+		adev->gmc.xgmi.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->gmc.xgmi.ras_if->sub_block_index = 0;
+		strcpy(adev->gmc.xgmi.ras_if->name, "xgmi_wafl");
+	}
+	ih_info.head = fs_info.head = *adev->gmc.xgmi.ras_if;
+	r = amdgpu_ras_late_init(adev, adev->gmc.xgmi.ras_if,
+				 &fs_info, &ih_info);
+	if (r || !amdgpu_ras_is_supported(adev, adev->gmc.xgmi.ras_if->block)) {
+		kfree(adev->gmc.xgmi.ras_if);
+		adev->gmc.xgmi.ras_if = NULL;
+	}
+
+	return r;
+}
+
+void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)
+{
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL) &&
+			adev->gmc.xgmi.ras_if) {
+		struct ras_common_if *ras_if = adev->gmc.xgmi.ras_if;
+		struct ras_ih_if ih_info = {
+			.cb = NULL,
+		};
+
+		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
+		kfree(ras_if);
 	}
 }

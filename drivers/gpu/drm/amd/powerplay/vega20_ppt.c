@@ -1274,13 +1274,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 	struct vega20_dpm_table *dpm_table;
 	struct vega20_single_dpm_table *single_dpm_table;
 	uint32_t soft_min_level, soft_max_level, hard_min_level;
-	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	int ret = 0;
-
-	if (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
-		pr_info("force clock level is for dpm manual mode only.\n");
-		return -EINVAL;
-	}
 
 	mutex_lock(&(smu->mutex));
 
@@ -3153,7 +3147,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_smu_table_index = vega20_get_smu_table_index,
 	.get_smu_power_index = vega20_get_pwr_src_index,
 	.get_workload_type = vega20_get_workload_type,
-	.run_afll_btc = vega20_run_btc_afll,
+	.run_btc = vega20_run_btc_afll,
 	.get_allowed_feature_mask = vega20_get_allowed_feature_mask,
 	.get_current_power_state = vega20_get_current_power_state,
 	.set_default_dpm_table = vega20_set_default_dpm_table,
@@ -3188,8 +3182,5 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
-
 	smu->ppt_funcs = &vega20_ppt_funcs;
-	smu_table->table_count = TABLE_COUNT;
 }

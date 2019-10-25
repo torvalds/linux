@@ -439,7 +439,7 @@ static int smu_v11_0_init_smc_tables(struct smu_context *smu)
 	struct smu_table *tables = NULL;
 	int ret = 0;
 
-	if (smu_table->tables || smu_table->table_count == 0)
+	if (smu_table->tables)
 		return -EINVAL;
 
 	tables = kcalloc(SMU_TABLE_COUNT, sizeof(struct smu_table),
@@ -465,13 +465,12 @@ static int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 	struct smu_table_context *smu_table = &smu->smu_table;
 	int ret = 0;
 
-	if (!smu_table->tables || smu_table->table_count == 0)
+	if (!smu_table->tables)
 		return -EINVAL;
 
 	kfree(smu_table->tables);
 	kfree(smu_table->metrics_table);
 	smu_table->tables = NULL;
-	smu_table->table_count = 0;
 	smu_table->metrics_table = NULL;
 	smu_table->metrics_time = 0;
 
@@ -1212,6 +1211,15 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_stop_thermal_control(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_ENA, 0);
+
+	return 0;
+}
+
 static uint16_t convert_to_vddc(uint8_t vid)
 {
 	return (uint16_t) ((6200 - (vid * 25)) / SMU11_VOLTAGE_SCALE);
@@ -1755,6 +1763,35 @@ failed:
 	return ret;
 }
 
+static int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
+			    uint32_t min, uint32_t max)
+{
+	int ret = 0, clk_id = 0;
+	uint32_t param;
+
+	clk_id = smu_clk_get_index(smu, clk_type);
+	if (clk_id < 0)
+		return clk_id;
+
+	if (max > 0) {
+		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxByFreq,
+						  param);
+		if (ret)
+			return ret;
+	}
+
+	if (min > 0) {
+		param = (uint32_t)((clk_id << 16) | (min & 0xffff));
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinByFreq,
+						  param);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1787,6 +1824,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.start_thermal_control = smu_v11_0_start_thermal_control,
+	.stop_thermal_control = smu_v11_0_stop_thermal_control,
 	.read_sensor = smu_v11_0_read_sensor,
 	.set_deep_sleep_dcefclk = smu_v11_0_set_deep_sleep_dcefclk,
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
@@ -1805,6 +1843,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.baco_set_state = smu_v11_0_baco_set_state,
 	.baco_reset = smu_v11_0_baco_reset,
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
+	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

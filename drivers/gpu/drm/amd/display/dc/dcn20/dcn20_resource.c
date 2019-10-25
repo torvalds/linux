@@ -1760,7 +1760,7 @@ int dcn20_populate_dml_pipes_from_context(
 			pipe_cnt = i;
 			continue;
 		}
-		if (!resource_are_streams_timing_synchronizable(
+		if (dc->debug.disable_timing_sync || !resource_are_streams_timing_synchronizable(
 				res_ctx->pipe_ctx[pipe_cnt].stream,
 				res_ctx->pipe_ctx[i].stream)) {
 			synchronized_vblank = false;
@@ -2249,11 +2249,7 @@ bool dcn20_fast_validate_bw(
 	bool out = false;
 
 	int pipe_cnt, i, pipe_idx, vlevel, vlevel_unsplit;
-	bool odm_capable = context->bw_ctx.dml.ip.odm_capable;
 	bool force_split = false;
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	bool failed_non_odm_dsc = false;
-#endif
 	int split_threshold = dc->res_pool->pipe_count / 2;
 	bool avoid_split = dc->debug.pipe_split_policy != MPC_SPLIT_DYNAMIC;
 
@@ -2330,23 +2326,7 @@ bool dcn20_fast_validate_bw(
 		goto validate_out;
 	}
 
-	context->bw_ctx.dml.ip.odm_capable = 0;
-
 	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
-
-	context->bw_ctx.dml.ip.odm_capable = odm_capable;
-
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	/* 1 dsc per stream dsc validation */
-	if (vlevel <= context->bw_ctx.dml.soc.num_states)
-		if (!dcn20_validate_dsc(dc, context)) {
-			failed_non_odm_dsc = true;
-			vlevel = context->bw_ctx.dml.soc.num_states + 1;
-		}
-#endif
-
-	if (vlevel > context->bw_ctx.dml.soc.num_states && odm_capable)
-		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 
 	if (vlevel > context->bw_ctx.dml.soc.num_states)
 		goto validate_fail;
@@ -2469,6 +2449,7 @@ bool dcn20_fast_validate_bw(
 							&context->res_ctx, dc->res_pool,
 							pipe, hsplit_pipe))
 						goto validate_fail;
+					dcn20_build_mapped_resource(dc, context, pipe->stream);
 				} else
 					dcn20_split_stream_for_mpc(
 						&context->res_ctx, dc->res_pool,
@@ -2482,7 +2463,7 @@ bool dcn20_fast_validate_bw(
 	}
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	/* Actual dsc count per stream dsc validation*/
-	if (failed_non_odm_dsc && !dcn20_validate_dsc(dc, context)) {
+	if (!dcn20_validate_dsc(dc, context)) {
 		context->bw_ctx.dml.vba.ValidationStatus[context->bw_ctx.dml.vba.soc.num_states] =
 				DML_FAIL_DSC_VALIDATION_FAILURE;
 		goto validate_fail;
@@ -2624,7 +2605,7 @@ void dcn20_calculate_dlg_params(
 	context->bw_ctx.bw.dcn.clk.socclk_khz = context->bw_ctx.dml.vba.SOCCLK * 1000;
 	context->bw_ctx.bw.dcn.clk.dramclk_khz = context->bw_ctx.dml.vba.DRAMSpeed * 1000 / 16;
 	context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz = context->bw_ctx.dml.vba.DCFCLKDeepSleep * 1000;
-	context->bw_ctx.bw.dcn.clk.fclk_khz = 0;
+	context->bw_ctx.bw.dcn.clk.fclk_khz = context->bw_ctx.dml.vba.FabricClock * 1000;
 	context->bw_ctx.bw.dcn.clk.p_state_change_support =
 		context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb]
 							!= dm_dram_clock_change_unsupported;
@@ -2640,8 +2621,8 @@ void dcn20_calculate_dlg_params(
 			continue;
 
 		if (!visited[pipe_idx]) {
-			display_pipe_source_params_st *src = &pipes[pipe_idx_unsplit].pipe.src;
-			display_pipe_dest_params_st *dst = &pipes[pipe_idx_unsplit].pipe.dest;
+			display_pipe_source_params_st *src = &pipes[pipe_idx].pipe.src;
+			display_pipe_dest_params_st *dst = &pipes[pipe_idx].pipe.dest;
 
 			dst->vstartup_start = context->bw_ctx.dml.vba.VStartup[pipe_idx_unsplit];
 			dst->vupdate_offset = context->bw_ctx.dml.vba.VUpdateOffsetPix[pipe_idx_unsplit];
@@ -2801,7 +2782,6 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 	ASSERT(false);
 
 restore_dml_state:
-	memcpy(&context->bw_ctx.dml, &dc->dml, sizeof(struct display_mode_lib));
 	context->bw_ctx.dml.soc.dram_clock_change_latency_us = p_state_latency_us;
 
 	return voltage_supported;
@@ -3035,13 +3015,15 @@ static void cap_soc_clocks(
 static void update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb,
 		struct pp_smu_nv_clock_table *max_clocks, unsigned int *uclk_states, unsigned int num_states)
 {
-	struct _vcs_dpi_voltage_scaling_st calculated_states[MAX_CLOCK_LIMIT_STATES] = {0};
+	struct _vcs_dpi_voltage_scaling_st calculated_states[MAX_CLOCK_LIMIT_STATES];
 	int i;
 	int num_calculated_states = 0;
 	int min_dcfclk = 0;
 
 	if (num_states == 0)
 		return;
+
+	memset(calculated_states, 0, sizeof(calculated_states));
 
 	if (dc->bb_overrides.min_dcfclk_mhz > 0)
 		min_dcfclk = dc->bb_overrides.min_dcfclk_mhz;

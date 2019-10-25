@@ -255,32 +255,27 @@ static int vcn_v2_5_hw_init(void *handle)
 			continue;
 		ring = &adev->vcn.inst[j].ring_dec;
 
-		adev->nbio_funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+		adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
 						     ring->doorbell_index, j);
 
-		r = amdgpu_ring_test_ring(ring);
-		if (r) {
-			ring->sched.ready = false;
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
 			goto done;
-		}
 
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 			ring = &adev->vcn.inst[j].ring_enc[i];
+			/* disable encode rings till the robustness of the FW */
 			ring->sched.ready = false;
 			continue;
-			r = amdgpu_ring_test_ring(ring);
-			if (r) {
-				ring->sched.ready = false;
+			r = amdgpu_ring_test_helper(ring);
+			if (r)
 				goto done;
-			}
 		}
 
 		ring = &adev->vcn.inst[j].ring_jpeg;
-		r = amdgpu_ring_test_ring(ring);
-		if (r) {
-			ring->sched.ready = false;
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
 			goto done;
-		}
 	}
 done:
 	if (!r)
@@ -423,7 +418,6 @@ static void vcn_v2_5_mc_resume(struct amdgpu_device *adev)
  * vcn_v2_5_disable_clock_gating - disable VCN clock gating
  *
  * @adev: amdgpu_device pointer
- * @sw: enable SW clock gating
  *
  * Disable clock gating for VCN block
  */
@@ -542,7 +536,6 @@ static void vcn_v2_5_disable_clock_gating(struct amdgpu_device *adev)
  * vcn_v2_5_enable_clock_gating - enable VCN clock gating
  *
  * @adev: amdgpu_device pointer
- * @sw: enable SW clock gating
  *
  * Enable clock gating for VCN block
  */

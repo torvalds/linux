@@ -2793,8 +2793,8 @@
 #define mmBIF_DOORBELL_INT_CNTL_BASE_IDX                                                               2
 #define mmBIF_FB_EN                                                                                    0x00ff
 #define mmBIF_FB_EN_BASE_IDX                                                                           2
-#define mmBIF_BUSY_DELAY_CNTR                                                                          0x0100
-#define mmBIF_BUSY_DELAY_CNTR_BASE_IDX                                                                 2
+#define mmBIF_INTR_CNTL                                                                                0x0100
+#define mmBIF_INTR_CNTL_BASE_IDX                                                                       2
 #define mmBIF_MST_TRANS_PENDING_VF                                                                     0x0109
 #define mmBIF_MST_TRANS_PENDING_VF_BASE_IDX                                                            2
 #define mmBIF_SLV_TRANS_PENDING_VF                                                                     0x010a

@@ -139,6 +139,9 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	ASSERT(clk_mgr->pp_smu);
 
+	if (dc->work_arounds.skip_clock_update)
+		return;
+
 	pp_smu = &clk_mgr->pp_smu->rv_funcs;
 
 	display_count = clk_mgr_helper_get_active_display_cnt(dc, context);

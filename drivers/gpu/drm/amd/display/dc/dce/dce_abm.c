@@ -489,9 +489,6 @@ void dce_abm_destroy(struct abm **abm)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(*abm);
 
-	if (abm_dce->base.dmcu_is_running == true)
-		abm_dce->base.funcs->set_abm_immediate_disable(*abm);
-
 	kfree(abm_dce);
 	*abm = NULL;
 }

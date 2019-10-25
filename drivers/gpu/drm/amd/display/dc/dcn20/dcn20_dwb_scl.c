@@ -722,7 +722,6 @@ bool dwb_program_horz_scalar(struct dcn20_dwbc *dwbc20,
 		struct scaling_taps num_taps)
 {
 	uint32_t h_ratio_luma = 1;
-	uint32_t h_ratio_chroma = 1;
 	uint32_t h_taps_luma = num_taps.h_taps;
 	uint32_t h_taps_chroma = num_taps.h_taps_c;
 	int32_t h_init_phase_luma = 0;
@@ -747,7 +746,6 @@ bool dwb_program_horz_scalar(struct dcn20_dwbc *dwbc20,
 		h_ratio_luma = -1;
 	else
 		h_ratio_luma = dc_fixpt_u3d19(tmp_h_ratio_luma) << 5;
-	h_ratio_chroma = h_ratio_luma * 2;
 
 	/*Program ratio*/
 	REG_UPDATE(WBSCL_HORZ_FILTER_SCALE_RATIO, WBSCL_H_SCALE_RATIO, h_ratio_luma);
@@ -803,7 +801,6 @@ bool dwb_program_vert_scalar(struct dcn20_dwbc *dwbc20,
 		enum dwb_subsample_position subsample_position)
 {
 	uint32_t v_ratio_luma = 1;
-	uint32_t v_ratio_chroma = 1;
 	uint32_t v_taps_luma = num_taps.v_taps;
 	uint32_t v_taps_chroma = num_taps.v_taps_c;
 	int32_t v_init_phase_luma = 0;
@@ -827,7 +824,6 @@ bool dwb_program_vert_scalar(struct dcn20_dwbc *dwbc20,
 		v_ratio_luma = -1;
 	else
 		v_ratio_luma = dc_fixpt_u3d19(tmp_v_ratio_luma) << 5;
-	v_ratio_chroma = v_ratio_luma * 2;
 
 	/*Program ratio*/
 	REG_UPDATE(WBSCL_VERT_FILTER_SCALE_RATIO, WBSCL_V_SCALE_RATIO, v_ratio_luma);

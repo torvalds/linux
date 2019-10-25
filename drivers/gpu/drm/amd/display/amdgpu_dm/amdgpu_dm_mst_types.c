@@ -144,10 +144,8 @@ dm_dp_mst_connector_destroy(struct drm_connector *connector)
 	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
 	struct amdgpu_encoder *amdgpu_encoder = amdgpu_dm_connector->mst_encoder;
 
-	if (amdgpu_dm_connector->edid) {
-		kfree(amdgpu_dm_connector->edid);
-		amdgpu_dm_connector->edid = NULL;
-	}
+	kfree(amdgpu_dm_connector->edid);
+	amdgpu_dm_connector->edid = NULL;
 
 	drm_encoder_cleanup(&amdgpu_encoder->base);
 	kfree(amdgpu_encoder);
@@ -245,17 +243,17 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static struct drm_encoder *dm_mst_best_encoder(struct drm_connector *connector)
+static struct drm_encoder *
+dm_mst_atomic_best_encoder(struct drm_connector *connector,
+			   struct drm_connector_state *connector_state)
 {
-	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
-
-	return &amdgpu_dm_connector->mst_encoder->base;
+	return &to_amdgpu_dm_connector(connector)->mst_encoder->base;
 }
 
 static const struct drm_connector_helper_funcs dm_dp_mst_connector_helper_funcs = {
 	.get_modes = dm_dp_mst_get_modes,
 	.mode_valid = amdgpu_dm_connector_mode_valid,
-	.best_encoder = dm_mst_best_encoder,
+	.atomic_best_encoder = dm_mst_atomic_best_encoder,
 };
 
 static void amdgpu_dm_encoder_destroy(struct drm_encoder *encoder)
@@ -417,6 +415,10 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 	drm_dp_aux_register(&aconnector->dm_dp_aux.aux);
 	drm_dp_cec_register_connector(&aconnector->dm_dp_aux.aux,
 				      &aconnector->base);
+
+	if (aconnector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
+		return;
+
 	aconnector->mst_mgr.cbs = &dm_mst_cbs;
 	drm_dp_mst_topology_mgr_init(
 		&aconnector->mst_mgr,

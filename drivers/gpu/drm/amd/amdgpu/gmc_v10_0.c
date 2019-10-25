@@ -278,7 +278,7 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	int r;
 
 	/* flush hdp cache */
-	adev->nbio_funcs->hdp_flush(adev, NULL);
+	adev->nbio.funcs->hdp_flush(adev, NULL);
 
 	mutex_lock(&adev->mman.gtt_window_lock);
 
@@ -397,43 +397,23 @@ static void gmc_v10_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid
  * 1 system
  * 0 valid
  */
-static uint64_t gmc_v10_0_get_vm_pte_flags(struct amdgpu_device *adev,
-					   uint32_t flags)
+
+static uint64_t gmc_v10_0_map_mtype(struct amdgpu_device *adev, uint32_t flags)
 {
-	uint64_t pte_flag = 0;
-
-	if (flags & AMDGPU_VM_PAGE_EXECUTABLE)
-		pte_flag |= AMDGPU_PTE_EXECUTABLE;
-	if (flags & AMDGPU_VM_PAGE_READABLE)
-		pte_flag |= AMDGPU_PTE_READABLE;
-	if (flags & AMDGPU_VM_PAGE_WRITEABLE)
-		pte_flag |= AMDGPU_PTE_WRITEABLE;
-
-	switch (flags & AMDGPU_VM_MTYPE_MASK) {
+	switch (flags) {
 	case AMDGPU_VM_MTYPE_DEFAULT:
-		pte_flag |= AMDGPU_PTE_MTYPE_NV10(MTYPE_NC);
-		break;
+		return AMDGPU_PTE_MTYPE_NV10(MTYPE_NC);
 	case AMDGPU_VM_MTYPE_NC:
-		pte_flag |= AMDGPU_PTE_MTYPE_NV10(MTYPE_NC);
-		break;
+		return AMDGPU_PTE_MTYPE_NV10(MTYPE_NC);
 	case AMDGPU_VM_MTYPE_WC:
-		pte_flag |= AMDGPU_PTE_MTYPE_NV10(MTYPE_WC);
-		break;
+		return AMDGPU_PTE_MTYPE_NV10(MTYPE_WC);
 	case AMDGPU_VM_MTYPE_CC:
-		pte_flag |= AMDGPU_PTE_MTYPE_NV10(MTYPE_CC);
-		break;
+		return AMDGPU_PTE_MTYPE_NV10(MTYPE_CC);
 	case AMDGPU_VM_MTYPE_UC:
-		pte_flag |= AMDGPU_PTE_MTYPE_NV10(MTYPE_UC);
-		break;
+		return AMDGPU_PTE_MTYPE_NV10(MTYPE_UC);
 	default:
-		pte_flag |= AMDGPU_PTE_MTYPE_NV10(MTYPE_NC);
-		break;
+		return AMDGPU_PTE_MTYPE_NV10(MTYPE_NC);
 	}
-
-	if (flags & AMDGPU_VM_PAGE_PRT)
-		pte_flag |= AMDGPU_PTE_PRT;
-
-	return pte_flag;
 }
 
 static void gmc_v10_0_get_vm_pde(struct amdgpu_device *adev, int level,
@@ -460,12 +440,32 @@ static void gmc_v10_0_get_vm_pde(struct amdgpu_device *adev, int level,
 	}
 }
 
+static void gmc_v10_0_get_vm_pte(struct amdgpu_device *adev,
+				 struct amdgpu_bo_va_mapping *mapping,
+				 uint64_t *flags)
+{
+	*flags &= ~AMDGPU_PTE_EXECUTABLE;
+	*flags |= mapping->flags & AMDGPU_PTE_EXECUTABLE;
+
+	*flags &= ~AMDGPU_PTE_MTYPE_NV10_MASK;
+	*flags |= (mapping->flags & AMDGPU_PTE_MTYPE_NV10_MASK);
+
+	if (mapping->flags & AMDGPU_PTE_PRT) {
+		*flags |= AMDGPU_PTE_PRT;
+		*flags |= AMDGPU_PTE_SNOOPED;
+		*flags |= AMDGPU_PTE_LOG;
+		*flags |= AMDGPU_PTE_SYSTEM;
+		*flags &= ~AMDGPU_PTE_VALID;
+	}
+}
+
 static const struct amdgpu_gmc_funcs gmc_v10_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v10_0_flush_gpu_tlb,
 	.emit_flush_gpu_tlb = gmc_v10_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v10_0_emit_pasid_mapping,
-	.get_vm_pte_flags = gmc_v10_0_get_vm_pte_flags,
-	.get_vm_pde = gmc_v10_0_get_vm_pde
+	.map_mtype = gmc_v10_0_map_mtype,
+	.get_vm_pde = gmc_v10_0_get_vm_pde,
+	.get_vm_pte = gmc_v10_0_get_vm_pte
 };
 
 static void gmc_v10_0_set_gmc_funcs(struct amdgpu_device *adev)
@@ -519,8 +519,7 @@ static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
 {
 	u64 base = 0;
 
-	if (!amdgpu_sriov_vf(adev))
-		base = gfxhub_v2_0_get_fb_location(adev);
+	base = gfxhub_v2_0_get_fb_location(adev);
 
 	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
 	amdgpu_gmc_gart_location(adev, mc);
@@ -540,24 +539,13 @@ static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
  */
 static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 {
-	int chansize, numchan;
-
-	if (!amdgpu_emu_mode)
-		adev->gmc.vram_width = amdgpu_atomfirmware_get_vram_width(adev);
-	else {
-		/* hard code vram_width for emulation */
-		chansize = 128;
-		numchan = 1;
-		adev->gmc.vram_width = numchan * chansize;
-	}
-
 	/* Could aper size report 0 ? */
 	adev->gmc.aper_base = pci_resource_start(adev->pdev, 0);
 	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
 
 	/* size in MB on si */
 	adev->gmc.mc_vram_size =
-		adev->nbio_funcs->get_memsize(adev) * 1024ULL * 1024ULL;
+		adev->nbio.funcs->get_memsize(adev) * 1024ULL * 1024ULL;
 	adev->gmc.real_vram_size = adev->gmc.mc_vram_size;
 	adev->gmc.visible_vram_size = adev->gmc.aper_size;
 
@@ -636,7 +624,7 @@ static unsigned gmc_v10_0_get_vbios_fb_size(struct amdgpu_device *adev)
 
 static int gmc_v10_0_sw_init(void *handle)
 {
-	int r;
+	int r, vram_width = 0, vram_type = 0, vram_vendor = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gfxhub_v2_0_init(adev);
@@ -644,7 +632,15 @@ static int gmc_v10_0_sw_init(void *handle)
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
-	adev->gmc.vram_type = amdgpu_atomfirmware_get_vram_type(adev);
+	r = amdgpu_atomfirmware_get_vram_info(adev,
+		&vram_width, &vram_type, &vram_vendor);
+	if (!amdgpu_emu_mode)
+		adev->gmc.vram_width = vram_width;
+	else
+		adev->gmc.vram_width = 1 * 128; /* numchan * chansize */
+
+	adev->gmc.vram_type = vram_type;
+	adev->gmc.vram_vendor = vram_vendor;
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
@@ -794,7 +790,7 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
 
 	/* Flush HDP after it is initialized */
-	adev->nbio_funcs->hdp_flush(adev, NULL);
+	adev->nbio.funcs->hdp_flush(adev, NULL);
 
 	value = (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS) ?
 		false : true;

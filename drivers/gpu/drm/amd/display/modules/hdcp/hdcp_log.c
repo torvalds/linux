@@ -1,0 +1,163 @@
+/*
+ * Copyright 2019 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: AMD
+ *
+ */
+
+
+#include "hdcp.h"
+
+void mod_hdcp_dump_binary_message(uint8_t *msg, uint32_t msg_size,
+		uint8_t *buf, uint32_t buf_size)
+{
+	const uint8_t bytes_per_line = 16,
+			byte_size = 3,
+			newline_size = 1,
+			terminator_size = 1;
+	uint32_t line_count = msg_size / bytes_per_line,
+			trailing_bytes = msg_size % bytes_per_line;
+	uint32_t target_size = (byte_size * bytes_per_line + newline_size) * line_count +
+			byte_size * trailing_bytes + newline_size + terminator_size;
+	uint32_t buf_pos = 0;
+	uint32_t i = 0;
+
+	if (buf_size >= target_size) {
+		for (i = 0; i < msg_size; i++) {
+			if (i % bytes_per_line == 0)
+				buf[buf_pos++] = '\n';
+			sprintf(&buf[buf_pos], "%02X ", msg[i]);
+			buf_pos += byte_size;
+		}
+		buf[buf_pos++] = '\0';
+	}
+}
+
+char *mod_hdcp_status_to_str(int32_t status)
+{
+	switch (status) {
+	case MOD_HDCP_STATUS_SUCCESS:
+		return "MOD_HDCP_STATUS_SUCCESS";
+	case MOD_HDCP_STATUS_FAILURE:
+		return "MOD_HDCP_STATUS_FAILURE";
+	case MOD_HDCP_STATUS_RESET_NEEDED:
+		return "MOD_HDCP_STATUS_RESET_NEEDED";
+	case MOD_HDCP_STATUS_DISPLAY_OUT_OF_BOUND:
+		return "MOD_HDCP_STATUS_DISPLAY_OUT_OF_BOUND";
+	case MOD_HDCP_STATUS_DISPLAY_NOT_FOUND:
+		return "MOD_HDCP_STATUS_DISPLAY_NOT_FOUND";
+	case MOD_HDCP_STATUS_INVALID_STATE:
+		return "MOD_HDCP_STATUS_INVALID_STATE";
+	case MOD_HDCP_STATUS_NOT_IMPLEMENTED:
+		return "MOD_HDCP_STATUS_NOT_IMPLEMENTED";
+	case MOD_HDCP_STATUS_INTERNAL_POLICY_FAILURE:
+		return "MOD_HDCP_STATUS_INTERNAL_POLICY_FAILURE";
+	case MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE:
+		return "MOD_HDCP_STATUS_UPDATE_TOPOLOGY_FAILURE";
+	case MOD_HDCP_STATUS_CREATE_PSP_SERVICE_FAILURE:
+		return "MOD_HDCP_STATUS_CREATE_PSP_SERVICE_FAILURE";
+	case MOD_HDCP_STATUS_DESTROY_PSP_SERVICE_FAILURE:
+		return "MOD_HDCP_STATUS_DESTROY_PSP_SERVICE_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_CREATE_SESSION_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_CREATE_SESSION_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_DESTROY_SESSION_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_DESTROY_SESSION_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_VALIDATE_ENCRYPTION_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_VALIDATE_ENCRYPTION_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_NOT_HDCP_REPEATER:
+		return "MOD_HDCP_STATUS_HDCP1_NOT_HDCP_REPEATER";
+	case MOD_HDCP_STATUS_HDCP1_NOT_CAPABLE:
+		return "MOD_HDCP_STATUS_HDCP1_NOT_CAPABLE";
+	case MOD_HDCP_STATUS_HDCP1_R0_PRIME_PENDING:
+		return "MOD_HDCP_STATUS_HDCP1_R0_PRIME_PENDING";
+	case MOD_HDCP_STATUS_HDCP1_VALIDATE_RX_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_VALIDATE_RX_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_KSV_LIST_NOT_READY:
+		return "MOD_HDCP_STATUS_HDCP1_KSV_LIST_NOT_READY";
+	case MOD_HDCP_STATUS_HDCP1_VALIDATE_KSV_LIST_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_VALIDATE_KSV_LIST_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_ENABLE_ENCRYPTION:
+		return "MOD_HDCP_STATUS_HDCP1_ENABLE_ENCRYPTION";
+	case MOD_HDCP_STATUS_HDCP1_ENABLE_STREAM_ENCRYPTION_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_ENABLE_STREAM_ENCRYPTION_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_MAX_CASCADE_EXCEEDED_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_MAX_CASCADE_EXCEEDED_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_MAX_DEVS_EXCEEDED_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_MAX_DEVS_EXCEEDED_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_DEVICE_COUNT_MISMATCH_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_DEVICE_COUNT_MISMATCH_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_LINK_INTEGRITY_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_LINK_INTEGRITY_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_REAUTH_REQUEST_ISSUED:
+		return "MOD_HDCP_STATUS_HDCP1_REAUTH_REQUEST_ISSUED";
+	case MOD_HDCP_STATUS_HDCP1_LINK_MAINTENANCE_FAILURE:
+		return "MOD_HDCP_STATUS_HDCP1_LINK_MAINTENANCE_FAILURE";
+	case MOD_HDCP_STATUS_HDCP1_INVALID_BKSV:
+		return "MOD_HDCP_STATUS_HDCP1_INVALID_BKSV";
+	case MOD_HDCP_STATUS_DDC_FAILURE:
+		return "MOD_HDCP_STATUS_DDC_FAILURE";
+	case MOD_HDCP_STATUS_INVALID_OPERATION:
+		return "MOD_HDCP_STATUS_INVALID_OPERATION";
+	default:
+		return "MOD_HDCP_STATUS_UNKNOWN";
+	}
+}
+
+char *mod_hdcp_state_id_to_str(int32_t id)
+{
+	switch (id) {
+	case HDCP_UNINITIALIZED:
+		return "HDCP_UNINITIALIZED";
+	case HDCP_INITIALIZED:
+		return "HDCP_INITIALIZED";
+	case HDCP_CP_NOT_DESIRED:
+		return "HDCP_CP_NOT_DESIRED";
+	case H1_A0_WAIT_FOR_ACTIVE_RX:
+		return "H1_A0_WAIT_FOR_ACTIVE_RX";
+	case H1_A1_EXCHANGE_KSVS:
+		return "H1_A1_EXCHANGE_KSVS";
+	case H1_A2_COMPUTATIONS_A3_VALIDATE_RX_A6_TEST_FOR_REPEATER:
+		return "H1_A2_COMPUTATIONS_A3_VALIDATE_RX_A6_TEST_FOR_REPEATER";
+	case H1_A45_AUTHENTICATED:
+		return "H1_A45_AUTHENTICATED";
+	case H1_A8_WAIT_FOR_READY:
+		return "H1_A8_WAIT_FOR_READY";
+	case H1_A9_READ_KSV_LIST:
+		return "H1_A9_READ_KSV_LIST";
+	case D1_A0_DETERMINE_RX_HDCP_CAPABLE:
+		return "D1_A0_DETERMINE_RX_HDCP_CAPABLE";
+	case D1_A1_EXCHANGE_KSVS:
+		return "D1_A1_EXCHANGE_KSVS";
+	case D1_A23_WAIT_FOR_R0_PRIME:
+		return "D1_A23_WAIT_FOR_R0_PRIME";
+	case D1_A2_COMPUTATIONS_A3_VALIDATE_RX_A5_TEST_FOR_REPEATER:
+		return "D1_A2_COMPUTATIONS_A3_VALIDATE_RX_A5_TEST_FOR_REPEATER";
+	case D1_A4_AUTHENTICATED:
+		return "D1_A4_AUTHENTICATED";
+	case D1_A6_WAIT_FOR_READY:
+		return "D1_A6_WAIT_FOR_READY";
+	case D1_A7_READ_KSV_LIST:
+		return "D1_A7_READ_KSV_LIST";
+	default:
+		return "UNKNOWN_STATE_ID";
+	};
+}
+

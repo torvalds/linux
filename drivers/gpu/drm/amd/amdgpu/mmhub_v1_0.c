@@ -206,6 +206,8 @@ static void mmhub_v1_0_enable_system_domain(struct amdgpu_device *adev)
 	tmp = RREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, PAGE_TABLE_DEPTH, 0);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL,
+			    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT, 0);
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_CNTL, tmp);
 }
 
@@ -616,5 +618,6 @@ static void mmhub_v1_0_query_ras_error_count(struct amdgpu_device *adev,
 }
 
 const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs = {
+	.ras_late_init = amdgpu_mmhub_ras_late_init,
 	.query_ras_error_count = mmhub_v1_0_query_ras_error_count,
 };

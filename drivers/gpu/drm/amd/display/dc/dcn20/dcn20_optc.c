@@ -287,6 +287,10 @@ void optc2_get_optc_source(struct timing_generator *optc,
 		*num_of_src_opp = 2;
 	else
 		*num_of_src_opp = 1;
+
+	/* Work around VBIOS not updating OPTC_NUM_OF_INPUT_SEGMENT */
+	if (*src_opp_id_1 == 0xf)
+		*num_of_src_opp = 1;
 }
 
 void optc2_set_dwb_source(struct timing_generator *optc,

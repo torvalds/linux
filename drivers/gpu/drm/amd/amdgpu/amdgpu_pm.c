@@ -805,8 +805,7 @@ static ssize_t amdgpu_get_pp_feature_status(struct device *dev,
 }
 
 /**
- * DOC: pp_dpm_sclk pp_dpm_mclk pp_dpm_socclk pp_dpm_fclk pp_dpm_dcefclk
- * pp_dpm_pcie
+ * DOC: pp_dpm_sclk pp_dpm_mclk pp_dpm_socclk pp_dpm_fclk pp_dpm_dcefclk pp_dpm_pcie
  *
  * The amdgpu driver provides a sysfs API for adjusting what power levels
  * are enabled for a given power state.  The files pp_dpm_sclk, pp_dpm_mclk,
@@ -822,9 +821,15 @@ static ssize_t amdgpu_get_pp_feature_status(struct device *dev,
  *
  * To manually adjust these states, first select manual using
  * power_dpm_force_performance_level.
- * Secondly,Enter a new value for each level by inputing a string that
+ * Secondly, enter a new value for each level by inputing a string that
  * contains " echo xx xx xx > pp_dpm_sclk/mclk/pcie"
- * E.g., echo 4 5 6 to > pp_dpm_sclk will enable sclk levels 4, 5, and 6.
+ * E.g.,
+ *
+ * .. code-block:: bash
+ *
+ *	echo "4 5 6" > pp_dpm_sclk
+ *
+ * will enable sclk levels 4, 5, and 6.
  *
  * NOTE: change to the dcefclk max dpm level is not supported now
  */
@@ -2196,9 +2201,9 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * - fan1_input: fan speed in RPM
  *
- * - fan[1-*]_target: Desired fan speed Unit: revolution/min (RPM)
+ * - fan[1-\*]_target: Desired fan speed Unit: revolution/min (RPM)
  *
- * - fan[1-*]_enable: Enable or disable the sensors.1: Enable 0: Disable
+ * - fan[1-\*]_enable: Enable or disable the sensors.1: Enable 0: Disable
  *
  * hwmon interfaces for GPU clocks:
  *

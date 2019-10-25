@@ -99,12 +99,15 @@ struct amdgpu_gmc_funcs {
 				   unsigned pasid);
 	/* enable/disable PRT support */
 	void (*set_prt)(struct amdgpu_device *adev, bool enable);
-	/* set pte flags based per asic */
-	uint64_t (*get_vm_pte_flags)(struct amdgpu_device *adev,
-				     uint32_t flags);
+	/* map mtype to hardware flags */
+	uint64_t (*map_mtype)(struct amdgpu_device *adev, uint32_t flags);
 	/* get the pde for a given mc addr */
 	void (*get_vm_pde)(struct amdgpu_device *adev, int level,
 			   u64 *dst, u64 *flags);
+	/* get the pte flags to use for a BO VA mapping */
+	void (*get_vm_pte)(struct amdgpu_device *adev,
+			   struct amdgpu_bo_va_mapping *mapping,
+			   uint64_t *flags);
 };
 
 struct amdgpu_xgmi {
@@ -120,6 +123,7 @@ struct amdgpu_xgmi {
 	/* gpu list in the same hive */
 	struct list_head head;
 	bool supported;
+	struct ras_common_if *ras_if;
 };
 
 struct amdgpu_gmc {
@@ -153,6 +157,7 @@ struct amdgpu_gmc {
 	uint32_t                fw_version;
 	struct amdgpu_irq_src	vm_fault;
 	uint32_t		vram_type;
+	uint8_t			vram_vendor;
 	uint32_t                srbm_soft_reset;
 	bool			prt_warning;
 	uint64_t		stolen_size;
@@ -177,15 +182,14 @@ struct amdgpu_gmc {
 
 	struct amdgpu_xgmi xgmi;
 	struct amdgpu_irq_src	ecc_irq;
-	struct ras_common_if    *umc_ras_if;
-	struct ras_common_if    *mmhub_ras_if;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid, vmhub, type) ((adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (vmhub), (type)))
 #define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (addr))
 #define amdgpu_gmc_emit_pasid_mapping(r, vmid, pasid) (r)->adev->gmc.gmc_funcs->emit_pasid_mapping((r), (vmid), (pasid))
+#define amdgpu_gmc_map_mtype(adev, flags) (adev)->gmc.gmc_funcs->map_mtype((adev),(flags))
 #define amdgpu_gmc_get_vm_pde(adev, level, dst, flags) (adev)->gmc.gmc_funcs->get_vm_pde((adev), (level), (dst), (flags))
-#define amdgpu_gmc_get_pte_flags(adev, flags) (adev)->gmc.gmc_funcs->get_vm_pte_flags((adev),(flags))
+#define amdgpu_gmc_get_vm_pte(adev, mapping, flags) (adev)->gmc.gmc_funcs->get_vm_pte((adev), (mapping), (flags))
 
 /**
  * amdgpu_gmc_vram_full_visible - Check if full VRAM is visible through the BAR
@@ -230,5 +234,7 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev,
 			     struct amdgpu_gmc *mc);
 bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 			      uint16_t pasid, uint64_t timestamp);
+int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev);
+void amdgpu_gmc_ras_fini(struct amdgpu_device *adev);
 
 #endif

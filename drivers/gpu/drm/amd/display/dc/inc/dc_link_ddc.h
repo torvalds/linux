@@ -95,6 +95,9 @@ bool dal_ddc_service_query_ddc_data(
 		uint8_t *read_buf,
 		uint32_t read_size);
 
+bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
+		struct aux_payload *payload);
+
 int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
 		enum aux_channel_operation_result *operation_result);

@@ -76,4 +76,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 		      void *owner, struct dma_fence **f);
 int amdgpu_job_submit_direct(struct amdgpu_job *job, struct amdgpu_ring *ring,
 			     struct dma_fence **fence);
+
+void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched);
+
 #endif

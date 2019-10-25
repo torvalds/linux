@@ -226,7 +226,7 @@ static u32 nbio_v6_1_get_pcie_data_offset(struct amdgpu_device *adev)
 	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2);
 }
 
-static const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
+const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
 	.ref_and_mask_cp0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP0_MASK,
 	.ref_and_mask_cp1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP1_MASK,
 	.ref_and_mask_cp2 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP2_MASK,
@@ -277,7 +277,6 @@ static void nbio_v6_1_init_registers(struct amdgpu_device *adev)
 }
 
 const struct amdgpu_nbio_funcs nbio_v6_1_funcs = {
-	.hdp_flush_reg = &nbio_v6_1_hdp_flush_reg,
 	.get_hdp_flush_req_offset = nbio_v6_1_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v6_1_get_hdp_flush_done_offset,
 	.get_pcie_index_offset = nbio_v6_1_get_pcie_index_offset,

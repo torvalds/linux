@@ -1037,6 +1037,7 @@ TCC_CACHE_POLICY_STREAM                  = 0x00000001,
 typedef enum MTYPE {
 MTYPE_NC                                 = 0x00000000,
 MTYPE_WC                                 = 0x00000001,
+MTYPE_RW                                 = 0x00000001,
 MTYPE_CC                                 = 0x00000002,
 MTYPE_UC                                 = 0x00000003,
 } MTYPE;

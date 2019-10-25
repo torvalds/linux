@@ -33,11 +33,6 @@
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_dma_buf.h"
 
-/* Special VM and GART address alignment needed for VI pre-Fiji due to
- * a HW bug.
- */
-#define VI_BO_SIZE_ALIGN (0x8000)
-
 /* BO flag to indicate a KFD userptr BO */
 #define AMDGPU_AMDKFD_USERPTR_BO (1ULL << 63)
 
@@ -349,11 +344,44 @@ static int vm_update_pds(struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 	struct amdgpu_device *adev = amdgpu_ttm_adev(pd->tbo.bdev);
 	int ret;
 
-	ret = amdgpu_vm_update_directories(adev, vm);
+	ret = amdgpu_vm_update_pdes(adev, vm, false);
 	if (ret)
 		return ret;
 
 	return amdgpu_sync_fence(NULL, sync, vm->last_update, false);
+}
+
+static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
+{
+	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(mem->bo->tbo.bdev);
+	bool coherent = mem->alloc_flags & ALLOC_MEM_FLAGS_COHERENT;
+	uint32_t mapping_flags;
+
+	mapping_flags = AMDGPU_VM_PAGE_READABLE;
+	if (mem->alloc_flags & ALLOC_MEM_FLAGS_WRITABLE)
+		mapping_flags |= AMDGPU_VM_PAGE_WRITEABLE;
+	if (mem->alloc_flags & ALLOC_MEM_FLAGS_EXECUTABLE)
+		mapping_flags |= AMDGPU_VM_PAGE_EXECUTABLE;
+
+	switch (adev->asic_type) {
+	case CHIP_ARCTURUS:
+		if (mem->alloc_flags & ALLOC_MEM_FLAGS_VRAM) {
+			if (bo_adev == adev)
+				mapping_flags |= coherent ?
+					AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
+			else
+				mapping_flags |= AMDGPU_VM_MTYPE_UC;
+		} else {
+			mapping_flags |= coherent ?
+				AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+		}
+		break;
+	default:
+		mapping_flags |= coherent ?
+			AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+	}
+
+	return amdgpu_gem_va_map_flags(adev, mapping_flags);
 }
 
 /* add_bo_to_vm - Add a BO to a VM
@@ -404,8 +432,7 @@ static int add_bo_to_vm(struct amdgpu_device *adev, struct kgd_mem *mem,
 	}
 
 	bo_va_entry->va = va;
-	bo_va_entry->pte_flags = amdgpu_gmc_get_pte_flags(adev,
-							 mem->mapping_flags);
+	bo_va_entry->pte_flags = get_pte_flags(adev, mem);
 	bo_va_entry->kgd_dev = (void *)adev;
 	list_add(&bo_va_entry->bo_list, list_bo_va);
 
@@ -1079,10 +1106,8 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	uint64_t user_addr = 0;
 	struct amdgpu_bo *bo;
 	struct amdgpu_bo_param bp;
-	int byte_align;
 	u32 domain, alloc_domain;
 	u64 alloc_flags;
-	uint32_t mapping_flags;
 	int ret;
 
 	/*
@@ -1135,25 +1160,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	if ((*mem)->aql_queue)
 		size = size >> 1;
 
-	/* Workaround for TLB bug on older VI chips */
-	byte_align = (adev->family == AMDGPU_FAMILY_VI &&
-			adev->asic_type != CHIP_FIJI &&
-			adev->asic_type != CHIP_POLARIS10 &&
-			adev->asic_type != CHIP_POLARIS11 &&
-			adev->asic_type != CHIP_POLARIS12 &&
-			adev->asic_type != CHIP_VEGAM) ?
-			VI_BO_SIZE_ALIGN : 1;
-
-	mapping_flags = AMDGPU_VM_PAGE_READABLE;
-	if (flags & ALLOC_MEM_FLAGS_WRITABLE)
-		mapping_flags |= AMDGPU_VM_PAGE_WRITEABLE;
-	if (flags & ALLOC_MEM_FLAGS_EXECUTABLE)
-		mapping_flags |= AMDGPU_VM_PAGE_EXECUTABLE;
-	if (flags & ALLOC_MEM_FLAGS_COHERENT)
-		mapping_flags |= AMDGPU_VM_MTYPE_UC;
-	else
-		mapping_flags |= AMDGPU_VM_MTYPE_NC;
-	(*mem)->mapping_flags = mapping_flags;
+	(*mem)->alloc_flags = flags;
 
 	amdgpu_sync_create(&(*mem)->sync);
 
@@ -1168,7 +1175,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 
 	memset(&bp, 0, sizeof(bp));
 	bp.size = size;
-	bp.byte_align = byte_align;
+	bp.byte_align = 1;
 	bp.domain = alloc_domain;
 	bp.flags = alloc_flags;
 	bp.type = bo_type;
@@ -1626,9 +1633,10 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct kgd_dev *kgd,
 
 	INIT_LIST_HEAD(&(*mem)->bo_va_list);
 	mutex_init(&(*mem)->lock);
-	(*mem)->mapping_flags =
-		AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE |
-		AMDGPU_VM_PAGE_EXECUTABLE | AMDGPU_VM_MTYPE_NC;
+	(*mem)->alloc_flags =
+		((bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) ?
+		 ALLOC_MEM_FLAGS_VRAM : ALLOC_MEM_FLAGS_GTT) |
+		ALLOC_MEM_FLAGS_WRITABLE | ALLOC_MEM_FLAGS_EXECUTABLE;
 
 	(*mem)->bo = amdgpu_bo_ref(bo);
 	(*mem)->va = va;

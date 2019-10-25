@@ -588,11 +588,15 @@
 #define IH_STORM_CLIENT_LIST_CNTL__CLIENT30_IS_STORM_CLIENT_MASK                                              0x40000000L
 #define IH_STORM_CLIENT_LIST_CNTL__CLIENT31_IS_STORM_CLIENT_MASK                                              0x80000000L
 //IH_CLK_CTRL
+#define IH_CLK_CTRL__IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE__SHIFT                                             0x19
+#define IH_CLK_CTRL__IH_BUFFER_MEM_CLK_SOFT_OVERRIDE__SHIFT                                             		  0x1a
 #define IH_CLK_CTRL__DBUS_MUX_CLK_SOFT_OVERRIDE__SHIFT                                                        0x1b
 #define IH_CLK_CTRL__OSSSYS_SHARE_CLK_SOFT_OVERRIDE__SHIFT                                                    0x1c
 #define IH_CLK_CTRL__LIMIT_SMN_CLK_SOFT_OVERRIDE__SHIFT                                                       0x1d
 #define IH_CLK_CTRL__DYN_CLK_SOFT_OVERRIDE__SHIFT                                                             0x1e
 #define IH_CLK_CTRL__REG_CLK_SOFT_OVERRIDE__SHIFT                                                             0x1f
+#define IH_CLK_CTRL__IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE_MASK                                              0x02000000L
+#define IH_CLK_CTRL__IH_BUFFER_MEM_CLK_SOFT_OVERRIDE_MASK                                             		  0x04000000L
 #define IH_CLK_CTRL__DBUS_MUX_CLK_SOFT_OVERRIDE_MASK                                                          0x08000000L
 #define IH_CLK_CTRL__OSSSYS_SHARE_CLK_SOFT_OVERRIDE_MASK                                                      0x10000000L
 #define IH_CLK_CTRL__LIMIT_SMN_CLK_SOFT_OVERRIDE_MASK                                                         0x20000000L

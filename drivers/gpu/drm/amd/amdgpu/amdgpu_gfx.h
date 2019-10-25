@@ -201,28 +201,6 @@ struct amdgpu_gfx_funcs {
 	int (*query_ras_error_count) (struct amdgpu_device *adev, void *ras_error_status);
 };
 
-struct amdgpu_ngg_buf {
-	struct amdgpu_bo	*bo;
-	uint64_t		gpu_addr;
-	uint32_t		size;
-	uint32_t		bo_size;
-};
-
-enum {
-	NGG_PRIM = 0,
-	NGG_POS,
-	NGG_CNTL,
-	NGG_PARAM,
-	NGG_BUF_MAX
-};
-
-struct amdgpu_ngg {
-	struct amdgpu_ngg_buf	buf[NGG_BUF_MAX];
-	uint32_t		gds_reserve_addr;
-	uint32_t		gds_reserve_size;
-	bool			init;
-};
-
 struct sq_work {
 	struct work_struct	work;
 	unsigned ih_data;
@@ -311,9 +289,6 @@ struct amdgpu_gfx {
 	uint32_t                        grbm_soft_reset;
 	uint32_t                        srbm_soft_reset;
 
-	/* NGG */
-	struct amdgpu_ngg		ngg;
-
 	/* gfx off */
 	bool                            gfx_off_state; /* true: enabled, false: disabled */
 	struct mutex                    gfx_off_mutex;
@@ -384,5 +359,12 @@ void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
 bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
 				    int pipe, int queue);
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
-
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev);
+void amdgpu_gfx_ras_fini(struct amdgpu_device *adev);
+int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
+		void *err_data,
+		struct amdgpu_iv_entry *entry);
+int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
+				  struct amdgpu_irq_src *source,
+				  struct amdgpu_iv_entry *entry);
 #endif

@@ -38,6 +38,7 @@
 
 #define BPP_INVALID 0
 #define BPP_BLENDED_PIPE 0xffffffff
+#define DCN20_MAX_DSC_IMAGE_WIDTH 5184
 
 static double adjust_ReturnBW(
 		struct display_mode_lib *mode_lib,
@@ -3901,6 +3902,10 @@ void dml20v2_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode
 				mode_lib->vba.MaximumSwathWidthInLineBuffer);
 	}
 	for (i = 0; i <= mode_lib->vba.soc.num_states; i++) {
+		double MaxMaxDispclkRoundedDown = RoundToDFSGranularityDown(
+			mode_lib->vba.MaxDispclk[mode_lib->vba.soc.num_states],
+			mode_lib->vba.DISPCLKDPPCLKVCOSpeed);
+
 		for (j = 0; j < 2; j++) {
 			mode_lib->vba.MaxDispclkRoundedDownToDFSGranularity = RoundToDFSGranularityDown(
 				mode_lib->vba.MaxDispclk[i],
@@ -3925,7 +3930,9 @@ void dml20v2_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode
 						&& i == mode_lib->vba.soc.num_states)
 					mode_lib->vba.PlaneRequiredDISPCLKWithODMCombine = mode_lib->vba.PixelClock[k] / 2
 							* (1 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0);
-				if (mode_lib->vba.ODMCapability == false || mode_lib->vba.PlaneRequiredDISPCLKWithoutODMCombine <= mode_lib->vba.MaxDispclkRoundedDownToDFSGranularity) {
+				if (mode_lib->vba.ODMCapability == false ||
+						(locals->PlaneRequiredDISPCLKWithoutODMCombine <= MaxMaxDispclkRoundedDown
+							&& (!locals->DSCEnabled[k] || locals->HActive[k] <= DCN20_MAX_DSC_IMAGE_WIDTH))) {
 					locals->ODMCombineEnablePerState[i][k] = false;
 					mode_lib->vba.PlaneRequiredDISPCLK = mode_lib->vba.PlaneRequiredDISPCLKWithoutODMCombine;
 				} else {

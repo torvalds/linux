@@ -117,7 +117,7 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 	/* disable irqs */
 	navi10_ih_disable_interrupts(adev);
 
-	adev->nbio_funcs->ih_control(adev);
+	adev->nbio.funcs->ih_control(adev);
 
 	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE, ih->gpu_addr >> 8);
@@ -162,7 +162,7 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 	}
 	WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR, ih_doorbell_rtpr);
 
-	adev->nbio_funcs->ih_doorbell_range(adev, ih->use_doorbell,
+	adev->nbio.funcs->ih_doorbell_range(adev, ih->use_doorbell,
 					    ih->doorbell_index);
 
 	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL);

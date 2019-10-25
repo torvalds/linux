@@ -192,6 +192,7 @@ enum dc_detect_reason {
 
 bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
 bool dc_link_get_hpd_state(struct dc_link *dc_link);
+enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx);
 
 /* Notify DC about DP RX Interrupt (aka Short Pulse Interrupt).
  * Return:
