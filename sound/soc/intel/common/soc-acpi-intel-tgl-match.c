@@ -14,11 +14,52 @@ static struct snd_soc_acpi_codecs tgl_codecs = {
 	.codecs = {"MX98357A"}
 };
 
+static const u64 rt711_0_adr[] = {
+	0x000010025D071100
+};
+
+static const u64 rt1308_1_1_adr[] = {
+	0x000120025D130800
+};
+
+static const u64 rt1308_1_2_adr[] = {
+	0x000122025D130800
+};
+
+static const struct snd_soc_acpi_link_adr tgl_i2s_rt1308[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt711_0_adr),
+		.adr = rt711_0_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr tgl_rvp[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt711_0_adr),
+		.adr = rt711_0_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt1308_1_1_adr),
+		.adr = rt1308_1_1_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt1308_1_2_adr),
+		.adr = rt1308_1_2_adr,
+	},
+	{}
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 	{
 		.id = "10EC1308",
 		.drv_name = "rt711_rt1308",
 		.link_mask = 0x1, /* RT711 on SoundWire link0 */
+		.links = tgl_i2s_rt1308,
 		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-rt711-rt1308.tplg",
 	},
@@ -34,12 +75,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_tgl_machines);
 
+/* this table is used when there is no I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 	{
-		.link_mask = 0x1, /* this will only enable rt711 for now */
+		.link_mask = 0x3, /* rt711 on link 0 and 2 rt1308s on link 1 */
+		.links = tgl_rvp,
 		.drv_name = "sdw_rt711_rt1308_rt715",
 		.sof_fw_filename = "sof-tgl.ri",
-		.sof_tplg_filename = "sof-tgl-rt711-rt1308-rt715.tplg",
+		.sof_tplg_filename = "sof-tgl-rt711-rt1308.tplg",
 	},
 	{},
 };
