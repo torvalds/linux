@@ -13,7 +13,7 @@
 #include "panfrost_gpu.h"
 #include "panfrost_regs.h"
 
-static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev, int slot);
+static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev);
 
 static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 				   u32 flags)
@@ -32,37 +32,23 @@ static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 
 static void panfrost_devfreq_reset(struct panfrost_device *pfdev)
 {
-	ktime_t now = ktime_get();
-	int i;
-
-	for (i = 0; i < NUM_JOB_SLOTS; i++) {
-		pfdev->devfreq.slot[i].busy_time = 0;
-		pfdev->devfreq.slot[i].idle_time = 0;
-		pfdev->devfreq.slot[i].time_last_update = now;
-	}
+	pfdev->devfreq.busy_time = 0;
+	pfdev->devfreq.idle_time = 0;
+	pfdev->devfreq.time_last_update = ktime_get();
 }
 
 static int panfrost_devfreq_get_dev_status(struct device *dev,
 					   struct devfreq_dev_status *status)
 {
 	struct panfrost_device *pfdev = dev_get_drvdata(dev);
-	int i;
 
-	for (i = 0; i < NUM_JOB_SLOTS; i++) {
-		panfrost_devfreq_update_utilization(pfdev, i);
-	}
+	panfrost_devfreq_update_utilization(pfdev);
 
 	status->current_frequency = clk_get_rate(pfdev->clock);
-	status->total_time = ktime_to_ns(ktime_add(pfdev->devfreq.slot[0].busy_time,
-						   pfdev->devfreq.slot[0].idle_time));
+	status->total_time = ktime_to_ns(ktime_add(pfdev->devfreq.busy_time,
+						   pfdev->devfreq.idle_time));
 
-	status->busy_time = 0;
-	for (i = 0; i < NUM_JOB_SLOTS; i++) {
-		status->busy_time += ktime_to_ns(pfdev->devfreq.slot[i].busy_time);
-	}
-
-	/* We're scheduling only to one core atm, so don't divide for now */
-	/* status->busy_time /= NUM_JOB_SLOTS; */
+	status->busy_time = ktime_to_ns(pfdev->devfreq.busy_time);
 
 	panfrost_devfreq_reset(pfdev);
 
@@ -134,14 +120,10 @@ void panfrost_devfreq_fini(struct panfrost_device *pfdev)
 
 void panfrost_devfreq_resume(struct panfrost_device *pfdev)
 {
-	int i;
-
 	if (!pfdev->devfreq.devfreq)
 		return;
 
 	panfrost_devfreq_reset(pfdev);
-	for (i = 0; i < NUM_JOB_SLOTS; i++)
-		pfdev->devfreq.slot[i].busy = false;
 
 	devfreq_resume_device(pfdev->devfreq.devfreq);
 }
@@ -154,9 +136,8 @@ void panfrost_devfreq_suspend(struct panfrost_device *pfdev)
 	devfreq_suspend_device(pfdev->devfreq.devfreq);
 }
 
-static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev, int slot)
+static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev)
 {
-	struct panfrost_devfreq_slot *devfreq_slot = &pfdev->devfreq.slot[slot];
 	ktime_t now;
 	ktime_t last;
 
@@ -164,22 +145,27 @@ static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev, i
 		return;
 
 	now = ktime_get();
-	last = pfdev->devfreq.slot[slot].time_last_update;
+	last = pfdev->devfreq.time_last_update;
 
-	/* If we last recorded a transition to busy, we have been idle since */
-	if (devfreq_slot->busy)
-		pfdev->devfreq.slot[slot].busy_time += ktime_sub(now, last);
+	if (atomic_read(&pfdev->devfreq.busy_count) > 0)
+		pfdev->devfreq.busy_time += ktime_sub(now, last);
 	else
-		pfdev->devfreq.slot[slot].idle_time += ktime_sub(now, last);
+		pfdev->devfreq.idle_time += ktime_sub(now, last);
 
-	pfdev->devfreq.slot[slot].time_last_update = now;
+	pfdev->devfreq.time_last_update = now;
 }
 
-/* The job scheduler is expected to call this at every transition busy <-> idle */
-void panfrost_devfreq_record_transition(struct panfrost_device *pfdev, int slot)
+void panfrost_devfreq_record_busy(struct panfrost_device *pfdev)
 {
-	struct panfrost_devfreq_slot *devfreq_slot = &pfdev->devfreq.slot[slot];
+	panfrost_devfreq_update_utilization(pfdev);
+	atomic_inc(&pfdev->devfreq.busy_count);
+}
 
-	panfrost_devfreq_update_utilization(pfdev, slot);
-	devfreq_slot->busy = !devfreq_slot->busy;
+void panfrost_devfreq_record_idle(struct panfrost_device *pfdev)
+{
+	int count;
+
+	panfrost_devfreq_update_utilization(pfdev);
+	count = atomic_dec_if_positive(&pfdev->devfreq.busy_count);
+	WARN_ON(count < 0);
 }
