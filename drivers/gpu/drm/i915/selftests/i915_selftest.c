@@ -30,7 +30,7 @@
 #include "igt_flush_test.h"
 
 struct i915_selftest i915_selftest __read_mostly = {
-	.timeout_ms = 1000,
+	.timeout_ms = 500,
 };
 
 int i915_mock_sanitycheck(void)
