@@ -126,10 +126,10 @@ drm_clflush_sg(struct sg_table *st)
 	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		struct sg_page_iter sg_iter;
 
-		mb();
+		mb(); /*CLFLUSH is ordered only by using memory barriers*/
 		for_each_sg_page(st->sgl, &sg_iter, st->nents, 0)
 			drm_clflush_page(sg_page_iter_page(&sg_iter));
-		mb();
+		mb(); /*Make sure that all cache line entry is flushed*/
 
 		return;
 	}
@@ -160,11 +160,11 @@ drm_clflush_virt_range(void *addr, unsigned long length)
 		void *end = addr + length;
 
 		addr = (void *)(((unsigned long)addr) & -size);
-		mb();
+		mb(); /*CLFLUSH is only ordered with a full memory barrier*/
 		for (; addr < end; addr += size)
 			clflushopt(addr);
 		clflushopt(end - 1); /* force serialisation */
-		mb();
+		mb(); /*Ensure that evry data cache line entry is flushed*/
 		return;
 	}
 
