@@ -1941,6 +1941,11 @@ static void perf_put_aux_event(struct perf_event *event)
 	}
 }
 
+static bool perf_need_aux_event(struct perf_event *event)
+{
+	return !!event->attr.aux_output || !!event->attr.aux_sample_size;
+}
+
 static int perf_get_aux_event(struct perf_event *event,
 			      struct perf_event *group_leader)
 {
@@ -1953,7 +1958,17 @@ static int perf_get_aux_event(struct perf_event *event,
 	if (!group_leader)
 		return 0;
 
-	if (!perf_aux_output_match(event, group_leader))
+	/*
+	 * aux_output and aux_sample_size are mutually exclusive.
+	 */
+	if (event->attr.aux_output && event->attr.aux_sample_size)
+		return 0;
+
+	if (event->attr.aux_output &&
+	    !perf_aux_output_match(event, group_leader))
+		return 0;
+
+	if (event->attr.aux_sample_size && !group_leader->pmu->snapshot_aux)
 		return 0;
 
 	if (!atomic_long_inc_not_zero(&group_leader->refcount))
@@ -6222,6 +6237,122 @@ perf_output_sample_ustack(struct perf_output_handle *handle, u64 dump_size,
 	}
 }
 
+static unsigned long perf_prepare_sample_aux(struct perf_event *event,
+					  struct perf_sample_data *data,
+					  size_t size)
+{
+	struct perf_event *sampler = event->aux_event;
+	struct ring_buffer *rb;
+
+	data->aux_size = 0;
+
+	if (!sampler)
+		goto out;
+
+	if (WARN_ON_ONCE(READ_ONCE(sampler->state) != PERF_EVENT_STATE_ACTIVE))
+		goto out;
+
+	if (WARN_ON_ONCE(READ_ONCE(sampler->oncpu) != smp_processor_id()))
+		goto out;
+
+	rb = ring_buffer_get(sampler->parent ? sampler->parent : sampler);
+	if (!rb)
+		goto out;
+
+	/*
+	 * If this is an NMI hit inside sampling code, don't take
+	 * the sample. See also perf_aux_sample_output().
+	 */
+	if (READ_ONCE(rb->aux_in_sampling)) {
+		data->aux_size = 0;
+	} else {
+		size = min_t(size_t, size, perf_aux_size(rb));
+		data->aux_size = ALIGN(size, sizeof(u64));
+	}
+	ring_buffer_put(rb);
+
+out:
+	return data->aux_size;
+}
+
+long perf_pmu_snapshot_aux(struct ring_buffer *rb,
+			   struct perf_event *event,
+			   struct perf_output_handle *handle,
+			   unsigned long size)
+{
+	unsigned long flags;
+	long ret;
+
+	/*
+	 * Normal ->start()/->stop() callbacks run in IRQ mode in scheduler
+	 * paths. If we start calling them in NMI context, they may race with
+	 * the IRQ ones, that is, for example, re-starting an event that's just
+	 * been stopped, which is why we're using a separate callback that
+	 * doesn't change the event state.
+	 *
+	 * IRQs need to be disabled to prevent IPIs from racing with us.
+	 */
+	local_irq_save(flags);
+	/*
+	 * Guard against NMI hits inside the critical section;
+	 * see also perf_prepare_sample_aux().
+	 */
+	WRITE_ONCE(rb->aux_in_sampling, 1);
+	barrier();
+
+	ret = event->pmu->snapshot_aux(event, handle, size);
+
+	barrier();
+	WRITE_ONCE(rb->aux_in_sampling, 0);
+	local_irq_restore(flags);
+
+	return ret;
+}
+
+static void perf_aux_sample_output(struct perf_event *event,
+				   struct perf_output_handle *handle,
+				   struct perf_sample_data *data)
+{
+	struct perf_event *sampler = event->aux_event;
+	unsigned long pad;
+	struct ring_buffer *rb;
+	long size;
+
+	if (WARN_ON_ONCE(!sampler || !data->aux_size))
+		return;
+
+	rb = ring_buffer_get(sampler->parent ? sampler->parent : sampler);
+	if (!rb)
+		return;
+
+	size = perf_pmu_snapshot_aux(rb, sampler, handle, data->aux_size);
+
+	/*
+	 * An error here means that perf_output_copy() failed (returned a
+	 * non-zero surplus that it didn't copy), which in its current
+	 * enlightened implementation is not possible. If that changes, we'd
+	 * like to know.
+	 */
+	if (WARN_ON_ONCE(size < 0))
+		goto out_put;
+
+	/*
+	 * The pad comes from ALIGN()ing data->aux_size up to u64 in
+	 * perf_prepare_sample_aux(), so should not be more than that.
+	 */
+	pad = data->aux_size - size;
+	if (WARN_ON_ONCE(pad >= sizeof(u64)))
+		pad = 8;
+
+	if (pad) {
+		u64 zero = 0;
+		perf_output_copy(handle, &zero, pad);
+	}
+
+out_put:
+	ring_buffer_put(rb);
+}
+
 static void __perf_event_header__init_id(struct perf_event_header *header,
 					 struct perf_sample_data *data,
 					 struct perf_event *event)
@@ -6541,6 +6672,13 @@ void perf_output_sample(struct perf_output_handle *handle,
 	if (sample_type & PERF_SAMPLE_PHYS_ADDR)
 		perf_output_put(handle, data->phys_addr);
 
+	if (sample_type & PERF_SAMPLE_AUX) {
+		perf_output_put(handle, data->aux_size);
+
+		if (data->aux_size)
+			perf_aux_sample_output(event, handle, data);
+	}
+
 	if (!event->attr.watermark) {
 		int wakeup_events = event->attr.wakeup_events;
 
@@ -6729,6 +6867,35 @@ void perf_prepare_sample(struct perf_event_header *header,
 
 	if (sample_type & PERF_SAMPLE_PHYS_ADDR)
 		data->phys_addr = perf_virt_to_phys(data->addr);
+
+	if (sample_type & PERF_SAMPLE_AUX) {
+		u64 size;
+
+		header->size += sizeof(u64); /* size */
+
+		/*
+		 * Given the 16bit nature of header::size, an AUX sample can
+		 * easily overflow it, what with all the preceding sample bits.
+		 * Make sure this doesn't happen by using up to U16_MAX bytes
+		 * per sample in total (rounded down to 8 byte boundary).
+		 */
+		size = min_t(size_t, U16_MAX - header->size,
+			     event->attr.aux_sample_size);
+		size = rounddown(size, 8);
+		size = perf_prepare_sample_aux(event, data, size);
+
+		WARN_ON_ONCE(size + header->size > U16_MAX);
+		header->size += size;
+	}
+	/*
+	 * If you're adding more sample types here, you likely need to do
+	 * something about the overflowing header::size, like repurpose the
+	 * lowest 3 bits of size, which should be always zero at the moment.
+	 * This raises a more important question, do we really need 512k sized
+	 * samples and why, so good argumentation is in order for whatever you
+	 * do here next.
+	 */
+	WARN_ON_ONCE(header->size & 7);
 }
 
 static __always_inline int
@@ -10727,7 +10894,7 @@ static int perf_copy_attr(struct perf_event_attr __user *uattr,
 
 	attr->size = size;
 
-	if (attr->__reserved_1 || attr->__reserved_2)
+	if (attr->__reserved_1 || attr->__reserved_2 || attr->__reserved_3)
 		return -EINVAL;
 
 	if (attr->sample_type & ~(PERF_SAMPLE_MAX-1))
@@ -11277,7 +11444,7 @@ SYSCALL_DEFINE5(perf_event_open,
 		}
 	}
 
-	if (event->attr.aux_output && !perf_get_aux_event(event, group_leader))
+	if (perf_need_aux_event(event) && !perf_get_aux_event(event, group_leader))
 		goto err_locked;
 
 	/*

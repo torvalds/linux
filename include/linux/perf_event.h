@@ -249,6 +249,8 @@ struct perf_event;
 #define PERF_PMU_CAP_NO_EXCLUDE			0x80
 #define PERF_PMU_CAP_AUX_OUTPUT			0x100
 
+struct perf_output_handle;
+
 /**
  * struct pmu - generic performance monitoring unit
  */
@@ -431,6 +433,19 @@ struct pmu {
 	 * Free pmu-private AUX data structures
 	 */
 	void (*free_aux)		(void *aux); /* optional */
+
+	/*
+	 * Take a snapshot of the AUX buffer without touching the event
+	 * state, so that preempting ->start()/->stop() callbacks does
+	 * not interfere with their logic. Called in PMI context.
+	 *
+	 * Returns the size of AUX data copied to the output handle.
+	 *
+	 * Optional.
+	 */
+	long (*snapshot_aux)		(struct perf_event *event,
+					 struct perf_output_handle *handle,
+					 unsigned long size);
 
 	/*
 	 * Validate address range filters: make sure the HW supports the
@@ -973,6 +988,7 @@ struct perf_sample_data {
 		u32	reserved;
 	}				cpu_entry;
 	struct perf_callchain_entry	*callchain;
+	u64				aux_size;
 
 	/*
 	 * regs_user may point to task_pt_regs or to regs_user_copy, depending
@@ -1362,6 +1378,9 @@ extern unsigned int perf_output_copy(struct perf_output_handle *handle,
 			     const void *buf, unsigned int len);
 extern unsigned int perf_output_skip(struct perf_output_handle *handle,
 				     unsigned int len);
+extern long perf_output_copy_aux(struct perf_output_handle *aux_handle,
+				 struct perf_output_handle *handle,
+				 unsigned long from, unsigned long to);
 extern int perf_swevent_get_recursion_context(void);
 extern void perf_swevent_put_recursion_context(int rctx);
 extern u64 perf_swevent_set_period(struct perf_event *event);

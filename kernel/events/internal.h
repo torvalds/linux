@@ -50,6 +50,7 @@ struct ring_buffer {
 	unsigned long			aux_mmap_locked;
 	void				(*free_aux)(void *);
 	refcount_t			aux_refcount;
+	int				aux_in_sampling;
 	void				**aux_pages;
 	void				*aux_priv;
 
