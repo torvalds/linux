@@ -397,6 +397,20 @@ static bool pt_event_valid(struct perf_event *event)
  * These all are cpu affine and operate on a local PT
  */
 
+static void pt_config_start(struct perf_event *event)
+{
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
+	u64 ctl = event->hw.config;
+
+	ctl |= RTIT_CTL_TRACEEN;
+	if (READ_ONCE(pt->vmx_on))
+		perf_aux_output_flag(&pt->handle, PERF_AUX_FLAG_PARTIAL);
+	else
+		wrmsrl(MSR_IA32_RTIT_CTL, ctl);
+
+	WRITE_ONCE(event->hw.config, ctl);
+}
+
 /* Address ranges and their corresponding msr configuration registers */
 static const struct pt_address_range {
 	unsigned long	msr_a;
@@ -468,7 +482,6 @@ static u64 pt_config_filters(struct perf_event *event)
 
 static void pt_config(struct perf_event *event)
 {
-	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	u64 reg;
 
 	/* First round: clear STATUS, in particular the PSB byte counter. */
@@ -501,10 +514,7 @@ static void pt_config(struct perf_event *event)
 	reg |= (event->attr.config & PT_CONFIG_MASK);
 
 	event->hw.config = reg;
-	if (READ_ONCE(pt->vmx_on))
-		perf_aux_output_flag(&pt->handle, PERF_AUX_FLAG_PARTIAL);
-	else
-		wrmsrl(MSR_IA32_RTIT_CTL, reg);
+	pt_config_start(event);
 }
 
 static void pt_config_stop(struct perf_event *event)
@@ -1381,7 +1391,7 @@ void intel_pt_interrupt(void)
 
 		pt_config_buffer(topa_to_page(buf->cur)->table, buf->cur_idx,
 				 buf->output_off);
-		pt_config(event);
+		pt_config_start(event);
 	}
 }
 
