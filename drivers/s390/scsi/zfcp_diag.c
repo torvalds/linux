@@ -176,6 +176,36 @@ int zfcp_diag_update_port_data_buffer(struct zfcp_adapter *const adapter)
 	return rc;
 }
 
+/**
+ * zfcp_diag_update_config_data_buffer() - Implementation of
+ *					   &typedef zfcp_diag_update_buffer_func
+ *					   to collect and update Config Data.
+ * @adapter: Adapter to collect Config Data from.
+ *
+ * This call is SYNCHRONOUS ! It blocks till the respective command has
+ * finished completely, or has failed in some way.
+ *
+ * Return:
+ * * 0		- Successfully retrieved new Diagnostics and Updated the buffer;
+ *		  this also includes cases where data was retrieved, but
+ *		  incomplete; you'll have to check the flag ``incomplete``
+ *		  of &struct zfcp_diag_header.
+ * * see zfcp_fsf_exchange_config_data_sync() for possible error-codes (
+ *   excluding -EAGAIN)
+ */
+int zfcp_diag_update_config_data_buffer(struct zfcp_adapter *const adapter)
+{
+	int rc;
+
+	rc = zfcp_fsf_exchange_config_data_sync(adapter->qdio, NULL);
+	if (rc == -EAGAIN)
+		rc = 0; /* signaling incomplete via struct zfcp_diag_header */
+
+	/* buffer-data was updated in zfcp_fsf_exchange_config_data_handler() */
+
+	return rc;
+}
+
 static int __zfcp_diag_update_buffer(struct zfcp_adapter *const adapter,
 				     struct zfcp_diag_header *const hdr,
 				     zfcp_diag_update_buffer_func buffer_update,

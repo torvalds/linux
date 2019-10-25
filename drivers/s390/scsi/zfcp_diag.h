@@ -77,6 +77,7 @@ void zfcp_diag_update_xdata(struct zfcp_diag_header *const hdr,
  */
 typedef int (*zfcp_diag_update_buffer_func)(struct zfcp_adapter *const adapter);
 
+int zfcp_diag_update_config_data_buffer(struct zfcp_adapter *const adapter);
 int zfcp_diag_update_port_data_buffer(struct zfcp_adapter *const adapter);
 int zfcp_diag_update_buffer_limited(struct zfcp_adapter *const adapter,
 				    struct zfcp_diag_header *const hdr,

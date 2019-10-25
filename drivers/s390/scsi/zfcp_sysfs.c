@@ -687,6 +687,11 @@ static ssize_t zfcp_sysfs_adapter_diag_b2b_credit_show(
 
 	diag_hdr = &adapter->diagnostics->config_data.header;
 
+	rc = zfcp_diag_update_buffer_limited(
+		adapter, diag_hdr, zfcp_diag_update_config_data_buffer);
+	if (rc != 0)
+		goto out;
+
 	spin_lock_irqsave(&diag_hdr->access_lock, flags);
 	/* nport_serv_param doesn't contain the ELS_Command code */
 	nsp = (struct fc_els_flogi *)((unsigned long)
