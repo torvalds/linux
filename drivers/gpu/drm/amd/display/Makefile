@@ -38,6 +38,10 @@ ifdef CONFIG_DRM_AMD_DC_HDCP
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/hdcp
 endif
 
+ifdef CONFIG_DRM_AMD_DC_DMUB
+subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dmub/inc
+endif
+
 #TODO: remove when Timing Sync feature is complete
 subdir-ccflags-y += -DBUILD_FEATURE_TIMING_SYNC=0
 
@@ -45,6 +49,10 @@ DAL_LIBS = amdgpu_dm dc	modules/freesync modules/color modules/info_packet modul
 
 ifdef CONFIG_DRM_AMD_DC_HDCP
 DAL_LIBS += modules/hdcp
+endif
+
+ifdef CONFIG_DRM_AMD_DC_DMUB
+DAL_LIBS += dmub/src
 endif
 
 AMD_DAL = $(addsuffix /Makefile, $(addprefix $(FULL_AMD_DISPLAY_PATH)/,$(DAL_LIBS)))

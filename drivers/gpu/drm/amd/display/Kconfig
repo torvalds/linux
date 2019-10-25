@@ -30,6 +30,7 @@ config DRM_AMD_DC_DCN2_1
 	bool "DCN 2.1 family"
 	depends on DRM_AMD_DC && X86
 	depends on DRM_AMD_DC_DCN2_0
+	select DRM_AMD_DC_DMUB
 	help
 	  Choose this option if you want to have
 	  Renoir support for display engine
@@ -51,6 +52,11 @@ config DRM_AMD_DC_HDCP
 	 Choose this option
 	 if you want to support
 	 HDCP authentication
+
+config DRM_AMD_DC_DMUB
+        def_bool n
+        help
+          DMUB support for display engine
 
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"
