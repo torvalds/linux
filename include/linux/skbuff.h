@@ -3656,9 +3656,12 @@ static inline void skb_get_new_timestamp(const struct sk_buff *skb,
 }
 
 static inline void skb_get_timestampns(const struct sk_buff *skb,
-				       struct timespec *stamp)
+				       struct __kernel_old_timespec *stamp)
 {
-	*stamp = ktime_to_timespec(skb->tstamp);
+	struct timespec64 ts = ktime_to_timespec64(skb->tstamp);
+
+	stamp->tv_sec = ts.tv_sec;
+	stamp->tv_nsec = ts.tv_nsec;
 }
 
 static inline void skb_get_new_timestampns(const struct sk_buff *skb,

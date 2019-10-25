@@ -793,7 +793,7 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPNS_NEW,
 					 sizeof(ts), &ts);
 			} else {
-				struct timespec ts;
+				struct __kernel_old_timespec ts;
 
 				skb_get_timestampns(skb, &ts);
 				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPNS_OLD,
