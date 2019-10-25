@@ -240,7 +240,7 @@ static int live_heartbeat_fast(void *arg)
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	int err;
+	int err = 0;
 
 	/* Check that the heartbeat ticks at the desired rate. */
 	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
@@ -302,7 +302,7 @@ static int live_heartbeat_off(void *arg)
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	int err;
+	int err = 0;
 
 	/* Check that we can turn off heartbeat and not interrupt VIP */
 	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
