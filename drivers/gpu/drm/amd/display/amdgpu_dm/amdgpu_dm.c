@@ -30,6 +30,11 @@
 #include "dc.h"
 #include "dc/inc/core_types.h"
 #include "dal_asic_id.h"
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+#include "dmub/inc/dmub_srv.h"
+#include "dc/inc/hw/dmcu.h"
+#include "dc/inc/hw/abm.h"
+#endif
 
 #include "vid.h"
 #include "amdgpu.h"
@@ -87,6 +92,10 @@
 #include "modules/power/power_helpers.h"
 #include "modules/inc/mod_info_packet.h"
 
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+#define FIRMWARE_RENOIR_DMUB "amdgpu/renoir_dmcub.bin"
+MODULE_FIRMWARE(FIRMWARE_RENOIR_DMUB);
+#endif
 #define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
 
@@ -667,11 +676,148 @@ void amdgpu_dm_audio_eld_notify(struct amdgpu_device *adev, int pin)
 	}
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+static int dm_dmub_hw_init(struct amdgpu_device *adev)
+{
+	const unsigned int psp_header_bytes = 0x100;
+	const unsigned int psp_footer_bytes = 0x100;
+	const struct dmcub_firmware_header_v1_0 *hdr;
+	struct dmub_srv *dmub_srv = adev->dm.dmub_srv;
+	const struct firmware *dmub_fw = adev->dm.dmub_fw;
+	struct dmcu *dmcu = adev->dm.dc->res_pool->dmcu;
+	struct abm *abm = adev->dm.dc->res_pool->abm;
+	struct dmub_srv_region_params region_params;
+	struct dmub_srv_region_info region_info;
+	struct dmub_srv_fb_params fb_params;
+	struct dmub_srv_fb_info fb_info;
+	struct dmub_srv_hw_params hw_params;
+	enum dmub_status status;
+	const unsigned char *fw_inst_const, *fw_bss_data;
+	uint32_t i;
+	int r;
+	bool has_hw_support;
+
+	if (!dmub_srv)
+		/* DMUB isn't supported on the ASIC. */
+		return 0;
+
+	if (!dmub_fw) {
+		/* Firmware required for DMUB support. */
+		DRM_ERROR("No firmware provided for DMUB.\n");
+		return -EINVAL;
+	}
+
+	status = dmub_srv_has_hw_support(dmub_srv, &has_hw_support);
+	if (status != DMUB_STATUS_OK) {
+		DRM_ERROR("Error checking HW support for DMUB: %d\n", status);
+		return -EINVAL;
+	}
+
+	if (!has_hw_support) {
+		DRM_INFO("DMUB unsupported on ASIC\n");
+		return 0;
+	}
+
+	hdr = (const struct dmcub_firmware_header_v1_0 *)dmub_fw->data;
+
+	/* Calculate the size of all the regions for the DMUB service. */
+	memset(&region_params, 0, sizeof(region_params));
+
+	region_params.inst_const_size = le32_to_cpu(hdr->inst_const_bytes) -
+					psp_header_bytes - psp_footer_bytes;
+	region_params.bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
+	region_params.vbios_size = adev->dm.dc->ctx->dc_bios->bios_size;
+
+	status = dmub_srv_calc_region_info(dmub_srv, &region_params,
+					   &region_info);
+
+	if (status != DMUB_STATUS_OK) {
+		DRM_ERROR("Error calculating DMUB region info: %d\n", status);
+		return -EINVAL;
+	}
+
+	/*
+	 * Allocate a framebuffer based on the total size of all the regions.
+	 * TODO: Move this into GART.
+	 */
+	r = amdgpu_bo_create_kernel(adev, region_info.fb_size, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_VRAM, &adev->dm.dmub_bo,
+				    &adev->dm.dmub_bo_gpu_addr,
+				    &adev->dm.dmub_bo_cpu_addr);
+	if (r)
+		return r;
+
+	/* Rebase the regions on the framebuffer address. */
+	memset(&fb_params, 0, sizeof(fb_params));
+	fb_params.cpu_addr = adev->dm.dmub_bo_cpu_addr;
+	fb_params.gpu_addr = adev->dm.dmub_bo_gpu_addr;
+	fb_params.region_info = &region_info;
+
+	status = dmub_srv_calc_fb_info(dmub_srv, &fb_params, &fb_info);
+	if (status != DMUB_STATUS_OK) {
+		DRM_ERROR("Error calculating DMUB FB info: %d\n", status);
+		return -EINVAL;
+	}
+
+	fw_inst_const = dmub_fw->data +
+			le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
+			psp_header_bytes;
+
+	fw_bss_data = dmub_fw->data +
+		      le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
+		      le32_to_cpu(hdr->inst_const_bytes);
+
+	/* Copy firmware and bios info into FB memory. */
+	memcpy(fb_info.fb[DMUB_WINDOW_0_INST_CONST].cpu_addr, fw_inst_const,
+	       region_params.inst_const_size);
+	memcpy(fb_info.fb[DMUB_WINDOW_2_BSS_DATA].cpu_addr, fw_bss_data,
+	       region_params.bss_data_size);
+	memcpy(fb_info.fb[DMUB_WINDOW_3_VBIOS].cpu_addr,
+	       adev->dm.dc->ctx->dc_bios->bios, region_params.vbios_size);
+
+	/* Initialize hardware. */
+	memset(&hw_params, 0, sizeof(hw_params));
+	hw_params.fb_base = adev->gmc.fb_start;
+	hw_params.fb_offset = adev->gmc.aper_base;
+
+	if (dmcu)
+		hw_params.psp_version = dmcu->psp_version;
+
+	for (i = 0; i < fb_info.num_fb; ++i)
+		hw_params.fb[i] = &fb_info.fb[i];
+
+	status = dmub_srv_hw_init(dmub_srv, &hw_params);
+	if (status != DMUB_STATUS_OK) {
+		DRM_ERROR("Error initializing DMUB HW: %d\n", status);
+		return -EINVAL;
+	}
+
+	/* Wait for firmware load to finish. */
+	status = dmub_srv_wait_for_auto_load(dmub_srv, 100000);
+	if (status != DMUB_STATUS_OK)
+		DRM_WARN("Wait for DMUB auto-load failed: %d\n", status);
+
+	/* Init DMCU and ABM if available. */
+	if (dmcu && abm) {
+		dmcu->funcs->dmcu_init(dmcu);
+		abm->dmcu_is_running = dmcu->funcs->is_dmcu_initialized(dmcu);
+	}
+
+	DRM_INFO("DMUB hardware initialized: version=0x%08X\n",
+		 adev->dm.dmcub_fw_version);
+
+	return 0;
+}
+
+#endif
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
 	struct dc_init_data init_data;
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct dc_callback_init init_params;
+#endif
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	int r;
 #endif
 
 	adev->dm.ddev = adev->ddev;
@@ -749,6 +895,14 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	dc_hardware_init(adev->dm.dc);
 
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	r = dm_dmub_hw_init(adev);
+	if (r) {
+		DRM_ERROR("DMUB interface failed to initialize: status=%d\n", r);
+		goto error;
+	}
+
+#endif
 	adev->dm.freesync_module = mod_freesync_create(adev->dm.dc);
 	if (!adev->dm.freesync_module) {
 		DRM_ERROR(
@@ -820,6 +974,12 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 
 	if (adev->dm.dc)
 		dc_deinit_callbacks(adev->dm.dc);
+#endif
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	if (adev->dm.dmub_bo)
+		amdgpu_bo_free_kernel(&adev->dm.dmub_bo,
+				      &adev->dm.dmub_bo_gpu_addr,
+				      &adev->dm.dmub_bo_cpu_addr);
 #endif
 
 	/* DC Destroy TODO: Replace destroy DAL */
@@ -932,9 +1092,104 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	return 0;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+static uint32_t amdgpu_dm_dmub_reg_read(void *ctx, uint32_t address)
+{
+	struct amdgpu_device *adev = ctx;
+
+	return dm_read_reg(adev->dm.dc->ctx, address);
+}
+
+static void amdgpu_dm_dmub_reg_write(void *ctx, uint32_t address,
+				     uint32_t value)
+{
+	struct amdgpu_device *adev = ctx;
+
+	return dm_write_reg(adev->dm.dc->ctx, address, value);
+}
+
+static int dm_dmub_sw_init(struct amdgpu_device *adev)
+{
+	struct dmub_srv_create_params create_params;
+	const struct dmcub_firmware_header_v1_0 *hdr;
+	const char *fw_name_dmub;
+	enum dmub_asic dmub_asic;
+	enum dmub_status status;
+	int r;
+
+	switch (adev->asic_type) {
+	case CHIP_RENOIR:
+		dmub_asic = DMUB_ASIC_DCN21;
+		fw_name_dmub = FIRMWARE_RENOIR_DMUB;
+		break;
+
+	default:
+		/* ASIC doesn't support DMUB. */
+		return 0;
+	}
+
+	adev->dm.dmub_srv = kzalloc(sizeof(*adev->dm.dmub_srv), GFP_KERNEL);
+	if (!adev->dm.dmub_srv) {
+		DRM_ERROR("Failed to allocate DMUB service!\n");
+		return -ENOMEM;
+	}
+
+	memset(&create_params, 0, sizeof(create_params));
+	create_params.user_ctx = adev;
+	create_params.funcs.reg_read = amdgpu_dm_dmub_reg_read;
+	create_params.funcs.reg_write = amdgpu_dm_dmub_reg_write;
+	create_params.asic = dmub_asic;
+
+	status = dmub_srv_create(adev->dm.dmub_srv, &create_params);
+	if (status != DMUB_STATUS_OK) {
+		DRM_ERROR("Error creating DMUB service: %d\n", status);
+		return -EINVAL;
+	}
+
+	r = request_firmware_direct(&adev->dm.dmub_fw, fw_name_dmub, adev->dev);
+	if (r) {
+		DRM_ERROR("DMUB firmware loading failed: %d\n", r);
+		return 0;
+	}
+
+	r = amdgpu_ucode_validate(adev->dm.dmub_fw);
+	if (r) {
+		DRM_ERROR("Couldn't validate DMUB firmware: %d\n", r);
+		return 0;
+	}
+
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+		DRM_WARN("Only PSP firmware loading is supported for DMUB\n");
+		return 0;
+	}
+
+	hdr = (const struct dmcub_firmware_header_v1_0 *)adev->dm.dmub_fw->data;
+	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCUB].ucode_id =
+		AMDGPU_UCODE_ID_DMCUB;
+	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCUB].fw = adev->dm.dmub_fw;
+	adev->firmware.fw_size +=
+		ALIGN(le32_to_cpu(hdr->inst_const_bytes), PAGE_SIZE);
+
+	adev->dm.dmcub_fw_version = le32_to_cpu(hdr->header.ucode_version);
+
+	DRM_INFO("Loading DMUB firmware via PSP: version=0x%08X\n",
+		 adev->dm.dmcub_fw_version);
+
+	return 0;
+}
+
+#endif
 static int dm_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	int r;
+
+	r = dm_dmub_sw_init(adev);
+	if (r)
+		return r;
+
+#endif
 
 	return load_dmcu_fw(adev);
 }
@@ -943,6 +1198,18 @@ static int dm_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+#ifdef CONFIG_DRM_AMD_DC_DMUB
+	if (adev->dm.dmub_srv) {
+		dmub_srv_destroy(adev->dm.dmub_srv);
+		adev->dm.dmub_srv = NULL;
+	}
+
+	if (adev->dm.dmub_fw) {
+		release_firmware(adev->dm.dmub_fw);
+		adev->dm.dmub_fw = NULL;
+	}
+
+#endif
 	if(adev->dm.fw_dmcu) {
 		release_firmware(adev->dm.fw_dmcu);
 		adev->dm.fw_dmcu = NULL;
