@@ -186,7 +186,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	struct scsi_driver *drv;
 	unsigned int good_bytes;
 
-	scsi_device_unbusy(sdev);
+	scsi_device_unbusy(sdev, cmd);
 
 	/*
 	 * Clear the flags that say that the device/target/host is no longer
