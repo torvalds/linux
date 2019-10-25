@@ -97,4 +97,8 @@ static inline void write_terminator_record(struct _aarch64_ctx *tail)
 		tail->size = 0;
 	}
 }
+
+struct _aarch64_ctx *get_starting_head(struct _aarch64_ctx *shead,
+				       size_t need_sz, size_t resv_sz,
+				       size_t *offset);
 #endif

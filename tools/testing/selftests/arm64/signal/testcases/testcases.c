@@ -148,3 +148,49 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 
 	return true;
 }
+
+/*
+ * This function walks through the records inside the provided reserved area
+ * trying to find enough space to fit @need_sz bytes: if not enough space is
+ * available and an extra_context record is present, it throws away the
+ * extra_context record.
+ *
+ * It returns a pointer to a new header where it is possible to start storing
+ * our need_sz bytes.
+ *
+ * @shead: points to the start of reserved area
+ * @need_sz: needed bytes
+ * @resv_sz: reserved area size in bytes
+ * @offset: if not null, this will be filled with the offset of the return
+ *	    head pointer from @shead
+ *
+ * @return: pointer to a new head where to start storing need_sz bytes, or
+ *	    NULL if space could not be made available.
+ */
+struct _aarch64_ctx *get_starting_head(struct _aarch64_ctx *shead,
+				       size_t need_sz, size_t resv_sz,
+				       size_t *offset)
+{
+	size_t offs = 0;
+	struct _aarch64_ctx *head;
+
+	head = get_terminator(shead, resv_sz, &offs);
+	/* not found a terminator...no need to update offset if any */
+	if (!head)
+		return head;
+	if (resv_sz - offs < need_sz) {
+		fprintf(stderr, "Low on space:%zd. Discarding extra_context.\n",
+			resv_sz - offs);
+		head = get_header(shead, EXTRA_MAGIC, resv_sz, &offs);
+		if (!head || resv_sz - offs < need_sz) {
+			fprintf(stderr,
+				"Failed to reclaim space on sigframe.\n");
+			return NULL;
+		}
+	}
+
+	fprintf(stderr, "Available space:%zd\n", resv_sz - offs);
+	if (offset)
+		*offset = offs;
+	return head;
+}

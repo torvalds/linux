@@ -115,4 +115,6 @@ static __always_inline bool get_current_context(struct tdescr *td,
 
 	return td->live_uc_valid;
 }
+
+int fake_sigreturn(void *sigframe, size_t sz, int misalign_bytes);
 #endif
