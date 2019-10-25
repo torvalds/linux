@@ -2970,7 +2970,7 @@ static void rtw8822c_dpk_cal_gs(struct rtw_dev *rtwdev, u8 path)
 	dpk_info->dpk_gs[path] = tmp_gs;
 }
 
-void rtw8822c_dpk_cal_coef1(struct rtw_dev *rtwdev)
+static void rtw8822c_dpk_cal_coef1(struct rtw_dev *rtwdev)
 {
 	struct rtw_dpk_info *dpk_info = &rtwdev->dm_info.dpk_info;
 	u32 offset[DPK_RF_PATH_NUM] = {0, 0x58};
@@ -3211,7 +3211,7 @@ static void rtw8822c_phy_calibration(struct rtw_dev *rtwdev)
 	rtw8822c_do_dpk(rtwdev);
 }
 
-void rtw8822c_dpk_track(struct rtw_dev *rtwdev)
+static void rtw8822c_dpk_track(struct rtw_dev *rtwdev)
 {
 	struct rtw_dpk_info *dpk_info = &rtwdev->dm_info.dpk_info;
 	u8 path;
