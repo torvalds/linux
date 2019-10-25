@@ -778,7 +778,7 @@ int btrtl_get_uart_settings(struct hci_dev *hdev,
 			rtl_dev_dbg(hdev, "skipping config entry 0x%x (len %u)",
 				   le16_to_cpu(entry->offset), entry->len);
 			break;
-		};
+		}
 
 		i += sizeof(*entry) + entry->len;
 	}
