@@ -66,6 +66,15 @@ struct rtw_txpwr_lmt_cfg_pair {
 	s8 txpwr_lmt;
 };
 
+struct rtw_phy_pg_cfg_pair {
+	u32 band;
+	u32 rf_path;
+	u32 tx_num;
+	u32 addr;
+	u32 bitmask;
+	u32 data;
+};
+
 #define RTW_DECL_TABLE_PHY_COND_CORE(name, cfg, path)	\
 const struct rtw_table name ## _tbl = {			\
 	.data = name,					\

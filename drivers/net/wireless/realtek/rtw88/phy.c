@@ -20,15 +20,6 @@ union phy_table_tile {
 	struct phy_cfg_pair cfg;
 };
 
-struct phy_pg_cfg_pair {
-	u32 band;
-	u32 rf_path;
-	u32 tx_num;
-	u32 addr;
-	u32 bitmask;
-	u32 data;
-};
-
 static const u32 db_invert_table[12][8] = {
 	{10,		13,		16,		20,
 	 25,		32,		40,		50},
@@ -1226,10 +1217,8 @@ static void rtw_phy_store_tx_power_by_rate(struct rtw_dev *rtwdev,
 
 void rtw_parse_tbl_bb_pg(struct rtw_dev *rtwdev, const struct rtw_table *tbl)
 {
-	const struct phy_pg_cfg_pair *p = tbl->data;
-	const struct phy_pg_cfg_pair *end = p + tbl->size / 6;
-
-	BUILD_BUG_ON(sizeof(struct phy_pg_cfg_pair) != sizeof(u32) * 6);
+	const struct rtw_phy_pg_cfg_pair *p = tbl->data;
+	const struct rtw_phy_pg_cfg_pair *end = p + tbl->size;
 
 	for (; p < end; p++) {
 		if (p->addr == 0xfe || p->addr == 0xffe) {
