@@ -42,6 +42,8 @@ struct zfcp_diag_header {
  *			      adapter.
  * @sysfs_established: flag showing that the associated sysfs-group was created
  *		       during run of zfcp_adapter_enqueue().
+ * @max_age: maximum age of data in diagnostic buffers before they need to be
+ *	     refreshed (in ms).
  * @port_data: data retrieved using exchange port data.
  * @port_data.header: header with metadata for the cache in @port_data.data.
  * @port_data.data: cached QTCB Bottom of command exchange port data.
@@ -51,6 +53,8 @@ struct zfcp_diag_header {
  */
 struct zfcp_diag_adapter {
 	u64	sysfs_established	:1;
+
+	unsigned long	max_age;
 
 	struct {
 		struct zfcp_diag_header		header;

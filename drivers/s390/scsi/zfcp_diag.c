@@ -19,9 +19,6 @@
 #include "zfcp_ext.h"
 #include "zfcp_def.h"
 
-/* Max age of data in a diagnostics buffer before it needs a refresh (in ms). */
-#define ZFCP_DIAG_MAX_AGE (5 * 1000)
-
 static DECLARE_WAIT_QUEUE_HEAD(__zfcp_diag_publish_wait);
 
 /**
@@ -38,9 +35,6 @@ static DECLARE_WAIT_QUEUE_HEAD(__zfcp_diag_publish_wait);
  */
 int zfcp_diag_adapter_setup(struct zfcp_adapter *const adapter)
 {
-	/* set the timestamp so that the first test on age will always fail */
-	const unsigned long initial_timestamp =
-		jiffies - msecs_to_jiffies(ZFCP_DIAG_MAX_AGE);
 	struct zfcp_diag_adapter *diag;
 	struct zfcp_diag_header *hdr;
 
@@ -48,13 +42,16 @@ int zfcp_diag_adapter_setup(struct zfcp_adapter *const adapter)
 	if (diag == NULL)
 		return -ENOMEM;
 
+	diag->max_age = (5 * 1000); /* default value: 5 s */
+
 	/* setup header for port_data */
 	hdr = &diag->port_data.header;
 
 	spin_lock_init(&hdr->access_lock);
 	hdr->buffer = &diag->port_data.data;
 	hdr->buffer_size = sizeof(diag->port_data.data);
-	hdr->timestamp = initial_timestamp;
+	/* set the timestamp so that the first test on age will always fail */
+	hdr->timestamp = jiffies - msecs_to_jiffies(diag->max_age);
 
 	/* setup header for config_data */
 	hdr = &diag->config_data.header;
@@ -62,7 +59,8 @@ int zfcp_diag_adapter_setup(struct zfcp_adapter *const adapter)
 	spin_lock_init(&hdr->access_lock);
 	hdr->buffer = &diag->config_data.data;
 	hdr->buffer_size = sizeof(diag->config_data.data);
-	hdr->timestamp = initial_timestamp;
+	/* set the timestamp so that the first test on age will always fail */
+	hdr->timestamp = jiffies - msecs_to_jiffies(diag->max_age);
 
 	adapter->diagnostics = diag;
 	return 0;
@@ -240,7 +238,8 @@ static int __zfcp_diag_update_buffer(struct zfcp_adapter *const adapter,
 }
 
 static bool
-__zfcp_diag_test_buffer_age_isfresh(const struct zfcp_diag_header *const hdr)
+__zfcp_diag_test_buffer_age_isfresh(const struct zfcp_diag_adapter *const diag,
+				    const struct zfcp_diag_header *const hdr)
 	__must_hold(hdr->access_lock)
 {
 	const unsigned long now = jiffies;
@@ -252,7 +251,7 @@ __zfcp_diag_test_buffer_age_isfresh(const struct zfcp_diag_header *const hdr)
 	if (!time_after_eq(now, hdr->timestamp))
 		return false;
 
-	if (jiffies_to_msecs(now - hdr->timestamp) >= ZFCP_DIAG_MAX_AGE)
+	if (jiffies_to_msecs(now - hdr->timestamp) >= diag->max_age)
 		return false;
 
 	return true;
@@ -291,7 +290,9 @@ int zfcp_diag_update_buffer_limited(struct zfcp_adapter *const adapter,
 
 	spin_lock_irqsave(&hdr->access_lock, flags);
 
-	for (rc = 0; !__zfcp_diag_test_buffer_age_isfresh(hdr); rc = 0) {
+	for (rc = 0;
+	     !__zfcp_diag_test_buffer_age_isfresh(adapter->diagnostics, hdr);
+	     rc = 0) {
 		rc = __zfcp_diag_update_buffer(adapter, hdr, buffer_update,
 					       &flags);
 		if (rc != -EAGAIN)

@@ -326,6 +326,50 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 static ZFCP_DEV_ATTR(adapter, port_remove, S_IWUSR, NULL,
 		     zfcp_sysfs_port_remove_store);
 
+static ssize_t
+zfcp_sysfs_adapter_diag_max_age_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(to_ccwdev(dev));
+	ssize_t rc;
+
+	if (!adapter)
+		return -ENODEV;
+
+	/* ceil(log(2^64 - 1) / log(10)) = 20 */
+	rc = scnprintf(buf, 20 + 2, "%lu\n", adapter->diagnostics->max_age);
+
+	zfcp_ccw_adapter_put(adapter);
+	return rc;
+}
+
+static ssize_t
+zfcp_sysfs_adapter_diag_max_age_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(to_ccwdev(dev));
+	unsigned long max_age;
+	ssize_t rc;
+
+	if (!adapter)
+		return -ENODEV;
+
+	rc = kstrtoul(buf, 10, &max_age);
+	if (rc != 0)
+		goto out;
+
+	adapter->diagnostics->max_age = max_age;
+
+	rc = count;
+out:
+	zfcp_ccw_adapter_put(adapter);
+	return rc;
+}
+static ZFCP_DEV_ATTR(adapter, diag_max_age, 0644,
+		     zfcp_sysfs_adapter_diag_max_age_show,
+		     zfcp_sysfs_adapter_diag_max_age_store);
+
 static struct attribute *zfcp_adapter_attrs[] = {
 	&dev_attr_adapter_failed.attr,
 	&dev_attr_adapter_in_recovery.attr,
@@ -338,6 +382,7 @@ static struct attribute *zfcp_adapter_attrs[] = {
 	&dev_attr_adapter_lic_version.attr,
 	&dev_attr_adapter_status.attr,
 	&dev_attr_adapter_hardware_version.attr,
+	&dev_attr_adapter_diag_max_age.attr,
 	NULL
 };
 
