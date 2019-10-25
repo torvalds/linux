@@ -8,14 +8,14 @@
 #define __ASM_EXCEPTION_H
 
 #include <asm/esr.h>
+#include <asm/kprobes.h>
 
 #include <linux/interrupt.h>
 
-#define __exception	__attribute__((section(".exception.text")))
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 #define __exception_irq_entry	__irq_entry
 #else
-#define __exception_irq_entry	__exception
+#define __exception_irq_entry	__kprobes
 #endif
 
 static inline u32 disr_to_esr(u64 disr)
