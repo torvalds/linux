@@ -11,8 +11,10 @@
 #include "mock_gem_device.h"
 #include "mock_region.h"
 
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 #include "gem/selftests/mock_context.h"
+#include "gt/intel_gt.h"
 #include "selftests/i915_random.h"
 
 static void close_objects(struct intel_memory_region *mem,
@@ -252,6 +254,27 @@ err_close_objects:
 	return err;
 }
 
+static int igt_lmem_create(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj;
+	int err = 0;
+
+	obj = i915_gem_object_create_lmem(i915, PAGE_SIZE, 0);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	err = i915_gem_object_pin_pages(obj);
+	if (err)
+		goto out_put;
+
+	i915_gem_object_unpin_pages(obj);
+out_put:
+	i915_gem_object_put(obj);
+
+	return err;
+}
+
 int intel_memory_region_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -279,4 +302,21 @@ int intel_memory_region_mock_selftests(void)
 out_unref:
 	drm_dev_put(&i915->drm);
 	return err;
+}
+
+int intel_memory_region_live_selftests(struct drm_i915_private *i915)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_lmem_create),
+	};
+
+	if (!HAS_LMEM(i915)) {
+		pr_info("device lacks LMEM support, skipping\n");
+		return 0;
+	}
+
+	if (intel_gt_is_wedged(&i915->gt))
+		return 0;
+
+	return i915_live_subtests(tests, i915);
 }
