@@ -580,9 +580,6 @@ EXPORT_SYMBOL_GPL(skcipher_walk_aead_decrypt);
 
 static unsigned int crypto_skcipher_extsize(struct crypto_alg *alg)
 {
-	if (alg->cra_type == &crypto_blkcipher_type)
-		return sizeof(struct crypto_blkcipher *);
-
 	if (alg->cra_type == &crypto_ablkcipher_type)
 		return sizeof(struct crypto_ablkcipher *);
 
@@ -593,105 +590,6 @@ static void skcipher_set_needkey(struct crypto_skcipher *tfm)
 {
 	if (tfm->keysize)
 		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
-}
-
-static int skcipher_setkey_blkcipher(struct crypto_skcipher *tfm,
-				     const u8 *key, unsigned int keylen)
-{
-	struct crypto_blkcipher **ctx = crypto_skcipher_ctx(tfm);
-	struct crypto_blkcipher *blkcipher = *ctx;
-	int err;
-
-	crypto_blkcipher_clear_flags(blkcipher, ~0);
-	crypto_blkcipher_set_flags(blkcipher, crypto_skcipher_get_flags(tfm) &
-					      CRYPTO_TFM_REQ_MASK);
-	err = crypto_blkcipher_setkey(blkcipher, key, keylen);
-	crypto_skcipher_set_flags(tfm, crypto_blkcipher_get_flags(blkcipher) &
-				       CRYPTO_TFM_RES_MASK);
-	if (unlikely(err)) {
-		skcipher_set_needkey(tfm);
-		return err;
-	}
-
-	crypto_skcipher_clear_flags(tfm, CRYPTO_TFM_NEED_KEY);
-	return 0;
-}
-
-static int skcipher_crypt_blkcipher(struct skcipher_request *req,
-				    int (*crypt)(struct blkcipher_desc *,
-						 struct scatterlist *,
-						 struct scatterlist *,
-						 unsigned int))
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct crypto_blkcipher **ctx = crypto_skcipher_ctx(tfm);
-	struct blkcipher_desc desc = {
-		.tfm = *ctx,
-		.info = req->iv,
-		.flags = req->base.flags,
-	};
-
-
-	return crypt(&desc, req->dst, req->src, req->cryptlen);
-}
-
-static int skcipher_encrypt_blkcipher(struct skcipher_request *req)
-{
-	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(skcipher);
-	struct blkcipher_alg *alg = &tfm->__crt_alg->cra_blkcipher;
-
-	return skcipher_crypt_blkcipher(req, alg->encrypt);
-}
-
-static int skcipher_decrypt_blkcipher(struct skcipher_request *req)
-{
-	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(skcipher);
-	struct blkcipher_alg *alg = &tfm->__crt_alg->cra_blkcipher;
-
-	return skcipher_crypt_blkcipher(req, alg->decrypt);
-}
-
-static void crypto_exit_skcipher_ops_blkcipher(struct crypto_tfm *tfm)
-{
-	struct crypto_blkcipher **ctx = crypto_tfm_ctx(tfm);
-
-	crypto_free_blkcipher(*ctx);
-}
-
-static int crypto_init_skcipher_ops_blkcipher(struct crypto_tfm *tfm)
-{
-	struct crypto_alg *calg = tfm->__crt_alg;
-	struct crypto_skcipher *skcipher = __crypto_skcipher_cast(tfm);
-	struct crypto_blkcipher **ctx = crypto_tfm_ctx(tfm);
-	struct crypto_blkcipher *blkcipher;
-	struct crypto_tfm *btfm;
-
-	if (!crypto_mod_get(calg))
-		return -EAGAIN;
-
-	btfm = __crypto_alloc_tfm(calg, CRYPTO_ALG_TYPE_BLKCIPHER,
-					CRYPTO_ALG_TYPE_MASK);
-	if (IS_ERR(btfm)) {
-		crypto_mod_put(calg);
-		return PTR_ERR(btfm);
-	}
-
-	blkcipher = __crypto_blkcipher_cast(btfm);
-	*ctx = blkcipher;
-	tfm->exit = crypto_exit_skcipher_ops_blkcipher;
-
-	skcipher->setkey = skcipher_setkey_blkcipher;
-	skcipher->encrypt = skcipher_encrypt_blkcipher;
-	skcipher->decrypt = skcipher_decrypt_blkcipher;
-
-	skcipher->ivsize = crypto_blkcipher_ivsize(blkcipher);
-	skcipher->keysize = calg->cra_blkcipher.max_keysize;
-
-	skcipher_set_needkey(skcipher);
-
-	return 0;
 }
 
 static int skcipher_setkey_ablkcipher(struct crypto_skcipher *tfm,
@@ -888,9 +786,6 @@ static int crypto_skcipher_init_tfm(struct crypto_tfm *tfm)
 	struct crypto_skcipher *skcipher = __crypto_skcipher_cast(tfm);
 	struct skcipher_alg *alg = crypto_skcipher_alg(skcipher);
 
-	if (tfm->__crt_alg->cra_type == &crypto_blkcipher_type)
-		return crypto_init_skcipher_ops_blkcipher(tfm);
-
 	if (tfm->__crt_alg->cra_type == &crypto_ablkcipher_type)
 		return crypto_init_skcipher_ops_ablkcipher(tfm);
 
@@ -973,7 +868,7 @@ static const struct crypto_type crypto_skcipher_type = {
 #endif
 	.report = crypto_skcipher_report,
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
-	.maskset = CRYPTO_ALG_TYPE_BLKCIPHER_MASK,
+	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
 	.tfmsize = offsetof(struct crypto_skcipher, base),
 };

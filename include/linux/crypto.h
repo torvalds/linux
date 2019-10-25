@@ -41,7 +41,6 @@
 #define CRYPTO_ALG_TYPE_CIPHER		0x00000001
 #define CRYPTO_ALG_TYPE_COMPRESS	0x00000002
 #define CRYPTO_ALG_TYPE_AEAD		0x00000003
-#define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000004
 #define CRYPTO_ALG_TYPE_ABLKCIPHER	0x00000005
 #define CRYPTO_ALG_TYPE_SKCIPHER	0x00000005
 #define CRYPTO_ALG_TYPE_KPP		0x00000008
@@ -55,7 +54,6 @@
 
 #define CRYPTO_ALG_TYPE_HASH_MASK	0x0000000e
 #define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000e
-#define CRYPTO_ALG_TYPE_BLKCIPHER_MASK	0x0000000c
 #define CRYPTO_ALG_TYPE_ACOMPRESS_MASK	0x0000000e
 
 #define CRYPTO_ALG_LARVAL		0x00000010
@@ -141,7 +139,6 @@
 struct scatterlist;
 struct crypto_ablkcipher;
 struct crypto_async_request;
-struct crypto_blkcipher;
 struct crypto_tfm;
 struct crypto_type;
 
@@ -174,12 +171,6 @@ struct ablkcipher_request {
 	struct scatterlist *dst;
 
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
-};
-
-struct blkcipher_desc {
-	struct crypto_blkcipher *tfm;
-	void *info;
-	u32 flags;
 };
 
 /**
@@ -234,32 +225,6 @@ struct ablkcipher_alg {
 	              unsigned int keylen);
 	int (*encrypt)(struct ablkcipher_request *req);
 	int (*decrypt)(struct ablkcipher_request *req);
-
-	unsigned int min_keysize;
-	unsigned int max_keysize;
-	unsigned int ivsize;
-};
-
-/**
- * struct blkcipher_alg - synchronous block cipher definition
- * @min_keysize: see struct ablkcipher_alg
- * @max_keysize: see struct ablkcipher_alg
- * @setkey: see struct ablkcipher_alg
- * @encrypt: see struct ablkcipher_alg
- * @decrypt: see struct ablkcipher_alg
- * @ivsize: see struct ablkcipher_alg
- *
- * All fields except @ivsize are mandatory and must be filled.
- */
-struct blkcipher_alg {
-	int (*setkey)(struct crypto_tfm *tfm, const u8 *key,
-	              unsigned int keylen);
-	int (*encrypt)(struct blkcipher_desc *desc,
-		       struct scatterlist *dst, struct scatterlist *src,
-		       unsigned int nbytes);
-	int (*decrypt)(struct blkcipher_desc *desc,
-		       struct scatterlist *dst, struct scatterlist *src,
-		       unsigned int nbytes);
 
 	unsigned int min_keysize;
 	unsigned int max_keysize;
@@ -451,7 +416,6 @@ struct crypto_istat_rng {
 #endif /* CONFIG_CRYPTO_STATS */
 
 #define cra_ablkcipher	cra_u.ablkcipher
-#define cra_blkcipher	cra_u.blkcipher
 #define cra_cipher	cra_u.cipher
 #define cra_compress	cra_u.compress
 
@@ -499,9 +463,8 @@ struct crypto_istat_rng {
  *		     transformation algorithm.
  * @cra_type: Type of the cryptographic transformation. This is a pointer to
  *	      struct crypto_type, which implements callbacks common for all
- *	      transformation types. There are multiple options:
- *	      &crypto_blkcipher_type, &crypto_ablkcipher_type,
- *	      &crypto_ahash_type, &crypto_rng_type.
+ *	      transformation types. There are multiple options, such as
+ *	      &crypto_skcipher_type, &crypto_ahash_type, &crypto_rng_type.
  *	      This field might be empty. In that case, there are no common
  *	      callbacks. This is the case for: cipher, compress, shash.
  * @cra_u: Callbacks implementing the transformation. This is a union of
@@ -522,8 +485,6 @@ struct crypto_istat_rng {
  *	      @cra_init.
  * @cra_u.ablkcipher: Union member which contains an asynchronous block cipher
  *		      definition. See @struct @ablkcipher_alg.
- * @cra_u.blkcipher: Union member which contains a synchronous block cipher
- * 		     definition See @struct @blkcipher_alg.
  * @cra_u.cipher: Union member which contains a single-block symmetric cipher
  *		  definition. See @struct @cipher_alg.
  * @cra_u.compress: Union member which contains a (de)compression algorithm.
@@ -566,7 +527,6 @@ struct crypto_alg {
 
 	union {
 		struct ablkcipher_alg ablkcipher;
-		struct blkcipher_alg blkcipher;
 		struct cipher_alg cipher;
 		struct compress_alg compress;
 	} cra_u;
@@ -727,16 +687,6 @@ struct ablkcipher_tfm {
 	unsigned int reqsize;
 };
 
-struct blkcipher_tfm {
-	void *iv;
-	int (*setkey)(struct crypto_tfm *tfm, const u8 *key,
-		      unsigned int keylen);
-	int (*encrypt)(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes);
-	int (*decrypt)(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes);
-};
-
 struct cipher_tfm {
 	int (*cit_setkey)(struct crypto_tfm *tfm,
 	                  const u8 *key, unsigned int keylen);
@@ -754,7 +704,6 @@ struct compress_tfm {
 };
 
 #define crt_ablkcipher	crt_u.ablkcipher
-#define crt_blkcipher	crt_u.blkcipher
 #define crt_cipher	crt_u.cipher
 #define crt_compress	crt_u.compress
 
@@ -764,7 +713,6 @@ struct crypto_tfm {
 	
 	union {
 		struct ablkcipher_tfm ablkcipher;
-		struct blkcipher_tfm blkcipher;
 		struct cipher_tfm cipher;
 		struct compress_tfm compress;
 	} crt_u;
@@ -777,10 +725,6 @@ struct crypto_tfm {
 };
 
 struct crypto_ablkcipher {
-	struct crypto_tfm base;
-};
-
-struct crypto_blkcipher {
 	struct crypto_tfm base;
 };
 
@@ -1230,341 +1174,6 @@ static inline void ablkcipher_request_set_crypt(
 	req->dst = dst;
 	req->nbytes = nbytes;
 	req->info = iv;
-}
-
-/**
- * DOC: Synchronous Block Cipher API
- *
- * The synchronous block cipher API is used with the ciphers of type
- * CRYPTO_ALG_TYPE_BLKCIPHER (listed as type "blkcipher" in /proc/crypto)
- *
- * Synchronous calls, have a context in the tfm. But since a single tfm can be
- * used in multiple calls and in parallel, this info should not be changeable
- * (unless a lock is used). This applies, for example, to the symmetric key.
- * However, the IV is changeable, so there is an iv field in blkcipher_tfm
- * structure for synchronous blkcipher api. So, its the only state info that can
- * be kept for synchronous calls without using a big lock across a tfm.
- *
- * The block cipher API allows the use of a complete cipher, i.e. a cipher
- * consisting of a template (a block chaining mode) and a single block cipher
- * primitive (e.g. AES).
- *
- * The plaintext data buffer and the ciphertext data buffer are pointed to
- * by using scatter/gather lists. The cipher operation is performed
- * on all segments of the provided scatter/gather lists.
- *
- * The kernel crypto API supports a cipher operation "in-place" which means that
- * the caller may provide the same scatter/gather list for the plaintext and
- * cipher text. After the completion of the cipher operation, the plaintext
- * data is replaced with the ciphertext data in case of an encryption and vice
- * versa for a decryption. The caller must ensure that the scatter/gather lists
- * for the output data point to sufficiently large buffers, i.e. multiples of
- * the block size of the cipher.
- */
-
-static inline struct crypto_blkcipher *__crypto_blkcipher_cast(
-	struct crypto_tfm *tfm)
-{
-	return (struct crypto_blkcipher *)tfm;
-}
-
-static inline struct crypto_blkcipher *crypto_blkcipher_cast(
-	struct crypto_tfm *tfm)
-{
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_BLKCIPHER);
-	return __crypto_blkcipher_cast(tfm);
-}
-
-/**
- * crypto_alloc_blkcipher() - allocate synchronous block cipher handle
- * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
- *	      blkcipher cipher
- * @type: specifies the type of the cipher
- * @mask: specifies the mask for the cipher
- *
- * Allocate a cipher handle for a block cipher. The returned struct
- * crypto_blkcipher is the cipher handle that is required for any subsequent
- * API invocation for that block cipher.
- *
- * Return: allocated cipher handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
- */
-static inline struct crypto_blkcipher *crypto_alloc_blkcipher(
-	const char *alg_name, u32 type, u32 mask)
-{
-	type &= ~CRYPTO_ALG_TYPE_MASK;
-	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
-	mask |= CRYPTO_ALG_TYPE_MASK;
-
-	return __crypto_blkcipher_cast(crypto_alloc_base(alg_name, type, mask));
-}
-
-static inline struct crypto_tfm *crypto_blkcipher_tfm(
-	struct crypto_blkcipher *tfm)
-{
-	return &tfm->base;
-}
-
-/**
- * crypto_free_blkcipher() - zeroize and free the block cipher handle
- * @tfm: cipher handle to be freed
- */
-static inline void crypto_free_blkcipher(struct crypto_blkcipher *tfm)
-{
-	crypto_free_tfm(crypto_blkcipher_tfm(tfm));
-}
-
-/**
- * crypto_has_blkcipher() - Search for the availability of a block cipher
- * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
- *	      block cipher
- * @type: specifies the type of the cipher
- * @mask: specifies the mask for the cipher
- *
- * Return: true when the block cipher is known to the kernel crypto API; false
- *	   otherwise
- */
-static inline int crypto_has_blkcipher(const char *alg_name, u32 type, u32 mask)
-{
-	type &= ~CRYPTO_ALG_TYPE_MASK;
-	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
-	mask |= CRYPTO_ALG_TYPE_MASK;
-
-	return crypto_has_alg(alg_name, type, mask);
-}
-
-/**
- * crypto_blkcipher_name() - return the name / cra_name from the cipher handle
- * @tfm: cipher handle
- *
- * Return: The character string holding the name of the cipher
- */
-static inline const char *crypto_blkcipher_name(struct crypto_blkcipher *tfm)
-{
-	return crypto_tfm_alg_name(crypto_blkcipher_tfm(tfm));
-}
-
-static inline struct blkcipher_tfm *crypto_blkcipher_crt(
-	struct crypto_blkcipher *tfm)
-{
-	return &crypto_blkcipher_tfm(tfm)->crt_blkcipher;
-}
-
-static inline struct blkcipher_alg *crypto_blkcipher_alg(
-	struct crypto_blkcipher *tfm)
-{
-	return &crypto_blkcipher_tfm(tfm)->__crt_alg->cra_blkcipher;
-}
-
-/**
- * crypto_blkcipher_ivsize() - obtain IV size
- * @tfm: cipher handle
- *
- * The size of the IV for the block cipher referenced by the cipher handle is
- * returned. This IV size may be zero if the cipher does not need an IV.
- *
- * Return: IV size in bytes
- */
-static inline unsigned int crypto_blkcipher_ivsize(struct crypto_blkcipher *tfm)
-{
-	return crypto_blkcipher_alg(tfm)->ivsize;
-}
-
-/**
- * crypto_blkcipher_blocksize() - obtain block size of cipher
- * @tfm: cipher handle
- *
- * The block size for the block cipher referenced with the cipher handle is
- * returned. The caller may use that information to allocate appropriate
- * memory for the data returned by the encryption or decryption operation.
- *
- * Return: block size of cipher
- */
-static inline unsigned int crypto_blkcipher_blocksize(
-	struct crypto_blkcipher *tfm)
-{
-	return crypto_tfm_alg_blocksize(crypto_blkcipher_tfm(tfm));
-}
-
-static inline unsigned int crypto_blkcipher_alignmask(
-	struct crypto_blkcipher *tfm)
-{
-	return crypto_tfm_alg_alignmask(crypto_blkcipher_tfm(tfm));
-}
-
-static inline u32 crypto_blkcipher_get_flags(struct crypto_blkcipher *tfm)
-{
-	return crypto_tfm_get_flags(crypto_blkcipher_tfm(tfm));
-}
-
-static inline void crypto_blkcipher_set_flags(struct crypto_blkcipher *tfm,
-					      u32 flags)
-{
-	crypto_tfm_set_flags(crypto_blkcipher_tfm(tfm), flags);
-}
-
-static inline void crypto_blkcipher_clear_flags(struct crypto_blkcipher *tfm,
-						u32 flags)
-{
-	crypto_tfm_clear_flags(crypto_blkcipher_tfm(tfm), flags);
-}
-
-/**
- * crypto_blkcipher_setkey() - set key for cipher
- * @tfm: cipher handle
- * @key: buffer holding the key
- * @keylen: length of the key in bytes
- *
- * The caller provided key is set for the block cipher referenced by the cipher
- * handle.
- *
- * Note, the key length determines the cipher type. Many block ciphers implement
- * different cipher modes depending on the key size, such as AES-128 vs AES-192
- * vs. AES-256. When providing a 16 byte key for an AES cipher handle, AES-128
- * is performed.
- *
- * Return: 0 if the setting of the key was successful; < 0 if an error occurred
- */
-static inline int crypto_blkcipher_setkey(struct crypto_blkcipher *tfm,
-					  const u8 *key, unsigned int keylen)
-{
-	return crypto_blkcipher_crt(tfm)->setkey(crypto_blkcipher_tfm(tfm),
-						 key, keylen);
-}
-
-/**
- * crypto_blkcipher_encrypt() - encrypt plaintext
- * @desc: reference to the block cipher handle with meta data
- * @dst: scatter/gather list that is filled by the cipher operation with the
- *	ciphertext
- * @src: scatter/gather list that holds the plaintext
- * @nbytes: number of bytes of the plaintext to encrypt.
- *
- * Encrypt plaintext data using the IV set by the caller with a preceding
- * call of crypto_blkcipher_set_iv.
- *
- * The blkcipher_desc data structure must be filled by the caller and can
- * reside on the stack. The caller must fill desc as follows: desc.tfm is filled
- * with the block cipher handle; desc.flags is filled with either
- * CRYPTO_TFM_REQ_MAY_SLEEP or 0.
- *
- * Return: 0 if the cipher operation was successful; < 0 if an error occurred
- */
-static inline int crypto_blkcipher_encrypt(struct blkcipher_desc *desc,
-					   struct scatterlist *dst,
-					   struct scatterlist *src,
-					   unsigned int nbytes)
-{
-	desc->info = crypto_blkcipher_crt(desc->tfm)->iv;
-	return crypto_blkcipher_crt(desc->tfm)->encrypt(desc, dst, src, nbytes);
-}
-
-/**
- * crypto_blkcipher_encrypt_iv() - encrypt plaintext with dedicated IV
- * @desc: reference to the block cipher handle with meta data
- * @dst: scatter/gather list that is filled by the cipher operation with the
- *	ciphertext
- * @src: scatter/gather list that holds the plaintext
- * @nbytes: number of bytes of the plaintext to encrypt.
- *
- * Encrypt plaintext data with the use of an IV that is solely used for this
- * cipher operation. Any previously set IV is not used.
- *
- * The blkcipher_desc data structure must be filled by the caller and can
- * reside on the stack. The caller must fill desc as follows: desc.tfm is filled
- * with the block cipher handle; desc.info is filled with the IV to be used for
- * the current operation; desc.flags is filled with either
- * CRYPTO_TFM_REQ_MAY_SLEEP or 0.
- *
- * Return: 0 if the cipher operation was successful; < 0 if an error occurred
- */
-static inline int crypto_blkcipher_encrypt_iv(struct blkcipher_desc *desc,
-					      struct scatterlist *dst,
-					      struct scatterlist *src,
-					      unsigned int nbytes)
-{
-	return crypto_blkcipher_crt(desc->tfm)->encrypt(desc, dst, src, nbytes);
-}
-
-/**
- * crypto_blkcipher_decrypt() - decrypt ciphertext
- * @desc: reference to the block cipher handle with meta data
- * @dst: scatter/gather list that is filled by the cipher operation with the
- *	plaintext
- * @src: scatter/gather list that holds the ciphertext
- * @nbytes: number of bytes of the ciphertext to decrypt.
- *
- * Decrypt ciphertext data using the IV set by the caller with a preceding
- * call of crypto_blkcipher_set_iv.
- *
- * The blkcipher_desc data structure must be filled by the caller as documented
- * for the crypto_blkcipher_encrypt call above.
- *
- * Return: 0 if the cipher operation was successful; < 0 if an error occurred
- *
- */
-static inline int crypto_blkcipher_decrypt(struct blkcipher_desc *desc,
-					   struct scatterlist *dst,
-					   struct scatterlist *src,
-					   unsigned int nbytes)
-{
-	desc->info = crypto_blkcipher_crt(desc->tfm)->iv;
-	return crypto_blkcipher_crt(desc->tfm)->decrypt(desc, dst, src, nbytes);
-}
-
-/**
- * crypto_blkcipher_decrypt_iv() - decrypt ciphertext with dedicated IV
- * @desc: reference to the block cipher handle with meta data
- * @dst: scatter/gather list that is filled by the cipher operation with the
- *	plaintext
- * @src: scatter/gather list that holds the ciphertext
- * @nbytes: number of bytes of the ciphertext to decrypt.
- *
- * Decrypt ciphertext data with the use of an IV that is solely used for this
- * cipher operation. Any previously set IV is not used.
- *
- * The blkcipher_desc data structure must be filled by the caller as documented
- * for the crypto_blkcipher_encrypt_iv call above.
- *
- * Return: 0 if the cipher operation was successful; < 0 if an error occurred
- */
-static inline int crypto_blkcipher_decrypt_iv(struct blkcipher_desc *desc,
-					      struct scatterlist *dst,
-					      struct scatterlist *src,
-					      unsigned int nbytes)
-{
-	return crypto_blkcipher_crt(desc->tfm)->decrypt(desc, dst, src, nbytes);
-}
-
-/**
- * crypto_blkcipher_set_iv() - set IV for cipher
- * @tfm: cipher handle
- * @src: buffer holding the IV
- * @len: length of the IV in bytes
- *
- * The caller provided IV is set for the block cipher referenced by the cipher
- * handle.
- */
-static inline void crypto_blkcipher_set_iv(struct crypto_blkcipher *tfm,
-					   const u8 *src, unsigned int len)
-{
-	memcpy(crypto_blkcipher_crt(tfm)->iv, src, len);
-}
-
-/**
- * crypto_blkcipher_get_iv() - obtain IV from cipher
- * @tfm: cipher handle
- * @dst: buffer filled with the IV
- * @len: length of the buffer dst
- *
- * The caller can obtain the IV set for the block cipher referenced by the
- * cipher handle and store it into the user-provided buffer. If the buffer
- * has an insufficient space, the IV is truncated to fit the buffer.
- */
-static inline void crypto_blkcipher_get_iv(struct crypto_blkcipher *tfm,
-					   u8 *dst, unsigned int len)
-{
-	memcpy(dst, crypto_blkcipher_crt(tfm)->iv, len);
 }
 
 /**
