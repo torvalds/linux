@@ -160,19 +160,17 @@ void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
 	else if (pkt_stat->rate >= DESC_RATEMCS0)
 		rx_status->encoding = RX_ENC_HT;
 
-	if (pkt_stat->rate >= DESC_RATEMCS0) {
-		rtw_desc_to_mcsrate(pkt_stat->rate, &rx_status->rate_idx,
-				    &rx_status->nss);
-	} else if (rx_status->band == NL80211_BAND_5GHZ &&
-		   pkt_stat->rate >= DESC_RATE6M &&
-		   pkt_stat->rate <= DESC_RATE54M) {
+	if (rx_status->band == NL80211_BAND_5GHZ &&
+	    pkt_stat->rate >= DESC_RATE6M &&
+	    pkt_stat->rate <= DESC_RATE54M) {
 		rx_status->rate_idx = pkt_stat->rate - DESC_RATE6M;
 	} else if (rx_status->band == NL80211_BAND_2GHZ &&
 		   pkt_stat->rate >= DESC_RATE1M &&
 		   pkt_stat->rate <= DESC_RATE54M) {
 		rx_status->rate_idx = pkt_stat->rate - DESC_RATE1M;
-	} else {
-		rx_status->rate_idx = 0;
+	} else if (pkt_stat->rate >= DESC_RATEMCS0) {
+		rtw_desc_to_mcsrate(pkt_stat->rate, &rx_status->rate_idx,
+				    &rx_status->nss);
 	}
 
 	rx_status->flag |= RX_FLAG_MACTIME_START;
