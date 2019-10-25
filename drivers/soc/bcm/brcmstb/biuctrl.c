@@ -20,6 +20,8 @@
 #define RACENDATA_SHIFT			6
 #define RAC_CPU_SHIFT			8
 #define RACCFG_MASK			0xff
+#define DPREF_LINE_2_SHIFT		24
+#define DPREF_LINE_2_MASK		0xff
 
 /* Bitmask to enable instruction and data prefetching with a 256-bytes stride */
 #define RAC_DATA_INST_EN_MASK		(1 << RACPREFINST_SHIFT | \
@@ -50,6 +52,7 @@ enum cpubiuctrl_regs {
 	CPU_MCP_FLOW_REG,
 	CPU_WRITEBACK_CTRL_REG,
 	RAC_CONFIG0_REG,
+	RAC_CONFIG1_REG,
 	NUM_CPU_BIUCTRL_REGS,
 };
 
@@ -58,7 +61,7 @@ static inline u32 cbc_readl(int reg)
 	int offset = cpubiuctrl_regs[reg];
 
 	if (offset == -1 ||
-	    (IS_ENABLED(CONFIG_CACHE_B15_RAC) && reg == RAC_CONFIG0_REG))
+	    (IS_ENABLED(CONFIG_CACHE_B15_RAC) && reg >= RAC_CONFIG0_REG))
 		return (u32)-1;
 
 	return readl_relaxed(cpubiuctrl_base + offset);
@@ -69,7 +72,7 @@ static inline void cbc_writel(u32 val, int reg)
 	int offset = cpubiuctrl_regs[reg];
 
 	if (offset == -1 ||
-	    (IS_ENABLED(CONFIG_CACHE_B15_RAC) && reg == RAC_CONFIG0_REG))
+	    (IS_ENABLED(CONFIG_CACHE_B15_RAC) && reg >= RAC_CONFIG0_REG))
 		return;
 
 	writel(val, cpubiuctrl_base + offset);
@@ -80,6 +83,7 @@ static const int b15_cpubiuctrl_regs[] = {
 	[CPU_MCP_FLOW_REG] = -1,
 	[CPU_WRITEBACK_CTRL_REG] = -1,
 	[RAC_CONFIG0_REG] = -1,
+	[RAC_CONFIG1_REG] = -1,
 };
 
 /* Odd cases, e.g: 7260A0 */
@@ -88,6 +92,7 @@ static const int b53_cpubiuctrl_no_wb_regs[] = {
 	[CPU_MCP_FLOW_REG] = 0x0b4,
 	[CPU_WRITEBACK_CTRL_REG] = -1,
 	[RAC_CONFIG0_REG] = 0x78,
+	[RAC_CONFIG1_REG] = 0x7c,
 };
 
 static const int b53_cpubiuctrl_regs[] = {
@@ -95,6 +100,7 @@ static const int b53_cpubiuctrl_regs[] = {
 	[CPU_MCP_FLOW_REG] = 0x0b4,
 	[CPU_WRITEBACK_CTRL_REG] = 0x22c,
 	[RAC_CONFIG0_REG] = 0x78,
+	[RAC_CONFIG1_REG] = 0x7c,
 };
 
 static const int a72_cpubiuctrl_regs[] = {
@@ -102,6 +108,7 @@ static const int a72_cpubiuctrl_regs[] = {
 	[CPU_MCP_FLOW_REG] = 0x1c,
 	[CPU_WRITEBACK_CTRL_REG] = 0x20,
 	[RAC_CONFIG0_REG] = 0x08,
+	[RAC_CONFIG1_REG] = 0x0c,
 };
 
 static int __init mcp_write_pairing_set(void)
@@ -167,7 +174,7 @@ static const u32 a72_b53_mach_compat[] = {
 static void __init a72_b53_rac_enable_all(struct device_node *np)
 {
 	unsigned int cpu;
-	u32 enable = 0;
+	u32 enable = 0, pref_dist;
 
 	if (IS_ENABLED(CONFIG_CACHE_B15_RAC))
 		return;
@@ -175,10 +182,15 @@ static void __init a72_b53_rac_enable_all(struct device_node *np)
 	if (WARN(num_possible_cpus() > 4, "RAC only supports 4 CPUs\n"))
 		return;
 
-	for_each_possible_cpu(cpu)
+	pref_dist = cbc_readl(RAC_CONFIG1_REG);
+	for_each_possible_cpu(cpu) {
 		enable |= RAC_DATA_INST_EN_MASK << (cpu * RAC_CPU_SHIFT);
+		if (cpubiuctrl_regs == a72_cpubiuctrl_regs)
+			pref_dist |= 1 << (cpu + DPREF_LINE_2_SHIFT);
+	}
 
 	cbc_writel(enable, RAC_CONFIG0_REG);
+	cbc_writel(pref_dist, RAC_CONFIG1_REG);
 
 	pr_info("%pOF: Broadcom %s read-ahead cache\n",
 		np, cpubiuctrl_regs == a72_cpubiuctrl_regs ?
