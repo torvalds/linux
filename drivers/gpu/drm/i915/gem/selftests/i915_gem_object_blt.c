@@ -7,35 +7,66 @@
 
 #include "i915_selftest.h"
 
+#include "gem/i915_gem_context.h"
 #include "selftests/igt_flush_test.h"
+#include "selftests/i915_random.h"
 #include "selftests/mock_drm.h"
 #include "huge_gem_object.h"
 #include "mock_context.h"
 
-static int igt_fill_blt(void *arg)
-{
-	struct drm_i915_private *i915 = arg;
-	struct intel_context *ce = i915->engine[BCS0]->kernel_context;
-	struct drm_i915_gem_object *obj;
+struct igt_thread_arg {
+	struct drm_i915_private *i915;
 	struct rnd_state prng;
+	unsigned int n_cpus;
+};
+
+static int igt_fill_blt_thread(void *arg)
+{
+	struct igt_thread_arg *thread = arg;
+	struct drm_i915_private *i915 = thread->i915;
+	struct rnd_state *prng = &thread->prng;
+	struct drm_i915_gem_object *obj;
+	struct i915_gem_context *ctx;
+	struct intel_context *ce;
+	struct drm_file *file;
+	unsigned int prio;
 	IGT_TIMEOUT(end);
-	u32 *vaddr;
-	int err = 0;
+	int err;
 
-	prandom_seed_state(&prng, i915_selftest.random_seed);
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
 
-	/*
-	 * XXX: needs some threads to scale all these tests, also maybe throw
-	 * in submission from higher priority context to see if we are
-	 * preempted for very large objects...
-	 */
+	ctx = live_context(i915, file);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out_file;
+	}
+
+	prio = i915_prandom_u32_max_state(I915_PRIORITY_MAX, prng);
+	ctx->sched.priority = I915_USER_PRIORITY(prio);
+
+	ce = i915_gem_context_get_engine(ctx, BCS0);
+	GEM_BUG_ON(IS_ERR(ce));
 
 	do {
 		const u32 max_block_size = S16_MAX * PAGE_SIZE;
-		u32 sz = min_t(u64, ce->vm->total >> 4, prandom_u32_state(&prng));
-		u32 phys_sz = sz % (max_block_size + 1);
-		u32 val = prandom_u32_state(&prng);
+		u32 val = prandom_u32_state(prng);
+		u64 total = ce->vm->total;
+		u32 phys_sz;
+		u32 sz;
+		u32 *vaddr;
 		u32 i;
+
+		/*
+		 * If we have a tiny shared address space, like for the GGTT
+		 * then we can't be too greedy.
+		 */
+		if (i915_is_ggtt(ce->vm))
+			total = div64_u64(total, thread->n_cpus);
+
+		sz = min_t(u64, total >> 4, prandom_u32_state(prng));
+		phys_sz = sz % (max_block_size + 1);
 
 		sz = round_up(sz, PAGE_SIZE);
 		phys_sz = round_up(phys_sz, PAGE_SIZE);
@@ -98,27 +129,55 @@ err_flush:
 	if (err == -ENOMEM)
 		err = 0;
 
+	intel_context_put(ce);
+out_file:
+	mock_file_free(i915, file);
 	return err;
 }
 
-static int igt_copy_blt(void *arg)
+static int igt_copy_blt_thread(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
-	struct intel_context *ce = i915->engine[BCS0]->kernel_context;
+	struct igt_thread_arg *thread = arg;
+	struct drm_i915_private *i915 = thread->i915;
+	struct rnd_state *prng = &thread->prng;
 	struct drm_i915_gem_object *src, *dst;
-	struct rnd_state prng;
+	struct i915_gem_context *ctx;
+	struct intel_context *ce;
+	struct drm_file *file;
+	unsigned int prio;
 	IGT_TIMEOUT(end);
-	u32 *vaddr;
-	int err = 0;
+	int err;
 
-	prandom_seed_state(&prng, i915_selftest.random_seed);
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	ctx = live_context(i915, file);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out_file;
+	}
+
+	prio = i915_prandom_u32_max_state(I915_PRIORITY_MAX, prng);
+	ctx->sched.priority = I915_USER_PRIORITY(prio);
+
+	ce = i915_gem_context_get_engine(ctx, BCS0);
+	GEM_BUG_ON(IS_ERR(ce));
 
 	do {
 		const u32 max_block_size = S16_MAX * PAGE_SIZE;
-		u32 sz = min_t(u64, ce->vm->total >> 4, prandom_u32_state(&prng));
-		u32 phys_sz = sz % (max_block_size + 1);
-		u32 val = prandom_u32_state(&prng);
+		u32 val = prandom_u32_state(prng);
+		u64 total = ce->vm->total;
+		u32 phys_sz;
+		u32 sz;
+		u32 *vaddr;
 		u32 i;
+
+		if (i915_is_ggtt(ce->vm))
+			total = div64_u64(total, thread->n_cpus);
+
+		sz = min_t(u64, total >> 4, prandom_u32_state(prng));
+		phys_sz = sz % (max_block_size + 1);
 
 		sz = round_up(sz, PAGE_SIZE);
 		phys_sz = round_up(phys_sz, PAGE_SIZE);
@@ -201,7 +260,76 @@ err_flush:
 	if (err == -ENOMEM)
 		err = 0;
 
+	intel_context_put(ce);
+out_file:
+	mock_file_free(i915, file);
 	return err;
+}
+
+static int igt_threaded_blt(struct drm_i915_private *i915,
+			    int (*blt_fn)(void *arg))
+{
+	struct igt_thread_arg *thread;
+	struct task_struct **tsk;
+	I915_RND_STATE(prng);
+	unsigned int n_cpus;
+	unsigned int i;
+	int err = 0;
+
+	n_cpus = num_online_cpus() + 1;
+
+	tsk = kcalloc(n_cpus, sizeof(struct task_struct *), GFP_KERNEL);
+	if (!tsk)
+		return 0;
+
+	thread = kcalloc(n_cpus, sizeof(struct igt_thread_arg), GFP_KERNEL);
+	if (!thread) {
+		kfree(tsk);
+		return 0;
+	}
+
+	for (i = 0; i < n_cpus; ++i) {
+		thread[i].i915 = i915;
+		thread[i].n_cpus = n_cpus;
+		thread[i].prng =
+			I915_RND_STATE_INITIALIZER(prandom_u32_state(&prng));
+
+		tsk[i] = kthread_run(blt_fn, &thread[i], "igt/blt-%d", i);
+		if (IS_ERR(tsk[i])) {
+			err = PTR_ERR(tsk[i]);
+			break;
+		}
+
+		get_task_struct(tsk[i]);
+	}
+
+	for (i = 0; i < n_cpus; ++i) {
+		int status;
+
+		if (IS_ERR_OR_NULL(tsk[i]))
+			continue;
+
+		status = kthread_stop(tsk[i]);
+		if (status && !err)
+			err = status;
+
+		put_task_struct(tsk[i]);
+	}
+
+	kfree(tsk);
+	kfree(thread);
+
+	return err;
+}
+
+static int igt_fill_blt(void *arg)
+{
+	return igt_threaded_blt(arg, igt_fill_blt_thread);
+}
+
+static int igt_copy_blt(void *arg)
+{
+	return igt_threaded_blt(arg, igt_copy_blt_thread);
 }
 
 int i915_gem_object_blt_live_selftests(struct drm_i915_private *i915)
