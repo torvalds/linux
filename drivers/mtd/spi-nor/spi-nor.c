@@ -1367,9 +1367,6 @@ static int spi_nor_erase_sector(struct spi_nor *nor, u32 addr)
 
 	addr = spi_nor_convert_addr(nor, addr);
 
-	if (nor->controller_ops && nor->controller_ops->erase)
-		return nor->controller_ops->erase(nor, addr);
-
 	if (nor->spimem) {
 		struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(nor->erase_opcode, 1),
@@ -1378,6 +1375,8 @@ static int spi_nor_erase_sector(struct spi_nor *nor, u32 addr)
 				   SPI_MEM_OP_NO_DATA);
 
 		return spi_mem_exec_op(nor->spimem, &op);
+	} else if (nor->controller_ops->erase) {
+		return nor->controller_ops->erase(nor, addr);
 	}
 
 	/*
