@@ -552,6 +552,11 @@ acpi_db_walk_for_fields(acpi_handle obj_handle,
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 	acpi_evaluate_object(obj_handle, NULL, NULL, &buffer);
 
+	/*
+	 * Since this is a field unit, surround the output in braces
+	 */
+	acpi_os_printf("{");
+
 	ret_value = (union acpi_object *)buffer.pointer;
 	switch (ret_value->type) {
 	case ACPI_TYPE_INTEGER:
@@ -571,7 +576,7 @@ acpi_db_walk_for_fields(acpi_handle obj_handle,
 
 		break;
 	}
-	acpi_os_printf("\n");
+	acpi_os_printf("}\n");
 
 	ACPI_FREE(buffer.pointer);
 
