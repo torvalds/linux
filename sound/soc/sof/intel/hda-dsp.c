@@ -19,6 +19,7 @@
 #include <sound/hda_register.h>
 #include "../ops.h"
 #include "hda.h"
+#include "hda-ipc.h"
 
 /*
  * DSP Core control.
@@ -319,10 +320,28 @@ static int hda_dsp_wait_d0i3c_done(struct snd_sof_dev *sdev, int retry)
 	return 0;
 }
 
+static int hda_dsp_send_pm_gate_ipc(struct snd_sof_dev *sdev, u32 flags)
+{
+	struct sof_ipc_pm_gate pm_gate;
+	struct sof_ipc_reply reply;
+
+	memset(&pm_gate, 0, sizeof(pm_gate));
+
+	/* configure pm_gate ipc message */
+	pm_gate.hdr.size = sizeof(pm_gate);
+	pm_gate.hdr.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_GATE;
+	pm_gate.flags = flags;
+
+	/* send pm_gate ipc to dsp */
+	return sof_ipc_tx_message(sdev->ipc, pm_gate.hdr.cmd, &pm_gate,
+				  sizeof(pm_gate), &reply, sizeof(reply));
+}
+
 int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
 			    enum sof_d0_substate d0_substate)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
+	u32 flags;
 	int ret;
 	u8 value;
 
@@ -347,7 +366,18 @@ int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
 	dev_vdbg(bus->dev, "D0I3C updated, register = 0x%x\n",
 		 snd_hdac_chip_readb(bus, VS_D0I3C));
 
-	return 0;
+	if (d0_substate == SOF_DSP_D0I0)
+		flags = HDA_PM_PPG;/* prevent power gating in D0 */
+	else
+		flags = HDA_PM_NO_DMA_TRACE;/* disable DMA trace in D0I3*/
+
+	/* sending pm_gate IPC */
+	ret = hda_dsp_send_pm_gate_ipc(sdev, flags);
+	if (ret < 0)
+		dev_err(sdev->dev,
+			"error: PM_GATE ipc error %d\n", ret);
+
+	return ret;
 }
 
 static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
