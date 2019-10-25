@@ -3736,8 +3736,10 @@ static int gfx_v9_0_hw_fini(void *handle)
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
 
-	/* disable KCQ to avoid CPC touch memory not valid anymore */
-	gfx_v9_0_kcq_disable(adev);
+	/* DF freeze and kcq disable will fail */
+	if (!amdgpu_ras_intr_triggered())
+		/* disable KCQ to avoid CPC touch memory not valid anymore */
+		gfx_v9_0_kcq_disable(adev);
 
 	if (amdgpu_sriov_vf(adev)) {
 		gfx_v9_0_cp_gfx_enable(adev, false);

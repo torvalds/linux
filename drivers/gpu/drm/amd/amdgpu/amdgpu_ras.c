@@ -558,15 +558,17 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	if (!(!!enable ^ !!amdgpu_ras_is_feature_enabled(adev, head)))
 		return 0;
 
-	ret = psp_ras_enable_features(&adev->psp, &info, enable);
-	if (ret) {
-		DRM_ERROR("RAS ERROR: %s %s feature failed ret %d\n",
-				enable ? "enable":"disable",
-				ras_block_str(head->block),
-				ret);
-		if (ret == TA_RAS_STATUS__RESET_NEEDED)
-			return -EAGAIN;
-		return -EINVAL;
+	if (!amdgpu_ras_intr_triggered()) {
+		ret = psp_ras_enable_features(&adev->psp, &info, enable);
+		if (ret) {
+			DRM_ERROR("RAS ERROR: %s %s feature failed ret %d\n",
+					enable ? "enable":"disable",
+					ras_block_str(head->block),
+					ret);
+			if (ret == TA_RAS_STATUS__RESET_NEEDED)
+				return -EAGAIN;
+			return -EINVAL;
+		}
 	}
 
 	/* setup the obj */
