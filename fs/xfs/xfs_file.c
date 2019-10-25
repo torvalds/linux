@@ -880,16 +880,30 @@ xfs_file_fallocate(
 		}
 
 		if (mode & FALLOC_FL_ZERO_RANGE) {
-			error = xfs_zero_file_space(ip, offset, len);
+			/*
+			 * Punch a hole and prealloc the range.  We use a hole
+			 * punch rather than unwritten extent conversion for two
+			 * reasons:
+			 *
+			 *   1.) Hole punch handles partial block zeroing for us.
+			 *   2.) If prealloc returns ENOSPC, the file range is
+			 *       still zero-valued by virtue of the hole punch.
+			 */
+			unsigned int blksize = i_blocksize(inode);
+
+			trace_xfs_zero_file_space(ip);
+
+			error = xfs_free_file_space(ip, offset, len);
+			if (error)
+				goto out_unlock;
+
+			len = round_up(offset + len, blksize) -
+			      round_down(offset, blksize);
+			offset = round_down(offset, blksize);
 		} else if (mode & FALLOC_FL_UNSHARE_RANGE) {
 			error = xfs_reflink_unshare(ip, offset, len);
 			if (error)
 				goto out_unlock;
-
-			if (!xfs_is_always_cow_inode(ip)) {
-				error = xfs_alloc_file_space(ip, offset, len,
-						XFS_BMAPI_PREALLOC);
-			}
 		} else {
 			/*
 			 * If always_cow mode we can't use preallocations and
@@ -899,12 +913,14 @@ xfs_file_fallocate(
 				error = -EOPNOTSUPP;
 				goto out_unlock;
 			}
+		}
 
+		if (!xfs_is_always_cow_inode(ip)) {
 			error = xfs_alloc_file_space(ip, offset, len,
 						     XFS_BMAPI_PREALLOC);
+			if (error)
+				goto out_unlock;
 		}
-		if (error)
-			goto out_unlock;
 	}
 
 	if (file->f_flags & O_DSYNC)

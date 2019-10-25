@@ -1133,43 +1133,6 @@ xfs_free_file_space(
 	return error;
 }
 
-/*
- * Preallocate and zero a range of a file. This mechanism has the allocation
- * semantics of fallocate and in addition converts data in the range to zeroes.
- */
-int
-xfs_zero_file_space(
-	struct xfs_inode	*ip,
-	xfs_off_t		offset,
-	xfs_off_t		len)
-{
-	struct xfs_mount	*mp = ip->i_mount;
-	uint			blksize;
-	int			error;
-
-	trace_xfs_zero_file_space(ip);
-
-	blksize = 1 << mp->m_sb.sb_blocklog;
-
-	/*
-	 * Punch a hole and prealloc the range. We use hole punch rather than
-	 * unwritten extent conversion for two reasons:
-	 *
-	 * 1.) Hole punch handles partial block zeroing for us.
-	 *
-	 * 2.) If prealloc returns ENOSPC, the file range is still zero-valued
-	 * by virtue of the hole punch.
-	 */
-	error = xfs_free_file_space(ip, offset, len);
-	if (error || xfs_is_always_cow_inode(ip))
-		return error;
-
-	return xfs_alloc_file_space(ip, round_down(offset, blksize),
-				     round_up(offset + len, blksize) -
-				     round_down(offset, blksize),
-				     XFS_BMAPI_PREALLOC);
-}
-
 static int
 xfs_prepare_shift(
 	struct xfs_inode	*ip,
