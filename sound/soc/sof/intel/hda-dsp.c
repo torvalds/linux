@@ -477,6 +477,15 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 
 int hda_dsp_resume(struct snd_sof_dev *sdev)
 {
+	struct pci_dev *pci = to_pci_dev(sdev->dev);
+
+	if (sdev->s0_suspend) {
+		/* restore and disable the system wakeup */
+		pci_restore_state(pci);
+		disable_irq_wake(pci->irq);
+		return 0;
+	}
+
 	/* init hda controller. DSP cores will be powered up during fw boot */
 	return hda_resume(sdev, false);
 }
@@ -509,7 +518,15 @@ int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev)
 int hda_dsp_suspend(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int ret;
+
+	if (sdev->s0_suspend) {
+		/* enable the system waking up via IPC IRQ */
+		enable_irq_wake(pci->irq);
+		pci_save_state(pci);
+		return 0;
+	}
 
 	/* stop hda controller and power dsp off */
 	ret = hda_suspend(sdev, false);
