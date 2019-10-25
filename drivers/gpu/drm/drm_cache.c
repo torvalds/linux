@@ -92,6 +92,7 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 
 #elif defined(__powerpc__)
 	unsigned long i;
+
 	for (i = 0; i < num_pages; i++) {
 		struct page *page = pages[i];
 		void *page_virtual;
@@ -157,6 +158,7 @@ drm_clflush_virt_range(void *addr, unsigned long length)
 	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		const int size = boot_cpu_data.x86_clflush_size;
 		void *end = addr + length;
+
 		addr = (void *)(((unsigned long)addr) & -size);
 		mb();
 		for (; addr < end; addr += size)
