@@ -703,6 +703,9 @@ struct drm_amdgpu_cs_chunk_data {
 	/* Subquery id: Query DMCU firmware version */
 	#define AMDGPU_INFO_FW_DMCU		0x12
 	#define AMDGPU_INFO_FW_TA		0x13
+	/* Subquery id: Query DMCUB firmware version */
+	#define AMDGPU_INFO_FW_DMCUB		0x14
+
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
 /* the used VRAM size */
