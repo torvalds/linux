@@ -212,7 +212,7 @@ int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 	if (!entry)
 		return -ENOMEM;
 
-	pages = (request->size + PAGE_SIZE - 1) / PAGE_SIZE;
+	pages = DIV_ROUND_UP(request->size, PAGE_SIZE);
 	type = (u32) request->type;
 	memory = agp_allocate_memory(dev->agp->bridge, pages, type);
 	if (!memory) {
@@ -325,7 +325,7 @@ int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request)
 	entry = drm_agp_lookup_entry(dev, request->handle);
 	if (!entry || entry->bound)
 		return -EINVAL;
-	page = (request->offset + PAGE_SIZE - 1) / PAGE_SIZE;
+	page = DIV_ROUND_UP(request->offset, PAGE_SIZE);
 	retcode = drm_bind_agp(entry->memory, page);
 	if (retcode)
 		return retcode;
