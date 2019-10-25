@@ -48,7 +48,7 @@
 
 struct lp_gpio {
 	struct gpio_chip	chip;
-	struct platform_device	*pdev;
+	struct device		*dev;
 	raw_spinlock_t		lock;
 	unsigned long		reg_base;
 };
@@ -106,11 +106,11 @@ static int lp_gpio_request(struct gpio_chip *chip, unsigned offset)
 	unsigned long acpi_use = lp_gpio_reg(chip, offset, LP_ACPI_OWNED);
 	u32 value;
 
-	pm_runtime_get(&lg->pdev->dev); /* should we put if failed */
+	pm_runtime_get(lg->dev); /* should we put if failed */
 
 	/* Fail if BIOS reserved pin for ACPI use */
 	if (!(inl(acpi_use) & BIT(offset % 32))) {
-		dev_err(&lg->pdev->dev, "gpio %d reserved for ACPI\n", offset);
+		dev_err(lg->dev, "gpio %d reserved for ACPI\n", offset);
 		return -EBUSY;
 	}
 
@@ -121,7 +121,7 @@ static int lp_gpio_request(struct gpio_chip *chip, unsigned offset)
 	value = inl(reg);
 	if ((value & USE_SEL_MASK) != USE_SEL_GPIO) {
 		outl((value & USE_SEL_MASK) | USE_SEL_GPIO, reg);
-		dev_warn(&lg->pdev->dev, FW_BUG "pin %u forcibly reconfigured as GPIO\n", offset);
+		dev_warn(lg->dev, FW_BUG "pin %u forcibly reconfigured as GPIO\n", offset);
 	}
 
 	/* enable input sensing */
@@ -139,7 +139,7 @@ static void lp_gpio_free(struct gpio_chip *chip, unsigned offset)
 	/* disable input sensing */
 	outl(inl(conf2) | GPINDIS_BIT, conf2);
 
-	pm_runtime_put(&lg->pdev->dev);
+	pm_runtime_put(lg->dev);
 }
 
 static int lp_irq_type(struct irq_data *d, unsigned type)
@@ -341,7 +341,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	if (!lg)
 		return -ENOMEM;
 
-	lg->pdev = pdev;
+	lg->dev = dev;
 	platform_set_drvdata(pdev, lg);
 
 	io_rc = platform_get_resource(pdev, IORESOURCE_IO, 0);
@@ -385,7 +385,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 		girq->init_hw = lp_gpio_irq_init_hw;
 		girq->parent_handler = lp_gpio_irq_handler;
 		girq->num_parents = 1;
-		girq->parents = devm_kcalloc(&pdev->dev, girq->num_parents,
+		girq->parents = devm_kcalloc(dev, girq->num_parents,
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
