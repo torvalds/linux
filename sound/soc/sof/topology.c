@@ -135,7 +135,9 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *k, int event)
 {
 	struct snd_sof_widget *swidget = w->dobj.private;
+	int stream = SNDRV_PCM_STREAM_CAPTURE;
 	struct snd_sof_dev *sdev;
+	struct snd_sof_pcm *spcm;
 	int ret = 0;
 
 	if (!swidget)
@@ -146,11 +148,19 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 	dev_dbg(sdev->dev, "received event %d for widget %s\n",
 		event, w->name);
 
+	/* get runtime PCM params using widget's stream name */
+	spcm = snd_sof_find_spcm_name(sdev, swidget->widget->sname);
+
 	/* process events */
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		if (spcm->stream[stream].suspend_ignored) {
+			dev_dbg(sdev->dev, "PRE_PMU event ignored, KWD pipeline is already RUNNING\n");
+			return 0;
+		}
+
 		/* set pcm params */
-		ret = ipc_pcm_params(swidget, SOF_IPC_STREAM_CAPTURE);
+		ret = ipc_pcm_params(swidget, stream);
 		if (ret < 0) {
 			dev_err(sdev->dev,
 				"error: failed to set pcm params for widget %s\n",
@@ -166,6 +176,11 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 				swidget->widget->name);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
+		if (spcm->stream[stream].suspend_ignored) {
+			dev_dbg(sdev->dev, "POST_PMD even ignored, KWD pipeline will remain RUNNING\n");
+			return 0;
+		}
+
 		/* stop trigger */
 		ret = ipc_trigger(swidget, SOF_IPC_STREAM_TRIG_STOP);
 		if (ret < 0)

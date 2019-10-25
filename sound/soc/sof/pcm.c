@@ -346,6 +346,16 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_RELEASE;
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
+		if (spcm->stream[substream->stream].suspend_ignored) {
+			/*
+			 * this case will be triggered when INFO_RESUME is
+			 * supported, no need to resume streams that remained
+			 * enabled in D0ix.
+			 */
+			spcm->stream[substream->stream].suspend_ignored = false;
+			return 0;
+		}
+
 		/* set up hw_params */
 		ret = sof_pcm_prepare(component, substream);
 		if (ret < 0) {
@@ -356,9 +366,30 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 
 		/* fallthrough */
 	case SNDRV_PCM_TRIGGER_START:
+		if (spcm->stream[substream->stream].suspend_ignored) {
+			/*
+			 * This case will be triggered when INFO_RESUME is
+			 * not supported, no need to re-start streams that
+			 * remained enabled in D0ix.
+			 */
+			spcm->stream[substream->stream].suspend_ignored = false;
+			return 0;
+		}
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_START;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		if (sdev->s0_suspend &&
+		    spcm->stream[substream->stream].d0i3_compatible) {
+			/*
+			 * trap the event, not sending trigger stop to
+			 * prevent the FW pipelines from being stopped,
+			 * and mark the flag to ignore the upcoming DAPM
+			 * PM events.
+			 */
+			spcm->stream[substream->stream].suspend_ignored = true;
+			return 0;
+		}
+		/* fallthrough */
 	case SNDRV_PCM_TRIGGER_STOP:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
 		ipc_first = true;
