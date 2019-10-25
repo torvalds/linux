@@ -128,8 +128,10 @@ dochelp:
 	@echo  '  pdfdocs         - PDF'
 	@echo  '  epubdocs        - EPUB'
 	@echo  '  xmldocs         - XML'
-	@echo  '  linkcheckdocs   - check for broken external links (will connect to external hosts)'
-	@echo  '  refcheckdocs    - check for references to non-existing files under Documentation'
+	@echo  '  linkcheckdocs   - check for broken external links'
+	@echo  '                    (will connect to external hosts)'
+	@echo  '  refcheckdocs    - check for references to non-existing files under'
+	@echo  '                    Documentation'
 	@echo  '  cleandocs       - clean all generated files'
 	@echo
 	@echo  '  make SPHINXDIRS="s1 s2" [target] Generate only docs of folder s1, s2'
