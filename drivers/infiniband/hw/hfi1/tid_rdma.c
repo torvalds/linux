@@ -107,8 +107,6 @@ static u32 mask_generation(u32 a)
  * C - Capcode
  */
 
-static u32 tid_rdma_flow_wt;
-
 static void tid_rdma_trigger_resume(struct work_struct *work);
 static void hfi1_kern_exp_rcv_free_flows(struct tid_rdma_request *req);
 static int hfi1_kern_exp_rcv_alloc_flows(struct tid_rdma_request *req,
@@ -3388,18 +3386,17 @@ u32 hfi1_build_tid_rdma_write_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	return sizeof(ohdr->u.tid_rdma.w_req) / sizeof(u32);
 }
 
-void hfi1_compute_tid_rdma_flow_wt(void)
+static u32 hfi1_compute_tid_rdma_flow_wt(struct rvt_qp *qp)
 {
 	/*
 	 * Heuristic for computing the RNR timeout when waiting on the flow
 	 * queue. Rather than a computationaly expensive exact estimate of when
 	 * a flow will be available, we assume that if a QP is at position N in
 	 * the flow queue it has to wait approximately (N + 1) * (number of
-	 * segments between two sync points), assuming PMTU of 4K. The rationale
-	 * for this is that flows are released and recycled at each sync point.
+	 * segments between two sync points). The rationale for this is that
+	 * flows are released and recycled at each sync point.
 	 */
-	tid_rdma_flow_wt = MAX_TID_FLOW_PSN * enum_to_mtu(OPA_MTU_4096) /
-		TID_RDMA_MAX_SEGMENT_SIZE;
+	return (MAX_TID_FLOW_PSN * qp->pmtu) >> TID_RDMA_SEGMENT_SHIFT;
 }
 
 static u32 position_in_queue(struct hfi1_qp_priv *qpriv,
@@ -3522,7 +3519,7 @@ static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx)
 		if (qpriv->flow_state.index >= RXE_NUM_TID_FLOWS) {
 			ret = hfi1_kern_setup_hw_flow(qpriv->rcd, qp);
 			if (ret) {
-				to_seg = tid_rdma_flow_wt *
+				to_seg = hfi1_compute_tid_rdma_flow_wt(qp) *
 					position_in_queue(qpriv,
 							  &rcd->flow_queue);
 				break;
