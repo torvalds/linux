@@ -326,6 +326,9 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 			"error: ctx_restore ipc error during resume %d\n",
 			ret);
 
+	/* initialize default D0 sub-state */
+	sdev->d0_substate = SOF_DSP_D0I0;
+
 	return ret;
 }
 
