@@ -509,7 +509,7 @@ int bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
 {
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	int ret = -ENOENT;
+	int ret;
 
 	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES,
 			POS(inode_nr, 0), BTREE_ITER_SLOTS);
@@ -517,8 +517,13 @@ int bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
 		return PTR_ERR(iter);
 
 	k = bch2_btree_iter_peek_slot(iter);
-	if (k.k->type == KEY_TYPE_inode)
-		ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode);
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	ret = k.k->type == KEY_TYPE_inode
+		? bch2_inode_unpack(bkey_s_c_to_inode(k), inode)
+		: -ENOENT;
 
 	bch2_trans_iter_put(trans, iter);
 
