@@ -1337,7 +1337,9 @@ struct hfa384x {
 						  * interface
 						  */
 
-	struct hfa384x_caplevel cap_act_sta_mfi; /* sta f/w to modem interface */
+	struct hfa384x_caplevel cap_act_sta_mfi; /*
+						  * sta f/w to modem interface
+						  */
 
 	struct hfa384x_caplevel cap_act_ap_cfi;	/*
 						 * ap f/w to controller
@@ -1359,7 +1361,9 @@ struct hfa384x {
 
 	struct hfa384x_inf_frame *scanresults;
 
-	struct prism2sta_authlist authlist;	/* Authenticated station list. */
+	struct prism2sta_authlist authlist;	/*
+						 * Authenticated station list.
+						 */
 	unsigned int accessmode;		/* Access mode. */
 	struct prism2sta_accesslist allow;	/* Allowed station list. */
 	struct prism2sta_accesslist deny;	/* Denied station list. */
@@ -1375,7 +1379,8 @@ int hfa384x_drvr_disable(struct hfa384x *hw, u16 macport);
 int hfa384x_drvr_enable(struct hfa384x *hw, u16 macport);
 int hfa384x_drvr_flashdl_enable(struct hfa384x *hw);
 int hfa384x_drvr_flashdl_disable(struct hfa384x *hw);
-int hfa384x_drvr_flashdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len);
+int hfa384x_drvr_flashdl_write(struct hfa384x *hw, u32 daddr, void *buf,
+			       u32 len);
 int hfa384x_drvr_getconfig(struct hfa384x *hw, u16 rid, void *buf, u16 len);
 int hfa384x_drvr_ramdl_enable(struct hfa384x *hw, u32 exeaddr);
 int hfa384x_drvr_ramdl_disable(struct hfa384x *hw);
@@ -1383,7 +1388,8 @@ int hfa384x_drvr_ramdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len);
 int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len);
 int hfa384x_drvr_setconfig(struct hfa384x *hw, u16 rid, void *buf, u16 len);
 
-static inline int hfa384x_drvr_getconfig16(struct hfa384x *hw, u16 rid, void *val)
+static inline int
+hfa384x_drvr_getconfig16(struct hfa384x *hw, u16 rid, void *val)
 {
 	int result = 0;
 
