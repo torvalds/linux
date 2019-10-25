@@ -69,12 +69,14 @@ struct medusa_kobject_s *socket_fetch(struct medusa_kobject_s *kobj)
 
 	if(s_kobj)
 		sb = user_get_super(s_kobj->dev);
-	if(sb)
+	if(sb) {
 		inode = ilookup(sb, s_kobj->ino);
-	if(inode)
+		drop_super(sb);
+	}
+	if(inode) {
 		sock = SOCKET_I(inode);
-	if(sock) {
 		socket_kern2kobj(&storage, sock);
+		iput(inode);
 		return (struct medusa_kobject_s *)&storage;
 	}
 
@@ -90,12 +92,14 @@ medusa_answer_t socket_update(struct medusa_kobject_s *kobj)
 
 	if(s_kobj)
 		sb = user_get_super(s_kobj->dev);
-	if(sb)
+	if(sb) {
 		inode = ilookup(sb, s_kobj->ino);
-	if(inode)
+		drop_super(sb);
+	}
+	if(inode) {
 		sock = SOCKET_I(inode);
-	if(sock) {
 		socket_kobj2kern(s_kobj, sock);
+		iput(inode);
 		return MED_YES;
 	}
 
