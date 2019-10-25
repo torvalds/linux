@@ -3295,8 +3295,8 @@ rtw8822c_phy_cck_pd_set_reg(struct rtw_dev *rtwdev,
 static void rtw8822c_phy_cck_pd_set(struct rtw_dev *rtwdev, u8 new_lvl)
 {
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
-	s8 pd_lvl[4] = {2, 4, 6, 8};
-	s8 cs_lvl[4] = {2, 2, 2, 4};
+	s8 pd_lvl[CCK_PD_LV_MAX] = {0, 2, 4, 6, 8};
+	s8 cs_lvl[CCK_PD_LV_MAX] = {0, 2, 2, 2, 4};
 	u8 cur_lvl;
 	u8 nrx, bw;
 
