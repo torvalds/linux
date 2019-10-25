@@ -1101,20 +1101,6 @@ void i915_pmu_register(struct drm_i915_private *i915)
 		return;
 	}
 
-	i915_pmu_events_attr_group.attrs = create_event_attributes(pmu);
-	if (!i915_pmu_events_attr_group.attrs)
-		goto err;
-
-	pmu->base.attr_groups	= i915_pmu_attr_groups;
-	pmu->base.task_ctx_nr	= perf_invalid_context;
-	pmu->base.event_init	= i915_pmu_event_init;
-	pmu->base.add		= i915_pmu_event_add;
-	pmu->base.del		= i915_pmu_event_del;
-	pmu->base.start		= i915_pmu_event_start;
-	pmu->base.stop		= i915_pmu_event_stop;
-	pmu->base.read		= i915_pmu_event_read;
-	pmu->base.event_idx	= i915_pmu_event_event_idx;
-
 	spin_lock_init(&pmu->lock);
 	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pmu->timer.function = i915_sample;
@@ -1128,9 +1114,23 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	if (!pmu->name)
 		goto err;
 
+	i915_pmu_events_attr_group.attrs = create_event_attributes(pmu);
+	if (!i915_pmu_events_attr_group.attrs)
+		goto err_name;
+
+	pmu->base.attr_groups	= i915_pmu_attr_groups;
+	pmu->base.task_ctx_nr	= perf_invalid_context;
+	pmu->base.event_init	= i915_pmu_event_init;
+	pmu->base.add		= i915_pmu_event_add;
+	pmu->base.del		= i915_pmu_event_del;
+	pmu->base.start		= i915_pmu_event_start;
+	pmu->base.stop		= i915_pmu_event_stop;
+	pmu->base.read		= i915_pmu_event_read;
+	pmu->base.event_idx	= i915_pmu_event_event_idx;
+
 	ret = perf_pmu_register(&pmu->base, pmu->name, -1);
 	if (ret)
-		goto err_name;
+		goto err_attr;
 
 	ret = i915_pmu_register_cpuhp_state(pmu);
 	if (ret)
@@ -1140,13 +1140,14 @@ void i915_pmu_register(struct drm_i915_private *i915)
 
 err_unreg:
 	perf_pmu_unregister(&pmu->base);
+err_attr:
+	pmu->base.event_init = NULL;
+	free_event_attributes(pmu);
 err_name:
 	if (!is_igp(i915))
 		kfree(pmu->name);
 err:
-	pmu->base.event_init = NULL;
-	free_event_attributes(pmu);
-	DRM_NOTE("Failed to register PMU! (err=%d)\n", ret);
+	dev_notice(i915->drm.dev, "Failed to register PMU!\n");
 }
 
 void i915_pmu_unregister(struct drm_i915_private *i915)
