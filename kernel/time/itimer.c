@@ -73,7 +73,7 @@ static void get_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 	value->it_interval = ns_to_timeval(interval);
 }
 
-int do_getitimer(int which, struct itimerval *value)
+static int do_getitimer(int which, struct itimerval *value)
 {
 	struct task_struct *tsk = current;
 
@@ -197,7 +197,7 @@ static void set_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 #define timeval_valid(t) \
 	(((t)->tv_sec >= 0) && (((unsigned long) (t)->tv_usec) < USEC_PER_SEC))
 
-int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue)
+static int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue)
 {
 	struct task_struct *tsk = current;
 	struct hrtimer *timer;
@@ -248,6 +248,17 @@ again:
 	}
 	return 0;
 }
+
+#ifdef CONFIG_SECURITY_SELINUX
+void clear_itimer(void)
+{
+	struct itimerval v = {};
+	int i;
+
+	for (i = 0; i < 3; i++)
+		do_setitimer(i, &v, NULL);
+}
+#endif
 
 #ifdef __ARCH_WANT_SYS_ALARM
 
