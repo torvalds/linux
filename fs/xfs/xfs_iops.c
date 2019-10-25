@@ -1227,7 +1227,7 @@ xfs_inode_supports_dax(
 		return false;
 
 	/* Device has to support DAX too. */
-	return xfs_find_daxdev_for_inode(VFS_I(ip)) != NULL;
+	return xfs_inode_buftarg(ip)->bt_daxdev != NULL;
 }
 
 STATIC void

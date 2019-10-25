@@ -1311,10 +1311,9 @@ xfs_ioctl_setattr_dax_invalidate(
 	 * have to check the device for dax support or flush pagecache.
 	 */
 	if (fa->fsx_xflags & FS_XFLAG_DAX) {
-		if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)))
-			return -EINVAL;
-		if (!bdev_dax_supported(xfs_find_bdev_for_inode(VFS_I(ip)),
-				sb->s_blocksize))
+		struct xfs_buftarg	*target = xfs_inode_buftarg(ip);
+
+		if (!bdev_dax_supported(target->bt_bdev, sb->s_blocksize))
 			return -EINVAL;
 	}
 
