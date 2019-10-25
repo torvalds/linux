@@ -721,7 +721,6 @@ EXPORT_SYMBOL_GPL(load_pdptrs);
 bool pdptrs_changed(struct kvm_vcpu *vcpu)
 {
 	u64 pdpte[ARRAY_SIZE(vcpu->arch.walk_mmu->pdptrs)];
-	bool changed = true;
 	int offset;
 	gfn_t gfn;
 	int r;
@@ -737,11 +736,9 @@ bool pdptrs_changed(struct kvm_vcpu *vcpu)
 	r = kvm_read_nested_guest_page(vcpu, gfn, pdpte, offset, sizeof(pdpte),
 				       PFERR_USER_MASK | PFERR_WRITE_MASK);
 	if (r < 0)
-		goto out;
-	changed = memcmp(pdpte, vcpu->arch.walk_mmu->pdptrs, sizeof(pdpte)) != 0;
-out:
+		return true;
 
-	return changed;
+	return memcmp(pdpte, vcpu->arch.walk_mmu->pdptrs, sizeof(pdpte)) != 0;
 }
 EXPORT_SYMBOL_GPL(pdptrs_changed);
 
