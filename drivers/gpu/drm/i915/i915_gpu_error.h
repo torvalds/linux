@@ -74,6 +74,7 @@ struct i915_gpu_state {
 	u32 gab_ctl;
 	u32 gfx_mode;
 	u32 gtt_cache;
+	u32 aux_err; /* gen12 */
 
 	u32 nfence;
 	u64 fence[I915_MAX_NUM_FENCES];

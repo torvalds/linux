@@ -734,6 +734,9 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	if (IS_GEN_RANGE(m->i915, 8, 11))
 		err_printf(m, "GTT_CACHE_EN: 0x%08x\n", error->gtt_cache);
 
+	if (IS_GEN(m->i915, 12))
+		err_printf(m, "AUX_ERR_DBG: 0x%08x\n", error->aux_err);
+
 	for (ee = error->engine; ee; ee = ee->next)
 		error_print_engine(m, ee, error->capture);
 
@@ -1553,6 +1556,9 @@ static void capture_reg_state(struct i915_gpu_state *error)
 
 	if (IS_GEN_RANGE(i915, 8, 11))
 		error->gtt_cache = intel_uncore_read(uncore, HSW_GTT_CACHE_EN);
+
+	if (IS_GEN(i915, 12))
+		error->aux_err = intel_uncore_read(uncore, GEN12_AUX_ERR_DBG);
 
 	/* 4: Everything else */
 	if (INTEL_GEN(i915) >= 11) {

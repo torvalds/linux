@@ -2603,6 +2603,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   FAULT_VA_HIGH_BITS		(0xf << 0)
 #define   FAULT_GTT_SEL			(1 << 4)
 
+#define GEN12_AUX_ERR_DBG		_MMIO(0x43f4)
+
 #define FPGA_DBG		_MMIO(0x42300)
 #define   FPGA_DBG_RM_NOCLAIM	(1 << 31)
 
