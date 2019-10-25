@@ -111,7 +111,7 @@ SYSCALL_DEFINE2(getitimer, int, which, struct itimerval __user *, value)
 	return error;
 }
 
-#ifdef CONFIG_COMPAT
+#if defined(CONFIG_COMPAT) || defined(CONFIG_ALPHA)
 struct old_itimerval32 {
 	struct old_timeval32	it_interval;
 	struct old_timeval32	it_value;
@@ -324,7 +324,7 @@ SYSCALL_DEFINE3(setitimer, int, which, struct itimerval __user *, value,
 	return 0;
 }
 
-#ifdef CONFIG_COMPAT
+#if defined(CONFIG_COMPAT) || defined(CONFIG_ALPHA)
 static int get_old_itimerval32(struct itimerval *o, const struct old_itimerval32 __user *i)
 {
 	struct old_itimerval32 v32;
