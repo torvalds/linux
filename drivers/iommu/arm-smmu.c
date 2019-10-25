@@ -540,11 +540,12 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
 			cb->tcr[0] = pgtbl_cfg->arm_v7s_cfg.tcr;
 		} else {
-			cb->tcr[0] = pgtbl_cfg->arm_lpae_s1_cfg.tcr;
-			cb->tcr[1] = pgtbl_cfg->arm_lpae_s1_cfg.tcr >> 32;
-			cb->tcr[1] |= FIELD_PREP(TCR2_SEP, TCR2_SEP_UPSTREAM);
+			cb->tcr[0] = arm_smmu_lpae_tcr(pgtbl_cfg);
+			cb->tcr[1] = arm_smmu_lpae_tcr2(pgtbl_cfg);
 			if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64)
 				cb->tcr[1] |= TCR2_AS;
+			else
+				cb->tcr[0] |= TCR_EAE;
 		}
 	} else {
 		cb->tcr[0] = pgtbl_cfg->arm_lpae_s2_cfg.vtcr;

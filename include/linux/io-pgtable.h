@@ -101,7 +101,14 @@ struct io_pgtable_cfg {
 	union {
 		struct {
 			u64	ttbr;
-			u64	tcr;
+			struct {
+				u32	ips:3;
+				u32	tg:2;
+				u32	sh:2;
+				u32	orgn:2;
+				u32	irgn:2;
+				u32	tsz:6;
+			}	tcr;
 			u64	mair;
 		} arm_lpae_s1_cfg;
 

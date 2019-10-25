@@ -260,27 +260,18 @@
 /* Context descriptor (stage-1 only) */
 #define CTXDESC_CD_DWORDS		8
 #define CTXDESC_CD_0_TCR_T0SZ		GENMASK_ULL(5, 0)
-#define ARM64_TCR_T0SZ			GENMASK_ULL(5, 0)
 #define CTXDESC_CD_0_TCR_TG0		GENMASK_ULL(7, 6)
-#define ARM64_TCR_TG0			GENMASK_ULL(15, 14)
 #define CTXDESC_CD_0_TCR_IRGN0		GENMASK_ULL(9, 8)
-#define ARM64_TCR_IRGN0			GENMASK_ULL(9, 8)
 #define CTXDESC_CD_0_TCR_ORGN0		GENMASK_ULL(11, 10)
-#define ARM64_TCR_ORGN0			GENMASK_ULL(11, 10)
 #define CTXDESC_CD_0_TCR_SH0		GENMASK_ULL(13, 12)
-#define ARM64_TCR_SH0			GENMASK_ULL(13, 12)
 #define CTXDESC_CD_0_TCR_EPD0		(1ULL << 14)
-#define ARM64_TCR_EPD0			(1ULL << 7)
 #define CTXDESC_CD_0_TCR_EPD1		(1ULL << 30)
-#define ARM64_TCR_EPD1			(1ULL << 23)
 
 #define CTXDESC_CD_0_ENDI		(1UL << 15)
 #define CTXDESC_CD_0_V			(1UL << 31)
 
 #define CTXDESC_CD_0_TCR_IPS		GENMASK_ULL(34, 32)
-#define ARM64_TCR_IPS			GENMASK_ULL(34, 32)
 #define CTXDESC_CD_0_TCR_TBI0		(1ULL << 38)
-#define ARM64_TCR_TBI0			(1ULL << 37)
 
 #define CTXDESC_CD_0_AA64		(1UL << 41)
 #define CTXDESC_CD_0_S			(1UL << 44)
@@ -290,10 +281,6 @@
 #define CTXDESC_CD_0_ASID		GENMASK_ULL(63, 48)
 
 #define CTXDESC_CD_1_TTB0_MASK		GENMASK_ULL(51, 4)
-
-/* Convert between AArch64 (CPU) TCR format and SMMU CD format */
-#define ARM_SMMU_TCR2CD(tcr, fld)	FIELD_PREP(CTXDESC_CD_0_TCR_##fld, \
-					FIELD_GET(ARM64_TCR_##fld, tcr))
 
 /* Command queue */
 #define CMDQ_ENT_SZ_SHIFT		4
@@ -1439,23 +1426,6 @@ static int arm_smmu_cmdq_issue_sync(struct arm_smmu_device *smmu)
 }
 
 /* Context descriptor manipulation functions */
-static u64 arm_smmu_cpu_tcr_to_cd(u64 tcr)
-{
-	u64 val = 0;
-
-	/* Repack the TCR. Just care about TTBR0 for now */
-	val |= ARM_SMMU_TCR2CD(tcr, T0SZ);
-	val |= ARM_SMMU_TCR2CD(tcr, TG0);
-	val |= ARM_SMMU_TCR2CD(tcr, IRGN0);
-	val |= ARM_SMMU_TCR2CD(tcr, ORGN0);
-	val |= ARM_SMMU_TCR2CD(tcr, SH0);
-	val |= ARM_SMMU_TCR2CD(tcr, EPD0);
-	val |= ARM_SMMU_TCR2CD(tcr, EPD1);
-	val |= ARM_SMMU_TCR2CD(tcr, IPS);
-
-	return val;
-}
-
 static void arm_smmu_write_ctx_desc(struct arm_smmu_device *smmu,
 				    struct arm_smmu_s1_cfg *cfg)
 {
@@ -1465,7 +1435,7 @@ static void arm_smmu_write_ctx_desc(struct arm_smmu_device *smmu,
 	 * We don't need to issue any invalidation here, as we'll invalidate
 	 * the STE when installing the new entry anyway.
 	 */
-	val = arm_smmu_cpu_tcr_to_cd(cfg->cd.tcr) |
+	val = cfg->cd.tcr |
 #ifdef __BIG_ENDIAN
 	      CTXDESC_CD_0_ENDI |
 #endif
@@ -2151,6 +2121,7 @@ static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
 	int asid;
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	struct arm_smmu_s1_cfg *cfg = &smmu_domain->s1_cfg;
+	typeof(&pgtbl_cfg->arm_lpae_s1_cfg.tcr) tcr = &pgtbl_cfg->arm_lpae_s1_cfg.tcr;
 
 	asid = arm_smmu_bitmap_alloc(smmu->asid_map, smmu->asid_bits);
 	if (asid < 0)
@@ -2167,7 +2138,13 @@ static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
 
 	cfg->cd.asid	= (u16)asid;
 	cfg->cd.ttbr	= pgtbl_cfg->arm_lpae_s1_cfg.ttbr;
-	cfg->cd.tcr	= pgtbl_cfg->arm_lpae_s1_cfg.tcr;
+	cfg->cd.tcr	= FIELD_PREP(CTXDESC_CD_0_TCR_T0SZ, tcr->tsz) |
+			  FIELD_PREP(CTXDESC_CD_0_TCR_TG0, tcr->tg) |
+			  FIELD_PREP(CTXDESC_CD_0_TCR_IRGN0, tcr->irgn) |
+			  FIELD_PREP(CTXDESC_CD_0_TCR_ORGN0, tcr->orgn) |
+			  FIELD_PREP(CTXDESC_CD_0_TCR_SH0, tcr->sh) |
+			  FIELD_PREP(CTXDESC_CD_0_TCR_IPS, tcr->ips) |
+			  CTXDESC_CD_0_TCR_EPD1 | CTXDESC_CD_0_AA64;
 	cfg->cd.mair	= pgtbl_cfg->arm_lpae_s1_cfg.mair;
 	return 0;
 

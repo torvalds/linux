@@ -11,6 +11,7 @@
 #define _ARM_SMMU_H
 
 #include <linux/atomic.h>
+#include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -158,12 +159,24 @@ enum arm_smmu_cbar_type {
 #define TCR2_SEP			GENMASK(17, 15)
 #define TCR2_SEP_UPSTREAM		0x7
 #define TCR2_AS				BIT(4)
+#define TCR2_PASIZE			GENMASK(3, 0)
 
 #define ARM_SMMU_CB_TTBR0		0x20
 #define ARM_SMMU_CB_TTBR1		0x28
 #define TTBRn_ASID			GENMASK_ULL(63, 48)
 
+/* arm64 headers leak this somehow :( */
+#undef TCR_T0SZ
+
 #define ARM_SMMU_CB_TCR			0x30
+#define TCR_EAE				BIT(31)
+#define TCR_EPD1			BIT(23)
+#define TCR_TG0				GENMASK(15, 14)
+#define TCR_SH0				GENMASK(13, 12)
+#define TCR_ORGN0			GENMASK(11, 10)
+#define TCR_IRGN0			GENMASK(9, 8)
+#define TCR_T0SZ			GENMASK(5, 0)
+
 #define ARM_SMMU_CB_CONTEXTIDR		0x34
 #define ARM_SMMU_CB_S1_MAIR0		0x38
 #define ARM_SMMU_CB_S1_MAIR1		0x3c
@@ -318,6 +331,21 @@ struct arm_smmu_domain {
 	struct iommu_domain		domain;
 };
 
+static inline u32 arm_smmu_lpae_tcr(struct io_pgtable_cfg *cfg)
+{
+	return TCR_EPD1 |
+	       FIELD_PREP(TCR_TG0, cfg->arm_lpae_s1_cfg.tcr.tg) |
+	       FIELD_PREP(TCR_SH0, cfg->arm_lpae_s1_cfg.tcr.sh) |
+	       FIELD_PREP(TCR_ORGN0, cfg->arm_lpae_s1_cfg.tcr.orgn) |
+	       FIELD_PREP(TCR_IRGN0, cfg->arm_lpae_s1_cfg.tcr.irgn) |
+	       FIELD_PREP(TCR_T0SZ, cfg->arm_lpae_s1_cfg.tcr.tsz);
+}
+
+static inline u32 arm_smmu_lpae_tcr2(struct io_pgtable_cfg *cfg)
+{
+	return FIELD_PREP(TCR2_PASIZE, cfg->arm_lpae_s1_cfg.tcr.ips) |
+	       FIELD_PREP(TCR2_SEP, TCR2_SEP_UPSTREAM);
+}
 
 /* Implementation details, yay! */
 struct arm_smmu_impl {
