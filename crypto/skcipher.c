@@ -964,7 +964,7 @@ static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 }
 #endif
 
-static const struct crypto_type crypto_skcipher_type2 = {
+static const struct crypto_type crypto_skcipher_type = {
 	.extsize = crypto_skcipher_extsize,
 	.init_tfm = crypto_skcipher_init_tfm,
 	.free = crypto_skcipher_free_instance,
@@ -981,7 +981,7 @@ static const struct crypto_type crypto_skcipher_type2 = {
 int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn,
 			  const char *name, u32 type, u32 mask)
 {
-	spawn->base.frontend = &crypto_skcipher_type2;
+	spawn->base.frontend = &crypto_skcipher_type;
 	return crypto_grab_spawn(&spawn->base, name, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_grab_skcipher);
@@ -989,7 +989,7 @@ EXPORT_SYMBOL_GPL(crypto_grab_skcipher);
 struct crypto_skcipher *crypto_alloc_skcipher(const char *alg_name,
 					      u32 type, u32 mask)
 {
-	return crypto_alloc_tfm(alg_name, &crypto_skcipher_type2, type, mask);
+	return crypto_alloc_tfm(alg_name, &crypto_skcipher_type, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_skcipher);
 
@@ -1001,7 +1001,7 @@ struct crypto_sync_skcipher *crypto_alloc_sync_skcipher(
 	/* Only sync algorithms allowed. */
 	mask |= CRYPTO_ALG_ASYNC;
 
-	tfm = crypto_alloc_tfm(alg_name, &crypto_skcipher_type2, type, mask);
+	tfm = crypto_alloc_tfm(alg_name, &crypto_skcipher_type, type, mask);
 
 	/*
 	 * Make sure we do not allocate something that might get used with
@@ -1019,8 +1019,7 @@ EXPORT_SYMBOL_GPL(crypto_alloc_sync_skcipher);
 
 int crypto_has_skcipher(const char *alg_name, u32 type, u32 mask)
 {
-	return crypto_type_has_alg(alg_name, &crypto_skcipher_type2,
-				   type, mask);
+	return crypto_type_has_alg(alg_name, &crypto_skcipher_type, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_has_skcipher);
 
@@ -1037,7 +1036,7 @@ static int skcipher_prepare_alg(struct skcipher_alg *alg)
 	if (!alg->walksize)
 		alg->walksize = alg->chunksize;
 
-	base->cra_type = &crypto_skcipher_type2;
+	base->cra_type = &crypto_skcipher_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_SKCIPHER;
 
