@@ -1208,6 +1208,13 @@ pt_buffer_setup_aux(struct perf_event *event, void **pages,
 	if (!nr_pages)
 		return NULL;
 
+	/*
+	 * Only support AUX sampling in snapshot mode, where we don't
+	 * generate NMIs.
+	 */
+	if (event->attr.aux_sample_size && !snapshot)
+		return NULL;
+
 	if (cpu == -1)
 		cpu = raw_smp_processor_id();
 	node = cpu_to_node(cpu);
@@ -1506,6 +1513,52 @@ static void pt_event_stop(struct perf_event *event, int mode)
 	}
 }
 
+static long pt_event_snapshot_aux(struct perf_event *event,
+				  struct perf_output_handle *handle,
+				  unsigned long size)
+{
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
+	struct pt_buffer *buf = perf_get_aux(&pt->handle);
+	unsigned long from = 0, to;
+	long ret;
+
+	if (WARN_ON_ONCE(!buf))
+		return 0;
+
+	/*
+	 * Sampling is only allowed on snapshot events;
+	 * see pt_buffer_setup_aux().
+	 */
+	if (WARN_ON_ONCE(!buf->snapshot))
+		return 0;
+
+	/*
+	 * Here, handle_nmi tells us if the tracing is on
+	 */
+	if (READ_ONCE(pt->handle_nmi))
+		pt_config_stop(event);
+
+	pt_read_offset(buf);
+	pt_update_head(pt);
+
+	to = local_read(&buf->data_size);
+	if (to < size)
+		from = buf->nr_pages << PAGE_SHIFT;
+	from += to - size;
+
+	ret = perf_output_copy_aux(&pt->handle, handle, from, to);
+
+	/*
+	 * If the tracing was on when we turned up, restart it.
+	 * Compiler barrier not needed as we couldn't have been
+	 * preempted by anything that touches pt->handle_nmi.
+	 */
+	if (pt->handle_nmi)
+		pt_config_start(event);
+
+	return ret;
+}
+
 static void pt_event_del(struct perf_event *event, int mode)
 {
 	pt_event_stop(event, PERF_EF_UPDATE);
@@ -1625,6 +1678,7 @@ static __init int pt_init(void)
 	pt_pmu.pmu.del			 = pt_event_del;
 	pt_pmu.pmu.start		 = pt_event_start;
 	pt_pmu.pmu.stop			 = pt_event_stop;
+	pt_pmu.pmu.snapshot_aux		 = pt_event_snapshot_aux;
 	pt_pmu.pmu.read			 = pt_event_read;
 	pt_pmu.pmu.setup_aux		 = pt_buffer_setup_aux;
 	pt_pmu.pmu.free_aux		 = pt_buffer_free_aux;
