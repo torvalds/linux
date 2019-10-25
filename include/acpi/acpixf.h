@@ -458,7 +458,8 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
 					       u8 physical))
 
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
-			    acpi_load_table(struct acpi_table_header *table))
+			    acpi_load_table(struct acpi_table_header *table,
+					    u32 *table_idx))
 
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_unload_table(u32 table_index))

@@ -268,6 +268,8 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_install_table)
  *
  * PARAMETERS:  table               - Pointer to a buffer containing the ACPI
  *                                    table to be loaded.
+ *              table_idx           - Pointer to a u32 for storing the table
+ *                                    index, might be NULL
  *
  * RETURN:      Status
  *
@@ -278,7 +280,7 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_install_table)
  *              to ensure that the table is not deleted or unmapped.
  *
  ******************************************************************************/
-acpi_status acpi_load_table(struct acpi_table_header *table)
+acpi_status acpi_load_table(struct acpi_table_header *table, u32 *table_idx)
 {
 	acpi_status status;
 	u32 table_index;
@@ -297,6 +299,10 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 	status = acpi_tb_install_and_load_table(ACPI_PTR_TO_PHYSADDR(table),
 						ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
 						FALSE, &table_index);
+	if (table_idx) {
+		*table_idx = table_index;
+	}
+
 	if (ACPI_SUCCESS(status)) {
 
 		/* Complete the initialization/resolution of new objects */
