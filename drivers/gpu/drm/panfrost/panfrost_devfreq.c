@@ -18,55 +18,14 @@ static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev, i
 static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 				   u32 flags)
 {
-	struct panfrost_device *pfdev = platform_get_drvdata(to_platform_device(dev));
-	struct dev_pm_opp *opp;
-	unsigned long old_clk_rate = pfdev->devfreq.cur_freq;
-	unsigned long target_volt, target_rate;
+	struct panfrost_device *pfdev = dev_get_drvdata(dev);
 	int err;
 
-	opp = devfreq_recommended_opp(dev, freq, flags);
-	if (IS_ERR(opp))
-		return PTR_ERR(opp);
-
-	target_rate = dev_pm_opp_get_freq(opp);
-	target_volt = dev_pm_opp_get_voltage(opp);
-	dev_pm_opp_put(opp);
-
-	if (old_clk_rate == target_rate)
-		return 0;
-
-	/*
-	 * If frequency scaling from low to high, adjust voltage first.
-	 * If frequency scaling from high to low, adjust frequency first.
-	 */
-	if (old_clk_rate < target_rate) {
-		err = regulator_set_voltage(pfdev->regulator, target_volt,
-					    target_volt);
-		if (err) {
-			dev_err(dev, "Cannot set voltage %lu uV\n",
-				target_volt);
-			return err;
-		}
-	}
-
-	err = clk_set_rate(pfdev->clock, target_rate);
-	if (err) {
-		dev_err(dev, "Cannot set frequency %lu (%d)\n", target_rate,
-			err);
-		regulator_set_voltage(pfdev->regulator, pfdev->devfreq.cur_volt,
-				      pfdev->devfreq.cur_volt);
+	err = dev_pm_opp_set_rate(dev, *freq);
+	if (err)
 		return err;
-	}
 
-	if (old_clk_rate > target_rate) {
-		err = regulator_set_voltage(pfdev->regulator, target_volt,
-					    target_volt);
-		if (err)
-			dev_err(dev, "Cannot set voltage %lu uV\n", target_volt);
-	}
-
-	pfdev->devfreq.cur_freq = target_rate;
-	pfdev->devfreq.cur_volt = target_volt;
+	*freq = clk_get_rate(pfdev->clock);
 
 	return 0;
 }
@@ -86,7 +45,7 @@ static void panfrost_devfreq_reset(struct panfrost_device *pfdev)
 static int panfrost_devfreq_get_dev_status(struct device *dev,
 					   struct devfreq_dev_status *status)
 {
-	struct panfrost_device *pfdev = platform_get_drvdata(to_platform_device(dev));
+	struct panfrost_device *pfdev = dev_get_drvdata(dev);
 	int i;
 
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
@@ -119,7 +78,7 @@ static int panfrost_devfreq_get_cur_freq(struct device *dev, unsigned long *freq
 {
 	struct panfrost_device *pfdev = platform_get_drvdata(to_platform_device(dev));
 
-	*freq = pfdev->devfreq.cur_freq;
+	*freq = clk_get_rate(pfdev->clock);
 
 	return 0;
 }
@@ -135,6 +94,7 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 {
 	int ret;
 	struct dev_pm_opp *opp;
+	unsigned long cur_freq;
 
 	ret = dev_pm_opp_of_add_table(&pfdev->pdev->dev);
 	if (ret == -ENODEV) /* Optional, continue without devfreq */
@@ -144,13 +104,13 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 
 	panfrost_devfreq_reset(pfdev);
 
-	pfdev->devfreq.cur_freq = clk_get_rate(pfdev->clock);
+	cur_freq = clk_get_rate(pfdev->clock);
 
-	opp = devfreq_recommended_opp(&pfdev->pdev->dev, &pfdev->devfreq.cur_freq, 0);
+	opp = devfreq_recommended_opp(&pfdev->pdev->dev, &cur_freq, 0);
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
-	panfrost_devfreq_profile.initial_freq = pfdev->devfreq.cur_freq;
+	panfrost_devfreq_profile.initial_freq = cur_freq;
 	dev_pm_opp_put(opp);
 
 	pfdev->devfreq.devfreq = devm_devfreq_add_device(&pfdev->pdev->dev,
