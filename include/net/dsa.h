@@ -283,13 +283,13 @@ struct dsa_switch {
 static inline struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
 {
 	struct dsa_switch_tree *dst = ds->dst;
-	struct dsa_port *dp = NULL;
+	struct dsa_port *dp;
 
 	list_for_each_entry(dp, &dst->ports, list)
 		if (dp->ds == ds && dp->index == p)
-			break;
+			return dp;
 
-	return dp;
+	return NULL;
 }
 
 static inline bool dsa_is_unused_port(struct dsa_switch *ds, int p)
