@@ -577,7 +577,7 @@ static ssize_t zfcp_sysfs_adapter_util_show(struct device *dev,
 		return -ENOMEM;
 
 	retval = zfcp_fsf_exchange_port_data_sync(adapter->qdio, qtcb_port);
-	if (!retval)
+	if (retval == 0 || retval == -EAGAIN)
 		retval = sprintf(buf, "%u %u %u\n", qtcb_port->cp_util,
 				 qtcb_port->cb_util, qtcb_port->a_util);
 	kfree(qtcb_port);
@@ -603,7 +603,7 @@ static int zfcp_sysfs_adapter_ex_config(struct device *dev,
 		return -ENOMEM;
 
 	retval = zfcp_fsf_exchange_config_data_sync(adapter->qdio, qtcb_config);
-	if (!retval)
+	if (retval == 0 || retval == -EAGAIN)
 		*stat_inf = qtcb_config->stat_info;
 
 	kfree(qtcb_config);
