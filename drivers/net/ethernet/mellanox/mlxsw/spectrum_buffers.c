@@ -1044,12 +1044,12 @@ int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
 	if (pr->freeze_mode && pr->mode != mode) {
 		NL_SET_ERR_MSG_MOD(extack, "Changing this pool's threshold type is forbidden");
 		return -EINVAL;
-	};
+	}
 
 	if (pr->freeze_size && pr->size != size) {
 		NL_SET_ERR_MSG_MOD(extack, "Changing this pool's size is forbidden");
 		return -EINVAL;
-	};
+	}
 
 	return mlxsw_sp_sb_pr_write(mlxsw_sp, pool_index, mode,
 				    pool_size, false);
