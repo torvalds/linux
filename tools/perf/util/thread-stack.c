@@ -7,12 +7,14 @@
 #include <linux/rbtree.h>
 #include <linux/list.h>
 #include <linux/log2.h>
+#include <linux/zalloc.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 #include "thread.h"
 #include "event.h"
 #include "machine.h"
 #include "env.h"
-#include "util.h"
 #include "debug.h"
 #include "symbol.h"
 #include "comm.h"

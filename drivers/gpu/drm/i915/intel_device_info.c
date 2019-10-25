@@ -58,6 +58,7 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(CANNONLAKE),
 	PLATFORM_NAME(ICELAKE),
 	PLATFORM_NAME(ELKHARTLAKE),
+	PLATFORM_NAME(TIGERLAKE),
 };
 #undef PLATFORM_NAME
 
@@ -90,10 +91,10 @@ static void sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 
 	drm_printf(p, "slice total: %u, mask=%04x\n",
 		   hweight8(sseu->slice_mask), sseu->slice_mask);
-	drm_printf(p, "subslice total: %u\n", sseu_subslice_total(sseu));
+	drm_printf(p, "subslice total: %u\n", intel_sseu_subslice_total(sseu));
 	for (s = 0; s < sseu->max_slices; s++) {
 		drm_printf(p, "slice%d: %u subslices, mask=%04x\n",
-			   s, hweight8(sseu->subslice_mask[s]),
+			   s, intel_sseu_subslices_per_slice(sseu, s),
 			   sseu->subslice_mask[s]);
 	}
 	drm_printf(p, "EU total: %u\n", sseu->eu_total);
@@ -114,6 +115,40 @@ void intel_device_info_dump_runtime(const struct intel_runtime_info *info,
 		   info->cs_timestamp_frequency_khz);
 }
 
+static int sseu_eu_idx(const struct sseu_dev_info *sseu, int slice,
+		       int subslice)
+{
+	int subslice_stride = GEN_SSEU_STRIDE(sseu->max_eus_per_subslice);
+	int slice_stride = sseu->max_subslices * subslice_stride;
+
+	return slice * slice_stride + subslice * subslice_stride;
+}
+
+static u16 sseu_get_eus(const struct sseu_dev_info *sseu, int slice,
+			int subslice)
+{
+	int i, offset = sseu_eu_idx(sseu, slice, subslice);
+	u16 eu_mask = 0;
+
+	for (i = 0; i < GEN_SSEU_STRIDE(sseu->max_eus_per_subslice); i++) {
+		eu_mask |= ((u16)sseu->eu_mask[offset + i]) <<
+			(i * BITS_PER_BYTE);
+	}
+
+	return eu_mask;
+}
+
+static void sseu_set_eus(struct sseu_dev_info *sseu, int slice, int subslice,
+			 u16 eu_mask)
+{
+	int i, offset = sseu_eu_idx(sseu, slice, subslice);
+
+	for (i = 0; i < GEN_SSEU_STRIDE(sseu->max_eus_per_subslice); i++) {
+		sseu->eu_mask[offset + i] =
+			(eu_mask >> (BITS_PER_BYTE * i)) & 0xff;
+	}
+}
+
 void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
 				     struct drm_printer *p)
 {
@@ -126,7 +161,7 @@ void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
 
 	for (s = 0; s < sseu->max_slices; s++) {
 		drm_printf(p, "slice%d: %u subslice(s) (0x%hhx):\n",
-			   s, hweight8(sseu->subslice_mask[s]),
+			   s, intel_sseu_subslices_per_slice(sseu, s),
 			   sseu->subslice_mask[s]);
 
 		for (ss = 0; ss < sseu->max_subslices; ss++) {
@@ -260,9 +295,10 @@ static void gen10_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * EU in any one subslice may be fused off for die
 	 * recovery.
 	 */
-	sseu->eu_per_subslice = sseu_subslice_total(sseu) ?
+	sseu->eu_per_subslice = intel_sseu_subslice_total(sseu) ?
 				DIV_ROUND_UP(sseu->eu_total,
-					     sseu_subslice_total(sseu)) : 0;
+					     intel_sseu_subslice_total(sseu)) :
+				0;
 
 	/* No restrictions on Power Gating */
 	sseu->has_slice_pg = 1;
@@ -310,8 +346,9 @@ static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * CHV expected to always have a uniform distribution of EU
 	 * across subslices.
 	*/
-	sseu->eu_per_subslice = sseu_subslice_total(sseu) ?
-				sseu->eu_total / sseu_subslice_total(sseu) :
+	sseu->eu_per_subslice = intel_sseu_subslice_total(sseu) ?
+				sseu->eu_total /
+					intel_sseu_subslice_total(sseu) :
 				0;
 	/*
 	 * CHV supports subslice power gating on devices with more than
@@ -319,7 +356,7 @@ static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * more than one EU pair per subslice.
 	*/
 	sseu->has_slice_pg = 0;
-	sseu->has_subslice_pg = sseu_subslice_total(sseu) > 1;
+	sseu->has_subslice_pg = intel_sseu_subslice_total(sseu) > 1;
 	sseu->has_eu_pg = (sseu->eu_per_subslice > 2);
 }
 
@@ -393,9 +430,10 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * recovery. BXT is expected to be perfectly uniform in EU
 	 * distribution.
 	*/
-	sseu->eu_per_subslice = sseu_subslice_total(sseu) ?
+	sseu->eu_per_subslice = intel_sseu_subslice_total(sseu) ?
 				DIV_ROUND_UP(sseu->eu_total,
-					     sseu_subslice_total(sseu)) : 0;
+					     intel_sseu_subslice_total(sseu)) :
+				0;
 	/*
 	 * SKL+ supports slice power gating on devices with more than
 	 * one slice, and supports EU power gating on devices with
@@ -407,7 +445,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 	sseu->has_slice_pg =
 		!IS_GEN9_LP(dev_priv) && hweight8(sseu->slice_mask) > 1;
 	sseu->has_subslice_pg =
-		IS_GEN9_LP(dev_priv) && sseu_subslice_total(sseu) > 1;
+		IS_GEN9_LP(dev_priv) && intel_sseu_subslice_total(sseu) > 1;
 	sseu->has_eu_pg = sseu->eu_per_subslice > 2;
 
 	if (IS_GEN9_LP(dev_priv)) {
@@ -496,9 +534,10 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * subslices with the exception that any one EU in any one subslice may
 	 * be fused off for die recovery.
 	 */
-	sseu->eu_per_subslice = sseu_subslice_total(sseu) ?
+	sseu->eu_per_subslice = intel_sseu_subslice_total(sseu) ?
 				DIV_ROUND_UP(sseu->eu_total,
-					     sseu_subslice_total(sseu)) : 0;
+					     intel_sseu_subslice_total(sseu)) :
+				0;
 
 	/*
 	 * BDW supports slice power gating on devices with more than
@@ -677,7 +716,7 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		}
 
 		return freq;
-	} else if (INTEL_GEN(dev_priv) <= 11) {
+	} else if (INTEL_GEN(dev_priv) <= 12) {
 		u32 ctc_reg = I915_READ(CTC_MODE);
 		u32 freq = 0;
 
@@ -735,7 +774,7 @@ static const u16 subplatform_ult_ids[] = {
 	INTEL_CFL_U_GT3_IDS(0),
 	INTEL_WHL_U_GT1_IDS(0),
 	INTEL_WHL_U_GT2_IDS(0),
-	INTEL_WHL_U_GT3_IDS(0)
+	INTEL_WHL_U_GT3_IDS(0),
 };
 
 static const u16 subplatform_ulx_ids[] = {
@@ -748,17 +787,14 @@ static const u16 subplatform_ulx_ids[] = {
 	INTEL_SKL_ULX_GT1_IDS(0),
 	INTEL_SKL_ULX_GT2_IDS(0),
 	INTEL_KBL_ULX_GT1_IDS(0),
-	INTEL_KBL_ULX_GT2_IDS(0)
-};
-
-static const u16 subplatform_aml_ids[] = {
+	INTEL_KBL_ULX_GT2_IDS(0),
 	INTEL_AML_KBL_GT2_IDS(0),
-	INTEL_AML_CFL_GT2_IDS(0)
+	INTEL_AML_CFL_GT2_IDS(0),
 };
 
 static const u16 subplatform_portf_ids[] = {
 	INTEL_CNL_PORT_F_IDS(0),
-	INTEL_ICL_PORT_F_IDS(0)
+	INTEL_ICL_PORT_F_IDS(0),
 };
 
 static bool find_devid(u16 id, const u16 *p, unsigned int num)
@@ -794,9 +830,6 @@ void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 			/* ULX machines are also considered ULT. */
 			mask |= BIT(INTEL_SUBPLATFORM_ULT);
 		}
-	} else if (find_devid(devid, subplatform_aml_ids,
-			      ARRAY_SIZE(subplatform_aml_ids))) {
-		mask = BIT(INTEL_SUBPLATFORM_AML);
 	} else if (find_devid(devid, subplatform_portf_ids,
 			      ARRAY_SIZE(subplatform_portf_ids))) {
 		mask = BIT(INTEL_SUBPLATFORM_PORTF);
@@ -897,35 +930,28 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		}
 	} else if (HAS_DISPLAY(dev_priv) && INTEL_GEN(dev_priv) >= 9) {
 		u32 dfsm = I915_READ(SKL_DFSM);
-		u8 disabled_mask = 0;
-		bool invalid;
-		int num_bits;
+		u8 enabled_mask = BIT(info->num_pipes) - 1;
 
 		if (dfsm & SKL_DFSM_PIPE_A_DISABLE)
-			disabled_mask |= BIT(PIPE_A);
+			enabled_mask &= ~BIT(PIPE_A);
 		if (dfsm & SKL_DFSM_PIPE_B_DISABLE)
-			disabled_mask |= BIT(PIPE_B);
+			enabled_mask &= ~BIT(PIPE_B);
 		if (dfsm & SKL_DFSM_PIPE_C_DISABLE)
-			disabled_mask |= BIT(PIPE_C);
+			enabled_mask &= ~BIT(PIPE_C);
+		if (INTEL_GEN(dev_priv) >= 12 &&
+		    (dfsm & TGL_DFSM_PIPE_D_DISABLE))
+			enabled_mask &= ~BIT(PIPE_D);
 
-		num_bits = hweight8(disabled_mask);
-
-		switch (disabled_mask) {
-		case BIT(PIPE_A):
-		case BIT(PIPE_B):
-		case BIT(PIPE_A) | BIT(PIPE_B):
-		case BIT(PIPE_A) | BIT(PIPE_C):
-			invalid = true;
-			break;
-		default:
-			invalid = false;
-		}
-
-		if (num_bits > info->num_pipes || invalid)
-			DRM_ERROR("invalid pipe fuse configuration: 0x%x\n",
-				  disabled_mask);
+		/*
+		 * At least one pipe should be enabled and if there are
+		 * disabled pipes, they should be the last ones, with no holes
+		 * in the mask.
+		 */
+		if (enabled_mask == 0 || !is_power_of_2(enabled_mask + 1))
+			DRM_ERROR("invalid pipe fuse configuration: enabled_mask=0x%x\n",
+				  enabled_mask);
 		else
-			info->num_pipes -= num_bits;
+			info->num_pipes = hweight8(enabled_mask);
 	}
 
 	/* Initialize slice/subslice/EU info */
@@ -996,8 +1022,9 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 		/*
 		 * In Gen11, only even numbered logical VDBOXes are
 		 * hooked up to an SFC (Scaler & Format Converter) unit.
+		 * In TGL each VDBOX has access to an SFC.
 		 */
-		if (logical_vdbox++ % 2 == 0)
+		if (IS_TIGERLAKE(dev_priv) || logical_vdbox++ % 2 == 0)
 			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
 	DRM_DEBUG_DRIVER("vdbox enable: %04x, instances: %04lx\n",

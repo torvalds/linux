@@ -28,7 +28,6 @@
  *    Christian König <christian.koenig@amd.com>
  */
 
-#include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_trace.h"
 
@@ -88,30 +87,30 @@ void radeon_sync_fence(struct radeon_sync *sync,
  */
 int radeon_sync_resv(struct radeon_device *rdev,
 		     struct radeon_sync *sync,
-		     struct reservation_object *resv,
+		     struct dma_resv *resv,
 		     bool shared)
 {
-	struct reservation_object_list *flist;
+	struct dma_resv_list *flist;
 	struct dma_fence *f;
 	struct radeon_fence *fence;
 	unsigned i;
 	int r = 0;
 
 	/* always sync to the exclusive fence */
-	f = reservation_object_get_excl(resv);
+	f = dma_resv_get_excl(resv);
 	fence = f ? to_radeon_fence(f) : NULL;
 	if (fence && fence->rdev == rdev)
 		radeon_sync_fence(sync, fence);
 	else if (f)
 		r = dma_fence_wait(f, true);
 
-	flist = reservation_object_get_list(resv);
+	flist = dma_resv_get_list(resv);
 	if (shared || !flist || r)
 		return r;
 
 	for (i = 0; i < flist->shared_count; ++i) {
 		f = rcu_dereference_protected(flist->shared[i],
-					      reservation_object_held(resv));
+					      dma_resv_held(resv));
 		fence = to_radeon_fence(f);
 		if (fence && fence->rdev == rdev)
 			radeon_sync_fence(sync, fence);

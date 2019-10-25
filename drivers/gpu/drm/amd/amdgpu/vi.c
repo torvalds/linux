@@ -20,8 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
+#include <linux/pci.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -57,7 +59,6 @@
 
 #include "vid.h"
 #include "vi.h"
-#include "vi_dpm.h"
 #include "gmc_v8_0.h"
 #include "gmc_v7_0.h"
 #include "gfx_v8_0.h"
@@ -710,6 +711,12 @@ static int vi_asic_reset(struct amdgpu_device *adev)
 	return r;
 }
 
+static enum amd_reset_method
+vi_asic_reset_method(struct amdgpu_device *adev)
+{
+	return AMD_RESET_METHOD_LEGACY;
+}
+
 static u32 vi_get_config_memsize(struct amdgpu_device *adev)
 {
 	return RREG32(mmCONFIG_MEMSIZE);
@@ -987,6 +994,18 @@ static void vi_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	*count1 = RREG32_PCIE(ixPCIE_PERF_COUNT1_TXCLK) | (cnt1_of << 32);
 }
 
+static uint64_t vi_get_pcie_replay_count(struct amdgpu_device *adev)
+{
+	uint64_t nak_r, nak_g;
+
+	/* Get the number of NAKs received and generated */
+	nak_r = RREG32_PCIE(ixPCIE_RX_NUM_NAK);
+	nak_g = RREG32_PCIE(ixPCIE_RX_NUM_NAK_GENERATED);
+
+	/* Add the total number of NAKs, i.e the number of replays */
+	return (nak_r + nak_g);
+}
+
 static bool vi_need_reset_on_init(struct amdgpu_device *adev)
 {
 	u32 clock_cntl, pc;
@@ -1010,6 +1029,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.read_bios_from_rom = &vi_read_bios_from_rom,
 	.read_register = &vi_read_register,
 	.reset = &vi_asic_reset,
+	.reset_method = &vi_asic_reset_method,
 	.set_vga_state = &vi_vga_set_state,
 	.get_xclk = &vi_get_xclk,
 	.set_uvd_clocks = &vi_set_uvd_clocks,
@@ -1021,6 +1041,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.init_doorbell_index = &legacy_doorbell_index_init,
 	.get_pcie_usage = &vi_get_pcie_usage,
 	.need_reset_on_init = &vi_need_reset_on_init,
+	.get_pcie_replay_count = &vi_get_pcie_replay_count,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \

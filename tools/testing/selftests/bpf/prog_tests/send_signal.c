@@ -8,7 +8,7 @@ static void sigusr1_handler(int signum)
 	sigusr1_received++;
 }
 
-static int test_send_signal_common(struct perf_event_attr *attr,
+static void test_send_signal_common(struct perf_event_attr *attr,
 				    int prog_type,
 				    const char *test_name)
 {
@@ -23,13 +23,13 @@ static int test_send_signal_common(struct perf_event_attr *attr,
 
 	if (CHECK(pipe(pipe_c2p), test_name,
 		  "pipe pipe_c2p error: %s\n", strerror(errno)))
-		goto no_fork_done;
+		return;
 
 	if (CHECK(pipe(pipe_p2c), test_name,
 		  "pipe pipe_p2c error: %s\n", strerror(errno))) {
 		close(pipe_c2p[0]);
 		close(pipe_c2p[1]);
-		goto no_fork_done;
+		return;
 	}
 
 	pid = fork();
@@ -38,7 +38,7 @@ static int test_send_signal_common(struct perf_event_attr *attr,
 		close(pipe_c2p[1]);
 		close(pipe_p2c[0]);
 		close(pipe_p2c[1]);
-		goto no_fork_done;
+		return;
 	}
 
 	if (pid == 0) {
@@ -125,7 +125,7 @@ static int test_send_signal_common(struct perf_event_attr *attr,
 		goto disable_pmu;
 	}
 
-	err = CHECK(buf[0] != '2', test_name, "incorrect result\n");
+	CHECK(buf[0] != '2', test_name, "incorrect result\n");
 
 	/* notify child safe to exit */
 	write(pipe_p2c[1], buf, 1);
@@ -138,11 +138,9 @@ prog_load_failure:
 	close(pipe_c2p[0]);
 	close(pipe_p2c[1]);
 	wait(NULL);
-no_fork_done:
-	return err;
 }
 
-static int test_send_signal_tracepoint(void)
+static void test_send_signal_tracepoint(void)
 {
 	const char *id_path = "/sys/kernel/debug/tracing/events/syscalls/sys_enter_nanosleep/id";
 	struct perf_event_attr attr = {
@@ -159,21 +157,33 @@ static int test_send_signal_tracepoint(void)
 	if (CHECK(efd < 0, "tracepoint",
 		  "open syscalls/sys_enter_nanosleep/id failure: %s\n",
 		  strerror(errno)))
-		return -1;
+		return;
 
 	bytes = read(efd, buf, sizeof(buf));
 	close(efd);
 	if (CHECK(bytes <= 0 || bytes >= sizeof(buf), "tracepoint",
 		  "read syscalls/sys_enter_nanosleep/id failure: %s\n",
 		  strerror(errno)))
-		return -1;
+		return;
 
 	attr.config = strtol(buf, NULL, 0);
 
-	return test_send_signal_common(&attr, BPF_PROG_TYPE_TRACEPOINT, "tracepoint");
+	test_send_signal_common(&attr, BPF_PROG_TYPE_TRACEPOINT, "tracepoint");
 }
 
-static int test_send_signal_nmi(void)
+static void test_send_signal_perf(void)
+{
+	struct perf_event_attr attr = {
+		.sample_period = 1,
+		.type = PERF_TYPE_SOFTWARE,
+		.config = PERF_COUNT_SW_CPU_CLOCK,
+	};
+
+	test_send_signal_common(&attr, BPF_PROG_TYPE_PERF_EVENT,
+				"perf_sw_event");
+}
+
+static void test_send_signal_nmi(void)
 {
 	struct perf_event_attr attr = {
 		.sample_freq = 50,
@@ -181,18 +191,35 @@ static int test_send_signal_nmi(void)
 		.type = PERF_TYPE_HARDWARE,
 		.config = PERF_COUNT_HW_CPU_CYCLES,
 	};
+	int pmu_fd;
 
-	return test_send_signal_common(&attr, BPF_PROG_TYPE_PERF_EVENT, "perf_event");
+	/* Some setups (e.g. virtual machines) might run with hardware
+	 * perf events disabled. If this is the case, skip this test.
+	 */
+	pmu_fd = syscall(__NR_perf_event_open, &attr, 0 /* pid */,
+			 -1 /* cpu */, -1 /* group_fd */, 0 /* flags */);
+	if (pmu_fd == -1) {
+		if (errno == ENOENT) {
+			printf("%s:SKIP:no PERF_COUNT_HW_CPU_CYCLES\n",
+			       __func__);
+			test__skip();
+			return;
+		}
+		/* Let the test fail with a more informative message */
+	} else {
+		close(pmu_fd);
+	}
+
+	test_send_signal_common(&attr, BPF_PROG_TYPE_PERF_EVENT,
+				"perf_hw_event");
 }
 
 void test_send_signal(void)
 {
-	int ret = 0;
-
-	ret |= test_send_signal_tracepoint();
-	ret |= test_send_signal_nmi();
-	if (!ret)
-		printf("test_send_signal:OK\n");
-	else
-		printf("test_send_signal:FAIL\n");
+	if (test__start_subtest("send_signal_tracepoint"))
+		test_send_signal_tracepoint();
+	if (test__start_subtest("send_signal_perf"))
+		test_send_signal_perf();
+	if (test__start_subtest("send_signal_nmi"))
+		test_send_signal_nmi();
 }

@@ -49,6 +49,7 @@ static int crunch_do(struct notifier_block *self, unsigned long cmd, void *t)
 		 * FALLTHROUGH: Ensure we don't try to overwrite our newly
 		 * initialised state information on the first fault.
 		 */
+		/* Fall through */
 
 	case THREAD_NOTIFY_EXIT:
 		crunch_task_release(thread);

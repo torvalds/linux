@@ -393,7 +393,7 @@ int aq_nic_start(struct aq_nic_s *self)
 						   self->aq_nic_cfg.link_irq_vec);
 			err = request_threaded_irq(irqvec, NULL,
 						   aq_linkstate_threaded_isr,
-						   IRQF_SHARED,
+						   IRQF_SHARED | IRQF_ONESHOT,
 						   self->ndev->name, self);
 			if (err < 0)
 				goto err_exit;

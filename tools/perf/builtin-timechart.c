@@ -10,26 +10,23 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#include <traceevent/event-parse.h>
 
 #include "builtin.h"
-
-#include "util/util.h"
-
 #include "util/color.h"
 #include <linux/list.h>
-#include "util/cache.h"
-#include "util/evlist.h"
+#include "util/evlist.h" // for struct evsel_str_handler
 #include "util/evsel.h"
 #include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/callchain.h"
 
 #include "perf.h"
 #include "util/header.h"
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/event.h"
@@ -547,19 +544,19 @@ exit:
 }
 
 typedef int (*tracepoint_handler)(struct timechart *tchart,
-				  struct perf_evsel *evsel,
+				  struct evsel *evsel,
 				  struct perf_sample *sample,
 				  const char *backtrace);
 
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	struct timechart *tchart = container_of(tool, struct timechart, tool);
 
-	if (evsel->attr.sample_type & PERF_SAMPLE_TIME) {
+	if (evsel->core.attr.sample_type & PERF_SAMPLE_TIME) {
 		if (!tchart->first_time || tchart->first_time > sample->time)
 			tchart->first_time = sample->time;
 		if (tchart->last_time < sample->time)
@@ -577,7 +574,7 @@ static int process_sample_event(struct perf_tool *tool,
 
 static int
 process_sample_cpu_idle(struct timechart *tchart __maybe_unused,
-			struct perf_evsel *evsel,
+			struct evsel *evsel,
 			struct perf_sample *sample,
 			const char *backtrace __maybe_unused)
 {
@@ -593,7 +590,7 @@ process_sample_cpu_idle(struct timechart *tchart __maybe_unused,
 
 static int
 process_sample_cpu_frequency(struct timechart *tchart,
-			     struct perf_evsel *evsel,
+			     struct evsel *evsel,
 			     struct perf_sample *sample,
 			     const char *backtrace __maybe_unused)
 {
@@ -606,7 +603,7 @@ process_sample_cpu_frequency(struct timechart *tchart,
 
 static int
 process_sample_sched_wakeup(struct timechart *tchart,
-			    struct perf_evsel *evsel,
+			    struct evsel *evsel,
 			    struct perf_sample *sample,
 			    const char *backtrace)
 {
@@ -620,7 +617,7 @@ process_sample_sched_wakeup(struct timechart *tchart,
 
 static int
 process_sample_sched_switch(struct timechart *tchart,
-			    struct perf_evsel *evsel,
+			    struct evsel *evsel,
 			    struct perf_sample *sample,
 			    const char *backtrace)
 {
@@ -636,7 +633,7 @@ process_sample_sched_switch(struct timechart *tchart,
 #ifdef SUPPORT_OLD_POWER_EVENTS
 static int
 process_sample_power_start(struct timechart *tchart __maybe_unused,
-			   struct perf_evsel *evsel,
+			   struct evsel *evsel,
 			   struct perf_sample *sample,
 			   const char *backtrace __maybe_unused)
 {
@@ -649,7 +646,7 @@ process_sample_power_start(struct timechart *tchart __maybe_unused,
 
 static int
 process_sample_power_end(struct timechart *tchart,
-			 struct perf_evsel *evsel __maybe_unused,
+			 struct evsel *evsel __maybe_unused,
 			 struct perf_sample *sample,
 			 const char *backtrace __maybe_unused)
 {
@@ -659,7 +656,7 @@ process_sample_power_end(struct timechart *tchart,
 
 static int
 process_sample_power_frequency(struct timechart *tchart,
-			       struct perf_evsel *evsel,
+			       struct evsel *evsel,
 			       struct perf_sample *sample,
 			       const char *backtrace __maybe_unused)
 {
@@ -842,7 +839,7 @@ static int pid_end_io_sample(struct timechart *tchart, int pid, int type,
 
 static int
 process_enter_read(struct timechart *tchart,
-		   struct perf_evsel *evsel,
+		   struct evsel *evsel,
 		   struct perf_sample *sample)
 {
 	long fd = perf_evsel__intval(evsel, sample, "fd");
@@ -852,7 +849,7 @@ process_enter_read(struct timechart *tchart,
 
 static int
 process_exit_read(struct timechart *tchart,
-		  struct perf_evsel *evsel,
+		  struct evsel *evsel,
 		  struct perf_sample *sample)
 {
 	long ret = perf_evsel__intval(evsel, sample, "ret");
@@ -862,7 +859,7 @@ process_exit_read(struct timechart *tchart,
 
 static int
 process_enter_write(struct timechart *tchart,
-		    struct perf_evsel *evsel,
+		    struct evsel *evsel,
 		    struct perf_sample *sample)
 {
 	long fd = perf_evsel__intval(evsel, sample, "fd");
@@ -872,7 +869,7 @@ process_enter_write(struct timechart *tchart,
 
 static int
 process_exit_write(struct timechart *tchart,
-		   struct perf_evsel *evsel,
+		   struct evsel *evsel,
 		   struct perf_sample *sample)
 {
 	long ret = perf_evsel__intval(evsel, sample, "ret");
@@ -882,7 +879,7 @@ process_exit_write(struct timechart *tchart,
 
 static int
 process_enter_sync(struct timechart *tchart,
-		   struct perf_evsel *evsel,
+		   struct evsel *evsel,
 		   struct perf_sample *sample)
 {
 	long fd = perf_evsel__intval(evsel, sample, "fd");
@@ -892,7 +889,7 @@ process_enter_sync(struct timechart *tchart,
 
 static int
 process_exit_sync(struct timechart *tchart,
-		  struct perf_evsel *evsel,
+		  struct evsel *evsel,
 		  struct perf_sample *sample)
 {
 	long ret = perf_evsel__intval(evsel, sample, "ret");
@@ -902,7 +899,7 @@ process_exit_sync(struct timechart *tchart,
 
 static int
 process_enter_tx(struct timechart *tchart,
-		 struct perf_evsel *evsel,
+		 struct evsel *evsel,
 		 struct perf_sample *sample)
 {
 	long fd = perf_evsel__intval(evsel, sample, "fd");
@@ -912,7 +909,7 @@ process_enter_tx(struct timechart *tchart,
 
 static int
 process_exit_tx(struct timechart *tchart,
-		struct perf_evsel *evsel,
+		struct evsel *evsel,
 		struct perf_sample *sample)
 {
 	long ret = perf_evsel__intval(evsel, sample, "ret");
@@ -922,7 +919,7 @@ process_exit_tx(struct timechart *tchart,
 
 static int
 process_enter_rx(struct timechart *tchart,
-		 struct perf_evsel *evsel,
+		 struct evsel *evsel,
 		 struct perf_sample *sample)
 {
 	long fd = perf_evsel__intval(evsel, sample, "fd");
@@ -932,7 +929,7 @@ process_enter_rx(struct timechart *tchart,
 
 static int
 process_exit_rx(struct timechart *tchart,
-		struct perf_evsel *evsel,
+		struct evsel *evsel,
 		struct perf_sample *sample)
 {
 	long ret = perf_evsel__intval(evsel, sample, "ret");
@@ -942,7 +939,7 @@ process_exit_rx(struct timechart *tchart,
 
 static int
 process_enter_poll(struct timechart *tchart,
-		   struct perf_evsel *evsel,
+		   struct evsel *evsel,
 		   struct perf_sample *sample)
 {
 	long fd = perf_evsel__intval(evsel, sample, "fd");
@@ -952,7 +949,7 @@ process_enter_poll(struct timechart *tchart,
 
 static int
 process_exit_poll(struct timechart *tchart,
-		  struct perf_evsel *evsel,
+		  struct evsel *evsel,
 		  struct perf_sample *sample)
 {
 	long ret = perf_evsel__intval(evsel, sample, "ret");
@@ -1520,10 +1517,7 @@ static int process_header(struct perf_file_section *section __maybe_unused,
 		if (!tchart->topology)
 			break;
 
-		if (svg_build_topology_map(ph->env.sibling_cores,
-					   ph->env.nr_sibling_cores,
-					   ph->env.sibling_threads,
-					   ph->env.nr_sibling_threads))
+		if (svg_build_topology_map(&ph->env))
 			fprintf(stderr, "problem building topology\n");
 		break;
 
@@ -1536,7 +1530,7 @@ static int process_header(struct perf_file_section *section __maybe_unused,
 
 static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 {
-	const struct perf_evsel_str_handler power_tracepoints[] = {
+	const struct evsel_str_handler power_tracepoints[] = {
 		{ "power:cpu_idle",		process_sample_cpu_idle },
 		{ "power:cpu_frequency",	process_sample_cpu_frequency },
 		{ "sched:sched_wakeup",		process_sample_sched_wakeup },

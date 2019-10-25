@@ -923,7 +923,6 @@ dss_debugfs_create_file(struct dss_device *dss, const char *name,
 			void *data)
 {
 	struct dss_debugfs_entry *entry;
-	struct dentry *d;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
@@ -931,15 +930,9 @@ dss_debugfs_create_file(struct dss_device *dss, const char *name,
 
 	entry->show_fn = show_fn;
 	entry->data = data;
+	entry->dentry = debugfs_create_file(name, 0444, dss->debugfs.root,
+					    entry, &dss_debug_fops);
 
-	d = debugfs_create_file(name, 0444, dss->debugfs.root, entry,
-				&dss_debug_fops);
-	if (IS_ERR(d)) {
-		kfree(entry);
-		return ERR_CAST(d);
-	}
-
-	entry->dentry = d;
 	return entry;
 }
 

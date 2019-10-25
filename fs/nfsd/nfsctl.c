@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/ctype.h>
+#include <linux/fs_context.h>
 
 #include <linux/sunrpc/svcsock.h>
 #include <linux/lockd/lockd.h>
@@ -1170,13 +1171,17 @@ static struct inode *nfsd_get_inode(struct super_block *sb, umode_t mode)
 	return inode;
 }
 
-static int __nfsd_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int __nfsd_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode, struct nfsdfs_client *ncl)
 {
 	struct inode *inode;
 
 	inode = nfsd_get_inode(dir->i_sb, mode);
 	if (!inode)
 		return -ENOMEM;
+	if (ncl) {
+		inode->i_private = ncl;
+		kref_get(&ncl->cl_ref);
+	}
 	d_add(dentry, inode);
 	inc_nlink(dir);
 	fsnotify_mkdir(dir, dentry);
@@ -1193,17 +1198,14 @@ static struct dentry *nfsd_mkdir(struct dentry *parent, struct nfsdfs_client *nc
 	dentry = d_alloc_name(parent, name);
 	if (!dentry)
 		goto out_err;
-	ret = __nfsd_mkdir(d_inode(parent), dentry, S_IFDIR | 0600);
+	ret = __nfsd_mkdir(d_inode(parent), dentry, S_IFDIR | 0600, ncl);
 	if (ret)
 		goto out_err;
-	if (ncl) {
-		d_inode(dentry)->i_private = ncl;
-		kref_get(&ncl->cl_ref);
-	}
 out:
 	inode_unlock(dir);
 	return dentry;
 out_err:
+	dput(dentry);
 	dentry = ERR_PTR(ret);
 	goto out;
 }
@@ -1213,10 +1215,8 @@ static void clear_ncl(struct inode *inode)
 	struct nfsdfs_client *ncl = inode->i_private;
 
 	inode->i_private = NULL;
-	synchronize_rcu();
 	kref_put(&ncl->cl_ref, ncl->cl_release);
 }
-
 
 static struct nfsdfs_client *__get_nfsdfs_client(struct inode *inode)
 {
@@ -1231,9 +1231,9 @@ struct nfsdfs_client *get_nfsdfs_client(struct inode *inode)
 {
 	struct nfsdfs_client *nc;
 
-	rcu_read_lock();
+	inode_lock_shared(inode);
 	nc = __get_nfsdfs_client(inode);
-	rcu_read_unlock();
+	inode_unlock_shared(inode);
 	return nc;
 }
 /* from __rpc_unlink */
@@ -1337,7 +1337,7 @@ void nfsd_client_rmdir(struct dentry *dentry)
 	inode_unlock(dir);
 }
 
-static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
+static int nfsd_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
 							nfsd_net_id);
@@ -1372,7 +1372,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 #endif
 		/* last one */ {""}
 	};
-	get_net(sb->s_fs_info);
+
 	ret = simple_fill_super(sb, 0x6e667364, nfsd_files);
 	if (ret)
 		return ret;
@@ -1381,14 +1381,30 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		return PTR_ERR(dentry);
 	nn->nfsd_client_dir = dentry;
 	return 0;
-
 }
 
-static struct dentry *nfsd_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int nfsd_fs_get_tree(struct fs_context *fc)
 {
-	struct net *net = current->nsproxy->net_ns;
-	return mount_ns(fs_type, flags, data, net, net->user_ns, nfsd_fill_super);
+	return get_tree_keyed(fc, nfsd_fill_super, get_net(fc->net_ns));
+}
+
+static void nfsd_fs_free_fc(struct fs_context *fc)
+{
+	if (fc->s_fs_info)
+		put_net(fc->s_fs_info);
+}
+
+static const struct fs_context_operations nfsd_fs_context_ops = {
+	.free		= nfsd_fs_free_fc,
+	.get_tree	= nfsd_fs_get_tree,
+};
+
+static int nfsd_init_fs_context(struct fs_context *fc)
+{
+	put_user_ns(fc->user_ns);
+	fc->user_ns = get_user_ns(fc->net_ns->user_ns);
+	fc->ops = &nfsd_fs_context_ops;
+	return 0;
 }
 
 static void nfsd_umount(struct super_block *sb)
@@ -1402,7 +1418,7 @@ static void nfsd_umount(struct super_block *sb)
 static struct file_system_type nfsd_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfsd",
-	.mount		= nfsd_mount,
+	.init_fs_context = nfsd_init_fs_context,
 	.kill_sb	= nfsd_umount,
 };
 MODULE_ALIAS_FS("nfsd");
@@ -1514,9 +1530,7 @@ static int __init init_nfsd(void)
 	retval = nfsd4_init_pnfs();
 	if (retval)
 		goto out_free_slabs;
-	retval = nfsd_fault_inject_init(); /* nfsd fault injection controls */
-	if (retval)
-		goto out_exit_pnfs;
+	nfsd_fault_inject_init(); /* nfsd fault injection controls */
 	nfsd_stat_init();	/* Statistics */
 	nfsd_lockd_init();	/* lockd->nfsd callbacks */
 	retval = create_proc_exports_entry();
@@ -1533,7 +1547,6 @@ out_free_lockd:
 	nfsd_lockd_shutdown();
 	nfsd_stat_shutdown();
 	nfsd_fault_inject_cleanup();
-out_exit_pnfs:
 	nfsd4_exit_pnfs();
 out_free_slabs:
 	nfsd4_free_slabs();

@@ -5,8 +5,8 @@
  */
 
 #include "namespaces.h"
-#include "util.h"
 #include "event.h"
+#include "get_current_dir_name.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -17,8 +17,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <asm/bug.h>
+#include <linux/zalloc.h>
 
-struct namespaces *namespaces__new(struct namespaces_event *event)
+struct namespaces *namespaces__new(struct perf_record_namespaces *event)
 {
 	struct namespaces *namespaces;
 	u64 link_info_size = ((event ? event->nr_namespaces : NR_NAMESPACES) *

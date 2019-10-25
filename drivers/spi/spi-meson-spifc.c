@@ -286,7 +286,6 @@ static int meson_spifc_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct meson_spifc *spifc;
-	struct resource *res;
 	void __iomem *base;
 	unsigned int rate;
 	int ret = 0;
@@ -300,8 +299,7 @@ static int meson_spifc_probe(struct platform_device *pdev)
 	spifc = spi_master_get_devdata(master);
 	spifc->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(spifc->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
 		ret = PTR_ERR(base);
 		goto out_err;

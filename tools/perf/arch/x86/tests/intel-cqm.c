@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "tests/tests.h"
-#include "perf.h"
 #include "cloexec.h"
 #include "debug.h"
 #include "evlist.h"
@@ -40,8 +39,8 @@ static pid_t spawn(void)
  */
 int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
-	struct perf_evlist *evlist = NULL;
-	struct perf_evsel *evsel = NULL;
+	struct evlist *evlist = NULL;
+	struct evsel *evsel = NULL;
 	struct perf_event_attr pe;
 	int i, fd[2], flag, ret;
 	size_t mmap_len;
@@ -51,7 +50,7 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 
 	flag = perf_event_open_cloexec_flag();
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (!evlist) {
 		pr_debug("perf_evlist__new failed\n");
 		return TEST_FAIL;
@@ -124,6 +123,6 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 	kill(pid, SIGKILL);
 	wait(NULL);
 out:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return err;
 }

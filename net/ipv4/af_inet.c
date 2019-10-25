@@ -1845,13 +1845,8 @@ static __net_init int inet_init_net(struct net *net)
 	return 0;
 }
 
-static __net_exit void inet_exit_net(struct net *net)
-{
-}
-
 static __net_initdata struct pernet_operations af_inet_ops = {
 	.init = inet_init_net,
-	.exit = inet_exit_net,
 };
 
 static int __init init_inet_pernet_ops(void)

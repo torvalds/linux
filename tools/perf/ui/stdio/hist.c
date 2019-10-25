@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
+#include <stdlib.h>
 #include <linux/string.h>
 
 #include "../../util/callchain.h"
-#include "../../util/util.h"
+#include "../../util/debug.h"
 #include "../../util/hist.h"
 #include "../../util/map.h"
 #include "../../util/map_groups.h"
@@ -14,6 +15,7 @@
 #include "../../util/string2.h"
 #include "../../util/thread.h"
 #include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)
 {

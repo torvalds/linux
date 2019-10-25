@@ -456,7 +456,7 @@ static inline enum pvrdma_wr_opcode ib_wr_opcode_to_pvrdma(enum ib_wr_opcode op)
 		return PVRDMA_WR_MASKED_ATOMIC_CMP_AND_SWP;
 	case IB_WR_MASKED_ATOMIC_FETCH_AND_ADD:
 		return PVRDMA_WR_MASKED_ATOMIC_FETCH_AND_ADD;
-	case IB_WR_REG_SIG_MR:
+	case IB_WR_REG_MR_INTEGRITY:
 		return PVRDMA_WR_REG_SIG_MR;
 	default:
 		return PVRDMA_WR_ERROR;

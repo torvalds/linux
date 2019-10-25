@@ -9,7 +9,6 @@
 #ifndef __ASM_PROCFNS_H
 #define __ASM_PROCFNS_H
 
-#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
 #include <asm/page.h>
@@ -25,5 +24,4 @@ extern u64 cpu_do_resume(phys_addr_t ptr, u64 idmap_ttbr);
 #include <asm/memory.h>
 
 #endif /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 #endif /* __ASM_PROCFNS_H */

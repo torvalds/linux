@@ -6,7 +6,6 @@
  */
 
 #include <Python.h>
-#include "../../../perf.h"
 #include "../../../util/trace-event.h"
 
 #if PY_MAJOR_VERSION < 3

@@ -41,3 +41,39 @@ lp87565_pmic: pmic@60 {
 		};
 	};
 };
+
+TI LP87561 PMIC:
+
+This is a single output 4-phase regulator configuration
+
+Required properties:
+  - compatible:	"ti,lp87561-q1"
+  - reg:		I2C slave address.
+  - gpio-controller:	Marks the device node as a GPIO Controller.
+  - #gpio-cells:	Should be two.  The first cell is the pin number and
+			the second cell is used to specify flags.
+			See ../gpio/gpio.txt for more information.
+  - xxx-in-supply:	Phandle to parent supply node of each regulator
+			populated under regulators node. xxx should match
+			the supply_name populated in driver.
+Example:
+
+lp87561_pmic: pmic@62 {
+	compatible = "ti,lp87561-q1";
+	reg = <0x62>;
+	gpio-controller;
+	#gpio-cells = <2>;
+
+	buck3210-in-supply = <&vsys_3v3>;
+
+	regulators: regulators {
+		buck3210_reg: buck3210 {
+			/* VDD_CORE */
+			regulator-name = "buck3210";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+	};
+};

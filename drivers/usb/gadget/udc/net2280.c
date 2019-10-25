@@ -2244,30 +2244,40 @@ static void usb_reinit_338x(struct net2280 *dev)
 	}
 
 	/* Hardware Defect and Workaround */
-	val = readl(&dev->ll_lfps_regs->ll_lfps_5);
+	val = readl(&dev->llregs->ll_lfps_5);
 	val &= ~(0xf << TIMER_LFPS_6US);
 	val |= 0x5 << TIMER_LFPS_6US;
-	writel(val, &dev->ll_lfps_regs->ll_lfps_5);
+	writel(val, &dev->llregs->ll_lfps_5);
 
-	val = readl(&dev->ll_lfps_regs->ll_lfps_6);
+	val = readl(&dev->llregs->ll_lfps_6);
 	val &= ~(0xffff << TIMER_LFPS_80US);
 	val |= 0x0100 << TIMER_LFPS_80US;
-	writel(val, &dev->ll_lfps_regs->ll_lfps_6);
+	writel(val, &dev->llregs->ll_lfps_6);
 
 	/*
 	 * AA_AB Errata. Issue 4. Workaround for SuperSpeed USB
 	 * Hot Reset Exit Handshake may Fail in Specific Case using
 	 * Default Register Settings. Workaround for Enumeration test.
 	 */
-	val = readl(&dev->ll_tsn_regs->ll_tsn_counters_2);
+	val = readl(&dev->llregs->ll_tsn_counters_2);
 	val &= ~(0x1f << HOT_TX_NORESET_TS2);
 	val |= 0x10 << HOT_TX_NORESET_TS2;
-	writel(val, &dev->ll_tsn_regs->ll_tsn_counters_2);
+	writel(val, &dev->llregs->ll_tsn_counters_2);
 
-	val = readl(&dev->ll_tsn_regs->ll_tsn_counters_3);
+	val = readl(&dev->llregs->ll_tsn_counters_3);
 	val &= ~(0x1f << HOT_RX_RESET_TS2);
 	val |= 0x3 << HOT_RX_RESET_TS2;
-	writel(val, &dev->ll_tsn_regs->ll_tsn_counters_3);
+	writel(val, &dev->llregs->ll_tsn_counters_3);
+
+	/*
+	 * AB errata. Errata 11. Workaround for Default Duration of LFPS
+	 * Handshake Signaling for Device-Initiated U1 Exit is too short.
+	 * Without this, various enumeration failures observed with
+	 * modern superspeed hosts.
+	 */
+	val = readl(&dev->llregs->ll_lfps_timers_2);
+	writel((val & 0xffff0000) | LFPS_TIMERS_2_WORKAROUND_VALUE,
+	       &dev->llregs->ll_lfps_timers_2);
 
 	/*
 	 * Set Recovery Idle to Recover bit:
@@ -2276,10 +2286,10 @@ static void usb_reinit_338x(struct net2280 *dev)
 	 * - It is safe to set for all connection speeds; all chip revisions.
 	 * - R-M-W to leave other bits undisturbed.
 	 * - Reference PLX TT-7372
-	 */
-	val = readl(&dev->ll_chicken_reg->ll_tsn_chicken_bit);
+	*/
+	val = readl(&dev->llregs->ll_tsn_chicken_bit);
 	val |= BIT(RECOVERY_IDLE_TO_RECOVER_FMW);
-	writel(val, &dev->ll_chicken_reg->ll_tsn_chicken_bit);
+	writel(val, &dev->llregs->ll_tsn_chicken_bit);
 
 	INIT_LIST_HEAD(&dev->gadget.ep0->ep_list);
 
@@ -3669,12 +3679,6 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 							(base + 0x00b4);
 		dev->llregs = (struct usb338x_ll_regs __iomem *)
 							(base + 0x0700);
-		dev->ll_lfps_regs = (struct usb338x_ll_lfps_regs __iomem *)
-							(base + 0x0748);
-		dev->ll_tsn_regs = (struct usb338x_ll_tsn_regs __iomem *)
-							(base + 0x077c);
-		dev->ll_chicken_reg = (struct usb338x_ll_chi_regs __iomem *)
-							(base + 0x079c);
 		dev->plregs = (struct usb338x_pl_regs __iomem *)
 							(base + 0x0800);
 		usbstat = readl(&dev->usb->usbstat);

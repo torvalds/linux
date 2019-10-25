@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config ECHO
 	tristate "Line Echo Canceller support"
-	default n
 	---help---
 	  This driver provides line echo cancelling support for mISDN and
 	  Zaptel drivers.

@@ -48,6 +48,7 @@ gk110_fifo_runlist = {
 
 static const struct gk104_fifo_func
 gk110_fifo = {
+	.intr.fault = gf100_fifo_intr_fault,
 	.pbdma = &gk104_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,

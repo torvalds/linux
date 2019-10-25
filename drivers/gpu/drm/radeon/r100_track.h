@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 
+#include "radeon.h"
+
 #define R100_TRACK_MAX_TEXTURE 3
 #define R200_TRACK_MAX_TEXTURE 6
 #define R300_TRACK_MAX_TEXTURE 16

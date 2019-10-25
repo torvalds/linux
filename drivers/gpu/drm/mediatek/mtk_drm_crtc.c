@@ -3,14 +3,16 @@
  * Copyright (c) 2015 MediaTek Inc.
  */
 
+#include <linux/clk.h>
+#include <linux/pm_runtime.h>
+
 #include <asm/barrier.h>
-#include <drm/drmP.h>
+#include <soc/mediatek/smi.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <linux/clk.h>
-#include <linux/pm_runtime.h>
-#include <soc/mediatek/smi.h>
+#include <drm/drm_vblank.h>
 
 #include "mtk_drm_drv.h"
 #include "mtk_drm_crtc.h"

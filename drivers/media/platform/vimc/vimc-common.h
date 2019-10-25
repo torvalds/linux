@@ -12,8 +12,6 @@
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
 
-#include "vimc-streamer.h"
-
 #define VIMC_PDEV_NAME "vimc"
 
 /* VIMC-specific controls */
@@ -70,6 +68,23 @@ struct vimc_platform_data {
 };
 
 /**
+ * struct vimc_pix_map - maps media bus code with v4l2 pixel format
+ *
+ * @code:		media bus format code defined by MEDIA_BUS_FMT_* macros
+ * @bbp:		number of bytes each pixel occupies
+ * @pixelformat:	pixel format devined by V4L2_PIX_FMT_* macros
+ *
+ * Struct which matches the MEDIA_BUS_FMT_* codes with the corresponding
+ * V4L2_PIX_FMT_* fourcc pixelformat and its bytes per pixel (bpp)
+ */
+struct vimc_pix_map {
+	unsigned int code;
+	unsigned int bpp;
+	u32 pixelformat;
+	bool bayer;
+};
+
+/**
  * struct vimc_ent_device - core struct that represents a node in the topology
  *
  * @ent:		the pointer to struct media_entity for the node
@@ -90,29 +105,11 @@ struct vimc_platform_data {
 struct vimc_ent_device {
 	struct media_entity *ent;
 	struct media_pad *pads;
-	struct vimc_stream *stream;
 	void * (*process_frame)(struct vimc_ent_device *ved,
 				const void *frame);
 	void (*vdev_get_format)(struct vimc_ent_device *ved,
 			      struct v4l2_pix_format *fmt);
 };
-
-/**
- * vimc_mbus_code_supported - helper to check supported mbus codes
- *
- * Helper function to check if mbus code is enumerated by vimc_enum_mbus_code()
- */
-bool vimc_mbus_code_supported(__u32 code);
-
-/**
- * vimc_enum_mbus_code - enumerate mbus codes
- *
- * Helper function to be pluged in .enum_mbus_code from
- * struct v4l2_subdev_pad_ops.
- */
-int vimc_enum_mbus_code(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
-			struct v4l2_subdev_mbus_code_enum *code);
 
 /**
  * vimc_pads_init - initialize pads
@@ -147,6 +144,27 @@ static inline void vimc_pads_cleanup(struct media_pad *pads)
  * in all the sink pads of the entity
  */
 int vimc_pipeline_s_stream(struct media_entity *ent, int enable);
+
+/**
+ * vimc_pix_map_by_index - get vimc_pix_map struct by its index
+ *
+ * @i:			index of the vimc_pix_map struct in vimc_pix_map_list
+ */
+const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i);
+
+/**
+ * vimc_pix_map_by_code - get vimc_pix_map struct by media bus code
+ *
+ * @code:		media bus format code defined by MEDIA_BUS_FMT_* macros
+ */
+const struct vimc_pix_map *vimc_pix_map_by_code(u32 code);
+
+/**
+ * vimc_pix_map_by_pixelformat - get vimc_pix_map struct by v4l2 pixel format
+ *
+ * @pixelformat:	pixel format devined by V4L2_PIX_FMT_* macros
+ */
+const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
 
 /**
  * vimc_ent_sd_register - initialize and register a subdev node

@@ -489,25 +489,11 @@ static void test_ptrace_write_gsbase(void)
 		 * selector value is changed or not by the GSBASE write in
 		 * a ptracer.
 		 */
-		if (gs != *shared_scratch) {
-			nerrs++;
-			printf("[FAIL]\tGS changed to %lx\n", gs);
-
-			/*
-			 * On older kernels, poking a nonzero value into the
-			 * base would zero the selector.  On newer kernels,
-			 * this behavior has changed -- poking the base
-			 * changes only the base and, if FSGSBASE is not
-			 * available, this may have no effect.
-			 */
-			if (gs == 0)
-				printf("\tNote: this is expected behavior on older kernels.\n");
-		} else if (have_fsgsbase && (base != 0xFF)) {
-			nerrs++;
-			printf("[FAIL]\tGSBASE changed to %lx\n", base);
+		if (gs == 0 && base == 0xFF) {
+			printf("[OK]\tGS was reset as expected\n");
 		} else {
-			printf("[OK]\tGS remained 0x%hx%s", *shared_scratch, have_fsgsbase ? " and GSBASE changed to 0xFF" : "");
-			printf("\n");
+			nerrs++;
+			printf("[FAIL]\tGS=0x%lx, GSBASE=0x%lx (should be 0, 0xFF)\n", gs, base);
 		}
 	}
 

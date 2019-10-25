@@ -95,7 +95,11 @@ int omap_vout_try_window(struct v4l2_framebuffer *fbuf,
 
 	/* We now have a valid preview window, so go with it */
 	new_win->w = try_win;
-	new_win->field = V4L2_FIELD_ANY;
+	new_win->field = V4L2_FIELD_NONE;
+	new_win->clips = NULL;
+	new_win->clipcount = 0;
+	new_win->bitmap = NULL;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(omap_vout_try_window);

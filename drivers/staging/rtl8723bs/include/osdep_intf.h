@@ -46,7 +46,7 @@ void devobj_deinit(struct dvobj_priv *pdvobj);
 
 u8 rtw_init_drv_sw(struct adapter *padapter);
 u8 rtw_free_drv_sw(struct adapter *padapter);
-u8 rtw_reset_drv_sw(struct adapter *padapter);
+void rtw_reset_drv_sw(struct adapter *padapter);
 void rtw_dev_unload(struct adapter *padapter);
 
 u32 rtw_start_drv_threads(struct adapter *padapter);
@@ -63,8 +63,6 @@ u16 rtw_recv_select_queue(struct sk_buff *skb);
 
 int rtw_ndev_notifier_register(void);
 void rtw_ndev_notifier_unregister(void);
-
-#include "../os_dep/rtw_proc.h"
 
 void rtw_ips_dev_unload(struct adapter *padapter);
 

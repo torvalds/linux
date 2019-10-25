@@ -21,8 +21,8 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"07.710.06.00-rc1"
-#define MEGASAS_RELDATE				"June 18, 2019"
+#define MEGASAS_VERSION				"07.710.50.00-rc1"
+#define MEGASAS_RELDATE				"June 28, 2019"
 
 /*
  * Device IDs
@@ -2429,6 +2429,7 @@ struct megasas_instance {
 	u8 adapter_type;
 	bool consistent_mask_64bit;
 	bool support_nvme_passthru;
+	bool enable_sdev_max_qd;
 	u8 task_abort_tmo;
 	u8 max_reset_tmo;
 	u8 snapdump_wait_time;

@@ -10,6 +10,7 @@ config MLX5_CORE
 	imply PTP_1588_CLOCK
 	imply VXLAN
 	imply MLXFW
+	imply PCI_HYPERV_INTERFACE
 	default n
 	---help---
 	  Core driver for low level functionality of the ConnectX-4 and
@@ -32,7 +33,6 @@ config MLX5_FPGA
 config MLX5_CORE_EN
 	bool "Mellanox 5th generation network adapters (ConnectX series) Ethernet support"
 	depends on NETDEVICES && ETHERNET && INET && PCI && MLX5_CORE
-	depends on IPV6=y || IPV6=n || MLX5_CORE=m
 	select PAGE_POOL
 	select DIMLIB
 	default n
@@ -154,3 +154,10 @@ config MLX5_EN_TLS
 	Build support for TLS cryptography-offload accelaration in the NIC.
 	Note: Support for hardware with this capability needs to be selected
 	for this option to become available.
+
+config MLX5_SW_STEERING
+	bool "Mellanox Technologies software-managed steering"
+	depends on MLX5_CORE_EN && MLX5_ESWITCH
+	default y
+	help
+	Build support for software-managed steering in the NIC.

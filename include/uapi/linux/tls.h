@@ -109,4 +109,19 @@ struct tls12_crypto_info_aes_ccm_128 {
 	unsigned char rec_seq[TLS_CIPHER_AES_CCM_128_REC_SEQ_SIZE];
 };
 
+enum {
+	TLS_INFO_UNSPEC,
+	TLS_INFO_VERSION,
+	TLS_INFO_CIPHER,
+	TLS_INFO_TXCONF,
+	TLS_INFO_RXCONF,
+	__TLS_INFO_MAX,
+};
+#define TLS_INFO_MAX (__TLS_INFO_MAX - 1)
+
+#define TLS_CONF_BASE 1
+#define TLS_CONF_SW 2
+#define TLS_CONF_HW 3
+#define TLS_CONF_HW_RECORD 4
+
 #endif /* _UAPI_LINUX_TLS_H */

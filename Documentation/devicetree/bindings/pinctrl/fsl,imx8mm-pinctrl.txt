@@ -12,7 +12,7 @@ Required properties in sub-nodes:
 - fsl,pins: each entry consists of 6 integers and represents the mux and config
   setting for one pin.  The first 5 integers <mux_reg conf_reg input_reg mux_val
   input_val> are specified using a PIN_FUNC_ID macro, which can be found in
-  <dt-bindings/pinctrl/imx8mm-pinfunc.h>. The last integer CONFIG is
+  <arch/arm64/boot/dts/freescale/imx8mm-pinfunc.h>. The last integer CONFIG is
   the pad setting value like pull-up on this pin.  Please refer to i.MX8M Mini
   Reference Manual for detailed CONFIG settings.
 

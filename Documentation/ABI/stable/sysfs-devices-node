@@ -61,7 +61,7 @@ Date:		October 2002
 Contact:	Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		The node's hit/miss statistics, in units of pages.
-		See Documentation/numastat.txt
+		See Documentation/admin-guide/numastat.rst
 
 What:		/sys/devices/system/node/nodeX/distance
 Date:		October 2002

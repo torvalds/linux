@@ -407,7 +407,9 @@ static bool jump_label_can_update(struct jump_entry *entry, bool init)
 		return false;
 
 	if (!kernel_text_address(jump_entry_code(entry))) {
-		WARN_ONCE(1, "can't patch jump_label at %pS", (void *)jump_entry_code(entry));
+		WARN_ONCE(!jump_entry_is_init(entry),
+			  "can't patch jump_label at %pS",
+			  (void *)jump_entry_code(entry));
 		return false;
 	}
 

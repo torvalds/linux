@@ -27,18 +27,19 @@ static void comedi_buf_map_kref_release(struct kref *kref)
 	unsigned int i;
 
 	if (bm->page_list) {
-		for (i = 0; i < bm->n_pages; i++) {
-			buf = &bm->page_list[i];
-			clear_bit(PG_reserved,
-				  &(virt_to_page(buf->virt_addr)->flags));
-			if (bm->dma_dir != DMA_NONE) {
-#ifdef CONFIG_HAS_DMA
-				dma_free_coherent(bm->dma_hw_dev,
-						  PAGE_SIZE,
-						  buf->virt_addr,
-						  buf->dma_addr);
-#endif
-			} else {
+		if (bm->dma_dir != DMA_NONE) {
+			/*
+			 * DMA buffer was allocated as a single block.
+			 * Address is in page_list[0].
+			 */
+			buf = &bm->page_list[0];
+			dma_free_coherent(bm->dma_hw_dev,
+					  PAGE_SIZE * bm->n_pages,
+					  buf->virt_addr, buf->dma_addr);
+		} else {
+			for (i = 0; i < bm->n_pages; i++) {
+				buf = &bm->page_list[i];
+				ClearPageReserved(virt_to_page(buf->virt_addr));
 				free_page((unsigned long)buf->virt_addr);
 			}
 		}
@@ -57,7 +58,8 @@ static void __comedi_buf_free(struct comedi_device *dev,
 	unsigned long flags;
 
 	if (async->prealloc_buf) {
-		vunmap(async->prealloc_buf);
+		if (s->async_dma_dir == DMA_NONE)
+			vunmap(async->prealloc_buf);
 		async->prealloc_buf = NULL;
 		async->prealloc_bufsz = 0;
 	}
@@ -67,6 +69,72 @@ static void __comedi_buf_free(struct comedi_device *dev,
 	async->buf_map = NULL;
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 	comedi_buf_map_put(bm);
+}
+
+static struct comedi_buf_map *
+comedi_buf_map_alloc(struct comedi_device *dev, enum dma_data_direction dma_dir,
+		     unsigned int n_pages)
+{
+	struct comedi_buf_map *bm;
+	struct comedi_buf_page *buf;
+	unsigned int i;
+
+	bm = kzalloc(sizeof(*bm), GFP_KERNEL);
+	if (!bm)
+		return NULL;
+
+	kref_init(&bm->refcount);
+	bm->dma_dir = dma_dir;
+	if (bm->dma_dir != DMA_NONE) {
+		/* Need ref to hardware device to free buffer later. */
+		bm->dma_hw_dev = get_device(dev->hw_dev);
+	}
+
+	bm->page_list = vzalloc(sizeof(*buf) * n_pages);
+	if (!bm->page_list)
+		goto err;
+
+	if (bm->dma_dir != DMA_NONE) {
+		void *virt_addr;
+		dma_addr_t dma_addr;
+
+		/*
+		 * Currently, the DMA buffer needs to be allocated as a
+		 * single block so that it can be mmap()'ed.
+		 */
+		virt_addr = dma_alloc_coherent(bm->dma_hw_dev,
+					       PAGE_SIZE * n_pages, &dma_addr,
+					       GFP_KERNEL);
+		if (!virt_addr)
+			goto err;
+
+		for (i = 0; i < n_pages; i++) {
+			buf = &bm->page_list[i];
+			buf->virt_addr = virt_addr + (i << PAGE_SHIFT);
+			buf->dma_addr = dma_addr + (i << PAGE_SHIFT);
+		}
+
+		bm->n_pages = i;
+	} else {
+		for (i = 0; i < n_pages; i++) {
+			buf = &bm->page_list[i];
+			buf->virt_addr = (void *)get_zeroed_page(GFP_KERNEL);
+			if (!buf->virt_addr)
+				break;
+
+			SetPageReserved(virt_to_page(buf->virt_addr));
+		}
+
+		bm->n_pages = i;
+		if (i < n_pages)
+			goto err;
+	}
+
+	return bm;
+
+err:
+	comedi_buf_map_put(bm);
+	return NULL;
 }
 
 static void __comedi_buf_alloc(struct comedi_device *dev,
@@ -86,57 +154,37 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 		return;
 	}
 
-	bm = kzalloc(sizeof(*async->buf_map), GFP_KERNEL);
+	bm = comedi_buf_map_alloc(dev, s->async_dma_dir, n_pages);
 	if (!bm)
 		return;
 
-	kref_init(&bm->refcount);
 	spin_lock_irqsave(&s->spin_lock, flags);
 	async->buf_map = bm;
 	spin_unlock_irqrestore(&s->spin_lock, flags);
-	bm->dma_dir = s->async_dma_dir;
-	if (bm->dma_dir != DMA_NONE)
-		/* Need ref to hardware device to free buffer later. */
-		bm->dma_hw_dev = get_device(dev->hw_dev);
 
-	bm->page_list = vzalloc(sizeof(*buf) * n_pages);
-	if (bm->page_list)
+	if (bm->dma_dir != DMA_NONE) {
+		/*
+		 * DMA buffer was allocated as a single block.
+		 * Address is in page_list[0].
+		 */
+		buf = &bm->page_list[0];
+		async->prealloc_buf = buf->virt_addr;
+	} else {
 		pages = vmalloc(sizeof(struct page *) * n_pages);
+		if (!pages)
+			return;
 
-	if (!pages)
-		return;
+		for (i = 0; i < n_pages; i++) {
+			buf = &bm->page_list[i];
+			pages[i] = virt_to_page(buf->virt_addr);
+		}
 
-	for (i = 0; i < n_pages; i++) {
-		buf = &bm->page_list[i];
-		if (bm->dma_dir != DMA_NONE)
-#ifdef CONFIG_HAS_DMA
-			buf->virt_addr = dma_alloc_coherent(bm->dma_hw_dev,
-							    PAGE_SIZE,
-							    &buf->dma_addr,
-							    GFP_KERNEL |
-							    __GFP_COMP);
-#else
-			break;
-#endif
-		else
-			buf->virt_addr = (void *)get_zeroed_page(GFP_KERNEL);
-		if (!buf->virt_addr)
-			break;
-
-		set_bit(PG_reserved, &(virt_to_page(buf->virt_addr)->flags));
-
-		pages[i] = virt_to_page(buf->virt_addr);
-	}
-	spin_lock_irqsave(&s->spin_lock, flags);
-	bm->n_pages = i;
-	spin_unlock_irqrestore(&s->spin_lock, flags);
-
-	/* vmap the prealloc_buf if all the pages were allocated */
-	if (i == n_pages)
+		/* vmap the pages to prealloc_buf */
 		async->prealloc_buf = vmap(pages, n_pages, VM_MAP,
 					   COMEDI_PAGE_PROTECTION);
 
-	vfree(pages);
+		vfree(pages);
+	}
 }
 
 void comedi_buf_map_get(struct comedi_buf_map *bm)

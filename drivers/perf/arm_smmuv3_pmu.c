@@ -113,8 +113,6 @@ struct smmu_pmu {
 	u64 counter_mask;
 	u32 options;
 	bool global_filter;
-	u32 global_filter_span;
-	u32 global_filter_sid;
 };
 
 #define to_smmu_pmu(p) (container_of(p, struct smmu_pmu, pmu))
@@ -260,6 +258,19 @@ static void smmu_pmu_set_event_filter(struct perf_event *event,
 	smmu_pmu_set_smr(smmu_pmu, idx, sid);
 }
 
+static bool smmu_pmu_check_global_filter(struct perf_event *curr,
+					 struct perf_event *new)
+{
+	if (get_filter_enable(new) != get_filter_enable(curr))
+		return false;
+
+	if (!get_filter_enable(new))
+		return true;
+
+	return get_filter_span(new) == get_filter_span(curr) &&
+	       get_filter_stream_id(new) == get_filter_stream_id(curr);
+}
+
 static int smmu_pmu_apply_event_filter(struct smmu_pmu *smmu_pmu,
 				       struct perf_event *event, int idx)
 {
@@ -279,17 +290,14 @@ static int smmu_pmu_apply_event_filter(struct smmu_pmu *smmu_pmu,
 	}
 
 	/* Requested settings same as current global settings*/
-	if (span == smmu_pmu->global_filter_span &&
-	    sid == smmu_pmu->global_filter_sid)
+	idx = find_first_bit(smmu_pmu->used_counters, num_ctrs);
+	if (idx == num_ctrs ||
+	    smmu_pmu_check_global_filter(smmu_pmu->events[idx], event)) {
+		smmu_pmu_set_event_filter(event, 0, span, sid);
 		return 0;
+	}
 
-	if (!bitmap_empty(smmu_pmu->used_counters, num_ctrs))
-		return -EAGAIN;
-
-	smmu_pmu_set_event_filter(event, 0, span, sid);
-	smmu_pmu->global_filter_span = span;
-	smmu_pmu->global_filter_sid = sid;
-	return 0;
+	return -EAGAIN;
 }
 
 static int smmu_pmu_get_event_idx(struct smmu_pmu *smmu_pmu,
@@ -312,6 +320,19 @@ static int smmu_pmu_get_event_idx(struct smmu_pmu *smmu_pmu,
 	return idx;
 }
 
+static bool smmu_pmu_events_compatible(struct perf_event *curr,
+				       struct perf_event *new)
+{
+	if (new->pmu != curr->pmu)
+		return false;
+
+	if (to_smmu_pmu(new->pmu)->global_filter &&
+	    !smmu_pmu_check_global_filter(curr, new))
+		return false;
+
+	return true;
+}
+
 /*
  * Implementation of abstract pmu functionality required by
  * the core perf events code.
@@ -323,6 +344,7 @@ static int smmu_pmu_event_init(struct perf_event *event)
 	struct smmu_pmu *smmu_pmu = to_smmu_pmu(event->pmu);
 	struct device *dev = smmu_pmu->dev;
 	struct perf_event *sibling;
+	int group_num_events = 1;
 	u16 event_id;
 
 	if (event->attr.type != event->pmu->type)
@@ -347,18 +369,23 @@ static int smmu_pmu_event_init(struct perf_event *event)
 	}
 
 	/* Don't allow groups with mixed PMUs, except for s/w events */
-	if (event->group_leader->pmu != event->pmu &&
-	    !is_software_event(event->group_leader)) {
-		dev_dbg(dev, "Can't create mixed PMU group\n");
-		return -EINVAL;
+	if (!is_software_event(event->group_leader)) {
+		if (!smmu_pmu_events_compatible(event->group_leader, event))
+			return -EINVAL;
+
+		if (++group_num_events > smmu_pmu->num_counters)
+			return -EINVAL;
 	}
 
 	for_each_sibling_event(sibling, event->group_leader) {
-		if (sibling->pmu != event->pmu &&
-		    !is_software_event(sibling)) {
-			dev_dbg(dev, "Can't create mixed PMU group\n");
+		if (is_software_event(sibling))
+			continue;
+
+		if (!smmu_pmu_events_compatible(sibling, event))
 			return -EINVAL;
-		}
+
+		if (++group_num_events > smmu_pmu->num_counters)
+			return -EINVAL;
 	}
 
 	hwc->idx = -1;

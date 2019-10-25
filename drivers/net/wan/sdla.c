@@ -413,6 +413,7 @@ static void sdla_errors(struct net_device *dev, int cmd, int dlci, int ret, int 
 		case SDLA_RET_NO_BUFS:
 			if (cmd == SDLA_INFORMATION_WRITE)
 				break;
+			/* Else, fall through */
 
 		default: 
 			netdev_dbg(dev, "Cmd 0x%02X generated return code 0x%02X\n",

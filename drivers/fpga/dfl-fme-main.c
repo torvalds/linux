@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 #include <linux/fpga-dfl.h>
 
 #include "dfl.h"
@@ -72,50 +73,126 @@ static ssize_t bitstream_metadata_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(bitstream_metadata);
 
-static const struct attribute *fme_hdr_attrs[] = {
+static ssize_t cache_size_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	void __iomem *base;
+	u64 v;
+
+	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_HEADER);
+
+	v = readq(base + FME_HDR_CAP);
+
+	return sprintf(buf, "%u\n",
+		       (unsigned int)FIELD_GET(FME_CAP_CACHE_SIZE, v));
+}
+static DEVICE_ATTR_RO(cache_size);
+
+static ssize_t fabric_version_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	void __iomem *base;
+	u64 v;
+
+	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_HEADER);
+
+	v = readq(base + FME_HDR_CAP);
+
+	return sprintf(buf, "%u\n",
+		       (unsigned int)FIELD_GET(FME_CAP_FABRIC_VERID, v));
+}
+static DEVICE_ATTR_RO(fabric_version);
+
+static ssize_t socket_id_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	void __iomem *base;
+	u64 v;
+
+	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_HEADER);
+
+	v = readq(base + FME_HDR_CAP);
+
+	return sprintf(buf, "%u\n",
+		       (unsigned int)FIELD_GET(FME_CAP_SOCKET_ID, v));
+}
+static DEVICE_ATTR_RO(socket_id);
+
+static struct attribute *fme_hdr_attrs[] = {
 	&dev_attr_ports_num.attr,
 	&dev_attr_bitstream_id.attr,
 	&dev_attr_bitstream_metadata.attr,
+	&dev_attr_cache_size.attr,
+	&dev_attr_fabric_version.attr,
+	&dev_attr_socket_id.attr,
 	NULL,
 };
 
-static int fme_hdr_init(struct platform_device *pdev,
-			struct dfl_feature *feature)
+static const struct attribute_group fme_hdr_group = {
+	.attrs = fme_hdr_attrs,
+};
+
+static long fme_hdr_ioctl_release_port(struct dfl_feature_platform_data *pdata,
+				       unsigned long arg)
 {
-	void __iomem *base = feature->ioaddr;
-	int ret;
+	struct dfl_fpga_cdev *cdev = pdata->dfl_cdev;
+	int port_id;
 
-	dev_dbg(&pdev->dev, "FME HDR Init.\n");
-	dev_dbg(&pdev->dev, "FME cap %llx.\n",
-		(unsigned long long)readq(base + FME_HDR_CAP));
+	if (get_user(port_id, (int __user *)arg))
+		return -EFAULT;
 
-	ret = sysfs_create_files(&pdev->dev.kobj, fme_hdr_attrs);
-	if (ret)
-		return ret;
-
-	return 0;
+	return dfl_fpga_cdev_release_port(cdev, port_id);
 }
 
-static void fme_hdr_uinit(struct platform_device *pdev,
-			  struct dfl_feature *feature)
+static long fme_hdr_ioctl_assign_port(struct dfl_feature_platform_data *pdata,
+				      unsigned long arg)
 {
-	dev_dbg(&pdev->dev, "FME HDR UInit.\n");
-	sysfs_remove_files(&pdev->dev.kobj, fme_hdr_attrs);
+	struct dfl_fpga_cdev *cdev = pdata->dfl_cdev;
+	int port_id;
+
+	if (get_user(port_id, (int __user *)arg))
+		return -EFAULT;
+
+	return dfl_fpga_cdev_assign_port(cdev, port_id);
 }
+
+static long fme_hdr_ioctl(struct platform_device *pdev,
+			  struct dfl_feature *feature,
+			  unsigned int cmd, unsigned long arg)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+
+	switch (cmd) {
+	case DFL_FPGA_FME_PORT_RELEASE:
+		return fme_hdr_ioctl_release_port(pdata, arg);
+	case DFL_FPGA_FME_PORT_ASSIGN:
+		return fme_hdr_ioctl_assign_port(pdata, arg);
+	}
+
+	return -ENODEV;
+}
+
+static const struct dfl_feature_id fme_hdr_id_table[] = {
+	{.id = FME_FEATURE_ID_HEADER,},
+	{0,}
+};
 
 static const struct dfl_feature_ops fme_hdr_ops = {
-	.init = fme_hdr_init,
-	.uinit = fme_hdr_uinit,
+	.ioctl = fme_hdr_ioctl,
 };
 
 static struct dfl_feature_driver fme_feature_drvs[] = {
 	{
-		.id = FME_FEATURE_ID_HEADER,
+		.id_table = fme_hdr_id_table,
 		.ops = &fme_hdr_ops,
 	},
 	{
-		.id = FME_FEATURE_ID_PR_MGMT,
-		.ops = &pr_mgmt_ops,
+		.id_table = fme_pr_mgmt_id_table,
+		.ops = &fme_pr_mgmt_ops,
+	},
+	{
+		.id_table = fme_global_err_id_table,
+		.ops = &fme_global_err_ops,
 	},
 	{
 		.ops = NULL,
@@ -263,9 +340,16 @@ static int fme_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct attribute_group *fme_dev_groups[] = {
+	&fme_hdr_group,
+	&fme_global_err_group,
+	NULL
+};
+
 static struct platform_driver fme_driver = {
 	.driver	= {
-		.name    = DFL_FPGA_FEATURE_DEV_FME,
+		.name       = DFL_FPGA_FEATURE_DEV_FME,
+		.dev_groups = fme_dev_groups,
 	},
 	.probe   = fme_probe,
 	.remove  = fme_remove,

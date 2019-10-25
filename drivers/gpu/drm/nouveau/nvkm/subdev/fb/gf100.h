@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_RAM_NVC0_H__
 #define __NVKM_RAM_NVC0_H__
 #define gf100_fb(p) container_of((p), struct gf100_fb, base)

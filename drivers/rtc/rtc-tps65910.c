@@ -143,7 +143,7 @@ static int tps65910_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	struct tps65910 *tps = dev_get_drvdata(dev->parent);
 	int ret;
 
-	ret = regmap_bulk_read(tps->regmap, TPS65910_SECONDS, alarm_data,
+	ret = regmap_bulk_read(tps->regmap, TPS65910_ALARM_SECONDS, alarm_data,
 		NUM_TIME_REGS);
 	if (ret < 0) {
 		dev_err(dev, "rtc_read_alarm error %d\n", ret);
@@ -425,13 +425,7 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	tps_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	tps_rtc->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	ret = rtc_register_device(tps_rtc->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "RTC device register: err %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return rtc_register_device(tps_rtc->rtc);
 }
 
 #ifdef CONFIG_PM_SLEEP

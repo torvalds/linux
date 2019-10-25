@@ -3,7 +3,10 @@
 #include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
+#include <stdlib.h>
+#include <perf/cpumap.h>
 
+#include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
@@ -11,6 +14,8 @@
 #include "tests.h"
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
+#include <perf/evlist.h>
 
 /*
  * This test will generate random numbers of calls to some getpid syscalls,
@@ -27,16 +32,16 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 {
 	int err = -1;
 	union perf_event *event;
-	struct thread_map *threads;
-	struct cpu_map *cpus;
-	struct perf_evlist *evlist;
+	struct perf_thread_map *threads;
+	struct perf_cpu_map *cpus;
+	struct evlist *evlist;
 	cpu_set_t cpu_set;
 	const char *syscall_names[] = { "getsid", "getppid", "getpgid", };
 	pid_t (*syscalls[])(void) = { (void *)getsid, getppid, (void*)getpgid };
 #define nsyscalls ARRAY_SIZE(syscall_names)
 	unsigned int nr_events[nsyscalls],
 		     expected_nr_events[nsyscalls], i, j;
-	struct perf_evsel *evsels[nsyscalls], *evsel;
+	struct evsel *evsels[nsyscalls], *evsel;
 	char sbuf[STRERR_BUFSIZE];
 	struct perf_mmap *md;
 
@@ -46,7 +51,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		return -1;
 	}
 
-	cpus = cpu_map__new(NULL);
+	cpus = perf_cpu_map__new(NULL);
 	if (cpus == NULL) {
 		pr_debug("cpu_map__new\n");
 		goto out_free_threads;
@@ -61,13 +66,13 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		goto out_free_cpus;
 	}
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (evlist == NULL) {
 		pr_debug("perf_evlist__new\n");
 		goto out_free_cpus;
 	}
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	for (i = 0; i < nsyscalls; ++i) {
 		char name[64];
@@ -79,12 +84,12 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 			goto out_delete_evlist;
 		}
 
-		evsels[i]->attr.wakeup_events = 1;
+		evsels[i]->core.attr.wakeup_events = 1;
 		perf_evsel__set_sample_id(evsels[i], false);
 
-		perf_evlist__add(evlist, evsels[i]);
+		evlist__add(evlist, evsels[i]);
 
-		if (perf_evsel__open(evsels[i], cpus, threads) < 0) {
+		if (evsel__open(evsels[i], cpus, threads) < 0) {
 			pr_debug("failed to open counter: %s, "
 				 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 				 str_error_r(errno, sbuf, sizeof(sbuf)));
@@ -151,12 +156,12 @@ out_init:
 	}
 
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	cpus	= NULL;
 	threads = NULL;
 out_free_cpus:
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 out_free_threads:
-	thread_map__put(threads);
+	perf_thread_map__put(threads);
 	return err;
 }

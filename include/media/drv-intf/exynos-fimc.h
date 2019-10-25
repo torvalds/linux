@@ -87,7 +87,6 @@ struct fimc_source_info {
 /**
  * struct fimc_fmt - color format data structure
  * @mbus_code: media bus pixel code, -1 if not applicable
- * @name: format description
  * @fourcc: fourcc code for this format, 0 if not applicable
  * @color: the driver's private color format id
  * @memplanes: number of physically non-contiguous data planes
@@ -99,7 +98,6 @@ struct fimc_source_info {
  */
 struct fimc_fmt {
 	u32 mbus_code;
-	char	*name;
 	u32	fourcc;
 	u32	color;
 	u16	memplanes;

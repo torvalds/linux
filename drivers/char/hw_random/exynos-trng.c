@@ -153,7 +153,7 @@ static int exynos_trng_probe(struct platform_device *pdev)
 		goto err_clock;
 	}
 
-	ret = hwrng_register(&trng->rng);
+	ret = devm_hwrng_register(&pdev->dev, &trng->rng);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register hwrng device.\n");
 		goto err_register;
@@ -179,7 +179,6 @@ static int exynos_trng_remove(struct platform_device *pdev)
 {
 	struct exynos_trng_dev *trng =  platform_get_drvdata(pdev);
 
-	hwrng_unregister(&trng->rng);
 	clk_disable_unprepare(trng->clk);
 
 	pm_runtime_put_sync(&pdev->dev);

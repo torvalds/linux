@@ -52,6 +52,7 @@ void fnic_handle_link(struct work_struct *work)
 	unsigned long flags;
 	int old_link_status;
 	u32 old_link_down_cnt;
+	u64 old_port_speed, new_port_speed;
 
 	spin_lock_irqsave(&fnic->fnic_lock, flags);
 
@@ -62,14 +63,19 @@ void fnic_handle_link(struct work_struct *work)
 
 	old_link_down_cnt = fnic->link_down_cnt;
 	old_link_status = fnic->link_status;
+	old_port_speed = atomic64_read(
+			&fnic->fnic_stats.misc_stats.current_port_speed);
+
 	fnic->link_status = vnic_dev_link_status(fnic->vdev);
 	fnic->link_down_cnt = vnic_dev_link_down_cnt(fnic->vdev);
 
+	new_port_speed = vnic_dev_port_speed(fnic->vdev);
 	atomic64_set(&fnic->fnic_stats.misc_stats.current_port_speed,
-			vnic_dev_port_speed(fnic->vdev));
-	shost_printk(KERN_INFO, fnic->lport->host, "Current vnic speed set to :  %llu\n",
-			(u64)atomic64_read(
-			&fnic->fnic_stats.misc_stats.current_port_speed));
+			new_port_speed);
+	if (old_port_speed != new_port_speed)
+		shost_printk(KERN_INFO, fnic->lport->host,
+				"Current vnic speed set to :  %llu\n",
+				new_port_speed);
 
 	switch (vnic_dev_port_speed(fnic->vdev)) {
 	case DCEM_PORTSPEED_10G:

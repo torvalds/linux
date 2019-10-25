@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/raspberrypi,7inch-touchscreen.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: The official 7" (800x480) Raspberry Pi touchscreen
+
+maintainers:
+  - Eric Anholt <eric@anholt.net>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+description: |+
+  This DSI panel contains:
+
+  - TC358762 DSI->DPI bridge
+  - Atmel microcontroller on I2C for power sequencing the DSI bridge and
+    controlling backlight
+  - Touchscreen controller on I2C for touch input
+
+  and this binding covers the DSI display parts but not its touch input.
+
+properties:
+  compatible:
+    const: raspberrypi,7inch-touchscreen-panel
+
+  reg:
+    const: 0x45
+
+  port: true
+
+required:
+  - compatible
+  - reg
+  - port
+
+additionalProperties: false
+
+examples:
+  - |+
+    dsi1: dsi {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      port {
+        dsi_out_port: endpoint {
+          remote-endpoint = <&panel_dsi_port>;
+        };
+      };
+    };
+
+    i2c_dsi: i2c {
+      compatible = "i2c-gpio";
+      #address-cells = <1>;
+      #size-cells = <0>;
+      scl-gpios = <&gpio 28 0>;
+      sda-gpios = <&gpio 29 0>;
+
+      lcd@45 {
+        compatible = "raspberrypi,7inch-touchscreen-panel";
+        reg = <0x45>;
+
+        port {
+          panel_dsi_port: endpoint {
+            remote-endpoint = <&dsi_out_port>;
+          };
+        };
+      };
+    };
+
+...

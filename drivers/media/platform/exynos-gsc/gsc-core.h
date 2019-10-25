@@ -103,7 +103,6 @@ enum gsc_yuv_fmt {
 /**
  * struct gsc_fmt - the driver's internal color format data
  * @mbus_code: Media Bus pixel code, -1 if not applicable
- * @name: format description
  * @pixelformat: the fourcc code for this format, 0 if not applicable
  * @yorder: Y/C order
  * @corder: Chrominance order control
@@ -114,7 +113,6 @@ enum gsc_yuv_fmt {
  */
 struct gsc_fmt {
 	u32 mbus_code;
-	char	*name;
 	u32	pixelformat;
 	u32	color;
 	u32	yorder;

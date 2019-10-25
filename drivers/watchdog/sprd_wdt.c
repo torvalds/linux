@@ -320,7 +320,6 @@ static int sprd_wdt_probe(struct platform_device *pdev)
 	ret = devm_watchdog_register_device(dev, &wdt->wdd);
 	if (ret) {
 		sprd_wdt_disable(wdt);
-		dev_err(dev, "failed to register watchdog\n");
 		return ret;
 	}
 	platform_set_drvdata(pdev, wdt);

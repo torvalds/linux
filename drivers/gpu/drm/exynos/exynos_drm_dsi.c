@@ -7,16 +7,9 @@
  * Contacts: Tomasz Figa <t.figa@samsung.com>
 */
 
-#include <asm/unaligned.h>
-
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
-#include <drm/drm_probe_helper.h>
-
 #include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/component.h>
 #include <linux/gpio/consumer.h>
 #include <linux/irq.h>
 #include <linux/of_device.h>
@@ -24,10 +17,18 @@
 #include <linux/of_graph.h>
 #include <linux/phy/phy.h>
 #include <linux/regulator/consumer.h>
-#include <linux/component.h>
+
+#include <asm/unaligned.h>
 
 #include <video/mipi_display.h>
 #include <video/videomode.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"

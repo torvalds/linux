@@ -717,7 +717,7 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
 #endif /* CONFIG_PM_SLEEP && CONFIG_ARM_PSCI_FW */
 
 #ifdef DEBUG
-static bool is0s(const u16 *enum_ids, unsigned int n)
+static bool __init is0s(const u16 *enum_ids, unsigned int n)
 {
 	unsigned int i;
 
@@ -728,11 +728,11 @@ static bool is0s(const u16 *enum_ids, unsigned int n)
 	return true;
 }
 
-static unsigned int sh_pfc_errors;
-static unsigned int sh_pfc_warnings;
+static unsigned int sh_pfc_errors __initdata = 0;
+static unsigned int sh_pfc_warnings __initdata = 0;
 
-static void sh_pfc_check_cfg_reg(const char *drvname,
-				 const struct pinmux_cfg_reg *cfg_reg)
+static void __init sh_pfc_check_cfg_reg(const char *drvname,
+					const struct pinmux_cfg_reg *cfg_reg)
 {
 	unsigned int i, n, rw, fw;
 
@@ -764,7 +764,7 @@ static void sh_pfc_check_cfg_reg(const char *drvname,
 	}
 }
 
-static void sh_pfc_check_info(const struct sh_pfc_soc_info *info)
+static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 {
 	const struct sh_pfc_function *func;
 	const char *drvname = info->name;
@@ -773,6 +773,35 @@ static void sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 
 	pr_info("Checking %s\n", drvname);
 
+	/* Check pins */
+	for (i = 0; i < info->nr_pins; i++) {
+		for (j = 0; j < i; j++) {
+			if (!strcmp(info->pins[i].name, info->pins[j].name)) {
+				pr_err("%s: pin %s/%s: name conflict\n",
+				       drvname, info->pins[i].name,
+				       info->pins[j].name);
+				sh_pfc_errors++;
+			}
+
+			if (info->pins[i].pin != (u16)-1 &&
+			    info->pins[i].pin == info->pins[j].pin) {
+				pr_err("%s: pin %s/%s: pin %u conflict\n",
+				       drvname, info->pins[i].name,
+				       info->pins[j].name, info->pins[i].pin);
+				sh_pfc_errors++;
+			}
+
+			if (info->pins[i].enum_id &&
+			    info->pins[i].enum_id == info->pins[j].enum_id) {
+				pr_err("%s: pin %s/%s: enum_id %u conflict\n",
+				       drvname, info->pins[i].name,
+				       info->pins[j].name,
+				       info->pins[i].enum_id);
+				sh_pfc_errors++;
+			}
+		}
+	}
+
 	/* Check groups and functions */
 	refcnts = kcalloc(info->nr_groups, sizeof(*refcnts), GFP_KERNEL);
 	if (!refcnts)
@@ -780,9 +809,15 @@ static void sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 
 	for (i = 0; i < info->nr_functions; i++) {
 		func = &info->functions[i];
+		if (!func->name) {
+			pr_err("%s: empty function %u\n", drvname, i);
+			sh_pfc_errors++;
+			continue;
+		}
 		for (j = 0; j < func->nr_groups; j++) {
 			for (k = 0; k < info->nr_groups; k++) {
-				if (!strcmp(func->groups[j],
+				if (info->groups[k].name &&
+				    !strcmp(func->groups[j],
 					    info->groups[k].name)) {
 					refcnts[k]++;
 					break;
@@ -798,13 +833,18 @@ static void sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	}
 
 	for (i = 0; i < info->nr_groups; i++) {
+		if (!info->groups[i].name) {
+			pr_err("%s: empty group %u\n", drvname, i);
+			sh_pfc_errors++;
+			continue;
+		}
 		if (!refcnts[i]) {
 			pr_err("%s: orphan group %s\n", drvname,
 			       info->groups[i].name);
 			sh_pfc_errors++;
 		} else if (refcnts[i] > 1) {
-			pr_err("%s: group %s referred by %u functions\n",
-			       drvname, info->groups[i].name, refcnts[i]);
+			pr_warn("%s: group %s referenced by %u functions\n",
+				drvname, info->groups[i].name, refcnts[i]);
 			sh_pfc_warnings++;
 		}
 	}
@@ -816,7 +856,7 @@ static void sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 		sh_pfc_check_cfg_reg(drvname, &info->cfg_regs[i]);
 }
 
-static void sh_pfc_check_driver(const struct platform_driver *pdrv)
+static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 {
 	unsigned int i;
 

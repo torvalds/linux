@@ -38,7 +38,8 @@
 int amdgpu_display_freesync_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *filp);
 void amdgpu_display_update_priority(struct amdgpu_device *adev);
-uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev);
+uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
+					  uint64_t bo_flags);
 struct drm_framebuffer *
 amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 				       struct drm_file *file_priv,

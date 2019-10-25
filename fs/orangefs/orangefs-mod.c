@@ -129,9 +129,7 @@ static int __init orangefs_init(void)
 	if (ret)
 		goto cleanup_key_table;
 
-	ret = orangefs_debugfs_init(module_parm_debug_mask);
-	if (ret)
-		goto debugfs_init_failed;
+	orangefs_debugfs_init(module_parm_debug_mask);
 
 	ret = orangefs_sysfs_init();
 	if (ret)
@@ -161,8 +159,6 @@ cleanup_device:
 	orangefs_dev_cleanup();
 
 sysfs_init_failed:
-
-debugfs_init_failed:
 	orangefs_debugfs_cleanup();
 
 cleanup_key_table:

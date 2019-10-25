@@ -1056,8 +1056,6 @@ static int iqs5xx_probe(struct i2c_client *client,
 	if (!iqs5xx)
 		return -ENOMEM;
 
-	dev_set_drvdata(&client->dev, iqs5xx);
-
 	i2c_set_clientdata(client, iqs5xx);
 	iqs5xx->client = client;
 

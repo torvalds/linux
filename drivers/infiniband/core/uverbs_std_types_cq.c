@@ -111,9 +111,9 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	INIT_LIST_HEAD(&obj->comp_list);
 	INIT_LIST_HEAD(&obj->async_list);
 
-	cq = ib_dev->ops.create_cq(ib_dev, &attr, &attrs->driver_udata);
-	if (IS_ERR(cq)) {
-		ret = PTR_ERR(cq);
+	cq = rdma_zalloc_drv_obj(ib_dev, ib_cq);
+	if (!cq) {
+		ret = -ENOMEM;
 		goto err_event_file;
 	}
 
@@ -122,10 +122,15 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	cq->comp_handler  = ib_uverbs_comp_handler;
 	cq->event_handler = ib_uverbs_cq_event_handler;
 	cq->cq_context    = ev_file ? &ev_file->ev_queue : NULL;
-	obj->uobject.object = cq;
-	obj->uobject.user_handle = user_handle;
 	atomic_set(&cq->usecnt, 0);
 	cq->res.type = RDMA_RESTRACK_CQ;
+
+	ret = ib_dev->ops.create_cq(cq, &attr, &attrs->driver_udata);
+	if (ret)
+		goto err_free;
+
+	obj->uobject.object = cq;
+	obj->uobject.user_handle = user_handle;
 	rdma_restrack_uadd(&cq->res);
 
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_CREATE_CQ_RESP_CQE, &cq->cqe,
@@ -136,7 +141,9 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	return 0;
 err_cq:
 	ib_destroy_cq_user(cq, uverbs_get_cleared_udata(attrs));
-
+	cq = NULL;
+err_free:
+	kfree(cq);
 err_event_file:
 	if (ev_file)
 		uverbs_uobject_put(ev_file_uobj);

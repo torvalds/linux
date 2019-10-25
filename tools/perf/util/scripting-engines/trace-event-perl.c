@@ -34,8 +34,8 @@
 #include <EXTERN.h>
 #include <perl.h>
 
-#include "../../perf.h"
 #include "../callchain.h"
+#include "../dso.h"
 #include "../machine.h"
 #include "../map.h"
 #include "../symbol.h"
@@ -258,7 +258,7 @@ static void define_event_symbols(struct tep_event *event,
 }
 
 static SV *perl_process_callchain(struct perf_sample *sample,
-				  struct perf_evsel *evsel,
+				  struct evsel *evsel,
 				  struct addr_location *al)
 {
 	AV *list;
@@ -336,7 +336,7 @@ exit:
 }
 
 static void perl_process_tracepoint(struct perf_sample *sample,
-				    struct perf_evsel *evsel,
+				    struct evsel *evsel,
 				    struct addr_location *al)
 {
 	struct thread *thread = al->thread;
@@ -353,11 +353,11 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 
 	dSP;
 
-	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+	if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
 		return;
 
 	if (!event) {
-		pr_debug("ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+		pr_debug("ug! no event found for type %" PRIu64, (u64)evsel->core.attr.config);
 		return;
 	}
 
@@ -431,7 +431,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 
 static void perl_process_event_generic(union perf_event *event,
 				       struct perf_sample *sample,
-				       struct perf_evsel *evsel)
+				       struct evsel *evsel)
 {
 	dSP;
 
@@ -442,7 +442,7 @@ static void perl_process_event_generic(union perf_event *event,
 	SAVETMPS;
 	PUSHMARK(SP);
 	XPUSHs(sv_2mortal(newSVpvn((const char *)event, event->header.size)));
-	XPUSHs(sv_2mortal(newSVpvn((const char *)&evsel->attr, sizeof(evsel->attr))));
+	XPUSHs(sv_2mortal(newSVpvn((const char *)&evsel->core.attr, sizeof(evsel->core.attr))));
 	XPUSHs(sv_2mortal(newSVpvn((const char *)sample, sizeof(*sample))));
 	XPUSHs(sv_2mortal(newSVpvn((const char *)sample->raw_data, sample->raw_size)));
 	PUTBACK;
@@ -455,7 +455,7 @@ static void perl_process_event_generic(union perf_event *event,
 
 static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
-			       struct perf_evsel *evsel,
+			       struct evsel *evsel,
 			       struct addr_location *al)
 {
 	perl_process_tracepoint(sample, evsel, al);

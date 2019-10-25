@@ -8,14 +8,15 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
-#include <linux/reset.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/workqueue.h>
 
 #include <drm/drm_dp_helper.h>
@@ -482,11 +483,16 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	dpaux->vdd = devm_regulator_get(&pdev->dev, "vdd");
+	dpaux->vdd = devm_regulator_get_optional(&pdev->dev, "vdd");
 	if (IS_ERR(dpaux->vdd)) {
-		dev_err(&pdev->dev, "failed to get VDD supply: %ld\n",
-			PTR_ERR(dpaux->vdd));
-		return PTR_ERR(dpaux->vdd);
+		if (PTR_ERR(dpaux->vdd) != -ENODEV) {
+			if (PTR_ERR(dpaux->vdd) != -EPROBE_DEFER)
+				dev_err(&pdev->dev,
+					"failed to get VDD supply: %ld\n",
+					PTR_ERR(dpaux->vdd));
+
+			return PTR_ERR(dpaux->vdd);
+		}
 	}
 
 	platform_set_drvdata(pdev, dpaux);

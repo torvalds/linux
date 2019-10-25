@@ -149,29 +149,24 @@ static inline bool irq_safe_dev_in_no_sleep_domain(struct device *dev,
 	return ret;
 }
 
+static int genpd_runtime_suspend(struct device *dev);
+
 /*
  * Get the generic PM domain for a particular struct device.
  * This validates the struct device pointer, the PM domain pointer,
  * and checks that the PM domain pointer is a real generic PM domain.
  * Any failure results in NULL being returned.
  */
-static struct generic_pm_domain *genpd_lookup_dev(struct device *dev)
+static struct generic_pm_domain *dev_to_genpd_safe(struct device *dev)
 {
-	struct generic_pm_domain *genpd = NULL, *gpd;
-
 	if (IS_ERR_OR_NULL(dev) || IS_ERR_OR_NULL(dev->pm_domain))
 		return NULL;
 
-	mutex_lock(&gpd_list_lock);
-	list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
-		if (&gpd->domain == dev->pm_domain) {
-			genpd = gpd;
-			break;
-		}
-	}
-	mutex_unlock(&gpd_list_lock);
+	/* A genpd's always have its ->runtime_suspend() callback assigned. */
+	if (dev->pm_domain->ops.runtime_suspend == genpd_runtime_suspend)
+		return pd_to_genpd(dev->pm_domain);
 
-	return genpd;
+	return NULL;
 }
 
 /*
@@ -385,8 +380,8 @@ int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state)
 	unsigned int prev;
 	int ret;
 
-	genpd = dev_to_genpd(dev);
-	if (IS_ERR(genpd))
+	genpd = dev_to_genpd_safe(dev);
+	if (!genpd)
 		return -ENODEV;
 
 	if (unlikely(!genpd->set_performance_state))
@@ -1536,7 +1531,8 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	if (ret)
 		genpd_free_dev_data(dev, gpd_data);
 	else
-		dev_pm_qos_add_notifier(dev, &gpd_data->nb);
+		dev_pm_qos_add_notifier(dev, &gpd_data->nb,
+					DEV_PM_QOS_RESUME_LATENCY);
 
 	return ret;
 }
@@ -1569,7 +1565,8 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 
 	pdd = dev->power.subsys_data->domain_data;
 	gpd_data = to_gpd_data(pdd);
-	dev_pm_qos_remove_notifier(dev, &gpd_data->nb);
+	dev_pm_qos_remove_notifier(dev, &gpd_data->nb,
+				   DEV_PM_QOS_RESUME_LATENCY);
 
 	genpd_lock(genpd);
 
@@ -1597,7 +1594,7 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 
  out:
 	genpd_unlock(genpd);
-	dev_pm_qos_add_notifier(dev, &gpd_data->nb);
+	dev_pm_qos_add_notifier(dev, &gpd_data->nb, DEV_PM_QOS_RESUME_LATENCY);
 
 	return ret;
 }
@@ -1608,7 +1605,7 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
  */
 int pm_genpd_remove_device(struct device *dev)
 {
-	struct generic_pm_domain *genpd = genpd_lookup_dev(dev);
+	struct generic_pm_domain *genpd = dev_to_genpd_safe(dev);
 
 	if (!genpd)
 		return -EINVAL;

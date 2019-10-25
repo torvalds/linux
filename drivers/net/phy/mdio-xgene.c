@@ -328,7 +328,6 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mii_bus *mdio_bus;
 	const struct of_device_id *of_id;
-	struct resource *res;
 	struct xgene_mdio_pdata *pdata;
 	void __iomem *csr_base;
 	int mdio_id = 0, ret = 0;
@@ -355,8 +354,7 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 	pdata->mdio_id = mdio_id;
 	pdata->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	csr_base = devm_ioremap_resource(dev, res);
+	csr_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csr_base))
 		return PTR_ERR(csr_base);
 	pdata->mac_csr_addr = csr_base;

@@ -815,7 +815,7 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 static int sii9234_init_resources(struct sii9234 *ctx,
 				  struct i2c_client *client)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	int ret;
 
 	if (!ctx->dev->of_node) {
@@ -897,7 +897,7 @@ static const struct drm_bridge_funcs sii9234_bridge_funcs = {
 static int sii9234_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct sii9234 *ctx;
 	struct device *dev = &client->dev;
 	int ret;

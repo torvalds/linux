@@ -4,17 +4,17 @@
  * Copyright (c) 2013-2014, Intel Corporation.
  */
 
+#include <linux/kernel.h>
 #include <stdio.h>
 #include <string.h>
 #include <endian.h>
 #include <byteswap.h>
+#include "../../../arch/x86/include/asm/insn.h"
+
+#include "../../../arch/x86/lib/inat.c"
+#include "../../../arch/x86/lib/insn.c"
 
 #include "event.h"
-
-#include "insn.h"
-
-#include "inat.c"
-#include "insn.c"
 
 #include "intel-pt-insn-decoder.h"
 #include "dump-insn.h"

@@ -136,8 +136,14 @@ struct imx_media_dev {
 	/* master video device list */
 	struct list_head vdev_list;
 
+	/* IPUs this media driver control, valid after subdevs bound */
+	struct ipu_soc *ipu[2];
+
 	/* for async subdev registration */
 	struct v4l2_async_notifier notifier;
+
+	/* IC scaler/CSC mem2mem video device */
+	struct imx_media_video_dev *m2m_vdev;
 
 	/* the IPU internal subdev's registered synchronously */
 	struct v4l2_subdev *sync_sd[2][NUM_IPU_SUBDEVS];
@@ -166,9 +172,8 @@ int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 			    const struct imx_media_pixfmt **cc);
 int imx_media_init_cfg(struct v4l2_subdev *sd,
 		       struct v4l2_subdev_pad_config *cfg);
-void imx_media_fill_default_mbus_fields(struct v4l2_mbus_framefmt *tryfmt,
-					struct v4l2_mbus_framefmt *fmt,
-					bool ic_route);
+void imx_media_try_colorimetry(struct v4l2_mbus_framefmt *tryfmt,
+			       bool ic_route);
 int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 				  struct v4l2_mbus_framefmt *mbus,
 				  const struct imx_media_pixfmt *cc);
@@ -269,6 +274,12 @@ void imx_media_capture_device_unregister(struct imx_media_video_dev *vdev);
 struct imx_media_buffer *
 imx_media_capture_device_next_buf(struct imx_media_video_dev *vdev);
 void imx_media_capture_device_error(struct imx_media_video_dev *vdev);
+
+/* imx-media-csc-scaler.c */
+struct imx_media_video_dev *
+imx_media_csc_scaler_device_init(struct imx_media_dev *dev);
+int imx_media_csc_scaler_device_register(struct imx_media_video_dev *vdev);
+void imx_media_csc_scaler_device_unregister(struct imx_media_video_dev *vdev);
 
 /* subdev group ids */
 #define IMX_MEDIA_GRP_ID_CSI2          BIT(8)

@@ -243,7 +243,7 @@ config SAMSUNG_PM_DEBUG
 	depends on DEBUG_EXYNOS_UART || DEBUG_S3C24XX_UART || DEBUG_S3C2410_UART
 	help
 	  Say Y here if you want verbose debugging from the PM Suspend and
-	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+	  Resume code. See <file:Documentation/arm/samsung-s3c24xx/suspend.rst>
 	  for more information.
 
 config S3C_PM_DEBUG_LED_SMDK
@@ -268,7 +268,7 @@ config SAMSUNG_PM_CHECK
 	  Note, this can take several seconds depending on memory size
 	  and CPU speed.
 
-	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+	  See <file:Documentation/arm/samsung-s3c24xx/suspend.rst>
 
 config SAMSUNG_PM_CHECK_CHUNKSIZE
 	int "S3C2410 PM Suspend CRC Chunksize (KiB)"
@@ -280,7 +280,7 @@ config SAMSUNG_PM_CHECK_CHUNKSIZE
 	  the CRC data block will take more memory, but will identify any
 	  faults with better precision.
 
-	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+	  See <file:Documentation/arm/samsung-s3c24xx/suspend.rst>
 
 config SAMSUNG_WAKEMASK
 	bool

@@ -2554,10 +2554,9 @@ static int u132_get_frame(struct usb_hcd *hcd)
 		dev_err(&u132->platform_dev->dev, "device is being removed\n");
 		return -ESHUTDOWN;
 	} else {
-		int frame = 0;
 		dev_err(&u132->platform_dev->dev, "TODO: u132_get_frame\n");
 		mdelay(100);
-		return frame;
+		return 0;
 	}
 }
 
@@ -3078,8 +3077,6 @@ static int u132_probe(struct platform_device *pdev)
 	retval = ftdi_read_pcimem(pdev, roothub.a, &rh_a);
 	if (retval)
 		return retval;
-	if (pdev->dev.dma_mask)
-		return -EINVAL;
 
 	hcd = usb_create_hcd(&u132_hc_driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {

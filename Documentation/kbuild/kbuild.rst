@@ -18,7 +18,7 @@ This file lists all modules that are built into the kernel. This is used
 by modprobe to not fail when trying to load something builtin.
 
 modules.builtin.modinfo
---------------------------------------------------
+-----------------------
 This file contains modinfo from all modules that are built into the kernel.
 Unlike modinfo of a separate module, all fields are prefixed with module name.
 
@@ -38,12 +38,11 @@ Additional options to the assembler (for built-in and modules).
 
 AFLAGS_MODULE
 -------------
-Additional module specific options to use for $(AS).
+Additional assembler options for modules.
 
 AFLAGS_KERNEL
 -------------
-Additional options for $(AS) when used for assembler
-code for code that is compiled as built-in.
+Additional assembler options for built-in.
 
 KCFLAGS
 -------
@@ -106,6 +105,15 @@ The output directory can also be specified using "O=...".
 
 Setting "O=..." takes precedence over KBUILD_OUTPUT.
 
+KBUILD_EXTRA_WARN
+-----------------
+Specify the extra build checks. The same value can be assigned by passing
+W=... from the command line.
+
+See `make help` for the list of the supported values.
+
+Setting "W=..." takes precedence over KBUILD_EXTRA_WARN.
+
 KBUILD_DEBARCH
 --------------
 For the deb-pkg target, allows overriding the normal heuristics deployed by
@@ -153,6 +161,7 @@ Install script called when using "make install".
 The default name is "installkernel".
 
 The script will be called with the following arguments:
+
    - $1 - kernel version
    - $2 - kernel image file
    - $3 - kernel map file
@@ -200,6 +209,15 @@ The output directory is often set using "O=..." on the commandline.
 
 The value can be overridden in which case the default value is ignored.
 
+KBUILD_ABS_SRCTREE
+--------------------------------------------------
+Kbuild uses a relative path to point to the tree when possible. For instance,
+when building in the source tree, the source tree path is '.'
+
+Setting this flag requests Kbuild to use absolute path to the source tree.
+There are some useful cases to do so, like when generating tag files with
+absolute path entries etc.
+
 KBUILD_SIGN_PIN
 ---------------
 This variable allows a passphrase or PIN to be passed to the sign-file
@@ -232,11 +250,6 @@ To get all available archs you can also specify all. E.g.::
 
     $ make ALLSOURCE_ARCHS=all tags
 
-KBUILD_ENABLE_EXTRA_GCC_CHECKS
-------------------------------
-If enabled over the make command line with "W=1", it turns on additional
-gcc -W... options for more extensive build-time checking.
-
 KBUILD_BUILD_TIMESTAMP
 ----------------------
 Setting this to a date string overrides the timestamp used in the
@@ -249,17 +262,3 @@ KBUILD_BUILD_USER, KBUILD_BUILD_HOST
 These two variables allow to override the user@host string displayed during
 boot and in /proc/version. The default value is the output of the commands
 whoami and host, respectively.
-
-KBUILD_LDS
-----------
-The linker script with full path. Assigned by the top-level Makefile.
-
-KBUILD_VMLINUX_OBJS
--------------------
-All object files for vmlinux. They are linked to vmlinux in the same
-order as listed in KBUILD_VMLINUX_OBJS.
-
-KBUILD_VMLINUX_LIBS
--------------------
-All .a "lib" files for vmlinux. KBUILD_VMLINUX_OBJS and KBUILD_VMLINUX_LIBS
-together specify all the object files used to link vmlinux.

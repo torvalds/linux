@@ -52,7 +52,7 @@
   {,
     "EventCode": "0x4D02C",
     "EventName": "PM_PMC1_REWIND",
-    "BriefDescription": ""
+    "BriefDescription": "PMC1 rewind event"
   },
   {,
     "EventCode": "0x15158",

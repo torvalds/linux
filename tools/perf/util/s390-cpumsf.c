@@ -146,6 +146,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/zalloc.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -156,8 +157,7 @@
 #include "evlist.h"
 #include "machine.h"
 #include "session.h"
-#include "util.h"
-#include "thread.h"
+#include "tool.h"
 #include "debug.h"
 #include "auxtrace.h"
 #include "s390-cpumsf.h"
@@ -756,7 +756,7 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 	 */
 	if (err) {
 		sfq->buffer = NULL;
-		list_del(&buffer->list);
+		list_del_init(&buffer->list);
 		auxtrace_buffer__free(buffer);
 		if (err > 0)		/* Buffer done, no error */
 			err = 0;
@@ -918,7 +918,7 @@ s390_cpumsf_process_event(struct perf_session *session,
 					      struct s390_cpumsf,
 					      auxtrace);
 	u64 timestamp = sample->time;
-	struct perf_evsel *ev_bc000;
+	struct evsel *ev_bc000;
 
 	int err = 0;
 
@@ -935,7 +935,7 @@ s390_cpumsf_process_event(struct perf_session *session,
 		/* Handle event with raw data */
 		ev_bc000 = perf_evlist__event2evsel(session->evlist, event);
 		if (ev_bc000 &&
-		    ev_bc000->attr.config == PERF_EVENT_CPUM_CF_DIAG)
+		    ev_bc000->core.attr.config == PERF_EVENT_CPUM_CF_DIAG)
 			err = s390_cpumcf_dumpctr(sf, sample);
 		return err;
 	}
@@ -1044,7 +1044,7 @@ static void s390_cpumsf_free(struct perf_session *session)
 	auxtrace_heap__free(&sf->heap);
 	s390_cpumsf_free_queues(session);
 	session->auxtrace = NULL;
-	free(sf->logdir);
+	zfree(&sf->logdir);
 	free(sf);
 }
 
@@ -1101,8 +1101,7 @@ static int s390_cpumsf__config(const char *var, const char *value, void *cb)
 	if (rc == -1 || !S_ISDIR(stbuf.st_mode)) {
 		pr_err("Missing auxtrace log directory %s,"
 		       " continue with current directory...\n", value);
-		free(sf->logdir);
-		sf->logdir = NULL;
+		zfree(&sf->logdir);
 	}
 	return 1;
 }
@@ -1110,11 +1109,11 @@ static int s390_cpumsf__config(const char *var, const char *value, void *cb)
 int s390_cpumsf_process_auxtrace_info(union perf_event *event,
 				      struct perf_session *session)
 {
-	struct auxtrace_info_event *auxtrace_info = &event->auxtrace_info;
+	struct perf_record_auxtrace_info *auxtrace_info = &event->auxtrace_info;
 	struct s390_cpumsf *sf;
 	int err;
 
-	if (auxtrace_info->header.size < sizeof(struct auxtrace_info_event))
+	if (auxtrace_info->header.size < sizeof(struct perf_record_auxtrace_info))
 		return -EINVAL;
 
 	sf = zalloc(sizeof(struct s390_cpumsf));
@@ -1162,7 +1161,7 @@ err_free_queues:
 	auxtrace_queues__free(&sf->queues);
 	session->auxtrace = NULL;
 err_free:
-	free(sf->logdir);
+	zfree(&sf->logdir);
 	free(sf);
 	return err;
 }

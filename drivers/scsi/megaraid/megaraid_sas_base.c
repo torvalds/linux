@@ -105,6 +105,14 @@ MODULE_PARM_DESC(perf_mode, "Performance mode (only for Aero adapters), options:
 		"default mode is 'balanced'"
 		);
 
+int event_log_level = MFI_EVT_CLASS_CRITICAL;
+module_param(event_log_level, int, 0644);
+MODULE_PARM_DESC(event_log_level, "Asynchronous event logging level- range is: -2(CLASS_DEBUG) to 4(CLASS_DEAD), Default: 2(CLASS_CRITICAL)");
+
+unsigned int enable_sdev_max_qd;
+module_param(enable_sdev_max_qd, int, 0444);
+MODULE_PARM_DESC(enable_sdev_max_qd, "Enable sdev max qd as can_queue. Default: 0");
+
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
 MODULE_AUTHOR("megaraidlinux.pdl@broadcom.com");
@@ -280,7 +288,7 @@ void megasas_set_dma_settings(struct megasas_instance *instance,
 	}
 }
 
-void
+static void
 megasas_issue_dcmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 {
 	instance->instancet->fire_cmd(instance,
@@ -404,7 +412,13 @@ megasas_decode_evt(struct megasas_instance *instance)
 	union megasas_evt_class_locale class_locale;
 	class_locale.word = le32_to_cpu(evt_detail->cl.word);
 
-	if (class_locale.members.class >= MFI_EVT_CLASS_CRITICAL)
+	if ((event_log_level < MFI_EVT_CLASS_DEBUG) ||
+	    (event_log_level > MFI_EVT_CLASS_DEAD)) {
+		printk(KERN_WARNING "megaraid_sas: provided event log level is out of range, setting it to default 2(CLASS_CRITICAL), permissible range is: -2 to 4\n");
+		event_log_level = MFI_EVT_CLASS_CRITICAL;
+	}
+
+	if (class_locale.members.class >= event_log_level)
 		dev_info(&instance->pdev->dev, "%d (%s/0x%04x/%s) - %s\n",
 			le32_to_cpu(evt_detail->seq_num),
 			format_timestamp(le32_to_cpu(evt_detail->time_stamp)),
@@ -1931,25 +1945,19 @@ megasas_set_nvme_device_properties(struct scsi_device *sdev, u32 max_io_size)
 	blk_queue_virt_boundary(sdev->request_queue, mr_nvme_pg_size - 1);
 }
 
-
 /*
- * megasas_set_static_target_properties -
- * Device property set by driver are static and it is not required to be
- * updated after OCR.
- *
- * set io timeout
- * set device queue depth
- * set nvme device properties. see - megasas_set_nvme_device_properties
+ * megasas_set_fw_assisted_qd -
+ * set device queue depth to can_queue
+ * set device queue depth to fw assisted qd
  *
  * @sdev:				scsi device
  * @is_target_prop			true, if fw provided target properties.
  */
-static void megasas_set_static_target_properties(struct scsi_device *sdev,
+static void megasas_set_fw_assisted_qd(struct scsi_device *sdev,
 						 bool is_target_prop)
 {
 	u8 interface_type;
 	u32 device_qd = MEGASAS_DEFAULT_CMD_PER_LUN;
-	u32 max_io_size_kb = MR_DEFAULT_NVME_MDTS_KB;
 	u32 tgt_device_qd;
 	struct megasas_instance *instance;
 	struct MR_PRIV_DEVICE *mr_device_priv_data;
@@ -1957,11 +1965,6 @@ static void megasas_set_static_target_properties(struct scsi_device *sdev,
 	instance = megasas_lookup_instance(sdev->host->host_no);
 	mr_device_priv_data = sdev->hostdata;
 	interface_type  = mr_device_priv_data->interface_type;
-
-	/*
-	 * The RAID firmware may require extended timeouts.
-	 */
-	blk_queue_rq_timeout(sdev->request_queue, scmd_timeout * HZ);
 
 	switch (interface_type) {
 	case SAS_PD:
@@ -1980,18 +1983,49 @@ static void megasas_set_static_target_properties(struct scsi_device *sdev,
 		if (tgt_device_qd &&
 		    (tgt_device_qd <= instance->host->can_queue))
 			device_qd = tgt_device_qd;
-
-		/* max_io_size_kb will be set to non zero for
-		 * nvme based vd and syspd.
-		 */
-		max_io_size_kb = le32_to_cpu(instance->tgt_prop->max_io_size_kb);
 	}
+
+	if (instance->enable_sdev_max_qd && interface_type != UNKNOWN_DRIVE)
+		device_qd = instance->host->can_queue;
+
+	scsi_change_queue_depth(sdev, device_qd);
+}
+
+/*
+ * megasas_set_static_target_properties -
+ * Device property set by driver are static and it is not required to be
+ * updated after OCR.
+ *
+ * set io timeout
+ * set device queue depth
+ * set nvme device properties. see - megasas_set_nvme_device_properties
+ *
+ * @sdev:				scsi device
+ * @is_target_prop			true, if fw provided target properties.
+ */
+static void megasas_set_static_target_properties(struct scsi_device *sdev,
+						 bool is_target_prop)
+{
+	u32 max_io_size_kb = MR_DEFAULT_NVME_MDTS_KB;
+	struct megasas_instance *instance;
+
+	instance = megasas_lookup_instance(sdev->host->host_no);
+
+	/*
+	 * The RAID firmware may require extended timeouts.
+	 */
+	blk_queue_rq_timeout(sdev->request_queue, scmd_timeout * HZ);
+
+	/* max_io_size_kb will be set to non zero for
+	 * nvme based vd and syspd.
+	 */
+	if (is_target_prop)
+		max_io_size_kb = le32_to_cpu(instance->tgt_prop->max_io_size_kb);
 
 	if (instance->nvme_page_size && max_io_size_kb)
 		megasas_set_nvme_device_properties(sdev, (max_io_size_kb << 10));
 
-	scsi_change_queue_depth(sdev, device_qd);
-
+	megasas_set_fw_assisted_qd(sdev, is_target_prop);
 }
 
 
@@ -2237,7 +2271,7 @@ megasas_internal_reset_defer_cmds(struct megasas_instance *instance);
 static void
 process_fw_state_change_wq(struct work_struct *work);
 
-void megasas_do_ocr(struct megasas_instance *instance)
+static void megasas_do_ocr(struct megasas_instance *instance)
 {
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS1064R) ||
 	(instance->pdev->device == PCI_DEVICE_ID_DELL_PERC5) ||
@@ -3153,6 +3187,7 @@ fw_crash_buffer_show(struct device *cdev,
 		(struct megasas_instance *) shost->hostdata;
 	u32 size;
 	unsigned long dmachunk = CRASH_DMA_BUF_SIZE;
+	unsigned long chunk_left_bytes;
 	unsigned long src_addr;
 	unsigned long flags;
 	u32 buff_offset;
@@ -3176,6 +3211,8 @@ fw_crash_buffer_show(struct device *cdev,
 	}
 
 	size = (instance->fw_crash_buffer_size * dmachunk) - buff_offset;
+	chunk_left_bytes = dmachunk - (buff_offset % dmachunk);
+	size = (size > chunk_left_bytes) ? chunk_left_bytes : size;
 	size = (size >= PAGE_SIZE) ? (PAGE_SIZE - 1) : size;
 
 	src_addr = (unsigned long)instance->crash_buf[buff_offset / dmachunk] +
@@ -3272,6 +3309,48 @@ fw_cmds_outstanding_show(struct device *cdev,
 }
 
 static ssize_t
+enable_sdev_max_qd_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct megasas_instance *instance = (struct megasas_instance *)shost->hostdata;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", instance->enable_sdev_max_qd);
+}
+
+static ssize_t
+enable_sdev_max_qd_store(struct device *cdev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct megasas_instance *instance = (struct megasas_instance *)shost->hostdata;
+	u32 val = 0;
+	bool is_target_prop;
+	int ret_target_prop = DCMD_FAILED;
+	struct scsi_device *sdev;
+
+	if (kstrtou32(buf, 0, &val) != 0) {
+		pr_err("megasas: could not set enable_sdev_max_qd\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&instance->reset_mutex);
+	if (val)
+		instance->enable_sdev_max_qd = true;
+	else
+		instance->enable_sdev_max_qd = false;
+
+	shost_for_each_device(sdev, shost) {
+		ret_target_prop = megasas_get_target_prop(instance, sdev);
+		is_target_prop = (ret_target_prop == DCMD_SUCCESS) ? true : false;
+		megasas_set_fw_assisted_qd(sdev, is_target_prop);
+	}
+	mutex_unlock(&instance->reset_mutex);
+
+	return strlen(buf);
+}
+
+static ssize_t
 dump_system_regs_show(struct device *cdev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -3300,16 +3379,18 @@ static DEVICE_ATTR_RW(fw_crash_state);
 static DEVICE_ATTR_RO(page_size);
 static DEVICE_ATTR_RO(ldio_outstanding);
 static DEVICE_ATTR_RO(fw_cmds_outstanding);
+static DEVICE_ATTR_RW(enable_sdev_max_qd);
 static DEVICE_ATTR_RO(dump_system_regs);
 static DEVICE_ATTR_RO(raid_map_id);
 
-struct device_attribute *megaraid_host_attrs[] = {
+static struct device_attribute *megaraid_host_attrs[] = {
 	&dev_attr_fw_crash_buffer_size,
 	&dev_attr_fw_crash_buffer,
 	&dev_attr_fw_crash_state,
 	&dev_attr_page_size,
 	&dev_attr_ldio_outstanding,
 	&dev_attr_fw_cmds_outstanding,
+	&dev_attr_enable_sdev_max_qd,
 	&dev_attr_dump_system_regs,
 	&dev_attr_raid_map_id,
 	NULL,
@@ -3334,6 +3415,7 @@ static struct scsi_host_template megasas_template = {
 	.shost_attrs = megaraid_host_attrs,
 	.bios_param = megasas_bios_param,
 	.change_queue_depth = scsi_change_queue_depth,
+	.max_segment_size = 0xffffffff,
 	.no_write_same = 1,
 };
 
@@ -5880,6 +5962,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			MR_MAX_RAID_MAP_SIZE_MASK);
 	}
 
+	instance->enable_sdev_max_qd = enable_sdev_max_qd;
+
 	switch (instance->adapter_type) {
 	case VENTURA_SERIES:
 		fusion->pcie_bw_limitation = true;
@@ -5933,7 +6017,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 					instance->is_rdpq = (scratch_pad_1 & MR_RDPQ_MODE_OFFSET) ?
 								1 : 0;
 
-				if (!instance->msix_combined) {
+				if (instance->adapter_type >= INVADER_SERIES &&
+				    !instance->msix_combined) {
 					instance->msix_load_balance = true;
 					instance->smp_affinity_enable = false;
 				}
@@ -6546,7 +6631,8 @@ megasas_get_target_prop(struct megasas_instance *instance,
 	int ret;
 	struct megasas_cmd *cmd;
 	struct megasas_dcmd_frame *dcmd;
-	u16 targetId = (sdev->channel % 2) + sdev->id;
+	u16 targetId = ((sdev->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL) +
+			sdev->id;
 
 	cmd = megasas_get_cmd(instance);
 
@@ -8746,6 +8832,12 @@ static int __init megasas_init(void)
 	if (rval) {
 		printk(KERN_DEBUG "megasas: PCI hotplug registration failed \n");
 		goto err_pcidrv;
+	}
+
+	if ((event_log_level < MFI_EVT_CLASS_DEBUG) ||
+	    (event_log_level > MFI_EVT_CLASS_DEAD)) {
+		pr_warn("megaraid_sas: provided event log level is out of range, setting it to default 2(CLASS_CRITICAL), permissible range is: -2 to 4\n");
+		event_log_level = MFI_EVT_CLASS_CRITICAL;
 	}
 
 	rval = driver_create_file(&megasas_pci_driver.driver,

@@ -73,10 +73,6 @@ __bitwise"类型。
 
 	git://git.kernel.org/pub/scm/linux/kernel/git/josh/sparse.git
 
-DaveJ 把每小时自动生成的 git 源码树 tar 包放在以下地址：
-
-	http://www.codemonkey.org.uk/projects/git-snapshots/sparse/
-
 一旦你下载了源码，只要以普通用户身份运行：
 
 	make

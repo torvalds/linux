@@ -289,8 +289,17 @@ void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 	if (ctxt->ref == 0) {
 		struct ieee80211_channel *chan;
 		struct cfg80211_chan_def chandef;
+		struct ieee80211_supported_band *sband = NULL;
+		enum nl80211_band band = NL80211_BAND_2GHZ;
 
-		chan = &mvm->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[0];
+		while (!sband && band < NUM_NL80211_BANDS)
+			sband = mvm->hw->wiphy->bands[band++];
+
+		if (WARN_ON(!sband))
+			return;
+
+		chan = &sband->channels[0];
+
 		cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
 		iwl_mvm_phy_ctxt_changed(mvm, ctxt, &chandef, 1, 1);
 	}

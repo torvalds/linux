@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 #include "dm_helpers.h"
 #include "gpio_service_interface.h"
@@ -91,6 +93,8 @@ union hdmi_scdc_status_flags_data {
 		uint8_t CH2_LOCKED:1;
 		uint8_t RESERVED:4;
 		uint8_t RESERVED2:8;
+		uint8_t RESERVED3:8;
+
 	} fields;
 };
 
@@ -107,14 +111,10 @@ union hdmi_scdc_ced_data {
 		uint8_t CH2_7HIGH:7;
 		uint8_t CH2_VALID:1;
 		uint8_t CHECKSUM:8;
-	} fields;
-};
-
-union hdmi_scdc_test_config_Data {
-	uint8_t byte;
-	struct {
-		uint8_t TEST_READ_REQUEST_DELAY:7;
-		uint8_t TEST_READ_REQUEST: 1;
+		uint8_t RESERVED:8;
+		uint8_t RESERVED2:8;
+		uint8_t RESERVED3:8;
+		uint8_t RESERVED4:4;
 	} fields;
 };
 
@@ -294,7 +294,7 @@ static uint32_t defer_delay_converter_wa(
 {
 	struct dc_link *link = ddc->link;
 
-	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_4 &&
+	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_0080E1 &&
 		!memcmp(link->dpcd_caps.branch_dev_name,
 			DP_DVI_CONVERTER_ID_4,
 			sizeof(link->dpcd_caps.branch_dev_name)))

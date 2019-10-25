@@ -42,6 +42,7 @@ static atomic_t kfd_locked = ATOMIC_INIT(0);
 #ifdef KFD_SUPPORT_IOMMU_V2
 static const struct kfd_device_info kaveri_device_info = {
 	.asic_family = CHIP_KAVERI,
+	.asic_name = "kaveri",
 	.max_pasid_bits = 16,
 	/* max num of queues for KV.TODO should be a dynamic value */
 	.max_no_of_hqd	= 24,
@@ -54,11 +55,13 @@ static const struct kfd_device_info kaveri_device_info = {
 	.needs_iommu_device = true,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info carrizo_device_info = {
 	.asic_family = CHIP_CARRIZO,
+	.asic_name = "carrizo",
 	.max_pasid_bits = 16,
 	/* max num of queues for CZ.TODO should be a dynamic value */
 	.max_no_of_hqd	= 24,
@@ -71,11 +74,13 @@ static const struct kfd_device_info carrizo_device_info = {
 	.needs_iommu_device = true,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info raven_device_info = {
 	.asic_family = CHIP_RAVEN,
+	.asic_name = "raven",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 8,
@@ -87,12 +92,14 @@ static const struct kfd_device_info raven_device_info = {
 	.needs_iommu_device = true,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 1,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 #endif
 
 static const struct kfd_device_info hawaii_device_info = {
 	.asic_family = CHIP_HAWAII,
+	.asic_name = "hawaii",
 	.max_pasid_bits = 16,
 	/* max num of queues for KV.TODO should be a dynamic value */
 	.max_no_of_hqd	= 24,
@@ -105,11 +112,13 @@ static const struct kfd_device_info hawaii_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info tonga_device_info = {
 	.asic_family = CHIP_TONGA,
+	.asic_name = "tonga",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 4,
@@ -121,11 +130,13 @@ static const struct kfd_device_info tonga_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info fiji_device_info = {
 	.asic_family = CHIP_FIJI,
+	.asic_name = "fiji",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 4,
@@ -137,11 +148,13 @@ static const struct kfd_device_info fiji_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info fiji_vf_device_info = {
 	.asic_family = CHIP_FIJI,
+	.asic_name = "fiji",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 4,
@@ -153,12 +166,14 @@ static const struct kfd_device_info fiji_vf_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 
 static const struct kfd_device_info polaris10_device_info = {
 	.asic_family = CHIP_POLARIS10,
+	.asic_name = "polaris10",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 4,
@@ -170,11 +185,13 @@ static const struct kfd_device_info polaris10_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info polaris10_vf_device_info = {
 	.asic_family = CHIP_POLARIS10,
+	.asic_name = "polaris10",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 4,
@@ -186,11 +203,13 @@ static const struct kfd_device_info polaris10_vf_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info polaris11_device_info = {
 	.asic_family = CHIP_POLARIS11,
+	.asic_name = "polaris11",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 4,
@@ -202,11 +221,13 @@ static const struct kfd_device_info polaris11_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info polaris12_device_info = {
 	.asic_family = CHIP_POLARIS12,
+	.asic_name = "polaris12",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 4,
@@ -218,11 +239,31 @@ static const struct kfd_device_info polaris12_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
+	.num_sdma_queues_per_engine = 2,
+};
+
+static const struct kfd_device_info vegam_device_info = {
+	.asic_family = CHIP_VEGAM,
+	.asic_name = "vegam",
+	.max_pasid_bits = 16,
+	.max_no_of_hqd  = 24,
+	.doorbell_size  = 4,
+	.ih_ring_entry_size = 4 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_cik,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.supports_cwsr = true,
+	.needs_iommu_device = false,
+	.needs_pci_atomics = true,
+	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vega10_device_info = {
 	.asic_family = CHIP_VEGA10,
+	.asic_name = "vega10",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 8,
@@ -234,11 +275,13 @@ static const struct kfd_device_info vega10_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vega10_vf_device_info = {
 	.asic_family = CHIP_VEGA10,
+	.asic_name = "vega10",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 8,
@@ -250,11 +293,13 @@ static const struct kfd_device_info vega10_vf_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vega12_device_info = {
 	.asic_family = CHIP_VEGA12,
+	.asic_name = "vega12",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 8,
@@ -266,11 +311,13 @@ static const struct kfd_device_info vega12_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vega20_device_info = {
 	.asic_family = CHIP_VEGA20,
+	.asic_name = "vega20",
 	.max_pasid_bits = 16,
 	.max_no_of_hqd	= 24,
 	.doorbell_size	= 8,
@@ -282,6 +329,43 @@ static const struct kfd_device_info vega20_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
+	.num_sdma_queues_per_engine = 8,
+};
+
+static const struct kfd_device_info arcturus_device_info = {
+	.asic_family = CHIP_ARCTURUS,
+	.asic_name = "arcturus",
+	.max_pasid_bits = 16,
+	.max_no_of_hqd	= 24,
+	.doorbell_size	= 8,
+	.ih_ring_entry_size = 8 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_v9,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.supports_cwsr = true,
+	.needs_iommu_device = false,
+	.needs_pci_atomics = false,
+	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 6,
+	.num_sdma_queues_per_engine = 8,
+};
+
+static const struct kfd_device_info navi10_device_info = {
+	.asic_family = CHIP_NAVI10,
+	.asic_name = "navi10",
+	.max_pasid_bits = 16,
+	.max_no_of_hqd  = 24,
+	.doorbell_size  = 8,
+	.ih_ring_entry_size = 8 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_v9,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.needs_iommu_device = false,
+	.supports_cwsr = true,
+	.needs_pci_atomics = false,
+	.num_sdma_engines = 2,
+	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
@@ -373,6 +457,9 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x6995, &polaris12_device_info },	/* Polaris12 */
 	{ 0x6997, &polaris12_device_info },	/* Polaris12 */
 	{ 0x699F, &polaris12_device_info },	/* Polaris12 */
+	{ 0x694C, &vegam_device_info },		/* VegaM */
+	{ 0x694E, &vegam_device_info },		/* VegaM */
+	{ 0x694F, &vegam_device_info },		/* VegaM */
 	{ 0x6860, &vega10_device_info },	/* Vega10 */
 	{ 0x6861, &vega10_device_info },	/* Vega10 */
 	{ 0x6862, &vega10_device_info },	/* Vega10 */
@@ -399,7 +486,16 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x66a3, &vega20_device_info },	/* Vega20 */
 	{ 0x66a4, &vega20_device_info },	/* Vega20 */
 	{ 0x66a7, &vega20_device_info },	/* Vega20 */
-	{ 0x66af, &vega20_device_info }		/* Vega20 */
+	{ 0x66af, &vega20_device_info },	/* Vega20 */
+	{ 0x738C, &arcturus_device_info },	/* Arcturus */
+	{ 0x7388, &arcturus_device_info },	/* Arcturus */
+	{ 0x738E, &arcturus_device_info },	/* Arcturus */
+	{ 0x7390, &arcturus_device_info },	/* Arcturus vf */
+	{ 0x7310, &navi10_device_info },	/* Navi10 */
+	{ 0x7312, &navi10_device_info },	/* Navi10 */
+	{ 0x7318, &navi10_device_info },	/* Navi10 */
+	{ 0x731a, &navi10_device_info },	/* Navi10 */
+	{ 0x731f, &navi10_device_info },	/* Navi10 */
 };
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
@@ -429,7 +525,6 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	struct pci_dev *pdev, const struct kfd2kgd_calls *f2g)
 {
 	struct kfd_dev *kfd;
-	int ret;
 	const struct kfd_device_info *device_info =
 					lookup_device_info(pdev->device);
 
@@ -446,17 +541,15 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	 * 32 and 64-bit requests are possible and must be
 	 * supported.
 	 */
-	ret = pci_enable_atomic_ops_to_root(pdev,
-			PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
-			PCI_EXP_DEVCAP2_ATOMIC_COMP64);
-	if (device_info->needs_pci_atomics && ret < 0) {
+	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kgd);
+	if (device_info->needs_pci_atomics &&
+	    !kfd->pci_atomic_requested) {
 		dev_info(kfd_device,
 			 "skipped device %x:%x, PCI rejects atomics\n",
 			 pdev->vendor, pdev->device);
 		kfree(kfd);
 		return NULL;
-	} else if (!ret)
-		kfd->pci_atomic_requested = true;
+	}
 
 	kfd->kgd = kgd;
 	kfd->device_info = device_info;
@@ -481,10 +574,18 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx8_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx8_hex);
-		} else {
+		} else if (kfd->device_info->asic_family == CHIP_ARCTURUS) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_arcturus_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_arcturus_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_arcturus_hex);
+		} else if (kfd->device_info->asic_family < CHIP_NAVI10) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx9_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_hex);
+		} else {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx10_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx10_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx10_hex);
 		}
 
 		kfd->cwsr_enabled = true;
@@ -518,6 +619,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	} else
 		kfd->max_proc_per_quantum = hws_max_conc_proc;
 
+	/* Allocate global GWS that is shared by all KFD processes */
+	if (hws_gws_support && amdgpu_amdkfd_alloc_gws(kfd->kgd,
+			amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws)) {
+		dev_err(kfd_device, "Could not allocate %d gws\n",
+			amdgpu_amdkfd_get_num_gws(kfd->kgd));
+		goto out;
+	}
 	/* calculate max size of mqds needed for queues */
 	size = max_num_of_queues_per_device *
 			kfd->device_info->mqd_size_aligned;
@@ -541,7 +649,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr,
 			false)) {
 		dev_err(kfd_device, "Could not allocate %d bytes\n", size);
-		goto out;
+		goto alloc_gtt_mem_failure;
 	}
 
 	dev_info(kfd_device, "Allocated %d bytes on gart\n", size);
@@ -560,11 +668,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	if (kfd->kfd2kgd->get_hive_id)
 		kfd->hive_id = kfd->kfd2kgd->get_hive_id(kfd->kgd);
-
-	if (kfd_topology_add_device(kfd)) {
-		dev_err(kfd_device, "Error adding device to topology\n");
-		goto kfd_topology_add_device_error;
-	}
 
 	if (kfd_interrupt_init(kfd)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
@@ -589,6 +692,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd->dbgmgr = NULL;
 
+	if (kfd_topology_add_device(kfd)) {
+		dev_err(kfd_device, "Error adding device to topology\n");
+		goto kfd_topology_add_device_error;
+	}
+
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device %x:%x\n", kfd->pdev->vendor,
 		 kfd->pdev->device);
@@ -598,19 +706,21 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	goto out;
 
+kfd_topology_add_device_error:
 kfd_resume_error:
 device_iommu_error:
 	device_queue_manager_uninit(kfd->dqm);
 device_queue_manager_error:
 	kfd_interrupt_exit(kfd);
 kfd_interrupt_error:
-	kfd_topology_remove_device(kfd);
-kfd_topology_add_device_error:
 	kfd_doorbell_fini(kfd);
 kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
 	amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+alloc_gtt_mem_failure:
+	if (hws_gws_support)
+		amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
 	dev_err(kfd_device,
 		"device %x:%x NOT added due to errors\n",
 		kfd->pdev->vendor, kfd->pdev->device);
@@ -628,6 +738,8 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		kfd_doorbell_fini(kfd);
 		kfd_gtt_sa_fini(kfd);
 		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+		if (hws_gws_support)
+			amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
 	}
 
 	kfree(kfd);
@@ -665,7 +777,6 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 	if (ret)
 		return ret;
 	count = atomic_dec_return(&kfd_locked);
-	WARN_ONCE(count != 0, "KFD reset ref. error");
 
 	atomic_set(&kfd->sram_ecc_flag, 0);
 

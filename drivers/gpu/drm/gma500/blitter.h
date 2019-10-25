@@ -9,6 +9,8 @@
 #ifndef __BLITTER_H
 #define __BLITTER_H
 
+struct drm_psb_private;
+
 extern int gma_blt_wait_idle(struct drm_psb_private *dev_priv);
 
 #endif

@@ -118,7 +118,6 @@ static int dc_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dc_wdt *wdt;
-	int ret;
 
 	wdt = devm_kzalloc(dev, sizeof(struct dc_wdt), GFP_KERNEL);
 	if (!wdt)
@@ -141,13 +140,7 @@ static int dc_wdt_probe(struct platform_device *pdev)
 	watchdog_set_restart_priority(&dc_wdt_wdd, 128);
 	watchdog_init_timeout(&dc_wdt_wdd, timeout, dev);
 	watchdog_stop_on_reboot(&dc_wdt_wdd);
-	ret = devm_watchdog_register_device(dev, &dc_wdt_wdd);
-	if (ret) {
-		dev_err(dev, "Failed to register watchdog device");
-		return ret;
-	}
-
-	return 0;
+	return devm_watchdog_register_device(dev, &dc_wdt_wdd);
 }
 
 static const struct of_device_id dc_wdt_of_match[] = {

@@ -391,10 +391,10 @@ static void program_tiling(
 static void program_size_and_rotation(
 	struct dce_mem_input *dce_mi,
 	enum dc_rotation_angle rotation,
-	const union plane_size *plane_size)
+	const struct plane_size *plane_size)
 {
-	const struct rect *in_rect = &plane_size->grph.surface_size;
-	struct rect hw_rect = plane_size->grph.surface_size;
+	const struct rect *in_rect = &plane_size->surface_size;
+	struct rect hw_rect = plane_size->surface_size;
 	const uint32_t rotation_angles[ROTATION_ANGLE_COUNT] = {
 			[ROTATION_ANGLE_0] = 0,
 			[ROTATION_ANGLE_90] = 1,
@@ -423,7 +423,7 @@ static void program_size_and_rotation(
 			GRPH_Y_END, hw_rect.height);
 
 	REG_SET(GRPH_PITCH, 0,
-			GRPH_PITCH, plane_size->grph.surface_pitch);
+			GRPH_PITCH, plane_size->surface_pitch);
 
 	REG_SET(HW_ROTATION, 0,
 			GRPH_ROTATION_ANGLE, rotation_angles[rotation]);
@@ -505,7 +505,7 @@ static void dce_mi_program_surface_config(
 	struct mem_input *mi,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
-	union plane_size *plane_size,
+	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror)

@@ -1,8 +1,2 @@
 - the kpc_spi driver doesn't seem to let multiple transactions (to different instances of the core) happen in parallel...
 - The kpc_i2c driver is a hot mess, it should probably be cleaned up a ton.  It functions against current hardware though.
-- pcard->card_num in kp2000_pcie_probe() is a global variable and needs atomic / locking / something better.
-- probe_core_uio() probably needs error handling
-- the loop in kp2000_probe_cores() that uses probe_core_uio() also probably needs error handling
-- would be nice if the AIO fileops in kpc_dma could be made to work
-    - probably want to add a CONFIG_ option to control compilation of the AIO functions
-- if the AIO fileops in kpc_dma start working, next would be making iov_count > 1 work too

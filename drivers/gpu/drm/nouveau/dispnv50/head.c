@@ -169,14 +169,34 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 	 */
 	switch (mode) {
 	case DRM_MODE_SCALE_CENTER:
-		asyh->view.oW = min((u16)umode->hdisplay, asyh->view.oW);
-		asyh->view.oH = min((u16)umode_vdisplay, asyh->view.oH);
-		/* fall-through */
+		/* NOTE: This will cause scaling when the input is
+		 * larger than the output.
+		 */
+		asyh->view.oW = min(asyh->view.iW, asyh->view.oW);
+		asyh->view.oH = min(asyh->view.iH, asyh->view.oH);
+		break;
 	case DRM_MODE_SCALE_ASPECT:
-		if (asyh->view.oH < asyh->view.oW) {
+		/* Determine whether the scaling should be on width or on
+		 * height. This is done by comparing the aspect ratios of the
+		 * sizes. If the output AR is larger than input AR, that means
+		 * we want to change the width (letterboxed on the
+		 * left/right), otherwise on the height (letterboxed on the
+		 * top/bottom).
+		 *
+		 * E.g. 4:3 (1.333) AR image displayed on a 16:10 (1.6) AR
+		 * screen will have letterboxes on the left/right. However a
+		 * 16:9 (1.777) AR image on that same screen will have
+		 * letterboxes on the top/bottom.
+		 *
+		 * inputAR = iW / iH; outputAR = oW / oH
+		 * outputAR > inputAR is equivalent to oW * iH > iW * oH
+		 */
+		if (asyh->view.oW * asyh->view.iH > asyh->view.iW * asyh->view.oH) {
+			/* Recompute output width, i.e. left/right letterbox */
 			u32 r = (asyh->view.iW << 19) / asyh->view.iH;
 			asyh->view.oW = ((asyh->view.oH * r) + (r / 2)) >> 19;
 		} else {
+			/* Recompute output height, i.e. top/bottom letterbox */
 			u32 r = (asyh->view.iH << 19) / asyh->view.iW;
 			asyh->view.oH = ((asyh->view.oW * r) + (r / 2)) >> 19;
 		}
@@ -421,22 +441,15 @@ nv50_head_atomic_duplicate_state(struct drm_crtc *crtc)
 }
 
 static void
-__drm_atomic_helper_crtc_reset(struct drm_crtc *crtc,
-			       struct drm_crtc_state *state)
-{
-	if (crtc->state)
-		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
-	crtc->state = state;
-	crtc->state->crtc = crtc;
-}
-
-static void
 nv50_head_reset(struct drm_crtc *crtc)
 {
 	struct nv50_head_atom *asyh;
 
 	if (WARN_ON(!(asyh = kzalloc(sizeof(*asyh), GFP_KERNEL))))
 		return;
+
+	if (crtc->state)
+		nv50_head_atomic_destroy_state(crtc, crtc->state);
 
 	__drm_atomic_helper_crtc_reset(crtc, &asyh->state);
 }
@@ -467,7 +480,7 @@ nv50_head_create(struct drm_device *dev, int index)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
-	struct nv50_wndw *curs, *wndw;
+	struct nv50_wndw *base, *ovly, *curs;
 	struct drm_crtc *crtc;
 	int ret;
 
@@ -479,13 +492,13 @@ nv50_head_create(struct drm_device *dev, int index)
 	head->base.index = index;
 
 	if (disp->disp->object.oclass < GV100_DISP) {
-		ret = nv50_ovly_new(drm, head->base.index, &wndw);
-		ret = nv50_base_new(drm, head->base.index, &wndw);
+		ret = nv50_base_new(drm, head->base.index, &base);
+		ret = nv50_ovly_new(drm, head->base.index, &ovly);
 	} else {
-		ret = nv50_wndw_new(drm, DRM_PLANE_TYPE_OVERLAY,
-				    head->base.index * 2 + 1, &wndw);
 		ret = nv50_wndw_new(drm, DRM_PLANE_TYPE_PRIMARY,
-				    head->base.index * 2 + 0, &wndw);
+				    head->base.index * 2 + 0, &base);
+		ret = nv50_wndw_new(drm, DRM_PLANE_TYPE_OVERLAY,
+				    head->base.index * 2 + 1, &ovly);
 	}
 	if (ret == 0)
 		ret = nv50_curs_new(drm, head->base.index, &curs);
@@ -495,10 +508,14 @@ nv50_head_create(struct drm_device *dev, int index)
 	}
 
 	crtc = &head->base.base;
-	drm_crtc_init_with_planes(dev, crtc, &wndw->plane, &curs->plane,
+	drm_crtc_init_with_planes(dev, crtc, &base->plane, &curs->plane,
 				  &nv50_head_func, "head-%d", head->base.index);
 	drm_crtc_helper_add(crtc, &nv50_head_help);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
+	if (disp->disp->object.oclass >= GF110_DISP)
+		drm_crtc_enable_color_mgmt(crtc, 256, true, 256);
+	else
+		drm_crtc_enable_color_mgmt(crtc, 0, false, 256);
 
 	if (head->func->olut_set) {
 		ret = nv50_lut_init(disp, &drm->client.mmu, &head->olut);

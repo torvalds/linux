@@ -35,7 +35,7 @@ static void _init_mp_priv_(struct mp_priv *pmp_priv)
 
 static int init_mp_priv(struct mp_priv *pmp_priv)
 {
-	int i, res;
+	int i;
 	struct mp_xmit_frame *pmp_xmitframe;
 
 	_init_mp_priv_(pmp_priv);
@@ -45,8 +45,7 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 				sizeof(struct mp_xmit_frame) + 4,
 				GFP_ATOMIC);
 	if (!pmp_priv->pallocated_mp_xmitframe_buf) {
-		res = _FAIL;
-		goto _exit_init_mp_priv;
+		return -ENOMEM;
 	}
 	pmp_priv->pmp_xmtframe_buf = pmp_priv->pallocated_mp_xmitframe_buf +
 			 4 -
@@ -62,9 +61,7 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 		pmp_xmitframe++;
 	}
 	pmp_priv->free_mp_xmitframe_cnt = NR_MP_XMITFRAME;
-	res = _SUCCESS;
-_exit_init_mp_priv:
-	return res;
+	return 0;
 }
 
 static int free_mp_priv(struct mp_priv *pmp_priv)
@@ -709,20 +706,18 @@ static u32 GetPhyRxPktCounts(struct _adapter *pAdapter, u32 selbit)
 
 u32 r8712_GetPhyRxPktReceived(struct _adapter *pAdapter)
 {
-	u32 OFDM_cnt = 0, CCK_cnt = 0, HT_cnt = 0;
+	u32 OFDM_cnt = GetPhyRxPktCounts(pAdapter, OFDM_MPDU_OK_BIT);
+	u32 CCK_cnt  = GetPhyRxPktCounts(pAdapter, CCK_MPDU_OK_BIT);
+	u32 HT_cnt   = GetPhyRxPktCounts(pAdapter, HT_MPDU_OK_BIT);
 
-	OFDM_cnt = GetPhyRxPktCounts(pAdapter, OFDM_MPDU_OK_BIT);
-	CCK_cnt = GetPhyRxPktCounts(pAdapter, CCK_MPDU_OK_BIT);
-	HT_cnt = GetPhyRxPktCounts(pAdapter, HT_MPDU_OK_BIT);
 	return OFDM_cnt + CCK_cnt + HT_cnt;
 }
 
 u32 r8712_GetPhyRxPktCRC32Error(struct _adapter *pAdapter)
 {
-	u32 OFDM_cnt = 0, CCK_cnt = 0, HT_cnt = 0;
+	u32 OFDM_cnt = GetPhyRxPktCounts(pAdapter, OFDM_MPDU_FAIL_BIT);
+	u32 CCK_cnt  = GetPhyRxPktCounts(pAdapter, CCK_MPDU_FAIL_BIT);
+	u32 HT_cnt   = GetPhyRxPktCounts(pAdapter, HT_MPDU_FAIL_BIT);
 
-	OFDM_cnt = GetPhyRxPktCounts(pAdapter, OFDM_MPDU_FAIL_BIT);
-	CCK_cnt = GetPhyRxPktCounts(pAdapter, CCK_MPDU_FAIL_BIT);
-	HT_cnt = GetPhyRxPktCounts(pAdapter, HT_MPDU_FAIL_BIT);
 	return OFDM_cnt + CCK_cnt + HT_cnt;
 }

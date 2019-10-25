@@ -668,8 +668,7 @@ static void adv748x_dt_cleanup(struct adv748x_state *state)
 		of_node_put(state->endpoints[i]);
 }
 
-static int adv748x_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int adv748x_probe(struct i2c_client *client)
 {
 	struct adv748x_state *state;
 	int ret;
@@ -797,13 +796,6 @@ static int adv748x_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id adv748x_id[] = {
-	{ "adv7481", 0 },
-	{ "adv7482", 0 },
-	{ },
-};
-MODULE_DEVICE_TABLE(i2c, adv748x_id);
-
 static const struct of_device_id adv748x_of_table[] = {
 	{ .compatible = "adi,adv7481", },
 	{ .compatible = "adi,adv7482", },
@@ -816,9 +808,8 @@ static struct i2c_driver adv748x_driver = {
 		.name = "adv748x",
 		.of_match_table = adv748x_of_table,
 	},
-	.probe = adv748x_probe,
+	.probe_new = adv748x_probe,
 	.remove = adv748x_remove,
-	.id_table = adv748x_id,
 };
 
 module_i2c_driver(adv748x_driver);

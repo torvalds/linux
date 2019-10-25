@@ -6,6 +6,8 @@
 #ifndef _NVME_FC_DRIVER_H
 #define _NVME_FC_DRIVER_H 1
 
+#include <linux/scatterlist.h>
+
 
 /*
  * **********************  LLDD FC-NVME Host API ********************

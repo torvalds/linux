@@ -17,6 +17,8 @@ Required Properties:
       For this device it is strongly suggested to include arasan,soc-ctl-syscon.
     - "ti,am654-sdhci-5.1", "arasan,sdhci-5.1": TI AM654 MMC PHY
 	Note: This binding has been deprecated and moved to [5].
+    - "intel,lgm-sdhci-5.1-emmc", "arasan,sdhci-5.1": Intel LGM eMMC PHY
+      For this device it is strongly suggested to include arasan,soc-ctl-syscon.
 
   [5] Documentation/devicetree/bindings/mmc/sdhci-am654.txt
 
@@ -79,4 +81,19 @@ Example:
 		phys = <&emmc_phy>;
 		phy-names = "phy_arasan";
 		#clock-cells = <0>;
+	};
+
+	emmc: sdhci@ec700000 {
+		compatible = "intel,lgm-sdhci-5.1-emmc", "arasan,sdhci-5.1";
+		reg = <0xec700000 0x300>;
+		interrupt-parent = <&ioapic1>;
+		interrupts = <44 1>;
+		clocks = <&cgu0 LGM_CLK_EMMC5>, <&cgu0 LGM_CLK_NGI>,
+			 <&cgu0 LGM_GCLK_EMMC>;
+		clock-names = "clk_xin", "clk_ahb", "gate";
+		clock-output-names = "emmc_cardclock";
+		#clock-cells = <0>;
+		phys = <&emmc_phy>;
+		phy-names = "phy_arasan";
+		arasan,soc-ctl-syscon = <&sysconf>;
 	};

@@ -59,14 +59,14 @@ struct idle_inject_thread {
 /**
  * struct idle_inject_device - idle injection data
  * @timer: idle injection period timer
- * @idle_duration_ms: duration of CPU idle time to inject
- * @run_duration_ms: duration of CPU run time to allow
+ * @idle_duration_us: duration of CPU idle time to inject
+ * @run_duration_us: duration of CPU run time to allow
  * @cpumask: mask of CPUs affected by idle injection
  */
 struct idle_inject_device {
 	struct hrtimer timer;
-	unsigned int idle_duration_ms;
-	unsigned int run_duration_ms;
+	unsigned int idle_duration_us;
+	unsigned int run_duration_us;
 	unsigned long int cpumask[0];
 };
 
@@ -104,16 +104,16 @@ static void idle_inject_wakeup(struct idle_inject_device *ii_dev)
  */
 static enum hrtimer_restart idle_inject_timer_fn(struct hrtimer *timer)
 {
-	unsigned int duration_ms;
+	unsigned int duration_us;
 	struct idle_inject_device *ii_dev =
 		container_of(timer, struct idle_inject_device, timer);
 
-	duration_ms = READ_ONCE(ii_dev->run_duration_ms);
-	duration_ms += READ_ONCE(ii_dev->idle_duration_ms);
+	duration_us = READ_ONCE(ii_dev->run_duration_us);
+	duration_us += READ_ONCE(ii_dev->idle_duration_us);
 
 	idle_inject_wakeup(ii_dev);
 
-	hrtimer_forward_now(timer, ms_to_ktime(duration_ms));
+	hrtimer_forward_now(timer, ns_to_ktime(duration_us * NSEC_PER_USEC));
 
 	return HRTIMER_RESTART;
 }
@@ -138,35 +138,35 @@ static void idle_inject_fn(unsigned int cpu)
 	 */
 	iit->should_run = 0;
 
-	play_idle(READ_ONCE(ii_dev->idle_duration_ms));
+	play_idle(READ_ONCE(ii_dev->idle_duration_us));
 }
 
 /**
  * idle_inject_set_duration - idle and run duration update helper
- * @run_duration_ms: CPU run time to allow in milliseconds
- * @idle_duration_ms: CPU idle time to inject in milliseconds
+ * @run_duration_us: CPU run time to allow in microseconds
+ * @idle_duration_us: CPU idle time to inject in microseconds
  */
 void idle_inject_set_duration(struct idle_inject_device *ii_dev,
-			      unsigned int run_duration_ms,
-			      unsigned int idle_duration_ms)
+			      unsigned int run_duration_us,
+			      unsigned int idle_duration_us)
 {
-	if (run_duration_ms && idle_duration_ms) {
-		WRITE_ONCE(ii_dev->run_duration_ms, run_duration_ms);
-		WRITE_ONCE(ii_dev->idle_duration_ms, idle_duration_ms);
+	if (run_duration_us && idle_duration_us) {
+		WRITE_ONCE(ii_dev->run_duration_us, run_duration_us);
+		WRITE_ONCE(ii_dev->idle_duration_us, idle_duration_us);
 	}
 }
 
 /**
  * idle_inject_get_duration - idle and run duration retrieval helper
- * @run_duration_ms: memory location to store the current CPU run time
- * @idle_duration_ms: memory location to store the current CPU idle time
+ * @run_duration_us: memory location to store the current CPU run time
+ * @idle_duration_us: memory location to store the current CPU idle time
  */
 void idle_inject_get_duration(struct idle_inject_device *ii_dev,
-			      unsigned int *run_duration_ms,
-			      unsigned int *idle_duration_ms)
+			      unsigned int *run_duration_us,
+			      unsigned int *idle_duration_us)
 {
-	*run_duration_ms = READ_ONCE(ii_dev->run_duration_ms);
-	*idle_duration_ms = READ_ONCE(ii_dev->idle_duration_ms);
+	*run_duration_us = READ_ONCE(ii_dev->run_duration_us);
+	*idle_duration_us = READ_ONCE(ii_dev->idle_duration_us);
 }
 
 /**
@@ -181,10 +181,10 @@ void idle_inject_get_duration(struct idle_inject_device *ii_dev,
  */
 int idle_inject_start(struct idle_inject_device *ii_dev)
 {
-	unsigned int idle_duration_ms = READ_ONCE(ii_dev->idle_duration_ms);
-	unsigned int run_duration_ms = READ_ONCE(ii_dev->run_duration_ms);
+	unsigned int idle_duration_us = READ_ONCE(ii_dev->idle_duration_us);
+	unsigned int run_duration_us = READ_ONCE(ii_dev->run_duration_us);
 
-	if (!idle_duration_ms || !run_duration_ms)
+	if (!idle_duration_us || !run_duration_us)
 		return -EINVAL;
 
 	pr_debug("Starting injecting idle cycles on CPUs '%*pbl'\n",
@@ -193,7 +193,8 @@ int idle_inject_start(struct idle_inject_device *ii_dev)
 	idle_inject_wakeup(ii_dev);
 
 	hrtimer_start(&ii_dev->timer,
-		      ms_to_ktime(idle_duration_ms + run_duration_ms),
+		      ns_to_ktime((idle_duration_us + run_duration_us) *
+				  NSEC_PER_USEC),
 		      HRTIMER_MODE_REL);
 
 	return 0;

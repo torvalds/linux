@@ -14,6 +14,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include "bpf_helpers.h"
+#include "bpf_endian.h"
 
 static __u32 rol32(__u32 word, unsigned int shift)
 {
@@ -305,7 +306,7 @@ bool encap_v6(struct xdp_md *xdp, struct ctl_value *cval,
 	ip6h->nexthdr = IPPROTO_IPV6;
 	ip_suffix = pckt->flow.srcv6[3] ^ pckt->flow.port16[0];
 	ip6h->payload_len =
-	    __builtin_bswap16(pkt_bytes + sizeof(struct ipv6hdr));
+	    bpf_htons(pkt_bytes + sizeof(struct ipv6hdr));
 	ip6h->hop_limit = 4;
 
 	ip6h->saddr.in6_u.u6_addr32[0] = 1;
@@ -322,7 +323,7 @@ bool encap_v4(struct xdp_md *xdp, struct ctl_value *cval,
 	      struct real_definition *dst, __u32 pkt_bytes)
 {
 
-	__u32 ip_suffix = __builtin_bswap16(pckt->flow.port16[0]);
+	__u32 ip_suffix = bpf_ntohs(pckt->flow.port16[0]);
 	struct eth_hdr *new_eth;
 	struct eth_hdr *old_eth;
 	__u16 *next_iph_u16;
@@ -352,7 +353,7 @@ bool encap_v4(struct xdp_md *xdp, struct ctl_value *cval,
 	iph->protocol = IPPROTO_IPIP;
 	iph->check = 0;
 	iph->tos = 1;
-	iph->tot_len = __builtin_bswap16(pkt_bytes + sizeof(struct iphdr));
+	iph->tot_len = bpf_htons(pkt_bytes + sizeof(struct iphdr));
 	/* don't update iph->daddr, since it will overwrite old eth_proto
 	 * and multiple iterations of bpf_prog_run() will fail
 	 */
@@ -639,7 +640,7 @@ static int process_l3_headers_v6(struct packet_description *pckt,
 	iph_len = sizeof(struct ipv6hdr);
 	*protocol = ip6h->nexthdr;
 	pckt->flow.proto = *protocol;
-	*pkt_bytes = __builtin_bswap16(ip6h->payload_len);
+	*pkt_bytes = bpf_ntohs(ip6h->payload_len);
 	off += iph_len;
 	if (*protocol == 45) {
 		return XDP_DROP;
@@ -671,7 +672,7 @@ static int process_l3_headers_v4(struct packet_description *pckt,
 		return XDP_DROP;
 	*protocol = iph->protocol;
 	pckt->flow.proto = *protocol;
-	*pkt_bytes = __builtin_bswap16(iph->tot_len);
+	*pkt_bytes = bpf_ntohs(iph->tot_len);
 	off += 20;
 	if (iph->frag_off & 65343)
 		return XDP_DROP;
@@ -808,10 +809,10 @@ int balancer_ingress(struct xdp_md *ctx)
 	nh_off = sizeof(struct eth_hdr);
 	if (data + nh_off > data_end)
 		return XDP_DROP;
-	eth_proto = eth->eth_proto;
-	if (eth_proto == 8)
+	eth_proto = bpf_ntohs(eth->eth_proto);
+	if (eth_proto == ETH_P_IP)
 		return process_packet(data, nh_off, data_end, 0, ctx);
-	else if (eth_proto == 56710)
+	else if (eth_proto == ETH_P_IPV6)
 		return process_packet(data, nh_off, data_end, 1, ctx);
 	else
 		return XDP_DROP;

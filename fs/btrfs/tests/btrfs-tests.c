@@ -5,6 +5,7 @@
 
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 #include <linux/magic.h>
 #include "btrfs-tests.h"
 #include "../ctree.h"
@@ -14,6 +15,7 @@
 #include "../volumes.h"
 #include "../disk-io.h"
 #include "../qgroup.h"
+#include "../block-group.h"
 
 static struct vfsmount *test_mnt = NULL;
 
@@ -32,17 +34,19 @@ static const struct super_operations btrfs_test_super_ops = {
 	.destroy_inode	= btrfs_test_destroy_inode,
 };
 
-static struct dentry *btrfs_test_mount(struct file_system_type *fs_type,
-				       int flags, const char *dev_name,
-				       void *data)
+
+static int btrfs_test_init_fs_context(struct fs_context *fc)
 {
-	return mount_pseudo(fs_type, "btrfs_test:", &btrfs_test_super_ops,
-			    NULL, BTRFS_TEST_MAGIC);
+	struct pseudo_fs_context *ctx = init_pseudo(fc, BTRFS_TEST_MAGIC);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->ops = &btrfs_test_super_ops;
+	return 0;
 }
 
 static struct file_system_type test_type = {
 	.name		= "btrfs_test_fs",
-	.mount		= btrfs_test_mount,
+	.init_fs_context = btrfs_test_init_fs_context,
 	.kill_sb	= kill_anon_super,
 };
 

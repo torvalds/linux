@@ -8,13 +8,14 @@
  *
  **************************************************************************/
 
-#include <drm/drmP.h>
-#include "psb_drv.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
-#include "power.h"
-#include "psb_irq.h"
+#include <drm/drm_vblank.h>
+
 #include "mdfld_output.h"
+#include "power.h"
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_irq.h"
+#include "psb_reg.h"
 
 /*
  * inline functions

@@ -75,29 +75,14 @@ static struct dentry *debugfs;
 static unsigned int pkg_interrupt_cnt;
 static unsigned int pkg_work_cnt;
 
-static int pkg_temp_debugfs_init(void)
+static void pkg_temp_debugfs_init(void)
 {
-	struct dentry *d;
-
 	debugfs = debugfs_create_dir("pkg_temp_thermal", NULL);
-	if (!debugfs)
-		return -ENOENT;
 
-	d = debugfs_create_u32("pkg_thres_interrupt", S_IRUGO, debugfs,
-			       &pkg_interrupt_cnt);
-	if (!d)
-		goto err_out;
-
-	d = debugfs_create_u32("pkg_thres_work", S_IRUGO, debugfs,
-			       &pkg_work_cnt);
-	if (!d)
-		goto err_out;
-
-	return 0;
-
-err_out:
-	debugfs_remove_recursive(debugfs);
-	return -ENOENT;
+	debugfs_create_u32("pkg_thres_interrupt", S_IRUGO, debugfs,
+			   &pkg_interrupt_cnt);
+	debugfs_create_u32("pkg_thres_work", S_IRUGO, debugfs,
+			   &pkg_work_cnt);
 }
 
 /*

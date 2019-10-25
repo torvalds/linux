@@ -14,4 +14,10 @@ fit into other categories.
 .. toctree::
    :maxdepth: 2
 
+   eeprom
    ibmvmc
+   ics932s401
+   isl29003
+   lis3lv02d
+   max6875
+   xilinx_sdfec

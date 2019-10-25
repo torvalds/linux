@@ -8,6 +8,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <setjmp.h>
 #include <linux/err.h>
 #include <linux/kernel.h>

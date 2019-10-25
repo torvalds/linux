@@ -7,6 +7,10 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 
+static struct kmem_cache *double_free_cache;
+static struct kmem_cache *a_cache;
+static struct kmem_cache *b_cache;
+
 /*
  * This tries to stay within the next largest power-of-2 kmalloc cache
  * to avoid actually overwriting anything important if it's not detected
@@ -145,4 +149,72 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void)
 	pr_info("Buddy page was not poisoned\n");
 
 	kfree(val);
+}
+
+void lkdtm_SLAB_FREE_DOUBLE(void)
+{
+	int *val;
+
+	val = kmem_cache_alloc(double_free_cache, GFP_KERNEL);
+	if (!val) {
+		pr_info("Unable to allocate double_free_cache memory.\n");
+		return;
+	}
+
+	/* Just make sure we got real memory. */
+	*val = 0x12345678;
+	pr_info("Attempting double slab free ...\n");
+	kmem_cache_free(double_free_cache, val);
+	kmem_cache_free(double_free_cache, val);
+}
+
+void lkdtm_SLAB_FREE_CROSS(void)
+{
+	int *val;
+
+	val = kmem_cache_alloc(a_cache, GFP_KERNEL);
+	if (!val) {
+		pr_info("Unable to allocate a_cache memory.\n");
+		return;
+	}
+
+	/* Just make sure we got real memory. */
+	*val = 0x12345679;
+	pr_info("Attempting cross-cache slab free ...\n");
+	kmem_cache_free(b_cache, val);
+}
+
+void lkdtm_SLAB_FREE_PAGE(void)
+{
+	unsigned long p = __get_free_page(GFP_KERNEL);
+
+	pr_info("Attempting non-Slab slab free ...\n");
+	kmem_cache_free(NULL, (void *)p);
+	free_page(p);
+}
+
+/*
+ * We have constructors to keep the caches distinctly separated without
+ * needing to boot with "slab_nomerge".
+ */
+static void ctor_double_free(void *region)
+{ }
+static void ctor_a(void *region)
+{ }
+static void ctor_b(void *region)
+{ }
+
+void __init lkdtm_heap_init(void)
+{
+	double_free_cache = kmem_cache_create("lkdtm-heap-double_free",
+					      64, 0, 0, ctor_double_free);
+	a_cache = kmem_cache_create("lkdtm-heap-a", 64, 0, 0, ctor_a);
+	b_cache = kmem_cache_create("lkdtm-heap-b", 64, 0, 0, ctor_b);
+}
+
+void __exit lkdtm_heap_exit(void)
+{
+	kmem_cache_destroy(double_free_cache);
+	kmem_cache_destroy(a_cache);
+	kmem_cache_destroy(b_cache);
 }

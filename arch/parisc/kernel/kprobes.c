@@ -133,6 +133,9 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	struct kprobe *p = kprobe_running();
 
+	if (!p)
+		return 0;
+
 	if (regs->iaoq[0] != (unsigned long)p->ainsn.insn+4)
 		return 0;
 
@@ -277,10 +280,6 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 {
 	return p->addr == trampoline_p.addr;
-}
-bool arch_kprobe_on_func_entry(unsigned long offset)
-{
-	return !offset;
 }
 
 int __init arch_init_kprobes(void)

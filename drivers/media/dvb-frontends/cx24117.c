@@ -619,8 +619,10 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 
 	/* send fw */
 	ret = i2c_transfer(state->priv->i2c, &msg, 1);
-	if (ret < 0)
+	if (ret < 0) {
+		kfree(buf);
 		return ret;
+	}
 
 	kfree(buf);
 

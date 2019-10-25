@@ -97,21 +97,13 @@ static const struct vm_special_mapping vdso_mapping = {
 	.mremap = vdso_mremap,
 };
 
-static int __init vdso_setup(char *s)
+static int __init vdso_setup(char *str)
 {
-	unsigned long val;
-	int rc;
+	bool enabled;
 
-	rc = 0;
-	if (strncmp(s, "on", 3) == 0)
-		vdso_enabled = 1;
-	else if (strncmp(s, "off", 4) == 0)
-		vdso_enabled = 0;
-	else {
-		rc = kstrtoul(s, 0, &val);
-		vdso_enabled = rc ? 0 : !!val;
-	}
-	return !rc;
+	if (!kstrtobool(str, &enabled))
+		vdso_enabled = enabled;
+	return 1;
 }
 __setup("vdso=", vdso_setup);
 
@@ -215,11 +207,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	int rc;
 
 	if (!vdso_enabled)
-		return 0;
-	/*
-	 * Only map the vdso for dynamically linked elf binaries.
-	 */
-	if (!uses_interp)
 		return 0;
 
 	vdso_pages = vdso64_pages;

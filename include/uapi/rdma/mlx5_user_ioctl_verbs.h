@@ -43,6 +43,7 @@ enum mlx5_ib_uapi_flow_table_type {
 	MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_RX     = 0x0,
 	MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX	= 0x1,
 	MLX5_IB_UAPI_FLOW_TABLE_TYPE_FDB	= 0x2,
+	MLX5_IB_UAPI_FLOW_TABLE_TYPE_RDMA_RX	= 0x3,
 };
 
 enum mlx5_ib_uapi_flow_action_packet_reformat_type {
@@ -61,6 +62,15 @@ enum mlx5_ib_uapi_dm_type {
 	MLX5_IB_UAPI_DM_TYPE_MEMIC,
 	MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM,
 	MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_SW_ICM,
+};
+
+enum mlx5_ib_uapi_devx_create_event_channel_flags {
+	MLX5_IB_UAPI_DEVX_CR_EV_CH_FLAGS_OMIT_DATA = 1 << 0,
+};
+
+struct mlx5_ib_uapi_devx_async_event_hdr {
+	__aligned_u64	cookie;
+	__u8		out_data[];
 };
 
 #endif

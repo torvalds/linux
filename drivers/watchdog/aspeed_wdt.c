@@ -309,13 +309,7 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 	if (status & WDT_TIMEOUT_STATUS_BOOT_SECONDARY)
 		wdt->wdd.bootstatus = WDIOF_CARDRESET;
 
-	ret = devm_watchdog_register_device(dev, &wdt->wdd);
-	if (ret) {
-		dev_err(dev, "failed to register\n");
-		return ret;
-	}
-
-	return 0;
+	return devm_watchdog_register_device(dev, &wdt->wdd);
 }
 
 static struct platform_driver aspeed_watchdog_driver = {

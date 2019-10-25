@@ -16,7 +16,7 @@ struct ip_callchain;
 struct ref_reloc_sym;
 struct map_groups;
 struct machine;
-struct perf_evsel;
+struct evsel;
 
 struct map {
 	union {

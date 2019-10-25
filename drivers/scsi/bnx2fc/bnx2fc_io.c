@@ -930,7 +930,6 @@ abts_err:
 int bnx2fc_initiate_seq_cleanup(struct bnx2fc_cmd *orig_io_req, u32 offset,
 				enum fc_rctl r_ctl)
 {
-	struct fc_lport *lport;
 	struct bnx2fc_rport *tgt = orig_io_req->tgt;
 	struct bnx2fc_interface *interface;
 	struct fcoe_port *port;
@@ -948,7 +947,6 @@ int bnx2fc_initiate_seq_cleanup(struct bnx2fc_cmd *orig_io_req, u32 offset,
 
 	port = orig_io_req->port;
 	interface = port->priv;
-	lport = port->lport;
 
 	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
 	if (!cb_arg) {
@@ -999,7 +997,6 @@ cleanup_err:
 
 int bnx2fc_initiate_cleanup(struct bnx2fc_cmd *io_req)
 {
-	struct fc_lport *lport;
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	struct bnx2fc_interface *interface;
 	struct fcoe_port *port;
@@ -1015,7 +1012,6 @@ int bnx2fc_initiate_cleanup(struct bnx2fc_cmd *io_req)
 
 	port = io_req->port;
 	interface = port->priv;
-	lport = port->lport;
 
 	cleanup_io_req = bnx2fc_elstm_alloc(tgt, BNX2FC_CLEANUP);
 	if (!cleanup_io_req) {
@@ -1927,8 +1923,6 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 	struct fcoe_fcp_rsp_payload *fcp_rsp;
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	struct scsi_cmnd *sc_cmd;
-	struct Scsi_Host *host;
-
 
 	/* scsi_cmd_cmpl is called with tgt lock held */
 
@@ -1957,7 +1951,6 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 	/* parse fcp_rsp and obtain sense data from RQ if available */
 	bnx2fc_parse_fcp_rsp(io_req, fcp_rsp, num_rq);
 
-	host = sc_cmd->device->host;
 	if (!sc_cmd->SCp.ptr) {
 		printk(KERN_ERR PFX "SCp.ptr is NULL\n");
 		return;

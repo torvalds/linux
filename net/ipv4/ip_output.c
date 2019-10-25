@@ -1266,6 +1266,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 	cork->length = 0;
 	cork->ttl = ipc->ttl;
 	cork->tos = ipc->tos;
+	cork->mark = ipc->sockc.mark;
 	cork->priority = ipc->priority;
 	cork->transmit_time = ipc->sockc.transmit_time;
 	cork->tx_flags = 0;
@@ -1529,7 +1530,7 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	}
 
 	skb->priority = (cork->tos != -1) ? cork->priority: sk->sk_priority;
-	skb->mark = sk->sk_mark;
+	skb->mark = cork->mark;
 	skb->tstamp = cork->transmit_time;
 	/*
 	 * Steal rt from cork.dst to avoid a pair of atomic_inc/atomic_dec

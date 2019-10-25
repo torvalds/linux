@@ -13,6 +13,8 @@
 #include <linux/init.h>
 #include <linux/ftrace.h>
 #include <linux/uaccess.h>
+#include <linux/kprobes.h>
+#include <linux/ptrace.h>
 
 #include <asm/assembly.h>
 #include <asm/sections.h>
@@ -48,17 +50,22 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 
 void notrace __hot ftrace_function_trampoline(unsigned long parent,
 				unsigned long self_addr,
-				unsigned long org_sp_gr3)
+				unsigned long org_sp_gr3,
+				struct pt_regs *regs)
 {
 #ifndef CONFIG_DYNAMIC_FTRACE
 	extern ftrace_func_t ftrace_trace_function;
 #endif
-	if (ftrace_trace_function != ftrace_stub)
-		ftrace_trace_function(self_addr, parent, NULL, NULL);
+	extern struct ftrace_ops *function_trace_op;
+
+	if (function_trace_op->flags & FTRACE_OPS_FL_ENABLED &&
+	    ftrace_trace_function != ftrace_stub)
+		ftrace_trace_function(self_addr, parent,
+				function_trace_op, regs);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (ftrace_graph_return != (trace_func_graph_ret_t) ftrace_stub ||
-		ftrace_graph_entry != ftrace_graph_entry_stub) {
+	    ftrace_graph_entry != ftrace_graph_entry_stub) {
 		unsigned long *parent_rp;
 
 		/* calculate pointer to %rp in stack */
@@ -92,6 +99,12 @@ int __init ftrace_dyn_arch_init(void)
 	return 0;
 }
 int ftrace_update_ftrace_func(ftrace_func_t func)
+{
+	return 0;
+}
+
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
+			unsigned long addr)
 {
 	return 0;
 }
@@ -181,8 +194,52 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 	for (i = 0; i < ARRAY_SIZE(insn); i++)
 		insn[i] = INSN_NOP;
 
+	__patch_text((void *)rec->ip, INSN_NOP);
 	__patch_text_multiple((void *)rec->ip + 4 - sizeof(insn),
-			      insn, sizeof(insn));
+			      insn, sizeof(insn)-4);
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_KPROBES_ON_FTRACE
+void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
+			   struct ftrace_ops *ops, struct pt_regs *regs)
+{
+	struct kprobe_ctlblk *kcb;
+	struct kprobe *p = get_kprobe((kprobe_opcode_t *)ip);
+
+	if (unlikely(!p) || kprobe_disabled(p))
+		return;
+
+	if (kprobe_running()) {
+		kprobes_inc_nmissed_count(p);
+		return;
+	}
+
+	__this_cpu_write(current_kprobe, p);
+
+	kcb = get_kprobe_ctlblk();
+	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
+
+	regs->iaoq[0] = ip;
+	regs->iaoq[1] = ip + 4;
+
+	if (!p->pre_handler || !p->pre_handler(p, regs)) {
+		regs->iaoq[0] = ip + 4;
+		regs->iaoq[1] = ip + 8;
+
+		if (unlikely(p->post_handler)) {
+			kcb->kprobe_status = KPROBE_HIT_SSDONE;
+			p->post_handler(p, regs, 0);
+		}
+	}
+	__this_cpu_write(current_kprobe, NULL);
+}
+NOKPROBE_SYMBOL(kprobe_ftrace_handler);
+
+int arch_prepare_kprobe_ftrace(struct kprobe *p)
+{
+	p->ainsn.insn = NULL;
 	return 0;
 }
 #endif

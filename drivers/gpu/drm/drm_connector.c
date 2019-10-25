@@ -92,6 +92,7 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] = {
 	{ DRM_MODE_CONNECTOR_DSI, "DSI" },
 	{ DRM_MODE_CONNECTOR_DPI, "DPI" },
 	{ DRM_MODE_CONNECTOR_WRITEBACK, "Writeback" },
+	{ DRM_MODE_CONNECTOR_SPI, "SPI" },
 };
 
 void drm_connector_ida_init(void)
@@ -139,8 +140,8 @@ static void drm_connector_get_cmdline_mode(struct drm_connector *connector)
 		connector->force = mode->force;
 	}
 
-	DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
-		      connector->name,
+	DRM_DEBUG_KMS("cmdline mode for connector %s %s %dx%d@%dHz%s%s%s\n",
+		      connector->name, mode->name,
 		      mode->xres, mode->yres,
 		      mode->refresh_specified ? mode->refresh : 60,
 		      mode->rb ? " reduced blanking" : "",
@@ -295,6 +296,41 @@ out_put:
 	return ret;
 }
 EXPORT_SYMBOL(drm_connector_init);
+
+/**
+ * drm_connector_init_with_ddc - Init a preallocated connector
+ * @dev: DRM device
+ * @connector: the connector to init
+ * @funcs: callbacks for this connector
+ * @connector_type: user visible type of the connector
+ * @ddc: pointer to the associated ddc adapter
+ *
+ * Initialises a preallocated connector. Connectors should be
+ * subclassed as part of driver connector objects.
+ *
+ * Ensures that the ddc field of the connector is correctly set.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_connector_init_with_ddc(struct drm_device *dev,
+				struct drm_connector *connector,
+				const struct drm_connector_funcs *funcs,
+				int connector_type,
+				struct i2c_adapter *ddc)
+{
+	int ret;
+
+	ret = drm_connector_init(dev, connector, funcs, connector_type);
+	if (ret)
+		return ret;
+
+	/* provide ddc symlink in sysfs */
+	connector->ddc = ddc;
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_connector_init_with_ddc);
 
 /**
  * drm_connector_attach_edid_property - attach edid property.
@@ -464,10 +500,7 @@ int drm_connector_register(struct drm_connector *connector)
 	if (ret)
 		goto unlock;
 
-	ret = drm_debugfs_connector_add(connector);
-	if (ret) {
-		goto err_sysfs;
-	}
+	drm_debugfs_connector_add(connector);
 
 	if (connector->funcs->late_register) {
 		ret = connector->funcs->late_register(connector);
@@ -482,7 +515,6 @@ int drm_connector_register(struct drm_connector *connector)
 
 err_debugfs:
 	drm_debugfs_connector_remove(connector);
-err_sysfs:
 	drm_sysfs_connector_remove(connector);
 unlock:
 	mutex_unlock(&connector->mutex);
@@ -823,13 +855,6 @@ static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
 		 drm_tv_subconnector_enum_list)
 
-static struct drm_prop_enum_list drm_cp_enum_list[] = {
-	{ DRM_MODE_CONTENT_PROTECTION_UNDESIRED, "Undesired" },
-	{ DRM_MODE_CONTENT_PROTECTION_DESIRED, "Desired" },
-	{ DRM_MODE_CONTENT_PROTECTION_ENABLED, "Enabled" },
-};
-DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
-
 static const struct drm_prop_enum_list hdmi_colorspaces[] = {
 	/* For Default case, driver will set the colorspace */
 	{ DRM_MODE_COLORIMETRY_DEFAULT, "Default" },
@@ -958,10 +983,113 @@ static const struct drm_prop_enum_list hdmi_colorspaces[] = {
  *	- If the state is DESIRED, kernel should attempt to re-authenticate the
  *	  link whenever possible. This includes across disable/enable, dpms,
  *	  hotplug, downstream device changes, link status failures, etc..
- *	- Userspace is responsible for polling the property to determine when
- *	  the value transitions from ENABLED to DESIRED. This signifies the link
- *	  is no longer protected and userspace should take appropriate action
- *	  (whatever that might be).
+ *	- Kernel sends uevent with the connector id and property id through
+ *	  @drm_hdcp_update_content_protection, upon below kernel triggered
+ *	  scenarios:
+ *
+ *		- DESIRED -> ENABLED (authentication success)
+ *		- ENABLED -> DESIRED (termination of authentication)
+ *	- Please note no uevents for userspace triggered property state changes,
+ *	  which can't fail such as
+ *
+ *		- DESIRED/ENABLED -> UNDESIRED
+ *		- UNDESIRED -> DESIRED
+ *	- Userspace is responsible for polling the property or listen to uevents
+ *	  to determine when the value transitions from ENABLED to DESIRED.
+ *	  This signifies the link is no longer protected and userspace should
+ *	  take appropriate action (whatever that might be).
+ *
+ * HDCP Content Type:
+ *	This Enum property is used by the userspace to declare the content type
+ *	of the display stream, to kernel. Here display stream stands for any
+ *	display content that userspace intended to display through HDCP
+ *	encryption.
+ *
+ *	Content Type of a stream is decided by the owner of the stream, as
+ *	"HDCP Type0" or "HDCP Type1".
+ *
+ *	The value of the property can be one of the below:
+ *	  - "HDCP Type0": DRM_MODE_HDCP_CONTENT_TYPE0 = 0
+ *	  - "HDCP Type1": DRM_MODE_HDCP_CONTENT_TYPE1 = 1
+ *
+ *	When kernel starts the HDCP authentication (see "Content Protection"
+ *	for details), it uses the content type in "HDCP Content Type"
+ *	for performing the HDCP authentication with the display sink.
+ *
+ *	Please note in HDCP spec versions, a link can be authenticated with
+ *	HDCP 2.2 for Content Type 0/Content Type 1. Where as a link can be
+ *	authenticated with HDCP1.4 only for Content Type 0(though it is implicit
+ *	in nature. As there is no reference for Content Type in HDCP1.4).
+ *
+ *	HDCP2.2 authentication protocol itself takes the "Content Type" as a
+ *	parameter, which is a input for the DP HDCP2.2 encryption algo.
+ *
+ *	In case of Type 0 content protection request, kernel driver can choose
+ *	either of HDCP spec versions 1.4 and 2.2. When HDCP2.2 is used for
+ *	"HDCP Type 0", a HDCP 2.2 capable repeater in the downstream can send
+ *	that content to a HDCP 1.4 authenticated HDCP sink (Type0 link).
+ *	But if the content is classified as "HDCP Type 1", above mentioned
+ *	HDCP 2.2 repeater wont send the content to the HDCP sink as it can't
+ *	authenticate the HDCP1.4 capable sink for "HDCP Type 1".
+ *
+ *	Please note userspace can be ignorant of the HDCP versions used by the
+ *	kernel driver to achieve the "HDCP Content Type".
+ *
+ *	At current scenario, classifying a content as Type 1 ensures that the
+ *	content will be displayed only through the HDCP2.2 encrypted link.
+ *
+ *	Note that the HDCP Content Type property is introduced at HDCP 2.2, and
+ *	defaults to type 0. It is only exposed by drivers supporting HDCP 2.2
+ *	(hence supporting Type 0 and Type 1). Based on how next versions of
+ *	HDCP specs are defined content Type could be used for higher versions
+ *	too.
+ *
+ *	If content type is changed when "Content Protection" is not UNDESIRED,
+ *	then kernel will disable the HDCP and re-enable with new type in the
+ *	same atomic commit. And when "Content Protection" is ENABLED, it means
+ *	that link is HDCP authenticated and encrypted, for the transmission of
+ *	the Type of stream mentioned at "HDCP Content Type".
+ *
+ * HDR_OUTPUT_METADATA:
+ *	Connector property to enable userspace to send HDR Metadata to
+ *	driver. This metadata is based on the composition and blending
+ *	policies decided by user, taking into account the hardware and
+ *	sink capabilities. The driver gets this metadata and creates a
+ *	Dynamic Range and Mastering Infoframe (DRM) in case of HDMI,
+ *	SDP packet (Non-audio INFOFRAME SDP v1.3) for DP. This is then
+ *	sent to sink. This notifies the sink of the upcoming frame's Color
+ *	Encoding and Luminance parameters.
+ *
+ *	Userspace first need to detect the HDR capabilities of sink by
+ *	reading and parsing the EDID. Details of HDR metadata for HDMI
+ *	are added in CTA 861.G spec. For DP , its defined in VESA DP
+ *	Standard v1.4. It needs to then get the metadata information
+ *	of the video/game/app content which are encoded in HDR (basically
+ *	using HDR transfer functions). With this information it needs to
+ *	decide on a blending policy and compose the relevant
+ *	layers/overlays into a common format. Once this blending is done,
+ *	userspace will be aware of the metadata of the composed frame to
+ *	be send to sink. It then uses this property to communicate this
+ *	metadata to driver which then make a Infoframe packet and sends
+ *	to sink based on the type of encoder connected.
+ *
+ *	Userspace will be responsible to do Tone mapping operation in case:
+ *		- Some layers are HDR and others are SDR
+ *		- HDR layers luminance is not same as sink
+ *
+ *	It will even need to do colorspace conversion and get all layers
+ *	to one common colorspace for blending. It can use either GL, Media
+ *	or display engine to get this done based on the capabilties of the
+ *	associated hardware.
+ *
+ *	Driver expects metadata to be put in &struct hdr_output_metadata
+ *	structure from userspace. This is received as blob and stored in
+ *	&drm_connector_state.hdr_output_metadata. It parses EDID and saves the
+ *	sink metadata in &struct hdr_sink_metadata, as
+ *	&drm_connector.hdr_sink_metadata.  Driver uses
+ *	drm_hdmi_infoframe_set_hdr_metadata() helper to set the HDR metadata,
+ *	hdmi_drm_infoframe_pack() to pack the infoframe as per spec, in case of
+ *	HDMI encoder.
  *
  * max bpc:
  *	This range property is used by userspace to limit the bit depth. When
@@ -1057,6 +1185,12 @@ int drm_connector_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.non_desktop_property = prop;
+
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB,
+				   "HDR_OUTPUT_METADATA", 0);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.hdr_output_metadata_property = prop;
 
 	return 0;
 }
@@ -1508,42 +1642,6 @@ int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
 	return 0;
 }
 EXPORT_SYMBOL(drm_connector_attach_scaling_mode_property);
-
-/**
- * drm_connector_attach_content_protection_property - attach content protection
- * property
- *
- * @connector: connector to attach CP property on.
- *
- * This is used to add support for content protection on select connectors.
- * Content Protection is intentionally vague to allow for different underlying
- * technologies, however it is most implemented by HDCP.
- *
- * The content protection will be set to &drm_connector_state.content_protection
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
-int drm_connector_attach_content_protection_property(
-		struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_property *prop;
-
-	prop = drm_property_create_enum(dev, 0, "Content Protection",
-					drm_cp_enum_list,
-					ARRAY_SIZE(drm_cp_enum_list));
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&connector->base, prop,
-				   DRM_MODE_CONTENT_PROTECTION_UNDESIRED);
-
-	connector->content_protection_property = prop;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_connector_attach_content_protection_property);
 
 /**
  * drm_mode_create_aspect_ratio_property - create aspect ratio property

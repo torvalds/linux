@@ -39,6 +39,10 @@ Last reviewed: 08/20/2018
                Default value is set when compiling the kernel. If it is set
                to "Y", then there is no way of disabling the watchdog once
                it has been started.
+ kdumptimeout  Minimum timeout in seconds to apply upon receipt of an NMI
+               before calling panic. (-1) disables the watchdog.  When value
+               is > 0, the timer is reprogrammed with the greater of
+               value or current timeout value.
  ============  ================================================================
 
  NOTE:
@@ -59,7 +63,7 @@ Last reviewed: 08/20/2018
  and loop forever.  This is generally not what a watchdog user wants.
 
  For those wishing to learn more please see:
-	Documentation/kdump/kdump.rst
+	Documentation/admin-guide/kdump/kdump.rst
 	Documentation/admin-guide/kernel-parameters.txt (panic=)
 	Your Linux Distribution specific documentation.
 

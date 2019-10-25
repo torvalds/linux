@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PPC_ASM_H
-#define __PPC_ASM_H
+#define _PPC_ASM_H
 #include <ppc-asm.h>
 
 #ifndef r1

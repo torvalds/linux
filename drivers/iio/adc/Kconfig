@@ -958,7 +958,7 @@ config TI_ADC161S626
 
 config TI_ADS1015
 	tristate "Texas Instruments ADS1015 ADC"
-	depends on I2C && !SENSORS_ADS1015
+	depends on I2C
 	select REGMAP_I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
@@ -1085,7 +1085,6 @@ config VIPERBOARD_ADC
 
 config XILINX_XADC
 	tristate "Xilinx XADC driver"
-	depends on ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST
 	depends on HAS_IOMEM
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER

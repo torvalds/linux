@@ -128,7 +128,9 @@ optional arguments:
   -v, --verbose         Show the commands that are being run
   -N, --notap           Suppress tap results for command under test
   -d DEVICE, --device DEVICE
-                        Execute the test case in flower category
+                        Execute test cases that use a physical device, where
+                        DEVICE is its name. (If not defined, tests that require
+                        a physical device will be skipped)
   -P, --pause           Pause execution just before post-suite stage
 
 selection:

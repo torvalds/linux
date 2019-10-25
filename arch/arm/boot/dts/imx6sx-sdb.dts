@@ -137,7 +137,23 @@
 	vin-supply = <&sw1a_reg>;
 };
 
+&reg_vdd1p1 {
+	vin-supply = <&vgen6_reg>;
+};
+
+&reg_vdd3p0 {
+	vin-supply = <&sw2_reg>;
+};
+
+&reg_vdd2p5 {
+	vin-supply = <&vgen6_reg>;
+};
+
 &reg_can_stby {
 	/* Transceiver EN/STBY is active low on RevB board */
 	gpio = <&gpio4 27 GPIO_ACTIVE_LOW>;
+};
+
+&snvs_pwrkey {
+	status = "okay";
 };

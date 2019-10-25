@@ -61,15 +61,6 @@ static inline void blk_mq_sched_completed_request(struct request *rq, u64 now)
 		e->type->ops.completed_request(rq, now);
 }
 
-static inline void blk_mq_sched_started_request(struct request *rq)
-{
-	struct request_queue *q = rq->q;
-	struct elevator_queue *e = q->elevator;
-
-	if (e && e->type->ops.started_request)
-		e->type->ops.started_request(rq);
-}
-
 static inline void blk_mq_sched_requeue_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;

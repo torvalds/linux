@@ -8,7 +8,7 @@
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,6 +81,19 @@ enum iwl_debug_cmds {
 	 */
 	UMAC_RD_WR = 0x1,
 	/**
+	 * @DBGC_SUSPEND_RESUME:
+	 * DBGC suspend/resume commad. Uses a single dword as data:
+	 * 0 - resume DBGC recording
+	 * 1 - suspend DBGC recording
+	 */
+	DBGC_SUSPEND_RESUME = 0x7,
+	/**
+	 * @BUFFER_ALLOCATION:
+	 * passes DRAM buffers to a DBGC
+	 * &struct iwl_buf_alloc_cmd
+	 */
+	BUFFER_ALLOCATION = 0x8,
+	/**
 	 * @MFU_ASSERT_DUMP_NTF:
 	 * &struct iwl_mfu_assert_dump_notif
 	 */
@@ -100,6 +113,16 @@ enum {
 	FW_ERR_OBSOLETE_FUNC = 0x12,
 	FW_ERR_UNEXPECTED = 0xFE,
 	FW_ERR_FATAL = 0xFF
+};
+
+/** enum iwl_dbg_suspend_resume_cmds - dbgc suspend resume operations
+ * dbgc suspend resume command operations
+ * @DBGC_RESUME_CMD: resume dbgc recording
+ * @DBGC_SUSPEND_CMD: stop dbgc recording
+ */
+enum iwl_dbg_suspend_resume_cmds {
+	DBGC_RESUME_CMD,
+	DBGC_SUSPEND_CMD,
 };
 
 /**
@@ -335,49 +358,39 @@ struct iwl_dbg_mem_access_rsp {
 	__le32 data[];
 } __packed; /* DEBUG_(U|L)MAC_RD_WR_RSP_API_S_VER_1 */
 
-#define LDBG_CFG_COMMAND_SIZE	80
-#define BUFFER_ALLOCATION	0x27
-#define START_DEBUG_RECORDING	0x29
-#define STOP_DEBUG_RECORDING	0x2A
+/**
+ * struct iwl_dbg_suspend_resume_cmd - dbgc suspend resume command
+ * @operation: suspend or resume operation, uses
+ *	&enum iwl_dbg_suspend_resume_cmds
+ */
+struct iwl_dbg_suspend_resume_cmd {
+	__le32 operation;
+} __packed;
 
-/* maximum fragments to be allocated per target of allocationId */
-#define IWL_BUFFER_LOCATION_MAX_FRAGS	2
+#define BUF_ALLOC_MAX_NUM_FRAGS 16
 
 /**
- * struct iwl_fragment_data single fragment structure
- * @address: 64bit start address
- * @size: size in bytes
+ * struct iwl_buf_alloc_frag - a DBGC fragment
+ * @addr: base address of the fragment
+ * @size: size of the fragment
  */
-struct iwl_fragment_data {
-	__le64 address;
+struct iwl_buf_alloc_frag {
+	__le64 addr;
 	__le32 size;
 } __packed; /* FRAGMENT_STRUCTURE_API_S_VER_1 */
 
 /**
- * struct iwl_buffer_allocation_cmd - buffer allocation command structure
- * @allocation_id: id of the allocation
- * @buffer_location: location of the buffer
+ * struct iwl_buf_alloc_cmd - buffer allocation command
+ * @alloc_id: &enum iwl_fw_ini_allocation_id
+ * @buf_location: &enum iwl_fw_ini_buffer_location
  * @num_frags: number of fragments
- * @fragments: memory fragments
+ * @frags: fragments array
  */
-struct iwl_buffer_allocation_cmd {
-	__le32 allocation_id;
-	__le32 buffer_location;
+struct iwl_buf_alloc_cmd {
+	__le32 alloc_id;
+	__le32 buf_location;
 	__le32 num_frags;
-	struct iwl_fragment_data fragments[IWL_BUFFER_LOCATION_MAX_FRAGS];
-} __packed; /* BUFFER_ALLOCATION_CMD_API_S_VER_1 */
-
-/**
- * struct iwl_ldbg_config_cmd - LDBG config command
- * @type: configuration type
- * @pad: reserved space for type-dependent data
- */
-struct iwl_ldbg_config_cmd {
-	__le32 type;
-	union {
-		u8 pad[LDBG_CFG_COMMAND_SIZE - sizeof(__le32)];
-		struct iwl_buffer_allocation_cmd buffer_allocation;
-	}; /* LDBG_CFG_BODY_API_U_VER_2 (partially) */
-} __packed; /* LDBG_CFG_CMD_API_S_VER_2 */
+	struct iwl_buf_alloc_frag frags[BUF_ALLOC_MAX_NUM_FRAGS];
+} __packed; /* BUFFER_ALLOCATION_CMD_API_S_VER_2 */
 
 #endif /* __iwl_fw_api_debug_h__ */

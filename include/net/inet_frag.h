@@ -171,7 +171,7 @@ int inet_frag_queue_insert(struct inet_frag_queue *q, struct sk_buff *skb,
 void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
 			      struct sk_buff *parent);
 void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
-			    void *reasm_data);
+			    void *reasm_data, bool try_coalesce);
 struct sk_buff *inet_frag_pull_head(struct inet_frag_queue *q);
 
 #endif

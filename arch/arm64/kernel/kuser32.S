@@ -10,7 +10,7 @@
  * aarch32_setup_additional_pages() and are provided for compatibility
  * reasons with 32 bit (aarch32) applications that need them.
  *
- * See Documentation/arm/kernel_user_helpers.txt for formal definitions.
+ * See Documentation/arm/kernel_user_helpers.rst for formal definitions.
  */
 
 #include <asm/unistd.h>

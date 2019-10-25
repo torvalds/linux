@@ -64,7 +64,6 @@ struct tm6000_input {
  */
 
 struct tm6000_fmt {
-	char  *name;
 	u32   fourcc;          /* v4l2 format id */
 	int   depth;
 };

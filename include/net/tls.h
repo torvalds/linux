@@ -41,6 +41,7 @@
 #include <linux/tcp.h>
 #include <linux/skmsg.h>
 #include <linux/netdevice.h>
+#include <linux/rcupdate.h>
 
 #include <net/tcp.h>
 #include <net/strparser.h>
@@ -107,9 +108,7 @@ struct tls_device {
 enum {
 	TLS_BASE,
 	TLS_SW,
-#ifdef CONFIG_TLS_DEVICE
 	TLS_HW,
-#endif
 	TLS_HW_RECORD,
 	TLS_NUM_CONFIG,
 };
@@ -162,6 +161,7 @@ struct tls_sw_context_tx {
 	int async_capable;
 
 #define BIT_TX_SCHEDULED	0
+#define BIT_TX_CLOSING		1
 	unsigned long tx_bitmask;
 };
 
@@ -272,23 +272,16 @@ struct tls_context {
 	unsigned long flags;
 
 	/* cache cold stuff */
-	void (*sk_destruct)(struct sock *sk);
-	void (*sk_proto_close)(struct sock *sk, long timeout);
+	struct proto *sk_proto;
 
-	int  (*setsockopt)(struct sock *sk, int level,
-			   int optname, char __user *optval,
-			   unsigned int optlen);
-	int  (*getsockopt)(struct sock *sk, int level,
-			   int optname, char __user *optval,
-			   int __user *optlen);
-	int  (*hash)(struct sock *sk);
-	void (*unhash)(struct sock *sk);
+	void (*sk_destruct)(struct sock *sk);
 
 	union tls_crypto_context crypto_send;
 	union tls_crypto_context crypto_recv;
 
 	struct list_head list;
 	refcount_t refcount;
+	struct rcu_head rcu;
 };
 
 enum tls_offload_ctx_dir {
@@ -347,7 +340,7 @@ struct tls_offload_context_rx {
 #define TLS_OFFLOAD_CONTEXT_SIZE_RX					\
 	(sizeof(struct tls_offload_context_rx) + TLS_DRIVER_STATE_SIZE_RX)
 
-void tls_ctx_free(struct tls_context *ctx);
+void tls_ctx_free(struct sock *sk, struct tls_context *ctx);
 int wait_on_pending_writer(struct sock *sk, long *timeo);
 int tls_sk_query(struct sock *sk, int optname, char __user *optval,
 		int __user *optlen);
@@ -355,13 +348,17 @@ int tls_sk_attach(struct sock *sk, int optname, char __user *optval,
 		  unsigned int optlen);
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx);
+void tls_sw_strparser_arm(struct sock *sk, struct tls_context *ctx);
+void tls_sw_strparser_done(struct tls_context *tls_ctx);
 int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int tls_sw_sendpage(struct sock *sk, struct page *page,
 		    int offset, size_t size, int flags);
-void tls_sw_close(struct sock *sk, long timeout);
-void tls_sw_free_resources_tx(struct sock *sk);
+void tls_sw_cancel_work_tx(struct tls_context *tls_ctx);
+void tls_sw_release_resources_tx(struct sock *sk);
+void tls_sw_free_ctx_tx(struct tls_context *tls_ctx);
 void tls_sw_free_resources_rx(struct sock *sk);
 void tls_sw_release_resources_rx(struct sock *sk);
+void tls_sw_free_ctx_rx(struct tls_context *tls_ctx);
 int tls_sw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		   int nonblock, int flags, int *addr_len);
 bool tls_sw_stream_read(const struct sock *sk);
@@ -369,13 +366,9 @@ ssize_t tls_sw_splice_read(struct socket *sock, loff_t *ppos,
 			   struct pipe_inode_info *pipe,
 			   size_t len, unsigned int flags);
 
-int tls_set_device_offload(struct sock *sk, struct tls_context *ctx);
 int tls_device_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int tls_device_sendpage(struct sock *sk, struct page *page,
 			int offset, size_t size, int flags);
-void tls_device_free_resources_tx(struct sock *sk);
-void tls_device_init(void);
-void tls_device_cleanup(void);
 int tls_tx_records(struct sock *sk, int flags);
 
 struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
@@ -424,6 +417,23 @@ static inline bool is_tx_ready(struct tls_sw_context_tx *ctx)
 	return READ_ONCE(rec->tx_ready);
 }
 
+static inline u16 tls_user_config(struct tls_context *ctx, bool tx)
+{
+	u16 config = tx ? ctx->tx_conf : ctx->rx_conf;
+
+	switch (config) {
+	case TLS_BASE:
+		return TLS_CONF_BASE;
+	case TLS_SW:
+		return TLS_CONF_SW;
+	case TLS_HW:
+		return TLS_CONF_HW;
+	case TLS_HW_RECORD:
+		return TLS_CONF_HW_RECORD;
+	}
+	return 0;
+}
+
 struct sk_buff *
 tls_validate_xmit_skb(struct sock *sk, struct net_device *dev,
 		      struct sk_buff *skb);
@@ -462,7 +472,10 @@ static inline struct tls_context *tls_get_ctx(const struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	return icsk->icsk_ulp_data;
+	/* Use RCU on icsk_ulp_data only for sock diag code,
+	 * TLS data path doesn't need rcu_dereference().
+	 */
+	return (__force void *)icsk->icsk_ulp_data;
 }
 
 static inline void tls_advance_record_sn(struct sock *sk,
@@ -632,7 +645,6 @@ int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 		      unsigned char *record_type);
 void tls_register_device(struct tls_device *device);
 void tls_unregister_device(struct tls_device *device);
-int tls_device_decrypted(struct sock *sk, struct sk_buff *skb);
 int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 		struct scatterlist *sgout);
 struct sk_buff *tls_encrypt_skb(struct sk_buff *skb);
@@ -645,9 +657,40 @@ int tls_sw_fallback_init(struct sock *sk,
 			 struct tls_offload_context_tx *offload_ctx,
 			 struct tls_crypto_info *crypto_info);
 
+#ifdef CONFIG_TLS_DEVICE
+void tls_device_init(void);
+void tls_device_cleanup(void);
+int tls_set_device_offload(struct sock *sk, struct tls_context *ctx);
+void tls_device_free_resources_tx(struct sock *sk);
 int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx);
-
 void tls_device_offload_cleanup_rx(struct sock *sk);
 void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq);
+int tls_device_decrypted(struct sock *sk, struct sk_buff *skb);
+#else
+static inline void tls_device_init(void) {}
+static inline void tls_device_cleanup(void) {}
 
+static inline int
+tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void tls_device_free_resources_tx(struct sock *sk) {}
+
+static inline int
+tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void tls_device_offload_cleanup_rx(struct sock *sk) {}
+static inline void
+tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq) {}
+
+static inline int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
+{
+	return 0;
+}
+#endif
 #endif /* _TLS_OFFLOAD_H */

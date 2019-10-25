@@ -4,8 +4,6 @@
  *
  * Copyright 2015 Google Inc.
  * Copyright 2015 Linaro Ltd.
- *
- * Provided under the three clause BSD license found in the LICENSE file.
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -412,12 +410,6 @@ static int get_results(struct loopback_test *t)
 	}
 
 	return 0;
-}
-
-void log_csv_error(int len, int err)
-{
-	fprintf(stderr, "unable to write %d bytes to csv %s\n", len,
-		strerror(err));
 }
 
 int format_output(struct loopback_test *t,

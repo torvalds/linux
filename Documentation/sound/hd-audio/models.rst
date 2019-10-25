@@ -260,6 +260,9 @@ alc295-hp-x360
     HP Spectre X360 fixups
 alc-sense-combo
     Headset button support for Chrome platform
+huawei-mbx-stereo
+    Enable initialization verbs for Huawei MBX stereo speakers;
+    might be risky, try this at your own risk
 
 ALC66x/67x/892
 ==============

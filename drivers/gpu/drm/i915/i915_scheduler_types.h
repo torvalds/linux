@@ -9,8 +9,8 @@
 
 #include <linux/list.h>
 
+#include "gt/intel_engine_types.h"
 #include "i915_priolist_types.h"
-#include "intel_engine_types.h"
 
 struct drm_i915_private;
 struct i915_request;
@@ -62,6 +62,7 @@ struct i915_sched_node {
 
 struct i915_dependency {
 	struct i915_sched_node *signaler;
+	struct i915_sched_node *waiter;
 	struct list_head signal_link;
 	struct list_head wait_link;
 	struct list_head dfs_link;

@@ -266,6 +266,44 @@ Default is to monitor all CPUS.
 	Record events of type PERF_RECORD_NAMESPACES and display it with the
 	'cgroup_id' sort key.
 
+--switch-on EVENT_NAME::
+	Only consider events after this event is found.
+
+	E.g.:
+
+           Find out where broadcast packets are handled
+
+		perf probe -L icmp_rcv
+
+	   Insert a probe there:
+
+		perf probe icmp_rcv:59
+
+	   Start perf top and ask it to only consider the cycles events when a
+           broadcast packet arrives This will show a menu with two entries and
+           will start counting when a broadcast packet arrives:
+
+		perf top -e cycles,probe:icmp_rcv --switch-on=probe:icmp_rcv
+
+	   Alternatively one can ask for --group and then two overhead columns
+           will appear, the first for cycles and the second for the switch-on event.
+
+		perf top --group -e cycles,probe:icmp_rcv --switch-on=probe:icmp_rcv
+
+	This may be interesting to measure a workload only after some initialization
+	phase is over, i.e. insert a perf probe at that point and use the above
+	examples replacing probe:icmp_rcv with the just-after-init probe.
+
+--switch-off EVENT_NAME::
+	Stop considering events after this event is found.
+
+--show-on-off-events::
+	Show the --switch-on/off events too. This has no effect in 'perf top' now
+	but probably we'll make the default not to show the switch-on/off events
+        on the --group mode and if there is only one event besides the off/on ones,
+	go straight to the histogram browser, just like 'perf top' with no events
+	explicitely specified does.
+
 
 INTERACTIVE PROMPTING KEYS
 --------------------------

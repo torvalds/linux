@@ -55,9 +55,9 @@ patternProperties:
   "^pinctrl-[0-9]+$": true
 
   "^nand@[a-f0-9]+$":
+    type: object
     properties:
       reg:
-        maxItems: 1
         minimum: 0
         maximum: 7
 

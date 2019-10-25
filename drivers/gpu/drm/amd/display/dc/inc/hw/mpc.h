@@ -31,6 +31,10 @@
 #define MAX_MPCC 6
 #define MAX_OPP 6
 
+#if   defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#define MAX_DWB		1
+#endif
+
 enum mpc_output_csc_mode {
 	MPC_OUTPUT_CSC_DISABLE = 0,
 	MPC_OUTPUT_CSC_COEF_A,
@@ -62,6 +66,14 @@ struct mpcc_blnd_cfg {
 	int global_alpha;
 	bool overlap_only;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	/* MPCC top/bottom gain settings */
+	int bottom_gain_mode;
+	int background_color_bpc;
+	int top_gain;
+	int bottom_inside_gain;
+	int bottom_outside_gain;
+#endif
 };
 
 struct mpcc_sm_cfg {
@@ -77,6 +89,17 @@ struct mpcc_sm_cfg {
 	/* 0-no force,2-force field polarity from top,3-force field polarity from bottom */
 	int force_next_field_polarity;
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+struct mpc_denorm_clamp {
+	int clamp_max_r_cr;
+	int clamp_min_r_cr;
+	int clamp_max_g_y;
+	int clamp_min_g_y;
+	int clamp_max_b_cb;
+	int clamp_min_b_cb;
+};
+#endif
 
 /*
  * MPCC connection and blending configuration for a single MPCC instance.
@@ -103,6 +126,10 @@ struct mpc {
 	struct dc_context *ctx;
 
 	struct mpcc mpcc_array[MAX_MPCC];
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	struct pwl_params blender_params;
+	bool cm_bypass_mode;
+#endif
 };
 
 struct mpcc_state {
@@ -172,6 +199,9 @@ struct mpc_funcs {
 	 * Return:  void
 	 */
 	void (*mpc_init)(struct mpc *mpc);
+	void (*mpc_init_single_inst)(
+			struct mpc *mpc,
+			unsigned int mpcc_id);
 
 	/*
 	 * Update the blending configuration for a specified MPCC.
@@ -199,6 +229,36 @@ struct mpc_funcs {
 	void (*init_mpcc_list_from_hw)(
 		struct mpc *mpc,
 		struct mpc_tree *tree);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	void (*set_denorm)(struct mpc *mpc,
+			int opp_id,
+			enum dc_color_depth output_depth);
+
+	void (*set_denorm_clamp)(
+			struct mpc *mpc,
+			int opp_id,
+			struct mpc_denorm_clamp denorm_clamp);
+
+	void (*set_output_csc)(struct mpc *mpc,
+			int opp_id,
+			const uint16_t *regval,
+			enum mpc_output_csc_mode ocsc_mode);
+
+	void (*set_ocsc_default)(struct mpc *mpc,
+			int opp_id,
+			enum dc_color_space color_space,
+			enum mpc_output_csc_mode ocsc_mode);
+
+	void (*set_output_gamma)(
+			struct mpc *mpc,
+			int mpcc_id,
+			const struct pwl_params *params);
+	void (*power_on_mpc_mem_pwr)(
+			struct mpc *mpc,
+			int mpcc_id,
+			bool power_on);
+#endif
 
 };
 

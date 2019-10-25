@@ -757,7 +757,6 @@ static int hba_ioctl_callback(struct esas2r_adapter *a,
 
 		struct atto_hba_get_adapter_info *gai =
 			&hi->data.get_adap_info;
-		int pcie_cap_reg;
 
 		if (hi->flags & HBAF_TUNNEL) {
 			hi->status = ATTO_STS_UNSUPPORTED;
@@ -784,17 +783,14 @@ static int hba_ioctl_callback(struct esas2r_adapter *a,
 		gai->pci.dev_num = PCI_SLOT(a->pcid->devfn);
 		gai->pci.func_num = PCI_FUNC(a->pcid->devfn);
 
-		pcie_cap_reg = pci_find_capability(a->pcid, PCI_CAP_ID_EXP);
-		if (pcie_cap_reg) {
+		if (pci_is_pcie(a->pcid)) {
 			u16 stat;
 			u32 caps;
 
-			pci_read_config_word(a->pcid,
-					     pcie_cap_reg + PCI_EXP_LNKSTA,
-					     &stat);
-			pci_read_config_dword(a->pcid,
-					      pcie_cap_reg + PCI_EXP_LNKCAP,
-					      &caps);
+			pcie_capability_read_word(a->pcid, PCI_EXP_LNKSTA,
+						  &stat);
+			pcie_capability_read_dword(a->pcid, PCI_EXP_LNKCAP,
+						   &caps);
 
 			gai->pci.link_speed_curr =
 				(u8)(stat & PCI_EXP_LNKSTA_CLS);

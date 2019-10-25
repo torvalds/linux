@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "mt76x02.h"
@@ -115,53 +104,41 @@ int mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 vif_idx,
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_set_beacon);
 
-static void
-__mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev, u8 vif_idx,
-				bool val, struct sk_buff *skb)
-{
-	u8 old_mask = dev->mt76.beacon_mask;
-	bool en;
-	u32 reg;
-
-	if (val) {
-		dev->mt76.beacon_mask |= BIT(vif_idx);
-		if (skb)
-			mt76x02_mac_set_beacon(dev, vif_idx, skb);
-	} else {
-		dev->mt76.beacon_mask &= ~BIT(vif_idx);
-		mt76x02_mac_set_beacon(dev, vif_idx, NULL);
-	}
-
-	if (!!old_mask == !!dev->mt76.beacon_mask)
-		return;
-
-	en = dev->mt76.beacon_mask;
-
-	reg = MT_BEACON_TIME_CFG_BEACON_TX |
-	      MT_BEACON_TIME_CFG_TBTT_EN |
-	      MT_BEACON_TIME_CFG_TIMER_EN;
-	mt76_rmw(dev, MT_BEACON_TIME_CFG, reg, reg * en);
-
-	dev->beacon_ops->beacon_enable(dev, en);
-}
-
 void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
-				   struct ieee80211_vif *vif, bool val)
+				   struct ieee80211_vif *vif, bool enable)
 {
-	u8 vif_idx = ((struct mt76x02_vif *)vif->drv_priv)->idx;
-	struct sk_buff *skb = NULL;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
+	u8 old_mask = dev->mt76.beacon_mask;
 
-	dev->beacon_ops->pre_tbtt_enable(dev, false);
-
-	if (mt76_is_usb(dev))
-		skb = ieee80211_beacon_get(mt76_hw(dev), vif);
+	mt76x02_pre_tbtt_enable(dev, false);
 
 	if (!dev->mt76.beacon_mask)
 		dev->tbtt_count = 0;
 
-	__mt76x02_mac_set_beacon_enable(dev, vif_idx, val, skb);
+	if (enable) {
+		dev->mt76.beacon_mask |= BIT(mvif->idx);
+	} else {
+		dev->mt76.beacon_mask &= ~BIT(mvif->idx);
+		mt76x02_mac_set_beacon(dev, mvif->idx, NULL);
+	}
 
-	dev->beacon_ops->pre_tbtt_enable(dev, true);
+	if (!!old_mask == !!dev->mt76.beacon_mask)
+		goto out;
+
+	if (dev->mt76.beacon_mask)
+		mt76_set(dev, MT_BEACON_TIME_CFG,
+			 MT_BEACON_TIME_CFG_BEACON_TX |
+			 MT_BEACON_TIME_CFG_TBTT_EN |
+			 MT_BEACON_TIME_CFG_TIMER_EN);
+	else
+		mt76_clear(dev, MT_BEACON_TIME_CFG,
+			   MT_BEACON_TIME_CFG_BEACON_TX |
+			   MT_BEACON_TIME_CFG_TBTT_EN |
+			   MT_BEACON_TIME_CFG_TIMER_EN);
+	mt76x02_beacon_enable(dev, !!dev->mt76.beacon_mask);
+
+out:
+	mt76x02_pre_tbtt_enable(dev, true);
 }
 
 void
@@ -237,7 +214,8 @@ mt76x02_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
 }
 
 void
-mt76x02_enqueue_buffered_bc(struct mt76x02_dev *dev, struct beacon_bc_data *data,
+mt76x02_enqueue_buffered_bc(struct mt76x02_dev *dev,
+			    struct beacon_bc_data *data,
 			    int max_nframes)
 {
 	int i, nframes;
@@ -280,5 +258,4 @@ void mt76x02_init_beacon_config(struct mt76x02_dev *dev)
 	mt76x02_set_beacon_offsets(dev);
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_beacon_config);
-
 

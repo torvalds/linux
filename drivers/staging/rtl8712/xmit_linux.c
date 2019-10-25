@@ -93,22 +93,22 @@ void r8712_set_qos(struct pkt_file *ppktfile, struct pkt_attrib *pattrib)
 
 void r8712_SetFilter(struct work_struct *work)
 {
-	struct _adapter *padapter = container_of(work, struct _adapter,
-						wkFilterRxFF0);
+	struct _adapter *adapter = container_of(work, struct _adapter,
+						wk_filter_rx_ff0);
 	u8  oldvalue = 0x00, newvalue = 0x00;
 	unsigned long irqL;
 
-	oldvalue = r8712_read8(padapter, 0x117);
+	oldvalue = r8712_read8(adapter, 0x117);
 	newvalue = oldvalue & 0xfe;
-	r8712_write8(padapter, 0x117, newvalue);
+	r8712_write8(adapter, 0x117, newvalue);
 
-	spin_lock_irqsave(&padapter->lockRxFF0Filter, irqL);
-	padapter->blnEnableRxFF0Filter = 1;
-	spin_unlock_irqrestore(&padapter->lockRxFF0Filter, irqL);
+	spin_lock_irqsave(&adapter->lock_rx_ff0_filter, irqL);
+	adapter->blnEnableRxFF0Filter = 1;
+	spin_unlock_irqrestore(&adapter->lock_rx_ff0_filter, irqL);
 	do {
 		msleep(100);
-	} while (padapter->blnEnableRxFF0Filter == 1);
-	r8712_write8(padapter, 0x117, oldvalue);
+	} while (adapter->blnEnableRxFF0Filter == 1);
+	r8712_write8(adapter, 0x117, oldvalue);
 }
 
 int r8712_xmit_resource_alloc(struct _adapter *padapter,
@@ -120,11 +120,11 @@ int r8712_xmit_resource_alloc(struct _adapter *padapter,
 		pxmitbuf->pxmit_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!pxmitbuf->pxmit_urb[i]) {
 			netdev_err(padapter->pnetdev, "pxmitbuf->pxmit_urb[i] == NULL\n");
-			return _FAIL;
+			return -ENOMEM;
 		}
 		kmemleak_not_leak(pxmitbuf->pxmit_urb[i]);
 	}
-	return _SUCCESS;
+	return 0;
 }
 
 void r8712_xmit_resource_free(struct _adapter *padapter,
@@ -147,36 +147,36 @@ void r8712_xmit_complete(struct _adapter *padapter, struct xmit_frame *pxframe)
 	pxframe->pkt = NULL;
 }
 
-int r8712_xmit_entry(_pkt *pkt, struct  net_device *pnetdev)
+int r8712_xmit_entry(_pkt *pkt, struct  net_device *netdev)
 {
-	struct xmit_frame *pxmitframe = NULL;
-	struct _adapter *padapter = netdev_priv(pnetdev);
-	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
+	struct xmit_frame *xmitframe = NULL;
+	struct _adapter *adapter = netdev_priv(netdev);
+	struct xmit_priv *xmitpriv = &(adapter->xmitpriv);
 
-	if (!r8712_if_up(padapter))
+	if (!r8712_if_up(adapter))
 		goto _xmit_entry_drop;
 
-	pxmitframe = r8712_alloc_xmitframe(pxmitpriv);
-	if (!pxmitframe)
+	xmitframe = r8712_alloc_xmitframe(xmitpriv);
+	if (!xmitframe)
 		goto _xmit_entry_drop;
 
-	if ((!r8712_update_attrib(padapter, pkt, &pxmitframe->attrib)))
+	if (r8712_update_attrib(adapter, pkt, &xmitframe->attrib))
 		goto _xmit_entry_drop;
 
-	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_TX);
-	pxmitframe->pkt = pkt;
-	if (r8712_pre_xmit(padapter, pxmitframe)) {
+	adapter->ledpriv.LedControlHandler(adapter, LED_CTL_TX);
+	xmitframe->pkt = pkt;
+	if (r8712_pre_xmit(adapter, xmitframe)) {
 		/*dump xmitframe directly or drop xframe*/
 		dev_kfree_skb_any(pkt);
-		pxmitframe->pkt = NULL;
+		xmitframe->pkt = NULL;
 	}
-	pxmitpriv->tx_pkts++;
-	pxmitpriv->tx_bytes += pxmitframe->attrib.last_txcmdsz;
+	xmitpriv->tx_pkts++;
+	xmitpriv->tx_bytes += xmitframe->attrib.last_txcmdsz;
 	return 0;
 _xmit_entry_drop:
-	if (pxmitframe)
-		r8712_free_xmitframe(pxmitpriv, pxmitframe);
-	pxmitpriv->tx_drop++;
+	if (xmitframe)
+		r8712_free_xmitframe(xmitpriv, xmitframe);
+	xmitpriv->tx_drop++;
 	dev_kfree_skb_any(pkt);
 	return 0;
 }

@@ -185,11 +185,11 @@ static inline int etm_writel_cp14(u32 off, u32 val) { return 0; }
 	}
 
 /* coresight AMBA ID, full UCI structure: id table entry. */
-#define CS_AMBA_UCI_ID(pid, uci_ptr)	\
-	{				\
-		.id	= pid,		\
-		.mask	= 0x000fffff,	\
-		.data	= uci_ptr	\
+#define CS_AMBA_UCI_ID(pid, uci_ptr)		\
+	{					\
+		.id	= pid,			\
+		.mask	= 0x000fffff,		\
+		.data	= (void *)uci_ptr	\
 	}
 
 /* extract the data value from a UCI structure given amba_id pointer. */
@@ -199,5 +199,7 @@ static inline void *coresight_get_uci_data(const struct amba_id *id)
 		return ((struct amba_cs_uci_id *)(id->data))->data;
 	return 0;
 }
+
+void coresight_release_platform_data(struct coresight_platform_data *pdata);
 
 #endif

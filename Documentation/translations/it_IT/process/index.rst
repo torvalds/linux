@@ -27,6 +27,7 @@ Di seguito le guide che ogni sviluppatore dovrebbe leggere.
    code-of-conduct
    development-process
    submitting-patches
+   programming-language
    coding-style
    maintainer-pgp-guide
    email-clients

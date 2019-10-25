@@ -1,7 +1,6 @@
 * Add I/O capabilities on switch port netdevices. This will allow control
 traffic to reach the CPU.
 * Add ACL to redirect control traffic to CPU.
-* Add support for displaying learned FDB entries
 * Add support for multiple FDBs and switch port partitioning
 * MC firmware uprev; the DPAA2 objects used by the Ethernet Switch driver
 need to be kept in sync with binary interface changes in MC

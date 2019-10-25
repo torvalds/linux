@@ -6,7 +6,7 @@
  *
  * Core file which registers crypto algorithms supported by the SS.
  *
- * You could find a link for the datasheet in Documentation/arm/sunxi/README
+ * You could find a link for the datasheet in Documentation/arm/sunxi.rst
  */
 #include <linux/clk.h>
 #include <linux/crypto.h>
@@ -225,7 +225,6 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 
 static int sun4i_ss_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	u32 v;
 	int err, i;
 	unsigned long cr;
@@ -240,8 +239,7 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 	if (!ss)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ss->base = devm_ioremap_resource(&pdev->dev, res);
+	ss->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ss->base)) {
 		dev_err(&pdev->dev, "Cannot request MMIO\n");
 		return PTR_ERR(ss->base);

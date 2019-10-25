@@ -30,4 +30,4 @@ The driver provides the common sysfs-interface for temperatures (see
 Documentation/hwmon/sysfs-interface.rst under Temperatures).
 
 Please refer how to instantiate this driver:
-Documentation/i2c/instantiating-devices
+Documentation/i2c/instantiating-devices.rst

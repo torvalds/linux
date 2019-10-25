@@ -214,27 +214,32 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	if (IS_ERR(cec->reg))
 		return PTR_ERR(cec->reg);
 
-	cec->notifier = cec_notifier_get(hdmi_dev);
-	if (cec->notifier == NULL)
-		return -ENOMEM;
-
 	cec->adap = cec_allocate_adapter(&s5p_cec_adap_ops, cec, CEC_NAME,
-		CEC_CAP_DEFAULTS | (needs_hpd ? CEC_CAP_NEEDS_HPD : 0), 1);
+		CEC_CAP_DEFAULTS | (needs_hpd ? CEC_CAP_NEEDS_HPD : 0) |
+		CEC_CAP_CONNECTOR_INFO, 1);
 	ret = PTR_ERR_OR_ZERO(cec->adap);
 	if (ret)
 		return ret;
 
+	cec->notifier = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+						       cec->adap);
+	if (!cec->notifier) {
+		ret = -ENOMEM;
+		goto err_delete_adapter;
+	}
+
 	ret = cec_register_adapter(cec->adap, &pdev->dev);
 	if (ret)
-		goto err_delete_adapter;
-
-	cec_register_cec_notifier(cec->adap, cec->notifier);
+		goto err_notifier;
 
 	platform_set_drvdata(pdev, cec);
 	pm_runtime_enable(dev);
 
 	dev_dbg(dev, "successfully probed\n");
 	return 0;
+
+err_notifier:
+	cec_notifier_cec_adap_unregister(cec->notifier);
 
 err_delete_adapter:
 	cec_delete_adapter(cec->adap);
@@ -245,8 +250,8 @@ static int s5p_cec_remove(struct platform_device *pdev)
 {
 	struct s5p_cec_dev *cec = platform_get_drvdata(pdev);
 
+	cec_notifier_cec_adap_unregister(cec->notifier);
 	cec_unregister_adapter(cec->adap);
-	cec_notifier_put(cec->notifier);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }

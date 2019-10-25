@@ -722,15 +722,16 @@ static int smu8_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 
 static int smu8_start_smu(struct pp_hwmgr *hwmgr)
 {
-	struct amdgpu_device *adev = hwmgr->adev;
+	struct amdgpu_device *adev;
 
 	uint32_t index = SMN_MP1_SRAM_START_ADDR +
 			 SMU8_FIRMWARE_HEADER_LOCATION +
 			 offsetof(struct SMU8_Firmware_Header, Version);
 
-
 	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
+
+	adev = hwmgr->adev;
 
 	cgs_write_register(hwmgr->device, mmMP0PUB_IND_INDEX, index);
 	hwmgr->smu_version = cgs_read_register(hwmgr->device, mmMP0PUB_IND_DATA);
@@ -881,6 +882,7 @@ static bool smu8_is_dpm_running(struct pp_hwmgr *hwmgr)
 }
 
 const struct pp_smumgr_func smu8_smu_funcs = {
+	.name = "smu8_smu",
 	.smu_init = smu8_smu_init,
 	.smu_fini = smu8_smu_fini,
 	.start_smu = smu8_start_smu,

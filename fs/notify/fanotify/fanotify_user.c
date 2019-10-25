@@ -528,7 +528,8 @@ static const struct file_operations fanotify_fops = {
 };
 
 static int fanotify_find_path(int dfd, const char __user *filename,
-			      struct path *path, unsigned int flags)
+			      struct path *path, unsigned int flags, __u64 mask,
+			      unsigned int obj_type)
 {
 	int ret;
 
@@ -567,8 +568,15 @@ static int fanotify_find_path(int dfd, const char __user *filename,
 
 	/* you can only watch an inode if you have read permissions on it */
 	ret = inode_permission(path->dentry->d_inode, MAY_READ);
+	if (ret) {
+		path_put(path);
+		goto out;
+	}
+
+	ret = security_path_notify(path, mask, obj_type);
 	if (ret)
 		path_put(path);
+
 out:
 	return ret;
 }
@@ -947,6 +955,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	__kernel_fsid_t __fsid, *fsid = NULL;
 	u32 valid_mask = FANOTIFY_EVENTS | FANOTIFY_EVENT_FLAGS;
 	unsigned int mark_type = flags & FANOTIFY_MARK_TYPE_BITS;
+	unsigned int obj_type;
 	int ret;
 
 	pr_debug("%s: fanotify_fd=%d flags=%x dfd=%d pathname=%p mask=%llx\n",
@@ -961,8 +970,13 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 
 	switch (mark_type) {
 	case FAN_MARK_INODE:
+		obj_type = FSNOTIFY_OBJ_TYPE_INODE;
+		break;
 	case FAN_MARK_MOUNT:
+		obj_type = FSNOTIFY_OBJ_TYPE_VFSMOUNT;
+		break;
 	case FAN_MARK_FILESYSTEM:
+		obj_type = FSNOTIFY_OBJ_TYPE_SB;
 		break;
 	default:
 		return -EINVAL;
@@ -1030,7 +1044,8 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		goto fput_and_out;
 	}
 
-	ret = fanotify_find_path(dfd, pathname, &path, flags);
+	ret = fanotify_find_path(dfd, pathname, &path, flags,
+			(mask & ALL_FSNOTIFY_EVENTS), obj_type);
 	if (ret)
 		goto fput_and_out;
 

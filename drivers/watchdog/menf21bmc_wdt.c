@@ -152,10 +152,8 @@ static int menf21bmc_wdt_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_watchdog_register_device(dev, &drv_data->wdt);
-	if (ret) {
-		dev_err(dev, "failed to register Watchdog device\n");
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev, "MEN 14F021P00 BMC Watchdog device enabled\n");
 

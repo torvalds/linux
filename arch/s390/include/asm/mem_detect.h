@@ -79,4 +79,16 @@ static inline void get_mem_detect_reserved(unsigned long *start,
 		*size = 0;
 }
 
+static inline unsigned long get_mem_detect_end(void)
+{
+	unsigned long start;
+	unsigned long end;
+
+	if (mem_detect.count) {
+		__get_mem_detect_block(mem_detect.count - 1, &start, &end);
+		return end;
+	}
+	return 0;
+}
+
 #endif

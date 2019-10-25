@@ -2,9 +2,12 @@
 /*
  * Copyright (C) 2012 Russell King
  */
+
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+
 #include "armada_drm.h"
 #include "armada_fb.h"
 #include "armada_gem.h"
@@ -84,6 +87,7 @@ struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
 struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 	struct drm_file *dfile, const struct drm_mode_fb_cmd2 *mode)
 {
+	const struct drm_format_info *info = drm_get_format_info(dev, mode);
 	struct armada_gem_object *obj;
 	struct armada_framebuffer *dfb;
 	int ret;
@@ -94,7 +98,7 @@ struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 		mode->pitches[2]);
 
 	/* We can only handle a single plane at the moment */
-	if (drm_format_num_planes(mode->pixel_format) > 1 &&
+	if (info->num_planes > 1 &&
 	    (mode->handles[0] != mode->handles[1] ||
 	     mode->handles[0] != mode->handles[2])) {
 		ret = -EINVAL;

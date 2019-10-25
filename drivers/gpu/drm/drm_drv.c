@@ -31,20 +31,24 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 #include <linux/slab.h>
 #include <linux/srcu.h>
 
 #include <drm/drm_client.h>
+#include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
-#include <drm/drmP.h>
+#include <drm/drm_file.h>
+#include <drm/drm_mode_object.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
-#include "drm_legacy.h"
 #include "drm_internal.h"
+#include "drm_legacy.h"
 
 /*
  * drm_debug: Enable debug output.
- * Bitmask of DRM_UT_x. See include/drm/drmP.h for details.
+ * Bitmask of DRM_UT_x. See include/drm/drm_print.h for details.
  */
 unsigned int drm_debug = 0;
 EXPORT_SYMBOL(drm_debug);
@@ -324,11 +328,9 @@ void drm_minor_release(struct drm_minor *minor)
  *		struct drm_device *drm;
  *		int ret;
  *
- *		[
- *		  devm_kzalloc() can't be used here because the drm_device
- *		  lifetime can exceed the device lifetime if driver unbind
- *		  happens when userspace still has open file descriptors.
- *		]
+ *		// devm_kzalloc() can't be used here because the drm_device '
+ *		// lifetime can exceed the device lifetime if driver unbind
+ *		// happens when userspace still has open file descriptors.
  *		priv = kzalloc(sizeof(*priv), GFP_KERNEL);
  *		if (!priv)
  *			return -ENOMEM;
@@ -351,7 +353,7 @@ void drm_minor_release(struct drm_minor *minor)
  *		if (IS_ERR(priv->pclk))
  *			return PTR_ERR(priv->pclk);
  *
- *		[ Further setup, display pipeline etc ]
+ *		// Further setup, display pipeline etc
  *
  *		platform_set_drvdata(pdev, drm);
  *
@@ -366,7 +368,7 @@ void drm_minor_release(struct drm_minor *minor)
  *		return 0;
  *	}
  *
- *	[ This function is called before the devm_ resources are released ]
+ *	// This function is called before the devm_ resources are released
  *	static int driver_remove(struct platform_device *pdev)
  *	{
  *		struct drm_device *drm = platform_get_drvdata(pdev);
@@ -377,7 +379,7 @@ void drm_minor_release(struct drm_minor *minor)
  *		return 0;
  *	}
  *
- *	[ This function is called on kernel restart and shutdown ]
+ *	// This function is called on kernel restart and shutdown
  *	static void driver_shutdown(struct platform_device *pdev)
  *	{
  *		drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
@@ -532,28 +534,15 @@ EXPORT_SYMBOL(drm_dev_unplug);
 static int drm_fs_cnt;
 static struct vfsmount *drm_fs_mnt;
 
-static const struct dentry_operations drm_fs_dops = {
-	.d_dname	= simple_dname,
-};
-
-static const struct super_operations drm_fs_sops = {
-	.statfs		= simple_statfs,
-};
-
-static struct dentry *drm_fs_mount(struct file_system_type *fs_type, int flags,
-				   const char *dev_name, void *data)
+static int drm_fs_init_fs_context(struct fs_context *fc)
 {
-	return mount_pseudo(fs_type,
-			    "drm:",
-			    &drm_fs_sops,
-			    &drm_fs_dops,
-			    0x010203ff);
+	return init_pseudo(fc, 0x010203ff) ? 0 : -ENOMEM;
 }
 
 static struct file_system_type drm_fs_type = {
 	.name		= "drm",
 	.owner		= THIS_MODULE,
-	.mount		= drm_fs_mount,
+	.init_fs_context = drm_fs_init_fs_context,
 	.kill_sb	= kill_anon_super,
 };
 
@@ -987,13 +976,13 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_minors;
 
-	dev->registered = true;
-
 	if (dev->driver->load) {
 		ret = dev->driver->load(dev, flags);
 		if (ret)
 			goto err_minors;
 	}
+
+	dev->registered = true;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_modeset_register_all(dev);
@@ -1161,11 +1150,6 @@ static int __init drm_core_init(void)
 	}
 
 	drm_debugfs_root = debugfs_create_dir("dri", NULL);
-	if (!drm_debugfs_root) {
-		ret = -ENOMEM;
-		DRM_ERROR("Cannot create debugfs-root: %d\n", ret);
-		goto error;
-	}
 
 	ret = register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops);
 	if (ret < 0)

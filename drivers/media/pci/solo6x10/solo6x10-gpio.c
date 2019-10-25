@@ -39,13 +39,13 @@ static void solo_gpio_mode(struct solo_dev *solo_dev,
 	ret = solo_reg_read(solo_dev, SOLO_GPIO_CONFIG_1);
 
 	for (port = 0; port < 16; port++) {
-		if (!((1 << (port + 16)) & port_mask))
+		if (!((1UL << (port + 16)) & port_mask))
 			continue;
 
 		if (!mode)
-			ret &= ~(1 << port);
+			ret &= ~(1UL << port);
 		else
-			ret |= 1 << port;
+			ret |= 1UL << port;
 	}
 
 	/* Enable GPIO[31:16] */

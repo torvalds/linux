@@ -204,7 +204,6 @@ static void rmi_2d_sensor_set_input_params(struct rmi_2d_sensor *sensor)
 	if (sensor->topbuttonpad)
 		set_bit(INPUT_PROP_TOPBUTTONPAD, input->propbit);
 }
-EXPORT_SYMBOL_GPL(rmi_2d_sensor_set_input_params);
 
 int rmi_2d_sensor_configure_input(struct rmi_function *fn,
 					struct rmi_2d_sensor *sensor)

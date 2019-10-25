@@ -432,7 +432,7 @@ EXPORT_SYMBOL_GPL(pci_prg_resp_pasid_required);
  * @pdev: PCI device structure
  *
  * Returns negative value when PASID capability is not present.
- * Otherwise it returns the numer of supported PASIDs.
+ * Otherwise it returns the number of supported PASIDs.
  */
 int pci_max_pasids(struct pci_dev *pdev)
 {

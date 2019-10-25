@@ -19,8 +19,6 @@
 #define RTW_MAX_REMAIN_ON_CHANNEL_DURATION 5000 /* ms */
 #define RTW_MAX_NUM_PMKIDS 4
 
-#define RTW_CH_MAX_2G_CHANNEL               14      /* Max channel in 2G band */
-
 static const u32 rtw_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP40,
 	WLAN_CIPHER_SUITE_WEP104,
@@ -1650,7 +1648,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	}
 
 check_need_indicate_scan_done:
-	if (true == need_indicate_scan_done)
+	if (need_indicate_scan_done)
 	{
 		rtw_cfg80211_surveydone_event_callback(padapter);
 		rtw_cfg80211_indicate_scan_done(padapter, false);
@@ -2024,8 +2022,6 @@ static int cfg80211_rtw_leave_ibss(struct wiphy *wiphy, struct net_device *ndev)
 
 	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 
-	padapter->mlmepriv.not_indic_disco = true;
-
 	old_type = rtw_wdev->iftype;
 
 	rtw_set_to_roam(padapter, 0);
@@ -2047,8 +2043,6 @@ static int cfg80211_rtw_leave_ibss(struct wiphy *wiphy, struct net_device *ndev)
 	}
 
 leave_ibss:
-	padapter->mlmepriv.not_indic_disco = false;
-
 	return 0;
 }
 
@@ -2246,8 +2240,6 @@ static int cfg80211_rtw_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 
 	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 
-	padapter->mlmepriv.not_indic_disco = true;
-
 	rtw_set_to_roam(padapter, 0);
 
 	rtw_scan_abort(padapter);
@@ -2260,8 +2252,6 @@ static int cfg80211_rtw_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 
 	rtw_free_assoc_resources(padapter, 1);
 	rtw_pwr_wakeup(padapter);
-
-	padapter->mlmepriv.not_indic_disco = false;
 
 	DBG_871X(FUNC_NDEV_FMT" return 0\n", FUNC_NDEV_ARG(ndev));
 	return 0;
@@ -2439,23 +2429,7 @@ void rtw_cfg80211_indicate_sta_disassoc(struct adapter *padapter, unsigned char 
 	cfg80211_del_sta(ndev, da, GFP_ATOMIC);
 }
 
-static int rtw_cfg80211_monitor_if_open(struct net_device *ndev)
-{
-	int ret = 0;
 
-	DBG_8192C("%s\n", __func__);
-
-	return ret;
-}
-
-static int rtw_cfg80211_monitor_if_close(struct net_device *ndev)
-{
-	int ret = 0;
-
-	DBG_8192C("%s\n", __func__);
-
-	return ret;
-}
 
 static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struct net_device *ndev)
 {
@@ -2604,20 +2578,10 @@ fail:
 
 }
 
-static int rtw_cfg80211_monitor_if_set_mac_address(struct net_device *ndev, void *addr)
-{
-	int ret = 0;
 
-	DBG_8192C("%s\n", __func__);
-
-	return ret;
-}
 
 static const struct net_device_ops rtw_cfg80211_monitor_if_ops = {
-	.ndo_open = rtw_cfg80211_monitor_if_open,
-       .ndo_stop = rtw_cfg80211_monitor_if_close,
-       .ndo_start_xmit = rtw_cfg80211_monitor_if_xmit_entry,
-       .ndo_set_mac_address = rtw_cfg80211_monitor_if_set_mac_address,
+	.ndo_start_xmit = rtw_cfg80211_monitor_if_xmit_entry,
 };
 
 static int rtw_cfg80211_add_monitor_if (struct adapter *padapter, char *name, struct net_device **ndev)
@@ -2896,9 +2860,9 @@ static int cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 
 		flush_all_cam_entry(padapter);	/* clear CAM */
 
-		ret = rtw_sta_flush(padapter);
+		rtw_sta_flush(padapter);
 
-		return ret;
+		return 0;
 	}
 
 

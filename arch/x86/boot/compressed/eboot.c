@@ -384,14 +384,11 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	struct apm_bios_info *bi;
 	struct setup_header *hdr;
 	efi_loaded_image_t *image;
-	void *options, *handle;
+	void *handle;
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	int options_size = 0;
 	efi_status_t status;
 	char *cmdline_ptr;
-	u16 *s2;
-	u8 *s1;
-	int i;
 	unsigned long ramdisk_addr;
 	unsigned long ramdisk_size;
 
@@ -494,8 +491,6 @@ static void add_e820ext(struct boot_params *params,
 			struct setup_data *e820ext, u32 nr_entries)
 {
 	struct setup_data *data;
-	efi_status_t status;
-	unsigned long size;
 
 	e820ext->type = SETUP_E820_EXT;
 	e820ext->len  = nr_entries * sizeof(struct boot_e820_entry);
@@ -677,8 +672,6 @@ static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
 				   void *priv)
 {
 	const char *signature;
-	__u32 nr_desc;
-	efi_status_t status;
 	struct exit_boot_struct *p = priv;
 
 	signature = efi_is_64bit() ? EFI64_LOADER_SIGNATURE
@@ -747,7 +740,6 @@ struct boot_params *
 efi_main(struct efi_config *c, struct boot_params *boot_params)
 {
 	struct desc_ptr *gdt = NULL;
-	efi_loaded_image_t *image;
 	struct setup_header *hdr = &boot_params->hdr;
 	efi_status_t status;
 	struct desc_struct *desc;

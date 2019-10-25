@@ -239,6 +239,15 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 		/* Fill remaining fields */
 		v4l2_fill_pixfmt_mp(pix_mp, fmt->fourcc, pix_mp->width,
 				    pix_mp->height);
+		/*
+		 * The H264 decoder needs extra space on the output buffers
+		 * to store motion vectors. This is needed for reference
+		 * frames.
+		 */
+		if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_H264_SLICE)
+			pix_mp->plane_fmt[0].sizeimage +=
+				128 * DIV_ROUND_UP(pix_mp->width, 16) *
+				      DIV_ROUND_UP(pix_mp->height, 16);
 	} else if (!pix_mp->plane_fmt[0].sizeimage) {
 		/*
 		 * For coded formats the application can specify
@@ -344,6 +353,8 @@ hantro_update_requires_request(struct hantro_ctx *ctx, u32 fourcc)
 		ctx->fh.m2m_ctx->out_q_ctx.q.requires_requests = false;
 		break;
 	case V4L2_PIX_FMT_MPEG2_SLICE:
+	case V4L2_PIX_FMT_VP8_FRAME:
+	case V4L2_PIX_FMT_H264_SLICE:
 		ctx->fh.m2m_ctx->out_q_ctx.q.requires_requests = true;
 		break;
 	default:

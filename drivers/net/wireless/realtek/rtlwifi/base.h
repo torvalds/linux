@@ -46,15 +46,6 @@ enum ap_peer {
 #define MAX_LISTEN_INTERVAL		10
 #define MAX_RATE_TRIES			4
 
-#define SET_80211_HDR_FRAME_CONTROL(_hdr, _val)		\
-	WRITEEF2BYTE(_hdr, _val)
-#define SET_80211_HDR_TYPE_AND_SUBTYPE(_hdr, _val)	\
-	WRITEEF1BYTE(_hdr, _val)
-#define SET_80211_HDR_PWR_MGNT(_hdr, _val)		\
-	SET_BITS_TO_LE_2BYTE(_hdr, 12, 1, _val)
-#define SET_80211_HDR_TO_DS(_hdr, _val)			\
-	SET_BITS_TO_LE_2BYTE(_hdr, 8, 1, _val)
-
 #define SET_80211_PS_POLL_AID(_hdr, _val)		\
 	(*(u16 *)((u8 *)(_hdr) + 2) = _val)
 #define SET_80211_PS_POLL_BSSID(_hdr, _val)		\
@@ -62,30 +53,12 @@ enum ap_peer {
 #define SET_80211_PS_POLL_TA(_hdr, _val)		\
 	ether_addr_copy(((u8 *)(_hdr))+10, (u8 *)(_val))
 
-#define SET_80211_HDR_DURATION(_hdr, _val)	\
-	(*(u16 *)((u8 *)(_hdr) + FRAME_OFFSET_DURATION) = le16_to_cpu(_val))
 #define SET_80211_HDR_ADDRESS1(_hdr, _val)	\
 	CP_MACADDR((u8 *)(_hdr)+FRAME_OFFSET_ADDRESS1, (u8 *)(_val))
 #define SET_80211_HDR_ADDRESS2(_hdr, _val)	\
 	CP_MACADDR((u8 *)(_hdr)+FRAME_OFFSET_ADDRESS2, (u8 *)(_val))
 #define SET_80211_HDR_ADDRESS3(_hdr, _val)	\
 	CP_MACADDR((u8 *)(_hdr)+FRAME_OFFSET_ADDRESS3, (u8 *)(_val))
-#define SET_80211_HDR_FRAGMENT_SEQUENCE(_hdr, _val)  \
-	WRITEEF2BYTE((u8 *)(_hdr)+FRAME_OFFSET_SEQUENCE, _val)
-
-#define SET_BEACON_PROBE_RSP_TIME_STAMP_LOW(__phdr, __val)	\
-	WRITEEF4BYTE(((u8 *)(__phdr)) + 24, __val)
-#define SET_BEACON_PROBE_RSP_TIME_STAMP_HIGH(__phdr, __val) \
-	WRITEEF4BYTE(((u8 *)(__phdr)) + 28, __val)
-#define SET_BEACON_PROBE_RSP_BEACON_INTERVAL(__phdr, __val) \
-	WRITEEF2BYTE(((u8 *)(__phdr)) + 32, __val)
-#define GET_BEACON_PROBE_RSP_CAPABILITY_INFO(__phdr)		\
-	READEF2BYTE(((u8 *)(__phdr)) + 34)
-#define SET_BEACON_PROBE_RSP_CAPABILITY_INFO(__phdr, __val) \
-	WRITEEF2BYTE(((u8 *)(__phdr)) + 34, __val)
-#define MASK_BEACON_PROBE_RSP_CAPABILITY_INFO(__phdr, __val) \
-	SET_BEACON_PROBE_RSP_CAPABILITY_INFO(__phdr, \
-	(GET_BEACON_PROBE_RSP_CAPABILITY_INFO(__phdr) & (~(__val))))
 
 #define SET_TX_DESC_SPE_RPT(__pdesc, __val)			\
 	SET_BITS_TO_LE_4BYTE((__pdesc) + 8, 19, 1, __val)

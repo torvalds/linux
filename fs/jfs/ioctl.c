@@ -98,24 +98,16 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		/* Lock against other parallel changes of flags */
 		inode_lock(inode);
 
-		oldflags = jfs_inode->mode2;
-
-		/*
-		 * The IMMUTABLE and APPEND_ONLY flags can only be changed by
-		 * the relevant capability.
-		 */
-		if ((oldflags & JFS_IMMUTABLE_FL) ||
-			((flags ^ oldflags) &
-			(JFS_APPEND_FL | JFS_IMMUTABLE_FL))) {
-			if (!capable(CAP_LINUX_IMMUTABLE)) {
-				inode_unlock(inode);
-				err = -EPERM;
-				goto setflags_out;
-			}
+		oldflags = jfs_map_ext2(jfs_inode->mode2 & JFS_FL_USER_VISIBLE,
+					0);
+		err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
+		if (err) {
+			inode_unlock(inode);
+			goto setflags_out;
 		}
 
 		flags = flags & JFS_FL_USER_MODIFIABLE;
-		flags |= oldflags & ~JFS_FL_USER_MODIFIABLE;
+		flags |= jfs_inode->mode2 & ~JFS_FL_USER_MODIFIABLE;
 		jfs_inode->mode2 = flags;
 
 		jfs_set_inode_flags(inode);

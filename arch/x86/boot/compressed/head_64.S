@@ -87,7 +87,7 @@ ENTRY(startup_32)
 
 	call	verify_cpu
 	testl	%eax, %eax
-	jnz	no_longmode
+	jnz	.Lno_longmode
 
 /*
  * Compute the delta between where we were compiled to run at
@@ -322,7 +322,7 @@ ENTRY(startup_64)
 1:	popq	%rdi
 	subq	$1b, %rdi
 
-	call	adjust_got
+	call	.Ladjust_got
 
 	/*
 	 * At this point we are in long mode with 4-level paging enabled,
@@ -421,7 +421,7 @@ trampoline_return:
 
 	/* The new adjustment is the relocation address */
 	movq	%rbx, %rdi
-	call	adjust_got
+	call	.Ladjust_got
 
 /*
  * Copy the compressed kernel to the end of our buffer
@@ -440,7 +440,7 @@ trampoline_return:
 /*
  * Jump to the relocated address.
  */
-	leaq	relocated(%rbx), %rax
+	leaq	.Lrelocated(%rbx), %rax
 	jmp	*%rax
 
 #ifdef CONFIG_EFI_STUB
@@ -511,7 +511,7 @@ ENDPROC(efi64_stub_entry)
 #endif
 
 	.text
-relocated:
+.Lrelocated:
 
 /*
  * Clear BSS (stack is currently empty)
@@ -548,7 +548,7 @@ relocated:
  * first time we touch GOT).
  * RDI is the new adjustment to apply.
  */
-adjust_got:
+.Ladjust_got:
 	/* Walk through the GOT adding the address to the entries */
 	leaq	_got(%rip), %rdx
 	leaq	_egot(%rip), %rcx
@@ -622,7 +622,7 @@ ENTRY(trampoline_32bit_src)
 	movl	%eax, %cr4
 
 	/* Calculate address of paging_enabled() once we are executing in the trampoline */
-	leal	paging_enabled - trampoline_32bit_src + TRAMPOLINE_32BIT_CODE_OFFSET(%ecx), %eax
+	leal	.Lpaging_enabled - trampoline_32bit_src + TRAMPOLINE_32BIT_CODE_OFFSET(%ecx), %eax
 
 	/* Prepare the stack for far return to Long Mode */
 	pushl	$__KERNEL_CS
@@ -635,7 +635,7 @@ ENTRY(trampoline_32bit_src)
 	lret
 
 	.code64
-paging_enabled:
+.Lpaging_enabled:
 	/* Return from the trampoline */
 	jmp	*%rdi
 
@@ -647,7 +647,7 @@ paging_enabled:
 	.org	trampoline_32bit_src + TRAMPOLINE_32BIT_CODE_SIZE
 
 	.code32
-no_longmode:
+.Lno_longmode:
 	/* This isn't an x86-64 CPU, so hang intentionally, we cannot continue */
 1:
 	hlt

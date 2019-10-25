@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -166,8 +166,16 @@ enum iwl_tlc_mng_ht_rates {
 	IWL_TLC_MNG_HT_RATE_MAX = IWL_TLC_MNG_HT_RATE_MCS11,
 };
 
-/* Maximum supported tx antennas number */
-#define MAX_NSS 2
+enum IWL_TLC_MNG_NSS {
+	IWL_TLC_NSS_1,
+	IWL_TLC_NSS_2,
+	IWL_TLC_NSS_MAX
+};
+
+enum IWL_TLC_HT_BW_RATES {
+	IWL_TLC_HT_BW_NONE_160,
+	IWL_TLC_HT_BW_160,
+};
 
 /**
  * struct tlc_config_cmd - TLC configuration
@@ -195,7 +203,7 @@ struct iwl_tlc_config_cmd {
 	u8 amsdu;
 	__le16 flags;
 	__le16 non_ht_rates;
-	__le16 ht_rates[MAX_NSS][2];
+	__le16 ht_rates[IWL_TLC_NSS_MAX][2];
 	__le16 max_mpdu_len;
 	u8 sgi_ch_width_supp;
 	u8 reserved2[1];

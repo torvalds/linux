@@ -438,6 +438,23 @@ OPTIONS
 
 	  perf report --time 0%-10%,30%-40%
 
+--switch-on EVENT_NAME::
+	Only consider events after this event is found.
+
+	This may be interesting to measure a workload only after some initialization
+	phase is over, i.e. insert a perf probe at that point and then using this
+	option with that probe.
+
+--switch-off EVENT_NAME::
+	Stop considering events after this event is found.
+
+--show-on-off-events::
+	Show the --switch-on/off events too. This has no effect in 'perf report' now
+	but probably we'll make the default not to show the switch-on/off events
+        on the --group mode and if there is only one event besides the off/on ones,
+	go straight to the histogram browser, just like 'perf report' with no events
+	explicitely specified does.
+
 --itrace::
 	Options for decoding instruction tracing data. The options are:
 

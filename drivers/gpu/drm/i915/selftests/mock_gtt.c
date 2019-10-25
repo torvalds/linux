@@ -55,17 +55,14 @@ static void mock_cleanup(struct i915_address_space *vm)
 {
 }
 
-struct i915_hw_ppgtt *
-mock_ppgtt(struct drm_i915_private *i915,
-	   const char *name)
+struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 {
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_ppgtt *ppgtt;
 
 	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
 	if (!ppgtt)
 		return NULL;
 
-	kref_init(&ppgtt->ref);
 	ppgtt->vm.i915 = i915;
 	ppgtt->vm.total = round_down(U64_MAX, PAGE_SIZE);
 	ppgtt->vm.file = ERR_PTR(-ENODEV);
@@ -101,6 +98,7 @@ void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt)
 {
 	memset(ggtt, 0, sizeof(*ggtt));
 
+	ggtt->vm.gt = &i915->gt;
 	ggtt->vm.i915 = i915;
 	ggtt->vm.is_ggtt = true;
 
@@ -119,6 +117,8 @@ void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt)
 	ggtt->vm.vma_ops.clear_pages = clear_pages;
 
 	i915_address_space_init(&ggtt->vm, VM_CLASS_GGTT);
+
+	intel_gt_init_hw(i915);
 }
 
 void mock_fini_ggtt(struct i915_ggtt *ggtt)

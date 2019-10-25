@@ -454,51 +454,55 @@ static int probe_rio(struct usb_interface *intf,
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct rio_usb_data *rio = &rio_instance;
-	int retval = 0;
+	int retval = -ENOMEM;
+	char *ibuf, *obuf;
 
-	mutex_lock(&rio500_mutex);
 	if (rio->present) {
 		dev_info(&intf->dev, "Second USB Rio at address %d refused\n", dev->devnum);
-		retval = -EBUSY;
-		goto bail_out;
-	} else {
-		dev_info(&intf->dev, "USB Rio found at address %d\n", dev->devnum);
+		return -EBUSY;
 	}
+	dev_info(&intf->dev, "USB Rio found at address %d\n", dev->devnum);
+
+	obuf = kmalloc(OBUF_SIZE, GFP_KERNEL);
+	if (!obuf) {
+		dev_err(&dev->dev,
+			"probe_rio: Not enough memory for the output buffer\n");
+		goto err_obuf;
+	}
+	dev_dbg(&intf->dev, "obuf address: %p\n", obuf);
+
+	ibuf = kmalloc(IBUF_SIZE, GFP_KERNEL);
+	if (!ibuf) {
+		dev_err(&dev->dev,
+			"probe_rio: Not enough memory for the input buffer\n");
+		goto err_ibuf;
+	}
+	dev_dbg(&intf->dev, "ibuf address: %p\n", ibuf);
+
+	mutex_lock(&rio500_mutex);
+	rio->rio_dev = dev;
+	rio->ibuf = ibuf;
+	rio->obuf = obuf;
+	rio->present = 1;
+	mutex_unlock(&rio500_mutex);
 
 	retval = usb_register_dev(intf, &usb_rio_class);
 	if (retval) {
 		dev_err(&dev->dev,
 			"Not able to get a minor for this device.\n");
-		retval = -ENOMEM;
-		goto bail_out;
+		goto err_register;
 	}
 
-	rio->rio_dev = dev;
+	usb_set_intfdata(intf, rio);
+	return retval;
 
-	if (!(rio->obuf = kmalloc(OBUF_SIZE, GFP_KERNEL))) {
-		dev_err(&dev->dev,
-			"probe_rio: Not enough memory for the output buffer\n");
-		usb_deregister_dev(intf, &usb_rio_class);
-		retval = -ENOMEM;
-		goto bail_out;
-	}
-	dev_dbg(&intf->dev, "obuf address:%p\n", rio->obuf);
-
-	if (!(rio->ibuf = kmalloc(IBUF_SIZE, GFP_KERNEL))) {
-		dev_err(&dev->dev,
-			"probe_rio: Not enough memory for the input buffer\n");
-		usb_deregister_dev(intf, &usb_rio_class);
-		kfree(rio->obuf);
-		retval = -ENOMEM;
-		goto bail_out;
-	}
-	dev_dbg(&intf->dev, "ibuf address:%p\n", rio->ibuf);
-
-	usb_set_intfdata (intf, rio);
-	rio->present = 1;
-bail_out:
+ err_register:
+	mutex_lock(&rio500_mutex);
+	rio->present = 0;
 	mutex_unlock(&rio500_mutex);
-
+ err_ibuf:
+	kfree(obuf);
+ err_obuf:
 	return retval;
 }
 
@@ -507,10 +511,10 @@ static void disconnect_rio(struct usb_interface *intf)
 	struct rio_usb_data *rio = usb_get_intfdata (intf);
 
 	usb_set_intfdata (intf, NULL);
-	mutex_lock(&rio500_mutex);
 	if (rio) {
 		usb_deregister_dev(intf, &usb_rio_class);
 
+		mutex_lock(&rio500_mutex);
 		if (rio->isopen) {
 			rio->isopen = 0;
 			/* better let it finish - the release will do whats needed */
@@ -524,8 +528,8 @@ static void disconnect_rio(struct usb_interface *intf)
 		dev_info(&intf->dev, "USB Rio disconnected.\n");
 
 		rio->present = 0;
+		mutex_unlock(&rio500_mutex);
 	}
-	mutex_unlock(&rio500_mutex);
 }
 
 static const struct usb_device_id rio_table[] = {

@@ -143,6 +143,20 @@
 		};
 	};
 
+	auxdisplay {
+		compatible = "hit,hd44780";
+		data-gpios = <&gpio1 25 GPIO_ACTIVE_HIGH>,
+				<&gpio1 26 GPIO_ACTIVE_HIGH>,
+				<&gpio1 27 GPIO_ACTIVE_HIGH>,
+				<&gpio1 29 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
+		rs-gpios = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+		rw-gpios = <&gpio1 23 GPIO_ACTIVE_HIGH>;
+		backlight-gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
+		display-height-chars = <2>;
+		display-width-chars = <16>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-0 = <&backup_button_pin

@@ -1,18 +1,18 @@
-Ingenic jz47xx pin controller
+Ingenic XBurst pin controller
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
 phrase "pin configuration node".
 
-For the jz47xx SoCs, pin control is tightly bound with GPIO ports. All pins may
+For the XBurst SoCs, pin control is tightly bound with GPIO ports. All pins may
 be used as GPIOs, multiplexed device functions are configured within the
 GPIO port configuration registers and it is typical to refer to pins using the
 naming scheme "PxN" where x is a character identifying the GPIO port with
 which the pin is associated and N is an integer from 0 to 31 identifying the
 pin within that GPIO port. For example PA0 is the first pin in GPIO port A, and
-PB31 is the last pin in GPIO port B. The jz4740 contains 4 GPIO ports, PA to
-PD, for a total of 128 pins. The jz4780 contains 6 GPIO ports, PA to PF, for a
-total of 192 pins.
+PB31 is the last pin in GPIO port B. The jz4740 and the x1000 contains 4 GPIO
+ports, PA to PD, for a total of 128 pins. The jz4760, the jz4770 and the jz4780
+contains 6 GPIO ports, PA to PF, for a total of 192 pins.
 
 
 Required properties:
@@ -21,8 +21,13 @@ Required properties:
  - compatible: One of:
     - "ingenic,jz4740-pinctrl"
     - "ingenic,jz4725b-pinctrl"
+    - "ingenic,jz4760-pinctrl"
+    - "ingenic,jz4760b-pinctrl"
     - "ingenic,jz4770-pinctrl"
     - "ingenic,jz4780-pinctrl"
+    - "ingenic,x1000-pinctrl"
+    - "ingenic,x1000e-pinctrl"
+    - "ingenic,x1500-pinctrl"
  - reg: Address range of the pinctrl registers.
 
 
@@ -31,8 +36,10 @@ Required properties for sub-nodes (GPIO chips):
 
  - compatible: Must contain one of:
     - "ingenic,jz4740-gpio"
+    - "ingenic,jz4760-gpio"
     - "ingenic,jz4770-gpio"
     - "ingenic,jz4780-gpio"
+    - "ingenic,x1000-gpio"
  - reg: The GPIO bank number.
  - interrupt-controller: Marks the device node as an interrupt controller.
  - interrupts: Interrupt specifier for the controllers interrupt.

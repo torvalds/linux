@@ -4854,7 +4854,7 @@ u8 setopmode_hdl(struct adapter *padapter, u8 *pbuf)
 	}
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_SET_OPMODE, (u8 *)(&type));
-	/* Set_NETYPE0_MSR(padapter, type); */
+	/* Set_MSR(padapter, type); */
 
 	return H2C_SUCCESS;
 }
@@ -5322,7 +5322,7 @@ u8 set_tx_beacon_cmd(struct adapter *padapter)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	u8 res = _SUCCESS;
+	u8 res;
 	int len_diff = 0;
 
 	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);

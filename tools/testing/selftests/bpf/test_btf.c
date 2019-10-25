@@ -3417,6 +3417,94 @@ static struct btf_raw_test raw_tests[] = {
 	.value_type_id = 1,
 	.max_entries = 4,
 },
+/*
+ * typedef int arr_t[16];
+ * struct s {
+ *	arr_t *a;
+ * };
+ */
+{
+	.descr = "struct->ptr->typedef->array->int size resolution",
+	.raw_types = {
+		BTF_STRUCT_ENC(NAME_TBD, 1, 8),			/* [1] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_PTR_ENC(3),					/* [2] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 4),			/* [3] */
+		BTF_TYPE_ARRAY_ENC(5, 5, 16),			/* [4] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [5] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0s\0a\0arr_t"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "ptr_mod_chain_size_resolve_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int) * 16,
+	.key_type_id = 5 /* int */,
+	.value_type_id = 3 /* arr_t */,
+	.max_entries = 4,
+},
+/*
+ * typedef int arr_t[16][8][4];
+ * struct s {
+ *	arr_t *a;
+ * };
+ */
+{
+	.descr = "struct->ptr->typedef->multi-array->int size resolution",
+	.raw_types = {
+		BTF_STRUCT_ENC(NAME_TBD, 1, 8),			/* [1] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_PTR_ENC(3),					/* [2] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 4),			/* [3] */
+		BTF_TYPE_ARRAY_ENC(5, 7, 16),			/* [4] */
+		BTF_TYPE_ARRAY_ENC(6, 7, 8),			/* [5] */
+		BTF_TYPE_ARRAY_ENC(7, 7, 4),			/* [6] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [7] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0s\0a\0arr_t"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "multi_arr_size_resolve_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int) * 16 * 8 * 4,
+	.key_type_id = 7 /* int */,
+	.value_type_id = 3 /* arr_t */,
+	.max_entries = 4,
+},
+/*
+ * typedef int int_t;
+ * typedef int_t arr3_t[4];
+ * typedef arr3_t arr2_t[8];
+ * typedef arr2_t arr1_t[16];
+ * struct s {
+ *	arr1_t *a;
+ * };
+ */
+{
+	.descr = "typedef/multi-arr mix size resolution",
+	.raw_types = {
+		BTF_STRUCT_ENC(NAME_TBD, 1, 8),			/* [1] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_PTR_ENC(3),					/* [2] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 4),			/* [3] */
+		BTF_TYPE_ARRAY_ENC(5, 10, 16),			/* [4] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 6),			/* [5] */
+		BTF_TYPE_ARRAY_ENC(7, 10, 8),			/* [6] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 8),			/* [7] */
+		BTF_TYPE_ARRAY_ENC(9, 10, 4),			/* [8] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 10),			/* [9] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [10] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0s\0a\0arr1_t\0arr2_t\0arr3_t\0int_t"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "typedef_arra_mix_size_resolve_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int) * 16 * 8 * 4,
+	.key_type_id = 10 /* int */,
+	.value_type_id = 3 /* arr_t */,
+	.max_entries = 4,
+},
 
 }; /* struct btf_raw_test raw_tests[] */
 

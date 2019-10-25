@@ -11,6 +11,7 @@
 #include <bpf.h>
 #include <libbpf.h>
 #include <linux/btf.h>
+#include <linux/hashtable.h>
 
 #include "btf.h"
 #include "json_writer.h"
@@ -33,6 +34,16 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_FUNC_PROTO]	= "FUNC_PROTO",
 	[BTF_KIND_VAR]		= "VAR",
 	[BTF_KIND_DATASEC]	= "DATASEC",
+};
+
+struct btf_attach_table {
+	DECLARE_HASHTABLE(table, 16);
+};
+
+struct btf_attach_point {
+	__u32 obj_id;
+	__u32 btf_id;
+	struct hlist_node hash;
 };
 
 static const char *btf_int_enc_str(__u8 encoding)
@@ -449,7 +460,7 @@ static int do_dump(int argc, char **argv)
 
 		btf_id = strtoul(*argv, &endptr, 0);
 		if (*endptr) {
-			p_err("can't parse %s as ID", **argv);
+			p_err("can't parse %s as ID", *argv);
 			return -1;
 		}
 		NEXT_ARG();
@@ -522,6 +533,330 @@ done:
 	return err;
 }
 
+static int btf_parse_fd(int *argc, char ***argv)
+{
+	unsigned int id;
+	char *endptr;
+	int fd;
+
+	if (!is_prefix(*argv[0], "id")) {
+		p_err("expected 'id', got: '%s'?", **argv);
+		return -1;
+	}
+	NEXT_ARGP();
+
+	id = strtoul(**argv, &endptr, 0);
+	if (*endptr) {
+		p_err("can't parse %s as ID", **argv);
+		return -1;
+	}
+	NEXT_ARGP();
+
+	fd = bpf_btf_get_fd_by_id(id);
+	if (fd < 0)
+		p_err("can't get BTF object by id (%u): %s",
+		      id, strerror(errno));
+
+	return fd;
+}
+
+static void delete_btf_table(struct btf_attach_table *tab)
+{
+	struct btf_attach_point *obj;
+	struct hlist_node *tmp;
+
+	unsigned int bkt;
+
+	hash_for_each_safe(tab->table, bkt, tmp, obj, hash) {
+		hash_del(&obj->hash);
+		free(obj);
+	}
+}
+
+static int
+build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
+		     void *info, __u32 *len)
+{
+	static const char * const names[] = {
+		[BPF_OBJ_UNKNOWN]	= "unknown",
+		[BPF_OBJ_PROG]		= "prog",
+		[BPF_OBJ_MAP]		= "map",
+	};
+	struct btf_attach_point *obj_node;
+	__u32 btf_id, id = 0;
+	int err;
+	int fd;
+
+	while (true) {
+		switch (type) {
+		case BPF_OBJ_PROG:
+			err = bpf_prog_get_next_id(id, &id);
+			break;
+		case BPF_OBJ_MAP:
+			err = bpf_map_get_next_id(id, &id);
+			break;
+		default:
+			err = -1;
+			p_err("unexpected object type: %d", type);
+			goto err_free;
+		}
+		if (err) {
+			if (errno == ENOENT) {
+				err = 0;
+				break;
+			}
+			p_err("can't get next %s: %s%s", names[type],
+			      strerror(errno),
+			      errno == EINVAL ? " -- kernel too old?" : "");
+			goto err_free;
+		}
+
+		switch (type) {
+		case BPF_OBJ_PROG:
+			fd = bpf_prog_get_fd_by_id(id);
+			break;
+		case BPF_OBJ_MAP:
+			fd = bpf_map_get_fd_by_id(id);
+			break;
+		default:
+			err = -1;
+			p_err("unexpected object type: %d", type);
+			goto err_free;
+		}
+		if (fd < 0) {
+			if (errno == ENOENT)
+				continue;
+			p_err("can't get %s by id (%u): %s", names[type], id,
+			      strerror(errno));
+			err = -1;
+			goto err_free;
+		}
+
+		memset(info, 0, *len);
+		err = bpf_obj_get_info_by_fd(fd, info, len);
+		close(fd);
+		if (err) {
+			p_err("can't get %s info: %s", names[type],
+			      strerror(errno));
+			goto err_free;
+		}
+
+		switch (type) {
+		case BPF_OBJ_PROG:
+			btf_id = ((struct bpf_prog_info *)info)->btf_id;
+			break;
+		case BPF_OBJ_MAP:
+			btf_id = ((struct bpf_map_info *)info)->btf_id;
+			break;
+		default:
+			err = -1;
+			p_err("unexpected object type: %d", type);
+			goto err_free;
+		}
+		if (!btf_id)
+			continue;
+
+		obj_node = calloc(1, sizeof(*obj_node));
+		if (!obj_node) {
+			p_err("failed to allocate memory: %s", strerror(errno));
+			goto err_free;
+		}
+
+		obj_node->obj_id = id;
+		obj_node->btf_id = btf_id;
+		hash_add(tab->table, &obj_node->hash, obj_node->btf_id);
+	}
+
+	return 0;
+
+err_free:
+	delete_btf_table(tab);
+	return err;
+}
+
+static int
+build_btf_tables(struct btf_attach_table *btf_prog_table,
+		 struct btf_attach_table *btf_map_table)
+{
+	struct bpf_prog_info prog_info;
+	__u32 prog_len = sizeof(prog_info);
+	struct bpf_map_info map_info;
+	__u32 map_len = sizeof(map_info);
+	int err = 0;
+
+	err = build_btf_type_table(btf_prog_table, BPF_OBJ_PROG, &prog_info,
+				   &prog_len);
+	if (err)
+		return err;
+
+	err = build_btf_type_table(btf_map_table, BPF_OBJ_MAP, &map_info,
+				   &map_len);
+	if (err) {
+		delete_btf_table(btf_prog_table);
+		return err;
+	}
+
+	return 0;
+}
+
+static void
+show_btf_plain(struct bpf_btf_info *info, int fd,
+	       struct btf_attach_table *btf_prog_table,
+	       struct btf_attach_table *btf_map_table)
+{
+	struct btf_attach_point *obj;
+	int n;
+
+	printf("%u: ", info->id);
+	printf("size %uB", info->btf_size);
+
+	n = 0;
+	hash_for_each_possible(btf_prog_table->table, obj, hash, info->id) {
+		if (obj->btf_id == info->id)
+			printf("%s%u", n++ == 0 ? "  prog_ids " : ",",
+			       obj->obj_id);
+	}
+
+	n = 0;
+	hash_for_each_possible(btf_map_table->table, obj, hash, info->id) {
+		if (obj->btf_id == info->id)
+			printf("%s%u", n++ == 0 ? "  map_ids " : ",",
+			       obj->obj_id);
+	}
+
+	printf("\n");
+}
+
+static void
+show_btf_json(struct bpf_btf_info *info, int fd,
+	      struct btf_attach_table *btf_prog_table,
+	      struct btf_attach_table *btf_map_table)
+{
+	struct btf_attach_point *obj;
+
+	jsonw_start_object(json_wtr);	/* btf object */
+	jsonw_uint_field(json_wtr, "id", info->id);
+	jsonw_uint_field(json_wtr, "size", info->btf_size);
+
+	jsonw_name(json_wtr, "prog_ids");
+	jsonw_start_array(json_wtr);	/* prog_ids */
+	hash_for_each_possible(btf_prog_table->table, obj, hash,
+			       info->id) {
+		if (obj->btf_id == info->id)
+			jsonw_uint(json_wtr, obj->obj_id);
+	}
+	jsonw_end_array(json_wtr);	/* prog_ids */
+
+	jsonw_name(json_wtr, "map_ids");
+	jsonw_start_array(json_wtr);	/* map_ids */
+	hash_for_each_possible(btf_map_table->table, obj, hash,
+			       info->id) {
+		if (obj->btf_id == info->id)
+			jsonw_uint(json_wtr, obj->obj_id);
+	}
+	jsonw_end_array(json_wtr);	/* map_ids */
+	jsonw_end_object(json_wtr);	/* btf object */
+}
+
+static int
+show_btf(int fd, struct btf_attach_table *btf_prog_table,
+	 struct btf_attach_table *btf_map_table)
+{
+	struct bpf_btf_info info = {};
+	__u32 len = sizeof(info);
+	int err;
+
+	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	if (err) {
+		p_err("can't get BTF object info: %s", strerror(errno));
+		return -1;
+	}
+
+	if (json_output)
+		show_btf_json(&info, fd, btf_prog_table, btf_map_table);
+	else
+		show_btf_plain(&info, fd, btf_prog_table, btf_map_table);
+
+	return 0;
+}
+
+static int do_show(int argc, char **argv)
+{
+	struct btf_attach_table btf_prog_table;
+	struct btf_attach_table btf_map_table;
+	int err, fd = -1;
+	__u32 id = 0;
+
+	if (argc == 2) {
+		fd = btf_parse_fd(&argc, &argv);
+		if (fd < 0)
+			return -1;
+	}
+
+	if (argc) {
+		if (fd >= 0)
+			close(fd);
+		return BAD_ARG();
+	}
+
+	hash_init(btf_prog_table.table);
+	hash_init(btf_map_table.table);
+	err = build_btf_tables(&btf_prog_table, &btf_map_table);
+	if (err) {
+		if (fd >= 0)
+			close(fd);
+		return err;
+	}
+
+	if (fd >= 0) {
+		err = show_btf(fd, &btf_prog_table, &btf_map_table);
+		close(fd);
+		goto exit_free;
+	}
+
+	if (json_output)
+		jsonw_start_array(json_wtr);	/* root array */
+
+	while (true) {
+		err = bpf_btf_get_next_id(id, &id);
+		if (err) {
+			if (errno == ENOENT) {
+				err = 0;
+				break;
+			}
+			p_err("can't get next BTF object: %s%s",
+			      strerror(errno),
+			      errno == EINVAL ? " -- kernel too old?" : "");
+			err = -1;
+			break;
+		}
+
+		fd = bpf_btf_get_fd_by_id(id);
+		if (fd < 0) {
+			if (errno == ENOENT)
+				continue;
+			p_err("can't get BTF object by id (%u): %s",
+			      id, strerror(errno));
+			err = -1;
+			break;
+		}
+
+		err = show_btf(fd, &btf_prog_table, &btf_map_table);
+		close(fd);
+		if (err)
+			break;
+	}
+
+	if (json_output)
+		jsonw_end_array(json_wtr);	/* root array */
+
+exit_free:
+	delete_btf_table(&btf_prog_table);
+	delete_btf_table(&btf_map_table);
+
+	return err;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -530,7 +865,8 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s btf dump BTF_SRC [format FORMAT]\n"
+		"Usage: %s btf { show | list } [id BTF_ID]\n"
+		"       %s btf dump BTF_SRC [format FORMAT]\n"
 		"       %s btf help\n"
 		"\n"
 		"       BTF_SRC := { id BTF_ID | prog PROG | map MAP [{key | value | kv | all}] | file FILE }\n"
@@ -539,12 +875,14 @@ static int do_help(int argc, char **argv)
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
-		bin_name, bin_name);
+		bin_name, bin_name, bin_name);
 
 	return 0;
 }
 
 static const struct cmd cmds[] = {
+	{ "show",	do_show },
+	{ "list",	do_show },
 	{ "help",	do_help },
 	{ "dump",	do_dump },
 	{ 0 }

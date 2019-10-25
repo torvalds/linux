@@ -2301,11 +2301,12 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	struct comedi_buf_map *bm = NULL;
+	struct comedi_buf_page *buf;
 	unsigned long start = vma->vm_start;
 	unsigned long size;
 	int n_pages;
 	int i;
-	int retval;
+	int retval = 0;
 
 	/*
 	 * 'trylock' avoids circular dependency with current->mm->mmap_sem
@@ -2361,24 +2362,36 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		retval = -EINVAL;
 		goto done;
 	}
-	for (i = 0; i < n_pages; ++i) {
-		struct comedi_buf_page *buf = &bm->page_list[i];
+	if (bm->dma_dir != DMA_NONE) {
+		/*
+		 * DMA buffer was allocated as a single block.
+		 * Address is in page_list[0].
+		 */
+		buf = &bm->page_list[0];
+		retval = dma_mmap_coherent(bm->dma_hw_dev, vma, buf->virt_addr,
+					   buf->dma_addr, n_pages * PAGE_SIZE);
+	} else {
+		for (i = 0; i < n_pages; ++i) {
+			unsigned long pfn;
 
-		if (remap_pfn_range(vma, start,
-				    page_to_pfn(virt_to_page(buf->virt_addr)),
-				    PAGE_SIZE, PAGE_SHARED)) {
-			retval = -EAGAIN;
-			goto done;
+			buf = &bm->page_list[i];
+			pfn = page_to_pfn(virt_to_page(buf->virt_addr));
+			retval = remap_pfn_range(vma, start, pfn, PAGE_SIZE,
+						 PAGE_SHARED);
+			if (retval)
+				break;
+
+			start += PAGE_SIZE;
 		}
-		start += PAGE_SIZE;
 	}
 
-	vma->vm_ops = &comedi_vm_ops;
-	vma->vm_private_data = bm;
+	if (retval == 0) {
+		vma->vm_ops = &comedi_vm_ops;
+		vma->vm_private_data = bm;
 
-	vma->vm_ops->open(vma);
+		vma->vm_ops->open(vma);
+	}
 
-	retval = 0;
 done:
 	up_read(&dev->attach_lock);
 	comedi_buf_map_put(bm);	/* put reference to buf map - okay if NULL */

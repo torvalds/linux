@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0+
-#include <linux/device.h>
 
 #ifndef PL111_NOMADIK_H
 #define PL111_NOMADIK_H
 #endif
+
+struct device;
 
 #ifdef CONFIG_ARCH_NOMADIK
 

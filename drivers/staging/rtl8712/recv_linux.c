@@ -29,24 +29,23 @@
 
 /*init os related resource in struct recv_priv*/
 /*alloc os related resource in union recv_frame*/
-int r8712_os_recv_resource_alloc(struct _adapter *padapter,
-				 union recv_frame *precvframe)
+void r8712_os_recv_resource_alloc(struct _adapter *padapter,
+				  union recv_frame *precvframe)
 {
 	precvframe->u.hdr.pkt_newalloc = NULL;
 	precvframe->u.hdr.pkt = NULL;
-	return _SUCCESS;
 }
 
 /*alloc os related resource in struct recv_buf*/
 int r8712_os_recvbuf_resource_alloc(struct _adapter *padapter,
 				    struct recv_buf *precvbuf)
 {
-	int res = _SUCCESS;
+	int res = 0;
 
 	precvbuf->irp_pending = false;
 	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!precvbuf->purb)
-		res = _FAIL;
+		res = -ENOMEM;
 	precvbuf->pskb = NULL;
 	precvbuf->pallocated_buf = NULL;
 	precvbuf->pbuf = NULL;
@@ -60,8 +59,8 @@ int r8712_os_recvbuf_resource_alloc(struct _adapter *padapter,
 }
 
 /*free os related resource in struct recv_buf*/
-int r8712_os_recvbuf_resource_free(struct _adapter *padapter,
-			     struct recv_buf *precvbuf)
+void r8712_os_recvbuf_resource_free(struct _adapter *padapter,
+				    struct recv_buf *precvbuf)
 {
 	if (precvbuf->pskb)
 		dev_kfree_skb_any(precvbuf->pskb);
@@ -69,14 +68,13 @@ int r8712_os_recvbuf_resource_free(struct _adapter *padapter,
 		usb_kill_urb(precvbuf->purb);
 		usb_free_urb(precvbuf->purb);
 	}
-	return _SUCCESS;
 }
 
-void r8712_handle_tkip_mic_err(struct _adapter *padapter, u8 bgroup)
+void r8712_handle_tkip_mic_err(struct _adapter *adapter, u8 bgroup)
 {
 	union iwreq_data wrqu;
 	struct iw_michaelmicfailure ev;
-	struct mlme_priv *pmlmepriv  = &padapter->mlmepriv;
+	struct mlme_priv *mlmepriv  = &adapter->mlmepriv;
 
 	memset(&ev, 0x00, sizeof(ev));
 	if (bgroup)
@@ -84,54 +82,54 @@ void r8712_handle_tkip_mic_err(struct _adapter *padapter, u8 bgroup)
 	else
 		ev.flags |= IW_MICFAILURE_PAIRWISE;
 	ev.src_addr.sa_family = ARPHRD_ETHER;
-	ether_addr_copy(ev.src_addr.sa_data, &pmlmepriv->assoc_bssid[0]);
+	ether_addr_copy(ev.src_addr.sa_data, &mlmepriv->assoc_bssid[0]);
 	memset(&wrqu, 0x00, sizeof(wrqu));
 	wrqu.data.length = sizeof(ev);
-	wireless_send_event(padapter->pnetdev, IWEVMICHAELMICFAILURE, &wrqu,
+	wireless_send_event(adapter->pnetdev, IWEVMICHAELMICFAILURE, &wrqu,
 			    (char *)&ev);
 }
 
-void r8712_recv_indicatepkt(struct _adapter *padapter,
-			    union recv_frame *precv_frame)
+void r8712_recv_indicatepkt(struct _adapter *adapter,
+			    union recv_frame *recvframe)
 {
-	struct recv_priv *precvpriv;
-	struct  __queue	*pfree_recv_queue;
+	struct recv_priv *recvpriv;
+	struct  __queue	*free_recv_queue;
 	_pkt *skb;
-	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
+	struct rx_pkt_attrib *attrib = &recvframe->u.hdr.attrib;
 
-	precvpriv = &padapter->recvpriv;
-	pfree_recv_queue = &precvpriv->free_recv_queue;
-	skb = precv_frame->u.hdr.pkt;
+	recvpriv = &adapter->recvpriv;
+	free_recv_queue = &recvpriv->free_recv_queue;
+	skb = recvframe->u.hdr.pkt;
 	if (!skb)
 		goto _recv_indicatepkt_drop;
-	skb->data = precv_frame->u.hdr.rx_data;
-	skb->len = precv_frame->u.hdr.len;
+	skb->data = recvframe->u.hdr.rx_data;
+	skb->len = recvframe->u.hdr.len;
 	skb_set_tail_pointer(skb, skb->len);
-	if ((pattrib->tcpchk_valid == 1) && (pattrib->tcp_chkrpt == 1))
+	if ((attrib->tcpchk_valid == 1) && (attrib->tcp_chkrpt == 1))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
 		skb->ip_summed = CHECKSUM_NONE;
-	skb->dev = padapter->pnetdev;
-	skb->protocol = eth_type_trans(skb, padapter->pnetdev);
+	skb->dev = adapter->pnetdev;
+	skb->protocol = eth_type_trans(skb, adapter->pnetdev);
 	netif_rx(skb);
-	precv_frame->u.hdr.pkt = NULL; /* pointers to NULL before
-					* r8712_free_recvframe()
-					*/
-	r8712_free_recvframe(precv_frame, pfree_recv_queue);
+	recvframe->u.hdr.pkt = NULL; /* pointers to NULL before
+				      * r8712_free_recvframe()
+				      */
+	r8712_free_recvframe(recvframe, free_recv_queue);
 	return;
 _recv_indicatepkt_drop:
 	 /*enqueue back to free_recv_queue*/
-	if (precv_frame)
-		r8712_free_recvframe(precv_frame, pfree_recv_queue);
-	precvpriv->rx_drop++;
+	if (recvframe)
+		r8712_free_recvframe(recvframe, free_recv_queue);
+	recvpriv->rx_drop++;
 }
 
 static void _r8712_reordering_ctrl_timeout_handler (struct timer_list *t)
 {
-	struct recv_reorder_ctrl *preorder_ctrl =
-			 from_timer(preorder_ctrl, t, reordering_ctrl_timer);
+	struct recv_reorder_ctrl *reorder_ctrl =
+			 from_timer(reorder_ctrl, t, reordering_ctrl_timer);
 
-	r8712_reordering_ctrl_timeout_handler(preorder_ctrl);
+	r8712_reordering_ctrl_timeout_handler(reorder_ctrl);
 }
 
 void r8712_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl)

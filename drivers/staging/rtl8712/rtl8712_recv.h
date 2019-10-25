@@ -136,7 +136,7 @@ union recv_frame {
 	} u;
 };
 
-int r8712_init_recvbuf(struct _adapter *padapter, struct recv_buf *precvbuf);
+void r8712_init_recvbuf(struct _adapter *padapter, struct recv_buf *precvbuf);
 void r8712_rxcmd_event_hdl(struct _adapter *padapter, void *prxcmdbuf);
 s32 r8712_signal_scale_mapping(s32 cur_sig);
 void r8712_reordering_ctrl_timeout_handler(void *pcontext);

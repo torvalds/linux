@@ -45,7 +45,7 @@ Description:
 		- Values below -2 are rejected with -EINVAL
 
 		For more information, see
-		Documentation/laptops/disk-shock-protection.txt
+		Documentation/admin-guide/laptops/disk-shock-protection.rst
 
 
 What:		/sys/block/*/device/ncq_prio_enable

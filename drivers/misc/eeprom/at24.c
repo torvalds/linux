@@ -507,38 +507,24 @@ static const struct at24_chip_data *at24_get_chip_data(struct device *dev)
 	return cdata;
 }
 
-static void at24_remove_dummy_clients(struct at24_data *at24)
-{
-	int i;
-
-	for (i = 1; i < at24->num_addresses; i++)
-		i2c_unregister_device(at24->client[i].client);
-}
-
 static int at24_make_dummy_client(struct at24_data *at24, unsigned int index,
 				  struct regmap_config *regmap_config)
 {
 	struct i2c_client *base_client, *dummy_client;
-	unsigned short int addr;
 	struct regmap *regmap;
 	struct device *dev;
 
 	base_client = at24->client[0].client;
 	dev = &base_client->dev;
-	addr = base_client->addr + index;
 
-	dummy_client = i2c_new_dummy(base_client->adapter,
-				     base_client->addr + index);
-	if (!dummy_client) {
-		dev_err(dev, "address 0x%02x unavailable\n", addr);
-		return -EADDRINUSE;
-	}
+	dummy_client = devm_i2c_new_dummy_device(dev, base_client->adapter,
+						 base_client->addr + index);
+	if (IS_ERR(dummy_client))
+		return PTR_ERR(dummy_client);
 
 	regmap = devm_regmap_init_i2c(dummy_client, regmap_config);
-	if (IS_ERR(regmap)) {
-		i2c_unregister_device(dummy_client);
+	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-	}
 
 	at24->client[index].client = dummy_client;
 	at24->client[index].regmap = regmap;
@@ -580,7 +566,6 @@ static int at24_probe(struct i2c_client *client)
 	unsigned int i, num_addresses;
 	struct at24_data *at24;
 	struct regmap *regmap;
-	size_t at24_size;
 	bool writable;
 	u8 test_byte;
 	int err;
@@ -597,8 +582,8 @@ static int at24_probe(struct i2c_client *client)
 	if (err)
 		/*
 		 * This is slow, but we can't know all eeproms, so we better
-		 * play safe. Specifying custom eeprom-types via platform_data
-		 * is recommended anyhow.
+		 * play safe. Specifying custom eeprom-types via device tree
+		 * or properties is recommended anyhow.
 		 */
 		page_size = 1;
 
@@ -664,8 +649,8 @@ static int at24_probe(struct i2c_client *client)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	at24_size = sizeof(*at24) + num_addresses * sizeof(struct at24_client);
-	at24 = devm_kzalloc(dev, at24_size, GFP_KERNEL);
+	at24 = devm_kzalloc(dev, struct_size(at24, client, num_addresses),
+			    GFP_KERNEL);
 	if (!at24)
 		return -ENOMEM;
 
@@ -693,11 +678,27 @@ static int at24_probe(struct i2c_client *client)
 	/* use dummy devices for multiple-address chips */
 	for (i = 1; i < num_addresses; i++) {
 		err = at24_make_dummy_client(at24, i, &regmap_config);
-		if (err) {
-			at24_remove_dummy_clients(at24);
+		if (err)
 			return err;
-		}
 	}
+
+	nvmem_config.name = dev_name(dev);
+	nvmem_config.dev = dev;
+	nvmem_config.read_only = !writable;
+	nvmem_config.root_only = !(flags & AT24_FLAG_IRUGO);
+	nvmem_config.owner = THIS_MODULE;
+	nvmem_config.compat = true;
+	nvmem_config.base_dev = dev;
+	nvmem_config.reg_read = at24_read;
+	nvmem_config.reg_write = at24_write;
+	nvmem_config.priv = at24;
+	nvmem_config.stride = 1;
+	nvmem_config.word_size = 1;
+	nvmem_config.size = byte_len;
+
+	at24->nvmem = devm_nvmem_register(dev, &nvmem_config);
+	if (IS_ERR(at24->nvmem))
+		return PTR_ERR(at24->nvmem);
 
 	i2c_set_clientdata(client, at24);
 
@@ -712,28 +713,8 @@ static int at24_probe(struct i2c_client *client)
 	err = at24_read(at24, 0, &test_byte, 1);
 	pm_runtime_idle(dev);
 	if (err) {
-		err = -ENODEV;
-		goto err_clients;
-	}
-
-	nvmem_config.name = dev_name(dev);
-	nvmem_config.dev = dev;
-	nvmem_config.read_only = !writable;
-	nvmem_config.root_only = true;
-	nvmem_config.owner = THIS_MODULE;
-	nvmem_config.compat = true;
-	nvmem_config.base_dev = dev;
-	nvmem_config.reg_read = at24_read;
-	nvmem_config.reg_write = at24_write;
-	nvmem_config.priv = at24;
-	nvmem_config.stride = 1;
-	nvmem_config.word_size = 1;
-	nvmem_config.size = byte_len;
-
-	at24->nvmem = devm_nvmem_register(dev, &nvmem_config);
-	if (IS_ERR(at24->nvmem)) {
-		err = PTR_ERR(at24->nvmem);
-		goto err_clients;
+		pm_runtime_disable(dev);
+		return -ENODEV;
 	}
 
 	dev_info(dev, "%u byte %s EEPROM, %s, %u bytes/write\n",
@@ -741,21 +722,10 @@ static int at24_probe(struct i2c_client *client)
 		 writable ? "writable" : "read-only", at24->write_max);
 
 	return 0;
-
-err_clients:
-	at24_remove_dummy_clients(at24);
-	pm_runtime_disable(dev);
-
-	return err;
 }
 
 static int at24_remove(struct i2c_client *client)
 {
-	struct at24_data *at24;
-
-	at24 = i2c_get_clientdata(client);
-
-	at24_remove_dummy_clients(at24);
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 

@@ -224,7 +224,7 @@ static int orangefs_symlink(struct inode *dir,
 	struct orangefs_object_kref ref;
 	struct inode *inode;
 	struct iattr iattr;
-	int mode = 755;
+	int mode = 0755;
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG, "%s: called\n", __func__);

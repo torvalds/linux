@@ -2558,8 +2558,6 @@ static int skge_up(struct net_device *dev)
 		goto free_pci_mem;
 	}
 
-	memset(skge->mem, 0, skge->mem_size);
-
 	err = skge_ring_alloc(&skge->rx_ring, skge->mem, skge->dma);
 	if (err)
 		goto free_pci_mem;
@@ -3733,7 +3731,6 @@ static int skge_device_event(struct notifier_block *unused,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct skge_port *skge;
-	struct dentry *d;
 
 	if (dev->netdev_ops->ndo_open != &skge_up || !skge_debug)
 		goto done;
@@ -3741,33 +3738,20 @@ static int skge_device_event(struct notifier_block *unused,
 	skge = netdev_priv(dev);
 	switch (event) {
 	case NETDEV_CHANGENAME:
-		if (skge->debugfs) {
-			d = debugfs_rename(skge_debug, skge->debugfs,
-					   skge_debug, dev->name);
-			if (d)
-				skge->debugfs = d;
-			else {
-				netdev_info(dev, "rename failed\n");
-				debugfs_remove(skge->debugfs);
-			}
-		}
+		if (skge->debugfs)
+			skge->debugfs = debugfs_rename(skge_debug,
+						       skge->debugfs,
+						       skge_debug, dev->name);
 		break;
 
 	case NETDEV_GOING_DOWN:
-		if (skge->debugfs) {
-			debugfs_remove(skge->debugfs);
-			skge->debugfs = NULL;
-		}
+		debugfs_remove(skge->debugfs);
+		skge->debugfs = NULL;
 		break;
 
 	case NETDEV_UP:
-		d = debugfs_create_file(dev->name, 0444,
-					skge_debug, dev,
-					&skge_debug_fops);
-		if (!d || IS_ERR(d))
-			netdev_info(dev, "debugfs create failed\n");
-		else
-			skge->debugfs = d;
+		skge->debugfs = debugfs_create_file(dev->name, 0444, skge_debug,
+						    dev, &skge_debug_fops);
 		break;
 	}
 
@@ -3782,15 +3766,8 @@ static struct notifier_block skge_notifier = {
 
 static __init void skge_debug_init(void)
 {
-	struct dentry *ent;
+	skge_debug = debugfs_create_dir("skge", NULL);
 
-	ent = debugfs_create_dir("skge", NULL);
-	if (!ent || IS_ERR(ent)) {
-		pr_info("debugfs create directory failed\n");
-		return;
-	}
-
-	skge_debug = ent;
 	register_netdevice_notifier(&skge_notifier);
 }
 
@@ -4080,8 +4057,7 @@ static void skge_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int skge_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct skge_hw *hw  = pci_get_drvdata(pdev);
+	struct skge_hw *hw  = dev_get_drvdata(dev);
 	int i;
 
 	if (!hw)
@@ -4105,8 +4081,7 @@ static int skge_suspend(struct device *dev)
 
 static int skge_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct skge_hw *hw  = pci_get_drvdata(pdev);
+	struct skge_hw *hw  = dev_get_drvdata(dev);
 	int i, err;
 
 	if (!hw)

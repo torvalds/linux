@@ -2,12 +2,12 @@
 #ifndef __PERF_KVM_STAT_H
 #define __PERF_KVM_STAT_H
 
-#include "../perf.h"
 #include "tool.h"
 #include "stat.h"
+#include "record.h"
 
-struct perf_evsel;
-struct perf_evlist;
+struct evsel;
+struct evlist;
 struct perf_session;
 
 struct event_key {
@@ -45,17 +45,17 @@ struct kvm_event_key {
 struct perf_kvm_stat;
 
 struct child_event_ops {
-	void (*get_key)(struct perf_evsel *evsel,
+	void (*get_key)(struct evsel *evsel,
 			struct perf_sample *sample,
 			struct event_key *key);
 	const char *name;
 };
 
 struct kvm_events_ops {
-	bool (*is_begin_event)(struct perf_evsel *evsel,
+	bool (*is_begin_event)(struct evsel *evsel,
 			       struct perf_sample *sample,
 			       struct event_key *key);
-	bool (*is_end_event)(struct perf_evsel *evsel,
+	bool (*is_end_event)(struct evsel *evsel,
 			     struct perf_sample *sample, struct event_key *key);
 	struct child_event_ops *child_ops;
 	void (*decode_key)(struct perf_kvm_stat *kvm, struct event_key *key,
@@ -74,7 +74,7 @@ struct exit_reasons_table {
 struct perf_kvm_stat {
 	struct perf_tool    tool;
 	struct record_opts  opts;
-	struct perf_evlist  *evlist;
+	struct evlist  *evlist;
 	struct perf_session *session;
 
 	const char *file_name;
@@ -109,21 +109,21 @@ struct kvm_reg_events_ops {
 	struct kvm_events_ops *ops;
 };
 
-void exit_event_get_key(struct perf_evsel *evsel,
+void exit_event_get_key(struct evsel *evsel,
 			struct perf_sample *sample,
 			struct event_key *key);
-bool exit_event_begin(struct perf_evsel *evsel,
+bool exit_event_begin(struct evsel *evsel,
 		      struct perf_sample *sample,
 		      struct event_key *key);
-bool exit_event_end(struct perf_evsel *evsel,
+bool exit_event_end(struct evsel *evsel,
 		    struct perf_sample *sample,
 		    struct event_key *key);
 void exit_event_decode_key(struct perf_kvm_stat *kvm,
 			   struct event_key *key,
 			   char *decode);
 
-bool kvm_exit_event(struct perf_evsel *evsel);
-bool kvm_entry_event(struct perf_evsel *evsel);
+bool kvm_exit_event(struct evsel *evsel);
+bool kvm_entry_event(struct evsel *evsel);
 int setup_kvm_events_tp(struct perf_kvm_stat *kvm);
 
 #define define_exit_reasons_table(name, symbols)	\

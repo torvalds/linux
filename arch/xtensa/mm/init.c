@@ -45,10 +45,7 @@ void __init bootmem_init(void)
 	 * If PHYS_OFFSET is zero reserve page at address 0:
 	 * successfull allocations should never return NULL.
 	 */
-	if (PHYS_OFFSET)
-		memblock_reserve(0, PHYS_OFFSET);
-	else
-		memblock_reserve(0, 1);
+	memblock_reserve(0, PHYS_OFFSET ? PHYS_OFFSET : 1);
 
 	early_init_fdt_scan_reserved_mem();
 
@@ -205,16 +202,6 @@ void __init mem_init(void)
 		(unsigned long)__bss_start, (unsigned long)__bss_stop,
 		(unsigned long)(__bss_stop - __bss_start) >> 10);
 }
-
-#ifdef CONFIG_BLK_DEV_INITRD
-extern int initrd_is_mapped;
-
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	if (initrd_is_mapped)
-		free_reserved_area((void *)start, (void *)end, -1, "initrd");
-}
-#endif
 
 static void __init parse_memmap_one(char *p)
 {

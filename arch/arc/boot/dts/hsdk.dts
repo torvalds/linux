@@ -8,6 +8,7 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/snps,hsdk-reset.h>
 
 / {
@@ -250,6 +251,19 @@
 			interrupts = <12>;
 			bus-width = <4>;
 			dma-coherent;
+		};
+
+		spi0: spi@20000 {
+			compatible = "snps,dw-apb-ssi";
+			reg = <0x20000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <16>;
+			num-cs = <2>;
+			reg-io-width = <4>;
+			clocks = <&input_clk>;
+			cs-gpios = <&creg_gpio 0 GPIO_ACTIVE_LOW>,
+				   <&creg_gpio 1 GPIO_ACTIVE_LOW>;
 		};
 
 		creg_gpio: gpio@14b0 {

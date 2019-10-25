@@ -31,7 +31,7 @@ Description:
 		To control the LED display, use the following :
 		    echo 0x0T000DDD > /sys/devices/platform/asus_laptop/
 		where T control the 3 letters display, and DDD the 3 digits display.
-		The DDD table can be found in Documentation/laptops/asus-laptop.txt
+		The DDD table can be found in Documentation/admin-guide/laptops/asus-laptop.rst
 
 What:		/sys/devices/platform/asus_laptop/bluetooth
 Date:		January 2007

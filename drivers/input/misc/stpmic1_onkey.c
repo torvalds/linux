@@ -61,18 +61,12 @@ static int stpmic1_onkey_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	onkey->irq_falling = platform_get_irq_byname(pdev, "onkey-falling");
-	if (onkey->irq_falling < 0) {
-		dev_err(dev, "failed: request IRQ onkey-falling %d\n",
-			onkey->irq_falling);
+	if (onkey->irq_falling < 0)
 		return onkey->irq_falling;
-	}
 
 	onkey->irq_rising = platform_get_irq_byname(pdev, "onkey-rising");
-	if (onkey->irq_rising < 0) {
-		dev_err(dev, "failed: request IRQ onkey-rising %d\n",
-			onkey->irq_rising);
+	if (onkey->irq_rising < 0)
 		return onkey->irq_rising;
-	}
 
 	if (!device_property_read_u32(dev, "power-off-time-sec", &val)) {
 		if (val > 0 && val <= 16) {

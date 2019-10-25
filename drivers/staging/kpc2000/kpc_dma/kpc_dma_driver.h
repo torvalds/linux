@@ -14,10 +14,8 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
-#include <linux/aio.h>
 #include <linux/bitops.h>
 #include "../kpc.h"
-
 
 struct kp2000_device;
 struct kpc_dma_device {
@@ -27,23 +25,23 @@ struct kpc_dma_device {
 	struct device              *kpc_dma_dev;
 	struct kobject              kobj;
 	char                        name[16];
-	
+
 	int                         dir; // DMA_FROM_DEVICE || DMA_TO_DEVICE
 	struct mutex                sem;
 	unsigned int                irq;
 	struct work_struct          irq_work;
-	
+
 	atomic_t                    open_count;
-	
+
 	size_t                      accumulated_bytes;
 	u32                         accumulated_flags;
-	
+
 	// Descriptor "Pool" housekeeping
 	u32                         desc_pool_cnt;
 	struct dma_pool            *desc_pool;
 	struct kpc_dma_descriptor  *desc_pool_first;
 	struct kpc_dma_descriptor  *desc_pool_last;
-	
+
 	struct kpc_dma_descriptor  *desc_next;
 	struct kpc_dma_descriptor  *desc_completed;
 };
@@ -56,9 +54,9 @@ struct dev_private_data {
 	u64                         user_sts;
 };
 
-struct kpc_dma_device *  kpc_dma_lookup_device(int minor);
+struct kpc_dma_device *kpc_dma_lookup_device(int minor);
 
-extern struct file_operations  kpc_dma_fops;
+extern const struct file_operations  kpc_dma_fops;
 
 #define ENG_CAP_PRESENT                 0x00000001
 #define ENG_CAP_DIRECTION               0x00000002
@@ -88,9 +86,8 @@ struct aio_cb_data {
 	struct kpc_dma_device      *ldev;
 	struct completion  *cpl;
 	unsigned char       flags;
-	struct kiocb       *kcb;
 	size_t              len;
-	
+
 	unsigned int        page_count;
 	struct page       **user_pages;
 	struct sg_table     sgt;
@@ -119,10 +116,10 @@ struct kpc_dma_descriptor {
 		volatile u32  DescSystemAddrLS;
 		volatile u32  DescSystemAddrMS;
 		volatile u32  DescNextDescPtr;
-		
+
 		dma_addr_t    MyDMAAddr;
 		struct kpc_dma_descriptor   *Next;
-		
+
 		struct aio_cb_data  *acd;
 } __attribute__((packed));
 // DescControlFlags:
@@ -157,35 +154,41 @@ void  WriteEngineControl(struct kpc_dma_device *eng, u32 value)
 {
 	writel(value, eng->eng_regs + 1);
 }
+
 static inline
 u32  GetEngineControl(struct kpc_dma_device *eng)
 {
 	return readl(eng->eng_regs + 1);
 }
+
 static inline
 void  SetClearEngineControl(struct kpc_dma_device *eng, u32 set_bits, u32 clear_bits)
 {
 	u32 val = GetEngineControl(eng);
+
 	val |= set_bits;
 	val &= ~clear_bits;
 	WriteEngineControl(eng, val);
 }
 
 static inline
-void  SetEngineNextPtr(struct kpc_dma_device *eng, struct kpc_dma_descriptor * desc)
+void  SetEngineNextPtr(struct kpc_dma_device *eng, struct kpc_dma_descriptor *desc)
 {
 	writel(desc->MyDMAAddr, eng->eng_regs + 2);
 }
+
 static inline
-void  SetEngineSWPtr(struct kpc_dma_device *eng, struct kpc_dma_descriptor * desc)
+void  SetEngineSWPtr(struct kpc_dma_device *eng, struct kpc_dma_descriptor *desc)
 {
 	writel(desc->MyDMAAddr, eng->eng_regs + 3);
 }
+
 static inline
 void  ClearEngineCompletePtr(struct kpc_dma_device *eng)
 {
 	writel(0, eng->eng_regs + 4);
 }
+
 static inline
 u32  GetEngineCompletePtr(struct kpc_dma_device *eng)
 {
@@ -205,7 +208,6 @@ void  unlock_engine(struct kpc_dma_device *eng)
 	BUG_ON(eng == NULL);
 	mutex_unlock(&eng->sem);
 }
-
 
 /// Shared Functions
 void  start_dma_engine(struct kpc_dma_device *eng);

@@ -14,6 +14,7 @@
 #include <linux/fs.h>
 #include <linux/log2.h>
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 #include <linux/magic.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/uio.h>
@@ -1182,16 +1183,20 @@ static const struct super_operations pipefs_ops = {
  * any operations on the root directory. However, we need a non-trivial
  * d_name - pipe: will go nicely and kill the special-casing in procfs.
  */
-static struct dentry *pipefs_mount(struct file_system_type *fs_type,
-			 int flags, const char *dev_name, void *data)
+
+static int pipefs_init_fs_context(struct fs_context *fc)
 {
-	return mount_pseudo(fs_type, "pipe:", &pipefs_ops,
-			&pipefs_dentry_operations, PIPEFS_MAGIC);
+	struct pseudo_fs_context *ctx = init_pseudo(fc, PIPEFS_MAGIC);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->ops = &pipefs_ops;
+	ctx->dops = &pipefs_dentry_operations;
+	return 0;
 }
 
 static struct file_system_type pipe_fs_type = {
 	.name		= "pipefs",
-	.mount		= pipefs_mount,
+	.init_fs_context = pipefs_init_fs_context,
 	.kill_sb	= kill_anon_super,
 };
 

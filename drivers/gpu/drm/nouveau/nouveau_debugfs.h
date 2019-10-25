@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_DEBUGFS_H__
 #define __NOUVEAU_DEBUGFS_H__
 
-#include <drm/drmP.h>
+#include <drm/drm_debugfs.h>
 
 #if defined(CONFIG_DEBUG_FS)
 

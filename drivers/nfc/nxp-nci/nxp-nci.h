@@ -14,7 +14,6 @@
 #include <linux/completion.h>
 #include <linux/firmware.h>
 #include <linux/nfc.h>
-#include <linux/platform_data/nxp-nci.h>
 
 #include <net/nfc/nci_core.h>
 

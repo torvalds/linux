@@ -5,7 +5,7 @@
 #define __ASM_CSKY_MMU_H
 
 typedef struct {
-	unsigned long asid[NR_CPUS];
+	atomic64_t	asid;
 	void *vdso;
 } mm_context_t;
 

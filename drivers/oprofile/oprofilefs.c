@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/oprofile.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
 #include <linux/pagemap.h>
 #include <linux/uaccess.h>
 
@@ -238,7 +239,7 @@ struct dentry *oprofilefs_mkdir(struct dentry *parent, char const *name)
 }
 
 
-static int oprofilefs_fill_super(struct super_block *sb, void *data, int silent)
+static int oprofilefs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct inode *root_inode;
 
@@ -263,18 +264,25 @@ static int oprofilefs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-
-static struct dentry *oprofilefs_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int oprofilefs_get_tree(struct fs_context *fc)
 {
-	return mount_single(fs_type, flags, data, oprofilefs_fill_super);
+	return get_tree_single(fc, oprofilefs_fill_super);
 }
 
+static const struct fs_context_operations oprofilefs_context_ops = {
+	.get_tree	= oprofilefs_get_tree,
+};
+
+static int oprofilefs_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &oprofilefs_context_ops;
+	return 0;
+}
 
 static struct file_system_type oprofilefs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "oprofilefs",
-	.mount		= oprofilefs_mount,
+	.init_fs_context = oprofilefs_init_fs_context,
 	.kill_sb	= kill_litter_super,
 };
 MODULE_ALIAS_FS("oprofilefs");

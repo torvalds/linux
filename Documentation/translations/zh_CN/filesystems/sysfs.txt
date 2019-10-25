@@ -288,7 +288,7 @@ dev/ 包含两个子目录： char/ 和 block/。在这两个子目录中，有�
 中相应的设备。/sys/dev 提供一个通过一个 stat(2) 操作结果，查找
 设备 sysfs 接口快捷的方法。
 
-更多有关 driver-model 的特性信息可以在 Documentation/driver-model/
+更多有关 driver-model 的特性信息可以在 Documentation/driver-api/driver-model/
 中找到。
 
 

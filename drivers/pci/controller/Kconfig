@@ -174,14 +174,14 @@ config PCIE_IPROC_MSI
 	  PCIe controller
 
 config PCIE_ALTERA
-	bool "Altera PCIe controller"
+	tristate "Altera PCIe controller"
 	depends on ARM || NIOS2 || ARM64 || COMPILE_TEST
 	help
 	  Say Y here if you want to enable PCIe controller support on Altera
 	  FPGA.
 
 config PCIE_ALTERA_MSI
-	bool "Altera PCIe MSI feature"
+	tristate "Altera PCIe MSI feature"
 	depends on PCIE_ALTERA
 	depends on PCI_MSI_IRQ_DOMAIN
 	help
@@ -280,6 +280,13 @@ config VMD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmd.
+
+config PCI_HYPERV_INTERFACE
+	tristate "Hyper-V PCI Interface"
+	depends on X86 && HYPERV && PCI_MSI && PCI_MSI_IRQ_DOMAIN && X86_64
+	help
+	  The Hyper-V PCI Interface is a helper driver allows other drivers to
+	  have a common interface with the Hyper-V PCI frontend driver.
 
 source "drivers/pci/controller/dwc/Kconfig"
 endmenu

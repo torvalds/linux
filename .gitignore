@@ -30,10 +30,11 @@
 *.lz4
 *.lzma
 *.lzo
+*.mod
 *.mod.c
+*.ns_deps
 *.o
 *.o.*
-*.order
 *.patch
 *.s
 *.so
@@ -45,6 +46,7 @@
 *.xz
 Module.symvers
 modules.builtin
+modules.order
 
 #
 # Top-level generic files
@@ -141,3 +143,6 @@ x509.genkey
 
 # Kdevelop4
 *.kdev4
+
+# Clang's compilation database file
+/compile_commands.json

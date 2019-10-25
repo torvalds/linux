@@ -76,8 +76,8 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"29.100.00.00"
-#define MPT3SAS_MAJOR_VERSION		29
+#define MPT3SAS_DRIVER_VERSION		"31.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		31
 #define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
@@ -583,6 +583,7 @@ static inline void sas_device_put(struct _sas_device *s)
  * @enclosure_level: The level of device's enclosure from the controller
  * @connector_name: ASCII value of the Connector's name
  * @serial_number: pointer of serial number string allocated runtime
+ * @access_status: Device's Access Status
  * @refcount: reference count for deletion
  */
 struct _pcie_device {
@@ -604,6 +605,7 @@ struct _pcie_device {
 	u8	connector_name[4];
 	u8	*serial_number;
 	u8	reset_timeout;
+	u8	access_status;
 	struct kref refcount;
 };
 /**
@@ -1045,6 +1047,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @schedule_dead_ioc_flush_running_cmds: callback to flush pending commands
  * @thresh_hold: Max number of reply descriptors processed
  *				before updating Host Index
+ * @drv_support_bitmap: driver's supported feature bit map
  * @scsi_io_cb_idx: shost generated commands
  * @tm_cb_idx: task management commands
  * @scsih_cb_idx: scsih internal commands
@@ -1066,6 +1069,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @event_log: event log pointer
  * @event_masks: events that are masked
  * @facts: static facts data
+ * @prev_fw_facts: previous fw facts data
  * @pfacts: static port facts data
  * @manu_pg0: static manufacturing page 0
  * @manu_pg10: static manufacturing page 10
@@ -1227,6 +1231,8 @@ struct MPT3SAS_ADAPTER {
 	bool            msix_load_balance;
 	u16		thresh_hold;
 	u8		high_iops_queues;
+	u32		drv_support_bitmap;
+	bool		enable_sdev_max_qd;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;
@@ -1276,6 +1282,7 @@ struct MPT3SAS_ADAPTER {
 
 	/* static config pages */
 	struct mpt3sas_facts facts;
+	struct mpt3sas_facts prev_fw_facts;
 	struct mpt3sas_port_facts *pfacts;
 	Mpi2ManufacturingPage0_t manu_pg0;
 	struct Mpi2ManufacturingPage10_t manu_pg10;
@@ -1450,6 +1457,8 @@ struct MPT3SAS_ADAPTER {
 	GET_MSIX_INDEX get_msix_index_for_smlio;
 };
 
+#define MPT_DRV_SUPPORT_BITMAP_MEMMOVE 0x00000001
+
 typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
 
@@ -1579,6 +1588,7 @@ struct _pcie_device *mpt3sas_get_pdev_by_handle(struct MPT3SAS_ADAPTER *ioc,
 void mpt3sas_port_enable_complete(struct MPT3SAS_ADAPTER *ioc);
 struct _raid_device *
 mpt3sas_raid_device_find_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle);
+void mpt3sas_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth);
 
 /* config shared API */
 u8 mpt3sas_config_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
@@ -1733,4 +1743,20 @@ mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 /* NCQ Prio Handling Check */
 bool scsih_ncq_prio_supp(struct scsi_device *sdev);
 
+/**
+ * _scsih_is_pcie_scsi_device - determines if device is an pcie scsi device
+ * @device_info: bitfield providing information about the device.
+ * Context: none
+ *
+ * Returns 1 if scsi device.
+ */
+static inline int
+mpt3sas_scsih_is_pcie_scsi_device(u32 device_info)
+{
+	if ((device_info &
+	    MPI26_PCIE_DEVINFO_MASK_DEVICE_TYPE) == MPI26_PCIE_DEVINFO_SCSI)
+		return 1;
+	else
+		return 0;
+}
 #endif /* MPT3SAS_BASE_H_INCLUDED */

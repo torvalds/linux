@@ -54,7 +54,7 @@ struct comp_fh {
 };
 
 static struct list_head video_devices = LIST_HEAD_INIT(video_devices);
-static struct spinlock list_lock;
+static DEFINE_SPINLOCK(list_lock);
 
 static inline bool data_ready(struct most_video_dev *mdev)
 {
@@ -250,11 +250,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strlcpy(cap->card, "MOST", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "%s", mdev->iface->description);
-
-	cap->capabilities =
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_TUNER |
-		V4L2_CAP_VIDEO_CAPTURE;
 	return 0;
 }
 
@@ -366,6 +361,7 @@ static const struct video_device comp_videodev_template = {
 	.release = video_device_release,
 	.ioctl_ops = &video_ioctl_ops,
 	.tvnorms = V4L2_STD_UNKNOWN,
+	.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_VIDEO_CAPTURE,
 };
 
 /**************************************************************************/
@@ -540,8 +536,17 @@ static struct core_component comp = {
 
 static int __init comp_init(void)
 {
-	spin_lock_init(&list_lock);
-	return most_register_component(&comp);
+	int err;
+
+	err = most_register_component(&comp);
+	if (err)
+		return err;
+	err = most_register_configfs_subsys(&comp);
+	if (err) {
+		most_deregister_component(&comp);
+		return err;
+	}
+	return 0;
 }
 
 static void __exit comp_exit(void)
@@ -566,6 +571,7 @@ static void __exit comp_exit(void)
 	}
 	spin_unlock_irq(&list_lock);
 
+	most_deregister_configfs_subsys(&comp);
 	most_deregister_component(&comp);
 	BUG_ON(!list_empty(&video_devices));
 }

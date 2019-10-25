@@ -33,12 +33,12 @@ static void __hyp_text __tlb_switch_to_guest_vhe(struct kvm *kvm,
 		 * in the TCR_EL1 register. We also need to prevent it to
 		 * allocate IPA->PA walks, so we enable the S1 MMU...
 		 */
-		val = cxt->tcr = read_sysreg_el1(tcr);
+		val = cxt->tcr = read_sysreg_el1(SYS_TCR);
 		val |= TCR_EPD1_MASK | TCR_EPD0_MASK;
-		write_sysreg_el1(val, tcr);
-		val = cxt->sctlr = read_sysreg_el1(sctlr);
+		write_sysreg_el1(val, SYS_TCR);
+		val = cxt->sctlr = read_sysreg_el1(SYS_SCTLR);
 		val |= SCTLR_ELx_M;
-		write_sysreg_el1(val, sctlr);
+		write_sysreg_el1(val, SYS_SCTLR);
 	}
 
 	/*
@@ -85,8 +85,8 @@ static void __hyp_text __tlb_switch_to_host_vhe(struct kvm *kvm,
 
 	if (cpus_have_const_cap(ARM64_WORKAROUND_1165522)) {
 		/* Restore the registers to what they were */
-		write_sysreg_el1(cxt->tcr, tcr);
-		write_sysreg_el1(cxt->sctlr, sctlr);
+		write_sysreg_el1(cxt->tcr, SYS_TCR);
+		write_sysreg_el1(cxt->sctlr, SYS_SCTLR);
 	}
 
 	local_irq_restore(cxt->flags);
@@ -193,6 +193,18 @@ void __hyp_text __kvm_flush_vm_context(void)
 {
 	dsb(ishst);
 	__tlbi(alle1is);
-	asm volatile("ic ialluis" : : );
+
+	/*
+	 * VIPT and PIPT caches are not affected by VMID, so no maintenance
+	 * is necessary across a VMID rollover.
+	 *
+	 * VPIPT caches constrain lookup and maintenance to the active VMID,
+	 * so we need to invalidate lines with a stale VMID to avoid an ABA
+	 * race after multiple rollovers.
+	 *
+	 */
+	if (icache_is_vpipt())
+		asm volatile("ic ialluis");
+
 	dsb(ish);
 }

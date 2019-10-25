@@ -45,6 +45,7 @@ description: |
   	mtp
   	sbc
   	hk01
+  	qrd
 
   The 'soc_version' and 'board_version' elements take the form of v<Major>.<Minor>
   where the minor number may be omitted when it's zero, i.e.  v1.0 is the same
@@ -102,14 +103,35 @@ properties:
           - const: qcom,msm8960
 
       - items:
+          - enum:
+              - fairphone,fp2
+              - lge,hammerhead
+              - sony,xperia-amami
+              - sony,xperia-castor
+              - sony,xperia-honami
+          - const: qcom,msm8974
+
+      - items:
           - const: qcom,msm8916-mtp/1
           - const: qcom,msm8916-mtp
+          - const: qcom,msm8916
+
+      - items:
+          - enum:
+              - longcheer,l8150
+              - samsung,a3u-eur
+              - samsung,a5u-eur
           - const: qcom,msm8916
 
       - items:
           - const: qcom,msm8996-mtp
 
       - items:
+          - enum:
+              - qcom,ipq4019-ap-dk04.1-c3
+              - qcom,ipq4019-ap-dk07.1-c1
+              - qcom,ipq4019-ap-dk07.1-c2
+              - qcom,ipq4019-dk04.1-c1
           - const: qcom,ipq4019
 
       - items:

@@ -182,6 +182,7 @@ nvkm_falcon_v1_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size,
 static void
 nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_memory *ctx)
 {
+	struct nvkm_device *device = falcon->owner->device;
 	u32 inst_loc;
 	u32 fbif;
 
@@ -233,6 +234,41 @@ nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_memory *ctx)
 
 	nvkm_falcon_mask(falcon, 0x090, 0x10000, 0x10000);
 	nvkm_falcon_mask(falcon, 0x0a4, 0x8, 0x8);
+
+	/* Not sure if this is a WAR for a HW issue, or some additional
+	 * programming sequence that's needed to properly complete the
+	 * context switch we trigger above.
+	 *
+	 * Fixes unreliability of booting the SEC2 RTOS on Quadro P620,
+	 * particularly when resuming from suspend.
+	 *
+	 * Also removes the need for an odd workaround where we needed
+	 * to program SEC2's FALCON_CPUCTL_ALIAS_STARTCPU twice before
+	 * the SEC2 RTOS would begin executing.
+	 */
+	switch (falcon->owner->index) {
+	case NVKM_SUBDEV_GSP:
+	case NVKM_ENGINE_SEC2:
+		nvkm_msec(device, 10,
+			u32 irqstat = nvkm_falcon_rd32(falcon, 0x008);
+			u32 flcn0dc = nvkm_falcon_rd32(falcon, 0x0dc);
+			if ((irqstat & 0x00000008) &&
+			    (flcn0dc & 0x00007000) == 0x00005000)
+				break;
+		);
+
+		nvkm_falcon_mask(falcon, 0x004, 0x00000008, 0x00000008);
+		nvkm_falcon_mask(falcon, 0x058, 0x00000002, 0x00000002);
+
+		nvkm_msec(device, 10,
+			u32 flcn0dc = nvkm_falcon_rd32(falcon, 0x0dc);
+			if ((flcn0dc & 0x00007000) == 0x00000000)
+				break;
+		);
+		break;
+	default:
+		break;
+	}
 }
 
 static void

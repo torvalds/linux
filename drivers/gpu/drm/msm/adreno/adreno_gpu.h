@@ -50,6 +50,7 @@ enum {
 enum adreno_quirks {
 	ADRENO_QUIRK_TWO_PASS_USE_WFI = 1,
 	ADRENO_QUIRK_FAULT_DETECT_MASK = 2,
+	ADRENO_QUIRK_LMLOADKILL_DISABLE = 3,
 };
 
 struct adreno_rev {
@@ -208,6 +209,11 @@ static inline int adreno_is_a430(struct adreno_gpu *gpu)
 static inline int adreno_is_a530(struct adreno_gpu *gpu)
 {
 	return gpu->revn == 530;
+}
+
+static inline int adreno_is_a540(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 540;
 }
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);

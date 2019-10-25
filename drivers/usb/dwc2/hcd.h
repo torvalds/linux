@@ -582,7 +582,6 @@ static inline void dwc2_hcd_qtd_unlink_and_free(struct dwc2_hsotg *hsotg,
 {
 	list_del(&qtd->qtd_list_entry);
 	kfree(qtd);
-	qtd = NULL;
 }
 
 /* Descriptor DMA support functions */

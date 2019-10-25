@@ -6,8 +6,6 @@
  *	Akshu Agarwal <akshua@gmail.com>
  *	Ajay Kumar <ajaykumar.rs@samsung.com>
  */
-#include <drm/drmP.h>
-#include <drm/exynos_drm.h>
 
 #include <linux/clk.h>
 #include <linux/component.h>
@@ -21,10 +19,14 @@
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+#include <drm/exynos_drm.h>
+
 #include "exynos_drm_crtc.h"
-#include "exynos_drm_plane.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
+#include "exynos_drm_plane.h"
 #include "regs-decon7.h"
 
 /*

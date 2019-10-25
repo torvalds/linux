@@ -37,11 +37,14 @@ enum source_format_class {
 	dm_444_64 = 2,
 	dm_420_8 = 3,
 	dm_420_10 = 4,
-	dm_422_8 = 5,
-	dm_422_10 = 6,
-	dm_444_8 = 7,
+	dm_420_12 = 5,
+	dm_422_8 = 6,
+	dm_422_10 = 7,
+	dm_444_8 = 8,
 	dm_mono_8 = dm_444_8,
-	dm_mono_16 = dm_444_16
+	dm_mono_16 = dm_444_16,
+	dm_rgbe = 9,
+	dm_rgbe_alpha = 10,
 };
 enum output_bpc_class {
 	dm_out_6 = 0, dm_out_8 = 1, dm_out_10 = 2, dm_out_12 = 3, dm_out_16 = 4
@@ -83,10 +86,11 @@ enum dm_swizzle_mode {
 	dm_sw_var_d_x = 30,
 	dm_sw_64kb_r_x,
 	dm_sw_gfx7_2d_thin_lvp,
-	dm_sw_gfx7_2d_thin_gl
+	dm_sw_gfx7_2d_thin_gl,
 };
 enum lb_depth {
-	dm_lb_10 = 0, dm_lb_8 = 1, dm_lb_6 = 2, dm_lb_12 = 3, dm_lb_16
+	dm_lb_10 = 0, dm_lb_8 = 1, dm_lb_6 = 2, dm_lb_12 = 3, dm_lb_16 = 4,
+	dm_lb_19 = 5
 };
 enum voltage_state {
 	dm_vmin = 0, dm_vmid = 1, dm_vnom = 2, dm_vmax = 3
@@ -111,7 +115,8 @@ enum output_standard {
 enum mpc_combine_affinity {
 	dm_mpc_always_when_possible,
 	dm_mpc_reduce_voltage,
-	dm_mpc_reduce_voltage_and_clocks
+	dm_mpc_reduce_voltage_and_clocks,
+	dm_mpc_never
 };
 
 enum self_refresh_affinity {
@@ -130,6 +135,9 @@ enum dm_validation_status {
 	DML_FAIL_DIO_SUPPORT,
 	DML_FAIL_NOT_ENOUGH_DSC,
 	DML_FAIL_DSC_CLK_REQUIRED,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	DML_FAIL_DSC_VALIDATION_FAILURE,
+#endif
 	DML_FAIL_URGENT_LATENCY,
 	DML_FAIL_REORDERING_BUFFER,
 	DML_FAIL_DISPCLK_DPPCLK,
@@ -145,6 +153,18 @@ enum dm_validation_status {
 	DML_FAIL_DSC_INPUT_BPC,
 	DML_FAIL_PREFETCH_SUPPORT,
 	DML_FAIL_V_RATIO_PREFETCH,
+};
+
+enum writeback_config {
+	dm_normal,
+	dm_whole_buffer_for_single_stream_no_interleave,
+	dm_whole_buffer_for_single_stream_interleave,
+};
+
+enum odm_combine_mode {
+	dm_odm_combine_mode_disabled,
+	dm_odm_combine_mode_2to1,
+	dm_odm_combine_mode_4to1,
 };
 
 #endif

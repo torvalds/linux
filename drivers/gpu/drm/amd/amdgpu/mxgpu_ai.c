@@ -26,6 +26,7 @@
 #include "nbio/nbio_6_1_sh_mask.h"
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
+#include "mp/mp_9_0_offset.h"
 #include "soc15.h"
 #include "vega10_ih.h"
 #include "soc15_common.h"
@@ -343,7 +344,7 @@ flr_done:
 
 	/* Trigger recovery for world switch failure if no TDR */
 	if (amdgpu_device_should_recover_gpu(adev)
-		&& amdgpu_lockup_timeout == MAX_SCHEDULE_TIMEOUT)
+		&& adev->sdma_timeout == MAX_SCHEDULE_TIMEOUT)
 		amdgpu_device_gpu_recover(adev, NULL);
 }
 

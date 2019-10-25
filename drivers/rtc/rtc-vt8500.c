@@ -212,10 +212,8 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vt8500_rtc);
 
 	vt8500_rtc->irq_alarm = platform_get_irq(pdev, 0);
-	if (vt8500_rtc->irq_alarm < 0) {
-		dev_err(&pdev->dev, "No alarm IRQ resource defined\n");
+	if (vt8500_rtc->irq_alarm < 0)
 		return vt8500_rtc->irq_alarm;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	vt8500_rtc->regbase = devm_ioremap_resource(&pdev->dev, res);

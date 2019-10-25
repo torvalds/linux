@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
+#include "../../../../arch/x86/include/asm/insn.h"
+#include <string.h>
 
 #include "debug.h"
 #include "tests/tests.h"
 #include "arch-tests.h"
 
-#include "intel-pt-decoder/insn.h"
 #include "intel-pt-decoder/intel-pt-insn-decoder.h"
 
 struct test_data {

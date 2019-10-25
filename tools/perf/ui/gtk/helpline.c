@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include <string.h>
+#include <linux/kernel.h>
 
 #include "gtk.h"
 #include "../ui.h"

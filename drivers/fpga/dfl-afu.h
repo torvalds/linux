@@ -79,6 +79,10 @@ struct dfl_afu {
 	struct dfl_feature_platform_data *pdata;
 };
 
+/* hold pdata->lock when call __afu_port_enable/disable */
+void __afu_port_enable(struct platform_device *pdev);
+int __afu_port_disable(struct platform_device *pdev);
+
 void afu_mmio_region_init(struct dfl_feature_platform_data *pdata);
 int afu_mmio_region_add(struct dfl_feature_platform_data *pdata,
 			u32 region_index, u64 region_size, u64 phys, u32 flags);
@@ -97,4 +101,9 @@ int afu_dma_unmap_region(struct dfl_feature_platform_data *pdata, u64 iova);
 struct dfl_afu_dma_region *
 afu_dma_region_find(struct dfl_feature_platform_data *pdata,
 		    u64 iova, u64 size);
+
+extern const struct dfl_feature_ops port_err_ops;
+extern const struct dfl_feature_id port_err_id_table[];
+extern const struct attribute_group port_err_group;
+
 #endif /* __DFL_AFU_H */

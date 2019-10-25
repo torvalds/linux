@@ -11,8 +11,8 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  ******************************************************************************/
-#ifndef _IO_H_
-#define _IO_H_
+#ifndef _RTL871X_IO_H_
+#define _RTL871X_IO_H_
 
 #include "osdep_service.h"
 #include "osdep_intf.h"
@@ -234,5 +234,4 @@ void r8712_write_port(struct _adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 uint r8712_alloc_io_queue(struct _adapter *adapter);
 void r8712_free_io_queue(struct _adapter *adapter);
 
-#endif	/*_RTL8711_IO_H_*/
-
+#endif	/*_RTL871X_IO_H_*/

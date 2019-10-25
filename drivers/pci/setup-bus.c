@@ -1684,9 +1684,14 @@ static enum enable_type pci_realloc_detect(struct pci_bus *bus,
 					   enum enable_type enable_local)
 {
 	bool unassigned = false;
+	struct pci_host_bridge *host;
 
 	if (enable_local != undefined)
 		return enable_local;
+
+	host = pci_find_host_bridge(bus);
+	if (host->preserve_config)
+		return auto_disabled;
 
 	pci_walk_bus(bus, iov_resources_unassigned, &unassigned);
 	if (unassigned)
@@ -1861,16 +1866,6 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 			     available_mmio_pref);
 
 	/*
-	 * Calculate the total amount of extra resource space we can
-	 * pass to bridges below this one.  This is basically the
-	 * extra space reduced by the minimal required space for the
-	 * non-hotplug bridges.
-	 */
-	remaining_io = available_io;
-	remaining_mmio = available_mmio;
-	remaining_mmio_pref = available_mmio_pref;
-
-	/*
 	 * Calculate how many hotplug bridges and normal bridges there
 	 * are on this bus.  We will distribute the additional available
 	 * resources between hotplug bridges.
@@ -1881,6 +1876,34 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		else
 			normal_bridges++;
 	}
+
+	/*
+	 * There is only one bridge on the bus so it gets all available
+	 * resources which it can then distribute to the possible hotplug
+	 * bridges below.
+	 */
+	if (hotplug_bridges + normal_bridges == 1) {
+		dev = list_first_entry(&bus->devices, struct pci_dev, bus_list);
+		if (dev->subordinate) {
+			pci_bus_distribute_available_resources(dev->subordinate,
+				add_list, available_io, available_mmio,
+				available_mmio_pref);
+		}
+		return;
+	}
+
+	if (hotplug_bridges == 0)
+		return;
+
+	/*
+	 * Calculate the total amount of extra resource space we can
+	 * pass to bridges below this one.  This is basically the
+	 * extra space reduced by the minimal required space for the
+	 * non-hotplug bridges.
+	 */
+	remaining_io = available_io;
+	remaining_mmio = available_mmio;
+	remaining_mmio_pref = available_mmio_pref;
 
 	for_each_pci_bridge(dev, bus) {
 		const struct resource *res;
@@ -1906,21 +1929,6 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	}
 
 	/*
-	 * There is only one bridge on the bus so it gets all available
-	 * resources which it can then distribute to the possible hotplug
-	 * bridges below.
-	 */
-	if (hotplug_bridges + normal_bridges == 1) {
-		dev = list_first_entry(&bus->devices, struct pci_dev, bus_list);
-		if (dev->subordinate) {
-			pci_bus_distribute_available_resources(dev->subordinate,
-				add_list, available_io, available_mmio,
-				available_mmio_pref);
-		}
-		return;
-	}
-
-	/*
 	 * Go over devices on this bus and distribute the remaining
 	 * resource space between hotplug bridges.
 	 */
@@ -1936,8 +1944,6 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		 * Distribute available extra resources equally between
 		 * hotplug-capable downstream ports taking alignment into
 		 * account.
-		 *
-		 * Here hotplug_bridges is always != 0.
 		 */
 		align = pci_resource_alignment(bridge, io_res);
 		io = div64_ul(available_io, hotplug_bridges);

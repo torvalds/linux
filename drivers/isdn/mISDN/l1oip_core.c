@@ -1254,8 +1254,7 @@ release_card(struct l1oip *hc)
 			mISDN_freebchannel(hc->chan[ch].bch);
 			kfree(hc->chan[ch].bch);
 #ifdef REORDER_DEBUG
-			if (hc->chan[ch].disorder_skb)
-				dev_kfree_skb(hc->chan[ch].disorder_skb);
+			dev_kfree_skb(hc->chan[ch].disorder_skb);
 #endif
 		}
 	}

@@ -35,8 +35,7 @@ struct remap_pfn {
 	pgprot_t prot;
 };
 
-static int remap_pfn(pte_t *pte, pgtable_t token,
-		     unsigned long addr, void *data)
+static int remap_pfn(pte_t *pte, unsigned long addr, void *data)
 {
 	struct remap_pfn *r = data;
 
@@ -64,9 +63,8 @@ int remap_io_mapping(struct vm_area_struct *vma,
 	struct remap_pfn r;
 	int err;
 
-	GEM_BUG_ON((vma->vm_flags &
-		    (VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP)) !=
-		   (VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP));
+#define EXPECTED_FLAGS (VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP)
+	GEM_BUG_ON((vma->vm_flags & EXPECTED_FLAGS) != EXPECTED_FLAGS);
 
 	/* We rely on prevalidation of the io-mapping to skip track_pfn(). */
 	r.mm = vma->vm_mm;

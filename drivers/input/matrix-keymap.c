@@ -81,7 +81,7 @@ static int matrix_keypad_parse_keymap(const char *propname,
 	if (!propname)
 		propname = "linux,keymap";
 
-	size = device_property_read_u32_array(dev, propname, NULL, 0);
+	size = device_property_count_u32(dev, propname);
 	if (size <= 0) {
 		dev_err(dev, "missing or malformed property %s: %d\n",
 			propname, size);

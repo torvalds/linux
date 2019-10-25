@@ -138,6 +138,7 @@ config PINCTRL_QCOM_SPMI_PMIC
        select PINMUX
        select PINCONF
        select GENERIC_PINCONF
+       select GPIOLIB_IRQCHIP
        select IRQ_DOMAIN_HIERARCHY
        help
          This is the pinctrl, pinmux, pinconf and gpiolib driver for the
@@ -158,6 +159,15 @@ config PINCTRL_QCOM_SSBI_PMIC
          which are using SSBI for communication with SoC. Example PMIC's
          devices are pm8058 and pm8921.
 
+config PINCTRL_SC7180
+	tristate "Qualcomm Technologies Inc SC7180 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	  Technologies Inc SC7180 platform.
+
 config PINCTRL_SDM660
        tristate "Qualcomm Technologies Inc SDM660 pin controller driver"
        depends on GPIOLIB && OF
@@ -169,11 +179,20 @@ config PINCTRL_SDM660
 
 config PINCTRL_SDM845
        tristate "Qualcomm Technologies Inc SDM845 pin controller driver"
-       depends on GPIOLIB && OF
+       depends on GPIOLIB && (OF || ACPI)
        select PINCTRL_MSM
        help
          This is the pinctrl, pinmux, pinconf and gpiolib driver for the
          Qualcomm Technologies Inc TLMM block found on the Qualcomm
          Technologies Inc SDM845 platform.
+
+config PINCTRL_SM8150
+       tristate "Qualcomm Technologies Inc SM8150 pin controller driver"
+       depends on GPIOLIB && OF
+       select PINCTRL_MSM
+       help
+         This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+         Qualcomm Technologies Inc TLMM block found on the Qualcomm
+         Technologies Inc SM8150 platform.
 
 endif

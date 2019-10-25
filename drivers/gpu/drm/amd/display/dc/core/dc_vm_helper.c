@@ -24,8 +24,9 @@
  */
 
 #include "vm_helper.h"
+#include "dc.h"
 
-static void mark_vmid_used(struct vm_helper *vm_helper, unsigned int pos, uint8_t hubp_idx)
+void vm_helper_mark_vmid_used(struct vm_helper *vm_helper, unsigned int pos, uint8_t hubp_idx)
 {
 	struct vmid_usage vmids = vm_helper->hubp_vmid_usage[hubp_idx];
 
@@ -33,91 +34,43 @@ static void mark_vmid_used(struct vm_helper *vm_helper, unsigned int pos, uint8_
 	vmids.vmid_usage[1] = 1 << pos;
 }
 
-static void add_ptb_to_table(struct vm_helper *vm_helper, unsigned int vmid, uint64_t ptb)
+int dc_setup_system_context(struct dc *dc, struct dc_phy_addr_space_config *pa_config)
 {
-	vm_helper->ptb_assigned_to_vmid[vmid] = ptb;
-	vm_helper->num_vmids_available--;
+	int num_vmids = 0;
+
+	/* Call HWSS to setup HUBBUB for address config */
+	if (dc->hwss.init_sys_ctx) {
+		num_vmids = dc->hwss.init_sys_ctx(dc->hwseq, dc, pa_config);
+
+		/* Pre-init system aperture start/end for all HUBP instances (if not gating?)
+		 * or cache system aperture if using power gating
+		 */
+		memcpy(&dc->vm_pa_config, pa_config, sizeof(struct dc_phy_addr_space_config));
+		dc->vm_pa_config.valid = true;
+	}
+
+	return num_vmids;
 }
 
-static void clear_entry_from_vmid_table(struct vm_helper *vm_helper, unsigned int vmid)
+void dc_setup_vm_context(struct dc *dc, struct dc_virtual_addr_space_config *va_config, int vmid)
 {
-	vm_helper->ptb_assigned_to_vmid[vmid] = 0;
-	vm_helper->num_vmids_available++;
+	dc->hwss.init_vm_ctx(dc->hwseq, dc, va_config, vmid);
 }
 
-static void evict_vmids(struct vm_helper *vm_helper)
+int dc_get_vmid_use_vector(struct dc *dc)
 {
 	int i;
-	uint16_t ord = 0;
+	int in_use = 0;
 
-	for (i = 0; i < vm_helper->num_vmid; i++)
-		ord |= vm_helper->hubp_vmid_usage[i].vmid_usage[0] | vm_helper->hubp_vmid_usage[i].vmid_usage[1];
-
-	// At this point any positions with value 0 are unused vmids, evict them
-	for (i = 1; i < vm_helper->num_vmid; i++) {
-		if (ord & (1u << i))
-			clear_entry_from_vmid_table(vm_helper, i);
-	}
+	for (i = 0; i < dc->vm_helper->num_vmid; i++)
+		in_use |= dc->vm_helper->hubp_vmid_usage[i].vmid_usage[0]
+			| dc->vm_helper->hubp_vmid_usage[i].vmid_usage[1];
+	return in_use;
 }
 
-// Return value of -1 indicates vmid table unitialized or ptb dne in the table
-static int get_existing_vmid_for_ptb(struct vm_helper *vm_helper, uint64_t ptb)
-{
-	int i;
-
-	for (i = 0; i < vm_helper->num_vmid; i++) {
-		if (vm_helper->ptb_assigned_to_vmid[i] == ptb)
-			return i;
-	}
-
-	return -1;
-}
-
-// Expected to be called only when there's an available vmid
-static int get_next_available_vmid(struct vm_helper *vm_helper)
-{
-	int i;
-
-	for (i = 1; i < vm_helper->num_vmid; i++) {
-		if (vm_helper->ptb_assigned_to_vmid[i] == 0)
-			return i;
-	}
-
-	return -1;
-}
-
-uint8_t get_vmid_for_ptb(struct vm_helper *vm_helper, int64_t ptb, uint8_t hubp_idx)
-{
-	unsigned int vmid = 0;
-	int vmid_exists = -1;
-
-	// Physical address gets vmid 0
-	if (ptb == 0)
-		return 0;
-
-	vmid_exists = get_existing_vmid_for_ptb(vm_helper, ptb);
-
-	if (vmid_exists != -1) {
-		mark_vmid_used(vm_helper, vmid_exists, hubp_idx);
-		vmid = vmid_exists;
-	} else {
-		if (vm_helper->num_vmids_available == 0)
-			evict_vmids(vm_helper);
-
-		vmid = get_next_available_vmid(vm_helper);
-		mark_vmid_used(vm_helper, vmid, hubp_idx);
-		add_ptb_to_table(vm_helper, vmid, ptb);
-	}
-
-	return vmid;
-}
-
-void init_vm_helper(struct vm_helper *vm_helper, unsigned int num_vmid, unsigned int num_hubp)
+void vm_helper_init(struct vm_helper *vm_helper, unsigned int num_vmid)
 {
 	vm_helper->num_vmid = num_vmid;
-	vm_helper->num_hubp = num_hubp;
-	vm_helper->num_vmids_available = num_vmid - 1;
 
 	memset(vm_helper->hubp_vmid_usage, 0, sizeof(vm_helper->hubp_vmid_usage[0]) * MAX_HUBP);
-	memset(vm_helper->ptb_assigned_to_vmid, 0, sizeof(vm_helper->ptb_assigned_to_vmid[0]) * MAX_VMID);
 }

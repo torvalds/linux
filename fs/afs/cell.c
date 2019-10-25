@@ -74,6 +74,7 @@ struct afs_cell *afs_lookup_cell_rcu(struct afs_net *net,
 			cell = rcu_dereference_raw(net->ws_cell);
 			if (cell) {
 				afs_get_cell(cell);
+				ret = 0;
 				break;
 			}
 			ret = -EDESTADDRREQ;
@@ -107,6 +108,9 @@ struct afs_cell *afs_lookup_cell_rcu(struct afs_net *net,
 	} while (need_seqretry(&net->cells_lock, seq));
 
 	done_seqretry(&net->cells_lock, seq);
+
+	if (ret != 0 && cell)
+		afs_put_cell(net, cell);
 
 	return ret == 0 ? cell : ERR_PTR(ret);
 }

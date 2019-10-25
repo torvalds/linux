@@ -55,6 +55,7 @@ static void rx51_ext_control(struct snd_soc_dapm_context *dapm)
 		break;
 	case RX51_JACK_HS:
 		hs = 1;
+		/* fall through */
 	case RX51_JACK_HP:
 		hp = 1;
 		break;
@@ -318,12 +319,10 @@ static struct snd_soc_dai_link rx51_dai[] = {
 
 static struct snd_soc_aux_dev rx51_aux_dev[] = {
 	{
-		.name = "TLV320AIC34b",
-		.codec_name = "tlv320aic3x-codec.2-0019",
+		.dlc = COMP_AUX("tlv320aic3x-codec.2-0019"),
 	},
 	{
-		.name = "TPA61320A2",
-		.codec_name = "tpa6130a2.2-0060",
+		.dlc = COMP_AUX("tpa6130a2.2-0060"),
 	},
 };
 
@@ -396,8 +395,8 @@ static int rx51_soc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Auxiliary Codec node is not provided\n");
 			return -EINVAL;
 		}
-		rx51_aux_dev[0].codec_name = NULL;
-		rx51_aux_dev[0].codec_of_node = dai_node;
+		rx51_aux_dev[0].dlc.name = NULL;
+		rx51_aux_dev[0].dlc.of_node = dai_node;
 		rx51_codec_conf[0].dev_name = NULL;
 		rx51_codec_conf[0].of_node = dai_node;
 
@@ -406,8 +405,8 @@ static int rx51_soc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Headphone amplifier node is not provided\n");
 			return -EINVAL;
 		}
-		rx51_aux_dev[1].codec_name = NULL;
-		rx51_aux_dev[1].codec_of_node = dai_node;
+		rx51_aux_dev[1].dlc.name = NULL;
+		rx51_aux_dev[1].dlc.of_node = dai_node;
 		rx51_codec_conf[1].dev_name = NULL;
 		rx51_codec_conf[1].of_node = dai_node;
 	}

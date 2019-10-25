@@ -15,7 +15,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "../perf.h"
 #include "util.h"
 #include "trace-event.h"
 #include "debug.h"

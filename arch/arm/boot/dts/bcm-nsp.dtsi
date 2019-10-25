@@ -77,7 +77,7 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 
-	mpcore {
+	mpcore@19000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x19000000 0x00023000>;
 		#address-cells = <1>;
@@ -122,7 +122,7 @@
 			      <0x20100 0x100>;
 		};
 
-		L2: l2-cache {
+		L2: l2-cache@22000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x22000 0x1000>;
 			cache-unified;
@@ -166,7 +166,7 @@
 		};
 	};
 
-	axi {
+	axi@18000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x0011c40c>;
 		#address-cells = <1>;
@@ -415,9 +415,6 @@
 					  "imp_sleep_timer_p5",
 					  "imp_sleep_timer_p7",
 					  "imp_sleep_timer_p8";
-			#address-cells = <1>;
-			#size-cells = <0>;
-
 			status = "disabled";
 
 			/* ports are defined in board DTS */

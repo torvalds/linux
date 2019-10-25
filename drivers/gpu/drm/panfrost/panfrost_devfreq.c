@@ -39,7 +39,7 @@ static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 	 * If frequency scaling from low to high, adjust voltage first.
 	 * If frequency scaling from high to low, adjust frequency first.
 	 */
-	if (old_clk_rate < target_rate) {
+	if (old_clk_rate < target_rate && pfdev->regulator) {
 		err = regulator_set_voltage(pfdev->regulator, target_volt,
 					    target_volt);
 		if (err) {
@@ -53,12 +53,14 @@ static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 	if (err) {
 		dev_err(dev, "Cannot set frequency %lu (%d)\n", target_rate,
 			err);
-		regulator_set_voltage(pfdev->regulator, pfdev->devfreq.cur_volt,
-				      pfdev->devfreq.cur_volt);
+		if (pfdev->regulator)
+			regulator_set_voltage(pfdev->regulator,
+					      pfdev->devfreq.cur_volt,
+					      pfdev->devfreq.cur_volt);
 		return err;
 	}
 
-	if (old_clk_rate > target_rate) {
+	if (old_clk_rate > target_rate && pfdev->regulator) {
 		err = regulator_set_voltage(pfdev->regulator, target_volt,
 					    target_volt);
 		if (err)
@@ -136,9 +138,6 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	int ret;
 	struct dev_pm_opp *opp;
 
-	if (!pfdev->regulator)
-		return 0;
-
 	ret = dev_pm_opp_of_add_table(&pfdev->pdev->dev);
 	if (ret == -ENODEV) /* Optional, continue without devfreq */
 		return 0;
@@ -157,15 +156,22 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	dev_pm_opp_put(opp);
 
 	pfdev->devfreq.devfreq = devm_devfreq_add_device(&pfdev->pdev->dev,
-			&panfrost_devfreq_profile, "simple_ondemand", NULL);
+			&panfrost_devfreq_profile, DEVFREQ_GOV_SIMPLE_ONDEMAND,
+			NULL);
 	if (IS_ERR(pfdev->devfreq.devfreq)) {
 		DRM_DEV_ERROR(&pfdev->pdev->dev, "Couldn't initialize GPU devfreq\n");
 		ret = PTR_ERR(pfdev->devfreq.devfreq);
 		pfdev->devfreq.devfreq = NULL;
+		dev_pm_opp_of_remove_table(&pfdev->pdev->dev);
 		return ret;
 	}
 
 	return 0;
+}
+
+void panfrost_devfreq_fini(struct panfrost_device *pfdev)
+{
+	dev_pm_opp_of_remove_table(&pfdev->pdev->dev);
 }
 
 void panfrost_devfreq_resume(struct panfrost_device *pfdev)

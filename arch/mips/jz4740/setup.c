@@ -15,10 +15,9 @@
 #include <asm/bootinfo.h>
 #include <asm/prom.h>
 
-#include <asm/mach-jz4740/base.h>
-
 #include "reset.h"
 
+#define JZ4740_EMC_BASE_ADDR 0x13010000
 
 #define JZ4740_EMC_SDRAM_CTRL 0x80
 
@@ -45,6 +44,8 @@ static void __init jz4740_detect_mem(void)
 
 static unsigned long __init get_board_mach_type(const void *fdt)
 {
+	if (!fdt_node_check_compatible(fdt, 0, "ingenic,x1000"))
+		return MACH_INGENIC_X1000;
 	if (!fdt_node_check_compatible(fdt, 0, "ingenic,jz4780"))
 		return MACH_INGENIC_JZ4780;
 	if (!fdt_node_check_compatible(fdt, 0, "ingenic,jz4770"))
@@ -85,6 +86,8 @@ void __init device_tree_init(void)
 const char *get_system_type(void)
 {
 	switch (mips_machtype) {
+	case MACH_INGENIC_X1000:
+		return "X1000";
 	case MACH_INGENIC_JZ4780:
 		return "JZ4780";
 	case MACH_INGENIC_JZ4770:

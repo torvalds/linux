@@ -60,11 +60,8 @@ static int bxt_wcove_tmu_probe(struct platform_device *pdev)
 	wctmu->regmap = pmic->regmap;
 
 	irq = platform_get_irq(pdev, 0);
-
-	if (irq < 0) {
-		dev_err(&pdev->dev, "invalid irq %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	regmap_irq_chip = pmic->irq_chip_data_tmu;
 	virq = regmap_irq_get_virq(regmap_irq_chip, irq);

@@ -30,12 +30,6 @@ static int ar8031_phy_fixup(struct phy_device *dev)
 	val &= ~(0x1 << 8);
 	phy_write(dev, 0xe, val);
 
-	/* introduce tx clock delay */
-	phy_write(dev, 0x1d, 0x5);
-	val = phy_read(dev, 0x1e);
-	val |= 0x0100;
-	phy_write(dev, 0x1e, val);
-
 	return 0;
 }
 
@@ -94,6 +88,12 @@ static void __init imx7d_init_machine(void)
 	imx7d_enet_init();
 }
 
+static void __init imx7d_init_late(void)
+{
+	if (IS_ENABLED(CONFIG_ARM_IMX_CPUFREQ_DT))
+		platform_device_register_simple("imx-cpufreq-dt", -1, NULL, 0);
+}
+
 static void __init imx7d_init_irq(void)
 {
 	imx_init_revision_from_anatop();
@@ -110,5 +110,6 @@ static const char *const imx7d_dt_compat[] __initconst = {
 DT_MACHINE_START(IMX7D, "Freescale i.MX7 Dual (Device Tree)")
 	.init_irq	= imx7d_init_irq,
 	.init_machine	= imx7d_init_machine,
+	.init_late      = imx7d_init_late,
 	.dt_compat	= imx7d_dt_compat,
 MACHINE_END

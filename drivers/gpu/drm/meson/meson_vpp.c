@@ -6,12 +6,11 @@
  * Copyright (C) 2014 Endless Mobile
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/export.h>
+
 #include "meson_drv.h"
-#include "meson_vpp.h"
 #include "meson_registers.h"
+#include "meson_vpp.h"
 
 /**
  * DOC: Video Post Processing
@@ -57,7 +56,7 @@ static void meson_vpp_write_scaling_filter_coefs(struct meson_drm *priv,
 {
 	int i;
 
-	writel_relaxed(is_horizontal ? BIT(8) : 0,
+	writel_relaxed(is_horizontal ? VPP_SCALE_HORIZONTAL_COEF : 0,
 			priv->io_base + _REG(VPP_OSD_SCALE_COEF_IDX));
 	for (i = 0; i < 33; i++)
 		writel_relaxed(coefs[i],
@@ -82,7 +81,7 @@ static void meson_vpp_write_vd_scaling_filter_coefs(struct meson_drm *priv,
 {
 	int i;
 
-	writel_relaxed(is_horizontal ? BIT(8) : 0,
+	writel_relaxed(is_horizontal ? VPP_SCALE_HORIZONTAL_COEF : 0,
 			priv->io_base + _REG(VPP_SCALE_COEF_IDX));
 	for (i = 0; i < 33; i++)
 		writel_relaxed(coefs[i],
@@ -92,27 +91,29 @@ static void meson_vpp_write_vd_scaling_filter_coefs(struct meson_drm *priv,
 void meson_vpp_init(struct meson_drm *priv)
 {
 	/* set dummy data default YUV black */
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-gxl-vpu"))
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXL))
 		writel_relaxed(0x108080, priv->io_base + _REG(VPP_DUMMY_DATA1));
-	else if (meson_vpu_is_compatible(priv, "amlogic,meson-gxm-vpu")) {
+	else if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXM)) {
 		writel_bits_relaxed(0xff << 16, 0xff << 16,
 				    priv->io_base + _REG(VIU_MISC_CTRL1));
-		writel_relaxed(0x20000, priv->io_base + _REG(VPP_DOLBY_CTRL));
+		writel_relaxed(VPP_PPS_DUMMY_DATA_MODE,
+			       priv->io_base + _REG(VPP_DOLBY_CTRL));
 		writel_relaxed(0x1020080,
 				priv->io_base + _REG(VPP_DUMMY_DATA1));
-	} else if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
+	} else if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A))
 		writel_relaxed(0xf, priv->io_base + _REG(DOLBY_PATH_CTRL));
 
 	/* Initialize vpu fifo control registers */
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
-		writel_relaxed(0xfff << 20 | 0x1000,
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A))
+		writel_relaxed(VPP_OFIFO_SIZE_DEFAULT,
 			       priv->io_base + _REG(VPP_OFIFO_SIZE));
 	else
-		writel_relaxed(readl_relaxed(priv->io_base + _REG(VPP_OFIFO_SIZE)) |
-				0x77f, priv->io_base + _REG(VPP_OFIFO_SIZE));
-	writel_relaxed(0x08080808, priv->io_base + _REG(VPP_HOLD_LINES));
+		writel_bits_relaxed(VPP_OFIFO_SIZE_MASK, 0x77f,
+				    priv->io_base + _REG(VPP_OFIFO_SIZE));
+	writel_relaxed(VPP_POSTBLEND_HOLD_LINES(4) | VPP_PREBLEND_HOLD_LINES(4),
+		       priv->io_base + _REG(VPP_HOLD_LINES));
 
-	if (!meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu")) {
+	if (!meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A)) {
 		/* Turn off preblend */
 		writel_bits_relaxed(VPP_PREBLEND_ENABLE, 0,
 				    priv->io_base + _REG(VPP_MISC));
@@ -138,10 +139,15 @@ void meson_vpp_init(struct meson_drm *priv)
 	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_SC_CTRL0));
 	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_VSC_CTRL0));
 	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_HSC_CTRL0));
-	writel_relaxed(4 | (4 << 8) | BIT(15),
+
+	/* Set horizontal/vertical bank length and enable video scale out */
+	writel_relaxed(VPP_VSC_BANK_LENGTH(4) | VPP_HSC_BANK_LENGTH(4) |
+		       VPP_SC_VD_EN_ENABLE,
 		       priv->io_base + _REG(VPP_SC_MISC));
 
-	writel_relaxed(1, priv->io_base + _REG(VPP_VADJ_CTRL));
+	/* Enable minus black level for vadj1 */
+	writel_relaxed(VPP_MINUS_BLACK_LVL_VADJ1_ENABLE,
+		       priv->io_base + _REG(VPP_VADJ_CTRL));
 
 	/* Write in the proper filter coefficients. */
 	meson_vpp_write_scaling_filter_coefs(priv,

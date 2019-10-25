@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: MIT
 include $(src)/nvkm/core/Kbuild
 include $(src)/nvkm/falcon/Kbuild
 include $(src)/nvkm/subdev/Kbuild

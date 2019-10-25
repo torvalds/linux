@@ -598,7 +598,7 @@ enum ht_channel_width {
 	HT_CHANNEL_WIDTH_MAX,
 };
 
-/* Ref: 802.11i sepc D10.0 7.3.2.25.1
+/* Ref: 802.11i spec D10.0 7.3.2.25.1
  * Cipher Suites Encryption Algorithms
  */
 enum rt_enc_alg {

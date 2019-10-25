@@ -117,9 +117,9 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENXIO;
 
-	if (res->start % 4 != 0 || resource_size(res) != 4) {
+	if (res->start % 4 != 0 || resource_size(res) < 4) {
 		dev_err(&pdev->dev,
-			"address must be four bytes wide and aligned\n");
+			"address must be at least four bytes wide and 32-bit aligned\n");
 		return -EINVAL;
 	}
 

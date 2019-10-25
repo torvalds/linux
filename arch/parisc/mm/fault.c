@@ -66,6 +66,7 @@ parisc_acctyp(unsigned long code, unsigned int inst)
 	case 0x30000000: /* coproc2 */
 		if (bit22set(inst))
 			return VM_WRITE;
+		/* fall through */
 
 	case 0x0: /* indexed/memory management */
 		if (bit22set(inst)) {

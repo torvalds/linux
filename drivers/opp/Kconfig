@@ -11,4 +11,4 @@ config PM_OPP
 	  OPP layer organizes the data internally using device pointers
 	  representing individual voltage domains and provides SOC
 	  implementations a ready to use framework to manage OPPs.
-	  For more information, read <file:Documentation/power/opp.txt>
+	  For more information, read <file:Documentation/power/opp.rst>

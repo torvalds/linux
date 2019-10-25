@@ -78,6 +78,8 @@ struct vmw_res_func {
 	const char *type_name;
 	struct ttm_placement *backup_placement;
 	bool may_evict;
+	u32 prio;
+	u32 dirty_prio;
 
 	int (*create) (struct vmw_resource *res);
 	int (*destroy) (struct vmw_resource *res);

@@ -5,6 +5,9 @@
  *
  * Author: Renaud Cerrato <r.cerrato@til-technologies.fr>
  *
+ * Watchdog and tamper functions
+ * Author: Bruno Thomsen <bruno.thomsen@gmail.com>
+ *
  * based on the other drivers in this same directory.
  *
  * Datasheet: http://cache.nxp.com/documents/data_sheet/PCF2127.pdf
@@ -18,30 +21,67 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
+#include <linux/watchdog.h>
 
-#define PCF2127_REG_CTRL1       (0x00)  /* Control Register 1 */
-#define PCF2127_REG_CTRL2       (0x01)  /* Control Register 2 */
+/* Control register 1 */
+#define PCF2127_REG_CTRL1		0x00
+#define PCF2127_BIT_CTRL1_TSF1			BIT(4)
+/* Control register 2 */
+#define PCF2127_REG_CTRL2		0x01
+#define PCF2127_BIT_CTRL2_TSIE			BIT(2)
+#define PCF2127_BIT_CTRL2_TSF2			BIT(5)
+/* Control register 3 */
+#define PCF2127_REG_CTRL3		0x02
+#define PCF2127_BIT_CTRL3_BLIE			BIT(0)
+#define PCF2127_BIT_CTRL3_BIE			BIT(1)
+#define PCF2127_BIT_CTRL3_BLF			BIT(2)
+#define PCF2127_BIT_CTRL3_BF			BIT(3)
+#define PCF2127_BIT_CTRL3_BTSE			BIT(4)
+/* Time and date registers */
+#define PCF2127_REG_SC			0x03
+#define PCF2127_BIT_SC_OSF			BIT(7)
+#define PCF2127_REG_MN			0x04
+#define PCF2127_REG_HR			0x05
+#define PCF2127_REG_DM			0x06
+#define PCF2127_REG_DW			0x07
+#define PCF2127_REG_MO			0x08
+#define PCF2127_REG_YR			0x09
+/* Watchdog registers */
+#define PCF2127_REG_WD_CTL		0x10
+#define PCF2127_BIT_WD_CTL_TF0			BIT(0)
+#define PCF2127_BIT_WD_CTL_TF1			BIT(1)
+#define PCF2127_BIT_WD_CTL_CD0			BIT(6)
+#define PCF2127_BIT_WD_CTL_CD1			BIT(7)
+#define PCF2127_REG_WD_VAL		0x11
+/* Tamper timestamp registers */
+#define PCF2127_REG_TS_CTRL		0x12
+#define PCF2127_BIT_TS_CTRL_TSOFF		BIT(6)
+#define PCF2127_BIT_TS_CTRL_TSM			BIT(7)
+#define PCF2127_REG_TS_SC		0x13
+#define PCF2127_REG_TS_MN		0x14
+#define PCF2127_REG_TS_HR		0x15
+#define PCF2127_REG_TS_DM		0x16
+#define PCF2127_REG_TS_MO		0x17
+#define PCF2127_REG_TS_YR		0x18
+/*
+ * RAM registers
+ * PCF2127 has 512 bytes general-purpose static RAM (SRAM) that is
+ * battery backed and can survive a power outage.
+ * PCF2129 doesn't have this feature.
+ */
+#define PCF2127_REG_RAM_ADDR_MSB	0x1A
+#define PCF2127_REG_RAM_WRT_CMD		0x1C
+#define PCF2127_REG_RAM_RD_CMD		0x1D
 
-#define PCF2127_REG_CTRL3       (0x02)  /* Control Register 3 */
-#define PCF2127_REG_CTRL3_BLF		BIT(2)
-
-#define PCF2127_REG_SC          (0x03)  /* datetime */
-#define PCF2127_REG_MN          (0x04)
-#define PCF2127_REG_HR          (0x05)
-#define PCF2127_REG_DM          (0x06)
-#define PCF2127_REG_DW          (0x07)
-#define PCF2127_REG_MO          (0x08)
-#define PCF2127_REG_YR          (0x09)
-
-/* the pcf2127 has 512 bytes nvmem, pcf2129 doesn't */
-#define PCF2127_REG_RAM_addr_MSB       0x1a
-#define PCF2127_REG_RAM_wrt_cmd        0x1c
-#define PCF2127_REG_RAM_rd_cmd         0x1d
-
-#define PCF2127_OSF             BIT(7)  /* Oscillator Fail flag */
+/* Watchdog timer value constants */
+#define PCF2127_WD_VAL_STOP		0
+#define PCF2127_WD_VAL_MIN		2
+#define PCF2127_WD_VAL_MAX		255
+#define PCF2127_WD_VAL_DEFAULT		60
 
 struct pcf2127 {
 	struct rtc_device *rtc;
+	struct watchdog_device wdd;
 	struct regmap *regmap;
 };
 
@@ -54,30 +94,25 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
 	unsigned char buf[10];
 	int ret;
-	int i;
 
-	for (i = 0; i <= PCF2127_REG_CTRL3; i++) {
-		ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL1 + i,
-				  (unsigned int *)(buf + i));
-		if (ret) {
-			dev_err(dev, "%s: read error\n", __func__);
-			return ret;
-		}
-	}
-
-	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_SC,
-			       (buf + PCF2127_REG_SC),
-			       ARRAY_SIZE(buf) - PCF2127_REG_SC);
+	/*
+	 * Avoid reading CTRL2 register as it causes WD_VAL register
+	 * value to reset to 0 which means watchdog is stopped.
+	 */
+	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_CTRL3,
+			       (buf + PCF2127_REG_CTRL3),
+			       ARRAY_SIZE(buf) - PCF2127_REG_CTRL3);
 	if (ret) {
 		dev_err(dev, "%s: read error\n", __func__);
 		return ret;
 	}
 
-	if (buf[PCF2127_REG_CTRL3] & PCF2127_REG_CTRL3_BLF)
+	if (buf[PCF2127_REG_CTRL3] & PCF2127_BIT_CTRL3_BLF)
 		dev_info(dev,
 			"low voltage detected, check/replace RTC battery.\n");
 
-	if (buf[PCF2127_REG_SC] & PCF2127_OSF) {
+	/* Clock integrity is not guaranteed when OSF flag is set. */
+	if (buf[PCF2127_REG_SC] & PCF2127_BIT_SC_OSF) {
 		/*
 		 * no need clear the flag here,
 		 * it will be cleared once the new date is saved
@@ -88,14 +123,12 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	}
 
 	dev_dbg(dev,
-		"%s: raw data is cr1=%02x, cr2=%02x, cr3=%02x, "
-		"sec=%02x, min=%02x, hr=%02x, "
+		"%s: raw data is cr3=%02x, sec=%02x, min=%02x, hr=%02x, "
 		"mday=%02x, wday=%02x, mon=%02x, year=%02x\n",
-		__func__,
-		buf[0], buf[1], buf[2],
-		buf[3], buf[4], buf[5],
-		buf[6], buf[7], buf[8], buf[9]);
-
+		__func__, buf[PCF2127_REG_CTRL3], buf[PCF2127_REG_SC],
+		buf[PCF2127_REG_MN], buf[PCF2127_REG_HR],
+		buf[PCF2127_REG_DM], buf[PCF2127_REG_DW],
+		buf[PCF2127_REG_MO], buf[PCF2127_REG_YR]);
 
 	tm->tm_sec = bcd2bin(buf[PCF2127_REG_SC] & 0x7F);
 	tm->tm_min = bcd2bin(buf[PCF2127_REG_MN] & 0x7F);
@@ -166,7 +199,7 @@ static int pcf2127_rtc_ioctl(struct device *dev,
 		if (ret)
 			return ret;
 
-		touser = touser & PCF2127_REG_CTRL3_BLF ? 1 : 0;
+		touser = touser & PCF2127_BIT_CTRL3_BLF ? 1 : 0;
 
 		if (copy_to_user((void __user *)arg, &touser, sizeof(int)))
 			return -EFAULT;
@@ -192,12 +225,12 @@ static int pcf2127_nvmem_read(void *priv, unsigned int offset,
 	int ret;
 	unsigned char offsetbuf[] = { offset >> 8, offset };
 
-	ret = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_RAM_addr_MSB,
+	ret = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_RAM_ADDR_MSB,
 				offsetbuf, 2);
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_RAM_rd_cmd,
+	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_RAM_RD_CMD,
 			       val, bytes);
 
 	return ret ?: bytes;
@@ -210,16 +243,175 @@ static int pcf2127_nvmem_write(void *priv, unsigned int offset,
 	int ret;
 	unsigned char offsetbuf[] = { offset >> 8, offset };
 
-	ret = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_RAM_addr_MSB,
+	ret = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_RAM_ADDR_MSB,
 				offsetbuf, 2);
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_RAM_wrt_cmd,
+	ret = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_RAM_WRT_CMD,
 				val, bytes);
 
 	return ret ?: bytes;
 }
+
+/* watchdog driver */
+
+static int pcf2127_wdt_ping(struct watchdog_device *wdd)
+{
+	struct pcf2127 *pcf2127 = watchdog_get_drvdata(wdd);
+
+	return regmap_write(pcf2127->regmap, PCF2127_REG_WD_VAL, wdd->timeout);
+}
+
+/*
+ * Restart watchdog timer if feature is active.
+ *
+ * Note: Reading CTRL2 register causes watchdog to stop which is unfortunate,
+ * since register also contain control/status flags for other features.
+ * Always call this function after reading CTRL2 register.
+ */
+static int pcf2127_wdt_active_ping(struct watchdog_device *wdd)
+{
+	int ret = 0;
+
+	if (watchdog_active(wdd)) {
+		ret = pcf2127_wdt_ping(wdd);
+		if (ret)
+			dev_err(wdd->parent,
+				"%s: watchdog restart failed, ret=%d\n",
+				__func__, ret);
+	}
+
+	return ret;
+}
+
+static int pcf2127_wdt_start(struct watchdog_device *wdd)
+{
+	return pcf2127_wdt_ping(wdd);
+}
+
+static int pcf2127_wdt_stop(struct watchdog_device *wdd)
+{
+	struct pcf2127 *pcf2127 = watchdog_get_drvdata(wdd);
+
+	return regmap_write(pcf2127->regmap, PCF2127_REG_WD_VAL,
+			    PCF2127_WD_VAL_STOP);
+}
+
+static int pcf2127_wdt_set_timeout(struct watchdog_device *wdd,
+				   unsigned int new_timeout)
+{
+	dev_dbg(wdd->parent, "new watchdog timeout: %is (old: %is)\n",
+		new_timeout, wdd->timeout);
+
+	wdd->timeout = new_timeout;
+
+	return pcf2127_wdt_active_ping(wdd);
+}
+
+static const struct watchdog_info pcf2127_wdt_info = {
+	.identity = "NXP PCF2127/PCF2129 Watchdog",
+	.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT,
+};
+
+static const struct watchdog_ops pcf2127_watchdog_ops = {
+	.owner = THIS_MODULE,
+	.start = pcf2127_wdt_start,
+	.stop = pcf2127_wdt_stop,
+	.ping = pcf2127_wdt_ping,
+	.set_timeout = pcf2127_wdt_set_timeout,
+};
+
+/* sysfs interface */
+
+static ssize_t timestamp0_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct pcf2127 *pcf2127 = dev_get_drvdata(dev->parent);
+	int ret;
+
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL1,
+				 PCF2127_BIT_CTRL1_TSF1, 0);
+	if (ret) {
+		dev_err(dev, "%s: update ctrl1 ret=%d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL2,
+				 PCF2127_BIT_CTRL2_TSF2, 0);
+	if (ret) {
+		dev_err(dev, "%s: update ctrl2 ret=%d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = pcf2127_wdt_active_ping(&pcf2127->wdd);
+	if (ret)
+		return ret;
+
+	return count;
+};
+
+static ssize_t timestamp0_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct pcf2127 *pcf2127 = dev_get_drvdata(dev->parent);
+	struct rtc_time tm;
+	int ret;
+	unsigned char data[25];
+
+	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_CTRL1, data,
+			       sizeof(data));
+	if (ret) {
+		dev_err(dev, "%s: read error ret=%d\n", __func__, ret);
+		return ret;
+	}
+
+	dev_dbg(dev,
+		"%s: raw data is cr1=%02x, cr2=%02x, cr3=%02x, ts_sc=%02x, "
+		"ts_mn=%02x, ts_hr=%02x, ts_dm=%02x, ts_mo=%02x, ts_yr=%02x\n",
+		__func__, data[PCF2127_REG_CTRL1], data[PCF2127_REG_CTRL2],
+		data[PCF2127_REG_CTRL3], data[PCF2127_REG_TS_SC],
+		data[PCF2127_REG_TS_MN], data[PCF2127_REG_TS_HR],
+		data[PCF2127_REG_TS_DM], data[PCF2127_REG_TS_MO],
+		data[PCF2127_REG_TS_YR]);
+
+	ret = pcf2127_wdt_active_ping(&pcf2127->wdd);
+	if (ret)
+		return ret;
+
+	if (!(data[PCF2127_REG_CTRL1] & PCF2127_BIT_CTRL1_TSF1) &&
+	    !(data[PCF2127_REG_CTRL2] & PCF2127_BIT_CTRL2_TSF2))
+		return 0;
+
+	tm.tm_sec = bcd2bin(data[PCF2127_REG_TS_SC] & 0x7F);
+	tm.tm_min = bcd2bin(data[PCF2127_REG_TS_MN] & 0x7F);
+	tm.tm_hour = bcd2bin(data[PCF2127_REG_TS_HR] & 0x3F);
+	tm.tm_mday = bcd2bin(data[PCF2127_REG_TS_DM] & 0x3F);
+	/* TS_MO register (month) value range: 1-12 */
+	tm.tm_mon = bcd2bin(data[PCF2127_REG_TS_MO] & 0x1F) - 1;
+	tm.tm_year = bcd2bin(data[PCF2127_REG_TS_YR]);
+	if (tm.tm_year < 70)
+		tm.tm_year += 100; /* assume we are in 1970...2069 */
+
+	ret = rtc_valid_tm(&tm);
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%llu\n",
+		       (unsigned long long)rtc_tm_to_time64(&tm));
+};
+
+static DEVICE_ATTR_RW(timestamp0);
+
+static struct attribute *pcf2127_attrs[] = {
+	&dev_attr_timestamp0.attr,
+	NULL
+};
+
+static const struct attribute_group pcf2127_attr_group = {
+	.attrs	= pcf2127_attrs,
+};
 
 static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 			const char *name, bool has_nvmem)
@@ -237,10 +429,21 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 
 	dev_set_drvdata(dev, pcf2127);
 
-	pcf2127->rtc = devm_rtc_device_register(dev, name, &pcf2127_rtc_ops,
-						THIS_MODULE);
+	pcf2127->rtc = devm_rtc_allocate_device(dev);
 	if (IS_ERR(pcf2127->rtc))
 		return PTR_ERR(pcf2127->rtc);
+
+	pcf2127->rtc->ops = &pcf2127_rtc_ops;
+
+	pcf2127->wdd.parent = dev;
+	pcf2127->wdd.info = &pcf2127_wdt_info;
+	pcf2127->wdd.ops = &pcf2127_watchdog_ops;
+	pcf2127->wdd.min_timeout = PCF2127_WD_VAL_MIN;
+	pcf2127->wdd.max_timeout = PCF2127_WD_VAL_MAX;
+	pcf2127->wdd.timeout = PCF2127_WD_VAL_DEFAULT;
+	pcf2127->wdd.min_hw_heartbeat_ms = 500;
+
+	watchdog_set_drvdata(&pcf2127->wdd, pcf2127);
 
 	if (has_nvmem) {
 		struct nvmem_config nvmem_cfg = {
@@ -253,7 +456,84 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 		ret = rtc_nvmem_register(pcf2127->rtc, &nvmem_cfg);
 	}
 
-	return ret;
+	/*
+	 * Watchdog timer enabled and reset pin /RST activated when timed out.
+	 * Select 1Hz clock source for watchdog timer.
+	 * Timer is not started until WD_VAL is loaded with a valid value.
+	 * Note: Countdown timer disabled and not available.
+	 */
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_WD_CTL,
+				 PCF2127_BIT_WD_CTL_CD1 |
+				 PCF2127_BIT_WD_CTL_CD0 |
+				 PCF2127_BIT_WD_CTL_TF1 |
+				 PCF2127_BIT_WD_CTL_TF0,
+				 PCF2127_BIT_WD_CTL_CD1 |
+				 PCF2127_BIT_WD_CTL_CD0 |
+				 PCF2127_BIT_WD_CTL_TF1);
+	if (ret) {
+		dev_err(dev, "%s: watchdog config (wd_ctl) failed\n", __func__);
+		return ret;
+	}
+
+#ifdef CONFIG_WATCHDOG
+	ret = devm_watchdog_register_device(dev, &pcf2127->wdd);
+	if (ret)
+		return ret;
+#endif /* CONFIG_WATCHDOG */
+
+	/*
+	 * Disable battery low/switch-over timestamp and interrupts.
+	 * Clear battery interrupt flags which can block new trigger events.
+	 * Note: This is the default chip behaviour but added to ensure
+	 * correct tamper timestamp and interrupt function.
+	 */
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL3,
+				 PCF2127_BIT_CTRL3_BTSE |
+				 PCF2127_BIT_CTRL3_BF |
+				 PCF2127_BIT_CTRL3_BIE |
+				 PCF2127_BIT_CTRL3_BLIE, 0);
+	if (ret) {
+		dev_err(dev, "%s: interrupt config (ctrl3) failed\n",
+			__func__);
+		return ret;
+	}
+
+	/*
+	 * Enable timestamp function and store timestamp of first trigger
+	 * event until TSF1 and TFS2 interrupt flags are cleared.
+	 */
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_TS_CTRL,
+				 PCF2127_BIT_TS_CTRL_TSOFF |
+				 PCF2127_BIT_TS_CTRL_TSM,
+				 PCF2127_BIT_TS_CTRL_TSM);
+	if (ret) {
+		dev_err(dev, "%s: tamper detection config (ts_ctrl) failed\n",
+			__func__);
+		return ret;
+	}
+
+	/*
+	 * Enable interrupt generation when TSF1 or TSF2 timestamp flags
+	 * are set. Interrupt signal is an open-drain output and can be
+	 * left floating if unused.
+	 */
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL2,
+				 PCF2127_BIT_CTRL2_TSIE,
+				 PCF2127_BIT_CTRL2_TSIE);
+	if (ret) {
+		dev_err(dev, "%s: tamper detection config (ctrl2) failed\n",
+			__func__);
+		return ret;
+	}
+
+	ret = rtc_add_group(pcf2127->rtc, &pcf2127_attr_group);
+	if (ret) {
+		dev_err(dev, "%s: tamper sysfs registering failed\n",
+			__func__);
+		return ret;
+	}
+
+	return rtc_register_device(pcf2127->rtc);
 }
 
 #ifdef CONFIG_OF

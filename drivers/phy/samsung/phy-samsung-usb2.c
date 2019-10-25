@@ -156,9 +156,8 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 	if (!cfg)
 		return -EINVAL;
 
-	drv = devm_kzalloc(dev, sizeof(struct samsung_usb2_phy_driver) +
-		cfg->num_phys * sizeof(struct samsung_usb2_phy_instance),
-								GFP_KERNEL);
+	drv = devm_kzalloc(dev, struct_size(drv, instances, cfg->num_phys),
+			   GFP_KERNEL);
 	if (!drv)
 		return -ENOMEM;
 
@@ -251,6 +250,7 @@ static struct platform_driver samsung_usb2_phy_driver = {
 	.driver = {
 		.of_match_table	= samsung_usb2_phy_of_match,
 		.name		= "samsung-usb2-phy",
+		.suppress_bind_attrs = true,
 	}
 };
 

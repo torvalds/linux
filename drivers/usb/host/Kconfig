@@ -114,7 +114,7 @@ config USB_EHCI_HCD
 	  Controller Driver or UHCI (for Via motherboards) Host Controller
 	  Driver too.
 
-	  You may want to read <file:Documentation/usb/ehci.txt>.
+	  You may want to read <file:Documentation/usb/ehci.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ehci-hcd.
@@ -161,7 +161,6 @@ config USB_EHCI_PCI
 config USB_EHCI_HCD_PMC_MSP
 	tristate "EHCI support for on-chip PMC MSP71xx USB controller"
 	depends on MSP_HAS_USB
-	default n
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	---help---
@@ -288,12 +287,6 @@ config USB_EHCI_MV
 	  Dova, Armada 370 and Armada XP. See "Support for Marvell EBU
 	  on-chip EHCI USB controller" for those.
 
-config USB_W90X900_EHCI
-	tristate "W90X900(W90P910) EHCI support"
-	depends on ARCH_W90X900
-	---help---
-		Enables support for the W90X900 USB controller
-
 config USB_CNS3XXX_EHCI
 	bool "Cavium CNS3XXX EHCI Module (DEPRECATED)"
 	depends on ARCH_CNS3XXX
@@ -308,7 +301,6 @@ config USB_CNS3XXX_EHCI
 
 config USB_EHCI_HCD_PLATFORM
 	tristate "Generic EHCI driver for a platform device"
-	default n
 	---help---
 	  Adds an EHCI host driver for a generic platform device, which
 	  provides a memory space and an irq.
@@ -318,7 +310,6 @@ config USB_EHCI_HCD_PLATFORM
 config USB_OCTEON_EHCI
 	bool "Octeon on-chip EHCI support (DEPRECATED)"
 	depends on CAVIUM_OCTEON_SOC
-	default n
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_EHCI_HCD_PLATFORM
 	help
@@ -444,7 +435,8 @@ config USB_OHCI_HCD_S3C2410
 
 config USB_OHCI_HCD_LPC32XX
 	tristate "Support for LPC on-chip OHCI USB controller"
-	depends on USB_OHCI_HCD && ARCH_LPC32XX
+	depends on USB_OHCI_HCD
+	depends on ARCH_LPC32XX || COMPILE_TEST
 	depends on USB_ISP1301
 	default y
 	---help---
@@ -526,7 +518,6 @@ config USB_OHCI_HCD_SSB
 	depends on (SSB = y || SSB = USB_OHCI_HCD)
 	select USB_HCD_SSB
 	select USB_OHCI_HCD_PLATFORM
-	default n
 	---help---
 	  This option is deprecated now and the driver was removed, use
 	  USB_HCD_SSB and USB_OHCI_HCD_PLATFORM instead.
@@ -569,7 +560,6 @@ config USB_CNS3XXX_OHCI
 
 config USB_OHCI_HCD_PLATFORM
 	tristate "Generic OHCI driver for a platform device"
-	default n
 	---help---
 	  Adds an OHCI host driver for a generic platform device, which
 	  provides a memory space and an irq.
@@ -721,32 +711,6 @@ config USB_RENESAS_USBHS_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called renesas-usbhs.
-
-config USB_WHCI_HCD
-	tristate "Wireless USB Host Controller Interface (WHCI) driver"
-	depends on USB_PCI && USB && UWB
-	select USB_WUSB
-	select UWB_WHCI
-	help
-	  A driver for PCI-based Wireless USB Host Controllers that are
-	  compliant with the WHCI specification.
-
-	  To compile this driver a module, choose M here: the module
-	  will be called "whci-hcd".
-
-config USB_HWA_HCD
-	tristate "Host Wire Adapter (HWA) driver"
-	depends on USB && UWB
-	select USB_WUSB
-	select UWB_HWA
-	help
-	  This driver enables you to connect Wireless USB devices to
-	  your system using a Host Wire Adaptor USB dongle. This is an
-	  UWB Radio Controller and WUSB Host Controller connected to
-	  your machine via USB (specified in WUSB1.0).
-
-	  To compile this driver a module, choose M here: the module
-	  will be called "hwa-hc".
 
 config USB_IMX21_HCD
        tristate "i.MX21 HCD support"

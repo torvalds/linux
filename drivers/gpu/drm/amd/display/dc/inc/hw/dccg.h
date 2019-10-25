@@ -38,7 +38,8 @@ struct dccg {
 struct dccg_funcs {
 	void (*update_dpp_dto)(struct dccg *dccg,
 			int dpp_inst,
-			int req_dppclk);
+			int req_dppclk,
+			bool reduce_divider_only);
 	void (*get_dccg_ref_freq)(struct dccg *dccg,
 			unsigned int xtalin_freq_inKhz,
 			unsigned int *dccg_ref_freq_inKhz);

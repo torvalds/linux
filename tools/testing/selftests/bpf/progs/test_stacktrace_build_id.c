@@ -36,8 +36,7 @@ struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 128);
 	__type(key, __u32);
-	/* there seems to be a bug in kernel not handling typedef properly */
-	struct bpf_stack_build_id (*value)[PERF_MAX_STACK_DEPTH];
+	__type(value, stack_trace_t);
 } stack_amap SEC(".maps");
 
 /* taken from /sys/kernel/debug/tracing/events/random/urandom_read/format */

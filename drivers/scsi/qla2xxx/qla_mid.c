@@ -901,10 +901,8 @@ failed:
 	return 0;
 }
 
-static void qla_ctrlvp_sp_done(void *s, int res)
+static void qla_ctrlvp_sp_done(srb_t *sp, int res)
 {
-	struct srb *sp = s;
-
 	if (sp->comp)
 		complete(sp->comp);
 	/* don't free sp here. Let the caller do the free */

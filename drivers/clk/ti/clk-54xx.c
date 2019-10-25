@@ -314,6 +314,39 @@ static const struct omap_clkctrl_reg_data omap5_dss_clkctrl_regs[] __initconst =
 	{ 0 },
 };
 
+static const char * const omap5_gpu_core_mux_parents[] __initconst = {
+	"dpll_core_h14x2_ck",
+	"dpll_per_h14x2_ck",
+	NULL,
+};
+
+static const char * const omap5_gpu_hyd_mux_parents[] __initconst = {
+	"dpll_core_h14x2_ck",
+	"dpll_per_h14x2_ck",
+	NULL,
+};
+
+static const char * const omap5_gpu_sys_clk_parents[] __initconst = {
+	"sys_clkin",
+	NULL,
+};
+
+static const struct omap_clkctrl_div_data omap5_gpu_sys_clk_data __initconst = {
+	.max_div = 2,
+};
+
+static const struct omap_clkctrl_bit_data omap5_gpu_core_bit_data[] __initconst = {
+	{ 24, TI_CLK_MUX, omap5_gpu_core_mux_parents, NULL },
+	{ 25, TI_CLK_MUX, omap5_gpu_hyd_mux_parents, NULL },
+	{ 26, TI_CLK_DIVIDER, omap5_gpu_sys_clk_parents, &omap5_gpu_sys_clk_data },
+	{ 0 },
+};
+
+static const struct omap_clkctrl_reg_data omap5_gpu_clkctrl_regs[] __initconst = {
+	{ OMAP5_GPU_CLKCTRL, omap5_gpu_core_bit_data, CLKF_SW_SUP, "gpu_cm:clk:0000:24" },
+	{ 0 },
+};
+
 static const char * const omap5_mmc1_fclk_mux_parents[] __initconst = {
 	"func_128m_clk",
 	"dpll_per_m2x2_ck",
@@ -470,6 +503,7 @@ const struct omap_clkctrl_data omap5_clkctrl_data[] __initconst = {
 	{ 0x4a008e20, omap5_l3instr_clkctrl_regs },
 	{ 0x4a009020, omap5_l4per_clkctrl_regs },
 	{ 0x4a009420, omap5_dss_clkctrl_regs },
+	{ 0x4a009520, omap5_gpu_clkctrl_regs },
 	{ 0x4a009620, omap5_l3init_clkctrl_regs },
 	{ 0x4ae07920, omap5_wkupaon_clkctrl_regs },
 	{ 0 },

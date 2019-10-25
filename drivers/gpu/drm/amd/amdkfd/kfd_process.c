@@ -62,12 +62,74 @@ static struct workqueue_struct *kfd_restore_wq;
 
 static struct kfd_process *find_process(const struct task_struct *thread);
 static void kfd_process_ref_release(struct kref *ref);
-static struct kfd_process *create_process(const struct task_struct *thread,
-					struct file *filep);
+static struct kfd_process *create_process(const struct task_struct *thread);
+static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep);
 
 static void evict_process_worker(struct work_struct *work);
 static void restore_process_worker(struct work_struct *work);
 
+struct kfd_procfs_tree {
+	struct kobject *kobj;
+};
+
+static struct kfd_procfs_tree procfs;
+
+static ssize_t kfd_procfs_show(struct kobject *kobj, struct attribute *attr,
+			       char *buffer)
+{
+	int val = 0;
+
+	if (strcmp(attr->name, "pasid") == 0) {
+		struct kfd_process *p = container_of(attr, struct kfd_process,
+						     attr_pasid);
+		val = p->pasid;
+	} else {
+		pr_err("Invalid attribute");
+		return -EINVAL;
+	}
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", val);
+}
+
+static void kfd_procfs_kobj_release(struct kobject *kobj)
+{
+	kfree(kobj);
+}
+
+static const struct sysfs_ops kfd_procfs_ops = {
+	.show = kfd_procfs_show,
+};
+
+static struct kobj_type procfs_type = {
+	.release = kfd_procfs_kobj_release,
+	.sysfs_ops = &kfd_procfs_ops,
+};
+
+void kfd_procfs_init(void)
+{
+	int ret = 0;
+
+	procfs.kobj = kfd_alloc_struct(procfs.kobj);
+	if (!procfs.kobj)
+		return;
+
+	ret = kobject_init_and_add(procfs.kobj, &procfs_type,
+				   &kfd_device->kobj, "proc");
+	if (ret) {
+		pr_warn("Could not create procfs proc folder");
+		/* If we fail to create the procfs, clean up */
+		kfd_procfs_shutdown();
+	}
+}
+
+void kfd_procfs_shutdown(void)
+{
+	if (procfs.kobj) {
+		kobject_del(procfs.kobj);
+		kobject_put(procfs.kobj);
+		procfs.kobj = NULL;
+	}
+}
 
 int kfd_process_create_wq(void)
 {
@@ -206,6 +268,7 @@ struct kfd_process *kfd_create_process(struct file *filep)
 {
 	struct kfd_process *process;
 	struct task_struct *thread = current;
+	int ret;
 
 	if (!thread->mm)
 		return ERR_PTR(-EINVAL);
@@ -223,11 +286,44 @@ struct kfd_process *kfd_create_process(struct file *filep)
 
 	/* A prior open of /dev/kfd could have already created the process. */
 	process = find_process(thread);
-	if (process)
+	if (process) {
 		pr_debug("Process already found\n");
-	else
-		process = create_process(thread, filep);
+	} else {
+		process = create_process(thread);
+		if (IS_ERR(process))
+			goto out;
 
+		ret = kfd_process_init_cwsr_apu(process, filep);
+		if (ret) {
+			process = ERR_PTR(ret);
+			goto out;
+		}
+
+		if (!procfs.kobj)
+			goto out;
+
+		process->kobj = kfd_alloc_struct(process->kobj);
+		if (!process->kobj) {
+			pr_warn("Creating procfs kobject failed");
+			goto out;
+		}
+		ret = kobject_init_and_add(process->kobj, &procfs_type,
+					   procfs.kobj, "%d",
+					   (int)process->lead_thread->pid);
+		if (ret) {
+			pr_warn("Creating procfs pid directory failed");
+			goto out;
+		}
+
+		process->attr_pasid.name = "pasid";
+		process->attr_pasid.mode = KFD_SYSFS_FILE_MODE;
+		sysfs_attr_init(&process->attr_pasid);
+		ret = sysfs_create_file(process->kobj, &process->attr_pasid);
+		if (ret)
+			pr_warn("Creating pasid for pid %d failed",
+					(int)process->lead_thread->pid);
+	}
+out:
 	mutex_unlock(&kfd_processes_mutex);
 
 	return process;
@@ -355,6 +451,14 @@ static void kfd_process_wq_release(struct work_struct *work)
 	struct kfd_process *p = container_of(work, struct kfd_process,
 					     release_work);
 
+	/* Remove the procfs files */
+	if (p->kobj) {
+		sysfs_remove_file(p->kobj, &p->attr_pasid);
+		kobject_del(p->kobj);
+		kobject_put(p->kobj);
+		p->kobj = NULL;
+	}
+
 	kfd_iommu_unbind_process(p);
 
 	kfd_process_free_outstanding_kfd_bos(p);
@@ -382,11 +486,9 @@ static void kfd_process_ref_release(struct kref *ref)
 	queue_work(kfd_process_wq, &p->release_work);
 }
 
-static void kfd_process_destroy_delayed(struct rcu_head *rcu)
+static void kfd_process_free_notifier(struct mmu_notifier *mn)
 {
-	struct kfd_process *p = container_of(rcu, struct kfd_process, rcu);
-
-	kfd_unref_process(p);
+	kfd_unref_process(container_of(mn, struct kfd_process, mmu_notifier));
 }
 
 static void kfd_process_notifier_release(struct mmu_notifier *mn,
@@ -438,12 +540,12 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 
 	mutex_unlock(&p->mutex);
 
-	mmu_notifier_unregister_no_release(&p->mmu_notifier, mm);
-	mmu_notifier_call_srcu(&p->rcu, &kfd_process_destroy_delayed);
+	mmu_notifier_put(&p->mmu_notifier);
 }
 
 static const struct mmu_notifier_ops kfd_process_mmu_notifier_ops = {
 	.release = kfd_process_notifier_release,
+	.free_notifier = kfd_process_free_notifier,
 };
 
 static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep)
@@ -513,16 +615,29 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 	return 0;
 }
 
-static struct kfd_process *create_process(const struct task_struct *thread,
-					struct file *filep)
+/*
+ * On return the kfd_process is fully operational and will be freed when the
+ * mm is released
+ */
+static struct kfd_process *create_process(const struct task_struct *thread)
 {
 	struct kfd_process *process;
 	int err = -ENOMEM;
 
 	process = kzalloc(sizeof(*process), GFP_KERNEL);
-
 	if (!process)
 		goto err_alloc_process;
+
+	kref_init(&process->ref);
+	mutex_init(&process->mutex);
+	process->mm = thread->mm;
+	process->lead_thread = thread->group_leader;
+	INIT_LIST_HEAD(&process->per_device_data);
+	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
+	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
+	process->last_restore_timestamp = get_jiffies_64();
+	kfd_event_init_process(process);
+	process->is_32bit_user_mode = in_compat_syscall();
 
 	process->pasid = kfd_pasid_alloc();
 	if (process->pasid == 0)
@@ -531,63 +646,38 @@ static struct kfd_process *create_process(const struct task_struct *thread,
 	if (kfd_alloc_process_doorbells(process) < 0)
 		goto err_alloc_doorbells;
 
-	kref_init(&process->ref);
-
-	mutex_init(&process->mutex);
-
-	process->mm = thread->mm;
-
-	/* register notifier */
-	process->mmu_notifier.ops = &kfd_process_mmu_notifier_ops;
-	err = mmu_notifier_register(&process->mmu_notifier, process->mm);
-	if (err)
-		goto err_mmu_notifier;
-
-	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
-			(uintptr_t)process->mm);
-
-	process->lead_thread = thread->group_leader;
-	get_task_struct(process->lead_thread);
-
-	INIT_LIST_HEAD(&process->per_device_data);
-
-	kfd_event_init_process(process);
-
 	err = pqm_init(&process->pqm, process);
 	if (err != 0)
 		goto err_process_pqm_init;
 
 	/* init process apertures*/
-	process->is_32bit_user_mode = in_compat_syscall();
 	err = kfd_init_apertures(process);
 	if (err != 0)
 		goto err_init_apertures;
 
-	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
-	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
-	process->last_restore_timestamp = get_jiffies_64();
-
-	err = kfd_process_init_cwsr_apu(process, filep);
+	/* Must be last, have to use release destruction after this */
+	process->mmu_notifier.ops = &kfd_process_mmu_notifier_ops;
+	err = mmu_notifier_register(&process->mmu_notifier, process->mm);
 	if (err)
-		goto err_init_cwsr;
+		goto err_register_notifier;
+
+	get_task_struct(process->lead_thread);
+	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
+			(uintptr_t)process->mm);
 
 	return process;
 
-err_init_cwsr:
+err_register_notifier:
 	kfd_process_free_outstanding_kfd_bos(process);
 	kfd_process_destroy_pdds(process);
 err_init_apertures:
 	pqm_uninit(&process->pqm);
 err_process_pqm_init:
-	hash_del_rcu(&process->kfd_processes);
-	synchronize_rcu();
-	mmu_notifier_unregister_no_release(&process->mmu_notifier, process->mm);
-err_mmu_notifier:
-	mutex_destroy(&process->mutex);
 	kfd_free_process_doorbells(process);
 err_alloc_doorbells:
 	kfd_pasid_free(process->pasid);
 err_alloc_pasid:
+	mutex_destroy(&process->mutex);
 	kfree(process);
 err_alloc_process:
 	return ERR_PTR(err);
@@ -704,6 +794,8 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 		pr_err("Failed to create process VM object\n");
 		return ret;
 	}
+
+	amdgpu_vm_set_task_info(pdd->vm);
 
 	ret = kfd_process_device_reserve_ib_mem(pdd);
 	if (ret)
@@ -946,7 +1038,6 @@ static void restore_process_worker(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 	struct kfd_process *p;
-	struct kfd_process_device *pdd;
 	int ret = 0;
 
 	dwork = to_delayed_work(work);
@@ -955,16 +1046,6 @@ static void restore_process_worker(struct work_struct *work)
 	 * lifetime of this thread, kfd_process p will be valid
 	 */
 	p = container_of(dwork, struct kfd_process, restore_work);
-
-	/* Call restore_process_bos on the first KGD device. This function
-	 * takes care of restoring the whole process including other devices.
-	 * Restore can fail if enough memory is not available. If so,
-	 * reschedule again.
-	 */
-	pdd = list_first_entry(&p->per_device_data,
-			       struct kfd_process_device,
-			       per_device_list);
-
 	pr_debug("Started restoring pasid %d\n", p->pasid);
 
 	/* Setting last_restore_timestamp before successful restoration.
@@ -1107,3 +1188,4 @@ int kfd_debugfs_mqds_by_process(struct seq_file *m, void *data)
 }
 
 #endif
+

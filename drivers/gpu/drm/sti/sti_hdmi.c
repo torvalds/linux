@@ -13,9 +13,12 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include <sound/hdmi-codec.h>
@@ -846,10 +849,13 @@ static int hdmi_audio_configure(struct sti_hdmi *hdmi)
 	switch (info->channels) {
 	case 8:
 		audio_cfg |= HDMI_AUD_CFG_CH78_VALID;
+		/* fall through */
 	case 6:
 		audio_cfg |= HDMI_AUD_CFG_CH56_VALID;
+		/* fall through */
 	case 4:
 		audio_cfg |= HDMI_AUD_CFG_CH34_VALID | HDMI_AUD_CFG_8CH;
+		/* fall through */
 	case 2:
 		audio_cfg |= HDMI_AUD_CFG_CH12_VALID;
 		break;
@@ -1281,8 +1287,10 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	drm_connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	drm_connector_init(drm_dev, drm_connector,
-			&sti_hdmi_connector_funcs, DRM_MODE_CONNECTOR_HDMIA);
+	drm_connector_init_with_ddc(drm_dev, drm_connector,
+				    &sti_hdmi_connector_funcs,
+				    DRM_MODE_CONNECTOR_HDMIA,
+				    hdmi->ddc_adapt);
 	drm_connector_helper_add(drm_connector,
 			&sti_hdmi_connector_helper_funcs);
 

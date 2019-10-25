@@ -33,10 +33,6 @@ clk_hw_create_clk(struct device *dev, struct clk_hw *hw, const char *dev_id,
 {
 	return (struct clk *)hw;
 }
-static struct clk_hw *__clk_get_hw(struct clk *clk)
-{
-	return (struct clk_hw *)clk;
-}
 static inline void __clk_put(struct clk *clk) { }
 
 #endif

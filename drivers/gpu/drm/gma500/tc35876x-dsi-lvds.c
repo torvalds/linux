@@ -22,14 +22,17 @@
  *
  */
 
-#include "mdfld_dsi_dpi.h"
-#include "mdfld_output.h"
-#include "mdfld_dsi_pkg_sender.h"
-#include "tc35876x-dsi-lvds.h"
-#include <linux/platform_data/tc35876x.h>
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/platform_data/tc35876x.h>
+
 #include <asm/intel_scu_ipc.h>
+
+#include "mdfld_dsi_dpi.h"
+#include "mdfld_dsi_pkg_sender.h"
+#include "mdfld_output.h"
+#include "tc35876x-dsi-lvds.h"
 
 static struct i2c_client *tc35876x_client;
 static struct i2c_client *cmi_lcd_i2c_client;

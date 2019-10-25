@@ -23,6 +23,8 @@
  * @cpu_boot:	Boots a cpu into the kernel.
  * @cpu_postboot: Optionally, perform any post-boot cleanup or necesary
  *		synchronisation. Called from the cpu being booted.
+ * @cpu_can_disable: Determines whether a CPU can be disabled based on
+ *		mechanism-specific information.
  * @cpu_disable: Prepares a cpu to die. May fail for some mechanism-specific
  * 		reason, which will cause the hot unplug to be aborted. Called
  * 		from the cpu to be killed.
@@ -42,6 +44,7 @@ struct cpu_operations {
 	int		(*cpu_boot)(unsigned int);
 	void		(*cpu_postboot)(void);
 #ifdef CONFIG_HOTPLUG_CPU
+	bool		(*cpu_can_disable)(unsigned int cpu);
 	int		(*cpu_disable)(unsigned int cpu);
 	void		(*cpu_die)(unsigned int cpu);
 	int		(*cpu_kill)(unsigned int cpu);

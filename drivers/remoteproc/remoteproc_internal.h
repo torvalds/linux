@@ -99,6 +99,17 @@ static inline int rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 }
 
 static inline
+int rproc_handle_rsc(struct rproc *rproc, u32 rsc_type, void *rsc, int offset,
+		     int avail)
+{
+	if (rproc->ops->handle_rsc)
+		return rproc->ops->handle_rsc(rproc, rsc_type, rsc, offset,
+					      avail);
+
+	return RSC_IGNORED;
+}
+
+static inline
 struct resource_table *rproc_find_loaded_rsc_table(struct rproc *rproc,
 						   const struct firmware *fw)
 {

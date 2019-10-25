@@ -45,7 +45,7 @@
  */
 #define DEFAULT_SEC_DESC_LEN (sizeof(struct cifs_ntsd) + \
 			      sizeof(struct cifs_acl) + \
-			      (sizeof(struct cifs_ace) * 3))
+			      (sizeof(struct cifs_ace) * 4))
 
 /*
  * Maximum size of a string representation of a SID:

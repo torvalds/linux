@@ -20,7 +20,7 @@ EXPORT_SYMBOL_GPL(unwind_get_return_address);
 static bool outside_of_stack(struct unwind_state *state, unsigned long sp)
 {
 	return (sp <= state->sp) ||
-		(sp + sizeof(struct stack_frame) > state->stack_info.end);
+		(sp > state->stack_info.end - sizeof(struct stack_frame));
 }
 
 static bool update_stack_info(struct unwind_state *state, unsigned long sp)

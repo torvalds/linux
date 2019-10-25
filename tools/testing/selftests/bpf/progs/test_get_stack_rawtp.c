@@ -47,14 +47,15 @@ struct {
  * issue and avoid complicated C programming massaging.
  * This is an acceptable workaround since there is one entry here.
  */
+typedef __u64 raw_stack_trace_t[2 * MAX_STACK_RAWTP];
 struct {
 	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
 	__uint(max_entries, 1);
 	__type(key, __u32);
-	__u64 (*value)[2 * MAX_STACK_RAWTP];
+	__type(value, raw_stack_trace_t);
 } rawdata_map SEC(".maps");
 
-SEC("tracepoint/raw_syscalls/sys_enter")
+SEC("raw_tracepoint/sys_enter")
 int bpf_prog1(void *ctx)
 {
 	int max_len, max_buildid_len, usize, ksize, total_size;

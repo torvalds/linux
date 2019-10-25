@@ -496,13 +496,8 @@ void odm_DIGInit(void *pDM_VOID)
 	/* To Initi BT30 IGI */
 	pDM_DigTable->BT30_CurIGI = 0x32;
 
-	if (pDM_Odm->BoardType & (ODM_BOARD_EXT_PA|ODM_BOARD_EXT_LNA)) {
-		pDM_DigTable->rx_gain_range_max = DM_DIG_MAX_NIC;
-		pDM_DigTable->rx_gain_range_min = DM_DIG_MIN_NIC;
-	} else {
-		pDM_DigTable->rx_gain_range_max = DM_DIG_MAX_NIC;
-		pDM_DigTable->rx_gain_range_min = DM_DIG_MIN_NIC;
-	}
+	pDM_DigTable->rx_gain_range_max = DM_DIG_MAX_NIC;
+	pDM_DigTable->rx_gain_range_min = DM_DIG_MIN_NIC;
 
 }
 
@@ -525,7 +520,7 @@ void odm_DIG(void *pDM_VOID)
 	bool bDFSBand = false;
 	bool bPerformance = true, bFirstTpTarget = false, bFirstCoverage = false;
 
-	if (odm_DigAbort(pDM_Odm) == true)
+	if (odm_DigAbort(pDM_Odm))
 		return;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG() ===========================>\n\n"));

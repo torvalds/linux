@@ -4,16 +4,14 @@
  * All Rights Reserved.
  */
 #include "xfs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-#include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_trace.h"
-#include <linux/slab.h>
-#include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
 
 
@@ -114,7 +112,7 @@ xfs_get_acl(struct inode *inode, int type)
 {
 	struct xfs_inode *ip = XFS_I(inode);
 	struct posix_acl *acl = NULL;
-	struct xfs_acl *xfs_acl;
+	struct xfs_acl *xfs_acl = NULL;
 	unsigned char *ea_name;
 	int error;
 	int len;
@@ -137,12 +135,8 @@ xfs_get_acl(struct inode *inode, int type)
 	 * go out to the disk.
 	 */
 	len = XFS_ACL_MAX_SIZE(ip->i_mount);
-	xfs_acl = kmem_zalloc_large(len, KM_SLEEP);
-	if (!xfs_acl)
-		return ERR_PTR(-ENOMEM);
-
-	error = xfs_attr_get(ip, ea_name, (unsigned char *)xfs_acl,
-							&len, ATTR_ROOT);
+	error = xfs_attr_get(ip, ea_name, (unsigned char **)&xfs_acl, &len,
+				ATTR_ALLOC | ATTR_ROOT);
 	if (error) {
 		/*
 		 * If the attribute doesn't exist make sure we have a negative
@@ -153,8 +147,8 @@ xfs_get_acl(struct inode *inode, int type)
 	} else  {
 		acl = xfs_acl_from_disk(xfs_acl, len,
 					XFS_ACL_MAX_ENTRIES(ip->i_mount));
+		kmem_free(xfs_acl);
 	}
-	kmem_free(xfs_acl);
 	return acl;
 }
 
@@ -182,7 +176,7 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		struct xfs_acl *xfs_acl;
 		int len = XFS_ACL_MAX_SIZE(ip->i_mount);
 
-		xfs_acl = kmem_zalloc_large(len, KM_SLEEP);
+		xfs_acl = kmem_zalloc_large(len, 0);
 		if (!xfs_acl)
 			return -ENOMEM;
 

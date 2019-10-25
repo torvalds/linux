@@ -2,8 +2,12 @@
 #ifndef _NF_CONNTRACK_FTP_H
 #define _NF_CONNTRACK_FTP_H
 
+#include <linux/netfilter.h>
+#include <linux/skbuff.h>
+#include <linux/types.h>
+#include <net/netfilter/nf_conntrack_expect.h>
 #include <uapi/linux/netfilter/nf_conntrack_ftp.h>
-
+#include <uapi/linux/netfilter/nf_conntrack_tuple_common.h>
 
 #define FTP_PORT	21
 
@@ -19,8 +23,6 @@ struct nf_ct_ftp_master {
 	/* pickup sequence tracking, useful for conntrackd */
 	u_int16_t flags[IP_CT_DIR_MAX];
 };
-
-struct nf_conntrack_expect;
 
 /* For NAT to hook in when we find a packet which describes what other
  * connection we should expect. */

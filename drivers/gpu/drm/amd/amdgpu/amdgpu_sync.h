@@ -27,7 +27,7 @@
 #include <linux/hashtable.h>
 
 struct dma_fence;
-struct reservation_object;
+struct dma_resv;
 struct amdgpu_device;
 struct amdgpu_ring;
 
@@ -44,7 +44,7 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		      struct dma_fence *f, bool explicit);
 int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     struct amdgpu_sync *sync,
-		     struct reservation_object *resv,
+		     struct dma_resv *resv,
 		     void *owner,
 		     bool explicit_sync);
 struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,

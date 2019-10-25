@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
+#include "target.h"
 #include "thread_map.h"
 #include "cpumap.h"
 #include "tests.h"
 
 #include <errno.h>
 #include <signal.h>
+#include <linux/string.h>
+#include <perf/evlist.h>
 
 static int exited;
 static int nr_exit;
@@ -37,16 +41,16 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 {
 	int err = -1;
 	union perf_event *event;
-	struct perf_evsel *evsel;
-	struct perf_evlist *evlist;
+	struct evsel *evsel;
+	struct evlist *evlist;
 	struct target target = {
 		.uid		= UINT_MAX,
 		.uses_mmap	= true,
 	};
 	const char *argv[] = { "true", NULL };
 	char sbuf[STRERR_BUFSIZE];
-	struct cpu_map *cpus;
-	struct thread_map *threads;
+	struct perf_cpu_map *cpus;
+	struct perf_thread_map *threads;
 	struct perf_mmap *md;
 
 	signal(SIGCHLD, sig_handler);
@@ -63,7 +67,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	 * perf_evlist__prepare_workload we'll fill in the only thread
 	 * we're monitoring, the one forked there.
 	 */
-	cpus = cpu_map__dummy_new();
+	cpus = perf_cpu_map__dummy_new();
 	threads = thread_map__new_by_tid(-1);
 	if (!cpus || !threads) {
 		err = -ENOMEM;
@@ -71,7 +75,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 		goto out_free_maps;
 	}
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	cpus	= NULL;
 	threads = NULL;
@@ -84,18 +88,18 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	}
 
 	evsel = perf_evlist__first(evlist);
-	evsel->attr.task = 1;
+	evsel->core.attr.task = 1;
 #ifdef __s390x__
-	evsel->attr.sample_freq = 1000000;
+	evsel->core.attr.sample_freq = 1000000;
 #else
-	evsel->attr.sample_freq = 1;
+	evsel->core.attr.sample_freq = 1;
 #endif
-	evsel->attr.inherit = 0;
-	evsel->attr.watermark = 0;
-	evsel->attr.wakeup_events = 1;
-	evsel->attr.exclude_kernel = 1;
+	evsel->core.attr.inherit = 0;
+	evsel->core.attr.watermark = 0;
+	evsel->core.attr.wakeup_events = 1;
+	evsel->core.attr.exclude_kernel = 1;
 
-	err = perf_evlist__open(evlist);
+	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("Couldn't open the evlist: %s\n",
 			 str_error_r(-err, sbuf, sizeof(sbuf)));
@@ -135,9 +139,9 @@ out_init:
 	}
 
 out_free_maps:
-	cpu_map__put(cpus);
-	thread_map__put(threads);
+	perf_cpu_map__put(cpus);
+	perf_thread_map__put(threads);
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return err;
 }

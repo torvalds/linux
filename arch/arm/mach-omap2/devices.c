@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -43,11 +44,17 @@ static struct resource omap_vout_resource[2] = {
 };
 #endif
 
+static u64 omap_vout_dma_mask = DMA_BIT_MASK(32);
+
 static struct platform_device omap_vout_device = {
 	.name		= "omap_vout",
 	.num_resources	= ARRAY_SIZE(omap_vout_resource),
 	.resource 	= &omap_vout_resource[0],
 	.id		= -1,
+	.dev		= {
+		.dma_mask		= &omap_vout_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
 
 int __init omap_init_vout(void)

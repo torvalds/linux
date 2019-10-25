@@ -51,17 +51,6 @@
 #define GPE0A_STS_PORT			0x420
 #define GPE0A_EN_PORT			0x428
 
-#define BAYTRAIL			0x01
-#define CHERRYTRAIL			0x02
-
-#define ICPU(model, data) { X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, data }
-
-static const struct x86_cpu_id int0002_cpu_ids[] = {
-	ICPU(INTEL_FAM6_ATOM_SILVERMONT, BAYTRAIL), /* Valleyview, Bay Trail  */
-	ICPU(INTEL_FAM6_ATOM_AIRMONT, CHERRYTRAIL), /* Braswell, Cherry Trail */
-	{}
-};
-
 /*
  * As this is not a real GPIO at all, but just a hack to model an event in
  * ACPI the get / set functions are dummy functions.
@@ -133,7 +122,7 @@ static irqreturn_t int0002_irq(int irq, void *data)
 	generic_handle_irq(irq_find_mapping(chip->irq.domain,
 					    GPE0A_PME_B0_VIRT_GPIO_PIN));
 
-	pm_system_wakeup();
+	pm_wakeup_hard_event(chip->parent);
 
 	return IRQ_HANDLED;
 }
@@ -155,7 +144,21 @@ static struct irq_chip int0002_cht_irqchip = {
 	 * No set_wake, on CHT the IRQ is typically shared with the ACPI SCI
 	 * and we don't want to mess with the ACPI SCI irq settings.
 	 */
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
+
+static const struct x86_cpu_id int0002_cpu_ids[] = {
+	INTEL_CPU_FAM6(ATOM_SILVERMONT, int0002_byt_irqchip),	/* Valleyview, Bay Trail  */
+	INTEL_CPU_FAM6(ATOM_AIRMONT, int0002_cht_irqchip),	/* Braswell, Cherry Trail */
+	{}
+};
+
+static void int0002_init_irq_valid_mask(struct gpio_chip *chip,
+					unsigned long *valid_mask,
+					unsigned int ngpios)
+{
+	bitmap_clear(valid_mask, 0, GPE0A_PME_B0_VIRT_GPIO_PIN);
+}
 
 static int int0002_probe(struct platform_device *pdev)
 {
@@ -171,10 +174,8 @@ static int int0002_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "Error getting IRQ: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -189,15 +190,13 @@ static int int0002_probe(struct platform_device *pdev)
 	chip->direction_output = int0002_gpio_direction_output;
 	chip->base = -1;
 	chip->ngpio = GPE0A_PME_B0_VIRT_GPIO_PIN + 1;
-	chip->irq.need_valid_mask = true;
+	chip->irq.init_valid_mask = int0002_init_irq_valid_mask;
 
 	ret = devm_gpiochip_add_data(&pdev->dev, chip, NULL);
 	if (ret) {
 		dev_err(dev, "Error adding gpio chip: %d\n", ret);
 		return ret;
 	}
-
-	bitmap_clear(chip->irq.valid_mask, 0, GPE0A_PME_B0_VIRT_GPIO_PIN);
 
 	/*
 	 * We manually request the irq here instead of passing a flow-handler
@@ -210,10 +209,7 @@ static int int0002_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (cpu_id->driver_data == BAYTRAIL)
-		irq_chip = &int0002_byt_irqchip;
-	else
-		irq_chip = &int0002_cht_irqchip;
+	irq_chip = (struct irq_chip *)cpu_id->driver_data;
 
 	ret = gpiochip_irqchip_add(chip, irq_chip, 0, handle_edge_irq,
 				   IRQ_TYPE_NONE);
@@ -224,6 +220,13 @@ static int int0002_probe(struct platform_device *pdev)
 
 	gpiochip_set_chained_irqchip(chip, irq_chip, irq, NULL);
 
+	device_init_wakeup(dev, true);
+	return 0;
+}
+
+static int int0002_remove(struct platform_device *pdev)
+{
+	device_init_wakeup(&pdev->dev, false);
 	return 0;
 }
 
@@ -239,6 +242,7 @@ static struct platform_driver int0002_driver = {
 		.acpi_match_table	= int0002_acpi_ids,
 	},
 	.probe	= int0002_probe,
+	.remove	= int0002_remove,
 };
 
 module_platform_driver(int0002_driver);

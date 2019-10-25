@@ -23,8 +23,9 @@ Contents:
    intel/ice
    google/gve
    mellanox/mlx5
+   pensando/ionic
 
-.. only::  subproject
+.. only::  subproject and html
 
    Indices
    =======

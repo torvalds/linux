@@ -492,7 +492,7 @@ static struct dfs_cache_entry *__find_cache_entry(unsigned int hash,
 #ifdef CONFIG_CIFS_DEBUG2
 			char *name = get_tgt_name(ce);
 
-			if (unlikely(IS_ERR(name))) {
+			if (IS_ERR(name)) {
 				rcu_read_unlock();
 				return ERR_CAST(name);
 			}

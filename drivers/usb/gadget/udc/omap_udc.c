@@ -2103,7 +2103,6 @@ done:
 static int omap_udc_stop(struct usb_gadget *g)
 {
 	unsigned long	flags;
-	int		status = -ENODEV;
 
 	if (udc->dc_clk != NULL)
 		omap_udc_enable_clock(1);
@@ -2125,7 +2124,7 @@ static int omap_udc_stop(struct usb_gadget *g)
 	if (udc->dc_clk != NULL)
 		omap_udc_enable_clock(0);
 
-	return status;
+	return 0;
 }
 
 /*-------------------------------------------------------------------------*/

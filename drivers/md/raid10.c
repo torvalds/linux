@@ -465,19 +465,21 @@ static void raid10_end_write_request(struct bio *bio)
 			if (test_bit(FailFast, &rdev->flags) &&
 			    (bio->bi_opf & MD_FAILFAST)) {
 				md_error(rdev->mddev, rdev);
-				if (!test_bit(Faulty, &rdev->flags))
-					/* This is the only remaining device,
-					 * We need to retry the write without
-					 * FailFast
-					 */
-					set_bit(R10BIO_WriteError, &r10_bio->state);
-				else {
-					r10_bio->devs[slot].bio = NULL;
-					to_put = bio;
-					dec_rdev = 1;
-				}
-			} else
+			}
+
+			/*
+			 * When the device is faulty, it is not necessary to
+			 * handle write error.
+			 * For failfast, this is the only remaining device,
+			 * We need to retry the write without FailFast.
+			 */
+			if (!test_bit(Faulty, &rdev->flags))
 				set_bit(R10BIO_WriteError, &r10_bio->state);
+			else {
+				r10_bio->devs[slot].bio = NULL;
+				to_put = bio;
+				dec_rdev = 1;
+			}
 		}
 	} else {
 		/*
@@ -1638,12 +1640,12 @@ static void raid10_error(struct mddev *mddev, struct md_rdev *rdev)
 
 	/*
 	 * If it is not operational, then we have already marked it as dead
-	 * else if it is the last working disks, ignore the error, let the
-	 * next level up know.
+	 * else if it is the last working disks with "fail_last_dev == false",
+	 * ignore the error, let the next level up know.
 	 * else mark the drive as failed
 	 */
 	spin_lock_irqsave(&conf->device_lock, flags);
-	if (test_bit(In_sync, &rdev->flags)
+	if (test_bit(In_sync, &rdev->flags) && !mddev->fail_last_dev
 	    && !enough(conf, rdev->raid_disk)) {
 		/*
 		 * Don't fail the drive, just return an IO error.

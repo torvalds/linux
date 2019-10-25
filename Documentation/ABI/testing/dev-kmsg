@@ -12,7 +12,7 @@ Description:	The /dev/kmsg character device node provides userspace access
 		The logged line can be prefixed with a <N> syslog prefix, which
 		carries the syslog priority and facility. The single decimal
 		prefix number is composed of the 3 lowest bits being the syslog
-		priority and the higher bits the syslog facility number.
+		priority and the next 8 bits the syslog facility number.
 
 		If no prefix is given, the priority number is the default kernel
 		log priority and the facility number is set to LOG_USER (1). It
@@ -90,13 +90,12 @@ Description:	The /dev/kmsg character device node provides userspace access
 		  +sound:card0 - subsystem:devname
 
 		The flags field carries '-' by default. A 'c' indicates a
-		fragment of a line. All following fragments are flagged with
-		'+'. Note, that these hints about continuation lines are not
-		necessarily correct, and the stream could be interleaved with
-		unrelated messages, but merging the lines in the output
-		usually produces better human readable results. A similar
-		logic is used internally when messages are printed to the
-		console, /proc/kmsg or the syslog() syscall.
+		fragment of a line. Note, that these hints about continuation
+		lines are not necessarily correct, and the stream could be
+		interleaved with unrelated messages, but merging the lines in
+		the output usually produces better human readable results. A
+		similar logic is used internally when messages are printed to
+		the console, /proc/kmsg or the syslog() syscall.
 
 		By default, kernel tries to avoid fragments by concatenating
 		when it can and fragments are rare; however, when extended

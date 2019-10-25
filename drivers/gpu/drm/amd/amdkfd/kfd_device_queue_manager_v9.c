@@ -37,6 +37,7 @@ void device_queue_manager_init_v9(
 {
 	asic_ops->update_qpd = update_qpd_v9;
 	asic_ops->init_sdma_vm = init_sdma_vm_v9;
+	asic_ops->mqd_manager_init = mqd_manager_init_v9;
 }
 
 static uint32_t compute_sh_mem_bases_64bit(struct kfd_process_device *pdd)
@@ -60,7 +61,7 @@ static int update_qpd_v9(struct device_queue_manager *dqm,
 		qpd->sh_mem_config =
 				SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
 					SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT;
-		if (noretry &&
+		if (amdgpu_noretry &&
 		    !dqm->dev->device_info->needs_iommu_device)
 			qpd->sh_mem_config |=
 				1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;

@@ -813,10 +813,10 @@ config INPUT_IDEAPAD_SLIDEBAR
 
 config INPUT_SOC_BUTTON_ARRAY
 	tristate "Windows-compatible SoC Button Array"
-	depends on KEYBOARD_GPIO
+	depends on KEYBOARD_GPIO && ACPI
 	help
-	  Say Y here if you have a SoC-based tablet that originally
-	  runs Windows 8.
+	  Say Y here if you have a SoC-based tablet that originally runs
+	  Windows 8 or a Microsoft Surface Book 2, Pro 5, Laptop 1 or later.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called soc_button_array.

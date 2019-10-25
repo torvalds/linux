@@ -840,7 +840,7 @@ struct tpm2_pcr_selection {
 	u8  pcr_select[3];
 } __packed;
 
-static ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
+ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 {
 	struct tpm2_pcr_selection pcr_selection;
 	struct tpm_buf buf;
@@ -1039,10 +1039,6 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 		if (rc)
 			goto out;
 	}
-
-	rc = tpm2_get_pcr_allocation(chip);
-	if (rc)
-		goto out;
 
 	rc = tpm2_get_cc_attrs_tbl(chip);
 

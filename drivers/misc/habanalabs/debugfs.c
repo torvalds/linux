@@ -29,7 +29,7 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_I2C_RD <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_I2C_RD <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
@@ -55,12 +55,12 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_I2C_WR <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_I2C_WR <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
-	pkt.value = __cpu_to_le64(val);
+	pkt.value = cpu_to_le64(val);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 					HL_DEVICE_TIMEOUT_USEC, NULL);
@@ -81,10 +81,10 @@ static void hl_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_LED_SET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_LED_SET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.led_index = __cpu_to_le32(led);
-	pkt.value = __cpu_to_le64(state);
+	pkt.led_index = cpu_to_le32(led);
+	pkt.value = cpu_to_le64(state);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 						HL_DEVICE_TIMEOUT_USEC, NULL);
@@ -355,7 +355,7 @@ static int mmu_show(struct seq_file *s, void *data)
 	struct hl_debugfs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
-	struct hl_ctx *ctx = hdev->user_ctx;
+	struct hl_ctx *ctx;
 
 	u64 hop0_addr = 0, hop0_pte_addr = 0, hop0_pte = 0,
 		hop1_addr = 0, hop1_pte_addr = 0, hop1_pte = 0,
@@ -366,6 +366,11 @@ static int mmu_show(struct seq_file *s, void *data)
 
 	if (!hdev->mmu_enable)
 		return 0;
+
+	if (dev_entry->mmu_asid == HL_KERNEL_ASID_ID)
+		ctx = hdev->kernel_ctx;
+	else
+		ctx = hdev->compute_ctx;
 
 	if (!ctx) {
 		dev_err(hdev->dev, "no ctx available\n");
@@ -495,10 +500,40 @@ err:
 	return -EINVAL;
 }
 
+static int engines_show(struct seq_file *s, void *data)
+{
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+
+	hdev->asic_funcs->is_device_idle(hdev, NULL, s);
+
+	return 0;
+}
+
+static bool hl_is_device_va(struct hl_device *hdev, u64 addr)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	if (!hdev->mmu_enable)
+		goto out;
+
+	if (hdev->dram_supports_virtual_memory &&
+			addr >= prop->va_space_dram_start_address &&
+			addr < prop->va_space_dram_end_address)
+		return true;
+
+	if (addr >= prop->va_space_host_start_address &&
+			addr < prop->va_space_host_end_address)
+		return true;
+out:
+	return false;
+}
+
 static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 				u64 *phys_addr)
 {
-	struct hl_ctx *ctx = hdev->user_ctx;
+	struct hl_ctx *ctx = hdev->compute_ctx;
 	u64 hop_addr, hop_pte_addr, hop_pte;
 	u64 offset_mask = HOP4_MASK | OFFSET_MASK;
 	int rc = 0;
@@ -568,7 +603,6 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	char tmp_buf[32];
 	u64 addr = entry->addr;
 	u32 val;
@@ -577,11 +611,8 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 	if (*ppos)
 		return 0;
 
-	if (addr >= prop->va_space_dram_start_address &&
-			addr < prop->va_space_dram_end_address &&
-			hdev->mmu_enable &&
-			hdev->dram_supports_virtual_memory) {
-		rc = device_va_to_pa(hdev, entry->addr, &addr);
+	if (hl_is_device_va(hdev, addr)) {
+		rc = device_va_to_pa(hdev, addr, &addr);
 		if (rc)
 			return rc;
 	}
@@ -602,7 +633,6 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 addr = entry->addr;
 	u32 value;
 	ssize_t rc;
@@ -611,11 +641,8 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	if (addr >= prop->va_space_dram_start_address &&
-			addr < prop->va_space_dram_end_address &&
-			hdev->mmu_enable &&
-			hdev->dram_supports_virtual_memory) {
-		rc = device_va_to_pa(hdev, entry->addr, &addr);
+	if (hl_is_device_va(hdev, addr)) {
+		rc = device_va_to_pa(hdev, addr, &addr);
 		if (rc)
 			return rc;
 	}
@@ -877,6 +904,7 @@ static const struct hl_info_list hl_debugfs_list[] = {
 	{"userptr", userptr_show, NULL},
 	{"vm", vm_show, NULL},
 	{"mmu", mmu_show, mmu_write},
+	{"engines", engines_show, NULL}
 };
 
 static int hl_debugfs_open(struct inode *inode, struct file *file)

@@ -3,15 +3,22 @@
  * Copyright (C) 2015 Broadcom
  */
 
-#include <linux/mm_types.h>
-#include <drm/drmP.h>
-#include <drm/drm_util.h>
+#include <linux/delay.h>
+#include <linux/refcount.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_syncobj.h>
+#include <drm/drm_mm.h>
+#include <drm/drm_modeset_lock.h>
 
 #include "uapi/drm/vc4_drm.h"
+
+struct drm_device;
+struct drm_gem_object;
 
 /* Don't forget to update vc4_bo.c: bo_type_names[] when adding to
  * this.
@@ -213,6 +220,11 @@ struct vc4_dev {
 	 * the minor is available (after drm_dev_register()).
 	 */
 	struct list_head debugfs_list;
+
+	/* Mutex for binner bo allocation. */
+	struct mutex bin_bo_lock;
+	/* Reference count for our binner bo. */
+	struct kref bin_bo_kref;
 };
 
 static inline struct vc4_dev *
@@ -581,6 +593,11 @@ struct vc4_exec_info {
 	 * NULL otherwise.
 	 */
 	struct vc4_perfmon *perfmon;
+
+	/* Whether the exec has taken a reference to the binner BO, which should
+	 * happen with a VC4_PACKET_TILE_BINNING_MODE_CONFIG packet.
+	 */
+	bool bin_bo_used;
 };
 
 /* Per-open file private data. Any driver-specific resource that has to be
@@ -591,6 +608,8 @@ struct vc4_file {
 		struct idr idr;
 		struct mutex lock;
 	} perfmon;
+
+	bool bin_bo_used;
 };
 
 static inline struct vc4_exec_info *
@@ -693,8 +712,7 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t size,
 int vc4_dumb_create(struct drm_file *file_priv,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args);
-struct dma_buf *vc4_prime_export(struct drm_device *dev,
-				 struct drm_gem_object *obj, int flags);
+struct dma_buf *vc4_prime_export(struct drm_gem_object *obj, int flags);
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
@@ -830,6 +848,8 @@ void vc4_plane_async_set_fb(struct drm_plane *plane,
 extern struct platform_driver vc4_v3d_driver;
 extern const struct of_device_id vc4_v3d_dt_match[];
 int vc4_v3d_get_bin_slot(struct vc4_dev *vc4);
+int vc4_v3d_bin_bo_get(struct vc4_dev *vc4, bool *used);
+void vc4_v3d_bin_bo_put(struct vc4_dev *vc4);
 int vc4_v3d_pm_get(struct vc4_dev *vc4);
 void vc4_v3d_pm_put(struct vc4_dev *vc4);
 

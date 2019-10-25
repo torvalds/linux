@@ -1721,7 +1721,7 @@ mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct musb *musb = dev_to_musb(dev);
 	unsigned long flags;
-	int ret = -EINVAL;
+	int ret;
 
 	spin_lock_irqsave(&musb->lock, flags);
 	ret = sprintf(buf, "%s\n", usb_otg_state_string(musb->xceiv->otg->state));
@@ -1829,16 +1829,13 @@ static ssize_t srp_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_WO(srp);
 
-static struct attribute *musb_attributes[] = {
+static struct attribute *musb_attrs[] = {
 	&dev_attr_mode.attr,
 	&dev_attr_vbus.attr,
 	&dev_attr_srp.attr,
 	NULL
 };
-
-static const struct attribute_group musb_attr_group = {
-	.attrs = musb_attributes,
-};
+ATTRIBUTE_GROUPS(musb);
 
 #define MUSB_QUIRK_B_INVALID_VBUS_91	(MUSB_DEVCTL_BDEVICE | \
 					 (2 << MUSB_DEVCTL_VBUS_SHIFT) | \
@@ -2037,10 +2034,6 @@ static void musb_free(struct musb *musb)
 	 * probe(), where things may be partially set up, as well as rmmod
 	 * cleanup after everything's been de-activated.
 	 */
-
-#ifdef CONFIG_SYSFS
-	sysfs_remove_group(&musb->controller->kobj, &musb_attr_group);
-#endif
 
 	if (musb->nIrq >= 0) {
 		if (musb->irq_wake)
@@ -2390,21 +2383,11 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	musb_init_debugfs(musb);
 
-	status = sysfs_create_group(&musb->controller->kobj, &musb_attr_group);
-	if (status)
-		goto fail5;
-
 	musb->is_initialized = 1;
 	pm_runtime_mark_last_busy(musb->controller);
 	pm_runtime_put_autosuspend(musb->controller);
 
 	return 0;
-
-fail5:
-	musb_exit_debugfs(musb);
-
-	musb_gadget_cleanup(musb);
-	musb_host_cleanup(musb);
 
 fail3:
 	cancel_delayed_work_sync(&musb->irq_work);
@@ -2798,6 +2781,7 @@ static struct platform_driver musb_driver = {
 		.name		= (char *)musb_driver_name,
 		.bus		= &platform_bus_type,
 		.pm		= MUSB_DEV_PM_OPS,
+		.dev_groups	= musb_groups,
 	},
 	.probe		= musb_probe,
 	.remove		= musb_remove,

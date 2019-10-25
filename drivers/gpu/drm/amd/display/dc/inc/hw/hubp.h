@@ -28,6 +28,8 @@
 
 #include "mem_input.h"
 
+#define OPP_ID_INVALID 0xf
+
 
 enum cursor_pitch {
 	CURSOR_PITCH_64_PIXELS = 0,
@@ -36,10 +38,18 @@ enum cursor_pitch {
 };
 
 enum cursor_lines_per_chunk {
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	CURSOR_LINE_PER_CHUNK_1 = 0, /* new for DCN2 */
+#endif
 	CURSOR_LINE_PER_CHUNK_2 = 1,
 	CURSOR_LINE_PER_CHUNK_4,
 	CURSOR_LINE_PER_CHUNK_8,
 	CURSOR_LINE_PER_CHUNK_16
+};
+
+enum hubp_ind_block_size {
+	hubp_ind_block_unconstrained = 0,
+	hubp_ind_block_64b,
 };
 
 struct hubp {
@@ -69,7 +79,8 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_ttu_regs_st *ttu_regs);
 
 	void (*dcc_control)(struct hubp *hubp, bool enable,
-			bool independent_64b_blks);
+			enum hubp_ind_block_size blk_size);
+
 	void (*mem_program_viewport)(
 			struct hubp *hubp,
 			const struct rect *viewport,
@@ -78,8 +89,7 @@ struct hubp_funcs {
 	bool (*hubp_program_surface_flip_and_addr)(
 		struct hubp *hubp,
 		const struct dc_plane_address *address,
-		bool flip_immediate,
-		uint8_t vmid);
+		bool flip_immediate);
 
 	void (*hubp_program_pte_vm)(
 		struct hubp *hubp,
@@ -99,16 +109,13 @@ struct hubp_funcs {
 		struct hubp *hubp,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
-		union plane_size *plane_size,
+		struct plane_size *plane_size,
 		enum dc_rotation_angle rotation,
 		struct dc_plane_dcc_param *dcc,
 		bool horizontal_mirror,
 		unsigned int compa_level);
 
 	bool (*hubp_is_flip_pending)(struct hubp *hubp);
-
-	void (*hubp_update_dchub)(struct hubp *hubp,
-				struct dchub_init_data *dh_data);
 
 	void (*set_blank)(struct hubp *hubp, bool blank);
 	void (*set_hubp_blank_en)(struct hubp *hubp, bool blank);
@@ -131,6 +138,28 @@ struct hubp_funcs {
 	void (*hubp_disable_control)(struct hubp *hubp, bool disable_hubp);
 	unsigned int (*hubp_get_underflow_status)(struct hubp *hubp);
 	void (*hubp_init)(struct hubp *hubp);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	void (*dmdata_set_attributes)(
+			struct hubp *hubp,
+			const struct dc_dmdata_attributes *attr);
+
+	void (*dmdata_load)(
+			struct hubp *hubp,
+			uint32_t dmdata_sw_size,
+			const uint32_t *dmdata_sw_data);
+	bool (*dmdata_status_done)(struct hubp *hubp);
+	void (*hubp_enable_tripleBuffer)(
+		struct hubp *hubp,
+		bool enable);
+
+	bool (*hubp_is_triplebuffer_enabled)(
+		struct hubp *hubp);
+
+	void (*hubp_set_flip_control_surface_gsl)(
+		struct hubp *hubp,
+		bool enable);
+#endif
 
 };
 

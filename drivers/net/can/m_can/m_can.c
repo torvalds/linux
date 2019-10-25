@@ -1,20 +1,14 @@
-/*
- * CAN bus driver for Bosch M_CAN controller
- *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
- *	Dong Aisheng <b29396@freescale.com>
- *
- * Bosch M_CAN user manual can be obtained from:
+// SPDX-License-Identifier: GPL-2.0
+// CAN bus driver for Bosch M_CAN controller
+// Copyright (C) 2014 Freescale Semiconductor, Inc.
+//      Dong Aisheng <b29396@freescale.com>
+// Copyright (C) 2018-19 Texas Instruments Incorporated - http://www.ti.com/
+
+/* Bosch M_CAN user manual can be obtained from:
  * http://www.bosch-semiconductors.de/media/pdf_1/ipmodules_1/m_can/
  * mcan_users_manual_v302.pdf
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
-#include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -28,11 +22,7 @@
 #include <linux/can/dev.h>
 #include <linux/pinctrl/consumer.h>
 
-/* napi related */
-#define M_CAN_NAPI_WEIGHT	64
-
-/* message ram configuration data length */
-#define MRAM_CFG_LEN	8
+#include "m_can.h"
 
 /* registers definition */
 enum m_can_reg {
@@ -86,28 +76,11 @@ enum m_can_reg {
 	M_CAN_TXEFA	= 0xf8,
 };
 
-/* m_can lec values */
-enum m_can_lec_type {
-	LEC_NO_ERROR = 0,
-	LEC_STUFF_ERROR,
-	LEC_FORM_ERROR,
-	LEC_ACK_ERROR,
-	LEC_BIT1_ERROR,
-	LEC_BIT0_ERROR,
-	LEC_CRC_ERROR,
-	LEC_UNUSED,
-};
+/* napi related */
+#define M_CAN_NAPI_WEIGHT	64
 
-enum m_can_mram_cfg {
-	MRAM_SIDF = 0,
-	MRAM_XIDF,
-	MRAM_RXF0,
-	MRAM_RXF1,
-	MRAM_RXB,
-	MRAM_TXE,
-	MRAM_TXB,
-	MRAM_CFG_NUM,
-};
+/* message ram configuration data length */
+#define MRAM_CFG_LEN	8
 
 /* Core Release Register (CREL) */
 #define CREL_REL_SHIFT		28
@@ -347,90 +320,85 @@ enum m_can_mram_cfg {
 #define TX_EVENT_MM_SHIFT	TX_BUF_MM_SHIFT
 #define TX_EVENT_MM_MASK	(0xff << TX_EVENT_MM_SHIFT)
 
-/* address offset and element number for each FIFO/Buffer in the Message RAM */
-struct mram_cfg {
-	u16 off;
-	u8  num;
-};
-
-/* m_can private data structure */
-struct m_can_priv {
-	struct can_priv can;	/* must be the first member */
-	struct napi_struct napi;
-	struct net_device *dev;
-	struct device *device;
-	struct clk *hclk;
-	struct clk *cclk;
-	void __iomem *base;
-	u32 irqstatus;
-	int version;
-
-	/* message ram configuration */
-	void __iomem *mram_base;
-	struct mram_cfg mcfg[MRAM_CFG_NUM];
-};
-
-static inline u32 m_can_read(const struct m_can_priv *priv, enum m_can_reg reg)
+static inline u32 m_can_read(struct m_can_classdev *cdev, enum m_can_reg reg)
 {
-	return readl(priv->base + reg);
+	return cdev->ops->read_reg(cdev, reg);
 }
 
-static inline void m_can_write(const struct m_can_priv *priv,
-			       enum m_can_reg reg, u32 val)
+static inline void m_can_write(struct m_can_classdev *cdev, enum m_can_reg reg,
+			       u32 val)
 {
-	writel(val, priv->base + reg);
+	cdev->ops->write_reg(cdev, reg, val);
 }
 
-static inline u32 m_can_fifo_read(const struct m_can_priv *priv,
-				  u32 fgi, unsigned int offset)
+static u32 m_can_fifo_read(struct m_can_classdev *cdev,
+			   u32 fgi, unsigned int offset)
 {
-	return readl(priv->mram_base + priv->mcfg[MRAM_RXF0].off +
-		     fgi * RXF0_ELEMENT_SIZE + offset);
+	u32 addr_offset = cdev->mcfg[MRAM_RXF0].off + fgi * RXF0_ELEMENT_SIZE +
+			  offset;
+
+	return cdev->ops->read_fifo(cdev, addr_offset);
 }
 
-static inline void m_can_fifo_write(const struct m_can_priv *priv,
-				    u32 fpi, unsigned int offset, u32 val)
+static void m_can_fifo_write(struct m_can_classdev *cdev,
+			     u32 fpi, unsigned int offset, u32 val)
 {
-	writel(val, priv->mram_base + priv->mcfg[MRAM_TXB].off +
-	       fpi * TXB_ELEMENT_SIZE + offset);
+	u32 addr_offset = cdev->mcfg[MRAM_TXB].off + fpi * TXB_ELEMENT_SIZE +
+			  offset;
+
+	cdev->ops->write_fifo(cdev, addr_offset, val);
 }
 
-static inline u32 m_can_txe_fifo_read(const struct m_can_priv *priv,
-				      u32 fgi,
-				      u32 offset) {
-	return readl(priv->mram_base + priv->mcfg[MRAM_TXE].off +
-			fgi * TXE_ELEMENT_SIZE + offset);
+static inline void m_can_fifo_write_no_off(struct m_can_classdev *cdev,
+					   u32 fpi, u32 val)
+{
+	cdev->ops->write_fifo(cdev, fpi, val);
 }
 
-static inline bool m_can_tx_fifo_full(const struct m_can_priv *priv)
+static u32 m_can_txe_fifo_read(struct m_can_classdev *cdev, u32 fgi, u32 offset)
 {
-		return !!(m_can_read(priv, M_CAN_TXFQS) & TXFQS_TFQF);
+	u32 addr_offset = cdev->mcfg[MRAM_TXE].off + fgi * TXE_ELEMENT_SIZE +
+			  offset;
+
+	return cdev->ops->read_fifo(cdev, addr_offset);
 }
 
-static inline void m_can_config_endisable(const struct m_can_priv *priv,
-					  bool enable)
+static inline bool m_can_tx_fifo_full(struct m_can_classdev *cdev)
 {
-	u32 cccr = m_can_read(priv, M_CAN_CCCR);
+		return !!(m_can_read(cdev, M_CAN_TXFQS) & TXFQS_TFQF);
+}
+
+void m_can_config_endisable(struct m_can_classdev *cdev, bool enable)
+{
+	u32 cccr = m_can_read(cdev, M_CAN_CCCR);
 	u32 timeout = 10;
 	u32 val = 0;
 
+	/* Clear the Clock stop request if it was set */
+	if (cccr & CCCR_CSR)
+		cccr &= ~CCCR_CSR;
+
 	if (enable) {
+		/* Clear the Clock stop request if it was set */
+		if (cccr & CCCR_CSR)
+			cccr &= ~CCCR_CSR;
+
 		/* enable m_can configuration */
-		m_can_write(priv, M_CAN_CCCR, cccr | CCCR_INIT);
+		m_can_write(cdev, M_CAN_CCCR, cccr | CCCR_INIT);
 		udelay(5);
 		/* CCCR.CCE can only be set/reset while CCCR.INIT = '1' */
-		m_can_write(priv, M_CAN_CCCR, cccr | CCCR_INIT | CCCR_CCE);
+		m_can_write(cdev, M_CAN_CCCR, cccr | CCCR_INIT | CCCR_CCE);
 	} else {
-		m_can_write(priv, M_CAN_CCCR, cccr & ~(CCCR_INIT | CCCR_CCE));
+		m_can_write(cdev, M_CAN_CCCR, cccr & ~(CCCR_INIT | CCCR_CCE));
 	}
 
 	/* there's a delay for module initialization */
 	if (enable)
 		val = CCCR_INIT | CCCR_CCE;
 
-	while ((m_can_read(priv, M_CAN_CCCR) & (CCCR_INIT | CCCR_CCE)) != val) {
+	while ((m_can_read(cdev, M_CAN_CCCR) & (CCCR_INIT | CCCR_CCE)) != val) {
 		if (timeout == 0) {
-			netdev_warn(priv->dev, "Failed to init module\n");
+			netdev_warn(cdev->net, "Failed to init module\n");
 			return;
 		}
 		timeout--;
@@ -438,21 +406,38 @@ static inline void m_can_config_endisable(const struct m_can_priv *priv,
 	}
 }
 
-static inline void m_can_enable_all_interrupts(const struct m_can_priv *priv)
+static inline void m_can_enable_all_interrupts(struct m_can_classdev *cdev)
 {
 	/* Only interrupt line 0 is used in this driver */
-	m_can_write(priv, M_CAN_ILE, ILE_EINT0);
+	m_can_write(cdev, M_CAN_ILE, ILE_EINT0);
 }
 
-static inline void m_can_disable_all_interrupts(const struct m_can_priv *priv)
+static inline void m_can_disable_all_interrupts(struct m_can_classdev *cdev)
 {
-	m_can_write(priv, M_CAN_ILE, 0x0);
+	m_can_write(cdev, M_CAN_ILE, 0x0);
+}
+
+static void m_can_clean(struct net_device *net)
+{
+	struct m_can_classdev *cdev = netdev_priv(net);
+
+	if (cdev->tx_skb) {
+		int putidx = 0;
+
+		net->stats.tx_errors++;
+		if (cdev->version > 30)
+			putidx = ((m_can_read(cdev, M_CAN_TXFQS) &
+				   TXFQS_TFQPI_MASK) >> TXFQS_TFQPI_SHIFT);
+
+		can_free_echo_skb(cdev->net, putidx);
+		cdev->tx_skb = NULL;
+	}
 }
 
 static void m_can_read_fifo(struct net_device *dev, u32 rxfs)
 {
 	struct net_device_stats *stats = &dev->stats;
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	struct canfd_frame *cf;
 	struct sk_buff *skb;
 	u32 id, fgi, dlc;
@@ -460,7 +445,7 @@ static void m_can_read_fifo(struct net_device *dev, u32 rxfs)
 
 	/* calculate the fifo get index for where to read data */
 	fgi = (rxfs & RXFS_FGI_MASK) >> RXFS_FGI_SHIFT;
-	dlc = m_can_fifo_read(priv, fgi, M_CAN_FIFO_DLC);
+	dlc = m_can_fifo_read(cdev, fgi, M_CAN_FIFO_DLC);
 	if (dlc & RX_BUF_FDF)
 		skb = alloc_canfd_skb(dev, &cf);
 	else
@@ -475,7 +460,7 @@ static void m_can_read_fifo(struct net_device *dev, u32 rxfs)
 	else
 		cf->len = get_can_dlc((dlc >> 16) & 0x0F);
 
-	id = m_can_fifo_read(priv, fgi, M_CAN_FIFO_ID);
+	id = m_can_fifo_read(cdev, fgi, M_CAN_FIFO_ID);
 	if (id & RX_BUF_XTD)
 		cf->can_id = (id & CAN_EFF_MASK) | CAN_EFF_FLAG;
 	else
@@ -494,12 +479,12 @@ static void m_can_read_fifo(struct net_device *dev, u32 rxfs)
 
 		for (i = 0; i < cf->len; i += 4)
 			*(u32 *)(cf->data + i) =
-				m_can_fifo_read(priv, fgi,
+				m_can_fifo_read(cdev, fgi,
 						M_CAN_FIFO_DATA(i / 4));
 	}
 
 	/* acknowledge rx fifo 0 */
-	m_can_write(priv, M_CAN_RXF0A, fgi);
+	m_can_write(cdev, M_CAN_RXF0A, fgi);
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->len;
@@ -509,11 +494,11 @@ static void m_can_read_fifo(struct net_device *dev, u32 rxfs)
 
 static int m_can_do_rx_poll(struct net_device *dev, int quota)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	u32 pkts = 0;
 	u32 rxfs;
 
-	rxfs = m_can_read(priv, M_CAN_RXF0S);
+	rxfs = m_can_read(cdev, M_CAN_RXF0S);
 	if (!(rxfs & RXFS_FFL_MASK)) {
 		netdev_dbg(dev, "no messages in fifo0\n");
 		return 0;
@@ -527,7 +512,7 @@ static int m_can_do_rx_poll(struct net_device *dev, int quota)
 
 		quota--;
 		pkts++;
-		rxfs = m_can_read(priv, M_CAN_RXF0S);
+		rxfs = m_can_read(cdev, M_CAN_RXF0S);
 	}
 
 	if (pkts)
@@ -562,12 +547,12 @@ static int m_can_handle_lost_msg(struct net_device *dev)
 static int m_can_handle_lec_err(struct net_device *dev,
 				enum m_can_lec_type lec_type)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	struct can_frame *cf;
 	struct sk_buff *skb;
 
-	priv->can.can_stats.bus_error++;
+	cdev->can.can_stats.bus_error++;
 	stats->rx_errors++;
 
 	/* propagate the error condition to the CAN stack */
@@ -619,47 +604,51 @@ static int m_can_handle_lec_err(struct net_device *dev,
 static int __m_can_get_berr_counter(const struct net_device *dev,
 				    struct can_berr_counter *bec)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	unsigned int ecr;
 
-	ecr = m_can_read(priv, M_CAN_ECR);
+	ecr = m_can_read(cdev, M_CAN_ECR);
 	bec->rxerr = (ecr & ECR_REC_MASK) >> ECR_REC_SHIFT;
 	bec->txerr = (ecr & ECR_TEC_MASK) >> ECR_TEC_SHIFT;
 
 	return 0;
 }
 
-static int m_can_clk_start(struct m_can_priv *priv)
+static int m_can_clk_start(struct m_can_classdev *cdev)
 {
 	int err;
 
-	err = pm_runtime_get_sync(priv->device);
+	if (cdev->pm_clock_support == 0)
+		return 0;
+
+	err = pm_runtime_get_sync(cdev->dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(priv->device);
+		pm_runtime_put_noidle(cdev->dev);
 		return err;
 	}
 
 	return 0;
 }
 
-static void m_can_clk_stop(struct m_can_priv *priv)
+static void m_can_clk_stop(struct m_can_classdev *cdev)
 {
-	pm_runtime_put_sync(priv->device);
+	if (cdev->pm_clock_support)
+		pm_runtime_put_sync(cdev->dev);
 }
 
 static int m_can_get_berr_counter(const struct net_device *dev,
 				  struct can_berr_counter *bec)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	int err;
 
-	err = m_can_clk_start(priv);
+	err = m_can_clk_start(cdev);
 	if (err)
 		return err;
 
 	__m_can_get_berr_counter(dev, bec);
 
-	m_can_clk_stop(priv);
+	m_can_clk_stop(cdev);
 
 	return 0;
 }
@@ -667,7 +656,7 @@ static int m_can_get_berr_counter(const struct net_device *dev,
 static int m_can_handle_state_change(struct net_device *dev,
 				     enum can_state new_state)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	struct can_frame *cf;
 	struct sk_buff *skb;
@@ -677,19 +666,19 @@ static int m_can_handle_state_change(struct net_device *dev,
 	switch (new_state) {
 	case CAN_STATE_ERROR_ACTIVE:
 		/* error warning state */
-		priv->can.can_stats.error_warning++;
-		priv->can.state = CAN_STATE_ERROR_WARNING;
+		cdev->can.can_stats.error_warning++;
+		cdev->can.state = CAN_STATE_ERROR_WARNING;
 		break;
 	case CAN_STATE_ERROR_PASSIVE:
 		/* error passive state */
-		priv->can.can_stats.error_passive++;
-		priv->can.state = CAN_STATE_ERROR_PASSIVE;
+		cdev->can.can_stats.error_passive++;
+		cdev->can.state = CAN_STATE_ERROR_PASSIVE;
 		break;
 	case CAN_STATE_BUS_OFF:
 		/* bus-off state */
-		priv->can.state = CAN_STATE_BUS_OFF;
-		m_can_disable_all_interrupts(priv);
-		priv->can.can_stats.bus_off++;
+		cdev->can.state = CAN_STATE_BUS_OFF;
+		m_can_disable_all_interrupts(cdev);
+		cdev->can.can_stats.bus_off++;
 		can_bus_off(dev);
 		break;
 	default:
@@ -716,7 +705,7 @@ static int m_can_handle_state_change(struct net_device *dev,
 	case CAN_STATE_ERROR_PASSIVE:
 		/* error passive state */
 		cf->can_id |= CAN_ERR_CRTL;
-		ecr = m_can_read(priv, M_CAN_ECR);
+		ecr = m_can_read(cdev, M_CAN_ECR);
 		if (ecr & ECR_RP)
 			cf->data[1] |= CAN_ERR_CRTL_RX_PASSIVE;
 		if (bec.txerr > 127)
@@ -741,25 +730,22 @@ static int m_can_handle_state_change(struct net_device *dev,
 
 static int m_can_handle_state_errors(struct net_device *dev, u32 psr)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	int work_done = 0;
 
-	if ((psr & PSR_EW) &&
-	    (priv->can.state != CAN_STATE_ERROR_WARNING)) {
+	if (psr & PSR_EW && cdev->can.state != CAN_STATE_ERROR_WARNING) {
 		netdev_dbg(dev, "entered error warning state\n");
 		work_done += m_can_handle_state_change(dev,
 						       CAN_STATE_ERROR_WARNING);
 	}
 
-	if ((psr & PSR_EP) &&
-	    (priv->can.state != CAN_STATE_ERROR_PASSIVE)) {
+	if (psr & PSR_EP && cdev->can.state != CAN_STATE_ERROR_PASSIVE) {
 		netdev_dbg(dev, "entered error passive state\n");
 		work_done += m_can_handle_state_change(dev,
 						       CAN_STATE_ERROR_PASSIVE);
 	}
 
-	if ((psr & PSR_BO) &&
-	    (priv->can.state != CAN_STATE_BUS_OFF)) {
+	if (psr & PSR_BO && cdev->can.state != CAN_STATE_BUS_OFF) {
 		netdev_dbg(dev, "entered error bus off state\n");
 		work_done += m_can_handle_state_change(dev,
 						       CAN_STATE_BUS_OFF);
@@ -794,14 +780,14 @@ static inline bool is_lec_err(u32 psr)
 static int m_can_handle_bus_errors(struct net_device *dev, u32 irqstatus,
 				   u32 psr)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	int work_done = 0;
 
 	if (irqstatus & IR_RF0L)
 		work_done += m_can_handle_lost_msg(dev);
 
 	/* handle lec errors on the bus */
-	if ((priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) &&
+	if ((cdev->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) &&
 	    is_lec_err(psr))
 		work_done += m_can_handle_lec_err(dev, psr & LEC_UNUSED);
 
@@ -811,14 +797,13 @@ static int m_can_handle_bus_errors(struct net_device *dev, u32 irqstatus,
 	return work_done;
 }
 
-static int m_can_poll(struct napi_struct *napi, int quota)
+static int m_can_rx_handler(struct net_device *dev, int quota)
 {
-	struct net_device *dev = napi->dev;
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	int work_done = 0;
 	u32 irqstatus, psr;
 
-	irqstatus = priv->irqstatus | m_can_read(priv, M_CAN_IR);
+	irqstatus = cdev->irqstatus | m_can_read(cdev, M_CAN_IR);
 	if (!irqstatus)
 		goto end;
 
@@ -832,18 +817,19 @@ static int m_can_poll(struct napi_struct *napi, int quota)
 	 * whether MCAN_ECR.RP = ’1’ and MCAN_ECR.REC = 127.
 	 * In this case, reset MCAN_IR.MRAF. No further action is required.
 	 */
-	if ((priv->version <= 31) && (irqstatus & IR_MRAF) &&
-	    (m_can_read(priv, M_CAN_ECR) & ECR_RP)) {
+	if (cdev->version <= 31 && irqstatus & IR_MRAF &&
+	    m_can_read(cdev, M_CAN_ECR) & ECR_RP) {
 		struct can_berr_counter bec;
 
 		__m_can_get_berr_counter(dev, &bec);
 		if (bec.rxerr == 127) {
-			m_can_write(priv, M_CAN_IR, IR_MRAF);
+			m_can_write(cdev, M_CAN_IR, IR_MRAF);
 			irqstatus &= ~IR_MRAF;
 		}
 	}
 
-	psr = m_can_read(priv, M_CAN_PSR);
+	psr = m_can_read(cdev, M_CAN_PSR);
+
 	if (irqstatus & IR_ERR_STATE)
 		work_done += m_can_handle_state_errors(dev, psr);
 
@@ -852,13 +838,33 @@ static int m_can_poll(struct napi_struct *napi, int quota)
 
 	if (irqstatus & IR_RF0N)
 		work_done += m_can_do_rx_poll(dev, (quota - work_done));
+end:
+	return work_done;
+}
 
+static int m_can_rx_peripheral(struct net_device *dev)
+{
+	struct m_can_classdev *cdev = netdev_priv(dev);
+
+	m_can_rx_handler(dev, 1);
+
+	m_can_enable_all_interrupts(cdev);
+
+	return 0;
+}
+
+static int m_can_poll(struct napi_struct *napi, int quota)
+{
+	struct net_device *dev = napi->dev;
+	struct m_can_classdev *cdev = netdev_priv(dev);
+	int work_done;
+
+	work_done = m_can_rx_handler(dev, quota);
 	if (work_done < quota) {
 		napi_complete_done(napi, work_done);
-		m_can_enable_all_interrupts(priv);
+		m_can_enable_all_interrupts(cdev);
 	}
 
-end:
 	return work_done;
 }
 
@@ -870,11 +876,11 @@ static void m_can_echo_tx_event(struct net_device *dev)
 	int i = 0;
 	unsigned int msg_mark;
 
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 
 	/* read tx event fifo status */
-	m_can_txefs = m_can_read(priv, M_CAN_TXEFS);
+	m_can_txefs = m_can_read(cdev, M_CAN_TXEFS);
 
 	/* Get Tx Event fifo element count */
 	txe_count = (m_can_txefs & TXEFS_EFFL_MASK)
@@ -883,15 +889,15 @@ static void m_can_echo_tx_event(struct net_device *dev)
 	/* Get and process all sent elements */
 	for (i = 0; i < txe_count; i++) {
 		/* retrieve get index */
-		fgi = (m_can_read(priv, M_CAN_TXEFS) & TXEFS_EFGI_MASK)
+		fgi = (m_can_read(cdev, M_CAN_TXEFS) & TXEFS_EFGI_MASK)
 			>> TXEFS_EFGI_SHIFT;
 
 		/* get message marker */
-		msg_mark = (m_can_txe_fifo_read(priv, fgi, 4) &
+		msg_mark = (m_can_txe_fifo_read(cdev, fgi, 4) &
 			    TX_EVENT_MM_MASK) >> TX_EVENT_MM_SHIFT;
 
 		/* ack txe element */
-		m_can_write(priv, M_CAN_TXEFA, (TXEFA_EFAI_MASK &
+		m_can_write(cdev, M_CAN_TXEFA, (TXEFA_EFAI_MASK &
 						(fgi << TXEFA_EFAI_SHIFT)));
 
 		/* update stats */
@@ -903,17 +909,20 @@ static void m_can_echo_tx_event(struct net_device *dev)
 static irqreturn_t m_can_isr(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	u32 ir;
 
-	ir = m_can_read(priv, M_CAN_IR);
+	ir = m_can_read(cdev, M_CAN_IR);
 	if (!ir)
 		return IRQ_NONE;
 
 	/* ACK all irqs */
 	if (ir & IR_ALL_INT)
-		m_can_write(priv, M_CAN_IR, ir);
+		m_can_write(cdev, M_CAN_IR, ir);
+
+	if (cdev->ops->clear_interrupts)
+		cdev->ops->clear_interrupts(cdev);
 
 	/* schedule NAPI in case of
 	 * - rx IRQ
@@ -921,12 +930,15 @@ static irqreturn_t m_can_isr(int irq, void *dev_id)
 	 * - bus error IRQ and bus error reporting
 	 */
 	if ((ir & IR_RF0N) || (ir & IR_ERR_ALL_30X)) {
-		priv->irqstatus = ir;
-		m_can_disable_all_interrupts(priv);
-		napi_schedule(&priv->napi);
+		cdev->irqstatus = ir;
+		m_can_disable_all_interrupts(cdev);
+		if (!cdev->is_peripheral)
+			napi_schedule(&cdev->napi);
+		else
+			m_can_rx_peripheral(dev);
 	}
 
-	if (priv->version == 30) {
+	if (cdev->version == 30) {
 		if (ir & IR_TC) {
 			/* Transmission Complete Interrupt*/
 			stats->tx_bytes += can_get_echo_skb(dev, 0);
@@ -940,7 +952,7 @@ static irqreturn_t m_can_isr(int irq, void *dev_id)
 			m_can_echo_tx_event(dev);
 			can_led_event(dev, CAN_LED_EVENT_TX);
 			if (netif_queue_stopped(dev) &&
-			    !m_can_tx_fifo_full(priv))
+			    !m_can_tx_fifo_full(cdev))
 				netif_wake_queue(dev);
 		}
 	}
@@ -998,9 +1010,9 @@ static const struct can_bittiming_const m_can_data_bittiming_const_31X = {
 
 static int m_can_set_bittiming(struct net_device *dev)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
-	const struct can_bittiming *bt = &priv->can.bittiming;
-	const struct can_bittiming *dbt = &priv->can.data_bittiming;
+	struct m_can_classdev *cdev = netdev_priv(dev);
+	const struct can_bittiming *bt = &cdev->can.bittiming;
+	const struct can_bittiming *dbt = &cdev->can.data_bittiming;
 	u16 brp, sjw, tseg1, tseg2;
 	u32 reg_btp;
 
@@ -1010,9 +1022,9 @@ static int m_can_set_bittiming(struct net_device *dev)
 	tseg2 = bt->phase_seg2 - 1;
 	reg_btp = (brp << NBTP_NBRP_SHIFT) | (sjw << NBTP_NSJW_SHIFT) |
 		(tseg1 << NBTP_NTSEG1_SHIFT) | (tseg2 << NBTP_NTSEG2_SHIFT);
-	m_can_write(priv, M_CAN_NBTP, reg_btp);
+	m_can_write(cdev, M_CAN_NBTP, reg_btp);
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
+	if (cdev->can.ctrlmode & CAN_CTRLMODE_FD) {
 		reg_btp = 0;
 		brp = dbt->brp - 1;
 		sjw = dbt->sjw - 1;
@@ -1034,7 +1046,7 @@ static int m_can_set_bittiming(struct net_device *dev)
 			/* Equation based on Bosch's M_CAN User Manual's
 			 * Transmitter Delay Compensation Section
 			 */
-			tdco = (priv->can.clock.freq / 1000) *
+			tdco = (cdev->can.clock.freq / 1000) *
 			       ssp / dbt->bitrate;
 
 			/* Max valid TDCO value is 127 */
@@ -1045,7 +1057,7 @@ static int m_can_set_bittiming(struct net_device *dev)
 			}
 
 			reg_btp |= DBTP_TDC;
-			m_can_write(priv, M_CAN_TDCR,
+			m_can_write(cdev, M_CAN_TDCR,
 				    tdco << TDCR_TDCO_SHIFT);
 		}
 
@@ -1054,7 +1066,7 @@ static int m_can_set_bittiming(struct net_device *dev)
 			   (tseg1 << DBTP_DTSEG1_SHIFT) |
 			   (tseg2 << DBTP_DTSEG2_SHIFT);
 
-		m_can_write(priv, M_CAN_DBTP, reg_btp);
+		m_can_write(cdev, M_CAN_DBTP, reg_btp);
 	}
 
 	return 0;
@@ -1071,63 +1083,63 @@ static int m_can_set_bittiming(struct net_device *dev)
  */
 static void m_can_chip_config(struct net_device *dev)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	u32 cccr, test;
 
-	m_can_config_endisable(priv, true);
+	m_can_config_endisable(cdev, true);
 
 	/* RX Buffer/FIFO Element Size 64 bytes data field */
-	m_can_write(priv, M_CAN_RXESC, M_CAN_RXESC_64BYTES);
+	m_can_write(cdev, M_CAN_RXESC, M_CAN_RXESC_64BYTES);
 
 	/* Accept Non-matching Frames Into FIFO 0 */
-	m_can_write(priv, M_CAN_GFC, 0x0);
+	m_can_write(cdev, M_CAN_GFC, 0x0);
 
-	if (priv->version == 30) {
+	if (cdev->version == 30) {
 		/* only support one Tx Buffer currently */
-		m_can_write(priv, M_CAN_TXBC, (1 << TXBC_NDTB_SHIFT) |
-				priv->mcfg[MRAM_TXB].off);
+		m_can_write(cdev, M_CAN_TXBC, (1 << TXBC_NDTB_SHIFT) |
+				cdev->mcfg[MRAM_TXB].off);
 	} else {
 		/* TX FIFO is used for newer IP Core versions */
-		m_can_write(priv, M_CAN_TXBC,
-			    (priv->mcfg[MRAM_TXB].num << TXBC_TFQS_SHIFT) |
-			    (priv->mcfg[MRAM_TXB].off));
+		m_can_write(cdev, M_CAN_TXBC,
+			    (cdev->mcfg[MRAM_TXB].num << TXBC_TFQS_SHIFT) |
+			    (cdev->mcfg[MRAM_TXB].off));
 	}
 
 	/* support 64 bytes payload */
-	m_can_write(priv, M_CAN_TXESC, TXESC_TBDS_64BYTES);
+	m_can_write(cdev, M_CAN_TXESC, TXESC_TBDS_64BYTES);
 
 	/* TX Event FIFO */
-	if (priv->version == 30) {
-		m_can_write(priv, M_CAN_TXEFC, (1 << TXEFC_EFS_SHIFT) |
-				priv->mcfg[MRAM_TXE].off);
+	if (cdev->version == 30) {
+		m_can_write(cdev, M_CAN_TXEFC, (1 << TXEFC_EFS_SHIFT) |
+				cdev->mcfg[MRAM_TXE].off);
 	} else {
 		/* Full TX Event FIFO is used */
-		m_can_write(priv, M_CAN_TXEFC,
-			    ((priv->mcfg[MRAM_TXE].num << TXEFC_EFS_SHIFT)
+		m_can_write(cdev, M_CAN_TXEFC,
+			    ((cdev->mcfg[MRAM_TXE].num << TXEFC_EFS_SHIFT)
 			     & TXEFC_EFS_MASK) |
-			    priv->mcfg[MRAM_TXE].off);
+			    cdev->mcfg[MRAM_TXE].off);
 	}
 
 	/* rx fifo configuration, blocking mode, fifo size 1 */
-	m_can_write(priv, M_CAN_RXF0C,
-		    (priv->mcfg[MRAM_RXF0].num << RXFC_FS_SHIFT) |
-		     priv->mcfg[MRAM_RXF0].off);
+	m_can_write(cdev, M_CAN_RXF0C,
+		    (cdev->mcfg[MRAM_RXF0].num << RXFC_FS_SHIFT) |
+		     cdev->mcfg[MRAM_RXF0].off);
 
-	m_can_write(priv, M_CAN_RXF1C,
-		    (priv->mcfg[MRAM_RXF1].num << RXFC_FS_SHIFT) |
-		     priv->mcfg[MRAM_RXF1].off);
+	m_can_write(cdev, M_CAN_RXF1C,
+		    (cdev->mcfg[MRAM_RXF1].num << RXFC_FS_SHIFT) |
+		     cdev->mcfg[MRAM_RXF1].off);
 
-	cccr = m_can_read(priv, M_CAN_CCCR);
-	test = m_can_read(priv, M_CAN_TEST);
+	cccr = m_can_read(cdev, M_CAN_CCCR);
+	test = m_can_read(cdev, M_CAN_TEST);
 	test &= ~TEST_LBCK;
-	if (priv->version == 30) {
+	if (cdev->version == 30) {
 	/* Version 3.0.x */
 
 		cccr &= ~(CCCR_TEST | CCCR_MON |
 			(CCCR_CMR_MASK << CCCR_CMR_SHIFT) |
 			(CCCR_CME_MASK << CCCR_CME_SHIFT));
 
-		if (priv->can.ctrlmode & CAN_CTRLMODE_FD)
+		if (cdev->can.ctrlmode & CAN_CTRLMODE_FD)
 			cccr |= CCCR_CME_CANFD_BRS << CCCR_CME_SHIFT;
 
 	} else {
@@ -1136,64 +1148,68 @@ static void m_can_chip_config(struct net_device *dev)
 			  CCCR_NISO);
 
 		/* Only 3.2.x has NISO Bit implemented */
-		if (priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO)
+		if (cdev->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO)
 			cccr |= CCCR_NISO;
 
-		if (priv->can.ctrlmode & CAN_CTRLMODE_FD)
+		if (cdev->can.ctrlmode & CAN_CTRLMODE_FD)
 			cccr |= (CCCR_BRSE | CCCR_FDOE);
 	}
 
 	/* Loopback Mode */
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK) {
+	if (cdev->can.ctrlmode & CAN_CTRLMODE_LOOPBACK) {
 		cccr |= CCCR_TEST | CCCR_MON;
 		test |= TEST_LBCK;
 	}
 
 	/* Enable Monitoring (all versions) */
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (cdev->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
 		cccr |= CCCR_MON;
 
 	/* Write config */
-	m_can_write(priv, M_CAN_CCCR, cccr);
-	m_can_write(priv, M_CAN_TEST, test);
+	m_can_write(cdev, M_CAN_CCCR, cccr);
+	m_can_write(cdev, M_CAN_TEST, test);
 
 	/* Enable interrupts */
-	m_can_write(priv, M_CAN_IR, IR_ALL_INT);
-	if (!(priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING))
-		if (priv->version == 30)
-			m_can_write(priv, M_CAN_IE, IR_ALL_INT &
+	m_can_write(cdev, M_CAN_IR, IR_ALL_INT);
+	if (!(cdev->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING))
+		if (cdev->version == 30)
+			m_can_write(cdev, M_CAN_IE, IR_ALL_INT &
 				    ~(IR_ERR_LEC_30X));
 		else
-			m_can_write(priv, M_CAN_IE, IR_ALL_INT &
+			m_can_write(cdev, M_CAN_IE, IR_ALL_INT &
 				    ~(IR_ERR_LEC_31X));
 	else
-		m_can_write(priv, M_CAN_IE, IR_ALL_INT);
+		m_can_write(cdev, M_CAN_IE, IR_ALL_INT);
 
 	/* route all interrupts to INT0 */
-	m_can_write(priv, M_CAN_ILS, ILS_ALL_INT0);
+	m_can_write(cdev, M_CAN_ILS, ILS_ALL_INT0);
 
 	/* set bittiming params */
 	m_can_set_bittiming(dev);
 
-	m_can_config_endisable(priv, false);
+	m_can_config_endisable(cdev, false);
+
+	if (cdev->ops->init)
+		cdev->ops->init(cdev);
 }
 
 static void m_can_start(struct net_device *dev)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 
 	/* basic m_can configuration */
 	m_can_chip_config(dev);
 
-	priv->can.state = CAN_STATE_ERROR_ACTIVE;
+	cdev->can.state = CAN_STATE_ERROR_ACTIVE;
 
-	m_can_enable_all_interrupts(priv);
+	m_can_enable_all_interrupts(cdev);
 }
 
 static int m_can_set_mode(struct net_device *dev, enum can_mode mode)
 {
 	switch (mode) {
 	case CAN_MODE_START:
+		m_can_clean(dev);
 		m_can_start(dev);
 		netif_wake_queue(dev);
 		break;
@@ -1209,20 +1225,17 @@ static int m_can_set_mode(struct net_device *dev, enum can_mode mode)
  * else it returns the release and step coded as:
  * return value = 10 * <release> + 1 * <step>
  */
-static int m_can_check_core_release(void __iomem *m_can_base)
+static int m_can_check_core_release(struct m_can_classdev *cdev)
 {
 	u32 crel_reg;
 	u8 rel;
 	u8 step;
 	int res;
-	struct m_can_priv temp_priv = {
-		.base = m_can_base
-	};
 
 	/* Read Core Release Version and split into version number
 	 * Example: Version 3.2.1 => rel = 3; step = 2; substep = 1;
 	 */
-	crel_reg = m_can_read(&temp_priv, M_CAN_CREL);
+	crel_reg = m_can_read(cdev, M_CAN_CREL);
 	rel = (u8)((crel_reg & CREL_REL_MASK) >> CREL_REL_SHIFT);
 	step = (u8)((crel_reg & CREL_STEP_MASK) >> CREL_STEP_SHIFT);
 
@@ -1240,152 +1253,142 @@ static int m_can_check_core_release(void __iomem *m_can_base)
 /* Selectable Non ISO support only in version 3.2.x
  * This function checks if the bit is writable.
  */
-static bool m_can_niso_supported(const struct m_can_priv *priv)
+static bool m_can_niso_supported(struct m_can_classdev *cdev)
 {
-	u32 cccr_reg, cccr_poll;
-	int niso_timeout;
+	u32 cccr_reg, cccr_poll = 0;
+	int niso_timeout = -ETIMEDOUT;
+	int i;
 
-	m_can_config_endisable(priv, true);
-	cccr_reg = m_can_read(priv, M_CAN_CCCR);
+	m_can_config_endisable(cdev, true);
+	cccr_reg = m_can_read(cdev, M_CAN_CCCR);
 	cccr_reg |= CCCR_NISO;
-	m_can_write(priv, M_CAN_CCCR, cccr_reg);
+	m_can_write(cdev, M_CAN_CCCR, cccr_reg);
 
-	niso_timeout = readl_poll_timeout((priv->base + M_CAN_CCCR), cccr_poll,
-					  (cccr_poll == cccr_reg), 0, 10);
+	for (i = 0; i <= 10; i++) {
+		cccr_poll = m_can_read(cdev, M_CAN_CCCR);
+		if (cccr_poll == cccr_reg) {
+			niso_timeout = 0;
+			break;
+		}
+
+		usleep_range(1, 5);
+	}
 
 	/* Clear NISO */
 	cccr_reg &= ~(CCCR_NISO);
-	m_can_write(priv, M_CAN_CCCR, cccr_reg);
+	m_can_write(cdev, M_CAN_CCCR, cccr_reg);
 
-	m_can_config_endisable(priv, false);
+	m_can_config_endisable(cdev, false);
 
 	/* return false if time out (-ETIMEDOUT), else return true */
 	return !niso_timeout;
 }
 
-static int m_can_dev_setup(struct platform_device *pdev, struct net_device *dev,
-			   void __iomem *addr)
+static int m_can_dev_setup(struct m_can_classdev *m_can_dev)
 {
-	struct m_can_priv *priv;
+	struct net_device *dev = m_can_dev->net;
 	int m_can_version;
 
-	m_can_version = m_can_check_core_release(addr);
+	m_can_version = m_can_check_core_release(m_can_dev);
 	/* return if unsupported version */
 	if (!m_can_version) {
-		dev_err(&pdev->dev, "Unsupported version number: %2d",
+		dev_err(m_can_dev->dev, "Unsupported version number: %2d",
 			m_can_version);
 		return -EINVAL;
 	}
 
-	priv = netdev_priv(dev);
-	netif_napi_add(dev, &priv->napi, m_can_poll, M_CAN_NAPI_WEIGHT);
+	if (!m_can_dev->is_peripheral)
+		netif_napi_add(dev, &m_can_dev->napi,
+			       m_can_poll, M_CAN_NAPI_WEIGHT);
 
 	/* Shared properties of all M_CAN versions */
-	priv->version = m_can_version;
-	priv->dev = dev;
-	priv->base = addr;
-	priv->can.do_set_mode = m_can_set_mode;
-	priv->can.do_get_berr_counter = m_can_get_berr_counter;
+	m_can_dev->version = m_can_version;
+	m_can_dev->can.do_set_mode = m_can_set_mode;
+	m_can_dev->can.do_get_berr_counter = m_can_get_berr_counter;
 
 	/* Set M_CAN supported operations */
-	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
+	m_can_dev->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
 					CAN_CTRLMODE_LISTENONLY |
 					CAN_CTRLMODE_BERR_REPORTING |
 					CAN_CTRLMODE_FD;
 
 	/* Set properties depending on M_CAN version */
-	switch (priv->version) {
+	switch (m_can_dev->version) {
 	case 30:
 		/* CAN_CTRLMODE_FD_NON_ISO is fixed with M_CAN IP v3.0.x */
 		can_set_static_ctrlmode(dev, CAN_CTRLMODE_FD_NON_ISO);
-		priv->can.bittiming_const = &m_can_bittiming_const_30X;
-		priv->can.data_bittiming_const =
-				&m_can_data_bittiming_const_30X;
+		m_can_dev->can.bittiming_const = m_can_dev->bit_timing ?
+			m_can_dev->bit_timing : &m_can_bittiming_const_30X;
+
+		m_can_dev->can.data_bittiming_const = m_can_dev->data_timing ?
+						m_can_dev->data_timing :
+						&m_can_data_bittiming_const_30X;
 		break;
 	case 31:
 		/* CAN_CTRLMODE_FD_NON_ISO is fixed with M_CAN IP v3.1.x */
 		can_set_static_ctrlmode(dev, CAN_CTRLMODE_FD_NON_ISO);
-		priv->can.bittiming_const = &m_can_bittiming_const_31X;
-		priv->can.data_bittiming_const =
-				&m_can_data_bittiming_const_31X;
+		m_can_dev->can.bittiming_const = m_can_dev->bit_timing ?
+			m_can_dev->bit_timing : &m_can_bittiming_const_31X;
+
+		m_can_dev->can.data_bittiming_const = m_can_dev->data_timing ?
+						m_can_dev->data_timing :
+						&m_can_data_bittiming_const_31X;
 		break;
 	case 32:
-		priv->can.bittiming_const = &m_can_bittiming_const_31X;
-		priv->can.data_bittiming_const =
-				&m_can_data_bittiming_const_31X;
-		priv->can.ctrlmode_supported |= (m_can_niso_supported(priv)
+		m_can_dev->can.bittiming_const = m_can_dev->bit_timing ?
+			m_can_dev->bit_timing : &m_can_bittiming_const_31X;
+
+		m_can_dev->can.data_bittiming_const = m_can_dev->data_timing ?
+						m_can_dev->data_timing :
+						&m_can_data_bittiming_const_31X;
+
+		m_can_dev->can.ctrlmode_supported |=
+						(m_can_niso_supported(m_can_dev)
 						? CAN_CTRLMODE_FD_NON_ISO
 						: 0);
 		break;
 	default:
-		dev_err(&pdev->dev, "Unsupported version number: %2d",
-			priv->version);
+		dev_err(m_can_dev->dev, "Unsupported version number: %2d",
+			m_can_dev->version);
 		return -EINVAL;
 	}
 
-	return 0;
-}
-
-static int m_can_open(struct net_device *dev)
-{
-	struct m_can_priv *priv = netdev_priv(dev);
-	int err;
-
-	err = m_can_clk_start(priv);
-	if (err)
-		return err;
-
-	/* open the can device */
-	err = open_candev(dev);
-	if (err) {
-		netdev_err(dev, "failed to open can device\n");
-		goto exit_disable_clks;
-	}
-
-	/* register interrupt handler */
-	err = request_irq(dev->irq, m_can_isr, IRQF_SHARED, dev->name,
-			  dev);
-	if (err < 0) {
-		netdev_err(dev, "failed to request interrupt\n");
-		goto exit_irq_fail;
-	}
-
-	/* start the m_can controller */
-	m_can_start(dev);
-
-	can_led_event(dev, CAN_LED_EVENT_OPEN);
-	napi_enable(&priv->napi);
-	netif_start_queue(dev);
+	if (m_can_dev->ops->init)
+		m_can_dev->ops->init(m_can_dev);
 
 	return 0;
-
-exit_irq_fail:
-	close_candev(dev);
-exit_disable_clks:
-	m_can_clk_stop(priv);
-	return err;
 }
 
 static void m_can_stop(struct net_device *dev)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 
 	/* disable all interrupts */
-	m_can_disable_all_interrupts(priv);
+	m_can_disable_all_interrupts(cdev);
 
 	/* set the state as STOPPED */
-	priv->can.state = CAN_STATE_STOPPED;
+	cdev->can.state = CAN_STATE_STOPPED;
 }
 
 static int m_can_close(struct net_device *dev)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 
 	netif_stop_queue(dev);
-	napi_disable(&priv->napi);
+
+	if (!cdev->is_peripheral)
+		napi_disable(&cdev->napi);
+
 	m_can_stop(dev);
-	m_can_clk_stop(priv);
+	m_can_clk_stop(cdev);
 	free_irq(dev->irq, dev);
+
+	if (cdev->is_peripheral) {
+		cdev->tx_skb = NULL;
+		destroy_workqueue(cdev->tx_wq);
+		cdev->tx_wq = NULL;
+	}
+
 	close_candev(dev);
 	can_led_event(dev, CAN_LED_EVENT_STOP);
 
@@ -1394,29 +1397,26 @@ static int m_can_close(struct net_device *dev)
 
 static int m_can_next_echo_skb_occupied(struct net_device *dev, int putidx)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
+	struct m_can_classdev *cdev = netdev_priv(dev);
 	/*get wrap around for loopback skb index */
-	unsigned int wrap = priv->can.echo_skb_max;
+	unsigned int wrap = cdev->can.echo_skb_max;
 	int next_idx;
 
 	/* calculate next index */
 	next_idx = (++putidx >= wrap ? 0 : putidx);
 
 	/* check if occupied */
-	return !!priv->can.echo_skb[next_idx];
+	return !!cdev->can.echo_skb[next_idx];
 }
 
-static netdev_tx_t m_can_start_xmit(struct sk_buff *skb,
-				    struct net_device *dev)
+static netdev_tx_t m_can_tx_handler(struct m_can_classdev *cdev)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
-	struct canfd_frame *cf = (struct canfd_frame *)skb->data;
+	struct canfd_frame *cf = (struct canfd_frame *)cdev->tx_skb->data;
+	struct net_device *dev = cdev->net;
+	struct sk_buff *skb = cdev->tx_skb;
 	u32 id, cccr, fdflags;
 	int i;
 	int putidx;
-
-	if (can_dropped_invalid_skb(dev, skb))
-		return NETDEV_TX_OK;
 
 	/* Generate ID field for TX buffer Element */
 	/* Common to all supported M_CAN versions */
@@ -1430,23 +1430,23 @@ static netdev_tx_t m_can_start_xmit(struct sk_buff *skb,
 	if (cf->can_id & CAN_RTR_FLAG)
 		id |= TX_BUF_RTR;
 
-	if (priv->version == 30) {
+	if (cdev->version == 30) {
 		netif_stop_queue(dev);
 
 		/* message ram configuration */
-		m_can_fifo_write(priv, 0, M_CAN_FIFO_ID, id);
-		m_can_fifo_write(priv, 0, M_CAN_FIFO_DLC,
+		m_can_fifo_write(cdev, 0, M_CAN_FIFO_ID, id);
+		m_can_fifo_write(cdev, 0, M_CAN_FIFO_DLC,
 				 can_len2dlc(cf->len) << 16);
 
 		for (i = 0; i < cf->len; i += 4)
-			m_can_fifo_write(priv, 0,
+			m_can_fifo_write(cdev, 0,
 					 M_CAN_FIFO_DATA(i / 4),
 					 *(u32 *)(cf->data + i));
 
 		can_put_echo_skb(skb, dev, 0);
 
-		if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
-			cccr = m_can_read(priv, M_CAN_CCCR);
+		if (cdev->can.ctrlmode & CAN_CTRLMODE_FD) {
+			cccr = m_can_read(cdev, M_CAN_CCCR);
 			cccr &= ~(CCCR_CMR_MASK << CCCR_CMR_SHIFT);
 			if (can_is_canfd_skb(skb)) {
 				if (cf->flags & CANFD_BRS)
@@ -1458,28 +1458,35 @@ static netdev_tx_t m_can_start_xmit(struct sk_buff *skb,
 			} else {
 				cccr |= CCCR_CMR_CAN << CCCR_CMR_SHIFT;
 			}
-			m_can_write(priv, M_CAN_CCCR, cccr);
+			m_can_write(cdev, M_CAN_CCCR, cccr);
 		}
-		m_can_write(priv, M_CAN_TXBTIE, 0x1);
-		m_can_write(priv, M_CAN_TXBAR, 0x1);
+		m_can_write(cdev, M_CAN_TXBTIE, 0x1);
+		m_can_write(cdev, M_CAN_TXBAR, 0x1);
 		/* End of xmit function for version 3.0.x */
 	} else {
 		/* Transmit routine for version >= v3.1.x */
 
 		/* Check if FIFO full */
-		if (m_can_tx_fifo_full(priv)) {
+		if (m_can_tx_fifo_full(cdev)) {
 			/* This shouldn't happen */
 			netif_stop_queue(dev);
 			netdev_warn(dev,
 				    "TX queue active although FIFO is full.");
-			return NETDEV_TX_BUSY;
+
+			if (cdev->is_peripheral) {
+				kfree_skb(skb);
+				dev->stats.tx_dropped++;
+				return NETDEV_TX_OK;
+			} else {
+				return NETDEV_TX_BUSY;
+			}
 		}
 
 		/* get put index for frame */
-		putidx = ((m_can_read(priv, M_CAN_TXFQS) & TXFQS_TFQPI_MASK)
+		putidx = ((m_can_read(cdev, M_CAN_TXFQS) & TXFQS_TFQPI_MASK)
 				  >> TXFQS_TFQPI_SHIFT);
 		/* Write ID Field to FIFO Element */
-		m_can_fifo_write(priv, putidx, M_CAN_FIFO_ID, id);
+		m_can_fifo_write(cdev, putidx, M_CAN_FIFO_ID, id);
 
 		/* get CAN FD configuration of frame */
 		fdflags = 0;
@@ -1494,14 +1501,14 @@ static netdev_tx_t m_can_start_xmit(struct sk_buff *skb,
 		 * it is used in TX interrupt for
 		 * sending the correct echo frame
 		 */
-		m_can_fifo_write(priv, putidx, M_CAN_FIFO_DLC,
+		m_can_fifo_write(cdev, putidx, M_CAN_FIFO_DLC,
 				 ((putidx << TX_BUF_MM_SHIFT) &
 				  TX_BUF_MM_MASK) |
 				 (can_len2dlc(cf->len) << 16) |
 				 fdflags | TX_BUF_EFC);
 
 		for (i = 0; i < cf->len; i += 4)
-			m_can_fifo_write(priv, putidx, M_CAN_FIFO_DATA(i / 4),
+			m_can_fifo_write(cdev, putidx, M_CAN_FIFO_DATA(i / 4),
 					 *(u32 *)(cf->data + i));
 
 		/* Push loopback echo.
@@ -1510,15 +1517,121 @@ static netdev_tx_t m_can_start_xmit(struct sk_buff *skb,
 		can_put_echo_skb(skb, dev, putidx);
 
 		/* Enable TX FIFO element to start transfer  */
-		m_can_write(priv, M_CAN_TXBAR, (1 << putidx));
+		m_can_write(cdev, M_CAN_TXBAR, (1 << putidx));
 
 		/* stop network queue if fifo full */
-			if (m_can_tx_fifo_full(priv) ||
-			    m_can_next_echo_skb_occupied(dev, putidx))
-				netif_stop_queue(dev);
+		if (m_can_tx_fifo_full(cdev) ||
+		    m_can_next_echo_skb_occupied(dev, putidx))
+			netif_stop_queue(dev);
 	}
 
 	return NETDEV_TX_OK;
+}
+
+static void m_can_tx_work_queue(struct work_struct *ws)
+{
+	struct m_can_classdev *cdev = container_of(ws, struct m_can_classdev,
+						tx_work);
+
+	m_can_tx_handler(cdev);
+	cdev->tx_skb = NULL;
+}
+
+static netdev_tx_t m_can_start_xmit(struct sk_buff *skb,
+				    struct net_device *dev)
+{
+	struct m_can_classdev *cdev = netdev_priv(dev);
+
+	if (can_dropped_invalid_skb(dev, skb))
+		return NETDEV_TX_OK;
+
+	if (cdev->is_peripheral) {
+		if (cdev->tx_skb) {
+			netdev_err(dev, "hard_xmit called while tx busy\n");
+			return NETDEV_TX_BUSY;
+		}
+
+		if (cdev->can.state == CAN_STATE_BUS_OFF) {
+			m_can_clean(dev);
+		} else {
+			/* Need to stop the queue to avoid numerous requests
+			 * from being sent.  Suggested improvement is to create
+			 * a queueing mechanism that will queue the skbs and
+			 * process them in order.
+			 */
+			cdev->tx_skb = skb;
+			netif_stop_queue(cdev->net);
+			queue_work(cdev->tx_wq, &cdev->tx_work);
+		}
+	} else {
+		cdev->tx_skb = skb;
+		return m_can_tx_handler(cdev);
+	}
+
+	return NETDEV_TX_OK;
+}
+
+static int m_can_open(struct net_device *dev)
+{
+	struct m_can_classdev *cdev = netdev_priv(dev);
+	int err;
+
+	err = m_can_clk_start(cdev);
+	if (err)
+		return err;
+
+	/* open the can device */
+	err = open_candev(dev);
+	if (err) {
+		netdev_err(dev, "failed to open can device\n");
+		goto exit_disable_clks;
+	}
+
+	/* register interrupt handler */
+	if (cdev->is_peripheral) {
+		cdev->tx_skb = NULL;
+		cdev->tx_wq = alloc_workqueue("mcan_wq",
+					      WQ_FREEZABLE | WQ_MEM_RECLAIM, 0);
+		if (!cdev->tx_wq) {
+			err = -ENOMEM;
+			goto out_wq_fail;
+		}
+
+		INIT_WORK(&cdev->tx_work, m_can_tx_work_queue);
+
+		err = request_threaded_irq(dev->irq, NULL, m_can_isr,
+					   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
+					   dev->name, dev);
+	} else {
+		err = request_irq(dev->irq, m_can_isr, IRQF_SHARED, dev->name,
+				  dev);
+	}
+
+	if (err < 0) {
+		netdev_err(dev, "failed to request interrupt\n");
+		goto exit_irq_fail;
+	}
+
+	/* start the m_can controller */
+	m_can_start(dev);
+
+	can_led_event(dev, CAN_LED_EVENT_OPEN);
+
+	if (!cdev->is_peripheral)
+		napi_enable(&cdev->napi);
+
+	netif_start_queue(dev);
+
+	return 0;
+
+exit_irq_fail:
+	if (cdev->is_peripheral)
+		destroy_workqueue(cdev->tx_wq);
+out_wq_fail:
+	close_candev(dev);
+exit_disable_clks:
+	m_can_clk_stop(cdev);
+	return err;
 }
 
 static const struct net_device_ops m_can_netdev_ops = {
@@ -1536,114 +1649,91 @@ static int register_m_can_dev(struct net_device *dev)
 	return register_candev(dev);
 }
 
-static void m_can_init_ram(struct m_can_priv *priv)
+static void m_can_of_parse_mram(struct m_can_classdev *cdev,
+				const u32 *mram_config_vals)
+{
+	cdev->mcfg[MRAM_SIDF].off = mram_config_vals[0];
+	cdev->mcfg[MRAM_SIDF].num = mram_config_vals[1];
+	cdev->mcfg[MRAM_XIDF].off = cdev->mcfg[MRAM_SIDF].off +
+			cdev->mcfg[MRAM_SIDF].num * SIDF_ELEMENT_SIZE;
+	cdev->mcfg[MRAM_XIDF].num = mram_config_vals[2];
+	cdev->mcfg[MRAM_RXF0].off = cdev->mcfg[MRAM_XIDF].off +
+			cdev->mcfg[MRAM_XIDF].num * XIDF_ELEMENT_SIZE;
+	cdev->mcfg[MRAM_RXF0].num = mram_config_vals[3] &
+			(RXFC_FS_MASK >> RXFC_FS_SHIFT);
+	cdev->mcfg[MRAM_RXF1].off = cdev->mcfg[MRAM_RXF0].off +
+			cdev->mcfg[MRAM_RXF0].num * RXF0_ELEMENT_SIZE;
+	cdev->mcfg[MRAM_RXF1].num = mram_config_vals[4] &
+			(RXFC_FS_MASK >> RXFC_FS_SHIFT);
+	cdev->mcfg[MRAM_RXB].off = cdev->mcfg[MRAM_RXF1].off +
+			cdev->mcfg[MRAM_RXF1].num * RXF1_ELEMENT_SIZE;
+	cdev->mcfg[MRAM_RXB].num = mram_config_vals[5];
+	cdev->mcfg[MRAM_TXE].off = cdev->mcfg[MRAM_RXB].off +
+			cdev->mcfg[MRAM_RXB].num * RXB_ELEMENT_SIZE;
+	cdev->mcfg[MRAM_TXE].num = mram_config_vals[6];
+	cdev->mcfg[MRAM_TXB].off = cdev->mcfg[MRAM_TXE].off +
+			cdev->mcfg[MRAM_TXE].num * TXE_ELEMENT_SIZE;
+	cdev->mcfg[MRAM_TXB].num = mram_config_vals[7] &
+			(TXBC_NDTB_MASK >> TXBC_NDTB_SHIFT);
+
+	dev_dbg(cdev->dev,
+		"sidf 0x%x %d xidf 0x%x %d rxf0 0x%x %d rxf1 0x%x %d rxb 0x%x %d txe 0x%x %d txb 0x%x %d\n",
+		cdev->mcfg[MRAM_SIDF].off, cdev->mcfg[MRAM_SIDF].num,
+		cdev->mcfg[MRAM_XIDF].off, cdev->mcfg[MRAM_XIDF].num,
+		cdev->mcfg[MRAM_RXF0].off, cdev->mcfg[MRAM_RXF0].num,
+		cdev->mcfg[MRAM_RXF1].off, cdev->mcfg[MRAM_RXF1].num,
+		cdev->mcfg[MRAM_RXB].off, cdev->mcfg[MRAM_RXB].num,
+		cdev->mcfg[MRAM_TXE].off, cdev->mcfg[MRAM_TXE].num,
+		cdev->mcfg[MRAM_TXB].off, cdev->mcfg[MRAM_TXB].num);
+}
+
+void m_can_init_ram(struct m_can_classdev *cdev)
 {
 	int end, i, start;
 
 	/* initialize the entire Message RAM in use to avoid possible
 	 * ECC/parity checksum errors when reading an uninitialized buffer
 	 */
-	start = priv->mcfg[MRAM_SIDF].off;
-	end = priv->mcfg[MRAM_TXB].off +
-		priv->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
+	start = cdev->mcfg[MRAM_SIDF].off;
+	end = cdev->mcfg[MRAM_TXB].off +
+		cdev->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
+
 	for (i = start; i < end; i += 4)
-		writel(0x0, priv->mram_base + i);
+		m_can_fifo_write_no_off(cdev, i, 0x0);
 }
+EXPORT_SYMBOL_GPL(m_can_init_ram);
 
-static void m_can_of_parse_mram(struct m_can_priv *priv,
-				const u32 *mram_config_vals)
+int m_can_class_get_clocks(struct m_can_classdev *m_can_dev)
 {
-	priv->mcfg[MRAM_SIDF].off = mram_config_vals[0];
-	priv->mcfg[MRAM_SIDF].num = mram_config_vals[1];
-	priv->mcfg[MRAM_XIDF].off = priv->mcfg[MRAM_SIDF].off +
-			priv->mcfg[MRAM_SIDF].num * SIDF_ELEMENT_SIZE;
-	priv->mcfg[MRAM_XIDF].num = mram_config_vals[2];
-	priv->mcfg[MRAM_RXF0].off = priv->mcfg[MRAM_XIDF].off +
-			priv->mcfg[MRAM_XIDF].num * XIDF_ELEMENT_SIZE;
-	priv->mcfg[MRAM_RXF0].num = mram_config_vals[3] &
-			(RXFC_FS_MASK >> RXFC_FS_SHIFT);
-	priv->mcfg[MRAM_RXF1].off = priv->mcfg[MRAM_RXF0].off +
-			priv->mcfg[MRAM_RXF0].num * RXF0_ELEMENT_SIZE;
-	priv->mcfg[MRAM_RXF1].num = mram_config_vals[4] &
-			(RXFC_FS_MASK >> RXFC_FS_SHIFT);
-	priv->mcfg[MRAM_RXB].off = priv->mcfg[MRAM_RXF1].off +
-			priv->mcfg[MRAM_RXF1].num * RXF1_ELEMENT_SIZE;
-	priv->mcfg[MRAM_RXB].num = mram_config_vals[5];
-	priv->mcfg[MRAM_TXE].off = priv->mcfg[MRAM_RXB].off +
-			priv->mcfg[MRAM_RXB].num * RXB_ELEMENT_SIZE;
-	priv->mcfg[MRAM_TXE].num = mram_config_vals[6];
-	priv->mcfg[MRAM_TXB].off = priv->mcfg[MRAM_TXE].off +
-			priv->mcfg[MRAM_TXE].num * TXE_ELEMENT_SIZE;
-	priv->mcfg[MRAM_TXB].num = mram_config_vals[7] &
-			(TXBC_NDTB_MASK >> TXBC_NDTB_SHIFT);
+	int ret = 0;
 
-	dev_dbg(priv->device,
-		"mram_base %p sidf 0x%x %d xidf 0x%x %d rxf0 0x%x %d rxf1 0x%x %d rxb 0x%x %d txe 0x%x %d txb 0x%x %d\n",
-		priv->mram_base,
-		priv->mcfg[MRAM_SIDF].off, priv->mcfg[MRAM_SIDF].num,
-		priv->mcfg[MRAM_XIDF].off, priv->mcfg[MRAM_XIDF].num,
-		priv->mcfg[MRAM_RXF0].off, priv->mcfg[MRAM_RXF0].num,
-		priv->mcfg[MRAM_RXF1].off, priv->mcfg[MRAM_RXF1].num,
-		priv->mcfg[MRAM_RXB].off, priv->mcfg[MRAM_RXB].num,
-		priv->mcfg[MRAM_TXE].off, priv->mcfg[MRAM_TXE].num,
-		priv->mcfg[MRAM_TXB].off, priv->mcfg[MRAM_TXB].num);
+	m_can_dev->hclk = devm_clk_get(m_can_dev->dev, "hclk");
+	m_can_dev->cclk = devm_clk_get(m_can_dev->dev, "cclk");
 
-	m_can_init_ram(priv);
+	if (IS_ERR(m_can_dev->cclk)) {
+		dev_err(m_can_dev->dev, "no clock found\n");
+		ret = -ENODEV;
+	}
+
+	return ret;
 }
+EXPORT_SYMBOL_GPL(m_can_class_get_clocks);
 
-static int m_can_plat_probe(struct platform_device *pdev)
+struct m_can_classdev *m_can_class_allocate_dev(struct device *dev)
 {
-	struct net_device *dev;
-	struct m_can_priv *priv;
-	struct resource *res;
-	void __iomem *addr;
-	void __iomem *mram_addr;
-	struct clk *hclk, *cclk;
-	int irq, ret;
-	struct device_node *np;
+	struct m_can_classdev *class_dev = NULL;
 	u32 mram_config_vals[MRAM_CFG_LEN];
+	struct net_device *net_dev;
 	u32 tx_fifo_size;
+	int ret;
 
-	np = pdev->dev.of_node;
-
-	hclk = devm_clk_get(&pdev->dev, "hclk");
-	cclk = devm_clk_get(&pdev->dev, "cclk");
-
-	if (IS_ERR(hclk) || IS_ERR(cclk)) {
-		dev_err(&pdev->dev, "no clock found\n");
-		ret = -ENODEV;
-		goto failed_ret;
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "m_can");
-	addr = devm_ioremap_resource(&pdev->dev, res);
-	irq = platform_get_irq_byname(pdev, "int0");
-
-	if (IS_ERR(addr) || irq < 0) {
-		ret = -EINVAL;
-		goto failed_ret;
-	}
-
-	/* message ram could be shared */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "message_ram");
-	if (!res) {
-		ret = -ENODEV;
-		goto failed_ret;
-	}
-
-	mram_addr = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!mram_addr) {
-		ret = -ENOMEM;
-		goto failed_ret;
-	}
-
-	/* get message ram configuration */
-	ret = of_property_read_u32_array(np, "bosch,mram-cfg",
-					 mram_config_vals,
-					 sizeof(mram_config_vals) / 4);
+	ret = fwnode_property_read_u32_array(dev_fwnode(dev),
+					     "bosch,mram-cfg",
+					     mram_config_vals,
+					     sizeof(mram_config_vals) / 4);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not get Message RAM configuration.");
-		goto failed_ret;
+		dev_err(dev, "Could not get Message RAM configuration.");
+		goto out;
 	}
 
 	/* Get TX FIFO size
@@ -1652,101 +1742,110 @@ static int m_can_plat_probe(struct platform_device *pdev)
 	tx_fifo_size = mram_config_vals[7];
 
 	/* allocate the m_can device */
-	dev = alloc_candev(sizeof(*priv), tx_fifo_size);
-	if (!dev) {
-		ret = -ENOMEM;
-		goto failed_ret;
+	net_dev = alloc_candev(sizeof(*class_dev), tx_fifo_size);
+	if (!net_dev) {
+		dev_err(dev, "Failed to allocate CAN device");
+		goto out;
 	}
 
-	priv = netdev_priv(dev);
-	dev->irq = irq;
-	priv->device = &pdev->dev;
-	priv->hclk = hclk;
-	priv->cclk = cclk;
-	priv->can.clock.freq = clk_get_rate(cclk);
-	priv->mram_base = mram_addr;
+	class_dev = netdev_priv(net_dev);
+	if (!class_dev) {
+		dev_err(dev, "Failed to init netdev cdevate");
+		goto out;
+	}
 
-	platform_set_drvdata(pdev, dev);
-	SET_NETDEV_DEV(dev, &pdev->dev);
+	class_dev->net = net_dev;
+	class_dev->dev = dev;
+	SET_NETDEV_DEV(net_dev, dev);
 
-	/* Enable clocks. Necessary to read Core Release in order to determine
-	 * M_CAN version
-	 */
-	pm_runtime_enable(&pdev->dev);
-	ret = m_can_clk_start(priv);
-	if (ret)
-		goto pm_runtime_fail;
+	m_can_of_parse_mram(class_dev, mram_config_vals);
+out:
+	return class_dev;
+}
+EXPORT_SYMBOL_GPL(m_can_class_allocate_dev);
 
-	ret = m_can_dev_setup(pdev, dev, addr);
+int m_can_class_register(struct m_can_classdev *m_can_dev)
+{
+	int ret;
+
+	if (m_can_dev->pm_clock_support) {
+		pm_runtime_enable(m_can_dev->dev);
+		ret = m_can_clk_start(m_can_dev);
+		if (ret)
+			goto pm_runtime_fail;
+	}
+
+	ret = m_can_dev_setup(m_can_dev);
 	if (ret)
 		goto clk_disable;
 
-	ret = register_m_can_dev(dev);
+	ret = register_m_can_dev(m_can_dev->net);
 	if (ret) {
-		dev_err(&pdev->dev, "registering %s failed (err=%d)\n",
-			KBUILD_MODNAME, ret);
+		dev_err(m_can_dev->dev, "registering %s failed (err=%d)\n",
+			m_can_dev->net->name, ret);
 		goto clk_disable;
 	}
 
-	m_can_of_parse_mram(priv, mram_config_vals);
+	devm_can_led_init(m_can_dev->net);
 
-	devm_can_led_init(dev);
+	of_can_transceiver(m_can_dev->net);
 
-	of_can_transceiver(dev);
-
-	dev_info(&pdev->dev, "%s device registered (irq=%d, version=%d)\n",
-		 KBUILD_MODNAME, dev->irq, priv->version);
+	dev_info(m_can_dev->dev, "%s device registered (irq=%d, version=%d)\n",
+		 KBUILD_MODNAME, m_can_dev->net->irq, m_can_dev->version);
 
 	/* Probe finished
 	 * Stop clocks. They will be reactivated once the M_CAN device is opened
 	 */
 clk_disable:
-	m_can_clk_stop(priv);
+	m_can_clk_stop(m_can_dev);
 pm_runtime_fail:
 	if (ret) {
-		pm_runtime_disable(&pdev->dev);
-		free_candev(dev);
+		if (m_can_dev->pm_clock_support)
+			pm_runtime_disable(m_can_dev->dev);
+		free_candev(m_can_dev->net);
 	}
-failed_ret:
+
 	return ret;
 }
+EXPORT_SYMBOL_GPL(m_can_class_register);
 
-static __maybe_unused int m_can_suspend(struct device *dev)
+int m_can_class_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
-	struct m_can_priv *priv = netdev_priv(ndev);
+	struct m_can_classdev *cdev = netdev_priv(ndev);
 
 	if (netif_running(ndev)) {
 		netif_stop_queue(ndev);
 		netif_device_detach(ndev);
 		m_can_stop(ndev);
-		m_can_clk_stop(priv);
+		m_can_clk_stop(cdev);
 	}
 
 	pinctrl_pm_select_sleep_state(dev);
 
-	priv->can.state = CAN_STATE_SLEEPING;
+	cdev->can.state = CAN_STATE_SLEEPING;
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(m_can_class_suspend);
 
-static __maybe_unused int m_can_resume(struct device *dev)
+int m_can_class_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
-	struct m_can_priv *priv = netdev_priv(ndev);
+	struct m_can_classdev *cdev = netdev_priv(ndev);
 
 	pinctrl_pm_select_default_state(dev);
 
-	priv->can.state = CAN_STATE_ERROR_ACTIVE;
+	cdev->can.state = CAN_STATE_ERROR_ACTIVE;
 
 	if (netif_running(ndev)) {
 		int ret;
 
-		ret = m_can_clk_start(priv);
+		ret = m_can_clk_start(cdev);
 		if (ret)
 			return ret;
 
-		m_can_init_ram(priv);
+		m_can_init_ram(cdev);
 		m_can_start(ndev);
 		netif_device_attach(ndev);
 		netif_start_queue(ndev);
@@ -1754,79 +1853,19 @@ static __maybe_unused int m_can_resume(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(m_can_class_resume);
 
-static void unregister_m_can_dev(struct net_device *dev)
+void m_can_class_unregister(struct m_can_classdev *m_can_dev)
 {
-	unregister_candev(dev);
+	unregister_candev(m_can_dev->net);
+
+	m_can_clk_stop(m_can_dev);
+
+	free_candev(m_can_dev->net);
 }
-
-static int m_can_plat_remove(struct platform_device *pdev)
-{
-	struct net_device *dev = platform_get_drvdata(pdev);
-
-	unregister_m_can_dev(dev);
-
-	pm_runtime_disable(&pdev->dev);
-
-	platform_set_drvdata(pdev, NULL);
-
-	free_candev(dev);
-
-	return 0;
-}
-
-static int __maybe_unused m_can_runtime_suspend(struct device *dev)
-{
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct m_can_priv *priv = netdev_priv(ndev);
-
-	clk_disable_unprepare(priv->cclk);
-	clk_disable_unprepare(priv->hclk);
-
-	return 0;
-}
-
-static int __maybe_unused m_can_runtime_resume(struct device *dev)
-{
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct m_can_priv *priv = netdev_priv(ndev);
-	int err;
-
-	err = clk_prepare_enable(priv->hclk);
-	if (err)
-		return err;
-
-	err = clk_prepare_enable(priv->cclk);
-	if (err)
-		clk_disable_unprepare(priv->hclk);
-
-	return err;
-}
-
-static const struct dev_pm_ops m_can_pmops = {
-	SET_RUNTIME_PM_OPS(m_can_runtime_suspend,
-			   m_can_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(m_can_suspend, m_can_resume)
-};
-
-static const struct of_device_id m_can_of_table[] = {
-	{ .compatible = "bosch,m_can", .data = NULL },
-	{ /* sentinel */ },
-};
-MODULE_DEVICE_TABLE(of, m_can_of_table);
-
-static struct platform_driver m_can_plat_driver = {
-	.driver = {
-		.name = KBUILD_MODNAME,
-		.of_match_table = m_can_of_table,
-		.pm     = &m_can_pmops,
-	},
-	.probe = m_can_plat_probe,
-	.remove = m_can_plat_remove,
-};
-
-module_platform_driver(m_can_plat_driver);
+EXPORT_SYMBOL_GPL(m_can_class_unregister);
 
 MODULE_AUTHOR("Dong Aisheng <b29396@freescale.com>");
+MODULE_AUTHOR("Dan Murphy <dmurphy@ti.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("CAN bus driver for Bosch M_CAN controller");

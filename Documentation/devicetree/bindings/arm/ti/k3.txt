@@ -13,6 +13,9 @@ architecture it uses, using one of the following compatible values:
 - AM654
   compatible = "ti,am654";
 
+- J721E
+  compatible = "ti,j721e";
+
 Boards
 ------
 

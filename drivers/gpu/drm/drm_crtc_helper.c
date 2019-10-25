@@ -29,21 +29,23 @@
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
 
-#include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/kernel.h>
 #include <linux/moduleparam.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_encoder.h>
-#include <drm/drm_fourcc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_plane_helper.h>
-#include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 
 /**
  * DOC: overview
@@ -157,14 +159,10 @@ drm_encoder_disable(struct drm_encoder *encoder)
 	if (!encoder_funcs)
 		return;
 
-	drm_bridge_disable(encoder->bridge);
-
 	if (encoder_funcs->disable)
 		(*encoder_funcs->disable)(encoder);
 	else if (encoder_funcs->dpms)
 		(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
-
-	drm_bridge_post_disable(encoder->bridge);
 }
 
 static void __drm_helper_disable_unused_functions(struct drm_device *dev)
@@ -324,13 +322,6 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (!encoder_funcs)
 			continue;
 
-		ret = drm_bridge_mode_fixup(encoder->bridge,
-			mode, adjusted_mode);
-		if (!ret) {
-			DRM_DEBUG_KMS("Bridge fixup failed\n");
-			goto done;
-		}
-
 		encoder_funcs = encoder->helper_private;
 		if (encoder_funcs->mode_fixup) {
 			if (!(ret = encoder_funcs->mode_fixup(encoder, mode,
@@ -362,13 +353,9 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (!encoder_funcs)
 			continue;
 
-		drm_bridge_disable(encoder->bridge);
-
 		/* Disable the encoders as the first thing we do. */
 		if (encoder_funcs->prepare)
 			encoder_funcs->prepare(encoder);
-
-		drm_bridge_post_disable(encoder->bridge);
 	}
 
 	drm_crtc_prepare_encoders(dev);
@@ -395,8 +382,6 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 			encoder->base.id, encoder->name, mode->name);
 		if (encoder_funcs->mode_set)
 			encoder_funcs->mode_set(encoder, mode, adjusted_mode);
-
-		drm_bridge_mode_set(encoder->bridge, mode, adjusted_mode);
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
@@ -411,12 +396,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (!encoder_funcs)
 			continue;
 
-		drm_bridge_pre_enable(encoder->bridge);
-
 		if (encoder_funcs->commit)
 			encoder_funcs->commit(encoder);
-
-		drm_bridge_enable(encoder->bridge);
 	}
 
 	/* Calculate and store various constants which
@@ -815,25 +796,14 @@ static int drm_helper_choose_encoder_dpms(struct drm_encoder *encoder)
 /* Helper which handles bridge ordering around encoder dpms */
 static void drm_helper_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct drm_bridge *bridge = encoder->bridge;
 	const struct drm_encoder_helper_funcs *encoder_funcs;
 
 	encoder_funcs = encoder->helper_private;
 	if (!encoder_funcs)
 		return;
 
-	if (mode == DRM_MODE_DPMS_ON)
-		drm_bridge_pre_enable(bridge);
-	else
-		drm_bridge_disable(bridge);
-
 	if (encoder_funcs->dpms)
 		encoder_funcs->dpms(encoder, mode);
-
-	if (mode == DRM_MODE_DPMS_ON)
-		drm_bridge_enable(bridge);
-	else
-		drm_bridge_post_disable(bridge);
 }
 
 static int drm_helper_choose_crtc_dpms(struct drm_crtc *crtc)

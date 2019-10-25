@@ -100,7 +100,8 @@
 #define HDMITX_TOP_INTR_RXSENSE_RISE	BIT(6)
 #define HDMITX_TOP_INTR_RXSENSE_FALL	BIT(7)
 
-/* Bit 14:12 RW tmds_sel: 3'b000=Output zero; 3'b001=Output normal TMDS data;
+/*
+ * Bit 14:12 RW tmds_sel: 3'b000=Output zero; 3'b001=Output normal TMDS data;
  *     3'b010=Output PRBS data; 3'b100=Output shift pattern. Default 0.
  * Bit 11: 9 RW shift_pttn_repeat: 0=New pattern every clk cycle; 1=New pattern
  *     every 2 clk cycles; ...; 7=New pattern every 8 clk cycles. Default 0.
@@ -135,7 +136,8 @@
 /* Bit  9: 0 RW tmds_clk_pttn[29:20]. Default 0. */
 #define HDMITX_TOP_TMDS_CLK_PTTN_23             (0x00B)
 
-/* Bit 1 RW shift_tmds_clk_pttn:1=Enable shifting clk pattern,
+/*
+ * Bit 1 RW shift_tmds_clk_pttn:1=Enable shifting clk pattern,
  * used when TMDS CLK rate = TMDS character rate /4. Default 0.
  * Bit 0 R  Reserved. Default 0.
  * [	1] shift_tmds_clk_pttn
@@ -143,12 +145,14 @@
  */
 #define HDMITX_TOP_TMDS_CLK_PTTN_CNTL           (0x00C)
 
-/* Bit 0 RW revocmem_wr_fail: Read back 1 to indicate Host write REVOC MEM
+/*
+ * Bit 0 RW revocmem_wr_fail: Read back 1 to indicate Host write REVOC MEM
  * failure, write 1 to clear the failure flag.  Default 0.
  */
 #define HDMITX_TOP_REVOCMEM_STAT                (0x00D)
 
-/* Bit	   1 R	filtered RxSense status
+/*
+ * Bit	   1 R	filtered RxSense status
  * Bit     0 R  filtered HPD status.
  */
 #define HDMITX_TOP_STAT0                        (0x00E)

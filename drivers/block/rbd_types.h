@@ -18,6 +18,7 @@
 /* For format version 2, rbd image 'foo' consists of objects
  *   rbd_id.foo		- id of image
  *   rbd_header.<id>	- image metadata
+ *   rbd_object_map.<id> - optional image object map
  *   rbd_data.<id>.0000000000000000
  *   rbd_data.<id>.0000000000000001
  *   ...		- data
@@ -25,6 +26,7 @@
  */
 
 #define RBD_HEADER_PREFIX      "rbd_header."
+#define RBD_OBJECT_MAP_PREFIX  "rbd_object_map."
 #define RBD_ID_PREFIX          "rbd_id."
 #define RBD_V2_DATA_FORMAT     "%s.%016llx"
 
@@ -38,6 +40,14 @@ enum rbd_notify_op {
 	RBD_NOTIFY_OP_REQUEST_LOCK       = 2,
 	RBD_NOTIFY_OP_HEADER_UPDATE      = 3,
 };
+
+#define OBJECT_NONEXISTENT	0
+#define OBJECT_EXISTS		1
+#define OBJECT_PENDING		2
+#define OBJECT_EXISTS_CLEAN	3
+
+#define RBD_FLAG_OBJECT_MAP_INVALID	(1ULL << 0)
+#define RBD_FLAG_FAST_DIFF_INVALID	(1ULL << 1)
 
 /*
  * For format version 1, rbd image 'foo' consists of objects

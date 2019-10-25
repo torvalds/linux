@@ -89,19 +89,7 @@ static struct coreboot_driver framebuffer_driver = {
 	},
 	.tag = CB_TAG_FRAMEBUFFER,
 };
-
-static int __init coreboot_framebuffer_init(void)
-{
-	return coreboot_driver_register(&framebuffer_driver);
-}
-
-static void coreboot_framebuffer_exit(void)
-{
-	coreboot_driver_unregister(&framebuffer_driver);
-}
-
-module_init(coreboot_framebuffer_init);
-module_exit(coreboot_framebuffer_exit);
+module_coreboot_driver(framebuffer_driver);
 
 MODULE_AUTHOR("Samuel Holland <samuel@sholland.org>");
 MODULE_LICENSE("GPL");

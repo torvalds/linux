@@ -65,6 +65,10 @@ struct nv50_wndw_func {
 	int (*ntfy_wait_begun)(struct nouveau_bo *, u32 offset,
 			       struct nvif_device *);
 	void (*ilut)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	void (*csc)(struct nv50_wndw *, struct nv50_wndw_atom *,
+		    const struct drm_color_ctm *);
+	void (*csc_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	void (*csc_clr)(struct nv50_wndw *);
 	bool ilut_identity;
 	bool olut_core;
 	void (*xlut_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
@@ -72,6 +76,7 @@ struct nv50_wndw_func {
 	void (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*image_clr)(struct nv50_wndw *);
 	void (*scale_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	void (*blend_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
 	void (*update)(struct nv50_wndw *, u32 *interlock);
 };
@@ -80,6 +85,9 @@ extern const struct drm_plane_funcs nv50_wndw;
 
 void base507c_ntfy_reset(struct nouveau_bo *, u32);
 int base507c_ntfy_wait_begun(struct nouveau_bo *, u32, struct nvif_device *);
+
+void base907c_csc(struct nv50_wndw *, struct nv50_wndw_atom *,
+		  const struct drm_color_ctm *);
 
 struct nv50_wimm_func {
 	void (*point)(struct nv50_wndw *, struct nv50_wndw_atom *);
@@ -102,8 +110,8 @@ void wndwc37e_sema_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void wndwc37e_sema_clr(struct nv50_wndw *);
 void wndwc37e_ntfy_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void wndwc37e_ntfy_clr(struct nv50_wndw *);
-void wndwc37e_image_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void wndwc37e_image_clr(struct nv50_wndw *);
+void wndwc37e_blend_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void wndwc37e_update(struct nv50_wndw *, u32 *);
 
 int wndwc57e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,

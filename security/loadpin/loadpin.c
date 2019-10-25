@@ -43,8 +43,6 @@ static struct super_block *pinned_root;
 static DEFINE_SPINLOCK(pinned_root_spinlock);
 
 #ifdef CONFIG_SYSCTL
-static int zero;
-static int one = 1;
 
 static struct ctl_path loadpin_sysctl_path[] = {
 	{ .procname = "kernel", },
@@ -59,8 +57,8 @@ static struct ctl_table loadpin_sysctl_table[] = {
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec_minmax,
-		.extra1         = &zero,
-		.extra2         = &one,
+		.extra1         = SYSCTL_ZERO,
+		.extra2         = SYSCTL_ONE,
 	},
 	{ }
 };

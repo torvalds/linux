@@ -42,12 +42,13 @@
  * Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mm.h>
-#include <linux/slab.h>
-#include <linux/seq_file.h>
 #include <linux/export.h>
 #include <linux/interval_tree_generic.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/stacktrace.h>
+
+#include <drm/drm_mm.h>
 
 /**
  * DOC: Overview
@@ -471,7 +472,7 @@ int drm_mm_insert_node_in_range(struct drm_mm * const mm,
 	u64 remainder_mask;
 	bool once;
 
-	DRM_MM_BUG_ON(range_start >= range_end);
+	DRM_MM_BUG_ON(range_start > range_end);
 
 	if (unlikely(size == 0 || range_end - range_start < size))
 		return -ENOSPC;

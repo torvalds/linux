@@ -4,14 +4,17 @@
  *
  * Copyright © 2013 Raspberry Pi (Trading) Ltd.
  *
- * Authors: Vincent Sanders <vincent.sanders@collabora.co.uk>
- *          Dave Stevenson <dsteve@broadcom.com>
- *          Simon Mellor <simellor@broadcom.com>
- *          Luke Diamand <luked@broadcom.com>
+ * Authors: Vincent Sanders @ Collabora
+ *          Dave Stevenson @ Broadcom
+ *		(now dave.stevenson@raspberrypi.org)
+ *          Simon Mellor @ Broadcom
+ *          Luke Diamand @ Broadcom
  *
  * MMAL structures
  *
  */
+#ifndef MMAL_COMMON_H
+#define MMAL_COMMON_H
 
 #define MMAL_FOURCC(a, b, c, d) ((a) | (b << 8) | (c << 16) | (d << 24))
 #define MMAL_MAGIC MMAL_FOURCC('m', 'm', 'a', 'l')
@@ -23,7 +26,6 @@ struct mmal_msg_context;
 
 /* mapping between v4l and mmal video modes */
 struct mmal_fmt {
-	char  *name;
 	u32   fourcc;          /* v4l2 format id */
 	int   flags;           /* v4l2 flags field */
 	u32   mmal;
@@ -55,3 +57,4 @@ struct mmal_colourfx {
 	u32 u;
 	u32 v;
 };
+#endif

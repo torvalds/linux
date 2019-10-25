@@ -50,5 +50,14 @@
 #define smnPCIE_PERF_CNTL_TXCLK2			0x11180254
 #define smnPCIE_PERF_COUNT0_TXCLK2			0x11180258
 #define smnPCIE_PERF_COUNT1_TXCLK2			0x1118025c
+#define smnPCIE_PERF_CNTL_TXCLK3                        0x1118021c
+#define smnPCIE_PERF_COUNT0_TXCLK3                      0x11180220
+#define smnPCIE_PERF_COUNT1_TXCLK3                      0x11180224
+#define smnPCIE_PERF_CNTL_TXCLK4                        0x11180228
+#define smnPCIE_PERF_COUNT0_TXCLK4                      0x1118022c
+#define smnPCIE_PERF_COUNT1_TXCLK4                      0x11180230
+
+#define smnPCIE_RX_NUM_NAK				0x11180038
+#define smnPCIE_RX_NUM_NAK_GENERATED			0x1118003c
 
 #endif	// _nbio_7_0_SMN_HEADER

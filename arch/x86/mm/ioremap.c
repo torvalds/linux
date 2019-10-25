@@ -19,6 +19,7 @@
 
 #include <asm/set_memory.h>
 #include <asm/e820/api.h>
+#include <asm/efi.h>
 #include <asm/fixmap.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -458,6 +459,11 @@ void iounmap(volatile void __iomem *addr)
 	kfree(p);
 }
 EXPORT_SYMBOL(iounmap);
+
+int __init arch_ioremap_p4d_supported(void)
+{
+	return 0;
+}
 
 int __init arch_ioremap_pud_supported(void)
 {

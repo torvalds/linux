@@ -78,6 +78,8 @@ static const struct fetch_type probe_fetch_types[] = {
 	/* Special types */
 	__ASSIGN_FETCH_TYPE("string", string, string, sizeof(u32), 1,
 			    "__data_loc char[]"),
+	__ASSIGN_FETCH_TYPE("ustring", string, string, sizeof(u32), 1,
+			    "__data_loc char[]"),
 	/* Basic types */
 	ASSIGN_FETCH_TYPE(u8,  u8,  0),
 	ASSIGN_FETCH_TYPE(u16, u16, 0),
@@ -314,6 +316,29 @@ inval_var:
 	return -EINVAL;
 }
 
+static int str_to_immediate(char *str, unsigned long *imm)
+{
+	if (isdigit(str[0]))
+		return kstrtoul(str, 0, imm);
+	else if (str[0] == '-')
+		return kstrtol(str, 0, (long *)imm);
+	else if (str[0] == '+')
+		return kstrtol(str + 1, 0, (long *)imm);
+	return -EINVAL;
+}
+
+static int __parse_imm_string(char *str, char **pbuf, int offs)
+{
+	size_t len = strlen(str);
+
+	if (str[len - 1] != '"') {
+		trace_probe_log_err(offs + len, IMMSTR_NO_CLOSE);
+		return -EINVAL;
+	}
+	*pbuf = kstrndup(str, len - 1, GFP_KERNEL);
+	return 0;
+}
+
 /* Recursive argument parser */
 static int
 parse_probe_arg(char *arg, const struct fetch_type *type,
@@ -322,6 +347,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 {
 	struct fetch_insn *code = *pcode;
 	unsigned long param;
+	int deref = FETCH_OP_DEREF;
 	long offset = 0;
 	char *tmp;
 	int ret = 0;
@@ -394,9 +420,14 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 		break;
 
 	case '+':	/* deref memory */
-		arg++;	/* Skip '+', because kstrtol() rejects it. */
-		/* fall through */
 	case '-':
+		if (arg[1] == 'u') {
+			deref = FETCH_OP_UDEREF;
+			arg[1] = arg[0];
+			arg++;
+		}
+		if (arg[0] == '+')
+			arg++;	/* Skip '+', because kstrtol() rejects it. */
 		tmp = strchr(arg, '(');
 		if (!tmp) {
 			trace_probe_log_err(offs, DEREF_NEED_BRACE);
@@ -422,7 +453,8 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 			ret = parse_probe_arg(arg, t2, &code, end, flags, offs);
 			if (ret)
 				break;
-			if (code->op == FETCH_OP_COMM) {
+			if (code->op == FETCH_OP_COMM ||
+			    code->op == FETCH_OP_DATA) {
 				trace_probe_log_err(offs, COMM_CANT_DEREF);
 				return -EINVAL;
 			}
@@ -432,8 +464,23 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 			}
 			*pcode = code;
 
-			code->op = FETCH_OP_DEREF;
+			code->op = deref;
 			code->offset = offset;
+		}
+		break;
+	case '\\':	/* Immediate value */
+		if (arg[1] == '"') {	/* Immediate string */
+			ret = __parse_imm_string(arg + 2, &tmp, offs + 2);
+			if (ret)
+				break;
+			code->op = FETCH_OP_DATA;
+			code->data = tmp;
+		} else {
+			ret = str_to_immediate(arg + 1, &code->immediate);
+			if (ret)
+				trace_probe_log_err(offs + 1, BAD_IMM);
+			else
+				code->op = FETCH_OP_IMM;
 		}
 		break;
 	}
@@ -534,8 +581,11 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 		}
 	}
 
-	/* Since $comm can not be dereferred, we can find $comm by strcmp */
-	if (strcmp(arg, "$comm") == 0) {
+	/*
+	 * Since $comm and immediate string can not be dereferred,
+	 * we can find those by strcmp.
+	 */
+	if (strcmp(arg, "$comm") == 0 || strncmp(arg, "\\\"", 2) == 0) {
 		/* The type of $comm must be "string", and not an array. */
 		if (parg->count || (t && strcmp(t, "string")))
 			return -EINVAL;
@@ -569,19 +619,23 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 		goto fail;
 
 	/* Store operation */
-	if (!strcmp(parg->type->name, "string")) {
-		if (code->op != FETCH_OP_DEREF && code->op != FETCH_OP_IMM &&
-		    code->op != FETCH_OP_COMM) {
+	if (!strcmp(parg->type->name, "string") ||
+	    !strcmp(parg->type->name, "ustring")) {
+		if (code->op != FETCH_OP_DEREF && code->op != FETCH_OP_UDEREF &&
+		    code->op != FETCH_OP_IMM && code->op != FETCH_OP_COMM &&
+		    code->op != FETCH_OP_DATA) {
 			trace_probe_log_err(offset + (t ? (t - arg) : 0),
 					    BAD_STRING);
 			ret = -EINVAL;
 			goto fail;
 		}
-		if (code->op != FETCH_OP_DEREF || parg->count) {
+		if ((code->op == FETCH_OP_IMM || code->op == FETCH_OP_COMM) ||
+		     parg->count) {
 			/*
-			 * IMM and COMM is pointing actual address, those must
-			 * be kept, and if parg->count != 0, this is an array
-			 * of string pointers instead of string address itself.
+			 * IMM, DATA and COMM is pointing actual address, those
+			 * must be kept, and if parg->count != 0, this is an
+			 * array of string pointers instead of string address
+			 * itself.
 			 */
 			code++;
 			if (code->op != FETCH_OP_NOP) {
@@ -590,11 +644,19 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 				goto fail;
 			}
 		}
-		code->op = FETCH_OP_ST_STRING;	/* In DEREF case, replace it */
+		/* If op == DEREF, replace it with STRING */
+		if (!strcmp(parg->type->name, "ustring") ||
+		    code->op == FETCH_OP_UDEREF)
+			code->op = FETCH_OP_ST_USTRING;
+		else
+			code->op = FETCH_OP_ST_STRING;
 		code->size = parg->type->size;
 		parg->dynamic = true;
 	} else if (code->op == FETCH_OP_DEREF) {
 		code->op = FETCH_OP_ST_MEM;
+		code->size = parg->type->size;
+	} else if (code->op == FETCH_OP_UDEREF) {
+		code->op = FETCH_OP_ST_UMEM;
 		code->size = parg->type->size;
 	} else {
 		code++;
@@ -618,7 +680,8 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 	/* Loop(Array) operation */
 	if (parg->count) {
 		if (scode->op != FETCH_OP_ST_MEM &&
-		    scode->op != FETCH_OP_ST_STRING) {
+		    scode->op != FETCH_OP_ST_STRING &&
+		    scode->op != FETCH_OP_ST_USTRING) {
 			trace_probe_log_err(offset + (t ? (t - arg) : 0),
 					    BAD_STRING);
 			ret = -EINVAL;
@@ -646,7 +709,8 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 fail:
 	if (ret) {
 		for (code = tmp; code < tmp + FETCH_INSN_MAX; code++)
-			if (code->op == FETCH_NOP_SYMBOL)
+			if (code->op == FETCH_NOP_SYMBOL ||
+			    code->op == FETCH_OP_DATA)
 				kfree(code->data);
 	}
 	kfree(tmp);
@@ -717,7 +781,8 @@ void traceprobe_free_probe_arg(struct probe_arg *arg)
 	struct fetch_insn *code = arg->code;
 
 	while (code && code->op != FETCH_OP_END) {
-		if (code->op == FETCH_NOP_SYMBOL)
+		if (code->op == FETCH_NOP_SYMBOL ||
+		    code->op == FETCH_OP_DATA)
 			kfree(code->data);
 		code++;
 	}
@@ -825,6 +890,7 @@ static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 
 int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return)
 {
+	struct trace_event_call *call = trace_probe_event_call(tp);
 	int len;
 	char *print_fmt;
 
@@ -836,7 +902,7 @@ int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return)
 
 	/* Second: actually write the @print_fmt */
 	__set_print_fmt(tp, print_fmt, len + 1, is_return);
-	tp->call.print_fmt = print_fmt;
+	call->print_fmt = print_fmt;
 
 	return 0;
 }
@@ -864,4 +930,185 @@ int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 			return ret;
 	}
 	return 0;
+}
+
+static void trace_probe_event_free(struct trace_probe_event *tpe)
+{
+	kfree(tpe->class.system);
+	kfree(tpe->call.name);
+	kfree(tpe->call.print_fmt);
+	kfree(tpe);
+}
+
+int trace_probe_append(struct trace_probe *tp, struct trace_probe *to)
+{
+	if (trace_probe_has_sibling(tp))
+		return -EBUSY;
+
+	list_del_init(&tp->list);
+	trace_probe_event_free(tp->event);
+
+	tp->event = to->event;
+	list_add_tail(&tp->list, trace_probe_probe_list(to));
+
+	return 0;
+}
+
+void trace_probe_unlink(struct trace_probe *tp)
+{
+	list_del_init(&tp->list);
+	if (list_empty(trace_probe_probe_list(tp)))
+		trace_probe_event_free(tp->event);
+	tp->event = NULL;
+}
+
+void trace_probe_cleanup(struct trace_probe *tp)
+{
+	int i;
+
+	for (i = 0; i < tp->nr_args; i++)
+		traceprobe_free_probe_arg(&tp->args[i]);
+
+	if (tp->event)
+		trace_probe_unlink(tp);
+}
+
+int trace_probe_init(struct trace_probe *tp, const char *event,
+		     const char *group)
+{
+	struct trace_event_call *call;
+	int ret = 0;
+
+	if (!event || !group)
+		return -EINVAL;
+
+	tp->event = kzalloc(sizeof(struct trace_probe_event), GFP_KERNEL);
+	if (!tp->event)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&tp->event->files);
+	INIT_LIST_HEAD(&tp->event->class.fields);
+	INIT_LIST_HEAD(&tp->event->probes);
+	INIT_LIST_HEAD(&tp->list);
+	list_add(&tp->event->probes, &tp->list);
+
+	call = trace_probe_event_call(tp);
+	call->class = &tp->event->class;
+	call->name = kstrdup(event, GFP_KERNEL);
+	if (!call->name) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	tp->event->class.system = kstrdup(group, GFP_KERNEL);
+	if (!tp->event->class.system) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	return 0;
+
+error:
+	trace_probe_cleanup(tp);
+	return ret;
+}
+
+int trace_probe_register_event_call(struct trace_probe *tp)
+{
+	struct trace_event_call *call = trace_probe_event_call(tp);
+	int ret;
+
+	ret = register_trace_event(&call->event);
+	if (!ret)
+		return -ENODEV;
+
+	ret = trace_add_event_call(call);
+	if (ret)
+		unregister_trace_event(&call->event);
+
+	return ret;
+}
+
+int trace_probe_add_file(struct trace_probe *tp, struct trace_event_file *file)
+{
+	struct event_file_link *link;
+
+	link = kmalloc(sizeof(*link), GFP_KERNEL);
+	if (!link)
+		return -ENOMEM;
+
+	link->file = file;
+	INIT_LIST_HEAD(&link->list);
+	list_add_tail_rcu(&link->list, &tp->event->files);
+	trace_probe_set_flag(tp, TP_FLAG_TRACE);
+	return 0;
+}
+
+struct event_file_link *trace_probe_get_file_link(struct trace_probe *tp,
+						  struct trace_event_file *file)
+{
+	struct event_file_link *link;
+
+	trace_probe_for_each_link(link, tp) {
+		if (link->file == file)
+			return link;
+	}
+
+	return NULL;
+}
+
+int trace_probe_remove_file(struct trace_probe *tp,
+			    struct trace_event_file *file)
+{
+	struct event_file_link *link;
+
+	link = trace_probe_get_file_link(tp, file);
+	if (!link)
+		return -ENOENT;
+
+	list_del_rcu(&link->list);
+	synchronize_rcu();
+	kfree(link);
+
+	if (list_empty(&tp->event->files))
+		trace_probe_clear_flag(tp, TP_FLAG_TRACE);
+
+	return 0;
+}
+
+/*
+ * Return the smallest index of different type argument (start from 1).
+ * If all argument types and name are same, return 0.
+ */
+int trace_probe_compare_arg_type(struct trace_probe *a, struct trace_probe *b)
+{
+	int i;
+
+	for (i = 0; i < a->nr_args; i++) {
+		if ((b->nr_args <= i) ||
+		    ((a->args[i].type != b->args[i].type) ||
+		     (a->args[i].count != b->args[i].count) ||
+		     strcmp(a->args[i].name, b->args[i].name)))
+			return i + 1;
+	}
+
+	return 0;
+}
+
+bool trace_probe_match_command_args(struct trace_probe *tp,
+				    int argc, const char **argv)
+{
+	char buf[MAX_ARGSTR_LEN + 1];
+	int i;
+
+	if (tp->nr_args < argc)
+		return false;
+
+	for (i = 0; i < argc; i++) {
+		snprintf(buf, sizeof(buf), "%s=%s",
+			 tp->args[i].name, tp->args[i].comm);
+		if (strcmp(buf, argv[i]))
+			return false;
+	}
+	return true;
 }

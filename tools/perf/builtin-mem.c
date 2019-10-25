@@ -11,8 +11,10 @@
 #include "util/tool.h"
 #include "util/session.h"
 #include "util/data.h"
+#include "util/map_symbol.h"
 #include "util/mem-events.h"
 #include "util/debug.h"
+#include "util/dso.h"
 #include "util/map.h"
 #include "util/symbol.h"
 
@@ -230,7 +232,7 @@ out_put:
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel __maybe_unused,
+				struct evsel *evsel __maybe_unused,
 				struct machine *machine)
 {
 	return dump_raw_samples(tool, event, sample, machine);

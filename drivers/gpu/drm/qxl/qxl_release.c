@@ -19,9 +19,13 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#include <linux/delay.h>
+
+#include <trace/events/dma_fence.h>
+
 #include "qxl_drv.h"
 #include "qxl_object.h"
-#include <trace/events/dma_fence.h>
 
 /*
  * drawable cmd cache - allocate a bunch of VRAM pages, suballocate
@@ -234,12 +238,12 @@ static int qxl_release_validate_bo(struct qxl_bo *bo)
 			return ret;
 	}
 
-	ret = reservation_object_reserve_shared(bo->tbo.resv, 1);
+	ret = dma_resv_reserve_shared(bo->tbo.base.resv, 1);
 	if (ret)
 		return ret;
 
 	/* allocate a surface for reserved + validated buffers */
-	ret = qxl_bo_check_id(bo->gem_base.dev->dev_private, bo);
+	ret = qxl_bo_check_id(bo->tbo.base.dev->dev_private, bo);
 	if (ret)
 		return ret;
 	return 0;
@@ -256,7 +260,7 @@ int qxl_release_reserve_list(struct qxl_release *release, bool no_intr)
 		return 0;
 
 	ret = ttm_eu_reserve_buffers(&release->ticket, &release->bos,
-				     !no_intr, NULL);
+				     !no_intr, NULL, true);
 	if (ret)
 		return ret;
 
@@ -454,9 +458,9 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 	list_for_each_entry(entry, &release->bos, head) {
 		bo = entry->bo;
 
-		reservation_object_add_shared_fence(bo->resv, &release->base);
+		dma_resv_add_shared_fence(bo->base.resv, &release->base);
 		ttm_bo_add_to_lru(bo);
-		reservation_object_unlock(bo->resv);
+		dma_resv_unlock(bo->base.resv);
 	}
 	spin_unlock(&glob->lru_lock);
 	ww_acquire_fini(&release->ticket);

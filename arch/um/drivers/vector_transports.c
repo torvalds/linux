@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 - Cambridge Greys Limited
  * Copyright (C) 2011 - 2014 Cisco Systems Inc
- * Licensed under the GPL.
  */
 
 #include <linux/etherdevice.h>
@@ -418,7 +418,7 @@ static int build_raw_transport_data(struct vector_private *vp)
 	return 0;
 }
 
-static int build_tap_transport_data(struct vector_private *vp)
+static int build_hybrid_transport_data(struct vector_private *vp)
 {
 	if (uml_raw_enable_vnet_headers(vp->fds->rx_fd)) {
 		vp->form_header = &raw_form_header;
@@ -432,7 +432,7 @@ static int build_tap_transport_data(struct vector_private *vp)
 				NETIF_F_TSO | NETIF_F_GSO | NETIF_F_GRO);
 		netdev_info(
 			vp->dev,
-			"tap/raw: using vnet headers for tso and tx/rx checksum"
+			"tap/raw hybrid: using vnet headers for tso and tx/rx checksum"
 		);
 	} else {
 		return 0; /* do not try to enable tap too if raw failed */
@@ -440,6 +440,38 @@ static int build_tap_transport_data(struct vector_private *vp)
 	if (uml_tap_enable_vnet_headers(vp->fds->tx_fd))
 		return 0;
 	return -1;
+}
+
+static int build_tap_transport_data(struct vector_private *vp)
+{
+	/* "Pure" tap uses the same fd for rx and tx */
+	if (uml_tap_enable_vnet_headers(vp->fds->tx_fd)) {
+		vp->form_header = &raw_form_header;
+		vp->verify_header = &raw_verify_header;
+		vp->header_size = sizeof(struct virtio_net_hdr);
+		vp->rx_header_size = sizeof(struct virtio_net_hdr);
+		vp->dev->hw_features |=
+			(NETIF_F_TSO | NETIF_F_GSO | NETIF_F_GRO);
+		vp->dev->features |=
+			(NETIF_F_RXCSUM | NETIF_F_HW_CSUM |
+				NETIF_F_TSO | NETIF_F_GSO | NETIF_F_GRO);
+		netdev_info(
+			vp->dev,
+			"tap: using vnet headers for tso and tx/rx checksum"
+		);
+		return 0;
+	}
+	return -1;
+}
+
+
+static int build_bess_transport_data(struct vector_private *vp)
+{
+	vp->form_header = NULL;
+	vp->verify_header = NULL;
+	vp->header_size = 0;
+	vp->rx_header_size = 0;
+	return 0;
 }
 
 int build_transport_data(struct vector_private *vp)
@@ -454,6 +486,10 @@ int build_transport_data(struct vector_private *vp)
 		return build_raw_transport_data(vp);
 	if (strncmp(transport, TRANS_TAP, TRANS_TAP_LEN) == 0)
 		return build_tap_transport_data(vp);
+	if (strncmp(transport, TRANS_HYBRID, TRANS_HYBRID_LEN) == 0)
+		return build_hybrid_transport_data(vp);
+	if (strncmp(transport, TRANS_BESS, TRANS_BESS_LEN) == 0)
+		return build_bess_transport_data(vp);
 	return 0;
 }
 

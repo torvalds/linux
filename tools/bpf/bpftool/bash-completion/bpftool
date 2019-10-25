@@ -73,8 +73,8 @@ _bpftool_get_prog_tags()
 
 _bpftool_get_btf_ids()
 {
-    COMPREPLY+=( $( compgen -W "$( bpftool -jp prog 2>&1 | \
-        command sed -n 's/.*"btf_id": \(.*\),\?$/\1/p' )" -- "$cur" ) )
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp btf 2>&1 | \
+        command sed -n 's/.*"id": \(.*\),$/\1/p' )" -- "$cur" ) )
 }
 
 _bpftool_get_obj_map_names()
@@ -199,6 +199,10 @@ _bpftool()
             ;;
         tag)
             _bpftool_get_prog_tags
+            return 0
+            ;;
+        dev)
+            _sysfs_get_netdevs
             return 0
             ;;
         file|pinned)
@@ -399,10 +403,6 @@ _bpftool()
                             _filedir
                             return 0
                             ;;
-                        dev)
-                            _sysfs_get_netdevs
-                            return 0
-                            ;;
                         *)
                             COMPREPLY=( $( compgen -W "map" -- "$cur" ) )
                             _bpftool_once_attr 'type'
@@ -449,7 +449,7 @@ _bpftool()
         map)
             local MAP_TYPE='id pinned'
             case $command in
-                show|list|dump|peek|pop|dequeue)
+                show|list|dump|peek|pop|dequeue|freeze)
                     case $prev in
                         $command)
                             COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
@@ -489,17 +489,13 @@ _bpftool()
                                 perf_event_array percpu_hash percpu_array \
                                 stack_trace cgroup_array lru_hash \
                                 lru_percpu_hash lpm_trie array_of_maps \
-                                hash_of_maps devmap sockmap cpumap xskmap \
-                                sockhash cgroup_storage reuseport_sockarray \
+                                hash_of_maps devmap devmap_hash sockmap cpumap \
+                                xskmap sockhash cgroup_storage reuseport_sockarray \
                                 percpu_cgroup_storage queue stack' -- \
                                                    "$cur" ) )
                             return 0
                             ;;
                         key|value|flags|name|entries)
-                            return 0
-                            ;;
-                        dev)
-                            _sysfs_get_netdevs
                             return 0
                             ;;
                         *)
@@ -642,7 +638,7 @@ _bpftool()
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'delete dump getnext help \
                             lookup pin event_pipe show list update create \
-                            peek push enqueue pop dequeue' -- \
+                            peek push enqueue pop dequeue freeze' -- \
                             "$cur" ) )
                     ;;
             esac
@@ -674,7 +670,7 @@ _bpftool()
                                 map)
                                     _bpftool_get_map_ids
                                     ;;
-                                dump)
+                                $command)
                                     _bpftool_get_btf_ids
                                     ;;
                             esac
@@ -702,20 +698,35 @@ _bpftool()
                             ;;
                     esac
                     ;;
+                show|list)
+                    case $prev in
+                        $command)
+                            COMPREPLY+=( $( compgen -W "id" -- "$cur" ) )
+                            ;;
+                        id)
+                            _bpftool_get_btf_ids
+                            ;;
+                    esac
+                    return 0
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'dump help' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W 'dump help show list' \
+                            -- "$cur" ) )
                     ;;
             esac
             ;;
         cgroup)
             case $command in
-                show|list)
-                    _filedir
-                    return 0
-                    ;;
-                tree)
-                    _filedir
+                show|list|tree)
+                    case $cword in
+                        3)
+                            _filedir
+                            ;;
+                        4)
+                            COMPREPLY=( $( compgen -W 'effective' -- "$cur" ) )
+                            ;;
+                    esac
                     return 0
                     ;;
                 attach|detach)
@@ -775,18 +786,67 @@ _bpftool()
             esac
             ;;
         net)
+            local PROG_TYPE='id pinned tag'
+            local ATTACH_TYPES='xdp xdpgeneric xdpdrv xdpoffload'
             case $command in
+                show|list)
+                    [[ $prev != "$command" ]] && return 0
+                    COMPREPLY=( $( compgen -W 'dev' -- "$cur" ) )
+                    return 0
+                    ;;
+                attach)
+                    case $cword in
+                        3)
+                            COMPREPLY=( $( compgen -W "$ATTACH_TYPES" -- "$cur" ) )
+                            return 0
+                            ;;
+                        4)
+                            COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        5)
+                            case $prev in
+                                id)
+                                    _bpftool_get_prog_ids
+                                    ;;
+                                pinned)
+                                    _filedir
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                        6)
+                            COMPREPLY=( $( compgen -W 'dev' -- "$cur" ) )
+                            return 0
+                            ;;
+                        8)
+                            _bpftool_once_attr 'overwrite'
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                detach)
+                    case $cword in
+                        3)
+                            COMPREPLY=( $( compgen -W "$ATTACH_TYPES" -- "$cur" ) )
+                            return 0
+                            ;;
+                        4)
+                            COMPREPLY=( $( compgen -W 'dev' -- "$cur" ) )
+                            return 0
+                            ;;
+                    esac
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'help \
-                            show list' -- "$cur" ) )
+                            show list attach detach' -- "$cur" ) )
                     ;;
             esac
             ;;
         feature)
             case $command in
                 probe)
-                    [[ $prev == "dev" ]] && _sysfs_get_netdevs && return 0
                     [[ $prev == "prefix" ]] && return 0
                     if _bpftool_search_list 'macros'; then
                         COMPREPLY+=( $( compgen -W 'prefix' -- "$cur" ) )

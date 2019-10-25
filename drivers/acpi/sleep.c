@@ -89,6 +89,10 @@ bool acpi_sleep_state_supported(u8 sleep_state)
 }
 
 #ifdef CONFIG_ACPI_SLEEP
+static bool sleep_no_lps0 __read_mostly;
+module_param(sleep_no_lps0, bool, 0644);
+MODULE_PARM_DESC(sleep_no_lps0, "Do not use the special LPS0 device interface");
+
 static u32 acpi_target_sleep_state = ACPI_STATE_S0;
 
 u32 acpi_target_system_state(void)
@@ -158,11 +162,11 @@ static int __init init_nvs_nosave(const struct dmi_system_id *d)
 	return 0;
 }
 
-static bool acpi_sleep_no_lps0;
+static bool acpi_sleep_default_s3;
 
-static int __init init_no_lps0(const struct dmi_system_id *d)
+static int __init init_default_s3(const struct dmi_system_id *d)
 {
-	acpi_sleep_no_lps0 = true;
+	acpi_sleep_default_s3 = true;
 	return 0;
 }
 
@@ -363,7 +367,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	 * S0 Idle firmware interface.
 	 */
 	{
-	.callback = init_no_lps0,
+	.callback = init_default_s3,
 	.ident = "Dell XPS13 9360",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -376,7 +380,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=199057).
 	 */
 	{
-	.callback = init_no_lps0,
+	.callback = init_default_s3,
 	.ident = "ThinkPad X1 Tablet(2016)",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
@@ -524,8 +528,9 @@ static void acpi_pm_end(void)
 	acpi_sleep_tts_switch(acpi_target_sleep_state);
 }
 #else /* !CONFIG_ACPI_SLEEP */
+#define sleep_no_lps0	(1)
 #define acpi_target_sleep_state	ACPI_STATE_S0
-#define acpi_sleep_no_lps0	(false)
+#define acpi_sleep_default_s3	(1)
 static inline void acpi_sleep_dmi_check(void) {}
 #endif /* CONFIG_ACPI_SLEEP */
 
@@ -691,7 +696,6 @@ static const struct platform_suspend_ops acpi_suspend_ops_old = {
 	.recover = acpi_pm_finish,
 };
 
-static bool s2idle_in_progress;
 static bool s2idle_wakeup;
 
 /*
@@ -904,41 +908,42 @@ static int lps0_device_attach(struct acpi_device *adev,
 	if (lps0_device_handle)
 		return 0;
 
-	if (acpi_sleep_no_lps0) {
-		acpi_handle_info(adev->handle,
-				 "Low Power S0 Idle interface disabled\n");
-		return 0;
-	}
-
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
 		return 0;
 
 	guid_parse(ACPI_LPS0_DSM_UUID, &lps0_dsm_guid);
 	/* Check if the _DSM is present and as expected. */
 	out_obj = acpi_evaluate_dsm(adev->handle, &lps0_dsm_guid, 1, 0, NULL);
-	if (out_obj && out_obj->type == ACPI_TYPE_BUFFER) {
-		char bitmask = *(char *)out_obj->buffer.pointer;
-
-		lps0_dsm_func_mask = bitmask;
-		lps0_device_handle = adev->handle;
-		/*
-		 * Use suspend-to-idle by default if the default
-		 * suspend mode was not set from the command line.
-		 */
-		if (mem_sleep_default > PM_SUSPEND_MEM)
-			mem_sleep_current = PM_SUSPEND_TO_IDLE;
-
-		acpi_handle_debug(adev->handle, "_DSM function mask: 0x%x\n",
-				  bitmask);
-
-		acpi_ec_mark_gpe_for_wake();
-	} else {
+	if (!out_obj || out_obj->type != ACPI_TYPE_BUFFER) {
 		acpi_handle_debug(adev->handle,
 				  "_DSM function 0 evaluation failed\n");
+		return 0;
 	}
+
+	lps0_dsm_func_mask = *(char *)out_obj->buffer.pointer;
+
 	ACPI_FREE(out_obj);
 
+	acpi_handle_debug(adev->handle, "_DSM function mask: 0x%x\n",
+			  lps0_dsm_func_mask);
+
+	lps0_device_handle = adev->handle;
+
 	lpi_device_get_constraints();
+
+	/*
+	 * Use suspend-to-idle by default if the default suspend mode was not
+	 * set from the command line.
+	 */
+	if (mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3)
+		mem_sleep_current = PM_SUSPEND_TO_IDLE;
+
+	/*
+	 * Some LPS0 systems, like ASUS Zenbook UX430UNR/i7-8550U, require the
+	 * EC GPE to be enabled while suspended for certain wakeup devices to
+	 * work, so mark it as wakeup-capable.
+	 */
+	acpi_ec_mark_gpe_for_wake();
 
 	return 0;
 }
@@ -951,98 +956,110 @@ static struct acpi_scan_handler lps0_handler = {
 static int acpi_s2idle_begin(void)
 {
 	acpi_scan_lock_acquire();
-	s2idle_in_progress = true;
 	return 0;
 }
 
 static int acpi_s2idle_prepare(void)
 {
-	if (lps0_device_handle) {
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY);
-
+	if (acpi_sci_irq_valid()) {
+		enable_irq_wake(acpi_sci_irq);
 		acpi_ec_set_gpe_wake_mask(ACPI_GPE_ENABLE);
 	}
-
-	if (acpi_sci_irq_valid())
-		enable_irq_wake(acpi_sci_irq);
 
 	acpi_enable_wakeup_devices(ACPI_STATE_S0);
 
 	/* Change the configuration of GPEs to avoid spurious wakeup. */
 	acpi_enable_all_wakeup_gpes();
 	acpi_os_wait_events_complete();
+
+	s2idle_wakeup = true;
+	return 0;
+}
+
+static int acpi_s2idle_prepare_late(void)
+{
+	if (!lps0_device_handle || sleep_no_lps0)
+		return 0;
+
+	if (pm_debug_messages_on)
+		lpi_check_constraints();
+
+	acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
+	acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY);
+
 	return 0;
 }
 
 static void acpi_s2idle_wake(void)
 {
-	if (!lps0_device_handle)
+	/*
+	 * If IRQD_WAKEUP_ARMED is set for the SCI at this point, the SCI has
+	 * not triggered while suspended, so bail out.
+	 */
+	if (!acpi_sci_irq_valid() ||
+	    irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq)))
 		return;
 
-	if (pm_debug_messages_on)
-		lpi_check_constraints();
-
 	/*
-	 * If IRQD_WAKEUP_ARMED is not set for the SCI at this point, it means
-	 * that the SCI has triggered while suspended, so cancel the wakeup in
-	 * case it has not been a wakeup event (the GPEs will be checked later).
+	 * If there are EC events to process, the wakeup may be a spurious one
+	 * coming from the EC.
 	 */
-	if (acpi_sci_irq_valid() &&
-	    !irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq))) {
-		pm_system_cancel_wakeup();
-		s2idle_wakeup = true;
+	if (acpi_ec_dispatch_gpe()) {
 		/*
-		 * On some platforms with the LPS0 _DSM device noirq resume
-		 * takes too much time for EC wakeup events to survive, so look
-		 * for them now.
+		 * Cancel the wakeup and process all pending events in case
+		 * there are any wakeup ones in there.
+		 *
+		 * Note that if any non-EC GPEs are active at this point, the
+		 * SCI will retrigger after the rearming below, so no events
+		 * should be missed by canceling the wakeup here.
 		 */
-		acpi_ec_dispatch_gpe();
+		pm_system_cancel_wakeup();
+		/*
+		 * The EC driver uses the system workqueue and an additional
+		 * special one, so those need to be flushed too.
+		 */
+		acpi_os_wait_events_complete(); /* synchronize EC GPE processing */
+		acpi_ec_flush_work();
+		acpi_os_wait_events_complete(); /* synchronize Notify handling */
+
+		rearm_wake_irq(acpi_sci_irq);
 	}
 }
 
-static void acpi_s2idle_sync(void)
+static void acpi_s2idle_restore_early(void)
 {
-	/*
-	 * Process all pending events in case there are any wakeup ones.
-	 *
-	 * The EC driver uses the system workqueue and an additional special
-	 * one, so those need to be flushed too.
-	 */
-	acpi_os_wait_events_complete();	/* synchronize SCI IRQ handling */
-	acpi_ec_flush_work();
-	acpi_os_wait_events_complete();	/* synchronize Notify handling */
-	s2idle_wakeup = false;
+	if (!lps0_device_handle || sleep_no_lps0)
+		return;
+
+	acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT);
+	acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON);
 }
 
 static void acpi_s2idle_restore(void)
 {
+	s2idle_wakeup = false;
+
 	acpi_enable_all_runtime_gpes();
 
 	acpi_disable_wakeup_devices(ACPI_STATE_S0);
 
-	if (acpi_sci_irq_valid())
-		disable_irq_wake(acpi_sci_irq);
-
-	if (lps0_device_handle) {
+	if (acpi_sci_irq_valid()) {
 		acpi_ec_set_gpe_wake_mask(ACPI_GPE_DISABLE);
-
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT);
-		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON);
+		disable_irq_wake(acpi_sci_irq);
 	}
 }
 
 static void acpi_s2idle_end(void)
 {
-	s2idle_in_progress = false;
 	acpi_scan_lock_release();
 }
 
 static const struct platform_s2idle_ops acpi_s2idle_ops = {
 	.begin = acpi_s2idle_begin,
 	.prepare = acpi_s2idle_prepare,
+	.prepare_late = acpi_s2idle_prepare_late,
 	.wake = acpi_s2idle_wake,
-	.sync = acpi_s2idle_sync,
+	.restore_early = acpi_s2idle_restore_early,
 	.restore = acpi_s2idle_restore,
 	.end = acpi_s2idle_end,
 };
@@ -1063,7 +1080,6 @@ static void acpi_sleep_suspend_setup(void)
 }
 
 #else /* !CONFIG_SUSPEND */
-#define s2idle_in_progress	(false)
 #define s2idle_wakeup		(false)
 #define lps0_device_handle	(NULL)
 static inline void acpi_sleep_suspend_setup(void) {}
@@ -1072,11 +1088,6 @@ static inline void acpi_sleep_suspend_setup(void) {}
 bool acpi_s2idle_wakeup(void)
 {
 	return s2idle_wakeup;
-}
-
-bool acpi_sleep_no_ec_events(void)
-{
-	return !s2idle_in_progress || !lps0_device_handle;
 }
 
 #ifdef CONFIG_PM_SLEEP

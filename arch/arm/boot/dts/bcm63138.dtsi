@@ -41,9 +41,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		/* UBUS peripheral clock */
 		periph_clk: periph_clk {
 			#clock-cells = <0>;
@@ -94,7 +91,7 @@
 			reg = <0x1e000 0x100>;
 		};
 
-		gic: interrupt-controller@1e100 {
+		gic: interrupt-controller@1f000 {
 			compatible = "arm,cortex-a9-gic";
 			reg = <0x1f000 0x1000
 				0x1e100 0x100>;
@@ -125,7 +122,7 @@
 						  IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
-		armpll: armpll {
+		armpll: armpll@20000 {
 			#clock-cells = <0>;
 			compatible = "brcm,bcm63138-armpll";
 			clocks = <&periph_clk>;
@@ -144,7 +141,7 @@
 			#reset-cells = <2>;
 		};
 
-		ahci: sata@8000 {
+		ahci: sata@a000 {
 			compatible = "brcm,bcm63138-ahci", "brcm,sata3-ahci";
 			reg-names = "ahci", "top-ctrl";
 			reg = <0xa000 0x9ac>, <0x8040 0x24>;

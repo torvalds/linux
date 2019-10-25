@@ -8,12 +8,14 @@
 #include <linux/err.h>
 #include "bpf-event.h"
 #include "debug.h"
+#include "dso.h"
 #include "symbol.h"
 #include "machine.h"
 #include "env.h"
 #include "session.h"
 #include "map.h"
 #include "evlist.h"
+#include "record.h"
 
 #define ptr_to_u64(ptr)    ((__u64)(unsigned long)(ptr))
 
@@ -34,7 +36,7 @@ static int machine__process_bpf_event_load(struct machine *machine,
 	struct bpf_prog_info_linear *info_linear;
 	struct bpf_prog_info_node *info_node;
 	struct perf_env *env = machine->env;
-	int id = event->bpf_event.id;
+	int id = event->bpf.id;
 	unsigned int i;
 
 	/* perf-record, no need to handle bpf-event */
@@ -63,14 +65,13 @@ static int machine__process_bpf_event_load(struct machine *machine,
 	return 0;
 }
 
-int machine__process_bpf_event(struct machine *machine __maybe_unused,
-			       union perf_event *event,
-			       struct perf_sample *sample __maybe_unused)
+int machine__process_bpf(struct machine *machine, union perf_event *event,
+			 struct perf_sample *sample)
 {
 	if (dump_trace)
-		perf_event__fprintf_bpf_event(event, stdout);
+		perf_event__fprintf_bpf(event, stdout);
 
-	switch (event->bpf_event.type) {
+	switch (event->bpf.type) {
 	case PERF_BPF_EVENT_PROG_LOAD:
 		return machine__process_bpf_event_load(machine, event, sample);
 
@@ -82,8 +83,7 @@ int machine__process_bpf_event(struct machine *machine __maybe_unused,
 		 */
 		break;
 	default:
-		pr_debug("unexpected bpf_event type of %d\n",
-			 event->bpf_event.type);
+		pr_debug("unexpected bpf event type of %d\n", event->bpf.type);
 		break;
 	}
 	return 0;
@@ -160,8 +160,8 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 					       union perf_event *event,
 					       struct record_opts *opts)
 {
-	struct ksymbol_event *ksymbol_event = &event->ksymbol_event;
-	struct bpf_event *bpf_event = &event->bpf_event;
+	struct perf_record_ksymbol *ksymbol_event = &event->ksymbol;
+	struct perf_record_bpf_event *bpf_event = &event->bpf;
 	struct bpf_prog_info_linear *info_linear;
 	struct perf_tool *tool = session->tool;
 	struct bpf_prog_info_node *info_node;
@@ -229,10 +229,10 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 		__u64 *prog_addrs = (__u64 *)(uintptr_t)(info->jited_ksyms);
 		int name_len;
 
-		*ksymbol_event = (struct ksymbol_event){
+		*ksymbol_event = (struct perf_record_ksymbol) {
 			.header = {
 				.type = PERF_RECORD_KSYMBOL,
-				.size = offsetof(struct ksymbol_event, name),
+				.size = offsetof(struct perf_record_ksymbol, name),
 			},
 			.addr = prog_addrs[i],
 			.len = prog_lens[i],
@@ -253,10 +253,10 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 
 	if (!opts->no_bpf_event) {
 		/* Synthesize PERF_RECORD_BPF_EVENT */
-		*bpf_event = (struct bpf_event){
+		*bpf_event = (struct perf_record_bpf_event) {
 			.header = {
 				.type = PERF_RECORD_BPF_EVENT,
-				.size = sizeof(struct bpf_event),
+				.size = sizeof(struct perf_record_bpf_event),
 			},
 			.type = PERF_BPF_EVENT_PROG_LOAD,
 			.flags = 0,
@@ -301,7 +301,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 	int err;
 	int fd;
 
-	event = malloc(sizeof(event->bpf_event) + KSYM_NAME_LEN + machine->id_hdr_size);
+	event = malloc(sizeof(event->bpf) + KSYM_NAME_LEN + machine->id_hdr_size);
 	if (!event)
 		return -1;
 	while (true) {
@@ -398,9 +398,9 @@ static int bpf_event__sb_cb(union perf_event *event, void *data)
 	if (event->header.type != PERF_RECORD_BPF_EVENT)
 		return -1;
 
-	switch (event->bpf_event.type) {
+	switch (event->bpf.type) {
 	case PERF_BPF_EVENT_PROG_LOAD:
-		perf_env__add_bpf_info(env, event->bpf_event.id);
+		perf_env__add_bpf_info(env, event->bpf.id);
 
 	case PERF_BPF_EVENT_PROG_UNLOAD:
 		/*
@@ -410,15 +410,14 @@ static int bpf_event__sb_cb(union perf_event *event, void *data)
 		 */
 		break;
 	default:
-		pr_debug("unexpected bpf_event type of %d\n",
-			 event->bpf_event.type);
+		pr_debug("unexpected bpf event type of %d\n", event->bpf.type);
 		break;
 	}
 
 	return 0;
 }
 
-int bpf_event__add_sb_event(struct perf_evlist **evlist,
+int bpf_event__add_sb_event(struct evlist **evlist,
 			    struct perf_env *env)
 {
 	struct perf_event_attr attr = {

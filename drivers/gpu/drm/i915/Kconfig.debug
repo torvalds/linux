@@ -7,6 +7,7 @@ config DRM_I915_WERROR
         # We use the dependency on !COMPILE_TEST to not be enabled in
         # allmodconfig or allyesconfig configurations
         depends on !COMPILE_TEST
+	select HEADER_TEST
         default n
         help
           Add -Werror to the build flags for (and only for) i915.ko.
@@ -21,6 +22,7 @@ config DRM_I915_DEBUG
         depends on DRM_I915
         select DEBUG_FS
         select PREEMPT_COUNT
+        select REFCOUNT_FULL
         select I2C_CHARDEV
         select STACKDEPOT
         select DRM_DP_AUX_CHARDEV
@@ -28,10 +30,12 @@ config DRM_I915_DEBUG
         select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
         select DRM_DEBUG_MM if DRM=y
 	select DRM_DEBUG_SELFTEST
+	select DMABUF_SELFTESTS
 	select SW_SYNC # signaling validation framework (igt/syncobj*)
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
 	select DRM_I915_SELFTEST
 	select DRM_I915_DEBUG_RUNTIME_PM
+	select DRM_I915_DEBUG_MMIO
         default n
         help
           Choose this option to turn on extra driver debugging that may affect
@@ -40,6 +44,19 @@ config DRM_I915_DEBUG
           Recommended for driver developers only.
 
           If in doubt, say "N".
+
+config DRM_I915_DEBUG_MMIO
+	bool "Always insert extra checks around mmio access by default"
+	default n
+	help
+	  By default, always enables the extra sanity checks (extra register
+	  reads) around every mmio (register) access that will slow the system
+	  down. This sets the default value of i915.mmio_debug to -1 and can
+	  be overridden at module load.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
 
 config DRM_I915_DEBUG_GEM
         bool "Insert extra checks into the GEM internals"
@@ -67,6 +84,20 @@ config DRM_I915_ERRLOG_GEM
 
 config DRM_I915_TRACE_GEM
 	bool "Insert extra ftrace output from the GEM internals"
+	depends on DRM_I915_DEBUG_GEM
+	select TRACING
+	default n
+	help
+	  Enable additional and verbose debugging output that will spam
+	  ordinary tests, but may be vital for post-mortem debugging when
+	  used with /proc/sys/kernel/ftrace_dump_on_oops
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_I915_TRACE_GTT
+	bool "Insert extra ftrace output from the GTT internals"
 	depends on DRM_I915_DEBUG_GEM
 	select TRACING
 	default n

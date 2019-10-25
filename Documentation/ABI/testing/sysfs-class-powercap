@@ -5,7 +5,7 @@ Contact:	linux-pm@vger.kernel.org
 Description:
 		The powercap/ class sub directory belongs to the power cap
 		subsystem. Refer to
-		Documentation/power/powercap/powercap.txt for details.
+		Documentation/power/powercap/powercap.rst for details.
 
 What:		/sys/class/powercap/<control type>
 Date:		September 2013
@@ -147,6 +147,6 @@ What:		/sys/class/powercap/.../<power zone>/enabled
 Date:		September 2013
 KernelVersion:	3.13
 Contact:	linux-pm@vger.kernel.org
-Description
+Description:
 		This allows to enable/disable power capping at power zone level.
 		This applies to current power zone and its children.

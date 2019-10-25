@@ -25,7 +25,7 @@
 #include <linux/kernel.h>
 #include <asm/fpu/api.h>
 
-#include "i915_drv.h"
+#include "i915_memcpy.h"
 
 static DEFINE_STATIC_KEY_FALSE(has_movntdqa);
 

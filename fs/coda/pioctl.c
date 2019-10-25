@@ -20,8 +20,7 @@
 #include <linux/uaccess.h>
 
 #include <linux/coda.h>
-#include <linux/coda_psdev.h>
-
+#include "coda_psdev.h"
 #include "coda_linux.h"
 
 /* pioctl ops */
@@ -64,11 +63,8 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 	 * Look up the pathname. Note that the pathname is in
 	 * user memory, and namei takes care of this
 	 */
-	if (data.follow)
-		error = user_path(data.path, &path);
-	else
-		error = user_lpath(data.path, &path);
-
+	error = user_path_at(AT_FDCWD, data.path,
+			     data.follow ? LOOKUP_FOLLOW : 0, &path);
 	if (error)
 		return error;
 

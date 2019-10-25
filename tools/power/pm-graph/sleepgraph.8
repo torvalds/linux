@@ -53,10 +53,10 @@ disable rtcwake and require a user keypress to resume.
 Add the dmesg and ftrace logs to the html output. They will be viewable by
 clicking buttons in the timeline.
 .TP
-\fB-turbostat\fR
-Use turbostat to execute the command in freeze mode (default: disabled). This
-will provide turbostat output in the log which will tell you which actual
-power modes were entered.
+\fB-noturbostat\fR
+By default, if turbostat is found and the requested mode is freeze, sleepgraph
+will execute the suspend via turbostat and collect data in the timeline log.
+This option disables the use of turbostat.
 .TP
 \fB-result \fIfile\fR
 Export a results table to a text file for parsing.

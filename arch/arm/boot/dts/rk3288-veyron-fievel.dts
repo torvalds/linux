@@ -1,0 +1,522 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Veyron Fievel Rev 0+ board device tree source
+ *
+ * Copyright 2016 Google, Inc
+ */
+
+/dts-v1/;
+#include "rk3288-veyron.dtsi"
+#include "rk3288-veyron-analog-audio.dtsi"
+
+/ {
+	model = "Google Fievel";
+	compatible = "google,veyron-fievel-rev8", "google,veyron-fievel-rev7",
+		     "google,veyron-fievel-rev6", "google,veyron-fievel-rev5",
+		     "google,veyron-fievel-rev4", "google,veyron-fievel-rev3",
+		     "google,veyron-fievel-rev2", "google,veyron-fievel-rev1",
+		     "google,veyron-fievel-rev0", "google,veyron-fievel",
+		     "google,veyron", "rockchip,rk3288";
+
+	/delete-node/ bt-activity;
+
+	vccsys: vccsys {
+		compatible = "regulator-fixed";
+		regulator-name = "vccsys";
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	/*
+	 * vcc33_pmuio and vcc33_io is sourced directly from vcc33_sys,
+	 * enabled by vcc_18
+	 */
+	vcc33_io: vcc33-io {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "vcc33_io";
+	};
+
+	vcc5_host1: vcc5-host1-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio5 RK_PC2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hub_usb1_pwr_en>;
+		regulator-name = "vcc5_host1";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vcc5_host2: vcc5-host2-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio5 RK_PB6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hub_usb2_pwr_en>;
+		regulator-name = "vcc5_host2";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vcc5v_otg: vcc5v-otg-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_otg_pwr_en>;
+		regulator-name = "vcc5_otg";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	ext_gmac: external-gmac-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <125000000>;
+		clock-output-names = "ext_gmac";
+	};
+};
+
+&gmac {
+	status = "okay";
+
+	assigned-clocks = <&cru SCLK_MAC>;
+	assigned-clock-parents = <&ext_gmac>;
+	clock_in_out = "input";
+	phy-handle = <&ethphy>;
+	phy-mode = "rgmii";
+	phy-supply = <&vcc33_lan>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins>, <&phy_rst>, <&phy_pmeb>, <&phy_int>;
+	rx_delay = <0x10>;
+	tx_delay = <0x30>;
+
+	/*
+	 * Reset for the RTL8211 PHY which requires a 10-ms reset pulse (low)
+	 * with a 30ms settling time.
+	 */
+	snps,reset-gpio = <&gpio4 RK_PB0 0>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 30000>;
+	wakeup-source;
+
+	mdio0 {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy: ethernet-phy@1 {
+			reg = <1>;
+		};
+	};
+};
+
+&rk808 {
+	dvs-gpios = <&gpio7 RK_PB4 GPIO_ACTIVE_HIGH>,
+		    <&gpio7 RK_PB7 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmic_int_l &dvs_1 &dvs_2>;
+
+	vcc6-supply = <&vcc33_sys>;
+	vcc10-supply = <&vcc33_sys>;
+	vcc11-supply = <&vcc_5v>;
+	vcc12-supply = <&vcc33_sys>;
+
+	regulators {
+		/delete-node/ LDO_REG1;
+
+		/*
+		 * According to the schematic, vcc18_lcdt is for
+		 * HDMI_AVDD_1V8
+		 */
+		vcc18_lcdt: LDO_REG2 {
+			regulator-always-on;
+			regulator-boot-on;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-name = "vdd18_lcdt";
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
+		};
+
+		/*
+		 * This is not a pwren anymore, but the real power supply,
+		 * vdd10_lcd for HDMI_AVDD_1V0
+		 */
+		vdd10_lcd: LDO_REG7 {
+			regulator-always-on;
+			regulator-boot-on;
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-name = "vdd10_lcd";
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
+		};
+
+		/* for usb camera */
+		vcc33_ccd: LDO_REG8 {
+			regulator-always-on;
+			regulator-boot-on;
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "vcc33_ccd";
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
+		};
+
+		vcc33_lan: SWITCH_REG2 {
+			regulator-name = "vcc33_lan";
+		};
+	};
+};
+
+&sdio0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	btmrvl: btmrvl@2 {
+		compatible = "marvell,sd8897-bt";
+		reg = <2>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PD7 IRQ_TYPE_LEVEL_LOW>;
+		marvell,wakeup-pin = /bits/ 16 <13>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_host_wake_l>;
+	};
+};
+
+&vcc50_hdmi {
+	enable-active-high;
+	gpio = <&gpio5 RK_PC3 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&vcc50_hdmi_en>;
+};
+
+&vcc_5v {
+	enable-active-high;
+	gpio = <&gpio7 RK_PC5 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&drv_5v>;
+};
+
+&gpio0 {
+	gpio-line-names = "PMIC_SLEEP_AP",
+			  "DDRIO_PWROFF",
+			  "DDRIO_RETEN",
+			  "TS3A227E_INT_L",
+			  "PMIC_INT_L",
+			  "PWR_KEY_L",
+			  "HUB_USB1_nFALUT",
+			  "PHY_PMEB",
+
+			  "PHY_INT",
+			  "REC_MODE_L",
+			  "OTP_OUT",
+			  "",
+			  "USB_OTG_POWER_EN",
+			  "AP_WARM_RESET_H",
+			  "USB_OTG_nFALUT",
+			  "I2C0_SDA_PMIC",
+
+			  "I2C0_SCL_PMIC",
+			  "DEVMODE_L",
+			  "USB_INT";
+};
+
+&gpio2 {
+	gpio-line-names = "CONFIG0",
+			  "CONFIG1",
+			  "CONFIG2",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "CONFIG3",
+
+			  "",
+			  "EMMC_RST_L",
+			  "",
+			  "",
+			  "BL_PWR_EN",
+			  "",
+			  "TOUCH_INT",
+			  "TOUCH_RST",
+
+			  "I2C3_SCL_TP",
+			  "I2C3_SDA_TP";
+};
+
+&gpio3 {
+	gpio-line-names = "FLASH0_D0",
+			  "FLASH0_D1",
+			  "FLASH0_D2",
+			  "FLASH0_D3",
+			  "FLASH0_D4",
+			  "FLASH0_D5",
+			  "FLASH0_D6",
+			  "FLASH0_D7",
+
+			  "VCC5V_GOOD_H",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "FLASH0_CS2/EMMC_CMD",
+			  "",
+			  "FLASH0_DQS/EMMC_CLKO",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "PHY_TXD2",
+			  "PHY_TXD3",
+			  "MAC_RXD2",
+			  "MAC_RXD3",
+			  "PHY_TXD0",
+			  "PHY_TXD1",
+			  "MAC_RXD0",
+			  "MAC_RXD1";
+};
+
+&gpio4 {
+	gpio-line-names = "MAC_MDC",
+			  "MAC_RXDV",
+			  "MAC_RXER",
+			  "MAC_CLK",
+			  "PHY_TXEN",
+			  "MAC_MDIO",
+			  "MAC_RXCLK",
+			  "",
+
+			  "PHY_RST",
+			  "PHY_TXCLK",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "UART0_RXD",
+			  "UART0_TXD",
+			  "UART0_CTS_L",
+			  "UART0_RTS_L",
+			  "SDIO0_D0",
+			  "SDIO0_D1",
+			  "SDIO0_D2",
+			  "SDIO0_D3",
+
+			  "SDIO0_CMD",
+			  "SDIO0_CLK",
+			  "BT_DEV_WAKE",
+			  "",
+			  "WIFI_ENABLE_H",
+			  "BT_ENABLE_L",
+			  "WIFI_HOST_WAKE",
+			  "BT_HOST_WAKE";
+};
+
+&gpio5 {
+	gpio-line-names = "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "",
+			  "",
+			  "",
+			  "",
+			  "USB_OTG_CTL1",
+			  "HUB_USB2_CTL1",
+			  "HUB_USB2_PWR_EN",
+			  "HUB_USB_ILIM_SEL",
+
+			  "USB_OTG_STATUS_L",
+			  "HUB_USB1_CTL1",
+			  "HUB_USB1_PWR_EN",
+			  "VCC50_HDMI_EN";
+};
+
+&gpio6 {
+	gpio-line-names = "I2S0_SCLK",
+			  "I2S0_LRCK_RX",
+			  "I2S0_LRCK_TX",
+			  "I2S0_SDI",
+			  "I2S0_SDO0",
+			  "HP_DET_H",
+			  "",
+			  "INT_CODEC",
+
+			  "I2S0_CLK",
+			  "I2C2_SDA",
+			  "I2C2_SCL",
+			  "MICDET",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "HUB_USB2_nFALUT",
+			  "USB_OTG_ILIM_SEL";
+};
+
+&gpio7 {
+	gpio-line-names = "LCD_BL_PWM",
+			  "PWM_LOG",
+			  "BL_EN",
+			  "PWR_LED1",
+			  "TPM_INT_H",
+			  "SPK_ON",
+			  "FW_WP_AP",
+			  "",
+
+			  "CPU_NMI",
+			  "DVSOK",
+			  "",
+			  "EDP_HPD",
+			  "DVS1",
+			  "",
+			  "LCD_EN",
+			  "DVS2",
+
+			  "HDMI_CEC",
+			  "I2C4_SDA",
+			  "I2C4_SCL",
+			  "I2C5_SDA_HDMI",
+			  "I2C5_SCL_HDMI",
+			  "5V_DRV",
+			  "UART2_RXD",
+			  "UART2_TXD";
+};
+
+&gpio8 {
+	gpio-line-names = "RAM_ID0",
+			  "RAM_ID1",
+			  "RAM_ID2",
+			  "RAM_ID3",
+			  "I2C1_SDA_TPM",
+			  "I2C1_SCL_TPM",
+			  "SPI2_CLK",
+			  "SPI2_CS0",
+
+			  "SPI2_RXD",
+			  "SPI2_TXD";
+};
+
+&pinctrl {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <
+		/* Common for sleep and wake, but no owners */
+		&ddr0_retention
+		&ddrio_pwroff
+		&global_pwroff
+
+		/* For usb bc1.2 */
+		&usb_otg_ilim_sel
+		&usb_usb_ilim_sel
+
+		/* Wake only */
+		&bt_dev_wake_awake
+		&pwr_led1_on
+	>;
+
+	pinctrl-1 = <
+		/* Common for sleep and wake, but no owners */
+		&ddr0_retention
+		&ddrio_pwroff
+		&global_pwroff
+
+		/* For usb bc1.2 */
+		&usb_otg_ilim_sel
+		&usb_usb_ilim_sel
+
+		/* Sleep only */
+		&bt_dev_wake_sleep
+		&pwr_led1_blink
+	>;
+
+	buck-5v {
+		drv_5v: drv-5v {
+			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	gmac {
+		phy_rst: phy-rst {
+			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+
+		phy_pmeb: phy-pmeb {
+			rockchip,pins = <0 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		phy_int: phy-int {
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	hdmi {
+		vcc50_hdmi_en: vcc50-hdmi-en {
+			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	leds {
+		pwr_led1_on: pwr-led1-on {
+			rockchip,pins = <7 RK_PA3 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+
+		pwr_led1_blink: pwr-led1-blink {
+			rockchip,pins = <7 RK_PA3 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+	};
+
+	pmic {
+		dvs_1: dvs-1 {
+			rockchip,pins = <7 RK_PB4 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		dvs_2: dvs-2 {
+			rockchip,pins = <7 RK_PB7 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	usb-bc12 {
+		usb_otg_ilim_sel: usb-otg-ilim-sel {
+			rockchip,pins = <6 RK_PC1 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+
+		usb_usb_ilim_sel: usb-usb-ilim-sel {
+			rockchip,pins = <5 RK_PB7 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+	};
+
+	usb-host {
+		hub_usb1_pwr_en: hub_usb1_pwr_en {
+			rockchip,pins = <5 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		hub_usb2_pwr_en: hub_usb2_pwr_en {
+			rockchip,pins = <5 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		usb_otg_pwr_en: usb_otg_pwr_en {
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

@@ -16,12 +16,12 @@ config EP405
 	  This option enables support for the EP405/EP405PC boards.
 
 config HOTFOOT
-        bool "Hotfoot"
+	bool "Hotfoot"
 	depends on 40x
 	select PPC40x_SIMPLE
 	select FORCE_PCI
-        help
-	 This option enables support for the ESTEEM 195E Hotfoot board.
+	help
+	  This option enables support for the ESTEEM 195E Hotfoot board.
 
 config KILAUEA
 	bool "Kilauea"
@@ -79,7 +79,6 @@ config OBS600
 	select PPC40x_SIMPLE
 	help
 	  This option enables support for PlatHome OpenBlockS 600 server
-
 
 config PPC40x_SIMPLE
 	bool "Simple PowerPC 40x board support"

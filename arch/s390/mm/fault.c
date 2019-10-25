@@ -67,20 +67,6 @@ static int __init fault_init(void)
 }
 early_initcall(fault_init);
 
-static inline int notify_page_fault(struct pt_regs *regs)
-{
-	int ret = 0;
-
-	/* kprobe_running() needs smp_processor_id() */
-	if (kprobes_built_in() && !user_mode(regs)) {
-		preempt_disable();
-		if (kprobe_running() && kprobe_fault_handler(regs, 14))
-			ret = 1;
-		preempt_enable();
-	}
-	return ret;
-}
-
 /*
  * Find out which address space caused the exception.
  */
@@ -341,6 +327,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 	case VM_FAULT_BADACCESS:
 		if (access == VM_EXEC && signal_return(regs) == 0)
 			break;
+		/* fallthrough */
 	case VM_FAULT_BADMAP:
 		/* Bad memory access. Check if it is kernel or user space. */
 		if (user_mode(regs)) {
@@ -350,7 +337,9 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 			do_sigsegv(regs, si_code);
 			break;
 		}
+		/* fallthrough */
 	case VM_FAULT_BADCONTEXT:
+		/* fallthrough */
 	case VM_FAULT_PFAULT:
 		do_no_context(regs);
 		break;
@@ -412,7 +401,7 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 	 */
 	clear_pt_regs_flag(regs, PIF_PER_TRAP);
 
-	if (notify_page_fault(regs))
+	if (kprobe_page_fault(regs, 14))
 		return 0;
 
 	mm = tsk->mm;

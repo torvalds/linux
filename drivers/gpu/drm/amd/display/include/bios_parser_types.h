@@ -307,7 +307,8 @@ struct bp_encoder_cap_info {
 	uint32_t DP_HBR2_EN:1;
 	uint32_t DP_HBR3_EN:1;
 	uint32_t HDMI_6GB_EN:1;
-	uint32_t RESERVED:30;
+	uint32_t DP_IS_USB_C:1;
+	uint32_t RESERVED:27;
 };
 
 #endif /*__DAL_BIOS_PARSER_TYPES_H__ */

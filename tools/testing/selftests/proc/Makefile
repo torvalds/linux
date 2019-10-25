@@ -17,6 +17,7 @@ TEST_GEN_PROGS += proc-uptime-002
 TEST_GEN_PROGS += read
 TEST_GEN_PROGS += self
 TEST_GEN_PROGS += setns-dcache
+TEST_GEN_PROGS += setns-sysvipc
 TEST_GEN_PROGS += thread-self
 
 include ../lib.mk

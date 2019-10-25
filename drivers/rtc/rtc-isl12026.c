@@ -454,9 +454,9 @@ static int isl12026_probe_new(struct i2c_client *client)
 
 	isl12026_force_power_modes(client);
 
-	priv->nvm_client = i2c_new_dummy(client->adapter, ISL12026_EEPROM_ADDR);
-	if (!priv->nvm_client)
-		return -ENOMEM;
+	priv->nvm_client = i2c_new_dummy_device(client->adapter, ISL12026_EEPROM_ADDR);
+	if (IS_ERR(priv->nvm_client))
+		return PTR_ERR(priv->nvm_client);
 
 	priv->rtc = devm_rtc_allocate_device(&client->dev);
 	ret = PTR_ERR_OR_ZERO(priv->rtc);

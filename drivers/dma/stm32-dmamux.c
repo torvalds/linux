@@ -185,8 +185,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	if (!node)
 		return -ENODEV;
 
-	count = device_property_read_u32_array(&pdev->dev, "dma-masters",
-					       NULL, 0);
+	count = device_property_count_u32(&pdev->dev, "dma-masters");
 	if (count < 0) {
 		dev_err(&pdev->dev, "Can't get DMA master(s) node\n");
 		return -ENODEV;
@@ -295,8 +294,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int stm32_dmamux_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev =
-		container_of(dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(dev);
 	struct stm32_dmamux_data *stm32_dmamux = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(stm32_dmamux->clk);
@@ -306,8 +304,7 @@ static int stm32_dmamux_runtime_suspend(struct device *dev)
 
 static int stm32_dmamux_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev =
-		container_of(dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(dev);
 	struct stm32_dmamux_data *stm32_dmamux = platform_get_drvdata(pdev);
 	int ret;
 

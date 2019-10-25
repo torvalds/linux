@@ -57,7 +57,7 @@ enum libbpf_print_level {
 typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
 				 const char *, va_list ap);
 
-LIBBPF_API void libbpf_set_print(libbpf_print_fn_t fn);
+LIBBPF_API libbpf_print_fn_t libbpf_set_print(libbpf_print_fn_t fn);
 
 /* Hide internal to user */
 struct bpf_object;
@@ -92,6 +92,7 @@ LIBBPF_API void bpf_object__close(struct bpf_object *object);
 struct bpf_object_load_attr {
 	struct bpf_object *obj;
 	int log_level;
+	const char *target_btf_path;
 };
 
 /* Load/unload object into/from kernel */

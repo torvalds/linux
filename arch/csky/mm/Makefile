@@ -12,3 +12,5 @@ obj-y +=			init.o
 obj-y +=			ioremap.o
 obj-y +=			syscache.o
 obj-y +=			tlb.o
+obj-y +=			asid.o
+obj-y +=			context.o

@@ -68,7 +68,7 @@ Accessing PCF8591 via /sys interface
 The PCF8591 is plainly impossible to detect! Thus the driver won't even
 try. You have to explicitly instantiate the device at the relevant
 address (in the interval [0x48..0x4f]) either through platform data, or
-using the sysfs interface. See Documentation/i2c/instantiating-devices
+using the sysfs interface. See Documentation/i2c/instantiating-devices.rst
 for details.
 
 Directories are being created for each instantiated PCF8591:

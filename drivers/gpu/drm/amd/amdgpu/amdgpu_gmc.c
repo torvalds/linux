@@ -24,6 +24,8 @@
  *
  */
 
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #include "amdgpu.h"
 
 /**
@@ -217,6 +219,14 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	const uint64_t sixteen_gb = 1ULL << 34;
 	const uint64_t sixteen_gb_mask = ~(sixteen_gb - 1);
 	u64 size_af, size_bf;
+
+	if (amdgpu_sriov_vf(adev)) {
+		mc->agp_start = 0xffffffff;
+		mc->agp_end = 0x0;
+		mc->agp_size = 0;
+
+		return;
+	}
 
 	if (mc->fb_start > mc->gart_start) {
 		size_bf = (mc->fb_start & sixteen_gb_mask) -

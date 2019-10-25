@@ -4,10 +4,12 @@
  * All rights reserved.
  */
 
+#include <linux/clk.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/host.h>
 
 #include "wilc_wfi_netdevice.h"
+#include "wilc_wfi_cfgoperations.h"
 
 #define SDIO_MODALIAS "wilc1000_sdio"
 
@@ -139,11 +141,9 @@ static int wilc_sdio_probe(struct sdio_func *func,
 		}
 	}
 
-	dev_dbg(&func->dev, "Initializing netdev\n");
-	ret = wilc_netdev_init(&wilc, &func->dev, WILC_HIF_SDIO,
-			       &wilc_hif_sdio);
+	ret = wilc_cfg80211_init(&wilc, &func->dev, WILC_HIF_SDIO,
+				 &wilc_hif_sdio);
 	if (ret) {
-		dev_err(&func->dev, "Couldn't initialize netdev\n");
 		kfree(sdio_priv);
 		return ret;
 	}
@@ -151,6 +151,12 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	wilc->bus_data = sdio_priv;
 	wilc->dev = &func->dev;
 	wilc->gpio_irq = gpio;
+
+	wilc->rtc_clk = devm_clk_get(&func->card->dev, "rtc_clk");
+	if (PTR_ERR_OR_ZERO(wilc->rtc_clk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	else if (!IS_ERR(wilc->rtc_clk))
+		clk_prepare_enable(wilc->rtc_clk);
 
 	dev_info(&func->dev, "Driver Initializing success\n");
 	return 0;
@@ -163,6 +169,10 @@ static void wilc_sdio_remove(struct sdio_func *func)
 	/* free the GPIO in module remove */
 	if (wilc->gpio_irq)
 		gpiod_put(wilc->gpio_irq);
+
+	if (!IS_ERR(wilc->rtc_clk))
+		clk_disable_unprepare(wilc->rtc_clk);
+
 	wilc_netdev_cleanup(wilc);
 }
 
@@ -194,9 +204,10 @@ static int wilc_sdio_suspend(struct device *dev)
 	dev_info(dev, "sdio suspend\n");
 	chip_wakeup(wilc);
 
-	if (!wilc->suspend_event) {
-		wilc_chip_sleep_manually(wilc);
-	} else {
+	if (!IS_ERR(wilc->rtc_clk))
+		clk_disable_unprepare(wilc->rtc_clk);
+
+	if (wilc->suspend_event) {
 		host_sleep_notify(wilc);
 		chip_allow_sleep(wilc);
 	}

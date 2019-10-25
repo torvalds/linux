@@ -9,21 +9,13 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdlib.h>
-#include <stdarg.h>
 #include <linux/compiler.h>
 #include <sys/types.h>
+#include <internal/lib.h>
 
 /* General helper functions */
 void usage(const char *err) __noreturn;
 void die(const char *err, ...) __noreturn __printf(1, 2);
-
-static inline void *zalloc(size_t size)
-{
-	return calloc(1, size);
-}
-
-#define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
 
 struct dirent;
 struct nsinfo;
@@ -39,13 +31,9 @@ int copyfile_mode(const char *from, const char *to, mode_t mode);
 int copyfile_ns(const char *from, const char *to, struct nsinfo *nsi);
 int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size);
 
-ssize_t readn(int fd, void *buf, size_t n);
-ssize_t writen(int fd, const void *buf, size_t n);
-
 size_t hex_width(u64 v);
 
 extern unsigned int page_size;
-int __pure cacheline_size(void);
 
 int sysctl__max_stack(void);
 
@@ -59,16 +47,8 @@ int fetch_kernel_version(unsigned int *puint,
 
 const char *perf_tip(const char *dirpath);
 
-#ifndef HAVE_GET_CURRENT_DIR_NAME
-char *get_current_dir_name(void);
-#endif
-
 #ifndef HAVE_SCHED_GETCPU_SUPPORT
 int sched_getcpu(void);
-#endif
-
-#ifndef HAVE_SETNS_SUPPORT
-int setns(int fd, int nstype);
 #endif
 
 extern bool perf_singlethreaded;

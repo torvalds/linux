@@ -456,6 +456,17 @@ struct hisi_lpc_acpi_cell {
 	size_t pdata_size;
 };
 
+static void hisi_lpc_acpi_remove(struct device *hostdev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(hostdev);
+	struct acpi_device *child;
+
+	device_for_each_child(hostdev, NULL, hisi_lpc_acpi_remove_subdev);
+
+	list_for_each_entry(child, &adev->children, node)
+		acpi_device_clear_enumerated(child);
+}
+
 /*
  * hisi_lpc_acpi_probe - probe children for ACPI FW
  * @hostdev: LPC host device pointer
@@ -555,8 +566,7 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 	return 0;
 
 fail:
-	device_for_each_child(hostdev, NULL,
-			      hisi_lpc_acpi_remove_subdev);
+	hisi_lpc_acpi_remove(hostdev);
 	return ret;
 }
 
@@ -568,6 +578,10 @@ static const struct acpi_device_id hisi_lpc_acpi_match[] = {
 static int hisi_lpc_acpi_probe(struct device *dev)
 {
 	return -ENODEV;
+}
+
+static void hisi_lpc_acpi_remove(struct device *hostdev)
+{
 }
 #endif // CONFIG_ACPI
 
@@ -606,30 +620,50 @@ static int hisi_lpc_probe(struct platform_device *pdev)
 	range->fwnode = dev->fwnode;
 	range->flags = LOGIC_PIO_INDIRECT;
 	range->size = PIO_INDIRECT_SIZE;
+	range->hostdata = lpcdev;
+	range->ops = &hisi_lpc_ops;
+	lpcdev->io_host = range;
 
 	ret = logic_pio_register_range(range);
 	if (ret) {
 		dev_err(dev, "register IO range failed (%d)!\n", ret);
 		return ret;
 	}
-	lpcdev->io_host = range;
 
 	/* register the LPC host PIO resources */
 	if (acpi_device)
 		ret = hisi_lpc_acpi_probe(dev);
 	else
 		ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
-	if (ret)
+	if (ret) {
+		logic_pio_unregister_range(range);
 		return ret;
+	}
 
-	lpcdev->io_host->hostdata = lpcdev;
-	lpcdev->io_host->ops = &hisi_lpc_ops;
+	dev_set_drvdata(dev, lpcdev);
 
 	io_end = lpcdev->io_host->io_start + lpcdev->io_host->size;
 	dev_info(dev, "registered range [%pa - %pa]\n",
 		 &lpcdev->io_host->io_start, &io_end);
 
 	return ret;
+}
+
+static int hisi_lpc_remove(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct acpi_device *acpi_device = ACPI_COMPANION(dev);
+	struct hisi_lpc_dev *lpcdev = dev_get_drvdata(dev);
+	struct logic_pio_hwaddr *range = lpcdev->io_host;
+
+	if (acpi_device)
+		hisi_lpc_acpi_remove(dev);
+	else
+		of_platform_depopulate(dev);
+
+	logic_pio_unregister_range(range);
+
+	return 0;
 }
 
 static const struct of_device_id hisi_lpc_of_match[] = {
@@ -645,5 +679,6 @@ static struct platform_driver hisi_lpc_driver = {
 		.acpi_match_table = ACPI_PTR(hisi_lpc_acpi_match),
 	},
 	.probe = hisi_lpc_probe,
+	.remove = hisi_lpc_remove,
 };
 builtin_platform_driver(hisi_lpc_driver);

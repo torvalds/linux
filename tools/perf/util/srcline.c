@@ -6,9 +6,9 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 
 #include "util/dso.h"
-#include "util/util.h"
 #include "util/debug.h"
 #include "util/callchain.h"
 #include "util/symbol_conf.h"

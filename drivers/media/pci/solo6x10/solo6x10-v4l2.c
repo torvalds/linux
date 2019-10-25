@@ -458,8 +458,6 @@ static int solo_enum_fmt_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	f->pixelformat = V4L2_PIX_FMT_UYVY;
-	strscpy(f->description, "UYUV 4:2:2 Packed", sizeof(f->description));
-
 	return 0;
 }
 
@@ -479,7 +477,6 @@ static int solo_try_fmt_cap(struct file *file, void *priv,
 	pix->field = V4L2_FIELD_INTERLACED;
 	pix->pixelformat = V4L2_PIX_FMT_UYVY;
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	pix->priv = 0;
 	return 0;
 }
 
@@ -509,7 +506,6 @@ static int solo_get_fmt_cap(struct file *file, void *priv,
 	pix->sizeimage = solo_image_size(solo_dev);
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pix->bytesperline = solo_bytesperline(solo_dev);
-	pix->priv = 0;
 
 	return 0;
 }

@@ -45,7 +45,7 @@ static	u32 phy_CalculateBitShift(u32 BitMask)
 /**
 * Function:	PHY_QueryBBReg
 *
-* OverView:	Read "sepcific bits" from BB register
+* OverView:	Read "specific bits" from BB register
 *
 * Input:
 *		struct adapter *	Adapter,
@@ -375,7 +375,7 @@ s32 PHY_MACConfig8723B(struct adapter *Adapter)
 	/*  */
 	rtStatus = phy_ConfigMACWithParaFile(Adapter, pszMACRegFile);
 	if (rtStatus == _FAIL) {
-		ODM_ConfigMACWithHeaderFile(&pHalData->odmpriv);
+		ODM_ReadAndConfig_MP_8723B_MAC_REG(&pHalData->odmpriv);
 		rtStatus = _SUCCESS;
 	}
 
@@ -431,14 +431,12 @@ static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 	u8 sz8723BBRegFile[] = RTL8723B_PHY_REG;
 	u8 sz8723AGCTableFile[] = RTL8723B_AGC_TAB;
 	u8 sz8723BBBRegPgFile[] = RTL8723B_PHY_REG_PG;
-	u8 sz8723BBRegMpFile[] = RTL8723B_PHY_REG_MP;
 	u8 sz8723BRFTxPwrLmtFile[] = RTL8723B_TXPWR_LMT;
-	u8 *pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegPgFile = NULL, *pszBBRegMpFile = NULL, *pszRFTxPwrLmtFile = NULL;
+	u8 *pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegPgFile = NULL, *pszRFTxPwrLmtFile = NULL;
 
 	pszBBRegFile = sz8723BBRegFile;
 	pszAGCTableFile = sz8723AGCTableFile;
 	pszBBRegPgFile = sz8723BBBRegPgFile;
-	pszBBRegMpFile = sz8723BBRegMpFile;
 	pszRFTxPwrLmtFile = sz8723BRFTxPwrLmtFile;
 
 	/*  Read Tx Power Limit File */
@@ -585,7 +583,7 @@ int PHY_RFConfig8723B(struct adapter *Adapter)
  *                                                                                    <20120830, Kordan>
  **************************************************************************************************************/
 
-void PHY_SetTxPowerIndex_8723B(
+void PHY_SetTxPowerIndex(
 	struct adapter *Adapter,
 	u32 PowerIndex,
 	u8 RFPath,
@@ -668,7 +666,7 @@ void PHY_SetTxPowerIndex_8723B(
 	}
 }
 
-u8 PHY_GetTxPowerIndex_8723B(
+u8 PHY_GetTxPowerIndex(
 	struct adapter *padapter,
 	u8 RFPath,
 	u8 Rate,

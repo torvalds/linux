@@ -28,10 +28,11 @@
 
 #include <drm/drm_drv.h>
 
+#include "display/intel_fbdev.h"
+
 #include "i915_drv.h"
 #include "i915_globals.h"
 #include "i915_selftest.h"
-#include "intel_fbdev.h"
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1)
@@ -370,6 +371,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
+	.has_rps = true, \
 	.ppgtt_type = INTEL_PPGTT_ALIASING, \
 	.ppgtt_size = 31, \
 	I9XX_PIPE_OFFSETS, \
@@ -417,6 +419,7 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
+	.has_rps = true, \
 	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 31, \
 	IVB_PIPE_OFFSETS, \
@@ -470,6 +473,7 @@ static const struct intel_device_info intel_valleyview_info = {
 	.num_pipes = 2,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
+	.has_rps = true,
 	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
 	.ppgtt_type = INTEL_PPGTT_FULL,
@@ -518,8 +522,6 @@ static const struct intel_device_info intel_haswell_gt3_info = {
 #define GEN8_FEATURES \
 	G75_FEATURES, \
 	GEN(8), \
-	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
-		      I915_GTT_PAGE_SIZE_2M, \
 	.has_logical_ring_contexts = 1, \
 	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 48, \
@@ -565,6 +567,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_64bit_reloc = 1,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
+	.has_rps = true,
 	.has_logical_ring_contexts = 1,
 	.display.has_gmch = 1,
 	.ppgtt_type = INTEL_PPGTT_FULL,
@@ -581,8 +584,7 @@ static const struct intel_device_info intel_cherryview_info = {
 
 #define GEN9_DEFAULT_PAGE_SIZES \
 	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
-		      I915_GTT_PAGE_SIZE_64K | \
-		      I915_GTT_PAGE_SIZE_2M
+		      I915_GTT_PAGE_SIZE_64K
 
 #define GEN9_FEATURES \
 	GEN8_FEATURES, \
@@ -590,14 +592,12 @@ static const struct intel_device_info intel_cherryview_info = {
 	GEN9_DEFAULT_PAGE_SIZES, \
 	.has_logical_ring_preemption = 1, \
 	.display.has_csr = 1, \
-	.has_guc = 1, \
+	.has_gt_uc = 1, \
 	.display.has_ipc = 1, \
 	.ddb_size = 896
 
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
-	/* Display WA #0477 WaDisableIPC: skl */ \
-	.display.has_ipc = 0, \
 	PLATFORM(INTEL_SKYLAKE)
 
 static const struct intel_device_info intel_skylake_gt1_info = {
@@ -640,10 +640,11 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.has_runtime_pm = 1, \
 	.display.has_csr = 1, \
 	.has_rc6 = 1, \
+	.has_rps = true, \
 	.display.has_dp_mst = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_preemption = 1, \
-	.has_guc = 1, \
+	.has_gt_uc = 1, \
 	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 48, \
 	.has_reset_engine = 1, \
@@ -723,8 +724,14 @@ static const struct intel_device_info intel_cannonlake_info = {
 	.gt = 2,
 };
 
+#define GEN11_DEFAULT_PAGE_SIZES \
+	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
+		      I915_GTT_PAGE_SIZE_64K | \
+		      I915_GTT_PAGE_SIZE_2M
+
 #define GEN11_FEATURES \
 	GEN10_FEATURES, \
+	GEN11_DEFAULT_PAGE_SIZES, \
 	.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
@@ -744,7 +751,7 @@ static const struct intel_device_info intel_cannonlake_info = {
 	GEN(11), \
 	.ddb_size = 2048, \
 	.has_logical_ring_elsq = 1, \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 1024 }
+	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }
 
 static const struct intel_device_info intel_icelake_11_info = {
 	GEN11_FEATURES,
@@ -756,9 +763,40 @@ static const struct intel_device_info intel_icelake_11_info = {
 static const struct intel_device_info intel_elkhartlake_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ELKHARTLAKE),
-	.is_alpha_support = 1,
-	.engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0),
+	.require_force_probe = 1,
+	.engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
 	.ppgtt_size = 36,
+};
+
+#define GEN12_FEATURES \
+	GEN11_FEATURES, \
+	GEN(12), \
+	.pipe_offsets = { \
+		[TRANSCODER_A] = PIPE_A_OFFSET, \
+		[TRANSCODER_B] = PIPE_B_OFFSET, \
+		[TRANSCODER_C] = PIPE_C_OFFSET, \
+		[TRANSCODER_D] = PIPE_D_OFFSET, \
+		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET, \
+		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET, \
+	}, \
+	.trans_offsets = { \
+		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
+		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
+		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
+		[TRANSCODER_D] = TRANSCODER_D_OFFSET, \
+		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET, \
+		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
+	}, \
+	.has_global_mocs = 1
+
+static const struct intel_device_info intel_tigerlake_12_info = {
+	GEN12_FEATURES,
+	PLATFORM(INTEL_TIGERLAKE),
+	.num_pipes = 4,
+	.require_force_probe = 1,
+	.display.has_modular_fia = 1,
+	.engine_mask =
+		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 };
 
 #undef GEN
@@ -832,22 +870,61 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_CNL_IDS(&intel_cannonlake_info),
 	INTEL_ICL_11_IDS(&intel_icelake_11_info),
 	INTEL_EHL_IDS(&intel_elkhartlake_info),
+	INTEL_TGL_12_IDS(&intel_tigerlake_12_info),
 	{0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static void i915_pci_remove(struct pci_dev *pdev)
 {
-	struct drm_device *dev;
+	struct drm_i915_private *i915;
 
-	dev = pci_get_drvdata(pdev);
-	if (!dev) /* driver load aborted, nothing to cleanup */
+	i915 = pci_get_drvdata(pdev);
+	if (!i915) /* driver load aborted, nothing to cleanup */
 		return;
 
-	i915_driver_unload(dev);
-	drm_dev_put(dev);
-
+	i915_driver_remove(i915);
 	pci_set_drvdata(pdev, NULL);
+
+	drm_dev_put(&i915->drm);
+}
+
+/* is device_id present in comma separated list of ids */
+static bool force_probe(u16 device_id, const char *devices)
+{
+	char *s, *p, *tok;
+	bool ret;
+
+	/* FIXME: transitional */
+	if (i915_modparams.alpha_support) {
+		DRM_INFO("i915.alpha_support is deprecated, use i915.force_probe=%04x instead\n",
+			 device_id);
+		return true;
+	}
+
+	if (!devices || !*devices)
+		return false;
+
+	/* match everything */
+	if (strcmp(devices, "*") == 0)
+		return true;
+
+	s = kstrdup(devices, GFP_KERNEL);
+	if (!s)
+		return false;
+
+	for (p = s, ret = false; (tok = strsep(&p, ",")) != NULL; ) {
+		u16 val;
+
+		if (kstrtou16(tok, 16, &val) == 0 && val == device_id) {
+			ret = true;
+			break;
+		}
+	}
+
+	kfree(s);
+
+	return ret;
 }
 
 static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -856,10 +933,13 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(struct intel_device_info *) ent->driver_data;
 	int err;
 
-	if (IS_ALPHA_SUPPORT(intel_info) && !i915_modparams.alpha_support) {
-		DRM_INFO("The driver support for your hardware in this kernel version is alpha quality\n"
-			 "See CONFIG_DRM_I915_ALPHA_SUPPORT or i915.alpha_support module parameter\n"
-			 "to enable support in this kernel version, or check for kernel updates.\n");
+	if (intel_info->require_force_probe &&
+	    !force_probe(pdev->device, i915_modparams.force_probe)) {
+		DRM_INFO("Your graphics device %04x is not properly supported by the driver in this\n"
+			 "kernel version. To force driver probe anyway, use i915.force_probe=%04x\n"
+			 "module parameter or CONFIG_DRM_I915_FORCE_PROBE=%04x configuration option,\n"
+			 "or (recommended) check for kernel updates.\n",
+			 pdev->device, pdev->device, pdev->device);
 		return -ENODEV;
 	}
 
@@ -878,11 +958,11 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (vga_switcheroo_client_probe_defer(pdev))
 		return -EPROBE_DEFER;
 
-	err = i915_driver_load(pdev, ent);
+	err = i915_driver_probe(pdev, ent);
 	if (err)
 		return err;
 
-	if (i915_inject_load_failure()) {
+	if (i915_inject_probe_failure(pci_get_drvdata(pdev))) {
 		i915_pci_remove(pdev);
 		return -ENODEV;
 	}

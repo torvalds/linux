@@ -43,8 +43,11 @@
  */
 
 #include <linux/irq.h>
-#include <drm/drmP.h>
+#include <linux/pci.h>
+
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_vblank.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_ih.h"

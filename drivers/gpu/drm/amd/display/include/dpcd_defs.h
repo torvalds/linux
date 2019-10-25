@@ -43,7 +43,7 @@ enum dpcd_revision {
 enum dpcd_downstream_port_type {
 	DOWNSTREAM_DP = 0,
 	DOWNSTREAM_VGA,
-	DOWNSTREAM_DVI_HDMI,
+	DOWNSTREAM_DVI_HDMI_DP_PLUS_PLUS,/* DVI, HDMI, DP++ */
 	DOWNSTREAM_NONDDC /* has no EDID (TV,CV) */
 };
 

@@ -28,7 +28,6 @@
 #include <linux/version.h>
 #include <linux/i2c.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_edid.h>
@@ -542,6 +541,18 @@ bool dm_helpers_submit_i2c(
 
 	return result;
 }
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+bool dm_helpers_dp_write_dsc_enable(
+		struct dc_context *ctx,
+		const struct dc_stream_state *stream,
+		bool enable
+)
+{
+	uint8_t enable_dsc = enable ? 1 : 0;
+
+	return dm_helpers_dp_write_dpcd(ctx, stream->sink->link, DP_DSC_ENABLE, &enable_dsc, 1);
+}
+#endif
 
 bool dm_helpers_is_dp_sink_present(struct dc_link *link)
 {
