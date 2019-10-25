@@ -13,8 +13,10 @@
 
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
+#include "gem/i915_gem_object_blt.h"
 #include "gem/selftests/mock_context.h"
 #include "gt/intel_gt.h"
+#include "selftests/igt_flush_test.h"
 #include "selftests/i915_random.h"
 
 static void close_objects(struct intel_memory_region *mem,
@@ -275,6 +277,116 @@ out_put:
 	return err;
 }
 
+static int igt_lmem_write_cpu(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj;
+	I915_RND_STATE(prng);
+	IGT_TIMEOUT(end_time);
+	u32 bytes[] = {
+		0, /* rng placeholder */
+		sizeof(u32),
+		sizeof(u64),
+		64, /* cl */
+		PAGE_SIZE,
+		PAGE_SIZE - sizeof(u32),
+		PAGE_SIZE - sizeof(u64),
+		PAGE_SIZE - 64,
+	};
+	u32 *vaddr;
+	u32 sz;
+	u32 i;
+	int *order;
+	int count;
+	int err;
+
+	if (!HAS_ENGINE(i915, BCS0))
+		return 0;
+
+	sz = round_up(prandom_u32_state(&prng) % SZ_32M, PAGE_SIZE);
+	sz = max_t(u32, 2 * PAGE_SIZE, sz);
+
+	obj = i915_gem_object_create_lmem(i915, sz, I915_BO_ALLOC_CONTIGUOUS);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	if (IS_ERR(vaddr)) {
+		err = PTR_ERR(vaddr);
+		goto out_put;
+	}
+
+	/* Put the pages into a known state -- from the gpu for added fun */
+	err = i915_gem_object_fill_blt(obj, i915->engine[BCS0]->kernel_context,
+				       0xdeadbeaf);
+	if (err)
+		goto out_unpin;
+
+	i915_gem_object_lock(obj);
+	err = i915_gem_object_set_to_wc_domain(obj, true);
+	i915_gem_object_unlock(obj);
+	if (err)
+		goto out_unpin;
+
+	count = ARRAY_SIZE(bytes);
+	order = i915_random_order(count * count, &prng);
+	if (!order) {
+		err = -ENOMEM;
+		goto out_unpin;
+	}
+
+	/* We want to throw in a random width/align */
+	bytes[0] = igt_random_offset(&prng, 0, PAGE_SIZE, sizeof(u32),
+				     sizeof(u32));
+
+	i = 0;
+	do {
+		u32 offset;
+		u32 align;
+		u32 dword;
+		u32 size;
+		u32 val;
+
+		size = bytes[order[i] % count];
+		i = (i + 1) % (count * count);
+
+		align = bytes[order[i] % count];
+		i = (i + 1) % (count * count);
+
+		align = max_t(u32, sizeof(u32), rounddown_pow_of_two(align));
+
+		offset = igt_random_offset(&prng, 0, obj->base.size,
+					   size, align);
+
+		val = prandom_u32_state(&prng);
+		memset32(vaddr + offset / sizeof(u32), val ^ 0xdeadbeaf,
+			 size / sizeof(u32));
+
+		/*
+		 * Sample random dw -- don't waste precious time reading every
+		 * single dw.
+		 */
+		dword = igt_random_offset(&prng, offset,
+					  offset + size,
+					  sizeof(u32), sizeof(u32));
+		dword /= sizeof(u32);
+		if (vaddr[dword] != (val ^ 0xdeadbeaf)) {
+			pr_err("%s vaddr[%u]=%u, val=%u, size=%u, align=%u, offset=%u\n",
+			       __func__, dword, vaddr[dword], val ^ 0xdeadbeaf,
+			       size, align, offset);
+			err = -EINVAL;
+			break;
+		}
+	} while (!__igt_timeout(end_time, NULL));
+
+out_unpin:
+	i915_gem_object_unpin_map(obj);
+out_put:
+	i915_gem_object_put(obj);
+
+	return err;
+}
+
 int intel_memory_region_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -308,6 +420,7 @@ int intel_memory_region_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_lmem_create),
+		SUBTEST(igt_lmem_write_cpu),
 	};
 
 	if (!HAS_LMEM(i915)) {
