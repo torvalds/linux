@@ -32,18 +32,12 @@
 	io_pgtable_to_data(io_pgtable_ops_to_pgtable(x))
 
 /*
- * For consistency with the architecture, we always consider
- * ARM_LPAE_MAX_LEVELS levels, with the walk starting at level n >=0
- */
-#define ARM_LPAE_START_LVL(d)		(ARM_LPAE_MAX_LEVELS - (d)->levels)
-
-/*
  * Calculate the right shift amount to get to the portion describing level l
  * in a virtual address mapped by the pagetable in d.
  */
 #define ARM_LPAE_LVL_SHIFT(l,d)						\
-	((((d)->levels - ((l) - ARM_LPAE_START_LVL(d) + 1))		\
-	  * (d)->bits_per_level) + (d)->pg_shift)
+	(((ARM_LPAE_MAX_LEVELS - 1 - (l)) * (d)->bits_per_level) +	\
+	(d)->pg_shift)
 
 #define ARM_LPAE_GRANULE(d)		(1UL << (d)->pg_shift)
 
@@ -55,7 +49,7 @@
  * pagetable in d.
  */
 #define ARM_LPAE_PGD_IDX(l,d)						\
-	((l) == ARM_LPAE_START_LVL(d) ? ilog2(ARM_LPAE_PAGES_PER_PGD(d)) : 0)
+	((l) == (d)->start_level ? ilog2(ARM_LPAE_PAGES_PER_PGD(d)) : 0)
 
 #define ARM_LPAE_LVL_IDX(a,l,d)						\
 	(((u64)(a) >> ARM_LPAE_LVL_SHIFT(l,d)) &			\
@@ -180,7 +174,7 @@
 struct arm_lpae_io_pgtable {
 	struct io_pgtable	iop;
 
-	int			levels;
+	int			start_level;
 	size_t			pgd_size;
 	unsigned long		pg_shift;
 	unsigned long		bits_per_level;
@@ -481,7 +475,7 @@ static int arm_lpae_map(struct io_pgtable_ops *ops, unsigned long iova,
 	struct arm_lpae_io_pgtable *data = io_pgtable_ops_to_data(ops);
 	struct io_pgtable_cfg *cfg = &data->iop.cfg;
 	arm_lpae_iopte *ptep = data->pgd;
-	int ret, lvl = ARM_LPAE_START_LVL(data);
+	int ret, lvl = data->start_level;
 	arm_lpae_iopte prot;
 
 	/* If no access, then nothing to do */
@@ -511,7 +505,7 @@ static void __arm_lpae_free_pgtable(struct arm_lpae_io_pgtable *data, int lvl,
 	arm_lpae_iopte *start, *end;
 	unsigned long table_size;
 
-	if (lvl == ARM_LPAE_START_LVL(data))
+	if (lvl == data->start_level)
 		table_size = data->pgd_size;
 	else
 		table_size = ARM_LPAE_GRANULE(data);
@@ -540,7 +534,7 @@ static void arm_lpae_free_pgtable(struct io_pgtable *iop)
 {
 	struct arm_lpae_io_pgtable *data = io_pgtable_to_data(iop);
 
-	__arm_lpae_free_pgtable(data, ARM_LPAE_START_LVL(data), data->pgd);
+	__arm_lpae_free_pgtable(data, data->start_level, data->pgd);
 	kfree(data);
 }
 
@@ -657,7 +651,6 @@ static size_t arm_lpae_unmap(struct io_pgtable_ops *ops, unsigned long iova,
 	struct arm_lpae_io_pgtable *data = io_pgtable_ops_to_data(ops);
 	struct io_pgtable_cfg *cfg = &data->iop.cfg;
 	arm_lpae_iopte *ptep = data->pgd;
-	int lvl = ARM_LPAE_START_LVL(data);
 
 	if (WARN_ON(!size || (size & cfg->pgsize_bitmap) != size))
 		return 0;
@@ -665,7 +658,7 @@ static size_t arm_lpae_unmap(struct io_pgtable_ops *ops, unsigned long iova,
 	if (WARN_ON(iova >> data->iop.cfg.ias))
 		return 0;
 
-	return __arm_lpae_unmap(data, gather, iova, size, lvl, ptep);
+	return __arm_lpae_unmap(data, gather, iova, size, data->start_level, ptep);
 }
 
 static phys_addr_t arm_lpae_iova_to_phys(struct io_pgtable_ops *ops,
@@ -673,7 +666,7 @@ static phys_addr_t arm_lpae_iova_to_phys(struct io_pgtable_ops *ops,
 {
 	struct arm_lpae_io_pgtable *data = io_pgtable_ops_to_data(ops);
 	arm_lpae_iopte pte, *ptep = data->pgd;
-	int lvl = ARM_LPAE_START_LVL(data);
+	int lvl = data->start_level;
 
 	do {
 		/* Valid IOPTE pointer? */
@@ -752,6 +745,7 @@ arm_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg)
 {
 	unsigned long va_bits, pgd_bits;
 	struct arm_lpae_io_pgtable *data;
+	int levels;
 
 	arm_lpae_restrict_pgsizes(cfg);
 
@@ -777,10 +771,11 @@ arm_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg)
 	data->bits_per_level = data->pg_shift - ilog2(sizeof(arm_lpae_iopte));
 
 	va_bits = cfg->ias - data->pg_shift;
-	data->levels = DIV_ROUND_UP(va_bits, data->bits_per_level);
+	levels = DIV_ROUND_UP(va_bits, data->bits_per_level);
+	data->start_level = ARM_LPAE_MAX_LEVELS - levels;
 
 	/* Calculate the actual size of our pgd (without concatenation) */
-	pgd_bits = va_bits - (data->bits_per_level * (data->levels - 1));
+	pgd_bits = va_bits - (data->bits_per_level * (levels - 1));
 	data->pgd_size = 1UL << (pgd_bits + ilog2(sizeof(arm_lpae_iopte)));
 
 	data->iop.ops = (struct io_pgtable_ops) {
@@ -910,13 +905,13 @@ arm_64_lpae_alloc_pgtable_s2(struct io_pgtable_cfg *cfg, void *cookie)
 	 * Concatenate PGDs at level 1 if possible in order to reduce
 	 * the depth of the stage-2 walk.
 	 */
-	if (data->levels == ARM_LPAE_MAX_LEVELS) {
+	if (data->start_level == 0) {
 		unsigned long pgd_pages;
 
 		pgd_pages = data->pgd_size >> ilog2(sizeof(arm_lpae_iopte));
 		if (pgd_pages <= ARM_LPAE_S2_MAX_CONCAT_PAGES) {
 			data->pgd_size = pgd_pages << data->pg_shift;
-			data->levels--;
+			data->start_level++;
 		}
 	}
 
@@ -926,7 +921,7 @@ arm_64_lpae_alloc_pgtable_s2(struct io_pgtable_cfg *cfg, void *cookie)
 	     (ARM_LPAE_TCR_RGN_WBWA << ARM_LPAE_TCR_IRGN0_SHIFT) |
 	     (ARM_LPAE_TCR_RGN_WBWA << ARM_LPAE_TCR_ORGN0_SHIFT);
 
-	sl = ARM_LPAE_START_LVL(data);
+	sl = data->start_level;
 
 	switch (ARM_LPAE_GRANULE(data)) {
 	case SZ_4K:
@@ -1041,8 +1036,8 @@ arm_mali_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
 		return NULL;
 
 	/* Mali seems to need a full 4-level table regardless of IAS */
-	if (data->levels < ARM_LPAE_MAX_LEVELS) {
-		data->levels = ARM_LPAE_MAX_LEVELS;
+	if (data->start_level > 0) {
+		data->start_level = 0;
 		data->pgd_size = sizeof(arm_lpae_iopte);
 	}
 	/*
@@ -1140,8 +1135,8 @@ static void __init arm_lpae_dump_ops(struct io_pgtable_ops *ops)
 	pr_err("cfg: pgsize_bitmap 0x%lx, ias %u-bit\n",
 		cfg->pgsize_bitmap, cfg->ias);
 	pr_err("data: %d levels, 0x%zx pgd_size, %lu pg_shift, %lu bits_per_level, pgd @ %p\n",
-		data->levels, data->pgd_size, data->pg_shift,
-		data->bits_per_level, data->pgd);
+		ARM_LPAE_MAX_LEVELS - data->start_level, data->pgd_size,
+		data->pg_shift, data->bits_per_level, data->pgd);
 }
 
 #define __FAIL(ops, i)	({						\
