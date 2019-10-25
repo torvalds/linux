@@ -75,9 +75,10 @@ static void kdb_show_stack(struct task_struct *p, void *addr)
 static int
 kdb_bt1(struct task_struct *p, unsigned long mask, bool btaprompt)
 {
-	char buffer[2];
-	if (kdb_getarea(buffer[0], (unsigned long)p) ||
-	    kdb_getarea(buffer[0], (unsigned long)(p+1)-1))
+	char ch;
+
+	if (kdb_getarea(ch, (unsigned long)p) ||
+	    kdb_getarea(ch, (unsigned long)(p+1)-1))
 		return KDB_BADADDR;
 	if (!kdb_task_state(p, mask))
 		return 0;
@@ -85,12 +86,17 @@ kdb_bt1(struct task_struct *p, unsigned long mask, bool btaprompt)
 	kdb_ps1(p);
 	kdb_show_stack(p, NULL);
 	if (btaprompt) {
-		kdb_getstr(buffer, sizeof(buffer),
-			   "Enter <q> to end, <cr> to continue:");
-		if (buffer[0] == 'q') {
-			kdb_printf("\n");
+		kdb_printf("Enter <q> to end, <cr> or <space> to continue:");
+		do {
+			ch = kdb_getchar();
+		} while (!strchr("\r\n q", ch));
+		kdb_printf("\n");
+
+		/* reset the pager */
+		kdb_nextline = 1;
+
+		if (ch == 'q')
 			return 1;
-		}
 	}
 	touch_nmi_watchdog();
 	return 0;
