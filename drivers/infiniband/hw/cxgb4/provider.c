@@ -305,7 +305,10 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 static int c4iw_query_port(struct ib_device *ibdev, u8 port,
 			   struct ib_port_attr *props)
 {
+	int ret = 0;
 	pr_debug("ibdev %p\n", ibdev);
+	ret = ib_get_eth_speed(ibdev, port, &props->active_speed,
+			       &props->active_width);
 
 	props->port_cap_flags =
 	    IB_PORT_CM_SUP |
@@ -315,11 +318,9 @@ static int c4iw_query_port(struct ib_device *ibdev, u8 port,
 	    IB_PORT_VENDOR_CLASS_SUP | IB_PORT_BOOT_MGMT_SUP;
 	props->gid_tbl_len = 1;
 	props->pkey_tbl_len = 1;
-	props->active_width = 2;
-	props->active_speed = IB_SPEED_DDR;
 	props->max_msg_sz = -1;
 
-	return 0;
+	return ret;
 }
 
 static ssize_t hw_rev_show(struct device *dev,
