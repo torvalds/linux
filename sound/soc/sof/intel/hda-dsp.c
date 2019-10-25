@@ -477,9 +477,16 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 
 int hda_dsp_resume(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 
 	if (sdev->s0_suspend) {
+		/* restore L1SEN bit */
+		if (hda->l1_support_changed)
+			snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
+						HDA_VS_INTEL_EM2,
+						HDA_VS_INTEL_EM2_L1SEN, 0);
+
 		/* restore and disable the system wakeup */
 		pci_restore_state(pci);
 		disable_irq_wake(pci->irq);
@@ -517,11 +524,19 @@ int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev)
 
 int hda_dsp_suspend(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int ret;
 
 	if (sdev->s0_suspend) {
+		/* enable L1SEN to make sure the system can enter S0Ix */
+		hda->l1_support_changed =
+			snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
+						HDA_VS_INTEL_EM2,
+						HDA_VS_INTEL_EM2_L1SEN,
+						HDA_VS_INTEL_EM2_L1SEN);
+
 		/* enable the system waking up via IPC IRQ */
 		enable_irq_wake(pci->irq);
 		pci_save_state(pci);

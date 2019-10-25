@@ -408,6 +408,9 @@ struct sof_intel_hda_dev {
 
 	int irq;
 
+	/* PM related */
+	bool l1_support_changed;/* during suspend, is L1SEN changed or not */
+
 	/* DMIC device */
 	struct platform_device *dmic_dev;
 };
