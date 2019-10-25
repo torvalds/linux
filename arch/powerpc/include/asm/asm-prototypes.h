@@ -92,7 +92,8 @@ long sys_swapcontext(struct ucontext __user *old_ctx,
 long sys_debug_setcontext(struct ucontext __user *ctx,
 			  int ndbg, struct sig_dbg_op __user *dbg);
 int
-ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct timeval __user *tvp);
+ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
+	   struct __kernel_old_timeval __user *tvp);
 unsigned long __init early_init(unsigned long dt_ptr);
 void __init machine_init(u64 dt_ptr);
 #endif
