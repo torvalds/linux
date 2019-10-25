@@ -870,6 +870,17 @@
 		status = "disabled";
 	};
 
+	rng: rng@ff8a0000 {
+		compatible = "rockchip,cryptov1-rng";
+		reg = <0x0 0xff8a0000 0x0 0x4000>;
+
+		clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		clock-names = "clk_crypto", "hclk_crypto";
+		assigned-clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		assigned-clock-rates = <150000000>, <100000000>;
+		status = "disabled";
+	};
+
 	iep_mmu: iommu@ff900800 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff900800 0x0 0x100>;
