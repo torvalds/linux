@@ -621,6 +621,11 @@ static inline bool amdgpu_ras_intr_triggered(void)
 	return !!atomic_read(&amdgpu_ras_in_intr);
 }
 
+static inline void amdgpu_ras_intr_cleared(void)
+{
+	atomic_set(&amdgpu_ras_in_intr, 0);
+}
+
 void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev);
 
 #endif

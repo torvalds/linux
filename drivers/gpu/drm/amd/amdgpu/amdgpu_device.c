@@ -3887,6 +3887,9 @@ static int amdgpu_do_asic_reset(struct amdgpu_device *adev,
 		}
 	}
 
+	if (!r && amdgpu_ras_intr_triggered())
+		amdgpu_ras_intr_cleared();
+
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
 		if (need_full_reset) {
 			/* post card */
