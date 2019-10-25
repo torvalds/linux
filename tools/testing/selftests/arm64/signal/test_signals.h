@@ -72,8 +72,12 @@ struct tdescr {
 	/* optional sa_flags for the installed handler */
 	int			sa_flags;
 	ucontext_t		saved_uc;
+	/* used by get_current_ctx() */
+	size_t			live_sz;
+	ucontext_t		*live_uc;
+	volatile sig_atomic_t	live_uc_valid;
 	/* optional test private data */
-	void                    *priv;
+	void			*priv;
 
 	/* a custom setup: called alternatively to default_setup */
 	int (*setup)(struct tdescr *td);
