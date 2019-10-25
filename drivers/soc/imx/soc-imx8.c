@@ -29,14 +29,6 @@ struct imx8_soc_data {
 
 static u64 soc_uid;
 
-static ssize_t soc_uid_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%016llX\n", soc_uid);
-}
-
-static DEVICE_ATTR_RO(soc_uid);
-
 static u32 __init imx8mq_soc_revision(void)
 {
 	struct device_node *np;
@@ -174,22 +166,25 @@ static int __init imx8_soc_init(void)
 		goto free_soc;
 	}
 
-	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR(soc_dev)) {
-		ret = PTR_ERR(soc_dev);
+	soc_dev_attr->serial_number = kasprintf(GFP_KERNEL, "%016llX", soc_uid);
+	if (!soc_dev_attr->serial_number) {
+		ret = -ENOMEM;
 		goto free_rev;
 	}
 
-	ret = device_create_file(soc_device_to_device(soc_dev),
-				 &dev_attr_soc_uid);
-	if (ret)
-		goto free_rev;
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+		ret = PTR_ERR(soc_dev);
+		goto free_serial_number;
+	}
 
 	if (IS_ENABLED(CONFIG_ARM_IMX_CPUFREQ_DT))
 		platform_device_register_simple("imx-cpufreq-dt", -1, NULL, 0);
 
 	return 0;
 
+free_serial_number:
+	kfree(soc_dev_attr->serial_number);
 free_rev:
 	if (strcmp(soc_dev_attr->revision, "unknown"))
 		kfree(soc_dev_attr->revision);
