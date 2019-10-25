@@ -68,6 +68,12 @@ extern int sof_core_debug;
 
 #define DMA_CHAN_INVALID	0xFFFFFFFF
 
+/* DSP D0ix sub-state */
+enum sof_d0_substate {
+	SOF_DSP_D0I0 = 0,	/* DSP default D0 substate */
+	SOF_DSP_D0I3,		/* DSP D0i3(low power) substate*/
+};
+
 struct snd_sof_dev;
 struct snd_sof_ipc_msg;
 struct snd_sof_ipc;
@@ -386,6 +392,9 @@ struct snd_sof_dev {
 	 * can't use const
 	 */
 	struct snd_soc_component_driver plat_drv;
+
+	/* power states related */
+	enum sof_d0_substate d0_substate;
 
 	/* DSP firmware boot */
 	wait_queue_head_t boot_wait;
