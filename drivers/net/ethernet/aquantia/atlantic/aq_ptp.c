@@ -533,7 +533,7 @@ void aq_ptp_tx_hwtstamp(struct aq_nic_s *aq_nic, u64 timestamp)
 	struct skb_shared_hwtstamps hwtstamp;
 
 	if (!skb) {
-		netdev_err(aq_nic->ndev, "have timestamp but tx_queus empty\n");
+		netdev_err(aq_nic->ndev, "have timestamp but tx_queues empty\n");
 		return;
 	}
 
