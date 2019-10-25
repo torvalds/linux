@@ -768,7 +768,7 @@ dso_cache__free(struct dso *dso)
 	pthread_mutex_unlock(&dso->lock);
 }
 
-static struct dso_cache *dso_cache__find(struct dso *dso, u64 offset)
+static struct dso_cache *__dso_cache__find(struct dso *dso, u64 offset)
 {
 	const struct rb_root *root = &dso->data.cache;
 	struct rb_node * const *p = &root->rb_node;
@@ -863,54 +863,64 @@ out:
 	return ret;
 }
 
-static ssize_t
-dso_cache__read(struct dso *dso, struct machine *machine,
-		u64 offset, u8 *data, ssize_t size)
+static struct dso_cache *dso_cache__populate(struct dso *dso,
+					     struct machine *machine,
+					     u64 offset, ssize_t *ret)
 {
 	u64 cache_offset = offset & DSO__DATA_CACHE_MASK;
 	struct dso_cache *cache;
 	struct dso_cache *old;
-	ssize_t ret;
 
 	cache = zalloc(sizeof(*cache) + DSO__DATA_CACHE_SIZE);
-	if (!cache)
-		return -ENOMEM;
-
-	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
-		ret = bpf_read(dso, cache_offset, cache->data);
-	else
-		ret = file_read(dso, machine, cache_offset, cache->data);
-
-	if (ret > 0) {
-		cache->offset = cache_offset;
-		cache->size   = ret;
-
-		old = dso_cache__insert(dso, cache);
-		if (old) {
-			/* we lose the race */
-			free(cache);
-			cache = old;
-		}
-
-		ret = dso_cache__memcpy(cache, offset, data, size);
+	if (!cache) {
+		*ret = -ENOMEM;
+		return NULL;
 	}
 
-	if (ret <= 0)
-		free(cache);
+	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
+		*ret = bpf_read(dso, cache_offset, cache->data);
+	else
+		*ret = file_read(dso, machine, cache_offset, cache->data);
 
-	return ret;
+	if (*ret <= 0) {
+		free(cache);
+		return NULL;
+	}
+
+	cache->offset = cache_offset;
+	cache->size   = *ret;
+
+	old = dso_cache__insert(dso, cache);
+	if (old) {
+		/* we lose the race */
+		free(cache);
+		cache = old;
+	}
+
+	return cache;
+}
+
+static struct dso_cache *dso_cache__find(struct dso *dso,
+					 struct machine *machine,
+					 u64 offset,
+					 ssize_t *ret)
+{
+	struct dso_cache *cache = __dso_cache__find(dso, offset);
+
+	return cache ? cache : dso_cache__populate(dso, machine, offset, ret);
 }
 
 static ssize_t dso_cache_read(struct dso *dso, struct machine *machine,
 			      u64 offset, u8 *data, ssize_t size)
 {
 	struct dso_cache *cache;
+	ssize_t ret = 0;
 
-	cache = dso_cache__find(dso, offset);
-	if (cache)
-		return dso_cache__memcpy(cache, offset, data, size);
-	else
-		return dso_cache__read(dso, machine, offset, data, size);
+	cache = dso_cache__find(dso, machine, offset, &ret);
+	if (!cache)
+		return ret;
+
+	return dso_cache__memcpy(cache, offset, data, size);
 }
 
 /*
