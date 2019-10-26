@@ -157,8 +157,7 @@ csio_dfs_create(struct csio_hw *hw)
 static int
 csio_dfs_destroy(struct csio_hw *hw)
 {
-	if (hw->debugfs_root)
-		debugfs_remove_recursive(hw->debugfs_root);
+	debugfs_remove_recursive(hw->debugfs_root);
 
 	return 0;
 }
