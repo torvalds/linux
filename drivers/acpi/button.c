@@ -147,7 +147,6 @@ struct acpi_button {
 	bool suspended;
 };
 
-static BLOCKING_NOTIFIER_HEAD(acpi_lid_notifier);
 static struct acpi_device *lid_device;
 static long lid_init_state = -1;
 
@@ -177,7 +176,6 @@ static int acpi_lid_evaluate_state(struct acpi_device *device)
 static int acpi_lid_notify_state(struct acpi_device *device, int state)
 {
 	struct acpi_button *button = acpi_driver_data(device);
-	int ret;
 	ktime_t next_report;
 	bool do_update;
 
@@ -254,18 +252,7 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 		button->last_time = ktime_get();
 	}
 
-	ret = blocking_notifier_call_chain(&acpi_lid_notifier, state, device);
-	if (ret == NOTIFY_DONE)
-		ret = blocking_notifier_call_chain(&acpi_lid_notifier, state,
-						   device);
-	if (ret == NOTIFY_DONE || ret == NOTIFY_OK) {
-		/*
-		 * It is also regarded as success if the notifier_chain
-		 * returns NOTIFY_OK or NOTIFY_DONE.
-		 */
-		ret = 0;
-	}
-	return ret;
+	return 0;
 }
 
 static int __maybe_unused acpi_button_state_seq_show(struct seq_file *seq,
@@ -362,18 +349,6 @@ static int acpi_button_remove_fs(struct acpi_device *device)
 /* --------------------------------------------------------------------------
                                 Driver Interface
    -------------------------------------------------------------------------- */
-int acpi_lid_notifier_register(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&acpi_lid_notifier, nb);
-}
-EXPORT_SYMBOL(acpi_lid_notifier_register);
-
-int acpi_lid_notifier_unregister(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_unregister(&acpi_lid_notifier, nb);
-}
-EXPORT_SYMBOL(acpi_lid_notifier_unregister);
-
 int acpi_lid_open(void)
 {
 	if (!lid_device)
