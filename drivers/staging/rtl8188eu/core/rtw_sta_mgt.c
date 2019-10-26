@@ -181,69 +181,70 @@ struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 					struct sta_info, list);
 	if (!psta) {
 		spin_unlock_bh(&pfree_sta_queue->lock);
-	} else {
-		list_del_init(&psta->list);
-		spin_unlock_bh(&pfree_sta_queue->lock);
-		_rtw_init_stainfo(psta);
-		memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
-		index = wifi_mac_hash(hwaddr);
-		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_info_,
-			 ("%s: index=%x", __func__, index));
-		if (index >= NUM_STA) {
-			RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
-				 ("ERROR => %s: index >= NUM_STA", __func__));
-			psta = NULL;
-			goto exit;
-		}
-		phash_list = &pstapriv->sta_hash[index];
-
-		spin_lock_bh(&pstapriv->sta_hash_lock);
-		list_add_tail(&psta->hash_list, phash_list);
-		pstapriv->asoc_sta_count++;
-		spin_unlock_bh(&pstapriv->sta_hash_lock);
-
-		/* Commented by Albert 2009/08/13
-		 * For the SMC router, the sequence number of first packet of
-		 * WPS handshake will be 0. In this case, this packet will be
-		 * dropped by recv_decache function if we use the 0x00 as the
-		 * default value for tid_rxseq variable. So, we initialize the
-		 * tid_rxseq variable as the 0xffff.
-		 */
-
-		for (i = 0; i < 16; i++)
-			memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i],
-			       &wRxSeqInitialValue, 2);
-
-		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_info_,
-			 ("alloc number_%d stainfo  with hwaddr = %pM\n",
-			 pstapriv->asoc_sta_count, hwaddr));
-
-		init_addba_retry_timer(pstapriv->padapter, psta);
-
-		/* for A-MPDU Rx reordering buffer control */
-		for (i = 0; i < 16; i++) {
-			preorder_ctrl = &psta->recvreorder_ctrl[i];
-
-			preorder_ctrl->padapter = pstapriv->padapter;
-
-			preorder_ctrl->enable = false;
-
-			preorder_ctrl->indicate_seq = 0xffff;
-			preorder_ctrl->wend_b = 0xffff;
-			preorder_ctrl->wsize_b = 64;/* 64; */
-
-			_rtw_init_queue(&preorder_ctrl->pending_recvframe_queue);
-
-			rtw_init_recv_timer(preorder_ctrl);
-		}
-
-		/* init for DM */
-		psta->rssi_stat.UndecoratedSmoothedPWDB = -1;
-		psta->rssi_stat.UndecoratedSmoothedCCK = -1;
-
-		/* init for the sequence number of received management frame */
-		psta->RxMgmtFrameSeqNum = 0xffff;
+		goto exit;
 	}
+
+	list_del_init(&psta->list);
+	spin_unlock_bh(&pfree_sta_queue->lock);
+	_rtw_init_stainfo(psta);
+	memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
+	index = wifi_mac_hash(hwaddr);
+	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_info_,
+		 ("%s: index=%x", __func__, index));
+	if (index >= NUM_STA) {
+		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
+			 ("ERROR => %s: index >= NUM_STA", __func__));
+		psta = NULL;
+		goto exit;
+	}
+	phash_list = &pstapriv->sta_hash[index];
+
+	spin_lock_bh(&pstapriv->sta_hash_lock);
+	list_add_tail(&psta->hash_list, phash_list);
+	pstapriv->asoc_sta_count++;
+	spin_unlock_bh(&pstapriv->sta_hash_lock);
+
+	/* Commented by Albert 2009/08/13
+	 * For the SMC router, the sequence number of first packet of
+	 * WPS handshake will be 0. In this case, this packet will be
+	 * dropped by recv_decache function if we use the 0x00 as the
+	 * default value for tid_rxseq variable. So, we initialize the
+	 * tid_rxseq variable as the 0xffff.
+	 */
+
+	for (i = 0; i < 16; i++)
+		memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i],
+		       &wRxSeqInitialValue, 2);
+
+	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_info_,
+		 ("alloc number_%d stainfo  with hwaddr = %pM\n",
+		  pstapriv->asoc_sta_count, hwaddr));
+
+	init_addba_retry_timer(pstapriv->padapter, psta);
+
+	/* for A-MPDU Rx reordering buffer control */
+	for (i = 0; i < 16; i++) {
+		preorder_ctrl = &psta->recvreorder_ctrl[i];
+
+		preorder_ctrl->padapter = pstapriv->padapter;
+
+		preorder_ctrl->enable = false;
+
+		preorder_ctrl->indicate_seq = 0xffff;
+		preorder_ctrl->wend_b = 0xffff;
+		preorder_ctrl->wsize_b = 64;/* 64; */
+
+		_rtw_init_queue(&preorder_ctrl->pending_recvframe_queue);
+
+		rtw_init_recv_timer(preorder_ctrl);
+	}
+
+	/* init for DM */
+	psta->rssi_stat.UndecoratedSmoothedPWDB = -1;
+	psta->rssi_stat.UndecoratedSmoothedCCK = -1;
+
+	/* init for the sequence number of received management frame */
+	psta->RxMgmtFrameSeqNum = 0xffff;
 
 exit:
 	return psta;
