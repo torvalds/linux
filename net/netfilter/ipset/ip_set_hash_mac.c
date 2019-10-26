@@ -37,7 +37,7 @@ struct hash_mac4_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_mac4_data_equal(const struct hash_mac4_elem *e1,
 		     const struct hash_mac4_elem *e2,
 		     u32 *multi)
@@ -45,7 +45,7 @@ hash_mac4_data_equal(const struct hash_mac4_elem *e1,
 	return ether_addr_equal(e1->ether, e2->ether);
 }
 
-static inline bool
+static bool
 hash_mac4_data_list(struct sk_buff *skb, const struct hash_mac4_elem *e)
 {
 	if (nla_put(skb, IPSET_ATTR_ETHER, ETH_ALEN, e->ether))
@@ -56,7 +56,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_mac4_data_next(struct hash_mac4_elem *next,
 		    const struct hash_mac4_elem *e)
 {

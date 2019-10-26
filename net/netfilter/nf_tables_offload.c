@@ -132,13 +132,13 @@ static void nft_flow_offload_common_init(struct flow_cls_common_offload *common,
 	common->extack = extack;
 }
 
-static int nft_setup_cb_call(struct nft_base_chain *basechain,
-			     enum tc_setup_type type, void *type_data)
+static int nft_setup_cb_call(enum tc_setup_type type, void *type_data,
+			     struct list_head *cb_list)
 {
 	struct flow_block_cb *block_cb;
 	int err;
 
-	list_for_each_entry(block_cb, &basechain->flow_block.cb_list, list) {
+	list_for_each_entry(block_cb, cb_list, list) {
 		err = block_cb->cb(type, type_data, block_cb->cb_priv);
 		if (err < 0)
 			return err;
@@ -155,32 +155,44 @@ int nft_chain_offload_priority(struct nft_base_chain *basechain)
 	return 0;
 }
 
+static void nft_flow_cls_offload_setup(struct flow_cls_offload *cls_flow,
+				       const struct nft_base_chain *basechain,
+				       const struct nft_rule *rule,
+				       const struct nft_flow_rule *flow,
+				       enum flow_cls_command command)
+{
+	struct netlink_ext_ack extack;
+	__be16 proto = ETH_P_ALL;
+
+	memset(cls_flow, 0, sizeof(*cls_flow));
+
+	if (flow)
+		proto = flow->proto;
+
+	nft_flow_offload_common_init(&cls_flow->common, proto,
+				     basechain->ops.priority, &extack);
+	cls_flow->command = command;
+	cls_flow->cookie = (unsigned long) rule;
+	if (flow)
+		cls_flow->rule = flow->rule;
+}
+
 static int nft_flow_offload_rule(struct nft_chain *chain,
 				 struct nft_rule *rule,
 				 struct nft_flow_rule *flow,
 				 enum flow_cls_command command)
 {
-	struct flow_cls_offload cls_flow = {};
+	struct flow_cls_offload cls_flow;
 	struct nft_base_chain *basechain;
-	struct netlink_ext_ack extack;
-	__be16 proto = ETH_P_ALL;
 
 	if (!nft_is_base_chain(chain))
 		return -EOPNOTSUPP;
 
 	basechain = nft_base_chain(chain);
+	nft_flow_cls_offload_setup(&cls_flow, basechain, rule, flow, command);
 
-	if (flow)
-		proto = flow->proto;
-
-	nft_flow_offload_common_init(&cls_flow.common, proto,
-				     basechain->ops.priority, &extack);
-	cls_flow.command = command;
-	cls_flow.cookie = (unsigned long) rule;
-	if (flow)
-		cls_flow.rule = flow->rule;
-
-	return nft_setup_cb_call(basechain, TC_SETUP_CLSFLOWER, &cls_flow);
+	return nft_setup_cb_call(TC_SETUP_CLSFLOWER, &cls_flow,
+				 &basechain->flow_block.cb_list);
 }
 
 static int nft_flow_offload_bind(struct flow_block_offload *bo,
@@ -194,6 +206,16 @@ static int nft_flow_offload_unbind(struct flow_block_offload *bo,
 				   struct nft_base_chain *basechain)
 {
 	struct flow_block_cb *block_cb, *next;
+	struct flow_cls_offload cls_flow;
+	struct nft_chain *chain;
+	struct nft_rule *rule;
+
+	chain = &basechain->chain;
+	list_for_each_entry(rule, &chain->rules, list) {
+		nft_flow_cls_offload_setup(&cls_flow, basechain, rule, NULL,
+					   FLOW_CLS_DESTROY);
+		nft_setup_cb_call(TC_SETUP_CLSFLOWER, &cls_flow, &bo->cb_list);
+	}
 
 	list_for_each_entry_safe(block_cb, next, &bo->cb_list, list) {
 		list_del(&block_cb->list);
@@ -224,20 +246,30 @@ static int nft_block_setup(struct nft_base_chain *basechain,
 	return err;
 }
 
+static void nft_flow_block_offload_init(struct flow_block_offload *bo,
+					struct net *net,
+					enum flow_block_command cmd,
+					struct nft_base_chain *basechain,
+					struct netlink_ext_ack *extack)
+{
+	memset(bo, 0, sizeof(*bo));
+	bo->net		= net;
+	bo->block	= &basechain->flow_block;
+	bo->command	= cmd;
+	bo->binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
+	bo->extack	= extack;
+	INIT_LIST_HEAD(&bo->cb_list);
+}
+
 static int nft_block_offload_cmd(struct nft_base_chain *chain,
 				 struct net_device *dev,
 				 enum flow_block_command cmd)
 {
 	struct netlink_ext_ack extack = {};
-	struct flow_block_offload bo = {};
+	struct flow_block_offload bo;
 	int err;
 
-	bo.net = dev_net(dev);
-	bo.block = &chain->flow_block;
-	bo.command = cmd;
-	bo.binder_type = FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
-	bo.extack = &extack;
-	INIT_LIST_HEAD(&bo.cb_list);
+	nft_flow_block_offload_init(&bo, dev_net(dev), cmd, chain, &extack);
 
 	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
 	if (err < 0)
@@ -253,17 +285,12 @@ static void nft_indr_block_ing_cmd(struct net_device *dev,
 				   enum flow_block_command cmd)
 {
 	struct netlink_ext_ack extack = {};
-	struct flow_block_offload bo = {};
+	struct flow_block_offload bo;
 
 	if (!chain)
 		return;
 
-	bo.net = dev_net(dev);
-	bo.block = &chain->flow_block;
-	bo.command = cmd;
-	bo.binder_type = FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
-	bo.extack = &extack;
-	INIT_LIST_HEAD(&bo.cb_list);
+	nft_flow_block_offload_init(&bo, dev_net(dev), cmd, chain, &extack);
 
 	cb(dev, cb_priv, TC_SETUP_BLOCK, &bo);
 
@@ -274,15 +301,10 @@ static int nft_indr_block_offload_cmd(struct nft_base_chain *chain,
 				      struct net_device *dev,
 				      enum flow_block_command cmd)
 {
-	struct flow_block_offload bo = {};
 	struct netlink_ext_ack extack = {};
+	struct flow_block_offload bo;
 
-	bo.net = dev_net(dev);
-	bo.block = &chain->flow_block;
-	bo.command = cmd;
-	bo.binder_type = FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
-	bo.extack = &extack;
-	INIT_LIST_HEAD(&bo.cb_list);
+	nft_flow_block_offload_init(&bo, dev_net(dev), cmd, chain, &extack);
 
 	flow_indr_block_call(dev, &bo, cmd);
 
@@ -294,32 +316,73 @@ static int nft_indr_block_offload_cmd(struct nft_base_chain *chain,
 
 #define FLOW_SETUP_BLOCK TC_SETUP_BLOCK
 
-static int nft_flow_offload_chain(struct nft_chain *chain,
-				  u8 *ppolicy,
+static int nft_chain_offload_cmd(struct nft_base_chain *basechain,
+				 struct net_device *dev,
+				 enum flow_block_command cmd)
+{
+	int err;
+
+	if (dev->netdev_ops->ndo_setup_tc)
+		err = nft_block_offload_cmd(basechain, dev, cmd);
+	else
+		err = nft_indr_block_offload_cmd(basechain, dev, cmd);
+
+	return err;
+}
+
+static int nft_flow_block_chain(struct nft_base_chain *basechain,
+				const struct net_device *this_dev,
+				enum flow_block_command cmd)
+{
+	struct net_device *dev;
+	struct nft_hook *hook;
+	int err, i = 0;
+
+	list_for_each_entry(hook, &basechain->hook_list, list) {
+		dev = hook->ops.dev;
+		if (this_dev && this_dev != dev)
+			continue;
+
+		err = nft_chain_offload_cmd(basechain, dev, cmd);
+		if (err < 0 && cmd == FLOW_BLOCK_BIND) {
+			if (!this_dev)
+				goto err_flow_block;
+
+			return err;
+		}
+		i++;
+	}
+
+	return 0;
+
+err_flow_block:
+	list_for_each_entry(hook, &basechain->hook_list, list) {
+		if (i-- <= 0)
+			break;
+
+		dev = hook->ops.dev;
+		nft_chain_offload_cmd(basechain, dev, FLOW_BLOCK_UNBIND);
+	}
+	return err;
+}
+
+static int nft_flow_offload_chain(struct nft_chain *chain, u8 *ppolicy,
 				  enum flow_block_command cmd)
 {
 	struct nft_base_chain *basechain;
-	struct net_device *dev;
 	u8 policy;
 
 	if (!nft_is_base_chain(chain))
 		return -EOPNOTSUPP;
 
 	basechain = nft_base_chain(chain);
-	dev = basechain->ops.dev;
-	if (!dev)
-		return -EOPNOTSUPP;
-
 	policy = ppolicy ? *ppolicy : basechain->policy;
 
 	/* Only default policy to accept is supported for now. */
 	if (cmd == FLOW_BLOCK_BIND && policy == NF_DROP)
 		return -EOPNOTSUPP;
 
-	if (dev->netdev_ops->ndo_setup_tc)
-		return nft_block_offload_cmd(basechain, dev, cmd);
-	else
-		return nft_indr_block_offload_cmd(basechain, dev, cmd);
+	return nft_flow_block_chain(basechain, NULL, cmd);
 }
 
 int nft_flow_rule_offload_commit(struct net *net)
@@ -385,6 +448,7 @@ static struct nft_chain *__nft_offload_get_chain(struct net_device *dev)
 {
 	struct nft_base_chain *basechain;
 	struct net *net = dev_net(dev);
+	struct nft_hook *hook, *found;
 	const struct nft_table *table;
 	struct nft_chain *chain;
 
@@ -397,8 +461,16 @@ static struct nft_chain *__nft_offload_get_chain(struct net_device *dev)
 			    !(chain->flags & NFT_CHAIN_HW_OFFLOAD))
 				continue;
 
+			found = NULL;
 			basechain = nft_base_chain(chain);
-			if (strncmp(basechain->dev_name, dev->name, IFNAMSIZ))
+			list_for_each_entry(hook, &basechain->hook_list, list) {
+				if (hook->ops.dev != dev)
+					continue;
+
+				found = hook;
+				break;
+			}
+			if (!found)
 				continue;
 
 			return chain;
@@ -426,18 +498,6 @@ static void nft_indr_block_cb(struct net_device *dev,
 	mutex_unlock(&net->nft.commit_mutex);
 }
 
-static void nft_offload_chain_clean(struct nft_chain *chain)
-{
-	struct nft_rule *rule;
-
-	list_for_each_entry(rule, &chain->rules, list) {
-		nft_flow_offload_rule(chain, rule,
-				      NULL, FLOW_CLS_DESTROY);
-	}
-
-	nft_flow_offload_chain(chain, NULL, FLOW_BLOCK_UNBIND);
-}
-
 static int nft_offload_netdev_event(struct notifier_block *this,
 				    unsigned long event, void *ptr)
 {
@@ -448,7 +508,9 @@ static int nft_offload_netdev_event(struct notifier_block *this,
 	mutex_lock(&net->nft.commit_mutex);
 	chain = __nft_offload_get_chain(dev);
 	if (chain)
-		nft_offload_chain_clean(chain);
+		nft_flow_block_chain(nft_base_chain(chain), dev,
+				     FLOW_BLOCK_UNBIND);
+
 	mutex_unlock(&net->nft.commit_mutex);
 
 	return NOTIFY_DONE;
