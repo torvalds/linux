@@ -9,7 +9,6 @@
 #define AQ_PTP_H
 
 #include <linux/net_tstamp.h>
-#include <linux/version.h>
 
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 
