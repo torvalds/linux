@@ -13464,8 +13464,7 @@ lpfc_sli4_oas_verify(struct lpfc_hba *phba)
 		phba->cfg_fof = 1;
 	} else {
 		phba->cfg_fof = 0;
-		if (phba->device_data_mem_pool)
-			mempool_destroy(phba->device_data_mem_pool);
+		mempool_destroy(phba->device_data_mem_pool);
 		phba->device_data_mem_pool = NULL;
 	}
 
