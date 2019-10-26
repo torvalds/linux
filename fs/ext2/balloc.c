@@ -736,7 +736,6 @@ repeat:
 	*count = num;
 	return grp_goal - num;
 fail_access:
-	*count = num;
 	return -1;
 }
 
