@@ -1387,9 +1387,7 @@ static inline cvmx_pko_status_t cvmx_pko_send_packet_finish(uint64_t port,
 		uint64_t queue, union cvmx_pko_command_word0 pko_command,
 		union cvmx_buf_ptr packet, cvmx_pko_lock_t use_locking)
 {
-	cvmx_pko_status_t ret = 0;
-
-	return ret;
+	return 0;
 }
 
 static inline void cvmx_wqe_set_port(struct cvmx_wqe *work, int port)
