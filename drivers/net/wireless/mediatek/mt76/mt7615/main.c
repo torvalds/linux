@@ -194,7 +194,7 @@ static int mt7615_set_channel(struct mt7615_phy *phy)
 		goto out;
 
 	ret = mt7615_dfs_init_radar_detector(dev);
-	mt7615_mac_cca_stats_reset(dev);
+	mt7615_mac_cca_stats_reset(phy);
 
 	mt7615_mac_reset_counters(dev);
 

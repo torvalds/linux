@@ -74,15 +74,28 @@ static const struct file_operations fops_ampdu_stat = {
 	.release = single_release,
 };
 
+static void
+mt7615_radio_read_phy(struct mt7615_phy *phy, struct seq_file *s)
+{
+	struct mt7615_dev *dev = dev_get_drvdata(s->private);
+	bool ext_phy = phy != &dev->phy;
+
+	if (!phy)
+		return;
+
+	seq_printf(s, "Radio %d sensitivity: ofdm=%d cck=%d\n", ext_phy,
+		   phy->ofdm_sensitivity, phy->cck_sensitivity);
+	seq_printf(s, "Radio %d false CCA: ofdm=%d cck=%d\n", ext_phy,
+		   phy->false_cca_ofdm, phy->false_cca_cck);
+}
+
 static int
 mt7615_radio_read(struct seq_file *s, void *data)
 {
 	struct mt7615_dev *dev = dev_get_drvdata(s->private);
 
-	seq_printf(s, "Sensitivity: ofdm=%d cck=%d\n",
-		   dev->ofdm_sensitivity, dev->cck_sensitivity);
-	seq_printf(s, "False CCA: ofdm=%d cck=%d\n",
-		   dev->false_cca_ofdm, dev->false_cca_cck);
+	mt7615_radio_read_phy(&dev->phy, s);
+	mt7615_radio_read_phy(mt7615_ext_phy(dev), s);
 
 	return 0;
 }
