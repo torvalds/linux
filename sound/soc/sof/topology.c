@@ -150,6 +150,11 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 
 	/* get runtime PCM params using widget's stream name */
 	spcm = snd_sof_find_spcm_name(sdev, swidget->widget->sname);
+	if (!spcm) {
+		dev_err(sdev->dev, "error: cannot find PCM for %s\n",
+			swidget->widget->name);
+		return -EINVAL;
+	}
 
 	/* process events */
 	switch (event) {
