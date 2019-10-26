@@ -1464,7 +1464,7 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	struct bkey_s_c k;
 	struct bkey_alloc_unpacked u;
 	struct bkey_i_alloc *a;
-	unsigned old;
+	u16 *dst_sectors;
 	bool overflow;
 	int ret;
 
@@ -1519,21 +1519,23 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 		goto out;
 	}
 
-	if (!p.ptr.cached) {
-		old = u.dirty_sectors;
-		overflow = checked_add(u.dirty_sectors, sectors);
-	} else {
-		old = u.cached_sectors;
-		overflow = checked_add(u.cached_sectors, sectors);
+	dst_sectors = !p.ptr.cached
+		? &u.dirty_sectors
+		: &u.cached_sectors;
+
+	overflow = checked_add(*dst_sectors, sectors);
+
+	if (overflow) {
+		bch2_fs_inconsistent(c,
+			"bucket sector count overflow: %u + %lli > U16_MAX",
+			*dst_sectors, sectors);
+		/* return an error indicating that we need full fsck */
+		ret = -EIO;
+		goto out;
 	}
 
 	u.data_type = u.dirty_sectors || u.cached_sectors
 		? data_type : 0;
-
-	bch2_fs_inconsistent_on(overflow, c,
-		"bucket sector count overflow: %u + %lli > U16_MAX",
-		old, sectors);
-	BUG_ON(overflow);
 
 	a = trans_update_key(trans, iter, BKEY_ALLOC_U64s_MAX);
 	ret = PTR_ERR_OR_ZERO(a);
