@@ -2935,14 +2935,28 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 			       &execlists->csb_status[reset_value]);
 }
 
+static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
+{
+	if (INTEL_GEN(engine->i915) >= 12)
+		return 0x60;
+	else if (INTEL_GEN(engine->i915) >= 9)
+		return 0x54;
+	else if (engine->class == RENDER_CLASS)
+		return 0x58;
+	else
+		return -1;
+}
+
 static void __execlists_reset_reg_state(const struct intel_context *ce,
 					const struct intel_engine_cs *engine)
 {
 	u32 *regs = ce->lrc_reg_state;
+	int x;
 
-	if (INTEL_GEN(engine->i915) >= 9) {
-		regs[GEN9_CTX_RING_MI_MODE + 1] &= ~STOP_RING;
-		regs[GEN9_CTX_RING_MI_MODE + 1] |= STOP_RING << 16;
+	x = lrc_ring_mi_mode(engine);
+	if (x != -1) {
+		regs[x + 1] &= ~STOP_RING;
+		regs[x + 1] |= STOP_RING << 16;
 	}
 }
 

@@ -3165,6 +3165,75 @@ static int live_lrc_layout(void *arg)
 	return err;
 }
 
+static int find_offset(const u32 *lri, u32 offset)
+{
+	int i;
+
+	for (i = 0; i < PAGE_SIZE / sizeof(u32); i++)
+		if (lri[i] == offset)
+			return i;
+
+	return -1;
+}
+
+static int live_lrc_fixed(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	/*
+	 * Check the assumed register offsets match the actual locations in
+	 * the context image.
+	 */
+
+	for_each_engine(engine, gt, id) {
+		const struct {
+			u32 reg;
+			u32 offset;
+			const char *name;
+		} tbl[] = {
+			{
+				i915_mmio_reg_offset(RING_MI_MODE(engine->mmio_base)),
+				lrc_ring_mi_mode(engine),
+				"RING_MI_MODE",
+			},
+			{ },
+		}, *t;
+		u32 *hw;
+
+		if (!engine->default_state)
+			continue;
+
+		hw = i915_gem_object_pin_map(engine->default_state,
+					     I915_MAP_WB);
+		if (IS_ERR(hw)) {
+			err = PTR_ERR(hw);
+			break;
+		}
+		hw += LRC_STATE_PN * PAGE_SIZE / sizeof(*hw);
+
+		for (t = tbl; t->name; t++) {
+			int dw = find_offset(hw, t->reg);
+
+			if (dw != t->offset) {
+				pr_err("%s: Offset for %s [0x%x] mismatch, found %x, expected %x\n",
+				       engine->name,
+				       t->name,
+				       t->reg,
+				       dw,
+				       t->offset);
+				err = -EINVAL;
+			}
+		}
+
+		i915_gem_object_unpin_map(engine->default_state);
+	}
+
+	return err;
+}
+
 static int __live_lrc_state(struct i915_gem_context *fixme,
 			    struct intel_engine_cs *engine,
 			    struct i915_vma *scratch)
@@ -3437,6 +3506,7 @@ int intel_lrc_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_lrc_layout),
+		SUBTEST(live_lrc_fixed),
 		SUBTEST(live_lrc_state),
 		SUBTEST(live_gpr_clear),
 	};
