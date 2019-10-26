@@ -48,12 +48,14 @@ enum {
 	ACPI_BUTTON_LID_INIT_IGNORE,
 	ACPI_BUTTON_LID_INIT_OPEN,
 	ACPI_BUTTON_LID_INIT_METHOD,
+	ACPI_BUTTON_LID_INIT_DISABLED,
 };
 
 static const char * const lid_init_state_str[] = {
 	[ACPI_BUTTON_LID_INIT_IGNORE]		= "ignore",
 	[ACPI_BUTTON_LID_INIT_OPEN]		= "open",
 	[ACPI_BUTTON_LID_INIT_METHOD]		= "method",
+	[ACPI_BUTTON_LID_INIT_DISABLED]		= "disabled",
 };
 
 #define _COMPONENT		ACPI_BUTTON_COMPONENT
@@ -480,7 +482,9 @@ static int acpi_button_add(struct acpi_device *device)
 	char *name, *class;
 	int error;
 
-	if (!strcmp(hid, ACPI_BUTTON_HID_LID) && dmi_check_system(lid_blacklst))
+	if (!strcmp(hid, ACPI_BUTTON_HID_LID) &&
+	    (dmi_check_system(lid_blacklst) ||
+	     lid_init_state == ACPI_BUTTON_LID_INIT_DISABLED))
 		return -ENODEV;
 
 	button = kzalloc(sizeof(struct acpi_button), GFP_KERNEL);
