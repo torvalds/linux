@@ -180,8 +180,8 @@ static void gen5_rps_init(struct intel_rps *rps)
 	DRM_DEBUG_DRIVER("fmax: %d, fmin: %d, fstart: %d\n",
 			 fmax, fmin, fstart);
 
-	rps->min_freq = -fstart;
-	rps->max_freq = -fmin;
+	rps->min_freq = fmax;
+	rps->max_freq = fmin;
 
 	rps->idle_freq = rps->min_freq;
 	rps->cur_freq = rps->idle_freq;
@@ -307,7 +307,9 @@ static bool gen5_rps_set(struct intel_rps *rps, u8 val)
 		return false; /* still busy with another command */
 	}
 
-	val = -val;
+	/* Invert the frequency bin into an ips delay */
+	val = rps->max_freq - val;
+	val = rps->min_freq + val;
 
 	rgvswctl =
 		(MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
