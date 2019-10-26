@@ -41,7 +41,7 @@ struct __packed hw_atl_rxd_wb_s {
 	u16 status;
 	u16 pkt_len;
 	u16 next_desc_ptr;
-	u16 vlan;
+	__le16 vlan;
 };
 
 /* Hardware rx HW TIMESTAMP writeback */

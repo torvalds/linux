@@ -1236,9 +1236,9 @@ static u16 hw_atl_b0_rx_extract_ts(struct aq_hw_s *self, u8 *p,
 {
 	unsigned int offset = 14;
 	struct ethhdr *eth;
-	u64 sec;
+	__be64 sec;
+	__be32 ns;
 	u8 *ptr;
-	u32 ns;
 
 	if (len <= offset || !timestamp)
 		return 0;
@@ -1256,9 +1256,8 @@ static u16 hw_atl_b0_rx_extract_ts(struct aq_hw_s *self, u8 *p,
 	ptr += sizeof(sec);
 	memcpy(&ns, ptr, sizeof(ns));
 
-	sec = be64_to_cpu(sec) & 0xffffffffffffllu;
-	ns = be32_to_cpu(ns);
-	*timestamp = sec * NSEC_PER_SEC + ns + self->ptp_clk_offset;
+	*timestamp = (be64_to_cpu(sec) & 0xffffffffffffllu) * NSEC_PER_SEC +
+		     be32_to_cpu(ns) + self->ptp_clk_offset;
 
 	eth = (struct ethhdr *)p;
 
