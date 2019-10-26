@@ -1207,7 +1207,8 @@ void nfs_inode_find_delegation_state_and_recover(struct inode *inode,
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(inode)->delegation);
 	if (delegation &&
-	    nfs4_stateid_match_other(&delegation->stateid, stateid)) {
+	    nfs4_stateid_match_or_older(&delegation->stateid, stateid) &&
+	    !test_bit(NFS_DELEGATION_REVOKED, &delegation->flags)) {
 		nfs_mark_test_expired_delegation(NFS_SERVER(inode), delegation);
 		found = true;
 	}
