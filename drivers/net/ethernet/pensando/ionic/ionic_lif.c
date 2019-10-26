@@ -622,12 +622,14 @@ static int ionic_lif_rxq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 			.lif_index = cpu_to_le16(lif->index),
 			.type = q->type,
 			.index = cpu_to_le32(q->index),
-			.flags = cpu_to_le16(IONIC_QINIT_F_IRQ),
+			.flags = cpu_to_le16(IONIC_QINIT_F_IRQ |
+					     IONIC_QINIT_F_SG),
 			.intr_index = cpu_to_le16(cq->bound_intr->index),
 			.pid = cpu_to_le16(q->pid),
 			.ring_size = ilog2(q->num_descs),
 			.ring_base = cpu_to_le64(q->base_pa),
 			.cq_ring_base = cpu_to_le64(cq->base_pa),
+			.sg_ring_base = cpu_to_le64(q->sg_base_pa),
 		},
 	};
 	int err;
@@ -1460,13 +1462,14 @@ static int ionic_txrx_alloc(struct ionic_lif *lif)
 		lif->txqcqs[i].qcq->stats = lif->txqcqs[i].stats;
 	}
 
-	flags = IONIC_QCQ_F_RX_STATS | IONIC_QCQ_F_INTR;
+	flags = IONIC_QCQ_F_RX_STATS | IONIC_QCQ_F_SG | IONIC_QCQ_F_INTR;
 	for (i = 0; i < lif->nxqs; i++) {
 		err = ionic_qcq_alloc(lif, IONIC_QTYPE_RXQ, i, "rx", flags,
 				      lif->nrxq_descs,
 				      sizeof(struct ionic_rxq_desc),
 				      sizeof(struct ionic_rxq_comp),
-				      0, lif->kern_pid, &lif->rxqcqs[i].qcq);
+				      sizeof(struct ionic_rxq_sg_desc),
+				      lif->kern_pid, &lif->rxqcqs[i].qcq);
 		if (err)
 			goto err_out;
 
@@ -1686,7 +1689,7 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 
 	/* Convert the default coalesce value to actual hw resolution */
 	lif->rx_coalesce_usecs = IONIC_ITR_COAL_USEC_DEFAULT;
-	lif->rx_coalesce_hw = ionic_coal_hw_to_usec(lif->ionic,
+	lif->rx_coalesce_hw = ionic_coal_usec_to_hw(lif->ionic,
 						    lif->rx_coalesce_usecs);
 
 	snprintf(lif->name, sizeof(lif->name), "lif%u", index);
