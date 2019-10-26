@@ -7743,6 +7743,7 @@ enum {
 #define   CNL_DDI_CLOCK_REG_ACCESS_ON	(1 << 7)
 
 #define SKL_DFSM			_MMIO(0x51000)
+#define   SKL_DFSM_DISPLAY_PM_DISABLE	(1 << 27)
 #define   SKL_DFSM_DISPLAY_HDCP_DISABLE	(1 << 25)
 #define   SKL_DFSM_CDCLK_LIMIT_MASK	(3 << 23)
 #define   SKL_DFSM_CDCLK_LIMIT_675	(0 << 23)

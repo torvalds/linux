@@ -984,6 +984,9 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
 			info->display.has_hdcp = 0;
+
+		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
+			info->display.has_fbc = 0;
 	}
 
 	/* Initialize slice/subslice/EU info */
