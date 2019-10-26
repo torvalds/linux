@@ -80,7 +80,14 @@
 
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
-#define IORING_MAX_FIXED_FILES	1024
+
+/*
+ * Shift of 9 is 512 entries, or exactly one page on 64-bit archs
+ */
+#define IORING_FILE_TABLE_SHIFT	9
+#define IORING_MAX_FILES_TABLE	(1U << IORING_FILE_TABLE_SHIFT)
+#define IORING_FILE_TABLE_MASK	(IORING_MAX_FILES_TABLE - 1)
+#define IORING_MAX_FIXED_FILES	(64 * IORING_MAX_FILES_TABLE)
 
 struct io_uring {
 	u32 head ____cacheline_aligned_in_smp;
@@ -165,6 +172,10 @@ struct io_mapped_ubuf {
 	unsigned int	nr_bvecs;
 };
 
+struct fixed_file_table {
+	struct file		**files;
+};
+
 struct io_ring_ctx {
 	struct {
 		struct percpu_ref	refs;
@@ -225,7 +236,7 @@ struct io_ring_ctx {
 	 * readers must ensure that ->refs is alive as long as the file* is
 	 * used. Only updated through io_uring_register(2).
 	 */
-	struct file		**user_files;
+	struct fixed_file_table	*file_table;
 	unsigned		nr_user_files;
 
 	/* if used, fixed mapped user buffers */
@@ -2296,6 +2307,15 @@ static bool io_op_needs_file(const struct io_uring_sqe *sqe)
 	}
 }
 
+static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
+					      int index)
+{
+	struct fixed_file_table *table;
+
+	table = &ctx->file_table[index >> IORING_FILE_TABLE_SHIFT];
+	return table->files[index & IORING_FILE_TABLE_MASK];
+}
+
 static int io_req_set_file(struct io_ring_ctx *ctx, const struct sqe_submit *s,
 			   struct io_submit_state *state, struct io_kiocb *req)
 {
@@ -2318,13 +2338,13 @@ static int io_req_set_file(struct io_ring_ctx *ctx, const struct sqe_submit *s,
 		return 0;
 
 	if (flags & IOSQE_FIXED_FILE) {
-		if (unlikely(!ctx->user_files ||
+		if (unlikely(!ctx->file_table ||
 		    (unsigned) fd >= ctx->nr_user_files))
 			return -EBADF;
 		fd = array_index_nospec(fd, ctx->nr_user_files);
-		if (!ctx->user_files[fd])
+		req->file = io_file_from_index(ctx, fd);
+		if (!req->file)
 			return -EBADF;
-		req->file = ctx->user_files[fd];
 		req->flags |= REQ_F_FIXED_FILE;
 	} else {
 		if (s->needs_fixed_file)
@@ -2969,20 +2989,29 @@ static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 #else
 	int i;
 
-	for (i = 0; i < ctx->nr_user_files; i++)
-		if (ctx->user_files[i])
-			fput(ctx->user_files[i]);
+	for (i = 0; i < ctx->nr_user_files; i++) {
+		struct file *file;
+
+		file = io_file_from_index(ctx, i);
+		if (file)
+			fput(file);
+	}
 #endif
 }
 
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
-	if (!ctx->user_files)
+	unsigned nr_tables, i;
+
+	if (!ctx->file_table)
 		return -ENXIO;
 
 	__io_sqe_files_unregister(ctx);
-	kfree(ctx->user_files);
-	ctx->user_files = NULL;
+	nr_tables = DIV_ROUND_UP(ctx->nr_user_files, IORING_MAX_FILES_TABLE);
+	for (i = 0; i < nr_tables; i++)
+		kfree(ctx->file_table[i].files);
+	kfree(ctx->file_table);
+	ctx->file_table = NULL;
 	ctx->nr_user_files = 0;
 	return 0;
 }
@@ -3057,9 +3086,11 @@ static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int nr, int offset)
 	nr_files = 0;
 	fpl->user = get_uid(ctx->user);
 	for (i = 0; i < nr; i++) {
-		if (!ctx->user_files[i + offset])
+		struct file *file = io_file_from_index(ctx, i + offset);
+
+		if (!file)
 			continue;
-		fpl->fp[nr_files] = get_file(ctx->user_files[i + offset]);
+		fpl->fp[nr_files] = get_file(file);
 		unix_inflight(fpl->user, fpl->fp[nr_files]);
 		nr_files++;
 	}
@@ -3108,8 +3139,10 @@ static int io_sqe_files_scm(struct io_ring_ctx *ctx)
 		return 0;
 
 	while (total < ctx->nr_user_files) {
-		if (ctx->user_files[total])
-			fput(ctx->user_files[total]);
+		struct file *file = io_file_from_index(ctx, total);
+
+		if (file)
+			fput(file);
 		total++;
 	}
 
@@ -3122,25 +3155,63 @@ static int io_sqe_files_scm(struct io_ring_ctx *ctx)
 }
 #endif
 
+static int io_sqe_alloc_file_tables(struct io_ring_ctx *ctx, unsigned nr_tables,
+				    unsigned nr_files)
+{
+	int i;
+
+	for (i = 0; i < nr_tables; i++) {
+		struct fixed_file_table *table = &ctx->file_table[i];
+		unsigned this_files;
+
+		this_files = min(nr_files, IORING_MAX_FILES_TABLE);
+		table->files = kcalloc(this_files, sizeof(struct file *),
+					GFP_KERNEL);
+		if (!table->files)
+			break;
+		nr_files -= this_files;
+	}
+
+	if (i == nr_tables)
+		return 0;
+
+	for (i = 0; i < nr_tables; i++) {
+		struct fixed_file_table *table = &ctx->file_table[i];
+		kfree(table->files);
+	}
+	return 1;
+}
+
 static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 				 unsigned nr_args)
 {
 	__s32 __user *fds = (__s32 __user *) arg;
+	unsigned nr_tables;
 	int fd, ret = 0;
 	unsigned i;
 
-	if (ctx->user_files)
+	if (ctx->file_table)
 		return -EBUSY;
 	if (!nr_args)
 		return -EINVAL;
 	if (nr_args > IORING_MAX_FIXED_FILES)
 		return -EMFILE;
 
-	ctx->user_files = kcalloc(nr_args, sizeof(struct file *), GFP_KERNEL);
-	if (!ctx->user_files)
+	nr_tables = DIV_ROUND_UP(nr_args, IORING_MAX_FILES_TABLE);
+	ctx->file_table = kcalloc(nr_tables, sizeof(struct fixed_file_table),
+					GFP_KERNEL);
+	if (!ctx->file_table)
 		return -ENOMEM;
 
+	if (io_sqe_alloc_file_tables(ctx, nr_tables, nr_args)) {
+		kfree(ctx->file_table);
+		return -ENOMEM;
+	}
+
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
+		struct fixed_file_table *table;
+		unsigned index;
+
 		ret = -EFAULT;
 		if (copy_from_user(&fd, &fds[i], sizeof(fd)))
 			break;
@@ -3150,10 +3221,12 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			continue;
 		}
 
-		ctx->user_files[i] = fget(fd);
+		table = &ctx->file_table[i >> IORING_FILE_TABLE_SHIFT];
+		index = i & IORING_FILE_TABLE_MASK;
+		table->files[index] = fget(fd);
 
 		ret = -EBADF;
-		if (!ctx->user_files[i])
+		if (!table->files[index])
 			break;
 		/*
 		 * Don't allow io_uring instances to be registered. If UNIX
@@ -3162,20 +3235,26 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		 * handle it just fine, but there's still no point in allowing
 		 * a ring fd as it doesn't support regular read/write anyway.
 		 */
-		if (ctx->user_files[i]->f_op == &io_uring_fops) {
-			fput(ctx->user_files[i]);
+		if (table->files[index]->f_op == &io_uring_fops) {
+			fput(table->files[index]);
 			break;
 		}
 		ret = 0;
 	}
 
 	if (ret) {
-		for (i = 0; i < ctx->nr_user_files; i++)
-			if (ctx->user_files[i])
-				fput(ctx->user_files[i]);
+		for (i = 0; i < ctx->nr_user_files; i++) {
+			struct file *file;
 
-		kfree(ctx->user_files);
-		ctx->user_files = NULL;
+			file = io_file_from_index(ctx, i);
+			if (file)
+				fput(file);
+		}
+		for (i = 0; i < nr_tables; i++)
+			kfree(ctx->file_table[i].files);
+
+		kfree(ctx->file_table);
+		ctx->file_table = NULL;
 		ctx->nr_user_files = 0;
 		return ret;
 	}
@@ -3190,7 +3269,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 static void io_sqe_file_unregister(struct io_ring_ctx *ctx, int index)
 {
 #if defined(CONFIG_UNIX)
-	struct file *file = ctx->user_files[index];
+	struct file *file = io_file_from_index(ctx, index);
 	struct sock *sock = ctx->ring_sock->sk;
 	struct sk_buff_head list, *head = &sock->sk_receive_queue;
 	struct sk_buff *skb;
@@ -3246,7 +3325,7 @@ static void io_sqe_file_unregister(struct io_ring_ctx *ctx, int index)
 		spin_unlock_irq(&head->lock);
 	}
 #else
-	fput(ctx->user_files[index]);
+	fput(io_file_from_index(ctx, index));
 #endif
 }
 
@@ -3301,7 +3380,7 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 	int fd, i, err;
 	__u32 done;
 
-	if (!ctx->user_files)
+	if (!ctx->file_table)
 		return -ENXIO;
 	if (!nr_args)
 		return -EINVAL;
@@ -3315,15 +3394,20 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 	done = 0;
 	fds = (__s32 __user *) up.fds;
 	while (nr_args) {
+		struct fixed_file_table *table;
+		unsigned index;
+
 		err = 0;
 		if (copy_from_user(&fd, &fds[done], sizeof(fd))) {
 			err = -EFAULT;
 			break;
 		}
 		i = array_index_nospec(up.offset, ctx->nr_user_files);
-		if (ctx->user_files[i]) {
+		table = &ctx->file_table[i >> IORING_FILE_TABLE_SHIFT];
+		index = i & IORING_FILE_TABLE_MASK;
+		if (table->files[index]) {
 			io_sqe_file_unregister(ctx, i);
-			ctx->user_files[i] = NULL;
+			table->files[index] = NULL;
 		}
 		if (fd != -1) {
 			struct file *file;
@@ -3346,7 +3430,7 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 				err = -EBADF;
 				break;
 			}
-			ctx->user_files[i] = file;
+			table->files[index] = file;
 			err = io_sqe_file_register(ctx, file, i);
 			if (err)
 				break;
