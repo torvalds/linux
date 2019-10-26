@@ -612,6 +612,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_logical_ring_preemption = 1, \
 	.display.has_csr = 1, \
 	.has_gt_uc = 1, \
+	.display.has_hdcp = 1, \
 	.display.has_ipc = 1, \
 	.ddb_size = 896
 
@@ -655,6 +656,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.display.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
 	.display.has_fbc = 1, \
+	.display.has_hdcp = 1, \
 	.display.has_psr = 1, \
 	.has_runtime_pm = 1, \
 	.display.has_csr = 1, \

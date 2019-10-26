@@ -981,6 +981,9 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 				  enabled_mask);
 		else
 			info->pipe_mask = enabled_mask;
+
+		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
+			info->display.has_hdcp = 0;
 	}
 
 	/* Initialize slice/subslice/EU info */

@@ -139,6 +139,7 @@ enum intel_ppgtt_type {
 	func(has_dsb); \
 	func(has_fbc); \
 	func(has_gmch); \
+	func(has_hdcp); \
 	func(has_hotplug); \
 	func(has_ipc); \
 	func(has_modular_fia); \

@@ -922,7 +922,7 @@ static void intel_hdcp_prop_work(struct work_struct *work)
 bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port)
 {
 	/* PORT E doesn't have HDCP, and PORT F is disabled */
-	return INTEL_GEN(dev_priv) >= 9 && port < PORT_E;
+	return INTEL_INFO(dev_priv)->display.has_hdcp && port < PORT_E;
 }
 
 static int
