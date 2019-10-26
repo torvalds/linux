@@ -209,9 +209,12 @@ config SND_SOC_INTEL_SKYLAKE_SSP_CLK
 config SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC
 	bool "HDAudio codec support"
 	help
-	  If you have a Intel Skylake/Broxton/ApolloLake/KabyLake/
-	  GeminiLake or CannonLake platform with an HDaudio codec
-	  then enable this option by saying Y
+	  This option broke audio on Linus' Skylake laptop in December 2018
+	  and the race conditions during the probe were not fixed since.
+	  This option is DEPRECATED, all HDaudio codec support needs
+	  to be handled by the SOF driver.
+	  Distributions should not enable this option and there are no known
+	  users of this capability.
 
 config SND_SOC_INTEL_SKYLAKE_COMMON
 	tristate
