@@ -450,10 +450,10 @@ u32 rtw_init_bcmc_stainfo(struct adapter *padapter)
 {
 	struct sta_info *psta;
 	u32 res = _SUCCESS;
-	u8 bcast_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
-	psta = rtw_alloc_stainfo(pstapriv, bcast_addr);
+	psta = rtw_alloc_stainfo(pstapriv, bc_addr);
 
 	if (!psta) {
 		res = _FAIL;
