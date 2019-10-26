@@ -2321,6 +2321,7 @@ static int io_req_set_file(struct io_ring_ctx *ctx, const struct sqe_submit *s,
 		if (unlikely(!ctx->user_files ||
 		    (unsigned) fd >= ctx->nr_user_files))
 			return -EBADF;
+		fd = array_index_nospec(fd, ctx->nr_user_files);
 		if (!ctx->user_files[fd])
 			return -EBADF;
 		req->file = ctx->user_files[fd];
