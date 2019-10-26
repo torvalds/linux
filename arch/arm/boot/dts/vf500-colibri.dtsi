@@ -44,7 +44,7 @@
 
 / {
 	model = "Toradex Colibri VF50 COM";
-	compatible = "toradex,vf610-colibri_vf50", "fsl,vf500";
+	compatible = "toradex,vf500-colibri_vf50", "fsl,vf500";
 
 	memory@80000000 {
 		device_type = "memory";
