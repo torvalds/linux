@@ -354,6 +354,6 @@ void rtw_free_all_stainfo(struct adapter *adapt);
 struct sta_info *rtw_get_stainfo(struct sta_priv *stapriv, u8 *hwaddr);
 u32 rtw_init_bcmc_stainfo(struct adapter *adapt);
 struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter);
-u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr);
+bool rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr);
 
 #endif /* _STA_INFO_H_ */
