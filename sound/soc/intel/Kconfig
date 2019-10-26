@@ -101,6 +101,9 @@ config SND_SST_ATOM_HIFI2_PLATFORM_ACPI
 	  If you have a Intel Baytrail or Cherrytrail platform with an I2S
 	  codec, then enable this option by saying Y or m. This is a
 	  recommended option
+	  This option is mutually exclusive with the SOF support on
+	  Baytrail/Cherrytrail. If you want to enable SOF on
+	  Baytrail/Cherrytrail, you need to deselect this option first.
 
 config SND_SOC_INTEL_SKYLAKE
 	tristate "All Skylake/SST Platforms"
