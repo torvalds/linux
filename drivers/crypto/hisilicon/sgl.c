@@ -164,8 +164,8 @@ static struct hisi_acc_hw_sgl *acc_get_sgl(struct hisi_acc_sgl_pool *pool,
 static void sg_map_to_hw_sg(struct scatterlist *sgl,
 			    struct acc_hw_sge *hw_sge)
 {
-	hw_sge->buf = sgl->dma_address;
-	hw_sge->len = cpu_to_le32(sgl->dma_length);
+	hw_sge->buf = sg_dma_address(sgl);
+	hw_sge->len = cpu_to_le32(sg_dma_len(sgl));
 }
 
 static void inc_hw_sgl_sge(struct hisi_acc_hw_sgl *hw_sgl)
