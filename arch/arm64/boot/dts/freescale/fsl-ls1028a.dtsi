@@ -559,7 +559,7 @@
 			status = "disabled";
 		};
 
-		tmu: tmu@1f00000 {
+		tmu: tmu@1f80000 {
 			compatible = "fsl,qoriq-tmu";
 			reg = <0x0 0x1f80000 0x0 0x10000>;
 			interrupts = <0 23 0x4>;
