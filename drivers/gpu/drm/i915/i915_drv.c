@@ -76,6 +76,7 @@
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_csr.h"
+#include "intel_memory_region.h"
 #include "intel_pm.h"
 
 static struct drm_driver driver;
@@ -1172,12 +1173,16 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_ggtt;
 
+	ret = intel_memory_regions_hw_probe(dev_priv);
+	if (ret)
+		goto err_ggtt;
+
 	intel_gt_init_hw_early(dev_priv);
 
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to enable GGTT\n");
-		goto err_ggtt;
+		goto err_mem_regions;
 	}
 
 	pci_set_master(pdev);
@@ -1194,7 +1199,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		if (ret) {
 			DRM_ERROR("failed to set DMA mask\n");
 
-			goto err_ggtt;
+			goto err_mem_regions;
 		}
 	}
 
@@ -1212,7 +1217,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		if (ret) {
 			DRM_ERROR("failed to set DMA mask\n");
 
-			goto err_ggtt;
+			goto err_mem_regions;
 		}
 	}
 
@@ -1264,6 +1269,8 @@ err_msi:
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
 	pm_qos_remove_request(&dev_priv->pm_qos);
+err_mem_regions:
+	intel_memory_regions_driver_release(dev_priv);
 err_ggtt:
 	i915_ggtt_driver_release(dev_priv);
 err_perf:
@@ -1510,6 +1517,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 out_cleanup_hw:
 	i915_driver_hw_remove(dev_priv);
+	intel_memory_regions_driver_release(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
 out_cleanup_mmio:
 	i915_driver_mmio_release(dev_priv);
@@ -1567,6 +1575,7 @@ static void i915_driver_release(struct drm_device *dev)
 
 	i915_gem_driver_release(dev_priv);
 
+	intel_memory_regions_driver_release(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
 
 	i915_driver_mmio_release(dev_priv);

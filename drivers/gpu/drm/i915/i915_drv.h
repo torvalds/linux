@@ -1916,9 +1916,6 @@ int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
 					 unsigned int flags);
 int i915_gem_evict_vm(struct i915_address_space *vm);
 
-void i915_gem_cleanup_memory_regions(struct drm_i915_private *i915);
-int i915_gem_init_memory_regions(struct drm_i915_private *i915);
-
 /* i915_gem_internal.c */
 struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
