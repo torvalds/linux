@@ -489,7 +489,7 @@ struct prcmu_auto_pm_config {
 
 #ifdef CONFIG_MFD_DB8500_PRCMU
 
-void db8500_prcmu_early_init(u32 phy_base, u32 size);
+void db8500_prcmu_early_init(void);
 int prcmu_set_rc_a2p(enum romcode_write);
 enum romcode_read prcmu_get_rc_p2a(void);
 enum ap_pwrst prcmu_get_xp70_current_state(void);
@@ -546,7 +546,7 @@ void db8500_prcmu_write_masked(unsigned int reg, u32 mask, u32 value);
 
 #else /* !CONFIG_MFD_DB8500_PRCMU */
 
-static inline void db8500_prcmu_early_init(u32 phy_base, u32 size) {}
+static inline void db8500_prcmu_early_init(void) {}
 
 static inline int prcmu_set_rc_a2p(enum romcode_write code)
 {
