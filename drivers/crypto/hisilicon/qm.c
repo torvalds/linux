@@ -1127,6 +1127,7 @@ struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type)
 	}
 	set_bit(qp_id, qm->qp_bitmap);
 	qm->qp_array[qp_id] = qp;
+	qm->qp_in_used++;
 
 	write_unlock(&qm->qps_lock);
 
@@ -1191,6 +1192,7 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 	write_lock(&qm->qps_lock);
 	qm->qp_array[qp->qp_id] = NULL;
 	clear_bit(qp->qp_id, qm->qp_bitmap);
+	qm->qp_in_used--;
 	write_unlock(&qm->qps_lock);
 
 	kfree(qp);
@@ -1396,6 +1398,24 @@ static void hisi_qm_cache_wb(struct hisi_qm *qm)
 }
 
 /**
+ * hisi_qm_get_free_qp_num() - Get free number of qp in qm.
+ * @qm: The qm which want to get free qp.
+ *
+ * This function return free number of qp in qm.
+ */
+int hisi_qm_get_free_qp_num(struct hisi_qm *qm)
+{
+	int ret;
+
+	read_lock(&qm->qps_lock);
+	ret = qm->qp_num - qm->qp_in_used;
+	read_unlock(&qm->qps_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(hisi_qm_get_free_qp_num);
+
+/**
  * hisi_qm_init() - Initialize configures about qm.
  * @qm: The qm needing init.
  *
@@ -1458,6 +1478,7 @@ int hisi_qm_init(struct hisi_qm *qm)
 	if (ret)
 		goto err_free_irq_vectors;
 
+	qm->qp_in_used = 0;
 	mutex_init(&qm->mailbox_lock);
 	rwlock_init(&qm->qps_lock);
 
