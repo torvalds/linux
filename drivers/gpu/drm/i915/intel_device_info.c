@@ -987,6 +987,9 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
 			info->display.has_fbc = 0;
+
+		if (INTEL_GEN(dev_priv) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
+			info->display.has_csr = 0;
 	}
 
 	/* Initialize slice/subslice/EU info */
