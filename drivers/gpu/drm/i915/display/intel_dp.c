@@ -1888,6 +1888,9 @@ static bool intel_dp_source_supports_dsc(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
+	if (!INTEL_INFO(dev_priv)->display.has_dsc)
+		return false;
+
 	/* On TGL, DSC is supported on all Pipes */
 	if (INTEL_GEN(dev_priv) >= 12)
 		return true;

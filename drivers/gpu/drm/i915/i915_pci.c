@@ -737,6 +737,7 @@ static const struct intel_device_info intel_coffeelake_gt3_info = {
 	GEN9_FEATURES, \
 	GEN(10), \
 	.ddb_size = 1024, \
+	.display.has_dsc = 1, \
 	.has_coherent_ggtt = false, \
 	GLK_COLORS
 
