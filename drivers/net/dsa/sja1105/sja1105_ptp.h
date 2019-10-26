@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- * Copyright (c) 2019, Vladimir Oltean <olteanv@gmail.com>
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) 2019, Vladimir Oltean <olteanv@gmail.com>
  */
 #ifndef _SJA1105_PTP_H
 #define _SJA1105_PTP_H

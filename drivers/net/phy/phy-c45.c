@@ -323,6 +323,8 @@ int genphy_c45_read_pma(struct phy_device *phydev)
 {
 	int val;
 
+	linkmode_zero(phydev->lp_advertising);
+
 	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1);
 	if (val < 0)
 		return val;

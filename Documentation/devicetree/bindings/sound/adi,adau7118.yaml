@@ -26,13 +26,11 @@ properties:
   "#sound-dai-cells":
     const: 0
 
-  IOVDD-supply:
+  iovdd-supply:
     description: Digital Input/Output Power Supply.
-    $ref: "/schemas/types.yaml#/definitions/phandle"
 
-  DVDD-supply:
+  dvdd-supply:
     description: Internal Core Digital Power Supply.
-    $ref: "/schemas/types.yaml#/definitions/phandle"
 
   adi,decimation-ratio:
     description: |
@@ -58,23 +56,21 @@ properties:
 required:
   - "#sound-dai-cells"
   - compatible
-  - IOVDD-supply
-  - DVDD-supply
+  - iovdd-supply
+  - dvdd-supply
 
 examples:
   - |
-    i2c0 {
+    i2c {
         /* example with i2c support */
         #address-cells = <1>;
         #size-cells = <0>;
-        status = "okay";
-        adau7118_codec: adau7118-codec@14 {
+        adau7118_codec: audio-codec@14 {
                 compatible = "adi,adau7118";
                 reg = <14>;
                 #sound-dai-cells = <0>;
-                status = "okay";
-                IOVDD-supply = <&supply>;
-                DVDD-supply = <&supply>;
+                iovdd-supply = <&supply>;
+                dvdd-supply = <&supply>;
                 adi,pdm-clk-map = <1 1 0 0>;
                 adi,decimation-ratio = <16>;
         };
@@ -84,7 +80,6 @@ examples:
     adau7118_codec_hw: adau7118-codec-hw {
             compatible = "adi,adau7118";
             #sound-dai-cells = <0>;
-            status = "okay";
-            IOVDD-supply = <&supply>;
-            DVDD-supply = <&supply>;
+            iovdd-supply = <&supply>;
+            dvdd-supply = <&supply>;
     };

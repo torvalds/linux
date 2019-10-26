@@ -1507,7 +1507,7 @@ static int cx2072x_probe(struct snd_soc_component *codec)
 	regmap_multi_reg_write(cx2072x->regmap, cx2072x_reg_init,
 			       ARRAY_SIZE(cx2072x_reg_init));
 
-	/* configre PortC as input device */
+	/* configure PortC as input device */
 	regmap_update_bits(cx2072x->regmap, CX2072X_PORTC_PIN_CTRL,
 			   0x20, 0x20);
 
