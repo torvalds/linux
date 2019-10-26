@@ -199,10 +199,13 @@ struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 		pstapriv->asoc_sta_count++;
 		spin_unlock_bh(&pstapriv->sta_hash_lock);
 
-/*  Commented by Albert 2009/08/13 */
-/*  For the SMC router, the sequence number of first packet of WPS handshake will be 0. */
-/*  In this case, this packet will be dropped by recv_decache function if we use the 0x00 as the default value for tid_rxseq variable. */
-/*  So, we initialize the tid_rxseq variable as the 0xffff. */
+		/* Commented by Albert 2009/08/13
+		 * For the SMC router, the sequence number of first packet of
+		 * WPS handshake will be 0. In this case, this packet will be
+		 * dropped by recv_decache function if we use the 0x00 as the
+		 * default value for tid_rxseq variable. So, we initialize the
+		 * tid_rxseq variable as the 0xffff.
+		 */
 
 		for (i = 0; i < 16; i++)
 			memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i], &wRxSeqInitialValue, 2);
@@ -296,7 +299,9 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 
 	del_timer_sync(&psta->addba_retry_timer);
 
-	/* for A-MPDU Rx reordering buffer control, cancel reordering_ctrl_timer */
+	/* for A-MPDU Rx reordering buffer control, cancel
+	 * reordering_ctrl_timer
+	 */
 	for (i = 0; i < 16; i++) {
 		struct list_head *phead, *plist;
 		struct recv_frame *prframe;
