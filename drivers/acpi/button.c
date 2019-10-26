@@ -75,18 +75,16 @@ static const struct acpi_device_id button_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, button_device_ids);
 
-/*
- * Some devices which don't even have a lid in anyway have a broken _LID
- * method (e.g. pointing to a floating gpio pin) causing spurious LID events.
- */
-static const struct dmi_system_id lid_blacklst[] = {
+/* Please keep this list sorted alphabetically by vendor and model */
+static const struct dmi_system_id dmi_lid_quirks[] = {
 	{
-		/* GP-electronic T701 */
+		/* GP-electronic T701, _LID method points to a floating GPIO */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "T701"),
 			DMI_MATCH(DMI_BIOS_VERSION, "BYT70A.YNCHENG.WIN.007"),
 		},
+		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_DISABLED,
 	},
 	{}
 };
@@ -128,7 +126,7 @@ struct acpi_button {
 
 static BLOCKING_NOTIFIER_HEAD(acpi_lid_notifier);
 static struct acpi_device *lid_device;
-static u8 lid_init_state = ACPI_BUTTON_LID_INIT_METHOD;
+static long lid_init_state = -1;
 
 static unsigned long lid_report_interval __read_mostly = 500;
 module_param(lid_report_interval, ulong, 0644);
@@ -483,8 +481,7 @@ static int acpi_button_add(struct acpi_device *device)
 	int error;
 
 	if (!strcmp(hid, ACPI_BUTTON_HID_LID) &&
-	    (dmi_check_system(lid_blacklst) ||
-	     lid_init_state == ACPI_BUTTON_LID_INIT_DISABLED))
+	     lid_init_state == ACPI_BUTTON_LID_INIT_DISABLED)
 		return -ENODEV;
 
 	button = kzalloc(sizeof(struct acpi_button), GFP_KERNEL);
@@ -623,6 +620,16 @@ MODULE_PARM_DESC(lid_init_state, "Behavior for reporting LID initial state");
 
 static int acpi_button_register_driver(struct acpi_driver *driver)
 {
+	const struct dmi_system_id *dmi_id;
+
+	if (lid_init_state == -1) {
+		dmi_id = dmi_first_match(dmi_lid_quirks);
+		if (dmi_id)
+			lid_init_state = (long)dmi_id->driver_data;
+		else
+			lid_init_state = ACPI_BUTTON_LID_INIT_METHOD;
+	}
+
 	/*
 	 * Modules such as nouveau.ko and i915.ko have a link time dependency
 	 * on acpi_lid_open(), and would therefore not be loadable on ACPI
