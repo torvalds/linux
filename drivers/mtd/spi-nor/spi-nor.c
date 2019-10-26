@@ -787,7 +787,7 @@ static int spi_nor_wait_till_ready(struct spi_nor *nor)
  * second byte will be written to the configuration register.
  * Return negative if error occurred.
  */
-static int spi_nor_write_sr_cr(struct spi_nor *nor, u8 *sr_cr)
+static int spi_nor_write_sr_cr(struct spi_nor *nor, const u8 *sr_cr)
 {
 	int ret;
 
@@ -837,7 +837,7 @@ static int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 status_new,
 	return ((nor->bouncebuf[0] & mask) != (status_new & mask)) ? -EIO : 0;
 }
 
-static int spi_nor_write_sr2(struct spi_nor *nor, u8 *sr2)
+static int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2)
 {
 	if (nor->spimem) {
 		struct spi_mem_op op =
