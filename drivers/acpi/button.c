@@ -44,9 +44,17 @@
 #define ACPI_BUTTON_DEVICE_NAME_LID	"Lid Switch"
 #define ACPI_BUTTON_TYPE_LID		0x05
 
-#define ACPI_BUTTON_LID_INIT_IGNORE	0x00
-#define ACPI_BUTTON_LID_INIT_OPEN	0x01
-#define ACPI_BUTTON_LID_INIT_METHOD	0x02
+enum {
+	ACPI_BUTTON_LID_INIT_IGNORE,
+	ACPI_BUTTON_LID_INIT_OPEN,
+	ACPI_BUTTON_LID_INIT_METHOD,
+};
+
+static const char * const lid_init_state_str[] = {
+	[ACPI_BUTTON_LID_INIT_IGNORE]		= "ignore",
+	[ACPI_BUTTON_LID_INIT_OPEN]		= "open",
+	[ACPI_BUTTON_LID_INIT_METHOD]		= "method",
+};
 
 #define _COMPONENT		ACPI_BUTTON_COMPONENT
 ACPI_MODULE_NAME("button");
@@ -578,36 +586,30 @@ static int acpi_button_remove(struct acpi_device *device)
 static int param_set_lid_init_state(const char *val,
 				    const struct kernel_param *kp)
 {
-	int result = 0;
+	int i;
 
-	if (!strncmp(val, "open", sizeof("open") - 1)) {
-		lid_init_state = ACPI_BUTTON_LID_INIT_OPEN;
-		pr_info("Notify initial lid state as open\n");
-	} else if (!strncmp(val, "method", sizeof("method") - 1)) {
-		lid_init_state = ACPI_BUTTON_LID_INIT_METHOD;
-		pr_info("Notify initial lid state with _LID return value\n");
-	} else if (!strncmp(val, "ignore", sizeof("ignore") - 1)) {
-		lid_init_state = ACPI_BUTTON_LID_INIT_IGNORE;
-		pr_info("Do not notify initial lid state\n");
-	} else
-		result = -EINVAL;
-	return result;
+	i = sysfs_match_string(lid_init_state_str, val);
+	if (i < 0)
+		return i;
+
+	lid_init_state = i;
+	pr_info("Initial lid state set to '%s'\n", lid_init_state_str[i]);
+	return 0;
 }
 
-static int param_get_lid_init_state(char *buffer,
-				    const struct kernel_param *kp)
+static int param_get_lid_init_state(char *buf, const struct kernel_param *kp)
 {
-	switch (lid_init_state) {
-	case ACPI_BUTTON_LID_INIT_OPEN:
-		return sprintf(buffer, "open");
-	case ACPI_BUTTON_LID_INIT_METHOD:
-		return sprintf(buffer, "method");
-	case ACPI_BUTTON_LID_INIT_IGNORE:
-		return sprintf(buffer, "ignore");
-	default:
-		return sprintf(buffer, "invalid");
-	}
-	return 0;
+	int i, c = 0;
+
+	for (i = 0; i < ARRAY_SIZE(lid_init_state_str); i++)
+		if (i == lid_init_state)
+			c += sprintf(buf + c, "[%s] ", lid_init_state_str[i]);
+		else
+			c += sprintf(buf + c, "%s ", lid_init_state_str[i]);
+
+	buf[c - 1] = '\n'; /* Replace the final space with a newline */
+
+	return c;
 }
 
 module_param_call(lid_init_state,
