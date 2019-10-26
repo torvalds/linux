@@ -164,7 +164,7 @@ static unsigned long hung_task_timeout_max = (LONG_MAX/HZ);
 #ifdef CONFIG_SPARC
 #endif
 
-#ifdef __hppa__
+#ifdef CONFIG_PARISC
 extern int pwrsw_enabled;
 #endif
 
@@ -621,7 +621,7 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
-#ifdef __hppa__
+#ifdef CONFIG_PARISC
 	{
 		.procname	= "soft-power",
 		.data		= &pwrsw_enabled,

@@ -130,21 +130,23 @@ void acpi_thermal_cpufreq_init(int cpu)
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 	int ret;
 
+	if (!pr)
+		return;
+
 	ret = dev_pm_qos_add_request(get_cpu_device(cpu),
 				     &pr->thermal_req, DEV_PM_QOS_MAX_FREQUENCY,
 				     INT_MAX);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_err("Failed to add freq constraint for CPU%d (%d)\n", cpu,
 		       ret);
-		return;
-	}
 }
 
 void acpi_thermal_cpufreq_exit(int cpu)
 {
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 
-	dev_pm_qos_remove_request(&pr->thermal_req);
+	if (pr)
+		dev_pm_qos_remove_request(&pr->thermal_req);
 }
 #else				/* ! CONFIG_CPU_FREQ */
 static int cpufreq_get_max_state(unsigned int cpu)
