@@ -252,6 +252,7 @@
 };
 
 &r_ir {
+	linux,rc-map-name = "rc-beelink-gs1";
 	status = "okay";
 };
 
