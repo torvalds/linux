@@ -46,6 +46,7 @@ static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
 		if (old_ctrl == new_ctrl)
 			continue;
 
+		__set_bit(INTEL_PMC_IDX_FIXED + i, pmu->pmc_in_use);
 		reprogram_fixed_counter(pmc, new_ctrl, i);
 	}
 
@@ -329,6 +330,11 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	    (boot_cpu_has(X86_FEATURE_HLE) || boot_cpu_has(X86_FEATURE_RTM)) &&
 	    (entry->ebx & (X86_FEATURE_HLE|X86_FEATURE_RTM)))
 		pmu->reserved_bits ^= HSW_IN_TX|HSW_IN_TX_CHECKPOINTED;
+
+	bitmap_set(pmu->all_valid_pmc_idx,
+		0, pmu->nr_arch_gp_counters);
+	bitmap_set(pmu->all_valid_pmc_idx,
+		INTEL_PMC_MAX_GENERIC, pmu->nr_arch_fixed_counters);
 }
 
 static void intel_pmu_init(struct kvm_vcpu *vcpu)

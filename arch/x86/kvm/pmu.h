@@ -62,6 +62,7 @@ static inline void pmc_release_perf_event(struct kvm_pmc *pmc)
 		perf_event_release_kernel(pmc->perf_event);
 		pmc->perf_event = NULL;
 		pmc->current_config = 0;
+		pmc_to_pmu(pmc)->event_count--;
 	}
 }
 
@@ -126,6 +127,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info);
 void kvm_pmu_refresh(struct kvm_vcpu *vcpu);
 void kvm_pmu_reset(struct kvm_vcpu *vcpu);
 void kvm_pmu_init(struct kvm_vcpu *vcpu);
+void kvm_pmu_cleanup(struct kvm_vcpu *vcpu);
 void kvm_pmu_destroy(struct kvm_vcpu *vcpu);
 int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp);
 
