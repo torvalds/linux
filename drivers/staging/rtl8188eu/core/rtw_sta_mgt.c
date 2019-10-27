@@ -451,24 +451,21 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 u32 rtw_init_bcmc_stainfo(struct adapter *padapter)
 {
 	struct sta_info *psta;
-	u32 res = _SUCCESS;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
 	psta = rtw_alloc_stainfo(pstapriv, bc_addr);
 
 	if (!psta) {
-		res = _FAIL;
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
 			 ("rtw_alloc_stainfo fail"));
-		goto exit;
+		return _FAIL;
 	}
 
 	/*  default broadcast & multicast use macid 1 */
 	psta->mac_id = 1;
 
-exit:
-	return res;
+	return _SUCCESS;
 }
 
 struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter)
