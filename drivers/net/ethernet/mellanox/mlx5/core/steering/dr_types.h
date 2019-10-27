@@ -106,6 +106,12 @@ enum mlx5dr_action_type {
 	DR_ACTION_TYP_MAX,
 };
 
+enum mlx5dr_ipv {
+	DR_RULE_IPV4,
+	DR_RULE_IPV6,
+	DR_RULE_IPV_MAX,
+};
+
 struct mlx5dr_icm_pool;
 struct mlx5dr_icm_chunk;
 struct mlx5dr_icm_bucket;
@@ -679,11 +685,11 @@ struct mlx5dr_matcher_rx_tx {
 	struct mlx5dr_ste_htbl *s_htbl;
 	struct mlx5dr_ste_htbl *e_anchor;
 	struct mlx5dr_ste_build *ste_builder;
-	struct mlx5dr_ste_build ste_builder4[DR_RULE_MAX_STES];
-	struct mlx5dr_ste_build ste_builder6[DR_RULE_MAX_STES];
+	struct mlx5dr_ste_build ste_builder_arr[DR_RULE_IPV_MAX]
+					       [DR_RULE_IPV_MAX]
+					       [DR_RULE_MAX_STES];
 	u8 num_of_builders;
-	u8 num_of_builders4;
-	u8 num_of_builders6;
+	u8 num_of_builders_arr[DR_RULE_IPV_MAX][DR_RULE_IPV_MAX];
 	u64 default_icm_addr;
 	struct mlx5dr_table_rx_tx *nic_tbl;
 };
@@ -812,7 +818,8 @@ mlx5dr_matcher_supp_flex_parser_icmp_v6(struct mlx5dr_cmd_caps *caps)
 
 int mlx5dr_matcher_select_builders(struct mlx5dr_matcher *matcher,
 				   struct mlx5dr_matcher_rx_tx *nic_matcher,
-				   bool ipv6);
+				   enum mlx5dr_ipv outer_ipv,
+				   enum mlx5dr_ipv inner_ipv);
 
 static inline u32
 mlx5dr_icm_pool_chunk_size_to_entries(enum mlx5dr_icm_chunk_size chunk_size)
