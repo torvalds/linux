@@ -49,6 +49,10 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_REPORT_LONG_LENGTH		20
 #define HIDPP_REPORT_VERY_LONG_MAX_LENGTH	64
 
+#define HIDPP_REPORT_SHORT_SUPPORTED		BIT(0)
+#define HIDPP_REPORT_LONG_SUPPORTED		BIT(1)
+#define HIDPP_REPORT_VERY_LONG_SUPPORTED	BIT(2)
+
 #define HIDPP_SUB_ID_CONSUMER_VENDOR_KEYS	0x03
 #define HIDPP_SUB_ID_ROLLER			0x05
 #define HIDPP_SUB_ID_MOUSE_EXTRA_BTNS		0x06
@@ -183,6 +187,7 @@ struct hidpp_device {
 
 	unsigned long quirks;
 	unsigned long capabilities;
+	u8 supported_reports;
 
 	struct hidpp_battery battery;
 	struct hidpp_scroll_counter vertical_wheel_counter;
@@ -339,6 +344,11 @@ static int hidpp_send_rap_command_sync(struct hidpp_device *hidpp_dev,
 {
 	struct hidpp_report *message;
 	int ret, max_count;
+
+	/* Send as long report if short reports are not supported. */
+	if (report_id == REPORT_ID_HIDPP_SHORT &&
+	    !(hidpp_dev->supported_reports & HIDPP_REPORT_SHORT_SUPPORTED))
+		report_id = REPORT_ID_HIDPP_LONG;
 
 	switch (report_id) {
 	case REPORT_ID_HIDPP_SHORT:
@@ -3481,10 +3491,11 @@ static int hidpp_get_report_length(struct hid_device *hdev, int id)
 	return report->field[0]->report_count + 1;
 }
 
-static bool hidpp_validate_device(struct hid_device *hdev)
+static u8 hidpp_validate_device(struct hid_device *hdev)
 {
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
-	int id, report_length, supported_reports = 0;
+	int id, report_length;
+	u8 supported_reports = 0;
 
 	id = REPORT_ID_HIDPP_SHORT;
 	report_length = hidpp_get_report_length(hdev, id);
@@ -3492,7 +3503,7 @@ static bool hidpp_validate_device(struct hid_device *hdev)
 		if (report_length < HIDPP_REPORT_SHORT_LENGTH)
 			goto bad_device;
 
-		supported_reports++;
+		supported_reports |= HIDPP_REPORT_SHORT_SUPPORTED;
 	}
 
 	id = REPORT_ID_HIDPP_LONG;
@@ -3501,7 +3512,7 @@ static bool hidpp_validate_device(struct hid_device *hdev)
 		if (report_length < HIDPP_REPORT_LONG_LENGTH)
 			goto bad_device;
 
-		supported_reports++;
+		supported_reports |= HIDPP_REPORT_LONG_SUPPORTED;
 	}
 
 	id = REPORT_ID_HIDPP_VERY_LONG;
@@ -3511,7 +3522,7 @@ static bool hidpp_validate_device(struct hid_device *hdev)
 		    report_length > HIDPP_REPORT_VERY_LONG_MAX_LENGTH)
 			goto bad_device;
 
-		supported_reports++;
+		supported_reports |= HIDPP_REPORT_VERY_LONG_SUPPORTED;
 		hidpp->very_long_report_length = report_length;
 	}
 
@@ -3560,7 +3571,9 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	/*
 	 * Make sure the device is HID++ capable, otherwise treat as generic HID
 	 */
-	if (!hidpp_validate_device(hdev)) {
+	hidpp->supported_reports = hidpp_validate_device(hdev);
+
+	if (!hidpp->supported_reports) {
 		hid_set_drvdata(hdev, NULL);
 		devm_kfree(&hdev->dev, hidpp);
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
@@ -3808,6 +3821,11 @@ static const struct hid_device_id hidpp_devices[] = {
 	{ /* MX5500 keyboard over Bluetooth */
 	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb30b),
 	  .driver_data = HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS },
+	{ /* MX Master mouse over Bluetooth */
+	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb012),
+	  .driver_data = HIDPP_QUIRK_HI_RES_SCROLL_X2121 },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb01e),
+	  .driver_data = HIDPP_QUIRK_HI_RES_SCROLL_X2121 },
 	{}
 };
 
