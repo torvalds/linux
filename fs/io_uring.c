@@ -2413,6 +2413,7 @@ static int io_queue_link_head(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	if (ret) {
 		if (ret != -EIOCBQUEUED) {
 			io_free_req(req);
+			__io_free_req(shadow);
 			io_cqring_add_event(ctx, s->sqe->user_data, ret);
 			return 0;
 		}
