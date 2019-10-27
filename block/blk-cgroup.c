@@ -1362,7 +1362,7 @@ int blkcg_activate_policy(struct request_queue *q,
 			  const struct blkcg_policy *pol)
 {
 	struct blkg_policy_data *pd_prealloc = NULL;
-	struct blkcg_gq *blkg;
+	struct blkcg_gq *blkg, *pinned_blkg = NULL;
 	int ret;
 
 	if (blkcg_policy_enabled(q, pol))
@@ -1370,49 +1370,82 @@ int blkcg_activate_policy(struct request_queue *q,
 
 	if (queue_is_mq(q))
 		blk_mq_freeze_queue(q);
-pd_prealloc:
-	if (!pd_prealloc) {
-		pd_prealloc = pol->pd_alloc_fn(GFP_KERNEL, q, &blkcg_root);
-		if (!pd_prealloc) {
-			ret = -ENOMEM;
-			goto out_bypass_end;
-		}
-	}
-
+retry:
 	spin_lock_irq(&q->queue_lock);
 
-	/* blkg_list is pushed at the head, reverse walk to init parents first */
+	/* blkg_list is pushed at the head, reverse walk to allocate parents first */
 	list_for_each_entry_reverse(blkg, &q->blkg_list, q_node) {
 		struct blkg_policy_data *pd;
 
 		if (blkg->pd[pol->plid])
 			continue;
 
-		pd = pol->pd_alloc_fn(GFP_NOWAIT | __GFP_NOWARN, q, &blkcg_root);
-		if (!pd)
-			swap(pd, pd_prealloc);
+		/* If prealloc matches, use it; otherwise try GFP_NOWAIT */
+		if (blkg == pinned_blkg) {
+			pd = pd_prealloc;
+			pd_prealloc = NULL;
+		} else {
+			pd = pol->pd_alloc_fn(GFP_NOWAIT | __GFP_NOWARN, q,
+					      blkg->blkcg);
+		}
+
 		if (!pd) {
+			/*
+			 * GFP_NOWAIT failed.  Free the existing one and
+			 * prealloc for @blkg w/ GFP_KERNEL.
+			 */
+			if (pinned_blkg)
+				blkg_put(pinned_blkg);
+			blkg_get(blkg);
+			pinned_blkg = blkg;
+
 			spin_unlock_irq(&q->queue_lock);
-			goto pd_prealloc;
+
+			if (pd_prealloc)
+				pol->pd_free_fn(pd_prealloc);
+			pd_prealloc = pol->pd_alloc_fn(GFP_KERNEL, q,
+						       blkg->blkcg);
+			if (pd_prealloc)
+				goto retry;
+			else
+				goto enomem;
 		}
 
 		blkg->pd[pol->plid] = pd;
 		pd->blkg = blkg;
 		pd->plid = pol->plid;
-		if (pol->pd_init_fn)
-			pol->pd_init_fn(pd);
 	}
+
+	/* all allocated, init in the same order */
+	if (pol->pd_init_fn)
+		list_for_each_entry_reverse(blkg, &q->blkg_list, q_node)
+			pol->pd_init_fn(blkg->pd[pol->plid]);
 
 	__set_bit(pol->plid, q->blkcg_pols);
 	ret = 0;
 
 	spin_unlock_irq(&q->queue_lock);
-out_bypass_end:
+out:
 	if (queue_is_mq(q))
 		blk_mq_unfreeze_queue(q);
+	if (pinned_blkg)
+		blkg_put(pinned_blkg);
 	if (pd_prealloc)
 		pol->pd_free_fn(pd_prealloc);
 	return ret;
+
+enomem:
+	/* alloc failed, nothing's initialized yet, free everything */
+	spin_lock_irq(&q->queue_lock);
+	list_for_each_entry(blkg, &q->blkg_list, q_node) {
+		if (blkg->pd[pol->plid]) {
+			pol->pd_free_fn(blkg->pd[pol->plid]);
+			blkg->pd[pol->plid] = NULL;
+		}
+	}
+	spin_unlock_irq(&q->queue_lock);
+	ret = -ENOMEM;
+	goto out;
 }
 EXPORT_SYMBOL_GPL(blkcg_activate_policy);
 

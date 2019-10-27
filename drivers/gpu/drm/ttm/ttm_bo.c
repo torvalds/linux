@@ -185,8 +185,9 @@ static void ttm_bo_add_mem_to_lru(struct ttm_buffer_object *bo,
 	list_add_tail(&bo->lru, &man->lru[bo->priority]);
 	kref_get(&bo->list_kref);
 
-	if (bo->ttm && !(bo->ttm->page_flags &
-			 (TTM_PAGE_FLAG_SG | TTM_PAGE_FLAG_SWAPPED))) {
+	if (!(man->flags & TTM_MEMTYPE_FLAG_FIXED) && bo->ttm &&
+	    !(bo->ttm->page_flags & (TTM_PAGE_FLAG_SG |
+				     TTM_PAGE_FLAG_SWAPPED))) {
 		list_add_tail(&bo->swap, &bdev->glob->swap_lru[bo->priority]);
 		kref_get(&bo->list_kref);
 	}
@@ -878,11 +879,11 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 
 	if (!bo) {
 		if (busy_bo)
-			ttm_bo_get(busy_bo);
+			kref_get(&busy_bo->list_kref);
 		spin_unlock(&glob->lru_lock);
 		ret = ttm_mem_evict_wait_busy(busy_bo, ctx, ticket);
 		if (busy_bo)
-			ttm_bo_put(busy_bo);
+			kref_put(&busy_bo->list_kref, ttm_bo_release_list);
 		return ret;
 	}
 

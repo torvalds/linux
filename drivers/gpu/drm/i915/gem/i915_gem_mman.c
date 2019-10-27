@@ -364,6 +364,7 @@ err:
 		return VM_FAULT_OOM;
 	case -ENOSPC:
 	case -EFAULT:
+	case -ENODEV: /* bad object, how did you get here! */
 		return VM_FAULT_SIGBUS;
 	default:
 		WARN_ONCE(ret, "unhandled error in %s: %i\n", __func__, ret);
@@ -475,10 +476,16 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	if (!obj)
 		return -ENOENT;
 
+	if (i915_gem_object_never_bind_ggtt(obj)) {
+		ret = -ENODEV;
+		goto out;
+	}
+
 	ret = create_mmap_offset(obj);
 	if (ret == 0)
 		*offset = drm_vma_node_offset_addr(&obj->base.vma_node);
 
+out:
 	i915_gem_object_put(obj);
 	return ret;
 }

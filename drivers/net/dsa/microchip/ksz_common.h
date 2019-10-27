@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- * Microchip switch driver common header
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Microchip switch driver common header
  *
  * Copyright (C) 2017-2019 Microchip Technology Inc.
  */
@@ -47,7 +47,7 @@ struct ksz_device {
 	const char *name;
 
 	struct mutex dev_mutex;		/* device access */
-	struct mutex stats_mutex;	/* status access */
+	struct mutex regmap_mutex;	/* regmap access */
 	struct mutex alu_mutex;		/* ALU access */
 	struct mutex vlan_mutex;	/* vlan access */
 	const struct ksz_dev_ops *dev_ops;
@@ -290,6 +290,18 @@ static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 	ksz_write32(dev, dev->dev_ops->get_port_addr(port, offset), data);
 }
 
+static inline void ksz_regmap_lock(void *__mtx)
+{
+	struct mutex *mtx = __mtx;
+	mutex_lock(mtx);
+}
+
+static inline void ksz_regmap_unlock(void *__mtx)
+{
+	struct mutex *mtx = __mtx;
+	mutex_unlock(mtx);
+}
+
 /* Regmap tables generation */
 #define KSZ_SPI_OP_RD		3
 #define KSZ_SPI_OP_WR		2
@@ -314,6 +326,8 @@ static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 		.write_flag_mask =					\
 			KSZ_SPI_OP_FLAG_MASK(KSZ_SPI_OP_WR, swp,	\
 					     regbits, regpad),		\
+		.lock = ksz_regmap_lock,				\
+		.unlock = ksz_regmap_unlock,				\
 		.reg_format_endian = REGMAP_ENDIAN_BIG,			\
 		.val_format_endian = REGMAP_ENDIAN_BIG			\
 	}
