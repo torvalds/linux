@@ -167,7 +167,7 @@ struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 {
 	s32 index;
 	struct list_head *phash_list;
-	struct sta_info	*psta;
+	struct sta_info *psta;
 	struct __queue *pfree_sta_queue;
 	struct recv_reorder_ctrl *preorder_ctrl;
 	int i = 0;
@@ -318,7 +318,7 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 
 		spin_lock_bh(&ppending_recvframe_queue->lock);
 
-		phead =		get_list_head(ppending_recvframe_queue);
+		phead = get_list_head(ppending_recvframe_queue);
 		plist = phead->next;
 
 		while (!list_empty(phead)) {
