@@ -31,6 +31,7 @@ ALL_TESTS="
 	ping_ipv4
 	test_update
 	test_no_update
+	test_dscp_leftover
 "
 
 lib_dir=$(dirname $0)/../../../net/forwarding
@@ -50,10 +51,13 @@ reprioritize()
 	echo ${reprio[$in]}
 }
 
+zero()
+{
+    echo 0
+}
+
 h1_create()
 {
-	local dscp;
-
 	simple_if_init $h1 192.0.2.1/28
 	tc qdisc add dev $h1 clsact
 	dscp_capture_install $h1 0
@@ -87,6 +91,7 @@ h2_destroy()
 dscp_map()
 {
 	local base=$1; shift
+	local prio
 
 	for prio in {0..7}; do
 		echo app=$prio,5,$((base + prio))
@@ -156,6 +161,7 @@ dscp_ping_test()
 	local reprio=$1; shift
 	local dev1=$1; shift
 	local dev2=$1; shift
+	local i
 
 	local prio2=$($reprio $prio)   # ICMP Request egress prio
 	local prio3=$($reprio $prio2)  # ICMP Response egress prio
@@ -205,6 +211,7 @@ __test_update()
 {
 	local update=$1; shift
 	local reprio=$1; shift
+	local prio
 
 	sysctl_restore net.ipv4.ip_forward_update_priority
 	sysctl_set net.ipv4.ip_forward_update_priority $update
@@ -222,6 +229,19 @@ test_update()
 test_no_update()
 {
 	__test_update 0 echo
+}
+
+# Test that when the last APP rule is removed, the prio->DSCP map is properly
+# set to zeroes, and that the last APP rule does not stay active in the ASIC.
+test_dscp_leftover()
+{
+	lldptool -T -i $swp2 -V APP -d $(dscp_map 0) >/dev/null
+	lldpad_app_wait_del
+
+	__test_update 0 zero
+
+	lldptool -T -i $swp2 -V APP $(dscp_map 0) >/dev/null
+	lldpad_app_wait_set $swp2
 }
 
 trap cleanup EXIT

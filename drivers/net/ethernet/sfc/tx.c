@@ -274,7 +274,7 @@ static void efx_skb_copy_bits_to_pio(struct efx_nic *efx, struct sk_buff *skb,
 
 		vaddr = kmap_atomic(skb_frag_page(f));
 
-		efx_memcpy_toio_aligned_cb(efx, piobuf, vaddr + f->page_offset,
+		efx_memcpy_toio_aligned_cb(efx, piobuf, vaddr + skb_frag_off(f),
 					   skb_frag_size(f), copy_buf);
 		kunmap_atomic(vaddr);
 	}

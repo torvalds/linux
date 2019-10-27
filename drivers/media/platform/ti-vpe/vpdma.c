@@ -445,23 +445,25 @@ int vpdma_list_cleanup(struct vpdma_data *vpdma, int list_num,
 
 	ret = vpdma_map_desc_buf(vpdma, &abort_list.buf);
 	if (ret)
-		return ret;
+		goto free_desc;
 	ret = vpdma_submit_descs(vpdma, &abort_list, list_num);
 	if (ret)
-		return ret;
+		goto unmap_desc;
 
 	while (vpdma_list_busy(vpdma, list_num) && --timeout)
 		;
 
 	if (timeout == 0) {
 		dev_err(&vpdma->pdev->dev, "Timed out cleaning up VPDMA list\n");
-		return -EBUSY;
+		ret = -EBUSY;
 	}
 
+unmap_desc:
 	vpdma_unmap_desc_buf(vpdma, &abort_list.buf);
+free_desc:
 	vpdma_free_desc_buf(&abort_list.buf);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(vpdma_list_cleanup);
 

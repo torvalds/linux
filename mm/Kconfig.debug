@@ -21,7 +21,9 @@ config DEBUG_PAGEALLOC
 	  Also, the state of page tracking structures is checked more often as
 	  pages are being allocated and freed, as unexpected state changes
 	  often happen for same reasons as memory corruption (e.g. double free,
-	  use-after-free).
+	  use-after-free). The error reports for these checks can be augmented
+	  with stack traces of last allocation and freeing of the page, when
+	  PAGE_OWNER is also selected and enabled on boot.
 
 	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
 	  fill the pages with poison patterns after free_pages() and verify

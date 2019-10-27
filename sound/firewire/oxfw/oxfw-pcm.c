@@ -248,7 +248,7 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 		unsigned int channels = params_channels(hw_params);
 
 		mutex_lock(&oxfw->mutex);
-		err = snd_oxfw_stream_reserve_duplex(oxfw, &oxfw->tx_stream,
+		err = snd_oxfw_stream_reserve_duplex(oxfw, &oxfw->rx_stream,
 						     rate, channels);
 		if (err >= 0)
 			++oxfw->substreams_count;

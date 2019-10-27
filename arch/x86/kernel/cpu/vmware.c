@@ -30,34 +30,69 @@
 #include <asm/hypervisor.h>
 #include <asm/timer.h>
 #include <asm/apic.h>
+#include <asm/vmware.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt)	"vmware: " fmt
 
-#define CPUID_VMWARE_INFO_LEAF	0x40000000
-#define VMWARE_HYPERVISOR_MAGIC	0x564D5868
-#define VMWARE_HYPERVISOR_PORT	0x5658
+#define CPUID_VMWARE_INFO_LEAF               0x40000000
+#define CPUID_VMWARE_FEATURES_LEAF           0x40000010
+#define CPUID_VMWARE_FEATURES_ECX_VMMCALL    BIT(0)
+#define CPUID_VMWARE_FEATURES_ECX_VMCALL     BIT(1)
 
-#define VMWARE_PORT_CMD_GETVERSION	10
-#define VMWARE_PORT_CMD_GETHZ		45
-#define VMWARE_PORT_CMD_GETVCPU_INFO	68
-#define VMWARE_PORT_CMD_LEGACY_X2APIC	3
-#define VMWARE_PORT_CMD_VCPU_RESERVED	31
+#define VMWARE_HYPERVISOR_MAGIC	0x564D5868
+
+#define VMWARE_CMD_GETVERSION    10
+#define VMWARE_CMD_GETHZ         45
+#define VMWARE_CMD_GETVCPU_INFO  68
+#define VMWARE_CMD_LEGACY_X2APIC  3
+#define VMWARE_CMD_VCPU_RESERVED 31
 
 #define VMWARE_PORT(cmd, eax, ebx, ecx, edx)				\
-	__asm__("inl (%%dx)" :						\
-			"=a"(eax), "=c"(ecx), "=d"(edx), "=b"(ebx) :	\
-			"0"(VMWARE_HYPERVISOR_MAGIC),			\
-			"1"(VMWARE_PORT_CMD_##cmd),			\
-			"2"(VMWARE_HYPERVISOR_PORT), "3"(UINT_MAX) :	\
-			"memory");
+	__asm__("inl (%%dx), %%eax" :					\
+		"=a"(eax), "=c"(ecx), "=d"(edx), "=b"(ebx) :		\
+		"a"(VMWARE_HYPERVISOR_MAGIC),				\
+		"c"(VMWARE_CMD_##cmd),					\
+		"d"(VMWARE_HYPERVISOR_PORT), "b"(UINT_MAX) :		\
+		"memory")
+
+#define VMWARE_VMCALL(cmd, eax, ebx, ecx, edx)				\
+	__asm__("vmcall" :						\
+		"=a"(eax), "=c"(ecx), "=d"(edx), "=b"(ebx) :		\
+		"a"(VMWARE_HYPERVISOR_MAGIC),				\
+		"c"(VMWARE_CMD_##cmd),					\
+		"d"(0), "b"(UINT_MAX) :					\
+		"memory")
+
+#define VMWARE_VMMCALL(cmd, eax, ebx, ecx, edx)                         \
+	__asm__("vmmcall" :						\
+		"=a"(eax), "=c"(ecx), "=d"(edx), "=b"(ebx) :		\
+		"a"(VMWARE_HYPERVISOR_MAGIC),				\
+		"c"(VMWARE_CMD_##cmd),					\
+		"d"(0), "b"(UINT_MAX) :					\
+		"memory")
+
+#define VMWARE_CMD(cmd, eax, ebx, ecx, edx) do {		\
+	switch (vmware_hypercall_mode) {			\
+	case CPUID_VMWARE_FEATURES_ECX_VMCALL:			\
+		VMWARE_VMCALL(cmd, eax, ebx, ecx, edx);		\
+		break;						\
+	case CPUID_VMWARE_FEATURES_ECX_VMMCALL:			\
+		VMWARE_VMMCALL(cmd, eax, ebx, ecx, edx);	\
+		break;						\
+	default:						\
+		VMWARE_PORT(cmd, eax, ebx, ecx, edx);		\
+		break;						\
+	}							\
+	} while (0)
 
 static unsigned long vmware_tsc_khz __ro_after_init;
+static u8 vmware_hypercall_mode     __ro_after_init;
 
 static inline int __vmware_platform(void)
 {
 	uint32_t eax, ebx, ecx, edx;
-	VMWARE_PORT(GETVERSION, eax, ebx, ecx, edx);
+	VMWARE_CMD(GETVERSION, eax, ebx, ecx, edx);
 	return eax != (uint32_t)-1 && ebx == VMWARE_HYPERVISOR_MAGIC;
 }
 
@@ -129,6 +164,10 @@ static void __init vmware_set_capabilities(void)
 {
 	setup_force_cpu_cap(X86_FEATURE_CONSTANT_TSC);
 	setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
+	if (vmware_hypercall_mode == CPUID_VMWARE_FEATURES_ECX_VMCALL)
+		setup_force_cpu_cap(X86_FEATURE_VMCALL);
+	else if (vmware_hypercall_mode == CPUID_VMWARE_FEATURES_ECX_VMMCALL)
+		setup_force_cpu_cap(X86_FEATURE_VMW_VMMCALL);
 }
 
 static void __init vmware_platform_setup(void)
@@ -136,7 +175,7 @@ static void __init vmware_platform_setup(void)
 	uint32_t eax, ebx, ecx, edx;
 	uint64_t lpj, tsc_khz;
 
-	VMWARE_PORT(GETHZ, eax, ebx, ecx, edx);
+	VMWARE_CMD(GETHZ, eax, ebx, ecx, edx);
 
 	if (ebx != UINT_MAX) {
 		lpj = tsc_khz = eax | (((uint64_t)ebx) << 32);
@@ -174,10 +213,21 @@ static void __init vmware_platform_setup(void)
 	vmware_set_capabilities();
 }
 
+static u8 vmware_select_hypercall(void)
+{
+	int eax, ebx, ecx, edx;
+
+	cpuid(CPUID_VMWARE_FEATURES_LEAF, &eax, &ebx, &ecx, &edx);
+	return (ecx & (CPUID_VMWARE_FEATURES_ECX_VMMCALL |
+		       CPUID_VMWARE_FEATURES_ECX_VMCALL));
+}
+
 /*
  * While checking the dmi string information, just checking the product
  * serial key should be enough, as this will always have a VMware
  * specific string when running under VMware hypervisor.
+ * If !boot_cpu_has(X86_FEATURE_HYPERVISOR), vmware_hypercall_mode
+ * intentionally defaults to 0.
  */
 static uint32_t __init vmware_platform(void)
 {
@@ -187,8 +237,16 @@ static uint32_t __init vmware_platform(void)
 
 		cpuid(CPUID_VMWARE_INFO_LEAF, &eax, &hyper_vendor_id[0],
 		      &hyper_vendor_id[1], &hyper_vendor_id[2]);
-		if (!memcmp(hyper_vendor_id, "VMwareVMware", 12))
+		if (!memcmp(hyper_vendor_id, "VMwareVMware", 12)) {
+			if (eax >= CPUID_VMWARE_FEATURES_LEAF)
+				vmware_hypercall_mode =
+					vmware_select_hypercall();
+
+			pr_info("hypercall mode: 0x%02x\n",
+				(unsigned int) vmware_hypercall_mode);
+
 			return CPUID_VMWARE_INFO_LEAF;
+		}
 	} else if (dmi_available && dmi_name_in_serial("VMware") &&
 		   __vmware_platform())
 		return 1;
@@ -200,9 +258,9 @@ static uint32_t __init vmware_platform(void)
 static bool __init vmware_legacy_x2apic_available(void)
 {
 	uint32_t eax, ebx, ecx, edx;
-	VMWARE_PORT(GETVCPU_INFO, eax, ebx, ecx, edx);
-	return (eax & (1 << VMWARE_PORT_CMD_VCPU_RESERVED)) == 0 &&
-	       (eax & (1 << VMWARE_PORT_CMD_LEGACY_X2APIC)) != 0;
+	VMWARE_CMD(GETVCPU_INFO, eax, ebx, ecx, edx);
+	return (eax & (1 << VMWARE_CMD_VCPU_RESERVED)) == 0 &&
+	       (eax & (1 << VMWARE_CMD_LEGACY_X2APIC)) != 0;
 }
 
 const __initconst struct hypervisor_x86 x86_hyper_vmware = {

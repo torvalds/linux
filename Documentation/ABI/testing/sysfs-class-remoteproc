@@ -48,3 +48,13 @@ Description:	Remote processor state
 
 		Writing "stop" will attempt to halt the remote processor and
 		return it to the "offline" state.
+
+What:		/sys/class/remoteproc/.../name
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Suman Anna <s-anna@ti.com>
+Description:	Remote processor name
+
+		Reports the name of the remote processor. This can be used by
+		userspace in exactly identifying a remote processor and ease
+		up the usage in modifying the 'firmware' or 'state' files.

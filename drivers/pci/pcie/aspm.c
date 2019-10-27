@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/delay.h>
-#include <linux/pci-aspm.h>
 #include "../pci.h"
 
 #ifdef MODULE_PARAM_PREFIX
@@ -913,10 +912,10 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 
 	/*
 	 * We allocate pcie_link_state for the component on the upstream
-	 * end of a Link, so there's nothing to do unless this device has a
-	 * Link on its secondary side.
+	 * end of a Link, so there's nothing to do unless this device is
+	 * downstream port.
 	 */
-	if (!pdev->has_secondary_link)
+	if (!pcie_downstream_port(pdev))
 		return;
 
 	/* VIA has a strange chipset, root port is under a bridge */
@@ -1070,7 +1069,7 @@ static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
 	if (!pci_is_pcie(pdev))
 		return 0;
 
-	if (pdev->has_secondary_link)
+	if (pcie_downstream_port(pdev))
 		parent = pdev;
 	if (!parent || !parent->link_state)
 		return -EINVAL;
@@ -1169,6 +1168,26 @@ static int pcie_aspm_get_policy(char *buffer, const struct kernel_param *kp)
 
 module_param_call(policy, pcie_aspm_set_policy, pcie_aspm_get_policy,
 	NULL, 0644);
+
+/**
+ * pcie_aspm_enabled - Check if PCIe ASPM has been enabled for a device.
+ * @pdev: Target device.
+ */
+bool pcie_aspm_enabled(struct pci_dev *pdev)
+{
+	struct pci_dev *bridge = pci_upstream_bridge(pdev);
+	bool ret;
+
+	if (!bridge)
+		return false;
+
+	mutex_lock(&aspm_lock);
+	ret = bridge->link_state ? !!bridge->link_state->aspm_enabled : false;
+	mutex_unlock(&aspm_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pcie_aspm_enabled);
 
 #ifdef CONFIG_PCIEASPM_DEBUG
 static ssize_t link_state_show(struct device *dev,

@@ -54,4 +54,31 @@ static inline u32 tcf_skbedit_mark(const struct tc_action *a)
 	return mark;
 }
 
+/* Return true iff action is ptype */
+static inline bool is_tcf_skbedit_ptype(const struct tc_action *a)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	u32 flags;
+
+	if (a->ops && a->ops->id == TCA_ID_SKBEDIT) {
+		rcu_read_lock();
+		flags = rcu_dereference(to_skbedit(a)->params)->flags;
+		rcu_read_unlock();
+		return flags == SKBEDIT_F_PTYPE;
+	}
+#endif
+	return false;
+}
+
+static inline u32 tcf_skbedit_ptype(const struct tc_action *a)
+{
+	u16 ptype;
+
+	rcu_read_lock();
+	ptype = rcu_dereference(to_skbedit(a)->params)->ptype;
+	rcu_read_unlock();
+
+	return ptype;
+}
+
 #endif /* __NET_TC_SKBEDIT_H */

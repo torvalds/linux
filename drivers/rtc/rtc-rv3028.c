@@ -639,9 +639,8 @@ static int rv3028_probe(struct i2c_client *client)
 		dev_warn(&client->dev, "An alarm may have been missed.\n");
 
 	rv3028->rtc = devm_rtc_allocate_device(&client->dev);
-	if (IS_ERR(rv3028->rtc)) {
+	if (IS_ERR(rv3028->rtc))
 		return PTR_ERR(rv3028->rtc);
-	}
 
 	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,

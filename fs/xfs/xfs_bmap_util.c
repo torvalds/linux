@@ -39,9 +39,9 @@
 xfs_daddr_t
 xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb)
 {
-	return (XFS_IS_REALTIME_INODE(ip) ? \
-		 (xfs_daddr_t)XFS_FSB_TO_BB((ip)->i_mount, (fsb)) : \
-		 XFS_FSB_TO_DADDR((ip)->i_mount, (fsb)));
+	if (XFS_IS_REALTIME_INODE(ip))
+		return XFS_FSB_TO_BB(ip->i_mount, fsb);
+	return XFS_FSB_TO_DADDR(ip->i_mount, fsb);
 }
 
 /*
@@ -864,6 +864,7 @@ xfs_alloc_file_space(
 	xfs_filblks_t		allocatesize_fsb;
 	xfs_extlen_t		extsz, temp;
 	xfs_fileoff_t		startoffset_fsb;
+	xfs_fileoff_t		endoffset_fsb;
 	int			nimaps;
 	int			quota_flag;
 	int			rt;
@@ -891,7 +892,8 @@ xfs_alloc_file_space(
 	imapp = &imaps[0];
 	nimaps = 1;
 	startoffset_fsb	= XFS_B_TO_FSBT(mp, offset);
-	allocatesize_fsb = XFS_B_TO_FSB(mp, count);
+	endoffset_fsb = XFS_B_TO_FSB(mp, offset + count);
+	allocatesize_fsb = endoffset_fsb - startoffset_fsb;
 
 	/*
 	 * Allocate file space until done or until there is an error
@@ -1532,24 +1534,16 @@ xfs_swap_extent_rmap(
 			trace_xfs_swap_extent_rmap_remap_piece(tip, &uirec);
 
 			/* Remove the mapping from the donor file. */
-			error = xfs_bmap_unmap_extent(tp, tip, &uirec);
-			if (error)
-				goto out;
+			xfs_bmap_unmap_extent(tp, tip, &uirec);
 
 			/* Remove the mapping from the source file. */
-			error = xfs_bmap_unmap_extent(tp, ip, &irec);
-			if (error)
-				goto out;
+			xfs_bmap_unmap_extent(tp, ip, &irec);
 
 			/* Map the donor file's blocks into the source file. */
-			error = xfs_bmap_map_extent(tp, ip, &uirec);
-			if (error)
-				goto out;
+			xfs_bmap_map_extent(tp, ip, &uirec);
 
 			/* Map the source file's blocks into the donor file. */
-			error = xfs_bmap_map_extent(tp, tip, &irec);
-			if (error)
-				goto out;
+			xfs_bmap_map_extent(tp, tip, &irec);
 
 			error = xfs_defer_finish(tpp);
 			tp = *tpp;

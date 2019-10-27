@@ -14,6 +14,7 @@
 
 #include <bpf.h>
 #include <libbpf.h>
+#include <zlib.h>
 
 #include "main.h"
 
@@ -284,34 +285,32 @@ static void probe_jit_limit(void)
 	}
 }
 
-static char *get_kernel_config_option(FILE *fd, const char *option)
+static bool read_next_kernel_config_option(gzFile file, char *buf, size_t n,
+					   char **value)
 {
-	size_t line_n = 0, optlen = strlen(option);
-	char *res, *strval, *line = NULL;
-	ssize_t n;
+	char *sep;
 
-	rewind(fd);
-	while ((n = getline(&line, &line_n, fd)) > 0) {
-		if (strncmp(line, option, optlen))
+	while (gzgets(file, buf, n)) {
+		if (strncmp(buf, "CONFIG_", 7))
 			continue;
-		/* Check we have at least '=', value, and '\n' */
-		if (strlen(line) < optlen + 3)
-			continue;
-		if (*(line + optlen) != '=')
+
+		sep = strchr(buf, '=');
+		if (!sep)
 			continue;
 
 		/* Trim ending '\n' */
-		line[strlen(line) - 1] = '\0';
+		buf[strlen(buf) - 1] = '\0';
 
-		/* Copy and return config option value */
-		strval = line + optlen + 1;
-		res = strdup(strval);
-		free(line);
-		return res;
+		/* Split on '=' and ensure that a value is present. */
+		*sep = '\0';
+		if (!sep[1])
+			continue;
+
+		*value = sep + 1;
+		return true;
 	}
-	free(line);
 
-	return NULL;
+	return false;
 }
 
 static void probe_kernel_image_config(void)
@@ -386,59 +385,61 @@ static void probe_kernel_image_config(void)
 		/* test_bpf module for BPF tests */
 		"CONFIG_TEST_BPF",
 	};
-	char *value, *buf = NULL;
+	char *values[ARRAY_SIZE(options)] = { };
 	struct utsname utsn;
 	char path[PATH_MAX];
-	size_t i, n;
-	ssize_t ret;
-	FILE *fd;
+	gzFile file = NULL;
+	char buf[4096];
+	char *value;
+	size_t i;
 
-	if (uname(&utsn))
-		goto no_config;
+	if (!uname(&utsn)) {
+		snprintf(path, sizeof(path), "/boot/config-%s", utsn.release);
 
-	snprintf(path, sizeof(path), "/boot/config-%s", utsn.release);
-
-	fd = fopen(path, "r");
-	if (!fd && errno == ENOENT) {
-		/* Some distributions put the config file at /proc/config, give
-		 * it a try.
-		 * Sometimes it is also at /proc/config.gz but we do not try
-		 * this one for now, it would require linking against libz.
-		 */
-		fd = fopen("/proc/config", "r");
+		/* gzopen also accepts uncompressed files. */
+		file = gzopen(path, "r");
 	}
-	if (!fd) {
+
+	if (!file) {
+		/* Some distributions build with CONFIG_IKCONFIG=y and put the
+		 * config file at /proc/config.gz.
+		 */
+		file = gzopen("/proc/config.gz", "r");
+	}
+	if (!file) {
 		p_info("skipping kernel config, can't open file: %s",
 		       strerror(errno));
-		goto no_config;
+		goto end_parse;
 	}
 	/* Sanity checks */
-	ret = getline(&buf, &n, fd);
-	ret = getline(&buf, &n, fd);
-	if (!buf || !ret) {
+	if (!gzgets(file, buf, sizeof(buf)) ||
+	    !gzgets(file, buf, sizeof(buf))) {
 		p_info("skipping kernel config, can't read from file: %s",
 		       strerror(errno));
-		free(buf);
-		goto no_config;
+		goto end_parse;
 	}
 	if (strcmp(buf, "# Automatically generated file; DO NOT EDIT.\n")) {
 		p_info("skipping kernel config, can't find correct file");
-		free(buf);
-		goto no_config;
+		goto end_parse;
 	}
-	free(buf);
+
+	while (read_next_kernel_config_option(file, buf, sizeof(buf), &value)) {
+		for (i = 0; i < ARRAY_SIZE(options); i++) {
+			if (values[i] || strcmp(buf, options[i]))
+				continue;
+
+			values[i] = strdup(value);
+		}
+	}
+
+end_parse:
+	if (file)
+		gzclose(file);
 
 	for (i = 0; i < ARRAY_SIZE(options); i++) {
-		value = get_kernel_config_option(fd, options[i]);
-		print_kernel_option(options[i], value);
-		free(value);
+		print_kernel_option(options[i], values[i]);
+		free(values[i]);
 	}
-	fclose(fd);
-	return;
-
-no_config:
-	for (i = 0; i < ARRAY_SIZE(options); i++)
-		print_kernel_option(options[i], NULL);
 }
 
 static bool probe_bpf_syscall(const char *define_prefix)

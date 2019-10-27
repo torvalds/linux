@@ -667,29 +667,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
 						    pipe_ctx->stream_res.stream_enc->id, true);
 
-	/* update AVI info frame (HDMI, DP)*/
-	/* TODO: FPGA may change to hwss.update_info_frame */
-
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	if (pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata != NULL &&
-			pipe_ctx->plane_res.hubp != NULL) {
-		if (pipe_ctx->stream->dmdata_address.quad_part != 0) {
-			/* if using dynamic meta, don't set up generic infopackets */
-			pipe_ctx->stream_res.encoder_info_frame.hdrsmd.valid = false;
-			pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata(
-					pipe_ctx->stream_res.stream_enc,
-					true, pipe_ctx->plane_res.hubp->inst,
-					dc_is_dp_signal(pipe_ctx->stream->signal) ?
-							dmdata_dp : dmdata_hdmi);
-		} else
-			pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata(
-					pipe_ctx->stream_res.stream_enc,
-					false, pipe_ctx->plane_res.hubp->inst,
-					dc_is_dp_signal(pipe_ctx->stream->signal) ?
-							dmdata_dp : dmdata_hdmi);
-	}
-#endif
-	dce110_update_info_frame(pipe_ctx);
+	link->dc->hwss.update_info_frame(pipe_ctx);
 
 	/* enable early control to avoid corruption on DP monitor*/
 	active_total_with_borders =
@@ -753,7 +731,7 @@ static enum bp_result link_transmitter_control(
  * @brief
  * eDP only.
  */
-void hwss_edp_wait_for_hpd_ready(
+void dce110_edp_wait_for_hpd_ready(
 		struct dc_link *link,
 		bool power_up)
 {
@@ -821,7 +799,7 @@ void hwss_edp_wait_for_hpd_ready(
 	}
 }
 
-void hwss_edp_power_control(
+void dce110_edp_power_control(
 		struct dc_link *link,
 		bool power_up)
 {
@@ -903,7 +881,7 @@ void hwss_edp_power_control(
  * @brief
  * eDP only. Control the backlight of the eDP panel
  */
-void hwss_edp_backlight_control(
+void dce110_edp_backlight_control(
 		struct dc_link *link,
 		bool enable)
 {
@@ -1003,7 +981,7 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 	}
 }
 
-void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
+void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc *dc;
 	struct pp_smu_funcs *pp_smu = NULL;
@@ -1026,24 +1004,13 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 		if (dc->res_pool->pp_smu)
 			pp_smu = dc->res_pool->pp_smu;
 
-		if (option != KEEP_ACQUIRED_RESOURCE ||
-				!dc->debug.az_endpoint_mute_only)
-			/*only disalbe az_endpoint if power down or free*/
-			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
-
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
 					pipe_ctx->stream_res.stream_enc);
 		else
 			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_disable(
 					pipe_ctx->stream_res.stream_enc);
-		/*don't free audio if it is from retrain or internal disable stream*/
-		if (option == FREE_ACQUIRED_RESOURCE && dc->caps.dynamic_audio == true) {
-			/*we have to dynamic arbitrate the audio endpoints*/
-			/*we free the resource, need reset is_audio_acquired*/
-			update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
-			pipe_ctx->stream_res.audio = NULL;
-		}
+
 		if (clk_mgr->funcs->enable_pme_wa)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
 			clk_mgr->funcs->enable_pme_wa(clk_mgr);
@@ -1056,21 +1023,24 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 	}
 }
 
-void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
+void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
-	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc);
+		pipe_ctx->stream_res.stream_enc->funcs->hdmi_reset_stream_attribute(
+			pipe_ctx->stream_res.stream_enc);
+	}
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc);
 
-	dc->hwss.disable_audio_stream(pipe_ctx, option);
+	dc->hwss.disable_audio_stream(pipe_ctx);
 
 	link->link_enc->funcs->connect_dig_be_to_fe(
 			link->link_enc,
@@ -1174,27 +1144,27 @@ static void build_audio_output(
 			stream->timing.flags.INTERLACE;
 
 	audio_output->crtc_info.refresh_rate =
-		(stream->timing.pix_clk_100hz*10000)/
+		(stream->timing.pix_clk_100hz*100)/
 		(stream->timing.h_total*stream->timing.v_total);
 
 	audio_output->crtc_info.color_depth =
 		stream->timing.display_color_depth;
 
-	audio_output->crtc_info.requested_pixel_clock =
-			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz / 10;
+	audio_output->crtc_info.requested_pixel_clock_100Hz =
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
-	audio_output->crtc_info.calculated_pixel_clock =
-			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz / 10;
+	audio_output->crtc_info.calculated_pixel_clock_100Hz =
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
 /*for HDMI, audio ACR is with deep color ratio factor*/
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal) &&
-		audio_output->crtc_info.requested_pixel_clock ==
-				(stream->timing.pix_clk_100hz / 10)) {
+		audio_output->crtc_info.requested_pixel_clock_100Hz ==
+				(stream->timing.pix_clk_100hz)) {
 		if (pipe_ctx->stream_res.pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
-			audio_output->crtc_info.requested_pixel_clock =
-					audio_output->crtc_info.requested_pixel_clock/2;
-			audio_output->crtc_info.calculated_pixel_clock =
-					pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz/20;
+			audio_output->crtc_info.requested_pixel_clock_100Hz =
+					audio_output->crtc_info.requested_pixel_clock_100Hz/2;
+			audio_output->crtc_info.calculated_pixel_clock_100Hz =
+					pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz/2;
 
 		}
 	}
@@ -1360,7 +1330,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	struct drr_params params = {0};
 	unsigned int event_triggers = 0;
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	struct pipe_ctx *odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+	struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
 #endif
 
 	if (dc->hwss.disable_stream_gating) {
@@ -1428,7 +1398,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		&stream->bit_depth_params,
 		&stream->clamping);
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	if (odm_pipe) {
+	while (odm_pipe) {
 		odm_pipe->stream_res.opp->funcs->opp_set_dyn_expansion(
 				odm_pipe->stream_res.opp,
 				COLOR_SPACE_YCBCR601,
@@ -1439,6 +1409,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 				odm_pipe->stream_res.opp,
 				&stream->bit_depth_params,
 				&stream->clamping);
+		odm_pipe = odm_pipe->next_odm_pipe;
 	}
 #endif
 
@@ -1748,7 +1719,8 @@ void dce110_set_safe_displaymarks(
  ******************************************************************************/
 
 static void set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, int vmin, int vmax)
+		int num_pipes, unsigned int vmin, unsigned int vmax,
+		unsigned int vmid, unsigned int vmid_frame_number)
 {
 	int i = 0;
 	struct drr_params params = {0};
@@ -1932,8 +1904,25 @@ static void dce110_reset_hw_ctx_wrap(
 			/* Disable if new stream is null. O/w, if stream is
 			 * disabled already, no need to disable again.
 			 */
-			if (!pipe_ctx->stream || !pipe_ctx->stream->dpms_off)
-				core_link_disable_stream(pipe_ctx_old, FREE_ACQUIRED_RESOURCE);
+			if (!pipe_ctx->stream || !pipe_ctx->stream->dpms_off) {
+				core_link_disable_stream(pipe_ctx_old);
+
+				/* free acquired resources*/
+				if (pipe_ctx_old->stream_res.audio) {
+					/*disable az_endpoint*/
+					pipe_ctx_old->stream_res.audio->funcs->
+							az_disable(pipe_ctx_old->stream_res.audio);
+
+					/*free audio*/
+					if (dc->caps.dynamic_audio == true) {
+						/*we have to dynamic arbitrate the audio endpoints*/
+						/*we free the resource, need reset is_audio_acquired*/
+						update_audio_usage(&dc->current_state->res_ctx, dc->res_pool,
+								pipe_ctx_old->stream_res.audio, false);
+						pipe_ctx_old->stream_res.audio = NULL;
+					}
+				}
+			}
 
 			pipe_ctx_old->stream_res.tg->funcs->set_blank(pipe_ctx_old->stream_res.tg, true);
 			if (!hwss_wait_for_blank_complete(pipe_ctx_old->stream_res.tg)) {
@@ -2098,7 +2087,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (pipe_ctx_old->stream && !pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
 			continue;
 
-		if (pipe_ctx->top_pipe)
+		if (pipe_ctx->top_pipe || pipe_ctx->prev_odm_pipe)
 			continue;
 
 		status = apply_single_controller_ctx_to_hw(
@@ -2777,9 +2766,9 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.setup_stereo = NULL,
 	.set_avmute = dce110_set_avmute,
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,
-	.edp_backlight_control = hwss_edp_backlight_control,
-	.edp_power_control = hwss_edp_power_control,
-	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,
+	.edp_backlight_control = dce110_edp_backlight_control,
+	.edp_power_control = dce110_edp_power_control,
+	.edp_wait_for_hpd_ready = dce110_edp_wait_for_hpd_ready,
 	.set_cursor_position = dce110_set_cursor_position,
 	.set_cursor_attribute = dce110_set_cursor_attribute
 };

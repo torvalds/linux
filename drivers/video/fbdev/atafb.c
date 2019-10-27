@@ -763,17 +763,17 @@ static void tt_get_par(struct atafb_par *par)
 {
 	unsigned long addr;
 	par->hw.tt.mode = shifter_tt.tt_shiftmode;
-	par->hw.tt.sync = shifter.syncmode;
-	addr = ((shifter.bas_hi & 0xff) << 16) |
-	       ((shifter.bas_md & 0xff) << 8)  |
-	       ((shifter.bas_lo & 0xff));
+	par->hw.tt.sync = shifter_st.syncmode;
+	addr = ((shifter_st.bas_hi & 0xff) << 16) |
+	       ((shifter_st.bas_md & 0xff) << 8)  |
+	       ((shifter_st.bas_lo & 0xff));
 	par->screen_base = atari_stram_to_virt(addr);
 }
 
 static void tt_set_par(struct atafb_par *par)
 {
 	shifter_tt.tt_shiftmode = par->hw.tt.mode;
-	shifter.syncmode = par->hw.tt.sync;
+	shifter_st.syncmode = par->hw.tt.sync;
 	/* only set screen_base if really necessary */
 	if (current_par.screen_base != par->screen_base)
 		fbhw->set_screen_base(par->screen_base);
@@ -1543,7 +1543,7 @@ static void falcon_get_par(struct atafb_par *par)
 	hw->f_shift = videl.f_shift;
 	hw->vid_control = videl.control;
 	hw->vid_mode = videl.mode;
-	hw->sync = shifter.syncmode & 0x1;
+	hw->sync = shifter_st.syncmode & 0x1;
 	hw->xoffset = videl.xoffset & 0xf;
 	hw->hht = videl.hht;
 	hw->hbb = videl.hbb;
@@ -1558,9 +1558,9 @@ static void falcon_get_par(struct atafb_par *par)
 	hw->vde = videl.vde;
 	hw->vss = videl.vss;
 
-	addr = (shifter.bas_hi & 0xff) << 16 |
-	       (shifter.bas_md & 0xff) << 8  |
-	       (shifter.bas_lo & 0xff);
+	addr = (shifter_st.bas_hi & 0xff) << 16 |
+	       (shifter_st.bas_md & 0xff) << 8  |
+	       (shifter_st.bas_lo & 0xff);
 	par->screen_base = atari_stram_to_virt(addr);
 
 	/* derived parameters */
@@ -1605,7 +1605,7 @@ static irqreturn_t falcon_vbl_switcher(int irq, void *dummy)
 			/* Turn off external clocks. Read sets all output bits to 1. */
 			*(volatile unsigned short *)0xffff9202;
 		}
-		shifter.syncmode = hw->sync;
+		shifter_st.syncmode = hw->sync;
 
 		videl.hht = hw->hht;
 		videl.hbb = hw->hbb;
@@ -1952,18 +1952,18 @@ static void stste_get_par(struct atafb_par *par)
 {
 	unsigned long addr;
 	par->hw.st.mode = shifter_tt.st_shiftmode;
-	par->hw.st.sync = shifter.syncmode;
-	addr = ((shifter.bas_hi & 0xff) << 16) |
-	       ((shifter.bas_md & 0xff) << 8);
+	par->hw.st.sync = shifter_st.syncmode;
+	addr = ((shifter_st.bas_hi & 0xff) << 16) |
+	       ((shifter_st.bas_md & 0xff) << 8);
 	if (ATARIHW_PRESENT(EXTD_SHIFTER))
-		addr |= (shifter.bas_lo & 0xff);
+		addr |= (shifter_st.bas_lo & 0xff);
 	par->screen_base = atari_stram_to_virt(addr);
 }
 
 static void stste_set_par(struct atafb_par *par)
 {
 	shifter_tt.st_shiftmode = par->hw.st.mode;
-	shifter.syncmode = par->hw.st.sync;
+	shifter_st.syncmode = par->hw.st.sync;
 	/* only set screen_base if really necessary */
 	if (current_par.screen_base != par->screen_base)
 		fbhw->set_screen_base(par->screen_base);
@@ -2018,10 +2018,10 @@ static void stste_set_screen_base(void *s_base)
 	unsigned long addr;
 	addr = atari_stram_to_phys(s_base);
 	/* Setup Screen Memory */
-	shifter.bas_hi = (unsigned char)((addr & 0xff0000) >> 16);
-	shifter.bas_md = (unsigned char)((addr & 0x00ff00) >> 8);
+	shifter_st.bas_hi = (unsigned char)((addr & 0xff0000) >> 16);
+	shifter_st.bas_md = (unsigned char)((addr & 0x00ff00) >> 8);
 	if (ATARIHW_PRESENT(EXTD_SHIFTER))
-		shifter.bas_lo = (unsigned char)(addr & 0x0000ff);
+		shifter_st.bas_lo = (unsigned char)(addr & 0x0000ff);
 }
 
 #endif /* ATAFB_STE */
@@ -2265,9 +2265,9 @@ static void set_screen_base(void *s_base)
 
 	addr = atari_stram_to_phys(s_base);
 	/* Setup Screen Memory */
-	shifter.bas_hi = (unsigned char)((addr & 0xff0000) >> 16);
-	shifter.bas_md = (unsigned char)((addr & 0x00ff00) >> 8);
-	shifter.bas_lo = (unsigned char)(addr & 0x0000ff);
+	shifter_st.bas_hi = (unsigned char)((addr & 0xff0000) >> 16);
+	shifter_st.bas_md = (unsigned char)((addr & 0x00ff00) >> 8);
+	shifter_st.bas_lo = (unsigned char)(addr & 0x0000ff);
 }
 
 static int pan_display(struct fb_var_screeninfo *var, struct fb_info *info)

@@ -630,6 +630,9 @@ int geni_se_tx_dma_prep(struct geni_se *se, void *buf, size_t len,
 	struct geni_wrapper *wrapper = se->wrapper;
 	u32 val;
 
+	if (!wrapper)
+		return -EINVAL;
+
 	*iova = dma_map_single(wrapper->dev, buf, len, DMA_TO_DEVICE);
 	if (dma_mapping_error(wrapper->dev, *iova))
 		return -EIO;
@@ -662,6 +665,9 @@ int geni_se_rx_dma_prep(struct geni_se *se, void *buf, size_t len,
 {
 	struct geni_wrapper *wrapper = se->wrapper;
 	u32 val;
+
+	if (!wrapper)
+		return -EINVAL;
 
 	*iova = dma_map_single(wrapper->dev, buf, len, DMA_FROM_DEVICE);
 	if (dma_mapping_error(wrapper->dev, *iova))

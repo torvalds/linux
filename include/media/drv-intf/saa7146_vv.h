@@ -32,7 +32,6 @@ struct	saa7146_video_dma {
 #define FORMAT_IS_PLANAR	0x2
 
 struct saa7146_format {
-	char	*name;
 	u32	pixelformat;
 	u32	trans;
 	u8	depth;

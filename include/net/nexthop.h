@@ -141,12 +141,6 @@ static inline unsigned int nexthop_num_path(const struct nexthop *nh)
 
 		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
 		rc = nh_grp->num_nh;
-	} else {
-		const struct nh_info *nhi;
-
-		nhi = rcu_dereference_rtnl(nh->nh_info);
-		if (nhi->reject_nh)
-			rc = 0;
 	}
 
 	return rc;
@@ -167,7 +161,8 @@ struct nexthop *nexthop_mpath_select(const struct nexthop *nh, int nhsel)
 }
 
 static inline
-int nexthop_mpath_fill_node(struct sk_buff *skb, struct nexthop *nh)
+int nexthop_mpath_fill_node(struct sk_buff *skb, struct nexthop *nh,
+			    u8 rt_family)
 {
 	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 	int i;
@@ -178,7 +173,7 @@ int nexthop_mpath_fill_node(struct sk_buff *skb, struct nexthop *nh)
 		struct fib_nh_common *nhc = &nhi->fib_nhc;
 		int weight = nhg->nh_entries[i].weight;
 
-		if (fib_add_nexthop(skb, nhc, weight) < 0)
+		if (fib_add_nexthop(skb, nhc, weight, rt_family) < 0)
 			return -EMSGSIZE;
 	}
 

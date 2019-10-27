@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include "cache.h"
+#include <subcmd/pager.h>
+#include <string.h>
 #include "config.h"
 #include <stdlib.h>
 #include <stdio.h>

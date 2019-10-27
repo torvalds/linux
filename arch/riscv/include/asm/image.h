@@ -3,7 +3,8 @@
 #ifndef __ASM_IMAGE_H
 #define __ASM_IMAGE_H
 
-#define RISCV_IMAGE_MAGIC	"RISCV"
+#define RISCV_IMAGE_MAGIC	"RISCV\0\0\0"
+#define RISCV_IMAGE_MAGIC2	"RSC\x05"
 
 #define RISCV_IMAGE_FLAG_BE_SHIFT	0
 #define RISCV_IMAGE_FLAG_BE_MASK	0x1
@@ -23,7 +24,7 @@
 #define __HEAD_FLAGS		(__HEAD_FLAG(BE))
 
 #define RISCV_HEADER_VERSION_MAJOR 0
-#define RISCV_HEADER_VERSION_MINOR 1
+#define RISCV_HEADER_VERSION_MINOR 2
 
 #define RISCV_HEADER_VERSION (RISCV_HEADER_VERSION_MAJOR << 16 | \
 			      RISCV_HEADER_VERSION_MINOR)
@@ -39,9 +40,8 @@
  * @version:		version
  * @res1:		reserved
  * @res2:		reserved
- * @magic:		Magic number
- * @res3:		reserved (will be used for additional RISC-V specific
- *			header)
+ * @magic:		Magic number (RISC-V specific; deprecated)
+ * @magic2:		Magic number 2 (to match the ARM64 'magic' field pos)
  * @res4:		reserved (will be used for PE COFF offset)
  *
  * The intention is for this header format to be shared between multiple
@@ -58,7 +58,7 @@ struct riscv_image_header {
 	u32 res1;
 	u64 res2;
 	u64 magic;
-	u32 res3;
+	u32 magic2;
 	u32 res4;
 };
 #endif /* __ASSEMBLY__ */

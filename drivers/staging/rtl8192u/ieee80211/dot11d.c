@@ -12,7 +12,7 @@ void rtl8192u_dot11d_init(struct ieee80211_device *ieee)
 	dot11d_info->state = DOT11D_STATE_NONE;
 	dot11d_info->country_ie_len = 0;
 	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
-	memset(dot11d_info->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER+1);
+	memset(dot11d_info->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	RESET_CIE_WATCHDOG(ieee);
 
 	netdev_info(ieee->dev, "rtl8192u_dot11d_init()\n");
@@ -25,8 +25,8 @@ void dot11d_reset(struct ieee80211_device *ieee)
 	u32 i;
 	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(ieee);
 	/* Clear old channel map */
-	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER+1);
-	memset(dot11d_info->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER+1);
+	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
+	memset(dot11d_info->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	/* Set new channel map */
 	for (i = 1; i <= 11; i++)
 		(dot11d_info->channel_map)[i] = 1;
@@ -56,8 +56,8 @@ void dot11d_update_country_ie(struct ieee80211_device *dev, u8 *pTaddr,
 	u8 i, j, NumTriples, MaxChnlNum;
 	struct chnl_txpower_triple *pTriple;
 
-	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER+1);
-	memset(dot11d_info->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER+1);
+	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
+	memset(dot11d_info->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	MaxChnlNum = 0;
 	NumTriples = (CoutryIeLen - 3) / 3; /* skip 3-byte country string. */
 	pTriple = (struct chnl_txpower_triple *)(pCoutryIe + 3);

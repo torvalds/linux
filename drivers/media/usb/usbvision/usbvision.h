@@ -264,7 +264,6 @@ struct usbvision_v4l2_format_st {
 	int		bytes_per_pixel;
 	int		depth;
 	int		format;
-	char		*desc;
 };
 #define USBVISION_SUPPORTED_PALETTES ARRAY_SIZE(usbvision_v4l2_format)
 

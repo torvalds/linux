@@ -86,6 +86,22 @@ static const char *nvme_trace_admin_get_features(struct trace_seq *p,
 	return ret;
 }
 
+static const char *nvme_trace_get_lba_status(struct trace_seq *p,
+					     u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u64 slba = get_unaligned_le64(cdw10);
+	u32 mndw = get_unaligned_le32(cdw10 + 8);
+	u16 rl = get_unaligned_le16(cdw10 + 12);
+	u8 atype = cdw10[15];
+
+	trace_seq_printf(p, "slba=0x%llx, mndw=0x%x, rl=0x%x, atype=%u",
+			slba, mndw, rl, atype);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
 static const char *nvme_trace_read_write(struct trace_seq *p, u8 *cdw10)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -141,6 +157,8 @@ const char *nvme_trace_parse_admin_cmd(struct trace_seq *p,
 		return nvme_trace_admin_identify(p, cdw10);
 	case nvme_admin_get_features:
 		return nvme_trace_admin_get_features(p, cdw10);
+	case nvme_admin_get_lba_status:
+		return nvme_trace_get_lba_status(p, cdw10);
 	default:
 		return nvme_trace_common(p, cdw10);
 	}

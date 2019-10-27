@@ -308,7 +308,6 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
-	struct resource *res;
 	struct meson8b_dwmac *dwmac;
 	int ret;
 
@@ -332,8 +331,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_remove_config_dt;
 	}
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	dwmac->regs = devm_ioremap_resource(&pdev->dev, res);
+	dwmac->regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dwmac->regs)) {
 		ret = PTR_ERR(dwmac->regs);
 		goto err_remove_config_dt;
@@ -341,7 +339,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 
 	dwmac->dev = &pdev->dev;
 	dwmac->phy_mode = of_get_phy_mode(pdev->dev.of_node);
-	if (dwmac->phy_mode < 0) {
+	if ((int)dwmac->phy_mode < 0) {
 		dev_err(&pdev->dev, "missing phy-mode property\n");
 		ret = -EINVAL;
 		goto err_remove_config_dt;

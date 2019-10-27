@@ -16,9 +16,11 @@ overall control of how tasks are to be run::
 
     #include <linux/padata.h>
 
-    struct padata_instance *padata_alloc(struct workqueue_struct *wq,
+    struct padata_instance *padata_alloc(const char *name,
 					 const struct cpumask *pcpumask,
 					 const struct cpumask *cbcpumask);
+
+'name' simply identifies the instance.
 
 The pcpumask describes which processors will be used to execute work
 submitted to this instance in parallel. The cbcpumask defines which
@@ -128,8 +130,7 @@ in that CPU mask or about a not running instance.
 
 Each task submitted to padata_do_parallel() will, in turn, be passed to
 exactly one call to the above-mentioned parallel() function, on one CPU, so
-true parallelism is achieved by submitting multiple tasks.  Despite the
-fact that the workqueue is used to make these calls, parallel() is run with
+true parallelism is achieved by submitting multiple tasks.  parallel() runs with
 software interrupts disabled and thus cannot sleep.  The parallel()
 function gets the padata_priv structure pointer as its lone parameter;
 information about the actual work to be done is probably obtained by using
@@ -148,7 +149,7 @@ fact with a call to::
 At some point in the future, padata_do_serial() will trigger a call to the
 serial() function in the padata_priv structure.  That call will happen on
 the CPU requested in the initial call to padata_do_parallel(); it, too, is
-done through the workqueue, but with local software interrupts disabled.
+run with local software interrupts disabled.
 Note that this call may be deferred for a while since the padata code takes
 pains to ensure that tasks are completed in the order in which they were
 submitted.
@@ -159,5 +160,4 @@ when a padata instance is no longer needed::
     void padata_free(struct padata_instance *pinst);
 
 This function will busy-wait while any remaining tasks are completed, so it
-might be best not to call it while there is work outstanding.  Shutting
-down the workqueue, if necessary, should be done separately.
+might be best not to call it while there is work outstanding.

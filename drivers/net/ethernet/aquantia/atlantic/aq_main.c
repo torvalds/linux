@@ -61,6 +61,10 @@ static int aq_ndev_open(struct net_device *ndev)
 	if (err < 0)
 		goto err_exit;
 
+	err = aq_filters_vlans_update(aq_nic);
+	if (err < 0)
+		goto err_exit;
+
 	err = aq_nic_start(aq_nic);
 	if (err < 0)
 		goto err_exit;
@@ -190,9 +194,7 @@ static void aq_ndev_set_multicast_settings(struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
-	aq_nic_set_packet_filter(aq_nic, ndev->flags);
-
-	aq_nic_set_multicast_list(aq_nic, ndev);
+	(void)aq_nic_set_multicast_list(aq_nic, ndev);
 }
 
 static int aq_ndo_vlan_rx_add_vid(struct net_device *ndev, __be16 proto,

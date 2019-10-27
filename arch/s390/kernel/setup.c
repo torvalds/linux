@@ -99,6 +99,7 @@ int __bootdata_preserved(prot_virt_guest);
 int __bootdata(noexec_disabled);
 int __bootdata(memory_end_set);
 unsigned long __bootdata(memory_end);
+unsigned long __bootdata(vmalloc_size);
 unsigned long __bootdata(max_physmem_end);
 struct mem_detect_info __bootdata(mem_detect);
 
@@ -168,15 +169,15 @@ static void __init set_preferred_console(void)
 static int __init conmode_setup(char *str)
 {
 #if defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
-	if (strncmp(str, "hwc", 4) == 0 || strncmp(str, "sclp", 5) == 0)
+	if (!strcmp(str, "hwc") || !strcmp(str, "sclp"))
                 SET_CONSOLE_SCLP;
 #endif
 #if defined(CONFIG_TN3215_CONSOLE)
-	if (strncmp(str, "3215", 5) == 0)
+	if (!strcmp(str, "3215"))
 		SET_CONSOLE_3215;
 #endif
 #if defined(CONFIG_TN3270_CONSOLE)
-	if (strncmp(str, "3270", 5) == 0)
+	if (!strcmp(str, "3270"))
 		SET_CONSOLE_3270;
 #endif
 	set_preferred_console();
@@ -211,7 +212,7 @@ static void __init conmode_default(void)
 #endif
 			return;
 		}
-		if (strncmp(ptr + 8, "3270", 4) == 0) {
+		if (str_has_prefix(ptr + 8, "3270")) {
 #if defined(CONFIG_TN3270_CONSOLE)
 			SET_CONSOLE_3270;
 #elif defined(CONFIG_TN3215_CONSOLE)
@@ -219,7 +220,7 @@ static void __init conmode_default(void)
 #elif defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 			SET_CONSOLE_SCLP;
 #endif
-		} else if (strncmp(ptr + 8, "3215", 4) == 0) {
+		} else if (str_has_prefix(ptr + 8, "3215")) {
 #if defined(CONFIG_TN3215_CONSOLE)
 			SET_CONSOLE_3215;
 #elif defined(CONFIG_TN3270_CONSOLE)
@@ -301,15 +302,6 @@ void machine_power_off(void)
  */
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL_GPL(pm_power_off);
-
-static int __init parse_vmalloc(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-	VMALLOC_END = (memparse(arg, &arg) + PAGE_SIZE - 1) & PAGE_MASK;
-	return 0;
-}
-early_param("vmalloc", parse_vmalloc);
 
 void *restart_stack __section(.data);
 
@@ -563,10 +555,9 @@ static void __init setup_resources(void)
 
 static void __init setup_memory_end(void)
 {
-	unsigned long vmax, vmalloc_size, tmp;
+	unsigned long vmax, tmp;
 
 	/* Choose kernel address space layout: 3 or 4 levels. */
-	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
 	if (IS_ENABLED(CONFIG_KASAN)) {
 		vmax = IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)
 			   ? _REGION1_SIZE
@@ -989,6 +980,10 @@ static int __init setup_hwcaps(void)
 	case 0x3906:
 	case 0x3907:
 		strcpy(elf_platform, "z14");
+		break;
+	case 0x8561:
+	case 0x8562:
+		strcpy(elf_platform, "z15");
 		break;
 	}
 

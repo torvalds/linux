@@ -2,6 +2,7 @@
 // Copyright (c) 2019 Mellanox Technologies.
 
 #include "mlx5_core.h"
+#include "lib/mlx5.h"
 
 int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
 			       void *key, u32 sz_bytes,
@@ -27,6 +28,7 @@ int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
 	case 128:
 		general_obj_key_size =
 			MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_KEY_SIZE_128;
+		key_p += sz_bytes;
 		break;
 	case 256:
 		general_obj_key_size =

@@ -10,10 +10,7 @@
  *
  */
 
-#include "../perf.h"
-#include "../util/util.h"
 #include <subcmd/parse-options.h>
-#include "../builtin.h"
 #include "bench.h"
 
 /* Test groups of 20 processes spraying to 20 receivers */

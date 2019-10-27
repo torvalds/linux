@@ -55,8 +55,8 @@ void tso_build_data(struct sk_buff *skb, struct tso_t *tso, int size)
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[tso->next_frag_idx];
 
 		/* Move to next segment */
-		tso->size = frag->size;
-		tso->data = page_address(frag->page.p) + frag->page_offset;
+		tso->size = skb_frag_size(frag);
+		tso->data = skb_frag_address(frag);
 		tso->next_frag_idx++;
 	}
 }
@@ -79,8 +79,8 @@ void tso_start(struct sk_buff *skb, struct tso_t *tso)
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[tso->next_frag_idx];
 
 		/* Move to next segment */
-		tso->size = frag->size;
-		tso->data = page_address(frag->page.p) + frag->page_offset;
+		tso->size = skb_frag_size(frag);
+		tso->data = skb_frag_address(frag);
 		tso->next_frag_idx++;
 	}
 }

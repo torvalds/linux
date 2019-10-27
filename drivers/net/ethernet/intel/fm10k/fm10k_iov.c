@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include "fm10k.h"
 #include "fm10k_vf.h"
@@ -426,7 +426,7 @@ static s32 fm10k_iov_alloc_data(struct pci_dev *pdev, int num_vfs)
 	struct fm10k_iov_data *iov_data = interface->iov_data;
 	struct fm10k_hw *hw = &interface->hw;
 	size_t size;
-	int i, err;
+	int i;
 
 	/* return error if iov_data is already populated */
 	if (iov_data)
@@ -452,6 +452,7 @@ static s32 fm10k_iov_alloc_data(struct pci_dev *pdev, int num_vfs)
 	/* loop through vf_info structures initializing each entry */
 	for (i = 0; i < num_vfs; i++) {
 		struct fm10k_vf_info *vf_info = &iov_data->vf_info[i];
+		int err;
 
 		/* Record VF VSI value */
 		vf_info->vsi = i + 1;

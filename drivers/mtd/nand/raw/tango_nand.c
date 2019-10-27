@@ -659,6 +659,7 @@ static int tango_nand_probe(struct platform_device *pdev)
 		err = chip_init(&pdev->dev, np);
 		if (err) {
 			tango_nand_remove(pdev);
+			of_node_put(np);
 			return err;
 		}
 	}

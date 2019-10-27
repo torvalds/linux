@@ -416,8 +416,10 @@ struct komeda_pipeline {
 	struct device_node *of_node;
 	/** @of_output_port: pipeline output port */
 	struct device_node *of_output_port;
-	/** @of_output_dev: output connector device node */
-	struct device_node *of_output_dev;
+	/** @of_output_links: output connector device nodes */
+	struct device_node *of_output_links[2];
+	/** @dual_link: true if of_output_links[0] and [1] are both valid */
+	bool dual_link;
 };
 
 /**
@@ -480,6 +482,7 @@ void komeda_pipeline_dump_register(struct komeda_pipeline *pipe,
 				   struct seq_file *sf);
 
 /* component APIs */
+extern __printf(10, 11)
 struct komeda_component *
 komeda_component_add(struct komeda_pipeline *pipe,
 		     size_t comp_sz, u32 id, u32 hw_id,

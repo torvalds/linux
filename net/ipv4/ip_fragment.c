@@ -393,6 +393,11 @@ err:
 	return err;
 }
 
+static bool ip_frag_coalesce_ok(const struct ipq *qp)
+{
+	return qp->q.key.v4.user == IP_DEFRAG_LOCAL_DELIVER;
+}
+
 /* Build a new IP datagram from all its fragments. */
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 			 struct sk_buff *prev_tail, struct net_device *dev)
@@ -421,7 +426,8 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 	if (len > 65535)
 		goto out_oversize;
 
-	inet_frag_reasm_finish(&qp->q, skb, reasm_data);
+	inet_frag_reasm_finish(&qp->q, skb, reasm_data,
+			       ip_frag_coalesce_ok(qp));
 
 	skb->dev = dev;
 	IPCB(skb)->frag_max_size = max(qp->max_df_size, qp->q.max_size);

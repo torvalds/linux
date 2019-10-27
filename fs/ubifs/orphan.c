@@ -129,7 +129,6 @@ static void __orphan_drop(struct ubifs_info *c, struct ubifs_orphan *o)
 static void orphan_delete(struct ubifs_info *c, struct ubifs_orphan *orph)
 {
 	if (orph->del) {
-		spin_unlock(&c->orphan_lock);
 		dbg_gen("deleted twice ino %lu", orph->inum);
 		return;
 	}
@@ -138,7 +137,6 @@ static void orphan_delete(struct ubifs_info *c, struct ubifs_orphan *orph)
 		orph->del = 1;
 		orph->dnext = c->orph_dnext;
 		c->orph_dnext = orph;
-		spin_unlock(&c->orphan_lock);
 		dbg_gen("delete later ino %lu", orph->inum);
 		return;
 	}

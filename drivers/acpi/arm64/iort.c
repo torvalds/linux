@@ -1256,12 +1256,12 @@ static int  __init arm_smmu_v3_set_proximity(struct device *dev,
 
 	smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
 	if (smmu->flags & ACPI_IORT_SMMU_V3_PXM_VALID) {
-		int node = acpi_map_pxm_to_node(smmu->pxm);
+		int dev_node = acpi_map_pxm_to_node(smmu->pxm);
 
-		if (node != NUMA_NO_NODE && !node_online(node))
+		if (dev_node != NUMA_NO_NODE && !node_online(dev_node))
 			return -EINVAL;
 
-		set_dev_node(dev, node);
+		set_dev_node(dev, dev_node);
 		pr_info("SMMU-v3[%llx] Mapped to Proximity domain %d\n",
 			smmu->base_address,
 			smmu->pxm);

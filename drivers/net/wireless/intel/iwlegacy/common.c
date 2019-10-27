@@ -4942,8 +4942,7 @@ EXPORT_SYMBOL(il_add_beacon_time);
 static int
 il_pci_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct il_priv *il = pci_get_drvdata(pdev);
+	struct il_priv *il = dev_get_drvdata(device);
 
 	/*
 	 * This function is called when system goes into suspend state

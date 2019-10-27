@@ -163,9 +163,9 @@ xfs_efi_init(
 	if (nextents > XFS_EFI_MAX_FAST_EXTENTS) {
 		size = (uint)(sizeof(xfs_efi_log_item_t) +
 			((nextents - 1) * sizeof(xfs_extent_t)));
-		efip = kmem_zalloc(size, KM_SLEEP);
+		efip = kmem_zalloc(size, 0);
 	} else {
-		efip = kmem_zone_zalloc(xfs_efi_zone, KM_SLEEP);
+		efip = kmem_zone_zalloc(xfs_efi_zone, 0);
 	}
 
 	xfs_log_item_init(mp, &efip->efi_item, XFS_LI_EFI, &xfs_efi_item_ops);
@@ -333,9 +333,9 @@ xfs_trans_get_efd(
 	if (nextents > XFS_EFD_MAX_FAST_EXTENTS) {
 		efdp = kmem_zalloc(sizeof(struct xfs_efd_log_item) +
 				(nextents - 1) * sizeof(struct xfs_extent),
-				KM_SLEEP);
+				0);
 	} else {
-		efdp = kmem_zone_zalloc(xfs_efd_zone, KM_SLEEP);
+		efdp = kmem_zone_zalloc(xfs_efd_zone, 0);
 	}
 
 	xfs_log_item_init(tp->t_mountp, &efdp->efd_item, XFS_LI_EFD,

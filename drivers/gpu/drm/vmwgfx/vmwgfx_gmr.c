@@ -25,9 +25,9 @@
  *
  **************************************************************************/
 
-#include "vmwgfx_drv.h"
-#include <drm/drmP.h>
 #include <drm/ttm/ttm_bo_driver.h>
+
+#include "vmwgfx_drv.h"
 
 #define VMW_PPN_SIZE (sizeof(unsigned long))
 /* A future safe maximum remap size. */

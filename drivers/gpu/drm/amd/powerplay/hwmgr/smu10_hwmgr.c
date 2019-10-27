@@ -1311,6 +1311,12 @@ static int smu10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uin
 	return 0;
 }
 
+static int smu10_asic_reset(struct pp_hwmgr *hwmgr, enum SMU_ASIC_RESET_MODE mode)
+{
+	return smum_send_msg_to_smc_with_parameter(hwmgr,
+						   PPSMC_MSG_DeviceDriverReset,
+						   mode);
+}
 
 static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.backend_init = smu10_hwmgr_backend_init,
@@ -1355,6 +1361,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.set_hard_min_fclk_by_freq = smu10_set_hard_min_fclk_by_freq,
 	.get_power_profile_mode = smu10_get_power_profile_mode,
 	.set_power_profile_mode = smu10_set_power_profile_mode,
+	.asic_reset = smu10_asic_reset,
 };
 
 int smu10_init_function_pointers(struct pp_hwmgr *hwmgr)

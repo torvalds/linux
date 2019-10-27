@@ -26,7 +26,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
 
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_dvo_dev.h"
 
 #define SIL164_VID 0x0001

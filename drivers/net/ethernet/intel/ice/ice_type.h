@@ -4,18 +4,19 @@
 #ifndef _ICE_TYPE_H_
 #define _ICE_TYPE_H_
 
+#define ICE_BYTES_PER_WORD	2
+#define ICE_BYTES_PER_DWORD	4
+
 #include "ice_status.h"
 #include "ice_hw_autogen.h"
 #include "ice_osdep.h"
 #include "ice_controlq.h"
 #include "ice_lan_tx_rx.h"
+#include "ice_flex_type.h"
 
-#define ICE_BYTES_PER_WORD	2
-#define ICE_BYTES_PER_DWORD	4
-
-static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
+static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 {
-	return test_bit(tc, (unsigned long *)&bitmap);
+	return test_bit(tc, &bitmap);
 }
 
 /* Driver always calls main vsi_handle first */
@@ -31,6 +32,7 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 #define ICE_DBG_LAN		BIT_ULL(8)
 #define ICE_DBG_SW		BIT_ULL(13)
 #define ICE_DBG_SCHED		BIT_ULL(14)
+#define ICE_DBG_PKG		BIT_ULL(16)
 #define ICE_DBG_RES		BIT_ULL(17)
 #define ICE_DBG_AQ_MSG		BIT_ULL(24)
 #define ICE_DBG_AQ_CMD		BIT_ULL(27)
@@ -51,6 +53,14 @@ enum ice_aq_res_ids {
 enum ice_aq_res_access_type {
 	ICE_RES_READ = 1,
 	ICE_RES_WRITE
+};
+
+struct ice_driver_ver {
+	u8 major_ver;
+	u8 minor_ver;
+	u8 build_ver;
+	u8 subbuild_ver;
+	u8 driver_string[32];
 };
 
 enum ice_fc_mode {
@@ -139,6 +149,9 @@ struct ice_phy_info {
 /* Common HW capabilities for SW use */
 struct ice_hw_common_caps {
 	u32 valid_functions;
+	/* DCB capabilities */
+	u32 active_tc_bitmap;
+	u32 maxtc;
 
 	/* Tx/Rx queues */
 	u16 num_rxq;		/* Number/Total Rx queues */
@@ -218,6 +231,8 @@ struct ice_nvm_info {
 	u16 ver;                  /* NVM package version */
 	u8 blank_nvm_mode;        /* is NVM empty (no FW present) */
 };
+
+#define ICE_NVM_VER_LEN	32
 
 /* Max number of port to queue branches w.r.t topology */
 #define ICE_MAX_TRAFFIC_CLASS 8
@@ -347,6 +362,8 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
+	struct ice_sched_node *
+		sib_head[ICE_MAX_TRAFFIC_CLASS][ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	struct ice_dcbx_cfg local_dcbx_cfg;	/* Oper/Local Cfg */
 	/* DCBX info */
 	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
@@ -454,6 +471,30 @@ struct ice_hw {
 
 	u8 ucast_shared;	/* true if VSIs can share unicast addr */
 
+	/* Active package version (currently active) */
+	struct ice_pkg_ver active_pkg_ver;
+	u8 active_pkg_name[ICE_PKG_NAME_SIZE];
+	u8 active_pkg_in_nvm;
+
+	enum ice_aq_err pkg_dwnld_status;
+
+	/* Driver's package ver - (from the Metadata seg) */
+	struct ice_pkg_ver pkg_ver;
+	u8 pkg_name[ICE_PKG_NAME_SIZE];
+
+	/* Driver's Ice package version (from the Ice seg) */
+	struct ice_pkg_ver ice_pkg_ver;
+	u8 ice_pkg_name[ICE_PKG_NAME_SIZE];
+
+	/* Pointer to the ice segment */
+	struct ice_seg *seg;
+
+	/* Pointer to allocated copy of pkg memory */
+	u8 *pkg_copy;
+	u32 pkg_size;
+
+	/* HW block tables */
+	struct ice_blk_info blk[ICE_BLK_COUNT];
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */

@@ -195,18 +195,63 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 	tsk->thread.last_hit_ubp = NULL;
 }
 
+static bool is_larx_stcx_instr(struct pt_regs *regs, unsigned int instr)
+{
+	int ret, type;
+	struct instruction_op op;
+
+	ret = analyse_instr(&op, regs, instr);
+	type = GETTYPE(op.type);
+	return (!ret && (type == LARX || type == STCX));
+}
+
 /*
  * Handle debug exception notifications.
  */
+static bool stepping_handler(struct pt_regs *regs, struct perf_event *bp,
+			     unsigned long addr)
+{
+	unsigned int instr = 0;
+
+	if (__get_user_inatomic(instr, (unsigned int *)regs->nip))
+		goto fail;
+
+	if (is_larx_stcx_instr(regs, instr)) {
+		printk_ratelimited("Breakpoint hit on instruction that can't be emulated."
+				   " Breakpoint at 0x%lx will be disabled.\n", addr);
+		goto disable;
+	}
+
+	/* Do not emulate user-space instructions, instead single-step them */
+	if (user_mode(regs)) {
+		current->thread.last_hit_ubp = bp;
+		regs->msr |= MSR_SE;
+		return false;
+	}
+
+	if (!emulate_step(regs, instr))
+		goto fail;
+
+	return true;
+
+fail:
+	/*
+	 * We've failed in reliably handling the hw-breakpoint. Unregister
+	 * it and throw a warning message to let the user know about it.
+	 */
+	WARN(1, "Unable to handle hardware breakpoint. Breakpoint at "
+		"0x%lx will be disabled.", addr);
+
+disable:
+	perf_event_disable_inatomic(bp);
+	return false;
+}
+
 int hw_breakpoint_handler(struct die_args *args)
 {
 	int rc = NOTIFY_STOP;
 	struct perf_event *bp;
 	struct pt_regs *regs = args->regs;
-#ifndef CONFIG_PPC_8xx
-	int stepped = 1;
-	unsigned int instr;
-#endif
 	struct arch_hw_breakpoint *info;
 	unsigned long dar = regs->dar;
 
@@ -251,31 +296,9 @@ int hw_breakpoint_handler(struct die_args *args)
 	      (dar - bp->attr.bp_addr < bp->attr.bp_len)))
 		info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
 
-#ifndef CONFIG_PPC_8xx
-	/* Do not emulate user-space instructions, instead single-step them */
-	if (user_mode(regs)) {
-		current->thread.last_hit_ubp = bp;
-		regs->msr |= MSR_SE;
+	if (!IS_ENABLED(CONFIG_PPC_8xx) && !stepping_handler(regs, bp, info->address))
 		goto out;
-	}
 
-	stepped = 0;
-	instr = 0;
-	if (!__get_user_inatomic(instr, (unsigned int *) regs->nip))
-		stepped = emulate_step(regs, instr);
-
-	/*
-	 * emulate_step() could not execute it. We've failed in reliably
-	 * handling the hw-breakpoint. Unregister it and throw a warning
-	 * message to let the user know about it.
-	 */
-	if (!stepped) {
-		WARN(1, "Unable to handle hardware breakpoint. Breakpoint at "
-			"0x%lx will be disabled.", info->address);
-		perf_event_disable_inatomic(bp);
-		goto out;
-	}
-#endif
 	/*
 	 * As a policy, the callback is invoked in a 'trigger-after-execute'
 	 * fashion

@@ -46,7 +46,7 @@ We can represent these as three OPPs as the following {Hz, uV} tuples:
 ----------------------------------------
 
 OPP library provides a set of helper functions to organize and query the OPP
-information. The library is located in drivers/base/power/opp.c and the header
+information. The library is located in drivers/opp/ directory and the header
 is located in include/linux/pm_opp.h. OPP library can be enabled by enabling
 CONFIG_PM_OPP from power management menuconfig menu. OPP library depends on
 CONFIG_PM as certain SoCs such as Texas Instrument's OMAP framework allows to

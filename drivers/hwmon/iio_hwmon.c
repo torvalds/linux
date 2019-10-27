@@ -44,11 +44,19 @@ static ssize_t iio_hwmon_read_val(struct device *dev,
 	int ret;
 	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	struct iio_hwmon_state *state = dev_get_drvdata(dev);
+	struct iio_channel *chan = &state->channels[sattr->index];
+	enum iio_chan_type type;
 
-	ret = iio_read_channel_processed(&state->channels[sattr->index],
-					&result);
+	ret = iio_read_channel_processed(chan, &result);
 	if (ret < 0)
 		return ret;
+
+	ret = iio_get_channel_type(chan, &type);
+	if (ret < 0)
+		return ret;
+
+	if (type == IIO_POWER)
+		result *= 1000; /* mili-Watts to micro-Watts conversion */
 
 	return sprintf(buf, "%d\n", result);
 }
@@ -59,7 +67,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	struct iio_hwmon_state *st;
 	struct sensor_device_attribute *a;
 	int ret, i;
-	int in_i = 1, temp_i = 1, curr_i = 1, humidity_i = 1;
+	int in_i = 1, temp_i = 1, curr_i = 1, humidity_i = 1, power_i = 1;
 	enum iio_chan_type type;
 	struct iio_channel *channels;
 	struct device *hwmon_dev;
@@ -113,6 +121,10 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 		case IIO_CURRENT:
 			n = curr_i++;
 			prefix = "curr";
+			break;
+		case IIO_POWER:
+			n = power_i++;
+			prefix = "power";
 			break;
 		case IIO_HUMIDITYRELATIVE:
 			n = humidity_i++;

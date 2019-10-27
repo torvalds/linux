@@ -1,7 +1,9 @@
 perf-y += annotate.o
 perf-y += block-range.o
 perf-y += build-id.o
+perf-y += cacheline.o
 perf-y += config.o
+perf-y += copyfile.o
 perf-y += ctype.o
 perf-y += db-export.o
 perf-y += env.o
@@ -9,6 +11,8 @@ perf-y += event.o
 perf-y += evlist.o
 perf-y += evsel.o
 perf-y += evsel_fprintf.o
+perf-y += perf_event_attr_fprintf.o
+perf-y += evswitch.o
 perf-y += find_bit.o
 perf-y += get_current_dir_name.o
 perf-y += kallsyms.o
@@ -26,7 +30,6 @@ perf-y += rbtree.o
 perf-y += libstring.o
 perf-y += bitmap.o
 perf-y += hweight.o
-perf-y += zalloc.o
 perf-y += smt.o
 perf-y += strbuf.o
 perf-y += string.o
@@ -35,6 +38,7 @@ perf-y += strfilter.o
 perf-y += top.o
 perf-y += usage.o
 perf-y += dso.o
+perf-y += dsos.o
 perf-y += symbol.o
 perf-y += symbol_fprintf.o
 perf-y += color.o
@@ -70,7 +74,6 @@ perf-y += svghelper.o
 perf-y += sort.o
 perf-y += hist.o
 perf-y += util.o
-perf-y += xyarray.o
 perf-y += cpumap.o
 perf-y += cputopo.o
 perf-y += cgroup.o
@@ -85,6 +88,7 @@ perf-y += stat-display.o
 perf-y += record.o
 perf-y += srcline.o
 perf-y += srccode.o
+perf-y += synthetic-events.o
 perf-y += data.o
 perf-y += tsc.o
 perf-y += cloexec.o
@@ -149,6 +153,8 @@ perf-y += scripting-engines/
 perf-$(CONFIG_ZLIB) += zlib.o
 perf-$(CONFIG_LZMA) += lzma.o
 perf-$(CONFIG_ZSTD) += zstd.o
+
+perf-$(CONFIG_LIBCAP) += cap.o
 
 perf-y += demangle-java.o
 perf-y += demangle-rust.o
@@ -241,9 +247,5 @@ $(OUTPUT)util/hweight.o: ../lib/hweight.c FORCE
 	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)util/vsprintf.o: ../lib/vsprintf.c FORCE
-	$(call rule_mkdir)
-	$(call if_changed_dep,cc_o_c)
-
-$(OUTPUT)util/zalloc.o: ../lib/zalloc.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)

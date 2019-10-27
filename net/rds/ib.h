@@ -220,6 +220,7 @@ struct rds_ib_connection {
 	/* Send/Recv vectors */
 	int			i_scq_vector;
 	int			i_rcq_vector;
+	u8			i_sl;
 };
 
 /* This assumes that atomic_t is at least 32 bits */

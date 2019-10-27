@@ -11,12 +11,14 @@
 #include "accel/tls.h"
 
 #define MLX5E_KTLS_STATIC_UMR_WQE_SZ \
-	(sizeof(struct mlx5e_umr_wqe) + MLX5_ST_SZ_BYTES(tls_static_params))
+	(offsetof(struct mlx5e_umr_wqe, tls_static_params_ctx) + \
+	 MLX5_ST_SZ_BYTES(tls_static_params))
 #define MLX5E_KTLS_STATIC_WQEBBS \
 	(DIV_ROUND_UP(MLX5E_KTLS_STATIC_UMR_WQE_SZ, MLX5_SEND_WQE_BB))
 
 #define MLX5E_KTLS_PROGRESS_WQE_SZ \
-	(sizeof(struct mlx5e_tx_wqe) + MLX5_ST_SZ_BYTES(tls_progress_params))
+	(offsetof(struct mlx5e_tx_wqe, tls_progress_params_ctx) + \
+	 MLX5_ST_SZ_BYTES(tls_progress_params))
 #define MLX5E_KTLS_PROGRESS_WQEBBS \
 	(DIV_ROUND_UP(MLX5E_KTLS_PROGRESS_WQE_SZ, MLX5_SEND_WQE_BB))
 #define MLX5E_KTLS_MAX_DUMP_WQEBBS 2

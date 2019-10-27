@@ -16,12 +16,13 @@
 #include <linux/wait.h>
 
 struct completion;
-struct reservation_object;
+struct dma_resv;
 
 struct i915_sw_fence {
 	wait_queue_head_t wait;
 	unsigned long flags;
 	atomic_t pending;
+	int error;
 };
 
 #define I915_SW_FENCE_CHECKED_BIT	0 /* used internally for DAG checking */
@@ -82,7 +83,7 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 				  gfp_t gfp);
 
 int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
-				    struct reservation_object *resv,
+				    struct dma_resv *resv,
 				    const struct dma_fence_ops *exclude,
 				    bool write,
 				    unsigned long timeout,
@@ -104,6 +105,12 @@ static inline bool i915_sw_fence_done(const struct i915_sw_fence *fence)
 static inline void i915_sw_fence_wait(struct i915_sw_fence *fence)
 {
 	wait_event(fence->wait, i915_sw_fence_done(fence));
+}
+
+static inline void
+i915_sw_fence_set_error_once(struct i915_sw_fence *fence, int error)
+{
+	cmpxchg(&fence->error, 0, error);
 }
 
 #endif /* _I915_SW_FENCE_H_ */

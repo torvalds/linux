@@ -1233,8 +1233,8 @@ svc_generic_init_request(struct svc_rqst *rqstp,
 
 	if (rqstp->rq_vers >= progp->pg_nvers )
 		goto err_bad_vers;
-	  versp = progp->pg_vers[rqstp->rq_vers];
-	  if (!versp)
+	versp = progp->pg_vers[rqstp->rq_vers];
+	if (!versp)
 		goto err_bad_vers;
 
 	/*

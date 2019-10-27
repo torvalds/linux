@@ -72,5 +72,5 @@ codec: wm8280@0 {
 		1 2 1 /* MICDET2 MICBIAS2 GPIO=high */
 	>;
 
-	wlf,gpsw = <0>;
+	wlf,gpsw = <ARIZONA_GPSW_OPEN>;
 };

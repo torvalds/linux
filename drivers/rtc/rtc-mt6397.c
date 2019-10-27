@@ -343,10 +343,8 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 	rtc->rtc_dev->ops = &mtk_rtc_ops;
 
 	ret = rtc_register_device(rtc->rtc_dev);
-	if (ret) {
-		dev_err(&pdev->dev, "register rtc device failed\n");
+	if (ret)
 		goto out_free_irq;
-	}
 
 	return 0;
 

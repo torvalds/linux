@@ -21,7 +21,6 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
-#include <mach/hardware.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <asm/mach/arch.h>
@@ -29,8 +28,10 @@
 #include <asm/mach/pci.h>
 #include <asm/mach/time.h>
 #include <asm/mach-types.h>
-#include <mach/time.h>
+
+#include "hardware.h"
 #include "gpio-iop32x.h"
+#include "irqs.h"
 
 static void __init em7210_timer_init(void)
 {

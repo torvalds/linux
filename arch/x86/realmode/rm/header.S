@@ -19,7 +19,6 @@ GLOBAL(real_mode_header)
 	.long	pa_ro_end
 	/* SMP trampoline */
 	.long	pa_trampoline_start
-	.long	pa_trampoline_status
 	.long	pa_trampoline_header
 #ifdef CONFIG_X86_64
 	.long	pa_trampoline_pgd;

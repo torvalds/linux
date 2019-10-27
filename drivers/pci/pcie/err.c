@@ -166,7 +166,7 @@ static pci_ers_result_t reset_link(struct pci_dev *dev, u32 service)
 	driver = pcie_port_find_service(dev, service);
 	if (driver && driver->reset_link) {
 		status = driver->reset_link(dev);
-	} else if (dev->has_secondary_link) {
+	} else if (pcie_downstream_port(dev)) {
 		status = default_reset_link(dev);
 	} else {
 		pci_printk(KERN_DEBUG, dev, "no link-reset support at upstream device %s\n",

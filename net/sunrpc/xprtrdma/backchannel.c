@@ -54,9 +54,7 @@ size_t xprt_rdma_bc_maxpayload(struct rpc_xprt *xprt)
 
 unsigned int xprt_rdma_bc_max_slots(struct rpc_xprt *xprt)
 {
-	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
-
-	return r_xprt->rx_buf.rb_bc_srv_max_requests;
+	return RPCRDMA_BACKWARD_WRS >> 1;
 }
 
 static int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)

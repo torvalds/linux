@@ -8,8 +8,6 @@
 #ifndef __ASM_THREAD_INFO_H
 #define __ASM_THREAD_INFO_H
 
-#ifdef __KERNEL__
-
 #include <linux/compiler.h>
 
 #ifndef __ASSEMBLY__
@@ -59,29 +57,18 @@ void arch_release_task_struct(struct task_struct *tsk);
 
 #endif
 
-/*
- * thread information flags:
- *  TIF_SYSCALL_TRACE	- syscall trace active
- *  TIF_SYSCALL_TRACEPOINT - syscall tracepoint for ftrace
- *  TIF_SYSCALL_AUDIT	- syscall auditing
- *  TIF_SECCOMP		- syscall secure computing
- *  TIF_SYSCALL_EMU     - syscall emulation active
- *  TIF_SIGPENDING	- signal pending
- *  TIF_NEED_RESCHED	- rescheduling necessary
- *  TIF_NOTIFY_RESUME	- callback before returning to user
- */
-#define TIF_SIGPENDING		0
-#define TIF_NEED_RESCHED	1
+#define TIF_SIGPENDING		0	/* signal pending */
+#define TIF_NEED_RESCHED	1	/* rescheduling necessary */
 #define TIF_NOTIFY_RESUME	2	/* callback before returning to user */
 #define TIF_FOREIGN_FPSTATE	3	/* CPU's FP state is not current's */
 #define TIF_UPROBE		4	/* uprobe breakpoint or singlestep */
 #define TIF_FSCHECK		5	/* Check FS is USER_DS on return */
 #define TIF_NOHZ		7
-#define TIF_SYSCALL_TRACE	8
-#define TIF_SYSCALL_AUDIT	9
-#define TIF_SYSCALL_TRACEPOINT	10
-#define TIF_SECCOMP		11
-#define TIF_SYSCALL_EMU		12
+#define TIF_SYSCALL_TRACE	8	/* syscall trace active */
+#define TIF_SYSCALL_AUDIT	9	/* syscall auditing */
+#define TIF_SYSCALL_TRACEPOINT	10	/* syscall tracepoint for ftrace */
+#define TIF_SECCOMP		11	/* syscall secure computing */
+#define TIF_SYSCALL_EMU		12	/* syscall emulation active */
 #define TIF_MEMDIE		18	/* is terminating due to OOM killer */
 #define TIF_FREEZE		19
 #define TIF_RESTORE_SIGMASK	20
@@ -90,6 +77,7 @@ void arch_release_task_struct(struct task_struct *tsk);
 #define TIF_SVE			23	/* Scalable Vector Extension in use */
 #define TIF_SVE_VL_INHERIT	24	/* Inherit sve_vl_onexec across exec */
 #define TIF_SSBD		25	/* Wants SSB mitigation */
+#define TIF_TAGGED_ADDR		26	/* Allow tagged user addresses */
 
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
@@ -121,5 +109,4 @@ void arch_release_task_struct(struct task_struct *tsk);
 	.addr_limit	= KERNEL_DS,					\
 }
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_THREAD_INFO_H */

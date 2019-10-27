@@ -142,8 +142,6 @@ static void __init szmem(unsigned int node)
 				(u32)node_id, mem_type, mem_start, mem_size);
 			pr_info("       start_pfn:0x%llx, end_pfn:0x%llx, num_physpages:0x%lx\n",
 				start_pfn, end_pfn, num_physpages);
-			add_memory_region((node_id << 44) + mem_start,
-				(u64)mem_size << 20, BOOT_MEM_RAM);
 			memblock_add_node(PFN_PHYS(start_pfn),
 				PFN_PHYS(end_pfn - start_pfn), node);
 			break;
@@ -156,16 +154,12 @@ static void __init szmem(unsigned int node)
 				(u32)node_id, mem_type, mem_start, mem_size);
 			pr_info("       start_pfn:0x%llx, end_pfn:0x%llx, num_physpages:0x%lx\n",
 				start_pfn, end_pfn, num_physpages);
-			add_memory_region((node_id << 44) + mem_start,
-				(u64)mem_size << 20, BOOT_MEM_RAM);
 			memblock_add_node(PFN_PHYS(start_pfn),
 				PFN_PHYS(end_pfn - start_pfn), node);
 			break;
 		case SYSTEM_RAM_RESERVED:
 			pr_info("Node%d: mem_type:%d, mem_start:0x%llx, mem_size:0x%llx MB\n",
 				(u32)node_id, mem_type, mem_start, mem_size);
-			add_memory_region((node_id << 44) + mem_start,
-				(u64)mem_size << 20, BOOT_MEM_RESERVED);
 			memblock_reserve(((node_id << 44) + mem_start),
 				mem_size << 20);
 			break;
@@ -191,8 +185,6 @@ static void __init node_mem_init(unsigned int node)
 	NODE_DATA(node)->node_start_pfn = start_pfn;
 	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
 
-	free_bootmem_with_active_regions(node, end_pfn);
-
 	if (node == 0) {
 		/* kernel end address */
 		unsigned long kernel_end_pfn = PFN_UP(__pa_symbol(&_end));
@@ -209,8 +201,6 @@ static void __init node_mem_init(unsigned int node)
 			memblock_reserve((node_addrspace_offset | 0xfe000000),
 					 32 << 20);
 	}
-
-	sparse_memory_present_with_active_regions(node);
 }
 
 static __init void prom_meminit(void)
@@ -227,6 +217,7 @@ static __init void prom_meminit(void)
 			cpumask_clear(&__node_data[(node)]->cpumask);
 		}
 	}
+	memblocks_present();
 	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
 
 	for (cpu = 0; cpu < loongson_sysconf.nr_cpus; cpu++) {

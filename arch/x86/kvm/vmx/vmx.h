@@ -14,6 +14,8 @@
 extern const u32 vmx_msr_index[];
 extern u64 host_efer;
 
+extern u32 get_umwait_control_msr(void);
+
 #define MSR_TYPE_R	1
 #define MSR_TYPE_W	2
 #define MSR_TYPE_RW	3
@@ -211,6 +213,7 @@ struct vcpu_vmx {
 #endif
 
 	u64		      spec_ctrl;
+	u32		      msr_ia32_umwait_control;
 
 	u32 secondary_exec_control;
 
@@ -253,7 +256,7 @@ struct vcpu_vmx {
 	struct nested_vmx nested;
 
 	/* Dynamic PLE window. */
-	int ple_window;
+	unsigned int ple_window;
 	bool ple_window_dirty;
 
 	bool req_immediate_exit;
@@ -495,6 +498,12 @@ static inline void decache_tsc_multiplier(struct vcpu_vmx *vmx)
 {
 	vmx->current_tsc_ratio = vmx->vcpu.arch.tsc_scaling_ratio;
 	vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
+}
+
+static inline bool vmx_has_waitpkg(struct vcpu_vmx *vmx)
+{
+	return vmx->secondary_exec_control &
+		SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
 }
 
 void dump_vmcs(void);

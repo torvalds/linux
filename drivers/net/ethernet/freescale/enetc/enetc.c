@@ -110,7 +110,7 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 			      int active_offloads)
 {
 	struct enetc_tx_swbd *tx_swbd;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	int len = skb_headlen(skb);
 	union enetc_tx_bd temp_bd;
 	union enetc_tx_bd *txbd;

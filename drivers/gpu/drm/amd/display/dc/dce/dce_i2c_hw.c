@@ -25,6 +25,7 @@
 
 #include <linux/delay.h>
 
+#include "resource.h"
 #include "dce_i2c.h"
 #include "dce_i2c_hw.h"
 #include "reg_helper.h"
@@ -97,17 +98,6 @@ static uint32_t get_hw_buffer_available_size(
 {
 	return dce_i2c_hw->buffer_size -
 			dce_i2c_hw->buffer_used_bytes;
-}
-
-uint32_t get_reference_clock(
-		struct dc_bios *bios)
-{
-	struct dc_firmware_info info = { { 0 } };
-
-	if (bios->funcs->get_firmware_info(bios, &info) != BP_RESULT_OK)
-		return 0;
-
-	return info.pll_info.crystal_frequency;
 }
 
 static uint32_t get_speed(
@@ -401,7 +391,7 @@ struct dce_i2c_hw *acquire_i2c_hw_engine(
 	if (ddc->hw_info.hw_supported) {
 		enum gpio_ddc_line line = dal_ddc_get_line(ddc);
 
-		if (line < pool->pipe_count)
+		if (line < pool->res_cap->num_ddc)
 			dce_i2c_hw = pool->hw_i2cs[line];
 	}
 
@@ -632,7 +622,7 @@ void dce_i2c_hw_construct(
 {
 	dce_i2c_hw->ctx = ctx;
 	dce_i2c_hw->engine_id = engine_id;
-	dce_i2c_hw->reference_frequency = get_reference_clock(ctx->dc_bios) >> 1;
+	dce_i2c_hw->reference_frequency = (ctx->dc_bios->fw_info.pll_info.crystal_frequency) >> 1;
 	dce_i2c_hw->regs = regs;
 	dce_i2c_hw->shifts = shifts;
 	dce_i2c_hw->masks = masks;

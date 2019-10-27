@@ -128,54 +128,51 @@ static int dsa_switch_fdb_del(struct dsa_switch *ds,
 	return ds->ops->port_fdb_del(ds, port, info->addr, info->vid);
 }
 
-static int
-dsa_switch_mdb_prepare_bitmap(struct dsa_switch *ds,
-			      const struct switchdev_obj_port_mdb *mdb,
-			      const unsigned long *bitmap)
+static bool dsa_switch_mdb_match(struct dsa_switch *ds, int port,
+				 struct dsa_notifier_mdb_info *info)
+{
+	if (ds->index == info->sw_index && port == info->port)
+		return true;
+
+	if (dsa_is_dsa_port(ds, port))
+		return true;
+
+	return false;
+}
+
+static int dsa_switch_mdb_prepare(struct dsa_switch *ds,
+				  struct dsa_notifier_mdb_info *info)
 {
 	int port, err;
 
 	if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
 		return -EOPNOTSUPP;
 
-	for_each_set_bit(port, bitmap, ds->num_ports) {
-		err = ds->ops->port_mdb_prepare(ds, port, mdb);
-		if (err)
-			return err;
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_switch_mdb_match(ds, port, info)) {
+			err = ds->ops->port_mdb_prepare(ds, port, info->mdb);
+			if (err)
+				return err;
+		}
 	}
 
 	return 0;
 }
 
-static void dsa_switch_mdb_add_bitmap(struct dsa_switch *ds,
-				      const struct switchdev_obj_port_mdb *mdb,
-				      const unsigned long *bitmap)
-{
-	int port;
-
-	for_each_set_bit(port, bitmap, ds->num_ports)
-		ds->ops->port_mdb_add(ds, port, mdb);
-}
-
 static int dsa_switch_mdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_mdb_info *info)
 {
-	const struct switchdev_obj_port_mdb *mdb = info->mdb;
-	struct switchdev_trans *trans = info->trans;
 	int port;
 
-	/* Build a mask of Multicast group members */
-	bitmap_zero(ds->bitmap, ds->num_ports);
-	if (ds->index == info->sw_index)
-		set_bit(info->port, ds->bitmap);
+	if (switchdev_trans_ph_prepare(info->trans))
+		return dsa_switch_mdb_prepare(ds, info);
+
+	if (!ds->ops->port_mdb_add)
+		return 0;
+
 	for (port = 0; port < ds->num_ports; port++)
-		if (dsa_is_dsa_port(ds, port))
-			set_bit(port, ds->bitmap);
-
-	if (switchdev_trans_ph_prepare(trans))
-		return dsa_switch_mdb_prepare_bitmap(ds, mdb, ds->bitmap);
-
-	dsa_switch_mdb_add_bitmap(ds, mdb, ds->bitmap);
+		if (dsa_switch_mdb_match(ds, port, info))
+			ds->ops->port_mdb_add(ds, port, info->mdb);
 
 	return 0;
 }
@@ -183,13 +180,11 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 static int dsa_switch_mdb_del(struct dsa_switch *ds,
 			      struct dsa_notifier_mdb_info *info)
 {
-	const struct switchdev_obj_port_mdb *mdb = info->mdb;
-
 	if (!ds->ops->port_mdb_del)
 		return -EOPNOTSUPP;
 
 	if (ds->index == info->sw_index)
-		return ds->ops->port_mdb_del(ds, info->port, mdb);
+		return ds->ops->port_mdb_del(ds, info->port, info->mdb);
 
 	return 0;
 }
@@ -231,59 +226,55 @@ static int dsa_port_vlan_check(struct dsa_switch *ds, int port,
 			     (void *)vlan);
 }
 
-static int
-dsa_switch_vlan_prepare_bitmap(struct dsa_switch *ds,
-			       const struct switchdev_obj_port_vlan *vlan,
-			       const unsigned long *bitmap)
+static bool dsa_switch_vlan_match(struct dsa_switch *ds, int port,
+				  struct dsa_notifier_vlan_info *info)
+{
+	if (ds->index == info->sw_index && port == info->port)
+		return true;
+
+	if (dsa_is_dsa_port(ds, port))
+		return true;
+
+	return false;
+}
+
+static int dsa_switch_vlan_prepare(struct dsa_switch *ds,
+				   struct dsa_notifier_vlan_info *info)
 {
 	int port, err;
 
 	if (!ds->ops->port_vlan_prepare || !ds->ops->port_vlan_add)
 		return -EOPNOTSUPP;
 
-	for_each_set_bit(port, bitmap, ds->num_ports) {
-		err = dsa_port_vlan_check(ds, port, vlan);
-		if (err)
-			return err;
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_switch_vlan_match(ds, port, info)) {
+			err = dsa_port_vlan_check(ds, port, info->vlan);
+			if (err)
+				return err;
 
-		err = ds->ops->port_vlan_prepare(ds, port, vlan);
-		if (err)
-			return err;
+			err = ds->ops->port_vlan_prepare(ds, port, info->vlan);
+			if (err)
+				return err;
+		}
 	}
 
 	return 0;
 }
 
-static void
-dsa_switch_vlan_add_bitmap(struct dsa_switch *ds,
-			   const struct switchdev_obj_port_vlan *vlan,
-			   const unsigned long *bitmap)
-{
-	int port;
-
-	for_each_set_bit(port, bitmap, ds->num_ports)
-		ds->ops->port_vlan_add(ds, port, vlan);
-}
-
 static int dsa_switch_vlan_add(struct dsa_switch *ds,
 			       struct dsa_notifier_vlan_info *info)
 {
-	const struct switchdev_obj_port_vlan *vlan = info->vlan;
-	struct switchdev_trans *trans = info->trans;
 	int port;
 
-	/* Build a mask of VLAN members */
-	bitmap_zero(ds->bitmap, ds->num_ports);
-	if (ds->index == info->sw_index)
-		set_bit(info->port, ds->bitmap);
+	if (switchdev_trans_ph_prepare(info->trans))
+		return dsa_switch_vlan_prepare(ds, info);
+
+	if (!ds->ops->port_vlan_add)
+		return 0;
+
 	for (port = 0; port < ds->num_ports; port++)
-		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
-			set_bit(port, ds->bitmap);
-
-	if (switchdev_trans_ph_prepare(trans))
-		return dsa_switch_vlan_prepare_bitmap(ds, vlan, ds->bitmap);
-
-	dsa_switch_vlan_add_bitmap(ds, vlan, ds->bitmap);
+		if (dsa_switch_vlan_match(ds, port, info))
+			ds->ops->port_vlan_add(ds, port, info->vlan);
 
 	return 0;
 }
@@ -291,14 +282,15 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 static int dsa_switch_vlan_del(struct dsa_switch *ds,
 			       struct dsa_notifier_vlan_info *info)
 {
-	const struct switchdev_obj_port_vlan *vlan = info->vlan;
-
 	if (!ds->ops->port_vlan_del)
 		return -EOPNOTSUPP;
 
 	if (ds->index == info->sw_index)
-		return ds->ops->port_vlan_del(ds, info->port, vlan);
+		return ds->ops->port_vlan_del(ds, info->port, info->vlan);
 
+	/* Do not deprogram the DSA links as they may be used as conduit
+	 * for other VLAN members in the fabric.
+	 */
 	return 0;
 }
 

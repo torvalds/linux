@@ -2,10 +2,9 @@
 config NFC_NXP_NCI
 	tristate "NXP-NCI NFC driver"
 	depends on NFC_NCI
-	default n
 	---help---
-	  Generic core driver for NXP NCI chips such as the NPC100
-	  or PN7150 families.
+	  Generic core driver for NXP NCI chips such as the NPC100 (PN547),
+	  NPC300 (PN548) or PN7150 families.
 	  This is a driver based on the NCI NFC kernel layers and
 	  will thus not work with NXP libnfc library.
 
@@ -23,4 +22,4 @@ config NFC_NXP_NCI_I2C
 
 	  To compile this driver as a module, choose m here. The module will
 	  be called nxp_nci_i2c.
-	  Say Y if unsure.
+	  Say N if unsure.

@@ -12,7 +12,6 @@
 #include <linux/dmi.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
-#include "ipmi_si_sm.h"
 #include "ipmi_dmi.h"
 #include "ipmi_plat_data.h"
 

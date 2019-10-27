@@ -1789,6 +1789,92 @@ struct atom_smc_dpm_info_v4_5
 
 };
 
+struct atom_smc_dpm_info_v4_6
+{
+  struct   atom_common_table_header  table_header;
+  // section: board parameters
+  uint32_t     i2c_padding[3];   // old i2c control are moved to new area
+
+  uint16_t     maxvoltagestepgfx; // in mv(q2) max voltage step that smu will request. multiple steps are taken if voltage change exceeds this value.
+  uint16_t     maxvoltagestepsoc; // in mv(q2) max voltage step that smu will request. multiple steps are taken if voltage change exceeds this value.
+
+  uint8_t      vddgfxvrmapping;     // use vr_mapping* bitfields
+  uint8_t      vddsocvrmapping;     // use vr_mapping* bitfields
+  uint8_t      vddmemvrmapping;     // use vr_mapping* bitfields
+  uint8_t      boardvrmapping;      // use vr_mapping* bitfields
+
+  uint8_t      gfxulvphasesheddingmask; // set this to 1 to set psi0/1 to 1 in ulv mode
+  uint8_t      externalsensorpresent; // external rdi connected to tmon (aka temp in)
+  uint8_t      padding8_v[2];
+
+  // telemetry settings
+  uint16_t     gfxmaxcurrent;   // in amps
+  uint8_t      gfxoffset;       // in amps
+  uint8_t      padding_telemetrygfx;
+
+  uint16_t     socmaxcurrent;   // in amps
+  uint8_t      socoffset;       // in amps
+  uint8_t      padding_telemetrysoc;
+
+  uint16_t     memmaxcurrent;   // in amps
+  uint8_t      memoffset;       // in amps
+  uint8_t      padding_telemetrymem;
+
+  uint16_t     boardmaxcurrent;   // in amps
+  uint8_t      boardoffset;       // in amps
+  uint8_t      padding_telemetryboardinput;
+
+  // gpio settings
+  uint8_t      vr0hotgpio;      // gpio pin configured for vr0 hot event
+  uint8_t      vr0hotpolarity;  // gpio polarity for vr0 hot event
+  uint8_t      vr1hotgpio;      // gpio pin configured for vr1 hot event
+  uint8_t      vr1hotpolarity;  // gpio polarity for vr1 hot event
+
+ // gfxclk pll spread spectrum
+  uint8_t	   pllgfxclkspreadenabled;	// on or off
+  uint8_t	   pllgfxclkspreadpercent;	// q4.4
+  uint16_t	   pllgfxclkspreadfreq;		// khz
+
+ // uclk spread spectrum
+  uint8_t	   uclkspreadenabled;   // on or off
+  uint8_t	   uclkspreadpercent;   // q4.4
+  uint16_t	   uclkspreadfreq;	   // khz
+
+ // fclk spread spectrum
+  uint8_t	   fclkspreadenabled;   // on or off
+  uint8_t	   fclkspreadpercent;   // q4.4
+  uint16_t	   fclkspreadfreq;	   // khz
+
+
+  // gfxclk fll spread spectrum
+  uint8_t      fllgfxclkspreadenabled;   // on or off
+  uint8_t      fllgfxclkspreadpercent;   // q4.4
+  uint16_t     fllgfxclkspreadfreq;      // khz
+
+  // i2c controller structure
+  struct smudpm_i2c_controller_config_v2 i2ccontrollers[8];
+
+  // memory section
+  uint32_t	 memorychannelenabled; // for dram use only, max 32 channels enabled bit mask.
+
+  uint8_t 	 drambitwidth; // for dram use only.  see dram bit width type defines
+  uint8_t 	 paddingmem[3];
+
+	// total board power
+  uint16_t	 totalboardpower;	  //only needed for tcp estimated case, where tcp = tgp+total board power
+  uint16_t	 boardpadding;
+
+	// section: xgmi training
+  uint8_t 	 xgmilinkspeed[4];
+  uint8_t 	 xgmilinkwidth[4];
+
+  uint16_t	 xgmifclkfreq[4];
+  uint16_t	 xgmisocvoltage[4];
+
+  // reserved
+  uint32_t   boardreserved[10];
+};
+
 /* 
   ***************************************************************************
     Data Table asic_profiling_info  structure

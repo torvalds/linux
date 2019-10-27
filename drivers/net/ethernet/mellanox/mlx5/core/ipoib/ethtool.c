@@ -122,6 +122,14 @@ static int mlx5i_get_ts_info(struct net_device *netdev,
 	return mlx5e_ethtool_get_ts_info(priv, info);
 }
 
+static int mlx5i_flash_device(struct net_device *netdev,
+			      struct ethtool_flash *flash)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+
+	return mlx5e_ethtool_flash_device(priv, flash);
+}
+
 enum mlx5_ptys_width {
 	MLX5_PTYS_WIDTH_1X	= 1 << 0,
 	MLX5_PTYS_WIDTH_2X	= 1 << 1,
@@ -233,6 +241,7 @@ const struct ethtool_ops mlx5i_ethtool_ops = {
 	.get_ethtool_stats  = mlx5i_get_ethtool_stats,
 	.get_ringparam      = mlx5i_get_ringparam,
 	.set_ringparam      = mlx5i_set_ringparam,
+	.flash_device       = mlx5i_flash_device,
 	.get_channels       = mlx5i_get_channels,
 	.set_channels       = mlx5i_set_channels,
 	.get_coalesce       = mlx5i_get_coalesce,

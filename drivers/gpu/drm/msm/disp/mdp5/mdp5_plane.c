@@ -6,7 +6,9 @@
  */
 
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
+
 #include "mdp5_kms.h"
 
 struct mdp5_plane {

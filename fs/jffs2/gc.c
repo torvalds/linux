@@ -1165,12 +1165,13 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 				       struct jffs2_inode_info *f, struct jffs2_full_dnode *fn,
 				       uint32_t start, uint32_t end)
 {
+	struct inode *inode = OFNI_EDONI_2SFFJ(f);
 	struct jffs2_full_dnode *new_fn;
 	struct jffs2_raw_inode ri;
 	uint32_t alloclen, offset, orig_end, orig_start;
 	int ret = 0;
 	unsigned char *comprbuf = NULL, *writebuf;
-	unsigned long pg;
+	struct page *page;
 	unsigned char *pg_ptr;
 
 	memset(&ri, 0, sizeof(ri));
@@ -1325,14 +1326,17 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 	 * end up here trying to GC the *same* page that jffs2_write_begin() is
 	 * trying to write out, read_cache_page() will not deadlock. */
 	mutex_unlock(&f->sem);
-	pg_ptr = jffs2_gc_fetch_page(c, f, start, &pg);
-	mutex_lock(&f->sem);
-
-	if (IS_ERR(pg_ptr)) {
+	page = read_cache_page(inode->i_mapping, start >> PAGE_SHIFT,
+			       jffs2_do_readpage_unlock, inode);
+	if (IS_ERR(page)) {
 		pr_warn("read_cache_page() returned error: %ld\n",
-			PTR_ERR(pg_ptr));
-		return PTR_ERR(pg_ptr);
+			PTR_ERR(page));
+		mutex_lock(&f->sem);
+		return PTR_ERR(page);
 	}
+
+	pg_ptr = kmap(page);
+	mutex_lock(&f->sem);
 
 	offset = start;
 	while(offset < orig_end) {
@@ -1396,6 +1400,7 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		}
 	}
 
-	jffs2_gc_release_page(c, pg_ptr, &pg);
+	kunmap(page);
+	put_page(page);
 	return ret;
 }

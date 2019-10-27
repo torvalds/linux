@@ -14,8 +14,8 @@
 		bits-per-pixel = <16>;
 		fsl,pcr = <0xcad08b80>;
 		bus-width = <18>;
-		native-mode = <&qvga_timings>;
 		display-timings {
+			native-mode = <&qvga_timings>;
 			qvga_timings: 320x240 {
 				clock-frequency = <6500000>;
 				hactive = <320>;

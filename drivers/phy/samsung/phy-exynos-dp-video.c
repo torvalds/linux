@@ -109,6 +109,7 @@ static struct platform_driver exynos_dp_video_phy_driver = {
 	.driver = {
 		.name	= "exynos-dp-video-phy",
 		.of_match_table	= exynos_dp_video_phy_of_match,
+		.suppress_bind_attrs = true,
 	}
 };
 module_platform_driver(exynos_dp_video_phy_driver);

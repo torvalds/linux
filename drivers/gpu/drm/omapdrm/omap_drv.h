@@ -11,11 +11,10 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-#include <drm/drmP.h>
+#include "dss/omapdss.h"
+
 #include <drm/drm_gem.h>
 #include <drm/omap_drm.h>
-
-#include "dss/omapdss.h"
 
 #include "omap_connector.h"
 #include "omap_crtc.h"

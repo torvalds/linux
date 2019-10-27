@@ -4,8 +4,9 @@
  *
  * Builtin help command
  */
-#include "perf.h"
+#include "util/cache.h"
 #include "util/config.h"
+#include "util/strbuf.h"
 #include "builtin.h"
 #include <subcmd/exec-cmd.h>
 #include "common-cmds.h"
@@ -14,10 +15,12 @@
 #include <subcmd/help.h>
 #include "util/debug.h"
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>

@@ -19,11 +19,6 @@
 #define	USE_DMA	1
 #define USE_SUSPEND_WAIT	1
 
-#ifndef TRUE
-#define TRUE	1
-#define FALSE	0
-#endif
-
 /*------------ Board dependence(Resource) */
 #define	VBUS_VALUE		GPIO_VBUS
 

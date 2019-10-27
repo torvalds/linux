@@ -147,8 +147,7 @@ struct drm_file *drm_file_alloc(struct drm_minor *minor)
 	if (drm_core_check_feature(dev, DRIVER_SYNCOBJ))
 		drm_syncobj_open(file);
 
-	if (drm_core_check_feature(dev, DRIVER_PRIME))
-		drm_prime_init_file_private(&file->prime);
+	drm_prime_init_file_private(&file->prime);
 
 	if (dev->driver->open) {
 		ret = dev->driver->open(dev, file);
@@ -159,8 +158,7 @@ struct drm_file *drm_file_alloc(struct drm_minor *minor)
 	return file;
 
 out_prime_destroy:
-	if (drm_core_check_feature(dev, DRIVER_PRIME))
-		drm_prime_destroy_file_private(&file->prime);
+	drm_prime_destroy_file_private(&file->prime);
 	if (drm_core_check_feature(dev, DRIVER_SYNCOBJ))
 		drm_syncobj_release(file);
 	if (drm_core_check_feature(dev, DRIVER_GEM))
@@ -253,8 +251,7 @@ void drm_file_free(struct drm_file *file)
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, file);
 
-	if (drm_core_check_feature(dev, DRIVER_PRIME))
-		drm_prime_destroy_file_private(&file->prime);
+	drm_prime_destroy_file_private(&file->prime);
 
 	WARN_ON(!list_empty(&file->event_list));
 

@@ -30,10 +30,8 @@ static void test_l4lb(const char *file)
 	u32 *magic = (u32 *)buf;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (err) {
-		error_cnt++;
+	if (CHECK_FAIL(err))
 		return;
-	}
 
 	map_fd = bpf_find_map(__func__, obj, "vip_map");
 	if (map_fd < 0)
@@ -72,10 +70,9 @@ static void test_l4lb(const char *file)
 		bytes += stats[i].bytes;
 		pkts += stats[i].pkts;
 	}
-	if (bytes != MAGIC_BYTES * NUM_ITER * 2 || pkts != NUM_ITER * 2) {
-		error_cnt++;
+	if (CHECK_FAIL(bytes != MAGIC_BYTES * NUM_ITER * 2 ||
+		       pkts != NUM_ITER * 2))
 		printf("test_l4lb:FAIL:stats %lld %lld\n", bytes, pkts);
-	}
 out:
 	bpf_object__close(obj);
 }

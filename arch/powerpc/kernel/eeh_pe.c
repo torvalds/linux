@@ -231,29 +231,22 @@ void *eeh_pe_traverse(struct eeh_pe *root,
  * The function is used to traverse the devices of the specified
  * PE and its child PEs.
  */
-void *eeh_pe_dev_traverse(struct eeh_pe *root,
+void eeh_pe_dev_traverse(struct eeh_pe *root,
 			  eeh_edev_traverse_func fn, void *flag)
 {
 	struct eeh_pe *pe;
 	struct eeh_dev *edev, *tmp;
-	void *ret;
 
 	if (!root) {
 		pr_warn("%s: Invalid PE %p\n",
 			__func__, root);
-		return NULL;
+		return;
 	}
 
 	/* Traverse root PE */
-	eeh_for_each_pe(root, pe) {
-		eeh_pe_for_each_dev(pe, edev, tmp) {
-			ret = fn(edev, flag);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return NULL;
+	eeh_for_each_pe(root, pe)
+		eeh_pe_for_each_dev(pe, edev, tmp)
+			fn(edev, flag);
 }
 
 /**
@@ -379,8 +372,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 
 	/* Check if the PE number is valid */
 	if (!eeh_has_flag(EEH_VALID_PE_ZERO) && !edev->pe_config_addr) {
-		pr_err("%s: Invalid PE#0 for edev 0x%x on PHB#%x\n",
-		       __func__, config_addr, pdn->phb->global_number);
+		eeh_edev_err(edev, "PE#0 is invalid for this PHB!\n");
 		return -EINVAL;
 	}
 
@@ -391,42 +383,34 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	 * components.
 	 */
 	pe = eeh_pe_get(pdn->phb, edev->pe_config_addr, config_addr);
-	if (pe && !(pe->type & EEH_PE_INVALID)) {
-		/* Mark the PE as type of PCI bus */
-		pe->type = EEH_PE_BUS;
-		edev->pe = pe;
+	if (pe) {
+		if (pe->type & EEH_PE_INVALID) {
+			list_add_tail(&edev->entry, &pe->edevs);
+			edev->pe = pe;
+			/*
+			 * We're running to here because of PCI hotplug caused by
+			 * EEH recovery. We need clear EEH_PE_INVALID until the top.
+			 */
+			parent = pe;
+			while (parent) {
+				if (!(parent->type & EEH_PE_INVALID))
+					break;
+				parent->type &= ~EEH_PE_INVALID;
+				parent = parent->parent;
+			}
 
-		/* Put the edev to PE */
-		list_add_tail(&edev->entry, &pe->edevs);
-		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Bus PE#%x\n",
-			 pdn->phb->global_number,
-			 pdn->busno,
-			 PCI_SLOT(pdn->devfn),
-			 PCI_FUNC(pdn->devfn),
-			 pe->addr);
-		return 0;
-	} else if (pe && (pe->type & EEH_PE_INVALID)) {
-		list_add_tail(&edev->entry, &pe->edevs);
-		edev->pe = pe;
-		/*
-		 * We're running to here because of PCI hotplug caused by
-		 * EEH recovery. We need clear EEH_PE_INVALID until the top.
-		 */
-		parent = pe;
-		while (parent) {
-			if (!(parent->type & EEH_PE_INVALID))
-				break;
-			parent->type &= ~EEH_PE_INVALID;
-			parent = parent->parent;
+			eeh_edev_dbg(edev,
+				     "Added to device PE (parent: PE#%x)\n",
+				     pe->parent->addr);
+		} else {
+			/* Mark the PE as type of PCI bus */
+			pe->type = EEH_PE_BUS;
+			edev->pe = pe;
+
+			/* Put the edev to PE */
+			list_add_tail(&edev->entry, &pe->edevs);
+			eeh_edev_dbg(edev, "Added to bus PE\n");
 		}
-
-		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Device "
-			 "PE#%x, Parent PE#%x\n",
-			 pdn->phb->global_number,
-			 pdn->busno,
-			 PCI_SLOT(pdn->devfn),
-			 PCI_FUNC(pdn->devfn),
-			 pe->addr, pe->parent->addr);
 		return 0;
 	}
 
@@ -468,13 +452,8 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	list_add_tail(&pe->child, &parent->child_list);
 	list_add_tail(&edev->entry, &pe->edevs);
 	edev->pe = pe;
-	pr_debug("EEH: Add %04x:%02x:%02x.%01x to "
-		 "Device PE#%x, Parent PE#%x\n",
-		 pdn->phb->global_number,
-		 pdn->busno,
-		 PCI_SLOT(pdn->devfn),
-		 PCI_FUNC(pdn->devfn),
-		 pe->addr, pe->parent->addr);
+	eeh_edev_dbg(edev, "Added to device PE (parent: PE#%x)\n",
+		     pe->parent->addr);
 
 	return 0;
 }
@@ -491,16 +470,12 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 {
 	struct eeh_pe *pe, *parent, *child;
+	bool keep, recover;
 	int cnt;
-	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
 	pe = eeh_dev_to_pe(edev);
 	if (!pe) {
-		pr_debug("%s: No PE found for device %04x:%02x:%02x.%01x\n",
-			 __func__,  pdn->phb->global_number,
-			 pdn->busno,
-			 PCI_SLOT(pdn->devfn),
-			 PCI_FUNC(pdn->devfn));
+		eeh_edev_dbg(edev, "No PE found for device.\n");
 		return -EEXIST;
 	}
 
@@ -516,10 +491,21 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	 */
 	while (1) {
 		parent = pe->parent;
+
+		/* PHB PEs should never be removed */
 		if (pe->type & EEH_PE_PHB)
 			break;
 
-		if (!(pe->state & EEH_PE_KEEP)) {
+		/*
+		 * XXX: KEEP is set while resetting a PE. I don't think it's
+		 * ever set without RECOVERING also being set. I could
+		 * be wrong though so catch that with a WARN.
+		 */
+		keep = !!(pe->state & EEH_PE_KEEP);
+		recover = !!(pe->state & EEH_PE_RECOVERING);
+		WARN_ON(keep && !recover);
+
+		if (!keep && !recover) {
 			if (list_empty(&pe->edevs) &&
 			    list_empty(&pe->child_list)) {
 				list_del(&pe->child);
@@ -528,6 +514,15 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 				break;
 			}
 		} else {
+			/*
+			 * Mark the PE as invalid. At the end of the recovery
+			 * process any invalid PEs will be garbage collected.
+			 *
+			 * We need to delay the free()ing of them since we can
+			 * remove edev's while traversing the PE tree which
+			 * might trigger the removal of a PE and we can't
+			 * deal with that (yet).
+			 */
 			if (list_empty(&pe->edevs)) {
 				cnt = 0;
 				list_for_each_entry(child, &pe->child_list, child) {
@@ -623,13 +618,11 @@ void eeh_pe_mark_isolated(struct eeh_pe *root)
 }
 EXPORT_SYMBOL_GPL(eeh_pe_mark_isolated);
 
-static void *__eeh_pe_dev_mode_mark(struct eeh_dev *edev, void *flag)
+static void __eeh_pe_dev_mode_mark(struct eeh_dev *edev, void *flag)
 {
 	int mode = *((int *)flag);
 
 	edev->mode |= mode;
-
-	return NULL;
 }
 
 /**
@@ -717,17 +710,13 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	if (!(edev->mode & (EEH_DEV_ROOT_PORT | EEH_DEV_DS_PORT)))
 		return;
 
-	pr_debug("%s: Check PCIe link for %04x:%02x:%02x.%01x ...\n",
-		 __func__, pdn->phb->global_number,
-		 pdn->busno,
-		 PCI_SLOT(pdn->devfn),
-		 PCI_FUNC(pdn->devfn));
+	eeh_edev_dbg(edev, "Checking PCIe link...\n");
 
 	/* Check slot status */
 	cap = edev->pcie_cap;
 	eeh_ops->read_config(pdn, cap + PCI_EXP_SLTSTA, 2, &val);
 	if (!(val & PCI_EXP_SLTSTA_PDS)) {
-		pr_debug("  No card in the slot (0x%04x) !\n", val);
+		eeh_edev_dbg(edev, "No card in the slot (0x%04x) !\n", val);
 		return;
 	}
 
@@ -736,7 +725,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	if (val & PCI_EXP_SLTCAP_PCP) {
 		eeh_ops->read_config(pdn, cap + PCI_EXP_SLTCTL, 2, &val);
 		if (val & PCI_EXP_SLTCTL_PCC) {
-			pr_debug("  In power-off state, power it on ...\n");
+			eeh_edev_dbg(edev, "In power-off state, power it on ...\n");
 			val &= ~(PCI_EXP_SLTCTL_PCC | PCI_EXP_SLTCTL_PIC);
 			val |= (0x0100 & PCI_EXP_SLTCTL_PIC);
 			eeh_ops->write_config(pdn, cap + PCI_EXP_SLTCTL, 2, val);
@@ -752,7 +741,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	/* Check link */
 	eeh_ops->read_config(pdn, cap + PCI_EXP_LNKCAP, 4, &val);
 	if (!(val & PCI_EXP_LNKCAP_DLLLARC)) {
-		pr_debug("  No link reporting capability (0x%08x) \n", val);
+		eeh_edev_dbg(edev, "No link reporting capability (0x%08x) \n", val);
 		msleep(1000);
 		return;
 	}
@@ -769,10 +758,10 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	}
 
 	if (val & PCI_EXP_LNKSTA_DLLLA)
-		pr_debug("  Link up (%s)\n",
+		eeh_edev_dbg(edev, "Link up (%s)\n",
 			 (val & PCI_EXP_LNKSTA_CLS_2_5GB) ? "2.5GB" : "5GB");
 	else
-		pr_debug("  Link not ready (0x%04x)\n", val);
+		eeh_edev_dbg(edev, "Link not ready (0x%04x)\n", val);
 }
 
 #define BYTE_SWAP(OFF)	(8*((OFF)/4)+3-(OFF))
@@ -852,7 +841,7 @@ static void eeh_restore_device_bars(struct eeh_dev *edev)
  * the expansion ROM base address, the latency timer, and etc.
  * from the saved values in the device node.
  */
-static void *eeh_restore_one_device_bars(struct eeh_dev *edev, void *flag)
+static void eeh_restore_one_device_bars(struct eeh_dev *edev, void *flag)
 {
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
@@ -864,8 +853,6 @@ static void *eeh_restore_one_device_bars(struct eeh_dev *edev, void *flag)
 
 	if (eeh_ops->restore_config && pdn)
 		eeh_ops->restore_config(pdn);
-
-	return NULL;
 }
 
 /**

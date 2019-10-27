@@ -12,19 +12,18 @@ static int intel_mmio_bases_check(void *arg)
 
 	for (i = 0; i < ARRAY_SIZE(intel_engines); i++) {
 		const struct engine_info *info = &intel_engines[i];
-		char name[INTEL_ENGINE_CS_MAX_NAME];
 		u8 prev = U8_MAX;
-
-		__sprint_engine_name(name, info);
 
 		for (j = 0; j < MAX_MMIO_BASES; j++) {
 			u8 gen = info->mmio_bases[j].gen;
 			u32 base = info->mmio_bases[j].base;
 
 			if (gen >= prev) {
-				pr_err("%s: %s: mmio base for gen %x "
-					"is before the one for gen %x\n",
-				       __func__, name, prev, gen);
+				pr_err("%s(%s, class:%d, instance:%d): mmio base for gen %x is before the one for gen %x\n",
+				       __func__,
+				       intel_engine_class_repr(info->class),
+				       info->class, info->instance,
+				       prev, gen);
 				return -EINVAL;
 			}
 
@@ -32,17 +31,22 @@ static int intel_mmio_bases_check(void *arg)
 				break;
 
 			if (!base) {
-				pr_err("%s: %s: invalid mmio base (%x) "
-					"for gen %x at entry %u\n",
-				       __func__, name, base, gen, j);
+				pr_err("%s(%s, class:%d, instance:%d): invalid mmio base (%x) for gen %x at entry %u\n",
+				       __func__,
+				       intel_engine_class_repr(info->class),
+				       info->class, info->instance,
+				       base, gen, j);
 				return -EINVAL;
 			}
 
 			prev = gen;
 		}
 
-		pr_info("%s: min gen supported for %s = %d\n",
-			__func__, name, prev);
+		pr_debug("%s: min gen supported for %s%d is %d\n",
+			 __func__,
+			 intel_engine_class_repr(info->class),
+			 info->instance,
+			 prev);
 	}
 
 	return 0;

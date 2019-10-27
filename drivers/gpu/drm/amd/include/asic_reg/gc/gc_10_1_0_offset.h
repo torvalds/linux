@@ -10107,6 +10107,8 @@
 #define mmCGTT_IA_CLK_CTRL_BASE_IDX                                                                    1
 #define mmCGTT_WD_CLK_CTRL                                                                             0x5086
 #define mmCGTT_WD_CLK_CTRL_BASE_IDX                                                                    1
+#define mmCGTT_GS_NGG_CLK_CTRL                                                                         0x5087
+#define mmCGTT_GS_NGG_CLK_CTRL_BASE_IDX                                                                1
 #define mmCGTT_PA_CLK_CTRL                                                                             0x5088
 #define mmCGTT_PA_CLK_CTRL_BASE_IDX                                                                    1
 #define mmCGTT_SC_CLK_CTRL0                                                                            0x5089

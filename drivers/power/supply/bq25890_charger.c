@@ -22,6 +22,7 @@
 #define BQ25890_IRQ_PIN			"bq25890_irq"
 
 #define BQ25890_ID			3
+#define BQ25895_ID			7
 #define BQ25896_ID			0
 
 enum bq25890_fields {
@@ -171,7 +172,7 @@ static const struct reg_field bq25890_reg_fields[] = {
 	[F_WD]			= REG_FIELD(0x07, 4, 5),
 	[F_TMR_EN]		= REG_FIELD(0x07, 3, 3),
 	[F_CHG_TMR]		= REG_FIELD(0x07, 1, 2),
-	[F_JEITA_ISET]		= REG_FIELD(0x07, 0, 0),
+	[F_JEITA_ISET]		= REG_FIELD(0x07, 0, 0), // reserved on BQ25895
 	/* REG08 */
 	[F_BATCMP]		= REG_FIELD(0x08, 5, 7),
 	[F_VCLAMP]		= REG_FIELD(0x08, 2, 4),
@@ -180,7 +181,7 @@ static const struct reg_field bq25890_reg_fields[] = {
 	[F_FORCE_ICO]		= REG_FIELD(0x09, 7, 7),
 	[F_TMR2X_EN]		= REG_FIELD(0x09, 6, 6),
 	[F_BATFET_DIS]		= REG_FIELD(0x09, 5, 5),
-	[F_JEITA_VSET]		= REG_FIELD(0x09, 4, 4),
+	[F_JEITA_VSET]		= REG_FIELD(0x09, 4, 4), // reserved on BQ25895
 	[F_BATFET_DLY]		= REG_FIELD(0x09, 3, 3),
 	[F_BATFET_RST_EN]	= REG_FIELD(0x09, 2, 2),
 	[F_PUMPX_UP]		= REG_FIELD(0x09, 1, 1),
@@ -188,7 +189,7 @@ static const struct reg_field bq25890_reg_fields[] = {
 	/* REG0A */
 	[F_BOOSTV]		= REG_FIELD(0x0A, 4, 7),
 	/* PFM_OTG_DIS 3 on BQ25896 */
-	[F_BOOSTI]		= REG_FIELD(0x0A, 0, 2),
+	[F_BOOSTI]		= REG_FIELD(0x0A, 0, 2), // reserved on BQ25895
 	/* REG0B */
 	[F_VBUS_STAT]		= REG_FIELD(0x0B, 5, 7),
 	[F_CHG_STAT]		= REG_FIELD(0x0B, 3, 4),
@@ -392,6 +393,8 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		if (bq->chip_id == BQ25890_ID)
 			val->strval = "BQ25890";
+		else if (bq->chip_id == BQ25895_ID)
+			val->strval = "BQ25895";
 		else if (bq->chip_id == BQ25896_ID)
 			val->strval = "BQ25896";
 		else
@@ -862,7 +865,8 @@ static int bq25890_probe(struct i2c_client *client,
 		return bq->chip_id;
 	}
 
-	if ((bq->chip_id != BQ25890_ID) && (bq->chip_id != BQ25896_ID)) {
+	if ((bq->chip_id != BQ25890_ID) && (bq->chip_id != BQ25895_ID)
+			&& (bq->chip_id != BQ25896_ID)) {
 		dev_err(dev, "Chip with ID=%d, not supported!\n", bq->chip_id);
 		return -ENODEV;
 	}

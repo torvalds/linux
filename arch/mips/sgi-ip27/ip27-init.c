@@ -130,17 +130,6 @@ cnodeid_t get_compact_nodeid(void)
 	return NASID_TO_COMPACT_NODEID(get_nasid());
 }
 
-static inline void ioc3_eth_init(void)
-{
-	struct ioc3 *ioc3;
-	nasid_t nid;
-
-	nid = get_nasid();
-	ioc3 = (struct ioc3 *) KL_CONFIG_CH_CONS_INFO(nid)->memory_base;
-
-	ioc3->eier = 0;
-}
-
 extern void ip27_reboot_setup(void);
 
 void __init plat_mem_setup(void)
@@ -181,8 +170,6 @@ void __init plat_mem_setup(void)
 	if (n_mode)
 		panic("Kernel compiled for N mode.");
 #endif
-
-	ioc3_eth_init();
 
 	ioport_resource.start = 0;
 	ioport_resource.end = ~0UL;

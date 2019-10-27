@@ -41,6 +41,7 @@ struct exynos_ehci_hcd {
 	struct clk *clk;
 	struct device_node *of_node;
 	struct phy *phy[PHY_NUMBER];
+	bool legacy_phy;
 };
 
 #define to_exynos_ehci(hcd) (struct exynos_ehci_hcd *)(hcd_to_ehci(hcd)->priv)
@@ -50,10 +51,22 @@ static int exynos_ehci_get_phy(struct device *dev,
 {
 	struct device_node *child;
 	struct phy *phy;
-	int phy_number;
+	int phy_number, num_phys;
 	int ret;
 
 	/* Get PHYs for the controller */
+	num_phys = of_count_phandle_with_args(dev->of_node, "phys",
+					      "#phy-cells");
+	for (phy_number = 0; phy_number < num_phys; phy_number++) {
+		phy = devm_of_phy_get_by_index(dev, dev->of_node, phy_number);
+		if (IS_ERR(phy))
+			return PTR_ERR(phy);
+		exynos_ehci->phy[phy_number] = phy;
+	}
+	if (num_phys > 0)
+		return 0;
+
+	/* Get PHYs using legacy bindings */
 	for_each_available_child_of_node(dev->of_node, child) {
 		ret = of_property_read_u32(child, "reg", &phy_number);
 		if (ret) {
@@ -84,6 +97,7 @@ static int exynos_ehci_get_phy(struct device *dev,
 		}
 	}
 
+	exynos_ehci->legacy_phy = true;
 	return 0;
 }
 
@@ -205,11 +219,12 @@ static int exynos_ehci_probe(struct platform_device *pdev)
 	ehci->caps = hcd->regs;
 
 	/*
-	 * Workaround: reset of_node pointer to avoid conflict between Exynos
-	 * EHCI port subnodes and generic USB device bindings
+	 * Workaround: reset of_node pointer to avoid conflict between legacy
+	 * Exynos EHCI port subnodes and generic USB device bindings
 	 */
 	exynos_ehci->of_node = pdev->dev.of_node;
-	pdev->dev.of_node = NULL;
+	if (exynos_ehci->legacy_phy)
+		pdev->dev.of_node = NULL;
 
 	/* DMA burst Enable */
 	writel(EHCI_INSNREG00_ENABLE_DMA_BURST, EHCI_INSNREG00(hcd->regs));

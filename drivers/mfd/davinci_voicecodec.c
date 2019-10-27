@@ -19,7 +19,6 @@
 #include <sound/pcm.h>
 
 #include <linux/mfd/davinci_voicecodec.h>
-#include <mach/hardware.h>
 
 static const struct regmap_config davinci_vc_regmap = {
 	.reg_bits = 32,
@@ -31,6 +30,7 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 	struct davinci_vc *davinci_vc;
 	struct resource *res;
 	struct mfd_cell *cell = NULL;
+	dma_addr_t fifo_base;
 	int ret;
 
 	davinci_vc = devm_kzalloc(&pdev->dev,
@@ -48,6 +48,7 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
+	fifo_base = (dma_addr_t)res->start;
 	davinci_vc->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(davinci_vc->base)) {
 		ret = PTR_ERR(davinci_vc->base);
@@ -70,8 +71,7 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 	}
 
 	davinci_vc->davinci_vcif.dma_tx_channel = res->start;
-	davinci_vc->davinci_vcif.dma_tx_addr =
-		(dma_addr_t)(io_v2p(davinci_vc->base) + DAVINCI_VC_WFIFO);
+	davinci_vc->davinci_vcif.dma_tx_addr = fifo_base + DAVINCI_VC_WFIFO;
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!res) {
@@ -81,8 +81,7 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 	}
 
 	davinci_vc->davinci_vcif.dma_rx_channel = res->start;
-	davinci_vc->davinci_vcif.dma_rx_addr =
-		(dma_addr_t)(io_v2p(davinci_vc->base) + DAVINCI_VC_RFIFO);
+	davinci_vc->davinci_vcif.dma_rx_addr = fifo_base + DAVINCI_VC_RFIFO;
 
 	davinci_vc->dev = &pdev->dev;
 	davinci_vc->pdev = pdev;

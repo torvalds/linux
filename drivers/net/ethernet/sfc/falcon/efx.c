@@ -2256,7 +2256,7 @@ static struct notifier_block ef4_netdev_notifier = {
 static ssize_t
 show_phy_type(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct ef4_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct ef4_nic *efx = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", efx->phy_type);
 }
 static DEVICE_ATTR(phy_type, 0444, show_phy_type, NULL);
@@ -2999,7 +2999,7 @@ static int ef4_pci_probe(struct pci_dev *pci_dev,
 
 static int ef4_pm_freeze(struct device *dev)
 {
-	struct ef4_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct ef4_nic *efx = dev_get_drvdata(dev);
 
 	rtnl_lock();
 
@@ -3020,7 +3020,7 @@ static int ef4_pm_freeze(struct device *dev)
 static int ef4_pm_thaw(struct device *dev)
 {
 	int rc;
-	struct ef4_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct ef4_nic *efx = dev_get_drvdata(dev);
 
 	rtnl_lock();
 

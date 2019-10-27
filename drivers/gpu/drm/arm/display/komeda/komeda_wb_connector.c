@@ -43,9 +43,8 @@ komeda_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	struct komeda_data_flow_cfg dflow;
 	int err;
 
-	if (!writeback_job || !writeback_job->fb) {
+	if (!writeback_job)
 		return 0;
-	}
 
 	if (!crtc_st->active) {
 		DRM_DEBUG_ATOMIC("Cannot write the composition result out on a inactive CRTC.\n");
@@ -148,7 +147,7 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 	if (!kcrtc->master->wb_layer)
 		return 0;
 
-	kwb_conn = kzalloc(sizeof(*wb_conn), GFP_KERNEL);
+	kwb_conn = kzalloc(sizeof(*kwb_conn), GFP_KERNEL);
 	if (!kwb_conn)
 		return -ENOMEM;
 
@@ -166,8 +165,10 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 					   &komeda_wb_encoder_helper_funcs,
 					   formats, n_formats);
 	komeda_put_fourcc_list(formats);
-	if (err)
+	if (err) {
+		kfree(kwb_conn);
 		return err;
+	}
 
 	drm_connector_helper_add(&wb_conn->base, &komeda_wb_conn_helper_funcs);
 

@@ -167,9 +167,9 @@ struct acpi_evaluate_info {
 	u32 return_flags;	/* Used for return value analysis */
 	u32 return_btype;	/* Bitmapped type of the returned object */
 	u16 param_count;	/* Count of the input argument list */
+	u16 node_flags;		/* Same as Node->Flags */
 	u8 pass_number;		/* Parser pass number */
 	u8 return_object_type;	/* Object type of the returned object */
-	u8 node_flags;		/* Same as Node->Flags */
 	u8 flags;		/* General flags */
 };
 

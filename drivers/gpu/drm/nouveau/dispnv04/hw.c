@@ -22,7 +22,6 @@
  * SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include "nouveau_drv.h"
 #include "hw.h"
 

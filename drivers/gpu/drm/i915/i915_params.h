@@ -64,6 +64,7 @@ struct drm_printer;
 	param(int, reset, 2) \
 	param(unsigned int, inject_load_failure, 0) \
 	param(int, fastboot, -1) \
+	param(int, enable_dpcd_backlight, 0) \
 	param(char *, force_probe, CONFIG_DRM_I915_FORCE_PROBE) \
 	/* leave bools at the end to not create holes */ \
 	param(bool, alpha_support, IS_ENABLED(CONFIG_DRM_I915_ALPHA_SUPPORT)) \
@@ -76,7 +77,6 @@ struct drm_printer;
 	param(bool, verbose_state_checks, true) \
 	param(bool, nuclear_pageflip, false) \
 	param(bool, enable_dp_mst, true) \
-	param(bool, enable_dpcd_backlight, false) \
 	param(bool, enable_gvt, false)
 
 #define MEMBER(T, member, ...) T member;

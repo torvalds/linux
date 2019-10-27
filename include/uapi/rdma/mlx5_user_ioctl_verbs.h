@@ -43,6 +43,7 @@ enum mlx5_ib_uapi_flow_table_type {
 	MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_RX     = 0x0,
 	MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX	= 0x1,
 	MLX5_IB_UAPI_FLOW_TABLE_TYPE_FDB	= 0x2,
+	MLX5_IB_UAPI_FLOW_TABLE_TYPE_RDMA_RX	= 0x3,
 };
 
 enum mlx5_ib_uapi_flow_action_packet_reformat_type {

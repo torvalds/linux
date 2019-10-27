@@ -174,6 +174,15 @@ fdtdone:
 
 2:      bv		%r0(%r2)
 	nop
+
+	/*
+	 * When running in qemu, drop whole flush_tlb_all_local function and
+	 * replace by one pdtlbe instruction, for which QEMU will drop all
+	 * local TLB entries.
+	 */
+3:	pdtlbe		%r0(%sr1,%r0)
+	bv,n		%r0(%r2)
+	ALTERNATIVE_CODE(flush_tlb_all_local, 2, ALT_COND_RUN_ON_QEMU, 3b)
 ENDPROC_CFI(flush_tlb_all_local)
 
 	.import cache_info,data

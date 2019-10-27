@@ -1996,6 +1996,7 @@ _mcount:
 	 * calling mcount(), and 2 instructions for ftrace_stub().  That way we
 	 * have all on one L1 cacheline.
 	 */
+	ldi	0, %arg3
 	b	ftrace_function_trampoline
 	copy	%r3, %arg2	/* caller original %sp */
 ftrace_stub:
@@ -2048,6 +2049,7 @@ ftrace_caller:
 	LDREG	0(%r3), %r25
 	copy	%rp, %r26
 	ldo	-8(%r25), %r25
+	ldi	0, %r23		/* no pt_regs */
 	b,l	ftrace_function_trampoline, %rp
 	copy	%r3, %r24
 
@@ -2075,6 +2077,103 @@ ftrace_caller:
 
 ENDPROC_CFI(ftrace_caller)
 
+#ifdef CONFIG_HAVE_DYNAMIC_FTRACE_WITH_REGS
+ENTRY_CFI(ftrace_regs_caller,caller,frame=FTRACE_FRAME_SIZE+PT_SZ_ALGN,
+	CALLS,SAVE_RP,SAVE_SP)
+ftrace_regs_caller:
+	.global ftrace_regs_caller
+
+	ldo	-FTRACE_FRAME_SIZE(%sp), %r1
+	STREG	%rp, -RP_OFFSET(%r1)
+
+	copy	%sp, %r1
+	ldo	PT_SZ_ALGN(%sp), %sp
+
+	STREG	%rp, PT_GR2(%r1)
+	STREG	%r3, PT_GR3(%r1)
+	STREG	%r4, PT_GR4(%r1)
+	STREG	%r5, PT_GR5(%r1)
+	STREG	%r6, PT_GR6(%r1)
+	STREG	%r7, PT_GR7(%r1)
+	STREG	%r8, PT_GR8(%r1)
+	STREG	%r9, PT_GR9(%r1)
+	STREG   %r10, PT_GR10(%r1)
+	STREG   %r11, PT_GR11(%r1)
+	STREG   %r12, PT_GR12(%r1)
+	STREG   %r13, PT_GR13(%r1)
+	STREG   %r14, PT_GR14(%r1)
+	STREG   %r15, PT_GR15(%r1)
+	STREG   %r16, PT_GR16(%r1)
+	STREG   %r17, PT_GR17(%r1)
+	STREG   %r18, PT_GR18(%r1)
+	STREG	%r19, PT_GR19(%r1)
+	STREG	%r20, PT_GR20(%r1)
+	STREG	%r21, PT_GR21(%r1)
+	STREG	%r22, PT_GR22(%r1)
+	STREG	%r23, PT_GR23(%r1)
+	STREG	%r24, PT_GR24(%r1)
+	STREG	%r25, PT_GR25(%r1)
+	STREG	%r26, PT_GR26(%r1)
+	STREG	%r27, PT_GR27(%r1)
+	STREG	%r28, PT_GR28(%r1)
+	STREG	%r29, PT_GR29(%r1)
+	STREG	%r30, PT_GR30(%r1)
+	STREG	%r31, PT_GR31(%r1)
+	mfctl	%cr11, %r26
+	STREG	%r26, PT_SAR(%r1)
+
+	copy	%rp, %r26
+	LDREG	-FTRACE_FRAME_SIZE-PT_SZ_ALGN(%sp), %r25
+	ldo	-8(%r25), %r25
+	copy	%r3, %arg2
+	b,l	ftrace_function_trampoline, %rp
+	copy	%r1, %arg3 /* struct pt_regs */
+
+	ldo	-PT_SZ_ALGN(%sp), %r1
+
+	LDREG	PT_SAR(%r1), %rp
+	mtctl	%rp, %cr11
+
+	LDREG	PT_GR2(%r1), %rp
+	LDREG	PT_GR3(%r1), %r3
+	LDREG	PT_GR4(%r1), %r4
+	LDREG	PT_GR5(%r1), %r5
+	LDREG	PT_GR6(%r1), %r6
+	LDREG	PT_GR7(%r1), %r7
+	LDREG	PT_GR8(%r1), %r8
+	LDREG	PT_GR9(%r1), %r9
+	LDREG   PT_GR10(%r1),%r10
+	LDREG   PT_GR11(%r1),%r11
+	LDREG   PT_GR12(%r1),%r12
+	LDREG   PT_GR13(%r1),%r13
+	LDREG   PT_GR14(%r1),%r14
+	LDREG   PT_GR15(%r1),%r15
+	LDREG   PT_GR16(%r1),%r16
+	LDREG   PT_GR17(%r1),%r17
+	LDREG   PT_GR18(%r1),%r18
+	LDREG   PT_GR19(%r1),%r19
+	LDREG   PT_GR20(%r1),%r20
+	LDREG   PT_GR21(%r1),%r21
+	LDREG   PT_GR22(%r1),%r22
+	LDREG   PT_GR23(%r1),%r23
+	LDREG   PT_GR24(%r1),%r24
+	LDREG   PT_GR25(%r1),%r25
+	LDREG   PT_GR26(%r1),%r26
+	LDREG   PT_GR27(%r1),%r27
+	LDREG   PT_GR28(%r1),%r28
+	LDREG   PT_GR29(%r1),%r29
+	LDREG   PT_GR30(%r1),%r30
+	LDREG   PT_GR31(%r1),%r31
+
+	ldo	-PT_SZ_ALGN(%sp), %sp
+	LDREGM	-FTRACE_FRAME_SIZE(%sp), %r1
+	/* Adjust return point to jump back to beginning of traced function */
+	ldo	-4(%r1), %r1
+	bv,n	(%r1)
+
+ENDPROC_CFI(ftrace_regs_caller)
+
+#endif
 #endif
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER

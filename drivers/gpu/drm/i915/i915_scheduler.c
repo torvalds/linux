@@ -179,8 +179,7 @@ static inline int rq_prio(const struct i915_request *rq)
 
 static void kick_submission(struct intel_engine_cs *engine, int prio)
 {
-	const struct i915_request *inflight =
-		port_request(engine->execlists.port);
+	const struct i915_request *inflight = *engine->execlists.active;
 
 	/*
 	 * If we are already the currently executing context, don't
@@ -350,8 +349,7 @@ void i915_schedule_bump_priority(struct i915_request *rq, unsigned int bump)
 	unsigned long flags;
 
 	GEM_BUG_ON(bump & ~I915_PRIORITY_MASK);
-
-	if (READ_ONCE(rq->sched.attr.priority) == I915_PRIORITY_INVALID)
+	if (READ_ONCE(rq->sched.attr.priority) & bump)
 		return;
 
 	spin_lock_irqsave(&schedule_lock, flags);
@@ -395,6 +393,7 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 		list_add(&dep->wait_link, &signal->waiters_list);
 		list_add(&dep->signal_link, &node->signalers_list);
 		dep->signaler = signal;
+		dep->waiter = node;
 		dep->flags = flags;
 
 		/* Keep track of whether anyone on this chain has a semaphore */

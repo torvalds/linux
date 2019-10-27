@@ -5,6 +5,7 @@
 #define __HCLGE_ERR_H
 
 #include "hclge_main.h"
+#include "hnae3.h"
 
 #define HCLGE_MPF_RAS_INT_MIN_BD_NUM	10
 #define HCLGE_PF_RAS_INT_MIN_BD_NUM	4

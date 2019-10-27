@@ -501,7 +501,7 @@ fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		nr_frags = skb_shinfo(skb)->nr_frags;
 		frag = skb_shinfo(skb)->frags;
 		for (i = 0; i < nr_frags; i++, frag++) {
-			if (!IS_ALIGNED(frag->page_offset, 4)) {
+			if (!IS_ALIGNED(skb_frag_off(frag), 4)) {
 				is_aligned = 0;
 				break;
 			}

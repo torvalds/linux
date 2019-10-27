@@ -201,15 +201,13 @@ int alt_pr_register(struct device *dev, void __iomem *reg_base)
 }
 EXPORT_SYMBOL_GPL(alt_pr_register);
 
-int alt_pr_unregister(struct device *dev)
+void alt_pr_unregister(struct device *dev)
 {
 	struct fpga_manager *mgr = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "%s\n", __func__);
 
 	fpga_mgr_unregister(mgr);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(alt_pr_unregister);
 

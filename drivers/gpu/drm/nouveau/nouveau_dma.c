@@ -118,7 +118,7 @@ nv50_dma_push_wait(struct nouveau_channel *chan, int count)
 		}
 
 		if ((++cnt & 0xff) == 0) {
-			DRM_UDELAY(1);
+			udelay(1);
 			if (cnt > 100000)
 				return -EBUSY;
 		}

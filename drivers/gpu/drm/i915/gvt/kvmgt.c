@@ -1306,7 +1306,6 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 		unsigned int i;
 		int ret;
 		struct vfio_region_info_cap_sparse_mmap *sparse = NULL;
-		size_t size;
 		int nr_areas = 1;
 		int cap_type_id;
 
@@ -1349,9 +1348,8 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 					VFIO_REGION_INFO_FLAG_WRITE;
 			info.size = gvt_aperture_sz(vgpu->gvt);
 
-			size = sizeof(*sparse) +
-					(nr_areas * sizeof(*sparse->areas));
-			sparse = kzalloc(size, GFP_KERNEL);
+			sparse = kzalloc(struct_size(sparse, areas, nr_areas),
+					 GFP_KERNEL);
 			if (!sparse)
 				return -ENOMEM;
 
@@ -1416,9 +1414,9 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 			switch (cap_type_id) {
 			case VFIO_REGION_INFO_CAP_SPARSE_MMAP:
 				ret = vfio_info_add_capability(&caps,
-					&sparse->header, sizeof(*sparse) +
-					(sparse->nr_areas *
-						sizeof(*sparse->areas)));
+					&sparse->header,
+					struct_size(sparse, areas,
+						    sparse->nr_areas));
 				if (ret) {
 					kfree(sparse);
 					return ret;
@@ -1798,9 +1796,6 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 						"kvmgt_nr_cache_entries",
 						0444, vgpu->debugfs,
 						&vgpu->vdev.nr_cache_entries);
-	if (!info->debugfs_cache_entries)
-		gvt_vgpu_err("Cannot create kvmgt debugfs entry\n");
-
 	return 0;
 }
 

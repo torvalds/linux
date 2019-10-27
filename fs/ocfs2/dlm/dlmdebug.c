@@ -853,67 +853,34 @@ static const struct file_operations debug_state_fops = {
 /* files in subroot */
 void dlm_debug_init(struct dlm_ctxt *dlm)
 {
-	struct dlm_debug_ctxt *dc = dlm->dlm_debug_ctxt;
-
 	/* for dumping dlm_ctxt */
-	dc->debug_state_dentry = debugfs_create_file(DLM_DEBUGFS_DLM_STATE,
-						     S_IFREG|S_IRUSR,
-						     dlm->dlm_debugfs_subroot,
-						     dlm, &debug_state_fops);
+	debugfs_create_file(DLM_DEBUGFS_DLM_STATE, S_IFREG|S_IRUSR,
+			    dlm->dlm_debugfs_subroot, dlm, &debug_state_fops);
 
 	/* for dumping lockres */
-	dc->debug_lockres_dentry =
-			debugfs_create_file(DLM_DEBUGFS_LOCKING_STATE,
-					    S_IFREG|S_IRUSR,
-					    dlm->dlm_debugfs_subroot,
-					    dlm, &debug_lockres_fops);
+	debugfs_create_file(DLM_DEBUGFS_LOCKING_STATE, S_IFREG|S_IRUSR,
+			    dlm->dlm_debugfs_subroot, dlm, &debug_lockres_fops);
 
 	/* for dumping mles */
-	dc->debug_mle_dentry = debugfs_create_file(DLM_DEBUGFS_MLE_STATE,
-						   S_IFREG|S_IRUSR,
-						   dlm->dlm_debugfs_subroot,
-						   dlm, &debug_mle_fops);
+	debugfs_create_file(DLM_DEBUGFS_MLE_STATE, S_IFREG|S_IRUSR,
+			    dlm->dlm_debugfs_subroot, dlm, &debug_mle_fops);
 
 	/* for dumping lockres on the purge list */
-	dc->debug_purgelist_dentry =
-			debugfs_create_file(DLM_DEBUGFS_PURGE_LIST,
-					    S_IFREG|S_IRUSR,
-					    dlm->dlm_debugfs_subroot,
-					    dlm, &debug_purgelist_fops);
-}
-
-void dlm_debug_shutdown(struct dlm_ctxt *dlm)
-{
-	struct dlm_debug_ctxt *dc = dlm->dlm_debug_ctxt;
-
-	if (dc) {
-		debugfs_remove(dc->debug_purgelist_dentry);
-		debugfs_remove(dc->debug_mle_dentry);
-		debugfs_remove(dc->debug_lockres_dentry);
-		debugfs_remove(dc->debug_state_dentry);
-		kfree(dc);
-		dc = NULL;
-	}
+	debugfs_create_file(DLM_DEBUGFS_PURGE_LIST, S_IFREG|S_IRUSR,
+			    dlm->dlm_debugfs_subroot, dlm,
+			    &debug_purgelist_fops);
 }
 
 /* subroot - domain dir */
-int dlm_create_debugfs_subroot(struct dlm_ctxt *dlm)
+void dlm_create_debugfs_subroot(struct dlm_ctxt *dlm)
 {
-	dlm->dlm_debug_ctxt = kzalloc(sizeof(struct dlm_debug_ctxt),
-				      GFP_KERNEL);
-	if (!dlm->dlm_debug_ctxt) {
-		mlog_errno(-ENOMEM);
-		return -ENOMEM;
-	}
-
 	dlm->dlm_debugfs_subroot = debugfs_create_dir(dlm->name,
 						      dlm_debugfs_root);
-	return 0;
 }
 
 void dlm_destroy_debugfs_subroot(struct dlm_ctxt *dlm)
 {
-	debugfs_remove(dlm->dlm_debugfs_subroot);
+	debugfs_remove_recursive(dlm->dlm_debugfs_subroot);
 }
 
 /* debugfs root */

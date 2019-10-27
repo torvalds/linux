@@ -97,10 +97,6 @@ bool dim_enqueue_buffer(struct dim_channel *ch, u32 buffer_addr,
 
 bool dim_detach_buffers(struct dim_channel *ch, u16 buffers_number);
 
-u32 dimcb_io_read(u32 __iomem *ptr32);
-
-void dimcb_io_write(u32 __iomem *ptr32, u32 value);
-
 void dimcb_on_error(u8 error_id, const char *error_message);
 
 #endif /* _DIM2_HAL_H */

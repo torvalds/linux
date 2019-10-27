@@ -44,6 +44,11 @@ void xtensa_backtrace_user(struct pt_regs *regs, unsigned int depth,
 	if (pc == 0 || pc >= TASK_SIZE || ufn(&frame, data))
 		return;
 
+	if (IS_ENABLED(CONFIG_USER_ABI_CALL0_ONLY) ||
+	    (IS_ENABLED(CONFIG_USER_ABI_CALL0_PROBE) &&
+	     !(regs->ps & PS_WOE_MASK)))
+		return;
+
 	/* Two steps:
 	 *
 	 * 1. Look through the register window for the

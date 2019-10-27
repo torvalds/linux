@@ -160,7 +160,7 @@ static inline u16 Hi16(u32 val)
 
 static inline u16 Mk16(u8 hi, u8 lo)
 {
-	return lo | (((u16) hi) << 8);
+	return lo | (((u16)hi) << 8);
 }
 
 static const u16 Sbox[256] = {
@@ -238,7 +238,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 	 * Make temporary area overlap WEP seed so that the final copy can be
 	 * avoided on little endian hosts.
 	 */
-	u16 *PPK = (u16 *) &WEPSeed[4];
+	u16 *PPK = (u16 *)&WEPSeed[4];
 
 	/* Step 1 - make copy of TTAK and bring in TSC */
 	PPK[0] = TTAK[0];
@@ -299,7 +299,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	    skb->len < hdr_len)
 		return -1;
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 
 	if (!tcb_desc->bHwSec) {
 		if (!tkey->tx_phase1_done) {
@@ -343,7 +343,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		icv[2] = crc >> 16;
 		icv[3] = crc >> 24;
 		crypto_sync_skcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
-		sg_init_one(&sg, pos, len+4);
+		sg_init_one(&sg, pos, len + 4);
 		skcipher_request_set_sync_tfm(req, tkey->tx_tfm_arc4);
 		skcipher_request_set_callback(req, 0, NULL, NULL);
 		skcipher_request_set_crypt(req, &sg, &sg, len + 4, NULL);
@@ -383,7 +383,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & BIT(5))) {
@@ -435,7 +435,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		plen = skb->len - hdr_len - 12;
 
 		crypto_sync_skcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
-		sg_init_one(&sg, pos, plen+4);
+		sg_init_one(&sg, pos, plen + 4);
 
 		skcipher_request_set_sync_tfm(req, tkey->rx_tfm_arc4);
 		skcipher_request_set_callback(req, 0, NULL, NULL);
@@ -523,7 +523,7 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 {
 	struct rtl_80211_hdr_4addr *hdr11;
 
-	hdr11 = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr11 = (struct rtl_80211_hdr_4addr *)skb->data;
 	switch (le16_to_cpu(hdr11->frame_ctl) &
 		(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
 	case IEEE80211_FCTL_TODS:
@@ -556,7 +556,7 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 	u8 *pos;
 	struct rtl_80211_hdr_4addr *hdr;
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 
 	if (skb_tailroom(skb) < 8 || skb->len < hdr_len) {
 		printk(KERN_DEBUG "Invalid packet for Michael MIC add "
@@ -599,7 +599,7 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 	memcpy(ev.src_addr.sa_data, hdr->addr2, ETH_ALEN);
 	memset(&wrqu, 0, sizeof(wrqu));
 	wrqu.data.length = sizeof(ev);
-	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *) &ev);
+	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
 }
 
 static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
@@ -609,7 +609,7 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	u8 mic[8];
 	struct rtl_80211_hdr_4addr *hdr;
 
-	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 
 	if (!tkey->key_set)
 		return -1;
@@ -626,7 +626,7 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct rtl_80211_hdr_4addr *hdr;
-		hdr = (struct rtl_80211_hdr_4addr *) skb->data;
+		hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from %pM keyidx=%d\n",

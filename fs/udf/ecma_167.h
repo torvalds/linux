@@ -88,6 +88,20 @@ struct regid {
 #define ENTITYID_FLAGS_DIRTY		0x00
 #define ENTITYID_FLAGS_PROTECTED	0x01
 
+/* OSTA UDF 2.1.5.2 */
+#define UDF_ID_COMPLIANT "*OSTA UDF Compliant"
+
+/* OSTA UDF 2.1.5.3 */
+struct domainEntityIDSuffix {
+	uint16_t	revision;
+	uint8_t		flags;
+	uint8_t		reserved[5];
+};
+
+/* OSTA UDF 2.1.5.3 */
+#define ENTITYIDSUFFIX_FLAGS_HARDWRITEPROTECT 0
+#define ENTITYIDSUFFIX_FLAGS_SOFTWRITEPROTECT 1
+
 /* Volume Structure Descriptor (ECMA 167r3 2/9.1) */
 #define VSD_STD_ID_LEN			5
 struct volStructDesc {

@@ -443,7 +443,7 @@ struct inode *afs_iget_pseudo_dir(struct super_block *sb, bool root)
 	inode->i_mode		= S_IFDIR | S_IRUGO | S_IXUGO;
 	if (root) {
 		inode->i_op	= &afs_dynroot_inode_operations;
-		inode->i_fop	= &afs_dynroot_file_operations;
+		inode->i_fop	= &simple_dir_operations;
 	} else {
 		inode->i_op	= &afs_autocell_inode_operations;
 	}

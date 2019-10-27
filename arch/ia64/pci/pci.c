@@ -24,7 +24,6 @@
 #include <linux/memblock.h>
 #include <linux/export.h>
 
-#include <asm/machvec.h>
 #include <asm/page.h>
 #include <asm/io.h>
 #include <asm/sal.h>
@@ -372,7 +371,6 @@ void pcibios_fixup_bus(struct pci_bus *b)
 	}
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
-	platform_pci_fixup_bus(b);
 }
 
 void pcibios_add_bus(struct pci_bus *bus)
@@ -413,7 +411,7 @@ pcibios_disable_device (struct pci_dev *dev)
 }
 
 /**
- * ia64_pci_get_legacy_mem - generic legacy mem routine
+ * pci_get_legacy_mem - generic legacy mem routine
  * @bus: bus to get legacy memory base address for
  *
  * Find the base of legacy memory for @bus.  This is typically the first
@@ -424,7 +422,7 @@ pcibios_disable_device (struct pci_dev *dev)
  * This is the ia64 generic version of this routine.  Other platforms
  * are free to override it with a machine vector.
  */
-char *ia64_pci_get_legacy_mem(struct pci_bus *bus)
+char *pci_get_legacy_mem(struct pci_bus *bus)
 {
 	return (char *)__IA64_UNCACHED_OFFSET;
 }
@@ -473,7 +471,7 @@ pci_mmap_legacy_page_range(struct pci_bus *bus, struct vm_area_struct *vma,
 }
 
 /**
- * ia64_pci_legacy_read - read from legacy I/O space
+ * pci_legacy_read - read from legacy I/O space
  * @bus: bus to read
  * @port: legacy port value
  * @val: caller allocated storage for returned value
@@ -485,7 +483,7 @@ pci_mmap_legacy_page_range(struct pci_bus *bus, struct vm_area_struct *vma,
  * overridden by the platform.  This is necessary on platforms that don't
  * support legacy I/O routing or that hard fail on legacy I/O timeouts.
  */
-int ia64_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
+int pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
 {
 	int ret = size;
 
@@ -508,7 +506,7 @@ int ia64_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
 }
 
 /**
- * ia64_pci_legacy_write - perform a legacy I/O write
+ * pci_legacy_write - perform a legacy I/O write
  * @bus: bus pointer
  * @port: port to write
  * @val: value to write
@@ -516,7 +514,7 @@ int ia64_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
  *
  * Simply writes @size bytes of @val to @port.
  */
-int ia64_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
+int pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 {
 	int ret = size;
 

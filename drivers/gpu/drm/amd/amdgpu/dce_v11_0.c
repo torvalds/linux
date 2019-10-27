@@ -254,6 +254,7 @@ static void dce_v11_0_page_flip(struct amdgpu_device *adev,
 				int crtc_id, u64 crtc_base, bool async)
 {
 	struct amdgpu_crtc *amdgpu_crtc = adev->mode_info.crtcs[crtc_id];
+	struct drm_framebuffer *fb = amdgpu_crtc->base.primary->fb;
 	u32 tmp;
 
 	/* flip immediate for async, default is vsync */
@@ -261,6 +262,9 @@ static void dce_v11_0_page_flip(struct amdgpu_device *adev,
 	tmp = REG_SET_FIELD(tmp, GRPH_FLIP_CONTROL,
 			    GRPH_SURFACE_UPDATE_IMMEDIATE_EN, async ? 1 : 0);
 	WREG32(mmGRPH_FLIP_CONTROL + amdgpu_crtc->crtc_offset, tmp);
+	/* update pitch */
+	WREG32(mmGRPH_PITCH + amdgpu_crtc->crtc_offset,
+	       fb->pitches[0] / fb->format->cpp[0]);
 	/* update the scanout addresses */
 	WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH + amdgpu_crtc->crtc_offset,
 	       upper_32_bits(crtc_base));

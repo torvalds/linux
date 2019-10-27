@@ -53,10 +53,11 @@ struct rtable {
 	unsigned int		rt_flags;
 	__u16			rt_type;
 	__u8			rt_is_input;
-	u8			rt_gw_family;
+	__u8			rt_uses_gateway;
 
 	int			rt_iif;
 
+	u8			rt_gw_family;
 	/* Info on neighbour */
 	union {
 		__be32		rt_gw4;
@@ -233,7 +234,7 @@ void rt_del_uncached_list(struct rtable *rt);
 
 int fib_dump_info_fnhe(struct sk_buff *skb, struct netlink_callback *cb,
 		       u32 table_id, struct fib_info *fi,
-		       int *fa_index, int fa_start);
+		       int *fa_index, int fa_start, unsigned int flags);
 
 static inline void ip_rt_put(struct rtable *rt)
 {

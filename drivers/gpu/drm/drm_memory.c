@@ -1,4 +1,4 @@
-/**
+/*
  * \file drm_memory.c
  * Memory management wrappers for DRM
  *

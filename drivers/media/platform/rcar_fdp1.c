@@ -2122,6 +2122,7 @@ static int fdp1_open(struct file *file)
 	if (ctx->hdl.error) {
 		ret = ctx->hdl.error;
 		v4l2_ctrl_handler_free(&ctx->hdl);
+		kfree(ctx);
 		goto done;
 	}
 
@@ -2306,7 +2307,7 @@ static int fdp1_probe(struct platform_device *pdev)
 		fdp1->fcp = rcar_fcp_get(fcp_node);
 		of_node_put(fcp_node);
 		if (IS_ERR(fdp1->fcp)) {
-			dev_err(&pdev->dev, "FCP not found (%ld)\n",
+			dev_dbg(&pdev->dev, "FCP not found (%ld)\n",
 				PTR_ERR(fdp1->fcp));
 			return PTR_ERR(fdp1->fcp);
 		}

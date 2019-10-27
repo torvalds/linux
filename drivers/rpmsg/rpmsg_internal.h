@@ -20,7 +20,7 @@
 
 /**
  * struct rpmsg_device_ops - indirection table for the rpmsg_device operations
- * @create_ept:		create backend-specific endpoint, requried
+ * @create_ept:		create backend-specific endpoint, required
  * @announce_create:	announce presence of new channel, optional
  * @announce_destroy:	announce destruction of channel, optional
  *
@@ -39,13 +39,14 @@ struct rpmsg_device_ops {
 
 /**
  * struct rpmsg_endpoint_ops - indirection table for rpmsg_endpoint operations
- * @destroy_ept:	destroy the given endpoint, required
+ * @destroy_ept:	see @rpmsg_destroy_ept(), required
  * @send:		see @rpmsg_send(), required
  * @sendto:		see @rpmsg_sendto(), optional
  * @send_offchannel:	see @rpmsg_send_offchannel(), optional
  * @trysend:		see @rpmsg_trysend(), required
  * @trysendto:		see @rpmsg_trysendto(), optional
  * @trysend_offchannel:	see @rpmsg_trysend_offchannel(), optional
+ * @poll:		see @rpmsg_poll(), optional
  *
  * Indirection table for the operations that a rpmsg backend should implement.
  * In addition to @destroy_ept, the backend must at least implement @send and

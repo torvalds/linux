@@ -1,0 +1,5 @@
+fw_load_policy		[DEVICE, GENERIC]
+			Configuration mode: permanent
+
+reset_dev_on_drv_probe	[DEVICE, GENERIC]
+			Configuration mode: permanent

@@ -83,7 +83,7 @@ Instantiate the device
 ----------------------
 
 After loading the driver, you can instantiate the device as
-described in 'Documentation/i2c/instantiating-devices'.
+described in 'Documentation/i2c/instantiating-devices.rst'.
 If you have multiple BMCs, each connected to your Satellite MC via
 a different I2C bus, you can instantiate a device for each of
 those BMCs.

@@ -52,8 +52,6 @@ properties:
       - nxp,pcf2127
       # Real-time clock
       - nxp,pcf2129
-      # Real-time clock/calendar
-      - nxp,pcf8563
       # Real-time Clock Module
       - pericom,pt7c4338
       # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC

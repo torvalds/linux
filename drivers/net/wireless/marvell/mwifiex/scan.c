@@ -1244,7 +1244,7 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 			mwifiex_dbg(adapter, ERROR,
 				    "err: InterpretIE: in processing\t"
 				    "IE, bytes left < IE length\n");
-			return -1;
+			return -EINVAL;
 		}
 		switch (element_id) {
 		case WLAN_EID_SSID:

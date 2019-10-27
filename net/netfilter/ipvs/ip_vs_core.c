@@ -617,7 +617,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		unsigned int flags = (svc->flags & IP_VS_SVC_F_ONEPACKET &&
 				      iph->protocol == IPPROTO_UDP) ?
 				      IP_VS_CONN_F_ONE_PACKET : 0;
-		union nf_inet_addr daddr =  { .all = { 0, 0, 0, 0 } };
+		union nf_inet_addr daddr = { .all = { 0, 0, 0, 0 } };
 
 		/* create a new connection entry */
 		IP_VS_DBG(6, "%s(): create a cache_bypass entry\n", __func__);

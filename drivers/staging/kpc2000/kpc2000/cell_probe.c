@@ -53,15 +53,15 @@ struct core_table_entry {
 static
 void  parse_core_table_entry_v0(struct core_table_entry *cte, const u64 read_val)
 {
-	cte->type                = ((read_val & 0xFFF0000000000000) >> 52);
-	cte->offset              = ((read_val & 0x00000000FFFF0000) >> 16) * 4096;
-	cte->length              = ((read_val & 0x0000FFFF00000000) >> 32) * 8;
-	cte->s2c_dma_present     = ((read_val & 0x0008000000000000) >> 51);
-	cte->s2c_dma_channel_num = ((read_val & 0x0007000000000000) >> 48);
-	cte->c2s_dma_present     = ((read_val & 0x0000000000008000) >> 15);
-	cte->c2s_dma_channel_num = ((read_val & 0x0000000000007000) >> 12);
-	cte->irq_count           = ((read_val & 0x0000000000000C00) >> 10);
-	cte->irq_base_num        = ((read_val & 0x00000000000003F8) >>  3);
+	cte->type                = ((read_val & 0xFFF0000000000000UL) >> 52);
+	cte->offset              = ((read_val & 0x00000000FFFF0000UL) >> 16) * 4096;
+	cte->length              = ((read_val & 0x0000FFFF00000000UL) >> 32) * 8;
+	cte->s2c_dma_present     = ((read_val & 0x0008000000000000UL) >> 51);
+	cte->s2c_dma_channel_num = ((read_val & 0x0007000000000000UL) >> 48);
+	cte->c2s_dma_present     = ((read_val & 0x0000000000008000UL) >> 15);
+	cte->c2s_dma_channel_num = ((read_val & 0x0000000000007000UL) >> 12);
+	cte->irq_count           = ((read_val & 0x0000000000000C00UL) >> 10);
+	cte->irq_base_num        = ((read_val & 0x00000000000003F8UL) >>  3);
 }
 
 static

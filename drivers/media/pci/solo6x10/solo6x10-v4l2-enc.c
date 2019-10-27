@@ -822,25 +822,18 @@ static int solo_enc_enum_fmt_cap(struct file *file, void *priv,
 		switch (dev_type) {
 		case SOLO_DEV_6010:
 			f->pixelformat = V4L2_PIX_FMT_MPEG4;
-			strscpy(f->description, "MPEG-4 part 2",
-				sizeof(f->description));
 			break;
 		case SOLO_DEV_6110:
 			f->pixelformat = V4L2_PIX_FMT_H264;
-			strscpy(f->description, "H.264", sizeof(f->description));
 			break;
 		}
 		break;
 	case 1:
 		f->pixelformat = V4L2_PIX_FMT_MJPEG;
-		strscpy(f->description, "MJPEG", sizeof(f->description));
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	f->flags = V4L2_FMT_FLAG_COMPRESSED;
-
 	return 0;
 }
 
@@ -886,7 +879,6 @@ static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pix->sizeimage = FRAME_BUF_SIZE;
 	pix->bytesperline = 0;
-	pix->priv = 0;
 
 	return 0;
 }
@@ -941,7 +933,6 @@ static int solo_enc_get_fmt_cap(struct file *file, void *priv,
 		     V4L2_FIELD_NONE;
 	pix->sizeimage = FRAME_BUF_SIZE;
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	pix->priv = 0;
 
 	return 0;
 }

@@ -39,6 +39,9 @@ static const struct snd_tscm_spec model_specs[] = {
 		.midi_capture_ports = 2,
 		.midi_playback_ports = 4,
 	},
+	// This kernel module doesn't support FE-8 because the most of features
+	// can be implemented in userspace without any specific support of this
+	// module.
 };
 
 static int identify_model(struct snd_tscm *tscm)
@@ -214,7 +217,6 @@ static const struct ieee1394_device_id snd_tscm_id_table[] = {
 		.vendor_id = 0x00022e,
 		.specifier_id = 0x00022e,
 	},
-	/* FE-08 requires reverse-engineering because it just has faders. */
 	{}
 };
 MODULE_DEVICE_TABLE(ieee1394, snd_tscm_id_table);

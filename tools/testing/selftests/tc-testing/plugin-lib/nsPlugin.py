@@ -64,7 +64,7 @@ class SubPlugin(TdcPlugin):
             cmdlist.insert(0, self.args.NAMES['NS'])
             cmdlist.insert(0, 'exec')
             cmdlist.insert(0, 'netns')
-            cmdlist.insert(0, 'ip')
+            cmdlist.insert(0, self.args.NAMES['IP'])
         else:
             pass
 
@@ -78,16 +78,16 @@ class SubPlugin(TdcPlugin):
         return command
 
     def _ports_create(self):
-        cmd = 'ip link add $DEV0 type veth peer name $DEV1'
+        cmd = '$IP link add $DEV0 type veth peer name $DEV1'
         self._exec_cmd('pre', cmd)
-        cmd = 'ip link set $DEV0 up'
+        cmd = '$IP link set $DEV0 up'
         self._exec_cmd('pre', cmd)
         if not self.args.namespace:
-            cmd = 'ip link set $DEV1 up'
+            cmd = '$IP link set $DEV1 up'
             self._exec_cmd('pre', cmd)
 
     def _ports_destroy(self):
-        cmd = 'ip link del $DEV0'
+        cmd = '$IP link del $DEV0'
         self._exec_cmd('post', cmd)
 
     def _ns_create(self):
@@ -97,16 +97,16 @@ class SubPlugin(TdcPlugin):
         '''
         self._ports_create()
         if self.args.namespace:
-            cmd = 'ip netns add {}'.format(self.args.NAMES['NS'])
+            cmd = '$IP netns add {}'.format(self.args.NAMES['NS'])
             self._exec_cmd('pre', cmd)
-            cmd = 'ip link set $DEV1 netns {}'.format(self.args.NAMES['NS'])
+            cmd = '$IP link set $DEV1 netns {}'.format(self.args.NAMES['NS'])
             self._exec_cmd('pre', cmd)
-            cmd = 'ip -n {} link set $DEV1 up'.format(self.args.NAMES['NS'])
+            cmd = '$IP -n {} link set $DEV1 up'.format(self.args.NAMES['NS'])
             self._exec_cmd('pre', cmd)
             if self.args.device:
-                cmd = 'ip link set $DEV2 netns {}'.format(self.args.NAMES['NS'])
+                cmd = '$IP link set $DEV2 netns {}'.format(self.args.NAMES['NS'])
                 self._exec_cmd('pre', cmd)
-                cmd = 'ip -n {} link set $DEV2 up'.format(self.args.NAMES['NS'])
+                cmd = '$IP -n {} link set $DEV2 up'.format(self.args.NAMES['NS'])
                 self._exec_cmd('pre', cmd)
 
     def _ns_destroy(self):
@@ -115,7 +115,7 @@ class SubPlugin(TdcPlugin):
         devices as well)
         '''
         if self.args.namespace:
-            cmd = 'ip netns delete {}'.format(self.args.NAMES['NS'])
+            cmd = '$IP netns delete {}'.format(self.args.NAMES['NS'])
             self._exec_cmd('post', cmd)
 
     def _exec_cmd(self, stage, command):

@@ -5,6 +5,8 @@
  * Antoine Tenart <antoine.tenart@free-electrons.com>
  */
 
+#include <linux/arm-smccc.h>
+#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/mfd/syscon.h>
@@ -22,6 +24,7 @@
 #define     MVEBU_COMPHY_SERDES_CFG0_PU_RX	BIT(11)
 #define     MVEBU_COMPHY_SERDES_CFG0_PU_TX	BIT(12)
 #define     MVEBU_COMPHY_SERDES_CFG0_HALF_BUS	BIT(14)
+#define     MVEBU_COMPHY_SERDES_CFG0_RXAUI_MODE	BIT(15)
 #define MVEBU_COMPHY_SERDES_CFG1(n)		(0x4 + (n) * 0x1000)
 #define     MVEBU_COMPHY_SERDES_CFG1_RESET	BIT(3)
 #define     MVEBU_COMPHY_SERDES_CFG1_RX_INIT	BIT(4)
@@ -77,8 +80,8 @@
 #define MVEBU_COMPHY_TX_SLEW_RATE(n)		(0x974 + (n) * 0x1000)
 #define     MVEBU_COMPHY_TX_SLEW_RATE_EMPH(n)	((n) << 5)
 #define     MVEBU_COMPHY_TX_SLEW_RATE_SLC(n)	((n) << 10)
-#define MVEBU_COMPHY_DLT_CTRL(n)		(0x984 + (n) * 0x1000)
-#define     MVEBU_COMPHY_DLT_CTRL_DTL_FLOOP_EN	BIT(2)
+#define MVEBU_COMPHY_DTL_CTRL(n)		(0x984 + (n) * 0x1000)
+#define     MVEBU_COMPHY_DTL_CTRL_DTL_FLOOP_EN	BIT(2)
 #define MVEBU_COMPHY_FRAME_DETECT0(n)		(0xa14 + (n) * 0x1000)
 #define     MVEBU_COMPHY_FRAME_DETECT0_PATN(n)	((n) << 7)
 #define MVEBU_COMPHY_FRAME_DETECT3(n)		(0xa20 + (n) * 0x1000)
@@ -111,9 +114,66 @@
 #define     MVEBU_COMPHY_SELECTOR_PHY(n)	((n) * 0x4)
 #define MVEBU_COMPHY_PIPE_SELECTOR		0x1144
 #define     MVEBU_COMPHY_PIPE_SELECTOR_PIPE(n)	((n) * 0x4)
+#define MVEBU_COMPHY_SD1_CTRL1			0x1148
+#define     MVEBU_COMPHY_SD1_CTRL1_RXAUI1_EN	BIT(26)
+#define     MVEBU_COMPHY_SD1_CTRL1_RXAUI0_EN	BIT(27)
 
 #define MVEBU_COMPHY_LANES	6
 #define MVEBU_COMPHY_PORTS	3
+
+#define COMPHY_SIP_POWER_ON	0x82000001
+#define COMPHY_SIP_POWER_OFF	0x82000002
+#define COMPHY_FW_NOT_SUPPORTED	(-1)
+
+/*
+ * A lane is described by the following bitfields:
+ * [ 1- 0]: COMPHY polarity invertion
+ * [ 2- 7]: COMPHY speed
+ * [ 5-11]: COMPHY port index
+ * [12-16]: COMPHY mode
+ * [17]: Clock source
+ * [18-20]: PCIe width (x1, x2, x4)
+ */
+#define COMPHY_FW_POL_OFFSET	0
+#define COMPHY_FW_POL_MASK	GENMASK(1, 0)
+#define COMPHY_FW_SPEED_OFFSET	2
+#define COMPHY_FW_SPEED_MASK	GENMASK(7, 2)
+#define COMPHY_FW_SPEED_MAX	COMPHY_FW_SPEED_MASK
+#define COMPHY_FW_SPEED_1250	0
+#define COMPHY_FW_SPEED_3125	2
+#define COMPHY_FW_SPEED_5000	3
+#define COMPHY_FW_SPEED_103125	6
+#define COMPHY_FW_PORT_OFFSET	8
+#define COMPHY_FW_PORT_MASK	GENMASK(11, 8)
+#define COMPHY_FW_MODE_OFFSET	12
+#define COMPHY_FW_MODE_MASK	GENMASK(16, 12)
+#define COMPHY_FW_WIDTH_OFFSET	18
+#define COMPHY_FW_WIDTH_MASK	GENMASK(20, 18)
+
+#define COMPHY_FW_PARAM_FULL(mode, port, speed, pol, width)		\
+	((((pol) << COMPHY_FW_POL_OFFSET) & COMPHY_FW_POL_MASK) |	\
+	 (((mode) << COMPHY_FW_MODE_OFFSET) & COMPHY_FW_MODE_MASK) |	\
+	 (((port) << COMPHY_FW_PORT_OFFSET) & COMPHY_FW_PORT_MASK) |	\
+	 (((speed) << COMPHY_FW_SPEED_OFFSET) & COMPHY_FW_SPEED_MASK) |	\
+	 (((width) << COMPHY_FW_WIDTH_OFFSET) & COMPHY_FW_WIDTH_MASK))
+
+#define COMPHY_FW_PARAM(mode, port)					\
+	COMPHY_FW_PARAM_FULL(mode, port, COMPHY_FW_SPEED_MAX, 0, 0)
+
+#define COMPHY_FW_PARAM_ETH(mode, port, speed)				\
+	COMPHY_FW_PARAM_FULL(mode, port, speed, 0, 0)
+
+#define COMPHY_FW_PARAM_PCIE(mode, port, width)				\
+	COMPHY_FW_PARAM_FULL(mode, port, COMPHY_FW_SPEED_5000, 0, width)
+
+#define COMPHY_FW_MODE_SATA		0x1
+#define COMPHY_FW_MODE_SGMII		0x2 /* SGMII 1G */
+#define COMPHY_FW_MODE_HS_SGMII		0x3 /* SGMII 2.5G */
+#define COMPHY_FW_MODE_USB3H		0x4
+#define COMPHY_FW_MODE_USB3D		0x5
+#define COMPHY_FW_MODE_PCIE		0x6
+#define COMPHY_FW_MODE_RXAUI		0x7
+#define COMPHY_FW_MODE_XFI		0x8 /* SFI: 0x9 (is treated like XFI) */
 
 struct mvebu_comphy_conf {
 	enum phy_mode mode;
@@ -121,45 +181,84 @@ struct mvebu_comphy_conf {
 	unsigned lane;
 	unsigned port;
 	u32 mux;
+	u32 fw_mode;
 };
 
-#define MVEBU_COMPHY_CONF(_lane, _port, _submode, _mux)	\
+#define ETH_CONF(_lane, _port, _submode, _mux, _fw)	\
 	{						\
 		.lane = _lane,				\
 		.port = _port,				\
 		.mode = PHY_MODE_ETHERNET,		\
 		.submode = _submode,			\
 		.mux = _mux,				\
+		.fw_mode = _fw,				\
+	}
+
+#define GEN_CONF(_lane, _port, _mode, _fw)		\
+	{						\
+		.lane = _lane,				\
+		.port = _port,				\
+		.mode = _mode,				\
+		.submode = PHY_INTERFACE_MODE_NA,	\
+		.mux = -1,				\
+		.fw_mode = _fw,				\
 	}
 
 static const struct mvebu_comphy_conf mvebu_comphy_cp110_modes[] = {
 	/* lane 0 */
-	MVEBU_COMPHY_CONF(0, 1, PHY_INTERFACE_MODE_SGMII, 0x1),
-	MVEBU_COMPHY_CONF(0, 1, PHY_INTERFACE_MODE_2500BASEX, 0x1),
+	GEN_CONF(0, 0, PHY_MODE_PCIE, COMPHY_FW_MODE_PCIE),
+	ETH_CONF(0, 1, PHY_INTERFACE_MODE_SGMII, 0x1, COMPHY_FW_MODE_SGMII),
+	ETH_CONF(0, 1, PHY_INTERFACE_MODE_2500BASEX, 0x1, COMPHY_FW_MODE_HS_SGMII),
+	GEN_CONF(0, 1, PHY_MODE_SATA, COMPHY_FW_MODE_SATA),
 	/* lane 1 */
-	MVEBU_COMPHY_CONF(1, 2, PHY_INTERFACE_MODE_SGMII, 0x1),
-	MVEBU_COMPHY_CONF(1, 2, PHY_INTERFACE_MODE_2500BASEX, 0x1),
+	GEN_CONF(1, 0, PHY_MODE_USB_HOST_SS, COMPHY_FW_MODE_USB3H),
+	GEN_CONF(1, 0, PHY_MODE_USB_DEVICE_SS, COMPHY_FW_MODE_USB3D),
+	GEN_CONF(1, 0, PHY_MODE_SATA, COMPHY_FW_MODE_SATA),
+	GEN_CONF(1, 0, PHY_MODE_PCIE, COMPHY_FW_MODE_PCIE),
+	ETH_CONF(1, 2, PHY_INTERFACE_MODE_SGMII, 0x1, COMPHY_FW_MODE_SGMII),
+	ETH_CONF(1, 2, PHY_INTERFACE_MODE_2500BASEX, 0x1, COMPHY_FW_MODE_HS_SGMII),
 	/* lane 2 */
-	MVEBU_COMPHY_CONF(2, 0, PHY_INTERFACE_MODE_SGMII, 0x1),
-	MVEBU_COMPHY_CONF(2, 0, PHY_INTERFACE_MODE_2500BASEX, 0x1),
-	MVEBU_COMPHY_CONF(2, 0, PHY_INTERFACE_MODE_10GKR, 0x1),
+	ETH_CONF(2, 0, PHY_INTERFACE_MODE_SGMII, 0x1, COMPHY_FW_MODE_SGMII),
+	ETH_CONF(2, 0, PHY_INTERFACE_MODE_2500BASEX, 0x1, COMPHY_FW_MODE_HS_SGMII),
+	ETH_CONF(2, 0, PHY_INTERFACE_MODE_RXAUI, 0x1, COMPHY_FW_MODE_RXAUI),
+	ETH_CONF(2, 0, PHY_INTERFACE_MODE_10GKR, 0x1, COMPHY_FW_MODE_XFI),
+	GEN_CONF(2, 0, PHY_MODE_USB_HOST_SS, COMPHY_FW_MODE_USB3H),
+	GEN_CONF(2, 0, PHY_MODE_SATA, COMPHY_FW_MODE_SATA),
+	GEN_CONF(2, 0, PHY_MODE_PCIE, COMPHY_FW_MODE_PCIE),
 	/* lane 3 */
-	MVEBU_COMPHY_CONF(3, 1, PHY_INTERFACE_MODE_SGMII, 0x2),
-	MVEBU_COMPHY_CONF(3, 1, PHY_INTERFACE_MODE_2500BASEX, 0x2),
+	GEN_CONF(3, 0, PHY_MODE_PCIE, COMPHY_FW_MODE_PCIE),
+	ETH_CONF(3, 1, PHY_INTERFACE_MODE_SGMII, 0x2, COMPHY_FW_MODE_SGMII),
+	ETH_CONF(3, 1, PHY_INTERFACE_MODE_2500BASEX, 0x2, COMPHY_FW_MODE_HS_SGMII),
+	ETH_CONF(3, 1, PHY_INTERFACE_MODE_RXAUI, 0x1, COMPHY_FW_MODE_RXAUI),
+	GEN_CONF(3, 1, PHY_MODE_USB_HOST_SS, COMPHY_FW_MODE_USB3H),
+	GEN_CONF(3, 1, PHY_MODE_SATA, COMPHY_FW_MODE_SATA),
 	/* lane 4 */
-	MVEBU_COMPHY_CONF(4, 0, PHY_INTERFACE_MODE_SGMII, 0x2),
-	MVEBU_COMPHY_CONF(4, 0, PHY_INTERFACE_MODE_2500BASEX, 0x2),
-	MVEBU_COMPHY_CONF(4, 0, PHY_INTERFACE_MODE_10GKR, 0x2),
-	MVEBU_COMPHY_CONF(4, 1, PHY_INTERFACE_MODE_SGMII, 0x1),
+	ETH_CONF(4, 0, PHY_INTERFACE_MODE_SGMII, 0x2, COMPHY_FW_MODE_SGMII),
+	ETH_CONF(4, 0, PHY_INTERFACE_MODE_2500BASEX, 0x2, COMPHY_FW_MODE_HS_SGMII),
+	ETH_CONF(4, 0, PHY_INTERFACE_MODE_10GKR, 0x2, COMPHY_FW_MODE_XFI),
+	ETH_CONF(4, 0, PHY_INTERFACE_MODE_RXAUI, 0x2, COMPHY_FW_MODE_RXAUI),
+	GEN_CONF(4, 0, PHY_MODE_USB_DEVICE_SS, COMPHY_FW_MODE_USB3D),
+	GEN_CONF(4, 1, PHY_MODE_USB_HOST_SS, COMPHY_FW_MODE_USB3H),
+	GEN_CONF(4, 1, PHY_MODE_PCIE, COMPHY_FW_MODE_PCIE),
+	ETH_CONF(4, 1, PHY_INTERFACE_MODE_SGMII, 0x1, COMPHY_FW_MODE_SGMII),
+	ETH_CONF(4, 1, PHY_INTERFACE_MODE_2500BASEX, -1, COMPHY_FW_MODE_HS_SGMII),
+	ETH_CONF(4, 1, PHY_INTERFACE_MODE_10GKR, -1, COMPHY_FW_MODE_XFI),
 	/* lane 5 */
-	MVEBU_COMPHY_CONF(5, 2, PHY_INTERFACE_MODE_SGMII, 0x1),
-	MVEBU_COMPHY_CONF(5, 2, PHY_INTERFACE_MODE_2500BASEX, 0x1),
+	ETH_CONF(5, 1, PHY_INTERFACE_MODE_RXAUI, 0x2, COMPHY_FW_MODE_RXAUI),
+	GEN_CONF(5, 1, PHY_MODE_SATA, COMPHY_FW_MODE_SATA),
+	ETH_CONF(5, 2, PHY_INTERFACE_MODE_SGMII, 0x1, COMPHY_FW_MODE_SGMII),
+	ETH_CONF(5, 2, PHY_INTERFACE_MODE_2500BASEX, 0x1, COMPHY_FW_MODE_HS_SGMII),
+	GEN_CONF(5, 2, PHY_MODE_PCIE, COMPHY_FW_MODE_PCIE),
 };
 
 struct mvebu_comphy_priv {
 	void __iomem *base;
 	struct regmap *regmap;
 	struct device *dev;
+	struct clk *mg_domain_clk;
+	struct clk *mg_core_clk;
+	struct clk *axi_clk;
+	unsigned long cp_phys;
 };
 
 struct mvebu_comphy_lane {
@@ -170,30 +269,59 @@ struct mvebu_comphy_lane {
 	int port;
 };
 
-static int mvebu_comphy_get_mux(int lane, int port,
-				enum phy_mode mode, int submode)
+static int mvebu_comphy_smc(unsigned long function, unsigned long phys,
+			    unsigned long lane, unsigned long mode)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(function, phys, lane, mode, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+
+static int mvebu_comphy_get_mode(bool fw_mode, int lane, int port,
+				 enum phy_mode mode, int submode)
 {
 	int i, n = ARRAY_SIZE(mvebu_comphy_cp110_modes);
+	/* Ignore PCIe submode: it represents the width */
+	bool ignore_submode = (mode == PHY_MODE_PCIE);
+	const struct mvebu_comphy_conf *conf;
 
 	/* Unused PHY mux value is 0x0 */
 	if (mode == PHY_MODE_INVALID)
 		return 0;
 
 	for (i = 0; i < n; i++) {
-		if (mvebu_comphy_cp110_modes[i].lane == lane &&
-		    mvebu_comphy_cp110_modes[i].port == port &&
-		    mvebu_comphy_cp110_modes[i].mode == mode &&
-		    mvebu_comphy_cp110_modes[i].submode == submode)
+		conf = &mvebu_comphy_cp110_modes[i];
+		if (conf->lane == lane &&
+		    conf->port == port &&
+		    conf->mode == mode &&
+		    (conf->submode == submode || ignore_submode))
 			break;
 	}
 
 	if (i == n)
 		return -EINVAL;
 
-	return mvebu_comphy_cp110_modes[i].mux;
+	if (fw_mode)
+		return conf->fw_mode;
+	else
+		return conf->mux;
 }
 
-static void mvebu_comphy_ethernet_init_reset(struct mvebu_comphy_lane *lane)
+static inline int mvebu_comphy_get_mux(int lane, int port,
+				       enum phy_mode mode, int submode)
+{
+	return mvebu_comphy_get_mode(false, lane, port, mode, submode);
+}
+
+static inline int mvebu_comphy_get_fw_mode(int lane, int port,
+					   enum phy_mode mode, int submode)
+{
+	return mvebu_comphy_get_mode(true, lane, port, mode, submode);
+}
+
+static int mvebu_comphy_ethernet_init_reset(struct mvebu_comphy_lane *lane)
 {
 	struct mvebu_comphy_priv *priv = lane->priv;
 	u32 val;
@@ -210,19 +338,60 @@ static void mvebu_comphy_ethernet_init_reset(struct mvebu_comphy_lane *lane)
 		 MVEBU_COMPHY_SERDES_CFG0_PU_TX |
 		 MVEBU_COMPHY_SERDES_CFG0_HALF_BUS |
 		 MVEBU_COMPHY_SERDES_CFG0_GEN_RX(0xf) |
-		 MVEBU_COMPHY_SERDES_CFG0_GEN_TX(0xf));
-	if (lane->submode == PHY_INTERFACE_MODE_10GKR)
+		 MVEBU_COMPHY_SERDES_CFG0_GEN_TX(0xf) |
+		 MVEBU_COMPHY_SERDES_CFG0_RXAUI_MODE);
+
+	switch (lane->submode) {
+	case PHY_INTERFACE_MODE_10GKR:
 		val |= MVEBU_COMPHY_SERDES_CFG0_GEN_RX(0xe) |
 		       MVEBU_COMPHY_SERDES_CFG0_GEN_TX(0xe);
-	else if (lane->submode == PHY_INTERFACE_MODE_2500BASEX)
+		break;
+	case PHY_INTERFACE_MODE_RXAUI:
+		val |= MVEBU_COMPHY_SERDES_CFG0_GEN_RX(0xb) |
+		       MVEBU_COMPHY_SERDES_CFG0_GEN_TX(0xb) |
+		       MVEBU_COMPHY_SERDES_CFG0_RXAUI_MODE;
+		break;
+	case PHY_INTERFACE_MODE_2500BASEX:
 		val |= MVEBU_COMPHY_SERDES_CFG0_GEN_RX(0x8) |
 		       MVEBU_COMPHY_SERDES_CFG0_GEN_TX(0x8) |
 		       MVEBU_COMPHY_SERDES_CFG0_HALF_BUS;
-	else if (lane->submode == PHY_INTERFACE_MODE_SGMII)
+		break;
+	case PHY_INTERFACE_MODE_SGMII:
 		val |= MVEBU_COMPHY_SERDES_CFG0_GEN_RX(0x6) |
 		       MVEBU_COMPHY_SERDES_CFG0_GEN_TX(0x6) |
 		       MVEBU_COMPHY_SERDES_CFG0_HALF_BUS;
+		break;
+	default:
+		dev_err(priv->dev,
+			"unsupported comphy submode (%d) on lane %d\n",
+			lane->submode,
+			lane->id);
+		return -ENOTSUPP;
+	}
+
 	writel(val, priv->base + MVEBU_COMPHY_SERDES_CFG0(lane->id));
+
+	if (lane->submode == PHY_INTERFACE_MODE_RXAUI) {
+		regmap_read(priv->regmap, MVEBU_COMPHY_SD1_CTRL1, &val);
+
+		switch (lane->id) {
+		case 2:
+		case 3:
+			val |= MVEBU_COMPHY_SD1_CTRL1_RXAUI0_EN;
+			break;
+		case 4:
+		case 5:
+			val |= MVEBU_COMPHY_SD1_CTRL1_RXAUI1_EN;
+			break;
+		default:
+			dev_err(priv->dev,
+				"RXAUI is not supported on comphy lane %d\n",
+				lane->id);
+			return -EINVAL;
+		}
+
+		regmap_write(priv->regmap, MVEBU_COMPHY_SD1_CTRL1, val);
+	}
 
 	/* reset */
 	val = readl(priv->base + MVEBU_COMPHY_SERDES_CFG1(lane->id));
@@ -264,6 +433,8 @@ static void mvebu_comphy_ethernet_init_reset(struct mvebu_comphy_lane *lane)
 	val &= ~MVEBU_COMPHY_LOOPBACK_DBUS_WIDTH(0x7);
 	val |= MVEBU_COMPHY_LOOPBACK_DBUS_WIDTH(0x1);
 	writel(val, priv->base + MVEBU_COMPHY_LOOPBACK(lane->id));
+
+	return 0;
 }
 
 static int mvebu_comphy_init_plls(struct mvebu_comphy_lane *lane)
@@ -312,17 +483,20 @@ static int mvebu_comphy_set_mode_sgmii(struct phy *phy)
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 	struct mvebu_comphy_priv *priv = lane->priv;
 	u32 val;
+	int err;
 
-	mvebu_comphy_ethernet_init_reset(lane);
+	err = mvebu_comphy_ethernet_init_reset(lane);
+	if (err)
+		return err;
 
 	val = readl(priv->base + MVEBU_COMPHY_RX_CTRL1(lane->id));
 	val &= ~MVEBU_COMPHY_RX_CTRL1_CLK8T_EN;
 	val |= MVEBU_COMPHY_RX_CTRL1_RXCLK2X_SEL;
 	writel(val, priv->base + MVEBU_COMPHY_RX_CTRL1(lane->id));
 
-	val = readl(priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
-	val &= ~MVEBU_COMPHY_DLT_CTRL_DTL_FLOOP_EN;
-	writel(val, priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
+	val = readl(priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
+	val &= ~MVEBU_COMPHY_DTL_CTRL_DTL_FLOOP_EN;
+	writel(val, priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
 
 	regmap_read(priv->regmap, MVEBU_COMPHY_CONF1(lane->id), &val);
 	val &= ~MVEBU_COMPHY_CONF1_USB_PCIE;
@@ -337,22 +511,78 @@ static int mvebu_comphy_set_mode_sgmii(struct phy *phy)
 	return mvebu_comphy_init_plls(lane);
 }
 
-static int mvebu_comphy_set_mode_10gkr(struct phy *phy)
+static int mvebu_comphy_set_mode_rxaui(struct phy *phy)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 	struct mvebu_comphy_priv *priv = lane->priv;
 	u32 val;
+	int err;
 
-	mvebu_comphy_ethernet_init_reset(lane);
+	err = mvebu_comphy_ethernet_init_reset(lane);
+	if (err)
+		return err;
 
 	val = readl(priv->base + MVEBU_COMPHY_RX_CTRL1(lane->id));
 	val |= MVEBU_COMPHY_RX_CTRL1_RXCLK2X_SEL |
 	       MVEBU_COMPHY_RX_CTRL1_CLK8T_EN;
 	writel(val, priv->base + MVEBU_COMPHY_RX_CTRL1(lane->id));
 
-	val = readl(priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
-	val |= MVEBU_COMPHY_DLT_CTRL_DTL_FLOOP_EN;
-	writel(val, priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
+	val = readl(priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
+	val |= MVEBU_COMPHY_DTL_CTRL_DTL_FLOOP_EN;
+	writel(val, priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_SERDES_CFG2(lane->id));
+	val |= MVEBU_COMPHY_SERDES_CFG2_DFE_EN;
+	writel(val, priv->base + MVEBU_COMPHY_SERDES_CFG2(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_DFE_RES(lane->id));
+	val |= MVEBU_COMPHY_DFE_RES_FORCE_GEN_TBL;
+	writel(val, priv->base + MVEBU_COMPHY_DFE_RES(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_GEN1_S0(lane->id));
+	val &= ~MVEBU_COMPHY_GEN1_S0_TX_EMPH(0xf);
+	val |= MVEBU_COMPHY_GEN1_S0_TX_EMPH(0xd);
+	writel(val, priv->base + MVEBU_COMPHY_GEN1_S0(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_GEN1_S1(lane->id));
+	val &= ~(MVEBU_COMPHY_GEN1_S1_RX_MUL_PI(0x7) |
+		 MVEBU_COMPHY_GEN1_S1_RX_MUL_PF(0x7));
+	val |= MVEBU_COMPHY_GEN1_S1_RX_MUL_PI(0x1) |
+	       MVEBU_COMPHY_GEN1_S1_RX_MUL_PF(0x1) |
+	       MVEBU_COMPHY_GEN1_S1_RX_DFE_EN;
+	writel(val, priv->base + MVEBU_COMPHY_GEN1_S1(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_COEF(lane->id));
+	val &= ~(MVEBU_COMPHY_COEF_DFE_EN | MVEBU_COMPHY_COEF_DFE_CTRL);
+	writel(val, priv->base + MVEBU_COMPHY_COEF(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_GEN1_S4(lane->id));
+	val &= ~MVEBU_COMPHY_GEN1_S4_DFE_RES(0x3);
+	val |= MVEBU_COMPHY_GEN1_S4_DFE_RES(0x1);
+	writel(val, priv->base + MVEBU_COMPHY_GEN1_S4(lane->id));
+
+	return mvebu_comphy_init_plls(lane);
+}
+
+static int mvebu_comphy_set_mode_10gkr(struct phy *phy)
+{
+	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
+	struct mvebu_comphy_priv *priv = lane->priv;
+	u32 val;
+	int err;
+
+	err = mvebu_comphy_ethernet_init_reset(lane);
+	if (err)
+		return err;
+
+	val = readl(priv->base + MVEBU_COMPHY_RX_CTRL1(lane->id));
+	val |= MVEBU_COMPHY_RX_CTRL1_RXCLK2X_SEL |
+	       MVEBU_COMPHY_RX_CTRL1_CLK8T_EN;
+	writel(val, priv->base + MVEBU_COMPHY_RX_CTRL1(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
+	val |= MVEBU_COMPHY_DTL_CTRL_DTL_FLOOP_EN;
+	writel(val, priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
 
 	/* Speed divider */
 	val = readl(priv->base + MVEBU_COMPHY_SPEED_DIV(lane->id));
@@ -476,7 +706,7 @@ static int mvebu_comphy_set_mode_10gkr(struct phy *phy)
 	return mvebu_comphy_init_plls(lane);
 }
 
-static int mvebu_comphy_power_on(struct phy *phy)
+static int mvebu_comphy_power_on_legacy(struct phy *phy)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 	struct mvebu_comphy_priv *priv = lane->priv;
@@ -502,6 +732,9 @@ static int mvebu_comphy_power_on(struct phy *phy)
 	case PHY_INTERFACE_MODE_2500BASEX:
 		ret = mvebu_comphy_set_mode_sgmii(phy);
 		break;
+	case PHY_INTERFACE_MODE_RXAUI:
+		ret = mvebu_comphy_set_mode_rxaui(phy);
+		break;
 	case PHY_INTERFACE_MODE_10GKR:
 		ret = mvebu_comphy_set_mode_10gkr(phy);
 		break;
@@ -517,26 +750,110 @@ static int mvebu_comphy_power_on(struct phy *phy)
 	return ret;
 }
 
+static int mvebu_comphy_power_on(struct phy *phy)
+{
+	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
+	struct mvebu_comphy_priv *priv = lane->priv;
+	int fw_mode, fw_speed;
+	u32 fw_param = 0;
+	int ret;
+
+	fw_mode = mvebu_comphy_get_fw_mode(lane->id, lane->port,
+					   lane->mode, lane->submode);
+	if (fw_mode < 0)
+		goto try_legacy;
+
+	/* Try SMC flow first */
+	switch (lane->mode) {
+	case PHY_MODE_ETHERNET:
+		switch (lane->submode) {
+		case PHY_INTERFACE_MODE_RXAUI:
+			dev_dbg(priv->dev, "set lane %d to RXAUI mode\n",
+				lane->id);
+			fw_speed = 0;
+			break;
+		case PHY_INTERFACE_MODE_SGMII:
+			dev_dbg(priv->dev, "set lane %d to 1000BASE-X mode\n",
+				lane->id);
+			fw_speed = COMPHY_FW_SPEED_1250;
+			break;
+		case PHY_INTERFACE_MODE_2500BASEX:
+			dev_dbg(priv->dev, "set lane %d to 2500BASE-X mode\n",
+				lane->id);
+			fw_speed = COMPHY_FW_SPEED_3125;
+			break;
+		case PHY_INTERFACE_MODE_10GKR:
+			dev_dbg(priv->dev, "set lane %d to 10G-KR mode\n",
+				lane->id);
+			fw_speed = COMPHY_FW_SPEED_103125;
+			break;
+		default:
+			dev_err(priv->dev, "unsupported Ethernet mode (%d)\n",
+				lane->submode);
+			return -ENOTSUPP;
+		}
+		fw_param = COMPHY_FW_PARAM_ETH(fw_mode, lane->port, fw_speed);
+		break;
+	case PHY_MODE_USB_HOST_SS:
+	case PHY_MODE_USB_DEVICE_SS:
+		dev_dbg(priv->dev, "set lane %d to USB3 mode\n", lane->id);
+		fw_param = COMPHY_FW_PARAM(fw_mode, lane->port);
+		break;
+	case PHY_MODE_SATA:
+		dev_dbg(priv->dev, "set lane %d to SATA mode\n", lane->id);
+		fw_param = COMPHY_FW_PARAM(fw_mode, lane->port);
+		break;
+	case PHY_MODE_PCIE:
+		dev_dbg(priv->dev, "set lane %d to PCIe mode (x%d)\n", lane->id,
+			lane->submode);
+		fw_param = COMPHY_FW_PARAM_PCIE(fw_mode, lane->port,
+						lane->submode);
+		break;
+	default:
+		dev_err(priv->dev, "unsupported PHY mode (%d)\n", lane->mode);
+		return -ENOTSUPP;
+	}
+
+	ret = mvebu_comphy_smc(COMPHY_SIP_POWER_ON, priv->cp_phys, lane->id,
+			       fw_param);
+	if (!ret)
+		return ret;
+
+	if (ret == COMPHY_FW_NOT_SUPPORTED)
+		dev_err(priv->dev,
+			"unsupported SMC call, try updating your firmware\n");
+
+	dev_warn(priv->dev,
+		 "Firmware could not configure PHY %d with mode %d (ret: %d), trying legacy method\n",
+		 lane->id, lane->mode, ret);
+
+try_legacy:
+	/* Fallback to Linux's implementation */
+	return mvebu_comphy_power_on_legacy(phy);
+}
+
 static int mvebu_comphy_set_mode(struct phy *phy,
 				 enum phy_mode mode, int submode)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 
-	if (mode != PHY_MODE_ETHERNET)
-		return -EINVAL;
-
 	if (submode == PHY_INTERFACE_MODE_1000BASEX)
 		submode = PHY_INTERFACE_MODE_SGMII;
 
-	if (mvebu_comphy_get_mux(lane->id, lane->port, mode, submode) < 0)
+	if (mvebu_comphy_get_fw_mode(lane->id, lane->port, mode, submode) < 0)
 		return -EINVAL;
 
 	lane->mode = mode;
 	lane->submode = submode;
+
+	/* PCIe submode represents the width */
+	if (mode == PHY_MODE_PCIE && !lane->submode)
+		lane->submode = 1;
+
 	return 0;
 }
 
-static int mvebu_comphy_power_off(struct phy *phy)
+static int mvebu_comphy_power_off_legacy(struct phy *phy)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 	struct mvebu_comphy_priv *priv = lane->priv;
@@ -557,6 +874,21 @@ static int mvebu_comphy_power_off(struct phy *phy)
 	regmap_write(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, val);
 
 	return 0;
+}
+
+static int mvebu_comphy_power_off(struct phy *phy)
+{
+	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
+	struct mvebu_comphy_priv *priv = lane->priv;
+	int ret;
+
+	ret = mvebu_comphy_smc(COMPHY_SIP_POWER_OFF, priv->cp_phys,
+			       lane->id, 0);
+	if (!ret)
+		return ret;
+
+	/* Fallback to Linux's implementation */
+	return mvebu_comphy_power_off_legacy(phy);
 }
 
 static const struct phy_ops mvebu_comphy_ops = {
@@ -585,12 +917,72 @@ static struct phy *mvebu_comphy_xlate(struct device *dev,
 	return phy;
 }
 
+static int mvebu_comphy_init_clks(struct mvebu_comphy_priv *priv)
+{
+	int ret;
+
+	priv->mg_domain_clk = devm_clk_get(priv->dev, "mg_clk");
+	if (IS_ERR(priv->mg_domain_clk))
+		return PTR_ERR(priv->mg_domain_clk);
+
+	ret = clk_prepare_enable(priv->mg_domain_clk);
+	if (ret < 0)
+		return ret;
+
+	priv->mg_core_clk = devm_clk_get(priv->dev, "mg_core_clk");
+	if (IS_ERR(priv->mg_core_clk)) {
+		ret = PTR_ERR(priv->mg_core_clk);
+		goto dis_mg_domain_clk;
+	}
+
+	ret = clk_prepare_enable(priv->mg_core_clk);
+	if (ret < 0)
+		goto dis_mg_domain_clk;
+
+	priv->axi_clk = devm_clk_get(priv->dev, "axi_clk");
+	if (IS_ERR(priv->axi_clk)) {
+		ret = PTR_ERR(priv->axi_clk);
+		goto dis_mg_core_clk;
+	}
+
+	ret = clk_prepare_enable(priv->axi_clk);
+	if (ret < 0)
+		goto dis_mg_core_clk;
+
+	return 0;
+
+dis_mg_core_clk:
+	clk_disable_unprepare(priv->mg_core_clk);
+
+dis_mg_domain_clk:
+	clk_disable_unprepare(priv->mg_domain_clk);
+
+	priv->mg_domain_clk = NULL;
+	priv->mg_core_clk = NULL;
+	priv->axi_clk = NULL;
+
+	return ret;
+};
+
+static void mvebu_comphy_disable_unprepare_clks(struct mvebu_comphy_priv *priv)
+{
+	if (priv->axi_clk)
+		clk_disable_unprepare(priv->axi_clk);
+
+	if (priv->mg_core_clk)
+		clk_disable_unprepare(priv->mg_core_clk);
+
+	if (priv->mg_domain_clk)
+		clk_disable_unprepare(priv->mg_domain_clk);
+}
+
 static int mvebu_comphy_probe(struct platform_device *pdev)
 {
 	struct mvebu_comphy_priv *priv;
 	struct phy_provider *provider;
 	struct device_node *child;
 	struct resource *res;
+	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -607,10 +999,26 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
+	/*
+	 * Ignore error if clocks have not been initialized properly for DT
+	 * compatibility reasons.
+	 */
+	ret = mvebu_comphy_init_clks(priv);
+	if (ret) {
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		dev_warn(&pdev->dev, "cannot initialize clocks\n");
+	}
+
+	/*
+	 * Hack to retrieve a physical offset relative to this CP that will be
+	 * given to the firmware
+	 */
+	priv->cp_phys = res->start;
+
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
 		struct mvebu_comphy_lane *lane;
 		struct phy *phy;
-		int ret;
 		u32 val;
 
 		ret = of_property_read_u32(child, "reg", &val);
@@ -626,30 +1034,45 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 		}
 
 		lane = devm_kzalloc(&pdev->dev, sizeof(*lane), GFP_KERNEL);
-		if (!lane)
-			return -ENOMEM;
+		if (!lane) {
+			of_node_put(child);
+			ret = -ENOMEM;
+			goto disable_clks;
+		}
 
 		phy = devm_phy_create(&pdev->dev, child, &mvebu_comphy_ops);
-		if (IS_ERR(phy))
-			return PTR_ERR(phy);
+		if (IS_ERR(phy)) {
+			of_node_put(child);
+			ret = PTR_ERR(phy);
+			goto disable_clks;
+		}
 
 		lane->priv = priv;
 		lane->mode = PHY_MODE_INVALID;
+		lane->submode = PHY_INTERFACE_MODE_NA;
 		lane->id = val;
 		lane->port = -1;
 		phy_set_drvdata(phy, lane);
 
 		/*
-		 * Once all modes are supported in this driver we should call
+		 * All modes are supported in this driver so we could call
 		 * mvebu_comphy_power_off(phy) here to avoid relying on the
-		 * bootloader/firmware configuration.
+		 * bootloader/firmware configuration, but for compatibility
+		 * reasons we cannot de-configure the COMPHY without being sure
+		 * that the firmware is up-to-date and fully-featured.
 		 */
 	}
 
 	dev_set_drvdata(&pdev->dev, priv);
 	provider = devm_of_phy_provider_register(&pdev->dev,
 						 mvebu_comphy_xlate);
+
 	return PTR_ERR_OR_ZERO(provider);
+
+disable_clks:
+	mvebu_comphy_disable_unprepare_clks(priv);
+
+	return ret;
 }
 
 static const struct of_device_id mvebu_comphy_of_match_table[] = {

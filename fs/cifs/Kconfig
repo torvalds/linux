@@ -16,7 +16,7 @@ config CIFS
 	select CRYPTO_GCM
 	select CRYPTO_ECB
 	select CRYPTO_AES
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select KEYS
 	help
 	  This is the client VFS module for the SMB3 family of NAS protocols,
@@ -211,3 +211,11 @@ config CIFS_FSCACHE
 	  Makes CIFS FS-Cache capable. Say Y here if you want your CIFS data
 	  to be cached locally on disk through the general filesystem cache
 	  manager. If unsure, say N.
+
+config CIFS_ROOT
+	bool "SMB root file system (Experimental)"
+	depends on CIFS=y && IP_PNP
+	help
+	  Enables root file system support over SMB protocol.
+
+	  Most people say N here.

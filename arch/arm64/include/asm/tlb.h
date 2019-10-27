@@ -44,7 +44,7 @@ static inline void tlb_flush(struct mmu_gather *tlb)
 static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 				  unsigned long addr)
 {
-	pgtable_page_dtor(pte);
+	pgtable_pte_page_dtor(pte);
 	tlb_remove_table(tlb, pte);
 }
 

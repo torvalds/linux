@@ -669,10 +669,6 @@
 	status = "disabled";
 };
 
-&snvs_pwrkey {
-	status = "disabled";
-};
-
 &iomuxc {
 	pinctrl_ecspi1: ecspi1grp {
 		fsl,pins = <

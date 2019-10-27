@@ -33,7 +33,7 @@
 102:
 	.section .fixup,"ax"
 103:	addl %ecx,%edx			/* ecx is zerorest also */
-	jmp copy_user_handle_tail
+	jmp .Lcopy_user_handle_tail
 	.previous
 
 	_ASM_EXTABLE_UA(100b, 103b)
@@ -113,7 +113,7 @@ ENTRY(copy_user_generic_unrolled)
 40:	leal (%rdx,%rcx,8),%edx
 	jmp 60f
 50:	movl %ecx,%edx
-60:	jmp copy_user_handle_tail /* ecx is zerorest also */
+60:	jmp .Lcopy_user_handle_tail /* ecx is zerorest also */
 	.previous
 
 	_ASM_EXTABLE_UA(1b, 30b)
@@ -177,7 +177,7 @@ ENTRY(copy_user_generic_string)
 	.section .fixup,"ax"
 11:	leal (%rdx,%rcx,8),%ecx
 12:	movl %ecx,%edx		/* ecx is zerorest also */
-	jmp copy_user_handle_tail
+	jmp .Lcopy_user_handle_tail
 	.previous
 
 	_ASM_EXTABLE_UA(1b, 11b)
@@ -210,7 +210,7 @@ ENTRY(copy_user_enhanced_fast_string)
 
 	.section .fixup,"ax"
 12:	movl %ecx,%edx		/* ecx is zerorest also */
-	jmp copy_user_handle_tail
+	jmp .Lcopy_user_handle_tail
 	.previous
 
 	_ASM_EXTABLE_UA(1b, 12b)
@@ -231,7 +231,7 @@ EXPORT_SYMBOL(copy_user_enhanced_fast_string)
  * eax uncopied bytes or 0 if successful.
  */
 ALIGN;
-copy_user_handle_tail:
+.Lcopy_user_handle_tail:
 	movl %edx,%ecx
 1:	rep movsb
 2:	mov %ecx,%eax
@@ -239,7 +239,7 @@ copy_user_handle_tail:
 	ret
 
 	_ASM_EXTABLE_UA(1b, 2b)
-END(copy_user_handle_tail)
+END(.Lcopy_user_handle_tail)
 
 /*
  * copy_user_nocache - Uncached memory copy with exception handling
@@ -364,7 +364,7 @@ ENTRY(__copy_user_nocache)
 	movl %ecx,%edx
 .L_fixup_handle_tail:
 	sfence
-	jmp copy_user_handle_tail
+	jmp .Lcopy_user_handle_tail
 	.previous
 
 	_ASM_EXTABLE_UA(1b, .L_fixup_4x8b_copy)

@@ -52,6 +52,7 @@ struct aspeed_gpio_config {
  */
 struct aspeed_gpio {
 	struct gpio_chip chip;
+	struct irq_chip irqc;
 	spinlock_t lock;
 	void __iomem *base;
 	int irq;
@@ -661,12 +662,14 @@ static void aspeed_gpio_irq_handler(struct irq_desc *desc)
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct irq_chip *ic = irq_desc_get_chip(desc);
 	struct aspeed_gpio *data = gpiochip_get_data(gc);
-	unsigned int i, p, girq;
+	unsigned int i, p, girq, banks;
 	unsigned long reg;
+	struct aspeed_gpio *gpio = gpiochip_get_data(gc);
 
 	chained_irq_enter(ic, desc);
 
-	for (i = 0; i < ARRAY_SIZE(aspeed_gpio_banks); i++) {
+	banks = DIV_ROUND_UP(gpio->chip.ngpio, 32);
+	for (i = 0; i < banks; i++) {
 		const struct aspeed_gpio_bank *bank = &aspeed_gpio_banks[i];
 
 		reg = ioread32(bank_reg(data, bank, reg_irq_status));
@@ -681,16 +684,11 @@ static void aspeed_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(ic, desc);
 }
 
-static struct irq_chip aspeed_gpio_irqchip = {
-	.name		= "aspeed-gpio",
-	.irq_ack	= aspeed_gpio_irq_ack,
-	.irq_mask	= aspeed_gpio_irq_mask,
-	.irq_unmask	= aspeed_gpio_irq_unmask,
-	.irq_set_type	= aspeed_gpio_set_type,
-};
-
-static void set_irq_valid_mask(struct aspeed_gpio *gpio)
+static void aspeed_init_irq_valid_mask(struct gpio_chip *gc,
+				       unsigned long *valid_mask,
+				       unsigned int ngpios)
 {
+	struct aspeed_gpio *gpio = gpiochip_get_data(gc);
 	const struct aspeed_bank_props *props = gpio->config->props;
 
 	while (!is_bank_props_sentinel(props)) {
@@ -701,40 +699,14 @@ static void set_irq_valid_mask(struct aspeed_gpio *gpio)
 		for_each_clear_bit(offset, &input, 32) {
 			unsigned int i = props->bank * 32 + offset;
 
-			if (i >= gpio->config->nr_gpios)
+			if (i >= gpio->chip.ngpio)
 				break;
 
-			clear_bit(i, gpio->chip.irq.valid_mask);
+			clear_bit(i, valid_mask);
 		}
 
 		props++;
 	}
-}
-
-static int aspeed_gpio_setup_irqs(struct aspeed_gpio *gpio,
-		struct platform_device *pdev)
-{
-	int rc;
-
-	rc = platform_get_irq(pdev, 0);
-	if (rc < 0)
-		return rc;
-
-	gpio->irq = rc;
-
-	set_irq_valid_mask(gpio);
-
-	rc = gpiochip_irqchip_add(&gpio->chip, &aspeed_gpio_irqchip,
-			0, handle_bad_irq, IRQ_TYPE_NONE);
-	if (rc) {
-		dev_info(&pdev->dev, "Could not add irqchip\n");
-		return rc;
-	}
-
-	gpiochip_set_chained_irqchip(&gpio->chip, &aspeed_gpio_irqchip,
-				     gpio->irq, aspeed_gpio_irq_handler);
-
-	return 0;
 }
 
 static int aspeed_gpio_reset_tolerance(struct gpio_chip *chip,
@@ -1040,10 +1012,10 @@ int aspeed_gpio_copro_grab_gpio(struct gpio_desc *desc,
 	unsigned long flags;
 
 	if (!gpio->cf_copro_bankmap)
-		gpio->cf_copro_bankmap = kzalloc(gpio->config->nr_gpios >> 3, GFP_KERNEL);
+		gpio->cf_copro_bankmap = kzalloc(gpio->chip.ngpio >> 3, GFP_KERNEL);
 	if (!gpio->cf_copro_bankmap)
 		return -ENOMEM;
-	if (offset < 0 || offset > gpio->config->nr_gpios)
+	if (offset < 0 || offset > gpio->chip.ngpio)
 		return -EINVAL;
 	bindex = offset >> 3;
 
@@ -1088,7 +1060,7 @@ int aspeed_gpio_copro_release_gpio(struct gpio_desc *desc)
 	if (!gpio->cf_copro_bankmap)
 		return -ENXIO;
 
-	if (offset < 0 || offset > gpio->config->nr_gpios)
+	if (offset < 0 || offset > gpio->chip.ngpio)
 		return -EINVAL;
 	bindex = offset >> 3;
 
@@ -1141,9 +1113,25 @@ static const struct aspeed_gpio_config ast2500_config =
 	/* 232 for simplicity, actual number is 228 (4-GPIO hole in GPIOAB) */
 	{ .nr_gpios = 232, .props = ast2500_bank_props, };
 
+static const struct aspeed_bank_props ast2600_bank_props[] = {
+	/*     input	  output   */
+	{5, 0xffffffff,  0x0000ffff}, /* U/V/W/X */
+	{6, 0xffff0000,  0x0fff0000}, /* Y/Z */
+	{ },
+};
+
+static const struct aspeed_gpio_config ast2600_config =
+	/*
+	 * ast2600 has two controllers one with 208 GPIOs and one with 36 GPIOs.
+	 * We expect ngpio being set in the device tree and this is a fallback
+	 * option.
+	 */
+	{ .nr_gpios = 208, .props = ast2600_bank_props, };
+
 static const struct of_device_id aspeed_gpio_of_table[] = {
 	{ .compatible = "aspeed,ast2400-gpio", .data = &ast2400_config, },
 	{ .compatible = "aspeed,ast2500-gpio", .data = &ast2500_config, },
+	{ .compatible = "aspeed,ast2600-gpio", .data = &ast2600_config, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, aspeed_gpio_of_table);
@@ -1152,7 +1140,8 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *gpio_id;
 	struct aspeed_gpio *gpio;
-	int rc, i, banks;
+	int rc, i, banks, err;
+	u32 ngpio;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
@@ -1178,7 +1167,10 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->config = gpio_id->data;
 
 	gpio->chip.parent = &pdev->dev;
-	gpio->chip.ngpio = gpio->config->nr_gpios;
+	err = of_property_read_u32(pdev->dev.of_node, "ngpios", &ngpio);
+	gpio->chip.ngpio = (u16) ngpio;
+	if (err)
+		gpio->chip.ngpio = gpio->config->nr_gpios;
 	gpio->chip.direction_input = aspeed_gpio_dir_in;
 	gpio->chip.direction_output = aspeed_gpio_dir_out;
 	gpio->chip.get_direction = aspeed_gpio_get_direction;
@@ -1189,10 +1181,9 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->chip.set_config = aspeed_gpio_set_config;
 	gpio->chip.label = dev_name(&pdev->dev);
 	gpio->chip.base = -1;
-	gpio->chip.irq.need_valid_mask = true;
 
 	/* Allocate a cache of the output registers */
-	banks = gpio->config->nr_gpios >> 5;
+	banks = DIV_ROUND_UP(gpio->chip.ngpio, 32);
 	gpio->dcache = devm_kcalloc(&pdev->dev,
 				    banks, sizeof(u32), GFP_KERNEL);
 	if (!gpio->dcache)
@@ -1212,16 +1203,42 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 		aspeed_gpio_change_cmd_source(gpio, bank, 3, GPIO_CMDSRC_ARM);
 	}
 
-	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
-	if (rc < 0)
-		return rc;
+	/* Optionally set up an irqchip if there is an IRQ */
+	rc = platform_get_irq(pdev, 0);
+	if (rc > 0) {
+		struct gpio_irq_chip *girq;
+
+		gpio->irq = rc;
+		girq = &gpio->chip.irq;
+		girq->chip = &gpio->irqc;
+		girq->chip->name = dev_name(&pdev->dev);
+		girq->chip->irq_ack = aspeed_gpio_irq_ack;
+		girq->chip->irq_mask = aspeed_gpio_irq_mask;
+		girq->chip->irq_unmask = aspeed_gpio_irq_unmask;
+		girq->chip->irq_set_type = aspeed_gpio_set_type;
+		girq->parent_handler = aspeed_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&pdev->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = gpio->irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_bad_irq;
+		girq->init_valid_mask = aspeed_init_irq_valid_mask;
+	}
 
 	gpio->offset_timer =
 		devm_kzalloc(&pdev->dev, gpio->chip.ngpio, GFP_KERNEL);
 	if (!gpio->offset_timer)
 		return -ENOMEM;
 
-	return aspeed_gpio_setup_irqs(gpio, pdev);
+	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
+	if (rc < 0)
+		return rc;
+
+	return 0;
 }
 
 static struct platform_driver aspeed_gpio_driver = {

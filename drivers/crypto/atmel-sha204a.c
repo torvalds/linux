@@ -109,7 +109,7 @@ static int atmel_sha204a_probe(struct i2c_client *client,
 	i2c_priv->hwrng.read = atmel_sha204a_rng_read;
 	i2c_priv->hwrng.quality = 1024;
 
-	ret = hwrng_register(&i2c_priv->hwrng);
+	ret = devm_hwrng_register(&client->dev, &i2c_priv->hwrng);
 	if (ret)
 		dev_warn(&client->dev, "failed to register RNG (%d)\n", ret);
 
@@ -127,7 +127,6 @@ static int atmel_sha204a_remove(struct i2c_client *client)
 
 	if (i2c_priv->hwrng.priv)
 		kfree((void *)i2c_priv->hwrng.priv);
-	hwrng_unregister(&i2c_priv->hwrng);
 
 	return 0;
 }

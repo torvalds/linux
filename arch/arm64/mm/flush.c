@@ -56,8 +56,7 @@ void __sync_icache_dcache(pte_t pte)
 	struct page *page = pte_page(pte);
 
 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
-		sync_icache_aliases(page_address(page),
-				    PAGE_SIZE << compound_order(page));
+		sync_icache_aliases(page_address(page), page_size(page));
 }
 EXPORT_SYMBOL_GPL(__sync_icache_dcache);
 

@@ -256,8 +256,21 @@ void destroy_context(struct mm_struct *mm)
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	WARN_ON_ONCE(!list_empty(&mm->context.iommu_group_mem_list));
 #endif
+	/*
+	 * For tasks which were successfully initialized we end up calling
+	 * arch_exit_mmap() which clears the process table entry. And
+	 * arch_exit_mmap() is called before the required fullmm TLB flush
+	 * which does a RIC=2 flush. Hence for an initialized task, we do clear
+	 * any cached process table entries.
+	 *
+	 * The condition below handles the error case during task init. We have
+	 * set the process table entry early and if we fail a task
+	 * initialization, we need to ensure the process table entry is zeroed.
+	 * We need not worry about process table entry caches because the task
+	 * never ran with the PID value.
+	 */
 	if (radix_enabled())
-		WARN_ON(process_tb[mm->context.id].prtb0 != 0);
+		process_tb[mm->context.id].prtb0 = 0;
 	else
 		subpage_prot_free(mm);
 	destroy_contexts(&mm->context);

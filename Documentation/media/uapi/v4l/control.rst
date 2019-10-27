@@ -295,7 +295,7 @@ Control IDs
     Sets the alpha color component. When a capture device (or capture
     queue of a mem-to-mem device) produces a frame format that includes
     an alpha component (e.g.
-    :ref:`packed RGB image formats <rgb-formats>`) and the alpha value
+    :ref:`packed RGB image formats <pixfmt-rgb>`) and the alpha value
     is not defined by the device or the mem-to-mem input data this
     control lets you select the alpha component value of all pixels.
     When an output device (or output queue of a mem-to-mem device)

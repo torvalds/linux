@@ -50,6 +50,7 @@ _GLOBAL(ftrace_stub)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 _GLOBAL(ftrace_graph_caller)
+	addi	r5, r1, 48
 	/* load r4 with local address */
 	lwz	r4, 44(r1)
 	subi	r4, r4, MCOUNT_INSN_SIZE

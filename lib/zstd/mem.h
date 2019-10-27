@@ -27,7 +27,7 @@
 /*-****************************************
 *  Compiler specifics
 ******************************************/
-#define ZSTD_STATIC static __inline __attribute__((unused))
+#define ZSTD_STATIC static inline
 
 /*-**************************************************************
 *  Basic Types

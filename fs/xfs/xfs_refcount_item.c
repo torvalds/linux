@@ -144,9 +144,9 @@ xfs_cui_init(
 	ASSERT(nextents > 0);
 	if (nextents > XFS_CUI_MAX_FAST_EXTENTS)
 		cuip = kmem_zalloc(xfs_cui_log_item_sizeof(nextents),
-				KM_SLEEP);
+				0);
 	else
-		cuip = kmem_zone_zalloc(xfs_cui_zone, KM_SLEEP);
+		cuip = kmem_zone_zalloc(xfs_cui_zone, 0);
 
 	xfs_log_item_init(mp, &cuip->cui_item, XFS_LI_CUI, &xfs_cui_item_ops);
 	cuip->cui_format.cui_nextents = nextents;
@@ -223,7 +223,7 @@ xfs_trans_get_cud(
 {
 	struct xfs_cud_log_item		*cudp;
 
-	cudp = kmem_zone_zalloc(xfs_cud_zone, KM_SLEEP);
+	cudp = kmem_zone_zalloc(xfs_cud_zone, 0);
 	xfs_log_item_init(tp->t_mountp, &cudp->cud_item, XFS_LI_CUD,
 			  &xfs_cud_item_ops);
 	cudp->cud_cuip = cuip;
@@ -555,26 +555,24 @@ xfs_cui_recover(
 			irec.br_blockcount = new_len;
 			switch (type) {
 			case XFS_REFCOUNT_INCREASE:
-				error = xfs_refcount_increase_extent(tp, &irec);
+				xfs_refcount_increase_extent(tp, &irec);
 				break;
 			case XFS_REFCOUNT_DECREASE:
-				error = xfs_refcount_decrease_extent(tp, &irec);
+				xfs_refcount_decrease_extent(tp, &irec);
 				break;
 			case XFS_REFCOUNT_ALLOC_COW:
-				error = xfs_refcount_alloc_cow_extent(tp,
+				xfs_refcount_alloc_cow_extent(tp,
 						irec.br_startblock,
 						irec.br_blockcount);
 				break;
 			case XFS_REFCOUNT_FREE_COW:
-				error = xfs_refcount_free_cow_extent(tp,
+				xfs_refcount_free_cow_extent(tp,
 						irec.br_startblock,
 						irec.br_blockcount);
 				break;
 			default:
 				ASSERT(0);
 			}
-			if (error)
-				goto abort_error;
 			requeue_only = true;
 		}
 	}

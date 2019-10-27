@@ -32,8 +32,7 @@ struct armada_gem_object *armada_gem_alloc_private_object(struct drm_device *,
 	size_t);
 int armada_gem_dumb_create(struct drm_file *, struct drm_device *,
 	struct drm_mode_create_dumb *);
-struct dma_buf *armada_gem_prime_export(struct drm_device *dev,
-	struct drm_gem_object *obj, int flags);
+struct dma_buf *armada_gem_prime_export(struct drm_gem_object *obj, int flags);
 struct drm_gem_object *armada_gem_prime_import(struct drm_device *,
 	struct dma_buf *);
 int armada_gem_map_import(struct armada_gem_object *);

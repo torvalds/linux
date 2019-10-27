@@ -1178,12 +1178,12 @@ static int pm860x_probe(struct i2c_client *client)
 	 */
 	if (pdata->companion_addr && (pdata->companion_addr != client->addr)) {
 		chip->companion_addr = pdata->companion_addr;
-		chip->companion = i2c_new_dummy(chip->client->adapter,
+		chip->companion = i2c_new_dummy_device(chip->client->adapter,
 						chip->companion_addr);
-		if (!chip->companion) {
+		if (IS_ERR(chip->companion)) {
 			dev_err(&client->dev,
 				"Failed to allocate I2C companion device\n");
-			return -ENODEV;
+			return PTR_ERR(chip->companion);
 		}
 		chip->regmap_companion = regmap_init_i2c(chip->companion,
 							&pm860x_regmap_config);

@@ -2,11 +2,15 @@
 // Copyright 2017 IBM Corp.
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <asm/mmu.h>
 #include "ocxl_internal.h"
 
 static int __init init_ocxl(void)
 {
 	int rc = 0;
+
+	if (!tlbie_capable)
+		return -EINVAL;
 
 	rc = ocxl_file_init();
 	if (rc)

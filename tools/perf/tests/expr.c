@@ -3,6 +3,7 @@
 #include "util/expr.h"
 #include "tests.h"
 #include <stdlib.h>
+#include <string.h>
 #include <linux/zalloc.h>
 
 static int test(struct parse_ctx *ctx, const char *e, double val2)

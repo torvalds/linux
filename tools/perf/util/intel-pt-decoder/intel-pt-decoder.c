@@ -14,9 +14,9 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 
-#include "../cache.h"
 #include "../auxtrace.h"
 
 #include "intel-pt-insn-decoder.h"

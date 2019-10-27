@@ -93,10 +93,6 @@ void HTUpdateDefaultSetting(struct ieee80211_device *ieee)
 	ieee->bTxDisableRateFallBack = 0;
 	ieee->bTxUseDriverAssingedRate = 0;
 
-#ifdef	TO_DO_LIST
-	// 8190 only. Assign duration operation mode to firmware
-	pMgntInfo->bTxEnableFwCalcDur = (BOOLEAN)pNdisCommon->bRegTxEnableFwCalcDur;
-#endif
 	/*
 	 * 8190 only, Realtek proprietary aggregation mode
 	 * Set MPDUDensity=2,   1: Set MPDUDensity=2(32k)  for Realtek AP and set MPDUDensity=0(8k) for others

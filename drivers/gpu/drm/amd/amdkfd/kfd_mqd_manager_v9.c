@@ -46,7 +46,7 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q)
 {
 	struct v9_mqd *m;
-	uint32_t se_mask[4] = {0}; /* 4 is the max # of SEs */
+	uint32_t se_mask[KFD_MAX_NUM_SE] = {0};
 
 	if (q->cu_mask_count == 0)
 		return;
@@ -59,12 +59,20 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 	m->compute_static_thread_mgmt_se1 = se_mask[1];
 	m->compute_static_thread_mgmt_se2 = se_mask[2];
 	m->compute_static_thread_mgmt_se3 = se_mask[3];
+	m->compute_static_thread_mgmt_se4 = se_mask[4];
+	m->compute_static_thread_mgmt_se5 = se_mask[5];
+	m->compute_static_thread_mgmt_se6 = se_mask[6];
+	m->compute_static_thread_mgmt_se7 = se_mask[7];
 
-	pr_debug("update cu mask to %#x %#x %#x %#x\n",
+	pr_debug("update cu mask to %#x %#x %#x %#x %#x %#x %#x %#x\n",
 		m->compute_static_thread_mgmt_se0,
 		m->compute_static_thread_mgmt_se1,
 		m->compute_static_thread_mgmt_se2,
-		m->compute_static_thread_mgmt_se3);
+		m->compute_static_thread_mgmt_se3,
+		m->compute_static_thread_mgmt_se4,
+		m->compute_static_thread_mgmt_se5,
+		m->compute_static_thread_mgmt_se6,
+		m->compute_static_thread_mgmt_se7);
 }
 
 static void set_priority(struct v9_mqd *m, struct queue_properties *q)
@@ -125,6 +133,10 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	m->compute_static_thread_mgmt_se1 = 0xFFFFFFFF;
 	m->compute_static_thread_mgmt_se2 = 0xFFFFFFFF;
 	m->compute_static_thread_mgmt_se3 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se4 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se5 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se6 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se7 = 0xFFFFFFFF;
 
 	m->cp_hqd_persistent_state = CP_HQD_PERSISTENT_STATE__PRELOAD_REQ_MASK |
 			0x53 << CP_HQD_PERSISTENT_STATE__PRELOAD_SIZE__SHIFT;

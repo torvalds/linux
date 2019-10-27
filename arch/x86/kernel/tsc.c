@@ -638,7 +638,7 @@ unsigned long native_calibrate_tsc(void)
 	 * clock.
 	 */
 	if (crystal_khz == 0 &&
-			boot_cpu_data.x86_model == INTEL_FAM6_ATOM_GOLDMONT_X)
+			boot_cpu_data.x86_model == INTEL_FAM6_ATOM_GOLDMONT_D)
 		crystal_khz = 25000;
 
 	/*

@@ -566,13 +566,17 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 
 unmap_release:
 	err_idx = i;
-	i = head;
+
+	if (indirect)
+		i = 0;
+	else
+		i = head;
 
 	for (n = 0; n < total_sg; n++) {
 		if (i == err_idx)
 			break;
 		vring_unmap_one_split(vq, &desc[i]);
-		i = virtio16_to_cpu(_vq->vdev, vq->split.vring.desc[i].next);
+		i = virtio16_to_cpu(_vq->vdev, desc[i].next);
 	}
 
 	if (indirect)

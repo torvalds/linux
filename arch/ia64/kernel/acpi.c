@@ -31,7 +31,6 @@
 #include <acpi/processor.h>
 #include <asm/io.h>
 #include <asm/iosapic.h>
-#include <asm/machvec.h>
 #include <asm/page.h>
 #include <asm/numa.h>
 #include <asm/sal.h>
@@ -44,77 +43,6 @@ unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
 unsigned long acpi_wakeup_address = 0;
-
-#ifdef CONFIG_IA64_GENERIC
-static unsigned long __init acpi_find_rsdp(void)
-{
-	unsigned long rsdp_phys = 0;
-
-	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
-		rsdp_phys = efi.acpi20;
-	else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
-		printk(KERN_WARNING PREFIX
-		       "v1.0/r0.71 tables no longer supported\n");
-	return rsdp_phys;
-}
-
-const char __init *
-acpi_get_sysname(void)
-{
-	unsigned long rsdp_phys;
-	struct acpi_table_rsdp *rsdp;
-	struct acpi_table_xsdt *xsdt;
-	struct acpi_table_header *hdr;
-#ifdef CONFIG_INTEL_IOMMU
-	u64 i, nentries;
-#endif
-
-	rsdp_phys = acpi_find_rsdp();
-	if (!rsdp_phys) {
-		printk(KERN_ERR
-		       "ACPI 2.0 RSDP not found, default to \"dig\"\n");
-		return "dig";
-	}
-
-	rsdp = (struct acpi_table_rsdp *)__va(rsdp_phys);
-	if (strncmp(rsdp->signature, ACPI_SIG_RSDP, sizeof(ACPI_SIG_RSDP) - 1)) {
-		printk(KERN_ERR
-		       "ACPI 2.0 RSDP signature incorrect, default to \"dig\"\n");
-		return "dig";
-	}
-
-	xsdt = (struct acpi_table_xsdt *)__va(rsdp->xsdt_physical_address);
-	hdr = &xsdt->header;
-	if (strncmp(hdr->signature, ACPI_SIG_XSDT, sizeof(ACPI_SIG_XSDT) - 1)) {
-		printk(KERN_ERR
-		       "ACPI 2.0 XSDT signature incorrect, default to \"dig\"\n");
-		return "dig";
-	}
-
-	if (!strcmp(hdr->oem_id, "HP")) {
-		return "hpzx1";
-	} else if (!strcmp(hdr->oem_id, "SGI")) {
-		if (!strcmp(hdr->oem_table_id + 4, "UV"))
-			return "uv";
-		else
-			return "sn2";
-	}
-
-#ifdef CONFIG_INTEL_IOMMU
-	/* Look for Intel IOMMU */
-	nentries = (hdr->length - sizeof(*hdr)) /
-			 sizeof(xsdt->table_offset_entry[0]);
-	for (i = 0; i < nentries; i++) {
-		hdr = __va(xsdt->table_offset_entry[i]);
-		if (strncmp(hdr->signature, ACPI_SIG_DMAR,
-			sizeof(ACPI_SIG_DMAR) - 1) == 0)
-			return "dig_vtd";
-	}
-#endif
-
-	return "dig";
-}
-#endif /* CONFIG_IA64_GENERIC */
 
 #define ACPI_MAX_PLATFORM_INTERRUPTS	256
 
@@ -407,7 +335,7 @@ get_processor_proximity_domain(struct acpi_srat_cpu_affinity *pa)
 	int pxm;
 
 	pxm = pa->proximity_domain_lo;
-	if (ia64_platform_is("sn2") || acpi_srat_revision >= 2)
+	if (acpi_srat_revision >= 2)
 		pxm += pa->proximity_domain_hi[0] << 8;
 	return pxm;
 }
@@ -418,7 +346,7 @@ get_memory_proximity_domain(struct acpi_srat_mem_affinity *ma)
 	int pxm;
 
 	pxm = ma->proximity_domain;
-	if (!ia64_platform_is("sn2") && acpi_srat_revision <= 1)
+	if (acpi_srat_revision <= 1)
 		pxm &= 0xff;
 
 	return pxm;
@@ -710,9 +638,8 @@ int __init acpi_boot_init(void)
 
 	if (acpi_table_parse_madt
 	    (ACPI_MADT_TYPE_IO_SAPIC, acpi_parse_iosapic, NR_IOSAPICS) < 1) {
-		if (!ia64_platform_is("sn2"))
-			printk(KERN_ERR PREFIX
-			       "Error parsing MADT - no IOSAPIC entries\n");
+		printk(KERN_ERR PREFIX
+		       "Error parsing MADT - no IOSAPIC entries\n");
 	}
 
 	/* System-Level Interrupt Routing */

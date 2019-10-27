@@ -450,10 +450,8 @@ static int bxtwc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Invalid IRQ\n");
+	if (ret < 0)
 		return ret;
-	}
 	pmic->irq = ret;
 
 	dev_set_drvdata(&pdev->dev, pmic);

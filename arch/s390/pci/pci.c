@@ -431,13 +431,13 @@ static void zpci_map_resources(struct pci_dev *pdev)
 	}
 
 #ifdef CONFIG_PCI_IOV
-	i = PCI_IOV_RESOURCES;
+	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
+		int bar = i + PCI_IOV_RESOURCES;
 
-	for (; i < PCI_SRIOV_NUM_BARS + PCI_IOV_RESOURCES; i++) {
-		len = pci_resource_len(pdev, i);
+		len = pci_resource_len(pdev, bar);
 		if (!len)
 			continue;
-		pdev->resource[i].parent = &iov_res;
+		pdev->resource[bar].parent = &iov_res;
 	}
 #endif
 }

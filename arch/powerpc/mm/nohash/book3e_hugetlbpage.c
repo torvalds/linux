@@ -122,8 +122,8 @@ static inline int book3e_tlb_exists(unsigned long ea, unsigned long pid)
 	return found;
 }
 
-void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
-			    pte_t pte)
+static void
+book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea, pte_t pte)
 {
 	unsigned long mas1, mas2;
 	u64 mas7_3;
@@ -181,6 +181,18 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 
 	book3e_tlb_unlock();
 	local_irq_restore(flags);
+}
+
+/*
+ * This is called at the end of handling a user page fault, when the
+ * fault has been handled by updating a PTE in the linux page tables.
+ *
+ * This must always be called with the pte lock held.
+ */
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
+{
+	if (is_vm_hugetlb_page(vma))
+		book3e_hugetlb_preload(vma, address, *ptep);
 }
 
 void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr)

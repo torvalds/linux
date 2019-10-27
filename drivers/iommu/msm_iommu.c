@@ -168,20 +168,29 @@ fail:
 	return;
 }
 
-static void __flush_iotlb_sync(void *cookie)
+static void __flush_iotlb_walk(unsigned long iova, size_t size,
+			       size_t granule, void *cookie)
 {
-	/*
-	 * Nothing is needed here, the barrier to guarantee
-	 * completion of the tlb sync operation is implicitly
-	 * taken care when the iommu client does a writel before
-	 * kick starting the other master.
-	 */
+	__flush_iotlb_range(iova, size, granule, false, cookie);
 }
 
-static const struct iommu_gather_ops msm_iommu_gather_ops = {
+static void __flush_iotlb_leaf(unsigned long iova, size_t size,
+			       size_t granule, void *cookie)
+{
+	__flush_iotlb_range(iova, size, granule, true, cookie);
+}
+
+static void __flush_iotlb_page(struct iommu_iotlb_gather *gather,
+			       unsigned long iova, size_t granule, void *cookie)
+{
+	__flush_iotlb_range(iova, granule, granule, true, cookie);
+}
+
+static const struct iommu_flush_ops msm_iommu_flush_ops = {
 	.tlb_flush_all = __flush_iotlb,
-	.tlb_add_flush = __flush_iotlb_range,
-	.tlb_sync = __flush_iotlb_sync,
+	.tlb_flush_walk = __flush_iotlb_walk,
+	.tlb_flush_leaf = __flush_iotlb_leaf,
+	.tlb_add_page = __flush_iotlb_page,
 };
 
 static int msm_iommu_alloc_ctx(unsigned long *map, int start, int end)
@@ -345,7 +354,7 @@ static int msm_iommu_domain_config(struct msm_priv *priv)
 		.pgsize_bitmap = msm_iommu_ops.pgsize_bitmap,
 		.ias = 32,
 		.oas = 32,
-		.tlb = &msm_iommu_gather_ops,
+		.tlb = &msm_iommu_flush_ops,
 		.iommu_dev = priv->dev,
 	};
 
@@ -509,13 +518,13 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long iova,
 }
 
 static size_t msm_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			      size_t len)
+			      size_t len, struct iommu_iotlb_gather *gather)
 {
 	struct msm_priv *priv = to_msm_priv(domain);
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->pgtlock, flags);
-	len = priv->iop->unmap(priv->iop, iova, len);
+	len = priv->iop->unmap(priv->iop, iova, len, gather);
 	spin_unlock_irqrestore(&priv->pgtlock, flags);
 
 	return len;
@@ -691,6 +700,13 @@ static struct iommu_ops msm_iommu_ops = {
 	.detach_dev = msm_iommu_detach_dev,
 	.map = msm_iommu_map,
 	.unmap = msm_iommu_unmap,
+	/*
+	 * Nothing is needed here, the barrier to guarantee
+	 * completion of the tlb sync operation is implicitly
+	 * taken care when the iommu client does a writel before
+	 * kick starting the other master.
+	 */
+	.iotlb_sync = NULL,
 	.iova_to_phys = msm_iommu_iova_to_phys,
 	.add_device = msm_iommu_add_device,
 	.remove_device = msm_iommu_remove_device,
@@ -750,7 +766,6 @@ static int msm_iommu_probe(struct platform_device *pdev)
 
 	iommu->irq = platform_get_irq(pdev, 0);
 	if (iommu->irq < 0) {
-		dev_err(iommu->dev, "could not get iommu irq\n");
 		ret = -ENODEV;
 		goto fail;
 	}

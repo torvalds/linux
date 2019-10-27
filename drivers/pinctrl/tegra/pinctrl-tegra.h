@@ -17,6 +17,7 @@ struct tegra_pmx {
 
 	int nbanks;
 	void __iomem **regs;
+	u32 *backup_regs;
 };
 
 enum tegra_pinconf_param {
@@ -192,6 +193,8 @@ struct tegra_pinctrl_soc_data {
 	bool schmitt_in_mux;
 	bool drvtype_in_mux;
 };
+
+extern const struct dev_pm_ops tegra_pinctrl_pm;
 
 int tegra_pinctrl_probe(struct platform_device *pdev,
 			const struct tegra_pinctrl_soc_data *soc_data);

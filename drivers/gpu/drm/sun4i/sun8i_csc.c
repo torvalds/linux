@@ -3,7 +3,7 @@
  * Copyright (C) Jernej Skrabec <jernej.skrabec@siol.net>
  */
 
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
 
 #include "sun8i_csc.h"
 #include "sun8i_mixer.h"
@@ -18,16 +18,59 @@ static const u32 ccsc_base[2][2] = {
  * First tree values in each line are multiplication factor and last
  * value is constant, which is added at the end.
  */
-static const u32 yuv2rgb[] = {
-	0x000004A8, 0x00000000, 0x00000662, 0xFFFC845A,
-	0x000004A8, 0xFFFFFE6F, 0xFFFFFCBF, 0x00021DF4,
-	0x000004A8, 0x00000813, 0x00000000, 0xFFFBAC4A,
+
+static const u32 yuv2rgb[2][2][12] = {
+	[DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+		[DRM_COLOR_YCBCR_BT601] = {
+			0x000004A8, 0x00000000, 0x00000662, 0xFFFC8451,
+			0x000004A8, 0xFFFFFE6F, 0xFFFFFCC0, 0x00021E4D,
+			0x000004A8, 0x00000811, 0x00000000, 0xFFFBACA9,
+		},
+		[DRM_COLOR_YCBCR_BT709] = {
+			0x000004A8, 0x00000000, 0x0000072B, 0xFFFC1F99,
+			0x000004A8, 0xFFFFFF26, 0xFFFFFDDF, 0x00013383,
+			0x000004A8, 0x00000873, 0x00000000, 0xFFFB7BEF,
+		}
+	},
+	[DRM_COLOR_YCBCR_FULL_RANGE] = {
+		[DRM_COLOR_YCBCR_BT601] = {
+			0x00000400, 0x00000000, 0x0000059B, 0xFFFD322E,
+			0x00000400, 0xFFFFFEA0, 0xFFFFFD25, 0x00021DD5,
+			0x00000400, 0x00000716, 0x00000000, 0xFFFC74BD,
+		},
+		[DRM_COLOR_YCBCR_BT709] = {
+			0x00000400, 0x00000000, 0x0000064C, 0xFFFCD9B4,
+			0x00000400, 0xFFFFFF41, 0xFFFFFE21, 0x00014F96,
+			0x00000400, 0x0000076C, 0x00000000, 0xFFFC49EF,
+		}
+	},
 };
 
-static const u32 yvu2rgb[] = {
-	0x000004A8, 0x00000662, 0x00000000, 0xFFFC845A,
-	0x000004A8, 0xFFFFFCBF, 0xFFFFFE6F, 0x00021DF4,
-	0x000004A8, 0x00000000, 0x00000813, 0xFFFBAC4A,
+static const u32 yvu2rgb[2][2][12] = {
+	[DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+		[DRM_COLOR_YCBCR_BT601] = {
+			0x000004A8, 0x00000662, 0x00000000, 0xFFFC8451,
+			0x000004A8, 0xFFFFFCC0, 0xFFFFFE6F, 0x00021E4D,
+			0x000004A8, 0x00000000, 0x00000811, 0xFFFBACA9,
+		},
+		[DRM_COLOR_YCBCR_BT709] = {
+			0x000004A8, 0x0000072B, 0x00000000, 0xFFFC1F99,
+			0x000004A8, 0xFFFFFDDF, 0xFFFFFF26, 0x00013383,
+			0x000004A8, 0x00000000, 0x00000873, 0xFFFB7BEF,
+		}
+	},
+	[DRM_COLOR_YCBCR_FULL_RANGE] = {
+		[DRM_COLOR_YCBCR_BT601] = {
+			0x00000400, 0x0000059B, 0x00000000, 0xFFFD322E,
+			0x00000400, 0xFFFFFD25, 0xFFFFFEA0, 0x00021DD5,
+			0x00000400, 0x00000000, 0x00000716, 0xFFFC74BD,
+		},
+		[DRM_COLOR_YCBCR_BT709] = {
+			0x00000400, 0x0000064C, 0x00000000, 0xFFFCD9B4,
+			0x00000400, 0xFFFFFE21, 0xFFFFFF41, 0x00014F96,
+			0x00000400, 0x00000000, 0x0000076C, 0xFFFC49EF,
+		}
+	},
 };
 
 /*
@@ -53,57 +96,98 @@ static const u32 yvu2rgb[] = {
  * c20 c21 c22 [d2 const2]
  */
 
-static const u32 yuv2rgb_de3[] = {
-	0x0002542a, 0x00000000, 0x0003312a, 0xffc00000,
-	0x0002542a, 0xffff376b, 0xfffe5fc3, 0xfe000000,
-	0x0002542a, 0x000408d3, 0x00000000, 0xfe000000,
+static const u32 yuv2rgb_de3[2][2][12] = {
+	[DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+		[DRM_COLOR_YCBCR_BT601] = {
+			0x0002542A, 0x00000000, 0x0003312A, 0xFFC00000,
+			0x0002542A, 0xFFFF376B, 0xFFFE5FC3, 0xFE000000,
+			0x0002542A, 0x000408D2, 0x00000000, 0xFE000000,
+		},
+		[DRM_COLOR_YCBCR_BT709] = {
+			0x0002542A, 0x00000000, 0x000395E2, 0xFFC00000,
+			0x0002542A, 0xFFFF92D2, 0xFFFEEF27, 0xFE000000,
+			0x0002542A, 0x0004398C, 0x00000000, 0xFE000000,
+		}
+	},
+	[DRM_COLOR_YCBCR_FULL_RANGE] = {
+		[DRM_COLOR_YCBCR_BT601] = {
+			0x00020000, 0x00000000, 0x0002CDD2, 0x00000000,
+			0x00020000, 0xFFFF4FCE, 0xFFFE925D, 0xFE000000,
+			0x00020000, 0x00038B43, 0x00000000, 0xFE000000,
+		},
+		[DRM_COLOR_YCBCR_BT709] = {
+			0x00020000, 0x00000000, 0x0003264C, 0x00000000,
+			0x00020000, 0xFFFFA018, 0xFFFF1053, 0xFE000000,
+			0x00020000, 0x0003B611, 0x00000000, 0xFE000000,
+		}
+	},
 };
 
-static const u32 yvu2rgb_de3[] = {
-	0x0002542a, 0x0003312a, 0x00000000, 0xffc00000,
-	0x0002542a, 0xfffe5fc3, 0xffff376b, 0xfe000000,
-	0x0002542a, 0x00000000, 0x000408d3, 0xfe000000,
+static const u32 yvu2rgb_de3[2][2][12] = {
+	[DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+		[DRM_COLOR_YCBCR_BT601] = {
+			0x0002542A, 0x0003312A, 0x00000000, 0xFFC00000,
+			0x0002542A, 0xFFFE5FC3, 0xFFFF376B, 0xFE000000,
+			0x0002542A, 0x00000000, 0x000408D2, 0xFE000000,
+		},
+		[DRM_COLOR_YCBCR_BT709] = {
+			0x0002542A, 0x000395E2, 0x00000000, 0xFFC00000,
+			0x0002542A, 0xFFFEEF27, 0xFFFF92D2, 0xFE000000,
+			0x0002542A, 0x00000000, 0x0004398C, 0xFE000000,
+		}
+	},
+	[DRM_COLOR_YCBCR_FULL_RANGE] = {
+		[DRM_COLOR_YCBCR_BT601] = {
+			0x00020000, 0x0002CDD2, 0x00000000, 0x00000000,
+			0x00020000, 0xFFFE925D, 0xFFFF4FCE, 0xFE000000,
+			0x00020000, 0x00000000, 0x00038B43, 0xFE000000,
+		},
+		[DRM_COLOR_YCBCR_BT709] = {
+			0x00020000, 0x0003264C, 0x00000000, 0x00000000,
+			0x00020000, 0xFFFF1053, 0xFFFFA018, 0xFE000000,
+			0x00020000, 0x00000000, 0x0003B611, 0xFE000000,
+		}
+	},
 };
 
 static void sun8i_csc_set_coefficients(struct regmap *map, u32 base,
-				       enum sun8i_csc_mode mode)
-{
-	const u32 *table;
-	int i, data;
-
-	switch (mode) {
-	case SUN8I_CSC_MODE_YUV2RGB:
-		table = yuv2rgb;
-		break;
-	case SUN8I_CSC_MODE_YVU2RGB:
-		table = yvu2rgb;
-		break;
-	default:
-		DRM_WARN("Wrong CSC mode specified.\n");
-		return;
-	}
-
-	for (i = 0; i < 12; i++) {
-		data = table[i];
-		/* For some reason, 0x200 must be added to constant parts */
-		if (((i + 1) & 3) == 0)
-			data += 0x200;
-		regmap_write(map, SUN8I_CSC_COEFF(base, i), data);
-	}
-}
-
-static void sun8i_de3_ccsc_set_coefficients(struct regmap *map, int layer,
-					    enum sun8i_csc_mode mode)
+				       enum sun8i_csc_mode mode,
+				       enum drm_color_encoding encoding,
+				       enum drm_color_range range)
 {
 	const u32 *table;
 	u32 base_reg;
 
 	switch (mode) {
 	case SUN8I_CSC_MODE_YUV2RGB:
-		table = yuv2rgb_de3;
+		table = yuv2rgb[range][encoding];
 		break;
 	case SUN8I_CSC_MODE_YVU2RGB:
-		table = yvu2rgb_de3;
+		table = yvu2rgb[range][encoding];
+		break;
+	default:
+		DRM_WARN("Wrong CSC mode specified.\n");
+		return;
+	}
+
+	base_reg = SUN8I_CSC_COEFF(base, 0);
+	regmap_bulk_write(map, base_reg, table, 12);
+}
+
+static void sun8i_de3_ccsc_set_coefficients(struct regmap *map, int layer,
+					    enum sun8i_csc_mode mode,
+					    enum drm_color_encoding encoding,
+					    enum drm_color_range range)
+{
+	const u32 *table;
+	u32 base_reg;
+
+	switch (mode) {
+	case SUN8I_CSC_MODE_YUV2RGB:
+		table = yuv2rgb_de3[range][encoding];
+		break;
+	case SUN8I_CSC_MODE_YVU2RGB:
+		table = yvu2rgb_de3[range][encoding];
 		break;
 	default:
 		DRM_WARN("Wrong CSC mode specified.\n");
@@ -142,19 +226,22 @@ static void sun8i_de3_ccsc_enable(struct regmap *map, int layer, bool enable)
 }
 
 void sun8i_csc_set_ccsc_coefficients(struct sun8i_mixer *mixer, int layer,
-				     enum sun8i_csc_mode mode)
+				     enum sun8i_csc_mode mode,
+				     enum drm_color_encoding encoding,
+				     enum drm_color_range range)
 {
 	u32 base;
 
 	if (mixer->cfg->is_de3) {
-		sun8i_de3_ccsc_set_coefficients(mixer->engine.regs,
-						layer, mode);
+		sun8i_de3_ccsc_set_coefficients(mixer->engine.regs, layer,
+						mode, encoding, range);
 		return;
 	}
 
 	base = ccsc_base[mixer->cfg->ccsc][layer];
 
-	sun8i_csc_set_coefficients(mixer->engine.regs, base, mode);
+	sun8i_csc_set_coefficients(mixer->engine.regs, base,
+				   mode, encoding, range);
 }
 
 void sun8i_csc_enable_ccsc(struct sun8i_mixer *mixer, int layer, bool enable)

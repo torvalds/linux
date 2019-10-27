@@ -25,11 +25,11 @@
 
 	display: display {
 		model = "320x240x4";
-		native-mode = <&timing0>;
 		bits-per-pixel = <4>;
 		ac-prescale = <17>;
 
 		display-timings {
+			native-mode = <&timing0>;
 			timing0: 320x240 {
 				hactive = <320>;
 				hback-porch = <0>;

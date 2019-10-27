@@ -35,7 +35,6 @@
 
 #include <drm/ati_pcigart.h>
 #include <drm/drm_device.h>
-#include <drm/drm_os_linux.h>
 #include <drm/drm_pci.h>
 #include <drm/drm_print.h>
 
@@ -169,6 +168,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 		page_base = (u32) entry->busaddr[i];
 
 		for (j = 0; j < (PAGE_SIZE / ATI_PCIGART_PAGE_SIZE); j++) {
+			u32 offset;
 			u32 val;
 
 			switch(gart_info->gart_reg_if) {
@@ -184,10 +184,12 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 				break;
 			}
 			if (gart_info->gart_table_location ==
-			    DRM_ATI_GART_MAIN)
+			    DRM_ATI_GART_MAIN) {
 				pci_gart[gart_idx] = cpu_to_le32(val);
-			else
-				DRM_WRITE32(map, gart_idx * sizeof(u32), val);
+			} else {
+				offset = gart_idx * sizeof(u32);
+				writel(val, (void __iomem *)map->handle + offset);
+			}
 			gart_idx++;
 			page_base += ATI_PCIGART_PAGE_SIZE;
 		}

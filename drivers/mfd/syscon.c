@@ -40,7 +40,7 @@ static const struct regmap_config syscon_regmap_config = {
 	.reg_stride = 4,
 };
 
-static struct syscon *of_syscon_register(struct device_node *np)
+static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
 {
 	struct clk *clk;
 	struct syscon *syscon;
@@ -50,9 +50,6 @@ static struct syscon *of_syscon_register(struct device_node *np)
 	int ret;
 	struct regmap_config syscon_config = syscon_regmap_config;
 	struct resource res;
-
-	if (!of_device_is_compatible(np, "syscon"))
-		return ERR_PTR(-EINVAL);
 
 	syscon = kzalloc(sizeof(*syscon), GFP_KERNEL);
 	if (!syscon)
@@ -117,16 +114,18 @@ static struct syscon *of_syscon_register(struct device_node *np)
 		goto err_regmap;
 	}
 
-	clk = of_clk_get(np, 0);
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		/* clock is optional */
-		if (ret != -ENOENT)
-			goto err_clk;
-	} else {
-		ret = regmap_mmio_attach_clk(regmap, clk);
-		if (ret)
-			goto err_attach;
+	if (check_clk) {
+		clk = of_clk_get(np, 0);
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			/* clock is optional */
+			if (ret != -ENOENT)
+				goto err_clk;
+		} else {
+			ret = regmap_mmio_attach_clk(regmap, clk);
+			if (ret)
+				goto err_attach;
+		}
 	}
 
 	syscon->regmap = regmap;
@@ -150,7 +149,8 @@ err_map:
 	return ERR_PTR(ret);
 }
 
-struct regmap *syscon_node_to_regmap(struct device_node *np)
+static struct regmap *device_node_get_regmap(struct device_node *np,
+					     bool check_clk)
 {
 	struct syscon *entry, *syscon = NULL;
 
@@ -165,12 +165,26 @@ struct regmap *syscon_node_to_regmap(struct device_node *np)
 	spin_unlock(&syscon_list_slock);
 
 	if (!syscon)
-		syscon = of_syscon_register(np);
+		syscon = of_syscon_register(np, check_clk);
 
 	if (IS_ERR(syscon))
 		return ERR_CAST(syscon);
 
 	return syscon->regmap;
+}
+
+struct regmap *device_node_to_regmap(struct device_node *np)
+{
+	return device_node_get_regmap(np, false);
+}
+EXPORT_SYMBOL_GPL(device_node_to_regmap);
+
+struct regmap *syscon_node_to_regmap(struct device_node *np)
+{
+	if (!of_device_is_compatible(np, "syscon"))
+		return ERR_PTR(-EINVAL);
+
+	return device_node_get_regmap(np, true);
 }
 EXPORT_SYMBOL_GPL(syscon_node_to_regmap);
 

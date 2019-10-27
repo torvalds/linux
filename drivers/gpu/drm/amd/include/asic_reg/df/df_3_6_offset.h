@@ -48,4 +48,8 @@
 #define smnPerfMonCtrLo3					0x01d478UL
 #define smnPerfMonCtrHi3					0x01d47cUL
 
+#define smnDF_PIE_AON_FabricIndirectConfigAccessAddress3	0x1d05cUL
+#define smnDF_PIE_AON_FabricIndirectConfigAccessDataLo3		0x1d098UL
+#define smnDF_PIE_AON_FabricIndirectConfigAccessDataHi3		0x1d09cUL
+
 #endif

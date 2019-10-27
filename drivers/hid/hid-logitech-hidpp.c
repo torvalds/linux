@@ -3749,30 +3749,8 @@ static const struct hid_device_id hidpp_devices[] = {
 
 	{ L27MHZ_DEVICE(HID_ANY_ID) },
 
-	{ /* Logitech G203/Prodigy Gaming Mouse */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC084) },
-	{ /* Logitech G302 Gaming Mouse */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC07F) },
-	{ /* Logitech G303 Gaming Mouse */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC080) },
-	{ /* Logitech G400 Gaming Mouse */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC07E) },
 	{ /* Logitech G403 Wireless Gaming Mouse over USB */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC082) },
-	{ /* Logitech G403 Gaming Mouse */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC083) },
-	{ /* Logitech G403 Hero Gaming Mouse over USB */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC08F) },
-	{ /* Logitech G502 Proteus Core Gaming Mouse */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC07D) },
-	{ /* Logitech G502 Proteus Spectrum Gaming Mouse over USB */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC332) },
-	{ /* Logitech G502 Hero Gaming Mouse over USB */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC08B) },
-	{ /* Logitech G700 Gaming Mouse over USB */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC06B) },
-	{ /* Logitech G700s Gaming Mouse over USB */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC07C) },
 	{ /* Logitech G703 Gaming Mouse over USB */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC087) },
 	{ /* Logitech G703 Hero Gaming Mouse over USB */

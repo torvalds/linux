@@ -9,7 +9,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <api/fs/fs.h>
-#include "util.h"
+#include "dso.h"
 #include "machine.h"
 #include "symbol.h"
 #include "tests.h"

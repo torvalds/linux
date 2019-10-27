@@ -3,15 +3,22 @@
  * Copyright (C) 2015 Broadcom
  */
 
-#include <linux/mm_types.h>
-#include <drm/drmP.h>
-#include <drm/drm_util.h>
+#include <linux/delay.h>
+#include <linux/refcount.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_syncobj.h>
+#include <drm/drm_mm.h>
+#include <drm/drm_modeset_lock.h>
 
 #include "uapi/drm/vc4_drm.h"
+
+struct drm_device;
+struct drm_gem_object;
 
 /* Don't forget to update vc4_bo.c: bo_type_names[] when adding to
  * this.
@@ -705,8 +712,7 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t size,
 int vc4_dumb_create(struct drm_file *file_priv,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args);
-struct dma_buf *vc4_prime_export(struct drm_device *dev,
-				 struct drm_gem_object *obj, int flags);
+struct dma_buf *vc4_prime_export(struct drm_gem_object *obj, int flags);
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,

@@ -22,8 +22,8 @@
  *
  */
 
+#include "intel_display_types.h"
 #include "intel_dp_aux_backlight.h"
-#include "intel_drv.h"
 
 static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
 {
@@ -264,8 +264,11 @@ intel_dp_aux_display_control_capable(struct intel_connector *connector)
 int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
 {
 	struct intel_panel *panel = &intel_connector->panel;
+	struct drm_i915_private *dev_priv = to_i915(intel_connector->base.dev);
 
-	if (!i915_modparams.enable_dpcd_backlight)
+	if (i915_modparams.enable_dpcd_backlight == 0 ||
+	    (i915_modparams.enable_dpcd_backlight == -1 &&
+	    dev_priv->vbt.backlight.type != INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE))
 		return -ENODEV;
 
 	if (!intel_dp_aux_display_control_capable(intel_connector))

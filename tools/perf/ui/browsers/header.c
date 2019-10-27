@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "util/cache.h"
-#include "util/debug.h"
 #include "ui/browser.h"
 #include "ui/keysyms.h"
 #include "ui/ui.h"

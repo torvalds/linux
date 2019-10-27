@@ -126,9 +126,6 @@ static void finish_session(struct snd_dg00x *dg00x)
 {
 	__be32 data;
 
-	amdtp_stream_stop(&dg00x->tx_stream);
-	amdtp_stream_stop(&dg00x->rx_stream);
-
 	data = cpu_to_be32(0x00000003);
 	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
 			   DG00X_ADDR_BASE + DG00X_OFFSET_STREAMING_SET,
@@ -218,29 +215,59 @@ static int keep_resources(struct snd_dg00x *dg00x, struct amdtp_stream *stream,
 				fw_parent_device(dg00x->unit)->max_speed);
 }
 
+static int init_stream(struct snd_dg00x *dg00x, struct amdtp_stream *s)
+{
+	struct fw_iso_resources *resources;
+	enum amdtp_stream_direction dir;
+	int err;
+
+	if (s == &dg00x->tx_stream) {
+		resources = &dg00x->tx_resources;
+		dir = AMDTP_IN_STREAM;
+	} else {
+		resources = &dg00x->rx_resources;
+		dir = AMDTP_OUT_STREAM;
+	}
+
+	err = fw_iso_resources_init(resources, dg00x->unit);
+	if (err < 0)
+		return err;
+
+	err = amdtp_dot_init(s, dg00x->unit, dir);
+	if (err < 0)
+		fw_iso_resources_destroy(resources);
+
+	return err;
+}
+
+static void destroy_stream(struct snd_dg00x *dg00x, struct amdtp_stream *s)
+{
+	amdtp_stream_destroy(s);
+
+	if (s == &dg00x->tx_stream)
+		fw_iso_resources_destroy(&dg00x->tx_resources);
+	else
+		fw_iso_resources_destroy(&dg00x->rx_resources);
+}
+
 int snd_dg00x_stream_init_duplex(struct snd_dg00x *dg00x)
 {
 	int err;
 
-	/* For out-stream. */
-	err = fw_iso_resources_init(&dg00x->rx_resources, dg00x->unit);
+	err = init_stream(dg00x, &dg00x->rx_stream);
 	if (err < 0)
-		goto error;
-	err = amdtp_dot_init(&dg00x->rx_stream, dg00x->unit, AMDTP_OUT_STREAM);
-	if (err < 0)
-		goto error;
+		return err;
 
-	/* For in-stream. */
-	err = fw_iso_resources_init(&dg00x->tx_resources, dg00x->unit);
+	err = init_stream(dg00x, &dg00x->tx_stream);
 	if (err < 0)
-		goto error;
-	err = amdtp_dot_init(&dg00x->tx_stream, dg00x->unit, AMDTP_IN_STREAM);
-	if (err < 0)
-		goto error;
+		destroy_stream(dg00x, &dg00x->rx_stream);
 
-	return 0;
-error:
-	snd_dg00x_stream_destroy_duplex(dg00x);
+	err = amdtp_domain_init(&dg00x->domain);
+	if (err < 0) {
+		destroy_stream(dg00x, &dg00x->rx_stream);
+		destroy_stream(dg00x, &dg00x->tx_stream);
+	}
+
 	return err;
 }
 
@@ -250,11 +277,10 @@ error:
  */
 void snd_dg00x_stream_destroy_duplex(struct snd_dg00x *dg00x)
 {
-	amdtp_stream_destroy(&dg00x->rx_stream);
-	fw_iso_resources_destroy(&dg00x->rx_resources);
+	amdtp_domain_destroy(&dg00x->domain);
 
-	amdtp_stream_destroy(&dg00x->tx_stream);
-	fw_iso_resources_destroy(&dg00x->tx_resources);
+	destroy_stream(dg00x, &dg00x->rx_stream);
+	destroy_stream(dg00x, &dg00x->tx_stream);
 }
 
 int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate)
@@ -269,6 +295,8 @@ int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate)
 		rate = curr_rate;
 
 	if (dg00x->substreams_counter == 0 || curr_rate != rate) {
+		amdtp_domain_stop(&dg00x->domain);
+
 		finish_session(dg00x);
 
 		fw_iso_resources_free(&dg00x->tx_resources);
@@ -301,8 +329,10 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 		return 0;
 
 	if (amdtp_streaming_error(&dg00x->tx_stream) ||
-	    amdtp_streaming_error(&dg00x->rx_stream))
+	    amdtp_streaming_error(&dg00x->rx_stream)) {
+		amdtp_domain_stop(&dg00x->domain);
 		finish_session(dg00x);
+	}
 
 	if (generation != fw_parent_device(dg00x->unit)->card->generation) {
 		err = fw_iso_resources_update(&dg00x->tx_resources);
@@ -319,36 +349,30 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 	 * which source of clock is used.
 	 */
 	if (!amdtp_stream_running(&dg00x->rx_stream)) {
+		int spd = fw_parent_device(dg00x->unit)->max_speed;
+
 		err = begin_session(dg00x);
 		if (err < 0)
 			goto error;
 
-		err = amdtp_stream_start(&dg00x->rx_stream,
-				dg00x->rx_resources.channel,
-				fw_parent_device(dg00x->unit)->max_speed);
+		err = amdtp_domain_add_stream(&dg00x->domain, &dg00x->rx_stream,
+					      dg00x->rx_resources.channel, spd);
+		if (err < 0)
+			goto error;
+
+		err = amdtp_domain_add_stream(&dg00x->domain, &dg00x->tx_stream,
+					      dg00x->tx_resources.channel, spd);
+		if (err < 0)
+			goto error;
+
+		err = amdtp_domain_start(&dg00x->domain);
 		if (err < 0)
 			goto error;
 
 		if (!amdtp_stream_wait_callback(&dg00x->rx_stream,
-					      CALLBACK_TIMEOUT)) {
-			err = -ETIMEDOUT;
-			goto error;
-		}
-	}
-
-	/*
-	 * The value of SYT field in transmitted packets is always 0x0000. Thus,
-	 * duplex streams with timestamp synchronization cannot be built.
-	 */
-	if (!amdtp_stream_running(&dg00x->tx_stream)) {
-		err = amdtp_stream_start(&dg00x->tx_stream,
-				dg00x->tx_resources.channel,
-				fw_parent_device(dg00x->unit)->max_speed);
-		if (err < 0)
-			goto error;
-
-		if (!amdtp_stream_wait_callback(&dg00x->tx_stream,
-					      CALLBACK_TIMEOUT)) {
+						CALLBACK_TIMEOUT) ||
+		    !amdtp_stream_wait_callback(&dg00x->tx_stream,
+						CALLBACK_TIMEOUT)) {
 			err = -ETIMEDOUT;
 			goto error;
 		}
@@ -356,6 +380,7 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 
 	return 0;
 error:
+	amdtp_domain_stop(&dg00x->domain);
 	finish_session(dg00x);
 
 	return err;
@@ -364,6 +389,7 @@ error:
 void snd_dg00x_stream_stop_duplex(struct snd_dg00x *dg00x)
 {
 	if (dg00x->substreams_counter == 0) {
+		amdtp_domain_stop(&dg00x->domain);
 		finish_session(dg00x);
 
 		fw_iso_resources_free(&dg00x->tx_resources);

@@ -49,6 +49,7 @@ detailed description):
 	- Fan control and monitoring: fan speed, fan enable/disable
 	- WAN enable and disable
 	- UWB enable and disable
+	- LCD Shadow (PrivacyGuard) enable and disable
 
 A compatibility table by model and feature is maintained on the web
 site, http://ibm-acpi.sf.net/. I appreciate any success or failure
@@ -1407,6 +1408,28 @@ Sysfs notes
 
 	rfkill controller switch "tpacpi_wwan_sw": refer to
 	Documentation/driver-api/rfkill.rst for details.
+
+
+LCD Shadow control
+------------------
+
+procfs: /proc/acpi/ibm/lcdshadow
+
+Some newer T480s and T490s ThinkPads provide a feature called
+PrivacyGuard. By turning this feature on, the usable vertical and
+horizontal viewing angles of the LCD can be limited (as if some privacy
+screen was applied manually in front of the display).
+
+procfs notes
+^^^^^^^^^^^^
+
+The available commands are::
+
+	echo '0' >/proc/acpi/ibm/lcdshadow
+	echo '1' >/proc/acpi/ibm/lcdshadow
+
+The first command ensures the best viewing angle and the latter one turns
+on the feature, restricting the viewing angles.
 
 
 EXPERIMENTAL: UWB

@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/kernel.h>
 #include "tests.h"
 #include "debug.h"
+#include "event.h"
 #include "cloexec.h"
+#include "../perf-sys.h"
 
 #define WP_TEST_ASSERT_VAL(fd, text, val)       \
 do {                                            \

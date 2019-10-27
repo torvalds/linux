@@ -113,12 +113,13 @@ int __nf_ip6_route(struct net *net, struct dst_entry **dst,
 EXPORT_SYMBOL_GPL(__nf_ip6_route);
 
 int br_ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
-		    struct nf_ct_bridge_frag_data *data,
+		    struct nf_bridge_frag_data *data,
 		    int (*output)(struct net *, struct sock *sk,
-				  const struct nf_ct_bridge_frag_data *data,
+				  const struct nf_bridge_frag_data *data,
 				  struct sk_buff *))
 {
 	int frag_max_size = BR_INPUT_SKB_CB(skb)->frag_max_size;
+	ktime_t tstamp = skb->tstamp;
 	struct ip6_frag_state state;
 	u8 *prevhdr, nexthdr = 0;
 	unsigned int mtu, hlen;
@@ -183,6 +184,7 @@ int br_ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			if (iter.frag)
 				ip6_fraglist_prepare(skb, &iter);
 
+			skb->tstamp = tstamp;
 			err = output(net, sk, data, skb);
 			if (err || !iter.frag)
 				break;
@@ -215,6 +217,7 @@ slow_path:
 			goto blackhole;
 		}
 
+		skb2->tstamp = tstamp;
 		err = output(net, sk, data, skb2);
 		if (err)
 			goto blackhole;

@@ -83,10 +83,9 @@ EXPORT_SYMBOL(cnstr_shdsc_ahash);
  * @state: algorithm state OP_ALG_AS_{INIT, FINALIZE, INITFINALIZE, UPDATE}
  * @digestsize: algorithm's digest size
  * @ctx_len: size of Context Register
- * @key_dma: I/O Virtual Address of the key
  */
 void cnstr_shdsc_sk_hash(u32 * const desc, struct alginfo *adata, u32 state,
-			 int digestsize, int ctx_len, dma_addr_t key_dma)
+			 int digestsize, int ctx_len)
 {
 	u32 *skip_key_load;
 
@@ -136,7 +135,7 @@ void cnstr_shdsc_sk_hash(u32 * const desc, struct alginfo *adata, u32 state,
 			 LDST_SRCDST_BYTE_CONTEXT);
 	if (is_xcbc_aes(adata->algtype) && state == OP_ALG_AS_INIT)
 		/* Save K1 */
-		append_fifo_store(desc, key_dma, adata->keylen,
+		append_fifo_store(desc, adata->key_dma, adata->keylen,
 				  LDST_CLASS_1_CCB | FIFOST_TYPE_KEY_KEK);
 }
 EXPORT_SYMBOL(cnstr_shdsc_sk_hash);

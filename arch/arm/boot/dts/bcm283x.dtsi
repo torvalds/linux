@@ -397,7 +397,7 @@
 
 		uart0: serial@7e201000 {
 			compatible = "brcm,bcm2835-pl011", "arm,pl011", "arm,primecell";
-			reg = <0x7e201000 0x1000>;
+			reg = <0x7e201000 0x200>;
 			interrupts = <2 25>;
 			clocks = <&clocks BCM2835_CLOCK_UART>,
 				 <&clocks BCM2835_CLOCK_VPU>;
@@ -428,7 +428,7 @@
 
 		spi: spi@7e204000 {
 			compatible = "brcm,bcm2835-spi";
-			reg = <0x7e204000 0x1000>;
+			reg = <0x7e204000 0x200>;
 			interrupts = <2 22>;
 			clocks = <&clocks BCM2835_CLOCK_VPU>;
 			dmas = <&dma 6>, <&dma 7>;
@@ -440,7 +440,7 @@
 
 		i2c0: i2c@7e205000 {
 			compatible = "brcm,bcm2835-i2c";
-			reg = <0x7e205000 0x1000>;
+			reg = <0x7e205000 0x200>;
 			interrupts = <2 21>;
 			clocks = <&clocks BCM2835_CLOCK_VPU>;
 			#address-cells = <1>;

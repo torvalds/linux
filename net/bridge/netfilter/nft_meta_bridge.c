@@ -53,7 +53,7 @@ static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
 			goto err;
 
 		br_vlan_get_proto(br_dev, &p_proto);
-		nft_reg_store16(dest, p_proto);
+		nft_reg_store16(dest, htons(p_proto));
 		return;
 	}
 	default:

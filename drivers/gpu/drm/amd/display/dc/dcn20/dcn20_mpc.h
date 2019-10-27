@@ -159,6 +159,7 @@
 	SF(MPCC_OGAM0_MPCC_OGAM_RAMB_START_CNTL_B, MPCC_OGAM_RAMB_EXP_REGION_START_B, mask_sh),\
 	SF(MPCC_OGAM0_MPCC_OGAM_RAMB_START_CNTL_B, MPCC_OGAM_RAMB_EXP_REGION_START_SEGMENT_B, mask_sh),\
 	SF(MPCC0_MPCC_MEM_PWR_CTRL, MPCC_OGAM_MEM_PWR_FORCE, mask_sh),\
+	SF(MPCC0_MPCC_MEM_PWR_CTRL, MPCC_OGAM_MEM_PWR_DIS, mask_sh),\
 	SF(MPCC_OGAM0_MPCC_OGAM_LUT_INDEX, MPCC_OGAM_LUT_INDEX, mask_sh),\
 	SF(MPCC_OGAM0_MPCC_OGAM_LUT_RAM_CONTROL, MPCC_OGAM_LUT_WRITE_EN_MASK, mask_sh),\
 	SF(MPCC_OGAM0_MPCC_OGAM_LUT_RAM_CONTROL, MPCC_OGAM_LUT_RAM_SEL, mask_sh),\
@@ -172,6 +173,7 @@
 	SF(MPC_OUT0_DENORM_CLAMP_G_Y, MPC_OUT_DENORM_CLAMP_MIN_G_Y, mask_sh),\
 	SF(MPC_OUT0_DENORM_CLAMP_B_CB, MPC_OUT_DENORM_CLAMP_MAX_B_CB, mask_sh),\
 	SF(MPC_OUT0_DENORM_CLAMP_B_CB, MPC_OUT_DENORM_CLAMP_MIN_B_CB, mask_sh)
+
 
 #define MPC_REG_FIELD_LIST_DCN2_0(type) \
 	MPC_REG_FIELD_LIST(type)\
@@ -217,7 +219,8 @@
 	type MPC_OUT_DENORM_CLAMP_MIN_G_Y;\
 	type MPC_OUT_DENORM_CLAMP_MAX_B_CB;\
 	type MPC_OUT_DENORM_CLAMP_MIN_B_CB;\
-	type MPCC_DISABLED;
+	type MPCC_DISABLED;\
+	type MPCC_OGAM_MEM_PWR_DIS;
 
 struct dcn20_mpc_registers {
 	MPC_REG_VARIABLE_LIST_DCN2_0
@@ -282,4 +285,5 @@ void mpc2_set_output_gamma(
 
 void mpc2_assert_idle_mpcc(struct mpc *mpc, int id);
 void mpc2_assert_mpcc_idle_before_connect(struct mpc *mpc, int mpcc_id);
+void mpc20_power_on_ogam_lut(struct mpc *mpc, int mpcc_id, bool power_on);
 #endif

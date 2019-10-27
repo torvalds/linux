@@ -237,7 +237,7 @@
   {,
     "EventCode": "0xD0B0",
     "EventName": "PM_HWSYNC",
-    "BriefDescription": ""
+    "BriefDescription": "A hwsync instruction was decoded and transferred"
   },
   {,
     "EventCode": "0x168B0",
@@ -1232,7 +1232,7 @@
   {,
     "EventCode": "0xD8AC",
     "EventName": "PM_LWSYNC",
-    "BriefDescription": ""
+    "BriefDescription": "An lwsync instruction was decoded and transferred"
   },
   {,
     "EventCode": "0x2094",
@@ -1747,7 +1747,7 @@
   {,
     "EventCode": "0xD8B0",
     "EventName": "PM_PTESYNC",
-    "BriefDescription": ""
+    "BriefDescription": "A ptesync instruction was counted when the instruction is decoded and transmitted"
   },
   {,
     "EventCode": "0x26086",
@@ -2107,7 +2107,7 @@
   {,
     "EventCode": "0xF080",
     "EventName": "PM_LSU_STCX_FAIL",
-    "BriefDescription": ""
+    "BriefDescription": "The LSU detects the condition that a stcx instruction failed. No requirement to wait for a response from the nest"
   },
   {,
     "EventCode": "0x30038",

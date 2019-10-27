@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include "fm10k_common.h"
 
@@ -297,13 +297,14 @@ static u16 fm10k_mbx_validate_msg_size(struct fm10k_mbx_info *mbx, u16 len)
 {
 	struct fm10k_mbx_fifo *fifo = &mbx->rx;
 	u16 total_len = 0, msg_len;
-	u32 *msg;
 
 	/* length should include previous amounts pushed */
 	len += mbx->pushed;
 
 	/* offset in message is based off of current message size */
 	do {
+		u32 *msg;
+
 		msg = fifo->buffer + fm10k_fifo_tail_offset(fifo, total_len);
 		msg_len = FM10K_TLV_DWORD_LEN(*msg);
 		total_len += msg_len;
@@ -1920,7 +1921,6 @@ static void fm10k_sm_mbx_transmit(struct fm10k_hw *hw,
 	/* reduce length by 1 to convert to a mask */
 	u16 mbmem_len = mbx->mbmem_len - 1;
 	u16 tail_len, len = 0;
-	u32 *msg;
 
 	/* push head behind tail */
 	if (mbx->tail < head)
@@ -1930,6 +1930,8 @@ static void fm10k_sm_mbx_transmit(struct fm10k_hw *hw,
 
 	/* determine msg aligned offset for end of buffer */
 	do {
+		u32 *msg;
+
 		msg = fifo->buffer + fm10k_fifo_head_offset(fifo, len);
 		tail_len = len;
 		len += FM10K_TLV_DWORD_LEN(*msg);
@@ -2132,7 +2134,8 @@ fifo_err:
  *  DWORDs, not bytes.  Any invalid values will cause the mailbox to return
  *  error.
  **/
-s32 fm10k_sm_mbx_init(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx,
+s32 fm10k_sm_mbx_init(struct fm10k_hw __always_unused *hw,
+		      struct fm10k_mbx_info *mbx,
 		      const struct fm10k_msg_data *msg_data)
 {
 	mbx->mbx_reg = FM10K_GMBX;

@@ -68,6 +68,17 @@ struct mdio_driver {
 #define to_mdio_driver(d)						\
 	container_of(to_mdio_common_driver(d), struct mdio_driver, mdiodrv)
 
+/* device driver data */
+static inline void mdiodev_set_drvdata(struct mdio_device *mdio, void *data)
+{
+	dev_set_drvdata(&mdio->dev, data);
+}
+
+static inline void *mdiodev_get_drvdata(struct mdio_device *mdio)
+{
+	return dev_get_drvdata(&mdio->dev);
+}
+
 void mdio_device_free(struct mdio_device *mdiodev);
 struct mdio_device *mdio_device_create(struct mii_bus *bus, int addr);
 int mdio_device_register(struct mdio_device *mdiodev);

@@ -178,9 +178,6 @@ struct net2280 {
 	struct net2280_dep_regs		__iomem *dep;
 	struct net2280_ep_regs		__iomem *epregs;
 	struct usb338x_ll_regs		__iomem *llregs;
-	struct usb338x_ll_lfps_regs	__iomem *ll_lfps_regs;
-	struct usb338x_ll_tsn_regs	__iomem *ll_tsn_regs;
-	struct usb338x_ll_chi_regs	__iomem *ll_chicken_reg;
 	struct usb338x_pl_regs		__iomem *plregs;
 
 	struct dma_pool			*requests;

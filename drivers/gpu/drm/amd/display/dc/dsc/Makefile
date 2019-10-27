@@ -9,10 +9,13 @@ endif
 
 dsc_ccflags := -mhard-float -msse $(cc_stack_align)
 
-CFLAGS_rc_calc.o := $(dsc_ccflags)
-CFLAGS_rc_calc_dpi.o := $(dsc_ccflags)
-CFLAGS_codec_main_amd.o := $(dsc_ccflags)
-CFLAGS_dc_dsc.o := $(dsc_ccflags)
+ifdef CONFIG_CC_IS_CLANG
+dsc_ccflags += -msse2
+endif
+
+CFLAGS_$(AMDDALPATH)/dc/dsc/rc_calc.o := $(dsc_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/dsc/rc_calc_dpi.o := $(dsc_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/dsc/dc_dsc.o := $(dsc_ccflags)
 
 DSC = dc_dsc.o rc_calc.o rc_calc_dpi.o
 

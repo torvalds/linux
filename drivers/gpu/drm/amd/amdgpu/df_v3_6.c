@@ -93,6 +93,96 @@ const struct attribute_group *df_v3_6_attr_groups[] = {
 		NULL
 };
 
+static uint64_t df_v3_6_get_fica(struct amdgpu_device *adev,
+				 uint32_t ficaa_val)
+{
+	unsigned long flags, address, data;
+	uint32_t ficadl_val, ficadh_val;
+
+	address = adev->nbio_funcs->get_pcie_index_offset(adev);
+	data = adev->nbio_funcs->get_pcie_data_offset(adev);
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	WREG32(address, smnDF_PIE_AON_FabricIndirectConfigAccessAddress3);
+	WREG32(data, ficaa_val);
+
+	WREG32(address, smnDF_PIE_AON_FabricIndirectConfigAccessDataLo3);
+	ficadl_val = RREG32(data);
+
+	WREG32(address, smnDF_PIE_AON_FabricIndirectConfigAccessDataHi3);
+	ficadh_val = RREG32(data);
+
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+
+	return (((ficadh_val & 0xFFFFFFFFFFFFFFFF) << 32) | ficadl_val);
+}
+
+static void df_v3_6_set_fica(struct amdgpu_device *adev, uint32_t ficaa_val,
+			     uint32_t ficadl_val, uint32_t ficadh_val)
+{
+	unsigned long flags, address, data;
+
+	address = adev->nbio_funcs->get_pcie_index_offset(adev);
+	data = adev->nbio_funcs->get_pcie_data_offset(adev);
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	WREG32(address, smnDF_PIE_AON_FabricIndirectConfigAccessAddress3);
+	WREG32(data, ficaa_val);
+
+	WREG32(address, smnDF_PIE_AON_FabricIndirectConfigAccessDataLo3);
+	WREG32(data, ficadl_val);
+
+	WREG32(address, smnDF_PIE_AON_FabricIndirectConfigAccessDataHi3);
+	WREG32(data, ficadh_val);
+
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+}
+
+/*
+ * df_v3_6_perfmon_rreg - read perfmon lo and hi
+ *
+ * required to be atomic.  no mmio method provided so subsequent reads for lo
+ * and hi require to preserve df finite state machine
+ */
+static void df_v3_6_perfmon_rreg(struct amdgpu_device *adev,
+			    uint32_t lo_addr, uint32_t *lo_val,
+			    uint32_t hi_addr, uint32_t *hi_val)
+{
+	unsigned long flags, address, data;
+
+	address = adev->nbio_funcs->get_pcie_index_offset(adev);
+	data = adev->nbio_funcs->get_pcie_data_offset(adev);
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	WREG32(address, lo_addr);
+	*lo_val = RREG32(data);
+	WREG32(address, hi_addr);
+	*hi_val = RREG32(data);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+}
+
+/*
+ * df_v3_6_perfmon_wreg - write to perfmon lo and hi
+ *
+ * required to be atomic.  no mmio method provided so subsequent reads after
+ * data writes cannot occur to preserve data fabrics finite state machine.
+ */
+static void df_v3_6_perfmon_wreg(struct amdgpu_device *adev, uint32_t lo_addr,
+			    uint32_t lo_val, uint32_t hi_addr, uint32_t hi_val)
+{
+	unsigned long flags, address, data;
+
+	address = adev->nbio_funcs->get_pcie_index_offset(adev);
+	data = adev->nbio_funcs->get_pcie_data_offset(adev);
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	WREG32(address, lo_addr);
+	WREG32(data, lo_val);
+	WREG32(address, hi_addr);
+	WREG32(data, hi_val);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+}
+
 /* get the number of df counters available */
 static ssize_t df_v3_6_get_df_cntr_avail(struct device *dev,
 		struct device_attribute *attr,
@@ -268,6 +358,10 @@ static int df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
 					  uint32_t *lo_val,
 					  uint32_t *hi_val)
 {
+
+	uint32_t eventsel, instance, unitmask;
+	uint32_t instance_10, instance_5432, instance_76;
+
 	df_v3_6_pmc_get_addr(adev, config, 1, lo_base_addr, hi_base_addr);
 
 	if ((*lo_base_addr == 0) || (*hi_base_addr == 0)) {
@@ -276,40 +370,33 @@ static int df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
 		return -ENXIO;
 	}
 
-	if (lo_val && hi_val) {
-		uint32_t eventsel, instance, unitmask;
-		uint32_t instance_10, instance_5432, instance_76;
+	eventsel = DF_V3_6_GET_EVENT(config) & 0x3f;
+	unitmask = DF_V3_6_GET_UNITMASK(config) & 0xf;
+	instance = DF_V3_6_GET_INSTANCE(config);
 
-		eventsel = DF_V3_6_GET_EVENT(config) & 0x3f;
-		unitmask = DF_V3_6_GET_UNITMASK(config) & 0xf;
-		instance = DF_V3_6_GET_INSTANCE(config);
+	instance_10 = instance & 0x3;
+	instance_5432 = (instance >> 2) & 0xf;
+	instance_76 = (instance >> 6) & 0x3;
 
-		instance_10 = instance & 0x3;
-		instance_5432 = (instance >> 2) & 0xf;
-		instance_76 = (instance >> 6) & 0x3;
+	*lo_val = (unitmask << 8) | (instance_10 << 6) | eventsel | (1 << 22);
+	*hi_val = (instance_76 << 29) | instance_5432;
 
-		*lo_val = (unitmask << 8) | (instance_10 << 6) | eventsel;
-		*hi_val = (instance_76 << 29) | instance_5432;
-	}
+	DRM_DEBUG_DRIVER("config=%llx addr=%08x:%08x val=%08x:%08x",
+		config, *lo_base_addr, *hi_base_addr, *lo_val, *hi_val);
 
 	return 0;
 }
 
-/* assign df performance counters for read */
-static int df_v3_6_pmc_assign_cntr(struct amdgpu_device *adev,
-				   uint64_t config,
-				   int *is_assigned)
+/* add df performance counters for read */
+static int df_v3_6_pmc_add_cntr(struct amdgpu_device *adev,
+				   uint64_t config)
 {
 	int i, target_cntr;
 
-	*is_assigned = 0;
-
 	target_cntr = df_v3_6_pmc_config_2_cntr(adev, config);
 
-	if (target_cntr >= 0) {
-		*is_assigned = 1;
+	if (target_cntr >= 0)
 		return 0;
-	}
 
 	for (i = 0; i < DF_V3_6_MAX_COUNTERS; i++) {
 		if (adev->df_perfmon_config_assign_mask[i] == 0U) {
@@ -344,45 +431,13 @@ static void df_v3_6_reset_perfmon_cntr(struct amdgpu_device *adev,
 	if ((lo_base_addr == 0) || (hi_base_addr == 0))
 		return;
 
-	WREG32_PCIE(lo_base_addr, 0UL);
-	WREG32_PCIE(hi_base_addr, 0UL);
-}
-
-
-static int df_v3_6_add_perfmon_cntr(struct amdgpu_device *adev,
-				      uint64_t config)
-{
-	uint32_t lo_base_addr, hi_base_addr, lo_val, hi_val;
-	int ret, is_assigned;
-
-	ret = df_v3_6_pmc_assign_cntr(adev, config, &is_assigned);
-
-	if (ret || is_assigned)
-		return ret;
-
-	ret = df_v3_6_pmc_get_ctrl_settings(adev,
-			config,
-			&lo_base_addr,
-			&hi_base_addr,
-			&lo_val,
-			&hi_val);
-
-	if (ret)
-		return ret;
-
-	DRM_DEBUG_DRIVER("config=%llx addr=%08x:%08x val=%08x:%08x",
-			config, lo_base_addr, hi_base_addr, lo_val, hi_val);
-
-	WREG32_PCIE(lo_base_addr, lo_val);
-	WREG32_PCIE(hi_base_addr, hi_val);
-
-	return ret;
+	df_v3_6_perfmon_wreg(adev, lo_base_addr, 0, hi_base_addr, 0);
 }
 
 static int df_v3_6_pmc_start(struct amdgpu_device *adev, uint64_t config,
 			     int is_enable)
 {
-	uint32_t lo_base_addr, hi_base_addr, lo_val;
+	uint32_t lo_base_addr, hi_base_addr, lo_val, hi_val;
 	int ret = 0;
 
 	switch (adev->asic_type) {
@@ -391,24 +446,20 @@ static int df_v3_6_pmc_start(struct amdgpu_device *adev, uint64_t config,
 		df_v3_6_reset_perfmon_cntr(adev, config);
 
 		if (is_enable) {
-			ret = df_v3_6_add_perfmon_cntr(adev, config);
+			ret = df_v3_6_pmc_add_cntr(adev, config);
 		} else {
 			ret = df_v3_6_pmc_get_ctrl_settings(adev,
 					config,
 					&lo_base_addr,
 					&hi_base_addr,
-					NULL,
-					NULL);
+					&lo_val,
+					&hi_val);
 
 			if (ret)
 				return ret;
 
-			lo_val = RREG32_PCIE(lo_base_addr);
-
-			DRM_DEBUG_DRIVER("config=%llx addr=%08x:%08x val=%08x",
-				config, lo_base_addr, hi_base_addr, lo_val);
-
-			WREG32_PCIE(lo_base_addr, lo_val | (1ULL << 22));
+			df_v3_6_perfmon_wreg(adev, lo_base_addr, lo_val,
+					hi_base_addr, hi_val);
 		}
 
 		break;
@@ -422,7 +473,7 @@ static int df_v3_6_pmc_start(struct amdgpu_device *adev, uint64_t config,
 static int df_v3_6_pmc_stop(struct amdgpu_device *adev, uint64_t config,
 			    int is_disable)
 {
-	uint32_t lo_base_addr, hi_base_addr, lo_val;
+	uint32_t lo_base_addr, hi_base_addr, lo_val, hi_val;
 	int ret = 0;
 
 	switch (adev->asic_type) {
@@ -431,18 +482,13 @@ static int df_v3_6_pmc_stop(struct amdgpu_device *adev, uint64_t config,
 			config,
 			&lo_base_addr,
 			&hi_base_addr,
-			NULL,
-			NULL);
+			&lo_val,
+			&hi_val);
 
 		if (ret)
 			return ret;
 
-		lo_val = RREG32_PCIE(lo_base_addr);
-
-		DRM_DEBUG_DRIVER("config=%llx addr=%08x:%08x val=%08x",
-				config, lo_base_addr, hi_base_addr, lo_val);
-
-		WREG32_PCIE(lo_base_addr, lo_val & ~(1ULL << 22));
+		df_v3_6_perfmon_wreg(adev, lo_base_addr, 0, hi_base_addr, 0);
 
 		if (is_disable)
 			df_v3_6_pmc_release_cntr(adev, config);
@@ -471,8 +517,8 @@ static void df_v3_6_pmc_get_count(struct amdgpu_device *adev,
 		if ((lo_base_addr == 0) || (hi_base_addr == 0))
 			return;
 
-		lo_val = RREG32_PCIE(lo_base_addr);
-		hi_val = RREG32_PCIE(hi_base_addr);
+		df_v3_6_perfmon_rreg(adev, lo_base_addr, &lo_val,
+				hi_base_addr, &hi_val);
 
 		*count  = ((hi_val | 0ULL) << 32) | (lo_val | 0ULL);
 
@@ -480,7 +526,7 @@ static void df_v3_6_pmc_get_count(struct amdgpu_device *adev,
 			*count = 0;
 
 		DRM_DEBUG_DRIVER("config=%llx addr=%08x:%08x val=%08x:%08x",
-			config, lo_base_addr, hi_base_addr, lo_val, hi_val);
+			 config, lo_base_addr, hi_base_addr, lo_val, hi_val);
 
 		break;
 
@@ -499,5 +545,7 @@ const struct amdgpu_df_funcs df_v3_6_funcs = {
 	.get_clockgating_state = df_v3_6_get_clockgating_state,
 	.pmc_start = df_v3_6_pmc_start,
 	.pmc_stop = df_v3_6_pmc_stop,
-	.pmc_get_count = df_v3_6_pmc_get_count
+	.pmc_get_count = df_v3_6_pmc_get_count,
+	.get_fica = df_v3_6_get_fica,
+	.set_fica = df_v3_6_set_fica
 };

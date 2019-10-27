@@ -63,15 +63,35 @@ struct dma_fence_cb;
  * been completed, or never called at all.
  */
 struct dma_fence {
-	struct kref refcount;
-	const struct dma_fence_ops *ops;
-	struct rcu_head rcu;
-	struct list_head cb_list;
 	spinlock_t *lock;
+	const struct dma_fence_ops *ops;
+	/*
+	 * We clear the callback list on kref_put so that by the time we
+	 * release the fence it is unused. No one should be adding to the
+	 * cb_list that they don't themselves hold a reference for.
+	 *
+	 * The lifetime of the timestamp is similarly tied to both the
+	 * rcu freelist and the cb_list. The timestamp is only set upon
+	 * signaling while simultaneously notifying the cb_list. Ergo, we
+	 * only use either the cb_list of timestamp. Upon destruction,
+	 * neither are accessible, and so we can use the rcu. This means
+	 * that the cb_list is *only* valid until the signal bit is set,
+	 * and to read either you *must* hold a reference to the fence,
+	 * and not just the rcu_read_lock.
+	 *
+	 * Listed in chronological order.
+	 */
+	union {
+		struct list_head cb_list;
+		/* @cb_list replaced by @timestamp on dma_fence_signal() */
+		ktime_t timestamp;
+		/* @timestamp replaced by @rcu on dma_fence_release() */
+		struct rcu_head rcu;
+	};
 	u64 context;
 	u64 seqno;
 	unsigned long flags;
-	ktime_t timestamp;
+	struct kref refcount;
 	int error;
 };
 
@@ -273,7 +293,7 @@ static inline struct dma_fence *dma_fence_get(struct dma_fence *fence)
 }
 
 /**
- * dma_fence_get_rcu - get a fence from a reservation_object_list with
+ * dma_fence_get_rcu - get a fence from a dma_resv_list with
  *                     rcu read lock
  * @fence: fence to increase refcount of
  *
@@ -297,7 +317,7 @@ static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
  * so long as the caller is using RCU on the pointer to the fence.
  *
  * An alternative mechanism is to employ a seqlock to protect a bunch of
- * fences, such as used by struct reservation_object. When using a seqlock,
+ * fences, such as used by struct dma_resv. When using a seqlock,
  * the seqlock must be taken before and checked after a reference to the
  * fence is acquired (as shown here).
  *

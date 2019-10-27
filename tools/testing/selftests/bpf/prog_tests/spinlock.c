@@ -11,19 +11,19 @@ void test_spinlock(void)
 	void *ret;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_CGROUP_SKB, &obj, &prog_fd);
-	if (err) {
+	if (CHECK_FAIL(err)) {
 		printf("test_spin_lock:bpf_prog_load errno %d\n", errno);
 		goto close_prog;
 	}
 	for (i = 0; i < 4; i++)
-		assert(pthread_create(&thread_id[i], NULL,
-				      &spin_lock_thread, &prog_fd) == 0);
+		if (CHECK_FAIL(pthread_create(&thread_id[i], NULL,
+					      &spin_lock_thread, &prog_fd)))
+			goto close_prog;
+
 	for (i = 0; i < 4; i++)
-		assert(pthread_join(thread_id[i], &ret) == 0 &&
-		       ret == (void *)&prog_fd);
-	goto close_prog_noerr;
+		if (CHECK_FAIL(pthread_join(thread_id[i], &ret) ||
+			       ret != (void *)&prog_fd))
+			goto close_prog;
 close_prog:
-	error_cnt++;
-close_prog_noerr:
 	bpf_object__close(obj);
 }

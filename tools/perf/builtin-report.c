@@ -12,12 +12,16 @@
 
 #include "util/annotate.h"
 #include "util/color.h"
+#include "util/dso.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/err.h>
 #include <linux/zalloc.h>
 #include "util/map.h"
 #include "util/symbol.h"
+#include "util/map_symbol.h"
+#include "util/mem-events.h"
+#include "util/branch.h"
 #include "util/callchain.h"
 #include "util/values.h"
 
@@ -25,8 +29,10 @@
 #include "util/debug.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/evswitch.h"
 #include "util/header.h"
 #include "util/session.h"
+#include "util/srcline.h"
 #include "util/tool.h"
 
 #include <subcmd/parse-options.h>
@@ -42,6 +48,9 @@
 #include "util/auxtrace.h"
 #include "util/units.h"
 #include "util/branch.h"
+#include "util/util.h" // perf_tip()
+#include "ui/ui.h"
+#include "ui/progress.h"
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -50,6 +59,7 @@
 #include <linux/ctype.h>
 #include <signal.h>
 #include <linux/bitmap.h>
+#include <linux/string.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include <sys/types.h>
@@ -60,6 +70,7 @@
 struct report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
+	struct evswitch		evswitch;
 	bool			use_tui, use_gtk, use_stdio;
 	bool			show_full_info;
 	bool			show_threads;
@@ -128,7 +139,7 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	int err = 0;
 	struct report *rep = arg;
 	struct hist_entry *he = iter->he;
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	struct perf_sample *sample = iter->sample;
 	struct mem_info *mi;
 	struct branch_info *bi;
@@ -172,7 +183,7 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 	struct report *rep = arg;
 	struct branch_info *bi;
 	struct perf_sample *sample = iter->sample;
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	int err;
 
 	if (!ui__has_annotation() && !rep->symbol_ipc)
@@ -193,7 +204,7 @@ out:
 }
 
 static void setup_forced_leader(struct report *report,
-				struct perf_evlist *evlist)
+				struct evlist *evlist)
 {
 	if (report->group_set)
 		perf_evlist__force_leader(evlist);
@@ -208,7 +219,7 @@ static int process_feature_event(struct perf_session *session,
 		return perf_event__process_feature(session, event);
 
 	if (event->feat.feat_id != HEADER_LAST_FEATURE) {
-		pr_err("failed: wrong feature ID: %" PRIu64 "\n",
+		pr_err("failed: wrong feature ID: %" PRI_lu64 "\n",
 		       event->feat.feat_id);
 		return -1;
 	}
@@ -225,7 +236,7 @@ static int process_feature_event(struct perf_session *session,
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	struct report *rep = container_of(tool, struct report, tool);
@@ -242,6 +253,9 @@ static int process_sample_event(struct perf_tool *tool,
 					  sample->time)) {
 		return 0;
 	}
+
+	if (evswitch__discard(&rep->evswitch, evsel))
+		return 0;
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -292,7 +306,7 @@ out_put:
 static int process_read_event(struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
-			      struct perf_evsel *evsel,
+			      struct evsel *evsel,
 			      struct machine *machine __maybe_unused)
 {
 	struct report *rep = container_of(tool, struct report, tool);
@@ -400,7 +414,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	char unit;
 	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	u64 nr_events = hists->stats.total_period;
-	struct perf_evsel *evsel = hists_to_evsel(hists);
+	struct evsel *evsel = hists_to_evsel(hists);
 	char buf[512];
 	size_t size = sizeof(buf);
 	int socked_id = hists->socket_filter;
@@ -414,7 +428,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	}
 
 	if (perf_evsel__is_group_event(evsel)) {
-		struct perf_evsel *pos;
+		struct evsel *pos;
 
 		perf_evsel__group_desc(evsel, buf, size);
 		evname = buf;
@@ -436,7 +450,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	ret = fprintf(fp, "# Samples: %lu%c", nr_samples, unit);
 	if (evname != NULL) {
 		ret += fprintf(fp, " of event%s '%s'",
-			       evsel->nr_members > 1 ? "s" : "", evname);
+			       evsel->core.nr_members > 1 ? "s" : "", evname);
 	}
 
 	if (rep->time_str)
@@ -459,11 +473,11 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	return ret + fprintf(fp, "\n#\n");
 }
 
-static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
+static int perf_evlist__tty_browse_hists(struct evlist *evlist,
 					 struct report *rep,
 					 const char *help)
 {
-	struct perf_evsel *pos;
+	struct evsel *pos;
 
 	if (!quiet) {
 		fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n",
@@ -532,7 +546,7 @@ static void report__warn_kptr_restrict(const struct report *rep)
 
 static int report__gtk_browse_hists(struct report *rep, const char *help)
 {
-	int (*hist_browser)(struct perf_evlist *evlist, const char *help,
+	int (*hist_browser)(struct evlist *evlist, const char *help,
 			    struct hist_browser_timer *timer, float min_pcnt);
 
 	hist_browser = dlsym(perf_gtk_handle, "perf_evlist__gtk_browse_hists");
@@ -549,7 +563,7 @@ static int report__browse_hists(struct report *rep)
 {
 	int ret;
 	struct perf_session *session = rep->session;
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	const char *help = perf_tip(system_path(TIPDIR));
 
 	if (help == NULL) {
@@ -586,7 +600,7 @@ static int report__browse_hists(struct report *rep)
 static int report__collapse_hists(struct report *rep)
 {
 	struct ui_progress prog;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	int ret = 0;
 
 	ui_progress__init(&prog, rep->nr_entries, "Merging related events...");
@@ -623,7 +637,7 @@ static int hists__resort_cb(struct hist_entry *he, void *arg)
 	struct symbol *sym = he->ms.sym;
 
 	if (rep->symbol_ipc && sym && !sym->annotate2) {
-		struct perf_evsel *evsel = hists_to_evsel(he->hists);
+		struct evsel *evsel = hists_to_evsel(he->hists);
 
 		symbol__annotate2(sym, he->ms.map, evsel,
 				  &annotation__default_options, NULL);
@@ -635,7 +649,7 @@ static int hists__resort_cb(struct hist_entry *he, void *arg)
 static void report__output_resort(struct report *rep)
 {
 	struct ui_progress prog;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 
 	ui_progress__init(&prog, rep->nr_entries, "Sorting events for output...");
 
@@ -818,7 +832,7 @@ static int __cmd_report(struct report *rep)
 {
 	int ret;
 	struct perf_session *session = rep->session;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	struct perf_data *data = session->data;
 
 	signal(SIGINT, sig_handler);
@@ -1189,6 +1203,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_CALLBACK(0, "time-quantum", &symbol_conf.time_quantum, "time (ms|us|ns|s)",
 		     "Set time quantum for time sort key (default 100ms)",
 		     parse_time_quantum),
+	OPTS_EVSWITCH(&report.evswitch),
 	OPT_END()
 	};
 	struct perf_data data = {
@@ -1254,8 +1269,12 @@ int cmd_report(int argc, const char **argv)
 
 repeat:
 	session = perf_session__new(&data, false, &report.tool);
-	if (session == NULL)
-		return -1;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
+
+	ret = evswitch__init(&report.evswitch, session->evlist, stderr);
+	if (ret)
+		return ret;
 
 	if (zstd_init(&(session->zstd_data), 0) < 0)
 		pr_warning("Decompression initialization failed. Reported data may be incomplete.\n");
@@ -1271,6 +1290,8 @@ repeat:
 
 	has_br_stack = perf_header__has_feat(&session->header,
 					     HEADER_BRANCH_STACK);
+	if (perf_evlist__combined_sample_type(session->evlist) & PERF_SAMPLE_STACK_USER)
+		has_br_stack = false;
 
 	setup_forced_leader(&report, session->evlist);
 

@@ -155,4 +155,6 @@ void context_clock_trace(
 
 #define DISPLAY_STATS_END(entry) (void)(entry)
 
+#define LOG_GAMMA_WRITE(msg, ...)
+
 #endif /* __DAL_LOGGER_INTERFACE_H__ */

@@ -20,6 +20,7 @@ struct i915_wa {
 
 struct i915_wa_list {
 	const char	*name;
+	const char	*engine_name;
 	struct i915_wa	*list;
 	unsigned int	count;
 	unsigned int	wa_count;

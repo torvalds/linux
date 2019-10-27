@@ -13,3 +13,6 @@ obj-$(CONFIG_SND_HDA_CORE) += snd-hda-core.o
 
 #extended hda
 obj-$(CONFIG_SND_HDA_EXT_CORE) += ext/
+
+snd-intel-nhlt-objs := intel-nhlt.o
+obj-$(CONFIG_SND_INTEL_NHLT) += snd-intel-nhlt.o

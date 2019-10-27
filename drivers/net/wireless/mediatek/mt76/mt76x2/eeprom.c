@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/module.h>
@@ -33,7 +22,7 @@ mt76x2_eeprom_get_macaddr(struct mt76x02_dev *dev)
 static bool
 mt76x2_has_cal_free_data(struct mt76x02_dev *dev, u8 *efuse)
 {
-	u16 *efuse_w = (u16 *) efuse;
+	u16 *efuse_w = (u16 *)efuse;
 
 	if (efuse_w[MT_EE_NIC_CONF_0] != 0)
 		return false;
@@ -372,7 +361,8 @@ mt76x2_get_power_info_2g(struct mt76x02_dev *dev,
 	t->chain[chain].tssi_slope = data[0];
 	t->chain[chain].tssi_offset = data[1];
 	t->chain[chain].target_power = data[2];
-	t->chain[chain].delta = mt76x02_sign_extend_optional(data[delta_idx], 7);
+	t->chain[chain].delta =
+		mt76x02_sign_extend_optional(data[delta_idx], 7);
 
 	val = mt76x02_eeprom_get(dev, MT_EE_RF_2G_TSSI_OFF_TXPOWER);
 	t->target_power = val >> 8;
@@ -381,7 +371,7 @@ mt76x2_get_power_info_2g(struct mt76x02_dev *dev,
 static void
 mt76x2_get_power_info_5g(struct mt76x02_dev *dev,
 			 struct mt76x2_tx_power_info *t,
-		         struct ieee80211_channel *chan,
+			 struct ieee80211_channel *chan,
 			 int chain, int offset)
 {
 	int channel = chan->hw_value;
@@ -423,7 +413,8 @@ mt76x2_get_power_info_5g(struct mt76x02_dev *dev,
 	t->chain[chain].tssi_slope = data[0];
 	t->chain[chain].tssi_offset = data[1];
 	t->chain[chain].target_power = data[2];
-	t->chain[chain].delta = mt76x02_sign_extend_optional(data[delta_idx], 7);
+	t->chain[chain].delta =
+		mt76x02_sign_extend_optional(data[delta_idx], 7);
 
 	val = mt76x02_eeprom_get(dev, MT_EE_RF_2G_RX_HIGH_GAIN);
 	t->target_power = val & 0xff;

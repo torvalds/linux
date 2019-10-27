@@ -251,6 +251,12 @@ union qed_mfw_tlv_data {
 	struct qed_mfw_tlv_iscsi iscsi;
 };
 
+#define QED_NVM_CFG_OPTION_ALL		BIT(0)
+#define QED_NVM_CFG_OPTION_INIT		BIT(1)
+#define QED_NVM_CFG_OPTION_COMMIT       BIT(2)
+#define QED_NVM_CFG_OPTION_FREE		BIT(3)
+#define QED_NVM_CFG_OPTION_ENTITY_SEL	BIT(4)
+
 /**
  * @brief - returns the link params of the hw function
  *
@@ -1202,4 +1208,33 @@ int qed_mcp_get_engine_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
  */
 int qed_mcp_get_ppfid_bitmap(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
+/**
+ * @brief Get NVM config attribute value.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param option_id
+ * @param entity_id
+ * @param flags
+ * @param p_buf
+ * @param p_len
+ */
+int qed_mcp_nvm_get_cfg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			u16 option_id, u8 entity_id, u16 flags, u8 *p_buf,
+			u32 *p_len);
+
+/**
+ * @brief Set NVM config attribute value.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param option_id
+ * @param entity_id
+ * @param flags
+ * @param p_buf
+ * @param len
+ */
+int qed_mcp_nvm_set_cfg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			u16 option_id, u8 entity_id, u16 flags, u8 *p_buf,
+			u32 len);
 #endif

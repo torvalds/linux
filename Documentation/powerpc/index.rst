@@ -15,6 +15,7 @@ powerpc
     dawr-power9
     dscr
     eeh-pci-error-recovery
+    elfnote
     firmware-assisted-dump
     hvcs
     isa-versions
@@ -25,6 +26,7 @@ powerpc
     qe_firmware
     syscall64-abi
     transactional_memory
+    ultravisor
 
 .. only::  subproject and html
 
