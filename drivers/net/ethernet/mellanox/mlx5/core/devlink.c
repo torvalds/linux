@@ -85,6 +85,22 @@ mlx5_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	return 0;
 }
 
+static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
+				    struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	return mlx5_unload_one(dev, false);
+}
+
+static int mlx5_devlink_reload_up(struct devlink *devlink,
+				  struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	return mlx5_load_one(dev, false);
+}
+
 static const struct devlink_ops mlx5_devlink_ops = {
 #ifdef CONFIG_MLX5_ESWITCH
 	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
@@ -96,6 +112,8 @@ static const struct devlink_ops mlx5_devlink_ops = {
 #endif
 	.flash_update = mlx5_devlink_flash_update,
 	.info_get = mlx5_devlink_info_get,
+	.reload_down = mlx5_devlink_reload_down,
+	.reload_up = mlx5_devlink_reload_up,
 };
 
 struct devlink *mlx5_devlink_alloc(void)
@@ -235,6 +253,7 @@ int mlx5_devlink_register(struct devlink *devlink, struct device *dev)
 		goto params_reg_err;
 	mlx5_devlink_set_params_init_values(devlink);
 	devlink_params_publish(devlink);
+	devlink_reload_enable(devlink);
 	return 0;
 
 params_reg_err:
@@ -244,6 +263,7 @@ params_reg_err:
 
 void mlx5_devlink_unregister(struct devlink *devlink)
 {
+	devlink_reload_disable(devlink);
 	devlink_params_unregister(devlink, mlx5_devlink_params,
 				  ARRAY_SIZE(mlx5_devlink_params));
 	devlink_unregister(devlink);
