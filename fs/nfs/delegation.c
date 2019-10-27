@@ -644,10 +644,18 @@ int nfs4_inode_return_delegation(struct inode *inode)
  */
 int nfs4_inode_make_writeable(struct inode *inode)
 {
-	if (!nfs4_has_session(NFS_SERVER(inode)->nfs_client) ||
-	    !nfs4_check_delegation(inode, FMODE_WRITE))
-		return nfs4_inode_return_delegation(inode);
-	return 0;
+	struct nfs_delegation *delegation;
+
+	rcu_read_lock();
+	delegation = nfs4_get_valid_delegation(inode);
+	if (delegation == NULL ||
+	    (nfs4_has_session(NFS_SERVER(inode)->nfs_client) &&
+	     (delegation->type & FMODE_WRITE))) {
+		rcu_read_unlock();
+		return 0;
+	}
+	rcu_read_unlock();
+	return nfs4_inode_return_delegation(inode);
 }
 
 static void nfs_mark_return_if_closed_delegation(struct nfs_server *server,
