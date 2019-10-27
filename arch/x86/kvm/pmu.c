@@ -334,7 +334,8 @@ void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
 
 bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
-	return kvm_x86_ops->pmu_ops->is_valid_msr(vcpu, msr);
+	return kvm_x86_ops->pmu_ops->msr_idx_to_pmc(vcpu, msr) ||
+		kvm_x86_ops->pmu_ops->is_valid_msr(vcpu, msr);
 }
 
 int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)

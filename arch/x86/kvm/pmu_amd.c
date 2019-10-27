@@ -200,13 +200,19 @@ static struct kvm_pmc *amd_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
 
 static bool amd_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
+	/* All MSRs refer to exactly one PMC, so msr_idx_to_pmc is enough.  */
+	return false;
+}
+
+static struct kvm_pmc *amd_msr_idx_to_pmc(struct kvm_vcpu *vcpu, u32 msr)
+{
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-	int ret = false;
+	struct kvm_pmc *pmc;
 
-	ret = get_gp_pmc_amd(pmu, msr, PMU_TYPE_COUNTER) ||
-		get_gp_pmc_amd(pmu, msr, PMU_TYPE_EVNTSEL);
+	pmc = get_gp_pmc_amd(pmu, msr, PMU_TYPE_COUNTER);
+	pmc = pmc ? pmc : get_gp_pmc_amd(pmu, msr, PMU_TYPE_EVNTSEL);
 
-	return ret;
+	return pmc;
 }
 
 static int amd_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
@@ -308,6 +314,7 @@ struct kvm_pmu_ops amd_pmu_ops = {
 	.pmc_is_enabled = amd_pmc_is_enabled,
 	.pmc_idx_to_pmc = amd_pmc_idx_to_pmc,
 	.rdpmc_ecx_to_pmc = amd_rdpmc_ecx_to_pmc,
+	.msr_idx_to_pmc = amd_msr_idx_to_pmc,
 	.is_valid_rdpmc_ecx = amd_is_valid_rdpmc_ecx,
 	.is_valid_msr = amd_is_valid_msr,
 	.get_msr = amd_pmu_get_msr,
