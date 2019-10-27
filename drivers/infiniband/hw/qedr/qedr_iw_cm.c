@@ -739,7 +739,7 @@ void qedr_iw_qp_rem_ref(struct ib_qp *ibqp)
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
 
 	if (atomic_dec_and_test(&qp->refcnt)) {
-		xa_erase_irq(&qp->dev->qps, qp->qp_id);
+		xa_erase(&qp->dev->qps, qp->qp_id);
 		kfree(qp);
 	}
 }
