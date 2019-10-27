@@ -268,8 +268,12 @@ static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
 	par = read_sysreg(par_el1);
 	local_irq_restore(flags);
 
+	/*
+	 * If we now have a valid translation, treat the translation fault as
+	 * spurious.
+	 */
 	if (!(par & SYS_PAR_EL1_F))
-		return false;
+		return true;
 
 	/*
 	 * If we got a different type of fault from the AT instruction,

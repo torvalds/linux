@@ -409,9 +409,11 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 		 */
 		rstc = of_reset_control_array_get_optional_shared(dev->dev.of_node);
 		if (IS_ERR(rstc)) {
-			if (PTR_ERR(rstc) != -EPROBE_DEFER)
-				dev_err(&dev->dev, "Can't get amba reset!\n");
-			return PTR_ERR(rstc);
+			ret = PTR_ERR(rstc);
+			if (ret != -EPROBE_DEFER)
+				dev_err(&dev->dev, "can't get reset: %d\n",
+					ret);
+			goto err_reset;
 		}
 		reset_control_deassert(rstc);
 		reset_control_put(rstc);
@@ -472,6 +474,12 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 	release_resource(&dev->res);
  err_out:
 	return ret;
+
+ err_reset:
+	amba_put_disable_pclk(dev);
+	iounmap(tmp);
+	dev_pm_domain_detach(&dev->dev, true);
+	goto err_release;
 }
 
 /*
