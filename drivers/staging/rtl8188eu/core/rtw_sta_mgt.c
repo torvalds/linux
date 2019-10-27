@@ -181,7 +181,7 @@ struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 					struct sta_info, list);
 	if (!psta) {
 		spin_unlock_bh(&pfree_sta_queue->lock);
-		goto exit;
+		return NULL;
 	}
 
 	list_del_init(&psta->list);
@@ -194,8 +194,7 @@ struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	if (index >= NUM_STA) {
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
 			 ("ERROR => %s: index >= NUM_STA", __func__));
-		psta = NULL;
-		goto exit;
+		return NULL;
 	}
 	phash_list = &pstapriv->sta_hash[index];
 
@@ -246,7 +245,6 @@ struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	/* init for the sequence number of received management frame */
 	psta->RxMgmtFrameSeqNum = 0xffff;
 
-exit:
 	return psta;
 }
 
