@@ -17,6 +17,7 @@
 #include "gem/i915_gem_object_blt.h"
 #include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
+#include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "selftests/igt_flush_test.h"
 #include "selftests/i915_random.h"
@@ -442,6 +443,25 @@ out_file:
 	return err;
 }
 
+static struct intel_engine_cs *
+random_engine_class(struct drm_i915_private *i915,
+		    unsigned int class,
+		    struct rnd_state *prng)
+{
+	struct intel_engine_cs *engine;
+	unsigned int count;
+
+	count = 0;
+	for (engine = intel_engine_lookup_user(i915, class, 0);
+	     engine && engine->uabi_class == class;
+	     engine = rb_entry_safe(rb_next(&engine->uabi_node),
+				    typeof(*engine), uabi_node))
+		count++;
+
+	count = i915_prandom_u32_max_state(count, prng);
+	return intel_engine_lookup_user(i915, class, count);
+}
+
 static int igt_lmem_write_cpu(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -458,6 +478,7 @@ static int igt_lmem_write_cpu(void *arg)
 		PAGE_SIZE - sizeof(u64),
 		PAGE_SIZE - 64,
 	};
+	struct intel_engine_cs *engine;
 	u32 *vaddr;
 	u32 sz;
 	u32 i;
@@ -465,8 +486,11 @@ static int igt_lmem_write_cpu(void *arg)
 	int count;
 	int err;
 
-	if (!HAS_ENGINE(i915, BCS0))
+	engine = random_engine_class(i915, I915_ENGINE_CLASS_COPY, &prng);
+	if (!engine)
 		return 0;
+
+	pr_info("%s: using %s\n", __func__, engine->name);
 
 	sz = round_up(prandom_u32_state(&prng) % SZ_32M, PAGE_SIZE);
 	sz = max_t(u32, 2 * PAGE_SIZE, sz);
@@ -482,8 +506,7 @@ static int igt_lmem_write_cpu(void *arg)
 	}
 
 	/* Put the pages into a known state -- from the gpu for added fun */
-	err = i915_gem_object_fill_blt(obj, i915->engine[BCS0]->kernel_context,
-				       0xdeadbeaf);
+	err = i915_gem_object_fill_blt(obj, engine->kernel_context, 0xdeadbeaf);
 	if (err)
 		goto out_unpin;
 
