@@ -2,8 +2,8 @@
 VERSION = 5
 PATCHLEVEL = 4
 SUBLEVEL = 0
-EXTRAVERSION = -rc4
-NAME = Nesting Opossum
+EXTRAVERSION = -rc5
+NAME = Kleptomaniac Octopus
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
