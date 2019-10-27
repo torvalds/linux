@@ -1555,11 +1555,9 @@ void gen11_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 
 void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 {
-	struct drm_i915_private *i915 = rps_to_i915(rps);
+	struct intel_gt *gt = rps_to_gt(rps);
 
 	if (pm_iir & rps->pm_events) {
-		struct intel_gt *gt = rps_to_gt(rps);
-
 		spin_lock(&gt->irq_lock);
 		gen6_gt_pm_mask_irq(gt, pm_iir & rps->pm_events);
 		rps->pm_iir |= pm_iir & rps->pm_events;
@@ -1567,11 +1565,11 @@ void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 		spin_unlock(&gt->irq_lock);
 	}
 
-	if (INTEL_GEN(i915) >= 8)
+	if (INTEL_GEN(gt->i915) >= 8)
 		return;
 
 	if (pm_iir & PM_VEBOX_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(i915->engine[VECS0]);
+		intel_engine_breadcrumbs_irq(gt->engine[VECS0]);
 
 	if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
 		DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
