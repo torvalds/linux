@@ -161,13 +161,21 @@ static int nft_payload_offload_ll(struct nft_offload_ctx *ctx,
 
 	switch (priv->offset) {
 	case offsetof(struct ethhdr, h_source):
+		if (priv->len != ETH_ALEN)
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_ETH_ADDRS, eth_addrs,
 				  src, ETH_ALEN, reg);
 		break;
 	case offsetof(struct ethhdr, h_dest):
+		if (priv->len != ETH_ALEN)
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_ETH_ADDRS, eth_addrs,
 				  dst, ETH_ALEN, reg);
 		break;
+	default:
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
@@ -181,14 +189,23 @@ static int nft_payload_offload_ip(struct nft_offload_ctx *ctx,
 
 	switch (priv->offset) {
 	case offsetof(struct iphdr, saddr):
+		if (priv->len != sizeof(struct in_addr))
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_IPV4_ADDRS, ipv4, src,
 				  sizeof(struct in_addr), reg);
 		break;
 	case offsetof(struct iphdr, daddr):
+		if (priv->len != sizeof(struct in_addr))
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_IPV4_ADDRS, ipv4, dst,
 				  sizeof(struct in_addr), reg);
 		break;
 	case offsetof(struct iphdr, protocol):
+		if (priv->len != sizeof(__u8))
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_BASIC, basic, ip_proto,
 				  sizeof(__u8), reg);
 		nft_offload_set_dependency(ctx, NFT_OFFLOAD_DEP_TRANSPORT);
@@ -208,14 +225,23 @@ static int nft_payload_offload_ip6(struct nft_offload_ctx *ctx,
 
 	switch (priv->offset) {
 	case offsetof(struct ipv6hdr, saddr):
+		if (priv->len != sizeof(struct in6_addr))
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_IPV6_ADDRS, ipv6, src,
 				  sizeof(struct in6_addr), reg);
 		break;
 	case offsetof(struct ipv6hdr, daddr):
+		if (priv->len != sizeof(struct in6_addr))
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_IPV6_ADDRS, ipv6, dst,
 				  sizeof(struct in6_addr), reg);
 		break;
 	case offsetof(struct ipv6hdr, nexthdr):
+		if (priv->len != sizeof(__u8))
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_BASIC, basic, ip_proto,
 				  sizeof(__u8), reg);
 		nft_offload_set_dependency(ctx, NFT_OFFLOAD_DEP_TRANSPORT);
@@ -255,10 +281,16 @@ static int nft_payload_offload_tcp(struct nft_offload_ctx *ctx,
 
 	switch (priv->offset) {
 	case offsetof(struct tcphdr, source):
+		if (priv->len != sizeof(__be16))
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_PORTS, tp, src,
 				  sizeof(__be16), reg);
 		break;
 	case offsetof(struct tcphdr, dest):
+		if (priv->len != sizeof(__be16))
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_PORTS, tp, dst,
 				  sizeof(__be16), reg);
 		break;
@@ -277,10 +309,16 @@ static int nft_payload_offload_udp(struct nft_offload_ctx *ctx,
 
 	switch (priv->offset) {
 	case offsetof(struct udphdr, source):
+		if (priv->len != sizeof(__be16))
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_PORTS, tp, src,
 				  sizeof(__be16), reg);
 		break;
 	case offsetof(struct udphdr, dest):
+		if (priv->len != sizeof(__be16))
+			return -EOPNOTSUPP;
+
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_PORTS, tp, dst,
 				  sizeof(__be16), reg);
 		break;
