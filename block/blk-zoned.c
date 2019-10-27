@@ -202,32 +202,14 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 }
 EXPORT_SYMBOL_GPL(blkdev_report_zones);
 
-/*
- * Special case of zone reset operation to reset all zones in one command,
- * useful for applications like mkfs.
- */
-static int __blkdev_reset_all_zones(struct block_device *bdev, gfp_t gfp_mask)
-{
-	struct bio *bio = bio_alloc(gfp_mask, 0);
-	int ret;
-
-	/* across the zones operations, don't need any sectors */
-	bio_set_dev(bio, bdev);
-	bio_set_op_attrs(bio, REQ_OP_ZONE_RESET_ALL, 0);
-
-	ret = submit_bio_wait(bio);
-	bio_put(bio);
-
-	return ret;
-}
-
 static inline bool blkdev_allow_reset_all_zones(struct block_device *bdev,
+						sector_t sector,
 						sector_t nr_sectors)
 {
 	if (!blk_queue_zone_resetall(bdev_get_queue(bdev)))
 		return false;
 
-	if (nr_sectors != part_nr_sects_read(bdev->bd_part))
+	if (sector || nr_sectors != part_nr_sects_read(bdev->bd_part))
 		return false;
 	/*
 	 * REQ_OP_ZONE_RESET_ALL can be executed only if the block device is
@@ -270,9 +252,6 @@ int blkdev_reset_zones(struct block_device *bdev,
 		/* Out of range */
 		return -EINVAL;
 
-	if (blkdev_allow_reset_all_zones(bdev, nr_sectors))
-		return  __blkdev_reset_all_zones(bdev, gfp_mask);
-
 	/* Check alignment (handle eventual smaller last zone) */
 	zone_sectors = blk_queue_zone_sectors(q);
 	if (sector & (zone_sectors - 1))
@@ -283,17 +262,24 @@ int blkdev_reset_zones(struct block_device *bdev,
 		return -EINVAL;
 
 	while (sector < end_sector) {
-
 		bio = blk_next_bio(bio, 0, gfp_mask);
-		bio->bi_iter.bi_sector = sector;
 		bio_set_dev(bio, bdev);
-		bio_set_op_attrs(bio, REQ_OP_ZONE_RESET, 0);
 
+		/*
+		 * Special case for the zone reset operation that reset all
+		 * zones, this is useful for applications like mkfs.
+		 */
+		if (blkdev_allow_reset_all_zones(bdev, sector, nr_sectors)) {
+			bio->bi_opf = REQ_OP_ZONE_RESET_ALL;
+			break;
+		}
+
+		bio->bi_opf = REQ_OP_ZONE_RESET;
+		bio->bi_iter.bi_sector = sector;
 		sector += zone_sectors;
 
 		/* This may take a while, so be nice to others */
 		cond_resched();
-
 	}
 
 	ret = submit_bio_wait(bio);
