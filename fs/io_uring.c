@@ -271,7 +271,6 @@ struct io_ring_ctx {
 
 struct sqe_submit {
 	const struct io_uring_sqe	*sqe;
-	unsigned short			index;
 	u32				sequence;
 	bool				has_user;
 	bool				in_async;
@@ -2168,9 +2167,6 @@ static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 	req->user_data = READ_ONCE(s->sqe->user_data);
 
-	if (unlikely(s->index >= ctx->sq_entries))
-		return -EINVAL;
-
 	opcode = READ_ONCE(s->sqe->opcode);
 	switch (opcode) {
 	case IORING_OP_NOP:
@@ -2716,7 +2712,6 @@ static bool io_get_sqring(struct io_ring_ctx *ctx, struct sqe_submit *s)
 
 	head = READ_ONCE(sq_array[head & ctx->sq_mask]);
 	if (head < ctx->sq_entries) {
-		s->index = head;
 		s->sqe = &ctx->sq_sqes[head];
 		s->sequence = ctx->cached_sq_head;
 		ctx->cached_sq_head++;
