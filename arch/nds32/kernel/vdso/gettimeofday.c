@@ -48,9 +48,9 @@ static notrace int vdso_read_retry(const struct vdso_data *vdata, u32 start)
 }
 
 static notrace long clock_gettime_fallback(clockid_t _clkid,
-					   struct timespec *_ts)
+					   struct __kernel_old_timespec *_ts)
 {
-	register struct timespec *ts asm("$r1") = _ts;
+	register struct __kernel_old_timespec *ts asm("$r1") = _ts;
 	register clockid_t clkid asm("$r0") = _clkid;
 	register long ret asm("$r0");
 
@@ -63,7 +63,7 @@ static notrace long clock_gettime_fallback(clockid_t _clkid,
 	return ret;
 }
 
-static notrace int do_realtime_coarse(struct timespec *ts,
+static notrace int do_realtime_coarse(struct __kernel_old_timespec *ts,
 				      struct vdso_data *vdata)
 {
 	u32 seq;
@@ -78,7 +78,7 @@ static notrace int do_realtime_coarse(struct timespec *ts,
 	return 0;
 }
 
-static notrace int do_monotonic_coarse(struct timespec *ts,
+static notrace int do_monotonic_coarse(struct __kernel_old_timespec *ts,
 				       struct vdso_data *vdata)
 {
 	struct timespec tomono;
@@ -115,7 +115,7 @@ static notrace inline u64 vgetsns(struct vdso_data *vdso)
 	return ((u64) cycle_delta & vdso->cs_mask) * vdso->cs_mult;
 }
 
-static notrace int do_realtime(struct timespec *ts, struct vdso_data *vdata)
+static notrace int do_realtime(struct __kernel_old_timespec *ts, struct vdso_data *vdata)
 {
 	unsigned count;
 	u64 ns;
@@ -133,7 +133,7 @@ static notrace int do_realtime(struct timespec *ts, struct vdso_data *vdata)
 	return 0;
 }
 
-static notrace int do_monotonic(struct timespec *ts, struct vdso_data *vdata)
+static notrace int do_monotonic(struct __kernel_old_timespec *ts, struct vdso_data *vdata)
 {
 	struct timespec tomono;
 	u64 nsecs;
@@ -158,7 +158,7 @@ static notrace int do_monotonic(struct timespec *ts, struct vdso_data *vdata)
 	return 0;
 }
 
-notrace int __vdso_clock_gettime(clockid_t clkid, struct timespec *ts)
+notrace int __vdso_clock_gettime(clockid_t clkid, struct __kernel_old_timespec *ts)
 {
 	struct vdso_data *vdata;
 	int ret = -1;
@@ -191,10 +191,10 @@ notrace int __vdso_clock_gettime(clockid_t clkid, struct timespec *ts)
 }
 
 static notrace int clock_getres_fallback(clockid_t _clk_id,
-					  struct timespec *_res)
+					  struct __kernel_old_timespec *_res)
 {
 	register clockid_t clk_id asm("$r0") = _clk_id;
-	register struct timespec *res asm("$r1") = _res;
+	register struct __kernel_old_timespec *res asm("$r1") = _res;
 	register int ret asm("$r0");
 
 	asm volatile ("movi	$r15, %3\n"
@@ -206,7 +206,7 @@ static notrace int clock_getres_fallback(clockid_t _clk_id,
 	return ret;
 }
 
-notrace int __vdso_clock_getres(clockid_t clk_id, struct timespec *res)
+notrace int __vdso_clock_getres(clockid_t clk_id, struct __kernel_old_timespec *res)
 {
 	struct vdso_data *vdata = __get_datapage();
 
@@ -248,7 +248,7 @@ static notrace inline int gettimeofday_fallback(struct __kernel_old_timeval *_tv
 
 notrace int __vdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
 {
-	struct timespec ts;
+	struct __kernel_old_timespec ts;
 	struct vdso_data *vdata;
 	int ret;
 

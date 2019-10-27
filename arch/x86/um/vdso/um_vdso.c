@@ -13,7 +13,7 @@
 #include <linux/getcpu.h>
 #include <asm/unistd.h>
 
-int __vdso_clock_gettime(clockid_t clock, struct timespec *ts)
+int __vdso_clock_gettime(clockid_t clock, struct __kernel_old_timespec *ts)
 {
 	long ret;
 
@@ -22,7 +22,7 @@ int __vdso_clock_gettime(clockid_t clock, struct timespec *ts)
 
 	return ret;
 }
-int clock_gettime(clockid_t, struct timespec *)
+int clock_gettime(clockid_t, struct __kernel_old_timespec *)
 	__attribute__((weak, alias("__vdso_clock_gettime")));
 
 int __vdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
