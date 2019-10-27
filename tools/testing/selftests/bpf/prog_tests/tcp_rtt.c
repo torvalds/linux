@@ -260,13 +260,14 @@ void test_tcp_rtt(void)
 
 	if (CHECK_FAIL(pthread_create(&tid, NULL, server_thread,
 				      (void *)&server_fd)))
-		goto close_cgroup_fd;
+		goto close_server_fd;
 
 	pthread_mutex_lock(&server_started_mtx);
 	pthread_cond_wait(&server_started, &server_started_mtx);
 	pthread_mutex_unlock(&server_started_mtx);
 
 	CHECK_FAIL(run_test(cgroup_fd, server_fd));
+close_server_fd:
 	close(server_fd);
 close_cgroup_fd:
 	close(cgroup_fd);

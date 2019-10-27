@@ -1691,6 +1691,17 @@ static void gfx_v10_0_tcp_harvest(struct amdgpu_device *adev)
 	}
 }
 
+static void gfx_v10_0_get_tcc_info(struct amdgpu_device *adev)
+{
+	/* TCCs are global (not instanced). */
+	uint32_t tcc_disable = RREG32_SOC15(GC, 0, mmCGTS_TCC_DISABLE) |
+			       RREG32_SOC15(GC, 0, mmCGTS_USER_TCC_DISABLE);
+
+	adev->gfx.config.tcc_disabled_mask =
+		REG_GET_FIELD(tcc_disable, CGTS_TCC_DISABLE, TCC_DISABLE) |
+		(REG_GET_FIELD(tcc_disable, CGTS_TCC_DISABLE, HI_TCC_DISABLE) << 16);
+}
+
 static void gfx_v10_0_constants_init(struct amdgpu_device *adev)
 {
 	u32 tmp;
@@ -1702,6 +1713,7 @@ static void gfx_v10_0_constants_init(struct amdgpu_device *adev)
 
 	gfx_v10_0_setup_rb(adev);
 	gfx_v10_0_get_cu_info(adev, &adev->gfx.cu_info);
+	gfx_v10_0_get_tcc_info(adev);
 	adev->gfx.config.pa_sc_tile_steering_override =
 		gfx_v10_0_init_pa_sc_tile_steering_override(adev);
 

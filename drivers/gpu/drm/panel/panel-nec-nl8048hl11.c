@@ -230,9 +230,17 @@ static const struct of_device_id nl8048_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, nl8048_of_match);
 
+static const struct spi_device_id nl8048_ids[] = {
+	{ "nl8048hl11", 0 },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(spi, nl8048_ids);
+
 static struct spi_driver nl8048_driver = {
 	.probe		= nl8048_probe,
 	.remove		= nl8048_remove,
+	.id_table	= nl8048_ids,
 	.driver		= {
 		.name	= "panel-nec-nl8048hl11",
 		.pm	= &nl8048_pm_ops,
@@ -242,7 +250,6 @@ static struct spi_driver nl8048_driver = {
 
 module_spi_driver(nl8048_driver);
 
-MODULE_ALIAS("spi:nec,nl8048hl11");
 MODULE_AUTHOR("Erik Gilling <konkers@android.com>");
 MODULE_DESCRIPTION("NEC-NL8048HL11 Driver");
 MODULE_LICENSE("GPL");
