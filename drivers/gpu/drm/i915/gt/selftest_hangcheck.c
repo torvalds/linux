@@ -1016,7 +1016,7 @@ static int igt_reset_wait(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct i915_gpu_error *global = &gt->i915->gpu_error;
-	struct intel_engine_cs *engine = gt->i915->engine[RCS0];
+	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct i915_request *rq;
 	unsigned int reset_count;
 	struct hang h;
@@ -1143,7 +1143,7 @@ static int __igt_reset_evict_vma(struct intel_gt *gt,
 				 int (*fn)(void *),
 				 unsigned int flags)
 {
-	struct intel_engine_cs *engine = gt->i915->engine[RCS0];
+	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct drm_i915_gem_object *obj;
 	struct task_struct *tsk = NULL;
 	struct i915_request *rq;
@@ -1493,7 +1493,7 @@ static int igt_handle_error(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct i915_gpu_error *global = &gt->i915->gpu_error;
-	struct intel_engine_cs *engine = gt->i915->engine[RCS0];
+	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct hang h;
 	struct i915_request *rq;
 	struct i915_gpu_state *error;
