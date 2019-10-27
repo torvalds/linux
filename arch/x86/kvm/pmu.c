@@ -266,9 +266,9 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 }
 
 /* check if idx is a valid index to access PMU */
-int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
+int kvm_pmu_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
 {
-	return kvm_x86_ops->pmu_ops->is_valid_msr_idx(vcpu, idx);
+	return kvm_x86_ops->pmu_ops->is_valid_rdpmc_ecx(vcpu, idx);
 }
 
 bool is_vmware_backdoor_pmc(u32 pmc_idx)
@@ -318,7 +318,7 @@ int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 	if (is_vmware_backdoor_pmc(idx))
 		return kvm_pmu_rdpmc_vmware(vcpu, idx, data);
 
-	pmc = kvm_x86_ops->pmu_ops->msr_idx_to_pmc(vcpu, idx, &mask);
+	pmc = kvm_x86_ops->pmu_ops->rdpmc_ecx_to_pmc(vcpu, idx, &mask);
 	if (!pmc)
 		return 1;
 

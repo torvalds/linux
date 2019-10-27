@@ -111,7 +111,7 @@ static struct kvm_pmc *intel_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 }
 
 /* returns 0 if idx's corresponding MSR exists; otherwise returns 1. */
-static int intel_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
+static int intel_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	bool fixed = idx & (1u << 30);
@@ -122,8 +122,8 @@ static int intel_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
 		(fixed && idx >= pmu->nr_arch_fixed_counters);
 }
 
-static struct kvm_pmc *intel_msr_idx_to_pmc(struct kvm_vcpu *vcpu,
-					    unsigned idx, u64 *mask)
+static struct kvm_pmc *intel_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
+					    unsigned int idx, u64 *mask)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	bool fixed = idx & (1u << 30);
@@ -366,8 +366,8 @@ struct kvm_pmu_ops intel_pmu_ops = {
 	.find_fixed_event = intel_find_fixed_event,
 	.pmc_is_enabled = intel_pmc_is_enabled,
 	.pmc_idx_to_pmc = intel_pmc_idx_to_pmc,
-	.msr_idx_to_pmc = intel_msr_idx_to_pmc,
-	.is_valid_msr_idx = intel_is_valid_msr_idx,
+	.rdpmc_ecx_to_pmc = intel_rdpmc_ecx_to_pmc,
+	.is_valid_rdpmc_ecx = intel_is_valid_rdpmc_ecx,
 	.is_valid_msr = intel_is_valid_msr,
 	.get_msr = intel_pmu_get_msr,
 	.set_msr = intel_pmu_set_msr,
