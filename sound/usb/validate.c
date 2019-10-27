@@ -75,7 +75,7 @@ static bool validate_processing_unit(const void *p,
 
 	if (d->bLength < sizeof(*d))
 		return false;
-	len = d->bLength < sizeof(*d) + d->bNrInPins;
+	len = sizeof(*d) + d->bNrInPins;
 	if (d->bLength < len)
 		return false;
 	switch (v->protocol) {

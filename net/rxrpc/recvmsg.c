@@ -251,8 +251,8 @@ static int rxrpc_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		seq += subpacket;
 	}
 
-	return call->conn->security->verify_packet(call, skb, offset, len,
-						   seq, cksum);
+	return call->security->verify_packet(call, skb, offset, len,
+					     seq, cksum);
 }
 
 /*
@@ -291,7 +291,7 @@ static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
 
 	*_offset = offset;
 	*_len = len;
-	call->conn->security->locate_data(call, skb, _offset, _len);
+	call->security->locate_data(call, skb, _offset, _len);
 	return 0;
 }
 

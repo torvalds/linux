@@ -4,6 +4,7 @@
 
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
+#include <linux/stringify.h>
 
 /*
  * The hypercall definitions differ in the low word of the %edx argument
@@ -20,8 +21,8 @@
  */
 
 /* Old port-based version */
-#define VMWARE_HYPERVISOR_PORT    "0x5658"
-#define VMWARE_HYPERVISOR_PORT_HB "0x5659"
+#define VMWARE_HYPERVISOR_PORT    0x5658
+#define VMWARE_HYPERVISOR_PORT_HB 0x5659
 
 /* Current vmcall / vmmcall version */
 #define VMWARE_HYPERVISOR_HB   BIT(0)
@@ -29,7 +30,8 @@
 
 /* The low bandwidth call. The low word of edx is presumed clear. */
 #define VMWARE_HYPERCALL						\
-	ALTERNATIVE_2("movw $" VMWARE_HYPERVISOR_PORT ", %%dx; inl (%%dx)", \
+	ALTERNATIVE_2("movw $" __stringify(VMWARE_HYPERVISOR_PORT) ", %%dx; " \
+		      "inl (%%dx), %%eax",				\
 		      "vmcall", X86_FEATURE_VMCALL,			\
 		      "vmmcall", X86_FEATURE_VMW_VMMCALL)
 
@@ -38,7 +40,8 @@
  * HB and OUT bits set.
  */
 #define VMWARE_HYPERCALL_HB_OUT						\
-	ALTERNATIVE_2("movw $" VMWARE_HYPERVISOR_PORT_HB ", %%dx; rep outsb", \
+	ALTERNATIVE_2("movw $" __stringify(VMWARE_HYPERVISOR_PORT_HB) ", %%dx; " \
+		      "rep outsb",					\
 		      "vmcall", X86_FEATURE_VMCALL,			\
 		      "vmmcall", X86_FEATURE_VMW_VMMCALL)
 
@@ -47,7 +50,8 @@
  * HB bit set.
  */
 #define VMWARE_HYPERCALL_HB_IN						\
-	ALTERNATIVE_2("movw $" VMWARE_HYPERVISOR_PORT_HB ", %%dx; rep insb", \
+	ALTERNATIVE_2("movw $" __stringify(VMWARE_HYPERVISOR_PORT_HB) ", %%dx; " \
+		      "rep insb",					\
 		      "vmcall", X86_FEATURE_VMCALL,			\
 		      "vmmcall", X86_FEATURE_VMW_VMMCALL)
 #endif

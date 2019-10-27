@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Microchip KSZ9477 register definitions
  *
  * Copyright (C) 2017-2018 Microchip Technology Inc.

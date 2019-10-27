@@ -36,8 +36,10 @@ Support
 =======
 For general Linux networking support, please use the netdev mailing
 list, which is monitored by Pensando personnel::
+
   netdev@vger.kernel.org
 
 For more specific support needs, please use the Pensando driver support
 email::
-	drivers@pensando.io
+
+  drivers@pensando.io

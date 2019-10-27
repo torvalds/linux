@@ -24,6 +24,7 @@ KSZ_REGMAP_TABLE(ksz9477, 32, SPI_ADDR_SHIFT,
 
 static int ksz9477_spi_probe(struct spi_device *spi)
 {
+	struct regmap_config rc;
 	struct ksz_device *dev;
 	int i, ret;
 
@@ -32,8 +33,9 @@ static int ksz9477_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(ksz9477_regmap_config); i++) {
-		dev->regmap[i] = devm_regmap_init_spi(spi,
-					&ksz9477_regmap_config[i]);
+		rc = ksz9477_regmap_config[i];
+		rc.lock_arg = &dev->regmap_mutex;
+		dev->regmap[i] = devm_regmap_init_spi(spi, &rc);
 		if (IS_ERR(dev->regmap[i])) {
 			ret = PTR_ERR(dev->regmap[i]);
 			dev_err(&spi->dev,

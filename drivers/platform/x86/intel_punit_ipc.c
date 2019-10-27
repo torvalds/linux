@@ -293,9 +293,8 @@ static int intel_punit_ipc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, punit_ipcdev);
 
-	irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq_optional(pdev, 0);
 	if (irq < 0) {
-		punit_ipcdev->irq = 0;
 		dev_warn(&pdev->dev, "Invalid IRQ, using polling mode\n");
 	} else {
 		ret = devm_request_irq(&pdev->dev, irq, intel_punit_ioc,
