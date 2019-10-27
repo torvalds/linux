@@ -50,7 +50,7 @@ void test_attach_probe(void)
 	const int kprobe_idx = 0, kretprobe_idx = 1;
 	const int uprobe_idx = 2, uretprobe_idx = 3;
 	const char *obj_name = "attach_probe";
-	LIBBPF_OPTS(bpf_object_open_opts, open_opts,
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts,
 		.object_name = obj_name,
 		.relaxed_maps = true,
 	);
@@ -98,11 +98,6 @@ void test_attach_probe(void)
 	if (CHECK(!uretprobe_prog, "find_probe",
 		  "prog '%s' not found\n", uretprobe_name))
 		goto cleanup;
-
-	bpf_program__set_kprobe(kprobe_prog);
-	bpf_program__set_kprobe(kretprobe_prog);
-	bpf_program__set_kprobe(uprobe_prog);
-	bpf_program__set_kprobe(uretprobe_prog);
 
 	/* create maps && load programs */
 	err = bpf_object__load(obj);

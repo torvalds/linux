@@ -75,14 +75,19 @@ struct bpf_object_open_attr {
  * have all the padding bytes initialized to zero. It's not guaranteed though,
  * when copying literal, that compiler won't copy garbage in literal's padding
  * bytes, but that's the best way I've found and it seems to work in practice.
+ *
+ * Macro declares opts struct of given type and name, zero-initializes,
+ * including any extra padding, it with memset() and then assigns initial
+ * values provided by users in struct initializer-syntax as varargs.
  */
-#define LIBBPF_OPTS(TYPE, NAME, ...)					    \
-	struct TYPE NAME;						    \
-	memset(&NAME, 0, sizeof(struct TYPE));				    \
-	NAME = (struct TYPE) {						    \
-		.sz = sizeof(struct TYPE),				    \
-		__VA_ARGS__						    \
-	}
+#define DECLARE_LIBBPF_OPTS(TYPE, NAME, ...)				    \
+	struct TYPE NAME = ({ 						    \
+		memset(&NAME, 0, sizeof(struct TYPE));			    \
+		(struct TYPE) {						    \
+			.sz = sizeof(struct TYPE),			    \
+			__VA_ARGS__					    \
+		};							    \
+	})
 
 struct bpf_object_open_opts {
 	/* size of this struct, for forward/backward compatiblity */
@@ -96,8 +101,10 @@ struct bpf_object_open_opts {
 	const char *object_name;
 	/* parse map definitions non-strictly, allowing extra attributes/data */
 	bool relaxed_maps;
+	/* process CO-RE relocations non-strictly, allowing them to fail */
+	bool relaxed_core_relocs;
 };
-#define bpf_object_open_opts__last_field relaxed_maps
+#define bpf_object_open_opts__last_field relaxed_core_relocs
 
 LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
 LIBBPF_API struct bpf_object *
@@ -300,8 +307,13 @@ LIBBPF_API int bpf_program__set_sched_cls(struct bpf_program *prog);
 LIBBPF_API int bpf_program__set_sched_act(struct bpf_program *prog);
 LIBBPF_API int bpf_program__set_xdp(struct bpf_program *prog);
 LIBBPF_API int bpf_program__set_perf_event(struct bpf_program *prog);
+
+LIBBPF_API enum bpf_prog_type bpf_program__get_type(struct bpf_program *prog);
 LIBBPF_API void bpf_program__set_type(struct bpf_program *prog,
 				      enum bpf_prog_type type);
+
+LIBBPF_API enum bpf_attach_type
+bpf_program__get_expected_attach_type(struct bpf_program *prog);
 LIBBPF_API void
 bpf_program__set_expected_attach_type(struct bpf_program *prog,
 				      enum bpf_attach_type type);

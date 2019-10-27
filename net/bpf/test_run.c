@@ -218,10 +218,18 @@ static int convert___skb_to_skb(struct sk_buff *skb, struct __sk_buff *__skb)
 
 	if (!range_is_zero(__skb, offsetof(struct __sk_buff, cb) +
 			   FIELD_SIZEOF(struct __sk_buff, cb),
+			   offsetof(struct __sk_buff, tstamp)))
+		return -EINVAL;
+
+	/* tstamp is allowed */
+
+	if (!range_is_zero(__skb, offsetof(struct __sk_buff, tstamp) +
+			   FIELD_SIZEOF(struct __sk_buff, tstamp),
 			   sizeof(struct __sk_buff)))
 		return -EINVAL;
 
 	skb->priority = __skb->priority;
+	skb->tstamp = __skb->tstamp;
 	memcpy(&cb->data, __skb->cb, QDISC_CB_PRIV_LEN);
 
 	return 0;
@@ -235,6 +243,7 @@ static void convert_skb_to___skb(struct sk_buff *skb, struct __sk_buff *__skb)
 		return;
 
 	__skb->priority = skb->priority;
+	__skb->tstamp = skb->tstamp;
 	memcpy(__skb->cb, &cb->data, QDISC_CB_PRIV_LEN);
 }
 

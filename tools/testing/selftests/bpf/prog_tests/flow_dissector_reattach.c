@@ -91,12 +91,18 @@ out_close:
 
 void test_flow_dissector_reattach(void)
 {
-	int init_net, err;
+	int init_net, self_net, err;
+
+	self_net = open("/proc/self/ns/net", O_RDONLY);
+	if (CHECK_FAIL(self_net < 0)) {
+		perror("open(/proc/self/ns/net");
+		return;
+	}
 
 	init_net = open("/proc/1/ns/net", O_RDONLY);
 	if (CHECK_FAIL(init_net < 0)) {
 		perror("open(/proc/1/ns/net)");
-		return;
+		goto out_close;
 	}
 
 	err = setns(init_net, CLONE_NEWNET);
@@ -108,7 +114,7 @@ void test_flow_dissector_reattach(void)
 	if (is_attached(init_net)) {
 		test__skip();
 		printf("Can't test with flow dissector attached to init_net\n");
-		return;
+		goto out_setns;
 	}
 
 	/* First run tests in root network namespace */
@@ -118,10 +124,17 @@ void test_flow_dissector_reattach(void)
 	err = unshare(CLONE_NEWNET);
 	if (CHECK_FAIL(err)) {
 		perror("unshare(CLONE_NEWNET)");
-		goto out_close;
+		goto out_setns;
 	}
 	do_flow_dissector_reattach();
 
+out_setns:
+	/* Move back to netns we started in. */
+	err = setns(self_net, CLONE_NEWNET);
+	if (CHECK_FAIL(err))
+		perror("setns(/proc/self/ns/net)");
+
 out_close:
 	close(init_net);
+	close(self_net);
 }

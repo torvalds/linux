@@ -36,10 +36,6 @@ void test_rdonly_maps(void)
 	if (CHECK(IS_ERR(obj), "obj_open", "err %ld\n", PTR_ERR(obj)))
 		return;
 
-	bpf_object__for_each_program(prog, obj) {
-		bpf_program__set_raw_tracepoint(prog);
-	}
-
 	err = bpf_object__load(obj);
 	if (CHECK(err, "obj_load", "err %d errno %d\n", err, errno))
 		goto cleanup;

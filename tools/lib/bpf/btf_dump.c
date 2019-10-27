@@ -428,7 +428,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 		/* type loop, but resolvable through fwd declaration */
 		if (btf_is_composite(t) && through_ptr && t->name_off != 0)
 			return 0;
-		pr_warning("unsatisfiable type cycle, id:[%u]\n", id);
+		pr_warn("unsatisfiable type cycle, id:[%u]\n", id);
 		return -ELOOP;
 	}
 
@@ -636,8 +636,8 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 			if (id == cont_id)
 				return;
 			if (t->name_off == 0) {
-				pr_warning("anonymous struct/union loop, id:[%u]\n",
-					   id);
+				pr_warn("anonymous struct/union loop, id:[%u]\n",
+					id);
 				return;
 			}
 			btf_dump_emit_struct_fwd(d, id, t);
@@ -782,7 +782,7 @@ static int btf_align_of(const struct btf *btf, __u32 id)
 		return align;
 	}
 	default:
-		pr_warning("unsupported BTF_KIND:%u\n", btf_kind(t));
+		pr_warn("unsupported BTF_KIND:%u\n", btf_kind(t));
 		return 1;
 	}
 }
@@ -1067,7 +1067,7 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 			 * chain, restore stack, emit warning, and try to
 			 * proceed nevertheless
 			 */
-			pr_warning("not enough memory for decl stack:%d", err);
+			pr_warn("not enough memory for decl stack:%d", err);
 			d->decl_stack_cnt = stack_start;
 			return;
 		}
@@ -1096,8 +1096,8 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 		case BTF_KIND_TYPEDEF:
 			goto done;
 		default:
-			pr_warning("unexpected type in decl chain, kind:%u, id:[%u]\n",
-				   btf_kind(t), id);
+			pr_warn("unexpected type in decl chain, kind:%u, id:[%u]\n",
+				btf_kind(t), id);
 			goto done;
 		}
 	}
@@ -1323,8 +1323,8 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			return;
 		}
 		default:
-			pr_warning("unexpected type in decl chain, kind:%u, id:[%u]\n",
-				   kind, id);
+			pr_warn("unexpected type in decl chain, kind:%u, id:[%u]\n",
+				kind, id);
 			return;
 		}
 

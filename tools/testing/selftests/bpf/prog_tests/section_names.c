@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018 Facebook
+#include <test_progs.h>
 
-#include <err.h>
-#include <bpf/libbpf.h>
-
-#include "bpf_util.h"
+static int duration = 0;
 
 struct sec_name_test {
 	const char sec_name[32];
@@ -20,19 +18,23 @@ struct sec_name_test {
 };
 
 static struct sec_name_test tests[] = {
-	{"InvAliD", {-EINVAL, 0, 0}, {-EINVAL, 0} },
-	{"cgroup", {-EINVAL, 0, 0}, {-EINVAL, 0} },
+	{"InvAliD", {-ESRCH, 0, 0}, {-EINVAL, 0} },
+	{"cgroup", {-ESRCH, 0, 0}, {-EINVAL, 0} },
 	{"socket", {0, BPF_PROG_TYPE_SOCKET_FILTER, 0}, {-EINVAL, 0} },
 	{"kprobe/", {0, BPF_PROG_TYPE_KPROBE, 0}, {-EINVAL, 0} },
+	{"uprobe/", {0, BPF_PROG_TYPE_KPROBE, 0}, {-EINVAL, 0} },
 	{"kretprobe/", {0, BPF_PROG_TYPE_KPROBE, 0}, {-EINVAL, 0} },
+	{"uretprobe/", {0, BPF_PROG_TYPE_KPROBE, 0}, {-EINVAL, 0} },
 	{"classifier", {0, BPF_PROG_TYPE_SCHED_CLS, 0}, {-EINVAL, 0} },
 	{"action", {0, BPF_PROG_TYPE_SCHED_ACT, 0}, {-EINVAL, 0} },
 	{"tracepoint/", {0, BPF_PROG_TYPE_TRACEPOINT, 0}, {-EINVAL, 0} },
+	{"tp/", {0, BPF_PROG_TYPE_TRACEPOINT, 0}, {-EINVAL, 0} },
 	{
 		"raw_tracepoint/",
 		{0, BPF_PROG_TYPE_RAW_TRACEPOINT, 0},
 		{-EINVAL, 0},
 	},
+	{"raw_tp/", {0, BPF_PROG_TYPE_RAW_TRACEPOINT, 0}, {-EINVAL, 0} },
 	{"xdp", {0, BPF_PROG_TYPE_XDP, 0}, {-EINVAL, 0} },
 	{"perf_event", {0, BPF_PROG_TYPE_PERF_EVENT, 0}, {-EINVAL, 0} },
 	{"lwt_in", {0, BPF_PROG_TYPE_LWT_IN, 0}, {-EINVAL, 0} },
@@ -146,7 +148,7 @@ static struct sec_name_test tests[] = {
 	},
 };
 
-static int test_prog_type_by_name(const struct sec_name_test *test)
+static void test_prog_type_by_name(const struct sec_name_test *test)
 {
 	enum bpf_attach_type expected_attach_type;
 	enum bpf_prog_type prog_type;
@@ -155,79 +157,47 @@ static int test_prog_type_by_name(const struct sec_name_test *test)
 	rc = libbpf_prog_type_by_name(test->sec_name, &prog_type,
 				      &expected_attach_type);
 
-	if (rc != test->expected_load.rc) {
-		warnx("prog: unexpected rc=%d for %s", rc, test->sec_name);
-		return -1;
-	}
+	CHECK(rc != test->expected_load.rc, "check_code",
+	      "prog: unexpected rc=%d for %s", rc, test->sec_name);
 
 	if (rc)
-		return 0;
+		return;
 
-	if (prog_type != test->expected_load.prog_type) {
-		warnx("prog: unexpected prog_type=%d for %s", prog_type,
-		      test->sec_name);
-		return -1;
-	}
+	CHECK(prog_type != test->expected_load.prog_type, "check_prog_type",
+	      "prog: unexpected prog_type=%d for %s",
+	      prog_type, test->sec_name);
 
-	if (expected_attach_type != test->expected_load.expected_attach_type) {
-		warnx("prog: unexpected expected_attach_type=%d for %s",
-		      expected_attach_type, test->sec_name);
-		return -1;
-	}
-
-	return 0;
+	CHECK(expected_attach_type != test->expected_load.expected_attach_type,
+	      "check_attach_type", "prog: unexpected expected_attach_type=%d for %s",
+	      expected_attach_type, test->sec_name);
 }
 
-static int test_attach_type_by_name(const struct sec_name_test *test)
+static void test_attach_type_by_name(const struct sec_name_test *test)
 {
 	enum bpf_attach_type attach_type;
 	int rc;
 
 	rc = libbpf_attach_type_by_name(test->sec_name, &attach_type);
 
-	if (rc != test->expected_attach.rc) {
-		warnx("attach: unexpected rc=%d for %s", rc, test->sec_name);
-		return -1;
-	}
+	CHECK(rc != test->expected_attach.rc, "check_ret",
+	      "attach: unexpected rc=%d for %s", rc, test->sec_name);
 
 	if (rc)
-		return 0;
+		return;
 
-	if (attach_type != test->expected_attach.attach_type) {
-		warnx("attach: unexpected attach_type=%d for %s", attach_type,
-		      test->sec_name);
-		return -1;
-	}
-
-	return 0;
+	CHECK(attach_type != test->expected_attach.attach_type,
+	      "check_attach_type", "attach: unexpected attach_type=%d for %s",
+	      attach_type, test->sec_name);
 }
 
-static int run_test_case(const struct sec_name_test *test)
+void test_section_names(void)
 {
-	if (test_prog_type_by_name(test))
-		return -1;
-	if (test_attach_type_by_name(test))
-		return -1;
-	return 0;
-}
-
-static int run_tests(void)
-{
-	int passes = 0;
-	int fails = 0;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tests); ++i) {
-		if (run_test_case(&tests[i]))
-			++fails;
-		else
-			++passes;
-	}
-	printf("Summary: %d PASSED, %d FAILED\n", passes, fails);
-	return fails ? -1 : 0;
-}
+		struct sec_name_test *test = &tests[i];
 
-int main(int argc, char **argv)
-{
-	return run_tests();
+		test_prog_type_by_name(test);
+		test_attach_type_by_name(test);
+	}
 }

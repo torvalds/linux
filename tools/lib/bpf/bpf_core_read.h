@@ -3,6 +3,28 @@
 #define __BPF_CORE_READ_H__
 
 /*
+ * enum bpf_field_info_kind is passed as a second argument into
+ * __builtin_preserve_field_info() built-in to get a specific aspect of
+ * a field, captured as a first argument. __builtin_preserve_field_info(field,
+ * info_kind) returns __u32 integer and produces BTF field relocation, which
+ * is understood and processed by libbpf during BPF object loading. See
+ * selftests/bpf for examples.
+ */
+enum bpf_field_info_kind {
+	BPF_FIELD_BYTE_OFFSET = 0,	/* field byte offset */
+	BPF_FIELD_EXISTS = 2,		/* field existence in target kernel */
+};
+
+/*
+ * Convenience macro to check that field actually exists in target kernel's.
+ * Returns:
+ *    1, if matching field is present in target kernel;
+ *    0, if no matching field found.
+ */
+#define bpf_core_field_exists(field)					    \
+	__builtin_preserve_field_info(field, BPF_FIELD_EXISTS)
+
+/*
  * bpf_core_read() abstracts away bpf_probe_read() call and captures offset
  * relocation for source address using __builtin_preserve_access_index()
  * built-in, provided by Clang.
@@ -12,7 +34,7 @@
  * a relocation, which records BTF type ID describing root struct/union and an
  * accessor string which describes exact embedded field that was used to take
  * an address. See detailed description of this relocation format and
- * semantics in comments to struct bpf_offset_reloc in libbpf_internal.h.
+ * semantics in comments to struct bpf_field_reloc in libbpf_internal.h.
  *
  * This relocation allows libbpf to adjust BPF instruction to use correct
  * actual field offset, based on target kernel BTF type that matches original

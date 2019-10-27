@@ -52,6 +52,8 @@ struct bpf_reg_state {
 		 */
 		struct bpf_map *map_ptr;
 
+		u32 btf_id; /* for PTR_TO_BTF_ID */
+
 		/* Max size from any of the above. */
 		unsigned long raw;
 	};
@@ -330,10 +332,12 @@ static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
 #define BPF_LOG_STATS	4
 #define BPF_LOG_LEVEL	(BPF_LOG_LEVEL1 | BPF_LOG_LEVEL2)
 #define BPF_LOG_MASK	(BPF_LOG_LEVEL | BPF_LOG_STATS)
+#define BPF_LOG_KERNEL	(BPF_LOG_MASK + 1) /* kernel internal flag */
 
 static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 {
-	return log->level && log->ubuf && !bpf_verifier_log_full(log);
+	return (log->level && log->ubuf && !bpf_verifier_log_full(log)) ||
+		log->level == BPF_LOG_KERNEL;
 }
 
 #define BPF_MAX_SUBPROGS 256
@@ -397,6 +401,8 @@ __printf(2, 0) void bpf_verifier_vlog(struct bpf_verifier_log *log,
 				      const char *fmt, va_list args);
 __printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
 					   const char *fmt, ...);
+__printf(2, 3) void bpf_log(struct bpf_verifier_log *log,
+			    const char *fmt, ...);
 
 static inline struct bpf_func_state *cur_func(struct bpf_verifier_env *env)
 {

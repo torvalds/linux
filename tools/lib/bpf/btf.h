@@ -60,8 +60,8 @@ struct btf_ext_header {
 	__u32	line_info_len;
 
 	/* optional part of .BTF.ext header */
-	__u32	offset_reloc_off;
-	__u32	offset_reloc_len;
+	__u32	field_reloc_off;
+	__u32	field_reloc_len;
 };
 
 LIBBPF_API void btf__free(struct btf *btf);

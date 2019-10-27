@@ -1091,8 +1091,11 @@ free_data_in:
 
 static int load_with_options(int argc, char **argv, bool first_prog_only)
 {
-	struct bpf_object_load_attr load_attr = { 0 };
 	enum bpf_prog_type common_prog_type = BPF_PROG_TYPE_UNSPEC;
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts,
+		.relaxed_maps = relaxed_maps,
+	);
+	struct bpf_object_load_attr load_attr = { 0 };
 	enum bpf_attach_type expected_attach_type;
 	struct map_replace *map_replace = NULL;
 	struct bpf_program *prog = NULL, *pos;
@@ -1106,9 +1109,6 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	const char *file;
 	int idx, err;
 
-	LIBBPF_OPTS(bpf_object_open_opts, open_opts,
-		.relaxed_maps = relaxed_maps,
-	);
 
 	if (!REQ_ARGS(2))
 		return -1;

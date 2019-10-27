@@ -5,7 +5,7 @@ void test_reference_tracking(void)
 {
 	const char *file = "test_sk_lookup_kern.o";
 	const char *obj_name = "ref_track";
-	LIBBPF_OPTS(bpf_object_open_opts, open_opts,
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts,
 		.object_name = obj_name,
 		.relaxed_maps = true,
 	);
@@ -31,7 +31,8 @@ void test_reference_tracking(void)
 		if (strstr(title, ".text") != NULL)
 			continue;
 
-		bpf_program__set_type(prog, BPF_PROG_TYPE_SCHED_CLS);
+		if (!test__start_subtest(title))
+			continue;
 
 		/* Expect verifier failure if test name has 'fail' */
 		if (strstr(title, "fail") != NULL) {

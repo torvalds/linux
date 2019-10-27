@@ -20,7 +20,7 @@ struct prog_test_def {
 	bool tested;
 	bool need_cgroup_cleanup;
 
-	const char *subtest_name;
+	char *subtest_name;
 	int subtest_num;
 
 	/* store counts before subtest started */
@@ -81,16 +81,17 @@ void test__end_subtest()
 	fprintf(env.stdout, "#%d/%d %s:%s\n",
 	       test->test_num, test->subtest_num,
 	       test->subtest_name, sub_error_cnt ? "FAIL" : "OK");
+
+	free(test->subtest_name);
+	test->subtest_name = NULL;
 }
 
 bool test__start_subtest(const char *name)
 {
 	struct prog_test_def *test = env.test;
 
-	if (test->subtest_name) {
+	if (test->subtest_name)
 		test__end_subtest();
-		test->subtest_name = NULL;
-	}
 
 	test->subtest_num++;
 
@@ -104,7 +105,13 @@ bool test__start_subtest(const char *name)
 	if (!should_run(&env.subtest_selector, test->subtest_num, name))
 		return false;
 
-	test->subtest_name = name;
+	test->subtest_name = strdup(name);
+	if (!test->subtest_name) {
+		fprintf(env.stderr,
+			"Subtest #%d: failed to copy subtest name!\n",
+			test->subtest_num);
+		return false;
+	}
 	env.test->old_error_cnt = env.test->error_cnt;
 
 	return true;
@@ -306,7 +313,7 @@ void *spin_lock_thread(void *arg)
 }
 
 /* extern declarations for test funcs */
-#define DEFINE_TEST(name) extern void test_##name();
+#define DEFINE_TEST(name) extern void test_##name(void);
 #include <prog_tests/tests.h>
 #undef DEFINE_TEST
 
@@ -518,6 +525,33 @@ static void stdio_restore(void)
 #endif
 }
 
+/*
+ * Determine if test_progs is running as a "flavored" test runner and switch
+ * into corresponding sub-directory to load correct BPF objects.
+ *
+ * This is done by looking at executable name. If it contains "-flavor"
+ * suffix, then we are running as a flavored test runner.
+ */
+int cd_flavor_subdir(const char *exec_name)
+{
+	/* General form of argv[0] passed here is:
+	 * some/path/to/test_progs[-flavor], where -flavor part is optional.
+	 * First cut out "test_progs[-flavor]" part, then extract "flavor"
+	 * part, if it's there.
+	 */
+	const char *flavor = strrchr(exec_name, '/');
+
+	if (!flavor)
+		return 0;
+	flavor++;
+	flavor = strrchr(flavor, '-');
+	if (!flavor)
+		return 0;
+	flavor++;
+	printf("Switching to flavor '%s' subdirectory...\n", flavor);
+	return chdir(flavor);
+}
+
 int main(int argc, char **argv)
 {
 	static const struct argp argp = {
@@ -528,6 +562,10 @@ int main(int argc, char **argv)
 	int err, i;
 
 	err = argp_parse(&argp, argc, argv, 0, NULL, &env);
+	if (err)
+		return err;
+
+	err = cd_flavor_subdir(argv[0]);
 	if (err)
 		return err;
 

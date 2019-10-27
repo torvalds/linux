@@ -12,6 +12,9 @@
 #include <libbpf.h>
 #include <linux/btf.h>
 #include <linux/hashtable.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "btf.h"
 #include "json_writer.h"
@@ -388,6 +391,54 @@ done:
 	return err;
 }
 
+static struct btf *btf__parse_raw(const char *file)
+{
+	struct btf *btf;
+	struct stat st;
+	__u8 *buf;
+	FILE *f;
+
+	if (stat(file, &st))
+		return NULL;
+
+	f = fopen(file, "rb");
+	if (!f)
+		return NULL;
+
+	buf = malloc(st.st_size);
+	if (!buf) {
+		btf = ERR_PTR(-ENOMEM);
+		goto exit_close;
+	}
+
+	if ((size_t) st.st_size != fread(buf, 1, st.st_size, f)) {
+		btf = ERR_PTR(-EINVAL);
+		goto exit_free;
+	}
+
+	btf = btf__new(buf, st.st_size);
+
+exit_free:
+	free(buf);
+exit_close:
+	fclose(f);
+	return btf;
+}
+
+static bool is_btf_raw(const char *file)
+{
+	__u16 magic = 0;
+	int fd;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0)
+		return false;
+
+	read(fd, &magic, sizeof(magic));
+	close(fd);
+	return magic == BTF_MAGIC;
+}
+
 static int do_dump(int argc, char **argv)
 {
 	struct btf *btf = NULL;
@@ -465,7 +516,11 @@ static int do_dump(int argc, char **argv)
 		}
 		NEXT_ARG();
 	} else if (is_prefix(src, "file")) {
-		btf = btf__parse_elf(*argv, NULL);
+		if (is_btf_raw(*argv))
+			btf = btf__parse_raw(*argv);
+		else
+			btf = btf__parse_elf(*argv, NULL);
+
 		if (IS_ERR(btf)) {
 			err = PTR_ERR(btf);
 			btf = NULL;
