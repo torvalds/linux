@@ -191,6 +191,8 @@ struct hidpp_device {
 
 	struct hidpp_battery battery;
 	struct hidpp_scroll_counter vertical_wheel_counter;
+
+	u8 wireless_feature_index;
 };
 
 /* HID++ 1.0 error codes */
@@ -403,10 +405,13 @@ static inline bool hidpp_match_error(struct hidpp_report *question,
 	    (answer->fap.params[0] == question->fap.funcindex_clientid);
 }
 
-static inline bool hidpp_report_is_connect_event(struct hidpp_report *report)
+static inline bool hidpp_report_is_connect_event(struct hidpp_device *hidpp,
+		struct hidpp_report *report)
 {
-	return (report->report_id == REPORT_ID_HIDPP_SHORT) &&
-		(report->rap.sub_id == 0x41);
+	return (hidpp->wireless_feature_index &&
+		(report->fap.feature_index == hidpp->wireless_feature_index)) ||
+		((report->report_id == REPORT_ID_HIDPP_SHORT) &&
+		(report->rap.sub_id == 0x41));
 }
 
 /**
@@ -1282,6 +1287,24 @@ static int hidpp_battery_get_property(struct power_supply *psy,
 			ret = -EINVAL;
 			break;
 	}
+
+	return ret;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 0x1d4b: Wireless device status                                             */
+/* -------------------------------------------------------------------------- */
+#define HIDPP_PAGE_WIRELESS_DEVICE_STATUS			0x1d4b
+
+static int hidpp_set_wireless_feature_index(struct hidpp_device *hidpp)
+{
+	u8 feature_type;
+	int ret;
+
+	ret = hidpp_root_get_feature(hidpp,
+				     HIDPP_PAGE_WIRELESS_DEVICE_STATUS,
+				     &hidpp->wireless_feature_index,
+				     &feature_type);
 
 	return ret;
 }
@@ -3101,7 +3124,7 @@ static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
 		}
 	}
 
-	if (unlikely(hidpp_report_is_connect_event(report))) {
+	if (unlikely(hidpp_report_is_connect_event(hidpp, report))) {
 		atomic_set(&hidpp->connected,
 				!(report->rap.params[0] & (1 << 6)));
 		if (schedule_work(&hidpp->work) == 0)
@@ -3650,6 +3673,14 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		}
 
 		hidpp_overwrite_name(hdev);
+	}
+
+	if (connected && hidpp->protocol_major >= 2) {
+		ret = hidpp_set_wireless_feature_index(hidpp);
+		if (ret == -ENOENT)
+			hidpp->wireless_feature_index = 0;
+		else if (ret)
+			goto hid_hw_init_fail;
 	}
 
 	if (connected && (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP)) {
