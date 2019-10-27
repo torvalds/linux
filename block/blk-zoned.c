@@ -221,23 +221,27 @@ static inline bool blkdev_allow_reset_all_zones(struct block_device *bdev,
 }
 
 /**
- * blkdev_reset_zones - Reset zones write pointer
+ * blkdev_zone_mgmt - Execute a zone management operation on a range of zones
  * @bdev:	Target block device
- * @sector:	Start sector of the first zone to reset
- * @nr_sectors:	Number of sectors, at least the length of one zone
+ * @op:		Operation to be performed on the zones
+ * @sector:	Start sector of the first zone to operate on
+ * @nr_sectors:	Number of sectors, should be at least the length of one zone and
+ *		must be zone size aligned.
  * @gfp_mask:	Memory allocation flags (for bio_alloc)
  *
  * Description:
- *    Reset the write pointer of the zones contained in the range
+ *    Perform the specified operation on the range of zones specified by
  *    @sector..@sector+@nr_sectors. Specifying the entire disk sector range
  *    is valid, but the specified range should not contain conventional zones.
+ *    The operation to execute on each zone can be a zone reset, open, close
+ *    or finish request.
  */
-int blkdev_reset_zones(struct block_device *bdev,
-		       sector_t sector, sector_t nr_sectors,
-		       gfp_t gfp_mask)
+int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
+		     sector_t sector, sector_t nr_sectors,
+		     gfp_t gfp_mask)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
-	sector_t zone_sectors;
+	sector_t zone_sectors = blk_queue_zone_sectors(q);
 	sector_t end_sector = sector + nr_sectors;
 	struct bio *bio = NULL;
 	int ret;
@@ -248,12 +252,14 @@ int blkdev_reset_zones(struct block_device *bdev,
 	if (bdev_read_only(bdev))
 		return -EPERM;
 
+	if (!op_is_zone_mgmt(op))
+		return -EOPNOTSUPP;
+
 	if (!nr_sectors || end_sector > bdev->bd_part->nr_sects)
 		/* Out of range */
 		return -EINVAL;
 
 	/* Check alignment (handle eventual smaller last zone) */
-	zone_sectors = blk_queue_zone_sectors(q);
 	if (sector & (zone_sectors - 1))
 		return -EINVAL;
 
@@ -269,12 +275,13 @@ int blkdev_reset_zones(struct block_device *bdev,
 		 * Special case for the zone reset operation that reset all
 		 * zones, this is useful for applications like mkfs.
 		 */
-		if (blkdev_allow_reset_all_zones(bdev, sector, nr_sectors)) {
+		if (op == REQ_OP_ZONE_RESET &&
+		    blkdev_allow_reset_all_zones(bdev, sector, nr_sectors)) {
 			bio->bi_opf = REQ_OP_ZONE_RESET_ALL;
 			break;
 		}
 
-		bio->bi_opf = REQ_OP_ZONE_RESET;
+		bio->bi_opf = op;
 		bio->bi_iter.bi_sector = sector;
 		sector += zone_sectors;
 
@@ -287,7 +294,7 @@ int blkdev_reset_zones(struct block_device *bdev,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(blkdev_reset_zones);
+EXPORT_SYMBOL_GPL(blkdev_zone_mgmt);
 
 /*
  * BLKREPORTZONE ioctl processing.
@@ -379,8 +386,8 @@ int blkdev_reset_zones_ioctl(struct block_device *bdev, fmode_t mode,
 	if (copy_from_user(&zrange, argp, sizeof(struct blk_zone_range)))
 		return -EFAULT;
 
-	return blkdev_reset_zones(bdev, zrange.sector, zrange.nr_sectors,
-				  GFP_KERNEL);
+	return blkdev_zone_mgmt(bdev, REQ_OP_ZONE_RESET,
+				zrange.sector, zrange.nr_sectors, GFP_KERNEL);
 }
 
 static inline unsigned long *blk_alloc_zone_bitmap(int node,

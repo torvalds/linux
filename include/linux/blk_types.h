@@ -290,6 +290,12 @@ enum req_opf {
 	REQ_OP_ZONE_RESET_ALL	= 8,
 	/* write the zero filled sector many times */
 	REQ_OP_WRITE_ZEROES	= 9,
+	/* Open a zone */
+	REQ_OP_ZONE_OPEN	= 10,
+	/* Close a zone */
+	REQ_OP_ZONE_CLOSE	= 11,
+	/* Transition a zone to full */
+	REQ_OP_ZONE_FINISH	= 12,
 
 	/* SCSI passthrough using struct scsi_request */
 	REQ_OP_SCSI_IN		= 32,
@@ -415,6 +421,25 @@ static inline bool op_is_sync(unsigned int op)
 static inline bool op_is_discard(unsigned int op)
 {
 	return (op & REQ_OP_MASK) == REQ_OP_DISCARD;
+}
+
+/*
+ * Check if a bio or request operation is a zone management operation, with
+ * the exception of REQ_OP_ZONE_RESET_ALL which is treated as a special case
+ * due to its different handling in the block layer and device response in
+ * case of command failure.
+ */
+static inline bool op_is_zone_mgmt(enum req_opf op)
+{
+	switch (op & REQ_OP_MASK) {
+	case REQ_OP_ZONE_RESET:
+	case REQ_OP_ZONE_OPEN:
+	case REQ_OP_ZONE_CLOSE:
+	case REQ_OP_ZONE_FINISH:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static inline int op_stat_group(unsigned int op)

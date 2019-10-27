@@ -1312,9 +1312,9 @@ static int dmz_reset_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 	if (!dmz_is_empty(zone) || dmz_seq_write_err(zone)) {
 		struct dmz_dev *dev = zmd->dev;
 
-		ret = blkdev_reset_zones(dev->bdev,
-					 dmz_start_sect(zmd, zone),
-					 dev->zone_nr_sectors, GFP_NOIO);
+		ret = blkdev_zone_mgmt(dev->bdev, REQ_OP_ZONE_RESET,
+				       dmz_start_sect(zmd, zone),
+				       dev->zone_nr_sectors, GFP_NOIO);
 		if (ret) {
 			dmz_dev_err(dev, "Reset zone %u failed %d",
 				    dmz_id(zmd, zone), ret);
