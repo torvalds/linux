@@ -208,6 +208,9 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 	pfdev->features.mem_features = gpu_read(pfdev, GPU_MEM_FEATURES);
 	pfdev->features.mmu_features = gpu_read(pfdev, GPU_MMU_FEATURES);
 	pfdev->features.thread_features = gpu_read(pfdev, GPU_THREAD_FEATURES);
+	pfdev->features.max_threads = gpu_read(pfdev, GPU_THREAD_MAX_THREADS);
+	pfdev->features.thread_max_workgroup_sz = gpu_read(pfdev, GPU_THREAD_MAX_WORKGROUP_SIZE);
+	pfdev->features.thread_max_barrier_sz = gpu_read(pfdev, GPU_THREAD_MAX_BARRIER_SIZE);
 	pfdev->features.coherency_features = gpu_read(pfdev, GPU_COHERENCY_FEATURES);
 	for (i = 0; i < 4; i++)
 		pfdev->features.texture_features[i] = gpu_read(pfdev, GPU_TEXTURE_FEATURES(i));

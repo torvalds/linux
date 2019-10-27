@@ -337,7 +337,7 @@ static int aq_fw2x_get_phy_temp(struct aq_hw_s *self, int *temp)
 	/* Convert PHY temperature from 1/256 degree Celsius
 	 * to 1/1000 degree Celsius.
 	 */
-	*temp = temp_res  * 1000 / 256;
+	*temp = (temp_res & 0xFFFF) * 1000 / 256;
 
 	return 0;
 }
