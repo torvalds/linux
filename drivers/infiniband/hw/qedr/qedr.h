@@ -40,6 +40,7 @@
 #include <linux/qed/qed_rdma_if.h>
 #include <linux/qed/qede_rdma.h>
 #include <linux/qed/roce_common.h>
+#include <linux/completion.h>
 #include "qedr_hsi_rdma.h"
 
 #define QEDR_NODE_DESC "QLogic 579xx RoCE HCA"
@@ -377,10 +378,20 @@ enum qedr_qp_err_bitmap {
 	QEDR_QP_ERR_RQ_PBL_FULL = 32,
 };
 
+enum qedr_qp_create_type {
+	QEDR_QP_CREATE_NONE,
+	QEDR_QP_CREATE_USER,
+	QEDR_QP_CREATE_KERNEL,
+};
+
+enum qedr_iwarp_cm_flags {
+	QEDR_IWARP_CM_WAIT_FOR_CONNECT    = BIT(0),
+	QEDR_IWARP_CM_WAIT_FOR_DISCONNECT = BIT(1),
+};
+
 struct qedr_qp {
 	struct ib_qp ibqp;	/* must be first */
 	struct qedr_dev *dev;
-	struct qedr_iw_ep *ep;
 	struct qedr_qp_hwq_info sq;
 	struct qedr_qp_hwq_info rq;
 
@@ -395,6 +406,7 @@ struct qedr_qp {
 	u32 id;
 	struct qedr_pd *pd;
 	enum ib_qp_type qp_type;
+	enum qedr_qp_create_type create_type;
 	struct qed_rdma_qp *qed_qp;
 	u32 qp_id;
 	u16 icid;
@@ -437,8 +449,11 @@ struct qedr_qp {
 	/* Relevant to qps created from user space only (applications) */
 	struct qedr_userq usq;
 	struct qedr_userq urq;
-	atomic_t refcnt;
-	bool destroyed;
+
+	/* synchronization objects used with iwarp ep */
+	struct kref refcnt;
+	struct completion iwarp_cm_comp;
+	unsigned long iwarp_cm_flags; /* enum iwarp_cm_flags */
 };
 
 struct qedr_ah {
@@ -531,7 +546,7 @@ struct qedr_iw_ep {
 	struct iw_cm_id	*cm_id;
 	struct qedr_qp	*qp;
 	void		*qed_context;
-	u8		during_connect;
+	struct kref	refcnt;
 };
 
 static inline
