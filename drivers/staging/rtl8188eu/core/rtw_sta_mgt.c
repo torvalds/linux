@@ -135,31 +135,30 @@ u32 _rtw_free_sta_priv(struct sta_priv *pstapriv)
 	struct recv_reorder_ctrl *preorder_ctrl;
 	int index;
 
-	if (pstapriv) {
-		/* delete all reordering_ctrl_timer */
-		spin_lock_bh(&pstapriv->sta_hash_lock);
-		for (index = 0; index < NUM_STA; index++) {
-			phead = &pstapriv->sta_hash[index];
-			plist = phead->next;
+	if (!pstapriv)
+		return _SUCCESS;
 
-			while (phead != plist) {
-				int i;
+	/* delete all reordering_ctrl_timer */
+	spin_lock_bh(&pstapriv->sta_hash_lock);
+	for (index = 0; index < NUM_STA; index++) {
+		phead = &pstapriv->sta_hash[index];
+		plist = phead->next;
 
-				psta = container_of(plist, struct sta_info,
-						    hash_list);
-				plist = plist->next;
+		while (phead != plist) {
+			int i;
 
-				for (i = 0; i < 16; i++) {
-					preorder_ctrl = &psta->recvreorder_ctrl[i];
-					del_timer_sync(&preorder_ctrl->reordering_ctrl_timer);
-				}
+			psta = container_of(plist, struct sta_info, hash_list);
+			plist = plist->next;
+
+			for (i = 0; i < 16; i++) {
+				preorder_ctrl = &psta->recvreorder_ctrl[i];
+				del_timer_sync(&preorder_ctrl->reordering_ctrl_timer);
 			}
 		}
-		spin_unlock_bh(&pstapriv->sta_hash_lock);
-		/*===============================*/
-
-		vfree(pstapriv->pallocated_stainfo_buf);
 	}
+	spin_unlock_bh(&pstapriv->sta_hash_lock);
+
+	vfree(pstapriv->pallocated_stainfo_buf);
 
 	return _SUCCESS;
 }
