@@ -148,3 +148,9 @@ menu "drm/i915 Profile Guided Optimisation"
 	depends on DRM_I915
 	source "drivers/gpu/drm/i915/Kconfig.profile"
 endmenu
+
+menu "drm/i915 Unstable Evolution"
+	visible if EXPERT && STAGING && BROKEN
+	depends on DRM_I915
+	source "drivers/gpu/drm/i915/Kconfig.unstable"
+endmenu
