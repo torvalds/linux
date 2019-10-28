@@ -164,7 +164,7 @@ struct msc {
 };
 
 static LIST_HEAD(msu_buffer_list);
-static struct mutex msu_buffer_mutex;
+static DEFINE_MUTEX(msu_buffer_mutex);
 
 /**
  * struct msu_buffer_entry - internal MSU buffer bookkeeping
