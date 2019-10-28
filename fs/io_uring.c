@@ -3829,10 +3829,6 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p)
 	if (ret)
 		goto err;
 
-	ret = io_uring_get_fd(ctx);
-	if (ret < 0)
-		goto err;
-
 	memset(&p->sq_off, 0, sizeof(p->sq_off));
 	p->sq_off.head = offsetof(struct io_rings, sq.head);
 	p->sq_off.tail = offsetof(struct io_rings, sq.tail);
@@ -3849,6 +3845,14 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p)
 	p->cq_off.ring_entries = offsetof(struct io_rings, cq_ring_entries);
 	p->cq_off.overflow = offsetof(struct io_rings, cq_overflow);
 	p->cq_off.cqes = offsetof(struct io_rings, cqes);
+
+	/*
+	 * Install ring fd as the very last thing, so we don't risk someone
+	 * having closed it before we finish setup
+	 */
+	ret = io_uring_get_fd(ctx);
+	if (ret < 0)
+		goto err;
 
 	p->features = IORING_FEAT_SINGLE_MMAP;
 	return ret;
