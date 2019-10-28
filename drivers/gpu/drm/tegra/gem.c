@@ -34,9 +34,19 @@ static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 	struct sg_table *sgt;
 	int err;
 
-	if (phys)
+	/*
+	 * If we've manually mapped the buffer object through the IOMMU, make
+	 * sure to return the IOVA address of our mapping.
+	 */
+	if (phys && obj->mm) {
 		*phys = obj->iova;
+		return NULL;
+	}
 
+	/*
+	 * If we don't have a mapping for this buffer yet, return an SG table
+	 * so that host1x can do the mapping for us via the DMA API.
+	 */
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
@@ -62,8 +72,10 @@ free:
 
 static void tegra_bo_unpin(struct device *dev, struct sg_table *sgt)
 {
-	sg_free_table(sgt);
-	kfree(sgt);
+	if (sgt) {
+		sg_free_table(sgt);
+		kfree(sgt);
+	}
 }
 
 static void *tegra_bo_mmap(struct host1x_bo *bo)

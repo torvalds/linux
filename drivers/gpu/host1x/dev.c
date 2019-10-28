@@ -18,10 +18,6 @@
 #include <trace/events/host1x.h>
 #undef CREATE_TRACE_POINTS
 
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-#include <asm/dma-iommu.h>
-#endif
-
 #include "bus.h"
 #include "channel.h"
 #include "debug.h"
@@ -276,15 +272,11 @@ static int host1x_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get reset: %d\n", err);
 		return err;
 	}
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-	if (host->dev->archdata.mapping) {
-		struct dma_iommu_mapping *mapping =
-				to_dma_iommu_mapping(host->dev);
-		arm_iommu_detach_device(host->dev);
-		arm_iommu_release_mapping(mapping);
-	}
-#endif
+
 	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
+		goto skip_iommu;
+
+	if (iommu_get_domain_for_dev(&pdev->dev))
 		goto skip_iommu;
 
 	host->group = iommu_group_get(&pdev->dev);

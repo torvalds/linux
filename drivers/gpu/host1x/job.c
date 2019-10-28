@@ -99,7 +99,8 @@ EXPORT_SYMBOL(host1x_job_add_gather);
 
 static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 {
-	struct device *dev = job->client->dev;
+	struct host1x_client *client = job->client;
+	struct device *dev = client->dev;
 	unsigned int i;
 	int err;
 
@@ -107,8 +108,8 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 
 	for (i = 0; i < job->num_relocs; i++) {
 		struct host1x_reloc *reloc = &job->relocs[i];
+		dma_addr_t phys_addr, *phys;
 		struct sg_table *sgt;
-		dma_addr_t phys_addr;
 
 		reloc->target.bo = host1x_bo_get(reloc->target.bo);
 		if (!reloc->target.bo) {
@@ -116,10 +117,49 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		sgt = host1x_bo_pin(dev, reloc->target.bo, &phys_addr);
+		if (client->group)
+			phys = &phys_addr;
+		else
+			phys = NULL;
+
+		sgt = host1x_bo_pin(dev, reloc->target.bo, phys);
 		if (IS_ERR(sgt)) {
 			err = PTR_ERR(sgt);
 			goto unpin;
+		}
+
+		if (sgt) {
+			unsigned long mask = HOST1X_RELOC_READ |
+					     HOST1X_RELOC_WRITE;
+			enum dma_data_direction dir;
+
+			switch (reloc->flags & mask) {
+			case HOST1X_RELOC_READ:
+				dir = DMA_TO_DEVICE;
+				break;
+
+			case HOST1X_RELOC_WRITE:
+				dir = DMA_FROM_DEVICE;
+				break;
+
+			case HOST1X_RELOC_READ | HOST1X_RELOC_WRITE:
+				dir = DMA_BIDIRECTIONAL;
+				break;
+
+			default:
+				err = -EINVAL;
+				goto unpin;
+			}
+
+			err = dma_map_sg(dev, sgt->sgl, sgt->nents, dir);
+			if (!err) {
+				err = -ENOMEM;
+				goto unpin;
+			}
+
+			job->unpins[job->num_unpins].dev = dev;
+			job->unpins[job->num_unpins].dir = dir;
+			phys_addr = sg_dma_address(sgt->sgl);
 		}
 
 		job->addr_phys[job->num_unpins] = phys_addr;
@@ -144,7 +184,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		sgt = host1x_bo_pin(host->dev, g->bo, &phys_addr);
+		sgt = host1x_bo_pin(host->dev, g->bo, NULL);
 		if (IS_ERR(sgt)) {
 			err = PTR_ERR(sgt);
 			goto unpin;
@@ -172,15 +212,24 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 				goto unpin;
 			}
 
-			job->addr_phys[job->num_unpins] =
-				iova_dma_addr(&host->iova, alloc);
 			job->unpins[job->num_unpins].size = gather_size;
+			phys_addr = iova_dma_addr(&host->iova, alloc);
 		} else {
-			job->addr_phys[job->num_unpins] = phys_addr;
+			err = dma_map_sg(host->dev, sgt->sgl, sgt->nents,
+					 DMA_TO_DEVICE);
+			if (!err) {
+				err = -ENOMEM;
+				goto unpin;
+			}
+
+			job->unpins[job->num_unpins].dev = host->dev;
+			phys_addr = sg_dma_address(sgt->sgl);
 		}
 
-		job->gather_addr_phys[i] = job->addr_phys[job->num_unpins];
+		job->addr_phys[job->num_unpins] = phys_addr;
+		job->gather_addr_phys[i] = phys_addr;
 
+		job->unpins[job->num_unpins].dir = DMA_TO_DEVICE;
 		job->unpins[job->num_unpins].bo = g->bo;
 		job->unpins[job->num_unpins].sgt = sgt;
 		job->num_unpins++;
@@ -567,6 +616,8 @@ void host1x_job_unpin(struct host1x_job *job)
 
 	for (i = 0; i < job->num_unpins; i++) {
 		struct host1x_job_unpin_data *unpin = &job->unpins[i];
+		struct device *dev = unpin->dev ?: host->dev;
+		struct sg_table *sgt = unpin->sgt;
 
 		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) &&
 		    unpin->size && host->domain) {
@@ -576,7 +627,11 @@ void host1x_job_unpin(struct host1x_job *job)
 				iova_pfn(&host->iova, job->addr_phys[i]));
 		}
 
-		host1x_bo_unpin(host->dev, unpin->bo, unpin->sgt);
+		if (unpin->dev && sgt)
+			dma_unmap_sg(unpin->dev, sgt->sgl, sgt->nents,
+				     unpin->dir);
+
+		host1x_bo_unpin(dev, unpin->bo, sgt);
 		host1x_bo_put(unpin->bo);
 	}
 
