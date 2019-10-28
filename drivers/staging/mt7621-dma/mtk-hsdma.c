@@ -208,8 +208,8 @@ static void mtk_hsdma_reset_chan(struct mtk_hsdam_engine *hsdma,
 
 static void hsdma_dump_reg(struct mtk_hsdam_engine *hsdma)
 {
-	dev_dbg(hsdma->ddev.dev, "tbase %08x, tcnt %08x, " \
-			"tctx %08x, tdtx: %08x, rbase %08x, " \
+	dev_dbg(hsdma->ddev.dev, "tbase %08x, tcnt %08x, "
+			"tctx %08x, tdtx: %08x, rbase %08x, "
 			"rcnt %08x, rctx %08x, rdtx %08x\n",
 			mtk_hsdma_read(hsdma, HSDMA_REG_TX_BASE),
 			mtk_hsdma_read(hsdma, HSDMA_REG_TX_CNT),
@@ -220,7 +220,7 @@ static void hsdma_dump_reg(struct mtk_hsdam_engine *hsdma)
 			mtk_hsdma_read(hsdma, HSDMA_REG_RX_CRX),
 			mtk_hsdma_read(hsdma, HSDMA_REG_RX_DRX));
 
-	dev_dbg(hsdma->ddev.dev, "info %08x, glo %08x, delay %08x, " \
+	dev_dbg(hsdma->ddev.dev, "info %08x, glo %08x, delay %08x, "
 			"intr_stat %08x, intr_mask %08x\n",
 			mtk_hsdma_read(hsdma, HSDMA_REG_INFO),
 			mtk_hsdma_read(hsdma, HSDMA_REG_GLO_CFG),
@@ -243,9 +243,9 @@ static void hsdma_dump_desc(struct mtk_hsdam_engine *hsdma,
 		tx_desc = &chan->tx_ring[i];
 		rx_desc = &chan->rx_ring[i];
 
-		dev_dbg(hsdma->ddev.dev, "%d tx addr0: %08x, flags %08x, " \
+		dev_dbg(hsdma->ddev.dev, "%d tx addr0: %08x, flags %08x, "
 				"tx addr1: %08x, rx addr0 %08x, flags %08x\n",
-				i, tx_desc->addr0, tx_desc->flags, \
+				i, tx_desc->addr0, tx_desc->flags,
 				tx_desc->addr1, rx_desc->addr0, rx_desc->flags);
 	}
 }
