@@ -406,11 +406,11 @@ addr_to_drm_mm_node(struct panfrost_device *pfdev, int as, u64 addr)
 	spin_lock(&pfdev->as_lock);
 	list_for_each_entry(mmu, &pfdev->as_lru_list, list) {
 		if (as == mmu->as)
-			break;
+			goto found_mmu;
 	}
-	if (as != mmu->as)
-		goto out;
+	goto out;
 
+found_mmu:
 	priv = container_of(mmu, struct panfrost_file_priv, mmu);
 
 	spin_lock(&priv->mm_lock);
