@@ -7,6 +7,7 @@ RCU concepts
 .. toctree::
    :maxdepth: 3
 
+   arrayRCU
    rcu
    listRCU
    UP
