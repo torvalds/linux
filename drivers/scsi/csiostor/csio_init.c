@@ -154,12 +154,10 @@ csio_dfs_create(struct csio_hw *hw)
 /*
  * csio_dfs_destroy - Destroys per-hw debugfs.
  */
-static int
+static void
 csio_dfs_destroy(struct csio_hw *hw)
 {
 	debugfs_remove_recursive(hw->debugfs_root);
-
-	return 0;
 }
 
 /*
