@@ -187,7 +187,7 @@ static int vic_init(struct host1x_client *client)
 	struct vic *vic = to_vic(drm);
 	int err;
 
-	err = host1x_client_iommu_attach(client, false);
+	err = host1x_client_iommu_attach(client);
 	if (err < 0) {
 		dev_err(vic->dev, "failed to attach to domain: %d\n", err);
 		return err;

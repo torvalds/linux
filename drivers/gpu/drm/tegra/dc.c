@@ -2014,7 +2014,7 @@ static int tegra_dc_init(struct host1x_client *client)
 	if (!dc->syncpt)
 		dev_warn(dc->dev, "failed to allocate syncpoint\n");
 
-	err = host1x_client_iommu_attach(client, true);
+	err = host1x_client_iommu_attach(client);
 	if (err < 0) {
 		dev_err(client->dev, "failed to attach to domain: %d\n", err);
 		return err;

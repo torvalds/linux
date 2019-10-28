@@ -904,7 +904,7 @@ int tegra_drm_unregister_client(struct tegra_drm *tegra,
 	return 0;
 }
 
-int host1x_client_iommu_attach(struct host1x_client *client, bool shared)
+int host1x_client_iommu_attach(struct host1x_client *client)
 {
 	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_drm *tegra = drm->dev_private;
@@ -912,29 +912,30 @@ int host1x_client_iommu_attach(struct host1x_client *client, bool shared)
 	int err;
 
 	if (tegra->domain) {
+		struct iommu_domain *domain;
+
 		group = iommu_group_get(client->dev);
 		if (!group) {
 			dev_err(client->dev, "failed to get IOMMU group\n");
 			return -ENODEV;
 		}
 
-		if (!shared || (shared && (group != tegra->group))) {
 #if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-			if (client->dev->archdata.mapping) {
-				struct dma_iommu_mapping *mapping =
-					to_dma_iommu_mapping(client->dev);
-				arm_iommu_detach_device(client->dev);
-				arm_iommu_release_mapping(mapping);
-			}
+		if (client->dev->archdata.mapping) {
+			struct dma_iommu_mapping *mapping =
+				to_dma_iommu_mapping(client->dev);
+			arm_iommu_detach_device(client->dev);
+			arm_iommu_release_mapping(mapping);
+		}
 #endif
+
+		domain = iommu_get_domain_for_dev(client->dev);
+		if (domain != tegra->domain) {
 			err = iommu_attach_group(tegra->domain, group);
 			if (err < 0) {
 				iommu_group_put(group);
 				return err;
 			}
-
-			if (shared && !tegra->group)
-				tegra->group = group;
 		}
 	}
 
@@ -947,12 +948,17 @@ void host1x_client_iommu_detach(struct host1x_client *client)
 {
 	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_drm *tegra = drm->dev_private;
+	struct iommu_domain *domain;
 
 	if (client->group) {
-		if (client->group == tegra->group) {
+		/*
+		 * Devices that are part of the same group may no longer be
+		 * attached to a domain at this point because their group may
+		 * have been detached by an earlier client.
+		 */
+		domain = iommu_get_domain_for_dev(client->dev);
+		if (domain)
 			iommu_detach_group(tegra->domain, client->group);
-			tegra->group = NULL;
-		}
 
 		iommu_group_put(client->group);
 	}

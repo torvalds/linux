@@ -36,7 +36,6 @@ struct tegra_drm {
 	struct drm_device *drm;
 
 	struct iommu_domain *domain;
-	struct iommu_group *group;
 	struct mutex mm_lock;
 	struct drm_mm mm;
 
@@ -100,7 +99,7 @@ int tegra_drm_register_client(struct tegra_drm *tegra,
 			      struct tegra_drm_client *client);
 int tegra_drm_unregister_client(struct tegra_drm *tegra,
 				struct tegra_drm_client *client);
-int host1x_client_iommu_attach(struct host1x_client *client, bool shared);
+int host1x_client_iommu_attach(struct host1x_client *client);
 void host1x_client_iommu_detach(struct host1x_client *client);
 
 int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
