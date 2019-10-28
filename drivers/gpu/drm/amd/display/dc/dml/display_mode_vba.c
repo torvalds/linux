@@ -231,7 +231,7 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading = soc->dcn_downspread_percent;   // new
 	mode_lib->vba.DISPCLKDPPCLKVCOSpeed = soc->dispclk_dppclk_vco_speed_mhz;   // new
 	mode_lib->vba.VMMPageSize = soc->vmm_page_size_bytes;
-	mode_lib->vba.GPUVMMinPageSize = soc->vmm_page_size_bytes / 1024;
+	mode_lib->vba.GPUVMMinPageSize = soc->gpuvm_min_page_size_bytes / 1024;
 	mode_lib->vba.HostVMMinPageSize = soc->hostvm_min_page_size_bytes / 1024;
 	// Set the voltage scaling clocks as the defaults. Most of these will
 	// be set to different values by the test

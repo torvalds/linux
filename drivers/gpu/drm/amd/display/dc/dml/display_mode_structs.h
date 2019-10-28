@@ -99,6 +99,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 	unsigned int num_chans;
 	unsigned int vmm_page_size_bytes;
 	unsigned int hostvm_min_page_size_bytes;
+	unsigned int gpuvm_min_page_size_bytes;
 	double dram_clock_change_latency_us;
 	double dummy_pstate_latency_us;
 	double writeback_dram_clock_change_latency_us;
@@ -224,6 +225,7 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	int source_scan;
 	int sw_mode;
 	int macro_tile_size;
+	unsigned int surface_height_y;
 	unsigned int viewport_width;
 	unsigned int viewport_height;
 	unsigned int viewport_y_y;
@@ -400,6 +402,7 @@ struct _vcs_dpi_display_rq_misc_params_st {
 struct _vcs_dpi_display_rq_params_st {
 	unsigned char yuv420;
 	unsigned char yuv420_10bpc;
+	unsigned char rgbe_alpha;
 	display_rq_misc_params_st misc;
 	display_rq_sizing_params_st sizing;
 	display_rq_dlg_params_st dlg;
