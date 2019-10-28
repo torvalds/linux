@@ -53,7 +53,7 @@
 
 #define MII_M1011_PHY_SCR			0x10
 #define MII_M1011_PHY_SCR_DOWNSHIFT_EN		BIT(11)
-#define MII_M1011_PHY_SRC_DOWNSHIFT_MASK	GENMASK(14, 12)
+#define MII_M1011_PHY_SCR_DOWNSHIFT_MASK	GENMASK(14, 12)
 #define MII_M1011_PHY_SCR_DOWNSHIFT_MAX		8
 #define MII_M1011_PHY_SCR_MDI			(0x0 << 5)
 #define MII_M1011_PHY_SCR_MDI_X			(0x1 << 5)
@@ -793,7 +793,7 @@ static int m88e1111_get_downshift(struct phy_device *phydev, u8 *data)
 		return val;
 
 	enable = FIELD_GET(MII_M1011_PHY_SCR_DOWNSHIFT_EN, val);
-	cnt = FIELD_GET(MII_M1011_PHY_SRC_DOWNSHIFT_MASK, val) + 1;
+	cnt = FIELD_GET(MII_M1011_PHY_SCR_DOWNSHIFT_MASK, val) + 1;
 
 	*data = enable ? cnt : DOWNSHIFT_DEV_DISABLE;
 
@@ -812,11 +812,11 @@ static int m88e1111_set_downshift(struct phy_device *phydev, u8 cnt)
 				      MII_M1011_PHY_SCR_DOWNSHIFT_EN);
 
 	val = MII_M1011_PHY_SCR_DOWNSHIFT_EN;
-	val |= FIELD_PREP(MII_M1011_PHY_SRC_DOWNSHIFT_MASK, cnt - 1);
+	val |= FIELD_PREP(MII_M1011_PHY_SCR_DOWNSHIFT_MASK, cnt - 1);
 
 	return phy_modify(phydev, MII_M1011_PHY_SCR,
 			  MII_M1011_PHY_SCR_DOWNSHIFT_EN |
-			  MII_M1011_PHY_SRC_DOWNSHIFT_MASK,
+			  MII_M1011_PHY_SCR_DOWNSHIFT_MASK,
 			  val);
 }
 
