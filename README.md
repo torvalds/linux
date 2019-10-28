@@ -104,7 +104,7 @@ must be a stable maintainer branch (not rebased, so don't use `linux-next` for e
 
 - If the patch has been submitted to LKML, but not accepted into any maintainer tree
     - tag the patch subject with `FROMLIST:`
-    - add a `List:` tag with a link to the submittal on lore.kernel.org
+    - add a `Link:` tag with a link to the submittal on lore.kernel.org
     - if changes were required, use `BACKPORT: FROMLIST:`
     - Example:
 ```
