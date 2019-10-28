@@ -102,13 +102,13 @@
 #define CLK_RGB15_MASK		0x070707
 
 #define RGB30_TO_COLORKEY(c) \
-	(((c & 0x3FC00000) >> 6) | ((c & 0x000FF000) >> 4) | ((c & 0x000003FC) >> 2))
+	((((c) & 0x3fc00000) >> 6) | (((c) & 0x000ff000) >> 4) | (((c) & 0x000003fc) >> 2))
 #define RGB16_TO_COLORKEY(c) \
-	(((c & 0xF800) << 8) | ((c & 0x07E0) << 5) | ((c & 0x001F) << 3))
+	((((c) & 0xf800) << 8) | (((c) & 0x07e0) << 5) | (((c) & 0x001f) << 3))
 #define RGB15_TO_COLORKEY(c) \
-	(((c & 0x7c00) << 9) | ((c & 0x03E0) << 6) | ((c & 0x001F) << 3))
+	((((c) & 0x7c00) << 9) | (((c) & 0x03e0) << 6) | (((c) & 0x001f) << 3))
 #define RGB8I_TO_COLORKEY(c) \
-	(((c & 0xFF) << 16) | ((c & 0XFF) << 8) | ((c & 0xFF) << 0))
+	((((c) & 0xff) << 16) | (((c) & 0xff) << 8) | (((c) & 0xff) << 0))
 
 /* overlay flip addr flag */
 #define OFC_UPDATE		0x1
