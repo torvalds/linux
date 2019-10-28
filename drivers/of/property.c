@@ -1024,6 +1024,7 @@ static int of_link_to_phandle(struct device *dev, struct device_node *sup_np,
 	struct device *sup_dev;
 	int ret = 0;
 	struct device_node *tmp_np = sup_np;
+	int is_populated;
 
 	of_node_get(sup_np);
 	/*
@@ -1048,9 +1049,10 @@ static int of_link_to_phandle(struct device *dev, struct device_node *sup_np,
 		return -EINVAL;
 	}
 	sup_dev = get_dev_from_fwnode(&sup_np->fwnode);
+	is_populated = of_node_check_flag(sup_np, OF_POPULATED);
 	of_node_put(sup_np);
 	if (!sup_dev)
-		return -EAGAIN;
+		return is_populated ? 0 : -EAGAIN;
 	if (!device_link_add(dev, sup_dev, dl_flags))
 		ret = -EAGAIN;
 	put_device(sup_dev);
