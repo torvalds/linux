@@ -405,7 +405,6 @@ done:
 		}
 
 		mp->m_flags |= XFS_MOUNT_DFLT_IOSIZE;
-		mp->m_readio_log = iosizelog;
 		mp->m_writeio_log = iosizelog;
 	}
 

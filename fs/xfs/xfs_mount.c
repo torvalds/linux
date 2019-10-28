@@ -437,25 +437,15 @@ xfs_set_rw_sizes(xfs_mount_t *mp)
 	xfs_sb_t	*sbp = &(mp->m_sb);
 	int		readio_log, writeio_log;
 
-	if (!(mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)) {
-		readio_log = XFS_READIO_LOG_LARGE;
+	if (!(mp->m_flags & XFS_MOUNT_DFLT_IOSIZE))
 		writeio_log = XFS_WRITEIO_LOG_LARGE;
-	} else {
-		readio_log = mp->m_readio_log;
+	else
 		writeio_log = mp->m_writeio_log;
-	}
 
-	if (sbp->sb_blocklog > readio_log) {
-		mp->m_readio_log = sbp->sb_blocklog;
-	} else {
-		mp->m_readio_log = readio_log;
-	}
-	mp->m_readio_blocks = 1 << (mp->m_readio_log - sbp->sb_blocklog);
-	if (sbp->sb_blocklog > writeio_log) {
+	if (sbp->sb_blocklog > writeio_log)
 		mp->m_writeio_log = sbp->sb_blocklog;
-	} else {
+	} else
 		mp->m_writeio_log = writeio_log;
-	}
 	mp->m_writeio_blocks = 1 << (mp->m_writeio_log - sbp->sb_blocklog);
 }
 

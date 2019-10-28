@@ -98,8 +98,6 @@ typedef struct xfs_mount {
 	xfs_agnumber_t		m_agirotor;	/* last ag dir inode alloced */
 	spinlock_t		m_agirotor_lock;/* .. and lock protecting it */
 	xfs_agnumber_t		m_maxagi;	/* highest inode alloc group */
-	uint			m_readio_log;	/* min read size log bytes */
-	uint			m_readio_blocks; /* min read size blocks */
 	uint			m_writeio_log;	/* min write size log bytes */
 	uint			m_writeio_blocks; /* min write size blocks */
 	struct xfs_da_geometry	*m_dir_geo;	/* directory block geometry */
@@ -248,9 +246,8 @@ typedef struct xfs_mount {
 
 
 /*
- * Default minimum read and write sizes.
+ * Default write size.
  */
-#define XFS_READIO_LOG_LARGE	16
 #define XFS_WRITEIO_LOG_LARGE	16
 
 /*
