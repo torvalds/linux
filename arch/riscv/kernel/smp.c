@@ -108,7 +108,7 @@ static void send_ipi_single(int cpu, enum ipi_message_type op)
 
 static inline void clear_ipi(void)
 {
-	csr_clear(CSR_SIP, SIE_SSIE);
+	csr_clear(CSR_IP, IE_SIE);
 }
 
 void riscv_software_interrupt(void)

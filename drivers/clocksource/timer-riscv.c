@@ -19,7 +19,7 @@
 static int riscv_clock_next_event(unsigned long delta,
 		struct clock_event_device *ce)
 {
-	csr_set(sie, SIE_STIE);
+	csr_set(CSR_IE, IE_TIE);
 	sbi_set_timer(get_cycles64() + delta);
 	return 0;
 }
@@ -61,13 +61,13 @@ static int riscv_timer_starting_cpu(unsigned int cpu)
 	ce->cpumask = cpumask_of(cpu);
 	clockevents_config_and_register(ce, riscv_timebase, 100, 0x7fffffff);
 
-	csr_set(sie, SIE_STIE);
+	csr_set(CSR_IE, IE_TIE);
 	return 0;
 }
 
 static int riscv_timer_dying_cpu(unsigned int cpu)
 {
-	csr_clear(sie, SIE_STIE);
+	csr_clear(CSR_IE, IE_TIE);
 	return 0;
 }
 
@@ -76,7 +76,7 @@ void riscv_timer_interrupt(void)
 {
 	struct clock_event_device *evdev = this_cpu_ptr(&riscv_clock_event);
 
-	csr_clear(sie, SIE_STIE);
+	csr_clear(CSR_IE, IE_TIE);
 	evdev->event_handler(evdev);
 }
 

@@ -124,7 +124,7 @@ badframe:
 		pr_info_ratelimited(
 			"%s[%d]: bad frame in %s: frame=%p pc=%p sp=%p\n",
 			task->comm, task_pid_nr(task), __func__,
-			frame, (void *)regs->sepc, (void *)regs->sp);
+			frame, (void *)regs->epc, (void *)regs->sp);
 	}
 	force_sig(SIGSEGV);
 	return 0;
@@ -199,7 +199,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	 * We always pass siginfo and mcontext, regardless of SA_SIGINFO,
 	 * since some things rely on this (e.g. glibc's debug/segfault.c).
 	 */
-	regs->sepc = (unsigned long)ksig->ka.sa.sa_handler;
+	regs->epc = (unsigned long)ksig->ka.sa.sa_handler;
 	regs->sp = (unsigned long)frame;
 	regs->a0 = ksig->sig;                     /* a0: signal number */
 	regs->a1 = (unsigned long)(&frame->info); /* a1: siginfo pointer */
@@ -208,7 +208,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 #if DEBUG_SIG
 	pr_info("SIG deliver (%s:%d): sig=%d pc=%p ra=%p sp=%p\n",
 		current->comm, task_pid_nr(current), ksig->sig,
-		(void *)regs->sepc, (void *)regs->ra, frame);
+		(void *)regs->epc, (void *)regs->ra, frame);
 #endif
 
 	return 0;
@@ -220,10 +220,9 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	int ret;
 
 	/* Are we from a system call? */
-	if (regs->scause == EXC_SYSCALL) {
+	if (regs->cause == EXC_SYSCALL) {
 		/* Avoid additional syscall restarting via ret_from_exception */
-		regs->scause = -1UL;
-
+		regs->cause = -1UL;
 		/* If so, check system call restarting.. */
 		switch (regs->a0) {
 		case -ERESTART_RESTARTBLOCK:
@@ -239,7 +238,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 			/* fallthrough */
 		case -ERESTARTNOINTR:
                         regs->a0 = regs->orig_a0;
-			regs->sepc -= 0x4;
+			regs->epc -= 0x4;
 			break;
 		}
 	}
@@ -261,9 +260,9 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	/* Did we come from a system call? */
-	if (regs->scause == EXC_SYSCALL) {
+	if (regs->cause == EXC_SYSCALL) {
 		/* Avoid additional syscall restarting via ret_from_exception */
-		regs->scause = -1UL;
+		regs->cause = -1UL;
 
 		/* Restart the system call - no handlers present */
 		switch (regs->a0) {
@@ -271,12 +270,12 @@ static void do_signal(struct pt_regs *regs)
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
                         regs->a0 = regs->orig_a0;
-			regs->sepc -= 0x4;
+			regs->epc -= 0x4;
 			break;
 		case -ERESTART_RESTARTBLOCK:
                         regs->a0 = regs->orig_a0;
 			regs->a7 = __NR_restart_syscall;
-			regs->sepc -= 0x4;
+			regs->epc -= 0x4;
 			break;
 		}
 	}
