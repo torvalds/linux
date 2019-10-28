@@ -34,7 +34,8 @@
 
 #include <drm/drm.h>
 
-extern unsigned int drm_debug;
+/* Do *not* use outside of drm_print.[ch]! */
+extern unsigned int __drm_debug;
 
 /**
  * DOC: print
@@ -295,7 +296,7 @@ static inline struct drm_printer drm_err_printer(const char *prefix)
 
 static inline bool drm_debug_enabled(unsigned int category)
 {
-	return unlikely(drm_debug & category);
+	return unlikely(__drm_debug & category);
 }
 
 __printf(3, 4)
