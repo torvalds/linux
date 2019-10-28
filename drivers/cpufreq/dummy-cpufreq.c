@@ -23,6 +23,11 @@ static int dummy_cpufreq_driver_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
+static unsigned int dummy_cpufreq_get(unsigned int cpu)
+{
+	return 1;
+}
+
 static int dummy_cpufreq_verify(struct cpufreq_policy *policy)
 {
 	return 0;
@@ -32,6 +37,7 @@ static struct cpufreq_driver dummy_cpufreq_driver = {
 	.name = "dummy",
 	.target_index = dummy_cpufreq_target_index,
 	.init = dummy_cpufreq_driver_init,
+	.get = dummy_cpufreq_get,
 	.verify = dummy_cpufreq_verify,
 	.attr = cpufreq_generic_attr,
 };
