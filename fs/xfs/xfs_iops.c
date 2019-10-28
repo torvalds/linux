@@ -510,7 +510,7 @@ xfs_stat_blksize(
 	 * default buffered I/O size, return that, otherwise return the compat
 	 * default.
 	 */
-	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE)) {
+	if (mp->m_flags & XFS_MOUNT_LARGEIO) {
 		if (mp->m_swidth)
 			return mp->m_swidth << mp->m_sb.sb_blocklog;
 		if (mp->m_flags & XFS_MOUNT_ALLOCSIZE)
