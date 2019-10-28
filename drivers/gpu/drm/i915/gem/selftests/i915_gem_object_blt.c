@@ -3,7 +3,10 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/sort.h>
+
 #include "gt/intel_gt.h"
+#include "gt/intel_engine_user.h"
 
 #include "i915_selftest.h"
 
@@ -13,6 +16,173 @@
 #include "selftests/mock_drm.h"
 #include "huge_gem_object.h"
 #include "mock_context.h"
+
+static int wrap_ktime_compare(const void *A, const void *B)
+{
+	const ktime_t *a = A, *b = B;
+
+	return ktime_compare(*a, *b);
+}
+
+static int __perf_fill_blt(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	int inst = 0;
+
+	do {
+		struct intel_engine_cs *engine;
+		ktime_t t[5];
+		int pass;
+		int err;
+
+		engine = intel_engine_lookup_user(i915,
+						  I915_ENGINE_CLASS_COPY,
+						  inst++);
+		if (!engine)
+			return 0;
+
+		for (pass = 0; pass < ARRAY_SIZE(t); pass++) {
+			struct intel_context *ce = engine->kernel_context;
+			ktime_t t0, t1;
+
+			t0 = ktime_get();
+
+			err = i915_gem_object_fill_blt(obj, ce, 0);
+			if (err)
+				return err;
+
+			err = i915_gem_object_wait(obj,
+						   I915_WAIT_ALL,
+						   MAX_SCHEDULE_TIMEOUT);
+			if (err)
+				return err;
+
+			t1 = ktime_get();
+			t[pass] = ktime_sub(t1, t0);
+		}
+
+		sort(t, ARRAY_SIZE(t), sizeof(*t), wrap_ktime_compare, NULL);
+		pr_info("%s: blt %zd KiB fill: %lld MiB/s\n",
+			engine->name,
+			obj->base.size >> 10,
+			div64_u64(mul_u32_u32(4 * obj->base.size,
+					      1000 * 1000 * 1000),
+				  t[1] + 2 * t[2] + t[3]) >> 20);
+	} while (1);
+}
+
+static int perf_fill_blt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	static const unsigned long sizes[] = {
+		SZ_4K,
+		SZ_64K,
+		SZ_2M,
+		SZ_64M
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sizes); i++) {
+		struct drm_i915_gem_object *obj;
+		int err;
+
+		obj = i915_gem_object_create_internal(i915, sizes[i]);
+		if (IS_ERR(obj))
+			return PTR_ERR(obj);
+
+		err = __perf_fill_blt(obj);
+		i915_gem_object_put(obj);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int __perf_copy_blt(struct drm_i915_gem_object *src,
+			   struct drm_i915_gem_object *dst)
+{
+	struct drm_i915_private *i915 = to_i915(src->base.dev);
+	int inst = 0;
+
+	do {
+		struct intel_engine_cs *engine;
+		ktime_t t[5];
+		int pass;
+
+		engine = intel_engine_lookup_user(i915,
+						  I915_ENGINE_CLASS_COPY,
+						  inst++);
+		if (!engine)
+			return 0;
+
+		for (pass = 0; pass < ARRAY_SIZE(t); pass++) {
+			struct intel_context *ce = engine->kernel_context;
+			ktime_t t0, t1;
+			int err;
+
+			t0 = ktime_get();
+
+			err = i915_gem_object_copy_blt(src, dst, ce);
+			if (err)
+				return err;
+
+			err = i915_gem_object_wait(dst,
+						   I915_WAIT_ALL,
+						   MAX_SCHEDULE_TIMEOUT);
+			if (err)
+				return err;
+
+			t1 = ktime_get();
+			t[pass] = ktime_sub(t1, t0);
+		}
+
+		sort(t, ARRAY_SIZE(t), sizeof(*t), wrap_ktime_compare, NULL);
+		pr_info("%s: blt %zd KiB copy: %lld MiB/s\n",
+			engine->name,
+			src->base.size >> 10,
+			div64_u64(mul_u32_u32(4 * src->base.size,
+					      1000 * 1000 * 1000),
+				  t[1] + 2 * t[2] + t[3]) >> 20);
+	} while (1);
+}
+
+static int perf_copy_blt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	static const unsigned long sizes[] = {
+		SZ_4K,
+		SZ_64K,
+		SZ_2M,
+		SZ_64M
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sizes); i++) {
+		struct drm_i915_gem_object *src, *dst;
+		int err;
+
+		src = i915_gem_object_create_internal(i915, sizes[i]);
+		if (IS_ERR(src))
+			return PTR_ERR(src);
+
+		dst = i915_gem_object_create_internal(i915, sizes[i]);
+		if (IS_ERR(dst)) {
+			err = PTR_ERR(dst);
+			goto err_src;
+		}
+
+		err = __perf_copy_blt(src, dst);
+
+		i915_gem_object_put(dst);
+err_src:
+		i915_gem_object_put(src);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
 
 struct igt_thread_arg {
 	struct drm_i915_private *i915;
@@ -335,6 +505,8 @@ static int igt_copy_blt(void *arg)
 int i915_gem_object_blt_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
+		SUBTEST(perf_fill_blt),
+		SUBTEST(perf_copy_blt),
 		SUBTEST(igt_fill_blt),
 		SUBTEST(igt_copy_blt),
 	};
