@@ -3195,9 +3195,34 @@ static int live_lrc_fixed(void *arg)
 			const char *name;
 		} tbl[] = {
 			{
+				i915_mmio_reg_offset(RING_START(engine->mmio_base)),
+				CTX_RING_BUFFER_START - 1,
+				"RING_START"
+			},
+			{
+				i915_mmio_reg_offset(RING_CTL(engine->mmio_base)),
+				CTX_RING_BUFFER_CONTROL - 1,
+				"RING_CTL"
+			},
+			{
+				i915_mmio_reg_offset(RING_HEAD(engine->mmio_base)),
+				CTX_RING_HEAD - 1,
+				"RING_HEAD"
+			},
+			{
+				i915_mmio_reg_offset(RING_TAIL(engine->mmio_base)),
+				CTX_RING_TAIL - 1,
+				"RING_TAIL"
+			},
+			{
 				i915_mmio_reg_offset(RING_MI_MODE(engine->mmio_base)),
 				lrc_ring_mi_mode(engine),
-				"RING_MI_MODE",
+				"RING_MI_MODE"
+			},
+			{
+				engine->mmio_base + 0x110,
+				CTX_BB_STATE - 1,
+				"BB_STATE"
 			},
 			{ },
 		}, *t;
