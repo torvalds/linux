@@ -328,6 +328,9 @@ int mlx5dr_ste_build_flex_parser_1(struct mlx5dr_ste_build *sb,
 void mlx5dr_ste_build_flex_parser_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
 						struct mlx5dr_match_param *mask,
 						bool inner, bool rx);
+void mlx5dr_ste_build_flex_parser_tnl_geneve(struct mlx5dr_ste_build *sb,
+					     struct mlx5dr_match_param *mask,
+					     bool inner, bool rx);
 void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
 				      bool inner, bool rx);

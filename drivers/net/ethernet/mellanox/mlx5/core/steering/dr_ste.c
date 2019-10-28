@@ -2156,6 +2156,59 @@ void mlx5dr_ste_build_flex_parser_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
 	sb->ste_build_tag_func = &dr_ste_build_flex_parser_tnl_vxlan_gpe_tag;
 }
 
+static void
+dr_ste_build_flex_parser_tnl_geneve_bit_mask(struct mlx5dr_match_param *value,
+					     u8 *bit_mask)
+{
+	struct mlx5dr_match_misc *misc_mask = &value->misc;
+
+	DR_STE_SET_MASK_V(flex_parser_tnl_geneve, bit_mask,
+			  geneve_protocol_type,
+			  misc_mask, geneve_protocol_type);
+	DR_STE_SET_MASK_V(flex_parser_tnl_geneve, bit_mask,
+			  geneve_oam,
+			  misc_mask, geneve_oam);
+	DR_STE_SET_MASK_V(flex_parser_tnl_geneve, bit_mask,
+			  geneve_opt_len,
+			  misc_mask, geneve_opt_len);
+	DR_STE_SET_MASK_V(flex_parser_tnl_geneve, bit_mask,
+			  geneve_vni,
+			  misc_mask, geneve_vni);
+}
+
+static int
+dr_ste_build_flex_parser_tnl_geneve_tag(struct mlx5dr_match_param *value,
+					struct mlx5dr_ste_build *sb,
+					u8 *hw_ste_p)
+{
+	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)hw_ste_p;
+	struct mlx5dr_match_misc *misc = &value->misc;
+	u8 *tag = hw_ste->tag;
+
+	DR_STE_SET_TAG(flex_parser_tnl_geneve, tag,
+		       geneve_protocol_type, misc, geneve_protocol_type);
+	DR_STE_SET_TAG(flex_parser_tnl_geneve, tag,
+		       geneve_oam, misc, geneve_oam);
+	DR_STE_SET_TAG(flex_parser_tnl_geneve, tag,
+		       geneve_opt_len, misc, geneve_opt_len);
+	DR_STE_SET_TAG(flex_parser_tnl_geneve, tag,
+		       geneve_vni, misc, geneve_vni);
+
+	return 0;
+}
+
+void mlx5dr_ste_build_flex_parser_tnl_geneve(struct mlx5dr_ste_build *sb,
+					     struct mlx5dr_match_param *mask,
+					     bool inner, bool rx)
+{
+	dr_ste_build_flex_parser_tnl_geneve_bit_mask(mask, sb->bit_mask);
+	sb->rx = rx;
+	sb->inner = inner;
+	sb->lu_type = MLX5DR_STE_LU_TYPE_FLEX_PARSER_TNL_HEADER;
+	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_build_flex_parser_tnl_geneve_tag;
+}
+
 static void dr_ste_build_register_0_bit_mask(struct mlx5dr_match_param *value,
 					     u8 *bit_mask)
 {

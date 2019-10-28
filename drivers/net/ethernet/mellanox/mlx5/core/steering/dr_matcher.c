@@ -125,6 +125,29 @@ dr_mask_is_flex_parser_tnl_vxlan_gpe_set(struct mlx5dr_match_param *mask,
 	       dr_matcher_supp_flex_parser_vxlan_gpe(&dmn->info.caps);
 }
 
+static bool dr_mask_is_misc_geneve_set(struct mlx5dr_match_misc *misc)
+{
+	return misc->geneve_vni ||
+	       misc->geneve_oam ||
+	       misc->geneve_protocol_type ||
+	       misc->geneve_opt_len;
+}
+
+static bool
+dr_matcher_supp_flex_parser_geneve(struct mlx5dr_cmd_caps *caps)
+{
+	return caps->flex_protocols &
+	       MLX5_FLEX_PARSER_GENEVE_ENABLED;
+}
+
+static bool
+dr_mask_is_flex_parser_tnl_geneve_set(struct mlx5dr_match_param *mask,
+				      struct mlx5dr_domain *dmn)
+{
+	return dr_mask_is_misc_geneve_set(&mask->misc) &&
+	       dr_matcher_supp_flex_parser_geneve(&dmn->info.caps);
+}
+
 static bool dr_mask_is_flex_parser_icmpv6_set(struct mlx5dr_match_misc3 *misc3)
 {
 	return (misc3->icmpv6_type || misc3->icmpv6_code ||
@@ -275,6 +298,10 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 			mlx5dr_ste_build_flex_parser_tnl_vxlan_gpe(&sb[idx++],
 								   &mask,
 								   inner, rx);
+		else if (dr_mask_is_flex_parser_tnl_geneve_set(&mask, dmn))
+			mlx5dr_ste_build_flex_parser_tnl_geneve(&sb[idx++],
+								&mask,
+								inner, rx);
 
 		if (DR_MASK_IS_ETH_L4_MISC_SET(mask.misc3, outer))
 			mlx5dr_ste_build_eth_l4_misc(&sb[idx++], &mask, inner, rx);
