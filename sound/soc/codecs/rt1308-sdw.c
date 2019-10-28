@@ -175,6 +175,8 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt1308_sdw_priv *rt1308 = dev_get_drvdata(dev);
 	int ret = 0;
+	unsigned int efuse_m_btl_l, efuse_m_btl_r, tmp;
+	unsigned int efuse_c_btl_l, efuse_c_btl_r;
 
 	if (rt1308->hw_init)
 		return 0;
@@ -209,13 +211,34 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 
 	/* read efuse */
 	regmap_write(rt1308->regmap, 0xc360, 0x01);
-	regmap_write(rt1308->regmap, 0xc360, 0x80);
+	regmap_write(rt1308->regmap, 0xc361, 0x80);
 	regmap_write(rt1308->regmap, 0xc7f0, 0x04);
 	regmap_write(rt1308->regmap, 0xc7f1, 0xfe);
 	msleep(100);
 	regmap_write(rt1308->regmap, 0xc7f0, 0x44);
 	msleep(20);
 	regmap_write(rt1308->regmap, 0xc240, 0x10);
+
+	regmap_read(rt1308->regmap, 0xc861, &tmp);
+	efuse_m_btl_l = tmp;
+	regmap_read(rt1308->regmap, 0xc860, &tmp);
+	efuse_m_btl_l = efuse_m_btl_l | (tmp << 8);
+	regmap_read(rt1308->regmap, 0xc863, &tmp);
+	efuse_c_btl_l = tmp;
+	regmap_read(rt1308->regmap, 0xc862, &tmp);
+	efuse_c_btl_l = efuse_c_btl_l | (tmp << 8);
+	regmap_read(rt1308->regmap, 0xc871, &tmp);
+	efuse_m_btl_r = tmp;
+	regmap_read(rt1308->regmap, 0xc870, &tmp);
+	efuse_m_btl_r = efuse_m_btl_r | (tmp << 8);
+	regmap_read(rt1308->regmap, 0xc873, &tmp);
+	efuse_c_btl_r = tmp;
+	regmap_read(rt1308->regmap, 0xc872, &tmp);
+	efuse_c_btl_r = efuse_c_btl_r | (tmp << 8);
+	dev_info(&slave->dev, "%s m_btl_l=0x%x, m_btl_r=0x%x\n", __func__,
+		efuse_m_btl_l, efuse_m_btl_r);
+	dev_info(&slave->dev, "%s c_btl_l=0x%x, c_btl_r=0x%x\n", __func__,
+		efuse_c_btl_l, efuse_c_btl_r);
 
 	/* initial settings */
 	regmap_write(rt1308->regmap, 0xc103, 0xc0);
@@ -241,8 +264,8 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	regmap_write(rt1308->regmap, 0xc0a1, 0x71);
 	regmap_write(rt1308->regmap, 0xc210, 0x00);
 	regmap_write(rt1308->regmap, 0xc070, 0x00);
-	regmap_write(rt1308->regmap, 0xc100, 0xaf);
-	regmap_write(rt1308->regmap, 0xc101, 0xaf);
+	regmap_write(rt1308->regmap, 0xc100, 0xe7);
+	regmap_write(rt1308->regmap, 0xc101, 0xe7);
 	regmap_write(rt1308->regmap, 0xc310, 0x24);
 
 	/* Mark Slave initialization complete */
