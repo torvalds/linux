@@ -421,7 +421,7 @@ xfs_iomap_prealloc_size(
 	if (offset + count <= XFS_ISIZE(ip))
 		return 0;
 
-	if (!(mp->m_flags & XFS_MOUNT_DFLT_IOSIZE) &&
+	if (!(mp->m_flags & XFS_MOUNT_ALLOCSIZE) &&
 	    (XFS_ISIZE(ip) < XFS_FSB_TO_B(mp, mp->m_allocsize_blocks)))
 		return 0;
 
@@ -429,7 +429,7 @@ xfs_iomap_prealloc_size(
 	 * If an explicit allocsize is set, the file is small, or we
 	 * are writing behind a hole, then use the minimum prealloc:
 	 */
-	if ((mp->m_flags & XFS_MOUNT_DFLT_IOSIZE) ||
+	if ((mp->m_flags & XFS_MOUNT_ALLOCSIZE) ||
 	    XFS_ISIZE(ip) < XFS_FSB_TO_B(mp, mp->m_dalign) ||
 	    !xfs_iext_peek_prev_extent(ifp, icur, &prev) ||
 	    prev.br_startoff + prev.br_blockcount < offset_fsb)

@@ -513,7 +513,7 @@ xfs_stat_blksize(
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE)) {
 		if (mp->m_swidth)
 			return mp->m_swidth << mp->m_sb.sb_blocklog;
-		if (mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)
+		if (mp->m_flags & XFS_MOUNT_ALLOCSIZE)
 			return 1U << mp->m_allocsize_log;
 	}
 

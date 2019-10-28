@@ -228,7 +228,7 @@ xfs_parseargs(
 			if (suffix_kstrtoint(args, 10, &size))
 				return -EINVAL;
 			mp->m_allocsize_log = ffs(size) - 1;
-			mp->m_flags |= XFS_MOUNT_DFLT_IOSIZE;
+			mp->m_flags |= XFS_MOUNT_ALLOCSIZE;
 			break;
 		case Opt_grpid:
 		case Opt_bsdgroups:
@@ -396,7 +396,7 @@ done:
 		return -EINVAL;
 	}
 
-	if ((mp->m_flags & XFS_MOUNT_DFLT_IOSIZE) &&
+	if ((mp->m_flags & XFS_MOUNT_ALLOCSIZE) &&
 	    (mp->m_allocsize_log > XFS_MAX_IO_LOG ||
 	     mp->m_allocsize_log < XFS_MIN_IO_LOG)) {
 		xfs_warn(mp, "invalid log iosize: %d [not %d-%d]",
@@ -450,7 +450,7 @@ xfs_showargs(
 			seq_puts(m, xfs_infop->str);
 	}
 
-	if (mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)
+	if (mp->m_flags & XFS_MOUNT_ALLOCSIZE)
 		seq_printf(m, ",allocsize=%dk",
 				(int)(1 << mp->m_allocsize_log) >> 10);
 
