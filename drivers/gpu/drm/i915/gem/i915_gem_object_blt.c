@@ -17,7 +17,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 					 u32 value)
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
-	const u32 block_size = S16_MAX * PAGE_SIZE;
+	const u32 block_size = SZ_8M; /* ~1ms at 8GiB/s preemption delay */
 	struct intel_engine_pool_node *pool;
 	struct i915_vma *batch;
 	u64 offset;
@@ -201,7 +201,7 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 					 struct i915_vma *dst)
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
-	const u32 block_size = S16_MAX * PAGE_SIZE;
+	const u32 block_size = SZ_8M; /* ~1ms at 8GiB/s preemption delay */
 	struct intel_engine_pool_node *pool;
 	struct i915_vma *batch;
 	u64 src_offset, dst_offset;
