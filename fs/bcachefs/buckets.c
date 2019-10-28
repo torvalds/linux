@@ -1456,7 +1456,7 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	if (ret < 0)
 		return ret;
 
-	if (!ret) {
+	if (!ret && unlikely(!test_bit(BCH_FS_ALLOC_WRITTEN, &c->flags))) {
 		/*
 		 * During journal replay, and if gc repairs alloc info at
 		 * runtime, the alloc info in the btree might not be up to date

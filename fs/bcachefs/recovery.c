@@ -864,6 +864,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 			goto err;
 		}
 		bch_verbose(c, "alloc write done");
+
+		set_bit(BCH_FS_ALLOC_WRITTEN, &c->flags);
 	}
 
 	if (!c->sb.clean) {
