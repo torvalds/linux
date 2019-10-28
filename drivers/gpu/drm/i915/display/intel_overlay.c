@@ -785,9 +785,13 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	i915_gem_object_flush_frontbuffer(new_bo, ORIGIN_DIRTYFB);
 
 	if (!overlay->active) {
-		u32 oconfig;
+		const struct intel_crtc_state *crtc_state =
+			overlay->crtc->config;
+		u32 oconfig = 0;
 
-		oconfig = OCONF_CC_OUT_8BIT;
+		if (crtc_state->gamma_enable &&
+		    crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+			oconfig |= OCONF_CC_OUT_8BIT;
 		if (IS_GEN(dev_priv, 4))
 			oconfig |= OCONF_CSC_MODE_BT709;
 		oconfig |= pipe == 0 ?
