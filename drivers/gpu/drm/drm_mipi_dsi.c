@@ -373,6 +373,7 @@ bool mipi_dsi_packet_format_is_short(u8 type)
 	case MIPI_DSI_V_SYNC_END:
 	case MIPI_DSI_H_SYNC_START:
 	case MIPI_DSI_H_SYNC_END:
+	case MIPI_DSI_COMPRESSION_MODE:
 	case MIPI_DSI_END_OF_TRANSMISSION:
 	case MIPI_DSI_COLOR_MODE_OFF:
 	case MIPI_DSI_COLOR_MODE_ON:
@@ -387,7 +388,6 @@ bool mipi_dsi_packet_format_is_short(u8 type)
 	case MIPI_DSI_DCS_SHORT_WRITE:
 	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
 	case MIPI_DSI_DCS_READ:
-	case MIPI_DSI_DCS_COMPRESSION_MODE:
 	case MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE:
 		return true;
 	}
@@ -406,11 +406,11 @@ EXPORT_SYMBOL(mipi_dsi_packet_format_is_short);
 bool mipi_dsi_packet_format_is_long(u8 type)
 {
 	switch (type) {
-	case MIPI_DSI_PPS_LONG_WRITE:
 	case MIPI_DSI_NULL_PACKET:
 	case MIPI_DSI_BLANKING_PACKET:
 	case MIPI_DSI_GENERIC_LONG_WRITE:
 	case MIPI_DSI_DCS_LONG_WRITE:
+	case MIPI_DSI_PICTURE_PARAMETER_SET:
 	case MIPI_DSI_LOOSELY_PACKED_PIXEL_STREAM_YCBCR20:
 	case MIPI_DSI_PACKED_PIXEL_STREAM_YCBCR24:
 	case MIPI_DSI_PACKED_PIXEL_STREAM_YCBCR16:
