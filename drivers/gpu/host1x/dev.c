@@ -402,6 +402,7 @@ static int host1x_remove(struct platform_device *pdev)
 	struct host1x *host = platform_get_drvdata(pdev);
 
 	host1x_unregister(host);
+	host1x_debug_deinit(host);
 	host1x_intr_deinit(host);
 	host1x_syncpt_deinit(host);
 	reset_control_assert(host->rst);
