@@ -16,7 +16,7 @@
 /*
  * Printing-adding
  */
-#define	PRINT_SWI_INFO		1
+#define	PRINT_SWI_INFO		0
 #define	PRINT_SWI_ERROR		1
 #define PRINT_SWI_HEX		1
 
