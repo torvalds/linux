@@ -1,0 +1,13 @@
+#
+# UTF-8 normalization
+#
+config UNICODE
+	bool "UTF-8 normalization and casefolding support"
+	help
+	  Say Y here to enable UTF-8 NFD normalization and NFD+CF casefolding
+	  support.
+
+config UNICODE_NORMALIZATION_SELFTEST
+	tristate "Test UTF-8 normalization support"
+	depends on UNICODE
+	default n

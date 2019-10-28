@@ -40,6 +40,13 @@ enum dfl_fpga_devt_type {
 	DFL_FPGA_DEVT_MAX,
 };
 
+static struct lock_class_key dfl_pdata_keys[DFL_ID_MAX];
+
+static const char *dfl_pdata_key_strings[DFL_ID_MAX] = {
+	"dfl-fme-pdata",
+	"dfl-port-pdata",
+};
+
 /**
  * dfl_dev_info - dfl feature device information.
  * @name: name string of the feature platform device.
@@ -443,10 +450,15 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	struct platform_device *fdev = binfo->feature_dev;
 	struct dfl_feature_platform_data *pdata;
 	struct dfl_feature_info *finfo, *p;
+	enum dfl_id_type type;
 	int ret, index = 0;
 
 	if (!fdev)
 		return 0;
+
+	type = feature_dev_id_type(fdev);
+	if (WARN_ON_ONCE(type >= DFL_ID_MAX))
+		return -EINVAL;
 
 	/*
 	 * we do not need to care for the memory which is associated with
@@ -463,6 +475,8 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	pdata->num = binfo->feature_num;
 	pdata->dfl_cdev = binfo->cdev;
 	mutex_init(&pdata->lock);
+	lockdep_set_class_and_name(&pdata->lock, &dfl_pdata_keys[type],
+				   dfl_pdata_key_strings[type]);
 
 	/*
 	 * the count should be initialized to 0 to make sure
@@ -497,7 +511,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 
 	ret = platform_device_add(binfo->feature_dev);
 	if (!ret) {
-		if (feature_dev_id_type(binfo->feature_dev) == PORT_ID)
+		if (type == PORT_ID)
 			dfl_fpga_cdev_add_port_dev(binfo->cdev,
 						   binfo->feature_dev);
 		else

@@ -366,11 +366,7 @@ int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
 
 static int prop_compression_validate(const char *value, size_t len)
 {
-	if (!strncmp("lzo", value, 3))
-		return 0;
-	else if (!strncmp("zlib", value, 4))
-		return 0;
-	else if (!strncmp("zstd", value, 4))
+	if (btrfs_compress_is_valid_type(value, len))
 		return 0;
 
 	return -EINVAL;

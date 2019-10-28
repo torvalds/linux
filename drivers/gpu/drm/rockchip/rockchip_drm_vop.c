@@ -2618,7 +2618,8 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 		adj_mode->crtc_clock *= 2;
 
 	adj_mode->crtc_clock =
-		clk_round_rate(vop->dclk, adj_mode->crtc_clock * 1000) / 1000;
+		DIV_ROUND_UP(clk_round_rate(vop->dclk, adj_mode->crtc_clock * 1000),
+			     1000);
 
 	return true;
 }

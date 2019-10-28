@@ -49,6 +49,8 @@ EXPORT_SYMBOL(default_qdisc_ops);
  * - updates to tree and tree walking are only done under the rtnl mutex.
  */
 
+#define SKB_XOFF_MAGIC ((struct sk_buff *)1UL)
+
 static inline struct sk_buff *__skb_dequeue_bad_txq(struct Qdisc *q)
 {
 	const struct netdev_queue *txq = q->dev_queue;
@@ -74,7 +76,7 @@ static inline struct sk_buff *__skb_dequeue_bad_txq(struct Qdisc *q)
 				q->q.qlen--;
 			}
 		} else {
-			skb = NULL;
+			skb = SKB_XOFF_MAGIC;
 		}
 	}
 
@@ -272,8 +274,11 @@ validate:
 		return skb;
 
 	skb = qdisc_dequeue_skb_bad_txq(q);
-	if (unlikely(skb))
+	if (unlikely(skb)) {
+		if (skb == SKB_XOFF_MAGIC)
+			return NULL;
 		goto bulk;
+	}
 	skb = q->dequeue(q);
 	if (skb) {
 bulk:
@@ -942,8 +947,12 @@ void qdisc_free(struct Qdisc *qdisc)
 
 void qdisc_destroy(struct Qdisc *qdisc)
 {
-	const struct Qdisc_ops  *ops = qdisc->ops;
+	const struct Qdisc_ops *ops;
 	struct sk_buff *skb, *tmp;
+
+	if (!qdisc)
+		return;
+	ops = qdisc->ops;
 
 	if (qdisc->flags & TCQ_F_BUILTIN ||
 	    !refcount_dec_and_test(&qdisc->refcnt))

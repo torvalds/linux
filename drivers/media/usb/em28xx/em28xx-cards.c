@@ -4020,7 +4020,6 @@ static void em28xx_usb_disconnect(struct usb_interface *intf)
 		dev->dev_next->disconnected = 1;
 		dev_info(&dev->intf->dev, "Disconnecting %s\n",
 			 dev->dev_next->name);
-		flush_request_modules(dev->dev_next);
 	}
 
 	dev->disconnected = 1;

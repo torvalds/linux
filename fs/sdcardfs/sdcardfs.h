@@ -151,6 +151,8 @@ extern struct inode *sdcardfs_iget(struct super_block *sb,
 				 struct inode *lower_inode, userid_t id);
 extern int sdcardfs_interpose(struct dentry *dentry, struct super_block *sb,
 			    struct path *lower_path, userid_t id);
+extern int sdcardfs_on_fscrypt_key_removed(struct notifier_block *nb,
+					   unsigned long action, void *data);
 
 /* file private data */
 struct sdcardfs_file_info {
@@ -224,6 +226,7 @@ struct sdcardfs_sb_info {
 	struct path obbpath;
 	void *pkgl_id;
 	struct list_head list;
+	struct notifier_block fscrypt_nb;
 };
 
 /*

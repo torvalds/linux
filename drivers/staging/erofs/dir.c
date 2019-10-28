@@ -100,8 +100,15 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 		unsigned nameoff, maxsize;
 
 		dentry_page = read_mapping_page(mapping, i, NULL);
-		if (IS_ERR(dentry_page))
-			continue;
+		if (dentry_page == ERR_PTR(-ENOMEM)) {
+			err = -ENOMEM;
+			break;
+		} else if (IS_ERR(dentry_page)) {
+			errln("fail to readdir of logical block %u of nid %llu",
+			      i, EROFS_V(dir)->nid);
+			err = PTR_ERR(dentry_page);
+			break;
+		}
 
 		lock_page(dentry_page);
 		de = (struct erofs_dirent *)kmap(dentry_page);

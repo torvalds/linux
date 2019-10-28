@@ -56,6 +56,8 @@ struct dmz_dev {
 
 	unsigned int		nr_zones;
 
+	unsigned int		flags;
+
 	sector_t		zone_nr_sectors;
 	unsigned int		zone_nr_sectors_shift;
 
@@ -66,6 +68,9 @@ struct dmz_dev {
 #define dmz_bio_chunk(dev, bio)	((bio)->bi_iter.bi_sector >> \
 				 (dev)->zone_nr_sectors_shift)
 #define dmz_chunk_block(dev, b)	((b) & ((dev)->zone_nr_blocks - 1))
+
+/* Device flags. */
+#define DMZ_BDEV_DYING		(1 << 0)
 
 /*
  * Zone descriptor.
@@ -115,7 +120,6 @@ enum {
 	DMZ_BUF,
 
 	/* Zone internal state */
-	DMZ_ACTIVE,
 	DMZ_RECLAIM,
 	DMZ_SEQ_WRITE_ERR,
 };
@@ -128,7 +132,6 @@ enum {
 #define dmz_is_empty(z)		((z)->wp_block == 0)
 #define dmz_is_offline(z)	test_bit(DMZ_OFFLINE, &(z)->flags)
 #define dmz_is_readonly(z)	test_bit(DMZ_READ_ONLY, &(z)->flags)
-#define dmz_is_active(z)	test_bit(DMZ_ACTIVE, &(z)->flags)
 #define dmz_in_reclaim(z)	test_bit(DMZ_RECLAIM, &(z)->flags)
 #define dmz_seq_write_err(z)	test_bit(DMZ_SEQ_WRITE_ERR, &(z)->flags)
 
@@ -188,8 +191,30 @@ void dmz_unmap_zone(struct dmz_metadata *zmd, struct dm_zone *zone);
 unsigned int dmz_nr_rnd_zones(struct dmz_metadata *zmd);
 unsigned int dmz_nr_unmap_rnd_zones(struct dmz_metadata *zmd);
 
-void dmz_activate_zone(struct dm_zone *zone);
-void dmz_deactivate_zone(struct dm_zone *zone);
+/*
+ * Activate a zone (increment its reference count).
+ */
+static inline void dmz_activate_zone(struct dm_zone *zone)
+{
+	atomic_inc(&zone->refcount);
+}
+
+/*
+ * Deactivate a zone. This decrement the zone reference counter
+ * indicating that all BIOs to the zone have completed when the count is 0.
+ */
+static inline void dmz_deactivate_zone(struct dm_zone *zone)
+{
+	atomic_dec(&zone->refcount);
+}
+
+/*
+ * Test if a zone is active, that is, has a refcount > 0.
+ */
+static inline bool dmz_is_active(struct dm_zone *zone)
+{
+	return atomic_read(&zone->refcount);
+}
 
 int dmz_lock_zone_reclaim(struct dm_zone *zone);
 void dmz_unlock_zone_reclaim(struct dm_zone *zone);
@@ -224,5 +249,10 @@ void dmz_suspend_reclaim(struct dmz_reclaim *zrc);
 void dmz_resume_reclaim(struct dmz_reclaim *zrc);
 void dmz_reclaim_bio_acc(struct dmz_reclaim *zrc);
 void dmz_schedule_reclaim(struct dmz_reclaim *zrc);
+
+/*
+ * Functions defined in dm-zoned-target.c
+ */
+bool dmz_bdev_is_dying(struct dmz_dev *dmz_dev);
 
 #endif /* DM_ZONED_H */

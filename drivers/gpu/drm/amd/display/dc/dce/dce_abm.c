@@ -242,6 +242,10 @@ static void dmcu_set_backlight_level(
 	s2 |= (level << ATOM_S2_CURRENT_BL_LEVEL_SHIFT);
 
 	REG_WRITE(BIOS_SCRATCH_2, s2);
+
+	/* waitDMCUReadyForCmd */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT,
+			0, 1, 80000);
 }
 
 static void dce_abm_init(struct abm *abm)
@@ -473,6 +477,8 @@ struct abm *dce_abm_create(
 void dce_abm_destroy(struct abm **abm)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(*abm);
+
+	abm_dce->base.funcs->set_abm_immediate_disable(*abm);
 
 	kfree(abm_dce);
 	*abm = NULL;

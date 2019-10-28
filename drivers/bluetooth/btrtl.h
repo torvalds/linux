@@ -65,6 +65,7 @@ void btrtl_free(struct btrtl_device_info *btrtl_dev);
 int btrtl_download_firmware(struct hci_dev *hdev,
 			    struct btrtl_device_info *btrtl_dev);
 int btrtl_setup_realtek(struct hci_dev *hdev);
+int btrtl_shutdown_realtek(struct hci_dev *hdev);
 int btrtl_get_uart_settings(struct hci_dev *hdev,
 			    struct btrtl_device_info *btrtl_dev,
 			    unsigned int *controller_baudrate,
@@ -89,6 +90,11 @@ static inline int btrtl_download_firmware(struct hci_dev *hdev,
 }
 
 static inline int btrtl_setup_realtek(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btrtl_shutdown_realtek(struct hci_dev *hdev)
 {
 	return -EOPNOTSUPP;
 }

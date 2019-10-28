@@ -265,6 +265,9 @@ void ib_uverbs_release_file(struct kref *ref)
 	if (atomic_dec_and_test(&file->device->refcount))
 		ib_uverbs_comp_dev(file->device);
 
+	if (file->async_file)
+		kref_put(&file->async_file->ref,
+			 ib_uverbs_release_async_event_file);
 	kobject_put(&file->device->kobj);
 	kfree(file);
 }
@@ -914,10 +917,6 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
 		file->is_closed = 1;
 	}
 	mutex_unlock(&file->device->lists_mutex);
-
-	if (file->async_file)
-		kref_put(&file->async_file->ref,
-			 ib_uverbs_release_async_event_file);
 
 	kref_put(&file->ref, ib_uverbs_release_file);
 

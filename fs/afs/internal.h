@@ -477,7 +477,7 @@ struct afs_volume {
 	unsigned int		servers_seq;	/* Incremented each time ->servers changes */
 
 	unsigned		cb_v_break;	/* Break-everything counter. */
-	rwlock_t		cb_break_lock;
+	rwlock_t		cb_v_break_lock;
 
 	afs_voltype_t		type;		/* type of volume */
 	short			error;

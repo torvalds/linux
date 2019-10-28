@@ -209,7 +209,7 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	struct ib_device *dev;
 
 	if (!res->valid)
-		return;
+		goto out;
 
 	dev = res_to_dev(res);
 	if (!dev)
@@ -222,8 +222,12 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	down_write(&dev->res.rwsem);
 	hash_del(&res->node);
 	res->valid = false;
-	if (res->task)
-		put_task_struct(res->task);
 	up_write(&dev->res.rwsem);
+
+out:
+	if (res->task) {
+		put_task_struct(res->task);
+		res->task = NULL;
+	}
 }
 EXPORT_SYMBOL(rdma_restrack_del);

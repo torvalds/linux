@@ -836,6 +836,9 @@ static void __blk_release_queue(struct work_struct *work)
 
 	blk_free_queue_stats(q->stats);
 
+	if (q->mq_ops)
+		cancel_delayed_work_sync(&q->requeue_work);
+
 	blk_exit_rl(q, &q->root_rl);
 
 	if (q->queue_tags)

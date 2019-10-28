@@ -169,14 +169,34 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 	 */
 	switch (mode) {
 	case DRM_MODE_SCALE_CENTER:
-		asyh->view.oW = min((u16)umode->hdisplay, asyh->view.oW);
-		asyh->view.oH = min((u16)umode_vdisplay, asyh->view.oH);
-		/* fall-through */
+		/* NOTE: This will cause scaling when the input is
+		 * larger than the output.
+		 */
+		asyh->view.oW = min(asyh->view.iW, asyh->view.oW);
+		asyh->view.oH = min(asyh->view.iH, asyh->view.oH);
+		break;
 	case DRM_MODE_SCALE_ASPECT:
-		if (asyh->view.oH < asyh->view.oW) {
+		/* Determine whether the scaling should be on width or on
+		 * height. This is done by comparing the aspect ratios of the
+		 * sizes. If the output AR is larger than input AR, that means
+		 * we want to change the width (letterboxed on the
+		 * left/right), otherwise on the height (letterboxed on the
+		 * top/bottom).
+		 *
+		 * E.g. 4:3 (1.333) AR image displayed on a 16:10 (1.6) AR
+		 * screen will have letterboxes on the left/right. However a
+		 * 16:9 (1.777) AR image on that same screen will have
+		 * letterboxes on the top/bottom.
+		 *
+		 * inputAR = iW / iH; outputAR = oW / oH
+		 * outputAR > inputAR is equivalent to oW * iH > iW * oH
+		 */
+		if (asyh->view.oW * asyh->view.iH > asyh->view.iW * asyh->view.oH) {
+			/* Recompute output width, i.e. left/right letterbox */
 			u32 r = (asyh->view.iW << 19) / asyh->view.iH;
 			asyh->view.oW = ((asyh->view.oH * r) + (r / 2)) >> 19;
 		} else {
+			/* Recompute output height, i.e. top/bottom letterbox */
 			u32 r = (asyh->view.iH << 19) / asyh->view.iW;
 			asyh->view.oH = ((asyh->view.oW * r) + (r / 2)) >> 19;
 		}

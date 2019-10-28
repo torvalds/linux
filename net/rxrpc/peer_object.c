@@ -441,6 +441,24 @@ void rxrpc_put_peer(struct rxrpc_peer *peer)
 }
 
 /*
+ * Drop a ref on a peer record where the caller already holds the
+ * peer_hash_lock.
+ */
+void rxrpc_put_peer_locked(struct rxrpc_peer *peer)
+{
+	const void *here = __builtin_return_address(0);
+	int n;
+
+	n = atomic_dec_return(&peer->usage);
+	trace_rxrpc_peer(peer, rxrpc_peer_put, n, here);
+	if (n == 0) {
+		hash_del_rcu(&peer->hash_link);
+		list_del_init(&peer->keepalive_link);
+		kfree_rcu(peer, rcu);
+	}
+}
+
+/*
  * Make sure all peer records have been discarded.
  */
 void rxrpc_destroy_all_peers(struct rxrpc_net *rxnet)

@@ -42,13 +42,20 @@ module_param_named(modeset, virtio_gpu_modeset, int, 0400);
 
 static int virtio_gpu_probe(struct virtio_device *vdev)
 {
+	int ret;
+
 	if (vgacon_text_force() && virtio_gpu_modeset == -1)
 		return -EINVAL;
 
 	if (virtio_gpu_modeset == 0)
 		return -EINVAL;
 
-	return drm_virtio_init(&driver, vdev);
+	ret = drm_virtio_init(&driver, vdev);
+	if (ret)
+		return ret;
+
+	drm_fbdev_generic_setup(vdev->priv, 32);
+	return 0;
 }
 
 static void virtio_gpu_remove(struct virtio_device *vdev)
@@ -80,6 +87,7 @@ static unsigned int features[] = {
 	 */
 	VIRTIO_GPU_F_VIRGL,
 #endif
+	VIRTIO_GPU_F_EDID,
 };
 static struct virtio_driver virtio_gpu_driver = {
 	.feature_table = features,
@@ -130,8 +138,6 @@ static struct drm_driver driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_import = drm_gem_prime_import,
-	.gem_prime_pin = virtgpu_gem_prime_pin,
-	.gem_prime_unpin = virtgpu_gem_prime_unpin,
 	.gem_prime_get_sg_table = virtgpu_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table = virtgpu_gem_prime_import_sg_table,
 	.gem_prime_vmap = virtgpu_gem_prime_vmap,

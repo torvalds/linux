@@ -49,7 +49,7 @@ SYSCALL_DEFINE1(arm64_personality, unsigned int, personality)
 
 asmlinkage long sys_ni_syscall(void);
 
-SYSCALL_DEFINE0(ni_syscall)
+asmlinkage long __arm64_sys_ni_syscall(const struct pt_regs *__unused)
 {
 	return sys_ni_syscall();
 }

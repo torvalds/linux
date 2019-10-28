@@ -287,7 +287,6 @@ config BPF_JIT
 	bool "enable BPF Just In Time compiler"
 	depends on HAVE_CBPF_JIT || HAVE_EBPF_JIT
 	depends on MODULES
-	depends on !CFI
 	---help---
 	  Berkeley Packet Filter filtering capabilities are normally handled
 	  by an interpreter. This option allows kernel to generate a native

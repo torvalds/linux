@@ -187,6 +187,51 @@ static const struct i2c_algorithm cht_wc_i2c_adap_algo = {
 	.smbus_xfer = cht_wc_i2c_adap_smbus_xfer,
 };
 
+/*
+ * We are an i2c-adapter which itself is part of an i2c-client. This means that
+ * transfers done through us take adapter->bus_lock twice, once for our parent
+ * i2c-adapter and once to take our own bus_lock. Lockdep does not like this
+ * nested locking, to make lockdep happy in the case of busses with muxes, the
+ * i2c-core's i2c_adapter_lock_bus function calls:
+ * rt_mutex_lock_nested(&adapter->bus_lock, i2c_adapter_depth(adapter));
+ *
+ * But i2c_adapter_depth only works when the direct parent of the adapter is
+ * another adapter, as it is only meant for muxes. In our case there is an
+ * i2c-client and MFD instantiated platform_device in the parent->child chain
+ * between the 2 devices.
+ *
+ * So we override the default i2c_lock_operations and pass a hardcoded
+ * depth of 1 to rt_mutex_lock_nested, to make lockdep happy.
+ *
+ * Note that if there were to be a mux attached to our adapter, this would
+ * break things again since the i2c-mux code expects the root-adapter to have
+ * a locking depth of 0. But we always have only 1 client directly attached
+ * in the form of the Charger IC paired with the CHT Whiskey Cove PMIC.
+ */
+static void cht_wc_i2c_adap_lock_bus(struct i2c_adapter *adapter,
+				 unsigned int flags)
+{
+	rt_mutex_lock_nested(&adapter->bus_lock, 1);
+}
+
+static int cht_wc_i2c_adap_trylock_bus(struct i2c_adapter *adapter,
+				   unsigned int flags)
+{
+	return rt_mutex_trylock(&adapter->bus_lock);
+}
+
+static void cht_wc_i2c_adap_unlock_bus(struct i2c_adapter *adapter,
+				   unsigned int flags)
+{
+	rt_mutex_unlock(&adapter->bus_lock);
+}
+
+static const struct i2c_lock_operations cht_wc_i2c_adap_lock_ops = {
+	.lock_bus =    cht_wc_i2c_adap_lock_bus,
+	.trylock_bus = cht_wc_i2c_adap_trylock_bus,
+	.unlock_bus =  cht_wc_i2c_adap_unlock_bus,
+};
+
 /**** irqchip for the client connected to the extchgr i2c adapter ****/
 static void cht_wc_i2c_irq_lock(struct irq_data *data)
 {
@@ -295,6 +340,7 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 	adap->adapter.owner = THIS_MODULE;
 	adap->adapter.class = I2C_CLASS_HWMON;
 	adap->adapter.algo = &cht_wc_i2c_adap_algo;
+	adap->adapter.lock_ops = &cht_wc_i2c_adap_lock_ops;
 	strlcpy(adap->adapter.name, "PMIC I2C Adapter",
 		sizeof(adap->adapter.name));
 	adap->adapter.dev.parent = &pdev->dev;

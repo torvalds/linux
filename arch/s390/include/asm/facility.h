@@ -59,6 +59,18 @@ static inline int test_facility(unsigned long nr)
 	return __test_facility(nr, &S390_lowcore.stfle_fac_list);
 }
 
+static inline unsigned long __stfle_asm(u64 *stfle_fac_list, int size)
+{
+	register unsigned long reg0 asm("0") = size - 1;
+
+	asm volatile(
+		".insn s,0xb2b00000,0(%1)" /* stfle */
+		: "+d" (reg0)
+		: "a" (stfle_fac_list)
+		: "memory", "cc");
+	return reg0;
+}
+
 /**
  * stfle - Store facility list extended
  * @stfle_fac_list: array where facility list can be stored
@@ -76,13 +88,8 @@ static inline void stfle(u64 *stfle_fac_list, int size)
 	memcpy(stfle_fac_list, &S390_lowcore.stfl_fac_list, 4);
 	if (S390_lowcore.stfl_fac_list & 0x01000000) {
 		/* More facility bits available with stfle */
-		register unsigned long reg0 asm("0") = size - 1;
-
-		asm volatile(".insn s,0xb2b00000,0(%1)" /* stfle */
-			     : "+d" (reg0)
-			     : "a" (stfle_fac_list)
-			     : "memory", "cc");
-		nr = (reg0 + 1) * 8; /* # bytes stored by stfle */
+		nr = __stfle_asm(stfle_fac_list, size);
+		nr = min_t(unsigned long, (nr + 1) * 8, size * 8);
 	}
 	memset((char *) stfle_fac_list + nr, 0, size * 8 - nr);
 	preempt_enable();

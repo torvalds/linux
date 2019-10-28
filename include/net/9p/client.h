@@ -64,22 +64,15 @@ enum p9_trans_status {
 
 /**
  * enum p9_req_status_t - status of a request
- * @REQ_STATUS_IDLE: request slot unused
  * @REQ_STATUS_ALLOC: request has been allocated but not sent
  * @REQ_STATUS_UNSENT: request waiting to be sent
  * @REQ_STATUS_SENT: request sent to server
  * @REQ_STATUS_RCVD: response received from server
  * @REQ_STATUS_FLSHD: request has been flushed
  * @REQ_STATUS_ERROR: request encountered an error on the client side
- *
- * The @REQ_STATUS_IDLE state is used to mark a request slot as unused
- * but use is actually tracked by the idpool structure which handles tag
- * id allocation.
- *
  */
 
 enum p9_req_status_t {
-	REQ_STATUS_IDLE,
 	REQ_STATUS_ALLOC,
 	REQ_STATUS_UNSENT,
 	REQ_STATUS_SENT,
@@ -92,70 +85,46 @@ enum p9_req_status_t {
  * struct p9_req_t - request slots
  * @status: status of this request slot
  * @t_err: transport error
- * @flush_tag: tag of request being flushed (for flush requests)
  * @wq: wait_queue for the client to block on for this request
  * @tc: the request fcall structure
  * @rc: the response fcall structure
  * @aux: transport specific data (provided for trans_fd migration)
  * @req_list: link for higher level objects to chain requests
- *
- * Transport use an array to track outstanding requests
- * instead of a list.  While this may incurr overhead during initial
- * allocation or expansion, it makes request lookup much easier as the
- * tag id is a index into an array.  (We use tag+1 so that we can accommodate
- * the -1 tag for the T_VERSION request).
- * This also has the nice effect of only having to allocate wait_queues
- * once, instead of constantly allocating and freeing them.  Its possible
- * other resources could benefit from this scheme as well.
- *
  */
-
 struct p9_req_t {
 	int status;
 	int t_err;
+	struct kref refcount;
 	wait_queue_head_t wq;
-	struct p9_fcall *tc;
-	struct p9_fcall *rc;
+	struct p9_fcall tc;
+	struct p9_fcall rc;
 	void *aux;
-
 	struct list_head req_list;
 };
 
 /**
  * struct p9_client - per client instance state
- * @lock: protect @fidlist
+ * @lock: protect @fids and @reqs
  * @msize: maximum data size negotiated by protocol
- * @dotu: extension flags negotiated by protocol
  * @proto_version: 9P protocol version to use
  * @trans_mod: module API instantiated with this client
+ * @status: connection state
  * @trans: tranport instance state and API
  * @fids: All active FID handles
- * @tagpool - transaction id accounting for session
- * @reqs - 2D array of requests
- * @max_tag - current maximum tag id allocated
- * @name - node name used as client id
+ * @reqs: All active requests.
+ * @name: node name used as client id
  *
  * The client structure is used to keep track of various per-client
  * state that has been instantiated.
- * In order to minimize per-transaction overhead we use a
- * simple array to lookup requests instead of a hash table
- * or linked list.  In order to support larger number of
- * transactions, we make this a 2D array, allocating new rows
- * when we need to grow the total number of the transactions.
- *
- * Each row is 256 requests and we'll support up to 256 rows for
- * a total of 64k concurrent requests per session.
- *
- * Bugs: duplicated data and potentially unnecessary elements.
  */
-
 struct p9_client {
-	spinlock_t lock; /* protect client structure */
+	spinlock_t lock;
 	unsigned int msize;
 	unsigned char proto_version;
 	struct p9_trans_module *trans_mod;
 	enum p9_trans_status status;
 	void *trans;
+	struct kmem_cache *fcall_cache;
 
 	union {
 		struct {
@@ -170,10 +139,7 @@ struct p9_client {
 	} trans_opts;
 
 	struct idr fids;
-
-	struct p9_idpool *tagpool;
-	struct p9_req_t *reqs[P9_ROW_MAXTAG];
-	int max_tag;
+	struct idr reqs;
 
 	char name[__NEW_UTS_LEN + 1];
 };
@@ -266,7 +232,21 @@ int p9_client_mkdir_dotl(struct p9_fid *fid, const char *name, int mode,
 				kgid_t gid, struct p9_qid *);
 int p9_client_lock_dotl(struct p9_fid *fid, struct p9_flock *flock, u8 *status);
 int p9_client_getlock_dotl(struct p9_fid *fid, struct p9_getlock *fl);
+void p9_fcall_fini(struct p9_fcall *fc);
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
+
+static inline void p9_req_get(struct p9_req_t *r)
+{
+	kref_get(&r->refcount);
+}
+
+static inline int p9_req_try_get(struct p9_req_t *r)
+{
+	return kref_get_unless_zero(&r->refcount);
+}
+
+int p9_req_put(struct p9_req_t *r);
+
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status);
 
 int p9_parse_header(struct p9_fcall *, int32_t *, int8_t *, int16_t *, int);
@@ -278,5 +258,8 @@ int p9_is_proto_dotl(struct p9_client *clnt);
 struct p9_fid *p9_client_xattrwalk(struct p9_fid *, const char *, u64 *);
 int p9_client_xattrcreate(struct p9_fid *, const char *, u64, int);
 int p9_client_readlink(struct p9_fid *fid, char **target);
+
+int p9_client_init(void);
+void p9_client_exit(void);
 
 #endif /* NET_9P_CLIENT_H */

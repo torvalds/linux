@@ -22,7 +22,6 @@
 
 #include <linux/types.h>
 #include <asm/bootinfo-atari.h>
-#include <asm/raw_io.h>
 #include <asm/kmap.h>
 
 extern u_long atari_mch_cookie;
@@ -124,14 +123,6 @@ extern struct atari_hw_present atari_hw_present;
  * reads from memory). Both '040 and '060 invalidate cache entries on snooped
  * DMA reads (i.e., writes to memory).
  */
-
-
-#define atari_readb   raw_inb
-#define atari_writeb  raw_outb
-
-#define atari_inb_p   raw_inb
-#define atari_outb_p  raw_outb
-
 
 
 #include <linux/mm.h>

@@ -467,8 +467,8 @@ static int kirin_pcie_add_msi(struct dw_pcie *pci,
 	return 0;
 }
 
-static int __init kirin_add_pcie_port(struct dw_pcie *pci,
-				      struct platform_device *pdev)
+static int kirin_add_pcie_port(struct dw_pcie *pci,
+			       struct platform_device *pdev)
 {
 	int ret;
 

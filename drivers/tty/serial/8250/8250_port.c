@@ -1897,21 +1897,19 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 			status = serial8250_rx_chars(up, status);
 	}
 #else
-	if (status & (UART_LSR_DR | UART_LSR_BI) &&
-	    iir & UART_IIR_RDI) {
+	if (status & (UART_LSR_DR | UART_LSR_BI)) {
 		if (!up->dma || handle_rx_dma(up, iir))
 			status = serial8250_rx_chars(up, status);
 	}
 #endif
 	serial8250_modem_status(up);
-
 #ifdef CONFIG_ARCH_ROCKCHIP
 	if ((!up->dma || (up->dma && (!up->dma->txchan || up->dma->tx_err))) &&
 	    ((iir & 0xf) == UART_IIR_THRI))
 		serial8250_tx_chars(up);
 #else
-	if ((!up->dma || (up->dma && up->dma->tx_err)) &&
-	    (status & UART_LSR_THRE))
+	if ((!up->dma || up->dma->tx_err) && (status & UART_LSR_THRE) &&
+		(up->ier & UART_IER_THRI))
 		serial8250_tx_chars(up);
 #endif
 

@@ -315,7 +315,7 @@ out:
 }
 
 void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		     enum nl80211_band band)
+		     enum nl80211_band band, bool update)
 {
 	struct ieee80211_hw *hw = mvm->hw;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -324,7 +324,8 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct ieee80211_supported_band *sband;
 	struct iwl_tlc_config_cmd cfg_cmd = {
 		.sta_id = mvmsta->sta_id,
-		.max_ch_width = rs_fw_bw_from_sta_bw(sta),
+		.max_ch_width = update ?
+			rs_fw_bw_from_sta_bw(sta) : RATE_MCS_CHAN_WIDTH_20,
 		.flags = cpu_to_le16(rs_fw_set_config_flags(mvm, sta)),
 		.chains = rs_fw_set_active_chains(iwl_mvm_get_valid_tx_ant(mvm)),
 		.max_mpdu_len = cpu_to_le16(sta->max_amsdu_len),

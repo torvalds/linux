@@ -916,8 +916,10 @@ static int init_thermal_controller(
 			PHM_PlatformCaps_ThermalController
 		  );
 
-	if (0 == powerplay_table->usFanTableOffset)
+	if (0 == powerplay_table->usFanTableOffset) {
+		hwmgr->thermal_controller.use_hw_fan_control = 1;
 		return 0;
+	}
 
 	fan_table = (const PPTable_Generic_SubTable_Header *)
 		(((unsigned long)powerplay_table) +

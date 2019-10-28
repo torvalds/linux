@@ -509,6 +509,7 @@ void cnstr_shdsc_aead_givencap(u32 * const desc, struct alginfo *cdata,
 			       const bool is_qi, int era)
 {
 	u32 geniv, moveiv;
+	u32 *wait_cmd;
 
 	/* Note: Context registers are saved. */
 	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce, era);
@@ -604,6 +605,14 @@ copy_iv:
 
 	/* Will read cryptlen */
 	append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
+
+	/*
+	 * Wait for IV transfer (ofifo -> class2) to finish before starting
+	 * ciphertext transfer (ofifo -> external memory).
+	 */
+	wait_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL | JUMP_COND_NIFP);
+	set_jump_tgt_here(desc, wait_cmd);
+
 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_BOTH | KEY_VLF |
 			     FIFOLD_TYPE_MSG1OUT2 | FIFOLD_TYPE_LASTBOTH);
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | KEY_VLF);

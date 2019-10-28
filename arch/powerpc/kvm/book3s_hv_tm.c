@@ -130,8 +130,8 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 			return RESUME_GUEST;
 		}
 		/* Set CR0 to indicate previous transactional state */
-		vcpu->arch.cr = (vcpu->arch.cr & 0x0fffffff) |
-			(((msr & MSR_TS_MASK) >> MSR_TS_S_LG) << 28);
+		vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & 0x0fffffff) |
+			(((msr & MSR_TS_MASK) >> MSR_TS_S_LG) << 29);
 		/* L=1 => tresume, L=0 => tsuspend */
 		if (instr & (1 << 21)) {
 			if (MSR_TM_SUSPENDED(msr))
@@ -174,8 +174,8 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 		copy_from_checkpoint(vcpu);
 
 		/* Set CR0 to indicate previous transactional state */
-		vcpu->arch.cr = (vcpu->arch.cr & 0x0fffffff) |
-			(((msr & MSR_TS_MASK) >> MSR_TS_S_LG) << 28);
+		vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & 0x0fffffff) |
+			(((msr & MSR_TS_MASK) >> MSR_TS_S_LG) << 29);
 		vcpu->arch.shregs.msr &= ~MSR_TS_MASK;
 		return RESUME_GUEST;
 
@@ -204,8 +204,8 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 		copy_to_checkpoint(vcpu);
 
 		/* Set CR0 to indicate previous transactional state */
-		vcpu->arch.cr = (vcpu->arch.cr & 0x0fffffff) |
-			(((msr & MSR_TS_MASK) >> MSR_TS_S_LG) << 28);
+		vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & 0x0fffffff) |
+			(((msr & MSR_TS_MASK) >> MSR_TS_S_LG) << 29);
 		vcpu->arch.shregs.msr = msr | MSR_TS_S;
 		return RESUME_GUEST;
 	}

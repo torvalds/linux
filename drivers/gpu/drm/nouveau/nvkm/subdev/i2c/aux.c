@@ -40,8 +40,7 @@ nvkm_i2c_aux_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		u8 *ptr = msg->buf;
 
 		while (remaining) {
-			u8 cnt = (remaining > 16) ? 16 : remaining;
-			u8 cmd;
+			u8 cnt, retries, cmd;
 
 			if (msg->flags & I2C_M_RD)
 				cmd = 1;
@@ -51,10 +50,19 @@ nvkm_i2c_aux_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			if (mcnt || remaining > 16)
 				cmd |= 4; /* MOT */
 
-			ret = aux->func->xfer(aux, true, cmd, msg->addr, ptr, &cnt);
-			if (ret < 0) {
-				nvkm_i2c_aux_release(aux);
-				return ret;
+			for (retries = 0, cnt = 0;
+			     retries < 32 && !cnt;
+			     retries++) {
+				cnt = min_t(u8, remaining, 16);
+				ret = aux->func->xfer(aux, true, cmd,
+						      msg->addr, ptr, &cnt);
+				if (ret < 0)
+					goto out;
+			}
+			if (!cnt) {
+				AUX_TRACE(aux, "no data after 32 retries");
+				ret = -EIO;
+				goto out;
 			}
 
 			ptr += cnt;
@@ -64,8 +72,10 @@ nvkm_i2c_aux_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		msg++;
 	}
 
+	ret = num;
+out:
 	nvkm_i2c_aux_release(aux);
-	return num;
+	return ret;
 }
 
 static u32

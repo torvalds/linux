@@ -9,20 +9,37 @@
 #include <linux/delay.h>
 #include "tascam.h"
 
+#define CLOCK_STATUS_MASK      0xffff0000
+#define CLOCK_CONFIG_MASK      0x0000ffff
+
 #define CALLBACK_TIMEOUT 500
 
 static int get_clock(struct snd_tscm *tscm, u32 *data)
 {
+	int trial = 0;
 	__be32 reg;
 	int err;
 
-	err = snd_fw_transaction(tscm->unit, TCODE_READ_QUADLET_REQUEST,
-				 TSCM_ADDR_BASE + TSCM_OFFSET_CLOCK_STATUS,
-				 &reg, sizeof(reg), 0);
-	if (err >= 0)
-		*data = be32_to_cpu(reg);
+	while (trial++ < 5) {
+		err = snd_fw_transaction(tscm->unit, TCODE_READ_QUADLET_REQUEST,
+				TSCM_ADDR_BASE + TSCM_OFFSET_CLOCK_STATUS,
+				&reg, sizeof(reg), 0);
+		if (err < 0)
+			return err;
 
-	return err;
+		*data = be32_to_cpu(reg);
+		if (*data & CLOCK_STATUS_MASK)
+			break;
+
+		// In intermediate state after changing clock status.
+		msleep(50);
+	}
+
+	// Still in the intermediate state.
+	if (trial >= 5)
+		return -EAGAIN;
+
+	return 0;
 }
 
 static int set_clock(struct snd_tscm *tscm, unsigned int rate,
@@ -35,7 +52,7 @@ static int set_clock(struct snd_tscm *tscm, unsigned int rate,
 	err = get_clock(tscm, &data);
 	if (err < 0)
 		return err;
-	data &= 0x0000ffff;
+	data &= CLOCK_CONFIG_MASK;
 
 	if (rate > 0) {
 		data &= 0x000000ff;
@@ -80,17 +97,14 @@ static int set_clock(struct snd_tscm *tscm, unsigned int rate,
 
 int snd_tscm_stream_get_rate(struct snd_tscm *tscm, unsigned int *rate)
 {
-	u32 data = 0x0;
-	unsigned int trials = 0;
+	u32 data;
 	int err;
 
-	while (data == 0x0 || trials++ < 5) {
-		err = get_clock(tscm, &data);
-		if (err < 0)
-			return err;
+	err = get_clock(tscm, &data);
+	if (err < 0)
+		return err;
 
-		data = (data & 0xff000000) >> 24;
-	}
+	data = (data & 0xff000000) >> 24;
 
 	/* Check base rate. */
 	if ((data & 0x0f) == 0x01)

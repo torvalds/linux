@@ -293,6 +293,11 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_machine_fdt(__fdt_pointer);
 
+	/*
+	 * Initialise the static keys early as they may be enabled by the
+	 * cpufeature code and early parameters.
+	 */
+	jump_label_init();
 	parse_early_param();
 
 	/*
@@ -338,6 +343,9 @@ void __init setup_arch(char **cmdline_p)
 	cpu_read_bootcpu_ops();
 	smp_init_cpus();
 	smp_build_mpidr_hash();
+
+	/* Init percpu seeds for random tags after cpus are set up. */
+	kasan_init_tags();
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*

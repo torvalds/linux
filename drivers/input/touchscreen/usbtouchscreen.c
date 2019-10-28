@@ -1672,6 +1672,8 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (!usbtouch || !input_dev)
 		goto out_free;
 
+	mutex_init(&usbtouch->pm_mutex);
+
 	type = &usbtouch_dev_info[id->driver_info];
 	usbtouch->type = type;
 	if (!type->process_pkt)

@@ -276,7 +276,6 @@ static void zcrypt_pcixcc_queue_remove(struct ap_device *ap_dev)
 	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
 	struct zcrypt_queue *zq = aq->private;
 
-	ap_queue_remove(aq);
 	if (zq)
 		zcrypt_queue_unregister(zq);
 }

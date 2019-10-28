@@ -1,0 +1,9 @@
+BRANCH=android-4.19
+KERNEL_DIR=common
+
+CC=clang
+CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r365631c/bin
+
+EXTRA_CMDS=''
+STOP_SHIP_TRACEPRINTK=1
+LD=ld.lld

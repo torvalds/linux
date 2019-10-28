@@ -2488,6 +2488,10 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 	mlxsw_reg_ptys_eth_unpack(ptys_pl, &eth_proto_cap, NULL, NULL);
 
 	autoneg = cmd->base.autoneg == AUTONEG_ENABLE;
+	if (!autoneg && cmd->base.speed == SPEED_56000) {
+		netdev_err(dev, "56G not supported with autoneg off\n");
+		return -EINVAL;
+	}
 	eth_proto_new = autoneg ?
 		mlxsw_sp_to_ptys_advert_link(cmd) :
 		mlxsw_sp_to_ptys_speed(cmd->base.speed);
@@ -4677,6 +4681,16 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		} else if (netif_is_macvlan(upper_dev)) {
 			if (!info->linking)
 				mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
+		} else if (is_vlan_dev(upper_dev)) {
+			struct net_device *br_dev;
+
+			if (!netif_is_bridge_port(upper_dev))
+				break;
+			if (info->linking)
+				break;
+			br_dev = netdev_master_upper_dev_get(upper_dev);
+			mlxsw_sp_port_bridge_leave(mlxsw_sp_port, upper_dev,
+						   br_dev);
 		}
 		break;
 	}
@@ -5018,7 +5032,7 @@ static int __init mlxsw_sp_module_init(void)
 	return 0;
 
 err_sp2_pci_driver_register:
-	mlxsw_pci_driver_unregister(&mlxsw_sp2_pci_driver);
+	mlxsw_pci_driver_unregister(&mlxsw_sp1_pci_driver);
 err_sp1_pci_driver_register:
 	mlxsw_core_driver_unregister(&mlxsw_sp2_driver);
 err_sp2_core_driver_register:

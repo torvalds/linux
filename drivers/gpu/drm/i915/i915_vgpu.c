@@ -100,6 +100,9 @@ static struct _balloon_info_ bl_info;
 static void vgt_deballoon_space(struct i915_ggtt *ggtt,
 				struct drm_mm_node *node)
 {
+	if (!drm_mm_node_allocated(node))
+		return;
+
 	DRM_DEBUG_DRIVER("deballoon space: range [0x%llx - 0x%llx] %llu KiB.\n",
 			 node->start,
 			 node->start + node->size,

@@ -1723,8 +1723,8 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 	mutex_lock(&id_priv->handler_mutex);
 	mutex_unlock(&id_priv->handler_mutex);
 
+	rdma_restrack_del(&id_priv->res);
 	if (id_priv->cma_dev) {
-		rdma_restrack_del(&id_priv->res);
 		if (rdma_cap_ib_cm(id_priv->id.device, 1)) {
 			if (id_priv->cm_id.ib)
 				ib_destroy_cm_id(id_priv->cm_id.ib);
@@ -3463,10 +3463,9 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 
 	return 0;
 err2:
-	if (id_priv->cma_dev) {
-		rdma_restrack_del(&id_priv->res);
+	rdma_restrack_del(&id_priv->res);
+	if (id_priv->cma_dev)
 		cma_release_dev(id_priv);
-	}
 err1:
 	cma_comp_exch(id_priv, RDMA_CM_ADDR_BOUND, RDMA_CM_IDLE);
 	return ret;

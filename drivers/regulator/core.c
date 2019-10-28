@@ -5109,7 +5109,7 @@ static int __init regulator_init(void)
 /* init early to allow our consumers to complete system booting */
 core_initcall(regulator_init);
 
-static int __init regulator_late_cleanup(struct device *dev, void *data)
+static int regulator_late_cleanup(struct device *dev, void *data)
 {
 	struct regulator_dev *rdev = dev_to_rdev(dev);
 	const struct regulator_ops *ops = rdev->desc->ops;
@@ -5157,6 +5157,30 @@ unlock:
 
 	return 0;
 }
+
+static void regulator_init_complete_work_function(struct work_struct *work)
+{
+	/*
+	 * Regulators may had failed to resolve their input supplies
+	 * when were registered, either because the input supply was
+	 * not registered yet or because its parent device was not
+	 * bound yet. So attempt to resolve the input supplies for
+	 * pending regulators before trying to disable unused ones.
+	 */
+	class_for_each_device(&regulator_class, NULL, NULL,
+			      regulator_register_resolve_supply);
+
+	/* If we have a full configuration then disable any regulators
+	 * we have permission to change the status for and which are
+	 * not in use or always_on.  This is effectively the default
+	 * for DT and ACPI as they have full constraints.
+	 */
+	class_for_each_device(&regulator_class, NULL, NULL,
+			      regulator_late_cleanup);
+}
+
+static DECLARE_DELAYED_WORK(regulator_init_complete_work,
+			    regulator_init_complete_work_function);
 
 static void __init regulator_release_early_min_volt(void)
 {
@@ -5210,22 +5234,18 @@ static int __init regulator_init_complete(void)
 		has_full_constraints = true;
 
 	/*
-	 * Regulators may had failed to resolve their input supplies
-	 * when were registered, either because the input supply was
-	 * not registered yet or because its parent device was not
-	 * bound yet. So attempt to resolve the input supplies for
-	 * pending regulators before trying to disable unused ones.
+	 * We punt completion for an arbitrary amount of time since
+	 * systems like distros will load many drivers from userspace
+	 * so consumers might not always be ready yet, this is
+	 * particularly an issue with laptops where this might bounce
+	 * the display off then on.  Ideally we'd get a notification
+	 * from userspace when this happens but we don't so just wait
+	 * a bit and hope we waited long enough.  It'd be better if
+	 * we'd only do this on systems that need it, and a kernel
+	 * command line option might be useful.
 	 */
-	class_for_each_device(&regulator_class, NULL, NULL,
-			      regulator_register_resolve_supply);
-
-	/* If we have a full configuration then disable any regulators
-	 * we have permission to change the status for and which are
-	 * not in use or always_on.  This is effectively the default
-	 * for DT and ACPI as they have full constraints.
-	 */
-	class_for_each_device(&regulator_class, NULL, NULL,
-			      regulator_late_cleanup);
+	schedule_delayed_work(&regulator_init_complete_work,
+			      msecs_to_jiffies(30000));
 
 	class_for_each_device(&regulator_class, NULL, NULL,
 			      regulator_register_fill_coupling_array);

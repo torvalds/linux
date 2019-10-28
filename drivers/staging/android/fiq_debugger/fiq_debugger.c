@@ -1412,7 +1412,8 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 		state->no_sleep = true;
 	state->ignore_next_wakeup_irq = !state->no_sleep;
 
-	wakeup_source_init(&state->debugger_wake_src, "serial-debug");
+	state->debugger_wake_src.name = "serial-debug";
+	wakeup_source_add(&state->debugger_wake_src);
 
 #ifdef CONFIG_ARCH_ROCKCHIP
 	if (uart_irq < 0 && fiq < 0)
@@ -1533,7 +1534,8 @@ err_uart_init:
 		clk_disable(state->clk);
 	if (state->clk)
 		clk_put(state->clk);
-	wakeup_source_trash(&state->debugger_wake_src);
+	wakeup_source_remove(&state->debugger_wake_src);
+	__pm_relax(&state->debugger_wake_src);
 	platform_set_drvdata(pdev, NULL);
 	kfree(state);
 	return ret;

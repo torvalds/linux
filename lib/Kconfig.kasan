@@ -1,36 +1,82 @@
+# This config refers to the generic KASAN mode.
 config HAVE_ARCH_KASAN
 	bool
 
-if HAVE_ARCH_KASAN
+config HAVE_ARCH_KASAN_SW_TAGS
+	bool
+
+config CC_HAS_KASAN_GENERIC
+	def_bool $(cc-option, -fsanitize=kernel-address)
+
+config CC_HAS_KASAN_SW_TAGS
+	def_bool $(cc-option, -fsanitize=kernel-hwaddress)
 
 config KASAN
-	bool "KASan: runtime memory debugger"
+	bool "KASAN: runtime memory debugger"
+	depends on (HAVE_ARCH_KASAN && CC_HAS_KASAN_GENERIC) || \
+		   (HAVE_ARCH_KASAN_SW_TAGS && CC_HAS_KASAN_SW_TAGS)
+	depends on (SLUB && SYSFS) || (SLAB && !DEBUG_SLAB)
+	help
+	  Enables KASAN (KernelAddressSANitizer) - runtime memory debugger,
+	  designed to find out-of-bounds accesses and use-after-free bugs.
+	  See Documentation/dev-tools/kasan.rst for details.
+
+choice
+	prompt "KASAN mode"
+	depends on KASAN
+	default KASAN_GENERIC
+	help
+	  KASAN has two modes: generic KASAN (similar to userspace ASan,
+	  x86_64/arm64/xtensa, enabled with CONFIG_KASAN_GENERIC) and
+	  software tag-based KASAN (a version based on software memory
+	  tagging, arm64 only, similar to userspace HWASan, enabled with
+	  CONFIG_KASAN_SW_TAGS).
+	  Both generic and tag-based KASAN are strictly debugging features.
+
+config KASAN_GENERIC
+	bool "Generic mode"
+	depends on HAVE_ARCH_KASAN && CC_HAS_KASAN_GENERIC
 	depends on (SLUB && SYSFS) || (SLAB && !DEBUG_SLAB)
 	select SLUB_DEBUG if SLUB
 	select CONSTRUCTORS
 	select STACKDEPOT
 	help
-	  Enables kernel address sanitizer - runtime memory debugger,
-	  designed to find out-of-bounds accesses and use-after-free bugs.
-	  This is strictly a debugging feature and it requires a gcc version
-	  of 4.9.2 or later. Detection of out of bounds accesses to stack or
-	  global variables requires gcc 5.0 or later.
-	  This feature consumes about 1/8 of available memory and brings about
-	  ~x3 performance slowdown.
+	  Enables generic KASAN mode.
+	  Supported in both GCC and Clang. With GCC it requires version 4.9.2
+	  or later for basic support and version 5.0 or later for detection of
+	  out-of-bounds accesses for stack and global variables and for inline
+	  instrumentation mode (CONFIG_KASAN_INLINE). With Clang it requires
+	  version 3.7.0 or later and it doesn't support detection of
+	  out-of-bounds accesses for global variables yet.
+	  This mode consumes about 1/8th of available memory at kernel start
+	  and introduces an overhead of ~x1.5 for the rest of the allocations.
+	  The performance slowdown is ~x3.
 	  For better error detection enable CONFIG_STACKTRACE.
-	  Currently CONFIG_KASAN doesn't work with CONFIG_DEBUG_SLAB
+	  Currently CONFIG_KASAN_GENERIC doesn't work with CONFIG_DEBUG_SLAB
 	  (the resulting kernel does not boot).
 
-config KASAN_EXTRA
-	bool "KAsan: extra checks"
-	depends on KASAN && DEBUG_KERNEL && !COMPILE_TEST
+config KASAN_SW_TAGS
+	bool "Software tag-based mode"
+	depends on HAVE_ARCH_KASAN_SW_TAGS && CC_HAS_KASAN_SW_TAGS
+	depends on (SLUB && SYSFS) || (SLAB && !DEBUG_SLAB)
+	select SLUB_DEBUG if SLUB
+	select CONSTRUCTORS
+	select STACKDEPOT
 	help
-	  This enables further checks in the kernel address sanitizer, for now
-	  it only includes the address-use-after-scope check that can lead
-	  to excessive kernel stack usage, frame size warnings and longer
-	  compile time.
-	  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 has more
+	  Enables software tag-based KASAN mode.
+	  This mode requires Top Byte Ignore support by the CPU and therefore
+	  is only supported for arm64.
+	  This mode requires Clang version 7.0.0 or later.
+	  This mode consumes about 1/16th of available memory at kernel start
+	  and introduces an overhead of ~20% for the rest of the allocations.
+	  This mode may potentially introduce problems relating to pointer
+	  casting and comparison, as it embeds tags into the top byte of each
+	  pointer.
+	  For better error detection enable CONFIG_STACKTRACE.
+	  Currently CONFIG_KASAN_SW_TAGS doesn't work with CONFIG_DEBUG_SLAB
+	  (the resulting kernel does not boot).
 
+endchoice
 
 choice
 	prompt "Instrumentation type"
@@ -53,16 +99,36 @@ config KASAN_INLINE
 	  memory accesses. This is faster than outline (in some workloads
 	  it gives about x2 boost over outline instrumentation), but
 	  make kernel's .text size much bigger.
-	  This requires a gcc version of 5.0 or later.
+	  For CONFIG_KASAN_GENERIC this requires GCC 5.0 or later.
 
 endchoice
 
+config KASAN_STACK_ENABLE
+	bool "Enable stack instrumentation (unsafe)" if CC_IS_CLANG && !COMPILE_TEST
+	default !(CLANG_VERSION < 90000)
+	depends on KASAN
+	help
+	  The LLVM stack address sanitizer has a know problem that
+	  causes excessive stack usage in a lot of functions, see
+	  https://bugs.llvm.org/show_bug.cgi?id=38809
+	  Disabling asan-stack makes it safe to run kernels build
+	  with clang-8 with KASAN enabled, though it loses some of
+	  the functionality.
+	  This feature is always disabled when compile-testing with clang-8
+	  or earlier to avoid cluttering the output in stack overflow
+	  warnings, but clang-8 users can still enable it for builds without
+	  CONFIG_COMPILE_TEST.  On gcc and later clang versions it is
+	  assumed to always be safe to use and enabled by default.
+
+config KASAN_STACK
+	int
+	default 1 if KASAN_STACK_ENABLE || CC_IS_GCC
+	default 0
+
 config TEST_KASAN
-	tristate "Module for testing kasan for bug detection"
+	tristate "Module for testing KASAN for bug detection"
 	depends on m && KASAN
 	help
 	  This is a test module doing various nasty things like
 	  out of bounds accesses, use after free. It is useful for testing
-	  kernel debugging features like kernel address sanitizer.
-
-endif
+	  kernel debugging features like KASAN.

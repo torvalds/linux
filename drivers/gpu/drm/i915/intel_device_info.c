@@ -474,7 +474,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 			u8 eu_disabled_mask;
 			u32 n_disabled;
 
-			if (!(sseu->subslice_mask[ss] & BIT(ss)))
+			if (!(sseu->subslice_mask[s] & BIT(ss)))
 				/* skip disabled subslice */
 				continue;
 

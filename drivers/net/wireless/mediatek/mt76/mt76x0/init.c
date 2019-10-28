@@ -369,7 +369,7 @@ static void mt76x0_stop_hardware(struct mt76x0_dev *dev)
 	mt76x0_chip_onoff(dev, false, false);
 }
 
-int mt76x0_init_hardware(struct mt76x0_dev *dev)
+int mt76x0_init_hardware(struct mt76x0_dev *dev, bool reset)
 {
 	static const u16 beacon_offsets[16] = {
 		/* 512 byte per beacon */
@@ -382,7 +382,7 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 
 	dev->beacon_offsets = beacon_offsets;
 
-	mt76x0_chip_onoff(dev, true, true);
+	mt76x0_chip_onoff(dev, true, reset);
 
 	ret = mt76x0_wait_asic_ready(dev);
 	if (ret)

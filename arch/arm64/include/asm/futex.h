@@ -134,7 +134,9 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *_uaddr,
 	: "memory");
 	uaccess_disable();
 
-	*uval = val;
+	if (!ret)
+		*uval = val;
+
 	return ret;
 }
 

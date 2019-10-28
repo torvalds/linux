@@ -438,6 +438,18 @@ ENTRY(irq_entries_start)
     .endr
 END(irq_entries_start)
 
+	.align 8
+ENTRY(spurious_entries_start)
+    vector=FIRST_SYSTEM_VECTOR
+    .rept (NR_VECTORS - FIRST_SYSTEM_VECTOR)
+	UNWIND_HINT_IRET_REGS
+	pushq	$(~vector+0x80)			/* Note: always in signed byte range */
+	jmp	common_spurious
+	.align	8
+	vector=vector+1
+    .endr
+END(spurious_entries_start)
+
 .macro DEBUG_ENTRY_ASSERT_IRQS_OFF
 #ifdef CONFIG_DEBUG_ENTRY
 	pushq %rax
@@ -570,7 +582,7 @@ ENTRY(interrupt_entry)
 	testb	$3, CS-ORIG_RAX+8(%rsp)
 	jz	1f
 	SWAPGS
-
+	FENCE_SWAPGS_USER_ENTRY
 	/*
 	 * Switch to the thread stack. The IRET frame and orig_ax are
 	 * on the stack, as well as the return address. RDI..R12 are
@@ -600,8 +612,10 @@ ENTRY(interrupt_entry)
 	UNWIND_HINT_FUNC
 
 	movq	(%rdi), %rdi
+	jmp	2f
 1:
-
+	FENCE_SWAPGS_KERNEL_ENTRY
+2:
 	PUSH_AND_CLEAR_REGS save_ret=1
 	ENCODE_FRAME_POINTER 8
 
@@ -634,10 +648,20 @@ _ASM_NOKPROBE(interrupt_entry)
 
 /* Interrupt entry/exit. */
 
-	/*
-	 * The interrupt stubs push (~vector+0x80) onto the stack and
-	 * then jump to common_interrupt.
-	 */
+/*
+ * The interrupt stubs push (~vector+0x80) onto the stack and
+ * then jump to common_spurious/interrupt.
+ */
+common_spurious:
+	addq	$-0x80, (%rsp)			/* Adjust vector to [-256, -1] range */
+	call	interrupt_entry
+	UNWIND_HINT_REGS indirect=1
+	call	smp_spurious_interrupt		/* rdi points to pt_regs */
+	jmp	ret_from_intr
+END(common_spurious)
+_ASM_NOKPROBE(common_spurious)
+
+/* common_interrupt is a hotpath. Align it */
 	.p2align CONFIG_X86_L1_CACHE_SHIFT
 common_interrupt:
 	addq	$-0x80, (%rsp)			/* Adjust vector to [-256, -1] range */
@@ -1174,7 +1198,6 @@ idtentry stack_segment		do_stack_segment	has_error_code=1
 #ifdef CONFIG_XEN
 idtentry xennmi			do_nmi			has_error_code=0
 idtentry xendebug		do_debug		has_error_code=0
-idtentry xenint3		do_int3			has_error_code=0
 #endif
 
 idtentry general_protection	do_general_protection	has_error_code=1
@@ -1218,6 +1241,13 @@ ENTRY(paranoid_entry)
 	 * to kernel code, but with a user CR3 value.
 	 */
 	SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg=%rax save_reg=%r14
+
+	/*
+	 * The above SAVE_AND_SWITCH_TO_KERNEL_CR3 macro doesn't do an
+	 * unconditional CR3 write, even in the PTI case.  So do an lfence
+	 * to prevent GS speculation, regardless of whether PTI is enabled.
+	 */
+	FENCE_SWAPGS_KERNEL_ENTRY
 
 	ret
 END(paranoid_entry)
@@ -1269,6 +1299,7 @@ ENTRY(error_entry)
 	 * from user mode due to an IRET fault.
 	 */
 	SWAPGS
+	FENCE_SWAPGS_USER_ENTRY
 	/* We have user CR3.  Change to kernel CR3. */
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
 
@@ -1290,6 +1321,8 @@ ENTRY(error_entry)
 	CALL_enter_from_user_mode
 	ret
 
+.Lerror_entry_done_lfence:
+	FENCE_SWAPGS_KERNEL_ENTRY
 .Lerror_entry_done:
 	TRACE_IRQS_OFF
 	ret
@@ -1308,7 +1341,7 @@ ENTRY(error_entry)
 	cmpq	%rax, RIP+8(%rsp)
 	je	.Lbstep_iret
 	cmpq	$.Lgs_change, RIP+8(%rsp)
-	jne	.Lerror_entry_done
+	jne	.Lerror_entry_done_lfence
 
 	/*
 	 * hack: .Lgs_change can fail with user gsbase.  If this happens, fix up
@@ -1316,6 +1349,7 @@ ENTRY(error_entry)
 	 * .Lgs_change's error handler with kernel gsbase.
 	 */
 	SWAPGS
+	FENCE_SWAPGS_USER_ENTRY
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
 	jmp .Lerror_entry_done
 
@@ -1330,6 +1364,7 @@ ENTRY(error_entry)
 	 * gsbase and CR3.  Switch to kernel gsbase and CR3:
 	 */
 	SWAPGS
+	FENCE_SWAPGS_USER_ENTRY
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
 
 	/*
@@ -1421,6 +1456,7 @@ ENTRY(nmi)
 
 	swapgs
 	cld
+	FENCE_SWAPGS_USER_ENTRY
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdx
 	movq	%rsp, %rdx
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp

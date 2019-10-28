@@ -1748,6 +1748,18 @@ int kvmgt_dma_map_guest_page(unsigned long handle, unsigned long gfn,
 		ret = __gvt_cache_add(info->vgpu, gfn, *dma_addr, size);
 		if (ret)
 			goto err_unmap;
+	} else if (entry->size != size) {
+		/* the same gfn with different size: unmap and re-map */
+		gvt_dma_unmap_page(vgpu, gfn, entry->dma_addr, entry->size);
+		__gvt_cache_remove_entry(vgpu, entry);
+
+		ret = gvt_dma_map_page(vgpu, gfn, dma_addr, size);
+		if (ret)
+			goto err_unlock;
+
+		ret = __gvt_cache_add(info->vgpu, gfn, *dma_addr, size);
+		if (ret)
+			goto err_unmap;
 	} else {
 		kref_get(&entry->ref);
 		*dma_addr = entry->dma_addr;

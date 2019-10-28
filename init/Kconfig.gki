@@ -1,0 +1,75 @@
+config GKI_HIDDEN_DRM_CONFIGS
+	bool "Hidden DRM configs needed for GKI"
+	select DRM_KMS_HELPER if (HAS_IOMEM && DRM)
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_MIPI_DSI
+	help
+	  Dummy config option used to enable hidden DRM configs.
+	  These are normally selected implicitely when including a
+	  DRM module, but for GKI, the modules are built out-of-tree.
+
+config GKI_HIDDEN_REGMAP_CONFIGS
+	bool "Hidden Regmap configs needed for GKI"
+	select REGMAP_IRQ
+	help
+	  Dummy config option used to enable hidden regmap configs.
+	  These are normally selected implicitely when a module
+	  that relies on it is configured.
+
+config GKI_HIDDEN_SND_SOC_CONFIGS
+	bool "Hidden SND_SOC configs needed for GKI"
+	select SND_SOC_GENERIC_DMAENGINE_PCM if (SND_SOC && SND)
+	help
+	  Dummy config option used to enable hidden SND_SOC configs.
+	  These are normally selected implicitely when a module
+	  that relies on it is configured.
+
+config GKI_HIDDEN_GPIO_CONFIGS
+	bool "Hidden GPIO configs needed for GKI"
+	select PINCTRL_SINGLE if (PINCTRL && OF && HAS_IOMEM)
+	select GPIO_PL061 if (HAS_IOMEM && ARM_AMBA && GPIOLIB)
+	help
+	  Dummy config option used to enable hidden GPIO configs.
+	  These are normally selected implicitely when a module
+	  that relies on it is configured.
+
+# LEGACY_WEXT_ALLCONFIG Discussed upstream, soundly rejected as a unique
+# problem for GKI to solve.  It should be noted that these extensions are
+# in-effect deprecated and generally unsupported and we should pressure
+# the SOC vendors to drop any modules that require these extensions.
+config GKI_LEGACY_WEXT_ALLCONFIG
+	bool "Hidden wireless extension configs needed for GKI"
+	select WIRELESS_EXT
+	select WEXT_CORE
+	select WEXT_PROC
+	select WEXT_SPY
+	select WEXT_PRIV
+	help
+	  Dummy config option used to enable all the hidden legacy wireless
+	  extensions to the core wireless network functionality used by
+	  add-in modules.
+
+	  If you are not building a kernel to be used for a variety of
+	  out-of-kernel built wireless modules, say N here.
+
+# Atrocities needed for
+# a) building GKI modules in separate tree, or
+# b) building drivers that are not modularizable
+#
+# All of these should be reworked into an upstream solution
+# if possible.
+#
+config GKI_HACKS_TO_FIX
+	bool "GKI Dummy config options"
+	select GKI_HIDDEN_DRM_CONFIGS
+	select GKI_HIDDEN_REGMAP_CONFIGS
+	select GKI_HIDDEN_SND_SOC_CONFIGS
+	select GKI_HIDDEN_GPIO_CONFIGS
+	select GKI_LEGACY_WEXT_ALLCONFIG
+	help
+	  Dummy config option used to enable core functionality used by
+	  modules that may not be selectable in this config.
+
+	  Unless you are building a GKI kernel to be used with modules
+	  built from a different config, say N here.

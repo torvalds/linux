@@ -215,9 +215,9 @@ rmnet_map_ipv4_ul_csum_header(void *iphdr,
 	ul_header->csum_insert_offset = skb->csum_offset;
 	ul_header->csum_enabled = 1;
 	if (ip4h->protocol == IPPROTO_UDP)
-		ul_header->udp_ip4_ind = 1;
+		ul_header->udp_ind = 1;
 	else
-		ul_header->udp_ip4_ind = 0;
+		ul_header->udp_ind = 0;
 
 	/* Changing remaining fields to network order */
 	hdr++;
@@ -248,6 +248,7 @@ rmnet_map_ipv6_ul_csum_header(void *ip6hdr,
 			      struct rmnet_map_ul_csum_header *ul_header,
 			      struct sk_buff *skb)
 {
+	struct ipv6hdr *ip6h = (struct ipv6hdr *)ip6hdr;
 	__be16 *hdr = (__be16 *)ul_header, offset;
 
 	offset = htons((__force u16)(skb_transport_header(skb) -
@@ -255,7 +256,11 @@ rmnet_map_ipv6_ul_csum_header(void *ip6hdr,
 	ul_header->csum_start_offset = offset;
 	ul_header->csum_insert_offset = skb->csum_offset;
 	ul_header->csum_enabled = 1;
-	ul_header->udp_ip4_ind = 0;
+
+	if (ip6h->nexthdr == IPPROTO_UDP)
+		ul_header->udp_ind = 1;
+	else
+		ul_header->udp_ind = 0;
 
 	/* Changing remaining fields to network order */
 	hdr++;
@@ -428,7 +433,7 @@ sw_csum:
 	ul_header->csum_start_offset = 0;
 	ul_header->csum_insert_offset = 0;
 	ul_header->csum_enabled = 0;
-	ul_header->udp_ip4_ind = 0;
+	ul_header->udp_ind = 0;
 
 	priv->stats.csum_sw++;
 }

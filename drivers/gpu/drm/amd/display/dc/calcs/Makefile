@@ -32,10 +32,8 @@ endif
 
 calcs_ccflags := -mhard-float -msse $(cc_stack_align)
 
-# Use -msse2 only with clang:
-#   https://bugs.freedesktop.org/show_bug.cgi?id=109487
 ifdef CONFIG_CC_IS_CLANG
-calcs_cc_flags += -msse2
+calcs_ccflags += -msse2
 endif
 
 CFLAGS_dcn_calcs.o := $(calcs_ccflags)

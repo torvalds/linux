@@ -185,7 +185,7 @@ static int compat_drm_getmap(struct file *file, unsigned int cmd,
 	m32.size = map.size;
 	m32.type = map.type;
 	m32.flags = map.flags;
-	m32.handle = ptr_to_compat(map.handle);
+	m32.handle = ptr_to_compat((void __user *)map.handle);
 	m32.mtrr = map.mtrr;
 	if (copy_to_user(argp, &m32, sizeof(m32)))
 		return -EFAULT;
@@ -216,7 +216,7 @@ static int compat_drm_addmap(struct file *file, unsigned int cmd,
 
 	m32.offset = map.offset;
 	m32.mtrr = map.mtrr;
-	m32.handle = ptr_to_compat(map.handle);
+	m32.handle = ptr_to_compat((void __user *)map.handle);
 	if (map.handle != compat_ptr(m32.handle))
 		pr_err_ratelimited("compat_drm_addmap truncated handle %p for type %d offset %x\n",
 				   map.handle, m32.type, m32.offset);
@@ -372,7 +372,10 @@ static int copy_one_buf32(void *data, int count, struct drm_buf_entry *from)
 			      .size = from->buf_size,
 			      .low_mark = from->low_mark,
 			      .high_mark = from->high_mark};
-	return copy_to_user(to + count, &v, offsetof(drm_buf_desc32_t, flags));
+
+	if (copy_to_user(to + count, &v, offsetof(drm_buf_desc32_t, flags)))
+		return -EFAULT;
+	return 0;
 }
 
 static int drm_legacy_infobufs32(struct drm_device *dev, void *data,
@@ -526,7 +529,7 @@ static int compat_drm_getsareactx(struct file *file, unsigned int cmd,
 	if (err)
 		return err;
 
-	req32.handle = ptr_to_compat(req.handle);
+	req32.handle = ptr_to_compat((void __user *)req.handle);
 	if (copy_to_user(argp, &req32, sizeof(req32)))
 		return -EFAULT;
 
