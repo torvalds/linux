@@ -50,12 +50,20 @@ static int __init exynos_chipid_early_init(void)
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
 	struct device_node *root;
+	struct device_node *syscon;
 	struct regmap *regmap;
 	u32 product_id;
 	u32 revision;
 	int ret;
 
-	regmap = syscon_regmap_lookup_by_compatible("samsung,exynos4210-chipid");
+	syscon = of_find_compatible_node(NULL, NULL,
+					 "samsung,exynos4210-chipid");
+	if (!syscon)
+		return ENODEV;
+
+	regmap = device_node_to_regmap(syscon);
+	of_node_put(syscon);
+
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
