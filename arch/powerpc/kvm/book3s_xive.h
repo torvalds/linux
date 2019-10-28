@@ -220,6 +220,18 @@ static inline u32 kvmppc_xive_vp(struct kvmppc_xive *xive, u32 server)
 	return xive->vp_base + kvmppc_pack_vcpu_id(xive->kvm, server);
 }
 
+static inline bool kvmppc_xive_vp_in_use(struct kvm *kvm, u32 vp_id)
+{
+	struct kvm_vcpu *vcpu = NULL;
+	int i;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (vcpu->arch.xive_vcpu && vp_id == vcpu->arch.xive_vcpu->vp_id)
+			return true;
+	}
+	return false;
+}
+
 /*
  * Mapping between guest priorities and host priorities
  * is as follow.

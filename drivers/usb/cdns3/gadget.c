@@ -1145,6 +1145,14 @@ static void cdns3_transfer_completed(struct cdns3_device *priv_dev,
 		request = cdns3_next_request(&priv_ep->pending_req_list);
 		priv_req = to_cdns3_request(request);
 
+		trb = priv_ep->trb_pool + priv_ep->dequeue;
+
+		/* Request was dequeued and TRB was changed to TRB_LINK. */
+		if (TRB_FIELD_TO_TYPE(trb->control) == TRB_LINK) {
+			trace_cdns3_complete_trb(priv_ep, trb);
+			cdns3_move_deq_to_next_trb(priv_req);
+		}
+
 		/* Re-select endpoint. It could be changed by other CPU during
 		 * handling usb_gadget_giveback_request.
 		 */
@@ -2067,6 +2075,7 @@ int cdns3_gadget_ep_dequeue(struct usb_ep *ep,
 	struct usb_request *req, *req_temp;
 	struct cdns3_request *priv_req;
 	struct cdns3_trb *link_trb;
+	u8 req_on_hw_ring = 0;
 	unsigned long flags;
 	int ret = 0;
 
@@ -2083,8 +2092,10 @@ int cdns3_gadget_ep_dequeue(struct usb_ep *ep,
 
 	list_for_each_entry_safe(req, req_temp, &priv_ep->pending_req_list,
 				 list) {
-		if (request == req)
+		if (request == req) {
+			req_on_hw_ring = 1;
 			goto found;
+		}
 	}
 
 	list_for_each_entry_safe(req, req_temp, &priv_ep->deferred_req_list,
@@ -2096,26 +2107,20 @@ int cdns3_gadget_ep_dequeue(struct usb_ep *ep,
 	goto not_found;
 
 found:
-
-	if (priv_ep->wa1_trb == priv_req->trb)
-		cdns3_wa1_restore_cycle_bit(priv_ep);
-
 	link_trb = priv_req->trb;
-	cdns3_move_deq_to_next_trb(priv_req);
-	cdns3_gadget_giveback(priv_ep, priv_req, -ECONNRESET);
 
-	/* Update ring */
-	request = cdns3_next_request(&priv_ep->deferred_req_list);
-	if (request) {
-		priv_req = to_cdns3_request(request);
-
+	/* Update ring only if removed request is on pending_req_list list */
+	if (req_on_hw_ring) {
 		link_trb->buffer = TRB_BUFFER(priv_ep->trb_pool_dma +
 					      (priv_req->start_trb * TRB_SIZE));
 		link_trb->control = (link_trb->control & TRB_CYCLE) |
-				    TRB_TYPE(TRB_LINK) | TRB_CHAIN | TRB_TOGGLE;
-	} else {
-		priv_ep->flags |= EP_UPDATE_EP_TRBADDR;
+				    TRB_TYPE(TRB_LINK) | TRB_CHAIN;
+
+		if (priv_ep->wa1_trb == priv_req->trb)
+			cdns3_wa1_restore_cycle_bit(priv_ep);
 	}
+
+	cdns3_gadget_giveback(priv_ep, priv_req, -ECONNRESET);
 
 not_found:
 	spin_unlock_irqrestore(&priv_dev->lock, flags);
@@ -2571,6 +2576,7 @@ static int cdns3_gadget_start(struct cdns3 *cdns)
 	switch (max_speed) {
 	case USB_SPEED_FULL:
 		writel(USB_CONF_SFORCE_FS, &priv_dev->regs->usb_conf);
+		writel(USB_CONF_USB3DIS, &priv_dev->regs->usb_conf);
 		break;
 	case USB_SPEED_HIGH:
 		writel(USB_CONF_USB3DIS, &priv_dev->regs->usb_conf);
@@ -2661,6 +2667,13 @@ err1:
 static int __cdns3_gadget_init(struct cdns3 *cdns)
 {
 	int ret = 0;
+
+	/* Ensure 32-bit DMA Mask in case we switched back from Host mode */
+	ret = dma_set_mask_and_coherent(cdns->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(cdns->dev, "Failed to set dma mask: %d\n", ret);
+		return ret;
+	}
 
 	cdns3_drd_switch_gadget(cdns, 1);
 	pm_runtime_get_sync(cdns->dev);

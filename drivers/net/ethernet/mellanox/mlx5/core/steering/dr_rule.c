@@ -788,12 +788,10 @@ again:
 			 * it means that all the previous stes are the same,
 			 * if so, this rule is duplicated.
 			 */
-			if (mlx5dr_ste_is_last_in_rule(nic_matcher,
-						       matched_ste->ste_chain_location)) {
-				mlx5dr_info(dmn, "Duplicate rule inserted, aborting!!\n");
-				return NULL;
-			}
-			return matched_ste;
+			if (!mlx5dr_ste_is_last_in_rule(nic_matcher, ste_location))
+				return matched_ste;
+
+			mlx5dr_dbg(dmn, "Duplicate rule inserted\n");
 		}
 
 		if (!skip_rehash && dr_rule_need_enlarge_hash(cur_htbl, dmn, nic_dmn)) {

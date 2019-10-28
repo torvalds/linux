@@ -341,7 +341,6 @@ xchk_refcountbt_rec(
 	xfs_extlen_t		len;
 	xfs_nlink_t		refcount;
 	bool			has_cowflag;
-	int			error = 0;
 
 	bno = be32_to_cpu(rec->refc.rc_startblock);
 	len = be32_to_cpu(rec->refc.rc_blockcount);
@@ -366,7 +365,7 @@ xchk_refcountbt_rec(
 
 	xchk_refcountbt_xref(bs->sc, bno, len, refcount);
 
-	return error;
+	return 0;
 }
 
 /* Make sure we have as many refc blocks as the rmap says. */

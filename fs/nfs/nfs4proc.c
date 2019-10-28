@@ -6106,6 +6106,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 
 	status = nfs4_call_sync_custom(&task_setup_data);
 	if (setclientid.sc_cred) {
+		kfree(clp->cl_acceptor);
 		clp->cl_acceptor = rpcauth_stringify_acceptor(setclientid.sc_cred);
 		put_rpccred(setclientid.sc_cred);
 	}

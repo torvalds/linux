@@ -426,7 +426,7 @@ int ib_create_qp_security(struct ib_qp *qp, struct ib_device *dev)
 	int ret;
 
 	rdma_for_each_port (dev, i) {
-		is_ib = rdma_protocol_ib(dev, i++);
+		is_ib = rdma_protocol_ib(dev, i);
 		if (is_ib)
 			break;
 	}
