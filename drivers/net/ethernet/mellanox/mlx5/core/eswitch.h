@@ -217,8 +217,8 @@ enum {
 struct mlx5_eswitch {
 	struct mlx5_core_dev    *dev;
 	struct mlx5_nb          nb;
-	/* legacy data structures */
 	struct mlx5_eswitch_fdb fdb_table;
+	/* legacy data structures */
 	struct hlist_head       mc_table[MLX5_L2_ADDR_HASH_SIZE];
 	struct esw_mc_addr mc_promisc;
 	/* end of legacy */
