@@ -1665,41 +1665,6 @@ static void esw_apply_vport_conf(struct mlx5_eswitch *esw,
 			       flags);
 }
 
-static void esw_legacy_vport_create_drop_counters(struct mlx5_vport *vport)
-{
-	struct mlx5_core_dev *dev = vport->dev;
-
-	if (MLX5_CAP_ESW_INGRESS_ACL(dev, flow_counter)) {
-		vport->ingress.legacy.drop_counter = mlx5_fc_create(dev, false);
-		if (IS_ERR(vport->ingress.legacy.drop_counter)) {
-			esw_warn(dev,
-				 "vport[%d] configure ingress drop rule counter failed\n",
-				 vport->vport);
-			vport->ingress.legacy.drop_counter = NULL;
-		}
-	}
-
-	if (MLX5_CAP_ESW_EGRESS_ACL(dev, flow_counter)) {
-		vport->egress.legacy.drop_counter = mlx5_fc_create(dev, false);
-		if (IS_ERR(vport->egress.legacy.drop_counter)) {
-			esw_warn(dev,
-				 "vport[%d] configure egress drop rule counter failed\n",
-				 vport->vport);
-			vport->egress.legacy.drop_counter = NULL;
-		}
-	}
-}
-
-static void esw_legacy_vport_destroy_drop_counters(struct mlx5_vport *vport)
-{
-	struct mlx5_core_dev *dev = vport->dev;
-
-	if (vport->ingress.legacy.drop_counter)
-		mlx5_fc_destroy(dev, vport->ingress.legacy.drop_counter);
-	if (vport->egress.legacy.drop_counter)
-		mlx5_fc_destroy(dev, vport->egress.legacy.drop_counter);
-}
-
 static int esw_vport_create_legacy_acl_tables(struct mlx5_eswitch *esw,
 					      struct mlx5_vport *vport)
 {
@@ -1709,14 +1674,46 @@ static int esw_vport_create_legacy_acl_tables(struct mlx5_eswitch *esw,
 	if (mlx5_esw_is_manager_vport(esw, vport->vport))
 		return 0;
 
+	if (!mlx5_esw_is_manager_vport(esw, vport->vport) &&
+	    MLX5_CAP_ESW_INGRESS_ACL(esw->dev, flow_counter)) {
+		vport->ingress.legacy.drop_counter = mlx5_fc_create(esw->dev, false);
+		if (IS_ERR(vport->ingress.legacy.drop_counter)) {
+			esw_warn(esw->dev,
+				 "vport[%d] configure ingress drop rule counter failed\n",
+				 vport->vport);
+			vport->ingress.legacy.drop_counter = NULL;
+		}
+	}
+
 	ret = esw_vport_ingress_config(esw, vport);
 	if (ret)
-		return ret;
+		goto ingress_err;
+
+	if (!mlx5_esw_is_manager_vport(esw, vport->vport) &&
+	    MLX5_CAP_ESW_EGRESS_ACL(esw->dev, flow_counter)) {
+		vport->egress.legacy.drop_counter = mlx5_fc_create(esw->dev, false);
+		if (IS_ERR(vport->egress.legacy.drop_counter)) {
+			esw_warn(esw->dev,
+				 "vport[%d] configure egress drop rule counter failed\n",
+				 vport->vport);
+			vport->egress.legacy.drop_counter = NULL;
+		}
+	}
 
 	ret = esw_vport_egress_config(esw, vport);
 	if (ret)
-		esw_vport_disable_ingress_acl(esw, vport);
+		goto egress_err;
 
+	return 0;
+
+egress_err:
+	esw_vport_disable_ingress_acl(esw, vport);
+	mlx5_fc_destroy(esw->dev, vport->egress.legacy.drop_counter);
+	vport->egress.legacy.drop_counter = NULL;
+
+ingress_err:
+	mlx5_fc_destroy(esw->dev, vport->ingress.legacy.drop_counter);
+	vport->ingress.legacy.drop_counter = NULL;
 	return ret;
 }
 
@@ -1737,8 +1734,12 @@ static void esw_vport_destroy_legacy_acl_tables(struct mlx5_eswitch *esw,
 		return;
 
 	esw_vport_disable_egress_acl(esw, vport);
+	mlx5_fc_destroy(esw->dev, vport->egress.legacy.drop_counter);
+	vport->egress.legacy.drop_counter = NULL;
+
 	esw_vport_disable_ingress_acl(esw, vport);
-	esw_legacy_vport_destroy_drop_counters(vport);
+	mlx5_fc_destroy(esw->dev, vport->ingress.legacy.drop_counter);
+	vport->ingress.legacy.drop_counter = NULL;
 }
 
 static void esw_vport_cleanup_acl(struct mlx5_eswitch *esw,
@@ -1758,11 +1759,6 @@ static int esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 	WARN_ON(vport->enabled);
 
 	esw_debug(esw->dev, "Enabling VPORT(%d)\n", vport_num);
-
-	/* Create steering drop counters for ingress and egress ACLs */
-	if (!mlx5_esw_is_manager_vport(esw, vport_num) &&
-	    esw->mode == MLX5_ESWITCH_LEGACY)
-		esw_legacy_vport_create_drop_counters(vport);
 
 	/* Restore old vport configuration */
 	esw_apply_vport_conf(esw, vport);
