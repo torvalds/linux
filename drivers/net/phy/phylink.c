@@ -576,7 +576,7 @@ static int phylink_register_sfp(struct phylink *pl,
 
 /**
  * phylink_create() - create a phylink instance
- * @ndev: a pointer to the &struct net_device
+ * @config: a pointer to the target &struct phylink_config
  * @fwnode: a pointer to a &struct fwnode_handle describing the network
  *	interface
  * @iface: the desired link mode defined by &typedef phy_interface_t

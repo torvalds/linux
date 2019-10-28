@@ -1341,6 +1341,10 @@ static int taprio_parse_clockid(struct Qdisc *sch, struct nlattr **tb,
 		NL_SET_ERR_MSG(extack, "Specifying a 'clockid' is mandatory");
 		goto out;
 	}
+
+	/* Everything went ok, return success. */
+	err = 0;
+
 out:
 	return err;
 }

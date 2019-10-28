@@ -111,7 +111,6 @@ DO_ERROR_INFO(do_trap_ecall_s,
 DO_ERROR_INFO(do_trap_ecall_m,
 	SIGILL, ILL_ILLTRP, "environment call from M-mode");
 
-#ifdef CONFIG_GENERIC_BUG
 static inline unsigned long get_break_insn_length(unsigned long pc)
 {
 	bug_insn_t insn;
@@ -120,28 +119,15 @@ static inline unsigned long get_break_insn_length(unsigned long pc)
 		return 0;
 	return (((insn & __INSN_LENGTH_MASK) == __INSN_LENGTH_32) ? 4UL : 2UL);
 }
-#endif /* CONFIG_GENERIC_BUG */
 
 asmlinkage void do_trap_break(struct pt_regs *regs)
 {
-	if (!user_mode(regs)) {
-		enum bug_trap_type type;
-
-		type = report_bug(regs->sepc, regs);
-		switch (type) {
-#ifdef CONFIG_GENERIC_BUG
-		case BUG_TRAP_TYPE_WARN:
-			regs->sepc += get_break_insn_length(regs->sepc);
-			return;
-		case BUG_TRAP_TYPE_BUG:
-#endif /* CONFIG_GENERIC_BUG */
-		default:
-			die(regs, "Kernel BUG");
-		}
-	} else {
-		force_sig_fault(SIGTRAP, TRAP_BRKPT,
-				(void __user *)(regs->sepc));
-	}
+	if (user_mode(regs))
+		force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->sepc);
+	else if (report_bug(regs->sepc, regs) == BUG_TRAP_TYPE_WARN)
+		regs->sepc += get_break_insn_length(regs->sepc);
+	else
+		die(regs, "Kernel BUG");
 }
 
 #ifdef CONFIG_GENERIC_BUG

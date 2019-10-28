@@ -555,7 +555,7 @@ static ssize_t rt2x00debug_write_restart_hw(struct file *file,
 {
 	struct rt2x00debug_intf *intf =	file->private_data;
 	struct rt2x00_dev *rt2x00dev = intf->rt2x00dev;
-	static unsigned long last_reset;
+	static unsigned long last_reset = INITIAL_JIFFIES;
 
 	if (!rt2x00_has_cap_restart_hw(rt2x00dev))
 		return -EOPNOTSUPP;

@@ -473,8 +473,7 @@ EXPORT_SYMBOL(simple_write_begin);
 
 /**
  * simple_write_end - .write_end helper for non-block-device FSes
- * @available: See .write_end of address_space_operations
- * @file: 		"
+ * @file: See .write_end of address_space_operations
  * @mapping: 		"
  * @pos: 		"
  * @len: 		"
