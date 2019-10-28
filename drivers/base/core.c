@@ -480,11 +480,23 @@ EXPORT_SYMBOL_GPL(device_link_add);
  * This function is NOT meant to be called from the probe function of the
  * consumer but rather from code that creates/adds the consumer device.
  */
-static void device_link_wait_for_supplier(struct device *consumer)
+static void device_link_wait_for_supplier(struct device *consumer,
+					  bool need_for_probe)
 {
 	mutex_lock(&wfs_lock);
 	list_add_tail(&consumer->links.needs_suppliers, &wait_for_suppliers);
+	consumer->links.need_for_probe = need_for_probe;
 	mutex_unlock(&wfs_lock);
+}
+
+static void device_link_wait_for_mandatory_supplier(struct device *consumer)
+{
+	device_link_wait_for_supplier(consumer, true);
+}
+
+static void device_link_wait_for_optional_supplier(struct device *consumer)
+{
+	device_link_wait_for_supplier(consumer, false);
 }
 
 /**
@@ -656,7 +668,8 @@ int device_links_check_suppliers(struct device *dev)
 	 * probe.
 	 */
 	mutex_lock(&wfs_lock);
-	if (!list_empty(&dev->links.needs_suppliers)) {
+	if (!list_empty(&dev->links.needs_suppliers) &&
+	    dev->links.need_for_probe) {
 		mutex_unlock(&wfs_lock);
 		return -EPROBE_DEFER;
 	}
@@ -759,6 +772,15 @@ static void __device_links_supplier_defer_sync(struct device *sup)
 void device_links_driver_bound(struct device *dev)
 {
 	struct device_link *link;
+
+	/*
+	 * If a device probes successfully, it's expected to have created all
+	 * the device links it needs to or make new device links as it needs
+	 * them. So, it no longer needs to wait on any suppliers.
+	 */
+	mutex_lock(&wfs_lock);
+	list_del_init(&dev->links.needs_suppliers);
+	mutex_unlock(&wfs_lock);
 
 	device_links_write_lock();
 
@@ -2393,7 +2415,7 @@ int device_add(struct device *dev)
 
 	if (fwnode_has_op(dev->fwnode, add_links)
 	    && fwnode_call_int_op(dev->fwnode, add_links, dev))
-		device_link_wait_for_supplier(dev);
+		device_link_wait_for_mandatory_supplier(dev, true);
 
 	bus_probe_device(dev);
 	if (parent)
