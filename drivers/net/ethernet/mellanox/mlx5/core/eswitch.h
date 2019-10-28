@@ -70,8 +70,10 @@ struct vport_ingress {
 	struct mlx5_flow_group *allow_untagged_only_grp;
 	struct mlx5_flow_group *drop_grp;
 	struct mlx5_flow_handle  *allow_rule;
-	struct mlx5_flow_handle  *drop_rule;
-	struct mlx5_fc           *drop_counter;
+	struct {
+		struct mlx5_flow_handle *drop_rule;
+		struct mlx5_fc *drop_counter;
+	} legacy;
 	struct {
 		struct mlx5_modify_hdr *modify_metadata;
 		struct mlx5_flow_handle *modify_metadata_rule;
@@ -83,8 +85,10 @@ struct vport_egress {
 	struct mlx5_flow_group *allowed_vlans_grp;
 	struct mlx5_flow_group *drop_grp;
 	struct mlx5_flow_handle  *allowed_vlan;
-	struct mlx5_flow_handle  *drop_rule;
-	struct mlx5_fc           *drop_counter;
+	struct {
+		struct mlx5_flow_handle *drop_rule;
+		struct mlx5_fc *drop_counter;
+	} legacy;
 };
 
 struct mlx5_vport_drop_stats {
