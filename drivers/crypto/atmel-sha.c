@@ -360,7 +360,7 @@ static size_t atmel_sha_append_sg(struct atmel_sha_reqctx *ctx)
 static void atmel_sha_fill_padding(struct atmel_sha_reqctx *ctx, int length)
 {
 	unsigned int index, padlen;
-	u64 bits[2];
+	__be64 bits[2];
 	u64 size[2];
 
 	size[0] = ctx->digcnt[0];

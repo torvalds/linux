@@ -2048,7 +2048,7 @@ static int atmel_aes_authenc_transfer(struct atmel_aes_dev *dd, int err,
 	struct atmel_aes_authenc_reqctx *rctx = aead_request_ctx(req);
 	bool enc = atmel_aes_is_encrypt(dd);
 	struct scatterlist *src, *dst;
-	u32 iv[AES_BLOCK_SIZE / sizeof(u32)];
+	__be32 iv[AES_BLOCK_SIZE / sizeof(u32)];
 	u32 emr;
 
 	if (is_async)
