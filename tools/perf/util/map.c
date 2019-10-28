@@ -1007,13 +1007,18 @@ struct map *maps__first(struct maps *maps)
 	return NULL;
 }
 
-struct map *map__next(struct map *map)
+static struct map *__map__next(struct map *map)
 {
 	struct rb_node *next = rb_next(&map->rb_node);
 
 	if (next)
 		return rb_entry(next, struct map, rb_node);
 	return NULL;
+}
+
+struct map *map__next(struct map *map)
+{
+	return map ? __map__next(map) : NULL;
 }
 
 struct kmap *__map__kmap(struct map *map)
