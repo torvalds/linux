@@ -7,7 +7,7 @@
 struct reset_controller_dev;
 
 /**
- * struct reset_control_ops
+ * struct reset_control_ops - reset controller driver callbacks
  *
  * @reset: for self-deasserting resets, does all necessary
  *         things to reset the device
@@ -33,7 +33,7 @@ struct of_phandle_args;
  * @provider: name of the reset controller device controlling this reset line
  * @index: ID of the reset controller in the reset controller device
  * @dev_id: name of the device associated with this reset line
- * @con_id name of the reset line (can be NULL)
+ * @con_id: name of the reset line (can be NULL)
  */
 struct reset_control_lookup {
 	struct list_head list;
