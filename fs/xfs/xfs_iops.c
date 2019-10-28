@@ -514,7 +514,7 @@ xfs_stat_blksize(
 		if (mp->m_swidth)
 			return mp->m_swidth << mp->m_sb.sb_blocklog;
 		if (mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)
-			return 1U << mp->m_writeio_log;
+			return 1U << mp->m_allocsize_log;
 	}
 
 	return PAGE_SIZE;

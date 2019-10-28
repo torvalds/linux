@@ -725,7 +725,7 @@ TRACE_EVENT(xfs_iomap_prealloc_size,
 		__entry->writeio_blocks = writeio_blocks;
 	),
 	TP_printk("dev %d:%d ino 0x%llx prealloc blocks %llu shift %d "
-		  "m_writeio_blocks %u",
+		  "m_allocsize_blocks %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->ino,
 		  __entry->blocks, __entry->shift, __entry->writeio_blocks)
 )

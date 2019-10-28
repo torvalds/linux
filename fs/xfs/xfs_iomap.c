@@ -29,8 +29,8 @@
 #include "xfs_reflink.h"
 
 
-#define XFS_WRITEIO_ALIGN(mp,off)	(((off) >> mp->m_writeio_log) \
-						<< mp->m_writeio_log)
+#define XFS_ALLOC_ALIGN(mp, off) \
+	(((off) >> mp->m_allocsize_log) << mp->m_allocsize_log)
 
 static int
 xfs_alert_fsblock_zero(
@@ -422,7 +422,7 @@ xfs_iomap_prealloc_size(
 		return 0;
 
 	if (!(mp->m_flags & XFS_MOUNT_DFLT_IOSIZE) &&
-	    (XFS_ISIZE(ip) < XFS_FSB_TO_B(mp, mp->m_writeio_blocks)))
+	    (XFS_ISIZE(ip) < XFS_FSB_TO_B(mp, mp->m_allocsize_blocks)))
 		return 0;
 
 	/*
@@ -433,7 +433,7 @@ xfs_iomap_prealloc_size(
 	    XFS_ISIZE(ip) < XFS_FSB_TO_B(mp, mp->m_dalign) ||
 	    !xfs_iext_peek_prev_extent(ifp, icur, &prev) ||
 	    prev.br_startoff + prev.br_blockcount < offset_fsb)
-		return mp->m_writeio_blocks;
+		return mp->m_allocsize_blocks;
 
 	/*
 	 * Determine the initial size of the preallocation. We are beyond the
@@ -526,10 +526,10 @@ xfs_iomap_prealloc_size(
 	while (alloc_blocks && alloc_blocks >= freesp)
 		alloc_blocks >>= 4;
 check_writeio:
-	if (alloc_blocks < mp->m_writeio_blocks)
-		alloc_blocks = mp->m_writeio_blocks;
+	if (alloc_blocks < mp->m_allocsize_blocks)
+		alloc_blocks = mp->m_allocsize_blocks;
 	trace_xfs_iomap_prealloc_size(ip, alloc_blocks, shift,
-				      mp->m_writeio_blocks);
+				      mp->m_allocsize_blocks);
 	return alloc_blocks;
 }
 
@@ -991,7 +991,7 @@ xfs_buffered_write_iomap_begin(
 			xfs_off_t	end_offset;
 			xfs_fileoff_t	p_end_fsb;
 
-			end_offset = XFS_WRITEIO_ALIGN(mp, offset + count - 1);
+			end_offset = XFS_ALLOC_ALIGN(mp, offset + count - 1);
 			p_end_fsb = XFS_B_TO_FSBT(mp, end_offset) +
 					prealloc_blocks;
 

@@ -405,7 +405,7 @@ done:
 		}
 
 		mp->m_flags |= XFS_MOUNT_DFLT_IOSIZE;
-		mp->m_writeio_log = iosizelog;
+		mp->m_allocsize_log = iosizelog;
 	}
 
 	return 0;
@@ -456,7 +456,7 @@ xfs_showargs(
 
 	if (mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)
 		seq_printf(m, ",allocsize=%dk",
-				(int)(1 << mp->m_writeio_log) >> 10);
+				(int)(1 << mp->m_allocsize_log) >> 10);
 
 	if (mp->m_logbufs > 0)
 		seq_printf(m, ",logbufs=%d", mp->m_logbufs);
