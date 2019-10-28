@@ -485,8 +485,15 @@ int xfs_btree_query_all(struct xfs_btree_cur *cur, xfs_btree_query_range_fn fn,
 
 typedef int (*xfs_btree_visit_blocks_fn)(struct xfs_btree_cur *cur, int level,
 		void *data);
+/* Visit record blocks. */
+#define XFS_BTREE_VISIT_RECORDS		(1 << 0)
+/* Visit leaf blocks. */
+#define XFS_BTREE_VISIT_LEAVES		(1 << 1)
+/* Visit all blocks. */
+#define XFS_BTREE_VISIT_ALL		(XFS_BTREE_VISIT_RECORDS | \
+					 XFS_BTREE_VISIT_LEAVES)
 int xfs_btree_visit_blocks(struct xfs_btree_cur *cur,
-		xfs_btree_visit_blocks_fn fn, void *data);
+		xfs_btree_visit_blocks_fn fn, unsigned int flags, void *data);
 
 int xfs_btree_count_blocks(struct xfs_btree_cur *cur, xfs_extlen_t *blocks);
 
