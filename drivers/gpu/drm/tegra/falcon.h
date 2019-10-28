@@ -74,15 +74,6 @@ struct falcon_fw_os_header_v1 {
 	u32 data_size;
 };
 
-struct falcon;
-
-struct falcon_ops {
-	void *(*alloc)(struct falcon *falcon, size_t size,
-		       dma_addr_t *paddr);
-	void (*free)(struct falcon *falcon, size_t size,
-		     dma_addr_t paddr, void *vaddr);
-};
-
 struct falcon_firmware_section {
 	unsigned long offset;
 	size_t size;
@@ -107,8 +98,6 @@ struct falcon {
 	/* Set by falcon client */
 	struct device *dev;
 	void __iomem *regs;
-	const struct falcon_ops *ops;
-	void *data;
 
 	struct falcon_firmware firmware;
 };

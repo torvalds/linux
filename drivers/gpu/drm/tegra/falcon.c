@@ -59,26 +59,11 @@ static void falcon_copy_firmware_image(struct falcon *falcon,
 				       const struct firmware *firmware)
 {
 	u32 *firmware_vaddr = falcon->firmware.vaddr;
-	dma_addr_t daddr;
 	size_t i;
-	int err;
 
 	/* copy the whole thing taking into account endianness */
 	for (i = 0; i < firmware->size / sizeof(u32); i++)
 		firmware_vaddr[i] = le32_to_cpu(((u32 *)firmware->data)[i]);
-
-	/* ensure that caches are flushed and falcon can see the firmware */
-	daddr = dma_map_single(falcon->dev, firmware_vaddr,
-			       falcon->firmware.size, DMA_TO_DEVICE);
-	err = dma_mapping_error(falcon->dev, daddr);
-	if (err) {
-		dev_err(falcon->dev, "failed to map firmware: %d\n", err);
-		return;
-	}
-	dma_sync_single_for_device(falcon->dev, daddr,
-				   falcon->firmware.size, DMA_TO_DEVICE);
-	dma_unmap_single(falcon->dev, daddr, falcon->firmware.size,
-			 DMA_TO_DEVICE);
 }
 
 static int falcon_parse_firmware_image(struct falcon *falcon)
@@ -125,6 +110,8 @@ int falcon_read_firmware(struct falcon *falcon, const char *name)
 	if (err < 0)
 		return err;
 
+	falcon->firmware.size = falcon->firmware.firmware->size;
+
 	return 0;
 }
 
@@ -133,16 +120,6 @@ int falcon_load_firmware(struct falcon *falcon)
 	const struct firmware *firmware = falcon->firmware.firmware;
 	int err;
 
-	falcon->firmware.size = firmware->size;
-
-	/* allocate iova space for the firmware */
-	falcon->firmware.vaddr = falcon->ops->alloc(falcon, firmware->size,
-						    &falcon->firmware.paddr);
-	if (IS_ERR(falcon->firmware.vaddr)) {
-		dev_err(falcon->dev, "DMA memory mapping failed\n");
-		return PTR_ERR(falcon->firmware.vaddr);
-	}
-
 	/* copy firmware image into local area. this also ensures endianness */
 	falcon_copy_firmware_image(falcon, firmware);
 
@@ -150,27 +127,17 @@ int falcon_load_firmware(struct falcon *falcon)
 	err = falcon_parse_firmware_image(falcon);
 	if (err < 0) {
 		dev_err(falcon->dev, "failed to parse firmware image\n");
-		goto err_setup_firmware_image;
+		return err;
 	}
 
 	release_firmware(firmware);
 	falcon->firmware.firmware = NULL;
 
 	return 0;
-
-err_setup_firmware_image:
-	falcon->ops->free(falcon, falcon->firmware.size,
-			  falcon->firmware.paddr, falcon->firmware.vaddr);
-
-	return err;
 }
 
 int falcon_init(struct falcon *falcon)
 {
-	/* check mandatory ops */
-	if (!falcon->ops || !falcon->ops->alloc || !falcon->ops->free)
-		return -EINVAL;
-
 	falcon->firmware.vaddr = NULL;
 
 	return 0;
@@ -178,17 +145,8 @@ int falcon_init(struct falcon *falcon)
 
 void falcon_exit(struct falcon *falcon)
 {
-	if (falcon->firmware.firmware) {
+	if (falcon->firmware.firmware)
 		release_firmware(falcon->firmware.firmware);
-		falcon->firmware.firmware = NULL;
-	}
-
-	if (falcon->firmware.vaddr) {
-		falcon->ops->free(falcon, falcon->firmware.size,
-				  falcon->firmware.paddr,
-				  falcon->firmware.vaddr);
-		falcon->firmware.vaddr = NULL;
-	}
 }
 
 int falcon_boot(struct falcon *falcon)

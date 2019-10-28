@@ -158,27 +158,6 @@ static int vic_boot(struct vic *vic)
 	return 0;
 }
 
-static void *vic_falcon_alloc(struct falcon *falcon, size_t size,
-			      dma_addr_t *iova)
-{
-	struct tegra_drm *tegra = falcon->data;
-
-	return tegra_drm_alloc(tegra, size, iova);
-}
-
-static void vic_falcon_free(struct falcon *falcon, size_t size,
-			    dma_addr_t iova, void *va)
-{
-	struct tegra_drm *tegra = falcon->data;
-
-	return tegra_drm_free(tegra, size, va, iova);
-}
-
-static const struct falcon_ops vic_falcon_ops = {
-	.alloc = vic_falcon_alloc,
-	.free = vic_falcon_free
-};
-
 static int vic_init(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
@@ -246,6 +225,15 @@ static int vic_exit(struct host1x_client *client)
 	host1x_channel_put(vic->channel);
 	host1x_client_iommu_detach(client);
 
+	if (client->group)
+		tegra_drm_free(tegra, vic->falcon.firmware.size,
+			       vic->falcon.firmware.vaddr,
+			       vic->falcon.firmware.paddr);
+	else
+		dma_free_coherent(vic->dev, vic->falcon.firmware.size,
+				  vic->falcon.firmware.vaddr,
+				  vic->falcon.firmware.paddr);
+
 	return 0;
 }
 
@@ -256,25 +244,75 @@ static const struct host1x_client_ops vic_client_ops = {
 
 static int vic_load_firmware(struct vic *vic)
 {
+	struct host1x_client *client = &vic->client.base;
+	struct tegra_drm *tegra = vic->client.drm;
+	dma_addr_t phys;
+	size_t size;
+	void *virt;
 	int err;
 
-	if (vic->falcon.data)
+	if (vic->falcon.firmware.vaddr)
 		return 0;
-
-	vic->falcon.data = vic->client.drm;
 
 	err = falcon_read_firmware(&vic->falcon, vic->config->firmware);
 	if (err < 0)
-		goto cleanup;
+		return err;
+
+	size = vic->falcon.firmware.size;
+
+	if (!client->group) {
+		virt = dma_alloc_coherent(vic->dev, size, &phys, GFP_KERNEL);
+
+		err = dma_mapping_error(vic->dev, phys);
+		if (err < 0)
+			return err;
+	} else {
+		virt = tegra_drm_alloc(tegra, size, &phys);
+	}
+
+	vic->falcon.firmware.vaddr = virt;
+	vic->falcon.firmware.paddr = phys;
 
 	err = falcon_load_firmware(&vic->falcon);
 	if (err < 0)
 		goto cleanup;
 
+	/*
+	 * In this case we have received an IOVA from the shared domain, so we
+	 * need to make sure to get the physical address so that the DMA API
+	 * knows what memory pages to flush the cache for.
+	 */
+	if (client->group) {
+		phys = dma_map_single(vic->dev, virt, size, DMA_TO_DEVICE);
+
+		err = dma_mapping_error(vic->dev, phys);
+		if (err < 0)
+			goto cleanup;
+
+		/*
+		 * If the DMA API mapped this through a bounce buffer, the
+		 * dma_sync_single_for_device() call below will not be able
+		 * to flush the caches for the right memory pages. Output a
+		 * big warning in that case so that the DMA mask can be set
+		 * properly and the bounce buffer avoided.
+		 */
+		WARN(phys != vic->falcon.firmware.paddr,
+		     "check DMA mask setting for %s\n", dev_name(vic->dev));
+	}
+
+	dma_sync_single_for_device(vic->dev, phys, size, DMA_TO_DEVICE);
+
+	if (client->group)
+		dma_unmap_single(vic->dev, phys, size, DMA_TO_DEVICE);
+
 	return 0;
 
 cleanup:
-	vic->falcon.data = NULL;
+	if (!client->group)
+		dma_free_coherent(vic->dev, size, virt, phys);
+	else
+		tegra_drm_free(tegra, size, virt, phys);
+
 	return err;
 }
 
@@ -415,7 +453,6 @@ static int vic_probe(struct platform_device *pdev)
 
 	vic->falcon.dev = dev;
 	vic->falcon.regs = vic->regs;
-	vic->falcon.ops = &vic_falcon_ops;
 
 	err = falcon_init(&vic->falcon);
 	if (err < 0)
