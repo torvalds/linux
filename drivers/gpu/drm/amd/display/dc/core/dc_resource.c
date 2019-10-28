@@ -960,7 +960,7 @@ static bool are_rects_integer_multiples(struct rect src, struct rect dest)
 	return false;
 }
 
-void calculate_integer_scaling(struct pipe_ctx *pipe_ctx)
+static void calculate_integer_scaling(struct pipe_ctx *pipe_ctx)
 {
 	if (!pipe_ctx->plane_state->scaling_quality.integer_scaling)
 		return;
