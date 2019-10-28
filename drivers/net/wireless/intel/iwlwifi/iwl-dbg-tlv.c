@@ -908,27 +908,6 @@ iwl_dbg_tlv_gen_active_trig_list(struct iwl_fw_runtime *fwrt,
 	}
 }
 
-static int iwl_dbg_tlv_gen_active_trigs(struct iwl_fw_runtime *fwrt,
-					u32 new_domain)
-{
-	int i;
-
-	fwrt->trans->dbg.domains_bitmap = new_domain;
-
-	IWL_DEBUG_FW(fwrt,
-		     "WRT: Generating active triggers list, domain 0x%x\n",
-		     fwrt->trans->dbg.domains_bitmap);
-
-	for (i = 0; i < ARRAY_SIZE(fwrt->trans->dbg.time_point); i++) {
-		struct iwl_dbg_tlv_time_point_data *tp =
-			&fwrt->trans->dbg.time_point[i];
-
-		iwl_dbg_tlv_gen_active_trig_list(fwrt, tp);
-	}
-
-	return 0;
-}
-
 static bool iwl_dbg_tlv_check_fw_pkt(struct iwl_fw_runtime *fwrt,
 				     struct iwl_fwrt_dump_data *dump_data,
 				     union iwl_dbg_tlv_tp_data *tp_data,
@@ -1002,7 +981,18 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 	enum iwl_fw_ini_buffer_location *ini_dest = &fwrt->trans->dbg.ini_dest;
 	int ret, i;
 
-	iwl_dbg_tlv_gen_active_trigs(fwrt, IWL_FW_DBG_DOMAIN);
+	fwrt->trans->dbg.domains_bitmap = IWL_FW_DBG_DOMAIN;
+
+	IWL_DEBUG_FW(fwrt,
+		     "WRT: Generating active triggers list, domain 0x%x\n",
+		     fwrt->trans->dbg.domains_bitmap);
+
+	for (i = 0; i < ARRAY_SIZE(fwrt->trans->dbg.time_point); i++) {
+		struct iwl_dbg_tlv_time_point_data *tp =
+			&fwrt->trans->dbg.time_point[i];
+
+		iwl_dbg_tlv_gen_active_trig_list(fwrt, tp);
+	}
 
 	*ini_dest = IWL_FW_INI_LOCATION_INVALID;
 	for (i = 0; i < IWL_FW_INI_ALLOCATION_NUM; i++) {
