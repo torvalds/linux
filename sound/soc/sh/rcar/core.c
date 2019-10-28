@@ -302,7 +302,7 @@ int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
 
 int rsnd_channel_normalization(int chan)
 {
-	if ((chan > 8) || (chan < 0))
+	if (WARN_ON((chan > 8) || (chan < 0)))
 		return 0;
 
 	/* TDM Extend Mode needs 8ch */
