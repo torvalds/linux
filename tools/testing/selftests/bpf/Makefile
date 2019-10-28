@@ -89,6 +89,9 @@ $(notdir $(TEST_GEN_PROGS)						\
 $(OUTPUT)/urandom_read: urandom_read.c
 	$(CC) -o $@ $< -Wl,--build-id
 
+$(OUTPUT)/test_stub.o: test_stub.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+
 BPFOBJ := $(OUTPUT)/libbpf.a
 
 $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED): $(OUTPUT)/test_stub.o $(BPFOBJ)
