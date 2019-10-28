@@ -18,6 +18,7 @@ powerpc
     elfnote
     firmware-assisted-dump
     hvcs
+    imc
     isa-versions
     kaslr-booke32
     mpc52xx
