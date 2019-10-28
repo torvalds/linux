@@ -111,40 +111,30 @@ static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
 }
 
 /* E-Switch vport context HW commands */
-static int modify_esw_vport_context_cmd(struct mlx5_core_dev *dev, u16 vport,
-					void *in, int inlen)
+int mlx5_eswitch_modify_esw_vport_context(struct mlx5_core_dev *dev, u16 vport,
+					  bool other_vport,
+					  void *in, int inlen)
 {
 	u32 out[MLX5_ST_SZ_DW(modify_esw_vport_context_out)] = {0};
 
 	MLX5_SET(modify_esw_vport_context_in, in, opcode,
 		 MLX5_CMD_OP_MODIFY_ESW_VPORT_CONTEXT);
 	MLX5_SET(modify_esw_vport_context_in, in, vport_number, vport);
-	MLX5_SET(modify_esw_vport_context_in, in, other_vport, 1);
+	MLX5_SET(modify_esw_vport_context_in, in, other_vport, other_vport);
 	return mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 }
 
-int mlx5_eswitch_modify_esw_vport_context(struct mlx5_eswitch *esw, u16 vport,
-					  void *in, int inlen)
-{
-	return modify_esw_vport_context_cmd(esw->dev, vport, in, inlen);
-}
-
-static int query_esw_vport_context_cmd(struct mlx5_core_dev *dev, u16 vport,
-				       void *out, int outlen)
+int mlx5_eswitch_query_esw_vport_context(struct mlx5_core_dev *dev, u16 vport,
+					 bool other_vport,
+					 void *out, int outlen)
 {
 	u32 in[MLX5_ST_SZ_DW(query_esw_vport_context_in)] = {};
 
 	MLX5_SET(query_esw_vport_context_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_ESW_VPORT_CONTEXT);
 	MLX5_SET(modify_esw_vport_context_in, in, vport_number, vport);
-	MLX5_SET(modify_esw_vport_context_in, in, other_vport, 1);
+	MLX5_SET(modify_esw_vport_context_in, in, other_vport, other_vport);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
-}
-
-int mlx5_eswitch_query_esw_vport_context(struct mlx5_eswitch *esw, u16 vport,
-					 void *out, int outlen)
-{
-	return query_esw_vport_context_cmd(esw->dev, vport, out, outlen);
 }
 
 static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u16 vport,
@@ -179,7 +169,8 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u16 vport,
 	MLX5_SET(modify_esw_vport_context_in, in,
 		 field_select.vport_cvlan_insert, 1);
 
-	return modify_esw_vport_context_cmd(dev, vport, in, sizeof(in));
+	return mlx5_eswitch_modify_esw_vport_context(dev, vport, true,
+						     in, sizeof(in));
 }
 
 /* E-Switch FDB */

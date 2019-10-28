@@ -600,7 +600,7 @@ static int esw_set_passing_vport_metadata(struct mlx5_eswitch *esw, bool enable)
 	if (!mlx5_eswitch_vport_match_metadata_enabled(esw))
 		return 0;
 
-	err = mlx5_eswitch_query_esw_vport_context(esw, esw->manager_vport,
+	err = mlx5_eswitch_query_esw_vport_context(esw->dev, 0, false,
 						   out, sizeof(out));
 	if (err)
 		return err;
@@ -619,7 +619,7 @@ static int esw_set_passing_vport_metadata(struct mlx5_eswitch *esw, bool enable)
 	MLX5_SET(modify_esw_vport_context_in, in,
 		 field_select.fdb_to_vport_reg_c_id, 1);
 
-	return mlx5_eswitch_modify_esw_vport_context(esw, esw->manager_vport,
+	return mlx5_eswitch_modify_esw_vport_context(esw->dev, 0, false,
 						     in, sizeof(in));
 }
 
