@@ -20,10 +20,6 @@
 #include <drm/drm_prime.h>
 #include <drm/drm_vblank.h>
 
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-#include <asm/dma-iommu.h>
-#endif
-
 #include "drm.h"
 #include "gem.h"
 
@@ -908,30 +904,27 @@ int tegra_drm_unregister_client(struct tegra_drm *tegra,
 
 int host1x_client_iommu_attach(struct host1x_client *client)
 {
+	struct iommu_domain *domain = iommu_get_domain_for_dev(client->dev);
 	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_drm *tegra = drm->dev_private;
 	struct iommu_group *group = NULL;
 	int err;
 
-	if (tegra->domain) {
-		struct iommu_domain *domain;
+	/*
+	 * If the host1x client is already attached to an IOMMU domain that is
+	 * not the shared IOMMU domain, don't try to attach it to a different
+	 * domain. This allows using the IOMMU-backed DMA API.
+	 */
+	if (domain && domain != tegra->domain)
+		return 0;
 
+	if (tegra->domain) {
 		group = iommu_group_get(client->dev);
 		if (!group) {
 			dev_err(client->dev, "failed to get IOMMU group\n");
 			return -ENODEV;
 		}
 
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-		if (client->dev->archdata.mapping) {
-			struct dma_iommu_mapping *mapping =
-				to_dma_iommu_mapping(client->dev);
-			arm_iommu_detach_device(client->dev);
-			arm_iommu_release_mapping(mapping);
-		}
-#endif
-
-		domain = iommu_get_domain_for_dev(client->dev);
 		if (domain != tegra->domain) {
 			err = iommu_attach_group(tegra->domain, group);
 			if (err < 0) {
@@ -939,6 +932,8 @@ int host1x_client_iommu_attach(struct host1x_client *client)
 				return err;
 			}
 		}
+
+		tegra->use_explicit_iommu = true;
 	}
 
 	client->group = group;
@@ -963,6 +958,7 @@ void host1x_client_iommu_detach(struct host1x_client *client)
 			iommu_detach_group(tegra->domain, client->group);
 
 		iommu_group_put(client->group);
+		client->group = NULL;
 	}
 }
 
@@ -1046,6 +1042,7 @@ void tegra_drm_free(struct tegra_drm *tegra, size_t size, void *virt,
 static int host1x_drm_probe(struct host1x_device *dev)
 {
 	struct drm_driver *driver = &tegra_drm_driver;
+	struct iommu_domain *domain;
 	struct tegra_drm *tegra;
 	struct drm_device *drm;
 	int err;
@@ -1060,7 +1057,36 @@ static int host1x_drm_probe(struct host1x_device *dev)
 		goto put;
 	}
 
-	if (iommu_present(&platform_bus_type)) {
+	/*
+	 * If the Tegra DRM clients are backed by an IOMMU, push buffers are
+	 * likely to be allocated beyond the 32-bit boundary if sufficient
+	 * system memory is available. This is problematic on earlier Tegra
+	 * generations where host1x supports a maximum of 32 address bits in
+	 * the GATHER opcode. In this case, unless host1x is behind an IOMMU
+	 * as well it won't be able to process buffers allocated beyond the
+	 * 32-bit boundary.
+	 *
+	 * The DMA API will use bounce buffers in this case, so that could
+	 * perhaps still be made to work, even if less efficient, but there
+	 * is another catch: in order to perform cache maintenance on pages
+	 * allocated for discontiguous buffers we need to map and unmap the
+	 * SG table representing these buffers. This is fine for something
+	 * small like a push buffer, but it exhausts the bounce buffer pool
+	 * (typically on the order of a few MiB) for framebuffers (many MiB
+	 * for any modern resolution).
+	 *
+	 * Work around this by making sure that Tegra DRM clients only use
+	 * an IOMMU if the parent host1x also uses an IOMMU.
+	 *
+	 * Note that there's still a small gap here that we don't cover: if
+	 * the DMA API is backed by an IOMMU there's no way to control which
+	 * device is attached to an IOMMU and which isn't, except via wiring
+	 * up the device tree appropriately. This is considered an problem
+	 * of integration, so care must be taken for the DT to be consistent.
+	 */
+	domain = iommu_get_domain_for_dev(drm->dev->parent);
+
+	if (domain && iommu_present(&platform_bus_type)) {
 		tegra->domain = iommu_domain_alloc(&platform_bus_type);
 		if (!tegra->domain) {
 			err = -ENOMEM;
@@ -1104,7 +1130,7 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	if (err < 0)
 		goto fbdev;
 
-	if (tegra->domain) {
+	if (tegra->use_explicit_iommu) {
 		u64 carveout_start, carveout_end, gem_start, gem_end;
 		u64 dma_mask = dma_get_mask(&dev->dev);
 		dma_addr_t start, end;
@@ -1132,6 +1158,10 @@ static int host1x_drm_probe(struct host1x_device *dev)
 		DRM_DEBUG_DRIVER("  GEM: %#llx-%#llx\n", gem_start, gem_end);
 		DRM_DEBUG_DRIVER("  Carveout: %#llx-%#llx\n", carveout_start,
 				 carveout_end);
+	} else if (tegra->domain) {
+		iommu_domain_free(tegra->domain);
+		tegra->domain = NULL;
+		iova_cache_put();
 	}
 
 	if (tegra->hub) {
