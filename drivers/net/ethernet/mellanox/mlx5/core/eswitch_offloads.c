@@ -1899,8 +1899,8 @@ static int esw_vport_egress_prio_tag_config(struct mlx5_eswitch *esw,
 	return err;
 }
 
-static int esw_vport_ingress_common_config(struct mlx5_eswitch *esw,
-					   struct mlx5_vport *vport)
+static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
+				    struct mlx5_vport *vport)
 {
 	int err;
 
@@ -1993,7 +1993,7 @@ static int esw_create_offloads_acl_tables(struct mlx5_eswitch *esw)
 		esw->flags |= MLX5_ESWITCH_VPORT_MATCH_METADATA;
 
 	mlx5_esw_for_all_vports(esw, i, vport) {
-		err = esw_vport_ingress_common_config(esw, vport);
+		err = esw_vport_ingress_config(esw, vport);
 		if (err)
 			goto err_ingress;
 
