@@ -485,8 +485,6 @@ uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
 		...);
 
-
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 /* register offload macros
  *
  * instead of MMIO to register directly, in some cases we want
@@ -505,6 +503,5 @@ uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
 /* wait for the last REG_SEQ_SUBMIT to finish */
 #define REG_SEQ_WAIT_DONE() \
 	reg_sequence_wait_done(CTX)
-#endif
 
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_REG_HELPER_H_ */

@@ -32,7 +32,6 @@
 #include "dm_services.h"
 #include <stdarg.h>
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 #include "dc.h"
 #include "dc_dmub_srv.h"
 
@@ -100,7 +99,6 @@ static inline void submit_dmub_reg_wait(
 
 	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
 }
-#endif
 
 struct dc_reg_value_masks {
 	uint32_t value;
@@ -147,7 +145,6 @@ static void set_reg_field_values(struct dc_reg_value_masks *field_value_mask,
 	}
 }
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 static void dmub_flush_buffer_execute(
 		struct dc_reg_helper_state *offload,
 		const struct dc_context *ctx)
@@ -239,8 +236,6 @@ static void dmub_reg_wait_done_pack(const struct dc_context *ctx, uint32_t addr,
 	cmd_buf->reg_wait.time_out_us = time_out_us;
 }
 
-#endif
-
 uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 		uint32_t addr, int n,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
@@ -257,12 +252,10 @@ uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 
 	va_end(ap);
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 	if (ctx->dmub_srv &&
 	    ctx->dmub_srv->reg_helper_offload.gather_in_progress)
 		return dmub_reg_value_pack(ctx, addr, &field_value_mask);
 		/* todo: return void so we can decouple code running in driver from register states */
-#endif
 
 	/* mmio write directly */
 	reg_val = dm_read_reg(ctx, addr);
@@ -289,13 +282,13 @@ uint32_t generic_reg_set_ex(const struct dc_context *ctx,
 
 	/* mmio write directly */
 	reg_val = (reg_val & ~field_value_mask.mask) | field_value_mask.value;
-#ifdef CONFIG_DRM_AMD_DC_DMUB
+
 	if (ctx->dmub_srv &&
 	    ctx->dmub_srv->reg_helper_offload.gather_in_progress) {
 		return dmub_reg_value_burst_set_pack(ctx, addr, reg_val);
 		/* todo: return void so we can decouple code running in driver from register states */
 	}
-#endif
+
 	dm_write_reg(ctx, addr, reg_val);
 	return reg_val;
 }
@@ -313,14 +306,12 @@ uint32_t dm_read_reg_func(
 	}
 #endif
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 	if (ctx->dmub_srv &&
 	    ctx->dmub_srv->reg_helper_offload.gather_in_progress &&
 	    !ctx->dmub_srv->reg_helper_offload.should_burst_write) {
 		ASSERT(false);
 		return 0;
 	}
-#endif
 
 	value = cgs_read_register(ctx->cgs_device, address);
 	trace_amdgpu_dc_rreg(&ctx->perf_trace->read_count, address, value);
@@ -487,14 +478,12 @@ void generic_reg_wait(const struct dc_context *ctx,
 	uint32_t reg_val;
 	int i;
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 	if (ctx->dmub_srv &&
 	    ctx->dmub_srv->reg_helper_offload.gather_in_progress) {
 		dmub_reg_wait_done_pack(ctx, addr, mask, shift, condition_value,
 				delay_between_poll_us * time_out_num_tries);
 		return;
 	}
-#endif
 
 	/* something is terribly wrong if time out is > 200ms. (5Hz) */
 	ASSERT(delay_between_poll_us * time_out_num_tries <= 3000000);
@@ -542,13 +531,12 @@ uint32_t generic_read_indirect_reg(const struct dc_context *ctx,
 		uint32_t index)
 {
 	uint32_t value = 0;
-#ifdef CONFIG_DRM_AMD_DC_DMUB
+
 	// when reg read, there should not be any offload.
 	if (ctx->dmub_srv &&
 	    ctx->dmub_srv->reg_helper_offload.gather_in_progress) {
 		ASSERT(false);
 	}
-#endif
 
 	dm_write_reg(ctx, addr_index, index);
 	value = dm_read_reg(ctx, addr_data);
@@ -587,7 +575,6 @@ uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
 	return reg_val;
 }
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 void reg_sequence_start_gather(const struct dc_context *ctx)
 {
 	/* if reg sequence is supported and enabled, set flag to
@@ -652,6 +639,3 @@ void reg_sequence_wait_done(const struct dc_context *ctx)
 		dc_dmub_srv_wait_idle(ctx->dmub_srv);
 	}
 }
-
-
-#endif

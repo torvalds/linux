@@ -352,9 +352,8 @@ void dpp1_cm_program_regamma_lut(struct dpp *dpp_base,
 	uint32_t i;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 	REG_SEQ_START();
-#endif
+
 	for (i = 0 ; i < num; i++) {
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].green_reg);
@@ -633,10 +632,9 @@ void dpp1_set_degamma(
 		BREAK_TO_DEBUGGER();
 		break;
 	}
-#ifdef CONFIG_DRM_AMD_DC_DMUB
+
 	REG_SEQ_SUBMIT();
 	REG_SEQ_WAIT_DONE();
-#endif
 }
 
 void dpp1_degamma_ram_select(

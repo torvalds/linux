@@ -20,10 +20,8 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 
-ifdef CONFIG_DRM_AMD_DC_DMUB
 DMUB = dmub_srv.o dmub_reg.o dmub_dcn20.o dmub_dcn21.o
 
 AMD_DAL_DMUB = $(addprefix $(AMDDALPATH)/dmub/src/,$(DMUB))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_DMUB)
-endif

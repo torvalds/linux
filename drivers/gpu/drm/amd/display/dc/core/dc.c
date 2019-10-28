@@ -58,10 +58,7 @@
 #include "hubp.h"
 
 #include "dc_link_dp.h"
-
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 #include "dc_dmub_srv.h"
-#endif
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #include "dsc.h"
@@ -2410,10 +2407,9 @@ void dc_set_power_state(
 	switch (power_state) {
 	case DC_ACPI_CM_POWER_STATE_D0:
 		dc_resource_state_construct(dc, dc->current_state);
-#ifdef CONFIG_DRM_AMD_DC_DMUB
+
 		if (dc->ctx->dmub_srv)
 			dc_dmub_srv_wait_phy_init(dc->ctx->dmub_srv);
-#endif
 
 		dc->hwss.init_hw(dc);
 

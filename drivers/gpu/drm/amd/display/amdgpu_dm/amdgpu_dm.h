@@ -57,10 +57,8 @@ struct amdgpu_device;
 struct drm_device;
 struct amdgpu_dm_irq_handler_data;
 struct dc;
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 struct amdgpu_bo;
 struct dmub_srv;
-#endif
 
 struct common_irq_params {
 	struct amdgpu_device *adev;
@@ -125,7 +123,6 @@ struct amdgpu_display_manager {
 
 	struct dc *dc;
 
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 	/**
 	 * @dmub_srv:
 	 *
@@ -170,7 +167,6 @@ struct amdgpu_display_manager {
 	 */
 	uint32_t dmcub_fw_version;
 
-#endif
 	/**
 	 * @cgs_device:
 	 *
