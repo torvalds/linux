@@ -2456,14 +2456,28 @@ int smu_baco_get_state(struct smu_context *smu, enum smu_baco_state *state)
 	return 0;
 }
 
-int smu_baco_reset(struct smu_context *smu)
+int smu_baco_enter(struct smu_context *smu)
 {
 	int ret = 0;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->baco_reset)
-		ret = smu->ppt_funcs->baco_reset(smu);
+	if (smu->ppt_funcs->baco_enter)
+		ret = smu->ppt_funcs->baco_enter(smu);
+
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
+int smu_baco_exit(struct smu_context *smu)
+{
+	int ret = 0;
+
+	mutex_lock(&smu->mutex);
+
+	if (smu->ppt_funcs->baco_exit)
+		ret = smu->ppt_funcs->baco_exit(smu);
 
 	mutex_unlock(&smu->mutex);
 

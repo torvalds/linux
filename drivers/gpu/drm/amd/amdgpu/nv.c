@@ -353,7 +353,12 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 	if (nv_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
 		if (!adev->in_suspend)
 			amdgpu_inc_vram_lost(adev);
-		ret = smu_baco_reset(smu);
+		ret = smu_baco_enter(smu);
+		if (ret)
+			return ret;
+		ret = smu_baco_exit(smu);
+		if (ret)
+			return ret;
 	} else {
 		if (!adev->in_suspend)
 			amdgpu_inc_vram_lost(adev);

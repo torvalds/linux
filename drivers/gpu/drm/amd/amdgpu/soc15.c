@@ -511,9 +511,15 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 
 	if (is_support_sw_smu(adev)) {
 		struct smu_context *smu = &adev->smu;
+		int ret;
 
-		if (smu_baco_reset(smu))
-			return -EIO;
+		ret = smu_baco_enter(smu);
+		if (ret)
+			return ret;
+
+		ret = smu_baco_exit(smu);
+		if (ret)
+			return ret;
 	} else {
 		void *pp_handle = adev->powerplay.pp_handle;
 		const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
