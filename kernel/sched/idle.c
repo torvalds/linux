@@ -390,9 +390,7 @@ pick_next_task_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf
 {
 	struct task_struct *next = rq->idle;
 
-	if (prev)
-		put_prev_task(rq, prev);
-
+	put_prev_task(rq, prev);
 	set_next_task_idle(rq, next);
 
 	return next;

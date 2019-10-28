@@ -1761,12 +1761,38 @@ pick_next_task_dl(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 	struct task_struct *p;
 	struct dl_rq *dl_rq;
 
-	WARN_ON_ONCE(prev || rf);
-
 	dl_rq = &rq->dl;
+
+	if (need_pull_dl_task(rq, prev)) {
+		/*
+		 * This is OK, because current is on_cpu, which avoids it being
+		 * picked for load-balance and preemption/IRQs are still
+		 * disabled avoiding further scheduler activity on it and we're
+		 * being very careful to re-start the picking loop.
+		 */
+		rq_unpin_lock(rq, rf);
+		pull_dl_task(rq);
+		rq_repin_lock(rq, rf);
+		/*
+		 * pull_dl_task() can drop (and re-acquire) rq->lock; this
+		 * means a stop task can slip in, in which case we need to
+		 * re-start task selection.
+		 */
+		if (rq->stop && task_on_rq_queued(rq->stop))
+			return RETRY_TASK;
+	}
+
+	/*
+	 * When prev is DL, we may throttle it in put_prev_task().
+	 * So, we update time before we check for dl_nr_running.
+	 */
+	if (prev->sched_class == &dl_sched_class)
+		update_curr_dl(rq);
 
 	if (unlikely(!dl_rq->dl_nr_running))
 		return NULL;
+
+	put_prev_task(rq, prev);
 
 	dl_se = pick_next_dl_entity(rq, dl_rq);
 	BUG_ON(!dl_se);

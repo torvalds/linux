@@ -1554,10 +1554,37 @@ pick_next_task_rt(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 	struct task_struct *p;
 	struct rt_rq *rt_rq = &rq->rt;
 
-	WARN_ON_ONCE(prev || rf);
+	if (need_pull_rt_task(rq, prev)) {
+		/*
+		 * This is OK, because current is on_cpu, which avoids it being
+		 * picked for load-balance and preemption/IRQs are still
+		 * disabled avoiding further scheduler activity on it and we're
+		 * being very careful to re-start the picking loop.
+		 */
+		rq_unpin_lock(rq, rf);
+		pull_rt_task(rq);
+		rq_repin_lock(rq, rf);
+		/*
+		 * pull_rt_task() can drop (and re-acquire) rq->lock; this
+		 * means a dl or stop task can slip in, in which case we need
+		 * to re-start task selection.
+		 */
+		if (unlikely((rq->stop && task_on_rq_queued(rq->stop)) ||
+			     rq->dl.dl_nr_running))
+			return RETRY_TASK;
+	}
+
+	/*
+	 * We may dequeue prev's rt_rq in put_prev_task().
+	 * So, we update time before rt_queued check.
+	 */
+	if (prev->sched_class == &rt_sched_class)
+		update_curr_rt(rq);
 
 	if (!rt_rq->rt_queued)
 		return NULL;
+
+	put_prev_task(rq, prev);
 
 	p = _pick_next_task_rt(rq);
 
