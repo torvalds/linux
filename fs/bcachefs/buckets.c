@@ -498,14 +498,18 @@ void bch2_dev_usage_from_buckets(struct bch_fs *c)
 	}
 }
 
-static inline void update_replicas(struct bch_fs *c,
-				   struct bch_fs_usage *fs_usage,
-				   struct bch_replicas_entry *r,
-				   s64 sectors)
+static inline int update_replicas(struct bch_fs *c,
+				  struct bch_fs_usage *fs_usage,
+				  struct bch_replicas_entry *r,
+				  s64 sectors)
 {
 	int idx = bch2_replicas_entry_idx(c, r);
 
-	BUG_ON(idx < 0);
+	if (idx < 0)
+		return -1;
+
+	if (!fs_usage)
+		return 0;
 
 	switch (r->data_type) {
 	case BCH_DATA_BTREE:
@@ -519,6 +523,7 @@ static inline void update_replicas(struct bch_fs *c,
 		break;
 	}
 	fs_usage->replicas[idx]		+= sectors;
+	return 0;
 }
 
 static inline void update_cached_sectors(struct bch_fs *c,
@@ -579,13 +584,28 @@ static inline void update_cached_sectors_list(struct btree_trans *trans,
 	update_replicas_list(trans, &r.e, sectors);
 }
 
-void bch2_replicas_delta_list_apply(struct bch_fs *c,
-				    struct bch_fs_usage *fs_usage,
-				    struct replicas_delta_list *r)
+static inline struct replicas_delta *
+replicas_delta_next(struct replicas_delta *d)
+{
+	return (void *) d + replicas_entry_bytes(&d->r) + 8;
+}
+
+int bch2_replicas_delta_list_apply(struct bch_fs *c,
+				   struct bch_fs_usage *fs_usage,
+				   struct replicas_delta_list *r)
 {
 	struct replicas_delta *d = r->d;
 	struct replicas_delta *top = (void *) r->d + r->used;
 	unsigned i;
+
+	for (d = r->d; d != top; d = replicas_delta_next(d))
+		if (update_replicas(c, fs_usage, &d->r, d->delta)) {
+			top = d;
+			goto unwind;
+		}
+
+	if (!fs_usage)
+		return 0;
 
 	fs_usage->nr_inodes += r->nr_inodes;
 
@@ -594,13 +614,11 @@ void bch2_replicas_delta_list_apply(struct bch_fs *c,
 		fs_usage->persistent_reserved[i] += r->persistent_reserved[i];
 	}
 
-	while (d != top) {
-		BUG_ON((void *) d > (void *) top);
-
-		update_replicas(c, fs_usage, &d->r, d->delta);
-
-		d = (void *) d + replicas_entry_bytes(&d->r) + 8;
-	}
+	return 0;
+unwind:
+	for (d = r->d; d != top; d = replicas_delta_next(d))
+		update_replicas(c, fs_usage, &d->r, -d->delta);
+	return -1;
 }
 
 #define do_mark_fn(fn, c, pos, flags, ...)				\

@@ -284,17 +284,17 @@ static inline unsigned btree_write_set_buffer(struct btree *b)
 static inline struct btree_node_entry *want_new_bset(struct bch_fs *c,
 						     struct btree *b)
 {
-	struct bset *i = btree_bset_last(b);
+	struct bset_tree *t = bset_tree_last(b);
 	struct btree_node_entry *bne = max(write_block(b),
 			(void *) btree_bkey_last(b, bset_tree_last(b)));
 	ssize_t remaining_space =
 		__bch_btree_u64s_remaining(c, b, &bne->keys.start[0]);
 
-	if (unlikely(bset_written(b, i))) {
+	if (unlikely(bset_written(b, bset(b, t)))) {
 		if (remaining_space > (ssize_t) (block_bytes(c) >> 3))
 			return bne;
 	} else {
-		if (unlikely(vstruct_bytes(i) > btree_write_set_buffer(b)) &&
+		if (unlikely(bset_u64s(t) * sizeof(u64) > btree_write_set_buffer(b)) &&
 		    remaining_space > (ssize_t) (btree_write_set_buffer(b) >> 3))
 			return bne;
 	}

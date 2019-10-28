@@ -17,6 +17,7 @@
 #include "replicas.h"
 #include "trace.h"
 
+#include <linux/prefetch.h>
 #include <linux/sort.h>
 
 static inline bool same_leaf_as_prev(struct btree_trans *trans,
@@ -48,23 +49,6 @@ inline void bch2_btree_node_lock_for_insert(struct bch_fs *c, struct btree *b,
 	 */
 	if (want_new_bset(c, b))
 		bch2_btree_init_next(c, b, iter);
-}
-
-static void btree_trans_lock_write(struct btree_trans *trans, bool lock)
-{
-	struct bch_fs *c = trans->c;
-	struct btree_insert_entry *i;
-	unsigned iter;
-
-	trans_for_each_update_sorted(trans, i, iter) {
-		if (same_leaf_as_prev(trans, iter))
-			continue;
-
-		if (lock)
-			bch2_btree_node_lock_for_insert(c, i->iter->l[0].b, i->iter);
-		else
-			bch2_btree_node_unlock_write(i->iter->l[0].b, i->iter);
-	}
 }
 
 static inline void btree_trans_sort_updates(struct btree_trans *trans)
@@ -377,29 +361,6 @@ btree_key_can_insert(struct btree_trans *trans,
 	return BTREE_INSERT_OK;
 }
 
-static int btree_trans_check_can_insert(struct btree_trans *trans,
-					struct btree_insert_entry **stopped_at)
-{
-	struct btree_insert_entry *i;
-	unsigned iter, u64s = 0;
-	int ret;
-
-	trans_for_each_update_sorted(trans, i, iter) {
-		/* Multiple inserts might go to same leaf: */
-		if (!same_leaf_as_prev(trans, iter))
-			u64s = 0;
-
-		u64s += i->k->k.u64s;
-		ret = btree_key_can_insert(trans, i, &u64s);
-		if (ret) {
-			*stopped_at = i;
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static inline void do_btree_insert_one(struct btree_trans *trans,
 				       struct btree_insert_entry *insert)
 {
@@ -450,6 +411,8 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	unsigned mark_flags = trans->flags & BTREE_INSERT_BUCKET_INVALIDATE
 		? BCH_BUCKET_MARK_BUCKET_INVALIDATE
 		: 0;
+	unsigned iter, u64s = 0;
+	bool marking = false;
 	int ret;
 
 	if (race_fault()) {
@@ -462,25 +425,28 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	 * held, otherwise another thread could write the node changing the
 	 * amount of space available:
 	 */
-	ret = btree_trans_check_can_insert(trans, stopped_at);
-	if (ret)
-		return ret;
 
-	trans_for_each_update(trans, i) {
-		if (!btree_node_type_needs_gc(i->iter->btree_id))
-			continue;
+	prefetch(&trans->c->journal.flags);
 
-		if (!fs_usage) {
-			percpu_down_read(&c->mark_lock);
-			fs_usage = bch2_fs_usage_scratch_get(c);
+	trans_for_each_update_sorted(trans, i, iter) {
+		/* Multiple inserts might go to same leaf: */
+		if (!same_leaf_as_prev(trans, iter))
+			u64s = 0;
+
+		u64s += i->k->k.u64s;
+		ret = btree_key_can_insert(trans, i, &u64s);
+		if (ret) {
+			*stopped_at = i;
+			return ret;
 		}
 
-		/* Must be called under mark_lock: */
-		if (!bch2_bkey_replicas_marked_locked(c,
-			bkey_i_to_s_c(i->k), true)) {
-			ret = BTREE_INSERT_NEED_MARK_REPLICAS;
-			goto err;
-		}
+		if (btree_node_type_needs_gc(i->iter->btree_id))
+			marking = true;
+	}
+
+	if (marking) {
+		percpu_down_read(&c->mark_lock);
+		fs_usage = bch2_fs_usage_scratch_get(c);
 	}
 
 	/*
@@ -508,16 +474,20 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 				i->k->k.version = MAX_VERSION;
 	}
 
+	/* Must be called under mark_lock: */
+	if (marking && trans->fs_usage_deltas &&
+	    bch2_replicas_delta_list_apply(c, &fs_usage->u,
+					   trans->fs_usage_deltas)) {
+		ret = BTREE_INSERT_NEED_MARK_REPLICAS;
+		goto err;
+	}
+
 	trans_for_each_update(trans, i)
 		if (likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
 		    update_has_nontrans_triggers(i))
 			bch2_mark_update(trans, i, &fs_usage->u, mark_flags);
 
-	if (fs_usage && trans->fs_usage_deltas)
-		bch2_replicas_delta_list_apply(c, &fs_usage->u,
-					       trans->fs_usage_deltas);
-
-	if (fs_usage)
+	if (marking)
 		bch2_trans_fs_usage_apply(trans, fs_usage);
 
 	if (unlikely(c->gc_pos.phase))
@@ -526,7 +496,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	trans_for_each_update(trans, i)
 		do_btree_insert_one(trans, i);
 err:
-	if (fs_usage) {
+	if (marking) {
 		bch2_fs_usage_scratch_put(c, fs_usage);
 		percpu_up_read(&c->mark_lock);
 	}
@@ -609,9 +579,17 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	 */
 	btree_trans_sort_updates(trans);
 
-	btree_trans_lock_write(trans, true);
+	trans_for_each_update_sorted(trans, i, idx)
+		if (!same_leaf_as_prev(trans, idx))
+			bch2_btree_node_lock_for_insert(trans->c,
+						i->iter->l[0].b, i->iter);
+
 	ret = bch2_trans_commit_write_locked(trans, stopped_at);
-	btree_trans_lock_write(trans, false);
+
+	trans_for_each_update_sorted(trans, i, idx)
+		if (!same_leaf_as_prev(trans, idx))
+			bch2_btree_node_unlock_write_inlined(i->iter->l[0].b,
+							     i->iter);
 
 	/*
 	 * Drop journal reservation after dropping write locks, since dropping

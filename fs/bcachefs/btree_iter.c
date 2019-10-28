@@ -64,21 +64,9 @@ static inline int btree_iter_pos_cmp(struct btree_iter *iter,
 
 /* Btree node locking: */
 
-/*
- * Updates the saved lock sequence number, so that bch2_btree_node_relock() will
- * succeed:
- */
 void bch2_btree_node_unlock_write(struct btree *b, struct btree_iter *iter)
 {
-	struct btree_iter *linked;
-
-	EBUG_ON(iter->l[b->c.level].b != b);
-	EBUG_ON(iter->l[b->c.level].lock_seq + 1 != b->c.lock.state.seq);
-
-	trans_for_each_iter_with_node(iter->trans, b, linked)
-		linked->l[b->c.level].lock_seq += 2;
-
-	six_unlock_write(&b->c.lock);
+	bch2_btree_node_unlock_write_inlined(b, iter);
 }
 
 void __bch2_btree_node_lock_write(struct btree *b, struct btree_iter *iter)
