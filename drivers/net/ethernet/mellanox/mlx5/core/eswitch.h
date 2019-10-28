@@ -267,8 +267,6 @@ void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
 				  struct mlx5_vport *vport);
 void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
 				   struct mlx5_vport *vport);
-void esw_vport_del_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
-					       struct mlx5_vport *vport);
 int mlx5_esw_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num,
 			       u32 rate_mbps);
 

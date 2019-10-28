@@ -1847,8 +1847,8 @@ out:
 	return err;
 }
 
-void esw_vport_del_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
-					       struct mlx5_vport *vport)
+static void esw_vport_del_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
+						      struct mlx5_vport *vport)
 {
 	if (vport->ingress.offloads.modify_metadata_rule) {
 		mlx5_del_flow_rules(vport->ingress.offloads.modify_metadata_rule);
@@ -1962,8 +1962,10 @@ esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
 
 	if (mlx5_eswitch_is_vf_vport(esw, vport->vport)) {
 		err = esw_vport_egress_config(esw, vport);
-		if (err)
+		if (err) {
+			esw_vport_del_ingress_acl_modify_metadata(esw, vport);
 			esw_vport_disable_ingress_acl(esw, vport);
+		}
 	}
 	return err;
 }
@@ -1973,6 +1975,7 @@ esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
 				      struct mlx5_vport *vport)
 {
 	esw_vport_disable_egress_acl(esw, vport);
+	esw_vport_del_ingress_acl_modify_metadata(esw, vport);
 	esw_vport_disable_ingress_acl(esw, vport);
 }
 

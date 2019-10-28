@@ -1214,8 +1214,6 @@ void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
 		mlx5_del_flow_rules(vport->ingress.allow_rule);
 		vport->ingress.allow_rule = NULL;
 	}
-
-	esw_vport_del_ingress_acl_modify_metadata(esw, vport);
 }
 
 void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
