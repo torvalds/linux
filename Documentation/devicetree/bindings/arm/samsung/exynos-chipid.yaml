@@ -13,7 +13,6 @@ properties:
   compatible:
     items:
       - const: samsung,exynos4210-chipid
-      - const: syscon
 
   reg:
     maxItems: 1
@@ -34,7 +33,7 @@ required:
 examples:
   - |
     chipid@10000000 {
-        compatible = "samsung,exynos4210-chipid", "syscon";
+        compatible = "samsung,exynos4210-chipid";
         reg = <0x10000000 0x100>;
         samsung,asv-bin = <2>;
     };
