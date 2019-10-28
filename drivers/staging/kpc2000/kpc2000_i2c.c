@@ -144,7 +144,6 @@ static int i801_check_pre(struct i2c_device *priv)
 
 	status &= STATUS_FLAGS;
 	if (status) {
-		//dev_dbg(&priv->adapter.dev, "Clearing status flags (%02x)\n", status);
 		outb_p(status, SMBHSTSTS(priv));
 		status = inb_p(SMBHSTSTS(priv)) & STATUS_FLAGS;
 		if (status) {
@@ -526,7 +525,6 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	}
 
 	if (block) {
-		//ret = 0;
 		dev_dbg(&priv->adapter.dev, "  [acc] block: yes\n");
 		ret = i801_block_transaction(priv, data, read_write, size,
 					     hwpec);
@@ -682,7 +680,6 @@ static int pi2c_probe(struct platform_device *pldev)
 	/* Retry up to 3 times on lost arbitration */
 	priv->adapter.retries = 3;
 
-	//snprintf(priv->adapter.name, sizeof(priv->adapter.name), "Fake SMBus I801 adapter at %04lx", priv->smba);
 	snprintf(priv->adapter.name, sizeof(priv->adapter.name),
 		 "Fake SMBus I801 adapter");
 
