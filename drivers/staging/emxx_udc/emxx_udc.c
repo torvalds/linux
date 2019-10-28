@@ -1072,9 +1072,8 @@ static int _nbu2ss_epn_in_pio(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep,
 		if (i_word_length > 0) {
 			for (i = 0; i < i_word_length; i++) {
 				_nbu2ss_writel(
-					&preg->EP_REGS[ep->epnum - 1].EP_WRITE
-					, p_buf_32->dw
-				);
+					&preg->EP_REGS[ep->epnum - 1].EP_WRITE,
+					p_buf_32->dw);
 
 				p_buf_32++;
 			}
