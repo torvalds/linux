@@ -100,12 +100,15 @@
 #define CLK_RGB24_MASK		0x0
 #define CLK_RGB16_MASK		0x070307
 #define CLK_RGB15_MASK		0x070707
-#define CLK_RGB8I_MASK		0xffffff
 
+#define RGB30_TO_COLORKEY(c) \
+	(((c & 0x3FC00000) >> 6) | ((c & 0x000FF000) >> 4) | ((c & 0x000003FC) >> 2))
 #define RGB16_TO_COLORKEY(c) \
 	(((c & 0xF800) << 8) | ((c & 0x07E0) << 5) | ((c & 0x001F) << 3))
 #define RGB15_TO_COLORKEY(c) \
 	(((c & 0x7c00) << 9) | ((c & 0x03E0) << 6) | ((c & 0x001F) << 3))
+#define RGB8I_TO_COLORKEY(c) \
+	(((c & 0xFF) << 16) | ((c & 0XFF) << 8) | ((c & 0xFF) << 0))
 
 /* overlay flip addr flag */
 #define OFC_UPDATE		0x1
@@ -682,8 +685,8 @@ static void update_colorkey(struct intel_overlay *overlay,
 
 	switch (format) {
 	case DRM_FORMAT_C8:
-		key = 0;
-		flags |= CLK_RGB8I_MASK;
+		key = RGB8I_TO_COLORKEY(key);
+		flags |= CLK_RGB24_MASK;
 		break;
 	case DRM_FORMAT_XRGB1555:
 		key = RGB15_TO_COLORKEY(key);
@@ -692,6 +695,11 @@ static void update_colorkey(struct intel_overlay *overlay,
 	case DRM_FORMAT_RGB565:
 		key = RGB16_TO_COLORKEY(key);
 		flags |= CLK_RGB16_MASK;
+		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+		key = RGB30_TO_COLORKEY(key);
+		flags |= CLK_RGB24_MASK;
 		break;
 	default:
 		flags |= CLK_RGB24_MASK;
