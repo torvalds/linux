@@ -145,4 +145,7 @@ struct intel_engine_cs *
 intel_virtual_engine_get_sibling(struct intel_engine_cs *engine,
 				 unsigned int sibling);
 
+bool
+intel_engine_in_execlists_submission_mode(const struct intel_engine_cs *engine);
+
 #endif /* _INTEL_LRC_H_ */
