@@ -2079,8 +2079,8 @@ lpfc_debugfs_lockstat_write(struct file *file, const char __user *buf,
 }
 #endif
 
-int
-lpfc_debugfs_ras_log_data(struct lpfc_hba *phba, char *buffer, int size)
+static int lpfc_debugfs_ras_log_data(struct lpfc_hba *phba,
+				     char *buffer, int size)
 {
 	int copied = 0;
 	struct lpfc_dmabuf *dmabuf, *next;
