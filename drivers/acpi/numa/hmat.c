@@ -438,7 +438,7 @@ static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *heade
 			pr_debug("HMAT: Invalid Processor Domain\n");
 			return -EINVAL;
 		}
-		target->processor_pxm = p_node;
+		target->processor_pxm = p->processor_PD;
 	}
 
 	return 0;
