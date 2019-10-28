@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <asm/mmiowb.h>
 
+#ifdef CONFIG_MMU
 void __iomem *ioremap(phys_addr_t offset, unsigned long size);
 
 /*
@@ -26,6 +27,9 @@ void __iomem *ioremap(phys_addr_t offset, unsigned long size);
 #define ioremap_wt(addr, size) ioremap((addr), (size))
 
 void iounmap(volatile void __iomem *addr);
+#else
+#define pgprot_noncached(x)	(x)
+#endif /* CONFIG_MMU */
 
 /* Generic IO read/write.  These perform native-endian accesses. */
 #define __raw_writeb __raw_writeb

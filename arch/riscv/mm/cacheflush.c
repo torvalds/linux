@@ -78,6 +78,7 @@ void flush_icache_mm(struct mm_struct *mm, bool local)
 
 #endif /* CONFIG_SMP */
 
+#ifdef CONFIG_MMU
 void flush_icache_pte(pte_t pte)
 {
 	struct page *page = pte_page(pte);
@@ -85,3 +86,4 @@ void flush_icache_pte(pte_t pte)
 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
 		flush_icache_all();
 }
+#endif /* CONFIG_MMU */

@@ -109,8 +109,10 @@ clear_bss_done:
 	la sp, init_thread_union + THREAD_SIZE
 	mv a0, s1
 	call setup_vm
+#ifdef CONFIG_MMU
 	la a0, early_pg_dir
 	call relocate
+#endif /* CONFIG_MMU */
 
 	/* Restore C environment */
 	la tp, init_task
@@ -121,6 +123,7 @@ clear_bss_done:
 	call parse_dtb
 	tail start_kernel
 
+#ifdef CONFIG_MMU
 relocate:
 	/* Relocate return address */
 	li a1, PAGE_OFFSET
@@ -171,6 +174,7 @@ relocate:
 	sfence.vma
 
 	ret
+#endif /* CONFIG_MMU */
 
 .Lsecondary_start:
 #ifdef CONFIG_SMP
@@ -196,9 +200,11 @@ relocate:
 	beqz tp, .Lwait_for_cpu_up
 	fence
 
+#ifdef CONFIG_MMU
 	/* Enable virtual memory and relocate to virtual address */
 	la a0, swapper_pg_dir
 	call relocate
+#endif
 
 	tail smp_callin
 #endif

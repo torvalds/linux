@@ -17,11 +17,16 @@
 #include <asm/switch_to.h>
 #include <asm/csr.h>
 
+extern u32 __user_rt_sigreturn[2];
+
 #define DEBUG_SIG 0
 
 struct rt_sigframe {
 	struct siginfo info;
 	struct ucontext uc;
+#ifndef CONFIG_MMU
+	u32 sigreturn_code[2];
+#endif
 };
 
 #ifdef CONFIG_FPU
@@ -166,7 +171,6 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
 	return (void __user *)sp;
 }
 
-
 static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	struct pt_regs *regs)
 {
@@ -189,8 +193,19 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		return -EFAULT;
 
 	/* Set up to return from userspace. */
+#ifdef CONFIG_MMU
 	regs->ra = (unsigned long)VDSO_SYMBOL(
 		current->mm->context.vdso, rt_sigreturn);
+#else
+	/*
+	 * For the nommu case we don't have a VDSO.  Instead we push two
+	 * instructions to call the rt_sigreturn syscall onto the user stack.
+	 */
+	if (copy_to_user(&frame->sigreturn_code, __user_rt_sigreturn,
+			 sizeof(frame->sigreturn_code)))
+		return -EFAULT;
+	regs->ra = (unsigned long)&frame->sigreturn_code;
+#endif /* CONFIG_MMU */
 
 	/*
 	 * Set up registers for signal handler.
