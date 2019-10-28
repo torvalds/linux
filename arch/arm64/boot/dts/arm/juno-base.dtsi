@@ -35,6 +35,18 @@
 		clock-names = "apb_pclk";
 	};
 
+	smmu_gpu: iommu@2b400000 {
+		compatible = "arm,mmu-400", "arm,smmu-v1";
+		reg = <0x0 0x2b400000 0x0 0x10000>;
+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+		#iommu-cells = <1>;
+		#global-interrupts = <1>;
+		power-domains = <&scpi_devpd 1>;
+		dma-coherent;
+		status = "disabled";
+	};
+
 	smmu_pcie: iommu@2b500000 {
 		compatible = "arm,mmu-401", "arm,smmu-v1";
 		reg = <0x0 0x2b500000 0x0 0x10000>;
@@ -485,6 +497,21 @@
 				};
 			};
 		};
+	};
+
+	gpu: gpu@2d000000 {
+		compatible = "arm,juno-mali", "arm,mali-t624";
+		reg = <0 0x2d000000 0 0x10000>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "gpu", "job", "mmu";
+		clocks = <&scpi_dvfs 2>;
+		power-domains = <&scpi_devpd 1>;
+		dma-coherent;
+		/* The SMMU is only really of interest to bare-metal hypervisors */
+		/* iommus = <&smmu_gpu 0>; */
+		status = "disabled";
 	};
 
 	sram: sram@2e000000 {
