@@ -74,13 +74,4 @@ alternative_if ARM64_ALT_PAN_NOT_UAO
 	SET_PSTATE_PAN(0)
 alternative_else_nop_endif
 	.endm
-
-/*
- * Remove the address tag from a virtual address, if present.
- */
-	.macro	untagged_addr, dst, addr
-	sbfx	\dst, \addr, #0, #56
-	and	\dst, \dst, \addr
-	.endm
-
 #endif
