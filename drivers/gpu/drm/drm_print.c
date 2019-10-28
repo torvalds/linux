@@ -280,7 +280,7 @@ void drm_dev_dbg(const struct device *dev, unsigned int category,
 }
 EXPORT_SYMBOL(drm_dev_dbg);
 
-void drm_dbg(unsigned int category, const char *format, ...)
+void __drm_dbg(unsigned int category, const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -297,9 +297,9 @@ void drm_dbg(unsigned int category, const char *format, ...)
 
 	va_end(args);
 }
-EXPORT_SYMBOL(drm_dbg);
+EXPORT_SYMBOL(__drm_dbg);
 
-void drm_err(const char *format, ...)
+void __drm_err(const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -313,7 +313,7 @@ void drm_err(const char *format, ...)
 
 	va_end(args);
 }
-EXPORT_SYMBOL(drm_err);
+EXPORT_SYMBOL(__drm_err);
 
 /**
  * drm_print_regset32 - print the contents of registers to a

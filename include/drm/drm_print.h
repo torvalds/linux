@@ -307,9 +307,9 @@ void drm_dev_dbg(const struct device *dev, unsigned int category,
 		 const char *format, ...);
 
 __printf(2, 3)
-void drm_dbg(unsigned int category, const char *format, ...);
+void __drm_dbg(unsigned int category, const char *format, ...);
 __printf(1, 2)
-void drm_err(const char *format, ...);
+void __drm_err(const char *format, ...);
 
 /* Macros to make printk easier */
 
@@ -339,7 +339,7 @@ void drm_err(const char *format, ...);
 #define DRM_DEV_ERROR(dev, fmt, ...)					\
 	drm_dev_printk(dev, KERN_ERR, "*ERROR* " fmt, ##__VA_ARGS__)
 #define DRM_ERROR(fmt, ...)						\
-	drm_err(fmt, ##__VA_ARGS__)
+	__drm_err(fmt, ##__VA_ARGS__)
 
 /**
  * Rate limited error output.  Like DRM_ERROR() but won't flood the log.
@@ -380,40 +380,40 @@ void drm_err(const char *format, ...);
 #define DRM_DEV_DEBUG(dev, fmt, ...)					\
 	drm_dev_dbg(dev, DRM_UT_CORE, fmt, ##__VA_ARGS__)
 #define DRM_DEBUG(fmt, ...)						\
-	drm_dbg(DRM_UT_CORE, fmt, ##__VA_ARGS__)
+	__drm_dbg(DRM_UT_CORE, fmt, ##__VA_ARGS__)
 
 #define DRM_DEV_DEBUG_DRIVER(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_DRIVER,	fmt, ##__VA_ARGS__)
 #define DRM_DEBUG_DRIVER(fmt, ...)					\
-	drm_dbg(DRM_UT_DRIVER, fmt, ##__VA_ARGS__)
+	__drm_dbg(DRM_UT_DRIVER, fmt, ##__VA_ARGS__)
 
 #define DRM_DEV_DEBUG_KMS(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_KMS, fmt, ##__VA_ARGS__)
 #define DRM_DEBUG_KMS(fmt, ...)						\
-	drm_dbg(DRM_UT_KMS, fmt, ##__VA_ARGS__)
+	__drm_dbg(DRM_UT_KMS, fmt, ##__VA_ARGS__)
 
 #define DRM_DEV_DEBUG_PRIME(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_PRIME, fmt, ##__VA_ARGS__)
 #define DRM_DEBUG_PRIME(fmt, ...)					\
-	drm_dbg(DRM_UT_PRIME, fmt, ##__VA_ARGS__)
+	__drm_dbg(DRM_UT_PRIME, fmt, ##__VA_ARGS__)
 
 #define DRM_DEV_DEBUG_ATOMIC(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_ATOMIC,	fmt, ##__VA_ARGS__)
 #define DRM_DEBUG_ATOMIC(fmt, ...)					\
-	drm_dbg(DRM_UT_ATOMIC, fmt, ##__VA_ARGS__)
+	__drm_dbg(DRM_UT_ATOMIC, fmt, ##__VA_ARGS__)
 
 #define DRM_DEV_DEBUG_VBL(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_VBL, fmt, ##__VA_ARGS__)
 #define DRM_DEBUG_VBL(fmt, ...)						\
-	drm_dbg(DRM_UT_VBL, fmt, ##__VA_ARGS__)
+	__drm_dbg(DRM_UT_VBL, fmt, ##__VA_ARGS__)
 
 #define DRM_DEBUG_LEASE(fmt, ...)					\
-	drm_dbg(DRM_UT_LEASE, fmt, ##__VA_ARGS__)
+	__drm_dbg(DRM_UT_LEASE, fmt, ##__VA_ARGS__)
 
 #define	DRM_DEV_DEBUG_DP(dev, fmt, ...)					\
 	drm_dev_dbg(dev, DRM_UT_DP, fmt, ## __VA_ARGS__)
 #define DRM_DEBUG_DP(fmt, ...)						\
-	drm_dbg(DRM_UT_DP, fmt, ## __VA_ARGS__)
+	__drm_dbg(DRM_UT_DP, fmt, ## __VA_ARGS__)
 
 #define _DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, category, fmt, ...)	\
 ({									\
