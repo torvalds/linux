@@ -1663,12 +1663,6 @@ static void esw_apply_vport_conf(struct mlx5_eswitch *esw,
 		SET_VLAN_STRIP | SET_VLAN_INSERT : 0;
 	modify_esw_vport_cvlan(esw->dev, vport_num, vport->info.vlan, vport->info.qos,
 			       flags);
-
-	/* Only legacy mode needs ACLs */
-	if (esw->mode == MLX5_ESWITCH_LEGACY) {
-		esw_vport_ingress_config(esw, vport);
-		esw_vport_egress_config(esw, vport);
-	}
 }
 
 static void esw_legacy_vport_create_drop_counters(struct mlx5_vport *vport)
@@ -1706,10 +1700,59 @@ static void esw_legacy_vport_destroy_drop_counters(struct mlx5_vport *vport)
 		mlx5_fc_destroy(dev, vport->egress.legacy.drop_counter);
 }
 
+static int esw_vport_create_legacy_acl_tables(struct mlx5_eswitch *esw,
+					      struct mlx5_vport *vport)
+{
+	int ret;
+
+	/* Only non manager vports need ACL in legacy mode */
+	if (mlx5_esw_is_manager_vport(esw, vport->vport))
+		return 0;
+
+	ret = esw_vport_ingress_config(esw, vport);
+	if (ret)
+		return ret;
+
+	ret = esw_vport_egress_config(esw, vport);
+	if (ret)
+		esw_vport_disable_ingress_acl(esw, vport);
+
+	return ret;
+}
+
+static int esw_vport_setup_acl(struct mlx5_eswitch *esw,
+			       struct mlx5_vport *vport)
+{
+	if (esw->mode == MLX5_ESWITCH_LEGACY)
+		return esw_vport_create_legacy_acl_tables(esw, vport);
+
+	return 0;
+}
+
+static void esw_vport_destroy_legacy_acl_tables(struct mlx5_eswitch *esw,
+						struct mlx5_vport *vport)
+
+{
+	if (mlx5_esw_is_manager_vport(esw, vport->vport))
+		return;
+
+	esw_vport_disable_egress_acl(esw, vport);
+	esw_vport_disable_ingress_acl(esw, vport);
+	esw_legacy_vport_destroy_drop_counters(vport);
+}
+
+static void esw_vport_cleanup_acl(struct mlx5_eswitch *esw,
+				  struct mlx5_vport *vport)
+{
+	if (esw->mode == MLX5_ESWITCH_LEGACY)
+		esw_vport_destroy_legacy_acl_tables(esw, vport);
+}
+
 static int esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 			    enum mlx5_eswitch_vport_event enabled_events)
 {
 	u16 vport_num = vport->vport;
+	int ret;
 
 	mutex_lock(&esw->state_lock);
 	WARN_ON(vport->enabled);
@@ -1723,6 +1766,10 @@ static int esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 
 	/* Restore old vport configuration */
 	esw_apply_vport_conf(esw, vport);
+
+	ret = esw_vport_setup_acl(esw, vport);
+	if (ret)
+		goto done;
 
 	/* Attach vport to the eswitch rate limiter */
 	if (esw_vport_enable_qos(esw, vport, vport->info.max_rate,
@@ -1744,8 +1791,9 @@ static int esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 
 	esw->enabled_vports++;
 	esw_debug(esw->dev, "Enabled VPORT(%d)\n", vport_num);
+done:
 	mutex_unlock(&esw->state_lock);
-	return 0;
+	return ret;
 }
 
 static void esw_disable_vport(struct mlx5_eswitch *esw,
@@ -1770,16 +1818,15 @@ static void esw_disable_vport(struct mlx5_eswitch *esw,
 	esw_vport_change_handle_locked(vport);
 	vport->enabled_events = 0;
 	esw_vport_disable_qos(esw, vport);
-	if (!mlx5_esw_is_manager_vport(esw, vport_num) &&
-	    esw->mode == MLX5_ESWITCH_LEGACY) {
+
+	if (!mlx5_esw_is_manager_vport(esw, vport->vport) &&
+	    esw->mode == MLX5_ESWITCH_LEGACY)
 		mlx5_modify_vport_admin_state(esw->dev,
 					      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
 					      vport_num, 1,
 					      MLX5_VPORT_ADMIN_STATE_DOWN);
-		esw_vport_disable_egress_acl(esw, vport);
-		esw_vport_disable_ingress_acl(esw, vport);
-		esw_legacy_vport_destroy_drop_counters(vport);
-	}
+
+	esw_vport_cleanup_acl(esw, vport);
 	esw->enabled_vports--;
 
 done:
