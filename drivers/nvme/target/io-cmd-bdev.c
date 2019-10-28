@@ -147,6 +147,7 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 	int sg_cnt = req->sg_cnt;
 	struct bio *bio;
 	struct scatterlist *sg;
+	struct blk_plug plug;
 	sector_t sector;
 	int op, op_flags = 0, i;
 
@@ -185,6 +186,7 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 	bio->bi_end_io = nvmet_bio_done;
 	bio_set_op_attrs(bio, op, op_flags);
 
+	blk_start_plug(&plug);
 	for_each_sg(req->sg, sg, req->sg_cnt, i) {
 		while (bio_add_page(bio, sg_page(sg), sg->length, sg->offset)
 				!= sg->length) {
@@ -204,6 +206,7 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 	}
 
 	submit_bio(bio);
+	blk_finish_plug(&plug);
 }
 
 static void nvmet_bdev_execute_flush(struct nvmet_req *req)
