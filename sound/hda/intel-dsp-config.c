@@ -307,12 +307,12 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 {
 	const struct config_entry *cfg;
 
+	/* Intel vendor only */
+	if (pci->vendor != 0x8086)
+		return SND_INTEL_DSP_DRIVER_ANY;
+
 	if (dsp_driver > 0 && dsp_driver <= SND_INTEL_DSP_DRIVER_LAST)
 		return dsp_driver;
-
-	/* Intel vendor only */
-	if (snd_BUG_ON(pci->vendor != 0x8086))
-		return SND_INTEL_DSP_DRIVER_ANY;
 
 	/*
 	 * detect DSP by checking class/subclass/prog-id information
