@@ -89,12 +89,11 @@ static inline struct map *map_groups__find(struct map_groups *mg, u64 addr)
 	return maps__find(&mg->maps, addr);
 }
 
-struct map *map_groups__first(struct map_groups *mg);
+#define map_groups__for_each_entry(mg, map) \
+	for (map = maps__first(&mg->maps); map; map = map__next(map))
 
-static inline struct map *map_groups__next(struct map *map)
-{
-	return map__next(map);
-}
+#define map_groups__for_each_entry_safe(mg, map, next) \
+	for (map = maps__first(&mg->maps), next = map__next(map); map; map = next, next = map__next(map))
 
 struct symbol *map_groups__find_symbol(struct map_groups *mg, u64 addr, struct map **mapp);
 struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg, const char *name, struct map **mapp);

@@ -1049,11 +1049,6 @@ out_delete_from:
 	return ret;
 }
 
-struct map *map_groups__first(struct map_groups *mg)
-{
-	return maps__first(&mg->maps);
-}
-
 static int do_validate_kcore_modules(const char *filename,
 				  struct map_groups *kmaps)
 {
@@ -1065,13 +1060,10 @@ static int do_validate_kcore_modules(const char *filename,
 	if (err)
 		return err;
 
-	old_map = map_groups__first(kmaps);
-	while (old_map) {
-		struct map *next = map_groups__next(old_map);
+	map_groups__for_each_entry(kmaps, old_map) {
 		struct module_info *mi;
 
 		if (!__map__is_kmodule(old_map)) {
-			old_map = next;
 			continue;
 		}
 
@@ -1081,8 +1073,6 @@ static int do_validate_kcore_modules(const char *filename,
 			err = -EINVAL;
 			goto out;
 		}
-
-		old_map = next;
 	}
 out:
 	delete_modules(&modules);
@@ -1185,9 +1175,7 @@ int map_groups__merge_in(struct map_groups *kmaps, struct map *new_map)
 	struct map *old_map;
 	LIST_HEAD(merged);
 
-	for (old_map = map_groups__first(kmaps); old_map;
-	     old_map = map_groups__next(old_map)) {
-
+	map_groups__for_each_entry(kmaps, old_map) {
 		/* no overload with this one */
 		if (new_map->end < old_map->start ||
 		    new_map->start >= old_map->end)
@@ -1260,7 +1248,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 {
 	struct map_groups *kmaps = map__kmaps(map);
 	struct kcore_mapfn_data md;
-	struct map *old_map, *new_map, *replacement_map = NULL;
+	struct map *old_map, *new_map, *replacement_map = NULL, *next;
 	struct machine *machine;
 	bool is_64_bit;
 	int err, fd;
@@ -1307,10 +1295,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	}
 
 	/* Remove old maps */
-	old_map = map_groups__first(kmaps);
-	while (old_map) {
-		struct map *next = map_groups__next(old_map);
-
+	map_groups__for_each_entry_safe(kmaps, old_map, next) {
 		/*
 		 * We need to preserve eBPF maps even if they are
 		 * covered by kcore, because we need to access
@@ -1318,7 +1303,6 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		 */
 		if (old_map != map && !__map__is_bpf_prog(old_map))
 			map_groups__remove(kmaps, old_map);
-		old_map = next;
 	}
 	machine->trampolines_mapped = false;
 

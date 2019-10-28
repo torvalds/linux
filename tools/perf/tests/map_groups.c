@@ -18,17 +18,16 @@ static int check_maps(struct map_def *merged, unsigned int size, struct map_grou
 	struct map *map;
 	unsigned int i = 0;
 
-	map = map_groups__first(mg);
-	while (map) {
+	map_groups__for_each_entry(mg, map) {
+		if (i > 0)
+			TEST_ASSERT_VAL("less maps expected", (map && i < size) || (!map && i == size));
+
 		TEST_ASSERT_VAL("wrong map start",  map->start == merged[i].start);
 		TEST_ASSERT_VAL("wrong map end",    map->end == merged[i].end);
 		TEST_ASSERT_VAL("wrong map name",  !strcmp(map->dso->name, merged[i].name));
 		TEST_ASSERT_VAL("wrong map refcnt", refcount_read(&map->refcnt) == 2);
 
 		i++;
-		map = map_groups__next(map);
-
-		TEST_ASSERT_VAL("less maps expected", (map && i < size) || (!map && i == size));
 	}
 
 	return TEST_OK;
