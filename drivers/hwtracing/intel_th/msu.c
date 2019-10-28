@@ -327,7 +327,7 @@ static size_t msc_win_total_sz(struct msc_window *win)
 		struct msc_block_desc *bdesc = sg_virt(sg);
 
 		if (msc_block_wrapped(bdesc))
-			return win->nr_blocks << PAGE_SHIFT;
+			return (size_t)win->nr_blocks << PAGE_SHIFT;
 
 		size += msc_total_sz(bdesc);
 		if (msc_block_last_written(bdesc))
