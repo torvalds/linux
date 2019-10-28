@@ -213,7 +213,6 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.map_mr_sg = qedr_map_mr_sg,
 	.mmap = qedr_mmap,
 	.mmap_free = qedr_mmap_free,
-	.modify_port = qedr_modify_port,
 	.modify_qp = qedr_modify_qp,
 	.modify_srq = qedr_modify_srq,
 	.poll_cq = qedr_poll_cq,
