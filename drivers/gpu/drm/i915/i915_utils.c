@@ -23,7 +23,7 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	struct va_format vaf;
 	va_list args;
 
-	if (is_debug && !(drm_debug & DRM_UT_DRIVER))
+	if (is_debug && !drm_debug_enabled(DRM_UT_DRIVER))
 		return;
 
 	va_start(args, fmt);
