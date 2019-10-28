@@ -17667,7 +17667,8 @@ static void intel_mode_config_init(struct drm_i915_private *i915)
 	if (IS_I845G(i915) || IS_I865G(i915)) {
 		mode_config->cursor_width = IS_I845G(i915) ? 64 : 512;
 		mode_config->cursor_height = 1023;
-	} else if (IS_GEN(i915, 2)) {
+	} else if (IS_I830(i915) || IS_I85X(i915) ||
+		   IS_I915G(i915) || IS_I915GM(i915)) {
 		mode_config->cursor_width = 64;
 		mode_config->cursor_height = 64;
 	} else {
