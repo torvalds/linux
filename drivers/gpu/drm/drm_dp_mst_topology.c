@@ -4790,6 +4790,67 @@ drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
 }
 
 /**
+ * drm_dp_mst_atomic_enable_dsc - Set DSC Enable Flag to On/Off
+ * @state: Pointer to the new drm_atomic_state
+ * @port: Pointer to the affected MST Port
+ * @pbn: Newly recalculated bw required for link with DSC enabled
+ * @pbn_div: Divider to calculate correct number of pbn per slot
+ * @enable: Boolean flag to enable or disable DSC on the port
+ *
+ * This function enables DSC on the given Port
+ * by recalculating its vcpi from pbn provided
+ * and sets dsc_enable flag to keep track of which
+ * ports have DSC enabled
+ *
+ */
+int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
+				 struct drm_dp_mst_port *port,
+				 int pbn, int pbn_div,
+				 bool enable)
+{
+	struct drm_dp_mst_topology_state *mst_state;
+	struct drm_dp_vcpi_allocation *pos;
+	bool found = false;
+	int vcpi = 0;
+
+	mst_state = drm_atomic_get_mst_topology_state(state, port->mgr);
+
+	if (IS_ERR(mst_state))
+		return PTR_ERR(mst_state);
+
+	list_for_each_entry(pos, &mst_state->vcpis, next) {
+		if (pos->port == port) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		DRM_DEBUG_ATOMIC("[MST PORT:%p] Couldn't find VCPI allocation in mst state %p\n",
+				 port, mst_state);
+		return -EINVAL;
+	}
+
+	if (pos->dsc_enabled == enable) {
+		DRM_DEBUG_ATOMIC("[MST PORT:%p] DSC flag is already set to %d, returning %d VCPI slots\n",
+				 port, enable, pos->vcpi);
+		vcpi = pos->vcpi;
+	}
+
+	if (enable) {
+		vcpi = drm_dp_atomic_find_vcpi_slots(state, port->mgr, port, pbn, pbn_div);
+		DRM_DEBUG_ATOMIC("[MST PORT:%p] Enabling DSC flag, reallocating %d VCPI slots on the port\n",
+				 port, vcpi);
+		if (vcpi < 0)
+			return -EINVAL;
+	}
+
+	pos->dsc_enabled = enable;
+
+	return vcpi;
+}
+EXPORT_SYMBOL(drm_dp_mst_atomic_enable_dsc);
+/**
  * drm_dp_mst_atomic_check - Check that the new state of an MST topology in an
  * atomic update is valid
  * @state: Pointer to the new &struct drm_dp_mst_topology_state

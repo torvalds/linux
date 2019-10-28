@@ -502,6 +502,7 @@ struct drm_dp_payload {
 struct drm_dp_vcpi_allocation {
 	struct drm_dp_mst_port *port;
 	int vcpi;
+	bool dsc_enabled;
 	struct list_head next;
 };
 
@@ -781,6 +782,10 @@ drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 			      struct drm_dp_mst_topology_mgr *mgr,
 			      struct drm_dp_mst_port *port, int pbn,
 			      int pbn_div);
+int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
+				 struct drm_dp_mst_port *port,
+				 int pbn, int pbn_div,
+				 bool enable);
 int __must_check
 drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 				 struct drm_dp_mst_topology_mgr *mgr,
