@@ -974,16 +974,18 @@ static const struct tegra_smmu_swgroup tegra124_swgroups[] = {
 	{ .name = "vi",        .swgroup = TEGRA_SWGROUP_VI,        .reg = 0x280 },
 };
 
-static const unsigned int tegra124_group_display[] = {
+static const unsigned int tegra124_group_drm[] = {
 	TEGRA_SWGROUP_DC,
 	TEGRA_SWGROUP_DCB,
+	TEGRA_SWGROUP_GPU,
+	TEGRA_SWGROUP_VIC,
 };
 
 static const struct tegra_smmu_group_soc tegra124_groups[] = {
 	{
-		.name = "display",
-		.swgroups = tegra124_group_display,
-		.num_swgroups = ARRAY_SIZE(tegra124_group_display),
+		.name = "drm",
+		.swgroups = tegra124_group_drm,
+		.num_swgroups = ARRAY_SIZE(tegra124_group_drm),
 	},
 };
 

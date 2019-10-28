@@ -931,16 +931,19 @@ static const struct tegra_smmu_swgroup tegra30_swgroups[] = {
 	{ .name = "isp",  .swgroup = TEGRA_SWGROUP_ISP,  .reg = 0x258 },
 };
 
-static const unsigned int tegra30_group_display[] = {
+static const unsigned int tegra30_group_drm[] = {
 	TEGRA_SWGROUP_DC,
 	TEGRA_SWGROUP_DCB,
+	TEGRA_SWGROUP_G2,
+	TEGRA_SWGROUP_NV,
+	TEGRA_SWGROUP_NV2,
 };
 
 static const struct tegra_smmu_group_soc tegra30_groups[] = {
 	{
-		.name = "display",
-		.swgroups = tegra30_group_display,
-		.num_swgroups = ARRAY_SIZE(tegra30_group_display),
+		.name = "drm",
+		.swgroups = tegra30_group_drm,
+		.num_swgroups = ARRAY_SIZE(tegra30_group_drm),
 	},
 };
 
