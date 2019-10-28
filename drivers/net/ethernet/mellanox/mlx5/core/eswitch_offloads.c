@@ -1778,9 +1778,9 @@ static int esw_vport_ingress_prio_tag_config(struct mlx5_eswitch *esw,
 	flow_act.vlan[0].vid = 0;
 	flow_act.vlan[0].prio = 0;
 
-	if (vport->ingress.modify_metadata_rule) {
+	if (vport->ingress.offloads.modify_metadata_rule) {
 		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-		flow_act.modify_hdr = vport->ingress.modify_metadata;
+		flow_act.modify_hdr = vport->ingress.offloads.modify_metadata;
 	}
 
 	vport->ingress.allow_rule =
@@ -1816,11 +1816,11 @@ static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 	MLX5_SET(set_action_in, action, data,
 		 mlx5_eswitch_get_vport_metadata_for_match(esw, vport->vport));
 
-	vport->ingress.modify_metadata =
+	vport->ingress.offloads.modify_metadata =
 		mlx5_modify_header_alloc(esw->dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS,
 					 1, action);
-	if (IS_ERR(vport->ingress.modify_metadata)) {
-		err = PTR_ERR(vport->ingress.modify_metadata);
+	if (IS_ERR(vport->ingress.offloads.modify_metadata)) {
+		err = PTR_ERR(vport->ingress.offloads.modify_metadata);
 		esw_warn(esw->dev,
 			 "failed to alloc modify header for vport %d ingress acl (%d)\n",
 			 vport->vport, err);
@@ -1828,32 +1828,33 @@ static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 	}
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_MOD_HDR | MLX5_FLOW_CONTEXT_ACTION_ALLOW;
-	flow_act.modify_hdr = vport->ingress.modify_metadata;
-	vport->ingress.modify_metadata_rule = mlx5_add_flow_rules(vport->ingress.acl,
-								  &spec, &flow_act, NULL, 0);
-	if (IS_ERR(vport->ingress.modify_metadata_rule)) {
-		err = PTR_ERR(vport->ingress.modify_metadata_rule);
+	flow_act.modify_hdr = vport->ingress.offloads.modify_metadata;
+	vport->ingress.offloads.modify_metadata_rule =
+				mlx5_add_flow_rules(vport->ingress.acl,
+						    &spec, &flow_act, NULL, 0);
+	if (IS_ERR(vport->ingress.offloads.modify_metadata_rule)) {
+		err = PTR_ERR(vport->ingress.offloads.modify_metadata_rule);
 		esw_warn(esw->dev,
 			 "failed to add setting metadata rule for vport %d ingress acl, err(%d)\n",
 			 vport->vport, err);
-		vport->ingress.modify_metadata_rule = NULL;
+		vport->ingress.offloads.modify_metadata_rule = NULL;
 		goto out;
 	}
 
 out:
 	if (err)
-		mlx5_modify_header_dealloc(esw->dev, vport->ingress.modify_metadata);
+		mlx5_modify_header_dealloc(esw->dev, vport->ingress.offloads.modify_metadata);
 	return err;
 }
 
 void esw_vport_del_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 					       struct mlx5_vport *vport)
 {
-	if (vport->ingress.modify_metadata_rule) {
-		mlx5_del_flow_rules(vport->ingress.modify_metadata_rule);
-		mlx5_modify_header_dealloc(esw->dev, vport->ingress.modify_metadata);
+	if (vport->ingress.offloads.modify_metadata_rule) {
+		mlx5_del_flow_rules(vport->ingress.offloads.modify_metadata_rule);
+		mlx5_modify_header_dealloc(esw->dev, vport->ingress.offloads.modify_metadata);
 
-		vport->ingress.modify_metadata_rule = NULL;
+		vport->ingress.offloads.modify_metadata_rule = NULL;
 	}
 }
 
