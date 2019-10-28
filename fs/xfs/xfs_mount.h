@@ -244,12 +244,6 @@ typedef struct xfs_mount {
 
 #define XFS_MOUNT_DAX		(1ULL << 62)	/* TEST ONLY! */
 
-
-/*
- * Default write size.
- */
-#define XFS_WRITEIO_LOG_LARGE	16
-
 /*
  * Max and min values for mount-option defined I/O
  * preallocation sizes.
