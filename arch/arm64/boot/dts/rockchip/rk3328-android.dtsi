@@ -83,3 +83,6 @@
 	};
 };
 
+&rng {
+	status = "okay";
+};
