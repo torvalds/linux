@@ -1750,18 +1750,16 @@ static void esw_disable_vport(struct mlx5_eswitch *esw,
 {
 	u16 vport_num = vport->vport;
 
+	mutex_lock(&esw->state_lock);
 	if (!vport->enabled)
-		return;
+		goto done;
 
 	esw_debug(esw->dev, "Disabling vport(%d)\n", vport_num);
 	/* Mark this vport as disabled to discard new events */
 	vport->enabled = false;
 
-	/* Wait for current already scheduled events to complete */
-	flush_workqueue(esw->work_queue);
 	/* Disable events from this vport */
 	arm_vport_context_events_cmd(esw->dev, vport->vport, 0);
-	mutex_lock(&esw->state_lock);
 	/* We don't assume VFs will cleanup after themselves.
 	 * Calling vport change handler while vport is disabled will cleanup
 	 * the vport resources.
@@ -1780,6 +1778,8 @@ static void esw_disable_vport(struct mlx5_eswitch *esw,
 		esw_legacy_vport_destroy_drop_counters(vport);
 	}
 	esw->enabled_vports--;
+
+done:
 	mutex_unlock(&esw->state_lock);
 }
 
@@ -1793,12 +1793,8 @@ static int eswitch_vport_event(struct notifier_block *nb,
 
 	vport_num = be16_to_cpu(eqe->data.vport_change.vport_num);
 	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	if (IS_ERR(vport))
-		return NOTIFY_OK;
-
-	if (vport->enabled)
+	if (!IS_ERR(vport))
 		queue_work(esw->work_queue, &vport->vport_change_handler);
-
 	return NOTIFY_OK;
 }
 
