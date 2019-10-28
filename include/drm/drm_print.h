@@ -249,52 +249,73 @@ static inline struct drm_printer drm_err_printer(const char *prefix)
 	return p;
 }
 
-/*
- * The following categories are defined:
+/**
+ * enum drm_debug_category - The DRM debug categories
  *
- * CORE: Used in the generic drm code: drm_ioctl.c, drm_mm.c, drm_memory.c, ...
- *	 This is the category used by the DRM_DEBUG() macro.
+ * Each of the DRM debug logging macros use a specific category, and the logging
+ * is filtered by the drm.debug module parameter. This enum specifies the values
+ * for the interface.
  *
- * DRIVER: Used in the vendor specific part of the driver: i915, radeon, ...
- *	   This is the category used by the DRM_DEBUG_DRIVER() macro.
+ * Each DRM_DEBUG_<CATEGORY> macro logs to DRM_UT_<CATEGORY> category, except
+ * DRM_DEBUG() logs to DRM_UT_CORE.
  *
- * KMS: used in the modesetting code.
- *	This is the category used by the DRM_DEBUG_KMS() macro.
+ * Enabling verbose debug messages is done through the drm.debug parameter, each
+ * category being enabled by a bit:
  *
- * PRIME: used in the prime code.
- *	  This is the category used by the DRM_DEBUG_PRIME() macro.
- *
- * ATOMIC: used in the atomic code.
- *	  This is the category used by the DRM_DEBUG_ATOMIC() macro.
- *
- * VBL: used for verbose debug message in the vblank code
- *	  This is the category used by the DRM_DEBUG_VBL() macro.
- *
- * Enabling verbose debug messages is done through the drm.debug parameter,
- * each category being enabled by a bit.
- *
- * drm.debug=0x1 will enable CORE messages
- * drm.debug=0x2 will enable DRIVER messages
- * drm.debug=0x3 will enable CORE and DRIVER messages
- * ...
- * drm.debug=0x3f will enable all messages
+ *  - drm.debug=0x1 will enable CORE messages
+ *  - drm.debug=0x2 will enable DRIVER messages
+ *  - drm.debug=0x3 will enable CORE and DRIVER messages
+ *  - ...
+ *  - drm.debug=0x1ff will enable all messages
  *
  * An interesting feature is that it's possible to enable verbose logging at
- * run-time by echoing the debug value in its sysfs node:
+ * run-time by echoing the debug value in its sysfs node::
+ *
  *   # echo 0xf > /sys/module/drm/parameters/debug
+ *
  */
-#define DRM_UT_NONE		0x00
-#define DRM_UT_CORE		0x01
-#define DRM_UT_DRIVER		0x02
-#define DRM_UT_KMS		0x04
-#define DRM_UT_PRIME		0x08
-#define DRM_UT_ATOMIC		0x10
-#define DRM_UT_VBL		0x20
-#define DRM_UT_STATE		0x40
-#define DRM_UT_LEASE		0x80
-#define DRM_UT_DP		0x100
+enum drm_debug_category {
+	/**
+	 * @DRM_UT_CORE: Used in the generic drm code: drm_ioctl.c, drm_mm.c,
+	 * drm_memory.c, ...
+	 */
+	DRM_UT_CORE		= 0x01,
+	/**
+	 * @DRM_UT_DRIVER: Used in the vendor specific part of the driver: i915,
+	 * radeon, ... macro.
+	 */
+	DRM_UT_DRIVER		= 0x02,
+	/**
+	 * @DRM_UT_KMS: Used in the modesetting code.
+	 */
+	DRM_UT_KMS		= 0x04,
+	/**
+	 * @DRM_UT_PRIME: Used in the prime code.
+	 */
+	DRM_UT_PRIME		= 0x08,
+	/**
+	 * @DRM_UT_ATOMIC: Used in the atomic code.
+	 */
+	DRM_UT_ATOMIC		= 0x10,
+	/**
+	 * @DRM_UT_VBL: Used for verbose debug message in the vblank code.
+	 */
+	DRM_UT_VBL		= 0x20,
+	/**
+	 * @DRM_UT_STATE: Used for verbose atomic state debugging.
+	 */
+	DRM_UT_STATE		= 0x40,
+	/**
+	 * @DRM_UT_LEASE: Used in the lease code.
+	 */
+	DRM_UT_LEASE		= 0x80,
+	/**
+	 * @DRM_UT_DP: Used in the DP code.
+	 */
+	DRM_UT_DP		= 0x100,
+};
 
-static inline bool drm_debug_enabled(unsigned int category)
+static inline bool drm_debug_enabled(enum drm_debug_category category)
 {
 	return unlikely(__drm_debug & category);
 }
@@ -303,11 +324,11 @@ __printf(3, 4)
 void drm_dev_printk(const struct device *dev, const char *level,
 		    const char *format, ...);
 __printf(3, 4)
-void drm_dev_dbg(const struct device *dev, unsigned int category,
+void drm_dev_dbg(const struct device *dev, enum drm_debug_category category,
 		 const char *format, ...);
 
 __printf(2, 3)
-void __drm_dbg(unsigned int category, const char *format, ...);
+void __drm_dbg(enum drm_debug_category category, const char *format, ...);
 __printf(1, 2)
 void __drm_err(const char *format, ...);
 

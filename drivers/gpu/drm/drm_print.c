@@ -256,7 +256,7 @@ void drm_dev_printk(const struct device *dev, const char *level,
 }
 EXPORT_SYMBOL(drm_dev_printk);
 
-void drm_dev_dbg(const struct device *dev, unsigned int category,
+void drm_dev_dbg(const struct device *dev, enum drm_debug_category category,
 		 const char *format, ...)
 {
 	struct va_format vaf;
@@ -280,7 +280,7 @@ void drm_dev_dbg(const struct device *dev, unsigned int category,
 }
 EXPORT_SYMBOL(drm_dev_dbg);
 
-void __drm_dbg(unsigned int category, const char *format, ...)
+void __drm_dbg(enum drm_debug_category category, const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
