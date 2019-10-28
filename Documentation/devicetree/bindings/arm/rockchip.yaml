@@ -496,12 +496,12 @@ properties:
 
       - description: Theobroma Systems RK3368-uQ7 with Haikou baseboard
         items:
-          - const: tsd,rk3368-uq7-haikou
+          - const: tsd,rk3368-lion-haikou
           - const: rockchip,rk3368
 
       - description: Theobroma Systems RK3399-Q7 with Haikou baseboard
         items:
-          - const: tsd,rk3399-q7-haikou
+          - const: tsd,rk3399-puma-haikou
           - const: rockchip,rk3399
 
       - description: Tronsmart Orion R68 Meta

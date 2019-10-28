@@ -650,3 +650,243 @@ static int __init pm_qos_power_init(void)
 }
 
 late_initcall(pm_qos_power_init);
+
+/* Definitions related to the frequency QoS below. */
+
+/**
+ * freq_constraints_init - Initialize frequency QoS constraints.
+ * @qos: Frequency QoS constraints to initialize.
+ */
+void freq_constraints_init(struct freq_constraints *qos)
+{
+	struct pm_qos_constraints *c;
+
+	c = &qos->min_freq;
+	plist_head_init(&c->list);
+	c->target_value = FREQ_QOS_MIN_DEFAULT_VALUE;
+	c->default_value = FREQ_QOS_MIN_DEFAULT_VALUE;
+	c->no_constraint_value = FREQ_QOS_MIN_DEFAULT_VALUE;
+	c->type = PM_QOS_MAX;
+	c->notifiers = &qos->min_freq_notifiers;
+	BLOCKING_INIT_NOTIFIER_HEAD(c->notifiers);
+
+	c = &qos->max_freq;
+	plist_head_init(&c->list);
+	c->target_value = FREQ_QOS_MAX_DEFAULT_VALUE;
+	c->default_value = FREQ_QOS_MAX_DEFAULT_VALUE;
+	c->no_constraint_value = FREQ_QOS_MAX_DEFAULT_VALUE;
+	c->type = PM_QOS_MIN;
+	c->notifiers = &qos->max_freq_notifiers;
+	BLOCKING_INIT_NOTIFIER_HEAD(c->notifiers);
+}
+
+/**
+ * freq_qos_read_value - Get frequency QoS constraint for a given list.
+ * @qos: Constraints to evaluate.
+ * @type: QoS request type.
+ */
+s32 freq_qos_read_value(struct freq_constraints *qos,
+			enum freq_qos_req_type type)
+{
+	s32 ret;
+
+	switch (type) {
+	case FREQ_QOS_MIN:
+		ret = IS_ERR_OR_NULL(qos) ?
+			FREQ_QOS_MIN_DEFAULT_VALUE :
+			pm_qos_read_value(&qos->min_freq);
+		break;
+	case FREQ_QOS_MAX:
+		ret = IS_ERR_OR_NULL(qos) ?
+			FREQ_QOS_MAX_DEFAULT_VALUE :
+			pm_qos_read_value(&qos->max_freq);
+		break;
+	default:
+		WARN_ON(1);
+		ret = 0;
+	}
+
+	return ret;
+}
+
+/**
+ * freq_qos_apply - Add/modify/remove frequency QoS request.
+ * @req: Constraint request to apply.
+ * @action: Action to perform (add/update/remove).
+ * @value: Value to assign to the QoS request.
+ */
+static int freq_qos_apply(struct freq_qos_request *req,
+			  enum pm_qos_req_action action, s32 value)
+{
+	int ret;
+
+	switch(req->type) {
+	case FREQ_QOS_MIN:
+		ret = pm_qos_update_target(&req->qos->min_freq, &req->pnode,
+					   action, value);
+		break;
+	case FREQ_QOS_MAX:
+		ret = pm_qos_update_target(&req->qos->max_freq, &req->pnode,
+					   action, value);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+/**
+ * freq_qos_add_request - Insert new frequency QoS request into a given list.
+ * @qos: Constraints to update.
+ * @req: Preallocated request object.
+ * @type: Request type.
+ * @value: Request value.
+ *
+ * Insert a new entry into the @qos list of requests, recompute the effective
+ * QoS constraint value for that list and initialize the @req object.  The
+ * caller needs to save that object for later use in updates and removal.
+ *
+ * Return 1 if the effective constraint value has changed, 0 if the effective
+ * constraint value has not changed, or a negative error code on failures.
+ */
+int freq_qos_add_request(struct freq_constraints *qos,
+			 struct freq_qos_request *req,
+			 enum freq_qos_req_type type, s32 value)
+{
+	int ret;
+
+	if (IS_ERR_OR_NULL(qos) || !req)
+		return -EINVAL;
+
+	if (WARN(freq_qos_request_active(req),
+		 "%s() called for active request\n", __func__))
+		return -EINVAL;
+
+	req->qos = qos;
+	req->type = type;
+	ret = freq_qos_apply(req, PM_QOS_ADD_REQ, value);
+	if (ret < 0) {
+		req->qos = NULL;
+		req->type = 0;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(freq_qos_add_request);
+
+/**
+ * freq_qos_update_request - Modify existing frequency QoS request.
+ * @req: Request to modify.
+ * @new_value: New request value.
+ *
+ * Update an existing frequency QoS request along with the effective constraint
+ * value for the list of requests it belongs to.
+ *
+ * Return 1 if the effective constraint value has changed, 0 if the effective
+ * constraint value has not changed, or a negative error code on failures.
+ */
+int freq_qos_update_request(struct freq_qos_request *req, s32 new_value)
+{
+	if (!req)
+		return -EINVAL;
+
+	if (WARN(!freq_qos_request_active(req),
+		 "%s() called for unknown object\n", __func__))
+		return -EINVAL;
+
+	if (req->pnode.prio == new_value)
+		return 0;
+
+	return freq_qos_apply(req, PM_QOS_UPDATE_REQ, new_value);
+}
+EXPORT_SYMBOL_GPL(freq_qos_update_request);
+
+/**
+ * freq_qos_remove_request - Remove frequency QoS request from its list.
+ * @req: Request to remove.
+ *
+ * Remove the given frequency QoS request from the list of constraints it
+ * belongs to and recompute the effective constraint value for that list.
+ *
+ * Return 1 if the effective constraint value has changed, 0 if the effective
+ * constraint value has not changed, or a negative error code on failures.
+ */
+int freq_qos_remove_request(struct freq_qos_request *req)
+{
+	if (!req)
+		return -EINVAL;
+
+	if (WARN(!freq_qos_request_active(req),
+		 "%s() called for unknown object\n", __func__))
+		return -EINVAL;
+
+	return freq_qos_apply(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
+}
+EXPORT_SYMBOL_GPL(freq_qos_remove_request);
+
+/**
+ * freq_qos_add_notifier - Add frequency QoS change notifier.
+ * @qos: List of requests to add the notifier to.
+ * @type: Request type.
+ * @notifier: Notifier block to add.
+ */
+int freq_qos_add_notifier(struct freq_constraints *qos,
+			  enum freq_qos_req_type type,
+			  struct notifier_block *notifier)
+{
+	int ret;
+
+	if (IS_ERR_OR_NULL(qos) || !notifier)
+		return -EINVAL;
+
+	switch (type) {
+	case FREQ_QOS_MIN:
+		ret = blocking_notifier_chain_register(qos->min_freq.notifiers,
+						       notifier);
+		break;
+	case FREQ_QOS_MAX:
+		ret = blocking_notifier_chain_register(qos->max_freq.notifiers,
+						       notifier);
+		break;
+	default:
+		WARN_ON(1);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(freq_qos_add_notifier);
+
+/**
+ * freq_qos_remove_notifier - Remove frequency QoS change notifier.
+ * @qos: List of requests to remove the notifier from.
+ * @type: Request type.
+ * @notifier: Notifier block to remove.
+ */
+int freq_qos_remove_notifier(struct freq_constraints *qos,
+			     enum freq_qos_req_type type,
+			     struct notifier_block *notifier)
+{
+	int ret;
+
+	if (IS_ERR_OR_NULL(qos) || !notifier)
+		return -EINVAL;
+
+	switch (type) {
+	case FREQ_QOS_MIN:
+		ret = blocking_notifier_chain_unregister(qos->min_freq.notifiers,
+							 notifier);
+		break;
+	case FREQ_QOS_MAX:
+		ret = blocking_notifier_chain_unregister(qos->max_freq.notifiers,
+							 notifier);
+		break;
+	default:
+		WARN_ON(1);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(freq_qos_remove_notifier);
