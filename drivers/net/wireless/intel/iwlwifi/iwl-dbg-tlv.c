@@ -913,7 +913,8 @@ iwl_dbg_tlv_gen_active_trig_list(struct iwl_fw_runtime *fwrt,
 	}
 }
 
-int iwl_dbg_tlv_gen_active_trigs(struct iwl_fw_runtime *fwrt, u32 new_domain)
+static int iwl_dbg_tlv_gen_active_trigs(struct iwl_fw_runtime *fwrt,
+					u32 new_domain)
 {
 	int i;
 
