@@ -10947,7 +10947,7 @@ static void i845_update_cursor(struct intel_plane *plane,
 	unsigned long irqflags;
 
 	if (plane_state && plane_state->base.visible) {
-		unsigned int width = drm_rect_width(&plane_state->base.src);
+		unsigned int width = drm_rect_width(&plane_state->base.dst);
 		unsigned int height = drm_rect_height(&plane_state->base.dst);
 
 		cntl = plane_state->ctl |
