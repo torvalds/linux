@@ -150,6 +150,10 @@
 	};
 };
 
+&avsd {
+	status = "okay";
+};
+
 &codec {
 	#sound-dai-cells = <0>;
 	status = "okay";
@@ -370,10 +374,6 @@
 	reg = <0x0 0x20000000 0x0 0x0>;
 };
 
-&h265e {
-	status = "okay";
-};
-
 &i2s0 {
 	#sound-dai-cells = <0>;
 	rockchip,bclk-fs = <128>;
@@ -403,6 +403,10 @@
 	vccio5-supply = <&vcc_io>;
 	vccio6-supply = <&vcc_io>;
 	pmuio-supply = <&vcc_io>;
+};
+
+&mpp_srv {
+	status = "okay";
 };
 
 &pinctrl {
@@ -554,6 +558,10 @@
 	vcodec-supply = <&vdd_logic>;
 };
 
+&rkvdec_mmu {
+	status = "okay";
+};
+
 &rockchip_suspend {
 	status = "okay";
 	rockchip,virtual-poweroff = <1>;
@@ -670,7 +678,27 @@
 	status = "okay";
 };
 
+&vdpu {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
+};
+
 &vepu {
+	status = "okay";
+};
+
+&vepu_mmu {
+	status = "okay";
+};
+
+&vepu22 {
+	status = "okay";
+};
+
+&vepu22_mmu {
 	status = "okay";
 };
 
@@ -679,9 +707,5 @@
 };
 
 &vop_mmu {
-	status = "okay";
-};
-
-&vpu_service {
 	status = "okay";
 };

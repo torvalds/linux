@@ -158,7 +158,7 @@
 	};
 };
 
-&h265e {
+&avsd {
 	status = "okay";
 };
 
@@ -390,6 +390,10 @@
 	};
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
 &pinctrl {
 	pmic {
 		pmic_int_l: pmic-int-l {
@@ -509,6 +513,10 @@
 	status = "okay";
 };
 
+&rkvdec_mmu {
+	status = "okay";
+};
+
 &rockchip_suspend {
 	status = "okay";
 	rockchip,virtual-poweroff = <1>;
@@ -572,7 +580,27 @@
 	status = "okay";
 };
 
+&vdpu {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
+};
+
 &vepu {
+	status = "okay";
+};
+
+&vepu_mmu {
+	status = "okay";
+};
+
+&vepu22 {
+	status = "okay";
+};
+
+&vepu22_mmu {
 	status = "okay";
 };
 
@@ -581,9 +609,5 @@
 };
 
 &vop_mmu {
-	status = "okay";
-};
-
-&vpu_service {
 	status = "okay";
 };
