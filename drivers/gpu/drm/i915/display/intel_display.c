@@ -14391,8 +14391,8 @@ static void intel_crtc_enable_trans_port_sync(struct intel_crtc *crtc,
 static void intel_set_dp_tp_ctl_normal(struct intel_crtc *crtc,
 				       struct intel_atomic_state *state)
 {
+	struct drm_connector *uninitialized_var(conn);
 	struct drm_connector_state *conn_state;
-	struct drm_connector *conn;
 	struct intel_dp *intel_dp;
 	int i;
 
