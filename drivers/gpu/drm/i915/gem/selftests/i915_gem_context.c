@@ -1188,7 +1188,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 {
 	struct drm_i915_gem_object *obj;
 	int inst = 0;
-	int ret;
+	int ret = 0;
 
 	if (INTEL_GEN(i915) < 9 || !RUNTIME_INFO(i915)->sseu.has_slice_pg)
 		return 0;
