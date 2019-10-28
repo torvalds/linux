@@ -56,6 +56,7 @@ config GKI_HIDDEN_QCOM_CONFIGS
 config GKI_HIDDEN_MEDIA_CONFIGS
 	bool "Hidden Media configs needed for GKI"
 	select VIDEOBUF2_CORE
+	select MEDIA_SUPPORT
 	help
 	  Dummy config option used to enable hidden media configs.
 	  These are normally selected implicitely when a module
