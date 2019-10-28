@@ -614,6 +614,13 @@ mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
 				 enum mlx5_eswitch_vport_event enabled_events);
 void mlx5_eswitch_disable_pf_vf_vports(struct mlx5_eswitch *esw);
 
+int
+esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
+				     struct mlx5_vport *vport);
+void
+esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
+				      struct mlx5_vport *vport);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }

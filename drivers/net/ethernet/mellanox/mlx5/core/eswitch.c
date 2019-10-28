@@ -1722,8 +1722,8 @@ static int esw_vport_setup_acl(struct mlx5_eswitch *esw,
 {
 	if (esw->mode == MLX5_ESWITCH_LEGACY)
 		return esw_vport_create_legacy_acl_tables(esw, vport);
-
-	return 0;
+	else
+		return esw_vport_create_offloads_acl_tables(esw, vport);
 }
 
 static void esw_vport_destroy_legacy_acl_tables(struct mlx5_eswitch *esw,
@@ -1747,6 +1747,8 @@ static void esw_vport_cleanup_acl(struct mlx5_eswitch *esw,
 {
 	if (esw->mode == MLX5_ESWITCH_LEGACY)
 		esw_vport_destroy_legacy_acl_tables(esw, vport);
+	else
+		esw_vport_destroy_offloads_acl_tables(esw, vport);
 }
 
 static int esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,

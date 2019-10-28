@@ -1950,7 +1950,7 @@ esw_check_vport_match_metadata_supported(const struct mlx5_eswitch *esw)
 	return true;
 }
 
-static int
+int
 esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
 				     struct mlx5_vport *vport)
 {
@@ -1968,7 +1968,7 @@ esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
 	return err;
 }
 
-static void
+void
 esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
 				      struct mlx5_vport *vport)
 {
@@ -1976,43 +1976,27 @@ esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
 	esw_vport_disable_ingress_acl(esw, vport);
 }
 
-static int esw_create_offloads_acl_tables(struct mlx5_eswitch *esw)
+static int esw_create_uplink_offloads_acl_tables(struct mlx5_eswitch *esw)
 {
 	struct mlx5_vport *vport;
-	int i, j;
 	int err;
 
 	if (esw_check_vport_match_metadata_supported(esw))
 		esw->flags |= MLX5_ESWITCH_VPORT_MATCH_METADATA;
 
-	mlx5_esw_for_all_vports(esw, i, vport) {
-		err = esw_vport_create_offloads_acl_tables(esw, vport);
-		if (err)
-			goto err_acl_table;
-	}
-
-	if (mlx5_eswitch_vport_match_metadata_enabled(esw))
-		esw_info(esw->dev, "Use metadata reg_c as source vport to match\n");
-
-	return 0;
-
-err_acl_table:
-	for (j = MLX5_VPORT_PF; j < i; j++) {
-		vport = &esw->vports[j];
-		esw_vport_destroy_offloads_acl_tables(esw, vport);
-	}
-
+	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_UPLINK);
+	err = esw_vport_create_offloads_acl_tables(esw, vport);
+	if (err)
+		esw->flags &= ~MLX5_ESWITCH_VPORT_MATCH_METADATA;
 	return err;
 }
 
-static void esw_destroy_offloads_acl_tables(struct mlx5_eswitch *esw)
+static void esw_destroy_uplink_offloads_acl_tables(struct mlx5_eswitch *esw)
 {
 	struct mlx5_vport *vport;
-	int i;
 
-	mlx5_esw_for_all_vports(esw, i, vport)
-		esw_vport_destroy_offloads_acl_tables(esw, vport);
-
+	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_UPLINK);
+	esw_vport_destroy_offloads_acl_tables(esw, vport);
 	esw->flags &= ~MLX5_ESWITCH_VPORT_MATCH_METADATA;
 }
 
@@ -2030,7 +2014,7 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 	memset(&esw->fdb_table.offloads, 0, sizeof(struct offloads_fdb));
 	mutex_init(&esw->fdb_table.offloads.fdb_prio_lock);
 
-	err = esw_create_offloads_acl_tables(esw);
+	err = esw_create_uplink_offloads_acl_tables(esw);
 	if (err)
 		return err;
 
@@ -2055,7 +2039,7 @@ create_ft_err:
 	esw_destroy_offloads_fdb_tables(esw);
 
 create_fdb_err:
-	esw_destroy_offloads_acl_tables(esw);
+	esw_destroy_uplink_offloads_acl_tables(esw);
 
 	return err;
 }
@@ -2065,7 +2049,7 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 	esw_destroy_vport_rx_group(esw);
 	esw_destroy_offloads_table(esw);
 	esw_destroy_offloads_fdb_tables(esw);
-	esw_destroy_offloads_acl_tables(esw);
+	esw_destroy_uplink_offloads_acl_tables(esw);
 }
 
 static void
