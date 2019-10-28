@@ -273,6 +273,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 err:
 	usb_set_intfdata(usb_intf, NULL);
 	usb_put_dev(interface_to_usbdev(usb_intf));
+	mt76u_deinit(&dev->mt76);
 
 	ieee80211_free_hw(mdev->hw);
 	return ret;
@@ -292,6 +293,7 @@ static void mt76x0_disconnect(struct usb_interface *usb_intf)
 	usb_set_intfdata(usb_intf, NULL);
 	usb_put_dev(interface_to_usbdev(usb_intf));
 
+	mt76u_deinit(&dev->mt76);
 	ieee80211_free_hw(dev->mt76.hw);
 }
 

@@ -697,10 +697,7 @@ static void mt76u_tx_tasklet(unsigned long data)
 		mt76_txq_schedule(dev, i);
 
 		if (!test_and_set_bit(MT76_READING_STATS, &dev->state))
-			ieee80211_queue_delayed_work(dev->hw,
-						     &dev->usb.stat_work,
-						     msecs_to_jiffies(10));
-
+			queue_work(dev->usb.stat_wq, &dev->usb.stat_work);
 		if (wake)
 			ieee80211_wake_queue(dev->hw, i);
 	}
@@ -713,7 +710,7 @@ static void mt76u_tx_status_data(struct work_struct *work)
 	u8 update = 1;
 	u16 count = 0;
 
-	usb = container_of(work, struct mt76_usb, stat_work.work);
+	usb = container_of(work, struct mt76_usb, stat_work);
 	dev = container_of(usb, struct mt76_dev, usb);
 
 	while (true) {
@@ -726,8 +723,7 @@ static void mt76u_tx_status_data(struct work_struct *work)
 	}
 
 	if (count && test_bit(MT76_STATE_RUNNING, &dev->state))
-		ieee80211_queue_delayed_work(dev->hw, &usb->stat_work,
-					     msecs_to_jiffies(10));
+		queue_work(usb->stat_wq, &usb->stat_work);
 	else
 		clear_bit(MT76_READING_STATS, &dev->state);
 }
@@ -908,7 +904,7 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 		}
 	}
 
-	cancel_delayed_work_sync(&dev->usb.stat_work);
+	cancel_work_sync(&dev->usb.stat_work);
 	clear_bit(MT76_READING_STATS, &dev->state);
 
 	mt76_tx_status_check(dev, NULL, true);
@@ -959,8 +955,12 @@ int mt76u_init(struct mt76_dev *dev,
 
 	tasklet_init(&usb->rx_tasklet, mt76u_rx_tasklet, (unsigned long)dev);
 	tasklet_init(&dev->tx_tasklet, mt76u_tx_tasklet, (unsigned long)dev);
-	INIT_DELAYED_WORK(&usb->stat_work, mt76u_tx_status_data);
+	INIT_WORK(&usb->stat_work, mt76u_tx_status_data);
 	skb_queue_head_init(&dev->rx_skb[MT_RXQ_MAIN]);
+
+	usb->stat_wq = alloc_workqueue("mt76u", WQ_UNBOUND, 0);
+	if (!usb->stat_wq)
+		return -ENOMEM;
 
 	mutex_init(&usb->mcu.mutex);
 
@@ -975,6 +975,15 @@ int mt76u_init(struct mt76_dev *dev,
 	return mt76u_set_endpoints(intf, usb);
 }
 EXPORT_SYMBOL_GPL(mt76u_init);
+
+void mt76u_deinit(struct mt76_dev *dev)
+{
+	if (dev->usb.stat_wq) {
+		destroy_workqueue(dev->usb.stat_wq);
+		dev->usb.stat_wq = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(mt76u_deinit);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>");
 MODULE_LICENSE("Dual BSD/GPL");
