@@ -1852,8 +1852,10 @@ mode_store(struct device *dev, struct device_attribute *attr, const char *buf,
 		return -ENOMEM;
 
 	i = match_string(msc_mode, ARRAY_SIZE(msc_mode), mode);
-	if (i >= 0)
+	if (i >= 0) {
+		kfree(mode);
 		goto found;
+	}
 
 	/* Buffer sinks only work with a usable IRQ */
 	if (!msc->do_irq) {
