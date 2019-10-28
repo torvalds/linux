@@ -3,6 +3,7 @@
 /dts-v1/;
 
 #include "aspeed-g6.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
 
 / {
 	model = "Rainier";
@@ -30,6 +31,34 @@
 		flash_memory: region@B8000000 {
 			no-map;
 			reg = <0xB8000000 0x04000000>; /* 64M */
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		ps0-presence {
+			label = "ps0-presence";
+			gpios = <&gpio0 ASPEED_GPIO(S, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(S, 0)>;
+		};
+
+		ps1-presence {
+			label = "ps1-presence";
+			gpios = <&gpio0 ASPEED_GPIO(S, 1) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(S, 1)>;
+		};
+
+		ps2-presence {
+			label = "ps2-presence";
+			gpios = <&gpio0 ASPEED_GPIO(S, 2) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(S, 2)>;
+		};
+
+		ps3-presence {
+			label = "ps3-presence";
+			gpios = <&gpio0 ASPEED_GPIO(S, 3) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(S, 3)>;
 		};
 	};
 
