@@ -484,6 +484,42 @@ xfs_vn_get_link_inline(
 	return link;
 }
 
+static uint32_t
+xfs_stat_blksize(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	/*
+	 * If the file blocks are being allocated from a realtime volume, then
+	 * always return the realtime extent size.
+	 */
+	if (XFS_IS_REALTIME_INODE(ip))
+		return xfs_get_extsz_hint(ip) << mp->m_sb.sb_blocklog;
+
+	/*
+	 * Allow large block sizes to be reported to userspace programs if the
+	 * "largeio" mount option is used.
+	 *
+	 * If compatibility mode is specified, simply return the basic unit of
+	 * caching so that we don't get inefficient read/modify/write I/O from
+	 * user apps. Otherwise....
+	 *
+	 * If the underlying volume is a stripe, then return the stripe width in
+	 * bytes as the recommended I/O size. It is not a stripe and we've set a
+	 * default buffered I/O size, return that, otherwise return the compat
+	 * default.
+	 */
+	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE)) {
+		if (mp->m_swidth)
+			return mp->m_swidth << mp->m_sb.sb_blocklog;
+		if (mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)
+			return 1U << max(mp->m_readio_log, mp->m_writeio_log);
+	}
+
+	return PAGE_SIZE;
+}
+
 STATIC int
 xfs_vn_getattr(
 	const struct path	*path,
@@ -543,16 +579,7 @@ xfs_vn_getattr(
 		stat->rdev = inode->i_rdev;
 		break;
 	default:
-		if (XFS_IS_REALTIME_INODE(ip)) {
-			/*
-			 * If the file blocks are being allocated from a
-			 * realtime volume, then return the inode's realtime
-			 * extent size or the realtime volume's extent size.
-			 */
-			stat->blksize =
-				xfs_get_extsz_hint(ip) << mp->m_sb.sb_blocklog;
-		} else
-			stat->blksize = xfs_preferred_iosize(mp);
+		stat->blksize = xfs_stat_blksize(ip);
 		stat->rdev = 0;
 		break;
 	}

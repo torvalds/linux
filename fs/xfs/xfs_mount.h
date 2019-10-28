@@ -267,30 +267,6 @@ typedef struct xfs_mount {
 #define	XFS_WSYNC_READIO_LOG	15	/* 32k */
 #define	XFS_WSYNC_WRITEIO_LOG	14	/* 16k */
 
-/*
- * Allow large block sizes to be reported to userspace programs if the
- * "largeio" mount option is used.
- *
- * If compatibility mode is specified, simply return the basic unit of caching
- * so that we don't get inefficient read/modify/write I/O from user apps.
- * Otherwise....
- *
- * If the underlying volume is a stripe, then return the stripe width in bytes
- * as the recommended I/O size. It is not a stripe and we've set a default
- * buffered I/O size, return that, otherwise return the compat default.
- */
-static inline unsigned long
-xfs_preferred_iosize(xfs_mount_t *mp)
-{
-	if (mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE)
-		return PAGE_SIZE;
-	return (mp->m_swidth ?
-		(mp->m_swidth << mp->m_sb.sb_blocklog) :
-		((mp->m_flags & XFS_MOUNT_DFLT_IOSIZE) ?
-			(1 << (int)max(mp->m_readio_log, mp->m_writeio_log)) :
-			PAGE_SIZE));
-}
-
 #define XFS_LAST_UNMOUNT_WAS_CLEAN(mp)	\
 				((mp)->m_flags & XFS_MOUNT_WAS_CLEAN)
 #define XFS_FORCED_SHUTDOWN(mp)	((mp)->m_flags & XFS_MOUNT_FS_SHUTDOWN)
