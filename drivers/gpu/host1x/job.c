@@ -99,6 +99,7 @@ EXPORT_SYMBOL(host1x_job_add_gather);
 
 static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 {
+	struct device *dev = job->client->dev;
 	unsigned int i;
 	int err;
 
@@ -115,7 +116,11 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		phys_addr = host1x_bo_pin(reloc->target.bo, &sgt);
+		sgt = host1x_bo_pin(dev, reloc->target.bo, &phys_addr);
+		if (IS_ERR(sgt)) {
+			err = PTR_ERR(sgt);
+			goto unpin;
+		}
 
 		job->addr_phys[job->num_unpins] = phys_addr;
 		job->unpins[job->num_unpins].bo = reloc->target.bo;
@@ -139,7 +144,11 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		phys_addr = host1x_bo_pin(g->bo, &sgt);
+		sgt = host1x_bo_pin(host->dev, g->bo, &phys_addr);
+		if (IS_ERR(sgt)) {
+			err = PTR_ERR(sgt);
+			goto unpin;
+		}
 
 		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
 			for_each_sg(sgt->sgl, sg, sgt->nents, j)
@@ -566,7 +575,7 @@ void host1x_job_unpin(struct host1x_job *job)
 				iova_pfn(&host->iova, job->addr_phys[i]));
 		}
 
-		host1x_bo_unpin(unpin->bo, unpin->sgt);
+		host1x_bo_unpin(host->dev, unpin->bo, unpin->sgt);
 		host1x_bo_put(unpin->bo);
 	}
 
