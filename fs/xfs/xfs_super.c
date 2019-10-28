@@ -406,10 +406,10 @@ struct proc_xfs_info {
 	char		*str;
 };
 
-STATIC void
-xfs_showargs(
-	struct xfs_mount	*mp,
-	struct seq_file		*m)
+static int
+xfs_fs_show_options(
+	struct seq_file		*m,
+	struct dentry		*root)
 {
 	static struct proc_xfs_info xfs_info_set[] = {
 		/* the few simple ones we can get from the mount struct */
@@ -427,6 +427,7 @@ xfs_showargs(
 		{ XFS_MOUNT_DAX,		",dax" },
 		{ 0, NULL }
 	};
+	struct xfs_mount	*mp = XFS_M(root->d_sb);
 	struct proc_xfs_info	*xfs_infop;
 
 	for (xfs_infop = xfs_info_set; xfs_infop->flag; xfs_infop++) {
@@ -478,6 +479,8 @@ xfs_showargs(
 
 	if (!(mp->m_qflags & XFS_ALL_QUOTA_ACCT))
 		seq_puts(m, ",noquota");
+
+	return 0;
 }
 
 static uint64_t
@@ -1375,15 +1378,6 @@ xfs_fs_unfreeze(
 	xfs_restore_resvblks(mp);
 	xfs_log_work_queue(mp);
 	xfs_start_block_reaping(mp);
-	return 0;
-}
-
-STATIC int
-xfs_fs_show_options(
-	struct seq_file		*m,
-	struct dentry		*root)
-{
-	xfs_showargs(XFS_M(root->d_sb), m);
 	return 0;
 }
 
