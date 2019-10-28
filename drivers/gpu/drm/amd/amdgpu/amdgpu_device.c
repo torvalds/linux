@@ -154,6 +154,21 @@ bool amdgpu_device_is_px(struct drm_device *dev)
 }
 
 /**
+ * amdgpu_device_supports_baco - Does the device support BACO
+ *
+ * @dev: drm_device pointer
+ *
+ * Returns true if the device supporte BACO,
+ * otherwise return false.
+ */
+bool amdgpu_device_supports_baco(struct drm_device *dev)
+{
+	struct amdgpu_device *adev = dev->dev_private;
+
+	return amdgpu_asic_supports_baco(adev);
+}
+
+/**
  * VRAM access helper functions.
  *
  * amdgpu_device_vram_access - read/write a buffer in vram
