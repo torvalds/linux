@@ -58,17 +58,17 @@ static int falcon_copy_chunk(struct falcon *falcon,
 static void falcon_copy_firmware_image(struct falcon *falcon,
 				       const struct firmware *firmware)
 {
-	u32 *firmware_vaddr = falcon->firmware.vaddr;
+	u32 *virt = falcon->firmware.virt;
 	size_t i;
 
 	/* copy the whole thing taking into account endianness */
 	for (i = 0; i < firmware->size / sizeof(u32); i++)
-		firmware_vaddr[i] = le32_to_cpu(((u32 *)firmware->data)[i]);
+		virt[i] = le32_to_cpu(((u32 *)firmware->data)[i]);
 }
 
 static int falcon_parse_firmware_image(struct falcon *falcon)
 {
-	struct falcon_fw_bin_header_v1 *bin = (void *)falcon->firmware.vaddr;
+	struct falcon_fw_bin_header_v1 *bin = (void *)falcon->firmware.virt;
 	struct falcon_fw_os_header_v1 *os;
 
 	/* endian problems would show up right here */
@@ -89,7 +89,7 @@ static int falcon_parse_firmware_image(struct falcon *falcon)
 		return -EINVAL;
 	}
 
-	os = falcon->firmware.vaddr + bin->os_header_offset;
+	os = falcon->firmware.virt + bin->os_header_offset;
 
 	falcon->firmware.bin_data.size = bin->os_size;
 	falcon->firmware.bin_data.offset = bin->os_data_offset;
@@ -138,7 +138,7 @@ int falcon_load_firmware(struct falcon *falcon)
 
 int falcon_init(struct falcon *falcon)
 {
-	falcon->firmware.vaddr = NULL;
+	falcon->firmware.virt = NULL;
 
 	return 0;
 }
@@ -155,7 +155,7 @@ int falcon_boot(struct falcon *falcon)
 	u32 value;
 	int err;
 
-	if (!falcon->firmware.vaddr)
+	if (!falcon->firmware.virt)
 		return -EINVAL;
 
 	err = readl_poll_timeout(falcon->regs + FALCON_DMACTL, value,
@@ -168,7 +168,7 @@ int falcon_boot(struct falcon *falcon)
 	falcon_writel(falcon, 0, FALCON_DMACTL);
 
 	/* setup the address of the binary data so Falcon can access it later */
-	falcon_writel(falcon, (falcon->firmware.paddr +
+	falcon_writel(falcon, (falcon->firmware.iova +
 			       falcon->firmware.bin_data.offset) >> 8,
 		      FALCON_DMATRFBASE);
 

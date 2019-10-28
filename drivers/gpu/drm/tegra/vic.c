@@ -133,9 +133,9 @@ static int vic_boot(struct vic *vic)
 	if (err < 0)
 		return err;
 
-	hdr = vic->falcon.firmware.vaddr;
+	hdr = vic->falcon.firmware.virt;
 	fce_bin_data_offset = *(u32 *)(hdr + VIC_UCODE_FCE_DATA_OFFSET);
-	hdr = vic->falcon.firmware.vaddr +
+	hdr = vic->falcon.firmware.virt +
 		*(u32 *)(hdr + VIC_UCODE_FCE_HEADER_OFFSET);
 	fce_ucode_size = *(u32 *)(hdr + FCE_UCODE_SIZE_OFFSET);
 
@@ -143,7 +143,7 @@ static int vic_boot(struct vic *vic)
 	falcon_execute_method(&vic->falcon, VIC_SET_FCE_UCODE_SIZE,
 			      fce_ucode_size);
 	falcon_execute_method(&vic->falcon, VIC_SET_FCE_UCODE_OFFSET,
-			      (vic->falcon.firmware.paddr + fce_bin_data_offset)
+			      (vic->falcon.firmware.iova + fce_bin_data_offset)
 				>> 8);
 
 	err = falcon_wait_idle(&vic->falcon);
@@ -225,14 +225,17 @@ static int vic_exit(struct host1x_client *client)
 	host1x_channel_put(vic->channel);
 	host1x_client_iommu_detach(client);
 
-	if (client->group)
+	if (client->group) {
+		dma_unmap_single(vic->dev, vic->falcon.firmware.phys,
+				 vic->falcon.firmware.size, DMA_TO_DEVICE);
 		tegra_drm_free(tegra, vic->falcon.firmware.size,
-			       vic->falcon.firmware.vaddr,
-			       vic->falcon.firmware.paddr);
-	else
+			       vic->falcon.firmware.virt,
+			       vic->falcon.firmware.iova);
+	} else {
 		dma_free_coherent(vic->dev, vic->falcon.firmware.size,
-				  vic->falcon.firmware.vaddr,
-				  vic->falcon.firmware.paddr);
+				  vic->falcon.firmware.virt,
+				  vic->falcon.firmware.iova);
+	}
 
 	return 0;
 }
@@ -246,12 +249,12 @@ static int vic_load_firmware(struct vic *vic)
 {
 	struct host1x_client *client = &vic->client.base;
 	struct tegra_drm *tegra = vic->client.drm;
-	dma_addr_t phys;
+	dma_addr_t iova;
 	size_t size;
 	void *virt;
 	int err;
 
-	if (vic->falcon.firmware.vaddr)
+	if (vic->falcon.firmware.virt)
 		return 0;
 
 	err = falcon_read_firmware(&vic->falcon, vic->config->firmware);
@@ -261,17 +264,17 @@ static int vic_load_firmware(struct vic *vic)
 	size = vic->falcon.firmware.size;
 
 	if (!client->group) {
-		virt = dma_alloc_coherent(vic->dev, size, &phys, GFP_KERNEL);
+		virt = dma_alloc_coherent(vic->dev, size, &iova, GFP_KERNEL);
 
-		err = dma_mapping_error(vic->dev, phys);
+		err = dma_mapping_error(vic->dev, iova);
 		if (err < 0)
 			return err;
 	} else {
-		virt = tegra_drm_alloc(tegra, size, &phys);
+		virt = tegra_drm_alloc(tegra, size, &iova);
 	}
 
-	vic->falcon.firmware.vaddr = virt;
-	vic->falcon.firmware.paddr = phys;
+	vic->falcon.firmware.virt = virt;
+	vic->falcon.firmware.iova = iova;
 
 	err = falcon_load_firmware(&vic->falcon);
 	if (err < 0)
@@ -283,35 +286,24 @@ static int vic_load_firmware(struct vic *vic)
 	 * knows what memory pages to flush the cache for.
 	 */
 	if (client->group) {
+		dma_addr_t phys;
+
 		phys = dma_map_single(vic->dev, virt, size, DMA_TO_DEVICE);
 
 		err = dma_mapping_error(vic->dev, phys);
 		if (err < 0)
 			goto cleanup;
 
-		/*
-		 * If the DMA API mapped this through a bounce buffer, the
-		 * dma_sync_single_for_device() call below will not be able
-		 * to flush the caches for the right memory pages. Output a
-		 * big warning in that case so that the DMA mask can be set
-		 * properly and the bounce buffer avoided.
-		 */
-		WARN(phys != vic->falcon.firmware.paddr,
-		     "check DMA mask setting for %s\n", dev_name(vic->dev));
+		vic->falcon.firmware.phys = phys;
 	}
-
-	dma_sync_single_for_device(vic->dev, phys, size, DMA_TO_DEVICE);
-
-	if (client->group)
-		dma_unmap_single(vic->dev, phys, size, DMA_TO_DEVICE);
 
 	return 0;
 
 cleanup:
 	if (!client->group)
-		dma_free_coherent(vic->dev, size, virt, phys);
+		dma_free_coherent(vic->dev, size, virt, iova);
 	else
-		tegra_drm_free(tegra, size, virt, phys);
+		tegra_drm_free(tegra, size, virt, iova);
 
 	return err;
 }

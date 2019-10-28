@@ -84,8 +84,9 @@ struct falcon_firmware {
 	const struct firmware *firmware;
 
 	/* Raw firmware data */
-	dma_addr_t paddr;
-	void *vaddr;
+	dma_addr_t iova;
+	dma_addr_t phys;
+	void *virt;
 	size_t size;
 
 	/* Parsed firmware information */
