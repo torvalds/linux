@@ -678,6 +678,8 @@ static int aq_ptp_poll(struct napi_struct *napi, int budget)
 
 		err = aq_nic->aq_hw_ops->hw_ring_hwts_rx_fill(aq_nic->aq_hw,
 							      &aq_ptp->hwts_rx);
+		if (err < 0)
+			goto err_exit;
 
 		was_cleaned = true;
 	}
