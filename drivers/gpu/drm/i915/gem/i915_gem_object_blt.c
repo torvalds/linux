@@ -30,7 +30,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	GEM_BUG_ON(intel_engine_is_virtual(ce->engine));
 	intel_engine_pm_get(ce->engine);
 
-	count = div_u64(vma->size, block_size);
+	count = div_u64(round_up(vma->size, block_size), block_size);
 	size = (1 + 8 * count) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
 	pool = intel_engine_get_pool(ce->engine, size);
@@ -214,7 +214,7 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	GEM_BUG_ON(intel_engine_is_virtual(ce->engine));
 	intel_engine_pm_get(ce->engine);
 
-	count = div_u64(dst->size, block_size);
+	count = div_u64(round_up(dst->size, block_size), block_size);
 	size = (1 + 11 * count) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
 	pool = intel_engine_get_pool(ce->engine, size);
