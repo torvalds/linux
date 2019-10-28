@@ -452,6 +452,13 @@ static int esw_create_legacy_table(struct mlx5_eswitch *esw)
 	return err;
 }
 
+static void esw_destroy_legacy_table(struct mlx5_eswitch *esw)
+{
+	esw_cleanup_vepa_rules(esw);
+	esw_destroy_legacy_fdb_table(esw);
+	esw_destroy_legacy_vepa_table(esw);
+}
+
 #define MLX5_LEGACY_SRIOV_VPORT_EVENTS (MLX5_VPORT_UC_ADDR_CHANGE | \
 					MLX5_VPORT_MC_ADDR_CHANGE | \
 					MLX5_VPORT_PROMISC_CHANGE)
@@ -464,15 +471,10 @@ static int esw_legacy_enable(struct mlx5_eswitch *esw)
 	if (ret)
 		return ret;
 
-	mlx5_eswitch_enable_pf_vf_vports(esw, MLX5_LEGACY_SRIOV_VPORT_EVENTS);
-	return 0;
-}
-
-static void esw_destroy_legacy_table(struct mlx5_eswitch *esw)
-{
-	esw_cleanup_vepa_rules(esw);
-	esw_destroy_legacy_fdb_table(esw);
-	esw_destroy_legacy_vepa_table(esw);
+	ret = mlx5_eswitch_enable_pf_vf_vports(esw, MLX5_LEGACY_SRIOV_VPORT_EVENTS);
+	if (ret)
+		esw_destroy_legacy_table(esw);
+	return ret;
 }
 
 static void esw_legacy_disable(struct mlx5_eswitch *esw)
@@ -1704,8 +1706,8 @@ static void esw_legacy_vport_destroy_drop_counters(struct mlx5_vport *vport)
 		mlx5_fc_destroy(dev, vport->egress.legacy.drop_counter);
 }
 
-static void esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
-			     enum mlx5_eswitch_vport_event enabled_events)
+static int esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
+			    enum mlx5_eswitch_vport_event enabled_events)
 {
 	u16 vport_num = vport->vport;
 
@@ -1743,6 +1745,7 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 	esw->enabled_vports++;
 	esw_debug(esw->dev, "Enabled VPORT(%d)\n", vport_num);
 	mutex_unlock(&esw->state_lock);
+	return 0;
 }
 
 static void esw_disable_vport(struct mlx5_eswitch *esw,
@@ -1856,26 +1859,51 @@ static void mlx5_eswitch_event_handlers_unregister(struct mlx5_eswitch *esw)
 /* mlx5_eswitch_enable_pf_vf_vports() enables vports of PF, ECPF and VFs
  * whichever are present on the eswitch.
  */
-void
+int
 mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
 				 enum mlx5_eswitch_vport_event enabled_events)
 {
 	struct mlx5_vport *vport;
+	int num_vfs;
+	int ret;
 	int i;
 
 	/* Enable PF vport */
 	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
-	esw_enable_vport(esw, vport, enabled_events);
+	ret = esw_enable_vport(esw, vport, enabled_events);
+	if (ret)
+		return ret;
 
-	/* Enable ECPF vports */
+	/* Enable ECPF vport */
 	if (mlx5_ecpf_vport_exists(esw->dev)) {
 		vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_ECPF);
-		esw_enable_vport(esw, vport, enabled_events);
+		ret = esw_enable_vport(esw, vport, enabled_events);
+		if (ret)
+			goto ecpf_err;
 	}
 
 	/* Enable VF vports */
-	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->esw_funcs.num_vfs)
-		esw_enable_vport(esw, vport, enabled_events);
+	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->esw_funcs.num_vfs) {
+		ret = esw_enable_vport(esw, vport, enabled_events);
+		if (ret)
+			goto vf_err;
+	}
+	return 0;
+
+vf_err:
+	num_vfs = i - 1;
+	mlx5_esw_for_each_vf_vport_reverse(esw, i, vport, num_vfs)
+		esw_disable_vport(esw, vport);
+
+	if (mlx5_ecpf_vport_exists(esw->dev)) {
+		vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_ECPF);
+		esw_disable_vport(esw, vport);
+	}
+
+ecpf_err:
+	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
+	esw_disable_vport(esw, vport);
+	return ret;
 }
 
 /* mlx5_eswitch_disable_pf_vf_vports() disables vports of PF, ECPF and VFs
