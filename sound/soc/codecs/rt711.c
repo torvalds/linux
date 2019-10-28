@@ -383,7 +383,8 @@ static void rt711_jack_init(struct rt711_priv *rt711)
 				RT711_JD2_2PORT_200K_DECODE_HP |
 				RT711_HP_JD_SEL_JD2);
 			rt711_index_update_bits(rt711->regmap, RT711_VENDOR_REG,
-				RT711_CC_DET1, RT711_HP_JD_FINAL_RESULT_CTL_JD12,
+				RT711_CC_DET1,
+				RT711_HP_JD_FINAL_RESULT_CTL_JD12,
 				RT711_HP_JD_FINAL_RESULT_CTL_JD12);
 			break;
 		default:
@@ -741,12 +742,13 @@ static int rt711_dac_surround_event(struct snd_soc_dapm_widget *w,
 			RT711_SET_GAIN_HP_H, (val_h << 8 | val_l));
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		regmap_write(rt711->regmap,
-			RT711_SET_STREAMID_DAC2, 0x00);
-
 		val_l = (1 << RT711_MUTE_SFT);
 		regmap_write(rt711->regmap,
 			RT711_SET_GAIN_HP_H, (val_h << 8 | val_l));
+		usleep_range(50000, 55000);
+
+		regmap_write(rt711->regmap,
+			RT711_SET_STREAMID_DAC2, 0x00);
 		break;
 	}
 	return 0;
