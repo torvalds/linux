@@ -1864,32 +1864,16 @@ static int esw_vport_egress_prio_tag_config(struct mlx5_eswitch *esw,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	if (!MLX5_CAP_GEN(esw->dev, prio_tag_required))
-		return 0;
-
 	/* For prio tag mode, there is only 1 FTEs:
 	 * 1) prio tag packets - pop the prio tag VLAN, allow
 	 * Unmatched traffic is allowed by default
 	 */
-
-	esw_vport_cleanup_egress_rules(esw, vport);
-
-	err = esw_vport_enable_egress_acl(esw, vport);
-	if (err) {
-		mlx5_core_warn(esw->dev,
-			       "failed to enable egress acl (%d) on vport[%d]\n",
-			       err, vport->vport);
-		return err;
-	}
-
 	esw_debug(esw->dev,
 		  "vport[%d] configure prio tag egress rules\n", vport->vport);
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
-	if (!spec) {
-		err = -ENOMEM;
-		goto out_no_mem;
-	}
+	if (!spec)
+		return -ENOMEM;
 
 	/* prio tag vlan rule - pop it so VF receives untagged packets */
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
@@ -1909,14 +1893,9 @@ static int esw_vport_egress_prio_tag_config(struct mlx5_eswitch *esw,
 			 "vport[%d] configure egress pop prio tag vlan rule failed, err(%d)\n",
 			 vport->vport, err);
 		vport->egress.allowed_vlan = NULL;
-		goto out;
 	}
 
-out:
 	kvfree(spec);
-out_no_mem:
-	if (err)
-		esw_vport_cleanup_egress_rules(esw, vport);
 	return err;
 }
 
@@ -1961,6 +1940,29 @@ out:
 	return err;
 }
 
+static int esw_vport_egress_config(struct mlx5_eswitch *esw,
+				   struct mlx5_vport *vport)
+{
+	int err;
+
+	if (!MLX5_CAP_GEN(esw->dev, prio_tag_required))
+		return 0;
+
+	esw_vport_cleanup_egress_rules(esw, vport);
+
+	err = esw_vport_enable_egress_acl(esw, vport);
+	if (err)
+		return err;
+
+	esw_debug(esw->dev, "vport(%d) configure egress rules\n", vport->vport);
+
+	err = esw_vport_egress_prio_tag_config(esw, vport);
+	if (err)
+		esw_vport_disable_egress_acl(esw, vport);
+
+	return err;
+}
+
 static bool
 esw_check_vport_match_metadata_supported(const struct mlx5_eswitch *esw)
 {
@@ -1996,7 +1998,7 @@ static int esw_create_offloads_acl_tables(struct mlx5_eswitch *esw)
 			goto err_ingress;
 
 		if (mlx5_eswitch_is_vf_vport(esw, vport->vport)) {
-			err = esw_vport_egress_prio_tag_config(esw, vport);
+			err = esw_vport_egress_config(esw, vport);
 			if (err)
 				goto err_egress;
 		}
