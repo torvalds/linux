@@ -52,6 +52,9 @@
 
 #include "pvrdma.h"
 
+static void __pvrdma_destroy_qp(struct pvrdma_dev *dev,
+				struct pvrdma_qp *qp);
+
 static inline void get_cqs(struct pvrdma_qp *qp, struct pvrdma_cq **send_cq,
 			   struct pvrdma_cq **recv_cq)
 {
@@ -195,7 +198,9 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	union pvrdma_cmd_resp rsp;
 	struct pvrdma_cmd_create_qp *cmd = &req.create_qp;
 	struct pvrdma_cmd_create_qp_resp *resp = &rsp.create_qp_resp;
+	struct pvrdma_cmd_create_qp_resp_v2 *resp_v2 = &rsp.create_qp_resp_v2;
 	struct pvrdma_create_qp ucmd;
+	struct pvrdma_create_qp_resp qp_resp = {};
 	unsigned long flags;
 	int ret;
 	bool is_srq = !!init_attr->srq;
@@ -257,6 +262,15 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 
 			if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 				ret = -EFAULT;
+				goto err_qp;
+			}
+
+			/* Userspace supports qpn and qp handles? */
+			if (dev->dsr_version >= PVRDMA_QPHANDLE_VERSION &&
+			    udata->outlen < sizeof(qp_resp)) {
+				dev_warn(&dev->pdev->dev,
+					 "create queuepair not supported\n");
+				ret = -EOPNOTSUPP;
 				goto err_qp;
 			}
 
@@ -379,12 +393,32 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	}
 
 	/* max_send_wr/_recv_wr/_send_sge/_recv_sge/_inline_data */
-	qp->qp_handle = resp->qpn;
 	qp->port = init_attr->port_num;
-	qp->ibqp.qp_num = resp->qpn;
+
+	if (dev->dsr_version >= PVRDMA_QPHANDLE_VERSION) {
+		qp->ibqp.qp_num = resp_v2->qpn;
+		qp->qp_handle = resp_v2->qp_handle;
+	} else {
+		qp->ibqp.qp_num = resp->qpn;
+		qp->qp_handle = resp->qpn;
+	}
+
 	spin_lock_irqsave(&dev->qp_tbl_lock, flags);
 	dev->qp_tbl[qp->qp_handle % dev->dsr->caps.max_qp] = qp;
 	spin_unlock_irqrestore(&dev->qp_tbl_lock, flags);
+
+	if (udata) {
+		qp_resp.qpn = qp->ibqp.qp_num;
+		qp_resp.qp_handle = qp->qp_handle;
+
+		if (ib_copy_to_udata(udata, &qp_resp,
+				     min(udata->outlen, sizeof(qp_resp)))) {
+			dev_warn(&dev->pdev->dev,
+				 "failed to copy back udata\n");
+			__pvrdma_destroy_qp(dev, qp);
+			return ERR_PTR(-EINVAL);
+		}
+	}
 
 	return &qp->ibqp;
 
@@ -400,26 +434,14 @@ err_qp:
 	return ERR_PTR(ret);
 }
 
-static void pvrdma_free_qp(struct pvrdma_qp *qp)
+static void _pvrdma_free_qp(struct pvrdma_qp *qp)
 {
+	unsigned long flags;
 	struct pvrdma_dev *dev = to_vdev(qp->ibqp.device);
-	struct pvrdma_cq *scq;
-	struct pvrdma_cq *rcq;
-	unsigned long flags, scq_flags, rcq_flags;
-
-	/* In case cq is polling */
-	get_cqs(qp, &scq, &rcq);
-	pvrdma_lock_cqs(scq, rcq, &scq_flags, &rcq_flags);
-
-	_pvrdma_flush_cqe(qp, scq);
-	if (scq != rcq)
-		_pvrdma_flush_cqe(qp, rcq);
 
 	spin_lock_irqsave(&dev->qp_tbl_lock, flags);
 	dev->qp_tbl[qp->qp_handle] = NULL;
 	spin_unlock_irqrestore(&dev->qp_tbl_lock, flags);
-
-	pvrdma_unlock_cqs(scq, rcq, &scq_flags, &rcq_flags);
 
 	if (refcount_dec_and_test(&qp->refcnt))
 		complete(&qp->free);
@@ -435,32 +457,69 @@ static void pvrdma_free_qp(struct pvrdma_qp *qp)
 	atomic_dec(&dev->num_qps);
 }
 
-/**
- * pvrdma_destroy_qp - destroy a queue pair
- * @qp: the queue pair to destroy
- * @udata: user data or null for kernel object
- *
- * @return: 0 on success.
- */
-int pvrdma_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
+static void pvrdma_free_qp(struct pvrdma_qp *qp)
 {
-	struct pvrdma_qp *vqp = to_vqp(qp);
+	struct pvrdma_cq *scq;
+	struct pvrdma_cq *rcq;
+	unsigned long scq_flags, rcq_flags;
+
+	/* In case cq is polling */
+	get_cqs(qp, &scq, &rcq);
+	pvrdma_lock_cqs(scq, rcq, &scq_flags, &rcq_flags);
+
+	_pvrdma_flush_cqe(qp, scq);
+	if (scq != rcq)
+		_pvrdma_flush_cqe(qp, rcq);
+
+	/*
+	 * We're now unlocking the CQs before clearing out the qp handle this
+	 * should still be safe. We have destroyed the backend QP and flushed
+	 * the CQEs so there should be no other completions for this QP.
+	 */
+	pvrdma_unlock_cqs(scq, rcq, &scq_flags, &rcq_flags);
+
+	_pvrdma_free_qp(qp);
+}
+
+static inline void _pvrdma_destroy_qp_work(struct pvrdma_dev *dev,
+					   u32 qp_handle)
+{
 	union pvrdma_cmd_req req;
 	struct pvrdma_cmd_destroy_qp *cmd = &req.destroy_qp;
 	int ret;
 
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->hdr.cmd = PVRDMA_CMD_DESTROY_QP;
-	cmd->qp_handle = vqp->qp_handle;
+	cmd->qp_handle = qp_handle;
 
-	ret = pvrdma_cmd_post(to_vdev(qp->device), &req, NULL, 0);
+	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret < 0)
-		dev_warn(&to_vdev(qp->device)->pdev->dev,
+		dev_warn(&dev->pdev->dev,
 			 "destroy queuepair failed, error: %d\n", ret);
+}
 
+/**
+ * pvrdma_destroy_qp - destroy a queue pair
+ * @qp: the queue pair to destroy
+ * @udata: user data or null for kernel object
+ *
+ * @return: always 0.
+ */
+int pvrdma_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
+{
+	struct pvrdma_qp *vqp = to_vqp(qp);
+
+	_pvrdma_destroy_qp_work(to_vdev(qp->device), vqp->qp_handle);
 	pvrdma_free_qp(vqp);
 
 	return 0;
+}
+
+static void __pvrdma_destroy_qp(struct pvrdma_dev *dev,
+				struct pvrdma_qp *qp)
+{
+	_pvrdma_destroy_qp_work(dev, qp->qp_handle);
+	_pvrdma_free_qp(qp);
 }
 
 /**
