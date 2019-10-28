@@ -10004,7 +10004,7 @@ static void bnxt_timer(struct timer_list *t)
 
 	if (bp->link_info.phy_retry) {
 		if (time_after(jiffies, bp->link_info.phy_retry_expires)) {
-			bp->link_info.phy_retry = 0;
+			bp->link_info.phy_retry = false;
 			netdev_warn(bp->dev, "failed to update phy settings after maximum retries.\n");
 		} else {
 			set_bit(BNXT_UPDATE_PHY_SP_EVENT, &bp->sp_event);
