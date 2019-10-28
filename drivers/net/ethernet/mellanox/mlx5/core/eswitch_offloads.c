@@ -1950,6 +1950,32 @@ esw_check_vport_match_metadata_supported(const struct mlx5_eswitch *esw)
 	return true;
 }
 
+static int
+esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
+				     struct mlx5_vport *vport)
+{
+	int err;
+
+	err = esw_vport_ingress_config(esw, vport);
+	if (err)
+		return err;
+
+	if (mlx5_eswitch_is_vf_vport(esw, vport->vport)) {
+		err = esw_vport_egress_config(esw, vport);
+		if (err)
+			esw_vport_disable_ingress_acl(esw, vport);
+	}
+	return err;
+}
+
+static void
+esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
+				      struct mlx5_vport *vport)
+{
+	esw_vport_disable_egress_acl(esw, vport);
+	esw_vport_disable_ingress_acl(esw, vport);
+}
+
 static int esw_create_offloads_acl_tables(struct mlx5_eswitch *esw)
 {
 	struct mlx5_vport *vport;
@@ -1960,15 +1986,9 @@ static int esw_create_offloads_acl_tables(struct mlx5_eswitch *esw)
 		esw->flags |= MLX5_ESWITCH_VPORT_MATCH_METADATA;
 
 	mlx5_esw_for_all_vports(esw, i, vport) {
-		err = esw_vport_ingress_config(esw, vport);
+		err = esw_vport_create_offloads_acl_tables(esw, vport);
 		if (err)
-			goto err_ingress;
-
-		if (mlx5_eswitch_is_vf_vport(esw, vport->vport)) {
-			err = esw_vport_egress_config(esw, vport);
-			if (err)
-				goto err_egress;
-		}
+			goto err_acl_table;
 	}
 
 	if (mlx5_eswitch_vport_match_metadata_enabled(esw))
@@ -1976,13 +1996,10 @@ static int esw_create_offloads_acl_tables(struct mlx5_eswitch *esw)
 
 	return 0;
 
-err_egress:
-	esw_vport_disable_ingress_acl(esw, vport);
-err_ingress:
+err_acl_table:
 	for (j = MLX5_VPORT_PF; j < i; j++) {
 		vport = &esw->vports[j];
-		esw_vport_disable_egress_acl(esw, vport);
-		esw_vport_disable_ingress_acl(esw, vport);
+		esw_vport_destroy_offloads_acl_tables(esw, vport);
 	}
 
 	return err;
@@ -1993,10 +2010,8 @@ static void esw_destroy_offloads_acl_tables(struct mlx5_eswitch *esw)
 	struct mlx5_vport *vport;
 	int i;
 
-	mlx5_esw_for_all_vports(esw, i, vport) {
-		esw_vport_disable_egress_acl(esw, vport);
-		esw_vport_disable_ingress_acl(esw, vport);
-	}
+	mlx5_esw_for_all_vports(esw, i, vport)
+		esw_vport_destroy_offloads_acl_tables(esw, vport);
 
 	esw->flags &= ~MLX5_ESWITCH_VPORT_MATCH_METADATA;
 }
