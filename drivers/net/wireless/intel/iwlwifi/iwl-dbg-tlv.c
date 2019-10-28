@@ -891,14 +891,9 @@ static void
 iwl_dbg_tlv_gen_active_trig_list(struct iwl_fw_runtime *fwrt,
 				 struct iwl_dbg_tlv_time_point_data *tp)
 {
-	struct iwl_dbg_tlv_node *node, *tmp;
+	struct iwl_dbg_tlv_node *node;
 	struct list_head *trig_list = &tp->trig_list;
 	struct list_head *active_trig_list = &tp->active_trig_list;
-
-	list_for_each_entry_safe(node, tmp, active_trig_list, list) {
-		list_del(&node->list);
-		kfree(node);
-	}
 
 	list_for_each_entry(node, trig_list, list) {
 		struct iwl_ucode_tlv *tlv = &node->tlv;
@@ -918,11 +913,6 @@ static int iwl_dbg_tlv_gen_active_trigs(struct iwl_fw_runtime *fwrt,
 {
 	int i;
 
-	if (test_and_set_bit(STATUS_GEN_ACTIVE_TRIGS, &fwrt->status))
-		return -EBUSY;
-
-	iwl_fw_flush_dumps(fwrt);
-
 	fwrt->trans->dbg.domains_bitmap = new_domain;
 
 	IWL_DEBUG_FW(fwrt,
@@ -935,8 +925,6 @@ static int iwl_dbg_tlv_gen_active_trigs(struct iwl_fw_runtime *fwrt,
 
 		iwl_dbg_tlv_gen_active_trig_list(fwrt, tp);
 	}
-
-	clear_bit(STATUS_GEN_ACTIVE_TRIGS, &fwrt->status);
 
 	return 0;
 }

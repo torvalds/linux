@@ -2353,9 +2353,6 @@ int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 	u32 occur, delay;
 	unsigned long idx;
 
-	if (test_bit(STATUS_GEN_ACTIVE_TRIGS, &fwrt->status))
-		return -EBUSY;
-
 	if (!iwl_fw_ini_trigger_on(fwrt, trig)) {
 		IWL_WARN(fwrt, "WRT: Trigger %d is not active, aborting dump\n",
 			 tp_id);

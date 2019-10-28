@@ -130,14 +130,6 @@ struct iwl_txf_iter_data {
 };
 
 /**
- * enum iwl_fw_runtime_status - fw runtime status flags
- * @STATUS_GEN_ACTIVE_TRIGS: generating active trigger list
- */
-enum iwl_fw_runtime_status {
-	STATUS_GEN_ACTIVE_TRIGS,
-};
-
-/**
  * struct iwl_fw_runtime - runtime data for firmware
  * @fw: firmware image
  * @cfg: NIC configuration
@@ -150,7 +142,6 @@ enum iwl_fw_runtime_status {
  * @smem_cfg: saved firmware SMEM configuration
  * @cur_fw_img: current firmware image, must be maintained by
  *	the driver by calling &iwl_fw_set_current_image()
- * @status: &enum iwl_fw_runtime_status
  * @dump: debug dump data
  */
 struct iwl_fw_runtime {
@@ -170,8 +161,6 @@ struct iwl_fw_runtime {
 
 	/* memory configuration */
 	struct iwl_fwrt_shared_mem_cfg smem_cfg;
-
-	unsigned long status;
 
 	/* debug */
 	struct {
