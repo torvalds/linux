@@ -1070,56 +1070,20 @@ void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
 	vport->egress.acl = NULL;
 }
 
-int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
-				 struct mlx5_vport *vport)
+static int
+esw_vport_create_legacy_ingress_acl_groups(struct mlx5_eswitch *esw,
+					   struct mlx5_vport *vport)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_core_dev *dev = esw->dev;
-	struct mlx5_flow_namespace *root_ns;
-	struct mlx5_flow_table *acl;
 	struct mlx5_flow_group *g;
 	void *match_criteria;
 	u32 *flow_group_in;
-	/* The ingress acl table contains 4 groups
-	 * (2 active rules at the same time -
-	 *      1 allow rule from one of the first 3 groups.
-	 *      1 drop rule from the last group):
-	 * 1)Allow untagged traffic with smac=original mac.
-	 * 2)Allow untagged traffic.
-	 * 3)Allow traffic with smac=original mac.
-	 * 4)Drop all other traffic.
-	 */
-	int table_size = 4;
-	int err = 0;
-
-	if (!MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support))
-		return -EOPNOTSUPP;
-
-	if (!IS_ERR_OR_NULL(vport->ingress.acl))
-		return 0;
-
-	esw_debug(dev, "Create vport[%d] ingress ACL log_max_size(%d)\n",
-		  vport->vport, MLX5_CAP_ESW_INGRESS_ACL(dev, log_max_ft_size));
-
-	root_ns = mlx5_get_flow_vport_acl_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS,
-			mlx5_eswitch_vport_num_to_index(esw, vport->vport));
-	if (!root_ns) {
-		esw_warn(dev, "Failed to get E-Switch ingress flow namespace for vport (%d)\n", vport->vport);
-		return -EOPNOTSUPP;
-	}
+	int err;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
-
-	acl = mlx5_create_vport_flow_table(root_ns, 0, table_size, 0, vport->vport);
-	if (IS_ERR(acl)) {
-		err = PTR_ERR(acl);
-		esw_warn(dev, "Failed to create E-Switch vport[%d] ingress flow Table, err(%d)\n",
-			 vport->vport, err);
-		goto out;
-	}
-	vport->ingress.acl = acl;
 
 	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
 
@@ -1130,14 +1094,14 @@ int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 0);
 
-	g = mlx5_create_flow_group(acl, flow_group_in);
+	g = mlx5_create_flow_group(vport->ingress.acl, flow_group_in);
 	if (IS_ERR(g)) {
 		err = PTR_ERR(g);
-		esw_warn(dev, "Failed to create E-Switch vport[%d] ingress untagged spoofchk flow group, err(%d)\n",
+		esw_warn(dev, "vport[%d] ingress create untagged spoofchk flow group, err(%d)\n",
 			 vport->vport, err);
-		goto out;
+		goto spoof_err;
 	}
-	vport->ingress.allow_untagged_spoofchk_grp = g;
+	vport->ingress.legacy.allow_untagged_spoofchk_grp = g;
 
 	memset(flow_group_in, 0, inlen);
 	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
@@ -1145,14 +1109,14 @@ int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 1);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 1);
 
-	g = mlx5_create_flow_group(acl, flow_group_in);
+	g = mlx5_create_flow_group(vport->ingress.acl, flow_group_in);
 	if (IS_ERR(g)) {
 		err = PTR_ERR(g);
-		esw_warn(dev, "Failed to create E-Switch vport[%d] ingress untagged flow group, err(%d)\n",
+		esw_warn(dev, "vport[%d] ingress create untagged flow group, err(%d)\n",
 			 vport->vport, err);
-		goto out;
+		goto untagged_err;
 	}
-	vport->ingress.allow_untagged_only_grp = g;
+	vport->ingress.legacy.allow_untagged_only_grp = g;
 
 	memset(flow_group_in, 0, inlen);
 	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
@@ -1161,80 +1125,134 @@ int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 2);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 2);
 
-	g = mlx5_create_flow_group(acl, flow_group_in);
+	g = mlx5_create_flow_group(vport->ingress.acl, flow_group_in);
 	if (IS_ERR(g)) {
 		err = PTR_ERR(g);
-		esw_warn(dev, "Failed to create E-Switch vport[%d] ingress spoofchk flow group, err(%d)\n",
+		esw_warn(dev, "vport[%d] ingress create spoofchk flow group, err(%d)\n",
 			 vport->vport, err);
-		goto out;
+		goto allow_spoof_err;
 	}
-	vport->ingress.allow_spoofchk_only_grp = g;
+	vport->ingress.legacy.allow_spoofchk_only_grp = g;
 
 	memset(flow_group_in, 0, inlen);
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 3);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 3);
 
-	g = mlx5_create_flow_group(acl, flow_group_in);
+	g = mlx5_create_flow_group(vport->ingress.acl, flow_group_in);
 	if (IS_ERR(g)) {
 		err = PTR_ERR(g);
-		esw_warn(dev, "Failed to create E-Switch vport[%d] ingress drop flow group, err(%d)\n",
+		esw_warn(dev, "vport[%d] ingress create drop flow group, err(%d)\n",
 			 vport->vport, err);
-		goto out;
+		goto drop_err;
 	}
-	vport->ingress.drop_grp = g;
+	vport->ingress.legacy.drop_grp = g;
+	kvfree(flow_group_in);
+	return 0;
 
-out:
-	if (err) {
-		if (!IS_ERR_OR_NULL(vport->ingress.allow_spoofchk_only_grp))
-			mlx5_destroy_flow_group(
-					vport->ingress.allow_spoofchk_only_grp);
-		if (!IS_ERR_OR_NULL(vport->ingress.allow_untagged_only_grp))
-			mlx5_destroy_flow_group(
-					vport->ingress.allow_untagged_only_grp);
-		if (!IS_ERR_OR_NULL(vport->ingress.allow_untagged_spoofchk_grp))
-			mlx5_destroy_flow_group(
-				vport->ingress.allow_untagged_spoofchk_grp);
-		if (!IS_ERR_OR_NULL(vport->ingress.acl))
-			mlx5_destroy_flow_table(vport->ingress.acl);
+drop_err:
+	if (!IS_ERR_OR_NULL(vport->ingress.legacy.allow_spoofchk_only_grp)) {
+		mlx5_destroy_flow_group(vport->ingress.legacy.allow_spoofchk_only_grp);
+		vport->ingress.legacy.allow_spoofchk_only_grp = NULL;
 	}
-
+allow_spoof_err:
+	if (!IS_ERR_OR_NULL(vport->ingress.legacy.allow_untagged_only_grp)) {
+		mlx5_destroy_flow_group(vport->ingress.legacy.allow_untagged_only_grp);
+		vport->ingress.legacy.allow_untagged_only_grp = NULL;
+	}
+untagged_err:
+	if (!IS_ERR_OR_NULL(vport->ingress.legacy.allow_untagged_spoofchk_grp)) {
+		mlx5_destroy_flow_group(vport->ingress.legacy.allow_untagged_spoofchk_grp);
+		vport->ingress.legacy.allow_untagged_spoofchk_grp = NULL;
+	}
+spoof_err:
 	kvfree(flow_group_in);
 	return err;
+}
+
+int esw_vport_create_ingress_acl_table(struct mlx5_eswitch *esw,
+				       struct mlx5_vport *vport, int table_size)
+{
+	struct mlx5_core_dev *dev = esw->dev;
+	struct mlx5_flow_namespace *root_ns;
+	struct mlx5_flow_table *acl;
+	int vport_index;
+	int err;
+
+	if (!MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support))
+		return -EOPNOTSUPP;
+
+	esw_debug(dev, "Create vport[%d] ingress ACL log_max_size(%d)\n",
+		  vport->vport, MLX5_CAP_ESW_INGRESS_ACL(dev, log_max_ft_size));
+
+	vport_index = mlx5_eswitch_vport_num_to_index(esw, vport->vport);
+	root_ns = mlx5_get_flow_vport_acl_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS,
+						    vport_index);
+	if (!root_ns) {
+		esw_warn(dev, "Failed to get E-Switch ingress flow namespace for vport (%d)\n",
+			 vport->vport);
+		return -EOPNOTSUPP;
+	}
+
+	acl = mlx5_create_vport_flow_table(root_ns, 0, table_size, 0, vport->vport);
+	if (IS_ERR(acl)) {
+		err = PTR_ERR(acl);
+		esw_warn(dev, "vport[%d] ingress create flow Table, err(%d)\n",
+			 vport->vport, err);
+		return err;
+	}
+	vport->ingress.acl = acl;
+	return 0;
+}
+
+void esw_vport_destroy_ingress_acl_table(struct mlx5_vport *vport)
+{
+	if (!vport->ingress.acl)
+		return;
+
+	mlx5_destroy_flow_table(vport->ingress.acl);
+	vport->ingress.acl = NULL;
 }
 
 void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
 				     struct mlx5_vport *vport)
 {
-	if (!IS_ERR_OR_NULL(vport->ingress.legacy.drop_rule)) {
+	if (vport->ingress.legacy.drop_rule) {
 		mlx5_del_flow_rules(vport->ingress.legacy.drop_rule);
 		vport->ingress.legacy.drop_rule = NULL;
 	}
 
-	if (!IS_ERR_OR_NULL(vport->ingress.allow_rule)) {
+	if (vport->ingress.allow_rule) {
 		mlx5_del_flow_rules(vport->ingress.allow_rule);
 		vport->ingress.allow_rule = NULL;
 	}
 }
 
-void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
-				   struct mlx5_vport *vport)
+static void esw_vport_disable_legacy_ingress_acl(struct mlx5_eswitch *esw,
+						 struct mlx5_vport *vport)
 {
-	if (IS_ERR_OR_NULL(vport->ingress.acl))
+	if (!vport->ingress.acl)
 		return;
 
 	esw_debug(esw->dev, "Destroy vport[%d] E-Switch ingress ACL\n", vport->vport);
 
 	esw_vport_cleanup_ingress_rules(esw, vport);
-	mlx5_destroy_flow_group(vport->ingress.allow_spoofchk_only_grp);
-	mlx5_destroy_flow_group(vport->ingress.allow_untagged_only_grp);
-	mlx5_destroy_flow_group(vport->ingress.allow_untagged_spoofchk_grp);
-	mlx5_destroy_flow_group(vport->ingress.drop_grp);
-	mlx5_destroy_flow_table(vport->ingress.acl);
-	vport->ingress.acl = NULL;
-	vport->ingress.drop_grp = NULL;
-	vport->ingress.allow_spoofchk_only_grp = NULL;
-	vport->ingress.allow_untagged_only_grp = NULL;
-	vport->ingress.allow_untagged_spoofchk_grp = NULL;
+	if (vport->ingress.legacy.allow_spoofchk_only_grp) {
+		mlx5_destroy_flow_group(vport->ingress.legacy.allow_spoofchk_only_grp);
+		vport->ingress.legacy.allow_spoofchk_only_grp = NULL;
+	}
+	if (vport->ingress.legacy.allow_untagged_only_grp) {
+		mlx5_destroy_flow_group(vport->ingress.legacy.allow_untagged_only_grp);
+		vport->ingress.legacy.allow_untagged_only_grp = NULL;
+	}
+	if (vport->ingress.legacy.allow_untagged_spoofchk_grp) {
+		mlx5_destroy_flow_group(vport->ingress.legacy.allow_untagged_spoofchk_grp);
+		vport->ingress.legacy.allow_untagged_spoofchk_grp = NULL;
+	}
+	if (vport->ingress.legacy.drop_grp) {
+		mlx5_destroy_flow_group(vport->ingress.legacy.drop_grp);
+		vport->ingress.legacy.drop_grp = NULL;
+	}
+	esw_vport_destroy_ingress_acl_table(vport);
 }
 
 static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
@@ -1249,19 +1267,36 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 	int err = 0;
 	u8 *smac_v;
 
+	/* The ingress acl table contains 4 groups
+	 * (2 active rules at the same time -
+	 *      1 allow rule from one of the first 3 groups.
+	 *      1 drop rule from the last group):
+	 * 1)Allow untagged traffic with smac=original mac.
+	 * 2)Allow untagged traffic.
+	 * 3)Allow traffic with smac=original mac.
+	 * 4)Drop all other traffic.
+	 */
+	int table_size = 4;
+
 	esw_vport_cleanup_ingress_rules(esw, vport);
 
 	if (!vport->info.vlan && !vport->info.qos && !vport->info.spoofchk) {
-		esw_vport_disable_ingress_acl(esw, vport);
+		esw_vport_disable_legacy_ingress_acl(esw, vport);
 		return 0;
 	}
 
-	err = esw_vport_enable_ingress_acl(esw, vport);
-	if (err) {
-		mlx5_core_warn(esw->dev,
-			       "failed to enable ingress acl (%d) on vport[%d]\n",
-			       err, vport->vport);
-		return err;
+	if (!vport->ingress.acl) {
+		err = esw_vport_create_ingress_acl_table(esw, vport, table_size);
+		if (err) {
+			esw_warn(esw->dev,
+				 "vport[%d] enable ingress acl err (%d)\n",
+				 err, vport->vport);
+			return err;
+		}
+
+		err = esw_vport_create_legacy_ingress_acl_groups(esw, vport);
+		if (err)
+			goto out;
 	}
 
 	esw_debug(esw->dev,
@@ -1322,10 +1357,11 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 		vport->ingress.legacy.drop_rule = NULL;
 		goto out;
 	}
+	kvfree(spec);
+	return 0;
 
 out:
-	if (err)
-		esw_vport_cleanup_ingress_rules(esw, vport);
+	esw_vport_disable_legacy_ingress_acl(esw, vport);
 	kvfree(spec);
 	return err;
 }
@@ -1705,7 +1741,7 @@ static int esw_vport_create_legacy_acl_tables(struct mlx5_eswitch *esw,
 	return 0;
 
 egress_err:
-	esw_vport_disable_ingress_acl(esw, vport);
+	esw_vport_disable_legacy_ingress_acl(esw, vport);
 	mlx5_fc_destroy(esw->dev, vport->egress.legacy.drop_counter);
 	vport->egress.legacy.drop_counter = NULL;
 
@@ -1735,7 +1771,7 @@ static void esw_vport_destroy_legacy_acl_tables(struct mlx5_eswitch *esw,
 	mlx5_fc_destroy(esw->dev, vport->egress.legacy.drop_counter);
 	vport->egress.legacy.drop_counter = NULL;
 
-	esw_vport_disable_ingress_acl(esw, vport);
+	esw_vport_disable_legacy_ingress_acl(esw, vport);
 	mlx5_fc_destroy(esw->dev, vport->ingress.legacy.drop_counter);
 	vport->ingress.legacy.drop_counter = NULL;
 }

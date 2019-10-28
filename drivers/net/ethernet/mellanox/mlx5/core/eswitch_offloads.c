@@ -1858,6 +1858,44 @@ static void esw_vport_del_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 	}
 }
 
+static int esw_vport_create_ingress_acl_group(struct mlx5_eswitch *esw,
+					      struct mlx5_vport *vport)
+{
+	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_flow_group *g;
+	u32 *flow_group_in;
+	int ret = 0;
+
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
+	if (!flow_group_in)
+		return -ENOMEM;
+
+	memset(flow_group_in, 0, inlen);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 0);
+
+	g = mlx5_create_flow_group(vport->ingress.acl, flow_group_in);
+	if (IS_ERR(g)) {
+		ret = PTR_ERR(g);
+		esw_warn(esw->dev,
+			 "Failed to create vport[%d] ingress metdata group, err(%d)\n",
+			 vport->vport, ret);
+		goto grp_err;
+	}
+	vport->ingress.offloads.metadata_grp = g;
+grp_err:
+	kvfree(flow_group_in);
+	return ret;
+}
+
+static void esw_vport_destroy_ingress_acl_group(struct mlx5_vport *vport)
+{
+	if (vport->ingress.offloads.metadata_grp) {
+		mlx5_destroy_flow_group(vport->ingress.offloads.metadata_grp);
+		vport->ingress.offloads.metadata_grp = NULL;
+	}
+}
+
 static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 				    struct mlx5_vport *vport)
 {
@@ -1868,8 +1906,7 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 		return 0;
 
 	esw_vport_cleanup_ingress_rules(esw, vport);
-
-	err = esw_vport_enable_ingress_acl(esw, vport);
+	err = esw_vport_create_ingress_acl_table(esw, vport, 1);
 	if (err) {
 		esw_warn(esw->dev,
 			 "failed to enable ingress acl (%d) on vport[%d]\n",
@@ -1877,25 +1914,34 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 		return err;
 	}
 
+	err = esw_vport_create_ingress_acl_group(esw, vport);
+	if (err)
+		goto group_err;
+
 	esw_debug(esw->dev,
 		  "vport[%d] configure ingress rules\n", vport->vport);
 
 	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
 		err = esw_vport_add_ingress_acl_modify_metadata(esw, vport);
 		if (err)
-			goto out;
+			goto metadata_err;
 	}
 
 	if (MLX5_CAP_GEN(esw->dev, prio_tag_required) &&
 	    mlx5_eswitch_is_vf_vport(esw, vport->vport)) {
 		err = esw_vport_ingress_prio_tag_config(esw, vport);
 		if (err)
-			goto out;
+			goto prio_tag_err;
 	}
+	return 0;
 
-out:
-	if (err)
-		esw_vport_disable_ingress_acl(esw, vport);
+prio_tag_err:
+	esw_vport_del_ingress_acl_modify_metadata(esw, vport);
+metadata_err:
+	esw_vport_cleanup_ingress_rules(esw, vport);
+	esw_vport_destroy_ingress_acl_group(vport);
+group_err:
+	esw_vport_destroy_ingress_acl_table(vport);
 	return err;
 }
 
@@ -1964,7 +2010,8 @@ esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
 		err = esw_vport_egress_config(esw, vport);
 		if (err) {
 			esw_vport_del_ingress_acl_modify_metadata(esw, vport);
-			esw_vport_disable_ingress_acl(esw, vport);
+			esw_vport_cleanup_ingress_rules(esw, vport);
+			esw_vport_destroy_ingress_acl_table(vport);
 		}
 	}
 	return err;
@@ -1976,7 +2023,9 @@ esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
 {
 	esw_vport_disable_egress_acl(esw, vport);
 	esw_vport_del_ingress_acl_modify_metadata(esw, vport);
-	esw_vport_disable_ingress_acl(esw, vport);
+	esw_vport_cleanup_ingress_rules(esw, vport);
+	esw_vport_destroy_ingress_acl_group(vport);
+	esw_vport_destroy_ingress_acl_table(vport);
 }
 
 static int esw_create_uplink_offloads_acl_tables(struct mlx5_eswitch *esw)

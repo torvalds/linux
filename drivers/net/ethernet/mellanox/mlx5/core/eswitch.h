@@ -65,16 +65,17 @@
 
 struct vport_ingress {
 	struct mlx5_flow_table *acl;
-	struct mlx5_flow_group *allow_untagged_spoofchk_grp;
-	struct mlx5_flow_group *allow_spoofchk_only_grp;
-	struct mlx5_flow_group *allow_untagged_only_grp;
-	struct mlx5_flow_group *drop_grp;
-	struct mlx5_flow_handle  *allow_rule;
+	struct mlx5_flow_handle *allow_rule;
 	struct {
+		struct mlx5_flow_group *allow_spoofchk_only_grp;
+		struct mlx5_flow_group *allow_untagged_spoofchk_grp;
+		struct mlx5_flow_group *allow_untagged_only_grp;
+		struct mlx5_flow_group *drop_grp;
 		struct mlx5_flow_handle *drop_rule;
 		struct mlx5_fc *drop_counter;
 	} legacy;
 	struct {
+		struct mlx5_flow_group *metadata_grp;
 		struct mlx5_modify_hdr *modify_metadata;
 		struct mlx5_flow_handle *modify_metadata_rule;
 	} offloads;
@@ -257,16 +258,16 @@ void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw);
 int esw_offloads_init_reps(struct mlx5_eswitch *esw);
 void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
 				     struct mlx5_vport *vport);
-int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
-				 struct mlx5_vport *vport);
+int esw_vport_create_ingress_acl_table(struct mlx5_eswitch *esw,
+				       struct mlx5_vport *vport,
+				       int table_size);
+void esw_vport_destroy_ingress_acl_table(struct mlx5_vport *vport);
 void esw_vport_cleanup_egress_rules(struct mlx5_eswitch *esw,
 				    struct mlx5_vport *vport);
 int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 				struct mlx5_vport *vport);
 void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
 				  struct mlx5_vport *vport);
-void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
-				   struct mlx5_vport *vport);
 int mlx5_esw_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num,
 			       u32 rate_mbps);
 
