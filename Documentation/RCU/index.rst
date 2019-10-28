@@ -10,6 +10,7 @@ RCU concepts
    arrayRCU
    rcu
    listRCU
+   NMI-RCU
    UP
 
    Design/Memory-Ordering/Tree-RCU-Memory-Ordering
