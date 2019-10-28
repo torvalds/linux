@@ -110,15 +110,6 @@ unsigned long long notrace sched_clock(void)
 }
 NOKPROBE_SYMBOL(sched_clock);
 
-/*
- * Monotonic_clock - returns # of nanoseconds passed since time_init()
- */
-unsigned long long monotonic_clock(void)
-{
-	return sched_clock();
-}
-EXPORT_SYMBOL(monotonic_clock);
-
 static void ext_to_timespec64(unsigned char *clk, struct timespec64 *xt)
 {
 	unsigned long long high, low, rem, sec, nsec;

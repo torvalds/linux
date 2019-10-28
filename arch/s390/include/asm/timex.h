@@ -179,7 +179,6 @@ static inline cycles_t get_cycles(void)
 
 int get_phys_clock(unsigned long *clock);
 void init_cpu_timer(void);
-unsigned long long monotonic_clock(void);
 
 extern unsigned char tod_clock_base[16] __aligned(8);
 
