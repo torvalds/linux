@@ -250,22 +250,14 @@ static void mark_eio(struct i915_request *rq)
 	i915_request_mark_complete(rq);
 }
 
-static struct i915_request *active_request(struct i915_request *rq)
+static struct i915_request *
+active_request(const struct intel_timeline * const tl, struct i915_request *rq)
 {
-	const struct intel_context * const ce = rq->hw_context;
-	struct i915_request *active = NULL;
-	struct list_head *list;
-
-	if (!i915_request_is_active(rq)) /* unwound, but incomplete! */
-		return rq;
+	struct i915_request *active = rq;
 
 	rcu_read_lock();
-	list = &rcu_dereference(rq->timeline)->requests;
-	list_for_each_entry_from_reverse(rq, list, link) {
+	list_for_each_entry_continue_reverse(rq, &tl->requests, link) {
 		if (i915_request_completed(rq))
-			break;
-
-		if (rq->hw_context != ce)
 			break;
 
 		active = rq;
@@ -1073,6 +1065,7 @@ static void reset_active(struct i915_request *rq,
 			 struct intel_engine_cs *engine)
 {
 	struct intel_context * const ce = rq->hw_context;
+	u32 head;
 
 	/*
 	 * The executing context has been cancelled. We want to prevent
@@ -1093,11 +1086,11 @@ static void reset_active(struct i915_request *rq,
 		  __func__, engine->name, rq->fence.context, rq->fence.seqno);
 
 	/* On resubmission of the active request, payload will be scrubbed */
-	rq = active_request(rq);
-	if (rq)
-		ce->ring->head = intel_ring_wrap(ce->ring, rq->head);
+	if (i915_request_completed(rq))
+		head = rq->tail;
 	else
-		ce->ring->head = ce->ring->tail;
+		head = active_request(ce->timeline, rq)->head;
+	ce->ring->head = intel_ring_wrap(ce->ring, head);
 	intel_ring_update_space(ce->ring);
 
 	/* Scrub the context image to prevent replaying the previous batch */
@@ -2990,16 +2983,17 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	ce = rq->hw_context;
 	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
 
-	rq = active_request(rq);
-	if (!rq) {
+	if (i915_request_completed(rq)) {
 		/* Idle context; tidy up the ring so we can restart afresh */
-		ce->ring->head = ce->ring->tail;
+		ce->ring->head = intel_ring_wrap(ce->ring, rq->tail);
 		goto out_replay;
 	}
 
 	/* Context has requests still in-flight; it should not be idle! */
 	GEM_BUG_ON(i915_active_is_idle(&ce->active));
+	rq = active_request(ce->timeline, rq);
 	ce->ring->head = intel_ring_wrap(ce->ring, rq->head);
+	GEM_BUG_ON(ce->ring->head == ce->ring->tail);
 
 	/*
 	 * If this request hasn't started yet, e.g. it is waiting on a
@@ -3043,7 +3037,7 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	restore_default_state(ce, engine);
 
 out_replay:
-	GEM_TRACE("%s replay {head:%04x, tail:%04x\n",
+	GEM_TRACE("%s replay {head:%04x, tail:%04x}\n",
 		  engine->name, ce->ring->head, ce->ring->tail);
 	intel_ring_update_space(ce->ring);
 	__execlists_reset_reg_state(ce, engine);
