@@ -240,7 +240,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	mipi_dbi_command(dbi, ST7586_SET_DISP_DUTY, 0x7f);
 	mipi_dbi_command(dbi, ST7586_SET_PART_DISP, 0xa0);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_PARTIAL_AREA, 0x00, 0x00, 0x00, 0x77);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_PARTIAL_ROWS, 0x00, 0x00, 0x00, 0x77);
 	mipi_dbi_command(dbi, MIPI_DCS_EXIT_INVERT_MODE);
 
 	msleep(100);
