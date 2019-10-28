@@ -2956,14 +2956,13 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		 * by the hardware, and the information about the buffer is
 		 * comprised by the RX descriptor.
 		 */
-		if (rx_status & MVPP2_RXD_ERR_SUMMARY) {
-err_drop_frame:
-			dev->stats.rx_errors++;
-			mvpp2_rx_error(port, rx_desc);
-			/* Return the buffer to the pool */
-			mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
-			continue;
-		}
+		if (rx_status & MVPP2_RXD_ERR_SUMMARY)
+			goto err_drop_frame;
+
+		dma_sync_single_for_cpu(dev->dev.parent, dma_addr,
+					rx_bytes + MVPP2_MH_SIZE,
+					DMA_FROM_DEVICE);
+		prefetch(data);
 
 		if (bm_pool->frag_size > PAGE_SIZE)
 			frag_size = 0;
@@ -2982,8 +2981,9 @@ err_drop_frame:
 			goto err_drop_frame;
 		}
 
-		dma_unmap_single(dev->dev.parent, dma_addr,
-				 bm_pool->buf_size, DMA_FROM_DEVICE);
+		dma_unmap_single_attrs(dev->dev.parent, dma_addr,
+				       bm_pool->buf_size, DMA_FROM_DEVICE,
+				       DMA_ATTR_SKIP_CPU_SYNC);
 
 		rcvd_pkts++;
 		rcvd_bytes += rx_bytes;
@@ -2994,6 +2994,13 @@ err_drop_frame:
 		mvpp2_rx_csum(port, rx_status, skb);
 
 		napi_gro_receive(napi, skb);
+		continue;
+
+err_drop_frame:
+		dev->stats.rx_errors++;
+		mvpp2_rx_error(port, rx_desc);
+		/* Return the buffer to the pool */
+		mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 	}
 
 	if (rcvd_pkts) {
