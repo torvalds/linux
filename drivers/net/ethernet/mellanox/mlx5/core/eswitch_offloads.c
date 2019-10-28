@@ -1857,48 +1857,6 @@ void esw_vport_del_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 	}
 }
 
-static int esw_vport_egress_prio_tag_config(struct mlx5_eswitch *esw,
-					    struct mlx5_vport *vport)
-{
-	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_spec *spec;
-	int err = 0;
-
-	/* For prio tag mode, there is only 1 FTEs:
-	 * 1) prio tag packets - pop the prio tag VLAN, allow
-	 * Unmatched traffic is allowed by default
-	 */
-	esw_debug(esw->dev,
-		  "vport[%d] configure prio tag egress rules\n", vport->vport);
-
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
-	if (!spec)
-		return -ENOMEM;
-
-	/* prio tag vlan rule - pop it so VF receives untagged packets */
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_value, outer_headers.cvlan_tag);
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.first_vid);
-	MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid, 0);
-
-	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_VLAN_POP |
-			  MLX5_FLOW_CONTEXT_ACTION_ALLOW;
-	vport->egress.allowed_vlan =
-		mlx5_add_flow_rules(vport->egress.acl, spec,
-				    &flow_act, NULL, 0);
-	if (IS_ERR(vport->egress.allowed_vlan)) {
-		err = PTR_ERR(vport->egress.allowed_vlan);
-		esw_warn(esw->dev,
-			 "vport[%d] configure egress pop prio tag vlan rule failed, err(%d)\n",
-			 vport->vport, err);
-		vport->egress.allowed_vlan = NULL;
-	}
-
-	kvfree(spec);
-	return err;
-}
-
 static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 				    struct mlx5_vport *vport)
 {
@@ -1954,9 +1912,17 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 	if (err)
 		return err;
 
-	esw_debug(esw->dev, "vport(%d) configure egress rules\n", vport->vport);
+	/* For prio tag mode, there is only 1 FTEs:
+	 * 1) prio tag packets - pop the prio tag VLAN, allow
+	 * Unmatched traffic is allowed by default
+	 */
+	esw_debug(esw->dev,
+		  "vport[%d] configure prio tag egress rules\n", vport->vport);
 
-	err = esw_vport_egress_prio_tag_config(esw, vport);
+	/* prio tag vlan rule - pop it so VF receives untagged packets */
+	err = mlx5_esw_create_vport_egress_acl_vlan(esw, vport, 0,
+						    MLX5_FLOW_CONTEXT_ACTION_VLAN_POP |
+						    MLX5_FLOW_CONTEXT_ACTION_ALLOW);
 	if (err)
 		esw_vport_disable_egress_acl(esw, vport);
 

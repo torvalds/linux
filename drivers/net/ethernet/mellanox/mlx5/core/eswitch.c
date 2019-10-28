@@ -1328,6 +1328,43 @@ out:
 	return err;
 }
 
+int mlx5_esw_create_vport_egress_acl_vlan(struct mlx5_eswitch *esw,
+					  struct mlx5_vport *vport,
+					  u16 vlan_id, u32 flow_action)
+{
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_spec *spec;
+	int err = 0;
+
+	if (vport->egress.allowed_vlan)
+		return -EEXIST;
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_value, outer_headers.cvlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.first_vid);
+	MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid, vlan_id);
+
+	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+	flow_act.action = flow_action;
+	vport->egress.allowed_vlan =
+		mlx5_add_flow_rules(vport->egress.acl, spec,
+				    &flow_act, NULL, 0);
+	if (IS_ERR(vport->egress.allowed_vlan)) {
+		err = PTR_ERR(vport->egress.allowed_vlan);
+		esw_warn(esw->dev,
+			 "vport[%d] configure egress vlan rule failed, err(%d)\n",
+			 vport->vport, err);
+		vport->egress.allowed_vlan = NULL;
+	}
+
+	kvfree(spec);
+	return err;
+}
+
 static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 				   struct mlx5_vport *vport)
 {
@@ -1358,34 +1395,17 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 		  "vport[%d] configure egress rules, vlan(%d) qos(%d)\n",
 		  vport->vport, vport->info.vlan, vport->info.qos);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
-	if (!spec) {
-		err = -ENOMEM;
-		goto out;
-	}
-
 	/* Allowed vlan rule */
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_value, outer_headers.cvlan_tag);
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.first_vid);
-	MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid, vport->info.vlan);
-
-	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW;
-	vport->egress.allowed_vlan =
-		mlx5_add_flow_rules(vport->egress.acl, spec,
-				    &flow_act, NULL, 0);
-	if (IS_ERR(vport->egress.allowed_vlan)) {
-		err = PTR_ERR(vport->egress.allowed_vlan);
-		esw_warn(esw->dev,
-			 "vport[%d] configure egress allowed vlan rule failed, err(%d)\n",
-			 vport->vport, err);
-		vport->egress.allowed_vlan = NULL;
-		goto out;
-	}
+	err = mlx5_esw_create_vport_egress_acl_vlan(esw, vport, vport->info.vlan,
+						    MLX5_FLOW_CONTEXT_ACTION_ALLOW);
+	if (err)
+		return err;
 
 	/* Drop others rule (star rule) */
-	memset(spec, 0, sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		goto out;
+
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 
 	/* Attach egress drop flow counter */

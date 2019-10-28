@@ -421,6 +421,10 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				  u16 vport, u16 vlan, u8 qos, u8 set_flags);
 
+int mlx5_esw_create_vport_egress_acl_vlan(struct mlx5_eswitch *esw,
+					  struct mlx5_vport *vport,
+					  u16 vlan_id, u32 flow_action);
+
 static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev,
 						       u8 vlan_depth)
 {
