@@ -438,7 +438,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool, perf_event__handler_t
 	else
 		event->header.misc = PERF_RECORD_MISC_GUEST_KERNEL;
 
-	for (pos = maps__first(maps); pos; pos = map__next(pos)) {
+	maps__for_each_entry(maps, pos) {
 		size_t size;
 
 		if (!__map__is_kmodule(pos))

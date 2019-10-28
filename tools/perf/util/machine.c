@@ -1057,7 +1057,7 @@ int machine__map_x86_64_entry_trampolines(struct machine *machine,
 	 * In the vmlinux case, pgoff is a virtual address which must now be
 	 * mapped to a vmlinux offset.
 	 */
-	for (map = maps__first(maps); map; map = map__next(map)) {
+	maps__for_each_entry(maps, map) {
 		struct kmap *kmap = __map__kmap(map);
 		struct map *dest_map;
 

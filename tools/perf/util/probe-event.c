@@ -153,7 +153,7 @@ static struct map *kernel_get_module_map(const char *module)
 		return map__get(pos);
 	}
 
-	for (pos = maps__first(maps); pos; pos = map__next(pos)) {
+	maps__for_each_entry(maps, pos) {
 		/* short_name is "[module]" */
 		if (strncmp(pos->dso->short_name + 1, module,
 			    pos->dso->short_name_len - 2) == 0 &&
