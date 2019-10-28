@@ -717,6 +717,7 @@ static int rt700_hpo_mux_event(struct snd_soc_dapm_widget *w,
 		val_l = (1 << RT700_MUTE_SFT);
 		regmap_write(rt700->regmap,
 			RT700_SET_GAIN_HP_H, (val_h << 8 | val_l));
+		usleep_range(50000, 55000);
 		break;
 	}
 	return 0;
