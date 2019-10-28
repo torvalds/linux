@@ -402,7 +402,6 @@ static void ionic_rx_fill_cb(void *arg)
 
 void ionic_rx_empty(struct ionic_queue *q)
 {
-	struct ionic_rxq_sg_desc *sg_desc;
 	struct ionic_desc_info *cur;
 	struct ionic_rxq_desc *desc;
 	unsigned int i;
@@ -412,7 +411,6 @@ void ionic_rx_empty(struct ionic_queue *q)
 		desc->addr = 0;
 		desc->len = 0;
 
-		sg_desc = cur->sg_desc;
 		for (i = 0; i < cur->npages; i++) {
 			if (likely(cur->pages[i].page)) {
 				ionic_rx_page_free(q, cur->pages[i].page,
