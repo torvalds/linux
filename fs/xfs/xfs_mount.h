@@ -260,13 +260,6 @@ typedef struct xfs_mount {
 #define XFS_MAX_IO_LOG		30	/* 1G */
 #define XFS_MIN_IO_LOG		PAGE_SHIFT
 
-/*
- * Synchronous read and write sizes.  This should be
- * better for NFSv2 wsync filesystems.
- */
-#define	XFS_WSYNC_READIO_LOG	15	/* 32k */
-#define	XFS_WSYNC_WRITEIO_LOG	14	/* 16k */
-
 #define XFS_LAST_UNMOUNT_WAS_CLEAN(mp)	\
 				((mp)->m_flags & XFS_MOUNT_WAS_CLEAN)
 #define XFS_FORCED_SHUTDOWN(mp)	((mp)->m_flags & XFS_MOUNT_FS_SHUTDOWN)

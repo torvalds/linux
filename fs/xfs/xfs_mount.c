@@ -438,13 +438,8 @@ xfs_set_rw_sizes(xfs_mount_t *mp)
 	int		readio_log, writeio_log;
 
 	if (!(mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)) {
-		if (mp->m_flags & XFS_MOUNT_WSYNC) {
-			readio_log = XFS_WSYNC_READIO_LOG;
-			writeio_log = XFS_WSYNC_WRITEIO_LOG;
-		} else {
-			readio_log = XFS_READIO_LOG_LARGE;
-			writeio_log = XFS_WRITEIO_LOG_LARGE;
-		}
+		readio_log = XFS_READIO_LOG_LARGE;
+		writeio_log = XFS_WRITEIO_LOG_LARGE;
 	} else {
 		readio_log = mp->m_readio_log;
 		writeio_log = mp->m_writeio_log;
