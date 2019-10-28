@@ -11,4 +11,4 @@
 
 #include <asm-generic/mmiowb.h>
 
-#endif	/* ASM_RISCV_MMIOWB_H */
+#endif	/* _ASM_RISCV_MMIOWB_H */

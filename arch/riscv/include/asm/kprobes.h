@@ -6,9 +6,9 @@
  * Copyright (C) 2017 SiFive
  */
 
-#ifndef _RISCV_KPROBES_H
-#define _RISCV_KPROBES_H
+#ifndef _ASM_RISCV_KPROBES_H
+#define _ASM_RISCV_KPROBES_H
 
 #include <asm-generic/kprobes.h>
 
-#endif /* _RISCV_KPROBES_H */
+#endif /* _ASM_RISCV_KPROBES_H */
