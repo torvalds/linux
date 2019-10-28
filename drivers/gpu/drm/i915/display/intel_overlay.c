@@ -792,6 +792,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 		if (crtc_state->gamma_enable &&
 		    crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
 			oconfig |= OCONF_CC_OUT_8BIT;
+		if (crtc_state->gamma_enable)
+			oconfig |= OCONF_GAMMA2_ENABLE;
 		if (IS_GEN(dev_priv, 4))
 			oconfig |= OCONF_CSC_MODE_BT709;
 		oconfig |= pipe == 0 ?
