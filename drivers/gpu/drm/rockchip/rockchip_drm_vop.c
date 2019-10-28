@@ -520,7 +520,8 @@ static void vop_win_disable(struct vop *vop, struct vop_win *win)
 	}
 
 	VOP_WIN_SET(vop, win, enable, 0);
-	VOP_WIN_SET(vop, win, gate, 0);
+	if (win->area_id == 0)
+		VOP_WIN_SET(vop, win, gate, 0);
 }
 
 static void vop_disable_allwin(struct vop *vop)
