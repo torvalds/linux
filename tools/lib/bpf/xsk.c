@@ -161,22 +161,22 @@ static void xsk_mmap_offsets_v1(struct xdp_mmap_offsets *off)
 	off->rx.producer = off_v1.rx.producer;
 	off->rx.consumer = off_v1.rx.consumer;
 	off->rx.desc = off_v1.rx.desc;
-	off->rx.flags = off_v1.rx.consumer + sizeof(u32);
+	off->rx.flags = off_v1.rx.consumer + sizeof(__u32);
 
 	off->tx.producer = off_v1.tx.producer;
 	off->tx.consumer = off_v1.tx.consumer;
 	off->tx.desc = off_v1.tx.desc;
-	off->tx.flags = off_v1.tx.consumer + sizeof(u32);
+	off->tx.flags = off_v1.tx.consumer + sizeof(__u32);
 
 	off->fr.producer = off_v1.fr.producer;
 	off->fr.consumer = off_v1.fr.consumer;
 	off->fr.desc = off_v1.fr.desc;
-	off->fr.flags = off_v1.fr.consumer + sizeof(u32);
+	off->fr.flags = off_v1.fr.consumer + sizeof(__u32);
 
 	off->cr.producer = off_v1.cr.producer;
 	off->cr.consumer = off_v1.cr.consumer;
 	off->cr.desc = off_v1.cr.desc;
-	off->cr.flags = off_v1.cr.consumer + sizeof(u32);
+	off->cr.flags = off_v1.cr.consumer + sizeof(__u32);
 }
 
 static int xsk_get_mmap_offsets(int fd, struct xdp_mmap_offsets *off)
