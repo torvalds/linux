@@ -533,7 +533,7 @@ static void io_kill_timeout(struct io_kiocb *req)
 	ret = hrtimer_try_to_cancel(&req->timeout.timer);
 	if (ret != -1) {
 		atomic_inc(&req->ctx->cq_timeouts);
-		list_del(&req->list);
+		list_del_init(&req->list);
 		io_cqring_fill_event(req->ctx, req->user_data, 0);
 		__io_free_req(req);
 	}
@@ -1957,7 +1957,6 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	struct io_ring_ctx *ctx;
 	struct io_kiocb *req;
 	unsigned long flags;
-	bool comp;
 
 	req = container_of(timer, struct io_kiocb, timeout.timer);
 	ctx = req->ctx;
@@ -1968,8 +1967,7 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	 * We could be racing with timeout deletion. If the list is empty,
 	 * then timeout lookup already found it and will be handling it.
 	 */
-	comp = !list_empty(&req->list);
-	if (comp) {
+	if (!list_empty(&req->list)) {
 		struct io_kiocb *prev;
 
 		/*
@@ -1981,17 +1979,15 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 		prev = req;
 		list_for_each_entry_continue_reverse(prev, &ctx->timeout_list, list)
 			prev->sequence++;
-
 		list_del_init(&req->list);
-		io_cqring_fill_event(ctx, req->user_data, -ETIME);
-		io_commit_cqring(ctx);
 	}
+
+	io_cqring_fill_event(ctx, req->user_data, -ETIME);
+	io_commit_cqring(ctx);
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
-	if (comp) {
-		io_cqring_ev_posted(ctx);
-		io_put_req(req, NULL);
-	}
+	io_cqring_ev_posted(ctx);
+	io_put_req(req, NULL);
 	return HRTIMER_NORESTART;
 }
 
@@ -2131,9 +2127,9 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	}
 	req->sequence -= span;
 	list_add(&req->list, entry);
-	spin_unlock_irq(&ctx->completion_lock);
 	req->timeout.timer.function = io_timeout_fn;
 	hrtimer_start(&req->timeout.timer, timespec64_to_ktime(ts), mode);
+	spin_unlock_irq(&ctx->completion_lock);
 	return 0;
 }
 
