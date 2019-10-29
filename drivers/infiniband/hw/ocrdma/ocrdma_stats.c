@@ -670,8 +670,7 @@ err:
 	return -EFAULT;
 }
 
-int ocrdma_pma_counters(struct ocrdma_dev *dev,
-			struct ib_mad *out_mad)
+void ocrdma_pma_counters(struct ocrdma_dev *dev, struct ib_mad *out_mad)
 {
 	struct ib_pma_portcounters *pma_cnt;
 
@@ -682,7 +681,6 @@ int ocrdma_pma_counters(struct ocrdma_dev *dev,
 	pma_cnt->port_rcv_data     = cpu_to_be32(ocrdma_sysfs_rcv_data(dev));
 	pma_cnt->port_xmit_packets = cpu_to_be32(ocrdma_sysfs_xmit_pkts(dev));
 	pma_cnt->port_rcv_packets  = cpu_to_be32(ocrdma_sysfs_rcv_pkts(dev));
-	return 0;
 }
 
 static ssize_t ocrdma_dbgfs_ops_read(struct file *filp, char __user *buffer,

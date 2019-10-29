@@ -268,10 +268,8 @@ int ocrdma_process_mad(struct ib_device *ibdev,
 	switch (in_mad->mad_hdr.mgmt_class) {
 	case IB_MGMT_CLASS_PERF_MGMT:
 		dev = get_ocrdma_dev(ibdev);
-		if (!ocrdma_pma_counters(dev, out_mad))
-			status = IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
-		else
-			status = IB_MAD_RESULT_SUCCESS;
+		ocrdma_pma_counters(dev, out_mad);
+		status = IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
 		break;
 	default:
 		status = IB_MAD_RESULT_SUCCESS;
