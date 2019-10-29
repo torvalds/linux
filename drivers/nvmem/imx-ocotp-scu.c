@@ -19,9 +19,20 @@ enum ocotp_devtype {
 	IMX8QM,
 };
 
+#define ECC_REGION	BIT(0)
+#define HOLE_REGION	BIT(1)
+
+struct ocotp_region {
+	u32 start;
+	u32 end;
+	u32 flag;
+};
+
 struct ocotp_devtype_data {
 	int devtype;
 	int nregs;
+	u32 num_region;
+	struct ocotp_region region[];
 };
 
 struct ocotp_priv {
@@ -38,12 +49,40 @@ struct imx_sc_msg_misc_fuse_read {
 static struct ocotp_devtype_data imx8qxp_data = {
 	.devtype = IMX8QXP,
 	.nregs = 800,
+	.num_region = 3,
+	.region = {
+		{0x10, 0x10f, ECC_REGION},
+		{0x110, 0x21F, HOLE_REGION},
+		{0x220, 0x31F, ECC_REGION},
+	},
 };
 
 static struct ocotp_devtype_data imx8qm_data = {
 	.devtype = IMX8QM,
 	.nregs = 800,
+	.num_region = 2,
+	.region = {
+		{0x10, 0x10f, ECC_REGION},
+		{0x1a0, 0x1ff, ECC_REGION},
+	},
 };
+
+static bool in_hole(void *context, u32 index)
+{
+	struct ocotp_priv *priv = context;
+	const struct ocotp_devtype_data *data = priv->data;
+	int i;
+
+	for (i = 0; i < data->num_region; i++) {
+		if (data->region[i].flag & HOLE_REGION) {
+			if ((index >= data->region[i].start) &&
+			    (index <= data->region[i].end))
+				return true;
+		}
+	}
+
+	return false;
+}
 
 static int imx_sc_misc_otp_fuse_read(struct imx_sc_ipc *ipc, u32 word,
 				     u32 *val)
@@ -91,11 +130,9 @@ static int imx_scu_ocotp_read(void *context, unsigned int offset,
 	buf = p;
 
 	for (i = index; i < (index + count); i++) {
-		if (priv->data->devtype == IMX8QXP) {
-			if ((i > 271) && (i < 544)) {
-				*buf++ = 0;
-				continue;
-			}
+		if (in_hole(context, i)) {
+			*buf++ = 0;
+			continue;
 		}
 
 		ret = imx_sc_misc_otp_fuse_read(priv->nvmem_ipc, i, buf);
