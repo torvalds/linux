@@ -506,7 +506,6 @@ static struct net_bridge_fdb_entry *fdb_create(struct net_bridge *br,
 			set_bit(BR_FDB_LOCAL, &fdb->flags);
 		if (is_static)
 			set_bit(BR_FDB_STATIC, &fdb->flags);
-		fdb->offloaded = 0;
 		fdb->updated = fdb->used = jiffies;
 		if (rhashtable_lookup_insert_fast(&br->fdb_hash_tbl,
 						  &fdb->rhnode,
@@ -656,7 +655,7 @@ static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
 	ndm->ndm_ifindex = fdb->dst ? fdb->dst->dev->ifindex : br->dev->ifindex;
 	ndm->ndm_state   = fdb_to_nud(br, fdb);
 
-	if (fdb->offloaded)
+	if (test_bit(BR_FDB_OFFLOADED, &fdb->flags))
 		ndm->ndm_flags |= NTF_OFFLOADED;
 	if (test_bit(BR_FDB_ADDED_BY_EXT_LEARN, &fdb->flags))
 		ndm->ndm_flags |= NTF_EXT_LEARNED;
@@ -1188,8 +1187,8 @@ void br_fdb_offloaded_set(struct net_bridge *br, struct net_bridge_port *p,
 	spin_lock_bh(&br->hash_lock);
 
 	fdb = br_fdb_find(br, addr, vid);
-	if (fdb)
-		fdb->offloaded = offloaded;
+	if (fdb && offloaded != test_bit(BR_FDB_OFFLOADED, &fdb->flags))
+		change_bit(BR_FDB_OFFLOADED, &fdb->flags);
 
 	spin_unlock_bh(&br->hash_lock);
 }
@@ -1208,7 +1207,7 @@ void br_fdb_clear_offload(const struct net_device *dev, u16 vid)
 	spin_lock_bh(&p->br->hash_lock);
 	hlist_for_each_entry(f, &p->br->fdb_list, fdb_node) {
 		if (f->dst == p && f->key.vlan_id == vid)
-			f->offloaded = 0;
+			clear_bit(BR_FDB_OFFLOADED, &f->flags);
 	}
 	spin_unlock_bh(&p->br->hash_lock);
 }

@@ -131,7 +131,8 @@ br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
 						fdb->dst->dev,
 						test_bit(BR_FDB_ADDED_BY_USER,
 							 &fdb->flags),
-						fdb->offloaded);
+						test_bit(BR_FDB_OFFLOADED,
+							 &fdb->flags));
 		break;
 	case RTM_NEWNEIGH:
 		br_switchdev_fdb_call_notifiers(true, fdb->key.addr.addr,
@@ -139,7 +140,8 @@ br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
 						fdb->dst->dev,
 						test_bit(BR_FDB_ADDED_BY_USER,
 							 &fdb->flags),
-						fdb->offloaded);
+						test_bit(BR_FDB_OFFLOADED,
+							 &fdb->flags));
 		break;
 	}
 }
