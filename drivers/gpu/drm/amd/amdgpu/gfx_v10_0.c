@@ -5283,15 +5283,12 @@ static void gfx_v10_0_set_rlc_funcs(struct amdgpu_device *adev)
 
 static void gfx_v10_0_set_gds_init(struct amdgpu_device *adev)
 {
-	/* init asic gds info */
-	switch (adev->asic_type) {
-	case CHIP_NAVI10:
-	default:
-		adev->gds.gds_size = 0x10000;
-		adev->gds.gds_compute_max_wave_id = 0x4ff;
-		break;
-	}
+	unsigned total_cu = adev->gfx.config.max_cu_per_sh *
+			    adev->gfx.config.max_sh_per_se *
+			    adev->gfx.config.max_shader_engines;
 
+	adev->gds.gds_size = 0x10000;
+	adev->gds.gds_compute_max_wave_id = total_cu * 32 - 1;
 	adev->gds.gws_size = 64;
 	adev->gds.oa_size = 16;
 }

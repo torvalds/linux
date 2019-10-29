@@ -1898,6 +1898,35 @@ static bool arcturus_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
+static int arcturus_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int ret = 0;
+
+	if (enable) {
+		if (!smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
+			ret = smu_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 1);
+			if (ret) {
+				pr_err("[EnableVCNDPM] failed!\n");
+				return ret;
+			}
+		}
+		power_gate->vcn_gated = false;
+	} else {
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
+			ret = smu_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 0);
+			if (ret) {
+				pr_err("[DisableVCNDPM] failed!\n");
+				return ret;
+			}
+		}
+		power_gate->vcn_gated = true;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs arcturus_ppt_funcs = {
 	/* translate smu index into arcturus specific index */
 	.get_smu_msg_index = arcturus_get_smu_msg_index,
@@ -1936,6 +1965,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.dump_pptable = arcturus_dump_pptable,
 	.get_power_limit = arcturus_get_power_limit,
 	.is_dpm_running = arcturus_is_dpm_running,
+	.dpm_set_uvd_enable = arcturus_dpm_set_uvd_enable,
 };
 
 void arcturus_set_ppt_funcs(struct smu_context *smu)

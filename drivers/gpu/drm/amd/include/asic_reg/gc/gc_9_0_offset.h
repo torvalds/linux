@@ -1146,7 +1146,14 @@
 #define mmATC_L2_MEM_POWER_LS_BASE_IDX                                                                 0
 #define mmATC_L2_CGTT_CLK_CTRL                                                                         0x080c
 #define mmATC_L2_CGTT_CLK_CTRL_BASE_IDX                                                                0
-
+#define mmATC_L2_CACHE_4K_EDC_INDEX                                                                    0x080e
+#define mmATC_L2_CACHE_4K_EDC_INDEX_BASE_IDX                                                           0
+#define mmATC_L2_CACHE_2M_EDC_INDEX                                                                    0x080f
+#define mmATC_L2_CACHE_2M_EDC_INDEX_BASE_IDX                                                           0
+#define mmATC_L2_CACHE_4K_EDC_CNT                                                                      0x0810
+#define mmATC_L2_CACHE_4K_EDC_CNT_BASE_IDX                                                             0
+#define mmATC_L2_CACHE_2M_EDC_CNT                                                                      0x0811
+#define mmATC_L2_CACHE_2M_EDC_CNT_BASE_IDX                                                             0
 
 // addressBlock: gc_utcl2_vml2pfdec
 // base address: 0xa100
@@ -1206,7 +1213,14 @@
 #define mmVM_L2_CACHE_PARITY_CNTL_BASE_IDX                                                             0
 #define mmVM_L2_CGTT_CLK_CTRL                                                                          0x085e
 #define mmVM_L2_CGTT_CLK_CTRL_BASE_IDX                                                                 0
-
+#define mmVM_L2_MEM_ECC_INDEX                                                                          0x0860
+#define mmVM_L2_MEM_ECC_INDEX_BASE_IDX                                                                 0
+#define mmVM_L2_WALKER_MEM_ECC_INDEX                                                                   0x0861
+#define mmVM_L2_WALKER_MEM_ECC_INDEX_BASE_IDX                                                          0
+#define mmVM_L2_MEM_ECC_CNT                                                                            0x0862
+#define mmVM_L2_MEM_ECC_CNT_BASE_IDX                                                                   0
+#define mmVM_L2_WALKER_MEM_ECC_CNT                                                                     0x0863
+#define mmVM_L2_WALKER_MEM_ECC_CNT_BASE_IDX                                                            0
 
 // addressBlock: gc_utcl2_vml2vcdec
 // base address: 0xa200

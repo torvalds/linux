@@ -169,6 +169,7 @@
 	__SMU_DUMMY_MAP(PowerGateAtHub),              \
 	__SMU_DUMMY_MAP(SetSoftMinJpeg),              \
 	__SMU_DUMMY_MAP(SetHardMinFclkByFreq),        \
+	__SMU_DUMMY_MAP(DFCstateControl), \
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

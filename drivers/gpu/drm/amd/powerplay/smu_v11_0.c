@@ -35,6 +35,7 @@
 #include "vega20_ppt.h"
 #include "arcturus_ppt.h"
 #include "navi10_ppt.h"
+#include "amd_pcie.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
@@ -770,23 +771,6 @@ static int smu_v11_0_write_pptable(struct smu_context *smu)
 	return ret;
 }
 
-static int smu_v11_0_write_watermarks_table(struct smu_context *smu)
-{
-	int ret = 0;
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *table = NULL;
-
-	table = &smu_table->tables[SMU_TABLE_WATERMARKS];
-
-	if (!table->cpu_addr)
-		return -EINVAL;
-
-	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, 0, table->cpu_addr,
-				true);
-
-	return ret;
-}
-
 static int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
 {
 	int ret;
@@ -1336,26 +1320,6 @@ failed:
 	return ret;
 }
 
-static int
-smu_v11_0_set_watermarks_for_clock_ranges(struct smu_context *smu, struct
-					  dm_pp_wm_sets_with_clock_ranges_soc15
-					  *clock_ranges)
-{
-	int ret = 0;
-	struct smu_table *watermarks = &smu->smu_table.tables[SMU_TABLE_WATERMARKS];
-	void *table = watermarks->cpu_addr;
-
-	if (!smu->disable_watermark &&
-	    smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
-	    smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
-		smu_set_watermarks_table(smu, table, clock_ranges);
-		smu->watermarks_bitmap |= WATERMARKS_EXIST;
-		smu->watermarks_bitmap &= ~WATERMARKS_LOADED;
-	}
-
-	return ret;
-}
-
 static int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 {
 	int ret = 0;
@@ -1792,6 +1756,48 @@ static int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum s
 	return ret;
 }
 
+static int smu_v11_0_override_pcie_parameters(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t pcie_gen = 0, pcie_width = 0;
+	int ret;
+
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN4)
+		pcie_gen = 3;
+	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
+		pcie_gen = 2;
+	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
+		pcie_gen = 1;
+	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1)
+		pcie_gen = 0;
+
+	/* Bit 31:16: LCLK DPM level. 0 is DPM0, and 1 is DPM1
+	 * Bit 15:8:  PCIE GEN, 0 to 3 corresponds to GEN1 to GEN4
+	 * Bit 7:0:   PCIE lane width, 1 to 7 corresponds is x1 to x32
+	 */
+	if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X16)
+		pcie_width = 6;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X12)
+		pcie_width = 5;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X8)
+		pcie_width = 4;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X4)
+		pcie_width = 3;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X2)
+		pcie_width = 2;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X1)
+		pcie_width = 1;
+
+	ret = smu_update_pcie_parameters(smu, pcie_gen, pcie_width);
+
+	if (ret)
+		pr_err("[%s] Attempt to override pcie params failed!\n", __func__);
+
+	return ret;
+
+}
+
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1812,7 +1818,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.parse_pptable = smu_v11_0_parse_pptable,
 	.populate_smc_tables = smu_v11_0_populate_smc_pptable,
 	.write_pptable = smu_v11_0_write_pptable,
-	.write_watermarks_table = smu_v11_0_write_watermarks_table,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.init_display_count = smu_v11_0_init_display_count,
@@ -1828,7 +1833,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.read_sensor = smu_v11_0_read_sensor,
 	.set_deep_sleep_dcefclk = smu_v11_0_set_deep_sleep_dcefclk,
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
-	.set_watermarks_for_clock_ranges = smu_v11_0_set_watermarks_for_clock_ranges,
 	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,
 	.set_fan_speed_percent = smu_v11_0_set_fan_speed_percent,
@@ -1844,6 +1848,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.baco_reset = smu_v11_0_baco_reset,
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
+	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

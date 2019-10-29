@@ -1270,15 +1270,15 @@ static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 }
 
 /**
- * cik_asic_reset - soft reset GPU
+ * cik_asic_pci_config_reset - soft reset GPU
  *
  * @adev: amdgpu_device pointer
  *
- * Look up which blocks are hung and attempt
- * to reset them.
+ * Use PCI Config method to reset the GPU.
+ *
  * Returns 0 for success.
  */
-static int cik_asic_reset(struct amdgpu_device *adev)
+static int cik_asic_pci_config_reset(struct amdgpu_device *adev)
 {
 	int r;
 
@@ -1294,7 +1294,45 @@ static int cik_asic_reset(struct amdgpu_device *adev)
 static enum amd_reset_method
 cik_asic_reset_method(struct amdgpu_device *adev)
 {
-	return AMD_RESET_METHOD_LEGACY;
+	bool baco_reset;
+
+	switch (adev->asic_type) {
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+		/* disable baco reset until it works */
+		/* smu7_asic_get_baco_capability(adev, &baco_reset); */
+		baco_reset = false;
+		break;
+	default:
+		baco_reset = false;
+		break;
+	}
+
+	if (baco_reset)
+		return AMD_RESET_METHOD_BACO;
+	else
+		return AMD_RESET_METHOD_LEGACY;
+}
+
+/**
+ * cik_asic_reset - soft reset GPU
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Look up which blocks are hung and attempt
+ * to reset them.
+ * Returns 0 for success.
+ */
+static int cik_asic_reset(struct amdgpu_device *adev)
+{
+	int r;
+
+	if (cik_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)
+		r = smu7_asic_baco_reset(adev);
+	else
+		r = cik_asic_pci_config_reset(adev);
+
+	return r;
 }
 
 static u32 cik_get_config_memsize(struct amdgpu_device *adev)

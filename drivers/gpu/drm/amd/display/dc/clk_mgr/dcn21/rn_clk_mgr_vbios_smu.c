@@ -33,7 +33,7 @@
 #include "mp/mp_12_0_0_sh_mask.h"
 
 #define REG(reg_name) \
-	(MP1_BASE.instance[0].segment[mm ## reg_name ## _BASE_IDX] + mm ## reg_name)
+	(MP0_BASE.instance[0].segment[mm ## reg_name ## _BASE_IDX] + mm ## reg_name)
 
 #define FN(reg_name, field) \
 	FD(reg_name##__##field)
@@ -84,16 +84,12 @@ int rn_vbios_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dis
 	int actual_dispclk_set_mhz = -1;
 	struct dc *core_dc = clk_mgr->base.ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
-	uint32_t clk = requested_dispclk_khz / 1000;
-
-	if (clk <= 100)
-		clk = 101;
 
 	/*  Unit of SMU msg parameter is Mhz */
 	actual_dispclk_set_mhz = rn_vbios_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_SetDispclkFreq,
-			clk);
+			requested_dispclk_khz / 1000);
 
 	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
 		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
@@ -124,7 +120,7 @@ int rn_vbios_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int reque
 {
 	int actual_dcfclk_set_mhz = -1;
 
-	if (clk_mgr->smu_ver < 0xFFFFFFFF)
+	if (clk_mgr->smu_ver < 0x370c00)
 		return actual_dcfclk_set_mhz;
 
 	actual_dcfclk_set_mhz = rn_vbios_smu_send_msg_with_param(
@@ -139,7 +135,7 @@ int rn_vbios_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr, int
 {
 	int actual_min_ds_dcfclk_mhz = -1;
 
-	if (clk_mgr->smu_ver < 0xFFFFFFFF)
+	if (clk_mgr->smu_ver < 0x370c00)
 		return actual_min_ds_dcfclk_mhz;
 
 	actual_min_ds_dcfclk_mhz = rn_vbios_smu_send_msg_with_param(
@@ -162,33 +158,35 @@ int rn_vbios_smu_set_dppclk(struct clk_mgr_internal *clk_mgr, int requested_dpp_
 {
 	int actual_dppclk_set_mhz = -1;
 
-	uint32_t clk = requested_dpp_khz / 1000;
-
-	if (clk <= 100)
-		clk = 101;
-
 	actual_dppclk_set_mhz = rn_vbios_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_SetDppclkFreq,
-			clk);
+			requested_dpp_khz / 1000);
 
 	return actual_dppclk_set_mhz * 1000;
 }
 
-void rn_vbios_smu_set_display_count(struct clk_mgr_internal *clk_mgr, int display_count)
+void rn_vbios_smu_set_dcn_low_power_state(struct clk_mgr_internal *clk_mgr, enum dcn_pwr_state state)
 {
+	int disp_count;
+
+	if (state == DCN_PWR_STATE_OPTIMIZED)
+		disp_count = 0;
+	else
+		disp_count = 1;
+
 	rn_vbios_smu_send_msg_with_param(
-			clk_mgr,
-			VBIOSSMC_MSG_SetDisplayCount,
-			display_count);
+		clk_mgr,
+		VBIOSSMC_MSG_SetDisplayCount,
+		disp_count);
 }
 
-void rn_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr)
+void rn_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr, bool enable)
 {
 	rn_vbios_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown,
-			0);
+			enable);
 }
 
 void rn_vbios_smu_enable_pme_wa(struct clk_mgr_internal *clk_mgr)

@@ -269,7 +269,7 @@ struct writeback_st {
 
 struct _vcs_dpi_display_output_params_st {
 	int dp_lanes;
-	int output_bpp;
+	double output_bpp;
 	int dsc_enable;
 	int wb_enable;
 	int num_active_wb;

@@ -48,6 +48,7 @@
 #include "smu7_clockpowergating.h"
 #include "processpptables.h"
 #include "pp_thermal.h"
+#include "smu7_baco.h"
 
 #include "ivsrcid/ivsrcid_vislands30.h"
 
@@ -1994,7 +1995,6 @@ static int smu7_sort_lookup_table(struct pp_hwmgr *hwmgr,
 		struct phm_ppt_v1_voltage_lookup_table *lookup_table)
 {
 	uint32_t table_size, i, j;
-	struct phm_ppt_v1_voltage_lookup_record tmp_voltage_lookup_record;
 	table_size = lookup_table->count;
 
 	PP_ASSERT_WITH_CODE(0 != lookup_table->count,
@@ -2005,9 +2005,8 @@ static int smu7_sort_lookup_table(struct pp_hwmgr *hwmgr,
 		for (j = i + 1; j > 0; j--) {
 			if (lookup_table->entries[j].us_vdd <
 					lookup_table->entries[j - 1].us_vdd) {
-				tmp_voltage_lookup_record = lookup_table->entries[j - 1];
-				lookup_table->entries[j - 1] = lookup_table->entries[j];
-				lookup_table->entries[j] = tmp_voltage_lookup_record;
+				swap(lookup_table->entries[j - 1],
+				     lookup_table->entries[j]);
 			}
 		}
 	}
@@ -5145,6 +5144,9 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_power_profile_mode = smu7_get_power_profile_mode,
 	.set_power_profile_mode = smu7_set_power_profile_mode,
 	.get_performance_level = smu7_get_performance_level,
+	.get_asic_baco_capability = smu7_baco_get_capability,
+	.get_asic_baco_state = smu7_baco_get_state,
+	.set_asic_baco_state = smu7_baco_set_state,
 	.power_off_asic = smu7_power_off_asic,
 };
 

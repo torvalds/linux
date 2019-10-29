@@ -451,6 +451,9 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 					int num_streams,
 					const struct dc_static_screen_events *events);
 
+void dc_stream_set_dyn_expansion(struct dc *dc, struct dc_stream_state *stream,
+		enum dc_dynamic_expansion option);
+
 void dc_stream_set_dither_option(struct dc_stream_state *stream,
 				 enum dc_dither_option option);
 

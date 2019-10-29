@@ -502,6 +502,13 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 	}
 }
 
+static void nbio_v7_4_enable_doorbell_interrupt(struct amdgpu_device *adev,
+						bool enable)
+{
+	WREG32_FIELD15(NBIO, 0, BIF_DOORBELL_INT_CNTL,
+		       DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
+}
+
 const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_4_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_4_get_hdp_flush_done_offset,
@@ -516,6 +523,7 @@ const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.enable_doorbell_aperture = nbio_v7_4_enable_doorbell_aperture,
 	.enable_doorbell_selfring_aperture = nbio_v7_4_enable_doorbell_selfring_aperture,
 	.ih_doorbell_range = nbio_v7_4_ih_doorbell_range,
+	.enable_doorbell_interrupt = nbio_v7_4_enable_doorbell_interrupt,
 	.update_medium_grain_clock_gating = nbio_v7_4_update_medium_grain_clock_gating,
 	.update_medium_grain_light_sleep = nbio_v7_4_update_medium_grain_light_sleep,
 	.get_clockgating_state = nbio_v7_4_get_clockgating_state,

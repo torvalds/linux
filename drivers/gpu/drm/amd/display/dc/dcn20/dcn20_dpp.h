@@ -705,11 +705,6 @@ void dpp2_set_hdr_multiplier(
 		struct dpp *dpp_base,
 		uint32_t multiplier);
 
-bool dpp2_get_optimal_number_of_taps(
-		struct dpp *dpp,
-		struct scaler_data *scl_data,
-		const struct scaling_taps *in_taps);
-
 bool dpp2_construct(struct dcn20_dpp *dpp2,
 	struct dc_context *ctx,
 	uint32_t inst,

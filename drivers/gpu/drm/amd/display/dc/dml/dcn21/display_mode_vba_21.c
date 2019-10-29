@@ -65,6 +65,7 @@ typedef struct {
 
 #define BPP_INVALID 0
 #define BPP_BLENDED_PIPE 0xffffffff
+#define DCN21_MAX_DSC_IMAGE_WIDTH 5184
 
 static void DisplayPipeConfiguration(struct display_mode_lib *mode_lib);
 static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation(
@@ -3379,6 +3380,8 @@ static unsigned int TruncToValidBPP(
 				return 30;
 			else if (DecimalBPP >= 24 && (DesiredBPP == 0 || DesiredBPP == 24))
 				return 24;
+			else if (DecimalBPP >= 18 && (DesiredBPP == 0 || DesiredBPP == 18))
+				return 18;
 			else
 				return BPP_INVALID;
 		}
@@ -3936,6 +3939,10 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				mode_lib->vba.MaximumSwathWidthInLineBuffer);
 	}
 	for (i = 0; i <= mode_lib->vba.soc.num_states; i++) {
+		double MaxMaxDispclkRoundedDown = RoundToDFSGranularityDown(
+			mode_lib->vba.MaxDispclk[mode_lib->vba.soc.num_states],
+			mode_lib->vba.DISPCLKDPPCLKVCOSpeed);
+
 		for (j = 0; j < 2; j++) {
 			mode_lib->vba.MaxDispclkRoundedDownToDFSGranularity = RoundToDFSGranularityDown(
 				mode_lib->vba.MaxDispclk[i],
@@ -3965,7 +3972,9 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						&& i == mode_lib->vba.soc.num_states)
 					mode_lib->vba.PlaneRequiredDISPCLKWithODMCombine = mode_lib->vba.PixelClock[k] / 2
 							* (1 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0);
-				if (mode_lib->vba.ODMCapability == false || mode_lib->vba.PlaneRequiredDISPCLKWithoutODMCombine <= mode_lib->vba.MaxDispclkRoundedDownToDFSGranularity) {
+				if (mode_lib->vba.ODMCapability == false ||
+						(locals->PlaneRequiredDISPCLKWithoutODMCombine <= MaxMaxDispclkRoundedDown
+							&& (!locals->DSCEnabled[k] || locals->HActive[k] <= DCN21_MAX_DSC_IMAGE_WIDTH))) {
 					locals->ODMCombineEnablePerState[i][k] = false;
 					mode_lib->vba.PlaneRequiredDISPCLK = mode_lib->vba.PlaneRequiredDISPCLKWithoutODMCombine;
 				} else {

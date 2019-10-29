@@ -434,6 +434,8 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				dst->odm_combine;
 		mode_lib->vba.OutputFormat[mode_lib->vba.NumberOfActivePlanes] =
 				(enum output_format_class) (dout->output_format);
+		mode_lib->vba.OutputBpp[mode_lib->vba.NumberOfActivePlanes] =
+				dout->output_bpp;
 		mode_lib->vba.Output[mode_lib->vba.NumberOfActivePlanes] =
 				(enum output_encoder_class) (dout->output_type);
 

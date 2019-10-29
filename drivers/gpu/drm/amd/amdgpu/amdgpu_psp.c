@@ -88,6 +88,17 @@ static int psp_sw_init(void *handle)
 		return ret;
 	}
 
+	ret = psp_mem_training_init(psp);
+	if (ret) {
+		DRM_ERROR("Failed to initliaze memory training!\n");
+		return ret;
+	}
+	ret = psp_mem_training(psp, PSP_MEM_TRAIN_COLD_BOOT);
+	if (ret) {
+		DRM_ERROR("Failed to process memory training!\n");
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -95,6 +106,7 @@ static int psp_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	psp_mem_training_fini(&adev->psp);
 	release_firmware(adev->psp.sos_fw);
 	adev->psp.sos_fw = NULL;
 	release_firmware(adev->psp.asd_fw);
@@ -1607,6 +1619,12 @@ static int psp_resume(void *handle)
 	struct psp_context *psp = &adev->psp;
 
 	DRM_INFO("PSP is resuming...\n");
+
+	ret = psp_mem_training(psp, PSP_MEM_TRAIN_RESUME);
+	if (ret) {
+		DRM_ERROR("Failed to process memory training!\n");
+		return ret;
+	}
 
 	mutex_lock(&adev->firmware.mutex);
 

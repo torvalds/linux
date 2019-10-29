@@ -240,6 +240,9 @@ void opp1_set_dyn_expansion(
 			FMT_DYNAMIC_EXP_EN, 0,
 			FMT_DYNAMIC_EXP_MODE, 0);
 
+	if (opp->dyn_expansion == DYN_EXPANSION_DISABLE)
+		return;
+
 	/*00 - 10-bit -> 12-bit dynamic expansion*/
 	/*01 - 8-bit  -> 12-bit dynamic expansion*/
 	if (signal == SIGNAL_TYPE_HDMI_TYPE_A ||

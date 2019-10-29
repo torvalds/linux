@@ -468,6 +468,9 @@ struct pptable_funcs {
 	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool asic_default);
 	int (*get_dpm_clk_limited)(struct smu_context *smu, enum smu_clk_type clk_type,
 				   uint32_t dpm_level, uint32_t *freq);
+	int (*set_df_cstate)(struct smu_context *smu, enum pp_df_cstate state);
+	int (*update_pcie_parameters)(struct smu_context *smu, uint32_t pcie_gen_cap, uint32_t pcie_width_cap);
+	int (*get_dpm_clock_table)(struct smu_context *smu, struct dpm_clocks *clock_table);
 };
 
 struct smu_funcs
@@ -493,7 +496,6 @@ struct smu_funcs
 	int (*set_min_dcef_deep_sleep)(struct smu_context *smu);
 	int (*set_tool_table_location)(struct smu_context *smu);
 	int (*notify_memory_pool_location)(struct smu_context *smu);
-	int (*write_watermarks_table)(struct smu_context *smu);
 	int (*set_last_dcef_min_deep_sleep_clk)(struct smu_context *smu);
 	int (*system_features_control)(struct smu_context *smu, bool en);
 	int (*send_smc_msg)(struct smu_context *smu, uint16_t msg);
@@ -531,8 +533,6 @@ struct smu_funcs
 	int (*get_current_shallow_sleep_clocks)(struct smu_context *smu,
 						struct smu_clock_info *clocks);
 	int (*notify_smu_enable_pwe)(struct smu_context *smu);
-	int (*set_watermarks_for_clock_ranges)(struct smu_context *smu,
-					       struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 	int (*conv_power_profile_to_pplib_workload)(int power_profile);
 	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
@@ -550,6 +550,7 @@ struct smu_funcs
 	int (*mode2_reset)(struct smu_context *smu);
 	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
 	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
+	int (*override_pcie_parameters)(struct smu_context *smu);
 };
 
 #define smu_init_microcode(smu) \
@@ -596,9 +597,6 @@ struct smu_funcs
 	((smu)->funcs->notify_memory_pool_location ? (smu)->funcs->notify_memory_pool_location((smu)) : 0)
 #define smu_gfx_off_control(smu, enable) \
 	((smu)->funcs->gfx_off_control ? (smu)->funcs->gfx_off_control((smu), (enable)) : 0)
-
-#define smu_write_watermarks_table(smu) \
-	((smu)->funcs->write_watermarks_table ? (smu)->funcs->write_watermarks_table((smu)) : 0)
 #define smu_set_last_dcef_min_deep_sleep_clk(smu) \
 	((smu)->funcs->set_last_dcef_min_deep_sleep_clk ? (smu)->funcs->set_last_dcef_min_deep_sleep_clk((smu)) : 0)
 #define smu_system_features_control(smu, en) \
@@ -738,8 +736,6 @@ struct smu_funcs
 	((smu)->funcs->get_current_shallow_sleep_clocks ? (smu)->funcs->get_current_shallow_sleep_clocks((smu), (clocks)) : 0)
 #define smu_notify_smu_enable_pwe(smu) \
 	((smu)->funcs->notify_smu_enable_pwe ? (smu)->funcs->notify_smu_enable_pwe((smu)) : 0)
-#define smu_set_watermarks_for_clock_ranges(smu, clock_ranges) \
-	((smu)->funcs->set_watermarks_for_clock_ranges ? (smu)->funcs->set_watermarks_for_clock_ranges((smu), (clock_ranges)) : 0)
 #define smu_dpm_set_uvd_enable(smu, enable) \
 	((smu)->ppt_funcs->dpm_set_uvd_enable ? (smu)->ppt_funcs->dpm_set_uvd_enable((smu), (enable)) : 0)
 #define smu_dpm_set_vce_enable(smu, enable) \
@@ -776,9 +772,16 @@ struct smu_funcs
 	((smu)->ppt_funcs->dump_pptable ? (smu)->ppt_funcs->dump_pptable((smu)) : 0)
 #define smu_get_dpm_clk_limited(smu, clk_type, dpm_level, freq) \
 		((smu)->ppt_funcs->get_dpm_clk_limited ? (smu)->ppt_funcs->get_dpm_clk_limited((smu), (clk_type), (dpm_level), (freq)) : -EINVAL)
-
 #define smu_set_soft_freq_limited_range(smu, clk_type, min, max) \
 		((smu)->funcs->set_soft_freq_limited_range ? (smu)->funcs->set_soft_freq_limited_range((smu), (clk_type), (min), (max)) : -EINVAL)
+#define smu_get_dpm_clock_table(smu, clock_table) \
+		((smu)->ppt_funcs->get_dpm_clock_table ? (smu)->ppt_funcs->get_dpm_clock_table((smu), (clock_table)) : -EINVAL)
+
+#define smu_override_pcie_parameters(smu) \
+		((smu)->funcs->override_pcie_parameters ? (smu)->funcs->override_pcie_parameters((smu)) : 0)
+
+#define smu_update_pcie_parameters(smu, pcie_gen_cap, pcie_width_cap) \
+		((smu)->ppt_funcs->update_pcie_parameters ? (smu)->ppt_funcs->update_pcie_parameters((smu), (pcie_gen_cap), (pcie_width_cap)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
@@ -812,6 +815,10 @@ int smu_sys_get_pp_table(struct smu_context *smu, void **table);
 int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size);
 int smu_get_power_num_states(struct smu_context *smu, struct pp_states_info *state_info);
 enum amd_pm_state_type smu_get_current_power_state(struct smu_context *smu);
+int smu_write_watermarks_table(struct smu_context *smu);
+int smu_set_watermarks_for_clock_ranges(
+		struct smu_context *smu,
+		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 
 /* smu to display interface */
 extern int smu_display_configuration_change(struct smu_context *smu, const
@@ -850,5 +857,7 @@ int smu_force_clk_levels(struct smu_context *smu,
 			 uint32_t mask);
 int smu_set_mp1_state(struct smu_context *smu,
 		      enum pp_mp1_state mp1_state);
+int smu_set_df_cstate(struct smu_context *smu,
+		      enum pp_df_cstate state);
 
 #endif

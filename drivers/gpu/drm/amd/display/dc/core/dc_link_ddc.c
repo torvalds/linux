@@ -634,6 +634,20 @@ bool dc_link_aux_transfer_with_retries(struct ddc_service *ddc,
 	return dce_aux_transfer_with_retries(ddc, payload);
 }
 
+
+enum dc_status dc_link_aux_configure_timeout(struct ddc_service *ddc,
+		uint32_t timeout)
+{
+	enum dc_status status = DC_OK;
+	struct ddc *ddc_pin = ddc->ddc_pin;
+
+	if (ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout == NULL)
+		return DC_ERROR_UNEXPECTED;
+	if (!ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout(ddc, timeout))
+		status = DC_ERROR_UNEXPECTED;
+	return status;
+}
+
 /*test only function*/
 void dal_ddc_service_set_ddc_pin(
 	struct ddc_service *ddc_service,

@@ -589,10 +589,9 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 	if (pp_funcs && pp_funcs->set_watermarks_for_clocks_ranges)
 		pp_funcs->set_watermarks_for_clocks_ranges(pp_handle,
 							   &wm_with_clock_ranges);
-	else if (adev->smu.funcs &&
-		 adev->smu.funcs->set_watermarks_for_clock_ranges)
+	else
 		smu_set_watermarks_for_clock_ranges(&adev->smu,
-						    &wm_with_clock_ranges);
+				&wm_with_clock_ranges);
 }
 
 void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
@@ -665,7 +664,6 @@ enum pp_smu_status pp_nv_set_wm_ranges(struct pp_smu *pp,
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct smu_context *smu = &adev->smu;
 	struct dm_pp_wm_sets_with_clock_ranges_soc15 wm_with_clock_ranges;
 	struct dm_pp_clock_range_for_dmif_wm_set_soc15 *wm_dce_clocks =
 			wm_with_clock_ranges.wm_dmif_clocks_ranges;
@@ -708,15 +706,7 @@ enum pp_smu_status pp_nv_set_wm_ranges(struct pp_smu *pp,
 			ranges->writer_wm_sets[i].min_drain_clk_mhz * 1000;
 	}
 
-	if (!smu->funcs)
-		return PP_SMU_RESULT_UNSUPPORTED;
-
-	/* 0: successful or smu.funcs->set_watermarks_for_clock_ranges = NULL;
-	 * 1: fail
-	 */
-	if (smu_set_watermarks_for_clock_ranges(&adev->smu,
-			&wm_with_clock_ranges))
-		return PP_SMU_RESULT_UNSUPPORTED;
+	smu_set_watermarks_for_clock_ranges(&adev->smu,	&wm_with_clock_ranges);
 
 	return PP_SMU_RESULT_OK;
 }
@@ -901,6 +891,90 @@ enum pp_smu_status pp_nv_get_uclk_dpm_states(struct pp_smu *pp,
 	return PP_SMU_RESULT_FAIL;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_1
+enum pp_smu_status pp_rn_get_dpm_clock_table(
+		struct pp_smu *pp, struct dpm_clocks *clock_table)
+{
+	const struct dc_context *ctx = pp->dm;
+	struct amdgpu_device *adev = ctx->driver_context;
+	struct smu_context *smu = &adev->smu;
+
+	if (!smu->ppt_funcs)
+		return PP_SMU_RESULT_UNSUPPORTED;
+
+	if (!smu->ppt_funcs->get_dpm_clock_table)
+		return PP_SMU_RESULT_UNSUPPORTED;
+
+	if (!smu->ppt_funcs->get_dpm_clock_table(smu, clock_table))
+		return PP_SMU_RESULT_OK;
+
+	return PP_SMU_RESULT_FAIL;
+}
+
+enum pp_smu_status pp_rn_set_wm_ranges(struct pp_smu *pp,
+		struct pp_smu_wm_range_sets *ranges)
+{
+	const struct dc_context *ctx = pp->dm;
+	struct amdgpu_device *adev = ctx->driver_context;
+	struct smu_context *smu = &adev->smu;
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 wm_with_clock_ranges;
+	struct dm_pp_clock_range_for_dmif_wm_set_soc15 *wm_dce_clocks =
+			wm_with_clock_ranges.wm_dmif_clocks_ranges;
+	struct dm_pp_clock_range_for_mcif_wm_set_soc15 *wm_soc_clocks =
+			wm_with_clock_ranges.wm_mcif_clocks_ranges;
+	int32_t i;
+
+	if (!smu->funcs)
+		return PP_SMU_RESULT_UNSUPPORTED;
+
+	wm_with_clock_ranges.num_wm_dmif_sets = ranges->num_reader_wm_sets;
+	wm_with_clock_ranges.num_wm_mcif_sets = ranges->num_writer_wm_sets;
+
+	for (i = 0; i < wm_with_clock_ranges.num_wm_dmif_sets; i++) {
+		if (ranges->reader_wm_sets[i].wm_inst > 3)
+			wm_dce_clocks[i].wm_set_id = WM_SET_A;
+		else
+			wm_dce_clocks[i].wm_set_id =
+					ranges->reader_wm_sets[i].wm_inst;
+
+		wm_dce_clocks[i].wm_min_dcfclk_clk_in_khz =
+			ranges->reader_wm_sets[i].min_drain_clk_mhz;
+
+		wm_dce_clocks[i].wm_max_dcfclk_clk_in_khz =
+			ranges->reader_wm_sets[i].max_drain_clk_mhz;
+
+		wm_dce_clocks[i].wm_min_mem_clk_in_khz =
+			ranges->reader_wm_sets[i].min_fill_clk_mhz;
+
+		wm_dce_clocks[i].wm_max_mem_clk_in_khz =
+			ranges->reader_wm_sets[i].max_fill_clk_mhz;
+	}
+
+	for (i = 0; i < wm_with_clock_ranges.num_wm_mcif_sets; i++) {
+		if (ranges->writer_wm_sets[i].wm_inst > 3)
+			wm_soc_clocks[i].wm_set_id = WM_SET_A;
+		else
+			wm_soc_clocks[i].wm_set_id =
+					ranges->writer_wm_sets[i].wm_inst;
+		wm_soc_clocks[i].wm_min_socclk_clk_in_khz =
+				ranges->writer_wm_sets[i].min_fill_clk_mhz;
+
+		wm_soc_clocks[i].wm_max_socclk_clk_in_khz =
+			ranges->writer_wm_sets[i].max_fill_clk_mhz;
+
+		wm_soc_clocks[i].wm_min_mem_clk_in_khz =
+			ranges->writer_wm_sets[i].min_drain_clk_mhz;
+
+		wm_soc_clocks[i].wm_max_mem_clk_in_khz =
+			ranges->writer_wm_sets[i].max_drain_clk_mhz;
+	}
+
+	smu_set_watermarks_for_clock_ranges(&adev->smu, &wm_with_clock_ranges);
+
+	return PP_SMU_RESULT_OK;
+}
+#endif
+
 void dm_pp_get_funcs(
 		struct dc_context *ctx,
 		struct pp_smu_funcs *funcs)
@@ -943,6 +1017,15 @@ void dm_pp_get_funcs(
 		/*todo  compare data with window driver */
 		funcs->nv_funcs.get_uclk_dpm_states = pp_nv_get_uclk_dpm_states;
 		funcs->nv_funcs.set_pstate_handshake_support = pp_nv_set_pstate_handshake_support;
+		break;
+#endif
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_1
+	case DCN_VERSION_2_1:
+		funcs->ctx.ver = PP_SMU_VER_RN;
+		funcs->rn_funcs.pp_smu.dm = ctx;
+		funcs->rn_funcs.set_wm_ranges = pp_rn_set_wm_ranges;
+		funcs->rn_funcs.get_dpm_clock_table = pp_rn_get_dpm_clock_table;
 		break;
 #endif
 	default:

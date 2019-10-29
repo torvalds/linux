@@ -1792,7 +1792,7 @@ static int sdma_v4_0_hw_init(void *handle)
 
 	if ((adev->asic_type == CHIP_RAVEN && adev->powerplay.pp_funcs &&
 			adev->powerplay.pp_funcs->set_powergating_by_smu) ||
-			adev->asic_type == CHIP_RENOIR)
+			(adev->asic_type == CHIP_RENOIR && !adev->in_gpu_reset))
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_SDMA, false);
 
 	if (!amdgpu_sriov_vf(adev))

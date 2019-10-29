@@ -71,6 +71,9 @@ const char *ras_block_string[] = {
 
 atomic_t amdgpu_ras_in_intr = ATOMIC_INIT(0);
 
+static bool amdgpu_ras_check_bad_page(struct amdgpu_device *adev,
+				uint64_t addr);
+
 static ssize_t amdgpu_ras_debugfs_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
@@ -215,11 +218,12 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  * value to the address.
  *
  * Second member: struct ras_debug_if::op.
- * It has three kinds of operations.
+ * It has four kinds of operations.
  *
  * - 0: disable RAS on the block. Take ::head as its data.
  * - 1: enable RAS on the block. Take ::head as its data.
  * - 2: inject errors on the block. Take ::inject as its data.
+ * - 3: reboot on unrecoverable error
  *
  * How to use the interface?
  * programs:
@@ -228,13 +232,13 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  *
  * .. code-block:: bash
  *
- *	echo op block [error [sub_blcok address value]] > .../ras/ras_ctrl
+ *	echo op block [error [sub_block address value]] > .../ras/ras_ctrl
  *
  * op: disable, enable, inject
  *	disable: only block is needed
  *	enable: block and error are needed
  *	inject: error, address, value are needed
- * block: umc, smda, gfx, .........
+ * block: umc, sdma, gfx, .........
  *	see ras_block_string[] for details
  * error: ue, ce
  *	ue: multi_uncorrectable
@@ -287,6 +291,14 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 		if ((data.inject.address >= adev->gmc.mc_vram_size) ||
 		    (data.inject.address >= RAS_UMC_INJECT_ADDR_LIMIT)) {
 			ret = -EINVAL;
+			break;
+		}
+
+		/* umc ce/ue error injection for a bad page is not allowed */
+		if ((data.head.block == AMDGPU_RAS_BLOCK__UMC) &&
+		    amdgpu_ras_check_bad_page(adev, data.inject.address)) {
+			DRM_WARN("RAS WARN: 0x%llx has been marked as bad before error injection!\n",
+					data.inject.address);
 			break;
 		}
 
@@ -1430,6 +1442,39 @@ out:
 	return ret;
 }
 
+/*
+ * check if an address belongs to bad page
+ *
+ * Note: this check is only for umc block
+ */
+static bool amdgpu_ras_check_bad_page(struct amdgpu_device *adev,
+				uint64_t addr)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_err_handler_data *data;
+	int i;
+	bool ret = false;
+
+	if (!con || !con->eh_data)
+		return ret;
+
+	mutex_lock(&con->recovery_lock);
+	data = con->eh_data;
+	if (!data)
+		goto out;
+
+	addr >>= AMDGPU_GPU_PAGE_SHIFT;
+	for (i = 0; i < data->count; i++)
+		if (addr == data->bps[i].retired_page) {
+			ret = true;
+			goto out;
+		}
+
+out:
+	mutex_unlock(&con->recovery_lock);
+	return ret;
+}
+
 /* called in gpu recovery/init */
 int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 {
@@ -1843,6 +1888,12 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 
 void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 {
+	uint32_t hw_supported, supported;
+
+	amdgpu_ras_check_supported(adev, &hw_supported, &supported);
+	if (!hw_supported)
+		return;
+
 	if (atomic_cmpxchg(&amdgpu_ras_in_intr, 0, 1) == 0) {
 		DRM_WARN("RAS event of type ERREVENT_ATHUB_INTERRUPT detected!\n");
 

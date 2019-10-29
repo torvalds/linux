@@ -945,50 +945,6 @@ static int smu_fini_fb_allocations(struct smu_context *smu)
 	return 0;
 }
 
-static int smu_override_pcie_parameters(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-	uint32_t pcie_gen = 0, pcie_width = 0, smu_pcie_arg;
-	int ret;
-
-	if (adev->flags & AMD_IS_APU)
-		return 0;
-
-	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN4)
-		pcie_gen = 3;
-	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
-		pcie_gen = 2;
-	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
-		pcie_gen = 1;
-	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1)
-		pcie_gen = 0;
-
-	/* Bit 31:16: LCLK DPM level. 0 is DPM0, and 1 is DPM1
-	 * Bit 15:8:  PCIE GEN, 0 to 3 corresponds to GEN1 to GEN4
-	 * Bit 7:0:   PCIE lane width, 1 to 7 corresponds is x1 to x32
-	 */
-	if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X16)
-		pcie_width = 6;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X12)
-		pcie_width = 5;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X8)
-		pcie_width = 4;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X4)
-		pcie_width = 3;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X2)
-		pcie_width = 2;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X1)
-		pcie_width = 1;
-
-	smu_pcie_arg = (1 << 16) | (pcie_gen << 8) | pcie_width;
-	ret = smu_send_smc_msg_with_param(smu,
-					  SMU_MSG_OverridePcieParameters,
-					  smu_pcie_arg);
-	if (ret)
-		pr_err("[%s] Attempt to override pcie params failed!\n", __func__);
-	return ret;
-}
-
 static int smu_smc_table_hw_init(struct smu_context *smu,
 				 bool initialize)
 {
@@ -1232,6 +1188,7 @@ static int smu_hw_init(void *handle)
 	if (adev->flags & AMD_IS_APU) {
 		smu_powergate_sdma(&adev->smu, false);
 		smu_powergate_vcn(&adev->smu, false);
+		smu_set_gfx_cgpg(&adev->smu, true);
 	}
 
 	if (!smu->pm_enabled)
@@ -1393,6 +1350,11 @@ static int smu_resume(void *handle)
 	ret = smu_start_thermal_control(smu);
 	if (ret)
 		goto failed;
+
+	if (smu->is_apu)
+		smu_set_gfx_cgpg(&adev->smu, true);
+
+	smu->disable_uclk_switch = 0;
 
 	mutex_unlock(&smu->mutex);
 
@@ -1830,6 +1792,64 @@ int smu_set_mp1_state(struct smu_context *smu,
 	ret = smu_send_smc_msg(smu, msg);
 	if (ret)
 		pr_err("[PrepareMp1] Failed!\n");
+
+	return ret;
+}
+
+int smu_set_df_cstate(struct smu_context *smu,
+		      enum pp_df_cstate state)
+{
+	int ret = 0;
+
+	/*
+	 * The SMC is not fully ready. That may be
+	 * expected as the IP may be masked.
+	 * So, just return without error.
+	 */
+	if (!smu->pm_enabled)
+		return 0;
+
+	if (!smu->ppt_funcs || !smu->ppt_funcs->set_df_cstate)
+		return 0;
+
+	ret = smu->ppt_funcs->set_df_cstate(smu, state);
+	if (ret)
+		pr_err("[SetDfCstate] failed!\n");
+
+	return ret;
+}
+
+int smu_write_watermarks_table(struct smu_context *smu)
+{
+	int ret = 0;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *table = NULL;
+
+	table = &smu_table->tables[SMU_TABLE_WATERMARKS];
+
+	if (!table->cpu_addr)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, 0, table->cpu_addr,
+				true);
+
+	return ret;
+}
+
+int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
+		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
+{
+	int ret = 0;
+	struct smu_table *watermarks = &smu->smu_table.tables[SMU_TABLE_WATERMARKS];
+	void *table = watermarks->cpu_addr;
+
+	if (!smu->disable_watermark &&
+			smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
+			smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
+		smu_set_watermarks_table(smu, table, clock_ranges);
+		smu->watermarks_bitmap |= WATERMARKS_EXIST;
+		smu->watermarks_bitmap &= ~WATERMARKS_LOADED;
+	}
 
 	return ret;
 }

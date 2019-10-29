@@ -670,6 +670,10 @@ static void dcn10_bios_golden_init(struct dc *dc)
 	int i;
 	bool allow_self_fresh_force_enable = true;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+	if (dc->hwss.s0i3_golden_init_wa && dc->hwss.s0i3_golden_init_wa(dc))
+		return;
+#endif
 	if (dc->res_pool->hubbub->funcs->is_allow_self_refresh_enabled)
 		allow_self_fresh_force_enable =
 				dc->res_pool->hubbub->funcs->is_allow_self_refresh_enabled(dc->res_pool->hubbub);
@@ -1452,15 +1456,15 @@ static void log_tf(struct dc_context *ctx,
 	DC_LOG_ALL_TF_CHANNELS("Logging all channels...");
 
 	for (i = 0; i < hw_points_num; i++) {
-		DC_LOG_GAMMA("R\t%d\t%llu\n", i, tf->tf_pts.red[i].value);
-		DC_LOG_ALL_TF_CHANNELS("G\t%d\t%llu\n", i, tf->tf_pts.green[i].value);
-		DC_LOG_ALL_TF_CHANNELS("B\t%d\t%llu\n", i, tf->tf_pts.blue[i].value);
+		DC_LOG_GAMMA("R\t%d\t%llu", i, tf->tf_pts.red[i].value);
+		DC_LOG_ALL_TF_CHANNELS("G\t%d\t%llu", i, tf->tf_pts.green[i].value);
+		DC_LOG_ALL_TF_CHANNELS("B\t%d\t%llu", i, tf->tf_pts.blue[i].value);
 	}
 
 	for (i = hw_points_num; i < MAX_NUM_HW_POINTS; i++) {
-		DC_LOG_ALL_GAMMA("R\t%d\t%llu\n", i, tf->tf_pts.red[i].value);
-		DC_LOG_ALL_TF_CHANNELS("G\t%d\t%llu\n", i, tf->tf_pts.green[i].value);
-		DC_LOG_ALL_TF_CHANNELS("B\t%d\t%llu\n", i, tf->tf_pts.blue[i].value);
+		DC_LOG_ALL_GAMMA("R\t%d\t%llu", i, tf->tf_pts.red[i].value);
+		DC_LOG_ALL_TF_CHANNELS("G\t%d\t%llu", i, tf->tf_pts.green[i].value);
+		DC_LOG_ALL_TF_CHANNELS("B\t%d\t%llu", i, tf->tf_pts.blue[i].value);
 	}
 }
 
@@ -2511,8 +2515,10 @@ static void program_all_pipe_in_tree(
 		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
 
-		dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
+		if (dc->hwss.setup_vupdate_interrupt)
+			dc->hwss.setup_vupdate_interrupt(pipe_ctx);
 
+		dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
 	}
 
 	if (pipe_ctx->plane_state != NULL)

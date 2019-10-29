@@ -474,7 +474,6 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 
 	list_for_each_entry(lobj, validated, tv.head) {
 		struct amdgpu_bo *bo = ttm_to_amdgpu_bo(lobj->tv.bo);
-		bool binding_userptr = false;
 		struct mm_struct *usermm;
 
 		usermm = amdgpu_ttm_tt_get_usermm(bo->tbo.ttm);
@@ -491,17 +490,14 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 
 			amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm,
 						     lobj->user_pages);
-			binding_userptr = true;
 		}
 
 		r = amdgpu_cs_validate(p, bo);
 		if (r)
 			return r;
 
-		if (binding_userptr) {
-			kvfree(lobj->user_pages);
-			lobj->user_pages = NULL;
-		}
+		kvfree(lobj->user_pages);
+		lobj->user_pages = NULL;
 	}
 	return 0;
 }

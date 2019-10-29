@@ -411,6 +411,27 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 	return false;
 }
 
+void dc_stream_set_dyn_expansion(struct dc *dc, struct dc_stream_state *stream,
+		enum dc_dynamic_expansion option)
+{
+	/* OPP FMT dyn expansion updates*/
+	int i = 0;
+	struct pipe_ctx *pipe_ctx;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream
+				== stream) {
+			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+			pipe_ctx->stream_res.opp->dyn_expansion = option;
+			pipe_ctx->stream_res.opp->funcs->opp_set_dyn_expansion(
+					pipe_ctx->stream_res.opp,
+					COLOR_SPACE_YCBCR601,
+					stream->timing.display_color_depth,
+					stream->signal);
+		}
+	}
+}
+
 void dc_stream_set_dither_option(struct dc_stream_state *stream,
 		enum dc_dither_option option)
 {
@@ -918,15 +939,11 @@ static void program_timing_sync(
 
 		/* set first pipe with plane as master */
 		for (j = 0; j < group_size; j++) {
-			struct pipe_ctx *temp;
-
 			if (pipe_set[j]->plane_state) {
 				if (j == 0)
 					break;
 
-				temp = pipe_set[0];
-				pipe_set[0] = pipe_set[j];
-				pipe_set[j] = temp;
+				swap(pipe_set[0], pipe_set[j]);
 				break;
 			}
 		}
@@ -983,6 +1000,10 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 				struct dc_crtc_timing *crtc_timing)
 {
 	struct timing_generator *tg;
+	struct stream_encoder *se = NULL;
+
+	struct dc_crtc_timing hw_crtc_timing = {0};
+
 	struct dc_link *link = sink->link;
 	unsigned int i, enc_inst, tg_inst = 0;
 
@@ -1002,6 +1023,9 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 
 	for (i = 0; i < dc->res_pool->stream_enc_count; i++) {
 		if (dc->res_pool->stream_enc[i]->id == enc_inst) {
+
+			se = dc->res_pool->stream_enc[i];
+
 			tg_inst = dc->res_pool->stream_enc[i]->funcs->dig_source_otg(
 				dc->res_pool->stream_enc[i]);
 			break;
@@ -1017,10 +1041,46 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 
 	tg = dc->res_pool->timing_generators[tg_inst];
 
-	if (!tg->funcs->is_matching_timing)
+	if (!tg->funcs->get_hw_timing)
 		return false;
 
-	if (!tg->funcs->is_matching_timing(tg, crtc_timing))
+	if (!tg->funcs->get_hw_timing(tg, &hw_crtc_timing))
+		return false;
+
+	if (crtc_timing->h_total != hw_crtc_timing.h_total)
+		return false;
+
+	if (crtc_timing->h_border_left != hw_crtc_timing.h_border_left)
+		return false;
+
+	if (crtc_timing->h_addressable != hw_crtc_timing.h_addressable)
+		return false;
+
+	if (crtc_timing->h_border_right != hw_crtc_timing.h_border_right)
+		return false;
+
+	if (crtc_timing->h_front_porch != hw_crtc_timing.h_front_porch)
+		return false;
+
+	if (crtc_timing->h_sync_width != hw_crtc_timing.h_sync_width)
+		return false;
+
+	if (crtc_timing->v_total != hw_crtc_timing.v_total)
+		return false;
+
+	if (crtc_timing->v_border_top != hw_crtc_timing.v_border_top)
+		return false;
+
+	if (crtc_timing->v_addressable != hw_crtc_timing.v_addressable)
+		return false;
+
+	if (crtc_timing->v_border_bottom != hw_crtc_timing.v_border_bottom)
+		return false;
+
+	if (crtc_timing->v_front_porch != hw_crtc_timing.v_front_porch)
+		return false;
+
+	if (crtc_timing->v_sync_width != hw_crtc_timing.v_sync_width)
 		return false;
 
 	if (dc_is_dp_signal(link->connector_signal)) {
@@ -1033,6 +1093,20 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 		if (crtc_timing->pix_clk_100hz != pix_clk_100hz)
 			return false;
 
+		if (!se->funcs->dp_get_pixel_format)
+			return false;
+
+		if (!se->funcs->dp_get_pixel_format(
+			se,
+			&hw_crtc_timing.pixel_encoding,
+			&hw_crtc_timing.display_color_depth))
+			return false;
+
+		if (hw_crtc_timing.display_color_depth != crtc_timing->display_color_depth)
+			return false;
+
+		if (hw_crtc_timing.pixel_encoding != crtc_timing->pixel_encoding)
+			return false;
 	}
 
 	return true;
@@ -1660,8 +1734,16 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 			updates[i].surface->update_flags.raw = 0xFFFFFFFF;
 	}
 
-	if (type == UPDATE_TYPE_FAST && memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0)
-		dc->optimized_required = true;
+	if (type == UPDATE_TYPE_FAST) {
+		// If there's an available clock comparator, we use that.
+		if (dc->clk_mgr->funcs->are_clock_states_equal) {
+			if (!dc->clk_mgr->funcs->are_clock_states_equal(&dc->clk_mgr->clks, &dc->current_state->bw_ctx.bw.dcn.clk))
+				dc->optimized_required = true;
+		// Else we fallback to mem compare.
+		} else if (memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0) {
+			dc->optimized_required = true;
+		}
+	}
 
 	return type;
 }

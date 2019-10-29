@@ -26,11 +26,20 @@
 #ifndef __RN_CLK_MGR_H__
 #define __RN_CLK_MGR_H__
 
+#include "clk_mgr.h"
+#include "dm_pp_smu.h"
+
 struct rn_clk_registers {
 	uint32_t CLK1_CLK0_CURRENT_CNT; /* DPREFCLK */
 };
 
-
+void rn_build_watermark_ranges(
+		struct clk_bw_params *bw_params,
+		struct pp_smu_wm_range_sets *ranges);
+void rn_clk_mgr_helper_populate_bw_params(
+		struct clk_bw_params *bw_params,
+		struct dpm_clocks *clock_table,
+		struct hw_asic_id *asic_id);
 void rn_clk_mgr_construct(struct dc_context *ctx,
 		struct clk_mgr_internal *clk_mgr,
 		struct pp_smu_funcs *pp_smu,

@@ -172,6 +172,14 @@ static const struct dce_abm_mask abm_mask = {
 		ABM_MASK_SH_LIST_DCE110(_MASK)
 };
 
+static const struct dce110_aux_registers_shift aux_shift = {
+	DCE_AUX_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce110_aux_registers_mask aux_mask = {
+	DCE_AUX_MASK_SH_LIST(_MASK)
+};
+
 #define ipp_regs(id)\
 [id] = {\
 		IPP_DCE110_REG_LIST_DCE_BASE(id)\
@@ -630,7 +638,10 @@ struct dce_aux *dce112_aux_engine_create(
 
 	dce110_aux_engine_construct(aux_engine, ctx, inst,
 				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
-				    &aux_engine_regs[inst]);
+				    &aux_engine_regs[inst],
+					&aux_mask,
+					&aux_shift,
+					ctx->dc->caps.extended_aux_timeout_support);
 
 	return &aux_engine->base;
 }
@@ -1163,7 +1174,7 @@ static bool construct(
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 128;
 	dc->caps.dual_link_dvi = true;
-
+	dc->caps.extended_aux_timeout_support = false;
 
 	/*************************************************
 	 *  Create resources                             *

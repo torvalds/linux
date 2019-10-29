@@ -244,15 +244,6 @@ static int smu_v12_0_gfx_off_control(struct smu_context *smu, bool enable)
 	if (enable) {
 		ret = smu_send_smc_msg(smu, SMU_MSG_AllowGfxOff);
 
-		/* confirm gfx is back to "off" state, timeout is 5 seconds */
-		while (!(smu_v12_0_get_gfxoff_status(smu) == 0)) {
-			msleep(10);
-			timeout--;
-			if (timeout == 0) {
-				DRM_ERROR("enable gfxoff timeout and failed!\n");
-				break;
-			}
-		}
 	} else {
 		ret = smu_send_smc_msg(smu, SMU_MSG_DisallowGfxOff);
 

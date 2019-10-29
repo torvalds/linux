@@ -1652,6 +1652,88 @@ static int amdgpu_ttm_fw_reserve_vram_init(struct amdgpu_device *adev)
 					  &adev->fw_vram_usage.va);
 }
 
+/*
+ * Memoy training reservation functions
+ */
+
+/**
+ * amdgpu_ttm_training_reserve_vram_fini - free memory training reserved vram
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * free memory training reserved vram if it has been reserved.
+ */
+static int amdgpu_ttm_training_reserve_vram_fini(struct amdgpu_device *adev)
+{
+	struct psp_memory_training_context *ctx = &adev->psp.mem_train_ctx;
+
+	ctx->init = PSP_MEM_TRAIN_NOT_SUPPORT;
+	amdgpu_bo_free_kernel(&ctx->c2p_bo, NULL, NULL);
+	ctx->c2p_bo = NULL;
+
+	amdgpu_bo_free_kernel(&ctx->p2c_bo, NULL, NULL);
+	ctx->p2c_bo = NULL;
+
+	return 0;
+}
+
+/**
+ * amdgpu_ttm_training_reserve_vram_init - create bo vram reservation from memory training
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * create bo vram reservation from memory training.
+ */
+static int amdgpu_ttm_training_reserve_vram_init(struct amdgpu_device *adev)
+{
+	int ret;
+	struct psp_memory_training_context *ctx = &adev->psp.mem_train_ctx;
+
+	memset(ctx, 0, sizeof(*ctx));
+	if (!adev->fw_vram_usage.mem_train_support) {
+		DRM_DEBUG("memory training does not support!\n");
+		return 0;
+	}
+
+	ctx->c2p_train_data_offset = adev->fw_vram_usage.mem_train_fb_loc;
+	ctx->p2c_train_data_offset = (adev->gmc.mc_vram_size - GDDR6_MEM_TRAINING_OFFSET);
+	ctx->train_data_size = GDDR6_MEM_TRAINING_DATA_SIZE_IN_BYTES;
+
+	DRM_DEBUG("train_data_size:%llx,p2c_train_data_offset:%llx,c2p_train_data_offset:%llx.\n",
+		  ctx->train_data_size,
+		  ctx->p2c_train_data_offset,
+		  ctx->c2p_train_data_offset);
+
+	ret = amdgpu_bo_create_kernel_at(adev,
+					 ctx->p2c_train_data_offset,
+					 ctx->train_data_size,
+					 AMDGPU_GEM_DOMAIN_VRAM,
+					 &ctx->p2c_bo,
+					 NULL);
+	if (ret) {
+		DRM_ERROR("alloc p2c_bo failed(%d)!\n", ret);
+		goto Err_out;
+	}
+
+	ret = amdgpu_bo_create_kernel_at(adev,
+					 ctx->c2p_train_data_offset,
+					 ctx->train_data_size,
+					 AMDGPU_GEM_DOMAIN_VRAM,
+					 &ctx->c2p_bo,
+					 NULL);
+	if (ret) {
+		DRM_ERROR("alloc c2p_bo failed(%d)!\n", ret);
+		goto Err_out;
+	}
+
+	ctx->init = PSP_MEM_TRAIN_RESERVE_SUCCESS;
+	return 0;
+
+Err_out:
+	amdgpu_ttm_training_reserve_vram_fini(adev);
+	return ret;
+}
+
 /**
  * amdgpu_ttm_init - Init the memory management (ttm) as well as various
  * gtt/vram related fields.
@@ -1726,6 +1808,14 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	/*
+	 *The reserved vram for memory training must be pinned to the specified
+	 *place on the VRAM, so reserve it early.
+	 */
+	r = amdgpu_ttm_training_reserve_vram_init(adev);
+	if (r)
+		return r;
+
 	/* allocate memory as required for VGA
 	 * This is used for VGA emulation and pre-OS scanout buffers to
 	 * avoid display artifacts while transitioning between pre-OS
@@ -1736,6 +1826,20 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 				    NULL, &stolen_vga_buf);
 	if (r)
 		return r;
+
+	/*
+	 * reserve one TMR (64K) memory at the top of VRAM which holds
+	 * IP Discovery data and is protected by PSP.
+	 */
+	r = amdgpu_bo_create_kernel_at(adev,
+				       adev->gmc.real_vram_size - DISCOVERY_TMR_SIZE,
+				       DISCOVERY_TMR_SIZE,
+				       AMDGPU_GEM_DOMAIN_VRAM,
+				       &adev->discovery_memory,
+				       NULL);
+	if (r)
+		return r;
+
 	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
 		 (unsigned) (adev->gmc.real_vram_size / (1024 * 1024)));
 
@@ -1800,6 +1904,9 @@ void amdgpu_ttm_late_init(struct amdgpu_device *adev)
 	void *stolen_vga_buf;
 	/* return the VGA stolen memory (if any) back to VRAM */
 	amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, &stolen_vga_buf);
+
+	/* return the IP Discovery TMR memory back to VRAM */
+	amdgpu_bo_free_kernel(&adev->discovery_memory, NULL, NULL);
 }
 
 /**
@@ -1811,6 +1918,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 		return;
 
 	amdgpu_ttm_debugfs_fini(adev);
+	amdgpu_ttm_training_reserve_vram_fini(adev);
 	amdgpu_ttm_fw_reserve_vram_fini(adev);
 	if (adev->mman.aper_base_kaddr)
 		iounmap(adev->mman.aper_base_kaddr);
@@ -1907,10 +2015,7 @@ static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 	*addr += (u64)window * AMDGPU_GTT_MAX_TRANSFER_SIZE *
 		AMDGPU_GPU_PAGE_SIZE;
 
-	num_dw = adev->mman.buffer_funcs->copy_num_dw;
-	while (num_dw & 0x7)
-		num_dw++;
-
+	num_dw = ALIGN(adev->mman.buffer_funcs->copy_num_dw, 8);
 	num_bytes = num_pages * 8;
 
 	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4 + num_bytes, &job);
@@ -1970,11 +2075,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 
 	max_bytes = adev->mman.buffer_funcs->copy_max_bytes;
 	num_loops = DIV_ROUND_UP(byte_count, max_bytes);
-	num_dw = num_loops * adev->mman.buffer_funcs->copy_num_dw;
-
-	/* for IB padding */
-	while (num_dw & 0x7)
-		num_dw++;
+	num_dw = ALIGN(num_loops * adev->mman.buffer_funcs->copy_num_dw, 8);
 
 	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4, &job);
 	if (r)

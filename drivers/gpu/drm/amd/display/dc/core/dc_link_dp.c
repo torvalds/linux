@@ -1409,6 +1409,9 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 	if (link->link_enc->features.flags.bits.IS_HBR3_CAPABLE)
 		max_link_cap.link_rate = LINK_RATE_HIGH3;
 
+	if (link->link_enc->funcs->get_max_link_cap)
+		link->link_enc->funcs->get_max_link_cap(link->link_enc, &max_link_cap);
+
 	/* Lower link settings based on sink's link cap */
 	if (link->reported_link_cap.lane_count < max_link_cap.lane_count)
 		max_link_cap.lane_count =
@@ -1653,11 +1656,14 @@ bool dp_verify_link_cap_with_retries(
 
 	for (i = 0; i < attempts; i++) {
 		int fail_count = 0;
-		enum dc_connection_type type;
+		enum dc_connection_type type = dc_connection_none;
 
 		memset(&link->verified_link_cap, 0,
 				sizeof(struct dc_link_settings));
-		if (!dc_link_detect_sink(link, &type)) {
+		if (!dc_link_detect_sink(link, &type) || type == dc_connection_none) {
+			link->verified_link_cap.lane_count = LANE_COUNT_ONE;
+			link->verified_link_cap.link_rate = LINK_RATE_LOW;
+			link->verified_link_cap.link_spread = LINK_SPREAD_DISABLED;
 			break;
 		} else if (dp_verify_link_cap(link,
 				&link->reported_link_cap,
@@ -1668,6 +1674,19 @@ bool dp_verify_link_cap_with_retries(
 		msleep(10);
 	}
 	return success;
+}
+
+bool dp_verify_mst_link_cap(
+	struct dc_link *link)
+{
+	struct dc_link_settings max_link_cap = {0};
+
+	max_link_cap = get_max_link_cap(link);
+	link->verified_link_cap = get_common_supported_link_settings(
+		link->reported_link_cap,
+		max_link_cap);
+
+	return true;
 }
 
 static struct dc_link_settings get_common_supported_link_settings(
@@ -2057,11 +2076,11 @@ static bool allow_hpd_rx_irq(const struct dc_link *link)
 	return false;
 }
 
-static bool handle_hpd_irq_psr_sink(const struct dc_link *link)
+static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 {
 	union dpcd_psr_configuration psr_configuration;
 
-	if (!link->psr_enabled)
+	if (!link->psr_feature_enabled)
 		return false;
 
 	dm_helpers_dp_read_dpcd(
@@ -2100,8 +2119,8 @@ static bool handle_hpd_irq_psr_sink(const struct dc_link *link)
 				sizeof(psr_error_status.raw));
 
 			/* PSR error, disable and re-enable PSR */
-			dc_link_set_psr_enable(link, false, true);
-			dc_link_set_psr_enable(link, true, true);
+			dc_link_set_psr_allow_active(link, false, true);
+			dc_link_set_psr_allow_active(link, true, true);
 
 			return true;
 		} else if (psr_sink_psr_status.bits.SINK_SELF_REFRESH_STATUS ==
@@ -2556,6 +2575,7 @@ static void get_active_converter_info(
 	uint8_t data, struct dc_link *link)
 {
 	union dp_downstream_port_present ds_port = { .byte = data };
+	memset(&link->dpcd_caps.dongle_caps, 0, sizeof(link->dpcd_caps.dongle_caps));
 
 	/* decode converter info*/
 	if (!ds_port.fields.PORT_PRESENT) {
@@ -2702,6 +2722,7 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 		 * keep receiver powered all the time.*/
 		case DP_BRANCH_DEVICE_ID_0010FA:
 		case DP_BRANCH_DEVICE_ID_0080E1:
+		case DP_BRANCH_DEVICE_ID_00E04C:
 			link->wa_flags.dp_keep_receiver_powered = true;
 			break;
 

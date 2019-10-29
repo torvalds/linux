@@ -293,6 +293,14 @@ static const struct dce_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCE120(_MASK)
 };
 
+static const struct dce110_aux_registers_shift aux_shift = {
+	DCE12_AUX_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce110_aux_registers_mask aux_mask = {
+	DCE12_AUX_MASK_SH_LIST(_MASK)
+};
+
 #define opp_regs(id)\
 [id] = {\
 	OPP_DCE_120_REG_LIST(id),\
@@ -404,7 +412,10 @@ struct dce_aux *dce120_aux_engine_create(
 
 	dce110_aux_engine_construct(aux_engine, ctx, inst,
 				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
-				    &aux_engine_regs[inst]);
+				    &aux_engine_regs[inst],
+					&aux_mask,
+					&aux_shift,
+					ctx->dc->caps.extended_aux_timeout_support);
 
 	return &aux_engine->base;
 }
@@ -1006,7 +1017,7 @@ static bool construct(
 	dc->caps.max_cursor_size = 128;
 	dc->caps.dual_link_dvi = true;
 	dc->caps.psp_setup_panel_mode = true;
-
+	dc->caps.extended_aux_timeout_support = false;
 	dc->debug = debug_defaults;
 
 	/*************************************************

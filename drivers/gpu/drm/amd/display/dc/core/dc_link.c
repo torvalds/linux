@@ -743,7 +743,8 @@ static bool wait_for_alt_mode(struct dc_link *link)
  * This does not create remote sinks but will trigger DM
  * to start MST detection if a branch is detected.
  */
-bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
+static bool dc_link_detect_helper(struct dc_link *link,
+				  enum dc_detect_reason reason)
 {
 	struct dc_sink_init_data sink_init_data = { 0 };
 	struct display_sink_capability sink_caps = { 0 };
@@ -759,6 +760,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	bool same_dpcd = true;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	bool perform_dp_seamless_boot = false;
+
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	if (dc_is_virtual_signal(link->connector_signal))
@@ -871,7 +873,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				 * empty which leads to allocate_mst_payload() has "0"
 				 * pbn_per_slot value leading to exception on dc_fixpt_div()
 				 */
-				link->verified_link_cap = link->reported_link_cap;
+				dp_verify_mst_link_cap(link);
+
 				if (prev_sink != NULL)
 					dc_sink_release(prev_sink);
 				return false;
@@ -1065,6 +1068,23 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		dc_sink_release(prev_sink);
 
 	return true;
+
+}
+
+bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
+{
+	const struct dc *dc = link->dc;
+	bool ret;
+
+	/* get out of low power state */
+	clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
+
+	ret = dc_link_detect_helper(link, reason);
+
+	/* Go back to power optimized state */
+	clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
+
+	return ret;
 }
 
 bool dc_link_get_hpd_state(struct dc_link *dc_link)
@@ -1510,7 +1530,7 @@ static enum dc_status enable_link_dp(
 
 	pipe_ctx->stream_res.pix_clk_params.requested_sym_clk =
 			link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
-	if (!apply_seamless_boot_optimization)
+	if (state->clk_mgr && !apply_seamless_boot_optimization)
 		state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
 
 	dp_enable_link_phy(
@@ -2237,7 +2257,7 @@ static bool dp_active_dongle_validate_timing(
 		break;
 	}
 
-	if (dongle_caps->dongle_type != DISPLAY_DONGLE_DP_HDMI_CONVERTER ||
+	if (dpcd_caps->dongle_type != DISPLAY_DONGLE_DP_HDMI_CONVERTER ||
 		dongle_caps->extendedCapValid == false)
 		return true;
 
@@ -2401,13 +2421,17 @@ bool dc_link_set_abm_disable(const struct dc_link *link)
 	return true;
 }
 
-bool dc_link_set_psr_enable(const struct dc_link *link, bool enable, bool wait)
+bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool wait)
 {
 	struct dc  *core_dc = link->ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
-	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_enabled)
-		dmcu->funcs->set_psr_enable(dmcu, enable, wait);
+
+
+	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_feature_enabled)
+		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
+
+	link->psr_allow_active = allow_active;
 
 	return true;
 }
@@ -2718,6 +2742,10 @@ void core_link_enable_stream(
 	enum dc_status status;
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
+	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment) &&
+			dc_is_virtual_signal(pipe_ctx->stream->signal))
+		return;
+
 	if (!dc_is_virtual_signal(pipe_ctx->stream->signal)) {
 		stream->link->link_enc->funcs->setup(
 			stream->link->link_enc,
@@ -2859,6 +2887,10 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
+
+	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment) &&
+			dc_is_virtual_signal(pipe_ctx->stream->signal))
+		return;
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 	update_psp_stream_config(pipe_ctx, true);

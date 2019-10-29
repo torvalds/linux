@@ -328,40 +328,52 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 	memset(feature_mask, 0, sizeof(uint32_t) * num);
 
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT)
-				| FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)
-				| FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)
 				| FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT)
-				| FEATURE_MASK(FEATURE_DPM_LINK_BIT)
-				| FEATURE_MASK(FEATURE_GFX_ULV_BIT)
 				| FEATURE_MASK(FEATURE_RSMU_SMN_CG_BIT)
 				| FEATURE_MASK(FEATURE_DS_SOCCLK_BIT)
 				| FEATURE_MASK(FEATURE_PPT_BIT)
 				| FEATURE_MASK(FEATURE_TDC_BIT)
 				| FEATURE_MASK(FEATURE_GFX_EDC_BIT)
+				| FEATURE_MASK(FEATURE_APCC_PLUS_BIT)
 				| FEATURE_MASK(FEATURE_VR0HOT_BIT)
 				| FEATURE_MASK(FEATURE_FAN_CONTROL_BIT)
 				| FEATURE_MASK(FEATURE_THERMAL_BIT)
 				| FEATURE_MASK(FEATURE_LED_DISPLAY_BIT)
-				| FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT)
-				| FEATURE_MASK(FEATURE_DS_GFXCLK_BIT)
+				| FEATURE_MASK(FEATURE_DS_LCLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_DCEFCLK_BIT)
 				| FEATURE_MASK(FEATURE_FW_DSTATE_BIT)
 				| FEATURE_MASK(FEATURE_BACO_BIT)
 				| FEATURE_MASK(FEATURE_ACDC_BIT)
 				| FEATURE_MASK(FEATURE_GFX_SS_BIT)
 				| FEATURE_MASK(FEATURE_APCC_DFLL_BIT)
-				| FEATURE_MASK(FEATURE_FW_CTF_BIT);
+				| FEATURE_MASK(FEATURE_FW_CTF_BIT)
+				| FEATURE_MASK(FEATURE_OUT_OF_BAND_MONITOR_BIT);
+
+	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
+
+	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT);
+
+	if (adev->pm.pp_feature & PP_PCIE_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_LINK_BIT);
+
+	if (adev->pm.pp_feature & PP_DCEFCLK_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT);
 
 	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
 				| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
 				| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT);
 
-	if (adev->pm.pp_feature & PP_GFXOFF_MASK) {
+	if (adev->pm.pp_feature & PP_ULV_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_ULV_BIT);
+
+	if (adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_GFXCLK_BIT);
+
+	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFXOFF_BIT);
-		/* TODO: remove it once fw fix the bug */
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_FW_DSTATE_BIT);
-	}
 
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_MMHUB)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_MMHUB_PG_BIT);
@@ -1452,18 +1464,47 @@ static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 	uint32_t sclk_freq = 0, uclk_freq = 0;
 	uint32_t uclk_level = 0;
 
-	switch (adev->pdev->revision) {
-	case 0xf0: /* XTX */
-	case 0xc0:
-		sclk_freq = NAVI10_PEAK_SCLK_XTX;
+	switch (adev->asic_type) {
+	case CHIP_NAVI10:
+		switch (adev->pdev->revision) {
+		case 0xf0: /* XTX */
+		case 0xc0:
+			sclk_freq = NAVI10_PEAK_SCLK_XTX;
+			break;
+		case 0xf1: /* XT */
+		case 0xc1:
+			sclk_freq = NAVI10_PEAK_SCLK_XT;
+			break;
+		default: /* XL */
+			sclk_freq = NAVI10_PEAK_SCLK_XL;
+			break;
+		}
 		break;
-	case 0xf1: /* XT */
-	case 0xc1:
-		sclk_freq = NAVI10_PEAK_SCLK_XT;
+	case CHIP_NAVI14:
+		switch (adev->pdev->revision) {
+		case 0xc7: /* XT */
+		case 0xf4:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XT_GFXCLK;
+			break;
+		case 0xc1: /* XTM */
+		case 0xf2:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XTM_GFXCLK;
+			break;
+		case 0xc3: /* XLM */
+		case 0xf3:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XLM_GFXCLK;
+			break;
+		case 0xc5: /* XTX */
+		case 0xf6:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XLM_GFXCLK;
+			break;
+		default: /* XL */
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XL_GFXCLK;
+			break;
+		}
 		break;
-	default: /* XL */
-		sclk_freq = NAVI10_PEAK_SCLK_XL;
-		break;
+	default:
+		return -EINVAL;
 	}
 
 	ret = smu_get_dpm_level_count(smu, SMU_UCLK, &uclk_level);
@@ -1486,10 +1527,6 @@ static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 static int navi10_set_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
 {
 	int ret = 0;
-	struct amdgpu_device *adev = smu->adev;
-
-	if (adev->asic_type != CHIP_NAVI10)
-		return -EINVAL;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
@@ -1592,6 +1629,28 @@ static int navi10_get_power_limit(struct smu_context *smu,
 	return 0;
 }
 
+static int navi10_update_pcie_parameters(struct smu_context *smu,
+				     uint32_t pcie_gen_cap,
+				     uint32_t pcie_width_cap)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+	int ret, i;
+	uint32_t smu_pcie_arg;
+
+	for (i = 0; i < NUM_LINK_LEVELS; i++) {
+		smu_pcie_arg = (i << 16) |
+			((pptable->PcieGenSpeed[i] <= pcie_gen_cap) ? (pptable->PcieGenSpeed[i] << 8) :
+				(pcie_gen_cap << 8)) | ((pptable->PcieLaneCount[i] <= pcie_width_cap) ?
+					pptable->PcieLaneCount[i] : pcie_width_cap);
+		ret = smu_send_smc_msg_with_param(smu,
+					  SMU_MSG_OverridePcieParameters,
+					  smu_pcie_arg);
+	}
+
+	return ret;
+}
+
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -1630,6 +1689,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_thermal_temperature_range = navi10_get_thermal_temperature_range,
 	.display_disable_memory_clock_switch = navi10_display_disable_memory_clock_switch,
 	.get_power_limit = navi10_get_power_limit,
+	.update_pcie_parameters = navi10_update_pcie_parameters,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

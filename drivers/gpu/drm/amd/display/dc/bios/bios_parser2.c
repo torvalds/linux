@@ -1613,8 +1613,6 @@ static enum bp_result construct_integrated_info(
 
 	struct atom_common_table_header *header;
 	struct atom_data_revision revision;
-
-	struct clock_voltage_caps temp = {0, 0};
 	uint32_t i;
 	uint32_t j;
 
@@ -1644,10 +1642,8 @@ static enum bp_result construct_integrated_info(
 				info->disp_clk_voltage[j-1].max_supported_clk
 				) {
 				/* swap j and j - 1*/
-				temp = info->disp_clk_voltage[j-1];
-				info->disp_clk_voltage[j-1] =
-					info->disp_clk_voltage[j];
-				info->disp_clk_voltage[j] = temp;
+				swap(info->disp_clk_voltage[j - 1],
+				     info->disp_clk_voltage[j]);
 			}
 		}
 	}

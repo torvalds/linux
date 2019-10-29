@@ -153,6 +153,36 @@ bool amdgpu_device_is_px(struct drm_device *dev)
 	return false;
 }
 
+/**
+ * VRAM access helper functions.
+ *
+ * amdgpu_device_vram_access - read/write a buffer in vram
+ *
+ * @adev: amdgpu_device pointer
+ * @pos: offset of the buffer in vram
+ * @buf: virtual address of the buffer in system memory
+ * @size: read/write size, sizeof(@buf) must > @size
+ * @write: true - write to vram, otherwise - read from vram
+ */
+void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
+			       uint32_t *buf, size_t size, bool write)
+{
+	uint64_t last;
+	unsigned long flags;
+
+	last = size - 4;
+	for (last += pos; pos <= last; pos += 4) {
+		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
+		WREG32_NO_KIQ(mmMM_INDEX, ((uint32_t)pos) | 0x80000000);
+		WREG32_NO_KIQ(mmMM_INDEX_HI, pos >> 31);
+		if (write)
+			WREG32_NO_KIQ(mmMM_DATA, *buf++);
+		else
+			*buf++ = RREG32_NO_KIQ(mmMM_DATA);
+		spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
+	}
+}
+
 /*
  * MMIO register access helper functions.
  */
@@ -2622,8 +2652,11 @@ static int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
 		 * There is only one value specified and
 		 * it should apply to all non-compute jobs.
 		 */
-		if (index == 1)
+		if (index == 1) {
 			adev->sdma_timeout = adev->video_timeout = adev->gfx_timeout;
+			if (amdgpu_sriov_vf(adev) || amdgpu_passthrough(adev))
+				adev->compute_timeout = adev->gfx_timeout;
+		}
 	}
 
 	return ret;
@@ -3168,15 +3201,11 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	 */
 	amdgpu_bo_evict_vram(adev);
 
-	pci_save_state(dev->pdev);
 	if (suspend) {
+		pci_save_state(dev->pdev);
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);
-	} else {
-		r = amdgpu_asic_reset(adev);
-		if (r)
-			DRM_ERROR("amdgpu asic reset failed\n");
 	}
 
 	return 0;

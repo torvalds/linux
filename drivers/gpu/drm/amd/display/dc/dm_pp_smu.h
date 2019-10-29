@@ -249,12 +249,10 @@ struct pp_smu_funcs_nv {
 };
 #endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
-
 #define PP_SMU_NUM_SOCCLK_DPM_LEVELS  8
-#define PP_SMU_NUM_DCFCLK_DPM_LEVELS  4
-#define PP_SMU_NUM_FCLK_DPM_LEVELS    4
-#define PP_SMU_NUM_MEMCLK_DPM_LEVELS  4
+#define PP_SMU_NUM_DCFCLK_DPM_LEVELS  8
+#define PP_SMU_NUM_FCLK_DPM_LEVELS    8
+#define PP_SMU_NUM_MEMCLK_DPM_LEVELS  8
 
 struct dpm_clock {
   uint32_t  Freq;    // In MHz
@@ -288,7 +286,6 @@ struct pp_smu_funcs_rn {
 	enum pp_smu_status (*get_dpm_clock_table) (struct pp_smu *pp,
 			struct dpm_clocks *clock_table);
 };
-#endif
 
 struct pp_smu_funcs {
 	struct pp_smu ctx;

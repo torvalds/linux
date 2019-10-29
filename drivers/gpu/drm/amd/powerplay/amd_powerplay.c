@@ -1421,6 +1421,7 @@ static int pp_get_asic_baco_capability(void *handle, bool *cap)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
+	*cap = false;
 	if (!hwmgr)
 		return -EINVAL;
 
@@ -1548,6 +1549,23 @@ static int pp_smu_i2c_bus_access(void *handle, bool acquire)
 	return ret;
 }
 
+static int pp_set_df_cstate(void *handle, enum pp_df_cstate state)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr)
+		return -EINVAL;
+
+	if (!hwmgr->pm_en || !hwmgr->hwmgr_func->set_df_cstate)
+		return 0;
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->set_df_cstate(hwmgr, state);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1606,4 +1624,5 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_ppfeature_status = pp_set_ppfeature_status,
 	.asic_reset_mode_2 = pp_asic_reset_mode_2,
 	.smu_i2c_bus_access = pp_smu_i2c_bus_access,
+	.set_df_cstate = pp_set_df_cstate,
 };

@@ -31,4 +31,7 @@ void vi_srbm_select(struct amdgpu_device *adev,
 int vi_set_ip_blocks(struct amdgpu_device *adev);
 
 void legacy_doorbell_index_init(struct amdgpu_device *adev);
+int smu7_asic_get_baco_capability(struct amdgpu_device *adev, bool *cap);
+int smu7_asic_baco_reset(struct amdgpu_device *adev);
+
 #endif

@@ -179,6 +179,11 @@ enum pp_mp1_state {
 	PP_MP1_STATE_RESET,
 };
 
+enum pp_df_cstate {
+	DF_CSTATE_DISALLOW = 0,
+	DF_CSTATE_ALLOW,
+};
+
 #define PP_GROUP_MASK        0xF0000000
 #define PP_GROUP_SHIFT       28
 
@@ -312,6 +317,7 @@ struct amd_pm_funcs {
 	int (*get_ppfeature_status)(void *handle, char *buf);
 	int (*set_ppfeature_status)(void *handle, uint64_t ppfeature_masks);
 	int (*asic_reset_mode_2)(void *handle);
+	int (*set_df_cstate)(void *handle, enum pp_df_cstate state);
 };
 
 #endif
