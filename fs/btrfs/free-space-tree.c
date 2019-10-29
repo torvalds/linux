@@ -13,10 +13,10 @@
 #include "block-group.h"
 
 static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
-					struct btrfs_block_group_cache *block_group,
+					struct btrfs_block_group *block_group,
 					struct btrfs_path *path);
 
-void set_free_space_tree_thresholds(struct btrfs_block_group_cache *cache)
+void set_free_space_tree_thresholds(struct btrfs_block_group *cache)
 {
 	u32 bitmap_range;
 	size_t bitmap_size;
@@ -44,7 +44,7 @@ void set_free_space_tree_thresholds(struct btrfs_block_group_cache *cache)
 }
 
 static int add_new_free_space_info(struct btrfs_trans_handle *trans,
-				   struct btrfs_block_group_cache *block_group,
+				   struct btrfs_block_group *block_group,
 				   struct btrfs_path *path)
 {
 	struct btrfs_root *root = trans->fs_info->free_space_root;
@@ -77,7 +77,7 @@ out:
 EXPORT_FOR_TESTS
 struct btrfs_free_space_info *search_free_space_info(
 		struct btrfs_trans_handle *trans,
-		struct btrfs_block_group_cache *block_group,
+		struct btrfs_block_group *block_group,
 		struct btrfs_path *path, int cow)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
@@ -179,7 +179,7 @@ static void le_bitmap_set(unsigned long *map, unsigned int start, int len)
 
 EXPORT_FOR_TESTS
 int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
-				  struct btrfs_block_group_cache *block_group,
+				  struct btrfs_block_group *block_group,
 				  struct btrfs_path *path)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -319,7 +319,7 @@ out:
 
 EXPORT_FOR_TESTS
 int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
-				  struct btrfs_block_group_cache *block_group,
+				  struct btrfs_block_group *block_group,
 				  struct btrfs_path *path)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -452,7 +452,7 @@ out:
 }
 
 static int update_free_space_extent_count(struct btrfs_trans_handle *trans,
-					  struct btrfs_block_group_cache *block_group,
+					  struct btrfs_block_group *block_group,
 					  struct btrfs_path *path,
 					  int new_extents)
 {
@@ -490,7 +490,7 @@ out:
 }
 
 EXPORT_FOR_TESTS
-int free_space_test_bit(struct btrfs_block_group_cache *block_group,
+int free_space_test_bit(struct btrfs_block_group *block_group,
 			struct btrfs_path *path, u64 offset)
 {
 	struct extent_buffer *leaf;
@@ -512,7 +512,7 @@ int free_space_test_bit(struct btrfs_block_group_cache *block_group,
 	return !!extent_buffer_test_bit(leaf, ptr, i);
 }
 
-static void free_space_set_bits(struct btrfs_block_group_cache *block_group,
+static void free_space_set_bits(struct btrfs_block_group *block_group,
 				struct btrfs_path *path, u64 *start, u64 *size,
 				int bit)
 {
@@ -580,7 +580,7 @@ static int free_space_next_bitmap(struct btrfs_trans_handle *trans,
  * the bitmap.
  */
 static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
-				    struct btrfs_block_group_cache *block_group,
+				    struct btrfs_block_group *block_group,
 				    struct btrfs_path *path,
 				    u64 start, u64 size, int remove)
 {
@@ -693,7 +693,7 @@ out:
 }
 
 static int remove_free_space_extent(struct btrfs_trans_handle *trans,
-				    struct btrfs_block_group_cache *block_group,
+				    struct btrfs_block_group *block_group,
 				    struct btrfs_path *path,
 				    u64 start, u64 size)
 {
@@ -780,7 +780,7 @@ out:
 
 EXPORT_FOR_TESTS
 int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
-				  struct btrfs_block_group_cache *block_group,
+				  struct btrfs_block_group *block_group,
 				  struct btrfs_path *path, u64 start, u64 size)
 {
 	struct btrfs_free_space_info *info;
@@ -811,7 +811,7 @@ int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 				u64 start, u64 size)
 {
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 	struct btrfs_path *path;
 	int ret;
 
@@ -845,7 +845,7 @@ out:
 }
 
 static int add_free_space_extent(struct btrfs_trans_handle *trans,
-				 struct btrfs_block_group_cache *block_group,
+				 struct btrfs_block_group *block_group,
 				 struct btrfs_path *path,
 				 u64 start, u64 size)
 {
@@ -973,7 +973,7 @@ out:
 
 EXPORT_FOR_TESTS
 int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
-			     struct btrfs_block_group_cache *block_group,
+			     struct btrfs_block_group *block_group,
 			     struct btrfs_path *path, u64 start, u64 size)
 {
 	struct btrfs_free_space_info *info;
@@ -1004,7 +1004,7 @@ int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
 int add_to_free_space_tree(struct btrfs_trans_handle *trans,
 			   u64 start, u64 size)
 {
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 	struct btrfs_path *path;
 	int ret;
 
@@ -1042,7 +1042,7 @@ out:
  * through the normal add/remove hooks.
  */
 static int populate_free_space_tree(struct btrfs_trans_handle *trans,
-				    struct btrfs_block_group_cache *block_group)
+				    struct btrfs_block_group *block_group)
 {
 	struct btrfs_root *extent_root = trans->fs_info->extent_root;
 	struct btrfs_path *path, *path2;
@@ -1139,7 +1139,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *free_space_root;
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 	struct rb_node *node;
 	int ret;
 
@@ -1158,7 +1158,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 
 	node = rb_first(&fs_info->block_group_cache_tree);
 	while (node) {
-		block_group = rb_entry(node, struct btrfs_block_group_cache,
+		block_group = rb_entry(node, struct btrfs_block_group,
 				       cache_node);
 		ret = populate_free_space_tree(trans, block_group);
 		if (ret)
@@ -1264,7 +1264,7 @@ abort:
 }
 
 static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
-					struct btrfs_block_group_cache *block_group,
+					struct btrfs_block_group *block_group,
 					struct btrfs_path *path)
 {
 	int ret;
@@ -1281,7 +1281,7 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 }
 
 int add_block_group_free_space(struct btrfs_trans_handle *trans,
-			       struct btrfs_block_group_cache *block_group)
+			       struct btrfs_block_group *block_group)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_path *path = NULL;
@@ -1311,7 +1311,7 @@ out:
 }
 
 int remove_block_group_free_space(struct btrfs_trans_handle *trans,
-				  struct btrfs_block_group_cache *block_group)
+				  struct btrfs_block_group *block_group)
 {
 	struct btrfs_root *root = trans->fs_info->free_space_root;
 	struct btrfs_path *path;
@@ -1390,7 +1390,7 @@ static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,
 				   struct btrfs_path *path,
 				   u32 expected_extent_count)
 {
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_root *root;
 	struct btrfs_key key;
@@ -1471,7 +1471,7 @@ static int load_free_space_extents(struct btrfs_caching_control *caching_ctl,
 				   struct btrfs_path *path,
 				   u32 expected_extent_count)
 {
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_root *root;
 	struct btrfs_key key;
@@ -1531,7 +1531,7 @@ out:
 
 int load_free_space_tree(struct btrfs_caching_control *caching_ctl)
 {
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 	struct btrfs_free_space_info *info;
 	struct btrfs_path *path;
 	u32 extent_count, flags;

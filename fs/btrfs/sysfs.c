@@ -397,7 +397,7 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 
 {
 	struct btrfs_space_info *sinfo = to_space_info(kobj->parent);
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 	int index = btrfs_bg_flags_to_raid_index(to_raid_kobj(kobj)->flags);
 	u64 val = 0;
 
@@ -861,7 +861,7 @@ static void init_feature_attrs(void)
  * Create a sysfs entry for a given block group type at path
  * /sys/fs/btrfs/UUID/allocation/data/TYPE
  */
-void btrfs_sysfs_add_block_group_type(struct btrfs_block_group_cache *cache)
+void btrfs_sysfs_add_block_group_type(struct btrfs_block_group *cache)
 {
 	struct btrfs_fs_info *fs_info = cache->fs_info;
 	struct btrfs_space_info *space_info = cache->space_info;

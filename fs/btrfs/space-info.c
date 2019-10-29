@@ -284,7 +284,7 @@ void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 			   struct btrfs_space_info *info, u64 bytes,
 			   int dump_block_groups)
 {
-	struct btrfs_block_group_cache *cache;
+	struct btrfs_block_group *cache;
 	int index = 0;
 
 	spin_lock(&info->lock);

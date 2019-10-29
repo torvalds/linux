@@ -19,7 +19,7 @@ struct btrfs_delayed_ref_node;
 struct btrfs_delayed_tree_ref;
 struct btrfs_delayed_data_ref;
 struct btrfs_delayed_ref_head;
-struct btrfs_block_group_cache;
+struct btrfs_block_group;
 struct btrfs_free_cluster;
 struct map_lookup;
 struct extent_buffer;
@@ -699,7 +699,7 @@ TRACE_EVENT(btrfs_sync_fs,
 TRACE_EVENT(btrfs_add_block_group,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_block_group_cache *block_group, int create),
+		 const struct btrfs_block_group *block_group, int create),
 
 	TP_ARGS(fs_info, block_group, create),
 
@@ -1184,7 +1184,7 @@ TRACE_EVENT(find_free_extent,
 
 DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 
-	TP_PROTO(const struct btrfs_block_group_cache *block_group, u64 start,
+	TP_PROTO(const struct btrfs_block_group *block_group, u64 start,
 		 u64 len),
 
 	TP_ARGS(block_group, start, len),
@@ -1214,7 +1214,7 @@ DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 
 DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent,
 
-	TP_PROTO(const struct btrfs_block_group_cache *block_group, u64 start,
+	TP_PROTO(const struct btrfs_block_group *block_group, u64 start,
 		 u64 len),
 
 	TP_ARGS(block_group, start, len)
@@ -1222,7 +1222,7 @@ DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent,
 
 DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent_cluster,
 
-	TP_PROTO(const struct btrfs_block_group_cache *block_group, u64 start,
+	TP_PROTO(const struct btrfs_block_group *block_group, u64 start,
 		 u64 len),
 
 	TP_ARGS(block_group, start, len)
@@ -1230,7 +1230,7 @@ DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent_cluster,
 
 TRACE_EVENT(btrfs_find_cluster,
 
-	TP_PROTO(const struct btrfs_block_group_cache *block_group, u64 start,
+	TP_PROTO(const struct btrfs_block_group *block_group, u64 start,
 		 u64 bytes, u64 empty_size, u64 min_bytes),
 
 	TP_ARGS(block_group, start, bytes, empty_size, min_bytes),
@@ -1263,7 +1263,7 @@ TRACE_EVENT(btrfs_find_cluster,
 
 TRACE_EVENT(btrfs_failed_cluster_setup,
 
-	TP_PROTO(const struct btrfs_block_group_cache *block_group),
+	TP_PROTO(const struct btrfs_block_group *block_group),
 
 	TP_ARGS(block_group),
 
@@ -1280,7 +1280,7 @@ TRACE_EVENT(btrfs_failed_cluster_setup,
 
 TRACE_EVENT(btrfs_setup_cluster,
 
-	TP_PROTO(const struct btrfs_block_group_cache *block_group,
+	TP_PROTO(const struct btrfs_block_group *block_group,
 		 const struct btrfs_free_cluster *cluster,
 		 u64 size, int bitmap),
 
@@ -1844,7 +1844,7 @@ TRACE_EVENT(btrfs_inode_mod_outstanding_extents,
 );
 
 DECLARE_EVENT_CLASS(btrfs__block_group,
-	TP_PROTO(const struct btrfs_block_group_cache *bg_cache),
+	TP_PROTO(const struct btrfs_block_group *bg_cache),
 
 	TP_ARGS(bg_cache),
 
@@ -1868,19 +1868,19 @@ DECLARE_EVENT_CLASS(btrfs__block_group,
 );
 
 DEFINE_EVENT(btrfs__block_group, btrfs_remove_block_group,
-	TP_PROTO(const struct btrfs_block_group_cache *bg_cache),
+	TP_PROTO(const struct btrfs_block_group *bg_cache),
 
 	TP_ARGS(bg_cache)
 );
 
 DEFINE_EVENT(btrfs__block_group, btrfs_add_unused_block_group,
-	TP_PROTO(const struct btrfs_block_group_cache *bg_cache),
+	TP_PROTO(const struct btrfs_block_group *bg_cache),
 
 	TP_ARGS(bg_cache)
 );
 
 DEFINE_EVENT(btrfs__block_group, btrfs_skip_unused_block_group,
-	TP_PROTO(const struct btrfs_block_group_cache *bg_cache),
+	TP_PROTO(const struct btrfs_block_group *bg_cache),
 
 	TP_ARGS(bg_cache)
 );

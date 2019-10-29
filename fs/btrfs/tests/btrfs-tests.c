@@ -202,11 +202,11 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 	kfree(root);
 }
 
-struct btrfs_block_group_cache *
+struct btrfs_block_group *
 btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 			      unsigned long length)
 {
-	struct btrfs_block_group_cache *cache;
+	struct btrfs_block_group *cache;
 
 	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
 	if (!cache)
@@ -232,7 +232,7 @@ btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 	return cache;
 }
 
-void btrfs_free_dummy_block_group(struct btrfs_block_group_cache *cache)
+void btrfs_free_dummy_block_group(struct btrfs_block_group *cache)
 {
 	if (!cache)
 		return;

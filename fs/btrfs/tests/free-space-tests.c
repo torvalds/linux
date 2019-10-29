@@ -17,7 +17,7 @@
  * entry and remove space from either end and the middle, and make sure we can
  * remove space that covers adjacent extent entries.
  */
-static int test_extents(struct btrfs_block_group_cache *cache)
+static int test_extents(struct btrfs_block_group *cache)
 {
 	int ret = 0;
 
@@ -87,8 +87,7 @@ static int test_extents(struct btrfs_block_group_cache *cache)
 	return 0;
 }
 
-static int test_bitmaps(struct btrfs_block_group_cache *cache,
-			u32 sectorsize)
+static int test_bitmaps(struct btrfs_block_group *cache, u32 sectorsize)
 {
 	u64 next_bitmap_offset;
 	int ret;
@@ -156,7 +155,7 @@ static int test_bitmaps(struct btrfs_block_group_cache *cache,
 }
 
 /* This is the high grade jackassery */
-static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
+static int test_bitmaps_and_extents(struct btrfs_block_group *cache,
 				    u32 sectorsize)
 {
 	u64 bitmap_offset = (u64)(BITS_PER_BITMAP * sectorsize);
@@ -331,7 +330,7 @@ static bool test_use_bitmap(struct btrfs_free_space_ctl *ctl,
 
 /* Used by test_steal_space_from_bitmap_to_extent(). */
 static int
-check_num_extents_and_bitmaps(const struct btrfs_block_group_cache *cache,
+check_num_extents_and_bitmaps(const struct btrfs_block_group *cache,
 			      const int num_extents,
 			      const int num_bitmaps)
 {
@@ -351,7 +350,7 @@ check_num_extents_and_bitmaps(const struct btrfs_block_group_cache *cache,
 }
 
 /* Used by test_steal_space_from_bitmap_to_extent(). */
-static int check_cache_empty(struct btrfs_block_group_cache *cache)
+static int check_cache_empty(struct btrfs_block_group *cache)
 {
 	u64 offset;
 	u64 max_extent_size;
@@ -393,7 +392,7 @@ static int check_cache_empty(struct btrfs_block_group_cache *cache)
  * requests.
  */
 static int
-test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
+test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 				       u32 sectorsize)
 {
 	int ret;
@@ -829,7 +828,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_fs_info *fs_info;
-	struct btrfs_block_group_cache *cache;
+	struct btrfs_block_group *cache;
 	struct btrfs_root *root = NULL;
 	int ret = -ENOMEM;
 

@@ -18,7 +18,7 @@ struct free_space_extent {
 
 static int __check_free_space_extents(struct btrfs_trans_handle *trans,
 				      struct btrfs_fs_info *fs_info,
-				      struct btrfs_block_group_cache *cache,
+				      struct btrfs_block_group *cache,
 				      struct btrfs_path *path,
 				      const struct free_space_extent * const extents,
 				      unsigned int num_extents)
@@ -107,7 +107,7 @@ invalid:
 
 static int check_free_space_extents(struct btrfs_trans_handle *trans,
 				    struct btrfs_fs_info *fs_info,
-				    struct btrfs_block_group_cache *cache,
+				    struct btrfs_block_group *cache,
 				    struct btrfs_path *path,
 				    const struct free_space_extent * const extents,
 				    unsigned int num_extents)
@@ -150,7 +150,7 @@ static int check_free_space_extents(struct btrfs_trans_handle *trans,
 
 static int test_empty_block_group(struct btrfs_trans_handle *trans,
 				  struct btrfs_fs_info *fs_info,
-				  struct btrfs_block_group_cache *cache,
+				  struct btrfs_block_group *cache,
 				  struct btrfs_path *path,
 				  u32 alignment)
 {
@@ -164,7 +164,7 @@ static int test_empty_block_group(struct btrfs_trans_handle *trans,
 
 static int test_remove_all(struct btrfs_trans_handle *trans,
 			   struct btrfs_fs_info *fs_info,
-			   struct btrfs_block_group_cache *cache,
+			   struct btrfs_block_group *cache,
 			   struct btrfs_path *path,
 			   u32 alignment)
 {
@@ -185,7 +185,7 @@ static int test_remove_all(struct btrfs_trans_handle *trans,
 
 static int test_remove_beginning(struct btrfs_trans_handle *trans,
 				 struct btrfs_fs_info *fs_info,
-				 struct btrfs_block_group_cache *cache,
+				 struct btrfs_block_group *cache,
 				 struct btrfs_path *path,
 				 u32 alignment)
 {
@@ -208,7 +208,7 @@ static int test_remove_beginning(struct btrfs_trans_handle *trans,
 
 static int test_remove_end(struct btrfs_trans_handle *trans,
 			   struct btrfs_fs_info *fs_info,
-			   struct btrfs_block_group_cache *cache,
+			   struct btrfs_block_group *cache,
 			   struct btrfs_path *path,
 			   u32 alignment)
 {
@@ -231,7 +231,7 @@ static int test_remove_end(struct btrfs_trans_handle *trans,
 
 static int test_remove_middle(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info,
-			      struct btrfs_block_group_cache *cache,
+			      struct btrfs_block_group *cache,
 			      struct btrfs_path *path,
 			      u32 alignment)
 {
@@ -255,7 +255,7 @@ static int test_remove_middle(struct btrfs_trans_handle *trans,
 
 static int test_merge_left(struct btrfs_trans_handle *trans,
 			   struct btrfs_fs_info *fs_info,
-			   struct btrfs_block_group_cache *cache,
+			   struct btrfs_block_group *cache,
 			   struct btrfs_path *path,
 			   u32 alignment)
 {
@@ -292,7 +292,7 @@ static int test_merge_left(struct btrfs_trans_handle *trans,
 
 static int test_merge_right(struct btrfs_trans_handle *trans,
 			   struct btrfs_fs_info *fs_info,
-			   struct btrfs_block_group_cache *cache,
+			   struct btrfs_block_group *cache,
 			   struct btrfs_path *path,
 			   u32 alignment)
 {
@@ -330,7 +330,7 @@ static int test_merge_right(struct btrfs_trans_handle *trans,
 
 static int test_merge_both(struct btrfs_trans_handle *trans,
 			   struct btrfs_fs_info *fs_info,
-			   struct btrfs_block_group_cache *cache,
+			   struct btrfs_block_group *cache,
 			   struct btrfs_path *path,
 			   u32 alignment)
 {
@@ -373,7 +373,7 @@ static int test_merge_both(struct btrfs_trans_handle *trans,
 
 static int test_merge_none(struct btrfs_trans_handle *trans,
 			   struct btrfs_fs_info *fs_info,
-			   struct btrfs_block_group_cache *cache,
+			   struct btrfs_block_group *cache,
 			   struct btrfs_path *path,
 			   u32 alignment)
 {
@@ -418,7 +418,7 @@ static int test_merge_none(struct btrfs_trans_handle *trans,
 
 typedef int (*test_func_t)(struct btrfs_trans_handle *,
 			   struct btrfs_fs_info *,
-			   struct btrfs_block_group_cache *,
+			   struct btrfs_block_group *,
 			   struct btrfs_path *,
 			   u32 alignment);
 
@@ -427,7 +427,7 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 {
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_root *root = NULL;
-	struct btrfs_block_group_cache *cache = NULL;
+	struct btrfs_block_group *cache = NULL;
 	struct btrfs_trans_handle trans;
 	struct btrfs_path *path = NULL;
 	int ret;

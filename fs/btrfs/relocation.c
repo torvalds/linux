@@ -147,7 +147,7 @@ struct file_extent_cluster {
 
 struct reloc_control {
 	/* block group to relocate */
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 	/* extent tree */
 	struct btrfs_root *extent_root;
 	/* inode for moving data */
@@ -1560,8 +1560,7 @@ again:
 	return NULL;
 }
 
-static int in_block_group(u64 bytenr,
-			  struct btrfs_block_group_cache *block_group)
+static int in_block_group(u64 bytenr, struct btrfs_block_group *block_group)
 {
 	if (bytenr >= block_group->start &&
 	    bytenr < block_group->start + block_group->length)
@@ -3544,7 +3543,7 @@ static int block_use_full_backref(struct reloc_control *rc,
 }
 
 static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
-				    struct btrfs_block_group_cache *block_group,
+				    struct btrfs_block_group *block_group,
 				    struct inode *inode,
 				    u64 ino)
 {
@@ -4219,7 +4218,7 @@ out:
  */
 static noinline_for_stack
 struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
-				 struct btrfs_block_group_cache *group)
+				 struct btrfs_block_group *group)
 {
 	struct inode *inode = NULL;
 	struct btrfs_trans_handle *trans;
@@ -4283,7 +4282,7 @@ static struct reloc_control *alloc_reloc_control(struct btrfs_fs_info *fs_info)
  * Print the block group being relocated
  */
 static void describe_relocation(struct btrfs_fs_info *fs_info,
-				struct btrfs_block_group_cache *block_group)
+				struct btrfs_block_group *block_group)
 {
 	char buf[128] = {'\0'};
 
@@ -4299,7 +4298,7 @@ static void describe_relocation(struct btrfs_fs_info *fs_info,
  */
 int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 {
-	struct btrfs_block_group_cache *bg;
+	struct btrfs_block_group *bg;
 	struct btrfs_root *extent_root = fs_info->extent_root;
 	struct reloc_control *rc;
 	struct inode *inode;

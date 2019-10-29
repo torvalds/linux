@@ -4031,7 +4031,7 @@ out:
 static void get_block_group_info(struct list_head *groups_list,
 				 struct btrfs_ioctl_space_info *space)
 {
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 
 	space->total_bytes = 0;
 	space->used_bytes = 0;

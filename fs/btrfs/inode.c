@@ -3040,7 +3040,7 @@ out_kfree:
 static void btrfs_release_delalloc_bytes(struct btrfs_fs_info *fs_info,
 					 u64 start, u64 len)
 {
-	struct btrfs_block_group_cache *cache;
+	struct btrfs_block_group *cache;
 
 	cache = btrfs_lookup_block_group(fs_info, start);
 	ASSERT(cache);
@@ -10837,7 +10837,7 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 	start = 0;
 	while (start < isize) {
 		u64 logical_block_start, physical_block_start;
-		struct btrfs_block_group_cache *bg;
+		struct btrfs_block_group *bg;
 		u64 len = isize - start;
 
 		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, start, len, 0);
