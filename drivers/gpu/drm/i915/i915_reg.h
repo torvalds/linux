@@ -413,6 +413,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GEN11_VECS_SFC_USAGE(engine)		_MMIO((engine)->mmio_base + 0x2014)
 #define   GEN11_VECS_SFC_USAGE_BIT		(1 << 0)
 
+#define GEN12_SFC_DONE(n)		_MMIO(0x1cc00 + (n) * 0x100)
+#define GEN12_SFC_DONE_MAX		4
+
 #define RING_PP_DIR_BASE(base)		_MMIO((base) + 0x228)
 #define RING_PP_DIR_BASE_READ(base)	_MMIO((base) + 0x518)
 #define RING_PP_DIR_DCLV(base)		_MMIO((base) + 0x220)
