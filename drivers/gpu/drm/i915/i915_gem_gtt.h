@@ -575,6 +575,11 @@ void i915_ggtt_disable_guc(struct i915_ggtt *ggtt);
 int i915_init_ggtt(struct drm_i915_private *dev_priv);
 void i915_ggtt_driver_release(struct drm_i915_private *dev_priv);
 
+static inline bool i915_ggtt_has_aperture(const struct i915_ggtt *ggtt)
+{
+	return ggtt->mappable_end > 0;
+}
+
 int i915_ppgtt_init_hw(struct intel_gt *gt);
 
 struct i915_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv);
