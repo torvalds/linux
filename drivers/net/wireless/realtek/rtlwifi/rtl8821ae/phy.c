@@ -3548,8 +3548,6 @@ void rtl8821ae_phy_sw_chnl_callback(struct ieee80211_hw *hw)
 			if (rtlhal->hw_type == HARDWARE_TYPE_RTL8821AE) {
 				if (36 <= channel && channel <= 64)
 					data = 0x114E9;
-				else if (100 <= channel && channel <= 140)
-					data = 0x110E9;
 				else
 					data = 0x110E9;
 				rtl8821ae_phy_set_rf_reg(hw, path, RF_APK,
