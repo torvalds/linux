@@ -16,7 +16,6 @@ if INPUT_KEYBOARD
 config KEYBOARD_ADC
 	tristate "ADC Ladder Buttons"
 	depends on IIO
-	select INPUT_POLLDEV
 	help
 	  This driver implements support for buttons connected
 	  to an ADC using a resistor ladder.
