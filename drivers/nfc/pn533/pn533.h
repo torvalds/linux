@@ -43,6 +43,11 @@
 
 /* Preamble (1), SoPC (2), ACK Code (2), Postamble (1) */
 #define PN533_STD_FRAME_ACK_SIZE 6
+/*
+ * Preamble (1), SoPC (2), Packet Length (1), Packet Length Checksum (1),
+ * Specific Application Level Error Code (1) , Postamble (1)
+ */
+#define PN533_STD_ERROR_FRAME_SIZE 8
 #define PN533_STD_FRAME_CHECKSUM(f) (f->data[f->datalen])
 #define PN533_STD_FRAME_POSTAMBLE(f) (f->data[f->datalen + 1])
 /* Half start code (3), LEN (4) should be 0xffff for extended frame */
@@ -84,6 +89,9 @@
 #define PN533_CMD_MI_MASK 0x40
 #define PN533_CMD_RET_SUCCESS 0x00
 
+#define PN533_FRAME_DATALEN_ACK 0x00
+#define PN533_FRAME_DATALEN_ERROR 0x01
+#define PN533_FRAME_DATALEN_EXTENDED 0xFF
 
 enum  pn533_protocol_type {
 	PN533_PROTO_REQ_ACK_RESP = 0,
