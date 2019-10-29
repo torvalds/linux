@@ -5784,7 +5784,7 @@ static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
 					struct utp_upiu_req *req_upiu,
 					struct utp_upiu_req *rsp_upiu,
 					u8 *desc_buff, int *buff_len,
-					int cmd_type,
+					enum dev_cmd_type cmd_type,
 					enum query_opcode desc_op)
 {
 	struct ufshcd_lrb *lrbp;
@@ -5899,7 +5899,7 @@ int ufshcd_exec_raw_upiu_cmd(struct ufs_hba *hba,
 			     enum query_opcode desc_op)
 {
 	int err;
-	int cmd_type = DEV_CMD_TYPE_QUERY;
+	enum dev_cmd_type cmd_type = DEV_CMD_TYPE_QUERY;
 	struct utp_task_req_desc treq = { { 0 }, };
 	int ocs_value;
 	u8 tm_f = be32_to_cpu(req_upiu->header.dword_1) >> 16 & MASK_TM_FUNC;
