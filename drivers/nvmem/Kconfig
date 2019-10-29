@@ -50,6 +50,7 @@ config NVMEM_IMX_OCOTP
 config NVMEM_IMX_OCOTP_SCU
 	tristate "i.MX8 SCU On-Chip OTP Controller support"
 	depends on IMX_SCU
+	depends on HAVE_ARM_SMCCC
 	help
 	  This is a driver for the SCU On-Chip OTP Controller (OCOTP)
 	  available on i.MX8 SoCs.
