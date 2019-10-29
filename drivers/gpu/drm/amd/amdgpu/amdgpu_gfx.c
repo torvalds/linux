@@ -455,7 +455,7 @@ void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev)
 
 	ring = &adev->gfx.kiq.ring;
 	if (adev->asic_type >= CHIP_NAVI10 && amdgpu_async_gfx_ring)
-		kfree(adev->gfx.me.mqd_backup[AMDGPU_MAX_GFX_RINGS]);
+		kfree(adev->gfx.me.mqd_backup[AMDGPU_MAX_GFX_RINGS - 1]);
 	kfree(adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS]);
 	amdgpu_bo_free_kernel(&ring->mqd_obj,
 			      &ring->mqd_gpu_addr,
