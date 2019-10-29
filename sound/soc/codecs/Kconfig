@@ -150,6 +150,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM5102A
 	imply SND_SOC_PCM512x_I2C
 	imply SND_SOC_PCM512x_SPI
+	imply SND_SOC_RK312X
 	imply SND_SOC_RK3328
 	imply SND_SOC_RK817
 	imply SND_SOC_RT274
@@ -1020,6 +1021,10 @@ config SND_SOC_PCM512x_SPI
 	depends on SPI_MASTER
 	select SND_SOC_PCM512x
 	select REGMAP_SPI
+
+config SND_SOC_RK312X
+	select REGMAP_MMIO
+	tristate "Rockchip RK312X CODEC"
 
 config SND_SOC_RK3328
 	tristate "Rockchip RK3328 audio CODEC"

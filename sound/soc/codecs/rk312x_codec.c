@@ -1425,7 +1425,7 @@ static int rk312x_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 	struct rk312x_codec_priv *rk312x = rk312x_priv;
 	unsigned int rate = params_rate(params);
 	unsigned int div;
@@ -1534,7 +1534,7 @@ static void rk312x_codec_unpop(struct work_struct *work)
 	rk312x_codec_ctl_gpio(CODEC_SET_SPK, 1);
 }
 
-static int rk312x_digital_mute(struct snd_soc_dai *dai, int mute)
+static int rk312x_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
 
 	if (mute) {
@@ -1922,9 +1922,10 @@ static struct snd_soc_dai_ops rk312x_dai_ops = {
 	.hw_params	= rk312x_hw_params,
 	.set_fmt	= rk312x_set_dai_fmt,
 	.set_sysclk	= rk312x_set_dai_sysclk,
-	.digital_mute	= rk312x_digital_mute,
+	.mute_stream	= rk312x_digital_mute,
 	.startup	= rk312x_startup,
 	.shutdown	= rk312x_shutdown,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver rk312x_dai[] = {
@@ -2067,7 +2068,7 @@ static int rk312x_resume(struct snd_soc_component *component)
 	if (rk312x_priv->codec_hp_det) {
 		/* enable hp det interrupt */
 		snd_soc_component_write(component, RK312x_DAC_CTL, 0x08);
-		snd_soc_component_read(component, RK312x_DAC_CTL, &val);
+		val = snd_soc_component_read(component, RK312x_DAC_CTL);
 		printk("0xa0 -- 0x%x\n", val);
 		regmap_read(rk312x_priv->grf, GRF_ACODEC_CON, &val);
 		regmap_write(rk312x_priv->grf, GRF_ACODEC_CON, 0x1f001f);
@@ -2156,7 +2157,7 @@ static void rk312x_delay_workq(struct work_struct *work)
 		DBG("GRF_ACODEC_CON 3334is 0x%x\n", val);
 		/* enable rk 3128 codec_hp_det */
 		snd_soc_component_write(component, RK312x_DAC_CTL, 0x08);
-		snd_soc_component_read(component, RK312x_DAC_CTL, &val);
+		val = snd_soc_component_read(component, RK312x_DAC_CTL);
 		DBG("0xa0 -- 0x%x\n", val);
 		/* codec hp det once */
 		schedule_delayed_work(&rk312x_priv->hpdet_work, msecs_to_jiffies(100));
@@ -2187,7 +2188,7 @@ static int rk312x_probe(struct snd_soc_component *component)
 		goto err__;
 	}
 
-	snd_soc_component_read(component, RK312x_RESET, &val);
+	val = snd_soc_component_read(component, RK312x_RESET);
 
 	if (val != rk312x_reg_defaults[RK312x_RESET]) {
 		DBG("%s : codec register 0: %x is not a 0x00000003\n",
