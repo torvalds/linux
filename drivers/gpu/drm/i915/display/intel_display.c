@@ -11328,7 +11328,6 @@ static int intel_modeset_disable_planes(struct drm_atomic_state *state,
 }
 
 int intel_get_load_detect_pipe(struct drm_connector *connector,
-			       const struct drm_display_mode *mode,
 			       struct intel_load_detect_pipe *old,
 			       struct drm_modeset_acquire_ctx *ctx)
 {
@@ -11435,10 +11434,8 @@ found:
 
 	crtc_state->base.active = crtc_state->base.enable = true;
 
-	if (!mode)
-		mode = &load_detect_mode;
-
-	ret = drm_atomic_set_mode_for_crtc(&crtc_state->base, mode);
+	ret = drm_atomic_set_mode_for_crtc(&crtc_state->base,
+					   &load_detect_mode);
 	if (ret)
 		goto fail;
 

@@ -1701,7 +1701,7 @@ intel_tv_detect(struct drm_connector *connector,
 		struct intel_load_detect_pipe tmp;
 		int ret;
 
-		ret = intel_get_load_detect_pipe(connector, NULL, &tmp, ctx);
+		ret = intel_get_load_detect_pipe(connector, &tmp, ctx);
 		if (ret < 0)
 			return ret;
 
