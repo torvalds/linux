@@ -438,10 +438,37 @@ static void context_close(struct i915_gem_context *ctx)
 	 * case we opt to forcibly kill off all remaining requests on
 	 * context close.
 	 */
-	if (!i915_modparams.enable_hangcheck)
+	if (!i915_gem_context_is_persistent(ctx) ||
+	    !i915_modparams.enable_hangcheck)
 		kill_context(ctx);
 
 	i915_gem_context_put(ctx);
+}
+
+static int __context_set_persistence(struct i915_gem_context *ctx, bool state)
+{
+	if (i915_gem_context_is_persistent(ctx) == state)
+		return 0;
+
+	if (state) {
+		/*
+		 * Only contexts that are short-lived [that will expire or be
+		 * reset] are allowed to survive past termination. We require
+		 * hangcheck to ensure that the persistent requests are healthy.
+		 */
+		if (!i915_modparams.enable_hangcheck)
+			return -EINVAL;
+
+		i915_gem_context_set_persistence(ctx);
+	} else {
+		/* To cancel a context we use "preempt-to-idle" */
+		if (!(ctx->i915->caps.scheduler & I915_SCHEDULER_CAP_PREEMPTION))
+			return -ENODEV;
+
+		i915_gem_context_clear_persistence(ctx);
+	}
+
+	return 0;
 }
 
 static struct i915_gem_context *
@@ -478,6 +505,7 @@ __create_context(struct drm_i915_private *i915)
 
 	i915_gem_context_set_bannable(ctx);
 	i915_gem_context_set_recoverable(ctx);
+	__context_set_persistence(ctx, true /* cgroup hook? */);
 
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
@@ -634,6 +662,7 @@ i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
 		return ctx;
 
 	i915_gem_context_clear_bannable(ctx);
+	i915_gem_context_set_persistence(ctx);
 	ctx->sched.priority = I915_USER_PRIORITY(prio);
 
 	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
@@ -1744,6 +1773,16 @@ err_free:
 	return err;
 }
 
+static int
+set_persistence(struct i915_gem_context *ctx,
+		const struct drm_i915_gem_context_param *args)
+{
+	if (args->size)
+		return -EINVAL;
+
+	return __context_set_persistence(ctx, args->value);
+}
+
 static int ctx_setparam(struct drm_i915_file_private *fpriv,
 			struct i915_gem_context *ctx,
 			struct drm_i915_gem_context_param *args)
@@ -1819,6 +1858,10 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 
 	case I915_CONTEXT_PARAM_ENGINES:
 		ret = set_engines(ctx, args);
+		break;
+
+	case I915_CONTEXT_PARAM_PERSISTENCE:
+		ret = set_persistence(ctx, args);
 		break;
 
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
@@ -2271,6 +2314,11 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 
 	case I915_CONTEXT_PARAM_ENGINES:
 		ret = get_engines(ctx, args);
+		break;
+
+	case I915_CONTEXT_PARAM_PERSISTENCE:
+		args->size = 0;
+		args->value = i915_gem_context_is_persistent(ctx);
 		break;
 
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
