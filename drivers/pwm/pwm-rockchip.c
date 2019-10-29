@@ -52,6 +52,7 @@ struct rockchip_pwm_data {
 	bool supports_lock;
 	bool vop_pwm;
 	u32 enable_conf;
+	u32 enable_conf_mask;
 };
 
 static inline struct rockchip_pwm_chip *to_rockchip_pwm_chip(struct pwm_chip *c)
@@ -175,6 +176,7 @@ static int rockchip_pwm_enable(struct pwm_chip *chip,
 	}
 
 	val = readl_relaxed(pc->base + pc->data->regs.ctrl);
+	val &= ~pc->data->enable_conf_mask;
 
 	if (enable)
 		val |= enable_conf;
@@ -245,6 +247,7 @@ static const struct rockchip_pwm_data pwm_data_v1 = {
 	.supports_lock = false,
 	.vop_pwm = false,
 	.enable_conf = PWM_CTRL_OUTPUT_EN | PWM_CTRL_TIMER_EN,
+	.enable_conf_mask = BIT(1) | BIT(3),
 };
 
 static const struct rockchip_pwm_data pwm_data_v2 = {
@@ -260,6 +263,7 @@ static const struct rockchip_pwm_data pwm_data_v2 = {
 	.vop_pwm = false,
 	.enable_conf = PWM_OUTPUT_LEFT | PWM_LP_DISABLE | PWM_ENABLE |
 		       PWM_CONTINUOUS,
+	.enable_conf_mask = GENMASK(2, 0) | BIT(5) | BIT(8),
 };
 
 static const struct rockchip_pwm_data pwm_data_vop = {
@@ -275,6 +279,7 @@ static const struct rockchip_pwm_data pwm_data_vop = {
 	.vop_pwm = true,
 	.enable_conf = PWM_OUTPUT_LEFT | PWM_LP_DISABLE | PWM_ENABLE |
 		       PWM_CONTINUOUS,
+	.enable_conf_mask = GENMASK(2, 0) | BIT(5) | BIT(8),
 };
 
 static const struct rockchip_pwm_data pwm_data_v3 = {
@@ -290,6 +295,7 @@ static const struct rockchip_pwm_data pwm_data_v3 = {
 	.vop_pwm = false,
 	.enable_conf = PWM_OUTPUT_LEFT | PWM_LP_DISABLE | PWM_ENABLE |
 		       PWM_CONTINUOUS,
+	.enable_conf_mask = GENMASK(2, 0) | BIT(5) | BIT(8),
 };
 
 static const struct of_device_id rockchip_pwm_dt_ids[] = {
