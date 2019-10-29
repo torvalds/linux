@@ -675,7 +675,6 @@ int ocrdma_pma_counters(struct ocrdma_dev *dev,
 {
 	struct ib_pma_portcounters *pma_cnt;
 
-	memset(out_mad->data, 0, sizeof out_mad->data);
 	pma_cnt = (void *)(out_mad->data + 40);
 	ocrdma_update_stats(dev);
 

@@ -2098,8 +2098,6 @@ static int cc_get_classportinfo(struct ib_cc_mad *ccp,
 	struct ib_cc_classportinfo_attr *p =
 		(struct ib_cc_classportinfo_attr *)ccp->mgmt_data;
 
-	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
-
 	p->base_version = 1;
 	p->class_version = 1;
 	p->cap_mask = 0;
@@ -2120,8 +2118,6 @@ static int cc_get_congestion_info(struct ib_cc_mad *ccp,
 	struct qib_ibport *ibp = to_iport(ibdev, port);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 
-	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
-
 	p->congestion_info = 0;
 	p->control_table_cap = ppd->cc_max_table_entries;
 
@@ -2137,8 +2133,6 @@ static int cc_get_congestion_setting(struct ib_cc_mad *ccp,
 	struct qib_ibport *ibp = to_iport(ibdev, port);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	struct ib_cc_congestion_entry_shadow *entries;
-
-	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
 
 	spin_lock(&ppd->cc_shadow_lock);
 
@@ -2175,8 +2169,6 @@ static int cc_get_congestion_control_table(struct ib_cc_mad *ccp,
 	/* Is the table index more than what is supported? */
 	if (cct_block_index > IB_CC_TABLE_CAP_DEFAULT - 1)
 		goto bail;
-
-	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
 
 	spin_lock(&ppd->cc_shadow_lock);
 
