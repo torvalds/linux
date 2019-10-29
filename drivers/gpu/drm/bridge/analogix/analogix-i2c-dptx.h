@@ -242,4 +242,7 @@
 /* DP AUX Buffer Data Registers */
 #define SP_DP_BUF_DATA0_REG		0xf0
 
+ssize_t anx_dp_aux_transfer(struct regmap *map_dptx,
+				struct drm_dp_aux_msg *msg);
+
 #endif
