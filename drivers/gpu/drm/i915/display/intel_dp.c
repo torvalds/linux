@@ -1179,18 +1179,20 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	i915_reg_t ch_ctl = intel_dp->aux_ch_ctl_reg(intel_dp);
+	const unsigned int timeout_ms = 10;
 	u32 status;
 	bool done;
 
 #define C (((status = intel_uncore_read_notrace(&i915->uncore, ch_ctl)) & DP_AUX_CH_CTL_SEND_BUSY) == 0)
 	done = wait_event_timeout(i915->gmbus_wait_queue, C,
-				  msecs_to_jiffies_timeout(10));
+				  msecs_to_jiffies_timeout(timeout_ms));
 
 	/* just trace the final value */
 	trace_i915_reg_rw(false, ch_ctl, status, sizeof(status), true);
 
 	if (!done)
-		DRM_ERROR("dp aux hw did not signal timeout!\n");
+		DRM_ERROR("%s did not complete or timeout within %ums (status 0x%08x)\n",
+			  intel_dp->aux.name, timeout_ms, status);
 #undef C
 
 	return status;
