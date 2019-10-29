@@ -40,6 +40,7 @@
 #include "display/intel_overlay.h"
 
 #include "gem/i915_gem_context.h"
+#include "gem/i915_gem_lmem.h"
 
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
@@ -235,6 +236,7 @@ struct compress {
 	struct pagevec pool;
 	struct z_stream_s zstream;
 	void *tmp;
+	bool wc;
 };
 
 static bool compress_init(struct compress *c)
@@ -292,7 +294,7 @@ static int compress_page(struct compress *c,
 	struct z_stream_s *zstream = &c->zstream;
 
 	zstream->next_in = src;
-	if (c->tmp && i915_memcpy_from_wc(c->tmp, src, PAGE_SIZE))
+	if (c->wc && c->tmp && i915_memcpy_from_wc(c->tmp, src, PAGE_SIZE))
 		zstream->next_in = c->tmp;
 	zstream->avail_in = PAGE_SIZE;
 
@@ -367,6 +369,7 @@ static void err_compression_marker(struct drm_i915_error_state_buf *m)
 
 struct compress {
 	struct pagevec pool;
+	bool wc;
 };
 
 static bool compress_init(struct compress *c)
@@ -389,7 +392,7 @@ static int compress_page(struct compress *c,
 	if (!ptr)
 		return -ENOMEM;
 
-	if (!i915_memcpy_from_wc(ptr, src, PAGE_SIZE))
+	if (!(c->wc && i915_memcpy_from_wc(ptr, src, PAGE_SIZE)))
 		memcpy(ptr, src, PAGE_SIZE);
 	dst->pages[dst->page_count++] = ptr;
 
@@ -966,7 +969,6 @@ i915_error_object_create(struct drm_i915_private *i915,
 	struct drm_i915_error_object *dst;
 	unsigned long num_pages;
 	struct sgt_iter iter;
-	dma_addr_t dma;
 	int ret;
 
 	might_sleep();
@@ -992,17 +994,54 @@ i915_error_object_create(struct drm_i915_private *i915,
 	dst->page_count = 0;
 	dst->unused = 0;
 
+	compress->wc = i915_gem_object_is_lmem(vma->obj) ||
+		       drm_mm_node_allocated(&ggtt->error_capture);
+
 	ret = -EINVAL;
-	for_each_sgt_daddr(dma, iter, vma->pages) {
+	if (drm_mm_node_allocated(&ggtt->error_capture)) {
 		void __iomem *s;
+		dma_addr_t dma;
 
-		ggtt->vm.insert_page(&ggtt->vm, dma, slot, I915_CACHE_NONE, 0);
+		for_each_sgt_daddr(dma, iter, vma->pages) {
+			ggtt->vm.insert_page(&ggtt->vm, dma, slot,
+					     I915_CACHE_NONE, 0);
 
-		s = io_mapping_map_wc(&ggtt->iomap, slot, PAGE_SIZE);
-		ret = compress_page(compress, (void  __force *)s, dst);
-		io_mapping_unmap(s);
-		if (ret)
-			break;
+			s = io_mapping_map_wc(&ggtt->iomap, slot, PAGE_SIZE);
+			ret = compress_page(compress, (void  __force *)s, dst);
+			io_mapping_unmap(s);
+			if (ret)
+				break;
+		}
+	} else if (i915_gem_object_is_lmem(vma->obj)) {
+		struct intel_memory_region *mem = vma->obj->mm.region;
+		dma_addr_t dma;
+
+		for_each_sgt_daddr(dma, iter, vma->pages) {
+			void __iomem *s;
+
+			s = io_mapping_map_atomic_wc(&mem->iomap, dma);
+			ret = compress_page(compress, (void __force *)s, dst);
+			io_mapping_unmap_atomic(s);
+			if (ret)
+				break;
+		}
+	} else {
+		struct page *page;
+
+		for_each_sgt_page(page, iter, vma->pages) {
+			void *s;
+
+			drm_clflush_pages(&page, 1);
+
+			s = kmap_atomic(page);
+			ret = compress_page(compress, s, dst);
+			kunmap_atomic(s);
+
+			drm_clflush_pages(&page, 1);
+
+			if (ret)
+				break;
+		}
 	}
 
 	if (ret || compress_flush(compress, dst)) {
@@ -1657,9 +1696,12 @@ static void capture_params(struct i915_gpu_state *error)
 static void capture_finish(struct i915_gpu_state *error)
 {
 	struct i915_ggtt *ggtt = &error->i915->ggtt;
-	const u64 slot = ggtt->error_capture.start;
 
-	ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
+	if (drm_mm_node_allocated(&ggtt->error_capture)) {
+		const u64 slot = ggtt->error_capture.start;
+
+		ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
+	}
 }
 
 #define DAY_AS_SECONDS(x) (24 * 60 * 60 * (x))

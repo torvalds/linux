@@ -2661,7 +2661,8 @@ static void ggtt_release_guc_top(struct i915_ggtt *ggtt)
 static void cleanup_init_ggtt(struct i915_ggtt *ggtt)
 {
 	ggtt_release_guc_top(ggtt);
-	drm_mm_remove_node(&ggtt->error_capture);
+	if (drm_mm_node_allocated(&ggtt->error_capture))
+		drm_mm_remove_node(&ggtt->error_capture);
 }
 
 static int init_ggtt(struct i915_ggtt *ggtt)
@@ -2692,13 +2693,15 @@ static int init_ggtt(struct i915_ggtt *ggtt)
 	if (ret)
 		return ret;
 
-	/* Reserve a mappable slot for our lockless error capture */
-	ret = drm_mm_insert_node_in_range(&ggtt->vm.mm, &ggtt->error_capture,
-					  PAGE_SIZE, 0, I915_COLOR_UNEVICTABLE,
-					  0, ggtt->mappable_end,
-					  DRM_MM_INSERT_LOW);
-	if (ret)
-		return ret;
+	if (ggtt->mappable_end) {
+		/* Reserve a mappable slot for our lockless error capture */
+		ret = drm_mm_insert_node_in_range(&ggtt->vm.mm, &ggtt->error_capture,
+						  PAGE_SIZE, 0, I915_COLOR_UNEVICTABLE,
+						  0, ggtt->mappable_end,
+						  DRM_MM_INSERT_LOW);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * The upper portion of the GuC address space has a sizeable hole
