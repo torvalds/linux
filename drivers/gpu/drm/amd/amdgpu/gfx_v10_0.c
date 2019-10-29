@@ -3106,6 +3106,7 @@ static int gfx_v10_0_gfx_init_queue(struct amdgpu_ring *ring)
 			memcpy(mqd, adev->gfx.me.mqd_backup[AMDGPU_MAX_GFX_RINGS], sizeof(*mqd));
 		/* reset the ring */
 		ring->wptr = 0;
+		adev->wb.wb[ring->wptr_offs] = 0;
 		amdgpu_ring_clear_ring(ring);
 #ifdef BRING_UP_DEBUG
 		mutex_lock(&adev->srbm_mutex);
