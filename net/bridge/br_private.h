@@ -177,6 +177,7 @@ enum {
 	BR_FDB_LOCAL,
 	BR_FDB_STATIC,
 	BR_FDB_STICKY,
+	BR_FDB_ADDED_BY_USER,
 };
 
 struct net_bridge_fdb_key {
@@ -191,8 +192,7 @@ struct net_bridge_fdb_entry {
 	struct net_bridge_fdb_key	key;
 	struct hlist_node		fdb_node;
 	unsigned long			flags;
-	unsigned char			added_by_user:1,
-					added_by_external_learn:1,
+	unsigned char			added_by_external_learn:1,
 					offloaded:1;
 
 	/* write-heavy members should not affect lookups */
