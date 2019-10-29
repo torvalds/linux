@@ -1713,10 +1713,14 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
     * - __u8
       - ``scaling_list_4x4[6][16]``
-      -
+      - Scaling matrix after applying the inverse scanning process.
+        Expected list order is Intra Y, Intra Cb, Intra Cr, Inter Y,
+        Inter Cb, Inter Cr.
     * - __u8
       - ``scaling_list_8x8[6][64]``
-      -
+      - Scaling matrix after applying the inverse scanning process.
+        Expected list order is Intra Y, Inter Y, Intra Cb, Inter Cb,
+        Intra Cr, Inter Cr.
 
 ``V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS (struct)``
     Specifies the slice parameters (as extracted from the bitstream)
