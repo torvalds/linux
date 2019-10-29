@@ -41,7 +41,6 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct imx7ulp_wdt_device {
-	struct notifier_block restart_handler;
 	struct watchdog_device wdd;
 	void __iomem *base;
 	struct clk *clk;
