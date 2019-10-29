@@ -22,6 +22,7 @@
 #endif
 
 #define EMITS_PT_NOTE
+#define RO_EXCEPTION_TABLE_ALIGN	16
 
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/asm-offsets.h>
@@ -144,8 +145,6 @@ SECTIONS
 		__indirect_thunk_end = .;
 #endif
 	} :text = 0x9090
-
-	EXCEPTION_TABLE(16)
 
 	/* End of text section, which should occupy whole number of pages */
 	_etext = .;
