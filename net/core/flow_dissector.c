@@ -234,6 +234,25 @@ __be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
 }
 EXPORT_SYMBOL(__skb_flow_get_ports);
 
+/* If FLOW_DISSECTOR_KEY_ICMP is set, get the Type and Code from an ICMP packet
+ * using skb_flow_get_be16().
+ */
+static void __skb_flow_dissect_icmp(const struct sk_buff *skb,
+				    struct flow_dissector *flow_dissector,
+				    void *target_container,
+				    void *data, int thoff, int hlen)
+{
+	struct flow_dissector_key_icmp *key_icmp;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_ICMP))
+		return;
+
+	key_icmp = skb_flow_dissector_target(flow_dissector,
+					     FLOW_DISSECTOR_KEY_ICMP,
+					     target_container);
+	key_icmp->icmp = skb_flow_get_be16(skb, thoff, data, hlen);
+}
+
 void skb_flow_dissect_meta(const struct sk_buff *skb,
 			   struct flow_dissector *flow_dissector,
 			   void *target_container)
@@ -884,7 +903,6 @@ bool __skb_flow_dissect(const struct net *net,
 	struct flow_dissector_key_basic *key_basic;
 	struct flow_dissector_key_addrs *key_addrs;
 	struct flow_dissector_key_ports *key_ports;
-	struct flow_dissector_key_icmp *key_icmp;
 	struct flow_dissector_key_tags *key_tags;
 	struct flow_dissector_key_vlan *key_vlan;
 	struct bpf_prog *attached = NULL;
@@ -1329,6 +1347,12 @@ ip_proto_again:
 				       data, nhoff, hlen);
 		break;
 
+	case IPPROTO_ICMP:
+	case IPPROTO_ICMPV6:
+		__skb_flow_dissect_icmp(skb, flow_dissector, target_container,
+					data, nhoff, hlen);
+		break;
+
 	default:
 		break;
 	}
@@ -1340,14 +1364,6 @@ ip_proto_again:
 						      target_container);
 		key_ports->ports = __skb_flow_get_ports(skb, nhoff, ip_proto,
 							data, hlen);
-	}
-
-	if (dissector_uses_key(flow_dissector,
-			       FLOW_DISSECTOR_KEY_ICMP)) {
-		key_icmp = skb_flow_dissector_target(flow_dissector,
-						     FLOW_DISSECTOR_KEY_ICMP,
-						     target_container);
-		key_icmp->icmp = skb_flow_get_be16(skb, nhoff, data, hlen);
 	}
 
 	/* Process result of IP proto processing */
