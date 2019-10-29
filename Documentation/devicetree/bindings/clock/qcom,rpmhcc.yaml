@@ -17,6 +17,7 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,sc7180-rpmh-clk
       - qcom,sdm845-rpmh-clk
       - qcom,sm8150-rpmh-clk
 
