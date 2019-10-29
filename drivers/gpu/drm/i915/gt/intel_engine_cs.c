@@ -315,6 +315,8 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 		CONFIG_DRM_I915_PREEMPT_TIMEOUT;
 	engine->props.stop_timeout_ms =
 		CONFIG_DRM_I915_STOP_TIMEOUT;
+	engine->props.timeslice_duration_ms =
+		CONFIG_DRM_I915_TIMESLICE_DURATION;
 
 	/*
 	 * To be overridden by the backend on setup. However to facilitate

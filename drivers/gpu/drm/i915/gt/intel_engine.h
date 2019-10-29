@@ -329,10 +329,19 @@ void intel_engine_init_active(struct intel_engine_cs *engine,
 static inline bool
 intel_engine_has_preempt_reset(const struct intel_engine_cs *engine)
 {
-	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
-		return 0;
+	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
+		return false;
 
 	return intel_engine_has_preemption(engine);
+}
+
+static inline bool
+intel_engine_has_timeslices(const struct intel_engine_cs *engine)
+{
+	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+		return false;
+
+	return intel_engine_has_semaphores(engine);
 }
 
 #endif /* _INTEL_RINGBUFFER_H_ */

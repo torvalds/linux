@@ -1467,7 +1467,7 @@ need_timeslice(struct intel_engine_cs *engine, const struct i915_request *rq)
 {
 	int hint;
 
-	if (!intel_engine_has_semaphores(engine))
+	if (!intel_engine_has_timeslices(engine))
 		return false;
 
 	if (list_is_last(&rq->sched.link, &engine->active.requests))
@@ -1488,15 +1488,32 @@ switch_prio(struct intel_engine_cs *engine, const struct i915_request *rq)
 	return rq_prio(list_next_entry(rq, sched.link));
 }
 
-static bool
-enable_timeslice(const struct intel_engine_execlists *execlists)
+static inline unsigned long
+timeslice(const struct intel_engine_cs *engine)
 {
-	const struct i915_request *rq = *execlists->active;
+	return READ_ONCE(engine->props.timeslice_duration_ms);
+}
+
+static unsigned long
+active_timeslice(const struct intel_engine_cs *engine)
+{
+	const struct i915_request *rq = *engine->execlists.active;
 
 	if (i915_request_completed(rq))
-		return false;
+		return 0;
 
-	return execlists->switch_priority_hint >= effective_prio(rq);
+	if (engine->execlists.switch_priority_hint < effective_prio(rq))
+		return 0;
+
+	return timeslice(engine);
+}
+
+static void set_timeslice(struct intel_engine_cs *engine)
+{
+	if (!intel_engine_has_timeslices(engine))
+		return;
+
+	set_timer_ms(&engine->execlists.timer, active_timeslice(engine));
 }
 
 static void record_preemption(struct intel_engine_execlists *execlists)
@@ -1667,8 +1684,9 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				 */
 				if (!execlists->timer.expires &&
 				    need_timeslice(engine, last))
-					mod_timer(&execlists->timer,
-						  jiffies + 1);
+					set_timer_ms(&execlists->timer,
+						     timeslice(engine));
+
 				return;
 			}
 
@@ -2092,10 +2110,7 @@ static void process_csb(struct intel_engine_cs *engine)
 				       execlists_num_ports(execlists) *
 				       sizeof(*execlists->pending));
 
-			if (enable_timeslice(execlists))
-				mod_timer(&execlists->timer, jiffies + 1);
-			else
-				cancel_timer(&execlists->timer);
+			set_timeslice(engine);
 
 			WRITE_ONCE(execlists->pending[0], NULL);
 		} else {

@@ -523,6 +523,7 @@ struct intel_engine_cs {
 		unsigned long heartbeat_interval_ms;
 		unsigned long preempt_timeout_ms;
 		unsigned long stop_timeout_ms;
+		unsigned long timeslice_duration_ms;
 	} props;
 };
 

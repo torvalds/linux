@@ -440,6 +440,8 @@ static int live_timeslice_preempt(void *arg)
 	 * need to preempt the current task and replace it with another
 	 * ready task.
 	 */
+	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+		return 0;
 
 	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
 	if (IS_ERR(obj))
@@ -514,6 +516,11 @@ static void wait_for_submit(struct intel_engine_cs *engine,
 	} while (!i915_request_is_active(rq));
 }
 
+static long timeslice_threshold(const struct intel_engine_cs *engine)
+{
+	return 2 * msecs_to_jiffies_timeout(timeslice(engine)) + 1;
+}
+
 static int live_timeslice_queue(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -531,6 +538,8 @@ static int live_timeslice_queue(void *arg)
 	 * ELSP[1] is already occupied, so must rely on timeslicing to
 	 * eject ELSP[0] in favour of the queue.)
 	 */
+	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+		return 0;
 
 	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
 	if (IS_ERR(obj))
@@ -608,8 +617,8 @@ static int live_timeslice_queue(void *arg)
 			err = -EINVAL;
 		}
 
-		/* Timeslice every jiffie, so within 2 we should signal */
-		if (i915_request_wait(rq, 0, 3) < 0) {
+		/* Timeslice every jiffy, so within 2 we should signal */
+		if (i915_request_wait(rq, 0, timeslice_threshold(engine)) < 0) {
 			struct drm_printer p =
 				drm_info_printer(gt->i915->drm.dev);
 
@@ -1383,7 +1392,7 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 	int err;
 
 	/* Preempt cancel non-preemptible spinner in ELSP0 */
-	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
+	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
 		return 0;
 
 	GEM_TRACE("%s(%s)\n", __func__, arg->engine->name);
@@ -2030,7 +2039,7 @@ static int live_preempt_timeout(void *arg)
 	 * Check that we force preemption to occur by cancelling the previous
 	 * context if it refuses to yield the GPU.
 	 */
-	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
+	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
 		return 0;
 
 	if (!HAS_LOGICAL_RING_PREEMPTION(gt->i915))
