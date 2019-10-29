@@ -73,14 +73,19 @@ static void rt715_get_gain(struct rt715_priv *rt715, unsigned int addr_h,
 				unsigned int addr_l, unsigned int val_h,
 				unsigned int *r_val, unsigned int *l_val)
 {
+	int ret;
 	/* R Channel */
 	*r_val = (val_h << 8);
-	regmap_read(rt715->regmap, addr_l, r_val);
+	ret = regmap_read(rt715->regmap, addr_l, r_val);
+	if (ret < 0)
+		pr_err("Failed to get R channel gain.\n");
 
 	/* L Channel */
 	val_h |= 0x20;
 	*l_val = (val_h << 8);
-	regmap_read(rt715->regmap, addr_h, l_val);
+	ret = regmap_read(rt715->regmap, addr_h, l_val);
+	if (ret < 0)
+		pr_err("Failed to get L channel gain.\n");
 }
 
 /* For Verb-Set Amplifier Gain (Verb ID = 3h) */
@@ -299,7 +304,8 @@ static int rt715_mux_get(struct snd_kcontrol *kcontrol,
 		snd_soc_dapm_kcontrol_component(kcontrol);
 	struct rt715_priv *rt715 = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int reg, val, ret;
+	unsigned int reg, val;
+	int ret;
 
 	/* nid = e->reg, vid = 0xf01 */
 	reg = RT715_VERB_SET_CONNECT_SEL | e->reg;
@@ -332,7 +338,8 @@ static int rt715_mux_put(struct snd_kcontrol *kcontrol,
 	struct rt715_priv *rt715 = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int *item = ucontrol->value.enumerated.item;
-	unsigned int val, val2 = 0, change, reg, ret;
+	unsigned int val, val2 = 0, change, reg;
+	int ret;
 
 	if (item[0] >= e->items)
 		return -EINVAL;
