@@ -59,6 +59,7 @@
 #include <net/netns/generic.h>
 #include <linux/rhashtable.h>
 #include <net/genetlink.h>
+#include <net/netns/hash.h>
 
 struct tipc_node;
 struct tipc_bearer;
@@ -183,6 +184,11 @@ static inline int less(u16 left, u16 right)
 static inline int in_range(u16 val, u16 min, u16 max)
 {
 	return !less(val, min) && !more(val, max);
+}
+
+static inline u32 tipc_net_hash_mixes(struct net *net, int tn_rand)
+{
+	return net_hash_mix(&init_net) ^ net_hash_mix(net) ^ tn_rand;
 }
 
 #ifdef CONFIG_SYSCTL
