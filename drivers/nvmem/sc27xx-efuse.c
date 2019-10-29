@@ -211,7 +211,7 @@ static int sc27xx_efuse_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	efuse->hwlock = hwspin_lock_request_specific(ret);
+	efuse->hwlock = devm_hwspin_lock_request_specific(&pdev->dev, ret);
 	if (!efuse->hwlock) {
 		dev_err(&pdev->dev, "failed to request hwspinlock\n");
 		return -ENXIO;
@@ -219,7 +219,6 @@ static int sc27xx_efuse_probe(struct platform_device *pdev)
 
 	mutex_init(&efuse->mutex);
 	efuse->dev = &pdev->dev;
-	platform_set_drvdata(pdev, efuse);
 
 	econfig.stride = 1;
 	econfig.word_size = 1;
@@ -232,18 +231,9 @@ static int sc27xx_efuse_probe(struct platform_device *pdev)
 	nvmem = devm_nvmem_register(&pdev->dev, &econfig);
 	if (IS_ERR(nvmem)) {
 		dev_err(&pdev->dev, "failed to register nvmem config\n");
-		hwspin_lock_free(efuse->hwlock);
 		return PTR_ERR(nvmem);
 	}
 
-	return 0;
-}
-
-static int sc27xx_efuse_remove(struct platform_device *pdev)
-{
-	struct sc27xx_efuse *efuse = platform_get_drvdata(pdev);
-
-	hwspin_lock_free(efuse->hwlock);
 	return 0;
 }
 
@@ -254,7 +244,6 @@ static const struct of_device_id sc27xx_efuse_of_match[] = {
 
 static struct platform_driver sc27xx_efuse_driver = {
 	.probe = sc27xx_efuse_probe,
-	.remove = sc27xx_efuse_remove,
 	.driver = {
 		.name = "sc27xx-efuse",
 		.of_match_table = sc27xx_efuse_of_match,
