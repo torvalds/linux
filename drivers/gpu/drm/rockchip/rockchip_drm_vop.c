@@ -1788,7 +1788,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		val = SRC_ALPHA_EN(1) | SRC_COLOR_M0(ALPHA_SRC_PRE_MUL) |
 			SRC_ALPHA_M0(ALPHA_STRAIGHT) |
 			SRC_BLEND_M0(src_bland_m0) |
-			SRC_ALPHA_CAL_M0(ALPHA_NO_SATURATION) |
+			SRC_ALPHA_CAL_M0(ALPHA_SATURATION) |
 			SRC_FACTOR_M0(global_alpha_en ?
 				      ALPHA_SRC_GLOBAL : ALPHA_ONE);
 		VOP_WIN_SET(vop, win, src_alpha_ctl, val);
