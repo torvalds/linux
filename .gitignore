@@ -32,7 +32,6 @@
 *.lzo
 *.mod
 *.mod.c
-*.ns_deps
 *.o
 *.o.*
 *.patch
@@ -61,6 +60,7 @@ modules.order
 /System.map
 /Module.markers
 /modules.builtin.modinfo
+/modules.nsdeps
 
 #
 # RPM spec file (make rpm-pkg)
