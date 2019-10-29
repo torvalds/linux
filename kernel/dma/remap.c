@@ -259,10 +259,4 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 		dma_free_contiguous(dev, page, size);
 	}
 }
-
-long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
-		dma_addr_t dma_addr)
-{
-	return __phys_to_pfn(dma_to_phys(dev, dma_addr));
-}
 #endif /* CONFIG_DMA_DIRECT_REMAP */

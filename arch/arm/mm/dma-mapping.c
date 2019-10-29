@@ -2346,12 +2346,6 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 			      size, dir);
 }
 
-long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
-		dma_addr_t dma_addr)
-{
-	return dma_to_pfn(dev, dma_addr);
-}
-
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp, unsigned long attrs)
 {
