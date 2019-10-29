@@ -26,6 +26,8 @@
 #include "dm_services.h"
 #include "dc.h"
 
+#include "dcn21_init.h"
+
 #include "resource.h"
 #include "include/irq_service_interface.h"
 #include "dcn20/dcn20_resource.h"

@@ -1,5 +1,5 @@
 /*
-* Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,23 +23,11 @@
  *
  */
 
-#ifndef __DC_HWSS_DCN21_H__
-#define __DC_HWSS_DCN21_H__
+#ifndef __DC_DCN10_INIT_H__
+#define __DC_DCN10_INIT_H__
 
 struct dc;
 
-int dcn21_init_sys_ctx(struct dce_hwseq *hws,
-		struct dc *dc,
-		struct dc_phy_addr_space_config *pa_config);
+void dcn10_hw_sequencer_construct(struct dc *dc);
 
-bool dcn21_s0i3_golden_init_wa(struct dc *dc);
-
-void dcn21_exit_optimized_pwr_state(
-		const struct dc *dc,
-		struct dc_state *context);
-
-void dcn21_optimize_pwr_state(
-		const struct dc *dc,
-		struct dc_state *context);
-
-#endif /* __DC_HWSS_DCN21_H__ */
+#endif /* __DC_DCN10_INIT_H__ */

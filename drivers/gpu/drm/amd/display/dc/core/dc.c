@@ -1973,11 +1973,11 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if (stream_update->periodic_interrupt0 &&
 					dc->hwss.setup_periodic_interrupt)
-				dc->hwss.setup_periodic_interrupt(pipe_ctx, VLINE0);
+				dc->hwss.setup_periodic_interrupt(dc, pipe_ctx, VLINE0);
 
 			if (stream_update->periodic_interrupt1 &&
 					dc->hwss.setup_periodic_interrupt)
-				dc->hwss.setup_periodic_interrupt(pipe_ctx, VLINE1);
+				dc->hwss.setup_periodic_interrupt(dc, pipe_ctx, VLINE1);
 
 			if ((stream_update->hdr_static_metadata && !stream->use_dynamic_meta) ||
 					stream_update->vrr_infopacket ||

@@ -28,6 +28,8 @@
 #include "dm_services.h"
 #include "dc.h"
 
+#include "dcn10_init.h"
+
 #include "resource.h"
 #include "include/irq_service_interface.h"
 #include "dcn10_resource.h"

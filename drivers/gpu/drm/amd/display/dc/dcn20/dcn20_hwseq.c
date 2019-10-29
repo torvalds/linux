@@ -25,15 +25,15 @@
 #include <linux/delay.h>
 
 #include "dm_services.h"
+#include "basics/dc_common.h"
 #include "dm_helpers.h"
 #include "core_types.h"
 #include "resource.h"
-#include "dcn20/dcn20_resource.h"
-#include "dce110/dce110_hw_sequencer.h"
-#include "dcn10/dcn10_hw_sequencer.h"
+#include "dcn20_resource.h"
 #include "dcn20_hwseq.h"
 #include "dce/dce_hwseq.h"
-#include "dcn20/dcn20_dsc.h"
+#include "dcn20_dsc.h"
+#include "dcn20_optc.h"
 #include "abm.h"
 #include "clk_mgr.h"
 #include "dmcu.h"
@@ -43,10 +43,9 @@
 #include "ipp.h"
 #include "mpc.h"
 #include "mcif_wb.h"
+#include "dchubbub.h"
 #include "reg_helper.h"
 #include "dcn10/dcn10_cm_common.h"
-#include "dcn10/dcn10_hubbub.h"
-#include "dcn10/dcn10_optc.h"
 #include "dc_link_dp.h"
 #include "vm_helper.h"
 #include "dccg.h"
@@ -62,7 +61,125 @@
 #define FN(reg_name, field_name) \
 	hws->shifts->field_name, hws->masks->field_name
 
-static void dcn20_enable_power_gating_plane(
+static int find_free_gsl_group(const struct dc *dc)
+{
+	if (dc->res_pool->gsl_groups.gsl_0 == 0)
+		return 1;
+	if (dc->res_pool->gsl_groups.gsl_1 == 0)
+		return 2;
+	if (dc->res_pool->gsl_groups.gsl_2 == 0)
+		return 3;
+
+	return 0;
+}
+
+/* NOTE: This is not a generic setup_gsl function (hence the suffix as_lock)
+ * This is only used to lock pipes in pipe splitting case with immediate flip
+ * Ordinary MPC/OTG locks suppress VUPDATE which doesn't help with immediate,
+ * so we get tearing with freesync since we cannot flip multiple pipes
+ * atomically.
+ * We use GSL for this:
+ * - immediate flip: find first available GSL group if not already assigned
+ *                   program gsl with that group, set current OTG as master
+ *                   and always us 0x4 = AND of flip_ready from all pipes
+ * - vsync flip: disable GSL if used
+ *
+ * Groups in stream_res are stored as +1 from HW registers, i.e.
+ * gsl_0 <=> pipe_ctx->stream_res.gsl_group == 1
+ * Using a magic value like -1 would require tracking all inits/resets
+ */
+static void dcn20_setup_gsl_group_as_lock(
+		const struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		bool enable)
+{
+	struct gsl_params gsl;
+	int group_idx;
+
+	memset(&gsl, 0, sizeof(struct gsl_params));
+
+	if (enable) {
+		/* return if group already assigned since GSL was set up
+		 * for vsync flip, we would unassign so it can't be "left over"
+		 */
+		if (pipe_ctx->stream_res.gsl_group > 0)
+			return;
+
+		group_idx = find_free_gsl_group(dc);
+		ASSERT(group_idx != 0);
+		pipe_ctx->stream_res.gsl_group = group_idx;
+
+		/* set gsl group reg field and mark resource used */
+		switch (group_idx) {
+		case 1:
+			gsl.gsl0_en = 1;
+			dc->res_pool->gsl_groups.gsl_0 = 1;
+			break;
+		case 2:
+			gsl.gsl1_en = 1;
+			dc->res_pool->gsl_groups.gsl_1 = 1;
+			break;
+		case 3:
+			gsl.gsl2_en = 1;
+			dc->res_pool->gsl_groups.gsl_2 = 1;
+			break;
+		default:
+			BREAK_TO_DEBUGGER();
+			return; // invalid case
+		}
+		gsl.gsl_master_en = 1;
+	} else {
+		group_idx = pipe_ctx->stream_res.gsl_group;
+		if (group_idx == 0)
+			return; // if not in use, just return
+
+		pipe_ctx->stream_res.gsl_group = 0;
+
+		/* unset gsl group reg field and mark resource free */
+		switch (group_idx) {
+		case 1:
+			gsl.gsl0_en = 0;
+			dc->res_pool->gsl_groups.gsl_0 = 0;
+			break;
+		case 2:
+			gsl.gsl1_en = 0;
+			dc->res_pool->gsl_groups.gsl_1 = 0;
+			break;
+		case 3:
+			gsl.gsl2_en = 0;
+			dc->res_pool->gsl_groups.gsl_2 = 0;
+			break;
+		default:
+			BREAK_TO_DEBUGGER();
+			return;
+		}
+		gsl.gsl_master_en = 0;
+	}
+
+	/* at this point we want to program whether it's to enable or disable */
+	if (pipe_ctx->stream_res.tg->funcs->set_gsl != NULL &&
+		pipe_ctx->stream_res.tg->funcs->set_gsl_source_select != NULL) {
+		pipe_ctx->stream_res.tg->funcs->set_gsl(
+			pipe_ctx->stream_res.tg,
+			&gsl);
+
+		pipe_ctx->stream_res.tg->funcs->set_gsl_source_select(
+			pipe_ctx->stream_res.tg, group_idx,	enable ? 4 : 0);
+	} else
+		BREAK_TO_DEBUGGER();
+}
+
+void dcn20_set_flip_control_gsl(
+		struct pipe_ctx *pipe_ctx,
+		bool flip_immediate)
+{
+	if (pipe_ctx && pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_control_surface_gsl)
+		pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_control_surface_gsl(
+				pipe_ctx->plane_res.hubp, flip_immediate);
+
+}
+
+void dcn20_enable_power_gating_plane(
 	struct dce_hwseq *hws,
 	bool enable)
 {
@@ -126,44 +243,6 @@ void dcn20_dccg_init(struct dce_hwseq *hws)
 	/* This value is dependent on the hardware pipeline delay so set once per SOC */
 	REG_WRITE(DISPCLK_FREQ_CHANGE_CNTL, 0x801003c);
 }
-void dcn20_display_init(struct dc *dc)
-{
-	struct dce_hwseq *hws = dc->hwseq;
-
-	/* RBBMIF
-	 * disable RBBMIF timeout detection for all clients
-	 * Ensure RBBMIF does not drop register accesses due to the per-client timeout
-	 */
-	REG_WRITE(RBBMIF_TIMEOUT_DIS, 0xFFFFFFFF);
-	REG_WRITE(RBBMIF_TIMEOUT_DIS_2, 0xFFFFFFFF);
-
-	/* DCCG */
-	dcn20_dccg_init(hws);
-
-	REG_UPDATE(DC_MEM_GLOBAL_PWR_REQ_CNTL, DC_MEM_GLOBAL_PWR_REQ_DIS, 0);
-
-	/* DCHUB/MMHUBBUB
-	 * set global timer refclk divider
-	 * 100Mhz refclk -> 2
-	 * 27Mhz refclk ->  1
-	 * 48Mhz refclk ->  1
-	 */
-	REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, 2);
-	REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
-	REG_WRITE(REFCLK_CNTL, 0);
-
-	/* OPTC
-	 * OTG_CONTROL.OTG_DISABLE_POINT_CNTL = 0x3; will be set during optc2_enable_crtc
-	 */
-
-	/* AZ
-	 * default value is 0x64 for 100Mhz ref clock, if the ref clock is 100Mhz, no need to program this regiser,
-	 * if not, it should be programmed according to the ref clock
-	 */
-	REG_UPDATE(AZALIA_AUDIO_DTO, AZALIA_AUDIO_DTO_MODULE, 0x64);
-	/* Enable controller clock gating */
-	REG_WRITE(AZALIA_CONTROLLER_CLOCK_GATING, 0x1);
-}
 
 void dcn20_disable_vga(
 	struct dce_hwseq *hws)
@@ -176,15 +255,15 @@ void dcn20_disable_vga(
 	REG_WRITE(D6VGA_CONTROL, 0);
 }
 
-void dcn20_program_tripleBuffer(
+void dcn20_program_triple_buffer(
 	const struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
-	bool enableTripleBuffer)
+	bool enable_triple_buffer)
 {
 	if (pipe_ctx->plane_res.hubp && pipe_ctx->plane_res.hubp->funcs) {
 		pipe_ctx->plane_res.hubp->funcs->hubp_enable_tripleBuffer(
 			pipe_ctx->plane_res.hubp,
-			enableTripleBuffer);
+			enable_triple_buffer);
 	}
 }
 
@@ -240,10 +319,10 @@ void dcn20_init_blank(
 				otg_active_height);
 	}
 
-	dcn20_hwss_wait_for_blank_complete(opp);
+	dc->hwss.wait_for_blank_complete(opp);
 }
 
-static void dcn20_dsc_pg_control(
+void dcn20_dsc_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int dsc_inst,
 		bool power_on)
@@ -320,7 +399,7 @@ static void dcn20_dsc_pg_control(
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
 }
 
-static void dcn20_dpp_pg_control(
+void dcn20_dpp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int dpp_inst,
 		bool power_on)
@@ -394,7 +473,7 @@ static void dcn20_dpp_pg_control(
 }
 
 
-static void dcn20_hubp_pg_control(
+void dcn20_hubp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int hubp_inst,
 		bool power_on)
@@ -471,7 +550,7 @@ static void dcn20_hubp_pg_control(
 /* disable HW used by plane.
  * note:  cannot disable until disconnect is complete
  */
-static void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
@@ -591,7 +670,7 @@ enum dc_status dcn20_enable_stream_timing(
 		return DC_ERROR_UNEXPECTED;
 	}
 
-	dcn20_hwss_wait_for_blank_complete(pipe_ctx->stream_res.opp);
+	dc->hwss.wait_for_blank_complete(pipe_ctx->stream_res.opp);
 
 	params.vertical_total_min = stream->adjust.v_total_min;
 	params.vertical_total_max = stream->adjust.v_total_max;
@@ -647,7 +726,7 @@ void dcn20_program_output_csc(struct dc *dc,
 	}
 }
 
-bool dcn20_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
+bool dcn20_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream)
 {
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
@@ -737,8 +816,9 @@ bool dcn20_set_shaper_3dlut(
 	return result;
 }
 
-bool dcn20_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
-					  const struct dc_plane_state *plane_state)
+bool dcn20_set_input_transfer_func(struct dc *dc,
+				struct pipe_ctx *pipe_ctx,
+				const struct dc_plane_state *plane_state)
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	const struct dc_transfer_func *tf = NULL;
@@ -748,8 +828,8 @@ bool dcn20_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 	if (dpp_base == NULL || plane_state == NULL)
 		return false;
 
-	dcn20_set_shaper_3dlut(pipe_ctx, plane_state);
-	dcn20_set_blend_lut(pipe_ctx, plane_state);
+	dc->hwss.set_shaper_3dlut(pipe_ctx, plane_state);
+	dc->hwss.set_blend_lut(pipe_ctx, plane_state);
 
 	if (plane_state->in_transfer_func)
 		tf = plane_state->in_transfer_func;
@@ -814,7 +894,7 @@ bool dcn20_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 	return result;
 }
 
-static void dcn20_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx)
+void dcn20_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx)
 {
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
@@ -1237,7 +1317,7 @@ static void dcn20_update_dchubp_dpp(
 
 		if (dpp->funcs->dpp_program_bias_and_scale) {
 			//TODO :for CNVC set scale and bias registers if necessary
-			dcn10_build_prescale_params(&bns_params, plane_state);
+			build_prescale_params(&bns_params, plane_state);
 			dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
 		}
 	}
@@ -1361,7 +1441,7 @@ static void dcn20_program_pipe(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
 
 		if (dc->hwss.setup_vupdate_interrupt)
-			dc->hwss.setup_vupdate_interrupt(pipe_ctx);
+			dc->hwss.setup_vupdate_interrupt(dc, pipe_ctx);
 	}
 
 	if (pipe_ctx->update_flags.bits.odm)
@@ -1375,19 +1455,19 @@ static void dcn20_program_pipe(
 
 	if (pipe_ctx->update_flags.bits.enable
 			|| pipe_ctx->plane_state->update_flags.bits.hdr_mult)
-		set_hdr_multiplier(pipe_ctx);
+		dc->hwss.set_hdr_multiplier(pipe_ctx);
 
 	if (pipe_ctx->update_flags.bits.enable ||
 			pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
 			pipe_ctx->plane_state->update_flags.bits.gamma_change)
-		dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
+		dc->hwss.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
 
 	/* dcn10_translate_regamma_to_hw_format takes 750us to finish
 	 * only do gamma programming for powering on, internal memcmp to avoid
 	 * updating on slave planes
 	 */
 	if (pipe_ctx->update_flags.bits.enable || pipe_ctx->stream->update_flags.bits.out_tf)
-		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
+		dc->hwss.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
 
 	/* If the pipe has been enabled or has a different opp, we
 	 * should reprogram the fmt. This deals with cases where
@@ -1421,7 +1501,7 @@ static bool does_pipe_need_lock(struct pipe_ctx *pipe)
 	return false;
 }
 
-static void dcn20_program_front_end_for_ctx(
+void dcn20_program_front_end_for_ctx(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -1602,7 +1682,7 @@ bool dcn20_update_bandwidth(
 				dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
 
 			if (dc->hwss.setup_vupdate_interrupt)
-				dc->hwss.setup_vupdate_interrupt(pipe_ctx);
+				dc->hwss.setup_vupdate_interrupt(dc, pipe_ctx);
 		}
 
 		pipe_ctx->plane_res.hubp->funcs->hubp_setup(
@@ -1616,7 +1696,7 @@ bool dcn20_update_bandwidth(
 	return true;
 }
 
-static void dcn20_enable_writeback(
+void dcn20_enable_writeback(
 		struct dc *dc,
 		const struct dc_stream_status *stream_status,
 		struct dc_writeback_info *wb_info,
@@ -1660,7 +1740,7 @@ void dcn20_disable_writeback(
 	mcif_wb->funcs->disable_mcif(mcif_wb);
 }
 
-bool dcn20_hwss_wait_for_blank_complete(
+bool dcn20_wait_for_blank_complete(
 		struct output_pixel_processor *opp)
 {
 	int counter;
@@ -1689,7 +1769,7 @@ bool dcn20_dmdata_status_done(struct pipe_ctx *pipe_ctx)
 	return hubp->funcs->dmdata_status_done(hubp);
 }
 
-static void dcn20_disable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn20_disable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 
@@ -1704,7 +1784,7 @@ static void dcn20_disable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx
 	}
 }
 
-static void dcn20_enable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn20_enable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 
@@ -1739,12 +1819,7 @@ void dcn20_set_dmdata_attributes(struct pipe_ctx *pipe_ctx)
 	hubp->funcs->dmdata_set_attributes(hubp, &attr);
 }
 
-void dcn20_disable_stream(struct pipe_ctx *pipe_ctx)
-{
-	dce110_disable_stream(pipe_ctx);
-}
-
-static void dcn20_init_vm_ctx(
+void dcn20_init_vm_ctx(
 		struct dce_hwseq *hws,
 		struct dc *dc,
 		struct dc_virtual_addr_space_config *va_config,
@@ -1766,7 +1841,7 @@ static void dcn20_init_vm_ctx(
 	dc->res_pool->hubbub->funcs->init_vm_ctx(dc->res_pool->hubbub, &config, vmid);
 }
 
-static int dcn20_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config)
+int dcn20_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config)
 {
 	struct dcn_hubbub_phys_addr_config config;
 
@@ -1810,8 +1885,7 @@ static bool patch_address_for_sbs_tb_stereo(
 	return false;
 }
 
-
-static void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	bool addr_patched = false;
 	PHYSICAL_ADDRESS_LOC addr;
@@ -1857,7 +1931,7 @@ void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 	params.link_settings.link_rate = link_settings->link_rate;
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
-		if (optc1_is_two_pixels_per_containter(&stream->timing) || params.opp_cnt > 1)
+		if (optc2_is_two_pixels_per_containter(&stream->timing) || params.opp_cnt > 1)
 			params.timing.pix_clk_100hz /= 2;
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
 				pipe_ctx->stream_res.stream_enc, params.opp_cnt > 1);
@@ -1869,10 +1943,10 @@ void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 	}
 }
 
-void dcn20_setup_vupdate_interrupt(struct pipe_ctx *pipe_ctx)
+void dcn20_setup_vupdate_interrupt(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
-	int start_line = get_vupdate_offset_from_vsync(pipe_ctx);
+	int start_line = dc->hwss.get_vupdate_offset_from_vsync(pipe_ctx);
 
 	if (start_line < 0)
 		start_line = 0;
@@ -1948,7 +2022,7 @@ static void dcn20_reset_back_end_for_pipe(
 					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);
 }
 
-static void dcn20_reset_hw_ctx_wrap(
+void dcn20_reset_hw_ctx_wrap(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -2001,7 +2075,7 @@ void dcn20_get_mpctree_visual_confirm_color(
 	*color = pipe_colors[top_pipe->pipe_idx];
 }
 
-static void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct mpcc_blnd_cfg blnd_cfg = { {0} };
@@ -2013,10 +2087,10 @@ static void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	// input to MPCC is always RGB, by default leave black_color at 0
 	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR) {
-		dcn10_get_hdr_visual_confirm_color(
+		dc->hwss.get_hdr_visual_confirm_color(
 				pipe_ctx, &blnd_cfg.black_color);
 	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE) {
-		dcn10_get_surface_visual_confirm_color(
+		dc->hwss.get_surface_visual_confirm_color(
 				pipe_ctx, &blnd_cfg.black_color);
 	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_MPCTREE) {
 		dcn20_get_mpctree_visual_confirm_color(
@@ -2083,125 +2157,7 @@ static void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	hubp->mpcc_id = mpcc_id;
 }
 
-static int find_free_gsl_group(const struct dc *dc)
-{
-	if (dc->res_pool->gsl_groups.gsl_0 == 0)
-		return 1;
-	if (dc->res_pool->gsl_groups.gsl_1 == 0)
-		return 2;
-	if (dc->res_pool->gsl_groups.gsl_2 == 0)
-		return 3;
-
-	return 0;
-}
-
-/* NOTE: This is not a generic setup_gsl function (hence the suffix as_lock)
- * This is only used to lock pipes in pipe splitting case with immediate flip
- * Ordinary MPC/OTG locks suppress VUPDATE which doesn't help with immediate,
- * so we get tearing with freesync since we cannot flip multiple pipes
- * atomically.
- * We use GSL for this:
- * - immediate flip: find first available GSL group if not already assigned
- *                   program gsl with that group, set current OTG as master
- *                   and always us 0x4 = AND of flip_ready from all pipes
- * - vsync flip: disable GSL if used
- *
- * Groups in stream_res are stored as +1 from HW registers, i.e.
- * gsl_0 <=> pipe_ctx->stream_res.gsl_group == 1
- * Using a magic value like -1 would require tracking all inits/resets
- */
-void dcn20_setup_gsl_group_as_lock(
-		const struct dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		bool enable)
-{
-	struct gsl_params gsl;
-	int group_idx;
-
-	memset(&gsl, 0, sizeof(struct gsl_params));
-
-	if (enable) {
-		/* return if group already assigned since GSL was set up
-		 * for vsync flip, we would unassign so it can't be "left over"
-		 */
-		if (pipe_ctx->stream_res.gsl_group > 0)
-			return;
-
-		group_idx = find_free_gsl_group(dc);
-		ASSERT(group_idx != 0);
-		pipe_ctx->stream_res.gsl_group = group_idx;
-
-		/* set gsl group reg field and mark resource used */
-		switch (group_idx) {
-		case 1:
-			gsl.gsl0_en = 1;
-			dc->res_pool->gsl_groups.gsl_0 = 1;
-			break;
-		case 2:
-			gsl.gsl1_en = 1;
-			dc->res_pool->gsl_groups.gsl_1 = 1;
-			break;
-		case 3:
-			gsl.gsl2_en = 1;
-			dc->res_pool->gsl_groups.gsl_2 = 1;
-			break;
-		default:
-			BREAK_TO_DEBUGGER();
-			return; // invalid case
-		}
-		gsl.gsl_master_en = 1;
-	} else {
-		group_idx = pipe_ctx->stream_res.gsl_group;
-		if (group_idx == 0)
-			return; // if not in use, just return
-
-		pipe_ctx->stream_res.gsl_group = 0;
-
-		/* unset gsl group reg field and mark resource free */
-		switch (group_idx) {
-		case 1:
-			gsl.gsl0_en = 0;
-			dc->res_pool->gsl_groups.gsl_0 = 0;
-			break;
-		case 2:
-			gsl.gsl1_en = 0;
-			dc->res_pool->gsl_groups.gsl_1 = 0;
-			break;
-		case 3:
-			gsl.gsl2_en = 0;
-			dc->res_pool->gsl_groups.gsl_2 = 0;
-			break;
-		default:
-			BREAK_TO_DEBUGGER();
-			return;
-		}
-		gsl.gsl_master_en = 0;
-	}
-
-	/* at this point we want to program whether it's to enable or disable */
-	if (pipe_ctx->stream_res.tg->funcs->set_gsl != NULL &&
-		pipe_ctx->stream_res.tg->funcs->set_gsl_source_select != NULL) {
-		pipe_ctx->stream_res.tg->funcs->set_gsl(
-			pipe_ctx->stream_res.tg,
-			&gsl);
-
-		pipe_ctx->stream_res.tg->funcs->set_gsl_source_select(
-			pipe_ctx->stream_res.tg, group_idx,	enable ? 4 : 0);
-	} else
-		BREAK_TO_DEBUGGER();
-}
-
-static void dcn20_set_flip_control_gsl(
-		struct pipe_ctx *pipe_ctx,
-		bool flip_immediate)
-{
-	if (pipe_ctx && pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_control_surface_gsl)
-		pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_control_surface_gsl(
-				pipe_ctx->plane_res.hubp, flip_immediate);
-
-}
-
-static void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
+void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 {
 	enum dc_lane_count lane_count =
 		pipe_ctx->stream->link->cur_link_settings.lane_count;
@@ -2249,7 +2205,7 @@ static void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	}
 }
 
-static void dcn20_program_dmdata_engine(struct pipe_ctx *pipe_ctx)
+void dcn20_program_dmdata_engine(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state    *stream     = pipe_ctx->stream;
 	struct hubp               *hubp       = pipe_ctx->plane_res.hubp;
@@ -2275,7 +2231,7 @@ static void dcn20_program_dmdata_engine(struct pipe_ctx *pipe_ctx)
 						hubp->inst, mode);
 }
 
-static void dcn20_fpga_init_hw(struct dc *dc)
+void dcn20_fpga_init_hw(struct dc *dc)
 {
 	int i, j;
 	struct dce_hwseq *hws = dc->hwseq;
@@ -2296,7 +2252,7 @@ static void dcn20_fpga_init_hw(struct dc *dc)
 	REG_WRITE(RBBMIF_TIMEOUT_DIS, 0xFFFFFFFF);
 	REG_WRITE(RBBMIF_TIMEOUT_DIS_2, 0xFFFFFFFF);
 
-	dcn20_dccg_init(hws);
+	dc->hwss.dccg_init(hws);
 
 	REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, 2);
 	REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
@@ -2360,7 +2316,7 @@ static void dcn20_fpga_init_hw(struct dc *dc)
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 		/*to do*/
-		hwss1_plane_atomic_disconnect(dc, pipe_ctx);
+		dc->hwss.plane_atomic_disconnect(dc, pipe_ctx);
 	}
 
 	/* initialize DWB pointer to MCIF_WB */
@@ -2388,54 +2344,4 @@ static void dcn20_fpga_init_hw(struct dc *dc)
 
 		tg->funcs->tg_init(tg);
 	}
-}
-
-void dcn20_hw_sequencer_construct(struct dc *dc)
-{
-	dcn10_hw_sequencer_construct(dc);
-	dc->hwss.unblank_stream = dcn20_unblank_stream;
-	dc->hwss.update_plane_addr = dcn20_update_plane_addr;
-	dc->hwss.enable_stream_timing = dcn20_enable_stream_timing;
-	dc->hwss.program_triplebuffer = dcn20_program_tripleBuffer;
-	dc->hwss.set_input_transfer_func = dcn20_set_input_transfer_func;
-	dc->hwss.set_output_transfer_func = dcn20_set_output_transfer_func;
-	dc->hwss.apply_ctx_for_surface = NULL;
-	dc->hwss.program_front_end_for_ctx = dcn20_program_front_end_for_ctx;
-	dc->hwss.pipe_control_lock = dcn20_pipe_control_lock;
-	dc->hwss.pipe_control_lock_global = dcn20_pipe_control_lock_global;
-	dc->hwss.optimize_bandwidth = dcn20_optimize_bandwidth;
-	dc->hwss.prepare_bandwidth = dcn20_prepare_bandwidth;
-	dc->hwss.update_bandwidth = dcn20_update_bandwidth;
-	dc->hwss.enable_writeback = dcn20_enable_writeback;
-	dc->hwss.disable_writeback = dcn20_disable_writeback;
-	dc->hwss.program_output_csc = dcn20_program_output_csc;
-	dc->hwss.update_odm = dcn20_update_odm;
-	dc->hwss.blank_pixel_data = dcn20_blank_pixel_data;
-	dc->hwss.dmdata_status_done = dcn20_dmdata_status_done;
-	dc->hwss.program_dmdata_engine = dcn20_program_dmdata_engine;
-	dc->hwss.enable_stream = dcn20_enable_stream;
-	dc->hwss.disable_stream = dcn20_disable_stream;
-	dc->hwss.init_sys_ctx = dcn20_init_sys_ctx;
-	dc->hwss.init_vm_ctx = dcn20_init_vm_ctx;
-	dc->hwss.disable_stream_gating = dcn20_disable_stream_gating;
-	dc->hwss.enable_stream_gating = dcn20_enable_stream_gating;
-	dc->hwss.setup_vupdate_interrupt = dcn20_setup_vupdate_interrupt;
-	dc->hwss.reset_hw_ctx_wrap = dcn20_reset_hw_ctx_wrap;
-	dc->hwss.update_mpcc = dcn20_update_mpcc;
-	dc->hwss.set_flip_control_gsl = dcn20_set_flip_control_gsl;
-	dc->hwss.init_blank = dcn20_init_blank;
-	dc->hwss.disable_plane = dcn20_disable_plane;
-	dc->hwss.plane_atomic_disable = dcn20_plane_atomic_disable;
-	dc->hwss.enable_power_gating_plane = dcn20_enable_power_gating_plane;
-	dc->hwss.dpp_pg_control = dcn20_dpp_pg_control;
-	dc->hwss.hubp_pg_control = dcn20_hubp_pg_control;
-	dc->hwss.dsc_pg_control = dcn20_dsc_pg_control;
-	dc->hwss.disable_vga = dcn20_disable_vga;
-
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		dc->hwss.init_hw = dcn20_fpga_init_hw;
-		dc->hwss.init_pipes = NULL;
-	}
-
-
 }

@@ -28,7 +28,6 @@
 
 #include "core_types.h"
 
-#define GAMMA_HW_POINTS_NUM 256
 struct dc;
 struct dc_state;
 struct dm_pp_display_configuration;

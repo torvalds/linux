@@ -61,6 +61,8 @@
 
 #include "atomfirmware.h"
 
+#define GAMMA_HW_POINTS_NUM 256
+
 /*
  * All values are in milliseconds;
  * For eDP, after power-up/power/down,
@@ -268,7 +270,7 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 }
 
 static bool
-dce110_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
+dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			       const struct dc_plane_state *plane_state)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
@@ -596,7 +598,7 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 }
 
 static bool
-dce110_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
+dce110_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream)
 {
 	struct transform *xfm = pipe_ctx->plane_res.xfm;
@@ -1358,7 +1360,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
 
 	if (dc->hwss.setup_vupdate_interrupt)
-		dc->hwss.setup_vupdate_interrupt(pipe_ctx);
+		dc->hwss.setup_vupdate_interrupt(dc, pipe_ctx);
 
 	params.vertical_total_min = stream->adjust.v_total_min;
 	params.vertical_total_max = stream->adjust.v_total_max;
@@ -2501,10 +2503,10 @@ static void dce110_program_front_end_for_pipe(
 	if (pipe_ctx->plane_state->update_flags.bits.full_update ||
 			pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
 			pipe_ctx->plane_state->update_flags.bits.gamma_change)
-		dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
+		dc->hwss.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
 
 	if (pipe_ctx->plane_state->update_flags.bits.full_update)
-		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
+		dc->hwss.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
 
 	DC_LOG_SURFACE(
 			"Pipe:%d %p: addr hi:0x%x, "

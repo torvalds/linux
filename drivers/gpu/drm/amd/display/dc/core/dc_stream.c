@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 
 #include "dm_services.h"
+#include "basics/dc_common.h"
 #include "dc.h"
 #include "core_types.h"
 #include "resource.h"
@@ -244,7 +245,7 @@ static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
 	if (stream->ctx->asic_id.chip_family == FAMILY_RV &&
 			ASICREV_IS_RAVEN(stream->ctx->asic_id.hw_internal_rev)) {
 
-		vupdate_line = get_vupdate_offset_from_vsync(pipe_ctx);
+		vupdate_line = dc->hwss.get_vupdate_offset_from_vsync(pipe_ctx);
 		if (!dc_stream_get_crtc_position(dc, &stream, 1, &vpos, &nvpos))
 			return;
 

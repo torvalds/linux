@@ -1,5 +1,5 @@
 /*
-* Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,23 +23,21 @@
  *
  */
 
-#ifndef __DC_HWSS_DCN21_H__
-#define __DC_HWSS_DCN21_H__
+#ifndef __DC_HWSS_DCN10_DEBUG_H__
+#define __DC_HWSS_DCN10_DEBUG_H__
+
+#include "core_types.h"
 
 struct dc;
 
-int dcn21_init_sys_ctx(struct dce_hwseq *hws,
-		struct dc *dc,
-		struct dc_phy_addr_space_config *pa_config);
+void dcn10_clear_status_bits(struct dc *dc, unsigned int mask);
 
-bool dcn21_s0i3_golden_init_wa(struct dc *dc);
+void dcn10_log_hw_state(struct dc *dc,
+		struct dc_log_buffer_ctx *log_ctx);
 
-void dcn21_exit_optimized_pwr_state(
-		const struct dc *dc,
-		struct dc_state *context);
+void dcn10_get_hw_state(struct dc *dc,
+		char *pBuf,
+		unsigned int bufSize,
+		unsigned int mask);
 
-void dcn21_optimize_pwr_state(
-		const struct dc *dc,
-		struct dc_state *context);
-
-#endif /* __DC_HWSS_DCN21_H__ */
+#endif /* __DC_HWSS_DCN10_DEBUG_H__ */

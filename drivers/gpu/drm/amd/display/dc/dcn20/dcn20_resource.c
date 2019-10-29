@@ -28,6 +28,8 @@
 #include "dm_services.h"
 #include "dc.h"
 
+#include "dcn20_init.h"
+
 #include "resource.h"
 #include "include/irq_service_interface.h"
 #include "dcn20/dcn20_resource.h"
@@ -1385,7 +1387,7 @@ static void get_pixel_clock_parameters(
 
 	if (opp_cnt == 4)
 		pixel_clk_params->requested_pix_clk_100hz /= 4;
-	else if (optc1_is_two_pixels_per_containter(&stream->timing) || opp_cnt == 2)
+	else if (optc2_is_two_pixels_per_containter(&stream->timing) || opp_cnt == 2)
 		pixel_clk_params->requested_pix_clk_100hz /= 2;
 
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)

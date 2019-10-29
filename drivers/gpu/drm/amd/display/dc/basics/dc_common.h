@@ -1,5 +1,5 @@
 /*
-* Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,23 +23,20 @@
  *
  */
 
-#ifndef __DC_HWSS_DCN21_H__
-#define __DC_HWSS_DCN21_H__
+#ifndef __DAL_DC_COMMON_H__
+#define __DAL_DC_COMMON_H__
 
-struct dc;
+#include "core_types.h"
 
-int dcn21_init_sys_ctx(struct dce_hwseq *hws,
-		struct dc *dc,
-		struct dc_phy_addr_space_config *pa_config);
+bool is_rgb_cspace(enum dc_color_space output_color_space);
 
-bool dcn21_s0i3_golden_init_wa(struct dc *dc);
+bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
 
-void dcn21_exit_optimized_pwr_state(
-		const struct dc *dc,
-		struct dc_state *context);
+bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
 
-void dcn21_optimize_pwr_state(
-		const struct dc *dc,
-		struct dc_state *context);
+bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
 
-#endif /* __DC_HWSS_DCN21_H__ */
+void build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
+		const struct dc_plane_state *plane_state);
+
+#endif

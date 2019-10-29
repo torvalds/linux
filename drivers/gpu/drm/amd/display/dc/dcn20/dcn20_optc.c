@@ -201,11 +201,11 @@ void optc2_set_dsc_config(struct timing_generator *optc,
 		OPTC_DSC_SLICE_WIDTH, dsc_slice_width);
 }
 
-/**
- * PTI i think is already done somewhere else for 2ka
- * (opp?, please double check.
- * OPTC side only has 1 register to set for PTI_ENABLE)
- */
+/*TEMP: Need to figure out inheritance model here.*/
+bool optc2_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
+{
+	return optc1_is_two_pixels_per_containter(timing);
+}
 
 void optc2_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing)
@@ -219,7 +219,7 @@ void optc2_set_odm_bypass(struct timing_generator *optc,
 			OPTC_SEG1_SRC_SEL, 0xf);
 	REG_WRITE(OTG_H_TIMING_CNTL, 0);
 
-	h_div_2 = optc1_is_two_pixels_per_containter(dc_crtc_timing);
+	h_div_2 = optc2_is_two_pixels_per_containter(dc_crtc_timing);
 	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_BY2, h_div_2);
 	REG_SET(OPTC_MEMORY_CONFIG, 0,
