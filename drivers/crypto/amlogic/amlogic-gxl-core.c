@@ -162,6 +162,7 @@ static int meson_allocate_chanlist(struct meson_dev *mc)
 		if (!mc->chanlist[i].engine) {
 			dev_err(mc->dev, "Cannot allocate engine\n");
 			i--;
+			err = -ENOMEM;
 			goto error_engine;
 		}
 		err = crypto_engine_start(mc->chanlist[i].engine);
