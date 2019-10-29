@@ -278,7 +278,10 @@
 		dvdd-supply = <&vcc18_cif>;
 
 		pwdn-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
-
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
 		port {
 			gc0329_out: endpoint {
 				remote-endpoint = <&cif_in_fcam>;
@@ -300,7 +303,10 @@
 		dvdd-supply = <&vcc18_cif>;
 
 		pwdn-gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
-
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
 		port {
 			gc2145_out: endpoint {
 				remote-endpoint = <&cif_in_bcam>;
