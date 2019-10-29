@@ -161,7 +161,7 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 #endif
 		BIT(NL80211_IFTYPE_ADHOC);
 
-	if (mt76_is_usb(dev)) {
+	if (mt76_is_usb(&dev->mt76)) {
 		hw->extra_tx_headroom += sizeof(struct mt76x02_txwi) +
 					 MT_DMA_HDR_LEN;
 		wiphy->iface_combinations = mt76x02u_if_comb;
@@ -445,7 +445,7 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * data registers and sent via HW beacons engine, they require to
 	 * be already encrypted.
 	 */
-	if (mt76_is_usb(dev) &&
+	if (mt76_is_usb(&dev->mt76) &&
 	    vif->type == NL80211_IFTYPE_AP &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		return -EOPNOTSUPP;
@@ -626,7 +626,7 @@ void mt76x02_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta,
 	int idx = msta->wcid.idx;
 
 	mt76_stop_tx_queues(&dev->mt76, sta, true);
-	if (mt76_is_mmio(dev))
+	if (mt76_is_mmio(mdev))
 		mt76x02_mac_wcid_set_drop(dev, idx, ps);
 }
 EXPORT_SYMBOL_GPL(mt76x02_sta_ps);

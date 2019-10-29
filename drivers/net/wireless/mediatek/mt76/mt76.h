@@ -49,8 +49,8 @@ struct mt76_bus_ops {
 	enum mt76_bus_type type;
 };
 
-#define mt76_is_usb(dev) ((dev)->mt76.bus->type == MT76_BUS_USB)
-#define mt76_is_mmio(dev) ((dev)->mt76.bus->type == MT76_BUS_MMIO)
+#define mt76_is_usb(dev) ((dev)->bus->type == MT76_BUS_USB)
+#define mt76_is_mmio(dev) ((dev)->bus->type == MT76_BUS_MMIO)
 
 enum mt76_txq_id {
 	MT_TXQ_VO = IEEE80211_AC_VO,
