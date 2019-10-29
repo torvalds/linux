@@ -5,6 +5,9 @@
  *  Copyright (C) 2010, 2011 Texas Instruments Incorporated
  *  Mark Salter <msalter@redhat.com>
  */
+
+#define RO_EXCEPTION_TABLE_ALIGN	16
+
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
@@ -79,8 +82,6 @@ SECTIONS
 		*(.fixup)
 		*(.gnu.warning)
 	}
-
-	EXCEPTION_TABLE(16)
 
 	RO_DATA(PAGE_SIZE)
 	.const :
