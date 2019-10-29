@@ -375,8 +375,8 @@ static int omap_prm_probe(struct platform_device *pdev)
 	prm->data = data;
 
 	prm->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!prm->base)
-		return -ENOMEM;
+	if (IS_ERR(prm->base))
+		return PTR_ERR(prm->base);
 
 	return omap_prm_reset_init(pdev, prm);
 }
