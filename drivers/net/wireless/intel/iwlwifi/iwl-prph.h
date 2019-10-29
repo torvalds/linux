@@ -430,6 +430,9 @@ enum aux_misc_master1_en {
 #define UMAG_SB_CPU_1_STATUS		0xA038C0
 #define UMAG_SB_CPU_2_STATUS		0xA038C4
 #define UMAG_GEN_HW_STATUS		0xA038C8
+#define UREG_UMAC_CURRENT_PC		0xa05c18
+#define UREG_LMAC1_CURRENT_PC		0xa05c1c
+#define UREG_LMAC2_CURRENT_PC		0xa05c20
 
 /* For UMAG_GEN_HW_STATUS reg check */
 enum {
