@@ -14124,9 +14124,6 @@ static void intel_pipe_fastset(const struct intel_crtc_state *old_crtc_state,
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	/* drm_atomic_helper_update_legacy_modeset_state might not be called. */
-	crtc->base.mode = new_crtc_state->base.mode;
-
 	/*
 	 * Update pipe size and adjust fitter if needed: the reason for this is
 	 * that in compute_mode_changes we check the native mode (not the pfit
@@ -17391,13 +17388,16 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		struct intel_plane *plane;
 		int min_cdclk = 0;
 
-		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
 		if (crtc_state->base.active) {
-			intel_mode_from_pipe_config(&crtc->base.mode, crtc_state);
-			crtc->base.mode.hdisplay = crtc_state->pipe_src_w;
-			crtc->base.mode.vdisplay = crtc_state->pipe_src_h;
-			intel_mode_from_pipe_config(&crtc_state->base.adjusted_mode, crtc_state);
-			WARN_ON(drm_atomic_set_mode_for_crtc(&crtc_state->base, &crtc->base.mode));
+			struct drm_display_mode mode;
+
+			intel_mode_from_pipe_config(&crtc_state->base.adjusted_mode,
+						    crtc_state);
+
+			mode = crtc_state->base.adjusted_mode;
+			mode.hdisplay = crtc_state->pipe_src_w;
+			mode.vdisplay = crtc_state->pipe_src_h;
+			WARN_ON(drm_atomic_set_mode_for_crtc(&crtc_state->base, &mode));
 
 			/*
 			 * The initial mode needs to be set in order to keep
