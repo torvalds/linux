@@ -2379,6 +2379,8 @@ static int cdns3_gadget_udc_stop(struct usb_gadget *gadget)
 		writel(EP_CMD_EPRST, &priv_dev->regs->ep_cmd);
 		readl_poll_timeout_atomic(&priv_dev->regs->ep_cmd, val,
 					  !(val & EP_CMD_EPRST), 1, 100);
+
+		priv_ep->flags &= ~EP_CLAIMED;
 	}
 
 	/* disable interrupt for device */
