@@ -389,6 +389,43 @@ static ssize_t spi_nor_write_data(struct spi_nor *nor, loff_t to, size_t len,
 }
 
 /*
+ * Set write enable latch with Write Enable command.
+ * Returns negative if error occurred.
+ */
+static int spi_nor_write_enable(struct spi_nor *nor)
+{
+	if (nor->spimem) {
+		struct spi_mem_op op =
+			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WREN, 1),
+				   SPI_MEM_OP_NO_ADDR,
+				   SPI_MEM_OP_NO_DUMMY,
+				   SPI_MEM_OP_NO_DATA);
+
+		return spi_mem_exec_op(nor->spimem, &op);
+	}
+
+	return nor->controller_ops->write_reg(nor, SPINOR_OP_WREN, NULL, 0);
+}
+
+/*
+ * Send write disable instruction to the chip.
+ */
+static int spi_nor_write_disable(struct spi_nor *nor)
+{
+	if (nor->spimem) {
+		struct spi_mem_op op =
+			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRDI, 1),
+				   SPI_MEM_OP_NO_ADDR,
+				   SPI_MEM_OP_NO_DUMMY,
+				   SPI_MEM_OP_NO_DATA);
+
+		return spi_mem_exec_op(nor->spimem, &op);
+	}
+
+	return nor->controller_ops->write_reg(nor, SPINOR_OP_WRDI, NULL, 0);
+}
+
+/*
  * Read the status register, returning its value in the location
  * Return the status register value.
  * Returns negative if error occurred.
@@ -497,126 +534,6 @@ static int spi_nor_write_sr(struct spi_nor *nor, u8 val)
 
 	return nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR,
 					      nor->bouncebuf, 1);
-}
-
-/*
- * Set write enable latch with Write Enable command.
- * Returns negative if error occurred.
- */
-static int spi_nor_write_enable(struct spi_nor *nor)
-{
-	if (nor->spimem) {
-		struct spi_mem_op op =
-			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WREN, 1),
-				   SPI_MEM_OP_NO_ADDR,
-				   SPI_MEM_OP_NO_DUMMY,
-				   SPI_MEM_OP_NO_DATA);
-
-		return spi_mem_exec_op(nor->spimem, &op);
-	}
-
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_WREN, NULL, 0);
-}
-
-/*
- * Send write disable instruction to the chip.
- */
-static int spi_nor_write_disable(struct spi_nor *nor)
-{
-	if (nor->spimem) {
-		struct spi_mem_op op =
-			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRDI, 1),
-				   SPI_MEM_OP_NO_ADDR,
-				   SPI_MEM_OP_NO_DUMMY,
-				   SPI_MEM_OP_NO_DATA);
-
-		return spi_mem_exec_op(nor->spimem, &op);
-	}
-
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_WRDI, NULL, 0);
-}
-
-static struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
-{
-	return mtd->priv;
-}
-
-static u8 spi_nor_convert_opcode(u8 opcode, const u8 table[][2], size_t size)
-{
-	size_t i;
-
-	for (i = 0; i < size; i++)
-		if (table[i][0] == opcode)
-			return table[i][1];
-
-	/* No conversion found, keep input op code. */
-	return opcode;
-}
-
-static u8 spi_nor_convert_3to4_read(u8 opcode)
-{
-	static const u8 spi_nor_3to4_read[][2] = {
-		{ SPINOR_OP_READ,	SPINOR_OP_READ_4B },
-		{ SPINOR_OP_READ_FAST,	SPINOR_OP_READ_FAST_4B },
-		{ SPINOR_OP_READ_1_1_2,	SPINOR_OP_READ_1_1_2_4B },
-		{ SPINOR_OP_READ_1_2_2,	SPINOR_OP_READ_1_2_2_4B },
-		{ SPINOR_OP_READ_1_1_4,	SPINOR_OP_READ_1_1_4_4B },
-		{ SPINOR_OP_READ_1_4_4,	SPINOR_OP_READ_1_4_4_4B },
-		{ SPINOR_OP_READ_1_1_8,	SPINOR_OP_READ_1_1_8_4B },
-		{ SPINOR_OP_READ_1_8_8,	SPINOR_OP_READ_1_8_8_4B },
-
-		{ SPINOR_OP_READ_1_1_1_DTR,	SPINOR_OP_READ_1_1_1_DTR_4B },
-		{ SPINOR_OP_READ_1_2_2_DTR,	SPINOR_OP_READ_1_2_2_DTR_4B },
-		{ SPINOR_OP_READ_1_4_4_DTR,	SPINOR_OP_READ_1_4_4_DTR_4B },
-	};
-
-	return spi_nor_convert_opcode(opcode, spi_nor_3to4_read,
-				      ARRAY_SIZE(spi_nor_3to4_read));
-}
-
-static u8 spi_nor_convert_3to4_program(u8 opcode)
-{
-	static const u8 spi_nor_3to4_program[][2] = {
-		{ SPINOR_OP_PP,		SPINOR_OP_PP_4B },
-		{ SPINOR_OP_PP_1_1_4,	SPINOR_OP_PP_1_1_4_4B },
-		{ SPINOR_OP_PP_1_4_4,	SPINOR_OP_PP_1_4_4_4B },
-		{ SPINOR_OP_PP_1_1_8,	SPINOR_OP_PP_1_1_8_4B },
-		{ SPINOR_OP_PP_1_8_8,	SPINOR_OP_PP_1_8_8_4B },
-	};
-
-	return spi_nor_convert_opcode(opcode, spi_nor_3to4_program,
-				      ARRAY_SIZE(spi_nor_3to4_program));
-}
-
-static u8 spi_nor_convert_3to4_erase(u8 opcode)
-{
-	static const u8 spi_nor_3to4_erase[][2] = {
-		{ SPINOR_OP_BE_4K,	SPINOR_OP_BE_4K_4B },
-		{ SPINOR_OP_BE_32K,	SPINOR_OP_BE_32K_4B },
-		{ SPINOR_OP_SE,		SPINOR_OP_SE_4B },
-	};
-
-	return spi_nor_convert_opcode(opcode, spi_nor_3to4_erase,
-				      ARRAY_SIZE(spi_nor_3to4_erase));
-}
-
-static void spi_nor_set_4byte_opcodes(struct spi_nor *nor)
-{
-	nor->read_opcode = spi_nor_convert_3to4_read(nor->read_opcode);
-	nor->program_opcode = spi_nor_convert_3to4_program(nor->program_opcode);
-	nor->erase_opcode = spi_nor_convert_3to4_erase(nor->erase_opcode);
-
-	if (!spi_nor_has_uniform_erase(nor)) {
-		struct spi_nor_erase_map *map = &nor->params.erase_map;
-		struct spi_nor_erase_type *erase;
-		int i;
-
-		for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++) {
-			erase = &map->erase_type[i];
-			erase->opcode =
-				spi_nor_convert_3to4_erase(erase->opcode);
-		}
-	}
 }
 
 static int macronix_set_4byte(struct spi_nor *nor, bool enable)
@@ -859,6 +776,99 @@ static int spi_nor_wait_till_ready(struct spi_nor *nor)
 }
 
 /*
+ * Write status Register and configuration register with 2 bytes
+ * The first byte will be written to the status register, while the
+ * second byte will be written to the configuration register.
+ * Return negative if error occurred.
+ */
+static int spi_nor_write_sr_cr(struct spi_nor *nor, u8 *sr_cr)
+{
+	int ret;
+
+	spi_nor_write_enable(nor);
+
+	if (nor->spimem) {
+		struct spi_mem_op op =
+			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR, 1),
+				   SPI_MEM_OP_NO_ADDR,
+				   SPI_MEM_OP_NO_DUMMY,
+				   SPI_MEM_OP_DATA_OUT(2, sr_cr, 1));
+
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR,
+						     sr_cr, 2);
+	}
+
+	if (ret < 0) {
+		dev_err(nor->dev,
+			"error while writing configuration register\n");
+		return -EINVAL;
+	}
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret) {
+		dev_err(nor->dev,
+			"timeout while writing configuration register\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+/* Write status register and ensure bits in mask match written values */
+static int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 status_new,
+				      u8 mask)
+{
+	int ret;
+
+	spi_nor_write_enable(nor);
+	ret = spi_nor_write_sr(nor, status_new);
+	if (ret)
+		return ret;
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		return ret;
+
+	ret = spi_nor_read_sr(nor);
+	if (ret < 0)
+		return ret;
+
+	return ((ret & mask) != (status_new & mask)) ? -EIO : 0;
+}
+
+static int spi_nor_write_sr2(struct spi_nor *nor, u8 *sr2)
+{
+	if (nor->spimem) {
+		struct spi_mem_op op =
+			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR2, 1),
+				   SPI_MEM_OP_NO_ADDR,
+				   SPI_MEM_OP_NO_DUMMY,
+				   SPI_MEM_OP_DATA_OUT(1, sr2, 1));
+
+		return spi_mem_exec_op(nor->spimem, &op);
+	}
+
+	return nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR2, sr2, 1);
+}
+
+static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
+{
+	if (nor->spimem) {
+		struct spi_mem_op op =
+			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RDSR2, 1),
+				   SPI_MEM_OP_NO_ADDR,
+				   SPI_MEM_OP_NO_DUMMY,
+				   SPI_MEM_OP_DATA_IN(1, sr2, 1));
+
+		return spi_mem_exec_op(nor->spimem, &op);
+	}
+
+	return nor->controller_ops->read_reg(nor, SPINOR_OP_RDSR2, sr2, 1);
+}
+
+/*
  * Erase the whole flash memory
  *
  * Returns 0 if successful, non-zero otherwise.
@@ -879,6 +889,89 @@ static int spi_nor_erase_chip(struct spi_nor *nor)
 
 	return nor->controller_ops->write_reg(nor, SPINOR_OP_CHIP_ERASE,
 					      NULL, 0);
+}
+
+static struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
+{
+	return mtd->priv;
+}
+
+static u8 spi_nor_convert_opcode(u8 opcode, const u8 table[][2], size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++)
+		if (table[i][0] == opcode)
+			return table[i][1];
+
+	/* No conversion found, keep input op code. */
+	return opcode;
+}
+
+static u8 spi_nor_convert_3to4_read(u8 opcode)
+{
+	static const u8 spi_nor_3to4_read[][2] = {
+		{ SPINOR_OP_READ,	SPINOR_OP_READ_4B },
+		{ SPINOR_OP_READ_FAST,	SPINOR_OP_READ_FAST_4B },
+		{ SPINOR_OP_READ_1_1_2,	SPINOR_OP_READ_1_1_2_4B },
+		{ SPINOR_OP_READ_1_2_2,	SPINOR_OP_READ_1_2_2_4B },
+		{ SPINOR_OP_READ_1_1_4,	SPINOR_OP_READ_1_1_4_4B },
+		{ SPINOR_OP_READ_1_4_4,	SPINOR_OP_READ_1_4_4_4B },
+		{ SPINOR_OP_READ_1_1_8,	SPINOR_OP_READ_1_1_8_4B },
+		{ SPINOR_OP_READ_1_8_8,	SPINOR_OP_READ_1_8_8_4B },
+
+		{ SPINOR_OP_READ_1_1_1_DTR,	SPINOR_OP_READ_1_1_1_DTR_4B },
+		{ SPINOR_OP_READ_1_2_2_DTR,	SPINOR_OP_READ_1_2_2_DTR_4B },
+		{ SPINOR_OP_READ_1_4_4_DTR,	SPINOR_OP_READ_1_4_4_DTR_4B },
+	};
+
+	return spi_nor_convert_opcode(opcode, spi_nor_3to4_read,
+				      ARRAY_SIZE(spi_nor_3to4_read));
+}
+
+static u8 spi_nor_convert_3to4_program(u8 opcode)
+{
+	static const u8 spi_nor_3to4_program[][2] = {
+		{ SPINOR_OP_PP,		SPINOR_OP_PP_4B },
+		{ SPINOR_OP_PP_1_1_4,	SPINOR_OP_PP_1_1_4_4B },
+		{ SPINOR_OP_PP_1_4_4,	SPINOR_OP_PP_1_4_4_4B },
+		{ SPINOR_OP_PP_1_1_8,	SPINOR_OP_PP_1_1_8_4B },
+		{ SPINOR_OP_PP_1_8_8,	SPINOR_OP_PP_1_8_8_4B },
+	};
+
+	return spi_nor_convert_opcode(opcode, spi_nor_3to4_program,
+				      ARRAY_SIZE(spi_nor_3to4_program));
+}
+
+static u8 spi_nor_convert_3to4_erase(u8 opcode)
+{
+	static const u8 spi_nor_3to4_erase[][2] = {
+		{ SPINOR_OP_BE_4K,	SPINOR_OP_BE_4K_4B },
+		{ SPINOR_OP_BE_32K,	SPINOR_OP_BE_32K_4B },
+		{ SPINOR_OP_SE,		SPINOR_OP_SE_4B },
+	};
+
+	return spi_nor_convert_opcode(opcode, spi_nor_3to4_erase,
+				      ARRAY_SIZE(spi_nor_3to4_erase));
+}
+
+static void spi_nor_set_4byte_opcodes(struct spi_nor *nor)
+{
+	nor->read_opcode = spi_nor_convert_3to4_read(nor->read_opcode);
+	nor->program_opcode = spi_nor_convert_3to4_program(nor->program_opcode);
+	nor->erase_opcode = spi_nor_convert_3to4_erase(nor->erase_opcode);
+
+	if (!spi_nor_has_uniform_erase(nor)) {
+		struct spi_nor_erase_map *map = &nor->params.erase_map;
+		struct spi_nor_erase_type *erase;
+		int i;
+
+		for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++) {
+			erase = &map->erase_type[i];
+			erase->opcode =
+				spi_nor_convert_3to4_erase(erase->opcode);
+		}
+	}
 }
 
 static int spi_nor_lock_and_prep(struct spi_nor *nor, enum spi_nor_ops ops)
@@ -1326,28 +1419,6 @@ erase_err:
 	return ret;
 }
 
-/* Write status register and ensure bits in mask match written values */
-static int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 status_new,
-				      u8 mask)
-{
-	int ret;
-
-	spi_nor_write_enable(nor);
-	ret = spi_nor_write_sr(nor, status_new);
-	if (ret)
-		return ret;
-
-	ret = spi_nor_wait_till_ready(nor);
-	if (ret)
-		return ret;
-
-	ret = spi_nor_read_sr(nor);
-	if (ret < 0)
-		return ret;
-
-	return ((ret & mask) != (status_new & mask)) ? -EIO : 0;
-}
-
 static void stm_get_locked_range(struct spi_nor *nor, u8 sr, loff_t *ofs,
 				 uint64_t *len)
 {
@@ -1664,47 +1735,6 @@ static int spi_nor_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	return ret;
 }
 
-/*
- * Write status Register and configuration register with 2 bytes
- * The first byte will be written to the status register, while the
- * second byte will be written to the configuration register.
- * Return negative if error occurred.
- */
-static int spi_nor_write_sr_cr(struct spi_nor *nor, u8 *sr_cr)
-{
-	int ret;
-
-	spi_nor_write_enable(nor);
-
-	if (nor->spimem) {
-		struct spi_mem_op op =
-			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR, 1),
-				   SPI_MEM_OP_NO_ADDR,
-				   SPI_MEM_OP_NO_DUMMY,
-				   SPI_MEM_OP_DATA_OUT(2, sr_cr, 1));
-
-		ret = spi_mem_exec_op(nor->spimem, &op);
-	} else {
-		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR,
-						     sr_cr, 2);
-	}
-
-	if (ret < 0) {
-		dev_err(nor->dev,
-			"error while writing configuration register\n");
-		return -EINVAL;
-	}
-
-	ret = spi_nor_wait_till_ready(nor);
-	if (ret) {
-		dev_err(nor->dev,
-			"timeout while writing configuration register\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 /**
  * macronix_quad_enable() - set QE bit in Status Register.
  * @nor:	pointer to a 'struct spi_nor'
@@ -1868,36 +1898,6 @@ static int spansion_read_cr_quad_enable(struct spi_nor *nor)
 	}
 
 	return 0;
-}
-
-static int spi_nor_write_sr2(struct spi_nor *nor, u8 *sr2)
-{
-	if (nor->spimem) {
-		struct spi_mem_op op =
-			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR2, 1),
-				   SPI_MEM_OP_NO_ADDR,
-				   SPI_MEM_OP_NO_DUMMY,
-				   SPI_MEM_OP_DATA_OUT(1, sr2, 1));
-
-		return spi_mem_exec_op(nor->spimem, &op);
-	}
-
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR2, sr2, 1);
-}
-
-static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
-{
-	if (nor->spimem) {
-		struct spi_mem_op op =
-			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RDSR2, 1),
-				   SPI_MEM_OP_NO_ADDR,
-				   SPI_MEM_OP_NO_DUMMY,
-				   SPI_MEM_OP_DATA_IN(1, sr2, 1));
-
-		return spi_mem_exec_op(nor->spimem, &op);
-	}
-
-	return nor->controller_ops->read_reg(nor, SPINOR_OP_RDSR2, sr2, 1);
 }
 
 /**
