@@ -2296,18 +2296,11 @@ bail:
 	return reply_failure((struct ib_smp *) ccp);
 }
 
-static int check_cc_key(struct qib_ibport *ibp,
-			struct ib_cc_mad *ccp, int mad_flags)
-{
-	return 0;
-}
-
 static int process_cc(struct ib_device *ibdev, int mad_flags,
 			u8 port, const struct ib_mad *in_mad,
 			struct ib_mad *out_mad)
 {
 	struct ib_cc_mad *ccp = (struct ib_cc_mad *)out_mad;
-	struct qib_ibport *ibp = to_iport(ibdev, port);
 	int ret;
 
 	*out_mad = *in_mad;
@@ -2317,10 +2310,6 @@ static int process_cc(struct ib_device *ibdev, int mad_flags,
 		ret = reply((struct ib_smp *)ccp);
 		goto bail;
 	}
-
-	ret = check_cc_key(ibp, ccp, mad_flags);
-	if (ret)
-		goto bail;
 
 	switch (ccp->method) {
 	case IB_MGMT_METHOD_GET:
