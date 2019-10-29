@@ -631,10 +631,12 @@ static void init_append_extent(struct bch_write_op *op,
 			       struct bversion version,
 			       struct bch_extent_crc_unpacked crc)
 {
-	struct bkey_i_extent *e = bkey_extent_init(op->insert_keys.top);
+	struct bkey_i_extent *e;
 	struct bch_extent_ptr *ptr;
 
 	op->pos.offset += crc.uncompressed_size;
+
+	e = bkey_extent_init(op->insert_keys.top);
 	e->k.p		= op->pos;
 	e->k.size	= crc.uncompressed_size;
 	e->k.version	= version;
