@@ -76,6 +76,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->set_inbox1_wptr = dmub_dcn20_set_inbox1_wptr;
 		funcs->is_supported = dmub_dcn20_is_supported;
 		funcs->is_phy_init = dmub_dcn20_is_phy_init;
+		funcs->is_hw_init = dmub_dcn20_is_hw_init;
 
 		if (asic == DMUB_ASIC_DCN21) {
 			funcs->backdoor_load = dmub_dcn21_backdoor_load;
@@ -230,6 +231,19 @@ enum dmub_status dmub_srv_has_hw_support(struct dmub_srv *dmub,
 
 	if (dmub->hw_funcs.is_supported)
 		*is_supported = dmub->hw_funcs.is_supported(dmub);
+
+	return DMUB_STATUS_OK;
+}
+
+enum dmub_status dmub_srv_is_hw_init(struct dmub_srv *dmub, bool *is_hw_init)
+{
+	*is_hw_init = false;
+
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->hw_funcs.is_hw_init)
+		*is_hw_init = dmub->hw_funcs.is_hw_init(dmub);
 
 	return DMUB_STATUS_OK;
 }

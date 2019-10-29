@@ -122,6 +122,11 @@ void dmub_dcn20_set_inbox1_wptr(struct dmub_srv *dmub, uint32_t wptr_offset)
 	REG_WRITE(DMCUB_INBOX1_WPTR, wptr_offset);
 }
 
+bool dmub_dcn20_is_hw_init(struct dmub_srv *dmub)
+{
+	return REG_READ(DMCUB_REGION3_CW2_BASE_ADDRESS) != 0;
+}
+
 bool dmub_dcn20_is_supported(struct dmub_srv *dmub)
 {
 	uint32_t supported = 0;

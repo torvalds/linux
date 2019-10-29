@@ -55,6 +55,8 @@ uint32_t dmub_dcn20_get_inbox1_rptr(struct dmub_srv *dmub);
 
 void dmub_dcn20_set_inbox1_wptr(struct dmub_srv *dmub, uint32_t wptr_offset);
 
+bool dmub_dcn20_is_hw_init(struct dmub_srv *dmub);
+
 bool dmub_dcn20_is_supported(struct dmub_srv *dmub);
 
 bool dmub_dcn20_is_phy_init(struct dmub_srv *dmub);
