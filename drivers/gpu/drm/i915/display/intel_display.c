@@ -66,6 +66,7 @@
 #include "intel_cdclk.h"
 #include "intel_color.h"
 #include "intel_display_types.h"
+#include "intel_dp_link_training.h"
 #include "intel_fbc.h"
 #include "intel_fbdev.h"
 #include "intel_fifo_underrun.h"
