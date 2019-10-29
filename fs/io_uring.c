@@ -2133,6 +2133,48 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+static bool io_cancel_cb(struct io_wq_work *work, void *data)
+{
+	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
+
+	return req->user_data == (unsigned long) data;
+}
+
+static int io_async_cancel(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+			   struct io_kiocb **nxt)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	enum io_wq_cancel cancel_ret;
+	void *sqe_addr;
+	int ret = 0;
+
+	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (sqe->flags || sqe->ioprio || sqe->off || sqe->len ||
+	    sqe->cancel_flags)
+		return -EINVAL;
+
+	sqe_addr = (void *) (unsigned long) READ_ONCE(sqe->addr);
+	cancel_ret = io_wq_cancel_cb(ctx->io_wq, io_cancel_cb, sqe_addr);
+	switch (cancel_ret) {
+	case IO_WQ_CANCEL_OK:
+		ret = 0;
+		break;
+	case IO_WQ_CANCEL_RUNNING:
+		ret = -EALREADY;
+		break;
+	case IO_WQ_CANCEL_NOTFOUND:
+		ret = -ENOENT;
+		break;
+	}
+
+	if (ret < 0 && (req->flags & REQ_F_LINK))
+		req->flags |= REQ_F_FAIL_LINK;
+	io_cqring_add_event(req->ctx, sqe->user_data, ret);
+	io_put_req(req, nxt);
+	return 0;
+}
+
 static int io_req_defer(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			const struct io_uring_sqe *sqe)
 {
@@ -2216,6 +2258,9 @@ static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		break;
 	case IORING_OP_ACCEPT:
 		ret = io_accept(req, s->sqe, nxt, force_nonblock);
+		break;
+	case IORING_OP_ASYNC_CANCEL:
+		ret = io_async_cancel(req, s->sqe, nxt);
 		break;
 	default:
 		ret = -EINVAL;

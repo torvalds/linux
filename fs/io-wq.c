@@ -639,6 +639,91 @@ void io_wq_cancel_all(struct io_wq *wq)
 	rcu_read_unlock();
 }
 
+struct io_cb_cancel_data {
+	struct io_wqe *wqe;
+	work_cancel_fn *cancel;
+	void *caller_data;
+};
+
+static bool io_work_cancel(struct io_worker *worker, void *cancel_data)
+{
+	struct io_cb_cancel_data *data = cancel_data;
+	struct io_wqe *wqe = data->wqe;
+	bool ret = false;
+
+	/*
+	 * Hold the lock to avoid ->cur_work going out of scope, caller
+	 * may deference the passed in work.
+	 */
+	spin_lock_irq(&wqe->lock);
+	if (worker->cur_work &&
+	    data->cancel(worker->cur_work, data->caller_data)) {
+		send_sig(SIGINT, worker->task, 1);
+		ret = true;
+	}
+	spin_unlock_irq(&wqe->lock);
+
+	return ret;
+}
+
+static enum io_wq_cancel io_wqe_cancel_cb_work(struct io_wqe *wqe,
+					       work_cancel_fn *cancel,
+					       void *cancel_data)
+{
+	struct io_cb_cancel_data data = {
+		.wqe = wqe,
+		.cancel = cancel,
+		.caller_data = cancel_data,
+	};
+	struct io_wq_work *work;
+	bool found = false;
+
+	spin_lock_irq(&wqe->lock);
+	list_for_each_entry(work, &wqe->work_list, list) {
+		if (cancel(work, cancel_data)) {
+			list_del(&work->list);
+			found = true;
+			break;
+		}
+	}
+	spin_unlock_irq(&wqe->lock);
+
+	if (found) {
+		work->flags |= IO_WQ_WORK_CANCEL;
+		work->func(&work);
+		return IO_WQ_CANCEL_OK;
+	}
+
+	rcu_read_lock();
+	found = io_wq_for_each_worker(wqe, &wqe->free_list, io_work_cancel,
+					&data);
+	if (found)
+		goto done;
+
+	found = io_wq_for_each_worker(wqe, &wqe->busy_list, io_work_cancel,
+					&data);
+done:
+	rcu_read_unlock();
+	return found ? IO_WQ_CANCEL_RUNNING : IO_WQ_CANCEL_NOTFOUND;
+}
+
+enum io_wq_cancel io_wq_cancel_cb(struct io_wq *wq, work_cancel_fn *cancel,
+				  void *data)
+{
+	enum io_wq_cancel ret = IO_WQ_CANCEL_NOTFOUND;
+	int i;
+
+	for (i = 0; i < wq->nr_wqes; i++) {
+		struct io_wqe *wqe = wq->wqes[i];
+
+		ret = io_wqe_cancel_cb_work(wqe, cancel, data);
+		if (ret != IO_WQ_CANCEL_NOTFOUND)
+			break;
+	}
+
+	return ret;
+}
+
 static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 {
 	struct io_wq_work *work = data;
