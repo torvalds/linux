@@ -153,7 +153,7 @@ void *dma_direct_alloc_pages(struct device *dev, size_t size,
 		 * so log an error and fail.
 		 */
 		dev_info(dev, "Rejecting highmem page from CMA.\n");
-		__dma_direct_free_pages(dev, size, page);
+		dma_free_contiguous(dev, page, size);
 		return NULL;
 	}
 
@@ -175,11 +175,6 @@ void *dma_direct_alloc_pages(struct device *dev, size_t size,
 	return ret;
 }
 
-void __dma_direct_free_pages(struct device *dev, size_t size, struct page *page)
-{
-	dma_free_contiguous(dev, page, size);
-}
-
 void dma_direct_free_pages(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_addr, unsigned long attrs)
 {
@@ -188,7 +183,7 @@ void dma_direct_free_pages(struct device *dev, size_t size, void *cpu_addr,
 	if ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) &&
 	    !force_dma_unencrypted(dev)) {
 		/* cpu_addr is a struct page cookie, not a kernel address */
-		__dma_direct_free_pages(dev, size, cpu_addr);
+		dma_free_contiguous(dev, cpu_addr, size);
 		return;
 	}
 
@@ -198,7 +193,7 @@ void dma_direct_free_pages(struct device *dev, size_t size, void *cpu_addr,
 	if (IS_ENABLED(CONFIG_ARCH_HAS_UNCACHED_SEGMENT) &&
 	    dma_alloc_need_uncached(dev, attrs))
 		cpu_addr = cached_kernel_address(cpu_addr);
-	__dma_direct_free_pages(dev, size, virt_to_page(cpu_addr));
+	dma_free_contiguous(dev, virt_to_page(cpu_addr), size);
 }
 
 void *dma_direct_alloc(struct device *dev, size_t size,

@@ -238,7 +238,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 			dma_pgprot(dev, PAGE_KERNEL, attrs),
 			__builtin_return_address(0));
 	if (!ret) {
-		__dma_direct_free_pages(dev, size, page);
+		dma_free_contiguous(dev, page, size);
 		return ret;
 	}
 
@@ -256,7 +256,7 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 		struct page *page = pfn_to_page(__phys_to_pfn(phys));
 
 		vunmap(vaddr);
-		__dma_direct_free_pages(dev, size, page);
+		dma_free_contiguous(dev, page, size);
 	}
 }
 
