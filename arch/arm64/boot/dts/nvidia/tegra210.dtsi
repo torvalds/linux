@@ -1507,6 +1507,7 @@
 				};
 			};
 		};
+
 		mem {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
@@ -1529,6 +1530,7 @@
 				 */
 			};
 		};
+
 		gpu {
 			polling-delay-passive = <1000>;
 			polling-delay = <0>;
@@ -1557,6 +1559,7 @@
 				};
 			};
 		};
+
 		pllx {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
