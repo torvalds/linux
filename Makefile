@@ -1684,10 +1684,9 @@ tags TAGS cscope gtags: FORCE
 # ---------------------------------------------------------------------------
 
 PHONY += nsdeps
-
+nsdeps: export KBUILD_NSDEPS=1
 nsdeps: modules
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost nsdeps
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/$@
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/nsdeps
 
 # Scripts to check various things for consistency
 # ---------------------------------------------------------------------------
