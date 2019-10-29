@@ -2770,7 +2770,9 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 	i915_address_space_fini(&ggtt->vm);
 
 	arch_phys_wc_del(ggtt->mtrr);
-	io_mapping_fini(&ggtt->iomap);
+
+	if (ggtt->iomap.size)
+		io_mapping_fini(&ggtt->iomap);
 }
 
 /**
@@ -2988,6 +2990,12 @@ static void setup_private_pat(struct intel_uncore *uncore)
 		bdw_setup_private_ppat(uncore);
 }
 
+static struct resource pci_resource(struct pci_dev *pdev, int bar)
+{
+	return (struct resource)DEFINE_RES_MEM(pci_resource_start(pdev, bar),
+					       pci_resource_len(pdev, bar));
+}
+
 static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 {
 	struct drm_i915_private *dev_priv = ggtt->vm.i915;
@@ -2997,10 +3005,10 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	int err;
 
 	/* TODO: We're not aware of mappable constraints on gen8 yet */
-	ggtt->gmadr =
-		(struct resource) DEFINE_RES_MEM(pci_resource_start(pdev, 2),
-						 pci_resource_len(pdev, 2));
-	ggtt->mappable_end = resource_size(&ggtt->gmadr);
+	if (!IS_DGFX(dev_priv)) {
+		ggtt->gmadr = pci_resource(pdev, 2);
+		ggtt->mappable_end = resource_size(&ggtt->gmadr);
+	}
 
 	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(39));
 	if (!err)
@@ -3223,14 +3231,17 @@ static int ggtt_init_hw(struct i915_ggtt *ggtt)
 	if (!HAS_LLC(i915) && !HAS_PPGTT(i915))
 		ggtt->vm.mm.color_adjust = i915_ggtt_color_adjust;
 
-	if (!io_mapping_init_wc(&ggtt->iomap,
-				ggtt->gmadr.start,
-				ggtt->mappable_end)) {
-		ggtt->vm.cleanup(&ggtt->vm);
-		return -EIO;
-	}
+	if (ggtt->mappable_end) {
+		if (!io_mapping_init_wc(&ggtt->iomap,
+					ggtt->gmadr.start,
+					ggtt->mappable_end)) {
+			ggtt->vm.cleanup(&ggtt->vm);
+			return -EIO;
+		}
 
-	ggtt->mtrr = arch_phys_wc_add(ggtt->gmadr.start, ggtt->mappable_end);
+		ggtt->mtrr = arch_phys_wc_add(ggtt->gmadr.start,
+					      ggtt->mappable_end);
+	}
 
 	i915_ggtt_init_fences(ggtt);
 
