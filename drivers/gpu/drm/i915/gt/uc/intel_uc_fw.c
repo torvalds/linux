@@ -220,29 +220,31 @@ static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw,
 {
 	bool user = e == -EINVAL;
 
-	if (i915_inject_load_error(i915, e)) {
+	if (i915_inject_probe_error(i915, e)) {
 		/* non-existing blob */
 		uc_fw->path = "<invalid>";
 		uc_fw->user_overridden = user;
-	} else if (i915_inject_load_error(i915, e)) {
+	} else if (i915_inject_probe_error(i915, e)) {
 		/* require next major version */
 		uc_fw->major_ver_wanted += 1;
 		uc_fw->minor_ver_wanted = 0;
 		uc_fw->user_overridden = user;
-	} else if (i915_inject_load_error(i915, e)) {
+	} else if (i915_inject_probe_error(i915, e)) {
 		/* require next minor version */
 		uc_fw->minor_ver_wanted += 1;
 		uc_fw->user_overridden = user;
-	} else if (uc_fw->major_ver_wanted && i915_inject_load_error(i915, e)) {
+	} else if (uc_fw->major_ver_wanted &&
+		   i915_inject_probe_error(i915, e)) {
 		/* require prev major version */
 		uc_fw->major_ver_wanted -= 1;
 		uc_fw->minor_ver_wanted = 0;
 		uc_fw->user_overridden = user;
-	} else if (uc_fw->minor_ver_wanted && i915_inject_load_error(i915, e)) {
+	} else if (uc_fw->minor_ver_wanted &&
+		   i915_inject_probe_error(i915, e)) {
 		/* require prev minor version - hey, this should work! */
 		uc_fw->minor_ver_wanted -= 1;
 		uc_fw->user_overridden = user;
-	} else if (user && i915_inject_load_error(i915, e)) {
+	} else if (user && i915_inject_probe_error(i915, e)) {
 		/* officially unsupported platform */
 		uc_fw->major_ver_wanted = 0;
 		uc_fw->minor_ver_wanted = 0;
@@ -271,7 +273,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	GEM_BUG_ON(!i915->wopcm.size);
 	GEM_BUG_ON(!intel_uc_fw_is_enabled(uc_fw));
 
-	err = i915_inject_load_error(i915, -ENXIO);
+	err = i915_inject_probe_error(i915, -ENXIO);
 	if (err)
 		return err;
 
@@ -432,7 +434,7 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 	u64 offset;
 	int ret;
 
-	ret = i915_inject_load_error(gt->i915, -ETIMEDOUT);
+	ret = i915_inject_probe_error(gt->i915, -ETIMEDOUT);
 	if (ret)
 		return ret;
 
@@ -493,7 +495,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 	/* make sure the status was cleared the last time we reset the uc */
 	GEM_BUG_ON(intel_uc_fw_is_loaded(uc_fw));
 
-	err = i915_inject_load_error(gt->i915, -ENOEXEC);
+	err = i915_inject_probe_error(gt->i915, -ENOEXEC);
 	if (err)
 		return err;
 

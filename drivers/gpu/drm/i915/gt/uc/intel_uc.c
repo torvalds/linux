@@ -20,7 +20,7 @@ static int __intel_uc_reset_hw(struct intel_uc *uc)
 	int ret;
 	u32 guc_status;
 
-	ret = i915_inject_load_error(gt->i915, -ENXIO);
+	ret = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (ret)
 		return ret;
 
@@ -197,7 +197,7 @@ static int guc_enable_communication(struct intel_guc *guc)
 
 	GEM_BUG_ON(guc_communication_enabled(guc));
 
-	ret = i915_inject_load_error(i915, -ENXIO);
+	ret = i915_inject_probe_error(i915, -ENXIO);
 	if (ret)
 		return ret;
 
@@ -372,7 +372,7 @@ static int uc_init_wopcm(struct intel_uc *uc)
 	GEM_BUG_ON(!(size & GUC_WOPCM_SIZE_MASK));
 	GEM_BUG_ON(size & ~GUC_WOPCM_SIZE_MASK);
 
-	err = i915_inject_load_error(gt->i915, -ENXIO);
+	err = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (err)
 		return err;
 

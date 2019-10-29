@@ -54,8 +54,8 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 static unsigned int i915_probe_fail_count;
 
-int __i915_inject_load_error(struct drm_i915_private *i915, int err,
-			     const char *func, int line)
+int __i915_inject_probe_error(struct drm_i915_private *i915, int err,
+			      const char *func, int line)
 {
 	if (i915_probe_fail_count >= i915_modparams.inject_load_failure)
 		return 0;

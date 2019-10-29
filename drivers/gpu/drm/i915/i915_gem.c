@@ -1300,11 +1300,11 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_gt;
 
-	ret = i915_inject_load_error(dev_priv, -ENODEV);
+	ret = i915_inject_probe_error(dev_priv, -ENODEV);
 	if (ret)
 		goto err_gt;
 
-	ret = i915_inject_load_error(dev_priv, -EIO);
+	ret = i915_inject_probe_error(dev_priv, -EIO);
 	if (ret)
 		goto err_gt;
 
