@@ -1149,6 +1149,9 @@ static int igt_ggtt_page(void *arg)
 	unsigned int *order, n;
 	int err;
 
+	if (!i915_ggtt_has_aperture(ggtt))
+		return 0;
+
 	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);

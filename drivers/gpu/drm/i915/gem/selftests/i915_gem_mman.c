@@ -301,6 +301,9 @@ static int igt_partial_tiling(void *arg)
 	int tiling;
 	int err;
 
+	if (!i915_ggtt_has_aperture(&i915->ggtt))
+		return 0;
+
 	/* We want to check the page mapping and fencing of a large object
 	 * mmapped through the GTT. The object we create is larger than can
 	 * possibly be mmaped as a whole, and so we must use partial GGTT vma.
@@ -430,6 +433,9 @@ static int igt_smoke_tiling(void *arg)
 	unsigned long count;
 	IGT_TIMEOUT(end);
 	int err;
+
+	if (!i915_ggtt_has_aperture(&i915->ggtt))
+		return 0;
 
 	/*
 	 * igt_partial_tiling() does an exhastive check of partial tiling

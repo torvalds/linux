@@ -250,7 +250,12 @@ static bool always_valid(struct context *ctx)
 
 static bool needs_fence_registers(struct context *ctx)
 {
-	return !intel_gt_is_wedged(ctx->engine->gt);
+	struct intel_gt *gt = ctx->engine->gt;
+
+	if (intel_gt_is_wedged(gt))
+		return false;
+
+	return gt->ggtt->num_fences;
 }
 
 static bool needs_mi_store_dword(struct context *ctx)
