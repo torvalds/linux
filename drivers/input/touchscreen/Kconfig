@@ -1037,7 +1037,6 @@ config TOUCHSCREEN_TS4800
 	depends on HAS_IOMEM && OF
 	depends on SOC_IMX51 || COMPILE_TEST
 	select MFD_SYSCON
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you have a touchscreen on a TS-4800 board.
 
