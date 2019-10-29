@@ -224,7 +224,7 @@ int sm750_hw_copyarea(struct lynx_accel *accel,
 
 	/*
 	 * Note:
-	 * DE_FOREGROUND are DE_BACKGROUND are don't care.
+	 * DE_FOREGROUND and DE_BACKGROUND are don't care.
 	 * DE_COLOR_COMPARE and DE_COLOR_COMPARE_MAKS
 	 * are set by set deSetTransparency().
 	 */
