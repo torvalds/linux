@@ -263,6 +263,7 @@ config DRM_VKMS
 	tristate "Virtual KMS (EXPERIMENTAL)"
 	depends on DRM
 	select DRM_KMS_HELPER
+	select CRC32
 	default n
 	help
 	  Virtual Kernel Mode-Setting (VKMS) is used for testing or for
@@ -403,7 +404,7 @@ config DRM_R128
 
 config DRM_I810
 	tristate "Intel I810"
-	# !PREEMPT because of missing ioctl locking
+	# !PREEMPTION because of missing ioctl locking
 	depends on DRM && AGP && AGP_INTEL && (!PREEMPTION || BROKEN)
 	help
 	  Choose this option if you have an Intel I810 graphics card.  If M is

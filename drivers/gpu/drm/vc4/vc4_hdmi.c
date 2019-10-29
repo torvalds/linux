@@ -398,10 +398,7 @@ static void vc4_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
 					   HDMI_QUANTIZATION_RANGE_FULL);
 
-	frame.avi.right_bar = cstate->tv.margins.right;
-	frame.avi.left_bar = cstate->tv.margins.left;
-	frame.avi.top_bar = cstate->tv.margins.top;
-	frame.avi.bottom_bar = cstate->tv.margins.bottom;
+	drm_hdmi_avi_infoframe_bars(&frame.avi, cstate);
 
 	vc4_hdmi_write_infoframe(encoder, &frame);
 }

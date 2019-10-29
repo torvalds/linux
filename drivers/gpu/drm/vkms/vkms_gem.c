@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 
+#include <linux/dma-buf.h>
 #include <linux/shmem_fs.h>
 #include <linux/vmalloc.h>
+#include <drm/drm_prime.h>
 
 #include "vkms_drv.h"
 
@@ -217,4 +219,29 @@ err_vmap:
 out:
 	mutex_unlock(&vkms_obj->pages_lock);
 	return ret;
+}
+
+struct drm_gem_object *
+vkms_prime_import_sg_table(struct drm_device *dev,
+			   struct dma_buf_attachment *attach,
+			   struct sg_table *sg)
+{
+	struct vkms_gem_object *obj;
+	int npages;
+
+	obj = __vkms_gem_create(dev, attach->dmabuf->size);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	npages = PAGE_ALIGN(attach->dmabuf->size) / PAGE_SIZE;
+	DRM_DEBUG_PRIME("Importing %d pages\n", npages);
+
+	obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!obj->pages) {
+		vkms_gem_free_object(&obj->gem);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	drm_prime_sg_to_page_addr_arrays(sg, obj->pages, NULL, npages);
+	return &obj->gem;
 }

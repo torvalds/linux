@@ -3540,7 +3540,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 {
 	struct drm_dp_mst_topology_state *topology_state;
 	struct drm_dp_vcpi_allocation *pos, *vcpi = NULL;
-	int prev_slots, req_slots, ret;
+	int prev_slots, req_slots;
 
 	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
 	if (IS_ERR(topology_state))
@@ -3587,8 +3587,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 	}
 	vcpi->vcpi = req_slots;
 
-	ret = req_slots;
-	return ret;
+	return req_slots;
 }
 EXPORT_SYMBOL(drm_dp_atomic_find_vcpi_slots);
 
@@ -4184,9 +4183,6 @@ EXPORT_SYMBOL(drm_dp_mst_topology_state_funcs);
 struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
 								    struct drm_dp_mst_topology_mgr *mgr)
 {
-	struct drm_device *dev = mgr->dev;
-
-	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 	return to_dp_mst_topology_state(drm_atomic_get_private_obj_state(state, &mgr->base));
 }
 EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);

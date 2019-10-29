@@ -151,6 +151,20 @@ struct drm_gem_object_funcs {
 	void (*vunmap)(struct drm_gem_object *obj, void *vaddr);
 
 	/**
+	 * @mmap:
+	 *
+	 * Handle mmap() of the gem object, setup vma accordingly.
+	 *
+	 * This callback is optional.
+	 *
+	 * The callback is used by by both drm_gem_mmap_obj() and
+	 * drm_gem_prime_mmap().  When @mmap is present @vm_ops is not
+	 * used, the @mmap callback must set vma->vm_ops instead.
+	 *
+	 */
+	int (*mmap)(struct drm_gem_object *obj, struct vm_area_struct *vma);
+
+	/**
 	 * @vm_ops:
 	 *
 	 * Virtual memory operations used with mmap.

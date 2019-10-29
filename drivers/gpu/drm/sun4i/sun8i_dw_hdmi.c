@@ -226,6 +226,7 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	sun8i_hdmi_phy_init(hdmi->phy);
 
 	plat_data->mode_valid = hdmi->quirks->mode_valid;
+	plat_data->use_drm_infoframe = hdmi->quirks->use_drm_infoframe;
 	sun8i_hdmi_phy_set_ops(hdmi->phy, plat_data);
 
 	platform_set_drvdata(pdev, hdmi);
@@ -300,6 +301,7 @@ static const struct sun8i_dw_hdmi_quirks sun8i_a83t_quirks = {
 
 static const struct sun8i_dw_hdmi_quirks sun50i_h6_quirks = {
 	.mode_valid = sun8i_dw_hdmi_mode_valid_h6,
+	.use_drm_infoframe = true,
 };
 
 static const struct of_device_id sun8i_dw_hdmi_dt_ids[] = {

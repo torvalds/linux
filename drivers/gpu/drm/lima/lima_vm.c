@@ -6,7 +6,7 @@
 
 #include "lima_device.h"
 #include "lima_vm.h"
-#include "lima_object.h"
+#include "lima_gem.h"
 #include "lima_regs.h"
 
 struct lima_bo_va {
@@ -32,7 +32,7 @@ struct lima_bo_va {
 #define LIMA_BTE(va) ((va & LIMA_VM_BT_MASK) >> LIMA_VM_BT_SHIFT)
 
 
-static void lima_vm_unmap_page_table(struct lima_vm *vm, u32 start, u32 end)
+static void lima_vm_unmap_range(struct lima_vm *vm, u32 start, u32 end)
 {
 	u32 addr;
 
@@ -44,40 +44,31 @@ static void lima_vm_unmap_page_table(struct lima_vm *vm, u32 start, u32 end)
 	}
 }
 
-static int lima_vm_map_page_table(struct lima_vm *vm, dma_addr_t *dma,
-				  u32 start, u32 end)
+static int lima_vm_map_page(struct lima_vm *vm, dma_addr_t pa, u32 va)
 {
-	u64 addr;
-	int i = 0;
+	u32 pbe = LIMA_PBE(va);
+	u32 bte = LIMA_BTE(va);
 
-	for (addr = start; addr <= end; addr += LIMA_PAGE_SIZE) {
-		u32 pbe = LIMA_PBE(addr);
-		u32 bte = LIMA_BTE(addr);
+	if (!vm->bts[pbe].cpu) {
+		dma_addr_t pts;
+		u32 *pd;
+		int j;
 
-		if (!vm->bts[pbe].cpu) {
-			dma_addr_t pts;
-			u32 *pd;
-			int j;
+		vm->bts[pbe].cpu = dma_alloc_wc(
+			vm->dev->dev, LIMA_PAGE_SIZE << LIMA_VM_NUM_PT_PER_BT_SHIFT,
+			&vm->bts[pbe].dma, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
+		if (!vm->bts[pbe].cpu)
+			return -ENOMEM;
 
-			vm->bts[pbe].cpu = dma_alloc_wc(
-				vm->dev->dev, LIMA_PAGE_SIZE << LIMA_VM_NUM_PT_PER_BT_SHIFT,
-				&vm->bts[pbe].dma, GFP_KERNEL | __GFP_ZERO);
-			if (!vm->bts[pbe].cpu) {
-				if (addr != start)
-					lima_vm_unmap_page_table(vm, start, addr - 1);
-				return -ENOMEM;
-			}
-
-			pts = vm->bts[pbe].dma;
-			pd = vm->pd.cpu + (pbe << LIMA_VM_NUM_PT_PER_BT_SHIFT);
-			for (j = 0; j < LIMA_VM_NUM_PT_PER_BT; j++) {
-				pd[j] = pts | LIMA_VM_FLAG_PRESENT;
-				pts += LIMA_PAGE_SIZE;
-			}
+		pts = vm->bts[pbe].dma;
+		pd = vm->pd.cpu + (pbe << LIMA_VM_NUM_PT_PER_BT_SHIFT);
+		for (j = 0; j < LIMA_VM_NUM_PT_PER_BT; j++) {
+			pd[j] = pts | LIMA_VM_FLAG_PRESENT;
+			pts += LIMA_PAGE_SIZE;
 		}
-
-		vm->bts[pbe].cpu[bte] = dma[i++] | LIMA_VM_FLAGS_CACHE;
 	}
+
+	vm->bts[pbe].cpu[bte] = pa | LIMA_VM_FLAGS_CACHE;
 
 	return 0;
 }
@@ -100,7 +91,8 @@ lima_vm_bo_find(struct lima_vm *vm, struct lima_bo *bo)
 int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 {
 	struct lima_bo_va *bo_va;
-	int err;
+	struct sg_dma_page_iter sg_iter;
+	int offset = 0, err;
 
 	mutex_lock(&bo->lock);
 
@@ -128,14 +120,18 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 
 	mutex_lock(&vm->lock);
 
-	err = drm_mm_insert_node(&vm->mm, &bo_va->node, bo->gem.size);
+	err = drm_mm_insert_node(&vm->mm, &bo_va->node, lima_bo_size(bo));
 	if (err)
 		goto err_out1;
 
-	err = lima_vm_map_page_table(vm, bo->pages_dma_addr, bo_va->node.start,
-				     bo_va->node.start + bo_va->node.size - 1);
-	if (err)
-		goto err_out2;
+	for_each_sg_dma_page(bo->base.sgt->sgl, &sg_iter, bo->base.sgt->nents, 0) {
+		err = lima_vm_map_page(vm, sg_page_iter_dma_address(&sg_iter),
+				       bo_va->node.start + offset);
+		if (err)
+			goto err_out2;
+
+		offset += PAGE_SIZE;
+	}
 
 	mutex_unlock(&vm->lock);
 
@@ -145,6 +141,8 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 	return 0;
 
 err_out2:
+	if (offset)
+		lima_vm_unmap_range(vm, bo_va->node.start, bo_va->node.start + offset - 1);
 	drm_mm_remove_node(&bo_va->node);
 err_out1:
 	mutex_unlock(&vm->lock);
@@ -168,8 +166,8 @@ void lima_vm_bo_del(struct lima_vm *vm, struct lima_bo *bo)
 
 	mutex_lock(&vm->lock);
 
-	lima_vm_unmap_page_table(vm, bo_va->node.start,
-				 bo_va->node.start + bo_va->node.size - 1);
+	lima_vm_unmap_range(vm, bo_va->node.start,
+			    bo_va->node.start + bo_va->node.size - 1);
 
 	drm_mm_remove_node(&bo_va->node);
 
@@ -210,14 +208,13 @@ struct lima_vm *lima_vm_create(struct lima_device *dev)
 	kref_init(&vm->refcount);
 
 	vm->pd.cpu = dma_alloc_wc(dev->dev, LIMA_PAGE_SIZE, &vm->pd.dma,
-				  GFP_KERNEL | __GFP_ZERO);
+				  GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 	if (!vm->pd.cpu)
 		goto err_out0;
 
 	if (dev->dlbu_cpu) {
-		int err = lima_vm_map_page_table(
-			vm, &dev->dlbu_dma, LIMA_VA_RESERVE_DLBU,
-			LIMA_VA_RESERVE_DLBU + LIMA_PAGE_SIZE - 1);
+		int err = lima_vm_map_page(
+			vm, dev->dlbu_dma, LIMA_VA_RESERVE_DLBU);
 		if (err)
 			goto err_out1;
 	}

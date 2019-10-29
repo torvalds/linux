@@ -27,8 +27,10 @@ struct mxsfb_drm_private {
 	struct clk			*clk_disp_axi;
 
 	struct drm_simple_display_pipe	pipe;
-	struct drm_connector		connector;
+	struct drm_connector		panel_connector;
+	struct drm_connector		*connector;
 	struct drm_panel		*panel;
+	struct drm_bridge		*bridge;
 };
 
 int mxsfb_setup_crtc(struct drm_device *dev);

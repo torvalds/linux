@@ -1123,7 +1123,10 @@ void amdgpu_bo_fini(struct amdgpu_device *adev)
 int amdgpu_bo_fbdev_mmap(struct amdgpu_bo *bo,
 			     struct vm_area_struct *vma)
 {
-	return ttm_fbdev_mmap(vma, &bo->tbo);
+	if (vma->vm_pgoff != 0)
+		return -EACCES;
+
+	return ttm_bo_mmap_obj(vma, &bo->tbo);
 }
 
 /**

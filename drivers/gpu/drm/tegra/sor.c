@@ -25,6 +25,7 @@
 #include <drm/drm_scdc_helper.h>
 
 #include "dc.h"
+#include "dp.h"
 #include "drm.h"
 #include "hda.h"
 #include "sor.h"

@@ -1251,6 +1251,7 @@ F:	Documentation/devicetree/bindings/display/arm,hdlcd.txt
 ARM KOMEDA DRM-KMS DRIVER
 M:	James (Qian) Wang <james.qian.wang@arm.com>
 M:	Liviu Dudau <liviu.dudau@arm.com>
+M:	Mihail Atanassov <mihail.atanassov@arm.com>
 L:	Mali DP Maintainers <malidp@foss.arm.com>
 S:	Supported
 T:	git git://anongit.freedesktop.org/drm/drm-misc

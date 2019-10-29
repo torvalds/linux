@@ -137,6 +137,12 @@ int vkms_gem_vmap(struct drm_gem_object *obj);
 
 void vkms_gem_vunmap(struct drm_gem_object *obj);
 
+/* Prime */
+struct drm_gem_object *
+vkms_prime_import_sg_table(struct drm_device *dev,
+			   struct dma_buf_attachment *attach,
+			   struct sg_table *sg);
+
 /* CRC Support */
 const char *const *vkms_get_crc_sources(struct drm_crtc *crtc,
 					size_t *count);

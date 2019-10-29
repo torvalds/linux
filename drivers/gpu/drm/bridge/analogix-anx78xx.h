@@ -6,15 +6,8 @@
 #ifndef __ANX78xx_H
 #define __ANX78xx_H
 
-#define TX_P0				0x70
-#define TX_P1				0x7a
-#define TX_P2				0x72
-
-#define RX_P0				0x7e
-#define RX_P1				0x80
-
 /***************************************************************/
-/* Register definition of device address 0x7e                  */
+/* Register definitions for RX_PO                              */
 /***************************************************************/
 
 /*
@@ -171,7 +164,7 @@
 #define SP_VSI_RCVD			BIT(1)
 
 /***************************************************************/
-/* Register definition of device address 0x80                  */
+/* Register definitions for RX_P1                              */
 /***************************************************************/
 
 /* HDCP BCAPS Shadow Register */
@@ -217,7 +210,7 @@
 #define SP_SET_AVMUTE			BIT(0)
 
 /***************************************************************/
-/* Register definition of device address 0x70                  */
+/* Register definitions for TX_P0                              */
 /***************************************************************/
 
 /* HDCP Status Register */
@@ -451,7 +444,7 @@
 #define SP_DP_BUF_DATA0_REG		0xf0
 
 /***************************************************************/
-/* Register definition of device address 0x72                  */
+/* Register definitions for TX_P2                              */
 /***************************************************************/
 
 /*
@@ -674,7 +667,7 @@
 #define SP_INT_CTRL_REG			0xff
 
 /***************************************************************/
-/* Register definition of device address 0x7a                  */
+/* Register definitions for TX_P1                              */
 /***************************************************************/
 
 /* DP TX Link Training Control Register */
