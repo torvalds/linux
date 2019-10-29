@@ -448,7 +448,7 @@ static int spi_nor_read_sr(struct spi_nor *nor)
 	}
 
 	if (ret) {
-		pr_err("error %d reading SR\n", (int) ret);
+		pr_err("error %d reading SR\n", ret);
 		return ret;
 	}
 
@@ -644,7 +644,7 @@ static int s3an_sr_ready(struct spi_nor *nor)
 
 	ret = spi_nor_xread_sr(nor, nor->bouncebuf);
 	if (ret) {
-		dev_err(nor->dev, "error %d reading XRDSR\n", (int) ret);
+		dev_err(nor->dev, "error %d reading XRDSR\n", ret);
 		return ret;
 	}
 
@@ -2619,8 +2619,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		ret = spi_nor_write_data(nor, to, 1, buf);
 		if (ret < 0)
 			goto sst_write_err;
-		WARN(ret != 1, "While writing 1 byte written %i bytes\n",
-		     (int)ret);
+		WARN(ret != 1, "While writing 1 byte written %i bytes\n", ret);
 		ret = spi_nor_wait_till_ready(nor);
 		if (ret)
 			goto sst_write_err;
@@ -2635,8 +2634,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		ret = spi_nor_write_data(nor, to, 2, buf + actual);
 		if (ret < 0)
 			goto sst_write_err;
-		WARN(ret != 2, "While writing 2 bytes written %i bytes\n",
-		     (int)ret);
+		WARN(ret != 2, "While writing 2 bytes written %i bytes\n", ret);
 		ret = spi_nor_wait_till_ready(nor);
 		if (ret)
 			goto sst_write_err;
@@ -2658,8 +2656,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		ret = spi_nor_write_data(nor, to, 1, buf + actual);
 		if (ret < 0)
 			goto sst_write_err;
-		WARN(ret != 1, "While writing 1 byte written %i bytes\n",
-		     (int)ret);
+		WARN(ret != 1, "While writing 1 byte written %i bytes\n", ret);
 		ret = spi_nor_wait_till_ready(nor);
 		if (ret)
 			goto sst_write_err;
@@ -2755,7 +2752,7 @@ static int s3an_nor_setup(struct spi_nor *nor,
 
 	ret = spi_nor_xread_sr(nor, nor->bouncebuf);
 	if (ret) {
-		dev_err(nor->dev, "error %d reading XRDSR\n", (int) ret);
+		dev_err(nor->dev, "error %d reading XRDSR\n", ret);
 		return ret;
 	}
 
