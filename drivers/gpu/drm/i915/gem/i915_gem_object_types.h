@@ -32,7 +32,8 @@ struct drm_i915_gem_object_ops {
 #define I915_GEM_OBJECT_HAS_STRUCT_PAGE	BIT(0)
 #define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(1)
 #define I915_GEM_OBJECT_IS_PROXY	BIT(2)
-#define I915_GEM_OBJECT_ASYNC_CANCEL	BIT(3)
+#define I915_GEM_OBJECT_NO_GGTT		BIT(3)
+#define I915_GEM_OBJECT_ASYNC_CANCEL	BIT(4)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set

@@ -7,11 +7,39 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
+#include "../kvm_util_internal.h"
 #include "processor.h"
 #include "vmx.h"
 
+#define PAGE_SHIFT_4K  12
+
+#define KVM_EPT_PAGE_TABLE_MIN_PADDR 0x1c0000
+
 bool enable_evmcs;
 
+struct eptPageTableEntry {
+	uint64_t readable:1;
+	uint64_t writable:1;
+	uint64_t executable:1;
+	uint64_t memory_type:3;
+	uint64_t ignore_pat:1;
+	uint64_t page_size:1;
+	uint64_t accessed:1;
+	uint64_t dirty:1;
+	uint64_t ignored_11_10:2;
+	uint64_t address:40;
+	uint64_t ignored_62_52:11;
+	uint64_t suppress_ve:1;
+};
+
+struct eptPageTablePointer {
+	uint64_t memory_type:3;
+	uint64_t page_walk_length:3;
+	uint64_t ad_enabled:1;
+	uint64_t reserved_11_07:5;
+	uint64_t address:40;
+	uint64_t reserved_63_52:12;
+};
 int vcpu_enable_evmcs(struct kvm_vm *vm, int vcpu_id)
 {
 	uint16_t evmcs_ver;
@@ -174,15 +202,35 @@ bool load_vmcs(struct vmx_pages *vmx)
  */
 static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 {
+	uint32_t sec_exec_ctl = 0;
+
 	vmwrite(VIRTUAL_PROCESSOR_ID, 0);
 	vmwrite(POSTED_INTR_NV, 0);
 
 	vmwrite(PIN_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_TRUE_PINBASED_CTLS));
-	if (!vmwrite(SECONDARY_VM_EXEC_CONTROL, 0))
+
+	if (vmx->eptp_gpa) {
+		uint64_t ept_paddr;
+		struct eptPageTablePointer eptp = {
+			.memory_type = VMX_BASIC_MEM_TYPE_WB,
+			.page_walk_length = 3, /* + 1 */
+			.ad_enabled = !!(rdmsr(MSR_IA32_VMX_EPT_VPID_CAP) & VMX_EPT_VPID_CAP_AD_BITS),
+			.address = vmx->eptp_gpa >> PAGE_SHIFT_4K,
+		};
+
+		memcpy(&ept_paddr, &eptp, sizeof(ept_paddr));
+		vmwrite(EPT_POINTER, ept_paddr);
+		sec_exec_ctl |= SECONDARY_EXEC_ENABLE_EPT;
+	}
+
+	if (!vmwrite(SECONDARY_VM_EXEC_CONTROL, sec_exec_ctl))
 		vmwrite(CPU_BASED_VM_EXEC_CONTROL,
 			rdmsr(MSR_IA32_VMX_TRUE_PROCBASED_CTLS) | CPU_BASED_ACTIVATE_SECONDARY_CONTROLS);
-	else
+	else {
 		vmwrite(CPU_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_TRUE_PROCBASED_CTLS));
+		GUEST_ASSERT(!sec_exec_ctl);
+	}
+
 	vmwrite(EXCEPTION_BITMAP, 0);
 	vmwrite(PAGE_FAULT_ERROR_CODE_MASK, 0);
 	vmwrite(PAGE_FAULT_ERROR_CODE_MATCH, -1); /* Never match */
@@ -326,4 +374,153 @@ void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp)
 	init_vmcs_control_fields(vmx);
 	init_vmcs_host_state();
 	init_vmcs_guest_state(guest_rip, guest_rsp);
+}
+
+void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
+	 	   uint64_t nested_paddr, uint64_t paddr, uint32_t eptp_memslot)
+{
+	uint16_t index[4];
+	struct eptPageTableEntry *pml4e;
+
+	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
+		    "unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+
+	TEST_ASSERT((nested_paddr % vm->page_size) == 0,
+		    "Nested physical address not on page boundary,\n"
+		    "  nested_paddr: 0x%lx vm->page_size: 0x%x",
+		    nested_paddr, vm->page_size);
+	TEST_ASSERT((nested_paddr >> vm->page_shift) <= vm->max_gfn,
+		    "Physical address beyond beyond maximum supported,\n"
+		    "  nested_paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
+		    paddr, vm->max_gfn, vm->page_size);
+	TEST_ASSERT((paddr % vm->page_size) == 0,
+		    "Physical address not on page boundary,\n"
+		    "  paddr: 0x%lx vm->page_size: 0x%x",
+		    paddr, vm->page_size);
+	TEST_ASSERT((paddr >> vm->page_shift) <= vm->max_gfn,
+		    "Physical address beyond beyond maximum supported,\n"
+		    "  paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
+		    paddr, vm->max_gfn, vm->page_size);
+
+	index[0] = (nested_paddr >> 12) & 0x1ffu;
+	index[1] = (nested_paddr >> 21) & 0x1ffu;
+	index[2] = (nested_paddr >> 30) & 0x1ffu;
+	index[3] = (nested_paddr >> 39) & 0x1ffu;
+
+	/* Allocate page directory pointer table if not present. */
+	pml4e = vmx->eptp_hva;
+	if (!pml4e[index[3]].readable) {
+		pml4e[index[3]].address = vm_phy_page_alloc(vm,
+			  KVM_EPT_PAGE_TABLE_MIN_PADDR, eptp_memslot)
+			>> vm->page_shift;
+		pml4e[index[3]].writable = true;
+		pml4e[index[3]].readable = true;
+		pml4e[index[3]].executable = true;
+	}
+
+	/* Allocate page directory table if not present. */
+	struct eptPageTableEntry *pdpe;
+	pdpe = addr_gpa2hva(vm, pml4e[index[3]].address * vm->page_size);
+	if (!pdpe[index[2]].readable) {
+		pdpe[index[2]].address = vm_phy_page_alloc(vm,
+			  KVM_EPT_PAGE_TABLE_MIN_PADDR, eptp_memslot)
+			>> vm->page_shift;
+		pdpe[index[2]].writable = true;
+		pdpe[index[2]].readable = true;
+		pdpe[index[2]].executable = true;
+	}
+
+	/* Allocate page table if not present. */
+	struct eptPageTableEntry *pde;
+	pde = addr_gpa2hva(vm, pdpe[index[2]].address * vm->page_size);
+	if (!pde[index[1]].readable) {
+		pde[index[1]].address = vm_phy_page_alloc(vm,
+			  KVM_EPT_PAGE_TABLE_MIN_PADDR, eptp_memslot)
+			>> vm->page_shift;
+		pde[index[1]].writable = true;
+		pde[index[1]].readable = true;
+		pde[index[1]].executable = true;
+	}
+
+	/* Fill in page table entry. */
+	struct eptPageTableEntry *pte;
+	pte = addr_gpa2hva(vm, pde[index[1]].address * vm->page_size);
+	pte[index[0]].address = paddr >> vm->page_shift;
+	pte[index[0]].writable = true;
+	pte[index[0]].readable = true;
+	pte[index[0]].executable = true;
+
+	/*
+	 * For now mark these as accessed and dirty because the only
+	 * testcase we have needs that.  Can be reconsidered later.
+	 */
+	pte[index[0]].accessed = true;
+	pte[index[0]].dirty = true;
+}
+
+/*
+ * Map a range of EPT guest physical addresses to the VM's physical address
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   nested_paddr - Nested guest physical address to map
+ *   paddr - VM Physical Address
+ *   size - The size of the range to map
+ *   eptp_memslot - Memory region slot for new virtual translation tables
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Within the VM given by vm, creates a nested guest translation for the
+ * page range starting at nested_paddr to the page range starting at paddr.
+ */
+void nested_map(struct vmx_pages *vmx, struct kvm_vm *vm,
+		uint64_t nested_paddr, uint64_t paddr, uint64_t size,
+		uint32_t eptp_memslot)
+{
+	size_t page_size = vm->page_size;
+	size_t npages = size / page_size;
+
+	TEST_ASSERT(nested_paddr + size > nested_paddr, "Vaddr overflow");
+	TEST_ASSERT(paddr + size > paddr, "Paddr overflow");
+
+	while (npages--) {
+		nested_pg_map(vmx, vm, nested_paddr, paddr, eptp_memslot);
+		nested_paddr += page_size;
+		paddr += page_size;
+	}
+}
+
+/* Prepare an identity extended page table that maps all the
+ * physical pages in VM.
+ */
+void nested_map_memslot(struct vmx_pages *vmx, struct kvm_vm *vm,
+			uint32_t memslot, uint32_t eptp_memslot)
+{
+	sparsebit_idx_t i, last;
+	struct userspace_mem_region *region =
+		memslot2region(vm, memslot);
+
+	i = (region->region.guest_phys_addr >> vm->page_shift) - 1;
+	last = i + (region->region.memory_size >> vm->page_shift);
+	for (;;) {
+		i = sparsebit_next_clear(region->unused_phy_pages, i);
+		if (i > last)
+			break;
+
+		nested_map(vmx, vm,
+			   (uint64_t)i << vm->page_shift,
+			   (uint64_t)i << vm->page_shift,
+			   1 << vm->page_shift,
+			   eptp_memslot);
+	}
+}
+
+void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
+		  uint32_t eptp_memslot)
+{
+	vmx->eptp = (void *)vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	vmx->eptp_hva = addr_gva2hva(vm, (uintptr_t)vmx->eptp);
+	vmx->eptp_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->eptp);
 }

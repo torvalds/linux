@@ -103,6 +103,7 @@ config W1_SLAVE_DS2438
 
 config W1_SLAVE_DS250X
 	tristate "512b/1kb/16kb EPROM family support"
+	select CRC16
 	help
 	  Say Y here if you want to use a 1-wire
 	  512b/1kb/16kb EPROM family device (DS250x).

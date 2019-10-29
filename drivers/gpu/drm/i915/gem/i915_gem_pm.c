@@ -241,9 +241,6 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	mutex_lock(&i915->drm.struct_mutex);
 	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 
-	i915_gem_restore_gtt_mappings(i915);
-	i915_gem_restore_fences(i915);
-
 	if (i915_gem_init_hw(i915))
 		goto err_wedged;
 

@@ -63,6 +63,9 @@ fi
 
 # Setup
 tc qdisc add dev lo ingress
+echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter
+echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
+echo 0 > /proc/sys/net/ipv4/conf/lo/rp_filter
 
 echo "Testing IPv4..."
 # Drops all IP/UDP packets coming from port 9

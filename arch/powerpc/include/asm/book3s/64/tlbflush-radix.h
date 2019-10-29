@@ -35,6 +35,10 @@ static inline void radix__flush_all_lpid(unsigned int lpid)
 {
 	WARN_ON(1);
 }
+static inline void radix__flush_all_lpid_guest(unsigned int lpid)
+{
+	WARN_ON(1);
+}
 #endif
 
 extern void radix__flush_hugetlb_tlb_range(struct vm_area_struct *vma,

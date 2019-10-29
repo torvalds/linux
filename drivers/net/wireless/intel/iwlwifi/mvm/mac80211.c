@@ -4881,11 +4881,11 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 	if (!iwl_mvm_has_new_rx_api(mvm))
 		return;
 
-	notif->cookie = mvm->queue_sync_cookie;
-
-	if (notif->sync)
+	if (notif->sync) {
+		notif->cookie = mvm->queue_sync_cookie;
 		atomic_set(&mvm->queue_sync_counter,
 			   mvm->trans->num_rx_queues);
+	}
 
 	ret = iwl_mvm_notify_rx_queue(mvm, qmask, (u8 *)notif,
 				      size, !notif->sync);
@@ -4905,7 +4905,8 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 
 out:
 	atomic_set(&mvm->queue_sync_counter, 0);
-	mvm->queue_sync_cookie++;
+	if (notif->sync)
+		mvm->queue_sync_cookie++;
 }
 
 static void iwl_mvm_sync_rx_queues(struct ieee80211_hw *hw)

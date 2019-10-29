@@ -954,11 +954,6 @@ When kbuild executes, the following steps are followed (roughly):
 
 	From commandline LDFLAGS_MODULE shall be used (see kbuild.txt).
 
-    KBUILD_ARFLAGS   Options for $(AR) when creating archives
-
-	$(KBUILD_ARFLAGS) set by the top level Makefile to "D" (deterministic
-	mode) if this option is supported by $(AR).
-
     KBUILD_LDS
 
 	The linker script with full path. Assigned by the top-level Makefile.

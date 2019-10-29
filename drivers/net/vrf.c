@@ -366,7 +366,7 @@ static int vrf_finish_output6(struct net *net, struct sock *sk,
 	struct neighbour *neigh;
 	int ret;
 
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
@@ -459,7 +459,7 @@ static struct sk_buff *vrf_ip6_out_direct(struct net_device *vrf_dev,
 
 	/* reset skb device */
 	if (likely(err == 1))
-		nf_reset(skb);
+		nf_reset_ct(skb);
 	else
 		skb = NULL;
 
@@ -560,7 +560,7 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 	bool is_v6gw = false;
 	int ret = -EINVAL;
 
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	/* Be paranoid, rather than too clever. */
 	if (unlikely(skb_headroom(skb) < hh_len && dev->header_ops)) {
@@ -670,7 +670,7 @@ static struct sk_buff *vrf_ip_out_direct(struct net_device *vrf_dev,
 
 	/* reset skb device */
 	if (likely(err == 1))
-		nf_reset(skb);
+		nf_reset_ct(skb);
 	else
 		skb = NULL;
 

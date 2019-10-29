@@ -718,17 +718,9 @@ static int xen_drv_probe(struct xenbus_device *xb_dev,
 	struct device *dev = &xb_dev->dev;
 	int ret;
 
-	/*
-	 * The device is not spawn from a device tree, so arch_setup_dma_ops
-	 * is not called, thus leaving the device with dummy DMA ops.
-	 * This makes the device return error on PRIME buffer import, which
-	 * is not correct: to fix this call of_dma_configure() with a NULL
-	 * node to set default DMA ops.
-	 */
-	dev->coherent_dma_mask = DMA_BIT_MASK(32);
-	ret = of_dma_configure(dev, NULL, true);
+	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret < 0) {
-		DRM_ERROR("Cannot setup DMA ops, ret %d", ret);
+		DRM_ERROR("Cannot setup DMA mask, ret %d", ret);
 		return ret;
 	}
 

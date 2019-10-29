@@ -803,6 +803,12 @@ static int __hw_perf_event_init(struct perf_event *event)
 		goto out;
 	}
 
+	if (si.ribm & CPU_MF_SF_RIBM_NOTAV) {
+		pr_warn("CPU Measurement Facility sampling is temporarily not available\n");
+		err = -EBUSY;
+		goto out;
+	}
+
 	/* Always enable basic sampling */
 	SAMPL_FLAGS(hwc) = PERF_CPUM_SF_BASIC_MODE;
 
@@ -895,7 +901,7 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 
 	/* Check online status of the CPU to which the event is pinned */
 	if (event->cpu >= 0 && !cpu_online(event->cpu))
-			return -ENODEV;
+		return -ENODEV;
 
 	/* Force reset of idle/hv excludes regardless of what the
 	 * user requested.

@@ -218,13 +218,21 @@ static void mei_mkhi_fix(struct mei_cl_device *cldev)
 {
 	int ret;
 
+	/* No need to enable the client if nothing is needed from it */
+	if (!cldev->bus->fw_f_fw_ver_supported &&
+	    !cldev->bus->hbm_f_os_supported)
+		return;
+
 	ret = mei_cldev_enable(cldev);
 	if (ret)
 		return;
 
-	ret = mei_fwver(cldev);
-	if (ret < 0)
-		dev_err(&cldev->dev, "FW version command failed %d\n", ret);
+	if (cldev->bus->fw_f_fw_ver_supported) {
+		ret = mei_fwver(cldev);
+		if (ret < 0)
+			dev_err(&cldev->dev, "FW version command failed %d\n",
+				ret);
+	}
 
 	if (cldev->bus->hbm_f_os_supported) {
 		ret = mei_osver(cldev);
