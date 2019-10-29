@@ -226,6 +226,14 @@ To do so, check for FS_VERITY_FL (0x00100000) in the returned flags.
 The verity flag is not settable via FS_IOC_SETFLAGS.  You must use
 FS_IOC_ENABLE_VERITY instead, since parameters must be provided.
 
+statx
+-----
+
+Since Linux v5.5, the statx() system call sets STATX_ATTR_VERITY if
+the file has fs-verity enabled.  This can perform better than
+FS_IOC_GETFLAGS and FS_IOC_MEASURE_VERITY because it doesn't require
+opening the file, and opening verity files can be expensive.
+
 Accessing verity files
 ======================
 
