@@ -5768,9 +5768,9 @@ static int ufshcd_issue_tm_cmd(struct ufs_hba *hba, int lun_id, int task_id,
  * @hba:	per-adapter instance
  * @req_upiu:	upiu request
  * @rsp_upiu:	upiu reply
- * @msgcode:	message code, one of UPIU Transaction Codes Initiator to Target
  * @desc_buff:	pointer to descriptor buffer, NULL if NA
  * @buff_len:	descriptor size, 0 if NA
+ * @cmd_type:	specifies the type (NOP, Query...)
  * @desc_op:	descriptor operation
  *
  * Those type of requests uses UTP Transfer Request Descriptor - utrd.
