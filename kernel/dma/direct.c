@@ -83,7 +83,7 @@ static bool dma_coherent_ok(struct device *dev, phys_addr_t phys, size_t size)
 }
 
 struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
-		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
+		gfp_t gfp, unsigned long attrs)
 {
 	size_t alloc_size = PAGE_ALIGN(size);
 	int node = dev_to_node(dev);
@@ -131,7 +131,7 @@ void *dma_direct_alloc_pages(struct device *dev, size_t size,
 	struct page *page;
 	void *ret;
 
-	page = __dma_direct_alloc_pages(dev, size, dma_handle, gfp, attrs);
+	page = __dma_direct_alloc_pages(dev, size, gfp, attrs);
 	if (!page)
 		return NULL;
 

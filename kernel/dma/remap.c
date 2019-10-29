@@ -226,7 +226,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		goto done;
 	}
 
-	page = __dma_direct_alloc_pages(dev, size, dma_handle, flags, attrs);
+	page = __dma_direct_alloc_pages(dev, size, flags, attrs);
 	if (!page)
 		return NULL;
 
