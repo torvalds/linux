@@ -46,7 +46,7 @@ struct imx7ulp_wdt_device {
 	struct clk *clk;
 };
 
-static inline void imx7ulp_wdt_enable(struct watchdog_device *wdog, bool enable)
+static void imx7ulp_wdt_enable(struct watchdog_device *wdog, bool enable)
 {
 	struct imx7ulp_wdt_device *wdt = watchdog_get_drvdata(wdog);
 
@@ -59,7 +59,7 @@ static inline void imx7ulp_wdt_enable(struct watchdog_device *wdog, bool enable)
 		writel(val & ~WDOG_CS_EN, wdt->base + WDOG_CS);
 }
 
-static inline bool imx7ulp_wdt_is_enabled(void __iomem *base)
+static bool imx7ulp_wdt_is_enabled(void __iomem *base)
 {
 	u32 val = readl(base + WDOG_CS);
 
@@ -118,7 +118,7 @@ static const struct watchdog_info imx7ulp_wdt_info = {
 		    WDIOF_MAGICCLOSE,
 };
 
-static inline void imx7ulp_wdt_init(void __iomem *base, unsigned int timeout)
+static void imx7ulp_wdt_init(void __iomem *base, unsigned int timeout)
 {
 	u32 val;
 
