@@ -47,15 +47,17 @@ struct imx7ulp_wdt_device {
 	struct clk *clk;
 };
 
-static inline void imx7ulp_wdt_enable(void __iomem *base, bool enable)
+static inline void imx7ulp_wdt_enable(struct watchdog_device *wdog, bool enable)
 {
-	u32 val = readl(base + WDOG_CS);
+	struct imx7ulp_wdt_device *wdt = watchdog_get_drvdata(wdog);
 
-	writel(UNLOCK, base + WDOG_CNT);
+	u32 val = readl(wdt->base + WDOG_CS);
+
+	writel(UNLOCK, wdt->base + WDOG_CNT);
 	if (enable)
-		writel(val | WDOG_CS_EN, base + WDOG_CS);
+		writel(val | WDOG_CS_EN, wdt->base + WDOG_CS);
 	else
-		writel(val & ~WDOG_CS_EN, base + WDOG_CS);
+		writel(val & ~WDOG_CS_EN, wdt->base + WDOG_CS);
 }
 
 static inline bool imx7ulp_wdt_is_enabled(void __iomem *base)
@@ -76,18 +78,15 @@ static int imx7ulp_wdt_ping(struct watchdog_device *wdog)
 
 static int imx7ulp_wdt_start(struct watchdog_device *wdog)
 {
-	struct imx7ulp_wdt_device *wdt = watchdog_get_drvdata(wdog);
 
-	imx7ulp_wdt_enable(wdt->base, true);
+	imx7ulp_wdt_enable(wdog, true);
 
 	return 0;
 }
 
 static int imx7ulp_wdt_stop(struct watchdog_device *wdog)
 {
-	struct imx7ulp_wdt_device *wdt = watchdog_get_drvdata(wdog);
-
-	imx7ulp_wdt_enable(wdt->base, false);
+	imx7ulp_wdt_enable(wdog, false);
 
 	return 0;
 }
