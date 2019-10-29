@@ -720,27 +720,20 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 }
 
 static int rkcif_queue_setup(struct vb2_queue *queue,
-			     const void *parg,
 			     unsigned int *num_buffers,
 			     unsigned int *num_planes,
 			     unsigned int sizes[],
-			     void *alloc_ctxs[])
+			     struct device *alloc_ctxs[])
 {
 	struct rkcif_stream *stream = queue->drv_priv;
 	struct rkcif_device *dev = stream->cifdev;
-	const struct v4l2_format *pfmt = parg;
 	const struct v4l2_pix_format_mplane *pixm;
 	const struct cif_output_fmt *cif_fmt;
 	u32 i;
 
-	if (pfmt) {
-		pixm = &pfmt->fmt.pix_mp;
-		cif_fmt = find_output_fmt(stream, pixm->pixelformat);
-	} else {
-		pixm = &stream->pixm;
-		cif_fmt = stream->cif_fmt_out;
-	}
 
+	pixm = &stream->pixm;
+	cif_fmt = stream->cif_fmt_out;
 	*num_planes = cif_fmt->mplanes;
 
 	for (i = 0; i < cif_fmt->mplanes; i++) {
@@ -748,7 +741,6 @@ static int rkcif_queue_setup(struct vb2_queue *queue,
 
 		plane_fmt = &pixm->plane_fmt[i];
 		sizes[i] = plane_fmt->sizeimage;
-		alloc_ctxs[i] = dev->alloc_ctx;
 	}
 
 	v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
@@ -1129,6 +1121,7 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 	q->min_buffers_needed = CIF_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stream->vlock;
+	q->dev = stream->cifdev->dev;
 
 	return vb2_queue_init(q);
 }
@@ -1425,13 +1418,6 @@ int rkcif_register_stream_vdev(struct rkcif_device *dev)
 	vdev->vfl_dir = VFL_DIR_RX;
 	stream->pad.flags = MEDIA_PAD_FL_SINK;
 
-	dev->alloc_ctx = vb2_dma_contig_init_ctx(v4l2_dev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to init memory allocator\n");
-		ret = PTR_ERR(dev->alloc_ctx);
-		goto err;
-	}
-
 	rkcif_init_vb2_queue(&stream->buf_queue, stream,
 			     V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	vdev->queue = &stream->buf_queue;
@@ -1443,14 +1429,13 @@ int rkcif_register_stream_vdev(struct rkcif_device *dev)
 		return ret;
 	}
 
-	ret = media_entity_init(&vdev->entity, 1, &stream->pad, 0);
+	ret = media_entity_pads_init(&vdev->entity, 1, &stream->pad);
 	if (ret < 0)
 		goto unreg;
 
 	return 0;
 unreg:
 	video_unregister_device(vdev);
-err:
 	return ret;
 }
 
@@ -1465,7 +1450,7 @@ static void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
 		vb2_set_plane_payload(&vb_done->vb2_buf, i,
 			stream->pixm.plane_fmt[i].sizeimage);
 	}
-	vb_done->timestamp = ns_to_timeval(ktime_get_ns());
+	vb_done->vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&vb_done->vb2_buf, VB2_BUF_STATE_DONE);
 }
 

@@ -16,7 +16,6 @@
 #include <linux/reset.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/dma-iommu.h>
 #include <media/v4l2-fwnode.h>
 
 #include "dev.h"
@@ -57,9 +56,9 @@ static int rkcif_create_links(struct rkcif_device *dev)
 			return -ENXIO;
 		}
 
-		ret = media_entity_create_link(&sensor->sd->entity,
-				pad, &dev->stream.vdev.entity, 0,
-				s ? 0 : MEDIA_LNK_FL_ENABLED);
+		ret = media_create_pad_link(&sensor->sd->entity,
+					 pad, &dev->stream.vdev.entity, 0,
+					 s ? 0 : MEDIA_LNK_FL_ENABLED);
 		if (ret) {
 			dev_err(dev->dev, "failed to create link for %s\n",
 				sensor->sd->name);
@@ -379,63 +378,6 @@ err:
 	return ret;
 }
 
-static int rkcif_iommu_init(struct rkcif_device *cif_dev)
-{
-	struct iommu_group *group;
-	int ret;
-
-	cif_dev->domain = iommu_domain_alloc(&platform_bus_type);
-	if (!cif_dev->domain)
-		return -ENOMEM;
-
-	ret = iommu_get_dma_cookie(cif_dev->domain);
-	if (ret)
-		goto err_free_domain;
-
-	group = iommu_group_get(cif_dev->dev);
-	if (!group) {
-		group = iommu_group_alloc();
-		if (IS_ERR(group)) {
-			ret = PTR_ERR(group);
-			goto err_put_cookie;
-		}
-		ret = iommu_group_add_device(group, cif_dev->dev);
-		iommu_group_put(group);
-		if (ret)
-			goto err_put_cookie;
-	}
-	iommu_group_put(group);
-
-	ret = iommu_attach_device(cif_dev->domain, cif_dev->dev);
-	if (ret)
-		goto err_put_cookie;
-	if (!common_iommu_setup_dma_ops(cif_dev->dev, 0x10000000, SZ_2G,
-					cif_dev->domain->ops)) {
-		ret = -ENODEV;
-		goto err_detach;
-	}
-
-	return 0;
-
-err_detach:
-	iommu_detach_device(cif_dev->domain, cif_dev->dev);
-err_put_cookie:
-	iommu_put_dma_cookie(cif_dev->domain);
-err_free_domain:
-	iommu_domain_free(cif_dev->domain);
-
-	dev_err(cif_dev->dev, "Failed to setup IOMMU, ret(%d)\n", ret);
-
-	return ret;
-}
-
-static void rkcif_iommu_cleanup(struct rkcif_device *cif_dev)
-{
-	iommu_detach_device(cif_dev->domain, cif_dev->dev);
-	iommu_put_dma_cookie(cif_dev->domain);
-	iommu_domain_free(cif_dev->domain);
-}
-
 static inline bool is_iommu_enable(struct device *dev)
 {
 	struct device_node *iommu;
@@ -458,9 +400,6 @@ void rkcif_soft_reset(struct rkcif_device *cif_dev)
 {
 	unsigned int i;
 
-	if (cif_dev->iommu_en)
-		rkcif_iommu_cleanup(cif_dev);
-
 	for (i = 0; i < ARRAY_SIZE(cif_dev->cif_rst); i++)
 		if (cif_dev->cif_rst[i])
 			reset_control_assert(cif_dev->cif_rst[i]);
@@ -469,8 +408,6 @@ void rkcif_soft_reset(struct rkcif_device *cif_dev)
 		if (cif_dev->cif_rst[i])
 			reset_control_deassert(cif_dev->cif_rst[i]);
 
-	if (cif_dev->iommu_en)
-		rkcif_iommu_init(cif_dev);
 }
 
 static int rkcif_plat_probe(struct platform_device *pdev)
@@ -594,6 +531,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	media_device_init(&cif_dev->media_dev);
 	ret = media_device_register(&cif_dev->media_dev);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "Failed to register media device: %d\n",
@@ -607,9 +545,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		goto err_unreg_media_dev;
 
 	cif_dev->iommu_en = is_iommu_enable(dev);
-	if (cif_dev->iommu_en) {
-		rkcif_iommu_init(cif_dev);
-	} else {
+	if (!(cif_dev->iommu_en)) {
 		ret = of_reserved_mem_device_init(dev);
 		if (ret)
 			v4l2_warn(v4l2_dev,
@@ -632,8 +568,6 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	struct rkcif_device *cif_dev = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-	if (cif_dev->iommu_en)
-		rkcif_iommu_cleanup(cif_dev);
 
 	media_device_unregister(&cif_dev->media_dev);
 	v4l2_device_unregister(&cif_dev->v4l2_dev);

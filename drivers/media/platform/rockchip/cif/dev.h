@@ -190,7 +190,6 @@ struct rkcif_device {
 	void __iomem			*csi_base;
 	struct clk			*clks[RKCIF_MAX_BUS_CLK];
 	int				clk_size;
-	struct vb2_alloc_ctx		*alloc_ctx;
 	bool				iommu_en;
 	struct iommu_domain		*domain;
 	struct reset_control		*cif_rst[RKCIF_MAX_RESET];
