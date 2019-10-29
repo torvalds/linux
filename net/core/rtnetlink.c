@@ -3917,7 +3917,7 @@ static int valid_fdb_dump_strict(const struct nlmsghdr *nlh,
 	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_pad1  || ndm->ndm_pad2  || ndm->ndm_state ||
 	    ndm->ndm_flags || ndm->ndm_type) {
-		NL_SET_ERR_MSG(extack, "Invalid values in header for fbd dump request");
+		NL_SET_ERR_MSG(extack, "Invalid values in header for fdb dump request");
 		return -EINVAL;
 	}
 
