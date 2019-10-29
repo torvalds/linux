@@ -793,8 +793,7 @@ static int vxlan_gro_complete(struct sock *sk, struct sk_buff *skb, int nhoff)
 	return eth_gro_complete(skb, nhoff + sizeof(struct vxlanhdr));
 }
 
-static struct vxlan_fdb *vxlan_fdb_alloc(struct vxlan_dev *vxlan,
-					 const u8 *mac, __u16 state,
+static struct vxlan_fdb *vxlan_fdb_alloc(const u8 *mac, __u16 state,
 					 __be32 src_vni, __u16 ndm_flags)
 {
 	struct vxlan_fdb *f;
@@ -835,7 +834,7 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 		return -ENOSPC;
 
 	netdev_dbg(vxlan->dev, "add %pM -> %pIS\n", mac, ip);
-	f = vxlan_fdb_alloc(vxlan, mac, state, src_vni, ndm_flags);
+	f = vxlan_fdb_alloc(mac, state, src_vni, ndm_flags);
 	if (!f)
 		return -ENOMEM;
 
