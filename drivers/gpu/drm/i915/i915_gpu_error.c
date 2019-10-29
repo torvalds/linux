@@ -746,6 +746,8 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		for (i = 0; i < GEN12_SFC_DONE_MAX; i++)
 			err_printf(m, "  SFC_DONE[%d]: 0x%08x\n", i,
 				   error->sfc_done[i]);
+
+		err_printf(m, "  GAM_DONE: 0x%08x\n", error->gam_done);
 	}
 
 	for (ee = error->engine; ee; ee = ee->next)
@@ -1612,6 +1614,8 @@ static void capture_reg_state(struct i915_gpu_state *error)
 			error->sfc_done[i] =
 				intel_uncore_read(uncore, GEN12_SFC_DONE(i));
 		}
+
+		error->gam_done = intel_uncore_read(uncore, GEN12_GAM_DONE);
 	}
 
 	/* 4: Everything else */
