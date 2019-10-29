@@ -174,10 +174,10 @@ void pciehp_set_indicators(struct controller *ctrl, int pwr, int attn);
 
 void pciehp_get_latch_status(struct controller *ctrl, u8 *status);
 int pciehp_query_power_fault(struct controller *ctrl);
-bool pciehp_card_present(struct controller *ctrl);
-bool pciehp_card_present_or_link_active(struct controller *ctrl);
+int pciehp_card_present(struct controller *ctrl);
+int pciehp_card_present_or_link_active(struct controller *ctrl);
 int pciehp_check_link_status(struct controller *ctrl);
-bool pciehp_check_link_active(struct controller *ctrl);
+int pciehp_check_link_active(struct controller *ctrl);
 void pciehp_release_ctrl(struct controller *ctrl);
 
 int pciehp_sysfs_enable_slot(struct hotplug_slot *hotplug_slot);
