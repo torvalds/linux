@@ -248,7 +248,6 @@ config KEYBOARD_GPIO
 config KEYBOARD_GPIO_POLLED
 	tristate "Polled GPIO buttons"
 	depends on GPIOLIB
-	select INPUT_POLLDEV
 	help
 	  This driver implements support for buttons connected
 	  to GPIO pins that are not capable of generating interrupts.
