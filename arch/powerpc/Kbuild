@@ -14,4 +14,5 @@ obj-$(CONFIG_XMON) += xmon/
 obj-$(CONFIG_KVM)  += kvm/
 
 obj-$(CONFIG_PERF_EVENTS) += perf/
+obj-$(CONFIG_KEXEC_CORE)  += kexec/
 obj-$(CONFIG_KEXEC_FILE)  += purgatory/
