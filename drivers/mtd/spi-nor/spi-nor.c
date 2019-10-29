@@ -1364,10 +1364,9 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 		spi_nor_write_enable(nor);
 
-		if (spi_nor_erase_chip(nor)) {
-			ret = -EIO;
+		ret = spi_nor_erase_chip(nor);
+		if (ret)
 			goto erase_err;
-		}
 
 		/*
 		 * Scale the timeout linearly with the size of the flash, with
@@ -1839,7 +1838,7 @@ static int spansion_no_read_cr_quad_enable(struct spi_nor *nor)
 	ret = spi_nor_read_sr(nor);
 	if (ret < 0) {
 		dev_err(nor->dev, "error while reading status register\n");
-		return -EINVAL;
+		return ret;
 	}
 	sr_cr[0] = ret;
 	sr_cr[1] = CR_QUAD_EN_SPAN;
@@ -1870,7 +1869,7 @@ static int spansion_read_cr_quad_enable(struct spi_nor *nor)
 	ret = spi_nor_read_cr(nor);
 	if (ret < 0) {
 		dev_err(dev, "error while reading configuration register\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	if (ret & CR_QUAD_EN_SPAN)
@@ -1882,7 +1881,7 @@ static int spansion_read_cr_quad_enable(struct spi_nor *nor)
 	ret = spi_nor_read_sr(nor);
 	if (ret < 0) {
 		dev_err(dev, "error while reading status register\n");
-		return -EINVAL;
+		return ret;
 	}
 	sr_cr[0] = ret;
 
@@ -1932,7 +1931,7 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 	ret = spi_nor_write_sr2(nor, sr2);
 	if (ret) {
 		dev_err(nor->dev, "error while writing status register 2\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	ret = spi_nor_wait_till_ready(nor);
