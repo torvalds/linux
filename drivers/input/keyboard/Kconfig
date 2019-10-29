@@ -340,7 +340,6 @@ config KEYBOARD_HIL
 config KEYBOARD_HP6XX
 	tristate "HP Jornada 6xx keyboard"
 	depends on SH_HP6XX
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you have a HP Jornada 620/660/680/690 and want to
 	  support the built-in keyboard.
