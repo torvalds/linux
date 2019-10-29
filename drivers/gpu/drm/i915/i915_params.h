@@ -62,7 +62,7 @@ struct drm_printer;
 	param(int, mmio_debug, -IS_ENABLED(CONFIG_DRM_I915_DEBUG_MMIO)) \
 	param(int, edp_vswing, 0) \
 	param(int, reset, 3) \
-	param(unsigned int, inject_load_failure, 0) \
+	param(unsigned int, inject_probe_failure, 0) \
 	param(int, fastboot, -1) \
 	param(int, enable_dpcd_backlight, 0) \
 	param(char *, force_probe, CONFIG_DRM_I915_FORCE_PROBE) \

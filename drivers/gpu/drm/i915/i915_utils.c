@@ -57,22 +57,22 @@ static unsigned int i915_probe_fail_count;
 int __i915_inject_probe_error(struct drm_i915_private *i915, int err,
 			      const char *func, int line)
 {
-	if (i915_probe_fail_count >= i915_modparams.inject_load_failure)
+	if (i915_probe_fail_count >= i915_modparams.inject_probe_failure)
 		return 0;
 
-	if (++i915_probe_fail_count < i915_modparams.inject_load_failure)
+	if (++i915_probe_fail_count < i915_modparams.inject_probe_failure)
 		return 0;
 
 	__i915_printk(i915, KERN_INFO,
 		      "Injecting failure %d at checkpoint %u [%s:%d]\n",
-		      err, i915_modparams.inject_load_failure, func, line);
-	i915_modparams.inject_load_failure = 0;
+		      err, i915_modparams.inject_probe_failure, func, line);
+	i915_modparams.inject_probe_failure = 0;
 	return err;
 }
 
 bool i915_error_injected(void)
 {
-	return i915_probe_fail_count && !i915_modparams.inject_load_failure;
+	return i915_probe_fail_count && !i915_modparams.inject_probe_failure;
 }
 
 #endif
