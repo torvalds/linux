@@ -1624,7 +1624,9 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	if (IS_ERR(plat_dat))
 		return PTR_ERR(plat_dat);
 
-	plat_dat->has_gmac = true;
+	if (!of_device_is_compatible(pdev->dev.of_node, "snps,dwmac-4.20a"))
+		plat_dat->has_gmac = true;
+
 	plat_dat->fix_mac_speed = rk_fix_speed;
 	plat_dat->get_eth_addr = rk_get_eth_addr;
 
