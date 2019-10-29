@@ -1362,13 +1362,13 @@ static int smiapp_start_streaming(struct smiapp_sensor *sensor)
 		rval = smiapp_write(
 			sensor, SMIAPP_REG_U8_BINNING_TYPE, binning_type);
 		if (rval < 0)
-			return rval;
+			goto out;
 
 		binning_mode = 1;
 	}
 	rval = smiapp_write(sensor, SMIAPP_REG_U8_BINNING_MODE, binning_mode);
 	if (rval < 0)
-		return rval;
+		goto out;
 
 	/* Set up PLL */
 	rval = smiapp_pll_configure(sensor);
