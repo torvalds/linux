@@ -27,7 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/printk.h>
-#include <linux/input-polldev.h>
+#include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/usb/input.h>
 #include <linux/videodev2.h>
@@ -206,7 +206,7 @@ struct sur40_state {
 
 	struct usb_device *usbdev;
 	struct device *dev;
-	struct input_polled_dev *input;
+	struct input_dev *input;
 
 	struct v4l2_device v4l2;
 	struct video_device vdev;
@@ -370,6 +370,10 @@ static int sur40_init(struct sur40_state *dev)
 		goto error;
 
 	result = sur40_command(dev, SUR40_GET_VERSION, 0x03, buffer, 12);
+	if (result < 0)
+		goto error;
+
+	result = 0;
 
 	/*
 	 * Discard the result buffer - no known data inside except
@@ -381,22 +385,22 @@ error:
 }
 
 /*
- * Callback routines from input_polled_dev
+ * Callback routines from input_dev
  */
 
 /* Enable the device, polling will now start. */
-static void sur40_open(struct input_polled_dev *polldev)
+static int sur40_open(struct input_dev *input)
 {
-	struct sur40_state *sur40 = polldev->private;
+	struct sur40_state *sur40 = input_get_drvdata(input);
 
 	dev_dbg(sur40->dev, "open\n");
-	sur40_init(sur40);
+	return sur40_init(sur40);
 }
 
 /* Disable device, polling has stopped. */
-static void sur40_close(struct input_polled_dev *polldev)
+static void sur40_close(struct input_dev *input)
 {
-	struct sur40_state *sur40 = polldev->private;
+	struct sur40_state *sur40 = input_get_drvdata(input);
 
 	dev_dbg(sur40->dev, "close\n");
 	/*
@@ -448,10 +452,9 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 }
 
 /* core function: poll for new input data */
-static void sur40_poll(struct input_polled_dev *polldev)
+static void sur40_poll(struct input_dev *input)
 {
-	struct sur40_state *sur40 = polldev->private;
-	struct input_dev *input = polldev->input;
+	struct sur40_state *sur40 = input_get_drvdata(input);
 	int result, bulk_read, need_blobs, packet_blobs, i;
 	u32 uninitialized_var(packet_id);
 
@@ -613,10 +616,9 @@ err_poll:
 }
 
 /* Initialize input device parameters. */
-static void sur40_input_setup(struct input_dev *input_dev)
+static int sur40_input_setup_events(struct input_dev *input_dev)
 {
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(EV_ABS, input_dev->evbit);
+	int error;
 
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 			     0, SENSOR_RES_X, 0, 0);
@@ -637,8 +639,14 @@ static void sur40_input_setup(struct input_dev *input_dev)
 
 	input_set_abs_params(input_dev, ABS_MT_ORIENTATION, 0, 1, 0, 0);
 
-	input_mt_init_slots(input_dev, MAX_CONTACTS,
-			    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
+	error = input_mt_init_slots(input_dev, MAX_CONTACTS,
+				    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
+	if (error) {
+		dev_err(input_dev->dev.parent, "failed to set up slots\n");
+		return error;
+	}
+
+	return 0;
 }
 
 /* Check candidate USB interface. */
@@ -649,7 +657,7 @@ static int sur40_probe(struct usb_interface *interface,
 	struct sur40_state *sur40;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	struct input_polled_dev *poll_dev;
+	struct input_dev *input;
 	int error;
 
 	/* Check if we really have the right interface. */
@@ -670,8 +678,8 @@ static int sur40_probe(struct usb_interface *interface,
 	if (!sur40)
 		return -ENOMEM;
 
-	poll_dev = input_allocate_polled_device();
-	if (!poll_dev) {
+	input = input_allocate_device();
+	if (!input) {
 		error = -ENOMEM;
 		goto err_free_dev;
 	}
@@ -681,26 +689,33 @@ static int sur40_probe(struct usb_interface *interface,
 	spin_lock_init(&sur40->qlock);
 	mutex_init(&sur40->lock);
 
-	/* Set up polled input device control structure */
-	poll_dev->private = sur40;
-	poll_dev->poll_interval = POLL_INTERVAL;
-	poll_dev->open = sur40_open;
-	poll_dev->poll = sur40_poll;
-	poll_dev->close = sur40_close;
-
 	/* Set up regular input device structure */
-	sur40_input_setup(poll_dev->input);
-
-	poll_dev->input->name = DRIVER_LONG;
-	usb_to_input_id(usbdev, &poll_dev->input->id);
+	input->name = DRIVER_LONG;
+	usb_to_input_id(usbdev, &input->id);
 	usb_make_path(usbdev, sur40->phys, sizeof(sur40->phys));
 	strlcat(sur40->phys, "/input0", sizeof(sur40->phys));
-	poll_dev->input->phys = sur40->phys;
-	poll_dev->input->dev.parent = &interface->dev;
+	input->phys = sur40->phys;
+	input->dev.parent = &interface->dev;
+
+	input->open = sur40_open;
+	input->close = sur40_close;
+
+	error = sur40_input_setup_events(input);
+	if (error)
+		goto err_free_input;
+
+	input_set_drvdata(input, sur40);
+	error = input_setup_polling(input, sur40_poll);
+	if (error) {
+		dev_err(&interface->dev, "failed to set up polling");
+		goto err_free_input;
+	}
+
+	input_set_poll_interval(input, POLL_INTERVAL);
 
 	sur40->usbdev = usbdev;
 	sur40->dev = &interface->dev;
-	sur40->input = poll_dev;
+	sur40->input = input;
 
 	/* use the bulk-in endpoint tested above */
 	sur40->bulk_in_size = usb_endpoint_maxp(endpoint);
@@ -709,11 +724,11 @@ static int sur40_probe(struct usb_interface *interface,
 	if (!sur40->bulk_in_buffer) {
 		dev_err(&interface->dev, "Unable to allocate input buffer.");
 		error = -ENOMEM;
-		goto err_free_polldev;
+		goto err_free_input;
 	}
 
 	/* register the polled input device */
-	error = input_register_polled_device(poll_dev);
+	error = input_register_device(input);
 	if (error) {
 		dev_err(&interface->dev,
 			"Unable to register polled input device.");
@@ -796,8 +811,8 @@ err_unreg_v4l2:
 	v4l2_device_unregister(&sur40->v4l2);
 err_free_buffer:
 	kfree(sur40->bulk_in_buffer);
-err_free_polldev:
-	input_free_polled_device(sur40->input);
+err_free_input:
+	input_free_device(input);
 err_free_dev:
 	kfree(sur40);
 
@@ -813,8 +828,7 @@ static void sur40_disconnect(struct usb_interface *interface)
 	video_unregister_device(&sur40->vdev);
 	v4l2_device_unregister(&sur40->v4l2);
 
-	input_unregister_polled_device(sur40->input);
-	input_free_polled_device(sur40->input);
+	input_unregister_device(sur40->input);
 	kfree(sur40->bulk_in_buffer);
 	kfree(sur40);
 
