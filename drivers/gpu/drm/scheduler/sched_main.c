@@ -496,8 +496,10 @@ void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 		fence = sched->ops->run_job(s_job);
 
 		if (IS_ERR_OR_NULL(fence)) {
+			if (IS_ERR(fence))
+				dma_fence_set_error(&s_fence->finished, PTR_ERR(fence));
+
 			s_job->s_fence->parent = NULL;
-			dma_fence_set_error(&s_fence->finished, PTR_ERR(fence));
 		} else {
 			s_job->s_fence->parent = fence;
 		}
@@ -746,8 +748,9 @@ static int drm_sched_main(void *param)
 					  r);
 			dma_fence_put(fence);
 		} else {
+			if (IS_ERR(fence))
+				dma_fence_set_error(&s_fence->finished, PTR_ERR(fence));
 
-			dma_fence_set_error(&s_fence->finished, PTR_ERR(fence));
 			drm_sched_process_job(NULL, &sched_job->cb);
 		}
 
