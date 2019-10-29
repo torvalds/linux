@@ -273,15 +273,13 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 		else
 			ret = vmf_insert_pfn(&cvma, address, pfn);
 
-		/*
-		 * Somebody beat us to this PTE or prefaulting to
-		 * an already populated PTE, or prefaulting error.
-		 */
-
-		if (unlikely((ret == VM_FAULT_NOPAGE && i > 0)))
-			break;
-		else if (unlikely(ret & VM_FAULT_ERROR))
-			goto out_io_unlock;
+		/* Never error on prefaulted PTEs */
+		if (unlikely((ret & VM_FAULT_ERROR))) {
+			if (i == 0)
+				goto out_io_unlock;
+			else
+				break;
+		}
 
 		address += PAGE_SIZE;
 		if (unlikely(++page_offset >= page_last))

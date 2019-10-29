@@ -1073,10 +1073,9 @@ static bool pfn_range_valid_gigantic(struct zone *z,
 	struct page *page;
 
 	for (i = start_pfn; i < end_pfn; i++) {
-		if (!pfn_valid(i))
+		page = pfn_to_online_page(i);
+		if (!page)
 			return false;
-
-		page = pfn_to_page(i);
 
 		if (page_zone(page) != z)
 			return false;
