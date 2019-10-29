@@ -1457,7 +1457,7 @@ void blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs)
 }
 EXPORT_SYMBOL(blk_mq_delay_run_hw_queue);
 
-bool blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
+void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 {
 	int srcu_idx;
 	bool need_run;
@@ -1475,12 +1475,8 @@ bool blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 		blk_mq_hctx_has_pending(hctx);
 	hctx_unlock(hctx, srcu_idx);
 
-	if (need_run) {
+	if (need_run)
 		__blk_mq_delay_run_hw_queue(hctx, async, 0);
-		return true;
-	}
-
-	return false;
 }
 EXPORT_SYMBOL(blk_mq_run_hw_queue);
 
