@@ -497,10 +497,8 @@ static int get_perf_mad(struct ib_device *dev, int port_num, __be16 attr,
 	if (attr != IB_PMA_CLASS_PORT_INFO)
 		in_mad->data[41] = port_num;	/* PortSelect field */
 
-	if ((dev->ops.process_mad(dev, IB_MAD_IGNORE_MKEY,
-				  port_num, NULL, NULL,
-				  (const struct ib_mad_hdr *)in_mad, mad_size,
-				  (struct ib_mad_hdr *)out_mad, &mad_size,
+	if ((dev->ops.process_mad(dev, IB_MAD_IGNORE_MKEY, port_num, NULL, NULL,
+				  in_mad, out_mad, &mad_size,
 				  &out_mad_pkey_index) &
 	     (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) !=
 	    (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) {

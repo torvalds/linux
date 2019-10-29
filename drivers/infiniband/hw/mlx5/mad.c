@@ -219,15 +219,12 @@ done:
 
 int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-			const struct ib_mad_hdr *in, size_t in_mad_size,
-			struct ib_mad_hdr *out, size_t *out_mad_size,
-			u16 *out_mad_pkey_index)
+			const struct ib_mad *in, struct ib_mad *out,
+			size_t *out_mad_size, u16 *out_mad_pkey_index)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	const struct ib_mad *in_mad = (const struct ib_mad *)in;
-	struct ib_mad *out_mad = (struct ib_mad *)out;
-	u8 mgmt_class = in_mad->mad_hdr.mgmt_class;
-	u8 method = in_mad->mad_hdr.method;
+	u8 mgmt_class = in->mad_hdr.mgmt_class;
+	u8 method = in->mad_hdr.method;
 	u16 slid;
 	int err;
 
@@ -247,13 +244,13 @@ int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 
 		/* Don't process SMInfo queries -- the SMA can't handle them.
 		 */
-		if (in_mad->mad_hdr.attr_id == IB_SMP_ATTR_SM_INFO)
+		if (in->mad_hdr.attr_id == IB_SMP_ATTR_SM_INFO)
 			return IB_MAD_RESULT_SUCCESS;
 	} break;
 	case IB_MGMT_CLASS_PERF_MGMT:
 		if (MLX5_CAP_GEN(dev->mdev, vport_counters) &&
 		    method == IB_MGMT_METHOD_GET)
-			return process_pma_cmd(dev, port_num, in_mad, out_mad);
+			return process_pma_cmd(dev, port_num, in, out);
 		/* fallthrough */
 	case MLX5_IB_VENDOR_CLASS1:
 		/* fallthrough */
@@ -267,16 +264,15 @@ int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		return IB_MAD_RESULT_SUCCESS;
 	}
 
-	err = mlx5_MAD_IFC(to_mdev(ibdev),
-			   mad_flags & IB_MAD_IGNORE_MKEY,
-			   mad_flags & IB_MAD_IGNORE_BKEY,
-			   port_num, in_wc, in_grh, in_mad, out_mad);
+	err = mlx5_MAD_IFC(to_mdev(ibdev), mad_flags & IB_MAD_IGNORE_MKEY,
+			   mad_flags & IB_MAD_IGNORE_BKEY, port_num, in_wc,
+			   in_grh, in, out);
 	if (err)
 		return IB_MAD_RESULT_FAILURE;
 
 	/* set return bit in status of directed route responses */
 	if (mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
-		out_mad->mad_hdr.status |= cpu_to_be16(1 << 15);
+		out->mad_hdr.status |= cpu_to_be16(1 << 15);
 
 	if (method == IB_MGMT_METHOD_TRAP_REPRESS)
 		/* no response for trap repress */

@@ -247,23 +247,18 @@ int ocrdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 	return 0;
 }
 
-int ocrdma_process_mad(struct ib_device *ibdev,
-		       int process_mad_flags,
-		       u8 port_num,
-		       const struct ib_wc *in_wc,
-		       const struct ib_grh *in_grh,
-		       const struct ib_mad_hdr *in, size_t in_mad_size,
-		       struct ib_mad_hdr *out, size_t *out_mad_size,
+int ocrdma_process_mad(struct ib_device *ibdev, int process_mad_flags,
+		       u8 port_num, const struct ib_wc *in_wc,
+		       const struct ib_grh *in_grh, const struct ib_mad *in,
+		       struct ib_mad *out, size_t *out_mad_size,
 		       u16 *out_mad_pkey_index)
 {
 	int status = IB_MAD_RESULT_SUCCESS;
 	struct ocrdma_dev *dev;
-	const struct ib_mad *in_mad = (const struct ib_mad *)in;
-	struct ib_mad *out_mad = (struct ib_mad *)out;
 
-	if (in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT) {
+	if (in->mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT) {
 		dev = get_ocrdma_dev(ibdev);
-		ocrdma_pma_counters(dev, out_mad);
+		ocrdma_pma_counters(dev, out);
 		status |= IB_MAD_RESULT_REPLY;
 	}
 

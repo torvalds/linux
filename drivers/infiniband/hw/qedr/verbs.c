@@ -4346,19 +4346,10 @@ int qedr_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 }
 
 int qedr_process_mad(struct ib_device *ibdev, int process_mad_flags,
-		     u8 port_num,
-		     const struct ib_wc *in_wc,
-		     const struct ib_grh *in_grh,
-		     const struct ib_mad_hdr *mad_hdr,
-		     size_t in_mad_size, struct ib_mad_hdr *out_mad,
-		     size_t *out_mad_size, u16 *out_mad_pkey_index)
+		     u8 port_num, const struct ib_wc *in_wc,
+		     const struct ib_grh *in_grh, const struct ib_mad *in,
+		     struct ib_mad *out_mad, size_t *out_mad_size,
+		     u16 *out_mad_pkey_index)
 {
-	struct qedr_dev *dev = get_qedr_dev(ibdev);
-
-	DP_DEBUG(dev, QEDR_MSG_GSI,
-		 "QEDR_PROCESS_MAD in_mad %x %x %x %x %x %x %x %x\n",
-		 mad_hdr->attr_id, mad_hdr->base_version, mad_hdr->attr_mod,
-		 mad_hdr->class_specific, mad_hdr->class_version,
-		 mad_hdr->method, mad_hdr->mgmt_class, mad_hdr->status);
 	return IB_MAD_RESULT_SUCCESS;
 }
