@@ -82,6 +82,11 @@ properties:
           - const: firefly,firefly-rk3399
           - const: rockchip,rk3399
 
+      - description: Firefly ROC-RK3308-CC
+        items:
+          - const: firefly,roc-rk3308-cc
+          - const: rockchip,rk3308
+
       - description: Firefly roc-rk3328-cc
         items:
           - const: firefly,roc-rk3328-cc
