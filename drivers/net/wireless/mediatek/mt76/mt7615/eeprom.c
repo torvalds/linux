@@ -125,8 +125,8 @@ static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
 	if (!tx_mask || tx_mask > max_nss)
 		tx_mask = max_nss;
 
-	dev->chainmask = tx_mask << 8 | rx_mask;
 	dev->mphy.antenna_mask = BIT(tx_mask) - 1;
+	dev->phy.chainmask = dev->mphy.antenna_mask;
 }
 
 int mt7615_eeprom_get_power_index(struct mt7615_dev *dev,

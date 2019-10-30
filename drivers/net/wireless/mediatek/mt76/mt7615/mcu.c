@@ -1304,6 +1304,7 @@ int mt7615_mcu_set_channel(struct mt7615_phy *phy)
 	struct mt7615_dev *dev = phy->dev;
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
+	u8 n_chains = hweight8(phy->mt76->antenna_mask);
 	struct {
 		u8 control_chan;
 		u8 center_chan;
@@ -1325,8 +1326,8 @@ int mt7615_mcu_set_channel(struct mt7615_phy *phy)
 	} req = {
 		.control_chan = chandef->chan->hw_value,
 		.center_chan = ieee80211_frequency_to_channel(freq1),
-		.tx_streams = (dev->chainmask >> 8) & 0xf,
-		.rx_streams_mask = dev->mphy.antenna_mask,
+		.tx_streams = n_chains,
+		.rx_streams_mask = n_chains,
 		.center_chan2 = ieee80211_frequency_to_channel(freq2),
 	};
 	int ret;
@@ -1372,6 +1373,8 @@ int mt7615_mcu_set_channel(struct mt7615_phy *phy)
 				  &req, sizeof(req), true);
 	if (ret)
 		return ret;
+
+	req.rx_streams_mask = phy->chainmask;
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RX_PATH,
 				   &req, sizeof(req), true);

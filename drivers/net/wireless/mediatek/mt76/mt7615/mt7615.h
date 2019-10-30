@@ -90,6 +90,8 @@ struct mt7615_phy {
 	s8 ofdm_sensitivity;
 	s8 cck_sensitivity;
 
+	u16 chainmask;
+
 	u8 rdd_state;
 	int dfs_state;
 };
@@ -101,7 +103,6 @@ struct mt7615_dev {
 	};
 
 	struct mt7615_phy phy;
-	u16 chainmask;
 	u32 vif_mask;
 	u32 omac_mask;
 
