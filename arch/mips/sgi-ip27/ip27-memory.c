@@ -33,7 +33,7 @@
 #define SLOT_PFNSHIFT		(SLOT_SHIFT - PAGE_SHIFT)
 #define PFN_NASIDSHFT		(NASID_SHFT - PAGE_SHIFT)
 
-struct node_data *__node_data[MAX_COMPACT_NODES];
+struct node_data *__node_data[MAX_NUMNODES];
 
 EXPORT_SYMBOL(__node_data);
 
@@ -104,7 +104,7 @@ static void router_recurse(klrou_t *router_a, klrou_t *router_b, int depth)
 	router_a->rou_rflag = 0;
 }
 
-unsigned char __node_distances[MAX_COMPACT_NODES][MAX_COMPACT_NODES];
+unsigned char __node_distances[MAX_NUMNODES][MAX_NUMNODES];
 EXPORT_SYMBOL(__node_distances);
 
 static int __init compute_node_distance(nasid_t nasid_a, nasid_t nasid_b)
@@ -173,8 +173,8 @@ static void __init init_topology_matrix(void)
 {
 	nasid_t row, col;
 
-	for (row = 0; row < MAX_COMPACT_NODES; row++)
-		for (col = 0; col < MAX_COMPACT_NODES; col++)
+	for (row = 0; row < MAX_NUMNODES; row++)
+		for (col = 0; col < MAX_NUMNODES; col++)
 			__node_distances[row][col] = -1;
 
 	for_each_online_node(row) {
@@ -412,7 +412,7 @@ void __init prom_meminit(void)
 	szmem();
 	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
 
-	for (node = 0; node < MAX_COMPACT_NODES; node++) {
+	for (node = 0; node < MAX_NUMNODES; node++) {
 		if (node_online(node)) {
 			node_mem_init(node);
 			continue;

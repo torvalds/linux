@@ -22,7 +22,7 @@ extern int pcibus_to_node(struct pci_bus *);
 
 #define cpumask_of_pcibus(bus)	(cpumask_of_node(pcibus_to_node(bus)))
 
-extern unsigned char __node_distances[MAX_COMPACT_NODES][MAX_COMPACT_NODES];
+extern unsigned char __node_distances[MAX_NUMNODES][MAX_NUMNODES];
 
 #define node_distance(from, to) (__node_distances[(from)][(to)])
 

@@ -81,12 +81,8 @@ void cpu_node_probe(void)
 	int i, highest = 0;
 	gda_t *gdap = GDA;
 
-	/*
-	 * MCD - this whole "compact node" stuff can probably be dropped,
-	 * as we can handle sparse numbering now
-	 */
 	nodes_clear(node_online_map);
-	for (i = 0; i < MAX_COMPACT_NODES; i++) {
+	for (i = 0; i < MAX_NUMNODES; i++) {
 		nasid_t nasid = gdap->g_nasidtable[i];
 		if (nasid == INVALID_NASID)
 			break;

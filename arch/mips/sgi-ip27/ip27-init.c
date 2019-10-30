@@ -42,7 +42,7 @@
 
 #define CPU_NONE		(cpuid_t)-1
 
-static DECLARE_BITMAP(hub_init_mask, MAX_COMPACT_NODES);
+static DECLARE_BITMAP(hub_init_mask, MAX_NUMNODES);
 nasid_t master_nasid = INVALID_NASID;
 
 struct cpuinfo_ip27 sn_cpu_info[NR_CPUS];

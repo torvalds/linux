@@ -12,25 +12,11 @@
 #define _ASM_SN_SN0_ARCH_H
 
 
-#ifndef SN0XXL	/* 128 cpu SMP max */
-/*
- * This is the maximum number of nodes that can be part of a kernel.
- * Effectively, it's the maximum number of compact node ids (cnodeid_t).
- */
-#define MAX_COMPACT_NODES	64
-
 /*
  * MAXCPUS refers to the maximum number of CPUs in a single kernel.
  * This is not necessarily the same as MAXNODES * CPUS_PER_NODE
  */
-#define MAXCPUS			128
-
-#else /* SN0XXL system */
-
-#define MAX_COMPACT_NODES	128
-#define MAXCPUS			256
-
-#endif /* SN0XXL */
+#define MAXCPUS			(MAX_NUMNODES * CPUS_PER_NODE)
 
 /*
  * This is the maximum number of NASIDS that can be present in a system.
