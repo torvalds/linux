@@ -1146,7 +1146,8 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		return rdma_user_mmap_io(context, vma,
 					 to_mucontext(context)->uar.pfn,
 					 PAGE_SIZE,
-					 pgprot_noncached(vma->vm_page_prot));
+					 pgprot_noncached(vma->vm_page_prot),
+					 NULL);
 
 	case 1:
 		if (dev->dev->caps.bf_reg_size == 0)
@@ -1155,7 +1156,8 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 			context, vma,
 			to_mucontext(context)->uar.pfn +
 				dev->dev->caps.num_uars,
-			PAGE_SIZE, pgprot_writecombine(vma->vm_page_prot));
+			PAGE_SIZE, pgprot_writecombine(vma->vm_page_prot),
+			NULL);
 
 	case 3: {
 		struct mlx4_clock_params params;
@@ -1171,7 +1173,8 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 					    params.bar) +
 			 params.offset) >>
 				PAGE_SHIFT,
-			PAGE_SIZE, pgprot_noncached(vma->vm_page_prot));
+			PAGE_SIZE, pgprot_noncached(vma->vm_page_prot),
+			NULL);
 	}
 
 	default:

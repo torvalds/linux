@@ -8,23 +8,36 @@
 #include "uverbs.h"
 #include "core_priv.h"
 
-/*
- * Each time we map IO memory into user space this keeps track of the mapping.
- * When the device is hot-unplugged we 'zap' the mmaps in user space to point
- * to the zero page and allow the hot unplug to proceed.
+/**
+ * rdma_umap_priv_init() - Initialize the private data of a vma
+ *
+ * @priv: The already allocated private data
+ * @vma: The vm area struct that needs private data
+ * @entry: entry into the mmap_xa that needs to be linked with
+ *       this vma
+ *
+ * Each time we map IO memory into user space this keeps track of the
+ * mapping. When the device is hot-unplugged we 'zap' the mmaps in user space
+ * to point to the zero page and allow the hot unplug to proceed.
  *
  * This is necessary for cases like PCI physical hot unplug as the actual BAR
  * memory may vanish after this and access to it from userspace could MCE.
  *
  * RDMA drivers supporting disassociation must have their user space designed
  * to cope in some way with their IO pages going to the zero page.
+ *
  */
 void rdma_umap_priv_init(struct rdma_umap_priv *priv,
-			 struct vm_area_struct *vma)
+			 struct vm_area_struct *vma,
+			 struct rdma_user_mmap_entry *entry)
 {
 	struct ib_uverbs_file *ufile = vma->vm_file->private_data;
 
 	priv->vma = vma;
+	if (entry) {
+		kref_get(&entry->ref);
+		priv->entry = entry;
+	}
 	vma->vm_private_data = priv;
 	/* vm_ops is setup in ib_uverbs_mmap() to avoid module dependencies */
 
@@ -34,13 +47,26 @@ void rdma_umap_priv_init(struct rdma_umap_priv *priv,
 }
 EXPORT_SYMBOL(rdma_umap_priv_init);
 
-/*
- * Map IO memory into a process. This is to be called by drivers as part of
- * their mmap() functions if they wish to send something like PCI-E BAR memory
- * to userspace.
+/**
+ * rdma_user_mmap_io() - Map IO memory into a process
+ *
+ * @ucontext: associated user context
+ * @vma: the vma related to the current mmap call
+ * @pfn: pfn to map
+ * @size: size to map
+ * @prot: pgprot to use in remap call
+ * @entry: mmap_entry retrieved from rdma_user_mmap_entry_get(), or NULL
+ *         if mmap_entry is not used by the driver
+ *
+ * This is to be called by drivers as part of their mmap() functions if they
+ * wish to send something like PCI-E BAR memory to userspace.
+ *
+ * Return -EINVAL on wrong flags or size, -EAGAIN on failure to map. 0 on
+ * success.
  */
 int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
-		      unsigned long pfn, unsigned long size, pgprot_t prot)
+		      unsigned long pfn, unsigned long size, pgprot_t prot,
+		      struct rdma_user_mmap_entry *entry)
 {
 	struct ib_uverbs_file *ufile = ucontext->ufile;
 	struct rdma_umap_priv *priv;
@@ -67,7 +93,7 @@ int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
 		return -EAGAIN;
 	}
 
-	rdma_umap_priv_init(priv, vma);
+	rdma_umap_priv_init(priv, vma, entry);
 	return 0;
 }
 EXPORT_SYMBOL(rdma_user_mmap_io);
