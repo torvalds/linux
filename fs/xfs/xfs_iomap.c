@@ -148,7 +148,7 @@ xfs_eof_alignment(
  * Check if last_fsb is outside the last extent, and if so grow it to the next
  * stripe unit boundary.
  */
-static xfs_fileoff_t
+xfs_fileoff_t
 xfs_iomap_eof_align_last_fsb(
 	struct xfs_inode	*ip,
 	xfs_fileoff_t		end_fsb)
@@ -185,61 +185,36 @@ xfs_iomap_eof_align_last_fsb(
 
 int
 xfs_iomap_write_direct(
-	xfs_inode_t	*ip,
-	xfs_off_t	offset,
-	size_t		count,
-	xfs_bmbt_irec_t *imap,
-	int		nmaps)
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		offset_fsb,
+	xfs_fileoff_t		count_fsb,
+	struct xfs_bmbt_irec	*imap)
 {
-	xfs_mount_t	*mp = ip->i_mount;
-	xfs_fileoff_t	offset_fsb = XFS_B_TO_FSBT(mp, offset);
-	xfs_fileoff_t	last_fsb = xfs_iomap_end_fsb(mp, offset, count);
-	xfs_filblks_t	count_fsb, resaligned;
-	xfs_extlen_t	extsz;
-	int		nimaps;
-	int		quota_flag;
-	int		rt;
-	xfs_trans_t	*tp;
-	uint		qblocks, resblks, resrtextents;
-	int		error;
-	int		lockmode;
-	int		bmapi_flags = XFS_BMAPI_PREALLOC;
-	uint		tflags = 0;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	xfs_filblks_t		resaligned;
+	int			nimaps;
+	int			quota_flag;
+	uint			qblocks, resblks;
+	unsigned int		resrtextents = 0;
+	int			error;
+	int			bmapi_flags = XFS_BMAPI_PREALLOC;
+	uint			tflags = 0;
 
-	rt = XFS_IS_REALTIME_INODE(ip);
-	extsz = xfs_get_extsz_hint(ip);
-	lockmode = XFS_ILOCK_SHARED;	/* locked by caller */
-
-	ASSERT(xfs_isilocked(ip, lockmode));
-
-	if (offset + count > XFS_ISIZE(ip)) {
-		last_fsb = xfs_iomap_eof_align_last_fsb(ip, last_fsb);
-	} else {
-		if (nmaps && (imap->br_startblock == HOLESTARTBLOCK))
-			last_fsb = min(last_fsb, (xfs_fileoff_t)
-					imap->br_blockcount +
-					imap->br_startoff);
-	}
-	count_fsb = last_fsb - offset_fsb;
 	ASSERT(count_fsb > 0);
-	resaligned = xfs_aligned_fsb_count(offset_fsb, count_fsb, extsz);
 
-	if (unlikely(rt)) {
+	resaligned = xfs_aligned_fsb_count(offset_fsb, count_fsb,
+					   xfs_get_extsz_hint(ip));
+	if (unlikely(XFS_IS_REALTIME_INODE(ip))) {
 		resrtextents = qblocks = resaligned;
 		resrtextents /= mp->m_sb.sb_rextsize;
 		resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
 		quota_flag = XFS_QMOPT_RES_RTBLKS;
 	} else {
-		resrtextents = 0;
 		resblks = qblocks = XFS_DIOSTRAT_SPACE_RES(mp, resaligned);
 		quota_flag = XFS_QMOPT_RES_REGBLKS;
 	}
 
-	/*
-	 * Drop the shared lock acquired by the caller, attach the dquot if
-	 * necessary and move on to transaction setup.
-	 */
-	xfs_iunlock(ip, lockmode);
 	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
@@ -269,8 +244,7 @@ xfs_iomap_write_direct(
 	if (error)
 		return error;
 
-	lockmode = XFS_ILOCK_EXCL;
-	xfs_ilock(ip, lockmode);
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
 	error = xfs_trans_reserve_quota_nblks(tp, ip, qblocks, 0, quota_flag);
 	if (error)
@@ -307,7 +281,7 @@ xfs_iomap_write_direct(
 		error = xfs_alert_fsblock_zero(ip, imap);
 
 out_unlock:
-	xfs_iunlock(ip, lockmode);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 
 out_res_cancel:
@@ -807,14 +781,16 @@ allocate_blocks:
 	 * lower level functions are updated.
 	 */
 	length = min_t(loff_t, length, 1024 * PAGE_SIZE);
+	end_fsb = xfs_iomap_end_fsb(mp, offset, length);
 
-	/*
-	 * xfs_iomap_write_direct() expects the shared lock. It is unlocked on
-	 * return.
-	 */
-	if (lockmode == XFS_ILOCK_EXCL)
-		xfs_ilock_demote(ip, lockmode);
-	error = xfs_iomap_write_direct(ip, offset, length, &imap, nimaps);
+	if (offset + length > XFS_ISIZE(ip))
+		end_fsb = xfs_iomap_eof_align_last_fsb(ip, end_fsb);
+	else if (nimaps && imap.br_startblock == HOLESTARTBLOCK)
+		end_fsb = min(end_fsb, imap.br_startoff + imap.br_blockcount);
+	xfs_iunlock(ip, lockmode);
+
+	error = xfs_iomap_write_direct(ip, offset_fsb, end_fsb - offset_fsb,
+			&imap);
 	if (error)
 		return error;
 

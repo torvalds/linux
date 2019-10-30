@@ -143,21 +143,20 @@ xfs_fs_map_blocks(
 	lock_flags = xfs_ilock_data_map_shared(ip);
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
 				&imap, &nimaps, bmapi_flags);
-	xfs_iunlock(ip, lock_flags);
-
-	if (error)
-		goto out_unlock;
 
 	ASSERT(!nimaps || imap.br_startblock != DELAYSTARTBLOCK);
 
-	if (write && (!nimaps || imap.br_startblock == HOLESTARTBLOCK)) {
-		/*
-		 * xfs_iomap_write_direct() expects to take ownership of the
-		 * shared ilock.
-		 */
-		xfs_ilock(ip, XFS_ILOCK_SHARED);
-		error = xfs_iomap_write_direct(ip, offset, length, &imap,
-					       nimaps);
+	if (!error && write &&
+	    (!nimaps || imap.br_startblock == HOLESTARTBLOCK)) {
+		if (offset + length > XFS_ISIZE(ip))
+			end_fsb = xfs_iomap_eof_align_last_fsb(ip, end_fsb);
+		else if (nimaps && imap.br_startblock == HOLESTARTBLOCK)
+			end_fsb = min(end_fsb, imap.br_startoff +
+					       imap.br_blockcount);
+		xfs_iunlock(ip, lock_flags);
+
+		error = xfs_iomap_write_direct(ip, offset_fsb,
+				end_fsb - offset_fsb, &imap);
 		if (error)
 			goto out_unlock;
 
@@ -170,6 +169,8 @@ xfs_fs_map_blocks(
 				XFS_PREALLOC_SET | XFS_PREALLOC_SYNC);
 		if (error)
 			goto out_unlock;
+	} else {
+		xfs_iunlock(ip, lock_flags);
 	}
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 
