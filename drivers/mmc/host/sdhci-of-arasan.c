@@ -1630,8 +1630,11 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 					sdhci_arasan_hs400_enhanced_strobe;
 		host->mmc_host_ops.start_signal_voltage_switch =
 					sdhci_arasan_voltage_switch;
-		sdhci_arasan->has_cqe = true;
-		host->mmc->caps2 |= MMC_CAP2_CQE;
+
+		if (!of_property_read_bool(np, "disable-cqe")) {
+			sdhci_arasan->has_cqe = true;
+			host->mmc->caps2 |= MMC_CAP2_CQE;
+		}
 
 		if (!of_property_read_bool(np, "disable-cqe-dcmd"))
 			host->mmc->caps2 |= MMC_CAP2_CQE_DCMD;
