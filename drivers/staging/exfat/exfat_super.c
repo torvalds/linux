@@ -1003,13 +1003,13 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 
 	/* (3) update the direcoty entry */
 	if (p_fs->vol_type == EXFAT) {
-		es = get_entry_set_in_dir(sb, &(fid->dir), fid->entry,
+		es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 					  ES_ALL_ENTRIES, &ep);
 		if (!es)
 			goto err_out;
 		ep2 = ep + 1;
 	} else {
-		ep = get_entry_in_dir(sb, &(fid->dir), fid->entry, &sector);
+		ep = get_entry_in_dir(sb, &fid->dir, fid->entry, &sector);
 		if (!ep)
 			goto err_out;
 		ep2 = ep;
@@ -1142,7 +1142,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 			}
 		ep2 = ep + 1;
 	} else {
-		ep = get_entry_in_dir(sb, &(fid->dir), fid->entry, &sector);
+		ep = get_entry_in_dir(sb, &fid->dir, fid->entry, &sector);
 		if (!ep) {
 			ret = FFS_MEDIAERR;
 			goto out;
@@ -1277,7 +1277,7 @@ static int ffsMoveFile(struct inode *old_parent_inode, struct file_id_t *fid,
 
 		update_parent_info(new_fid, new_parent_inode);
 
-		p_dir = &(new_fid->dir);
+		p_dir = &new_fid->dir;
 		new_entry = new_fid->entry;
 		ep = get_entry_in_dir(sb, p_dir, new_entry, NULL);
 		if (!ep)
@@ -1438,14 +1438,14 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 
 	/* get the directory entry of given file */
 	if (p_fs->vol_type == EXFAT) {
-		es = get_entry_set_in_dir(sb, &(fid->dir), fid->entry,
+		es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 					  ES_ALL_ENTRIES, &ep);
 		if (!es) {
 			ret = FFS_MEDIAERR;
 			goto out;
 		}
 	} else {
-		ep = get_entry_in_dir(sb, &(fid->dir), fid->entry, &sector);
+		ep = get_entry_in_dir(sb, &fid->dir, fid->entry, &sector);
 		if (!ep) {
 			ret = FFS_MEDIAERR;
 			goto out;
@@ -1554,7 +1554,7 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 
 	/* get the directory entry of given file or directory */
 	if (p_fs->vol_type == EXFAT) {
-		es = get_entry_set_in_dir(sb, &(fid->dir), fid->entry,
+		es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 					  ES_2_ENTRIES, &ep);
 		if (!es) {
 			ret = FFS_MEDIAERR;
@@ -1562,7 +1562,7 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 		}
 		ep2 = ep + 1;
 	} else {
-		ep = get_entry_in_dir(sb, &(fid->dir), fid->entry, &sector);
+		ep = get_entry_in_dir(sb, &fid->dir, fid->entry, &sector);
 		if (!ep) {
 			ret = FFS_MEDIAERR;
 			goto out;
@@ -1594,11 +1594,11 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 
 	memset((char *)&info->AccessTimestamp, 0, sizeof(struct date_time_t));
 
-	*(uni_name.name) = 0x0;
+	*uni_name.name = 0x0;
 	/* XXX this is very bad for exfat cuz name is already included in es.
 	 * API should be revised
 	 */
-	p_fs->fs_func->get_uni_name_from_ext_entry(sb, &(fid->dir), fid->entry,
+	p_fs->fs_func->get_uni_name_from_ext_entry(sb, &fid->dir, fid->entry,
 						   uni_name.name);
 	if (*uni_name.name == 0x0 && p_fs->vol_type != EXFAT)
 		get_uni_name_from_dos_entry(sb, (struct dos_dentry_t *)ep,
@@ -1678,7 +1678,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 
 	/* get the directory entry of given file or directory */
 	if (p_fs->vol_type == EXFAT) {
-		es = get_entry_set_in_dir(sb, &(fid->dir), fid->entry,
+		es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 					  ES_ALL_ENTRIES, &ep);
 		if (!es) {
 			ret = FFS_MEDIAERR;
@@ -1687,7 +1687,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 		ep2 = ep + 1;
 	} else {
 		/* for other than exfat */
-		ep = get_entry_in_dir(sb, &(fid->dir), fid->entry, &sector);
+		ep = get_entry_in_dir(sb, &fid->dir, fid->entry, &sector);
 		if (!ep) {
 			ret = FFS_MEDIAERR;
 			goto out;
@@ -1845,7 +1845,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 		/* (3) update directory entry */
 		if (modified) {
 			if (p_fs->vol_type != EXFAT) {
-				ep = get_entry_in_dir(sb, &(fid->dir),
+				ep = get_entry_in_dir(sb, &fid->dir,
 						      fid->entry, &sector);
 				if (!ep) {
 					ret = FFS_MEDIAERR;
@@ -2058,7 +2058,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 			memset((char *)&dir_entry->AccessTimestamp, 0,
 			       sizeof(struct date_time_t));
 
-			*(uni_name.name) = 0x0;
+			*uni_name.name = 0x0;
 			fs_func->get_uni_name_from_ext_entry(sb, &dir, dentry,
 							     uni_name.name);
 			if (*uni_name.name == 0x0 && p_fs->vol_type != EXFAT)
@@ -2116,7 +2116,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 		}
 	}
 
-	*(dir_entry->Name) = '\0';
+	*dir_entry->Name = '\0';
 
 	fid->rwoffset = (s64)(++dentry);
 
@@ -2202,7 +2202,7 @@ static int exfat_readdir(struct file *filp, struct dir_context *ctx)
 	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct fs_info_t *p_fs = &(sbi->fs_info);
+	struct fs_info_t *p_fs = &sbi->fs_info;
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 	struct dir_entry_t de;
 	unsigned long inum;
@@ -2293,7 +2293,7 @@ static int exfat_ioctl_volume_id(struct inode *dir)
 {
 	struct super_block *sb = dir->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct fs_info_t *p_fs = &(sbi->fs_info);
+	struct fs_info_t *p_fs = &sbi->fs_info;
 
 	return p_fs->vol_id;
 }
@@ -2895,7 +2895,7 @@ static void exfat_truncate(struct inode *inode, loff_t old_size)
 {
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct fs_info_t *p_fs = &(sbi->fs_info);
+	struct fs_info_t *p_fs = &sbi->fs_info;
 	int err;
 
 	__lock_super(sb);
@@ -3073,8 +3073,8 @@ static int exfat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
 {
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct fs_info_t *p_fs = &(sbi->fs_info);
-	struct bd_info_t *p_bd = &(sbi->bd_info);
+	struct fs_info_t *p_fs = &sbi->fs_info;
+	struct bd_info_t *p_bd = &sbi->bd_info;
 	const unsigned long blocksize = sb->s_blocksize;
 	const unsigned char blocksize_bits = sb->s_blocksize_bits;
 	sector_t last_block;
@@ -3302,7 +3302,7 @@ static struct inode *exfat_iget(struct super_block *sb, loff_t i_pos)
 static int exfat_fill_inode(struct inode *inode, struct file_id_t *fid)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(inode->i_sb);
-	struct fs_info_t *p_fs = &(sbi->fs_info);
+	struct fs_info_t *p_fs = &sbi->fs_info;
 	struct dir_entry_t info;
 
 	memcpy(&(EXFAT_I(inode)->fid), fid, sizeof(struct file_id_t));
@@ -3787,7 +3787,7 @@ static int exfat_read_root(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct fs_info_t *p_fs = &(sbi->fs_info);
+	struct fs_info_t *p_fs = &sbi->fs_info;
 	struct dir_entry_t info;
 
 	EXFAT_I(inode)->fid.dir.dir = p_fs->root_dir;

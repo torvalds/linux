@@ -550,7 +550,7 @@ s32 load_alloc_bitmap(struct super_block *sb)
 
 				for (j = 0; j < p_fs->map_sectors; j++) {
 					p_fs->vol_amap[j] = NULL;
-					ret = sector_read(sb, sector + j, &(p_fs->vol_amap[j]), 1);
+					ret = sector_read(sb, sector + j, &p_fs->vol_amap[j], 1);
 					if (ret != FFS_SUCCESS) {
 						/*  release all buffers and free vol_amap */
 						i = 0;
@@ -910,10 +910,10 @@ u32 fat_get_entry_type(struct dentry_t *p_entry)
 {
 	struct dos_dentry_t *ep = (struct dos_dentry_t *)p_entry;
 
-	if (*(ep->name) == 0x0)
+	if (*ep->name == 0x0)
 		return TYPE_UNUSED;
 
-	else if (*(ep->name) == 0xE5)
+	else if (*ep->name == 0xE5)
 		return TYPE_DELETED;
 
 	else if (ep->attr == ATTR_EXTEND)
@@ -978,10 +978,10 @@ void fat_set_entry_type(struct dentry_t *p_entry, u32 type)
 	struct dos_dentry_t *ep = (struct dos_dentry_t *)p_entry;
 
 	if (type == TYPE_UNUSED)
-		*(ep->name) = 0x0;
+		*ep->name = 0x0;
 
 	else if (type == TYPE_DELETED)
-		*(ep->name) = 0xE5;
+		*ep->name = 0xE5;
 
 	else if (type == TYPE_EXTEND)
 		ep->attr = ATTR_EXTEND;
@@ -1562,7 +1562,7 @@ void update_dir_checksum_with_entry_set(struct super_block *sb,
 	u16 chksum = 0;
 	s32 chksum_type = CS_DIR_ENTRY, i;
 
-	ep = (struct dentry_t *)&(es->__buf);
+	ep = (struct dentry_t *)&es->__buf;
 	for (i = 0; i < es->num_entries; i++) {
 		pr_debug("%s ep %p\n", __func__, ep);
 		chksum = calc_checksum_2byte((void *)ep, DENTRY_SIZE, chksum,
@@ -1571,7 +1571,7 @@ void update_dir_checksum_with_entry_set(struct super_block *sb,
 		chksum_type = CS_DEFAULT;
 	}
 
-	ep = (struct dentry_t *)&(es->__buf);
+	ep = (struct dentry_t *)&es->__buf;
 	SET16_A(((struct file_dentry_t *)ep)->checksum, chksum);
 	write_whole_entry_set(sb, es);
 }
@@ -1832,7 +1832,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 	}
 
 	if (file_ep)
-		*file_ep = (struct dentry_t *)&(es->__buf);
+		*file_ep = (struct dentry_t *)&es->__buf;
 
 	pr_debug("%s exiting es %p sec %llu offset %d flags %d, num_entries %u buf ptr %p\n",
 		   __func__, es, (unsigned long long)es->sector, es->offset,
@@ -1859,7 +1859,7 @@ static s32 __write_partial_entries_in_entry_set(struct super_block *sb,
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 	u32 clu;
-	u8 *buf, *esbuf = (u8 *)&(es->__buf);
+	u8 *buf, *esbuf = (u8 *)&es->__buf;
 
 	pr_debug("%s entered es %p sec %llu off %d count %d\n",
 		__func__, es, (unsigned long long)sec, off, count);
@@ -1929,7 +1929,7 @@ s32 write_partial_entries_in_entry_set(struct super_block *sb,
 	struct chain_t dir;
 
 	/* vaidity check */
-	if (ep + count  > ((struct dentry_t *)&(es->__buf)) + es->num_entries)
+	if (ep + count  > ((struct dentry_t *)&es->__buf) + es->num_entries)
 		return FFS_ERROR;
 
 	dir.dir = GET_CLUSTER_FROM_SECTOR(es->sector);
@@ -1938,7 +1938,7 @@ s32 write_partial_entries_in_entry_set(struct super_block *sb,
 
 	byte_offset = (es->sector - START_SECTOR(dir.dir)) <<
 			p_bd->sector_size_bits;
-	byte_offset += ((void **)ep - &(es->__buf)) + es->offset;
+	byte_offset += ((void **)ep - &es->__buf) + es->offset;
 
 	ret = _walk_fat_chain(sb, &dir, byte_offset, &clu);
 	if (ret != FFS_SUCCESS)
@@ -2122,7 +2122,7 @@ s32 find_empty_entry(struct inode *inode, struct chain_t *p_dir, s32 num_entries
 				p_fs->fs_func->set_entry_flag(ep, p_dir->flags);
 				buf_modify(sb, sector);
 
-				update_dir_checksum(sb, &(fid->dir),
+				update_dir_checksum(sb, &fid->dir,
 						    fid->entry);
 			}
 		}
