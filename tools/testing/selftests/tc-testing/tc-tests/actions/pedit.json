@@ -915,7 +915,7 @@
         "cmdUnderTest": "$TC actions add action pedit ex munge ip tos add 0x1 pass",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action pedit",
-        "matchPattern": "action order [0-9]+:  pedit action pass keys 1.*key #0  at ipv4\\+0: val 00010000 mask ff00ffff",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 1.*key #0  at ipv4\\+0: add 00010000 mask ff00ffff",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action pedit"
@@ -940,7 +940,7 @@
         "cmdUnderTest": "$TC actions add action pedit ex munge ip precedence add 0x1 pipe",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action pedit",
-        "matchPattern": "action order [0-9]+:  pedit action pipe keys 1.*key #0  at ipv4\\+0: val 00010000 mask ff00ffff",
+        "matchPattern": "action order [0-9]+:  pedit action pipe keys 1.*key #0  at ipv4\\+0: add 00010000 mask ff00ffff",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action pedit"
