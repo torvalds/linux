@@ -207,8 +207,8 @@ TCP variables:
 
 somaxconn - INTEGER
 	Limit of socket listen() backlog, known in userspace as SOMAXCONN.
-	Defaults to 128.  See also tcp_max_syn_backlog for additional tuning
-	for TCP sockets.
+	Defaults to 4096. (Was 128 before linux-5.4)
+	See also tcp_max_syn_backlog for additional tuning for TCP sockets.
 
 tcp_abort_on_overflow - BOOLEAN
 	If listening service is too slow to accept new connections,
