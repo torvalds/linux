@@ -449,8 +449,15 @@ static void acpiphp_native_scan_bridge(struct pci_dev *bridge)
 
 	/* Scan non-hotplug bridges that need to be reconfigured */
 	for_each_pci_bridge(dev, bus) {
-		if (!hotplug_is_native(dev))
-			max = pci_scan_bridge(bus, dev, max, 1);
+		if (hotplug_is_native(dev))
+			continue;
+
+		max = pci_scan_bridge(bus, dev, max, 1);
+		if (dev->subordinate) {
+			pcibios_resource_survey_bus(dev->subordinate);
+			pci_bus_size_bridges(dev->subordinate);
+			pci_bus_assign_resources(dev->subordinate);
+		}
 	}
 }
 
@@ -480,7 +487,6 @@ static void enable_slot(struct acpiphp_slot *slot, bool bridge)
 			if (PCI_SLOT(dev->devfn) == slot->device)
 				acpiphp_native_scan_bridge(dev);
 		}
-		pci_assign_unassigned_bridge_resources(bus->self);
 	} else {
 		LIST_HEAD(add_list);
 		int max, pass;
