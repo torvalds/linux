@@ -85,6 +85,10 @@ dpaa2_eth_get_link_ksettings(struct net_device *net_dev,
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 
+	if (priv->mac)
+		return phylink_ethtool_ksettings_get(priv->mac->phylink,
+						     link_settings);
+
 	link_settings->base.autoneg = AUTONEG_DISABLE;
 	if (!(priv->link_state.options & DPNI_LINK_OPT_HALF_DUPLEX))
 		link_settings->base.duplex = DUPLEX_FULL;
@@ -93,11 +97,28 @@ dpaa2_eth_get_link_ksettings(struct net_device *net_dev,
 	return 0;
 }
 
+static int
+dpaa2_eth_set_link_ksettings(struct net_device *net_dev,
+			     const struct ethtool_link_ksettings *link_settings)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+
+	if (!priv->mac)
+		return -ENOTSUPP;
+
+	return phylink_ethtool_ksettings_set(priv->mac->phylink, link_settings);
+}
+
 static void dpaa2_eth_get_pauseparam(struct net_device *net_dev,
 				     struct ethtool_pauseparam *pause)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	u64 link_options = priv->link_state.options;
+
+	if (priv->mac) {
+		phylink_ethtool_get_pauseparam(priv->mac->phylink, pause);
+		return;
+	}
 
 	pause->rx_pause = !!(link_options & DPNI_LINK_OPT_PAUSE);
 	pause->tx_pause = pause->rx_pause ^
@@ -118,6 +139,9 @@ static int dpaa2_eth_set_pauseparam(struct net_device *net_dev,
 		return -EOPNOTSUPP;
 	}
 
+	if (priv->mac)
+		return phylink_ethtool_set_pauseparam(priv->mac->phylink,
+						      pause);
 	if (pause->autoneg)
 		return -EOPNOTSUPP;
 
@@ -728,6 +752,7 @@ const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_drvinfo = dpaa2_eth_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_link_ksettings = dpaa2_eth_get_link_ksettings,
+	.set_link_ksettings = dpaa2_eth_set_link_ksettings,
 	.get_pauseparam = dpaa2_eth_get_pauseparam,
 	.set_pauseparam = dpaa2_eth_set_pauseparam,
 	.get_sset_count = dpaa2_eth_get_sset_count,

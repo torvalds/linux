@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /* Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2016-2017 NXP
+ * Copyright 2016-2019 NXP
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -1276,6 +1276,12 @@ static int link_state_update(struct dpaa2_eth_priv *priv)
 		   !!(state.options & DPNI_LINK_OPT_ASYM_PAUSE);
 	dpaa2_eth_set_rx_taildrop(priv, !tx_pause);
 
+	/* When we manage the MAC/PHY using phylink there is no need
+	 * to manually update the netif_carrier.
+	 */
+	if (priv->mac)
+		goto out;
+
 	/* Chech link state; speed / duplex changes are not treated yet */
 	if (priv->link_state.up == state.up)
 		goto out;
@@ -1312,17 +1318,21 @@ static int dpaa2_eth_open(struct net_device *net_dev)
 			   priv->dpbp_dev->obj_desc.id, priv->bpid);
 	}
 
-	/* We'll only start the txqs when the link is actually ready; make sure
-	 * we don't race against the link up notification, which may come
-	 * immediately after dpni_enable();
-	 */
-	netif_tx_stop_all_queues(net_dev);
+	if (!priv->mac) {
+		/* We'll only start the txqs when the link is actually ready;
+		 * make sure we don't race against the link up notification,
+		 * which may come immediately after dpni_enable();
+		 */
+		netif_tx_stop_all_queues(net_dev);
+
+		/* Also, explicitly set carrier off, otherwise
+		 * netif_carrier_ok() will return true and cause 'ip link show'
+		 * to report the LOWER_UP flag, even though the link
+		 * notification wasn't even received.
+		 */
+		netif_carrier_off(net_dev);
+	}
 	enable_ch_napi(priv);
-	/* Also, explicitly set carrier off, otherwise netif_carrier_ok() will
-	 * return true and cause 'ip link show' to report the LOWER_UP flag,
-	 * even though the link notification wasn't even received.
-	 */
-	netif_carrier_off(net_dev);
 
 	err = dpni_enable(priv->mc_io, 0, priv->mc_token);
 	if (err < 0) {
@@ -1330,13 +1340,17 @@ static int dpaa2_eth_open(struct net_device *net_dev)
 		goto enable_err;
 	}
 
-	/* If the DPMAC object has already processed the link up interrupt,
-	 * we have to learn the link state ourselves.
-	 */
-	err = link_state_update(priv);
-	if (err < 0) {
-		netdev_err(net_dev, "Can't update link state\n");
-		goto link_state_err;
+	if (!priv->mac) {
+		/* If the DPMAC object has already processed the link up
+		 * interrupt, we have to learn the link state ourselves.
+		 */
+		err = link_state_update(priv);
+		if (err < 0) {
+			netdev_err(net_dev, "Can't update link state\n");
+			goto link_state_err;
+		}
+	} else {
+		phylink_start(priv->mac->phylink);
 	}
 
 	return 0;
@@ -1411,8 +1425,12 @@ static int dpaa2_eth_stop(struct net_device *net_dev)
 	int dpni_enabled = 0;
 	int retries = 10;
 
-	netif_tx_stop_all_queues(net_dev);
-	netif_carrier_off(net_dev);
+	if (!priv->mac) {
+		netif_tx_stop_all_queues(net_dev);
+		netif_carrier_off(net_dev);
+	} else {
+		phylink_stop(priv->mac->phylink);
+	}
 
 	/* On dpni_disable(), the MC firmware will:
 	 * - stop MAC Rx and wait for all Rx frames to be enqueued to software
@@ -3342,12 +3360,56 @@ static int poll_link_state(void *arg)
 	return 0;
 }
 
+static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
+{
+	struct fsl_mc_device *dpni_dev, *dpmac_dev;
+	struct dpaa2_mac *mac;
+	int err;
+
+	dpni_dev = to_fsl_mc_device(priv->net_dev->dev.parent);
+	dpmac_dev = fsl_mc_get_endpoint(dpni_dev);
+	if (IS_ERR(dpmac_dev) || dpmac_dev->dev.type != &fsl_mc_bus_dpmac_type)
+		return 0;
+
+	if (dpaa2_mac_is_type_fixed(dpmac_dev, priv->mc_io))
+		return 0;
+
+	mac = kzalloc(sizeof(struct dpaa2_mac), GFP_KERNEL);
+	if (!mac)
+		return -ENOMEM;
+
+	mac->mc_dev = dpmac_dev;
+	mac->mc_io = priv->mc_io;
+	mac->net_dev = priv->net_dev;
+
+	err = dpaa2_mac_connect(mac);
+	if (err) {
+		netdev_err(priv->net_dev, "Error connecting to the MAC endpoint\n");
+		kfree(mac);
+		return err;
+	}
+	priv->mac = mac;
+
+	return 0;
+}
+
+static void dpaa2_eth_disconnect_mac(struct dpaa2_eth_priv *priv)
+{
+	if (!priv->mac)
+		return;
+
+	dpaa2_mac_disconnect(priv->mac);
+	kfree(priv->mac);
+	priv->mac = NULL;
+}
+
 static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 {
 	u32 status = ~0;
 	struct device *dev = (struct device *)arg;
 	struct fsl_mc_device *dpni_dev = to_fsl_mc_device(dev);
 	struct net_device *net_dev = dev_get_drvdata(dev);
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	int err;
 
 	err = dpni_get_irq_status(dpni_dev->mc_io, 0, dpni_dev->mc_handle,
@@ -3363,6 +3425,13 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 	if (status & DPNI_IRQ_EVENT_ENDPOINT_CHANGED) {
 		set_mac_addr(netdev_priv(net_dev));
 		update_tx_fqids(priv);
+
+		rtnl_lock();
+		if (priv->mac)
+			dpaa2_eth_disconnect_mac(priv);
+		else
+			dpaa2_eth_connect_mac(priv);
+		rtnl_unlock();
 	}
 
 	return IRQ_HANDLED;
@@ -3539,6 +3608,10 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 		priv->do_link_poll = true;
 	}
 
+	err = dpaa2_eth_connect_mac(priv);
+	if (err)
+		goto err_connect_mac;
+
 	err = register_netdev(net_dev);
 	if (err < 0) {
 		dev_err(dev, "register_netdev() failed\n");
@@ -3553,6 +3626,8 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	return 0;
 
 err_netdev_reg:
+	dpaa2_eth_disconnect_mac(priv);
+err_connect_mac:
 	if (priv->do_link_poll)
 		kthread_stop(priv->poll_thread);
 	else
@@ -3595,6 +3670,10 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 #ifdef CONFIG_DEBUG_FS
 	dpaa2_dbg_remove(priv);
 #endif
+	rtnl_lock();
+	dpaa2_eth_disconnect_mac(priv);
+	rtnl_unlock();
+
 	unregister_netdev(net_dev);
 
 	if (priv->do_link_poll)
