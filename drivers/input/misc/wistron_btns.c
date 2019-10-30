@@ -8,7 +8,7 @@
 #include <linux/io.h>
 #include <linux/dmi.h>
 #include <linux/init.h>
-#include <linux/input-polldev.h>
+#include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
@@ -1030,7 +1030,7 @@ static int __init select_keymap(void)
 
  /* Input layer interface */
 
-static struct input_polled_dev *wistron_idev;
+static struct input_dev *wistron_idev;
 static unsigned long jiffies_last_press;
 static bool wifi_enabled;
 static bool bluetooth_enabled;
@@ -1114,7 +1114,7 @@ static inline void wistron_led_resume(void)
 static void handle_key(u8 code)
 {
 	const struct key_entry *key =
-		sparse_keymap_entry_from_scancode(wistron_idev->input, code);
+		sparse_keymap_entry_from_scancode(wistron_idev, code);
 
 	if (key) {
 		switch (key->type) {
@@ -1133,14 +1133,14 @@ static void handle_key(u8 code)
 			break;
 
 		default:
-			sparse_keymap_report_entry(wistron_idev->input,
-						   key, 1, true);
+			sparse_keymap_report_entry(wistron_idev, key, 1, true);
 			break;
 		}
 		jiffies_last_press = jiffies;
-	} else
+	} else {
 		printk(KERN_NOTICE
 			"wistron_btns: Unknown key code %02X\n", code);
+	}
 }
 
 static void poll_bios(bool discard)
@@ -1158,21 +1158,23 @@ static void poll_bios(bool discard)
 	}
 }
 
-static void wistron_flush(struct input_polled_dev *dev)
+static int wistron_flush(struct input_dev *dev)
 {
 	/* Flush stale event queue */
 	poll_bios(true);
+
+	return 0;
 }
 
-static void wistron_poll(struct input_polled_dev *dev)
+static void wistron_poll(struct input_dev *dev)
 {
 	poll_bios(false);
 
 	/* Increase poll frequency if user is currently pressing keys (< 2s ago) */
 	if (time_before(jiffies, jiffies_last_press + 2 * HZ))
-		dev->poll_interval = POLL_INTERVAL_BURST;
+		input_set_poll_interval(dev, POLL_INTERVAL_BURST);
 	else
-		dev->poll_interval = POLL_INTERVAL_DEFAULT;
+		input_set_poll_interval(dev, POLL_INTERVAL_DEFAULT);
 }
 
 static int wistron_setup_keymap(struct input_dev *dev,
@@ -1208,35 +1210,37 @@ static int wistron_setup_keymap(struct input_dev *dev,
 
 static int setup_input_dev(void)
 {
-	struct input_dev *input_dev;
 	int error;
 
-	wistron_idev = input_allocate_polled_device();
+	wistron_idev = input_allocate_device();
 	if (!wistron_idev)
 		return -ENOMEM;
 
+	wistron_idev->name = "Wistron laptop buttons";
+	wistron_idev->phys = "wistron/input0";
+	wistron_idev->id.bustype = BUS_HOST;
+	wistron_idev->dev.parent = &wistron_device->dev;
+
 	wistron_idev->open = wistron_flush;
-	wistron_idev->poll = wistron_poll;
-	wistron_idev->poll_interval = POLL_INTERVAL_DEFAULT;
 
-	input_dev = wistron_idev->input;
-	input_dev->name = "Wistron laptop buttons";
-	input_dev->phys = "wistron/input0";
-	input_dev->id.bustype = BUS_HOST;
-	input_dev->dev.parent = &wistron_device->dev;
-
-	error = sparse_keymap_setup(input_dev, keymap, wistron_setup_keymap);
+	error = sparse_keymap_setup(wistron_idev, keymap, wistron_setup_keymap);
 	if (error)
 		goto err_free_dev;
 
-	error = input_register_polled_device(wistron_idev);
+	error = input_setup_polling(wistron_idev, wistron_poll);
+	if (error)
+		goto err_free_dev;
+
+	input_set_poll_interval(wistron_idev, POLL_INTERVAL_DEFAULT);
+
+	error = input_register_device(wistron_idev);
 	if (error)
 		goto err_free_dev;
 
 	return 0;
 
  err_free_dev:
-	input_free_polled_device(wistron_idev);
+	input_free_device(wistron_idev);
 	return error;
 }
 
@@ -1285,8 +1289,7 @@ static int wistron_probe(struct platform_device *dev)
 static int wistron_remove(struct platform_device *dev)
 {
 	wistron_led_remove();
-	input_unregister_polled_device(wistron_idev);
-	input_free_polled_device(wistron_idev);
+	input_unregister_device(wistron_idev);
 	bios_detach();
 
 	return 0;
