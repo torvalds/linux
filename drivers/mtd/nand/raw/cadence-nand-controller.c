@@ -1886,7 +1886,7 @@ static int cadence_nand_read_buf(struct cdns_nand_ctrl *cdns_ctrl,
 		return 0;
 	}
 
-	if (cdns_ctrl->dmac && cadence_nand_dma_buf_ok(cdns_ctrl, buf, len)) {
+	if (cadence_nand_dma_buf_ok(cdns_ctrl, buf, len)) {
 		status = cadence_nand_slave_dma_transfer(cdns_ctrl, buf,
 							 cdns_ctrl->io.dma,
 							 len, DMA_FROM_DEVICE);
@@ -1940,7 +1940,7 @@ static int cadence_nand_write_buf(struct cdns_nand_ctrl *cdns_ctrl,
 		return 0;
 	}
 
-	if (cdns_ctrl->dmac && cadence_nand_dma_buf_ok(cdns_ctrl, buf, len)) {
+	if (cadence_nand_dma_buf_ok(cdns_ctrl, buf, len)) {
 		status = cadence_nand_slave_dma_transfer(cdns_ctrl, (void *)buf,
 							 cdns_ctrl->io.dma,
 							 len, DMA_TO_DEVICE);
