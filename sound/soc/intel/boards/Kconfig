@@ -270,7 +270,6 @@ config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
-	select SND_HDA_DSP_LOADER
 	help
 	   This adds support for ASoC machine driver for Broxton-P platforms
 	   with DA7219 + MAX98357A I2S audio codec.
@@ -284,7 +283,6 @@ config SND_SOC_INTEL_BXT_RT298_MACH
 	select SND_SOC_RT298
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
-	select SND_HDA_DSP_LOADER
 	help
 	   This adds support for ASoC machine driver for Broxton platforms
 	   with RT286 I2S audio codec.
@@ -400,7 +398,6 @@ config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	select SND_SOC_MAX98357A
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
-	select SND_HDA_DSP_LOADER
 	help
 	   This adds support for ASoC machine driver for Geminilake platforms
 	   with RT5682 + MAX98357A I2S audio codec.
