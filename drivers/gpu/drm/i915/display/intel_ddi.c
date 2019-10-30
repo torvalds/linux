@@ -4148,37 +4148,38 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv =
 		to_i915(intel_dig_port->base.base.dev);
 	enum port port = intel_dig_port->base.port;
-	u32 val;
+	u32 dp_tp_ctl, ddi_buf_ctl;
 	bool wait = false;
 
-	if (I915_READ(intel_dp->regs.dp_tp_ctl) & DP_TP_CTL_ENABLE) {
-		val = I915_READ(DDI_BUF_CTL(port));
-		if (val & DDI_BUF_CTL_ENABLE) {
-			val &= ~DDI_BUF_CTL_ENABLE;
-			I915_WRITE(DDI_BUF_CTL(port), val);
+	dp_tp_ctl = I915_READ(intel_dp->regs.dp_tp_ctl);
+
+	if (dp_tp_ctl & DP_TP_CTL_ENABLE) {
+		ddi_buf_ctl = I915_READ(DDI_BUF_CTL(port));
+		if (ddi_buf_ctl & DDI_BUF_CTL_ENABLE) {
+			I915_WRITE(DDI_BUF_CTL(port),
+				   ddi_buf_ctl & ~DDI_BUF_CTL_ENABLE);
 			wait = true;
 		}
 
-		val = I915_READ(intel_dp->regs.dp_tp_ctl);
-		val &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
-		val |= DP_TP_CTL_LINK_TRAIN_PAT1;
-		I915_WRITE(intel_dp->regs.dp_tp_ctl, val);
+		dp_tp_ctl &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
+		dp_tp_ctl |= DP_TP_CTL_LINK_TRAIN_PAT1;
+		I915_WRITE(intel_dp->regs.dp_tp_ctl, dp_tp_ctl);
 		POSTING_READ(intel_dp->regs.dp_tp_ctl);
 
 		if (wait)
 			intel_wait_ddi_buf_idle(dev_priv, port);
 	}
 
-	val = DP_TP_CTL_ENABLE |
-	      DP_TP_CTL_LINK_TRAIN_PAT1 | DP_TP_CTL_SCRAMBLE_DISABLE;
+	dp_tp_ctl = DP_TP_CTL_ENABLE |
+		    DP_TP_CTL_LINK_TRAIN_PAT1 | DP_TP_CTL_SCRAMBLE_DISABLE;
 	if (intel_dp->link_mst)
-		val |= DP_TP_CTL_MODE_MST;
+		dp_tp_ctl |= DP_TP_CTL_MODE_MST;
 	else {
-		val |= DP_TP_CTL_MODE_SST;
+		dp_tp_ctl |= DP_TP_CTL_MODE_SST;
 		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
-			val |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
+			dp_tp_ctl |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
 	}
-	I915_WRITE(intel_dp->regs.dp_tp_ctl, val);
+	I915_WRITE(intel_dp->regs.dp_tp_ctl, dp_tp_ctl);
 	POSTING_READ(intel_dp->regs.dp_tp_ctl);
 
 	intel_dp->DP |= DDI_BUF_CTL_ENABLE;
