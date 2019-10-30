@@ -8,7 +8,7 @@ The System Power Manager (SPM) inside the SCPSYS is for the MTCMOS power
 domain control.
 
 The driver implements the Generic PM domain bindings described in
-power/power_domain.txt. It provides the power domains defined in
+power/power-domain.yaml. It provides the power domains defined in
 - include/dt-bindings/power/mt8173-power.h
 - include/dt-bindings/power/mt6797-power.h
 - include/dt-bindings/power/mt2701-power.h

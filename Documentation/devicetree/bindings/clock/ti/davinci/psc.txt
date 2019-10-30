@@ -67,5 +67,5 @@ Examples:
 
 Also see:
 - Documentation/devicetree/bindings/clock/clock-bindings.txt
-- Documentation/devicetree/bindings/power/power_domain.txt
+- Documentation/devicetree/bindings/power/power-domain.yaml
 - Documentation/devicetree/bindings/reset/reset.txt

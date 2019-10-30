@@ -19,7 +19,7 @@ Required properties:
   - ipg
 
 The power domains are generic power domain providers as documented in
-Documentation/devicetree/bindings/power/power_domain.txt. They are described as
+Documentation/devicetree/bindings/power/power-domain.yaml. They are described as
 subnodes of the power gating controller 'pgc' node of the GPC and should
 contain the following:
 
