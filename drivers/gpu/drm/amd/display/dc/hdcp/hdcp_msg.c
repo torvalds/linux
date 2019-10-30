@@ -174,9 +174,7 @@ static bool hdmi_14_process_transaction(
 			link->ctx,
 			link,
 			&i2c_command);
-
-	if (buff)
-		kfree(buff);
+	kfree(buff);
 
 	return result;
 }
