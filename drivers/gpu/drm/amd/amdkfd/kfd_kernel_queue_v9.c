@@ -25,6 +25,7 @@
 #include "kfd_device_queue_manager.h"
 #include "kfd_pm4_headers_ai.h"
 #include "kfd_pm4_opcodes.h"
+#include "gc/gc_10_1_0_sh_mask.h"
 
 static bool initialize_v9(struct kernel_queue *kq, struct kfd_dev *dev,
 			enum kfd_queue_type type, unsigned int queue_size)
@@ -85,10 +86,17 @@ static int pm_map_process_v9(struct packet_manager *pm,
 
 	packet->sh_mem_config = qpd->sh_mem_config;
 	packet->sh_mem_bases = qpd->sh_mem_bases;
-	packet->sq_shader_tba_lo = lower_32_bits(qpd->tba_addr >> 8);
-	packet->sq_shader_tba_hi = upper_32_bits(qpd->tba_addr >> 8);
-	packet->sq_shader_tma_lo = lower_32_bits(qpd->tma_addr >> 8);
-	packet->sq_shader_tma_hi = upper_32_bits(qpd->tma_addr >> 8);
+	if (qpd->tba_addr) {
+		packet->sq_shader_tba_lo = lower_32_bits(qpd->tba_addr >> 8);
+		/* On GFX9, unlike GFX10, bit TRAP_EN of SQ_SHADER_TBA_HI is
+		 * not defined, so setting it won't do any harm.
+		 */
+		packet->sq_shader_tba_hi = upper_32_bits(qpd->tba_addr >> 8)
+				| 1 << SQ_SHADER_TBA_HI__TRAP_EN__SHIFT;
+
+		packet->sq_shader_tma_lo = lower_32_bits(qpd->tma_addr >> 8);
+		packet->sq_shader_tma_hi = upper_32_bits(qpd->tma_addr >> 8);
+	}
 
 	packet->gds_addr_lo = lower_32_bits(qpd->gds_context_area);
 	packet->gds_addr_hi = upper_32_bits(qpd->gds_context_area);

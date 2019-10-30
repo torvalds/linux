@@ -972,7 +972,6 @@ struct packet_manager_funcs {
 
 extern const struct packet_manager_funcs kfd_vi_pm_funcs;
 extern const struct packet_manager_funcs kfd_v9_pm_funcs;
-extern const struct packet_manager_funcs kfd_v10_pm_funcs;
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm);
 void pm_uninit(struct packet_manager *pm);
@@ -991,9 +990,6 @@ void pm_release_ib(struct packet_manager *pm);
 
 /* Following PM funcs can be shared among VI and AI */
 unsigned int pm_build_pm4_header(unsigned int opcode, size_t packet_size);
-int pm_set_resources_vi(struct packet_manager *pm, uint32_t *buffer,
-			struct scheduling_resources *res);
-
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 
