@@ -1414,6 +1414,18 @@ error:
 	return DIE_FIND_CB_END;
 }
 
+static bool available_var_finder_overlap(struct available_var_finder *af)
+{
+	int i;
+
+	for (i = 0; i < af->nvls; i++) {
+		if (af->pf.addr == af->vls[i].point.address)
+			return true;
+	}
+	return false;
+
+}
+
 /* Add a found vars into available variables list */
 static int add_available_vars(Dwarf_Die *sc_die, struct probe_finder *pf)
 {
@@ -1423,6 +1435,14 @@ static int add_available_vars(Dwarf_Die *sc_die, struct probe_finder *pf)
 	struct variable_list *vl;
 	Dwarf_Die die_mem;
 	int ret;
+
+	/*
+	 * For some reason (e.g. different column assigned to same address),
+	 * this callback can be called with the address which already passed.
+	 * Ignore it first.
+	 */
+	if (available_var_finder_overlap(af))
+		return 0;
 
 	/* Check number of tevs */
 	if (af->nvls == af->max_vls) {
