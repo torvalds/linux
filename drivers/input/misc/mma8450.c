@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/input-polldev.h>
+#include <linux/input.h>
 #include <linux/of_device.h>
 
 #define MMA8450_DRV_NAME	"mma8450"
@@ -39,15 +39,8 @@
 #define MMA8450_CTRL_REG1	0x38
 #define MMA8450_CTRL_REG2	0x39
 
-/* mma8450 status */
-struct mma8450 {
-	struct i2c_client	*client;
-	struct input_polled_dev	*idev;
-};
-
-static int mma8450_read(struct mma8450 *m, unsigned off)
+static int mma8450_read(struct i2c_client *c, unsigned int off)
 {
-	struct i2c_client *c = m->client;
 	int ret;
 
 	ret = i2c_smbus_read_byte_data(c, off);
@@ -59,9 +52,8 @@ static int mma8450_read(struct mma8450 *m, unsigned off)
 	return ret;
 }
 
-static int mma8450_write(struct mma8450 *m, unsigned off, u8 v)
+static int mma8450_write(struct i2c_client *c, unsigned int off, u8 v)
 {
-	struct i2c_client *c = m->client;
 	int error;
 
 	error = i2c_smbus_write_byte_data(c, off, v);
@@ -75,10 +67,9 @@ static int mma8450_write(struct mma8450 *m, unsigned off, u8 v)
 	return 0;
 }
 
-static int mma8450_read_block(struct mma8450 *m, unsigned off,
+static int mma8450_read_block(struct i2c_client *c, unsigned int off,
 			      u8 *buf, size_t size)
 {
-	struct i2c_client *c = m->client;
 	int err;
 
 	err = i2c_smbus_read_i2c_block_data(c, off, size, buf);
@@ -92,21 +83,21 @@ static int mma8450_read_block(struct mma8450 *m, unsigned off,
 	return 0;
 }
 
-static void mma8450_poll(struct input_polled_dev *dev)
+static void mma8450_poll(struct input_dev *input)
 {
-	struct mma8450 *m = dev->private;
+	struct i2c_client *c = input_get_drvdata(input);
 	int x, y, z;
 	int ret;
 	u8 buf[6];
 
-	ret = mma8450_read(m, MMA8450_STATUS);
+	ret = mma8450_read(c, MMA8450_STATUS);
 	if (ret < 0)
 		return;
 
 	if (!(ret & MMA8450_STATUS_ZXYDR))
 		return;
 
-	ret = mma8450_read_block(m, MMA8450_OUT_X_LSB, buf, sizeof(buf));
+	ret = mma8450_read_block(c, MMA8450_OUT_X_LSB, buf, sizeof(buf));
 	if (ret < 0)
 		return;
 
@@ -114,41 +105,42 @@ static void mma8450_poll(struct input_polled_dev *dev)
 	y = ((int)(s8)buf[3] << 4) | (buf[2] & 0xf);
 	z = ((int)(s8)buf[5] << 4) | (buf[4] & 0xf);
 
-	input_report_abs(dev->input, ABS_X, x);
-	input_report_abs(dev->input, ABS_Y, y);
-	input_report_abs(dev->input, ABS_Z, z);
-	input_sync(dev->input);
+	input_report_abs(input, ABS_X, x);
+	input_report_abs(input, ABS_Y, y);
+	input_report_abs(input, ABS_Z, z);
+	input_sync(input);
 }
 
 /* Initialize the MMA8450 chip */
-static void mma8450_open(struct input_polled_dev *dev)
+static int mma8450_open(struct input_dev *input)
 {
-	struct mma8450 *m = dev->private;
+	struct i2c_client *c = input_get_drvdata(input);
 	int err;
 
 	/* enable all events from X/Y/Z, no FIFO */
-	err = mma8450_write(m, MMA8450_XYZ_DATA_CFG, 0x07);
+	err = mma8450_write(c, MMA8450_XYZ_DATA_CFG, 0x07);
 	if (err)
-		return;
+		return err;
 
 	/*
 	 * Sleep mode poll rate - 50Hz
 	 * System output data rate - 400Hz
 	 * Full scale selection - Active, +/- 2G
 	 */
-	err = mma8450_write(m, MMA8450_CTRL_REG1, 0x01);
-	if (err < 0)
-		return;
+	err = mma8450_write(c, MMA8450_CTRL_REG1, 0x01);
+	if (err)
+		return err;
 
 	msleep(MODE_CHANGE_DELAY_MS);
+	return 0;
 }
 
-static void mma8450_close(struct input_polled_dev *dev)
+static void mma8450_close(struct input_dev *input)
 {
-	struct mma8450 *m = dev->private;
+	struct i2c_client *c = input_get_drvdata(input);
 
-	mma8450_write(m, MMA8450_CTRL_REG1, 0x00);
-	mma8450_write(m, MMA8450_CTRL_REG2, 0x01);
+	mma8450_write(c, MMA8450_CTRL_REG1, 0x00);
+	mma8450_write(c, MMA8450_CTRL_REG2, 0x01);
 }
 
 /*
@@ -157,38 +149,37 @@ static void mma8450_close(struct input_polled_dev *dev)
 static int mma8450_probe(struct i2c_client *c,
 			 const struct i2c_device_id *id)
 {
-	struct input_polled_dev *idev;
-	struct mma8450 *m;
+	struct input_dev *input;
 	int err;
 
-	m = devm_kzalloc(&c->dev, sizeof(*m), GFP_KERNEL);
-	if (!m)
+	input = devm_input_allocate_device(&c->dev);
+	if (!input)
 		return -ENOMEM;
 
-	idev = devm_input_allocate_polled_device(&c->dev);
-	if (!idev)
-		return -ENOMEM;
+	input_set_drvdata(input, c);
 
-	m->client = c;
-	m->idev = idev;
+	input->name = MMA8450_DRV_NAME;
+	input->id.bustype = BUS_I2C;
 
-	idev->private		= m;
-	idev->input->name	= MMA8450_DRV_NAME;
-	idev->input->id.bustype	= BUS_I2C;
-	idev->poll		= mma8450_poll;
-	idev->poll_interval	= POLL_INTERVAL;
-	idev->poll_interval_max	= POLL_INTERVAL_MAX;
-	idev->open		= mma8450_open;
-	idev->close		= mma8450_close;
+	input->open = mma8450_open;
+	input->close = mma8450_close;
 
-	__set_bit(EV_ABS, idev->input->evbit);
-	input_set_abs_params(idev->input, ABS_X, -2048, 2047, 32, 32);
-	input_set_abs_params(idev->input, ABS_Y, -2048, 2047, 32, 32);
-	input_set_abs_params(idev->input, ABS_Z, -2048, 2047, 32, 32);
+	input_set_abs_params(input, ABS_X, -2048, 2047, 32, 32);
+	input_set_abs_params(input, ABS_Y, -2048, 2047, 32, 32);
+	input_set_abs_params(input, ABS_Z, -2048, 2047, 32, 32);
 
-	err = input_register_polled_device(idev);
+	err = input_setup_polling(input, mma8450_poll);
 	if (err) {
-		dev_err(&c->dev, "failed to register polled input device\n");
+		dev_err(&c->dev, "failed to set up polling\n");
+		return err;
+	}
+
+	input_set_poll_interval(input, POLL_INTERVAL);
+	input_set_max_poll_interval(input, POLL_INTERVAL_MAX);
+
+	err = input_register_device(input);
+	if (err) {
+		dev_err(&c->dev, "failed to register input device\n");
 		return err;
 	}
 
