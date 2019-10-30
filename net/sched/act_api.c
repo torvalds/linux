@@ -399,7 +399,7 @@ static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index)
 
 int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   struct tc_action **a, const struct tc_action_ops *ops,
-		   int bind, bool cpustats)
+		   int bind, bool cpustats, u32 flags)
 {
 	struct tc_action *p = kzalloc(ops->size, GFP_KERNEL);
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
@@ -427,6 +427,7 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 	p->tcfa_tm.install = jiffies;
 	p->tcfa_tm.lastuse = jiffies;
 	p->tcfa_tm.firstuse = 0;
+	p->tcfa_flags = flags;
 	if (est) {
 		err = gen_new_estimator(&p->tcfa_bstats, p->cpu_bstats,
 					&p->tcfa_rate_est,
@@ -450,6 +451,17 @@ err1:
 	return err;
 }
 EXPORT_SYMBOL(tcf_idr_create);
+
+int tcf_idr_create_from_flags(struct tc_action_net *tn, u32 index,
+			      struct nlattr *est, struct tc_action **a,
+			      const struct tc_action_ops *ops, int bind,
+			      u32 flags)
+{
+	/* Set cpustats according to actions flags. */
+	return tcf_idr_create(tn, index, est, a, ops, bind,
+			      !(flags & TCA_ACT_FLAGS_NO_PERCPU_STATS), flags);
+}
+EXPORT_SYMBOL(tcf_idr_create_from_flags);
 
 void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a)
 {
@@ -772,6 +784,14 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 		}
 	}
 	rcu_read_unlock();
+
+	if (a->tcfa_flags) {
+		struct nla_bitfield32 flags = { a->tcfa_flags,
+						a->tcfa_flags, };
+
+		if (nla_put(skb, TCA_ACT_FLAGS, sizeof(flags), &flags))
+			goto nla_put_failure;
+	}
 
 	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)

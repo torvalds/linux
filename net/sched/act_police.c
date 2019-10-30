@@ -87,7 +87,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, NULL, a,
-				     &act_police_ops, bind, true);
+				     &act_police_ops, bind, true, 0);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;

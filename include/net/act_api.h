@@ -41,6 +41,7 @@ struct tc_action {
 	struct gnet_stats_queue __percpu *cpu_qstats;
 	struct tc_cookie	__rcu *act_cookie;
 	struct tcf_chain	__rcu *goto_chain;
+	u32			tcfa_flags;
 };
 #define tcf_index	common.tcfa_index
 #define tcf_refcnt	common.tcfa_refcnt
@@ -154,7 +155,11 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index);
 int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   struct tc_action **a, const struct tc_action_ops *ops,
-		   int bind, bool cpustats);
+		   int bind, bool cpustats, u32 flags);
+int tcf_idr_create_from_flags(struct tc_action_net *tn, u32 index,
+			      struct nlattr *est, struct tc_action **a,
+			      const struct tc_action_ops *ops, int bind,
+			      u32 flags);
 void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a);
 
 void tcf_idr_cleanup(struct tc_action_net *tn, u32 index);

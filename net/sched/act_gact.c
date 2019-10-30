@@ -99,8 +99,8 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 
 	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!err) {
-		ret = tcf_idr_create(tn, index, est, a,
-				     &act_gact_ops, bind, true);
+		ret = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_gact_ops, bind, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;

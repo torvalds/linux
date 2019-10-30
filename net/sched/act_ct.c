@@ -688,8 +688,8 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 		return err;
 
 	if (!err) {
-		err = tcf_idr_create(tn, index, est, a,
-				     &act_ct_ops, bind, true);
+		err = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_ct_ops, bind, flags);
 		if (err) {
 			tcf_idr_cleanup(tn, index);
 			return err;

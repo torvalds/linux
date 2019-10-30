@@ -347,8 +347,9 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, index, est, a,
-				     &act_tunnel_key_ops, bind, true);
+		ret = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_tunnel_key_ops, bind,
+						act_flags);
 		if (ret) {
 			NL_SET_ERR_MSG(extack, "Cannot create TC IDR");
 			goto release_tun_meta;

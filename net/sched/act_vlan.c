@@ -189,8 +189,8 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	action = parm->v_action;
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, index, est, a,
-				     &act_vlan_ops, bind, true);
+		ret = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_vlan_ops, bind, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;

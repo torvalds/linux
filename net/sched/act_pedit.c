@@ -191,7 +191,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 			goto out_free;
 		}
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_pedit_ops, bind, false);
+				     &act_pedit_ops, bind, false, 0);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			goto out_free;
