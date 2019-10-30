@@ -183,3 +183,14 @@ Description:	The "timeouts" property shows the 4 vendor-specific values
 		The four timeout values are shown in usecs, with a trailing
 		"[original]" or "[adjusted]" depending on whether the values
 		were scaled by the driver to be reported in usec from msecs.
+
+What:		/sys/class/tpm/tpmX/tpm_version_major
+Date:		October 2019
+KernelVersion:	5.5
+Contact:	linux-integrity@vger.kernel.org
+Description:	The "tpm_version_major" property shows the TCG spec major version
+		implemented by the TPM device.
+
+		Example output:
+
+		2
