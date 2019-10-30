@@ -769,8 +769,8 @@ static int hwsim_fops_ps_write(void *dat, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(hwsim_fops_ps, hwsim_fops_ps_read, hwsim_fops_ps_write,
-			"%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(hwsim_fops_ps, hwsim_fops_ps_read, hwsim_fops_ps_write,
+			 "%llu\n");
 
 static int hwsim_write_simulate_radar(void *dat, u64 val)
 {
@@ -781,8 +781,8 @@ static int hwsim_write_simulate_radar(void *dat, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(hwsim_simulate_radar, NULL,
-			hwsim_write_simulate_radar, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(hwsim_simulate_radar, NULL,
+			 hwsim_write_simulate_radar, "%llu\n");
 
 static int hwsim_fops_group_read(void *dat, u64 *val)
 {
@@ -798,9 +798,9 @@ static int hwsim_fops_group_write(void *dat, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(hwsim_fops_group,
-			hwsim_fops_group_read, hwsim_fops_group_write,
-			"%llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(hwsim_fops_group,
+			 hwsim_fops_group_read, hwsim_fops_group_write,
+			 "%llx\n");
 
 static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
 					struct net_device *dev)
