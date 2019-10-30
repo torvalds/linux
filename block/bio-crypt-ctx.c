@@ -65,8 +65,11 @@ bool bio_crypt_should_process(struct bio *bio, struct request_queue *q)
 	if (!bio_has_crypt_ctx(bio))
 		return false;
 
+	if (q->ksm != bio->bi_crypt_context->processing_ksm)
+		return false;
+
 	WARN_ON(!bio_crypt_has_keyslot(bio));
-	return q->ksm == bio->bi_crypt_context->processing_ksm;
+	return true;
 }
 EXPORT_SYMBOL(bio_crypt_should_process);
 
