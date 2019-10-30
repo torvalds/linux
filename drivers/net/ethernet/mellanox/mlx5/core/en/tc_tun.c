@@ -77,8 +77,8 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 				   struct neighbour **out_n,
 				   u8 *out_ttl)
 {
+	struct neighbour *n;
 	struct rtable *rt;
-	struct neighbour *n = NULL;
 
 #if IS_ENABLED(CONFIG_INET)
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -138,8 +138,8 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 				   struct neighbour **out_n,
 				   u8 *out_ttl)
 {
-	struct neighbour *n = NULL;
 	struct dst_entry *dst;
+	struct neighbour *n;
 
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
 	int ret;
@@ -212,8 +212,8 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
 	struct net_device *out_dev, *route_dev;
-	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
+	struct neighbour *n;
 	int ipv4_encap_size;
 	char *encap_header;
 	u8 nud_state, ttl;
@@ -328,9 +328,9 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
 	struct net_device *out_dev, *route_dev;
-	struct neighbour *n = NULL;
 	struct flowi6 fl6 = {};
 	struct ipv6hdr *ip6h;
+	struct neighbour *n;
 	int ipv6_encap_size;
 	char *encap_header;
 	u8 nud_state, ttl;
