@@ -2141,7 +2141,7 @@ static int rga2_drv_probe(struct platform_device *pdev)
 	if (of_machine_is_compatible("rockchip,rk3368"))
 		rk3368 = 1;
 
-#if defined(CONFIG_ION_ROCKCHIP)
+#if defined(CONFIG_ION_ROCKCHIP) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 	data->ion_client = rockchip_ion_client_create("rga");
 	if (IS_ERR(data->ion_client)) {
 		dev_err(&pdev->dev, "failed to create ion client for rga");
