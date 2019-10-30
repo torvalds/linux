@@ -114,6 +114,9 @@ static int v2_get_clock_source(struct snd_motu *motu,
 	case 2:
 		*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
 		break;
+	case 3:
+		*src = SND_MOTU_CLOCK_SOURCE_SPH;
+		break;
 	case 4:
 		*src = SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC;
 		break;

@@ -104,6 +104,8 @@ static int v3_get_clock_source(struct snd_motu *motu,
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
 	} else if (val == 0x01) {
 		*src = SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC;
+	} else if (val == 0x02) {
+		*src = SND_MOTU_CLOCK_SOURCE_SPH;
 	} else if (val == 0x10) {
 		*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
 	} else if (val == 0x18 || val == 0x19) {
