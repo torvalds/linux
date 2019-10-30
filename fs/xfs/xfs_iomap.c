@@ -156,25 +156,33 @@ xfs_eof_alignment(
 	return align;
 }
 
-STATIC int
+/*
+ * Check if last_fsb is outside the last extent, and if so grow it to the next
+ * stripe unit boundary.
+ */
+static xfs_fileoff_t
 xfs_iomap_eof_align_last_fsb(
 	struct xfs_inode	*ip,
-	xfs_extlen_t		extsize,
-	xfs_fileoff_t		*last_fsb)
+	xfs_fileoff_t		end_fsb)
 {
-	xfs_extlen_t		align = xfs_eof_alignment(ip, extsize);
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+	xfs_extlen_t		extsz = xfs_get_extsz_hint(ip);
+	xfs_extlen_t		align = xfs_eof_alignment(ip, extsz);
+	struct xfs_bmbt_irec	irec;
+	struct xfs_iext_cursor	icur;
+
+	ASSERT(ifp->if_flags & XFS_IFEXTENTS);
 
 	if (align) {
-		xfs_fileoff_t	new_last_fsb = roundup_64(*last_fsb, align);
-		int		eof, error;
+		xfs_fileoff_t	aligned_end_fsb = roundup_64(end_fsb, align);
 
-		error = xfs_bmap_eof(ip, new_last_fsb, XFS_DATA_FORK, &eof);
-		if (error)
-			return error;
-		if (eof)
-			*last_fsb = new_last_fsb;
+		xfs_iext_last(ifp, &icur);
+		if (!xfs_iext_get_extent(ifp, &icur, &irec) ||
+		    aligned_end_fsb >= irec.br_startoff + irec.br_blockcount)
+			return aligned_end_fsb;
 	}
-	return 0;
+
+	return end_fsb;
 }
 
 int
@@ -206,19 +214,8 @@ xfs_iomap_write_direct(
 
 	ASSERT(xfs_isilocked(ip, lockmode));
 
-	if ((offset + count) > XFS_ISIZE(ip)) {
-		/*
-		 * Assert that the in-core extent list is present since this can
-		 * call xfs_iread_extents() and we only have the ilock shared.
-		 * This should be safe because the lock was held around a bmapi
-		 * call in the caller and we only need it to access the in-core
-		 * list.
-		 */
-		ASSERT(XFS_IFORK_PTR(ip, XFS_DATA_FORK)->if_flags &
-								XFS_IFEXTENTS);
-		error = xfs_iomap_eof_align_last_fsb(ip, extsz, &last_fsb);
-		if (error)
-			goto out_unlock;
+	if (offset + count > XFS_ISIZE(ip)) {
+		last_fsb = xfs_iomap_eof_align_last_fsb(ip, last_fsb);
 	} else {
 		if (nmaps && (imap->br_startblock == HOLESTARTBLOCK))
 			last_fsb = min(last_fsb, (xfs_fileoff_t)
