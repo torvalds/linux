@@ -11,7 +11,7 @@
 #include "rwsem.h"
 
 int __percpu_init_rwsem(struct percpu_rw_semaphore *sem,
-			const char *name, struct lock_class_key *rwsem_key)
+			const char *name, struct lock_class_key *key)
 {
 	sem->read_count = alloc_percpu(int);
 	if (unlikely(!sem->read_count))
@@ -19,9 +19,13 @@ int __percpu_init_rwsem(struct percpu_rw_semaphore *sem,
 
 	/* ->rw_sem represents the whole percpu_rw_semaphore for lockdep */
 	rcu_sync_init(&sem->rss);
-	__init_rwsem(&sem->rw_sem, name, rwsem_key);
+	init_rwsem(&sem->rw_sem);
 	rcuwait_init(&sem->writer);
 	sem->readers_block = 0;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
+	lockdep_init_map(&sem->dep_map, name, key, 0);
+#endif
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__percpu_init_rwsem);
@@ -142,10 +146,12 @@ static bool readers_active_check(struct percpu_rw_semaphore *sem)
 
 void percpu_down_write(struct percpu_rw_semaphore *sem)
 {
+	rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);
+
 	/* Notify readers to take the slow path. */
 	rcu_sync_enter(&sem->rss);
 
-	down_write(&sem->rw_sem);
+	__down_write(&sem->rw_sem);
 
 	/*
 	 * Notify new readers to block; up until now, and thus throughout the
@@ -168,6 +174,8 @@ EXPORT_SYMBOL_GPL(percpu_down_write);
 
 void percpu_up_write(struct percpu_rw_semaphore *sem)
 {
+	rwsem_release(&sem->dep_map, _RET_IP_);
+
 	/*
 	 * Signal the writer is done, no fast path yet.
 	 *
@@ -183,7 +191,7 @@ void percpu_up_write(struct percpu_rw_semaphore *sem)
 	/*
 	 * Release the write lock, this will allow readers back in the game.
 	 */
-	up_write(&sem->rw_sem);
+	__up_write(&sem->rw_sem);
 
 	/*
 	 * Once this completes (at least one RCU-sched grace period hence) the

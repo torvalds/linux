@@ -6,5 +6,7 @@
 
 extern void __down_read(struct rw_semaphore *sem);
 extern void __up_read(struct rw_semaphore *sem);
+extern void __down_write(struct rw_semaphore *sem);
+extern void __up_write(struct rw_semaphore *sem);
 
 #endif /* __INTERNAL_RWSEM_H */

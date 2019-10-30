@@ -1383,7 +1383,7 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 /*
  * lock for writing
  */
-static inline void __down_write(struct rw_semaphore *sem)
+inline void __down_write(struct rw_semaphore *sem)
 {
 	long tmp = RWSEM_UNLOCKED_VALUE;
 
@@ -1446,7 +1446,7 @@ inline void __up_read(struct rw_semaphore *sem)
 /*
  * unlock after writing
  */
-static inline void __up_write(struct rw_semaphore *sem)
+inline void __up_write(struct rw_semaphore *sem)
 {
 	long tmp;
 
