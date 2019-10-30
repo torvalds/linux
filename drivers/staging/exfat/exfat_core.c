@@ -1727,8 +1727,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 	ep = (struct dentry_t *)(buf + off);
 	entry_type = p_fs->fs_func->get_entry_type(ep);
 
-	if ((entry_type != TYPE_FILE)
-		&& (entry_type != TYPE_DIR))
+	if ((entry_type != TYPE_FILE) && (entry_type != TYPE_DIR))
 		goto err_out;
 
 	if (type == ES_ALL_ENTRIES)
