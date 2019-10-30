@@ -398,7 +398,7 @@ pages have been read into the pagecache.  (See `Verifying data`_.)
 ext4
 ----
 
-ext4 supports fs-verity since Linux TODO and e2fsprogs v1.45.2.
+ext4 supports fs-verity since Linux v5.4 and e2fsprogs v1.45.2.
 
 To create verity files on an ext4 filesystem, the filesystem must have
 been formatted with ``-O verity`` or had ``tune2fs -O verity`` run on
@@ -434,7 +434,7 @@ also only supports extent-based files.
 f2fs
 ----
 
-f2fs supports fs-verity since Linux TODO and f2fs-tools v1.11.0.
+f2fs supports fs-verity since Linux v5.4 and f2fs-tools v1.11.0.
 
 To create verity files on an f2fs filesystem, the filesystem must have
 been formatted with ``-O verity``.
