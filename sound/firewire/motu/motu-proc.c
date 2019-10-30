@@ -19,6 +19,7 @@ static const char *const clock_names[] = {
 	[SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX] = "S/PCIF on coaxial interface",
 	[SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR] = "AESEBU on XLR interface",
 	[SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC] = "Word clock on BNC interface",
+	[SND_MOTU_CLOCK_SOURCE_UNKNOWN] = "Unknown",
 };
 
 static void proc_read_clock(struct snd_info_entry *entry,
