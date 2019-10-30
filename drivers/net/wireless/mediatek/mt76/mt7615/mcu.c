@@ -717,6 +717,65 @@ int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int band, int enter)
 				   &req, sizeof(req), true);
 }
 
+int mt7615_mcu_set_dbdc(struct mt7615_dev *dev)
+{
+	struct mt7615_phy *ext_phy = mt7615_ext_phy(dev);
+	struct dbdc_entry {
+		u8 type;
+		u8 index;
+		u8 band;
+		u8 _rsv;
+	};
+	struct {
+		u8 enable;
+		u8 num;
+		u8 _rsv[2];
+		struct dbdc_entry entry[64];
+	} req = {
+		.enable = !!ext_phy,
+	};
+	int i;
+
+	if (!ext_phy)
+		goto out;
+
+#define ADD_DBDC_ENTRY(_type, _idx, _band)		\
+	do { \
+		req.entry[req.num].type = _type;		\
+		req.entry[req.num].index = _idx;		\
+		req.entry[req.num++].band = _band;		\
+	} while (0)
+
+	for (i = 0; i < 4; i++) {
+		bool band = !!(ext_phy->omac_mask & BIT(i));
+
+		ADD_DBDC_ENTRY(DBDC_TYPE_BSS, i, band);
+	}
+
+	for (i = 0; i < 14; i++) {
+		bool band = !!(ext_phy->omac_mask & BIT(0x11 + i));
+
+		ADD_DBDC_ENTRY(DBDC_TYPE_MBSS, i, band);
+	}
+
+	ADD_DBDC_ENTRY(DBDC_TYPE_MU, 0, 1);
+
+	for (i = 0; i < 3; i++)
+		ADD_DBDC_ENTRY(DBDC_TYPE_BF, i, 1);
+
+	ADD_DBDC_ENTRY(DBDC_TYPE_WMM, 0, 0);
+	ADD_DBDC_ENTRY(DBDC_TYPE_WMM, 1, 0);
+	ADD_DBDC_ENTRY(DBDC_TYPE_WMM, 2, 1);
+	ADD_DBDC_ENTRY(DBDC_TYPE_WMM, 3, 1);
+
+	ADD_DBDC_ENTRY(DBDC_TYPE_MGMT, 0, 0);
+	ADD_DBDC_ENTRY(DBDC_TYPE_MGMT, 1, 1);
+
+out:
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_DBDC_CTRL,
+				   &req, sizeof(req), true);
+}
+
 int mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
 			    struct ieee80211_vif *vif, bool enable)
 {

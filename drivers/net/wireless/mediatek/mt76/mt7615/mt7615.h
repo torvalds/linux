@@ -88,6 +88,7 @@ struct mt7615_phy {
 	struct mt7615_dev *dev;
 
 	u32 rxfilter;
+	u32 omac_mask;
 
 	unsigned long last_cca_adj;
 	int false_cca_ofdm, false_cca_cck;
@@ -285,6 +286,7 @@ int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			    struct ieee80211_key_conf *key,
 			    enum set_key_cmd cmd);
 
+int mt7615_mcu_set_dbdc(struct mt7615_dev *dev);
 int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
 int mt7615_mcu_init_mac(struct mt7615_dev *dev);
 int mt7615_mcu_set_rts_thresh(struct mt7615_phy *phy, u32 val);
