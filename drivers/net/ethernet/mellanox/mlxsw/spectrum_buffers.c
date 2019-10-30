@@ -470,7 +470,7 @@ static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp,
 				size_t prs_len)
 {
 	/* Round down, unlike mlxsw_sp_bytes_cells(). */
-	u32 sb_cells = mlxsw_sp->sb->sb_size / mlxsw_sp->sb->cell_size;
+	u32 sb_cells = div_u64(mlxsw_sp->sb->sb_size, mlxsw_sp->sb->cell_size);
 	u32 rest_cells[2] = {sb_cells, sb_cells};
 	int i;
 	int err;
