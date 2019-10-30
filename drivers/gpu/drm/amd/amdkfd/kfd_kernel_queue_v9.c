@@ -27,18 +27,6 @@
 #include "kfd_pm4_opcodes.h"
 
 static bool initialize_v9(struct kernel_queue *kq, struct kfd_dev *dev,
-			enum kfd_queue_type type, unsigned int queue_size);
-static void uninitialize_v9(struct kernel_queue *kq);
-static void submit_packet_v9(struct kernel_queue *kq);
-
-void kernel_queue_init_v9(struct kernel_queue_ops *ops)
-{
-	ops->initialize = initialize_v9;
-	ops->uninitialize = uninitialize_v9;
-	ops->submit_packet = submit_packet_v9;
-}
-
-static bool initialize_v9(struct kernel_queue *kq, struct kfd_dev *dev,
 			enum kfd_queue_type type, unsigned int queue_size)
 {
 	int retval;
@@ -65,6 +53,13 @@ static void submit_packet_v9(struct kernel_queue *kq)
 	*kq->wptr64_kernel = kq->pending_wptr64;
 	write_kernel_doorbell64(kq->queue->properties.doorbell_ptr,
 				kq->pending_wptr64);
+}
+
+void kernel_queue_init_v9(struct kernel_queue_ops *ops)
+{
+	ops->initialize = initialize_v9;
+	ops->uninitialize = uninitialize_v9;
+	ops->submit_packet = submit_packet_v9;
 }
 
 static int pm_map_process_v9(struct packet_manager *pm,
