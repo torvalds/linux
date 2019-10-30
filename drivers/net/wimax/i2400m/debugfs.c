@@ -26,7 +26,7 @@ int debugfs_netdev_queue_stopped_get(void *data, u64 *val)
 	*val = netif_queue_stopped(i2400m->wimax_dev.net_dev);
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_netdev_queue_stopped,
+DEFINE_DEBUGFS_ATTRIBUTE(fops_netdev_queue_stopped,
 			debugfs_netdev_queue_stopped_get,
 			NULL, "%llu\n");
 
@@ -154,7 +154,7 @@ int debugfs_i2400m_suspend_set(void *data, u64 val)
 		result = 0;
 	return result;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_i2400m_suspend,
+DEFINE_DEBUGFS_ATTRIBUTE(fops_i2400m_suspend,
 			NULL, debugfs_i2400m_suspend_set,
 			"%llu\n");
 
@@ -183,7 +183,7 @@ int debugfs_i2400m_reset_set(void *data, u64 val)
 	}
 	return result;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_i2400m_reset,
+DEFINE_DEBUGFS_ATTRIBUTE(fops_i2400m_reset,
 			NULL, debugfs_i2400m_reset_set,
 			"%llu\n");
 
