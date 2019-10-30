@@ -457,6 +457,7 @@ struct mt76_rx_status {
 struct mt76_phy {
 	struct ieee80211_hw *hw;
 	struct mt76_dev *dev;
+	void *priv;
 
 	unsigned long state;
 
