@@ -1418,6 +1418,9 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 		uint64_t incr, entry_end, pe_start;
 		struct amdgpu_bo *pt;
 
+		/* make sure that the page tables covering the address range are
+		 * actually allocated
+		 */
 		r = amdgpu_vm_alloc_pts(params->adev, params->vm, &cursor,
 					params->direct);
 		if (r)
@@ -1491,7 +1494,12 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 		} while (frag_start < entry_end);
 
 		if (amdgpu_vm_pt_descendant(adev, &cursor)) {
-			/* Free all child entries */
+			/* Free all child entries.
+			 * Update the tables with the flags and addresses and free up subsequent
+			 * tables in the case of huge pages or freed up areas.
+			 * This is the maximum you can free, because all other page tables are not
+			 * completely covered by the range and so potentially still in use.
+			 */
 			while (cursor.pfn < frag_start) {
 				amdgpu_vm_free_pts(adev, params->vm, &cursor);
 				amdgpu_vm_pt_next(adev, &cursor);
