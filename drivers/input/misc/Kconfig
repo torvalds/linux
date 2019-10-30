@@ -633,7 +633,6 @@ config INPUT_RB532_BUTTON
 	tristate "Mikrotik Routerboard 532 button interface"
 	depends on MIKROTIK_RB532
 	depends on GPIOLIB
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you want support for the S1 button built into
 	  Mikrotik's Routerboard 532.
