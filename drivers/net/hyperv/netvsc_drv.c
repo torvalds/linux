@@ -1807,8 +1807,10 @@ static int netvsc_set_features(struct net_device *ndev,
 
 	ret = rndis_filter_set_offload_params(ndev, nvdev, &offloads);
 
-	if (ret)
+	if (ret) {
 		features ^= NETIF_F_LRO;
+		ndev->features = features;
+	}
 
 syncvf:
 	if (!vf_netdev)
