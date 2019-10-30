@@ -94,7 +94,7 @@ struct tc_action_ops {
 	int     (*init)(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **act, int ovr,
 			int bind, bool rtnl_held, struct tcf_proto *tp,
-			struct netlink_ext_ack *extack);
+			u32 flags, struct netlink_ext_ack *extack);
 	int     (*walk)(struct net *, struct sk_buff *,
 			struct netlink_callback *, int,
 			const struct tc_action_ops *,

@@ -656,7 +656,7 @@ static int tcf_ct_fill_params(struct net *net,
 static int tcf_ct_init(struct net *net, struct nlattr *nla,
 		       struct nlattr *est, struct tc_action **a,
 		       int replace, int bind, bool rtnl_held,
-		       struct tcf_proto *tp,
+		       struct tcf_proto *tp, u32 flags,
 		       struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ct_net_id);

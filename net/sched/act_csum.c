@@ -43,7 +43,7 @@ static struct tc_action_ops act_csum_ops;
 static int tcf_csum_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a, int ovr,
 			 int bind, bool rtnl_held, struct tcf_proto *tp,
-			 struct netlink_ext_ack *extack)
+			 u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, csum_net_id);
 	struct tcf_csum_params *params_new;
