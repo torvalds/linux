@@ -2866,7 +2866,7 @@ static int spi_nor_hwcaps_pp2cmd(u32 hwcaps)
  */
 static int spi_nor_read_raw(struct spi_nor *nor, u32 addr, size_t len, u8 *buf)
 {
-	int ret;
+	ssize_t ret;
 
 	while (len) {
 		ret = spi_nor_read_data(nor, addr, len, buf);
