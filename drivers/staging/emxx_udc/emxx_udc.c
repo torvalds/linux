@@ -2660,20 +2660,18 @@ static int nbu2ss_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 	/* make sure it's actually queued on this endpoint */
 	list_for_each_entry(req, &ep->queue, queue) {
-		if (&req->req == _req)
-			break;
+		if (&req->req == _req) {
+			_nbu2ss_ep_done(ep, req, -ECONNRESET);
+			spin_unlock_irqrestore(&udc->lock, flags);
+			return 0;
+		}
 	}
-	if (&req->req != _req) {
-		spin_unlock_irqrestore(&udc->lock, flags);
-		pr_debug("%s no queue(EINVAL)\n", __func__);
-		return -EINVAL;
-	}
-
-	_nbu2ss_ep_done(ep, req, -ECONNRESET);
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	return 0;
+	pr_debug("%s no queue(EINVAL)\n", __func__);
+
+	return -EINVAL;
 }
 
 /*-------------------------------------------------------------------------*/
