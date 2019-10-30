@@ -1756,6 +1756,10 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 		if ((dev->driver_info->flags & FLAG_WWAN) != 0)
 			strcpy(net->name, "wwan%d");
 
+		/* LTE devices should always be named "lte%d" */
+		if ((dev->driver_info->flags & FLAG_LTE) != 0)
+			strcpy(net->name, "lte%d");
+
 		/* devices that cannot do ARP */
 		if ((dev->driver_info->flags & FLAG_NOARP) != 0)
 			net->flags |= IFF_NOARP;
