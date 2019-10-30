@@ -336,35 +336,6 @@ static int pm_query_status_v9(struct packet_manager *pm, uint32_t *buffer,
 	return 0;
 }
 
-
-static int pm_release_mem_v9(uint64_t gpu_addr, uint32_t *buffer)
-{
-	struct pm4_mec_release_mem *packet;
-
-	packet = (struct pm4_mec_release_mem *)buffer;
-	memset(buffer, 0, sizeof(struct pm4_mec_release_mem));
-
-	packet->header.u32All = pm_build_pm4_header(IT_RELEASE_MEM,
-					sizeof(struct pm4_mec_release_mem));
-
-	packet->bitfields2.event_type = CACHE_FLUSH_AND_INV_TS_EVENT;
-	packet->bitfields2.event_index = event_index__mec_release_mem__end_of_pipe;
-	packet->bitfields2.tcl1_action_ena = 1;
-	packet->bitfields2.tc_action_ena = 1;
-	packet->bitfields2.cache_policy = cache_policy__mec_release_mem__lru;
-
-	packet->bitfields3.data_sel = data_sel__mec_release_mem__send_32_bit_low;
-	packet->bitfields3.int_sel =
-		int_sel__mec_release_mem__send_interrupt_after_write_confirm;
-
-	packet->bitfields4.address_lo_32b = (gpu_addr & 0xffffffff) >> 2;
-	packet->address_hi = upper_32_bits(gpu_addr);
-
-	packet->data_lo = 0;
-
-	return 0;
-}
-
 const struct packet_manager_funcs kfd_v9_pm_funcs = {
 	.map_process		= pm_map_process_v9,
 	.runlist		= pm_runlist_v9,
@@ -372,12 +343,12 @@ const struct packet_manager_funcs kfd_v9_pm_funcs = {
 	.map_queues		= pm_map_queues_v9,
 	.unmap_queues		= pm_unmap_queues_v9,
 	.query_status		= pm_query_status_v9,
-	.release_mem		= pm_release_mem_v9,
+	.release_mem		= NULL,
 	.map_process_size	= sizeof(struct pm4_mes_map_process),
 	.runlist_size		= sizeof(struct pm4_mes_runlist),
 	.set_resources_size	= sizeof(struct pm4_mes_set_resources),
 	.map_queues_size	= sizeof(struct pm4_mes_map_queues),
 	.unmap_queues_size	= sizeof(struct pm4_mes_unmap_queues),
 	.query_status_size	= sizeof(struct pm4_mes_query_status),
-	.release_mem_size	= sizeof(struct pm4_mec_release_mem)
+	.release_mem_size	= 0,
 };
