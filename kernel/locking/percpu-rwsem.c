@@ -47,6 +47,8 @@ EXPORT_SYMBOL_GPL(percpu_free_rwsem);
 
 bool __percpu_down_read(struct percpu_rw_semaphore *sem, bool try)
 {
+	__this_cpu_inc(*sem->read_count);
+
 	/*
 	 * Due to having preemption disabled the decrement happens on
 	 * the same CPU as the increment, avoiding the
