@@ -455,6 +455,14 @@ enum phy_fia {
 		for_each_if ((plane_state = \
 			      to_intel_plane_state(__drm_atomic_get_current_plane_state((crtc_state)->uapi.state, &plane->base))))
 
+#define for_each_new_intel_connector_in_state(__state, connector, new_connector_state, __i) \
+	for ((__i) = 0; \
+	     (__i) < (__state)->base.num_connector; \
+	     (__i)++) \
+		for_each_if ((__state)->base.connectors[__i].ptr && \
+			     ((connector) = to_intel_connector((__state)->base.connectors[__i].ptr), \
+			     (new_connector_state) = to_intel_digital_connector_state((__state)->base.connectors[__i].new_state), 1))
+
 void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n,
