@@ -36,6 +36,10 @@
 #define MT_FRAC_SCALE		12
 #define MT_FRAC(val, div)	(((val) << MT_FRAC_SCALE) / (div))
 
+#define MT_CHFREQ_VALID		BIT(7)
+#define MT_CHFREQ_DBDC_IDX	BIT(6)
+#define MT_CHFREQ_SEQ		GENMASK(5, 0)
+
 struct mt7615_vif;
 struct mt7615_sta;
 
@@ -92,8 +96,12 @@ struct mt7615_phy {
 
 	u16 chainmask;
 
+	u8 chfreq_seq;
 	u8 rdd_state;
 	int dfs_state;
+
+	__le32 rx_ampdu_ts;
+	u32 ampdu_ref;
 };
 
 struct mt7615_dev {
@@ -105,9 +113,6 @@ struct mt7615_dev {
 	struct mt7615_phy phy;
 	u32 vif_mask;
 	u32 omac_mask;
-
-	__le32 rx_ampdu_ts;
-	u32 ampdu_ref;
 
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;

@@ -178,6 +178,7 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 static int mt7615_set_channel(struct mt7615_phy *phy)
 {
 	struct mt7615_dev *dev = phy->dev;
+	bool ext_phy = phy != &dev->phy;
 	int ret;
 
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
@@ -185,12 +186,18 @@ static int mt7615_set_channel(struct mt7615_phy *phy)
 	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &phy->mt76->state);
 
+	phy->chfreq_seq = (phy->chfreq_seq + 1) & MT_CHFREQ_SEQ;
 	phy->dfs_state = -1;
 	mt76_set_channel(phy->mt76);
 
 	ret = mt7615_mcu_set_channel(phy);
 	if (ret)
 		goto out;
+
+	mt76_wr(dev, MT_CHFREQ(ext_phy),
+		MT_CHFREQ_VALID |
+		(ext_phy * MT_CHFREQ_DBDC_IDX) |
+		phy->chfreq_seq);
 
 	ret = mt7615_dfs_init_radar_detector(phy);
 	mt7615_mac_cca_stats_reset(phy);

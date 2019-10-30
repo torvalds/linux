@@ -70,6 +70,8 @@ void mt7615_mac_reset_counters(struct mt7615_dev *dev)
 int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt7615_phy *phy = &dev->phy;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_hdr *hdr;
 	__le32 *rxd = (__le32 *)skb->data;
@@ -78,11 +80,28 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	u32 rxd2 = le32_to_cpu(rxd[2]);
 	bool unicast, remove_pad, insert_ccmp_hdr = false;
 	int i, idx;
-
-	if (!test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
-		return -EINVAL;
+	u8 chfreq;
 
 	memset(status, 0, sizeof(*status));
+
+	chfreq = FIELD_GET(MT_RXD1_NORMAL_CH_FREQ, rxd1);
+	if (!(chfreq & MT_CHFREQ_VALID))
+		return -EINVAL;
+
+	if (chfreq & MT_CHFREQ_DBDC_IDX) {
+		mphy = dev->mt76.phy2;
+		if (!mphy)
+			return -EINVAL;
+
+		phy = mphy->priv;
+		status->ext_phy = true;
+	}
+
+	if ((chfreq & MT_CHFREQ_SEQ) != phy->chfreq_seq)
+		return -EINVAL;
+
+	if (!test_bit(MT76_STATE_RUNNING, &mphy->state))
+		return -EINVAL;
 
 	unicast = (rxd1 & MT_RXD1_NORMAL_ADDR_TYPE) == MT_RXD1_NORMAL_U2M;
 	idx = FIELD_GET(MT_RXD2_NORMAL_WLAN_IDX, rxd2);
@@ -98,13 +117,12 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 		spin_unlock_bh(&dev->sta_poll_lock);
 	}
 
-	/* TODO: properly support DBDC */
-	status->freq = dev->mphy.chandef.chan->center_freq;
-	status->band = dev->mphy.chandef.chan->band;
+	status->freq = mphy->chandef.chan->center_freq;
+	status->band = mphy->chandef.chan->band;
 	if (status->band == NL80211_BAND_5GHZ)
-		sband = &dev->mphy.sband_5g.sband;
+		sband = &mphy->sband_5g.sband;
 	else
-		sband = &dev->mphy.sband_2g.sband;
+		sband = &mphy->sband_2g.sband;
 
 	if (rxd2 & MT_RXD2_NORMAL_FCS_ERR)
 		status->flag |= RX_FLAG_FAILED_FCS_CRC;
@@ -124,13 +142,13 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 		status->flag |= RX_FLAG_AMPDU_DETAILS;
 
 		/* all subframes of an A-MPDU have the same timestamp */
-		if (dev->rx_ampdu_ts != rxd[12]) {
-			if (!++dev->ampdu_ref)
-				dev->ampdu_ref++;
+		if (phy->rx_ampdu_ts != rxd[12]) {
+			if (!++phy->ampdu_ref)
+				phy->ampdu_ref++;
 		}
-		dev->rx_ampdu_ts = rxd[12];
+		phy->rx_ampdu_ts = rxd[12];
 
-		status->ampdu_ref = dev->ampdu_ref;
+		status->ampdu_ref = phy->ampdu_ref;
 	}
 
 	remove_pad = rxd1 & MT_RXD1_NORMAL_HDR_OFFSET;
