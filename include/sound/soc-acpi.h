@@ -60,12 +60,14 @@ static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
  * @acpi_ipc_irq_index: used for BYT-CR detection
  * @platform: string used for HDaudio codec support
  * @codec_mask: used for HDAudio support
+ * @common_hdmi_codec_drv: use commom HDAudio HDMI codec driver
  */
 struct snd_soc_acpi_mach_params {
 	u32 acpi_ipc_irq_index;
 	const char *platform;
 	u32 codec_mask;
 	u32 dmic_num;
+	bool common_hdmi_codec_drv;
 };
 
 /**

@@ -190,14 +190,14 @@ config SND_PXA2XX_SOC_MAGICIAN
 	  HTC Magician.
 
 config SND_PXA2XX_SOC_MIOA701
-        tristate "SoC Audio support for MIO A701"
-        depends on SND_PXA2XX_SOC && MACH_MIOA701
+	tristate "SoC Audio support for MIO A701"
+	depends on SND_PXA2XX_SOC && MACH_MIOA701
 	depends on AC97_BUS=n
-        select SND_PXA2XX_SOC_AC97
-        select SND_SOC_WM9713
-        help
-          Say Y if you want to add support for SoC audio on the
-          MIO A701.
+	select SND_PXA2XX_SOC_AC97
+	select SND_SOC_WM9713
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  MIO A701.
 
 config SND_PXA2XX_SOC_IMOTE2
        tristate "SoC Audio support for IMote 2"
@@ -205,7 +205,7 @@ config SND_PXA2XX_SOC_IMOTE2
        select SND_PXA2XX_SOC_I2S
        select SND_SOC_WM8940
        help
-         Say Y if you want to add support for SoC audio on the
+	 Say Y if you want to add support for SoC audio on the
 	 IMote 2.
 
 config SND_MMP_SOC_BROWNSTONE
