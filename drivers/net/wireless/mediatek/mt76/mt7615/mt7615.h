@@ -150,11 +150,6 @@ enum {
 };
 
 enum {
-	MT_HW_RDD0,
-	MT_HW_RDD1,
-};
-
-enum {
 	MT_RX_SEL0,
 	MT_RX_SEL1,
 };

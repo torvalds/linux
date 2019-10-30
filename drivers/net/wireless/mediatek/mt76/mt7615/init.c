@@ -257,8 +257,7 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 
 	mt7615_dfs_stop_radar_detector(dev);
 	if (request->dfs_region == NL80211_DFS_UNSET)
-		mt7615_mcu_rdd_cmd(dev, RDD_CAC_END, MT_HW_RDD0,
-				   MT_RX_SEL0, 0);
+		mt7615_mcu_rdd_cmd(dev, RDD_CAC_END, 0, MT_RX_SEL0, 0);
 	else
 		mt7615_dfs_start_radar_detector(dev);
 }

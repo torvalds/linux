@@ -1502,15 +1502,13 @@ int mt7615_dfs_stop_radar_detector(struct mt7615_dev *dev)
 	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 	int err;
 
-	err = mt7615_mcu_rdd_cmd(dev, RDD_STOP, MT_HW_RDD0,
-				 MT_RX_SEL0, 0);
+	err = mt7615_mcu_rdd_cmd(dev, RDD_STOP, 0, MT_RX_SEL0, 0);
 	if (err < 0)
 		return err;
 
 	if (chandef->width == NL80211_CHAN_WIDTH_160 ||
 	    chandef->width == NL80211_CHAN_WIDTH_80P80)
-		err = mt7615_mcu_rdd_cmd(dev, RDD_STOP, MT_HW_RDD1,
-					 MT_RX_SEL0, 0);
+		err = mt7615_mcu_rdd_cmd(dev, RDD_STOP, 1, MT_RX_SEL0, 0);
 	return err;
 }
 
@@ -1532,20 +1530,19 @@ int mt7615_dfs_start_radar_detector(struct mt7615_dev *dev)
 	int err;
 
 	/* start CAC */
-	err = mt7615_mcu_rdd_cmd(dev, RDD_CAC_START, MT_HW_RDD0,
-				 MT_RX_SEL0, 0);
+	err = mt7615_mcu_rdd_cmd(dev, RDD_CAC_START, 0, MT_RX_SEL0, 0);
 	if (err < 0)
 		return err;
 
 	/* TODO: DBDC support */
 
-	err = mt7615_dfs_start_rdd(dev, MT_HW_RDD0);
+	err = mt7615_dfs_start_rdd(dev, 0);
 	if (err < 0)
 		return err;
 
 	if (chandef->width == NL80211_CHAN_WIDTH_160 ||
 	    chandef->width == NL80211_CHAN_WIDTH_80P80) {
-		err = mt7615_dfs_start_rdd(dev, MT_HW_RDD1);
+		err = mt7615_dfs_start_rdd(dev, 1);
 		if (err < 0)
 			return err;
 	}
@@ -1572,15 +1569,13 @@ int mt7615_dfs_init_radar_detector(struct mt7615_dev *dev)
 	if (chandef->chan->flags & IEEE80211_CHAN_RADAR) {
 		if (chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
 			return mt7615_dfs_start_radar_detector(dev);
-		else
-			return mt7615_mcu_rdd_cmd(dev, RDD_CAC_END, MT_HW_RDD0,
-						  MT_RX_SEL0, 0);
-	} else {
-		err = mt7615_mcu_rdd_cmd(dev, RDD_NORMAL_START,
-					 MT_HW_RDD0, MT_RX_SEL0, 0);
-		if (err < 0)
-			return err;
 
-		return mt7615_dfs_stop_radar_detector(dev);
+		return mt7615_mcu_rdd_cmd(dev, RDD_CAC_END, 0, MT_RX_SEL0, 0);
 	}
+
+	err = mt7615_mcu_rdd_cmd(dev, RDD_NORMAL_START, 0, MT_RX_SEL0, 0);
+	if (err < 0)
+		return err;
+
+	return mt7615_dfs_stop_radar_detector(dev);
 }
