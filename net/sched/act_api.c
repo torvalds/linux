@@ -989,6 +989,20 @@ err:
 	return err;
 }
 
+void tcf_action_update_stats(struct tc_action *a, u64 bytes, u32 packets,
+			     bool drop, bool hw)
+{
+	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
+
+	if (drop)
+		this_cpu_ptr(a->cpu_qstats)->drops += packets;
+
+	if (hw)
+		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
+				   bytes, packets);
+}
+EXPORT_SYMBOL(tcf_action_update_stats);
+
 int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *p,
 			  int compat_mode)
 {

@@ -307,10 +307,7 @@ static void tcf_vlan_stats_update(struct tc_action *a, u64 bytes, u32 packets,
 	struct tcf_vlan *v = to_vlan(a);
 	struct tcf_t *tm = &v->tcf_tm;
 
-	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
-	if (hw)
-		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
-				   bytes, packets);
+	tcf_action_update_stats(a, bytes, packets, false, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
