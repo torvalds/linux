@@ -10,7 +10,8 @@
 static void default_power_off(void)
 {
 	sbi_shutdown();
-	while (1);
+	while (1)
+		wait_for_interrupt();
 }
 
 void (*pm_power_off)(void) = default_power_off;
