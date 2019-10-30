@@ -3980,6 +3980,15 @@
 			Set threshold of queued RCU callbacks below which
 			batch limiting is re-enabled.
 
+	rcutree.qovld= [KNL]
+			Set threshold of queued RCU callbacks beyond which
+			RCU's force-quiescent-state scan will aggressively
+			enlist help from cond_resched() and sched IPIs to
+			help CPUs more quickly reach quiescent states.
+			Set to less than zero to make this be set based
+			on rcutree.qhimark at boot time and to zero to
+			disable more aggressive help enlistment.
+
 	rcutree.rcu_idle_gp_delay= [KNL]
 			Set wakeup interval for idle CPUs that have
 			RCU callbacks (RCU_FAST_NO_HZ=y).

@@ -150,6 +150,7 @@ static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu)
 static void invoke_rcu_core(void);
 static void rcu_report_exp_rdp(struct rcu_data *rdp);
 static void sync_sched_exp_online_cleanup(int cpu);
+static void check_cb_ovld_locked(struct rcu_data *rdp, struct rcu_node *rnp);
 
 /* rcuc/rcub kthread realtime priority */
 static int kthread_prio = IS_ENABLED(CONFIG_RCU_BOOST) ? 1 : 0;
@@ -410,10 +411,15 @@ static long blimit = DEFAULT_RCU_BLIMIT;
 static long qhimark = DEFAULT_RCU_QHIMARK;
 #define DEFAULT_RCU_QLOMARK 100   /* Once only this many pending, use blimit. */
 static long qlowmark = DEFAULT_RCU_QLOMARK;
+#define DEFAULT_RCU_QOVLD_MULT 2
+#define DEFAULT_RCU_QOVLD (DEFAULT_RCU_QOVLD_MULT * DEFAULT_RCU_QHIMARK)
+static long qovld = DEFAULT_RCU_QOVLD; /* If this many pending, hammer QS. */
+static long qovld_calc = -1;	  /* No pre-initialization lock acquisitions! */
 
 module_param(blimit, long, 0444);
 module_param(qhimark, long, 0444);
 module_param(qlowmark, long, 0444);
+module_param(qovld, long, 0444);
 
 static ulong jiffies_till_first_fqs = ULONG_MAX;
 static ulong jiffies_till_next_fqs = ULONG_MAX;
@@ -1072,7 +1078,8 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	rnhqp = &per_cpu(rcu_data.rcu_need_heavy_qs, rdp->cpu);
 	if (!READ_ONCE(*rnhqp) &&
 	    (time_after(jiffies, rcu_state.gp_start + jtsq * 2) ||
-	     time_after(jiffies, rcu_state.jiffies_resched))) {
+	     time_after(jiffies, rcu_state.jiffies_resched) ||
+	     rcu_state.cbovld)) {
 		WRITE_ONCE(*rnhqp, true);
 		/* Store rcu_need_heavy_qs before rcu_urgent_qs. */
 		smp_store_release(ruqp, true);
@@ -1089,8 +1096,8 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 * So hit them over the head with the resched_cpu() hammer!
 	 */
 	if (tick_nohz_full_cpu(rdp->cpu) &&
-		   time_after(jiffies,
-			      READ_ONCE(rdp->last_fqs_resched) + jtsq * 3)) {
+	    (time_after(jiffies, READ_ONCE(rdp->last_fqs_resched) + jtsq * 3) ||
+	     rcu_state.cbovld)) {
 		WRITE_ONCE(*ruqp, true);
 		resched_cpu(rdp->cpu);
 		WRITE_ONCE(rdp->last_fqs_resched, jiffies);
@@ -1704,8 +1711,9 @@ static void rcu_gp_fqs_loop(void)
  */
 static void rcu_gp_cleanup(void)
 {
-	unsigned long gp_duration;
+	int cpu;
 	bool needgp = false;
+	unsigned long gp_duration;
 	unsigned long new_gp_seq;
 	bool offloaded;
 	struct rcu_data *rdp;
@@ -1751,6 +1759,12 @@ static void rcu_gp_cleanup(void)
 			needgp = __note_gp_changes(rnp, rdp) || needgp;
 		/* smp_mb() provided by prior unlock-lock pair. */
 		needgp = rcu_future_gp_cleanup(rnp) || needgp;
+		// Reset overload indication for CPUs no longer overloaded
+		if (rcu_is_leaf_node(rnp))
+			for_each_leaf_node_cpu_mask(rnp, cpu, rnp->cbovldmask) {
+				rdp = per_cpu_ptr(&rcu_data, cpu);
+				check_cb_ovld_locked(rdp, rnp);
+			}
 		sq = rcu_nocb_gp_get(rnp);
 		raw_spin_unlock_irq_rcu_node(rnp);
 		rcu_nocb_gp_cleanup(sq);
@@ -2299,10 +2313,13 @@ static void force_qs_rnp(int (*f)(struct rcu_data *rdp))
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 
+	rcu_state.cbovld = rcu_state.cbovldnext;
+	rcu_state.cbovldnext = false;
 	rcu_for_each_leaf_node(rnp) {
 		cond_resched_tasks_rcu_qs();
 		mask = 0;
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
+		rcu_state.cbovldnext |= !!rnp->cbovldmask;
 		if (rnp->qsmask == 0) {
 			if (!IS_ENABLED(CONFIG_PREEMPT_RCU) ||
 			    rcu_preempt_blocked_readers_cgp(rnp)) {
@@ -2584,6 +2601,48 @@ static void rcu_leak_callback(struct rcu_head *rhp)
 }
 
 /*
+ * Check and if necessary update the leaf rcu_node structure's
+ * ->cbovldmask bit corresponding to the current CPU based on that CPU's
+ * number of queued RCU callbacks.  The caller must hold the leaf rcu_node
+ * structure's ->lock.
+ */
+static void check_cb_ovld_locked(struct rcu_data *rdp, struct rcu_node *rnp)
+{
+	raw_lockdep_assert_held_rcu_node(rnp);
+	if (qovld_calc <= 0)
+		return; // Early boot and wildcard value set.
+	if (rcu_segcblist_n_cbs(&rdp->cblist) >= qovld_calc)
+		WRITE_ONCE(rnp->cbovldmask, rnp->cbovldmask | rdp->grpmask);
+	else
+		WRITE_ONCE(rnp->cbovldmask, rnp->cbovldmask & ~rdp->grpmask);
+}
+
+/*
+ * Check and if necessary update the leaf rcu_node structure's
+ * ->cbovldmask bit corresponding to the current CPU based on that CPU's
+ * number of queued RCU callbacks.  No locks need be held, but the
+ * caller must have disabled interrupts.
+ *
+ * Note that this function ignores the possibility that there are a lot
+ * of callbacks all of which have already seen the end of their respective
+ * grace periods.  This omission is due to the need for no-CBs CPUs to
+ * be holding ->nocb_lock to do this check, which is too heavy for a
+ * common-case operation.
+ */
+static void check_cb_ovld(struct rcu_data *rdp)
+{
+	struct rcu_node *const rnp = rdp->mynode;
+
+	if (qovld_calc <= 0 ||
+	    ((rcu_segcblist_n_cbs(&rdp->cblist) >= qovld_calc) ==
+	     !!(READ_ONCE(rnp->cbovldmask) & rdp->grpmask)))
+		return; // Early boot wildcard value or already set correctly.
+	raw_spin_lock_rcu_node(rnp);
+	check_cb_ovld_locked(rdp, rnp);
+	raw_spin_unlock_rcu_node(rnp);
+}
+
+/*
  * Helper function for call_rcu() and friends.  The cpu argument will
  * normally be -1, indicating "currently running CPU".  It may specify
  * a CPU only if that CPU is a no-CBs CPU.  Currently, only rcu_barrier()
@@ -2626,6 +2685,7 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func)
 			rcu_segcblist_init(&rdp->cblist);
 	}
 
+	check_cb_ovld(rdp);
 	if (rcu_nocb_try_bypass(rdp, head, &was_alldone, flags))
 		return; // Enqueued onto ->nocb_bypass, so just leave.
 	/* If we get here, rcu_nocb_try_bypass() acquired ->nocb_lock. */
@@ -3814,6 +3874,13 @@ void __init rcu_init(void)
 	rcu_par_gp_wq = alloc_workqueue("rcu_par_gp", WQ_MEM_RECLAIM, 0);
 	WARN_ON(!rcu_par_gp_wq);
 	srcu_init();
+
+	/* Fill in default value for rcutree.qovld boot parameter. */
+	/* -After- the rcu_node ->lock fields are initialized! */
+	if (qovld < 0)
+		qovld_calc = DEFAULT_RCU_QOVLD_MULT * qhimark;
+	else
+		qovld_calc = qovld;
 }
 
 #include "tree_stall.h"
