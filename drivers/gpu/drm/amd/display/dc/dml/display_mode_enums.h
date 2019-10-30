@@ -119,6 +119,10 @@ enum mpc_combine_affinity {
 	dm_mpc_never
 };
 
+enum RequestType {
+	REQ_256Bytes, REQ_128BytesNonContiguous, REQ_128BytesContiguous, REQ_NA
+};
+
 enum self_refresh_affinity {
 	dm_try_to_allow_self_refresh_and_mclk_switch,
 	dm_allow_self_refresh_and_mclk_switch,
@@ -163,6 +167,18 @@ enum odm_combine_mode {
 	dm_odm_combine_mode_disabled,
 	dm_odm_combine_mode_2to1,
 	dm_odm_combine_mode_4to1,
+};
+
+enum odm_combine_policy {
+	dm_odm_combine_policy_dal,
+	dm_odm_combine_policy_none,
+	dm_odm_combine_policy_2to1,
+	dm_odm_combine_policy_4to1,
+};
+
+enum immediate_flip_requirement {
+	dm_immediate_flip_not_required,
+	dm_immediate_flip_required,
 };
 
 #endif

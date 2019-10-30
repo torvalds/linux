@@ -264,7 +264,10 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.DRAMSpeedPerState[i] = soc->clock_limits[i].dram_speed_mts;
 		//mode_lib->vba.DRAMSpeedPerState[i] = soc->clock_limits[i].dram_speed_mhz;
 		mode_lib->vba.MaxDispclk[i] = soc->clock_limits[i].dispclk_mhz;
+		mode_lib->vba.DTBCLKPerState[i] = soc->clock_limits[i].dtbclk_mhz;
 	}
+	mode_lib->vba.MinVoltageLevel = 0;
+	mode_lib->vba.MaxVoltageLevel = mode_lib->vba.soc.num_states;
 
 	mode_lib->vba.DoUrgentLatencyAdjustment =
 		soc->do_urgent_latency_adjustment;
@@ -306,8 +309,6 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 
 	mode_lib->vba.WritebackInterfaceBufferSize = ip->writeback_interface_buffer_size_kbytes;
 	mode_lib->vba.WritebackLineBufferSize = ip->writeback_line_buffer_buffer_size;
-	mode_lib->vba.MinVoltageLevel = 0;
-	mode_lib->vba.MaxVoltageLevel = 5;
 
 	mode_lib->vba.WritebackChromaLineBufferWidth =
 			ip->writeback_chroma_line_buffer_width_pixels;
@@ -423,8 +424,8 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 						ip->dcc_supported : src->dcc && ip->dcc_supported;
 		mode_lib->vba.DCCRate[mode_lib->vba.NumberOfActivePlanes] = src->dcc_rate;
 		/* TODO: Needs to be set based on src->dcc_rate_luma/chroma */
-		mode_lib->vba.DCCRateLuma[mode_lib->vba.NumberOfActivePlanes] = 0;
-		mode_lib->vba.DCCRateChroma[mode_lib->vba.NumberOfActivePlanes] = 0;
+		mode_lib->vba.DCCRateLuma[mode_lib->vba.NumberOfActivePlanes] = src->dcc_rate;
+		mode_lib->vba.DCCRateChroma[mode_lib->vba.NumberOfActivePlanes] = src->dcc_rate_chroma;
 
 		mode_lib->vba.SourcePixelFormat[mode_lib->vba.NumberOfActivePlanes] =
 				(enum source_format_class) (src->source_format);
@@ -435,8 +436,6 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.ScalerRecoutWidth[mode_lib->vba.NumberOfActivePlanes] =
 				dst->recout_width; // TODO: or should this be full_recout_width???...maybe only when in hsplit mode?
 		mode_lib->vba.ODMCombineEnabled[mode_lib->vba.NumberOfActivePlanes] =
-				dst->odm_combine;
-		mode_lib->vba.ODMCombineTypeEnabled[mode_lib->vba.NumberOfActivePlanes] =
 				dst->odm_combine;
 		mode_lib->vba.OutputFormat[mode_lib->vba.NumberOfActivePlanes] =
 				(enum output_format_class) (dout->output_format);
@@ -590,6 +589,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 			for (k = j + 1; k < mode_lib->vba.cache_num_pipes; ++k) {
 				display_pipe_source_params_st *src_k = &pipes[k].pipe.src;
 				display_pipe_dest_params_st *dst_k = &pipes[k].pipe.dest;
+				display_output_params_st *dout_k = &pipes[j].dout;
 
 				if (src_k->is_hsplit && !visited[k]
 						&& src->hsplit_grp == src_k->hsplit_grp) {
@@ -600,12 +600,18 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 							== dm_horz) {
 						mode_lib->vba.ViewportWidth[mode_lib->vba.NumberOfActivePlanes] +=
 								src_k->viewport_width;
+						mode_lib->vba.ViewportWidthChroma[mode_lib->vba.NumberOfActivePlanes] +=
+								src_k->viewport_width;
 						mode_lib->vba.ScalerRecoutWidth[mode_lib->vba.NumberOfActivePlanes] +=
 								dst_k->recout_width;
 					} else {
 						mode_lib->vba.ViewportHeight[mode_lib->vba.NumberOfActivePlanes] +=
 								src_k->viewport_height;
+						mode_lib->vba.ViewportHeightChroma[mode_lib->vba.NumberOfActivePlanes] +=
+								src_k->viewport_height;
 					}
+					mode_lib->vba.NumberOfDSCSlices[mode_lib->vba.NumberOfActivePlanes] +=
+							dout_k->dsc_slices;
 
 					visited[k] = true;
 				}
@@ -811,7 +817,9 @@ void ModeSupportAndSystemConfiguration(struct display_mode_lib *mode_lib)
 	unsigned int total_pipes = 0;
 
 	mode_lib->vba.VoltageLevel = mode_lib->vba.cache_pipes[0].clks_cfg.voltage;
-	mode_lib->vba.ReturnBW = mode_lib->vba.ReturnBWPerState[mode_lib->vba.VoltageLevel];
+	mode_lib->vba.ReturnBW = mode_lib->vba.ReturnBWPerState[mode_lib->vba.VoltageLevel][mode_lib->vba.maxMpcComb];
+	if (mode_lib->vba.ReturnBW == 0)
+		mode_lib->vba.ReturnBW = mode_lib->vba.ReturnBWPerState[mode_lib->vba.VoltageLevel][0];
 	mode_lib->vba.FabricAndDRAMBandwidth = mode_lib->vba.FabricAndDRAMBandwidthPerState[mode_lib->vba.VoltageLevel];
 
 	fetch_socbb_params(mode_lib);

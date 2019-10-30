@@ -63,6 +63,7 @@ struct _vcs_dpi_voltage_scaling_st {
 	double dispclk_mhz;
 	double phyclk_mhz;
 	double dppclk_mhz;
+	double dtbclk_mhz;
 };
 
 struct _vcs_dpi_soc_bounding_box_st {
@@ -214,6 +215,7 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	int source_format;
 	unsigned char dcc;
 	unsigned int dcc_rate;
+	unsigned int dcc_rate_chroma;
 	unsigned char dcc_use_global;
 	unsigned char vm;
 	bool gpuvm;    // gpuvm enabled
@@ -225,7 +227,10 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	int source_scan;
 	int sw_mode;
 	int macro_tile_size;
+	unsigned int surface_width_y;
 	unsigned int surface_height_y;
+	unsigned int surface_width_c;
+	unsigned int surface_height_c;
 	unsigned int viewport_width;
 	unsigned int viewport_height;
 	unsigned int viewport_y_y;
@@ -324,7 +329,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	double pixel_rate_mhz;
 	unsigned char synchronized_vblank_all_planes;
 	unsigned char otg_inst;
-	unsigned char odm_combine;
+	unsigned int odm_combine;
 	unsigned char use_maximum_vstartup;
 	unsigned int vtotal_max;
 	unsigned int vtotal_min;
