@@ -1099,6 +1099,22 @@ static const struct msm_pingroup sc7180_groups[] = {
 	[126] = SDC_QDSD_PINGROUP(sdc2_data, 0x7b000, 9, 0),
 };
 
+static const struct msm_gpio_wakeirq_map sc7180_pdc_map[] = {
+	{0, 40}, {3, 50}, {4, 42}, {5, 70}, {6, 41}, {9, 35},
+	{10, 80}, {11, 51}, {16, 20}, {21, 55}, {22, 90}, {23, 21},
+	{24, 61}, {26, 52}, {28, 36}, {30, 100}, {31, 33}, {32, 81},
+	{33, 62}, {34, 43}, {36, 91}, {37, 53}, {38, 63}, {39, 72},
+	{41, 101}, {42, 7}, {43, 34}, {45, 73}, {47, 82}, {49, 17},
+	{52, 109}, {53, 102}, {55, 92}, {56, 56}, {57, 57}, {58, 83},
+	{59, 37}, {62, 110}, {63, 111}, {64, 74}, {65, 44}, {66, 93},
+	{67, 58}, {68, 112}, {69, 32}, {70, 54}, {72, 59}, {73, 64},
+	{74, 71}, {78, 31}, {82, 30}, {85, 103}, {86, 38}, {87, 39},
+	{88, 45}, {89, 46}, {90, 47}, {91, 48}, {92, 60}, {93, 49},
+	{94, 84}, {95, 94}, {98, 65}, {101, 66}, {104, 67}, {109, 104},
+	{110, 68}, {113, 69}, {114, 113}, {115, 108}, {116, 121},
+	{117, 114}, {118, 119},
+};
+
 static const struct msm_pinctrl_soc_data sc7180_pinctrl = {
 	.pins = sc7180_pins,
 	.npins = ARRAY_SIZE(sc7180_pins),
@@ -1109,6 +1125,8 @@ static const struct msm_pinctrl_soc_data sc7180_pinctrl = {
 	.ngpios = 120,
 	.tiles = sc7180_tiles,
 	.ntiles = ARRAY_SIZE(sc7180_tiles),
+	.wakeirq_map = sc7180_pdc_map,
+	.nwakeirq_map = ARRAY_SIZE(sc7180_pdc_map),
 };
 
 static int sc7180_pinctrl_probe(struct platform_device *pdev)
