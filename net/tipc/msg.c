@@ -190,6 +190,59 @@ err:
 	return 0;
 }
 
+/**
+ * tipc_msg_append(): Append data to tail of an existing buffer queue
+ * @hdr: header to be used
+ * @m: the data to be appended
+ * @mss: max allowable size of buffer
+ * @dlen: size of data to be appended
+ * @txq: queue to appand to
+ * Returns the number og 1k blocks appended or errno value
+ */
+int tipc_msg_append(struct tipc_msg *_hdr, struct msghdr *m, int dlen,
+		    int mss, struct sk_buff_head *txq)
+{
+	struct sk_buff *skb, *prev;
+	int accounted, total, curr;
+	int mlen, cpy, rem = dlen;
+	struct tipc_msg *hdr;
+
+	skb = skb_peek_tail(txq);
+	accounted = skb ? msg_blocks(buf_msg(skb)) : 0;
+	total = accounted;
+
+	while (rem) {
+		if (!skb || skb->len >= mss) {
+			prev = skb;
+			skb = tipc_buf_acquire(mss, GFP_KERNEL);
+			if (unlikely(!skb))
+				return -ENOMEM;
+			skb_orphan(skb);
+			skb_trim(skb, MIN_H_SIZE);
+			hdr = buf_msg(skb);
+			skb_copy_to_linear_data(skb, _hdr, MIN_H_SIZE);
+			msg_set_hdr_sz(hdr, MIN_H_SIZE);
+			msg_set_size(hdr, MIN_H_SIZE);
+			__skb_queue_tail(txq, skb);
+			total += 1;
+			if (prev)
+				msg_set_ack_required(buf_msg(prev), 0);
+			msg_set_ack_required(hdr, 1);
+		}
+		hdr = buf_msg(skb);
+		curr = msg_blocks(hdr);
+		mlen = msg_size(hdr);
+		cpy = min_t(int, rem, mss - mlen);
+		if (cpy != copy_from_iter(skb->data + mlen, cpy, &m->msg_iter))
+			return -EFAULT;
+		msg_set_size(hdr, mlen + cpy);
+		skb_put(skb, cpy);
+		rem -= cpy;
+		total += msg_blocks(hdr) - curr;
+	}
+	return total - accounted;
+}
+
 /* tipc_msg_validate - validate basic format of received message
  *
  * This routine ensures a TIPC message has an acceptable header, and at least

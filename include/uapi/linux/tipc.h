@@ -191,6 +191,7 @@ struct sockaddr_tipc {
 #define TIPC_GROUP_JOIN         135     /* Takes struct tipc_group_req* */
 #define TIPC_GROUP_LEAVE        136     /* No argument */
 #define TIPC_SOCK_RECVQ_USED    137     /* Default: none (read only) */
+#define TIPC_NODELAY            138     /* Default: false */
 
 /*
  * Flag values
