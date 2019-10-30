@@ -54,33 +54,33 @@ enum map_err_types {
  * struct dma_debug_entry - track a dma_map* or dma_alloc_coherent mapping
  * @list: node on pre-allocated free_entries list
  * @dev: 'dev' argument to dma_map_{page|single|sg} or dma_alloc_coherent
- * @type: single, page, sg, coherent
- * @pfn: page frame of the start address
- * @offset: offset of mapping relative to pfn
  * @size: length of the mapping
+ * @type: single, page, sg, coherent
  * @direction: enum dma_data_direction
  * @sg_call_ents: 'nents' from dma_map_sg
  * @sg_mapped_ents: 'mapped_ents' from dma_map_sg
+ * @pfn: page frame of the start address
+ * @offset: offset of mapping relative to pfn
  * @map_err_type: track whether dma_mapping_error() was checked
  * @stacktrace: support backtraces when a violation is detected
  */
 struct dma_debug_entry {
 	struct list_head list;
 	struct device    *dev;
-	int              type;
-	unsigned long	 pfn;
-	size_t		 offset;
 	u64              dev_addr;
 	u64              size;
+	int              type;
 	int              direction;
 	int		 sg_call_ents;
 	int		 sg_mapped_ents;
+	unsigned long	 pfn;
+	size_t		 offset;
 	enum map_err_types  map_err_type;
 #ifdef CONFIG_STACKTRACE
 	unsigned int	stack_len;
 	unsigned long	stack_entries[DMA_DEBUG_STACKTRACE_ENTRIES];
 #endif
-};
+} ____cacheline_aligned_in_smp;
 
 typedef bool (*match_fn)(struct dma_debug_entry *, struct dma_debug_entry *);
 
