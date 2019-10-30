@@ -263,7 +263,7 @@ config SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
 
-if SND_SOC_INTEL_APL || (SND_SOC_SOF_APOLLOLAKE && SND_SOC_SOF_HDA_LINK)
+if SND_SOC_INTEL_APL
 
 config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
 	tristate "Broxton with DA7219 and MAX98357A in I2S Mode"
@@ -289,7 +289,7 @@ config SND_SOC_INTEL_BXT_RT298_MACH
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
-endif ## SND_SOC_INTEL_APL || (SND_SOC_SOF_APOLLOLAKE && SND_SOC_SOF_HDA_LINK)
+endif ## SND_SOC_INTEL_APL
 
 if SND_SOC_SOF_APOLLOLAKE
 
