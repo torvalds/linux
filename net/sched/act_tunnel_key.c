@@ -31,7 +31,7 @@ static int tunnel_key_act(struct sk_buff *skb, const struct tc_action *a,
 	params = rcu_dereference_bh(t->params);
 
 	tcf_lastuse_update(&t->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(t->common.cpu_bstats), skb);
+	tcf_action_update_bstats(&t->common, skb);
 	action = READ_ONCE(t->tcf_action);
 
 	switch (params->tcft_action) {
