@@ -700,41 +700,35 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, color));
 
-	list_add_tail(&vma->vm_link, &vma->vm->bound_list);
-
 	if (vma->obj) {
-		atomic_inc(&vma->obj->bind_count);
-		assert_bind_count(vma->obj);
+		struct drm_i915_gem_object *obj = vma->obj;
+
+		atomic_inc(&obj->bind_count);
+		assert_bind_count(obj);
 	}
+	list_add_tail(&vma->vm_link, &vma->vm->bound_list);
 
 	return 0;
 }
 
 static void
-i915_vma_remove(struct i915_vma *vma)
+i915_vma_detach(struct i915_vma *vma)
 {
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND));
 
-	list_del(&vma->vm_link);
-
 	/*
-	 * Since the unbound list is global, only move to that list if
-	 * no more VMAs exist.
+	 * And finally now the object is completely decoupled from this
+	 * vma, we can drop its hold on the backing storage and allow
+	 * it to be reaped by the shrinker.
 	 */
+	list_del(&vma->vm_link);
 	if (vma->obj) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
-		/*
-		 * And finally now the object is completely decoupled from this
-		 * vma, we can drop its hold on the backing storage and allow
-		 * it to be reaped by the shrinker.
-		 */
-		atomic_dec(&obj->bind_count);
 		assert_bind_count(obj);
+		atomic_dec(&obj->bind_count);
 	}
-
-	drm_mm_remove_node(&vma->node);
 }
 
 static bool try_qad_pin(struct i915_vma *vma, unsigned int flags)
@@ -929,8 +923,10 @@ int i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
 
 err_remove:
-	if (!i915_vma_is_bound(vma, I915_VMA_BIND_MASK))
-		i915_vma_remove(vma);
+	if (!i915_vma_is_bound(vma, I915_VMA_BIND_MASK)) {
+		i915_vma_detach(vma);
+		drm_mm_remove_node(&vma->node);
+	}
 err_active:
 	i915_active_release(&vma->active);
 err_unlock:
@@ -1187,9 +1183,10 @@ int __i915_vma_unbind(struct i915_vma *vma)
 	}
 	atomic_and(~(I915_VMA_BIND_MASK | I915_VMA_ERROR), &vma->flags);
 
+	i915_vma_detach(vma);
 	vma_unbind_pages(vma);
-	i915_vma_remove(vma);
 
+	drm_mm_remove_node(&vma->node); /* pairs with i915_vma_destroy() */
 	return 0;
 }
 
