@@ -281,12 +281,14 @@ struct dmub_srv_create_params {
  * @fb_base: base of the framebuffer aperture
  * @fb_offset: offset of the framebuffer aperture
  * @psp_version: psp version to pass for DMCU init
+ * @load_inst_const: true if DMUB should load inst const fw
  */
 struct dmub_srv_hw_params {
 	struct dmub_fb *fb[DMUB_WINDOW_TOTAL];
 	uint64_t fb_base;
 	uint64_t fb_offset;
 	uint32_t psp_version;
+	bool load_inst_const;
 };
 
 /**
