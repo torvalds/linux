@@ -84,18 +84,6 @@ typedef struct xfs_alloc_arg {
 #define XFS_ALLOC_INITIAL_USER_DATA	(1 << 1)/* special case start of file */
 #define XFS_ALLOC_NOBUSY		(1 << 2)/* Busy extents not allowed */
 
-static inline bool
-xfs_alloc_is_userdata(int datatype)
-{
-	return (datatype & ~XFS_ALLOC_NOBUSY) != 0;
-}
-
-static inline bool
-xfs_alloc_allow_busy_reuse(int datatype)
-{
-	return (datatype & XFS_ALLOC_NOBUSY) == 0;
-}
-
 /* freespace limit calculations */
 #define XFS_ALLOC_AGFL_RESERVE	4
 unsigned int xfs_alloc_set_aside(struct xfs_mount *mp);

@@ -331,7 +331,7 @@ xfs_alloc_compute_diff(
 	xfs_extlen_t	newlen1=0;	/* length with newbno1 */
 	xfs_extlen_t	newlen2=0;	/* length with newbno2 */
 	xfs_agblock_t	wantend;	/* end of target extent */
-	bool		userdata = xfs_alloc_is_userdata(datatype);
+	bool		userdata = datatype & XFS_ALLOC_USERDATA;
 
 	ASSERT(freelen >= wantlen);
 	freeend = freebno + freelen;
@@ -1041,9 +1041,9 @@ xfs_alloc_ag_vextent_small(
 		goto out;
 
 	xfs_extent_busy_reuse(args->mp, args->agno, fbno, 1,
-			      xfs_alloc_allow_busy_reuse(args->datatype));
+			      (args->datatype & XFS_ALLOC_NOBUSY));
 
-	if (xfs_alloc_is_userdata(args->datatype)) {
+	if (args->datatype & XFS_ALLOC_USERDATA) {
 		struct xfs_buf	*bp;
 
 		bp = xfs_btree_get_bufs(args->mp, args->tp, args->agno, fbno);
@@ -2381,7 +2381,7 @@ xfs_alloc_fix_freelist(
 	 * somewhere else if we are not being asked to try harder at this
 	 * point
 	 */
-	if (pag->pagf_metadata && xfs_alloc_is_userdata(args->datatype) &&
+	if (pag->pagf_metadata && (args->datatype & XFS_ALLOC_USERDATA) &&
 	    (flags & XFS_ALLOC_FLAG_TRYLOCK)) {
 		ASSERT(!(flags & XFS_ALLOC_FLAG_FREEING));
 		goto out_agbp_relse;

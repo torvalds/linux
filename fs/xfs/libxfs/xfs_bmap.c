@@ -3022,7 +3022,7 @@ xfs_bmap_adjacent(
 	mp = ap->ip->i_mount;
 	nullfb = ap->tp->t_firstblock == NULLFSBLOCK;
 	rt = XFS_IS_REALTIME_INODE(ap->ip) &&
-		xfs_alloc_is_userdata(ap->datatype);
+		(ap->datatype & XFS_ALLOC_USERDATA);
 	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp,
 							ap->tp->t_firstblock);
 	/*
@@ -3375,7 +3375,7 @@ xfs_bmap_btalloc(
 
 	if (ap->flags & XFS_BMAPI_COWFORK)
 		align = xfs_get_cowextsz_hint(ap->ip);
-	else if (xfs_alloc_is_userdata(ap->datatype))
+	else if (ap->datatype & XFS_ALLOC_USERDATA)
 		align = xfs_get_extsz_hint(ap->ip);
 	if (align) {
 		error = xfs_bmap_extsize_align(mp, &ap->got, &ap->prev,
@@ -3390,7 +3390,7 @@ xfs_bmap_btalloc(
 	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp,
 							ap->tp->t_firstblock);
 	if (nullfb) {
-		if (xfs_alloc_is_userdata(ap->datatype) &&
+		if ((ap->datatype & XFS_ALLOC_USERDATA) &&
 		    xfs_inode_is_filestream(ap->ip)) {
 			ag = xfs_filestream_lookup_ag(ap->ip);
 			ag = (ag != NULLAGNUMBER) ? ag : 0;
@@ -3430,7 +3430,7 @@ xfs_bmap_btalloc(
 		 * enough for the request.  If one isn't found, then adjust
 		 * the minimum allocation size to the largest space found.
 		 */
-		if (xfs_alloc_is_userdata(ap->datatype) &&
+		if ((ap->datatype & XFS_ALLOC_USERDATA) &&
 		    xfs_inode_is_filestream(ap->ip))
 			error = xfs_bmap_btalloc_filestreams(ap, &args, &blen);
 		else
@@ -3973,10 +3973,9 @@ xfs_bmap_alloc_userdata(
 	 */
 	bma->datatype = XFS_ALLOC_NOBUSY;
 	if (whichfork == XFS_DATA_FORK) {
+		bma->datatype |= XFS_ALLOC_USERDATA;
 		if (bma->offset == 0)
 			bma->datatype |= XFS_ALLOC_INITIAL_USER_DATA;
-		else
-			bma->datatype |= XFS_ALLOC_USERDATA;
 
 		if (mp->m_dalign && bma->length >= mp->m_dalign) {
 			error = xfs_bmap_isaeof(bma, whichfork);
