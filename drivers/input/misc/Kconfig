@@ -100,7 +100,6 @@ config INPUT_ATMEL_CAPTOUCH
 config INPUT_BMA150
 	tristate "BMA150/SMB380 acceleration sensor support"
 	depends on I2C
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you have Bosch Sensortec's BMA150 or SMB380
 	  acceleration sensor hooked to an I2C bus.
