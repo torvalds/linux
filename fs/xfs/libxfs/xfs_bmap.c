@@ -3518,8 +3518,6 @@ xfs_bmap_btalloc(
 	args.wasdel = ap->wasdel;
 	args.resv = XFS_AG_RESV_NONE;
 	args.datatype = ap->datatype;
-	if (ap->datatype & XFS_ALLOC_USERDATA_ZERO)
-		args.ip = ap->ip;
 
 	error = xfs_alloc_vextent(&args);
 	if (error)
@@ -3974,8 +3972,6 @@ xfs_bmap_alloc_userdata(
 	 * the busy list.
 	 */
 	bma->datatype = XFS_ALLOC_NOBUSY;
-	if (bma->flags & XFS_BMAPI_ZERO)
-		bma->datatype |= XFS_ALLOC_USERDATA_ZERO;
 	if (whichfork == XFS_DATA_FORK) {
 		if (bma->offset == 0)
 			bma->datatype |= XFS_ALLOC_INITIAL_USER_DATA;
@@ -4033,6 +4029,12 @@ xfs_bmapi_allocate(
 		error = xfs_bmap_alloc_userdata(bma);
 	if (error || bma->blkno == NULLFSBLOCK)
 		return error;
+
+	if (bma->flags & XFS_BMAPI_ZERO) {
+		error = xfs_zero_extent(bma->ip, bma->blkno, bma->length);
+		if (error)
+			return error;
+	}
 
 	if ((ifp->if_flags & XFS_IFBROOT) && !bma->cur)
 		bma->cur = xfs_bmbt_init_cursor(mp, bma->tp, bma->ip, whichfork);

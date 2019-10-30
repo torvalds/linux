@@ -3084,13 +3084,6 @@ xfs_alloc_vextent(
 			args->len);
 #endif
 
-		/* Zero the extent if we were asked to do so */
-		if (args->datatype & XFS_ALLOC_USERDATA_ZERO) {
-			error = xfs_zero_extent(args->ip, args->fsbno, args->len);
-			if (error)
-				goto error0;
-		}
-
 	}
 	xfs_perag_put(args->pag);
 	return 0;
