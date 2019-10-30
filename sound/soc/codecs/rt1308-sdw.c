@@ -264,9 +264,9 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	regmap_write(rt1308->regmap, 0xc0a1, 0x71);
 	regmap_write(rt1308->regmap, 0xc210, 0x00);
 	regmap_write(rt1308->regmap, 0xc070, 0x00);
-	regmap_write(rt1308->regmap, 0xc100, 0xe7);
-	regmap_write(rt1308->regmap, 0xc101, 0xe7);
-	regmap_write(rt1308->regmap, 0xc310, 0x24);
+	regmap_write(rt1308->regmap, 0xc100, 0xd7);
+	regmap_write(rt1308->regmap, 0xc101, 0xd7);
+	regmap_write(rt1308->regmap, 0xc300, 0x09);
 
 	/* Mark Slave initialization complete */
 	rt1308->hw_init = true;
