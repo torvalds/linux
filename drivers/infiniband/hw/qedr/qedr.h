@@ -238,6 +238,11 @@ struct qedr_ucontext {
 	bool db_rec;
 };
 
+union db_prod32 {
+	struct rdma_pwm_val16_data data;
+	u32 raw;
+};
+
 union db_prod64 {
 	struct rdma_pwm_val32_data data;
 	u64 raw;
@@ -268,6 +273,8 @@ struct qedr_userq {
 	void __iomem *db_addr;
 	struct qedr_user_db_rec *db_rec_data;
 	struct rdma_user_mmap_entry *db_mmap_entry;
+	void __iomem *db_rec_db2_addr;
+	union db_prod32 db_rec_db2_data;
 };
 
 struct qedr_cq {
@@ -301,11 +308,6 @@ struct qedr_pd {
 	struct ib_pd ibpd;
 	u32 pd_id;
 	struct qedr_ucontext *uctx;
-};
-
-union db_prod32 {
-	struct rdma_pwm_val16_data data;
-	u32 raw;
 };
 
 struct qedr_qp_hwq_info {
