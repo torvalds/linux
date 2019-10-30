@@ -8680,7 +8680,7 @@ mlxsw_reg_mpat_eth_rspan_l3_ipv6_pack(char *payload, u8 ttl,
  * properties.
  */
 #define MLXSW_REG_MPAR_ID 0x901B
-#define MLXSW_REG_MPAR_LEN 0x08
+#define MLXSW_REG_MPAR_LEN 0x0C
 
 MLXSW_REG_DEFINE(mpar, MLXSW_REG_MPAR_ID, MLXSW_REG_MPAR_LEN);
 
