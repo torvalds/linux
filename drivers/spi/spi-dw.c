@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <linux/delay.h>
-#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 
@@ -499,8 +498,6 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	if (dws->set_cs)
 		master->set_cs = dws->set_cs;
 
-	pm_runtime_enable(dev);
-
 	/* Basic HW init */
 	spi_hw_init(dev, dws);
 
@@ -529,7 +526,6 @@ err_dma_exit:
 	spi_enable_chip(dws, 0);
 	free_irq(dws->irq, master);
 err_free_master:
-	pm_runtime_disable(dev);
 	spi_controller_put(master);
 	return ret;
 }
@@ -543,9 +539,6 @@ void dw_spi_remove_host(struct dw_spi *dws)
 		dws->dma_ops->dma_exit(dws);
 
 	spi_shutdown_chip(dws);
-
-	if (dws->master)
-		pm_runtime_disable(&dws->master->dev);
 
 	free_irq(dws->irq, dws->master);
 }
