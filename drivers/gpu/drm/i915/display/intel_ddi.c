@@ -3462,9 +3462,10 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	icl_program_mg_dp_mode(dig_port, crtc_state);
 
 	/*
-	 * 7.a - Steps in this function should only be executed over MST
-	 * master, what will be taken in care by MST hook
-	 * intel_mst_pre_enable_dp()
+	 * 7.a - single stream or multi-stream master transcoder: Configure
+	 * Transcoder Clock Select. For additional MST streams this will be done
+	 * by intel_mst_pre_enable_dp() after programming VC Payload ID through
+	 * AUX.
 	 */
 	intel_ddi_enable_pipe_clock(crtc_state);
 
