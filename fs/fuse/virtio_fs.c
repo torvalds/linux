@@ -48,11 +48,15 @@ struct virtio_fs {
 	unsigned int num_request_queues; /* number of request queues */
 };
 
-struct virtio_fs_forget {
+struct virtio_fs_forget_req {
 	struct fuse_in_header ih;
 	struct fuse_forget_in arg;
+};
+
+struct virtio_fs_forget {
 	/* This request can be temporarily queued on virt queue */
 	struct list_head list;
+	struct virtio_fs_forget_req req;
 };
 
 static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
@@ -325,6 +329,7 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 	struct virtqueue *vq;
 	int ret = 0;
 	bool notify;
+	struct virtio_fs_forget_req *req = &forget->req;
 
 	spin_lock(&fsvq->lock);
 	if (!fsvq->connected) {
@@ -334,7 +339,7 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 		goto out;
 	}
 
-	sg_init_one(&sg, forget, sizeof(*forget));
+	sg_init_one(&sg, req, sizeof(*req));
 	vq = fsvq->vq;
 	dev_dbg(&vq->vdev->dev, "%s\n", __func__);
 
@@ -730,6 +735,7 @@ __releases(fiq->lock)
 {
 	struct fuse_forget_link *link;
 	struct virtio_fs_forget *forget;
+	struct virtio_fs_forget_req *req;
 	struct virtio_fs *fs;
 	struct virtio_fs_vq *fsvq;
 	u64 unique;
@@ -743,14 +749,15 @@ __releases(fiq->lock)
 
 	/* Allocate a buffer for the request */
 	forget = kmalloc(sizeof(*forget), GFP_NOFS | __GFP_NOFAIL);
+	req = &forget->req;
 
-	forget->ih = (struct fuse_in_header){
+	req->ih = (struct fuse_in_header){
 		.opcode = FUSE_FORGET,
 		.nodeid = link->forget_one.nodeid,
 		.unique = unique,
-		.len = sizeof(*forget),
+		.len = sizeof(*req),
 	};
-	forget->arg = (struct fuse_forget_in){
+	req->arg = (struct fuse_forget_in){
 		.nlookup = link->forget_one.nlookup,
 	};
 
