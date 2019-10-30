@@ -235,6 +235,7 @@ struct qedr_ucontext {
 	u64 dpi_phys_addr;
 	u32 dpi_size;
 	u16 dpi;
+	bool db_rec;
 };
 
 union db_prod64 {
@@ -262,6 +263,11 @@ struct qedr_userq {
 	struct qedr_pbl *pbl_tbl;
 	u64 buf_addr;
 	size_t buf_len;
+
+	/* doorbell recovery */
+	void __iomem *db_addr;
+	struct qedr_user_db_rec *db_rec_data;
+	struct rdma_user_mmap_entry *db_mmap_entry;
 };
 
 struct qedr_cq {
@@ -482,7 +488,10 @@ struct qedr_mr {
 struct qedr_user_mmap_entry {
 	struct rdma_user_mmap_entry rdma_entry;
 	struct qedr_dev *dev;
-	u64 io_address;
+	union {
+		u64 io_address;
+		void *address;
+	};
 	size_t length;
 	u16 dpi;
 	u8 mmap_flag;
