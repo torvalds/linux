@@ -222,12 +222,6 @@ extern char empty_zero_page[PAGE_SIZE];
 /* find the logical addr (phy for ARC) of the Page Tbl ref by PMD entry */
 #define pmd_page_vaddr(pmd)	(pmd_val(pmd) & PAGE_MASK)
 
-/* In a 2 level sys, setup the PGD entry with PTE value */
-static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
-{
-	pmd_val(*pmdp) = (unsigned long)ptep;
-}
-
 #define pte_none(x)			(!pte_val(x))
 #define pte_present(x)			(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(mm, addr, ptep)	set_pte_at(mm, addr, ptep, __pte(0))

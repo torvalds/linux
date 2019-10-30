@@ -35,13 +35,19 @@
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 {
-	pmd_set(pmd, pte);
+	/*
+	 * The cast to long below is OK in 32-bit PAE40 regime with long long pte
+	 * Despite "wider" pte, the pte table needs to be in non-PAE low memory
+	 * as all higher levels can only hold long pointers.
+	 *
+	 * The cast itself is needed given simplistic definition of set_pmd()
+	 */
+	set_pmd(pmd, __pmd((unsigned long)pte));
 }
 
-static inline void
-pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t ptep)
+static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t pte)
 {
-	pmd_set(pmd, (pte_t *) ptep);
+	set_pmd(pmd, __pmd((unsigned long)pte));
 }
 
 static inline int __get_order_pgd(void)
