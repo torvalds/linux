@@ -86,7 +86,7 @@ enum snd_motu_spec_flags {
 	SND_MOTU_SPEC_RX_MIDI_3RD_Q	= 0x0200,
 	SND_MOTU_SPEC_TX_MIDI_2ND_Q	= 0x0400,
 	SND_MOTU_SPEC_TX_MIDI_3RD_Q	= 0x0800,
-	SND_MOTU_SPEC_RX_SEPARETED_MAIN	= 0x1000,
+	SND_MOTU_SPEC_RX_SEPARATED_MAIN	= 0x1000,
 };
 
 #define SND_MOTU_CLOCK_RATE_COUNT	6
@@ -104,6 +104,7 @@ enum snd_motu_clock_source {
 	SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX,
 	SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR,
 	SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC,
+	SND_MOTU_CLOCK_SOURCE_SPH,
 	SND_MOTU_CLOCK_SOURCE_UNKNOWN,
 };
 
@@ -129,8 +130,7 @@ struct snd_motu_spec {
 extern const struct snd_motu_protocol snd_motu_protocol_v2;
 extern const struct snd_motu_protocol snd_motu_protocol_v3;
 
-extern const struct snd_motu_spec snd_motu_spec_traveler;
-extern const struct snd_motu_spec snd_motu_spec_8pre;
+extern const struct snd_motu_spec snd_motu_spec_828mk2;
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
