@@ -206,7 +206,7 @@ unsigned long get_wchan(struct task_struct *p);
 /* Has task runtime instrumentation enabled ? */
 #define is_ri_task(tsk) (!!(tsk)->thread.ri_cb)
 
-static inline unsigned long current_stack_pointer(void)
+static __always_inline unsigned long current_stack_pointer(void)
 {
 	unsigned long sp;
 
