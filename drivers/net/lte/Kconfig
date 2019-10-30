@@ -1,0 +1,15 @@
+#
+# LTE network device configuration
+#
+
+menuconfig LTE
+	bool "Rockchip LTE support"
+	help
+	Enable LTE drivers for Rockchip platform.
+
+if LTE
+config LTE_RM310
+	bool "LTE rm310 support"
+	default n
+
+endif

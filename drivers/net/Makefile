@@ -74,6 +74,7 @@ obj-$(CONFIG_HYPERV_NET) += hyperv/
 obj-$(CONFIG_NTB_NETDEV) += ntb_netdev.o
 
 obj-$(CONFIG_FUJITSU_ES) += fjes/
+obj-$(CONFIG_LTE) += lte/
 
 thunderbolt-net-y += thunderbolt.o
 obj-$(CONFIG_THUNDERBOLT_NET) += thunderbolt-net.o

@@ -1,0 +1,18 @@
+* Rockchip 4g modem device tree bindings
+
+Required properties:
+- compatible : "4g-modem-platdata"
+
+Optional properties:
+- 4G,vbat-gpio : 4g modem vbat gpio
+- 4G,power-gpio : 4g modem power enable/disable gpio
+- 4G,reset-gpio : 4g modem reset gpio
+
+Example:
+
+	4G-Modem {
+		compatible="4g-modem-platdata";
+		4G,vbat-gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+		4G,power-gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_LOW>;
+		4G,reset-gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+	}
