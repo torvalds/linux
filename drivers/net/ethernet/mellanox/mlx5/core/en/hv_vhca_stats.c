@@ -141,7 +141,7 @@ int mlx5e_hv_vhca_stats_create(struct mlx5e_priv *priv)
 				    "Failed to create hv vhca stats agent, err = %ld\n",
 				    PTR_ERR(agent));
 
-		kfree(priv->stats_agent.buf);
+		kvfree(priv->stats_agent.buf);
 		return IS_ERR_OR_NULL(agent);
 	}
 
@@ -157,5 +157,5 @@ void mlx5e_hv_vhca_stats_destroy(struct mlx5e_priv *priv)
 		return;
 
 	mlx5_hv_vhca_agent_destroy(priv->stats_agent.agent);
-	kfree(priv->stats_agent.buf);
+	kvfree(priv->stats_agent.buf);
 }
