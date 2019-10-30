@@ -186,14 +186,28 @@ mt7615_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 }
 
 static void
+mt7615_mcu_rx_radar_detected(struct mt7615_dev *dev, struct sk_buff *skb)
+{
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt7615_mcu_rdd_report *r;
+
+	r = (struct mt7615_mcu_rdd_report *)skb->data;
+
+	if (r->idx && dev->mt76.phy2)
+		mphy = dev->mt76.phy2;
+
+	ieee80211_radar_detected(mphy->hw);
+	dev->hw_pattern++;
+}
+
+static void
 mt7615_mcu_rx_ext_event(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
 
 	switch (rxd->ext_eid) {
 	case MCU_EXT_EVENT_RDD_REPORT:
-		ieee80211_radar_detected(dev->mt76.hw);
-		dev->hw_pattern++;
+		mt7615_mcu_rx_radar_detected(dev, skb);
 		break;
 	case MCU_EXT_EVENT_CSA_NOTIFY:
 		ieee80211_iterate_active_interfaces_atomic(dev->mt76.hw,

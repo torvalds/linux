@@ -89,6 +89,9 @@ struct mt7615_phy {
 	int false_cca_ofdm, false_cca_cck;
 	s8 ofdm_sensitivity;
 	s8 cck_sensitivity;
+
+	u8 rdd_state;
+	int dfs_state;
 };
 
 struct mt7615_dev {
@@ -115,7 +118,6 @@ struct mt7615_dev {
 		s16 power;
 	} radar_pattern;
 	u32 hw_pattern;
-	int dfs_state;
 
 	u8 mac_work_count;
 	bool scs_en;
@@ -243,24 +245,11 @@ void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb);
 int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 		       enum mt7615_rdd_cmd cmd, u8 index,
 		       u8 rx_sel, u8 val);
-int mt7615_dfs_start_radar_detector(struct mt7615_dev *dev);
-int mt7615_dfs_stop_radar_detector(struct mt7615_dev *dev);
 int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev);
 
 static inline bool is_mt7622(struct mt76_dev *dev)
 {
 	return mt76_chip(dev) == 0x7622;
-}
-
-static inline void mt7615_dfs_check_channel(struct mt7615_dev *dev)
-{
-	enum nl80211_chan_width width = dev->mphy.chandef.width;
-	u32 freq = dev->mphy.chandef.chan->center_freq;
-	struct ieee80211_hw *hw = mt76_hw(dev);
-
-	if (hw->conf.chandef.chan->center_freq != freq ||
-	    hw->conf.chandef.width != width)
-		dev->dfs_state = -1;
 }
 
 static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
@@ -319,7 +308,7 @@ void mt7615_mac_work(struct work_struct *work);
 void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 			  struct mt76_txwi_cache *txwi);
 int mt76_dfs_start_rdd(struct mt7615_dev *dev, bool force);
-int mt7615_dfs_init_radar_detector(struct mt7615_dev *dev);
+int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy);
 
 int mt7615_init_debugfs(struct mt7615_dev *dev);
 
