@@ -27,7 +27,7 @@
 
 #include <asm/sections.h>
 
-#define HASH_SIZE       1024ULL
+#define HASH_SIZE       16384ULL
 #define HASH_FN_SHIFT   13
 #define HASH_FN_MASK    (HASH_SIZE - 1)
 
@@ -87,7 +87,7 @@ typedef bool (*match_fn)(struct dma_debug_entry *, struct dma_debug_entry *);
 struct hash_bucket {
 	struct list_head list;
 	spinlock_t lock;
-} ____cacheline_aligned_in_smp;
+};
 
 /* Hash list to save the allocated dma addresses */
 static struct hash_bucket dma_entry_hash[HASH_SIZE];
