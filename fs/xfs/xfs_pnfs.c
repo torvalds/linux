@@ -150,30 +150,24 @@ xfs_fs_map_blocks(
 
 	ASSERT(!nimaps || imap.br_startblock != DELAYSTARTBLOCK);
 
-	if (write) {
-		enum xfs_prealloc_flags	flags = 0;
+	if (write && (!nimaps || imap.br_startblock == HOLESTARTBLOCK)) {
+		/*
+		 * xfs_iomap_write_direct() expects to take ownership of the
+		 * shared ilock.
+		 */
+		xfs_ilock(ip, XFS_ILOCK_SHARED);
+		error = xfs_iomap_write_direct(ip, offset, length, &imap,
+					       nimaps);
+		if (error)
+			goto out_unlock;
 
-		if (!nimaps || imap.br_startblock == HOLESTARTBLOCK) {
-			/*
-			 * xfs_iomap_write_direct() expects to take ownership of
-			 * the shared ilock.
-			 */
-			xfs_ilock(ip, XFS_ILOCK_SHARED);
-			error = xfs_iomap_write_direct(ip, offset, length,
-						       &imap, nimaps);
-			if (error)
-				goto out_unlock;
-
-			/*
-			 * Ensure the next transaction is committed
-			 * synchronously so that the blocks allocated and
-			 * handed out to the client are guaranteed to be
-			 * present even after a server crash.
-			 */
-			flags |= XFS_PREALLOC_SET | XFS_PREALLOC_SYNC;
-		}
-
-		error = xfs_update_prealloc_flags(ip, flags);
+		/*
+		 * Ensure the next transaction is committed synchronously so
+		 * that the blocks allocated and handed out to the client are
+		 * guaranteed to be present even after a server crash.
+		 */
+		error = xfs_update_prealloc_flags(ip,
+				XFS_PREALLOC_SET | XFS_PREALLOC_SYNC);
 		if (error)
 			goto out_unlock;
 	}
