@@ -3,10 +3,6 @@
  * soc-component.h
  *
  * Copyright (c) 2019 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __SOC_COMPONENT_H
 #define __SOC_COMPONENT_H
@@ -51,8 +47,10 @@ struct snd_soc_component_driver {
 		     unsigned int reg, unsigned int val);
 
 	/* pcm creation and destruction */
-	int (*pcm_new)(struct snd_soc_pcm_runtime *rtd);
-	void (*pcm_free)(struct snd_pcm *pcm);
+	int (*pcm_construct)(struct snd_soc_component *component,
+			     struct snd_soc_pcm_runtime *rtd);
+	void (*pcm_destruct)(struct snd_soc_component *component,
+			     struct snd_pcm *pcm);
 
 	/* component wide operations */
 	int (*set_sysclk)(struct snd_soc_component *component,
@@ -74,7 +72,40 @@ struct snd_soc_component_driver {
 	int (*set_bias_level)(struct snd_soc_component *component,
 			      enum snd_soc_bias_level level);
 
-	const struct snd_pcm_ops *ops;
+	int (*open)(struct snd_soc_component *component,
+		    struct snd_pcm_substream *substream);
+	int (*close)(struct snd_soc_component *component,
+		     struct snd_pcm_substream *substream);
+	int (*ioctl)(struct snd_soc_component *component,
+		     struct snd_pcm_substream *substream,
+		     unsigned int cmd, void *arg);
+	int (*hw_params)(struct snd_soc_component *component,
+			 struct snd_pcm_substream *substream,
+			 struct snd_pcm_hw_params *params);
+	int (*hw_free)(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream);
+	int (*prepare)(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream);
+	int (*trigger)(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream, int cmd);
+	snd_pcm_uframes_t (*pointer)(struct snd_soc_component *component,
+				     struct snd_pcm_substream *substream);
+	int (*get_time_info)(struct snd_soc_component *component,
+		struct snd_pcm_substream *substream, struct timespec *system_ts,
+		struct timespec *audio_ts,
+		struct snd_pcm_audio_tstamp_config *audio_tstamp_config,
+		struct snd_pcm_audio_tstamp_report *audio_tstamp_report);
+	int (*copy_user)(struct snd_soc_component *component,
+			 struct snd_pcm_substream *substream, int channel,
+			 unsigned long pos, void __user *buf,
+			 unsigned long bytes);
+	struct page *(*page)(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream,
+			     unsigned long offset);
+	int (*mmap)(struct snd_soc_component *component,
+		    struct snd_pcm_substream *substream,
+		    struct vm_area_struct *vma);
+
 	const struct snd_compr_ops *compr_ops;
 
 	/* probe ordering - for components with runtime dependencies */

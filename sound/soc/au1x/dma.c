@@ -174,22 +174,23 @@ static const struct snd_pcm_hardware alchemy_pcm_hardware = {
 	.fifo_size	  = 16,
 };
 
-static inline struct alchemy_pcm_ctx *ss_to_ctx(struct snd_pcm_substream *ss)
+static inline struct alchemy_pcm_ctx *ss_to_ctx(struct snd_pcm_substream *ss,
+						struct snd_soc_component *component)
 {
-	struct snd_soc_pcm_runtime *rtd = ss->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	return snd_soc_component_get_drvdata(component);
 }
 
-static inline struct audio_stream *ss_to_as(struct snd_pcm_substream *ss)
+static inline struct audio_stream *ss_to_as(struct snd_pcm_substream *ss,
+					    struct snd_soc_component *component)
 {
-	struct alchemy_pcm_ctx *ctx = ss_to_ctx(ss);
+	struct alchemy_pcm_ctx *ctx = ss_to_ctx(ss, component);
 	return &(ctx->stream[ss->stream]);
 }
 
-static int alchemy_pcm_open(struct snd_pcm_substream *substream)
+static int alchemy_pcm_open(struct snd_soc_component *component,
+			    struct snd_pcm_substream *substream)
 {
-	struct alchemy_pcm_ctx *ctx = ss_to_ctx(substream);
+	struct alchemy_pcm_ctx *ctx = ss_to_ctx(substream, component);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	int *dmaids, s = substream->stream;
 	char *name;
@@ -213,9 +214,10 @@ static int alchemy_pcm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int alchemy_pcm_close(struct snd_pcm_substream *substream)
+static int alchemy_pcm_close(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream)
 {
-	struct alchemy_pcm_ctx *ctx = ss_to_ctx(substream);
+	struct alchemy_pcm_ctx *ctx = ss_to_ctx(substream, component);
 	int stype = substream->stream;
 
 	ctx->stream[stype].substream = NULL;
@@ -224,10 +226,11 @@ static int alchemy_pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int alchemy_pcm_hw_params(struct snd_pcm_substream *substream,
+static int alchemy_pcm_hw_params(struct snd_soc_component *component,
+				 struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *hw_params)
 {
-	struct audio_stream *stream = ss_to_as(substream);
+	struct audio_stream *stream = ss_to_as(substream, component);
 	int err;
 
 	err = snd_pcm_lib_malloc_pages(substream,
@@ -243,16 +246,18 @@ static int alchemy_pcm_hw_params(struct snd_pcm_substream *substream,
 	return err;
 }
 
-static int alchemy_pcm_hw_free(struct snd_pcm_substream *substream)
+static int alchemy_pcm_hw_free(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream)
 {
-	struct audio_stream *stream = ss_to_as(substream);
+	struct audio_stream *stream = ss_to_as(substream, component);
 	au1000_release_dma_link(stream);
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static int alchemy_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
+static int alchemy_pcm_trigger(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream, int cmd)
 {
-	struct audio_stream *stream = ss_to_as(substream);
+	struct audio_stream *stream = ss_to_as(substream, component);
 	int err = 0;
 
 	switch (cmd) {
@@ -269,9 +274,10 @@ static int alchemy_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return err;
 }
 
-static snd_pcm_uframes_t alchemy_pcm_pointer(struct snd_pcm_substream *ss)
+static snd_pcm_uframes_t alchemy_pcm_pointer(struct snd_soc_component *component,
+					     struct snd_pcm_substream *ss)
 {
-	struct audio_stream *stream = ss_to_as(ss);
+	struct audio_stream *stream = ss_to_as(ss, component);
 	long location;
 
 	location = get_dma_residue(stream->dma);
@@ -281,17 +287,8 @@ static snd_pcm_uframes_t alchemy_pcm_pointer(struct snd_pcm_substream *ss)
 	return bytes_to_frames(ss->runtime, location);
 }
 
-static const struct snd_pcm_ops alchemy_pcm_ops = {
-	.open			= alchemy_pcm_open,
-	.close			= alchemy_pcm_close,
-	.ioctl			= snd_pcm_lib_ioctl,
-	.hw_params	        = alchemy_pcm_hw_params,
-	.hw_free	        = alchemy_pcm_hw_free,
-	.trigger		= alchemy_pcm_trigger,
-	.pointer		= alchemy_pcm_pointer,
-};
-
-static int alchemy_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int alchemy_pcm_new(struct snd_soc_component *component,
+			   struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
 
@@ -303,8 +300,14 @@ static int alchemy_pcm_new(struct snd_soc_pcm_runtime *rtd)
 
 static struct snd_soc_component_driver alchemy_pcm_soc_component = {
 	.name		= DRV_NAME,
-	.ops		= &alchemy_pcm_ops,
-	.pcm_new	= alchemy_pcm_new,
+	.open		= alchemy_pcm_open,
+	.close		= alchemy_pcm_close,
+	.ioctl		= snd_soc_pcm_lib_ioctl,
+	.hw_params	= alchemy_pcm_hw_params,
+	.hw_free	= alchemy_pcm_hw_free,
+	.trigger	= alchemy_pcm_trigger,
+	.pointer	= alchemy_pcm_pointer,
+	.pcm_construct	= alchemy_pcm_new,
 };
 
 static int alchemy_pcm_drvprobe(struct platform_device *pdev)

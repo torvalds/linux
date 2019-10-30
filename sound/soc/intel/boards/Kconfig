@@ -320,6 +320,7 @@ config SND_SOC_INTEL_KBL_RT5663_RT5514_MAX98927_MACH
         select SND_SOC_RT5514_SPI
         select SND_SOC_MAX98927
         select SND_SOC_HDAC_HDMI
+	select SND_SOC_INTEL_SKYLAKE_SSP_CLK
         help
           This adds support for ASoC Onboard Codec I2S machine driver. This will
           create an alsa sound card for RT5663 + RT5514 + MAX98927.

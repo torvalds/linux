@@ -1805,8 +1805,8 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 	struct snd_soc_component *component = dai->component;
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_component_get_dapm(component);
-	unsigned int val = 0, tdm_en = 0;
-	int ret = 0;
+	unsigned int val = 0, tdm_en = 0, rx_slotnum, tx_slotnum;
+	int ret = 0, first_bit, last_bit;
 
 	snd_soc_dapm_mutex_lock(dapm);
 	if (rx_mask || tx_mask)
@@ -1829,6 +1829,7 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 		break;
 	default:
 		ret = -EINVAL;
+		goto _set_tdm_err_;
 	}
 
 	switch (slot_width) {
@@ -1848,6 +1849,135 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 		break;
 	default:
 		ret = -EINVAL;
+		goto _set_tdm_err_;
+	}
+
+	/* Rx slot configuration */
+	rx_slotnum = hweight_long(rx_mask);
+	first_bit = find_next_bit((unsigned long *)&rx_mask, 32, 0);
+	if (rx_slotnum > 1 || rx_slotnum == 0) {
+		ret = -EINVAL;
+		dev_dbg(component->dev, "too many rx slots or zero slot\n");
+		goto _set_tdm_err_;
+	}
+
+	switch (first_bit) {
+	case 0:
+	case 2:
+	case 4:
+	case 6:
+		snd_soc_component_update_bits(component,
+			RT1011_CROSS_BQ_SET_1, RT1011_MONO_LR_SEL_MASK,
+			RT1011_MONO_L_CHANNEL);
+		snd_soc_component_update_bits(component,
+			RT1011_TDM1_SET_4,
+			RT1011_TDM_I2S_TX_L_DAC1_1_MASK |
+			RT1011_TDM_I2S_TX_R_DAC1_1_MASK,
+			(first_bit << RT1011_TDM_I2S_TX_L_DAC1_1_SFT) |
+			((first_bit+1) << RT1011_TDM_I2S_TX_R_DAC1_1_SFT));
+		break;
+	case 1:
+	case 3:
+	case 5:
+	case 7:
+		snd_soc_component_update_bits(component,
+			RT1011_CROSS_BQ_SET_1, RT1011_MONO_LR_SEL_MASK,
+			RT1011_MONO_R_CHANNEL);
+		snd_soc_component_update_bits(component,
+			RT1011_TDM1_SET_4,
+			RT1011_TDM_I2S_TX_L_DAC1_1_MASK |
+			RT1011_TDM_I2S_TX_R_DAC1_1_MASK,
+			((first_bit-1) << RT1011_TDM_I2S_TX_L_DAC1_1_SFT) |
+			(first_bit << RT1011_TDM_I2S_TX_R_DAC1_1_SFT));
+		break;
+	default:
+		ret = -EINVAL;
+		goto _set_tdm_err_;
+	}
+
+	/* Tx slot configuration */
+	tx_slotnum = hweight_long(tx_mask);
+	first_bit = find_next_bit((unsigned long *)&tx_mask, 32, 0);
+	last_bit = find_last_bit((unsigned long *)&tx_mask, 32);
+	if (tx_slotnum > 2 || (last_bit-first_bit) > 1) {
+		ret = -EINVAL;
+		dev_dbg(component->dev, "too many tx slots or tx slot location error\n");
+		goto _set_tdm_err_;
+	}
+
+	if (tx_slotnum == 1) {
+		snd_soc_component_update_bits(component, RT1011_TDM1_SET_2,
+			RT1011_TDM_I2S_DOCK_ADCDAT_LEN_1_MASK |
+			RT1011_TDM_ADCDAT1_DATA_LOCATION, first_bit);
+		switch (first_bit) {
+		case 1:
+			snd_soc_component_update_bits(component,
+				RT1011_TDM1_SET_3,
+				RT1011_TDM_I2S_RX_ADC1_1_MASK,
+				RT1011_TDM_I2S_RX_ADC1_1_LL);
+			break;
+		case 3:
+			snd_soc_component_update_bits(component,
+				RT1011_TDM1_SET_3,
+				RT1011_TDM_I2S_RX_ADC2_1_MASK,
+				RT1011_TDM_I2S_RX_ADC2_1_LL);
+			break;
+		case 5:
+			snd_soc_component_update_bits(component,
+				RT1011_TDM1_SET_3,
+				RT1011_TDM_I2S_RX_ADC3_1_MASK,
+				RT1011_TDM_I2S_RX_ADC3_1_LL);
+			break;
+		case 7:
+			snd_soc_component_update_bits(component,
+				RT1011_TDM1_SET_3,
+				RT1011_TDM_I2S_RX_ADC4_1_MASK,
+				RT1011_TDM_I2S_RX_ADC4_1_LL);
+			break;
+		case 0:
+			snd_soc_component_update_bits(component,
+				RT1011_TDM1_SET_3,
+				RT1011_TDM_I2S_RX_ADC1_1_MASK, 0);
+			break;
+		case 2:
+			snd_soc_component_update_bits(component,
+				RT1011_TDM1_SET_3,
+				RT1011_TDM_I2S_RX_ADC2_1_MASK, 0);
+			break;
+		case 4:
+			snd_soc_component_update_bits(component,
+				RT1011_TDM1_SET_3,
+				RT1011_TDM_I2S_RX_ADC3_1_MASK, 0);
+			break;
+		case 6:
+			snd_soc_component_update_bits(component,
+				RT1011_TDM1_SET_3,
+				RT1011_TDM_I2S_RX_ADC4_1_MASK, 0);
+			break;
+		default:
+			ret = -EINVAL;
+			dev_dbg(component->dev,
+				"tx slot location error\n");
+			goto _set_tdm_err_;
+		}
+	} else if (tx_slotnum == 2) {
+		switch (first_bit) {
+		case 0:
+		case 2:
+		case 4:
+		case 6:
+			snd_soc_component_update_bits(component,
+				RT1011_TDM1_SET_2,
+				RT1011_TDM_I2S_DOCK_ADCDAT_LEN_1_MASK |
+				RT1011_TDM_ADCDAT1_DATA_LOCATION,
+				RT1011_TDM_I2S_DOCK_ADCDAT_2CH | first_bit);
+			break;
+		default:
+			ret = -EINVAL;
+			dev_dbg(component->dev,
+				"tx slot location should be paired and start from slot0/2/4/6\n");
+			goto _set_tdm_err_;
+		}
 	}
 
 	snd_soc_component_update_bits(component, RT1011_TDM1_SET_1,
@@ -1860,10 +1990,12 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 		RT1011_TDM_I2S_DOCK_EN_1_MASK,	tdm_en);
 	snd_soc_component_update_bits(component, RT1011_TDM2_SET_2,
 		RT1011_TDM_I2S_DOCK_EN_2_MASK,	tdm_en);
-	snd_soc_component_update_bits(component, RT1011_TDM_TOTAL_SET,
-		RT1011_ADCDAT1_PIN_CONFIG | RT1011_ADCDAT2_PIN_CONFIG,
-		RT1011_ADCDAT1_OUTPUT | RT1011_ADCDAT2_OUTPUT);
+	if (tx_slotnum)
+		snd_soc_component_update_bits(component, RT1011_TDM_TOTAL_SET,
+			RT1011_ADCDAT1_PIN_CONFIG | RT1011_ADCDAT2_PIN_CONFIG,
+			RT1011_ADCDAT1_OUTPUT | RT1011_ADCDAT2_OUTPUT);
 
+_set_tdm_err_:
 	snd_soc_dapm_mutex_unlock(dapm);
 	return ret;
 }
@@ -2196,8 +2328,12 @@ static void rt1011_calibration_work(struct work_struct *work)
 	struct rt1011_priv *rt1011 =
 		container_of(work, struct rt1011_priv, cali_work);
 	struct snd_soc_component *component = rt1011->component;
+	unsigned int r0_integer, r0_factor, format;
 
-	rt1011_calibrate(rt1011, 1);
+	if (rt1011->r0_calib)
+		rt1011_calibrate(rt1011, 0);
+	else
+		rt1011_calibrate(rt1011, 1);
 
 	/*
 	 * This flag should reset after booting.
@@ -2208,6 +2344,39 @@ static void rt1011_calibration_work(struct work_struct *work)
 
 	/* initial */
 	rt1011_reg_init(component);
+
+	/* Apply temperature and calibration data from device property */
+	if (rt1011->temperature_calib) {
+		snd_soc_component_update_bits(component,
+			RT1011_STP_INITIAL_RESISTANCE_TEMP, 0x3ff,
+			(rt1011->temperature_calib << 2));
+	}
+
+	if (rt1011->r0_calib) {
+		rt1011->r0_reg = rt1011->r0_calib;
+
+		format = 2147483648U; /* 2^24 * 128 */
+		r0_integer = format / rt1011->r0_reg / 128;
+		r0_factor = ((format / rt1011->r0_reg * 100) / 128)
+						- (r0_integer * 100);
+		dev_info(component->dev,	"DP r0 resistance about %d.%02d ohm, reg=0x%X\n",
+			r0_integer, r0_factor, rt1011->r0_reg);
+
+		rt1011_r0_load(rt1011);
+	}
+}
+
+static int rt1011_parse_dp(struct rt1011_priv *rt1011, struct device *dev)
+{
+	device_property_read_u32(dev, "realtek,temperature_calib",
+		&rt1011->temperature_calib);
+	device_property_read_u32(dev, "realtek,r0_calib",
+		&rt1011->r0_calib);
+
+	dev_dbg(dev, "%s: r0_calib: 0x%x, temperature_calib: 0x%x",
+		__func__, rt1011->r0_calib, rt1011->temperature_calib);
+
+	return 0;
 }
 
 static int rt1011_i2c_probe(struct i2c_client *i2c,
@@ -2223,6 +2392,8 @@ static int rt1011_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt1011);
+
+	rt1011_parse_dp(rt1011, &i2c->dev);
 
 	rt1011->regmap = devm_regmap_init_i2c(i2c, &rt1011_regmap);
 	if (IS_ERR(rt1011->regmap)) {
