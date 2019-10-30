@@ -654,6 +654,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			gpio-ranges = <&tlmm 0 0 120>;
+			wakeup-parent = <&pdc>;
 
 			qspi_clk: qspi-clk {
 				pinmux {
