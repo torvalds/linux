@@ -83,6 +83,7 @@ void siw_destroy_srq(struct ib_srq *base_srq, struct ib_udata *udata);
 int siw_post_srq_recv(struct ib_srq *base_srq, const struct ib_recv_wr *wr,
 		      const struct ib_recv_wr **bad_wr);
 int siw_mmap(struct ib_ucontext *ctx, struct vm_area_struct *vma);
+void siw_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
 void siw_qp_event(struct siw_qp *qp, enum ib_event_type type);
 void siw_cq_event(struct siw_cq *cq, enum ib_event_type type);
 void siw_srq_event(struct siw_srq *srq, enum ib_event_type type);

@@ -279,6 +279,7 @@ static const struct ib_device_ops siw_device_ops = {
 	.iw_rem_ref = siw_qp_put_ref,
 	.map_mr_sg = siw_map_mr_sg,
 	.mmap = siw_mmap,
+	.mmap_free = siw_mmap_free,
 	.modify_qp = siw_verbs_modify_qp,
 	.modify_srq = siw_modify_srq,
 	.poll_cq = siw_poll_cq,
