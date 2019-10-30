@@ -206,12 +206,12 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 const struct v4l2_subdev_ops *sd_ops);
 
 /**
- * vimc_link_validate - validates a media link
+ * vimc_vdev_link_validate - validates a media link
  *
  * @link: pointer to &struct media_link
  *
  * This function calls validates if a media link is valid for streaming.
  */
-int vimc_link_validate(struct media_link *link);
+int vimc_vdev_link_validate(struct media_link *link);
 
 #endif

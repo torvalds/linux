@@ -322,7 +322,7 @@ static const struct vb2_ops vimc_cap_qops = {
 };
 
 static const struct media_entity_operations vimc_cap_mops = {
-	.link_validate		= vimc_link_validate,
+	.link_validate		= vimc_vdev_link_validate,
 };
 
 static void vimc_cap_release(struct video_device *vdev)
