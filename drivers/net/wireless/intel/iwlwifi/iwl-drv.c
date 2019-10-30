@@ -1647,6 +1647,8 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	drv->trans->dbgfs_dir = debugfs_create_dir("trans", drv->dbgfs_drv);
 #endif
 
+	drv->trans->dbg.domains_bitmap = IWL_TRANS_FW_DBG_DOMAIN(drv->trans);
+
 	ret = iwl_request_firmware(drv, true);
 	if (ret) {
 		IWL_ERR(trans, "Couldn't request the fw\n");

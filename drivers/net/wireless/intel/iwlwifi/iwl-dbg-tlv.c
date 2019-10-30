@@ -290,9 +290,18 @@ void iwl_dbg_tlv_alloc(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
 	struct iwl_fw_ini_header *hdr = (void *)&tlv->data[0];
 	u32 type = le32_to_cpu(tlv->type);
 	u32 tlv_idx = type - IWL_UCODE_TLV_DEBUG_BASE;
+	u32 domain = le32_to_cpu(hdr->domain);
 	enum iwl_ini_cfg_state *cfg_state = ext ?
 		&trans->dbg.external_ini_cfg : &trans->dbg.internal_ini_cfg;
 	int ret;
+
+	if (domain != IWL_FW_INI_DOMAIN_ALWAYS_ON &&
+	    !(domain & trans->dbg.domains_bitmap)) {
+		IWL_DEBUG_FW(trans,
+			     "WRT: Skipping TLV with disabled domain 0x%0x (0x%0x)\n",
+			     domain, trans->dbg.domains_bitmap);
+		return;
+	}
 
 	if (tlv_idx >= ARRAY_SIZE(dbg_tlv_alloc) || !dbg_tlv_alloc[tlv_idx]) {
 		IWL_ERR(trans, "WRT: Unsupported TLV type 0x%x\n", type);
@@ -660,17 +669,12 @@ static void iwl_dbg_tlv_send_hcmds(struct iwl_fw_runtime *fwrt,
 	list_for_each_entry(node, hcmd_list, list) {
 		struct iwl_fw_ini_hcmd_tlv *hcmd = (void *)node->tlv.data;
 		struct iwl_fw_ini_hcmd *hcmd_data = &hcmd->hcmd;
-		u32 domain = le32_to_cpu(hcmd->hdr.domain);
 		u16 hcmd_len = le32_to_cpu(node->tlv.length) - sizeof(*hcmd);
 		struct iwl_host_cmd cmd = {
 			.id = WIDE_ID(hcmd_data->group, hcmd_data->id),
 			.len = { hcmd_len, },
 			.data = { hcmd_data->data, },
 		};
-
-		if (domain != IWL_FW_INI_DOMAIN_ALWAYS_ON &&
-		    !(domain & fwrt->trans->dbg.domains_bitmap))
-			continue;
 
 		iwl_trans_send_cmd(fwrt->trans, &cmd);
 	}
@@ -897,12 +901,6 @@ iwl_dbg_tlv_gen_active_trig_list(struct iwl_fw_runtime *fwrt,
 
 	list_for_each_entry(node, trig_list, list) {
 		struct iwl_ucode_tlv *tlv = &node->tlv;
-		struct iwl_fw_ini_trigger_tlv *trig = (void *)tlv->data;
-		u32 domain = le32_to_cpu(trig->hdr.domain);
-
-		if (domain != IWL_FW_INI_DOMAIN_ALWAYS_ON &&
-		    !(domain & fwrt->trans->dbg.domains_bitmap))
-			continue;
 
 		iwl_dbg_tlv_add_active_trigger(fwrt, active_trig_list, tlv);
 	}
@@ -980,8 +978,6 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 {
 	enum iwl_fw_ini_buffer_location *ini_dest = &fwrt->trans->dbg.ini_dest;
 	int ret, i;
-
-	fwrt->trans->dbg.domains_bitmap = IWL_FW_DBG_DOMAIN;
 
 	IWL_DEBUG_FW(fwrt,
 		     "WRT: Generating active triggers list, domain 0x%x\n",
