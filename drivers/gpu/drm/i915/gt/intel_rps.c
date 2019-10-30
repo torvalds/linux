@@ -641,9 +641,6 @@ static void gen6_rps_set_thresholds(struct intel_rps *rps, u8 val)
 
 void intel_rps_mark_interactive(struct intel_rps *rps, bool interactive)
 {
-	if (!rps->enabled)
-		return;
-
 	mutex_lock(&rps->power.mutex);
 	if (interactive) {
 		if (!rps->power.interactive++ && rps->active)
@@ -1609,16 +1606,19 @@ void gen5_rps_irq_handler(struct intel_rps *rps)
 	spin_unlock(&mchdev_lock);
 }
 
-void intel_rps_init(struct intel_rps *rps)
+void intel_rps_init_early(struct intel_rps *rps)
 {
-	struct drm_i915_private *i915 = rps_to_i915(rps);
-
 	mutex_init(&rps->lock);
 	mutex_init(&rps->power.mutex);
 
 	INIT_WORK(&rps->work, rps_work);
 
 	atomic_set(&rps->num_waiters, 0);
+}
+
+void intel_rps_init(struct intel_rps *rps)
+{
+	struct drm_i915_private *i915 = rps_to_i915(rps);
 
 	if (IS_CHERRYVIEW(i915))
 		chv_rps_init(rps);

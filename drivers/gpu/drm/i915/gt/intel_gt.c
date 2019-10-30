@@ -26,6 +26,8 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 	intel_gt_init_reset(gt);
 	intel_gt_init_requests(gt);
 	intel_gt_pm_init_early(gt);
+
+	intel_rps_init_early(&gt->rps);
 	intel_uc_init_early(&gt->uc);
 }
 
