@@ -187,7 +187,7 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 			pcm_chunks[1] += 2;
 		}
 	} else {
-		if (flags & SND_MOTU_SPEC_RX_SEPARETED_MAIN) {
+		if (flags & SND_MOTU_SPEC_RX_SEPARATED_MAIN) {
 			pcm_chunks[0] += 2;
 			pcm_chunks[1] += 2;
 		}
