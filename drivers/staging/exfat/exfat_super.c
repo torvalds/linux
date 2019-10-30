@@ -284,7 +284,7 @@ static const struct dentry_operations exfat_dentry_ops = {
 	.d_compare      = exfat_cmp,
 };
 
-static DEFINE_SEMAPHORE(z_sem);
+static DEFINE_MUTEX(z_mutex);
 
 static inline void fs_sync(struct super_block *sb, bool do_sync)
 {
@@ -353,11 +353,11 @@ static int ffsMountVol(struct super_block *sb)
 
 	pr_info("[EXFAT] trying to mount...\n");
 
-	down(&z_sem);
+	mutex_lock(&z_mutex);
 
 	buf_init(sb);
 
-	sema_init(&p_fs->v_sem, 1);
+	mutex_init(&p_fs->v_mutex);
 	p_fs->dev_ejected = 0;
 
 	/* open the block device */
@@ -442,7 +442,7 @@ static int ffsMountVol(struct super_block *sb)
 	pr_info("[EXFAT] mounted successfully\n");
 
 out:
-	up(&z_sem);
+	mutex_unlock(&z_mutex);
 
 	return ret;
 }
@@ -454,10 +454,10 @@ static int ffsUmountVol(struct super_block *sb)
 
 	pr_info("[EXFAT] trying to unmount...\n");
 
-	down(&z_sem);
+	mutex_lock(&z_mutex);
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	fs_sync(sb, true);
 	fs_set_vol_flags(sb, VOL_CLEAN);
@@ -481,8 +481,8 @@ static int ffsUmountVol(struct super_block *sb)
 	buf_shutdown(sb);
 
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
-	up(&z_sem);
+	mutex_unlock(&p_fs->v_mutex);
+	mutex_unlock(&z_mutex);
 
 	pr_info("[EXFAT] unmounted successfully\n");
 
@@ -499,7 +499,7 @@ static int ffsGetVolInfo(struct super_block *sb, struct vol_info_t *info)
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	if (p_fs->used_clusters == UINT_MAX)
 		p_fs->used_clusters = p_fs->fs_func->count_used_clusters(sb);
@@ -514,7 +514,7 @@ static int ffsGetVolInfo(struct super_block *sb, struct vol_info_t *info)
 		err = FFS_MEDIAERR;
 
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return err;
 }
@@ -525,7 +525,7 @@ static int ffsSyncVol(struct super_block *sb, bool do_sync)
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	/* synchronize the file system */
 	fs_sync(sb, do_sync);
@@ -535,7 +535,7 @@ static int ffsSyncVol(struct super_block *sb, bool do_sync)
 		err = FFS_MEDIAERR;
 
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return err;
 }
@@ -562,7 +562,7 @@ static int ffsLookupFile(struct inode *inode, char *path, struct file_id_t *fid)
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	/* check the validity of directory name in the given pathname */
 	ret = resolve_path(inode, path, &dir, &uni_name);
@@ -636,7 +636,7 @@ static int ffsLookupFile(struct inode *inode, char *path, struct file_id_t *fid)
 		ret = FFS_MEDIAERR;
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -655,7 +655,7 @@ static int ffsCreateFile(struct inode *inode, char *path, u8 mode,
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	/* check the validity of directory name in the given pathname */
 	ret = resolve_path(inode, path, &dir, &uni_name);
@@ -677,7 +677,7 @@ static int ffsCreateFile(struct inode *inode, char *path, u8 mode,
 
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -704,7 +704,7 @@ static int ffsReadFile(struct inode *inode, struct file_id_t *fid, void *buffer,
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	/* check if the given file ID is opened */
 	if (fid->type != TYPE_FILE) {
@@ -801,7 +801,7 @@ err_out:
 
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -834,7 +834,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	/* check if the given file ID is opened */
 	if (fid->type != TYPE_FILE) {
@@ -1059,7 +1059,7 @@ err_out:
 
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -1082,7 +1082,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 		 new_size);
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	/* check if the given file ID is opened */
 	if (fid->type != TYPE_FILE) {
@@ -1192,7 +1192,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 out:
 	pr_debug("%s exited (%d)\n", __func__, ret);
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -1240,7 +1240,7 @@ static int ffsMoveFile(struct inode *old_parent_inode, struct file_id_t *fid,
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	update_parent_info(fid, old_parent_inode);
 
@@ -1338,7 +1338,7 @@ out:
 		ret = FFS_MEDIAERR;
 out2:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -1357,7 +1357,7 @@ static int ffsRemoveFile(struct inode *inode, struct file_id_t *fid)
 		return FFS_INVALIDFID;
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	dir.dir = fid->dir.dir;
 	dir.size = fid->dir.size;
@@ -1400,7 +1400,7 @@ static int ffsRemoveFile(struct inode *inode, struct file_id_t *fid)
 		ret = FFS_MEDIAERR;
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -1435,7 +1435,7 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 	}
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	/* get the directory entry of given file */
 	if (p_fs->vol_type == EXFAT) {
@@ -1489,7 +1489,7 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 		ret = FFS_MEDIAERR;
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -1513,7 +1513,7 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 	pr_debug("%s entered\n", __func__);
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	if (is_dir) {
 		if ((fid->dir.dir == p_fs->root_dir) &&
@@ -1642,7 +1642,7 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	pr_debug("%s exited successfully\n", __func__);
 	return ret;
@@ -1663,7 +1663,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 	pr_debug("%s entered (inode %p info %p\n", __func__, inode, info);
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	if (is_dir) {
 		if ((fid->dir.dir == p_fs->root_dir) &&
@@ -1729,7 +1729,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	pr_debug("%s exited (%d)\n", __func__, ret);
 
@@ -1755,7 +1755,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	fid->rwoffset = (s64)(clu_offset) << p_fs->cluster_size_bits;
 
@@ -1883,7 +1883,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -1907,7 +1907,7 @@ static int ffsCreateDir(struct inode *inode, char *path, struct file_id_t *fid)
 		return FFS_ERROR;
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	/* check the validity of directory name in the given old pathname */
 	ret = resolve_path(inode, path, &dir, &uni_name);
@@ -1927,7 +1927,7 @@ static int ffsCreateDir(struct inode *inode, char *path, struct file_id_t *fid)
 		ret = FFS_MEDIAERR;
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -1957,7 +1957,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 		return -EPERM;
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	if (fid->entry == -1) {
 		dir.dir = p_fs->root_dir;
@@ -2126,7 +2126,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -2156,7 +2156,7 @@ static int ffsRemoveDir(struct inode *inode, struct file_id_t *fid)
 	}
 
 	/* acquire the lock for file system critical section */
-	down(&p_fs->v_sem);
+	mutex_lock(&p_fs->v_mutex);
 
 	clu_to_free.dir = fid->start_clu;
 	clu_to_free.size = (s32)((fid->size - 1) >> p_fs->cluster_size_bits) + 1;
@@ -2189,7 +2189,7 @@ static int ffsRemoveDir(struct inode *inode, struct file_id_t *fid)
 
 out:
 	/* release the lock for file system critical section */
-	up(&p_fs->v_sem);
+	mutex_unlock(&p_fs->v_mutex);
 
 	return ret;
 }
@@ -4036,10 +4036,10 @@ static void exfat_debug_kill_sb(struct super_block *sb)
 			 * invalidate_bdev drops all device cache include
 			 * dirty. We use this to simulate device removal.
 			 */
-			down(&p_fs->v_sem);
+			mutex_lock(&p_fs->v_mutex);
 			FAT_release_all(sb);
 			buf_release_all(sb);
-			up(&p_fs->v_sem);
+			mutex_unlock(&p_fs->v_mutex);
 
 			invalidate_bdev(bdev);
 		}

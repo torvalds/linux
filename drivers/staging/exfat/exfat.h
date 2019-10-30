@@ -610,7 +610,7 @@ struct fs_info_t {
 	u32 dev_ejected;	/* block device operation error flag */
 
 	struct fs_func *fs_func;
-	struct semaphore v_sem;
+	struct mutex v_mutex;
 
 	/* FAT cache */
 	struct buf_cache_t FAT_cache_array[FAT_CACHE_SIZE];
