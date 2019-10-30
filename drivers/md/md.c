@@ -1105,6 +1105,7 @@ static int super_90_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor
 	char b[BDEVNAME_SIZE], b2[BDEVNAME_SIZE];
 	mdp_super_t *sb;
 	int ret;
+	bool spare_disk = true;
 
 	/*
 	 * Calculate the position of the superblock (512byte sectors),
@@ -1155,13 +1156,15 @@ static int super_90_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor
 	else
 		rdev->desc_nr = sb->this_disk.number;
 
+	/* not spare disk, or LEVEL_MULTIPATH */
+	if (sb->level == LEVEL_MULTIPATH ||
+		(rdev->desc_nr >= 0 &&
+		 sb->disks[rdev->desc_nr].state &
+		 ((1<<MD_DISK_SYNC) | (1 << MD_DISK_ACTIVE))))
+		spare_disk = false;
+
 	if (!refdev) {
-		/*
-		 * Insist on good event counter while assembling, except
-		 * for spares (which don't need an event count)
-		 */
-		if (sb->disks[rdev->desc_nr].state & (
-			(1<<MD_DISK_SYNC) | (1 << MD_DISK_ACTIVE)))
+		if (!spare_disk)
 			ret = 1;
 		else
 			ret = 0;
@@ -1181,13 +1184,7 @@ static int super_90_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor
 		ev1 = md_event(sb);
 		ev2 = md_event(refsb);
 
-		/*
-		 * Insist on good event counter while assembling, except
-		 * for spares (which don't need an event count)
-		 */
-		if (sb->disks[rdev->desc_nr].state & (
-			(1<<MD_DISK_SYNC) | (1 << MD_DISK_ACTIVE)) &&
-			(ev1 > ev2))
+		if (!spare_disk && ev1 > ev2)
 			ret = 1;
 		else
 			ret = 0;
@@ -1547,7 +1544,7 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 	sector_t sectors;
 	char b[BDEVNAME_SIZE], b2[BDEVNAME_SIZE];
 	int bmask;
-	__u64 role;
+	bool spare_disk = true;
 
 	/*
 	 * Calculate the position of the superblock in 512byte sectors.
@@ -1681,17 +1678,16 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 	    sb->level != 0)
 		return -EINVAL;
 
-	role = le16_to_cpu(sb->dev_roles[rdev->desc_nr]);
+	/* not spare disk, or LEVEL_MULTIPATH */
+	if (sb->level == cpu_to_le32(LEVEL_MULTIPATH) ||
+		(rdev->desc_nr >= 0 &&
+		rdev->desc_nr < le32_to_cpu(sb->max_dev) &&
+		(le16_to_cpu(sb->dev_roles[rdev->desc_nr]) < MD_DISK_ROLE_MAX ||
+		 le16_to_cpu(sb->dev_roles[rdev->desc_nr]) == MD_DISK_ROLE_JOURNAL)))
+		spare_disk = false;
 
 	if (!refdev) {
-		/*
-		 * Insist of good event counter while assembling, except for
-		 * spares (which don't need an event count)
-		 */
-		if (rdev->desc_nr >= 0 &&
-		    rdev->desc_nr < le32_to_cpu(sb->max_dev) &&
-			(role < MD_DISK_ROLE_MAX ||
-			 role == MD_DISK_ROLE_JOURNAL))
+		if (!spare_disk)
 			ret = 1;
 		else
 			ret = 0;
@@ -1711,14 +1707,7 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 		ev1 = le64_to_cpu(sb->events);
 		ev2 = le64_to_cpu(refsb->events);
 
-		/*
-		 * Insist of good event counter while assembling, except for
-		 * spares (which don't need an event count)
-		 */
-		if (rdev->desc_nr >= 0 &&
-		    rdev->desc_nr < le32_to_cpu(sb->max_dev) &&
-			(role < MD_DISK_ROLE_MAX ||
-			 role == MD_DISK_ROLE_JOURNAL) && ev1 > ev2)
+		if (!spare_disk && ev1 > ev2)
 			ret = 1;
 		else
 			ret = 0;
