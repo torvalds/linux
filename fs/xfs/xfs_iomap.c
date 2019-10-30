@@ -116,7 +116,7 @@ xfs_iomap_end_fsb(
 		   XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes));
 }
 
-xfs_extlen_t
+static xfs_extlen_t
 xfs_eof_alignment(
 	struct xfs_inode	*ip,
 	xfs_extlen_t		extsize)
