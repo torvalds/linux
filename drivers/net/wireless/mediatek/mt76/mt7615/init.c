@@ -13,9 +13,9 @@
 
 static void mt7615_phy_init(struct mt7615_dev *dev)
 {
-	/* disable band 0 rf low power beacon mode */
-	mt76_rmw(dev, MT_WF_PHY_WF2_RFCTRL0, MT_WF_PHY_WF2_RFCTRL0_LPBCN_EN,
-		 MT_WF_PHY_WF2_RFCTRL0_LPBCN_EN);
+	/* disable rf low power beacon mode */
+	mt76_set(dev, MT_WF_PHY_WF2_RFCTRL0(0), MT_WF_PHY_WF2_RFCTRL0_LPBCN_EN);
+	mt76_set(dev, MT_WF_PHY_WF2_RFCTRL0(1), MT_WF_PHY_WF2_RFCTRL0_LPBCN_EN);
 }
 
 static void mt7615_mac_init(struct mt7615_dev *dev)

@@ -81,7 +81,7 @@
 #define MT_WF_PHY_BASE			0x10000
 #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))
 
-#define MT_WF_PHY_WF2_RFCTRL0		MT_WF_PHY(0x1900)
+#define MT_WF_PHY_WF2_RFCTRL0(n)	MT_WF_PHY(0x1900 + ((n) * 0x400))
 #define MT_WF_PHY_WF2_RFCTRL0_LPBCN_EN	BIT(9)
 
 #define MT_WF_PHY_R0_PHYMUX_5(_phy)	MT_WF_PHY(0x0614 + ((_phy) << 9))
