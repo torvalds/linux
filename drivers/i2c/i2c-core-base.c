@@ -769,7 +769,9 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	/* Check for address business */
 	status = i2c_check_addr_ex(adap, i2c_encode_flags_to_addr(client));
 	if (status)
-		goto out_err;
+		dev_err(&adap->dev,
+			"%d i2c clients have been registered at 0x%02x",
+			status, client->addr);
 
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
@@ -803,10 +805,6 @@ out_free_props:
 		device_remove_properties(&client->dev);
 out_err_put_of_node:
 	of_node_put(info->of_node);
-out_err:
-	dev_err(&adap->dev,
-		"Failed to register i2c client %s at 0x%02x (%d)\n",
-		client->name, client->addr, status);
 out_err_silent:
 	kfree(client);
 	return NULL;
