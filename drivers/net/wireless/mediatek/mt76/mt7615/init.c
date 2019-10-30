@@ -256,22 +256,10 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 	mt7615_dfs_init_radar_detector(phy);
 }
 
-int mt7615_register_device(struct mt7615_dev *dev)
+static void
+mt7615_init_wiphy(struct ieee80211_hw *hw)
 {
-	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct wiphy *wiphy = hw->wiphy;
-	int ret;
-
-	dev->phy.dev = dev;
-	dev->phy.mt76 = &dev->mt76.phy;
-	dev->mt76.phy.priv = &dev->phy;
-	INIT_DELAYED_WORK(&dev->mt76.mac_work, mt7615_mac_work);
-	INIT_LIST_HEAD(&dev->sta_poll_list);
-	spin_lock_init(&dev->sta_poll_lock);
-
-	ret = mt7615_init_hardware(dev);
-	if (ret)
-		return ret;
 
 	hw->queues = 4;
 	hw->max_rates = 3;
@@ -290,13 +278,113 @@ int mt7615_register_device(struct mt7615_dev *dev)
 
 	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
 
+	hw->max_tx_fragments = MT_TXP_MAX_BUF_NUM;
+}
+
+static void
+mt7615_cap_dbdc_enable(struct mt7615_dev *dev)
+{
+	dev->mphy.sband_5g.sband.vht_cap.cap &=
+			~(IEEE80211_VHT_CAP_SHORT_GI_160 |
+			  IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ);
+	if (dev->chainmask == 0xf)
+		dev->mphy.antenna_mask = dev->chainmask >> 2;
+	else
+		dev->mphy.antenna_mask = dev->chainmask >> 1;
+	dev->phy.chainmask = dev->mphy.antenna_mask;
+	mt76_set_stream_caps(&dev->mt76, true);
+}
+
+static void
+mt7615_cap_dbdc_disable(struct mt7615_dev *dev)
+{
+	dev->mphy.sband_5g.sband.vht_cap.cap |=
+			IEEE80211_VHT_CAP_SHORT_GI_160 |
+			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
+	dev->mphy.antenna_mask = dev->chainmask;
+	dev->phy.chainmask = dev->chainmask;
+	mt76_set_stream_caps(&dev->mt76, true);
+}
+
+int mt7615_register_ext_phy(struct mt7615_dev *dev)
+{
+	struct mt7615_phy *phy = mt7615_ext_phy(dev);
+	struct mt76_phy *mphy;
+	int ret;
+
+	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
+		return -EINVAL;
+
+	if (phy)
+		return 0;
+
+	mt7615_cap_dbdc_enable(dev);
+	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7615_ops);
+	if (!mphy)
+		return -ENOMEM;
+
+	phy = mphy->priv;
+	phy->dev = dev;
+	phy->mt76 = mphy;
+	phy->chainmask = dev->chainmask & ~dev->phy.chainmask;
+	mphy->antenna_mask = BIT(hweight8(phy->chainmask)) - 1;
+	mt7615_init_wiphy(mphy->hw);
+
+	/*
+	 * Make the secondary PHY MAC address local without overlapping with
+	 * the usual MAC address allocation scheme on multiple virtual interfaces
+	 */
+	mphy->hw->wiphy->perm_addr[0] |= 2;
+	mphy->hw->wiphy->perm_addr[0] ^= BIT(7);
+
+	/* second phy can only handle 5 GHz */
+	mphy->sband_2g.sband.n_channels = 0;
+	mphy->hw->wiphy->bands[NL80211_BAND_2GHZ] = NULL;
+
+	ret = mt76_register_phy(mphy);
+	if (ret)
+		ieee80211_free_hw(mphy->hw);
+
+	return ret;
+}
+
+void mt7615_unregister_ext_phy(struct mt7615_dev *dev)
+{
+	struct mt7615_phy *phy = mt7615_ext_phy(dev);
+	struct mt76_phy *mphy = dev->mt76.phy2;
+
+	if (!phy)
+		return;
+
+	mt7615_cap_dbdc_disable(dev);
+	mt76_unregister_phy(mphy);
+	ieee80211_free_hw(mphy->hw);
+}
+
+
+int mt7615_register_device(struct mt7615_dev *dev)
+{
+	struct ieee80211_hw *hw = mt76_hw(dev);
+	int ret;
+
+	dev->phy.dev = dev;
+	dev->phy.mt76 = &dev->mt76.phy;
+	dev->mt76.phy.priv = &dev->phy;
+	INIT_DELAYED_WORK(&dev->mt76.mac_work, mt7615_mac_work);
+	INIT_LIST_HEAD(&dev->sta_poll_list);
+	spin_lock_init(&dev->sta_poll_lock);
+
+	ret = mt7615_init_hardware(dev);
+	if (ret)
+		return ret;
+
+	mt7615_init_wiphy(hw);
 	dev->mphy.sband_2g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
 	dev->mphy.sband_5g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
 	dev->mphy.sband_5g.sband.vht_cap.cap |=
-			IEEE80211_VHT_CAP_SHORT_GI_160 |
 			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
-			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK |
-			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
+			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
+	mt7615_cap_dbdc_disable(dev);
 	dev->phy.dfs_state = -1;
 
 	ret = mt76_register_device(&dev->mt76, true, mt7615_rates,
@@ -307,8 +395,6 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	mt7615_init_txpower(dev, &dev->mphy.sband_2g.sband);
 	mt7615_init_txpower(dev, &dev->mphy.sband_5g.sband);
 
-	hw->max_tx_fragments = MT_TXP_MAX_BUF_NUM;
-
 	return mt7615_init_debugfs(dev);
 }
 
@@ -317,6 +403,7 @@ void mt7615_unregister_device(struct mt7615_dev *dev)
 	struct mt76_txwi_cache *txwi;
 	int id;
 
+	mt7615_unregister_ext_phy(dev);
 	mt76_unregister_device(&dev->mt76);
 	mt7615_mcu_exit(dev);
 	mt7615_dma_cleanup(dev);

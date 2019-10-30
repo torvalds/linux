@@ -115,6 +115,8 @@ struct mt7615_dev {
 	u32 vif_mask;
 	u32 omac_mask;
 
+	u16 chainmask;
+
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;
 
@@ -211,6 +213,8 @@ u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
 
 int mt7615_register_device(struct mt7615_dev *dev);
 void mt7615_unregister_device(struct mt7615_dev *dev);
+int mt7615_register_ext_phy(struct mt7615_dev *dev);
+void mt7615_unregister_ext_phy(struct mt7615_dev *dev);
 int mt7615_eeprom_init(struct mt7615_dev *dev);
 int mt7615_eeprom_get_power_index(struct mt7615_dev *dev,
 				  struct ieee80211_channel *chan,

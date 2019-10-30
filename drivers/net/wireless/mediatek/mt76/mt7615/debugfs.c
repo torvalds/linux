@@ -37,6 +37,32 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_scs, mt7615_scs_get,
 			 mt7615_scs_set, "%lld\n");
 
 static int
+mt7615_dbdc_set(void *data, u64 val)
+{
+	struct mt7615_dev *dev = data;
+
+	if (val)
+		mt7615_register_ext_phy(dev);
+	else
+		mt7615_unregister_ext_phy(dev);
+
+	return 0;
+}
+
+static int
+mt7615_dbdc_get(void *data, u64 *val)
+{
+	struct mt7615_dev *dev = data;
+
+	*val = !!mt7615_ext_phy(dev);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_dbdc, mt7615_dbdc_get,
+			 mt7615_dbdc_set, "%lld\n");
+
+static int
 mt7615_ampdu_stat_read(struct seq_file *file, void *data)
 {
 	struct mt7615_dev *dev = file->private;
@@ -183,6 +209,7 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 				    mt7615_queues_acq);
 	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
 	debugfs_create_file("scs", 0600, dir, dev, &fops_scs);
+	debugfs_create_file("dbdc", 0600, dir, dev, &fops_dbdc);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "radio", dir,
 				    mt7615_radio_read);
 	debugfs_create_u32("dfs_hw_pattern", 0400, dir, &dev->hw_pattern);
