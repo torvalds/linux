@@ -290,7 +290,6 @@ config INPUT_GPIO_BEEPER
 config INPUT_GPIO_DECODER
 	tristate "Polled GPIO Decoder Input driver"
 	depends on GPIOLIB || COMPILE_TEST
-	select INPUT_POLLDEV
 	help
 	 Say Y here if you want driver to read status of multiple GPIO
 	 lines and report the encoded value as an absolute integer to
