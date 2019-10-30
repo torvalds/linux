@@ -3423,8 +3423,10 @@ static void tegra210_cpu_clock_resume(void)
 #endif
 
 static struct syscore_ops tegra_clk_syscore_ops = {
+#ifdef CONFIG_PM_SLEEP
 	.suspend = tegra210_clk_suspend,
 	.resume = tegra210_clk_resume,
+#endif
 };
 
 static struct tegra_cpu_car_ops tegra210_cpu_car_ops = {
