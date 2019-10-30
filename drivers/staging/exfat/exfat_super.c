@@ -864,7 +864,8 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 
 	while (count > 0) {
 		clu_offset = (s32)(fid->rwoffset >> p_fs->cluster_size_bits);
-		clu = last_clu = fid->start_clu;
+		clu = fid->start_clu;
+		last_clu = fid->start_clu;
 
 		if (fid->flags == 0x03) {
 			if ((clu_offset > 0) && (clu != CLUSTER_32(~0))) {
@@ -2351,6 +2352,7 @@ static int exfat_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 			bool excl)
 {
 	struct super_block *sb = dir->i_sb;
+	struct timespec64 curtime;
 	struct inode *inode;
 	struct file_id_t fid;
 	loff_t i_pos;
@@ -2375,7 +2377,10 @@ static int exfat_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		goto out;
 	}
 	INC_IVERSION(dir);
-	dir->i_ctime = dir->i_mtime = dir->i_atime = current_time(dir);
+	curtime = current_time(dir);
+	dir->i_ctime = curtime;
+	dir->i_mtime = curtime;
+	dir->i_atime = curtime;
 	if (IS_DIRSYNC(dir))
 		(void)exfat_sync_inode(dir);
 	else
@@ -2389,7 +2394,10 @@ static int exfat_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		goto out;
 	}
 	INC_IVERSION(inode);
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	curtime = current_time(inode);
+	inode->i_mtime = curtime;
+	inode->i_atime = curtime;
+	inode->i_ctime = curtime;
 	/*
 	 * timestamp is already written, so mark_inode_dirty() is unnecessary.
 	 */
@@ -2522,6 +2530,7 @@ static int exfat_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	struct super_block *sb = dir->i_sb;
+	struct timespec64 curtime;
 	int err;
 
 	__lock_super(sb);
@@ -2539,14 +2548,18 @@ static int exfat_unlink(struct inode *dir, struct dentry *dentry)
 		goto out;
 	}
 	INC_IVERSION(dir);
-	dir->i_mtime = dir->i_atime = current_time(dir);
+	curtime = current_time(dir);
+	dir->i_mtime = curtime;
+	dir->i_atime = curtime;
 	if (IS_DIRSYNC(dir))
 		(void)exfat_sync_inode(dir);
 	else
 		mark_inode_dirty(dir);
 
 	clear_nlink(inode);
-	inode->i_mtime = inode->i_atime = current_time(inode);
+	curtime = current_time(inode);
+	inode->i_mtime = curtime;
+	inode->i_atime = curtime;
 	exfat_detach(inode);
 	remove_inode_hash(inode);
 
@@ -2560,6 +2573,7 @@ static int exfat_symlink(struct inode *dir, struct dentry *dentry,
 			 const char *target)
 {
 	struct super_block *sb = dir->i_sb;
+	struct timespec64 curtime;
 	struct inode *inode;
 	struct file_id_t fid;
 	loff_t i_pos;
@@ -2597,7 +2611,10 @@ static int exfat_symlink(struct inode *dir, struct dentry *dentry,
 	}
 
 	INC_IVERSION(dir);
-	dir->i_ctime = dir->i_mtime = dir->i_atime = current_time(dir);
+	curtime = current_time(dir);
+	dir->i_ctime = curtime;
+	dir->i_mtime = curtime;
+	dir->i_atime = curtime;
 	if (IS_DIRSYNC(dir))
 		(void)exfat_sync_inode(dir);
 	else
@@ -2611,7 +2628,10 @@ static int exfat_symlink(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 	INC_IVERSION(inode);
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	curtime = current_time(inode);
+	inode->i_mtime = curtime;
+	inode->i_atime = curtime;
+	inode->i_ctime = curtime;
 	/* timestamp is already written, so mark_inode_dirty() is unneeded. */
 
 	EXFAT_I(inode)->target = kmemdup(target, len + 1, GFP_KERNEL);
@@ -2632,6 +2652,7 @@ out:
 static int exfat_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
+	struct timespec64 curtime;
 	struct inode *inode;
 	struct file_id_t fid;
 	loff_t i_pos;
@@ -2656,7 +2677,10 @@ static int exfat_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out;
 	}
 	INC_IVERSION(dir);
-	dir->i_ctime = dir->i_mtime = dir->i_atime = current_time(dir);
+	curtime = current_time(dir);
+	dir->i_ctime = curtime;
+	dir->i_mtime = curtime;
+	dir->i_atime = curtime;
 	if (IS_DIRSYNC(dir))
 		(void)exfat_sync_inode(dir);
 	else
@@ -2671,7 +2695,10 @@ static int exfat_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out;
 	}
 	INC_IVERSION(inode);
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	curtime = current_time(inode);
+	inode->i_mtime = curtime;
+	inode->i_atime = curtime;
+	inode->i_ctime = curtime;
 	/* timestamp is already written, so mark_inode_dirty() is unneeded. */
 
 	dentry->d_time = GET_IVERSION(dentry->d_parent->d_inode);
@@ -2687,6 +2714,7 @@ static int exfat_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	struct super_block *sb = dir->i_sb;
+	struct timespec64 curtime;
 	int err;
 
 	__lock_super(sb);
@@ -2710,7 +2738,9 @@ static int exfat_rmdir(struct inode *dir, struct dentry *dentry)
 		goto out;
 	}
 	INC_IVERSION(dir);
-	dir->i_mtime = dir->i_atime = current_time(dir);
+	curtime = current_time(dir);
+	dir->i_mtime = curtime;
+	dir->i_atime = curtime;
 	if (IS_DIRSYNC(dir))
 		(void)exfat_sync_inode(dir);
 	else
@@ -2718,7 +2748,9 @@ static int exfat_rmdir(struct inode *dir, struct dentry *dentry)
 	drop_nlink(dir);
 
 	clear_nlink(inode);
-	inode->i_mtime = inode->i_atime = current_time(inode);
+	curtime = current_time(inode);
+	inode->i_mtime = curtime;
+	inode->i_atime = curtime;
 	exfat_detach(inode);
 	remove_inode_hash(inode);
 
@@ -2734,6 +2766,7 @@ static int exfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 {
 	struct inode *old_inode, *new_inode;
 	struct super_block *sb = old_dir->i_sb;
+	struct timespec64 curtime;
 	loff_t i_pos;
 	int err;
 
@@ -2767,8 +2800,11 @@ static int exfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out;
 	}
 	INC_IVERSION(new_dir);
-	new_dir->i_ctime = new_dir->i_mtime = new_dir->i_atime =
-				current_time(new_dir);
+	curtime = current_time(new_dir);
+	new_dir->i_ctime = curtime;
+	new_dir->i_mtime = curtime;
+	new_dir->i_atime = curtime;
+
 	if (IS_DIRSYNC(new_dir))
 		(void)exfat_sync_inode(new_dir);
 	else
@@ -2790,7 +2826,9 @@ static int exfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 			inc_nlink(new_dir);
 	}
 	INC_IVERSION(old_dir);
-	old_dir->i_ctime = old_dir->i_mtime = current_time(old_dir);
+	curtime = current_time(old_dir);
+	old_dir->i_ctime = curtime;
+	old_dir->i_mtime = curtime;
 	if (IS_DIRSYNC(old_dir))
 		(void)exfat_sync_inode(old_dir);
 	else
@@ -2814,13 +2852,16 @@ static int exfat_cont_expand(struct inode *inode, loff_t size)
 {
 	struct address_space *mapping = inode->i_mapping;
 	loff_t start = i_size_read(inode), count = size - i_size_read(inode);
+	struct timespec64 curtime;
 	int err, err2;
 
 	err = generic_cont_expand_simple(inode, size);
 	if (err != 0)
 		return err;
 
-	inode->i_ctime = inode->i_mtime = current_time(inode);
+	curtime = current_time(inode);
+	inode->i_ctime = curtime;
+	inode->i_mtime = curtime;
 	mark_inode_dirty(inode);
 
 	if (IS_SYNC(inode)) {
@@ -2896,6 +2937,7 @@ static void exfat_truncate(struct inode *inode, loff_t old_size)
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct fs_info_t *p_fs = &sbi->fs_info;
+	struct timespec64 curtime;
 	int err;
 
 	__lock_super(sb);
@@ -2914,7 +2956,9 @@ static void exfat_truncate(struct inode *inode, loff_t old_size)
 	if (err)
 		goto out;
 
-	inode->i_ctime = inode->i_mtime = current_time(inode);
+	curtime = current_time(inode);
+	inode->i_ctime = curtime;
+	inode->i_mtime = curtime;
 	if (IS_DIRSYNC(inode))
 		(void)exfat_sync_inode(inode);
 	else
@@ -3215,6 +3259,7 @@ static int exfat_write_end(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	struct file_id_t *fid = &(EXFAT_I(inode)->fid);
+	struct timespec64 curtime;
 	int err;
 
 	err = generic_write_end(file, mapping, pos, len, copied, pagep, fsdata);
@@ -3223,7 +3268,9 @@ static int exfat_write_end(struct file *file, struct address_space *mapping,
 		exfat_write_failed(mapping, pos + len);
 
 	if (!(err < 0) && !(fid->attr & ATTR_ARCHIVE)) {
-		inode->i_mtime = inode->i_ctime = current_time(inode);
+		curtime = current_time(inode);
+		inode->i_mtime = curtime;
+		inode->i_ctime = curtime;
 		fid->attr |= ATTR_ARCHIVE;
 		mark_inode_dirty(inode);
 	}
@@ -3674,7 +3721,8 @@ static int parse_options(char *options, int silent, int *debug,
 
 	opts->fs_uid = current_uid();
 	opts->fs_gid = current_gid();
-	opts->fs_fmask = opts->fs_dmask = current->fs->umask;
+	opts->fs_fmask = current->fs->umask;
+	opts->fs_dmask = current->fs->umask;
 	opts->allow_utime = U16_MAX;
 	opts->codepage = exfat_default_codepage;
 	opts->iocharset = exfat_default_iocharset;
@@ -3788,6 +3836,7 @@ static int exfat_read_root(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct fs_info_t *p_fs = &sbi->fs_info;
+	struct timespec64 curtime;
 	struct dir_entry_t info;
 
 	EXFAT_I(inode)->fid.dir.dir = p_fs->root_dir;
@@ -3818,7 +3867,10 @@ static int exfat_read_root(struct inode *inode)
 	EXFAT_I(inode)->mmu_private = i_size_read(inode);
 
 	exfat_save_attr(inode, ATTR_SUBDIR);
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	curtime = current_time(inode);
+	inode->i_mtime = curtime;
+	inode->i_atime = curtime;
+	inode->i_ctime = curtime;
 	set_nlink(inode, info.NumSubdirs + 2);
 
 	return 0;

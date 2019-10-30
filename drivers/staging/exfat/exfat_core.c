@@ -470,7 +470,8 @@ s32 exfat_count_used_clusters(struct super_block *sb)
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 
-	map_i = map_b = 0;
+	map_i = 0;
+	map_b = 0;
 
 	for (i = 2; i < p_fs->num_clusters; i += 8) {
 		k = *(((u8 *)p_fs->vol_amap[map_i]->b_data) + map_b);
