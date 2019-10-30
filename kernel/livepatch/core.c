@@ -22,6 +22,7 @@
 #include <asm/cacheflush.h>
 #include "core.h"
 #include "patch.h"
+#include "state.h"
 #include "transition.h"
 
 /*
@@ -1008,6 +1009,13 @@ int klp_enable_patch(struct klp_patch *patch)
 	}
 
 	mutex_lock(&klp_mutex);
+
+	if (!klp_is_patch_compatible(patch)) {
+		pr_err("Livepatch patch (%s) is not compatible with the already installed livepatches.\n",
+			patch->mod->name);
+		mutex_unlock(&klp_mutex);
+		return -EINVAL;
+	}
 
 	ret = klp_init_patch_early(patch);
 	if (ret) {

@@ -133,10 +133,12 @@ struct klp_object {
 /**
  * struct klp_state - state of the system modified by the livepatch
  * @id:		system state identifier (non-zero)
+ * @version:	version of the change
  * @data:	custom data
  */
 struct klp_state {
 	unsigned long id;
+	unsigned int version;
 	void *data;
 };
 

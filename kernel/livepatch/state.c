@@ -9,6 +9,7 @@
 
 #include <linux/livepatch.h>
 #include "core.h"
+#include "state.h"
 #include "transition.h"
 
 #define klp_for_each_state(patch, state)		\
@@ -81,3 +82,38 @@ out:
 	return last_state;
 }
 EXPORT_SYMBOL_GPL(klp_get_prev_state);
+
+/* Check if the patch is able to deal with the existing system state. */
+static bool klp_is_state_compatible(struct klp_patch *patch,
+				    struct klp_state *old_state)
+{
+	struct klp_state *state;
+
+	state = klp_get_state(patch, old_state->id);
+
+	/* A cumulative livepatch must handle all already modified states. */
+	if (!state)
+		return !patch->replace;
+
+	return state->version >= old_state->version;
+}
+
+/*
+ * Check that the new livepatch will not break the existing system states.
+ * Cumulative patches must handle all already modified states.
+ * Non-cumulative patches can touch already modified states.
+ */
+bool klp_is_patch_compatible(struct klp_patch *patch)
+{
+	struct klp_patch *old_patch;
+	struct klp_state *old_state;
+
+	klp_for_each_patch(old_patch) {
+		klp_for_each_state(old_patch, old_state) {
+			if (!klp_is_state_compatible(patch, old_state))
+				return false;
+		}
+	}
+
+	return true;
+}
