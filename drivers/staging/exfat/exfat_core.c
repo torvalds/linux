@@ -1703,7 +1703,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 	size_t bufsize;
 
 	pr_debug("%s entered p_dir dir %u flags %x size %d\n",
-		__func__, p_dir->dir, p_dir->flags, p_dir->size);
+		 __func__, p_dir->dir, p_dir->flags, p_dir->size);
 
 	byte_offset = entry << DENTRY_SIZE_BITS;
 	ret = _walk_fat_chain(sb, p_dir, byte_offset, &clu);
@@ -1835,8 +1835,8 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 		*file_ep = (struct dentry_t *)&es->__buf;
 
 	pr_debug("%s exiting es %p sec %llu offset %d flags %d, num_entries %u buf ptr %p\n",
-		   __func__, es, (unsigned long long)es->sector, es->offset,
-		   es->alloc_flag, es->num_entries, &es->__buf);
+		 __func__, es, (unsigned long long)es->sector, es->offset,
+		 es->alloc_flag, es->num_entries, &es->__buf);
 	return es;
 err_out:
 	pr_debug("%s exited NULL (es %p)\n", __func__, es);
@@ -1862,7 +1862,7 @@ static s32 __write_partial_entries_in_entry_set(struct super_block *sb,
 	u8 *buf, *esbuf = (u8 *)&es->__buf;
 
 	pr_debug("%s entered es %p sec %llu off %d count %d\n",
-		__func__, es, (unsigned long long)sec, off, count);
+		 __func__, es, (unsigned long long)sec, off, count);
 	num_entries = count;
 
 	while (num_entries) {
@@ -1876,8 +1876,8 @@ static s32 __write_partial_entries_in_entry_set(struct super_block *sb,
 			goto err_out;
 		pr_debug("es->buf %p buf_off %u\n", esbuf, buf_off);
 		pr_debug("copying %d entries from %p to sector %llu\n",
-			copy_entries, (esbuf + buf_off),
-			(unsigned long long)sec);
+			 copy_entries, (esbuf + buf_off),
+			 (unsigned long long)sec);
 		memcpy(buf + off, esbuf + buf_off,
 		       copy_entries << DENTRY_SIZE_BITS);
 		buf_modify(sb, sec);
