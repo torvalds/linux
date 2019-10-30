@@ -992,14 +992,23 @@ err:
 void tcf_action_update_stats(struct tc_action *a, u64 bytes, u32 packets,
 			     bool drop, bool hw)
 {
-	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
+	if (a->cpu_bstats) {
+		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
 
+		if (drop)
+			this_cpu_ptr(a->cpu_qstats)->drops += packets;
+
+		if (hw)
+			_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
+					   bytes, packets);
+		return;
+	}
+
+	_bstats_update(&a->tcfa_bstats, bytes, packets);
 	if (drop)
-		this_cpu_ptr(a->cpu_qstats)->drops += packets;
-
+		a->tcfa_qstats.drops += packets;
 	if (hw)
-		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
-				   bytes, packets);
+		_bstats_update(&a->tcfa_bstats_hw, bytes, packets);
 }
 EXPORT_SYMBOL(tcf_action_update_stats);
 

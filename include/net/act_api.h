@@ -190,23 +190,35 @@ int tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int, int);
 static inline void tcf_action_update_bstats(struct tc_action *a,
 					    struct sk_buff *skb)
 {
-	bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), skb);
-}
-
-static inline struct gnet_stats_queue *
-tcf_action_get_qstats(struct tc_action *a)
-{
-	return this_cpu_ptr(a->cpu_qstats);
+	if (likely(a->cpu_bstats)) {
+		bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), skb);
+		return;
+	}
+	spin_lock(&a->tcfa_lock);
+	bstats_update(&a->tcfa_bstats, skb);
+	spin_unlock(&a->tcfa_lock);
 }
 
 static inline void tcf_action_inc_drop_qstats(struct tc_action *a)
 {
-	qstats_drop_inc(this_cpu_ptr(a->cpu_qstats));
+	if (likely(a->cpu_qstats)) {
+		qstats_drop_inc(this_cpu_ptr(a->cpu_qstats));
+		return;
+	}
+	spin_lock(&a->tcfa_lock);
+	qstats_drop_inc(&a->tcfa_qstats);
+	spin_unlock(&a->tcfa_lock);
 }
 
 static inline void tcf_action_inc_overlimit_qstats(struct tc_action *a)
 {
-	qstats_overlimit_inc(this_cpu_ptr(a->cpu_qstats));
+	if (likely(a->cpu_qstats)) {
+		qstats_overlimit_inc(this_cpu_ptr(a->cpu_qstats));
+		return;
+	}
+	spin_lock(&a->tcfa_lock);
+	qstats_overlimit_inc(&a->tcfa_qstats);
+	spin_unlock(&a->tcfa_lock);
 }
 
 void tcf_action_update_stats(struct tc_action *a, u64 bytes, u32 packets,
