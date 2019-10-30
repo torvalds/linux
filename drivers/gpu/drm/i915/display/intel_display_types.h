@@ -1570,6 +1570,24 @@ intel_atomic_get_new_crtc_state(struct intel_atomic_state *state,
 								 &crtc->base));
 }
 
+static inline struct intel_digital_connector_state *
+intel_atomic_get_new_connector_state(struct intel_atomic_state *state,
+				     struct intel_connector *connector)
+{
+	return to_intel_digital_connector_state(
+			drm_atomic_get_new_connector_state(&state->base,
+			&connector->base));
+}
+
+static inline struct intel_digital_connector_state *
+intel_atomic_get_old_connector_state(struct intel_atomic_state *state,
+				     struct intel_connector *connector)
+{
+	return to_intel_digital_connector_state(
+			drm_atomic_get_old_connector_state(&state->base,
+			&connector->base));
+}
+
 /* intel_display.c */
 static inline bool
 intel_crtc_has_type(const struct intel_crtc_state *crtc_state,
