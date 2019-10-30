@@ -220,7 +220,7 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  * As their names indicate, inject operation will write the
  * value to the address.
  *
- * Second member: struct ras_debug_if::op.
+ * The second member: struct ras_debug_if::op.
  * It has three kinds of operations.
  *
  * - 0: disable RAS on the block. Take ::head as its data.
@@ -228,13 +228,19 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  * - 2: inject errors on the block. Take ::inject as its data.
  *
  * How to use the interface?
- * programs:
- * copy the struct ras_debug_if in your codes and initialize it.
- * write the struct to the control node.
+ *
+ * Programs
+ *
+ * Copy the struct ras_debug_if in your codes and initialize it.
+ * Write the struct to the control node.
+ *
+ * Shells
  *
  * .. code-block:: bash
  *
  *	echo op block [error [sub_block address value]] > .../ras/ras_ctrl
+ *
+ * Parameters:
  *
  * op: disable, enable, inject
  *	disable: only block is needed
@@ -265,8 +271,10 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  * /sys/class/drm/card[0/1/2...]/device/ras/[gfx/sdma/...]_err_count
  *
  * .. note::
- *	Operation is only allowed on blocks which are supported.
+ *	Operations are only allowed on blocks which are supported.
  *	Please check ras mask at /sys/module/amdgpu/parameters/ras_mask
+ *	to see which blocks support RAS on a particular asic.
+ *
  */
 static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *buf,
 		size_t size, loff_t *pos)
@@ -322,7 +330,7 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
  * DOC: AMDGPU RAS debugfs EEPROM table reset interface
  *
  * Some boards contain an EEPROM which is used to persistently store a list of
- * bad pages containing ECC errors detected in vram.  This interface provides
+ * bad pages which experiences ECC errors in vram.  This interface provides
  * a way to reset the EEPROM, e.g., after testing error injection.
  *
  * Usage:
@@ -362,7 +370,7 @@ static const struct file_operations amdgpu_ras_debugfs_eeprom_ops = {
 /**
  * DOC: AMDGPU RAS sysfs Error Count Interface
  *
- * It allows user to read the error count for each IP block on the gpu through
+ * It allows the user to read the error count for each IP block on the gpu through
  * /sys/class/drm/card[0/1/2...]/device/ras/[gfx/sdma/...]_err_count
  *
  * It outputs the multiple lines which report the uncorrected (ue) and corrected
@@ -1027,6 +1035,24 @@ static int amdgpu_ras_sysfs_remove_all(struct amdgpu_device *adev)
 }
 /* sysfs end */
 
+/**
+ * DOC: AMDGPU RAS Reboot Behavior for Unrecoverable Errors
+ *
+ * Normally when there is an uncorrectable error, the driver will reset
+ * the GPU to recover.  However, in the event of an unrecoverable error,
+ * the driver provides an interface to reboot the system automatically
+ * in that event.
+ *
+ * The following file in debugfs provides that interface:
+ * /sys/kernel/debug/dri/[0/1/2...]/ras/auto_reboot
+ *
+ * Usage:
+ *
+ * .. code-block:: bash
+ *
+ *	echo true > .../ras/auto_reboot
+ *
+ */
 /* debugfs begin */
 static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 {
