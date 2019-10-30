@@ -3477,10 +3477,13 @@ bool dc_submit_i2c_oem(
 		struct i2c_command *cmd)
 {
 	struct ddc_service *ddc = dc->res_pool->oem_device;
-	return dce_i2c_submit_command(
-		dc->res_pool,
-		ddc->ddc_pin,
-		cmd);
+	if (ddc)
+		return dce_i2c_submit_command(
+			dc->res_pool,
+			ddc->ddc_pin,
+			cmd);
+
+	return false;
 }
 
 static bool link_add_remote_sink_helper(struct dc_link *dc_link, struct dc_sink *sink)
