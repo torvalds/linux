@@ -139,6 +139,7 @@ static int pcm_init_hw_params(struct snd_ff *ff,
 static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_ff *ff = substream->private_data;
+	struct amdtp_domain *d = &ff->domain;
 	unsigned int rate;
 	enum snd_ff_clock_src src;
 	int i, err;
@@ -155,16 +156,21 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto release_lock;
 
+	mutex_lock(&ff->mutex);
+
+	// When source of clock is not internal or any stream is reserved for
+	// transmission of PCM frames, the available sampling rate is limited
+	// at current one.
 	if (src != SND_FF_CLOCK_SRC_INTERNAL) {
 		for (i = 0; i < CIP_SFC_COUNT; ++i) {
 			if (amdtp_rate_table[i] == rate)
 				break;
 		}
-		/*
-		 * The unit is configured at sampling frequency which packet
-		 * streaming engine can't support.
-		 */
+
+		// The unit is configured at sampling frequency which packet
+		// streaming engine can't support.
 		if (i >= CIP_SFC_COUNT) {
+			mutex_unlock(&ff->mutex);
 			err = -EIO;
 			goto release_lock;
 		}
@@ -172,13 +178,33 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		substream->runtime->hw.rate_min = rate;
 		substream->runtime->hw.rate_max = rate;
 	} else {
-		if (amdtp_stream_pcm_running(&ff->rx_stream) ||
-		    amdtp_stream_pcm_running(&ff->tx_stream)) {
+		if (ff->substreams_counter > 0) {
+			unsigned int frames_per_period = d->events_per_period;
+			unsigned int frames_per_buffer = d->events_per_buffer;
+
 			rate = amdtp_rate_table[ff->rx_stream.sfc];
 			substream->runtime->hw.rate_min = rate;
 			substream->runtime->hw.rate_max = rate;
+
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					frames_per_period, frames_per_period);
+			if (err < 0) {
+				mutex_unlock(&ff->mutex);
+				goto release_lock;
+			}
+
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					frames_per_buffer, frames_per_buffer);
+			if (err < 0) {
+				mutex_unlock(&ff->mutex);
+				goto release_lock;
+			}
 		}
 	}
+
+	mutex_unlock(&ff->mutex);
 
 	snd_pcm_set_sync(substream);
 
@@ -211,9 +237,12 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
+		unsigned int frames_per_buffer = params_buffer_size(hw_params);
 
 		mutex_lock(&ff->mutex);
-		err = snd_ff_stream_reserve_duplex(ff, rate);
+		err = snd_ff_stream_reserve_duplex(ff, rate, frames_per_period,
+						   frames_per_buffer);
 		if (err >= 0)
 			++ff->substreams_counter;
 		mutex_unlock(&ff->mutex);
@@ -312,28 +341,28 @@ static snd_pcm_uframes_t pcm_capture_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_ff *ff = sbstrm->private_data;
 
-	return amdtp_stream_pcm_pointer(&ff->tx_stream);
+	return amdtp_domain_stream_pcm_pointer(&ff->domain, &ff->tx_stream);
 }
 
 static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_ff *ff = sbstrm->private_data;
 
-	return amdtp_stream_pcm_pointer(&ff->rx_stream);
+	return amdtp_domain_stream_pcm_pointer(&ff->domain, &ff->rx_stream);
 }
 
 static int pcm_capture_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_ff *ff = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&ff->tx_stream);
+	return amdtp_domain_stream_pcm_ack(&ff->domain, &ff->tx_stream);
 }
 
 static int pcm_playback_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_ff *ff = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&ff->rx_stream);
+	return amdtp_domain_stream_pcm_ack(&ff->domain, &ff->rx_stream);
 }
 
 int snd_ff_create_pcm_devices(struct snd_ff *ff)

@@ -172,13 +172,13 @@ static void motu_bus_update(struct fw_unit *unit)
 	snd_motu_transaction_reregister(motu);
 }
 
-static const struct snd_motu_spec motu_828mk2 = {
+const struct snd_motu_spec snd_motu_spec_828mk2 = {
 	.name = "828mk2",
 	.protocol = &snd_motu_protocol_v2,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
 		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
-		 SND_MOTU_SPEC_RX_SEPARETED_MAIN |
+		 SND_MOTU_SPEC_RX_SEPARATED_MAIN |
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
 		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
@@ -187,7 +187,7 @@ static const struct snd_motu_spec motu_828mk2 = {
 	.analog_out_ports = 8,
 };
 
-const struct snd_motu_spec snd_motu_spec_traveler = {
+static const struct snd_motu_spec motu_traveler = {
 	.name = "Traveler",
 	.protocol = &snd_motu_protocol_v2,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
@@ -202,7 +202,20 @@ const struct snd_motu_spec snd_motu_spec_traveler = {
 	.analog_out_ports = 8,
 };
 
-const struct snd_motu_spec snd_motu_spec_8pre = {
+static const struct snd_motu_spec motu_ultralite = {
+	.name = "UltraLite",
+	.protocol = &snd_motu_protocol_v2,
+	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
+		 SND_MOTU_SPEC_TX_MICINST_CHUNK | // padding.
+		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
+		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_TX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_RX_SEPARATED_MAIN,
+	.analog_in_ports = 8,
+	.analog_out_ports = 8,
+};
+
+static const struct snd_motu_spec motu_8pre = {
 	.name = "8pre",
 	.protocol = &snd_motu_protocol_v2,
 	// In tx, use coax chunks for mix-return 1/2. In rx, use coax chunks for
@@ -224,7 +237,7 @@ static const struct snd_motu_spec motu_828mk3 = {
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
 		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
 		 SND_MOTU_SPEC_TX_REVERB_CHUNK |
-		 SND_MOTU_SPEC_RX_SEPARETED_MAIN |
+		 SND_MOTU_SPEC_RX_SEPARATED_MAIN |
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_B |
 		 SND_MOTU_SPEC_RX_MIDI_3RD_Q |
@@ -240,7 +253,7 @@ static const struct snd_motu_spec motu_audio_express = {
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
 		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
-		 SND_MOTU_SPEC_RX_SEPARETED_MAIN |
+		 SND_MOTU_SPEC_RX_SEPARATED_MAIN |
 		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
 	.analog_in_ports = 2,
@@ -253,7 +266,7 @@ static const struct snd_motu_spec motu_4pre = {
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
 		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
-		 SND_MOTU_SPEC_RX_SEPARETED_MAIN,
+		 SND_MOTU_SPEC_RX_SEPARATED_MAIN,
 	.analog_in_ports = 2,
 	.analog_out_ports = 2,
 };
@@ -270,9 +283,10 @@ static const struct snd_motu_spec motu_4pre = {
 }
 
 static const struct ieee1394_device_id motu_id_table[] = {
-	SND_MOTU_DEV_ENTRY(0x000003, &motu_828mk2),
-	SND_MOTU_DEV_ENTRY(0x000009, &snd_motu_spec_traveler),
-	SND_MOTU_DEV_ENTRY(0x00000f, &snd_motu_spec_8pre),
+	SND_MOTU_DEV_ENTRY(0x000003, &snd_motu_spec_828mk2),
+	SND_MOTU_DEV_ENTRY(0x000009, &motu_traveler),
+	SND_MOTU_DEV_ENTRY(0x00000d, &motu_ultralite),
+	SND_MOTU_DEV_ENTRY(0x00000f, &motu_8pre),
 	SND_MOTU_DEV_ENTRY(0x000015, &motu_828mk3),	/* FireWire only. */
 	SND_MOTU_DEV_ENTRY(0x000035, &motu_828mk3),	/* Hybrid. */
 	SND_MOTU_DEV_ENTRY(0x000033, &motu_audio_express),
