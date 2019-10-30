@@ -2235,7 +2235,7 @@ F:	drivers/soc/samsung/
 F:	include/linux/soc/samsung/
 F:	Documentation/arm/samsung/
 F:	Documentation/devicetree/bindings/arm/samsung/
-F:	Documentation/devicetree/bindings/power/pd-samsung.txt
+F:	Documentation/devicetree/bindings/power/pd-samsung.yaml
 N:	exynos
 
 ARM/SAMSUNG MOBILE MACHINE SUPPORT

@@ -69,7 +69,7 @@ properties:
     description: |
       Required if the System MMU is needed to gate its power.
       Please refer to the following document:
-      Documentation/devicetree/bindings/power/pd-samsung.txt
+      Documentation/devicetree/bindings/power/pd-samsung.yaml
     maxItems: 1
 
 required:
