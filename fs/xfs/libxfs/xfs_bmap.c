@@ -3604,20 +3604,6 @@ xfs_bmap_btalloc(
 	return 0;
 }
 
-/*
- * xfs_bmap_alloc is called by xfs_bmapi to allocate an extent for a file.
- * It figures out where to ask the underlying allocator to put the new extent.
- */
-STATIC int
-xfs_bmap_alloc(
-	struct xfs_bmalloca	*ap)	/* bmap alloc argument struct */
-{
-	if (XFS_IS_REALTIME_INODE(ap->ip) &&
-	    xfs_alloc_is_userdata(ap->datatype))
-		return xfs_bmap_rtalloc(ap);
-	return xfs_bmap_btalloc(ap);
-}
-
 /* Trim extent to fit a logical block range. */
 void
 xfs_trim_extent(
@@ -3974,6 +3960,42 @@ out_unreserve_quota:
 }
 
 static int
+xfs_bmap_alloc_userdata(
+	struct xfs_bmalloca	*bma)
+{
+	struct xfs_mount	*mp = bma->ip->i_mount;
+	int			whichfork = xfs_bmapi_whichfork(bma->flags);
+	int			error;
+
+	/*
+	 * Set the data type being allocated. For the data fork, the first data
+	 * in the file is treated differently to all other allocations. For the
+	 * attribute fork, we only need to ensure the allocated range is not on
+	 * the busy list.
+	 */
+	bma->datatype = XFS_ALLOC_NOBUSY;
+	if (bma->flags & XFS_BMAPI_ZERO)
+		bma->datatype |= XFS_ALLOC_USERDATA_ZERO;
+	if (whichfork == XFS_DATA_FORK) {
+		if (bma->offset == 0)
+			bma->datatype |= XFS_ALLOC_INITIAL_USER_DATA;
+		else
+			bma->datatype |= XFS_ALLOC_USERDATA;
+
+		if (mp->m_dalign && bma->length >= mp->m_dalign) {
+			error = xfs_bmap_isaeof(bma, whichfork);
+			if (error)
+				return error;
+		}
+
+		if (XFS_IS_REALTIME_INODE(bma->ip))
+			return xfs_bmap_rtalloc(bma);
+	}
+
+	return xfs_bmap_btalloc(bma);
+}
+
+static int
 xfs_bmapi_allocate(
 	struct xfs_bmalloca	*bma)
 {
@@ -4000,43 +4022,18 @@ xfs_bmapi_allocate(
 					bma->got.br_startoff - bma->offset);
 	}
 
-	/*
-	 * Set the data type being allocated. For the data fork, the first data
-	 * in the file is treated differently to all other allocations. For the
-	 * attribute fork, we only need to ensure the allocated range is not on
-	 * the busy list.
-	 */
-	if (!(bma->flags & XFS_BMAPI_METADATA)) {
-		bma->datatype = XFS_ALLOC_NOBUSY;
-		if (whichfork == XFS_DATA_FORK) {
-			if (bma->offset == 0)
-				bma->datatype |= XFS_ALLOC_INITIAL_USER_DATA;
-			else
-				bma->datatype |= XFS_ALLOC_USERDATA;
-		}
-		if (bma->flags & XFS_BMAPI_ZERO)
-			bma->datatype |= XFS_ALLOC_USERDATA_ZERO;
-	}
+	if (bma->flags & XFS_BMAPI_CONTIG)
+		bma->minlen = bma->length;
+	else
+		bma->minlen = 1;
 
-	bma->minlen = (bma->flags & XFS_BMAPI_CONTIG) ? bma->length : 1;
-
-	/*
-	 * Only want to do the alignment at the eof if it is userdata and
-	 * allocation length is larger than a stripe unit.
-	 */
-	if (mp->m_dalign && bma->length >= mp->m_dalign &&
-	    !(bma->flags & XFS_BMAPI_METADATA) && whichfork == XFS_DATA_FORK) {
-		error = xfs_bmap_isaeof(bma, whichfork);
-		if (error)
-			return error;
-	}
-
-	error = xfs_bmap_alloc(bma);
-	if (error)
+	if (bma->flags & XFS_BMAPI_METADATA)
+		error = xfs_bmap_btalloc(bma);
+	else
+		error = xfs_bmap_alloc_userdata(bma);
+	if (error || bma->blkno == NULLFSBLOCK)
 		return error;
 
-	if (bma->blkno == NULLFSBLOCK)
-		return 0;
 	if ((ifp->if_flags & XFS_IFBROOT) && !bma->cur)
 		bma->cur = xfs_bmbt_init_cursor(mp, bma->tp, bma->ip, whichfork);
 	/*
