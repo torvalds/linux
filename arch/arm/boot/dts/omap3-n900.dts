@@ -1013,6 +1013,11 @@
 	};
 };
 
+/* RNG not directly accessible on n900, see omap3-rom-rng instead */
+&rng_target {
+	status = "disabled";
+};
+
 &usb_otg_hs {
 	interface-type = <0>;
 	usb-phy = <&usb2_phy>;
