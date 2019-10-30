@@ -396,7 +396,7 @@ static int ffsMountVol(struct super_block *sb)
 	if (i < 53) {
 #ifdef CONFIG_EXFAT_DONT_MOUNT_VFAT
 		ret = -EINVAL;
-		printk(KERN_INFO "EXFAT: Attempted to mount VFAT filesystem\n");
+		pr_info("EXFAT: Attempted to mount VFAT filesystem\n");
 		goto out;
 #else
 		if (GET16(p_pbr->bpb + 11)) /* num_fat_sectors */
