@@ -252,6 +252,8 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 	ucontext->closing = false;
 	ucontext->cleanup_retryable = false;
 
+	xa_init_flags(&ucontext->mmap_xa, XA_FLAGS_ALLOC);
+
 	ret = get_unused_fd_flags(O_CLOEXEC);
 	if (ret < 0)
 		goto err_free;
