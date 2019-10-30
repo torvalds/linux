@@ -1483,6 +1483,21 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!i915_modparams.nuclear_pageflip && match_info->gen < 5)
 		dev_priv->drm.driver_features &= ~DRIVER_ATOMIC;
 
+	/*
+	 * Check if we support fake LMEM -- for now we only unleash this for
+	 * the live selftests(test-and-exit).
+	 */
+	if (IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM)) {
+		if (INTEL_GEN(dev_priv) >= 9 && i915_selftest.live < 0 &&
+		    i915_modparams.fake_lmem_start) {
+			mkwrite_device_info(dev_priv)->memory_regions =
+				REGION_SMEM | REGION_LMEM | REGION_STOLEN;
+			mkwrite_device_info(dev_priv)->is_dgfx = true;
+			GEM_BUG_ON(!HAS_LMEM(dev_priv));
+			GEM_BUG_ON(!IS_DGFX(dev_priv));
+		}
+	}
+
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto out_fini;

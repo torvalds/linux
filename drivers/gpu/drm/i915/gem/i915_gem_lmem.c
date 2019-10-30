@@ -24,6 +24,7 @@ i915_gem_object_lmem_io_map_page(struct drm_i915_gem_object *obj,
 	resource_size_t offset;
 
 	offset = i915_gem_object_get_dma_address(obj, n);
+	offset -= obj->mm.region->region.start;
 
 	return io_mapping_map_wc(&obj->mm.region->iomap, offset, PAGE_SIZE);
 }
@@ -35,6 +36,7 @@ i915_gem_object_lmem_io_map_page_atomic(struct drm_i915_gem_object *obj,
 	resource_size_t offset;
 
 	offset = i915_gem_object_get_dma_address(obj, n);
+	offset -= obj->mm.region->region.start;
 
 	return io_mapping_map_atomic_wc(&obj->mm.region->iomap, offset);
 }
@@ -49,6 +51,7 @@ i915_gem_object_lmem_io_map(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(!i915_gem_object_is_contiguous(obj));
 
 	offset = i915_gem_object_get_dma_address(obj, n);
+	offset -= obj->mm.region->region.start;
 
 	return io_mapping_map_wc(&obj->mm.region->iomap, offset, size);
 }

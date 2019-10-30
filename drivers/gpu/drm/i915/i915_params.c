@@ -179,6 +179,11 @@ i915_param_named(enable_gvt, bool, 0400,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");
 #endif
 
+#if IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM)
+i915_param_named_unsafe(fake_lmem_start, ulong, 0600,
+	"Fake LMEM start offset (default: 0)");
+#endif
+
 static __always_inline void _print_param(struct drm_printer *p,
 					 const char *name,
 					 const char *type,
@@ -190,6 +195,8 @@ static __always_inline void _print_param(struct drm_printer *p,
 		drm_printf(p, "i915.%s=%d\n", name, *(const int *)x);
 	else if (!__builtin_strcmp(type, "unsigned int"))
 		drm_printf(p, "i915.%s=%u\n", name, *(const unsigned int *)x);
+	else if (!__builtin_strcmp(type, "unsigned long"))
+		drm_printf(p, "i915.%s=%lu\n", name, *(const unsigned long *)x);
 	else if (!__builtin_strcmp(type, "char *"))
 		drm_printf(p, "i915.%s=%s\n", name, *(const char **)x);
 	else

@@ -66,6 +66,7 @@ struct drm_printer;
 	param(int, fastboot, -1) \
 	param(int, enable_dpcd_backlight, 0) \
 	param(char *, force_probe, CONFIG_DRM_I915_FORCE_PROBE) \
+	param(unsigned long, fake_lmem_start, 0) \
 	/* leave bools at the end to not create holes */ \
 	param(bool, alpha_support, IS_ENABLED(CONFIG_DRM_I915_ALPHA_SUPPORT)) \
 	param(bool, enable_hangcheck, true) \
