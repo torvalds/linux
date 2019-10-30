@@ -202,6 +202,19 @@ static const struct snd_motu_spec motu_traveler = {
 	.analog_out_ports = 8,
 };
 
+static const struct snd_motu_spec motu_ultralite = {
+	.name = "UltraLite",
+	.protocol = &snd_motu_protocol_v2,
+	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
+		 SND_MOTU_SPEC_TX_MICINST_CHUNK | // padding.
+		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
+		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_TX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_RX_SEPARATED_MAIN,
+	.analog_in_ports = 8,
+	.analog_out_ports = 8,
+};
+
 static const struct snd_motu_spec motu_8pre = {
 	.name = "8pre",
 	.protocol = &snd_motu_protocol_v2,
@@ -272,6 +285,7 @@ static const struct snd_motu_spec motu_4pre = {
 static const struct ieee1394_device_id motu_id_table[] = {
 	SND_MOTU_DEV_ENTRY(0x000003, &snd_motu_spec_828mk2),
 	SND_MOTU_DEV_ENTRY(0x000009, &motu_traveler),
+	SND_MOTU_DEV_ENTRY(0x00000d, &motu_ultralite),
 	SND_MOTU_DEV_ENTRY(0x00000f, &motu_8pre),
 	SND_MOTU_DEV_ENTRY(0x000015, &motu_828mk3),	/* FireWire only. */
 	SND_MOTU_DEV_ENTRY(0x000035, &motu_828mk3),	/* Hybrid. */
