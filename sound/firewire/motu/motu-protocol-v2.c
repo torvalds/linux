@@ -26,10 +26,20 @@
 #define  V2_OPT_IFACE_MODE_ADAT			1
 #define  V2_OPT_IFACE_MODE_SPDIF		2
 
+static int get_clock_rate(u32 data, unsigned int *rate)
+{
+	unsigned int index = (data & V2_CLOCK_RATE_MASK) >> V2_CLOCK_RATE_SHIFT;
+	if (index >= ARRAY_SIZE(snd_motu_clock_rates))
+		return -EIO;
+
+	*rate = snd_motu_clock_rates[index];
+
+	return 0;
+}
+
 static int v2_get_clock_rate(struct snd_motu *motu, unsigned int *rate)
 {
 	__be32 reg;
-	unsigned int index;
 	int err;
 
 	err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET, &reg,
@@ -37,13 +47,7 @@ static int v2_get_clock_rate(struct snd_motu *motu, unsigned int *rate)
 	if (err < 0)
 		return err;
 
-	index = (be32_to_cpu(reg) & V2_CLOCK_RATE_MASK) >> V2_CLOCK_RATE_SHIFT;
-	if (index >= ARRAY_SIZE(snd_motu_clock_rates))
-		return -EIO;
-
-	*rate = snd_motu_clock_rates[index];
-
-	return 0;
+	return get_clock_rate(be32_to_cpu(reg), rate);
 }
 
 static int v2_set_clock_rate(struct snd_motu *motu, unsigned int rate)
@@ -79,38 +83,33 @@ static int v2_set_clock_rate(struct snd_motu *motu, unsigned int rate)
 					  sizeof(reg));
 }
 
-static int v2_get_clock_source(struct snd_motu *motu,
-			       enum snd_motu_clock_source *src)
+static int get_clock_source(struct snd_motu *motu, u32 data,
+			    enum snd_motu_clock_source *src)
 {
-	__be32 reg;
-	unsigned int index;
-	int err;
-
-	err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET, &reg,
-					sizeof(reg));
-	if (err < 0)
-		return err;
-
-	index = be32_to_cpu(reg) & V2_CLOCK_SRC_MASK;
+	unsigned int index = data & V2_CLOCK_SRC_MASK;
 	if (index > 5)
 		return -EIO;
-
-	/* To check the configuration of optical interface. */
-	err = snd_motu_transaction_read(motu, V2_IN_OUT_CONF_OFFSET, &reg,
-					sizeof(reg));
-	if (err < 0)
-		return err;
 
 	switch (index) {
 	case 0:
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
 		break;
 	case 1:
+	{
+		__be32 reg;
+
+		// To check the configuration of optical interface.
+		int err = snd_motu_transaction_read(motu, V2_IN_OUT_CONF_OFFSET,
+						    &reg, sizeof(reg));
+		if (err < 0)
+			return err;
+
 		if (be32_to_cpu(reg) & 0x00000200)
 			*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT;
 		else
 			*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT;
 		break;
+	}
 	case 2:
 		*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
 		break;
@@ -128,6 +127,20 @@ static int v2_get_clock_source(struct snd_motu *motu,
 	}
 
 	return 0;
+}
+
+static int v2_get_clock_source(struct snd_motu *motu,
+			       enum snd_motu_clock_source *src)
+{
+	__be32 reg;
+	int err;
+
+	err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET, &reg,
+					sizeof(reg));
+	if (err < 0)
+		return err;
+
+	return get_clock_source(motu, be32_to_cpu(reg), src);
 }
 
 static int v2_switch_fetching_mode(struct snd_motu *motu, bool enable)
