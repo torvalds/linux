@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2007-2008  Yoichi Yuasa <yuasa@linux-mips.org>
  */
-#include <linux/input-polldev.h>
+#include <linux/input.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
@@ -32,10 +32,9 @@ struct buttons_dev {
 	void __iomem *reg;
 };
 
-static void handle_buttons(struct input_polled_dev *dev)
+static void handle_buttons(struct input_dev *input)
 {
-	struct buttons_dev *bdev = dev->private;
-	struct input_dev *input = dev->input;
+	struct buttons_dev *bdev = input_get_drvdata(input);
 	uint32_t status;
 	int i;
 
@@ -62,7 +61,6 @@ static void handle_buttons(struct input_polled_dev *dev)
 static int cobalt_buttons_probe(struct platform_device *pdev)
 {
 	struct buttons_dev *bdev;
-	struct input_polled_dev *poll_dev;
 	struct input_dev *input;
 	struct resource *res;
 	int error, i;
@@ -81,15 +79,12 @@ static int cobalt_buttons_probe(struct platform_device *pdev)
 
 	memcpy(bdev->keymap, cobalt_map, sizeof(bdev->keymap));
 
-	poll_dev = devm_input_allocate_polled_device(&pdev->dev);
-	if (!poll_dev)
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input)
 		return -ENOMEM;
 
-	poll_dev->private = bdev;
-	poll_dev->poll = handle_buttons;
-	poll_dev->poll_interval = BUTTONS_POLL_INTERVAL;
+	input_set_drvdata(input, bdev);
 
-	input = poll_dev->input;
 	input->name = "Cobalt buttons";
 	input->phys = "cobalt/input0";
 	input->id.bustype = BUS_HOST;
@@ -104,7 +99,14 @@ static int cobalt_buttons_probe(struct platform_device *pdev)
 		__set_bit(bdev->keymap[i], input->keybit);
 	__clear_bit(KEY_RESERVED, input->keybit);
 
-	error = input_register_polled_device(poll_dev);
+
+	error = input_setup_polling(input, handle_buttons);
+	if (error)
+		return error;
+
+	input_set_poll_interval(input, BUTTONS_POLL_INTERVAL);
+
+	error = input_register_device(input);
 	if (error)
 		return error;
 
