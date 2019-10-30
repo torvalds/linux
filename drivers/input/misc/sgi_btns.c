@@ -45,7 +45,6 @@ static const unsigned short sgi_map[] = {
 };
 
 struct buttons_dev {
-	struct input_polled_dev *poll_dev;
 	unsigned short keymap[ARRAY_SIZE(sgi_map)];
 	int count[ARRAY_SIZE(sgi_map)];
 };
@@ -84,12 +83,13 @@ static int sgi_buttons_probe(struct platform_device *pdev)
 	struct input_dev *input;
 	int error, i;
 
-	bdev = kzalloc(sizeof(struct buttons_dev), GFP_KERNEL);
-	poll_dev = input_allocate_polled_device();
-	if (!bdev || !poll_dev) {
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	bdev = devm_kzalloc(&pdev->dev, sizeof(*bdev), GFP_KERNEL);
+	if (!bdev)
+		return -ENOMEM;
+
+	poll_dev = devm_input_allocate_polled_device(&pdev->dev);
+	if (!poll_dev)
+		return -ENOMEM;
 
 	memcpy(bdev->keymap, sgi_map, sizeof(bdev->keymap));
 
@@ -101,7 +101,6 @@ static int sgi_buttons_probe(struct platform_device *pdev)
 	input->name = "SGI buttons";
 	input->phys = "sgi/input0";
 	input->id.bustype = BUS_HOST;
-	input->dev.parent = &pdev->dev;
 
 	input->keycode = bdev->keymap;
 	input->keycodemax = ARRAY_SIZE(bdev->keymap);
@@ -113,35 +112,15 @@ static int sgi_buttons_probe(struct platform_device *pdev)
 		__set_bit(bdev->keymap[i], input->keybit);
 	__clear_bit(KEY_RESERVED, input->keybit);
 
-	bdev->poll_dev = poll_dev;
-	platform_set_drvdata(pdev, bdev);
-
 	error = input_register_polled_device(poll_dev);
 	if (error)
-		goto err_free_mem;
-
-	return 0;
-
- err_free_mem:
-	input_free_polled_device(poll_dev);
-	kfree(bdev);
-	return error;
-}
-
-static int sgi_buttons_remove(struct platform_device *pdev)
-{
-	struct buttons_dev *bdev = platform_get_drvdata(pdev);
-
-	input_unregister_polled_device(bdev->poll_dev);
-	input_free_polled_device(bdev->poll_dev);
-	kfree(bdev);
+		return error;
 
 	return 0;
 }
 
 static struct platform_driver sgi_buttons_driver = {
 	.probe	= sgi_buttons_probe,
-	.remove	= sgi_buttons_remove,
 	.driver	= {
 		.name	= "sgibtns",
 	},
