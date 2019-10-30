@@ -357,8 +357,13 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	match = of_match_node(dw_mci_rockchip_match, pdev->dev.of_node);
 	drv_data = match->data;
 
+	/*
+	 * increase rpm usage count in order to make
+	 * pm_runtime_force_resume calls rpm resume callback
+	 */
+	pm_runtime_get_noresume(&pdev->dev);
+
 	if (use_rpm) {
-		pm_runtime_get_noresume(&pdev->dev);
 		pm_runtime_set_active(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
 		pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
@@ -367,8 +372,10 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 
 	ret = dw_mci_pltfm_register(pdev, drv_data);
 	if (ret) {
-		pm_runtime_disable(&pdev->dev);
-		pm_runtime_set_suspended(&pdev->dev);
+		if (use_rpm) {
+			pm_runtime_disable(&pdev->dev);
+			pm_runtime_set_suspended(&pdev->dev);
+		}
 		pm_runtime_put_noidle(&pdev->dev);
 		return ret;
 	}
