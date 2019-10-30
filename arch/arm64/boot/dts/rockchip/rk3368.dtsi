@@ -189,6 +189,7 @@
 		>;
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "cpu_leakage";
+		rockchip,reboot-freq = <816000>;
 
 		opp-216000000 {
 			opp-hz = /bits/ 64 <216000000>;
@@ -251,6 +252,7 @@
 		>;
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "cpu_leakage";
+		rockchip,reboot-freq = <816000>;
 
 		opp-216000000 {
 			opp-hz = /bits/ 64 <216000000>;
