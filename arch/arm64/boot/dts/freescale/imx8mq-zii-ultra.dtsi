@@ -88,7 +88,7 @@
 		regulator-name = "0V9_ARM";
 		regulator-min-microvolt = <900000>;
 		regulator-max-microvolt = <1000000>;
-		gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio3 16 GPIO_ACTIVE_HIGH>;
 		states = <1000000 0x1
 		           900000 0x0>;
 		regulator-always-on;
