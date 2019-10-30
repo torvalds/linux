@@ -217,6 +217,7 @@ static const struct ib_device_ops efa_dev_ops = {
 	.get_link_layer = efa_port_link_layer,
 	.get_port_immutable = efa_get_port_immutable,
 	.mmap = efa_mmap,
+	.mmap_free = efa_mmap_free,
 	.modify_qp = efa_modify_qp,
 	.query_device = efa_query_device,
 	.query_gid = efa_query_gid,
