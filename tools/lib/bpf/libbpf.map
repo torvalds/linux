@@ -197,4 +197,6 @@ LIBBPF_0.0.6 {
 		bpf_object__open_mem;
 		bpf_program__get_expected_attach_type;
 		bpf_program__get_type;
+		bpf_program__is_tracing;
+		bpf_program__set_tracing;
 } LIBBPF_0.0.5;
