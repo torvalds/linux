@@ -4038,17 +4038,18 @@ err_port_to_module_alloc:
 	return err;
 }
 
-static u8 mlxsw_sp_cluster_base_port_get(u8 local_port)
+static u8 mlxsw_sp_cluster_base_port_get(u8 local_port, unsigned int max_width)
 {
-	u8 offset = (local_port - 1) % MLXSW_SP_PORTS_PER_CLUSTER_MAX;
+	u8 offset = (local_port - 1) % max_width;
 
 	return local_port - offset;
 }
 
 static int mlxsw_sp_port_split_create(struct mlxsw_sp *mlxsw_sp, u8 base_port,
-				      u8 module, unsigned int count, u8 offset)
+				      u8 module, unsigned int count, u8 offset,
+				      unsigned int max_width)
 {
-	u8 width = MLXSW_PORT_MODULE_MAX_WIDTH / count;
+	u8 width = max_width / count;
 	int err, i;
 
 	for (i = 0; i < count; i++) {
@@ -4068,9 +4069,10 @@ err_port_create:
 }
 
 static void mlxsw_sp_port_unsplit_create(struct mlxsw_sp *mlxsw_sp,
-					 u8 base_port, unsigned int count)
+					 u8 base_port, unsigned int count,
+					 unsigned int max_width)
 {
-	u8 local_port, module, width = MLXSW_PORT_MODULE_MAX_WIDTH;
+	u8 local_port, module, width = max_width;
 	int i;
 
 	/* Split by four means we need to re-create two ports, otherwise
@@ -4096,7 +4098,8 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	u8 local_ports_in_1x, local_ports_in_2x, offset;
 	struct mlxsw_sp_port *mlxsw_sp_port;
-	u8 module, cur_width, base_port;
+	u8 module, base_port;
+	int max_width;
 	int i;
 	int err;
 
@@ -4116,7 +4119,14 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 	}
 
 	module = mlxsw_sp_port->mapping.module;
-	cur_width = mlxsw_sp_port->mapping.width;
+
+	max_width = mlxsw_core_module_max_width(mlxsw_core,
+						mlxsw_sp_port->mapping.module);
+	if (max_width < 0) {
+		netdev_err(mlxsw_sp_port->dev, "Cannot get max width of port module\n");
+		NL_SET_ERR_MSG_MOD(extack, "Cannot get max width of port module");
+		return max_width;
+	}
 
 	if (count != 2 && count != 4) {
 		netdev_err(mlxsw_sp_port->dev, "Port can only be split into 2 or 4 ports\n");
@@ -4124,7 +4134,8 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		return -EINVAL;
 	}
 
-	if (cur_width != MLXSW_PORT_MODULE_MAX_WIDTH) {
+	/* Split port with non-max module width cannot be split. */
+	if (mlxsw_sp_port->mapping.width != max_width) {
 		netdev_err(mlxsw_sp_port->dev, "Port cannot be split further\n");
 		NL_SET_ERR_MSG_MOD(extack, "Port cannot be split further");
 		return -EINVAL;
@@ -4141,7 +4152,8 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		}
 	} else {
 		offset = local_ports_in_1x;
-		base_port = mlxsw_sp_cluster_base_port_get(local_port);
+		base_port = mlxsw_sp_cluster_base_port_get(local_port,
+							   max_width);
 		if (mlxsw_sp->ports[base_port + 1] ||
 		    mlxsw_sp->ports[base_port + 3]) {
 			netdev_err(mlxsw_sp_port->dev, "Invalid split configuration\n");
@@ -4155,7 +4167,7 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 			mlxsw_sp_port_remove(mlxsw_sp, base_port + i * offset);
 
 	err = mlxsw_sp_port_split_create(mlxsw_sp, base_port, module, count,
-					 offset);
+					 offset, max_width);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to create split ports\n");
 		goto err_port_split_create;
@@ -4164,7 +4176,7 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 	return 0;
 
 err_port_split_create:
-	mlxsw_sp_port_unsplit_create(mlxsw_sp, base_port, count);
+	mlxsw_sp_port_unsplit_create(mlxsw_sp, base_port, count, max_width);
 	return err;
 }
 
@@ -4174,8 +4186,9 @@ static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	u8 local_ports_in_1x, local_ports_in_2x, offset;
 	struct mlxsw_sp_port *mlxsw_sp_port;
-	u8 cur_width, base_port;
 	unsigned int count;
+	int max_width;
+	u8 base_port;
 	int i;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_core, LOCAL_PORTS_IN_1X) ||
@@ -4199,15 +4212,22 @@ static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port,
 		return -EINVAL;
 	}
 
-	cur_width = mlxsw_sp_port->mapping.width;
-	count = cur_width == 1 ? 4 : 2;
+	max_width = mlxsw_core_module_max_width(mlxsw_core,
+						mlxsw_sp_port->mapping.module);
+	if (max_width < 0) {
+		netdev_err(mlxsw_sp_port->dev, "Cannot get max width of port module\n");
+		NL_SET_ERR_MSG_MOD(extack, "Cannot get max width of port module");
+		return max_width;
+	}
+
+	count = max_width / mlxsw_sp_port->mapping.width;
 
 	if (count == 2)
 		offset = local_ports_in_2x;
 	else
 		offset = local_ports_in_1x;
 
-	base_port = mlxsw_sp_cluster_base_port_get(local_port);
+	base_port = mlxsw_sp_cluster_base_port_get(local_port, max_width);
 
 	/* Determine which ports to remove. */
 	if (count == 2 && local_port >= base_port + 2)
@@ -4217,7 +4237,7 @@ static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port,
 		if (mlxsw_sp_port_created(mlxsw_sp, base_port + i * offset))
 			mlxsw_sp_port_remove(mlxsw_sp, base_port + i * offset);
 
-	mlxsw_sp_port_unsplit_create(mlxsw_sp, base_port, count);
+	mlxsw_sp_port_unsplit_create(mlxsw_sp, base_port, count, max_width);
 
 	return 0;
 }
