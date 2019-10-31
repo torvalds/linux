@@ -2634,6 +2634,18 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 	return 0;
 }
 
+static unsigned int qeth_tx_select_bulk_max(struct qeth_card *card,
+					    struct qeth_qdio_out_q *queue)
+{
+	if (!IS_IQD(card) ||
+	    qeth_iqd_is_mcast_queue(card, queue) ||
+	    card->options.cq == QETH_CQ_ENABLED ||
+	    qdio_get_ssqd_desc(CARD_DDEV(card), &card->ssqd))
+		return 1;
+
+	return card->ssqd.mmwc ? card->ssqd.mmwc : 1;
+}
+
 int qeth_init_qdio_queues(struct qeth_card *card)
 {
 	unsigned int i;
@@ -2673,6 +2685,8 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 		queue->do_pack = 0;
 		queue->prev_hdr = NULL;
 		queue->bulk_start = 0;
+		queue->bulk_count = 0;
+		queue->bulk_max = qeth_tx_select_bulk_max(card, queue);
 		atomic_set(&queue->used_buffers, 0);
 		atomic_set(&queue->set_pci_flags_count, 0);
 		atomic_set(&queue->state, QETH_OUT_Q_UNLOCKED);
@@ -3318,10 +3332,11 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 
 static void qeth_flush_queue(struct qeth_qdio_out_q *queue)
 {
-	qeth_flush_buffers(queue, queue->bulk_start, 1);
+	qeth_flush_buffers(queue, queue->bulk_start, queue->bulk_count);
 
-	queue->bulk_start = QDIO_BUFNR(queue->bulk_start + 1);
+	queue->bulk_start = QDIO_BUFNR(queue->bulk_start + queue->bulk_count);
 	queue->prev_hdr = NULL;
+	queue->bulk_count = 0;
 }
 
 static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
@@ -3680,10 +3695,10 @@ check_layout:
 }
 
 static bool qeth_iqd_may_bulk(struct qeth_qdio_out_q *queue,
-			      struct qeth_qdio_out_buffer *buffer,
 			      struct sk_buff *curr_skb,
 			      struct qeth_hdr *curr_hdr)
 {
+	struct qeth_qdio_out_buffer *buffer = queue->bufs[queue->bulk_start];
 	struct qeth_hdr *prev_hdr = queue->prev_hdr;
 
 	if (!prev_hdr)
@@ -3803,13 +3818,14 @@ static int __qeth_xmit(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 		       struct qeth_hdr *hdr, unsigned int offset,
 		       unsigned int hd_len)
 {
-	struct qeth_qdio_out_buffer *buffer = queue->bufs[queue->bulk_start];
 	unsigned int bytes = qdisc_pkt_len(skb);
+	struct qeth_qdio_out_buffer *buffer;
 	unsigned int next_element;
 	struct netdev_queue *txq;
 	bool stopped = false;
 	bool flush;
 
+	buffer = queue->bufs[QDIO_BUFNR(queue->bulk_start + queue->bulk_count)];
 	txq = netdev_get_tx_queue(card->dev, skb_get_queue_mapping(skb));
 
 	/* Just a sanity check, the wake/stop logic should ensure that we always
@@ -3818,11 +3834,23 @@ static int __qeth_xmit(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 	if (atomic_read(&buffer->state) != QETH_QDIO_BUF_EMPTY)
 		return -EBUSY;
 
-	if ((buffer->next_element_to_fill + elements > queue->max_elements) ||
-	    !qeth_iqd_may_bulk(queue, buffer, skb, hdr)) {
-		atomic_set(&buffer->state, QETH_QDIO_BUF_PRIMED);
-		qeth_flush_queue(queue);
-		buffer = queue->bufs[queue->bulk_start];
+	flush = !qeth_iqd_may_bulk(queue, skb, hdr);
+
+	if (flush ||
+	    (buffer->next_element_to_fill + elements > queue->max_elements)) {
+		if (buffer->next_element_to_fill > 0) {
+			atomic_set(&buffer->state, QETH_QDIO_BUF_PRIMED);
+			queue->bulk_count++;
+		}
+
+		if (queue->bulk_count >= queue->bulk_max)
+			flush = true;
+
+		if (flush)
+			qeth_flush_queue(queue);
+
+		buffer = queue->bufs[QDIO_BUFNR(queue->bulk_start +
+						queue->bulk_count)];
 
 		/* Sanity-check again: */
 		if (atomic_read(&buffer->state) != QETH_QDIO_BUF_EMPTY)
@@ -3848,7 +3876,13 @@ static int __qeth_xmit(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 
 	if (flush || next_element >= queue->max_elements) {
 		atomic_set(&buffer->state, QETH_QDIO_BUF_PRIMED);
-		qeth_flush_queue(queue);
+		queue->bulk_count++;
+
+		if (queue->bulk_count >= queue->bulk_max)
+			flush = true;
+
+		if (flush)
+			qeth_flush_queue(queue);
 	}
 
 	if (stopped && !qeth_out_queue_is_full(queue))
