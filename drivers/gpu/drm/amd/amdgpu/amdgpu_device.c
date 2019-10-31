@@ -2082,9 +2082,6 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 	if (r)
 		DRM_ERROR("enable mgpu fan boost failed (%d).\n", r);
 
-	/* set to low pstate by default */
-	amdgpu_xgmi_set_pstate(adev, 0);
-
 	return 0;
 }
 
@@ -2197,6 +2194,18 @@ static void amdgpu_device_delayed_init_work_handler(struct work_struct *work)
 	r = amdgpu_ib_ring_tests(adev);
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
+
+	/*
+	 * set to low pstate by default
+	 * This should be performed after all devices from
+	 * XGMI finish their initializations. Thus it's moved
+	 * to here.
+	 * The time delay is 2S. TODO: confirm whether that
+	 * is enough for all possible XGMI setups.
+	 */
+	r = amdgpu_xgmi_set_pstate(adev, 0);
+	if (r)
+		DRM_ERROR("pstate setting failed (%d).\n", r);
 }
 
 static void amdgpu_device_delay_enable_gfx_off(struct work_struct *work)
