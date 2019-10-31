@@ -16714,8 +16714,7 @@ static int intel_initial_commit(struct drm_device *dev)
 {
 	struct drm_atomic_state *state = NULL;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
 	int ret = 0;
 
 	state = drm_atomic_state_alloc(dev);
@@ -16727,15 +16726,17 @@ static int intel_initial_commit(struct drm_device *dev)
 retry:
 	state->acquire_ctx = &ctx;
 
-	drm_for_each_crtc(crtc, dev) {
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	for_each_intel_crtc(dev, crtc) {
+		struct intel_crtc_state *crtc_state =
+			intel_atomic_get_crtc_state(state, crtc);
+
 		if (IS_ERR(crtc_state)) {
 			ret = PTR_ERR(crtc_state);
 			goto out;
 		}
 
-		if (crtc_state->active) {
-			ret = drm_atomic_add_affected_planes(state, crtc);
+		if (crtc_state->base.active) {
+			ret = drm_atomic_add_affected_planes(state, &crtc->base);
 			if (ret)
 				goto out;
 
@@ -16745,7 +16746,7 @@ retry:
 			 * having a proper LUT loaded. Remove once we
 			 * have readout for pipe gamma enable.
 			 */
-			crtc_state->color_mgmt_changed = true;
+			crtc_state->base.color_mgmt_changed = true;
 		}
 	}
 

@@ -26,6 +26,7 @@
 #include "display/intel_dp.h"
 
 #include "i915_drv.h"
+#include "intel_atomic.h"
 #include "intel_display_types.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
@@ -1096,7 +1097,7 @@ static int intel_psr_fastset_force(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = &dev_priv->drm;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_atomic_state *state;
-	struct drm_crtc *crtc;
+	struct intel_crtc *crtc;
 	int err;
 
 	state = drm_atomic_state_alloc(dev);
@@ -1107,21 +1108,18 @@ static int intel_psr_fastset_force(struct drm_i915_private *dev_priv)
 	state->acquire_ctx = &ctx;
 
 retry:
-	drm_for_each_crtc(crtc, dev) {
-		struct drm_crtc_state *crtc_state;
-		struct intel_crtc_state *intel_crtc_state;
+	for_each_intel_crtc(dev, crtc) {
+		struct intel_crtc_state *crtc_state =
+			intel_atomic_get_crtc_state(state, crtc);
 
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state)) {
 			err = PTR_ERR(crtc_state);
 			goto error;
 		}
 
-		intel_crtc_state = to_intel_crtc_state(crtc_state);
-
-		if (crtc_state->active && intel_crtc_state->has_psr) {
+		if (crtc_state->base.active && crtc_state->has_psr) {
 			/* Mark mode as changed to trigger a pipe->update() */
-			crtc_state->mode_changed = true;
+			crtc_state->base.mode_changed = true;
 			break;
 		}
 	}

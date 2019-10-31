@@ -168,7 +168,6 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	struct intel_connector *intel_connector =
 		to_intel_connector(connector);
 	struct drm_crtc *new_crtc = new_conn_state->crtc;
-	struct drm_crtc_state *crtc_state;
 	struct drm_dp_mst_topology_mgr *mgr;
 	int ret;
 
@@ -183,11 +182,16 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	 * connector
 	 */
 	if (new_crtc) {
-		crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
+		struct intel_atomic_state *intel_state =
+			to_intel_atomic_state(state);
+		struct intel_crtc *intel_crtc = to_intel_crtc(new_crtc);
+		struct intel_crtc_state *crtc_state =
+			intel_atomic_get_new_crtc_state(intel_state,
+							intel_crtc);
 
 		if (!crtc_state ||
-		    !drm_atomic_crtc_needs_modeset(crtc_state) ||
-		    crtc_state->enable)
+		    !drm_atomic_crtc_needs_modeset(&crtc_state->base) ||
+		    crtc_state->base.enable)
 			return 0;
 	}
 

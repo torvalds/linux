@@ -3073,11 +3073,9 @@ static bool ilk_validate_pipe_wm(const struct drm_i915_private *dev_priv,
 /* Compute new watermarks for the pipe */
 static int ilk_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 {
-	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct intel_pipe_wm *pipe_wm;
-	struct drm_device *dev = state->dev;
-	const struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *plane;
 	const struct intel_plane_state *plane_state;
 	const struct intel_plane_state *pristate = NULL;
@@ -3772,7 +3770,7 @@ bool intel_can_enable_sagv(struct intel_atomic_state *state)
 	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 	crtc_state = to_intel_crtc_state(crtc->base.state);
 
-	if (crtc->base.state->adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
+	if (crtc_state->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
 	for_each_intel_plane_on_crtc(dev, crtc, plane) {
