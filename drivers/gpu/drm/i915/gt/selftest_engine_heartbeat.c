@@ -97,6 +97,8 @@ static int __live_idle_pulse(struct intel_engine_cs *engine,
 		goto out;
 	}
 
+	GEM_BUG_ON(READ_ONCE(engine->serial) != engine->wakeref_serial);
+
 	pulse_unlock_wait(p); /* synchronize with the retirement callback */
 
 	if (!i915_active_is_idle(&p->active)) {
@@ -337,7 +339,7 @@ int intel_heartbeat_live_selftests(struct drm_i915_private *i915)
 	saved_hangcheck = i915_modparams.enable_hangcheck;
 	i915_modparams.enable_hangcheck = INT_MAX;
 
-	err =  intel_gt_live_subtests(tests, &i915->gt);
+	err = intel_gt_live_subtests(tests, &i915->gt);
 
 	i915_modparams.enable_hangcheck = saved_hangcheck;
 	return err;
