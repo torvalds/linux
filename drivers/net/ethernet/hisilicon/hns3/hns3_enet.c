@@ -1771,7 +1771,7 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	struct hnae3_handle *h = hns3_get_handle(ndev);
-	struct hns3_enet_ring *tx_ring = NULL;
+	struct hns3_enet_ring *tx_ring;
 	struct napi_struct *napi;
 	int timeout_queue = 0;
 	int hw_head, hw_tail;
