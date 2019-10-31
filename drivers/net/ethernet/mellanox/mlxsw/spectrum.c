@@ -4215,9 +4215,9 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		return -EINVAL;
 	}
 
-	if (count != 2 && count != 4) {
-		netdev_err(mlxsw_sp_port->dev, "Port can only be split into 2 or 4 ports\n");
-		NL_SET_ERR_MSG_MOD(extack, "Port can only be split into 2 or 4 ports");
+	if (count == 1 || !is_power_of_2(count) || count > max_width) {
+		netdev_err(mlxsw_sp_port->dev, "Invalid split count\n");
+		NL_SET_ERR_MSG_MOD(extack, "Invalid split count");
 		return -EINVAL;
 	}
 
