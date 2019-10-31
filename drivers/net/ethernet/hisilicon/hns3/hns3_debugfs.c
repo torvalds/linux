@@ -190,21 +190,24 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	addr = le64_to_cpu(tx_desc->addr);
 	dev_info(dev, "TX Queue Num: %u, BD Index: %u\n", q_num, tx_index);
 	dev_info(dev, "(TX)addr: %pad\n", &addr);
-	dev_info(dev, "(TX)vlan_tag: %u\n", tx_desc->tx.vlan_tag);
-	dev_info(dev, "(TX)send_size: %u\n", tx_desc->tx.send_size);
+	dev_info(dev, "(TX)vlan_tag: %u\n", le16_to_cpu(tx_desc->tx.vlan_tag));
+	dev_info(dev, "(TX)send_size: %u\n",
+		 le16_to_cpu(tx_desc->tx.send_size));
 	dev_info(dev, "(TX)vlan_tso: %u\n", tx_desc->tx.type_cs_vlan_tso);
 	dev_info(dev, "(TX)l2_len: %u\n", tx_desc->tx.l2_len);
 	dev_info(dev, "(TX)l3_len: %u\n", tx_desc->tx.l3_len);
 	dev_info(dev, "(TX)l4_len: %u\n", tx_desc->tx.l4_len);
-	dev_info(dev, "(TX)vlan_tag: %u\n", tx_desc->tx.outer_vlan_tag);
-	dev_info(dev, "(TX)tv: %u\n", tx_desc->tx.tv);
+	dev_info(dev, "(TX)vlan_tag: %u\n",
+		 le16_to_cpu(tx_desc->tx.outer_vlan_tag));
+	dev_info(dev, "(TX)tv: %u\n", le16_to_cpu(tx_desc->tx.tv));
 	dev_info(dev, "(TX)vlan_msec: %u\n", tx_desc->tx.ol_type_vlan_msec);
 	dev_info(dev, "(TX)ol2_len: %u\n", tx_desc->tx.ol2_len);
 	dev_info(dev, "(TX)ol3_len: %u\n", tx_desc->tx.ol3_len);
 	dev_info(dev, "(TX)ol4_len: %u\n", tx_desc->tx.ol4_len);
-	dev_info(dev, "(TX)paylen: %u\n", tx_desc->tx.paylen);
-	dev_info(dev, "(TX)vld_ra_ri: %u\n", tx_desc->tx.bdtp_fe_sc_vld_ra_ri);
-	dev_info(dev, "(TX)mss: %u\n", tx_desc->tx.mss);
+	dev_info(dev, "(TX)paylen: %u\n", le32_to_cpu(tx_desc->tx.paylen));
+	dev_info(dev, "(TX)vld_ra_ri: %u\n",
+		 le16_to_cpu(tx_desc->tx.bdtp_fe_sc_vld_ra_ri));
+	dev_info(dev, "(TX)mss: %u\n", le16_to_cpu(tx_desc->tx.mss));
 
 	ring  = &priv->ring[q_num + h->kinfo.num_tqps];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_TAIL_REG);
@@ -214,15 +217,19 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	addr = le64_to_cpu(rx_desc->addr);
 	dev_info(dev, "RX Queue Num: %u, BD Index: %u\n", q_num, rx_index);
 	dev_info(dev, "(RX)addr: %pad\n", &addr);
-	dev_info(dev, "(RX)l234_info: %u\n", rx_desc->rx.l234_info);
-	dev_info(dev, "(RX)pkt_len: %u\n", rx_desc->rx.pkt_len);
-	dev_info(dev, "(RX)size: %u\n", rx_desc->rx.size);
-	dev_info(dev, "(RX)rss_hash: %u\n", rx_desc->rx.rss_hash);
-	dev_info(dev, "(RX)fd_id: %u\n", rx_desc->rx.fd_id);
-	dev_info(dev, "(RX)vlan_tag: %u\n", rx_desc->rx.vlan_tag);
-	dev_info(dev, "(RX)o_dm_vlan_id_fb: %u\n", rx_desc->rx.o_dm_vlan_id_fb);
-	dev_info(dev, "(RX)ot_vlan_tag: %u\n", rx_desc->rx.ot_vlan_tag);
-	dev_info(dev, "(RX)bd_base_info: %u\n", rx_desc->rx.bd_base_info);
+	dev_info(dev, "(RX)l234_info: %u\n",
+		 le32_to_cpu(rx_desc->rx.l234_info));
+	dev_info(dev, "(RX)pkt_len: %u\n", le16_to_cpu(rx_desc->rx.pkt_len));
+	dev_info(dev, "(RX)size: %u\n", le16_to_cpu(rx_desc->rx.size));
+	dev_info(dev, "(RX)rss_hash: %u\n", le32_to_cpu(rx_desc->rx.rss_hash));
+	dev_info(dev, "(RX)fd_id: %u\n", le16_to_cpu(rx_desc->rx.fd_id));
+	dev_info(dev, "(RX)vlan_tag: %u\n", le16_to_cpu(rx_desc->rx.vlan_tag));
+	dev_info(dev, "(RX)o_dm_vlan_id_fb: %u\n",
+		 le16_to_cpu(rx_desc->rx.o_dm_vlan_id_fb));
+	dev_info(dev, "(RX)ot_vlan_tag: %u\n",
+		 le16_to_cpu(rx_desc->rx.ot_vlan_tag));
+	dev_info(dev, "(RX)bd_base_info: %u\n",
+		 le32_to_cpu(rx_desc->rx.bd_base_info));
 
 	return 0;
 }

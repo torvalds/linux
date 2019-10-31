@@ -1710,8 +1710,8 @@ static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 	int ret = -EIO;
 
 	netif_dbg(h, drv, netdev,
-		  "set vf vlan: vf=%d, vlan=%u, qos=%u, vlan_proto=%u\n",
-		  vf, vlan, qos, vlan_proto);
+		  "set vf vlan: vf=%d, vlan=%u, qos=%u, vlan_proto=0x%x\n",
+		  vf, vlan, qos, ntohs(vlan_proto));
 
 	if (h->ae_algo->ops->set_vf_vlan_filter)
 		ret = h->ae_algo->ops->set_vf_vlan_filter(h, vf, vlan,
