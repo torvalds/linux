@@ -192,32 +192,6 @@ void intel_guc_init_early(struct intel_guc *guc)
 	}
 }
 
-static int guc_shared_data_create(struct intel_guc *guc)
-{
-	struct i915_vma *vma;
-	void *vaddr;
-
-	vma = intel_guc_allocate_vma(guc, PAGE_SIZE);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
-	if (IS_ERR(vaddr)) {
-		i915_vma_unpin_and_release(&vma, 0);
-		return PTR_ERR(vaddr);
-	}
-
-	guc->shared_data = vma;
-	guc->shared_data_vaddr = vaddr;
-
-	return 0;
-}
-
-static void guc_shared_data_destroy(struct intel_guc *guc)
-{
-	i915_vma_unpin_and_release(&guc->shared_data, I915_VMA_RELEASE_MAP);
-}
-
 static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 {
 	u32 level = intel_guc_log_get_level(&guc->log);
@@ -364,14 +338,9 @@ int intel_guc_init(struct intel_guc *guc)
 	if (ret)
 		goto err_fetch;
 
-	ret = guc_shared_data_create(guc);
-	if (ret)
-		goto err_fw;
-	GEM_BUG_ON(!guc->shared_data);
-
 	ret = intel_guc_log_create(&guc->log);
 	if (ret)
-		goto err_shared;
+		goto err_fw;
 
 	ret = intel_guc_ads_create(guc);
 	if (ret)
@@ -406,8 +375,6 @@ err_ads:
 	intel_guc_ads_destroy(guc);
 err_log:
 	intel_guc_log_destroy(&guc->log);
-err_shared:
-	guc_shared_data_destroy(guc);
 err_fw:
 	intel_uc_fw_fini(&guc->fw);
 err_fetch:
@@ -432,7 +399,6 @@ void intel_guc_fini(struct intel_guc *guc)
 
 	intel_guc_ads_destroy(guc);
 	intel_guc_log_destroy(&guc->log);
-	guc_shared_data_destroy(guc);
 	intel_uc_fw_fini(&guc->fw);
 	intel_uc_fw_cleanup_fetch(&guc->fw);
 }
@@ -628,19 +594,9 @@ int intel_guc_suspend(struct intel_guc *guc)
 int intel_guc_reset_engine(struct intel_guc *guc,
 			   struct intel_engine_cs *engine)
 {
-	u32 data[7];
+	/* XXX: to be implemented with submission interface rework */
 
-	GEM_BUG_ON(!guc->execbuf_client);
-
-	data[0] = INTEL_GUC_ACTION_REQUEST_ENGINE_RESET;
-	data[1] = engine->guc_id;
-	data[2] = 0;
-	data[3] = 0;
-	data[4] = 0;
-	data[5] = guc->execbuf_client->stage_id;
-	data[6] = intel_guc_ggtt_offset(guc, guc->shared_data);
-
-	return intel_guc_send(guc, data, ARRAY_SIZE(data));
+	return -ENODEV;
 }
 
 /**
