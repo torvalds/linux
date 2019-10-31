@@ -45,6 +45,8 @@ static struct dsa_switch_tree *dsa_tree_alloc(int index)
 
 	dst->index = index;
 
+	INIT_LIST_HEAD(&dst->rtable);
+
 	INIT_LIST_HEAD(&dst->ports);
 
 	INIT_LIST_HEAD(&dst->list);
@@ -122,6 +124,31 @@ static struct dsa_port *dsa_tree_find_port_by_node(struct dsa_switch_tree *dst,
 	return NULL;
 }
 
+struct dsa_link *dsa_link_touch(struct dsa_port *dp, struct dsa_port *link_dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_switch_tree *dst;
+	struct dsa_link *dl;
+
+	dst = ds->dst;
+
+	list_for_each_entry(dl, &dst->rtable, list)
+		if (dl->dp == dp && dl->link_dp == link_dp)
+			return dl;
+
+	dl = kzalloc(sizeof(*dl), GFP_KERNEL);
+	if (!dl)
+		return NULL;
+
+	dl->dp = dp;
+	dl->link_dp = link_dp;
+
+	INIT_LIST_HEAD(&dl->list);
+	list_add_tail(&dl->list, &dst->rtable);
+
+	return dl;
+}
+
 static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
@@ -129,6 +156,7 @@ static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 	struct device_node *dn = dp->dn;
 	struct of_phandle_iterator it;
 	struct dsa_port *link_dp;
+	struct dsa_link *dl;
 	int err;
 
 	of_for_each_phandle(&it, err, dn, "link", NULL, 0) {
@@ -138,7 +166,11 @@ static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 			return false;
 		}
 
-		ds->rtable[link_dp->ds->index] = dp->index;
+		dl = dsa_link_touch(dp, link_dp);
+		if (!dl) {
+			of_node_put(it.node);
+			return false;
+		}
 	}
 
 	return true;
@@ -544,6 +576,8 @@ teardown_default_cpu:
 
 static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 {
+	struct dsa_link *dl, *next;
+
 	if (!dst->setup)
 		return;
 
@@ -552,6 +586,11 @@ static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 	dsa_tree_teardown_switches(dst);
 
 	dsa_tree_teardown_default_cpu(dst);
+
+	list_for_each_entry_safe(dl, next, &dst->rtable, list) {
+		list_del(&dl->list);
+		kfree(dl);
+	}
 
 	pr_info("DSA: tree %d torn down\n", dst->index);
 

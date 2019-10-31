@@ -123,6 +123,9 @@ struct dsa_switch_tree {
 	/* List of switch ports */
 	struct list_head ports;
 
+	/* List of DSA links composing the routing table */
+	struct list_head rtable;
+
 	/*
 	 * Data for the individual switch chips.
 	 */
@@ -212,6 +215,17 @@ struct dsa_port {
 	const struct net_device_ops *orig_ndo_ops;
 
 	bool setup;
+};
+
+/* TODO: ideally DSA ports would have a single dp->link_dp member,
+ * and no dst->rtable nor this struct dsa_link would be needed,
+ * but this would require some more complex tree walking,
+ * so keep it stupid at the moment and list them all.
+ */
+struct dsa_link {
+	struct dsa_port *dp;
+	struct dsa_port *link_dp;
+	struct list_head list;
 };
 
 struct dsa_switch {
@@ -324,6 +338,19 @@ static inline u32 dsa_user_ports(struct dsa_switch *ds)
 	return mask;
 }
 
+/* Return the local port used to reach an arbitrary switch device */
+static inline unsigned int dsa_routing_port(struct dsa_switch *ds, int device)
+{
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_link *dl;
+
+	list_for_each_entry(dl, &dst->rtable, list)
+		if (dl->dp->ds == ds && dl->link_dp->ds->index == device)
+			return dl->dp->index;
+
+	return ds->num_ports;
+}
+
 /* Return the local port used to reach an arbitrary switch port */
 static inline unsigned int dsa_towards_port(struct dsa_switch *ds, int device,
 					    int port)
@@ -331,7 +358,7 @@ static inline unsigned int dsa_towards_port(struct dsa_switch *ds, int device,
 	if (device == ds->index)
 		return port;
 	else
-		return ds->rtable[device];
+		return dsa_routing_port(ds, device);
 }
 
 /* Return the local port used to reach the dedicated CPU port */
