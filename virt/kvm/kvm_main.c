@@ -51,6 +51,7 @@
 #include <linux/slab.h>
 #include <linux/sort.h>
 #include <linux/bsearch.h>
+#include <linux/kthread.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -4142,3 +4143,86 @@ void kvm_exit(void)
 	kvm_vfio_ops_exit();
 }
 EXPORT_SYMBOL_GPL(kvm_exit);
+
+struct kvm_vm_worker_thread_context {
+	struct kvm *kvm;
+	struct task_struct *parent;
+	struct completion init_done;
+	kvm_vm_thread_fn_t thread_fn;
+	uintptr_t data;
+	int err;
+};
+
+static int kvm_vm_worker_thread(void *context)
+{
+	/*
+	 * The init_context is allocated on the stack of the parent thread, so
+	 * we have to locally copy anything that is needed beyond initialization
+	 */
+	struct kvm_vm_worker_thread_context *init_context = context;
+	struct kvm *kvm = init_context->kvm;
+	kvm_vm_thread_fn_t thread_fn = init_context->thread_fn;
+	uintptr_t data = init_context->data;
+	int err;
+
+	err = kthread_park(current);
+	/* kthread_park(current) is never supposed to return an error */
+	WARN_ON(err != 0);
+	if (err)
+		goto init_complete;
+
+	err = cgroup_attach_task_all(init_context->parent, current);
+	if (err) {
+		kvm_err("%s: cgroup_attach_task_all failed with err %d\n",
+			__func__, err);
+		goto init_complete;
+	}
+
+	set_user_nice(current, task_nice(init_context->parent));
+
+init_complete:
+	init_context->err = err;
+	complete(&init_context->init_done);
+	init_context = NULL;
+
+	if (err)
+		return err;
+
+	/* Wait to be woken up by the spawner before proceeding. */
+	kthread_parkme();
+
+	if (!kthread_should_stop())
+		err = thread_fn(kvm, data);
+
+	return err;
+}
+
+int kvm_vm_create_worker_thread(struct kvm *kvm, kvm_vm_thread_fn_t thread_fn,
+				uintptr_t data, const char *name,
+				struct task_struct **thread_ptr)
+{
+	struct kvm_vm_worker_thread_context init_context = {};
+	struct task_struct *thread;
+
+	*thread_ptr = NULL;
+	init_context.kvm = kvm;
+	init_context.parent = current;
+	init_context.thread_fn = thread_fn;
+	init_context.data = data;
+	init_completion(&init_context.init_done);
+
+	thread = kthread_run(kvm_vm_worker_thread, &init_context,
+			     "%s-%d", name, task_pid_nr(current));
+	if (IS_ERR(thread))
+		return PTR_ERR(thread);
+
+	/* kthread_run is never supposed to return NULL */
+	WARN_ON(thread == NULL);
+
+	wait_for_completion(&init_context.init_done);
+
+	if (!init_context.err)
+		*thread_ptr = thread;
+
+	return init_context.err;
+}
