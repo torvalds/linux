@@ -293,6 +293,7 @@ struct mlxsw_sp_port {
 		u16 egr_types;
 		struct mlxsw_sp_ptp_port_stats stats;
 	} ptp;
+	u8 split_base_local_port;
 };
 
 struct mlxsw_sp_port_type_speed_ops {

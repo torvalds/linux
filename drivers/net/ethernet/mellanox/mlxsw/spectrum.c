@@ -3692,10 +3692,11 @@ static int mlxsw_sp_port_tc_mc_mode_set(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
-				bool split,
+				u8 split_base_local_port,
 				struct mlxsw_sp_port_mapping *port_mapping)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
+	bool split = !!split_base_local_port;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct net_device *dev;
 	int err;
@@ -3724,6 +3725,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	mlxsw_sp_port->local_port = local_port;
 	mlxsw_sp_port->pvid = MLXSW_SP_DEFAULT_VID;
 	mlxsw_sp_port->split = split;
+	mlxsw_sp_port->split_base_local_port = split_base_local_port;
 	mlxsw_sp_port->mapping = *port_mapping;
 	mlxsw_sp_port->link.autoneg = 1;
 	INIT_LIST_HEAD(&mlxsw_sp_port->vlans_list);
@@ -4038,7 +4040,7 @@ static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 		port_mapping = mlxsw_sp->port_mapping[i];
 		if (!port_mapping)
 			continue;
-		err = mlxsw_sp_port_create(mlxsw_sp, i, false, port_mapping);
+		err = mlxsw_sp_port_create(mlxsw_sp, i, 0, port_mapping);
 		if (err)
 			goto err_port_create;
 	}
@@ -4118,7 +4120,7 @@ mlxsw_sp_port_split_create(struct mlxsw_sp *mlxsw_sp, u8 base_port,
 	split_port_mapping.width /= count;
 	for (i = 0; i < count; i++) {
 		err = mlxsw_sp_port_create(mlxsw_sp, base_port + i * offset,
-					   true, &split_port_mapping);
+					   base_port, &split_port_mapping);
 		if (err)
 			goto err_port_create;
 		split_port_mapping.lane += split_port_mapping.width;
@@ -4150,7 +4152,7 @@ static void mlxsw_sp_port_unsplit_create(struct mlxsw_sp *mlxsw_sp,
 		port_mapping = mlxsw_sp->port_mapping[local_port];
 		if (!port_mapping)
 			continue;
-		mlxsw_sp_port_create(mlxsw_sp, local_port, false, port_mapping);
+		mlxsw_sp_port_create(mlxsw_sp, local_port, 0, port_mapping);
 	}
 }
 
@@ -4312,11 +4314,7 @@ static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port,
 		return -EINVAL;
 	}
 
-	base_port = mlxsw_sp_cluster_base_port_get(local_port, max_width);
-
-	/* Determine which ports to remove. */
-	if (count == 2 && local_port >= base_port + 2)
-		base_port = base_port + 2;
+	base_port = mlxsw_sp_port->split_base_local_port;
 
 	for (i = 0; i < count; i++)
 		if (mlxsw_sp_port_created(mlxsw_sp, base_port + i * offset))
