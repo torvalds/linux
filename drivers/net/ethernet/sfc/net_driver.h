@@ -27,6 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
 #include <net/busy_poll.h>
+#include <net/xdp.h>
 
 #include "enum.h"
 #include "bitfield.h"
@@ -136,7 +137,8 @@ struct efx_special_buffer {
  * struct efx_tx_buffer - buffer state for a TX descriptor
  * @skb: When @flags & %EFX_TX_BUF_SKB, the associated socket buffer to be
  *	freed when descriptor completes
- * @option: When @flags & %EFX_TX_BUF_OPTION, a NIC-specific option descriptor.
+ * @xdpf: When @flags & %EFX_TX_BUF_XDP, the XDP frame information; its @data
+ *	member is the associated buffer to drop a page reference on.
  * @dma_addr: DMA address of the fragment.
  * @flags: Flags for allocation and DMA mapping type
  * @len: Length of this fragment.
@@ -146,7 +148,10 @@ struct efx_special_buffer {
  * Only valid if @unmap_len != 0.
  */
 struct efx_tx_buffer {
-	const struct sk_buff *skb;
+	union {
+		const struct sk_buff *skb;
+		struct xdp_frame *xdpf;
+	};
 	union {
 		efx_qword_t option;
 		dma_addr_t dma_addr;
@@ -160,6 +165,7 @@ struct efx_tx_buffer {
 #define EFX_TX_BUF_SKB		2	/* buffer is last part of skb */
 #define EFX_TX_BUF_MAP_SINGLE	8	/* buffer was mapped with dma_map_single() */
 #define EFX_TX_BUF_OPTION	0x10	/* empty buffer for option descriptor */
+#define EFX_TX_BUF_XDP		0x20	/* buffer was sent with XDP */
 
 /**
  * struct efx_tx_queue - An Efx TX queue
