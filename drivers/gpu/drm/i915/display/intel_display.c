@@ -15540,7 +15540,6 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	const struct drm_plane_funcs *plane_funcs;
 	unsigned int supported_rotations;
 	unsigned int possible_crtcs;
-	const u64 *modifiers;
 	const u32 *formats;
 	int num_formats;
 	int ret, zpos;
@@ -15575,16 +15574,6 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		formats = vlv_primary_formats;
 		num_formats = ARRAY_SIZE(vlv_primary_formats);
-		modifiers = i9xx_format_modifiers;
-
-		plane->max_stride = i9xx_plane_max_stride;
-		plane->update_plane = i9xx_update_plane;
-		plane->disable_plane = i9xx_disable_plane;
-		plane->get_hw_state = i9xx_plane_get_hw_state;
-		plane->check_plane = i9xx_plane_check;
-		plane->min_cdclk = vlv_plane_min_cdclk;
-
-		plane_funcs = &i965_plane_funcs;
 	} else if (INTEL_GEN(dev_priv) >= 4) {
 		/*
 		 * WaFP16GammaEnabling:ivb
@@ -15606,50 +15595,45 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 			formats = i965_primary_formats;
 			num_formats = ARRAY_SIZE(i965_primary_formats);
 		}
-
-		modifiers = i9xx_format_modifiers;
-
-		plane->max_stride = i9xx_plane_max_stride;
-		plane->update_plane = i9xx_update_plane;
-		plane->disable_plane = i9xx_disable_plane;
-		plane->get_hw_state = i9xx_plane_get_hw_state;
-		plane->check_plane = i9xx_plane_check;
-
-		if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
-			plane->min_cdclk = hsw_plane_min_cdclk;
-		else if (IS_IVYBRIDGE(dev_priv))
-			plane->min_cdclk = ivb_plane_min_cdclk;
-		else
-			plane->min_cdclk = i9xx_plane_min_cdclk;
-
-		plane_funcs = &i965_plane_funcs;
 	} else {
 		formats = i8xx_primary_formats;
 		num_formats = ARRAY_SIZE(i8xx_primary_formats);
-		modifiers = i9xx_format_modifiers;
+	}
 
-		plane->max_stride = i9xx_plane_max_stride;
-		plane->update_plane = i9xx_update_plane;
-		plane->disable_plane = i9xx_disable_plane;
-		plane->get_hw_state = i9xx_plane_get_hw_state;
-		plane->check_plane = i9xx_plane_check;
+	if (INTEL_GEN(dev_priv) >= 4)
+		plane_funcs = &i965_plane_funcs;
+	else
+		plane_funcs = &i8xx_plane_funcs;
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		plane->min_cdclk = vlv_plane_min_cdclk;
+	else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+		plane->min_cdclk = hsw_plane_min_cdclk;
+	else if (IS_IVYBRIDGE(dev_priv))
+		plane->min_cdclk = ivb_plane_min_cdclk;
+	else
 		plane->min_cdclk = i9xx_plane_min_cdclk;
 
-		plane_funcs = &i8xx_plane_funcs;
-	}
+	plane->max_stride = i9xx_plane_max_stride;
+	plane->update_plane = i9xx_update_plane;
+	plane->disable_plane = i9xx_disable_plane;
+	plane->get_hw_state = i9xx_plane_get_hw_state;
+	plane->check_plane = i9xx_plane_check;
 
 	possible_crtcs = BIT(pipe);
 
 	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
 					       possible_crtcs, plane_funcs,
-					       formats, num_formats, modifiers,
+					       formats, num_formats,
+					       i9xx_format_modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "primary %c", pipe_name(pipe));
 	else
 		ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
 					       possible_crtcs, plane_funcs,
-					       formats, num_formats, modifiers,
+					       formats, num_formats,
+					       i9xx_format_modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "plane %c",
 					       plane_name(plane->i9xx_plane));
