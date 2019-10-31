@@ -2507,14 +2507,9 @@ int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
 	struct dentry *dentry;
 	int error;
 
-	dentry = lookup_one_len_unlocked(qf_name, sb->s_root, strlen(qf_name));
+	dentry = lookup_positive_unlocked(qf_name, sb->s_root, strlen(qf_name));
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
-
-	if (d_really_is_negative(dentry)) {
-		error = -ENOENT;
-		goto out;
-	}
 
 	error = security_quota_on(dentry);
 	if (!error)

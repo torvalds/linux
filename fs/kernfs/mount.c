@@ -200,7 +200,7 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 			dput(dentry);
 			return ERR_PTR(-EINVAL);
 		}
-		dtmp = lookup_one_len_unlocked(kntmp->name, dentry,
+		dtmp = lookup_positive_unlocked(kntmp->name, dentry,
 					       strlen(kntmp->name));
 		dput(dentry);
 		if (IS_ERR(dtmp))
