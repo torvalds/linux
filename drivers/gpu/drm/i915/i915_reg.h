@@ -6353,6 +6353,7 @@ enum {
 #define   DISPPLANE_RGBX101010			(0x8 << 26)
 #define   DISPPLANE_RGBA101010			(0x9 << 26)
 #define   DISPPLANE_BGRX101010			(0xa << 26)
+#define   DISPPLANE_BGRA101010			(0xb << 26)
 #define   DISPPLANE_RGBX161616			(0xc << 26)
 #define   DISPPLANE_RGBX888			(0xe << 26)
 #define   DISPPLANE_RGBA888			(0xf << 26)

@@ -111,6 +111,21 @@ static const u32 i965_primary_formats[] = {
 	DRM_FORMAT_XBGR16161616F,
 };
 
+/* Primary plane formats for vlv/chv */
+static const u32 vlv_primary_formats[] = {
+	DRM_FORMAT_C8,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_ARGB2101010,
+	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_XBGR16161616F,
+};
+
 static const u64 i9xx_format_modifiers[] = {
 	I915_FORMAT_MOD_X_TILED,
 	DRM_FORMAT_MOD_LINEAR,
@@ -2971,6 +2986,8 @@ static int i9xx_format_to_fourcc(int format)
 	switch (format) {
 	case DISPPLANE_8BPP:
 		return DRM_FORMAT_C8;
+	case DISPPLANE_BGRA555:
+		return DRM_FORMAT_ARGB1555;
 	case DISPPLANE_BGRX555:
 		return DRM_FORMAT_XRGB1555;
 	case DISPPLANE_BGRX565:
@@ -2980,10 +2997,18 @@ static int i9xx_format_to_fourcc(int format)
 		return DRM_FORMAT_XRGB8888;
 	case DISPPLANE_RGBX888:
 		return DRM_FORMAT_XBGR8888;
+	case DISPPLANE_BGRA888:
+		return DRM_FORMAT_ARGB8888;
+	case DISPPLANE_RGBA888:
+		return DRM_FORMAT_ABGR8888;
 	case DISPPLANE_BGRX101010:
 		return DRM_FORMAT_XRGB2101010;
 	case DISPPLANE_RGBX101010:
 		return DRM_FORMAT_XBGR2101010;
+	case DISPPLANE_BGRA101010:
+		return DRM_FORMAT_ARGB2101010;
+	case DISPPLANE_RGBA101010:
+		return DRM_FORMAT_ABGR2101010;
 	case DISPPLANE_RGBX161616:
 		return DRM_FORMAT_XBGR16161616F;
 	}
@@ -3708,6 +3733,9 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_XRGB1555:
 		dspcntr |= DISPPLANE_BGRX555;
 		break;
+	case DRM_FORMAT_ARGB1555:
+		dspcntr |= DISPPLANE_BGRA555;
+		break;
 	case DRM_FORMAT_RGB565:
 		dspcntr |= DISPPLANE_BGRX565;
 		break;
@@ -3717,11 +3745,23 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_XBGR8888:
 		dspcntr |= DISPPLANE_RGBX888;
 		break;
+	case DRM_FORMAT_ARGB8888:
+		dspcntr |= DISPPLANE_BGRA888;
+		break;
+	case DRM_FORMAT_ABGR8888:
+		dspcntr |= DISPPLANE_RGBA888;
+		break;
 	case DRM_FORMAT_XRGB2101010:
 		dspcntr |= DISPPLANE_BGRX101010;
 		break;
 	case DRM_FORMAT_XBGR2101010:
 		dspcntr |= DISPPLANE_RGBX101010;
+		break;
+	case DRM_FORMAT_ARGB2101010:
+		dspcntr |= DISPPLANE_BGRA101010;
+		break;
+	case DRM_FORMAT_ABGR2101010:
+		dspcntr |= DISPPLANE_RGBA101010;
 		break;
 	case DRM_FORMAT_XBGR16161616F:
 		dspcntr |= DISPPLANE_RGBX161616;
@@ -15294,8 +15334,12 @@ static bool i965_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_ABGR2101010:
 	case DRM_FORMAT_XBGR16161616F:
 		return modifier == DRM_FORMAT_MOD_LINEAR ||
 			modifier == I915_FORMAT_MOD_X_TILED;
@@ -15517,7 +15561,20 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 4) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		formats = vlv_primary_formats;
+		num_formats = ARRAY_SIZE(vlv_primary_formats);
+		modifiers = i9xx_format_modifiers;
+
+		plane->max_stride = i9xx_plane_max_stride;
+		plane->update_plane = i9xx_update_plane;
+		plane->disable_plane = i9xx_disable_plane;
+		plane->get_hw_state = i9xx_plane_get_hw_state;
+		plane->check_plane = i9xx_plane_check;
+		plane->min_cdclk = vlv_plane_min_cdclk;
+
+		plane_funcs = &i965_plane_funcs;
+	} else if (INTEL_GEN(dev_priv) >= 4) {
 		/*
 		 * WaFP16GammaEnabling:ivb
 		 * "Workaround : When using the 64-bit format, the plane
@@ -15538,6 +15595,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 			formats = i965_primary_formats;
 			num_formats = ARRAY_SIZE(i965_primary_formats);
 		}
+
 		modifiers = i9xx_format_modifiers;
 
 		plane->max_stride = i9xx_plane_max_stride;
@@ -15550,8 +15608,6 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 			plane->min_cdclk = hsw_plane_min_cdclk;
 		else if (IS_IVYBRIDGE(dev_priv))
 			plane->min_cdclk = ivb_plane_min_cdclk;
-		else if (IS_CHERRYVIEW(dev_priv) || IS_VALLEYVIEW(dev_priv))
-			plane->min_cdclk = vlv_plane_min_cdclk;
 		else
 			plane->min_cdclk = i9xx_plane_min_cdclk;
 
