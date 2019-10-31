@@ -828,27 +828,36 @@ static void clear_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
  *
  * - RAID56 - in case there's neither RAID5 nor RAID6 profile block group
  *            in the whole filesystem
+ *
+ * - RAID1C34 - same as above for RAID1C3 and RAID1C4 block groups
  */
 static void clear_incompat_bg_bits(struct btrfs_fs_info *fs_info, u64 flags)
 {
-	if (flags & BTRFS_BLOCK_GROUP_RAID56_MASK) {
+	bool found_raid56 = false;
+	bool found_raid1c34 = false;
+
+	if ((flags & BTRFS_BLOCK_GROUP_RAID56_MASK) ||
+	    (flags & BTRFS_BLOCK_GROUP_RAID1C3) ||
+	    (flags & BTRFS_BLOCK_GROUP_RAID1C4)) {
 		struct list_head *head = &fs_info->space_info;
 		struct btrfs_space_info *sinfo;
 
 		list_for_each_entry_rcu(sinfo, head, list) {
-			bool found = false;
-
 			down_read(&sinfo->groups_sem);
 			if (!list_empty(&sinfo->block_groups[BTRFS_RAID_RAID5]))
-				found = true;
+				found_raid56 = true;
 			if (!list_empty(&sinfo->block_groups[BTRFS_RAID_RAID6]))
-				found = true;
+				found_raid56 = true;
+			if (!list_empty(&sinfo->block_groups[BTRFS_RAID_RAID1C3]))
+				found_raid1c34 = true;
+			if (!list_empty(&sinfo->block_groups[BTRFS_RAID_RAID1C4]))
+				found_raid1c34 = true;
 			up_read(&sinfo->groups_sem);
-
-			if (found)
-				return;
 		}
-		btrfs_clear_fs_incompat(fs_info, RAID56);
+		if (found_raid56)
+			btrfs_clear_fs_incompat(fs_info, RAID56);
+		if (found_raid1c34)
+			btrfs_clear_fs_incompat(fs_info, RAID1C34);
 	}
 }
 
