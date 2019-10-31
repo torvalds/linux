@@ -47,6 +47,8 @@ static const char dpaa_stats_percpu[][ETH_GSTRING_LEN] = {
 	"tx S/G",
 	"tx error",
 	"rx error",
+	"rx dropped",
+	"tx dropped",
 };
 
 static char dpaa_stats_global[][ETH_GSTRING_LEN] = {
@@ -261,6 +263,12 @@ static void copy_stats(struct dpaa_percpu_priv *percpu_priv, int num_cpus,
 
 	data[crr * num_values + crr_cpu] = percpu_priv->stats.rx_errors;
 	data[crr++ * num_values + num_cpus] += percpu_priv->stats.rx_errors;
+
+	data[crr * num_values + crr_cpu] = percpu_priv->stats.rx_dropped;
+	data[crr++ * num_values + num_cpus] += percpu_priv->stats.rx_dropped;
+
+	data[crr * num_values + crr_cpu] = percpu_priv->stats.tx_dropped;
+	data[crr++ * num_values + num_cpus] += percpu_priv->stats.tx_dropped;
 
 	data[crr * num_values + crr_cpu] = bp_count;
 	data[crr++ * num_values + num_cpus] += bp_count;
