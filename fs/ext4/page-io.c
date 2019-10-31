@@ -394,14 +394,16 @@ void ext4_io_submit_init(struct ext4_io_submit *io,
 	io->io_end = NULL;
 }
 
-static int io_submit_init_bio(struct ext4_io_submit *io,
-			      struct buffer_head *bh)
+static void io_submit_init_bio(struct ext4_io_submit *io,
+			       struct buffer_head *bh)
 {
 	struct bio *bio;
 
+	/*
+	 * bio_alloc will _always_ be able to allocate a bio if
+	 * __GFP_DIRECT_RECLAIM is set, see comments for bio_alloc_bioset().
+	 */
 	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
-	if (!bio)
-		return -ENOMEM;
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio_set_dev(bio, bh->b_bdev);
 	bio->bi_end_io = ext4_end_bio;
@@ -409,13 +411,12 @@ static int io_submit_init_bio(struct ext4_io_submit *io,
 	io->io_bio = bio;
 	io->io_next_block = bh->b_blocknr;
 	wbc_init_bio(io->io_wbc, bio);
-	return 0;
 }
 
-static int io_submit_add_bh(struct ext4_io_submit *io,
-			    struct inode *inode,
-			    struct page *page,
-			    struct buffer_head *bh)
+static void io_submit_add_bh(struct ext4_io_submit *io,
+			     struct inode *inode,
+			     struct page *page,
+			     struct buffer_head *bh)
 {
 	int ret;
 
@@ -424,9 +425,7 @@ submit_and_retry:
 		ext4_io_submit(io);
 	}
 	if (io->io_bio == NULL) {
-		ret = io_submit_init_bio(io, bh);
-		if (ret)
-			return ret;
+		io_submit_init_bio(io, bh);
 		io->io_bio->bi_write_hint = inode->i_write_hint;
 	}
 	ret = bio_add_page(io->io_bio, page, bh->b_size, bh_offset(bh));
@@ -434,7 +433,6 @@ submit_and_retry:
 		goto submit_and_retry;
 	wbc_account_cgroup_owner(io->io_wbc, page, bh->b_size);
 	io->io_next_block++;
-	return 0;
 }
 
 int ext4_bio_write_page(struct ext4_io_submit *io,
@@ -527,8 +525,14 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 				gfp_flags |= __GFP_NOFAIL;
 				goto retry_encrypt;
 			}
-			bounce_page = NULL;
-			goto out;
+
+			printk_ratelimited(KERN_ERR "%s: ret = %d\n", __func__, ret);
+			redirty_page_for_writepage(wbc, page);
+			do {
+				clear_buffer_async_write(bh);
+				bh = bh->b_this_page;
+			} while (bh != head);
+			goto unlock;
 		}
 	}
 
@@ -536,30 +540,13 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	do {
 		if (!buffer_async_write(bh))
 			continue;
-		ret = io_submit_add_bh(io, inode, bounce_page ?: page, bh);
-		if (ret) {
-			/*
-			 * We only get here on ENOMEM.  Not much else
-			 * we can do but mark the page as dirty, and
-			 * better luck next time.
-			 */
-			break;
-		}
+		io_submit_add_bh(io, inode,
+				 bounce_page ? bounce_page : page, bh);
 		nr_submitted++;
 		clear_buffer_dirty(bh);
 	} while ((bh = bh->b_this_page) != head);
 
-	/* Error stopped previous loop? Clean up buffers... */
-	if (ret) {
-	out:
-		fscrypt_free_bounce_page(bounce_page);
-		printk_ratelimited(KERN_ERR "%s: ret = %d\n", __func__, ret);
-		redirty_page_for_writepage(wbc, page);
-		do {
-			clear_buffer_async_write(bh);
-			bh = bh->b_this_page;
-		} while (bh != head);
-	}
+unlock:
 	unlock_page(page);
 	/* Nothing submitted - we have to end page writeback */
 	if (!nr_submitted)
