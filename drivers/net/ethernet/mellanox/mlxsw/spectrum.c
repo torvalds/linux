@@ -4165,6 +4165,8 @@ static int mlxsw_sp_local_ports_offset(struct mlxsw_core *mlxsw_core,
 		local_ports_in_x_res_id = MLXSW_RES_ID_LOCAL_PORTS_IN_1X;
 	else if (split_width == 2)
 		local_ports_in_x_res_id = MLXSW_RES_ID_LOCAL_PORTS_IN_2X;
+	else if (split_width == 4)
+		local_ports_in_x_res_id = MLXSW_RES_ID_LOCAL_PORTS_IN_4X;
 	else
 		return -EINVAL;
 
