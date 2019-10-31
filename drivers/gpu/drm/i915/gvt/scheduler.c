@@ -195,7 +195,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 			return -EFAULT;
 		}
 
-		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);
+		page = i915_gem_object_get_page(ctx_obj, i);
 		dst = kmap(page);
 		intel_gvt_hypervisor_read_gpa(vgpu, context_gpa, dst,
 				I915_GTT_PAGE_SIZE);
@@ -835,7 +835,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 			return;
 		}
 
-		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);
+		page = i915_gem_object_get_page(ctx_obj, i);
 		src = kmap(page);
 		intel_gvt_hypervisor_write_gpa(vgpu, context_gpa, src,
 				I915_GTT_PAGE_SIZE);

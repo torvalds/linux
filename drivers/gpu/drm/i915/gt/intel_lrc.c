@@ -471,8 +471,7 @@ lrc_descriptor(struct intel_context *ce, struct intel_engine_cs *engine)
 	if (IS_GEN(engine->i915, 8))
 		desc |= GEN8_CTX_L3LLC_COHERENT;
 
-	desc |= i915_ggtt_offset(ce->state) + LRC_HEADER_PAGES * PAGE_SIZE;
-								/* bits 12-31 */
+	desc |= i915_ggtt_offset(ce->state); /* bits 12-31 */
 	/*
 	 * The following 32bits are copied into the OA reports (dword 2).
 	 * Consider updating oa_get_render_ctx_id in i915_perf.c when changing
@@ -2316,7 +2315,6 @@ set_redzone(void *vaddr, const struct intel_engine_cs *engine)
 	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		return;
 
-	vaddr += LRC_HEADER_PAGES * PAGE_SIZE;
 	vaddr += engine->context_size;
 
 	memset(vaddr, POISON_INUSE, I915_GTT_PAGE_SIZE);
@@ -2328,7 +2326,6 @@ check_redzone(const void *vaddr, const struct intel_engine_cs *engine)
 	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		return;
 
-	vaddr += LRC_HEADER_PAGES * PAGE_SIZE;
 	vaddr += engine->context_size;
 
 	if (memchr_inv(vaddr, POISON_INUSE, I915_GTT_PAGE_SIZE))
@@ -3995,12 +3992,6 @@ populate_lr_context(struct intel_context *ce,
 	set_redzone(vaddr, engine);
 
 	if (engine->default_state) {
-		/*
-		 * We only want to copy over the template context state;
-		 * skipping over the headers reserved for GuC communication,
-		 * leaving those as zero.
-		 */
-		const unsigned long start = LRC_HEADER_PAGES * PAGE_SIZE;
 		void *defaults;
 
 		defaults = i915_gem_object_pin_map(engine->default_state,
@@ -4010,7 +4001,7 @@ populate_lr_context(struct intel_context *ce,
 			goto err_unpin_ctx;
 		}
 
-		memcpy(vaddr + start, defaults + start, engine->context_size);
+		memcpy(vaddr, defaults, engine->context_size);
 		i915_gem_object_unpin_map(engine->default_state);
 		inhibit = false;
 	}
@@ -4025,9 +4016,7 @@ populate_lr_context(struct intel_context *ce,
 
 	ret = 0;
 err_unpin_ctx:
-	__i915_gem_object_flush_map(ctx_obj,
-				    LRC_HEADER_PAGES * PAGE_SIZE,
-				    engine->context_size);
+	__i915_gem_object_flush_map(ctx_obj, 0, engine->context_size);
 	i915_gem_object_unpin_map(ctx_obj);
 	return ret;
 }
@@ -4044,11 +4033,6 @@ static int __execlists_context_alloc(struct intel_context *ce,
 	GEM_BUG_ON(ce->state);
 	context_size = round_up(engine->context_size, I915_GTT_PAGE_SIZE);
 
-	/*
-	 * Before the actual start of the context image, we insert a few pages
-	 * for our own use and for sharing with the GuC.
-	 */
-	context_size += LRC_HEADER_PAGES * PAGE_SIZE;
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		context_size += I915_GTT_PAGE_SIZE; /* for redzone */
 

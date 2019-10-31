@@ -86,30 +86,11 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine);
 int intel_execlists_submission_init(struct intel_engine_cs *engine);
 
 /* Logical Ring Contexts */
-
-/*
- * We allocate a header at the start of the context image for our own
- * use, therefore the actual location of the logical state is offset
- * from the start of the VMA. The layout is
- *
- * | [guc]          | [hwsp] [logical state] |
- * |<- our header ->|<- context image      ->|
- *
- */
-/* The first page is used for sharing data with the GuC */
-#define LRC_GUCSHR_PN	(0)
-#define LRC_GUCSHR_SZ	(1)
 /* At the start of the context image is its per-process HWS page */
-#define LRC_PPHWSP_PN	(LRC_GUCSHR_PN + LRC_GUCSHR_SZ)
+#define LRC_PPHWSP_PN	(0)
 #define LRC_PPHWSP_SZ	(1)
-/* Finally we have the logical state for the context */
+/* After the PPHWSP we have the logical state for the context */
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + LRC_PPHWSP_SZ)
-
-/*
- * Currently we include the PPHWSP in __intel_engine_context_size() so
- * the size of the header is synonymous with the start of the PPHWSP.
- */
-#define LRC_HEADER_PAGES LRC_PPHWSP_PN
 
 /* Space within PPHWSP reserved to be used as scratch */
 #define LRC_PPHWSP_SCRATCH		0x34

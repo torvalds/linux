@@ -103,9 +103,6 @@ static int __live_context_size(struct intel_engine_cs *engine,
 	 *
 	 * TLDR; this overlaps with the execlists redzone.
 	 */
-	if (HAS_EXECLISTS(engine->i915))
-		vaddr += LRC_HEADER_PAGES * PAGE_SIZE;
-
 	vaddr += engine->context_size - I915_GTT_PAGE_SIZE;
 	memset(vaddr, POISON_INUSE, I915_GTT_PAGE_SIZE);
 
