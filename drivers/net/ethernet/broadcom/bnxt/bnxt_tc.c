@@ -16,6 +16,7 @@
 #include <net/tc_act/tc_skbedit.h>
 #include <net/tc_act/tc_mirred.h>
 #include <net/tc_act/tc_vlan.h>
+#include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_tunnel_key.h>
 
 #include "bnxt_hsi.h"
@@ -36,6 +37,8 @@
 #define is_vid_exactmatch(vlan_tci_mask)	\
 	((ntohs(vlan_tci_mask) & VLAN_VID_MASK) == VLAN_VID_MASK)
 
+static bool is_wildcard(void *mask, int len);
+static bool is_exactmatch(void *mask, int len);
 /* Return the dst fid of the func for flow forwarding
  * For PFs: src_fid is the fid of the PF
  * For VF-reps: src_fid the fid of the VF
@@ -111,10 +114,115 @@ static int bnxt_tc_parse_tunnel_set(struct bnxt *bp,
 	return 0;
 }
 
+/* Key & Mask from the stack comes unaligned in multiple iterations.
+ * This routine consolidates such multiple unaligned values into one
+ * field each for Key & Mask (for src and dst macs separately)
+ * For example,
+ *			Mask/Key	Offset	Iteration
+ *			==========	======	=========
+ *	dst mac		0xffffffff	0	1
+ *	dst mac		0x0000ffff	4	2
+ *
+ *	src mac		0xffff0000	4	1
+ *	src mac		0xffffffff	8	2
+ *
+ * The above combination coming from the stack will be consolidated as
+ *			Mask/Key
+ *			==============
+ *	src mac:	0xffffffffffff
+ *	dst mac:	0xffffffffffff
+ */
+static void bnxt_set_l2_key_mask(u32 part_key, u32 part_mask,
+				 u8 *actual_key, u8 *actual_mask)
+{
+	u32 key = get_unaligned((u32 *)actual_key);
+	u32 mask = get_unaligned((u32 *)actual_mask);
+
+	part_key &= part_mask;
+	part_key |= key & ~part_mask;
+
+	put_unaligned(mask | part_mask, (u32 *)actual_mask);
+	put_unaligned(part_key, (u32 *)actual_key);
+}
+
+static int
+bnxt_fill_l2_rewrite_fields(struct bnxt_tc_actions *actions,
+			    u16 *eth_addr, u16 *eth_addr_mask)
+{
+	u16 *p;
+	int j;
+
+	if (unlikely(bnxt_eth_addr_key_mask_invalid(eth_addr, eth_addr_mask)))
+		return -EINVAL;
+
+	if (!is_wildcard(&eth_addr_mask[0], ETH_ALEN)) {
+		if (!is_exactmatch(&eth_addr_mask[0], ETH_ALEN))
+			return -EINVAL;
+		/* FW expects dmac to be in u16 array format */
+		p = eth_addr;
+		for (j = 0; j < 3; j++)
+			actions->l2_rewrite_dmac[j] = cpu_to_be16(*(p + j));
+	}
+
+	if (!is_wildcard(&eth_addr_mask[ETH_ALEN], ETH_ALEN)) {
+		if (!is_exactmatch(&eth_addr_mask[ETH_ALEN], ETH_ALEN))
+			return -EINVAL;
+		/* FW expects smac to be in u16 array format */
+		p = &eth_addr[ETH_ALEN / 2];
+		for (j = 0; j < 3; j++)
+			actions->l2_rewrite_smac[j] = cpu_to_be16(*(p + j));
+	}
+
+	return 0;
+}
+
+static int
+bnxt_tc_parse_pedit(struct bnxt *bp, struct bnxt_tc_actions *actions,
+		    struct flow_action_entry *act, u8 *eth_addr,
+		    u8 *eth_addr_mask)
+{
+	u32 mask, val, offset;
+	u8 htype;
+
+	offset = act->mangle.offset;
+	htype = act->mangle.htype;
+	switch (htype) {
+	case FLOW_ACT_MANGLE_HDR_TYPE_ETH:
+		if (offset > PEDIT_OFFSET_SMAC_LAST_4_BYTES) {
+			netdev_err(bp->dev,
+				   "%s: eth_hdr: Invalid pedit field\n",
+				   __func__);
+			return -EINVAL;
+		}
+		actions->flags |= BNXT_TC_ACTION_FLAG_L2_REWRITE;
+		mask = ~act->mangle.mask;
+		val = act->mangle.val;
+
+		bnxt_set_l2_key_mask(val, mask, &eth_addr[offset],
+				     &eth_addr_mask[offset]);
+		break;
+	default:
+		netdev_err(bp->dev, "%s: Unsupported pedit hdr type\n",
+			   __func__);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int bnxt_tc_parse_actions(struct bnxt *bp,
 				 struct bnxt_tc_actions *actions,
 				 struct flow_action *flow_action)
 {
+	/* Used to store the L2 rewrite mask for dmac (6 bytes) followed by
+	 * smac (6 bytes) if rewrite of both is specified, otherwise either
+	 * dmac or smac
+	 */
+	u16 eth_addr_mask[ETH_ALEN] = { 0 };
+	/* Used to store the L2 rewrite key for dmac (6 bytes) followed by
+	 * smac (6 bytes) if rewrite of both is specified, otherwise either
+	 * dmac or smac
+	 */
+	u16 eth_addr[ETH_ALEN] = { 0 };
 	struct flow_action_entry *act;
 	int i, rc;
 
@@ -148,9 +256,24 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 		case FLOW_ACTION_TUNNEL_DECAP:
 			actions->flags |= BNXT_TC_ACTION_FLAG_TUNNEL_DECAP;
 			break;
+		/* Packet edit: L2 rewrite, NAT, NAPT */
+		case FLOW_ACTION_MANGLE:
+			rc = bnxt_tc_parse_pedit(bp, actions, act,
+						 (u8 *)eth_addr,
+						 (u8 *)eth_addr_mask);
+			if (rc)
+				return rc;
+			break;
 		default:
 			break;
 		}
+	}
+
+	if (actions->flags & BNXT_TC_ACTION_FLAG_L2_REWRITE) {
+		rc = bnxt_fill_l2_rewrite_fields(actions, eth_addr,
+						 eth_addr_mask);
+		if (rc)
+			return rc;
 	}
 
 	if (actions->flags & BNXT_TC_ACTION_FLAG_FWD) {
@@ -400,6 +523,15 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 
 	req.src_fid = cpu_to_le16(flow->src_fid);
 	req.ref_flow_handle = ref_flow_handle;
+
+	if (actions->flags & BNXT_TC_ACTION_FLAG_L2_REWRITE) {
+		memcpy(req.l2_rewrite_dmac, actions->l2_rewrite_dmac,
+		       ETH_ALEN);
+		memcpy(req.l2_rewrite_smac, actions->l2_rewrite_smac,
+		       ETH_ALEN);
+		action_flags |=
+			CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_L2_HEADER_REWRITE;
+	}
 
 	if (actions->flags & BNXT_TC_ACTION_FLAG_TUNNEL_DECAP ||
 	    actions->flags & BNXT_TC_ACTION_FLAG_TUNNEL_ENCAP) {
