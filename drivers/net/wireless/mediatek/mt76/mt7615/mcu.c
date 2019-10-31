@@ -615,15 +615,15 @@ int mt7615_mcu_set_eeprom(struct mt7615_dev *dev)
 	return ret;
 }
 
-int mt7615_mcu_init_mac(struct mt7615_dev *dev)
+int mt7615_mcu_set_mac_enable(struct mt7615_dev *dev, int band, bool enable)
 {
 	struct {
 		u8 enable;
 		u8 band;
 		u8 rsv[2];
 	} __packed req = {
-		.enable = 1,
-		.band = 0,
+		.enable = enable,
+		.band = band,
 	};
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_MAC_INIT_CTRL,

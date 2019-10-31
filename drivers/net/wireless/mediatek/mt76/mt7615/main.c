@@ -33,6 +33,17 @@ static int mt7615_start(struct ieee80211_hw *hw)
 	mutex_lock(&dev->mt76.mutex);
 
 	running = mt7615_dev_running(dev);
+
+	if (!running) {
+		mt7615_mcu_ctrl_pm_state(dev, 0, 0);
+		mt7615_mcu_set_mac_enable(dev, 0, true);
+	}
+
+	if (phy != &dev->phy) {
+		mt7615_mcu_ctrl_pm_state(dev, 1, 0);
+		mt7615_mcu_set_mac_enable(dev, 1, true);
+	}
+
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
 	if (running)
@@ -57,8 +68,18 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	mutex_lock(&dev->mt76.mutex);
 
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
-	if (!mt7615_dev_running(dev))
+
+	if (phy != &dev->phy) {
+		mt7615_mcu_ctrl_pm_state(dev, 1, 1);
+		mt7615_mcu_set_mac_enable(dev, 1, false);
+	}
+
+	if (!mt7615_dev_running(dev)) {
 		cancel_delayed_work_sync(&dev->mt76.mac_work);
+
+		mt7615_mcu_ctrl_pm_state(dev, 0, 1);
+		mt7615_mcu_set_mac_enable(dev, 0, false);
+	}
 
 	mutex_unlock(&dev->mt76.mutex);
 }

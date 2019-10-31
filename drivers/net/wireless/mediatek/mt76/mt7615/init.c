@@ -56,8 +56,6 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 	mt76_rmw(dev, MT_AGG_SCR, MT_AGG_SCR_NLNAV_MID_PTEC_DIS,
 		 MT_AGG_SCR_NLNAV_MID_PTEC_DIS);
 
-	mt7615_mcu_init_mac(dev);
-
 	mt76_wr(dev, MT_DMA_DCR0, MT_DMA_DCR0_RX_VEC_DROP |
 		FIELD_PREP(MT_DMA_DCR0_MAX_RX_LEN, 3072));
 
@@ -132,7 +130,6 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	mt7615_mcu_set_eeprom(dev);
 	mt7615_mac_init(dev);
 	mt7615_phy_init(dev);
-	mt7615_mcu_ctrl_pm_state(dev, 0, 0);
 	mt7615_mcu_del_wtbl_all(dev);
 
 	/* Beacon and mgmt frames should occupy wcid 0 */
