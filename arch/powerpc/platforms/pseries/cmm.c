@@ -51,6 +51,8 @@ static unsigned int oom_kb = CMM_OOM_KB;
 static unsigned int cmm_debug = CMM_DEBUG;
 static unsigned int cmm_disabled = CMM_DISABLE;
 static unsigned long min_mem_mb = CMM_MIN_MEM_MB;
+static bool __read_mostly simulate;
+static unsigned long simulate_loan_target_kb;
 static struct device cmm_dev;
 
 MODULE_AUTHOR("Brian King <brking@linux.vnet.ibm.com>");
@@ -74,6 +76,8 @@ MODULE_PARM_DESC(min_mem_mb, "Minimum amount of memory (in MB) to not balloon. "
 module_param_named(debug, cmm_debug, uint, 0644);
 MODULE_PARM_DESC(debug, "Enable module debugging logging. Set to 1 to enable. "
 		 "[Default=" __stringify(CMM_DEBUG) "]");
+module_param_named(simulate, simulate, bool, 0444);
+MODULE_PARM_DESC(simulate, "Enable simulation mode (no communication with hw).");
 
 #define cmm_dbg(...) if (cmm_debug) { printk(KERN_INFO "cmm: "__VA_ARGS__); }
 
@@ -94,6 +98,9 @@ static long plpar_page_set_loaned(struct page *page)
 	long rc = 0;
 	int i;
 
+	if (unlikely(simulate))
+		return 0;
+
 	for (i = 0; !rc && i < PAGE_SIZE; i += cmo_page_sz)
 		rc = plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_LOANED, vpa + i, 0);
 
@@ -110,6 +117,9 @@ static long plpar_page_set_active(struct page *page)
 	unsigned long cmo_page_sz = cmo_get_page_size();
 	long rc = 0;
 	int i;
+
+	if (unlikely(simulate))
+		return 0;
 
 	for (i = 0; !rc && i < PAGE_SIZE; i += cmo_page_sz)
 		rc = plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_ACTIVE, vpa + i, 0);
@@ -234,13 +244,17 @@ static void cmm_get_mpp(void)
 	signed long active_pages_target, page_loan_request, target;
 	signed long min_mem_pages = (min_mem_mb * 1024 * 1024) / PAGE_SIZE;
 
-	rc = h_get_mpp(&mpp_data);
-
-	if (rc != H_SUCCESS)
-		return;
-
-	page_loan_request = div_s64((s64)mpp_data.loan_request, PAGE_SIZE);
-	target = page_loan_request + __loaned_pages;
+	if (likely(!simulate)) {
+		rc = h_get_mpp(&mpp_data);
+		if (rc != H_SUCCESS)
+			return;
+		page_loan_request = div_s64((s64)mpp_data.loan_request,
+					    PAGE_SIZE);
+		target = page_loan_request + __loaned_pages;
+	} else {
+		target = KB2PAGES(simulate_loan_target_kb);
+		page_loan_request = target - __loaned_pages;
+	}
 
 	if (target < 0 || total_pages < min_mem_pages)
 		target = 0;
@@ -362,6 +376,9 @@ static struct device_attribute *cmm_attrs[] = {
 	&dev_attr_oom_freed_kb,
 };
 
+static DEVICE_ULONG_ATTR(simulate_loan_target_kb, 0644,
+			 simulate_loan_target_kb);
+
 static struct bus_type cmm_subsys = {
 	.name = "cmm",
 	.dev_name = "cmm",
@@ -396,6 +413,11 @@ static int cmm_sysfs_register(struct device *dev)
 			goto fail;
 	}
 
+	if (!simulate)
+		return 0;
+	rc = device_create_file(dev, &dev_attr_simulate_loan_target_kb.attr);
+	if (rc)
+		goto fail;
 	return 0;
 
 fail:
@@ -590,7 +612,7 @@ static int cmm_init(void)
 {
 	int rc;
 
-	if (!firmware_has_feature(FW_FEATURE_CMO))
+	if (!firmware_has_feature(FW_FEATURE_CMO) && !simulate)
 		return -EOPNOTSUPP;
 
 	rc = cmm_balloon_compaction_init();
