@@ -859,6 +859,8 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->completed_timestamp_major = 0;
 	tx_queue->completed_timestamp_minor = 0;
 
+	tx_queue->xdp_tx = efx_channel_is_xdp_tx(tx_queue->channel);
+
 	/* Set up default function pointers. These may get replaced by
 	 * efx_nic_init_tx() based off NIC/queue capabilities.
 	 */
