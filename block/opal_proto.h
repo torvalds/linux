@@ -76,7 +76,6 @@ enum opal_response_token {
  * Derived from: TCG_Storage_Architecture_Core_Spec_v2.01_r1.00
  * Section: 6.3 Assigned UIDs
  */
-#define OPAL_UID_LENGTH 8
 #define OPAL_METHOD_LENGTH 8
 #define OPAL_MSID_KEYLEN 15
 #define OPAL_UID_LENGTH_HALF 4
