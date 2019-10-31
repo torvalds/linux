@@ -324,16 +324,18 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 			}
 
 			if (!buf->len) {
+				bool wake;
 				pipe_buf_release(pipe, buf);
 				spin_lock_irq(&pipe->wait.lock);
 				tail++;
 				pipe->tail = tail;
 				do_wakeup = 1;
-				if (head - (tail - 1) == pipe->max_usage)
+				wake = head - (tail - 1) == pipe->max_usage / 2;
+				if (wake)
 					wake_up_interruptible_sync_poll_locked(
 						&pipe->wait, EPOLLOUT | EPOLLWRNORM);
 				spin_unlock_irq(&pipe->wait.lock);
-				if (head - (tail - 1) == pipe->max_usage)
+				if (wake)
 					kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 			}
 			total_len -= chars;
