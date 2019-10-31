@@ -526,7 +526,7 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 
 bool is_support_sw_smu_xgmi(struct amdgpu_device *adev)
 {
-	if (amdgpu_dpm != 1)
+	if (!is_support_sw_smu(adev))
 		return false;
 
 	if (adev->asic_type == CHIP_VEGA20)
