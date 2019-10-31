@@ -205,3 +205,48 @@ int i915_active_live_selftests(struct drm_i915_private *i915)
 
 	return i915_subtests(tests, i915);
 }
+
+static struct intel_engine_cs *node_to_barrier(struct active_node *it)
+{
+	struct intel_engine_cs *engine;
+
+	if (!is_barrier(&it->base))
+		return NULL;
+
+	engine = __barrier_to_engine(it);
+	smp_rmb(); /* serialise with add_active_barriers */
+	if (!is_barrier(&it->base))
+		return NULL;
+
+	return engine;
+}
+
+void i915_active_print(struct i915_active *ref, struct drm_printer *m)
+{
+	drm_printf(m, "active %pS:%pS\n", ref->active, ref->retire);
+	drm_printf(m, "\tcount: %d\n", atomic_read(&ref->count));
+	drm_printf(m, "\tpreallocated barriers? %s\n",
+		   yesno(!llist_empty(&ref->preallocated_barriers)));
+
+	if (i915_active_acquire_if_busy(ref)) {
+		struct active_node *it, *n;
+
+		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
+			struct intel_engine_cs *engine;
+
+			engine = node_to_barrier(it);
+			if (engine) {
+				drm_printf(m, "\tbarrier: %s\n", engine->name);
+				continue;
+			}
+
+			if (i915_active_fence_isset(&it->base)) {
+				drm_printf(m,
+					   "\ttimeline: %llx\n", it->timeline);
+				continue;
+			}
+		}
+
+		i915_active_release(ref);
+	}
+}

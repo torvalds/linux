@@ -214,4 +214,6 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 void i915_active_acquire_barrier(struct i915_active *ref);
 void i915_request_add_active_barriers(struct i915_request *rq);
 
+void i915_active_print(struct i915_active *ref, struct drm_printer *m);
+
 #endif /* _I915_ACTIVE_H_ */

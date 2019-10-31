@@ -102,8 +102,12 @@ static int __live_idle_pulse(struct intel_engine_cs *engine,
 	pulse_unlock_wait(p); /* synchronize with the retirement callback */
 
 	if (!i915_active_is_idle(&p->active)) {
+		struct drm_printer m = drm_err_printer("pulse");
+
 		pr_err("%s: heartbeat pulse did not flush idle tasks\n",
 		       engine->name);
+		i915_active_print(&p->active, &m);
+
 		err = -EINVAL;
 		goto out;
 	}
