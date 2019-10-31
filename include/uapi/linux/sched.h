@@ -51,6 +51,10 @@
  *               sent when the child exits.
  * @stack:       Specify the location of the stack for the
  *               child process.
+ *               Note, @stack is expected to point to the
+ *               lowest address. The stack direction will be
+ *               determined by the kernel and set up
+ *               appropriately based on @stack_size.
  * @stack_size:  The size of the stack for the child process.
  * @tls:         If CLONE_SETTLS is set, the tls descriptor
  *               is set to tls.
