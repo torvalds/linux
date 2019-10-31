@@ -575,7 +575,7 @@ static void
 skl_program_plane(struct intel_plane *plane,
 		  const struct intel_crtc_state *crtc_state,
 		  const struct intel_plane_state *plane_state,
-		  int color_plane, bool slave, u32 plane_ctl)
+		  int color_plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
@@ -590,12 +590,12 @@ skl_program_plane(struct intel_plane *plane,
 	u32 y = plane_state->color_plane[color_plane].y;
 	u32 src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	u32 src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
-	struct intel_plane *linked = plane_state->planar_linked_plane;
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	u8 alpha = plane_state->hw.alpha >> 8;
 	u32 plane_color_ctl = 0;
 	unsigned long irqflags;
 	u32 keymsk, keymax;
+	u32 plane_ctl = plane_state->ctl;
 
 	plane_ctl |= skl_plane_ctl_crtc(crtc_state);
 
@@ -627,26 +627,8 @@ skl_program_plane(struct intel_plane *plane,
 	I915_WRITE_FW(PLANE_AUX_DIST(pipe, plane_id),
 		      (plane_state->color_plane[1].offset - surf_addr) | aux_stride);
 
-	if (icl_is_hdr_plane(dev_priv, plane_id)) {
-		u32 cus_ctl = 0;
-
-		if (linked) {
-			/* Enable and use MPEG-2 chroma siting */
-			cus_ctl = PLANE_CUS_ENABLE |
-				PLANE_CUS_HPHASE_0 |
-				PLANE_CUS_VPHASE_SIGN_NEGATIVE |
-				PLANE_CUS_VPHASE_0_25;
-
-			if (linked->id == PLANE_SPRITE5)
-				cus_ctl |= PLANE_CUS_PLANE_7;
-			else if (linked->id == PLANE_SPRITE4)
-				cus_ctl |= PLANE_CUS_PLANE_6;
-			else
-				MISSING_CASE(linked->id);
-		}
-
-		I915_WRITE_FW(PLANE_CUS_CTL(pipe, plane_id), cus_ctl);
-	}
+	if (icl_is_hdr_plane(dev_priv, plane_id))
+		I915_WRITE_FW(PLANE_CUS_CTL(pipe, plane_id), plane_state->cus_ctl);
 
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id), plane_color_ctl);
@@ -676,7 +658,7 @@ skl_program_plane(struct intel_plane *plane,
 	I915_WRITE_FW(PLANE_SURF(pipe, plane_id),
 		      intel_plane_ggtt_offset(plane_state) + surf_addr);
 
-	if (!slave && plane_state->scaler_id >= 0)
+	if (plane_state->scaler_id >= 0)
 		skl_program_scaler(plane, crtc_state, plane_state);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
@@ -689,24 +671,12 @@ skl_update_plane(struct intel_plane *plane,
 {
 	int color_plane = 0;
 
-	if (plane_state->planar_linked_plane) {
-		/* Program the UV plane */
+	if (plane_state->planar_linked_plane && !plane_state->planar_slave)
+		/* Program the UV plane on planar master */
 		color_plane = 1;
-	}
 
-	skl_program_plane(plane, crtc_state, plane_state,
-			  color_plane, false, plane_state->ctl);
+	skl_program_plane(plane, crtc_state, plane_state, color_plane);
 }
-
-static void
-icl_update_slave(struct intel_plane *plane,
-		 const struct intel_crtc_state *crtc_state,
-		 const struct intel_plane_state *plane_state)
-{
-	skl_program_plane(plane, crtc_state, plane_state, 0, true,
-			  plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE);
-}
-
 static void
 skl_disable_plane(struct intel_plane *plane,
 		  const struct intel_crtc_state *crtc_state)
@@ -2238,6 +2208,15 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 		plane_state->color_ctl = glk_plane_color_ctl(crtc_state,
 							     plane_state);
 
+	if (drm_format_info_is_yuv_semiplanar(fb->format) &&
+	    icl_is_hdr_plane(dev_priv, plane->id))
+		/* Enable and use MPEG-2 chroma siting */
+		plane_state->cus_ctl = PLANE_CUS_ENABLE |
+			PLANE_CUS_HPHASE_0 |
+			PLANE_CUS_VPHASE_SIGN_NEGATIVE | PLANE_CUS_VPHASE_0_25;
+	else
+		plane_state->cus_ctl = 0;
+
 	return 0;
 }
 
@@ -2917,8 +2896,6 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->get_hw_state = skl_plane_get_hw_state;
 	plane->check_plane = skl_plane_check;
 	plane->min_cdclk = skl_plane_min_cdclk;
-	if (icl_is_nv12_y_plane(plane_id))
-		plane->update_slave = icl_update_slave;
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		formats = icl_get_plane_formats(dev_priv, pipe,

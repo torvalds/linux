@@ -348,16 +348,6 @@ void intel_update_plane(struct intel_plane *plane,
 	plane->update_plane(plane, crtc_state, plane_state);
 }
 
-void intel_update_slave(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state,
-			const struct intel_plane_state *plane_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-
-	trace_intel_update_plane(&plane->base, crtc);
-	plane->update_slave(plane, crtc_state, plane_state);
-}
-
 void intel_disable_plane(struct intel_plane *plane,
 			 const struct intel_crtc_state *crtc_state)
 {
@@ -390,25 +380,9 @@ void skl_update_planes_on_crtc(struct intel_atomic_state *state,
 		struct intel_plane_state *new_plane_state =
 			intel_atomic_get_new_plane_state(state, plane);
 
-		if (new_plane_state->uapi.visible) {
+		if (new_plane_state->uapi.visible ||
+		    new_plane_state->planar_slave) {
 			intel_update_plane(plane, new_crtc_state, new_plane_state);
-		} else if (new_plane_state->planar_slave) {
-			struct intel_plane *master =
-				new_plane_state->planar_linked_plane;
-
-			/*
-			 * We update the slave plane from this function because
-			 * programming it from the master plane's update_plane
-			 * callback runs into issues when the Y plane is
-			 * reassigned, disabled or used by a different plane.
-			 *
-			 * The slave plane is updated with the master plane's
-			 * plane_state.
-			 */
-			new_plane_state =
-				intel_atomic_get_new_plane_state(state, master);
-
-			intel_update_slave(plane, new_crtc_state, new_plane_state);
 		} else {
 			intel_disable_plane(plane, new_crtc_state);
 		}

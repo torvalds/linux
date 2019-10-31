@@ -563,6 +563,9 @@ struct intel_plane_state {
 	/* plane color control register */
 	u32 color_ctl;
 
+	/* chroma upsampler control register */
+	u32 cus_ctl;
+
 	/*
 	 * scaler_id
 	 *    = -1 : not using a scaler
@@ -1120,9 +1123,6 @@ struct intel_plane {
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 	void (*update_plane)(struct intel_plane *plane,
-			     const struct intel_crtc_state *crtc_state,
-			     const struct intel_plane_state *plane_state);
-	void (*update_slave)(struct intel_plane *plane,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state);
 	void (*disable_plane)(struct intel_plane *plane,

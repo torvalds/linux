@@ -11985,6 +11985,24 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 		crtc_state->active_planes |= BIT(linked->id);
 		crtc_state->update_planes |= BIT(linked->id);
 		DRM_DEBUG_KMS("Using %s as Y plane for %s\n", linked->base.name, plane->base.name);
+
+		/* Copy parameters to slave plane */
+		linked_state->ctl = plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE;
+		linked_state->color_ctl = plane_state->color_ctl;
+		linked_state->color_plane[0] = plane_state->color_plane[0];
+
+		intel_plane_copy_uapi_to_hw_state(linked_state, plane_state);
+		linked_state->uapi.src = plane_state->uapi.src;
+		linked_state->uapi.dst = plane_state->uapi.dst;
+
+		if (icl_is_hdr_plane(dev_priv, plane->id)) {
+			if (linked->id == PLANE_SPRITE5)
+				plane_state->cus_ctl |= PLANE_CUS_PLANE_7;
+			else if (linked->id == PLANE_SPRITE4)
+				plane_state->cus_ctl |= PLANE_CUS_PLANE_6;
+			else
+				MISSING_CASE(linked->id);
+		}
 	}
 
 	return 0;
