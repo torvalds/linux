@@ -669,7 +669,7 @@ static void update_colorkey(struct intel_overlay *overlay,
 		flags |= DST_KEY_ENABLE;
 
 	if (state->base.visible)
-		format = state->base.fb->format->format;
+		format = state->hw.fb->format->format;
 
 	switch (format) {
 	case DRM_FORMAT_C8:

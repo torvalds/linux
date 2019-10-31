@@ -801,7 +801,7 @@ static bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
 	 * around this problem with the watermark code.
 	 */
 	if (plane->id == PLANE_CURSOR)
-		return plane_state->base.fb != NULL;
+		return plane_state->hw.fb != NULL;
 	else
 		return plane_state->base.visible;
 }
@@ -1088,7 +1088,7 @@ static u16 g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 	if (!intel_wm_plane_visible(crtc_state, plane_state))
 		return 0;
 
-	cpp = plane_state->base.fb->format->cpp[0];
+	cpp = plane_state->hw.fb->format->cpp[0];
 
 	/*
 	 * Not 100% sure which way ELK should go here as the
@@ -1308,8 +1308,8 @@ static int g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	for_each_oldnew_intel_plane_in_state(state, plane,
 					     old_plane_state,
 					     new_plane_state, i) {
-		if (new_plane_state->base.crtc != &crtc->base &&
-		    old_plane_state->base.crtc != &crtc->base)
+		if (new_plane_state->hw.crtc != &crtc->base &&
+		    old_plane_state->hw.crtc != &crtc->base)
 			continue;
 
 		if (g4x_raw_plane_wm_compute(crtc_state, new_plane_state))
@@ -1593,7 +1593,7 @@ static u16 vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 	if (!intel_wm_plane_visible(crtc_state, plane_state))
 		return 0;
 
-	cpp = plane_state->base.fb->format->cpp[0];
+	cpp = plane_state->hw.fb->format->cpp[0];
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	width = crtc_state->pipe_src_w;
@@ -1829,8 +1829,8 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	for_each_oldnew_intel_plane_in_state(state, plane,
 					     old_plane_state,
 					     new_plane_state, i) {
-		if (new_plane_state->base.crtc != &crtc->base &&
-		    old_plane_state->base.crtc != &crtc->base)
+		if (new_plane_state->hw.crtc != &crtc->base &&
+		    old_plane_state->hw.crtc != &crtc->base)
 			continue;
 
 		if (vlv_raw_plane_wm_compute(crtc_state, new_plane_state))
@@ -2475,7 +2475,7 @@ static u32 ilk_compute_pri_wm(const struct intel_crtc_state *crtc_state,
 	if (!intel_wm_plane_visible(crtc_state, plane_state))
 		return 0;
 
-	cpp = plane_state->base.fb->format->cpp[0];
+	cpp = plane_state->hw.fb->format->cpp[0];
 
 	method1 = ilk_wm_method1(crtc_state->pixel_rate, cpp, mem_value);
 
@@ -2507,7 +2507,7 @@ static u32 ilk_compute_spr_wm(const struct intel_crtc_state *crtc_state,
 	if (!intel_wm_plane_visible(crtc_state, plane_state))
 		return 0;
 
-	cpp = plane_state->base.fb->format->cpp[0];
+	cpp = plane_state->hw.fb->format->cpp[0];
 
 	method1 = ilk_wm_method1(crtc_state->pixel_rate, cpp, mem_value);
 	method2 = ilk_wm_method2(crtc_state->pixel_rate,
@@ -2533,7 +2533,7 @@ static u32 ilk_compute_cur_wm(const struct intel_crtc_state *crtc_state,
 	if (!intel_wm_plane_visible(crtc_state, plane_state))
 		return 0;
 
-	cpp = plane_state->base.fb->format->cpp[0];
+	cpp = plane_state->hw.fb->format->cpp[0];
 
 	return ilk_wm_method2(crtc_state->pixel_rate,
 			      crtc_state->hw.adjusted_mode.crtc_htotal,
@@ -2551,7 +2551,7 @@ static u32 ilk_compute_fbc_wm(const struct intel_crtc_state *crtc_state,
 	if (!intel_wm_plane_visible(crtc_state, plane_state))
 		return 0;
 
-	cpp = plane_state->base.fb->format->cpp[0];
+	cpp = plane_state->hw.fb->format->cpp[0];
 
 	return ilk_wm_fbc(pri_val, drm_rect_width(&plane_state->base.dst), cpp);
 }
@@ -4091,7 +4091,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 			     int color_plane)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
-	const struct drm_framebuffer *fb = plane_state->base.fb;
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	u32 data_rate;
 	u32 width = 0, height = 0;
 	uint_fixed_16_16_t down_scale_amount;
@@ -4612,7 +4612,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *crtc_state,
 			    const struct intel_plane_state *plane_state,
 			    struct skl_wm_params *wp, int color_plane)
 {
-	const struct drm_framebuffer *fb = plane_state->base.fb;
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int width;
 
 	/*
@@ -4624,7 +4624,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *crtc_state,
 
 	return skl_compute_wm_params(crtc_state, width,
 				     fb->format, fb->modifier,
-				     plane_state->base.rotation,
+				     plane_state->hw.rotation,
 				     skl_adjusted_plane_pixel_rate(crtc_state, plane_state),
 				     wp, color_plane);
 }
@@ -4903,7 +4903,7 @@ static int skl_build_plane_wm(struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
-	const struct drm_framebuffer *fb = plane_state->base.fb;
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	enum plane_id plane_id = plane->id;
 	int ret;
 
@@ -4936,7 +4936,7 @@ static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 		return 0;
 
 	if (plane_state->planar_linked_plane) {
-		const struct drm_framebuffer *fb = plane_state->base.fb;
+		const struct drm_framebuffer *fb = plane_state->hw.fb;
 		enum plane_id y_plane_id = plane_state->planar_linked_plane->id;
 
 		WARN_ON(!intel_wm_plane_visible(crtc_state, plane_state));

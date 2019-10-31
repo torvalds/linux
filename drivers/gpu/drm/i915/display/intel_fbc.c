@@ -662,7 +662,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
-	struct drm_framebuffer *fb = plane_state->base.fb;
+	struct drm_framebuffer *fb = plane_state->hw.fb;
 
 	cache->vma = NULL;
 	cache->flags = 0;
@@ -671,7 +671,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		cache->crtc.hsw_bdw_pixel_rate = crtc_state->pixel_rate;
 
-	cache->plane.rotation = plane_state->base.rotation;
+	cache->plane.rotation = plane_state->hw.rotation;
 	/*
 	 * Src coordinates are already rotated by 270 degrees for
 	 * the 90/270 degree plane rotation cases (to match the
@@ -684,7 +684,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->plane.adjusted_y = plane_state->color_plane[0].y;
 	cache->plane.y = plane_state->base.src.y1 >> 16;
 
-	cache->plane.pixel_blend_mode = plane_state->base.pixel_blend_mode;
+	cache->plane.pixel_blend_mode = plane_state->hw.pixel_blend_mode;
 
 	if (!cache->plane.visible)
 		return;
@@ -1047,7 +1047,7 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 	 * to pipe or plane A. */
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
 		struct intel_crtc_state *crtc_state;
-		struct intel_crtc *crtc = to_intel_crtc(plane_state->base.crtc);
+		struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
 
 		if (!plane->has_fbc)
 			continue;

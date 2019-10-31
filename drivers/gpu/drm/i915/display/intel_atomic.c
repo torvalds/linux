@@ -283,9 +283,9 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 		return;
 
 	/* set scaler mode */
-	if (plane_state && plane_state->base.fb &&
-	    plane_state->base.fb->format->is_yuv &&
-	    plane_state->base.fb->format->num_planes > 1) {
+	if (plane_state && plane_state->hw.fb &&
+	    plane_state->hw.fb->format->is_yuv &&
+	    plane_state->hw.fb->format->num_planes > 1) {
 		struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 		if (IS_GEN(dev_priv, 9) &&
 		    !IS_GEMINILAKE(dev_priv)) {
