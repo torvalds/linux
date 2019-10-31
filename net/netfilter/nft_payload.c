@@ -28,17 +28,22 @@ static bool
 nft_payload_copy_vlan(u32 *d, const struct sk_buff *skb, u8 offset, u8 len)
 {
 	int mac_off = skb_mac_header(skb) - skb->data;
-	u8 vlan_len, *vlanh, *dst_u8 = (u8 *) d;
+	u8 *vlanh, *dst_u8 = (u8 *) d;
 	struct vlan_ethhdr veth;
 
 	vlanh = (u8 *) &veth;
-	if (offset < ETH_HLEN) {
-		u8 ethlen = min_t(u8, len, ETH_HLEN - offset);
+	if (offset < VLAN_ETH_HLEN) {
+		u8 ethlen = len;
 
 		if (skb_copy_bits(skb, mac_off, &veth, ETH_HLEN))
 			return false;
 
 		veth.h_vlan_proto = skb->vlan_proto;
+		veth.h_vlan_TCI = htons(skb_vlan_tag_get(skb));
+		veth.h_vlan_encapsulated_proto = skb->protocol;
+
+		if (offset + len > VLAN_ETH_HLEN)
+			ethlen -= offset + len - VLAN_ETH_HLEN;
 
 		memcpy(dst_u8, vlanh + offset, ethlen);
 
@@ -48,25 +53,10 @@ nft_payload_copy_vlan(u32 *d, const struct sk_buff *skb, u8 offset, u8 len)
 
 		dst_u8 += ethlen;
 		offset = ETH_HLEN;
-	} else if (offset >= VLAN_ETH_HLEN) {
+	} else {
 		offset -= VLAN_HLEN;
-		goto skip;
 	}
 
-	veth.h_vlan_TCI = htons(skb_vlan_tag_get(skb));
-	veth.h_vlan_encapsulated_proto = skb->protocol;
-
-	vlanh += offset;
-
-	vlan_len = min_t(u8, len, VLAN_ETH_HLEN - offset);
-	memcpy(dst_u8, vlanh, vlan_len);
-
-	len -= vlan_len;
-	if (!len)
-		return true;
-
-	dst_u8 += vlan_len;
- skip:
 	return skb_copy_bits(skb, offset + mac_off, dst_u8, len) == 0;
 }
 
