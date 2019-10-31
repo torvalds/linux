@@ -1759,6 +1759,23 @@ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
 }
 EXPORT_SYMBOL(nvdimm_namespace_common_probe);
 
+int devm_namespace_enable(struct device *dev, struct nd_namespace_common *ndns,
+		resource_size_t size)
+{
+	if (is_namespace_blk(&ndns->dev))
+		return 0;
+	return devm_nsio_enable(dev, to_nd_namespace_io(&ndns->dev), size);
+}
+EXPORT_SYMBOL_GPL(devm_namespace_enable);
+
+void devm_namespace_disable(struct device *dev, struct nd_namespace_common *ndns)
+{
+	if (is_namespace_blk(&ndns->dev))
+		return;
+	devm_nsio_disable(dev, to_nd_namespace_io(&ndns->dev));
+}
+EXPORT_SYMBOL_GPL(devm_namespace_disable);
+
 static struct device **create_namespace_io(struct nd_region *nd_region)
 {
 	struct nd_namespace_io *nsio;
