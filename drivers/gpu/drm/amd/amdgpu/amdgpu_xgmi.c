@@ -274,12 +274,18 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 {
 	int ret = 0;
 	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, 0);
+	struct amdgpu_device *tmp_adev;
+	bool update_hive_pstate = true;
 
 	if (!hive)
 		return 0;
 
-	if (hive->pstate == pstate)
+	mutex_lock(&hive->hive_lock);
+
+	if (hive->pstate == pstate) {
+		mutex_unlock(&hive->hive_lock);
 		return 0;
+	}
 
 	dev_dbg(adev->dev, "Set xgmi pstate %d.\n", pstate);
 
@@ -290,11 +296,32 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 		ret = adev->powerplay.pp_funcs->set_xgmi_pstate(adev->powerplay.pp_handle,
 								pstate);
 
-	if (ret)
+	if (ret) {
 		dev_err(adev->dev,
 			"XGMI: Set pstate failure on device %llx, hive %llx, ret %d",
 			adev->gmc.xgmi.node_id,
 			adev->gmc.xgmi.hive_id, ret);
+		goto out;
+	}
+
+	/* Update device pstate */
+	adev->pstate = pstate;
+
+	/*
+	 * Update the hive pstate only all devices of the hive
+	 * are in the same pstate
+	 */
+	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+		if (tmp_adev->pstate != adev->pstate) {
+			update_hive_pstate = false;
+			break;
+		}
+	}
+	if (update_hive_pstate)
+		hive->pstate = pstate;
+
+out:
+	mutex_unlock(&hive->hive_lock);
 
 	return ret;
 }
@@ -368,6 +395,9 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 			adev->gmc.xgmi.node_id, adev->gmc.xgmi.hive_id);
 		goto exit;
 	}
+
+	/* Set default device pstate */
+	adev->pstate = -1;
 
 	top_info = &adev->psp.xgmi_context.top_info;
 
