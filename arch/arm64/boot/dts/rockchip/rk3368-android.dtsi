@@ -254,6 +254,10 @@
 	status = "okay";
 };
 
+&rng {
+	status = "okay";
+};
+
 &vip_mmu {
 	status = "okay";
 };
