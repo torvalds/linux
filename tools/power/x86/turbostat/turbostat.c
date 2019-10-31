@@ -4610,6 +4610,8 @@ unsigned int intel_model_duplicates(unsigned int model)
 	case INTEL_FAM6_SKYLAKE:
 	case INTEL_FAM6_KABYLAKE_L:
 	case INTEL_FAM6_KABYLAKE:
+	case INTEL_FAM6_COMETLAKE_L:
+	case INTEL_FAM6_COMETLAKE:
 		return INTEL_FAM6_SKYLAKE_L;
 
 	case INTEL_FAM6_ICELAKE_L:
