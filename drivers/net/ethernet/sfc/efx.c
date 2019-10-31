@@ -226,6 +226,8 @@ static void efx_fini_napi_channel(struct efx_channel *channel);
 static void efx_fini_struct(struct efx_nic *efx);
 static void efx_start_all(struct efx_nic *efx);
 static void efx_stop_all(struct efx_nic *efx);
+static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog);
+static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 
 #define EFX_ASSERT_RESET_SERIALISED(efx)		\
 	do {						\
@@ -2025,6 +2027,10 @@ static void efx_stop_all(struct efx_nic *efx)
 
 static void efx_remove_all(struct efx_nic *efx)
 {
+	rtnl_lock();
+	efx_xdp_setup_prog(efx, NULL);
+	rtnl_unlock();
+
 	efx_remove_channels(efx);
 	efx_remove_filters(efx);
 #ifdef CONFIG_SFC_SRIOV
@@ -2280,6 +2286,17 @@ static void efx_watchdog(struct net_device *net_dev)
 	efx_schedule_reset(efx, RESET_TYPE_TX_WATCHDOG);
 }
 
+static unsigned int efx_xdp_max_mtu(struct efx_nic *efx)
+{
+	/* The maximum MTU that we can fit in a single page, allowing for
+	 * framing, overhead and XDP headroom.
+	 */
+	int overhead = EFX_MAX_FRAME_LEN(0) + sizeof(struct efx_rx_page_state) +
+		       efx->rx_prefix_size + efx->type->rx_buffer_padding +
+		       efx->rx_ip_align + XDP_PACKET_HEADROOM;
+
+	return PAGE_SIZE - overhead;
+}
 
 /* Context: process, rtnl_lock() held. */
 static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
@@ -2290,6 +2307,14 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	rc = efx_check_disabled(efx);
 	if (rc)
 		return rc;
+
+	if (rtnl_dereference(efx->xdp_prog) &&
+	    new_mtu > efx_xdp_max_mtu(efx)) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Requested MTU of %d too big for XDP (max: %d)\n",
+			  new_mtu, efx_xdp_max_mtu(efx));
+		return -EINVAL;
+	}
 
 	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
 
@@ -2492,7 +2517,52 @@ static const struct net_device_ops efx_netdev_ops = {
 #endif
 	.ndo_udp_tunnel_add	= efx_udp_tunnel_add,
 	.ndo_udp_tunnel_del	= efx_udp_tunnel_del,
+	.ndo_bpf		= efx_xdp
 };
+
+static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog)
+{
+	struct bpf_prog *old_prog;
+
+	if (efx->xdp_rxq_info_failed) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Unable to bind XDP program due to previous failure of rxq_info\n");
+		return -EINVAL;
+	}
+
+	if (prog && efx->net_dev->mtu > efx_xdp_max_mtu(efx)) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Unable to configure XDP with MTU of %d (max: %d)\n",
+			  efx->net_dev->mtu, efx_xdp_max_mtu(efx));
+		return -EINVAL;
+	}
+
+	old_prog = rtnl_dereference(efx->xdp_prog);
+	rcu_assign_pointer(efx->xdp_prog, prog);
+	/* Release the reference that was originally passed by the caller. */
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	return 0;
+}
+
+/* Context: process, rtnl_lock() held. */
+static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp)
+{
+	struct efx_nic *efx = netdev_priv(dev);
+	struct bpf_prog *xdp_prog;
+
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return efx_xdp_setup_prog(efx, xdp->prog);
+	case XDP_QUERY_PROG:
+		xdp_prog = rtnl_dereference(efx->xdp_prog);
+		xdp->prog_id = xdp_prog ? xdp_prog->aux->id : 0;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
 
 static void efx_update_name(struct efx_nic *efx)
 {
