@@ -369,6 +369,8 @@ struct efx_rx_page_state {
  *	refill was triggered.
  * @recycle_count: RX buffer recycle counter.
  * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
+ * @xdp_rxq_info: XDP specific RX queue information.
+ * @xdp_rxq_info_valid: Is xdp_rxq_info valid data?.
  */
 struct efx_rx_queue {
 	struct efx_nic *efx;
@@ -400,6 +402,8 @@ struct efx_rx_queue {
 	unsigned int slow_fill_count;
 	/* Statistics to supplement MAC stats */
 	unsigned long rx_packets;
+	struct xdp_rxq_info xdp_rxq_info;
+	bool xdp_rxq_info_valid;
 };
 
 enum efx_sync_events_state {
@@ -900,6 +904,7 @@ struct efx_async_filter_insertion {
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
+ * @xdp_prog: Current XDP programme for this interface
  * @filter_sem: Filter table rw_semaphore, protects existence of @filter_state
  * @filter_state: Architecture-dependent filter table state
  * @rps_mutex: Protects RPS state of all channels
@@ -925,6 +930,8 @@ struct efx_async_filter_insertion {
  * @ptp_data: PTP state data
  * @ptp_warned: has this NIC seen and warned about unexpected PTP events?
  * @vpd_sn: Serial number read from VPD
+ * @xdp_rxq_info_failed: Have any of the rx queues failed to initialise their
+ *      xdp_rxq_info structures?
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
  * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
@@ -1059,6 +1066,10 @@ struct efx_nic {
 	u64 loopback_modes;
 
 	void *loopback_selftest;
+	/* We access loopback_selftest immediately before running XDP,
+	 * so we want them next to each other.
+	 */
+	struct bpf_prog __rcu *xdp_prog;
 
 	struct rw_semaphore filter_sem;
 	void *filter_state;
@@ -1088,6 +1099,7 @@ struct efx_nic {
 	bool ptp_warned;
 
 	char *vpd_sn;
+	bool xdp_rxq_info_failed;
 
 	/* The following fields may be written more often */
 

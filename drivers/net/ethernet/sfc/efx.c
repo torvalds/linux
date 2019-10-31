@@ -340,6 +340,8 @@ static int efx_poll(struct napi_struct *napi, int budget)
 
 	spent = efx_process_channel(channel, budget);
 
+	xdp_do_flush_map();
+
 	if (spent < budget) {
 		if (efx_channel_has_rx_queue(channel) &&
 		    efx->irq_rx_adaptive &&
@@ -651,7 +653,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 	efx->rx_dma_len = (efx->rx_prefix_size +
 			   EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
 			   efx->type->rx_buffer_padding);
-	rx_buf_len = (sizeof(struct efx_rx_page_state) +
+	rx_buf_len = (sizeof(struct efx_rx_page_state) + XDP_PACKET_HEADROOM +
 		      efx->rx_ip_align + efx->rx_dma_len);
 	if (rx_buf_len <= PAGE_SIZE) {
 		efx->rx_scatter = efx->type->always_rx_scatter;
@@ -774,6 +776,7 @@ static void efx_stop_datapath(struct efx_nic *efx)
 		efx_for_each_possible_channel_tx_queue(tx_queue, channel)
 			efx_fini_tx_queue(tx_queue);
 	}
+	efx->xdp_rxq_info_failed = false;
 }
 
 static void efx_remove_channel(struct efx_channel *channel)
