@@ -472,6 +472,11 @@
 				function = "uart2";
 			};
 
+			uart2_rts_cts_pins: uart2-rts-cts-pins {
+				pins = "PA2", "PA3";
+				function = "uart2";
+			};
+
 			uart3_pins: uart3-pins {
 				pins = "PA13", "PA14";
 				function = "uart3";
