@@ -805,7 +805,6 @@ struct module;
  *		The remove function always gets called from process
  *		context, so it can sleep.
  * @suspend:	Put device into low power state.
- * @suspend_late: Put device into low power state.
  * @resume:	Wake device from low power state.
  *		(Please see Documentation/power/pci.rst for descriptions
  *		of PCI Power Management and the related functions.)
@@ -828,7 +827,6 @@ struct pci_driver {
 	int  (*probe)(struct pci_dev *dev, const struct pci_device_id *id);	/* New device inserted */
 	void (*remove)(struct pci_dev *dev);	/* Device removed (NULL if not a hot-plug capable driver) */
 	int  (*suspend)(struct pci_dev *dev, pm_message_t state);	/* Device suspended */
-	int  (*suspend_late)(struct pci_dev *dev, pm_message_t state);
 	int  (*resume)(struct pci_dev *dev);	/* Device woken up */
 	void (*shutdown)(struct pci_dev *dev);
 	int  (*sriov_configure)(struct pci_dev *dev, int num_vfs); /* On PF */

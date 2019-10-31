@@ -599,32 +599,12 @@ static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = pci_dev->driver;
-
-	if (drv && drv->suspend_late) {
-		pci_power_t prev = pci_dev->current_state;
-		int error;
-
-		error = drv->suspend_late(pci_dev, state);
-		suspend_report_result(drv->suspend_late, error);
-		if (error)
-			return error;
-
-		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
-		    && pci_dev->current_state != PCI_UNKNOWN) {
-			pci_WARN_ONCE(pci_dev, pci_dev->current_state != prev,
-				      "PCI PM: Device state not saved by %pS\n",
-				      drv->suspend_late);
-			goto Fixup;
-		}
-	}
 
 	if (!pci_dev->state_saved)
 		pci_save_state(pci_dev);
 
 	pci_pm_set_unknown_state(pci_dev);
 
-Fixup:
 	pci_fixup_device(pci_fixup_suspend_late, pci_dev);
 
 	return 0;
@@ -653,7 +633,7 @@ static void pci_pm_default_suspend(struct pci_dev *pci_dev)
 static bool pci_has_legacy_pm_support(struct pci_dev *pci_dev)
 {
 	struct pci_driver *drv = pci_dev->driver;
-	bool ret = drv && (drv->suspend || drv->suspend_late || drv->resume);
+	bool ret = drv && (drv->suspend || drv->resume);
 
 	/*
 	 * Legacy PM support is used by default, so warn if the new framework is
