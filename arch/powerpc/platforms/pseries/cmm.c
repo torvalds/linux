@@ -683,8 +683,12 @@ static int cmm_init(void)
 	if ((rc = cmm_sysfs_register(&cmm_dev)))
 		goto out_reboot_notifier;
 
-	if (register_memory_notifier(&cmm_mem_nb) ||
-	    register_memory_isolate_notifier(&cmm_mem_isolate_nb))
+	rc = register_memory_notifier(&cmm_mem_nb);
+	if (rc)
+		goto out_unregister_notifier;
+
+	rc = register_memory_isolate_notifier(&cmm_mem_isolate_nb);
+	if (rc)
 		goto out_unregister_notifier;
 
 	if (cmm_disabled)
