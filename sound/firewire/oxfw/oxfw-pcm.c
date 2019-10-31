@@ -170,30 +170,56 @@ end:
 static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_oxfw *oxfw = substream->private_data;
+	struct amdtp_domain *d = &oxfw->domain;
 	int err;
 
 	err = snd_oxfw_stream_lock_try(oxfw);
 	if (err < 0)
-		goto end;
+		return err;
 
 	err = init_hw_params(oxfw, substream);
 	if (err < 0)
 		goto err_locked;
 
-	/*
-	 * When any PCM streams are already running, the available sampling
-	 * rate is limited at current value.
-	 */
-	if (amdtp_stream_pcm_running(&oxfw->tx_stream) ||
-	    amdtp_stream_pcm_running(&oxfw->rx_stream)) {
+	mutex_lock(&oxfw->mutex);
+
+	// When source of clock is not internal or any stream is reserved for
+	// transmission of PCM frames, the available sampling rate is limited
+	// at current one.
+	if (oxfw->substreams_count > 0 && d->events_per_period > 0) {
+		unsigned int frames_per_period = d->events_per_period;
+		unsigned int frames_per_buffer = d->events_per_buffer;
+
 		err = limit_to_current_params(substream);
-		if (err < 0)
-			goto end;
+		if (err < 0) {
+			mutex_unlock(&oxfw->mutex);
+			goto err_locked;
+		}
+
+		if (frames_per_period > 0) {
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					frames_per_period, frames_per_period);
+			if (err < 0) {
+				mutex_unlock(&oxfw->mutex);
+				goto err_locked;
+			}
+
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					frames_per_buffer, frames_per_buffer);
+			if (err < 0) {
+				mutex_unlock(&oxfw->mutex);
+				goto err_locked;
+			}
+		}
 	}
 
+	mutex_unlock(&oxfw->mutex);
+
 	snd_pcm_set_sync(substream);
-end:
-	return err;
+
+	return 0;
 err_locked:
 	snd_oxfw_stream_lock_release(oxfw);
 	return err;
@@ -221,10 +247,13 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
 		unsigned int channels = params_channels(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
+		unsigned int frames_per_buffer = params_buffer_size(hw_params);
 
 		mutex_lock(&oxfw->mutex);
 		err = snd_oxfw_stream_reserve_duplex(oxfw, &oxfw->tx_stream,
-						     rate, channels);
+					rate, channels, frames_per_period,
+					frames_per_buffer);
 		if (err >= 0)
 			++oxfw->substreams_count;
 		mutex_unlock(&oxfw->mutex);
@@ -246,10 +275,13 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
 		unsigned int channels = params_channels(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
+		unsigned int frames_per_buffer = params_buffer_size(hw_params);
 
 		mutex_lock(&oxfw->mutex);
 		err = snd_oxfw_stream_reserve_duplex(oxfw, &oxfw->rx_stream,
-						     rate, channels);
+					rate, channels, frames_per_period,
+					frames_per_buffer);
 		if (err >= 0)
 			++oxfw->substreams_count;
 		mutex_unlock(&oxfw->mutex);
@@ -361,27 +393,27 @@ static snd_pcm_uframes_t pcm_capture_pointer(struct snd_pcm_substream *sbstm)
 {
 	struct snd_oxfw *oxfw = sbstm->private_data;
 
-	return amdtp_stream_pcm_pointer(&oxfw->tx_stream);
+	return amdtp_domain_stream_pcm_pointer(&oxfw->domain, &oxfw->tx_stream);
 }
 static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstm)
 {
 	struct snd_oxfw *oxfw = sbstm->private_data;
 
-	return amdtp_stream_pcm_pointer(&oxfw->rx_stream);
+	return amdtp_domain_stream_pcm_pointer(&oxfw->domain, &oxfw->rx_stream);
 }
 
 static int pcm_capture_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_oxfw *oxfw = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&oxfw->tx_stream);
+	return amdtp_domain_stream_pcm_ack(&oxfw->domain, &oxfw->tx_stream);
 }
 
 static int pcm_playback_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_oxfw *oxfw = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&oxfw->rx_stream);
+	return amdtp_domain_stream_pcm_ack(&oxfw->domain, &oxfw->rx_stream);
 }
 
 int snd_oxfw_create_pcm(struct snd_oxfw *oxfw)

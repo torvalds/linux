@@ -1600,6 +1600,7 @@ static int gfs2_meta_get_tree(struct fs_context *fc)
 }
 
 static const struct fs_context_operations gfs2_meta_context_ops = {
+	.free        = gfs2_fc_free,
 	.get_tree    = gfs2_meta_get_tree,
 };
 

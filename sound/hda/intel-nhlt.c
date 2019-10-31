@@ -102,6 +102,3 @@ int intel_nhlt_get_dmic_geo(struct device *dev, struct nhlt_acpi_table *nhlt)
 	return dmic_geo;
 }
 EXPORT_SYMBOL_GPL(intel_nhlt_get_dmic_geo);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel NHLT driver");

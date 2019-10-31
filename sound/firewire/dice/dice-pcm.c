@@ -164,13 +164,14 @@ static int init_hw_info(struct snd_dice *dice,
 static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_dice *dice = substream->private_data;
+	struct amdtp_domain *d = &dice->domain;
 	unsigned int source;
 	bool internal;
 	int err;
 
 	err = snd_dice_stream_lock_try(dice);
 	if (err < 0)
-		goto end;
+		return err;
 
 	err = init_hw_info(dice, substream);
 	if (err < 0)
@@ -195,27 +196,56 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		break;
 	}
 
-	/*
-	 * When source of clock is not internal or any PCM streams are running,
-	 * available sampling rate is limited at current sampling rate.
-	 */
+	mutex_lock(&dice->mutex);
+
+	// When source of clock is not internal or any stream is reserved for
+	// transmission of PCM frames, the available sampling rate is limited
+	// at current one.
 	if (!internal ||
-	    amdtp_stream_pcm_running(&dice->tx_stream[0]) ||
-	    amdtp_stream_pcm_running(&dice->tx_stream[1]) ||
-	    amdtp_stream_pcm_running(&dice->rx_stream[0]) ||
-	    amdtp_stream_pcm_running(&dice->rx_stream[1])) {
+	    (dice->substreams_counter > 0 && d->events_per_period > 0)) {
+		unsigned int frames_per_period = d->events_per_period;
+		unsigned int frames_per_buffer = d->events_per_buffer;
 		unsigned int rate;
 
 		err = snd_dice_transaction_get_rate(dice, &rate);
-		if (err < 0)
+		if (err < 0) {
+			mutex_unlock(&dice->mutex);
 			goto err_locked;
+		}
+
 		substream->runtime->hw.rate_min = rate;
 		substream->runtime->hw.rate_max = rate;
+
+		if (frames_per_period > 0) {
+			// For double_pcm_frame quirk.
+			if (rate > 96000) {
+				frames_per_period *= 2;
+				frames_per_buffer *= 2;
+			}
+
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					frames_per_period, frames_per_period);
+			if (err < 0) {
+				mutex_unlock(&dice->mutex);
+				goto err_locked;
+			}
+
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					frames_per_buffer, frames_per_buffer);
+			if (err < 0) {
+				mutex_unlock(&dice->mutex);
+				goto err_locked;
+			}
+		}
 	}
 
+	mutex_unlock(&dice->mutex);
+
 	snd_pcm_set_sync(substream);
-end:
-	return err;
+
+	return 0;
 err_locked:
 	snd_dice_stream_lock_release(dice);
 	return err;
@@ -243,9 +273,17 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
+		unsigned int events_per_period = params_period_size(hw_params);
+		unsigned int events_per_buffer = params_buffer_size(hw_params);
 
 		mutex_lock(&dice->mutex);
-		err = snd_dice_stream_reserve_duplex(dice, rate);
+		// For double_pcm_frame quirk.
+		if (rate > 96000) {
+			events_per_period /= 2;
+			events_per_buffer /= 2;
+		}
+		err = snd_dice_stream_reserve_duplex(dice, rate,
+					events_per_period, events_per_buffer);
 		if (err >= 0)
 			++dice->substreams_counter;
 		mutex_unlock(&dice->mutex);
@@ -341,14 +379,14 @@ static snd_pcm_uframes_t capture_pointer(struct snd_pcm_substream *substream)
 	struct snd_dice *dice = substream->private_data;
 	struct amdtp_stream *stream = &dice->tx_stream[substream->pcm->device];
 
-	return amdtp_stream_pcm_pointer(stream);
+	return amdtp_domain_stream_pcm_pointer(&dice->domain, stream);
 }
 static snd_pcm_uframes_t playback_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_dice *dice = substream->private_data;
 	struct amdtp_stream *stream = &dice->rx_stream[substream->pcm->device];
 
-	return amdtp_stream_pcm_pointer(stream);
+	return amdtp_domain_stream_pcm_pointer(&dice->domain, stream);
 }
 
 static int capture_ack(struct snd_pcm_substream *substream)
@@ -356,7 +394,7 @@ static int capture_ack(struct snd_pcm_substream *substream)
 	struct snd_dice *dice = substream->private_data;
 	struct amdtp_stream *stream = &dice->tx_stream[substream->pcm->device];
 
-	return amdtp_stream_pcm_ack(stream);
+	return amdtp_domain_stream_pcm_ack(&dice->domain, stream);
 }
 
 static int playback_ack(struct snd_pcm_substream *substream)
@@ -364,7 +402,7 @@ static int playback_ack(struct snd_pcm_substream *substream)
 	struct snd_dice *dice = substream->private_data;
 	struct amdtp_stream *stream = &dice->rx_stream[substream->pcm->device];
 
-	return amdtp_stream_pcm_ack(stream);
+	return amdtp_domain_stream_pcm_ack(&dice->domain, stream);
 }
 
 int snd_dice_create_pcm(struct snd_dice *dice)
