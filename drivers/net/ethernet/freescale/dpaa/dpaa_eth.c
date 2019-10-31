@@ -1585,13 +1585,13 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 	struct device *dev = priv->net_dev->dev.parent;
 	struct skb_shared_hwtstamps shhwtstamps;
 	dma_addr_t addr = qm_fd_addr(fd);
+	void *vaddr = phys_to_virt(addr);
 	const struct qm_sg_entry *sgt;
-	struct sk_buff **skbh, *skb;
+	struct sk_buff *skb;
 	int nr_frags, i;
 	u64 ns;
 
-	skbh = (struct sk_buff **)phys_to_virt(addr);
-	skb = *skbh;
+	skb = *(struct sk_buff **)vaddr;
 
 	if (unlikely(qm_fd_get_format(fd) == qm_fd_sg)) {
 		nr_frags = skb_shinfo(skb)->nr_frags;
@@ -1602,7 +1602,7 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 		/* The sgt buffer has been allocated with netdev_alloc_frag(),
 		 * it's from lowmem.
 		 */
-		sgt = phys_to_virt(addr + qm_fd_get_offset(fd));
+		sgt = vaddr + qm_fd_get_offset(fd);
 
 		/* sgt[0] is from lowmem, was dma_map_single()-ed */
 		dma_unmap_single(priv->tx_dma_dev, qm_sg_addr(&sgt[0]),
@@ -1617,7 +1617,7 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 		}
 	} else {
 		dma_unmap_single(priv->tx_dma_dev, addr,
-				 skb_tail_pointer(skb) - (u8 *)skbh, dma_dir);
+				 skb_tail_pointer(skb) - (u8 *)vaddr, dma_dir);
 	}
 
 	/* DMA unmapping is required before accessing the HW provided info */
@@ -1625,7 +1625,7 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 	    skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 
-		if (!fman_port_get_tstamp(priv->mac_dev->port[TX], (void *)skbh,
+		if (!fman_port_get_tstamp(priv->mac_dev->port[TX], vaddr,
 					  &ns)) {
 			shhwtstamps.hwtstamp = ns_to_ktime(ns);
 			skb_tstamp_tx(skb, &shhwtstamps);
@@ -1636,7 +1636,7 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 
 	if (qm_fd_get_format(fd) == qm_fd_sg)
 		/* Free the page frag that we allocated on Tx */
-		skb_free_frag(phys_to_virt(addr));
+		skb_free_frag(vaddr);
 
 	return skb;
 }
