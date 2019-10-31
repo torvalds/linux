@@ -11432,7 +11432,7 @@ found:
 		goto fail;
 	}
 
-	crtc_state->base.active = crtc_state->base.enable = true;
+	crtc_state->uapi.active = true;
 
 	ret = drm_atomic_set_mode_for_crtc(&crtc_state->base,
 					   &load_detect_mode);
@@ -13077,19 +13077,19 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	PIPE_CONF_CHECK_X(output_types);
 
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_hdisplay);
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_htotal);
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_hblank_start);
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_hblank_end);
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_hsync_start);
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_hsync_end);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hdisplay);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_htotal);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hblank_start);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hblank_end);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hsync_start);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hsync_end);
 
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_vdisplay);
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_vtotal);
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_vblank_start);
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_vblank_end);
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_vsync_start);
-	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_vsync_end);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vdisplay);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vtotal);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vblank_start);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vblank_end);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vsync_start);
+	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vsync_end);
 
 	PIPE_CONF_CHECK_I(pixel_multiplier);
 	PIPE_CONF_CHECK_I(output_format);
@@ -13106,17 +13106,17 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	PIPE_CONF_CHECK_BOOL_INCOMPLETE(has_audio);
 
-	PIPE_CONF_CHECK_FLAGS(base.adjusted_mode.flags,
+	PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
 			      DRM_MODE_FLAG_INTERLACE);
 
 	if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS)) {
-		PIPE_CONF_CHECK_FLAGS(base.adjusted_mode.flags,
+		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
 				      DRM_MODE_FLAG_PHSYNC);
-		PIPE_CONF_CHECK_FLAGS(base.adjusted_mode.flags,
+		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
 				      DRM_MODE_FLAG_NHSYNC);
-		PIPE_CONF_CHECK_FLAGS(base.adjusted_mode.flags,
+		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
 				      DRM_MODE_FLAG_PVSYNC);
-		PIPE_CONF_CHECK_FLAGS(base.adjusted_mode.flags,
+		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
 				      DRM_MODE_FLAG_NVSYNC);
 	}
 
@@ -13155,7 +13155,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 		bp_gamma = intel_color_get_gamma_bit_precision(pipe_config);
 		if (bp_gamma)
-			PIPE_CONF_CHECK_COLOR_LUT(gamma_mode, base.gamma_lut, bp_gamma);
+			PIPE_CONF_CHECK_COLOR_LUT(gamma_mode, hw.gamma_lut, bp_gamma);
 
 	}
 
@@ -13200,7 +13200,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	if (IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5)
 		PIPE_CONF_CHECK_I(pipe_bpp);
 
-	PIPE_CONF_CHECK_CLOCK_FUZZY(base.adjusted_mode.crtc_clock);
+	PIPE_CONF_CHECK_CLOCK_FUZZY(hw.adjusted_mode.crtc_clock);
 	PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
 
 	PIPE_CONF_CHECK_I(min_voltage_level);
@@ -14007,7 +14007,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (!needs_modeset(new_crtc_state))
 			continue;
 
-		if (!new_crtc_state->base.enable) {
+		if (!new_crtc_state->uapi.enable) {
 			any_ms = true;
 			continue;
 		}
