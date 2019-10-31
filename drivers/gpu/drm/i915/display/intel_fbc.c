@@ -430,7 +430,7 @@ static bool multiple_pipes_ok(struct intel_crtc *crtc,
 	if (!no_fbc_on_multiple_pipes(dev_priv))
 		return true;
 
-	if (plane_state->base.visible)
+	if (plane_state->uapi.visible)
 		fbc->visible_pipes_mask |= (1 << pipe);
 	else
 		fbc->visible_pipes_mask &= ~(1 << pipe);
@@ -677,12 +677,12 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	 * the 90/270 degree plane rotation cases (to match the
 	 * GTT mapping), hence no need to account for rotation here.
 	 */
-	cache->plane.src_w = drm_rect_width(&plane_state->base.src) >> 16;
-	cache->plane.src_h = drm_rect_height(&plane_state->base.src) >> 16;
-	cache->plane.visible = plane_state->base.visible;
+	cache->plane.src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
+	cache->plane.src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
+	cache->plane.visible = plane_state->uapi.visible;
 	cache->plane.adjusted_x = plane_state->color_plane[0].x;
 	cache->plane.adjusted_y = plane_state->color_plane[0].y;
-	cache->plane.y = plane_state->base.src.y1 >> 16;
+	cache->plane.y = plane_state->uapi.src.y1 >> 16;
 
 	cache->plane.pixel_blend_mode = plane_state->hw.pixel_blend_mode;
 
@@ -1052,7 +1052,7 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 		if (!plane->has_fbc)
 			continue;
 
-		if (!plane_state->base.visible)
+		if (!plane_state->uapi.visible)
 			continue;
 
 		crtc_state = intel_atomic_get_new_crtc_state(state, crtc);

@@ -786,7 +786,7 @@ static int intel_wm_num_levels(struct drm_i915_private *dev_priv)
 static bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 
 	/* FIXME check the 'enable' instead */
 	if (!crtc_state->hw.active)
@@ -803,7 +803,7 @@ static bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
 	if (plane->id == PLANE_CURSOR)
 		return plane_state->hw.fb != NULL;
 	else
-		return plane_state->base.visible;
+		return plane_state->uapi.visible;
 }
 
 static struct intel_crtc *single_enabled_crtc(struct drm_i915_private *dev_priv)
@@ -1075,7 +1075,7 @@ static u16 g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state,
 			  int level)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
@@ -1108,7 +1108,7 @@ static u16 g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 
-	width = drm_rect_width(&plane_state->base.dst);
+	width = drm_rect_width(&plane_state->uapi.dst);
 
 	if (plane->id == PLANE_CURSOR) {
 		wm = intel_wm_method2(clock, htotal, width, cpp, latency);
@@ -1174,7 +1174,7 @@ static u32 ilk_compute_fbc_wm(const struct intel_crtc_state *crtc_state,
 static bool g4x_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
 				     const struct intel_plane_state *plane_state)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	int num_levels = intel_wm_num_levels(to_i915(plane->base.dev));
 	enum plane_id plane_id = plane->id;
 	bool dirty = false;
@@ -1581,7 +1581,7 @@ static u16 vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 				const struct intel_plane_state *plane_state,
 				int level)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
@@ -1751,7 +1751,7 @@ static bool vlv_raw_plane_wm_set(struct intel_crtc_state *crtc_state,
 static bool vlv_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
 				     const struct intel_plane_state *plane_state)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	enum plane_id plane_id = plane->id;
 	int num_levels = intel_wm_num_levels(to_i915(plane->base.dev));
 	int level;
@@ -2484,7 +2484,7 @@ static u32 ilk_compute_pri_wm(const struct intel_crtc_state *crtc_state,
 
 	method2 = ilk_wm_method2(crtc_state->pixel_rate,
 				 crtc_state->hw.adjusted_mode.crtc_htotal,
-				 drm_rect_width(&plane_state->base.dst),
+				 drm_rect_width(&plane_state->uapi.dst),
 				 cpp, mem_value);
 
 	return min(method1, method2);
@@ -2512,7 +2512,7 @@ static u32 ilk_compute_spr_wm(const struct intel_crtc_state *crtc_state,
 	method1 = ilk_wm_method1(crtc_state->pixel_rate, cpp, mem_value);
 	method2 = ilk_wm_method2(crtc_state->pixel_rate,
 				 crtc_state->hw.adjusted_mode.crtc_htotal,
-				 drm_rect_width(&plane_state->base.dst),
+				 drm_rect_width(&plane_state->uapi.dst),
 				 cpp, mem_value);
 	return min(method1, method2);
 }
@@ -2537,7 +2537,7 @@ static u32 ilk_compute_cur_wm(const struct intel_crtc_state *crtc_state,
 
 	return ilk_wm_method2(crtc_state->pixel_rate,
 			      crtc_state->hw.adjusted_mode.crtc_htotal,
-			      drm_rect_width(&plane_state->base.dst),
+			      drm_rect_width(&plane_state->uapi.dst),
 			      cpp, mem_value);
 }
 
@@ -2553,7 +2553,8 @@ static u32 ilk_compute_fbc_wm(const struct intel_crtc_state *crtc_state,
 
 	cpp = plane_state->hw.fb->format->cpp[0];
 
-	return ilk_wm_fbc(pri_val, drm_rect_width(&plane_state->base.dst), cpp);
+	return ilk_wm_fbc(pri_val, drm_rect_width(&plane_state->uapi.dst),
+			  cpp);
 }
 
 static unsigned int
@@ -3097,10 +3098,10 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 
 	pipe_wm->pipe_enabled = crtc_state->hw.active;
 	if (sprstate) {
-		pipe_wm->sprites_enabled = sprstate->base.visible;
-		pipe_wm->sprites_scaled = sprstate->base.visible &&
-			(drm_rect_width(&sprstate->base.dst) != drm_rect_width(&sprstate->base.src) >> 16 ||
-			 drm_rect_height(&sprstate->base.dst) != drm_rect_height(&sprstate->base.src) >> 16);
+		pipe_wm->sprites_enabled = sprstate->uapi.visible;
+		pipe_wm->sprites_scaled = sprstate->uapi.visible &&
+			(drm_rect_width(&sprstate->uapi.dst) != drm_rect_width(&sprstate->uapi.src) >> 16 ||
+			 drm_rect_height(&sprstate->uapi.dst) != drm_rect_height(&sprstate->uapi.src) >> 16);
 	}
 
 	usable_level = max_level;
@@ -4072,10 +4073,10 @@ skl_plane_downscale_amount(const struct intel_crtc_state *crtc_state,
 	 *
 	 * n.b., src is 16.16 fixed point, dst is whole integer.
 	 */
-	src_w = drm_rect_width(&plane_state->base.src) >> 16;
-	src_h = drm_rect_height(&plane_state->base.src) >> 16;
-	dst_w = drm_rect_width(&plane_state->base.dst);
-	dst_h = drm_rect_height(&plane_state->base.dst);
+	src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
+	src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
+	dst_w = drm_rect_width(&plane_state->uapi.dst);
+	dst_h = drm_rect_height(&plane_state->uapi.dst);
 
 	fp_w_ratio = div_fixed16(src_w, dst_w);
 	fp_h_ratio = div_fixed16(src_h, dst_h);
@@ -4090,14 +4091,14 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state,
 			     int color_plane)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	u32 data_rate;
 	u32 width = 0, height = 0;
 	uint_fixed_16_16_t down_scale_amount;
 	u64 rate;
 
-	if (!plane_state->base.visible)
+	if (!plane_state->uapi.visible)
 		return 0;
 
 	if (plane->id == PLANE_CURSOR)
@@ -4112,8 +4113,8 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 	 * the 90/270 degree plane rotation cases (to match the
 	 * GTT mapping), hence no need to account for rotation here.
 	 */
-	width = drm_rect_width(&plane_state->base.src) >> 16;
-	height = drm_rect_height(&plane_state->base.src) >> 16;
+	width = drm_rect_width(&plane_state->uapi.src) >> 16;
+	height = drm_rect_height(&plane_state->uapi.src) >> 16;
 
 	/* UV plane does 1/2 pixel sub-sampling */
 	if (color_plane == 1) {
@@ -4620,7 +4621,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *crtc_state,
 	 * the 90/270 degree plane rotation cases (to match the
 	 * GTT mapping), hence no need to account for rotation here.
 	 */
-	width = drm_rect_width(&plane_state->base.src) >> 16;
+	width = drm_rect_width(&plane_state->uapi.src) >> 16;
 
 	return skl_compute_wm_params(crtc_state, width,
 				     fb->format, fb->modifier,
@@ -4902,7 +4903,7 @@ static int skl_build_plane_wm_uv(struct intel_crtc_state *crtc_state,
 static int skl_build_plane_wm(struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	enum plane_id plane_id = plane->id;
 	int ret;
@@ -4928,7 +4929,7 @@ static int skl_build_plane_wm(struct intel_crtc_state *crtc_state,
 static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
-	enum plane_id plane_id = to_intel_plane(plane_state->base.plane)->id;
+	enum plane_id plane_id = to_intel_plane(plane_state->uapi.plane)->id;
 	int ret;
 
 	/* Watermarks calculated in master */
@@ -5928,7 +5929,7 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 		enum plane_id plane_id = plane->id;
 		int level;
 
-		if (plane_state->base.visible)
+		if (plane_state->uapi.visible)
 			continue;
 
 		for (level = 0; level < 3; level++) {
@@ -6083,7 +6084,7 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 		enum plane_id plane_id = plane->id;
 		int level;
 
-		if (plane_state->base.visible)
+		if (plane_state->uapi.visible)
 			continue;
 
 		for (level = 0; level < wm_state->num_levels; level++) {

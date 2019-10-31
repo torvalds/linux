@@ -56,7 +56,7 @@ struct intel_plane *intel_plane_alloc(void)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	__drm_atomic_helper_plane_reset(&plane->base, &plane_state->base);
+	__drm_atomic_helper_plane_reset(&plane->base, &plane_state->uapi);
 	plane_state->scaler_id = -1;
 
 	return plane;
@@ -88,12 +88,12 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 	if (!intel_state)
 		return NULL;
 
-	__drm_atomic_helper_plane_duplicate_state(plane, &intel_state->base);
+	__drm_atomic_helper_plane_duplicate_state(plane, &intel_state->uapi);
 
 	intel_state->vma = NULL;
 	intel_state->flags = 0;
 
-	return &intel_state->base;
+	return &intel_state->uapi;
 }
 
 /**
@@ -111,7 +111,7 @@ intel_plane_destroy_state(struct drm_plane *plane,
 	struct intel_plane_state *plane_state = to_intel_plane_state(state);
 	WARN_ON(plane_state->vma);
 
-	__drm_atomic_helper_plane_destroy_state(&plane_state->base);
+	__drm_atomic_helper_plane_destroy_state(&plane_state->uapi);
 	kfree(plane_state);
 }
 
@@ -121,7 +121,7 @@ unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int cpp;
 
-	if (!plane_state->base.visible)
+	if (!plane_state->uapi.visible)
 		return 0;
 
 	cpp = fb->format->cpp[0];
@@ -147,7 +147,7 @@ bool intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 	struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
 	struct intel_crtc_state *crtc_state;
 
-	if (!plane_state->base.visible || !plane->min_cdclk)
+	if (!plane_state->uapi.visible || !plane->min_cdclk)
 		return false;
 
 	crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
@@ -181,7 +181,7 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					const struct intel_plane_state *old_plane_state,
 					struct intel_plane_state *new_plane_state)
 {
-	struct intel_plane *plane = to_intel_plane(new_plane_state->base.plane);
+	struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = new_plane_state->hw.fb;
 	int ret;
 
@@ -190,7 +190,7 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	new_crtc_state->c8_planes &= ~BIT(plane->id);
 	new_crtc_state->data_rate[plane->id] = 0;
 	new_crtc_state->min_cdclk[plane->id] = 0;
-	new_plane_state->base.visible = false;
+	new_plane_state->uapi.visible = false;
 
 	if (!new_plane_state->hw.crtc && !old_plane_state->hw.crtc)
 		return 0;
@@ -200,18 +200,18 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 		return ret;
 
 	/* FIXME pre-g4x don't work like this */
-	if (new_plane_state->base.visible)
+	if (new_plane_state->uapi.visible)
 		new_crtc_state->active_planes |= BIT(plane->id);
 
-	if (new_plane_state->base.visible &&
+	if (new_plane_state->uapi.visible &&
 	    drm_format_info_is_yuv_semiplanar(fb->format))
 		new_crtc_state->nv12_planes |= BIT(plane->id);
 
-	if (new_plane_state->base.visible &&
+	if (new_plane_state->uapi.visible &&
 	    fb->format->format == DRM_FORMAT_C8)
 		new_crtc_state->c8_planes |= BIT(plane->id);
 
-	if (new_plane_state->base.visible || old_plane_state->base.visible)
+	if (new_plane_state->uapi.visible || old_plane_state->uapi.visible)
 		new_crtc_state->update_planes |= BIT(plane->id);
 
 	new_crtc_state->data_rate[plane->id] =
@@ -246,7 +246,7 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 	const struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 
-	new_plane_state->base.visible = false;
+	new_plane_state->uapi.visible = false;
 	if (!crtc)
 		return 0;
 
@@ -355,7 +355,7 @@ void skl_update_planes_on_crtc(struct intel_atomic_state *state,
 		struct intel_plane_state *new_plane_state =
 			intel_atomic_get_new_plane_state(state, plane);
 
-		if (new_plane_state->base.visible) {
+		if (new_plane_state->uapi.visible) {
 			intel_update_plane(plane, new_crtc_state, new_plane_state);
 		} else if (new_plane_state->planar_slave) {
 			struct intel_plane *master =
@@ -395,7 +395,7 @@ void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
 		    !(update_mask & BIT(plane->id)))
 			continue;
 
-		if (new_plane_state->base.visible)
+		if (new_plane_state->uapi.visible)
 			intel_update_plane(plane, new_crtc_state, new_plane_state);
 		else
 			intel_disable_plane(plane, new_crtc_state);
