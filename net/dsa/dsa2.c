@@ -573,29 +573,6 @@ static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 	dst->setup = false;
 }
 
-static void dsa_tree_remove_switch(struct dsa_switch_tree *dst,
-				   unsigned int index)
-{
-	dsa_tree_teardown(dst);
-
-	dsa_tree_put(dst);
-}
-
-static int dsa_tree_add_switch(struct dsa_switch_tree *dst,
-			       struct dsa_switch *ds)
-{
-	int err;
-
-	dsa_tree_get(dst);
-
-	err = dsa_tree_setup(dst);
-	if (err) {
-		dsa_tree_put(dst);
-	}
-
-	return err;
-}
-
 static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
 {
 	struct dsa_switch_tree *dst = ds->dst;
@@ -846,15 +823,9 @@ static int dsa_switch_parse(struct dsa_switch *ds, struct dsa_chip_data *cd)
 	return dsa_switch_parse_ports(ds, cd);
 }
 
-static int dsa_switch_add(struct dsa_switch *ds)
-{
-	struct dsa_switch_tree *dst = ds->dst;
-
-	return dsa_tree_add_switch(dst, ds);
-}
-
 static int dsa_switch_probe(struct dsa_switch *ds)
 {
+	struct dsa_switch_tree *dst;
 	struct dsa_chip_data *pdata;
 	struct device_node *np;
 	int err;
@@ -878,7 +849,13 @@ static int dsa_switch_probe(struct dsa_switch *ds)
 	if (err)
 		return err;
 
-	return dsa_switch_add(ds);
+	dst = ds->dst;
+	dsa_tree_get(dst);
+	err = dsa_tree_setup(dst);
+	if (err)
+		dsa_tree_put(dst);
+
+	return err;
 }
 
 int dsa_register_switch(struct dsa_switch *ds)
@@ -897,7 +874,6 @@ EXPORT_SYMBOL_GPL(dsa_register_switch);
 static void dsa_switch_remove(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
-	unsigned int index = ds->index;
 	struct dsa_port *dp, *next;
 
 	list_for_each_entry_safe(dp, next, &dst->ports, list) {
@@ -905,7 +881,8 @@ static void dsa_switch_remove(struct dsa_switch *ds)
 		kfree(dp);
 	}
 
-	dsa_tree_remove_switch(dst, index);
+	dsa_tree_teardown(dst);
+	dsa_tree_put(dst);
 }
 
 void dsa_unregister_switch(struct dsa_switch *ds)
