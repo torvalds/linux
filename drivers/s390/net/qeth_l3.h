@@ -24,7 +24,6 @@ enum qeth_ip_types {
 struct qeth_ipaddr {
 	struct hlist_node hnode;
 	enum qeth_ip_types type;
-	unsigned char mac[ETH_ALEN];
 	u8 is_multicast:1;
 	u8 in_progress:1;
 	u8 disp_flag:2;
@@ -74,12 +73,10 @@ static inline bool qeth_l3_addr_match_all(struct qeth_ipaddr *a1,
 	 * so 'proto' and 'addr' match for sure.
 	 *
 	 * For ucast:
-	 * -	'mac' is always 0.
 	 * -	'mask'/'pfxlen' for RXIP/VIPA is always 0. For NORMAL, matching
 	 *	values are required to avoid mixups in takeover eligibility.
 	 *
 	 * For mcast,
-	 * -	'mac' is mapped from the IP, and thus always matches.
 	 * -	'mask'/'pfxlen' is always 0.
 	 */
 	if (a1->type != a2->type)

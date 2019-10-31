@@ -11,6 +11,7 @@
 
 #include <asm/qeth.h>
 #include <uapi/linux/if_ether.h>
+#include <uapi/linux/in6.h>
 
 #define IPA_PDU_HEADER_SIZE	0x40
 #define QETH_IPA_PDU_LEN_TOTAL(buffer) (buffer + 0x0e)
@@ -365,8 +366,7 @@ struct qeth_ipacmd_setdelip6 {
 struct qeth_ipacmd_setdelipm {
 	__u8 mac[6];
 	__u8 padding[2];
-	__u8 ip6[12];
-	__u8 ip4[4];
+	struct in6_addr ip;
 } __attribute__ ((packed));
 
 struct qeth_ipacmd_layer2setdelmac {

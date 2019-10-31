@@ -381,12 +381,13 @@ static int qeth_l3_send_setdelmc(struct qeth_card *card,
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
-	ether_addr_copy(cmd->data.setdelipm.mac, addr->mac);
-	if (addr->proto == QETH_PROT_IPV6)
-		memcpy(cmd->data.setdelipm.ip6, &addr->u.a6.addr,
-		       sizeof(struct in6_addr));
-	else
-		memcpy(&cmd->data.setdelipm.ip4, &addr->u.a4.addr, 4);
+	if (addr->proto == QETH_PROT_IPV6) {
+		cmd->data.setdelipm.ip = addr->u.a6.addr;
+		ipv6_eth_mc_map(&addr->u.a6.addr, cmd->data.setdelipm.mac);
+	} else {
+		cmd->data.setdelipm.ip.s6_addr32[3] = addr->u.a4.addr;
+		ip_eth_mc_map(addr->u.a4.addr, cmd->data.setdelipm.mac);
+	}
 
 	return qeth_send_ipa_cmd(card, iob, qeth_l3_setdelip_cb, NULL);
 }
@@ -1127,7 +1128,6 @@ qeth_l3_add_mc_to_hash(struct qeth_card *card, struct in_device *in4_dev)
 
 	for (im4 = rcu_dereference(in4_dev->mc_list); im4 != NULL;
 	     im4 = rcu_dereference(im4->next_rcu)) {
-		ip_eth_mc_map(im4->multiaddr, tmp->mac);
 		tmp->u.a4.addr = im4->multiaddr;
 		tmp->is_multicast = 1;
 
@@ -1139,7 +1139,7 @@ qeth_l3_add_mc_to_hash(struct qeth_card *card, struct in_device *in4_dev)
 			ipm = qeth_l3_get_addr_buffer(QETH_PROT_IPV4);
 			if (!ipm)
 				continue;
-			ether_addr_copy(ipm->mac, tmp->mac);
+
 			ipm->u.a4.addr = im4->multiaddr;
 			ipm->is_multicast = 1;
 			ipm->disp_flag = QETH_DISP_ADDR_ADD;
@@ -1207,9 +1207,7 @@ static void qeth_l3_add_mc6_to_hash(struct qeth_card *card,
 		return;
 
 	for (im6 = in6_dev->mc_list; im6 != NULL; im6 = im6->next) {
-		ipv6_eth_mc_map(&im6->mca_addr, tmp->mac);
-		memcpy(&tmp->u.a6.addr, &im6->mca_addr.s6_addr,
-		       sizeof(struct in6_addr));
+		tmp->u.a6.addr = im6->mca_addr;
 		tmp->is_multicast = 1;
 
 		ipm = qeth_l3_find_addr_by_ip(card, tmp);
@@ -1223,9 +1221,7 @@ static void qeth_l3_add_mc6_to_hash(struct qeth_card *card,
 		if (!ipm)
 			continue;
 
-		ether_addr_copy(ipm->mac, tmp->mac);
-		memcpy(&ipm->u.a6.addr, &im6->mca_addr.s6_addr,
-		       sizeof(struct in6_addr));
+		ipm->u.a6.addr = im6->mca_addr;
 		ipm->is_multicast = 1;
 		ipm->disp_flag = QETH_DISP_ADDR_ADD;
 		hash_add(card->ip_mc_htable,
