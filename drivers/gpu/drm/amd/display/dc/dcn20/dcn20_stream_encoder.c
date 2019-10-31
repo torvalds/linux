@@ -561,6 +561,8 @@ static const struct stream_encoder_funcs dcn20_str_enc_funcs = {
 		enc2_stream_encoder_stop_hdmi_info_packets,
 	.update_dp_info_packets =
 		enc2_stream_encoder_update_dp_info_packets,
+	.send_immediate_sdp_message =
+		enc1_stream_encoder_send_immediate_sdp_message,
 	.stop_dp_info_packets =
 		enc1_stream_encoder_stop_dp_info_packets,
 	.dp_blank =
