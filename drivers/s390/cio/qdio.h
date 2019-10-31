@@ -82,6 +82,7 @@ enum qdio_irq_states {
 #define QDIO_SIGA_WRITE		0x00
 #define QDIO_SIGA_READ		0x01
 #define QDIO_SIGA_SYNC		0x02
+#define QDIO_SIGA_WRITEM	0x03
 #define QDIO_SIGA_WRITEQ	0x04
 #define QDIO_SIGA_QEBSM_FLAG	0x80
 

@@ -532,6 +532,8 @@ struct qeth_qdio_out_q {
 	struct timer_list timer;
 	struct qeth_hdr *prev_hdr;
 	u8 bulk_start;
+	u8 bulk_count;
+	u8 bulk_max;
 };
 
 #define qeth_for_each_output_queue(card, q, i)		\
@@ -876,6 +878,13 @@ static inline u16 qeth_iqd_translate_txq(struct net_device *dev, u16 txq)
 	if (txq == dev->num_tx_queues - 1)
 		return QETH_IQD_MCAST_TXQ;
 	return txq;
+}
+
+static inline bool qeth_iqd_is_mcast_queue(struct qeth_card *card,
+					   struct qeth_qdio_out_q *queue)
+{
+	return qeth_iqd_translate_txq(card->dev, queue->queue_no) ==
+	       QETH_IQD_MCAST_TXQ;
 }
 
 static inline void qeth_scrub_qdio_buffer(struct qdio_buffer *buf,
