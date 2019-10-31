@@ -9,7 +9,6 @@ function update_config() {
          -d TEST_KMOD  \
          -d XFS_FS \
          -d CPU_BIG_ENDIAN \
-         -d KVM_INTEL \
          -d STM \
          -d TEST_MEMCAT_P \
 
