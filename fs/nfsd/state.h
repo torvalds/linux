@@ -340,7 +340,7 @@ struct nfs4_client {
 	/* NFSv4.1 client implementation id: */
 	struct xdr_netobj	cl_nii_domain;
 	struct xdr_netobj	cl_nii_name;
-	struct timespec		cl_nii_time;
+	struct timespec64	cl_nii_time;
 
 	/* for v4.0 and v4.1 callbacks: */
 	struct nfs4_cb_conn	cl_cb_conn;
