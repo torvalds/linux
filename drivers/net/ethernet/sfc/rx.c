@@ -677,6 +677,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 			netif_err(efx, rx_err, efx->net_dev,
 				  "XDP is not possible with multiple receive fragments (%d)\n",
 				  channel->rx_pkt_n_frags);
+		channel->n_rx_xdp_bad_drops++;
 		return false;
 	}
 
@@ -722,6 +723,9 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 			if (net_ratelimit())
 				netif_err(efx, rx_err, efx->net_dev,
 					  "XDP TX failed (%d)\n", err);
+			channel->n_rx_xdp_bad_drops++;
+		} else {
+			channel->n_rx_xdp_tx++;
 		}
 		break;
 
@@ -732,12 +736,16 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 			if (net_ratelimit())
 				netif_err(efx, rx_err, efx->net_dev,
 					  "XDP redirect failed (%d)\n", err);
+			channel->n_rx_xdp_bad_drops++;
+		} else {
+			channel->n_rx_xdp_redirect++;
 		}
 		break;
 
 	default:
 		bpf_warn_invalid_xdp_action(xdp_act);
 		efx_free_rx_buffers(rx_queue, rx_buf, 1);
+		channel->n_rx_xdp_bad_drops++;
 		break;
 
 	case XDP_ABORTED:
@@ -745,6 +753,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 		/* Fall through */
 	case XDP_DROP:
 		efx_free_rx_buffers(rx_queue, rx_buf, 1);
+		channel->n_rx_xdp_drops++;
 		break;
 	}
 
