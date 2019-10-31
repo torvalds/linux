@@ -92,9 +92,9 @@ static void hclgevf_cmd_config_regs(struct hclgevf_cmq_ring *ring)
 	u32 reg_val;
 
 	if (ring->flag == HCLGEVF_TYPE_CSQ) {
-		reg_val = (u32)ring->desc_dma_addr;
+		reg_val = lower_32_bits(ring->desc_dma_addr);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_L_REG, reg_val);
-		reg_val = (u32)((ring->desc_dma_addr >> 31) >> 1);
+		reg_val = upper_32_bits(ring->desc_dma_addr);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_H_REG, reg_val);
 
 		reg_val = hclgevf_read_dev(hw, HCLGEVF_NIC_CSQ_DEPTH_REG);
@@ -105,9 +105,9 @@ static void hclgevf_cmd_config_regs(struct hclgevf_cmq_ring *ring)
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG, 0);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_TAIL_REG, 0);
 	} else {
-		reg_val = (u32)ring->desc_dma_addr;
+		reg_val = lower_32_bits(ring->desc_dma_addr);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_L_REG, reg_val);
-		reg_val = (u32)((ring->desc_dma_addr >> 31) >> 1);
+		reg_val = upper_32_bits(ring->desc_dma_addr);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_H_REG, reg_val);
 
 		reg_val = (ring->desc_num >> HCLGEVF_NIC_CMQ_DESC_NUM_S);

@@ -1813,6 +1813,8 @@ static void hclgevf_service_timer(struct timer_list *t)
 
 static void hclgevf_reset_service_task(struct work_struct *work)
 {
+#define	HCLGEVF_MAX_RESET_ATTEMPTS_CNT	3
+
 	struct hclgevf_dev *hdev =
 		container_of(work, struct hclgevf_dev, rst_service_task);
 	int ret;
@@ -1865,7 +1867,7 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 		 * We cannot do much for 2. but to check first we can try reset
 		 * our PCIe + stack and see if it alleviates the problem.
 		 */
-		if (hdev->reset_attempts > 3) {
+		if (hdev->reset_attempts > HCLGEVF_MAX_RESET_ATTEMPTS_CNT) {
 			/* prepare for full reset of stack + pcie interface */
 			set_bit(HNAE3_VF_FULL_RESET, &hdev->reset_pending);
 

@@ -141,7 +141,6 @@
 
 /* Factor used to calculate offset and bitmap of VF num */
 #define HCLGE_VF_NUM_PER_CMD           64
-#define HCLGE_VF_NUM_PER_BYTE          8
 
 enum HLCGE_PORT_TYPE {
 	HOST_PORT,

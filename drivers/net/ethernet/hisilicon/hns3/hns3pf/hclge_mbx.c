@@ -590,7 +590,8 @@ static int hclge_get_queue_id_in_pf(struct hclge_vport *vport,
 	qid_in_pf = hclge_covert_handle_qid_global(&vport->nic, queue_id);
 	memcpy(resp_data, &qid_in_pf, sizeof(qid_in_pf));
 
-	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data, 2);
+	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data,
+				    sizeof(resp_data));
 }
 
 static int hclge_get_rss_key(struct hclge_vport *vport,
