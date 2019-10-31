@@ -943,6 +943,9 @@ static u32 vlv_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_VYUY:
 		sprctl |= SP_FORMAT_YUV422 | SP_YUV_ORDER_VYUY;
 		break;
+	case DRM_FORMAT_C8:
+		sprctl |= SP_FORMAT_8BPP;
+		break;
 	case DRM_FORMAT_RGB565:
 		sprctl |= SP_FORMAT_BGR565;
 		break;
@@ -2384,6 +2387,7 @@ static const u32 snb_plane_formats[] = {
 };
 
 static const u32 vlv_plane_formats[] = {
+	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_ARGB8888,
@@ -2398,6 +2402,7 @@ static const u32 vlv_plane_formats[] = {
 };
 
 static const u32 chv_pipe_b_sprite_formats[] = {
+	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XBGR8888,
@@ -2638,6 +2643,7 @@ static bool vlv_sprite_format_mod_supported(struct drm_plane *_plane,
 	}
 
 	switch (format) {
+	case DRM_FORMAT_C8:
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_ARGB8888:

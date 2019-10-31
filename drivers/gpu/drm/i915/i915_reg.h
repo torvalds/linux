@@ -6629,6 +6629,7 @@ enum {
 #define   SP_GAMMA_ENABLE		(1 << 30)
 #define   SP_PIXFORMAT_MASK		(0xf << 26)
 #define   SP_FORMAT_YUV422		(0x0 << 26)
+#define   SP_FORMAT_8BPP		(0x2 << 26)
 #define   SP_FORMAT_BGR565		(0x5 << 26)
 #define   SP_FORMAT_BGRX8888		(0x6 << 26)
 #define   SP_FORMAT_BGRA8888		(0x7 << 26)
