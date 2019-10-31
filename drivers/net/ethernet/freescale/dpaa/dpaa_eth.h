@@ -47,8 +47,6 @@
 /* Total number of Tx queues */
 #define DPAA_ETH_TXQ_NUM	(DPAA_TC_NUM * DPAA_TC_TXQ_NUM)
 
-#define DPAA_BPS_NUM 3 /* number of bpools per interface */
-
 /* More detailed FQ types - used for fine-grained WQ assignments */
 enum dpaa_fq_type {
 	FQ_TYPE_RX_DEFAULT = 1, /* Rx Default FQs */
@@ -148,7 +146,7 @@ struct dpaa_buffer_layout {
 
 struct dpaa_priv {
 	struct dpaa_percpu_priv __percpu *percpu_priv;
-	struct dpaa_bp *dpaa_bps[DPAA_BPS_NUM];
+	struct dpaa_bp *dpaa_bp;
 	/* Store here the needed Tx headroom for convenience and speed
 	 * (even though it can be computed based on the fields of buf_layout)
 	 */

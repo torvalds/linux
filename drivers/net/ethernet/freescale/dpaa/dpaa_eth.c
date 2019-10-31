@@ -178,23 +178,7 @@ struct fm_port_fqs {
 /* All the dpa bps in use at any moment */
 static struct dpaa_bp *dpaa_bp_array[BM_MAX_NUM_OF_POOLS];
 
-/* The raw buffer size must be cacheline aligned */
 #define DPAA_BP_RAW_SIZE 4096
-/* When using more than one buffer pool, the raw sizes are as follows:
- * 1 bp: 4KB
- * 2 bp: 2KB, 4KB
- * 3 bp: 1KB, 2KB, 4KB
- * 4 bp: 1KB, 2KB, 4KB, 8KB
- */
-static inline size_t bpool_buffer_raw_size(u8 index, u8 cnt)
-{
-	size_t res = DPAA_BP_RAW_SIZE / 4;
-	u8 i;
-
-	for (i = (cnt < 3) ? cnt : 3; i < 3 + index; i++)
-		res *= 2;
-	return res;
-}
 
 /* FMan-DMA requires 16-byte alignment for Rx buffers, but SKB_DATA_ALIGN is
  * even stronger (SMP_CACHE_BYTES-aligned), so we just get away with that,
@@ -596,10 +580,7 @@ static void dpaa_bp_free(struct dpaa_bp *dpaa_bp)
 
 static void dpaa_bps_free(struct dpaa_priv *priv)
 {
-	int i;
-
-	for (i = 0; i < DPAA_BPS_NUM; i++)
-		dpaa_bp_free(priv->dpaa_bps[i]);
+	dpaa_bp_free(priv->dpaa_bp);
 }
 
 /* Use multiple WQs for FQ assignment:
@@ -1197,15 +1178,15 @@ static int dpaa_eth_init_tx_port(struct fman_port *port, struct dpaa_fq *errq,
 	return err;
 }
 
-static int dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp **bps,
-				 size_t count, struct dpaa_fq *errq,
+static int dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp *bp,
+				 struct dpaa_fq *errq,
 				 struct dpaa_fq *defq, struct dpaa_fq *pcdq,
 				 struct dpaa_buffer_layout *buf_layout)
 {
 	struct fman_buffer_prefix_content buf_prefix_content;
 	struct fman_port_rx_params *rx_p;
 	struct fman_port_params params;
-	int i, err;
+	int err;
 
 	memset(&params, 0, sizeof(params));
 	memset(&buf_prefix_content, 0, sizeof(buf_prefix_content));
@@ -1224,12 +1205,9 @@ static int dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp **bps,
 		rx_p->pcd_fqs_count = DPAA_ETH_PCD_RXQ_NUM;
 	}
 
-	count = min(ARRAY_SIZE(rx_p->ext_buf_pools.ext_buf_pool), count);
-	rx_p->ext_buf_pools.num_of_pools_used = (u8)count;
-	for (i = 0; i < count; i++) {
-		rx_p->ext_buf_pools.ext_buf_pool[i].id =  bps[i]->bpid;
-		rx_p->ext_buf_pools.ext_buf_pool[i].size = (u16)bps[i]->size;
-	}
+	rx_p->ext_buf_pools.num_of_pools_used = 1;
+	rx_p->ext_buf_pools.ext_buf_pool[0].id =  bp->bpid;
+	rx_p->ext_buf_pools.ext_buf_pool[0].size = (u16)bp->size;
 
 	err = fman_port_config(port, &params);
 	if (err) {
@@ -1252,7 +1230,7 @@ static int dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp **bps,
 }
 
 static int dpaa_eth_init_ports(struct mac_device *mac_dev,
-			       struct dpaa_bp **bps, size_t count,
+			       struct dpaa_bp *bp,
 			       struct fm_port_fqs *port_fqs,
 			       struct dpaa_buffer_layout *buf_layout,
 			       struct device *dev)
@@ -1266,7 +1244,7 @@ static int dpaa_eth_init_ports(struct mac_device *mac_dev,
 	if (err)
 		return err;
 
-	err = dpaa_eth_init_rx_port(rxport, bps, count, port_fqs->rx_errq,
+	err = dpaa_eth_init_rx_port(rxport, bp, port_fqs->rx_errq,
 				    port_fqs->rx_defq, port_fqs->rx_pcdq,
 				    &buf_layout[RX]);
 
@@ -1583,17 +1561,16 @@ static int dpaa_eth_refill_bpools(struct dpaa_priv *priv)
 {
 	struct dpaa_bp *dpaa_bp;
 	int *countptr;
-	int res, i;
+	int res;
 
-	for (i = 0; i < DPAA_BPS_NUM; i++) {
-		dpaa_bp = priv->dpaa_bps[i];
-		if (!dpaa_bp)
-			return -EINVAL;
-		countptr = this_cpu_ptr(dpaa_bp->percpu_count);
-		res  = dpaa_eth_refill_bpool(dpaa_bp, countptr);
-		if (res)
-			return res;
-	}
+	dpaa_bp = priv->dpaa_bp;
+	if (!dpaa_bp)
+		return -EINVAL;
+	countptr = this_cpu_ptr(dpaa_bp->percpu_count);
+	res  = dpaa_eth_refill_bpool(dpaa_bp, countptr);
+	if (res)
+		return res;
+
 	return 0;
 }
 
@@ -2761,13 +2738,13 @@ static inline u16 dpaa_get_headroom(struct dpaa_buffer_layout *bl)
 
 static int dpaa_eth_probe(struct platform_device *pdev)
 {
-	struct dpaa_bp *dpaa_bps[DPAA_BPS_NUM] = {NULL};
 	struct net_device *net_dev = NULL;
+	struct dpaa_bp *dpaa_bp = NULL;
 	struct dpaa_fq *dpaa_fq, *tmp;
 	struct dpaa_priv *priv = NULL;
 	struct fm_port_fqs port_fqs;
 	struct mac_device *mac_dev;
-	int err = 0, i, channel;
+	int err = 0, channel;
 	struct device *dev;
 
 	dev = &pdev->dev;
@@ -2856,23 +2833,21 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	priv->buf_layout[TX].priv_data_size = DPAA_TX_PRIV_DATA_SIZE; /* Tx */
 
 	/* bp init */
-	for (i = 0; i < DPAA_BPS_NUM; i++) {
-		dpaa_bps[i] = dpaa_bp_alloc(dev);
-		if (IS_ERR(dpaa_bps[i])) {
-			err = PTR_ERR(dpaa_bps[i]);
-			goto free_dpaa_bps;
-		}
-		/* the raw size of the buffers used for reception */
-		dpaa_bps[i]->raw_size = bpool_buffer_raw_size(i, DPAA_BPS_NUM);
-		/* avoid runtime computations by keeping the usable size here */
-		dpaa_bps[i]->size = dpaa_bp_size(dpaa_bps[i]->raw_size);
-		dpaa_bps[i]->priv = priv;
-
-		err = dpaa_bp_alloc_pool(dpaa_bps[i]);
-		if (err < 0)
-			goto free_dpaa_bps;
-		priv->dpaa_bps[i] = dpaa_bps[i];
+	dpaa_bp = dpaa_bp_alloc(dev);
+	if (IS_ERR(dpaa_bp)) {
+		err = PTR_ERR(dpaa_bp);
+		goto free_dpaa_bps;
 	}
+	/* the raw size of the buffers used for reception */
+	dpaa_bp->raw_size = DPAA_BP_RAW_SIZE;
+	/* avoid runtime computations by keeping the usable size here */
+	dpaa_bp->size = dpaa_bp_size(dpaa_bp->raw_size);
+	dpaa_bp->priv = priv;
+
+	err = dpaa_bp_alloc_pool(dpaa_bp);
+	if (err < 0)
+		goto free_dpaa_bps;
+	priv->dpaa_bp = dpaa_bp;
 
 	INIT_LIST_HEAD(&priv->dpaa_fq_list);
 
@@ -2930,7 +2905,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	priv->rx_headroom = dpaa_get_headroom(&priv->buf_layout[RX]);
 
 	/* All real interfaces need their ports initialized */
-	err = dpaa_eth_init_ports(mac_dev, dpaa_bps, DPAA_BPS_NUM, &port_fqs,
+	err = dpaa_eth_init_ports(mac_dev, dpaa_bp, &port_fqs,
 				  &priv->buf_layout[0], dev);
 	if (err)
 		goto free_dpaa_fqs;
