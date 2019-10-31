@@ -653,6 +653,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 	u8 rx_prefix[EFX_MAX_RX_PREFIX_SIZE];
 	struct efx_rx_queue *rx_queue;
 	struct bpf_prog *xdp_prog;
+	struct xdp_frame *xdpf;
 	struct xdp_buff xdp;
 	u32 xdp_act;
 	s16 offset;
@@ -713,7 +714,16 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 		break;
 
 	case XDP_TX:
-		return -EOPNOTSUPP;
+		/* Buffer ownership passes to tx on success. */
+		xdpf = convert_to_xdp_frame(&xdp);
+		err = efx_xdp_tx_buffers(efx, 1, &xdpf, true);
+		if (unlikely(err != 1)) {
+			efx_free_rx_buffers(rx_queue, rx_buf, 1);
+			if (net_ratelimit())
+				netif_err(efx, rx_err, efx->net_dev,
+					  "XDP TX failed (%d)\n", err);
+		}
+		break;
 
 	case XDP_REDIRECT:
 		err = xdp_do_redirect(efx->net_dev, &xdp, xdp_prog);

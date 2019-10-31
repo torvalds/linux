@@ -599,6 +599,94 @@ err:
 	return NETDEV_TX_OK;
 }
 
+static void efx_xdp_return_frames(int n,  struct xdp_frame **xdpfs)
+{
+	int i;
+
+	for (i = 0; i < n; i++)
+		xdp_return_frame_rx_napi(xdpfs[i]);
+}
+
+/* Transmit a packet from an XDP buffer
+ *
+ * Returns number of packets sent on success, error code otherwise.
+ * Runs in NAPI context, either in our poll (for XDP TX) or a different NIC
+ * (for XDP redirect).
+ */
+int efx_xdp_tx_buffers(struct efx_nic *efx, int n, struct xdp_frame **xdpfs,
+		       bool flush)
+{
+	struct efx_tx_buffer *tx_buffer;
+	struct efx_tx_queue *tx_queue;
+	struct xdp_frame *xdpf;
+	dma_addr_t dma_addr;
+	unsigned int len;
+	int space;
+	int cpu;
+	int i;
+
+	cpu = raw_smp_processor_id();
+
+	if (!efx->xdp_tx_queue_count ||
+	    unlikely(cpu >= efx->xdp_tx_queue_count))
+		return -EINVAL;
+
+	tx_queue = efx->xdp_tx_queues[cpu];
+	if (unlikely(!tx_queue))
+		return -EINVAL;
+
+	if (unlikely(n && !xdpfs))
+		return -EINVAL;
+
+	if (!n)
+		return 0;
+
+	/* Check for available space. We should never need multiple
+	 * descriptors per frame.
+	 */
+	space = efx->txq_entries +
+		tx_queue->read_count - tx_queue->insert_count;
+
+	for (i = 0; i < n; i++) {
+		xdpf = xdpfs[i];
+
+		if (i >= space)
+			break;
+
+		/* We'll want a descriptor for this tx. */
+		prefetchw(__efx_tx_queue_get_insert_buffer(tx_queue));
+
+		len = xdpf->len;
+
+		/* Map for DMA. */
+		dma_addr = dma_map_single(&efx->pci_dev->dev,
+					  xdpf->data, len,
+					  DMA_TO_DEVICE);
+		if (dma_mapping_error(&efx->pci_dev->dev, dma_addr))
+			break;
+
+		/*  Create descriptor and set up for unmapping DMA. */
+		tx_buffer = efx_tx_map_chunk(tx_queue, dma_addr, len);
+		tx_buffer->xdpf = xdpf;
+		tx_buffer->flags = EFX_TX_BUF_XDP |
+				   EFX_TX_BUF_MAP_SINGLE;
+		tx_buffer->dma_offset = 0;
+		tx_buffer->unmap_len = len;
+		tx_queue->tx_packets++;
+	}
+
+	/* Pass mapped frames to hardware. */
+	if (flush && i > 0)
+		efx_nic_push_buffers(tx_queue);
+
+	if (i == 0)
+		return -EIO;
+
+	efx_xdp_return_frames(n - i, xdpfs + i);
+
+	return i;
+}
+
 /* Remove packets from the TX queue
  *
  * This removes packets from the TX queue, up to and including the
