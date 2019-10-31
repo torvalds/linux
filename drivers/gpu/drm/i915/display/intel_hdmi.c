@@ -708,7 +708,7 @@ intel_hdmi_compute_avi_infoframe(struct intel_encoder *encoder,
 {
 	struct hdmi_avi_infoframe *frame = &crtc_state->infoframes.avi.avi;
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 	struct drm_connector *connector = conn_state->connector;
 	int ret;
 
@@ -804,7 +804,7 @@ intel_hdmi_compute_hdmi_infoframe(struct intel_encoder *encoder,
 
 	ret = drm_hdmi_vendor_infoframe_from_display_mode(frame,
 							  conn_state->connector,
-							  &crtc_state->base.adjusted_mode);
+							  &crtc_state->hw.adjusted_mode);
 	if (WARN_ON(ret))
 		return false;
 
@@ -1027,7 +1027,7 @@ static void intel_hdmi_compute_gcp_infoframe(struct intel_encoder *encoder,
 
 	/* Enable default_phase whenever the display mode is suitably aligned */
 	if (gcp_default_phase_possible(crtc_state->pipe_bpp,
-				       &crtc_state->base.adjusted_mode))
+				       &crtc_state->hw.adjusted_mode))
 		crtc_state->infoframes.gcp |= GCP_DEFAULT_PHASE_ENABLE;
 }
 
@@ -1738,7 +1738,7 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	const struct drm_display_mode *adjusted_mode = &crtc_state->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	u32 hdmi_val;
 
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
@@ -1829,7 +1829,7 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	    tmp & HDMI_COLOR_RANGE_16_235)
 		pipe_config->limited_color_range = true;
 
-	pipe_config->base.adjusted_mode.flags |= flags;
+	pipe_config->hw.adjusted_mode.flags |= flags;
 
 	if ((tmp & SDVO_COLOR_FORMAT_MASK) == HDMI_COLOR_FORMAT_12bpc)
 		dotclock = pipe_config->port_clock * 2 / 3;
@@ -1839,7 +1839,7 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	if (pipe_config->pixel_multiplier)
 		dotclock /= pipe_config->pixel_multiplier;
 
-	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
+	pipe_config->hw.adjusted_mode.crtc_clock = dotclock;
 
 	pipe_config->lane_count = 4;
 
@@ -2215,7 +2215,7 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 	struct drm_connector_state *connector_state;
 	struct drm_connector *connector;
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 	int i;
 
 	if (HAS_GMCH(dev_priv))
@@ -2336,7 +2336,7 @@ static int intel_hdmi_compute_clock(struct intel_encoder *encoder,
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 	int bpc, clock = adjusted_mode->crtc_clock;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
@@ -2378,7 +2378,7 @@ static bool intel_hdmi_limited_color_range(const struct intel_crtc_state *crtc_s
 	const struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 
 	/*
 	 * Our YCbCr output is always limited range.
@@ -2406,7 +2406,7 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct drm_connector *connector = conn_state->connector;
 	struct drm_scdc *scdc = &connector->display_info.hdmi.scdc;
 	struct intel_digital_connector_state *intel_conn_state =

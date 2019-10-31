@@ -83,7 +83,7 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	const struct drm_display_mode *adjusted_mode = &new_crtc_state->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &new_crtc_state->hw.adjusted_mode;
 	long timeout = msecs_to_jiffies_timeout(1);
 	int scanline, min, max, vblank_start;
 	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
@@ -1891,7 +1891,7 @@ g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 	const struct drm_rect *dst = &plane_state->base.dst;
 	int src_x, src_w, src_h, crtc_w, crtc_h;
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 	unsigned int stride = plane_state->color_plane[0].stride;
 	unsigned int cpp = fb->format->cpp[0];
 	unsigned int width_bytes;
@@ -2105,8 +2105,8 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	}
 
 	/* Y-tiling is not supported in IF-ID Interlace mode */
-	if (crtc_state->base.enable &&
-	    crtc_state->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE &&
+	if (crtc_state->hw.enable &&
+	    crtc_state->hw.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE &&
 	    (fb->modifier == I915_FORMAT_MOD_Y_TILED ||
 	     fb->modifier == I915_FORMAT_MOD_Yf_TILED ||
 	     fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||

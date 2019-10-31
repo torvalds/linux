@@ -132,9 +132,9 @@ static void intel_crt_get_config(struct intel_encoder *encoder,
 {
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_ANALOG);
 
-	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
+	pipe_config->hw.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 
-	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
+	pipe_config->hw.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 static void hsw_crt_get_config(struct intel_encoder *encoder,
@@ -144,13 +144,13 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 
 	intel_ddi_get_config(encoder, pipe_config);
 
-	pipe_config->base.adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
+	pipe_config->hw.adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
 					      DRM_MODE_FLAG_NHSYNC |
 					      DRM_MODE_FLAG_PVSYNC |
 					      DRM_MODE_FLAG_NVSYNC);
-	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
+	pipe_config->hw.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 
-	pipe_config->base.adjusted_mode.crtc_clock = lpt_get_iclkip(dev_priv);
+	pipe_config->hw.adjusted_mode.crtc_clock = lpt_get_iclkip(dev_priv);
 }
 
 /* Note: The caller is required to filter out dpms modes not supported by the
@@ -162,7 +162,7 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	const struct drm_display_mode *adjusted_mode = &crtc_state->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	u32 adpa;
 
 	if (INTEL_GEN(dev_priv) >= 5)
@@ -358,7 +358,7 @@ static int intel_crt_compute_config(struct intel_encoder *encoder,
 				    struct drm_connector_state *conn_state)
 {
 	struct drm_display_mode *adjusted_mode =
-		&pipe_config->base.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
@@ -373,7 +373,7 @@ static int pch_crt_compute_config(struct intel_encoder *encoder,
 				  struct drm_connector_state *conn_state)
 {
 	struct drm_display_mode *adjusted_mode =
-		&pipe_config->base.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
@@ -390,7 +390,7 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode =
-		&pipe_config->base.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;

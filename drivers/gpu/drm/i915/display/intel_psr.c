@@ -537,11 +537,11 @@ transcoder_has_psr2(struct drm_i915_private *dev_priv, enum transcoder trans)
 
 static u32 intel_get_frame_time_us(const struct intel_crtc_state *cstate)
 {
-	if (!cstate || !cstate->base.active)
+	if (!cstate || !cstate->hw.active)
 		return 0;
 
 	return DIV_ROUND_UP(1000 * 1000,
-			    drm_mode_vrefresh(&cstate->base.adjusted_mode));
+			    drm_mode_vrefresh(&cstate->hw.adjusted_mode));
 }
 
 static void psr2_program_idle_frames(struct drm_i915_private *dev_priv,
@@ -606,8 +606,8 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 				    struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	int crtc_hdisplay = crtc_state->base.adjusted_mode.crtc_hdisplay;
-	int crtc_vdisplay = crtc_state->base.adjusted_mode.crtc_vdisplay;
+	int crtc_hdisplay = crtc_state->hw.adjusted_mode.crtc_hdisplay;
+	int crtc_vdisplay = crtc_state->hw.adjusted_mode.crtc_vdisplay;
 	int psr_max_h = 0, psr_max_v = 0;
 
 	if (!dev_priv->psr.sink_psr2_support)
@@ -673,7 +673,7 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 	int psr_setup_time;
 
 	if (!CAN_PSR(dev_priv))
@@ -1117,7 +1117,7 @@ retry:
 			goto error;
 		}
 
-		if (crtc_state->base.active && crtc_state->has_psr) {
+		if (crtc_state->hw.active && crtc_state->has_psr) {
 			/* Mark mode as changed to trigger a pipe->update() */
 			crtc_state->base.mode_changed = true;
 			break;

@@ -48,7 +48,7 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 	void *port = connector->port;
 	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
 					   DP_DPCD_QUIRK_CONSTANT_N);
@@ -99,7 +99,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
 	const struct drm_display_mode *adjusted_mode =
-		&pipe_config->base.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
 	void *port = connector->port;
 	struct link_config_limits limits;
 	int ret;
@@ -191,7 +191,7 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 
 		if (!crtc_state ||
 		    !drm_atomic_crtc_needs_modeset(&crtc_state->base) ||
-		    crtc_state->base.enable)
+		    crtc_state->hw.enable)
 			return 0;
 	}
 

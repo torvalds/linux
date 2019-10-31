@@ -667,7 +667,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->vma = NULL;
 	cache->flags = 0;
 
-	cache->crtc.mode_flags = crtc_state->base.adjusted_mode.flags;
+	cache->crtc.mode_flags = crtc_state->hw.adjusted_mode.flags;
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		cache->crtc.hsw_bdw_pixel_rate = crtc_state->pixel_rate;
 

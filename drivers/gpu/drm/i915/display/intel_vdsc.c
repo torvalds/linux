@@ -329,8 +329,8 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 	int column_index = 0;
 	u8 line_buf_depth = 0;
 
-	vdsc_cfg->pic_width = pipe_config->base.adjusted_mode.crtc_hdisplay;
-	vdsc_cfg->pic_height = pipe_config->base.adjusted_mode.crtc_vdisplay;
+	vdsc_cfg->pic_width = pipe_config->hw.adjusted_mode.crtc_hdisplay;
+	vdsc_cfg->pic_height = pipe_config->hw.adjusted_mode.crtc_vdisplay;
 	vdsc_cfg->slice_width = DIV_ROUND_UP(vdsc_cfg->pic_width,
 					     pipe_config->dsc.slice_count);
 	/*

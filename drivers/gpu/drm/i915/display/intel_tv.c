@@ -1085,7 +1085,7 @@ intel_tv_get_config(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode =
-		&pipe_config->base.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
 	struct drm_display_mode mode = {};
 	u32 tv_ctl, hctl1, hctl3, vctl1, vctl2, tmp;
 	struct tv_mode tv_mode = {};
@@ -1188,7 +1188,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 		to_intel_tv_connector_state(conn_state);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(conn_state);
 	struct drm_display_mode *adjusted_mode =
-		&pipe_config->base.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
 	int hdisplay = adjusted_mode->crtc_hdisplay;
 	int vdisplay = adjusted_mode->crtc_vdisplay;
 

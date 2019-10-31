@@ -189,7 +189,7 @@ void lspcon_ycbcr420_config(struct drm_connector *connector,
 {
 	const struct drm_display_info *info = &connector->display_info;
 	const struct drm_display_mode *adjusted_mode =
-					&crtc_state->base.adjusted_mode;
+					&crtc_state->hw.adjusted_mode;
 
 	if (drm_mode_is_420_only(info, adjusted_mode) &&
 	    connector->ycbcr_420_allowed) {
@@ -475,7 +475,7 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	struct intel_lspcon *lspcon = &dig_port->lspcon;
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 
 	if (!lspcon->active) {
 		DRM_ERROR("Writing infoframes while LSPCON disabled ?\n");

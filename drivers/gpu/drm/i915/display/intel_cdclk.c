@@ -1937,7 +1937,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 		to_i915(crtc_state->base.crtc->dev);
 	int min_cdclk;
 
-	if (!crtc_state->base.enable)
+	if (!crtc_state->hw.enable)
 		return 0;
 
 	min_cdclk = intel_pixel_rate_to_cdclk(crtc_state);
@@ -2074,7 +2074,7 @@ static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		int ret;
 
-		if (crtc_state->base.enable)
+		if (crtc_state->hw.enable)
 			min_voltage_level = crtc_state->min_voltage_level;
 		else
 			min_voltage_level = 0;
@@ -2168,7 +2168,7 @@ static int skl_dpll0_vco(struct intel_atomic_state *state)
 		vco = dev_priv->skl_preferred_vco_freq;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		if (!crtc_state->base.enable)
+		if (!crtc_state->hw.enable)
 			continue;
 
 		if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
@@ -2281,7 +2281,7 @@ static int intel_modeset_all_pipes(struct intel_atomic_state *state)
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
 
-		if (!crtc_state->base.active ||
+		if (!crtc_state->hw.active ||
 		    drm_atomic_crtc_needs_modeset(&crtc_state->base))
 			continue;
 

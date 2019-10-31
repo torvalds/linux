@@ -276,7 +276,7 @@ static void configure_dual_link_mode(struct intel_encoder *encoder,
 
 	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
 		const struct drm_display_mode *adjusted_mode =
-					&pipe_config->base.adjusted_mode;
+					&pipe_config->hw.adjusted_mode;
 		u32 dss_ctl2;
 		u16 hactive = adjusted_mode->crtc_hdisplay;
 		u16 dl_buffer_depth;
@@ -768,7 +768,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	const struct drm_display_mode *adjusted_mode =
-					&pipe_config->base.adjusted_mode;
+					&pipe_config->hw.adjusted_mode;
 	enum port port;
 	enum transcoder dsi_trans;
 	/* horizontal timings */
@@ -1216,7 +1216,7 @@ static void gen11_dsi_get_timings(struct intel_encoder *encoder,
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct drm_display_mode *adjusted_mode =
-					&pipe_config->base.adjusted_mode;
+					&pipe_config->hw.adjusted_mode;
 
 	if (intel_dsi->dual_link) {
 		adjusted_mode->crtc_hdisplay *= 2;
@@ -1249,9 +1249,9 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	pipe_config->port_clock =
 		cnl_calc_wrpll_link(dev_priv, &pipe_config->dpll_hw_state);
 
-	pipe_config->base.adjusted_mode.crtc_clock = intel_dsi->pclk;
+	pipe_config->hw.adjusted_mode.crtc_clock = intel_dsi->pclk;
 	if (intel_dsi->dual_link)
-		pipe_config->base.adjusted_mode.crtc_clock *= 2;
+		pipe_config->hw.adjusted_mode.crtc_clock *= 2;
 
 	gen11_dsi_get_timings(encoder, pipe_config);
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
@@ -1269,7 +1269,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	const struct drm_display_mode *fixed_mode =
 					intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode =
-					&pipe_config->base.adjusted_mode;
+					&pipe_config->hw.adjusted_mode;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	intel_fixed_panel_mode(fixed_mode, adjusted_mode);
