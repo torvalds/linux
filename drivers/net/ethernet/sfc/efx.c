@@ -226,6 +226,10 @@ static void efx_fini_napi_channel(struct efx_channel *channel);
 static void efx_fini_struct(struct efx_nic *efx);
 static void efx_start_all(struct efx_nic *efx);
 static void efx_stop_all(struct efx_nic *efx);
+static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog);
+static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp);
+static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
+			u32 flags);
 
 #define EFX_ASSERT_RESET_SERIALISED(efx)		\
 	do {						\
@@ -339,6 +343,8 @@ static int efx_poll(struct napi_struct *napi, int budget)
 		   channel->channel, raw_smp_processor_id());
 
 	spent = efx_process_channel(channel, budget);
+
+	xdp_do_flush_map();
 
 	if (spent < budget) {
 		if (efx_channel_has_rx_queue(channel) &&
@@ -579,9 +585,14 @@ efx_get_channel_name(struct efx_channel *channel, char *buf, size_t len)
 	int number;
 
 	number = channel->channel;
-	if (efx->tx_channel_offset == 0) {
+
+	if (number >= efx->xdp_channel_offset &&
+	    !WARN_ON_ONCE(!efx->n_xdp_channels)) {
+		type = "-xdp";
+		number -= efx->xdp_channel_offset;
+	} else if (efx->tx_channel_offset == 0) {
 		type = "";
-	} else if (channel->channel < efx->tx_channel_offset) {
+	} else if (number < efx->tx_channel_offset) {
 		type = "-rx";
 	} else {
 		type = "-tx";
@@ -651,7 +662,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 	efx->rx_dma_len = (efx->rx_prefix_size +
 			   EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
 			   efx->type->rx_buffer_padding);
-	rx_buf_len = (sizeof(struct efx_rx_page_state) +
+	rx_buf_len = (sizeof(struct efx_rx_page_state) + XDP_PACKET_HEADROOM +
 		      efx->rx_ip_align + efx->rx_dma_len);
 	if (rx_buf_len <= PAGE_SIZE) {
 		efx->rx_scatter = efx->type->always_rx_scatter;
@@ -774,6 +785,7 @@ static void efx_stop_datapath(struct efx_nic *efx)
 		efx_for_each_possible_channel_tx_queue(tx_queue, channel)
 			efx_fini_tx_queue(tx_queue);
 	}
+	efx->xdp_rxq_info_failed = false;
 }
 
 static void efx_remove_channel(struct efx_channel *channel)
@@ -798,6 +810,8 @@ static void efx_remove_channels(struct efx_nic *efx)
 
 	efx_for_each_channel(channel, efx)
 		efx_remove_channel(channel);
+
+	kfree(efx->xdp_tx_queues);
 }
 
 int
@@ -1435,6 +1449,101 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	return count;
 }
 
+static int efx_allocate_msix_channels(struct efx_nic *efx,
+				      unsigned int max_channels,
+				      unsigned int extra_channels,
+				      unsigned int parallelism)
+{
+	unsigned int n_channels = parallelism;
+	int vec_count;
+	int n_xdp_tx;
+	int n_xdp_ev;
+
+	if (efx_separate_tx_channels)
+		n_channels *= 2;
+	n_channels += extra_channels;
+
+	/* To allow XDP transmit to happen from arbitrary NAPI contexts
+	 * we allocate a TX queue per CPU. We share event queues across
+	 * multiple tx queues, assuming tx and ev queues are both
+	 * maximum size.
+	 */
+
+	n_xdp_tx = num_possible_cpus();
+	n_xdp_ev = DIV_ROUND_UP(n_xdp_tx, EFX_TXQ_TYPES);
+
+	/* Check resources.
+	 * We need a channel per event queue, plus a VI per tx queue.
+	 * This may be more pessimistic than it needs to be.
+	 */
+	if (n_channels + n_xdp_ev > max_channels) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Insufficient resources for %d XDP event queues (%d other channels, max %d)\n",
+			  n_xdp_ev, n_channels, max_channels);
+		efx->n_xdp_channels = 0;
+		efx->xdp_tx_per_channel = 0;
+		efx->xdp_tx_queue_count = 0;
+	} else {
+		efx->n_xdp_channels = n_xdp_ev;
+		efx->xdp_tx_per_channel = EFX_TXQ_TYPES;
+		efx->xdp_tx_queue_count = n_xdp_tx;
+		n_channels += n_xdp_ev;
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Allocating %d TX and %d event queues for XDP\n",
+			  n_xdp_tx, n_xdp_ev);
+	}
+
+	n_channels = min(n_channels, max_channels);
+
+	vec_count = pci_msix_vec_count(efx->pci_dev);
+	if (vec_count < 0)
+		return vec_count;
+	if (vec_count < n_channels) {
+		netif_err(efx, drv, efx->net_dev,
+			  "WARNING: Insufficient MSI-X vectors available (%d < %u).\n",
+			  vec_count, n_channels);
+		netif_err(efx, drv, efx->net_dev,
+			  "WARNING: Performance may be reduced.\n");
+		n_channels = vec_count;
+	}
+
+	efx->n_channels = n_channels;
+
+	/* Do not create the PTP TX queue(s) if PTP uses the MC directly. */
+	if (extra_channels && !efx_ptp_use_mac_tx_timestamps(efx))
+		n_channels--;
+
+	/* Ignore XDP tx channels when creating rx channels. */
+	n_channels -= efx->n_xdp_channels;
+
+	if (efx_separate_tx_channels) {
+		efx->n_tx_channels =
+			min(max(n_channels / 2, 1U),
+			    efx->max_tx_channels);
+		efx->tx_channel_offset =
+			n_channels - efx->n_tx_channels;
+		efx->n_rx_channels =
+			max(n_channels -
+			    efx->n_tx_channels, 1U);
+	} else {
+		efx->n_tx_channels = min(n_channels, efx->max_tx_channels);
+		efx->tx_channel_offset = 0;
+		efx->n_rx_channels = n_channels;
+	}
+
+	if (efx->n_xdp_channels)
+		efx->xdp_channel_offset = efx->tx_channel_offset +
+					  efx->n_tx_channels;
+	else
+		efx->xdp_channel_offset = efx->n_channels;
+
+	netif_dbg(efx, drv, efx->net_dev,
+		  "Allocating %u RX channels\n",
+		  efx->n_rx_channels);
+
+	return efx->n_channels;
+}
+
 /* Probe the number and type of interrupts we are able to obtain, and
  * the resulting numbers of channels and RX queues.
  */
@@ -1449,19 +1558,19 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 			++extra_channels;
 
 	if (efx->interrupt_mode == EFX_INT_MODE_MSIX) {
+		unsigned int parallelism = efx_wanted_parallelism(efx);
 		struct msix_entry xentries[EFX_MAX_CHANNELS];
 		unsigned int n_channels;
 
-		n_channels = efx_wanted_parallelism(efx);
-		if (efx_separate_tx_channels)
-			n_channels *= 2;
-		n_channels += extra_channels;
-		n_channels = min(n_channels, efx->max_channels);
-
-		for (i = 0; i < n_channels; i++)
-			xentries[i].entry = i;
-		rc = pci_enable_msix_range(efx->pci_dev,
-					   xentries, 1, n_channels);
+		rc = efx_allocate_msix_channels(efx, efx->max_channels,
+						extra_channels, parallelism);
+		if (rc >= 0) {
+			n_channels = rc;
+			for (i = 0; i < n_channels; i++)
+				xentries[i].entry = i;
+			rc = pci_enable_msix_range(efx->pci_dev, xentries, 1,
+						   n_channels);
+		}
 		if (rc < 0) {
 			/* Fall back to single channel MSI */
 			netif_err(efx, drv, efx->net_dev,
@@ -1480,21 +1589,6 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		}
 
 		if (rc > 0) {
-			efx->n_channels = n_channels;
-			if (n_channels > extra_channels)
-				n_channels -= extra_channels;
-			if (efx_separate_tx_channels) {
-				efx->n_tx_channels = min(max(n_channels / 2,
-							     1U),
-							 efx->max_tx_channels);
-				efx->n_rx_channels = max(n_channels -
-							 efx->n_tx_channels,
-							 1U);
-			} else {
-				efx->n_tx_channels = min(n_channels,
-							 efx->max_tx_channels);
-				efx->n_rx_channels = n_channels;
-			}
 			for (i = 0; i < efx->n_channels; i++)
 				efx_get_channel(efx, i)->irq =
 					xentries[i].vector;
@@ -1506,6 +1600,8 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		efx->n_channels = 1;
 		efx->n_rx_channels = 1;
 		efx->n_tx_channels = 1;
+		efx->n_xdp_channels = 0;
+		efx->xdp_channel_offset = efx->n_channels;
 		rc = pci_enable_msi(efx->pci_dev);
 		if (rc == 0) {
 			efx_get_channel(efx, 0)->irq = efx->pci_dev->irq;
@@ -1524,12 +1620,14 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		efx->n_channels = 1 + (efx_separate_tx_channels ? 1 : 0);
 		efx->n_rx_channels = 1;
 		efx->n_tx_channels = 1;
+		efx->n_xdp_channels = 0;
+		efx->xdp_channel_offset = efx->n_channels;
 		efx->legacy_irq = efx->pci_dev->irq;
 	}
 
-	/* Assign extra channels if possible */
+	/* Assign extra channels if possible, before XDP channels */
 	efx->n_extra_tx_channels = 0;
-	j = efx->n_channels;
+	j = efx->xdp_channel_offset;
 	for (i = 0; i < EFX_MAX_EXTRA_CHANNELS; i++) {
 		if (!efx->extra_channel_type[i])
 			continue;
@@ -1724,29 +1822,50 @@ static void efx_remove_interrupts(struct efx_nic *efx)
 	efx->legacy_irq = 0;
 }
 
-static void efx_set_channels(struct efx_nic *efx)
+static int efx_set_channels(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
+	int xdp_queue_number;
 
 	efx->tx_channel_offset =
 		efx_separate_tx_channels ?
 		efx->n_channels - efx->n_tx_channels : 0;
 
+	if (efx->xdp_tx_queue_count) {
+		EFX_WARN_ON_PARANOID(efx->xdp_tx_queues);
+
+		/* Allocate array for XDP TX queue lookup. */
+		efx->xdp_tx_queues = kcalloc(efx->xdp_tx_queue_count,
+					     sizeof(*efx->xdp_tx_queues),
+					     GFP_KERNEL);
+		if (!efx->xdp_tx_queues)
+			return -ENOMEM;
+	}
+
 	/* We need to mark which channels really have RX and TX
 	 * queues, and adjust the TX queue numbers if we have separate
 	 * RX-only and TX-only channels.
 	 */
+	xdp_queue_number = 0;
 	efx_for_each_channel(channel, efx) {
 		if (channel->channel < efx->n_rx_channels)
 			channel->rx_queue.core_index = channel->channel;
 		else
 			channel->rx_queue.core_index = -1;
 
-		efx_for_each_channel_tx_queue(tx_queue, channel)
+		efx_for_each_channel_tx_queue(tx_queue, channel) {
 			tx_queue->queue -= (efx->tx_channel_offset *
 					    EFX_TXQ_TYPES);
+
+			if (efx_channel_is_xdp_tx(channel) &&
+			    xdp_queue_number < efx->xdp_tx_queue_count) {
+				efx->xdp_tx_queues[xdp_queue_number] = tx_queue;
+				xdp_queue_number++;
+			}
+		}
 	}
+	return 0;
 }
 
 static int efx_probe_nic(struct efx_nic *efx)
@@ -1776,7 +1895,9 @@ static int efx_probe_nic(struct efx_nic *efx)
 		if (rc)
 			goto fail1;
 
-		efx_set_channels(efx);
+		rc = efx_set_channels(efx);
+		if (rc)
+			goto fail1;
 
 		/* dimension_resources can fail with EAGAIN */
 		rc = efx->type->dimension_resources(efx);
@@ -2022,6 +2143,10 @@ static void efx_stop_all(struct efx_nic *efx)
 
 static void efx_remove_all(struct efx_nic *efx)
 {
+	rtnl_lock();
+	efx_xdp_setup_prog(efx, NULL);
+	rtnl_unlock();
+
 	efx_remove_channels(efx);
 	efx_remove_filters(efx);
 #ifdef CONFIG_SFC_SRIOV
@@ -2081,6 +2206,8 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 		if (efx_channel_has_rx_queue(channel))
 			channel->irq_moderation_us = rx_usecs;
 		else if (efx_channel_has_tx_queues(channel))
+			channel->irq_moderation_us = tx_usecs;
+		else if (efx_channel_is_xdp_tx(channel))
 			channel->irq_moderation_us = tx_usecs;
 	}
 
@@ -2277,6 +2404,17 @@ static void efx_watchdog(struct net_device *net_dev)
 	efx_schedule_reset(efx, RESET_TYPE_TX_WATCHDOG);
 }
 
+static unsigned int efx_xdp_max_mtu(struct efx_nic *efx)
+{
+	/* The maximum MTU that we can fit in a single page, allowing for
+	 * framing, overhead and XDP headroom.
+	 */
+	int overhead = EFX_MAX_FRAME_LEN(0) + sizeof(struct efx_rx_page_state) +
+		       efx->rx_prefix_size + efx->type->rx_buffer_padding +
+		       efx->rx_ip_align + XDP_PACKET_HEADROOM;
+
+	return PAGE_SIZE - overhead;
+}
 
 /* Context: process, rtnl_lock() held. */
 static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
@@ -2287,6 +2425,14 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	rc = efx_check_disabled(efx);
 	if (rc)
 		return rc;
+
+	if (rtnl_dereference(efx->xdp_prog) &&
+	    new_mtu > efx_xdp_max_mtu(efx)) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Requested MTU of %d too big for XDP (max: %d)\n",
+			  new_mtu, efx_xdp_max_mtu(efx));
+		return -EINVAL;
+	}
 
 	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
 
@@ -2489,7 +2635,64 @@ static const struct net_device_ops efx_netdev_ops = {
 #endif
 	.ndo_udp_tunnel_add	= efx_udp_tunnel_add,
 	.ndo_udp_tunnel_del	= efx_udp_tunnel_del,
+	.ndo_xdp_xmit		= efx_xdp_xmit,
+	.ndo_bpf		= efx_xdp
 };
+
+static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog)
+{
+	struct bpf_prog *old_prog;
+
+	if (efx->xdp_rxq_info_failed) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Unable to bind XDP program due to previous failure of rxq_info\n");
+		return -EINVAL;
+	}
+
+	if (prog && efx->net_dev->mtu > efx_xdp_max_mtu(efx)) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Unable to configure XDP with MTU of %d (max: %d)\n",
+			  efx->net_dev->mtu, efx_xdp_max_mtu(efx));
+		return -EINVAL;
+	}
+
+	old_prog = rtnl_dereference(efx->xdp_prog);
+	rcu_assign_pointer(efx->xdp_prog, prog);
+	/* Release the reference that was originally passed by the caller. */
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	return 0;
+}
+
+/* Context: process, rtnl_lock() held. */
+static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp)
+{
+	struct efx_nic *efx = netdev_priv(dev);
+	struct bpf_prog *xdp_prog;
+
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return efx_xdp_setup_prog(efx, xdp->prog);
+	case XDP_QUERY_PROG:
+		xdp_prog = rtnl_dereference(efx->xdp_prog);
+		xdp->prog_id = xdp_prog ? xdp_prog->aux->id : 0;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
+			u32 flags)
+{
+	struct efx_nic *efx = netdev_priv(dev);
+
+	if (!netif_running(dev))
+		return -EINVAL;
+
+	return efx_xdp_tx_buffers(efx, n, xdpfs, flags & XDP_XMIT_FLUSH);
+}
 
 static void efx_update_name(struct efx_nic *efx)
 {

@@ -83,6 +83,10 @@ static const struct efx_sw_stat_desc efx_sw_stat_desc[] = {
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_frm_trunc),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_merge_events),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_merge_packets),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_xdp_drops),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_xdp_bad_drops),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_xdp_tx),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_xdp_redirect),
 };
 
 #define EFX_ETHTOOL_SW_STAT_COUNT ARRAY_SIZE(efx_sw_stat_desc)
@@ -399,6 +403,19 @@ static size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 *strings)
 			}
 		}
 	}
+	if (efx->xdp_tx_queue_count && efx->xdp_tx_queues) {
+		unsigned short xdp;
+
+		for (xdp = 0; xdp < efx->xdp_tx_queue_count; xdp++) {
+			n_stats++;
+			if (strings) {
+				snprintf(strings, ETH_GSTRING_LEN,
+					 "tx-xdp-cpu-%hu.tx_packets", xdp);
+				strings += ETH_GSTRING_LEN;
+			}
+		}
+	}
+
 	return n_stats;
 }
 
@@ -506,6 +523,14 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 			efx_for_each_channel_rx_queue(rx_queue, channel) {
 				*data += rx_queue->rx_packets;
 			}
+			data++;
+		}
+	}
+	if (efx->xdp_tx_queue_count && efx->xdp_tx_queues) {
+		int xdp;
+
+		for (xdp = 0; xdp < efx->xdp_tx_queue_count; xdp++) {
+			data[0] = efx->xdp_tx_queues[xdp]->tx_packets;
 			data++;
 		}
 	}
