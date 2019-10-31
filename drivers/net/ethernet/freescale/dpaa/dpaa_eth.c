@@ -266,7 +266,7 @@ static int dpaa_stop(struct net_device *net_dev)
 	/* Allow the Fman (Tx) port to process in-flight frames before we
 	 * try switching it off.
 	 */
-	usleep_range(5000, 10000);
+	msleep(200);
 
 	err = mac_dev->stop(mac_dev);
 	if (err < 0)
@@ -282,6 +282,8 @@ static int dpaa_stop(struct net_device *net_dev)
 	if (net_dev->phydev)
 		phy_disconnect(net_dev->phydev);
 	net_dev->phydev = NULL;
+
+	msleep(200);
 
 	return err;
 }
