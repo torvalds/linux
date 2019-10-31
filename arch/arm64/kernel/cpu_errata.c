@@ -755,6 +755,23 @@ static const struct midr_range erratum_845719_list[] = {
 };
 #endif
 
+#ifdef CONFIG_ARM64_ERRATUM_843419
+static const struct arm64_cpu_capabilities erratum_843419_list[] = {
+	{
+		/* Cortex-A53 r0p[01234] */
+		.matches = is_affected_midr_range,
+		ERRATA_MIDR_REV_RANGE(MIDR_CORTEX_A53, 0, 0, 4),
+		MIDR_FIXED(0x4, BIT(8)),
+	},
+	{
+		/* Brahma-B53 r0p[0] */
+		.matches = is_affected_midr_range,
+		ERRATA_MIDR_REV(MIDR_BRAHMA_B53, 0, 0),
+	},
+	{},
+};
+#endif
+
 const struct arm64_cpu_capabilities arm64_errata[] = {
 #ifdef CONFIG_ARM64_WORKAROUND_CLEAN_CACHE
 	{
@@ -786,11 +803,11 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #endif
 #ifdef CONFIG_ARM64_ERRATUM_843419
 	{
-	/* Cortex-A53 r0p[01234] */
 		.desc = "ARM erratum 843419",
 		.capability = ARM64_WORKAROUND_843419,
-		ERRATA_MIDR_REV_RANGE(MIDR_CORTEX_A53, 0, 0, 4),
-		MIDR_FIXED(0x4, BIT(8)),
+		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
+		.matches = cpucap_multi_entry_cap_matches,
+		.match_list = erratum_843419_list,
 	},
 #endif
 #ifdef CONFIG_ARM64_ERRATUM_845719
