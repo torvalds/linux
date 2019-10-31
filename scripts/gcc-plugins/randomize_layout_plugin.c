@@ -776,7 +776,7 @@ static bool type_name_eq(gimple stmt, const_tree type_tree, const char *wanted_n
 			return false;
 		}
 	default:
-		INFORM(gimple_location(stmt), "unhandled cast comparison: %qT\n", type_tree);
+		INFORM(gimple_location(stmt), "unhandled cast/type comparison: %qT\n", type_tree);
 		debug_tree(type_tree);
 		return false;
 	}
