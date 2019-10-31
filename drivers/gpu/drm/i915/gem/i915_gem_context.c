@@ -333,10 +333,8 @@ static bool __cancel_engine(struct intel_engine_cs *engine)
 	return __reset_engine(engine);
 }
 
-static struct intel_engine_cs *
-active_engine(struct dma_fence *fence, struct intel_context *ce)
+static struct intel_engine_cs *__active_engine(struct i915_request *rq)
 {
-	struct i915_request *rq = to_request(fence);
 	struct intel_engine_cs *engine, *locked;
 
 	/*
@@ -356,6 +354,29 @@ active_engine(struct dma_fence *fence, struct intel_context *ce)
 		engine = rq->engine;
 
 	spin_unlock_irq(&locked->active.lock);
+
+	return engine;
+}
+
+static struct intel_engine_cs *active_engine(struct intel_context *ce)
+{
+	struct intel_engine_cs *engine = NULL;
+	struct i915_request *rq;
+
+	if (!ce->timeline)
+		return NULL;
+
+	rcu_read_lock();
+	list_for_each_entry_reverse(rq, &ce->timeline->requests, link) {
+		if (i915_request_completed(rq))
+			break;
+
+		/* Check with the backend if the request is inflight */
+		engine = __active_engine(rq);
+		if (engine)
+			break;
+	}
+	rcu_read_unlock();
 
 	return engine;
 }
@@ -383,17 +404,15 @@ static void kill_context(struct i915_gem_context *ctx)
 	 */
 	for_each_gem_engine(ce, __context_engines_static(ctx), it) {
 		struct intel_engine_cs *engine;
-		struct dma_fence *fence;
 
-		if (!ce->timeline)
-			continue;
-
-		fence = i915_active_fence_get(&ce->timeline->last_request);
-		if (!fence)
-			continue;
-
-		/* Check with the backend if the request is still inflight */
-		engine = active_engine(fence, ce);
+		/*
+		 * Check the current active state of this context; if we
+		 * are currently executing on the GPU we need to evict
+		 * ourselves. On the other hand, if we haven't yet been
+		 * submitted to the GPU or if everything is complete,
+		 * we have nothing to do.
+		 */
+		engine = active_engine(ce);
 
 		/* First attempt to gracefully cancel the context */
 		if (engine && !__cancel_engine(engine))
@@ -403,8 +422,6 @@ static void kill_context(struct i915_gem_context *ctx)
 			 * reset. We hope the collateral damage is worth it.
 			 */
 			__reset_context(ctx, engine);
-
-		dma_fence_put(fence);
 	}
 }
 
