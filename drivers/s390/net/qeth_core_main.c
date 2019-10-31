@@ -1513,7 +1513,6 @@ int qeth_qdio_clear_card(struct qeth_card *card, int use_halt)
 	rc = qeth_clear_halt_card(card, use_halt);
 	if (rc)
 		QETH_CARD_TEXT_(card, 3, "2err%d", rc);
-	card->state = CARD_STATE_DOWN;
 	return rc;
 }
 EXPORT_SYMBOL_GPL(qeth_qdio_clear_card);
