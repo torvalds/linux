@@ -476,6 +476,22 @@ internal: *[source-pattern ...]*
     .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
        :internal:
 
+identifiers: *[ function/type ...]*
+  Include documentation for each *function* and *type* in *source*.
+  If no *function* is specified, the documentation for all functions
+  and types in the *source* will be included.
+
+  Examples::
+
+    .. kernel-doc:: lib/bitmap.c
+       :identifiers: bitmap_parselist bitmap_parselist_user
+
+    .. kernel-doc:: lib/idr.c
+       :identifiers:
+
+functions: *[ function/type ...]*
+  This is an alias of the 'identifiers' directive and deprecated.
+
 doc: *title*
   Include documentation for the ``DOC:`` paragraph identified by *title* in
   *source*. Spaces are allowed in *title*; do not quote the *title*. The *title*
@@ -487,19 +503,6 @@ doc: *title*
 
     .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
        :doc: High Definition Audio over HDMI and Display Port
-
-functions: *[ function ...]*
-  Include documentation for each *function* in *source*.
-  If no *function* is specified, the documentation for all functions
-  and types in the *source* will be included.
-
-  Examples::
-
-    .. kernel-doc:: lib/bitmap.c
-       :functions: bitmap_parselist bitmap_parselist_user
-
-    .. kernel-doc:: lib/idr.c
-       :functions:
 
 Without options, the kernel-doc directive includes all documentation comments
 from the source file.
