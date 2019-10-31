@@ -1588,13 +1588,10 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 	void *vaddr = phys_to_virt(addr);
 	const struct qm_sg_entry *sgt;
 	struct sk_buff *skb;
-	int nr_frags, i;
 	u64 ns;
-
-	skb = *(struct sk_buff **)vaddr;
+	int i;
 
 	if (unlikely(qm_fd_get_format(fd) == qm_fd_sg)) {
-		nr_frags = skb_shinfo(skb)->nr_frags;
 		dma_unmap_single(priv->tx_dma_dev, addr,
 				 qm_fd_get_offset(fd) + DPAA_SGT_SIZE,
 				 dma_dir);
@@ -1609,7 +1606,8 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 				 qm_sg_entry_get_len(&sgt[0]), dma_dir);
 
 		/* remaining pages were mapped with skb_frag_dma_map() */
-		for (i = 1; i <= nr_frags; i++) {
+		for (i = 1; (i < DPAA_SGT_MAX_ENTRIES) &&
+		     !qm_sg_entry_is_final(&sgt[i - 1]); i++) {
 			WARN_ON(qm_sg_entry_is_ext(&sgt[i]));
 
 			dma_unmap_page(priv->tx_dma_dev, qm_sg_addr(&sgt[i]),
@@ -1617,8 +1615,11 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 		}
 	} else {
 		dma_unmap_single(priv->tx_dma_dev, addr,
-				 skb_tail_pointer(skb) - (u8 *)vaddr, dma_dir);
+				 priv->tx_headroom + qm_fd_get_length(fd),
+				 dma_dir);
 	}
+
+	skb = *(struct sk_buff **)vaddr;
 
 	/* DMA unmapping is required before accessing the HW provided info */
 	if (ts && priv->tx_tstamp &&
