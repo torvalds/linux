@@ -692,7 +692,7 @@ controlling the runtime power management of their devices.
 At the time of this writing there are two ways to define power management
 callbacks for a PCI device driver, the recommended one, based on using a
 dev_pm_ops structure described in Documentation/driver-api/pm/devices.rst, and
-the "legacy" one, in which the .suspend(), .suspend_late(), .resume_early(), and
+the "legacy" one, in which the .suspend(), .suspend_late(), and
 .resume() callbacks from struct pci_driver are used.  The legacy approach,
 however, doesn't allow one to define runtime power management callbacks and is
 not really suitable for any new drivers.  Therefore it is not covered by this

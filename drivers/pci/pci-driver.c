@@ -630,15 +630,6 @@ Fixup:
 	return 0;
 }
 
-static int pci_legacy_resume_early(struct device *dev)
-{
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = pci_dev->driver;
-
-	return drv && drv->resume_early ?
-			drv->resume_early(pci_dev) : 0;
-}
-
 static int pci_legacy_resume(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
@@ -662,8 +653,7 @@ static void pci_pm_default_suspend(struct pci_dev *pci_dev)
 static bool pci_has_legacy_pm_support(struct pci_dev *pci_dev)
 {
 	struct pci_driver *drv = pci_dev->driver;
-	bool ret = drv && (drv->suspend || drv->suspend_late || drv->resume
-		|| drv->resume_early);
+	bool ret = drv && (drv->suspend || drv->suspend_late || drv->resume);
 
 	/*
 	 * Legacy PM support is used by default, so warn if the new framework is
@@ -944,7 +934,7 @@ static int pci_pm_resume_noirq(struct device *dev)
 	pcie_pme_root_status_cleanup(pci_dev);
 
 	if (pci_has_legacy_pm_support(pci_dev))
-		return pci_legacy_resume_early(dev);
+		return 0;
 
 	if (pm && pm->resume_noirq)
 		return pm->resume_noirq(dev);
@@ -1074,9 +1064,8 @@ static int pci_pm_thaw_noirq(struct device *dev)
 	}
 
 	/*
-	 * Both the legacy ->resume_early() and the new pm->thaw_noirq()
-	 * callbacks assume the device has been returned to D0 and its
-	 * config state has been restored.
+	 * The pm->thaw_noirq() callback assumes the device has been
+	 * returned to D0 and its config state has been restored.
 	 *
 	 * In addition, pci_restore_state() restores MSI-X state in MMIO
 	 * space, which requires the device to be in D0, so return it to D0
@@ -1087,7 +1076,7 @@ static int pci_pm_thaw_noirq(struct device *dev)
 	pci_restore_state(pci_dev);
 
 	if (pci_has_legacy_pm_support(pci_dev))
-		return pci_legacy_resume_early(dev);
+		return 0;
 
 	if (pm && pm->thaw_noirq)
 		return pm->thaw_noirq(dev);
@@ -1219,7 +1208,7 @@ static int pci_pm_restore_noirq(struct device *dev)
 	pci_fixup_device(pci_fixup_resume_early, pci_dev);
 
 	if (pci_has_legacy_pm_support(pci_dev))
-		return pci_legacy_resume_early(dev);
+		return 0;
 
 	if (pm && pm->restore_noirq)
 		return pm->restore_noirq(dev);
