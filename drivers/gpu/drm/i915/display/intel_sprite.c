@@ -1319,6 +1319,12 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_XRGB8888:
 		sprctl |= SPRITE_FORMAT_RGBX888;
 		break;
+	case DRM_FORMAT_XBGR2101010:
+		sprctl |= SPRITE_FORMAT_RGBX101010 | SPRITE_RGB_ORDER_RGBX;
+		break;
+	case DRM_FORMAT_XRGB2101010:
+		sprctl |= SPRITE_FORMAT_RGBX101010;
+		break;
 	case DRM_FORMAT_XBGR16161616F:
 		sprctl |= SPRITE_FORMAT_RGBX161616 | SPRITE_RGB_ORDER_RGBX;
 		break;
@@ -1623,6 +1629,12 @@ static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		break;
 	case DRM_FORMAT_XRGB8888:
 		dvscntr |= DVS_FORMAT_RGBX888;
+		break;
+	case DRM_FORMAT_XBGR2101010:
+		dvscntr |= DVS_FORMAT_RGBX101010 | DVS_RGB_ORDER_XBGR;
+		break;
+	case DRM_FORMAT_XRGB2101010:
+		dvscntr |= DVS_FORMAT_RGBX101010;
 		break;
 	case DRM_FORMAT_XBGR16161616F:
 		dvscntr |= DVS_FORMAT_RGBX161616 | DVS_RGB_ORDER_XBGR;
@@ -2355,6 +2367,8 @@ static const u64 i9xx_plane_format_modifiers[] = {
 static const u32 snb_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_XBGR2101010,
 	DRM_FORMAT_XRGB16161616F,
 	DRM_FORMAT_XBGR16161616F,
 	DRM_FORMAT_YUYV,
@@ -2573,6 +2587,8 @@ static bool snb_sprite_format_mod_supported(struct drm_plane *_plane,
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_XBGR2101010:
 	case DRM_FORMAT_XRGB16161616F:
 	case DRM_FORMAT_XBGR16161616F:
 	case DRM_FORMAT_YUYV:
