@@ -459,7 +459,7 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 enum intel_display_power_domain
 intel_dsc_power_domain(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = to_i915(crtc_state->base.crtc->dev);
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	/*
@@ -483,7 +483,7 @@ intel_dsc_power_domain(const struct intel_crtc_state *crtc_state)
 static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 						const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	enum pipe pipe = crtc->pipe;
@@ -902,7 +902,7 @@ static void intel_dp_write_dsc_pps_sdp(struct intel_encoder *encoder,
 void intel_dsc_enable(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t dss_ctl1_reg, dss_ctl2_reg;
@@ -938,7 +938,7 @@ void intel_dsc_enable(struct intel_encoder *encoder,
 
 void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t dss_ctl1_reg, dss_ctl2_reg;

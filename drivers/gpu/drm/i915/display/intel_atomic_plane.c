@@ -307,7 +307,7 @@ void intel_update_plane(struct intel_plane *plane,
 			const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	trace_intel_update_plane(&plane->base, crtc);
 	plane->update_plane(plane, crtc_state, plane_state);
@@ -317,7 +317,7 @@ void intel_update_slave(struct intel_plane *plane,
 			const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	trace_intel_update_plane(&plane->base, crtc);
 	plane->update_slave(plane, crtc_state, plane_state);
@@ -326,7 +326,7 @@ void intel_update_slave(struct intel_plane *plane,
 void intel_disable_plane(struct intel_plane *plane,
 			 const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	trace_intel_disable_plane(&plane->base, crtc);
 	plane->disable_plane(plane, crtc_state);

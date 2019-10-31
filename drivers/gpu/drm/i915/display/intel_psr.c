@@ -793,7 +793,7 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 
 	dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
 	dev_priv->psr.busy_frontbuffer_bits = 0;
-	dev_priv->psr.pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
+	dev_priv->psr.pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
 	dev_priv->psr.dc3co_enabled = !!crtc_state->dc3co_exitline;
 	dev_priv->psr.dc3co_exit_delay = intel_get_frame_time_us(crtc_state);
 	dev_priv->psr.transcoder = crtc_state->cpu_transcoder;
@@ -1040,7 +1040,7 @@ unlock:
 int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 			    u32 *out_value)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (!dev_priv->psr.enabled || !new_crtc_state->has_psr)
@@ -1119,7 +1119,7 @@ retry:
 
 		if (crtc_state->hw.active && crtc_state->has_psr) {
 			/* Mark mode as changed to trigger a pipe->update() */
-			crtc_state->base.mode_changed = true;
+			crtc_state->uapi.mode_changed = true;
 			break;
 		}
 	}

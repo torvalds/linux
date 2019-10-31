@@ -81,7 +81,7 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
  */
 void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_display_mode *adjusted_mode = &new_crtc_state->hw.adjusted_mode;
 	long timeout = msecs_to_jiffies_timeout(1);
@@ -190,7 +190,7 @@ irq_disable:
  */
 void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
 	int scanline_end = intel_get_crtc_scanline(crtc);
 	u32 end_vbl_count = intel_crtc_get_vblank_counter(crtc);
@@ -203,14 +203,15 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	 * Would be slightly nice to just grab the vblank count and arm the
 	 * event outside of the critical section - the spinlock might spin for a
 	 * while ... */
-	if (new_crtc_state->base.event) {
+	if (new_crtc_state->uapi.event) {
 		WARN_ON(drm_crtc_vblank_get(&crtc->base) != 0);
 
 		spin_lock(&crtc->base.dev->event_lock);
-		drm_crtc_arm_vblank_event(&crtc->base, new_crtc_state->base.event);
+		drm_crtc_arm_vblank_event(&crtc->base,
+				          new_crtc_state->uapi.event);
 		spin_unlock(&crtc->base.dev->event_lock);
 
-		new_crtc_state->base.event = NULL;
+		new_crtc_state->uapi.event = NULL;
 	}
 
 	local_irq_enable();
@@ -1964,7 +1965,7 @@ g4x_sprite_check(struct intel_crtc_state *crtc_state,
 	}
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
-						  &crtc_state->base,
+						  &crtc_state->uapi,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)
@@ -2021,7 +2022,7 @@ vlv_sprite_check(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
-						  &crtc_state->base,
+						  &crtc_state->uapi,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  true, true);
@@ -2202,7 +2203,7 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	}
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
-						  &crtc_state->base,
+						  &crtc_state->uapi,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)

@@ -1902,7 +1902,7 @@ intel_set_cdclk_post_plane_update(struct drm_i915_private *dev_priv,
 
 static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	int pixel_rate = crtc_state->pixel_rate;
 
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
@@ -1920,7 +1920,7 @@ static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
 
 static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_plane *plane;
 	int min_cdclk = 0;
@@ -1934,7 +1934,7 @@ static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
 int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv =
-		to_i915(crtc_state->base.crtc->dev);
+		to_i915(crtc_state->uapi.crtc->dev);
 	int min_cdclk;
 
 	if (!crtc_state->hw.enable)
@@ -2282,10 +2282,10 @@ static int intel_modeset_all_pipes(struct intel_atomic_state *state)
 			return PTR_ERR(crtc_state);
 
 		if (!crtc_state->hw.active ||
-		    drm_atomic_crtc_needs_modeset(&crtc_state->base))
+		    drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
 			continue;
 
-		crtc_state->base.mode_changed = true;
+		crtc_state->uapi.mode_changed = true;
 
 		ret = drm_atomic_add_affected_connectors(&state->base,
 							 &crtc->base);
@@ -2366,7 +2366,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
 
-		if (drm_atomic_crtc_needs_modeset(&crtc_state->base))
+		if (drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
 			pipe = INVALID_PIPE;
 	} else {
 		pipe = INVALID_PIPE;

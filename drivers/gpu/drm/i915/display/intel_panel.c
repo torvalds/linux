@@ -1047,7 +1047,7 @@ static void vlv_enable_backlight(const struct intel_crtc_state *crtc_state,
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
-	enum pipe pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
+	enum pipe pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
 	u32 ctl, ctl2;
 
 	ctl2 = I915_READ(VLV_BLC_PWM_CTL2(pipe));
@@ -1077,7 +1077,7 @@ static void bxt_enable_backlight(const struct intel_crtc_state *crtc_state,
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
-	enum pipe pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
+	enum pipe pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
 	u32 pwm_ctl, val;
 
 	/* Controller 1 uses the utility pin. */
@@ -1189,7 +1189,7 @@ void intel_panel_enable_backlight(const struct intel_crtc_state *crtc_state,
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
-	enum pipe pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
+	enum pipe pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
 
 	if (!panel->backlight.present)
 		return;

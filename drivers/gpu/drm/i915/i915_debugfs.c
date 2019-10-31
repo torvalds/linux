@@ -4165,7 +4165,7 @@ static int i915_drrs_ctl_set(void *data, u64 val)
 		    !crtc_state->has_drrs)
 			goto out;
 
-		commit = crtc_state->base.commit;
+		commit = crtc_state->uapi.commit;
 		if (commit) {
 			ret = wait_for_completion_interruptible(&commit->hw_done);
 			if (ret)
@@ -4177,7 +4177,7 @@ static int i915_drrs_ctl_set(void *data, u64 val)
 			struct intel_encoder *encoder;
 			struct intel_dp *intel_dp;
 
-			if (!(crtc_state->base.connector_mask &
+			if (!(crtc_state->uapi.connector_mask &
 			      drm_connector_mask(connector)))
 				continue;
 
@@ -4236,7 +4236,7 @@ i915_fifo_underrun_reset_write(struct file *filp,
 			return ret;
 
 		crtc_state = to_intel_crtc_state(intel_crtc->base.state);
-		commit = crtc_state->base.commit;
+		commit = crtc_state->uapi.commit;
 		if (commit) {
 			ret = wait_for_completion_interruptible(&commit->hw_done);
 			if (!ret)

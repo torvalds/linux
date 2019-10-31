@@ -42,7 +42,7 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 					    struct drm_connector_state *conn_state,
 					    struct link_config_limits *limits)
 {
-	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_atomic_state *state = crtc_state->uapi.state;
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_dp *intel_dp = &intel_mst->primary->dp;
 	struct intel_connector *connector =
@@ -190,7 +190,7 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 							intel_crtc);
 
 		if (!crtc_state ||
-		    !drm_atomic_crtc_needs_modeset(&crtc_state->base) ||
+		    !drm_atomic_crtc_needs_modeset(&crtc_state->uapi) ||
 		    crtc_state->hw.enable)
 			return 0;
 	}

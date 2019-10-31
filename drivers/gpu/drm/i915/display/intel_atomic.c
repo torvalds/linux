@@ -193,7 +193,7 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	if (!crtc_state)
 		return NULL;
 
-	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->base);
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->uapi);
 
 	crtc_state->update_pipe = false;
 	crtc_state->disable_lp_wm = false;
@@ -205,7 +205,7 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->fb_bits = 0;
 	crtc_state->update_planes = 0;
 
-	return &crtc_state->base;
+	return &crtc_state->uapi;
 }
 
 /**
@@ -222,7 +222,7 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
 {
 	struct intel_crtc_state *crtc_state = to_intel_crtc_state(state);
 
-	__drm_atomic_helper_crtc_destroy_state(&crtc_state->base);
+	__drm_atomic_helper_crtc_destroy_state(&crtc_state->uapi);
 	kfree(crtc_state);
 }
 
@@ -322,7 +322,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 	struct intel_plane_state *plane_state = NULL;
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
-	struct drm_atomic_state *drm_state = crtc_state->base.state;
+	struct drm_atomic_state *drm_state = crtc_state->uapi.state;
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(drm_state);
 	int num_scalers_need;
 	int i;
