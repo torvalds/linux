@@ -3620,7 +3620,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			break;
 		}
 
-		down_write(&fs_info->dev_replace.rwsem);
+		down_write(&dev_replace->rwsem);
 		dev_replace->cursor_right = found_key.offset + length;
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
@@ -3661,10 +3661,10 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		scrub_pause_off(fs_info);
 
-		down_write(&fs_info->dev_replace.rwsem);
+		down_write(&dev_replace->rwsem);
 		dev_replace->cursor_left = dev_replace->cursor_right;
 		dev_replace->item_needs_writeback = 1;
-		up_write(&fs_info->dev_replace.rwsem);
+		up_write(&dev_replace->rwsem);
 
 		if (ro_set)
 			btrfs_dec_block_group_ro(cache);
