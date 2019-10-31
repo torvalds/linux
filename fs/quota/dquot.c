@@ -491,7 +491,7 @@ int dquot_release(struct dquot *dquot)
 
 	mutex_lock(&dquot->dq_lock);
 	/* Check whether we are not racing with some other dqget() */
-	if (atomic_read(&dquot->dq_count) > 1)
+	if (dquot_is_busy(dquot))
 		goto out_dqlock;
 	if (dqopt->ops[dquot->dq_id.type]->release_dqblk) {
 		ret = dqopt->ops[dquot->dq_id.type]->release_dqblk(dquot);
