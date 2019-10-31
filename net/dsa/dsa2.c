@@ -45,6 +45,8 @@ static struct dsa_switch_tree *dsa_tree_alloc(int index)
 
 	dst->index = index;
 
+	INIT_LIST_HEAD(&dst->rtable);
+
 	INIT_LIST_HEAD(&dst->ports);
 
 	INIT_LIST_HEAD(&dst->list);
@@ -122,6 +124,31 @@ static struct dsa_port *dsa_tree_find_port_by_node(struct dsa_switch_tree *dst,
 	return NULL;
 }
 
+struct dsa_link *dsa_link_touch(struct dsa_port *dp, struct dsa_port *link_dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_switch_tree *dst;
+	struct dsa_link *dl;
+
+	dst = ds->dst;
+
+	list_for_each_entry(dl, &dst->rtable, list)
+		if (dl->dp == dp && dl->link_dp == link_dp)
+			return dl;
+
+	dl = kzalloc(sizeof(*dl), GFP_KERNEL);
+	if (!dl)
+		return NULL;
+
+	dl->dp = dp;
+	dl->link_dp = link_dp;
+
+	INIT_LIST_HEAD(&dl->list);
+	list_add_tail(&dl->list, &dst->rtable);
+
+	return dl;
+}
+
 static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
@@ -129,6 +156,7 @@ static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 	struct device_node *dn = dp->dn;
 	struct of_phandle_iterator it;
 	struct dsa_port *link_dp;
+	struct dsa_link *dl;
 	int err;
 
 	of_for_each_phandle(&it, err, dn, "link", NULL, 0) {
@@ -138,47 +166,27 @@ static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 			return false;
 		}
 
-		ds->rtable[link_dp->ds->index] = dp->index;
+		dl = dsa_link_touch(dp, link_dp);
+		if (!dl) {
+			of_node_put(it.node);
+			return false;
+		}
 	}
 
 	return true;
 }
 
-static bool dsa_switch_setup_routing_table(struct dsa_switch *ds)
+static bool dsa_tree_setup_routing_table(struct dsa_switch_tree *dst)
 {
-	struct dsa_switch_tree *dst = ds->dst;
 	bool complete = true;
 	struct dsa_port *dp;
-	int i;
-
-	for (i = 0; i < DSA_MAX_SWITCHES; i++)
-		ds->rtable[i] = DSA_RTABLE_NONE;
 
 	list_for_each_entry(dp, &dst->ports, list) {
-		if (dp->ds == ds && dsa_port_is_dsa(dp)) {
+		if (dsa_port_is_dsa(dp)) {
 			complete = dsa_port_setup_routing_table(dp);
 			if (!complete)
 				break;
 		}
-	}
-
-	return complete;
-}
-
-static bool dsa_tree_setup_routing_table(struct dsa_switch_tree *dst)
-{
-	struct dsa_switch *ds;
-	bool complete = true;
-	int device;
-
-	for (device = 0; device < DSA_MAX_SWITCHES; device++) {
-		ds = dst->ds[device];
-		if (!ds)
-			continue;
-
-		complete = dsa_switch_setup_routing_table(ds);
-		if (!complete)
-			break;
 	}
 
 	return complete;
@@ -544,6 +552,8 @@ teardown_default_cpu:
 
 static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 {
+	struct dsa_link *dl, *next;
+
 	if (!dst->setup)
 		return;
 
@@ -553,39 +563,14 @@ static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 
 	dsa_tree_teardown_default_cpu(dst);
 
+	list_for_each_entry_safe(dl, next, &dst->rtable, list) {
+		list_del(&dl->list);
+		kfree(dl);
+	}
+
 	pr_info("DSA: tree %d torn down\n", dst->index);
 
 	dst->setup = false;
-}
-
-static void dsa_tree_remove_switch(struct dsa_switch_tree *dst,
-				   unsigned int index)
-{
-	dsa_tree_teardown(dst);
-
-	dst->ds[index] = NULL;
-	dsa_tree_put(dst);
-}
-
-static int dsa_tree_add_switch(struct dsa_switch_tree *dst,
-			       struct dsa_switch *ds)
-{
-	unsigned int index = ds->index;
-	int err;
-
-	if (dst->ds[index])
-		return -EBUSY;
-
-	dsa_tree_get(dst);
-	dst->ds[index] = ds;
-
-	err = dsa_tree_setup(dst);
-	if (err) {
-		dst->ds[index] = NULL;
-		dsa_tree_put(dst);
-	}
-
-	return err;
 }
 
 static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
@@ -726,8 +711,6 @@ static int dsa_switch_parse_member_of(struct dsa_switch *ds,
 		return sz;
 
 	ds->index = m[1];
-	if (ds->index >= DSA_MAX_SWITCHES)
-		return -EINVAL;
 
 	ds->dst = dsa_tree_touch(m[0]);
 	if (!ds->dst)
@@ -838,15 +821,9 @@ static int dsa_switch_parse(struct dsa_switch *ds, struct dsa_chip_data *cd)
 	return dsa_switch_parse_ports(ds, cd);
 }
 
-static int dsa_switch_add(struct dsa_switch *ds)
-{
-	struct dsa_switch_tree *dst = ds->dst;
-
-	return dsa_tree_add_switch(dst, ds);
-}
-
 static int dsa_switch_probe(struct dsa_switch *ds)
 {
+	struct dsa_switch_tree *dst;
 	struct dsa_chip_data *pdata;
 	struct device_node *np;
 	int err;
@@ -870,7 +847,13 @@ static int dsa_switch_probe(struct dsa_switch *ds)
 	if (err)
 		return err;
 
-	return dsa_switch_add(ds);
+	dst = ds->dst;
+	dsa_tree_get(dst);
+	err = dsa_tree_setup(dst);
+	if (err)
+		dsa_tree_put(dst);
+
+	return err;
 }
 
 int dsa_register_switch(struct dsa_switch *ds)
@@ -889,7 +872,6 @@ EXPORT_SYMBOL_GPL(dsa_register_switch);
 static void dsa_switch_remove(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
-	unsigned int index = ds->index;
 	struct dsa_port *dp, *next;
 
 	list_for_each_entry_safe(dp, next, &dst->ports, list) {
@@ -897,7 +879,8 @@ static void dsa_switch_remove(struct dsa_switch *ds)
 		kfree(dp);
 	}
 
-	dsa_tree_remove_switch(dst, index);
+	dsa_tree_teardown(dst);
+	dsa_tree_put(dst);
 }
 
 void dsa_unregister_switch(struct dsa_switch *ds)

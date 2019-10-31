@@ -1143,6 +1143,7 @@ static int mv88e6xxx_pri_setup(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_devmap_setup(struct mv88e6xxx_chip *chip)
 {
+	struct dsa_switch *ds = chip->ds;
 	int target, port;
 	int err;
 
@@ -1151,10 +1152,9 @@ static int mv88e6xxx_devmap_setup(struct mv88e6xxx_chip *chip)
 
 	/* Initialize the routing port to the 32 possible target devices */
 	for (target = 0; target < 32; target++) {
-		port = 0x1f;
-		if (target < DSA_MAX_SWITCHES)
-			if (chip->ds->rtable[target] != DSA_RTABLE_NONE)
-				port = chip->ds->rtable[target];
+		port = dsa_routing_port(ds, target);
+		if (port == ds->num_ports)
+			port = 0x1f;
 
 		err = mv88e6xxx_g2_device_mapping_write(chip, target, port);
 		if (err)
