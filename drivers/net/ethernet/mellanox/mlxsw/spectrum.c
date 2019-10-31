@@ -4154,25 +4154,37 @@ static void mlxsw_sp_port_unsplit_create(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
+static int mlxsw_sp_local_ports_offset(struct mlxsw_core *mlxsw_core,
+				       unsigned int count,
+				       unsigned int max_width)
+{
+	enum mlxsw_res_id local_ports_in_x_res_id;
+	int split_width = max_width / count;
+
+	if (split_width == 1)
+		local_ports_in_x_res_id = MLXSW_RES_ID_LOCAL_PORTS_IN_1X;
+	else if (split_width == 2)
+		local_ports_in_x_res_id = MLXSW_RES_ID_LOCAL_PORTS_IN_2X;
+	else
+		return -EINVAL;
+
+	if (!mlxsw_core_res_valid(mlxsw_core, local_ports_in_x_res_id))
+		return -EINVAL;
+	return mlxsw_core_res_get(mlxsw_core, local_ports_in_x_res_id);
+}
+
 static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 			       unsigned int count,
 			       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
-	u8 local_ports_in_1x, local_ports_in_2x, offset;
 	struct mlxsw_sp_port_mapping port_mapping;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	int max_width;
 	u8 base_port;
+	int offset;
 	int i;
 	int err;
-
-	if (!MLXSW_CORE_RES_VALID(mlxsw_core, LOCAL_PORTS_IN_1X) ||
-	    !MLXSW_CORE_RES_VALID(mlxsw_core, LOCAL_PORTS_IN_2X))
-		return -EIO;
-
-	local_ports_in_1x = MLXSW_CORE_RES_GET(mlxsw_core, LOCAL_PORTS_IN_1X);
-	local_ports_in_2x = MLXSW_CORE_RES_GET(mlxsw_core, LOCAL_PORTS_IN_2X);
 
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	if (!mlxsw_sp_port) {
@@ -4210,17 +4222,22 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		return -EINVAL;
 	}
 
+	offset = mlxsw_sp_local_ports_offset(mlxsw_core, count, max_width);
+	if (offset < 0) {
+		netdev_err(mlxsw_sp_port->dev, "Cannot obtain local port offset\n");
+		NL_SET_ERR_MSG_MOD(extack, "Cannot obtain local port offset");
+		return -EINVAL;
+	}
+
 	/* Make sure we have enough slave (even) ports for the split. */
 	if (count == 2) {
-		offset = local_ports_in_2x;
 		base_port = local_port;
-		if (mlxsw_sp->ports[base_port + local_ports_in_2x]) {
+		if (mlxsw_sp->ports[base_port + offset]) {
 			netdev_err(mlxsw_sp_port->dev, "Invalid split configuration\n");
 			NL_SET_ERR_MSG_MOD(extack, "Invalid split configuration");
 			return -EINVAL;
 		}
 	} else {
-		offset = local_ports_in_1x;
 		base_port = mlxsw_sp_cluster_base_port_get(local_port,
 							   max_width);
 		if (mlxsw_sp->ports[base_port + 1] ||
@@ -4255,19 +4272,12 @@ static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port,
 				 struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
-	u8 local_ports_in_1x, local_ports_in_2x, offset;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	unsigned int count;
 	int max_width;
 	u8 base_port;
+	int offset;
 	int i;
-
-	if (!MLXSW_CORE_RES_VALID(mlxsw_core, LOCAL_PORTS_IN_1X) ||
-	    !MLXSW_CORE_RES_VALID(mlxsw_core, LOCAL_PORTS_IN_2X))
-		return -EIO;
-
-	local_ports_in_1x = MLXSW_CORE_RES_GET(mlxsw_core, LOCAL_PORTS_IN_1X);
-	local_ports_in_2x = MLXSW_CORE_RES_GET(mlxsw_core, LOCAL_PORTS_IN_2X);
 
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	if (!mlxsw_sp_port) {
@@ -4293,10 +4303,12 @@ static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port,
 
 	count = max_width / mlxsw_sp_port->mapping.width;
 
-	if (count == 2)
-		offset = local_ports_in_2x;
-	else
-		offset = local_ports_in_1x;
+	offset = mlxsw_sp_local_ports_offset(mlxsw_core, count, max_width);
+	if (WARN_ON(offset < 0)) {
+		netdev_err(mlxsw_sp_port->dev, "Cannot obtain local port offset\n");
+		NL_SET_ERR_MSG_MOD(extack, "Cannot obtain local port offset");
+		return -EINVAL;
+	}
 
 	base_port = mlxsw_sp_cluster_base_port_get(local_port, max_width);
 
