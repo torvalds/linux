@@ -671,7 +671,7 @@ static void dr_ste_set_ctrl(struct mlx5dr_ste_htbl *htbl)
 
 	htbl->ctrl.may_grow = true;
 
-	if (htbl->chunk_size == DR_CHUNK_SIZE_MAX - 1)
+	if (htbl->chunk_size == DR_CHUNK_SIZE_MAX - 1 || !htbl->byte_mask)
 		htbl->ctrl.may_grow = false;
 
 	/* Threshold is 50%, one is added to table of size 1 */
