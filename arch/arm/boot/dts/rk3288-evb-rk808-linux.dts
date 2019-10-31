@@ -575,6 +575,8 @@
 };
 
 &pwm1 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm1_pin_pull_down>;
 	status = "okay";
 };
 
