@@ -22,6 +22,7 @@
 #include <linux/inetdevice.h>
 #include <linux/netlink.h>
 #include <linux/jhash.h>
+#include <linux/log2.h>
 #include <net/switchdev.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mirred.h>
@@ -753,14 +754,48 @@ mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 			      struct mlxsw_sp_port_mapping *port_mapping)
 {
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
+	bool separate_rxtx;
+	u8 module;
+	u8 width;
 	int err;
+	int i;
 
 	mlxsw_reg_pmlp_pack(pmlp_pl, local_port);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pmlp), pmlp_pl);
 	if (err)
 		return err;
-	port_mapping->module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
-	port_mapping->width = mlxsw_reg_pmlp_width_get(pmlp_pl);
+	module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
+	width = mlxsw_reg_pmlp_width_get(pmlp_pl);
+	separate_rxtx = mlxsw_reg_pmlp_rxtx_get(pmlp_pl);
+
+	if (width && !is_power_of_2(width)) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Unsupported module config: width value is not power of 2\n",
+			local_port);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < width; i++) {
+		if (mlxsw_reg_pmlp_module_get(pmlp_pl, i) != module) {
+			dev_err(mlxsw_sp->bus_info->dev, "Port %d: Unsupported module config: contains multiple modules\n",
+				local_port);
+			return -EINVAL;
+		}
+		if (separate_rxtx &&
+		    mlxsw_reg_pmlp_tx_lane_get(pmlp_pl, i) !=
+		    mlxsw_reg_pmlp_rx_lane_get(pmlp_pl, i)) {
+			dev_err(mlxsw_sp->bus_info->dev, "Port %d: Unsupported module config: TX and RX lane numbers are different\n",
+				local_port);
+			return -EINVAL;
+		}
+		if (mlxsw_reg_pmlp_tx_lane_get(pmlp_pl, i) != i) {
+			dev_err(mlxsw_sp->bus_info->dev, "Port %d: Unsupported module config: TX and RX lane numbers are not sequential\n",
+				local_port);
+			return -EINVAL;
+		}
+	}
+
+	port_mapping->module = module;
+	port_mapping->width = width;
 	port_mapping->lane = mlxsw_reg_pmlp_tx_lane_get(pmlp_pl, 0);
 	return 0;
 }
