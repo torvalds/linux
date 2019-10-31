@@ -1139,11 +1139,11 @@ static int generic_get_column(struct opal_dev *dev, const u8 *table,
  *
  * the result is provided in dev->resp->tok[4]
  */
-static int generic_get_table_info(struct opal_dev *dev, enum opal_uid table,
+static int generic_get_table_info(struct opal_dev *dev, const u8 *table_uid,
 				  u64 column)
 {
 	u8 uid[OPAL_UID_LENGTH];
-	const unsigned int half = OPAL_UID_LENGTH/2;
+	const unsigned int half = OPAL_UID_LENGTH_HALF;
 
 	/* sed-opal UIDs can be split in two halves:
 	 *  first:  actual table index
@@ -1152,7 +1152,7 @@ static int generic_get_table_info(struct opal_dev *dev, enum opal_uid table,
 	 * first part of the target table as relative index into that table
 	 */
 	memcpy(uid, opaluid[OPAL_TABLE_TABLE], half);
-	memcpy(uid+half, opaluid[table], half);
+	memcpy(uid + half, table_uid, half);
 
 	return generic_get_column(dev, uid, column);
 }
@@ -1219,6 +1219,75 @@ static int get_active_key(struct opal_dev *dev, void *data)
 		return err;
 
 	return get_active_key_cont(dev);
+}
+
+static int generic_table_write_data(struct opal_dev *dev, const u64 data,
+				    u64 offset, u64 size, const u8 *uid)
+{
+	const u8 __user *src = (u8 __user *)(uintptr_t)data;
+	u8 *dst;
+	u64 len;
+	size_t off = 0;
+	int err;
+
+	/* do we fit in the available space? */
+	err = generic_get_table_info(dev, uid, OPAL_TABLE_ROWS);
+	if (err) {
+		pr_debug("Couldn't get the table size\n");
+		return err;
+	}
+
+	len = response_get_u64(&dev->parsed, 4);
+	if (size > len || offset > len - size) {
+		pr_debug("Does not fit in the table (%llu vs. %llu)\n",
+			  offset + size, len);
+		return -ENOSPC;
+	}
+
+	/* do the actual transmission(s) */
+	while (off < size) {
+		err = cmd_start(dev, uid, opalmethod[OPAL_SET]);
+		add_token_u8(&err, dev, OPAL_STARTNAME);
+		add_token_u8(&err, dev, OPAL_WHERE);
+		add_token_u64(&err, dev, offset + off);
+		add_token_u8(&err, dev, OPAL_ENDNAME);
+
+		add_token_u8(&err, dev, OPAL_STARTNAME);
+		add_token_u8(&err, dev, OPAL_VALUES);
+
+		/*
+		 * The bytestring header is either 1 or 2 bytes, so assume 2.
+		 * There also needs to be enough space to accommodate the
+		 * trailing OPAL_ENDNAME (1 byte) and tokens added by
+		 * cmd_finalize.
+		 */
+		len = min(remaining_size(dev) - (2+1+CMD_FINALIZE_BYTES_NEEDED),
+			  (size_t)(size - off));
+		pr_debug("Write bytes %zu+%llu/%llu\n", off, len, size);
+
+		dst = add_bytestring_header(&err, dev, len);
+		if (!dst)
+			break;
+
+		if (copy_from_user(dst, src + off, len)) {
+			err = -EFAULT;
+			break;
+		}
+
+		dev->pos += len;
+
+		add_token_u8(&err, dev, OPAL_ENDNAME);
+		if (err)
+			break;
+
+		err = finalize_and_send(dev, parse_and_check_status);
+		if (err)
+			break;
+
+		off += len;
+	}
+
+	return err;
 }
 
 static int generic_lr_enable_disable(struct opal_dev *dev,
@@ -1583,68 +1652,9 @@ static int set_mbr_enable_disable(struct opal_dev *dev, void *data)
 static int write_shadow_mbr(struct opal_dev *dev, void *data)
 {
 	struct opal_shadow_mbr *shadow = data;
-	const u8 __user *src;
-	u8 *dst;
-	size_t off = 0;
-	u64 len;
-	int err = 0;
 
-	/* do we fit in the available shadow mbr space? */
-	err = generic_get_table_info(dev, OPAL_MBR, OPAL_TABLE_ROWS);
-	if (err) {
-		pr_debug("MBR: could not get shadow size\n");
-		return err;
-	}
-
-	len = response_get_u64(&dev->parsed, 4);
-	if (shadow->size > len || shadow->offset > len - shadow->size) {
-		pr_debug("MBR: does not fit in shadow (%llu vs. %llu)\n",
-			 shadow->offset + shadow->size, len);
-		return -ENOSPC;
-	}
-
-	/* do the actual transmission(s) */
-	src = (u8 __user *)(uintptr_t)shadow->data;
-	while (off < shadow->size) {
-		err = cmd_start(dev, opaluid[OPAL_MBR], opalmethod[OPAL_SET]);
-		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, OPAL_WHERE);
-		add_token_u64(&err, dev, shadow->offset + off);
-		add_token_u8(&err, dev, OPAL_ENDNAME);
-
-		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, OPAL_VALUES);
-
-		/*
-		 * The bytestring header is either 1 or 2 bytes, so assume 2.
-		 * There also needs to be enough space to accommodate the
-		 * trailing OPAL_ENDNAME (1 byte) and tokens added by
-		 * cmd_finalize.
-		 */
-		len = min(remaining_size(dev) - (2+1+CMD_FINALIZE_BYTES_NEEDED),
-			  (size_t)(shadow->size - off));
-		pr_debug("MBR: write bytes %zu+%llu/%llu\n",
-			 off, len, shadow->size);
-
-		dst = add_bytestring_header(&err, dev, len);
-		if (!dst)
-			break;
-		if (copy_from_user(dst, src + off, len))
-			err = -EFAULT;
-		dev->pos += len;
-
-		add_token_u8(&err, dev, OPAL_ENDNAME);
-		if (err)
-			break;
-
-		err = finalize_and_send(dev, parse_and_check_status);
-		if (err)
-			break;
-
-		off += len;
-	}
-
-	return err;
+	return generic_table_write_data(dev, shadow->data, shadow->offset,
+					shadow->size, opaluid[OPAL_MBR]);
 }
 
 static int generic_pw_cmd(u8 *key, size_t key_len, u8 *cpin_uid,
