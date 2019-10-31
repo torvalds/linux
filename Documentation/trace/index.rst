@@ -23,5 +23,4 @@ Linux Tracing Technologies
    intel_th
    stm
    sys-t
-   coresight
-   coresight-cpu-debug
+   coresight/index
