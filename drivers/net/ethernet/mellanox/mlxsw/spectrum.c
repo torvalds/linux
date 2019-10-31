@@ -4136,23 +4136,18 @@ err_port_create:
 }
 
 static void mlxsw_sp_port_unsplit_create(struct mlxsw_sp *mlxsw_sp,
-					 u8 base_port, unsigned int count)
+					 u8 base_port,
+					 unsigned int count, u8 offset)
 {
 	struct mlxsw_sp_port_mapping *port_mapping;
-	u8 local_port;
 	int i;
 
-	/* Split by four means we need to re-create two ports, otherwise
-	 * only one.
-	 */
-	count = count / 2;
-
-	for (i = 0; i < count; i++) {
-		local_port = base_port + i * 2;
-		port_mapping = mlxsw_sp->port_mapping[local_port];
+	/* Go over original unsplit ports in the gap and recreate them. */
+	for (i = 0; i < count * offset; i++) {
+		port_mapping = mlxsw_sp->port_mapping[base_port + i];
 		if (!port_mapping)
 			continue;
-		mlxsw_sp_port_create(mlxsw_sp, local_port, 0, port_mapping);
+		mlxsw_sp_port_create(mlxsw_sp, base_port + i, 0, port_mapping);
 	}
 }
 
@@ -4270,7 +4265,7 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 	return 0;
 
 err_port_split_create:
-	mlxsw_sp_port_unsplit_create(mlxsw_sp, base_port, count);
+	mlxsw_sp_port_unsplit_create(mlxsw_sp, base_port, count, offset);
 	return err;
 }
 
@@ -4322,7 +4317,7 @@ static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port,
 		if (mlxsw_sp_port_created(mlxsw_sp, base_port + i * offset))
 			mlxsw_sp_port_remove(mlxsw_sp, base_port + i * offset);
 
-	mlxsw_sp_port_unsplit_create(mlxsw_sp, base_port, count);
+	mlxsw_sp_port_unsplit_create(mlxsw_sp, base_port, count, offset);
 
 	return 0;
 }
