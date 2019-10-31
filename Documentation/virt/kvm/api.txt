@@ -2982,6 +2982,9 @@ can be determined by querying the KVM_CAP_GUEST_DEBUG_HW_BPS and
 KVM_CAP_GUEST_DEBUG_HW_WPS capabilities which return a positive number
 indicating the number of supported registers.
 
+For ppc, the KVM_CAP_PPC_GUEST_DEBUG_SSTEP capability indicates whether
+the single-step debug event (KVM_GUESTDBG_SINGLESTEP) is supported.
+
 When debug events exit the main run loop with the reason
 KVM_EXIT_DEBUG with the kvm_debug_exit_arch part of the kvm_run
 structure containing architecture specific debug information.

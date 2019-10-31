@@ -3,8 +3,18 @@ XICS interrupt controller
 Device type supported: KVM_DEV_TYPE_XICS
 
 Groups:
-  KVM_DEV_XICS_SOURCES
+  1. KVM_DEV_XICS_GRP_SOURCES
   Attributes: One per interrupt source, indexed by the source number.
+
+  2. KVM_DEV_XICS_GRP_CTRL
+  Attributes:
+    2.1 KVM_DEV_XICS_NR_SERVERS (write only)
+  The kvm_device_attr.addr points to a __u32 value which is the number of
+  interrupt server numbers (ie, highest possible vcpu id plus one).
+  Errors:
+    -EINVAL: Value greater than KVM_MAX_VCPU_ID.
+    -EFAULT: Invalid user pointer for attr->addr.
+    -EBUSY:  A vcpu is already connected to the device.
 
 This device emulates the XICS (eXternal Interrupt Controller
 Specification) defined in PAPR.  The XICS has a set of interrupt
@@ -38,7 +48,7 @@ least-significant end of the word:
 
 Each source has 64 bits of state that can be read and written using
 the KVM_GET_DEVICE_ATTR and KVM_SET_DEVICE_ATTR ioctls, specifying the
-KVM_DEV_XICS_SOURCES attribute group, with the attribute number being
+KVM_DEV_XICS_GRP_SOURCES attribute group, with the attribute number being
 the interrupt source number.  The 64 bit state word has the following
 bitfields, starting from the least-significant end of the word:
 

@@ -78,6 +78,14 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
     migrating the VM.
     Errors: none
 
+    1.3 KVM_DEV_XIVE_NR_SERVERS (write only)
+    The kvm_device_attr.addr points to a __u32 value which is the number of
+    interrupt server numbers (ie, highest possible vcpu id plus one).
+    Errors:
+      -EINVAL: Value greater than KVM_MAX_VCPU_ID.
+      -EFAULT: Invalid user pointer for attr->addr.
+      -EBUSY:  A vCPU is already connected to the device.
+
   2. KVM_DEV_XIVE_GRP_SOURCE (write only)
   Initializes a new source in the XIVE device and mask it.
   Attributes:
