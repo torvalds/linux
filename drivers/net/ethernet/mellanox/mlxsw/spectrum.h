@@ -143,6 +143,12 @@ struct mlxsw_sp_port_type_speed_ops;
 struct mlxsw_sp_ptp_state;
 struct mlxsw_sp_ptp_ops;
 
+struct mlxsw_sp_port_mapping {
+	u8 module;
+	u8 width;
+	u8 lane;
+};
+
 struct mlxsw_sp {
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;
@@ -150,7 +156,7 @@ struct mlxsw_sp {
 	unsigned char base_mac[ETH_ALEN];
 	const unsigned char *mac_mask;
 	struct mlxsw_sp_upper *lags;
-	int *port_to_module;
+	struct mlxsw_sp_port_mapping **port_mapping;
 	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp_router *router;
@@ -259,11 +265,11 @@ struct mlxsw_sp_port {
 		struct ieee_pfc *pfc;
 		enum mlxsw_reg_qpts_trust_state trust_state;
 	} dcb;
-	struct {
-		u8 module;
-		u8 width;
-		u8 lane;
-	} mapping;
+	struct mlxsw_sp_port_mapping mapping; /* mapping is constant during the
+					       * mlxsw_sp_port lifetime, however
+					       * the same localport can have
+					       * different mapping.
+					       */
 	/* TC handles */
 	struct list_head mall_tc_list;
 	struct {

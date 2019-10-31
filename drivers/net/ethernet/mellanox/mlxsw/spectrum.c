@@ -748,9 +748,9 @@ mlxsw_sp_port_system_port_mapping_set(struct mlxsw_sp_port *mlxsw_sp_port)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sspr), sspr_pl);
 }
 
-static int mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp,
-					 u8 local_port, u8 *p_module,
-					 u8 *p_width, u8 *p_lane)
+static int
+mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+			      struct mlxsw_sp_port_mapping *port_mapping)
 {
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 	int err;
@@ -759,9 +759,9 @@ static int mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pmlp), pmlp_pl);
 	if (err)
 		return err;
-	*p_module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
-	*p_width = mlxsw_reg_pmlp_width_get(pmlp_pl);
-	*p_lane = mlxsw_reg_pmlp_tx_lane_get(pmlp_pl, 0);
+	port_mapping->module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
+	port_mapping->width = mlxsw_reg_pmlp_width_get(pmlp_pl);
+	port_mapping->lane = mlxsw_reg_pmlp_tx_lane_get(pmlp_pl, 0);
 	return 0;
 }
 
@@ -3979,14 +3979,13 @@ static void mlxsw_sp_ports_remove(struct mlxsw_sp *mlxsw_sp)
 		if (mlxsw_sp_port_created(mlxsw_sp, i))
 			mlxsw_sp_port_remove(mlxsw_sp, i);
 	mlxsw_sp_cpu_port_remove(mlxsw_sp);
-	kfree(mlxsw_sp->port_to_module);
 	kfree(mlxsw_sp->ports);
 }
 
 static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 {
 	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
-	u8 module, width, lane;
+	struct mlxsw_sp_port_mapping *port_mapping;
 	size_t alloc_size;
 	int i;
 	int err;
@@ -3996,46 +3995,76 @@ static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 	if (!mlxsw_sp->ports)
 		return -ENOMEM;
 
-	mlxsw_sp->port_to_module = kmalloc_array(max_ports, sizeof(int),
-						 GFP_KERNEL);
-	if (!mlxsw_sp->port_to_module) {
-		err = -ENOMEM;
-		goto err_port_to_module_alloc;
-	}
-
 	err = mlxsw_sp_cpu_port_create(mlxsw_sp);
 	if (err)
 		goto err_cpu_port_create;
 
 	for (i = 1; i < max_ports; i++) {
-		/* Mark as invalid */
-		mlxsw_sp->port_to_module[i] = -1;
-
-		err = mlxsw_sp_port_module_info_get(mlxsw_sp, i, &module,
-						    &width, &lane);
-		if (err)
-			goto err_port_module_info_get;
-		if (!width)
+		port_mapping = mlxsw_sp->port_mapping[i];
+		if (!port_mapping)
 			continue;
-		mlxsw_sp->port_to_module[i] = module;
 		err = mlxsw_sp_port_create(mlxsw_sp, i, false,
-					   module, width, lane);
+					   port_mapping->module,
+					   port_mapping->width,
+					   port_mapping->lane);
 		if (err)
 			goto err_port_create;
 	}
 	return 0;
 
 err_port_create:
-err_port_module_info_get:
 	for (i--; i >= 1; i--)
 		if (mlxsw_sp_port_created(mlxsw_sp, i))
 			mlxsw_sp_port_remove(mlxsw_sp, i);
 	mlxsw_sp_cpu_port_remove(mlxsw_sp);
 err_cpu_port_create:
-	kfree(mlxsw_sp->port_to_module);
-err_port_to_module_alloc:
 	kfree(mlxsw_sp->ports);
 	return err;
+}
+
+static int mlxsw_sp_port_module_info_init(struct mlxsw_sp *mlxsw_sp)
+{
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
+	struct mlxsw_sp_port_mapping port_mapping;
+	int i;
+	int err;
+
+	mlxsw_sp->port_mapping = kcalloc(max_ports,
+					 sizeof(struct mlxsw_sp_port_mapping *),
+					 GFP_KERNEL);
+	if (!mlxsw_sp->port_mapping)
+		return -ENOMEM;
+
+	for (i = 1; i < max_ports; i++) {
+		err = mlxsw_sp_port_module_info_get(mlxsw_sp, i, &port_mapping);
+		if (err)
+			goto err_port_module_info_get;
+		if (!port_mapping.width)
+			continue;
+
+		mlxsw_sp->port_mapping[i] = kmemdup(&port_mapping,
+						    sizeof(port_mapping),
+						    GFP_KERNEL);
+		if (!mlxsw_sp->port_mapping[i])
+			goto err_port_module_info_dup;
+	}
+	return 0;
+
+err_port_module_info_get:
+err_port_module_info_dup:
+	for (i--; i >= 1; i--)
+		kfree(mlxsw_sp->port_mapping[i]);
+	kfree(mlxsw_sp->port_mapping);
+	return err;
+}
+
+static void mlxsw_sp_port_module_info_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	int i;
+
+	for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++)
+		kfree(mlxsw_sp->port_mapping[i]);
+	kfree(mlxsw_sp->port_mapping);
 }
 
 static u8 mlxsw_sp_cluster_base_port_get(u8 local_port, unsigned int max_width)
@@ -4072,7 +4101,8 @@ static void mlxsw_sp_port_unsplit_create(struct mlxsw_sp *mlxsw_sp,
 					 u8 base_port, unsigned int count,
 					 unsigned int max_width)
 {
-	u8 local_port, module, width = max_width;
+	struct mlxsw_sp_port_mapping *port_mapping;
+	u8 local_port, width = max_width;
 	int i;
 
 	/* Split by four means we need to re-create two ports, otherwise
@@ -4082,12 +4112,12 @@ static void mlxsw_sp_port_unsplit_create(struct mlxsw_sp *mlxsw_sp,
 
 	for (i = 0; i < count; i++) {
 		local_port = base_port + i * 2;
-		if (mlxsw_sp->port_to_module[local_port] < 0)
+		port_mapping = mlxsw_sp->port_mapping[local_port];
+		if (!port_mapping)
 			continue;
-		module = mlxsw_sp->port_to_module[local_port];
 
-		mlxsw_sp_port_create(mlxsw_sp, local_port, false, module,
-				     width, 0);
+		mlxsw_sp_port_create(mlxsw_sp, local_port, false,
+				     port_mapping->module, width, 0);
 	}
 }
 
@@ -4951,6 +4981,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_dpipe_init;
 	}
 
+	err = mlxsw_sp_port_module_info_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to init port module info\n");
+		goto err_port_module_info_init;
+	}
+
 	err = mlxsw_sp_ports_create(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to create ports\n");
@@ -4960,6 +4996,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	return 0;
 
 err_ports_create:
+	mlxsw_sp_port_module_info_fini(mlxsw_sp);
+err_port_module_info_init:
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 err_dpipe_init:
 	unregister_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
@@ -5052,6 +5090,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
+	mlxsw_sp_port_module_info_fini(mlxsw_sp);
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 	unregister_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
 					  &mlxsw_sp->netdevice_nb);
