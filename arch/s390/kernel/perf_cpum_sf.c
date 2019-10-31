@@ -156,8 +156,8 @@ static void free_sampling_buffer(struct sf_buffer *sfb)
 		}
 	}
 
-	debug_sprintf_event(sfdbg, 5,
-			    "free_sampling_buffer: freed sdbt %p\n", sfb->sdbt);
+	debug_sprintf_event(sfdbg, 5, "%s freed sdbt %p\n", __func__,
+			    sfb->sdbt);
 	memset(sfb, 0, sizeof(*sfb));
 }
 
@@ -212,9 +212,9 @@ static int realloc_sampling_buffer(struct sf_buffer *sfb,
 	 * the sampling buffer origin.
 	 */
 	if (sfb->sdbt != get_next_sdbt(tail)) {
-		debug_sprintf_event(sfdbg, 3, "realloc_sampling_buffer: "
+		debug_sprintf_event(sfdbg, 3, "%s: "
 				    "sampling buffer is not linked: origin %p"
-				    " tail %p\n",
+				    " tail %p\n", __func__,
 				    (void *)sfb->sdbt, (void *)tail);
 		return -EINVAL;
 	}
@@ -404,8 +404,8 @@ static int allocate_buffers(struct cpu_hw_sf *cpuhw, struct hw_perf_event *hwc)
 		return 0;
 
 	debug_sprintf_event(sfdbg, 3,
-			    "allocate_buffers: rate %lu f %lu sdb %lu/%lu"
-			    " sample_size %lu cpuhw %p\n",
+			    "%s: rate %lu f %lu sdb %lu/%lu"
+			    " sample_size %lu cpuhw %p\n", __func__,
 			    SAMPL_RATE(hwc), freq, n_sdb, sfb_max_limit(hwc),
 			    sample_size, cpuhw);
 
@@ -540,7 +540,7 @@ static void setup_pmc_cpu(void *flags)
 			pr_err("Switching off the sampling facility failed "
 			       "with rc %i\n", err);
 		debug_sprintf_event(sfdbg, 5,
-				    "setup_pmc_cpu: initialized: cpuhw %p\n",
+				    "%s: initialized: cpuhw %p\n", __func__,
 				    cpusf);
 		break;
 	case PMC_RELEASE:
@@ -552,7 +552,7 @@ static void setup_pmc_cpu(void *flags)
 		} else
 			deallocate_buffers(cpusf);
 		debug_sprintf_event(sfdbg, 5,
-				    "setup_pmc_cpu: released: cpuhw %p\n",
+				    "%s: released: cpuhw %p\n", __func__,
 				    cpusf);
 		break;
 	}
@@ -1186,9 +1186,9 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 				*overflow += 1;
 		} else {
 			debug_sprintf_event(sfdbg, 4,
-					    "hw_collect_samples: Found unknown"
+					    "%s: Found unknown"
 					    " sampling data entry: te->f %i"
-					    " basic.def %#4x (%p)\n",
+					    " basic.def %#4x (%p)\n", __func__,
 					    te->f, sample->def, sample);
 			/* Sample slot is not yet written or other record.
 			 *
@@ -1264,9 +1264,9 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 			sampl_overflow += te->overflow;
 
 		/* Timestamps are valid for full sample-data-blocks only */
-		debug_sprintf_event(sfdbg, 6, "hw_perf_event_update: sdbt %p "
+		debug_sprintf_event(sfdbg, 6, "%s: sdbt %p "
 				    "overflow %llu timestamp %#llx\n",
-				    sdbt, te->overflow,
+				    __func__, sdbt, te->overflow,
 				    (te->f) ? trailer_timestamp(te) : 0ULL);
 
 		/* Collect all samples from a single sample-data-block and
@@ -1310,9 +1310,9 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 		OVERFLOW_REG(hwc) = DIV_ROUND_UP(OVERFLOW_REG(hwc) +
 						 sampl_overflow, 1 + num_sdb);
 	if (sampl_overflow || event_overflow)
-		debug_sprintf_event(sfdbg, 4, "hw_perf_event_update: "
+		debug_sprintf_event(sfdbg, 4, "%s: "
 				    "overflow stats: sample %llu event %llu\n",
-				    sampl_overflow, event_overflow);
+				    __func__, sampl_overflow, event_overflow);
 }
 
 #define AUX_SDB_INDEX(aux, i) ((i) % aux->sfb.num_sdb)
@@ -1365,7 +1365,7 @@ static void aux_output_end(struct perf_output_handle *handle)
 	te = aux_sdb_trailer(aux, aux->alert_mark);
 	te->flags &= ~SDB_TE_ALERT_REQ_MASK;
 
-	debug_sprintf_event(sfdbg, 6, "aux_output_end: collect %#lx SDBs\n", i);
+	debug_sprintf_event(sfdbg, 6, "%s: collect %#lx SDBs\n", __func__, i);
 }
 
 /*
