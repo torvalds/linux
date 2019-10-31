@@ -23,6 +23,19 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
+static bool nft_payload_rebuild_vlan_hdr(const struct sk_buff *skb, int mac_off,
+					 struct vlan_ethhdr *veth)
+{
+	if (skb_copy_bits(skb, mac_off, veth, ETH_HLEN))
+		return false;
+
+	veth->h_vlan_proto = skb->vlan_proto;
+	veth->h_vlan_TCI = htons(skb_vlan_tag_get(skb));
+	veth->h_vlan_encapsulated_proto = skb->protocol;
+
+	return true;
+}
+
 /* add vlan header into the user buffer for if tag was removed by offloads */
 static bool
 nft_payload_copy_vlan(u32 *d, const struct sk_buff *skb, u8 offset, u8 len)
@@ -35,12 +48,8 @@ nft_payload_copy_vlan(u32 *d, const struct sk_buff *skb, u8 offset, u8 len)
 	if (offset < VLAN_ETH_HLEN) {
 		u8 ethlen = len;
 
-		if (skb_copy_bits(skb, mac_off, &veth, ETH_HLEN))
+		if (!nft_payload_rebuild_vlan_hdr(skb, mac_off, &veth))
 			return false;
-
-		veth.h_vlan_proto = skb->vlan_proto;
-		veth.h_vlan_TCI = htons(skb_vlan_tag_get(skb));
-		veth.h_vlan_encapsulated_proto = skb->protocol;
 
 		if (offset + len > VLAN_ETH_HLEN)
 			ethlen -= offset + len - VLAN_ETH_HLEN;
