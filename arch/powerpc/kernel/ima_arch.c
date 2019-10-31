@@ -62,13 +62,17 @@ static const char *const secure_and_trusted_rules[] = {
  */
 const char *const *arch_get_ima_policy(void)
 {
-	if (is_ppc_secureboot_enabled())
+	if (is_ppc_secureboot_enabled()) {
+		if (IS_ENABLED(CONFIG_MODULE_SIG))
+			set_module_sig_enforced();
+
 		if (is_ppc_trustedboot_enabled())
 			return secure_and_trusted_rules;
 		else
 			return secure_rules;
-	else if (is_ppc_trustedboot_enabled())
+	} else if (is_ppc_trustedboot_enabled()) {
 		return trusted_rules;
+	}
 
 	return NULL;
 }
