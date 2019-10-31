@@ -93,6 +93,10 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 	intel_state->vma = NULL;
 	intel_state->flags = 0;
 
+	/* add reference to fb */
+	if (intel_state->hw.fb)
+		drm_framebuffer_get(intel_state->hw.fb);
+
 	return &intel_state->uapi;
 }
 
@@ -112,6 +116,8 @@ intel_plane_destroy_state(struct drm_plane *plane,
 	WARN_ON(plane_state->vma);
 
 	__drm_atomic_helper_plane_destroy_state(&plane_state->uapi);
+	if (plane_state->hw.fb)
+		drm_framebuffer_put(plane_state->hw.fb);
 	kfree(plane_state);
 }
 
@@ -176,14 +182,43 @@ bool intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 	return false;
 }
 
+static void intel_plane_clear_hw_state(struct intel_plane_state *plane_state)
+{
+	if (plane_state->hw.fb)
+		drm_framebuffer_put(plane_state->hw.fb);
+
+	memset(&plane_state->hw, 0, sizeof(plane_state->hw));
+}
+
+void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
+				       const struct intel_plane_state *from_plane_state)
+{
+	intel_plane_clear_hw_state(plane_state);
+
+	plane_state->hw.crtc = from_plane_state->uapi.crtc;
+	plane_state->hw.fb = from_plane_state->uapi.fb;
+	if (plane_state->hw.fb)
+		drm_framebuffer_get(plane_state->hw.fb);
+
+	plane_state->hw.alpha = from_plane_state->uapi.alpha;
+	plane_state->hw.pixel_blend_mode =
+		from_plane_state->uapi.pixel_blend_mode;
+	plane_state->hw.rotation = from_plane_state->uapi.rotation;
+	plane_state->hw.color_encoding = from_plane_state->uapi.color_encoding;
+	plane_state->hw.color_range = from_plane_state->uapi.color_range;
+}
+
 int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_state,
 					struct intel_crtc_state *new_crtc_state,
 					const struct intel_plane_state *old_plane_state,
 					struct intel_plane_state *new_plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
-	const struct drm_framebuffer *fb = new_plane_state->hw.fb;
+	const struct drm_framebuffer *fb;
 	int ret;
+
+	intel_plane_copy_uapi_to_hw_state(new_plane_state, new_plane_state);
+	fb = new_plane_state->hw.fb;
 
 	new_crtc_state->active_planes &= ~BIT(plane->id);
 	new_crtc_state->nv12_planes &= ~BIT(plane->id);

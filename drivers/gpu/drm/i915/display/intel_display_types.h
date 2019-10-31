@@ -523,11 +523,24 @@ struct intel_atomic_state {
 };
 
 struct intel_plane_state {
-	union {
-		struct drm_plane_state base;
-		struct drm_plane_state uapi;
-		struct drm_plane_state hw;
-	};
+	struct drm_plane_state uapi;
+
+	/*
+	 * actual hardware state, the state we program to the hardware.
+	 * The following members are used to verify the hardware state:
+	 * During initial hw readout, they need to be copied from uapi.
+	 */
+	struct {
+		struct drm_crtc *crtc;
+		struct drm_framebuffer *fb;
+
+		u16 alpha;
+		uint16_t pixel_blend_mode;
+		unsigned int rotation;
+		enum drm_color_encoding color_encoding;
+		enum drm_color_range color_range;
+	} hw;
+
 	struct i915_ggtt_view view;
 	struct i915_vma *vma;
 	unsigned long flags;

@@ -3283,6 +3283,7 @@ valid_fb:
 
 	plane_state->fb = fb;
 	plane_state->crtc = &intel_crtc->base;
+	intel_plane_copy_uapi_to_hw_state(intel_state, intel_state);
 
 	atomic_or(to_intel_plane(primary)->frontbuffer_bit,
 		  &to_intel_frontbuffer(fb)->bits);
