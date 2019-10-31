@@ -1007,7 +1007,8 @@ static void cpumsf_pmu_disable(struct pmu *pmu)
 	}
 
 	/* Save state of TEAR and DEAR register contents */
-	if (!qsi(&si)) {
+	err = qsi(&si);
+	if (!err) {
 		/* TEAR/DEAR values are valid only if the sampling facility is
 		 * enabled.  Note that cpumsf_pmu_disable() might be called even
 		 * for a disabled sampling facility because cpumsf_pmu_enable()
