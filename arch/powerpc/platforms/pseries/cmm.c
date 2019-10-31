@@ -147,8 +147,7 @@ static long cmm_alloc_pages(long nr)
 			break;
 		}
 
-		page = alloc_page(GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY |
-				  __GFP_NOMEMALLOC);
+		page = balloon_page_alloc();
 		if (!page)
 			break;
 		rc = plpar_page_set_loaned(page);
