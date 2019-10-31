@@ -1549,12 +1549,39 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 	return ret;
 }
 
+static void hclgevf_dump_rst_info(struct hclgevf_dev *hdev)
+{
+	dev_info(&hdev->pdev->dev, "VF function reset count: %u\n",
+		 hdev->rst_stats.vf_func_rst_cnt);
+	dev_info(&hdev->pdev->dev, "FLR reset count: %u\n",
+		 hdev->rst_stats.flr_rst_cnt);
+	dev_info(&hdev->pdev->dev, "VF reset count: %u\n",
+		 hdev->rst_stats.vf_rst_cnt);
+	dev_info(&hdev->pdev->dev, "reset done count: %u\n",
+		 hdev->rst_stats.rst_done_cnt);
+	dev_info(&hdev->pdev->dev, "HW reset done count: %u\n",
+		 hdev->rst_stats.hw_rst_done_cnt);
+	dev_info(&hdev->pdev->dev, "reset count: %u\n",
+		 hdev->rst_stats.rst_cnt);
+	dev_info(&hdev->pdev->dev, "reset fail count: %u\n",
+		 hdev->rst_stats.rst_fail_cnt);
+	dev_info(&hdev->pdev->dev, "vector0 interrupt enable status: 0x%x\n",
+		 hclgevf_read_dev(&hdev->hw, HCLGEVF_MISC_VECTOR_REG_BASE));
+	dev_info(&hdev->pdev->dev, "vector0 interrupt status: 0x%x\n",
+		 hclgevf_read_dev(&hdev->hw, HCLGEVF_VECTOR0_CMDQ_STAT_REG));
+	dev_info(&hdev->pdev->dev, "handshake status: 0x%x\n",
+		 hclgevf_read_dev(&hdev->hw, HCLGEVF_CMDQ_TX_DEPTH_REG));
+	dev_info(&hdev->pdev->dev, "function reset status: 0x%x\n",
+		 hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING));
+	dev_info(&hdev->pdev->dev, "hdev state: 0x%lx\n", hdev->state);
+}
+
 static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 {
 	/* recover handshake status with IMP when reset fail */
 	hclgevf_reset_handshake(hdev, true);
 	hdev->rst_stats.rst_fail_cnt++;
-	dev_err(&hdev->pdev->dev, "failed to reset VF(%d)\n",
+	dev_err(&hdev->pdev->dev, "failed to reset VF(%u)\n",
 		hdev->rst_stats.rst_fail_cnt);
 
 	if (hdev->rst_stats.rst_fail_cnt < HCLGEVF_RESET_MAX_FAIL_CNT)
@@ -1563,6 +1590,8 @@ static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 	if (hclgevf_is_reset_pending(hdev)) {
 		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 		hclgevf_reset_task_schedule(hdev);
+	} else {
+		hclgevf_dump_rst_info(hdev);
 	}
 }
 
@@ -1784,6 +1813,8 @@ static void hclgevf_service_timer(struct timer_list *t)
 
 static void hclgevf_reset_service_task(struct work_struct *work)
 {
+#define	HCLGEVF_MAX_RESET_ATTEMPTS_CNT	3
+
 	struct hclgevf_dev *hdev =
 		container_of(work, struct hclgevf_dev, rst_service_task);
 	int ret;
@@ -1836,7 +1867,7 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 		 * We cannot do much for 2. but to check first we can try reset
 		 * our PCIe + stack and see if it alleviates the problem.
 		 */
-		if (hdev->reset_attempts > 3) {
+		if (hdev->reset_attempts > HCLGEVF_MAX_RESET_ATTEMPTS_CNT) {
 			/* prepare for full reset of stack + pcie interface */
 			set_bit(HNAE3_VF_FULL_RESET, &hdev->reset_pending);
 
@@ -2139,7 +2170,6 @@ static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 		ret = hclgevf_set_rss_input_tuple(hdev, rss_cfg);
 		if (ret)
 			return ret;
-
 	}
 
 	/* Initialize RSS indirect table */
@@ -2308,7 +2338,7 @@ static int hclgevf_init_msi(struct hclgevf_dev *hdev)
 	}
 	if (vectors < hdev->num_msi)
 		dev_warn(&hdev->pdev->dev,
-			 "requested %d MSI/MSI-X, but allocated %d MSI/MSI-X\n",
+			 "requested %u MSI/MSI-X, but allocated %d MSI/MSI-X\n",
 			 hdev->num_msi, vectors);
 
 	hdev->num_msi = vectors;
@@ -2384,12 +2414,12 @@ static void hclgevf_info_show(struct hclgevf_dev *hdev)
 
 	dev_info(dev, "VF info begin:\n");
 
-	dev_info(dev, "Task queue pairs numbers: %d\n", hdev->num_tqps);
-	dev_info(dev, "Desc num per TX queue: %d\n", hdev->num_tx_desc);
-	dev_info(dev, "Desc num per RX queue: %d\n", hdev->num_rx_desc);
-	dev_info(dev, "Numbers of vports: %d\n", hdev->num_alloc_vport);
-	dev_info(dev, "HW tc map: %d\n", hdev->hw_tc_map);
-	dev_info(dev, "PF media type of this VF: %d\n",
+	dev_info(dev, "Task queue pairs numbers: %u\n", hdev->num_tqps);
+	dev_info(dev, "Desc num per TX queue: %u\n", hdev->num_tx_desc);
+	dev_info(dev, "Desc num per RX queue: %u\n", hdev->num_rx_desc);
+	dev_info(dev, "Numbers of vports: %u\n", hdev->num_alloc_vport);
+	dev_info(dev, "HW tc map: 0x%x\n", hdev->hw_tc_map);
+	dev_info(dev, "PF media type of this VF: %u\n",
 		 hdev->hw.mac.media_type);
 
 	dev_info(dev, "VF info end.\n");

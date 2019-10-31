@@ -57,68 +57,68 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 					   HNS3_RING_RX_RING_BASEADDR_H_REG);
 		base_add_l = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_RX_RING_BASEADDR_L_REG);
-		dev_info(&h->pdev->dev, "RX(%d) BASE ADD: 0x%08x%08x\n", i,
+		dev_info(&h->pdev->dev, "RX(%u) BASE ADD: 0x%08x%08x\n", i,
 			 base_add_h, base_add_l);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_BD_NUM_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING BD NUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING BD NUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_BD_LEN_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING BD LEN: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING BD LEN: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_TAIL_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING TAIL: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING TAIL: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_HEAD_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING HEAD: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING HEAD: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_FBDNUM_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING FBDNUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING FBDNUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_PKTNUM_RECORD_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING PKTNUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING PKTNUM: %u\n", i, value);
 
 		ring = &priv->ring[i];
 		base_add_h = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_TX_RING_BASEADDR_H_REG);
 		base_add_l = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_TX_RING_BASEADDR_L_REG);
-		dev_info(&h->pdev->dev, "TX(%d) BASE ADD: 0x%08x%08x\n", i,
+		dev_info(&h->pdev->dev, "TX(%u) BASE ADD: 0x%08x%08x\n", i,
 			 base_add_h, base_add_l);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_BD_NUM_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING BD NUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING BD NUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_TC_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING TC: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING TC: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_TAIL_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING TAIL: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING TAIL: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_HEAD_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING HEAD: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING HEAD: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_FBDNUM_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING FBDNUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING FBDNUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_OFFSET_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING OFFSET: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING OFFSET: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_PKTNUM_RECORD_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING PKTNUM: %u\n\n", i,
+		dev_info(&h->pdev->dev, "TX(%u) RING PKTNUM: %u\n\n", i,
 			 value);
 	}
 
@@ -190,21 +190,24 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	addr = le64_to_cpu(tx_desc->addr);
 	dev_info(dev, "TX Queue Num: %u, BD Index: %u\n", q_num, tx_index);
 	dev_info(dev, "(TX)addr: %pad\n", &addr);
-	dev_info(dev, "(TX)vlan_tag: %u\n", tx_desc->tx.vlan_tag);
-	dev_info(dev, "(TX)send_size: %u\n", tx_desc->tx.send_size);
+	dev_info(dev, "(TX)vlan_tag: %u\n", le16_to_cpu(tx_desc->tx.vlan_tag));
+	dev_info(dev, "(TX)send_size: %u\n",
+		 le16_to_cpu(tx_desc->tx.send_size));
 	dev_info(dev, "(TX)vlan_tso: %u\n", tx_desc->tx.type_cs_vlan_tso);
 	dev_info(dev, "(TX)l2_len: %u\n", tx_desc->tx.l2_len);
 	dev_info(dev, "(TX)l3_len: %u\n", tx_desc->tx.l3_len);
 	dev_info(dev, "(TX)l4_len: %u\n", tx_desc->tx.l4_len);
-	dev_info(dev, "(TX)vlan_tag: %u\n", tx_desc->tx.outer_vlan_tag);
-	dev_info(dev, "(TX)tv: %u\n", tx_desc->tx.tv);
+	dev_info(dev, "(TX)vlan_tag: %u\n",
+		 le16_to_cpu(tx_desc->tx.outer_vlan_tag));
+	dev_info(dev, "(TX)tv: %u\n", le16_to_cpu(tx_desc->tx.tv));
 	dev_info(dev, "(TX)vlan_msec: %u\n", tx_desc->tx.ol_type_vlan_msec);
 	dev_info(dev, "(TX)ol2_len: %u\n", tx_desc->tx.ol2_len);
 	dev_info(dev, "(TX)ol3_len: %u\n", tx_desc->tx.ol3_len);
 	dev_info(dev, "(TX)ol4_len: %u\n", tx_desc->tx.ol4_len);
-	dev_info(dev, "(TX)paylen: %u\n", tx_desc->tx.paylen);
-	dev_info(dev, "(TX)vld_ra_ri: %u\n", tx_desc->tx.bdtp_fe_sc_vld_ra_ri);
-	dev_info(dev, "(TX)mss: %u\n", tx_desc->tx.mss);
+	dev_info(dev, "(TX)paylen: %u\n", le32_to_cpu(tx_desc->tx.paylen));
+	dev_info(dev, "(TX)vld_ra_ri: %u\n",
+		 le16_to_cpu(tx_desc->tx.bdtp_fe_sc_vld_ra_ri));
+	dev_info(dev, "(TX)mss: %u\n", le16_to_cpu(tx_desc->tx.mss));
 
 	ring  = &priv->ring[q_num + h->kinfo.num_tqps];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_TAIL_REG);
@@ -214,15 +217,19 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	addr = le64_to_cpu(rx_desc->addr);
 	dev_info(dev, "RX Queue Num: %u, BD Index: %u\n", q_num, rx_index);
 	dev_info(dev, "(RX)addr: %pad\n", &addr);
-	dev_info(dev, "(RX)l234_info: %u\n", rx_desc->rx.l234_info);
-	dev_info(dev, "(RX)pkt_len: %u\n", rx_desc->rx.pkt_len);
-	dev_info(dev, "(RX)size: %u\n", rx_desc->rx.size);
-	dev_info(dev, "(RX)rss_hash: %u\n", rx_desc->rx.rss_hash);
-	dev_info(dev, "(RX)fd_id: %u\n", rx_desc->rx.fd_id);
-	dev_info(dev, "(RX)vlan_tag: %u\n", rx_desc->rx.vlan_tag);
-	dev_info(dev, "(RX)o_dm_vlan_id_fb: %u\n", rx_desc->rx.o_dm_vlan_id_fb);
-	dev_info(dev, "(RX)ot_vlan_tag: %u\n", rx_desc->rx.ot_vlan_tag);
-	dev_info(dev, "(RX)bd_base_info: %u\n", rx_desc->rx.bd_base_info);
+	dev_info(dev, "(RX)l234_info: %u\n",
+		 le32_to_cpu(rx_desc->rx.l234_info));
+	dev_info(dev, "(RX)pkt_len: %u\n", le16_to_cpu(rx_desc->rx.pkt_len));
+	dev_info(dev, "(RX)size: %u\n", le16_to_cpu(rx_desc->rx.size));
+	dev_info(dev, "(RX)rss_hash: %u\n", le32_to_cpu(rx_desc->rx.rss_hash));
+	dev_info(dev, "(RX)fd_id: %u\n", le16_to_cpu(rx_desc->rx.fd_id));
+	dev_info(dev, "(RX)vlan_tag: %u\n", le16_to_cpu(rx_desc->rx.vlan_tag));
+	dev_info(dev, "(RX)o_dm_vlan_id_fb: %u\n",
+		 le16_to_cpu(rx_desc->rx.o_dm_vlan_id_fb));
+	dev_info(dev, "(RX)ot_vlan_tag: %u\n",
+		 le16_to_cpu(rx_desc->rx.ot_vlan_tag));
+	dev_info(dev, "(RX)bd_base_info: %u\n",
+		 le32_to_cpu(rx_desc->rx.bd_base_info));
 
 	return 0;
 }

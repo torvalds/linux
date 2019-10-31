@@ -130,7 +130,6 @@ enum hnae3_module_type {
 	HNAE3_MODULE_TYPE_CR		= 0x04,
 	HNAE3_MODULE_TYPE_KR		= 0x05,
 	HNAE3_MODULE_TYPE_TP		= 0x06,
-
 };
 
 enum hnae3_fec_mode {
@@ -576,7 +575,8 @@ struct hnae3_ae_algo {
 	const struct pci_device_id *pdev_id_table;
 };
 
-#define HNAE3_INT_NAME_LEN        (IFNAMSIZ + 16)
+#define HNAE3_INT_NAME_EXT_LEN    32	 /* Max extra information length */
+#define HNAE3_INT_NAME_LEN        (IFNAMSIZ + HNAE3_INT_NAME_EXT_LEN)
 #define HNAE3_ITR_COUNTDOWN_START 100
 
 struct hnae3_tc_info {
