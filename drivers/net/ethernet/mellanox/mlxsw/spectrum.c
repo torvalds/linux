@@ -4118,6 +4118,13 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		return -EINVAL;
 	}
 
+	/* Split ports cannot be split. */
+	if (mlxsw_sp_port->split) {
+		netdev_err(mlxsw_sp_port->dev, "Port cannot be split further\n");
+		NL_SET_ERR_MSG_MOD(extack, "Port cannot be split further");
+		return -EINVAL;
+	}
+
 	module = mlxsw_sp_port->mapping.module;
 
 	max_width = mlxsw_core_module_max_width(mlxsw_core,
@@ -4128,10 +4135,10 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		return max_width;
 	}
 
-	/* Split port with non-max module width cannot be split. */
-	if (mlxsw_sp_port->mapping.width != max_width) {
-		netdev_err(mlxsw_sp_port->dev, "Port cannot be split further\n");
-		NL_SET_ERR_MSG_MOD(extack, "Port cannot be split further");
+	/* Split port with non-max and 1 module width cannot be split. */
+	if (mlxsw_sp_port->mapping.width != max_width || max_width == 1) {
+		netdev_err(mlxsw_sp_port->dev, "Port cannot be split\n");
+		NL_SET_ERR_MSG_MOD(extack, "Port cannot be split");
 		return -EINVAL;
 	}
 
