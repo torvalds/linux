@@ -6628,12 +6628,14 @@ enum {
 #define   SP_ENABLE			(1 << 31)
 #define   SP_GAMMA_ENABLE		(1 << 30)
 #define   SP_PIXFORMAT_MASK		(0xf << 26)
-#define   SP_FORMAT_YUV422		(0 << 26)
-#define   SP_FORMAT_BGR565		(5 << 26)
-#define   SP_FORMAT_BGRX8888		(6 << 26)
-#define   SP_FORMAT_BGRA8888		(7 << 26)
-#define   SP_FORMAT_RGBX1010102		(8 << 26)
-#define   SP_FORMAT_RGBA1010102		(9 << 26)
+#define   SP_FORMAT_YUV422		(0x0 << 26)
+#define   SP_FORMAT_BGR565		(0x5 << 26)
+#define   SP_FORMAT_BGRX8888		(0x6 << 26)
+#define   SP_FORMAT_BGRA8888		(0x7 << 26)
+#define   SP_FORMAT_RGBX1010102		(0x8 << 26)
+#define   SP_FORMAT_RGBA1010102		(0x9 << 26)
+#define   SP_FORMAT_BGRX1010102		(0xa << 26) /* CHV pipe B */
+#define   SP_FORMAT_BGRA1010102		(0xb << 26) /* CHV pipe B */
 #define   SP_FORMAT_RGBX8888		(0xe << 26)
 #define   SP_FORMAT_RGBA8888		(0xf << 26)
 #define   SP_ALPHA_PREMULTIPLY		(1 << 23) /* CHV pipe B */

@@ -958,6 +958,12 @@ static u32 vlv_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_ABGR2101010:
 		sprctl |= SP_FORMAT_RGBA1010102;
 		break;
+	case DRM_FORMAT_XRGB2101010:
+		sprctl |= SP_FORMAT_BGRX1010102;
+		break;
+	case DRM_FORMAT_ARGB2101010:
+		sprctl |= SP_FORMAT_BGRA1010102;
+		break;
 	case DRM_FORMAT_XBGR8888:
 		sprctl |= SP_FORMAT_RGBX8888;
 		break;
@@ -2391,6 +2397,22 @@ static const u32 vlv_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
+static const u32 chv_pipe_b_sprite_formats[] = {
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_ARGB2101010,
+	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+};
+
 static const u32 skl_plane_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
@@ -2623,6 +2645,8 @@ static bool vlv_sprite_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR2101010:
 	case DRM_FORMAT_ABGR2101010:
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
@@ -3019,8 +3043,13 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->check_plane = vlv_sprite_check;
 		plane->min_cdclk = vlv_plane_min_cdclk;
 
-		formats = vlv_plane_formats;
-		num_formats = ARRAY_SIZE(vlv_plane_formats);
+		if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
+			formats = chv_pipe_b_sprite_formats;
+			num_formats = ARRAY_SIZE(chv_pipe_b_sprite_formats);
+		} else {
+			formats = vlv_plane_formats;
+			num_formats = ARRAY_SIZE(vlv_plane_formats);
+		}
 		modifiers = i9xx_plane_format_modifiers;
 
 		plane_funcs = &vlv_sprite_funcs;
