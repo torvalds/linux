@@ -80,10 +80,8 @@ static char dpaa_stats_global[][ETH_GSTRING_LEN] = {
 static int dpaa_get_link_ksettings(struct net_device *net_dev,
 				   struct ethtool_link_ksettings *cmd)
 {
-	if (!net_dev->phydev) {
-		netdev_dbg(net_dev, "phy device not initialized\n");
+	if (!net_dev->phydev)
 		return 0;
-	}
 
 	phy_ethtool_ksettings_get(net_dev->phydev, cmd);
 
@@ -95,10 +93,8 @@ static int dpaa_set_link_ksettings(struct net_device *net_dev,
 {
 	int err;
 
-	if (!net_dev->phydev) {
-		netdev_err(net_dev, "phy device not initialized\n");
+	if (!net_dev->phydev)
 		return -ENODEV;
-	}
 
 	err = phy_ethtool_ksettings_set(net_dev->phydev, cmd);
 	if (err < 0)
@@ -142,10 +138,8 @@ static int dpaa_nway_reset(struct net_device *net_dev)
 {
 	int err;
 
-	if (!net_dev->phydev) {
-		netdev_err(net_dev, "phy device not initialized\n");
+	if (!net_dev->phydev)
 		return -ENODEV;
-	}
 
 	err = 0;
 	if (net_dev->phydev->autoneg) {
@@ -167,10 +161,8 @@ static void dpaa_get_pauseparam(struct net_device *net_dev,
 	priv = netdev_priv(net_dev);
 	mac_dev = priv->mac_dev;
 
-	if (!net_dev->phydev) {
-		netdev_err(net_dev, "phy device not initialized\n");
+	if (!net_dev->phydev)
 		return;
-	}
 
 	epause->autoneg = mac_dev->autoneg_pause;
 	epause->rx_pause = mac_dev->rx_pause_active;
