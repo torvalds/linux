@@ -200,6 +200,51 @@ atomic_t netpoll_block_tx = ATOMIC_INIT(0);
 
 unsigned int bond_net_id __read_mostly;
 
+static const struct flow_dissector_key flow_keys_bonding_keys[] = {
+	{
+		.key_id = FLOW_DISSECTOR_KEY_CONTROL,
+		.offset = offsetof(struct flow_keys, control),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_BASIC,
+		.offset = offsetof(struct flow_keys, basic),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+		.offset = offsetof(struct flow_keys, addrs.v4addrs),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+		.offset = offsetof(struct flow_keys, addrs.v6addrs),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_TIPC,
+		.offset = offsetof(struct flow_keys, addrs.tipckey),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_PORTS,
+		.offset = offsetof(struct flow_keys, ports),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_ICMP,
+		.offset = offsetof(struct flow_keys, icmp),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_VLAN,
+		.offset = offsetof(struct flow_keys, vlan),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_FLOW_LABEL,
+		.offset = offsetof(struct flow_keys, tags),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_GRE_KEYID,
+		.offset = offsetof(struct flow_keys, keyid),
+	},
+};
+
+static struct flow_dissector flow_keys_bonding __read_mostly;
+
 /*-------------------------- Forward declarations ---------------------------*/
 
 static int bond_init(struct net_device *bond_dev);
@@ -3263,10 +3308,14 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 	const struct iphdr *iph;
 	int noff, proto = -1;
 
-	if (bond->params.xmit_policy > BOND_XMIT_POLICY_LAYER23)
-		return skb_flow_dissect_flow_keys(skb, fk, 0);
+	if (bond->params.xmit_policy > BOND_XMIT_POLICY_LAYER23) {
+		memset(fk, 0, sizeof(*fk));
+		return __skb_flow_dissect(NULL, skb, &flow_keys_bonding,
+					  fk, NULL, 0, 0, 0, 0);
+	}
 
 	fk->ports.ports = 0;
+	memset(&fk->icmp, 0, sizeof(fk->icmp));
 	noff = skb_network_offset(skb);
 	if (skb->protocol == htons(ETH_P_IP)) {
 		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph))))
@@ -3286,8 +3335,14 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 	} else {
 		return false;
 	}
-	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34 && proto >= 0)
-		fk->ports.ports = skb_flow_get_ports(skb, noff, proto);
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34 && proto >= 0) {
+		if (proto == IPPROTO_ICMP || proto == IPPROTO_ICMPV6)
+			skb_flow_get_icmp_tci(skb, &fk->icmp, skb->data,
+					      skb_transport_offset(skb),
+					      skb_headlen(skb));
+		else
+			fk->ports.ports = skb_flow_get_ports(skb, noff, proto);
+	}
 
 	return true;
 }
@@ -3314,10 +3369,14 @@ u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb)
 		return bond_eth_hash(skb);
 
 	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER23 ||
-	    bond->params.xmit_policy == BOND_XMIT_POLICY_ENCAP23)
+	    bond->params.xmit_policy == BOND_XMIT_POLICY_ENCAP23) {
 		hash = bond_eth_hash(skb);
-	else
-		hash = (__force u32)flow.ports.ports;
+	} else {
+		if (flow.icmp.id)
+			memcpy(&hash, &flow.icmp, sizeof(hash));
+		else
+			memcpy(&hash, &flow.ports.ports, sizeof(hash));
+	}
 	hash ^= (__force u32)flow_get_u32_dst(&flow) ^
 		(__force u32)flow_get_u32_src(&flow);
 	hash ^= (hash >> 16);
@@ -4900,6 +4959,10 @@ static int __init bonding_init(void)
 		if (res)
 			goto err;
 	}
+
+	skb_flow_dissector_init(&flow_keys_bonding,
+				flow_keys_bonding_keys,
+				ARRAY_SIZE(flow_keys_bonding_keys));
 
 	register_netdevice_notifier(&bond_netdev_notifier);
 out:
