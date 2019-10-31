@@ -136,6 +136,10 @@ static void cfi_check_err_status(struct map_info *map, struct flchip *chip,
 			 cfi->device_type, NULL);
 	status = map_read(map, adr);
 
+	/* The error bits are invalid while the chip's busy */
+	if (!map_word_bitsset(map, status, CMD(CFI_SR_DRB)))
+		return;
+
 	if (map_word_bitsset(map, status, CMD(0x3a))) {
 		unsigned long chipstatus = MERGESTATUS(status);
 
