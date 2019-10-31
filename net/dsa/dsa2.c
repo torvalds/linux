@@ -578,25 +578,18 @@ static void dsa_tree_remove_switch(struct dsa_switch_tree *dst,
 {
 	dsa_tree_teardown(dst);
 
-	dst->ds[index] = NULL;
 	dsa_tree_put(dst);
 }
 
 static int dsa_tree_add_switch(struct dsa_switch_tree *dst,
 			       struct dsa_switch *ds)
 {
-	unsigned int index = ds->index;
 	int err;
 
-	if (dst->ds[index])
-		return -EBUSY;
-
 	dsa_tree_get(dst);
-	dst->ds[index] = ds;
 
 	err = dsa_tree_setup(dst);
 	if (err) {
-		dst->ds[index] = NULL;
 		dsa_tree_put(dst);
 	}
 
