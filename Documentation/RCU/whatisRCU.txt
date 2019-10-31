@@ -290,7 +290,7 @@ rcu_dereference()
 	at any time, including immediately after the rcu_dereference().
 	And, again like rcu_assign_pointer(), rcu_dereference() is
 	typically used indirectly, via the _rcu list-manipulation
-	primitives, such as list_for_each_entry_rcu().
+	primitives, such as list_for_each_entry_rcu() [2].
 
 	[1] The variant rcu_dereference_protected() can be used outside
 	of an RCU read-side critical section as long as the usage is
@@ -302,8 +302,16 @@ rcu_dereference()
 	must prohibit.	The rcu_dereference_protected() variant takes
 	a lockdep expression to indicate which locks must be acquired
 	by the caller. If the indicated protection is not provided,
-	a lockdep splat is emitted.  See RCU/Design/Requirements/Requirements.html
+	a lockdep splat is emitted.  See Documentation/RCU/Design/Requirements/Requirements.rst
 	and the API's code comments for more details and example usage.
+
+	[2] If the list_for_each_entry_rcu() instance might be used by
+	update-side code as well as by RCU readers, then an additional
+	lockdep expression can be added to its list of arguments.
+	For example, given an additional "lock_is_held(&mylock)" argument,
+	the RCU lockdep code would complain only if this instance was
+	invoked outside of an RCU read-side critical section and without
+	the protection of mylock.
 
 The following diagram shows how each API communicates among the
 reader, updater, and reclaimer.
@@ -630,7 +638,7 @@ been able to write-acquire the lock otherwise.  The smp_mb__after_spinlock()
 promotes synchronize_rcu() to a full memory barrier in compliance with
 the "Memory-Barrier Guarantees" listed in:
 
-	Documentation/RCU/Design/Requirements/Requirements.html.
+	Documentation/RCU/Design/Requirements/Requirements.rst
 
 It is possible to nest rcu_read_lock(), since reader-writer locks may
 be recursively acquired.  Note also that rcu_read_lock() is immune
