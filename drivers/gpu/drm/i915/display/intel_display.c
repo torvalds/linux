@@ -85,8 +85,8 @@
 /* Primary plane formats for gen <= 3 */
 static const u32 i8xx_primary_formats[] = {
 	DRM_FORMAT_C8,
-	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
 };
 
