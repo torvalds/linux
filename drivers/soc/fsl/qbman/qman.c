@@ -1756,12 +1756,6 @@ int qman_start_using_portal(struct qman_portal *p, struct device *dev)
 }
 EXPORT_SYMBOL(qman_start_using_portal);
 
-void qman_stop_using_portal(struct qman_portal *p, struct device *dev)
-{
-	device_link_remove(dev, p->config->dev);
-}
-EXPORT_SYMBOL(qman_stop_using_portal);
-
 int qman_p_poll_dqrr(struct qman_portal *p, unsigned int limit)
 {
 	return __poll_portal_fast(p, limit);

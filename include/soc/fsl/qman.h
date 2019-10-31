@@ -926,13 +926,6 @@ struct qman_portal *qman_get_affine_portal(int cpu);
 int qman_start_using_portal(struct qman_portal *p, struct device *dev);
 
 /**
- * qman_stop_using_portal - deregister a device link for the portal user
- * @p: the portal that will no longer be in use
- * @dev: the device that uses the portal
- */
-void qman_stop_using_portal(struct qman_portal *p, struct device *dev);
-
-/**
  * qman_p_poll_dqrr - process DQRR (fast-path) entries
  * @limit: the maximum number of DQRR entries to process
  *
