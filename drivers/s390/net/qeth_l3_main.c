@@ -76,7 +76,7 @@ static struct qeth_ipaddr *qeth_l3_get_addr_buffer(enum qeth_prot_versions prot)
 static struct qeth_ipaddr *qeth_l3_find_addr_by_ip(struct qeth_card *card,
 						   struct qeth_ipaddr *query)
 {
-	u64 key = qeth_l3_ipaddr_hash(query);
+	u32 key = qeth_l3_ipaddr_hash(query);
 	struct qeth_ipaddr *addr;
 
 	if (query->is_multicast) {
@@ -1128,7 +1128,7 @@ qeth_l3_add_mc_to_hash(struct qeth_card *card, struct in_device *in4_dev)
 	for (im4 = rcu_dereference(in4_dev->mc_list); im4 != NULL;
 	     im4 = rcu_dereference(im4->next_rcu)) {
 		ip_eth_mc_map(im4->multiaddr, tmp->mac);
-		tmp->u.a4.addr = be32_to_cpu(im4->multiaddr);
+		tmp->u.a4.addr = im4->multiaddr;
 		tmp->is_multicast = 1;
 
 		ipm = qeth_l3_find_addr_by_ip(card, tmp);
@@ -1140,7 +1140,7 @@ qeth_l3_add_mc_to_hash(struct qeth_card *card, struct in_device *in4_dev)
 			if (!ipm)
 				continue;
 			ether_addr_copy(ipm->mac, tmp->mac);
-			ipm->u.a4.addr = be32_to_cpu(im4->multiaddr);
+			ipm->u.a4.addr = im4->multiaddr;
 			ipm->is_multicast = 1;
 			ipm->disp_flag = QETH_DISP_ADDR_ADD;
 			hash_add(card->ip_mc_htable,
@@ -2548,7 +2548,7 @@ static int qeth_l3_ip_event(struct notifier_block *this,
 	QETH_CARD_TEXT(card, 3, "ipevent");
 
 	qeth_l3_init_ipaddr(&addr, QETH_IP_TYPE_NORMAL, QETH_PROT_IPV4);
-	addr.u.a4.addr = be32_to_cpu(ifa->ifa_address);
+	addr.u.a4.addr = ifa->ifa_address;
 	addr.u.a4.mask = be32_to_cpu(ifa->ifa_mask);
 
 	return qeth_l3_handle_ip_event(card, &addr, event);
