@@ -225,11 +225,11 @@ static struct intel_crtc *
 get_crtc_from_states(const struct intel_plane_state *old_plane_state,
 		     const struct intel_plane_state *new_plane_state)
 {
-	if (new_plane_state->base.crtc)
-		return to_intel_crtc(new_plane_state->base.crtc);
+	if (new_plane_state->uapi.crtc)
+		return to_intel_crtc(new_plane_state->uapi.crtc);
 
-	if (old_plane_state->base.crtc)
-		return to_intel_crtc(old_plane_state->base.crtc);
+	if (old_plane_state->uapi.crtc)
+		return to_intel_crtc(old_plane_state->uapi.crtc);
 
 	return NULL;
 }

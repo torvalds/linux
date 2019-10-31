@@ -15352,12 +15352,12 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 * take the slowpath. Only changing fb or position should be
 	 * in the fastpath.
 	 */
-	if (old_plane_state->base.crtc != &crtc->base ||
-	    old_plane_state->base.src_w != src_w ||
-	    old_plane_state->base.src_h != src_h ||
-	    old_plane_state->base.crtc_w != crtc_w ||
-	    old_plane_state->base.crtc_h != crtc_h ||
-	    !old_plane_state->base.fb != !fb)
+	if (old_plane_state->uapi.crtc != &crtc->base ||
+	    old_plane_state->uapi.src_w != src_w ||
+	    old_plane_state->uapi.src_h != src_h ||
+	    old_plane_state->uapi.crtc_w != crtc_w ||
+	    old_plane_state->uapi.crtc_h != crtc_h ||
+	    !old_plane_state->uapi.fb != !fb)
 		goto slow;
 
 	new_plane_state = to_intel_plane_state(intel_plane_duplicate_state(&plane->base));
@@ -15370,16 +15370,16 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 		goto out_free;
 	}
 
-	drm_atomic_set_fb_for_plane(&new_plane_state->base, fb);
+	drm_atomic_set_fb_for_plane(&new_plane_state->uapi, fb);
 
-	new_plane_state->base.src_x = src_x;
-	new_plane_state->base.src_y = src_y;
-	new_plane_state->base.src_w = src_w;
-	new_plane_state->base.src_h = src_h;
-	new_plane_state->base.crtc_x = crtc_x;
-	new_plane_state->base.crtc_y = crtc_y;
-	new_plane_state->base.crtc_w = crtc_w;
-	new_plane_state->base.crtc_h = crtc_h;
+	new_plane_state->uapi.src_x = src_x;
+	new_plane_state->uapi.src_y = src_y;
+	new_plane_state->uapi.src_w = src_w;
+	new_plane_state->uapi.src_h = src_h;
+	new_plane_state->uapi.crtc_x = crtc_x;
+	new_plane_state->uapi.crtc_y = crtc_y;
+	new_plane_state->uapi.crtc_w = crtc_w;
+	new_plane_state->uapi.crtc_h = crtc_h;
 
 	ret = intel_plane_atomic_check_with_state(crtc_state, new_crtc_state,
 						  old_plane_state, new_plane_state);
@@ -15390,13 +15390,14 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	if (ret)
 		goto out_free;
 
-	intel_frontbuffer_flush(to_intel_frontbuffer(new_plane_state->base.fb), ORIGIN_FLIP);
-	intel_frontbuffer_track(to_intel_frontbuffer(old_plane_state->base.fb),
-				to_intel_frontbuffer(new_plane_state->base.fb),
+	intel_frontbuffer_flush(to_intel_frontbuffer(new_plane_state->hw.fb),
+				ORIGIN_FLIP);
+	intel_frontbuffer_track(to_intel_frontbuffer(old_plane_state->hw.fb),
+				to_intel_frontbuffer(new_plane_state->hw.fb),
 				plane->frontbuffer_bit);
 
 	/* Swap plane state */
-	plane->base.state = &new_plane_state->base;
+	plane->base.state = &new_plane_state->uapi;
 
 	/*
 	 * We cannot swap crtc_state as it may be in use by an atomic commit or
@@ -15410,7 +15411,7 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 */
 	crtc_state->active_planes = new_crtc_state->active_planes;
 
-	if (new_plane_state->base.visible)
+	if (new_plane_state->uapi.visible)
 		intel_update_plane(plane, crtc_state, new_plane_state);
 	else
 		intel_disable_plane(plane, crtc_state);
@@ -15421,9 +15422,9 @@ out_free:
 	if (new_crtc_state)
 		intel_crtc_destroy_state(&crtc->base, &new_crtc_state->uapi);
 	if (ret)
-		intel_plane_destroy_state(&plane->base, &new_plane_state->base);
+		intel_plane_destroy_state(&plane->base, &new_plane_state->uapi);
 	else
-		intel_plane_destroy_state(&plane->base, &old_plane_state->base);
+		intel_plane_destroy_state(&plane->base, &old_plane_state->uapi);
 	return ret;
 
 slow:
