@@ -929,7 +929,7 @@ static void hclge_dbg_fd_tcam(struct hclge_dev *hdev)
 	}
 }
 
-static void hclge_dbg_dump_rst_info(struct hclge_dev *hdev)
+void hclge_dbg_dump_rst_info(struct hclge_dev *hdev)
 {
 	dev_info(&hdev->pdev->dev, "PF reset count: %u\n",
 		 hdev->rst_stats.pf_rst_cnt);
@@ -943,8 +943,6 @@ static void hclge_dbg_dump_rst_info(struct hclge_dev *hdev)
 		 hdev->rst_stats.reset_done_cnt);
 	dev_info(&hdev->pdev->dev, "HW reset done count: %u\n",
 		 hdev->rst_stats.hw_reset_done_cnt);
-	dev_info(&hdev->pdev->dev, "reset count: %u\n",
-		 hdev->rst_stats.reset_cnt);
 	dev_info(&hdev->pdev->dev, "reset count: %u\n",
 		 hdev->rst_stats.reset_cnt);
 	dev_info(&hdev->pdev->dev, "reset fail count: %u\n",
@@ -961,6 +959,7 @@ static void hclge_dbg_dump_rst_info(struct hclge_dev *hdev)
 		 hclge_read_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG));
 	dev_info(&hdev->pdev->dev, "function reset status: 0x%x\n",
 		 hclge_read_dev(&hdev->hw, HCLGE_FUN_RST_ING));
+	dev_info(&hdev->pdev->dev, "hdev state: 0x%lx\n", hdev->state);
 }
 
 static void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)

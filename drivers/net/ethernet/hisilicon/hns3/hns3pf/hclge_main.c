@@ -3669,6 +3669,9 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev)
 	hclge_reset_handshake(hdev, true);
 
 	dev_err(&hdev->pdev->dev, "Reset fail!\n");
+
+	hclge_dbg_dump_rst_info(hdev);
+
 	return false;
 }
 

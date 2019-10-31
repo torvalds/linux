@@ -1549,6 +1549,33 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 	return ret;
 }
 
+static void hclgevf_dump_rst_info(struct hclgevf_dev *hdev)
+{
+	dev_info(&hdev->pdev->dev, "VF function reset count: %u\n",
+		 hdev->rst_stats.vf_func_rst_cnt);
+	dev_info(&hdev->pdev->dev, "FLR reset count: %u\n",
+		 hdev->rst_stats.flr_rst_cnt);
+	dev_info(&hdev->pdev->dev, "VF reset count: %u\n",
+		 hdev->rst_stats.vf_rst_cnt);
+	dev_info(&hdev->pdev->dev, "reset done count: %u\n",
+		 hdev->rst_stats.rst_done_cnt);
+	dev_info(&hdev->pdev->dev, "HW reset done count: %u\n",
+		 hdev->rst_stats.hw_rst_done_cnt);
+	dev_info(&hdev->pdev->dev, "reset count: %u\n",
+		 hdev->rst_stats.rst_cnt);
+	dev_info(&hdev->pdev->dev, "reset fail count: %u\n",
+		 hdev->rst_stats.rst_fail_cnt);
+	dev_info(&hdev->pdev->dev, "vector0 interrupt enable status: 0x%x\n",
+		 hclgevf_read_dev(&hdev->hw, HCLGEVF_MISC_VECTOR_REG_BASE));
+	dev_info(&hdev->pdev->dev, "vector0 interrupt status: 0x%x\n",
+		 hclgevf_read_dev(&hdev->hw, HCLGEVF_VECTOR0_CMDQ_STAT_REG));
+	dev_info(&hdev->pdev->dev, "handshake status: 0x%x\n",
+		 hclgevf_read_dev(&hdev->hw, HCLGEVF_CMDQ_TX_DEPTH_REG));
+	dev_info(&hdev->pdev->dev, "function reset status: 0x%x\n",
+		 hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING));
+	dev_info(&hdev->pdev->dev, "hdev state: 0x%lx\n", hdev->state);
+}
+
 static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 {
 	/* recover handshake status with IMP when reset fail */
@@ -1563,6 +1590,8 @@ static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 	if (hclgevf_is_reset_pending(hdev)) {
 		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 		hclgevf_reset_task_schedule(hdev);
+	} else {
+		hclgevf_dump_rst_info(hdev);
 	}
 }
 

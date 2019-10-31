@@ -656,7 +656,6 @@ struct hclge_rst_stats {
 	u32 hw_reset_done_cnt;	/* the number of HW reset has completed */
 	u32 pf_rst_cnt;		/* the number of PF reset */
 	u32 flr_rst_cnt;	/* the number of FLR */
-	u32 core_rst_cnt;	/* the number of CORE reset */
 	u32 global_rst_cnt;	/* the number of GLOBAL */
 	u32 imp_rst_cnt;	/* the number of IMP reset */
 	u32 reset_cnt;		/* the number of reset */
@@ -1005,4 +1004,5 @@ int hclge_query_bd_num_cmd_send(struct hclge_dev *hdev,
 void hclge_report_hw_error(struct hclge_dev *hdev,
 			   enum hnae3_hw_error_type type);
 void hclge_inform_vf_promisc_info(struct hclge_vport *vport);
+void hclge_dbg_dump_rst_info(struct hclge_dev *hdev);
 #endif
