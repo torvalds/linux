@@ -1163,9 +1163,6 @@ static int rt1011_bq_drc_coeff_put(struct snd_kcontrol *kcontrol,
 		(struct rt1011_bq_drc_params *)ucontrol->value.integer.value;
 	unsigned int i, mode_idx = 0;
 
-	if (!component->card->instantiated)
-		return 0;
-
 	if (strstr(ucontrol->id.name, "AdvanceMode Initial Set"))
 		mode_idx = RT1011_ADVMODE_INITIAL_SET;
 	else if (strstr(ucontrol->id.name, "AdvanceMode SEP BQ Coeff"))
@@ -1236,9 +1233,6 @@ static int rt1011_r0_cali_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1011_priv *rt1011 = snd_soc_component_get_drvdata(component);
 
-	if (!component->card->instantiated)
-		return 0;
-
 	rt1011->cali_done = 0;
 	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF &&
 		ucontrol->value.integer.value[0])
@@ -1282,9 +1276,6 @@ static int rt1011_r0_load_mode_put(struct snd_kcontrol *kcontrol,
 	unsigned int r0_integer, r0_factor, format;
 
 	if (ucontrol->value.integer.value[0] == rt1011->r0_reg)
-		return 0;
-
-	if (!component->card->instantiated)
 		return 0;
 
 	if (ucontrol->value.integer.value[0] == 0)
