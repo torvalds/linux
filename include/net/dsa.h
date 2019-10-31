@@ -259,13 +259,6 @@ struct dsa_switch {
 	const struct dsa_switch_ops	*ops;
 
 	/*
-	 * An array of which element [a] indicates which port on this
-	 * switch should be used to send packets to that are destined
-	 * for switch a. Can be NULL if there is only one switch chip.
-	 */
-	s8		rtable[DSA_MAX_SWITCHES];
-
-	/*
 	 * Slave mii_bus and devices for the individual ports.
 	 */
 	u32			phys_mii_mask;

@@ -181,10 +181,6 @@ static bool dsa_switch_setup_routing_table(struct dsa_switch *ds)
 	struct dsa_switch_tree *dst = ds->dst;
 	bool complete = true;
 	struct dsa_port *dp;
-	int i;
-
-	for (i = 0; i < DSA_MAX_SWITCHES; i++)
-		ds->rtable[i] = DSA_RTABLE_NONE;
 
 	list_for_each_entry(dp, &dst->ports, list) {
 		if (dp->ds == ds && dsa_port_is_dsa(dp)) {
