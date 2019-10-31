@@ -73,7 +73,7 @@ MODULE_PARM_DESC(debug, "Enable module debugging logging. Set to 1 to enable. "
 
 #define cmm_dbg(...) if (cmm_debug) { printk(KERN_INFO "cmm: "__VA_ARGS__); }
 
-static unsigned long loaned_pages;
+static atomic_long_t loaned_pages;
 static unsigned long loaned_pages_target;
 static unsigned long oom_freed_pages;
 
@@ -159,7 +159,7 @@ static long cmm_alloc_pages(long nr)
 		}
 
 		list_add(&page->lru, &cmm_page_list);
-		loaned_pages++;
+		atomic_long_inc(&loaned_pages);
 		adjust_managed_page_count(page, -1);
 		spin_unlock(&cmm_lock);
 		nr--;
@@ -189,7 +189,7 @@ static long cmm_free_pages(long nr)
 		list_del(&page->lru);
 		adjust_managed_page_count(page, 1);
 		__free_page(page);
-		loaned_pages--;
+		atomic_long_dec(&loaned_pages);
 		nr--;
 	}
 	spin_unlock(&cmm_lock);
@@ -214,7 +214,7 @@ static int cmm_oom_notify(struct notifier_block *self,
 
 	cmm_dbg("OOM processing started\n");
 	nr = cmm_free_pages(nr);
-	loaned_pages_target = loaned_pages;
+	loaned_pages_target = atomic_long_read(&loaned_pages);
 	*freed += KB2PAGES(oom_kb) - nr;
 	oom_freed_pages += KB2PAGES(oom_kb) - nr;
 	cmm_dbg("OOM processing complete\n");
@@ -231,10 +231,11 @@ static int cmm_oom_notify(struct notifier_block *self,
  **/
 static void cmm_get_mpp(void)
 {
+	const long __loaned_pages = atomic_long_read(&loaned_pages);
+	const long total_pages = totalram_pages() + __loaned_pages;
 	int rc;
 	struct hvcall_mpp_data mpp_data;
 	signed long active_pages_target, page_loan_request, target;
-	signed long total_pages = totalram_pages() + loaned_pages;
 	signed long min_mem_pages = (min_mem_mb * 1024 * 1024) / PAGE_SIZE;
 
 	rc = h_get_mpp(&mpp_data);
@@ -243,7 +244,7 @@ static void cmm_get_mpp(void)
 		return;
 
 	page_loan_request = div_s64((s64)mpp_data.loan_request, PAGE_SIZE);
-	target = page_loan_request + (signed long)loaned_pages;
+	target = page_loan_request + __loaned_pages;
 
 	if (target < 0 || total_pages < min_mem_pages)
 		target = 0;
@@ -264,7 +265,7 @@ static void cmm_get_mpp(void)
 	loaned_pages_target = target;
 
 	cmm_dbg("delta = %ld, loaned = %lu, target = %lu, oom = %lu, totalram = %lu\n",
-		page_loan_request, loaned_pages, loaned_pages_target,
+		page_loan_request, __loaned_pages, loaned_pages_target,
 		oom_freed_pages, totalram_pages());
 }
 
@@ -282,6 +283,7 @@ static struct notifier_block cmm_oom_nb = {
 static int cmm_thread(void *dummy)
 {
 	unsigned long timeleft;
+	long __loaned_pages;
 
 	while (1) {
 		timeleft = msleep_interruptible(delay * 1000);
@@ -312,11 +314,12 @@ static int cmm_thread(void *dummy)
 
 		cmm_get_mpp();
 
-		if (loaned_pages_target > loaned_pages) {
-			if (cmm_alloc_pages(loaned_pages_target - loaned_pages))
-				loaned_pages_target = loaned_pages;
-		} else if (loaned_pages_target < loaned_pages)
-			cmm_free_pages(loaned_pages - loaned_pages_target);
+		__loaned_pages = atomic_long_read(&loaned_pages);
+		if (loaned_pages_target > __loaned_pages) {
+			if (cmm_alloc_pages(loaned_pages_target - __loaned_pages))
+				loaned_pages_target = __loaned_pages;
+		} else if (loaned_pages_target < __loaned_pages)
+			cmm_free_pages(__loaned_pages - loaned_pages_target);
 	}
 	return 0;
 }
@@ -330,7 +333,7 @@ static int cmm_thread(void *dummy)
 	}							\
 	static DEVICE_ATTR(name, 0444, show_##name, NULL)
 
-CMM_SHOW(loaned_kb, "%lu\n", PAGES2KB(loaned_pages));
+CMM_SHOW(loaned_kb, "%lu\n", PAGES2KB(atomic_long_read(&loaned_pages)));
 CMM_SHOW(loaned_target_kb, "%lu\n", PAGES2KB(loaned_pages_target));
 
 static ssize_t show_oom_pages(struct device *dev,
@@ -433,7 +436,7 @@ static int cmm_reboot_notifier(struct notifier_block *nb,
 		if (cmm_thread_ptr)
 			kthread_stop(cmm_thread_ptr);
 		cmm_thread_ptr = NULL;
-		cmm_free_pages(loaned_pages);
+		cmm_free_pages(atomic_long_read(&loaned_pages));
 	}
 	return NOTIFY_DONE;
 }
@@ -540,7 +543,7 @@ static void cmm_exit(void)
 	unregister_oom_notifier(&cmm_oom_nb);
 	unregister_reboot_notifier(&cmm_reboot_nb);
 	unregister_memory_notifier(&cmm_mem_nb);
-	cmm_free_pages(loaned_pages);
+	cmm_free_pages(atomic_long_read(&loaned_pages));
 	cmm_unregister_sysfs(&cmm_dev);
 }
 
@@ -561,7 +564,7 @@ static int cmm_set_disable(const char *val, const struct kernel_param *kp)
 		if (cmm_thread_ptr)
 			kthread_stop(cmm_thread_ptr);
 		cmm_thread_ptr = NULL;
-		cmm_free_pages(loaned_pages);
+		cmm_free_pages(atomic_long_read(&loaned_pages));
 	} else if (!disable && cmm_disabled) {
 		cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
 		if (IS_ERR(cmm_thread_ptr))
