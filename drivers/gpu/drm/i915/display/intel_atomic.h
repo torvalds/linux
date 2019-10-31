@@ -36,6 +36,8 @@ intel_digital_connector_duplicate_state(struct drm_connector *connector);
 struct drm_crtc_state *intel_crtc_duplicate_state(struct drm_crtc *crtc);
 void intel_crtc_destroy_state(struct drm_crtc *crtc,
 			       struct drm_crtc_state *state);
+void intel_crtc_free_hw_state(struct intel_crtc_state *crtc_state);
+void intel_crtc_copy_color_blobs(struct intel_crtc_state *crtc_state);
 struct drm_atomic_state *intel_atomic_state_alloc(struct drm_device *dev);
 void intel_atomic_state_clear(struct drm_atomic_state *state);
 

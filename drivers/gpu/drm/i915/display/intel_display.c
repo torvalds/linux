@@ -7185,6 +7185,8 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 	crtc->enabled = false;
 	crtc->state->connector_mask = 0;
 	crtc->state->encoder_mask = 0;
+	intel_crtc_free_hw_state(crtc_state);
+	memset(&crtc_state->hw, 0, sizeof(crtc_state->hw));
 
 	for_each_encoder_on_crtc(crtc->dev, crtc, encoder)
 		encoder->base.crtc = NULL;
@@ -12557,8 +12559,41 @@ static bool check_digital_port_conflicts(struct intel_atomic_state *state)
 	return ret;
 }
 
+static void
+intel_crtc_copy_uapi_to_hw_state_nomodeset(struct intel_crtc_state *crtc_state)
+{
+	intel_crtc_copy_color_blobs(crtc_state);
+}
+
+static void
+intel_crtc_copy_uapi_to_hw_state(struct intel_crtc_state *crtc_state)
+{
+	crtc_state->hw.enable = crtc_state->uapi.enable;
+	crtc_state->hw.active = crtc_state->uapi.active;
+	crtc_state->hw.mode = crtc_state->uapi.mode;
+	crtc_state->hw.adjusted_mode = crtc_state->uapi.adjusted_mode;
+	intel_crtc_copy_uapi_to_hw_state_nomodeset(crtc_state);
+}
+
+static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state)
+{
+	crtc_state->uapi.enable = crtc_state->hw.enable;
+	crtc_state->uapi.active = crtc_state->hw.active;
+	WARN_ON(drm_atomic_set_mode_for_crtc(&crtc_state->uapi, &crtc_state->hw.mode) < 0);
+
+	crtc_state->uapi.adjusted_mode = crtc_state->hw.adjusted_mode;
+
+	/* copy color blobs to uapi */
+	drm_property_replace_blob(&crtc_state->uapi.degamma_lut,
+				  crtc_state->hw.degamma_lut);
+	drm_property_replace_blob(&crtc_state->uapi.gamma_lut,
+				  crtc_state->hw.gamma_lut);
+	drm_property_replace_blob(&crtc_state->uapi.ctm,
+				  crtc_state->hw.ctm);
+}
+
 static int
-clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
+intel_crtc_prepare_cleared_state(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv =
 		to_i915(crtc_state->uapi.crtc->dev);
@@ -12568,11 +12603,15 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	if (!saved_state)
 		return -ENOMEM;
 
+	/* free the old crtc_state->hw members */
+	intel_crtc_free_hw_state(crtc_state);
+
 	/* FIXME: before the switch to atomic started, a new pipe_config was
 	 * kzalloc'd. Code that depends on any field being zero should be
 	 * fixed, so that the crtc_state can be safely duplicated. For now,
 	 * only fields that are know to not cause problems are preserved. */
 
+	saved_state->uapi = crtc_state->uapi;
 	saved_state->scaler_state = crtc_state->scaler_state;
 	saved_state->shared_dpll = crtc_state->shared_dpll;
 	saved_state->dpll_hw_state = crtc_state->dpll_hw_state;
@@ -12590,14 +12629,11 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 		saved_state->sync_mode_slaves_mask =
 			crtc_state->sync_mode_slaves_mask;
 
-	/* Keep base drm_crtc_state intact, only clear our extended struct */
-	BUILD_BUG_ON(offsetof(struct intel_crtc_state, base));
-	BUILD_BUG_ON(offsetof(struct intel_crtc_state, uapi));
-	BUILD_BUG_ON(offsetof(struct intel_crtc_state, hw));
-	memcpy(&crtc_state->uapi + 1, &saved_state->uapi + 1,
-	       sizeof(*crtc_state) - sizeof(crtc_state->uapi));
-
+	memcpy(crtc_state, saved_state, sizeof(*crtc_state));
 	kfree(saved_state);
+
+	intel_crtc_copy_uapi_to_hw_state(crtc_state);
+
 	return 0;
 }
 
@@ -12612,10 +12648,6 @@ intel_modeset_pipe_config(struct intel_crtc_state *pipe_config)
 	int base_bpp, ret;
 	int i;
 	bool retry = true;
-
-	ret = clear_intel_crtc_state(pipe_config);
-	if (ret)
-		return ret;
 
 	pipe_config->cpu_transcoder =
 		(enum transcoder) to_intel_crtc(crtc)->pipe;
@@ -12743,6 +12775,12 @@ encoder_retry:
 		!pipe_config->dither_force_disable;
 	DRM_DEBUG_KMS("hw max bpp: %i, pipe bpp: %i, dithering: %i\n",
 		      base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
+
+	/*
+	 * Make drm_calc_timestamping_constants in
+	 * drm_atomic_helper_update_legacy_modeset_state() happy
+	 */
+	pipe_config->uapi.adjusted_mode = pipe_config->hw.adjusted_mode;
 
 	return 0;
 }
@@ -13473,6 +13511,8 @@ verify_crtc_state(struct intel_crtc *crtc,
 
 	state = old_crtc_state->uapi.state;
 	__drm_atomic_helper_crtc_destroy_state(&old_crtc_state->uapi);
+	intel_crtc_free_hw_state(old_crtc_state);
+
 	pipe_config = old_crtc_state;
 	memset(pipe_config, 0, sizeof(*pipe_config));
 	pipe_config->uapi.crtc = &crtc->base;
@@ -14007,13 +14047,23 @@ static int intel_atomic_check(struct drm_device *dev,
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		if (!needs_modeset(new_crtc_state))
+		if (!needs_modeset(new_crtc_state)) {
+			/* Light copy */
+			intel_crtc_copy_uapi_to_hw_state_nomodeset(new_crtc_state);
+
 			continue;
+		}
 
 		if (!new_crtc_state->uapi.enable) {
+			intel_crtc_copy_uapi_to_hw_state(new_crtc_state);
+
 			any_ms = true;
 			continue;
 		}
+
+		ret = intel_crtc_prepare_cleared_state(new_crtc_state);
+		if (ret)
+			goto fail;
 
 		ret = intel_modeset_pipe_config(new_crtc_state);
 		if (ret)
@@ -17285,6 +17335,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			to_intel_crtc_state(crtc->base.state);
 
 		__drm_atomic_helper_crtc_destroy_state(&crtc_state->uapi);
+		intel_crtc_free_hw_state(crtc_state);
 		memset(crtc_state, 0, sizeof(*crtc_state));
 		__drm_atomic_helper_crtc_reset(&crtc->base, &crtc_state->uapi);
 
@@ -17396,15 +17447,14 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		int min_cdclk = 0;
 
 		if (crtc_state->hw.active) {
-			struct drm_display_mode mode;
+			struct drm_display_mode *mode = &crtc_state->hw.mode;
 
 			intel_mode_from_pipe_config(&crtc_state->hw.adjusted_mode,
 						    crtc_state);
 
-			mode = crtc_state->hw.adjusted_mode;
-			mode.hdisplay = crtc_state->pipe_src_w;
-			mode.vdisplay = crtc_state->pipe_src_h;
-			WARN_ON(drm_atomic_set_mode_for_crtc(&crtc_state->uapi, &mode));
+			*mode = crtc_state->hw.adjusted_mode;
+			mode->hdisplay = crtc_state->pipe_src_w;
+			mode->vdisplay = crtc_state->pipe_src_h;
 
 			/*
 			 * The initial mode needs to be set in order to keep
@@ -17415,11 +17465,13 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			 * set a flag to indicate that a full recalculation is
 			 * needed on the next commit.
 			 */
-			crtc_state->hw.mode.private_flags = I915_MODE_FLAG_INHERITED;
+			mode->private_flags = I915_MODE_FLAG_INHERITED;
 
 			intel_crtc_compute_pixel_rate(crtc_state);
 
 			intel_crtc_update_active_timings(crtc_state);
+
+			intel_crtc_copy_hw_to_uapi_state(crtc_state);
 		}
 
 		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {

@@ -757,8 +757,6 @@ enum intel_output_format {
 };
 
 struct intel_crtc_state {
-	union {
-	struct drm_crtc_state base;
 	/*
 	 * uapi (drm) state. This is the software state shown to userspace.
 	 * In particular, the following members are used for bookkeeping:
@@ -781,8 +779,11 @@ struct intel_crtc_state {
 	 *
 	 * During initial hw readout, they need to be copied to uapi.
 	 */
-	struct drm_crtc_state hw;
-	};
+	struct {
+		bool active, enable;
+		struct drm_property_blob *degamma_lut, *gamma_lut, *ctm;
+		struct drm_display_mode mode, adjusted_mode;
+	} hw;
 
 	/**
 	 * quirks - bitfield with hw state readout quirks

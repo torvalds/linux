@@ -195,6 +195,14 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->uapi);
 
+	/* copy color blobs */
+	if (crtc_state->hw.degamma_lut)
+		drm_property_blob_get(crtc_state->hw.degamma_lut);
+	if (crtc_state->hw.ctm)
+		drm_property_blob_get(crtc_state->hw.ctm);
+	if (crtc_state->hw.gamma_lut)
+		drm_property_blob_get(crtc_state->hw.gamma_lut);
+
 	crtc_state->update_pipe = false;
 	crtc_state->disable_lp_wm = false;
 	crtc_state->disable_cxsr = false;
@@ -206,6 +214,28 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->update_planes = 0;
 
 	return &crtc_state->uapi;
+}
+
+static void intel_crtc_put_color_blobs(struct intel_crtc_state *crtc_state)
+{
+	drm_property_blob_put(crtc_state->hw.degamma_lut);
+	drm_property_blob_put(crtc_state->hw.gamma_lut);
+	drm_property_blob_put(crtc_state->hw.ctm);
+}
+
+void intel_crtc_free_hw_state(struct intel_crtc_state *crtc_state)
+{
+	intel_crtc_put_color_blobs(crtc_state);
+}
+
+void intel_crtc_copy_color_blobs(struct intel_crtc_state *crtc_state)
+{
+	drm_property_replace_blob(&crtc_state->hw.degamma_lut,
+				  crtc_state->uapi.degamma_lut);
+	drm_property_replace_blob(&crtc_state->hw.gamma_lut,
+				  crtc_state->uapi.gamma_lut);
+	drm_property_replace_blob(&crtc_state->hw.ctm,
+				  crtc_state->uapi.ctm);
 }
 
 /**
@@ -223,6 +253,7 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
 	struct intel_crtc_state *crtc_state = to_intel_crtc_state(state);
 
 	__drm_atomic_helper_crtc_destroy_state(&crtc_state->uapi);
+	intel_crtc_free_hw_state(crtc_state);
 	kfree(crtc_state);
 }
 
