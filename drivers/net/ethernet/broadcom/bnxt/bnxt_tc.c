@@ -114,7 +114,8 @@ static int bnxt_tc_parse_tunnel_set(struct bnxt *bp,
 	return 0;
 }
 
-/* Key & Mask from the stack comes unaligned in multiple iterations.
+/* Key & Mask from the stack comes unaligned in multiple iterations of 4 bytes
+ * each(u32).
  * This routine consolidates such multiple unaligned values into one
  * field each for Key & Mask (for src and dst macs separately)
  * For example,
@@ -178,14 +179,19 @@ bnxt_fill_l2_rewrite_fields(struct bnxt_tc_actions *actions,
 
 static int
 bnxt_tc_parse_pedit(struct bnxt *bp, struct bnxt_tc_actions *actions,
-		    struct flow_action_entry *act, u8 *eth_addr,
+		    struct flow_action_entry *act, int act_idx, u8 *eth_addr,
 		    u8 *eth_addr_mask)
 {
-	u32 mask, val, offset;
+	size_t offset_of_ip6_daddr = offsetof(struct ipv6hdr, daddr);
+	size_t offset_of_ip6_saddr = offsetof(struct ipv6hdr, saddr);
+	u32 mask, val, offset, idx;
 	u8 htype;
 
 	offset = act->mangle.offset;
 	htype = act->mangle.htype;
+	mask = ~act->mangle.mask;
+	val = act->mangle.val;
+
 	switch (htype) {
 	case FLOW_ACT_MANGLE_HDR_TYPE_ETH:
 		if (offset > PEDIT_OFFSET_SMAC_LAST_4_BYTES) {
@@ -195,11 +201,72 @@ bnxt_tc_parse_pedit(struct bnxt *bp, struct bnxt_tc_actions *actions,
 			return -EINVAL;
 		}
 		actions->flags |= BNXT_TC_ACTION_FLAG_L2_REWRITE;
-		mask = ~act->mangle.mask;
-		val = act->mangle.val;
 
 		bnxt_set_l2_key_mask(val, mask, &eth_addr[offset],
 				     &eth_addr_mask[offset]);
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
+		actions->flags |= BNXT_TC_ACTION_FLAG_NAT_XLATE;
+		actions->nat.l3_is_ipv4 = true;
+		if (offset ==  offsetof(struct iphdr, saddr)) {
+			actions->nat.src_xlate = true;
+			actions->nat.l3.ipv4.saddr.s_addr = htonl(val);
+		} else if (offset ==  offsetof(struct iphdr, daddr)) {
+			actions->nat.src_xlate = false;
+			actions->nat.l3.ipv4.daddr.s_addr = htonl(val);
+		} else {
+			netdev_err(bp->dev,
+				   "%s: IPv4_hdr: Invalid pedit field\n",
+				   __func__);
+			return -EINVAL;
+		}
+
+		netdev_dbg(bp->dev, "nat.src_xlate = %d src IP: %pI4 dst ip : %pI4\n",
+			   actions->nat.src_xlate, &actions->nat.l3.ipv4.saddr,
+			   &actions->nat.l3.ipv4.daddr);
+		break;
+
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
+		actions->flags |= BNXT_TC_ACTION_FLAG_NAT_XLATE;
+		actions->nat.l3_is_ipv4 = false;
+		if (offset >= offsetof(struct ipv6hdr, saddr) &&
+		    offset < offset_of_ip6_daddr) {
+			/* 16 byte IPv6 address comes in 4 iterations of
+			 * 4byte chunks each
+			 */
+			actions->nat.src_xlate = true;
+			idx = (offset - offset_of_ip6_saddr) / 4;
+			/* First 4bytes will be copied to idx 0 and so on */
+			actions->nat.l3.ipv6.saddr.s6_addr32[idx] = htonl(val);
+		} else if (offset >= offset_of_ip6_daddr &&
+			   offset < offset_of_ip6_daddr + 16) {
+			actions->nat.src_xlate = false;
+			idx = (offset - offset_of_ip6_daddr) / 4;
+			actions->nat.l3.ipv6.saddr.s6_addr32[idx] = htonl(val);
+		} else {
+			netdev_err(bp->dev,
+				   "%s: IPv6_hdr: Invalid pedit field\n",
+				   __func__);
+			return -EINVAL;
+		}
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
+	case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
+		/* HW does not support L4 rewrite alone without L3
+		 * rewrite
+		 */
+		if (!(actions->flags & BNXT_TC_ACTION_FLAG_NAT_XLATE)) {
+			netdev_err(bp->dev,
+				   "Need to specify L3 rewrite as well\n");
+			return -EINVAL;
+		}
+		if (actions->nat.src_xlate)
+			actions->nat.l4.ports.sport = htons(val);
+		else
+			actions->nat.l4.ports.dport = htons(val);
+		netdev_dbg(bp->dev, "actions->nat.sport = %d dport = %d\n",
+			   actions->nat.l4.ports.sport,
+			   actions->nat.l4.ports.dport);
 		break;
 	default:
 		netdev_err(bp->dev, "%s: Unsupported pedit hdr type\n",
@@ -258,7 +325,7 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 			break;
 		/* Packet edit: L2 rewrite, NAT, NAPT */
 		case FLOW_ACTION_MANGLE:
-			rc = bnxt_tc_parse_pedit(bp, actions, act,
+			rc = bnxt_tc_parse_pedit(bp, actions, act, i,
 						 (u8 *)eth_addr,
 						 (u8 *)eth_addr_mask);
 			if (rc)
@@ -531,6 +598,67 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 		       ETH_ALEN);
 		action_flags |=
 			CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_L2_HEADER_REWRITE;
+	}
+
+	if (actions->flags & BNXT_TC_ACTION_FLAG_NAT_XLATE) {
+		if (actions->nat.l3_is_ipv4) {
+			action_flags |=
+				CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_IPV4_ADDRESS;
+
+			if (actions->nat.src_xlate) {
+				action_flags |=
+					CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_SRC;
+				/* L3 source rewrite */
+				req.nat_ip_address[0] =
+					actions->nat.l3.ipv4.saddr.s_addr;
+				/* L4 source port */
+				if (actions->nat.l4.ports.sport)
+					req.nat_port =
+						actions->nat.l4.ports.sport;
+			} else {
+				action_flags |=
+					CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_DEST;
+				/* L3 destination rewrite */
+				req.nat_ip_address[0] =
+					actions->nat.l3.ipv4.daddr.s_addr;
+				/* L4 destination port */
+				if (actions->nat.l4.ports.dport)
+					req.nat_port =
+						actions->nat.l4.ports.dport;
+			}
+			netdev_dbg(bp->dev,
+				   "req.nat_ip_address: %pI4 src_xlate: %d req.nat_port: %x\n",
+				   req.nat_ip_address, actions->nat.src_xlate,
+				   req.nat_port);
+		} else {
+			if (actions->nat.src_xlate) {
+				action_flags |=
+					CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_SRC;
+				/* L3 source rewrite */
+				memcpy(req.nat_ip_address,
+				       actions->nat.l3.ipv6.saddr.s6_addr32,
+				       sizeof(req.nat_ip_address));
+				/* L4 source port */
+				if (actions->nat.l4.ports.sport)
+					req.nat_port =
+						actions->nat.l4.ports.sport;
+			} else {
+				action_flags |=
+					CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_DEST;
+				/* L3 destination rewrite */
+				memcpy(req.nat_ip_address,
+				       actions->nat.l3.ipv6.daddr.s6_addr32,
+				       sizeof(req.nat_ip_address));
+				/* L4 destination port */
+				if (actions->nat.l4.ports.dport)
+					req.nat_port =
+						actions->nat.l4.ports.dport;
+			}
+			netdev_dbg(bp->dev,
+				   "req.nat_ip_address: %pI6 src_xlate: %d req.nat_port: %x\n",
+				   req.nat_ip_address, actions->nat.src_xlate,
+				   req.nat_port);
+		}
 	}
 
 	if (actions->flags & BNXT_TC_ACTION_FLAG_TUNNEL_DECAP ||
