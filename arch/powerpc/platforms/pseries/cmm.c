@@ -75,21 +75,13 @@ module_param_named(debug, cmm_debug, uint, 0644);
 MODULE_PARM_DESC(debug, "Enable module debugging logging. Set to 1 to enable. "
 		 "[Default=" __stringify(CMM_DEBUG) "]");
 
-#define CMM_NR_PAGES ((PAGE_SIZE - sizeof(void *) - sizeof(unsigned long)) / sizeof(unsigned long))
-
 #define cmm_dbg(...) if (cmm_debug) { printk(KERN_INFO "cmm: "__VA_ARGS__); }
-
-struct cmm_page_array {
-	struct cmm_page_array *next;
-	unsigned long index;
-	unsigned long page[CMM_NR_PAGES];
-};
 
 static unsigned long loaned_pages;
 static unsigned long loaned_pages_target;
 static unsigned long oom_freed_pages;
 
-static struct cmm_page_array *cmm_page_list;
+static LIST_HEAD(cmm_page_list);
 static DEFINE_SPINLOCK(cmm_lock);
 
 static DEFINE_MUTEX(hotplug_mutex);
@@ -97,8 +89,9 @@ static int hotplug_occurred; /* protected by the hotplug mutex */
 
 static struct task_struct *cmm_thread_ptr;
 
-static long plpar_page_set_loaned(unsigned long vpa)
+static long plpar_page_set_loaned(struct page *page)
 {
+	const unsigned long vpa = page_to_phys(page);
 	unsigned long cmo_page_sz = cmo_get_page_size();
 	long rc = 0;
 	int i;
@@ -113,8 +106,9 @@ static long plpar_page_set_loaned(unsigned long vpa)
 	return rc;
 }
 
-static long plpar_page_set_active(unsigned long vpa)
+static long plpar_page_set_active(struct page *page)
 {
+	const unsigned long vpa = page_to_phys(page);
 	unsigned long cmo_page_sz = cmo_get_page_size();
 	long rc = 0;
 	int i;
@@ -138,8 +132,7 @@ static long plpar_page_set_active(unsigned long vpa)
  **/
 static long cmm_alloc_pages(long nr)
 {
-	struct cmm_page_array *pa, *npa;
-	unsigned long addr;
+	struct page *page;
 	long rc;
 
 	cmm_dbg("Begin request for %ld pages\n", nr);
@@ -156,43 +149,20 @@ static long cmm_alloc_pages(long nr)
 			break;
 		}
 
-		addr = __get_free_page(GFP_NOIO | __GFP_NOWARN |
-				       __GFP_NORETRY | __GFP_NOMEMALLOC);
-		if (!addr)
+		page = alloc_page(GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY |
+				  __GFP_NOMEMALLOC);
+		if (!page)
 			break;
 		spin_lock(&cmm_lock);
-		pa = cmm_page_list;
-		if (!pa || pa->index >= CMM_NR_PAGES) {
-			/* Need a new page for the page list. */
-			spin_unlock(&cmm_lock);
-			npa = (struct cmm_page_array *)__get_free_page(
-					GFP_NOIO | __GFP_NOWARN |
-					__GFP_NORETRY | __GFP_NOMEMALLOC);
-			if (!npa) {
-				pr_info("%s: Can not allocate new page list\n", __func__);
-				free_page(addr);
-				break;
-			}
-			spin_lock(&cmm_lock);
-			pa = cmm_page_list;
-
-			if (!pa || pa->index >= CMM_NR_PAGES) {
-				npa->next = pa;
-				npa->index = 0;
-				pa = npa;
-				cmm_page_list = pa;
-			} else
-				free_page((unsigned long) npa);
-		}
-
-		if ((rc = plpar_page_set_loaned(__pa(addr)))) {
+		rc = plpar_page_set_loaned(page);
+		if (rc) {
 			pr_err("%s: Can not set page to loaned. rc=%ld\n", __func__, rc);
 			spin_unlock(&cmm_lock);
-			free_page(addr);
+			__free_page(page);
 			break;
 		}
 
-		pa->page[pa->index++] = addr;
+		list_add(&page->lru, &cmm_page_list);
 		loaned_pages++;
 		totalram_pages_dec();
 		spin_unlock(&cmm_lock);
@@ -212,25 +182,16 @@ static long cmm_alloc_pages(long nr)
  **/
 static long cmm_free_pages(long nr)
 {
-	struct cmm_page_array *pa;
-	unsigned long addr;
+	struct page *page, *tmp;
 
 	cmm_dbg("Begin free of %ld pages.\n", nr);
 	spin_lock(&cmm_lock);
-	pa = cmm_page_list;
-	while (nr) {
-		if (!pa || pa->index <= 0)
+	list_for_each_entry_safe(page, tmp, &cmm_page_list, lru) {
+		if (!nr)
 			break;
-		addr = pa->page[--pa->index];
-
-		if (pa->index == 0) {
-			pa = pa->next;
-			free_page((unsigned long) cmm_page_list);
-			cmm_page_list = pa;
-		}
-
-		plpar_page_set_active(__pa(addr));
-		free_page(addr);
+		plpar_page_set_active(page);
+		list_del(&page->lru);
+		__free_page(page);
 		loaned_pages--;
 		nr--;
 		totalram_pages_inc();
@@ -496,20 +457,13 @@ static struct notifier_block cmm_reboot_nb = {
 static unsigned long cmm_count_pages(void *arg)
 {
 	struct memory_isolate_notify *marg = arg;
-	struct cmm_page_array *pa;
-	unsigned long start = (unsigned long)pfn_to_kaddr(marg->start_pfn);
-	unsigned long end = start + (marg->nr_pages << PAGE_SHIFT);
-	unsigned long idx;
+	struct page *page;
 
 	spin_lock(&cmm_lock);
-	pa = cmm_page_list;
-	while (pa) {
-		if ((unsigned long)pa >= start && (unsigned long)pa < end)
+	list_for_each_entry(page, &cmm_page_list, lru) {
+		if (page_to_pfn(page) >= marg->start_pfn &&
+		    page_to_pfn(page) < marg->start_pfn + marg->nr_pages)
 			marg->pages_found++;
-		for (idx = 0; idx < pa->index; idx++)
-			if (pa->page[idx] >= start && pa->page[idx] < end)
-				marg->pages_found++;
-		pa = pa->next;
 	}
 	spin_unlock(&cmm_lock);
 	return 0;
@@ -550,69 +504,24 @@ static struct notifier_block cmm_mem_isolate_nb = {
 static int cmm_mem_going_offline(void *arg)
 {
 	struct memory_notify *marg = arg;
-	unsigned long start_page = (unsigned long)pfn_to_kaddr(marg->start_pfn);
-	unsigned long end_page = start_page + (marg->nr_pages << PAGE_SHIFT);
-	struct cmm_page_array *pa_curr, *pa_last, *npa;
-	unsigned long idx;
+	struct page *page, *tmp;
 	unsigned long freed = 0;
 
-	cmm_dbg("Memory going offline, searching 0x%lx (%ld pages).\n",
-			start_page, marg->nr_pages);
+	cmm_dbg("Memory going offline, searching PFN 0x%lx (%ld pages).\n",
+		marg->start_pfn, marg->nr_pages);
 	spin_lock(&cmm_lock);
 
 	/* Search the page list for pages in the range to be offlined */
-	pa_last = pa_curr = cmm_page_list;
-	while (pa_curr) {
-		for (idx = (pa_curr->index - 1); (idx + 1) > 0; idx--) {
-			if ((pa_curr->page[idx] < start_page) ||
-			    (pa_curr->page[idx] >= end_page))
-				continue;
-
-			plpar_page_set_active(__pa(pa_curr->page[idx]));
-			free_page(pa_curr->page[idx]);
-			freed++;
-			loaned_pages--;
-			totalram_pages_inc();
-			pa_curr->page[idx] = pa_last->page[--pa_last->index];
-			if (pa_last->index == 0) {
-				if (pa_curr == pa_last)
-					pa_curr = pa_last->next;
-				pa_last = pa_last->next;
-				free_page((unsigned long)cmm_page_list);
-				cmm_page_list = pa_last;
-			}
-		}
-		pa_curr = pa_curr->next;
-	}
-
-	/* Search for page list structures in the range to be offlined */
-	pa_last = NULL;
-	pa_curr = cmm_page_list;
-	while (pa_curr) {
-		if (((unsigned long)pa_curr >= start_page) &&
-				((unsigned long)pa_curr < end_page)) {
-			npa = (struct cmm_page_array *)__get_free_page(
-					GFP_NOIO | __GFP_NOWARN |
-					__GFP_NORETRY | __GFP_NOMEMALLOC);
-			if (!npa) {
-				spin_unlock(&cmm_lock);
-				cmm_dbg("Failed to allocate memory for list "
-						"management. Memory hotplug "
-						"failed.\n");
-				return -ENOMEM;
-			}
-			memcpy(npa, pa_curr, PAGE_SIZE);
-			if (pa_curr == cmm_page_list)
-				cmm_page_list = npa;
-			if (pa_last)
-				pa_last->next = npa;
-			free_page((unsigned long) pa_curr);
-			freed++;
-			pa_curr = npa;
-		}
-
-		pa_last = pa_curr;
-		pa_curr = pa_curr->next;
+	list_for_each_entry_safe(page, tmp, &cmm_page_list, lru) {
+		if (page_to_pfn(page) < marg->start_pfn ||
+		    page_to_pfn(page) >= marg->start_pfn + marg->nr_pages)
+			continue;
+		plpar_page_set_active(page);
+		list_del(&page->lru);
+		__free_page(page);
+		freed++;
+		loaned_pages--;
+		totalram_pages_inc();
 	}
 
 	spin_unlock(&cmm_lock);
