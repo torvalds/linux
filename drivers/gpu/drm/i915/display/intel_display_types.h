@@ -523,7 +523,11 @@ struct intel_atomic_state {
 };
 
 struct intel_plane_state {
-	struct drm_plane_state base;
+	union {
+		struct drm_plane_state base;
+		struct drm_plane_state uapi;
+		struct drm_plane_state hw;
+	};
 	struct i915_ggtt_view view;
 	struct i915_vma *vma;
 	unsigned long flags;
@@ -1143,7 +1147,7 @@ struct cxsr_latency {
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 #define to_intel_plane(x) container_of(x, struct intel_plane, base)
-#define to_intel_plane_state(x) container_of(x, struct intel_plane_state, base)
+#define to_intel_plane_state(x) container_of(x, struct intel_plane_state, uapi)
 #define intel_fb_obj(x) ((x) ? to_intel_bo((x)->obj[0]) : NULL)
 
 struct intel_hdmi {

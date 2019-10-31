@@ -80,22 +80,20 @@ void intel_plane_free(struct intel_plane *plane)
 struct drm_plane_state *
 intel_plane_duplicate_state(struct drm_plane *plane)
 {
-	struct drm_plane_state *state;
 	struct intel_plane_state *intel_state;
 
-	intel_state = kmemdup(plane->state, sizeof(*intel_state), GFP_KERNEL);
+	intel_state = to_intel_plane_state(plane->state);
+	intel_state = kmemdup(intel_state, sizeof(*intel_state), GFP_KERNEL);
 
 	if (!intel_state)
 		return NULL;
 
-	state = &intel_state->base;
-
-	__drm_atomic_helper_plane_duplicate_state(plane, state);
+	__drm_atomic_helper_plane_duplicate_state(plane, &intel_state->base);
 
 	intel_state->vma = NULL;
 	intel_state->flags = 0;
 
-	return state;
+	return &intel_state->base;
 }
 
 /**
@@ -110,9 +108,11 @@ void
 intel_plane_destroy_state(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
-	WARN_ON(to_intel_plane_state(state)->vma);
+	struct intel_plane_state *plane_state = to_intel_plane_state(state);
+	WARN_ON(plane_state->vma);
 
-	drm_atomic_helper_plane_destroy_state(plane, state);
+	__drm_atomic_helper_plane_destroy_state(&plane_state->base);
+	kfree(plane_state);
 }
 
 unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
