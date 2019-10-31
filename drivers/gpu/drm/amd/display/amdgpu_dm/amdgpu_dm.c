@@ -5584,12 +5584,6 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 			drm_connector_attach_content_protection_property(&aconnector->base, false);
 #endif
 	}
-
-#if defined(CONFIG_DEBUG_FS)
-	connector_debugfs_init(aconnector);
-	aconnector->debugfs_dpcd_address = 0;
-	aconnector->debugfs_dpcd_size = 0;
-#endif
 }
 
 static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
@@ -5712,8 +5706,6 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 			&aconnector->base,
 			&amdgpu_dm_connector_helper_funcs);
 
-	drm_connector_register(&aconnector->base);
-
 	amdgpu_dm_connector_init_helper(
 		dm,
 		aconnector,
@@ -5723,6 +5715,13 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 
 	drm_connector_attach_encoder(
 		&aconnector->base, &aencoder->base);
+
+	drm_connector_register(&aconnector->base);
+#if defined(CONFIG_DEBUG_FS)
+	connector_debugfs_init(aconnector);
+	aconnector->debugfs_dpcd_address = 0;
+	aconnector->debugfs_dpcd_size = 0;
+#endif
 
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort
 		|| connector_type == DRM_MODE_CONNECTOR_eDP)

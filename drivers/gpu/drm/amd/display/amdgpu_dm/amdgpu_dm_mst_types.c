@@ -36,7 +36,9 @@
 #include "dc_link_ddc.h"
 
 #include "i2caux_interface.h"
-
+#if defined(CONFIG_DEBUG_FS)
+#include "amdgpu_dm_debugfs.h"
+#endif
 /* #define TRACE_DPCD */
 
 #ifdef TRACE_DPCD
@@ -146,6 +148,12 @@ amdgpu_dm_mst_connector_late_register(struct drm_connector *connector)
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 		to_amdgpu_dm_connector(connector);
 	struct drm_dp_mst_port *port = amdgpu_dm_connector->port;
+
+#if defined(CONFIG_DEBUG_FS)
+	connector_debugfs_init(amdgpu_dm_connector);
+	amdgpu_dm_connector->debugfs_dpcd_address = 0;
+	amdgpu_dm_connector->debugfs_dpcd_size = 0;
+#endif
 
 	return drm_dp_mst_connector_late_register(connector, port);
 }
