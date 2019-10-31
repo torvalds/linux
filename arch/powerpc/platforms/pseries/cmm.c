@@ -38,12 +38,8 @@
 #define CMM_MIN_MEM_MB		256
 #define KB2PAGES(_p)		((_p)>>(PAGE_SHIFT-10))
 #define PAGES2KB(_p)		((_p)<<(PAGE_SHIFT-10))
-/*
- * The priority level tries to ensure that this notifier is called as
- * late as possible to reduce thrashing in the shared memory pool.
- */
+
 #define CMM_MEM_HOTPLUG_PRI	1
-#define CMM_MEM_ISOLATE_PRI	15
 
 static unsigned int delay = CMM_DEFAULT_DELAY;
 static unsigned int hotplug_delay = CMM_HOTPLUG_DELAY;
@@ -447,90 +443,6 @@ static struct notifier_block cmm_reboot_nb = {
 };
 
 /**
- * cmm_count_pages - Count the number of pages loaned in a particular range.
- *
- * @arg: memory_isolate_notify structure with address range and count
- *
- * Return value:
- *      0 on success
- **/
-static unsigned long cmm_count_pages(void *arg)
-{
-	struct memory_isolate_notify *marg = arg;
-	struct page *page;
-
-	spin_lock(&cmm_lock);
-	list_for_each_entry(page, &cmm_page_list, lru) {
-		if (page_to_pfn(page) >= marg->start_pfn &&
-		    page_to_pfn(page) < marg->start_pfn + marg->nr_pages)
-			marg->pages_found++;
-	}
-	spin_unlock(&cmm_lock);
-	return 0;
-}
-
-/**
- * cmm_memory_isolate_cb - Handle memory isolation notifier calls
- * @self:	notifier block struct
- * @action:	action to take
- * @arg:	struct memory_isolate_notify data for handler
- *
- * Return value:
- *	NOTIFY_OK or notifier error based on subfunction return value
- **/
-static int cmm_memory_isolate_cb(struct notifier_block *self,
-				 unsigned long action, void *arg)
-{
-	int ret = 0;
-
-	if (action == MEM_ISOLATE_COUNT)
-		ret = cmm_count_pages(arg);
-
-	return notifier_from_errno(ret);
-}
-
-static struct notifier_block cmm_mem_isolate_nb = {
-	.notifier_call = cmm_memory_isolate_cb,
-	.priority = CMM_MEM_ISOLATE_PRI
-};
-
-/**
- * cmm_mem_going_offline - Unloan pages where memory is to be removed
- * @arg: memory_notify structure with page range to be offlined
- *
- * Return value:
- *	0 on success
- **/
-static int cmm_mem_going_offline(void *arg)
-{
-	struct memory_notify *marg = arg;
-	struct page *page, *tmp;
-	unsigned long freed = 0;
-
-	cmm_dbg("Memory going offline, searching PFN 0x%lx (%ld pages).\n",
-		marg->start_pfn, marg->nr_pages);
-	spin_lock(&cmm_lock);
-
-	/* Search the page list for pages in the range to be offlined */
-	list_for_each_entry_safe(page, tmp, &cmm_page_list, lru) {
-		if (page_to_pfn(page) < marg->start_pfn ||
-		    page_to_pfn(page) >= marg->start_pfn + marg->nr_pages)
-			continue;
-		plpar_page_set_active(page);
-		list_del(&page->lru);
-		adjust_managed_page_count(page, 1);
-		__free_page(page);
-		freed++;
-		loaned_pages--;
-	}
-
-	spin_unlock(&cmm_lock);
-	cmm_dbg("Released %ld pages in the search range.\n", freed);
-
-	return 0;
-}
-
-/**
  * cmm_memory_cb - Handle memory hotplug notifier calls
  * @self:	notifier block struct
  * @action:	action to take
@@ -549,7 +461,6 @@ static int cmm_memory_cb(struct notifier_block *self,
 	case MEM_GOING_OFFLINE:
 		mutex_lock(&hotplug_mutex);
 		hotplug_occurred = 1;
-		ret = cmm_mem_going_offline(arg);
 		break;
 	case MEM_OFFLINE:
 	case MEM_CANCEL_OFFLINE:
@@ -596,10 +507,6 @@ static int cmm_init(void)
 	if (rc)
 		goto out_unregister_notifier;
 
-	rc = register_memory_isolate_notifier(&cmm_mem_isolate_nb);
-	if (rc)
-		goto out_unregister_notifier;
-
 	if (cmm_disabled)
 		return 0;
 
@@ -612,7 +519,6 @@ static int cmm_init(void)
 	return 0;
 out_unregister_notifier:
 	unregister_memory_notifier(&cmm_mem_nb);
-	unregister_memory_isolate_notifier(&cmm_mem_isolate_nb);
 	cmm_unregister_sysfs(&cmm_dev);
 out_reboot_notifier:
 	unregister_reboot_notifier(&cmm_reboot_nb);
@@ -634,7 +540,6 @@ static void cmm_exit(void)
 	unregister_oom_notifier(&cmm_oom_nb);
 	unregister_reboot_notifier(&cmm_reboot_nb);
 	unregister_memory_notifier(&cmm_mem_nb);
-	unregister_memory_isolate_notifier(&cmm_mem_isolate_nb);
 	cmm_free_pages(loaned_pages);
 	cmm_unregister_sysfs(&cmm_dev);
 }
