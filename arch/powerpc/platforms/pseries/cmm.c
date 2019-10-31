@@ -669,7 +669,7 @@ static struct notifier_block cmm_mem_nb = {
  **/
 static int cmm_init(void)
 {
-	int rc = -ENOMEM;
+	int rc;
 
 	if (!firmware_has_feature(FW_FEATURE_CMO))
 		return -EOPNOTSUPP;
@@ -692,7 +692,7 @@ static int cmm_init(void)
 		goto out_unregister_notifier;
 
 	if (cmm_disabled)
-		return rc;
+		return 0;
 
 	cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
 	if (IS_ERR(cmm_thread_ptr)) {
@@ -700,8 +700,7 @@ static int cmm_init(void)
 		goto out_unregister_notifier;
 	}
 
-	return rc;
-
+	return 0;
 out_unregister_notifier:
 	unregister_memory_notifier(&cmm_mem_nb);
 	unregister_memory_isolate_notifier(&cmm_mem_isolate_nb);
