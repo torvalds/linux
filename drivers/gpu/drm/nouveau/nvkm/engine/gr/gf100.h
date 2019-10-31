@@ -157,7 +157,6 @@ struct gf100_gr_func_zbc {
 };
 
 struct gf100_gr_func {
-	void (*dtor)(struct gf100_gr *);
 	void (*oneinit_tiles)(struct gf100_gr *);
 	void (*oneinit_sm_id)(struct gf100_gr *);
 	int (*init)(struct gf100_gr *);

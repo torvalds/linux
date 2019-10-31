@@ -2031,8 +2031,6 @@ gf100_gr_dtor(struct nvkm_gr *base)
 {
 	struct gf100_gr *gr = gf100_gr(base);
 
-	if (gr->func->dtor)
-		gr->func->dtor(gr);
 	kfree(gr->data);
 
 	nvkm_falcon_del(&gr->gpccs.falcon);
