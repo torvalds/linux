@@ -42,8 +42,8 @@ typedef struct svc_fh {
 
 	/* Pre-op attributes saved during fh_lock */
 	__u64			fh_pre_size;	/* size before operation */
-	struct timespec		fh_pre_mtime;	/* mtime before oper */
-	struct timespec		fh_pre_ctime;	/* ctime before oper */
+	struct timespec64	fh_pre_mtime;	/* mtime before oper */
+	struct timespec64	fh_pre_ctime;	/* ctime before oper */
 	/*
 	 * pre-op nfsv4 change attr: note must check IS_I_VERSION(inode)
 	 *  to find out if it is valid.
