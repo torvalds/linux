@@ -268,7 +268,7 @@ struct drm_device *drm_device_get_by_name(const char *name)
 	for (i = 0; i < 64; i++) {
 		struct drm_minor *minor;
 
-		minor = drm_minor_acquire(i + DRM_MINOR_CONTROL);
+		minor = drm_minor_acquire(i + DRM_MINOR_PRIMARY);
 		if (IS_ERR(minor))
 			continue;
 		if (!minor->dev || !minor->dev->driver ||
