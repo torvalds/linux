@@ -2777,7 +2777,7 @@ static void hclge_update_port_capability(struct hclge_mac *mac)
 	else if (mac->media_type == HNAE3_MEDIA_TYPE_COPPER)
 		mac->module_type = HNAE3_MODULE_TYPE_TP;
 
-	if (mac->support_autoneg == true) {
+	if (mac->support_autoneg) {
 		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, mac->supported);
 		linkmode_copy(mac->advertising, mac->supported);
 	} else {
@@ -3855,12 +3855,13 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 				  HCLGE_RESET_INTERVAL))) {
 		mod_timer(&hdev->reset_timer, jiffies + HCLGE_RESET_INTERVAL);
 		return;
-	} else if (hdev->default_reset_request)
+	} else if (hdev->default_reset_request) {
 		hdev->reset_level =
 			hclge_get_reset_level(ae_dev,
 					      &hdev->default_reset_request);
-	else if (time_after(jiffies, (hdev->last_reset_time + 4 * 5 * HZ)))
+	} else if (time_after(jiffies, (hdev->last_reset_time + 4 * 5 * HZ))) {
 		hdev->reset_level = HNAE3_FUNC_RESET;
+	}
 
 	dev_info(&hdev->pdev->dev, "received reset event, reset type is %d\n",
 		 hdev->reset_level);
@@ -3985,6 +3986,7 @@ static void hclge_service_task(struct work_struct *work)
 	hclge_update_link_status(hdev);
 	hclge_update_vport_alive(hdev);
 	hclge_sync_vlan_filter(hdev);
+
 	if (hdev->fd_arfs_expire_timer >= HCLGE_FD_ARFS_EXPIRE_TIMER_INTERVAL) {
 		hclge_rfs_filter_expire(hdev);
 		hdev->fd_arfs_expire_timer = 0;
@@ -7409,7 +7411,7 @@ void hclge_rm_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,
 	mc_flag = is_write_tbl && mac_type == HCLGE_MAC_ADDR_MC;
 
 	list_for_each_entry_safe(mac_cfg, tmp, list, node) {
-		if (strncmp(mac_cfg->mac_addr, mac_addr, ETH_ALEN) == 0) {
+		if (ether_addr_equal(mac_cfg->mac_addr, mac_addr)) {
 			if (uc_flag && mac_cfg->hd_tbl_status)
 				hclge_rm_uc_addr_common(vport, mac_addr);
 
@@ -9093,7 +9095,6 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 
 		switch (client->type) {
 		case HNAE3_CLIENT_KNIC:
-
 			hdev->nic_client = client;
 			vport->nic.client = client;
 			ret = hclge_init_nic_client_instance(ae_dev, vport);

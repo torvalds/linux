@@ -145,7 +145,7 @@ static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 		return;
 	}
 
-	buf_len	 = sizeof(struct hclge_desc) * bd_num;
+	buf_len	= sizeof(struct hclge_desc) * bd_num;
 	desc_src = kzalloc(buf_len, GFP_KERNEL);
 	if (!desc_src) {
 		dev_err(&hdev->pdev->dev, "call kzalloc failed\n");
@@ -153,7 +153,7 @@ static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 	}
 
 	desc = desc_src;
-	ret  = hclge_dbg_cmd_send(hdev, desc, index, bd_num, reg_msg->cmd);
+	ret = hclge_dbg_cmd_send(hdev, desc, index, bd_num, reg_msg->cmd);
 	if (ret) {
 		kfree(desc_src);
 		return;

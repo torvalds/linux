@@ -2170,7 +2170,6 @@ static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 		ret = hclgevf_set_rss_input_tuple(hdev, rss_cfg);
 		if (ret)
 			return ret;
-
 	}
 
 	/* Initialize RSS indirect table */

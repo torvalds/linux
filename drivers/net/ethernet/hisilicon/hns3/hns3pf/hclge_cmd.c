@@ -314,11 +314,10 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 		} while (timeout < hw->cmq.tx_timeout);
 	}
 
-	if (!complete) {
+	if (!complete)
 		retval = -EBADE;
-	} else {
+	else
 		retval = hclge_cmd_check_retval(hw, desc, num, ntc);
-	}
 
 	/* Clean the command send queue */
 	handle = hclge_cmd_csq_clean(hw);
