@@ -94,5 +94,6 @@
 #define ZSMALLOC_MAGIC		0x58295829
 #define DMA_BUF_MAGIC		0x444d4142	/* "DMAB" */
 #define Z3FOLD_MAGIC		0x33
+#define PPC_CMM_MAGIC		0xc7571590
 
 #endif /* __LINUX_MAGIC_H__ */

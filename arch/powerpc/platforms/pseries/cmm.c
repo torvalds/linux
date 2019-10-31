@@ -19,6 +19,10 @@
 #include <linux/stringify.h>
 #include <linux/swap.h>
 #include <linux/device.h>
+#include <linux/mount.h>
+#include <linux/pseudo_fs.h>
+#include <linux/magic.h>
+#include <linux/balloon_compaction.h>
 #include <asm/firmware.h>
 #include <asm/hvcall.h>
 #include <asm/mmu.h>
@@ -77,13 +81,11 @@ static atomic_long_t loaned_pages;
 static unsigned long loaned_pages_target;
 static unsigned long oom_freed_pages;
 
-static LIST_HEAD(cmm_page_list);
-static DEFINE_SPINLOCK(cmm_lock);
-
 static DEFINE_MUTEX(hotplug_mutex);
 static int hotplug_occurred; /* protected by the hotplug mutex */
 
 static struct task_struct *cmm_thread_ptr;
+static struct balloon_dev_info b_dev_info;
 
 static long plpar_page_set_loaned(struct page *page)
 {
@@ -149,19 +151,16 @@ static long cmm_alloc_pages(long nr)
 				  __GFP_NOMEMALLOC);
 		if (!page)
 			break;
-		spin_lock(&cmm_lock);
 		rc = plpar_page_set_loaned(page);
 		if (rc) {
 			pr_err("%s: Can not set page to loaned. rc=%ld\n", __func__, rc);
-			spin_unlock(&cmm_lock);
 			__free_page(page);
 			break;
 		}
 
-		list_add(&page->lru, &cmm_page_list);
+		balloon_page_enqueue(&b_dev_info, page);
 		atomic_long_inc(&loaned_pages);
 		adjust_managed_page_count(page, -1);
-		spin_unlock(&cmm_lock);
 		nr--;
 	}
 
@@ -178,21 +177,19 @@ static long cmm_alloc_pages(long nr)
  **/
 static long cmm_free_pages(long nr)
 {
-	struct page *page, *tmp;
+	struct page *page;
 
 	cmm_dbg("Begin free of %ld pages.\n", nr);
-	spin_lock(&cmm_lock);
-	list_for_each_entry_safe(page, tmp, &cmm_page_list, lru) {
-		if (!nr)
+	while (nr) {
+		page = balloon_page_dequeue(&b_dev_info);
+		if (!page)
 			break;
 		plpar_page_set_active(page);
-		list_del(&page->lru);
 		adjust_managed_page_count(page, 1);
 		__free_page(page);
 		atomic_long_dec(&loaned_pages);
 		nr--;
 	}
-	spin_unlock(&cmm_lock);
 	cmm_dbg("End request with %ld pages unfulfilled\n", nr);
 	return nr;
 }
@@ -484,6 +481,106 @@ static struct notifier_block cmm_mem_nb = {
 	.priority = CMM_MEM_HOTPLUG_PRI
 };
 
+#ifdef CONFIG_BALLOON_COMPACTION
+static struct vfsmount *balloon_mnt;
+
+static int cmm_init_fs_context(struct fs_context *fc)
+{
+	return init_pseudo(fc, PPC_CMM_MAGIC) ? 0 : -ENOMEM;
+}
+
+static struct file_system_type balloon_fs = {
+	.name = "ppc-cmm",
+	.init_fs_context = cmm_init_fs_context,
+	.kill_sb = kill_anon_super,
+};
+
+static int cmm_migratepage(struct balloon_dev_info *b_dev_info,
+			   struct page *newpage, struct page *page,
+			   enum migrate_mode mode)
+{
+	unsigned long flags;
+
+	/*
+	 * loan/"inflate" the newpage first.
+	 *
+	 * We might race against the cmm_thread who might discover after our
+	 * loan request that another page is to be unloaned. However, once
+	 * the cmm_thread runs again later, this error will automatically
+	 * be corrected.
+	 */
+	if (plpar_page_set_loaned(newpage)) {
+		/* Unlikely, but possible. Tell the caller not to retry now. */
+		pr_err_ratelimited("%s: Cannot set page to loaned.", __func__);
+		return -EBUSY;
+	}
+
+	/* balloon page list reference */
+	get_page(newpage);
+
+	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+	balloon_page_insert(b_dev_info, newpage);
+	balloon_page_delete(page);
+	b_dev_info->isolated_pages--;
+	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+
+	/*
+	 * activate/"deflate" the old page. We ignore any errors just like the
+	 * other callers.
+	 */
+	plpar_page_set_active(page);
+
+	/* balloon page list reference */
+	put_page(page);
+
+	return MIGRATEPAGE_SUCCESS;
+}
+
+static int cmm_balloon_compaction_init(void)
+{
+	int rc;
+
+	balloon_devinfo_init(&b_dev_info);
+	b_dev_info.migratepage = cmm_migratepage;
+
+	balloon_mnt = kern_mount(&balloon_fs);
+	if (IS_ERR(balloon_mnt)) {
+		rc = PTR_ERR(balloon_mnt);
+		balloon_mnt = NULL;
+		return rc;
+	}
+
+	b_dev_info.inode = alloc_anon_inode(balloon_mnt->mnt_sb);
+	if (IS_ERR(b_dev_info.inode)) {
+		rc = PTR_ERR(b_dev_info.inode);
+		b_dev_info.inode = NULL;
+		kern_unmount(balloon_mnt);
+		balloon_mnt = NULL;
+		return rc;
+	}
+
+	b_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+	return 0;
+}
+static void cmm_balloon_compaction_deinit(void)
+{
+	if (b_dev_info.inode)
+		iput(b_dev_info.inode);
+	b_dev_info.inode = NULL;
+	kern_unmount(balloon_mnt);
+	balloon_mnt = NULL;
+}
+#else /* CONFIG_BALLOON_COMPACTION */
+static int cmm_balloon_compaction_init(void)
+{
+	return 0;
+}
+
+static void cmm_balloon_compaction_deinit(void)
+{
+}
+#endif /* CONFIG_BALLOON_COMPACTION */
+
 /**
  * cmm_init - Module initialization
  *
@@ -497,8 +594,13 @@ static int cmm_init(void)
 	if (!firmware_has_feature(FW_FEATURE_CMO))
 		return -EOPNOTSUPP;
 
-	if ((rc = register_oom_notifier(&cmm_oom_nb)) < 0)
+	rc = cmm_balloon_compaction_init();
+	if (rc)
 		return rc;
+
+	rc = register_oom_notifier(&cmm_oom_nb);
+	if (rc < 0)
+		goto out_balloon_compaction;
 
 	if ((rc = register_reboot_notifier(&cmm_reboot_nb)))
 		goto out_oom_notifier;
@@ -527,6 +629,8 @@ out_reboot_notifier:
 	unregister_reboot_notifier(&cmm_reboot_nb);
 out_oom_notifier:
 	unregister_oom_notifier(&cmm_oom_nb);
+out_balloon_compaction:
+	cmm_balloon_compaction_deinit();
 	return rc;
 }
 
@@ -545,6 +649,7 @@ static void cmm_exit(void)
 	unregister_memory_notifier(&cmm_mem_nb);
 	cmm_free_pages(atomic_long_read(&loaned_pages));
 	cmm_unregister_sysfs(&cmm_dev);
+	cmm_balloon_compaction_deinit();
 }
 
 /**
