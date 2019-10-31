@@ -1406,7 +1406,8 @@ static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 
 	if (!bnxt_tc_can_offload(bp, flow)) {
 		rc = -EOPNOTSUPP;
-		goto free_node;
+		kfree_rcu(new_node, rcu);
+		return rc;
 	}
 
 	/* If a flow exists with the same cookie, delete it */
