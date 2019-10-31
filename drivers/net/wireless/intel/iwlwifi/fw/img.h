@@ -251,7 +251,7 @@ struct iwl_fw_dbg {
 struct iwl_fw {
 	u32 ucode_ver;
 
-	char fw_version[ETHTOOL_FWVERS_LEN];
+	char fw_version[64];
 
 	/* ucode images */
 	struct fw_img img[IWL_UCODE_TYPE_MAX];
