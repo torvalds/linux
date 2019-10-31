@@ -236,13 +236,13 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
 			       ipv4_encap_size, max_encap_size);
 		err = -EOPNOTSUPP;
-		goto out;
+		goto release_neigh;
 	}
 
 	encap_header = kzalloc(ipv4_encap_size, GFP_KERNEL);
 	if (!encap_header) {
 		err = -ENOMEM;
-		goto out;
+		goto release_neigh;
 	}
 
 	/* used by mlx5e_detach_encap to lookup a neigh hash table
@@ -294,7 +294,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 		/* the encap entry will be made valid on neigh update event
 		 * and not used before that.
 		 */
-		goto out;
+		goto release_neigh;
 	}
 	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
 						     e->reformat_type,
@@ -314,9 +314,8 @@ destroy_neigh_entry:
 	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
 free_encap:
 	kfree(encap_header);
-out:
-	if (n)
-		neigh_release(n);
+release_neigh:
+	neigh_release(n);
 	return err;
 }
 
@@ -355,13 +354,13 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
 			       ipv6_encap_size, max_encap_size);
 		err = -EOPNOTSUPP;
-		goto out;
+		goto release_neigh;
 	}
 
 	encap_header = kzalloc(ipv6_encap_size, GFP_KERNEL);
 	if (!encap_header) {
 		err = -ENOMEM;
-		goto out;
+		goto release_neigh;
 	}
 
 	/* used by mlx5e_detach_encap to lookup a neigh hash table
@@ -412,7 +411,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 		/* the encap entry will be made valid on neigh update event
 		 * and not used before that.
 		 */
-		goto out;
+		goto release_neigh;
 	}
 
 	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
@@ -433,9 +432,8 @@ destroy_neigh_entry:
 	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
 free_encap:
 	kfree(encap_header);
-out:
-	if (n)
-		neigh_release(n);
+release_neigh:
+	neigh_release(n);
 	return err;
 }
 
