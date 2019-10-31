@@ -12592,6 +12592,8 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 
 	/* Keep base drm_crtc_state intact, only clear our extended struct */
 	BUILD_BUG_ON(offsetof(struct intel_crtc_state, base));
+	BUILD_BUG_ON(offsetof(struct intel_crtc_state, uapi));
+	BUILD_BUG_ON(offsetof(struct intel_crtc_state, hw));
 	memcpy(&crtc_state->base + 1, &saved_state->base + 1,
 	       sizeof(*crtc_state) - sizeof(crtc_state->base));
 

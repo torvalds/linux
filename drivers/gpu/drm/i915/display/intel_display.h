@@ -447,10 +447,10 @@ enum phy_fia {
 #define intel_atomic_crtc_state_for_each_plane_state( \
 		  plane, plane_state, \
 		  crtc_state) \
-	for_each_intel_plane_mask(((crtc_state)->base.state->dev), (plane), \
-				((crtc_state)->base.plane_mask)) \
+	for_each_intel_plane_mask(((crtc_state)->uapi.state->dev), (plane), \
+				((crtc_state)->uapi.plane_mask)) \
 		for_each_if ((plane_state = \
-			      to_intel_plane_state(__drm_atomic_get_current_plane_state((crtc_state)->base.state, &plane->base))))
+			      to_intel_plane_state(__drm_atomic_get_current_plane_state((crtc_state)->uapi.state, &plane->base))))
 
 void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    int pixel_clock, int link_clock,

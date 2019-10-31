@@ -757,7 +757,32 @@ enum intel_output_format {
 };
 
 struct intel_crtc_state {
+	union {
 	struct drm_crtc_state base;
+	/*
+	 * uapi (drm) state. This is the software state shown to userspace.
+	 * In particular, the following members are used for bookkeeping:
+	 * - crtc
+	 * - state
+	 * - *_changed
+	 * - event
+	 * - commit
+	 * - mode_blob
+	 */
+	struct drm_crtc_state uapi;
+
+	/*
+	 * actual hardware state, the state we program to the hardware.
+	 * The following members are used to verify the hardware state:
+	 * - enable
+	 * - active
+	 * - mode / adjusted_mode
+	 * - color property blobs.
+	 *
+	 * During initial hw readout, they need to be copied to uapi.
+	 */
+	struct drm_crtc_state hw;
+	};
 
 	/**
 	 * quirks - bitfield with hw state readout quirks
@@ -1112,7 +1137,7 @@ struct cxsr_latency {
 
 #define to_intel_atomic_state(x) container_of(x, struct intel_atomic_state, base)
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
-#define to_intel_crtc_state(x) container_of(x, struct intel_crtc_state, base)
+#define to_intel_crtc_state(x) container_of(x, struct intel_crtc_state, uapi)
 #define to_intel_connector(x) container_of(x, struct intel_connector, base)
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)

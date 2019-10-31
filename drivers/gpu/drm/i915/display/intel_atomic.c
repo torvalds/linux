@@ -186,9 +186,10 @@ intel_digital_connector_duplicate_state(struct drm_connector *connector)
 struct drm_crtc_state *
 intel_crtc_duplicate_state(struct drm_crtc *crtc)
 {
+	const struct intel_crtc_state *old_crtc_state = to_intel_crtc_state(crtc->state);
 	struct intel_crtc_state *crtc_state;
 
-	crtc_state = kmemdup(crtc->state, sizeof(*crtc_state), GFP_KERNEL);
+	crtc_state = kmemdup(old_crtc_state, sizeof(*crtc_state), GFP_KERNEL);
 	if (!crtc_state)
 		return NULL;
 
@@ -219,7 +220,10 @@ void
 intel_crtc_destroy_state(struct drm_crtc *crtc,
 			 struct drm_crtc_state *state)
 {
-	drm_atomic_helper_crtc_destroy_state(crtc, state);
+	struct intel_crtc_state *crtc_state = to_intel_crtc_state(state);
+
+	__drm_atomic_helper_crtc_destroy_state(&crtc_state->base);
+	kfree(crtc_state);
 }
 
 static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_state,
