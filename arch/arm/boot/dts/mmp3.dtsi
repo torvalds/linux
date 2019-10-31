@@ -517,7 +517,7 @@
 			reg = <0xe0000600 0x20>;
 		};
 
-		watchdog@2c000620 {
+		watchdog@e0000620 {
 			compatible = "arm,arm11mp-twd-wdt";
 			reg = <0xe0000620 0x20>;
 			interrupts = <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) |
