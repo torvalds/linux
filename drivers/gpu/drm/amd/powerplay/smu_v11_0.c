@@ -1463,16 +1463,13 @@ int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
 	return ret;
 }
 
-#define XGMI_STATE_D0 1
-#define XGMI_STATE_D3 0
-
 int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 				     uint32_t pstate)
 {
 	int ret = 0;
 	ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_SetXgmiMode,
-					  pstate ? XGMI_STATE_D0 : XGMI_STATE_D3);
+					  pstate ? XGMI_MODE_PSTATE_D0 : XGMI_MODE_PSTATE_D3);
 	return ret;
 }
 

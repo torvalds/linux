@@ -285,6 +285,11 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 
 	if (is_support_sw_smu_xgmi(adev))
 		ret = smu_set_xgmi_pstate(&adev->smu, pstate);
+	else if (adev->powerplay.pp_funcs &&
+		 adev->powerplay.pp_funcs->set_xgmi_pstate)
+		ret = adev->powerplay.pp_funcs->set_xgmi_pstate(adev->powerplay.pp_handle,
+								pstate);
+
 	if (ret)
 		dev_err(adev->dev,
 			"XGMI: Set pstate failure on device %llx, hive %llx, ret %d",
