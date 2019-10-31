@@ -2341,7 +2341,8 @@ static void rt1011_calibration_work(struct work_struct *work)
 	rt1011_reg_init(component);
 
 	/* Apply temperature and calibration data from device property */
-	if (rt1011->temperature_calib) {
+	if (rt1011->temperature_calib <= 0xff &&
+		rt1011->temperature_calib > 0) {
 		snd_soc_component_update_bits(component,
 			RT1011_STP_INITIAL_RESISTANCE_TEMP, 0x3ff,
 			(rt1011->temperature_calib << 2));
