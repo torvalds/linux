@@ -45,7 +45,7 @@ void percpu_free_rwsem(struct percpu_rw_semaphore *sem)
 }
 EXPORT_SYMBOL_GPL(percpu_free_rwsem);
 
-bool __percpu_down_read(struct percpu_rw_semaphore *sem, bool try)
+static bool __percpu_down_read_trylock(struct percpu_rw_semaphore *sem)
 {
 	__this_cpu_inc(*sem->read_count);
 
@@ -73,11 +73,18 @@ bool __percpu_down_read(struct percpu_rw_semaphore *sem, bool try)
 	if (likely(!smp_load_acquire(&sem->readers_block)))
 		return true;
 
-	/*
-	 * Per the above comment; we still have preemption disabled and
-	 * will thus decrement on the same CPU as we incremented.
-	 */
-	__percpu_up_read(sem);
+	__this_cpu_dec(*sem->read_count);
+
+	/* Prod writer to re-evaluate readers_active_check() */
+	rcuwait_wake_up(&sem->writer);
+
+	return false;
+}
+
+bool __percpu_down_read(struct percpu_rw_semaphore *sem, bool try)
+{
+	if (__percpu_down_read_trylock(sem))
+		return true;
 
 	if (try)
 		return false;
