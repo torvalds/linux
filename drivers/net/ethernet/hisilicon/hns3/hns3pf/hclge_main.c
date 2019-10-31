@@ -8552,6 +8552,7 @@ int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu)
 	struct hclge_dev *hdev = vport->back;
 	int i, max_frm_size, ret;
 
+	/* HW supprt 2 layer vlan */
 	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
 	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
 	    max_frm_size > HCLGE_MAC_MAX_FRAME)
@@ -9314,6 +9315,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hdev->reset_type = HNAE3_NONE_RESET;
 	hdev->reset_level = HNAE3_FUNC_RESET;
 	ae_dev->priv = hdev;
+
+	/* HW supprt 2 layer vlan */
 	hdev->mps = ETH_FRAME_LEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
 
 	mutex_init(&hdev->vport_lock);
