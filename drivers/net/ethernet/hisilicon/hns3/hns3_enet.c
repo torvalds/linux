@@ -2002,7 +2002,7 @@ bool hns3_is_phys_func(struct pci_dev *pdev)
 	case HNAE3_DEV_ID_100G_RDMA_DCB_PFC_VF:
 		return false;
 	default:
-		dev_warn(&pdev->dev, "un-recognized pci device-id %d",
+		dev_warn(&pdev->dev, "un-recognized pci device-id %u",
 			 dev_id);
 	}
 
@@ -3939,14 +3939,14 @@ static void hns3_info_show(struct hns3_nic_priv *priv)
 	struct hnae3_knic_private_info *kinfo = &priv->ae_handle->kinfo;
 
 	dev_info(priv->dev, "MAC address: %pM\n", priv->netdev->dev_addr);
-	dev_info(priv->dev, "Task queue pairs numbers: %d\n", kinfo->num_tqps);
-	dev_info(priv->dev, "RSS size: %d\n", kinfo->rss_size);
-	dev_info(priv->dev, "Allocated RSS size: %d\n", kinfo->req_rss_size);
-	dev_info(priv->dev, "RX buffer length: %d\n", kinfo->rx_buf_len);
-	dev_info(priv->dev, "Desc num per TX queue: %d\n", kinfo->num_tx_desc);
-	dev_info(priv->dev, "Desc num per RX queue: %d\n", kinfo->num_rx_desc);
-	dev_info(priv->dev, "Total number of enabled TCs: %d\n", kinfo->num_tc);
-	dev_info(priv->dev, "Max mtu size: %d\n", priv->netdev->max_mtu);
+	dev_info(priv->dev, "Task queue pairs numbers: %u\n", kinfo->num_tqps);
+	dev_info(priv->dev, "RSS size: %u\n", kinfo->rss_size);
+	dev_info(priv->dev, "Allocated RSS size: %u\n", kinfo->req_rss_size);
+	dev_info(priv->dev, "RX buffer length: %u\n", kinfo->rx_buf_len);
+	dev_info(priv->dev, "Desc num per TX queue: %u\n", kinfo->num_tx_desc);
+	dev_info(priv->dev, "Desc num per RX queue: %u\n", kinfo->num_rx_desc);
+	dev_info(priv->dev, "Total number of enabled TCs: %u\n", kinfo->num_tc);
+	dev_info(priv->dev, "Max mtu size: %u\n", priv->netdev->max_mtu);
 }
 
 static int hns3_client_init(struct hnae3_handle *handle)
@@ -4566,7 +4566,7 @@ int hns3_set_channels(struct net_device *netdev,
 	if (new_tqp_num > hns3_get_max_available_channels(h) ||
 	    new_tqp_num < 1) {
 		dev_err(&netdev->dev,
-			"Change tqps fail, the tqp range is from 1 to %d",
+			"Change tqps fail, the tqp range is from 1 to %u",
 			hns3_get_max_available_channels(h));
 		return -EINVAL;
 	}

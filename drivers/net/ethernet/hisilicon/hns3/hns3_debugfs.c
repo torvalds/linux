@@ -57,68 +57,68 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 					   HNS3_RING_RX_RING_BASEADDR_H_REG);
 		base_add_l = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_RX_RING_BASEADDR_L_REG);
-		dev_info(&h->pdev->dev, "RX(%d) BASE ADD: 0x%08x%08x\n", i,
+		dev_info(&h->pdev->dev, "RX(%u) BASE ADD: 0x%08x%08x\n", i,
 			 base_add_h, base_add_l);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_BD_NUM_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING BD NUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING BD NUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_BD_LEN_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING BD LEN: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING BD LEN: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_TAIL_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING TAIL: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING TAIL: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_HEAD_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING HEAD: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING HEAD: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_FBDNUM_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING FBDNUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING FBDNUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_PKTNUM_RECORD_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING PKTNUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING PKTNUM: %u\n", i, value);
 
 		ring = &priv->ring[i];
 		base_add_h = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_TX_RING_BASEADDR_H_REG);
 		base_add_l = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_TX_RING_BASEADDR_L_REG);
-		dev_info(&h->pdev->dev, "TX(%d) BASE ADD: 0x%08x%08x\n", i,
+		dev_info(&h->pdev->dev, "TX(%u) BASE ADD: 0x%08x%08x\n", i,
 			 base_add_h, base_add_l);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_BD_NUM_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING BD NUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING BD NUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_TC_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING TC: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING TC: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_TAIL_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING TAIL: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING TAIL: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_HEAD_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING HEAD: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING HEAD: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_FBDNUM_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING FBDNUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING FBDNUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_OFFSET_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING OFFSET: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING OFFSET: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_PKTNUM_RECORD_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING PKTNUM: %u\n\n", i,
+		dev_info(&h->pdev->dev, "TX(%u) RING PKTNUM: %u\n\n", i,
 			 value);
 	}
 

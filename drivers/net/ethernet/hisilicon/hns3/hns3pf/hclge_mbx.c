@@ -26,7 +26,7 @@ static int hclge_gen_resp_to_vf(struct hclge_vport *vport,
 
 	if (resp_data_len > HCLGE_MBX_MAX_RESP_DATA_SIZE) {
 		dev_err(&hdev->pdev->dev,
-			"PF fail to gen resp to VF len %d exceeds max len %d\n",
+			"PF fail to gen resp to VF len %u exceeds max len %u\n",
 			resp_data_len,
 			HCLGE_MBX_MAX_RESP_DATA_SIZE);
 		/* If resp_data_len is too long, set the value to max length
@@ -285,7 +285,7 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 						 false, HCLGE_MAC_ADDR_UC);
 	} else {
 		dev_err(&hdev->pdev->dev,
-			"failed to set unicast mac addr, unknown subcode %d\n",
+			"failed to set unicast mac addr, unknown subcode %u\n",
 			mbx_req->msg[1]);
 		return -EIO;
 	}
@@ -319,7 +319,7 @@ static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 						 false, HCLGE_MAC_ADDR_MC);
 	} else {
 		dev_err(&hdev->pdev->dev,
-			"failed to set mcast mac addr, unknown subcode %d\n",
+			"failed to set mcast mac addr, unknown subcode %u\n",
 			mbx_req->msg[1]);
 		return -EIO;
 	}
@@ -555,7 +555,7 @@ static void hclge_reset_vf(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	int ret;
 
-	dev_warn(&hdev->pdev->dev, "PF received VF reset request from VF %d!",
+	dev_warn(&hdev->pdev->dev, "PF received VF reset request from VF %u!",
 		 vport->vport_id);
 
 	ret = hclge_func_reset_cmd(hdev, vport->vport_id);
@@ -681,7 +681,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 		flag = le16_to_cpu(crq->desc[crq->next_to_use].flag);
 		if (unlikely(!hnae3_get_bit(flag, HCLGE_CMDQ_RX_OUTVLD_B))) {
 			dev_warn(&hdev->pdev->dev,
-				 "dropped invalid mailbox message, code = %d\n",
+				 "dropped invalid mailbox message, code = %u\n",
 				 req->msg[0]);
 
 			/* dropping/not processing this invalid message */
@@ -828,7 +828,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,
-				"un-supported mailbox message, code = %d\n",
+				"un-supported mailbox message, code = %u\n",
 				req->msg[0]);
 			break;
 		}

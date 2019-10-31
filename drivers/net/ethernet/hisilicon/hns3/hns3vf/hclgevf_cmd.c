@@ -50,7 +50,7 @@ static int hclgevf_cmd_csq_clean(struct hclgevf_hw *hw)
 	rmb(); /* Make sure head is ready before touch any data */
 
 	if (!hclgevf_is_valid_csq_clean_head(csq, head)) {
-		dev_warn(&hdev->pdev->dev, "wrong cmd head (%d, %d-%d)\n", head,
+		dev_warn(&hdev->pdev->dev, "wrong cmd head (%u, %d-%d)\n", head,
 			 csq->next_to_use, csq->next_to_clean);
 		dev_warn(&hdev->pdev->dev,
 			 "Disabling any further commands to IMP firmware\n");

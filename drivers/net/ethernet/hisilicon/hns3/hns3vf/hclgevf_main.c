@@ -1581,7 +1581,7 @@ static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 	/* recover handshake status with IMP when reset fail */
 	hclgevf_reset_handshake(hdev, true);
 	hdev->rst_stats.rst_fail_cnt++;
-	dev_err(&hdev->pdev->dev, "failed to reset VF(%d)\n",
+	dev_err(&hdev->pdev->dev, "failed to reset VF(%u)\n",
 		hdev->rst_stats.rst_fail_cnt);
 
 	if (hdev->rst_stats.rst_fail_cnt < HCLGEVF_RESET_MAX_FAIL_CNT)
@@ -2338,7 +2338,7 @@ static int hclgevf_init_msi(struct hclgevf_dev *hdev)
 	}
 	if (vectors < hdev->num_msi)
 		dev_warn(&hdev->pdev->dev,
-			 "requested %d MSI/MSI-X, but allocated %d MSI/MSI-X\n",
+			 "requested %u MSI/MSI-X, but allocated %d MSI/MSI-X\n",
 			 hdev->num_msi, vectors);
 
 	hdev->num_msi = vectors;
@@ -2414,12 +2414,12 @@ static void hclgevf_info_show(struct hclgevf_dev *hdev)
 
 	dev_info(dev, "VF info begin:\n");
 
-	dev_info(dev, "Task queue pairs numbers: %d\n", hdev->num_tqps);
-	dev_info(dev, "Desc num per TX queue: %d\n", hdev->num_tx_desc);
-	dev_info(dev, "Desc num per RX queue: %d\n", hdev->num_rx_desc);
-	dev_info(dev, "Numbers of vports: %d\n", hdev->num_alloc_vport);
-	dev_info(dev, "HW tc map: %d\n", hdev->hw_tc_map);
-	dev_info(dev, "PF media type of this VF: %d\n",
+	dev_info(dev, "Task queue pairs numbers: %u\n", hdev->num_tqps);
+	dev_info(dev, "Desc num per TX queue: %u\n", hdev->num_tx_desc);
+	dev_info(dev, "Desc num per RX queue: %u\n", hdev->num_rx_desc);
+	dev_info(dev, "Numbers of vports: %u\n", hdev->num_alloc_vport);
+	dev_info(dev, "HW tc map: 0x%x\n", hdev->hw_tc_map);
+	dev_info(dev, "PF media type of this VF: %u\n",
 		 hdev->hw.mac.media_type);
 
 	dev_info(dev, "VF info end.\n");
