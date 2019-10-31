@@ -4233,19 +4233,21 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		return -EINVAL;
 	}
 
-	/* Make sure we have enough slave (even) ports for the split. */
-	if (count == 2) {
-		base_port = local_port;
-		if (mlxsw_sp->ports[base_port + offset]) {
-			netdev_err(mlxsw_sp_port->dev, "Invalid split configuration\n");
-			NL_SET_ERR_MSG_MOD(extack, "Invalid split configuration");
-			return -EINVAL;
-		}
-	} else {
-		base_port = mlxsw_sp_cluster_base_port_get(local_port,
-							   max_width);
-		if (mlxsw_sp->ports[base_port + 1] ||
-		    mlxsw_sp->ports[base_port + 3]) {
+	/* Only in case max split is being done, the local port and
+	 * base port may differ.
+	 */
+	base_port = count == max_width ?
+		    mlxsw_sp_cluster_base_port_get(local_port, max_width) :
+		    local_port;
+
+	for (i = 0; i < count * offset; i++) {
+		/* Expect base port to exist and also the one in the middle in
+		 * case of maximal split count.
+		 */
+		if (i == 0 || (count == max_width && i == count / 2))
+			continue;
+
+		if (mlxsw_sp_port_created(mlxsw_sp, base_port + i)) {
 			netdev_err(mlxsw_sp_port->dev, "Invalid split configuration\n");
 			NL_SET_ERR_MSG_MOD(extack, "Invalid split configuration");
 			return -EINVAL;
