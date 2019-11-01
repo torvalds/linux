@@ -1065,6 +1065,39 @@ TRACE_EVENT(nfs_commit_done,
 		)
 );
 
+TRACE_EVENT(nfs_fh_to_dentry,
+		TP_PROTO(
+			const struct super_block *sb,
+			const struct nfs_fh *fh,
+			u64 fileid,
+			int error
+		),
+
+		TP_ARGS(sb, fh, fileid, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+		),
+
+		TP_fast_assign(
+			__entry->error = error;
+			__entry->dev = sb->s_dev;
+			__entry->fileid = fileid;
+			__entry->fhandle = nfs_fhandle_hash(fh);
+		),
+
+		TP_printk(
+			"error=%d fileid=%02x:%02x:%llu fhandle=0x%08x ",
+			__entry->error,
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle
+		)
+);
+
 TRACE_DEFINE_ENUM(NFS_OK);
 TRACE_DEFINE_ENUM(NFSERR_PERM);
 TRACE_DEFINE_ENUM(NFSERR_NOENT);
