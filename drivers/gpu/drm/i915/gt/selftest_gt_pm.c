@@ -15,6 +15,7 @@ static int live_gt_resume(void *arg)
 
 	/* Do several suspend/resume cycles to check we don't explode! */
 	do {
+		intel_gt_suspend_prepare(gt);
 		intel_gt_suspend_late(gt);
 
 		if (gt->rc6.enabled) {
