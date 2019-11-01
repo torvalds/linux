@@ -1285,10 +1285,6 @@ static int rk808_probe(struct i2c_client *client,
 	if (of_property_prepare_fn)
 		of_property_prepare_fn(rk808, &client->dev);
 
-	i2c_set_clientdata(client, rk808);
-	rk808->i2c = client;
-	rk808_i2c_client = client;
-
 	if (pinctrl_init) {
 		ret = pinctrl_init(&client->dev, rk808);
 		if (ret)
