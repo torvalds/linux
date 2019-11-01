@@ -752,8 +752,9 @@ static void __map_groups__insert(struct map_groups *mg, struct map *map)
 	map->groups = mg;
 }
 
-static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
+int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map, FILE *fp)
 {
+	struct maps *maps = &mg->maps;
 	struct rb_root *root;
 	struct rb_node *next, *first;
 	int err = 0;
@@ -818,7 +819,7 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 			}
 
 			before->end = map->start;
-			__map_groups__insert(pos->groups, before);
+			__map_groups__insert(mg, before);
 			if (verbose >= 2 && !use_browser)
 				map__fprintf(before, fp);
 			map__put(before);
@@ -835,7 +836,7 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 			after->start = map->end;
 			after->pgoff += map->end - pos->start;
 			assert(pos->map_ip(pos, map->end) == after->map_ip(after, map->end));
-			__map_groups__insert(pos->groups, after);
+			__map_groups__insert(mg, after);
 			if (verbose >= 2 && !use_browser)
 				map__fprintf(after, fp);
 			map__put(after);
@@ -851,12 +852,6 @@ put_map:
 out:
 	up_write(&maps->lock);
 	return err;
-}
-
-int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map,
-				   FILE *fp)
-{
-	return maps__fixup_overlappings(&mg->maps, map, fp);
 }
 
 /*
