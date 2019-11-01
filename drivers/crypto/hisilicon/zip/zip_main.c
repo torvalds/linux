@@ -104,9 +104,8 @@ static void free_list(struct list_head *head)
 
 struct hisi_zip *find_zip_device(int node)
 {
-	struct hisi_zip *ret = NULL;
-#ifdef CONFIG_NUMA
 	struct hisi_zip_resource *res, *tmp;
+	struct hisi_zip *ret = NULL;
 	struct hisi_zip *hisi_zip;
 	struct list_head *n;
 	struct device *dev;
@@ -114,38 +113,38 @@ struct hisi_zip *find_zip_device(int node)
 
 	mutex_lock(&hisi_zip_list_lock);
 
-	list_for_each_entry(hisi_zip, &hisi_zip_list, list) {
-		res = kzalloc(sizeof(*res), GFP_KERNEL);
-		if (!res)
-			goto err;
+	if (IS_ENABLED(CONFIG_NUMA)) {
+		list_for_each_entry(hisi_zip, &hisi_zip_list, list) {
+			res = kzalloc(sizeof(*res), GFP_KERNEL);
+			if (!res)
+				goto err;
 
-		dev = &hisi_zip->qm.pdev->dev;
-		res->hzip = hisi_zip;
-		res->distance = node_distance(dev->numa_node, node);
+			dev = &hisi_zip->qm.pdev->dev;
+			res->hzip = hisi_zip;
+			res->distance = node_distance(dev_to_node(dev), node);
 
-		n = &head;
+			n = &head;
+			list_for_each_entry(tmp, &head, list) {
+				if (res->distance < tmp->distance) {
+					n = &tmp->list;
+					break;
+				}
+			}
+			list_add_tail(&res->list, n);
+		}
+
 		list_for_each_entry(tmp, &head, list) {
-			if (res->distance < tmp->distance) {
-				n = &tmp->list;
+			if (hisi_qm_get_free_qp_num(&tmp->hzip->qm)) {
+				ret = tmp->hzip;
 				break;
 			}
 		}
-		list_add_tail(&res->list, n);
+
+		free_list(&head);
+	} else {
+		ret = list_first_entry(&hisi_zip_list, struct hisi_zip, list);
 	}
 
-	list_for_each_entry(tmp, &head, list) {
-		if (hisi_qm_get_free_qp_num(&tmp->hzip->qm)) {
-			ret = tmp->hzip;
-			break;
-		}
-	}
-
-	free_list(&head);
-#else
-	mutex_lock(&hisi_zip_list_lock);
-
-	ret = list_first_entry(&hisi_zip_list, struct hisi_zip, list);
-#endif
 	mutex_unlock(&hisi_zip_list_lock);
 
 	return ret;
