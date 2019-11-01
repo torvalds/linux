@@ -1192,16 +1192,19 @@ static int do_step(struct pt_regs *regs)
 
 static void bootcmds(void)
 {
+	char tmp[64];
 	int cmd;
 
 	cmd = inchar();
-	if (cmd == 'r')
-		ppc_md.restart(NULL);
-	else if (cmd == 'h')
+	if (cmd == 'r') {
+		getstring(tmp, 64);
+		ppc_md.restart(tmp);
+	} else if (cmd == 'h') {
 		ppc_md.halt();
-	else if (cmd == 'p')
+	} else if (cmd == 'p') {
 		if (pm_power_off)
 			pm_power_off();
+	}
 }
 
 static int cpu_cmd(void)
