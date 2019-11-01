@@ -834,6 +834,75 @@ static ssize_t export_attr_read(struct file *fp, struct kobject *kobj,
 				       bin_attr->size);
 }
 
+static int opal_add_one_export(struct kobject *parent, const char *export_name,
+			       struct device_node *np, const char *prop_name)
+{
+	struct bin_attribute *attr = NULL;
+	const char *name = NULL;
+	u64 vals[2];
+	int rc;
+
+	rc = of_property_read_u64_array(np, prop_name, &vals[0], 2);
+	if (rc)
+		goto out;
+
+	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+	name = kstrdup(export_name, GFP_KERNEL);
+	if (!name) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	sysfs_bin_attr_init(attr);
+	attr->attr.name = name;
+	attr->attr.mode = 0400;
+	attr->read = export_attr_read;
+	attr->private = __va(vals[0]);
+	attr->size = vals[1];
+
+	rc = sysfs_create_bin_file(parent, attr);
+out:
+	if (rc) {
+		kfree(name);
+		kfree(attr);
+	}
+
+	return rc;
+}
+
+static void opal_add_exported_attrs(struct device_node *np,
+				    struct kobject *kobj)
+{
+	struct device_node *child;
+	struct property *prop;
+
+	for_each_property_of_node(np, prop) {
+		int rc;
+
+		if (!strcmp(prop->name, "name") ||
+		    !strcmp(prop->name, "phandle"))
+			continue;
+
+		rc = opal_add_one_export(kobj, prop->name, np, prop->name);
+		if (rc) {
+			pr_warn("Unable to add export %pOF/%s, rc = %d!\n",
+				np, prop->name, rc);
+		}
+	}
+
+	for_each_child_of_node(np, child) {
+		struct kobject *child_kobj;
+
+		child_kobj = kobject_create_and_add(child->name, kobj);
+		if (!child_kobj) {
+			pr_err("Unable to create export dir for %pOF\n", child);
+			continue;
+		}
+
+		opal_add_exported_attrs(child, child_kobj);
+	}
+}
+
 /*
  * opal_export_attrs: creates a sysfs node for each property listed in
  * the device-tree under /ibm,opal/firmware/exports/
@@ -843,12 +912,8 @@ static ssize_t export_attr_read(struct file *fp, struct kobject *kobj,
  */
 static void opal_export_attrs(void)
 {
-	struct bin_attribute *attr;
 	struct device_node *np;
-	struct property *prop;
 	struct kobject *kobj;
-	u64 vals[2];
-	int rc;
 
 	np = of_find_node_by_path("/ibm,opal/firmware/exports");
 	if (!np)
@@ -861,41 +926,7 @@ static void opal_export_attrs(void)
 		return;
 	}
 
-	for_each_property_of_node(np, prop) {
-		if (!strcmp(prop->name, "name") || !strcmp(prop->name, "phandle"))
-			continue;
-
-		if (of_property_read_u64_array(np, prop->name, &vals[0], 2))
-			continue;
-
-		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
-
-		if (attr == NULL) {
-			pr_warn("Failed kmalloc for bin_attribute!");
-			continue;
-		}
-
-		sysfs_bin_attr_init(attr);
-		attr->attr.name = kstrdup(prop->name, GFP_KERNEL);
-		attr->attr.mode = 0400;
-		attr->read = export_attr_read;
-		attr->private = __va(vals[0]);
-		attr->size = vals[1];
-
-		if (attr->attr.name == NULL) {
-			pr_warn("Failed kstrdup for bin_attribute attr.name");
-			kfree(attr);
-			continue;
-		}
-
-		rc = sysfs_create_bin_file(kobj, attr);
-		if (rc) {
-			pr_warn("Error %d creating OPAL sysfs exports/%s file\n",
-				 rc, prop->name);
-			kfree(attr->attr.name);
-			kfree(attr);
-		}
-	}
+	opal_add_exported_attrs(np, kobj);
 
 	of_node_put(np);
 }
@@ -1056,10 +1087,9 @@ static int __init opal_init(void)
 		opal_sys_param_init();
 		/* Setup message log sysfs interface. */
 		opal_msglog_sysfs_init();
+		/* Add all export properties*/
+		opal_export_attrs();
 	}
-
-	/* Export all properties */
-	opal_export_attrs();
 
 	/* Initialize platform devices: IPMI backend, PRD & flash interface */
 	opal_pdev_init("ibm,opal-ipmi");
