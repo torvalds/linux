@@ -681,7 +681,7 @@ retry:
 		err = f2fs_truncate(inode);
 
 	if (time_to_inject(sbi, FAULT_EVICT_INODE)) {
-		f2fs_show_injection_info(FAULT_EVICT_INODE);
+		f2fs_show_injection_info(sbi, FAULT_EVICT_INODE);
 		err = -EIO;
 	}
 

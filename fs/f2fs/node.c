@@ -2398,7 +2398,7 @@ bool f2fs_alloc_nid(struct f2fs_sb_info *sbi, nid_t *nid)
 	struct free_nid *i = NULL;
 retry:
 	if (time_to_inject(sbi, FAULT_ALLOC_NID)) {
-		f2fs_show_injection_info(FAULT_ALLOC_NID);
+		f2fs_show_injection_info(sbi, FAULT_ALLOC_NID);
 		return false;
 	}
 

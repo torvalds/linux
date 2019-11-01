@@ -54,7 +54,7 @@ static int gc_thread_func(void *data)
 		}
 
 		if (time_to_inject(sbi, FAULT_CHECKPOINT)) {
-			f2fs_show_injection_info(FAULT_CHECKPOINT);
+			f2fs_show_injection_info(sbi, FAULT_CHECKPOINT);
 			f2fs_stop_checkpoint(sbi, false);
 		}
 

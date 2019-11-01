@@ -1374,9 +1374,10 @@ struct f2fs_private_dio {
 };
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-#define f2fs_show_injection_info(type)					\
-	printk_ratelimited("%sF2FS-fs : inject %s in %s of %pF\n",	\
-		KERN_INFO, f2fs_fault_name[type],			\
+#define f2fs_show_injection_info(sbi, type)					\
+	printk_ratelimited("%sF2FS-fs (%s) : inject %s in %s of %pS\n",	\
+		KERN_INFO, sbi->sb->s_id,				\
+		f2fs_fault_name[type],					\
 		__func__, __builtin_return_address(0))
 static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
 {
@@ -1396,7 +1397,7 @@ static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
 	return false;
 }
 #else
-#define f2fs_show_injection_info(type) do { } while (0)
+#define f2fs_show_injection_info(sbi, type) do { } while (0)
 static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
 {
 	return false;
@@ -1782,7 +1783,7 @@ static inline int inc_valid_block_count(struct f2fs_sb_info *sbi,
 		return ret;
 
 	if (time_to_inject(sbi, FAULT_BLOCK)) {
-		f2fs_show_injection_info(FAULT_BLOCK);
+		f2fs_show_injection_info(sbi, FAULT_BLOCK);
 		release = *count;
 		goto release_quota;
 	}
@@ -2034,7 +2035,7 @@ static inline int inc_valid_node_count(struct f2fs_sb_info *sbi,
 	}
 
 	if (time_to_inject(sbi, FAULT_BLOCK)) {
-		f2fs_show_injection_info(FAULT_BLOCK);
+		f2fs_show_injection_info(sbi, FAULT_BLOCK);
 		goto enospc;
 	}
 
@@ -2149,7 +2150,8 @@ static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
 			return page;
 
 		if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_ALLOC)) {
-			f2fs_show_injection_info(FAULT_PAGE_ALLOC);
+			f2fs_show_injection_info(F2FS_M_SB(mapping),
+							FAULT_PAGE_ALLOC);
 			return NULL;
 		}
 	}
@@ -2164,7 +2166,7 @@ static inline struct page *f2fs_pagecache_get_page(
 				int fgp_flags, gfp_t gfp_mask)
 {
 	if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_GET)) {
-		f2fs_show_injection_info(FAULT_PAGE_GET);
+		f2fs_show_injection_info(F2FS_M_SB(mapping), FAULT_PAGE_GET);
 		return NULL;
 	}
 
@@ -2233,7 +2235,7 @@ static inline struct bio *f2fs_bio_alloc(struct f2fs_sb_info *sbi,
 		return bio;
 	}
 	if (time_to_inject(sbi, FAULT_ALLOC_BIO)) {
-		f2fs_show_injection_info(FAULT_ALLOC_BIO);
+		f2fs_show_injection_info(sbi, FAULT_ALLOC_BIO);
 		return NULL;
 	}
 
@@ -2800,7 +2802,7 @@ static inline void *f2fs_kmalloc(struct f2fs_sb_info *sbi,
 	void *ret;
 
 	if (time_to_inject(sbi, FAULT_KMALLOC)) {
-		f2fs_show_injection_info(FAULT_KMALLOC);
+		f2fs_show_injection_info(sbi, FAULT_KMALLOC);
 		return NULL;
 	}
 
@@ -2821,7 +2823,7 @@ static inline void *f2fs_kvmalloc(struct f2fs_sb_info *sbi,
 					size_t size, gfp_t flags)
 {
 	if (time_to_inject(sbi, FAULT_KVMALLOC)) {
-		f2fs_show_injection_info(FAULT_KVMALLOC);
+		f2fs_show_injection_info(sbi, FAULT_KVMALLOC);
 		return NULL;
 	}
 
