@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================================
-GENERIC SYSTEM INTERCONNECT SUBSYSTEM
+Generic System Interconnect Subsystem
 =====================================
 
 Introduction
