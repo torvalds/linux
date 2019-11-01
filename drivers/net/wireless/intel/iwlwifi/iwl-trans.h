@@ -544,6 +544,8 @@ struct iwl_trans_rxq_dma_data {
  * @read_mem: read device's SRAM in DWORD
  * @write_mem: write device's SRAM in DWORD. If %buf is %NULL, then the memory
  *	will be zeroed.
+ * @read_config32: read a u32 value from the device's config space at
+ *	the given offset.
  * @configure: configure parameters required by the transport layer from
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
@@ -614,6 +616,7 @@ struct iwl_trans_ops {
 			void *buf, int dwords);
 	int (*write_mem)(struct iwl_trans *trans, u32 addr,
 			 const void *buf, int dwords);
+	int (*read_config32)(struct iwl_trans *trans, u32 ofs, u32 *val);
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
