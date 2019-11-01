@@ -2494,41 +2494,6 @@ int dquot_quota_on(struct super_block *sb, int type, int format_id,
 EXPORT_SYMBOL(dquot_quota_on);
 
 /*
- * More powerful function for turning on quotas allowing setting
- * of individual quota flags
- */
-int dquot_enable(struct inode *inode, int type, int format_id,
-		 unsigned int flags)
-{
-	struct super_block *sb = inode->i_sb;
-
-	/* Just unsuspend quotas? */
-	BUG_ON(flags & DQUOT_SUSPENDED);
-	/* s_umount should be held in exclusive mode */
-	if (WARN_ON_ONCE(down_read_trylock(&sb->s_umount)))
-		up_read(&sb->s_umount);
-
-	if (!flags)
-		return 0;
-	/* Just updating flags needed? */
-	if (sb_has_quota_loaded(sb, type)) {
-		if (flags & DQUOT_USAGE_ENABLED &&
-		    sb_has_quota_usage_enabled(sb, type))
-			return -EBUSY;
-		if (flags & DQUOT_LIMITS_ENABLED &&
-		    sb_has_quota_limits_enabled(sb, type))
-			return -EBUSY;
-		spin_lock(&dq_state_lock);
-		sb_dqopt(sb)->flags |= dquot_state_flag(flags, type);
-		spin_unlock(&dq_state_lock);
-		return 0;
-	}
-
-	return dquot_load_quota_inode(inode, type, format_id, flags);
-}
-EXPORT_SYMBOL(dquot_enable);
-
-/*
  * This function is used when filesystem needs to initialize quotas
  * during mount time.
  */
@@ -2574,13 +2539,17 @@ static int dquot_quota_enable(struct super_block *sb, unsigned int flags)
 		if (!(flags & qtype_enforce_flag(type)))
 			continue;
 		/* Can't enforce without accounting */
-		if (!sb_has_quota_usage_enabled(sb, type))
-			return -EINVAL;
-		ret = dquot_enable(dqopt->files[type], type,
-				   dqopt->info[type].dqi_fmt_id,
-				   DQUOT_LIMITS_ENABLED);
-		if (ret < 0)
+		if (!sb_has_quota_usage_enabled(sb, type)) {
+			ret = -EINVAL;
 			goto out_err;
+		}
+		if (sb_has_quota_limits_enabled(sb, type)) {
+			ret = -EBUSY;
+			goto out_err;
+		}
+		spin_lock(&dq_state_lock);
+		dqopt->flags |= dquot_state_flag(DQUOT_LIMITS_ENABLED, type);
+		spin_unlock(&dq_state_lock);
 	}
 	return 0;
 out_err:
@@ -2630,10 +2599,12 @@ static int dquot_quota_disable(struct super_block *sb, unsigned int flags)
 out_err:
 	/* Backout enforcement disabling we already did */
 	for (type--; type >= 0; type--)  {
-		if (flags & qtype_enforce_flag(type))
-			dquot_enable(dqopt->files[type], type,
-				     dqopt->info[type].dqi_fmt_id,
-				     DQUOT_LIMITS_ENABLED);
+		if (flags & qtype_enforce_flag(type)) {
+			spin_lock(&dq_state_lock);
+			dqopt->flags |=
+				dquot_state_flag(DQUOT_LIMITS_ENABLED, type);
+			spin_unlock(&dq_state_lock);
+		}
 	}
 	return ret;
 }
