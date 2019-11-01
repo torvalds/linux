@@ -540,14 +540,6 @@
 };
 
 &tcphy0 {
-	status = "okay";
-};
-
-&tcphy1 {
-	status = "okay";
-};
-
-&tcphy0 {
 	extcon = <&fusb0>;
 	status = "okay";
 };
@@ -599,7 +591,6 @@
 
 &uart2 {
 	status = "okay";
-	extcon = <&fusb0>;
 };
 
 &usb_host0_ehci {
@@ -625,6 +616,7 @@
 &usbdrd_dwc3_0 {
 	status = "okay";
 	dr_mode = "otg";
+	extcon = <&fusb0>;
 };
 
 &usbdrd3_1 {

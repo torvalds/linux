@@ -1184,7 +1184,6 @@
 
 &usbdrd3_0 {
 	status = "okay";
-	extcon = <&fusb0>;
 };
 
 &usbdrd3_1 {
@@ -1193,6 +1192,7 @@
 
 &usbdrd_dwc3_0 {
 	status = "okay";
+	extcon = <&fusb0>;
 };
 
 &usbdrd_dwc3_1 {

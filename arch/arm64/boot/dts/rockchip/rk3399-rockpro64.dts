@@ -808,13 +808,13 @@
 };
 
 &usbdrd3_0 {
-	extcon = <&fusb0>;
 	status = "okay";
 };
 
 &usbdrd_dwc3_0 {
 	dr_mode = "otg";
 	status = "okay";
+	extcon = <&fusb0>;
 };
 
 &usbdrd3_1 {

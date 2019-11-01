@@ -1020,12 +1020,12 @@
 };
 
 &usbdrd3_0 {
-	extcon = <&fusb0>;
 	status = "okay";
 };
 
 &usbdrd_dwc3_0 {
 	status = "okay";
+	extcon = <&fusb0>;
 };
 
 &usb_host1_ehci {
@@ -1037,12 +1037,12 @@
 };
 
 &usbdrd3_1 {
-	extcon = <&fusb1>;
 	status = "okay";
 };
 
 &usbdrd_dwc3_1 {
 	status = "okay";
+	extcon = <&fusb1>;
 };
 
 &rockchip_suspend {
