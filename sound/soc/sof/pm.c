@@ -416,6 +416,9 @@ int snd_sof_set_d0_substate(struct snd_sof_dev *sdev,
 {
 	int ret;
 
+	if (sdev->d0_substate == d0_substate)
+		return 0;
+
 	/* do platform specific set_state */
 	ret = snd_sof_dsp_set_power_state(sdev, d0_substate);
 	if (ret < 0)
