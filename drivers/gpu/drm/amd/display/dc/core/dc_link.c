@@ -1495,7 +1495,6 @@ static enum dc_status enable_link_dp(
 	bool skip_video_pattern;
 	struct dc_link *link = stream->link;
 	struct dc_link_settings link_settings = {0};
-	enum dp_panel_mode panel_mode;
 	bool fec_enable;
 	int i;
 	bool apply_seamless_boot_optimization = false;
@@ -1531,40 +1530,17 @@ static enum dc_status enable_link_dp(
 	if (state->clk_mgr && !apply_seamless_boot_optimization)
 		state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
 
-	dp_enable_link_phy(
-		link,
-		pipe_ctx->stream->signal,
-		pipe_ctx->clock_source->id,
-		&link_settings);
-
-	if (stream->sink_patches.dppowerup_delay > 0) {
-		int delay_dp_power_up_in_ms = stream->sink_patches.dppowerup_delay;
-
-		msleep(delay_dp_power_up_in_ms);
-	}
-
-	panel_mode = dp_get_panel_mode(link);
-	dp_set_panel_mode(link, panel_mode);
-
-	/* We need to do this before the link training to ensure the idle pattern in SST
-	 * mode will be sent right after the link training */
-	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
-						    pipe_ctx->stream_res.stream_enc->id, true);
 	skip_video_pattern = true;
 
 	if (link_settings.link_rate == LINK_RATE_LOW)
 			skip_video_pattern = false;
 
-	if (link->aux_access_disabled) {
-		dc_link_dp_perform_link_training_skip_aux(link, &link_settings);
-
-		link->cur_link_settings = link_settings;
-		status = DC_OK;
-	} else if (perform_link_training_with_retries(
-			link,
+	if (perform_link_training_with_retries(
 			&link_settings,
 			skip_video_pattern,
-			LINK_TRAINING_ATTEMPTS)) {
+			LINK_TRAINING_ATTEMPTS,
+			pipe_ctx,
+			pipe_ctx->stream->signal)) {
 		link->cur_link_settings = link_settings;
 		status = DC_OK;
 	}

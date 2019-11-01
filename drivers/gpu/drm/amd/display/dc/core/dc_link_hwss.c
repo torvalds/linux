@@ -333,20 +333,12 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			memset(&link->cur_link_settings, 0,
 				sizeof(link->cur_link_settings));
 
-			link->link_enc->funcs->enable_dp_output(
-						link->link_enc,
-						link_setting,
-						pipes[i].clock_source->id);
-			link->cur_link_settings = *link_setting;
-
-			dp_receiver_power_ctrl(link, true);
-
 			perform_link_training_with_retries(
-					link,
 					link_setting,
 					skip_video_pattern,
-					LINK_TRAINING_ATTEMPTS);
-
+					LINK_TRAINING_ATTEMPTS,
+					&pipes[i],
+					SIGNAL_TYPE_DISPLAY_PORT);
 
 			link->dc->hwss.enable_stream(&pipes[i]);
 

@@ -1433,23 +1433,58 @@ enum link_training_result dc_link_dp_perform_link_training(
 }
 
 bool perform_link_training_with_retries(
-	struct dc_link *link,
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern,
-	int attempts)
+	int attempts,
+	struct pipe_ctx *pipe_ctx,
+	enum signal_type signal)
 {
 	uint8_t j;
 	uint8_t delay_between_attempts = LINK_TRAINING_RETRY_DELAY;
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->link;
+	enum dp_panel_mode panel_mode = dp_get_panel_mode(link);
 
 	for (j = 0; j < attempts; ++j) {
 
-		if (dc_link_dp_perform_link_training(
+		dp_enable_link_phy(
+			link,
+			signal,
+			pipe_ctx->clock_source->id,
+			link_setting);
+
+		if (stream->sink_patches.dppowerup_delay > 0) {
+			int delay_dp_power_up_in_ms = stream->sink_patches.dppowerup_delay;
+
+			msleep(delay_dp_power_up_in_ms);
+		}
+
+		dp_set_panel_mode(link, panel_mode);
+
+		/* We need to do this before the link training to ensure the idle pattern in SST
+		 * mode will be sent right after the link training
+		 */
+		link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
+								pipe_ctx->stream_res.stream_enc->id, true);
+
+		if (link->aux_access_disabled) {
+			dc_link_dp_perform_link_training_skip_aux(link, link_setting);
+			return true;
+		} else if (dc_link_dp_perform_link_training(
 				link,
 				link_setting,
 				skip_video_pattern) == LINK_TRAINING_SUCCESS)
 			return true;
 
+		/* latest link training still fail, skip delay and keep PHY on
+		 */
+		if (j == (attempts - 1))
+			break;
+
+		dp_disable_link_phy(link, signal);
+
 		msleep(delay_between_attempts);
+
 		delay_between_attempts += LINK_TRAINING_RETRY_DELAY;
 	}
 
@@ -2770,17 +2805,26 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 					sizeof(hpd_irq_dpcd_data),
 					"Status: ");
 
-		perform_link_training_with_retries(link,
-			&link->cur_link_settings,
-			true, LINK_TRAINING_ATTEMPTS);
-
 		for (i = 0; i < MAX_PIPES; i++) {
 			pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-			if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link &&
-					pipe_ctx->stream->dpms_off == false &&
-					pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-				dc_link_allocate_mst_payload(pipe_ctx);
-			}
+			if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link)
+				break;
+		}
+
+		if (pipe_ctx == NULL || pipe_ctx->stream == NULL)
+			return false;
+
+		dp_disable_link_phy(link, pipe_ctx->stream->signal);
+
+		perform_link_training_with_retries(&link->cur_link_settings,
+			true, LINK_TRAINING_ATTEMPTS,
+			pipe_ctx,
+			pipe_ctx->stream->signal);
+
+		if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link &&
+				pipe_ctx->stream->dpms_off == false &&
+				pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+			dc_link_allocate_mst_payload(pipe_ctx);
 		}
 
 		status = false;

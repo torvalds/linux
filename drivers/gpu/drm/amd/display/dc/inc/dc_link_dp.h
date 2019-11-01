@@ -57,10 +57,11 @@ void decide_link_settings(
 	struct dc_link_settings *link_setting);
 
 bool perform_link_training_with_retries(
-	struct dc_link *link,
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern,
-	int attempts);
+	int attempts,
+	struct pipe_ctx *pipe_ctx,
+	enum signal_type signal);
 
 bool is_mst_supported(struct dc_link *link);
 
