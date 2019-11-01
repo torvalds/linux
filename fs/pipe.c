@@ -332,7 +332,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 				do_wakeup = 1;
 				wake = head - (tail - 1) == pipe->max_usage / 2;
 				if (wake)
-					wake_up_interruptible_sync_poll_locked(
+					wake_up_locked_poll(
 						&pipe->wait, EPOLLOUT | EPOLLWRNORM);
 				spin_unlock_irq(&pipe->wait.lock);
 				if (wake)
@@ -371,7 +371,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 
 	/* Signal writers asynchronously that there is more room. */
 	if (do_wakeup) {
-		wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
+		wake_up_interruptible_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
 	if (ret > 0)
@@ -477,7 +477,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			 * syscall merging.
 			 * FIXME! Is this really true?
 			 */
-			wake_up_interruptible_sync_poll_locked(
+			wake_up_locked_poll(
 				&pipe->wait, EPOLLIN | EPOLLRDNORM);
 
 			spin_unlock_irq(&pipe->wait.lock);
@@ -531,7 +531,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 out:
 	__pipe_unlock(pipe);
 	if (do_wakeup) {
-		wake_up_interruptible_sync_poll(&pipe->wait, EPOLLIN | EPOLLRDNORM);
+		wake_up_interruptible_poll(&pipe->wait, EPOLLIN | EPOLLRDNORM);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
 	if (ret > 0 && sb_start_write_trylock(file_inode(filp)->i_sb)) {
