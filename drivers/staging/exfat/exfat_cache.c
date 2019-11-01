@@ -12,8 +12,8 @@
 #define DIRTYBIT	0x02
 
 /* Local variables */
-static DEFINE_SEMAPHORE(f_sem);
-static DEFINE_SEMAPHORE(b_sem);
+static DEFINE_MUTEX(f_mutex);
+static DEFINE_MUTEX(b_mutex);
 
 static struct buf_cache_t *FAT_cache_find(struct super_block *sb, sector_t sec)
 {
@@ -315,9 +315,9 @@ int FAT_read(struct super_block *sb, u32 loc, u32 *content)
 {
 	s32 ret;
 
-	down(&f_sem);
+	mutex_lock(&f_mutex);
 	ret = __FAT_read(sb, loc, content);
-	up(&f_sem);
+	mutex_unlock(&f_mutex);
 
 	return ret;
 }
@@ -434,9 +434,9 @@ int FAT_write(struct super_block *sb, u32 loc, u32 content)
 {
 	s32 ret;
 
-	down(&f_sem);
+	mutex_lock(&f_mutex);
 	ret = __FAT_write(sb, loc, content);
-	up(&f_sem);
+	mutex_unlock(&f_mutex);
 
 	return ret;
 }
@@ -490,7 +490,7 @@ void FAT_release_all(struct super_block *sb)
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
-	down(&f_sem);
+	mutex_lock(&f_mutex);
 
 	bp = p_fs->FAT_cache_lru_list.next;
 	while (bp != &p_fs->FAT_cache_lru_list) {
@@ -507,7 +507,7 @@ void FAT_release_all(struct super_block *sb)
 		bp = bp->next;
 	}
 
-	up(&f_sem);
+	mutex_unlock(&f_mutex);
 }
 
 void FAT_sync(struct super_block *sb)
@@ -515,7 +515,7 @@ void FAT_sync(struct super_block *sb)
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
-	down(&f_sem);
+	mutex_lock(&f_mutex);
 
 	bp = p_fs->FAT_cache_lru_list.next;
 	while (bp != &p_fs->FAT_cache_lru_list) {
@@ -526,7 +526,7 @@ void FAT_sync(struct super_block *sb)
 		bp = bp->next;
 	}
 
-	up(&f_sem);
+	mutex_unlock(&f_mutex);
 }
 
 static struct buf_cache_t *buf_cache_find(struct super_block *sb, sector_t sec)
@@ -600,9 +600,9 @@ u8 *buf_getblk(struct super_block *sb, sector_t sec)
 {
 	u8 *buf;
 
-	down(&b_sem);
+	mutex_lock(&b_mutex);
 	buf = __buf_getblk(sb, sec);
-	up(&b_sem);
+	mutex_unlock(&b_mutex);
 
 	return buf;
 }
@@ -611,7 +611,7 @@ void buf_modify(struct super_block *sb, sector_t sec)
 {
 	struct buf_cache_t *bp;
 
-	down(&b_sem);
+	mutex_lock(&b_mutex);
 
 	bp = buf_cache_find(sb, sec);
 	if (likely(bp))
@@ -620,14 +620,14 @@ void buf_modify(struct super_block *sb, sector_t sec)
 	WARN(!bp, "[EXFAT] failed to find buffer_cache(sector:%llu).\n",
 	     (unsigned long long)sec);
 
-	up(&b_sem);
+	mutex_unlock(&b_mutex);
 }
 
 void buf_lock(struct super_block *sb, sector_t sec)
 {
 	struct buf_cache_t *bp;
 
-	down(&b_sem);
+	mutex_lock(&b_mutex);
 
 	bp = buf_cache_find(sb, sec);
 	if (likely(bp))
@@ -636,14 +636,14 @@ void buf_lock(struct super_block *sb, sector_t sec)
 	WARN(!bp, "[EXFAT] failed to find buffer_cache(sector:%llu).\n",
 	     (unsigned long long)sec);
 
-	up(&b_sem);
+	mutex_unlock(&b_mutex);
 }
 
 void buf_unlock(struct super_block *sb, sector_t sec)
 {
 	struct buf_cache_t *bp;
 
-	down(&b_sem);
+	mutex_lock(&b_mutex);
 
 	bp = buf_cache_find(sb, sec);
 	if (likely(bp))
@@ -652,7 +652,7 @@ void buf_unlock(struct super_block *sb, sector_t sec)
 	WARN(!bp, "[EXFAT] failed to find buffer_cache(sector:%llu).\n",
 	     (unsigned long long)sec);
 
-	up(&b_sem);
+	mutex_unlock(&b_mutex);
 }
 
 void buf_release(struct super_block *sb, sector_t sec)
@@ -660,7 +660,7 @@ void buf_release(struct super_block *sb, sector_t sec)
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
-	down(&b_sem);
+	mutex_lock(&b_mutex);
 
 	bp = buf_cache_find(sb, sec);
 	if (likely(bp)) {
@@ -676,7 +676,7 @@ void buf_release(struct super_block *sb, sector_t sec)
 		move_to_lru(bp, &p_fs->buf_cache_lru_list);
 	}
 
-	up(&b_sem);
+	mutex_unlock(&b_mutex);
 }
 
 void buf_release_all(struct super_block *sb)
@@ -684,7 +684,7 @@ void buf_release_all(struct super_block *sb)
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
-	down(&b_sem);
+	mutex_lock(&b_mutex);
 
 	bp = p_fs->buf_cache_lru_list.next;
 	while (bp != &p_fs->buf_cache_lru_list) {
@@ -701,7 +701,7 @@ void buf_release_all(struct super_block *sb)
 		bp = bp->next;
 	}
 
-	up(&b_sem);
+	mutex_unlock(&b_mutex);
 }
 
 void buf_sync(struct super_block *sb)
@@ -709,7 +709,7 @@ void buf_sync(struct super_block *sb)
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
-	down(&b_sem);
+	mutex_lock(&b_mutex);
 
 	bp = p_fs->buf_cache_lru_list.next;
 	while (bp != &p_fs->buf_cache_lru_list) {
@@ -720,5 +720,5 @@ void buf_sync(struct super_block *sb)
 		bp = bp->next;
 	}
 
-	up(&b_sem);
+	mutex_unlock(&b_mutex);
 }
