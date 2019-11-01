@@ -1291,7 +1291,8 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 
 	for (port = execlists->pending; (rq = *port); port++) {
 		if (ce == rq->hw_context) {
-			GEM_TRACE_ERR("Duplicate context in pending[%zd]\n",
+			GEM_TRACE_ERR("Dup context:%llx in pending[%zd]\n",
+				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			return false;
 		}
@@ -1300,20 +1301,24 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		if (i915_request_completed(rq))
 			continue;
 
-		if (i915_active_is_idle(&ce->active)) {
-			GEM_TRACE_ERR("Inactive context in pending[%zd]\n",
+		if (i915_active_is_idle(&ce->active) &&
+		    !i915_gem_context_is_kernel(ce->gem_context)) {
+			GEM_TRACE_ERR("Inactive context:%llx in pending[%zd]\n",
+				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			return false;
 		}
 
 		if (!i915_vma_is_pinned(ce->state)) {
-			GEM_TRACE_ERR("Unpinned context in pending[%zd]\n",
+			GEM_TRACE_ERR("Unpinned context:%llx in pending[%zd]\n",
+				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			return false;
 		}
 
 		if (!i915_vma_is_pinned(ce->ring->vma)) {
-			GEM_TRACE_ERR("Unpinned ringbuffer in pending[%zd]\n",
+			GEM_TRACE_ERR("Unpinned ring:%llx in pending[%zd]\n",
+				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			return false;
 		}
