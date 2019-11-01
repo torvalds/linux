@@ -386,14 +386,7 @@ struct core_reloc_arrays___err_non_array {
 	struct core_reloc_arrays_substruct d[1][2];
 };
 
-struct core_reloc_arrays___err_wrong_val_type1 {
-	char a[5]; /* char instead of int */
-	char b[2][3][4];
-	struct core_reloc_arrays_substruct c[3];
-	struct core_reloc_arrays_substruct d[1][2];
-};
-
-struct core_reloc_arrays___err_wrong_val_type2 {
+struct core_reloc_arrays___err_wrong_val_type {
 	int a[5];
 	char b[2][3][4];
 	int c[3]; /* value is not a struct */
@@ -587,67 +580,6 @@ struct core_reloc_ints___bool {
 	int32_t		s32_field;
 	uint64_t	u64_field;
 	int64_t		s64_field;
-};
-
-struct core_reloc_ints___err_bitfield {
-	uint8_t		u8_field;
-	int8_t		s8_field;
-	uint16_t	u16_field;
-	int16_t		s16_field;
-	uint32_t	u32_field: 32; /* bitfields are not supported */
-	int32_t		s32_field;
-	uint64_t	u64_field;
-	int64_t		s64_field;
-};
-
-struct core_reloc_ints___err_wrong_sz_8 {
-	uint16_t	u8_field; /* not 8-bit anymore */
-	int16_t		s8_field; /* not 8-bit anymore */
-
-	uint16_t	u16_field;
-	int16_t		s16_field;
-	uint32_t	u32_field;
-	int32_t		s32_field;
-	uint64_t	u64_field;
-	int64_t		s64_field;
-};
-
-struct core_reloc_ints___err_wrong_sz_16 {
-	uint8_t		u8_field;
-	int8_t		s8_field;
-
-	uint32_t	u16_field; /* not 16-bit anymore */
-	int32_t		s16_field; /* not 16-bit anymore */
-
-	uint32_t	u32_field;
-	int32_t		s32_field;
-	uint64_t	u64_field;
-	int64_t		s64_field;
-};
-
-struct core_reloc_ints___err_wrong_sz_32 {
-	uint8_t		u8_field;
-	int8_t		s8_field;
-	uint16_t	u16_field;
-	int16_t		s16_field;
-
-	uint64_t	u32_field; /* not 32-bit anymore */
-	int64_t		s32_field; /* not 32-bit anymore */
-
-	uint64_t	u64_field;
-	int64_t		s64_field;
-};
-
-struct core_reloc_ints___err_wrong_sz_64 {
-	uint8_t		u8_field;
-	int8_t		s8_field;
-	uint16_t	u16_field;
-	int16_t		s16_field;
-	uint32_t	u32_field;
-	int32_t		s32_field;
-
-	uint32_t	u64_field; /* not 64-bit anymore */
-	int32_t		s64_field; /* not 64-bit anymore */
 };
 
 /*
