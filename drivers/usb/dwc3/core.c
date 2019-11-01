@@ -127,6 +127,9 @@ static void __dwc3_set_mode(struct work_struct *work)
 	if (!dwc->desired_dr_role)
 		return;
 
+	if (dwc->en_runtime)
+		goto runtime;
+
 	if (dwc->desired_dr_role == dwc->current_dr_role)
 		return;
 
@@ -191,6 +194,78 @@ static void __dwc3_set_mode(struct work_struct *work)
 		break;
 	}
 
+	return;
+
+runtime:
+	if (extcon_get_state(dwc->edev, EXTCON_USB) ||
+	    extcon_get_state(dwc->edev, EXTCON_USB_HOST)) {
+		if (dwc->drd_connected)
+			return;
+
+		dwc->current_dr_role = dwc->desired_dr_role;
+		pm_runtime_get_sync(dwc->dev);
+		/*
+		 * We should set drd_connected true after runtime_resume to
+		 * enable reset deassert.
+		 */
+		dwc->drd_connected = true;
+
+		spin_lock_irqsave(&dwc->lock, flags);
+
+		dwc3_set_prtcap(dwc, dwc->desired_dr_role);
+
+		spin_unlock_irqrestore(&dwc->lock, flags);
+
+		switch (dwc->current_dr_role) {
+		case DWC3_GCTL_PRTCAP_HOST:
+			ret = dwc3_host_init(dwc);
+			if (ret) {
+				dev_err(dwc->dev,
+					"failed to initialize host\n");
+			} else {
+				if (dwc->usb2_phy)
+					otg_set_vbus(dwc->usb2_phy->otg, true);
+				phy_set_mode(dwc->usb2_generic_phy,
+					     PHY_MODE_USB_HOST);
+				phy_set_mode(dwc->usb3_generic_phy,
+					     PHY_MODE_USB_HOST);
+				phy_calibrate(dwc->usb2_generic_phy);
+			}
+			break;
+		case DWC3_GCTL_PRTCAP_DEVICE:
+			if (dwc->usb2_phy)
+				otg_set_vbus(dwc->usb2_phy->otg, false);
+			phy_set_mode(dwc->usb2_generic_phy,
+				     PHY_MODE_USB_DEVICE);
+			phy_set_mode(dwc->usb3_generic_phy,
+				     PHY_MODE_USB_DEVICE);
+			break;
+		case DWC3_GCTL_PRTCAP_OTG:
+			break;
+		default:
+			break;
+		}
+	} else {
+		switch (dwc->current_dr_role) {
+		case DWC3_GCTL_PRTCAP_HOST:
+			dwc3_host_exit(dwc);
+			break;
+		case DWC3_GCTL_PRTCAP_DEVICE:
+			break;
+		case DWC3_GCTL_PRTCAP_OTG:
+			break;
+		default:
+			dwc->current_dr_role = dwc->desired_dr_role;
+			return;
+		}
+
+		/*
+		 * We should set drd_connected true before runtime_suspend to
+		 * enable reset assert.
+		 */
+		dwc->drd_connected = false;
+		pm_runtime_put_sync_suspend(dwc->dev);
+	}
 }
 
 void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
@@ -1170,6 +1245,14 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 		break;
 	case USB_DR_MODE_OTG:
 		INIT_WORK(&dwc->drd_work, __dwc3_set_mode);
+		if (dwc->en_runtime) {
+			ret = dwc3_gadget_init(dwc);
+			if (ret) {
+				if (ret != -EPROBE_DEFER)
+					dev_err(dev, "failed to initialize gadget\n");
+				return ret;
+			}
+		}
 		ret = dwc3_drd_init(dwc);
 		if (ret) {
 			if (ret != -EPROBE_DEFER)
@@ -1496,6 +1579,12 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (ret)
 		goto err3;
 
+	if (dwc->dr_mode == USB_DR_MODE_OTG &&
+	    of_machine_is_compatible("rockchip,rk3399")) {
+		pm_runtime_allow(dev);
+		dwc->en_runtime = true;
+	}
+
 	ret = dwc3_alloc_scratch_buffers(dwc);
 	if (ret)
 		goto err3;
@@ -1616,7 +1705,7 @@ static int dwc3_suspend_common(struct dwc3 *dwc, pm_message_t msg)
 		dwc3_core_exit(dwc);
 		break;
 	case DWC3_GCTL_PRTCAP_HOST:
-		if (!PMSG_IS_AUTO(msg)) {
+		if (!PMSG_IS_AUTO(msg) || dwc->en_runtime) {
 			dwc3_core_exit(dwc);
 			break;
 		}
@@ -1677,7 +1766,7 @@ static int dwc3_resume_common(struct dwc3 *dwc, pm_message_t msg)
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		break;
 	case DWC3_GCTL_PRTCAP_HOST:
-		if (!PMSG_IS_AUTO(msg)) {
+		if (!PMSG_IS_AUTO(msg) || dwc->en_runtime) {
 			ret = dwc3_core_init_for_resume(dwc);
 			if (ret)
 				return ret;
