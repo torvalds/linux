@@ -11,32 +11,6 @@
 
 #include "i915_drv.h"
 
-static bool switch_to_kernel_context_sync(struct intel_gt *gt)
-{
-	bool result = !intel_gt_is_wedged(gt);
-
-	if (intel_gt_wait_for_idle(gt, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
-		/* XXX hide warning from gem_eio */
-		if (i915_modparams.reset) {
-			dev_err(gt->i915->drm.dev,
-				"Failed to idle engines, declaring wedged!\n");
-			GEM_TRACE_DUMP();
-		}
-
-		/*
-		 * Forcibly cancel outstanding work and leave
-		 * the gpu quiet.
-		 */
-		intel_gt_set_wedged(gt);
-		result = false;
-	}
-
-	if (intel_gt_pm_wait_for_idle(gt))
-		result = false;
-
-	return result;
-}
-
 static void user_forcewake(struct intel_gt *gt, bool suspend)
 {
 	int count = atomic_read(&gt->user_wakeref);
@@ -156,10 +130,6 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	 * it and start again.
 	 */
 	if (intel_gt_resume(&i915->gt))
-		goto err_wedged;
-
-	/* Always reload a context for powersaving. */
-	if (!switch_to_kernel_context_sync(&i915->gt))
 		goto err_wedged;
 
 	user_forcewake(&i915->gt, false);
