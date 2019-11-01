@@ -74,7 +74,6 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 * not rely on its state.
 	 */
 	intel_gt_suspend(&i915->gt);
-	intel_uc_suspend(&i915->gt.uc);
 
 	i915_gem_drain_freed_objects(i915);
 }
@@ -140,8 +139,6 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 		list_splice_tail(&keep, *phase);
 	}
 	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
-
-	i915_gem_sanitize(i915);
 }
 
 void i915_gem_resume(struct drm_i915_private *i915)
@@ -160,8 +157,6 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	 */
 	if (intel_gt_resume(&i915->gt))
 		goto err_wedged;
-
-	intel_uc_resume(&i915->gt.uc);
 
 	/* Always reload a context for powersaving. */
 	if (!switch_to_kernel_context_sync(&i915->gt))

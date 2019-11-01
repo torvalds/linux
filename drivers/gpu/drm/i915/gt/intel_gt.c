@@ -31,9 +31,11 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 	intel_uc_init_early(&gt->uc);
 }
 
-void intel_gt_init_hw_early(struct drm_i915_private *i915)
+void intel_gt_init_hw_early(struct intel_gt *gt, struct i915_ggtt *ggtt)
 {
-	i915->gt.ggtt = &i915->ggtt;
+	gt->ggtt = ggtt;
+
+	intel_gt_sanitize(gt, false);
 }
 
 static void init_unused_ring(struct intel_gt *gt, u32 base)

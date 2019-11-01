@@ -118,14 +118,30 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 
-	GEM_TRACE("\n");
+	GEM_TRACE("force:%s\n", yesno(force));
+
+	/* Use a raw wakeref to avoid calling intel_display_power_get early */
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
+	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
+
+	/*
+	 * As we have just resumed the machine and woken the device up from
+	 * deep PCI sleep (presumably D3_cold), assume the HW has been reset
+	 * back to defaults, recovering from whatever wedged state we left it
+	 * in and so worth trying to use the device once more.
+	 */
+	if (intel_gt_is_wedged(gt))
+		intel_gt_unset_wedged(gt);
 
 	intel_uc_sanitize(&gt->uc);
 
 	for_each_engine(engine, gt, id)
 		if (engine->reset.prepare)
 			engine->reset.prepare(engine);
+
+	intel_uc_reset_prepare(&gt->uc);
 
 	if (reset_engines(gt) || force) {
 		for_each_engine(engine, gt, id)
@@ -135,6 +151,9 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 	for_each_engine(engine, gt, id)
 		if (engine->reset.finish)
 			engine->reset.finish(engine);
+
+	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 }
 
 void intel_gt_pm_fini(struct intel_gt *gt)
@@ -147,6 +166,8 @@ int intel_gt_resume(struct intel_gt *gt)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err = 0;
+
+	GEM_TRACE("\n");
 
 	/*
 	 * After resume, we may need to poke into the pinned kernel
@@ -186,6 +207,9 @@ int intel_gt_resume(struct intel_gt *gt)
 	}
 
 	intel_rc6_enable(&gt->rc6);
+
+	intel_uc_resume(&gt->uc);
+
 	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
 	intel_gt_pm_put(gt);
 
@@ -212,20 +236,30 @@ void intel_gt_suspend(struct intel_gt *gt)
 	/* We expect to be idle already; but also want to be independent */
 	wait_for_idle(gt);
 
+	intel_uc_suspend(&gt->uc);
+
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref) {
 		intel_rps_disable(&gt->rps);
 		intel_rc6_disable(&gt->rc6);
 		intel_llc_disable(&gt->llc);
 	}
+
+	intel_gt_sanitize(gt, false);
+
+	GEM_TRACE("\n");
 }
 
 void intel_gt_runtime_suspend(struct intel_gt *gt)
 {
 	intel_uc_runtime_suspend(&gt->uc);
+
+	GEM_TRACE("\n");
 }
 
 int intel_gt_runtime_resume(struct intel_gt *gt)
 {
+	GEM_TRACE("\n");
+
 	intel_gt_init_swizzling(gt);
 
 	return intel_uc_runtime_resume(&gt->uc);
