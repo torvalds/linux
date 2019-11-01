@@ -50,3 +50,8 @@ in the driver.
   axi_id to monitor a specific id, rather than having to specify axi_mask.
   e.g.::
         perf stat -a -e imx8_ddr0/axid-read,axi_id=0x12/ cmd, which will monitor ARID=0x12
+
+* With DDR_CAP_AXI_ID_FILTER_ENHANCED quirk.
+  This is an extension to the DDR_CAP_AXI_ID_FILTER quirk which permits
+  counting the number of bytes (as opposed to the number of bursts) from DDR
+  read and write transactions concurrently with another set of data counters.
