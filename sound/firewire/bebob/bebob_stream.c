@@ -7,7 +7,7 @@
 
 #include "./bebob.h"
 
-#define CALLBACK_TIMEOUT	2000
+#define CALLBACK_TIMEOUT	2500
 #define FW_ISO_RESOURCE_DELAY	1000
 
 /*
@@ -639,6 +639,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 
 	if (!amdtp_stream_running(&bebob->rx_stream)) {
 		unsigned int curr_rate;
+		unsigned int ir_delay_cycle;
 
 		if (bebob->maudio_special_quirk) {
 			err = bebob->spec->rate->get(bebob, &curr_rate);
@@ -660,13 +661,18 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 
 		// The device postpones start of transmission mostly for 1 sec
 		// after receives packets firstly. For safe, IR context starts
-		// 1.5 sec (=12000 cycles) later. This is within 2.0 sec
-		// (=CALLBACK_TIMEOUT).
+		// 0.4 sec (=3200 cycles) later to version 1 or 2 firmware,
+		// 2.0 sec (=16000 cycles) for version 3 firmware. This is
+		// within 2.5 sec (=CALLBACK_TIMEOUT).
 		// Furthermore, some devices transfer isoc packets with
 		// discontinuous counter in the beginning of packet streaming.
 		// The delay has an effect to avoid detection of this
 		// discontinuity.
-		err = amdtp_domain_start(&bebob->domain, 12000);
+		if (bebob->version < 2)
+			ir_delay_cycle = 3200;
+		else
+			ir_delay_cycle = 16000;
+		err = amdtp_domain_start(&bebob->domain, ir_delay_cycle);
 		if (err < 0)
 			goto error;
 
