@@ -350,7 +350,7 @@ static int adis16480_get_freq(struct iio_dev *indio_dev, int *val, int *val2)
 	struct adis16480 *st = iio_priv(indio_dev);
 	uint16_t t;
 	int ret;
-	unsigned freq;
+	unsigned int freq;
 	unsigned int reg;
 
 	if (st->clk_mode == ADIS16480_CLK_PPS)
