@@ -520,7 +520,7 @@ struct iwl_scan_dwell {
 } __packed;
 
 /**
- * struct iwl_scan_config
+ * struct iwl_scan_config_v1
  * @flags:			enum scan_config_flags
  * @tx_chains:			valid_tx antenna - ANT_* definitions
  * @rx_chains:			valid_rx antenna - ANT_* definitions
@@ -552,7 +552,7 @@ struct iwl_scan_config_v1 {
 #define SCAN_LB_LMAC_IDX 0
 #define SCAN_HB_LMAC_IDX 1
 
-struct iwl_scan_config {
+struct iwl_scan_config_v2 {
 	__le32 flags;
 	__le32 tx_chains;
 	__le32 rx_chains;
@@ -564,6 +564,24 @@ struct iwl_scan_config {
 	u8 bcast_sta_id;
 	u8 channel_flags;
 	u8 channel_array[];
+} __packed; /* SCAN_CONFIG_DB_CMD_API_S_2 */
+
+/**
+ * struct iwl_scan_config
+ * @enable_cam_mode: whether to enable CAM mode.
+ * @enable_promiscouos_mode: whether to enable promiscouos mode
+ * @bcast_sta_id: the index of the station in the fw
+ * @reserved: reserved
+ * @tx_chains: valid_tx antenna - ANT_* definitions
+ * @rx_chains: valid_rx antenna - ANT_* definitions
+ */
+struct iwl_scan_config {
+	u8 enable_cam_mode;
+	u8 enable_promiscouos_mode;
+	u8 bcast_sta_id;
+	u8 reserved;
+	__le32 tx_chains;
+	__le32 rx_chains;
 } __packed; /* SCAN_CONFIG_DB_CMD_API_S_3 */
 
 /**
