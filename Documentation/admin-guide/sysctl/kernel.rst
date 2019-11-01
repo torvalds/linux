@@ -1103,7 +1103,7 @@ During initialization the kernel sets this value such that even if the
 maximum number of threads is created, the thread structures occupy only
 a part (1/8th) of the available RAM pages.
 
-The minimum value that can be written to threads-max is 20.
+The minimum value that can be written to threads-max is 1.
 
 The maximum value that can be written to threads-max is given by the
 constant FUTEX_TID_MASK (0x3fffffff).
