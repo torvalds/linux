@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2014, 2017-2018, The Linux Foundation. All rights reserved. */
+/*
+ * Copyright (c) 2014-2015, 2017-2019, The Linux Foundation.
+ * All rights reserved.
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -175,7 +178,18 @@ static struct spmi_driver pmic_spmi_driver = {
 		.of_match_table = pmic_spmi_id_table,
 	},
 };
-module_spmi_driver(pmic_spmi_driver);
+
+static int __init pmic_spmi_init(void)
+{
+	return spmi_driver_register(&pmic_spmi_driver);
+}
+arch_initcall(pmic_spmi_init);
+
+static void __exit pmic_spmi_exit(void)
+{
+	spmi_driver_unregister(&pmic_spmi_driver);
+}
+module_exit(pmic_spmi_exit);
 
 MODULE_DESCRIPTION("Qualcomm SPMI PMIC driver");
 MODULE_ALIAS("spmi:spmi-pmic");
