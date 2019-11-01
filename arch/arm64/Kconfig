@@ -110,7 +110,6 @@ config ARM64
 	select GENERIC_STRNLEN_USER
 	select GENERIC_TIME_VSYSCALL
 	select GENERIC_GETTIMEOFDAY
-	select GENERIC_COMPAT_VDSO if (!CPU_BIG_ENDIAN && COMPAT)
 	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
 	select HAVE_PCI
@@ -1159,7 +1158,7 @@ menuconfig COMPAT
 if COMPAT
 
 config KUSER_HELPERS
-	bool "Enable kuser helpers page for 32 bit applications"
+	bool "Enable kuser helpers page for 32-bit applications"
 	default y
 	help
 	  Warning: disabling this option may break 32-bit user programs.
@@ -1185,6 +1184,18 @@ config KUSER_HELPERS
 	  Say N here only if you are absolutely certain that you do not
 	  need these helpers; otherwise, the safe option is to say Y.
 
+config COMPAT_VDSO
+	bool "Enable vDSO for 32-bit applications"
+	depends on !CPU_BIG_ENDIAN && "$(CROSS_COMPILE_COMPAT)" != ""
+	select GENERIC_COMPAT_VDSO
+	default y
+	help
+	  Place in the process address space of 32-bit applications an
+	  ELF shared object providing fast implementations of gettimeofday
+	  and clock_gettime.
+
+	  You must have a 32-bit build of glibc 2.22 or later for programs
+	  to seamlessly take advantage of this.
 
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"

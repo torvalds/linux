@@ -275,12 +275,16 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 			   struct sk_buff *skb, struct c4iw_wr_wait *wr_waitp)
 {
 	int err;
-	struct fw_ri_tpte tpt;
+	struct fw_ri_tpte *tpt;
 	u32 stag_idx;
 	static atomic_t key;
 
 	if (c4iw_fatal_error(rdev))
 		return -EIO;
+
+	tpt = kmalloc(sizeof(*tpt), GFP_KERNEL);
+	if (!tpt)
+		return -ENOMEM;
 
 	stag_state = stag_state > 0;
 	stag_idx = (*stag) >> 8;
@@ -291,6 +295,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 			mutex_lock(&rdev->stats.lock);
 			rdev->stats.stag.fail++;
 			mutex_unlock(&rdev->stats.lock);
+			kfree(tpt);
 			return -ENOMEM;
 		}
 		mutex_lock(&rdev->stats.lock);
@@ -305,28 +310,28 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 
 	/* write TPT entry */
 	if (reset_tpt_entry)
-		memset(&tpt, 0, sizeof(tpt));
+		memset(tpt, 0, sizeof(*tpt));
 	else {
-		tpt.valid_to_pdid = cpu_to_be32(FW_RI_TPTE_VALID_F |
+		tpt->valid_to_pdid = cpu_to_be32(FW_RI_TPTE_VALID_F |
 			FW_RI_TPTE_STAGKEY_V((*stag & FW_RI_TPTE_STAGKEY_M)) |
 			FW_RI_TPTE_STAGSTATE_V(stag_state) |
 			FW_RI_TPTE_STAGTYPE_V(type) | FW_RI_TPTE_PDID_V(pdid));
-		tpt.locread_to_qpid = cpu_to_be32(FW_RI_TPTE_PERM_V(perm) |
+		tpt->locread_to_qpid = cpu_to_be32(FW_RI_TPTE_PERM_V(perm) |
 			(bind_enabled ? FW_RI_TPTE_MWBINDEN_F : 0) |
 			FW_RI_TPTE_ADDRTYPE_V((zbva ? FW_RI_ZERO_BASED_TO :
 						      FW_RI_VA_BASED_TO))|
 			FW_RI_TPTE_PS_V(page_size));
-		tpt.nosnoop_pbladdr = !pbl_size ? 0 : cpu_to_be32(
+		tpt->nosnoop_pbladdr = !pbl_size ? 0 : cpu_to_be32(
 			FW_RI_TPTE_PBLADDR_V(PBL_OFF(rdev, pbl_addr)>>3));
-		tpt.len_lo = cpu_to_be32((u32)(len & 0xffffffffUL));
-		tpt.va_hi = cpu_to_be32((u32)(to >> 32));
-		tpt.va_lo_fbo = cpu_to_be32((u32)(to & 0xffffffffUL));
-		tpt.dca_mwbcnt_pstag = cpu_to_be32(0);
-		tpt.len_hi = cpu_to_be32((u32)(len >> 32));
+		tpt->len_lo = cpu_to_be32((u32)(len & 0xffffffffUL));
+		tpt->va_hi = cpu_to_be32((u32)(to >> 32));
+		tpt->va_lo_fbo = cpu_to_be32((u32)(to & 0xffffffffUL));
+		tpt->dca_mwbcnt_pstag = cpu_to_be32(0);
+		tpt->len_hi = cpu_to_be32((u32)(len >> 32));
 	}
 	err = write_adapter_mem(rdev, stag_idx +
 				(rdev->lldi.vr->stag.start >> 5),
-				sizeof(tpt), &tpt, skb, wr_waitp);
+				sizeof(*tpt), tpt, skb, wr_waitp);
 
 	if (reset_tpt_entry) {
 		c4iw_put_resource(&rdev->resource.tpt_table, stag_idx);
@@ -334,6 +339,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 		rdev->stats.stag.cur -= 32;
 		mutex_unlock(&rdev->stats.lock);
 	}
+	kfree(tpt);
 	return err;
 }
 

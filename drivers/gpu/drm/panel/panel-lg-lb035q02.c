@@ -220,9 +220,17 @@ static const struct of_device_id lb035q02_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, lb035q02_of_match);
 
+static const struct spi_device_id lb035q02_ids[] = {
+	{ "lb035q02", 0 },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(spi, lb035q02_ids);
+
 static struct spi_driver lb035q02_driver = {
 	.probe		= lb035q02_probe,
 	.remove		= lb035q02_remove,
+	.id_table	= lb035q02_ids,
 	.driver		= {
 		.name	= "panel-lg-lb035q02",
 		.of_match_table = lb035q02_of_match,
@@ -231,7 +239,6 @@ static struct spi_driver lb035q02_driver = {
 
 module_spi_driver(lb035q02_driver);
 
-MODULE_ALIAS("spi:lgphilips,lb035q02");
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
 MODULE_DESCRIPTION("LG.Philips LB035Q02 LCD Panel driver");
 MODULE_LICENSE("GPL");

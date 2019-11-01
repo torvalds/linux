@@ -182,12 +182,19 @@ void siw_qp_llp_close(struct siw_qp *qp)
  */
 void siw_qp_llp_write_space(struct sock *sk)
 {
-	struct siw_cep *cep = sk_to_cep(sk);
+	struct siw_cep *cep;
 
-	cep->sk_write_space(sk);
+	read_lock(&sk->sk_callback_lock);
 
-	if (!test_bit(SOCK_NOSPACE, &sk->sk_socket->flags))
-		(void)siw_sq_start(cep->qp);
+	cep  = sk_to_cep(sk);
+	if (cep) {
+		cep->sk_write_space(sk);
+
+		if (!test_bit(SOCK_NOSPACE, &sk->sk_socket->flags))
+			(void)siw_sq_start(cep->qp);
+	}
+
+	read_unlock(&sk->sk_callback_lock);
 }
 
 static int siw_qp_readq_init(struct siw_qp *qp, int irq_size, int orq_size)

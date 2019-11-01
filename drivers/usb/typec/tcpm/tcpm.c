@@ -4409,18 +4409,20 @@ static int tcpm_fw_get_caps(struct tcpm_port *port,
 	/* USB data support is optional */
 	ret = fwnode_property_read_string(fwnode, "data-role", &cap_str);
 	if (ret == 0) {
-		port->typec_caps.data = typec_find_port_data_role(cap_str);
-		if (port->typec_caps.data < 0)
-			return -EINVAL;
+		ret = typec_find_port_data_role(cap_str);
+		if (ret < 0)
+			return ret;
+		port->typec_caps.data = ret;
 	}
 
 	ret = fwnode_property_read_string(fwnode, "power-role", &cap_str);
 	if (ret < 0)
 		return ret;
 
-	port->typec_caps.type = typec_find_port_power_role(cap_str);
-	if (port->typec_caps.type < 0)
-		return -EINVAL;
+	ret = typec_find_port_power_role(cap_str);
+	if (ret < 0)
+		return ret;
+	port->typec_caps.type = ret;
 	port->port_type = port->typec_caps.type;
 
 	if (port->port_type == TYPEC_PORT_SNK)

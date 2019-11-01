@@ -415,27 +415,27 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	return ctx;
 }
 
-static inline bool io_sequence_defer(struct io_ring_ctx *ctx,
-				     struct io_kiocb *req)
+static inline bool __io_sequence_defer(struct io_ring_ctx *ctx,
+				       struct io_kiocb *req)
 {
-	/* timeout requests always honor sequence */
-	if (!(req->flags & REQ_F_TIMEOUT) &&
-	    (req->flags & (REQ_F_IO_DRAIN|REQ_F_IO_DRAINED)) != REQ_F_IO_DRAIN)
-		return false;
-
 	return req->sequence != ctx->cached_cq_tail + ctx->rings->sq_dropped;
 }
 
-static struct io_kiocb *__io_get_deferred_req(struct io_ring_ctx *ctx,
-					      struct list_head *list)
+static inline bool io_sequence_defer(struct io_ring_ctx *ctx,
+				     struct io_kiocb *req)
+{
+	if ((req->flags & (REQ_F_IO_DRAIN|REQ_F_IO_DRAINED)) != REQ_F_IO_DRAIN)
+		return false;
+
+	return __io_sequence_defer(ctx, req);
+}
+
+static struct io_kiocb *io_get_deferred_req(struct io_ring_ctx *ctx)
 {
 	struct io_kiocb *req;
 
-	if (list_empty(list))
-		return NULL;
-
-	req = list_first_entry(list, struct io_kiocb, list);
-	if (!io_sequence_defer(ctx, req)) {
+	req = list_first_entry_or_null(&ctx->defer_list, struct io_kiocb, list);
+	if (req && !io_sequence_defer(ctx, req)) {
 		list_del_init(&req->list);
 		return req;
 	}
@@ -443,14 +443,17 @@ static struct io_kiocb *__io_get_deferred_req(struct io_ring_ctx *ctx,
 	return NULL;
 }
 
-static struct io_kiocb *io_get_deferred_req(struct io_ring_ctx *ctx)
-{
-	return __io_get_deferred_req(ctx, &ctx->defer_list);
-}
-
 static struct io_kiocb *io_get_timeout_req(struct io_ring_ctx *ctx)
 {
-	return __io_get_deferred_req(ctx, &ctx->timeout_list);
+	struct io_kiocb *req;
+
+	req = list_first_entry_or_null(&ctx->timeout_list, struct io_kiocb, list);
+	if (req && !__io_sequence_defer(ctx, req)) {
+		list_del_init(&req->list);
+		return req;
+	}
+
+	return NULL;
 }
 
 static void __io_commit_cqring(struct io_ring_ctx *ctx)
@@ -591,14 +594,6 @@ static void io_cqring_add_event(struct io_ring_ctx *ctx, u64 user_data,
 	io_cqring_ev_posted(ctx);
 }
 
-static void io_ring_drop_ctx_refs(struct io_ring_ctx *ctx, unsigned refs)
-{
-	percpu_ref_put_many(&ctx->refs, refs);
-
-	if (waitqueue_active(&ctx->wait))
-		wake_up(&ctx->wait);
-}
-
 static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 				   struct io_submit_state *state)
 {
@@ -646,7 +641,7 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 	req->result = 0;
 	return req;
 out:
-	io_ring_drop_ctx_refs(ctx, 1);
+	percpu_ref_put(&ctx->refs);
 	return NULL;
 }
 
@@ -654,7 +649,7 @@ static void io_free_req_many(struct io_ring_ctx *ctx, void **reqs, int *nr)
 {
 	if (*nr) {
 		kmem_cache_free_bulk(req_cachep, *nr, reqs);
-		io_ring_drop_ctx_refs(ctx, *nr);
+		percpu_ref_put_many(&ctx->refs, *nr);
 		*nr = 0;
 	}
 }
@@ -663,7 +658,7 @@ static void __io_free_req(struct io_kiocb *req)
 {
 	if (req->file && !(req->flags & REQ_F_FIXED_FILE))
 		fput(req->file);
-	io_ring_drop_ctx_refs(req->ctx, 1);
+	percpu_ref_put(&req->ctx->refs);
 	kmem_cache_free(req_cachep, req);
 }
 
@@ -2761,7 +2756,7 @@ out:
 
 	if (link)
 		io_queue_link_head(ctx, link, &link->submit, shadow_req,
-					block_for_last);
+					!block_for_last);
 	if (statep)
 		io_submit_state_end(statep);
 
@@ -2920,8 +2915,12 @@ static void io_finish_async(struct io_ring_ctx *ctx)
 static void io_destruct_skb(struct sk_buff *skb)
 {
 	struct io_ring_ctx *ctx = skb->sk->sk_user_data;
+	int i;
 
-	io_finish_async(ctx);
+	for (i = 0; i < ARRAY_SIZE(ctx->sqo_wq); i++)
+		if (ctx->sqo_wq[i])
+			flush_workqueue(ctx->sqo_wq[i]);
+
 	unix_destruct_scm(skb);
 }
 
@@ -3630,7 +3629,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		}
 	}
 
-	io_ring_drop_ctx_refs(ctx, 1);
+	percpu_ref_put(&ctx->refs);
 out_fput:
 	fdput(f);
 	return submitted ? submitted : ret;

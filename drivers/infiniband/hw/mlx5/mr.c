@@ -84,32 +84,6 @@ static bool use_umr_mtt_update(struct mlx5_ib_mr *mr, u64 start, u64 length)
 		length + (start & (MLX5_ADAPTER_PAGE_SIZE - 1));
 }
 
-static void update_odp_mr(struct mlx5_ib_mr *mr)
-{
-	if (is_odp_mr(mr)) {
-		/*
-		 * This barrier prevents the compiler from moving the
-		 * setting of umem->odp_data->private to point to our
-		 * MR, before reg_umr finished, to ensure that the MR
-		 * initialization have finished before starting to
-		 * handle invalidations.
-		 */
-		smp_wmb();
-		to_ib_umem_odp(mr->umem)->private = mr;
-		/*
-		 * Make sure we will see the new
-		 * umem->odp_data->private value in the invalidation
-		 * routines, before we can get page faults on the
-		 * MR. Page faults can happen once we put the MR in
-		 * the tree, below this line. Without the barrier,
-		 * there can be a fault handling and an invalidation
-		 * before umem->odp_data->private == mr is visible to
-		 * the invalidation handler.
-		 */
-		smp_wmb();
-	}
-}
-
 static void reg_mr_callback(int status, struct mlx5_async_work *context)
 {
 	struct mlx5_ib_mr *mr =
@@ -1346,8 +1320,6 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->umem = umem;
 	set_mr_fields(dev, mr, npages, length, access_flags);
 
-	update_odp_mr(mr);
-
 	if (use_umr) {
 		int update_xlt_flags = MLX5_IB_UPD_XLT_ENABLE;
 
@@ -1363,10 +1335,12 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		}
 	}
 
-	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
-		mr->live = 1;
+	if (is_odp_mr(mr)) {
+		to_ib_umem_odp(mr->umem)->private = mr;
 		atomic_set(&mr->num_pending_prefetch, 0);
 	}
+	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING))
+		smp_store_release(&mr->live, 1);
 
 	return &mr->ibmr;
 error:
@@ -1441,6 +1415,9 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 	if (!mr->umem)
 		return -EINVAL;
 
+	if (is_odp_mr(mr))
+		return -EOPNOTSUPP;
+
 	if (flags & IB_MR_REREG_TRANS) {
 		addr = virt_addr;
 		len = length;
@@ -1486,8 +1463,6 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		}
 
 		mr->allocated_from_cache = 0;
-		if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING))
-			mr->live = 1;
 	} else {
 		/*
 		 * Send a UMR WQE
@@ -1516,7 +1491,6 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 
 	set_mr_fields(dev, mr, npages, len, access_flags);
 
-	update_odp_mr(mr);
 	return 0;
 
 err:
@@ -1607,15 +1581,16 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		/* Prevent new page faults and
 		 * prefetch requests from succeeding
 		 */
-		mr->live = 0;
+		WRITE_ONCE(mr->live, 0);
+
+		/* Wait for all running page-fault handlers to finish. */
+		synchronize_srcu(&dev->mr_srcu);
 
 		/* dequeue pending prefetch requests for the mr */
 		if (atomic_read(&mr->num_pending_prefetch))
 			flush_workqueue(system_unbound_wq);
 		WARN_ON(atomic_read(&mr->num_pending_prefetch));
 
-		/* Wait for all running page-fault handlers to finish. */
-		synchronize_srcu(&dev->mr_srcu);
 		/* Destroy all page mappings */
 		if (!umem_odp->is_implicit_odp)
 			mlx5_ib_invalidate_range(umem_odp,
@@ -1987,14 +1962,25 @@ free:
 
 int mlx5_ib_dealloc_mw(struct ib_mw *mw)
 {
+	struct mlx5_ib_dev *dev = to_mdev(mw->device);
 	struct mlx5_ib_mw *mmw = to_mmw(mw);
 	int err;
 
-	err =  mlx5_core_destroy_mkey((to_mdev(mw->device))->mdev,
-				      &mmw->mmkey);
-	if (!err)
-		kfree(mmw);
-	return err;
+	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
+		xa_erase(&dev->mdev->priv.mkey_table,
+			 mlx5_base_mkey(mmw->mmkey.key));
+		/*
+		 * pagefault_single_data_segment() may be accessing mmw under
+		 * SRCU if the user bound an ODP MR to this MW.
+		 */
+		synchronize_srcu(&dev->mr_srcu);
+	}
+
+	err = mlx5_core_destroy_mkey(dev->mdev, &mmw->mmkey);
+	if (err)
+		return err;
+	kfree(mmw);
+	return 0;
 }
 
 int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
