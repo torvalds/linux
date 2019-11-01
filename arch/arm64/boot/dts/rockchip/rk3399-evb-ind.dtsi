@@ -778,7 +778,7 @@
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_ACCEL>;
-		layout = <7>;
+		layout = <2>;
 	};
 
 	mpu6500_gyro: mpu_gyro@68 {
@@ -787,7 +787,7 @@
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_GYROSCOPE>;
-		layout = <7>;
+		layout = <2>;
 	};
 
 	fusb0: fusb30x@22 {
