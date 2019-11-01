@@ -2438,7 +2438,6 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 int dquot_resume(struct super_block *sb, int type)
 {
 	struct quota_info *dqopt = sb_dqopt(sb);
-	struct inode *inode;
 	int ret = 0, cnt;
 	unsigned int flags;
 
@@ -2452,8 +2451,6 @@ int dquot_resume(struct super_block *sb, int type)
 		if (!sb_has_quota_suspended(sb, cnt))
 			continue;
 
-		inode = dqopt->files[cnt];
-		dqopt->files[cnt] = NULL;
 		spin_lock(&dq_state_lock);
 		flags = dqopt->flags & dquot_state_flag(DQUOT_USAGE_ENABLED |
 							DQUOT_LIMITS_ENABLED,
@@ -2462,9 +2459,10 @@ int dquot_resume(struct super_block *sb, int type)
 		spin_unlock(&dq_state_lock);
 
 		flags = dquot_generic_flag(flags, cnt);
-		ret = vfs_load_quota_inode(inode, cnt,
-				dqopt->info[cnt].dqi_fmt_id, flags);
-		iput(inode);
+		ret = dquot_load_quota_sb(sb, cnt, dqopt->info[cnt].dqi_fmt_id,
+					  flags);
+		if (ret < 0)
+			vfs_cleanup_quota_inode(sb, type);
 	}
 
 	return ret;
