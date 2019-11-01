@@ -298,6 +298,40 @@ static const struct omap_clkctrl_reg_data dra7_dss_clkctrl_regs[] __initconst = 
 	{ 0 },
 };
 
+static const char * const dra7_gpu_core_mux_parents[] __initconst = {
+	"dpll_core_h14x2_ck",
+	"dpll_per_h14x2_ck",
+	"dpll_gpu_m2_ck",
+	NULL,
+};
+
+static const char * const dra7_gpu_hyd_mux_parents[] __initconst = {
+	"dpll_core_h14x2_ck",
+	"dpll_per_h14x2_ck",
+	"dpll_gpu_m2_ck",
+	NULL,
+};
+
+static const char * const dra7_gpu_sys_clk_parents[] __initconst = {
+	"sys_clkin",
+	NULL,
+};
+
+static const struct omap_clkctrl_div_data dra7_gpu_sys_clk_data __initconst = {
+	.max_div = 2,
+};
+
+static const struct omap_clkctrl_bit_data dra7_gpu_core_bit_data[] __initconst = {
+	{ 24, TI_CLK_MUX, dra7_gpu_core_mux_parents, NULL, },
+	{ 26, TI_CLK_MUX, dra7_gpu_hyd_mux_parents, NULL, },
+	{ 0 },
+};
+
+static const struct omap_clkctrl_reg_data dra7_gpu_clkctrl_regs[] __initconst = {
+	{ DRA7_GPU_CLKCTRL, dra7_gpu_core_bit_data, CLKF_SW_SUP, "gpu_cm:clk:0000:24", },
+	{ 0 },
+};
+
 static const char * const dra7_mmc1_fclk_mux_parents[] __initconst = {
 	"func_128m_clk",
 	"dpll_per_m2x2_ck",
@@ -803,6 +837,7 @@ const struct omap_clkctrl_data dra7_clkctrl_data[] __initconst = {
 	{ 0x4a008e20, dra7_l3instr_clkctrl_regs },
 	{ 0x4a009020, dra7_cam_clkctrl_regs },
 	{ 0x4a009120, dra7_dss_clkctrl_regs },
+	{ 0x4a009220, dra7_gpu_clkctrl_regs },
 	{ 0x4a009320, dra7_l3init_clkctrl_regs },
 	{ 0x4a0093b0, dra7_pcie_clkctrl_regs },
 	{ 0x4a0093d0, dra7_gmac_clkctrl_regs },

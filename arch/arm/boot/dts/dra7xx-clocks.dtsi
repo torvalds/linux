@@ -1734,6 +1734,20 @@
 		};
 	};
 
+	gpu_cm: gpu-cm@1200 {
+		compatible = "ti,omap4-cm";
+		reg = <0x1200 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x1200 0x100>;
+
+		gpu_clkctrl: gpu-clkctrl@20 {
+			compatible = "ti,clkctrl";
+			reg = <0x20 0x4>;
+			#clock-cells = <2>;
+		};
+	};
+
 	l3init_cm: l3init-cm@1300 {
 		compatible = "ti,omap4-cm";
 		reg = <0x1300 0x100>;
