@@ -4,6 +4,17 @@
 #
 menu "Temperature sensors"
 
+config LTC2983
+	tristate "Analog Devices Multi-Sensor Digital Temperature Measurement System"
+	depends on SPI
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for the LTC2983 Multi-Sensor
+	  high accuracy digital temperature measurement system.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ltc2983.
+
 config MAXIM_THERMOCOUPLE
 	tristate "Maxim thermocouple sensors"
 	depends on SPI

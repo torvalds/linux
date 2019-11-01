@@ -112,7 +112,6 @@ int bmp280_common_probe(struct device *dev,
 			unsigned int chip,
 			const char *name,
 			int irq);
-int bmp280_common_remove(struct device *dev);
 
 /* PM ops */
 extern const struct dev_pm_ops bmp280_dev_pm_ops;

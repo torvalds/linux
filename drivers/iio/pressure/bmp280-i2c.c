@@ -38,11 +38,6 @@ static int bmp280_i2c_probe(struct i2c_client *client,
 				   client->irq);
 }
 
-static int bmp280_i2c_remove(struct i2c_client *client)
-{
-	return bmp280_common_remove(&client->dev);
-}
-
 static const struct acpi_device_id bmp280_acpi_i2c_match[] = {
 	{"BMP0280", BMP280_CHIP_ID },
 	{"BMP0180", BMP180_CHIP_ID },
@@ -82,7 +77,6 @@ static struct i2c_driver bmp280_i2c_driver = {
 		.pm = &bmp280_dev_pm_ops,
 	},
 	.probe		= bmp280_i2c_probe,
-	.remove		= bmp280_i2c_remove,
 	.id_table	= bmp280_i2c_id,
 };
 module_i2c_driver(bmp280_i2c_driver);

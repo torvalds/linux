@@ -26,6 +26,8 @@
 #define ST_LSM6DS3TRC_DEV_NAME	"lsm6ds3tr-c"
 #define ST_ISM330DHCX_DEV_NAME	"ism330dhcx"
 #define ST_LSM9DS1_DEV_NAME	"lsm9ds1-imu"
+#define ST_LSM6DS0_DEV_NAME	"lsm6ds0"
+#define ST_LSM6DSRX_DEV_NAME	"lsm6dsrx"
 
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
@@ -40,6 +42,8 @@ enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3TRC_ID,
 	ST_ISM330DHCX_ID,
 	ST_LSM9DS1_ID,
+	ST_LSM6DS0_ID,
+	ST_LSM6DSRX_ID,
 	ST_LSM6DSX_MAX_ID,
 };
 
@@ -153,12 +157,14 @@ struct st_lsm6dsx_fifo_ops {
  * @hr_timer: Hw timer resolution register info (addr + mask).
  * @fifo_en: Hw timer FIFO enable register info (addr + mask).
  * @decimator: Hw timer FIFO decimator register info (addr + mask).
+ * @freq_fine: Difference in % of ODR with respect to the typical.
  */
 struct st_lsm6dsx_hw_ts_settings {
 	struct st_lsm6dsx_reg timer_en;
 	struct st_lsm6dsx_reg hr_timer;
 	struct st_lsm6dsx_reg fifo_en;
 	struct st_lsm6dsx_reg decimator;
+	u8 freq_fine;
 };
 
 /**
@@ -238,30 +244,27 @@ struct st_lsm6dsx_ext_dev_settings {
 /**
  * struct st_lsm6dsx_settings - ST IMU sensor settings
  * @wai: Sensor WhoAmI default value.
- * @int1_addr: Control Register address for INT1
- * @int2_addr: Control Register address for INT2
- * @reset_addr: register address for reset/reboot
+ * @reset: register address for reset.
+ * @boot: register address for boot.
+ * @bdu: register address for Block Data Update.
  * @max_fifo_size: Sensor max fifo length in FIFO words.
  * @id: List of hw id/device name supported by the driver configuration.
  * @channels: IIO channels supported by the device.
+ * @irq_config: interrupts related registers.
+ * @drdy_mask: register info for data-ready mask (addr + mask).
  * @odr_table: Hw sensors odr table (Hz + val).
  * @fs_table: Hw sensors gain table (gain + val).
  * @decimator: List of decimator register info (addr + mask).
  * @batch: List of FIFO batching register info (addr + mask).
- * @lir: Latched interrupt register info (addr + mask).
- * @clear_on_read: Clear on read register info (addr + mask).
  * @fifo_ops: Sensor hw FIFO parameters.
  * @ts_settings: Hw timer related settings.
  * @shub_settings: i2c controller related settings.
  */
 struct st_lsm6dsx_settings {
 	u8 wai;
-	u8 int1_addr;
-	u8 int2_addr;
-	u8 int1_func_addr;
-	u8 int2_func_addr;
-	u8 int_func_mask;
-	u8 reset_addr;
+	struct st_lsm6dsx_reg reset;
+	struct st_lsm6dsx_reg boot;
+	struct st_lsm6dsx_reg bdu;
 	u16 max_fifo_size;
 	struct {
 		enum st_lsm6dsx_hw_id hw_id;
@@ -271,12 +274,21 @@ struct st_lsm6dsx_settings {
 		const struct iio_chan_spec *chan;
 		int len;
 	} channels[2];
+	struct {
+		struct st_lsm6dsx_reg irq1;
+		struct st_lsm6dsx_reg irq2;
+		struct st_lsm6dsx_reg irq1_func;
+		struct st_lsm6dsx_reg irq2_func;
+		struct st_lsm6dsx_reg lir;
+		struct st_lsm6dsx_reg clear_on_read;
+		struct st_lsm6dsx_reg hla;
+		struct st_lsm6dsx_reg od;
+	} irq_config;
+	struct st_lsm6dsx_reg drdy_mask;
 	struct st_lsm6dsx_odr_table_entry odr_table[2];
 	struct st_lsm6dsx_fs_table_entry fs_table[2];
 	struct st_lsm6dsx_reg decimator[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_reg batch[ST_LSM6DSX_MAX_ID];
-	struct st_lsm6dsx_reg lir;
-	struct st_lsm6dsx_reg clear_on_read;
 	struct st_lsm6dsx_fifo_ops fifo_ops;
 	struct st_lsm6dsx_hw_ts_settings ts_settings;
 	struct st_lsm6dsx_shub_settings shub_settings;
@@ -340,9 +352,13 @@ struct st_lsm6dsx_sensor {
  * @fifo_mode: FIFO operating mode supported by the device.
  * @suspend_mask: Suspended sensor bitmask.
  * @enable_mask: Enabled sensor bitmask.
+ * @ts_gain: Hw timestamp rate after internal calibration.
  * @ts_sip: Total number of timestamp samples in a given pattern.
  * @sip: Total number of samples (acc/gyro/ts) in a given pattern.
  * @buff: Device read buffer.
+ * @irq_routing: pointer to interrupt routing configuration.
+ * @event_threshold: wakeup event threshold.
+ * @enable_event: enabled event bitmask.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @settings: Pointer to the specific sensor settings in use.
  */
@@ -358,12 +374,13 @@ struct st_lsm6dsx_hw {
 	enum st_lsm6dsx_fifo_mode fifo_mode;
 	u8 suspend_mask;
 	u8 enable_mask;
+	s64 ts_gain;
 	u8 ts_sip;
 	u8 sip;
 
+	const struct st_lsm6dsx_reg *irq_routing;
 	u8 event_threshold;
 	u8 enable_event;
-	struct st_lsm6dsx_reg irq_routing;
 
 	u8 *buff;
 

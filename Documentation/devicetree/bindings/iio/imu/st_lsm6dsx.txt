@@ -14,6 +14,8 @@ Required properties:
   "st,lsm6ds3tr-c"
   "st,ism330dhcx"
   "st,lsm9ds1-imu"
+  "st,lsm6ds0"
+  "st,lsm6dsrx"
 - reg: i2c address of the sensor / spi cs line
 
 Optional properties:
@@ -31,6 +33,7 @@ Optional properties:
 - interrupts: interrupt mapping for IRQ. It should be configured with
   flags IRQ_TYPE_LEVEL_HIGH, IRQ_TYPE_EDGE_RISING, IRQ_TYPE_LEVEL_LOW or
   IRQ_TYPE_EDGE_FALLING.
+- wakeup-source: Enables wake up of host system on event.
 
   Refer to interrupt-controller/interrupts.txt for generic interrupt
   client node bindings.

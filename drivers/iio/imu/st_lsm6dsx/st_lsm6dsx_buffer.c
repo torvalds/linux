@@ -14,10 +14,10 @@
  * (e.g. Gx, Gy, Gz, Ax, Ay, Az), then data are repeated depending on the
  * value of the decimation factor and ODR set for each FIFO data set.
  *
- * LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR/ISM330DHCX: The FIFO buffer can be
- * configured to store data from gyroscope and accelerometer. Each sample
- * is queued with a tag (1B) indicating data source (gyroscope, accelerometer,
- * hw timer).
+ * LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR/LSM6DSRX/ISM330DHCX:
+ * The FIFO buffer can be configured to store data from gyroscope and
+ * accelerometer. Each sample is queued with a tag (1B) indicating data
+ * source (gyroscope, accelerometer, hw timer).
  *
  * FIFO supported modes:
  *  - BYPASS: FIFO disabled
@@ -50,7 +50,6 @@
 
 #define ST_LSM6DSX_MAX_FIFO_ODR_VAL		0x08
 
-#define ST_LSM6DSX_TS_SENSITIVITY		25000UL /* 25us */
 #define ST_LSM6DSX_TS_RESET_VAL			0xaa
 
 struct st_lsm6dsx_decimator_entry {
@@ -423,7 +422,7 @@ int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 				 */
 				if (!reset_ts && ts >= 0xff0000)
 					reset_ts = true;
-				ts *= ST_LSM6DSX_TS_SENSITIVITY;
+				ts *= hw->ts_gain;
 
 				offset += ST_LSM6DSX_SAMPLE_SIZE;
 			}
@@ -450,12 +449,18 @@ int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 	return read_len;
 }
 
+#define ST_LSM6DSX_INVALID_SAMPLE	0x7ffd
 static int
 st_lsm6dsx_push_tagged_data(struct st_lsm6dsx_hw *hw, u8 tag,
 			    u8 *data, s64 ts)
 {
+	s16 val = le16_to_cpu(*(__le16 *)data);
 	struct st_lsm6dsx_sensor *sensor;
 	struct iio_dev *iio_dev;
+
+	/* invalid sample during bootstrap phase */
+	if (val >= ST_LSM6DSX_INVALID_SAMPLE)
+		return -EINVAL;
 
 	/*
 	 * EXT_TAG are managed in FIFO fashion so ST_LSM6DSX_EXT0_TAG
@@ -566,7 +571,7 @@ int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw)
 				 */
 				if (!reset_ts && ts >= 0xffff0000)
 					reset_ts = true;
-				ts *= ST_LSM6DSX_TS_SENSITIVITY;
+				ts *= hw->ts_gain;
 			} else {
 				st_lsm6dsx_push_tagged_data(hw, tag, iio_buff,
 							    ts);
@@ -585,6 +590,9 @@ int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw)
 int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw)
 {
 	int err;
+
+	if (!hw->settings->fifo_ops.read_fifo)
+		return -ENOTSUPP;
 
 	mutex_lock(&hw->fifo_lock);
 
