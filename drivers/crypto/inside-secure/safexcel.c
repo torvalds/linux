@@ -1749,6 +1749,7 @@ static int safexcel_remove(struct platform_device *pdev)
 	safexcel_unregister_algorithms(priv);
 	safexcel_hw_reset_rings(priv);
 
+	clk_disable_unprepare(priv->reg_clk);
 	clk_disable_unprepare(priv->clk);
 
 	for (i = 0; i < priv->config.rings; i++)
