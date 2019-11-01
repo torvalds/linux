@@ -528,7 +528,7 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ss->base = devm_platform_ioremap_resource(pdev, 0);;
+	ss->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ss->base))
 		return PTR_ERR(ss->base);
 
