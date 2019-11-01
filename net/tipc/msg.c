@@ -472,48 +472,98 @@ error:
 }
 
 /**
- * tipc_msg_bundle(): Append contents of a buffer to tail of an existing one
- * @skb: the buffer to append to ("bundle")
- * @msg:  message to be appended
- * @mtu:  max allowable size for the bundle buffer
- * Consumes buffer if successful
- * Returns true if bundling could be performed, otherwise false
+ * tipc_msg_bundle - Append contents of a buffer to tail of an existing one
+ * @bskb: the bundle buffer to append to
+ * @msg: message to be appended
+ * @max: max allowable size for the bundle buffer
+ *
+ * Returns "true" if bundling has been performed, otherwise "false"
  */
-bool tipc_msg_bundle(struct sk_buff *skb, struct tipc_msg *msg, u32 mtu)
+static bool tipc_msg_bundle(struct sk_buff *bskb, struct tipc_msg *msg,
+			    u32 max)
 {
-	struct tipc_msg *bmsg;
-	unsigned int bsz;
-	unsigned int msz = msg_size(msg);
-	u32 start, pad;
-	u32 max = mtu - INT_H_SIZE;
+	struct tipc_msg *bmsg = buf_msg(bskb);
+	u32 msz, bsz, offset, pad;
 
-	if (likely(msg_user(msg) == MSG_FRAGMENTER))
-		return false;
-	if (!skb)
-		return false;
-	bmsg = buf_msg(skb);
+	msz = msg_size(msg);
 	bsz = msg_size(bmsg);
-	start = align(bsz);
-	pad = start - bsz;
+	offset = align(bsz);
+	pad = offset - bsz;
 
-	if (unlikely(msg_user(msg) == TUNNEL_PROTOCOL))
+	if (unlikely(skb_tailroom(bskb) < (pad + msz)))
 		return false;
-	if (unlikely(msg_user(msg) == BCAST_PROTOCOL))
-		return false;
-	if (unlikely(msg_user(bmsg) != MSG_BUNDLER))
-		return false;
-	if (unlikely(skb_tailroom(skb) < (pad + msz)))
-		return false;
-	if (unlikely(max < (start + msz)))
-		return false;
-	if ((msg_importance(msg) < TIPC_SYSTEM_IMPORTANCE) &&
-	    (msg_importance(bmsg) == TIPC_SYSTEM_IMPORTANCE))
+	if (unlikely(max < (offset + msz)))
 		return false;
 
-	skb_put(skb, pad + msz);
-	skb_copy_to_linear_data_offset(skb, start, msg, msz);
-	msg_set_size(bmsg, start + msz);
+	skb_put(bskb, pad + msz);
+	skb_copy_to_linear_data_offset(bskb, offset, msg, msz);
+	msg_set_size(bmsg, offset + msz);
 	msg_set_msgcnt(bmsg, msg_msgcnt(bmsg) + 1);
+	return true;
+}
+
+/**
+ * tipc_msg_try_bundle - Try to bundle a new message to the last one
+ * @tskb: the last/target message to which the new one will be appended
+ * @skb: the new message skb pointer
+ * @mss: max message size (header inclusive)
+ * @dnode: destination node for the message
+ * @new_bundle: if this call made a new bundle or not
+ *
+ * Return: "true" if the new message skb is potential for bundling this time or
+ * later, in the case a bundling has been done this time, the skb is consumed
+ * (the skb pointer = NULL).
+ * Otherwise, "false" if the skb cannot be bundled at all.
+ */
+bool tipc_msg_try_bundle(struct sk_buff *tskb, struct sk_buff **skb, u32 mss,
+			 u32 dnode, bool *new_bundle)
+{
+	struct tipc_msg *msg, *inner, *outer;
+	u32 tsz;
+
+	/* First, check if the new buffer is suitable for bundling */
+	msg = buf_msg(*skb);
+	if (msg_user(msg) == MSG_FRAGMENTER)
+		return false;
+	if (msg_user(msg) == TUNNEL_PROTOCOL)
+		return false;
+	if (msg_user(msg) == BCAST_PROTOCOL)
+		return false;
+	if (mss <= INT_H_SIZE + msg_size(msg))
+		return false;
+
+	/* Ok, but the last/target buffer can be empty? */
+	if (unlikely(!tskb))
+		return true;
+
+	/* Is it a bundle already? Try to bundle the new message to it */
+	if (msg_user(buf_msg(tskb)) == MSG_BUNDLER) {
+		*new_bundle = false;
+		goto bundle;
+	}
+
+	/* Make a new bundle of the two messages if possible */
+	tsz = msg_size(buf_msg(tskb));
+	if (unlikely(mss < align(INT_H_SIZE + tsz) + msg_size(msg)))
+		return true;
+	if (unlikely(pskb_expand_head(tskb, INT_H_SIZE, mss - tsz - INT_H_SIZE,
+				      GFP_ATOMIC)))
+		return true;
+	inner = buf_msg(tskb);
+	skb_push(tskb, INT_H_SIZE);
+	outer = buf_msg(tskb);
+	tipc_msg_init(msg_prevnode(inner), outer, MSG_BUNDLER, 0, INT_H_SIZE,
+		      dnode);
+	msg_set_importance(outer, msg_importance(inner));
+	msg_set_size(outer, INT_H_SIZE + tsz);
+	msg_set_msgcnt(outer, 1);
+	*new_bundle = true;
+
+bundle:
+	if (likely(tipc_msg_bundle(tskb, msg, mss))) {
+		consume_skb(*skb);
+		*skb = NULL;
+	}
 	return true;
 }
 
@@ -560,49 +610,6 @@ none:
 	kfree_skb(*iskb);
 	*iskb = NULL;
 	return false;
-}
-
-/**
- * tipc_msg_make_bundle(): Create bundle buf and append message to its tail
- * @list: the buffer chain, where head is the buffer to replace/append
- * @skb: buffer to be created, appended to and returned in case of success
- * @msg: message to be appended
- * @mtu: max allowable size for the bundle buffer, inclusive header
- * @dnode: destination node for message. (Not always present in header)
- * Returns true if success, otherwise false
- */
-bool tipc_msg_make_bundle(struct sk_buff **skb,  struct tipc_msg *msg,
-			  u32 mtu, u32 dnode)
-{
-	struct sk_buff *_skb;
-	struct tipc_msg *bmsg;
-	u32 msz = msg_size(msg);
-	u32 max = mtu - INT_H_SIZE;
-
-	if (msg_user(msg) == MSG_FRAGMENTER)
-		return false;
-	if (msg_user(msg) == TUNNEL_PROTOCOL)
-		return false;
-	if (msg_user(msg) == BCAST_PROTOCOL)
-		return false;
-	if (msz > (max / 2))
-		return false;
-
-	_skb = tipc_buf_acquire(max, GFP_ATOMIC);
-	if (!_skb)
-		return false;
-
-	skb_trim(_skb, INT_H_SIZE);
-	bmsg = buf_msg(_skb);
-	tipc_msg_init(msg_prevnode(msg), bmsg, MSG_BUNDLER, 0,
-		      INT_H_SIZE, dnode);
-	msg_set_importance(bmsg, msg_importance(msg));
-	msg_set_seqno(bmsg, msg_seqno(msg));
-	msg_set_ack(bmsg, msg_ack(msg));
-	msg_set_bcast_ack(bmsg, msg_bcast_ack(msg));
-	tipc_msg_bundle(_skb, msg, mtu);
-	*skb = _skb;
-	return true;
 }
 
 /**
