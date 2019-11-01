@@ -2936,7 +2936,7 @@ static int srpt_release_sport(struct srpt_port *sport)
 
 	while (atomic_read(&sport->refcount) > 0 &&
 	       wait_for_completion_timeout(&c, 5 * HZ) <= 0) {
-		pr_info("%s_%d: waiting for unregistration of %d sessions and configfs directories ...\n",
+		pr_info("%s_%d: waiting for unregistration of %d sessions ...\n",
 			dev_name(&sport->sdev->device->dev), sport->port,
 			atomic_read(&sport->refcount));
 		rcu_read_lock();
@@ -3733,7 +3733,6 @@ static struct configfs_attribute *srpt_tpg_attrs[] = {
 static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
 					     const char *name)
 {
-	struct srpt_port *sport = wwn->priv;
 	struct srpt_port_id *sport_id = srpt_wwn_to_sport_id(wwn);
 	struct srpt_tpg *stpg;
 	int res = -ENOMEM;
@@ -3751,8 +3750,6 @@ static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
 	mutex_lock(&sport_id->mutex);
 	list_add_tail(&stpg->entry, &sport_id->tpg_list);
 	mutex_unlock(&sport_id->mutex);
-
-	atomic_inc(&sport->refcount);
 
 	return &stpg->tpg;
 }
@@ -3774,7 +3771,6 @@ static void srpt_drop_tpg(struct se_portal_group *tpg)
 	sport->enabled = false;
 	core_tpg_deregister(tpg);
 	kfree(stpg);
-	srpt_drop_sport_ref(sport);
 }
 
 /**
