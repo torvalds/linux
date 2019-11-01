@@ -1190,6 +1190,7 @@ static int rk808_probe(struct i2c_client *client,
 	}
 
 	rk808->i2c = client;
+	rk808_i2c_client = client;
 	i2c_set_clientdata(client, rk808);
 
 	rk808->regmap = devm_regmap_init_i2c(client, rk808->regmap_cfg);
@@ -1222,10 +1223,6 @@ static int rk808_probe(struct i2c_client *client,
 
 	if (of_property_prepare_fn)
 		of_property_prepare_fn(rk808, &client->dev);
-
-	i2c_set_clientdata(client, rk808);
-	rk808->i2c = client;
-	rk808_i2c_client = client;
 
 	for (i = 0; i < nr_pre_init_regs; i++) {
 		ret = regmap_update_bits(rk808->regmap,
@@ -1275,10 +1272,8 @@ static int rk808_probe(struct i2c_client *client,
 		goto err_irq;
 	}
 
-	if (of_property_read_bool(np, "rockchip,system-power-controller")) {
-		rk808_i2c_client = client;
+	if (of_property_read_bool(np, "rockchip,system-power-controller"))
 		pm_power_off = rk808_pm_power_off;
-	}
 
 	rk8xx_kobj = kobject_create_and_add("rk8xx", NULL);
 	if (rk8xx_kobj) {
