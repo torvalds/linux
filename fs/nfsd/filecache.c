@@ -685,8 +685,6 @@ nfsd_file_cache_purge(struct net *net)
 void
 nfsd_file_cache_shutdown(void)
 {
-	LIST_HEAD(dispose);
-
 	set_bit(NFSD_FILE_SHUTDOWN, &nfsd_file_lru_flags);
 
 	lease_unregister_notifier(&nfsd_file_lease_notifier);
