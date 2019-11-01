@@ -162,6 +162,16 @@ static int dt_to_map_one_config(struct pinctrl *p,
 	ret = ops->dt_node_to_map(pctldev, np_config, &map, &num_maps);
 	if (ret < 0)
 		return ret;
+	else if (num_maps == 0) {
+		/*
+		 * If we have no valid maps (maybe caused by empty pinctrl node
+		 * or typing error) ther is no need remember this, so just
+		 * return.
+		 */
+		dev_info(p->dev,
+			 "there is not valid maps for state %s\n", statename);
+		return 0;
+	}
 
 	/* Stash the mapping table chunk away for later use */
 	return dt_remember_or_free_map(p, statename, pctldev, map, num_maps);
