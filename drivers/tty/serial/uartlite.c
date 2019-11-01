@@ -862,7 +862,7 @@ static int ulite_remove(struct platform_device *pdev)
 	struct uartlite_data *pdata = port->private_data;
 	int rc;
 
-	clk_unprepare(pdata->clk);
+	clk_disable_unprepare(pdata->clk);
 	rc = ulite_release(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
