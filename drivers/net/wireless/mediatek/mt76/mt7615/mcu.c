@@ -1305,8 +1305,10 @@ int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 	};
 	int ret;
 
-	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
-	    chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
+	if (dev->mt76.hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
+	else if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
+		 chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
 		req.switch_reason = CH_SWITCH_DFS;
 	else
 		req.switch_reason = CH_SWITCH_NORMAL;
