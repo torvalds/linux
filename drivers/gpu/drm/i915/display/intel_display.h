@@ -333,8 +333,11 @@ enum phy_fia {
 	     (__s) < RUNTIME_INFO(__dev_priv)->num_sprites[(__p)];	\
 	     (__s)++)
 
-#define for_each_port_masked(__port, __ports_mask) \
-	for ((__port) = PORT_A; (__port) < I915_MAX_PORTS; (__port)++)	\
+#define for_each_port(__port) \
+	for ((__port) = PORT_A; (__port) < I915_MAX_PORTS; (__port)++)
+
+#define for_each_port_masked(__port, __ports_mask)			\
+	for_each_port(__port)						\
 		for_each_if((__ports_mask) & BIT(__port))
 
 #define for_each_phy_masked(__phy, __phys_mask) \

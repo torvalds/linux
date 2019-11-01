@@ -1246,7 +1246,7 @@ static enum port get_port_by_ddc_pin(struct drm_i915_private *i915, u8 ddc_pin)
 	const struct ddi_vbt_port_info *info;
 	enum port port;
 
-	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
+	for_each_port(port) {
 		info = &i915->vbt.ddi_port_info[port];
 
 		if (info->child && ddc_pin == info->alternate_ddc_pin)
@@ -1297,7 +1297,7 @@ static enum port get_port_by_aux_ch(struct drm_i915_private *i915, u8 aux_ch)
 	const struct ddi_vbt_port_info *info;
 	enum port port;
 
-	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
+	for_each_port(port) {
 		info = &i915->vbt.ddi_port_info[port];
 
 		if (info->child && aux_ch == info->alternate_aux_channel)
@@ -1722,7 +1722,7 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 			!HAS_PCH_SPLIT(dev_priv));
 	DRM_DEBUG_KMS("Set default to SSC at %d kHz\n", dev_priv->vbt.lvds_ssc_freq);
 
-	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
+	for_each_port(port) {
 		struct ddi_vbt_port_info *info =
 			&dev_priv->vbt.ddi_port_info[port];
 
@@ -1736,7 +1736,7 @@ init_vbt_missing_defaults(struct drm_i915_private *dev_priv)
 {
 	enum port port;
 
-	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
+	for_each_port(port) {
 		struct ddi_vbt_port_info *info =
 			&dev_priv->vbt.ddi_port_info[port];
 		enum phy phy = intel_port_to_phy(dev_priv, port);
