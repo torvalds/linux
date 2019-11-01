@@ -398,23 +398,6 @@ check_connection_used_by_others(struct snd_bebob *bebob, struct amdtp_stream *s)
 	return err;
 }
 
-static int make_both_connections(struct snd_bebob *bebob)
-{
-	int err = 0;
-
-	err = cmp_connection_establish(&bebob->out_conn);
-	if (err < 0)
-		return err;
-
-	err = cmp_connection_establish(&bebob->in_conn);
-	if (err < 0) {
-		cmp_connection_break(&bebob->out_conn);
-		return err;
-	}
-
-	return 0;
-}
-
 static void break_both_connections(struct snd_bebob *bebob)
 {
 	cmp_connection_break(&bebob->in_conn);
@@ -427,8 +410,7 @@ static void break_both_connections(struct snd_bebob *bebob)
 		msleep(600);
 }
 
-static int
-start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
+static int start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 {
 	struct cmp_connection *conn;
 	int err = 0;
@@ -438,18 +420,19 @@ start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 	else
 		conn = &bebob->out_conn;
 
-	/* channel mapping */
+	// channel mapping.
 	if (bebob->maudio_special_quirk == NULL) {
 		err = map_data_channels(bebob, stream);
 		if (err < 0)
-			goto end;
+			return err;
 	}
 
-	// start amdtp stream.
-	err = amdtp_domain_add_stream(&bebob->domain, stream,
-				      conn->resources.channel, conn->speed);
-end:
-	return err;
+	err = cmp_connection_establish(conn);
+	if (err < 0)
+		return err;
+
+	return amdtp_domain_add_stream(&bebob->domain, stream,
+				       conn->resources.channel, conn->speed);
 }
 
 static int init_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
@@ -638,6 +621,8 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 	}
 
 	if (!amdtp_stream_running(&bebob->rx_stream)) {
+		enum snd_bebob_clock_type src;
+		struct amdtp_stream *master, *slave;
 		unsigned int curr_rate;
 		unsigned int ir_delay_cycle;
 
@@ -647,15 +632,23 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 				return err;
 		}
 
-		err = make_both_connections(bebob);
+		err = snd_bebob_stream_get_clock_src(bebob, &src);
 		if (err < 0)
 			return err;
 
-		err = start_stream(bebob, &bebob->rx_stream);
+		if (src != SND_BEBOB_CLOCK_TYPE_SYT) {
+			master = &bebob->tx_stream;
+			slave = &bebob->rx_stream;
+		} else {
+			master = &bebob->rx_stream;
+			slave = &bebob->tx_stream;
+		}
+
+		err = start_stream(bebob, master);
 		if (err < 0)
 			goto error;
 
-		err = start_stream(bebob, &bebob->tx_stream);
+		err = start_stream(bebob, slave);
 		if (err < 0)
 			goto error;
 
