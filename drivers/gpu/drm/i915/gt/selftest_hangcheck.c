@@ -826,6 +826,8 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			get_task_struct(tsk);
 		}
 
+		yield(); /* start all threads before we begin */
+
 		intel_engine_pm_get(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {

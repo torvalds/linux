@@ -2252,6 +2252,8 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 		get_task_struct(tsk[id]);
 	}
 
+	yield(); /* start all threads before we kthread_stop() */
+
 	count = 0;
 	for_each_engine(engine, smoke->gt, id) {
 		int status;

@@ -345,6 +345,8 @@ static int live_parallel_switch(void *arg)
 			get_task_struct(data[n].tsk);
 		}
 
+		yield(); /* start all threads before we kthread_stop() */
+
 		for (n = 0; n < count; n++) {
 			int status;
 

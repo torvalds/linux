@@ -473,6 +473,8 @@ static int igt_threaded_blt(struct drm_i915_private *i915,
 		get_task_struct(tsk[i]);
 	}
 
+	yield(); /* start all threads before we kthread_stop() */
+
 	for (i = 0; i < n_cpus; ++i) {
 		int status;
 
