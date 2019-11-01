@@ -2206,6 +2206,13 @@ static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
 	return ret;
 }
 
+static int iwl_trans_pcie_read_config32(struct iwl_trans *trans, u32 ofs,
+					u32 *val)
+{
+	return pci_read_config_dword(IWL_TRANS_GET_PCIE_TRANS(trans)->pci_dev,
+				     ofs, val);
+}
+
 static void iwl_trans_pcie_freeze_txq_timer(struct iwl_trans *trans,
 					    unsigned long txqs,
 					    bool freeze)
@@ -3380,6 +3387,7 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 	.write_prph = iwl_trans_pcie_write_prph,			\
 	.read_mem = iwl_trans_pcie_read_mem,				\
 	.write_mem = iwl_trans_pcie_write_mem,				\
+	.read_config32 = iwl_trans_pcie_read_config32,			\
 	.configure = iwl_trans_pcie_configure,				\
 	.set_pmi = iwl_trans_pcie_set_pmi,				\
 	.sw_reset = iwl_trans_pcie_sw_reset,				\
