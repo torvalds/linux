@@ -32,6 +32,7 @@
 #include "i915_random.h"
 #include "i915_selftest.h"
 #include "igt_live_test.h"
+#include "igt_spinner.h"
 #include "lib_sw_fence.h"
 
 #include "mock_drm.h"
@@ -1116,12 +1117,85 @@ static int __live_parallel_engineN(void *arg)
 	return 0;
 }
 
+static bool wake_all(struct drm_i915_private *i915)
+{
+	if (atomic_dec_and_test(&i915->selftest.counter)) {
+		wake_up_var(&i915->selftest.counter);
+		return true;
+	}
+
+	return false;
+}
+
+static int wait_for_all(struct drm_i915_private *i915)
+{
+	if (wake_all(i915))
+		return 0;
+
+	if (wait_var_event_timeout(&i915->selftest.counter,
+				   !atomic_read(&i915->selftest.counter),
+				   i915_selftest.timeout_jiffies))
+		return 0;
+
+	return -ETIME;
+}
+
+static int __live_parallel_spin(void *arg)
+{
+	struct intel_engine_cs *engine = arg;
+	struct igt_spinner spin;
+	struct i915_request *rq;
+	int err = 0;
+
+	/*
+	 * Create a spinner running for eternity on each engine. If a second
+	 * spinner is incorrectly placed on the same engine, it will not be
+	 * able to start in time.
+	 */
+
+	if (igt_spinner_init(&spin, engine->gt)) {
+		wake_all(engine->i915);
+		return -ENOMEM;
+	}
+
+	rq = igt_spinner_create_request(&spin,
+					engine->kernel_context,
+					MI_NOOP); /* no preemption */
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		if (err == -ENODEV)
+			err = 0;
+		wake_all(engine->i915);
+		goto out_spin;
+	}
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+	if (igt_wait_for_spinner(&spin, rq)) {
+		/* Occupy this engine for the whole test */
+		err = wait_for_all(engine->i915);
+	} else {
+		pr_err("Failed to start spinner on %s\n", engine->name);
+		err = -EINVAL;
+	}
+	igt_spinner_end(&spin);
+
+	if (err == 0 && i915_request_wait(rq, 0, HZ / 5) < 0)
+		err = -EIO;
+	i915_request_put(rq);
+
+out_spin:
+	igt_spinner_fini(&spin);
+	return err;
+}
+
 static int live_parallel_engines(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	static int (* const func[])(void *arg) = {
 		__live_parallel_engine1,
 		__live_parallel_engineN,
+		__live_parallel_spin,
 		NULL,
 	};
 	const unsigned int nengines = num_uabi_engines(i915);
@@ -1146,6 +1220,8 @@ static int live_parallel_engines(void *arg)
 		err = igt_live_test_begin(&t, i915, __func__, "");
 		if (err)
 			break;
+
+		atomic_set(&i915->selftest.counter, nengines);
 
 		idx = 0;
 		for_each_uabi_engine(engine, i915) {

@@ -891,6 +891,10 @@ struct intel_cdclk_state {
 	u8 voltage_level;
 };
 
+struct i915_selftest_stash {
+	atomic_t counter;
+};
+
 struct drm_i915_private {
 	struct drm_device drm;
 
@@ -1285,6 +1289,8 @@ struct drm_i915_private {
 
 	/* Mutex to protect the above hdcp component related values. */
 	struct mutex hdcp_comp_mutex;
+
+	I915_SELFTEST_DECLARE(struct i915_selftest_stash selftest;)
 
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
