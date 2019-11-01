@@ -85,10 +85,18 @@ config SND_SOC_SOF_BAYTRAIL
 
 config SND_SOC_SOF_BROADWELL_SUPPORT
 	bool "SOF support for Broadwell"
+	depends on SND_SOC_INTEL_HASWELL=n
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms
 	  using the Broadwell processors.
-	  Say Y if you have such a device.
+	  This option is mutually exclusive with the Haswell/Broadwell legacy
+	  driver. If you want to enable SOF on Broadwell you need to deselect
+	  the legacy driver first.
+	  SOF does fully support Broadwell yet, so this option is not
+	  recommended for distros. At some point all legacy drivers will be
+	  deprecated but not before all userspace firmware/topology/UCM files
+	  are made available to downstream distros.
+	  Say Y if you want to enable SOF on Broadwell
 	  If unsure select "N".
 
 config SND_SOC_SOF_BROADWELL
