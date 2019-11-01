@@ -65,8 +65,6 @@ static void mock_device_release(struct drm_device *dev)
 		mock_engine_free(engine);
 	i915_gem_driver_release__contexts(i915);
 
-	intel_timelines_fini(i915);
-
 	drain_workqueue(i915->wq);
 	i915_gem_drain_freed_objects(i915);
 
@@ -180,8 +178,6 @@ struct drm_i915_private *mock_gem_device(void)
 
 	mock_init_contexts(i915);
 
-	intel_timelines_init(i915);
-
 	mock_init_ggtt(i915, &i915->ggtt);
 	i915->gt.ggtt = &i915->ggtt;
 
@@ -207,7 +203,6 @@ err_context:
 err_engine:
 	mock_engine_free(i915->engine[RCS0]);
 err_unlock:
-	intel_timelines_fini(i915);
 	destroy_workqueue(i915->wq);
 err_drv:
 	intel_memory_regions_driver_release(i915);

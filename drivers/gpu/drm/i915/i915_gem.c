@@ -1227,8 +1227,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		mkwrite_device_info(dev_priv)->page_sizes =
 			I915_GTT_PAGE_SIZE_4K;
 
-	intel_timelines_init(dev_priv);
-
 	ret = i915_gem_init_userptr(dev_priv);
 	if (ret)
 		return ret;
@@ -1342,7 +1340,6 @@ err_unlock:
 	if (ret != -EIO) {
 		intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 		i915_gem_cleanup_userptr(dev_priv);
-		intel_timelines_fini(dev_priv);
 	}
 
 	if (ret == -EIO) {
@@ -1406,7 +1403,6 @@ void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 
 	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 	i915_gem_cleanup_userptr(dev_priv);
-	intel_timelines_fini(dev_priv);
 
 	i915_gem_drain_freed_objects(dev_priv);
 
