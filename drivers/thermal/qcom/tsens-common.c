@@ -92,7 +92,7 @@ void compute_intercept_slope(struct tsens_priv *priv, u32 *p1,
 
 static inline u32 degc_to_code(int degc, const struct tsens_sensor *s)
 {
-	u64 code = (degc * s->slope + s->offset) / SLOPE_FACTOR;
+	u64 code = div_u64(((u64)degc * s->slope + s->offset), SLOPE_FACTOR);
 
 	pr_debug("%s: raw_code: 0x%llx, degc:%d\n", __func__, code, degc);
 	return clamp_val(code, THRESHOLD_MIN_ADC_CODE, THRESHOLD_MAX_ADC_CODE);
