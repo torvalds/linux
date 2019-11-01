@@ -141,6 +141,7 @@ TRACE_DEFINE_ENUM(CP_TRIMMED);
 	__print_symbolic(type,						\
 		{ CP_NO_NEEDED,		"no needed" },			\
 		{ CP_NON_REGULAR,	"non regular" },		\
+		{ CP_COMPRESSED,	"compressed" },			\
 		{ CP_HARDLINK,		"hardlink" },			\
 		{ CP_SB_NEED_CP,	"sb needs cp" },		\
 		{ CP_WRONG_PINO,	"wrong pino" },			\
@@ -157,6 +158,11 @@ TRACE_DEFINE_ENUM(CP_TRIMMED);
 		{ F2FS_GOING_DOWN_NOSYNC,	"no sync" },		\
 		{ F2FS_GOING_DOWN_METAFLUSH,	"meta flush" },		\
 		{ F2FS_GOING_DOWN_NEED_FSCK,	"need fsck" })
+
+#define show_compress_algorithm(type)					\
+	__print_symbolic(type,						\
+		{ COMPRESS_LZO,		"LZO" },			\
+		{ COMPRESS_LZ4,		"LZ4" })
 
 struct f2fs_sb_info;
 struct f2fs_io_info;
@@ -1718,6 +1724,100 @@ TRACE_EVENT(f2fs_shutdown,
 		show_dev(__entry->dev),
 		show_shutdown_mode(__entry->mode),
 		__entry->ret)
+);
+
+DECLARE_EVENT_CLASS(f2fs_zip_start,
+
+	TP_PROTO(struct inode *inode, pgoff_t cluster_idx,
+			unsigned int cluster_size, unsigned char algtype),
+
+	TP_ARGS(inode, cluster_idx, cluster_size, algtype),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(pgoff_t, idx)
+		__field(unsigned int, size)
+		__field(unsigned int, algtype)
+	),
+
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->ino = inode->i_ino;
+		__entry->idx = cluster_idx;
+		__entry->size = cluster_size;
+		__entry->algtype = algtype;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, cluster_idx:%lu, "
+		"cluster_size = %u, algorithm = %s",
+		show_dev_ino(__entry),
+		__entry->idx,
+		__entry->size,
+		show_compress_algorithm(__entry->algtype))
+);
+
+DECLARE_EVENT_CLASS(f2fs_zip_end,
+
+	TP_PROTO(struct inode *inode, pgoff_t cluster_idx,
+			unsigned int compressed_size, int ret),
+
+	TP_ARGS(inode, cluster_idx, compressed_size, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(pgoff_t, idx)
+		__field(unsigned int, size)
+		__field(unsigned int, ret)
+	),
+
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->ino = inode->i_ino;
+		__entry->idx = cluster_idx;
+		__entry->size = compressed_size;
+		__entry->ret = ret;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, cluster_idx:%lu, "
+		"compressed_size = %u, ret = %d",
+		show_dev_ino(__entry),
+		__entry->idx,
+		__entry->size,
+		__entry->ret)
+);
+
+DEFINE_EVENT(f2fs_zip_start, f2fs_compress_pages_start,
+
+	TP_PROTO(struct inode *inode, pgoff_t cluster_idx,
+		unsigned int cluster_size, unsigned char algtype),
+
+	TP_ARGS(inode, cluster_idx, cluster_size, algtype)
+);
+
+DEFINE_EVENT(f2fs_zip_start, f2fs_decompress_pages_start,
+
+	TP_PROTO(struct inode *inode, pgoff_t cluster_idx,
+		unsigned int cluster_size, unsigned char algtype),
+
+	TP_ARGS(inode, cluster_idx, cluster_size, algtype)
+);
+
+DEFINE_EVENT(f2fs_zip_end, f2fs_compress_pages_end,
+
+	TP_PROTO(struct inode *inode, pgoff_t cluster_idx,
+			unsigned int compressed_size, int ret),
+
+	TP_ARGS(inode, cluster_idx, compressed_size, ret)
+);
+
+DEFINE_EVENT(f2fs_zip_end, f2fs_decompress_pages_end,
+
+	TP_PROTO(struct inode *inode, pgoff_t cluster_idx,
+			unsigned int compressed_size, int ret),
+
+	TP_ARGS(inode, cluster_idx, compressed_size, ret)
 );
 
 #endif /* _TRACE_F2FS_H */

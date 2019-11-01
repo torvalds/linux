@@ -119,6 +119,13 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	if (F2FS_I(inode)->i_flags & F2FS_PROJINHERIT_FL)
 		set_inode_flag(inode, FI_PROJ_INHERIT);
 
+	if (f2fs_sb_has_compression(sbi)) {
+		/* Inherit the compression flag in directory */
+		if ((F2FS_I(dir)->i_flags & F2FS_COMPR_FL) &&
+					f2fs_may_compress(inode))
+			set_compress_context(inode);
+	}
+
 	f2fs_set_inode_flags(inode);
 
 	trace_f2fs_new_inode(inode, 0);
@@ -148,6 +155,9 @@ static inline int is_extension_exist(const unsigned char *s, const char *sub)
 	size_t slen = strlen(s);
 	size_t sublen = strlen(sub);
 	int i;
+
+	if (sublen == 1 && *sub == '*')
+		return 1;
 
 	/*
 	 * filename format of multimedia file should be defined as:
@@ -262,6 +272,45 @@ int f2fs_update_extension_list(struct f2fs_sb_info *sbi, const char *name,
 	return 0;
 }
 
+static void set_compress_inode(struct f2fs_sb_info *sbi, struct inode *inode,
+						const unsigned char *name)
+{
+	__u8 (*extlist)[F2FS_EXTENSION_LEN] = sbi->raw_super->extension_list;
+	unsigned char (*ext)[F2FS_EXTENSION_LEN];
+	unsigned int ext_cnt = F2FS_OPTION(sbi).compress_ext_cnt;
+	int i, cold_count, hot_count;
+
+	if (!f2fs_sb_has_compression(sbi) ||
+			is_inode_flag_set(inode, FI_COMPRESSED_FILE) ||
+			F2FS_I(inode)->i_flags & F2FS_NOCOMP_FL ||
+			!f2fs_may_compress(inode))
+		return;
+
+	down_read(&sbi->sb_lock);
+
+	cold_count = le32_to_cpu(sbi->raw_super->extension_count);
+	hot_count = sbi->raw_super->hot_ext_count;
+
+	for (i = cold_count; i < cold_count + hot_count; i++) {
+		if (is_extension_exist(name, extlist[i])) {
+			up_read(&sbi->sb_lock);
+			return;
+		}
+	}
+
+	up_read(&sbi->sb_lock);
+
+	ext = F2FS_OPTION(sbi).extensions;
+
+	for (i = 0; i < ext_cnt; i++) {
+		if (!is_extension_exist(name, ext[i]))
+			continue;
+
+		set_compress_context(inode);
+		return;
+	}
+}
+
 static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 						bool excl)
 {
@@ -285,6 +334,8 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	if (!test_opt(sbi, DISABLE_EXT_IDENTIFY))
 		set_file_temperature(sbi, inode, dentry->d_name.name);
+
+	set_compress_inode(sbi, inode, dentry->d_name.name);
 
 	inode->i_op = &f2fs_file_inode_operations;
 	inode->i_fop = &f2fs_file_operations;
