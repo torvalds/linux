@@ -681,7 +681,6 @@
 				      "tcon-tv0";
 			clock-output-names = "tcon-top-tv0";
 			resets = <&ccu RST_BUS_TCON_TOP>;
-			reset-names = "rst";
 			#clock-cells = <1>;
 
 			ports {
