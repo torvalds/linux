@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
-==================================================================
-Linux* Base Driver for Intel(R) Ethernet Adaptive Virtual Function
-==================================================================
+=================================================================
+Linux Base Driver for Intel(R) Ethernet Adaptive Virtual Function
+=================================================================
 
 Intel Ethernet Adaptive Virtual Function Linux driver.
 Copyright(c) 2013-2018 Intel Corporation.
@@ -19,7 +19,7 @@ Contents
 Overview
 ========
 
-This file describes the iavf Linux* Base Driver. This driver was formerly
+This file describes the iavf Linux Base Driver. This driver was formerly
 called i40evf.
 
 The iavf driver supports the below mentioned virtual function devices and
