@@ -373,7 +373,7 @@ static void device_init_registers(struct vnt_private *priv)
 	priv->bRadioOff = false;
 
 	priv->byRadioCtl = SROMbyReadEmbedded(priv->PortOffset,
-						 EEP_OFS_RADIOCTL);
+					      EEP_OFS_RADIOCTL);
 	priv->bHWRadioOff = false;
 
 	if (priv->byRadioCtl & EEP_RADIOCTL_ENABLE) {

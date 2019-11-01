@@ -1289,7 +1289,7 @@ int vnt_generate_fifo_header(struct vnt_private *priv, u32 dma_idx,
 
 	current_rate = rate->hw_value;
 	if (priv->wCurrentRate != current_rate &&
-			!(priv->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)) {
+	    !(priv->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)) {
 		priv->wCurrentRate = current_rate;
 
 		RFbSetPower(priv, priv->wCurrentRate,
@@ -1396,7 +1396,8 @@ int vnt_generate_fifo_header(struct vnt_private *priv, u32 dma_idx,
 		tx_key = info->control.hw_key;
 		if (tx_key->keylen > 0)
 			vnt_fill_txkey(hdr, tx_buffer_head->tx_key,
-				tx_key, skb, tx_body_size, td_info->mic_hdr);
+				       tx_key, skb, tx_body_size,
+				       td_info->mic_hdr);
 	}
 
 	return 0;
