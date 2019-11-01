@@ -1009,31 +1009,6 @@ static inline int sock_map_get_from_fd(const union bpf_attr *attr,
 }
 #endif
 
-#if defined(CONFIG_XDP_SOCKETS)
-struct xdp_sock;
-struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map, u32 key);
-int __xsk_map_redirect(struct bpf_map *map, struct xdp_buff *xdp,
-		       struct xdp_sock *xs);
-void __xsk_map_flush(struct bpf_map *map);
-#else
-struct xdp_sock;
-static inline struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map,
-						     u32 key)
-{
-	return NULL;
-}
-
-static inline int __xsk_map_redirect(struct bpf_map *map, struct xdp_buff *xdp,
-				     struct xdp_sock *xs)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void __xsk_map_flush(struct bpf_map *map)
-{
-}
-#endif
-
 #if defined(CONFIG_INET) && defined(CONFIG_BPF_SYSCALL)
 void bpf_sk_reuseport_detach(struct sock *sk);
 int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map, void *key,
