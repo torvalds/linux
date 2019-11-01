@@ -682,7 +682,8 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 			dev = dev_get_by_index_rcu(net, inet_iif(skb_in));
 
 		if (dev)
-			saddr = inet_select_addr(dev, 0, RT_SCOPE_LINK);
+			saddr = inet_select_addr(dev, iph->saddr,
+						 RT_SCOPE_LINK);
 		else
 			saddr = 0;
 		rcu_read_unlock();
