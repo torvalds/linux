@@ -296,9 +296,6 @@ static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 	if (ret)
 		goto cleanup_vga_client;
 
-	/* must happen before intel_power_domains_init_hw() on VLV/CHV */
-	intel_update_rawclk(i915);
-
 	intel_power_domains_init_hw(i915, false);
 
 	intel_csr_ucode_init(i915);
