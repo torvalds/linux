@@ -53,9 +53,7 @@ static struct pulse *pulse_create(void)
 
 static void pulse_unlock_wait(struct pulse *p)
 {
-	mutex_lock(&p->active.mutex);
-	mutex_unlock(&p->active.mutex);
-	flush_work(&p->active.work);
+	i915_active_unlock_wait(&p->active);
 }
 
 static int __live_idle_pulse(struct intel_engine_cs *engine,

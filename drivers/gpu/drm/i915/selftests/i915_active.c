@@ -250,3 +250,36 @@ void i915_active_print(struct i915_active *ref, struct drm_printer *m)
 		i915_active_release(ref);
 	}
 }
+
+static void spin_unlock_wait(spinlock_t *lock)
+{
+	spin_lock_irq(lock);
+	spin_unlock_irq(lock);
+}
+
+void i915_active_unlock_wait(struct i915_active *ref)
+{
+	if (i915_active_acquire_if_busy(ref)) {
+		struct active_node *it, *n;
+
+		rcu_read_lock();
+		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
+			struct dma_fence *f;
+
+			/* Wait for all active callbacks */
+			f = rcu_dereference(it->base.fence);
+			if (f)
+				spin_unlock_wait(f->lock);
+		}
+		rcu_read_unlock();
+
+		i915_active_release(ref);
+	}
+
+	/* And wait for the retire callback */
+	mutex_lock(&ref->mutex);
+	mutex_unlock(&ref->mutex);
+
+	/* ... which may have been on a thread instead */
+	flush_work(&ref->work);
+}
