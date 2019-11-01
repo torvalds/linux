@@ -18,6 +18,24 @@
 #include "intel_rps.h"
 #include "intel_wakeref.h"
 
+static void user_forcewake(struct intel_gt *gt, bool suspend)
+{
+	int count = atomic_read(&gt->user_wakeref);
+
+	/* Inside suspend/resume so single threaded, no races to worry about. */
+	if (likely(!count))
+		return;
+
+	intel_gt_pm_get(gt);
+	if (suspend) {
+		GEM_BUG_ON(count > atomic_read(&gt->wakeref.count));
+		atomic_sub(count, &gt->wakeref.count);
+	} else {
+		atomic_add(count, &gt->wakeref.count);
+	}
+	intel_gt_pm_put(gt);
+}
+
 static int __gt_unpark(struct intel_wakeref *wf)
 {
 	struct intel_gt *gt = container_of(wf, typeof(*gt), wakeref);
@@ -210,6 +228,8 @@ int intel_gt_resume(struct intel_gt *gt)
 
 	intel_uc_resume(&gt->uc);
 
+	user_forcewake(gt, false);
+
 	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
 	intel_gt_pm_put(gt);
 
@@ -232,6 +252,8 @@ static void wait_for_idle(struct intel_gt *gt)
 void intel_gt_suspend(struct intel_gt *gt)
 {
 	intel_wakeref_t wakeref;
+
+	user_forcewake(gt, true);
 
 	/* We expect to be idle already; but also want to be independent */
 	wait_for_idle(gt);
