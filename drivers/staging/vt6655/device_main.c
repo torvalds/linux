@@ -295,7 +295,8 @@ static void device_init_registers(struct vnt_private *priv)
 	/* Get Desire Power Value */
 	priv->byCurPwr = 0xFF;
 	priv->byCCKPwr = SROMbyReadEmbedded(priv->PortOffset, EEP_OFS_PWR_CCK);
-	priv->byOFDMPwrG = SROMbyReadEmbedded(priv->PortOffset, EEP_OFS_PWR_OFDMG);
+	priv->byOFDMPwrG = SROMbyReadEmbedded(priv->PortOffset,
+					      EEP_OFS_PWR_OFDMG);
 
 	/* Load power Table */
 	for (ii = 0; ii < CB_MAX_CHANNEL_24G; ii++) {
@@ -660,7 +661,8 @@ static int device_init_td0_ring(struct vnt_private *priv)
 		desc->td_info->buf_dma = priv->tx_bufs_dma0 + i * PKT_BUF_SZ;
 
 		desc->next = &(priv->apTD0Rings[(i + 1) % priv->opts.tx_descs[0]]);
-		desc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_tx_desc));
+		desc->next_desc = cpu_to_le32(curr +
+					      sizeof(struct vnt_tx_desc));
 	}
 
 	if (i > 0)
