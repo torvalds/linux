@@ -459,7 +459,7 @@ static int adis16480_get_calibbias(struct iio_dev *indio_dev,
 		*bias = sign_extend32(val32, 31);
 		break;
 	default:
-			ret = -EINVAL;
+		ret = -EINVAL;
 	}
 
 	if (ret)
