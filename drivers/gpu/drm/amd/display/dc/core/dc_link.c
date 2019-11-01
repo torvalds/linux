@@ -74,7 +74,7 @@ enum {
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-static void destruct(struct dc_link *link)
+static void dc_link_destruct(struct dc_link *link)
 {
 	int i;
 
@@ -1244,7 +1244,7 @@ static enum transmitter translate_encoder_to_transmitter(
 	}
 }
 
-static bool construct(
+static bool dc_link_construct(
 	struct dc_link *link,
 	const struct link_init_data *init_params)
 {
@@ -1446,7 +1446,7 @@ struct dc_link *link_create(const struct link_init_data *init_params)
 	if (NULL == link)
 		goto alloc_fail;
 
-	if (false == construct(link, init_params))
+	if (false == dc_link_construct(link, init_params))
 		goto construct_fail;
 
 	return link;
@@ -1460,7 +1460,7 @@ alloc_fail:
 
 void link_destroy(struct dc_link **link)
 {
-	destruct(*link);
+	dc_link_destruct(*link);
 	kfree(*link);
 	*link = NULL;
 }

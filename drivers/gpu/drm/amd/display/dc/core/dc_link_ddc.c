@@ -187,7 +187,7 @@ void dal_ddc_i2c_payloads_add(
 
 }
 
-static void construct(
+static void ddc_service_construct(
 	struct ddc_service *ddc_service,
 	struct ddc_service_init_data *init_data)
 {
@@ -239,11 +239,11 @@ struct ddc_service *dal_ddc_service_create(
 	if (!ddc_service)
 		return NULL;
 
-	construct(ddc_service, init_data);
+	ddc_service_construct(ddc_service, init_data);
 	return ddc_service;
 }
 
-static void destruct(struct ddc_service *ddc)
+static void ddc_service_destruct(struct ddc_service *ddc)
 {
 	if (ddc->ddc_pin)
 		dal_gpio_destroy_ddc(&ddc->ddc_pin);
@@ -255,7 +255,7 @@ void dal_ddc_service_destroy(struct ddc_service **ddc)
 		BREAK_TO_DEBUGGER();
 		return;
 	}
-	destruct(*ddc);
+	ddc_service_destruct(*ddc);
 	kfree(*ddc);
 	*ddc = NULL;
 }

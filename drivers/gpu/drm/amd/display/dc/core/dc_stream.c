@@ -58,7 +58,7 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 	}
 }
 
-static void construct(struct dc_stream_state *stream,
+static void dc_stream_construct(struct dc_stream_state *stream,
 	struct dc_sink *dc_sink_data)
 {
 	uint32_t i = 0;
@@ -127,7 +127,7 @@ static void construct(struct dc_stream_state *stream,
 	stream->ctx->dc_stream_id_count++;
 }
 
-static void destruct(struct dc_stream_state *stream)
+static void dc_stream_destruct(struct dc_stream_state *stream)
 {
 	dc_sink_release(stream->sink);
 	if (stream->out_transfer_func != NULL) {
@@ -145,7 +145,7 @@ static void dc_stream_free(struct kref *kref)
 {
 	struct dc_stream_state *stream = container_of(kref, struct dc_stream_state, refcount);
 
-	destruct(stream);
+	dc_stream_destruct(stream);
 	kfree(stream);
 }
 
@@ -168,7 +168,7 @@ struct dc_stream_state *dc_create_stream_for_sink(
 	if (stream == NULL)
 		return NULL;
 
-	construct(stream, sink);
+	dc_stream_construct(stream, sink);
 
 	kref_init(&stream->refcount);
 

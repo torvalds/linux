@@ -46,22 +46,13 @@
 
 struct gpio;
 
-static void dal_hw_generic_construct(
-	struct hw_generic *pin,
-	enum gpio_id id,
-	uint32_t en,
-	struct dc_context *ctx)
-{
-	dal_hw_gpio_construct(&pin->base, id, en, ctx);
-}
-
 static void dal_hw_generic_destruct(
 	struct hw_generic *pin)
 {
 	dal_hw_gpio_destruct(&pin->base);
 }
 
-static void destroy(
+static void dal_hw_generic_destroy(
 	struct hw_gpio_pin **ptr)
 {
 	struct hw_generic *generic = HW_GENERIC_FROM_BASE(*ptr);
@@ -90,7 +81,7 @@ static enum gpio_result set_config(
 }
 
 static const struct hw_gpio_pin_funcs funcs = {
-	.destroy = destroy,
+	.destroy = dal_hw_generic_destroy,
 	.open = dal_hw_gpio_open,
 	.get_value = dal_hw_gpio_get_value,
 	.set_value = dal_hw_gpio_set_value,
@@ -99,14 +90,14 @@ static const struct hw_gpio_pin_funcs funcs = {
 	.close = dal_hw_gpio_close,
 };
 
-static void construct(
-	struct hw_generic *generic,
+static void dal_hw_generic_construct(
+	struct hw_generic *pin,
 	enum gpio_id id,
 	uint32_t en,
 	struct dc_context *ctx)
 {
-	dal_hw_generic_construct(generic, id, en, ctx);
-	generic->base.base.funcs = &funcs;
+	dal_hw_gpio_construct(&pin->base, id, en, ctx);
+	pin->base.base.funcs = &funcs;
 }
 
 void dal_hw_generic_init(
@@ -126,7 +117,7 @@ void dal_hw_generic_init(
 		return;
 	}
 
-	construct(*hw_generic, id, en, ctx);
+	dal_hw_generic_construct(*hw_generic, id, en, ctx);
 }
 
 

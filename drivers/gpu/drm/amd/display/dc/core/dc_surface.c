@@ -37,7 +37,7 @@
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-static void construct(struct dc_context *ctx, struct dc_plane_state *plane_state)
+static void dc_plane_construct(struct dc_context *ctx, struct dc_plane_state *plane_state)
 {
 	plane_state->ctx = ctx;
 
@@ -68,7 +68,7 @@ static void construct(struct dc_context *ctx, struct dc_plane_state *plane_state
 
 }
 
-static void destruct(struct dc_plane_state *plane_state)
+static void dc_plane_destruct(struct dc_plane_state *plane_state)
 {
 	if (plane_state->gamma_correction != NULL) {
 		dc_gamma_release(&plane_state->gamma_correction);
@@ -117,7 +117,7 @@ struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 		return NULL;
 
 	kref_init(&plane_state->refcount);
-	construct(core_dc->ctx, plane_state);
+	dc_plane_construct(core_dc->ctx, plane_state);
 
 	return plane_state;
 }
@@ -187,7 +187,7 @@ void dc_plane_state_retain(struct dc_plane_state *plane_state)
 static void dc_plane_state_free(struct kref *kref)
 {
 	struct dc_plane_state *plane_state = container_of(kref, struct dc_plane_state, refcount);
-	destruct(plane_state);
+	dc_plane_destruct(plane_state);
 	kvfree(plane_state);
 }
 

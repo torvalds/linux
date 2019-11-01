@@ -111,7 +111,7 @@ static struct atom_encoder_caps_record *get_encoder_cap_record(
 
 #define DATA_TABLES(table) (bp->master_data_tbl->listOfdatatables.table)
 
-static void destruct(struct bios_parser *bp)
+static void bios_parser2_destruct(struct bios_parser *bp)
 {
 	kfree(bp->base.bios_local_image);
 	kfree(bp->base.integrated_info);
@@ -126,7 +126,7 @@ static void firmware_parser_destroy(struct dc_bios **dcb)
 		return;
 	}
 
-	destruct(bp);
+	bios_parser2_destruct(bp);
 
 	kfree(bp);
 	*dcb = NULL;
@@ -1925,7 +1925,7 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.get_board_layout_info = bios_get_board_layout_info,
 };
 
-static bool bios_parser_construct(
+static bool bios_parser2_construct(
 	struct bios_parser *bp,
 	struct bp_init_data *init,
 	enum dce_version dce_version)
@@ -2018,7 +2018,7 @@ struct dc_bios *firmware_parser_create(
 	if (!bp)
 		return NULL;
 
-	if (bios_parser_construct(bp, init, dce_version))
+	if (bios_parser2_construct(bp, init, dce_version))
 		return &bp->base;
 
 	kfree(bp);
