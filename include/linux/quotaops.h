@@ -91,6 +91,8 @@ int dquot_enable(struct inode *inode, int type, int format_id,
 	unsigned int flags);
 int dquot_load_quota_sb(struct super_block *sb, int type, int format_id,
 	unsigned int flags);
+int dquot_load_quota_inode(struct inode *inode, int type, int format_id,
+	unsigned int flags);
 int dquot_quota_on(struct super_block *sb, int type, int format_id,
 	const struct path *path);
 int dquot_quota_on_mount(struct super_block *sb, char *qf_name,

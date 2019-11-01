@@ -2351,6 +2351,12 @@ int dquot_load_quota_sb(struct super_block *sb, int type, int format_id,
 	struct quota_info *dqopt = sb_dqopt(sb);
 	int error;
 
+	/* Just unsuspend quotas? */
+	BUG_ON(flags & DQUOT_SUSPENDED);
+	/* s_umount should be held in exclusive mode */
+	if (WARN_ON_ONCE(down_read_trylock(&sb->s_umount)))
+		up_read(&sb->s_umount);
+
 	if (!fmt)
 		return -ESRCH;
 	if (!sb->s_op->quota_write || !sb->s_op->quota_read ||
@@ -2417,10 +2423,10 @@ out_fmt:
 EXPORT_SYMBOL(dquot_load_quota_sb);
 
 /*
- * Helper function to turn quotas on when we already have the inode of
- * quota file and no quota information is loaded.
+ * More powerful function for turning on quotas on given quota inode allowing
+ * setting of individual quota flags
  */
-static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
+int dquot_load_quota_inode(struct inode *inode, int type, int format_id,
 	unsigned int flags)
 {
 	int err;
@@ -2433,6 +2439,7 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 		vfs_cleanup_quota_inode(inode->i_sb, type);
 	return err;
 }
+EXPORT_SYMBOL(dquot_load_quota_inode);
 
 /* Reenable quotas on remount RW */
 int dquot_resume(struct super_block *sb, int type)
@@ -2479,7 +2486,7 @@ int dquot_quota_on(struct super_block *sb, int type, int format_id,
 	if (path->dentry->d_sb != sb)
 		error = -EXDEV;
 	else
-		error = vfs_load_quota_inode(d_inode(path->dentry), type,
+		error = dquot_load_quota_inode(d_inode(path->dentry), type,
 					     format_id, DQUOT_USAGE_ENABLED |
 					     DQUOT_LIMITS_ENABLED);
 	return error;
@@ -2517,7 +2524,7 @@ int dquot_enable(struct inode *inode, int type, int format_id,
 		return 0;
 	}
 
-	return vfs_load_quota_inode(inode, type, format_id, flags);
+	return dquot_load_quota_inode(inode, type, format_id, flags);
 }
 EXPORT_SYMBOL(dquot_enable);
 
@@ -2542,7 +2549,7 @@ int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
 
 	error = security_quota_on(dentry);
 	if (!error)
-		error = vfs_load_quota_inode(d_inode(dentry), type, format_id,
+		error = dquot_load_quota_inode(d_inode(dentry), type, format_id,
 				DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
 
 out:
