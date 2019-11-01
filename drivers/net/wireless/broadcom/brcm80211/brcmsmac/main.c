@@ -838,9 +838,8 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	struct dma_pub *dma = NULL;
 	struct d11txh *txh = NULL;
 	struct scb *scb = NULL;
-	bool free_pdu;
-	int tx_rts, tx_frame_count, tx_rts_count;
-	uint totlen, supr_status;
+	int tx_frame_count;
+	uint supr_status;
 	bool lastframe;
 	struct ieee80211_hdr *h;
 	u16 mcl;
@@ -917,11 +916,8 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 			     CHSPEC_CHANNEL(wlc->default_bss->chanspec));
 	}
 
-	tx_rts = le16_to_cpu(txh->MacTxControlLow) & TXC_SENDRTS;
 	tx_frame_count =
 	    (txs->status & TX_STATUS_FRM_RTX_MASK) >> TX_STATUS_FRM_RTX_SHIFT;
-	tx_rts_count =
-	    (txs->status & TX_STATUS_RTS_RTX_MASK) >> TX_STATUS_RTS_RTX_SHIFT;
 
 	lastframe = !ieee80211_has_morefrags(h->frame_control);
 
@@ -988,9 +984,6 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 		if (txs->status & TX_STATUS_ACK_RCV)
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	}
-
-	totlen = p->len;
-	free_pdu = true;
 
 	if (lastframe) {
 		/* remove PLCP & Broadcom tx descriptor header */
