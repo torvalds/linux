@@ -184,6 +184,8 @@ allOf:
             - mdio-parent-bus
             - mdio@1
 
+unevaluatedProperties: false
+
 examples:
   - |
     ethernet@1c0b000 {
@@ -313,9 +315,5 @@ examples:
             };
         };
     };
-
-# FIXME: We should set it, but it would report all the generic
-# properties as additional properties.
-# additionalProperties: false
 
 ...
