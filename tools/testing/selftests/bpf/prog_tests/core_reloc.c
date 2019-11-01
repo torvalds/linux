@@ -174,15 +174,11 @@
 	.fails = true,							\
 }
 
-#define EXISTENCE_DATA(struct_name) STRUCT_TO_CHAR_PTR(struct_name) {	\
-	.a = 42,							\
-}
-
 #define EXISTENCE_CASE_COMMON(name)					\
 	.case_name = #name,						\
 	.bpf_obj_file = "test_core_reloc_existence.o",			\
 	.btf_src_file = "btf__core_reloc_" #name ".o",			\
-	.relaxed_core_relocs = true					\
+	.relaxed_core_relocs = true
 
 #define EXISTENCE_ERR_CASE(name) {					\
 	EXISTENCE_CASE_COMMON(name),					\
@@ -222,6 +218,35 @@
 	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_direct.o",	\
 			      "direct:", name),				\
 	.direct_raw_tp = true,						\
+	.fails = true,							\
+}
+
+#define SIZE_CASE_COMMON(name)						\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_size.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o",			\
+	.relaxed_core_relocs = true
+
+#define SIZE_OUTPUT_DATA(type)						\
+	STRUCT_TO_CHAR_PTR(core_reloc_size_output) {			\
+		.int_sz = sizeof(((type *)0)->int_field),		\
+		.struct_sz = sizeof(((type *)0)->struct_field),		\
+		.union_sz = sizeof(((type *)0)->union_field),		\
+		.arr_sz = sizeof(((type *)0)->arr_field),		\
+		.arr_elem_sz = sizeof(((type *)0)->arr_field[0]),	\
+		.ptr_sz = sizeof(((type *)0)->ptr_field),		\
+		.enum_sz = sizeof(((type *)0)->enum_field),	\
+	}
+
+#define SIZE_CASE(name) {						\
+	SIZE_CASE_COMMON(name),						\
+	.input_len = 0,							\
+	.output = SIZE_OUTPUT_DATA(struct core_reloc_##name),		\
+	.output_len = sizeof(struct core_reloc_size_output),		\
+}
+
+#define SIZE_ERR_CASE(name) {						\
+	SIZE_CASE_COMMON(name),						\
 	.fails = true,							\
 }
 
@@ -423,6 +448,10 @@ static struct core_reloc_test_case test_cases[] = {
 		.ub2 = 0x0812345678FEDCBA,
 	}),
 	BITFIELDS_ERR_CASE(bitfields___err_too_big_bitfield),
+
+	/* size relocation checks */
+	SIZE_CASE(size),
+	SIZE_CASE(size___diff_sz),
 };
 
 struct data {

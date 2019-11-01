@@ -734,3 +734,34 @@ struct core_reloc_bitfields___err_too_big_bitfield {
 	uint32_t	u32;
 	uint32_t	s32;
 } __attribute__((packed)) ;
+
+/*
+ * SIZE
+ */
+struct core_reloc_size_output {
+	int int_sz;
+	int struct_sz;
+	int union_sz;
+	int arr_sz;
+	int arr_elem_sz;
+	int ptr_sz;
+	int enum_sz;
+};
+
+struct core_reloc_size {
+	int int_field;
+	struct { int x; } struct_field;
+	union { int x; } union_field;
+	int arr_field[4];
+	void *ptr_field;
+	enum { VALUE = 123 } enum_field;
+};
+
+struct core_reloc_size___diff_sz {
+	uint64_t int_field;
+	struct { int x; int y; int z; } struct_field;
+	union { int x; char bla[123]; } union_field;
+	char arr_field[10];
+	void *ptr_field;
+	enum { OTHER_VALUE = 0xFFFFFFFFFFFFFFFF } enum_field;
+};
