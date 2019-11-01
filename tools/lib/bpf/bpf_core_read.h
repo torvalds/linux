@@ -97,6 +97,13 @@ enum bpf_field_info_kind {
 	__builtin_preserve_field_info(field, BPF_FIELD_EXISTS)
 
 /*
+ * Convenience macro to get byte size of a field. Works for integers,
+ * struct/unions, pointers, arrays, and enums.
+ */
+#define bpf_core_field_size(field)					    \
+	__builtin_preserve_field_info(field, BPF_FIELD_BYTE_SIZE)
+
+/*
  * bpf_core_read() abstracts away bpf_probe_read() call and captures offset
  * relocation for source address using __builtin_preserve_access_index()
  * built-in, provided by Clang.

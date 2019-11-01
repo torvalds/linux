@@ -2704,8 +2704,10 @@ err_out:
 /* Check two types for compatibility, skipping const/volatile/restrict and
  * typedefs, to ensure we are relocating compatible entities:
  *   - any two STRUCTs/UNIONs are compatible and can be mixed;
- *   - any two FWDs are compatible;
+ *   - any two FWDs are compatible, if their names match (modulo flavor suffix);
  *   - any two PTRs are always compatible;
+ *   - for ENUMs, names should be the same (ignoring flavor suffix) or at
+ *     least one of enums should be anonymous;
  *   - for ENUMs, check sizes, names are ignored;
  *   - for INT, size and signedness are ignored;
  *   - for ARRAY, dimensionality is ignored, element types are checked for
@@ -2733,11 +2735,23 @@ recur:
 		return 0;
 
 	switch (btf_kind(local_type)) {
-	case BTF_KIND_FWD:
 	case BTF_KIND_PTR:
 		return 1;
-	case BTF_KIND_ENUM:
-		return local_type->size == targ_type->size;
+	case BTF_KIND_FWD:
+	case BTF_KIND_ENUM: {
+		const char *local_name, *targ_name;
+		size_t local_len, targ_len;
+
+		local_name = btf__name_by_offset(local_btf,
+						 local_type->name_off);
+		targ_name = btf__name_by_offset(targ_btf, targ_type->name_off);
+		local_len = bpf_core_essential_name_len(local_name);
+		targ_len = bpf_core_essential_name_len(targ_name);
+		/* one of them is anonymous or both w/ same flavor-less names */
+		return local_len == 0 || targ_len == 0 ||
+		       (local_len == targ_len &&
+			strncmp(local_name, targ_name, local_len) == 0);
+	}
 	case BTF_KIND_INT:
 		/* just reject deprecated bitfield-like integers; all other
 		 * integers are by default compatible between each other
@@ -2926,16 +2940,23 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 	const struct btf_member *m;
 	const struct btf_type *mt;
 	bool bitfield;
+	__s64 sz;
 
 	/* a[n] accessor needs special handling */
 	if (!acc->name) {
-		if (relo->kind != BPF_FIELD_BYTE_OFFSET) {
-			pr_warn("prog '%s': relo %d at insn #%d can't be applied to array access'\n",
+		if (relo->kind == BPF_FIELD_BYTE_OFFSET) {
+			*val = spec->bit_offset / 8;
+		} else if (relo->kind == BPF_FIELD_BYTE_SIZE) {
+			sz = btf__resolve_size(spec->btf, acc->type_id);
+			if (sz < 0)
+				return -EINVAL;
+			*val = sz;
+		} else {
+			pr_warn("prog '%s': relo %d at insn #%d can't be applied to array access\n",
 				bpf_program__title(prog, false),
 				relo->kind, relo->insn_off / 8);
 			return -EINVAL;
 		}
-		*val = spec->bit_offset / 8;
 		if (validate)
 			*validate = true;
 		return 0;
@@ -2963,7 +2984,10 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 			byte_off = bit_off / 8 / byte_sz * byte_sz;
 		}
 	} else {
-		byte_sz = mt->size;
+		sz = btf__resolve_size(spec->btf, m->type);
+		if (sz < 0)
+			return -EINVAL;
+		byte_sz = sz;
 		byte_off = spec->bit_offset / 8;
 		bit_sz = byte_sz * 8;
 	}
