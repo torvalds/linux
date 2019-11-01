@@ -21,9 +21,11 @@
 
 #include "../../codecs/rt1308.h"
 #include "../../codecs/hdac_hdmi.h"
+#include "hda_dsp_common.h"
 
 struct tgl_card_private {
 	struct list_head hdmi_pcm_list;
+	bool common_hdmi_codec_drv;
 };
 
 #if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
@@ -62,6 +64,13 @@ static int tgl_card_late_probe(struct snd_soc_card *card)
 	struct snd_soc_component *component = NULL;
 	int err, i = 0;
 	char jack_name[NAME_SIZE];
+
+	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct tgl_hdmi_pcm,
+			       head);
+	component = pcm->codec_dai->component;
+
+	if (ctx->common_hdmi_codec_drv)
+		return hda_dsp_hdmi_build_controls(card, component);
 
 	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
 		component = pcm->codec_dai->component;
@@ -283,6 +292,8 @@ static int tgl_rt1308_probe(struct platform_device *pdev)
 						    mach->mach_params.platform);
 	if (ret)
 		return ret;
+
+	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
 
 	snd_soc_card_set_drvdata(card, ctx);
 
