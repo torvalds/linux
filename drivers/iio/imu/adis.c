@@ -229,7 +229,8 @@ int adis_debugfs_reg_access(struct iio_dev *indio_dev,
 		int ret;
 
 		ret = adis_read_reg_16(adis, reg, &val16);
-		*readval = val16;
+		if (ret == 0)
+			*readval = val16;
 
 		return ret;
 	} else {
