@@ -254,10 +254,13 @@ static void __init setup_xstate_features(void)
 	 * in the fixed offsets in the xsave area in either compacted form
 	 * or standard form.
 	 */
-	xstate_offsets[0] = 0;
-	xstate_sizes[0] = offsetof(struct fxregs_state, xmm_space);
-	xstate_offsets[1] = xstate_sizes[0];
-	xstate_sizes[1] = FIELD_SIZEOF(struct fxregs_state, xmm_space);
+	xstate_offsets[XFEATURE_FP]	= 0;
+	xstate_sizes[XFEATURE_FP]	= offsetof(struct fxregs_state,
+						   xmm_space);
+
+	xstate_offsets[XFEATURE_SSE]	= xstate_sizes[XFEATURE_FP];
+	xstate_sizes[XFEATURE_SSE]	= FIELD_SIZEOF(struct fxregs_state,
+						       xmm_space);
 
 	for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
 		if (!xfeature_enabled(i))
@@ -350,8 +353,9 @@ static void __init setup_xstate_comp(void)
 	 * in the fixed offsets in the xsave area in either compacted form
 	 * or standard form.
 	 */
-	xstate_comp_offsets[0] = 0;
-	xstate_comp_offsets[1] = offsetof(struct fxregs_state, xmm_space);
+	xstate_comp_offsets[XFEATURE_FP] = 0;
+	xstate_comp_offsets[XFEATURE_SSE] = offsetof(struct fxregs_state,
+						     xmm_space);
 
 	if (!boot_cpu_has(X86_FEATURE_XSAVES)) {
 		for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
