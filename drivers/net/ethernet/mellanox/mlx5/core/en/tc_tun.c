@@ -141,7 +141,6 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	struct dst_entry *dst;
 	struct neighbour *n;
 
-#if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
 	int ret;
 
 	ret = ipv6_stub->ipv6_dst_lookup(dev_net(mirred_dev), NULL, &dst,
@@ -157,9 +156,6 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 		dst_release(dst);
 		return ret;
 	}
-#else
-	return -EOPNOTSUPP;
-#endif
 
 	n = dst_neigh_lookup(dst, &fl6->daddr);
 	dst_release(dst);
