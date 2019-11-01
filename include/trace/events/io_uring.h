@@ -228,35 +228,6 @@ TRACE_EVENT(io_uring_link,
 );
 
 /**
- * io_uring_add_to_prev - called after a request was added into a previously
- * 						  submitted work
- *
- * @req:	pointer to a request, added to a previous
- * @ret:	whether or not it was completed successfully
- *
- * Allows to track merged work, to figure out how often requests are piggy
- * backed into other ones, changing the execution flow.
- */
-TRACE_EVENT(io_uring_add_to_prev,
-
-	TP_PROTO(void *req, bool ret),
-
-	TP_ARGS(req, ret),
-
-	TP_STRUCT__entry (
-		__field(  void *,	req	)
-		__field(  bool,		ret	)
-	),
-
-	TP_fast_assign(
-		__entry->req	= req;
-		__entry->ret	= ret;
-	),
-
-	TP_printk("request %p, ret %d", __entry->req, __entry->ret)
-);
-
-/**
  * io_uring_cqring_wait - called before start waiting for an available CQE
  *
  * @ctx:		pointer to a ring context structure
