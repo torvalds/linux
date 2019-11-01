@@ -23,6 +23,7 @@
 #include "../../codecs/rt1011.h"
 #include "../../codecs/rt5682.h"
 #include "../../codecs/hdac_hdmi.h"
+#include "hda_dsp_common.h"
 
 /* The platform clock outputs 24Mhz clock to codec as I2S MCLK */
 #define CML_PLAT_CLK	24000000
@@ -42,6 +43,7 @@ struct card_private {
 	char codec_name[SND_ACPI_I2C_ID_LEN];
 	struct snd_soc_jack headset;
 	struct list_head hdmi_pcm_list;
+	bool common_hdmi_codec_drv;
 };
 
 static const struct snd_kcontrol_new cml_controls[] = {
@@ -239,6 +241,13 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 	char jack_name[NAME_SIZE];
 	struct hdmi_pcm *pcm;
 	int ret, i = 0;
+
+	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct hdmi_pcm,
+			       head);
+	component = pcm->codec_dai->component;
+
+	if (ctx->common_hdmi_codec_drv)
+		return hda_dsp_hdmi_build_controls(card, component);
 
 	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
 		component = pcm->codec_dai->component;
@@ -452,6 +461,9 @@ static int snd_cml_rt1011_probe(struct platform_device *pdev)
 						    platform_name);
 	if (ret)
 		return ret;
+
+	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
+
 	snd_soc_card_set_drvdata(&snd_soc_card_cml, ctx);
 
 	return devm_snd_soc_register_card(&pdev->dev, &snd_soc_card_cml);
