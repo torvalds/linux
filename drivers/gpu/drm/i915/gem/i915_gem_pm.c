@@ -27,7 +27,7 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	intel_gt_suspend(&i915->gt);
+	intel_gt_suspend_prepare(&i915->gt);
 
 	i915_gem_drain_freed_objects(i915);
 }
@@ -68,6 +68,8 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 	 * machines is a good idea, we don't - just in case it leaves the
 	 * machine in an unusable condition.
 	 */
+
+	intel_gt_suspend_late(&i915->gt);
 
 	spin_lock_irqsave(&i915->mm.obj_lock, flags);
 	for (phase = phases; *phase; phase++) {
