@@ -12,8 +12,80 @@
  */
 enum bpf_field_info_kind {
 	BPF_FIELD_BYTE_OFFSET = 0,	/* field byte offset */
+	BPF_FIELD_BYTE_SIZE = 1,
 	BPF_FIELD_EXISTS = 2,		/* field existence in target kernel */
+	BPF_FIELD_SIGNED = 3,
+	BPF_FIELD_LSHIFT_U64 = 4,
+	BPF_FIELD_RSHIFT_U64 = 5,
 };
+
+#define __CORE_RELO(src, field, info)					      \
+	__builtin_preserve_field_info((src)->field, BPF_FIELD_##info)
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define __CORE_BITFIELD_PROBE_READ(dst, src, fld)			      \
+	bpf_probe_read((void *)dst,					      \
+		       __CORE_RELO(src, fld, BYTE_SIZE),		      \
+		       (const void *)src + __CORE_RELO(src, fld, BYTE_OFFSET))
+#else
+/* semantics of LSHIFT_64 assumes loading values into low-ordered bytes, so
+ * for big-endian we need to adjust destination pointer accordingly, based on
+ * field byte size
+ */
+#define __CORE_BITFIELD_PROBE_READ(dst, src, fld)			      \
+	bpf_probe_read((void *)dst + (8 - __CORE_RELO(src, fld, BYTE_SIZE)),  \
+		       __CORE_RELO(src, fld, BYTE_SIZE),		      \
+		       (const void *)src + __CORE_RELO(src, fld, BYTE_OFFSET))
+#endif
+
+/*
+ * Extract bitfield, identified by src->field, and put its value into u64
+ * *res. All this is done in relocatable manner, so bitfield changes such as
+ * signedness, bit size, offset changes, this will be handled automatically.
+ * This version of macro is using bpf_probe_read() to read underlying integer
+ * storage. Macro functions as an expression and its return type is
+ * bpf_probe_read()'s return value: 0, on success, <0 on error.
+ */
+#define BPF_CORE_READ_BITFIELD_PROBED(src, field, res) ({		      \
+	unsigned long long val;						      \
+									      \
+	*res = 0;							      \
+	val = __CORE_BITFIELD_PROBE_READ(res, src, field);		      \
+	if (!val) {							      \
+		*res <<= __CORE_RELO(src, field, LSHIFT_U64);		      \
+		val = __CORE_RELO(src, field, RSHIFT_U64);		      \
+		if (__CORE_RELO(src, field, SIGNED))			      \
+			*res = ((long long)*res) >> val;		      \
+		else							      \
+			*res = ((unsigned long long)*res) >> val;	      \
+		val = 0;						      \
+	}								      \
+	val;								      \
+})
+
+/*
+ * Extract bitfield, identified by src->field, and return its value as u64.
+ * This version of macro is using direct memory reads and should be used from
+ * BPF program types that support such functionality (e.g., typed raw
+ * tracepoints).
+ */
+#define BPF_CORE_READ_BITFIELD(s, field) ({				      \
+	const void *p = (const void *)s + __CORE_RELO(s, field, BYTE_OFFSET); \
+	unsigned long long val;						      \
+									      \
+	switch (__CORE_RELO(s, field, BYTE_SIZE)) {			      \
+	case 1: val = *(const unsigned char *)p;			      \
+	case 2: val = *(const unsigned short *)p;			      \
+	case 4: val = *(const unsigned int *)p;				      \
+	case 8: val = *(const unsigned long long *)p;			      \
+	}								      \
+	val <<= __CORE_RELO(s, field, LSHIFT_U64);			      \
+	if (__CORE_RELO(s, field, SIGNED))				      \
+		val = ((long long)val) >> __CORE_RELO(s, field, RSHIFT_U64);  \
+	else								      \
+		val = val >> __CORE_RELO(s, field, RSHIFT_U64);		      \
+	val;								      \
+})
 
 /*
  * Convenience macro to check that field actually exists in target kernel's.
