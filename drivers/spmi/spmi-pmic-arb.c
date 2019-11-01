@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012-2018, 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019, 2021, The Linux Foundation. All rights reserved.
  */
 #include <linux/bitmap.h>
 #include <linux/delay.h>
@@ -1455,7 +1455,18 @@ static struct platform_driver spmi_pmic_arb_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
-module_platform_driver(spmi_pmic_arb_driver);
+
+static int __init spmi_pmic_arb_init(void)
+{
+	return platform_driver_register(&spmi_pmic_arb_driver);
+}
+arch_initcall(spmi_pmic_arb_init);
+
+static void __exit spmi_pmic_arb_exit(void)
+{
+	platform_driver_unregister(&spmi_pmic_arb_driver);
+}
+module_exit(spmi_pmic_arb_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:spmi_pmic_arb");
