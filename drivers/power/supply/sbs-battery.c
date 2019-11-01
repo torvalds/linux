@@ -1001,6 +1001,6 @@ module_i2c_driver(sbs_battery_driver);
 MODULE_DESCRIPTION("SBS battery monitor driver");
 MODULE_LICENSE("GPL");
 
-module_param(force_load, bool, S_IRUSR | S_IRGRP | S_IROTH);
+module_param(force_load, bool, 0444);
 MODULE_PARM_DESC(force_load,
 		 "Attempt to load the driver even if no battery is connected");
