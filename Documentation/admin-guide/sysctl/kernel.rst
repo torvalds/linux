@@ -1111,10 +1111,6 @@ constant FUTEX_TID_MASK (0x3fffffff).
 If a value outside of this range is written to threads-max an error
 EINVAL occurs.
 
-The value written is checked against the available RAM pages. If the
-thread structures would occupy too much (more than 1/8th) of the
-available RAM pages threads-max is reduced accordingly.
-
 
 unknown_nmi_panic:
 ==================
