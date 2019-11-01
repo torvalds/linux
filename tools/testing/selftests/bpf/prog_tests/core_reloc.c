@@ -189,6 +189,42 @@
 	.fails = true,							\
 }
 
+#define BITFIELDS_CASE_COMMON(objfile, test_name_prefix,  name)		\
+	.case_name = test_name_prefix#name,				\
+	.bpf_obj_file = objfile,					\
+	.btf_src_file = "btf__core_reloc_" #name ".o"
+
+#define BITFIELDS_CASE(name, ...) {					\
+	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_probed.o",	\
+			      "direct:", name),				\
+	.input = STRUCT_TO_CHAR_PTR(core_reloc_##name) __VA_ARGS__,	\
+	.input_len = sizeof(struct core_reloc_##name),			\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_bitfields_output)	\
+		__VA_ARGS__,						\
+	.output_len = sizeof(struct core_reloc_bitfields_output),	\
+}, {									\
+	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_direct.o",	\
+			      "probed:", name),				\
+	.input = STRUCT_TO_CHAR_PTR(core_reloc_##name) __VA_ARGS__,	\
+	.input_len = sizeof(struct core_reloc_##name),			\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_bitfields_output)	\
+		__VA_ARGS__,						\
+	.output_len = sizeof(struct core_reloc_bitfields_output),	\
+	.direct_raw_tp = true,						\
+}
+
+
+#define BITFIELDS_ERR_CASE(name) {					\
+	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_probed.o",	\
+			      "probed:", name),				\
+	.fails = true,							\
+}, {									\
+	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_direct.o",	\
+			      "direct:", name),				\
+	.direct_raw_tp = true,						\
+	.fails = true,							\
+}
+
 struct core_reloc_test_case {
 	const char *case_name;
 	const char *bpf_obj_file;
@@ -199,6 +235,7 @@ struct core_reloc_test_case {
 	int output_len;
 	bool fails;
 	bool relaxed_core_relocs;
+	bool direct_raw_tp;
 };
 
 static struct core_reloc_test_case test_cases[] = {
@@ -352,6 +389,40 @@ static struct core_reloc_test_case test_cases[] = {
 	EXISTENCE_ERR_CASE(existence__err_arr_kind),
 	EXISTENCE_ERR_CASE(existence__err_arr_value_type),
 	EXISTENCE_ERR_CASE(existence__err_struct_type),
+
+	/* bitfield relocation checks */
+	BITFIELDS_CASE(bitfields, {
+		.ub1 = 1,
+		.ub2 = 2,
+		.ub7 = 96,
+		.sb4 = -7,
+		.sb20 = -0x76543,
+		.u32 = 0x80000000,
+		.s32 = -0x76543210,
+	}),
+	BITFIELDS_CASE(bitfields___bit_sz_change, {
+		.ub1 = 6,
+		.ub2 = 0xABCDE,
+		.ub7 = 1,
+		.sb4 = -1,
+		.sb20 = -0x17654321,
+		.u32 = 0xBEEF,
+		.s32 = -0x3FEDCBA987654321,
+	}),
+	BITFIELDS_CASE(bitfields___bitfield_vs_int, {
+		.ub1 = 0xFEDCBA9876543210,
+		.ub2 = 0xA6,
+		.ub7 = -0x7EDCBA987654321,
+		.sb4 = -0x6123456789ABCDE,
+		.sb20 = 0xD00D,
+		.u32 = -0x76543,
+		.s32 = 0x0ADEADBEEFBADB0B,
+	}),
+	BITFIELDS_CASE(bitfields___just_big_enough, {
+		.ub1 = 0xF,
+		.ub2 = 0x0812345678FEDCBA,
+	}),
+	BITFIELDS_ERR_CASE(bitfields___err_too_big_bitfield),
 };
 
 struct data {
@@ -361,9 +432,9 @@ struct data {
 
 void test_core_reloc(void)
 {
-	const char *probe_name = "raw_tracepoint/sys_enter";
 	struct bpf_object_load_attr load_attr = {};
 	struct core_reloc_test_case *test_case;
+	const char *tp_name, *probe_name;
 	int err, duration = 0, i, equal;
 	struct bpf_link *link = NULL;
 	struct bpf_map *data_map;
@@ -387,6 +458,15 @@ void test_core_reloc(void)
 			  test_case->bpf_obj_file, PTR_ERR(obj)))
 			continue;
 
+		/* for typed raw tracepoints, NULL should be specified */
+		if (test_case->direct_raw_tp) {
+			probe_name = "tp_btf/sys_enter";
+			tp_name = NULL;
+		} else {
+			probe_name = "raw_tracepoint/sys_enter";
+			tp_name = "sys_enter";
+		}
+
 		prog = bpf_object__find_program_by_title(obj, probe_name);
 		if (CHECK(!prog, "find_probe",
 			  "prog '%s' not found\n", probe_name))
@@ -407,7 +487,7 @@ void test_core_reloc(void)
 				goto cleanup;
 		}
 
-		link = bpf_program__attach_raw_tracepoint(prog, "sys_enter");
+		link = bpf_program__attach_raw_tracepoint(prog, tp_name);
 		if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n",
 			  PTR_ERR(link)))
 			goto cleanup;

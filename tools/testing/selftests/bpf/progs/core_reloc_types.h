@@ -662,3 +662,75 @@ struct core_reloc_existence___err_wrong_arr_value_type {
 struct core_reloc_existence___err_wrong_struct_type {
 	int s;
 };
+
+/*
+ * BITFIELDS
+ */
+/* bitfield read results, all as plain integers */
+struct core_reloc_bitfields_output {
+	int64_t		ub1;
+	int64_t		ub2;
+	int64_t		ub7;
+	int64_t		sb4;
+	int64_t		sb20;
+	int64_t		u32;
+	int64_t		s32;
+};
+
+struct core_reloc_bitfields {
+	/* unsigned bitfields */
+	uint8_t		ub1: 1;
+	uint8_t		ub2: 2;
+	uint32_t	ub7: 7;
+	/* signed bitfields */
+	int8_t		sb4: 4;
+	int32_t		sb20: 20;
+	/* non-bitfields */
+	uint32_t	u32;
+	int32_t		s32;
+};
+
+/* different bit sizes (both up and down) */
+struct core_reloc_bitfields___bit_sz_change {
+	/* unsigned bitfields */
+	uint16_t	ub1: 3;		/*  1 ->  3 */
+	uint32_t	ub2: 20;	/*  2 -> 20 */
+	uint8_t		ub7: 1;		/*  7 ->  1 */
+	/* signed bitfields */
+	int8_t		sb4: 1;		/*  4 ->  1 */
+	int32_t		sb20: 30;	/* 20 -> 30 */
+	/* non-bitfields */
+	uint16_t	u32;		/* 32 -> 16 */
+	int64_t		s32;		/* 32 -> 64 */
+};
+
+/* turn bitfield into non-bitfield and vice versa */
+struct core_reloc_bitfields___bitfield_vs_int {
+	uint64_t	ub1;		/*  3 -> 64 non-bitfield */
+	uint8_t		ub2;		/* 20 ->  8 non-bitfield */
+	int64_t		ub7;		/*  7 -> 64 non-bitfield signed */
+	int64_t		sb4;		/*  4 -> 64 non-bitfield signed */
+	uint64_t	sb20;		/* 20 -> 16 non-bitfield unsigned */
+	int32_t		u32: 20;	/* 32 non-bitfield -> 20 bitfield */
+	uint64_t	s32: 60;	/* 32 non-bitfield -> 60 bitfield */
+};
+
+struct core_reloc_bitfields___just_big_enough {
+	uint64_t	ub1: 4;
+	uint64_t	ub2: 60; /* packed tightly */
+	uint32_t	ub7;
+	uint32_t	sb4;
+	uint32_t	sb20;
+	uint32_t	u32;
+	uint32_t	s32;
+} __attribute__((packed)) ;
+
+struct core_reloc_bitfields___err_too_big_bitfield {
+	uint64_t	ub1: 4;
+	uint64_t	ub2: 61; /* packed tightly */
+	uint32_t	ub7;
+	uint32_t	sb4;
+	uint32_t	sb20;
+	uint32_t	u32;
+	uint32_t	s32;
+} __attribute__((packed)) ;
