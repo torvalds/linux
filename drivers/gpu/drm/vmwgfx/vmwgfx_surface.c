@@ -961,6 +961,13 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		user_srf = container_of(base, struct vmw_user_surface,
 					prime.base);
 
+		/* Error out if we are unauthenticated primary */
+		if (drm_is_primary_client(file_priv) &&
+		    !file_priv->authenticated) {
+			ret = -EACCES;
+			goto out_bad_resource;
+		}
+
 		/*
 		 * Make sure the surface creator has the same
 		 * authenticating master, or is already registered with us.
