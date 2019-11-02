@@ -394,6 +394,8 @@ static ssize_t spi_nor_write_data(struct spi_nor *nor, loff_t to, size_t len,
  */
 static int spi_nor_write_enable(struct spi_nor *nor)
 {
+	int ret;
+
 	if (nor->spimem) {
 		struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WREN, 1),
@@ -401,10 +403,16 @@ static int spi_nor_write_enable(struct spi_nor *nor)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_NO_DATA);
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WREN,
+						     NULL, 0);
 	}
 
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_WREN, NULL, 0);
+	if (ret)
+		dev_dbg(nor->dev, "error %d on Write Enable\n", ret);
+
+	return ret;
 }
 
 /*
@@ -412,6 +420,8 @@ static int spi_nor_write_enable(struct spi_nor *nor)
  */
 static int spi_nor_write_disable(struct spi_nor *nor)
 {
+	int ret;
+
 	if (nor->spimem) {
 		struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRDI, 1),
@@ -419,10 +429,16 @@ static int spi_nor_write_disable(struct spi_nor *nor)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_NO_DATA);
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WRDI,
+						     NULL, 0);
 	}
 
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_WRDI, NULL, 0);
+	if (ret)
+		dev_dbg(nor->dev, "error %d on Write Disable\n", ret);
+
+	return ret;
 }
 
 /**
@@ -524,6 +540,8 @@ static int spi_nor_read_cr(struct spi_nor *nor, u8 *cr)
  */
 static int spi_nor_write_sr(struct spi_nor *nor, u8 val)
 {
+	int ret;
+
 	nor->bouncebuf[0] = val;
 	if (nor->spimem) {
 		struct spi_mem_op op =
@@ -532,15 +550,23 @@ static int spi_nor_write_sr(struct spi_nor *nor, u8 val)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_DATA_OUT(1, nor->bouncebuf, 1));
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR,
+						     nor->bouncebuf, 1);
 	}
 
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR,
-					      nor->bouncebuf, 1);
+	if (ret)
+		dev_dbg(nor->dev, "error %d writing SR\n", ret);
+
+	return ret;
+
 }
 
 static int macronix_set_4byte(struct spi_nor *nor, bool enable)
 {
+	int ret;
+
 	if (nor->spimem) {
 		struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(enable ?
@@ -551,12 +577,18 @@ static int macronix_set_4byte(struct spi_nor *nor, bool enable)
 				  SPI_MEM_OP_NO_DUMMY,
 				  SPI_MEM_OP_NO_DATA);
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor,
+						     enable ? SPINOR_OP_EN4B :
+							      SPINOR_OP_EX4B,
+						     NULL, 0);
 	}
 
-	return nor->controller_ops->write_reg(nor, enable ? SPINOR_OP_EN4B :
-							    SPINOR_OP_EX4B,
-					      NULL, 0);
+	if (ret)
+		dev_dbg(nor->dev, "error %d setting 4-byte mode\n", ret);
+
+	return ret;
 }
 
 static int st_micron_set_4byte(struct spi_nor *nor, bool enable)
@@ -572,6 +604,8 @@ static int st_micron_set_4byte(struct spi_nor *nor, bool enable)
 
 static int spansion_set_4byte(struct spi_nor *nor, bool enable)
 {
+	int ret;
+
 	nor->bouncebuf[0] = enable << 7;
 
 	if (nor->spimem) {
@@ -581,15 +615,22 @@ static int spansion_set_4byte(struct spi_nor *nor, bool enable)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_DATA_OUT(1, nor->bouncebuf, 1));
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_BRWR,
+						     nor->bouncebuf, 1);
 	}
 
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_BRWR,
-					      nor->bouncebuf, 1);
+	if (ret)
+		dev_dbg(nor->dev, "error %d setting 4-byte mode\n", ret);
+
+	return ret;
 }
 
 static int spi_nor_write_ear(struct spi_nor *nor, u8 ear)
 {
+	int ret;
+
 	nor->bouncebuf[0] = ear;
 
 	if (nor->spimem) {
@@ -599,11 +640,16 @@ static int spi_nor_write_ear(struct spi_nor *nor, u8 ear)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_DATA_OUT(1, nor->bouncebuf, 1));
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WREAR,
+						     nor->bouncebuf, 1);
 	}
 
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_WREAR,
-					      nor->bouncebuf, 1);
+	if (ret)
+		dev_dbg(nor->dev, "error %d writing EAR\n", ret);
+
+	return ret;
 }
 
 static int winbond_set_4byte(struct spi_nor *nor, bool enable)
@@ -628,6 +674,8 @@ static int winbond_set_4byte(struct spi_nor *nor, bool enable)
 
 static int spi_nor_xread_sr(struct spi_nor *nor, u8 *sr)
 {
+	int ret;
+
 	if (nor->spimem) {
 		struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_XRDSR, 1),
@@ -635,10 +683,16 @@ static int spi_nor_xread_sr(struct spi_nor *nor, u8 *sr)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_DATA_IN(1, sr, 1));
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->read_reg(nor, SPINOR_OP_XRDSR,
+						    sr, 1);
 	}
 
-	return nor->controller_ops->read_reg(nor, SPINOR_OP_XRDSR, sr, 1);
+	if (ret)
+		dev_dbg(nor->dev, "error %d reading XRDSR\n", ret);
+
+	return ret;
 }
 
 static int s3an_sr_ready(struct spi_nor *nor)
@@ -646,16 +700,16 @@ static int s3an_sr_ready(struct spi_nor *nor)
 	int ret;
 
 	ret = spi_nor_xread_sr(nor, nor->bouncebuf);
-	if (ret) {
-		dev_dbg(nor->dev, "error %d reading XRDSR\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	return !!(nor->bouncebuf[0] & XSR_RDY);
 }
 
 static int spi_nor_clear_sr(struct spi_nor *nor)
 {
+	int ret;
+
 	if (nor->spimem) {
 		struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_CLSR, 1),
@@ -663,10 +717,16 @@ static int spi_nor_clear_sr(struct spi_nor *nor)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_NO_DATA);
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_CLSR,
+						     NULL, 0);
 	}
 
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_CLSR, NULL, 0);
+	if (ret)
+		dev_dbg(nor->dev, "error %d clearing SR\n", ret);
+
+	return ret;
 }
 
 static int spi_nor_sr_ready(struct spi_nor *nor)
@@ -692,6 +752,8 @@ static int spi_nor_sr_ready(struct spi_nor *nor)
 
 static int spi_nor_clear_fsr(struct spi_nor *nor)
 {
+	int ret;
+
 	if (nor->spimem) {
 		struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_CLFSR, 1),
@@ -699,10 +761,16 @@ static int spi_nor_clear_fsr(struct spi_nor *nor)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_NO_DATA);
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_CLFSR,
+						     NULL, 0);
 	}
 
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_CLFSR, NULL, 0);
+	if (ret)
+		dev_dbg(nor->dev, "error %d clearing FSR\n", ret);
+
+	return ret;
 }
 
 static int spi_nor_fsr_ready(struct spi_nor *nor)
@@ -839,6 +907,8 @@ static int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 status_new,
 
 static int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2)
 {
+	int ret;
+
 	if (nor->spimem) {
 		struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR2, 1),
@@ -846,14 +916,22 @@ static int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_DATA_OUT(1, sr2, 1));
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR2,
+						     sr2, 1);
 	}
 
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR2, sr2, 1);
+	if (ret)
+		dev_dbg(nor->dev, "error %d writing SR2\n", ret);
+
+	return ret;
 }
 
 static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
 {
+	int ret;
+
 	if (nor->spimem) {
 		struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RDSR2, 1),
@@ -861,10 +939,16 @@ static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_DATA_IN(1, sr2, 1));
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->read_reg(nor, SPINOR_OP_RDSR2,
+						    sr2, 1);
 	}
 
-	return nor->controller_ops->read_reg(nor, SPINOR_OP_RDSR2, sr2, 1);
+	if (ret)
+		dev_dbg(nor->dev, "error %d reading SR2\n", ret);
+
+	return ret;
 }
 
 /*
@@ -874,6 +958,8 @@ static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
  */
 static int spi_nor_erase_chip(struct spi_nor *nor)
 {
+	int ret;
+
 	dev_dbg(nor->dev, " %lldKiB\n", (long long)(nor->mtd.size >> 10));
 
 	if (nor->spimem) {
@@ -883,11 +969,16 @@ static int spi_nor_erase_chip(struct spi_nor *nor)
 				   SPI_MEM_OP_NO_DUMMY,
 				   SPI_MEM_OP_NO_DATA);
 
-		return spi_mem_exec_op(nor->spimem, &op);
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_CHIP_ERASE,
+						     NULL, 0);
 	}
 
-	return nor->controller_ops->write_reg(nor, SPINOR_OP_CHIP_ERASE,
-					      NULL, 0);
+	if (ret)
+		dev_dbg(nor->dev, "error %d erasing chip\n", ret);
+
+	return ret;
 }
 
 static struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
@@ -1934,10 +2025,8 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 	spi_nor_write_enable(nor);
 
 	ret = spi_nor_write_sr2(nor, sr2);
-	if (ret) {
-		dev_dbg(nor->dev, "error while writing status register 2\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = spi_nor_wait_till_ready(nor);
 	if (ret)
@@ -1977,10 +2066,8 @@ static int spi_nor_clear_sr_bp(struct spi_nor *nor)
 	spi_nor_write_enable(nor);
 
 	ret = spi_nor_write_sr(nor, nor->bouncebuf[0] & ~mask);
-	if (ret) {
-		dev_dbg(nor->dev, "write to status register failed\n");
+	if (ret)
 		return ret;
-	}
 
 	return spi_nor_wait_till_ready(nor);
 }
@@ -2739,10 +2826,8 @@ static int s3an_nor_setup(struct spi_nor *nor,
 	int ret;
 
 	ret = spi_nor_xread_sr(nor, nor->bouncebuf);
-	if (ret) {
-		dev_dbg(nor->dev, "error %d reading XRDSR\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	nor->erase_opcode = SPINOR_OP_XSE;
 	nor->program_opcode = SPINOR_OP_XPP;
