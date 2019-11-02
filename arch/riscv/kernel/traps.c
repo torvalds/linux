@@ -3,6 +3,7 @@
  * Copyright (C) 2012 Regents of the University of California
  */
 
+#include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -83,7 +84,7 @@ static void do_trap_error(struct pt_regs *regs, int signo, int code,
 }
 
 #define DO_ERROR_INFO(name, signo, code, str)				\
-asmlinkage void name(struct pt_regs *regs)				\
+asmlinkage __visible void name(struct pt_regs *regs)			\
 {									\
 	do_trap_error(regs, signo, code, regs->sepc, "Oops - " str);	\
 }
@@ -120,7 +121,7 @@ static inline unsigned long get_break_insn_length(unsigned long pc)
 	return (((insn & __INSN_LENGTH_MASK) == __INSN_LENGTH_32) ? 4UL : 2UL);
 }
 
-asmlinkage void do_trap_break(struct pt_regs *regs)
+asmlinkage __visible void do_trap_break(struct pt_regs *regs)
 {
 	if (user_mode(regs))
 		force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->sepc);
