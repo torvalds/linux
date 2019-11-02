@@ -388,9 +388,11 @@ static ssize_t spi_nor_write_data(struct spi_nor *nor, loff_t to, size_t len,
 	return nor->controller_ops->write(nor, to, len, buf);
 }
 
-/*
- * Set write enable latch with Write Enable command.
- * Returns negative if error occurred.
+/**
+ * spi_nor_write_enable() - Set write enable latch with Write Enable command.
+ * @nor:	pointer to 'struct spi_nor'.
+ *
+ * Return: 0 on success, -errno otherwise.
  */
 static int spi_nor_write_enable(struct spi_nor *nor)
 {
@@ -415,8 +417,11 @@ static int spi_nor_write_enable(struct spi_nor *nor)
 	return ret;
 }
 
-/*
- * Send write disable instruction to the chip.
+/**
+ * spi_nor_write_disable() - Send Write Disable instruction to the chip.
+ * @nor:	pointer to 'struct spi_nor'.
+ *
+ * Return: 0 on success, -errno otherwise.
  */
 static int spi_nor_write_disable(struct spi_nor *nor)
 {
@@ -534,6 +539,14 @@ static int spi_nor_read_cr(struct spi_nor *nor, u8 *cr)
 	return ret;
 }
 
+/**
+ * macronix_set_4byte() - Set 4-byte address mode for Macronix flashes.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
+ *		address mode.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int macronix_set_4byte(struct spi_nor *nor, bool enable)
 {
 	int ret;
@@ -562,6 +575,14 @@ static int macronix_set_4byte(struct spi_nor *nor, bool enable)
 	return ret;
 }
 
+/**
+ * st_micron_set_4byte() - Set 4-byte address mode for ST and Micron flashes.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
+ *		address mode.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int st_micron_set_4byte(struct spi_nor *nor, bool enable)
 {
 	int ret;
@@ -577,6 +598,14 @@ static int st_micron_set_4byte(struct spi_nor *nor, bool enable)
 	return spi_nor_write_disable(nor);
 }
 
+/**
+ * spansion_set_4byte() - Set 4-byte address mode for Spansion flashes.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
+ *		address mode.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int spansion_set_4byte(struct spi_nor *nor, bool enable)
 {
 	int ret;
@@ -602,6 +631,13 @@ static int spansion_set_4byte(struct spi_nor *nor, bool enable)
 	return ret;
 }
 
+/**
+ * spi_nor_write_ear() - Write Extended Address Register.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @ear:	value to write to the Extended Address Register.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int spi_nor_write_ear(struct spi_nor *nor, u8 ear)
 {
 	int ret;
@@ -627,6 +663,14 @@ static int spi_nor_write_ear(struct spi_nor *nor, u8 ear)
 	return ret;
 }
 
+/**
+ * winbond_set_4byte() - Set 4-byte address mode for Winbond flashes.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @enable:	true to enter the 4-byte address mode, false to exit the 4-byte
+ *		address mode.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int winbond_set_4byte(struct spi_nor *nor, bool enable)
 {
 	int ret;
@@ -651,6 +695,14 @@ static int winbond_set_4byte(struct spi_nor *nor, bool enable)
 	return spi_nor_write_disable(nor);
 }
 
+/**
+ * spi_nor_xread_sr() - Read the Status Register on S3AN flashes.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @sr:		pointer to a DMA-able buffer where the value of the
+ *              Status Register will be written.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int spi_nor_xread_sr(struct spi_nor *nor, u8 *sr)
 {
 	int ret;
@@ -674,6 +726,13 @@ static int spi_nor_xread_sr(struct spi_nor *nor, u8 *sr)
 	return ret;
 }
 
+/**
+ * s3an_sr_ready() - Query the Status Register of the S3AN flash to see if the
+ * flash is ready for new commands.
+ * @nor:	pointer to 'struct spi_nor'.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int s3an_sr_ready(struct spi_nor *nor)
 {
 	int ret;
@@ -685,6 +744,10 @@ static int s3an_sr_ready(struct spi_nor *nor)
 	return !!(nor->bouncebuf[0] & XSR_RDY);
 }
 
+/**
+ * spi_nor_clear_sr() - Clear the Status Register.
+ * @nor:	pointer to 'struct spi_nor'.
+ */
 static void spi_nor_clear_sr(struct spi_nor *nor)
 {
 	int ret;
@@ -706,6 +769,13 @@ static void spi_nor_clear_sr(struct spi_nor *nor)
 		dev_dbg(nor->dev, "error %d clearing SR\n", ret);
 }
 
+/**
+ * spi_nor_sr_ready() - Query the Status Register to see if the flash is ready
+ * for new commands.
+ * @nor:	pointer to 'struct spi_nor'.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int spi_nor_sr_ready(struct spi_nor *nor)
 {
 	int ret = spi_nor_read_sr(nor, nor->bouncebuf);
@@ -727,6 +797,10 @@ static int spi_nor_sr_ready(struct spi_nor *nor)
 	return !(nor->bouncebuf[0] & SR_WIP);
 }
 
+/**
+ * spi_nor_clear_fsr() - Clear the Flag Status Register.
+ * @nor:	pointer to 'struct spi_nor'.
+ */
 static void spi_nor_clear_fsr(struct spi_nor *nor)
 {
 	int ret;
@@ -748,6 +822,13 @@ static void spi_nor_clear_fsr(struct spi_nor *nor)
 		dev_dbg(nor->dev, "error %d clearing FSR\n", ret);
 }
 
+/**
+ * spi_nor_fsr_ready() - Query the Flag Status Register to see if the flash is
+ * ready for new commands.
+ * @nor:	pointer to 'struct spi_nor'.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int spi_nor_fsr_ready(struct spi_nor *nor)
 {
 	int ret = spi_nor_read_fsr(nor, nor->bouncebuf);
@@ -772,6 +853,12 @@ static int spi_nor_fsr_ready(struct spi_nor *nor)
 	return nor->bouncebuf[0] & FSR_READY;
 }
 
+/**
+ * spi_nor_ready() - Query the flash to see if it is ready for new commands.
+ * @nor:	pointer to 'struct spi_nor'.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int spi_nor_ready(struct spi_nor *nor)
 {
 	int sr, fsr;
@@ -788,9 +875,13 @@ static int spi_nor_ready(struct spi_nor *nor)
 	return sr && fsr;
 }
 
-/*
- * Service routine to read status register until ready, or timeout occurs.
- * Returns non-zero if error.
+/**
+ * spi_nor_wait_till_ready_with_timeout() - Service routine to read the
+ * Status Register until ready, or timeout occurs.
+ * @nor:		pointer to "struct spi_nor".
+ * @timeout_jiffies:	jiffies to wait until timeout.
+ *
+ * Return: 0 on success, -errno otherwise.
  */
 static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
 						unsigned long timeout_jiffies)
@@ -818,6 +909,13 @@ static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
 	return -ETIMEDOUT;
 }
 
+/**
+ * spi_nor_wait_till_ready() - Wait for a predefined amount of time for the
+ * flash to be ready, or timeout occurs.
+ * @nor:	pointer to "struct spi_nor".
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int spi_nor_wait_till_ready(struct spi_nor *nor)
 {
 	return spi_nor_wait_till_ready_with_timeout(nor,
@@ -880,6 +978,14 @@ static int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 status_new,
 	return ((nor->bouncebuf[0] & mask) != (status_new & mask)) ? -EIO : 0;
 }
 
+/**
+ * spi_nor_write_sr2() - Write the Status Register 2 using the
+ * SPINOR_OP_WRSR2 (3eh) command.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @sr2:	pointer to DMA-able buffer to write to the Status Register 2.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2)
 {
 	int ret;
@@ -909,6 +1015,15 @@ static int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2)
 	return spi_nor_wait_till_ready(nor);
 }
 
+/**
+ * spi_nor_read_sr2() - Read the Status Register 2 using the
+ * SPINOR_OP_RDSR2 (3fh) command.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @sr2:	pointer to DMA-able buffer where the value of the
+ *		Status Register 2 will be written.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
 {
 	int ret;
@@ -932,10 +1047,11 @@ static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
 	return ret;
 }
 
-/*
- * Erase the whole flash memory
+/**
+ * spi_nor_erase_chip() - Erase the entire flash memory.
+ * @nor:	pointer to 'struct spi_nor'.
  *
- * Returns 0 if successful, non-zero otherwise.
+ * Return: 0 on success, -errno otherwise.
  */
 static int spi_nor_erase_chip(struct spi_nor *nor)
 {
