@@ -1093,10 +1093,32 @@ static bool get_map_field_int(const char *map_name, const struct btf *btf,
 	return true;
 }
 
+static int build_map_pin_path(struct bpf_map *map, const char *path)
+{
+	char buf[PATH_MAX];
+	int err, len;
+
+	if (!path)
+		path = "/sys/fs/bpf";
+
+	len = snprintf(buf, PATH_MAX, "%s/%s", path, bpf_map__name(map));
+	if (len < 0)
+		return -EINVAL;
+	else if (len >= PATH_MAX)
+		return -ENAMETOOLONG;
+
+	err = bpf_map__set_pin_path(map, buf);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 					 const struct btf_type *sec,
 					 int var_idx, int sec_idx,
-					 const Elf_Data *data, bool strict)
+					 const Elf_Data *data, bool strict,
+					 const char *pin_root_path)
 {
 	const struct btf_type *var, *def, *t;
 	const struct btf_var_secinfo *vi;
@@ -1271,6 +1293,30 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			}
 			map->def.value_size = sz;
 			map->btf_value_type_id = t->type;
+		} else if (strcmp(name, "pinning") == 0) {
+			__u32 val;
+			int err;
+
+			if (!get_map_field_int(map_name, obj->btf, def, m,
+					       &val))
+				return -EINVAL;
+			pr_debug("map '%s': found pinning = %u.\n",
+				 map_name, val);
+
+			if (val != LIBBPF_PIN_NONE &&
+			    val != LIBBPF_PIN_BY_NAME) {
+				pr_warn("map '%s': invalid pinning value %u.\n",
+					map_name, val);
+				return -EINVAL;
+			}
+			if (val == LIBBPF_PIN_BY_NAME) {
+				err = build_map_pin_path(map, pin_root_path);
+				if (err) {
+					pr_warn("map '%s': couldn't build pin path.\n",
+						map_name);
+					return err;
+				}
+			}
 		} else {
 			if (strict) {
 				pr_warn("map '%s': unknown field '%s'.\n",
@@ -1290,7 +1336,8 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 	return 0;
 }
 
-static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict)
+static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
+					  const char *pin_root_path)
 {
 	const struct btf_type *sec = NULL;
 	int nr_types, i, vlen, err;
@@ -1332,7 +1379,7 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict)
 	for (i = 0; i < vlen; i++) {
 		err = bpf_object__init_user_btf_map(obj, sec, i,
 						    obj->efile.btf_maps_shndx,
-						    data, strict);
+						    data, strict, pin_root_path);
 		if (err)
 			return err;
 	}
@@ -1340,7 +1387,8 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict)
 	return 0;
 }
 
-static int bpf_object__init_maps(struct bpf_object *obj, bool relaxed_maps)
+static int bpf_object__init_maps(struct bpf_object *obj, bool relaxed_maps,
+				 const char *pin_root_path)
 {
 	bool strict = !relaxed_maps;
 	int err;
@@ -1349,7 +1397,7 @@ static int bpf_object__init_maps(struct bpf_object *obj, bool relaxed_maps)
 	if (err)
 		return err;
 
-	err = bpf_object__init_user_btf_maps(obj, strict);
+	err = bpf_object__init_user_btf_maps(obj, strict, pin_root_path);
 	if (err)
 		return err;
 
@@ -1538,7 +1586,8 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 	return 0;
 }
 
-static int bpf_object__elf_collect(struct bpf_object *obj, bool relaxed_maps)
+static int bpf_object__elf_collect(struct bpf_object *obj, bool relaxed_maps,
+				   const char *pin_root_path)
 {
 	Elf *elf = obj->efile.elf;
 	GElf_Ehdr *ep = &obj->efile.ehdr;
@@ -1673,7 +1722,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, bool relaxed_maps)
 	}
 	err = bpf_object__init_btf(obj, btf_data, btf_ext_data);
 	if (!err)
-		err = bpf_object__init_maps(obj, relaxed_maps);
+		err = bpf_object__init_maps(obj, relaxed_maps, pin_root_path);
 	if (!err)
 		err = bpf_object__sanitize_and_load_btf(obj);
 	if (!err)
@@ -2129,6 +2178,66 @@ bpf_object__probe_caps(struct bpf_object *obj)
 	return 0;
 }
 
+static bool map_is_reuse_compat(const struct bpf_map *map, int map_fd)
+{
+	struct bpf_map_info map_info = {};
+	char msg[STRERR_BUFSIZE];
+	__u32 map_info_len;
+
+	map_info_len = sizeof(map_info);
+
+	if (bpf_obj_get_info_by_fd(map_fd, &map_info, &map_info_len)) {
+		pr_warn("failed to get map info for map FD %d: %s\n",
+			map_fd, libbpf_strerror_r(errno, msg, sizeof(msg)));
+		return false;
+	}
+
+	return (map_info.type == map->def.type &&
+		map_info.key_size == map->def.key_size &&
+		map_info.value_size == map->def.value_size &&
+		map_info.max_entries == map->def.max_entries &&
+		map_info.map_flags == map->def.map_flags);
+}
+
+static int
+bpf_object__reuse_map(struct bpf_map *map)
+{
+	char *cp, errmsg[STRERR_BUFSIZE];
+	int err, pin_fd;
+
+	pin_fd = bpf_obj_get(map->pin_path);
+	if (pin_fd < 0) {
+		err = -errno;
+		if (err == -ENOENT) {
+			pr_debug("found no pinned map to reuse at '%s'\n",
+				 map->pin_path);
+			return 0;
+		}
+
+		cp = libbpf_strerror_r(-err, errmsg, sizeof(errmsg));
+		pr_warn("couldn't retrieve pinned map '%s': %s\n",
+			map->pin_path, cp);
+		return err;
+	}
+
+	if (!map_is_reuse_compat(map, pin_fd)) {
+		pr_warn("couldn't reuse pinned map at '%s': parameter mismatch\n",
+			map->pin_path);
+		close(pin_fd);
+		return -EINVAL;
+	}
+
+	err = bpf_map__reuse_fd(map, pin_fd);
+	if (err) {
+		close(pin_fd);
+		return err;
+	}
+	map->pinned = true;
+	pr_debug("reused pinned map at '%s'\n", map->pin_path);
+
+	return 0;
+}
+
 static int
 bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 {
@@ -2170,6 +2279,15 @@ bpf_object__create_maps(struct bpf_object *obj)
 		struct bpf_map_def *def = &map->def;
 		char *cp, errmsg[STRERR_BUFSIZE];
 		int *pfd = &map->fd;
+
+		if (map->pin_path) {
+			err = bpf_object__reuse_map(map);
+			if (err) {
+				pr_warn("error reusing pinned map %s\n",
+					map->name);
+				return err;
+			}
+		}
 
 		if (map->fd >= 0) {
 			pr_debug("skip map create (preset) %s: fd=%d\n",
@@ -2246,6 +2364,15 @@ err_out:
 			if (err < 0) {
 				zclose(*pfd);
 				goto err_out;
+			}
+		}
+
+		if (map->pin_path && !map->pinned) {
+			err = bpf_map__pin(map, NULL);
+			if (err) {
+				pr_warn("failed to auto-pin map name '%s' at '%s'\n",
+					map->name, map->pin_path);
+				return err;
 			}
 		}
 
@@ -3623,6 +3750,7 @@ static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		   struct bpf_object_open_opts *opts)
 {
+	const char *pin_root_path;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	const char *obj_name;
@@ -3657,11 +3785,13 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 
 	obj->relaxed_core_relocs = OPTS_GET(opts, relaxed_core_relocs, false);
 	relaxed_maps = OPTS_GET(opts, relaxed_maps, false);
+	pin_root_path = OPTS_GET(opts, pin_root_path, NULL);
 
 	CHECK_ERR(bpf_object__elf_init(obj), err, out);
 	CHECK_ERR(bpf_object__check_endianness(obj), err, out);
 	CHECK_ERR(bpf_object__probe_caps(obj), err, out);
-	CHECK_ERR(bpf_object__elf_collect(obj, relaxed_maps), err, out);
+	CHECK_ERR(bpf_object__elf_collect(obj, relaxed_maps, pin_root_path),
+		  err, out);
 	CHECK_ERR(bpf_object__collect_reloc(obj), err, out);
 	bpf_object__elf_finish(obj);
 
