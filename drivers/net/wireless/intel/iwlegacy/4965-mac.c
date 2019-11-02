@@ -3331,7 +3331,6 @@ il4965_set_tkip_dynamic_key_info(struct il_priv *il,
 				 struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	unsigned long flags;
-	int ret = 0;
 	__le16 key_flags = 0;
 
 	key_flags |= (STA_KEY_FLG_TKIP | STA_KEY_FLG_MAP_KEY_MSK);
@@ -3368,7 +3367,7 @@ il4965_set_tkip_dynamic_key_info(struct il_priv *il,
 
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 
-	return ret;
+	return 0;
 }
 
 void
