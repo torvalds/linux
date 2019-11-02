@@ -168,6 +168,54 @@
         ]
     },
     {
+        "id": "09d2",
+        "name": "Add mpls dec_ttl action with opcode and cookie",
+        "category": [
+            "actions",
+            "mpls"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mpls",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mpls dec_ttl pipe index 8 cookie aabbccddeeff",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mpls",
+        "matchPattern": "action order [0-9]+: mpls.*dec_ttl pipe.*index 8 ref.*cookie aabbccddeeff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mpls"
+        ]
+    },
+    {
+        "id": "c170",
+        "name": "Add mpls dec_ttl action with opcode and cookie of max length",
+        "category": [
+            "actions",
+            "mpls"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mpls",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mpls dec_ttl continue index 8 cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mpls",
+        "matchPattern": "action order [0-9]+: mpls.*dec_ttl continue.*index 8 ref.*cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mpls"
+        ]
+    },
+    {
         "id": "9118",
         "name": "Add mpls dec_ttl action with invalid opcode",
         "category": [
@@ -296,6 +344,30 @@
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action mpls",
         "matchPattern": "action order [0-9]+: mpls.*pop.*protocol.*ip.*pipe",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mpls"
+        ]
+    },
+    {
+        "id": "91fb",
+        "name": "Add mpls pop action with ip proto and cookie",
+        "category": [
+            "actions",
+            "mpls"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mpls",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mpls pop protocol ipv4 cookie 12345678",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mpls",
+        "matchPattern": "action order [0-9]+: mpls.*pop.*protocol.*ip.*pipe.*ref 1.*cookie 12345678",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action mpls"
@@ -502,6 +574,30 @@
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action mpls",
         "matchPattern": "action order [0-9]+: mpls.*push.*protocol.*mpls_uc.*label.*20.*tc.*3.*ttl.*128.*pipe",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mpls"
+        ]
+    },
+    {
+        "id": "7c34",
+        "name": "Add mpls push action with label, tc ttl and cookie of max length",
+        "category": [
+            "actions",
+            "mpls"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mpls",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mpls push label 20 tc 3 ttl 128 cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mpls",
+        "matchPattern": "action order [0-9]+: mpls.*push.*protocol.*mpls_uc.*label.*20.*tc.*3.*ttl.*128.*pipe.*ref 1.*cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action mpls"
@@ -828,6 +924,30 @@
         ]
     },
     {
+        "id": "77c1",
+        "name": "Add mpls mod action with mpls ttl and cookie",
+        "category": [
+            "actions",
+            "mpls"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mpls",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mpls mod ttl 128 cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mpls",
+        "matchPattern": "action order [0-9]+: mpls.*modify.*ttl.*128.*pipe.*ref 1.*cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mpls"
+        ]
+    },
+    {
         "id": "b80f",
         "name": "Add mpls mod action with mpls max ttl",
         "category": [
@@ -1031,6 +1151,31 @@
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action mpls index 12",
         "matchPattern": "action order [0-9]+: mpls.*push.*protocol.*mpls_uc.*label.*30.*pipe.*index 12 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mpls"
+        ]
+    },
+    {
+        "id": "95a9",
+        "name": "Replace existing mpls push action with new label, tc, ttl and cookie",
+        "category": [
+            "actions",
+            "mpls"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mpls",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action mpls push label 20 tc 3 ttl 128 index 1 cookie aa11bb22cc33dd44ee55ff66aa11b1b2"
+        ],
+        "cmdUnderTest": "$TC actions replace action mpls push label 30 tc 2 ttl 125 pipe index 1 cookie aa11bb22cc33",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action mpls index 1",
+        "matchPattern": "action order [0-9]+: mpls.*push.*protocol.*mpls_uc.*label.*30 tc 2 ttl 125 pipe.*index 1.*cookie aa11bb22cc33",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action mpls"
