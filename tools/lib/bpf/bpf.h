@@ -78,7 +78,10 @@ struct bpf_load_program_attr {
 	size_t insns_cnt;
 	const char *license;
 	__u32 kern_version;
-	__u32 prog_ifindex;
+	union {
+		__u32 prog_ifindex;
+		__u32 attach_btf_id;
+	};
 	__u32 prog_btf_fd;
 	__u32 func_info_rec_size;
 	const void *func_info;

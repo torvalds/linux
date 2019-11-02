@@ -73,6 +73,21 @@ struct xsk_nl_info {
 	int fd;
 };
 
+/* Up until and including Linux 5.3 */
+struct xdp_ring_offset_v1 {
+	__u64 producer;
+	__u64 consumer;
+	__u64 desc;
+};
+
+/* Up until and including Linux 5.3 */
+struct xdp_mmap_offsets_v1 {
+	struct xdp_ring_offset_v1 rx;
+	struct xdp_ring_offset_v1 tx;
+	struct xdp_ring_offset_v1 fr;
+	struct xdp_ring_offset_v1 cr;
+};
+
 int xsk_umem__fd(const struct xsk_umem *umem)
 {
 	return umem ? umem->fd : -EINVAL;
@@ -133,6 +148,58 @@ static int xsk_set_xdp_socket_config(struct xsk_socket_config *cfg,
 	return 0;
 }
 
+static void xsk_mmap_offsets_v1(struct xdp_mmap_offsets *off)
+{
+	struct xdp_mmap_offsets_v1 off_v1;
+
+	/* getsockopt on a kernel <= 5.3 has no flags fields.
+	 * Copy over the offsets to the correct places in the >=5.4 format
+	 * and put the flags where they would have been on that kernel.
+	 */
+	memcpy(&off_v1, off, sizeof(off_v1));
+
+	off->rx.producer = off_v1.rx.producer;
+	off->rx.consumer = off_v1.rx.consumer;
+	off->rx.desc = off_v1.rx.desc;
+	off->rx.flags = off_v1.rx.consumer + sizeof(__u32);
+
+	off->tx.producer = off_v1.tx.producer;
+	off->tx.consumer = off_v1.tx.consumer;
+	off->tx.desc = off_v1.tx.desc;
+	off->tx.flags = off_v1.tx.consumer + sizeof(__u32);
+
+	off->fr.producer = off_v1.fr.producer;
+	off->fr.consumer = off_v1.fr.consumer;
+	off->fr.desc = off_v1.fr.desc;
+	off->fr.flags = off_v1.fr.consumer + sizeof(__u32);
+
+	off->cr.producer = off_v1.cr.producer;
+	off->cr.consumer = off_v1.cr.consumer;
+	off->cr.desc = off_v1.cr.desc;
+	off->cr.flags = off_v1.cr.consumer + sizeof(__u32);
+}
+
+static int xsk_get_mmap_offsets(int fd, struct xdp_mmap_offsets *off)
+{
+	socklen_t optlen;
+	int err;
+
+	optlen = sizeof(*off);
+	err = getsockopt(fd, SOL_XDP, XDP_MMAP_OFFSETS, off, &optlen);
+	if (err)
+		return err;
+
+	if (optlen == sizeof(*off))
+		return 0;
+
+	if (optlen == sizeof(struct xdp_mmap_offsets_v1)) {
+		xsk_mmap_offsets_v1(off);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
 			    __u64 size, struct xsk_ring_prod *fill,
 			    struct xsk_ring_cons *comp,
@@ -141,7 +208,6 @@ int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
 	struct xdp_mmap_offsets off;
 	struct xdp_umem_reg mr;
 	struct xsk_umem *umem;
-	socklen_t optlen;
 	void *map;
 	int err;
 
@@ -190,8 +256,7 @@ int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
 		goto out_socket;
 	}
 
-	optlen = sizeof(off);
-	err = getsockopt(umem->fd, SOL_XDP, XDP_MMAP_OFFSETS, &off, &optlen);
+	err = xsk_get_mmap_offsets(umem->fd, &off);
 	if (err) {
 		err = -errno;
 		goto out_socket;
@@ -514,7 +579,6 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 	struct sockaddr_xdp sxdp = {};
 	struct xdp_mmap_offsets off;
 	struct xsk_socket *xsk;
-	socklen_t optlen;
 	int err;
 
 	if (!umem || !xsk_ptr || !rx || !tx)
@@ -573,8 +637,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 		}
 	}
 
-	optlen = sizeof(off);
-	err = getsockopt(xsk->fd, SOL_XDP, XDP_MMAP_OFFSETS, &off, &optlen);
+	err = xsk_get_mmap_offsets(xsk->fd, &off);
 	if (err) {
 		err = -errno;
 		goto out_socket;
@@ -660,7 +723,6 @@ out_xsk_alloc:
 int xsk_umem__delete(struct xsk_umem *umem)
 {
 	struct xdp_mmap_offsets off;
-	socklen_t optlen;
 	int err;
 
 	if (!umem)
@@ -669,8 +731,7 @@ int xsk_umem__delete(struct xsk_umem *umem)
 	if (umem->refcount)
 		return -EBUSY;
 
-	optlen = sizeof(off);
-	err = getsockopt(umem->fd, SOL_XDP, XDP_MMAP_OFFSETS, &off, &optlen);
+	err = xsk_get_mmap_offsets(umem->fd, &off);
 	if (!err) {
 		munmap(umem->fill->ring - off.fr.desc,
 		       off.fr.desc + umem->config.fill_size * sizeof(__u64));
@@ -688,7 +749,6 @@ void xsk_socket__delete(struct xsk_socket *xsk)
 {
 	size_t desc_sz = sizeof(struct xdp_desc);
 	struct xdp_mmap_offsets off;
-	socklen_t optlen;
 	int err;
 
 	if (!xsk)
@@ -699,8 +759,7 @@ void xsk_socket__delete(struct xsk_socket *xsk)
 		close(xsk->prog_fd);
 	}
 
-	optlen = sizeof(off);
-	err = getsockopt(xsk->fd, SOL_XDP, XDP_MMAP_OFFSETS, &off, &optlen);
+	err = xsk_get_mmap_offsets(xsk->fd, &off);
 	if (!err) {
 		if (xsk->rx) {
 			munmap(xsk->rx->ring - off.rx.desc,

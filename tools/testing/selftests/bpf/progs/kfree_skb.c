@@ -79,11 +79,11 @@ int trace_kfree_skb(struct trace_kfree_skb *ctx)
 		func = ptr->func;
 	}));
 
-	bpf_probe_read(&pkt_type, sizeof(pkt_type), _(&skb->__pkt_type_offset));
+	bpf_probe_read_kernel(&pkt_type, sizeof(pkt_type), _(&skb->__pkt_type_offset));
 	pkt_type &= 7;
 
 	/* read eth proto */
-	bpf_probe_read(&pkt_data, sizeof(pkt_data), data + 12);
+	bpf_probe_read_kernel(&pkt_data, sizeof(pkt_data), data + 12);
 
 	bpf_printk("rcuhead.next %llx func %llx\n", ptr, func);
 	bpf_printk("skb->len %d users %d pkt_type %x\n",
