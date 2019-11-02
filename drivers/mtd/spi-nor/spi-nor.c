@@ -714,7 +714,7 @@ static int s3an_sr_ready(struct spi_nor *nor)
 	return !!(nor->bouncebuf[0] & XSR_RDY);
 }
 
-static int spi_nor_clear_sr(struct spi_nor *nor)
+static void spi_nor_clear_sr(struct spi_nor *nor)
 {
 	int ret;
 
@@ -733,8 +733,6 @@ static int spi_nor_clear_sr(struct spi_nor *nor)
 
 	if (ret)
 		dev_dbg(nor->dev, "error %d clearing SR\n", ret);
-
-	return ret;
 }
 
 static int spi_nor_sr_ready(struct spi_nor *nor)
@@ -758,7 +756,7 @@ static int spi_nor_sr_ready(struct spi_nor *nor)
 	return !(nor->bouncebuf[0] & SR_WIP);
 }
 
-static int spi_nor_clear_fsr(struct spi_nor *nor)
+static void spi_nor_clear_fsr(struct spi_nor *nor)
 {
 	int ret;
 
@@ -777,8 +775,6 @@ static int spi_nor_clear_fsr(struct spi_nor *nor)
 
 	if (ret)
 		dev_dbg(nor->dev, "error %d clearing FSR\n", ret);
-
-	return ret;
 }
 
 static int spi_nor_fsr_ready(struct spi_nor *nor)
