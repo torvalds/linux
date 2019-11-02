@@ -471,6 +471,10 @@
 	status = "okay";
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
 &nandc {
 	status = "disabled";
 };
@@ -610,6 +614,14 @@
 	status = "okay";
 };
 
-&vpu {
+&vdpu {
+	status = "okay";
+};
+
+&vepu {
+	status = "okay";
+};
+
+&vpu_mmu {
 	status = "okay";
 };
