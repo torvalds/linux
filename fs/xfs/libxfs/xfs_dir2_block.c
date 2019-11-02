@@ -1073,13 +1073,7 @@ xfs_dir2_sf_to_block(
 	mp = dp->i_mount;
 	ifp = XFS_IFORK_PTR(dp, XFS_DATA_FORK);
 	ASSERT(ifp->if_flags & XFS_IFINLINE);
-	/*
-	 * Bomb out if the shortform directory is way too short.
-	 */
-	if (dp->i_d.di_size < offsetof(xfs_dir2_sf_hdr_t, parent)) {
-		ASSERT(XFS_FORCED_SHUTDOWN(mp));
-		return -EIO;
-	}
+	ASSERT(dp->i_d.di_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
 
 	oldsfp = (xfs_dir2_sf_hdr_t *)ifp->if_u1.if_data;
 
