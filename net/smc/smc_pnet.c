@@ -718,7 +718,7 @@ static struct net_device *pnet_find_base_ndev(struct net_device *ndev)
 	int i, nest_lvl;
 
 	rtnl_lock();
-	nest_lvl = dev_get_nest_level(ndev);
+	nest_lvl = ndev->lower_level;
 	for (i = 0; i < nest_lvl; i++) {
 		struct list_head *lower = &ndev->adj_list.lower;
 

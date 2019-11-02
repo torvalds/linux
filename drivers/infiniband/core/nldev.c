@@ -778,7 +778,7 @@ static int fill_res_counter_entry(struct sk_buff *msg, bool has_cap_net_admin,
 		container_of(res, struct rdma_counter, res);
 
 	if (port && port != counter->port)
-		return 0;
+		return -EAGAIN;
 
 	/* Dump it even query failed */
 	rdma_counter_query_stats(counter);

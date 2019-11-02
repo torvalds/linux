@@ -1105,10 +1105,8 @@ static int ipmmu_probe(struct platform_device *pdev)
 	/* Root devices have mandatory IRQs */
 	if (ipmmu_is_root(mmu)) {
 		irq = platform_get_irq(pdev, 0);
-		if (irq < 0) {
-			dev_err(&pdev->dev, "no IRQ found\n");
+		if (irq < 0)
 			return irq;
-		}
 
 		ret = devm_request_irq(&pdev->dev, irq, ipmmu_irq, 0,
 				       dev_name(&pdev->dev), mmu);

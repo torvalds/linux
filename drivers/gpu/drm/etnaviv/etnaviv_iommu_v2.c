@@ -155,9 +155,11 @@ static void etnaviv_iommuv2_dump(struct etnaviv_iommu_context *context, void *bu
 
 	memcpy(buf, v2_context->mtlb_cpu, SZ_4K);
 	buf += SZ_4K;
-	for (i = 0; i < MMUv2_MAX_STLB_ENTRIES; i++, buf += SZ_4K)
-		if (v2_context->mtlb_cpu[i] & MMUv2_PTE_PRESENT)
+	for (i = 0; i < MMUv2_MAX_STLB_ENTRIES; i++)
+		if (v2_context->mtlb_cpu[i] & MMUv2_PTE_PRESENT) {
 			memcpy(buf, v2_context->stlb_cpu[i], SZ_4K);
+			buf += SZ_4K;
+		}
 }
 
 static void etnaviv_iommuv2_restore_nonsec(struct etnaviv_gpu *gpu,
