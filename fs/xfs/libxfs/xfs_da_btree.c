@@ -2567,26 +2567,30 @@ xfs_dabuf_map(
 	}
 
 	if (!xfs_da_map_covers_blocks(nirecs, irecs, bno, nfsb)) {
-		error = mappedbno == -2 ? -1 : -EFSCORRUPTED;
-		if (unlikely(error == -EFSCORRUPTED)) {
-			if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
-				int i;
-				xfs_alert(mp, "%s: bno %lld dir: inode %lld",
-					__func__, (long long)bno,
-					(long long)dp->i_ino);
-				for (i = 0; i < *nmaps; i++) {
-					xfs_alert(mp,
-"[%02d] br_startoff %lld br_startblock %lld br_blockcount %lld br_state %d",
-						i,
-						(long long)irecs[i].br_startoff,
-						(long long)irecs[i].br_startblock,
-						(long long)irecs[i].br_blockcount,
-						irecs[i].br_state);
-				}
-			}
-			XFS_ERROR_REPORT("xfs_da_do_buf(1)",
-					 XFS_ERRLEVEL_LOW, mp);
+		/* Caller ok with no mapping. */
+		if (mappedbno == -2) {
+			error = -1;
+			goto out;
 		}
+
+		/* Caller expected a mapping, so abort. */
+		if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
+			int i;
+
+			xfs_alert(mp, "%s: bno %lld dir: inode %lld", __func__,
+					(long long)bno, (long long)dp->i_ino);
+			for (i = 0; i < *nmaps; i++) {
+				xfs_alert(mp,
+"[%02d] br_startoff %lld br_startblock %lld br_blockcount %lld br_state %d",
+					i,
+					(long long)irecs[i].br_startoff,
+					(long long)irecs[i].br_startblock,
+					(long long)irecs[i].br_blockcount,
+					irecs[i].br_state);
+			}
+		}
+		XFS_ERROR_REPORT("xfs_da_do_buf(1)", XFS_ERRLEVEL_LOW, mp);
+		error = -EFSCORRUPTED;
 		goto out;
 	}
 	error = xfs_buf_map_from_irec(mp, map, nmaps, irecs, nirecs);
