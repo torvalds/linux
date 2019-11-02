@@ -3207,12 +3207,12 @@ static int live_lrc_fixed(void *arg)
 		} tbl[] = {
 			{
 				i915_mmio_reg_offset(RING_START(engine->mmio_base)),
-				CTX_RING_BUFFER_START - 1,
+				CTX_RING_START - 1,
 				"RING_START"
 			},
 			{
 				i915_mmio_reg_offset(RING_CTL(engine->mmio_base)),
-				CTX_RING_BUFFER_CONTROL - 1,
+				CTX_RING_CTL - 1,
 				"RING_CTL"
 			},
 			{
@@ -3231,7 +3231,7 @@ static int live_lrc_fixed(void *arg)
 				"RING_MI_MODE"
 			},
 			{
-				engine->mmio_base + 0x110,
+				i915_mmio_reg_offset(RING_BBSTATE(engine->mmio_base)),
 				CTX_BB_STATE - 1,
 				"BB_STATE"
 			},
