@@ -128,7 +128,8 @@ int sdw_of_find_slaves(struct sdw_bus *bus)
 	struct device_node *node;
 
 	for_each_child_of_node(bus->dev->of_node, node) {
-		int link_id, sdw_version, ret, len;
+		int link_id, ret, len;
+		unsigned int sdw_version;
 		const char *compat = NULL;
 		struct sdw_slave_id id;
 		const __be32 *addr;
