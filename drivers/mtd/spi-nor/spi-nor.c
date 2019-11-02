@@ -974,7 +974,12 @@ static int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 status_new)
 	if (ret)
 		return ret;
 
-	return (nor->bouncebuf[0] != status_new) ? -EIO : 0;
+	if (nor->bouncebuf[0] != status_new) {
+		dev_dbg(nor->dev, "SR: read back test failed\n");
+		return -EIO;
+	}
+
+	return 0;
 }
 
 /**
