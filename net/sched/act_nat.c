@@ -206,9 +206,7 @@ static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
 
 		icmph = (void *)(skb_network_header(skb) + ihl);
 
-		if ((icmph->type != ICMP_DEST_UNREACH) &&
-		    (icmph->type != ICMP_TIME_EXCEEDED) &&
-		    (icmph->type != ICMP_PARAMETERPROB))
+		if (!icmp_is_err(icmph->type))
 			break;
 
 		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + sizeof(*iph) +
