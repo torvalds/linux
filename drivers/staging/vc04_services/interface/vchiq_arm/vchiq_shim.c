@@ -27,7 +27,7 @@ struct shim_service {
  *             void **data,
  *             uint32_t *msg_size,
 
- *             VCHI_FLAGS_T flags
+ *             enum vchi_flags flags
  *
  * Description: Routine to return a pointer to the current message (to allow in
  *              place processing). The message can be removed using
@@ -37,9 +37,9 @@ struct shim_service {
  *
  ***********************************************************/
 int32_t vchi_msg_peek(VCHI_SERVICE_HANDLE_T handle,
-	void **data,
-	uint32_t *msg_size,
-	VCHI_FLAGS_T flags)
+		      void **data,
+		      uint32_t *msg_size,
+		      enum vchi_flags flags)
 {
 	struct shim_service *service = (struct shim_service *)handle;
 	struct vchiq_header *header;
@@ -190,7 +190,7 @@ EXPORT_SYMBOL(vchi_queue_user_message);
  * Arguments:  VCHI_BULK_HANDLE_T handle,
  *             void *data_dst,
  *             const uint32_t data_size,
- *             VCHI_FLAGS_T flags
+ *             enum vchi_flags flags
  *             void *bulk_handle
  *
  * Description: Routine to setup a rcv buffer
@@ -198,11 +198,9 @@ EXPORT_SYMBOL(vchi_queue_user_message);
  * Returns: int32_t - success == 0
  *
  ***********************************************************/
-int32_t vchi_bulk_queue_receive(VCHI_SERVICE_HANDLE_T handle,
-	void *data_dst,
-	uint32_t data_size,
-	VCHI_FLAGS_T flags,
-	void *bulk_handle)
+int32_t vchi_bulk_queue_receive(VCHI_SERVICE_HANDLE_T handle, void *data_dst,
+				uint32_t data_size, enum vchi_flags flags,
+				void *bulk_handle)
 {
 	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_BULK_MODE_T mode;
@@ -250,7 +248,7 @@ EXPORT_SYMBOL(vchi_bulk_queue_receive);
  * Arguments:  VCHI_BULK_HANDLE_T handle,
  *             const void *data_src,
  *             uint32_t data_size,
- *             VCHI_FLAGS_T flags,
+ *             enum vchi_flags flags,
  *             void *bulk_handle
  *
  * Description: Routine to transmit some data
@@ -259,10 +257,10 @@ EXPORT_SYMBOL(vchi_bulk_queue_receive);
  *
  ***********************************************************/
 int32_t vchi_bulk_queue_transmit(VCHI_SERVICE_HANDLE_T handle,
-	const void *data_src,
-	uint32_t data_size,
-	VCHI_FLAGS_T flags,
-	void *bulk_handle)
+				 const void *data_src,
+				 uint32_t data_size,
+				 enum vchi_flags flags,
+				 void *bulk_handle)
 {
 	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_BULK_MODE_T mode;
@@ -313,18 +311,16 @@ EXPORT_SYMBOL(vchi_bulk_queue_transmit);
  *             void *data,
  *             uint32_t max_data_size_to_read,
  *             uint32_t *actual_msg_size
- *             VCHI_FLAGS_T flags
+ *             enum vchi_flags flags
  *
  * Description: Routine to dequeue a message into the supplied buffer
  *
  * Returns: int32_t - success == 0
  *
  ***********************************************************/
-int32_t vchi_msg_dequeue(VCHI_SERVICE_HANDLE_T handle,
-	void *data,
-	uint32_t max_data_size_to_read,
-	uint32_t *actual_msg_size,
-	VCHI_FLAGS_T flags)
+int32_t vchi_msg_dequeue(VCHI_SERVICE_HANDLE_T handle, void *data,
+			 uint32_t max_data_size_to_read,
+			 uint32_t *actual_msg_size, enum vchi_flags flags)
 {
 	struct shim_service *service = (struct shim_service *)handle;
 	struct vchiq_header *header;
@@ -383,7 +379,7 @@ EXPORT_SYMBOL(vchi_held_msg_release);
  * Arguments:  VCHI_SERVICE_HANDLE_T handle,
  *             void **data,
  *             uint32_t *msg_size,
- *             VCHI_FLAGS_T flags,
+ *             enum vchi_flags flags,
  *             struct vchi_held_msg *message_handle
  *
  * Description: Routine to return a pointer to the current message (to allow
@@ -394,11 +390,9 @@ EXPORT_SYMBOL(vchi_held_msg_release);
  * Returns: int32_t - success == 0
  *
  ***********************************************************/
-int32_t vchi_msg_hold(VCHI_SERVICE_HANDLE_T handle,
-	void **data,
-	uint32_t *msg_size,
-	VCHI_FLAGS_T flags,
-	struct vchi_held_msg *message_handle)
+int32_t vchi_msg_hold(VCHI_SERVICE_HANDLE_T handle, void **data,
+		      uint32_t *msg_size, enum vchi_flags flags,
+		      struct vchi_held_msg *message_handle)
 {
 	struct shim_service *service = (struct shim_service *)handle;
 	struct vchiq_header *header;
@@ -668,7 +662,7 @@ int32_t vchi_service_destroy(const VCHI_SERVICE_HANDLE_T handle)
 EXPORT_SYMBOL(vchi_service_destroy);
 
 int32_t vchi_service_set_option(const VCHI_SERVICE_HANDLE_T handle,
-				VCHI_SERVICE_OPTION_T option,
+				enum vchi_service_option option,
 				int value)
 {
 	int32_t ret = -1;
