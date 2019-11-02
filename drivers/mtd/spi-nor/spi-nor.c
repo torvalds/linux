@@ -534,35 +534,6 @@ static int spi_nor_read_cr(struct spi_nor *nor, u8 *cr)
 	return ret;
 }
 
-/*
- * Write status register 1 byte
- * Returns negative if error occurred.
- */
-static int spi_nor_write_sr(struct spi_nor *nor, u8 val)
-{
-	int ret;
-
-	nor->bouncebuf[0] = val;
-	if (nor->spimem) {
-		struct spi_mem_op op =
-			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR, 1),
-				   SPI_MEM_OP_NO_ADDR,
-				   SPI_MEM_OP_NO_DUMMY,
-				   SPI_MEM_OP_DATA_OUT(1, nor->bouncebuf, 1));
-
-		ret = spi_mem_exec_op(nor->spimem, &op);
-	} else {
-		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR,
-						     nor->bouncebuf, 1);
-	}
-
-	if (ret)
-		dev_dbg(nor->dev, "error %d writing SR\n", ret);
-
-	return ret;
-
-}
-
 static int macronix_set_4byte(struct spi_nor *nor, bool enable)
 {
 	int ret;
@@ -854,6 +825,41 @@ static int spi_nor_wait_till_ready(struct spi_nor *nor)
 }
 
 /*
+ * Write status register 1 byte
+ * Returns negative if error occurred.
+ */
+static int spi_nor_write_sr(struct spi_nor *nor, u8 val)
+{
+	int ret;
+
+	nor->bouncebuf[0] = val;
+
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
+
+	if (nor->spimem) {
+		struct spi_mem_op op =
+			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR, 1),
+				   SPI_MEM_OP_NO_ADDR,
+				   SPI_MEM_OP_NO_DUMMY,
+				   SPI_MEM_OP_DATA_OUT(1, nor->bouncebuf, 1));
+
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WRSR,
+						     nor->bouncebuf, 1);
+	}
+
+	if (ret) {
+		dev_dbg(nor->dev, "error %d writing SR\n", ret);
+		return ret;
+	}
+
+	return spi_nor_wait_till_ready(nor);
+}
+
+/*
  * Write status Register and configuration register with 2 bytes
  * The first byte will be written to the status register, while the
  * second byte will be written to the configuration register.
@@ -895,15 +901,7 @@ static int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 status_new,
 {
 	int ret;
 
-	ret = spi_nor_write_enable(nor);
-	if (ret)
-		return ret;
-
 	ret = spi_nor_write_sr(nor, status_new);
-	if (ret)
-		return ret;
-
-	ret = spi_nor_wait_till_ready(nor);
 	if (ret)
 		return ret;
 
@@ -918,6 +916,10 @@ static int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2)
 {
 	int ret;
 
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
+
 	if (nor->spimem) {
 		struct spi_mem_op op =
 			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR2, 1),
@@ -931,10 +933,12 @@ static int spi_nor_write_sr2(struct spi_nor *nor, const u8 *sr2)
 						     sr2, 1);
 	}
 
-	if (ret)
+	if (ret) {
 		dev_dbg(nor->dev, "error %d writing SR2\n", ret);
+		return ret;
+	}
 
-	return ret;
+	return spi_nor_wait_till_ready(nor);
 }
 
 static int spi_nor_read_sr2(struct spi_nor *nor, u8 *sr2)
@@ -1864,15 +1868,7 @@ static int macronix_quad_enable(struct spi_nor *nor)
 	if (nor->bouncebuf[0] & SR_QUAD_EN_MX)
 		return 0;
 
-	ret = spi_nor_write_enable(nor);
-	if (ret)
-		return ret;
-
 	ret = spi_nor_write_sr(nor, nor->bouncebuf[0] | SR_QUAD_EN_MX);
-	if (ret)
-		return ret;
-
-	ret = spi_nor_wait_till_ready(nor);
 	if (ret)
 		return ret;
 
@@ -2041,15 +2037,7 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 	/* Update the Quad Enable bit. */
 	*sr2 |= SR2_QUAD_EN_BIT7;
 
-	ret = spi_nor_write_enable(nor);
-	if (ret)
-		return ret;
-
 	ret = spi_nor_write_sr2(nor, sr2);
-	if (ret)
-		return ret;
-
-	ret = spi_nor_wait_till_ready(nor);
 	if (ret)
 		return ret;
 
@@ -2084,15 +2072,7 @@ static int spi_nor_clear_sr_bp(struct spi_nor *nor)
 	if (ret)
 		return ret;
 
-	ret = spi_nor_write_enable(nor);
-	if (ret)
-		return ret;
-
-	ret = spi_nor_write_sr(nor, nor->bouncebuf[0] & ~mask);
-	if (ret)
-		return ret;
-
-	return spi_nor_wait_till_ready(nor);
+	return spi_nor_write_sr(nor, nor->bouncebuf[0] & ~mask);
 }
 
 /**
