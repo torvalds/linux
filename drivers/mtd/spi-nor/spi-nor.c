@@ -451,7 +451,7 @@ static int spi_nor_read_sr(struct spi_nor *nor, u8 *sr)
 	}
 
 	if (ret)
-		dev_err(nor->dev, "error %d reading SR\n", ret);
+		dev_dbg(nor->dev, "error %d reading SR\n", ret);
 
 	return ret;
 }
@@ -482,7 +482,7 @@ static int spi_nor_read_fsr(struct spi_nor *nor, u8 *fsr)
 	}
 
 	if (ret)
-		dev_err(nor->dev, "error %d reading FSR\n", ret);
+		dev_dbg(nor->dev, "error %d reading FSR\n", ret);
 
 	return ret;
 }
@@ -513,7 +513,7 @@ static int spi_nor_read_cr(struct spi_nor *nor, u8 *cr)
 	}
 
 	if (ret)
-		dev_err(nor->dev, "error %d reading CR\n", ret);
+		dev_dbg(nor->dev, "error %d reading CR\n", ret);
 
 	return ret;
 }
@@ -647,7 +647,7 @@ static int s3an_sr_ready(struct spi_nor *nor)
 
 	ret = spi_nor_xread_sr(nor, nor->bouncebuf);
 	if (ret) {
-		dev_err(nor->dev, "error %d reading XRDSR\n", ret);
+		dev_dbg(nor->dev, "error %d reading XRDSR\n", ret);
 		return ret;
 	}
 
@@ -770,7 +770,7 @@ static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
 		cond_resched();
 	}
 
-	dev_err(nor->dev, "flash operation timed out\n");
+	dev_dbg(nor->dev, "flash operation timed out\n");
 
 	return -ETIMEDOUT;
 }
@@ -807,7 +807,7 @@ static int spi_nor_write_sr_cr(struct spi_nor *nor, const u8 *sr_cr)
 	}
 
 	if (ret) {
-		dev_err(nor->dev,
+		dev_dbg(nor->dev,
 			"error while writing configuration register\n");
 		return -EINVAL;
 	}
@@ -1771,7 +1771,7 @@ static int macronix_quad_enable(struct spi_nor *nor)
 		return ret;
 
 	if (!(nor->bouncebuf[0] & SR_QUAD_EN_MX)) {
-		dev_err(nor->dev, "Macronix Quad bit not set\n");
+		dev_dbg(nor->dev, "Macronix Quad bit not set\n");
 		return -EINVAL;
 	}
 
@@ -1819,7 +1819,7 @@ static int spansion_quad_enable(struct spi_nor *nor)
 		return ret;
 
 	if (!(nor->bouncebuf[0] & CR_QUAD_EN_SPAN)) {
-		dev_err(nor->dev, "Spansion Quad bit not set\n");
+		dev_dbg(nor->dev, "Spansion Quad bit not set\n");
 		return -EINVAL;
 	}
 
@@ -1897,7 +1897,7 @@ static int spansion_read_cr_quad_enable(struct spi_nor *nor)
 		return ret;
 
 	if (!(sr_cr[1] & CR_QUAD_EN_SPAN)) {
-		dev_err(nor->dev, "Spansion Quad bit not set\n");
+		dev_dbg(nor->dev, "Spansion Quad bit not set\n");
 		return -EINVAL;
 	}
 
@@ -1935,7 +1935,7 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 
 	ret = spi_nor_write_sr2(nor, sr2);
 	if (ret) {
-		dev_err(nor->dev, "error while writing status register 2\n");
+		dev_dbg(nor->dev, "error while writing status register 2\n");
 		return ret;
 	}
 
@@ -1949,7 +1949,7 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 		return ret;
 
 	if (!(*sr2 & SR2_QUAD_EN_BIT7)) {
-		dev_err(nor->dev, "SR2 Quad bit not set\n");
+		dev_dbg(nor->dev, "SR2 Quad bit not set\n");
 		return -EINVAL;
 	}
 
@@ -1978,7 +1978,7 @@ static int spi_nor_clear_sr_bp(struct spi_nor *nor)
 
 	ret = spi_nor_write_sr(nor, nor->bouncebuf[0] & ~mask);
 	if (ret) {
-		dev_err(nor->dev, "write to status register failed\n");
+		dev_dbg(nor->dev, "write to status register failed\n");
 		return ret;
 	}
 
@@ -2525,7 +2525,7 @@ static const struct flash_info *spi_nor_read_id(struct spi_nor *nor)
 						    SPI_NOR_MAX_ID_LEN);
 	}
 	if (tmp) {
-		dev_err(nor->dev, "error %d reading JEDEC ID\n", tmp);
+		dev_dbg(nor->dev, "error %d reading JEDEC ID\n", tmp);
 		return ERR_PTR(tmp);
 	}
 
@@ -2740,7 +2740,7 @@ static int s3an_nor_setup(struct spi_nor *nor,
 
 	ret = spi_nor_xread_sr(nor, nor->bouncebuf);
 	if (ret) {
-		dev_err(nor->dev, "error %d reading XRDSR\n", ret);
+		dev_dbg(nor->dev, "error %d reading XRDSR\n", ret);
 		return ret;
 	}
 
@@ -4102,7 +4102,7 @@ static int spi_nor_parse_sfdp(struct spi_nor *nor,
 		err = spi_nor_read_sfdp(nor, sizeof(header),
 					psize, param_headers);
 		if (err < 0) {
-			dev_err(dev, "failed to read SFDP parameter headers\n");
+			dev_dbg(dev, "failed to read SFDP parameter headers\n");
 			goto exit;
 		}
 	}
@@ -4349,7 +4349,7 @@ static int spi_nor_default_setup(struct spi_nor *nor,
 	/* Select the (Fast) Read command. */
 	err = spi_nor_select_read(nor, shared_mask);
 	if (err) {
-		dev_err(nor->dev,
+		dev_dbg(nor->dev,
 			"can't select read settings supported by both the SPI controller and memory.\n");
 		return err;
 	}
@@ -4357,7 +4357,7 @@ static int spi_nor_default_setup(struct spi_nor *nor,
 	/* Select the Page Program command. */
 	err = spi_nor_select_pp(nor, shared_mask);
 	if (err) {
-		dev_err(nor->dev,
+		dev_dbg(nor->dev,
 			"can't select write settings supported by both the SPI controller and memory.\n");
 		return err;
 	}
@@ -4365,7 +4365,7 @@ static int spi_nor_default_setup(struct spi_nor *nor,
 	/* Select the Sector Erase command. */
 	err = spi_nor_select_erase(nor);
 	if (err) {
-		dev_err(nor->dev,
+		dev_dbg(nor->dev,
 			"can't select erase settings supported by both the SPI controller and memory.\n");
 		return err;
 	}
@@ -4686,7 +4686,7 @@ static int spi_nor_init(struct spi_nor *nor)
 
 		err = nor->clear_sr_bp(nor);
 		if (err) {
-			dev_err(nor->dev,
+			dev_dbg(nor->dev,
 				"fail to clear block protection bits\n");
 			return err;
 		}
@@ -4694,7 +4694,7 @@ static int spi_nor_init(struct spi_nor *nor)
 
 	err = spi_nor_quad_enable(nor);
 	if (err) {
-		dev_err(nor->dev, "quad mode not supported\n");
+		dev_dbg(nor->dev, "quad mode not supported\n");
 		return err;
 	}
 
@@ -4762,7 +4762,7 @@ static int spi_nor_set_addr_width(struct spi_nor *nor)
 	}
 
 	if (nor->addr_width > SPI_NOR_MAX_ADDR_WIDTH) {
-		dev_err(nor->dev, "address width is too large: %u\n",
+		dev_dbg(nor->dev, "address width is too large: %u\n",
 			nor->addr_width);
 		return -EINVAL;
 	}
