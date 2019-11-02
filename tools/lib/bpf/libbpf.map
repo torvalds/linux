@@ -193,6 +193,9 @@ LIBBPF_0.0.5 {
 
 LIBBPF_0.0.6 {
 	global:
+		bpf_map__get_pin_path;
+		bpf_map__is_pinned;
+		bpf_map__set_pin_path;
 		bpf_object__open_file;
 		bpf_object__open_mem;
 		bpf_program__get_expected_attach_type;
