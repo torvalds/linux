@@ -1503,7 +1503,7 @@ void fat_delete_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 }
 
 void exfat_delete_dir_entry(struct super_block *sb, struct chain_t *p_dir,
-		s32 entry, s32 order, s32 num_entries)
+			    s32 entry, s32 order, s32 num_entries)
 {
 	int i;
 	sector_t sector;
@@ -1919,7 +1919,8 @@ s32 write_whole_entry_set(struct super_block *sb, struct entry_set_cache_t *es)
 
 /* write back some entries in entry set */
 s32 write_partial_entries_in_entry_set(struct super_block *sb,
-	struct entry_set_cache_t *es, struct dentry_t *ep, u32 count)
+				       struct entry_set_cache_t *es,
+				       struct dentry_t *ep, u32 count)
 {
 	s32 ret, byte_offset, off;
 	u32 clu = 0;
