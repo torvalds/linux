@@ -1774,9 +1774,6 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 	if (dio->loop)
 		goto loop;
 
-	inode_dio_begin(&inode->v);
-	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
-
 	/* Write and invalidate pagecache range that we're writing to: */
 	offset = req->ki_pos + (dio->op.written << 9);
 	ret = write_invalidate_inode_pages_range(mapping,
@@ -1904,15 +1901,39 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	struct bch_io_opts opts = io_opts(c, &inode->ei_inode);
 	struct dio_write *dio;
 	struct bio *bio;
+	bool locked = true, extending;
 	ssize_t ret;
 
-	lockdep_assert_held(&inode->v.i_rwsem);
+	prefetch(&c->opts);
+	prefetch((void *) &c->opts + 64);
+	prefetch(&inode->ei_inode);
+	prefetch((void *) &inode->ei_inode + 64);
 
-	if (unlikely(!iter->count))
-		return 0;
+	inode_lock(&inode->v);
+
+	ret = generic_write_checks(req, iter);
+	if (unlikely(ret <= 0))
+		goto err;
+
+	ret = file_remove_privs(file);
+	if (unlikely(ret))
+		goto err;
+
+	ret = file_update_time(file);
+	if (unlikely(ret))
+		goto err;
 
 	if (unlikely((req->ki_pos|iter->count) & (block_bytes(c) - 1)))
-		return -EINVAL;
+		goto err;
+
+	inode_dio_begin(&inode->v);
+	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
+
+	extending = req->ki_pos + iter->count > inode->v.i_size;
+	if (!extending) {
+		inode_unlock(&inode->v);
+		locked = false;
+	}
 
 	bio = bio_alloc_bioset(NULL,
 			       iov_iter_npages(iter, BIO_MAX_VECS),
@@ -1924,8 +1945,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio->req		= req;
 	dio->mm			= current->mm;
 	dio->loop		= false;
-	dio->sync		= is_sync_kiocb(req) ||
-		req->ki_pos + iter->count > inode->v.i_size;
+	dio->sync		= is_sync_kiocb(req) || extending;
 	dio->free_iov		= false;
 	dio->quota_res.sectors	= 0;
 	dio->iter		= *iter;
@@ -1944,7 +1964,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	ret = bch2_quota_reservation_add(c, inode, &dio->quota_res,
 					 iter->count >> 9, true);
 	if (unlikely(ret))
-		goto err;
+		goto err_put_bio;
 
 	dio->op.nr_replicas	= dio->op.opts.data_replicas;
 
@@ -1955,55 +1975,54 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 					       req->ki_pos >> 9),
 					iter->count >> 9,
 					dio->op.opts.data_replicas))
-		goto err;
+		goto err_put_bio;
 
-	return bch2_dio_write_loop(dio);
+	ret = bch2_dio_write_loop(dio);
 err:
+	if (locked)
+		inode_unlock(&inode->v);
+	if (ret > 0)
+		req->ki_pos += ret;
+	return ret;
+err_put_bio:
+	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
 	bch2_disk_reservation_put(c, &dio->op.res);
 	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 	bio_put(bio);
-	return ret;
+	inode_dio_end(&inode->v);
+	goto err;
 }
 
-static ssize_t __bch2_write_iter(struct kiocb *iocb, struct iov_iter *from)
+ssize_t bch2_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
+	struct bch_inode_info *inode = file_bch_inode(file);
 	ssize_t	ret;
 
 	if (iocb->ki_flags & IOCB_DIRECT)
 		return bch2_direct_write(iocb, from);
 
+	inode_lock(&inode->v);
+
+	ret = generic_write_checks(iocb, from);
+	if (ret <= 0)
+		goto unlock;
+
 	ret = file_remove_privs(file);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	ret = file_update_time(file);
 	if (ret)
-		return ret;
+		goto unlock;
 
-	ret = iocb->ki_flags & IOCB_DIRECT
-		? bch2_direct_write(iocb, from)
-		: bch2_buffered_write(iocb, from);
-
+	ret = bch2_buffered_write(iocb, from);
 	if (likely(ret > 0))
 		iocb->ki_pos += ret;
-
-	return ret;
-}
-
-ssize_t bch2_write_iter(struct kiocb *iocb, struct iov_iter *from)
-{
-	struct bch_inode_info *inode = file_bch_inode(iocb->ki_filp);
-	bool direct = iocb->ki_flags & IOCB_DIRECT;
-	ssize_t ret;
-
-	inode_lock(&inode->v);
-	ret = generic_write_checks(iocb, from);
-	if (ret > 0)
-		ret = __bch2_write_iter(iocb, from);
+unlock:
 	inode_unlock(&inode->v);
 
-	if (ret > 0 && !direct)
+	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
 
 	return ret;
