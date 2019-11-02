@@ -112,12 +112,6 @@ struct vchi_msg_vector {
 	int32_t vec_len;
 };
 
-// Opaque type for a connection API
-typedef struct opaque_vchi_connection_api_t VCHI_CONNECTION_API_T;
-
-// Opaque type for a message driver
-typedef struct opaque_vchi_message_driver_t VCHI_MESSAGE_DRIVER_T;
-
 // Iterator structure for reading ahead through received message queue. Allocated by client,
 // initialised by vchi_msg_look_ahead. Fields are for internal VCHI use only.
 // Iterates over messages in queue at the instant of the call to vchi_msg_lookahead -
