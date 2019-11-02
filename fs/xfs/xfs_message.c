@@ -86,17 +86,25 @@ xfs_alert_tag(
 }
 
 void
-asswarn(char *expr, char *file, int line)
+asswarn(
+	struct xfs_mount	*mp,
+	char			*expr,
+	char			*file,
+	int			line)
 {
-	xfs_warn(NULL, "Assertion failed: %s, file: %s, line: %d",
+	xfs_warn(mp, "Assertion failed: %s, file: %s, line: %d",
 		expr, file, line);
 	WARN_ON(1);
 }
 
 void
-assfail(char *expr, char *file, int line)
+assfail(
+	struct xfs_mount	*mp,
+	char			*expr,
+	char			*file,
+	int			line)
 {
-	xfs_emerg(NULL, "Assertion failed: %s, file: %s, line: %d",
+	xfs_emerg(mp, "Assertion failed: %s, file: %s, line: %d",
 		expr, file, line);
 	if (xfs_globals.bug_on_assert)
 		BUG();
