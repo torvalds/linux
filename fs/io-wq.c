@@ -102,13 +102,6 @@ struct io_wq {
 	struct completion done;
 };
 
-static void io_wq_free_worker(struct rcu_head *head)
-{
-	struct io_worker *worker = container_of(head, struct io_worker, rcu);
-
-	kfree(worker);
-}
-
 static bool io_worker_get(struct io_worker *worker)
 {
 	return refcount_inc_not_zero(&worker->ref);
@@ -194,7 +187,7 @@ static void io_worker_exit(struct io_worker *worker)
 	if (all_done && refcount_dec_and_test(&wqe->wq->refs))
 		complete(&wqe->wq->done);
 
-	call_rcu(&worker->rcu, io_wq_free_worker);
+	kfree_rcu(worker, rcu);
 }
 
 static void io_worker_start(struct io_wqe *wqe, struct io_worker *worker)
