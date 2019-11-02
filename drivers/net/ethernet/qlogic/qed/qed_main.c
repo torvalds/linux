@@ -67,10 +67,9 @@
 #define QED_ROCE_QPS			(8192)
 #define QED_ROCE_DPIS			(8)
 #define QED_RDMA_SRQS                   QED_ROCE_QPS
-#define QED_NVM_CFG_SET_FLAGS		0xE
-#define QED_NVM_CFG_SET_PF_FLAGS	0x1E
 #define QED_NVM_CFG_GET_FLAGS		0xA
 #define QED_NVM_CFG_GET_PF_FLAGS	0x1A
+#define QED_NVM_CFG_MAX_ATTRS		50
 
 static char version[] =
 	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
@@ -2255,6 +2254,7 @@ static int qed_nvm_flash_cfg_write(struct qed_dev *cdev, const u8 **data)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	u8 entity_id, len, buf[32];
+	bool need_nvm_init = true;
 	struct qed_ptt *ptt;
 	u16 cfg_id, count;
 	int rc = 0, i;
@@ -2271,8 +2271,10 @@ static int qed_nvm_flash_cfg_write(struct qed_dev *cdev, const u8 **data)
 
 	DP_VERBOSE(cdev, NETIF_MSG_DRV,
 		   "Read config ids: num_attrs = %0d\n", count);
-	/* NVM CFG ID attributes */
-	for (i = 0; i < count; i++) {
+	/* NVM CFG ID attributes. Start loop index from 1 to avoid additional
+	 * arithmetic operations in the implementation.
+	 */
+	for (i = 1; i <= count; i++) {
 		cfg_id = *((u16 *)*data);
 		*data += 2;
 		entity_id = **data;
@@ -2282,8 +2284,21 @@ static int qed_nvm_flash_cfg_write(struct qed_dev *cdev, const u8 **data)
 		memcpy(buf, *data, len);
 		*data += len;
 
-		flags = entity_id ? QED_NVM_CFG_SET_PF_FLAGS :
-			QED_NVM_CFG_SET_FLAGS;
+		flags = 0;
+		if (need_nvm_init) {
+			flags |= QED_NVM_CFG_OPTION_INIT;
+			need_nvm_init = false;
+		}
+
+		/* Commit to flash and free the resources */
+		if (!(i % QED_NVM_CFG_MAX_ATTRS) || i == count) {
+			flags |= QED_NVM_CFG_OPTION_COMMIT |
+				 QED_NVM_CFG_OPTION_FREE;
+			need_nvm_init = true;
+		}
+
+		if (entity_id)
+			flags |= QED_NVM_CFG_OPTION_ENTITY_SEL;
 
 		DP_VERBOSE(cdev, NETIF_MSG_DRV,
 			   "cfg_id = %d entity = %d len = %d\n", cfg_id,

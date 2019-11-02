@@ -87,8 +87,24 @@ struct phylink {
 	phylink_printk(KERN_WARNING, pl, fmt, ##__VA_ARGS__)
 #define phylink_info(pl, fmt, ...) \
 	phylink_printk(KERN_INFO, pl, fmt, ##__VA_ARGS__)
+#if defined(CONFIG_DYNAMIC_DEBUG)
 #define phylink_dbg(pl, fmt, ...) \
+do {									\
+	if ((pl)->config->type == PHYLINK_NETDEV)			\
+		netdev_dbg((pl)->netdev, fmt, ##__VA_ARGS__);		\
+	else if ((pl)->config->type == PHYLINK_DEV)			\
+		dev_dbg((pl)->dev, fmt, ##__VA_ARGS__);			\
+} while (0)
+#elif defined(DEBUG)
+#define phylink_dbg(pl, fmt, ...)					\
 	phylink_printk(KERN_DEBUG, pl, fmt, ##__VA_ARGS__)
+#else
+#define phylink_dbg(pl, fmt, ...)					\
+({									\
+	if (0)								\
+		phylink_printk(KERN_DEBUG, pl, fmt, ##__VA_ARGS__);	\
+})
+#endif
 
 /**
  * phylink_set_port_modes() - set the port type modes in the ethtool mask
