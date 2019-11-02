@@ -74,6 +74,15 @@
 		default-brightness-level = <128>;
 	};
 
+	charge-animation {
+		compatible = "rockchip,uboot-charge";
+		rockchip,uboot-charge-on = <1>;
+		rockchip,android-charge-on = <0>;
+		rockchip,uboot-low-power-voltage = <3500>;
+		rockchip,screen-on-voltage = <3600>;
+		status = "okay";
+	};
+
 	panel {
 		compatible = "simple-panel";
 		backlight = <&backlight>;
@@ -112,12 +121,6 @@
 				remote-endpoint = <&rgb_out_panel>;
 			};
 		};
-	};
-
-	uboot-charge {
-		compatible = "rockchip,uboot-charge";
-		rockchip,uboot-charge-on = <0>;
-		rockchip,android-charge-on = <1>;
 	};
 
 	rockchip_headset {
