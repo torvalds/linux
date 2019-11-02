@@ -595,11 +595,15 @@ static int st_micron_set_4byte(struct spi_nor *nor, bool enable)
 {
 	int ret;
 
-	spi_nor_write_enable(nor);
-	ret = macronix_set_4byte(nor, enable);
-	spi_nor_write_disable(nor);
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
 
-	return ret;
+	ret = macronix_set_4byte(nor, enable);
+	if (ret)
+		return ret;
+
+	return spi_nor_write_disable(nor);
 }
 
 static int spansion_set_4byte(struct spi_nor *nor, bool enable)
@@ -665,11 +669,15 @@ static int winbond_set_4byte(struct spi_nor *nor, bool enable)
 	 * Register to be set to 1, so all 3-byte-address reads come from the
 	 * second 16M. We must clear the register to enable normal behavior.
 	 */
-	spi_nor_write_enable(nor);
-	ret = spi_nor_write_ear(nor, 0);
-	spi_nor_write_disable(nor);
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
 
-	return ret;
+	ret = spi_nor_write_ear(nor, 0);
+	if (ret)
+		return ret;
+
+	return spi_nor_write_disable(nor);
 }
 
 static int spi_nor_xread_sr(struct spi_nor *nor, u8 *sr)
@@ -859,7 +867,9 @@ static int spi_nor_write_sr_cr(struct spi_nor *nor, const u8 *sr_cr)
 {
 	int ret;
 
-	spi_nor_write_enable(nor);
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
 
 	if (nor->spimem) {
 		struct spi_mem_op op =
@@ -889,7 +899,10 @@ static int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 status_new,
 {
 	int ret;
 
-	spi_nor_write_enable(nor);
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
+
 	ret = spi_nor_write_sr(nor, status_new);
 	if (ret)
 		return ret;
@@ -1397,7 +1410,9 @@ static int spi_nor_erase_multi_sectors(struct spi_nor *nor, u64 addr, u32 len)
 	list_for_each_entry_safe(cmd, next, &erase_list, list) {
 		nor->erase_opcode = cmd->opcode;
 		while (cmd->count) {
-			spi_nor_write_enable(nor);
+			ret = spi_nor_write_enable(nor);
+			if (ret)
+				goto destroy_erase_cmd_list;
 
 			ret = spi_nor_erase_sector(nor, addr);
 			if (ret)
@@ -1452,7 +1467,9 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (len == mtd->size && !(nor->flags & SNOR_F_NO_OP_CHIP_ERASE)) {
 		unsigned long timeout;
 
-		spi_nor_write_enable(nor);
+		ret = spi_nor_write_enable(nor);
+		if (ret)
+			goto erase_err;
 
 		ret = spi_nor_erase_chip(nor);
 		if (ret)
@@ -1479,7 +1496,9 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	/* "sector"-at-a-time erase */
 	} else if (spi_nor_has_uniform_erase(nor)) {
 		while (len) {
-			spi_nor_write_enable(nor);
+			ret = spi_nor_write_enable(nor);
+			if (ret)
+				goto erase_err;
 
 			ret = spi_nor_erase_sector(nor, addr);
 			if (ret)
@@ -1500,7 +1519,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 			goto erase_err;
 	}
 
-	spi_nor_write_disable(nor);
+	ret = spi_nor_write_disable(nor);
 
 erase_err:
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_ERASE);
@@ -1849,9 +1868,13 @@ static int macronix_quad_enable(struct spi_nor *nor)
 	if (nor->bouncebuf[0] & SR_QUAD_EN_MX)
 		return 0;
 
-	spi_nor_write_enable(nor);
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
 
-	spi_nor_write_sr(nor, nor->bouncebuf[0] | SR_QUAD_EN_MX);
+	ret = spi_nor_write_sr(nor, nor->bouncebuf[0] | SR_QUAD_EN_MX);
+	if (ret)
+		return ret;
 
 	ret = spi_nor_wait_till_ready(nor);
 	if (ret)
@@ -2022,7 +2045,9 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 	/* Update the Quad Enable bit. */
 	*sr2 |= SR2_QUAD_EN_BIT7;
 
-	spi_nor_write_enable(nor);
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
 
 	ret = spi_nor_write_sr2(nor, sr2);
 	if (ret)
@@ -2063,7 +2088,9 @@ static int spi_nor_clear_sr_bp(struct spi_nor *nor)
 	if (ret)
 		return ret;
 
-	spi_nor_write_enable(nor);
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
 
 	ret = spi_nor_write_sr(nor, nor->bouncebuf[0] & ~mask);
 	if (ret)
@@ -2680,7 +2707,9 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (ret)
 		return ret;
 
-	spi_nor_write_enable(nor);
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		goto sst_write_err;
 
 	nor->sst_write_second = false;
 
@@ -2718,14 +2747,19 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 	nor->sst_write_second = false;
 
-	spi_nor_write_disable(nor);
+	ret = spi_nor_write_disable(nor);
+	if (ret)
+		goto sst_write_err;
+
 	ret = spi_nor_wait_till_ready(nor);
 	if (ret)
 		goto sst_write_err;
 
 	/* Write out trailing byte if it exists. */
 	if (actual != len) {
-		spi_nor_write_enable(nor);
+		ret = spi_nor_write_enable(nor);
+		if (ret)
+			goto sst_write_err;
 
 		nor->program_opcode = SPINOR_OP_BP;
 		ret = spi_nor_write_data(nor, to, 1, buf + actual);
@@ -2735,8 +2769,10 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		ret = spi_nor_wait_till_ready(nor);
 		if (ret)
 			goto sst_write_err;
-		spi_nor_write_disable(nor);
+
 		actual += 1;
+
+		ret = spi_nor_write_disable(nor);
 	}
 sst_write_err:
 	*retlen += actual;
@@ -2787,7 +2823,10 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 		addr = spi_nor_convert_addr(nor, addr);
 
-		spi_nor_write_enable(nor);
+		ret = spi_nor_write_enable(nor);
+		if (ret)
+			goto write_err;
+
 		ret = spi_nor_write_data(nor, addr, page_remain, buf + i);
 		if (ret < 0)
 			goto write_err;
