@@ -159,9 +159,9 @@ static void nft_flow_cls_offload_setup(struct flow_cls_offload *cls_flow,
 				       const struct nft_base_chain *basechain,
 				       const struct nft_rule *rule,
 				       const struct nft_flow_rule *flow,
+				       struct netlink_ext_ack *extack,
 				       enum flow_cls_command command)
 {
-	struct netlink_ext_ack extack;
 	__be16 proto = ETH_P_ALL;
 
 	memset(cls_flow, 0, sizeof(*cls_flow));
@@ -170,7 +170,7 @@ static void nft_flow_cls_offload_setup(struct flow_cls_offload *cls_flow,
 		proto = flow->proto;
 
 	nft_flow_offload_common_init(&cls_flow->common, proto,
-				     basechain->ops.priority, &extack);
+				     basechain->ops.priority, extack);
 	cls_flow->command = command;
 	cls_flow->cookie = (unsigned long) rule;
 	if (flow)
@@ -182,6 +182,7 @@ static int nft_flow_offload_rule(struct nft_chain *chain,
 				 struct nft_flow_rule *flow,
 				 enum flow_cls_command command)
 {
+	struct netlink_ext_ack extack = {};
 	struct flow_cls_offload cls_flow;
 	struct nft_base_chain *basechain;
 
@@ -189,7 +190,8 @@ static int nft_flow_offload_rule(struct nft_chain *chain,
 		return -EOPNOTSUPP;
 
 	basechain = nft_base_chain(chain);
-	nft_flow_cls_offload_setup(&cls_flow, basechain, rule, flow, command);
+	nft_flow_cls_offload_setup(&cls_flow, basechain, rule, flow, &extack,
+				   command);
 
 	return nft_setup_cb_call(TC_SETUP_CLSFLOWER, &cls_flow,
 				 &basechain->flow_block.cb_list);
@@ -207,13 +209,15 @@ static int nft_flow_offload_unbind(struct flow_block_offload *bo,
 {
 	struct flow_block_cb *block_cb, *next;
 	struct flow_cls_offload cls_flow;
+	struct netlink_ext_ack extack;
 	struct nft_chain *chain;
 	struct nft_rule *rule;
 
 	chain = &basechain->chain;
 	list_for_each_entry(rule, &chain->rules, list) {
+		memset(&extack, 0, sizeof(extack));
 		nft_flow_cls_offload_setup(&cls_flow, basechain, rule, NULL,
-					   FLOW_CLS_DESTROY);
+					   &extack, FLOW_CLS_DESTROY);
 		nft_setup_cb_call(TC_SETUP_CLSFLOWER, &cls_flow, &bo->cb_list);
 	}
 
