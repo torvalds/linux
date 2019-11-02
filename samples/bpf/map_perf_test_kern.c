@@ -181,8 +181,8 @@ int stress_lru_hmap_alloc(struct pt_regs *ctx)
 	if (addrlen != sizeof(*in6))
 		return 0;
 
-	ret = bpf_probe_read(test_params.dst6, sizeof(test_params.dst6),
-			     &in6->sin6_addr);
+	ret = bpf_probe_read_user(test_params.dst6, sizeof(test_params.dst6),
+				  &in6->sin6_addr);
 	if (ret)
 		goto done;
 
