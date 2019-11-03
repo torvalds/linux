@@ -94,7 +94,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		 * Solaris, at least, doesn't seem to care what the time
 		 * request is.  We require it be within 30 minutes of now.
 		 */
-		time_t delta = iap->ia_atime.tv_sec - get_seconds();
+		time64_t delta = iap->ia_atime.tv_sec - ktime_get_real_seconds();
 
 		nfserr = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP);
 		if (nfserr)
