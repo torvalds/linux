@@ -106,7 +106,7 @@ struct st_lsm6dsx_sensor;
 struct st_lsm6dsx_hw;
 
 struct st_lsm6dsx_odr {
-	u16 hz;
+	u32 milli_hz;
 	u8 val;
 };
 
@@ -330,7 +330,7 @@ struct st_lsm6dsx_sensor {
 	struct st_lsm6dsx_hw *hw;
 
 	u32 gain;
-	u16 odr;
+	u32 odr;
 
 	u16 watermark;
 	u8 sip;
@@ -415,7 +415,7 @@ int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
 			     enum st_lsm6dsx_fifo_mode fifo_mode);
 int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw);
 int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw);
-int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u16 odr, u8 *val);
+int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u32 odr, u8 *val);
 int st_lsm6dsx_shub_probe(struct st_lsm6dsx_hw *hw, const char *name);
 int st_lsm6dsx_shub_set_enable(struct st_lsm6dsx_sensor *sensor, bool enable);
 int st_lsm6dsx_set_page(struct st_lsm6dsx_hw *hw, bool enable);

@@ -91,7 +91,7 @@ static int st_lsm6dsx_get_decimator_val(u8 val)
 }
 
 static void st_lsm6dsx_get_max_min_odr(struct st_lsm6dsx_hw *hw,
-				       u16 *max_odr, u16 *min_odr)
+				       u32 *max_odr, u32 *min_odr)
 {
 	struct st_lsm6dsx_sensor *sensor;
 	int i;
@@ -106,16 +106,17 @@ static void st_lsm6dsx_get_max_min_odr(struct st_lsm6dsx_hw *hw,
 		if (!(hw->enable_mask & BIT(sensor->id)))
 			continue;
 
-		*max_odr = max_t(u16, *max_odr, sensor->odr);
-		*min_odr = min_t(u16, *min_odr, sensor->odr);
+		*max_odr = max_t(u32, *max_odr, sensor->odr);
+		*min_odr = min_t(u32, *min_odr, sensor->odr);
 	}
 }
 
 static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 {
-	u16 max_odr, min_odr, sip = 0, ts_sip = 0;
 	const struct st_lsm6dsx_reg *ts_dec_reg;
 	struct st_lsm6dsx_sensor *sensor;
+	u16 sip = 0, ts_sip = 0;
+	u32 max_odr, min_odr;
 	int err = 0, i;
 	u8 data;
 
