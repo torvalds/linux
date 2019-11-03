@@ -225,8 +225,6 @@ enum hclge_evt_cause {
 	HCLGE_VECTOR0_EVENT_OTHER,
 };
 
-#define HCLGE_MPF_ENBALE 1
-
 enum HCLGE_MAC_SPEED {
 	HCLGE_MAC_SPEED_UNKNOWN = 0,		/* unknown */
 	HCLGE_MAC_SPEED_10M	= 10,		/* 10 Mbps */

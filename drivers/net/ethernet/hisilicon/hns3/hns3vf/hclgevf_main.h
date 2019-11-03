@@ -150,8 +150,6 @@ enum hclgevf_states {
 	HCLGEVF_STATE_CMD_DISABLE,
 };
 
-#define HCLGEVF_MPF_ENBALE 1
-
 struct hclgevf_mac {
 	u8 media_type;
 	u8 module_type;
