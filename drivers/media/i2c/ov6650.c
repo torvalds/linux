@@ -819,7 +819,7 @@ static int ov6650_video_probe(struct v4l2_subdev *sd)
 	const struct ov6650_xclk *xclk = NULL;
 	unsigned long rate;
 	u8 pidh, pidl, midh, midl;
-	int i, ret;
+	int i, ret = 0;
 
 	priv->clk = v4l2_clk_get(&client->dev, NULL);
 	if (IS_ERR(priv->clk)) {
