@@ -462,7 +462,7 @@ i915_vma_unpin_fence(struct i915_vma *vma)
 		__i915_vma_unpin_fence(vma);
 }
 
-void i915_vma_parked(struct drm_i915_private *i915);
+void i915_vma_parked(struct intel_gt *gt);
 
 #define for_each_until(cond) if (cond) break; else
 

@@ -465,6 +465,7 @@ create_shmem(struct intel_memory_region *mem,
 	     resource_size_t size,
 	     unsigned int flags)
 {
+	static struct lock_class_key lock_class;
 	struct drm_i915_private *i915 = mem->i915;
 	struct drm_i915_gem_object *obj;
 	struct address_space *mapping;
@@ -491,7 +492,7 @@ create_shmem(struct intel_memory_region *mem,
 	mapping_set_gfp_mask(mapping, mask);
 	GEM_BUG_ON(!(mapping_gfp_mask(mapping) & __GFP_RECLAIM));
 
-	i915_gem_object_init(obj, &i915_gem_shmem_ops);
+	i915_gem_object_init(obj, &i915_gem_shmem_ops, &lock_class);
 
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;

@@ -38,6 +38,7 @@
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
+#include "gt/intel_ring.h"
 
 #include "i915_drv.h"
 #include "gvt.h"
@@ -194,7 +195,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 			return -EFAULT;
 		}
 
-		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);
+		page = i915_gem_object_get_page(ctx_obj, i);
 		dst = kmap(page);
 		intel_gvt_hypervisor_read_gpa(vgpu, context_gpa, dst,
 				I915_GTT_PAGE_SIZE);
@@ -834,7 +835,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 			return;
 		}
 
-		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);
+		page = i915_gem_object_get_page(ctx_obj, i);
 		src = kmap(page);
 		intel_gvt_hypervisor_write_gpa(vgpu, context_gpa, src,
 				I915_GTT_PAGE_SIZE);
@@ -1584,9 +1585,7 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	 */
 	if (list_empty(workload_q_head(vgpu, ring_id))) {
 		intel_runtime_pm_get(&dev_priv->runtime_pm);
-		mutex_lock(&vgpu->vgpu_lock);
 		ret = intel_gvt_scan_and_shadow_workload(workload);
-		mutex_unlock(&vgpu->vgpu_lock);
 		intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
 	}
 

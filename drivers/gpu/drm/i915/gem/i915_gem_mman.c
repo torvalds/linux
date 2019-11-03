@@ -312,7 +312,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 		list_add(&obj->userfault_link, &i915->ggtt.userfault_list);
 	mutex_unlock(&i915->ggtt.vm.mutex);
 
-	if (CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)
+	if (IS_ACTIVE(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND))
 		intel_wakeref_auto(&i915->ggtt.userfault_wakeref,
 				   msecs_to_jiffies_timeout(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND));
 

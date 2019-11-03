@@ -26,6 +26,7 @@
 #include "intel_gt.h"
 #include "intel_mocs.h"
 #include "intel_lrc.h"
+#include "intel_ring.h"
 
 /* structures required */
 struct drm_i915_mocs_entry {
@@ -460,6 +461,12 @@ static void intel_mocs_init_global(struct intel_gt *gt)
 	struct intel_uncore *uncore = gt->uncore;
 	struct drm_i915_mocs_table table;
 	unsigned int index;
+
+	/*
+	 * LLC and eDRAM control values are not applicable to dgfx
+	 */
+	if (IS_DGFX(gt->i915))
+		return;
 
 	GEM_BUG_ON(!HAS_GLOBAL_MOCS_REGISTERS(gt->i915));
 

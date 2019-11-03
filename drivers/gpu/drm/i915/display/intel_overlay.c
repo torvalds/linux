@@ -30,6 +30,7 @@
 #include <drm/i915_drm.h>
 
 #include "gem/i915_gem_pm.h"
+#include "gt/intel_ring.h"
 
 #include "i915_drv.h"
 #include "i915_reg.h"

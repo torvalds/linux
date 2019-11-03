@@ -76,6 +76,7 @@
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_csr.h"
+#include "intel_memory_region.h"
 #include "intel_pm.h"
 
 static struct drm_driver driver;
@@ -598,7 +599,7 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 
 	intel_uc_init_mmio(&dev_priv->gt.uc);
 
-	ret = intel_engines_init_mmio(dev_priv);
+	ret = intel_engines_init_mmio(&dev_priv->gt);
 	if (ret)
 		goto err_uncore;
 
@@ -621,7 +622,7 @@ err_bridge:
  */
 static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
 {
-	intel_engines_cleanup(dev_priv);
+	intel_engines_cleanup(&dev_priv->gt);
 	intel_teardown_mchbar(dev_priv);
 	intel_uncore_fini_mmio(&dev_priv->uncore);
 	pci_dev_put(dev_priv->bridge_dev);
@@ -1172,12 +1173,16 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_ggtt;
 
+	ret = intel_memory_regions_hw_probe(dev_priv);
+	if (ret)
+		goto err_ggtt;
+
 	intel_gt_init_hw_early(dev_priv);
 
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to enable GGTT\n");
-		goto err_ggtt;
+		goto err_mem_regions;
 	}
 
 	pci_set_master(pdev);
@@ -1194,7 +1199,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		if (ret) {
 			DRM_ERROR("failed to set DMA mask\n");
 
-			goto err_ggtt;
+			goto err_mem_regions;
 		}
 	}
 
@@ -1212,7 +1217,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		if (ret) {
 			DRM_ERROR("failed to set DMA mask\n");
 
-			goto err_ggtt;
+			goto err_mem_regions;
 		}
 	}
 
@@ -1264,6 +1269,8 @@ err_msi:
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
 	pm_qos_remove_request(&dev_priv->pm_qos);
+err_mem_regions:
+	intel_memory_regions_driver_release(dev_priv);
 err_ggtt:
 	i915_ggtt_driver_release(dev_priv);
 err_perf:
@@ -1476,6 +1483,23 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!i915_modparams.nuclear_pageflip && match_info->gen < 5)
 		dev_priv->drm.driver_features &= ~DRIVER_ATOMIC;
 
+	/*
+	 * Check if we support fake LMEM -- for now we only unleash this for
+	 * the live selftests(test-and-exit).
+	 */
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+	if (IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM)) {
+		if (INTEL_GEN(dev_priv) >= 9 && i915_selftest.live < 0 &&
+		    i915_modparams.fake_lmem_start) {
+			mkwrite_device_info(dev_priv)->memory_regions =
+				REGION_SMEM | REGION_LMEM | REGION_STOLEN;
+			mkwrite_device_info(dev_priv)->is_dgfx = true;
+			GEM_BUG_ON(!HAS_LMEM(dev_priv));
+			GEM_BUG_ON(!IS_DGFX(dev_priv));
+		}
+	}
+#endif
+
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto out_fini;
@@ -1510,6 +1534,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 out_cleanup_hw:
 	i915_driver_hw_remove(dev_priv);
+	intel_memory_regions_driver_release(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
 out_cleanup_mmio:
 	i915_driver_mmio_release(dev_priv);
@@ -1548,10 +1573,7 @@ void i915_driver_remove(struct drm_i915_private *i915)
 
 	i915_driver_modeset_remove(i915);
 
-	/* Free error state after interrupts are fully disabled. */
-	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
 	i915_reset_error_state(i915);
-
 	i915_gem_driver_remove(i915);
 
 	intel_power_domains_driver_remove(i915);
@@ -1570,6 +1592,7 @@ static void i915_driver_release(struct drm_device *dev)
 
 	i915_gem_driver_release(dev_priv);
 
+	intel_memory_regions_driver_release(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
 
 	i915_driver_mmio_release(dev_priv);
@@ -1797,7 +1820,6 @@ static int i915_drm_resume(struct drm_device *dev)
 	int ret;
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
-	intel_gt_pm_disable(&dev_priv->gt);
 
 	i915_gem_sanitize(dev_priv);
 
@@ -1927,8 +1949,6 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	intel_gt_check_and_clear_faults(&dev_priv->gt);
 
 	intel_display_power_resume_early(dev_priv);
-
-	intel_gt_pm_disable(&dev_priv->gt);
 
 	intel_power_domains_resume(dev_priv);
 

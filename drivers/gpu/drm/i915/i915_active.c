@@ -7,6 +7,7 @@
 #include <linux/debugobjects.h>
 
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_ring.h"
 
 #include "i915_drv.h"
 #include "i915_active.h"
@@ -595,6 +596,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 	struct llist_node *pos, *next;
 	int err;
 
+	GEM_BUG_ON(i915_active_is_idle(ref));
 	GEM_BUG_ON(!llist_empty(&ref->preallocated_barriers));
 
 	/*

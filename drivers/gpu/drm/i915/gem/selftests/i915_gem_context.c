@@ -32,7 +32,6 @@ static int live_nop_switch(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
 	struct i915_gem_context **ctx;
-	enum intel_engine_id id;
 	struct igt_live_test t;
 	struct drm_file *file;
 	unsigned long n;
@@ -67,7 +66,7 @@ static int live_nop_switch(void *arg)
 		}
 	}
 
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		struct i915_request *rq;
 		unsigned long end_time, prime;
 		ktime_t times[2] = {};
@@ -170,18 +169,24 @@ static int __live_parallel_switch1(void *data)
 		struct i915_request *rq = NULL;
 		int err, n;
 
-		for (n = 0; n < ARRAY_SIZE(arg->ce); n++) {
-			i915_request_put(rq);
+		err = 0;
+		for (n = 0; !err && n < ARRAY_SIZE(arg->ce); n++) {
+			struct i915_request *prev = rq;
 
 			rq = i915_request_create(arg->ce[n]);
-			if (IS_ERR(rq))
+			if (IS_ERR(rq)) {
+				i915_request_put(prev);
 				return PTR_ERR(rq);
+			}
 
 			i915_request_get(rq);
+			if (prev) {
+				err = i915_request_await_dma_fence(rq, &prev->fence);
+				i915_request_put(prev);
+			}
+
 			i915_request_add(rq);
 		}
-
-		err = 0;
 		if (i915_request_wait(rq, 0, HZ / 5) < 0)
 			err = -ETIME;
 		i915_request_put(rq);
@@ -198,6 +203,7 @@ static int __live_parallel_switch1(void *data)
 static int __live_parallel_switchN(void *data)
 {
 	struct parallel_switch *arg = data;
+	struct i915_request *rq = NULL;
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
 	int n;
@@ -205,17 +211,31 @@ static int __live_parallel_switchN(void *data)
 	count = 0;
 	do {
 		for (n = 0; n < ARRAY_SIZE(arg->ce); n++) {
-			struct i915_request *rq;
+			struct i915_request *prev = rq;
+			int err = 0;
 
 			rq = i915_request_create(arg->ce[n]);
-			if (IS_ERR(rq))
+			if (IS_ERR(rq)) {
+				i915_request_put(prev);
 				return PTR_ERR(rq);
+			}
+
+			i915_request_get(rq);
+			if (prev) {
+				err = i915_request_await_dma_fence(rq, &prev->fence);
+				i915_request_put(prev);
+			}
 
 			i915_request_add(rq);
+			if (err) {
+				i915_request_put(rq);
+				return err;
+			}
 		}
 
 		count++;
 	} while (!__igt_timeout(end_time, NULL));
+	i915_request_put(rq);
 
 	pr_info("%s: %lu switches (many)\n", arg->ce[0]->engine->name, count);
 	return 0;
@@ -324,6 +344,8 @@ static int live_parallel_switch(void *arg)
 			}
 			get_task_struct(data[n].tsk);
 		}
+
+		yield(); /* start all threads before we kthread_stop() */
 
 		for (n = 0; n < count; n++) {
 			int status;
@@ -583,7 +605,6 @@ static int igt_ctx_exec(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	int err = -ENODEV;
 
 	/*
@@ -595,7 +616,7 @@ static int igt_ctx_exec(void *arg)
 	if (!DRIVER_CAPS(i915)->has_logical_contexts)
 		return 0;
 
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		struct drm_i915_gem_object *obj = NULL;
 		unsigned long ncontexts, ndwords, dw;
 		struct i915_request *tq[5] = {};
@@ -711,7 +732,6 @@ static int igt_shared_ctx_exec(void *arg)
 	struct i915_request *tq[5] = {};
 	struct i915_gem_context *parent;
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	struct igt_live_test t;
 	struct drm_file *file;
 	int err = 0;
@@ -743,7 +763,7 @@ static int igt_shared_ctx_exec(void *arg)
 	if (err)
 		goto out_file;
 
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		unsigned long ncontexts, ndwords, dw;
 		struct drm_i915_gem_object *obj = NULL;
 		IGT_TIMEOUT(end_time);
@@ -1168,49 +1188,15 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 	       const char *name,
 	       unsigned int flags)
 {
-	struct intel_engine_cs *engine = i915->engine[RCS0];
 	struct drm_i915_gem_object *obj;
-	struct i915_gem_context *ctx;
-	struct intel_context *ce;
-	struct intel_sseu pg_sseu;
-	struct drm_file *file;
-	int ret;
+	int inst = 0;
+	int ret = 0;
 
-	if (INTEL_GEN(i915) < 9 || !engine)
+	if (INTEL_GEN(i915) < 9 || !RUNTIME_INFO(i915)->sseu.has_slice_pg)
 		return 0;
-
-	if (!RUNTIME_INFO(i915)->sseu.has_slice_pg)
-		return 0;
-
-	if (hweight32(engine->sseu.slice_mask) < 2)
-		return 0;
-
-	/*
-	 * Gen11 VME friendly power-gated configuration with half enabled
-	 * sub-slices.
-	 */
-	pg_sseu = engine->sseu;
-	pg_sseu.slice_mask = 1;
-	pg_sseu.subslice_mask =
-		~(~0 << (hweight32(engine->sseu.subslice_mask) / 2));
-
-	pr_info("SSEU subtest '%s', flags=%x, def_slices=%u, pg_slices=%u\n",
-		name, flags, hweight32(engine->sseu.slice_mask),
-		hweight32(pg_sseu.slice_mask));
-
-	file = mock_file(i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
 
 	if (flags & TEST_RESET)
 		igt_global_reset_lock(&i915->gt);
-
-	ctx = live_context(i915, file);
-	if (IS_ERR(ctx)) {
-		ret = PTR_ERR(ctx);
-		goto out_unlock;
-	}
-	i915_gem_context_clear_bannable(ctx); /* to reset and beyond! */
 
 	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
@@ -1218,51 +1204,80 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 		goto out_unlock;
 	}
 
-	ce = i915_gem_context_get_engine(ctx, RCS0);
-	if (IS_ERR(ce)) {
-		ret = PTR_ERR(ce);
-		goto out_put;
-	}
+	do {
+		struct intel_engine_cs *engine;
+		struct intel_context *ce;
+		struct intel_sseu pg_sseu;
 
-	ret = intel_context_pin(ce);
-	if (ret)
-		goto out_context;
+		engine = intel_engine_lookup_user(i915,
+						  I915_ENGINE_CLASS_RENDER,
+						  inst++);
+		if (!engine)
+			break;
 
-	/* First set the default mask. */
-	ret = __sseu_test(name, flags, ce, obj, engine->sseu);
-	if (ret)
-		goto out_fail;
+		if (hweight32(engine->sseu.slice_mask) < 2)
+			continue;
 
-	/* Then set a power-gated configuration. */
-	ret = __sseu_test(name, flags, ce, obj, pg_sseu);
-	if (ret)
-		goto out_fail;
+		/*
+		 * Gen11 VME friendly power-gated configuration with
+		 * half enabled sub-slices.
+		 */
+		pg_sseu = engine->sseu;
+		pg_sseu.slice_mask = 1;
+		pg_sseu.subslice_mask =
+			~(~0 << (hweight32(engine->sseu.subslice_mask) / 2));
 
-	/* Back to defaults. */
-	ret = __sseu_test(name, flags, ce, obj, engine->sseu);
-	if (ret)
-		goto out_fail;
+		pr_info("%s: SSEU subtest '%s', flags=%x, def_slices=%u, pg_slices=%u\n",
+			engine->name, name, flags,
+			hweight32(engine->sseu.slice_mask),
+			hweight32(pg_sseu.slice_mask));
 
-	/* One last power-gated configuration for the road. */
-	ret = __sseu_test(name, flags, ce, obj, pg_sseu);
-	if (ret)
-		goto out_fail;
+		ce = intel_context_create(engine->kernel_context->gem_context,
+					  engine);
+		if (IS_ERR(ce)) {
+			ret = PTR_ERR(ce);
+			goto out_put;
+		}
 
-out_fail:
+		ret = intel_context_pin(ce);
+		if (ret)
+			goto out_ce;
+
+		/* First set the default mask. */
+		ret = __sseu_test(name, flags, ce, obj, engine->sseu);
+		if (ret)
+			goto out_unpin;
+
+		/* Then set a power-gated configuration. */
+		ret = __sseu_test(name, flags, ce, obj, pg_sseu);
+		if (ret)
+			goto out_unpin;
+
+		/* Back to defaults. */
+		ret = __sseu_test(name, flags, ce, obj, engine->sseu);
+		if (ret)
+			goto out_unpin;
+
+		/* One last power-gated configuration for the road. */
+		ret = __sseu_test(name, flags, ce, obj, pg_sseu);
+		if (ret)
+			goto out_unpin;
+
+out_unpin:
+		intel_context_unpin(ce);
+out_ce:
+		intel_context_put(ce);
+	} while (!ret);
+
 	if (igt_flush_test(i915))
 		ret = -EIO;
 
-	intel_context_unpin(ce);
-out_context:
-	intel_context_put(ce);
 out_put:
 	i915_gem_object_put(obj);
 
 out_unlock:
 	if (flags & TEST_RESET)
 		igt_global_reset_unlock(&i915->gt);
-
-	mock_file_free(i915, file);
 
 	if (ret)
 		pr_err("%s: Failed with %d!\n", name, ret);
@@ -1651,7 +1666,6 @@ static int igt_vm_isolation(void *arg)
 	struct drm_file *file;
 	I915_RND_STATE(prng);
 	unsigned long count;
-	unsigned int id;
 	u64 vm_total;
 	int err;
 
@@ -1692,7 +1706,7 @@ static int igt_vm_isolation(void *arg)
 	vm_total -= I915_GTT_PAGE_SIZE;
 
 	count = 0;
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		IGT_TIMEOUT(end_time);
 		unsigned long this = 0;
 

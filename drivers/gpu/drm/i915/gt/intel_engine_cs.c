@@ -37,6 +37,7 @@
 #include "intel_context.h"
 #include "intel_lrc.h"
 #include "intel_reset.h"
+#include "intel_ring.h"
 
 /* Haswell does have the CXT_SIZE register however it does not appear to be
  * valid. Now, docs explain in dwords what is in the context object. The full
@@ -308,6 +309,15 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->instance = info->instance;
 	__sprint_engine_name(engine);
 
+	engine->props.heartbeat_interval_ms =
+		CONFIG_DRM_I915_HEARTBEAT_INTERVAL;
+	engine->props.preempt_timeout_ms =
+		CONFIG_DRM_I915_PREEMPT_TIMEOUT;
+	engine->props.stop_timeout_ms =
+		CONFIG_DRM_I915_STOP_TIMEOUT;
+	engine->props.timeslice_duration_ms =
+		CONFIG_DRM_I915_TIMESLICE_DURATION;
+
 	/*
 	 * To be overridden by the backend on setup. However to facilitate
 	 * cleanup on error during setup, we always provide the destroy vfunc.
@@ -370,38 +380,40 @@ static void __setup_engine_capabilities(struct intel_engine_cs *engine)
 	}
 }
 
-static void intel_setup_engine_capabilities(struct drm_i915_private *i915)
+static void intel_setup_engine_capabilities(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, i915, id)
+	for_each_engine(engine, gt, id)
 		__setup_engine_capabilities(engine);
 }
 
 /**
  * intel_engines_cleanup() - free the resources allocated for Command Streamers
- * @i915: the i915 devic
+ * @gt: pointer to struct intel_gt
  */
-void intel_engines_cleanup(struct drm_i915_private *i915)
+void intel_engines_cleanup(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		engine->destroy(engine);
-		i915->engine[id] = NULL;
+		gt->engine[id] = NULL;
+		gt->i915->engine[id] = NULL;
 	}
 }
 
 /**
  * intel_engines_init_mmio() - allocate and prepare the Engine Command Streamers
- * @i915: the i915 device
+ * @gt: pointer to struct intel_gt
  *
  * Return: non-zero if the initialization failed.
  */
-int intel_engines_init_mmio(struct drm_i915_private *i915)
+int intel_engines_init_mmio(struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	struct intel_device_info *device_info = mkwrite_device_info(i915);
 	const unsigned int engine_mask = INTEL_INFO(i915)->engine_mask;
 	unsigned int mask = 0;
@@ -419,7 +431,7 @@ int intel_engines_init_mmio(struct drm_i915_private *i915)
 		if (!HAS_ENGINE(i915, i))
 			continue;
 
-		err = intel_engine_setup(&i915->gt, i);
+		err = intel_engine_setup(gt, i);
 		if (err)
 			goto cleanup;
 
@@ -436,36 +448,36 @@ int intel_engines_init_mmio(struct drm_i915_private *i915)
 
 	RUNTIME_INFO(i915)->num_engines = hweight32(mask);
 
-	intel_gt_check_and_clear_faults(&i915->gt);
+	intel_gt_check_and_clear_faults(gt);
 
-	intel_setup_engine_capabilities(i915);
+	intel_setup_engine_capabilities(gt);
 
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(i915);
+	intel_engines_cleanup(gt);
 	return err;
 }
 
 /**
  * intel_engines_init() - init the Engine Command Streamers
- * @i915: i915 device private
+ * @gt: pointer to struct intel_gt
  *
  * Return: non-zero if the initialization failed.
  */
-int intel_engines_init(struct drm_i915_private *i915)
+int intel_engines_init(struct intel_gt *gt)
 {
 	int (*init)(struct intel_engine_cs *engine);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err;
 
-	if (HAS_EXECLISTS(i915))
+	if (HAS_EXECLISTS(gt->i915))
 		init = intel_execlists_submission_init;
 	else
 		init = intel_ring_submission_init;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		err = init(engine);
 		if (err)
 			goto cleanup;
@@ -474,7 +486,7 @@ int intel_engines_init(struct drm_i915_private *i915)
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(i915);
+	intel_engines_cleanup(gt);
 	return err;
 }
 
@@ -518,7 +530,7 @@ static int pin_ggtt_status_page(struct intel_engine_cs *engine,
 	unsigned int flags;
 
 	flags = PIN_GLOBAL;
-	if (!HAS_LLC(engine->i915))
+	if (!HAS_LLC(engine->i915) && i915_ggtt_has_aperture(engine->gt->ggtt))
 		/*
 		 * On g33, we cannot place HWS above 256MiB, so
 		 * restrict its pinning to the low mappable arena.
@@ -602,7 +614,6 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_active(engine, ENGINE_PHYSICAL);
 	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlists(engine);
-	intel_engine_init_hangcheck(engine);
 	intel_engine_init_cmd_parser(engine);
 	intel_engine_init__pm(engine);
 
@@ -621,26 +632,26 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 
 /**
  * intel_engines_setup- setup engine state not requiring hw access
- * @i915: Device to setup.
+ * @gt: pointer to struct intel_gt
  *
  * Initializes engine structure members shared between legacy and execlists
  * submission modes which do not require hardware access.
  *
  * Typically done early in the submission mode specific engine setup stage.
  */
-int intel_engines_setup(struct drm_i915_private *i915)
+int intel_engines_setup(struct intel_gt *gt)
 {
 	int (*setup)(struct intel_engine_cs *engine);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err;
 
-	if (HAS_EXECLISTS(i915))
+	if (HAS_EXECLISTS(gt->i915))
 		setup = intel_execlists_submission_setup;
 	else
 		setup = intel_ring_submission_setup;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		err = intel_engine_setup_common(engine);
 		if (err)
 			goto cleanup;
@@ -658,7 +669,7 @@ int intel_engines_setup(struct drm_i915_private *i915)
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(i915);
+	intel_engines_cleanup(gt);
 	return err;
 }
 
@@ -873,6 +884,21 @@ u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine)
 	return bbaddr;
 }
 
+static unsigned long stop_timeout(const struct intel_engine_cs *engine)
+{
+	if (in_atomic() || irqs_disabled()) /* inside atomic preempt-reset? */
+		return 0;
+
+	/*
+	 * If we are doing a normal GPU reset, we can take our time and allow
+	 * the engine to quiesce. We've stopped submission to the engine, and
+	 * if we wait long enough an innocent context should complete and
+	 * leave the engine idle. So they should not be caught unaware by
+	 * the forthcoming GPU reset (which usually follows the stop_cs)!
+	 */
+	return READ_ONCE(engine->props.stop_timeout_ms);
+}
+
 int intel_engine_stop_cs(struct intel_engine_cs *engine)
 {
 	struct intel_uncore *uncore = engine->uncore;
@@ -890,7 +916,7 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 	err = 0;
 	if (__intel_wait_for_register_fw(uncore,
 					 mode, MODE_IDLE, MODE_IDLE,
-					 1000, 0,
+					 1000, stop_timeout(engine),
 					 NULL)) {
 		GEM_TRACE("%s: timed out on STOP_RING -> IDLE\n", engine->name);
 		err = -ETIMEDOUT;
@@ -1318,10 +1344,11 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		unsigned int idx;
 		u8 read, write;
 
-		drm_printf(m, "\tExeclist tasklet queued? %s (%s), timeslice? %s\n",
+		drm_printf(m, "\tExeclist tasklet queued? %s (%s), preempt? %s, timeslice? %s\n",
 			   yesno(test_bit(TASKLET_STATE_SCHED,
 					  &engine->execlists.tasklet.state)),
 			   enableddisabled(!atomic_read(&engine->execlists.tasklet.count)),
+			   repr_timer(&engine->execlists.preempt),
 			   repr_timer(&engine->execlists.timer));
 
 		read = execlists->csb_head;
@@ -1447,8 +1474,13 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		drm_printf(m, "*** WEDGED ***\n");
 
 	drm_printf(m, "\tAwake? %d\n", atomic_read(&engine->wakeref.count));
-	drm_printf(m, "\tHangcheck: %d ms ago\n",
-		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp));
+
+	rcu_read_lock();
+	rq = READ_ONCE(engine->heartbeat.systole);
+	if (rq)
+		drm_printf(m, "\tHeartbeat: %d ms ago\n",
+			   jiffies_to_msecs(jiffies - rq->emitted_jiffies));
+	rcu_read_unlock();
 	drm_printf(m, "\tReset count: %d (global %d)\n",
 		   i915_reset_engine_count(error, engine),
 		   i915_reset_count(error));

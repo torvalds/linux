@@ -1701,7 +1701,7 @@ intel_tv_detect(struct drm_connector *connector,
 		struct intel_load_detect_pipe tmp;
 		int ret;
 
-		ret = intel_get_load_detect_pipe(connector, NULL, &tmp, ctx);
+		ret = intel_get_load_detect_pipe(connector, &tmp, ctx);
 		if (ret < 0)
 			return ret;
 
@@ -1947,7 +1947,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
 	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 	intel_encoder->port = PORT_NONE;
-	intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B);
+	intel_encoder->pipe_mask = ~0;
 	intel_encoder->cloneable = 0;
 	intel_tv->type = DRM_MODE_CONNECTOR_Unknown;
 

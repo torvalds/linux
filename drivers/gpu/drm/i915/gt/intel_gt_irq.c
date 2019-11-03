@@ -11,6 +11,7 @@
 #include "intel_gt.h"
 #include "intel_gt_irq.h"
 #include "intel_uncore.h"
+#include "intel_rps.h"
 
 static void guc_irq_handler(struct intel_guc *guc, u16 iir)
 {
@@ -77,7 +78,7 @@ gen11_other_irq_handler(struct intel_gt *gt, const u8 instance,
 		return guc_irq_handler(&gt->uc.guc, iir);
 
 	if (instance == OTHER_GTPM_INSTANCE)
-		return gen11_rps_irq_handler(gt, iir);
+		return gen11_rps_irq_handler(&gt->rps, iir);
 
 	WARN_ONCE(1, "unhandled other interrupt instance=0x%x, iir=0x%x\n",
 		  instance, iir);
@@ -336,7 +337,7 @@ void gen8_gt_irq_handler(struct intel_gt *gt, u32 master_ctl, u32 gt_iir[4])
 	}
 
 	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
-		gen6_rps_irq_handler(gt->i915, gt_iir[2]);
+		gen6_rps_irq_handler(&gt->rps, gt_iir[2]);
 		guc_irq_handler(&gt->uc.guc, gt_iir[2] >> 16);
 	}
 }

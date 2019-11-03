@@ -322,8 +322,8 @@ static int get_column_index_for_rc_params(u8 bits_per_component)
 int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config)
 {
-	struct drm_dsc_config *vdsc_cfg = &pipe_config->dp_dsc_cfg;
-	u16 compressed_bpp = pipe_config->dsc_params.compressed_bpp;
+	struct drm_dsc_config *vdsc_cfg = &pipe_config->dsc.config;
+	u16 compressed_bpp = pipe_config->dsc.compressed_bpp;
 	u8 i = 0;
 	int row_index = 0;
 	int column_index = 0;
@@ -332,7 +332,7 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 	vdsc_cfg->pic_width = pipe_config->base.adjusted_mode.crtc_hdisplay;
 	vdsc_cfg->pic_height = pipe_config->base.adjusted_mode.crtc_vdisplay;
 	vdsc_cfg->slice_width = DIV_ROUND_UP(vdsc_cfg->pic_width,
-					     pipe_config->dsc_params.slice_count);
+					     pipe_config->dsc.slice_count);
 	/*
 	 * Slice Height of 8 works for all currently available panels. So start
 	 * with that if pic_height is an integral multiple of 8.
@@ -485,13 +485,13 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dp_dsc_cfg;
+	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	enum pipe pipe = crtc->pipe;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 pps_val = 0;
 	u32 rc_buf_thresh_dword[4];
 	u32 rc_range_params_dword[8];
-	u8 num_vdsc_instances = (crtc_state->dsc_params.dsc_split) ? 2 : 1;
+	u8 num_vdsc_instances = (crtc_state->dsc.dsc_split) ? 2 : 1;
 	int i = 0;
 
 	/* Populate PICTURE_PARAMETER_SET_0 registers */
@@ -514,11 +514,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_0, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_0(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_0(pipe),
 				   pps_val);
 	}
@@ -533,11 +533,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_1, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_1(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_1(pipe),
 				   pps_val);
 	}
@@ -553,11 +553,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_2, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_2(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_2(pipe),
 				   pps_val);
 	}
@@ -573,11 +573,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_3, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_3(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_3(pipe),
 				   pps_val);
 	}
@@ -593,11 +593,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_4, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_4(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_4(pipe),
 				   pps_val);
 	}
@@ -613,11 +613,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_5, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_5(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_5(pipe),
 				   pps_val);
 	}
@@ -635,11 +635,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_6, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_6(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_6(pipe),
 				   pps_val);
 	}
@@ -655,11 +655,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_7, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_7(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_7(pipe),
 				   pps_val);
 	}
@@ -675,11 +675,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_8, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_8(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_8(pipe),
 				   pps_val);
 	}
@@ -695,11 +695,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_9, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_9(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_9(pipe),
 				   pps_val);
 	}
@@ -717,11 +717,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_10, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_10(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_10(pipe),
 				   pps_val);
 	}
@@ -740,11 +740,11 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		 * If 2 VDSC instances are needed, configure PPS for second
 		 * VDSC
 		 */
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(DSCC_PICTURE_PARAMETER_SET_16, pps_val);
 	} else {
 		I915_WRITE(ICL_DSC0_PICTURE_PARAMETER_SET_16(pipe), pps_val);
-		if (crtc_state->dsc_params.dsc_split)
+		if (crtc_state->dsc.dsc_split)
 			I915_WRITE(ICL_DSC1_PICTURE_PARAMETER_SET_16(pipe),
 				   pps_val);
 	}
@@ -763,7 +763,7 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		I915_WRITE(DSCA_RC_BUF_THRESH_0_UDW, rc_buf_thresh_dword[1]);
 		I915_WRITE(DSCA_RC_BUF_THRESH_1, rc_buf_thresh_dword[2]);
 		I915_WRITE(DSCA_RC_BUF_THRESH_1_UDW, rc_buf_thresh_dword[3]);
-		if (crtc_state->dsc_params.dsc_split) {
+		if (crtc_state->dsc.dsc_split) {
 			I915_WRITE(DSCC_RC_BUF_THRESH_0,
 				   rc_buf_thresh_dword[0]);
 			I915_WRITE(DSCC_RC_BUF_THRESH_0_UDW,
@@ -782,7 +782,7 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 			   rc_buf_thresh_dword[2]);
 		I915_WRITE(ICL_DSC0_RC_BUF_THRESH_1_UDW(pipe),
 			   rc_buf_thresh_dword[3]);
-		if (crtc_state->dsc_params.dsc_split) {
+		if (crtc_state->dsc.dsc_split) {
 			I915_WRITE(ICL_DSC1_RC_BUF_THRESH_0(pipe),
 				   rc_buf_thresh_dword[0]);
 			I915_WRITE(ICL_DSC1_RC_BUF_THRESH_0_UDW(pipe),
@@ -824,7 +824,7 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 			   rc_range_params_dword[6]);
 		I915_WRITE(DSCA_RC_RANGE_PARAMETERS_3_UDW,
 			   rc_range_params_dword[7]);
-		if (crtc_state->dsc_params.dsc_split) {
+		if (crtc_state->dsc.dsc_split) {
 			I915_WRITE(DSCC_RC_RANGE_PARAMETERS_0,
 				   rc_range_params_dword[0]);
 			I915_WRITE(DSCC_RC_RANGE_PARAMETERS_0_UDW,
@@ -859,7 +859,7 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 			   rc_range_params_dword[6]);
 		I915_WRITE(ICL_DSC0_RC_RANGE_PARAMETERS_3_UDW(pipe),
 			   rc_range_params_dword[7]);
-		if (crtc_state->dsc_params.dsc_split) {
+		if (crtc_state->dsc.dsc_split) {
 			I915_WRITE(ICL_DSC1_RC_RANGE_PARAMETERS_0(pipe),
 				   rc_range_params_dword[0]);
 			I915_WRITE(ICL_DSC1_RC_RANGE_PARAMETERS_0_UDW(pipe),
@@ -885,7 +885,7 @@ static void intel_dp_write_dsc_pps_sdp(struct intel_encoder *encoder,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dp_dsc_cfg;
+	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	struct drm_dsc_pps_infoframe dp_dsc_pps_sdp;
 
 	/* Prepare DP SDP PPS header as per DP 1.4 spec, Table 2-123 */
@@ -909,7 +909,7 @@ void intel_dsc_enable(struct intel_encoder *encoder,
 	u32 dss_ctl1_val = 0;
 	u32 dss_ctl2_val = 0;
 
-	if (!crtc_state->dsc_params.compression_enable)
+	if (!crtc_state->dsc.compression_enable)
 		return;
 
 	/* Enable Power wells for VDSC/joining */
@@ -928,7 +928,7 @@ void intel_dsc_enable(struct intel_encoder *encoder,
 		dss_ctl2_reg = ICL_PIPE_DSS_CTL2(pipe);
 	}
 	dss_ctl2_val |= LEFT_BRANCH_VDSC_ENABLE;
-	if (crtc_state->dsc_params.dsc_split) {
+	if (crtc_state->dsc.dsc_split) {
 		dss_ctl2_val |= RIGHT_BRANCH_VDSC_ENABLE;
 		dss_ctl1_val |= JOINER_ENABLE;
 	}
@@ -944,7 +944,7 @@ void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 	i915_reg_t dss_ctl1_reg, dss_ctl2_reg;
 	u32 dss_ctl1_val = 0, dss_ctl2_val = 0;
 
-	if (!old_crtc_state->dsc_params.compression_enable)
+	if (!old_crtc_state->dsc.compression_enable)
 		return;
 
 	if (old_crtc_state->cpu_transcoder == TRANSCODER_EDP) {

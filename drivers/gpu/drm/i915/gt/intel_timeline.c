@@ -4,13 +4,13 @@
  * Copyright © 2016-2018 Intel Corporation
  */
 
-#include "gt/intel_gt_types.h"
-
 #include "i915_drv.h"
 
 #include "i915_active.h"
 #include "i915_syncmap.h"
-#include "gt/intel_timeline.h"
+#include "intel_gt.h"
+#include "intel_ring.h"
+#include "intel_timeline.h"
 
 #define ptr_set_bit(ptr, bit) ((typeof(ptr))((unsigned long)(ptr) | BIT(bit)))
 #define ptr_test_bit(ptr, bit) ((unsigned long)(ptr) & BIT(bit))

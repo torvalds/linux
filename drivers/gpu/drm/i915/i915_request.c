@@ -31,6 +31,8 @@
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_context.h"
+#include "gt/intel_ring.h"
+#include "gt/intel_rps.h"
 
 #include "i915_active.h"
 #include "i915_drv.h"
@@ -257,8 +259,8 @@ bool i915_request_retire(struct i915_request *rq)
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
 		i915_request_cancel_breadcrumb(rq);
 	if (i915_request_has_waitboost(rq)) {
-		GEM_BUG_ON(!atomic_read(&rq->i915->gt_pm.rps.num_waiters));
-		atomic_dec(&rq->i915->gt_pm.rps.num_waiters);
+		GEM_BUG_ON(!atomic_read(&rq->engine->gt->rps.num_waiters));
+		atomic_dec(&rq->engine->gt->rps.num_waiters);
 	}
 	if (!test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags)) {
 		set_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
@@ -1446,7 +1448,7 @@ long i915_request_wait(struct i915_request *rq,
 	 * completion. That requires having a good predictor for the request
 	 * duration, which we currently lack.
 	 */
-	if (CONFIG_DRM_I915_SPIN_REQUEST &&
+	if (IS_ACTIVE(CONFIG_DRM_I915_SPIN_REQUEST) &&
 	    __i915_spin_request(rq, state, CONFIG_DRM_I915_SPIN_REQUEST)) {
 		dma_fence_signal(&rq->fence);
 		goto out;
@@ -1466,7 +1468,7 @@ long i915_request_wait(struct i915_request *rq,
 	 */
 	if (flags & I915_WAIT_PRIORITY) {
 		if (!i915_request_started(rq) && INTEL_GEN(rq->i915) >= 6)
-			gen6_rps_boost(rq);
+			intel_rps_boost(rq);
 		i915_schedule_bump_priority(rq, I915_PRIORITY_WAIT);
 	}
 

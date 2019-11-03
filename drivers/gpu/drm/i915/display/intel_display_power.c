@@ -2682,6 +2682,8 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	TGL_PW_2_POWER_DOMAINS |			\
 	BIT_ULL(POWER_DOMAIN_MODESET) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |			\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |			\
 	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define TGL_DDI_IO_D_TC1_POWER_DOMAINS (	\

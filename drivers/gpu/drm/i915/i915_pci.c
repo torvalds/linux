@@ -612,6 +612,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_logical_ring_preemption = 1, \
 	.display.has_csr = 1, \
 	.has_gt_uc = 1, \
+	.display.has_hdcp = 1, \
 	.display.has_ipc = 1, \
 	.ddb_size = 896
 
@@ -655,6 +656,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.display.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
 	.display.has_fbc = 1, \
+	.display.has_hdcp = 1, \
 	.display.has_psr = 1, \
 	.has_runtime_pm = 1, \
 	.display.has_csr = 1, \
@@ -735,6 +737,7 @@ static const struct intel_device_info intel_coffeelake_gt3_info = {
 	GEN9_FEATURES, \
 	GEN(10), \
 	.ddb_size = 1024, \
+	.display.has_dsc = 1, \
 	.has_coherent_ggtt = false, \
 	GLK_COLORS
 
@@ -821,6 +824,10 @@ static const struct intel_device_info intel_tigerlake_12_info = {
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 	.has_rps = false, /* XXX disabled for debugging */
 };
+
+#define GEN12_DGFX_FEATURES \
+	GEN12_FEATURES, \
+	.is_dgfx = 1
 
 #undef GEN
 #undef PLATFORM

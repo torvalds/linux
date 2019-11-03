@@ -301,6 +301,9 @@ static int igt_partial_tiling(void *arg)
 	int tiling;
 	int err;
 
+	if (!i915_ggtt_has_aperture(&i915->ggtt))
+		return 0;
+
 	/* We want to check the page mapping and fencing of a large object
 	 * mmapped through the GTT. The object we create is larger than can
 	 * possibly be mmaped as a whole, and so we must use partial GGTT vma.
@@ -431,6 +434,9 @@ static int igt_smoke_tiling(void *arg)
 	IGT_TIMEOUT(end);
 	int err;
 
+	if (!i915_ggtt_has_aperture(&i915->ggtt))
+		return 0;
+
 	/*
 	 * igt_partial_tiling() does an exhastive check of partial tiling
 	 * chunking, but will undoubtably run out of time. Here, we do a
@@ -515,20 +521,19 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	struct i915_vma *vma;
-	int err;
 
-	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
-	if (err)
-		return err;
-
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		struct i915_request *rq;
+		struct i915_vma *vma;
+		int err;
+
+		vma = i915_vma_instance(obj, &engine->gt->ggtt->vm, NULL);
+		if (IS_ERR(vma))
+			return PTR_ERR(vma);
+
+		err = i915_vma_pin(vma, 0, 0, PIN_USER);
+		if (err)
+			return err;
 
 		rq = i915_request_create(engine->kernel_context);
 		if (IS_ERR(rq)) {
@@ -544,12 +549,13 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 		i915_vma_unlock(vma);
 
 		i915_request_add(rq);
+		i915_vma_unpin(vma);
+		if (err)
+			return err;
 	}
 
-	i915_vma_unpin(vma);
 	i915_gem_object_put(obj); /* leave it only alive via its active ref */
-
-	return err;
+	return 0;
 }
 
 static bool assert_mmap_offset(struct drm_i915_private *i915,

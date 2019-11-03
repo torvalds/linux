@@ -46,8 +46,6 @@ void intel_gt_clear_error_registers(struct intel_gt *gt,
 void intel_gt_flush_ggtt_writes(struct intel_gt *gt);
 void intel_gt_chipset_flush(struct intel_gt *gt);
 
-void intel_gt_init_hangcheck(struct intel_gt *gt);
-
 static inline u32 intel_gt_scratch_offset(const struct intel_gt *gt,
 					  enum intel_gt_scratch_field field)
 {
@@ -58,7 +56,5 @@ static inline bool intel_gt_is_wedged(struct intel_gt *gt)
 {
 	return __intel_reset_failed(&gt->reset);
 }
-
-void intel_gt_queue_hangcheck(struct intel_gt *gt);
 
 #endif /* __INTEL_GT_H__ */

@@ -826,6 +826,8 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			get_task_struct(tsk);
 		}
 
+		yield(); /* start all threads before we begin */
+
 		intel_engine_pm_get(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
@@ -1016,7 +1018,7 @@ static int igt_reset_wait(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct i915_gpu_error *global = &gt->i915->gpu_error;
-	struct intel_engine_cs *engine = gt->i915->engine[RCS0];
+	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct i915_request *rq;
 	unsigned int reset_count;
 	struct hang h;
@@ -1143,13 +1145,17 @@ static int __igt_reset_evict_vma(struct intel_gt *gt,
 				 int (*fn)(void *),
 				 unsigned int flags)
 {
-	struct intel_engine_cs *engine = gt->i915->engine[RCS0];
+	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct drm_i915_gem_object *obj;
 	struct task_struct *tsk = NULL;
 	struct i915_request *rq;
 	struct evict_vma arg;
 	struct hang h;
+	unsigned int pin_flags;
 	int err;
+
+	if (!gt->ggtt->num_fences && flags & EXEC_OBJECT_NEEDS_FENCE)
+		return 0;
 
 	if (!engine || !intel_engine_can_store_dword(engine))
 		return 0;
@@ -1186,10 +1192,12 @@ static int __igt_reset_evict_vma(struct intel_gt *gt,
 		goto out_obj;
 	}
 
-	err = i915_vma_pin(arg.vma, 0, 0,
-			   i915_vma_is_ggtt(arg.vma) ?
-			   PIN_GLOBAL | PIN_MAPPABLE :
-			   PIN_USER);
+	pin_flags = i915_vma_is_ggtt(arg.vma) ? PIN_GLOBAL : PIN_USER;
+
+	if (flags & EXEC_OBJECT_NEEDS_FENCE)
+		pin_flags |= PIN_MAPPABLE;
+
+	err = i915_vma_pin(arg.vma, 0, 0, pin_flags);
 	if (err) {
 		i915_request_add(rq);
 		goto out_obj;
@@ -1493,7 +1501,7 @@ static int igt_handle_error(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct i915_gpu_error *global = &gt->i915->gpu_error;
-	struct intel_engine_cs *engine = gt->i915->engine[RCS0];
+	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct hang h;
 	struct i915_request *rq;
 	struct i915_gpu_state *error;
@@ -1563,7 +1571,7 @@ static int __igt_atomic_reset_engine(struct intel_engine_cs *engine,
 	GEM_TRACE("i915_reset_engine(%s:%s) under %s\n",
 		  engine->name, mode, p->name);
 
-	tasklet_disable_nosync(t);
+	tasklet_disable(t);
 	p->critical_section_begin();
 
 	err = intel_engine_reset(engine, NULL);
@@ -1686,7 +1694,6 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	};
 	struct intel_gt *gt = &i915->gt;
 	intel_wakeref_t wakeref;
-	bool saved_hangcheck;
 	int err;
 
 	if (!intel_has_gpu_reset(gt))
@@ -1696,12 +1703,9 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 		return -EIO; /* we're long past hope of a successful reset */
 
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
-	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);
-	drain_delayed_work(&gt->hangcheck.work); /* flush param */
 
 	err = intel_gt_live_subtests(tests, gt);
 
-	i915_modparams.enable_hangcheck = saved_hangcheck;
 	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 
 	return err;

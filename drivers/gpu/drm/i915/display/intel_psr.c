@@ -76,7 +76,7 @@ static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 			       const struct intel_crtc_state *crtc_state)
 {
 	/* Cannot enable DSC and PSR2 simultaneously */
-	WARN_ON(crtc_state->dsc_params.compression_enable &&
+	WARN_ON(crtc_state->dsc.compression_enable &&
 		crtc_state->has_psr2);
 
 	switch (dev_priv->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
@@ -623,7 +623,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	 * resolution requires DSC to be enabled, priority is given to DSC
 	 * over PSR2.
 	 */
-	if (crtc_state->dsc_params.compression_enable) {
+	if (crtc_state->dsc.compression_enable) {
 		DRM_DEBUG_KMS("PSR2 cannot be enabled since DSC is enabled\n");
 		return false;
 	}
@@ -740,25 +740,6 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 	dev_priv->psr.active = true;
 }
 
-static i915_reg_t gen9_chicken_trans_reg(struct drm_i915_private *dev_priv,
-					 enum transcoder cpu_transcoder)
-{
-	static const i915_reg_t regs[] = {
-		[TRANSCODER_A] = CHICKEN_TRANS_A,
-		[TRANSCODER_B] = CHICKEN_TRANS_B,
-		[TRANSCODER_C] = CHICKEN_TRANS_C,
-		[TRANSCODER_EDP] = CHICKEN_TRANS_EDP,
-	};
-
-	WARN_ON(INTEL_GEN(dev_priv) < 9);
-
-	if (WARN_ON(cpu_transcoder >= ARRAY_SIZE(regs) ||
-		    !regs[cpu_transcoder].reg))
-		cpu_transcoder = TRANSCODER_A;
-
-	return regs[cpu_transcoder];
-}
-
 static void intel_psr_enable_source(struct intel_dp *intel_dp,
 				    const struct intel_crtc_state *crtc_state)
 {
@@ -774,8 +755,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 
 	if (dev_priv->psr.psr2_enabled && (IS_GEN(dev_priv, 9) &&
 					   !IS_GEMINILAKE(dev_priv))) {
-		i915_reg_t reg = gen9_chicken_trans_reg(dev_priv,
-							cpu_transcoder);
+		i915_reg_t reg = CHICKEN_TRANS(cpu_transcoder);
 		u32 chicken = I915_READ(reg);
 
 		chicken |= PSR2_VSC_ENABLE_PROG_HEADER |
@@ -1437,7 +1417,7 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	if (val & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
 		DRM_DEBUG_KMS("PSR VSC SDP uncorrectable error, disabling PSR\n");
 	if (val & DP_PSR_LINK_CRC_ERROR)
-		DRM_ERROR("PSR Link CRC error, disabling PSR\n");
+		DRM_DEBUG_KMS("PSR Link CRC error, disabling PSR\n");
 
 	if (val & ~errors)
 		DRM_ERROR("PSR_ERROR_STATUS unhandled errors %x\n",

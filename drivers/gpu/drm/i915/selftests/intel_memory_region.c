@@ -11,8 +11,15 @@
 #include "mock_gem_device.h"
 #include "mock_region.h"
 
+#include "gem/i915_gem_context.h"
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
+#include "gem/i915_gem_object_blt.h"
+#include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
+#include "gt/intel_engine_user.h"
+#include "gt/intel_gt.h"
+#include "selftests/igt_flush_test.h"
 #include "selftests/i915_random.h"
 
 static void close_objects(struct intel_memory_region *mem,
@@ -252,6 +259,322 @@ err_close_objects:
 	return err;
 }
 
+static int igt_gpu_write_dw(struct intel_context *ce,
+			    struct i915_vma *vma,
+			    u32 dword,
+			    u32 value)
+{
+	return igt_gpu_fill_dw(ce, vma, dword * sizeof(u32),
+			       vma->size >> PAGE_SHIFT, value);
+}
+
+static int igt_cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
+{
+	unsigned long n;
+	int err;
+
+	i915_gem_object_lock(obj);
+	err = i915_gem_object_set_to_wc_domain(obj, false);
+	i915_gem_object_unlock(obj);
+	if (err)
+		return err;
+
+	err = i915_gem_object_pin_pages(obj);
+	if (err)
+		return err;
+
+	for (n = 0; n < obj->base.size >> PAGE_SHIFT; ++n) {
+		u32 __iomem *base;
+		u32 read_val;
+
+		base = i915_gem_object_lmem_io_map_page_atomic(obj, n);
+
+		read_val = ioread32(base + dword);
+		io_mapping_unmap_atomic(base);
+		if (read_val != val) {
+			pr_err("n=%lu base[%u]=%u, val=%u\n",
+			       n, dword, read_val, val);
+			err = -EINVAL;
+			break;
+		}
+	}
+
+	i915_gem_object_unpin_pages(obj);
+	return err;
+}
+
+static int igt_gpu_write(struct i915_gem_context *ctx,
+			 struct drm_i915_gem_object *obj)
+{
+	struct i915_gem_engines *engines;
+	struct i915_gem_engines_iter it;
+	struct i915_address_space *vm;
+	struct intel_context *ce;
+	I915_RND_STATE(prng);
+	IGT_TIMEOUT(end_time);
+	unsigned int count;
+	struct i915_vma *vma;
+	int *order;
+	int i, n;
+	int err = 0;
+
+	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+
+	n = 0;
+	count = 0;
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		count++;
+		if (!intel_engine_can_store_dword(ce->engine))
+			continue;
+
+		vm = ce->vm;
+		n++;
+	}
+	i915_gem_context_unlock_engines(ctx);
+	if (!n)
+		return 0;
+
+	order = i915_random_order(count * count, &prng);
+	if (!order)
+		return -ENOMEM;
+
+	vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto out_free;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		goto out_free;
+
+	i = 0;
+	engines = i915_gem_context_lock_engines(ctx);
+	do {
+		u32 rng = prandom_u32_state(&prng);
+		u32 dword = offset_in_page(rng) / 4;
+
+		ce = engines->engines[order[i] % engines->num_engines];
+		i = (i + 1) % (count * count);
+		if (!ce || !intel_engine_can_store_dword(ce->engine))
+			continue;
+
+		err = igt_gpu_write_dw(ce, vma, dword, rng);
+		if (err)
+			break;
+
+		err = igt_cpu_check(obj, dword, rng);
+		if (err)
+			break;
+	} while (!__igt_timeout(end_time, NULL));
+	i915_gem_context_unlock_engines(ctx);
+
+out_free:
+	kfree(order);
+
+	if (err == -ENOMEM)
+		err = 0;
+
+	return err;
+}
+
+static int igt_lmem_create(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj;
+	int err = 0;
+
+	obj = i915_gem_object_create_lmem(i915, PAGE_SIZE, 0);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	err = i915_gem_object_pin_pages(obj);
+	if (err)
+		goto out_put;
+
+	i915_gem_object_unpin_pages(obj);
+out_put:
+	i915_gem_object_put(obj);
+
+	return err;
+}
+
+static int igt_lmem_write_gpu(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj;
+	struct i915_gem_context *ctx;
+	struct drm_file *file;
+	I915_RND_STATE(prng);
+	u32 sz;
+	int err;
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	ctx = live_context(i915, file);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out_file;
+	}
+
+	sz = round_up(prandom_u32_state(&prng) % SZ_32M, PAGE_SIZE);
+
+	obj = i915_gem_object_create_lmem(i915, sz, 0);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto out_file;
+	}
+
+	err = i915_gem_object_pin_pages(obj);
+	if (err)
+		goto out_put;
+
+	err = igt_gpu_write(ctx, obj);
+	if (err)
+		pr_err("igt_gpu_write failed(%d)\n", err);
+
+	i915_gem_object_unpin_pages(obj);
+out_put:
+	i915_gem_object_put(obj);
+out_file:
+	mock_file_free(i915, file);
+	return err;
+}
+
+static struct intel_engine_cs *
+random_engine_class(struct drm_i915_private *i915,
+		    unsigned int class,
+		    struct rnd_state *prng)
+{
+	struct intel_engine_cs *engine;
+	unsigned int count;
+
+	count = 0;
+	for (engine = intel_engine_lookup_user(i915, class, 0);
+	     engine && engine->uabi_class == class;
+	     engine = rb_entry_safe(rb_next(&engine->uabi_node),
+				    typeof(*engine), uabi_node))
+		count++;
+
+	count = i915_prandom_u32_max_state(count, prng);
+	return intel_engine_lookup_user(i915, class, count);
+}
+
+static int igt_lmem_write_cpu(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj;
+	I915_RND_STATE(prng);
+	IGT_TIMEOUT(end_time);
+	u32 bytes[] = {
+		0, /* rng placeholder */
+		sizeof(u32),
+		sizeof(u64),
+		64, /* cl */
+		PAGE_SIZE,
+		PAGE_SIZE - sizeof(u32),
+		PAGE_SIZE - sizeof(u64),
+		PAGE_SIZE - 64,
+	};
+	struct intel_engine_cs *engine;
+	u32 *vaddr;
+	u32 sz;
+	u32 i;
+	int *order;
+	int count;
+	int err;
+
+	engine = random_engine_class(i915, I915_ENGINE_CLASS_COPY, &prng);
+	if (!engine)
+		return 0;
+
+	pr_info("%s: using %s\n", __func__, engine->name);
+
+	sz = round_up(prandom_u32_state(&prng) % SZ_32M, PAGE_SIZE);
+	sz = max_t(u32, 2 * PAGE_SIZE, sz);
+
+	obj = i915_gem_object_create_lmem(i915, sz, I915_BO_ALLOC_CONTIGUOUS);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	if (IS_ERR(vaddr)) {
+		err = PTR_ERR(vaddr);
+		goto out_put;
+	}
+
+	/* Put the pages into a known state -- from the gpu for added fun */
+	err = i915_gem_object_fill_blt(obj, engine->kernel_context, 0xdeadbeaf);
+	if (err)
+		goto out_unpin;
+
+	i915_gem_object_lock(obj);
+	err = i915_gem_object_set_to_wc_domain(obj, true);
+	i915_gem_object_unlock(obj);
+	if (err)
+		goto out_unpin;
+
+	count = ARRAY_SIZE(bytes);
+	order = i915_random_order(count * count, &prng);
+	if (!order) {
+		err = -ENOMEM;
+		goto out_unpin;
+	}
+
+	/* We want to throw in a random width/align */
+	bytes[0] = igt_random_offset(&prng, 0, PAGE_SIZE, sizeof(u32),
+				     sizeof(u32));
+
+	i = 0;
+	do {
+		u32 offset;
+		u32 align;
+		u32 dword;
+		u32 size;
+		u32 val;
+
+		size = bytes[order[i] % count];
+		i = (i + 1) % (count * count);
+
+		align = bytes[order[i] % count];
+		i = (i + 1) % (count * count);
+
+		align = max_t(u32, sizeof(u32), rounddown_pow_of_two(align));
+
+		offset = igt_random_offset(&prng, 0, obj->base.size,
+					   size, align);
+
+		val = prandom_u32_state(&prng);
+		memset32(vaddr + offset / sizeof(u32), val ^ 0xdeadbeaf,
+			 size / sizeof(u32));
+
+		/*
+		 * Sample random dw -- don't waste precious time reading every
+		 * single dw.
+		 */
+		dword = igt_random_offset(&prng, offset,
+					  offset + size,
+					  sizeof(u32), sizeof(u32));
+		dword /= sizeof(u32);
+		if (vaddr[dword] != (val ^ 0xdeadbeaf)) {
+			pr_err("%s vaddr[%u]=%u, val=%u, size=%u, align=%u, offset=%u\n",
+			       __func__, dword, vaddr[dword], val ^ 0xdeadbeaf,
+			       size, align, offset);
+			err = -EINVAL;
+			break;
+		}
+	} while (!__igt_timeout(end_time, NULL));
+
+out_unpin:
+	i915_gem_object_unpin_map(obj);
+out_put:
+	i915_gem_object_put(obj);
+
+	return err;
+}
+
 int intel_memory_region_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -279,4 +602,23 @@ int intel_memory_region_mock_selftests(void)
 out_unref:
 	drm_dev_put(&i915->drm);
 	return err;
+}
+
+int intel_memory_region_live_selftests(struct drm_i915_private *i915)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_lmem_create),
+		SUBTEST(igt_lmem_write_cpu),
+		SUBTEST(igt_lmem_write_gpu),
+	};
+
+	if (!HAS_LMEM(i915)) {
+		pr_info("device lacks LMEM support, skipping\n");
+		return 0;
+	}
+
+	if (intel_gt_is_wedged(&i915->gt))
+		return 0;
+
+	return i915_live_subtests(tests, i915);
 }

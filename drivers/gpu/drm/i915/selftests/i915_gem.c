@@ -15,23 +15,26 @@
 #include "igt_flush_test.h"
 #include "mock_drm.h"
 
-static int switch_to_context(struct drm_i915_private *i915,
-			     struct i915_gem_context *ctx)
+static int switch_to_context(struct i915_gem_context *ctx)
 {
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	struct i915_gem_engines_iter it;
+	struct intel_context *ce;
+	int err = 0;
 
-	for_each_engine(engine, i915, id) {
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		struct i915_request *rq;
 
-		rq = igt_request_alloc(ctx, engine);
-		if (IS_ERR(rq))
-			return PTR_ERR(rq);
+		rq = intel_context_create_request(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			break;
+		}
 
 		i915_request_add(rq);
 	}
+	i915_gem_context_unlock_engines(ctx);
 
-	return 0;
+	return err;
 }
 
 static void trash_stolen(struct drm_i915_private *i915)
@@ -41,6 +44,10 @@ static void trash_stolen(struct drm_i915_private *i915)
 	const resource_size_t size = resource_size(&i915->dsm);
 	unsigned long page;
 	u32 prng = 0x12345678;
+
+	/* XXX: fsck. needs some more thought... */
+	if (!i915_ggtt_has_aperture(ggtt))
+		return;
 
 	for (page = 0; page < size; page += PAGE_SIZE) {
 		const dma_addr_t dma = i915->dsm.start + page;
@@ -140,7 +147,7 @@ static int igt_gem_suspend(void *arg)
 	err = -ENOMEM;
 	ctx = live_context(i915, file);
 	if (!IS_ERR(ctx))
-		err = switch_to_context(i915, ctx);
+		err = switch_to_context(ctx);
 	if (err)
 		goto out;
 
@@ -155,7 +162,7 @@ static int igt_gem_suspend(void *arg)
 
 	pm_resume(i915);
 
-	err = switch_to_context(i915, ctx);
+	err = switch_to_context(ctx);
 out:
 	mock_file_free(i915, file);
 	return err;
@@ -175,7 +182,7 @@ static int igt_gem_hibernate(void *arg)
 	err = -ENOMEM;
 	ctx = live_context(i915, file);
 	if (!IS_ERR(ctx))
-		err = switch_to_context(i915, ctx);
+		err = switch_to_context(ctx);
 	if (err)
 		goto out;
 
@@ -190,7 +197,7 @@ static int igt_gem_hibernate(void *arg)
 
 	pm_resume(i915);
 
-	err = switch_to_context(i915, ctx);
+	err = switch_to_context(ctx);
 out:
 	mock_file_free(i915, file);
 	return err;

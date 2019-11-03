@@ -22,6 +22,8 @@ mock_context(struct drm_i915_private *i915,
 	INIT_LIST_HEAD(&ctx->link);
 	ctx->i915 = i915;
 
+	i915_gem_context_set_persistence(ctx);
+
 	mutex_init(&ctx->engines_mutex);
 	e = default_engines(ctx);
 	if (IS_ERR(e))

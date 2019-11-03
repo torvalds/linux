@@ -10,6 +10,7 @@
 #include <linux/ioport.h>
 #include <linux/mutex.h>
 #include <linux/io-mapping.h>
+#include <drm/drm_mm.h>
 
 #include "i915_buddy.h"
 
@@ -71,6 +72,9 @@ struct intel_memory_region {
 	struct io_mapping iomap;
 	struct resource region;
 
+	/* For fake LMEM */
+	struct drm_mm_node fake_mappable;
+
 	struct i915_buddy_mm mm;
 	struct mutex mm_lock;
 
@@ -82,6 +86,8 @@ struct intel_memory_region {
 	unsigned int type;
 	unsigned int instance;
 	unsigned int id;
+
+	dma_addr_t remap_addr;
 
 	struct {
 		struct mutex lock; /* Protects access to objects */
@@ -116,5 +122,8 @@ intel_memory_region_create(struct drm_i915_private *i915,
 struct intel_memory_region *
 intel_memory_region_get(struct intel_memory_region *mem);
 void intel_memory_region_put(struct intel_memory_region *mem);
+
+int intel_memory_regions_hw_probe(struct drm_i915_private *i915);
+void intel_memory_regions_driver_release(struct drm_i915_private *i915);
 
 #endif

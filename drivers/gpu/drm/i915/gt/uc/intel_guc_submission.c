@@ -6,12 +6,13 @@
 #include <linux/circ_buf.h>
 
 #include "gem/i915_gem_context.h"
-
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_lrc_reg.h"
+#include "gt/intel_ring.h"
+
 #include "intel_guc_submission.h"
 
 #include "i915_drv.h"
@@ -1010,7 +1011,7 @@ void intel_guc_submission_fini(struct intel_guc *guc)
 
 static void guc_interrupts_capture(struct intel_gt *gt)
 {
-	struct intel_rps *rps = &gt->i915->gt_pm.rps;
+	struct intel_rps *rps = &gt->rps;
 	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -1056,7 +1057,7 @@ static void guc_interrupts_capture(struct intel_gt *gt)
 
 static void guc_interrupts_release(struct intel_gt *gt)
 {
-	struct intel_rps *rps = &gt->i915->gt_pm.rps;
+	struct intel_rps *rps = &gt->rps;
 	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -1125,7 +1126,7 @@ int intel_guc_submission_enable(struct intel_guc *guc)
 	enum intel_engine_id id;
 	int err;
 
-	err = i915_inject_load_error(gt->i915, -ENXIO);
+	err = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (err)
 		return err;
 

@@ -11,25 +11,6 @@
 
 #include "i915_drv.h"
 
-static int pm_notifier(struct notifier_block *nb,
-		       unsigned long action,
-		       void *data)
-{
-	struct drm_i915_private *i915 =
-		container_of(nb, typeof(*i915), gem.pm_notifier);
-
-	switch (action) {
-	case INTEL_GT_UNPARK:
-		break;
-
-	case INTEL_GT_PARK:
-		i915_vma_parked(i915);
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
 static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 {
 	bool result = !intel_gt_is_wedged(gt);
@@ -54,11 +35,6 @@ static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 		result = false;
 
 	return result;
-}
-
-bool i915_gem_load_power_context(struct drm_i915_private *i915)
-{
-	return switch_to_kernel_context_sync(&i915->gt);
 }
 
 static void user_forcewake(struct intel_gt *gt, bool suspend)
@@ -99,8 +75,6 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 */
 	intel_gt_suspend(&i915->gt);
 	intel_uc_suspend(&i915->gt.uc);
-
-	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
 
 	i915_gem_drain_freed_objects(i915);
 }
@@ -190,7 +164,7 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	intel_uc_resume(&i915->gt.uc);
 
 	/* Always reload a context for powersaving. */
-	if (!i915_gem_load_power_context(i915))
+	if (!switch_to_kernel_context_sync(&i915->gt))
 		goto err_wedged;
 
 	user_forcewake(&i915->gt, false);
@@ -206,11 +180,4 @@ err_wedged:
 		intel_gt_set_wedged(&i915->gt);
 	}
 	goto out_unlock;
-}
-
-void i915_gem_init__pm(struct drm_i915_private *i915)
-{
-	i915->gem.pm_notifier.notifier_call = pm_notifier;
-	blocking_notifier_chain_register(&i915->gt.pm_notifications,
-					 &i915->gem.pm_notifier);
 }

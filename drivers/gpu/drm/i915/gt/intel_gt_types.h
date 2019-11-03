@@ -20,20 +20,13 @@
 #include "intel_llc_types.h"
 #include "intel_reset_types.h"
 #include "intel_rc6_types.h"
+#include "intel_rps_types.h"
 #include "intel_wakeref.h"
 
 struct drm_i915_private;
 struct i915_ggtt;
 struct intel_engine_cs;
 struct intel_uncore;
-
-struct intel_hangcheck {
-	/* For hangcheck timer */
-#define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
-#define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
-
-	struct delayed_work work;
-};
 
 struct intel_gt {
 	struct drm_i915_private *i915;
@@ -68,7 +61,6 @@ struct intel_gt {
 	struct list_head closed_vma;
 	spinlock_t closed_lock; /* guards the list of closed_vma */
 
-	struct intel_hangcheck hangcheck;
 	struct intel_reset reset;
 
 	/**
@@ -82,8 +74,7 @@ struct intel_gt {
 
 	struct intel_llc llc;
 	struct intel_rc6 rc6;
-
-	struct blocking_notifier_head pm_notifications;
+	struct intel_rps rps;
 
 	ktime_t last_init_time;
 

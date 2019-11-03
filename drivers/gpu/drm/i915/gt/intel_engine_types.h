@@ -15,6 +15,7 @@
 #include <linux/rbtree.h>
 #include <linux/timer.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 #include "i915_gem.h"
 #include "i915_pmu.h"
@@ -58,6 +59,7 @@ struct i915_gem_context;
 struct i915_request;
 struct i915_sched_attr;
 struct intel_gt;
+struct intel_ring;
 struct intel_uncore;
 
 typedef u8 intel_engine_mask_t;
@@ -74,40 +76,6 @@ struct intel_instdone {
 	u32 slice_common;
 	u32 sampler[I915_MAX_SLICES][I915_MAX_SUBSLICES];
 	u32 row[I915_MAX_SLICES][I915_MAX_SUBSLICES];
-};
-
-struct intel_engine_hangcheck {
-	u64 acthd;
-	u32 last_ring;
-	u32 last_head;
-	unsigned long action_timestamp;
-	struct intel_instdone instdone;
-};
-
-struct intel_ring {
-	struct kref ref;
-	struct i915_vma *vma;
-	void *vaddr;
-
-	/*
-	 * As we have two types of rings, one global to the engine used
-	 * by ringbuffer submission and those that are exclusive to a
-	 * context used by execlists, we have to play safe and allow
-	 * atomic updates to the pin_count. However, the actual pinning
-	 * of the context is either done during initialisation for
-	 * ringbuffer submission or serialised as part of the context
-	 * pinning for execlists, and so we do not need a mutex ourselves
-	 * to serialise intel_ring_pin/intel_ring_unpin.
-	 */
-	atomic_t pin_count;
-
-	u32 head;
-	u32 tail;
-	u32 emit;
-
-	u32 space;
-	u32 size;
-	u32 effective_size;
 };
 
 /*
@@ -173,6 +141,11 @@ struct intel_engine_execlists {
 	 * @timer: kick the current context if its timeslice expires
 	 */
 	struct timer_list timer;
+
+	/**
+	 * @preempt: reset the current context if it fails to give way
+	 */
+	struct timer_list preempt;
 
 	/**
 	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
@@ -326,6 +299,11 @@ struct intel_engine_cs {
 
 	intel_engine_mask_t saturated; /* submitting semaphores too late? */
 
+	struct {
+		struct delayed_work work;
+		struct i915_request *systole;
+	} heartbeat;
+
 	unsigned long serial;
 
 	unsigned long wakeref_serial;
@@ -476,8 +454,6 @@ struct intel_engine_cs {
 	/* status_notifier: list of callbacks for context-switch changes */
 	struct atomic_notifier_head context_status_notifier;
 
-	struct intel_engine_hangcheck hangcheck;
-
 #define I915_ENGINE_NEEDS_CMD_PARSER BIT(0)
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
 #define I915_ENGINE_HAS_PREEMPTION   BIT(2)
@@ -542,6 +518,13 @@ struct intel_engine_cs {
 		 */
 		ktime_t total;
 	} stats;
+
+	struct {
+		unsigned long heartbeat_interval_ms;
+		unsigned long preempt_timeout_ms;
+		unsigned long stop_timeout_ms;
+		unsigned long timeslice_duration_ms;
+	} props;
 };
 
 static inline bool

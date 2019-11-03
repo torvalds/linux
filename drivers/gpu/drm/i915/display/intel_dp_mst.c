@@ -600,8 +600,6 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	struct intel_dp_mst_encoder *intel_mst;
 	struct intel_encoder *intel_encoder;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum pipe pipe_iter;
 
 	intel_mst = kzalloc(sizeof(*intel_mst), GFP_KERNEL);
 
@@ -619,8 +617,15 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	intel_encoder->power_domain = intel_dig_port->base.power_domain;
 	intel_encoder->port = intel_dig_port->base.port;
 	intel_encoder->cloneable = 0;
-	for_each_pipe(dev_priv, pipe_iter)
-		intel_encoder->crtc_mask |= BIT(pipe_iter);
+	/*
+	 * This is wrong, but broken userspace uses the intersection
+	 * of possible_crtcs of all the encoders of a given connector
+	 * to figure out which crtcs can drive said connector. What
+	 * should be used instead is the union of possible_crtcs.
+	 * To keep such userspace functioning we must misconfigure
+	 * this to make sure the intersection is not empty :(
+	 */
+	intel_encoder->pipe_mask = ~0;
 
 	intel_encoder->compute_config = intel_dp_mst_compute_config;
 	intel_encoder->disable = intel_mst_disable_dp;

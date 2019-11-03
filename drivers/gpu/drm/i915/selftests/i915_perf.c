@@ -23,7 +23,8 @@ test_stream(struct i915_perf *perf)
 						   I915_ENGINE_CLASS_RENDER,
 						   0),
 		.sample_flags = SAMPLE_OA_REPORT,
-		.oa_format = I915_OA_FORMAT_C4_B8,
+		.oa_format = IS_GEN(perf->i915, 12) ?
+		I915_OA_FORMAT_A32u40_A4u32_B8_C8 : I915_OA_FORMAT_C4_B8,
 		.metrics_set = 1,
 	};
 	struct i915_perf_stream *stream;

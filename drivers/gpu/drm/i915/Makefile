@@ -78,22 +78,24 @@ gt-y += \
 	gt/intel_breadcrumbs.o \
 	gt/intel_context.o \
 	gt/intel_engine_cs.o \
-	gt/intel_engine_pool.o \
+	gt/intel_engine_heartbeat.o \
 	gt/intel_engine_pm.o \
+	gt/intel_engine_pool.o \
 	gt/intel_engine_user.o \
 	gt/intel_gt.o \
 	gt/intel_gt_irq.o \
 	gt/intel_gt_pm.o \
 	gt/intel_gt_pm_irq.o \
 	gt/intel_gt_requests.o \
-	gt/intel_hangcheck.o \
 	gt/intel_llc.o \
 	gt/intel_lrc.o \
+	gt/intel_mocs.o \
 	gt/intel_rc6.o \
 	gt/intel_renderstate.o \
 	gt/intel_reset.o \
-	gt/intel_ringbuffer.o \
-	gt/intel_mocs.o \
+	gt/intel_ring.o \
+	gt/intel_ring_submission.o \
+	gt/intel_rps.o \
 	gt/intel_sseu.o \
 	gt/intel_timeline.o \
 	gt/intel_workarounds.o
@@ -119,6 +121,7 @@ gem-y += \
 	gem/i915_gem_internal.o \
 	gem/i915_gem_object.o \
 	gem/i915_gem_object_blt.o \
+	gem/i915_gem_lmem.o \
 	gem/i915_gem_mman.o \
 	gem/i915_gem_pages.o \
 	gem/i915_gem_phys.o \
@@ -147,6 +150,7 @@ i915-y += \
 	  i915_scheduler.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
+	  intel_region_lmem.o \
 	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support
@@ -243,7 +247,8 @@ i915-y += \
 	oa/i915_oa_cflgt2.o \
 	oa/i915_oa_cflgt3.o \
 	oa/i915_oa_cnl.o \
-	oa/i915_oa_icl.o
+	oa/i915_oa_icl.o \
+	oa/i915_oa_tgl.o
 i915-y += i915_perf.o
 
 # Post-mortem debug and GPU hang state capture

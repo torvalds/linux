@@ -16,6 +16,12 @@ enum {
 	I915_PRIORITY_MIN = I915_CONTEXT_MIN_USER_PRIORITY - 1,
 	I915_PRIORITY_NORMAL = I915_CONTEXT_DEFAULT_PRIORITY,
 	I915_PRIORITY_MAX = I915_CONTEXT_MAX_USER_PRIORITY + 1,
+
+	/* A preemptive pulse used to monitor the health of each engine */
+	I915_PRIORITY_HEARTBEAT,
+
+	/* Interactive workload, scheduled for immediate pageflipping */
+	I915_PRIORITY_DISPLAY,
 };
 
 #define I915_USER_PRIORITY_SHIFT 2
@@ -39,6 +45,7 @@ enum {
  * active request.
  */
 #define I915_PRIORITY_UNPREEMPTABLE INT_MAX
+#define I915_PRIORITY_BARRIER INT_MAX
 
 #define __NO_PREEMPTION (I915_PRIORITY_WAIT)
 

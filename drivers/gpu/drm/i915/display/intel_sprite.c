@@ -322,6 +322,55 @@ bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id)
 		icl_hdr_plane_mask() & BIT(plane_id);
 }
 
+static void
+skl_plane_ratio(const struct intel_crtc_state *crtc_state,
+		const struct intel_plane_state *plane_state,
+		unsigned int *num, unsigned int *den)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane_state->base.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+
+	if (fb->format->cpp[0] == 8) {
+		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+			*num = 10;
+			*den = 8;
+		} else {
+			*num = 9;
+			*den = 8;
+		}
+	} else {
+		*num = 1;
+		*den = 1;
+	}
+}
+
+static int skl_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			       const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane_state->base.plane->dev);
+	unsigned int pixel_rate = crtc_state->pixel_rate;
+	unsigned int src_w, src_h, dst_w, dst_h;
+	unsigned int num, den;
+
+	skl_plane_ratio(crtc_state, plane_state, &num, &den);
+
+	/* two pixels per clock on glk+ */
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		den *= 2;
+
+	src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	src_h = drm_rect_height(&plane_state->base.src) >> 16;
+	dst_w = drm_rect_width(&plane_state->base.dst);
+	dst_h = drm_rect_height(&plane_state->base.dst);
+
+	/* Downscaling limits the maximum pixel rate */
+	dst_w = min(src_w, dst_w);
+	dst_h = min(src_h, dst_h);
+
+	return DIV64_U64_ROUND_UP(mul_u32_u32(pixel_rate * num, src_w * src_h),
+				  mul_u32_u32(den, dst_w * dst_h));
+}
+
 static unsigned int
 skl_plane_max_stride(struct intel_plane *plane,
 		     u32 pixel_format, u64 modifier,
@@ -811,6 +860,85 @@ vlv_update_clrc(const struct intel_plane_state *plane_state)
 		      SP_SH_SIN(sh_sin) | SP_SH_COS(sh_cos));
 }
 
+static void
+vlv_plane_ratio(const struct intel_crtc_state *crtc_state,
+		const struct intel_plane_state *plane_state,
+		unsigned int *num, unsigned int *den)
+{
+	u8 active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int cpp = fb->format->cpp[0];
+
+	/*
+	 * VLV bspec only considers cases where all three planes are
+	 * enabled, and cases where the primary and one sprite is enabled.
+	 * Let's assume the case with just two sprites enabled also
+	 * maps to the latter case.
+	 */
+	if (hweight8(active_planes) == 3) {
+		switch (cpp) {
+		case 8:
+			*num = 11;
+			*den = 8;
+			break;
+		case 4:
+			*num = 18;
+			*den = 16;
+			break;
+		default:
+			*num = 1;
+			*den = 1;
+			break;
+		}
+	} else if (hweight8(active_planes) == 2) {
+		switch (cpp) {
+		case 8:
+			*num = 10;
+			*den = 8;
+			break;
+		case 4:
+			*num = 17;
+			*den = 16;
+			break;
+		default:
+			*num = 1;
+			*den = 1;
+			break;
+		}
+	} else {
+		switch (cpp) {
+		case 8:
+			*num = 10;
+			*den = 8;
+			break;
+		default:
+			*num = 1;
+			*den = 1;
+			break;
+		}
+	}
+}
+
+int vlv_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state)
+{
+	unsigned int pixel_rate;
+	unsigned int num, den;
+
+	/*
+	 * Note that crtc_state->pixel_rate accounts for both
+	 * horizontal and vertical panel fitter downscaling factors.
+	 * Pre-HSW bspec tells us to only consider the horizontal
+	 * downscaling factor here. We ignore that and just consider
+	 * both for simplicity.
+	 */
+	pixel_rate = crtc_state->pixel_rate;
+
+	vlv_plane_ratio(crtc_state, plane_state, &num, &den);
+
+	return DIV_ROUND_UP(pixel_rate * num, den);
+}
+
 static u32 vlv_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
 	u32 sprctl = 0;
@@ -1017,6 +1145,164 @@ vlv_plane_get_hw_state(struct intel_plane *plane,
 	return ret;
 }
 
+static void ivb_plane_ratio(const struct intel_crtc_state *crtc_state,
+			    const struct intel_plane_state *plane_state,
+			    unsigned int *num, unsigned int *den)
+{
+	u8 active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int cpp = fb->format->cpp[0];
+
+	if (hweight8(active_planes) == 2) {
+		switch (cpp) {
+		case 8:
+			*num = 10;
+			*den = 8;
+			break;
+		case 4:
+			*num = 17;
+			*den = 16;
+			break;
+		default:
+			*num = 1;
+			*den = 1;
+			break;
+		}
+	} else {
+		switch (cpp) {
+		case 8:
+			*num = 9;
+			*den = 8;
+			break;
+		default:
+			*num = 1;
+			*den = 1;
+			break;
+		}
+	}
+}
+
+static void ivb_plane_ratio_scaling(const struct intel_crtc_state *crtc_state,
+				    const struct intel_plane_state *plane_state,
+				    unsigned int *num, unsigned int *den)
+{
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int cpp = fb->format->cpp[0];
+
+	switch (cpp) {
+	case 8:
+		*num = 12;
+		*den = 8;
+		break;
+	case 4:
+		*num = 19;
+		*den = 16;
+		break;
+	case 2:
+		*num = 33;
+		*den = 32;
+		break;
+	default:
+		*num = 1;
+		*den = 1;
+		break;
+	}
+}
+
+int ivb_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state)
+{
+	unsigned int pixel_rate;
+	unsigned int num, den;
+
+	/*
+	 * Note that crtc_state->pixel_rate accounts for both
+	 * horizontal and vertical panel fitter downscaling factors.
+	 * Pre-HSW bspec tells us to only consider the horizontal
+	 * downscaling factor here. We ignore that and just consider
+	 * both for simplicity.
+	 */
+	pixel_rate = crtc_state->pixel_rate;
+
+	ivb_plane_ratio(crtc_state, plane_state, &num, &den);
+
+	return DIV_ROUND_UP(pixel_rate * num, den);
+}
+
+static int ivb_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
+				const struct intel_plane_state *plane_state)
+{
+	unsigned int src_w, dst_w, pixel_rate;
+	unsigned int num, den;
+
+	/*
+	 * Note that crtc_state->pixel_rate accounts for both
+	 * horizontal and vertical panel fitter downscaling factors.
+	 * Pre-HSW bspec tells us to only consider the horizontal
+	 * downscaling factor here. We ignore that and just consider
+	 * both for simplicity.
+	 */
+	pixel_rate = crtc_state->pixel_rate;
+
+	src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	dst_w = drm_rect_width(&plane_state->base.dst);
+
+	if (src_w != dst_w)
+		ivb_plane_ratio_scaling(crtc_state, plane_state, &num, &den);
+	else
+		ivb_plane_ratio(crtc_state, plane_state, &num, &den);
+
+	/* Horizontal downscaling limits the maximum pixel rate */
+	dst_w = min(src_w, dst_w);
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(pixel_rate, num * src_w),
+				den * dst_w);
+}
+
+static void hsw_plane_ratio(const struct intel_crtc_state *crtc_state,
+			    const struct intel_plane_state *plane_state,
+			    unsigned int *num, unsigned int *den)
+{
+	u8 active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int cpp = fb->format->cpp[0];
+
+	if (hweight8(active_planes) == 2) {
+		switch (cpp) {
+		case 8:
+			*num = 10;
+			*den = 8;
+			break;
+		default:
+			*num = 1;
+			*den = 1;
+			break;
+		}
+	} else {
+		switch (cpp) {
+		case 8:
+			*num = 9;
+			*den = 8;
+			break;
+		default:
+			*num = 1;
+			*den = 1;
+			break;
+		}
+	}
+}
+
+int hsw_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state)
+{
+	unsigned int pixel_rate = crtc_state->pixel_rate;
+	unsigned int num, den;
+
+	hsw_plane_ratio(crtc_state, plane_state, &num, &den);
+
+	return DIV_ROUND_UP(pixel_rate * num, den);
+}
+
 static u32 ivb_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
 	u32 sprctl = 0;
@@ -1028,6 +1314,16 @@ static u32 ivb_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
 	return sprctl;
+}
+
+static bool ivb_need_sprite_gamma(const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+
+	return fb->format->cpp[0] == 8 &&
+		(IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv));
 }
 
 static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
@@ -1052,6 +1348,12 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_XRGB8888:
 		sprctl |= SPRITE_FORMAT_RGBX888;
 		break;
+	case DRM_FORMAT_XBGR16161616F:
+		sprctl |= SPRITE_FORMAT_RGBX161616 | SPRITE_RGB_ORDER_RGBX;
+		break;
+	case DRM_FORMAT_XRGB16161616F:
+		sprctl |= SPRITE_FORMAT_RGBX161616;
+		break;
 	case DRM_FORMAT_YUYV:
 		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_YUYV;
 		break;
@@ -1069,7 +1371,8 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		return 0;
 	}
 
-	sprctl |= SPRITE_INT_GAMMA_DISABLE;
+	if (!ivb_need_sprite_gamma(plane_state))
+		sprctl |= SPRITE_INT_GAMMA_DISABLE;
 
 	if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
 		sprctl |= SPRITE_YUV_TO_RGB_CSC_FORMAT_BT709;
@@ -1091,12 +1394,26 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	return sprctl;
 }
 
-static void ivb_sprite_linear_gamma(u16 gamma[18])
+static void ivb_sprite_linear_gamma(const struct intel_plane_state *plane_state,
+				    u16 gamma[18])
 {
-	int i;
+	int scale, i;
 
-	for (i = 0; i < 17; i++)
-		gamma[i] = (i << 10) / 16;
+	/*
+	 * WaFP16GammaEnabling:ivb,hsw
+	 * "Workaround : When using the 64-bit format, the sprite output
+	 *  on each color channel has one quarter amplitude. It can be
+	 *  brought up to full amplitude by using sprite internal gamma
+	 *  correction, pipe gamma correction, or pipe color space
+	 *  conversion to multiply the sprite output by four."
+	 */
+	scale = 4;
+
+	for (i = 0; i < 16; i++)
+		gamma[i] = min((scale * i << 10) / 16, (1 << 10) - 1);
+
+	gamma[i] = min((scale * i << 10) / 16, 1 << 10);
+	i++;
 
 	gamma[i] = 3 << 10;
 	i++;
@@ -1110,7 +1427,10 @@ static void ivb_update_gamma(const struct intel_plane_state *plane_state)
 	u16 gamma[18];
 	int i;
 
-	ivb_sprite_linear_gamma(gamma);
+	if (!ivb_need_sprite_gamma(plane_state))
+		return;
+
+	ivb_sprite_linear_gamma(plane_state, gamma);
 
 	/* FIXME these register are single buffered :( */
 	for (i = 0; i < 16; i++)
@@ -1243,6 +1563,53 @@ ivb_plane_get_hw_state(struct intel_plane *plane,
 	return ret;
 }
 
+static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
+				const struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int hscale, pixel_rate;
+	unsigned int limit, decimate;
+
+	/*
+	 * Note that crtc_state->pixel_rate accounts for both
+	 * horizontal and vertical panel fitter downscaling factors.
+	 * Pre-HSW bspec tells us to only consider the horizontal
+	 * downscaling factor here. We ignore that and just consider
+	 * both for simplicity.
+	 */
+	pixel_rate = crtc_state->pixel_rate;
+
+	/* Horizontal downscaling limits the maximum pixel rate */
+	hscale = drm_rect_calc_hscale(&plane_state->base.src,
+				      &plane_state->base.dst,
+				      0, INT_MAX);
+	if (hscale < 0x10000)
+		return pixel_rate;
+
+	/* Decimation steps at 2x,4x,8x,16x */
+	decimate = ilog2(hscale >> 16);
+	hscale >>= decimate;
+
+	/* Starting limit is 90% of cdclk */
+	limit = 9;
+
+	/* -10% per decimation step */
+	limit -= decimate;
+
+	/* -10% for RGB */
+	if (fb->format->cpp[0] >= 4)
+		limit--; /* -10% for RGB */
+
+	/*
+	 * We should also do -10% if sprite scaling is enabled
+	 * on the other pipe, but we can't really check for that,
+	 * so we ignore it.
+	 */
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(pixel_rate, 10 * hscale),
+				limit << 16);
+}
+
 static unsigned int
 g4x_sprite_max_stride(struct intel_plane *plane,
 		      u32 pixel_format, u64 modifier,
@@ -1285,6 +1652,12 @@ static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		break;
 	case DRM_FORMAT_XRGB8888:
 		dvscntr |= DVS_FORMAT_RGBX888;
+		break;
+	case DRM_FORMAT_XBGR16161616F:
+		dvscntr |= DVS_FORMAT_RGBX161616 | DVS_RGB_ORDER_XBGR;
+		break;
+	case DRM_FORMAT_XRGB16161616F:
+		dvscntr |= DVS_FORMAT_RGBX161616;
 		break;
 	case DRM_FORMAT_YUYV:
 		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_YUYV;
@@ -1499,6 +1872,11 @@ static bool intel_fb_scalable(const struct drm_framebuffer *fb)
 	switch (fb->format->format) {
 	case DRM_FORMAT_C8:
 		return false;
+	case DRM_FORMAT_XRGB16161616F:
+	case DRM_FORMAT_ARGB16161616F:
+	case DRM_FORMAT_XBGR16161616F:
+	case DRM_FORMAT_ABGR16161616F:
+		return INTEL_GEN(to_i915(fb->dev)) >= 11;
 	default:
 		return true;
 	}
@@ -1787,6 +2165,22 @@ static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_s
 	return 0;
 }
 
+static int skl_plane_max_scale(struct drm_i915_private *dev_priv,
+			       const struct drm_framebuffer *fb)
+{
+	/*
+	 * We don't yet know the final source width nor
+	 * whether we can use the HQ scaler mode. Assume
+	 * the best case.
+	 * FIXME need to properly check this later.
+	 */
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv) ||
+	    !drm_format_info_is_yuv_semiplanar(fb->format))
+		return 0x30000 - 1;
+	else
+		return 0x20000 - 1;
+}
+
 static int skl_plane_check(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state)
 {
@@ -1804,7 +2198,7 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	/* use scaler when colorkey is not required */
 	if (!plane_state->ckey.flags && intel_fb_scalable(fb)) {
 		min_scale = 1;
-		max_scale = skl_max_scale(crtc_state, fb->format);
+		max_scale = skl_plane_max_scale(dev_priv, fb);
 	}
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
@@ -1979,8 +2373,10 @@ static const u64 i9xx_plane_format_modifiers[] = {
 };
 
 static const u32 snb_plane_formats[] = {
-	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB16161616F,
+	DRM_FORMAT_XBGR16161616F,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_UYVY,
@@ -2010,6 +2406,8 @@ static const u32 skl_plane_formats[] = {
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XRGB2101010,
 	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_XRGB16161616F,
+	DRM_FORMAT_XBGR16161616F,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_UYVY,
@@ -2025,6 +2423,8 @@ static const u32 skl_planar_formats[] = {
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XRGB2101010,
 	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_XRGB16161616F,
+	DRM_FORMAT_XBGR16161616F,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_UYVY,
@@ -2041,6 +2441,8 @@ static const u32 glk_planar_formats[] = {
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XRGB2101010,
 	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_XRGB16161616F,
+	DRM_FORMAT_XBGR16161616F,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_UYVY,
@@ -2191,6 +2593,8 @@ static bool snb_sprite_format_mod_supported(struct drm_plane *_plane,
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_XRGB16161616F:
+	case DRM_FORMAT_XBGR16161616F:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
@@ -2511,6 +2915,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->disable_plane = skl_disable_plane;
 	plane->get_hw_state = skl_plane_get_hw_state;
 	plane->check_plane = skl_plane_check;
+	plane->min_cdclk = skl_plane_min_cdclk;
 	if (icl_is_nv12_y_plane(plane_id))
 		plane->update_slave = icl_update_slave;
 
@@ -2618,6 +3023,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->disable_plane = vlv_disable_plane;
 		plane->get_hw_state = vlv_plane_get_hw_state;
 		plane->check_plane = vlv_sprite_check;
+		plane->min_cdclk = vlv_plane_min_cdclk;
 
 		formats = vlv_plane_formats;
 		num_formats = ARRAY_SIZE(vlv_plane_formats);
@@ -2631,6 +3037,11 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->get_hw_state = ivb_plane_get_hw_state;
 		plane->check_plane = g4x_sprite_check;
 
+		if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+			plane->min_cdclk = hsw_plane_min_cdclk;
+		else
+			plane->min_cdclk = ivb_sprite_min_cdclk;
+
 		formats = snb_plane_formats;
 		num_formats = ARRAY_SIZE(snb_plane_formats);
 		modifiers = i9xx_plane_format_modifiers;
@@ -2642,6 +3053,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->disable_plane = g4x_disable_plane;
 		plane->get_hw_state = g4x_plane_get_hw_state;
 		plane->check_plane = g4x_sprite_check;
+		plane->min_cdclk = g4x_sprite_min_cdclk;
 
 		modifiers = i9xx_plane_format_modifiers;
 		if (IS_GEN(dev_priv, 6)) {

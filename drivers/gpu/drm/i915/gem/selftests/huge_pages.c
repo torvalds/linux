@@ -9,6 +9,7 @@
 #include "i915_selftest.h"
 
 #include "gem/i915_gem_region.h"
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_pm.h"
 
 #include "gt/intel_gt.h"
@@ -149,6 +150,7 @@ huge_pages_object(struct drm_i915_private *i915,
 		  u64 size,
 		  unsigned int page_mask)
 {
+	static struct lock_class_key lock_class;
 	struct drm_i915_gem_object *obj;
 
 	GEM_BUG_ON(!size);
@@ -165,7 +167,7 @@ huge_pages_object(struct drm_i915_private *i915,
 		return ERR_PTR(-ENOMEM);
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
-	i915_gem_object_init(obj, &huge_page_ops);
+	i915_gem_object_init(obj, &huge_page_ops, &lock_class);
 
 	i915_gem_object_set_volatile(obj);
 
@@ -295,6 +297,7 @@ static const struct drm_i915_gem_object_ops fake_ops_single = {
 static struct drm_i915_gem_object *
 fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 {
+	static struct lock_class_key lock_class;
 	struct drm_i915_gem_object *obj;
 
 	GEM_BUG_ON(!size);
@@ -313,9 +316,9 @@ fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 
 	if (single)
-		i915_gem_object_init(obj, &fake_ops_single);
+		i915_gem_object_init(obj, &fake_ops_single, &lock_class);
 	else
-		i915_gem_object_init(obj, &fake_ops);
+		i915_gem_object_init(obj, &fake_ops, &lock_class);
 
 	i915_gem_object_set_volatile(obj);
 
@@ -981,7 +984,8 @@ static int gpu_write(struct intel_context *ce,
 			       vma->size >> PAGE_SHIFT, val);
 }
 
-static int cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
+static int
+__cpu_check_shmem(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 {
 	unsigned int needs_flush;
 	unsigned long n;
@@ -1011,6 +1015,51 @@ static int cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	i915_gem_object_finish_access(obj);
 
 	return err;
+}
+
+static int __cpu_check_lmem(struct drm_i915_gem_object *obj, u32 dword, u32 val)
+{
+	unsigned long n;
+	int err;
+
+	i915_gem_object_lock(obj);
+	err = i915_gem_object_set_to_wc_domain(obj, false);
+	i915_gem_object_unlock(obj);
+	if (err)
+		return err;
+
+	err = i915_gem_object_pin_pages(obj);
+	if (err)
+		return err;
+
+	for (n = 0; n < obj->base.size >> PAGE_SHIFT; ++n) {
+		u32 __iomem *base;
+		u32 read_val;
+
+		base = i915_gem_object_lmem_io_map_page_atomic(obj, n);
+
+		read_val = ioread32(base + dword);
+		io_mapping_unmap_atomic(base);
+		if (read_val != val) {
+			pr_err("n=%lu base[%u]=%u, val=%u\n",
+			       n, dword, read_val, val);
+			err = -EINVAL;
+			break;
+		}
+	}
+
+	i915_gem_object_unpin_pages(obj);
+	return err;
+}
+
+static int cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
+{
+	if (i915_gem_object_has_struct_page(obj))
+		return __cpu_check_shmem(obj, dword, val);
+	else if (i915_gem_object_is_lmem(obj))
+		return __cpu_check_lmem(obj, dword, val);
+
+	return -ENODEV;
 }
 
 static int __igt_write_huge(struct intel_context *ce,
@@ -1268,131 +1317,235 @@ out_device:
 	return err;
 }
 
-static int igt_ppgtt_internal_huge(void *arg)
-{
-	struct i915_gem_context *ctx = arg;
-	struct drm_i915_private *i915 = ctx->i915;
-	struct drm_i915_gem_object *obj;
-	static const unsigned int sizes[] = {
-		SZ_64K,
-		SZ_128K,
-		SZ_256K,
-		SZ_512K,
-		SZ_1M,
-		SZ_2M,
-	};
-	int i;
-	int err;
-
-	/*
-	 * Sanity check that the HW uses huge pages correctly through internal
-	 * -- ensure that our writes land in the right place.
-	 */
-
-	for (i = 0; i < ARRAY_SIZE(sizes); ++i) {
-		unsigned int size = sizes[i];
-
-		obj = i915_gem_object_create_internal(i915, size);
-		if (IS_ERR(obj))
-			return PTR_ERR(obj);
-
-		err = i915_gem_object_pin_pages(obj);
-		if (err)
-			goto out_put;
-
-		if (obj->mm.page_sizes.phys < I915_GTT_PAGE_SIZE_64K) {
-			pr_info("internal unable to allocate huge-page(s) with size=%u\n",
-				size);
-			goto out_unpin;
-		}
-
-		err = igt_write_huge(ctx, obj);
-		if (err) {
-			pr_err("internal write-huge failed with size=%u\n",
-			       size);
-			goto out_unpin;
-		}
-
-		i915_gem_object_unpin_pages(obj);
-		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
-		i915_gem_object_put(obj);
-	}
-
-	return 0;
-
-out_unpin:
-	i915_gem_object_unpin_pages(obj);
-out_put:
-	i915_gem_object_put(obj);
-
-	return err;
-}
+typedef struct drm_i915_gem_object *
+(*igt_create_fn)(struct drm_i915_private *i915, u32 size, u32 flags);
 
 static inline bool igt_can_allocate_thp(struct drm_i915_private *i915)
 {
 	return i915->mm.gemfs && has_transparent_hugepage();
 }
 
-static int igt_ppgtt_gemfs_huge(void *arg)
+static struct drm_i915_gem_object *
+igt_create_shmem(struct drm_i915_private *i915, u32 size, u32 flags)
+{
+	if (!igt_can_allocate_thp(i915)) {
+		pr_info("%s missing THP support, skipping\n", __func__);
+		return ERR_PTR(-ENODEV);
+	}
+
+	return i915_gem_object_create_shmem(i915, size);
+}
+
+static struct drm_i915_gem_object *
+igt_create_internal(struct drm_i915_private *i915, u32 size, u32 flags)
+{
+	return i915_gem_object_create_internal(i915, size);
+}
+
+static struct drm_i915_gem_object *
+igt_create_system(struct drm_i915_private *i915, u32 size, u32 flags)
+{
+	return huge_pages_object(i915, size, size);
+}
+
+static struct drm_i915_gem_object *
+igt_create_local(struct drm_i915_private *i915, u32 size, u32 flags)
+{
+	return i915_gem_object_create_lmem(i915, size, flags);
+}
+
+static u32 igt_random_size(struct rnd_state *prng,
+			   u32 min_page_size,
+			   u32 max_page_size)
+{
+	u64 mask;
+	u32 size;
+
+	GEM_BUG_ON(!is_power_of_2(min_page_size));
+	GEM_BUG_ON(!is_power_of_2(max_page_size));
+	GEM_BUG_ON(min_page_size < PAGE_SIZE);
+	GEM_BUG_ON(min_page_size > max_page_size);
+
+	mask = ((max_page_size << 1ULL) - 1) & PAGE_MASK;
+	size = prandom_u32_state(prng) & mask;
+	if (size < min_page_size)
+		size |= min_page_size;
+
+	return size;
+}
+
+static int igt_ppgtt_smoke_huge(void *arg)
 {
 	struct i915_gem_context *ctx = arg;
 	struct drm_i915_private *i915 = ctx->i915;
 	struct drm_i915_gem_object *obj;
-	static const unsigned int sizes[] = {
-		SZ_2M,
-		SZ_4M,
-		SZ_8M,
-		SZ_16M,
-		SZ_32M,
+	I915_RND_STATE(prng);
+	struct {
+		igt_create_fn fn;
+		u32 min;
+		u32 max;
+	} backends[] = {
+		{ igt_create_internal, SZ_64K, SZ_2M,  },
+		{ igt_create_shmem,    SZ_64K, SZ_32M, },
+		{ igt_create_local,    SZ_64K, SZ_1G,  },
 	};
-	int i;
 	int err;
+	int i;
 
 	/*
-	 * Sanity check that the HW uses huge pages correctly through gemfs --
-	 * ensure that our writes land in the right place.
+	 * Sanity check that the HW uses huge pages correctly through our
+	 * various backends -- ensure that our writes land in the right place.
 	 */
 
-	if (!igt_can_allocate_thp(i915)) {
-		pr_info("missing THP support, skipping\n");
-		return 0;
-	}
+	for (i = 0; i < ARRAY_SIZE(backends); ++i) {
+		u32 min = backends[i].min;
+		u32 max = backends[i].max;
+		u32 size = max;
+try_again:
+		size = igt_random_size(&prng, min, rounddown_pow_of_two(size));
 
-	for (i = 0; i < ARRAY_SIZE(sizes); ++i) {
-		unsigned int size = sizes[i];
+		obj = backends[i].fn(i915, size, 0);
+		if (IS_ERR(obj)) {
+			err = PTR_ERR(obj);
+			if (err == -E2BIG) {
+				size >>= 1;
+				goto try_again;
+			} else if (err == -ENODEV) {
+				err = 0;
+				continue;
+			}
 
-		obj = i915_gem_object_create_shmem(i915, size);
-		if (IS_ERR(obj))
-			return PTR_ERR(obj);
+			return err;
+		}
 
 		err = i915_gem_object_pin_pages(obj);
-		if (err)
+		if (err) {
+			if (err == -ENXIO) {
+				i915_gem_object_put(obj);
+				size >>= 1;
+				goto try_again;
+			}
 			goto out_put;
+		}
 
-		if (obj->mm.page_sizes.phys < I915_GTT_PAGE_SIZE_2M) {
-			pr_info("finishing test early, gemfs unable to allocate huge-page(s) with size=%u\n",
-				size);
+		if (obj->mm.page_sizes.phys < min) {
+			pr_info("%s unable to allocate huge-page(s) with size=%u, i=%d\n",
+				__func__, size, i);
+			err = -ENOMEM;
 			goto out_unpin;
 		}
 
 		err = igt_write_huge(ctx, obj);
 		if (err) {
-			pr_err("gemfs write-huge failed with size=%u\n",
-			       size);
-			goto out_unpin;
+			pr_err("%s write-huge failed with size=%u, i=%d\n",
+			       __func__, size, i);
 		}
-
+out_unpin:
 		i915_gem_object_unpin_pages(obj);
 		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+out_put:
 		i915_gem_object_put(obj);
+
+		if (err == -ENOMEM || err == -ENXIO)
+			err = 0;
+
+		if (err)
+			break;
+
+		cond_resched();
 	}
 
-	return 0;
+	return err;
+}
 
-out_unpin:
-	i915_gem_object_unpin_pages(obj);
-out_put:
-	i915_gem_object_put(obj);
+static int igt_ppgtt_sanity_check(void *arg)
+{
+	struct i915_gem_context *ctx = arg;
+	struct drm_i915_private *i915 = ctx->i915;
+	unsigned int supported = INTEL_INFO(i915)->page_sizes;
+	struct {
+		igt_create_fn fn;
+		unsigned int flags;
+	} backends[] = {
+		{ igt_create_system, 0,                        },
+		{ igt_create_local,  I915_BO_ALLOC_CONTIGUOUS, },
+	};
+	struct {
+		u32 size;
+		u32 pages;
+	} combos[] = {
+		{ SZ_64K,		SZ_64K		},
+		{ SZ_2M,		SZ_2M		},
+		{ SZ_2M,		SZ_64K		},
+		{ SZ_2M - SZ_64K,	SZ_64K		},
+		{ SZ_2M - SZ_4K,	SZ_64K | SZ_4K	},
+		{ SZ_2M + SZ_4K,	SZ_64K | SZ_4K	},
+		{ SZ_2M + SZ_4K,	SZ_2M  | SZ_4K	},
+		{ SZ_2M + SZ_64K,	SZ_2M  | SZ_64K },
+	};
+	int i, j;
+	int err;
+
+	if (supported == I915_GTT_PAGE_SIZE_4K)
+		return 0;
+
+	/*
+	 * Sanity check that the HW behaves with a limited set of combinations.
+	 * We already have a bunch of randomised testing, which should give us
+	 * a decent amount of variation between runs, however we should keep
+	 * this to limit the chances of introducing a temporary regression, by
+	 * testing the most obvious cases that might make something blow up.
+	 */
+
+	for (i = 0; i < ARRAY_SIZE(backends); ++i) {
+		for (j = 0; j < ARRAY_SIZE(combos); ++j) {
+			struct drm_i915_gem_object *obj;
+			u32 size = combos[j].size;
+			u32 pages = combos[j].pages;
+
+			obj = backends[i].fn(i915, size, backends[i].flags);
+			if (IS_ERR(obj)) {
+				err = PTR_ERR(obj);
+				if (err == -ENODEV) {
+					pr_info("Device lacks local memory, skipping\n");
+					err = 0;
+					break;
+				}
+
+				return err;
+			}
+
+			err = i915_gem_object_pin_pages(obj);
+			if (err) {
+				i915_gem_object_put(obj);
+				goto out;
+			}
+
+			GEM_BUG_ON(pages > obj->base.size);
+			pages = pages & supported;
+
+			if (pages)
+				obj->mm.page_sizes.sg = pages;
+
+			err = igt_write_huge(ctx, obj);
+
+			i915_gem_object_unpin_pages(obj);
+			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			i915_gem_object_put(obj);
+
+			if (err) {
+				pr_err("%s write-huge failed with size=%u pages=%u i=%d, j=%d\n",
+				       __func__, size, pages, i, j);
+				goto out;
+			}
+		}
+
+		cond_resched();
+	}
+
+out:
+	if (err == -ENOMEM)
+		err = 0;
 
 	return err;
 }
@@ -1756,8 +1909,8 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ppgtt_pin_update),
 		SUBTEST(igt_tmpfs_fallback),
 		SUBTEST(igt_ppgtt_exhaust_huge),
-		SUBTEST(igt_ppgtt_gemfs_huge),
-		SUBTEST(igt_ppgtt_internal_huge),
+		SUBTEST(igt_ppgtt_smoke_huge),
+		SUBTEST(igt_ppgtt_sanity_check),
 	};
 	struct drm_file *file;
 	struct i915_gem_context *ctx;

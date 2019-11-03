@@ -17,13 +17,7 @@ struct drm_device;
 struct drm_display_mode;
 struct drm_i915_private;
 struct intel_crtc;
-struct intel_crtc;
-struct intel_gt;
-struct intel_guc;
 struct intel_uncore;
-
-void gen11_rps_irq_handler(struct intel_gt *gt, u32 pm_iir);
-void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
 
 void intel_irq_init(struct drm_i915_private *dev_priv);
 void intel_irq_fini(struct drm_i915_private *dev_priv);
@@ -106,12 +100,6 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);
 void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);
-void gen9_reset_guc_interrupts(struct intel_guc *guc);
-void gen9_enable_guc_interrupts(struct intel_guc *guc);
-void gen9_disable_guc_interrupts(struct intel_guc *guc);
-void gen11_reset_guc_interrupts(struct intel_guc *guc);
-void gen11_enable_guc_interrupts(struct intel_guc *guc);
-void gen11_disable_guc_interrupts(struct intel_guc *guc);
 
 bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 			      bool in_vblank_irq, int *vpos, int *hpos,

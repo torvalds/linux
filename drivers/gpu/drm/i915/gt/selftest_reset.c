@@ -126,7 +126,7 @@ static int igt_atomic_engine_reset(void *arg)
 		goto out_unlock;
 
 	for_each_engine(engine, gt, id) {
-		tasklet_disable_nosync(&engine->execlists.tasklet);
+		tasklet_disable(&engine->execlists.tasklet);
 		intel_engine_pm_get(engine);
 
 		for (p = igt_atomic_phases; p->name; p++) {
