@@ -273,7 +273,7 @@ int vpu_ipi_register(struct platform_device *pdev,
 		return -EPROBE_DEFER;
 	}
 
-	if (id >= 0 && id < IPI_MAX && handler) {
+	if (id < IPI_MAX && handler) {
 		ipi_desc = vpu->ipi_desc;
 		ipi_desc[id].name = name;
 		ipi_desc[id].handler = handler;
@@ -398,7 +398,7 @@ int vpu_wdt_reg_handler(struct platform_device *pdev,
 
 	handler = vpu->wdt.handler;
 
-	if (id >= 0 && id < VPU_RST_MAX && wdt_reset) {
+	if (id < VPU_RST_MAX && wdt_reset) {
 		dev_dbg(vpu->dev, "wdt register id %d\n", id);
 		mutex_lock(&vpu->vpu_mutex);
 		handler[id].reset_func = wdt_reset;
