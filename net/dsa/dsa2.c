@@ -874,12 +874,13 @@ static void dsa_switch_remove(struct dsa_switch *ds)
 	struct dsa_switch_tree *dst = ds->dst;
 	struct dsa_port *dp, *next;
 
+	dsa_tree_teardown(dst);
+
 	list_for_each_entry_safe(dp, next, &dst->ports, list) {
 		list_del(&dp->list);
 		kfree(dp);
 	}
 
-	dsa_tree_teardown(dst);
 	dsa_tree_put(dst);
 }
 
