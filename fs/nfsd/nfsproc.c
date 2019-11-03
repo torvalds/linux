@@ -113,7 +113,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		}
 	}
 
-	nfserr = nfsd_setattr(rqstp, fhp, iap, 0, (time_t)0);
+	nfserr = nfsd_setattr(rqstp, fhp, iap, 0, (time64_t)0);
 done:
 	return nfsd_return_attrs(nfserr, resp);
 }
@@ -380,7 +380,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 		 */
 		attr->ia_valid &= ATTR_SIZE;
 		if (attr->ia_valid)
-			nfserr = nfsd_setattr(rqstp, newfhp, attr, 0, (time_t)0);
+			nfserr = nfsd_setattr(rqstp, newfhp, attr, 0, (time64_t)0);
 	}
 
 out_unlock:
