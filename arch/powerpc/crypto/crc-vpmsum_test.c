@@ -103,6 +103,7 @@ static int __init crc_test_init(void)
 				       crc32, verify32, len);
 				break;
 			}
+		cond_resched();
 		}
 		pr_info("crc-vpmsum_test done, completed %lu iterations\n", i);
 	} while (0);
