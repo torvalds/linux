@@ -288,6 +288,8 @@ cifs_down_write(struct rw_semaphore *sem)
 		msleep(10);
 }
 
+static void cifsFileInfo_put_work(struct work_struct *work);
+
 struct cifsFileInfo *
 cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 		  struct tcon_link *tlink, __u32 oplock)
@@ -325,6 +327,7 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	cfile->invalidHandle = false;
 	cfile->tlink = cifs_get_tlink(tlink);
 	INIT_WORK(&cfile->oplock_break, cifs_oplock_break);
+	INIT_WORK(&cfile->put, cifsFileInfo_put_work);
 	mutex_init(&cfile->fh_mutex);
 	spin_lock_init(&cfile->file_info_lock);
 
@@ -375,6 +378,41 @@ cifsFileInfo_get(struct cifsFileInfo *cifs_file)
 	return cifs_file;
 }
 
+static void cifsFileInfo_put_final(struct cifsFileInfo *cifs_file)
+{
+	struct inode *inode = d_inode(cifs_file->dentry);
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct cifsLockInfo *li, *tmp;
+	struct super_block *sb = inode->i_sb;
+
+	/*
+	 * Delete any outstanding lock records. We'll lose them when the file
+	 * is closed anyway.
+	 */
+	cifs_down_write(&cifsi->lock_sem);
+	list_for_each_entry_safe(li, tmp, &cifs_file->llist->locks, llist) {
+		list_del(&li->llist);
+		cifs_del_lock_waiters(li);
+		kfree(li);
+	}
+	list_del(&cifs_file->llist->llist);
+	kfree(cifs_file->llist);
+	up_write(&cifsi->lock_sem);
+
+	cifs_put_tlink(cifs_file->tlink);
+	dput(cifs_file->dentry);
+	cifs_sb_deactive(sb);
+	kfree(cifs_file);
+}
+
+static void cifsFileInfo_put_work(struct work_struct *work)
+{
+	struct cifsFileInfo *cifs_file = container_of(work,
+			struct cifsFileInfo, put);
+
+	cifsFileInfo_put_final(cifs_file);
+}
+
 /**
  * cifsFileInfo_put - release a reference of file priv data
  *
@@ -382,15 +420,15 @@ cifsFileInfo_get(struct cifsFileInfo *cifs_file)
  */
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 {
-	_cifsFileInfo_put(cifs_file, true);
+	_cifsFileInfo_put(cifs_file, true, true);
 }
 
 /**
  * _cifsFileInfo_put - release a reference of file priv data
  *
  * This may involve closing the filehandle @cifs_file out on the
- * server. Must be called without holding tcon->open_file_lock and
- * cifs_file->file_info_lock.
+ * server. Must be called without holding tcon->open_file_lock,
+ * cinode->open_file_lock and cifs_file->file_info_lock.
  *
  * If @wait_for_oplock_handler is true and we are releasing the last
  * reference, wait for any running oplock break handler of the file
@@ -398,7 +436,8 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
  * oplock break handler, you need to pass false.
  *
  */
-void _cifsFileInfo_put(struct cifsFileInfo *cifs_file, bool wait_oplock_handler)
+void _cifsFileInfo_put(struct cifsFileInfo *cifs_file,
+		       bool wait_oplock_handler, bool offload)
 {
 	struct inode *inode = d_inode(cifs_file->dentry);
 	struct cifs_tcon *tcon = tlink_tcon(cifs_file->tlink);
@@ -406,7 +445,6 @@ void _cifsFileInfo_put(struct cifsFileInfo *cifs_file, bool wait_oplock_handler)
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 	struct super_block *sb = inode->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifsLockInfo *li, *tmp;
 	struct cifs_fid fid;
 	struct cifs_pending_open open;
 	bool oplock_break_cancelled;
@@ -467,24 +505,10 @@ void _cifsFileInfo_put(struct cifsFileInfo *cifs_file, bool wait_oplock_handler)
 
 	cifs_del_pending_open(&open);
 
-	/*
-	 * Delete any outstanding lock records. We'll lose them when the file
-	 * is closed anyway.
-	 */
-	cifs_down_write(&cifsi->lock_sem);
-	list_for_each_entry_safe(li, tmp, &cifs_file->llist->locks, llist) {
-		list_del(&li->llist);
-		cifs_del_lock_waiters(li);
-		kfree(li);
-	}
-	list_del(&cifs_file->llist->llist);
-	kfree(cifs_file->llist);
-	up_write(&cifsi->lock_sem);
-
-	cifs_put_tlink(cifs_file->tlink);
-	dput(cifs_file->dentry);
-	cifs_sb_deactive(sb);
-	kfree(cifs_file);
+	if (offload)
+		queue_work(fileinfo_put_wq, &cifs_file->put);
+	else
+		cifsFileInfo_put_final(cifs_file);
 }
 
 int cifs_open(struct inode *inode, struct file *file)
@@ -815,7 +839,7 @@ reopen_error_exit:
 int cifs_close(struct inode *inode, struct file *file)
 {
 	if (file->private_data != NULL) {
-		cifsFileInfo_put(file->private_data);
+		_cifsFileInfo_put(file->private_data, true, false);
 		file->private_data = NULL;
 	}
 
@@ -4749,7 +4773,7 @@ void cifs_oplock_break(struct work_struct *work)
 							     cinode);
 		cifs_dbg(FYI, "Oplock release rc = %d\n", rc);
 	}
-	_cifsFileInfo_put(cfile, false /* do not wait for ourself */);
+	_cifsFileInfo_put(cfile, false /* do not wait for ourself */, false);
 	cifs_done_oplock_break(cinode);
 }
 
