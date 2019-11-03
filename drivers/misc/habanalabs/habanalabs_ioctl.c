@@ -242,6 +242,22 @@ static int get_clk_rate(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(clk_rate))) ? -EFAULT : 0;
 }
 
+static int get_reset_count(struct hl_device *hdev, struct hl_info_args *args)
+{
+	struct hl_info_reset_count reset_count = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	reset_count.hard_reset_cnt = hdev->hard_reset_cnt;
+	reset_count.soft_reset_cnt = hdev->soft_reset_cnt;
+
+	return copy_to_user(out, &reset_count,
+		min((size_t) max_size, sizeof(reset_count))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -259,6 +275,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_DEVICE_STATUS:
 		return device_status_info(hdev, args);
+
+	case HL_INFO_RESET_COUNT:
+		return get_reset_count(hdev, args);
 
 	default:
 		break;

@@ -98,6 +98,9 @@ enum hl_device_status {
  * HL_INFO_CLK_RATE            - Retrieve the current and maximum clock rate
  *                               of the device in MHz. The maximum clock rate is
  *                               configurable via sysfs parameter
+ * HL_INFO_RESET_COUNT   - Retrieve the counts of the soft and hard reset
+ *                         operations performed on the device since the last
+ *                         time the driver was loaded.
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -107,6 +110,7 @@ enum hl_device_status {
 #define HL_INFO_DEVICE_UTILIZATION	6
 #define HL_INFO_HW_EVENTS_AGGREGATE	7
 #define HL_INFO_CLK_RATE		8
+#define HL_INFO_RESET_COUNT		9
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -158,6 +162,11 @@ struct hl_info_device_utilization {
 struct hl_info_clk_rate {
 	__u32 cur_clk_rate_mhz;
 	__u32 max_clk_rate_mhz;
+};
+
+struct hl_info_reset_count {
+	__u32 hard_reset_cnt;
+	__u32 soft_reset_cnt;
 };
 
 struct hl_info_args {
