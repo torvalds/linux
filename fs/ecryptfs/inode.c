@@ -128,13 +128,20 @@ static int ecryptfs_do_unlink(struct inode *dir, struct dentry *dentry,
 			      struct inode *inode)
 {
 	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	struct inode *lower_dir_inode = ecryptfs_inode_to_lower(dir);
 	struct dentry *lower_dir_dentry;
+	struct inode *lower_dir_inode;
 	int rc;
 
-	dget(lower_dentry);
-	lower_dir_dentry = lock_parent(lower_dentry);
-	rc = vfs_unlink(lower_dir_inode, lower_dentry, NULL);
+	lower_dir_dentry = ecryptfs_dentry_to_lower(dentry->d_parent);
+	lower_dir_inode = d_inode(lower_dir_dentry);
+	inode_lock_nested(lower_dir_inode, I_MUTEX_PARENT);
+	dget(lower_dentry);	// don't even try to make the lower negative
+	if (lower_dentry->d_parent != lower_dir_dentry)
+		rc = -EINVAL;
+	else if (d_unhashed(lower_dentry))
+		rc = -EINVAL;
+	else
+		rc = vfs_unlink(lower_dir_inode, lower_dentry, NULL);
 	if (rc) {
 		printk(KERN_ERR "Error in vfs_unlink; rc = [%d]\n", rc);
 		goto out_unlock;
@@ -142,10 +149,11 @@ static int ecryptfs_do_unlink(struct inode *dir, struct dentry *dentry,
 	fsstack_copy_attr_times(dir, lower_dir_inode);
 	set_nlink(inode, ecryptfs_inode_to_lower(inode)->i_nlink);
 	inode->i_ctime = dir->i_ctime;
-	d_drop(dentry);
 out_unlock:
-	unlock_dir(lower_dir_dentry);
 	dput(lower_dentry);
+	inode_unlock(lower_dir_inode);
+	if (!rc)
+		d_drop(dentry);
 	return rc;
 }
 
@@ -512,22 +520,30 @@ static int ecryptfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct dentry *lower_dentry;
 	struct dentry *lower_dir_dentry;
+	struct inode *lower_dir_inode;
 	int rc;
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	dget(dentry);
-	lower_dir_dentry = lock_parent(lower_dentry);
-	dget(lower_dentry);
-	rc = vfs_rmdir(d_inode(lower_dir_dentry), lower_dentry);
-	dput(lower_dentry);
-	if (!rc && d_really_is_positive(dentry))
+	lower_dir_dentry = ecryptfs_dentry_to_lower(dentry->d_parent);
+	lower_dir_inode = d_inode(lower_dir_dentry);
+
+	inode_lock_nested(lower_dir_inode, I_MUTEX_PARENT);
+	dget(lower_dentry);	// don't even try to make the lower negative
+	if (lower_dentry->d_parent != lower_dir_dentry)
+		rc = -EINVAL;
+	else if (d_unhashed(lower_dentry))
+		rc = -EINVAL;
+	else
+		rc = vfs_rmdir(lower_dir_inode, lower_dentry);
+	if (!rc) {
 		clear_nlink(d_inode(dentry));
-	fsstack_copy_attr_times(dir, d_inode(lower_dir_dentry));
-	set_nlink(dir, d_inode(lower_dir_dentry)->i_nlink);
-	unlock_dir(lower_dir_dentry);
+		fsstack_copy_attr_times(dir, lower_dir_inode);
+		set_nlink(dir, lower_dir_inode->i_nlink);
+	}
+	dput(lower_dentry);
+	inode_unlock(lower_dir_inode);
 	if (!rc)
 		d_drop(dentry);
-	dput(dentry);
 	return rc;
 }
 
@@ -565,20 +581,22 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct dentry *lower_new_dentry;
 	struct dentry *lower_old_dir_dentry;
 	struct dentry *lower_new_dir_dentry;
-	struct dentry *trap = NULL;
+	struct dentry *trap;
 	struct inode *target_inode;
 
 	if (flags)
 		return -EINVAL;
 
+	lower_old_dir_dentry = ecryptfs_dentry_to_lower(old_dentry->d_parent);
+	lower_new_dir_dentry = ecryptfs_dentry_to_lower(new_dentry->d_parent);
+
 	lower_old_dentry = ecryptfs_dentry_to_lower(old_dentry);
 	lower_new_dentry = ecryptfs_dentry_to_lower(new_dentry);
-	dget(lower_old_dentry);
-	dget(lower_new_dentry);
-	lower_old_dir_dentry = dget_parent(lower_old_dentry);
-	lower_new_dir_dentry = dget_parent(lower_new_dentry);
+
 	target_inode = d_inode(new_dentry);
+
 	trap = lock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
+	dget(lower_new_dentry);
 	rc = -EINVAL;
 	if (lower_old_dentry->d_parent != lower_old_dir_dentry)
 		goto out_lock;
@@ -606,11 +624,8 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (new_dir != old_dir)
 		fsstack_copy_attr_all(old_dir, d_inode(lower_old_dir_dentry));
 out_lock:
-	unlock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
-	dput(lower_new_dir_dentry);
-	dput(lower_old_dir_dentry);
 	dput(lower_new_dentry);
-	dput(lower_old_dentry);
+	unlock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
 	return rc;
 }
 
