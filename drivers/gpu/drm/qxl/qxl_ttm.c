@@ -110,8 +110,8 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 	*placement = qbo->placement;
 }
 
-static int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
-				  struct ttm_mem_reg *mem)
+int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
+			   struct ttm_mem_reg *mem)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	struct qxl_device *qdev = qxl_get_qdev(bdev);
@@ -319,14 +319,11 @@ static int qxl_mm_dump_table(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_mm *mm = (struct drm_mm *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
-	struct qxl_device *rdev = dev->dev_private;
-	struct ttm_bo_global *glob = rdev->mman.bdev.glob;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	spin_lock(&glob->lru_lock);
+	spin_lock(&ttm_bo_glob.lru_lock);
 	drm_mm_print(mm, &p);
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&ttm_bo_glob.lru_lock);
 	return 0;
 }
 #endif

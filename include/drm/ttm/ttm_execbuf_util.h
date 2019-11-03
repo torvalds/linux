@@ -99,7 +99,7 @@ extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
 
 extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 				  struct list_head *list, bool intr,
-				  struct list_head *dups, bool del_lru);
+				  struct list_head *dups);
 
 /**
  * function ttm_eu_fence_buffer_objects.

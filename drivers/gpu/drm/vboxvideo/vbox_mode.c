@@ -334,35 +334,6 @@ static void vbox_primary_atomic_disable(struct drm_plane *plane,
 				    old_state->src_y >> 16);
 }
 
-static int vbox_primary_prepare_fb(struct drm_plane *plane,
-				   struct drm_plane_state *new_state)
-{
-	struct drm_gem_vram_object *gbo;
-	int ret;
-
-	if (!new_state->fb)
-		return 0;
-
-	gbo = drm_gem_vram_of_gem(new_state->fb->obj[0]);
-	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
-	if (ret)
-		DRM_WARN("Error %d pinning new fb, out of video mem?\n", ret);
-
-	return ret;
-}
-
-static void vbox_primary_cleanup_fb(struct drm_plane *plane,
-				    struct drm_plane_state *old_state)
-{
-	struct drm_gem_vram_object *gbo;
-
-	if (!old_state->fb)
-		return;
-
-	gbo = drm_gem_vram_of_gem(old_state->fb->obj[0]);
-	drm_gem_vram_unpin(gbo);
-}
-
 static int vbox_cursor_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *new_state)
 {
@@ -492,30 +463,6 @@ static void vbox_cursor_atomic_disable(struct drm_plane *plane,
 	mutex_unlock(&vbox->hw_mutex);
 }
 
-static int vbox_cursor_prepare_fb(struct drm_plane *plane,
-				  struct drm_plane_state *new_state)
-{
-	struct drm_gem_vram_object *gbo;
-
-	if (!new_state->fb)
-		return 0;
-
-	gbo = drm_gem_vram_of_gem(new_state->fb->obj[0]);
-	return drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_SYSTEM);
-}
-
-static void vbox_cursor_cleanup_fb(struct drm_plane *plane,
-				   struct drm_plane_state *old_state)
-{
-	struct drm_gem_vram_object *gbo;
-
-	if (!plane->state->fb)
-		return;
-
-	gbo = drm_gem_vram_of_gem(plane->state->fb->obj[0]);
-	drm_gem_vram_unpin(gbo);
-}
-
 static const u32 vbox_cursor_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
@@ -524,8 +471,8 @@ static const struct drm_plane_helper_funcs vbox_cursor_helper_funcs = {
 	.atomic_check	= vbox_cursor_atomic_check,
 	.atomic_update	= vbox_cursor_atomic_update,
 	.atomic_disable	= vbox_cursor_atomic_disable,
-	.prepare_fb	= vbox_cursor_prepare_fb,
-	.cleanup_fb	= vbox_cursor_cleanup_fb,
+	.prepare_fb	= drm_gem_vram_plane_helper_prepare_fb,
+	.cleanup_fb	= drm_gem_vram_plane_helper_cleanup_fb,
 };
 
 static const struct drm_plane_funcs vbox_cursor_plane_funcs = {
@@ -546,8 +493,8 @@ static const struct drm_plane_helper_funcs vbox_primary_helper_funcs = {
 	.atomic_check = vbox_primary_atomic_check,
 	.atomic_update = vbox_primary_atomic_update,
 	.atomic_disable = vbox_primary_atomic_disable,
-	.prepare_fb = vbox_primary_prepare_fb,
-	.cleanup_fb = vbox_primary_cleanup_fb,
+	.prepare_fb	= drm_gem_vram_plane_helper_prepare_fb,
+	.cleanup_fb	= drm_gem_vram_plane_helper_cleanup_fb,
 };
 
 static const struct drm_plane_funcs vbox_primary_plane_funcs = {
@@ -890,7 +837,7 @@ static int vbox_connector_init(struct drm_device *dev,
 }
 
 static const struct drm_mode_config_funcs vbox_mode_funcs = {
-	.fb_create = drm_gem_fb_create,
+	.fb_create = drm_gem_fb_create_with_dirty,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };

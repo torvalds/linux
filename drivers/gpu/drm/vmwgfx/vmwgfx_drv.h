@@ -102,6 +102,8 @@ struct vmw_fpriv {
  * @base: The TTM buffer object
  * @res_list: List of resources using this buffer object as a backing MOB
  * @pin_count: pin depth
+ * @cpu_writers: Number of synccpu write grabs. Protected by reservation when
+ * increased. May be decreased without reservation.
  * @dx_query_ctx: DX context if this buffer object is used as a DX query MOB
  * @map: Kmap object for semi-persistent mappings
  * @res_prios: Eviction priority counts for attached resources
@@ -110,6 +112,7 @@ struct vmw_buffer_object {
 	struct ttm_buffer_object base;
 	struct list_head res_list;
 	s32 pin_count;
+	atomic_t cpu_writers;
 	/* Not ref-counted.  Protected by binding_mutex */
 	struct vmw_resource *dx_query_ctx;
 	/* Protected by reservation */

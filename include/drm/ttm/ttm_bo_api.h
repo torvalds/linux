@@ -147,7 +147,6 @@ struct ttm_tt;
  * holds a pointer to a persistent shmem object.
  * @ttm: TTM structure holding system pages.
  * @evicted: Whether the object was evicted without user-space knowing.
- * @cpu_writes: For synchronization. Number of cpu writers.
  * @lru: List head for the lru list.
  * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
@@ -197,12 +196,6 @@ struct ttm_buffer_object {
 	struct file *persistent_swap_storage;
 	struct ttm_tt *ttm;
 	bool evicted;
-
-	/**
-	 * Members protected by the bo::reserved lock only when written to.
-	 */
-
-	atomic_t cpu_writers;
 
 	/**
 	 * Members protected by the bdev::lru_lock.
@@ -368,30 +361,6 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 void ttm_bo_put(struct ttm_buffer_object *bo);
 
 /**
- * ttm_bo_add_to_lru
- *
- * @bo: The buffer object.
- *
- * Add this bo to the relevant mem type lru and, if it's backed by
- * system pages (ttms) to the swap list.
- * This function must be called with struct ttm_bo_global::lru_lock held, and
- * is typically called immediately prior to unreserving a bo.
- */
-void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
-
-/**
- * ttm_bo_del_from_lru
- *
- * @bo: The buffer object.
- *
- * Remove this bo from all lru lists used to lookup and reserve an object.
- * This function must be called with struct ttm_bo_global::lru_lock held,
- * and is usually called just immediately after the bo has been reserved to
- * avoid recursive reservation from lru lists.
- */
-void ttm_bo_del_from_lru(struct ttm_buffer_object *bo);
-
-/**
  * ttm_bo_move_to_lru_tail
  *
  * @bo: The buffer object.
@@ -440,31 +409,6 @@ void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev, int resched);
  */
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place);
-
-/**
- * ttm_bo_synccpu_write_grab
- *
- * @bo: The buffer object:
- * @no_wait: Return immediately if buffer is busy.
- *
- * Synchronizes a buffer object for CPU RW access. This means
- * command submission that affects the buffer will return -EBUSY
- * until ttm_bo_synccpu_write_release is called.
- *
- * Returns
- * -EBUSY if the buffer is busy and no_wait is true.
- * -ERESTARTSYS if interrupted by a signal.
- */
-int ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait);
-
-/**
- * ttm_bo_synccpu_write_release:
- *
- * @bo : The buffer object.
- *
- * Releases a synccpu lock.
- */
-void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_acc_size

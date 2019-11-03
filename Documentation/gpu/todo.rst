@@ -206,10 +206,10 @@ Generic fbdev defio support
 ---------------------------
 
 The defio support code in the fbdev core has some very specific requirements,
-which means drivers need to have a special framebuffer for fbdev. Which prevents
-us from using the generic fbdev emulation code everywhere. The main issue is
-that it uses some fields in struct page itself, which breaks shmem gem objects
-(and other things).
+which means drivers need to have a special framebuffer for fbdev. The main
+issue is that it uses some fields in struct page itself, which breaks shmem
+gem objects (and other things). To support defio, affected drivers require
+the use of a shadow buffer, which may add CPU and memory overhead.
 
 Possible solution would be to write our own defio mmap code in the drm fbdev
 emulation. It would need to fully wrap the existing mmap ops, forwarding

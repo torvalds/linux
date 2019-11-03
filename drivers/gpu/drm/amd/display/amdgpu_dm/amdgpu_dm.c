@@ -4596,7 +4596,7 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	tv.num_shared = 1;
 	list_add(&tv.head, &list);
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, false, NULL, true);
+	r = ttm_eu_reserve_buffers(&ticket, &list, false, NULL);
 	if (r) {
 		dev_err(adev->dev, "fail to reserve bo (%d)\n", r);
 		return r;

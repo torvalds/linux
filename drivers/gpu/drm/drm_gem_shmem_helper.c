@@ -541,9 +541,6 @@ int drm_gem_shmem_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 	vma->vm_ops = &drm_gem_shmem_vm_ops;
 
-	/* Remove the fake offset */
-	vma->vm_pgoff -= drm_vma_node_start(&shmem->base.vma_node);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(drm_gem_shmem_mmap);

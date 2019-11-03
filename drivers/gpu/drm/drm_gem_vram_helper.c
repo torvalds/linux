@@ -3,10 +3,13 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_mode.h>
+#include <drm/drm_plane.h>
 #include <drm/drm_prime.h>
+#include <drm/drm_simple_kms_helper.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
 static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
@@ -647,6 +650,129 @@ int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
 EXPORT_SYMBOL(drm_gem_vram_driver_dumb_mmap_offset);
 
 /*
+ * Helpers for struct drm_plane_helper_funcs
+ */
+
+/**
+ * drm_gem_vram_plane_helper_prepare_fb() - \
+ *	Implements &struct drm_plane_helper_funcs.prepare_fb
+ * @plane:	a DRM plane
+ * @new_state:	the plane's new state
+ *
+ * During plane updates, this function pins the GEM VRAM
+ * objects of the plane's new framebuffer to VRAM. Call
+ * drm_gem_vram_plane_helper_cleanup_fb() to unpin them.
+ *
+ * Returns:
+ *	0 on success, or
+ *	a negative errno code otherwise.
+ */
+int
+drm_gem_vram_plane_helper_prepare_fb(struct drm_plane *plane,
+				     struct drm_plane_state *new_state)
+{
+	size_t i;
+	struct drm_gem_vram_object *gbo;
+	int ret;
+
+	if (!new_state->fb)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(new_state->fb->obj); ++i) {
+		if (!new_state->fb->obj[i])
+			continue;
+		gbo = drm_gem_vram_of_gem(new_state->fb->obj[i]);
+		ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
+		if (ret)
+			goto err_drm_gem_vram_unpin;
+	}
+
+	return 0;
+
+err_drm_gem_vram_unpin:
+	while (i) {
+		--i;
+		gbo = drm_gem_vram_of_gem(new_state->fb->obj[i]);
+		drm_gem_vram_unpin(gbo);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(drm_gem_vram_plane_helper_prepare_fb);
+
+/**
+ * drm_gem_vram_plane_helper_cleanup_fb() - \
+ *	Implements &struct drm_plane_helper_funcs.cleanup_fb
+ * @plane:	a DRM plane
+ * @old_state:	the plane's old state
+ *
+ * During plane updates, this function unpins the GEM VRAM
+ * objects of the plane's old framebuffer from VRAM. Complements
+ * drm_gem_vram_plane_helper_prepare_fb().
+ */
+void
+drm_gem_vram_plane_helper_cleanup_fb(struct drm_plane *plane,
+				     struct drm_plane_state *old_state)
+{
+	size_t i;
+	struct drm_gem_vram_object *gbo;
+
+	if (!old_state->fb)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(old_state->fb->obj); ++i) {
+		if (!old_state->fb->obj[i])
+			continue;
+		gbo = drm_gem_vram_of_gem(old_state->fb->obj[i]);
+		drm_gem_vram_unpin(gbo);
+	}
+}
+EXPORT_SYMBOL(drm_gem_vram_plane_helper_cleanup_fb);
+
+/*
+ * Helpers for struct drm_simple_display_pipe_funcs
+ */
+
+/**
+ * drm_gem_vram_simple_display_pipe_prepare_fb() - \
+ *	Implements &struct drm_simple_display_pipe_funcs.prepare_fb
+ * @pipe:	a simple display pipe
+ * @new_state:	the plane's new state
+ *
+ * During plane updates, this function pins the GEM VRAM
+ * objects of the plane's new framebuffer to VRAM. Call
+ * drm_gem_vram_simple_display_pipe_cleanup_fb() to unpin them.
+ *
+ * Returns:
+ *	0 on success, or
+ *	a negative errno code otherwise.
+ */
+int drm_gem_vram_simple_display_pipe_prepare_fb(
+	struct drm_simple_display_pipe *pipe,
+	struct drm_plane_state *new_state)
+{
+	return drm_gem_vram_plane_helper_prepare_fb(&pipe->plane, new_state);
+}
+EXPORT_SYMBOL(drm_gem_vram_simple_display_pipe_prepare_fb);
+
+/**
+ * drm_gem_vram_simple_display_pipe_cleanup_fb() - \
+ *	Implements &struct drm_simple_display_pipe_funcs.cleanup_fb
+ * @pipe:	a simple display pipe
+ * @old_state:	the plane's old state
+ *
+ * During plane updates, this function unpins the GEM VRAM
+ * objects of the plane's old framebuffer from VRAM. Complements
+ * drm_gem_vram_simple_display_pipe_prepare_fb().
+ */
+void drm_gem_vram_simple_display_pipe_cleanup_fb(
+	struct drm_simple_display_pipe *pipe,
+	struct drm_plane_state *old_state)
+{
+	drm_gem_vram_plane_helper_cleanup_fb(&pipe->plane, old_state);
+}
+EXPORT_SYMBOL(drm_gem_vram_simple_display_pipe_cleanup_fb);
+
+/*
  * PRIME helpers
  */
 
@@ -887,12 +1013,11 @@ static int drm_vram_mm_debugfs(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_vram_mm *vmm = node->minor->dev->vram_mm;
 	struct drm_mm *mm = vmm->bdev.man[TTM_PL_VRAM].priv;
-	struct ttm_bo_global *glob = vmm->bdev.glob;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	spin_lock(&glob->lru_lock);
+	spin_lock(&ttm_bo_glob.lru_lock);
 	drm_mm_print(mm, &p);
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&ttm_bo_glob.lru_lock);
 	return 0;
 }
 

@@ -613,7 +613,7 @@ static int reserve_bo_and_vm(struct kgd_mem *mem,
 	amdgpu_vm_get_pd_bo(vm, &ctx->list, &ctx->vm_pd[0]);
 
 	ret = ttm_eu_reserve_buffers(&ctx->ticket, &ctx->list,
-				     false, &ctx->duplicates, true);
+				     false, &ctx->duplicates);
 	if (!ret)
 		ctx->reserved = true;
 	else {
@@ -686,7 +686,7 @@ static int reserve_bo_and_cond_vms(struct kgd_mem *mem,
 	}
 
 	ret = ttm_eu_reserve_buffers(&ctx->ticket, &ctx->list,
-				     false, &ctx->duplicates, true);
+				     false, &ctx->duplicates);
 	if (!ret)
 		ctx->reserved = true;
 	else
@@ -1805,8 +1805,7 @@ static int validate_invalid_user_pages(struct amdkfd_process_info *process_info)
 	}
 
 	/* Reserve all BOs and page tables for validation */
-	ret = ttm_eu_reserve_buffers(&ticket, &resv_list, false, &duplicates,
-				     true);
+	ret = ttm_eu_reserve_buffers(&ticket, &resv_list, false, &duplicates);
 	WARN(!list_empty(&duplicates), "Duplicates should be empty");
 	if (ret)
 		goto out_free;
@@ -2004,7 +2003,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 	}
 
 	ret = ttm_eu_reserve_buffers(&ctx.ticket, &ctx.list,
-				     false, &duplicate_save, true);
+				     false, &duplicate_save);
 	if (ret) {
 		pr_debug("Memory eviction: TTM Reserve Failed. Try again\n");
 		goto ttm_reserve_fail;

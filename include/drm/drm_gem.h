@@ -159,8 +159,9 @@ struct drm_gem_object_funcs {
 	 *
 	 * The callback is used by by both drm_gem_mmap_obj() and
 	 * drm_gem_prime_mmap().  When @mmap is present @vm_ops is not
-	 * used, the @mmap callback must set vma->vm_ops instead.
-	 *
+	 * used, the @mmap callback must set vma->vm_ops instead. The @mmap
+	 * callback is always called with a 0 offset. The caller will remove
+	 * the fake offset as necessary.
 	 */
 	int (*mmap)(struct drm_gem_object *obj, struct vm_area_struct *vma);
 

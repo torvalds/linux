@@ -886,8 +886,8 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
 int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
 			struct ttm_operation_ctx *ctx)
 {
+	struct ttm_mem_global *mem_glob = &ttm_mem_glob;
 	struct ttm_tt *ttm = &ttm_dma->ttm;
-	struct ttm_mem_global *mem_glob = ttm->bdev->glob->mem_glob;
 	unsigned long num_pages = ttm->num_pages;
 	struct dma_pool *pool;
 	struct dma_page *d_page;
@@ -991,8 +991,8 @@ EXPORT_SYMBOL_GPL(ttm_dma_populate);
 /* Put all pages in pages list to correct pool to wait for reuse */
 void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 {
+	struct ttm_mem_global *mem_glob = &ttm_mem_glob;
 	struct ttm_tt *ttm = &ttm_dma->ttm;
-	struct ttm_mem_global *mem_glob = ttm->bdev->glob->mem_glob;
 	struct dma_pool *pool;
 	struct dma_page *d_page, *next;
 	enum pool_type type;

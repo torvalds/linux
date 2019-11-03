@@ -92,9 +92,12 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  *
  * Drivers that support a dumb buffer with a virtual address and mmap support,
  * should try out the generic fbdev emulation using drm_fbdev_generic_setup().
+ * It will automatically set up deferred I/O if the driver requires a shadow
+ * buffer.
  *
- * Setup fbdev emulation by calling drm_fb_helper_fbdev_setup() and tear it
- * down by calling drm_fb_helper_fbdev_teardown().
+ * For other drivers, setup fbdev emulation by calling
+ * drm_fb_helper_fbdev_setup() and tear it down by calling
+ * drm_fb_helper_fbdev_teardown().
  *
  * At runtime drivers should restore the fbdev console by using
  * drm_fb_helper_lastclose() as their &drm_driver.lastclose callback.
@@ -127,8 +130,10 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  * always run in process context since the fb_*() function could be running in
  * atomic context. If drm_fb_helper_deferred_io() is used as the deferred_io
  * callback it will also schedule dirty_work with the damage collected from the
- * mmap page writes. Drivers can use drm_fb_helper_defio_init() to setup
- * deferred I/O (coupled with drm_fb_helper_fbdev_teardown()).
+ * mmap page writes.
+ *
+ * Deferred I/O is not compatible with SHMEM. Such drivers should request an
+ * fbdev shadow buffer and call drm_fbdev_generic_setup() instead.
  */
 
 static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
@@ -678,49 +683,6 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 	}
 }
 EXPORT_SYMBOL(drm_fb_helper_deferred_io);
-
-/**
- * drm_fb_helper_defio_init - fbdev deferred I/O initialization
- * @fb_helper: driver-allocated fbdev helper
- *
- * This function allocates &fb_deferred_io, sets callback to
- * drm_fb_helper_deferred_io(), delay to 50ms and calls fb_deferred_io_init().
- * It should be called from the &drm_fb_helper_funcs->fb_probe callback.
- * drm_fb_helper_fbdev_teardown() cleans up deferred I/O.
- *
- * NOTE: A copy of &fb_ops is made and assigned to &info->fbops. This is done
- * because fb_deferred_io_cleanup() clears &fbops->fb_mmap and would thereby
- * affect other instances of that &fb_ops.
- *
- * Returns:
- * 0 on success or a negative error code on failure.
- */
-int drm_fb_helper_defio_init(struct drm_fb_helper *fb_helper)
-{
-	struct fb_info *info = fb_helper->fbdev;
-	struct fb_deferred_io *fbdefio;
-	struct fb_ops *fbops;
-
-	fbdefio = kzalloc(sizeof(*fbdefio), GFP_KERNEL);
-	fbops = kzalloc(sizeof(*fbops), GFP_KERNEL);
-	if (!fbdefio || !fbops) {
-		kfree(fbdefio);
-		kfree(fbops);
-		return -ENOMEM;
-	}
-
-	info->fbdefio = fbdefio;
-	fbdefio->delay = msecs_to_jiffies(50);
-	fbdefio->deferred_io = drm_fb_helper_deferred_io;
-
-	*fbops = *info->fbops;
-	info->fbops = fbops;
-
-	fb_deferred_io_init(info);
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_fb_helper_defio_init);
 
 /**
  * drm_fb_helper_sys_read - wrapper around fb_sys_read
@@ -2356,7 +2318,10 @@ static const struct drm_client_funcs drm_fbdev_client_funcs = {
  *
  * Drivers that set the dirty callback on their framebuffer will get a shadow
  * fbdev buffer that is blitted onto the real buffer. This is done in order to
- * make deferred I/O work with all kinds of buffers.
+ * make deferred I/O work with all kinds of buffers. A shadow buffer can be
+ * requested explicitly by setting struct drm_mode_config.prefer_shadow or
+ * struct drm_mode_config.prefer_shadow_fbdev to true beforehand. This is
+ * required to use generic fbdev emulation with SHMEM helpers.
  *
  * This function is safe to call even when there are no connectors present.
  * Setup will be retried on the next hotplug event.

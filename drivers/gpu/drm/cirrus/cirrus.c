@@ -390,7 +390,7 @@ static int cirrus_conn_init(struct cirrus_device *cirrus)
 /* ------------------------------------------------------------------ */
 /* cirrus (simple) display pipe					      */
 
-static enum drm_mode_status cirrus_pipe_mode_valid(struct drm_crtc *crtc,
+static enum drm_mode_status cirrus_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
 						   const struct drm_display_mode *mode)
 {
 	if (cirrus_check_size(mode->hdisplay, mode->vdisplay, NULL) < 0)
