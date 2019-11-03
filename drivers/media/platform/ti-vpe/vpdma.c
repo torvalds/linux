@@ -764,7 +764,7 @@ static void dump_dtd(struct vpdma_dtd *dtd)
 		pr_debug("word1: line_length = %d, xfer_height = %d\n",
 			dtd_get_line_length(dtd), dtd_get_xfer_height(dtd));
 
-	pr_debug("word2: start_addr = %pad\n", &dtd->start_addr);
+	pr_debug("word2: start_addr = %x\n", dtd->start_addr);
 
 	pr_debug("word3: pkt_type = %d, mode = %d, dir = %d, chan = %d, pri = %d, next_chan = %d\n",
 		 dtd_get_pkt_type(dtd),
