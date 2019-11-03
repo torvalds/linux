@@ -455,7 +455,6 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	if (!girq->parents)
 		return -ENOMEM;
 	girq->parents[0] = pdev->irq;
-	girq->first = irq_base;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_bad_irq;
 
