@@ -743,8 +743,10 @@ static int ffsReadFile(struct inode *inode, struct file_id_t *fid, void *buffer,
 
 			while (clu_offset > 0) {
 				/* clu = FAT_read(sb, clu); */
-				if (FAT_read(sb, clu, &clu) == -1)
-					return FFS_MEDIAERR;
+				if (FAT_read(sb, clu, &clu) == -1) {
+					ret = FFS_MEDIAERR;
+					goto out;
+				}
 
 				clu_offset--;
 			}
