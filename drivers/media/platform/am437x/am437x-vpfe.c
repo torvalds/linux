@@ -285,7 +285,6 @@ vpfe_ccdc_validate_param(struct vpfe_ccdc *ccdc,
 	max_data = ccdc_data_size_max_bit(ccdcparam->data_sz);
 
 	if (ccdcparam->alaw.gamma_wd > VPFE_CCDC_GAMMA_BITS_09_0 ||
-	    ccdcparam->alaw.gamma_wd < VPFE_CCDC_GAMMA_BITS_15_6 ||
 	    max_gamma > max_data) {
 		vpfe_dbg(1, vpfe, "Invalid data line select\n");
 		return -EINVAL;
