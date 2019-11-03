@@ -285,9 +285,42 @@ TRACE_EVENT(io_uring_fail_link,
 );
 
 /**
+ * io_uring_complete - called when completing an SQE
+ *
+ * @ctx:		pointer to a ring context structure
+ * @user_data:		user data associated with the request
+ * @res:		result of the request
+ *
+ */
+TRACE_EVENT(io_uring_complete,
+
+	TP_PROTO(void *ctx, u64 user_data, long res),
+
+	TP_ARGS(ctx, user_data, res),
+
+	TP_STRUCT__entry (
+		__field(  void *,	ctx		)
+		__field(  u64,		user_data	)
+		__field(  long,		res		)
+	),
+
+	TP_fast_assign(
+		__entry->ctx		= ctx;
+		__entry->user_data	= user_data;
+		__entry->res		= res;
+	),
+
+	TP_printk("ring %p, user_data 0x%llx, result %ld",
+			  __entry->ctx, (unsigned long long)__entry->user_data,
+			  __entry->res)
+);
+
+
+/**
  * io_uring_submit_sqe - called before submitting one SQE
  *
- * @ctx:			pointer to a ring context structure
+ * @ctx:		pointer to a ring context structure
+ * @user_data:		user data associated with the request
  * @force_nonblock:	whether a context blocking or not
  * @sq_thread:		true if sq_thread has submitted this SQE
  *
@@ -296,24 +329,27 @@ TRACE_EVENT(io_uring_fail_link,
  */
 TRACE_EVENT(io_uring_submit_sqe,
 
-	TP_PROTO(void *ctx, bool force_nonblock, bool sq_thread),
+	TP_PROTO(void *ctx, u64 user_data, bool force_nonblock, bool sq_thread),
 
-	TP_ARGS(ctx, force_nonblock, sq_thread),
+	TP_ARGS(ctx, user_data, force_nonblock, sq_thread),
 
 	TP_STRUCT__entry (
-		__field(  void *,	ctx				)
+		__field(  void *,	ctx		)
+		__field(  u64,		user_data	)
 		__field(  bool,		force_nonblock	)
-		__field(  bool,		sq_thread		)
+		__field(  bool,		sq_thread	)
 	),
 
 	TP_fast_assign(
-		__entry->ctx			= ctx;
+		__entry->ctx		= ctx;
+		__entry->user_data	= user_data;
 		__entry->force_nonblock	= force_nonblock;
-		__entry->sq_thread		= sq_thread;
+		__entry->sq_thread	= sq_thread;
 	),
 
-	TP_printk("ring %p, non block %d, sq_thread %d",
-			  __entry->ctx, __entry->force_nonblock, __entry->sq_thread)
+	TP_printk("ring %p, user data 0x%llx, non block %d, sq_thread %d",
+			  __entry->ctx, (unsigned long long) __entry->user_data,
+			  __entry->force_nonblock, __entry->sq_thread)
 );
 
 #endif /* _TRACE_IO_URING_H */
