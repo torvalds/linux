@@ -251,7 +251,6 @@ static void wait_for_suspend(struct intel_gt *gt)
 		intel_gt_set_wedged(gt);
 	}
 
-	GEM_BUG_ON(atomic_read(&gt->user_wakeref));
 	intel_gt_pm_wait_for_idle(gt);
 }
 
