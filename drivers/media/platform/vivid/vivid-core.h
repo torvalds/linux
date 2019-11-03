@@ -200,6 +200,7 @@ struct vivid_dev {
 	bool				has_fb;
 	bool				has_meta_cap;
 	bool				has_meta_out;
+	bool				has_tv_tuner;
 
 	bool				can_loop_video;
 
