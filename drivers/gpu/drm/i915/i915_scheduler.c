@@ -202,21 +202,26 @@ static void kick_submission(struct intel_engine_cs *engine,
 	if (prio <= engine->execlists.queue_priority_hint)
 		return;
 
+	rcu_read_lock();
+
 	/* Nothing currently active? We're overdue for a submission! */
 	inflight = execlists_active(&engine->execlists);
 	if (!inflight)
-		return;
+		goto unlock;
 
 	/*
 	 * If we are already the currently executing context, don't
 	 * bother evaluating if we should preempt ourselves.
 	 */
 	if (inflight->hw_context == rq->hw_context)
-		return;
+		goto unlock;
 
 	engine->execlists.queue_priority_hint = prio;
 	if (need_preempt(prio, rq_prio(inflight)))
 		tasklet_hi_schedule(&engine->execlists.tasklet);
+
+unlock:
+	rcu_read_unlock();
 }
 
 static void __i915_schedule(struct i915_sched_node *node,
