@@ -113,7 +113,9 @@ struct st_lsm6dsx_odr {
 #define ST_LSM6DSX_ODR_LIST_SIZE	6
 struct st_lsm6dsx_odr_table_entry {
 	struct st_lsm6dsx_reg reg;
+
 	struct st_lsm6dsx_odr odr_avl[ST_LSM6DSX_ODR_LIST_SIZE];
+	int odr_len;
 };
 
 struct st_lsm6dsx_fs {

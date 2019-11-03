@@ -55,6 +55,7 @@ static const struct st_lsm6dsx_ext_dev_settings st_lsm6dsx_ext_dev_table[] = {
 			.odr_avl[1] = {  20, 0x1 },
 			.odr_avl[2] = {  50, 0x2 },
 			.odr_avl[3] = { 100, 0x3 },
+			.odr_len = 4,
 		},
 		.fs_table = {
 			.fs_avl[0] = {
@@ -323,11 +324,12 @@ st_lsm6dsx_shub_get_odr_val(struct st_lsm6dsx_sensor *sensor,
 	int i;
 
 	settings = sensor->ext_info.settings;
-	for (i = 0; i < ST_LSM6DSX_ODR_LIST_SIZE; i++)
+	for (i = 0; i < settings->odr_table.odr_len; i++) {
 		if (settings->odr_table.odr_avl[i].hz == odr)
 			break;
+	}
 
-	if (i == ST_LSM6DSX_ODR_LIST_SIZE)
+	if (i == settings->odr_table.odr_len)
 		return -EINVAL;
 
 	*val = settings->odr_table.odr_avl[i].val;
@@ -537,12 +539,10 @@ st_lsm6dsx_shub_sampling_freq_avail(struct device *dev,
 	int i, len = 0;
 
 	settings = sensor->ext_info.settings;
-	for (i = 0; i < ST_LSM6DSX_ODR_LIST_SIZE; i++) {
+	for (i = 0; i < settings->odr_table.odr_len; i++) {
 		u16 val = settings->odr_table.odr_avl[i].hz;
 
-		if (val > 0)
-			len += scnprintf(buf + len, PAGE_SIZE - len, "%d ",
-					 val);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%d ", val);
 	}
 	buf[len - 1] = '\n';
 
