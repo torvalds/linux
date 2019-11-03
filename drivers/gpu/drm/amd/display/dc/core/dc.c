@@ -1469,11 +1469,6 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 		elevate_update_type(&update_type, UPDATE_TYPE_MED);
 	}
 
-	if (u->plane_info->sdr_white_level != u->surface->sdr_white_level) {
-		update_flags->bits.sdr_white_level = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED);
-	}
-
 	if (u->plane_info->dcc.enable != u->surface->dcc.enable
 			|| u->plane_info->dcc.independent_64b_blks != u->surface->dcc.independent_64b_blks
 			|| u->plane_info->dcc.meta_pitch != u->surface->dcc.meta_pitch) {
@@ -1619,6 +1614,12 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 		if (dce_use_lut(format))
 			update_flags->bits.gamma_change = 1;
 	}
+
+	if (u->hdr_mult.value)
+		if (u->hdr_mult.value != u->surface->hdr_mult.value) {
+			update_flags->bits.hdr_mult = 1;
+			elevate_update_type(&overall_type, UPDATE_TYPE_MED);
+		}
 
 	if (update_flags->bits.in_transfer_func_change) {
 		type = UPDATE_TYPE_MED;
@@ -1801,8 +1802,6 @@ static void copy_surface_update_to_plane(
 				srf_update->plane_info->global_alpha_value;
 		surface->dcc =
 				srf_update->plane_info->dcc;
-		surface->sdr_white_level =
-				srf_update->plane_info->sdr_white_level;
 		surface->layer_index =
 				srf_update->plane_info->layer_index;
 	}
@@ -1846,6 +1845,10 @@ static void copy_surface_update_to_plane(
 			srf_update->lut3d_func))
 		memcpy(surface->lut3d_func, srf_update->lut3d_func,
 		sizeof(*surface->lut3d_func));
+
+	if (srf_update->hdr_mult.value)
+		surface->hdr_mult =
+				srf_update->hdr_mult;
 
 	if (srf_update->blend_tf &&
 			(surface->blend_tf !=

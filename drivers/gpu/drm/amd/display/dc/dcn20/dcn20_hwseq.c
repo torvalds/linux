@@ -734,14 +734,6 @@ bool dcn20_set_shaper_3dlut(
 	else
 		result = dpp_base->funcs->dpp_program_3dlut(dpp_base, NULL);
 
-	if (plane_state->lut3d_func &&
-		plane_state->lut3d_func->state.bits.initialized == 1 &&
-		plane_state->lut3d_func->hdr_multiplier != 0)
-		dpp_base->funcs->dpp_set_hdr_multiplier(dpp_base,
-				plane_state->lut3d_func->hdr_multiplier);
-	else
-		dpp_base->funcs->dpp_set_hdr_multiplier(dpp_base, 0x1f000);
-
 	return result;
 }
 
@@ -1382,7 +1374,7 @@ static void dcn20_program_pipe(
 		dcn20_update_dchubp_dpp(dc, pipe_ctx, context);
 
 	if (pipe_ctx->update_flags.bits.enable
-			|| pipe_ctx->plane_state->update_flags.bits.sdr_white_level)
+			|| pipe_ctx->plane_state->update_flags.bits.hdr_mult)
 		set_hdr_multiplier(pipe_ctx);
 
 	if (pipe_ctx->update_flags.bits.enable ||
