@@ -117,6 +117,15 @@ config USB_DWC3_OF_SIMPLE
 	  Currently supports Xilinx and Qualcomm DWC USB3 IP.
 	  Say 'Y' or 'M' if you have one such device.
 
+config USB_DWC3_ROCKCHIP_INNO
+	bool "Rockchip Platforms with INNO PHY"
+	depends on OF && COMMON_CLK && (ARCH_ROCKCHIP || COMPILE_TEST)
+	default USB_DWC3 && PHY_ROCKCHIP_INNO_USB3 && NO_GKI
+	help
+	  Support of USB2/3 functionality in Rockchip platforms
+	  with INNO USB 3.0 PHY IP inside.
+	  say 'Y' or 'M' if you have one such device.
+
 config USB_DWC3_ST
 	tristate "STMicroelectronics Platforms"
 	depends on (ARCH_STI || COMPILE_TEST) && OF
