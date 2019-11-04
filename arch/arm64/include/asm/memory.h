@@ -69,12 +69,6 @@
 #define KERNEL_START		_text
 #define KERNEL_END		_end
 
-#ifdef CONFIG_ARM64_VA_BITS_52
-#define MAX_USER_VA_BITS	52
-#else
-#define MAX_USER_VA_BITS	VA_BITS
-#endif
-
 /*
  * Generic and tag-based KASAN require 1/8th and 1/16th of the kernel virtual
  * address space for the shadow region respectively. They can bloat the stack
