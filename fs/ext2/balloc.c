@@ -684,7 +684,6 @@ ext2_try_to_allocate(struct super_block *sb, int group,
 	}
 	BUG_ON(start > EXT2_BLOCKS_PER_GROUP(sb));
 
-repeat:
 	if (grp_goal < 0) {
 		grp_goal = find_next_usable_block(start, bitmap_bh, end);
 		if (grp_goal < 0)
@@ -701,6 +700,7 @@ repeat:
 	}
 	start = grp_goal;
 
+repeat:
 	if (ext2_set_bit_atomic(sb_bgl_lock(EXT2_SB(sb), group), grp_goal,
 			       				bitmap_bh->b_data)) {
 		/*
