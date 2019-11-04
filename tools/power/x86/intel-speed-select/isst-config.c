@@ -840,8 +840,8 @@ static int clx_n_config(int cpu)
 	}
 
 	/* convert frequencies back to ratios */
-	pbf_info->p1_high = pbf_info->p1_high / DISP_FREQ_MULTIPLIER;
-	pbf_info->p1_low = pbf_info->p1_low / DISP_FREQ_MULTIPLIER;
+	pbf_info->p1_high = pbf_info->p1_high / 100000;
+	pbf_info->p1_low = pbf_info->p1_low / 100000;
 
 	/* create high priority cpu mask */
 	pbf_info->core_cpumask_size = alloc_cpu_set(&pbf_info->core_cpumask);
@@ -856,7 +856,7 @@ static int clx_n_config(int cpu)
 		cpu_bf = parse_int_file(1,
 			"/sys/devices/system/cpu/cpu%d/cpufreq/base_frequency",
 					i);
-		cpu_bf = cpu_bf / DISP_FREQ_MULTIPLIER;
+		cpu_bf = cpu_bf / 100000;
 		if (cpu_bf == pbf_info->p1_high)
 			CPU_SET_S(i, pbf_info->core_cpumask_size,
 				  pbf_info->core_cpumask);
