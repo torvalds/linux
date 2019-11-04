@@ -287,27 +287,34 @@ struct iwl_pwr_tx_backoff {
 /**
  * struct iwl_cfg_trans - information needed to start the trans
  *
- * These values cannot be changed when multiple configs are used for a
- * single PCI ID, because they are needed before the HW REV or RFID
- * can be read.
+ * These values are specific to the device ID and do not change when
+ * multiple configs are used for a single device ID.  They values are
+ * used, among other things, to boot the NIC so that the HW REV or
+ * RFID can be read before deciding the remaining parameters to use.
  *
  * @base_params: pointer to basic parameters
  * @csr: csr flags and addresses that are different across devices
  * @device_family: the device family
  * @umac_prph_offset: offset to add to UMAC periphery address
+ * @xtal_latency: power up latency to get the xtal stabilized
+ * @extra_phy_cfg_flags: extra configuration flags to pass to the PHY
  * @rf_id: need to read rf_id to determine the firmware image
  * @use_tfh: use TFH
  * @gen2: 22000 and on transport operation
  * @mq_rx_supported: multi-queue rx support
+ * @integrated: discrete or integrated
  */
 struct iwl_cfg_trans_params {
 	const struct iwl_base_params *base_params;
 	enum iwl_device_family device_family;
 	u32 umac_prph_offset;
+	u32 xtal_latency;
+	u32 extra_phy_cfg_flags;
 	u32 rf_id:1,
 	    use_tfh:1,
 	    gen2:1,
 	    mq_rx_supported:1,
+	    integrated:1,
 	    bisr_workaround:1;
 };
 
@@ -374,7 +381,6 @@ struct iwl_fw_mon_regs {
  * @smem_offset: offset from which the SMEM begins
  * @smem_len: the length of SMEM
  * @vht_mu_mimo_supported: VHT MU-MIMO support
- * @integrated: discrete or integrated
  * @cdb: CDB support
  * @nvm_type: see &enum iwl_nvm_type
  * @d3_debug_data_base_addr: base address where D3 debug data is stored
@@ -413,7 +419,6 @@ struct iwl_cfg {
 	u32 dccm2_len;
 	u32 smem_offset;
 	u32 smem_len;
-	u32 soc_latency;
 	u16 nvm_ver;
 	u16 nvm_calib_ver;
 	u32 rx_with_siso_diversity:1,
@@ -427,7 +432,6 @@ struct iwl_cfg {
 	    disable_dummy_notification:1,
 	    apmg_not_supported:1,
 	    vht_mu_mimo_supported:1,
-	    integrated:1,
 	    cdb:1,
 	    dbgc_supported:1,
 	    uhb_supported:1;
@@ -442,7 +446,6 @@ struct iwl_cfg {
 	u8 ucode_api_min;
 	u16 num_rbds;
 	u32 min_umac_error_event_table;
-	u32 extra_phy_cfg_flags;
 	u32 d3_debug_data_base_addr;
 	u32 d3_debug_data_length;
 	u32 min_txq_size;
@@ -496,6 +499,8 @@ struct iwl_dev_info {
  * This list declares the config structures for all devices.
  */
 extern const struct iwl_cfg_trans_params iwl9000_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl9560_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl9560_shared_clk_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_ax200_trans_cfg;
 extern const char iwl9162_name[];
 extern const char iwl9260_name[];
@@ -586,7 +591,6 @@ extern const struct iwl_cfg iwl9260_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_160_cfg;
 extern const struct iwl_cfg iwl9260_killer_2ac_cfg;
 extern const struct iwl_cfg iwl9270_2ac_cfg;
-extern const struct iwl_cfg iwl9560_2ac_cfg;
 extern const struct iwl_cfg iwl9560_2ac_cfg_quz_a0_jf_b0_soc;
 extern const struct iwl_cfg iwl9560_2ac_160_cfg_quz_a0_jf_b0_soc;
 extern const struct iwl_cfg iwl9461_2ac_cfg_quz_a0_jf_b0_soc;
@@ -596,7 +600,6 @@ extern const struct iwl_cfg iwl9560_killer_i_2ac_cfg_quz_a0_jf_b0_soc;
 extern const struct iwl_cfg iwl9560_killer_s_2ac_cfg_quz_a0_jf_b0_soc;
 extern const struct iwl_cfg iwl9461_2ac_cfg_shared_clk;
 extern const struct iwl_cfg iwl9462_2ac_cfg_shared_clk;
-extern const struct iwl_cfg iwl9560_2ac_cfg_shared_clk;
 extern const struct iwl_cfg iwl9560_2ac_160_cfg_shared_clk;
 extern const struct iwl_cfg iwl9560_killer_2ac_cfg_shared_clk;
 extern const struct iwl_cfg iwl9560_killer_s_2ac_cfg_shared_clk;

@@ -1817,7 +1817,7 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 	iwl_trans_pcie_sw_reset(trans);
 
 	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_22000 &&
-	    trans->cfg->integrated) {
+	    trans->trans_cfg->integrated) {
 		err = iwl_pcie_gen2_force_power_gating(trans);
 		if (err)
 			return err;

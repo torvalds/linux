@@ -93,10 +93,10 @@ static int iwl_set_soc_latency(struct iwl_mvm *mvm)
 	struct iwl_soc_configuration_cmd cmd;
 	int ret;
 
-	cmd.device_type = (mvm->trans->cfg->integrated) ?
+	cmd.device_type = (mvm->trans->trans_cfg->integrated) ?
 		cpu_to_le32(SOC_CONFIG_CMD_INTEGRATED) :
 		cpu_to_le32(SOC_CONFIG_CMD_DISCRETE);
-	cmd.soc_latency = cpu_to_le32(mvm->trans->cfg->soc_latency);
+	cmd.soc_latency = cpu_to_le32(mvm->trans->trans_cfg->xtal_latency);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(SOC_CONFIGURATION_CMD,
 						   SYSTEM_GROUP, 0), 0,
@@ -561,7 +561,8 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	phy_cfg_cmd.phy_cfg = cpu_to_le32(iwl_mvm_get_phy_config(mvm));
 
 	/* set flags extra PHY configuration flags from the device's cfg */
-	phy_cfg_cmd.phy_cfg |= cpu_to_le32(mvm->cfg->extra_phy_cfg_flags);
+	phy_cfg_cmd.phy_cfg |=
+		cpu_to_le32(mvm->trans->trans_cfg->extra_phy_cfg_flags);
 
 	phy_cfg_cmd.calib_control.event_trigger =
 		mvm->fw->default_calib[ucode_type].event_trigger;

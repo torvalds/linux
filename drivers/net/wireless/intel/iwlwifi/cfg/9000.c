@@ -174,9 +174,23 @@ const struct iwl_cfg_trans_params iwl9000_trans_cfg = {
 	.rf_id = true,
 };
 
-const struct iwl_cfg iwl9260_2ac_cfg = {
-	.fw_name_pre = IWL9260_FW_PRE,
-	IWL_DEVICE_9000,
+const struct iwl_cfg_trans_params iwl9560_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_9000,
+	.base_params = &iwl9000_base_params,
+	.mq_rx_supported = true,
+	.rf_id = true,
+	.integrated = true,
+	.xtal_latency = 5000,
+};
+
+const struct iwl_cfg_trans_params iwl9560_shared_clk_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_9000,
+	.base_params = &iwl9000_base_params,
+	.mq_rx_supported = true,
+	.rf_id = true,
+	.integrated = true,
+	.xtal_latency = 5000,
+	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
 };
 
 const char iwl9162_name[] = "Intel(R) Wireless-AC 9162";
@@ -200,19 +214,14 @@ const char iwl9560_killer_1550i_name[] =
 const char iwl9560_killer_1550s_name[] =
 	"Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)";
 
+const struct iwl_cfg iwl9260_2ac_cfg = {
+	.fw_name_pre = IWL9260_FW_PRE,
+	IWL_DEVICE_9000,
+};
+
 const struct iwl_cfg iwl9560_2ac_cfg_soc = {
 	.fw_name_pre = IWL9000_FW_PRE,
 	IWL_DEVICE_9000,
-	.integrated = true,
-	.soc_latency = 5000,
-};
-
-const struct iwl_cfg iwl9560_2ac_cfg_shared_clk = {
-	.fw_name_pre = IWL9000_FW_PRE,
-	IWL_DEVICE_9000,
-	.integrated = true,
-	.soc_latency = 5000,
-	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
 };
 
 MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
