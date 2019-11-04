@@ -1775,9 +1775,9 @@ static void set_clos_config(int arg)
 		fprintf(stderr, "\tSpecify clos EPP with [--epp|-e]\n");
 		fprintf(stderr,
 			"\tSpecify clos Proportional Priority [--weight|-w]\n");
-		fprintf(stderr, "\tSpecify clos min with [--min|-n]\n");
-		fprintf(stderr, "\tSpecify clos max with [--max|-m]\n");
-		fprintf(stderr, "\tSpecify clos desired with [--desired|-d]\n");
+		fprintf(stderr, "\tSpecify clos min in MHz with [--min|-n]\n");
+		fprintf(stderr, "\tSpecify clos max in MHz with [--max|-m]\n");
+		fprintf(stderr, "\tSpecify clos desired in MHz with [--desired|-d]\n");
 		exit(0);
 	}
 
@@ -1799,7 +1799,7 @@ static void set_clos_config(int arg)
 		clos_min = 0;
 	}
 	if (clos_max < 0) {
-		fprintf(stderr, "clos max is not specified, default: 0xff\n");
+		fprintf(stderr, "clos max is not specified, default: 25500 MHz\n");
 		clos_max = 0xff;
 	}
 	if (clos_desired < 0) {
@@ -2049,15 +2049,18 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			break;
 		case 'd':
 			clos_desired = atoi(optarg);
+			clos_desired /= DISP_FREQ_MULTIPLIER;
 			break;
 		case 'e':
 			clos_epp = atoi(optarg);
 			break;
 		case 'n':
 			clos_min = atoi(optarg);
+			clos_min /= DISP_FREQ_MULTIPLIER;
 			break;
 		case 'm':
 			clos_max = atoi(optarg);
+			clos_max /= DISP_FREQ_MULTIPLIER;
 			break;
 		case 'p':
 			clos_priority_type = atoi(optarg);
