@@ -43,6 +43,18 @@
 / {
 	compatible = "rockchip,rk3128";
 
+	rng: rng@100fc000 {
+		compatible = "rockchip,cryptov1-rng";
+		reg = <0x100fc000 0x4000>;
+		clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		clock-names = "clk_crypto", "hclk_crypto";
+		assigned-clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		assigned-clock-rates = <150000000>, <100000000>;
+		resets = <&cru SRST_CRYPTO>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
 	qos_ebc: qos@1012f080 {
 		compatible = "syscon";
 		reg = <0x1012f080 0x20>;
