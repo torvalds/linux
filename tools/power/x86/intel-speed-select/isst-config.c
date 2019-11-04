@@ -1260,15 +1260,15 @@ static int set_core_priority_and_min(int cpu, int mask_size,
 	if (ret)
 		return ret;
 
-	ret = set_clos_param(cpu, 1, 15, 0, min_low, 0xff);
+	ret = set_clos_param(cpu, 1, 15, 15, min_low, 0xff);
 	if (ret)
 		return ret;
 
-	ret = set_clos_param(cpu, 2, 15, 0, min_low, 0xff);
+	ret = set_clos_param(cpu, 2, 15, 15, min_low, 0xff);
 	if (ret)
 		return ret;
 
-	ret = set_clos_param(cpu, 3, 15, 0, min_low, 0xff);
+	ret = set_clos_param(cpu, 3, 15, 15, min_low, 0xff);
 	if (ret)
 		return ret;
 
@@ -1589,15 +1589,15 @@ static void set_fact_enable(int arg)
 			if (ret)
 				goto error_disp;
 
-			ret = set_clos_param(i, 1, 15, 0, 0, 0xff);
+			ret = set_clos_param(i, 1, 15, 15, 0, 0xff);
 			if (ret)
 				goto error_disp;
 
-			ret = set_clos_param(i, 2, 15, 0, 0, 0xff);
+			ret = set_clos_param(i, 2, 15, 15, 0, 0xff);
 			if (ret)
 				goto error_disp;
 
-			ret = set_clos_param(i, 3, 15, 0, 0, 0xff);
+			ret = set_clos_param(i, 3, 15, 15, 0, 0xff);
 			if (ret)
 				goto error_disp;
 
