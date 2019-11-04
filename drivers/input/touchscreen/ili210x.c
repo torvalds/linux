@@ -365,7 +365,6 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	/* Setup input device */
 	input->name = "ILI210x Touchscreen";
 	input->id.bustype = BUS_I2C;
-	input->dev.parent = dev;
 
 	/* Multi touch */
 	input_set_abs_params(input, ABS_MT_POSITION_X, 0, 0xffff, 0, 0);
