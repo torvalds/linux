@@ -170,7 +170,7 @@ void rn_vbios_smu_set_dcn_low_power_state(struct clk_mgr_internal *clk_mgr, enum
 {
 	int disp_count;
 
-	if (state == DCN_PWR_STATE_OPTIMIZED)
+	if (state == DCN_PWR_STATE_LOW_POWER)
 		disp_count = 0;
 	else
 		disp_count = 1;

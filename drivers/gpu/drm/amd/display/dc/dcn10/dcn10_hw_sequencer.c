@@ -1304,6 +1304,10 @@ static void dcn10_init_hw(struct dc *dc)
 	}
 
 	dc->hwss.enable_power_gating_plane(dc->hwseq, true);
+
+	if (dc->clk_mgr->funcs->notify_wm_ranges)
+		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
+
 }
 
 static void dcn10_reset_hw_ctx_wrap(

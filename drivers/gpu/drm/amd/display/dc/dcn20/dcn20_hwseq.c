@@ -1202,14 +1202,8 @@ static void dcn20_update_dchubp_dpp(
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 
-	if (pipe_ctx->update_flags.bits.dppclk) {
+	if (pipe_ctx->update_flags.bits.dppclk)
 		dpp->funcs->dpp_dppclk_control(dpp, false, true);
-
-		dc->res_pool->dccg->funcs->update_dpp_dto(
-				dc->res_pool->dccg,
-				dpp->inst,
-				pipe_ctx->plane_res.bw.dppclk_khz);
-	}
 
 	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG
 	 * VTG is within DCHUBBUB which is commond block share by each pipe HUBP.
@@ -1996,6 +1990,28 @@ static void dcn20_reset_hw_ctx_wrap(
 	}
 }
 
+void dcn20_get_mpctree_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color)
+{
+	const struct tg_color pipe_colors[6] = {
+			{MAX_TG_COLOR_VALUE, 0, 0}, // red
+			{MAX_TG_COLOR_VALUE, 0, MAX_TG_COLOR_VALUE}, // yellow
+			{0, MAX_TG_COLOR_VALUE, 0}, // blue
+			{MAX_TG_COLOR_VALUE / 2, 0, MAX_TG_COLOR_VALUE / 2}, // purple
+			{0, 0, MAX_TG_COLOR_VALUE}, // green
+			{MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE * 2 / 3, 0}, // orange
+	};
+
+	struct pipe_ctx *top_pipe = pipe_ctx;
+
+	while (top_pipe->top_pipe) {
+		top_pipe = top_pipe->top_pipe;
+	}
+
+	*color = pipe_colors[top_pipe->pipe_idx];
+}
+
 static void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
@@ -2012,6 +2028,9 @@ static void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 				pipe_ctx, &blnd_cfg.black_color);
 	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE) {
 		dcn10_get_surface_visual_confirm_color(
+				pipe_ctx, &blnd_cfg.black_color);
+	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_MPCTREE) {
+		dcn20_get_mpctree_visual_confirm_color(
 				pipe_ctx, &blnd_cfg.black_color);
 	}
 

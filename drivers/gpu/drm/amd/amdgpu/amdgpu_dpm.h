@@ -298,12 +298,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_get_current_power_state(adev) \
 		((adev)->powerplay.pp_funcs->get_current_power_state((adev)->powerplay.pp_handle))
 
-#define amdgpu_smu_get_current_power_state(adev) \
-		((adev)->smu.ppt_funcs->get_current_power_state(&((adev)->smu)))
-
-#define amdgpu_smu_set_power_state(adev) \
-		((adev)->smu.ppt_funcs->set_power_state(&((adev)->smu)))
-
 #define amdgpu_dpm_get_pp_num_states(adev, data) \
 		((adev)->powerplay.pp_funcs->get_pp_num_states((adev)->powerplay.pp_handle, data))
 

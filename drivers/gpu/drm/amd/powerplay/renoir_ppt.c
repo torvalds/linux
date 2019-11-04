@@ -23,6 +23,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
+#include "smu_internal.h"
 #include "soc15_common.h"
 #include "smu_v12_0_ppsmc.h"
 #include "smu12_driver_if.h"
@@ -194,7 +195,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 	case SMU_SCLK:
 		/* retirve table returned paramters unit is MHz */
 		cur_value = metrics.ClockFrequency[CLOCK_GFXCLK];
-		ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK, &min, &max);
+		ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK, &min, &max, false);
 		if (!ret) {
 			/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
 			if (cur_value  == max)
@@ -251,7 +252,6 @@ static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context 
 	    !smu_dpm_ctx->dpm_current_power_state)
 		return -EINVAL;
 
-	mutex_lock(&(smu->mutex));
 	switch (smu_dpm_ctx->dpm_current_power_state->classification.ui_label) {
 	case SMU_STATE_UI_LABEL_BATTERY:
 		pm_type = POWER_STATE_TYPE_BATTERY;
@@ -269,7 +269,6 @@ static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context 
 			pm_type = POWER_STATE_TYPE_DEFAULT;
 		break;
 	}
-	mutex_unlock(&(smu->mutex));
 
 	return pm_type;
 }
@@ -283,7 +282,7 @@ static int renoir_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 	if (enable) {
 		/* vcn dpm on is a prerequisite for vcn power gate messages */
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1);
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0);
 			if (ret)
 				return ret;
 		}
@@ -314,7 +313,7 @@ static int renoir_force_dpm_limit_value(struct smu_context *smu, bool highest)
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++) {
 		clk_type = clks[i];
-		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq);
+		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq, false);
 		if (ret)
 			return ret;
 
@@ -348,7 +347,7 @@ static int renoir_unforce_dpm_levels(struct smu_context *smu) {
 
 		clk_type = clk_feature_map[i].clk_type;
 
-		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq);
+		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq, false);
 		if (ret)
 			return ret;
 
@@ -469,7 +468,7 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 			return -EINVAL;
 		}
 
-		ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK, &min_freq, &max_freq);
+		ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK, &min_freq, &max_freq, false);
 		if (ret)
 			return ret;
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
@@ -545,7 +544,7 @@ static int renoir_set_peak_clock_by_device(struct smu_context *smu)
 	int ret = 0;
 	uint32_t sclk_freq = 0, uclk_freq = 0;
 
-	ret = smu_get_dpm_freq_range(smu, SMU_SCLK, NULL, &sclk_freq);
+	ret = smu_get_dpm_freq_range(smu, SMU_SCLK, NULL, &sclk_freq, false);
 	if (ret)
 		return ret;
 
@@ -553,7 +552,7 @@ static int renoir_set_peak_clock_by_device(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	ret = smu_get_dpm_freq_range(smu, SMU_UCLK, NULL, &uclk_freq);
+	ret = smu_get_dpm_freq_range(smu, SMU_UCLK, NULL, &uclk_freq, false);
 	if (ret)
 		return ret;
 
@@ -692,6 +691,21 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_dpm_clock_table = renoir_get_dpm_clock_table,
 	.set_watermarks_table = renoir_set_watermarks_table,
 	.get_power_profile_mode = renoir_get_power_profile_mode,
+	.check_fw_status = smu_v12_0_check_fw_status,
+	.check_fw_version = smu_v12_0_check_fw_version,
+	.powergate_sdma = smu_v12_0_powergate_sdma,
+	.powergate_vcn = smu_v12_0_powergate_vcn,
+	.send_smc_msg = smu_v12_0_send_msg,
+	.send_smc_msg_with_param = smu_v12_0_send_msg_with_param,
+	.read_smc_arg = smu_v12_0_read_arg,
+	.set_gfx_cgpg = smu_v12_0_set_gfx_cgpg,
+	.gfx_off_control = smu_v12_0_gfx_off_control,
+	.init_smc_tables = smu_v12_0_init_smc_tables,
+	.fini_smc_tables = smu_v12_0_fini_smc_tables,
+	.populate_smc_tables = smu_v12_0_populate_smc_tables,
+	.get_dpm_ultimate_freq = smu_v12_0_get_dpm_ultimate_freq,
+	.mode2_reset = smu_v12_0_mode2_reset,
+	.set_soft_freq_limited_range = smu_v12_0_set_soft_freq_limited_range,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)

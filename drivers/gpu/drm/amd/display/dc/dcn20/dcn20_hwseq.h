@@ -109,5 +109,7 @@ bool dcn20_set_blend_lut(
 	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state);
 bool dcn20_set_shaper_3dlut(
 	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state);
-
+void dcn20_get_mpctree_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
 #endif /* __DC_HWSS_DCN20_H__ */

@@ -147,6 +147,12 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 static void handle_cursor_update(struct drm_plane *plane,
 				 struct drm_plane_state *old_plane_state);
 
+static void amdgpu_dm_set_psr_caps(struct dc_link *link);
+static bool amdgpu_dm_psr_enable(struct dc_stream_state *stream);
+static bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream);
+static bool amdgpu_dm_psr_disable(struct dc_stream_state *stream);
+
+
 /*
  * dm_vblank_get_counter
  *
@@ -721,6 +727,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	if (amdgpu_dc_feature_mask & DC_MULTI_MON_PP_MCLK_SWITCH_MASK)
 		init_data.flags.multi_mon_pp_mclk_switch = true;
+
+	if (amdgpu_dc_feature_mask & DC_DISABLE_FRACTIONAL_PWM_MASK)
+		init_data.flags.disable_fractional_pwm = true;
 
 	init_data.flags.power_down_display_on_boot = true;
 
@@ -2418,6 +2427,8 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		} else if (dc_link_detect(link, DETECT_REASON_BOOT)) {
 			amdgpu_dm_update_connector_after_detect(aconnector);
 			register_backlight_device(dm, link);
+			if (amdgpu_dc_feature_mask & DC_PSR_MASK)
+				amdgpu_dm_set_psr_caps(link);
 		}
 
 
@@ -3399,6 +3410,9 @@ static void fill_stream_properties_from_drm_display_mode(
 	struct hdmi_vendor_infoframe hv_frame;
 	struct hdmi_avi_infoframe avi_frame;
 
+	memset(&hv_frame, 0, sizeof(hv_frame));
+	memset(&avi_frame, 0, sizeof(avi_frame));
+
 	timing_out->h_border_left = 0;
 	timing_out->h_border_right = 0;
 	timing_out->v_border_top = 0;
@@ -3740,7 +3754,16 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		mod_build_hf_vsif_infopacket(stream, &stream->vsp_infopacket, false, false);
+	if (stream->link->psr_feature_enabled)	{
+		struct dc  *core_dc = stream->link->ctx->dc;
 
+		if (dc_is_dmcu_initialized(core_dc)) {
+			struct dmcu *dmcu = core_dc->res_pool->dmcu;
+
+			stream->psr_version = dmcu->dmcu_version.psr_version;
+			mod_build_vsc_infopacket(stream, &stream->vsc_infopacket);
+		}
+	}
 finish:
 	dc_sink_release(sink);
 
@@ -5824,6 +5847,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	uint32_t target_vblank, last_flip_vblank;
 	bool vrr_active = amdgpu_dm_vrr_active(acrtc_state);
 	bool pflip_present = false;
+	bool swizzle = true;
 	struct {
 		struct dc_surface_update surface_updates[MAX_SURFACES];
 		struct dc_plane_info plane_infos[MAX_SURFACES];
@@ -5868,6 +5892,9 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			continue;
 
 		dc_plane = dm_new_plane_state->dc_state;
+
+		if (dc_plane && !dc_plane->tiling_info.gfx9.swizzle)
+			swizzle = false;
 
 		bundle->surface_updates[planes_count].surface = dc_plane;
 		if (new_pcrtc_state->color_mgmt_changed) {
@@ -6059,14 +6086,29 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				&acrtc_state->vrr_params.adjust);
 			spin_unlock_irqrestore(&pcrtc->dev->event_lock, flags);
 		}
-
 		mutex_lock(&dm->dc_lock);
+		if ((acrtc_state->update_type > UPDATE_TYPE_FAST) &&
+				acrtc_state->stream->link->psr_allow_active)
+			amdgpu_dm_psr_disable(acrtc_state->stream);
+
 		dc_commit_updates_for_stream(dm->dc,
 						     bundle->surface_updates,
 						     planes_count,
 						     acrtc_state->stream,
 						     &bundle->stream_update,
 						     dc_state);
+
+		if ((acrtc_state->update_type > UPDATE_TYPE_FAST) &&
+						acrtc_state->stream->psr_version &&
+						!acrtc_state->stream->link->psr_feature_enabled)
+			amdgpu_dm_link_setup_psr(acrtc_state->stream);
+		else if ((acrtc_state->update_type == UPDATE_TYPE_FAST) &&
+						acrtc_state->stream->link->psr_feature_enabled &&
+						!acrtc_state->stream->link->psr_allow_active &&
+						swizzle) {
+			amdgpu_dm_psr_enable(acrtc_state->stream);
+		}
+
 		mutex_unlock(&dm->dc_lock);
 	}
 
@@ -6375,10 +6417,13 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			crtc->hwmode = new_crtc_state->mode;
 		} else if (modereset_required(new_crtc_state)) {
 			DRM_DEBUG_DRIVER("Atomic commit: RESET. crtc id %d:[%p]\n", acrtc->crtc_id, acrtc);
-
 			/* i.e. reset mode */
-			if (dm_old_crtc_state->stream)
+			if (dm_old_crtc_state->stream) {
+				if (dm_old_crtc_state->stream->link->psr_allow_active)
+					amdgpu_dm_psr_disable(dm_old_crtc_state->stream);
+
 				remove_stream(adev, acrtc, dm_old_crtc_state->stream);
+			}
 		}
 	} /* for_each_crtc_in_state() */
 
@@ -7754,3 +7799,92 @@ update:
 						       freesync_capable);
 }
 
+static void amdgpu_dm_set_psr_caps(struct dc_link *link)
+{
+	uint8_t dpcd_data[EDP_PSR_RECEIVER_CAP_SIZE];
+
+	if (!(link->connector_signal & SIGNAL_TYPE_EDP))
+		return;
+	if (link->type == dc_connection_none)
+		return;
+	if (dm_helpers_dp_read_dpcd(NULL, link, DP_PSR_SUPPORT,
+					dpcd_data, sizeof(dpcd_data))) {
+		link->psr_feature_enabled = dpcd_data[0] ? true:false;
+		DRM_INFO("PSR support:%d\n", link->psr_feature_enabled);
+	}
+}
+
+/*
+ * amdgpu_dm_link_setup_psr() - configure psr link
+ * @stream: stream state
+ *
+ * Return: true if success
+ */
+static bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
+{
+	struct dc_link *link = NULL;
+	struct psr_config psr_config = {0};
+	struct psr_context psr_context = {0};
+	struct dc *dc = NULL;
+	bool ret = false;
+
+	if (stream == NULL)
+		return false;
+
+	link = stream->link;
+	dc = link->ctx->dc;
+
+	psr_config.psr_version = dc->res_pool->dmcu->dmcu_version.psr_version;
+
+	if (psr_config.psr_version > 0) {
+		psr_config.psr_exit_link_training_required = 0x1;
+		psr_config.psr_frame_capture_indication_req = 0;
+		psr_config.psr_rfb_setup_time = 0x37;
+		psr_config.psr_sdp_transmit_line_num_deadline = 0x20;
+		psr_config.allow_smu_optimizations = 0x0;
+
+		ret = dc_link_setup_psr(link, stream, &psr_config, &psr_context);
+
+	}
+	DRM_DEBUG_DRIVER("PSR link: %d\n",	link->psr_feature_enabled);
+
+	return ret;
+}
+
+/*
+ * amdgpu_dm_psr_enable() - enable psr f/w
+ * @stream: stream state
+ *
+ * Return: true if success
+ */
+bool amdgpu_dm_psr_enable(struct dc_stream_state *stream)
+{
+	struct dc_link *link = stream->link;
+	struct dc_static_screen_events triggers = {0};
+
+	DRM_DEBUG_DRIVER("Enabling psr...\n");
+
+	triggers.cursor_update = true;
+	triggers.overlay_update = true;
+	triggers.surface_update = true;
+
+	dc_stream_set_static_screen_events(link->ctx->dc,
+					   &stream, 1,
+					   &triggers);
+
+	return dc_link_set_psr_allow_active(link, true, false);
+}
+
+/*
+ * amdgpu_dm_psr_disable() - disable psr f/w
+ * @stream:  stream state
+ *
+ * Return: true if success
+ */
+static bool amdgpu_dm_psr_disable(struct dc_stream_state *stream)
+{
+
+	DRM_DEBUG_DRIVER("Disabling psr...\n");
+
+	return dc_link_set_psr_allow_active(stream->link, false, true);
+}

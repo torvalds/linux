@@ -486,14 +486,11 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo, bool evict,
 				struct ttm_operation_ctx *ctx,
 				struct ttm_mem_reg *new_mem)
 {
-	struct amdgpu_device *adev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
 	struct ttm_place placements;
 	struct ttm_placement placement;
 	int r;
-
-	adev = amdgpu_ttm_adev(bo->bdev);
 
 	/* create space/pages for new_mem in GTT space */
 	tmp_mem = *new_mem;
@@ -545,14 +542,11 @@ static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo, bool evict,
 				struct ttm_operation_ctx *ctx,
 				struct ttm_mem_reg *new_mem)
 {
-	struct amdgpu_device *adev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
 	struct ttm_placement placement;
 	struct ttm_place placements;
 	int r;
-
-	adev = amdgpu_ttm_adev(bo->bdev);
 
 	/* make space in GTT for old_mem buffer */
 	tmp_mem = *new_mem;
@@ -1220,10 +1214,7 @@ static struct ttm_backend_func amdgpu_backend_func = {
 static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
 					   uint32_t page_flags)
 {
-	struct amdgpu_device *adev;
 	struct amdgpu_ttm_tt *gtt;
-
-	adev = amdgpu_ttm_adev(bo->bdev);
 
 	gtt = kzalloc(sizeof(struct amdgpu_ttm_tt), GFP_KERNEL);
 	if (gtt == NULL) {
@@ -1809,17 +1800,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	adev->mman.aper_base_kaddr = ioremap_wc(adev->gmc.aper_base,
 						adev->gmc.visible_vram_size);
 #endif
-
-	/*
-	 * retired pages will be loaded from eeprom and reserved here,
-	 * it should be called after ttm init since new bo may be created,
-	 * recovery_init may fail, but it can free all resources allocated by
-	 * itself and its failure should not stop amdgpu init process.
-	 *
-	 * Note: theoretically, this should be called before all vram allocations
-	 * to protect retired page from abusing
-	 */
-	amdgpu_ras_recovery_init(adev);
 
 	/*
 	 *The reserved vram for firmware must be pinned to the specified

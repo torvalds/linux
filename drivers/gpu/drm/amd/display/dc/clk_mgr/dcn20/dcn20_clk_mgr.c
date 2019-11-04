@@ -108,11 +108,12 @@ void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
 		int dpp_inst, dppclk_khz;
 
-		if (!context->res_ctx.pipe_ctx[i].plane_state)
-			continue;
-
-		dpp_inst = context->res_ctx.pipe_ctx[i].plane_res.dpp->inst;
+		/* Loop index will match dpp->inst if resource exists,
+		 * and we want to avoid dependency on dpp object
+		 */
+		dpp_inst = i;
 		dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
+
 		clk_mgr->dccg->funcs->update_dpp_dto(
 				clk_mgr->dccg, dpp_inst, dppclk_khz);
 	}
@@ -121,9 +122,9 @@ void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 void dcn20_update_clocks_update_dentist(struct clk_mgr_internal *clk_mgr)
 {
 	int dpp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->dentist_vco_freq_khz / clk_mgr->base.clks.dppclk_khz;
+			* clk_mgr->base.dentist_vco_freq_khz / clk_mgr->base.clks.dppclk_khz;
 	int disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->dentist_vco_freq_khz / clk_mgr->base.clks.dispclk_khz;
+			* clk_mgr->base.dentist_vco_freq_khz / clk_mgr->base.clks.dispclk_khz;
 
 	uint32_t dppclk_wdivider = dentist_get_did_from_divider(dpp_divider);
 	uint32_t dispclk_wdivider = dentist_get_did_from_divider(disp_divider);
@@ -235,6 +236,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 
 		update_dispclk = true;
 	}
+
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
 		if (dpp_clock_lowered) {
 			// if clock is being lowered, increase DTO before lowering refclk
@@ -244,10 +246,12 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 			// if clock is being raised, increase refclk before lowering DTO
 			if (update_dppclk || update_dispclk)
 				dcn20_update_clocks_update_dentist(clk_mgr);
-			if (update_dppclk)
+			// always update dtos unless clock is lowered and not safe to lower
+			if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
 				dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
 		}
 	}
+
 	if (update_dispclk &&
 			dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
 		/*update dmcu for wait_loop count*/
@@ -260,6 +264,8 @@ void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
 		struct dc_state *context,
 		bool safe_to_lower)
 {
+	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr);
+
 	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	/* Min fclk = 1.2GHz since all the extra scemi logic seems to run off of it */
 	int fclk_adj = new_clocks->fclk_khz > 1200000 ? new_clocks->fclk_khz : 1200000;
@@ -297,13 +303,17 @@ void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
 		clk_mgr->clks.dispclk_khz = new_clocks->dispclk_khz;
 	}
 
-	/* Both fclk and dppclk ref are run on the same scemi clock so we
-	 * need to keep the same value for both
+	/* Both fclk and ref_dppclk run on the same scemi clock.
+	 * So take the higher value since the DPP DTO is typically programmed
+	 * such that max dppclk is 1:1 with ref_dppclk.
 	 */
 	if (clk_mgr->clks.fclk_khz > clk_mgr->clks.dppclk_khz)
 		clk_mgr->clks.dppclk_khz = clk_mgr->clks.fclk_khz;
 	if (clk_mgr->clks.dppclk_khz > clk_mgr->clks.fclk_khz)
 		clk_mgr->clks.fclk_khz = clk_mgr->clks.dppclk_khz;
+
+	// Both fclk and ref_dppclk run on the same scemi clock.
+	clk_mgr_int->dccg->ref_dppclk = clk_mgr->clks.fclk_khz;
 
 	dm_set_dcn_clocks(clk_mgr->ctx, &clk_mgr->clks);
 }
@@ -406,7 +416,7 @@ void dcn20_clk_mgr_construct(
 
 	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
 		dcn2_funcs.update_clocks = dcn2_update_clocks_fpga;
-		clk_mgr->dentist_vco_freq_khz = 3850000;
+		clk_mgr->base.dentist_vco_freq_khz = 3850000;
 
 	} else {
 		/* DFS Slice 2 should be used for DPREFCLK */
@@ -430,15 +440,15 @@ void dcn20_clk_mgr_construct(
 		pll_req = dc_fixpt_mul_int(pll_req, 100000);
 
 		/* integer part is now VCO frequency in kHz */
-		clk_mgr->dentist_vco_freq_khz = dc_fixpt_floor(pll_req);
+		clk_mgr->base.dentist_vco_freq_khz = dc_fixpt_floor(pll_req);
 
 		/* in case we don't get a value from the register, use default */
-		if (clk_mgr->dentist_vco_freq_khz == 0)
-			clk_mgr->dentist_vco_freq_khz = 3850000;
+		if (clk_mgr->base.dentist_vco_freq_khz == 0)
+			clk_mgr->base.dentist_vco_freq_khz = 3850000;
 
 		/* Calculate the DPREFCLK in kHz.*/
 		clk_mgr->base.dprefclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->dentist_vco_freq_khz) / target_div;
+			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 	}
 	//Integrated_info table does not exist on dGPU projects so should not be referenced
 	//anywhere in code for dGPUs.

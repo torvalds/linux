@@ -710,7 +710,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 						pcache_info,
 						cu_info,
 						mem_available,
-						cu_info->cu_bitmap[i][j],
+						cu_info->cu_bitmap[i % 4][j + i / 4],
 						ct,
 						cu_processor_id,
 						k);

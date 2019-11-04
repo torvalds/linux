@@ -19,10 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#undef pr_fmt
-#define pr_fmt(fmt) "kfd2kgd: " fmt
-
 #include <linux/module.h>
 #include <linux/fdtable.h>
 #include <linux/uaccess.h>

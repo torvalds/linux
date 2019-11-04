@@ -432,7 +432,6 @@ static bool dce_aux_configure_timeout(struct ddc_service *ddc,
 {
 	uint32_t multiplier = 0;
 	uint32_t length = 0;
-	uint32_t timeout = 0;
 	struct ddc *ddc_pin = ddc->ddc_pin;
 	struct dce_aux *aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
 	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(aux_engine);
@@ -446,25 +445,21 @@ static bool dce_aux_configure_timeout(struct ddc_service *ddc,
 		length = timeout_in_us/TIME_OUT_MULTIPLIER_8;
 		if (timeout_in_us % TIME_OUT_MULTIPLIER_8 != 0)
 			length++;
-		timeout = length * TIME_OUT_MULTIPLIER_8;
 	} else if (timeout_in_us <= 2 * TIME_OUT_INCREMENT) {
 		multiplier = 1;
 		length = timeout_in_us/TIME_OUT_MULTIPLIER_16;
 		if (timeout_in_us % TIME_OUT_MULTIPLIER_16 != 0)
 			length++;
-		timeout = length * TIME_OUT_MULTIPLIER_16;
 	} else if (timeout_in_us <= 4 * TIME_OUT_INCREMENT) {
 		multiplier = 2;
 		length = timeout_in_us/TIME_OUT_MULTIPLIER_32;
 		if (timeout_in_us % TIME_OUT_MULTIPLIER_32 != 0)
 			length++;
-		timeout = length * TIME_OUT_MULTIPLIER_32;
 	} else if (timeout_in_us > 4 * TIME_OUT_INCREMENT) {
 		multiplier = 3;
 		length = timeout_in_us/TIME_OUT_MULTIPLIER_64;
 		if (timeout_in_us % TIME_OUT_MULTIPLIER_64 != 0)
 			length++;
-		timeout = length * TIME_OUT_MULTIPLIER_64;
 	}
 
 	length = (length < MAX_TIMEOUT_LENGTH) ? length : MAX_TIMEOUT_LENGTH;
@@ -538,8 +533,10 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 	memset(&aux_rep, 0, sizeof(aux_rep));
 
 	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
-	if (!acquire(aux_engine, ddc_pin))
+	if (!acquire(aux_engine, ddc_pin)) {
+		*operation_result = AUX_CHANNEL_OPERATION_FAILED_ENGINE_ACQUIRE;
 		return -1;
+	}
 
 	if (payload->i2c_over_aux)
 		aux_req.type = AUX_TRANSACTION_TYPE_I2C;
@@ -663,6 +660,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			break;
 
 		case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
+		case AUX_CHANNEL_OPERATION_FAILED_ENGINE_ACQUIRE:
 		case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
 		default:
 			goto fail;

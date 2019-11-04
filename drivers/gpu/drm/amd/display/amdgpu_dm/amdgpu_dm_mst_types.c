@@ -113,6 +113,7 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 			result = -EIO;
 			break;
 		case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
+		case AUX_CHANNEL_OPERATION_FAILED_ENGINE_ACQUIRE:
 			result = -EBUSY;
 			break;
 		case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:

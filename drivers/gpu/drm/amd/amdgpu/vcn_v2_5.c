@@ -265,9 +265,6 @@ static int vcn_v2_5_hw_init(void *handle)
 
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 			ring = &adev->vcn.inst[j].ring_enc[i];
-			/* disable encode rings till the robustness of the FW */
-			ring->sched.ready = false;
-			continue;
 			r = amdgpu_ring_test_helper(ring);
 			if (r)
 				goto done;

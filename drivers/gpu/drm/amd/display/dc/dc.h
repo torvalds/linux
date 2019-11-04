@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.54"
+#define DC_VER "3.2.56"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -220,6 +220,7 @@ struct dc_config {
 	bool allow_seamless_boot_optimization;
 	bool power_down_display_on_boot;
 	bool edp_not_connected;
+	bool force_enum_edp;
 	bool forced_clocks;
 	bool disable_extended_timeout_support; // Used to disable extended timeout and lttpr feature as well
 	bool multi_mon_pp_mclk_switch;
@@ -229,6 +230,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_DISABLE = 0,
 	VISUAL_CONFIRM_SURFACE = 1,
 	VISUAL_CONFIRM_HDR = 2,
+	VISUAL_CONFIRM_MPCTREE = 4,
 };
 
 enum dcc_option {
@@ -256,8 +258,9 @@ enum dtm_pstate{
 };
 
 enum dcn_pwr_state {
-	DCN_PWR_STATE_OPTIMIZED = 0,
-	DCN_PWR_STATE_NORMAL = 1
+	DCN_PWR_STATE_UNKNOWN = -1,
+	DCN_PWR_STATE_MISSION_MODE = 0,
+	DCN_PWR_STATE_LOW_POWER = 3,
 };
 
 /*

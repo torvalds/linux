@@ -27,7 +27,7 @@
 
 #define SMU11_DRIVER_IF_VERSION_INV 0xFFFFFFFF
 #define SMU11_DRIVER_IF_VERSION_VG20 0x13
-#define SMU11_DRIVER_IF_VERSION_ARCT 0x0D
+#define SMU11_DRIVER_IF_VERSION_ARCT 0x0F
 #define SMU11_DRIVER_IF_VERSION_NV10 0x33
 #define SMU11_DRIVER_IF_VERSION_NV14 0x34
 
@@ -130,6 +130,124 @@ enum smu_v11_0_baco_seq {
 	BACO_SEQ_COUNT,
 };
 
-void smu_v11_0_set_smu_funcs(struct smu_context *smu);
+int smu_v11_0_init_microcode(struct smu_context *smu);
+
+int smu_v11_0_load_microcode(struct smu_context *smu);
+
+int smu_v11_0_init_smc_tables(struct smu_context *smu);
+
+int smu_v11_0_fini_smc_tables(struct smu_context *smu);
+
+int smu_v11_0_init_power(struct smu_context *smu);
+
+int smu_v11_0_fini_power(struct smu_context *smu);
+
+int smu_v11_0_check_fw_status(struct smu_context *smu);
+
+int smu_v11_0_setup_pptable(struct smu_context *smu);
+
+int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu);
+
+int smu_v11_0_get_clk_info_from_vbios(struct smu_context *smu);
+
+int smu_v11_0_check_pptable(struct smu_context *smu);
+
+int smu_v11_0_parse_pptable(struct smu_context *smu);
+
+int smu_v11_0_populate_smc_pptable(struct smu_context *smu);
+
+int smu_v11_0_check_fw_version(struct smu_context *smu);
+
+int smu_v11_0_write_pptable(struct smu_context *smu);
+
+int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu);
+
+int smu_v11_0_set_tool_table_location(struct smu_context *smu);
+
+int smu_v11_0_notify_memory_pool_location(struct smu_context *smu);
+
+int smu_v11_0_system_features_control(struct smu_context *smu,
+					     bool en);
+
+int smu_v11_0_send_msg(struct smu_context *smu, uint16_t msg);
+
+int
+smu_v11_0_send_msg_with_param(struct smu_context *smu, uint16_t msg,
+			      uint32_t param);
+
+int smu_v11_0_read_arg(struct smu_context *smu, uint32_t *arg);
+
+int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count);
+
+int smu_v11_0_set_allowed_mask(struct smu_context *smu);
+
+int smu_v11_0_get_enabled_mask(struct smu_context *smu,
+				      uint32_t *feature_mask, uint32_t num);
+
+int smu_v11_0_notify_display_change(struct smu_context *smu);
+
+int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n);
+
+int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
+					  enum smu_clk_type clk_id,
+					  uint32_t *value);
+
+int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu);
+
+int smu_v11_0_start_thermal_control(struct smu_context *smu);
+
+int smu_v11_0_stop_thermal_control(struct smu_context *smu);
+
+int smu_v11_0_read_sensor(struct smu_context *smu,
+				 enum amd_pp_sensors sensor,
+				 void *data, uint32_t *size);
+
+int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk);
+
+int
+smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
+					struct pp_display_clock_request
+					*clock_req);
+
+uint32_t
+smu_v11_0_get_fan_control_mode(struct smu_context *smu);
+
+int
+smu_v11_0_set_fan_control_mode(struct smu_context *smu,
+			       uint32_t mode);
+
+int
+smu_v11_0_set_fan_speed_percent(struct smu_context *smu, uint32_t speed);
+
+int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
+				       uint32_t speed);
+
+int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
+				     uint32_t pstate);
+
+int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable);
+
+int smu_v11_0_register_irq_handler(struct smu_context *smu);
+
+int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu);
+
+int smu_v11_0_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
+		struct pp_smu_nv_clock_table *max_clocks);
+
+bool smu_v11_0_baco_is_support(struct smu_context *smu);
+
+enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu);
+
+int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state);
+
+int smu_v11_0_baco_reset(struct smu_context *smu);
+
+int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
+						 uint32_t *min, uint32_t *max);
+
+int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
+			    uint32_t min, uint32_t max);
+
+int smu_v11_0_override_pcie_parameters(struct smu_context *smu);
 
 #endif

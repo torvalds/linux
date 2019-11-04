@@ -83,8 +83,8 @@
 
 struct _vcs_dpi_ip_params_st dcn2_1_ip = {
 	.odm_capable = 1,
-	.gpuvm_enable = 0,
-	.hostvm_enable = 0,
+	.gpuvm_enable = 1,
+	.hostvm_enable = 1,
 	.gpuvm_max_page_table_levels = 1,
 	.hostvm_max_page_table_levels = 4,
 	.hostvm_cached_page_table_levels = 2,
@@ -669,6 +669,9 @@ static const struct dcn10_stream_encoder_mask se_mask = {
 
 static void dcn21_pp_smu_destroy(struct pp_smu_funcs **pp_smu);
 
+static int dcn21_populate_dml_pipes_from_context(
+		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes);
+
 static struct input_pixel_processor *dcn21_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
@@ -833,7 +836,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
-		.force_single_disp_pipe_split = true,
+		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
 		.vsr_support = true,
 		.performance_trace = false,
@@ -1006,6 +1009,7 @@ static void calculate_wm_set_for_vlevel(
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	wm_set->frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(dml, pipes, pipe_cnt) * 1000;
 	wm_set->frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(dml, pipes, pipe_cnt) * 1000;
+	wm_set->urgent_latency_ns = get_urgent_latency(dml, pipes, pipe_cnt) * 1000;
 #endif
 	dml->soc.dram_clock_change_latency_us = dram_clock_change_latency_cached;
 
@@ -1083,7 +1087,7 @@ void dcn21_calculate_wm(
 			pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc,
 				&context->res_ctx, pipes);
 		else
-			pipe_cnt = dcn20_populate_dml_pipes_from_context(dc,
+			pipe_cnt = dcn21_populate_dml_pipes_from_context(dc,
 				&context->res_ctx, pipes);
 	}
 
@@ -1333,6 +1337,12 @@ struct display_stream_compressor *dcn21_dsc_create(
 
 static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
+	/*
+	TODO: Fix this function to calcualte correct values.
+	There are known issues with this function currently
+	that will need to be investigated. Use hardcoded known good values for now.
+
+
 	struct dcn21_resource_pool *pool = TO_DCN21_RES_POOL(dc->res_pool);
 	struct clk_limit_table *clk_table = &bw_params->clk_table;
 	int i;
@@ -1347,11 +1357,11 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 		dcn2_1_soc.clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
 		dcn2_1_soc.clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
 		dcn2_1_soc.clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-		/* This is probably wrong, TODO: find correct calculation */
 		dcn2_1_soc.clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 16 / 1000;
 	}
 	dcn2_1_soc.clock_limits[i] = dcn2_1_soc.clock_limits[i - i];
 	dcn2_1_soc.num_states = i;
+	*/
 }
 
 /* Temporary Place holder until we can get them from fuse */
@@ -1552,19 +1562,48 @@ static const struct dcn10_link_enc_mask le_mask = {
 	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK)
 };
 
+static int map_transmitter_id_to_phy_instance(
+	enum transmitter transmitter)
+{
+	switch (transmitter) {
+	case TRANSMITTER_UNIPHY_A:
+		return 0;
+	break;
+	case TRANSMITTER_UNIPHY_B:
+		return 1;
+	break;
+	case TRANSMITTER_UNIPHY_C:
+		return 2;
+	break;
+	case TRANSMITTER_UNIPHY_D:
+		return 3;
+	break;
+	case TRANSMITTER_UNIPHY_E:
+		return 4;
+	break;
+	default:
+		ASSERT(0);
+		return 0;
+	}
+}
+
 static struct link_encoder *dcn21_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn21_link_encoder *enc21 =
 		kzalloc(sizeof(struct dcn21_link_encoder), GFP_KERNEL);
+	int link_regs_id;
 
 	if (!enc21)
 		return NULL;
 
+	link_regs_id =
+		map_transmitter_id_to_phy_instance(enc_init_data->transmitter);
+
 	dcn21_link_encoder_construct(enc21,
 				      enc_init_data,
 				      &link_enc_feature,
-				      &link_enc_regs[enc_init_data->transmitter],
+				      &link_enc_regs[link_regs_id],
 				      &link_enc_aux_regs[enc_init_data->channel - 1],
 				      &link_enc_hpd_regs[enc_init_data->hpd_source],
 				      &le_shift,
@@ -1585,10 +1624,29 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 	return value;
 }
 
+static int dcn21_populate_dml_pipes_from_context(
+		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
+{
+	uint32_t pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, res_ctx, pipes);
+	int i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+
+		if (!res_ctx->pipe_ctx[i].stream)
+			continue;
+
+		pipes[i].pipe.src.hostvm = 1;
+		pipes[i].pipe.src.gpuvm = 1;
+	}
+
+	return pipe_cnt;
+}
+
 static struct resource_funcs dcn21_res_pool_funcs = {
 	.destroy = dcn21_destroy_resource_pool,
 	.link_enc_create = dcn21_link_encoder_create,
 	.validate_bandwidth = dcn21_validate_bandwidth,
+	.populate_dml_pipes = dcn21_populate_dml_pipes_from_context,
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
@@ -1608,6 +1666,7 @@ static bool construct(
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
 	uint32_t pipe_fuses = read_pipe_fuses(ctx);
+	uint32_t num_pipes;
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -1720,6 +1779,14 @@ static bool construct(
 #endif
 
 	pool->base.pp_smu = dcn21_pp_smu_create(ctx);
+
+	num_pipes = dcn2_1_ip.max_num_dpp;
+
+	for (i = 0; i < dcn2_1_ip.max_num_dpp; i++)
+		if (pipe_fuses & 1 << i)
+			num_pipes--;
+	dcn2_1_ip.max_num_dpp = num_pipes;
+	dcn2_1_ip.max_num_otg = num_pipes;
 
 	dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
 

@@ -216,6 +216,10 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 		ret = smu_v11_0_i2c_eeprom_control_init(&control->eeprom_accessor);
 		break;
 
+	case CHIP_ARCTURUS:
+		ret = smu_i2c_eeprom_init(&adev->smu, &control->eeprom_accessor);
+		break;
+
 	default:
 		return 0;
 	}
@@ -259,6 +263,9 @@ void amdgpu_ras_eeprom_fini(struct amdgpu_ras_eeprom_control *control)
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 		smu_v11_0_i2c_eeprom_control_fini(&control->eeprom_accessor);
+		break;
+	case CHIP_ARCTURUS:
+		smu_i2c_eeprom_fini(&adev->smu, &control->eeprom_accessor);
 		break;
 
 	default:
@@ -364,7 +371,7 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 	struct eeprom_table_record *record;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 
-	if (adev->asic_type != CHIP_VEGA20)
+	if (adev->asic_type != CHIP_VEGA20 && adev->asic_type != CHIP_ARCTURUS)
 		return 0;
 
 	buffs = kcalloc(num, EEPROM_ADDRESS_SIZE + EEPROM_TABLE_RECORD_SIZE,

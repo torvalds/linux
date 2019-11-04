@@ -373,7 +373,42 @@ static struct fixed31_32 translate_from_linear_space(
 		return dc_fixpt_mul(args->arg, args->a1);
 }
 
-static struct fixed31_32 calculate_gamma22(struct fixed31_32 arg)
+
+static struct fixed31_32 translate_from_linear_space_long(
+		struct translate_from_linear_space_args *args)
+{
+	const struct fixed31_32 one = dc_fixpt_from_int(1);
+
+	if (dc_fixpt_lt(one, args->arg))
+		return one;
+
+	if (dc_fixpt_le(args->arg, dc_fixpt_neg(args->a0)))
+		return dc_fixpt_sub(
+			args->a2,
+			dc_fixpt_mul(
+				dc_fixpt_add(
+					one,
+					args->a3),
+				dc_fixpt_pow(
+					dc_fixpt_neg(args->arg),
+					dc_fixpt_recip(args->gamma))));
+	else if (dc_fixpt_le(args->a0, args->arg))
+		return dc_fixpt_sub(
+			dc_fixpt_mul(
+				dc_fixpt_add(
+					one,
+					args->a3),
+				dc_fixpt_pow(
+						args->arg,
+					dc_fixpt_recip(args->gamma))),
+					args->a2);
+	else
+		return dc_fixpt_mul(
+			args->arg,
+			args->a1);
+}
+
+static struct fixed31_32 calculate_gamma22(struct fixed31_32 arg, bool use_eetf)
 {
 	struct fixed31_32 gamma = dc_fixpt_from_fraction(22, 10);
 
@@ -384,8 +419,12 @@ static struct fixed31_32 calculate_gamma22(struct fixed31_32 arg)
 	scratch_gamma_args.a3 = dc_fixpt_zero;
 	scratch_gamma_args.gamma = gamma;
 
+	if (use_eetf)
+		return translate_from_linear_space_long(&scratch_gamma_args);
+
 	return translate_from_linear_space(&scratch_gamma_args);
 }
+
 
 static struct fixed31_32 translate_to_linear_space(
 	struct fixed31_32 arg,
@@ -920,11 +959,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	if (fs_params->max_display < 100) // cap at 100 at the top
 		max_display = dc_fixpt_from_int(100);
 
-	if (fs_params->min_content < fs_params->min_display)
-		use_eetf = true;
-	else
-		min_content = min_display;
-
+	// only max used, we don't adjust min luminance
 	if (fs_params->max_content > fs_params->max_display)
 		use_eetf = true;
 	else
@@ -950,7 +985,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 				if (dc_fixpt_lt(scaledX, dc_fixpt_zero))
 					output = dc_fixpt_zero;
 				else
-					output = calculate_gamma22(scaledX);
+					output = calculate_gamma22(scaledX, use_eetf);
 
 				rgb->r = output;
 				rgb->g = output;
@@ -2173,5 +2208,3 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 rgb_degamma_alloc_fail:
 	return ret;
 }
-
-

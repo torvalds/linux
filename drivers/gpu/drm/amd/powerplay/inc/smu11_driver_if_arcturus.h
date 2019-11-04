@@ -423,18 +423,30 @@ typedef enum {
 } PwrConfig_e;
 
 typedef enum {
-  XGMI_LINK_RATE_12 = 0,  // 12Gbps
-  XGMI_LINK_RATE_16,      // 16Gbps
-  XGMI_LINK_RATE_22,      // 22Gbps
-  XGMI_LINK_RATE_25,      // 25Gbps
+  XGMI_LINK_RATE_2 = 2,    // 2Gbps
+  XGMI_LINK_RATE_4 = 4,    // 4Gbps
+  XGMI_LINK_RATE_8 = 8,    // 8Gbps
+  XGMI_LINK_RATE_12 = 12,  // 12Gbps
+  XGMI_LINK_RATE_16 = 16,  // 16Gbps
+  XGMI_LINK_RATE_17 = 17,  // 17Gbps
+  XGMI_LINK_RATE_18 = 18,  // 18Gbps
+  XGMI_LINK_RATE_19 = 19,  // 19Gbps
+  XGMI_LINK_RATE_20 = 20,  // 20Gbps
+  XGMI_LINK_RATE_21 = 21,  // 21Gbps
+  XGMI_LINK_RATE_22 = 22,  // 22Gbps
+  XGMI_LINK_RATE_23 = 23,  // 23Gbps
+  XGMI_LINK_RATE_24 = 24,  // 24Gbps
+  XGMI_LINK_RATE_25 = 25,  // 25Gbps
   XGMI_LINK_RATE_COUNT
 } XGMI_LINK_RATE_e;
 
 typedef enum {
-  XGMI_LINK_WIDTH_2 = 0, // x2
-  XGMI_LINK_WIDTH_4,     // x4
-  XGMI_LINK_WIDTH_8,     // x8
-  XGMI_LINK_WIDTH_16,    // x16
+  XGMI_LINK_WIDTH_1 = 1,   // x1
+  XGMI_LINK_WIDTH_2 = 2,   // x2
+  XGMI_LINK_WIDTH_4 = 4,   // x4
+  XGMI_LINK_WIDTH_8 = 8,   // x8
+  XGMI_LINK_WIDTH_9 = 9,   // x9
+  XGMI_LINK_WIDTH_16 = 16, // x16
   XGMI_LINK_WIDTH_COUNT
 } XGMI_LINK_WIDTH_e;
 

@@ -19,9 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#define pr_fmt(fmt) "kfd2kgd: " fmt
-
 #include <linux/mmu_context.h>
 
 #include "amdgpu.h"

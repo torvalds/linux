@@ -244,7 +244,7 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 	/* Copy PSP KDB binary to memory */
 	memcpy(psp->fw_pri_buf, psp->kdb_start_addr, psp->kdb_bin_size);
 
-	/* Provide the sys driver to bootloader */
+	/* Provide the PSP KDB to bootloader */
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = PSP_BL__LOAD_KEY_DATABASE;
@@ -467,6 +467,14 @@ static int psp_v11_0_ring_create(struct psp_context *psp,
 				   0x80000000, 0x8000FFFF, false);
 
 	} else {
+		/* Wait for sOS ready for ring creation */
+		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
+				   0x80000000, 0x80000000, false);
+		if (ret) {
+			DRM_ERROR("Failed to wait for sOS ready for ring creation\n");
+			return ret;
+		}
+
 		/* Write low address of the ring to C2PMSG_69 */
 		psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, psp_ring_reg);

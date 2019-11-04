@@ -340,6 +340,10 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	mqd_mgr->init_mqd(mqd_mgr, &q->mqd, q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (q->properties.is_active) {
+		if (!dqm->sched_running) {
+			WARN_ONCE(1, "Load non-HWS mqd while stopped\n");
+			goto add_queue_to_list;
+		}
 
 		if (WARN(q->process->mm != current->mm,
 					"should only run in user thread"))
@@ -351,6 +355,7 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 			goto out_free_mqd;
 	}
 
+add_queue_to_list:
 	list_add(&q->list, &qpd->queues_list);
 	qpd->queue_count++;
 	if (q->properties.is_active)
@@ -458,6 +463,11 @@ static int destroy_queue_nocpsch_locked(struct device_queue_manager *dqm,
 
 	deallocate_doorbell(qpd, q);
 
+	if (!dqm->sched_running) {
+		WARN_ONCE(1, "Destroy non-HWS queue while stopped\n");
+		return 0;
+	}
+
 	retval = mqd_mgr->destroy_mqd(mqd_mgr, q->mqd,
 				KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
 				KFD_UNMAP_LATENCY_MS,
@@ -533,6 +543,12 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 		   (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
 		    q->properties.type == KFD_QUEUE_TYPE_SDMA ||
 		    q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI)) {
+
+		if (!dqm->sched_running) {
+			WARN_ONCE(1, "Update non-HWS queue while stopped\n");
+			goto out_unlock;
+		}
+
 		retval = mqd_mgr->destroy_mqd(mqd_mgr, q->mqd,
 				KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN,
 				KFD_UNMAP_LATENCY_MS, q->pipe, q->queue);
@@ -602,6 +618,11 @@ static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 		mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 				q->properties.type)];
 		q->properties.is_active = false;
+		dqm->queue_count--;
+
+		if (WARN_ONCE(!dqm->sched_running, "Evict when stopped\n"))
+			continue;
+
 		retval = mqd_mgr->destroy_mqd(mqd_mgr, q->mqd,
 				KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN,
 				KFD_UNMAP_LATENCY_MS, q->pipe, q->queue);
@@ -610,7 +631,6 @@ static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 			 * maintain a consistent eviction state
 			 */
 			ret = retval;
-		dqm->queue_count--;
 	}
 
 out:
@@ -711,6 +731,11 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 		mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 				q->properties.type)];
 		q->properties.is_active = true;
+		dqm->queue_count++;
+
+		if (WARN_ONCE(!dqm->sched_running, "Restore when stopped\n"))
+			continue;
+
 		retval = mqd_mgr->load_mqd(mqd_mgr, q->mqd, q->pipe,
 				       q->queue, &q->properties, mm);
 		if (retval && !ret)
@@ -718,7 +743,6 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 			 * maintain a consistent eviction state
 			 */
 			ret = retval;
-		dqm->queue_count++;
 	}
 	qpd->evicted = 0;
 out:
@@ -915,7 +939,8 @@ static int start_nocpsch(struct device_queue_manager *dqm)
 	
 	if (dqm->dev->device_info->asic_family == CHIP_HAWAII)
 		return pm_init(&dqm->packets, dqm);
-	
+	dqm->sched_running = true;
+
 	return 0;
 }
 
@@ -923,7 +948,8 @@ static int stop_nocpsch(struct device_queue_manager *dqm)
 {
 	if (dqm->dev->device_info->asic_family == CHIP_HAWAII)
 		pm_uninit(&dqm->packets);
-	
+	dqm->sched_running = false;
+
 	return 0;
 }
 
@@ -1074,6 +1100,7 @@ static int start_cpsch(struct device_queue_manager *dqm)
 	dqm_lock(dqm);
 	/* clear hang status when driver try to start the hw scheduler */
 	dqm->is_hws_hang = false;
+	dqm->sched_running = true;
 	execute_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
 	dqm_unlock(dqm);
 
@@ -1089,6 +1116,7 @@ static int stop_cpsch(struct device_queue_manager *dqm)
 {
 	dqm_lock(dqm);
 	unmap_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES, 0);
+	dqm->sched_running = false;
 	dqm_unlock(dqm);
 
 	kfd_gtt_sa_free(dqm->dev, dqm->fence_mem);
@@ -1275,9 +1303,10 @@ static int map_queues_cpsch(struct device_queue_manager *dqm)
 {
 	int retval;
 
+	if (!dqm->sched_running)
+		return 0;
 	if (dqm->queue_count <= 0 || dqm->processes_count <= 0)
 		return 0;
-
 	if (dqm->active_runlist)
 		return 0;
 
@@ -1299,6 +1328,8 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 {
 	int retval = 0;
 
+	if (!dqm->sched_running)
+		return 0;
 	if (dqm->is_hws_hang)
 		return -EIO;
 	if (!dqm->active_runlist)
@@ -1902,6 +1933,12 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 	uint32_t (*dump)[2], n_regs;
 	int pipe, queue;
 	int r = 0;
+
+	if (!dqm->sched_running) {
+		seq_printf(m, " Device is stopped\n");
+
+		return 0;
+	}
 
 	r = dqm->dev->kfd2kgd->hqd_dump(dqm->dev->kgd,
 					KFD_CIK_HIQ_PIPE, KFD_CIK_HIQ_QUEUE,

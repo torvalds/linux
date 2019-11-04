@@ -68,6 +68,11 @@ const char *ras_block_string[] = {
 /* inject address is 52 bits */
 #define	RAS_UMC_INJECT_ADDR_LIMIT	(0x1ULL << 52)
 
+enum amdgpu_ras_retire_page_reservation {
+	AMDGPU_RAS_RETIRE_PAGE_RESERVED,
+	AMDGPU_RAS_RETIRE_PAGE_PENDING,
+	AMDGPU_RAS_RETIRE_PAGE_FAULT,
+};
 
 atomic_t amdgpu_ras_in_intr = ATOMIC_INIT(0);
 
@@ -153,8 +158,6 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		op = 1;
 	else if (sscanf(str, "inject %32s %8s", block_name, err) == 2)
 		op = 2;
-	else if (sscanf(str, "reboot %32s", block_name) == 1)
-		op = 3;
 	else if (str[0] && str[1] && str[2] && str[3])
 		/* ascii string, but commands are not matched. */
 		return -EINVAL;
@@ -218,12 +221,11 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  * value to the address.
  *
  * Second member: struct ras_debug_if::op.
- * It has four kinds of operations.
+ * It has three kinds of operations.
  *
  * - 0: disable RAS on the block. Take ::head as its data.
  * - 1: enable RAS on the block. Take ::head as its data.
  * - 2: inject errors on the block. Take ::inject as its data.
- * - 3: reboot on unrecoverable error
  *
  * How to use the interface?
  * programs:
@@ -304,9 +306,6 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 
 		/* data.inject.address is offset instead of absolute gpu address */
 		ret = amdgpu_ras_error_inject(adev, &data.inject);
-		break;
-	case 3:
-		amdgpu_ras_get_context(adev)->reboot = true;
 		break;
 	default:
 		ret = -EINVAL;
@@ -559,15 +558,17 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	if (!(!!enable ^ !!amdgpu_ras_is_feature_enabled(adev, head)))
 		return 0;
 
-	ret = psp_ras_enable_features(&adev->psp, &info, enable);
-	if (ret) {
-		DRM_ERROR("RAS ERROR: %s %s feature failed ret %d\n",
-				enable ? "enable":"disable",
-				ras_block_str(head->block),
-				ret);
-		if (ret == TA_RAS_STATUS__RESET_NEEDED)
-			return -EAGAIN;
-		return -EINVAL;
+	if (!amdgpu_ras_intr_triggered()) {
+		ret = psp_ras_enable_features(&adev->psp, &info, enable);
+		if (ret) {
+			DRM_ERROR("RAS ERROR: %s %s feature failed ret %d\n",
+					enable ? "enable":"disable",
+					ras_block_str(head->block),
+					ret);
+			if (ret == TA_RAS_STATUS__RESET_NEEDED)
+				return -EAGAIN;
+			return -EINVAL;
+		}
 	}
 
 	/* setup the obj */
@@ -815,11 +816,11 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 static char *amdgpu_ras_badpage_flags_str(unsigned int flags)
 {
 	switch (flags) {
-	case 0:
+	case AMDGPU_RAS_RETIRE_PAGE_RESERVED:
 		return "R";
-	case 1:
+	case AMDGPU_RAS_RETIRE_PAGE_PENDING:
 		return "P";
-	case 2:
+	case AMDGPU_RAS_RETIRE_PAGE_FAULT:
 	default:
 		return "F";
 	};
@@ -1037,6 +1038,17 @@ static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 				adev, &amdgpu_ras_debugfs_ctrl_ops);
 	debugfs_create_file("ras_eeprom_reset", S_IWUGO | S_IRUGO, con->dir,
 				adev, &amdgpu_ras_debugfs_eeprom_ops);
+
+	/*
+	 * After one uncorrectable error happens, usually GPU recovery will
+	 * be scheduled. But due to the known problem in GPU recovery failing
+	 * to bring GPU back, below interface provides one direct way to
+	 * user to reboot system automatically in such case within
+	 * ERREVENT_ATHUB_INTERRUPT generated. Normal GPU recovery routine
+	 * will never be called.
+	 */
+	debugfs_create_bool("auto_reboot", S_IWUGO | S_IRUGO, con->dir,
+				&con->reboot);
 }
 
 void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
@@ -1289,13 +1301,13 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 		(*bps)[i] = (struct ras_badpage){
 			.bp = data->bps[i].retired_page,
 			.size = AMDGPU_GPU_PAGE_SIZE,
-			.flags = 0,
+			.flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 		};
 
 		if (data->last_reserved <= i)
-			(*bps)[i].flags = 1;
+			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_PENDING;
 		else if (data->bps_bo[i] == NULL)
-			(*bps)[i].flags = 2;
+			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_FAULT;
 	}
 
 	*count = data->count;
