@@ -823,7 +823,9 @@ struct mlx5_ifc_qos_cap_bits {
 struct mlx5_ifc_debug_cap_bits {
 	u8         core_dump_general[0x1];
 	u8         core_dump_qp[0x1];
-	u8         reserved_at_2[0x1e];
+	u8         reserved_at_2[0x7];
+	u8         resource_dump[0x1];
+	u8         reserved_at_a[0x16];
 
 	u8         reserved_at_20[0x2];
 	u8         stall_detect[0x1];
@@ -1765,6 +1767,132 @@ enum {
 
 struct mlx5_ifc_resize_field_select_bits {
 	u8         resize_field_select[0x20];
+};
+
+struct mlx5_ifc_resource_dump_bits {
+	u8         more_dump[0x1];
+	u8         inline_dump[0x1];
+	u8         reserved_at_2[0xa];
+	u8         seq_num[0x4];
+	u8         segment_type[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         vhca_id[0x10];
+
+	u8         index1[0x20];
+
+	u8         index2[0x20];
+
+	u8         num_of_obj1[0x10];
+	u8         num_of_obj2[0x10];
+
+	u8         reserved_at_a0[0x20];
+
+	u8         device_opaque[0x40];
+
+	u8         mkey[0x20];
+
+	u8         size[0x20];
+
+	u8         address[0x40];
+
+	u8         inline_data[52][0x20];
+};
+
+struct mlx5_ifc_resource_dump_menu_record_bits {
+	u8         reserved_at_0[0x4];
+	u8         num_of_obj2_supports_active[0x1];
+	u8         num_of_obj2_supports_all[0x1];
+	u8         must_have_num_of_obj2[0x1];
+	u8         support_num_of_obj2[0x1];
+	u8         num_of_obj1_supports_active[0x1];
+	u8         num_of_obj1_supports_all[0x1];
+	u8         must_have_num_of_obj1[0x1];
+	u8         support_num_of_obj1[0x1];
+	u8         must_have_index2[0x1];
+	u8         support_index2[0x1];
+	u8         must_have_index1[0x1];
+	u8         support_index1[0x1];
+	u8         segment_type[0x10];
+
+	u8         segment_name[4][0x20];
+
+	u8         index1_name[4][0x20];
+
+	u8         index2_name[4][0x20];
+};
+
+struct mlx5_ifc_resource_dump_segment_header_bits {
+	u8         length_dw[0x10];
+	u8         segment_type[0x10];
+};
+
+struct mlx5_ifc_resource_dump_command_segment_bits {
+	struct mlx5_ifc_resource_dump_segment_header_bits segment_header;
+
+	u8         segment_called[0x10];
+	u8         vhca_id[0x10];
+
+	u8         index1[0x20];
+
+	u8         index2[0x20];
+
+	u8         num_of_obj1[0x10];
+	u8         num_of_obj2[0x10];
+};
+
+struct mlx5_ifc_resource_dump_error_segment_bits {
+	struct mlx5_ifc_resource_dump_segment_header_bits segment_header;
+
+	u8         reserved_at_20[0x10];
+	u8         syndrome_id[0x10];
+
+	u8         reserved_at_40[0x40];
+
+	u8         error[8][0x20];
+};
+
+struct mlx5_ifc_resource_dump_info_segment_bits {
+	struct mlx5_ifc_resource_dump_segment_header_bits segment_header;
+
+	u8         reserved_at_20[0x18];
+	u8         dump_version[0x8];
+
+	u8         hw_version[0x20];
+
+	u8         fw_version[0x20];
+};
+
+struct mlx5_ifc_resource_dump_menu_segment_bits {
+	struct mlx5_ifc_resource_dump_segment_header_bits segment_header;
+
+	u8         reserved_at_20[0x10];
+	u8         num_of_records[0x10];
+
+	struct mlx5_ifc_resource_dump_menu_record_bits record[0];
+};
+
+struct mlx5_ifc_resource_dump_resource_segment_bits {
+	struct mlx5_ifc_resource_dump_segment_header_bits segment_header;
+
+	u8         reserved_at_20[0x20];
+
+	u8         index1[0x20];
+
+	u8         index2[0x20];
+
+	u8         payload[0][0x20];
+};
+
+struct mlx5_ifc_resource_dump_terminate_segment_bits {
+	struct mlx5_ifc_resource_dump_segment_header_bits segment_header;
+};
+
+struct mlx5_ifc_menu_resource_dump_response_bits {
+	struct mlx5_ifc_resource_dump_info_segment_bits info;
+	struct mlx5_ifc_resource_dump_command_segment_bits cmd;
+	struct mlx5_ifc_resource_dump_menu_segment_bits menu;
+	struct mlx5_ifc_resource_dump_terminate_segment_bits terminate;
 };
 
 enum {
