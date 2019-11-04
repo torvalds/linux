@@ -1095,7 +1095,73 @@ static int set_clos_param(int cpu, int clos, int epp, int wt, int min, int max)
 	return 0;
 }
 
-static int set_cpufreq_cpuinfo_scaling_min(int cpu, int max)
+static int set_cpufreq_scaling_min_max(int cpu, int max, int freq)
+{
+	char buffer[128], freq_str[16];
+	int fd, ret, len;
+
+	if (max)
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
+	else
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", cpu);
+
+	fd = open(buffer, O_WRONLY);
+	if (fd < 0)
+		return fd;
+
+	snprintf(freq_str, sizeof(freq_str), "%d", freq);
+	len = strlen(freq_str);
+	ret = write(fd, freq_str, len);
+	if (ret == -1) {
+		close(fd);
+		return ret;
+	}
+	close(fd);
+
+	return 0;
+}
+
+static int set_clx_pbf_cpufreq_scaling_min_max(int cpu)
+{
+	struct isst_pkg_ctdp_level_info *ctdp_level;
+	struct isst_pbf_info *pbf_info;
+	int i, pkg_id, die_id, freq, freq_high, freq_low;
+	int ret;
+
+	ret = clx_n_config(cpu);
+	if (ret) {
+		perror("set_clx_pbf_cpufreq_scaling_min_max");
+		return ret;
+	}
+
+	ctdp_level = &clx_n_pkg_dev.ctdp_level[0];
+	pbf_info = &ctdp_level->pbf_info;
+	freq_high = pbf_info->p1_high * 100000;
+	freq_low = pbf_info->p1_low * 100000;
+
+	pkg_id = get_physical_package_id(cpu);
+	die_id = get_physical_die_id(cpu);
+	for (i = 0; i < get_topo_max_cpus(); ++i) {
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		if (CPU_ISSET_S(i, pbf_info->core_cpumask_size,
+				  pbf_info->core_cpumask))
+			freq = freq_high;
+		else
+			freq = freq_low;
+
+		set_cpufreq_scaling_min_max(i, 1, freq);
+		set_cpufreq_scaling_min_max(i, 0, freq);
+	}
+
+	return 0;
+}
+
+static int set_cpufreq_scaling_min_max_from_cpuinfo(int cpu, int cpuinfo_max, int scaling_max)
 {
 	char buffer[128], min_freq[16];
 	int fd, ret, len;
@@ -1103,7 +1169,7 @@ static int set_cpufreq_cpuinfo_scaling_min(int cpu, int max)
 	if (!CPU_ISSET_S(cpu, present_cpumask_size, present_cpumask))
 		return -1;
 
-	if (max)
+	if (cpuinfo_max)
 		snprintf(buffer, sizeof(buffer),
 			 "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", cpu);
 	else
@@ -1120,8 +1186,12 @@ static int set_cpufreq_cpuinfo_scaling_min(int cpu, int max)
 	if (len < 0)
 		return len;
 
-	snprintf(buffer, sizeof(buffer),
-		 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", cpu);
+	if (scaling_max)
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
+	else
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", cpu);
 
 	fd = open(buffer, O_WRONLY);
 	if (fd < 0)
@@ -1149,7 +1219,7 @@ static void set_scaling_min_to_cpuinfo_max(int cpu)
 		    die_id != get_physical_die_id(i))
 			continue;
 
-		set_cpufreq_cpuinfo_scaling_min(i, 1);
+		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 0);
 	}
 }
 
@@ -1164,7 +1234,22 @@ static void set_scaling_min_to_cpuinfo_min(int cpu)
 		    die_id != get_physical_die_id(i))
 			continue;
 
-		set_cpufreq_cpuinfo_scaling_min(i, 0);
+		set_cpufreq_scaling_min_max_from_cpuinfo(i, 0, 0);
+	}
+}
+
+static void set_scaling_max_to_cpuinfo_max(int cpu)
+{
+	int i, pkg_id, die_id;
+
+	pkg_id = get_physical_package_id(cpu);
+	die_id = get_physical_die_id(cpu);
+	for (i = 0; i < get_topo_max_cpus(); ++i) {
+		if (pkg_id != get_physical_package_id(i) ||
+		    die_id != get_physical_die_id(i))
+			continue;
+
+		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 1);
 	}
 }
 
@@ -1263,14 +1348,17 @@ static void set_pbf_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	int status = *(int *)arg4;
 
 	if (is_clx_n_platform()) {
-		if (status == 0) {
-			ret = -1;
-			if (auto_mode)
-				set_scaling_min_to_cpuinfo_min(cpu);
-		} else {
+		if (status) {
 			ret = 0;
 			if (auto_mode)
-				set_scaling_min_to_cpuinfo_max(cpu);
+				set_clx_pbf_cpufreq_scaling_min_max(cpu);
+
+		} else {
+			ret = -1;
+			if (auto_mode) {
+				set_scaling_max_to_cpuinfo_max(cpu);
+				set_scaling_min_to_cpuinfo_min(cpu);
+			}
 		}
 		goto disp_result;
 	}
