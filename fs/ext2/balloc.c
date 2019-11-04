@@ -698,29 +698,20 @@ ext2_try_to_allocate(struct super_block *sb, int group,
 				;
 		}
 	}
-	start = grp_goal;
 
-repeat:
-	if (ext2_set_bit_atomic(sb_bgl_lock(EXT2_SB(sb), group), grp_goal,
-			       				bitmap_bh->b_data)) {
-		/*
-		 * The block was allocated by another thread, or it was
-		 * allocated and then freed by another thread
-		 */
-		start++;
-		grp_goal++;
-		if (start >= end)
-			goto fail_access;
-		goto repeat;
-	}
-	num++;
-	grp_goal++;
-	while (num < *count && grp_goal < end
-		&& !ext2_set_bit_atomic(sb_bgl_lock(EXT2_SB(sb), group),
+	for (; num < *count && grp_goal < end; grp_goal++) {
+		if (ext2_set_bit_atomic(sb_bgl_lock(EXT2_SB(sb), group),
 					grp_goal, bitmap_bh->b_data)) {
+			if (num == 0)
+				continue;
+			break;
+		}
 		num++;
-		grp_goal++;
 	}
+
+	if (num == 0)
+		goto fail_access;
+
 	*count = num;
 	return grp_goal - num;
 fail_access:
