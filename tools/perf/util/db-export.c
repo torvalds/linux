@@ -249,8 +249,8 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		 * constructing an addr_location struct and then passing it to
 		 * db_ids_from_al() to perform the export.
 		 */
-		al.sym = node->sym;
-		al.map = node->map;
+		al.sym = node->ms.sym;
+		al.map = node->ms.map;
 		al.mg  = thread->mg;
 		al.addr = node->ip;
 

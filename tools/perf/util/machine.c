@@ -2006,8 +2006,9 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 	return mi;
 }
 
-static char *callchain_srcline(struct map *map, struct symbol *sym, u64 ip)
+static char *callchain_srcline(struct map_symbol *ms, u64 ip)
 {
+	struct map *map = ms->map;
 	char *srcline = NULL;
 
 	if (!map || callchain_param.key == CCKEY_FUNCTION)
@@ -2019,7 +2020,7 @@ static char *callchain_srcline(struct map *map, struct symbol *sym, u64 ip)
 		bool show_addr = callchain_param.key == CCKEY_ADDRESS;
 
 		srcline = get_srcline(map->dso, map__rip_2objdump(map, ip),
-				      sym, show_sym, show_addr, ip);
+				      ms->sym, show_sym, show_addr, ip);
 		srcline__tree_insert(&map->dso->srclines, ip, srcline);
 	}
 
@@ -2042,6 +2043,7 @@ static int add_callchain_ip(struct thread *thread,
 			    struct iterations *iter,
 			    u64 branch_from)
 {
+	struct map_symbol ms;
 	struct addr_location al;
 	int nr_loop_iter = 0;
 	u64 iter_cycles = 0;
@@ -2099,8 +2101,10 @@ static int add_callchain_ip(struct thread *thread,
 		iter_cycles = iter->cycles;
 	}
 
-	srcline = callchain_srcline(al.map, al.sym, al.addr);
-	return callchain_cursor_append(cursor, ip, al.map, al.sym,
+	ms.map = al.map;
+	ms.sym = al.sym;
+	srcline = callchain_srcline(&ms, al.addr);
+	return callchain_cursor_append(cursor, ip, &ms,
 				       branch, flags, nr_loop_iter,
 				       iter_cycles, branch_from, srcline);
 }
@@ -2472,8 +2476,11 @@ static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms
 	}
 
 	list_for_each_entry(ilist, &inline_node->val, list) {
-		ret = callchain_cursor_append(cursor, ip, map,
-					      ilist->symbol, false,
+		struct map_symbol ilist_ms = {
+			.map = map,
+			.sym = ilist->symbol,
+		};
+		ret = callchain_cursor_append(cursor, ip, &ilist_ms, false,
 					      NULL, 0, 0, 0, ilist->srcline);
 
 		if (ret != 0)
@@ -2502,9 +2509,8 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 	if (entry->ms.map)
 		addr = map__map_ip(entry->ms.map, entry->ip);
 
-	srcline = callchain_srcline(entry->ms.map, entry->ms.sym, addr);
-	return callchain_cursor_append(cursor, entry->ip,
-				       entry->ms.map, entry->ms.sym,
+	srcline = callchain_srcline(&entry->ms, addr);
+	return callchain_cursor_append(cursor, entry->ip, &entry->ms,
 				       false, NULL, 0, 0, 0, srcline);
 }
 
