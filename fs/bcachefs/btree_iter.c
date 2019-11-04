@@ -294,9 +294,7 @@ void bch2_btree_trans_verify_locks(struct btree_trans *trans)
 __flatten
 static bool bch2_btree_iter_relock(struct btree_iter *iter, bool trace)
 {
-	return iter->uptodate >= BTREE_ITER_NEED_RELOCK
-		? btree_iter_get_locks(iter, false, trace)
-		: true;
+	return btree_iter_get_locks(iter, false, trace);
 }
 
 bool __bch2_btree_iter_upgrade(struct btree_iter *iter,
@@ -1098,7 +1096,15 @@ static int btree_iter_traverse_one(struct btree_iter *iter)
 	if (unlikely(iter->level >= BTREE_MAX_DEPTH))
 		return 0;
 
-	if (bch2_btree_iter_relock(iter, false))
+	/*
+	 * if we need interior nodes locked, call btree_iter_relock() to make
+	 * sure we walk back up enough that we lock them:
+	 */
+	if (iter->uptodate == BTREE_ITER_NEED_RELOCK ||
+	    iter->locks_want > 1)
+		bch2_btree_iter_relock(iter, false);
+
+	if (iter->uptodate < BTREE_ITER_NEED_RELOCK)
 		return 0;
 
 	/*
