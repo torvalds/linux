@@ -56,13 +56,13 @@ DECLARE_EVENT_CLASS(ucsi_log_connector_status,
 	TP_fast_assign(
 		__entry->port = port - 1;
 		__entry->change = status->change;
-		__entry->opmode = status->pwr_op_mode;
-		__entry->connected = status->connected;
-		__entry->pwr_dir = status->pwr_dir;
-		__entry->partner_flags = status->partner_flags;
-		__entry->partner_type = status->partner_type;
+		__entry->opmode = UCSI_CONSTAT_PWR_OPMODE(status->flags);
+		__entry->connected = !!(status->flags & UCSI_CONSTAT_CONNECTED);
+		__entry->pwr_dir = !!(status->flags & UCSI_CONSTAT_PWR_DIR);
+		__entry->partner_flags = UCSI_CONSTAT_PARTNER_FLAGS(status->flags);
+		__entry->partner_type = UCSI_CONSTAT_PARTNER_TYPE(status->flags);
 		__entry->request_data_obj = status->request_data_obj;
-		__entry->bc_status = status->bc_status;
+		__entry->bc_status = UCSI_CONSTAT_BC_STATUS(status->pwr_status);
 	),
 	TP_printk("port%d status: change=%04x, opmode=%x, connected=%d, "
 		"sourcing=%d, partner_flags=%x, partner_type=%x, "

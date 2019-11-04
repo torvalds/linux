@@ -392,7 +392,7 @@ static void ucsi_unregister_altmodes(struct ucsi_connector *con, u8 recipient)
 
 static void ucsi_pwr_opmode_change(struct ucsi_connector *con)
 {
-	switch (con->status.pwr_op_mode) {
+	switch (UCSI_CONSTAT_PWR_OPMODE(con->status.flags)) {
 	case UCSI_CONSTAT_PWR_OPMODE_PD:
 		typec_set_pwr_opmode(con->port, TYPEC_PWR_MODE_PD);
 		break;
@@ -410,6 +410,7 @@ static void ucsi_pwr_opmode_change(struct ucsi_connector *con)
 
 static int ucsi_register_partner(struct ucsi_connector *con)
 {
+	u8 pwr_opmode = UCSI_CONSTAT_PWR_OPMODE(con->status.flags);
 	struct typec_partner_desc desc;
 	struct typec_partner *partner;
 
@@ -418,7 +419,7 @@ static int ucsi_register_partner(struct ucsi_connector *con)
 
 	memset(&desc, 0, sizeof(desc));
 
-	switch (con->status.partner_type) {
+	switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
 	case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
 		desc.accessory = TYPEC_ACCESSORY_DEBUG;
 		break;
@@ -429,7 +430,7 @@ static int ucsi_register_partner(struct ucsi_connector *con)
 		break;
 	}
 
-	desc.usb_pd = con->status.pwr_op_mode == UCSI_CONSTAT_PWR_OPMODE_PD;
+	desc.usb_pd = pwr_opmode == UCSI_CONSTAT_PWR_OPMODE_PD;
 
 	partner = typec_register_partner(con->port, &desc);
 	if (IS_ERR(partner)) {
@@ -461,7 +462,7 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 	if (!con->partner)
 		return;
 
-	switch (con->status.partner_type) {
+	switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
 	case UCSI_CONSTAT_PARTNER_TYPE_UFP:
 		typec_set_data_role(con->port, TYPEC_HOST);
 		break;
@@ -491,6 +492,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	struct ucsi_connector *con = container_of(work, struct ucsi_connector,
 						  work);
 	struct ucsi *ucsi = con->ucsi;
+	enum typec_role role;
 	u64 command;
 	int ret;
 
@@ -505,11 +507,13 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 		goto out_unlock;
 	}
 
+	role = !!(con->status.flags & UCSI_CONSTAT_PWR_DIR);
+
 	if (con->status.change & UCSI_CONSTAT_POWER_OPMODE_CHANGE)
 		ucsi_pwr_opmode_change(con);
 
 	if (con->status.change & UCSI_CONSTAT_POWER_DIR_CHANGE) {
-		typec_set_pwr_role(con->port, con->status.pwr_dir);
+		typec_set_pwr_role(con->port, role);
 
 		/* Complete pending power role swap */
 		if (!completion_done(&con->complete))
@@ -517,9 +521,9 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	}
 
 	if (con->status.change & UCSI_CONSTAT_CONNECT_CHANGE) {
-		typec_set_pwr_role(con->port, con->status.pwr_dir);
+		typec_set_pwr_role(con->port, role);
 
-		switch (con->status.partner_type) {
+		switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
 		case UCSI_CONSTAT_PARTNER_TYPE_UFP:
 			typec_set_data_role(con->port, TYPEC_HOST);
 			break;
@@ -530,7 +534,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 			break;
 		}
 
-		if (con->status.connected)
+		if (con->status.flags & UCSI_CONSTAT_CONNECTED)
 			ucsi_register_partner(con);
 		else
 			ucsi_unregister_partner(con);
@@ -649,6 +653,7 @@ static int ucsi_role_cmd(struct ucsi_connector *con, u64 command)
 static int ucsi_dr_swap(struct typec_port *port, enum typec_data_role role)
 {
 	struct ucsi_connector *con = typec_get_drvdata(port);
+	u8 partner_type;
 	u64 command;
 	int ret = 0;
 
@@ -659,9 +664,10 @@ static int ucsi_dr_swap(struct typec_port *port, enum typec_data_role role)
 		goto out_unlock;
 	}
 
-	if ((con->status.partner_type == UCSI_CONSTAT_PARTNER_TYPE_DFP &&
+	partner_type = UCSI_CONSTAT_PARTNER_TYPE(con->status.flags);
+	if ((partner_type == UCSI_CONSTAT_PARTNER_TYPE_DFP &&
 	     role == TYPEC_DEVICE) ||
-	    (con->status.partner_type == UCSI_CONSTAT_PARTNER_TYPE_UFP &&
+	    (partner_type == UCSI_CONSTAT_PARTNER_TYPE_UFP &&
 	     role == TYPEC_HOST))
 		goto out_unlock;
 
@@ -685,6 +691,7 @@ out_unlock:
 static int ucsi_pr_swap(struct typec_port *port, enum typec_role role)
 {
 	struct ucsi_connector *con = typec_get_drvdata(port);
+	enum typec_role cur_role;
 	u64 command;
 	int ret = 0;
 
@@ -695,7 +702,9 @@ static int ucsi_pr_swap(struct typec_port *port, enum typec_role role)
 		goto out_unlock;
 	}
 
-	if (con->status.pwr_dir == role)
+	cur_role = !!(con->status.flags & UCSI_CONSTAT_PWR_DIR);
+
+	if (cur_role == role)
 		goto out_unlock;
 
 	command = UCSI_SET_PDR | UCSI_CONNECTOR_NUMBER(con->num);
@@ -712,7 +721,8 @@ static int ucsi_pr_swap(struct typec_port *port, enum typec_role role)
 	}
 
 	/* Something has gone wrong while swapping the role */
-	if (con->status.pwr_op_mode != UCSI_CONSTAT_PWR_OPMODE_PD) {
+	if (UCSI_CONSTAT_PWR_OPMODE(con->status.flags) !=
+	    UCSI_CONSTAT_PWR_OPMODE_PD) {
 		ucsi_reset_connector(con, true);
 		ret = -EPROTO;
 	}
@@ -767,11 +777,12 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 	else if (con->cap.op_mode & UCSI_CONCAP_OPMODE_UFP)
 		cap->data = TYPEC_PORT_UFP;
 
-	if (con->cap.provider && con->cap.consumer)
+	if ((con->cap.flags & UCSI_CONCAP_FLAG_PROVIDER) &&
+	    (con->cap.flags & UCSI_CONCAP_FLAG_CONSUMER))
 		cap->type = TYPEC_PORT_DRP;
-	else if (con->cap.provider)
+	else if (con->cap.flags & UCSI_CONCAP_FLAG_PROVIDER)
 		cap->type = TYPEC_PORT_SRC;
-	else if (con->cap.consumer)
+	else if (con->cap.flags & UCSI_CONCAP_FLAG_CONSUMER)
 		cap->type = TYPEC_PORT_SNK;
 
 	cap->revision = ucsi->cap.typec_version;
@@ -807,10 +818,7 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 		return 0;
 	}
 
-	ucsi_pwr_opmode_change(con);
-	typec_set_pwr_role(con->port, con->status.pwr_dir);
-
-	switch (con->status.partner_type) {
+	switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
 	case UCSI_CONSTAT_PARTNER_TYPE_UFP:
 		typec_set_data_role(con->port, TYPEC_HOST);
 		break;
@@ -822,8 +830,12 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 	}
 
 	/* Check if there is already something connected */
-	if (con->status.connected)
+	if (con->status.flags & UCSI_CONSTAT_CONNECTED) {
+		typec_set_pwr_role(con->port,
+				  !!(con->status.flags & UCSI_CONSTAT_PWR_DIR));
+		ucsi_pwr_opmode_change(con);
 		ucsi_register_partner(con);
+	}
 
 	if (con->partner) {
 		ret = ucsi_register_altmodes(con, UCSI_RECIPIENT_SOP);

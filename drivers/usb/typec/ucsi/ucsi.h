@@ -144,8 +144,8 @@ struct ucsi_capability {
 #define UCSI_CAP_ATTR_POWER_AC_SUPPLY		BIT(8)
 #define UCSI_CAP_ATTR_POWER_OTHER		BIT(10)
 #define UCSI_CAP_ATTR_POWER_VBUS		BIT(14)
-	u32 num_connectors:8;
-	u32 features:24;
+	u8 num_connectors;
+	u8 features;
 #define UCSI_CAP_SET_UOM			BIT(0)
 #define UCSI_CAP_SET_PDM			BIT(1)
 #define UCSI_CAP_ALT_MODE_DETAILS		BIT(2)
@@ -154,8 +154,9 @@ struct ucsi_capability {
 #define UCSI_CAP_CABLE_DETAILS			BIT(5)
 #define UCSI_CAP_EXT_SUPPLY_NOTIFICATIONS	BIT(6)
 #define UCSI_CAP_PD_RESET			BIT(7)
+	u16 reserved_1;
 	u8 num_alt_modes;
-	u8 reserved;
+	u8 reserved_2;
 	u16 bc_version;
 	u16 pd_version;
 	u16 typec_version;
@@ -172,9 +173,9 @@ struct ucsi_connector_capability {
 #define UCSI_CONCAP_OPMODE_USB2			BIT(5)
 #define UCSI_CONCAP_OPMODE_USB3			BIT(6)
 #define UCSI_CONCAP_OPMODE_ALT_MODE		BIT(7)
-	u8 provider:1;
-	u8 consumer:1;
-	u8:6; /* reserved */
+	u8 flags;
+#define UCSI_CONCAP_FLAG_PROVIDER		BIT(0)
+#define UCSI_CONCAP_FLAG_CONSUMER		BIT(1)
 } __packed;
 
 struct ucsi_altmode {
@@ -186,18 +187,17 @@ struct ucsi_altmode {
 struct ucsi_cable_property {
 	u16 speed_supported;
 	u8 current_capability;
-	u8 vbus_in_cable:1;
-	u8 active_cable:1;
-	u8 directionality:1;
-	u8 plug_type:2;
-#define UCSI_CABLE_PROPERTY_PLUG_TYPE_A		0
-#define UCSI_CABLE_PROPERTY_PLUG_TYPE_B		1
-#define UCSI_CABLE_PROPERTY_PLUG_TYPE_C		2
-#define UCSI_CABLE_PROPERTY_PLUG_OTHER		3
-	u8 mode_support:1;
-	u8:2; /* reserved */
-	u8 latency:4;
-	u8:4; /* reserved */
+	u8 flags;
+#define UCSI_CABLE_PROP_FLAG_VBUS_IN_CABLE	BIT(0)
+#define UCSI_CABLE_PROP_FLAG_ACTIVE_CABLE	BIT(1)
+#define UCSI_CABLE_PROP_FLAG_DIRECTIONALITY	BIT(2)
+#define UCSI_CABLE_PROP_FLAG_PLUG_TYPE(_f_)	((_f_) & GENMASK(3, 0))
+#define   UCSI_CABLE_PROPERTY_PLUG_TYPE_A	0
+#define   UCSI_CABLE_PROPERTY_PLUG_TYPE_B	1
+#define   UCSI_CABLE_PROPERTY_PLUG_TYPE_C	2
+#define   UCSI_CABLE_PROPERTY_PLUG_OTHER	3
+#define UCSI_CABLE_PROP_MODE_SUPPORT		BIT(5)
+	u8 latency;
 } __packed;
 
 /* Data structure filled by PPM in response to GET_CONNECTOR_STATUS command. */
@@ -214,35 +214,36 @@ struct ucsi_connector_status {
 #define UCSI_CONSTAT_POWER_DIR_CHANGE		BIT(12)
 #define UCSI_CONSTAT_CONNECT_CHANGE		BIT(14)
 #define UCSI_CONSTAT_ERROR			BIT(15)
-	u16 pwr_op_mode:3;
-#define UCSI_CONSTAT_PWR_OPMODE_NONE		0
-#define UCSI_CONSTAT_PWR_OPMODE_DEFAULT		1
-#define UCSI_CONSTAT_PWR_OPMODE_BC		2
-#define UCSI_CONSTAT_PWR_OPMODE_PD		3
-#define UCSI_CONSTAT_PWR_OPMODE_TYPEC1_5	4
-#define UCSI_CONSTAT_PWR_OPMODE_TYPEC3_0	5
-	u16 connected:1;
-	u16 pwr_dir:1;
-	u16 partner_flags:8;
-#define UCSI_CONSTAT_PARTNER_FLAG_USB		BIT(0)
-#define UCSI_CONSTAT_PARTNER_FLAG_ALT_MODE	BIT(1)
-	u16 partner_type:3;
-#define UCSI_CONSTAT_PARTNER_TYPE_DFP		1
-#define UCSI_CONSTAT_PARTNER_TYPE_UFP		2
-#define UCSI_CONSTAT_PARTNER_TYPE_CABLE		3 /* Powered Cable */
-#define UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP	4 /* Powered Cable */
-#define UCSI_CONSTAT_PARTNER_TYPE_DEBUG		5
-#define UCSI_CONSTAT_PARTNER_TYPE_AUDIO		6
+	u16 flags;
+#define UCSI_CONSTAT_PWR_OPMODE(_f_)		((_f_) & GENMASK(2, 0))
+#define   UCSI_CONSTAT_PWR_OPMODE_NONE		0
+#define   UCSI_CONSTAT_PWR_OPMODE_DEFAULT	1
+#define   UCSI_CONSTAT_PWR_OPMODE_BC		2
+#define   UCSI_CONSTAT_PWR_OPMODE_PD		3
+#define   UCSI_CONSTAT_PWR_OPMODE_TYPEC1_5	4
+#define   UCSI_CONSTAT_PWR_OPMODE_TYPEC3_0	5
+#define UCSI_CONSTAT_CONNECTED			BIT(3)
+#define UCSI_CONSTAT_PWR_DIR			BIT(4)
+#define UCSI_CONSTAT_PARTNER_FLAGS(_f_)		(((_f_) & GENMASK(12, 5)) >> 5)
+#define   UCSI_CONSTAT_PARTNER_FLAG_USB		1
+#define   UCSI_CONSTAT_PARTNER_FLAG_ALT_MODE	2
+#define UCSI_CONSTAT_PARTNER_TYPE(_f_)		(((_f_) & GENMASK(15, 13)) >> 13)
+#define   UCSI_CONSTAT_PARTNER_TYPE_DFP		1
+#define   UCSI_CONSTAT_PARTNER_TYPE_UFP		2
+#define   UCSI_CONSTAT_PARTNER_TYPE_CABLE	3 /* Powered Cable */
+#define   UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP	4 /* Powered Cable */
+#define   UCSI_CONSTAT_PARTNER_TYPE_DEBUG	5
+#define   UCSI_CONSTAT_PARTNER_TYPE_AUDIO	6
 	u32 request_data_obj;
-	u8 bc_status:2;
-#define UCSI_CONSTAT_BC_NOT_CHARGING		0
-#define UCSI_CONSTAT_BC_NOMINAL_CHARGING	1
-#define UCSI_CONSTAT_BC_SLOW_CHARGING		2
-#define UCSI_CONSTAT_BC_TRICKLE_CHARGING	3
-	u8 provider_cap_limit_reason:4;
-#define UCSI_CONSTAT_CAP_PWR_LOWERED		0
-#define UCSI_CONSTAT_CAP_PWR_BUDGET_LIMIT	1
-	u8:2; /* reserved */
+	u8 pwr_status;
+#define UCSI_CONSTAT_BC_STATUS(_p_)		((_p_) & GENMASK(2, 0))
+#define   UCSI_CONSTAT_BC_NOT_CHARGING		0
+#define   UCSI_CONSTAT_BC_NOMINAL_CHARGING	1
+#define   UCSI_CONSTAT_BC_SLOW_CHARGING		2
+#define   UCSI_CONSTAT_BC_TRICKLE_CHARGING	3
+#define UCSI_CONSTAT_PROVIDER_CAP_LIMIT(_p_)	(((_p_) & GENMASK(6, 3)) >> 3)
+#define   UCSI_CONSTAT_CAP_PWR_LOWERED		0
+#define   UCSI_CONSTAT_CAP_PWR_BUDGET_LIMIT	1
 } __packed;
 
 /* -------------------------------------------------------------------------- */
