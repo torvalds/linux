@@ -1283,7 +1283,17 @@ int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi)
  */
 int ice_vsi_cfg_xdp_txqs(struct ice_vsi *vsi)
 {
-	return ice_vsi_cfg_txqs(vsi, vsi->xdp_rings);
+	int ret;
+	int i;
+
+	ret = ice_vsi_cfg_txqs(vsi, vsi->xdp_rings);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < vsi->num_xdp_txq; i++)
+		vsi->xdp_rings[i]->xsk_umem = ice_xsk_umem(vsi->xdp_rings[i]);
+
+	return ret;
 }
 
 /**
@@ -2512,6 +2522,51 @@ char *ice_nvm_version_str(struct ice_hw *hw)
 		 hw->nvm.eetrack, oem_ver, oem_build, oem_patch);
 
 	return buf;
+}
+
+/**
+ * ice_update_ring_stats - Update ring statistics
+ * @ring: ring to update
+ * @cont: used to increment per-vector counters
+ * @pkts: number of processed packets
+ * @bytes: number of processed bytes
+ *
+ * This function assumes that caller has acquired a u64_stats_sync lock.
+ */
+static void
+ice_update_ring_stats(struct ice_ring *ring, struct ice_ring_container *cont,
+		      u64 pkts, u64 bytes)
+{
+	ring->stats.bytes += bytes;
+	ring->stats.pkts += pkts;
+	cont->total_bytes += bytes;
+	cont->total_pkts += pkts;
+}
+
+/**
+ * ice_update_tx_ring_stats - Update Tx ring specific counters
+ * @tx_ring: ring to update
+ * @pkts: number of processed packets
+ * @bytes: number of processed bytes
+ */
+void ice_update_tx_ring_stats(struct ice_ring *tx_ring, u64 pkts, u64 bytes)
+{
+	u64_stats_update_begin(&tx_ring->syncp);
+	ice_update_ring_stats(tx_ring, &tx_ring->q_vector->tx, pkts, bytes);
+	u64_stats_update_end(&tx_ring->syncp);
+}
+
+/**
+ * ice_update_rx_ring_stats - Update Rx ring specific counters
+ * @rx_ring: ring to update
+ * @pkts: number of processed packets
+ * @bytes: number of processed bytes
+ */
+void ice_update_rx_ring_stats(struct ice_ring *rx_ring, u64 pkts, u64 bytes)
+{
+	u64_stats_update_begin(&rx_ring->syncp);
+	ice_update_ring_stats(rx_ring, &rx_ring->q_vector->rx, pkts, bytes);
+	u64_stats_update_end(&rx_ring->syncp);
 }
 
 /**

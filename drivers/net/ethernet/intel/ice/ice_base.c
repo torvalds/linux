@@ -276,13 +276,16 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
  */
 int ice_setup_rx_ctx(struct ice_ring *ring)
 {
+	int chain_len = ICE_MAX_CHAINED_RX_BUFS;
 	struct ice_vsi *vsi = ring->vsi;
-	struct ice_hw *hw = &vsi->back->hw;
 	u32 rxdid = ICE_RXDID_FLEX_NIC;
 	struct ice_rlan_ctx rlan_ctx;
+	struct ice_hw *hw;
 	u32 regval;
 	u16 pf_q;
 	int err;
+
+	hw = &vsi->back->hw;
 
 	/* what is Rx queue number in global space of 2K Rx queues */
 	pf_q = vsi->rxq_map[ring->q_index];
@@ -297,10 +300,38 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 			xdp_rxq_info_reg(&ring->xdp_rxq, ring->netdev,
 					 ring->q_index);
 
-		err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
-						 MEM_TYPE_PAGE_SHARED, NULL);
-		if (err)
-			return err;
+		ring->xsk_umem = ice_xsk_umem(ring);
+		if (ring->xsk_umem) {
+			xdp_rxq_info_unreg_mem_model(&ring->xdp_rxq);
+
+			ring->rx_buf_len = ring->xsk_umem->chunk_size_nohr -
+					   XDP_PACKET_HEADROOM;
+			/* For AF_XDP ZC, we disallow packets to span on
+			 * multiple buffers, thus letting us skip that
+			 * handling in the fast-path.
+			 */
+			chain_len = 1;
+			ring->zca.free = ice_zca_free;
+			err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
+							 MEM_TYPE_ZERO_COPY,
+							 &ring->zca);
+			if (err)
+				return err;
+
+			dev_info(&vsi->back->pdev->dev, "Registered XDP mem model MEM_TYPE_ZERO_COPY on Rx ring %d\n",
+				 ring->q_index);
+		} else {
+			if (!xdp_rxq_info_is_reg(&ring->xdp_rxq))
+				xdp_rxq_info_reg(&ring->xdp_rxq,
+						 ring->netdev,
+						 ring->q_index);
+
+			err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
+							 MEM_TYPE_PAGE_SHARED,
+							 NULL);
+			if (err)
+				return err;
+		}
 	}
 	/* Receive Queue Base Address.
 	 * Indicates the starting address of the descriptor queue defined in
@@ -340,7 +371,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	 * than 5 x DBUF
 	 */
 	rlan_ctx.rxmax = min_t(u16, vsi->max_frame,
-			       ICE_MAX_CHAINED_RX_BUFS * vsi->rx_buf_len);
+			       chain_len * ring->rx_buf_len);
 
 	/* Rx queue threshold in units of 64 */
 	rlan_ctx.lrxqthresh = 1;
@@ -378,7 +409,15 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	/* init queue specific tail register */
 	ring->tail = hw->hw_addr + QRX_TAIL(pf_q);
 	writel(0, ring->tail);
-	ice_alloc_rx_bufs(ring, ICE_DESC_UNUSED(ring));
+
+	err = ring->xsk_umem ?
+	      ice_alloc_rx_bufs_slow_zc(ring, ICE_DESC_UNUSED(ring)) :
+	      ice_alloc_rx_bufs(ring, ICE_DESC_UNUSED(ring));
+	if (err)
+		dev_info(&vsi->back->pdev->dev,
+			 "Failed allocate some buffers on %sRx ring %d (pf_q %d)\n",
+			 ring->xsk_umem ? "UMEM enabled " : "",
+			 ring->q_index, pf_q);
 
 	return 0;
 }

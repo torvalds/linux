@@ -35,6 +35,7 @@
 #include <linux/bpf.h>
 #include <linux/avf/virtchnl.h>
 #include <net/ipv6.h>
+#include <net/xdp_sock.h>
 #include "ice_devids.h"
 #include "ice_type.h"
 #include "ice_txrx.h"
@@ -44,6 +45,7 @@
 #include "ice_sched.h"
 #include "ice_virtchnl_pf.h"
 #include "ice_sriov.h"
+#include "ice_xsk.h"
 
 extern const char ice_drv_ver[];
 #define ICE_BAR0		0
@@ -287,6 +289,9 @@ struct ice_vsi {
 	struct ice_ring **xdp_rings;	 /* XDP ring array */
 	u16 num_xdp_txq;		 /* Used XDP queues */
 	u8 xdp_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
+	struct xdp_umem **xsk_umems;
+	u16 num_xsk_umems_used;
+	u16 num_xsk_umems;
 } ____cacheline_internodealigned_in_smp;
 
 /* struct that defines an interrupt vector */
@@ -438,6 +443,27 @@ static inline bool ice_is_xdp_ena_vsi(struct ice_vsi *vsi)
 static inline void ice_set_ring_xdp(struct ice_ring *ring)
 {
 	ring->flags |= ICE_TX_FLAGS_RING_XDP;
+}
+
+/**
+ * ice_xsk_umem - get XDP UMEM bound to a ring
+ * @ring - ring to use
+ *
+ * Returns a pointer to xdp_umem structure if there is an UMEM present,
+ * NULL otherwise.
+ */
+static inline struct xdp_umem *ice_xsk_umem(struct ice_ring *ring)
+{
+	struct xdp_umem **umems = ring->vsi->xsk_umems;
+	int qid = ring->q_index;
+
+	if (ice_ring_is_xdp(ring))
+		qid -= ring->vsi->num_xdp_txq;
+
+	if (!umems || !umems[qid] || !ice_is_xdp_ena_vsi(ring->vsi))
+		return NULL;
+
+	return umems[qid];
 }
 
 /**

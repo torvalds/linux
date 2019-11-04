@@ -11,6 +11,7 @@
 #include "ice_lib.h"
 #include "ice.h"
 #include "ice_dcb_lib.h"
+#include "ice_xsk.h"
 
 #define ICE_RX_HDR_SIZE		256
 
@@ -58,6 +59,11 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 {
 	u16 i;
 
+	if (ice_ring_is_xdp(tx_ring) && tx_ring->xsk_umem) {
+		ice_xsk_clean_xdp_ring(tx_ring);
+		goto tx_skip_free;
+	}
+
 	/* ring already cleared, nothing to do */
 	if (!tx_ring->tx_buf)
 		return;
@@ -66,6 +72,7 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 	for (i = 0; i < tx_ring->count; i++)
 		ice_unmap_and_free_tx_buf(tx_ring, &tx_ring->tx_buf[i]);
 
+tx_skip_free:
 	memset(tx_ring->tx_buf, 0, sizeof(*tx_ring->tx_buf) * tx_ring->count);
 
 	/* Zero out the descriptor ring */
@@ -198,12 +205,8 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 
 	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
-	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->stats.bytes += total_bytes;
-	tx_ring->stats.pkts += total_pkts;
-	u64_stats_update_end(&tx_ring->syncp);
-	tx_ring->q_vector->tx.total_bytes += total_bytes;
-	tx_ring->q_vector->tx.total_pkts += total_pkts;
+
+	ice_update_tx_ring_stats(tx_ring, total_pkts, total_bytes);
 
 	if (ice_ring_is_xdp(tx_ring))
 		return !!budget;
@@ -286,6 +289,11 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 	if (!rx_ring->rx_buf)
 		return;
 
+	if (rx_ring->xsk_umem) {
+		ice_xsk_clean_rx_ring(rx_ring);
+		goto rx_skip_free;
+	}
+
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
 		struct ice_rx_buf *rx_buf = &rx_ring->rx_buf[i];
@@ -313,6 +321,7 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 		rx_buf->page_offset = 0;
 	}
 
+rx_skip_free:
 	memset(rx_ring->rx_buf, 0, sizeof(*rx_ring->rx_buf) * rx_ring->count);
 
 	/* Zero out the descriptor ring */
@@ -1073,13 +1082,7 @@ construct_skb:
 	if (xdp_prog)
 		ice_finalize_xdp_rx(rx_ring, xdp_xmit);
 
-	/* update queue and vector specific stats */
-	u64_stats_update_begin(&rx_ring->syncp);
-	rx_ring->stats.pkts += total_rx_pkts;
-	rx_ring->stats.bytes += total_rx_bytes;
-	u64_stats_update_end(&rx_ring->syncp);
-	rx_ring->q_vector->rx.total_pkts += total_rx_pkts;
-	rx_ring->q_vector->rx.total_bytes += total_rx_bytes;
+	ice_update_rx_ring_stats(rx_ring, total_rx_pkts, total_rx_bytes);
 
 	/* guarantee a trip back through this routine if there was a failure */
 	return failure ? budget : (int)total_rx_pkts;
@@ -1457,9 +1460,14 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
-	ice_for_each_ring(ring, q_vector->tx)
-		if (!ice_clean_tx_irq(ring, budget))
+	ice_for_each_ring(ring, q_vector->tx) {
+		bool wd = ring->xsk_umem ?
+			  ice_clean_tx_irq_zc(ring, budget) :
+			  ice_clean_tx_irq(ring, budget);
+
+		if (!wd)
 			clean_complete = false;
+	}
 
 	/* Handle case where we are called by netpoll with a budget of 0 */
 	if (unlikely(budget <= 0))
@@ -1479,7 +1487,13 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	ice_for_each_ring(ring, q_vector->rx) {
 		int cleaned;
 
-		cleaned = ice_clean_rx_irq(ring, budget_per_ring);
+		/* A dedicated path for zero-copy allows making a single
+		 * comparison in the irq context instead of many inside the
+		 * ice_clean_rx_irq function and makes the codebase cleaner.
+		 */
+		cleaned = ring->xsk_umem ?
+			  ice_clean_rx_irq_zc(ring, budget_per_ring) :
+			  ice_clean_rx_irq(ring, budget_per_ring);
 		work_done += cleaned;
 		/* if we clean as many as budgeted, we must not be done */
 		if (cleaned >= budget_per_ring)

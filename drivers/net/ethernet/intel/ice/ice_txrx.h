@@ -4,6 +4,8 @@
 #ifndef _ICE_TXRX_H_
 #define _ICE_TXRX_H_
 
+#include "ice_type.h"
+
 #define ICE_DFLT_IRQ_WORK	256
 #define ICE_RXBUF_2048		2048
 #define ICE_MAX_CHAINED_RX_BUFS	5
@@ -88,9 +90,17 @@ struct ice_tx_offload_params {
 struct ice_rx_buf {
 	struct sk_buff *skb;
 	dma_addr_t dma;
-	struct page *page;
-	unsigned int page_offset;
-	u16 pagecnt_bias;
+	union {
+		struct {
+			struct page *page;
+			unsigned int page_offset;
+			u16 pagecnt_bias;
+		};
+		struct {
+			void *addr;
+			u64 handle;
+		};
+	};
 };
 
 struct ice_q_stats {
@@ -211,6 +221,8 @@ struct ice_ring {
 
 	struct rcu_head rcu;		/* to avoid race on free */
 	struct bpf_prog *xdp_prog;
+	struct xdp_umem *xsk_umem;
+	struct zero_copy_allocator zca;
 	/* CL3 - 3rd cacheline starts here */
 	struct xdp_rxq_info xdp_rxq;
 	/* CLX - the below items are only accessed infrequently and should be
@@ -249,6 +261,8 @@ struct ice_ring_container {
 /* iterator for handling rings in ring container */
 #define ice_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos; pos = pos->next)
+
+union ice_32b_rx_flex_desc;
 
 bool ice_alloc_rx_bufs(struct ice_ring *rxr, u16 cleaned_count);
 netdev_tx_t ice_start_xmit(struct sk_buff *skb, struct net_device *netdev);

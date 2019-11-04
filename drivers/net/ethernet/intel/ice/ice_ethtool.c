@@ -2612,6 +2612,13 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 		return 0;
 	}
 
+	/* If there is a AF_XDP UMEM attached to any of Rx rings,
+	 * disallow changing the number of descriptors -- regardless
+	 * if the netdev is running or not.
+	 */
+	if (ice_xsk_any_rx_ring_ena(vsi))
+		return -EBUSY;
+
 	while (test_and_set_bit(__ICE_CFG_BUSY, pf->state)) {
 		timeout--;
 		if (!timeout)
