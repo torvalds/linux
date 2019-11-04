@@ -13,8 +13,14 @@ int isst_get_ctdp_levels(int cpu, struct isst_pkg_ctdp *pkg_dev)
 
 	ret = isst_send_mbox_command(cpu, CONFIG_TDP,
 				     CONFIG_TDP_GET_LEVELS_INFO, 0, 0, &resp);
-	if (ret)
-		return ret;
+	if (ret) {
+		pkg_dev->levels = 0;
+		pkg_dev->locked = 1;
+		pkg_dev->current_level = 0;
+		pkg_dev->version = 0;
+		pkg_dev->enabled = 0;
+		return 0;
+	}
 
 	debug_printf("cpu:%d CONFIG_TDP_GET_LEVELS_INFO resp:%x\n", cpu, resp);
 
@@ -212,6 +218,27 @@ int isst_get_coremask_info(int cpu, int config_index,
 	return 0;
 }
 
+int isst_get_get_trl_from_msr(int cpu, int *trl)
+{
+	unsigned long long msr_trl;
+	int ret;
+
+	ret = isst_send_msr_command(cpu, 0x1AD, 0, &msr_trl);
+	if (ret)
+		return ret;
+
+	trl[0] = msr_trl & GENMASK(7, 0);
+	trl[1] = (msr_trl & GENMASK(15, 8)) >> 8;
+	trl[2] = (msr_trl & GENMASK(23, 16)) >> 16;
+	trl[3] = (msr_trl & GENMASK(31, 24)) >> 24;
+	trl[4] = (msr_trl & GENMASK(39, 32)) >> 32;
+	trl[5] = (msr_trl & GENMASK(47, 40)) >> 40;
+	trl[6] = (msr_trl & GENMASK(55, 48)) >> 48;
+	trl[7] = (msr_trl & GENMASK(63, 56)) >> 56;
+
+	return 0;
+}
+
 int isst_get_get_trl(int cpu, int level, int avx_level, int *trl)
 {
 	unsigned int req, resp;
@@ -321,7 +348,7 @@ int isst_get_pbf_info(int cpu, int level, struct isst_pbf_info *pbf_info)
 					     CONFIG_TDP_PBF_GET_CORE_MASK_INFO,
 					     0, (i << 8) | level, &resp);
 		if (ret)
-			return ret;
+			break;
 
 		debug_printf(
 			"cpu:%d CONFIG_TDP_PBF_GET_CORE_MASK_INFO resp:%x\n",
@@ -386,7 +413,7 @@ int isst_set_pbf_fact_status(int cpu, int pbf, int enable)
 
 	ret = isst_get_ctdp_levels(cpu, &pkg_dev);
 	if (ret)
-		return ret;
+		debug_printf("cpu:%d No support for dynamic ISST\n", cpu);
 
 	current_level = pkg_dev.current_level;
 
@@ -626,6 +653,32 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 		if (ret)
 			return ret;
 
+		if (ctdp_level->pbf_support) {
+			ret = isst_get_pbf_info(cpu, i, &ctdp_level->pbf_info);
+			if (!ret)
+				ctdp_level->pbf_found = 1;
+		}
+
+		if (ctdp_level->fact_support) {
+			ret = isst_get_fact_info(cpu, i,
+						 &ctdp_level->fact_info);
+			if (ret)
+				return ret;
+		}
+
+		if (!pkg_dev->enabled) {
+			int freq;
+
+			freq = get_cpufreq_base_freq(cpu);
+			if (freq > 0) {
+				ctdp_level->sse_p1 = freq / 100000;
+				ctdp_level->tdp_ratio = ctdp_level->sse_p1;
+			}
+
+			isst_get_get_trl_from_msr(cpu, ctdp_level->trl_sse_active_cores);
+			continue;
+		}
+
 		ret = isst_get_tdp_info(cpu, i, ctdp_level);
 		if (ret)
 			return ret;
@@ -666,19 +719,6 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 		isst_get_uncore_p0_p1_info(cpu, i, ctdp_level);
 		isst_get_p1_info(cpu, i, ctdp_level);
 		isst_get_uncore_mem_freq(cpu, i, ctdp_level);
-
-		if (ctdp_level->pbf_support) {
-			ret = isst_get_pbf_info(cpu, i, &ctdp_level->pbf_info);
-			if (!ret)
-				ctdp_level->pbf_found = 1;
-		}
-
-		if (ctdp_level->fact_support) {
-			ret = isst_get_fact_info(cpu, i,
-						 &ctdp_level->fact_info);
-			if (ret)
-				return ret;
-		}
 	}
 
 	pkg_dev->processed = 1;

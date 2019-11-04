@@ -335,17 +335,19 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 		snprintf(value, sizeof(value), "%d", j);
 		format_and_print(outf, base_level + 4, header, value);
 
-		snprintf(header, sizeof(header), "enable-cpu-mask");
-		printcpumask(sizeof(value), value,
-			     ctdp_level->core_cpumask_size,
-			     ctdp_level->core_cpumask);
-		format_and_print(outf, base_level + 4, header, value);
+		if (ctdp_level->core_cpumask_size) {
+			snprintf(header, sizeof(header), "enable-cpu-mask");
+			printcpumask(sizeof(value), value,
+				     ctdp_level->core_cpumask_size,
+				     ctdp_level->core_cpumask);
+			format_and_print(outf, base_level + 4, header, value);
 
-		snprintf(header, sizeof(header), "enable-cpu-list");
-		printcpulist(sizeof(value), value,
-			     ctdp_level->core_cpumask_size,
-			     ctdp_level->core_cpumask);
-		format_and_print(outf, base_level + 4, header, value);
+			snprintf(header, sizeof(header), "enable-cpu-list");
+			printcpulist(sizeof(value), value,
+				     ctdp_level->core_cpumask_size,
+				     ctdp_level->core_cpumask);
+			format_and_print(outf, base_level + 4, header, value);
+		}
 
 		snprintf(header, sizeof(header), "thermal-design-power-ratio");
 		snprintf(value, sizeof(value), "%d", ctdp_level->tdp_ratio);
@@ -424,13 +426,17 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 			continue;
 		}
 
-		snprintf(header, sizeof(header), "thermal-design-power(W)");
-		snprintf(value, sizeof(value), "%d", ctdp_level->pkg_tdp);
-		format_and_print(outf, base_level + 4, header, value);
+		if (ctdp_level->pkg_tdp) {
+			snprintf(header, sizeof(header), "thermal-design-power(W)");
+			snprintf(value, sizeof(value), "%d", ctdp_level->pkg_tdp);
+			format_and_print(outf, base_level + 4, header, value);
+		}
 
-		snprintf(header, sizeof(header), "tjunction-max(C)");
-		snprintf(value, sizeof(value), "%d", ctdp_level->t_proc_hot);
-		format_and_print(outf, base_level + 4, header, value);
+		if (ctdp_level->t_proc_hot) {
+			snprintf(header, sizeof(header), "tjunction-max(C)");
+			snprintf(value, sizeof(value), "%d", ctdp_level->t_proc_hot);
+			format_and_print(outf, base_level + 4, header, value);
+		}
 
 		snprintf(header, sizeof(header), "turbo-ratio-limits-sse");
 		format_and_print(outf, base_level + 4, header, NULL);
@@ -449,41 +455,41 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 				  DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, base_level + 6, header, value);
 		}
-		snprintf(header, sizeof(header), "turbo-ratio-limits-avx2");
-		format_and_print(outf, base_level + 4, header, NULL);
-		for (j = 0; j < 8; ++j) {
-			snprintf(header, sizeof(header), "bucket-%d", j);
-			format_and_print(outf, base_level + 5, header, NULL);
 
-			snprintf(header, sizeof(header), "core-count");
-			snprintf(value, sizeof(value), "%llu", (ctdp_level->buckets_info >> (j * 8)) & 0xff);
-			format_and_print(outf, base_level + 6, header, value);
+		if (ctdp_level->trl_avx_active_cores[0]) {
+			snprintf(header, sizeof(header), "turbo-ratio-limits-avx2");
+			format_and_print(outf, base_level + 4, header, NULL);
+			for (j = 0; j < 8; ++j) {
+				snprintf(header, sizeof(header), "bucket-%d", j);
+				format_and_print(outf, base_level + 5, header, NULL);
 
-			snprintf(header, sizeof(header),
-				"max-turbo-frequency(MHz)");
-			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->trl_avx_active_cores[j] *
-				  DISP_FREQ_MULTIPLIER);
-			format_and_print(outf, base_level + 6, header, value);
+				snprintf(header, sizeof(header), "core-count");
+				snprintf(value, sizeof(value), "%llu", (ctdp_level->buckets_info >> (j * 8)) & 0xff);
+				format_and_print(outf, base_level + 6, header, value);
+
+				snprintf(header, sizeof(header), "max-turbo-frequency(MHz)");
+				snprintf(value, sizeof(value), "%d", ctdp_level->trl_avx_active_cores[j] * DISP_FREQ_MULTIPLIER);
+				format_and_print(outf, base_level + 6, header, value);
+			}
 		}
 
-		snprintf(header, sizeof(header), "turbo-ratio-limits-avx512");
-		format_and_print(outf, base_level + 4, header, NULL);
-		for (j = 0; j < 8; ++j) {
-			snprintf(header, sizeof(header), "bucket-%d", j);
-			format_and_print(outf, base_level + 5, header, NULL);
+		if (ctdp_level->trl_avx_512_active_cores[0]) {
+			snprintf(header, sizeof(header), "turbo-ratio-limits-avx512");
+			format_and_print(outf, base_level + 4, header, NULL);
+			for (j = 0; j < 8; ++j) {
+				snprintf(header, sizeof(header), "bucket-%d", j);
+				format_and_print(outf, base_level + 5, header, NULL);
 
-			snprintf(header, sizeof(header), "core-count");
-			snprintf(value, sizeof(value), "%llu", (ctdp_level->buckets_info >> (j * 8)) & 0xff);
-			format_and_print(outf, base_level + 6, header, value);
+				snprintf(header, sizeof(header), "core-count");
+				snprintf(value, sizeof(value), "%llu", (ctdp_level->buckets_info >> (j * 8)) & 0xff);
+				format_and_print(outf, base_level + 6, header, value);
 
-			snprintf(header, sizeof(header),
-				"max-turbo-frequency(MHz)");
-			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->trl_avx_512_active_cores[j] *
-				  DISP_FREQ_MULTIPLIER);
+				snprintf(header, sizeof(header), "max-turbo-frequency(MHz)");
+				snprintf(value, sizeof(value), "%d", ctdp_level->trl_avx_512_active_cores[j] * DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, base_level + 6, header, value);
+			}
 		}
+
 		if (ctdp_level->pbf_support)
 			_isst_pbf_display_information(cpu, outf, i,
 						      &ctdp_level->pbf_info,

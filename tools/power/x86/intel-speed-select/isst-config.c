@@ -200,6 +200,11 @@ int get_physical_die_id(int cpu)
 	return ret;
 }
 
+int get_cpufreq_base_freq(int cpu)
+{
+	return parse_int_file(0, "/sys/devices/system/cpu/cpu%d/cpufreq/base_frequency", cpu);
+}
+
 int get_topo_max_cpus(void)
 {
 	return topo_max_cpus;
@@ -598,6 +603,7 @@ int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 		fprintf(outf,
 			"Error: mbox_cmd cpu:%d command:%x sub_command:%x parameter:%x req_data:%x\n",
 			cpu, command, sub_command, parameter, req_data);
+		return -1;
 	} else {
 		*resp = mbox_cmds.mbox_cmd[0].resp_data;
 		debug_printf(

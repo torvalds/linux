@@ -240,4 +240,5 @@ extern int isst_clos_get_clos_information(int cpu, int *enable, int *type);
 extern void isst_clos_display_clos_information(int cpu, FILE *outf,
 					       int clos_enable, int type);
 extern int is_clx_n_platform(void);
+extern int get_cpufreq_base_freq(int cpu);
 #endif
