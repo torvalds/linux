@@ -25,6 +25,7 @@ properties:
       - items:
           - enum:
              - amlogic,meson-gxm-mali
+             - realtek,rtd1295-mali
           - const: arm,mali-t820
       - items:
           - enum:
