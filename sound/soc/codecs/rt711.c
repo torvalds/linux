@@ -869,10 +869,19 @@ static int rt711_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static int rt711_parse_dt(struct rt711_priv *rt711, struct device *dev)
+{
+	device_property_read_u32(dev, "realtek,jd-src",
+		&rt711->jd_src);
+
+	return 0;
+}
+
 static int rt711_probe(struct snd_soc_component *component)
 {
 	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
 
+	rt711_parse_dt(rt711, &rt711->slave->dev);
 	rt711->component = component;
 
 	return 0;
@@ -1123,14 +1132,6 @@ static void rt711_calibration_work(struct work_struct *work)
 	rt711_calibration(rt711);
 }
 
-static int rt711_parse_dt(struct rt711_priv *rt711, struct device *dev)
-{
-	device_property_read_u32(dev, "realtek,jd-src",
-		&rt711->jd_src);
-
-	return 0;
-}
-
 int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 			struct regmap *regmap, struct sdw_slave *slave)
 {
@@ -1155,7 +1156,6 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 
 	/* JD source uses JD2 in default */
 	rt711->jd_src = RT711_JD2;
-	rt711_parse_dt(rt711, &slave->dev);
 
 	ret =  devm_snd_soc_register_component(dev,
 						&soc_codec_dev_rt711,
