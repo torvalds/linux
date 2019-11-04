@@ -2448,9 +2448,10 @@ check_calls:
 	return 0;
 }
 
-static int append_inlines(struct callchain_cursor *cursor,
-			  struct map *map, struct symbol *sym, u64 ip)
+static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms, u64 ip)
 {
+	struct symbol *sym = ms->sym;
+	struct map *map = ms->map;
 	struct inline_node *inline_node;
 	struct inline_list *ilist;
 	u64 addr;
@@ -2488,22 +2489,22 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 	const char *srcline = NULL;
 	u64 addr = entry->ip;
 
-	if (symbol_conf.hide_unresolved && entry->sym == NULL)
+	if (symbol_conf.hide_unresolved && entry->ms.sym == NULL)
 		return 0;
 
-	if (append_inlines(cursor, entry->map, entry->sym, entry->ip) == 0)
+	if (append_inlines(cursor, &entry->ms, entry->ip) == 0)
 		return 0;
 
 	/*
 	 * Convert entry->ip from a virtual address to an offset in
 	 * its corresponding binary.
 	 */
-	if (entry->map)
-		addr = map__map_ip(entry->map, entry->ip);
+	if (entry->ms.map)
+		addr = map__map_ip(entry->ms.map, entry->ip);
 
-	srcline = callchain_srcline(entry->map, entry->sym, addr);
+	srcline = callchain_srcline(entry->ms.map, entry->ms.sym, addr);
 	return callchain_cursor_append(cursor, entry->ip,
-				       entry->map, entry->sym,
+				       entry->ms.map, entry->ms.sym,
 				       false, NULL, 0, 0, 0, srcline);
 }
 
