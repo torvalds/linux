@@ -44,6 +44,12 @@ Optional properties:
   Admission Control Block supports reporting the number of packets in-flight in a
   switch queue
 
+- resets: a single phandle and reset identifier pair. See
+  Documentation/devicetree/binding/reset/reset.txt for details.
+
+- reset-names: If the "reset" property is specified, this property should have
+  the value "switch" to denote the switch reset line.
+
 Port subnodes:
 
 Optional properties:
