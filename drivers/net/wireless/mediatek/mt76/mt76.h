@@ -200,6 +200,7 @@ struct mt76_wcid {
 	u8 hw_key_idx;
 
 	u8 sta:1;
+	u8 ext_phy:1;
 
 	u8 rx_check_pn;
 	u8 rx_key_pn[IEEE80211_NUM_TIDS][6];

@@ -953,6 +953,7 @@ mt76_sta_add(struct mt76_dev *dev, struct ieee80211_vif *vif,
 	ewma_signal_init(&wcid->rssi);
 	if (ext_phy)
 		mt76_wcid_mask_set(dev->wcid_phy_mask, wcid->idx);
+	wcid->ext_phy = ext_phy;
 	rcu_assign_pointer(dev->wcid[wcid->idx], wcid);
 
 out:
