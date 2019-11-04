@@ -393,7 +393,8 @@ void kernfs_kill_sb(struct super_block *sb);
 
 void kernfs_init(void);
 
-struct kernfs_node *kernfs_get_node_by_id(struct kernfs_root *root, u64 id);
+struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
+						   u64 id);
 #else	/* CONFIG_KERNFS */
 
 static inline enum kernfs_node_type kernfs_type(struct kernfs_node *kn)

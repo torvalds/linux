@@ -53,24 +53,6 @@ const struct super_operations kernfs_sops = {
 	.show_path	= kernfs_sop_show_path,
 };
 
-/*
- * Similar to kernfs_fh_get_inode, this one gets kernfs node from inode
- * number and generation
- */
-struct kernfs_node *kernfs_get_node_by_id(struct kernfs_root *root, u64 id)
-{
-	struct kernfs_node *kn;
-
-	kn = kernfs_find_and_get_node_by_ino(root, kernfs_id_ino(id));
-	if (!kn)
-		return NULL;
-	if (kernfs_gen(kn) != kernfs_id_gen(id)) {
-		kernfs_put(kn);
-		return NULL;
-	}
-	return kn;
-}
-
 static struct inode *kernfs_fh_get_inode(struct super_block *sb,
 		u64 ino, u32 generation)
 {
@@ -81,7 +63,8 @@ static struct inode *kernfs_fh_get_inode(struct super_block *sb,
 	if (ino == 0)
 		return ERR_PTR(-ESTALE);
 
-	kn = kernfs_find_and_get_node_by_ino(info->root, ino);
+	kn = kernfs_find_and_get_node_by_id(info->root,
+					    ino | ((u64)generation << 32));
 	if (!kn)
 		return ERR_PTR(-ESTALE);
 	inode = kernfs_get_inode(sb, kn);
@@ -89,11 +72,6 @@ static struct inode *kernfs_fh_get_inode(struct super_block *sb,
 	if (!inode)
 		return ERR_PTR(-ESTALE);
 
-	if (generation && inode->i_generation != generation) {
-		/* we didn't find the right inode.. */
-		iput(inode);
-		return ERR_PTR(-ESTALE);
-	}
 	return inode;
 }
 

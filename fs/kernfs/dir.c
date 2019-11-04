@@ -696,22 +696,31 @@ struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
 }
 
 /*
- * kernfs_find_and_get_node_by_ino - get kernfs_node from inode number
+ * kernfs_find_and_get_node_by_id - get kernfs_node from node id
  * @root: the kernfs root
- * @ino: inode number
+ * @id: the target node id
+ *
+ * @id's lower 32bits encode ino and upper gen.  If the gen portion is
+ * zero, all generations are matched.
  *
  * RETURNS:
  * NULL on failure. Return a kernfs node with reference counter incremented
  */
-struct kernfs_node *kernfs_find_and_get_node_by_ino(struct kernfs_root *root,
-						    unsigned int ino)
+struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
+						   u64 id)
 {
 	struct kernfs_node *kn;
+	ino_t ino = kernfs_id_ino(id);
+	u32 gen = kernfs_id_gen(id);
 
 	spin_lock(&kernfs_idr_lock);
 
 	kn = idr_find(&root->ino_idr, ino);
 	if (!kn)
+		goto err_unlock;
+
+	/* 0 matches all generations */
+	if (unlikely(gen && kernfs_gen(kn) != gen))
 		goto err_unlock;
 
 	/*
