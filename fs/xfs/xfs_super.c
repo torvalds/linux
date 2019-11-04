@@ -1296,6 +1296,64 @@ xfs_destroy_percpu_counters(
 	percpu_counter_destroy(&mp->m_delalloc_blks);
 }
 
+static void
+xfs_fs_put_super(
+	struct super_block	*sb)
+{
+	struct xfs_mount	*mp = XFS_M(sb);
+
+	/* if ->fill_super failed, we have no mount to tear down */
+	if (!sb->s_fs_info)
+		return;
+
+	xfs_notice(mp, "Unmounting Filesystem");
+	xfs_filestream_unmount(mp);
+	xfs_unmountfs(mp);
+
+	xfs_freesb(mp);
+	free_percpu(mp->m_stats.xs_stats);
+	xfs_destroy_percpu_counters(mp);
+	xfs_destroy_mount_workqueues(mp);
+	xfs_close_devices(mp);
+
+	sb->s_fs_info = NULL;
+	xfs_mount_free(mp);
+}
+
+static long
+xfs_fs_nr_cached_objects(
+	struct super_block	*sb,
+	struct shrink_control	*sc)
+{
+	/* Paranoia: catch incorrect calls during mount setup or teardown */
+	if (WARN_ON_ONCE(!sb->s_fs_info))
+		return 0;
+	return xfs_reclaim_inodes_count(XFS_M(sb));
+}
+
+static long
+xfs_fs_free_cached_objects(
+	struct super_block	*sb,
+	struct shrink_control	*sc)
+{
+	return xfs_reclaim_inodes_nr(XFS_M(sb), sc->nr_to_scan);
+}
+
+static const struct super_operations xfs_super_operations = {
+	.alloc_inode		= xfs_fs_alloc_inode,
+	.destroy_inode		= xfs_fs_destroy_inode,
+	.dirty_inode		= xfs_fs_dirty_inode,
+	.drop_inode		= xfs_fs_drop_inode,
+	.put_super		= xfs_fs_put_super,
+	.sync_fs		= xfs_fs_sync_fs,
+	.freeze_fs		= xfs_fs_freeze,
+	.unfreeze_fs		= xfs_fs_unfreeze,
+	.statfs			= xfs_fs_statfs,
+	.show_options		= xfs_fs_show_options,
+	.nr_cached_objects	= xfs_fs_nr_cached_objects,
+	.free_cached_objects	= xfs_fs_free_cached_objects,
+};
+
 static struct xfs_mount *
 xfs_mount_alloc(void)
 {
@@ -1519,64 +1577,6 @@ xfs_fc_get_tree(
 {
 	return get_tree_bdev(fc, xfs_fc_fill_super);
 }
-
-STATIC void
-xfs_fs_put_super(
-	struct super_block	*sb)
-{
-	struct xfs_mount	*mp = XFS_M(sb);
-
-	/* if ->fill_super failed, we have no mount to tear down */
-	if (!sb->s_fs_info)
-		return;
-
-	xfs_notice(mp, "Unmounting Filesystem");
-	xfs_filestream_unmount(mp);
-	xfs_unmountfs(mp);
-
-	xfs_freesb(mp);
-	free_percpu(mp->m_stats.xs_stats);
-	xfs_destroy_percpu_counters(mp);
-	xfs_destroy_mount_workqueues(mp);
-	xfs_close_devices(mp);
-
-	sb->s_fs_info = NULL;
-	xfs_mount_free(mp);
-}
-
-static long
-xfs_fs_nr_cached_objects(
-	struct super_block	*sb,
-	struct shrink_control	*sc)
-{
-	/* Paranoia: catch incorrect calls during mount setup or teardown */
-	if (WARN_ON_ONCE(!sb->s_fs_info))
-		return 0;
-	return xfs_reclaim_inodes_count(XFS_M(sb));
-}
-
-static long
-xfs_fs_free_cached_objects(
-	struct super_block	*sb,
-	struct shrink_control	*sc)
-{
-	return xfs_reclaim_inodes_nr(XFS_M(sb), sc->nr_to_scan);
-}
-
-static const struct super_operations xfs_super_operations = {
-	.alloc_inode		= xfs_fs_alloc_inode,
-	.destroy_inode		= xfs_fs_destroy_inode,
-	.dirty_inode		= xfs_fs_dirty_inode,
-	.drop_inode		= xfs_fs_drop_inode,
-	.put_super		= xfs_fs_put_super,
-	.sync_fs		= xfs_fs_sync_fs,
-	.freeze_fs		= xfs_fs_freeze,
-	.unfreeze_fs		= xfs_fs_unfreeze,
-	.statfs			= xfs_fs_statfs,
-	.show_options		= xfs_fs_show_options,
-	.nr_cached_objects	= xfs_fs_nr_cached_objects,
-	.free_cached_objects	= xfs_fs_free_cached_objects,
-};
 
 static int
 xfs_remount_rw(
