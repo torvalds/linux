@@ -17466,10 +17466,8 @@ S:	Maintained
 F:	drivers/hwmon/vt8231.c
 
 VUB300 USB to SDIO/SD/MMC bridge chip
-M:	Tony Olech <tony.olech@elandigitalsystems.com>
 L:	linux-mmc@vger.kernel.org
-L:	linux-usb@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	drivers/mmc/host/vub300.c
 
 W1 DALLAS'S 1-WIRE BUS
