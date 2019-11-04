@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
 /*
- * Realtek RTD1295 SoC
+ * Realtek RTD1293 SoC
  *
- * Copyright (c) 2016-2017 Andreas Färber
+ * Copyright (c) 2017-2019 Andreas Färber
  */
 
 #include "rtd129x.dtsi"
 
 / {
-	compatible = "realtek,rtd1295";
+	compatible = "realtek,rtd1293";
 
 	cpus {
 		#address-cells = <2>;
@@ -28,33 +28,8 @@
 			next-level-cache = <&l2>;
 		};
 
-		cpu2: cpu@2 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a53";
-			reg = <0x0 0x2>;
-			next-level-cache = <&l2>;
-		};
-
-		cpu3: cpu@3 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a53";
-			reg = <0x0 0x3>;
-			next-level-cache = <&l2>;
-		};
-
 		l2: l2-cache {
 			compatible = "cache";
-		};
-	};
-
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		tee@10100000 {
-			reg = <0x10100000 0xf00000>;
-			no-map;
 		};
 	};
 
@@ -72,5 +47,5 @@
 };
 
 &arm_pmu {
-	interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	interrupt-affinity = <&cpu0>, <&cpu1>;
 };

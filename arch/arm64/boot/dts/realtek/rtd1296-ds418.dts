@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
 /*
- * Copyright (c) 2016-2017 Andreas Färber
+ * Copyright (c) 2017-2019 Andreas Färber
  */
 
 /dts-v1/;
 
-#include "rtd1295.dtsi"
+#include "rtd1296.dtsi"
 
 / {
-	compatible = "zidoo,x9s", "realtek,rtd1295";
-	model = "Zidoo X9S";
+	compatible = "synology,ds418", "realtek,rtd1296";
+	model = "Synology DiskStation DS418";
 
 	memory@0 {
 		device_type = "memory";
@@ -18,7 +18,6 @@
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart1;
 	};
 
 	chosen {
@@ -27,9 +26,5 @@
 };
 
 &uart0 {
-	status = "okay";
-};
-
-&uart1 {
 	status = "okay";
 };
