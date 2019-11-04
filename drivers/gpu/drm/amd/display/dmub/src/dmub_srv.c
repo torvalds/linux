@@ -400,19 +400,14 @@ enum dmub_status dmub_srv_wait_for_phy_init(struct dmub_srv *dmub,
 	if (!dmub->hw_init || !dmub->hw_funcs.is_phy_init)
 		return DMUB_STATUS_INVALID;
 
-/*	for (i = 0; i <= timeout_us; i += 10) {
+	for (i = 0; i <= timeout_us; i += 10) {
 		if (dmub->hw_funcs.is_phy_init(dmub))
 			return DMUB_STATUS_OK;
 
 		udelay(10);
-	}*/
-	while (!dmub->hw_funcs.is_phy_init(dmub)) {
-		ASSERT(i <= timeout_us);
-		i += 10;
-		udelay(10);
 	}
 
-	return DMUB_STATUS_OK;
+	return DMUB_STATUS_TIMEOUT;
 }
 
 enum dmub_status dmub_srv_wait_for_idle(struct dmub_srv *dmub,

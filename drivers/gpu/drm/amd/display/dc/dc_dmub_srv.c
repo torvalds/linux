@@ -112,8 +112,10 @@ void dc_dmub_srv_wait_phy_init(struct dc_dmub_srv *dc_dmub_srv)
 	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
 	enum dmub_status status;
 
-	status = dmub_srv_wait_for_phy_init(dmub, 1000000);
-	if (status != DMUB_STATUS_OK)
+	status = dmub_srv_wait_for_phy_init(dmub, 10000000);
+	if (status != DMUB_STATUS_OK) {
 		DC_ERROR("Error waiting for DMUB phy init: status=%d\n",
 			 status);
+		ASSERT(0);
+	}
 }
