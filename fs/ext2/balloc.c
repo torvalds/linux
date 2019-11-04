@@ -269,7 +269,7 @@ goal_in_my_reservation(struct ext2_reserve_window *rsv, ext2_grpblk_t grp_goal,
 	ext2_fsblk_t group_first_block, group_last_block;
 
 	group_first_block = ext2_group_first_block_no(sb, group);
-	group_last_block = group_first_block + EXT2_BLOCKS_PER_GROUP(sb) - 1;
+	group_last_block = ext2_group_last_block_no(sb, group);
 
 	if ((rsv->_rsv_start > group_last_block) ||
 	    (rsv->_rsv_end < group_first_block))
@@ -666,22 +666,22 @@ ext2_try_to_allocate(struct super_block *sb, int group,
 			unsigned long *count,
 			struct ext2_reserve_window *my_rsv)
 {
-	ext2_fsblk_t group_first_block;
+	ext2_fsblk_t group_first_block = ext2_group_first_block_no(sb, group);
+	ext2_fsblk_t group_last_block = ext2_group_last_block_no(sb, group);
        	ext2_grpblk_t start, end;
 	unsigned long num = 0;
 
 	/* we do allocation within the reservation window if we have a window */
 	if (my_rsv) {
-		group_first_block = ext2_group_first_block_no(sb, group);
 		if (my_rsv->_rsv_start >= group_first_block)
 			start = my_rsv->_rsv_start - group_first_block;
 		else
 			/* reservation window cross group boundary */
 			start = 0;
 		end = my_rsv->_rsv_end - group_first_block + 1;
-		if (end > EXT2_BLOCKS_PER_GROUP(sb))
+		if (end > group_last_block - group_first_block + 1)
 			/* reservation window crosses group boundary */
-			end = EXT2_BLOCKS_PER_GROUP(sb);
+			end = group_last_block - group_first_block + 1;
 		if ((start <= grp_goal) && (grp_goal < end))
 			start = grp_goal;
 		else
@@ -691,7 +691,7 @@ ext2_try_to_allocate(struct super_block *sb, int group,
 			start = grp_goal;
 		else
 			start = 0;
-		end = EXT2_BLOCKS_PER_GROUP(sb);
+		end = group_last_block - group_first_block + 1;
 	}
 
 	BUG_ON(start > EXT2_BLOCKS_PER_GROUP(sb));
@@ -907,7 +907,7 @@ static int alloc_new_reservation(struct ext2_reserve_window_node *my_rsv,
 	spinlock_t *rsv_lock = &EXT2_SB(sb)->s_rsv_window_lock;
 
 	group_first_block = ext2_group_first_block_no(sb, group);
-	group_end_block = group_first_block + (EXT2_BLOCKS_PER_GROUP(sb) - 1);
+	group_end_block = ext2_group_last_block_no(sb, group);
 
 	if (grp_goal < 0)
 		start_block = group_first_block;
@@ -1114,7 +1114,7 @@ ext2_try_to_allocate_with_rsv(struct super_block *sb, unsigned int group,
 	 * first block is the block number of the first block in this group
 	 */
 	group_first_block = ext2_group_first_block_no(sb, group);
-	group_last_block = group_first_block + (EXT2_BLOCKS_PER_GROUP(sb) - 1);
+	group_last_block = ext2_group_last_block_no(sb, group);
 
 	/*
 	 * Basically we will allocate a new block from inode's reservation
