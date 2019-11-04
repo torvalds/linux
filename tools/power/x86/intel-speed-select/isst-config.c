@@ -574,12 +574,6 @@ int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 			if (!ret && !write)
 				*resp = value;
 			break;
-		case CLOS_PM_QOS_CONFIG:
-			ret = isst_send_mmio_command(cpu, PM_QOS_CONFIG_OFFSET,
-						     write, &value);
-			if (!ret && !write)
-				*resp = value;
-			break;
 		case CLOS_STATUS:
 			break;
 		default:
