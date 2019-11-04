@@ -297,6 +297,19 @@ static int nsp_gpio_direction_output(struct gpio_chip *gc, unsigned gpio,
 	return 0;
 }
 
+static int nsp_gpio_get_direction(struct gpio_chip *gc, unsigned gpio)
+{
+	struct nsp_gpio *chip = gpiochip_get_data(gc);
+	unsigned long flags;
+	int val;
+
+	raw_spin_lock_irqsave(&chip->lock, flags);
+	val = nsp_get_bit(chip, REG, NSP_GPIO_OUT_EN, gpio);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
+
+	return !val;
+}
+
 static void nsp_gpio_set(struct gpio_chip *gc, unsigned gpio, int val)
 {
 	struct nsp_gpio *chip = gpiochip_get_data(gc);
@@ -641,6 +654,7 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 	gc->free = gpiochip_generic_free;
 	gc->direction_input = nsp_gpio_direction_input;
 	gc->direction_output = nsp_gpio_direction_output;
+	gc->get_direction = nsp_gpio_get_direction;
 	gc->set = nsp_gpio_set;
 	gc->get = nsp_gpio_get;
 
