@@ -133,6 +133,12 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num);
 #define UCSI_ERROR_CC_COMMUNICATION_ERR		BIT(4)
 #define UCSI_ERROR_DEAD_BATTERY			BIT(5)
 #define UCSI_ERROR_CONTRACT_NEGOTIATION_FAIL	BIT(6)
+#define UCSI_ERROR_OVERCURRENT			BIT(7)
+#define UCSI_ERROR_UNDEFINED			BIT(8)
+#define UCSI_ERROR_PARTNER_REJECTED_SWAP	BIT(9)
+#define UCSI_ERROR_HARD_RESET			BIT(10)
+#define UCSI_ERROR_PPM_POLICY_CONFLICT		BIT(11)
+#define UCSI_ERROR_SWAP_REJECTED		BIT(12)
 
 /* Data structure filled by PPM in response to GET_CAPABILITY command. */
 struct ucsi_capability {

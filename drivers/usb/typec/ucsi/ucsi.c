@@ -86,18 +86,33 @@ static int ucsi_read_error(struct ucsi *ucsi)
 	case UCSI_ERROR_DEAD_BATTERY:
 		dev_warn(ucsi->dev, "Dead battery condition!\n");
 		return -EPERM;
-	/* The following mean a bug in this driver */
 	case UCSI_ERROR_INVALID_CON_NUM:
 	case UCSI_ERROR_UNREGONIZED_CMD:
 	case UCSI_ERROR_INVALID_CMD_ARGUMENT:
-		dev_err(ucsi->dev, "possible UCSI driver bug (0x%x)\n", error);
+		dev_err(ucsi->dev, "possible UCSI driver bug %u\n", error);
 		return -EINVAL;
+	case UCSI_ERROR_OVERCURRENT:
+		dev_warn(ucsi->dev, "Overcurrent condition\n");
+		break;
+	case UCSI_ERROR_PARTNER_REJECTED_SWAP:
+		dev_warn(ucsi->dev, "Partner rejected swap\n");
+		break;
+	case UCSI_ERROR_HARD_RESET:
+		dev_warn(ucsi->dev, "Hard reset occurred\n");
+		break;
+	case UCSI_ERROR_PPM_POLICY_CONFLICT:
+		dev_warn(ucsi->dev, "PPM Policy conflict\n");
+		break;
+	case UCSI_ERROR_SWAP_REJECTED:
+		dev_warn(ucsi->dev, "Swap rejected\n");
+		break;
+	case UCSI_ERROR_UNDEFINED:
 	default:
-		dev_err(ucsi->dev, "%s: error without status\n", __func__);
-		return -EIO;
+		dev_err(ucsi->dev, "unknown error %u\n", error);
+		break;
 	}
 
-	return 0;
+	return -EIO;
 }
 
 static int ucsi_exec_command(struct ucsi *ucsi, u64 cmd)
