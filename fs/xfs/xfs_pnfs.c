@@ -60,7 +60,7 @@ xfs_fs_get_uuid(
 
 	printk_once(KERN_NOTICE
 "XFS (%s): using experimental pNFS feature, use at your own risk!\n",
-		mp->m_fsname);
+		mp->m_super->s_id);
 
 	if (*len < sizeof(uuid_t))
 		return -EINVAL;
