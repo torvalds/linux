@@ -2241,34 +2241,6 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 				dm_dcn_crtc_high_irq, c_irq_params);
 	}
 
-	/* Use VUPDATE_NO_LOCK interrupt on DCN, which seems to correspond to
-	 * the regular VUPDATE interrupt on DCE. We want DC_IRQ_SOURCE_VUPDATEx
-	 * to trigger at end of each vblank, regardless of state of the lock,
-	 * matching DCE behaviour.
-	 */
-	for (i = DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT;
-	     i <= DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT + adev->mode_info.num_crtc - 1;
-	     i++) {
-		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE, i, &adev->vupdate_irq);
-
-		if (r) {
-			DRM_ERROR("Failed to add vupdate irq id!\n");
-			return r;
-		}
-
-		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
-		int_params.irq_source =
-			dc_interrupt_to_irq_source(dc, i, 0);
-
-		c_irq_params = &adev->dm.vupdate_params[int_params.irq_source - DC_IRQ_SOURCE_VUPDATE1];
-
-		c_irq_params->adev = adev;
-		c_irq_params->irq_src = int_params.irq_source;
-
-		amdgpu_dm_irq_register_interrupt(adev, &int_params,
-				dm_vupdate_high_irq, c_irq_params);
-	}
-
 	/* Use GRPH_PFLIP interrupt */
 	for (i = DCN_1_0__SRCID__HUBP0_FLIP_INTERRUPT;
 			i <= DCN_1_0__SRCID__HUBP0_FLIP_INTERRUPT + adev->mode_info.num_crtc - 1;
@@ -4177,6 +4149,10 @@ static inline int dm_set_vupdate_irq(struct drm_crtc *crtc, bool enable)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	int rc;
+
+	/* Do not set vupdate for DCN hardware */
+	if (adev->family > AMDGPU_FAMILY_AI)
+		return 0;
 
 	irq_source = IRQ_TYPE_VUPDATE + acrtc->otg_inst;
 
