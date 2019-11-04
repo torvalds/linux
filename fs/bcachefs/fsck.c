@@ -147,6 +147,7 @@ struct hash_check {
 static void hash_check_init(struct hash_check *h)
 {
 	h->chain = NULL;
+	h->chain_end = 0;
 }
 
 static void hash_stop_chain(struct btree_trans *trans,
