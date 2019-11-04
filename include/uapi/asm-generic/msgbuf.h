@@ -13,9 +13,9 @@
  * everyone just ended up making identical copies without specific
  * optimizations, so we may just as well all use the same one.
  *
- * 64 bit architectures typically define a 64 bit __kernel_time_t,
- * so they do not need the first three padding words.
- * On big-endian systems, the padding is in the wrong place.
+ * 64 bit architectures use a 64-bit long time field here, while
+ * 32 bit architectures have a pair of unsigned long values.
+ * On big-endian systems, the lower half is in the wrong place.
  *
  * Pad space is left for:
  * - 2 miscellaneous 32-bit values
@@ -24,9 +24,9 @@
 struct msqid64_ds {
 	struct ipc64_perm msg_perm;
 #if __BITS_PER_LONG == 64
-	__kernel_time_t msg_stime;	/* last msgsnd time */
-	__kernel_time_t msg_rtime;	/* last msgrcv time */
-	__kernel_time_t msg_ctime;	/* last change time */
+	long		 msg_stime;	/* last msgsnd time */
+	long		 msg_rtime;	/* last msgrcv time */
+	long		 msg_ctime;	/* last change time */
 #else
 	unsigned long	msg_stime;	/* last msgsnd time */
 	unsigned long	msg_stime_high;

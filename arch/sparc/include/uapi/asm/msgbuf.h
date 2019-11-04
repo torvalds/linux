@@ -13,9 +13,9 @@
 struct msqid64_ds {
 	struct ipc64_perm msg_perm;
 #if defined(__sparc__) && defined(__arch64__)
-	__kernel_time_t msg_stime;	/* last msgsnd time */
-	__kernel_time_t msg_rtime;	/* last msgrcv time */
-	__kernel_time_t msg_ctime;	/* last change time */
+	long msg_stime;			/* last msgsnd time */
+	long msg_rtime;			/* last msgrcv time */
+	long msg_ctime;			/* last change time */
 #else
 	unsigned long msg_stime_high;
 	unsigned long msg_stime;	/* last msgsnd time */
