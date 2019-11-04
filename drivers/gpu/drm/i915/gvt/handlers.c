@@ -3420,6 +3420,10 @@ int intel_gvt_for_each_tracked_mmio(struct intel_gvt *gvt,
 	}
 
 	for (i = 0; i < gvt->mmio.num_mmio_block; i++, block++) {
+		/* pvinfo data doesn't come from hw mmio */
+		if (i915_mmio_reg_offset(block->offset) == VGT_PVINFO_PAGE)
+			continue;
+
 		for (j = 0; j < block->size; j += 4) {
 			ret = handler(gvt,
 				      i915_mmio_reg_offset(block->offset) + j,
