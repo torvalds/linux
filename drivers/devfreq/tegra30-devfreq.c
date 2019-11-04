@@ -467,6 +467,9 @@ static void tegra_actmon_configure_device(struct tegra_devfreq *tegra,
 {
 	u32 val = 0;
 
+	/* reset boosting on governor's restart */
+	dev->boost_freq = 0;
+
 	dev->target_freq = tegra->cur_freq;
 
 	dev->avg_count = tegra->cur_freq * ACTMON_SAMPLING_PERIOD;
