@@ -168,7 +168,6 @@ xfs_parseargs(
 	mp->m_fsname = kstrndup(sb->s_id, MAXNAMELEN, GFP_KERNEL);
 	if (!mp->m_fsname)
 		return -ENOMEM;
-	mp->m_fsname_len = strlen(mp->m_fsname) + 1;
 
 	/*
 	 * Copy binary VFS mount flags we are interested in.
