@@ -449,7 +449,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 				  DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, base_level + 6, header, value);
 		}
-		snprintf(header, sizeof(header), "turbo-ratio-limits-avx");
+		snprintf(header, sizeof(header), "turbo-ratio-limits-avx2");
 		format_and_print(outf, base_level + 4, header, NULL);
 		for (j = 0; j < 8; ++j) {
 			snprintf(header, sizeof(header), "bucket-%d", j);
