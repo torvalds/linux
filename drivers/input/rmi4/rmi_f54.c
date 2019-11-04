@@ -81,11 +81,6 @@ static const char * const rmi_f54_report_type_names[] = {
 					= "Full Raw Capacitance RX Offset Removed",
 };
 
-struct rmi_f54_reports {
-	int start;
-	int size;
-};
-
 struct f54_data {
 	struct rmi_function *fn;
 
@@ -98,7 +93,6 @@ struct f54_data {
 	enum rmi_f54_report_type report_type;
 	u8 *report_data;
 	int report_size;
-	struct rmi_f54_reports standard_report[2];
 
 	bool is_busy;
 	struct mutex status_mutex;
@@ -516,13 +510,10 @@ static void rmi_f54_work(struct work_struct *work)
 	struct f54_data *f54 = container_of(work, struct f54_data, work.work);
 	struct rmi_function *fn = f54->fn;
 	u8 fifo[2];
-	struct rmi_f54_reports *report;
 	int report_size;
 	u8 command;
-	u8 *data;
 	int error;
 
-	data = f54->report_data;
 	report_size = rmi_f54_get_report_size(f54);
 	if (report_size == 0) {
 		dev_err(&fn->dev, "Bad report size, report type=%d\n",
@@ -530,8 +521,6 @@ static void rmi_f54_work(struct work_struct *work)
 		error = -EINVAL;
 		goto error;     /* retry won't help */
 	}
-	f54->standard_report[0].size = report_size;
-	report = f54->standard_report;
 
 	mutex_lock(&f54->data_mutex);
 
@@ -556,28 +545,23 @@ static void rmi_f54_work(struct work_struct *work)
 
 	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "Get report command completed, reading data\n");
 
-	report_size = 0;
-	for (; report->size; report++) {
-		fifo[0] = report->start & 0xff;
-		fifo[1] = (report->start >> 8) & 0xff;
-		error = rmi_write_block(fn->rmi_dev,
-					fn->fd.data_base_addr + F54_FIFO_OFFSET,
-					fifo, sizeof(fifo));
-		if (error) {
-			dev_err(&fn->dev, "Failed to set fifo start offset\n");
-			goto abort;
-		}
+	fifo[0] = 0;
+	fifo[1] = 0;
+	error = rmi_write_block(fn->rmi_dev,
+				fn->fd.data_base_addr + F54_FIFO_OFFSET,
+				fifo, sizeof(fifo));
+	if (error) {
+		dev_err(&fn->dev, "Failed to set fifo start offset\n");
+		goto abort;
+	}
 
-		error = rmi_read_block(fn->rmi_dev, fn->fd.data_base_addr +
-				       F54_REPORT_DATA_OFFSET, data,
-				       report->size);
-		if (error) {
-			dev_err(&fn->dev, "%s: read [%d bytes] returned %d\n",
-				__func__, report->size, error);
-			goto abort;
-		}
-		data += report->size;
-		report_size += report->size;
+	error = rmi_read_block(fn->rmi_dev, fn->fd.data_base_addr +
+			       F54_REPORT_DATA_OFFSET, f54->report_data,
+			       report_size);
+	if (error) {
+		dev_err(&fn->dev, "%s: read [%d bytes] returned %d\n",
+			__func__, report_size, error);
+		goto abort;
 	}
 
 abort:
