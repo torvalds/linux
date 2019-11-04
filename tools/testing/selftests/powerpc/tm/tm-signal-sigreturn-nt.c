@@ -10,10 +10,12 @@
  */
 
 #define _GNU_SOURCE
+#include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
 
 #include "utils.h"
+#include "tm.h"
 
 void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 {
@@ -28,6 +30,8 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 int tm_signal_sigreturn_nt(void)
 {
 	struct sigaction trap_sa;
+
+	SKIP_IF(!have_htm());
 
 	trap_sa.sa_flags = SA_SIGINFO;
 	trap_sa.sa_sigaction = trap_signal_handler;
