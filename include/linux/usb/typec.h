@@ -198,11 +198,6 @@ struct typec_operations {
  * @fwnode: Optional fwnode of the port
  * @driver_data: Private pointer for driver specific info
  * @ops: Port operations vector
- * @try_role: Set data role preference for DRP port
- * @dr_set: Set Data Role
- * @pr_set: Set Power Role
- * @vconn_set: Set VCONN Role
- * @port_type_set: Set port type
  *
  * Static capabilities of a single USB Type-C port.
  */
@@ -220,18 +215,6 @@ struct typec_capability {
 	void			*driver_data;
 
 	const struct typec_operations	*ops;
-
-	int		(*try_role)(const struct typec_capability *,
-				    int role);
-
-	int		(*dr_set)(const struct typec_capability *,
-				  enum typec_data_role);
-	int		(*pr_set)(const struct typec_capability *,
-				  enum typec_role);
-	int		(*vconn_set)(const struct typec_capability *,
-				     enum typec_role);
-	int		(*port_type_set)(const struct typec_capability *,
-					 enum typec_port_type);
 };
 
 /* Specific to try_role(). Indicates the user want's to clear the preference. */
