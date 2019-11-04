@@ -507,7 +507,8 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 				MLX5_SET(dest_format_struct, in_dests,
 					 destination_eswitch_owner_vhca_id,
 					 dst->dest_attr.vport.vhca_id);
-				if (extended_dest) {
+				if (extended_dest &&
+				    dst->dest_attr.vport.pkt_reformat) {
 					MLX5_SET(dest_format_struct, in_dests,
 						 packet_reformat,
 						 !!(dst->dest_attr.vport.flags &

@@ -199,6 +199,7 @@ void ib_mad_cleanup(void);
 int ib_sa_init(void);
 void ib_sa_cleanup(void);
 
+void rdma_nl_init(void);
 void rdma_nl_exit(void);
 
 int ib_nl_handle_resolve_resp(struct sk_buff *skb,

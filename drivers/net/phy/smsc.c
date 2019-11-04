@@ -327,6 +327,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	.name		= "SMSC LAN8740",
 
 	/* PHY_BASIC_FEATURES */
+	.flags		= PHY_RST_AFTER_CLK_EN,
 
 	.probe		= smsc_phy_probe,
 

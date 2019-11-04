@@ -627,8 +627,9 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
 
 static struct kvm *kvm_create_vm(unsigned long type)
 {
-	int r, i;
 	struct kvm *kvm = kvm_arch_alloc_vm();
+	int r = -ENOMEM;
+	int i;
 
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
@@ -640,12 +641,31 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	mutex_init(&kvm->lock);
 	mutex_init(&kvm->irq_lock);
 	mutex_init(&kvm->slots_lock);
-	refcount_set(&kvm->users_count, 1);
 	INIT_LIST_HEAD(&kvm->devices);
 
+	BUILD_BUG_ON(KVM_MEM_SLOTS_NUM > SHRT_MAX);
+
+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
+		struct kvm_memslots *slots = kvm_alloc_memslots();
+
+		if (!slots)
+			goto out_err_no_arch_destroy_vm;
+		/* Generations must be different for each address space. */
+		slots->generation = i;
+		rcu_assign_pointer(kvm->memslots[i], slots);
+	}
+
+	for (i = 0; i < KVM_NR_BUSES; i++) {
+		rcu_assign_pointer(kvm->buses[i],
+			kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL_ACCOUNT));
+		if (!kvm->buses[i])
+			goto out_err_no_arch_destroy_vm;
+	}
+
+	refcount_set(&kvm->users_count, 1);
 	r = kvm_arch_init_vm(kvm, type);
 	if (r)
-		goto out_err_no_disable;
+		goto out_err_no_arch_destroy_vm;
 
 	r = hardware_enable_all();
 	if (r)
@@ -655,28 +675,10 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	INIT_HLIST_HEAD(&kvm->irq_ack_notifier_list);
 #endif
 
-	BUILD_BUG_ON(KVM_MEM_SLOTS_NUM > SHRT_MAX);
-
-	r = -ENOMEM;
-	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
-		struct kvm_memslots *slots = kvm_alloc_memslots();
-		if (!slots)
-			goto out_err_no_srcu;
-		/* Generations must be different for each address space. */
-		slots->generation = i;
-		rcu_assign_pointer(kvm->memslots[i], slots);
-	}
-
 	if (init_srcu_struct(&kvm->srcu))
 		goto out_err_no_srcu;
 	if (init_srcu_struct(&kvm->irq_srcu))
 		goto out_err_no_irq_srcu;
-	for (i = 0; i < KVM_NR_BUSES; i++) {
-		rcu_assign_pointer(kvm->buses[i],
-			kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL_ACCOUNT));
-		if (!kvm->buses[i])
-			goto out_err;
-	}
 
 	r = kvm_init_mmu_notifier(kvm);
 	if (r)
@@ -697,7 +699,9 @@ out_err_no_irq_srcu:
 out_err_no_srcu:
 	hardware_disable_all();
 out_err_no_disable:
-	refcount_set(&kvm->users_count, 0);
+	kvm_arch_destroy_vm(kvm);
+	WARN_ON_ONCE(!refcount_dec_and_test(&kvm->users_count));
+out_err_no_arch_destroy_vm:
 	for (i = 0; i < KVM_NR_BUSES; i++)
 		kfree(kvm_get_bus(kvm, i));
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)

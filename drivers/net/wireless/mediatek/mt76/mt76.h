@@ -93,8 +93,9 @@ struct mt76_queue_entry {
 		struct urb *urb;
 	};
 	enum mt76_txq_id qid;
-	bool schedule;
-	bool done;
+	bool skip_buf0:1;
+	bool schedule:1;
+	bool done:1;
 };
 
 struct mt76_queue_regs {
@@ -578,6 +579,7 @@ bool __mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 #define mt76_poll_msec(dev, ...) __mt76_poll_msec(&((dev)->mt76), __VA_ARGS__)
 
 void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs);
+void mt76_pci_disable_aspm(struct pci_dev *pdev);
 
 static inline u16 mt76_chip(struct mt76_dev *dev)
 {

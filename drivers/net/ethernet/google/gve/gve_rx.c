@@ -289,6 +289,8 @@ static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
 
 	len = be16_to_cpu(rx_desc->len) - GVE_RX_PAD;
 	page_info = &rx->data.page_info[idx];
+	dma_sync_single_for_cpu(&priv->pdev->dev, rx->data.qpl->page_buses[idx],
+				PAGE_SIZE, DMA_FROM_DEVICE);
 
 	/* gvnic can only receive into registered segments. If the buffer
 	 * can't be recycled, our only choice is to copy the data out of

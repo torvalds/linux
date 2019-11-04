@@ -1967,8 +1967,8 @@ int mlx5_ib_dealloc_mw(struct ib_mw *mw)
 	int err;
 
 	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
-		xa_erase(&dev->mdev->priv.mkey_table,
-			 mlx5_base_mkey(mmw->mmkey.key));
+		xa_erase_irq(&dev->mdev->priv.mkey_table,
+			     mlx5_base_mkey(mmw->mmkey.key));
 		/*
 		 * pagefault_single_data_segment() may be accessing mmw under
 		 * SRCU if the user bound an ODP MR to this MW.

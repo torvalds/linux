@@ -11408,7 +11408,6 @@ F:	include/trace/events/tcp.h
 NETWORKING [TLS]
 M:	Boris Pismenny <borisp@mellanox.com>
 M:	Aviad Yehezkel <aviadye@mellanox.com>
-M:	Dave Watson <davejwatson@fb.com>
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Jakub Kicinski <jakub.kicinski@netronome.com>
@@ -13906,7 +13905,7 @@ F:	drivers/mtd/nand/raw/r852.h
 
 RISC-V ARCHITECTURE
 M:	Paul Walmsley <paul.walmsley@sifive.com>
-M:	Palmer Dabbelt <palmer@sifive.com>
+M:	Palmer Dabbelt <palmer@dabbelt.com>
 M:	Albert Ou <aou@eecs.berkeley.edu>
 L:	linux-riscv@lists.infradead.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/riscv/linux.git
@@ -14783,7 +14782,7 @@ F:	drivers/media/usb/siano/
 F:	drivers/media/mmc/siano/
 
 SIFIVE DRIVERS
-M:	Palmer Dabbelt <palmer@sifive.com>
+M:	Palmer Dabbelt <palmer@dabbelt.com>
 M:	Paul Walmsley <paul.walmsley@sifive.com>
 L:	linux-riscv@lists.infradead.org
 T:	git git://github.com/sifive/riscv-linux.git
@@ -14793,7 +14792,7 @@ N:	sifive
 
 SIFIVE FU540 SYSTEM-ON-CHIP
 M:	Paul Walmsley <paul.walmsley@sifive.com>
-M:	Palmer Dabbelt <palmer@sifive.com>
+M:	Palmer Dabbelt <palmer@dabbelt.com>
 L:	linux-riscv@lists.infradead.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pjw/sifive.git
 S:	Supported
