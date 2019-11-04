@@ -1475,11 +1475,11 @@ static u32 rt6_exception_hash(const struct in6_addr *dst,
 	u32 val;
 
 	net_get_random_once(&seed, sizeof(seed));
-	val = jhash(dst, sizeof(*dst), seed);
+	val = jhash2((const u32 *)dst, sizeof(*dst)/sizeof(u32), seed);
 
 #ifdef CONFIG_IPV6_SUBTREES
 	if (src)
-		val = jhash(src, sizeof(*src), val);
+		val = jhash2((const u32 *)src, sizeof(*src)/sizeof(u32), val);
 #endif
 	return hash_32(val, FIB6_EXCEPTION_BUCKET_SIZE_SHIFT);
 }
