@@ -813,6 +813,18 @@ ext2_group_first_block_no(struct super_block *sb, unsigned long group_no)
 		le32_to_cpu(EXT2_SB(sb)->s_es->s_first_data_block);
 }
 
+static inline ext2_fsblk_t
+ext2_group_last_block_no(struct super_block *sb, unsigned long group_no)
+{
+	struct ext2_sb_info *sbi = EXT2_SB(sb);
+
+	if (group_no == sbi->s_groups_count - 1)
+		return le32_to_cpu(sbi->s_es->s_blocks_count) - 1;
+	else
+		return ext2_group_first_block_no(sb, group_no) +
+			EXT2_BLOCKS_PER_GROUP(sb) - 1;
+}
+
 #define ext2_set_bit	__test_and_set_bit_le
 #define ext2_clear_bit	__test_and_clear_bit_le
 #define ext2_test_bit	test_bit_le
