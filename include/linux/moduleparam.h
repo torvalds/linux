@@ -100,11 +100,11 @@ struct kparam_array
 
 /**
  * module_param - typesafe helper for a module/cmdline parameter
- * @value: the variable to alter, and exposed parameter name.
+ * @name: the variable to alter, and exposed parameter name.
  * @type: the type of the parameter
  * @perm: visibility in sysfs.
  *
- * @value becomes the module parameter, or (prefixed by KBUILD_MODNAME and a
+ * @name becomes the module parameter, or (prefixed by KBUILD_MODNAME and a
  * ".") the kernel commandline parameter.  Note that - is changed to _, so
  * the user can use "foo-bar=1" even for variable "foo_bar".
  *
