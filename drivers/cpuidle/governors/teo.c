@@ -212,7 +212,7 @@ static int teo_find_shallower_state(struct cpuidle_driver *drv,
 	int i;
 
 	for (i = state_idx - 1; i >= 0; i--) {
-		if (drv->states[i].disabled || dev->states_usage[i].disable)
+		if (dev->states_usage[i].disable)
 			continue;
 
 		state_idx = i;
@@ -256,9 +256,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 	for (i = 0; i < drv->state_count; i++) {
 		struct cpuidle_state *s = &drv->states[i];
-		struct cpuidle_state_usage *su = &dev->states_usage[i];
 
-		if (s->disabled || su->disable) {
+		if (dev->states_usage[i].disable) {
 			/*
 			 * Ignore disabled states with target residencies beyond
 			 * the anticipated idle duration.

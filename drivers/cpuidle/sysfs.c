@@ -255,25 +255,6 @@ static ssize_t show_state_##_name(struct cpuidle_state *state, \
 	return sprintf(buf, "%u\n", state->_name);\
 }
 
-#define define_store_state_ull_function(_name) \
-static ssize_t store_state_##_name(struct cpuidle_state *state, \
-				   struct cpuidle_state_usage *state_usage, \
-				   const char *buf, size_t size)	\
-{ \
-	unsigned long long value; \
-	int err; \
-	if (!capable(CAP_SYS_ADMIN)) \
-		return -EPERM; \
-	err = kstrtoull(buf, 0, &value); \
-	if (err) \
-		return err; \
-	if (value) \
-		state_usage->_name = 1; \
-	else \
-		state_usage->_name = 0; \
-	return size; \
-}
-
 #define define_show_state_ull_function(_name) \
 static ssize_t show_state_##_name(struct cpuidle_state *state, \
 				  struct cpuidle_state_usage *state_usage, \
@@ -299,10 +280,38 @@ define_show_state_ull_function(usage)
 define_show_state_ull_function(time)
 define_show_state_str_function(name)
 define_show_state_str_function(desc)
-define_show_state_ull_function(disable)
-define_store_state_ull_function(disable)
 define_show_state_ull_function(above)
 define_show_state_ull_function(below)
+
+static ssize_t show_state_disable(struct cpuidle_state *state,
+				  struct cpuidle_state_usage *state_usage,
+				  char *buf)
+{
+	return sprintf(buf, "%llu\n",
+		       state_usage->disable & CPUIDLE_STATE_DISABLED_BY_USER);
+}
+
+static ssize_t store_state_disable(struct cpuidle_state *state,
+				   struct cpuidle_state_usage *state_usage,
+				   const char *buf, size_t size)
+{
+	unsigned int value;
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	err = kstrtouint(buf, 0, &value);
+	if (err)
+		return err;
+
+	if (value)
+		state_usage->disable |= CPUIDLE_STATE_DISABLED_BY_USER;
+	else
+		state_usage->disable &= ~CPUIDLE_STATE_DISABLED_BY_USER;
+
+	return size;
+}
 
 define_one_state_ro(name, show_state_name);
 define_one_state_ro(desc, show_state_desc);

@@ -298,7 +298,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	if (unlikely(drv->state_count <= 1 || latency_req == 0) ||
 	    ((data->next_timer_us < drv->states[1].target_residency ||
 	      latency_req < drv->states[1].exit_latency) &&
-	     !drv->states[0].disabled && !dev->states_usage[0].disable)) {
+	     !dev->states_usage[0].disable)) {
 		/*
 		 * In this case state[0] will be used no matter what, so return
 		 * it right away and keep the tick running if state[0] is a
@@ -349,9 +349,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	idx = -1;
 	for (i = 0; i < drv->state_count; i++) {
 		struct cpuidle_state *s = &drv->states[i];
-		struct cpuidle_state_usage *su = &dev->states_usage[i];
 
-		if (s->disabled || su->disable)
+		if (dev->states_usage[i].disable)
 			continue;
 
 		if (idx == -1)
@@ -422,8 +421,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			 * tick, so try to correct that.
 			 */
 			for (i = idx - 1; i >= 0; i--) {
-				if (drv->states[i].disabled ||
-				    dev->states_usage[i].disable)
+				if (dev->states_usage[i].disable)
 					continue;
 
 				idx = i;
