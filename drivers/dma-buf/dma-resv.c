@@ -34,6 +34,7 @@
 
 #include <linux/dma-resv.h>
 #include <linux/export.h>
+#include <linux/sched/mm.h>
 
 /**
  * DOC: Reservation Object Overview
@@ -94,6 +95,29 @@ static void dma_resv_list_free(struct dma_resv_list *list)
 
 	kfree_rcu(list, rcu);
 }
+
+#if IS_ENABLED(CONFIG_LOCKDEP)
+static void __init dma_resv_lockdep(void)
+{
+	struct mm_struct *mm = mm_alloc();
+	struct dma_resv obj;
+
+	if (!mm)
+		return;
+
+	dma_resv_init(&obj);
+
+	down_read(&mm->mmap_sem);
+	ww_mutex_lock(&obj.lock, NULL);
+	fs_reclaim_acquire(GFP_KERNEL);
+	fs_reclaim_release(GFP_KERNEL);
+	ww_mutex_unlock(&obj.lock);
+	up_read(&mm->mmap_sem);
+	
+	mmput(mm);
+}
+subsys_initcall(dma_resv_lockdep);
+#endif
 
 /**
  * dma_resv_init - initialize a reservation object
