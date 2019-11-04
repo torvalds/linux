@@ -2,6 +2,7 @@
 /* Copyright (c) 2019 Mellanox Technologies. */
 
 #include <linux/types.h>
+#include <linux/crc32.h>
 #include "dr_types.h"
 
 #define DR_STE_CRC_POLY 0xEDB88320L
@@ -107,6 +108,13 @@ struct dr_hw_ste_format {
 	u8 mask[DR_STE_SIZE_MASK];
 };
 
+static u32 dr_ste_crc32_calc(const void *input_data, size_t length)
+{
+	u32 crc = crc32(0, input_data, length);
+
+	return htonl(crc);
+}
+
 u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 {
 	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)hw_ste_p;
@@ -128,7 +136,7 @@ u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 		bit = bit >> 1;
 	}
 
-	crc32 = mlx5dr_crc32_slice8_calc(masked, DR_STE_SIZE_TAG);
+	crc32 = dr_ste_crc32_calc(masked, DR_STE_SIZE_TAG);
 	index = crc32 & (htbl->chunk->num_of_entries - 1);
 
 	return index;
