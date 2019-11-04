@@ -1507,6 +1507,19 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 	}
 }
 
+static int byt_gpio_add_pin_ranges(struct gpio_chip *chip)
+{
+	struct byt_gpio *vg = gpiochip_get_data(chip);
+	struct device *dev = &vg->pdev->dev;
+	int ret;
+
+	ret = gpiochip_add_pin_range(chip, dev_name(dev), 0, 0, vg->soc_data->npins);
+	if (ret)
+		dev_err(dev, "failed to add GPIO pin range\n");
+
+	return ret;
+}
+
 static int byt_gpio_probe(struct byt_gpio *vg)
 {
 	struct gpio_chip *gc;
@@ -1519,6 +1532,7 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 	gc->label	= dev_name(&vg->pdev->dev);
 	gc->base	= -1;
 	gc->can_sleep	= false;
+	gc->add_pin_ranges = byt_gpio_add_pin_ranges;
 	gc->parent	= &vg->pdev->dev;
 	gc->ngpio	= vg->soc_data->npins;
 	gc->irq.init_valid_mask	= byt_init_irq_valid_mask;
@@ -1532,13 +1546,6 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 	ret = devm_gpiochip_add_data(&vg->pdev->dev, gc, vg);
 	if (ret) {
 		dev_err(&vg->pdev->dev, "failed adding byt-gpio chip\n");
-		return ret;
-	}
-
-	ret = gpiochip_add_pin_range(&vg->chip, dev_name(&vg->pdev->dev),
-				     0, 0, vg->soc_data->npins);
-	if (ret) {
-		dev_err(&vg->pdev->dev, "failed to add GPIO pin range\n");
 		return ret;
 	}
 
