@@ -732,10 +732,9 @@ fail_access:
  *		but we will shift to the place where start_block is,
  *		then start from there, when looking for a reservable space.
  *
- * 	@size: the target new reservation window size
+ *	@sb: the super block.
  *
- * 	@group_first_block: the first block we consider to start
- *			the real search from
+ * 	@start_block: the first block we consider to start the real search from
  *
  * 	@last_block:
  *		the maximum block number that our goal reservable space
