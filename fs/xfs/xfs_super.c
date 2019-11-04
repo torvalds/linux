@@ -111,264 +111,6 @@ static const struct fs_parameter_description xfs_fs_parameters = {
 	.specs		= xfs_param_specs,
 };
 
-static int
-suffix_kstrtoint(
-	const char	*s,
-	unsigned int	base,
-	int		*res)
-{
-	int		last, shift_left_factor = 0, _res;
-	char		*value;
-	int		ret = 0;
-
-	value = kstrdup(s, GFP_KERNEL);
-	if (!value)
-		return -ENOMEM;
-
-	last = strlen(value) - 1;
-	if (value[last] == 'K' || value[last] == 'k') {
-		shift_left_factor = 10;
-		value[last] = '\0';
-	}
-	if (value[last] == 'M' || value[last] == 'm') {
-		shift_left_factor = 20;
-		value[last] = '\0';
-	}
-	if (value[last] == 'G' || value[last] == 'g') {
-		shift_left_factor = 30;
-		value[last] = '\0';
-	}
-
-	if (kstrtoint(value, base, &_res))
-		ret = -EINVAL;
-	kfree(value);
-	*res = _res << shift_left_factor;
-	return ret;
-}
-
-/*
- * Set mount state from a mount option.
- *
- * NOTE: mp->m_super is NULL here!
- */
-static int
-xfs_fc_parse_param(
-	struct fs_context	*fc,
-	struct fs_parameter	*param)
-{
-	struct xfs_mount	*mp = fc->s_fs_info;
-	struct fs_parse_result	result;
-	int			size = 0;
-	int			opt;
-
-	opt = fs_parse(fc, &xfs_fs_parameters, param, &result);
-	if (opt < 0)
-		return opt;
-
-	switch (opt) {
-	case Opt_logbufs:
-		mp->m_logbufs = result.uint_32;
-		return 0;
-	case Opt_logbsize:
-		if (suffix_kstrtoint(param->string, 10, &mp->m_logbsize))
-			return -EINVAL;
-		return 0;
-	case Opt_logdev:
-		kfree(mp->m_logname);
-		mp->m_logname = kstrdup(param->string, GFP_KERNEL);
-		if (!mp->m_logname)
-			return -ENOMEM;
-		return 0;
-	case Opt_rtdev:
-		kfree(mp->m_rtname);
-		mp->m_rtname = kstrdup(param->string, GFP_KERNEL);
-		if (!mp->m_rtname)
-			return -ENOMEM;
-		return 0;
-	case Opt_allocsize:
-		if (suffix_kstrtoint(param->string, 10, &size))
-			return -EINVAL;
-		mp->m_allocsize_log = ffs(size) - 1;
-		mp->m_flags |= XFS_MOUNT_ALLOCSIZE;
-		return 0;
-	case Opt_grpid:
-	case Opt_bsdgroups:
-		mp->m_flags |= XFS_MOUNT_GRPID;
-		return 0;
-	case Opt_nogrpid:
-	case Opt_sysvgroups:
-		mp->m_flags &= ~XFS_MOUNT_GRPID;
-		return 0;
-	case Opt_wsync:
-		mp->m_flags |= XFS_MOUNT_WSYNC;
-		return 0;
-	case Opt_norecovery:
-		mp->m_flags |= XFS_MOUNT_NORECOVERY;
-		return 0;
-	case Opt_noalign:
-		mp->m_flags |= XFS_MOUNT_NOALIGN;
-		return 0;
-	case Opt_swalloc:
-		mp->m_flags |= XFS_MOUNT_SWALLOC;
-		return 0;
-	case Opt_sunit:
-		mp->m_dalign = result.uint_32;
-		return 0;
-	case Opt_swidth:
-		mp->m_swidth = result.uint_32;
-		return 0;
-	case Opt_inode32:
-		mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
-		return 0;
-	case Opt_inode64:
-		mp->m_flags &= ~XFS_MOUNT_SMALL_INUMS;
-		return 0;
-	case Opt_nouuid:
-		mp->m_flags |= XFS_MOUNT_NOUUID;
-		return 0;
-	case Opt_ikeep:
-		mp->m_flags |= XFS_MOUNT_IKEEP;
-		return 0;
-	case Opt_noikeep:
-		mp->m_flags &= ~XFS_MOUNT_IKEEP;
-		return 0;
-	case Opt_largeio:
-		mp->m_flags |= XFS_MOUNT_LARGEIO;
-		return 0;
-	case Opt_nolargeio:
-		mp->m_flags &= ~XFS_MOUNT_LARGEIO;
-		return 0;
-	case Opt_attr2:
-		mp->m_flags |= XFS_MOUNT_ATTR2;
-		return 0;
-	case Opt_noattr2:
-		mp->m_flags &= ~XFS_MOUNT_ATTR2;
-		mp->m_flags |= XFS_MOUNT_NOATTR2;
-		return 0;
-	case Opt_filestreams:
-		mp->m_flags |= XFS_MOUNT_FILESTREAMS;
-		return 0;
-	case Opt_noquota:
-		mp->m_qflags &= ~XFS_ALL_QUOTA_ACCT;
-		mp->m_qflags &= ~XFS_ALL_QUOTA_ENFD;
-		mp->m_qflags &= ~XFS_ALL_QUOTA_ACTIVE;
-		return 0;
-	case Opt_quota:
-	case Opt_uquota:
-	case Opt_usrquota:
-		mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE |
-				 XFS_UQUOTA_ENFD);
-		return 0;
-	case Opt_qnoenforce:
-	case Opt_uqnoenforce:
-		mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE);
-		mp->m_qflags &= ~XFS_UQUOTA_ENFD;
-		return 0;
-	case Opt_pquota:
-	case Opt_prjquota:
-		mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE |
-				 XFS_PQUOTA_ENFD);
-		return 0;
-	case Opt_pqnoenforce:
-		mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE);
-		mp->m_qflags &= ~XFS_PQUOTA_ENFD;
-		return 0;
-	case Opt_gquota:
-	case Opt_grpquota:
-		mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE |
-				 XFS_GQUOTA_ENFD);
-		return 0;
-	case Opt_gqnoenforce:
-		mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE);
-		mp->m_qflags &= ~XFS_GQUOTA_ENFD;
-		return 0;
-	case Opt_discard:
-		mp->m_flags |= XFS_MOUNT_DISCARD;
-		return 0;
-	case Opt_nodiscard:
-		mp->m_flags &= ~XFS_MOUNT_DISCARD;
-		return 0;
-#ifdef CONFIG_FS_DAX
-	case Opt_dax:
-		mp->m_flags |= XFS_MOUNT_DAX;
-		return 0;
-#endif
-	default:
-		xfs_warn(mp, "unknown mount option [%s].", param->key);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int
-xfs_fc_validate_params(
-	struct xfs_mount	*mp)
-{
-	/*
-	 * no recovery flag requires a read-only mount
-	 */
-	if ((mp->m_flags & XFS_MOUNT_NORECOVERY) &&
-	    !(mp->m_flags & XFS_MOUNT_RDONLY)) {
-		xfs_warn(mp, "no-recovery mounts must be read-only.");
-		return -EINVAL;
-	}
-
-	if ((mp->m_flags & XFS_MOUNT_NOALIGN) &&
-	    (mp->m_dalign || mp->m_swidth)) {
-		xfs_warn(mp,
-	"sunit and swidth options incompatible with the noalign option");
-		return -EINVAL;
-	}
-
-	if (!IS_ENABLED(CONFIG_XFS_QUOTA) && mp->m_qflags != 0) {
-		xfs_warn(mp, "quota support not available in this kernel.");
-		return -EINVAL;
-	}
-
-	if ((mp->m_dalign && !mp->m_swidth) ||
-	    (!mp->m_dalign && mp->m_swidth)) {
-		xfs_warn(mp, "sunit and swidth must be specified together");
-		return -EINVAL;
-	}
-
-	if (mp->m_dalign && (mp->m_swidth % mp->m_dalign != 0)) {
-		xfs_warn(mp,
-	"stripe width (%d) must be a multiple of the stripe unit (%d)",
-			mp->m_swidth, mp->m_dalign);
-		return -EINVAL;
-	}
-
-	if (mp->m_logbufs != -1 &&
-	    mp->m_logbufs != 0 &&
-	    (mp->m_logbufs < XLOG_MIN_ICLOGS ||
-	     mp->m_logbufs > XLOG_MAX_ICLOGS)) {
-		xfs_warn(mp, "invalid logbufs value: %d [not %d-%d]",
-			mp->m_logbufs, XLOG_MIN_ICLOGS, XLOG_MAX_ICLOGS);
-		return -EINVAL;
-	}
-	if (mp->m_logbsize != -1 &&
-	    mp->m_logbsize !=  0 &&
-	    (mp->m_logbsize < XLOG_MIN_RECORD_BSIZE ||
-	     mp->m_logbsize > XLOG_MAX_RECORD_BSIZE ||
-	     !is_power_of_2(mp->m_logbsize))) {
-		xfs_warn(mp,
-			"invalid logbufsize: %d [not 16k,32k,64k,128k or 256k]",
-			mp->m_logbsize);
-		return -EINVAL;
-	}
-
-	if ((mp->m_flags & XFS_MOUNT_ALLOCSIZE) &&
-	    (mp->m_allocsize_log > XFS_MAX_IO_LOG ||
-	     mp->m_allocsize_log < XFS_MIN_IO_LOG)) {
-		xfs_warn(mp, "invalid log iosize: %d [not %d-%d]",
-			mp->m_allocsize_log, XFS_MIN_IO_LOG, XFS_MAX_IO_LOG);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 struct proc_xfs_info {
 	uint64_t	flag;
 	char		*str;
@@ -1381,6 +1123,265 @@ xfs_mount_alloc(void)
 	 */
 	mp->m_finobt_nores = true;
 	return mp;
+}
+
+static int
+suffix_kstrtoint(
+	const char	*s,
+	unsigned int	base,
+	int		*res)
+{
+	int		last, shift_left_factor = 0, _res;
+	char		*value;
+	int		ret = 0;
+
+	value = kstrdup(s, GFP_KERNEL);
+	if (!value)
+		return -ENOMEM;
+
+	last = strlen(value) - 1;
+	if (value[last] == 'K' || value[last] == 'k') {
+		shift_left_factor = 10;
+		value[last] = '\0';
+	}
+	if (value[last] == 'M' || value[last] == 'm') {
+		shift_left_factor = 20;
+		value[last] = '\0';
+	}
+	if (value[last] == 'G' || value[last] == 'g') {
+		shift_left_factor = 30;
+		value[last] = '\0';
+	}
+
+	if (kstrtoint(value, base, &_res))
+		ret = -EINVAL;
+	kfree(value);
+	*res = _res << shift_left_factor;
+	return ret;
+}
+
+/*
+ * Set mount state from a mount option.
+ *
+ * NOTE: mp->m_super is NULL here!
+ */
+static int
+xfs_fc_parse_param(
+	struct fs_context	*fc,
+	struct fs_parameter	*param)
+{
+	struct xfs_mount	*mp = fc->s_fs_info;
+	struct fs_parse_result	result;
+	int			size = 0;
+	int			opt;
+
+	opt = fs_parse(fc, &xfs_fs_parameters, param, &result);
+	if (opt < 0)
+		return opt;
+
+	switch (opt) {
+	case Opt_logbufs:
+		mp->m_logbufs = result.uint_32;
+		return 0;
+	case Opt_logbsize:
+		if (suffix_kstrtoint(param->string, 10, &mp->m_logbsize))
+			return -EINVAL;
+		return 0;
+	case Opt_logdev:
+		kfree(mp->m_logname);
+		mp->m_logname = kstrdup(param->string, GFP_KERNEL);
+		if (!mp->m_logname)
+			return -ENOMEM;
+		return 0;
+	case Opt_rtdev:
+		kfree(mp->m_rtname);
+		mp->m_rtname = kstrdup(param->string, GFP_KERNEL);
+		if (!mp->m_rtname)
+			return -ENOMEM;
+		return 0;
+	case Opt_allocsize:
+		if (suffix_kstrtoint(param->string, 10, &size))
+			return -EINVAL;
+		mp->m_allocsize_log = ffs(size) - 1;
+		mp->m_flags |= XFS_MOUNT_ALLOCSIZE;
+		return 0;
+	case Opt_grpid:
+	case Opt_bsdgroups:
+		mp->m_flags |= XFS_MOUNT_GRPID;
+		return 0;
+	case Opt_nogrpid:
+	case Opt_sysvgroups:
+		mp->m_flags &= ~XFS_MOUNT_GRPID;
+		return 0;
+	case Opt_wsync:
+		mp->m_flags |= XFS_MOUNT_WSYNC;
+		return 0;
+	case Opt_norecovery:
+		mp->m_flags |= XFS_MOUNT_NORECOVERY;
+		return 0;
+	case Opt_noalign:
+		mp->m_flags |= XFS_MOUNT_NOALIGN;
+		return 0;
+	case Opt_swalloc:
+		mp->m_flags |= XFS_MOUNT_SWALLOC;
+		return 0;
+	case Opt_sunit:
+		mp->m_dalign = result.uint_32;
+		return 0;
+	case Opt_swidth:
+		mp->m_swidth = result.uint_32;
+		return 0;
+	case Opt_inode32:
+		mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
+		return 0;
+	case Opt_inode64:
+		mp->m_flags &= ~XFS_MOUNT_SMALL_INUMS;
+		return 0;
+	case Opt_nouuid:
+		mp->m_flags |= XFS_MOUNT_NOUUID;
+		return 0;
+	case Opt_ikeep:
+		mp->m_flags |= XFS_MOUNT_IKEEP;
+		return 0;
+	case Opt_noikeep:
+		mp->m_flags &= ~XFS_MOUNT_IKEEP;
+		return 0;
+	case Opt_largeio:
+		mp->m_flags |= XFS_MOUNT_LARGEIO;
+		return 0;
+	case Opt_nolargeio:
+		mp->m_flags &= ~XFS_MOUNT_LARGEIO;
+		return 0;
+	case Opt_attr2:
+		mp->m_flags |= XFS_MOUNT_ATTR2;
+		return 0;
+	case Opt_noattr2:
+		mp->m_flags &= ~XFS_MOUNT_ATTR2;
+		mp->m_flags |= XFS_MOUNT_NOATTR2;
+		return 0;
+	case Opt_filestreams:
+		mp->m_flags |= XFS_MOUNT_FILESTREAMS;
+		return 0;
+	case Opt_noquota:
+		mp->m_qflags &= ~XFS_ALL_QUOTA_ACCT;
+		mp->m_qflags &= ~XFS_ALL_QUOTA_ENFD;
+		mp->m_qflags &= ~XFS_ALL_QUOTA_ACTIVE;
+		return 0;
+	case Opt_quota:
+	case Opt_uquota:
+	case Opt_usrquota:
+		mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE |
+				 XFS_UQUOTA_ENFD);
+		return 0;
+	case Opt_qnoenforce:
+	case Opt_uqnoenforce:
+		mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE);
+		mp->m_qflags &= ~XFS_UQUOTA_ENFD;
+		return 0;
+	case Opt_pquota:
+	case Opt_prjquota:
+		mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE |
+				 XFS_PQUOTA_ENFD);
+		return 0;
+	case Opt_pqnoenforce:
+		mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE);
+		mp->m_qflags &= ~XFS_PQUOTA_ENFD;
+		return 0;
+	case Opt_gquota:
+	case Opt_grpquota:
+		mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE |
+				 XFS_GQUOTA_ENFD);
+		return 0;
+	case Opt_gqnoenforce:
+		mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE);
+		mp->m_qflags &= ~XFS_GQUOTA_ENFD;
+		return 0;
+	case Opt_discard:
+		mp->m_flags |= XFS_MOUNT_DISCARD;
+		return 0;
+	case Opt_nodiscard:
+		mp->m_flags &= ~XFS_MOUNT_DISCARD;
+		return 0;
+#ifdef CONFIG_FS_DAX
+	case Opt_dax:
+		mp->m_flags |= XFS_MOUNT_DAX;
+		return 0;
+#endif
+	default:
+		xfs_warn(mp, "unknown mount option [%s].", param->key);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+xfs_fc_validate_params(
+	struct xfs_mount	*mp)
+{
+	/*
+	 * no recovery flag requires a read-only mount
+	 */
+	if ((mp->m_flags & XFS_MOUNT_NORECOVERY) &&
+	    !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		xfs_warn(mp, "no-recovery mounts must be read-only.");
+		return -EINVAL;
+	}
+
+	if ((mp->m_flags & XFS_MOUNT_NOALIGN) &&
+	    (mp->m_dalign || mp->m_swidth)) {
+		xfs_warn(mp,
+	"sunit and swidth options incompatible with the noalign option");
+		return -EINVAL;
+	}
+
+	if (!IS_ENABLED(CONFIG_XFS_QUOTA) && mp->m_qflags != 0) {
+		xfs_warn(mp, "quota support not available in this kernel.");
+		return -EINVAL;
+	}
+
+	if ((mp->m_dalign && !mp->m_swidth) ||
+	    (!mp->m_dalign && mp->m_swidth)) {
+		xfs_warn(mp, "sunit and swidth must be specified together");
+		return -EINVAL;
+	}
+
+	if (mp->m_dalign && (mp->m_swidth % mp->m_dalign != 0)) {
+		xfs_warn(mp,
+	"stripe width (%d) must be a multiple of the stripe unit (%d)",
+			mp->m_swidth, mp->m_dalign);
+		return -EINVAL;
+	}
+
+	if (mp->m_logbufs != -1 &&
+	    mp->m_logbufs != 0 &&
+	    (mp->m_logbufs < XLOG_MIN_ICLOGS ||
+	     mp->m_logbufs > XLOG_MAX_ICLOGS)) {
+		xfs_warn(mp, "invalid logbufs value: %d [not %d-%d]",
+			mp->m_logbufs, XLOG_MIN_ICLOGS, XLOG_MAX_ICLOGS);
+		return -EINVAL;
+	}
+
+	if (mp->m_logbsize != -1 &&
+	    mp->m_logbsize !=  0 &&
+	    (mp->m_logbsize < XLOG_MIN_RECORD_BSIZE ||
+	     mp->m_logbsize > XLOG_MAX_RECORD_BSIZE ||
+	     !is_power_of_2(mp->m_logbsize))) {
+		xfs_warn(mp,
+			"invalid logbufsize: %d [not 16k,32k,64k,128k or 256k]",
+			mp->m_logbsize);
+		return -EINVAL;
+	}
+
+	if ((mp->m_flags & XFS_MOUNT_ALLOCSIZE) &&
+	    (mp->m_allocsize_log > XFS_MAX_IO_LOG ||
+	     mp->m_allocsize_log < XFS_MIN_IO_LOG)) {
+		xfs_warn(mp, "invalid log iosize: %d [not %d-%d]",
+			mp->m_allocsize_log, XFS_MIN_IO_LOG, XFS_MAX_IO_LOG);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int
