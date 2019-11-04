@@ -335,14 +335,53 @@ static const struct rc_parameters *get_rc_params(u16 compressed_bpp,
 	return &rc_parameters[row_index][column_index];
 }
 
-int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
-				struct intel_crtc_state *pipe_config)
+/* Values filled from DSC Sink DPCD */
+static int intel_dsc_dp_compute_params(struct intel_encoder *encoder,
+				       struct intel_crtc_state *pipe_config)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct drm_dsc_config *vdsc_cfg = &pipe_config->dsc.config;
+	u8 line_buf_depth;
+
+	vdsc_cfg->dsc_version_major =
+		(intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] &
+		 DP_DSC_MAJOR_MASK) >> DP_DSC_MAJOR_SHIFT;
+	vdsc_cfg->dsc_version_minor =
+		min(DSC_SUPPORTED_VERSION_MIN,
+		    (intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] &
+		     DP_DSC_MINOR_MASK) >> DP_DSC_MINOR_SHIFT);
+
+	vdsc_cfg->convert_rgb = intel_dp->dsc_dpcd[DP_DSC_DEC_COLOR_FORMAT_CAP - DP_DSC_SUPPORT] &
+		DP_DSC_RGB;
+
+	line_buf_depth = drm_dp_dsc_sink_line_buf_depth(intel_dp->dsc_dpcd);
+	if (!line_buf_depth) {
+		DRM_DEBUG_KMS("DSC Sink Line Buffer Depth invalid\n");
+		return -EINVAL;
+	}
+
+	if (vdsc_cfg->dsc_version_minor == 2)
+		vdsc_cfg->line_buf_depth = (line_buf_depth == DSC_1_2_MAX_LINEBUF_DEPTH_BITS) ?
+			DSC_1_2_MAX_LINEBUF_DEPTH_VAL : line_buf_depth;
+	else
+		vdsc_cfg->line_buf_depth = (line_buf_depth > DSC_1_1_MAX_LINEBUF_DEPTH_BITS) ?
+			DSC_1_1_MAX_LINEBUF_DEPTH_BITS : line_buf_depth;
+
+	vdsc_cfg->block_pred_enable =
+			intel_dp->dsc_dpcd[DP_DSC_BLK_PREDICTION_SUPPORT - DP_DSC_SUPPORT] &
+		DP_DSC_BLK_PREDICTION_IS_SUPPORTED;
+
+	return 0;
+}
+
+int intel_dsc_compute_params(struct intel_encoder *encoder,
+			     struct intel_crtc_state *pipe_config)
 {
 	struct drm_dsc_config *vdsc_cfg = &pipe_config->dsc.config;
 	u16 compressed_bpp = pipe_config->dsc.compressed_bpp;
 	const struct rc_parameters *rc_params;
 	u8 i = 0;
-	u8 line_buf_depth = 0;
+	int ret;
 
 	vdsc_cfg->pic_width = pipe_config->hw.adjusted_mode.crtc_hdisplay;
 	vdsc_cfg->pic_height = pipe_config->hw.adjusted_mode.crtc_vdisplay;
@@ -360,37 +399,10 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 	else
 		vdsc_cfg->slice_height = 2;
 
-	/* Values filled from DSC Sink DPCD */
-	vdsc_cfg->dsc_version_major =
-		(intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] &
-		 DP_DSC_MAJOR_MASK) >> DP_DSC_MAJOR_SHIFT;
-	vdsc_cfg->dsc_version_minor =
-		min(DSC_SUPPORTED_VERSION_MIN,
-		    (intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] &
-		     DP_DSC_MINOR_MASK) >> DP_DSC_MINOR_SHIFT);
-
-	vdsc_cfg->convert_rgb = intel_dp->dsc_dpcd[DP_DSC_DEC_COLOR_FORMAT_CAP - DP_DSC_SUPPORT] &
-		DP_DSC_RGB;
-
-	line_buf_depth = drm_dp_dsc_sink_line_buf_depth(intel_dp->dsc_dpcd);
-	if (!line_buf_depth) {
-		DRM_DEBUG_KMS("DSC Sink Line Buffer Depth invalid\n");
-		return -EINVAL;
-	}
-	if (vdsc_cfg->dsc_version_minor == 2)
-		vdsc_cfg->line_buf_depth = (line_buf_depth == DSC_1_2_MAX_LINEBUF_DEPTH_BITS) ?
-			DSC_1_2_MAX_LINEBUF_DEPTH_VAL : line_buf_depth;
-	else
-		vdsc_cfg->line_buf_depth = (line_buf_depth > DSC_1_1_MAX_LINEBUF_DEPTH_BITS) ?
-			DSC_1_1_MAX_LINEBUF_DEPTH_BITS : line_buf_depth;
-
 	/* Gen 11 does not support YCbCr */
 	vdsc_cfg->simple_422 = false;
 	/* Gen 11 does not support VBR */
 	vdsc_cfg->vbr_enable = false;
-	vdsc_cfg->block_pred_enable =
-			intel_dp->dsc_dpcd[DP_DSC_BLK_PREDICTION_SUPPORT - DP_DSC_SUPPORT] &
-		DP_DSC_BLK_PREDICTION_IS_SUPPORTED;
 
 	/* Gen 11 only supports integral values of bpp */
 	vdsc_cfg->bits_per_pixel = compressed_bpp << 4;
@@ -457,6 +469,10 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 	/* InitialScaleValue is a 6 bit value with 3 fractional bits (U3.3) */
 	vdsc_cfg->initial_scale_value = (vdsc_cfg->rc_model_size << 3) /
 		(vdsc_cfg->rc_model_size - vdsc_cfg->initial_offset);
+
+	ret = intel_dsc_dp_compute_params(encoder, pipe_config);
+	if (ret)
+		return ret;
 
 	return drm_dsc_compute_rc_parameters(vdsc_cfg);
 }

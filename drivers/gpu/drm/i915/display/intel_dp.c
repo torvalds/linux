@@ -2132,7 +2132,7 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		}
 	}
 
-	ret = intel_dp_compute_dsc_params(intel_dp, pipe_config);
+	ret = intel_dsc_compute_params(&dig_port->base, pipe_config);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("Cannot compute valid DSC parameters for Input Bpp = %d "
 			      "Compressed BPP = %d\n",
