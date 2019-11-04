@@ -87,9 +87,10 @@ static struct dentry *__kernfs_fh_to_dentry(struct super_block *sb,
 	case FILEID_INO32_GEN:
 	case FILEID_INO32_GEN_PARENT:
 		/*
-		 * blk_log_action() exposes (ino,gen) pair without type and
-		 * userland can call us with generic fid constructed from
-		 * them.  Combine it back to ID.  See blk_log_action().
+		 * blk_log_action() exposes "LOW32,HIGH32" pair without
+		 * type and userland can call us with generic fid
+		 * constructed from them.  Combine it back to ID.  See
+		 * blk_log_action().
 		 */
 		id = ((u64)fid->i32.gen << 32) | fid->i32.ino;
 		break;
