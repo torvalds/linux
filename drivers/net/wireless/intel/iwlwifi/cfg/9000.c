@@ -200,11 +200,6 @@ const char iwl9560_killer_1550i_name[] =
 const char iwl9560_killer_1550s_name[] =
 	"Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)";
 
-const struct iwl_cfg iwl9560_2ac_cfg = {
-	.fw_name_pre = IWL9260_FW_PRE,
-	IWL_DEVICE_9000,
-};
-
 const struct iwl_cfg iwl9560_2ac_cfg_soc = {
 	.fw_name_pre = IWL9000_FW_PRE,
 	IWL_DEVICE_9000,
