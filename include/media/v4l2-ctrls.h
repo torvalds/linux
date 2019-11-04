@@ -56,6 +56,7 @@ struct poll_table_struct;
  * @p_hevc_slice_params:	Pointer to an HEVC slice parameters structure.
  * @p_area:			Pointer to an area.
  * @p:				Pointer to a compound value.
+ * @p_const:			Pointer to a constant compound value.
  */
 union v4l2_ctrl_ptr {
 	s32 *p_s32;
@@ -78,6 +79,7 @@ union v4l2_ctrl_ptr {
 	struct v4l2_ctrl_hevc_slice_params *p_hevc_slice_params;
 	struct v4l2_area *p_area;
 	void *p;
+	const void *p_const;
 };
 
 /**
