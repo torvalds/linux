@@ -189,6 +189,7 @@ config ARCH_QCOM
 
 config ARCH_REALTEK
 	bool "Realtek Platforms"
+	select RESET_CONTROLLER
 	help
 	  This enables support for the ARMv8 based Realtek chipsets,
 	  like the RTD1295.
