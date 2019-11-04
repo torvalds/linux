@@ -163,6 +163,7 @@ struct isst_pkg_ctdp {
 
 extern int get_topo_max_cpus(void);
 extern int get_cpu_count(int pkg_id, int die_id);
+extern int get_core_count(int pkg_id, int die_id);
 
 /* Common interfaces */
 extern void debug_printf(const char *format, ...);

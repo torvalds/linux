@@ -338,6 +338,7 @@ void free_cpu_set(cpu_set_t *cpu_set)
 }
 
 static int cpu_cnt[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE];
+static long long core_mask[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE];
 static void set_cpu_present_cpu_mask(void)
 {
 	size_t size;
@@ -362,11 +363,31 @@ static void set_cpu_present_cpu_mask(void)
 
 			pkg_id = get_physical_package_id(i);
 			if (pkg_id < MAX_PACKAGE_COUNT &&
-			    die_id < MAX_DIE_PER_PACKAGE)
+			    die_id < MAX_DIE_PER_PACKAGE) {
+				int core_id = get_physical_core_id(i);
+
 				cpu_cnt[pkg_id][die_id]++;
+				core_mask[pkg_id][die_id] |= (1ULL << core_id);
+			}
 		}
 		closedir(dir);
 	}
+}
+
+int get_core_count(int pkg_id, int die_id)
+{
+	int cnt = 0;
+
+	if (pkg_id < MAX_PACKAGE_COUNT && die_id < MAX_DIE_PER_PACKAGE) {
+		int i;
+
+		for (i = 0; i < sizeof(long long) * 8; ++i) {
+			if (core_mask[pkg_id][die_id] & (1ULL << i))
+				cnt++;
+		}
+	}
+
+	return cnt;
 }
 
 int get_cpu_count(int pkg_id, int die_id)

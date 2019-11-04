@@ -335,12 +335,15 @@ int isst_set_tdp_level(int cpu, int tdp_level)
 
 int isst_get_pbf_info(int cpu, int level, struct isst_pbf_info *pbf_info)
 {
+	int i, ret, core_cnt, max;
 	unsigned int req, resp;
-	int i, ret;
 
 	pbf_info->core_cpumask_size = alloc_cpu_set(&pbf_info->core_cpumask);
 
-	for (i = 0; i < 2; ++i) {
+	core_cnt = get_core_count(get_physical_package_id(cpu), get_physical_die_id(cpu));
+	max = core_cnt > 32 ? 2 : 1;
+
+	for (i = 0; i < max; ++i) {
 		unsigned long long mask;
 		int count;
 
