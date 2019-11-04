@@ -168,7 +168,7 @@ static ssize_t blk_mq_hw_sysfs_cpus_show(struct blk_mq_hw_ctx *hctx, char *page)
 		pos += ret;
 	}
 
-	ret = snprintf(pos + page, size - pos, "\n");
+	ret = snprintf(pos + page, size + 1 - pos, "\n");
 	return pos + ret;
 }
 
