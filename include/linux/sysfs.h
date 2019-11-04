@@ -196,9 +196,9 @@ struct bin_attribute {
 	.size	= _size,						\
 }
 
-#define __BIN_ATTR_WO(_name) {						\
+#define __BIN_ATTR_WO(_name, _size) {					\
 	.attr	= { .name = __stringify(_name), .mode = 0200 },		\
-	.store	= _name##_store,					\
+	.write	= _name##_write,					\
 	.size	= _size,						\
 }
 
