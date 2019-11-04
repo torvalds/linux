@@ -525,6 +525,7 @@
 		      <0x0 0x03538000 0x0 0x1000>;
 		reg-names = "hcd", "fpci";
 
+		iommus = <&smmu TEGRA186_SID_XUSB_HOST>;
 		interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
@@ -1018,6 +1019,7 @@
 			reset-names = "vic";
 
 			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_VIC>;
+			iommus = <&smmu TEGRA186_SID_VIC>;
 		};
 
 		dsib: dsi@15400000 {
@@ -1060,7 +1062,7 @@
 		};
 
 		sor1: sor@15580000 {
-			compatible = "nvidia,tegra186-sor1";
+			compatible = "nvidia,tegra186-sor";
 			reg = <0x15580000 0x10000>;
 			interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA186_CLK_SOR1>,
