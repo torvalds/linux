@@ -585,19 +585,6 @@ static int stmfx_pinctrl_gpio_function_enable(struct stmfx_pinctrl *pctl)
 	return stmfx_function_enable(pctl->stmfx, func);
 }
 
-static int stmfx_pinctrl_gpio_init_valid_mask(struct gpio_chip *gc,
-					      unsigned long *valid_mask,
-					      unsigned int ngpios)
-{
-	struct stmfx_pinctrl *pctl = gpiochip_get_data(gc);
-	u32 n;
-
-	for_each_clear_bit(n, &pctl->gpio_valid_mask, ngpios)
-		clear_bit(n, valid_mask);
-
-	return 0;
-}
-
 static int stmfx_pinctrl_probe(struct platform_device *pdev)
 {
 	struct stmfx *stmfx = dev_get_drvdata(pdev->dev.parent);
@@ -660,7 +647,6 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	pctl->gpio_chip.ngpio = pctl->pctl_desc.npins;
 	pctl->gpio_chip.can_sleep = true;
 	pctl->gpio_chip.of_node = np;
-	pctl->gpio_chip.init_valid_mask = stmfx_pinctrl_gpio_init_valid_mask;
 
 	ret = devm_gpiochip_add_data(pctl->dev, &pctl->gpio_chip, pctl);
 	if (ret) {
