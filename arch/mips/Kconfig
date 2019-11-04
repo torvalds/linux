@@ -1511,7 +1511,7 @@ config CPU_LOONGSON2F
 config CPU_LOONGSON1B
 	bool "Loongson 1B"
 	depends on SYS_HAS_CPU_LOONGSON1B
-	select CPU_LOONGSON1
+	select CPU_LOONGSON32
 	select LEDS_GPIO_REGISTER
 	help
 	  The Loongson 1B is a 32-bit SoC, which implements the MIPS32
@@ -1521,7 +1521,7 @@ config CPU_LOONGSON1B
 config CPU_LOONGSON1C
 	bool "Loongson 1C"
 	depends on SYS_HAS_CPU_LOONGSON1C
-	select CPU_LOONGSON1
+	select CPU_LOONGSON32
 	select LEDS_GPIO_REGISTER
 	help
 	  The Loongson 1C is a 32-bit SoC, which implements the MIPS32
@@ -1920,7 +1920,7 @@ config CPU_LOONGSON2EF
 	select ARCH_HAS_PHYS_TO_DMA
 	select CPU_HAS_LOAD_STORE_LR
 
-config CPU_LOONGSON1
+config CPU_LOONGSON32
 	bool
 	select CPU_MIPS32
 	select CPU_MIPSR2

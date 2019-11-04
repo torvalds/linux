@@ -38,7 +38,7 @@ endchoice
 menuconfig CEVT_CSRC_LS1X
 	bool "Use PWM Timer for clockevent/clocksource"
 	select MIPS_EXTERNAL_TIMER
-	depends on CPU_LOONGSON1
+	depends on CPU_LOONGSON32
 	help
 	  This option changes the default clockevent/clocksource to PWM Timer,
 	  and is required by Loongson1 CPUFreq support.

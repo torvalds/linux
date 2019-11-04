@@ -1571,7 +1571,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_LOONGSON_32:  /* Loongson-1 */
 		decode_configs(c);
 
-		c->cputype = CPU_LOONGSON1;
+		c->cputype = CPU_LOONGSON32;
 
 		switch (c->processor_id & PRID_REV_MASK) {
 		case PRID_REV_LOONGSON1B:

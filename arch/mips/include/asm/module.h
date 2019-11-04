@@ -119,8 +119,8 @@ search_module_dbetables(unsigned long addr)
 #define MODULE_PROC_FAMILY "RM7000 "
 #elif defined CONFIG_CPU_SB1
 #define MODULE_PROC_FAMILY "SB1 "
-#elif defined CONFIG_CPU_LOONGSON1
-#define MODULE_PROC_FAMILY "LOONGSON1 "
+#elif defined CONFIG_CPU_LOONGSON32
+#define MODULE_PROC_FAMILY "LOONGSON32 "
 #elif defined CONFIG_CPU_LOONGSON2EF
 #define MODULE_PROC_FAMILY "LOONGSON2EF "
 #elif defined CONFIG_CPU_LOONGSON64
