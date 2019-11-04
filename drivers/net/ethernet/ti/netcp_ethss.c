@@ -2291,6 +2291,7 @@ static int gbe_slave_open(struct gbe_intf *gbe_intf)
 	struct gbe_slave *slave = gbe_intf->slave;
 	phy_interface_t phy_mode;
 	bool has_phy = false;
+	int err;
 
 	void (*hndlr)(struct net_device *) = gbe_adjust_link;
 
@@ -2320,11 +2321,11 @@ static int gbe_slave_open(struct gbe_intf *gbe_intf)
 		slave->phy_port_t = PORT_MII;
 	} else if (slave->link_interface == RGMII_LINK_MAC_PHY) {
 		has_phy = true;
-		phy_mode = of_get_phy_mode(slave->node);
+		err = of_get_phy_mode(slave->node, &phy_mode);
 		/* if phy-mode is not present, default to
 		 * PHY_INTERFACE_MODE_RGMII
 		 */
-		if (phy_mode < 0)
+		if (err)
 			phy_mode = PHY_INTERFACE_MODE_RGMII;
 
 		if (!phy_interface_mode_is_rgmii(phy_mode)) {

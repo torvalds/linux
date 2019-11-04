@@ -1761,11 +1761,9 @@ static int axienet_probe(struct platform_device *pdev)
 			goto free_netdev;
 		}
 	} else {
-		lp->phy_mode = of_get_phy_mode(pdev->dev.of_node);
-		if ((int)lp->phy_mode < 0) {
-			ret = -EINVAL;
+		ret = of_get_phy_mode(pdev->dev.of_node, &lp->phy_mode);
+		if (ret)
 			goto free_netdev;
-		}
 	}
 
 	/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */

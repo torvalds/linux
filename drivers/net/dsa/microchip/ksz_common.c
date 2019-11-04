@@ -422,6 +422,7 @@ EXPORT_SYMBOL(ksz_switch_alloc);
 int ksz_switch_register(struct ksz_device *dev,
 			const struct ksz_dev_ops *ops)
 {
+	phy_interface_t interface;
 	int ret;
 
 	if (dev->pdata)
@@ -456,9 +457,9 @@ int ksz_switch_register(struct ksz_device *dev,
 	 * device tree.
 	 */
 	if (dev->dev->of_node) {
-		ret = of_get_phy_mode(dev->dev->of_node);
-		if (ret >= 0)
-			dev->interface = ret;
+		ret = of_get_phy_mode(dev->dev->of_node, &interface);
+		if (ret == 0)
+			dev->interface = interface;
 		dev->synclko_125 = of_property_read_bool(dev->dev->of_node,
 							 "microchip,synclko-125");
 	}

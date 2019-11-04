@@ -608,7 +608,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	const u8		*mac_addr;
 	u32			 val;
 	u8			fman_id;
-	int			phy_if;
+	phy_interface_t          phy_if;
 
 	dev = &_of_dev->dev;
 	mac_node = dev->of_node;
@@ -776,8 +776,8 @@ static int mac_probe(struct platform_device *_of_dev)
 	}
 
 	/* Get the PHY connection type */
-	phy_if = of_get_phy_mode(mac_node);
-	if (phy_if < 0) {
+	err = of_get_phy_mode(mac_node, &phy_if);
+	if (err) {
 		dev_warn(dev,
 			 "of_get_phy_mode() for %pOF failed. Defaulting to SGMII\n",
 			 mac_node);

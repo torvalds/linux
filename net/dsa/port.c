@@ -561,7 +561,7 @@ static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 	struct dsa_switch *ds = dp->ds;
 	struct phy_device *phydev;
 	int port = dp->index;
-	int mode;
+	phy_interface_t mode;
 	int err;
 
 	err = of_phy_register_fixed_link(dn);
@@ -574,8 +574,8 @@ static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 
 	phydev = of_phy_find_device(dn);
 
-	mode = of_get_phy_mode(dn);
-	if (mode < 0)
+	err = of_get_phy_mode(dn, &mode);
+	if (err)
 		mode = PHY_INTERFACE_MODE_NA;
 	phydev->interface = mode;
 
@@ -593,10 +593,11 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct device_node *port_dn = dp->dn;
-	int mode, err;
+	phy_interface_t mode;
+	int err;
 
-	mode = of_get_phy_mode(port_dn);
-	if (mode < 0)
+	err = of_get_phy_mode(port_dn, &mode);
+	if (err)
 		mode = PHY_INTERFACE_MODE_NA;
 
 	dp->pl_config.dev = ds->dev;

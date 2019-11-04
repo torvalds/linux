@@ -54,7 +54,7 @@ struct mediatek_dwmac_plat_data {
 	struct device_node *np;
 	struct regmap *peri_regmap;
 	struct device *dev;
-	int phy_mode;
+	phy_interface_t phy_mode;
 	bool rmii_rxc;
 };
 
@@ -243,6 +243,7 @@ static int mediatek_dwmac_config_dt(struct mediatek_dwmac_plat_data *plat)
 {
 	struct mac_delay_struct *mac_delay = &plat->mac_delay;
 	u32 tx_delay_ps, rx_delay_ps;
+	int err;
 
 	plat->peri_regmap = syscon_regmap_lookup_by_phandle(plat->np, "mediatek,pericfg");
 	if (IS_ERR(plat->peri_regmap)) {
@@ -250,10 +251,10 @@ static int mediatek_dwmac_config_dt(struct mediatek_dwmac_plat_data *plat)
 		return PTR_ERR(plat->peri_regmap);
 	}
 
-	plat->phy_mode = of_get_phy_mode(plat->np);
-	if (plat->phy_mode < 0) {
+	err = of_get_phy_mode(plat->np, &plat->phy_mode);
+	if (err) {
 		dev_err(plat->dev, "not find phy-mode\n");
-		return -EINVAL;
+		return err;
 	}
 
 	if (!of_property_read_u32(plat->np, "mediatek,tx-delay-ps", &tx_delay_ps)) {

@@ -30,12 +30,15 @@ static int sxgbe_probe_config_dt(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct sxgbe_dma_cfg *dma_cfg;
+	int err;
 
 	if (!np)
 		return -ENODEV;
 
 	*mac = of_get_mac_address(np);
-	plat->interface = of_get_phy_mode(np);
+	err = of_get_phy_mode(np, &plat->interface);
+	if (err && err != -ENODEV)
+		return err;
 
 	plat->bus_id = of_alias_get_id(np, "ethernet");
 	if (plat->bus_id < 0)

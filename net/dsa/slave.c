@@ -1313,11 +1313,12 @@ static int dsa_slave_phy_setup(struct net_device *slave_dev)
 	struct dsa_port *dp = dsa_slave_to_port(slave_dev);
 	struct device_node *port_dn = dp->dn;
 	struct dsa_switch *ds = dp->ds;
+	phy_interface_t mode;
 	u32 phy_flags = 0;
-	int mode, ret;
+	int ret;
 
-	mode = of_get_phy_mode(port_dn);
-	if (mode < 0)
+	ret = of_get_phy_mode(port_dn, &mode);
+	if (ret)
 		mode = PHY_INTERFACE_MODE_NA;
 
 	dp->pl_config.dev = &slave_dev->dev;

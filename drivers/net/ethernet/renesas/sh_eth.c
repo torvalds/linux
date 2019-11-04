@@ -3183,6 +3183,7 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	struct sh_eth_plat_data *pdata;
+	phy_interface_t interface;
 	const char *mac_addr;
 	int ret;
 
@@ -3190,10 +3191,10 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 	if (!pdata)
 		return NULL;
 
-	ret = of_get_phy_mode(np);
-	if (ret < 0)
+	ret = of_get_phy_mode(np, &interface);
+	if (ret)
 		return NULL;
-	pdata->phy_interface = ret;
+	pdata->phy_interface = interface;
 
 	mac_addr = of_get_mac_address(np);
 	if (!IS_ERR(mac_addr))

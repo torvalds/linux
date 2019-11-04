@@ -584,8 +584,9 @@ static int sja1105_parse_ports_node(struct sja1105_private *priv,
 
 	for_each_child_of_node(ports_node, child) {
 		struct device_node *phy_node;
-		int phy_mode;
+		phy_interface_t phy_mode;
 		u32 index;
+		int err;
 
 		/* Get switch port number from DT */
 		if (of_property_read_u32(child, "reg", &index) < 0) {
@@ -596,8 +597,8 @@ static int sja1105_parse_ports_node(struct sja1105_private *priv,
 		}
 
 		/* Get PHY mode from DT */
-		phy_mode = of_get_phy_mode(child);
-		if (phy_mode < 0) {
+		err = of_get_phy_mode(child, &phy_mode);
+		if (err) {
 			dev_err(dev, "Failed to read phy-mode or "
 				"phy-interface-type property for port %d\n",
 				index);

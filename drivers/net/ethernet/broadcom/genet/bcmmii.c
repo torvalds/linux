@@ -436,7 +436,7 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	struct device_node *dn = priv->pdev->dev.of_node;
 	struct device *kdev = &priv->pdev->dev;
 	struct phy_device *phydev;
-	int phy_mode;
+	phy_interface_t phy_mode;
 	int ret;
 
 	/* Fetch the PHY phandle */
@@ -454,10 +454,10 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	}
 
 	/* Get the link mode */
-	phy_mode = of_get_phy_mode(dn);
-	if (phy_mode < 0) {
+	ret = of_get_phy_mode(dn, &phy_mode);
+	if (ret) {
 		dev_err(kdev, "invalid PHY mode property\n");
-		return phy_mode;
+		return ret;
 	}
 
 	priv->phy_interface = phy_mode;

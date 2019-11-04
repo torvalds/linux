@@ -2619,11 +2619,10 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 				i);
 			goto no_phy_slave;
 		}
-		slave_data->phy_if = of_get_phy_mode(slave_node);
-		if (slave_data->phy_if < 0) {
+		ret = of_get_phy_mode(slave_node, &slave_data->phy_if);
+		if (ret) {
 			dev_err(&pdev->dev, "Missing or malformed slave[%d] phy-mode property\n",
 				i);
-			ret = slave_data->phy_if;
 			goto err_node_put;
 		}
 

@@ -116,7 +116,7 @@
 #define ETH_PHY_SEL_MII		0x0
 
 struct sti_dwmac {
-	int interface;		/* MII interface */
+	phy_interface_t interface;	/* MII interface */
 	bool ext_phyclk;	/* Clock from external PHY */
 	u32 tx_retime_src;	/* TXCLK Retiming*/
 	struct clk *clk;	/* PHY clock */
@@ -269,7 +269,12 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 		return err;
 	}
 
-	dwmac->interface = of_get_phy_mode(np);
+	err = of_get_phy_mode(np, &dwmac->interface);
+	if (err && err != -ENODEV) {
+		dev_err(dev, "Can't get phy-mode\n");
+		return err;
+	}
+
 	dwmac->regmap = regmap;
 	dwmac->gmac_en = of_property_read_bool(np, "st,gmac_en");
 	dwmac->ext_phyclk = of_property_read_bool(np, "st,ext-phyclk");

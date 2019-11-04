@@ -44,10 +44,11 @@ static struct device_node *dpaa2_mac_get_node(u16 dpmac_id)
 static int dpaa2_mac_get_if_mode(struct device_node *node,
 				 struct dpmac_attr attr)
 {
-	int if_mode;
+	phy_interface_t if_mode;
+	int err;
 
-	if_mode = of_get_phy_mode(node);
-	if (if_mode >= 0)
+	err = of_get_phy_mode(node, &if_mode);
+	if (!err)
 		return if_mode;
 
 	if_mode = phy_mode(attr.eth_if);

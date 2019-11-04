@@ -4797,9 +4797,9 @@ static int mvneta_probe(struct platform_device *pdev)
 	struct phy *comphy;
 	const char *dt_mac_addr;
 	char hw_mac_addr[ETH_ALEN];
+	phy_interface_t phy_mode;
 	const char *mac_from;
 	int tx_csum_limit;
-	int phy_mode;
 	int err;
 	int cpu;
 
@@ -4812,10 +4812,9 @@ static int mvneta_probe(struct platform_device *pdev)
 	if (dev->irq == 0)
 		return -EINVAL;
 
-	phy_mode = of_get_phy_mode(dn);
-	if (phy_mode < 0) {
+	err = of_get_phy_mode(dn, &phy_mode);
+	if (err) {
 		dev_err(&pdev->dev, "incorrect phy-mode\n");
-		err = -EINVAL;
 		goto err_free_irq;
 	}
 

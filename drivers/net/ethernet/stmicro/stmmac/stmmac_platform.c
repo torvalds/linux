@@ -412,9 +412,9 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		*mac = NULL;
 	}
 
-	plat->phy_interface = of_get_phy_mode(np);
-	if (plat->phy_interface < 0)
-		return ERR_PTR(plat->phy_interface);
+	rc = of_get_phy_mode(np, &plat->phy_interface);
+	if (rc)
+		return ERR_PTR(rc);
 
 	plat->interface = stmmac_of_get_mac_mode(np);
 	if (plat->interface < 0)
