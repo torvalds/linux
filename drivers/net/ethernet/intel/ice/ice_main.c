@@ -1662,6 +1662,309 @@ free_q_irqs:
 }
 
 /**
+ * ice_xdp_alloc_setup_rings - Allocate and setup Tx rings for XDP
+ * @vsi: VSI to setup Tx rings used by XDP
+ *
+ * Return 0 on success and negative value on error
+ */
+static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
+{
+	struct device *dev = &vsi->back->pdev->dev;
+	int i;
+
+	for (i = 0; i < vsi->num_xdp_txq; i++) {
+		u16 xdp_q_idx = vsi->alloc_txq + i;
+		struct ice_ring *xdp_ring;
+
+		xdp_ring = kzalloc(sizeof(*xdp_ring), GFP_KERNEL);
+
+		if (!xdp_ring)
+			goto free_xdp_rings;
+
+		xdp_ring->q_index = xdp_q_idx;
+		xdp_ring->reg_idx = vsi->txq_map[xdp_q_idx];
+		xdp_ring->ring_active = false;
+		xdp_ring->vsi = vsi;
+		xdp_ring->netdev = NULL;
+		xdp_ring->dev = dev;
+		xdp_ring->count = vsi->num_tx_desc;
+		vsi->xdp_rings[i] = xdp_ring;
+		if (ice_setup_tx_ring(xdp_ring))
+			goto free_xdp_rings;
+		ice_set_ring_xdp(xdp_ring);
+	}
+
+	return 0;
+
+free_xdp_rings:
+	for (; i >= 0; i--)
+		if (vsi->xdp_rings[i] && vsi->xdp_rings[i]->desc)
+			ice_free_tx_ring(vsi->xdp_rings[i]);
+	return -ENOMEM;
+}
+
+/**
+ * ice_vsi_assign_bpf_prog - set or clear bpf prog pointer on VSI
+ * @vsi: VSI to set the bpf prog on
+ * @prog: the bpf prog pointer
+ */
+static void ice_vsi_assign_bpf_prog(struct ice_vsi *vsi, struct bpf_prog *prog)
+{
+	struct bpf_prog *old_prog;
+	int i;
+
+	old_prog = xchg(&vsi->xdp_prog, prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	ice_for_each_rxq(vsi, i)
+		WRITE_ONCE(vsi->rx_rings[i]->xdp_prog, vsi->xdp_prog);
+}
+
+/**
+ * ice_prepare_xdp_rings - Allocate, configure and setup Tx rings for XDP
+ * @vsi: VSI to bring up Tx rings used by XDP
+ * @prog: bpf program that will be assigned to VSI
+ *
+ * Return 0 on success and negative value on error
+ */
+int ice_prepare_xdp_rings(struct ice_vsi *vsi, struct bpf_prog *prog)
+{
+	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
+	int xdp_rings_rem = vsi->num_xdp_txq;
+	struct ice_pf *pf = vsi->back;
+	struct ice_qs_cfg xdp_qs_cfg = {
+		.qs_mutex = &pf->avail_q_mutex,
+		.pf_map = pf->avail_txqs,
+		.pf_map_size = pf->max_pf_txqs,
+		.q_count = vsi->num_xdp_txq,
+		.scatter_count = ICE_MAX_SCATTER_TXQS,
+		.vsi_map = vsi->txq_map,
+		.vsi_map_offset = vsi->alloc_txq,
+		.mapping_mode = ICE_VSI_MAP_CONTIG
+	};
+	enum ice_status status;
+	int i, v_idx;
+
+	vsi->xdp_rings = devm_kcalloc(&pf->pdev->dev, vsi->num_xdp_txq,
+				      sizeof(*vsi->xdp_rings), GFP_KERNEL);
+	if (!vsi->xdp_rings)
+		return -ENOMEM;
+
+	vsi->xdp_mapping_mode = xdp_qs_cfg.mapping_mode;
+	if (__ice_vsi_get_qs(&xdp_qs_cfg))
+		goto err_map_xdp;
+
+	if (ice_xdp_alloc_setup_rings(vsi))
+		goto clear_xdp_rings;
+
+	/* follow the logic from ice_vsi_map_rings_to_vectors */
+	ice_for_each_q_vector(vsi, v_idx) {
+		struct ice_q_vector *q_vector = vsi->q_vectors[v_idx];
+		int xdp_rings_per_v, q_id, q_base;
+
+		xdp_rings_per_v = DIV_ROUND_UP(xdp_rings_rem,
+					       vsi->num_q_vectors - v_idx);
+		q_base = vsi->num_xdp_txq - xdp_rings_rem;
+
+		for (q_id = q_base; q_id < (q_base + xdp_rings_per_v); q_id++) {
+			struct ice_ring *xdp_ring = vsi->xdp_rings[q_id];
+
+			xdp_ring->q_vector = q_vector;
+			xdp_ring->next = q_vector->tx.ring;
+			q_vector->tx.ring = xdp_ring;
+		}
+		xdp_rings_rem -= xdp_rings_per_v;
+	}
+
+	/* omit the scheduler update if in reset path; XDP queues will be
+	 * taken into account at the end of ice_vsi_rebuild, where
+	 * ice_cfg_vsi_lan is being called
+	 */
+	if (ice_is_reset_in_progress(pf->state))
+		return 0;
+
+	/* tell the Tx scheduler that right now we have
+	 * additional queues
+	 */
+	for (i = 0; i < vsi->tc_cfg.numtc; i++)
+		max_txqs[i] = vsi->num_txq + vsi->num_xdp_txq;
+
+	status = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
+				 max_txqs);
+	if (status) {
+		dev_err(&pf->pdev->dev,
+			"Failed VSI LAN queue config for XDP, error:%d\n",
+			status);
+		goto clear_xdp_rings;
+	}
+	ice_vsi_assign_bpf_prog(vsi, prog);
+
+	return 0;
+clear_xdp_rings:
+	for (i = 0; i < vsi->num_xdp_txq; i++)
+		if (vsi->xdp_rings[i]) {
+			kfree_rcu(vsi->xdp_rings[i], rcu);
+			vsi->xdp_rings[i] = NULL;
+		}
+
+err_map_xdp:
+	mutex_lock(&pf->avail_q_mutex);
+	for (i = 0; i < vsi->num_xdp_txq; i++) {
+		clear_bit(vsi->txq_map[i + vsi->alloc_txq], pf->avail_txqs);
+		vsi->txq_map[i + vsi->alloc_txq] = ICE_INVAL_Q_INDEX;
+	}
+	mutex_unlock(&pf->avail_q_mutex);
+
+	devm_kfree(&pf->pdev->dev, vsi->xdp_rings);
+	return -ENOMEM;
+}
+
+/**
+ * ice_destroy_xdp_rings - undo the configuration made by ice_prepare_xdp_rings
+ * @vsi: VSI to remove XDP rings
+ *
+ * Detach XDP rings from irq vectors, clean up the PF bitmap and free
+ * resources
+ */
+int ice_destroy_xdp_rings(struct ice_vsi *vsi)
+{
+	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
+	struct ice_pf *pf = vsi->back;
+	int i, v_idx;
+
+	/* q_vectors are freed in reset path so there's no point in detaching
+	 * rings; in case of rebuild being triggered not from reset reset bits
+	 * in pf->state won't be set, so additionally check first q_vector
+	 * against NULL
+	 */
+	if (ice_is_reset_in_progress(pf->state) || !vsi->q_vectors[0])
+		goto free_qmap;
+
+	ice_for_each_q_vector(vsi, v_idx) {
+		struct ice_q_vector *q_vector = vsi->q_vectors[v_idx];
+		struct ice_ring *ring;
+
+		ice_for_each_ring(ring, q_vector->tx)
+			if (!ring->tx_buf || !ice_ring_is_xdp(ring))
+				break;
+
+		/* restore the value of last node prior to XDP setup */
+		q_vector->tx.ring = ring;
+	}
+
+free_qmap:
+	mutex_lock(&pf->avail_q_mutex);
+	for (i = 0; i < vsi->num_xdp_txq; i++) {
+		clear_bit(vsi->txq_map[i + vsi->alloc_txq], pf->avail_txqs);
+		vsi->txq_map[i + vsi->alloc_txq] = ICE_INVAL_Q_INDEX;
+	}
+	mutex_unlock(&pf->avail_q_mutex);
+
+	for (i = 0; i < vsi->num_xdp_txq; i++)
+		if (vsi->xdp_rings[i]) {
+			if (vsi->xdp_rings[i]->desc)
+				ice_free_tx_ring(vsi->xdp_rings[i]);
+			kfree_rcu(vsi->xdp_rings[i], rcu);
+			vsi->xdp_rings[i] = NULL;
+		}
+
+	devm_kfree(&pf->pdev->dev, vsi->xdp_rings);
+	vsi->xdp_rings = NULL;
+
+	if (ice_is_reset_in_progress(pf->state) || !vsi->q_vectors[0])
+		return 0;
+
+	ice_vsi_assign_bpf_prog(vsi, NULL);
+
+	/* notify Tx scheduler that we destroyed XDP queues and bring
+	 * back the old number of child nodes
+	 */
+	for (i = 0; i < vsi->tc_cfg.numtc; i++)
+		max_txqs[i] = vsi->num_txq;
+
+	return ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
+			       max_txqs);
+}
+
+/**
+ * ice_xdp_setup_prog - Add or remove XDP eBPF program
+ * @vsi: VSI to setup XDP for
+ * @prog: XDP program
+ * @extack: netlink extended ack
+ */
+static int
+ice_xdp_setup_prog(struct ice_vsi *vsi, struct bpf_prog *prog,
+		   struct netlink_ext_ack *extack)
+{
+	int frame_size = vsi->netdev->mtu + ICE_ETH_PKT_HDR_PAD;
+	bool if_running = netif_running(vsi->netdev);
+	int ret = 0, xdp_ring_err = 0;
+
+	if (frame_size > vsi->rx_buf_len) {
+		NL_SET_ERR_MSG_MOD(extack, "MTU too large for loading XDP");
+		return -EOPNOTSUPP;
+	}
+
+	/* need to stop netdev while setting up the program for Rx rings */
+	if (if_running && !test_and_set_bit(__ICE_DOWN, vsi->state)) {
+		ret = ice_down(vsi);
+		if (ret) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Preparing device for XDP attach failed");
+			return ret;
+		}
+	}
+
+	if (!ice_is_xdp_ena_vsi(vsi) && prog) {
+		vsi->num_xdp_txq = vsi->alloc_txq;
+		xdp_ring_err = ice_prepare_xdp_rings(vsi, prog);
+		if (xdp_ring_err)
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Setting up XDP Tx resources failed");
+	} else if (ice_is_xdp_ena_vsi(vsi) && !prog) {
+		xdp_ring_err = ice_destroy_xdp_rings(vsi);
+		if (xdp_ring_err)
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Freeing XDP Tx resources failed");
+	} else {
+		ice_vsi_assign_bpf_prog(vsi, prog);
+	}
+
+	if (if_running)
+		ret = ice_up(vsi);
+
+	return (ret || xdp_ring_err) ? -ENOMEM : 0;
+}
+
+/**
+ * ice_xdp - implements XDP handler
+ * @dev: netdevice
+ * @xdp: XDP command
+ */
+static int ice_xdp(struct net_device *dev, struct netdev_bpf *xdp)
+{
+	struct ice_netdev_priv *np = netdev_priv(dev);
+	struct ice_vsi *vsi = np->vsi;
+
+	if (vsi->type != ICE_VSI_PF) {
+		NL_SET_ERR_MSG_MOD(xdp->extack,
+				   "XDP can be loaded only on PF VSI");
+		return -EINVAL;
+	}
+
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return ice_xdp_setup_prog(vsi, xdp->prog, xdp->extack);
+	case XDP_QUERY_PROG:
+		xdp->prog_id = vsi->xdp_prog ? vsi->xdp_prog->aux->id : 0;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
  * ice_ena_misc_vector - enable the non-queue interrupts
  * @pf: board private structure
  */
@@ -2220,6 +2523,8 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 		status = -ENODEV;
 		goto unroll_vsi_setup;
 	}
+	/* netdev has to be configured before setting frame size */
+	ice_vsi_cfg_frame_size(vsi);
 
 	/* registering the NAPI handler requires both the queues and
 	 * netdev to be created, which are done in ice_pf_vsi_setup()
@@ -3506,6 +3811,8 @@ int ice_vsi_cfg(struct ice_vsi *vsi)
 	ice_vsi_cfg_dcb_rings(vsi);
 
 	err = ice_vsi_cfg_lan_txqs(vsi);
+	if (!err && ice_is_xdp_ena_vsi(vsi))
+		err = ice_vsi_cfg_xdp_txqs(vsi);
 	if (!err)
 		err = ice_vsi_cfg_rxqs(vsi);
 
@@ -3921,6 +4228,13 @@ int ice_down(struct ice_vsi *vsi)
 		netdev_err(vsi->netdev,
 			   "Failed stop Tx rings, VSI %d error %d\n",
 			   vsi->vsi_num, tx_err);
+	if (!tx_err && ice_is_xdp_ena_vsi(vsi)) {
+		tx_err = ice_vsi_stop_xdp_tx_rings(vsi);
+		if (tx_err)
+			netdev_err(vsi->netdev,
+				   "Failed stop XDP rings, VSI %d error %d\n",
+				   vsi->vsi_num, tx_err);
+	}
 
 	rx_err = ice_vsi_stop_rx_rings(vsi);
 	if (rx_err)
@@ -4346,6 +4660,16 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 	if (new_mtu == netdev->mtu) {
 		netdev_warn(netdev, "MTU is already %u\n", netdev->mtu);
 		return 0;
+	}
+
+	if (ice_is_xdp_ena_vsi(vsi)) {
+		int frame_size = ICE_RXBUF_2048 - XDP_PACKET_HEADROOM;
+
+		if (new_mtu + ICE_ETH_PKT_HDR_PAD > frame_size) {
+			netdev_err(netdev, "max MTU for XDP usage is %d\n",
+				   frame_size);
+			return -EINVAL;
+		}
 	}
 
 	if (new_mtu < netdev->min_mtu) {
@@ -4879,4 +5203,6 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_fdb_add = ice_fdb_add,
 	.ndo_fdb_del = ice_fdb_del,
 	.ndo_tx_timeout = ice_tx_timeout,
+	.ndo_bpf = ice_xdp,
+	.ndo_xdp_xmit = ice_xdp_xmit,
 };

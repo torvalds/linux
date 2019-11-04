@@ -29,8 +29,10 @@
 #include <linux/ip.h>
 #include <linux/sctp.h>
 #include <linux/ipv6.h>
+#include <linux/pkt_sched.h>
 #include <linux/if_bridge.h>
 #include <linux/ctype.h>
+#include <linux/bpf.h>
 #include <linux/avf/virtchnl.h>
 #include <net/ipv6.h>
 #include "ice_devids.h"
@@ -78,8 +80,7 @@ extern const char ice_drv_ver[];
 
 #define ICE_DFLT_NETIF_M (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
-#define ICE_MAX_MTU	(ICE_AQ_SET_MAC_FRAME_SIZE_MAX - \
-			(ETH_HLEN + ETH_FCS_LEN + (VLAN_HLEN * 2)))
+#define ICE_MAX_MTU	(ICE_AQ_SET_MAC_FRAME_SIZE_MAX - ICE_ETH_PKT_HDR_PAD)
 
 #define ICE_UP_TABLE_TRANSLATE(val, i) \
 		(((val) << ICE_AQ_VSI_UP_TABLE_UP##i##_S) & \
@@ -282,6 +283,10 @@ struct ice_vsi {
 	u16 num_rx_desc;
 	u16 num_tx_desc;
 	struct ice_tc_cfg tc_cfg;
+	struct bpf_prog *xdp_prog;
+	struct ice_ring **xdp_rings;	 /* XDP ring array */
+	u16 num_xdp_txq;		 /* Used XDP queues */
+	u8 xdp_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
 } ____cacheline_internodealigned_in_smp;
 
 /* struct that defines an interrupt vector */
@@ -425,6 +430,16 @@ static inline struct ice_pf *ice_netdev_to_pf(struct net_device *netdev)
 	return np->vsi->back;
 }
 
+static inline bool ice_is_xdp_ena_vsi(struct ice_vsi *vsi)
+{
+	return !!vsi->xdp_prog;
+}
+
+static inline void ice_set_ring_xdp(struct ice_ring *ring)
+{
+	ring->flags |= ICE_TX_FLAGS_RING_XDP;
+}
+
 /**
  * ice_get_main_vsi - Get the PF VSI
  * @pf: PF instance
@@ -451,6 +466,11 @@ int ice_up(struct ice_vsi *vsi);
 int ice_down(struct ice_vsi *vsi);
 int ice_vsi_cfg(struct ice_vsi *vsi);
 struct ice_vsi *ice_lb_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi);
+int ice_prepare_xdp_rings(struct ice_vsi *vsi, struct bpf_prog *prog);
+int ice_destroy_xdp_rings(struct ice_vsi *vsi);
+int
+ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
+	     u32 flags);
 int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);

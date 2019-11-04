@@ -46,7 +46,8 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi)
 	if (!vsi->rx_rings)
 		goto err_rings;
 
-	vsi->txq_map = devm_kcalloc(&pf->pdev->dev, vsi->alloc_txq,
+	/* XDP will have vsi->alloc_txq Tx queues as well, so double the size */
+	vsi->txq_map = devm_kcalloc(&pf->pdev->dev, (2 * vsi->alloc_txq),
 				    sizeof(*vsi->txq_map), GFP_KERNEL);
 
 	if (!vsi->txq_map)
@@ -1184,6 +1185,20 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 }
 
 /**
+ * ice_vsi_cfg_frame_size - setup max frame size and Rx buffer length
+ * @vsi: VSI
+ */
+void ice_vsi_cfg_frame_size(struct ice_vsi *vsi)
+{
+	if (vsi->netdev && vsi->netdev->mtu > ETH_DATA_LEN)
+		vsi->max_frame = vsi->netdev->mtu + ICE_ETH_PKT_HDR_PAD;
+	else
+		vsi->max_frame = ICE_RXBUF_2048;
+
+	vsi->rx_buf_len = ICE_RXBUF_2048;
+}
+
+/**
  * ice_vsi_cfg_rxqs - Configure the VSI for Rx
  * @vsi: the VSI being configured
  *
@@ -1197,13 +1212,7 @@ int ice_vsi_cfg_rxqs(struct ice_vsi *vsi)
 	if (vsi->type == ICE_VSI_VF)
 		goto setup_rings;
 
-	if (vsi->netdev && vsi->netdev->mtu > ETH_DATA_LEN)
-		vsi->max_frame = vsi->netdev->mtu +
-			ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
-	else
-		vsi->max_frame = ICE_RXBUF_2048;
-
-	vsi->rx_buf_len = ICE_RXBUF_2048;
+	ice_vsi_cfg_frame_size(vsi);
 setup_rings:
 	/* set up individual rings */
 	for (i = 0; i < vsi->num_rxq; i++) {
@@ -1263,6 +1272,18 @@ err_cfg_txqs:
 int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi)
 {
 	return ice_vsi_cfg_txqs(vsi, vsi->tx_rings);
+}
+
+/**
+ * ice_vsi_cfg_xdp_txqs - Configure Tx queues dedicated for XDP in given VSI
+ * @vsi: the VSI being configured
+ *
+ * Return 0 on success and a negative value on error
+ * Configure the Tx queues dedicated for XDP in given VSI for operation.
+ */
+int ice_vsi_cfg_xdp_txqs(struct ice_vsi *vsi)
+{
+	return ice_vsi_cfg_txqs(vsi, vsi->xdp_rings);
 }
 
 /**
@@ -1486,6 +1507,15 @@ ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			  u16 rel_vmvf_num)
 {
 	return ice_vsi_stop_tx_rings(vsi, rst_src, rel_vmvf_num, vsi->tx_rings);
+}
+
+/**
+ * ice_vsi_stop_xdp_tx_rings - Disable XDP Tx rings
+ * @vsi: the VSI being configured
+ */
+int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi)
+{
+	return ice_vsi_stop_tx_rings(vsi, ICE_NO_RESET, 0, vsi->xdp_rings);
 }
 
 /**
@@ -1885,6 +1915,11 @@ static void ice_vsi_release_msix(struct ice_vsi *vsi)
 		wr32(hw, GLINT_ITR(ICE_IDX_ITR1, reg_idx), 0);
 		for (q = 0; q < q_vector->num_ring_tx; q++) {
 			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), 0);
+			if (ice_is_xdp_ena_vsi(vsi)) {
+				u32 xdp_txq = txq + vsi->num_xdp_txq;
+
+				wr32(hw, QINT_TQCTL(vsi->txq_map[xdp_txq]), 0);
+			}
 			txq++;
 		}
 
@@ -2259,6 +2294,11 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		vsi->base_vector = 0;
 	}
 
+	if (ice_is_xdp_ena_vsi(vsi))
+		/* return value check can be skipped here, it always returns
+		 * 0 if reset is in progress
+		 */
+		ice_destroy_xdp_rings(vsi);
 	ice_vsi_put_qs(vsi);
 	ice_vsi_clear_rings(vsi);
 	ice_vsi_free_arrays(vsi);
@@ -2299,6 +2339,12 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 			goto err_vectors;
 
 		ice_vsi_map_rings_to_vectors(vsi);
+		if (ice_is_xdp_ena_vsi(vsi)) {
+			vsi->num_xdp_txq = vsi->alloc_txq;
+			ret = ice_prepare_xdp_rings(vsi, vsi->xdp_prog);
+			if (ret)
+				goto err_vectors;
+		}
 		/* Do not exit if configuring RSS had an issue, at least
 		 * receive traffic on first queue. Hence no need to capture
 		 * return value
@@ -2325,8 +2371,12 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	}
 
 	/* configure VSI nodes based on number of queues and TC's */
-	for (i = 0; i < vsi->tc_cfg.numtc; i++)
+	for (i = 0; i < vsi->tc_cfg.numtc; i++) {
 		max_txqs[i] = vsi->alloc_txq;
+
+		if (ice_is_xdp_ena_vsi(vsi))
+			max_txqs[i] += vsi->num_xdp_txq;
+	}
 
 	status = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
 				 max_txqs);

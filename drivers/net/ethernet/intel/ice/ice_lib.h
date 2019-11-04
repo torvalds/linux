@@ -36,6 +36,10 @@ int
 ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			  u16 rel_vmvf_num);
 
+int ice_vsi_cfg_xdp_txqs(struct ice_vsi *vsi);
+
+int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi);
+
 int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena, bool vlan_promisc);
 
 void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create);
@@ -78,6 +82,8 @@ void ice_vsi_free_rx_rings(struct ice_vsi *vsi);
 void ice_vsi_free_tx_rings(struct ice_vsi *vsi);
 
 int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena);
+
+void ice_vsi_cfg_frame_size(struct ice_vsi *vsi);
 
 u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran);
 

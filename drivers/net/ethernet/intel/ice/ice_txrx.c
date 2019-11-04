@@ -5,6 +5,9 @@
 
 #include <linux/prefetch.h>
 #include <linux/mm.h>
+#include <linux/bpf_trace.h>
+#include <net/xdp.h>
+#include "ice_lib.h"
 #include "ice.h"
 #include "ice_dcb_lib.h"
 
@@ -19,7 +22,10 @@ static void
 ice_unmap_and_free_tx_buf(struct ice_ring *ring, struct ice_tx_buf *tx_buf)
 {
 	if (tx_buf->skb) {
-		dev_kfree_skb_any(tx_buf->skb);
+		if (ice_ring_is_xdp(ring))
+			page_frag_free(tx_buf->raw_buf);
+		else
+			dev_kfree_skb_any(tx_buf->skb);
 		if (dma_unmap_len(tx_buf, len))
 			dma_unmap_single(ring->dev,
 					 dma_unmap_addr(tx_buf, dma),
@@ -136,8 +142,11 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 		total_bytes += tx_buf->bytecount;
 		total_pkts += tx_buf->gso_segs;
 
-		/* free the skb */
-		napi_consume_skb(tx_buf->skb, napi_budget);
+		if (ice_ring_is_xdp(tx_ring))
+			page_frag_free(tx_buf->raw_buf);
+		else
+			/* free the skb */
+			napi_consume_skb(tx_buf->skb, napi_budget);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -194,6 +203,9 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 	u64_stats_update_end(&tx_ring->syncp);
 	tx_ring->q_vector->tx.total_bytes += total_bytes;
 	tx_ring->q_vector->tx.total_pkts += total_pkts;
+
+	if (ice_ring_is_xdp(tx_ring))
+		return !!budget;
 
 	netdev_tx_completed_queue(txring_txq(tx_ring), total_pkts,
 				  total_bytes);
@@ -319,6 +331,10 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 void ice_free_rx_ring(struct ice_ring *rx_ring)
 {
 	ice_clean_rx_ring(rx_ring);
+	if (rx_ring->vsi->type == ICE_VSI_PF)
+		if (xdp_rxq_info_is_reg(&rx_ring->xdp_rxq))
+			xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
+	rx_ring->xdp_prog = NULL;
 	devm_kfree(rx_ring->dev, rx_ring->rx_buf);
 	rx_ring->rx_buf = NULL;
 
@@ -363,6 +379,15 @@ int ice_setup_rx_ring(struct ice_ring *rx_ring)
 
 	rx_ring->next_to_use = 0;
 	rx_ring->next_to_clean = 0;
+
+	if (ice_is_xdp_ena_vsi(rx_ring->vsi))
+		WRITE_ONCE(rx_ring->xdp_prog, rx_ring->vsi->xdp_prog);
+
+	if (rx_ring->vsi->type == ICE_VSI_PF &&
+	    !xdp_rxq_info_is_reg(&rx_ring->xdp_rxq))
+		if (xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev,
+				     rx_ring->q_index))
+			goto err;
 	return 0;
 
 err:
@@ -399,6 +424,214 @@ static void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val)
 		 */
 		wmb();
 		writel(val, rx_ring->tail);
+	}
+}
+
+/**
+ * ice_rx_offset - Return expected offset into page to access data
+ * @rx_ring: Ring we are requesting offset of
+ *
+ * Returns the offset value for ring into the data buffer.
+ */
+static unsigned int ice_rx_offset(struct ice_ring *rx_ring)
+{
+	return ice_is_xdp_ena_vsi(rx_ring->vsi) ? XDP_PACKET_HEADROOM : 0;
+}
+
+/**
+ * ice_xdp_ring_update_tail - Updates the XDP Tx ring tail register
+ * @xdp_ring: XDP Tx ring
+ *
+ * This function updates the XDP Tx ring tail register.
+ */
+static void ice_xdp_ring_update_tail(struct ice_ring *xdp_ring)
+{
+	/* Force memory writes to complete before letting h/w
+	 * know there are new descriptors to fetch.
+	 */
+	wmb();
+	writel_relaxed(xdp_ring->next_to_use, xdp_ring->tail);
+}
+
+/**
+ * ice_xmit_xdp_ring - submit single packet to XDP ring for transmission
+ * @data: packet data pointer
+ * @size: packet data size
+ * @xdp_ring: XDP ring for transmission
+ */
+static int ice_xmit_xdp_ring(void *data, u16 size, struct ice_ring *xdp_ring)
+{
+	u16 i = xdp_ring->next_to_use;
+	struct ice_tx_desc *tx_desc;
+	struct ice_tx_buf *tx_buf;
+	dma_addr_t dma;
+
+	if (!unlikely(ICE_DESC_UNUSED(xdp_ring))) {
+		xdp_ring->tx_stats.tx_busy++;
+		return ICE_XDP_CONSUMED;
+	}
+
+	dma = dma_map_single(xdp_ring->dev, data, size, DMA_TO_DEVICE);
+	if (dma_mapping_error(xdp_ring->dev, dma))
+		return ICE_XDP_CONSUMED;
+
+	tx_buf = &xdp_ring->tx_buf[i];
+	tx_buf->bytecount = size;
+	tx_buf->gso_segs = 1;
+	tx_buf->raw_buf = data;
+
+	/* record length, and DMA address */
+	dma_unmap_len_set(tx_buf, len, size);
+	dma_unmap_addr_set(tx_buf, dma, dma);
+
+	tx_desc = ICE_TX_DESC(xdp_ring, i);
+	tx_desc->buf_addr = cpu_to_le64(dma);
+	tx_desc->cmd_type_offset_bsz = build_ctob(ICE_TXD_LAST_DESC_CMD, 0,
+						  size, 0);
+
+	/* Make certain all of the status bits have been updated
+	 * before next_to_watch is written.
+	 */
+	smp_wmb();
+
+	i++;
+	if (i == xdp_ring->count)
+		i = 0;
+
+	tx_buf->next_to_watch = tx_desc;
+	xdp_ring->next_to_use = i;
+
+	return ICE_XDP_TX;
+}
+
+/**
+ * ice_xmit_xdp_buff - convert an XDP buffer to an XDP frame and send it
+ * @xdp: XDP buffer
+ * @xdp_ring: XDP Tx ring
+ *
+ * Returns negative on failure, 0 on success.
+ */
+static int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_ring *xdp_ring)
+{
+	struct xdp_frame *xdpf = convert_to_xdp_frame(xdp);
+
+	if (unlikely(!xdpf))
+		return ICE_XDP_CONSUMED;
+
+	return ice_xmit_xdp_ring(xdpf->data, xdpf->len, xdp_ring);
+}
+
+/**
+ * ice_run_xdp - Executes an XDP program on initialized xdp_buff
+ * @rx_ring: Rx ring
+ * @xdp: xdp_buff used as input to the XDP program
+ * @xdp_prog: XDP program to run
+ *
+ * Returns any of ICE_XDP_{PASS, CONSUMED, TX, REDIR}
+ */
+static int
+ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
+	    struct bpf_prog *xdp_prog)
+{
+	int err, result = ICE_XDP_PASS;
+	struct ice_ring *xdp_ring;
+	u32 act;
+
+	act = bpf_prog_run_xdp(xdp_prog, xdp);
+	switch (act) {
+	case XDP_PASS:
+		break;
+	case XDP_TX:
+		xdp_ring = rx_ring->vsi->xdp_rings[smp_processor_id()];
+		result = ice_xmit_xdp_buff(xdp, xdp_ring);
+		break;
+	case XDP_REDIRECT:
+		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
+		result = !err ? ICE_XDP_REDIR : ICE_XDP_CONSUMED;
+		break;
+	default:
+		bpf_warn_invalid_xdp_action(act);
+		/* fallthrough -- not supported action */
+	case XDP_ABORTED:
+		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
+		/* fallthrough -- handle aborts by dropping frame */
+	case XDP_DROP:
+		result = ICE_XDP_CONSUMED;
+		break;
+	}
+
+	return result;
+}
+
+/**
+ * ice_xdp_xmit - submit packets to XDP ring for transmission
+ * @dev: netdev
+ * @n: number of XDP frames to be transmitted
+ * @frames: XDP frames to be transmitted
+ * @flags: transmit flags
+ *
+ * Returns number of frames successfully sent. Frames that fail are
+ * free'ed via XDP return API.
+ * For error cases, a negative errno code is returned and no-frames
+ * are transmitted (caller must handle freeing frames).
+ */
+int
+ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
+	     u32 flags)
+{
+	struct ice_netdev_priv *np = netdev_priv(dev);
+	unsigned int queue_index = smp_processor_id();
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_ring *xdp_ring;
+	int drops = 0, i;
+
+	if (test_bit(__ICE_DOWN, vsi->state))
+		return -ENETDOWN;
+
+	if (!ice_is_xdp_ena_vsi(vsi) || queue_index >= vsi->num_xdp_txq)
+		return -ENXIO;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	xdp_ring = vsi->xdp_rings[queue_index];
+	for (i = 0; i < n; i++) {
+		struct xdp_frame *xdpf = frames[i];
+		int err;
+
+		err = ice_xmit_xdp_ring(xdpf->data, xdpf->len, xdp_ring);
+		if (err != ICE_XDP_TX) {
+			xdp_return_frame_rx_napi(xdpf);
+			drops++;
+		}
+	}
+
+	if (unlikely(flags & XDP_XMIT_FLUSH))
+		ice_xdp_ring_update_tail(xdp_ring);
+
+	return n - drops;
+}
+
+/**
+ * ice_finalize_xdp_rx - Bump XDP Tx tail and/or flush redirect map
+ * @rx_ring: Rx ring
+ * @xdp_res: Result of the receive batch
+ *
+ * This function bumps XDP Tx tail and/or flush redirect map, and
+ * should be called when a batch of packets has been processed in the
+ * napi loop.
+ */
+static void
+ice_finalize_xdp_rx(struct ice_ring *rx_ring, unsigned int xdp_res)
+{
+	if (xdp_res & ICE_XDP_REDIR)
+		xdp_do_flush_map();
+
+	if (xdp_res & ICE_XDP_TX) {
+		struct ice_ring *xdp_ring =
+			rx_ring->vsi->xdp_rings[rx_ring->q_index];
+
+		ice_xdp_ring_update_tail(xdp_ring);
 	}
 }
 
@@ -444,7 +677,7 @@ ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
 
 	bi->dma = dma;
 	bi->page = page;
-	bi->page_offset = 0;
+	bi->page_offset = ice_rx_offset(rx_ring);
 	page_ref_add(page, USHRT_MAX - 1);
 	bi->pagecnt_bias = USHRT_MAX;
 
@@ -682,7 +915,7 @@ ice_get_rx_buf(struct ice_ring *rx_ring, struct sk_buff **skb,
  * ice_construct_skb - Allocate skb and populate it
  * @rx_ring: Rx descriptor ring to transact packets on
  * @rx_buf: Rx buffer to pull data from
- * @size: the length of the packet
+ * @xdp: xdp_buff pointing to the data
  *
  * This function allocates an skb. It then populates it with the page
  * data from the current receive descriptor, taking care to set up the
@@ -690,16 +923,16 @@ ice_get_rx_buf(struct ice_ring *rx_ring, struct sk_buff **skb,
  */
 static struct sk_buff *
 ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
-		  unsigned int size)
+		  struct xdp_buff *xdp)
 {
-	void *va = page_address(rx_buf->page) + rx_buf->page_offset;
+	unsigned int size = xdp->data_end - xdp->data;
 	unsigned int headlen;
 	struct sk_buff *skb;
 
 	/* prefetch first cache line of first page */
-	prefetch(va);
+	prefetch(xdp->data);
 #if L1_CACHE_BYTES < 128
-	prefetch((u8 *)va + L1_CACHE_BYTES);
+	prefetch((void *)(xdp->data + L1_CACHE_BYTES));
 #endif /* L1_CACHE_BYTES */
 
 	/* allocate a skb to store the frags */
@@ -712,10 +945,11 @@ ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	/* Determine available headroom for copy */
 	headlen = size;
 	if (headlen > ICE_RX_HDR_SIZE)
-		headlen = eth_get_headlen(skb->dev, va, ICE_RX_HDR_SIZE);
+		headlen = eth_get_headlen(skb->dev, xdp->data, ICE_RX_HDR_SIZE);
 
 	/* align pull length to size of long to optimize memcpy performance */
-	memcpy(__skb_put(skb, headlen), va, ALIGN(headlen, sizeof(long)));
+	memcpy(__skb_put(skb, headlen), xdp->data, ALIGN(headlen,
+							 sizeof(long)));
 
 	/* if we exhaust the linear part then add what is left as a frag */
 	size -= headlen;
@@ -745,11 +979,18 @@ ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
  * @rx_ring: Rx descriptor ring to transact packets on
  * @rx_buf: Rx buffer to pull data from
  *
- * This function will  clean up the contents of the rx_buf. It will
- * either recycle the buffer or unmap it and free the associated resources.
+ * This function will update next_to_clean and then clean up the contents
+ * of the rx_buf. It will either recycle the buffer or unmap it and free
+ * the associated resources.
  */
 static void ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 {
+	u32 ntc = rx_ring->next_to_clean + 1;
+
+	/* fetch, update, and store next to clean */
+	ntc = (ntc < rx_ring->count) ? ntc : 0;
+	rx_ring->next_to_clean = ntc;
+
 	if (!rx_buf)
 		return;
 
@@ -813,30 +1054,20 @@ ice_test_staterr(union ice_32b_rx_flex_desc *rx_desc, const u16 stat_err_bits)
  * @rx_desc: Rx descriptor for current buffer
  * @skb: Current socket buffer containing buffer in progress
  *
- * This function updates next to clean. If the buffer is an EOP buffer
- * this function exits returning false, otherwise it will place the
- * sk_buff in the next buffer to be chained and return true indicating
- * that this is in fact a non-EOP buffer.
+ * If the buffer is an EOP buffer, this function exits returning false,
+ * otherwise return true indicating that this is in fact a non-EOP buffer.
  */
 static bool
 ice_is_non_eop(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
 	       struct sk_buff *skb)
 {
-	u32 ntc = rx_ring->next_to_clean + 1;
-
-	/* fetch, update, and store next to clean */
-	ntc = (ntc < rx_ring->count) ? ntc : 0;
-	rx_ring->next_to_clean = ntc;
-
-	prefetch(ICE_RX_DESC(rx_ring, ntc));
-
 	/* if we are the last buffer then there is nothing else to do */
 #define ICE_RXD_EOF BIT(ICE_RX_FLEX_DESC_STATUS0_EOF_S)
 	if (likely(ice_test_staterr(rx_desc, ICE_RXD_EOF)))
 		return false;
 
 	/* place skb in next buffer to be received */
-	rx_ring->rx_buf[ntc].skb = skb;
+	rx_ring->rx_buf[rx_ring->next_to_clean].skb = skb;
 	rx_ring->rx_stats.non_eop_descs++;
 
 	return true;
@@ -1006,7 +1237,12 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_pkts = 0;
 	u16 cleaned_count = ICE_DESC_UNUSED(rx_ring);
+	unsigned int xdp_res, xdp_xmit = 0;
+	struct bpf_prog *xdp_prog = NULL;
+	struct xdp_buff xdp;
 	bool failure;
+
+	xdp.rxq = &rx_ring->xdp_rxq;
 
 	/* start the loop to process Rx packets bounded by 'budget' */
 	while (likely(total_rx_pkts < (unsigned int)budget)) {
@@ -1042,10 +1278,46 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		/* retrieve a buffer from the ring */
 		rx_buf = ice_get_rx_buf(rx_ring, &skb, size);
 
+		if (!size) {
+			xdp.data = NULL;
+			xdp.data_end = NULL;
+			goto construct_skb;
+		}
+
+		xdp.data = page_address(rx_buf->page) + rx_buf->page_offset;
+		xdp.data_hard_start = xdp.data - ice_rx_offset(rx_ring);
+		xdp_set_data_meta_invalid(&xdp);
+		xdp.data_end = xdp.data + size;
+
+		rcu_read_lock();
+		xdp_prog = READ_ONCE(rx_ring->xdp_prog);
+		if (!xdp_prog) {
+			rcu_read_unlock();
+			goto construct_skb;
+		}
+
+		xdp_res = ice_run_xdp(rx_ring, &xdp, xdp_prog);
+		rcu_read_unlock();
+		if (xdp_res) {
+			if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR)) {
+				xdp_xmit |= xdp_res;
+				ice_rx_buf_adjust_pg_offset(rx_buf,
+							    ICE_RXBUF_2048);
+			} else {
+				rx_buf->pagecnt_bias++;
+			}
+			total_rx_bytes += size;
+			total_rx_pkts++;
+
+			cleaned_count++;
+			ice_put_rx_buf(rx_ring, rx_buf);
+			continue;
+		}
+construct_skb:
 		if (skb)
 			ice_add_rx_frag(rx_buf, skb, size);
 		else
-			skb = ice_construct_skb(rx_ring, rx_buf, size);
+			skb = ice_construct_skb(rx_ring, rx_buf, &xdp);
 
 		/* exit if we failed to retrieve a buffer */
 		if (!skb) {
@@ -1098,6 +1370,9 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 
 	/* return up to cleaned_count buffers to hardware */
 	failure = ice_alloc_rx_bufs(rx_ring, cleaned_count);
+
+	if (xdp_prog)
+		ice_finalize_xdp_rx(rx_ring, xdp_xmit);
 
 	/* update queue and vector specific stats */
 	u64_stats_update_begin(&rx_ring->syncp);
@@ -1527,17 +1802,6 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	return min_t(int, work_done, budget - 1);
 }
 
-/* helper function for building cmd/type/offset */
-static __le64
-build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
-{
-	return cpu_to_le64(ICE_TX_DESC_DTYPE_DATA |
-			   (td_cmd    << ICE_TXD_QW1_CMD_S) |
-			   (td_offset << ICE_TXD_QW1_OFFSET_S) |
-			   ((u64)size << ICE_TXD_QW1_TX_BUF_SZ_S) |
-			   (td_tag    << ICE_TXD_QW1_L2TAG1_S));
-}
-
 /**
  * __ice_maybe_stop_tx - 2nd level check for Tx stop conditions
  * @tx_ring: the ring to be checked
@@ -1689,9 +1953,9 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 		i = 0;
 
 	/* write last descriptor with RS and EOP bits */
-	td_cmd |= (u64)(ICE_TX_DESC_CMD_EOP | ICE_TX_DESC_CMD_RS);
-	tx_desc->cmd_type_offset_bsz =
-			build_ctob(td_cmd, td_offset, size, td_tag);
+	td_cmd |= (u64)ICE_TXD_LAST_DESC_CMD;
+	tx_desc->cmd_type_offset_bsz = build_ctob(td_cmd, td_offset, size,
+						  td_tag);
 
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.

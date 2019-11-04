@@ -22,6 +22,16 @@
 #define ICE_RX_BUF_WRITE	16	/* Must be power of 2 */
 #define ICE_MAX_TXQ_PER_TXQG	128
 
+static inline __le64
+build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
+{
+	return cpu_to_le64(ICE_TX_DESC_DTYPE_DATA |
+			   (td_cmd    << ICE_TXD_QW1_CMD_S) |
+			   (td_offset << ICE_TXD_QW1_OFFSET_S) |
+			   ((u64)size << ICE_TXD_QW1_TX_BUF_SZ_S) |
+			   (td_tag    << ICE_TXD_QW1_L2TAG1_S));
+}
+
 /* We are assuming that the cache line is always 64 Bytes here for ice.
  * In order to make sure that is a correct assumption there is a check in probe
  * to print a warning if the read from GLPCI_CNF2 tells us that the cache line
@@ -49,12 +59,24 @@
 #define ICE_TX_FLAGS_VLAN_PR_S	29
 #define ICE_TX_FLAGS_VLAN_S	16
 
+#define ICE_XDP_PASS		0
+#define ICE_XDP_CONSUMED	BIT(0)
+#define ICE_XDP_TX		BIT(1)
+#define ICE_XDP_REDIR		BIT(2)
+
 #define ICE_RX_DMA_ATTR \
 	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
 
+#define ICE_ETH_PKT_HDR_PAD	(ETH_HLEN + ETH_FCS_LEN + (VLAN_HLEN * 2))
+
+#define ICE_TXD_LAST_DESC_CMD (ICE_TX_DESC_CMD_EOP | ICE_TX_DESC_CMD_RS)
+
 struct ice_tx_buf {
 	struct ice_tx_desc *next_to_watch;
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		void *raw_buf; /* used for XDP */
+	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
 	u32 tx_flags;
@@ -198,15 +220,25 @@ struct ice_ring {
 	};
 
 	struct rcu_head rcu;		/* to avoid race on free */
+	struct bpf_prog *xdp_prog;
+	/* CL3 - 3rd cacheline starts here */
+	struct xdp_rxq_info xdp_rxq;
 	/* CLX - the below items are only accessed infrequently and should be
 	 * in their own cache line if possible
 	 */
+#define ICE_TX_FLAGS_RING_XDP		BIT(0)
+	u8 flags;
 	dma_addr_t dma;			/* physical address of ring */
 	unsigned int size;		/* length of descriptor ring in bytes */
 	u32 txq_teid;			/* Added Tx queue TEID */
 	u16 rx_buf_len;
 	u8 dcb_tc;			/* Traffic class of ring */
 } ____cacheline_internodealigned_in_smp;
+
+static inline bool ice_ring_is_xdp(struct ice_ring *ring)
+{
+	return !!(ring->flags & ICE_TX_FLAGS_RING_XDP);
+}
 
 struct ice_ring_container {
 	/* head of linked-list of rings */

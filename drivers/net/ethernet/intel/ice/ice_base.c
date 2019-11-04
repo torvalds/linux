@@ -198,6 +198,9 @@ static void ice_cfg_itr_gran(struct ice_hw *hw)
  */
 static u16 ice_calc_q_handle(struct ice_vsi *vsi, struct ice_ring *ring, u8 tc)
 {
+	WARN_ONCE(ice_ring_is_xdp(ring) && tc,
+		  "XDP ring can't belong to TC other than 0");
+
 	/* Idea here for calculation is that we subtract the number of queue
 	 * count from TC that ring belongs to from it's absolute queue index
 	 * and as a result we get the queue's index within TC.
@@ -287,6 +290,22 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	/* clear the context structure first */
 	memset(&rlan_ctx, 0, sizeof(rlan_ctx));
 
+	ring->rx_buf_len = vsi->rx_buf_len;
+
+	if (ring->vsi->type == ICE_VSI_PF) {
+		if (!xdp_rxq_info_is_reg(&ring->xdp_rxq))
+			xdp_rxq_info_reg(&ring->xdp_rxq, ring->netdev,
+					 ring->q_index);
+
+		err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
+						 MEM_TYPE_PAGE_SHARED, NULL);
+		if (err)
+			return err;
+	}
+	/* Receive Queue Base Address.
+	 * Indicates the starting address of the descriptor queue defined in
+	 * 128 Byte units.
+	 */
 	rlan_ctx.base = ring->dma >> 7;
 
 	rlan_ctx.qlen = ring->count;
@@ -294,7 +313,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	/* Receive Packet Data Buffer Size.
 	 * The Packet Data Buffer Size is defined in 128 byte units.
 	 */
-	rlan_ctx.dbuf = vsi->rx_buf_len >> ICE_RLAN_CTX_DBUF_S;
+	rlan_ctx.dbuf = ring->rx_buf_len >> ICE_RLAN_CTX_DBUF_S;
 
 	/* use 32 byte descriptors */
 	rlan_ctx.dsize = 1;
@@ -657,6 +676,13 @@ ice_cfg_txq_interrupt(struct ice_vsi *vsi, u16 txq, u16 msix_idx, u16 itr_idx)
 	      ((msix_idx << QINT_TQCTL_MSIX_INDX_S) & QINT_TQCTL_MSIX_INDX_M);
 
 	wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), val);
+	if (ice_is_xdp_ena_vsi(vsi)) {
+		u32 xdp_txq = txq + vsi->num_xdp_txq;
+
+		wr32(hw, QINT_TQCTL(vsi->txq_map[xdp_txq]),
+		     val);
+	}
+	ice_flush(hw);
 }
 
 /**

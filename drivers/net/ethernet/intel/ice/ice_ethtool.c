@@ -2577,6 +2577,7 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 {
 	struct ice_ring *tx_rings = NULL, *rx_rings = NULL;
 	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_ring *xdp_rings = NULL;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	int i, timeout = 50, err = 0;
@@ -2624,6 +2625,11 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 			vsi->tx_rings[i]->count = new_tx_cnt;
 		for (i = 0; i < vsi->alloc_rxq; i++)
 			vsi->rx_rings[i]->count = new_rx_cnt;
+		if (ice_is_xdp_ena_vsi(vsi))
+			for (i = 0; i < vsi->num_xdp_txq; i++)
+				vsi->xdp_rings[i]->count = new_tx_cnt;
+		vsi->num_tx_desc = new_tx_cnt;
+		vsi->num_rx_desc = new_rx_cnt;
 		netdev_dbg(netdev, "Link is down, descriptor count change happens when link is brought up\n");
 		goto done;
 	}
@@ -2650,13 +2656,41 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 		tx_rings[i].tx_buf = NULL;
 		err = ice_setup_tx_ring(&tx_rings[i]);
 		if (err) {
-			while (i) {
-				i--;
+			while (i--)
 				ice_clean_tx_ring(&tx_rings[i]);
-			}
 			devm_kfree(&pf->pdev->dev, tx_rings);
 			goto done;
 		}
+	}
+
+	if (!ice_is_xdp_ena_vsi(vsi))
+		goto process_rx;
+
+	/* alloc updated XDP resources */
+	netdev_info(netdev, "Changing XDP descriptor count from %d to %d\n",
+		    vsi->xdp_rings[0]->count, new_tx_cnt);
+
+	xdp_rings = devm_kcalloc(&pf->pdev->dev, vsi->num_xdp_txq,
+				 sizeof(*xdp_rings), GFP_KERNEL);
+	if (!xdp_rings) {
+		err = -ENOMEM;
+		goto free_tx;
+	}
+
+	for (i = 0; i < vsi->num_xdp_txq; i++) {
+		/* clone ring and setup updated count */
+		xdp_rings[i] = *vsi->xdp_rings[i];
+		xdp_rings[i].count = new_tx_cnt;
+		xdp_rings[i].desc = NULL;
+		xdp_rings[i].tx_buf = NULL;
+		err = ice_setup_tx_ring(&xdp_rings[i]);
+		if (err) {
+			while (i--)
+				ice_clean_tx_ring(&xdp_rings[i]);
+			devm_kfree(&pf->pdev->dev, xdp_rings);
+			goto free_tx;
+		}
+		ice_set_ring_xdp(&xdp_rings[i]);
 	}
 
 process_rx:
@@ -2737,6 +2771,16 @@ process_link:
 			devm_kfree(&pf->pdev->dev, rx_rings);
 		}
 
+		if (xdp_rings) {
+			for (i = 0; i < vsi->num_xdp_txq; i++) {
+				ice_free_tx_ring(vsi->xdp_rings[i]);
+				*vsi->xdp_rings[i] = xdp_rings[i];
+			}
+			devm_kfree(&pf->pdev->dev, xdp_rings);
+		}
+
+		vsi->num_tx_desc = new_tx_cnt;
+		vsi->num_rx_desc = new_rx_cnt;
 		ice_up(vsi);
 	}
 	goto done;
