@@ -439,8 +439,6 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	device_init_wakeup(dev, 1);
-
 	dev_dbg(dev,
 		"ILI210x initialized (IRQ: %d), firmware version %d.%d.%d",
 		client->irq, firmware.id, firmware.major, firmware.minor);
