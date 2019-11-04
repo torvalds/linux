@@ -157,10 +157,11 @@
 			reg = <0x0 0x54540000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&tegra_car TEGRA124_CLK_SOR0>,
+				 <&tegra_car TEGRA124_CLK_SOR0_OUT>,
 				 <&tegra_car TEGRA124_CLK_PLL_D_OUT0>,
 				 <&tegra_car TEGRA124_CLK_PLL_DP>,
 				 <&tegra_car TEGRA124_CLK_CLK_M>;
-			clock-names = "sor", "parent", "dp", "safe";
+			clock-names = "sor", "out", "parent", "dp", "safe";
 			resets = <&tegra_car 182>;
 			reset-names = "sor";
 			status = "disabled";
