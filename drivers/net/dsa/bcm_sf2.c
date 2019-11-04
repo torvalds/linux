@@ -350,6 +350,18 @@ static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
 {
 	unsigned int timeout = 1000;
 	u32 reg;
+	int ret;
+
+	/* The watchdog reset does not work on 7278, we need to hit the
+	 * "external" reset line through the reset controller.
+	 */
+	if (priv->type == BCM7278_DEVICE_ID && !IS_ERR(priv->rcdev)) {
+		ret = reset_control_assert(priv->rcdev);
+		if (ret)
+			return ret;
+
+		return reset_control_deassert(priv->rcdev);
+	}
 
 	reg = core_readl(priv, CORE_WATCHDOG_CTRL);
 	reg |= SOFTWARE_RESET | EN_CHIP_RST | EN_SW_RESET;
@@ -1092,6 +1104,11 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	priv->core_reg_align = data->core_reg_align;
 	priv->num_cfp_rules = data->num_cfp_rules;
 
+	priv->rcdev = devm_reset_control_get_optional_exclusive(&pdev->dev,
+								"switch");
+	if (PTR_ERR(priv->rcdev) == -EPROBE_DEFER)
+		return PTR_ERR(priv->rcdev);
+
 	/* Auto-detection using standard registers will not work, so
 	 * provide an indication of what kind of device we are for
 	 * b53_common to work with
@@ -1224,6 +1241,8 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	/* Disable all ports and interrupts */
 	bcm_sf2_sw_suspend(priv->dev->ds);
 	bcm_sf2_mdio_unregister(priv);
+	if (priv->type == BCM7278_DEVICE_ID && !IS_ERR(priv->rcdev))
+		reset_control_assert(priv->rcdev);
 
 	return 0;
 }
