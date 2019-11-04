@@ -507,10 +507,10 @@ static int rt715_dev_resume(struct device *dev)
 	if (!rt715->hw_init)
 		return 0;
 
-	time = wait_for_completion_timeout(&slave->enumeration_complete,
+	time = wait_for_completion_timeout(&slave->initialization_complete,
 					   msecs_to_jiffies(RT715_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Enumeration not complete, timed out\n");
+		dev_err(&slave->dev, "Initialization not complete, timed out\n");
 		return -ETIMEDOUT;
 	}
 
