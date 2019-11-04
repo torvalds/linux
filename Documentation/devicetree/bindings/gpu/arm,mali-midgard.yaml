@@ -16,6 +16,10 @@ properties:
     oneOf:
       - items:
           - enum:
+             - samsung,exynos5250-mali
+          - const: arm,mali-t604
+      - items:
+          - enum:
              - allwinner,sun50i-h6-mali
           - const: arm,mali-t720
       - items:
@@ -25,19 +29,12 @@ properties:
       - items:
           - enum:
              - rockchip,rk3288-mali
+             - samsung,exynos5433-mali
           - const: arm,mali-t760
       - items:
           - enum:
              - rockchip,rk3399-mali
           - const: arm,mali-t860
-      - items:
-          - enum:
-             - samsung,exynos5250-mali
-          - const: arm,mali-t604
-      - items:
-          - enum:
-             - samsung,exynos5433-mali
-          - const: arm,mali-t760
 
           # "arm,mali-t624"
           # "arm,mali-t628"
