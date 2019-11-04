@@ -258,16 +258,12 @@ static void u3phy_disconnect_det_work(struct work_struct *work)
 	struct dwc3_rockchip *rockchip =
 		container_of(work, struct dwc3_rockchip, u3_work);
 	struct usb_hcd	*hcd = dev_get_drvdata(&rockchip->dwc->xhci->dev);
-	struct usb_hcd	*shared_hcd = hcd->shared_hcd;
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	u32		count = 0;
 
 	mutex_lock(&rockchip->lock);
 
-	if (hcd->state != HC_STATE_HALT) {
-		usb_remove_hcd(shared_hcd);
-		usb_remove_hcd(hcd);
-	}
+	if (hcd->state != HC_STATE_HALT)
+		dwc3_host_exit(rockchip->dwc);
 
 	if (rockchip->phy)
 		usb_phy_shutdown(rockchip->phy);
@@ -281,11 +277,8 @@ static void u3phy_disconnect_det_work(struct work_struct *work)
 		usleep_range(1000, 1100);
 	}
 
-	if (hcd->state == HC_STATE_HALT) {
-		xhci->shared_hcd = shared_hcd;
-		usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
-		usb_add_hcd(shared_hcd, hcd->irq, IRQF_SHARED);
-	}
+	if (hcd->state == HC_STATE_HALT)
+		dwc3_host_init(rockchip->dwc);
 
 	if (rockchip->phy)
 		usb_phy_init(rockchip->phy);
