@@ -271,7 +271,7 @@ static int call__parse(struct arch *arch, struct ins_operands *ops, struct map_s
 find_target:
 	target.addr = map__objdump_2mem(map, ops->target.addr);
 
-	if (map_groups__find_ams(&target) == 0 &&
+	if (map_groups__find_ams(map->groups, &target) == 0 &&
 	    map__rip_2objdump(target.map, map->map_ip(target.map, target.addr)) == ops->target.addr)
 		ops->target.sym = target.sym;
 
@@ -391,7 +391,7 @@ static int jump__parse(struct arch *arch, struct ins_operands *ops, struct map_s
 	 * Actual navigation will come next, with further understanding of how
 	 * the symbol searching and disassembly should be done.
 	 */
-	if (map_groups__find_ams(&target) == 0 &&
+	if (map_groups__find_ams(map->groups, &target) == 0 &&
 	    map__rip_2objdump(target.map, map->map_ip(target.map, target.addr)) == ops->target.addr)
 		ops->target.sym = target.sym;
 
@@ -1544,7 +1544,7 @@ static int symbol__parse_objdump_line(struct symbol *sym,
 			.addr = dl->ops.target.addr,
 		};
 
-		if (!map_groups__find_ams(&target) &&
+		if (!map_groups__find_ams(map->groups, &target) &&
 		    target.sym->start == target.al_addr)
 			dl->ops.target.sym = target.sym;
 	}
