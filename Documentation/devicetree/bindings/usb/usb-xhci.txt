@@ -35,6 +35,7 @@ Optional properties:
     second one
   - usb2-lpm-disable: indicate if we don't want to enable USB2 HW LPM
   - usb3-lpm-capable: determines if platform is USB3 LPM capable
+  - usb3-dis-autosuspend: determines if the xHC supports USB3 autosuspend capable
   - quirk-broken-port-ped: set if the controller has broken port disable mechanism
   - xhci-slow-suspend: set if it needs an extraordinary delay to wait
     for xHC enter the Halted state after the Run/Stop (R/S) bit is cleared to '0'
