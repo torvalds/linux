@@ -7,6 +7,12 @@
 
 #include <dt-bindings/gpio/gpio.h>
 
+/ {
+	chosen {
+		stdout-path = &uart4;
+	};
+};
+
 &ecspi2 {
 	cs-gpios = <&gpio4 22 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
