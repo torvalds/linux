@@ -1041,9 +1041,12 @@ static void patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_s
 	}
 
 	if (dc->bb_overrides.dram_clock_change_latency_ns) {
-		bb->dram_clock_change_latency_us =
+		for (i = 0; i < WM_SET_COUNT; i++) {
+			dc->clk_mgr->bw_params->wm_table.entries[i].pstate_latency_us =
 				dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
+		}
 	}
+
 	kernel_fpu_end();
 }
 
