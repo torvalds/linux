@@ -142,8 +142,6 @@ int __ref arch_add_memory(int nid, u64 start, u64 size,
 		return -EFAULT;
 	}
 
-	flush_dcache_range_chunked(start, start + size, FLUSH_CHUNK_SIZE);
-
 	return __add_pages(nid, start_pfn, nr_pages, restrictions);
 }
 
