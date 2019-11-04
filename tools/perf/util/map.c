@@ -244,18 +244,11 @@ struct map *map__new2(u64 start, struct dso *dso)
 	return map;
 }
 
-/*
- * Use this and __map__is_kmodule() for map instances that are in
- * machine->kmaps, and thus have map->groups->machine all properly set, to
- * disambiguate between the kernel and modules.
- *
- * When the need arises, introduce map__is_{kernel,kmodule)() that
- * checks (map->groups != NULL && map->groups->machine != NULL &&
- * map->dso->kernel) before calling __map__is_{kernel,kmodule}())
- */
 bool __map__is_kernel(const struct map *map)
 {
-	return machine__kernel_map(map->groups->machine) == map;
+	if (!map->dso->kernel)
+		return false;
+	return machine__kernel_map(map__kmaps((struct map *)map)->machine) == map;
 }
 
 bool __map__is_extra_kernel_map(const struct map *map)
