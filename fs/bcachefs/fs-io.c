@@ -1767,24 +1767,13 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 	struct bio_vec *bv;
 	unsigned unaligned;
 	u64 new_i_size;
-	loff_t offset;
 	bool sync;
 	long ret;
 
 	if (dio->loop)
 		goto loop;
 
-	/* Write and invalidate pagecache range that we're writing to: */
-	offset = req->ki_pos + (dio->op.written << 9);
-	ret = write_invalidate_inode_pages_range(mapping,
-					offset,
-					offset + iov_iter_count(&dio->iter) - 1);
-	if (unlikely(ret))
-		goto err;
-
 	while (1) {
-		offset = req->ki_pos + (dio->op.written << 9);
-
 		if (kthread)
 			kthread_use_mm(dio->mm);
 		BUG_ON(current->faults_disabled_mapping);
@@ -1814,14 +1803,8 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 			goto err;
 		}
 
-		/* gup might have faulted pages back in: */
-		ret = write_invalidate_inode_pages_range(mapping,
-				offset,
-				offset + bio->bi_iter.bi_size - 1);
-		if (unlikely(ret))
-			goto err;
-
-		dio->op.pos = POS(inode->v.i_ino, offset >> 9);
+		dio->op.pos = POS(inode->v.i_ino,
+				  (req->ki_pos >> 9) + dio->op.written);
 
 		task_io_account_write(bio->bi_iter.bi_size);
 
@@ -1896,6 +1879,7 @@ static noinline
 ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 {
 	struct file *file = req->ki_filp;
+	struct address_space *mapping = file->f_mapping;
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_io_opts opts = io_opts(c, &inode->ei_inode);
@@ -1975,6 +1959,12 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 					       req->ki_pos >> 9),
 					iter->count >> 9,
 					dio->op.opts.data_replicas))
+		goto err_put_bio;
+
+	ret = write_invalidate_inode_pages_range(mapping,
+					req->ki_pos,
+					req->ki_pos + iter->count - 1);
+	if (unlikely(ret))
 		goto err_put_bio;
 
 	ret = bch2_dio_write_loop(dio);
