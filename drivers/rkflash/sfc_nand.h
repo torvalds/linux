@@ -6,6 +6,7 @@
 #define __SFC_NAND_H
 
 #include "flash_com.h"
+#include "sfc.h"
 
 #define SFC_NAND_PROG_ERASE_ERROR	2
 #define SFC_NAND_HW_ERROR		1

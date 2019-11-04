@@ -8,7 +8,6 @@
 #include <linux/slab.h>
 
 #include "rkflash_debug.h"
-#include "sfc.h"
 #include "sfc_nand.h"
 
 static struct nand_info spi_nand_tbl[] = {
@@ -574,7 +573,10 @@ u32 sfc_nand_check_bad_block(u8 cs, u32 addr)
 
 	ret = sfc_nand_read_page_raw(cs, addr, gp_page_buf);
 	if (ret == SFC_NAND_ECC_ERROR)
-		return true;
+		rkflash_print_error("%s page= %x ret= %x data0= %x, spare0= %x\n",
+				    __func__, addr, ret, gp_page_buf[0],
+				    (gp_page_buf[data_size / 4] & 0xFF));
+
 	/* Original bad block */
 	if ((gp_page_buf[data_size / 4] & 0xFF) != 0xFF)
 		return true;

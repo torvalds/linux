@@ -124,20 +124,18 @@ static int sfc_read_mtd(struct mtd_info *mtd, loff_t from, size_t len,
 	while (remaing) {
 		memset(p_dev->dma_buf, 0xa5, SFC_NAND_PAGE_MAX_SIZE);
 		ret = sfc_nand_read_page(0, addr / page_size, (u32 *)p_dev->dma_buf, spare);
-		if (ret == SFC_NAND_HW_ERROR)
-			break;
 
 		if (ret == SFC_NAND_ECC_ERROR) {
-			rkflash_print_dio("%s addr %x ret= %d\n",
-					  __func__, addr, ret);
+			rkflash_print_error("%s addr %x ret= %d\n",
+					    __func__, addr, ret);
 			mtd->ecc_stats.failed++;
 			ecc_failed = true;
-			ret = 0;
 		} else if (ret == SFC_NAND_ECC_REFRESH) {
 			rkflash_print_dio("%s addr %x ret= %d\n",
 					  __func__, addr, ret);
 			mtd->ecc_stats.corrected += 1;
 			max_bitflips = 1;
+			ret = 0;
 		}
 
 		off = addr & mtd->writesize_mask;
@@ -181,7 +179,7 @@ static int sfc_markbad_mtd(struct mtd_info *mtd, loff_t ofs)
 	u32 ret;
 	struct snand_mtd_dev *p_dev = mtd_to_priv(mtd);
 
-	rkflash_print_dio("%s %llx\n", __func__, ofs);
+	rkflash_print_error("%s %llx\n", __func__, ofs);
 	if (ofs & mtd->erasesize_mask)
 		return -EINVAL;
 
@@ -287,4 +285,3 @@ error_out:
 
 	return ret;
 }
-

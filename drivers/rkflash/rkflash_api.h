@@ -8,10 +8,10 @@
 #ifdef CONFIG_RK_NANDC_NAND
 #include "flash.h"
 #endif
-#ifdef CONFIG_RK_SFC_NOR
+#ifdef CONFIG_RK_SFC_NAND
 #include "sfc_nand.h"
 #endif
-#ifdef	CONFIG_RK_SFC_NAND
+#ifdef	CONFIG_RK_SFC_NOR
 #include "sfc_nor.h"
 #endif
 

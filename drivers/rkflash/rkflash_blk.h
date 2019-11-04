@@ -95,8 +95,12 @@ struct STRUCT_PART_INFO {
 } __packed;
 
 /* Including Dev APIs */
+#ifdef CONFIG_RK_SFC_NAND_MTD
 int sfc_nand_mtd_init(struct SFNAND_DEV *p_dev, struct mutex *lock);
+#endif
+#ifdef CONFIG_RK_SFC_NOR_MTD
 int sfc_nor_mtd_init(struct SFNOR_DEV *p_dev, struct mutex *lock);
+#endif
 
 int rkflash_dev_suspend(void);
 int rkflash_dev_resume(void __iomem *reg_addr);

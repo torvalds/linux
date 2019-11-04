@@ -6,7 +6,6 @@
 
 #include "rkflash_api.h"
 #include "rk_sftl.h"
-#include "sfc_nand.h"
 
 struct SFNAND_DEV *sfnand_dev;
 

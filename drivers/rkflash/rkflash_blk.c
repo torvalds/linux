@@ -73,7 +73,7 @@ static unsigned long rkflash_req_jiffies;
 static unsigned int rknand_req_do;
 
 /* For rkflash dev private data, including mtd dev and block dev */
-static int rkflash_dev_initialised;
+static int rkflash_dev_initialised = 0;
 static DEFINE_MUTEX(g_flash_ops_mutex);
 
 static int rkflash_flash_gc(void)
@@ -712,13 +712,13 @@ int rkflash_dev_init(void __iomem *reg_addr,
 	case FLASH_TYPE_SFC_NOR:
 #ifdef CONFIG_RK_SFC_NOR_MTD
 		ret = sfc_nor_mtd_init(sfnor_dev, &g_flash_ops_mutex);
-		pr_err("%s device register as blk dev, ret= %d\n", __func__, ret);
+		pr_err("%s device register as mtd dev, ret= %d\n", __func__, ret);
 		break;
 #endif
 	case FLASH_TYPE_SFC_NAND:
 #ifdef CONFIG_RK_SFC_NAND_MTD
 		ret = sfc_nand_mtd_init(sfnand_dev, &g_flash_ops_mutex);
-		pr_err("%s device register as blk dev, ret= %d\n", __func__, ret);
+		pr_err("%s device register as mtd dev, ret= %d\n", __func__, ret);
 		break;
 #endif
 	case FLASH_TYPE_NANDC_NAND:
