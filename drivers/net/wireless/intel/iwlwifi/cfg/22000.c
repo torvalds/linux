@@ -266,6 +266,11 @@ const struct iwl_cfg_trans_params iwl_qnj_trans_cfg = {
 #define IWL_NUM_RBDS_22000_HE		2048
 #define IWL_NUM_RBDS_AX210_HE		4096
 
+/*
+ * All JF radio modules are part of the 9000 series, but the MAC part
+ * looks more like 22000.  That's why this device is here, but called
+ * 9560 nevertheless.
+ */
 const struct iwl_cfg iwl9560_qu_b0_jf_b0_cfg = {
 	.fw_name_pre = IWL_QU_B_JF_B_FW_PRE,
 	IWL_DEVICE_22500,
@@ -436,127 +441,6 @@ const struct iwl_cfg iwl_ax200_cfg_cc = {
 	.num_rbds = IWL_NUM_RBDS_22000_HE,
 };
 
-/*
- * All JF radio modules are part of the 9000 series, but the MAC part
- * looks more like 22000.  That's why this device is here, but called
- * 9560 nevertheless.
- */
-const struct iwl_cfg iwl9461_2ac_cfg_qu_b0_jf_b0 = {
-	.name = "Intel(R) Wireless-AC 9461",
-	.fw_name_pre = IWL_QU_B_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9462_2ac_cfg_qu_b0_jf_b0 = {
-	.name = "Intel(R) Wireless-AC 9462",
-	.fw_name_pre = IWL_QU_B_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9560_2ac_cfg_qu_b0_jf_b0 = {
-	.name = "Intel(R) Wireless-AC 9560",
-	.fw_name_pre = IWL_QU_B_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9560_2ac_160_cfg_qu_b0_jf_b0 = {
-	.name = "Intel(R) Wireless-AC 9560 160MHz",
-	.fw_name_pre = IWL_QU_B_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9461_2ac_cfg_qu_c0_jf_b0 = {
-	.name = "Intel(R) Wireless-AC 9461",
-	.fw_name_pre = IWL_QU_C_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9462_2ac_cfg_qu_c0_jf_b0 = {
-	.name = "Intel(R) Wireless-AC 9462",
-	.fw_name_pre = IWL_QU_C_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9560_2ac_cfg_qu_c0_jf_b0 = {
-	.name = "Intel(R) Wireless-AC 9560",
-	.fw_name_pre = IWL_QU_C_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9560_2ac_160_cfg_qu_c0_jf_b0 = {
-	.name = "Intel(R) Wireless-AC 9560 160MHz",
-	.fw_name_pre = IWL_QU_C_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9560_2ac_cfg_quz_a0_jf_b0_soc = {
-	.name = "Intel(R) Wireless-AC 9560 160MHz",
-	.fw_name_pre = IWL_QUZ_A_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	/*
-	 * This device doesn't support receiving BlockAck with a large bitmap
-	 * so we need to restrict the size of transmitted aggregation to the
-	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
-	 */
-	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.trans.integrated = true,
-	.trans.xtal_latency = 5000,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9560_2ac_160_cfg_quz_a0_jf_b0_soc = {
-	.name = "Intel(R) Wireless-AC 9560 160MHz",
-	.fw_name_pre = IWL_QUZ_A_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	/*
-	 * This device doesn't support receiving BlockAck with a large bitmap
-	 * so we need to restrict the size of transmitted aggregation to the
-	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
-	 */
-	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.trans.integrated = true,
-	.trans.xtal_latency = 5000,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9461_2ac_cfg_quz_a0_jf_b0_soc = {
-	.name = "Intel(R) Dual Band Wireless AC 9461",
-	.fw_name_pre = IWL_QUZ_A_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	/*
-	 * This device doesn't support receiving BlockAck with a large bitmap
-	 * so we need to restrict the size of transmitted aggregation to the
-	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
-	 */
-	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.trans.integrated = true,
-	.trans.xtal_latency = 5000,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9462_2ac_cfg_quz_a0_jf_b0_soc = {
-	.name = "Intel(R) Dual Band Wireless AC 9462",
-	.fw_name_pre = IWL_QUZ_A_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	/*
-	 * This device doesn't support receiving BlockAck with a large bitmap
-	 * so we need to restrict the size of transmitted aggregation to the
-	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
-	 */
-	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.trans.integrated = true,
-	.trans.xtal_latency = 5000,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
 const struct iwl_cfg killer1650s_2ax_cfg_qu_b0_hr_b0 = {
 	.name = "Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)",
 	.fw_name_pre = IWL_22000_QU_B_HR_B_FW_PRE,
@@ -599,19 +483,6 @@ const struct iwl_cfg killer1650s_2ax_cfg_qu_c0_hr_b0 = {
 const struct iwl_cfg killer1650i_2ax_cfg_qu_c0_hr_b0 = {
 	.name = "Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W)",
 	.fw_name_pre = IWL_QU_C_HR_B_FW_PRE,
-	IWL_DEVICE_22500,
-	/*
-	 * This device doesn't support receiving BlockAck with a large bitmap
-	 * so we need to restrict the size of transmitted aggregation to the
-	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
-	 */
-	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.num_rbds = IWL_NUM_RBDS_22000_HE,
-};
-
-const struct iwl_cfg iwl22000_2ax_cfg_jf = {
-	.name = "Intel(R) Dual Band Wireless AX 22000",
-	.fw_name_pre = IWL_QU_B_JF_B_FW_PRE,
 	IWL_DEVICE_22500,
 	/*
 	 * This device doesn't support receiving BlockAck with a large bitmap

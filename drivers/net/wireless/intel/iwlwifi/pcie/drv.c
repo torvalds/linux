@@ -1058,9 +1058,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR)) {
 			iwl_trans->cfg = &iwl_ax101_cfg_qu_hr;
 		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id) ==
-			   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_JF)) {
-			iwl_trans->cfg = &iwl22000_2ax_cfg_jf;
-		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id) ==
 			   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HRCDB)) {
 			IWL_ERR(iwl_trans, "RF ID HRCDB is not supported\n");
 			return -EINVAL;
@@ -1085,23 +1082,15 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/*
 	 * This is a hack to switch from Qu B0 to Qu C0.  We need to
-	 * do this for all cfgs that use Qu B0.  All this code is in
-	 * urgent need for a refactor, but for now this is the easiest
-	 * thing to do to support Qu C-step.
+	 * do this for all cfgs that use Qu B0, except for those using
+	 * Jf, which have already been moved to the new table.  The
+	 * rest must be removed once we convert Qu with Hr as well.
 	 */
 	if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_QU_C0) {
 		if (iwl_trans->cfg == &iwl_ax101_cfg_qu_hr)
 			iwl_trans->cfg = &iwl_ax101_cfg_qu_c0_hr_b0;
 		else if (iwl_trans->cfg == &iwl_ax201_cfg_qu_hr)
 			iwl_trans->cfg = &iwl_ax201_cfg_qu_c0_hr_b0;
-		else if (iwl_trans->cfg == &iwl9461_2ac_cfg_qu_b0_jf_b0)
-			iwl_trans->cfg = &iwl9461_2ac_cfg_qu_c0_jf_b0;
-		else if (iwl_trans->cfg == &iwl9462_2ac_cfg_qu_b0_jf_b0)
-			iwl_trans->cfg = &iwl9462_2ac_cfg_qu_c0_jf_b0;
-		else if (iwl_trans->cfg == &iwl9560_2ac_cfg_qu_b0_jf_b0)
-			iwl_trans->cfg = &iwl9560_2ac_cfg_qu_c0_jf_b0;
-		else if (iwl_trans->cfg == &iwl9560_2ac_160_cfg_qu_b0_jf_b0)
-			iwl_trans->cfg = &iwl9560_2ac_160_cfg_qu_c0_jf_b0;
 		else if (iwl_trans->cfg == &killer1650s_2ax_cfg_qu_b0_hr_b0)
 			iwl_trans->cfg = &killer1650s_2ax_cfg_qu_c0_hr_b0;
 		else if (iwl_trans->cfg == &killer1650i_2ax_cfg_qu_b0_hr_b0)
@@ -1114,14 +1103,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			iwl_trans->cfg = &iwl_ax101_cfg_quz_hr;
 		else if (iwl_trans->cfg == &iwl_ax201_cfg_qu_hr)
 			iwl_trans->cfg = &iwl_ax201_cfg_quz_hr;
-		else if (iwl_trans->cfg == &iwl9461_2ac_cfg_qu_b0_jf_b0)
-			iwl_trans->cfg = &iwl9461_2ac_cfg_quz_a0_jf_b0_soc;
-		else if (iwl_trans->cfg == &iwl9462_2ac_cfg_qu_b0_jf_b0)
-			iwl_trans->cfg = &iwl9462_2ac_cfg_quz_a0_jf_b0_soc;
-		else if (iwl_trans->cfg == &iwl9560_2ac_cfg_qu_b0_jf_b0)
-			iwl_trans->cfg = &iwl9560_2ac_cfg_quz_a0_jf_b0_soc;
-		else if (iwl_trans->cfg == &iwl9560_2ac_160_cfg_qu_b0_jf_b0)
-			iwl_trans->cfg = &iwl9560_2ac_160_cfg_quz_a0_jf_b0_soc;
 	}
 
 #endif
