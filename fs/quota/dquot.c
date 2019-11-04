@@ -2162,14 +2162,29 @@ int dquot_file_open(struct inode *inode, struct file *file)
 }
 EXPORT_SYMBOL(dquot_file_open);
 
+static void vfs_cleanup_quota_inode(struct super_block *sb, int type)
+{
+	struct quota_info *dqopt = sb_dqopt(sb);
+	struct inode *inode = dqopt->files[type];
+
+	if (!inode)
+		return;
+	if (!(dqopt->flags & DQUOT_QUOTA_SYS_FILE)) {
+		inode_lock(inode);
+		inode->i_flags &= ~S_NOQUOTA;
+		inode_unlock(inode);
+	}
+	dqopt->files[type] = NULL;
+	iput(inode);
+}
+
 /*
  * Turn quota off on a device. type == -1 ==> quotaoff for all types (umount)
  */
 int dquot_disable(struct super_block *sb, int type, unsigned int flags)
 {
-	int cnt, ret = 0;
+	int cnt;
 	struct quota_info *dqopt = sb_dqopt(sb);
-	struct inode *toputinode[MAXQUOTAS];
 
 	/* s_umount should be held in exclusive mode */
 	if (WARN_ON_ONCE(down_read_trylock(&sb->s_umount)))
@@ -2191,7 +2206,6 @@ int dquot_disable(struct super_block *sb, int type, unsigned int flags)
 		return 0;
 
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		toputinode[cnt] = NULL;
 		if (type != -1 && cnt != type)
 			continue;
 		if (!sb_has_quota_loaded(sb, cnt))
@@ -2211,8 +2225,7 @@ int dquot_disable(struct super_block *sb, int type, unsigned int flags)
 				dqopt->flags &=	~dquot_state_flag(
 							DQUOT_SUSPENDED, cnt);
 				spin_unlock(&dq_state_lock);
-				iput(dqopt->files[cnt]);
-				dqopt->files[cnt] = NULL;
+				vfs_cleanup_quota_inode(sb, cnt);
 				continue;
 			}
 			spin_unlock(&dq_state_lock);
@@ -2234,10 +2247,6 @@ int dquot_disable(struct super_block *sb, int type, unsigned int flags)
 		if (dqopt->ops[cnt]->free_file_info)
 			dqopt->ops[cnt]->free_file_info(sb, cnt);
 		put_quota_format(dqopt->info[cnt].dqi_format);
-
-		toputinode[cnt] = dqopt->files[cnt];
-		if (!sb_has_quota_loaded(sb, cnt))
-			dqopt->files[cnt] = NULL;
 		dqopt->info[cnt].dqi_flags = 0;
 		dqopt->info[cnt].dqi_igrace = 0;
 		dqopt->info[cnt].dqi_bgrace = 0;
@@ -2259,32 +2268,22 @@ int dquot_disable(struct super_block *sb, int type, unsigned int flags)
 	 * must also discard the blockdev buffers so that we see the
 	 * changes done by userspace on the next quotaon() */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		/* This can happen when suspending quotas on remount-ro... */
-		if (toputinode[cnt] && !sb_has_quota_loaded(sb, cnt)) {
-			inode_lock(toputinode[cnt]);
-			toputinode[cnt]->i_flags &= ~S_NOQUOTA;
-			truncate_inode_pages(&toputinode[cnt]->i_data, 0);
-			inode_unlock(toputinode[cnt]);
-			mark_inode_dirty_sync(toputinode[cnt]);
+		if (!sb_has_quota_loaded(sb, cnt) && dqopt->files[cnt]) {
+			inode_lock(dqopt->files[cnt]);
+			truncate_inode_pages(&dqopt->files[cnt]->i_data, 0);
+			inode_unlock(dqopt->files[cnt]);
 		}
 	if (sb->s_bdev)
 		invalidate_bdev(sb->s_bdev);
 put_inodes:
+	/* We are done when suspending quotas */
+	if (flags & DQUOT_SUSPENDED)
+		return 0;
+
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		if (toputinode[cnt]) {
-			/* On remount RO, we keep the inode pointer so that we
-			 * can reenable quota on the subsequent remount RW. We
-			 * have to check 'flags' variable and not use sb_has_
-			 * function because another quotaon / quotaoff could
-			 * change global state before we got here. We refuse
-			 * to suspend quotas when there is pending delete on
-			 * the quota file... */
-			if (!(flags & DQUOT_SUSPENDED))
-				iput(toputinode[cnt]);
-			else if (!toputinode[cnt]->i_nlink)
-				ret = -EBUSY;
-		}
-	return ret;
+		if (!sb_has_quota_loaded(sb, cnt))
+			vfs_cleanup_quota_inode(sb, cnt);
+	return 0;
 }
 EXPORT_SYMBOL(dquot_disable);
 
@@ -2328,20 +2327,6 @@ static int vfs_setup_quota_inode(struct inode *inode, int type)
 		__dquot_drop(inode);
 	}
 	return 0;
-}
-
-static void vfs_cleanup_quota_inode(struct super_block *sb, int type)
-{
-	struct quota_info *dqopt = sb_dqopt(sb);
-	struct inode *inode = dqopt->files[type];
-
-	if (!(dqopt->flags & DQUOT_QUOTA_SYS_FILE)) {
-		inode_lock(inode);
-		inode->i_flags &= ~S_NOQUOTA;
-		inode_unlock(inode);
-	}
-	dqopt->files[type] = NULL;
-	iput(inode);
 }
 
 int dquot_load_quota_sb(struct super_block *sb, int type, int format_id,
