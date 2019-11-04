@@ -328,12 +328,23 @@ etnaviv_iommu_context_init(struct etnaviv_iommu_global *global,
 
 	ret = etnaviv_cmdbuf_suballoc_map(suballoc, ctx, &ctx->cmdbuf_mapping,
 					  global->memory_base);
-	if (ret) {
-		global->ops->free(ctx);
-		return NULL;
+	if (ret)
+		goto out_free;
+
+	if (global->version == ETNAVIV_IOMMU_V1 &&
+	    ctx->cmdbuf_mapping.iova > 0x80000000) {
+		dev_err(global->dev,
+		        "command buffer outside valid memory window\n");
+		goto out_unmap;
 	}
 
 	return ctx;
+
+out_unmap:
+	etnaviv_cmdbuf_suballoc_unmap(ctx, &ctx->cmdbuf_mapping);
+out_free:
+	global->ops->free(ctx);
+	return NULL;
 }
 
 void etnaviv_iommu_restore(struct etnaviv_gpu *gpu,

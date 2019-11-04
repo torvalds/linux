@@ -91,6 +91,7 @@
 
 static inline void kuap_update_sr(u32 sr, u32 addr, u32 end)
 {
+	addr &= 0xf0000000;	/* align addr to start of segment */
 	barrier();	/* make sure thread.kuap is updated before playing with SRs */
 	while (addr < end) {
 		mtsrin(sr, addr);
