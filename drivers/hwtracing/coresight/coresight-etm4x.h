@@ -175,6 +175,7 @@
 					 ETM_MODE_EXCL_USER)
 
 #define TRCSTATR_IDLE_BIT		0
+#define TRCSTATR_PMSTABLE_BIT		1
 #define ETM_DEFAULT_ADDR_COMP		0
 
 /* PowerDown Control Register bits */
@@ -282,6 +283,65 @@ struct etmv4_config {
 };
 
 /**
+ * struct etm4_save_state - state to be preserved when ETM is without power
+ */
+struct etmv4_save_state {
+	u32	trcprgctlr;
+	u32	trcprocselr;
+	u32	trcconfigr;
+	u32	trcauxctlr;
+	u32	trceventctl0r;
+	u32	trceventctl1r;
+	u32	trcstallctlr;
+	u32	trctsctlr;
+	u32	trcsyncpr;
+	u32	trcccctlr;
+	u32	trcbbctlr;
+	u32	trctraceidr;
+	u32	trcqctlr;
+
+	u32	trcvictlr;
+	u32	trcviiectlr;
+	u32	trcvissctlr;
+	u32	trcvipcssctlr;
+	u32	trcvdctlr;
+	u32	trcvdsacctlr;
+	u32	trcvdarcctlr;
+
+	u32	trcseqevr[ETM_MAX_SEQ_STATES];
+	u32	trcseqrstevr;
+	u32	trcseqstr;
+	u32	trcextinselr;
+	u32	trccntrldvr[ETMv4_MAX_CNTR];
+	u32	trccntctlr[ETMv4_MAX_CNTR];
+	u32	trccntvr[ETMv4_MAX_CNTR];
+
+	u32	trcrsctlr[ETM_MAX_RES_SEL * 2];
+
+	u32	trcssccr[ETM_MAX_SS_CMP];
+	u32	trcsscsr[ETM_MAX_SS_CMP];
+	u32	trcsspcicr[ETM_MAX_SS_CMP];
+
+	u64	trcacvr[ETM_MAX_SINGLE_ADDR_CMP];
+	u64	trcacatr[ETM_MAX_SINGLE_ADDR_CMP];
+	u64	trccidcvr[ETMv4_MAX_CTXID_CMP];
+	u32	trcvmidcvr[ETM_MAX_VMID_CMP];
+	u32	trccidcctlr0;
+	u32	trccidcctlr1;
+	u32	trcvmidcctlr0;
+	u32	trcvmidcctlr1;
+
+	u32	trcclaimset;
+
+	u32	cntr_val[ETMv4_MAX_CNTR];
+	u32	seq_state;
+	u32	vinst_ctrl;
+	u32	ss_status[ETM_MAX_SS_CMP];
+
+	u32	trcpdcr;
+};
+
+/**
  * struct etm4_drvdata - specifics associated to an ETM component
  * @base:       Memory mapped base address for this component.
  * @dev:        The device entity associated to this component.
@@ -337,6 +397,8 @@ struct etmv4_config {
  * @atbtrig:	If the implementation can support ATB triggers
  * @lpoverride:	If the implementation can support low-power state over.
  * @config:	structure holding configuration parameters.
+ * @save_state:	State to be preserved across power loss
+ * @state_needs_restore: True when there is context to restore after PM exit
  */
 struct etmv4_drvdata {
 	void __iomem			*base;
@@ -383,6 +445,8 @@ struct etmv4_drvdata {
 	bool				atbtrig;
 	bool				lpoverride;
 	struct etmv4_config		config;
+	struct etmv4_save_state		*save_state;
+	bool				state_needs_restore;
 };
 
 /* Address comparator access types */
