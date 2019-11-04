@@ -382,6 +382,7 @@ struct v4l2_ctrl_handler {
  * @max:	The control's maximum value.
  * @step:	The control's step value for non-menu controls.
  * @def:	The control's default value.
+ * @p_def:	The control's default value for compound controls.
  * @dims:	The size of each dimension.
  * @elem_size:	The size in bytes of the control.
  * @flags:	The control's flags.
@@ -410,6 +411,7 @@ struct v4l2_ctrl_config {
 	s64 max;
 	u64 step;
 	s64 def;
+	union v4l2_ctrl_ptr p_def;
 	u32 dims[V4L2_CTRL_MAX_DIMS];
 	u32 elem_size;
 	u32 flags;
