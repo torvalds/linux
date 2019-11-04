@@ -201,7 +201,7 @@ static struct video_info *rockchip_parse_video_info(const char *buf)
 {
 	struct video_info *video_info;
 	const char *cp = buf;
-	char *str;
+	char *str, *p;
 	int ntokens = 0;
 
 	while ((cp = strpbrk(cp + 1, ",")))
@@ -216,12 +216,13 @@ static struct video_info *rockchip_parse_video_info(const char *buf)
 	INIT_LIST_HEAD(&video_info->node);
 
 	str = kstrdup(buf, GFP_KERNEL);
-	strsep(&str, ",");
-	video_info->width = rockchip_get_video_param(&str);
-	video_info->height = rockchip_get_video_param(&str);
-	video_info->ishevc = rockchip_get_video_param(&str);
-	video_info->videoFramerate = rockchip_get_video_param(&str);
-	video_info->streamBitrate = rockchip_get_video_param(&str);
+	p = str;
+	strsep(&p, ",");
+	video_info->width = rockchip_get_video_param(&p);
+	video_info->height = rockchip_get_video_param(&p);
+	video_info->ishevc = rockchip_get_video_param(&p);
+	video_info->videoFramerate = rockchip_get_video_param(&p);
+	video_info->streamBitrate = rockchip_get_video_param(&p);
 	pr_debug("%c,width=%d,height=%d,ishevc=%d,videoFramerate=%d,streamBitrate=%d\n",
 		 buf[0],
 		 video_info->width,
