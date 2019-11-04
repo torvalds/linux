@@ -13,8 +13,7 @@ struct map_symbol {
 };
 
 struct addr_map_symbol {
-	struct map    *map;
-	struct symbol *sym;
+	struct map_symbol ms;
 	u64	      addr;
 	u64	      al_addr;
 	u64	      phys_addr;

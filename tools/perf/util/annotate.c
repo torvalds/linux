@@ -243,7 +243,7 @@ static int call__parse(struct arch *arch, struct ins_operands *ops, struct map_s
 	char *endptr, *tok, *name;
 	struct map *map = ms->map;
 	struct addr_map_symbol target = {
-		.map = map,
+		.ms = { .map = map, },
 	};
 
 	ops->target.addr = strtoull(ops->raw, &endptr, 16);
@@ -272,8 +272,8 @@ find_target:
 	target.addr = map__objdump_2mem(map, ops->target.addr);
 
 	if (map_groups__find_ams(map->groups, &target) == 0 &&
-	    map__rip_2objdump(target.map, map->map_ip(target.map, target.addr)) == ops->target.addr)
-		ops->target.sym = target.sym;
+	    map__rip_2objdump(target.ms.map, map->map_ip(target.ms.map, target.addr)) == ops->target.addr)
+		ops->target.sym = target.ms.sym;
 
 	return 0;
 
@@ -332,7 +332,7 @@ static int jump__parse(struct arch *arch, struct ins_operands *ops, struct map_s
 	struct map *map = ms->map;
 	struct symbol *sym = ms->sym;
 	struct addr_map_symbol target = {
-		.map = map,
+		.ms = { .map = map, },
 	};
 	const char *c = strchr(ops->raw, ',');
 	u64 start, end;
@@ -392,8 +392,8 @@ static int jump__parse(struct arch *arch, struct ins_operands *ops, struct map_s
 	 * the symbol searching and disassembly should be done.
 	 */
 	if (map_groups__find_ams(map->groups, &target) == 0 &&
-	    map__rip_2objdump(target.map, map->map_ip(target.map, target.addr)) == ops->target.addr)
-		ops->target.sym = target.sym;
+	    map__rip_2objdump(target.ms.map, map->map_ip(target.ms.map, target.addr)) == ops->target.addr)
+		ops->target.sym = target.ms.sym;
 
 	if (!ops->target.outside) {
 		ops->target.offset = target.addr - start;
@@ -865,14 +865,15 @@ static int __symbol__account_cycles(struct cyc_hist *ch,
 	return 0;
 }
 
-static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
+static int __symbol__inc_addr_samples(struct map_symbol *ms,
 				      struct annotated_source *src, int evidx, u64 addr,
 				      struct perf_sample *sample)
 {
+	struct symbol *sym = ms->sym;
 	unsigned offset;
 	struct sym_hist *h;
 
-	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
+	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, ms->map->unmap_ip(ms->map, addr));
 
 	if ((addr < sym->start || addr >= sym->end) &&
 	    (addr != sym->end || sym->start != sym->end)) {
@@ -939,17 +940,17 @@ alloc_histograms:
 	return notes->src;
 }
 
-static int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
+static int symbol__inc_addr_samples(struct map_symbol *ms,
 				    struct evsel *evsel, u64 addr,
 				    struct perf_sample *sample)
 {
+	struct symbol *sym = ms->sym;
 	struct annotated_source *src;
 
 	if (sym == NULL)
 		return 0;
 	src = symbol__hists(sym, evsel->evlist->core.nr_entries);
-	return (src) ?  __symbol__inc_addr_samples(sym, map, src, evsel->idx,
-						   addr, sample) : 0;
+	return src ? __symbol__inc_addr_samples(ms, src, evsel->idx, addr, sample) : 0;
 }
 
 static int symbol__account_cycles(u64 addr, u64 start,
@@ -997,17 +998,17 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 	 * it starts on the function start.
 	 */
 	if (start &&
-		(start->sym == ams->sym ||
-		 (ams->sym &&
-		   start->addr == ams->sym->start + ams->map->start)))
+		(start->ms.sym == ams->ms.sym ||
+		 (ams->ms.sym &&
+		   start->addr == ams->ms.sym->start + ams->ms.map->start)))
 		saddr = start->al_addr;
 	if (saddr == 0)
 		pr_debug2("BB with bad start: addr %"PRIx64" start %"PRIx64" sym %"PRIx64" saddr %"PRIx64"\n",
 			ams->addr,
 			start ? start->addr : 0,
-			ams->sym ? ams->sym->start + ams->map->start : 0,
+			ams->ms.sym ? ams->ms.sym->start + ams->ms.map->start : 0,
 			saddr);
-	err = symbol__account_cycles(ams->al_addr, saddr, ams->sym, cycles);
+	err = symbol__account_cycles(ams->al_addr, saddr, ams->ms.sym, cycles);
 	if (err)
 		pr_debug2("account_cycles failed %d\n", err);
 	return err;
@@ -1093,13 +1094,13 @@ void annotation__compute_ipc(struct annotation *notes, size_t size)
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
 				 struct evsel *evsel)
 {
-	return symbol__inc_addr_samples(ams->sym, ams->map, evsel, ams->al_addr, sample);
+	return symbol__inc_addr_samples(&ams->ms, evsel, ams->al_addr, sample);
 }
 
 int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *sample,
 				 struct evsel *evsel, u64 ip)
 {
-	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evsel, ip, sample);
+	return symbol__inc_addr_samples(&he->ms, evsel, ip, sample);
 }
 
 static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, struct map_symbol *ms)
@@ -1540,13 +1541,13 @@ static int symbol__parse_objdump_line(struct symbol *sym,
 	/* kcore has no symbols, so add the call target symbol */
 	if (dl->ins.ops && ins__is_call(&dl->ins) && !dl->ops.target.sym) {
 		struct addr_map_symbol target = {
-			.map = map,
 			.addr = dl->ops.target.addr,
+			.ms = { .map = map, },
 		};
 
 		if (!map_groups__find_ams(map->groups, &target) &&
-		    target.sym->start == target.al_addr)
-			dl->ops.target.sym = target.sym;
+		    target.ms.sym->start == target.al_addr)
+			dl->ops.target.sym = target.ms.sym;
 	}
 
 	annotation_line__add(&dl->al, &notes->src->source);

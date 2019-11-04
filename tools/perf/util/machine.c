@@ -1968,8 +1968,8 @@ static void ip__resolve_ams(struct thread *thread,
 
 	ams->addr = ip;
 	ams->al_addr = al.addr;
-	ams->sym = al.sym;
-	ams->map = al.map;
+	ams->ms.sym = al.sym;
+	ams->ms.map = al.map;
 	ams->phys_addr = 0;
 }
 
@@ -1985,8 +1985,8 @@ static void ip__resolve_data(struct thread *thread,
 
 	ams->addr = addr;
 	ams->al_addr = al.addr;
-	ams->sym = al.sym;
-	ams->map = al.map;
+	ams->ms.sym = al.sym;
+	ams->ms.map = al.map;
 	ams->phys_addr = phys_addr;
 }
 

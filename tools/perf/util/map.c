@@ -705,18 +705,18 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 
 int map_groups__find_ams(struct map_groups *mg, struct addr_map_symbol *ams)
 {
-	if (ams->addr < ams->map->start || ams->addr >= ams->map->end) {
+	if (ams->addr < ams->ms.map->start || ams->addr >= ams->ms.map->end) {
 		if (mg == NULL)
 			return -1;
-		ams->map = map_groups__find(mg, ams->addr);
-		if (ams->map == NULL)
+		ams->ms.map = map_groups__find(mg, ams->addr);
+		if (ams->ms.map == NULL)
 			return -1;
 	}
 
-	ams->al_addr = ams->map->map_ip(ams->map, ams->addr);
-	ams->sym = map__find_symbol(ams->map, ams->al_addr);
+	ams->al_addr = ams->ms.map->map_ip(ams->ms.map, ams->addr);
+	ams->ms.sym = map__find_symbol(ams->ms.map, ams->al_addr);
 
-	return ams->sym ? 0 : -1;
+	return ams->ms.sym ? 0 : -1;
 }
 
 static size_t maps__fprintf(struct maps *maps, FILE *fp)
