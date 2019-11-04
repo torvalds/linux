@@ -134,6 +134,13 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	case FAMILY_RV:
+		if (ASICREV_IS_DALI(asic_id.hw_internal_rev)) {
+			/* TEMP: this check has to come before ASICREV_IS_RENOIR */
+			/* which also incorrectly returns true for Dali */
+			rv2_clk_mgr_construct(ctx, clk_mgr, pp_smu);
+			break;
+		}
+
 		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev)) {
 			rn_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			break;
