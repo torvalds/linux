@@ -1677,6 +1677,9 @@ static enum surface_update_type check_update_surfaces_for_stream(
 
 		if (stream_update->output_csc_transform || stream_update->output_color_space)
 			su_flags->bits.out_csc = 1;
+
+		if (stream_update->dsc_config)
+			overall_type = UPDATE_TYPE_FULL;
 	}
 
 	for (i = 0 ; i < surface_count; i++) {
@@ -1868,8 +1871,10 @@ static void copy_surface_update_to_plane(
 static void copy_stream_update_to_stream(struct dc *dc,
 					 struct dc_state *context,
 					 struct dc_stream_state *stream,
-					 const struct dc_stream_update *update)
+					 struct dc_stream_update *update)
 {
+	struct dc_context *dc_ctx = dc->ctx;
+
 	if (update == NULL || stream == NULL)
 		return;
 
@@ -1946,12 +1951,24 @@ static void copy_stream_update_to_stream(struct dc *dc,
 		uint32_t enable_dsc = (update->dsc_config->num_slices_h != 0 &&
 				       update->dsc_config->num_slices_v != 0);
 
-		stream->timing.dsc_cfg = *update->dsc_config;
-		stream->timing.flags.DSC = enable_dsc;
-		if (!dc->res_pool->funcs->validate_bandwidth(dc, context,
-							     true)) {
-			stream->timing.dsc_cfg = old_dsc_cfg;
-			stream->timing.flags.DSC = old_dsc_enabled;
+		/* Use temporarry context for validating new DSC config */
+		struct dc_state *dsc_validate_context = dc_create_state(dc);
+
+		if (dsc_validate_context) {
+			dc_resource_state_copy_construct(dc->current_state, dsc_validate_context);
+
+			stream->timing.dsc_cfg = *update->dsc_config;
+			stream->timing.flags.DSC = enable_dsc;
+			if (!dc->res_pool->funcs->validate_bandwidth(dc, dsc_validate_context, true)) {
+				stream->timing.dsc_cfg = old_dsc_cfg;
+				stream->timing.flags.DSC = old_dsc_enabled;
+				update->dsc_config = false;
+			}
+
+			dc_release_state(dsc_validate_context);
+		} else {
+			DC_ERROR("Failed to allocate new validate context for DSC change\n");
+			update->dsc_config = false;
 		}
 	}
 }
