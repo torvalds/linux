@@ -669,7 +669,8 @@ int ubifs_init_security(struct inode *dentry, struct inode *inode,
 
 static int xattr_get(const struct xattr_handler *handler,
 			   struct dentry *dentry, struct inode *inode,
-			   const char *name, void *buffer, size_t size)
+			   const char *name, void *buffer, size_t size,
+			   int flags)
 {
 	dbg_gen("xattr '%s', ino %lu ('%pd'), buf size %zd", name,
 		inode->i_ino, dentry, size);
