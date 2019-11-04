@@ -5710,11 +5710,10 @@ static int mlx5_ib_rn_get_params(struct ib_device *device, u8 port_num,
 
 static void delay_drop_debugfs_cleanup(struct mlx5_ib_dev *dev)
 {
-	if (!dev->delay_drop.dbg)
+	if (!dev->delay_drop.dir_debugfs)
 		return;
-	debugfs_remove_recursive(dev->delay_drop.dbg->dir_debugfs);
-	kfree(dev->delay_drop.dbg);
-	dev->delay_drop.dbg = NULL;
+	debugfs_remove_recursive(dev->delay_drop.dir_debugfs);
+	dev->delay_drop.dir_debugfs = NULL;
 }
 
 static void cancel_delay_drop(struct mlx5_ib_dev *dev)
@@ -5765,52 +5764,22 @@ static const struct file_operations fops_delay_drop_timeout = {
 	.read	= delay_drop_timeout_read,
 };
 
-static int delay_drop_debugfs_init(struct mlx5_ib_dev *dev)
+static void delay_drop_debugfs_init(struct mlx5_ib_dev *dev)
 {
-	struct mlx5_ib_dbg_delay_drop *dbg;
+	struct dentry *root;
 
 	if (!mlx5_debugfs_root)
-		return 0;
+		return;
 
-	dbg = kzalloc(sizeof(*dbg), GFP_KERNEL);
-	if (!dbg)
-		return -ENOMEM;
+	root = debugfs_create_dir("delay_drop", dev->mdev->priv.dbg_root);
+	dev->delay_drop.dir_debugfs = root;
 
-	dev->delay_drop.dbg = dbg;
-
-	dbg->dir_debugfs =
-		debugfs_create_dir("delay_drop",
-				   dev->mdev->priv.dbg_root);
-	if (!dbg->dir_debugfs)
-		goto out_debugfs;
-
-	dbg->events_cnt_debugfs =
-		debugfs_create_atomic_t("num_timeout_events", 0400,
-					dbg->dir_debugfs,
-					&dev->delay_drop.events_cnt);
-	if (!dbg->events_cnt_debugfs)
-		goto out_debugfs;
-
-	dbg->rqs_cnt_debugfs =
-		debugfs_create_atomic_t("num_rqs", 0400,
-					dbg->dir_debugfs,
-					&dev->delay_drop.rqs_cnt);
-	if (!dbg->rqs_cnt_debugfs)
-		goto out_debugfs;
-
-	dbg->timeout_debugfs =
-		debugfs_create_file("timeout", 0600,
-				    dbg->dir_debugfs,
-				    &dev->delay_drop,
-				    &fops_delay_drop_timeout);
-	if (!dbg->timeout_debugfs)
-		goto out_debugfs;
-
-	return 0;
-
-out_debugfs:
-	delay_drop_debugfs_cleanup(dev);
-	return -ENOMEM;
+	debugfs_create_atomic_t("num_timeout_events", 0400, root,
+				&dev->delay_drop.events_cnt);
+	debugfs_create_atomic_t("num_rqs", 0400, root,
+				&dev->delay_drop.rqs_cnt);
+	debugfs_create_file("timeout", 0600, root, &dev->delay_drop,
+			    &fops_delay_drop_timeout);
 }
 
 static void init_delay_drop(struct mlx5_ib_dev *dev)
@@ -5826,8 +5795,7 @@ static void init_delay_drop(struct mlx5_ib_dev *dev)
 	atomic_set(&dev->delay_drop.rqs_cnt, 0);
 	atomic_set(&dev->delay_drop.events_cnt, 0);
 
-	if (delay_drop_debugfs_init(dev))
-		mlx5_ib_warn(dev, "Failed to init delay drop debugfs\n");
+	delay_drop_debugfs_init(dev);
 }
 
 static void mlx5_ib_unbind_slave_port(struct mlx5_ib_dev *ibdev,
