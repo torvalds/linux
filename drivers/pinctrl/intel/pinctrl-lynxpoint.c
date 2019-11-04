@@ -828,6 +828,19 @@ static int lp_gpio_irq_init_hw(struct gpio_chip *chip)
 	return 0;
 }
 
+static int lp_gpio_add_pin_ranges(struct gpio_chip *chip)
+{
+	struct intel_pinctrl *lg = gpiochip_get_data(chip);
+	struct device *dev = lg->dev;
+	int ret;
+
+	ret = gpiochip_add_pin_range(chip, dev_name(dev), 0, 0, lg->soc->npins);
+	if (ret)
+		dev_err(dev, "failed to add GPIO pin range\n");
+
+	return ret;
+}
+
 static int lp_gpio_probe(struct platform_device *pdev)
 {
 	const struct intel_pinctrl_soc_data *soc;
@@ -899,6 +912,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->base = -1;
 	gc->ngpio = LP_NUM_GPIO;
 	gc->can_sleep = false;
+	gc->add_pin_ranges = lp_gpio_add_pin_ranges;
 	gc->parent = dev;
 
 	/* set up interrupts  */
