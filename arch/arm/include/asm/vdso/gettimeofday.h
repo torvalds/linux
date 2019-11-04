@@ -12,6 +12,8 @@
 #include <asm/unistd.h>
 #include <uapi/linux/time.h>
 
+#define VDSO_HAS_CLOCK_GETRES		1
+
 extern struct vdso_data *__get_datapage(void);
 
 static __always_inline int gettimeofday_fallback(
@@ -43,6 +45,24 @@ static __always_inline long clock_gettime_fallback(
 
 	asm volatile(
 	"	swi #0\n"
+	: "=r" (ret)
+	: "r" (clkid), "r" (ts), "r" (nr)
+	: "memory");
+
+	return ret;
+}
+
+static __always_inline int clock_getres_fallback(
+					clockid_t _clkid,
+					struct __kernel_timespec *_ts)
+{
+	register struct __kernel_timespec *ts asm("r1") = _ts;
+	register clockid_t clkid asm("r0") = _clkid;
+	register long ret asm ("r0");
+	register long nr asm("r7") = __NR_clock_getres_time64;
+
+	asm volatile(
+	"       swi #0\n"
 	: "=r" (ret)
 	: "r" (clkid), "r" (ts), "r" (nr)
 	: "memory");
