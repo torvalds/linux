@@ -488,6 +488,7 @@ struct iwl_dev_info {
 	u16 subdevice;
 	u16 mac_type;
 	u16 rf_type;
+	u8 mac_step;
 	u8 rf_id;
 	u8 no_160;
 	u8 cores;
