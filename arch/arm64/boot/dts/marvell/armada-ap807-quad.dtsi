@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (C) 2016 Marvell Technology Group Ltd.
+ * Device Tree file for Marvell Armada AP807 Quad
  *
- * Device Tree file for Marvell Armada AP806.
+ * Copyright (C) 2019 Marvell Technology Group Ltd.
  */
 
-#include "armada-ap806.dtsi"
+#include "armada-ap807.dtsi"
 
 / {
-	model = "Marvell Armada AP806 Quad";
-	compatible = "marvell,armada-ap806-quad", "marvell,armada-ap806";
+	model = "Marvell Armada AP807 Quad";
+	compatible = "marvell,armada-ap807-quad", "marvell,armada-ap807";
 
 	cpus {
 		#address-cells = <1>;
@@ -17,7 +17,7 @@
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a72";
+			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x000>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
@@ -32,7 +32,7 @@
 		};
 		cpu1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a72";
+			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x001>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
@@ -47,7 +47,7 @@
 		};
 		cpu2: cpu@100 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a72";
+			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x100>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
@@ -62,7 +62,7 @@
 		};
 		cpu3: cpu@101 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a72";
+			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x101>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
