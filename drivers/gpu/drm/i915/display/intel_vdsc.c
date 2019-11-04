@@ -33,7 +33,7 @@ enum COLUMN_INDEX_BPC {
 #define DSC_SUPPORTED_VERSION_MIN		1
 
 /* From DSC_v1.11 spec, rc_parameter_Set syntax element typically constant */
-static u16 rc_buf_thresh[] = {
+static const u16 rc_buf_thresh[] = {
 	896, 1792, 2688, 3584, 4480, 5376, 6272, 6720, 7168, 7616,
 	7744, 7872, 8000, 8064
 };
@@ -53,7 +53,7 @@ struct rc_parameters {
  * Selected Rate Control Related Parameter Recommended Values
  * from DSC_v1.11 spec & C Model release: DSC_model_20161212
  */
-static struct rc_parameters rc_params[][MAX_COLUMN_INDEX] = {
+static const struct rc_parameters rc_params[][MAX_COLUMN_INDEX] = {
 {
 	/* 6BPP/8BPC */
 	{ 768, 15, 6144, 3, 13, 11, 11, {
