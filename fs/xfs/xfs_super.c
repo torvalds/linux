@@ -108,14 +108,17 @@ static const match_table_t tokens = {
 };
 
 
-STATIC int
-suffix_kstrtoint(const substring_t *s, unsigned int base, int *res)
+static int
+suffix_kstrtoint(
+	const char	*s,
+	unsigned int	base,
+	int		*res)
 {
-	int	last, shift_left_factor = 0, _res;
-	char	*value;
-	int	ret = 0;
+	int		last, shift_left_factor = 0, _res;
+	char		*value;
+	int		ret = 0;
 
-	value = match_strdup(s);
+	value = kstrdup(s, GFP_KERNEL);
 	if (!value)
 		return -ENOMEM;
 
@@ -140,6 +143,23 @@ suffix_kstrtoint(const substring_t *s, unsigned int base, int *res)
 	return ret;
 }
 
+static int
+match_kstrtoint(
+	const substring_t	*s,
+	unsigned int		base,
+	int			*res)
+{
+	const char		*value;
+	int			ret;
+
+	value = match_strdup(s);
+	if (!value)
+		return -ENOMEM;
+	ret = suffix_kstrtoint(value, base, res);
+	kfree(value);
+	return ret;
+}
+
 /*
  * This function fills in xfs_mount_t fields based on mount args.
  * Note: the superblock has _not_ yet been read in.
@@ -151,7 +171,7 @@ suffix_kstrtoint(const substring_t *s, unsigned int base, int *res)
  * path, and we don't want this to have any side effects at remount time.
  * Today this function does not change *sb, but just to future-proof...
  */
-STATIC int
+static int
 xfs_parseargs(
 	struct xfs_mount	*mp,
 	char			*options)
@@ -194,7 +214,7 @@ xfs_parseargs(
 				return -EINVAL;
 			break;
 		case Opt_logbsize:
-			if (suffix_kstrtoint(args, 10, &mp->m_logbsize))
+			if (match_kstrtoint(args, 10, &mp->m_logbsize))
 				return -EINVAL;
 			break;
 		case Opt_logdev:
@@ -210,7 +230,7 @@ xfs_parseargs(
 				return -ENOMEM;
 			break;
 		case Opt_allocsize:
-			if (suffix_kstrtoint(args, 10, &size))
+			if (match_kstrtoint(args, 10, &size))
 				return -EINVAL;
 			mp->m_allocsize_log = ffs(size) - 1;
 			mp->m_flags |= XFS_MOUNT_ALLOCSIZE;
