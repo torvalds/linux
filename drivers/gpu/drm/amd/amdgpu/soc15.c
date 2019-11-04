@@ -559,6 +559,7 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 		return AMD_RESET_METHOD_MODE2;
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_ARCTURUS:
 		soc15_asic_get_baco_capability(adev, &baco_reset);
 		break;
 	case CHIP_VEGA20:

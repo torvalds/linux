@@ -495,6 +495,7 @@ static int arcturus_store_powerplay_table(struct smu_context *smu)
 {
 	struct smu_11_0_powerplay_table *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
 	int ret = 0;
 
 	if (!table_context->power_play_table)
@@ -506,6 +507,12 @@ static int arcturus_store_powerplay_table(struct smu_context *smu)
 	       sizeof(PPTable_t));
 
 	table_context->thermal_controller_type = powerplay_table->thermal_controller_type;
+
+	mutex_lock(&smu_baco->mutex);
+	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
+	    powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_MACO)
+		smu_baco->platform_support = true;
+	mutex_unlock(&smu_baco->mutex);
 
 	return ret;
 }

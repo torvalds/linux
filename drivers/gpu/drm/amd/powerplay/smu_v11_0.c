@@ -1642,7 +1642,9 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 	if (!baco_support)
 		return false;
 
-	if (!smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
+	/* Arcturus does not support this bit mask */
+	if (smu_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
+	   !smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
 		return false;
 
 	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
@@ -1714,11 +1716,15 @@ out:
 
 int smu_v11_0_baco_reset(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	ret = smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_BACO);
-	if (ret)
-		return ret;
+	/* Arcturus does not need this audio workaround */
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		ret = smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_BACO);
+		if (ret)
+			return ret;
+	}
 
 	ret = smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_ENTER);
 	if (ret)
