@@ -1583,10 +1583,9 @@ static void delete_last_nop(struct symbol *sym)
 	}
 }
 
-int symbol__strerror_disassemble(struct symbol *sym __maybe_unused, struct map *map,
-			      int errnum, char *buf, size_t buflen)
+int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, size_t buflen)
 {
-	struct dso *dso = map->dso;
+	struct dso *dso = ms->map->dso;
 
 	BUG_ON(buflen == 0);
 
@@ -2143,11 +2142,10 @@ void symbol__calc_percent(struct symbol *sym, struct evsel *evsel)
 	annotation__calc_percent(notes, evsel, symbol__size(sym));
 }
 
-int symbol__annotate(struct symbol *sym, struct map *map,
-		     struct evsel *evsel, size_t privsize,
-		     struct annotation_options *options,
-		     struct arch **parch)
+int symbol__annotate(struct map_symbol *ms, struct evsel *evsel, size_t privsize,
+		     struct annotation_options *options, struct arch **parch)
 {
+	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
 	struct annotate_args args = {
 		.privsize	= privsize,
@@ -2177,9 +2175,8 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		}
 	}
 
-	args.ms.map = map;
-	args.ms.sym = sym;
-	notes->start = map__rip_2objdump(map, sym->start);
+	args.ms = *ms;
+	notes->start = map__rip_2objdump(ms->map, sym->start);
 
 	return symbol__disassemble(sym, &args);
 }
@@ -2335,10 +2332,11 @@ static int annotated_source__addr_fmt_width(struct list_head *lines, u64 start)
 	return 0;
 }
 
-int symbol__annotate_printf(struct symbol *sym, struct map *map,
-			    struct evsel *evsel,
+int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel,
 			    struct annotation_options *opts)
 {
+	struct map *map = ms->map;
+	struct symbol *sym = ms->sym;
 	struct dso *dso = map->dso;
 	char *filename;
 	const char *d_filename;
@@ -2742,30 +2740,29 @@ static void annotation__calc_lines(struct annotation *notes, struct map *map,
 	resort_source_line(root, &tmp_root);
 }
 
-static void symbol__calc_lines(struct symbol *sym, struct map *map,
-			       struct rb_root *root,
+static void symbol__calc_lines(struct map_symbol *ms, struct rb_root *root,
 			       struct annotation_options *opts)
 {
-	struct annotation *notes = symbol__annotation(sym);
+	struct annotation *notes = symbol__annotation(ms->sym);
 
-	annotation__calc_lines(notes, map, root, opts);
+	annotation__calc_lines(notes, ms->map, root, opts);
 }
 
-int symbol__tty_annotate2(struct symbol *sym, struct map *map,
-			  struct evsel *evsel,
+int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel,
 			  struct annotation_options *opts)
 {
-	struct dso *dso = map->dso;
+	struct dso *dso = ms->map->dso;
+	struct symbol *sym = ms->sym;
 	struct rb_root source_line = RB_ROOT;
 	struct hists *hists = evsel__hists(evsel);
 	char buf[1024];
 
-	if (symbol__annotate2(sym, map, evsel, opts, NULL) < 0)
+	if (symbol__annotate2(ms, evsel, opts, NULL) < 0)
 		return -1;
 
 	if (opts->print_lines) {
 		srcline_full_filename = opts->full_path;
-		symbol__calc_lines(sym, map, &source_line, opts);
+		symbol__calc_lines(ms, &source_line, opts);
 		print_summary(&source_line, dso->long_name);
 	}
 
@@ -2779,25 +2776,25 @@ int symbol__tty_annotate2(struct symbol *sym, struct map *map,
 	return 0;
 }
 
-int symbol__tty_annotate(struct symbol *sym, struct map *map,
-			 struct evsel *evsel,
+int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel,
 			 struct annotation_options *opts)
 {
-	struct dso *dso = map->dso;
+	struct dso *dso = ms->map->dso;
+	struct symbol *sym = ms->sym;
 	struct rb_root source_line = RB_ROOT;
 
-	if (symbol__annotate(sym, map, evsel, 0, opts, NULL) < 0)
+	if (symbol__annotate(ms, evsel, 0, opts, NULL) < 0)
 		return -1;
 
 	symbol__calc_percent(sym, evsel);
 
 	if (opts->print_lines) {
 		srcline_full_filename = opts->full_path;
-		symbol__calc_lines(sym, map, &source_line, opts);
+		symbol__calc_lines(ms, &source_line, opts);
 		print_summary(&source_line, dso->long_name);
 	}
 
-	symbol__annotate_printf(sym, map, evsel, opts);
+	symbol__annotate_printf(ms, evsel, opts);
 
 	annotated_source__purge(symbol__annotation(sym)->src);
 
@@ -3051,9 +3048,10 @@ void annotation_line__write(struct annotation_line *al, struct annotation *notes
 				 wops->write_graph);
 }
 
-int symbol__annotate2(struct symbol *sym, struct map *map, struct evsel *evsel,
+int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 		      struct annotation_options *options, struct arch **parch)
 {
+	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
 	size_t size = symbol__size(sym);
 	int nr_pcnt = 1, err;
@@ -3065,7 +3063,7 @@ int symbol__annotate2(struct symbol *sym, struct map *map, struct evsel *evsel,
 	if (perf_evsel__is_group_event(evsel))
 		nr_pcnt = evsel->core.nr_members;
 
-	err = symbol__annotate(sym, map, evsel, 0, options, parch);
+	err = symbol__annotate(ms, evsel, 0, options, parch);
 	if (err)
 		goto out_free_offsets;
 

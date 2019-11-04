@@ -680,7 +680,7 @@ static int hists__resort_cb(struct hist_entry *he, void *arg)
 	if (rep->symbol_ipc && sym && !sym->annotate2) {
 		struct evsel *evsel = hists_to_evsel(he->hists);
 
-		symbol__annotate2(sym, he->ms.map, evsel,
+		symbol__annotate2(&he->ms, evsel,
 				  &annotation__default_options, NULL);
 	}
 
