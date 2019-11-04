@@ -1308,6 +1308,12 @@ static inline int coresight_search_device_idx(struct coresight_dev_list *dict,
 	return -ENOENT;
 }
 
+bool coresight_loses_context_with_cpu(struct device *dev)
+{
+	return fwnode_property_present(dev_fwnode(dev),
+				       "arm,coresight-loses-context-with-cpu");
+}
+
 /*
  * coresight_alloc_device_name - Get an index for a given device in the
  * device index list specific to a driver. An index is allocated for a
