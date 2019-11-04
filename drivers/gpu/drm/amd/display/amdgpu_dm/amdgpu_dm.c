@@ -485,6 +485,69 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	}
 }
 
+
+/**
+ * dm_dcn_crtc_high_irq() - Handles VStartup interrupt for DCN generation ASICs
+ * @interrupt params - interrupt parameters
+ *
+ * Notify DRM's vblank event handler at VSTARTUP
+ *
+ * Unlike DCE hardware, we trigger the handler at VSTARTUP. at which:
+ * * We are close enough to VUPDATE - the point of no return for hw
+ * * We are in the fixed portion of variable front porch when vrr is enabled
+ * * We are before VUPDATE, where double-buffered vrr registers are swapped
+ *
+ * It is therefore the correct place to signal vblank, send user flip events,
+ * and update VRR.
+ */
+static void dm_dcn_crtc_high_irq(void *interrupt_params)
+{
+	struct common_irq_params *irq_params = interrupt_params;
+	struct amdgpu_device *adev = irq_params->adev;
+	struct amdgpu_crtc *acrtc;
+	struct dm_crtc_state *acrtc_state;
+	unsigned long flags;
+
+	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VBLANK);
+
+	if (!acrtc)
+		return;
+
+	acrtc_state = to_dm_crtc_state(acrtc->base.state);
+
+	DRM_DEBUG_DRIVER("crtc:%d, vupdate-vrr:%d\n", acrtc->crtc_id,
+				amdgpu_dm_vrr_active(acrtc_state));
+
+	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
+	drm_crtc_handle_vblank(&acrtc->base);
+
+	spin_lock_irqsave(&adev->ddev->event_lock, flags);
+
+	if (acrtc_state->vrr_params.supported &&
+	    acrtc_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE) {
+		mod_freesync_handle_v_update(
+		adev->dm.freesync_module,
+		acrtc_state->stream,
+		&acrtc_state->vrr_params);
+
+		dc_stream_adjust_vmin_vmax(
+			adev->dm.dc,
+			acrtc_state->stream,
+			&acrtc_state->vrr_params.adjust);
+	}
+
+	if (acrtc->pflip_status == AMDGPU_FLIP_SUBMITTED) {
+		if (acrtc->event) {
+			drm_crtc_send_vblank_event(&acrtc->base, acrtc->event);
+			acrtc->event = NULL;
+			drm_crtc_vblank_put(&acrtc->base);
+		}
+		acrtc->pflip_status = AMDGPU_FLIP_NONE;
+	}
+
+	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
+}
+
 static int dm_set_clockgating_state(void *handle,
 		  enum amd_clockgating_state state)
 {
@@ -2175,7 +2238,7 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 		c_irq_params->irq_src = int_params.irq_source;
 
 		amdgpu_dm_irq_register_interrupt(adev, &int_params,
-				dm_crtc_high_irq, c_irq_params);
+				dm_dcn_crtc_high_irq, c_irq_params);
 	}
 
 	/* Use VUPDATE_NO_LOCK interrupt on DCN, which seems to correspond to
