@@ -34,7 +34,7 @@ static int usbhs_rcar2_hardware_exit(struct platform_device *pdev)
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 
 	if (priv->phy) {
-		phy_put(priv->phy);
+		phy_put(&pdev->dev, priv->phy);
 		priv->phy = NULL;
 	}
 
