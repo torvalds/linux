@@ -60,178 +60,6 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num);
 
 /* -------------------------------------------------------------------------- */
 
-/* Command Status and Connector Change Indication (CCI) data structure */
-struct ucsi_cci {
-	u8:1; /* reserved */
-	u8 connector_change:7;
-	u8 data_length;
-	u16:9; /* reserved */
-	u16 not_supported:1;
-	u16 cancel_complete:1;
-	u16 reset_complete:1;
-	u16 busy:1;
-	u16 ack_complete:1;
-	u16 error:1;
-	u16 cmd_complete:1;
-} __packed;
-
-/* Default fields in CONTROL data structure */
-struct ucsi_command {
-	u8 cmd;
-	u8 length;
-	u64 data:48;
-} __packed;
-
-/* ACK Command structure */
-struct ucsi_ack_cmd {
-	u8 cmd;
-	u8 length;
-	u8 cci_ack:1;
-	u8 cmd_ack:1;
-	u8:6; /* reserved */
-} __packed;
-
-/* Connector Reset Command structure */
-struct ucsi_con_rst {
-	u8 cmd;
-	u8 length;
-	u8 con_num:7;
-	u8 hard_reset:1;
-} __packed;
-
-/* Set USB Operation Mode Command structure */
-struct ucsi_uor_cmd {
-	u8 cmd;
-	u8 length;
-	u16 con_num:7;
-	u16 role:3;
-#define UCSI_UOR_ROLE_DFP			BIT(0)
-#define UCSI_UOR_ROLE_UFP			BIT(1)
-#define UCSI_UOR_ROLE_DRP			BIT(2)
-	u16:6; /* reserved */
-} __packed;
-
-/* Get Alternate Modes Command structure */
-struct ucsi_altmode_cmd {
-	u8 cmd;
-	u8 length;
-	u8 recipient;
-#define UCSI_RECIPIENT_CON			0
-#define UCSI_RECIPIENT_SOP			1
-#define UCSI_RECIPIENT_SOP_P			2
-#define UCSI_RECIPIENT_SOP_PP			3
-	u8 con_num;
-	u8 offset;
-	u8 num_altmodes;
-} __packed;
-
-struct ucsi_control {
-	union {
-		u64 raw_cmd;
-		struct ucsi_command cmd;
-		struct ucsi_uor_cmd uor;
-		struct ucsi_ack_cmd ack;
-		struct ucsi_con_rst con_rst;
-		struct ucsi_altmode_cmd alt;
-	};
-};
-
-#define __UCSI_CMD(_ctrl_, _cmd_)					\
-{									\
-	(_ctrl_).raw_cmd = 0;						\
-	(_ctrl_).cmd.cmd = _cmd_;					\
-}
-
-/* Helper for preparing ucsi_control for CONNECTOR_RESET command. */
-#define UCSI_CMD_CONNECTOR_RESET(_ctrl_, _con_, _hard_)			\
-{									\
-	__UCSI_CMD(_ctrl_, UCSI_CONNECTOR_RESET)			\
-	(_ctrl_).con_rst.con_num = (_con_)->num;			\
-	(_ctrl_).con_rst.hard_reset = _hard_;				\
-}
-
-/* Helper for preparing ucsi_control for ACK_CC_CI command. */
-#define UCSI_CMD_ACK(_ctrl_, _ack_)					\
-{									\
-	__UCSI_CMD(_ctrl_, UCSI_ACK_CC_CI)				\
-	(_ctrl_).ack.cci_ack = ((_ack_) == UCSI_ACK_EVENT);		\
-	(_ctrl_).ack.cmd_ack = ((_ack_) == UCSI_ACK_CMD);		\
-}
-
-/* Helper for preparing ucsi_control for SET_NOTIFY_ENABLE command. */
-#define UCSI_CMD_SET_NTFY_ENABLE(_ctrl_, _ntfys_)			\
-{									\
-	__UCSI_CMD(_ctrl_, UCSI_SET_NOTIFICATION_ENABLE)		\
-	(_ctrl_).cmd.data = _ntfys_;					\
-}
-
-/* Helper for preparing ucsi_control for GET_CAPABILITY command. */
-#define UCSI_CMD_GET_CAPABILITY(_ctrl_)					\
-{									\
-	__UCSI_CMD(_ctrl_, UCSI_GET_CAPABILITY)				\
-}
-
-/* Helper for preparing ucsi_control for GET_CONNECTOR_CAPABILITY command. */
-#define UCSI_CMD_GET_CONNECTOR_CAPABILITY(_ctrl_, _con_)		\
-{									\
-	__UCSI_CMD(_ctrl_, UCSI_GET_CONNECTOR_CAPABILITY)		\
-	(_ctrl_).cmd.data = _con_;					\
-}
-
-/* Helper for preparing ucsi_control for GET_ALTERNATE_MODES command. */
-#define UCSI_CMD_GET_ALTERNATE_MODES(_ctrl_, _r_, _con_num_, _o_, _num_)\
-{									\
-	__UCSI_CMD((_ctrl_), UCSI_GET_ALTERNATE_MODES)			\
-	_ctrl_.alt.recipient = (_r_);					\
-	_ctrl_.alt.con_num = (_con_num_);				\
-	_ctrl_.alt.offset = (_o_);					\
-	_ctrl_.alt.num_altmodes = (_num_) - 1;				\
-}
-
-/* Helper for preparing ucsi_control for GET_CAM_SUPPORTED command. */
-#define UCSI_CMD_GET_CAM_SUPPORTED(_ctrl_, _con_)			\
-{									\
-	__UCSI_CMD((_ctrl_), UCSI_GET_CAM_SUPPORTED)			\
-	_ctrl_.cmd.data = (_con_);					\
-}
-
-/* Helper for preparing ucsi_control for GET_CAM_SUPPORTED command. */
-#define UCSI_CMD_GET_CURRENT_CAM(_ctrl_, _con_)			\
-{									\
-	__UCSI_CMD((_ctrl_), UCSI_GET_CURRENT_CAM)			\
-	_ctrl_.cmd.data = (_con_);					\
-}
-
-/* Helper for preparing ucsi_control for GET_CONNECTOR_STATUS command. */
-#define UCSI_CMD_GET_CONNECTOR_STATUS(_ctrl_, _con_)			\
-{									\
-	__UCSI_CMD(_ctrl_, UCSI_GET_CONNECTOR_STATUS)			\
-	(_ctrl_).cmd.data = _con_;					\
-}
-
-#define __UCSI_ROLE(_ctrl_, _cmd_, _con_num_)				\
-{									\
-	__UCSI_CMD(_ctrl_, _cmd_)					\
-	(_ctrl_).uor.con_num = _con_num_;				\
-	(_ctrl_).uor.role = UCSI_UOR_ROLE_DRP;				\
-}
-
-/* Helper for preparing ucsi_control for SET_UOR command. */
-#define UCSI_CMD_SET_UOR(_ctrl_, _con_, _role_)				\
-{									\
-	__UCSI_ROLE(_ctrl_, UCSI_SET_UOR, (_con_)->num)		\
-	(_ctrl_).uor.role |= (_role_) == TYPEC_HOST ? UCSI_UOR_ROLE_DFP : \
-			  UCSI_UOR_ROLE_UFP;				\
-}
-
-/* Helper for preparing ucsi_control for SET_PDR command. */
-#define UCSI_CMD_SET_PDR(_ctrl_, _con_, _role_)			\
-{									\
-	__UCSI_ROLE(_ctrl_, UCSI_SET_PDR, (_con_)->num)		\
-	(_ctrl_).uor.role |= (_role_) == TYPEC_SOURCE ? UCSI_UOR_ROLE_DFP : \
-			UCSI_UOR_ROLE_UFP;				\
-}
-
 /* Commands */
 #define UCSI_PPM_RESET			0x01
 #define UCSI_CANCEL			0x02
@@ -253,28 +81,49 @@ struct ucsi_control {
 #define UCSI_GET_CONNECTOR_STATUS	0x12
 #define UCSI_GET_ERROR_STATUS		0x13
 
-/* ACK_CC_CI commands */
-#define UCSI_ACK_EVENT			1
-#define UCSI_ACK_CMD			2
+#define UCSI_CONNECTOR_NUMBER(_num_)		((u64)(_num_) << 16)
 
-/* Bits for ACK CC or CI */
+/* CONNECTOR_RESET command bits */
+#define UCSI_CONNECTOR_RESET_HARD		BIT(23) /* Deprecated in v1.1 */
+
+/* ACK_CC_CI bits */
 #define UCSI_ACK_CONNECTOR_CHANGE		BIT(16)
 #define UCSI_ACK_COMMAND_COMPLETE		BIT(17)
 
-/* Bits for SET_NOTIFICATION_ENABLE command */
-#define UCSI_ENABLE_NTFY_CMD_COMPLETE		BIT(0)
-#define UCSI_ENABLE_NTFY_EXT_PWR_SRC_CHANGE	BIT(1)
-#define UCSI_ENABLE_NTFY_PWR_OPMODE_CHANGE	BIT(2)
-#define UCSI_ENABLE_NTFY_CAP_CHANGE		BIT(5)
-#define UCSI_ENABLE_NTFY_PWR_LEVEL_CHANGE	BIT(6)
-#define UCSI_ENABLE_NTFY_PD_RESET_COMPLETE	BIT(7)
-#define UCSI_ENABLE_NTFY_CAM_CHANGE		BIT(8)
-#define UCSI_ENABLE_NTFY_BAT_STATUS_CHANGE	BIT(9)
-#define UCSI_ENABLE_NTFY_PARTNER_CHANGE		BIT(11)
-#define UCSI_ENABLE_NTFY_PWR_DIR_CHANGE		BIT(12)
-#define UCSI_ENABLE_NTFY_CONNECTOR_CHANGE	BIT(14)
-#define UCSI_ENABLE_NTFY_ERROR			BIT(15)
-#define UCSI_ENABLE_NTFY_ALL			0xdbe7
+/* SET_NOTIFICATION_ENABLE command bits */
+#define UCSI_ENABLE_NTFY_CMD_COMPLETE		BIT(16)
+#define UCSI_ENABLE_NTFY_EXT_PWR_SRC_CHANGE	BIT(17)
+#define UCSI_ENABLE_NTFY_PWR_OPMODE_CHANGE	BIT(18)
+#define UCSI_ENABLE_NTFY_CAP_CHANGE		BIT(19)
+#define UCSI_ENABLE_NTFY_PWR_LEVEL_CHANGE	BIT(20)
+#define UCSI_ENABLE_NTFY_PD_RESET_COMPLETE	BIT(21)
+#define UCSI_ENABLE_NTFY_CAM_CHANGE		BIT(22)
+#define UCSI_ENABLE_NTFY_BAT_STATUS_CHANGE	BIT(23)
+#define UCSI_ENABLE_NTFY_PARTNER_CHANGE		BIT(24)
+#define UCSI_ENABLE_NTFY_PWR_DIR_CHANGE		BIT(25)
+#define UCSI_ENABLE_NTFY_CONNECTOR_CHANGE	BIT(26)
+#define UCSI_ENABLE_NTFY_ERROR			BIT(27)
+#define UCSI_ENABLE_NTFY_ALL			0xdbe70000
+
+/* SET_UOR command bits */
+#define UCSI_SET_UOR_ROLE(_r_)		(((_r_) == TYPEC_HOST ? 1 : 2) << 23)
+#define UCSI_SET_UOR_ACCEPT_ROLE_SWAPS		BIT(25)
+
+/* SET_PDF command bits */
+#define UCSI_SET_PDR_ROLE(_r_)		(((_r_) == TYPEC_SOURCE ? 1 : 2) << 23)
+#define UCSI_SET_PDR_ACCEPT_ROLE_SWAPS		BIT(25)
+
+/* GET_ALTERNATE_MODES command bits */
+#define UCSI_GET_ALTMODE_RECIPIENT(_r_)		((u64)(_r_) << 16)
+#define   UCSI_RECIPIENT_CON			0
+#define   UCSI_RECIPIENT_SOP			1
+#define   UCSI_RECIPIENT_SOP_P			2
+#define   UCSI_RECIPIENT_SOP_PP			3
+#define UCSI_GET_ALTMODE_CONNECTOR_NUMBER(_r_)	((u64)(_r_) << 24)
+#define UCSI_GET_ALTMODE_OFFSET(_r_)		((u64)(_r_) << 32)
+#define UCSI_GET_ALTMODE_NUM_ALTMODES(_r_)	((u64)(_r_) << 40)
+
+/* -------------------------------------------------------------------------- */
 
 /* Error information returned by PPM in response to GET_ERROR_STATUS command. */
 #define UCSI_ERROR_UNREGONIZED_CMD		BIT(0)
@@ -443,7 +292,7 @@ struct ucsi_connector {
 	struct ucsi_connector_capability cap;
 };
 
-int ucsi_send_command(struct ucsi *ucsi, struct ucsi_control *ctrl,
+int ucsi_send_command(struct ucsi *ucsi, u64 command,
 		      void *retval, size_t size);
 
 void ucsi_altmode_update_active(struct ucsi_connector *con);

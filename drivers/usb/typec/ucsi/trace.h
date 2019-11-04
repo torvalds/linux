@@ -10,54 +10,18 @@
 #include <linux/usb/typec_altmode.h>
 
 const char *ucsi_cmd_str(u64 raw_cmd);
-const char *ucsi_ack_str(u8 ack);
 const char *ucsi_cci_str(u32 cci);
 const char *ucsi_recipient_str(u8 recipient);
 
-DECLARE_EVENT_CLASS(ucsi_log_ack,
-	TP_PROTO(u8 ack),
-	TP_ARGS(ack),
-	TP_STRUCT__entry(
-		__field(u8, ack)
-	),
-	TP_fast_assign(
-		__entry->ack = ack;
-	),
-	TP_printk("ACK %s", ucsi_ack_str(__entry->ack))
-);
-
-DEFINE_EVENT(ucsi_log_ack, ucsi_ack,
-	TP_PROTO(u8 ack),
-	TP_ARGS(ack)
-);
-
-DECLARE_EVENT_CLASS(ucsi_log_control,
-	TP_PROTO(struct ucsi_control *ctrl),
-	TP_ARGS(ctrl),
-	TP_STRUCT__entry(
-		__field(u64, ctrl)
-	),
-	TP_fast_assign(
-		__entry->ctrl = ctrl->raw_cmd;
-	),
-	TP_printk("control=%08llx (%s)", __entry->ctrl,
-		ucsi_cmd_str(__entry->ctrl))
-);
-
-DEFINE_EVENT(ucsi_log_control, ucsi_command,
-	TP_PROTO(struct ucsi_control *ctrl),
-	TP_ARGS(ctrl)
-);
-
 DECLARE_EVENT_CLASS(ucsi_log_command,
-	TP_PROTO(struct ucsi_control *ctrl, int ret),
-	TP_ARGS(ctrl, ret),
+	TP_PROTO(u64 command, int ret),
+	TP_ARGS(command, ret),
 	TP_STRUCT__entry(
 		__field(u64, ctrl)
 		__field(int, ret)
 	),
 	TP_fast_assign(
-		__entry->ctrl = ctrl->raw_cmd;
+		__entry->ctrl = command;
 		__entry->ret = ret;
 	),
 	TP_printk("%s -> %s (err=%d)", ucsi_cmd_str(__entry->ctrl),
@@ -66,13 +30,13 @@ DECLARE_EVENT_CLASS(ucsi_log_command,
 );
 
 DEFINE_EVENT(ucsi_log_command, ucsi_run_command,
-	TP_PROTO(struct ucsi_control *ctrl, int ret),
-	TP_ARGS(ctrl, ret)
+	TP_PROTO(u64 command, int ret),
+	TP_ARGS(command, ret)
 );
 
 DEFINE_EVENT(ucsi_log_command, ucsi_reset_ppm,
-	TP_PROTO(struct ucsi_control *ctrl, int ret),
-	TP_ARGS(ctrl, ret)
+	TP_PROTO(u64 command, int ret),
+	TP_ARGS(command, ret)
 );
 
 DECLARE_EVENT_CLASS(ucsi_log_connector_status,
