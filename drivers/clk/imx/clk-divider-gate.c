@@ -43,7 +43,7 @@ static unsigned long clk_divider_gate_recalc_rate(struct clk_hw *hw,
 {
 	struct clk_divider_gate *div_gate = to_clk_divider_gate(hw);
 	struct clk_divider *div = to_clk_divider(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	unsigned int val;
 
 	spin_lock_irqsave(div->lock, flags);
@@ -75,7 +75,7 @@ static int clk_divider_gate_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_divider_gate *div_gate = to_clk_divider_gate(hw);
 	struct clk_divider *div = to_clk_divider(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	int value;
 	u32 val;
 
@@ -104,7 +104,7 @@ static int clk_divider_enable(struct clk_hw *hw)
 {
 	struct clk_divider_gate *div_gate = to_clk_divider_gate(hw);
 	struct clk_divider *div = to_clk_divider(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 val;
 
 	if (!div_gate->cached_val) {
@@ -127,7 +127,7 @@ static void clk_divider_disable(struct clk_hw *hw)
 {
 	struct clk_divider_gate *div_gate = to_clk_divider_gate(hw);
 	struct clk_divider *div = to_clk_divider(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 val;
 
 	spin_lock_irqsave(div->lock, flags);
