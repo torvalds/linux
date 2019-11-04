@@ -501,8 +501,8 @@ intel_dsc_power_domain(const struct intel_crtc_state *crtc_state)
 		return POWER_DOMAIN_TRANSCODER(cpu_transcoder);
 }
 
-static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
-						const struct intel_crtc_state *crtc_state)
+static void intel_dsc_pps_configure(struct intel_encoder *encoder,
+				    const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -901,8 +901,8 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 	}
 }
 
-static void intel_dp_write_dsc_pps_sdp(struct intel_encoder *encoder,
-				       const struct intel_crtc_state *crtc_state)
+static void intel_dsc_dp_pps_write(struct intel_encoder *encoder,
+				   const struct intel_crtc_state *crtc_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -937,9 +937,9 @@ void intel_dsc_enable(struct intel_encoder *encoder,
 	intel_display_power_get(dev_priv,
 				intel_dsc_power_domain(crtc_state));
 
-	intel_configure_pps_for_dsc_encoder(encoder, crtc_state);
+	intel_dsc_pps_configure(encoder, crtc_state);
 
-	intel_dp_write_dsc_pps_sdp(encoder, crtc_state);
+	intel_dsc_dp_pps_write(encoder, crtc_state);
 
 	if (crtc_state->cpu_transcoder == TRANSCODER_EDP) {
 		dss_ctl1_reg = DSS_CTL1;
