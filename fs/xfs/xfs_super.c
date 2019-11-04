@@ -341,12 +341,10 @@ xfs_parseargs(
 		return -EINVAL;
 	}
 
-#ifndef CONFIG_XFS_QUOTA
-	if (XFS_IS_QUOTA_RUNNING(mp)) {
+	if (!IS_ENABLED(CONFIG_XFS_QUOTA) && mp->m_qflags != 0) {
 		xfs_warn(mp, "quota support not available in this kernel.");
 		return -EINVAL;
 	}
-#endif
 
 	if ((mp->m_dalign && !mp->m_swidth) ||
 	    (!mp->m_dalign && mp->m_swidth)) {
