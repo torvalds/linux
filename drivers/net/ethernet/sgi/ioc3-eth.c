@@ -89,6 +89,7 @@ struct ioc3_private {
 	struct device *dma_dev;
 	u32 *ssram;
 	unsigned long *rxr;		/* pointer to receiver ring */
+	void *tx_ring;
 	struct ioc3_etxd *txr;
 	dma_addr_t rxr_dma;
 	dma_addr_t txr_dma;
@@ -1236,13 +1237,16 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Allocate tx rings.  16kb = 128 bufs, must be 16kb aligned  */
-	ip->txr = dma_alloc_coherent(ip->dma_dev, TX_RING_SIZE, &ip->txr_dma,
-				     GFP_KERNEL);
-	if (!ip->txr) {
+	ip->tx_ring = dma_alloc_coherent(ip->dma_dev, TX_RING_SIZE + SZ_16K - 1,
+					 &ip->txr_dma, GFP_KERNEL);
+	if (!ip->tx_ring) {
 		pr_err("ioc3-eth: tx ring allocation failed\n");
 		err = -ENOMEM;
 		goto out_stop;
 	}
+	/* Align TX ring */
+	ip->txr = PTR_ALIGN(ip->tx_ring, SZ_16K);
+	ip->txr_dma = ALIGN(ip->txr_dma, SZ_16K);
 
 	ioc3_init(dev);
 
@@ -1299,8 +1303,8 @@ out_stop:
 	if (ip->rxr)
 		dma_free_coherent(ip->dma_dev, RX_RING_SIZE, ip->rxr,
 				  ip->rxr_dma);
-	if (ip->txr)
-		dma_free_coherent(ip->dma_dev, TX_RING_SIZE, ip->txr,
+	if (ip->tx_ring)
+		dma_free_coherent(ip->dma_dev, TX_RING_SIZE, ip->tx_ring,
 				  ip->txr_dma);
 out_res:
 	pci_release_regions(pdev);
@@ -1320,7 +1324,7 @@ static void ioc3_remove_one(struct pci_dev *pdev)
 	struct ioc3_private *ip = netdev_priv(dev);
 
 	dma_free_coherent(ip->dma_dev, RX_RING_SIZE, ip->rxr, ip->rxr_dma);
-	dma_free_coherent(ip->dma_dev, TX_RING_SIZE, ip->txr, ip->txr_dma);
+	dma_free_coherent(ip->dma_dev, TX_RING_SIZE, ip->tx_ring, ip->txr_dma);
 
 	unregister_netdev(dev);
 	del_timer_sync(&ip->ioc3_timer);
