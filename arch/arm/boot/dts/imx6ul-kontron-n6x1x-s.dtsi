@@ -45,6 +45,13 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	reg_5v: regulator-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "5v";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
 	reg_usb_otg1_vbus: regulator-usb-otg1-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg1_vbus";
@@ -187,6 +194,7 @@
 	srp-disable;
 	hnp-disable;
 	adp-disable;
+	over-current-active-low;
 	vbus-supply = <&reg_usb_otg1_vbus>;
 	status = "okay";
 };
@@ -194,6 +202,7 @@
 &usbotg2 {
 	dr_mode = "host";
 	disable-over-current;
+	vbus-supply = <&reg_5v>;
 	status = "okay";
 };
 
