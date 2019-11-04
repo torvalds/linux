@@ -178,15 +178,17 @@ static int hd3ss3220_probe(struct i2c_client *client,
 		return -ENODEV;
 
 	hd3ss3220->role_sw = fwnode_usb_role_switch_get(connector);
-	fwnode_handle_put(connector);
-	if (IS_ERR(hd3ss3220->role_sw))
-		return PTR_ERR(hd3ss3220->role_sw);
+	if (IS_ERR(hd3ss3220->role_sw)) {
+		ret = PTR_ERR(hd3ss3220->role_sw);
+		goto err_put_fwnode;
+	}
 
 	typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
 	typec_cap.driver_data = hd3ss3220;
 	typec_cap.type = TYPEC_PORT_DRP;
 	typec_cap.data = TYPEC_PORT_DRD;
 	typec_cap.ops = &hd3ss3220_ops;
+	typec_cap.fwnode = connector;
 
 	hd3ss3220->port = typec_register_port(&client->dev, &typec_cap);
 	if (IS_ERR(hd3ss3220->port)) {
@@ -220,6 +222,8 @@ static int hd3ss3220_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto err_unreg_port;
 
+	fwnode_handle_put(connector);
+
 	dev_info(&client->dev, "probed revision=0x%x\n", ret);
 
 	return 0;
@@ -227,6 +231,8 @@ err_unreg_port:
 	typec_unregister_port(hd3ss3220->port);
 err_put_role:
 	usb_role_switch_put(hd3ss3220->role_sw);
+err_put_fwnode:
+	fwnode_handle_put(connector);
 
 	return ret;
 }
