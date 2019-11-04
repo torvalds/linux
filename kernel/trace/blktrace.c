@@ -171,7 +171,7 @@ void __trace_note_message(struct blk_trace *bt, struct blkcg *blkcg,
 		blkcg = NULL;
 #ifdef CONFIG_BLK_CGROUP
 	trace_note(bt, 0, BLK_TN_MESSAGE, buf, n,
-		blkcg ? cgroup_get_kernfs_id(blkcg->css.cgroup) : 0);
+		   blkcg ? cgroup_id(blkcg->css.cgroup) : 1);
 #else
 	trace_note(bt, 0, BLK_TN_MESSAGE, buf, n, 0);
 #endif
@@ -759,7 +759,7 @@ static u64 blk_trace_bio_get_cgid(struct request_queue *q, struct bio *bio)
 
 	if (!bio->bi_blkg)
 		return 0;
-	return cgroup_get_kernfs_id(bio_blkcg(bio)->css.cgroup);
+	return cgroup_id(bio_blkcg(bio)->css.cgroup);
 }
 #else
 u64 blk_trace_bio_get_cgid(struct request_queue *q, struct bio *bio)
