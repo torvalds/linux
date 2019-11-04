@@ -84,6 +84,61 @@ struct ddr_pmu {
 	int id;
 };
 
+enum ddr_perf_filter_capabilities {
+	PERF_CAP_AXI_ID_FILTER = 0,
+	PERF_CAP_AXI_ID_FILTER_ENHANCED,
+	PERF_CAP_AXI_ID_FEAT_MAX,
+};
+
+static u32 ddr_perf_filter_cap_get(struct ddr_pmu *pmu, int cap)
+{
+	u32 quirks = pmu->devtype_data->quirks;
+
+	switch (cap) {
+	case PERF_CAP_AXI_ID_FILTER:
+		return !!(quirks & DDR_CAP_AXI_ID_FILTER);
+	case PERF_CAP_AXI_ID_FILTER_ENHANCED:
+		quirks &= DDR_CAP_AXI_ID_FILTER_ENHANCED;
+		return quirks == DDR_CAP_AXI_ID_FILTER_ENHANCED;
+	default:
+		WARN(1, "unknown filter cap %d\n", cap);
+	}
+
+	return 0;
+}
+
+static ssize_t ddr_perf_filter_cap_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct ddr_pmu *pmu = dev_get_drvdata(dev);
+	struct dev_ext_attribute *ea =
+		container_of(attr, struct dev_ext_attribute, attr);
+	int cap = (long)ea->var;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			ddr_perf_filter_cap_get(pmu, cap));
+}
+
+#define PERF_EXT_ATTR_ENTRY(_name, _func, _var)				\
+	(&((struct dev_ext_attribute) {					\
+		__ATTR(_name, 0444, _func, NULL), (void *)_var		\
+	}).attr.attr)
+
+#define PERF_FILTER_EXT_ATTR_ENTRY(_name, _var)				\
+	PERF_EXT_ATTR_ENTRY(_name, ddr_perf_filter_cap_show, _var)
+
+static struct attribute *ddr_perf_filter_cap_attr[] = {
+	PERF_FILTER_EXT_ATTR_ENTRY(filter, PERF_CAP_AXI_ID_FILTER),
+	PERF_FILTER_EXT_ATTR_ENTRY(enhanced_filter, PERF_CAP_AXI_ID_FILTER_ENHANCED),
+	NULL,
+};
+
+static struct attribute_group ddr_perf_filter_cap_attr_group = {
+	.name = "caps",
+	.attrs = ddr_perf_filter_cap_attr,
+};
+
 static ssize_t ddr_perf_cpumask_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -181,6 +236,7 @@ static const struct attribute_group *attr_groups[] = {
 	&ddr_perf_events_attr_group,
 	&ddr_perf_format_attr_group,
 	&ddr_perf_cpumask_attr_group,
+	&ddr_perf_filter_cap_attr_group,
 	NULL,
 };
 
