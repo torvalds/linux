@@ -352,9 +352,46 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 		format_and_print(outf, base_level + 4, header, value);
 
 		snprintf(header, sizeof(header), "base-frequency(MHz)");
+		if (!ctdp_level->sse_p1)
+			ctdp_level->sse_p1 = ctdp_level->tdp_ratio;
 		snprintf(value, sizeof(value), "%d",
-			 ctdp_level->tdp_ratio * DISP_FREQ_MULTIPLIER);
+			  ctdp_level->sse_p1 * DISP_FREQ_MULTIPLIER);
 		format_and_print(outf, base_level + 4, header, value);
+
+		if (ctdp_level->avx2_p1) {
+			snprintf(header, sizeof(header), "base-frequency-avx2(MHz)");
+			snprintf(value, sizeof(value), "%d",
+				 ctdp_level->avx2_p1 * DISP_FREQ_MULTIPLIER);
+			format_and_print(outf, base_level + 4, header, value);
+		}
+
+		if (ctdp_level->avx512_p1) {
+			snprintf(header, sizeof(header), "base-frequency-avx512(MHz)");
+			snprintf(value, sizeof(value), "%d",
+				 ctdp_level->avx512_p1 * DISP_FREQ_MULTIPLIER);
+			format_and_print(outf, base_level + 4, header, value);
+		}
+
+		if (ctdp_level->uncore_p1) {
+			snprintf(header, sizeof(header), "uncore-frequency-min(MHz)");
+			snprintf(value, sizeof(value), "%d",
+				 ctdp_level->uncore_p1 * DISP_FREQ_MULTIPLIER);
+			format_and_print(outf, base_level + 4, header, value);
+		}
+
+		if (ctdp_level->uncore_p0) {
+			snprintf(header, sizeof(header), "uncore-frequency-max(MHz)");
+			snprintf(value, sizeof(value), "%d",
+				 ctdp_level->uncore_p0 * DISP_FREQ_MULTIPLIER);
+			format_and_print(outf, base_level + 4, header, value);
+		}
+
+		if (ctdp_level->mem_freq) {
+			snprintf(header, sizeof(header), "mem-frequency(MHz)");
+			snprintf(value, sizeof(value), "%d",
+				 ctdp_level->mem_freq * DISP_FREQ_MULTIPLIER);
+			format_and_print(outf, base_level + 4, header, value);
+		}
 
 		snprintf(header, sizeof(header),
 			 "speed-select-turbo-freq");
