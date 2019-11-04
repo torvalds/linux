@@ -134,8 +134,13 @@
 #define PICASSO_A0 0x41
 /* DCN1_01 */
 #define RAVEN2_A0 0x81
+#define RAVEN2_15D8_REV_94 0x94
+#define RAVEN2_15D8_REV_95 0x95
 #define RAVEN2_15D8_REV_E3 0xE3
 #define RAVEN2_15D8_REV_E4 0xE4
+#define RAVEN2_15D8_REV_E9 0xE9
+#define RAVEN2_15D8_REV_EA 0xEA
+#define RAVEN2_15D8_REV_EB 0xEB
 #define RAVEN1_F0 0xF0
 #define RAVEN_UNKNOWN 0xFF
 #ifndef ASICREV_IS_RAVEN
@@ -149,6 +154,11 @@
 #define ASICREV_IS_RV1_F0(eChipRev) ((eChipRev >= RAVEN1_F0) && (eChipRev < RAVEN_UNKNOWN))
 #define ASICREV_IS_DALI(eChipRev) ((eChipRev == RAVEN2_15D8_REV_E3) \
 		|| (eChipRev == RAVEN2_15D8_REV_E4))
+#define ASICREV_IS_POLLOCK(eChipRev) (eChipRev == RAVEN2_15D8_REV_94 \
+		|| eChipRev == RAVEN2_15D8_REV_95 \
+			|| eChipRev == RAVEN2_15D8_REV_E9 \
+				|| eChipRev == RAVEN2_15D8_REV_EA \
+					|| eChipRev == RAVEN2_15D8_REV_EB)
 
 #define FAMILY_RV 142 /* DCN 1*/
 
