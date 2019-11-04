@@ -1296,6 +1296,8 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 				"snps,xhci-slow-suspend-quirk");
 	dwc->xhci_trb_ent_quirk = device_property_read_bool(dev,
 				"snps,xhci-trb-ent-quirk");
+	dwc->dis_u3_autosuspend_quirk = device_property_read_bool(dev,
+				"snps,dis-u3-autosuspend-quirk");
 
 	dwc->tx_de_emphasis_quirk = device_property_read_bool(dev,
 				"snps,tx_de_emphasis_quirk");

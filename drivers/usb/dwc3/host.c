@@ -46,7 +46,7 @@ out:
 
 int dwc3_host_init(struct dwc3 *dwc)
 {
-	struct property_entry	props[5];
+	struct property_entry	props[6];
 	struct platform_device	*xhci;
 	int			ret, irq;
 	struct resource		*res;
@@ -102,6 +102,8 @@ int dwc3_host_init(struct dwc3 *dwc)
 	if (dwc->usb2_lpm_disable)
 		props[prop_idx++].name = "usb2-lpm-disable";
 
+	if (dwc->dis_u3_autosuspend_quirk)
+		props[prop_idx++].name = "usb3-dis-autosuspend";
 	/**
 	 * WORKAROUND: dwc3 revisions <=3.00a have a limitation
 	 * where Port Disable command doesn't work.
