@@ -601,6 +601,7 @@ struct rxrpc_call {
 	int			debug_id;	/* debug ID for printks */
 	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
 	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
+	bool			rx_pkt_last;	/* Current recvmsg packet is last */
 
 	/* Rx/Tx circular buffer, depending on phase.
 	 *

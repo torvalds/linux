@@ -95,7 +95,7 @@ slow_path:
 	 * This may also be a clone skbuff, we could preserve the geometry for
 	 * the copies but probably not worth the effort.
 	 */
-	ip_frag_init(skb, hlen, ll_rs, frag_max_size, &state);
+	ip_frag_init(skb, hlen, ll_rs, frag_max_size, false, &state);
 
 	while (state.left > 0) {
 		struct sk_buff *skb2;

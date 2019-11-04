@@ -1540,17 +1540,23 @@ static int gfs2_init_fs_context(struct fs_context *fc)
 {
 	struct gfs2_args *args;
 
-	args = kzalloc(sizeof(*args), GFP_KERNEL);
+	args = kmalloc(sizeof(*args), GFP_KERNEL);
 	if (args == NULL)
 		return -ENOMEM;
 
-	args->ar_quota = GFS2_QUOTA_DEFAULT;
-	args->ar_data = GFS2_DATA_DEFAULT;
-	args->ar_commit = 30;
-	args->ar_statfs_quantum = 30;
-	args->ar_quota_quantum = 60;
-	args->ar_errors = GFS2_ERRORS_DEFAULT;
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+		struct gfs2_sbd *sdp = fc->root->d_sb->s_fs_info;
 
+		*args = sdp->sd_args;
+	} else {
+		memset(args, 0, sizeof(*args));
+		args->ar_quota = GFS2_QUOTA_DEFAULT;
+		args->ar_data = GFS2_DATA_DEFAULT;
+		args->ar_commit = 30;
+		args->ar_statfs_quantum = 30;
+		args->ar_quota_quantum = 60;
+		args->ar_errors = GFS2_ERRORS_DEFAULT;
+	}
 	fc->fs_private = args;
 	fc->ops = &gfs2_context_ops;
 	return 0;
