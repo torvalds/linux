@@ -57,15 +57,14 @@ const struct super_operations kernfs_sops = {
  * Similar to kernfs_fh_get_inode, this one gets kernfs node from inode
  * number and generation
  */
-struct kernfs_node *kernfs_get_node_by_id(struct kernfs_root *root,
-	const union kernfs_node_id *id)
+struct kernfs_node *kernfs_get_node_by_id(struct kernfs_root *root, u64 id)
 {
 	struct kernfs_node *kn;
 
-	kn = kernfs_find_and_get_node_by_ino(root, id->ino);
+	kn = kernfs_find_and_get_node_by_ino(root, kernfs_id_ino(id));
 	if (!kn)
 		return NULL;
-	if (kn->id.generation != id->generation) {
+	if (kernfs_gen(kn) != kernfs_id_gen(id)) {
 		kernfs_put(kn);
 		return NULL;
 	}
