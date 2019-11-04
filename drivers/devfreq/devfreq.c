@@ -410,6 +410,9 @@ static void devfreq_monitor(struct work_struct *work)
  */
 void devfreq_monitor_start(struct devfreq *devfreq)
 {
+	if (devfreq->governor->interrupt_driven)
+		return;
+
 	INIT_DEFERRABLE_WORK(&devfreq->work, devfreq_monitor);
 	if (devfreq->profile->polling_ms)
 		queue_delayed_work(devfreq_wq, &devfreq->work,
@@ -427,6 +430,9 @@ EXPORT_SYMBOL(devfreq_monitor_start);
  */
 void devfreq_monitor_stop(struct devfreq *devfreq)
 {
+	if (devfreq->governor->interrupt_driven)
+		return;
+
 	cancel_delayed_work_sync(&devfreq->work);
 }
 EXPORT_SYMBOL(devfreq_monitor_stop);
@@ -454,6 +460,10 @@ void devfreq_monitor_suspend(struct devfreq *devfreq)
 	devfreq_update_status(devfreq, devfreq->previous_freq);
 	devfreq->stop_polling = true;
 	mutex_unlock(&devfreq->lock);
+
+	if (devfreq->governor->interrupt_driven)
+		return;
+
 	cancel_delayed_work_sync(&devfreq->work);
 }
 EXPORT_SYMBOL(devfreq_monitor_suspend);
@@ -474,11 +484,15 @@ void devfreq_monitor_resume(struct devfreq *devfreq)
 	if (!devfreq->stop_polling)
 		goto out;
 
+	if (devfreq->governor->interrupt_driven)
+		goto out_update;
+
 	if (!delayed_work_pending(&devfreq->work) &&
 			devfreq->profile->polling_ms)
 		queue_delayed_work(devfreq_wq, &devfreq->work,
 			msecs_to_jiffies(devfreq->profile->polling_ms));
 
+out_update:
 	devfreq->last_stat_updated = jiffies;
 	devfreq->stop_polling = false;
 
@@ -508,6 +522,9 @@ void devfreq_interval_update(struct devfreq *devfreq, unsigned int *delay)
 	devfreq->profile->polling_ms = new_delay;
 
 	if (devfreq->stop_polling)
+		goto out;
+
+	if (devfreq->governor->interrupt_driven)
 		goto out;
 
 	/* if new delay is zero, stop polling */
