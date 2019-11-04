@@ -53,7 +53,7 @@ struct rc_parameters {
  * Selected Rate Control Related Parameter Recommended Values
  * from DSC_v1.11 spec & C Model release: DSC_model_20161212
  */
-static const struct rc_parameters rc_params[][MAX_COLUMN_INDEX] = {
+static const struct rc_parameters rc_parameters[][MAX_COLUMN_INDEX] = {
 {
 	/* 6BPP/8BPC */
 	{ 768, 15, 6144, 3, 13, 11, 11, {
@@ -319,14 +319,29 @@ static int get_column_index_for_rc_params(u8 bits_per_component)
 	}
 }
 
+static const struct rc_parameters *get_rc_params(u16 compressed_bpp,
+						 u8 bits_per_component)
+{
+	int row_index, column_index;
+
+	row_index = get_row_index_for_rc_params(compressed_bpp);
+	if (row_index < 0)
+		return NULL;
+
+	column_index = get_column_index_for_rc_params(bits_per_component);
+	if (column_index < 0)
+		return NULL;
+
+	return &rc_parameters[row_index][column_index];
+}
+
 int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config)
 {
 	struct drm_dsc_config *vdsc_cfg = &pipe_config->dsc.config;
 	u16 compressed_bpp = pipe_config->dsc.compressed_bpp;
+	const struct rc_parameters *rc_params;
 	u8 i = 0;
-	int row_index = 0;
-	int column_index = 0;
 	u8 line_buf_depth = 0;
 
 	vdsc_cfg->pic_width = pipe_config->hw.adjusted_mode.crtc_hdisplay;
@@ -399,39 +414,29 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 		vdsc_cfg->rc_buf_thresh[13] = 0x7D;
 	}
 
-	row_index = get_row_index_for_rc_params(compressed_bpp);
-	column_index =
-		get_column_index_for_rc_params(vdsc_cfg->bits_per_component);
-
-	if (row_index < 0 || column_index < 0)
+	rc_params = get_rc_params(compressed_bpp, vdsc_cfg->bits_per_component);
+	if (!rc_params)
 		return -EINVAL;
 
-	vdsc_cfg->first_line_bpg_offset =
-		rc_params[row_index][column_index].first_line_bpg_offset;
-	vdsc_cfg->initial_xmit_delay =
-		rc_params[row_index][column_index].initial_xmit_delay;
-	vdsc_cfg->initial_offset =
-		rc_params[row_index][column_index].initial_offset;
-	vdsc_cfg->flatness_min_qp =
-		rc_params[row_index][column_index].flatness_min_qp;
-	vdsc_cfg->flatness_max_qp =
-		rc_params[row_index][column_index].flatness_max_qp;
-	vdsc_cfg->rc_quant_incr_limit0 =
-		rc_params[row_index][column_index].rc_quant_incr_limit0;
-	vdsc_cfg->rc_quant_incr_limit1 =
-		rc_params[row_index][column_index].rc_quant_incr_limit1;
+	vdsc_cfg->first_line_bpg_offset = rc_params->first_line_bpg_offset;
+	vdsc_cfg->initial_xmit_delay = rc_params->initial_xmit_delay;
+	vdsc_cfg->initial_offset = rc_params->initial_offset;
+	vdsc_cfg->flatness_min_qp = rc_params->flatness_min_qp;
+	vdsc_cfg->flatness_max_qp = rc_params->flatness_max_qp;
+	vdsc_cfg->rc_quant_incr_limit0 = rc_params->rc_quant_incr_limit0;
+	vdsc_cfg->rc_quant_incr_limit1 = rc_params->rc_quant_incr_limit1;
 
 	for (i = 0; i < DSC_NUM_BUF_RANGES; i++) {
 		vdsc_cfg->rc_range_params[i].range_min_qp =
-			rc_params[row_index][column_index].rc_range_params[i].range_min_qp;
+			rc_params->rc_range_params[i].range_min_qp;
 		vdsc_cfg->rc_range_params[i].range_max_qp =
-			rc_params[row_index][column_index].rc_range_params[i].range_max_qp;
+			rc_params->rc_range_params[i].range_max_qp;
 		/*
 		 * Range BPG Offset uses 2's complement and is only a 6 bits. So
 		 * mask it to get only 6 bits.
 		 */
 		vdsc_cfg->rc_range_params[i].range_bpg_offset =
-			rc_params[row_index][column_index].rc_range_params[i].range_bpg_offset &
+			rc_params->rc_range_params[i].range_bpg_offset &
 			DSC_RANGE_BPG_OFFSET_MASK;
 	}
 
