@@ -235,6 +235,17 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 		},							\
 	}
 
+const struct iwl_cfg_trans_params iwl_qu_trans_cfg = {
+	.mq_rx_supported = true,
+	.use_tfh = true,
+	.rf_id = true,
+	.gen2 = true,
+	.device_family = IWL_DEVICE_FAMILY_22000,
+	.base_params = &iwl_22000_base_params,
+	.integrated = true,
+	.xtal_latency = 5000,
+};
+
 /*
  * If the device doesn't support HE, no need to have that many buffers.
  * 22000 devices can split multiple frames into a single RB, so fewer are
@@ -245,6 +256,30 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 #define IWL_NUM_RBDS_NON_HE		512
 #define IWL_NUM_RBDS_22000_HE		2048
 #define IWL_NUM_RBDS_AX210_HE		4096
+
+const struct iwl_cfg iwl9560_qu_b0_jf_b0_cfg = {
+	.fw_name_pre = IWL_QU_B_JF_B_FW_PRE,
+	IWL_DEVICE_22500,
+	.num_rbds = IWL_NUM_RBDS_NON_HE,
+};
+
+const struct iwl_cfg iwl9560_qu_c0_jf_b0_cfg = {
+	.fw_name_pre = IWL_QU_C_JF_B_FW_PRE,
+	IWL_DEVICE_22500,
+	.num_rbds = IWL_NUM_RBDS_NON_HE,
+};
+
+const struct iwl_cfg iwl9560_quz_a0_jf_b0_cfg = {
+	.fw_name_pre = IWL_QUZ_A_JF_B_FW_PRE,
+	IWL_DEVICE_22500,
+	/*
+	 * This device doesn't support receiving BlockAck with a large bitmap
+	 * so we need to restrict the size of transmitted aggregation to the
+	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
+	 */
+	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
+	.num_rbds = IWL_NUM_RBDS_NON_HE,
+};
 
 const struct iwl_cfg_trans_params iwl_ax200_trans_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_22000,
