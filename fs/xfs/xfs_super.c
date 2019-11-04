@@ -1497,7 +1497,7 @@ xfs_mount_alloc(
 {
 	struct xfs_mount	*mp;
 
-	mp = kzalloc(sizeof(struct xfs_mount), GFP_KERNEL);
+	mp = kmem_alloc(sizeof(struct xfs_mount), KM_ZERO);
 	if (!mp)
 		return NULL;
 
@@ -1711,7 +1711,7 @@ xfs_fs_fill_super(
  out_free_names:
 	sb->s_fs_info = NULL;
 	xfs_free_names(mp);
-	kfree(mp);
+	kmem_free(mp);
  out:
 	return error;
 
@@ -1743,7 +1743,7 @@ xfs_fs_put_super(
 
 	sb->s_fs_info = NULL;
 	xfs_free_names(mp);
-	kfree(mp);
+	kmem_free(mp);
 }
 
 STATIC struct dentry *
