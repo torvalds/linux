@@ -36,68 +36,6 @@
  */
 #define UCSI_SWAP_TIMEOUT_MS	5000
 
-static inline int ucsi_sync(struct ucsi *ucsi)
-{
-	if (ucsi->ppm && ucsi->ppm->sync)
-		return ucsi->ppm->sync(ucsi->ppm);
-	return 0;
-}
-
-static int ucsi_command(struct ucsi *ucsi, struct ucsi_control *ctrl)
-{
-	int ret;
-
-	trace_ucsi_command(ctrl);
-
-	set_bit(COMMAND_PENDING, &ucsi->flags);
-
-	ret = ucsi->ppm->cmd(ucsi->ppm, ctrl);
-	if (ret)
-		goto err_clear_flag;
-
-	if (!wait_for_completion_timeout(&ucsi->complete,
-					 msecs_to_jiffies(UCSI_TIMEOUT_MS))) {
-		dev_warn(ucsi->dev, "PPM NOT RESPONDING\n");
-		ret = -ETIMEDOUT;
-	}
-
-err_clear_flag:
-	clear_bit(COMMAND_PENDING, &ucsi->flags);
-
-	return ret;
-}
-
-static int ucsi_ack(struct ucsi *ucsi, u8 ack)
-{
-	struct ucsi_control ctrl;
-	int ret;
-
-	trace_ucsi_ack(ack);
-
-	set_bit(ACK_PENDING, &ucsi->flags);
-
-	UCSI_CMD_ACK(ctrl, ack);
-	ret = ucsi->ppm->cmd(ucsi->ppm, &ctrl);
-	if (ret)
-		goto out_clear_bit;
-
-	/* Waiting for ACK with ACK CMD, but not with EVENT for now */
-	if (ack == UCSI_ACK_EVENT)
-		goto out_clear_bit;
-
-	if (!wait_for_completion_timeout(&ucsi->complete,
-					 msecs_to_jiffies(UCSI_TIMEOUT_MS)))
-		ret = -ETIMEDOUT;
-
-out_clear_bit:
-	clear_bit(ACK_PENDING, &ucsi->flags);
-
-	if (ret)
-		dev_err(ucsi->dev, "%s: failed\n", __func__);
-
-	return ret;
-}
-
 static int ucsi_acknowledge_command(struct ucsi *ucsi)
 {
 	u64 ctrl;
@@ -196,115 +134,26 @@ static int ucsi_exec_command(struct ucsi *ucsi, u64 cmd)
 static int ucsi_run_command(struct ucsi *ucsi, struct ucsi_control *ctrl,
 			    void *data, size_t size)
 {
-	struct ucsi_control _ctrl;
-	u8 data_length;
-	u16 error;
+	u8 length;
 	int ret;
 
-	if (ucsi->ops) {
-		ret = ucsi_exec_command(ucsi, ctrl->raw_cmd);
-		if (ret < 0)
-			return ret;
+	ret = ucsi_exec_command(ucsi, ctrl->raw_cmd);
+	if (ret < 0)
+		return ret;
 
-		data_length = ret;
+	length = ret;
 
-		if (data) {
-			ret = ucsi->ops->read(ucsi, UCSI_MESSAGE_IN, data, size);
-			if (ret)
-				return ret;
-		}
-
-		ret = ucsi_acknowledge_command(ucsi);
+	if (data) {
+		ret = ucsi->ops->read(ucsi, UCSI_MESSAGE_IN, data, size);
 		if (ret)
 			return ret;
-
-		return data_length;
 	}
 
-	ret = ucsi_command(ucsi, ctrl);
+	ret = ucsi_acknowledge_command(ucsi);
 	if (ret)
-		goto err;
+		return ret;
 
-	switch (ucsi->status) {
-	case UCSI_IDLE:
-		ret = ucsi_sync(ucsi);
-		if (ret)
-			dev_warn(ucsi->dev, "%s: sync failed\n", __func__);
-
-		if (data)
-			memcpy(data, ucsi->ppm->data->message_in, size);
-
-		data_length = ucsi->ppm->data->cci.data_length;
-
-		ret = ucsi_ack(ucsi, UCSI_ACK_CMD);
-		if (!ret)
-			ret = data_length;
-		break;
-	case UCSI_BUSY:
-		/* The caller decides whether to cancel or not */
-		ret = -EBUSY;
-		break;
-	case UCSI_ERROR:
-		ret = ucsi_ack(ucsi, UCSI_ACK_CMD);
-		if (ret)
-			break;
-
-		_ctrl.raw_cmd = 0;
-		_ctrl.cmd.cmd = UCSI_GET_ERROR_STATUS;
-		ret = ucsi_command(ucsi, &_ctrl);
-		if (ret) {
-			dev_err(ucsi->dev, "reading error failed!\n");
-			break;
-		}
-
-		memcpy(&error, ucsi->ppm->data->message_in, sizeof(error));
-
-		/* Something has really gone wrong */
-		if (WARN_ON(ucsi->status == UCSI_ERROR)) {
-			ret = -ENODEV;
-			break;
-		}
-
-		ret = ucsi_ack(ucsi, UCSI_ACK_CMD);
-		if (ret)
-			break;
-
-		switch (error) {
-		case UCSI_ERROR_INCOMPATIBLE_PARTNER:
-			ret = -EOPNOTSUPP;
-			break;
-		case UCSI_ERROR_CC_COMMUNICATION_ERR:
-			ret = -ECOMM;
-			break;
-		case UCSI_ERROR_CONTRACT_NEGOTIATION_FAIL:
-			ret = -EPROTO;
-			break;
-		case UCSI_ERROR_DEAD_BATTERY:
-			dev_warn(ucsi->dev, "Dead battery condition!\n");
-			ret = -EPERM;
-			break;
-		/* The following mean a bug in this driver */
-		case UCSI_ERROR_INVALID_CON_NUM:
-		case UCSI_ERROR_UNREGONIZED_CMD:
-		case UCSI_ERROR_INVALID_CMD_ARGUMENT:
-			dev_warn(ucsi->dev,
-				 "%s: possible UCSI driver bug - error 0x%x\n",
-				 __func__, error);
-			ret = -EINVAL;
-			break;
-		default:
-			dev_warn(ucsi->dev,
-				 "%s: error without status\n", __func__);
-			ret = -EIO;
-			break;
-		}
-		break;
-	}
-
-err:
-	trace_ucsi_run_command(ctrl, ret);
-
-	return ret;
+	return length;
 }
 
 int ucsi_send_command(struct ucsi *ucsi, struct ucsi_control *ctrl,
@@ -334,7 +183,7 @@ EXPORT_SYMBOL_GPL(ucsi_resume);
 void ucsi_altmode_update_active(struct ucsi_connector *con)
 {
 	const struct typec_altmode *altmode = NULL;
-	struct ucsi_control ctrl;
+	u64 command;
 	int ret;
 	u8 cur;
 	int i;
@@ -342,7 +191,7 @@ void ucsi_altmode_update_active(struct ucsi_connector *con)
 	UCSI_CMD_GET_CURRENT_CAM(ctrl, con->num);
 	ret = ucsi_run_command(con->ucsi, &ctrl, &cur, sizeof(cur));
 	if (ret < 0) {
-		if (con->ucsi->ppm->data->version > 0x0100) {
+		if (con->ucsi->version > 0x0100) {
 			dev_err(con->ucsi->dev,
 				"GET_CURRENT_CAM command failed\n");
 			return;
@@ -695,10 +544,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	if (con->status.change & UCSI_CONSTAT_PARTNER_CHANGE)
 		ucsi_partner_change(con);
 
-	if (ucsi->ops)
-		ret = ucsi_acknowledge_connector_change(ucsi);
-	else
-		ret = ucsi_ack(ucsi, UCSI_ACK_EVENT);
+	ret = ucsi_acknowledge_connector_change(ucsi);
 	if (ret)
 		dev_err(ucsi->dev, "%s: ACK failed (%d)", __func__, ret);
 
@@ -723,45 +569,6 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num)
 }
 EXPORT_SYMBOL_GPL(ucsi_connector_change);
 
-/**
- * ucsi_notify - PPM notification handler
- * @ucsi: Source UCSI Interface for the notifications
- *
- * Handle notifications from PPM of @ucsi.
- */
-void ucsi_notify(struct ucsi *ucsi)
-{
-	struct ucsi_cci *cci;
-
-	/* There is no requirement to sync here, but no harm either. */
-	ucsi_sync(ucsi);
-
-	cci = &ucsi->ppm->data->cci;
-
-	if (cci->error)
-		ucsi->status = UCSI_ERROR;
-	else if (cci->busy)
-		ucsi->status = UCSI_BUSY;
-	else
-		ucsi->status = UCSI_IDLE;
-
-	if (cci->cmd_complete && test_bit(COMMAND_PENDING, &ucsi->flags)) {
-		complete(&ucsi->complete);
-	} else if (cci->ack_complete && test_bit(ACK_PENDING, &ucsi->flags)) {
-		complete(&ucsi->complete);
-	} else if (cci->connector_change) {
-		struct ucsi_connector *con;
-
-		con = &ucsi->connector[cci->connector_change - 1];
-
-		if (!test_and_set_bit(EVENT_PENDING, &ucsi->flags))
-			schedule_work(&con->work);
-	}
-
-	trace_ucsi_notify(ucsi->ppm->data->raw_cci);
-}
-EXPORT_SYMBOL_GPL(ucsi_notify);
-
 /* -------------------------------------------------------------------------- */
 
 static int ucsi_reset_connector(struct ucsi_connector *con, bool hard)
@@ -775,83 +582,39 @@ static int ucsi_reset_connector(struct ucsi_connector *con, bool hard)
 
 static int ucsi_reset_ppm(struct ucsi *ucsi)
 {
-	struct ucsi_control ctrl;
+	u64 command = UCSI_PPM_RESET;
 	unsigned long tmo;
+	u32 cci;
 	int ret;
 
-	if (ucsi->ops) {
-		u64 command = UCSI_PPM_RESET;
-		u32 cci;
-
-		ret = ucsi->ops->async_write(ucsi, UCSI_CONTROL, &command,
-					     sizeof(command));
-		if (ret < 0)
-			return ret;
-
-		tmo = jiffies + msecs_to_jiffies(UCSI_TIMEOUT_MS);
-
-		do {
-			if (time_is_before_jiffies(tmo))
-				return -ETIMEDOUT;
-
-			ret = ucsi->ops->read(ucsi, UCSI_CCI, &cci, sizeof(cci));
-			if (ret)
-				return ret;
-
-			/* If the PPM is still doing something else, reset it again. */
-			if (cci & ~UCSI_CCI_RESET_COMPLETE) {
-				ret = ucsi->ops->async_write(ucsi, UCSI_CONTROL,
-							     &command,
-							     sizeof(command));
-				if (ret < 0)
-					return ret;
-			}
-
-			msleep(20);
-		} while (!(cci & UCSI_CCI_RESET_COMPLETE));
-
-		return 0;
-	}
-
-	ctrl.raw_cmd = 0;
-	ctrl.cmd.cmd = UCSI_PPM_RESET;
-	trace_ucsi_command(&ctrl);
-	ret = ucsi->ppm->cmd(ucsi->ppm, &ctrl);
-	if (ret)
-		goto err;
+	ret = ucsi->ops->async_write(ucsi, UCSI_CONTROL, &command,
+				     sizeof(command));
+	if (ret < 0)
+		return ret;
 
 	tmo = jiffies + msecs_to_jiffies(UCSI_TIMEOUT_MS);
 
 	do {
-		/* Here sync is critical. */
-		ret = ucsi_sync(ucsi);
-		if (ret)
-			goto err;
+		if (time_is_before_jiffies(tmo))
+			return -ETIMEDOUT;
 
-		if (ucsi->ppm->data->cci.reset_complete)
-			break;
+		ret = ucsi->ops->read(ucsi, UCSI_CCI, &cci, sizeof(cci));
+		if (ret)
+			return ret;
 
 		/* If the PPM is still doing something else, reset it again. */
-		if (ucsi->ppm->data->raw_cci) {
-			dev_warn_ratelimited(ucsi->dev,
-				"Failed to reset PPM! Trying again..\n");
-
-			trace_ucsi_command(&ctrl);
-			ret = ucsi->ppm->cmd(ucsi->ppm, &ctrl);
-			if (ret)
-				goto err;
+		if (cci & ~UCSI_CCI_RESET_COMPLETE) {
+			ret = ucsi->ops->async_write(ucsi, UCSI_CONTROL,
+						     &command,
+						     sizeof(command));
+			if (ret < 0)
+				return ret;
 		}
 
-		/* Letting the PPM settle down. */
 		msleep(20);
+	} while (!(cci & UCSI_CCI_RESET_COMPLETE));
 
-		ret = -ETIMEDOUT;
-	} while (time_is_after_jiffies(tmo));
-
-err:
-	trace_ucsi_reset_ppm(&ctrl, ret);
-
-	return ret;
+	return 0;
 }
 
 static int ucsi_role_cmd(struct ucsi_connector *con, struct ucsi_control *ctrl)
@@ -1265,51 +1028,6 @@ void ucsi_unregister(struct ucsi *ucsi)
 	kfree(ucsi->connector);
 }
 EXPORT_SYMBOL_GPL(ucsi_unregister);
-
-/**
- * ucsi_register_ppm - Register UCSI PPM Interface
- * @dev: Device interface to the PPM
- * @ppm: The PPM interface
- *
- * Allocates UCSI instance, associates it with @ppm and returns it to the
- * caller, and schedules initialization of the interface.
- */
-struct ucsi *ucsi_register_ppm(struct device *dev, struct ucsi_ppm *ppm)
-{
-	struct ucsi *ucsi;
-
-	ucsi = kzalloc(sizeof(*ucsi), GFP_KERNEL);
-	if (!ucsi)
-		return ERR_PTR(-ENOMEM);
-
-	INIT_WORK(&ucsi->work, ucsi_init_work);
-	init_completion(&ucsi->complete);
-	mutex_init(&ucsi->ppm_lock);
-
-	ucsi->dev = dev;
-	ucsi->ppm = ppm;
-
-	/*
-	 * Communication with the PPM takes a lot of time. It is not reasonable
-	 * to initialize the driver here. Using a work for now.
-	 */
-	queue_work(system_long_wq, &ucsi->work);
-
-	return ucsi;
-}
-EXPORT_SYMBOL_GPL(ucsi_register_ppm);
-
-/**
- * ucsi_unregister_ppm - Unregister UCSI PPM Interface
- * @ucsi: struct ucsi associated with the PPM
- *
- * Unregister UCSI PPM that was created with ucsi_register().
- */
-void ucsi_unregister_ppm(struct ucsi *ucsi)
-{
-	ucsi_unregister(ucsi);
-}
-EXPORT_SYMBOL_GPL(ucsi_unregister_ppm);
 
 MODULE_AUTHOR("Heikki Krogerus <heikki.krogerus@linux.intel.com>");
 MODULE_LICENSE("GPL v2");

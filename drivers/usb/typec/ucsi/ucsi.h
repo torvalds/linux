@@ -398,54 +398,13 @@ struct ucsi_connector_status {
 
 /* -------------------------------------------------------------------------- */
 
-struct ucsi;
-
-struct ucsi_data {
-	u16 version;
-	u16 reserved;
-	union {
-		u32 raw_cci;
-		struct ucsi_cci cci;
-	};
-	struct ucsi_control ctrl;
-	u32 message_in[4];
-	u32 message_out[4];
-} __packed;
-
-/*
- * struct ucsi_ppm - Interface to UCSI Platform Policy Manager
- * @data: memory location to the UCSI data structures
- * @cmd: UCSI command execution routine
- * @sync: Refresh UCSI mailbox (the data structures)
- */
-struct ucsi_ppm {
-	struct ucsi_data *data;
-	int (*cmd)(struct ucsi_ppm *, struct ucsi_control *);
-	int (*sync)(struct ucsi_ppm *);
-};
-
-struct ucsi *ucsi_register_ppm(struct device *dev, struct ucsi_ppm *ppm);
-void ucsi_unregister_ppm(struct ucsi *ucsi);
-void ucsi_notify(struct ucsi *ucsi);
-
-/* -------------------------------------------------------------------------- */
-
-enum ucsi_status {
-	UCSI_IDLE = 0,
-	UCSI_BUSY,
-	UCSI_ERROR,
-};
-
 struct ucsi {
 	u16 version;
 	struct device *dev;
-	struct ucsi_ppm *ppm;
 	struct driver_data *driver_data;
 
 	const struct ucsi_operations *ops;
 
-	enum ucsi_status status;
-	struct completion complete;
 	struct ucsi_capability cap;
 	struct ucsi_connector *connector;
 

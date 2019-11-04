@@ -75,23 +75,6 @@ DEFINE_EVENT(ucsi_log_command, ucsi_reset_ppm,
 	TP_ARGS(ctrl, ret)
 );
 
-DECLARE_EVENT_CLASS(ucsi_log_cci,
-	TP_PROTO(u32 cci),
-	TP_ARGS(cci),
-	TP_STRUCT__entry(
-		__field(u32, cci)
-	),
-	TP_fast_assign(
-		__entry->cci = cci;
-	),
-	TP_printk("CCI=%08x %s", __entry->cci, ucsi_cci_str(__entry->cci))
-);
-
-DEFINE_EVENT(ucsi_log_cci, ucsi_notify,
-	TP_PROTO(u32 cci),
-	TP_ARGS(cci)
-);
-
 DECLARE_EVENT_CLASS(ucsi_log_connector_status,
 	TP_PROTO(int port, struct ucsi_connector_status *status),
 	TP_ARGS(port, status),

@@ -48,6 +48,7 @@ struct ucsi_dp {
 static int ucsi_displayport_enter(struct typec_altmode *alt)
 {
 	struct ucsi_dp *dp = typec_altmode_get_drvdata(alt);
+	struct ucsi *ucsi = dp->con->ucsi;
 	struct ucsi_control ctrl;
 	u8 cur = 0;
 	int ret;
@@ -59,25 +60,21 @@ static int ucsi_displayport_enter(struct typec_altmode *alt)
 
 		dev_warn(&p->dev,
 			 "firmware doesn't support alternate mode overriding\n");
-		mutex_unlock(&dp->con->lock);
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+		goto err_unlock;
 	}
 
 	UCSI_CMD_GET_CURRENT_CAM(ctrl, dp->con->num);
-	ret = ucsi_send_command(dp->con->ucsi, &ctrl, &cur, sizeof(cur));
+	ret = ucsi_send_command(ucsi, command, &cur, sizeof(cur));
 	if (ret < 0) {
-		if (dp->con->ucsi->ppm->data->version > 0x0100) {
-			mutex_unlock(&dp->con->lock);
-			return ret;
-		}
+		if (ucsi->version > 0x0100)
+			goto err_unlock;
 		cur = 0xff;
 	}
 
 	if (cur != 0xff) {
-		mutex_unlock(&dp->con->lock);
-		if (dp->con->port_altmode[cur] == alt)
-			return 0;
-		return -EBUSY;
+		ret = dp->con->port_altmode[cur] == alt ? 0 : -EBUSY;
+		goto err_unlock;
 	}
 
 	/*
@@ -94,10 +91,11 @@ static int ucsi_displayport_enter(struct typec_altmode *alt)
 	dp->vdo_size = 1;
 
 	schedule_work(&dp->work);
-
+	ret = 0;
+err_unlock:
 	mutex_unlock(&dp->con->lock);
 
-	return 0;
+	return ret;
 }
 
 static int ucsi_displayport_exit(struct typec_altmode *alt)
