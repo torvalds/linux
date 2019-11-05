@@ -56,7 +56,7 @@ static const struct usb_device_id idmouse_table[] = {
 #define FTIP_SCROLL  0x24
 
 #define ftip_command(dev, command, value, index) \
-	usb_control_msg (dev->udev, usb_sndctrlpipe (dev->udev, 0), command, \
+	usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0), command, \
 	USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT, value, index, NULL, 0, 1000)
 
 MODULE_DEVICE_TABLE(usb, idmouse_table);
@@ -157,8 +157,8 @@ static int idmouse_create_image(struct usb_idmouse *dev)
 
 	/* loop over a blocking bulk read to get data from the device */
 	while (bytes_read < IMGSIZE) {
-		result = usb_bulk_msg (dev->udev,
-				usb_rcvbulkpipe (dev->udev, dev->bulk_in_endpointAddr),
+		result = usb_bulk_msg(dev->udev,
+				usb_rcvbulkpipe(dev->udev, dev->bulk_in_endpointAddr),
 				dev->bulk_in_buffer + bytes_read,
 				dev->bulk_in_size, &bulk_read, 5000);
 		if (result < 0) {
@@ -222,7 +222,7 @@ static int idmouse_open(struct inode *inode, struct file *file)
 	int result;
 
 	/* get the interface from minor number and driver information */
-	interface = usb_find_interface (&idmouse_driver, iminor (inode));
+	interface = usb_find_interface(&idmouse_driver, iminor(inode));
 	if (!interface)
 		return -ENODEV;
 
@@ -246,7 +246,7 @@ static int idmouse_open(struct inode *inode, struct file *file)
 		result = usb_autopm_get_interface(interface);
 		if (result)
 			goto error;
-		result = idmouse_create_image (dev);
+		result = idmouse_create_image(dev);
 		usb_autopm_put_interface(interface);
 		if (result)
 			goto error;
