@@ -2147,4 +2147,11 @@ iwl_mvm_set_chan_info_chandef(struct iwl_mvm *mvm,
 			      iwl_mvm_get_ctrl_pos(chandef));
 }
 
+static inline int iwl_umac_scan_get_max_profiles(const struct iwl_fw *fw)
+{
+	u8 ver = iwl_mvm_lookup_cmd_ver(fw, IWL_ALWAYS_LONG_GROUP,
+					SCAN_OFFLOAD_UPDATE_PROFILES_CMD);
+	return (ver == IWL_FW_CMD_VER_UNKNOWN || ver < 3) ?
+		IWL_SCAN_MAX_PROFILES : IWL_SCAN_MAX_PROFILES_V2;
+}
 #endif /* __IWL_MVM_H__ */

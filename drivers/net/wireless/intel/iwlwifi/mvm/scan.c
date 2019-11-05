@@ -594,11 +594,15 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 				   struct cfg80211_sched_scan_request *req)
 {
 	struct iwl_scan_offload_profile *profile;
-	struct iwl_scan_offload_profile_cfg *profile_cfg;
+	struct iwl_scan_offload_profile_cfg_v1 *profile_cfg_v1;
 	struct iwl_scan_offload_blacklist *blacklist;
+	struct iwl_scan_offload_profile_cfg_data *data;
+	int max_profiles = iwl_umac_scan_get_max_profiles(mvm->fw);
+	int profile_cfg_size = sizeof(*data) +
+		sizeof(*profile) * max_profiles;
 	struct iwl_host_cmd cmd = {
 		.id = SCAN_OFFLOAD_UPDATE_PROFILES_CMD,
-		.len[1] = sizeof(*profile_cfg),
+		.len[1] = profile_cfg_size,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 		.dataflags[1] = IWL_HCMD_DFL_NOCOPY,
 	};
@@ -606,7 +610,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	int i;
 	int ret;
 
-	if (WARN_ON(req->n_match_sets > IWL_SCAN_MAX_PROFILES))
+	if (WARN_ON(req->n_match_sets > max_profiles))
 		return -EIO;
 
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_SHORT_BL)
@@ -618,27 +622,37 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	if (!blacklist)
 		return -ENOMEM;
 
-	profile_cfg = kzalloc(sizeof(*profile_cfg), GFP_KERNEL);
-	if (!profile_cfg) {
+	profile_cfg_v1 = kzalloc(profile_cfg_size, GFP_KERNEL);
+	if (!profile_cfg_v1) {
 		ret = -ENOMEM;
 		goto free_blacklist;
 	}
 
 	cmd.data[0] = blacklist;
 	cmd.len[0] = sizeof(*blacklist) * blacklist_len;
-	cmd.data[1] = profile_cfg;
+	cmd.data[1] = profile_cfg_v1;
+
+	/* if max_profile is MAX_PROFILES_V2, we have the new API */
+	if (max_profiles == IWL_SCAN_MAX_PROFILES_V2) {
+		struct iwl_scan_offload_profile_cfg *profile_cfg =
+			(struct iwl_scan_offload_profile_cfg *)profile_cfg_v1;
+
+		data = &profile_cfg->data;
+	} else {
+		data = &profile_cfg_v1->data;
+	}
 
 	/* No blacklist configuration */
+	data->num_profiles = req->n_match_sets;
+	data->active_clients = SCAN_CLIENT_SCHED_SCAN;
+	data->pass_match = SCAN_CLIENT_SCHED_SCAN;
+	data->match_notify = SCAN_CLIENT_SCHED_SCAN;
 
-	profile_cfg->num_profiles = req->n_match_sets;
-	profile_cfg->active_clients = SCAN_CLIENT_SCHED_SCAN;
-	profile_cfg->pass_match = SCAN_CLIENT_SCHED_SCAN;
-	profile_cfg->match_notify = SCAN_CLIENT_SCHED_SCAN;
 	if (!req->n_match_sets || !req->match_sets[0].ssid.ssid_len)
-		profile_cfg->any_beacon_notify = SCAN_CLIENT_SCHED_SCAN;
+		data->any_beacon_notify = SCAN_CLIENT_SCHED_SCAN;
 
 	for (i = 0; i < req->n_match_sets; i++) {
-		profile = &profile_cfg->profiles[i];
+		profile = &profile_cfg_v1->profiles[i];
 		profile->ssid_index = i;
 		/* Support any cipher and auth algorithm */
 		profile->unicast_cipher = 0xff;
@@ -651,7 +665,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	IWL_DEBUG_SCAN(mvm, "Sending scheduled scan profile config\n");
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
-	kfree(profile_cfg);
+	kfree(profile_cfg_v1);
 free_blacklist:
 	kfree(blacklist);
 

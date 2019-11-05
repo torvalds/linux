@@ -95,6 +95,7 @@ struct iwl_ssid_ie {
 #define IWL_SCAN_MAX_BLACKLIST_LEN	64
 #define IWL_SCAN_SHORT_BLACKLIST_LEN	16
 #define IWL_SCAN_MAX_PROFILES		11
+#define IWL_SCAN_MAX_PROFILES_V2	8
 #define SCAN_OFFLOAD_PROBE_REQ_SIZE	512
 #define SCAN_NUM_BAND_PROBE_DATA_V_1	2
 #define SCAN_NUM_BAND_PROBE_DATA_V_2	3
@@ -160,8 +161,7 @@ struct iwl_scan_offload_profile {
 } __packed;
 
 /**
- * struct iwl_scan_offload_profile_cfg - SCAN_OFFLOAD_PROFILES_CFG_API_S_VER_1
- * @profiles:		profiles to search for match
+ * struct iwl_scan_offload_profile_cfg_data
  * @blacklist_len:	length of blacklist
  * @num_profiles:	num of profiles in the list
  * @match_notify:	clients waiting for match found notification
@@ -170,8 +170,7 @@ struct iwl_scan_offload_profile {
  * @any_beacon_notify:	clients waiting for match notification without match
  * @reserved:		reserved
  */
-struct iwl_scan_offload_profile_cfg {
-	struct iwl_scan_offload_profile profiles[IWL_SCAN_MAX_PROFILES];
+struct iwl_scan_offload_profile_cfg_data {
 	u8 blacklist_len;
 	u8 num_profiles;
 	u8 match_notify;
@@ -180,6 +179,26 @@ struct iwl_scan_offload_profile_cfg {
 	u8 any_beacon_notify;
 	u8 reserved[2];
 } __packed;
+
+/**
+ * struct iwl_scan_offload_profile_cfg
+ * @profiles:	profiles to search for match
+ * @data:	the rest of the data for profile_cfg
+ */
+struct iwl_scan_offload_profile_cfg_v1 {
+	struct iwl_scan_offload_profile profiles[IWL_SCAN_MAX_PROFILES];
+	struct iwl_scan_offload_profile_cfg_data data;
+} __packed; /* SCAN_OFFLOAD_PROFILES_CFG_API_S_VER_1-2*/
+
+/**
+ * struct iwl_scan_offload_profile_cfg
+ * @profiles:	profiles to search for match
+ * @data:	the rest of the data for profile_cfg
+ */
+struct iwl_scan_offload_profile_cfg {
+	struct iwl_scan_offload_profile profiles[IWL_SCAN_MAX_PROFILES_V2];
+	struct iwl_scan_offload_profile_cfg_data data;
+} __packed; /* SCAN_OFFLOAD_PROFILES_CFG_API_S_VER_3*/
 
 /**
  * struct iwl_scan_schedule_lmac - schedule of scan offload
@@ -1169,7 +1188,7 @@ struct iwl_scan_offload_profiles_query_v1 {
 	u8 resume_while_scanning;
 	u8 self_recovery;
 	__le16 reserved;
-	struct iwl_scan_offload_profile_match_v1 matches[IWL_SCAN_MAX_PROFILES];
+	struct iwl_scan_offload_profile_match_v1 matches[0];
 } __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
 
 /**
@@ -1213,7 +1232,7 @@ struct iwl_scan_offload_profiles_query {
 	u8 resume_while_scanning;
 	u8 self_recovery;
 	__le16 reserved;
-	struct iwl_scan_offload_profile_match matches[IWL_SCAN_MAX_PROFILES];
+	struct iwl_scan_offload_profile_match matches[0];
 } __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_3 */
 
 /**
