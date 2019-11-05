@@ -255,7 +255,7 @@ static int hns_roce_create_idx_que(struct ib_pd *pd, struct hns_roce_srq *srq,
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
 	struct hns_roce_idx_que *idx_que = &srq->idx_que;
 
-	idx_que->bitmap = bitmap_zalloc(srq->max, GFP_KERNEL);
+	idx_que->bitmap = bitmap_zalloc(srq->wqe_cnt, GFP_KERNEL);
 	if (!idx_que->bitmap)
 		return -ENOMEM;
 
@@ -281,7 +281,7 @@ static int create_kernel_srq(struct hns_roce_srq *srq, int srq_buf_size)
 		return -ENOMEM;
 
 	srq->head = 0;
-	srq->tail = srq->max - 1;
+	srq->tail = srq->wqe_cnt - 1;
 
 	ret = hns_roce_mtt_init(hr_dev, srq->buf.npages, srq->buf.page_shift,
 				&srq->mtt);
@@ -312,7 +312,7 @@ static int create_kernel_srq(struct hns_roce_srq *srq, int srq_buf_size)
 	if (ret)
 		goto err_kernel_idx_buf;
 
-	srq->wrid = kvmalloc_array(srq->max, sizeof(u64), GFP_KERNEL);
+	srq->wrid = kvmalloc_array(srq->wqe_cnt, sizeof(u64), GFP_KERNEL);
 	if (!srq->wrid) {
 		ret = -ENOMEM;
 		goto err_kernel_idx_buf;
@@ -358,7 +358,7 @@ static void destroy_kernel_srq(struct hns_roce_dev *hr_dev,
 }
 
 int hns_roce_create_srq(struct ib_srq *ib_srq,
-			struct ib_srq_init_attr *srq_init_attr,
+			struct ib_srq_init_attr *init_attr,
 			struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_srq->device);
@@ -370,24 +370,24 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	u32 cqn;
 
 	/* Check the actual SRQ wqe and SRQ sge num */
-	if (srq_init_attr->attr.max_wr >= hr_dev->caps.max_srq_wrs ||
-	    srq_init_attr->attr.max_sge > hr_dev->caps.max_srq_sges)
+	if (init_attr->attr.max_wr >= hr_dev->caps.max_srq_wrs ||
+	    init_attr->attr.max_sge > hr_dev->caps.max_srq_sges)
 		return -EINVAL;
 
 	mutex_init(&srq->mutex);
 	spin_lock_init(&srq->lock);
 
-	srq->max = roundup_pow_of_two(srq_init_attr->attr.max_wr + 1);
-	srq->max_gs = srq_init_attr->attr.max_sge;
+	srq->wqe_cnt = roundup_pow_of_two(init_attr->attr.max_wr + 1);
+	srq->max_gs = init_attr->attr.max_sge;
 
 	srq_desc_size = max(16, 16 * srq->max_gs);
 
 	srq->wqe_shift = ilog2(srq_desc_size);
 
-	srq_buf_size = srq->max * srq_desc_size;
+	srq_buf_size = srq->wqe_cnt * srq_desc_size;
 
 	srq->idx_que.entry_sz = HNS_ROCE_IDX_QUE_ENTRY_SZ;
-	srq->idx_que.buf_size = srq->max * srq->idx_que.entry_sz;
+	srq->idx_que.buf_size = srq->wqe_cnt * srq->idx_que.entry_sz;
 	srq->mtt.mtt_type = MTT_TYPE_SRQWQE;
 	srq->idx_que.mtt.mtt_type = MTT_TYPE_IDX;
 
@@ -405,8 +405,8 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 		}
 	}
 
-	cqn = ib_srq_has_cq(srq_init_attr->srq_type) ?
-	      to_hr_cq(srq_init_attr->ext.cq)->cqn : 0;
+	cqn = ib_srq_has_cq(init_attr->srq_type) ?
+	      to_hr_cq(init_attr->ext.cq)->cqn : 0;
 
 	srq->db_reg_l = hr_dev->reg_base + SRQ_DB_REG;
 
@@ -453,7 +453,7 @@ void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 		hns_roce_mtt_cleanup(hr_dev, &srq->idx_que.mtt);
 	} else {
 		kvfree(srq->wrid);
-		hns_roce_buf_free(hr_dev, srq->max << srq->wqe_shift,
+		hns_roce_buf_free(hr_dev, srq->wqe_cnt << srq->wqe_shift,
 				  &srq->buf);
 	}
 	ib_umem_release(srq->idx_que.umem);

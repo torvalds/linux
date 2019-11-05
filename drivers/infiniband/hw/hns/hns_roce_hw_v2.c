@@ -6040,7 +6040,7 @@ static void hns_roce_v2_write_srqc(struct hns_roce_dev *hr_dev,
 		       hr_dev->caps.srqwqe_hop_num));
 	roce_set_field(srq_context->byte_4_srqn_srqst,
 		       SRQC_BYTE_4_SRQ_SHIFT_M, SRQC_BYTE_4_SRQ_SHIFT_S,
-		       ilog2(srq->max));
+		       ilog2(srq->wqe_cnt));
 
 	roce_set_field(srq_context->byte_4_srqn_srqst, SRQC_BYTE_4_SRQN_M,
 		       SRQC_BYTE_4_SRQN_S, srq->srqn);
@@ -6126,7 +6126,7 @@ static int hns_roce_v2_modify_srq(struct ib_srq *ibsrq,
 	int ret;
 
 	if (srq_attr_mask & IB_SRQ_LIMIT) {
-		if (srq_attr->srq_limit >= srq->max)
+		if (srq_attr->srq_limit >= srq->wqe_cnt)
 			return -EINVAL;
 
 		mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
@@ -6186,7 +6186,7 @@ static int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 				  SRQC_BYTE_8_SRQ_LIMIT_WL_S);
 
 	attr->srq_limit = limit_wl;
-	attr->max_wr    = srq->max - 1;
+	attr->max_wr    = srq->wqe_cnt - 1;
 	attr->max_sge   = srq->max_gs;
 
 	memcpy(srq_context, mailbox->buf, sizeof(*srq_context));
@@ -6239,7 +6239,7 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 
 	spin_lock_irqsave(&srq->lock, flags);
 
-	ind = srq->head & (srq->max - 1);
+	ind = srq->head & (srq->wqe_cnt - 1);
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		if (unlikely(wr->num_sge > srq->max_gs)) {
@@ -6254,7 +6254,7 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 			break;
 		}
 
-		wqe_idx = find_empty_entry(&srq->idx_que, srq->max);
+		wqe_idx = find_empty_entry(&srq->idx_que, srq->wqe_cnt);
 		if (wqe_idx < 0) {
 			ret = -ENOMEM;
 			*bad_wr = wr;
@@ -6278,7 +6278,7 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 		}
 
 		srq->wrid[wqe_idx] = wr->wr_id;
-		ind = (ind + 1) & (srq->max - 1);
+		ind = (ind + 1) & (srq->wqe_cnt - 1);
 	}
 
 	if (likely(nreq)) {

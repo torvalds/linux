@@ -517,9 +517,8 @@ struct hns_roce_idx_que {
 
 struct hns_roce_srq {
 	struct ib_srq		ibsrq;
-	void (*event)(struct hns_roce_srq *srq, enum hns_roce_event event);
 	unsigned long		srqn;
-	int			max;
+	u32			wqe_cnt;
 	int			max_gs;
 	int			wqe_shift;
 	void __iomem		*db_reg_l;
@@ -535,8 +534,8 @@ struct hns_roce_srq {
 	spinlock_t		lock;
 	int			head;
 	int			tail;
-	u16			wqe_ctr;
 	struct mutex		mutex;
+	void (*event)(struct hns_roce_srq *srq, enum hns_roce_event event);
 };
 
 struct hns_roce_uar_table {
