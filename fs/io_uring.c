@@ -2700,7 +2700,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 	struct io_submit_state state, *statep = NULL;
 	struct io_kiocb *link = NULL;
 	struct io_kiocb *shadow_req = NULL;
-	bool prev_was_link = false;
 	int i, submitted = 0;
 	bool mm_fault = false;
 
@@ -2723,17 +2722,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 			}
 		}
 
-		/*
-		 * If previous wasn't linked and we have a linked command,
-		 * that's the end of the chain. Submit the previous link.
-		 */
-		if (!prev_was_link && link) {
-			io_queue_link_head(ctx, link, &link->submit, shadow_req);
-			link = NULL;
-			shadow_req = NULL;
-		}
-		prev_was_link = (s.sqe->flags & IOSQE_IO_LINK) != 0;
-
 		if (link && (s.sqe->flags & IOSQE_IO_DRAIN)) {
 			if (!shadow_req) {
 				shadow_req = io_get_req(ctx, NULL);
@@ -2754,6 +2742,16 @@ out:
 		trace_io_uring_submit_sqe(ctx, s.sqe->user_data, true, async);
 		io_submit_sqe(ctx, &s, statep, &link);
 		submitted++;
+
+		/*
+		 * If previous wasn't linked and we have a linked command,
+		 * that's the end of the chain. Submit the previous link.
+		 */
+		if (!(s.sqe->flags & IOSQE_IO_LINK) && link) {
+			io_queue_link_head(ctx, link, &link->submit, shadow_req);
+			link = NULL;
+			shadow_req = NULL;
+		}
 	}
 
 	if (link)
