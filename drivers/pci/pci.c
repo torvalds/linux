@@ -1003,42 +1003,30 @@ void pci_wakeup_bus(struct pci_bus *bus)
 }
 
 /**
- * __pci_start_power_transition - Start power transition of a PCI device
- * @dev: PCI device to handle.
- * @state: State to put the device into.
- */
-static void __pci_start_power_transition(struct pci_dev *dev, pci_power_t state)
-{
-	if (state == PCI_D0) {
-		pci_platform_power_transition(dev, PCI_D0);
-		/*
-		 * Mandatory power management transition delays, see
-		 * PCI Express Base Specification Revision 2.0 Section
-		 * 6.6.1: Conventional Reset.  Do not delay for
-		 * devices powered on/off by corresponding bridge,
-		 * because have already delayed for the bridge.
-		 */
-		if (dev->runtime_d3cold) {
-			if (dev->d3cold_delay && !dev->imm_ready)
-				msleep(dev->d3cold_delay);
-			/*
-			 * When powering on a bridge from D3cold, the
-			 * whole hierarchy may be powered on into
-			 * D0uninitialized state, resume them to give
-			 * them a chance to suspend again
-			 */
-			pci_wakeup_bus(dev->subordinate);
-		}
-	}
-}
-
-/**
  * pci_power_up - Put the given device into D0
  * @dev: PCI device to power up
  */
 int pci_power_up(struct pci_dev *dev)
 {
-	__pci_start_power_transition(dev, PCI_D0);
+	pci_platform_power_transition(dev, PCI_D0);
+
+	/*
+	 * Mandatory power management transition delays, see PCI Express Base
+	 * Specification Revision 2.0 Section 6.6.1: Conventional Reset.  Do not
+	 * delay for devices powered on/off by corresponding bridge, because
+	 * have already delayed for the bridge.
+	 */
+	if (dev->runtime_d3cold) {
+		if (dev->d3cold_delay && !dev->imm_ready)
+			msleep(dev->d3cold_delay);
+		/*
+		 * When powering on a bridge from D3cold, the whole hierarchy
+		 * may be powered on into D0uninitialized state, resume them to
+		 * give them a chance to suspend again
+		 */
+		pci_wakeup_bus(dev->subordinate);
+	}
+
 	return pci_raw_set_power_state(dev, PCI_D0);
 }
 
