@@ -1451,9 +1451,9 @@ static void byt_init_irq_valid_mask(struct gpio_chip *chip,
 	 */
 }
 
-static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
+static int byt_gpio_irq_init_hw(struct gpio_chip *chip)
 {
-	struct gpio_chip *gc = &vg->chip;
+	struct byt_gpio *vg = gpiochip_get_data(chip);
 	struct device *dev = &vg->pdev->dev;
 	void __iomem *reg;
 	u32 base, value;
@@ -1477,7 +1477,7 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 
 		value = readl(reg);
 		if (value & BYT_DIRECT_IRQ_EN) {
-			clear_bit(i, gc->irq.valid_mask);
+			clear_bit(i, chip->irq.valid_mask);
 			dev_dbg(dev, "excluding GPIO %d from IRQ domain\n", i);
 		} else if ((value & BYT_PIN_MUX) == byt_get_gpio_mux(vg, i)) {
 			byt_gpio_clear_triggering(vg, i);
@@ -1505,6 +1505,8 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 				"GPIO interrupt error, pins misconfigured. INT_STAT%u: 0x%08x\n",
 				base / 32, value);
 	}
+
+	return 0;
 }
 
 static int byt_gpio_add_pin_ranges(struct gpio_chip *chip)
@@ -1543,26 +1545,30 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 	if (!vg->saved_context)
 		return -ENOMEM;
 #endif
-	ret = devm_gpiochip_add_data(&vg->pdev->dev, gc, vg);
-	if (ret) {
-		dev_err(&vg->pdev->dev, "failed adding byt-gpio chip\n");
-		return ret;
-	}
 
 	/* set up interrupts  */
 	irq_rc = platform_get_resource(vg->pdev, IORESOURCE_IRQ, 0);
 	if (irq_rc && irq_rc->start) {
-		byt_gpio_irq_init_hw(vg);
-		ret = gpiochip_irqchip_add(gc, &byt_irqchip, 0,
-					   handle_bad_irq, IRQ_TYPE_NONE);
-		if (ret) {
-			dev_err(&vg->pdev->dev, "failed to add irqchip\n");
-			return ret;
-		}
+		struct gpio_irq_chip *girq;
 
-		gpiochip_set_chained_irqchip(gc, &byt_irqchip,
-					     (unsigned)irq_rc->start,
-					     byt_gpio_irq_handler);
+		girq = &gc->irq;
+		girq->chip = &byt_irqchip;
+		girq->init_hw = byt_gpio_irq_init_hw;
+		girq->parent_handler = byt_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&vg->pdev->dev, girq->num_parents,
+					     sizeof(*girq->parents), GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = (unsigned int)irq_rc->start;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_bad_irq;
+	}
+
+	ret = devm_gpiochip_add_data(&vg->pdev->dev, gc, vg);
+	if (ret) {
+		dev_err(&vg->pdev->dev, "failed adding byt-gpio chip\n");
+		return ret;
 	}
 
 	return ret;
