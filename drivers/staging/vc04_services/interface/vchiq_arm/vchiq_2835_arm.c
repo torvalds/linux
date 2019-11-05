@@ -168,10 +168,10 @@ int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 	return 0;
 }
 
-VCHIQ_STATUS_T
+enum vchiq_status
 vchiq_platform_init_state(struct vchiq_state *state)
 {
-	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
+	enum vchiq_status status = VCHIQ_SUCCESS;
 	struct vchiq_2835_state *platform_state;
 
 	state->platform_state = kzalloc(sizeof(*platform_state), GFP_KERNEL);
@@ -214,7 +214,7 @@ remote_event_signal(struct remote_event *event)
 		writel(0, g_regs + BELL2); /* trigger vc interrupt */
 }
 
-VCHIQ_STATUS_T
+enum vchiq_status
 vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset, int size,
 			int dir)
 {
@@ -258,13 +258,13 @@ vchiq_dump_platform_state(void *dump_context)
 	vchiq_dump(dump_context, buf, len + 1);
 }
 
-VCHIQ_STATUS_T
+enum vchiq_status
 vchiq_platform_suspend(struct vchiq_state *state)
 {
 	return VCHIQ_ERROR;
 }
 
-VCHIQ_STATUS_T
+enum vchiq_status
 vchiq_platform_resume(struct vchiq_state *state)
 {
 	return VCHIQ_SUCCESS;
