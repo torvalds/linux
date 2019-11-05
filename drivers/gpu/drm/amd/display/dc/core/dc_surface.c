@@ -108,16 +108,14 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 
 struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 {
-	struct dc *core_dc = dc;
-
 	struct dc_plane_state *plane_state = kvzalloc(sizeof(*plane_state),
-						      GFP_KERNEL);
+							GFP_KERNEL);
 
 	if (NULL == plane_state)
 		return NULL;
 
 	kref_init(&plane_state->refcount);
-	dc_plane_construct(core_dc->ctx, plane_state);
+	dc_plane_construct(dc->ctx, plane_state);
 
 	return plane_state;
 }
@@ -137,7 +135,7 @@ const struct dc_plane_status *dc_plane_get_status(
 		const struct dc_plane_state *plane_state)
 {
 	const struct dc_plane_status *plane_status;
-	struct dc  *core_dc;
+	struct dc  *dc;
 	int i;
 
 	if (!plane_state ||
@@ -148,15 +146,15 @@ const struct dc_plane_status *dc_plane_get_status(
 	}
 
 	plane_status = &plane_state->status;
-	core_dc = plane_state->ctx->dc;
+	dc = plane_state->ctx->dc;
 
-	if (core_dc->current_state == NULL)
+	if (dc->current_state == NULL)
 		return NULL;
 
 	/* Find the current plane state and set its pending bit to false */
-	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx =
-				&core_dc->current_state->res_ctx.pipe_ctx[i];
+				&dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->plane_state != plane_state)
 			continue;
@@ -166,14 +164,14 @@ const struct dc_plane_status *dc_plane_get_status(
 		break;
 	}
 
-	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx =
-				&core_dc->current_state->res_ctx.pipe_ctx[i];
+				&dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->plane_state != plane_state)
 			continue;
 
-		core_dc->hwss.update_pending_status(pipe_ctx);
+		dc->hwss.update_pending_status(pipe_ctx);
 	}
 
 	return plane_status;

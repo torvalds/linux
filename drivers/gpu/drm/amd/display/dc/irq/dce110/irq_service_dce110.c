@@ -204,7 +204,7 @@ bool dce110_vblank_set(struct irq_service *irq_service,
 		       bool enable)
 {
 	struct dc_context *dc_ctx = irq_service->ctx;
-	struct dc *core_dc = irq_service->ctx->dc;
+	struct dc *dc = irq_service->ctx->dc;
 	enum dc_irq_source dal_irq_src =
 			dc_interrupt_to_irq_source(irq_service->ctx->dc,
 						   info->src_id,
@@ -212,7 +212,7 @@ bool dce110_vblank_set(struct irq_service *irq_service,
 	uint8_t pipe_offset = dal_irq_src - IRQ_TYPE_VBLANK;
 
 	struct timing_generator *tg =
-			core_dc->current_state->res_ctx.pipe_ctx[pipe_offset].stream_res.tg;
+			dc->current_state->res_ctx.pipe_ctx[pipe_offset].stream_res.tg;
 
 	if (enable) {
 		if (!tg || !tg->funcs->arm_vert_intr(tg, 2)) {

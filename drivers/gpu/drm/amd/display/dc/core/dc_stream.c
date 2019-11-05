@@ -271,7 +271,7 @@ bool dc_stream_set_cursor_attributes(
 	const struct dc_cursor_attributes *attributes)
 {
 	int i;
-	struct dc  *core_dc;
+	struct dc  *dc;
 	struct resource_context *res_ctx;
 	struct pipe_ctx *pipe_to_program = NULL;
 
@@ -289,8 +289,8 @@ bool dc_stream_set_cursor_attributes(
 		return false;
 	}
 
-	core_dc = stream->ctx->dc;
-	res_ctx = &core_dc->current_state->res_ctx;
+	dc = stream->ctx->dc;
+	res_ctx = &dc->current_state->res_ctx;
 	stream->cursor_attributes = *attributes;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -302,17 +302,17 @@ bool dc_stream_set_cursor_attributes(
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
 
-			delay_cursor_until_vupdate(pipe_ctx, core_dc);
-			core_dc->hwss.pipe_control_lock(core_dc, pipe_to_program, true);
+			delay_cursor_until_vupdate(pipe_ctx, dc);
+			dc->hwss.pipe_control_lock(dc, pipe_to_program, true);
 		}
 
-		core_dc->hwss.set_cursor_attribute(pipe_ctx);
-		if (core_dc->hwss.set_cursor_sdr_white_level)
-			core_dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
+		dc->hwss.set_cursor_attribute(pipe_ctx);
+		if (dc->hwss.set_cursor_sdr_white_level)
+			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 	}
 
 	if (pipe_to_program)
-		core_dc->hwss.pipe_control_lock(core_dc, pipe_to_program, false);
+		dc->hwss.pipe_control_lock(dc, pipe_to_program, false);
 
 	return true;
 }
@@ -322,7 +322,7 @@ bool dc_stream_set_cursor_position(
 	const struct dc_cursor_position *position)
 {
 	int i;
-	struct dc  *core_dc;
+	struct dc  *dc;
 	struct resource_context *res_ctx;
 	struct pipe_ctx *pipe_to_program = NULL;
 
@@ -336,8 +336,8 @@ bool dc_stream_set_cursor_position(
 		return false;
 	}
 
-	core_dc = stream->ctx->dc;
-	res_ctx = &core_dc->current_state->res_ctx;
+	dc = stream->ctx->dc;
+	res_ctx = &dc->current_state->res_ctx;
 	stream->cursor_position = *position;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -353,15 +353,15 @@ bool dc_stream_set_cursor_position(
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
 
-			delay_cursor_until_vupdate(pipe_ctx, core_dc);
-			core_dc->hwss.pipe_control_lock(core_dc, pipe_to_program, true);
+			delay_cursor_until_vupdate(pipe_ctx, dc);
+			dc->hwss.pipe_control_lock(dc, pipe_to_program, true);
 		}
 
-		core_dc->hwss.set_cursor_position(pipe_ctx);
+		dc->hwss.set_cursor_position(pipe_ctx);
 	}
 
 	if (pipe_to_program)
-		core_dc->hwss.pipe_control_lock(core_dc, pipe_to_program, false);
+		dc->hwss.pipe_control_lock(dc, pipe_to_program, false);
 
 	return true;
 }
@@ -482,9 +482,9 @@ bool dc_stream_remove_writeback(struct dc *dc,
 uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 {
 	uint8_t i;
-	struct dc  *core_dc = stream->ctx->dc;
+	struct dc  *dc = stream->ctx->dc;
 	struct resource_context *res_ctx =
-		&core_dc->current_state->res_ctx;
+		&dc->current_state->res_ctx;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct timing_generator *tg = res_ctx->pipe_ctx[i].stream_res.tg;
@@ -541,9 +541,9 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 {
 	uint8_t i;
 	bool ret = false;
-	struct dc  *core_dc = stream->ctx->dc;
+	struct dc  *dc = stream->ctx->dc;
 	struct resource_context *res_ctx =
-		&core_dc->current_state->res_ctx;
+		&dc->current_state->res_ctx;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct timing_generator *tg = res_ctx->pipe_ctx[i].stream_res.tg;

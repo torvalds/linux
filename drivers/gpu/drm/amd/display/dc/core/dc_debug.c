@@ -310,14 +310,13 @@ void context_timing_trace(
 		struct resource_context *res_ctx)
 {
 	int i;
-	struct dc  *core_dc = dc;
 	int h_pos[MAX_PIPES] = {0}, v_pos[MAX_PIPES] = {0};
 	struct crtc_position position;
-	unsigned int underlay_idx = core_dc->res_pool->underlay_pipe_index;
+	unsigned int underlay_idx = dc->res_pool->underlay_pipe_index;
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 
-	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 		/* get_position() returns CRTC vertical/horizontal counter
 		 * hence not applicable for underlay pipe
@@ -329,7 +328,7 @@ void context_timing_trace(
 		h_pos[i] = position.horizontal_count;
 		v_pos[i] = position.vertical_count;
 	}
-	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
 		if (pipe_ctx->stream == NULL || pipe_ctx->pipe_idx == underlay_idx)

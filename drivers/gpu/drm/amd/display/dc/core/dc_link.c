@@ -2355,9 +2355,9 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 		uint32_t backlight_pwm_u16_16,
 		uint32_t frame_ramp)
 {
-	struct dc  *core_dc = link->ctx->dc;
-	struct abm *abm = core_dc->res_pool->abm;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+	struct dc  *dc = link->ctx->dc;
+	struct abm *abm = dc->res_pool->abm;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 	unsigned int controller_id = 0;
 	bool use_smooth_brightness = true;
 	int i;
@@ -2375,22 +2375,22 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
 		for (i = 0; i < MAX_PIPES; i++) {
-			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream) {
-				if (core_dc->current_state->res_ctx.
+			if (dc->current_state->res_ctx.pipe_ctx[i].stream) {
+				if (dc->current_state->res_ctx.
 						pipe_ctx[i].stream->link
 						== link) {
 					/* DMCU -1 for all controller id values,
 					 * therefore +1 here
 					 */
 					controller_id =
-						core_dc->current_state->
+						dc->current_state->
 						res_ctx.pipe_ctx[i].stream_res.tg->inst +
 						1;
 
 					/* Disable brightness ramping when the display is blanked
 					 * as it can hang the DMCU
 					 */
-					if (core_dc->current_state->res_ctx.pipe_ctx[i].plane_state == NULL)
+					if (dc->current_state->res_ctx.pipe_ctx[i].plane_state == NULL)
 						frame_ramp = 0;
 				}
 			}
@@ -2408,8 +2408,8 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 
 bool dc_link_set_abm_disable(const struct dc_link *link)
 {
-	struct dc  *core_dc = link->ctx->dc;
-	struct abm *abm = core_dc->res_pool->abm;
+	struct dc  *dc = link->ctx->dc;
+	struct abm *abm = dc->res_pool->abm;
 
 	if ((abm == NULL) || (abm->funcs->set_backlight_level_pwm == NULL))
 		return false;
@@ -2421,8 +2421,8 @@ bool dc_link_set_abm_disable(const struct dc_link *link)
 
 bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool wait)
 {
-	struct dc  *core_dc = link->ctx->dc;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+	struct dc  *dc = link->ctx->dc;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 
 
 
@@ -2436,8 +2436,8 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool 
 
 bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
 {
-	struct dc  *core_dc = link->ctx->dc;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+	struct dc  *dc = link->ctx->dc;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 
 	if (dmcu != NULL && link->psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, psr_state);
@@ -2484,7 +2484,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context)
 {
-	struct dc *core_dc;
+	struct dc *dc;
 	struct dmcu *dmcu;
 	int i;
 	/* updateSinkPsrDpcdConfig*/
@@ -2495,8 +2495,8 @@ bool dc_link_setup_psr(struct dc_link *link,
 	if (!link)
 		return false;
 
-	core_dc = link->ctx->dc;
-	dmcu = core_dc->res_pool->dmcu;
+	dc = link->ctx->dc;
+	dmcu = dc->res_pool->dmcu;
 
 	if (!dmcu)
 		return false;
@@ -2535,13 +2535,13 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr_context->engineId = link->link_enc->preferred_engine;
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (core_dc->current_state->res_ctx.pipe_ctx[i].stream
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream
 				== stream) {
 			/* dmcu -1 for all controller id values,
 			 * therefore +1 here
 			 */
 			psr_context->controllerId =
-				core_dc->current_state->res_ctx.
+				dc->current_state->res_ctx.
 				pipe_ctx[i].stream_res.tg->inst + 1;
 			break;
 		}
@@ -2905,12 +2905,12 @@ void core_link_enable_stream(
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx)
 {
-	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_status status;
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
-	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment) &&
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) &&
 			dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
 
@@ -2953,14 +2953,14 @@ void core_link_enable_stream(
 			pipe_ctx->stream_res.stream_enc,
 			&stream->timing);
 
-	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		bool apply_edp_fast_boot_optimization =
 			pipe_ctx->stream->apply_edp_fast_boot_optimization;
 
 		pipe_ctx->stream->apply_edp_fast_boot_optimization = false;
 
 		resource_build_info_frame(pipe_ctx);
-		core_dc->hwss.update_info_frame(pipe_ctx);
+		dc->hwss.update_info_frame(pipe_ctx);
 
 		/* Do not touch link on seamless boot optimization. */
 		if (pipe_ctx->stream->apply_seamless_boot_optimization) {
@@ -3003,7 +3003,7 @@ void core_link_enable_stream(
 			}
 		}
 
-		core_dc->hwss.enable_audio_stream(pipe_ctx);
+		dc->hwss.enable_audio_stream(pipe_ctx);
 
 		/* turn off otg test pattern if enable */
 		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
@@ -3016,7 +3016,7 @@ void core_link_enable_stream(
 					dc_is_virtual_signal(pipe_ctx->stream->signal))
 				dp_set_dsc_enable(pipe_ctx, true);
 		}
-		core_dc->hwss.enable_stream(pipe_ctx);
+		dc->hwss.enable_stream(pipe_ctx);
 
 		/* Set DPS PPS SDP (AKA "info frames") */
 		if (pipe_ctx->stream->timing.flags.DSC) {
@@ -3028,7 +3028,7 @@ void core_link_enable_stream(
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 			dc_link_allocate_mst_payload(pipe_ctx);
 
-		core_dc->hwss.unblank_stream(pipe_ctx,
+		dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->link->cur_link_settings);
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -3036,8 +3036,7 @@ void core_link_enable_stream(
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 		update_psp_stream_config(pipe_ctx, false);
 #endif
-	}
-	else { // if (IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
+	} else { // if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
 				dc_is_virtual_signal(pipe_ctx->stream->signal))
 			dp_set_dsc_enable(pipe_ctx, true);
@@ -3047,11 +3046,11 @@ void core_link_enable_stream(
 
 void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
+	struct dc  *dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 
-	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment) &&
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) &&
 			dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
 
@@ -3059,7 +3058,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 	update_psp_stream_config(pipe_ctx, true);
 #endif
 
-	core_dc->hwss.blank_stream(pipe_ctx);
+	dc->hwss.blank_stream(pipe_ctx);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
@@ -3088,7 +3087,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 			write_i2c_redriver_setting(pipe_ctx, false);
 		}
 	}
-	core_dc->hwss.disable_stream(pipe_ctx);
+	dc->hwss.disable_stream(pipe_ctx);
 
 	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
 	if (pipe_ctx->stream->timing.flags.DSC) {
@@ -3099,12 +3098,12 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 {
-	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
+	struct dc  *dc = pipe_ctx->stream->ctx->dc;
 
 	if (!dc_is_hdmi_signal(pipe_ctx->stream->signal))
 		return;
 
-	core_dc->hwss.set_avmute(pipe_ctx, enable);
+	dc->hwss.set_avmute(pipe_ctx, enable);
 }
 
 /**

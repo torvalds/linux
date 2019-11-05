@@ -1655,10 +1655,10 @@ void dcn10_enable_per_frame_crtc_position_reset(
 }
 
 /*static void print_rq_dlg_ttu(
-		struct dc *core_dc,
+		struct dc *dc,
 		struct pipe_ctx *pipe_ctx)
 {
-	DC_LOG_BANDWIDTH_CALCS(core_dc->ctx->logger,
+	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
 			"\n============== DML TTU Output parameters [%d] ==============\n"
 			"qos_level_low_wm: %d, \n"
 			"qos_level_high_wm: %d, \n"
@@ -1688,7 +1688,7 @@ void dcn10_enable_per_frame_crtc_position_reset(
 			pipe_ctx->ttu_regs.refcyc_per_req_delivery_pre_c
 			);
 
-	DC_LOG_BANDWIDTH_CALCS(core_dc->ctx->logger,
+	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
 			"\n============== DML DLG Output parameters [%d] ==============\n"
 			"refcyc_h_blank_end: %d, \n"
 			"dlg_vblank_end: %d, \n"
@@ -1723,7 +1723,7 @@ void dcn10_enable_per_frame_crtc_position_reset(
 			pipe_ctx->dlg_regs.refcyc_per_pte_group_nom_l
 			);
 
-	DC_LOG_BANDWIDTH_CALCS(core_dc->ctx->logger,
+	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
 			"\ndst_y_per_meta_row_nom_l: %d, \n"
 			"refcyc_per_meta_chunk_nom_l: %d, \n"
 			"refcyc_per_line_delivery_pre_l: %d, \n"
@@ -1753,7 +1753,7 @@ void dcn10_enable_per_frame_crtc_position_reset(
 			pipe_ctx->dlg_regs.refcyc_per_line_delivery_c
 			);
 
-	DC_LOG_BANDWIDTH_CALCS(core_dc->ctx->logger,
+	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
 			"\n============== DML RQ Output parameters [%d] ==============\n"
 			"chunk_size: %d \n"
 			"min_chunk_size: %d \n"

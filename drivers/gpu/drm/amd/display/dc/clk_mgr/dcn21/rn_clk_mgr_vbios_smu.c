@@ -82,8 +82,8 @@ int rn_vbios_smu_get_smu_version(struct clk_mgr_internal *clk_mgr)
 int rn_vbios_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dispclk_khz)
 {
 	int actual_dispclk_set_mhz = -1;
-	struct dc *core_dc = clk_mgr->base.ctx->dc;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+	struct dc *dc = clk_mgr->base.ctx->dc;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 
 	/*  Unit of SMU msg parameter is Mhz */
 	actual_dispclk_set_mhz = rn_vbios_smu_send_msg_with_param(
@@ -91,7 +91,7 @@ int rn_vbios_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dis
 			VBIOSSMC_MSG_SetDispclkFreq,
 			requested_dispclk_khz / 1000);
 
-	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
 			if (clk_mgr->dfs_bypass_disp_clk != actual_dispclk_set_mhz)
 				dmcu->funcs->set_psr_wait_loop(dmcu,
