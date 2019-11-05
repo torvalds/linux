@@ -413,3 +413,14 @@ int omap_aes_4106gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 
 	return 0;
 }
+
+int omap_aes_gcm_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
+{
+	return crypto_gcm_check_authsize(authsize);
+}
+
+int omap_aes_4106gcm_setauthsize(struct crypto_aead *parent,
+				 unsigned int authsize)
+{
+	return crypto_rfc4106_check_authsize(authsize);
+}
