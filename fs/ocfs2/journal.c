@@ -419,7 +419,7 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 	if (!nblocks)
 		return 0;
 
-	old_nblocks = handle->h_buffer_credits;
+	old_nblocks = jbd2_handle_buffer_credits(handle);
 
 	trace_ocfs2_extend_trans(old_nblocks, nblocks);
 
@@ -460,7 +460,7 @@ int ocfs2_allocate_extend_trans(handle_t *handle, int thresh)
 
 	BUG_ON(!handle);
 
-	old_nblks = handle->h_buffer_credits;
+	old_nblks = jbd2_handle_buffer_credits(handle);
 	trace_ocfs2_allocate_extend_trans(old_nblks, thresh);
 
 	if (old_nblks < thresh)
