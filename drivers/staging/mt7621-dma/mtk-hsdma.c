@@ -548,7 +548,8 @@ static int mtk_hsdam_alloc_desc(struct mtk_hsdam_engine *hsdma,
 	int i;
 
 	chan->tx_ring = dma_alloc_coherent(hsdma->ddev.dev,
-			2 * HSDMA_DESCS_NUM * sizeof(*chan->tx_ring),
+					   2 * HSDMA_DESCS_NUM *
+					   sizeof(*chan->tx_ring),
 			&chan->desc_addr, GFP_ATOMIC | __GFP_ZERO);
 	if (!chan->tx_ring)
 		goto no_mem;
@@ -569,8 +570,8 @@ static void mtk_hsdam_free_desc(struct mtk_hsdam_engine *hsdma,
 {
 	if (chan->tx_ring) {
 		dma_free_coherent(hsdma->ddev.dev,
-				2 * HSDMA_DESCS_NUM * sizeof(*chan->tx_ring),
-				chan->tx_ring, chan->desc_addr);
+				  2 * HSDMA_DESCS_NUM * sizeof(*chan->tx_ring),
+				  chan->tx_ring, chan->desc_addr);
 		chan->tx_ring = NULL;
 		chan->rx_ring = NULL;
 	}
