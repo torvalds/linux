@@ -111,7 +111,7 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
 
 	netdev = hr_dev->iboe.netdevs[port];
 	if (!netdev) {
-		dev_err(dev, "port(%d) can't find netdev\n", port);
+		dev_err(dev, "Can't find netdev on port(%u)!\n", port);
 		return -ENODEV;
 	}
 
@@ -253,7 +253,7 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u8 port_num,
 	net_dev = hr_dev->iboe.netdevs[port];
 	if (!net_dev) {
 		spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
-		dev_err(dev, "find netdev %d failed!\r\n", port);
+		dev_err(dev, "Find netdev %u failed!\n", port);
 		return -EINVAL;
 	}
 
