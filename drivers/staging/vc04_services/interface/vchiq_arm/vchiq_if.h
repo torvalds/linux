@@ -63,19 +63,19 @@ struct vchiq_element {
 
 typedef unsigned int VCHIQ_SERVICE_HANDLE_T;
 
-typedef enum vchiq_status (*VCHIQ_CALLBACK_T)(enum vchiq_reason,
-					   struct vchiq_header *,
-					   VCHIQ_SERVICE_HANDLE_T, void *);
+typedef enum vchiq_status (*vchiq_callback)(enum vchiq_reason,
+					    struct vchiq_header *,
+					    VCHIQ_SERVICE_HANDLE_T, void *);
 
 struct vchiq_service_base {
 	int fourcc;
-	VCHIQ_CALLBACK_T callback;
+	vchiq_callback callback;
 	void *userdata;
 };
 
 struct vchiq_service_params {
 	int fourcc;
-	VCHIQ_CALLBACK_T callback;
+	vchiq_callback callback;
 	void *userdata;
 	short version;       /* Increment for non-trivial changes */
 	short version_min;   /* Update for incompatible changes */
