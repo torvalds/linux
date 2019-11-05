@@ -175,12 +175,17 @@ ___gnet_stats_copy_basic(const seqcount_t *running,
 
 	if (d->tail) {
 		struct gnet_stats_basic sb;
+		int res;
 
 		memset(&sb, 0, sizeof(sb));
 		sb.bytes = bstats.bytes;
 		sb.packets = bstats.packets;
-		return gnet_stats_copy(d, type, &sb, sizeof(sb),
-				       TCA_STATS_PAD);
+		res = gnet_stats_copy(d, type, &sb, sizeof(sb), TCA_STATS_PAD);
+		if (res < 0 || sb.packets == bstats.packets)
+			return res;
+		/* emit 64bit stats only if needed */
+		return gnet_stats_copy(d, TCA_STATS_PKT64, &bstats.packets,
+				       sizeof(bstats.packets), TCA_STATS_PAD);
 	}
 	return 0;
 }
