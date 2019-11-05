@@ -1477,7 +1477,7 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 		 * of the transaction. This needs to be done
 		 * once a transaction -bzzz
 		 */
-		if (handle->h_total_credits <= 0) {
+		if (WARN_ON_ONCE(jbd2_handle_buffer_credits(handle) <= 0)) {
 			ret = -ENOSPC;
 			goto out_unlock_bh;
 		}
