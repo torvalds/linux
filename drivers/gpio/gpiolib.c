@@ -476,6 +476,73 @@ static int linehandle_validate_flags(u32 flags)
 	return 0;
 }
 
+static void linehandle_configure_flag(unsigned long *flagsp,
+				      u32 bit, bool active)
+{
+	if (active)
+		set_bit(bit, flagsp);
+	else
+		clear_bit(bit, flagsp);
+}
+
+static long linehandle_set_config(struct linehandle_state *lh,
+				  void __user *ip)
+{
+	struct gpiohandle_config gcnf;
+	struct gpio_desc *desc;
+	int i, ret;
+	u32 lflags;
+	unsigned long *flagsp;
+
+	if (copy_from_user(&gcnf, ip, sizeof(gcnf)))
+		return -EFAULT;
+
+	lflags = gcnf.flags;
+	ret = linehandle_validate_flags(lflags);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < lh->numdescs; i++) {
+		desc = lh->descs[i];
+		flagsp = &desc->flags;
+
+		linehandle_configure_flag(flagsp, FLAG_ACTIVE_LOW,
+			lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW);
+
+		linehandle_configure_flag(flagsp, FLAG_OPEN_DRAIN,
+			lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN);
+
+		linehandle_configure_flag(flagsp, FLAG_OPEN_SOURCE,
+			lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE);
+
+		linehandle_configure_flag(flagsp, FLAG_PULL_UP,
+			lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP);
+
+		linehandle_configure_flag(flagsp, FLAG_PULL_DOWN,
+			lflags & GPIOHANDLE_REQUEST_BIAS_PULL_DOWN);
+
+		linehandle_configure_flag(flagsp, FLAG_BIAS_DISABLE,
+			lflags & GPIOHANDLE_REQUEST_BIAS_DISABLE);
+
+		/*
+		 * Lines have to be requested explicitly for input
+		 * or output, else the line will be treated "as is".
+		 */
+		if (lflags & GPIOHANDLE_REQUEST_OUTPUT) {
+			int val = !!gcnf.default_values[i];
+
+			ret = gpiod_direction_output(desc, val);
+			if (ret)
+				return ret;
+		} else if (lflags & GPIOHANDLE_REQUEST_INPUT) {
+			ret = gpiod_direction_input(desc);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
+}
+
 static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 			     unsigned long arg)
 {
@@ -526,6 +593,8 @@ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 					      lh->descs,
 					      NULL,
 					      vals);
+	} else if (cmd == GPIOHANDLE_SET_CONFIG_IOCTL) {
+		return linehandle_set_config(lh, ip);
 	}
 	return -EINVAL;
 }
