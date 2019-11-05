@@ -3010,7 +3010,7 @@ static void qla24xx_async_gpsc_sp_done(srb_t *sp, int res)
 	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 
 	if (res == QLA_FUNCTION_TIMEOUT)
-		return;
+		goto done;
 
 	if (res == (DID_ERROR << 16)) {
 		/* entry status error */
