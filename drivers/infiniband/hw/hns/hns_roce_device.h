@@ -494,7 +494,6 @@ struct hns_roce_cq {
 	void (*comp)(struct hns_roce_cq *cq);
 	void (*event)(struct hns_roce_cq *cq, enum hns_roce_event event_type);
 
-	struct hns_roce_uar		*uar;
 	u32				cq_depth;
 	u32				cons_index;
 	u32				*set_ci_db;

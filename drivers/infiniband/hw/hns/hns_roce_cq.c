@@ -347,7 +347,6 @@ static int create_kernel_cq(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_cq *hr_cq, int cq_entries)
 {
 	struct device *dev = hr_dev->dev;
-	struct hns_roce_uar *uar;
 	int ret;
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
@@ -367,9 +366,8 @@ static int create_kernel_cq(struct hns_roce_dev *hr_dev,
 		goto err_db;
 	}
 
-	uar = &hr_dev->priv_uar;
 	hr_cq->cq_db_l = hr_dev->reg_base + hr_dev->odb_offset +
-			 DB_REG_OFFSET * uar->index;
+			 DB_REG_OFFSET * hr_dev->priv_uar.index;
 
 	return 0;
 
