@@ -360,25 +360,22 @@ struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 						   const char *driver_name)
 {
 	struct snd_soc_component *component;
-	struct snd_soc_component *ret;
+	struct snd_soc_component *found_component;
 
-	ret = NULL;
+	found_component = NULL;
 	mutex_lock(&client_mutex);
 	for_each_component(component) {
-		if (dev != component->dev)
-			continue;
-
-		if (driver_name &&
-		    (driver_name != component->driver->name) &&
-		    (strcmp(component->driver->name, driver_name) != 0))
-			continue;
-
-		ret = component;
-		break;
+		if ((dev == component->dev) &&
+		    (!driver_name ||
+		     (driver_name == component->driver->name) ||
+		     (strcmp(component->driver->name, driver_name) == 0))) {
+			found_component = component;
+			break;
+		}
 	}
 	mutex_unlock(&client_mutex);
 
-	return ret;
+	return found_component;
 }
 EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
 
