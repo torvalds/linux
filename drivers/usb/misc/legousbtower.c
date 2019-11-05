@@ -421,13 +421,6 @@ static int tower_release (struct inode *inode, struct file *file)
 
 	mutex_lock(&dev->lock);
 
-	if (dev->open_count != 1) {
-		dev_dbg(&dev->udev->dev, "%s: device not opened exactly once\n",
-			__func__);
-		retval = -ENODEV;
-		goto unlock_exit;
-	}
-
 	if (dev->disconnected) {
 		/* the device was unplugged before the file was released */
 
@@ -444,7 +437,6 @@ static int tower_release (struct inode *inode, struct file *file)
 	tower_abort_transfers (dev);
 	dev->open_count = 0;
 
-unlock_exit:
 	mutex_unlock(&dev->lock);
 exit:
 	return retval;
