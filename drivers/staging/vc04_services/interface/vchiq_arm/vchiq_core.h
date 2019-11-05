@@ -523,7 +523,7 @@ remote_event_pollall(struct vchiq_state *state);
 
 extern enum vchiq_status
 vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *offset, int size,
-		    void *userdata, VCHIQ_BULK_MODE_T mode,
+		    void *userdata, enum vchiq_bulk_mode mode,
 		    VCHIQ_BULK_DIR_T dir);
 
 extern void

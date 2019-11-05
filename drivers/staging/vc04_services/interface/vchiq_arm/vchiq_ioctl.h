@@ -28,7 +28,7 @@ struct vchiq_queue_bulk_transfer {
 	void *data;
 	unsigned int size;
 	void *userdata;
-	VCHIQ_BULK_MODE_T mode;
+	enum vchiq_bulk_mode mode;
 };
 
 struct vchiq_completion_data {

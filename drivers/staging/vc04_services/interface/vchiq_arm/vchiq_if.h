@@ -31,12 +31,12 @@ enum vchiq_status {
 	VCHIQ_RETRY   = 1
 };
 
-typedef enum {
+enum vchiq_bulk_mode {
 	VCHIQ_BULK_MODE_CALLBACK,
 	VCHIQ_BULK_MODE_BLOCKING,
 	VCHIQ_BULK_MODE_NOCALLBACK,
 	VCHIQ_BULK_MODE_WAITING		/* Reserved for internal use */
-} VCHIQ_BULK_MODE_T;
+};
 
 typedef enum {
 	VCHIQ_SERVICE_OPTION_AUTOCLOSE,
@@ -118,16 +118,16 @@ extern void           vchiq_release_message(VCHIQ_SERVICE_HANDLE_T service,
 	struct vchiq_header *header);
 extern enum vchiq_status vchiq_bulk_transmit(VCHIQ_SERVICE_HANDLE_T service,
 	const void *data, unsigned int size, void *userdata,
-	VCHIQ_BULK_MODE_T mode);
+	enum vchiq_bulk_mode mode);
 extern enum vchiq_status vchiq_bulk_receive(VCHIQ_SERVICE_HANDLE_T service,
 	void *data, unsigned int size, void *userdata,
-	VCHIQ_BULK_MODE_T mode);
+	enum vchiq_bulk_mode mode);
 extern enum vchiq_status vchiq_bulk_transmit_handle(VCHIQ_SERVICE_HANDLE_T service,
 	const void *offset, unsigned int size,
-	void *userdata,	VCHIQ_BULK_MODE_T mode);
+	void *userdata,	enum vchiq_bulk_mode mode);
 extern enum vchiq_status vchiq_bulk_receive_handle(VCHIQ_SERVICE_HANDLE_T service,
 	void *offset, unsigned int size, void *userdata,
-	VCHIQ_BULK_MODE_T mode);
+	enum vchiq_bulk_mode mode);
 extern int   vchiq_get_client_id(VCHIQ_SERVICE_HANDLE_T service);
 extern void *vchiq_get_service_userdata(VCHIQ_SERVICE_HANDLE_T service);
 extern int   vchiq_get_service_fourcc(VCHIQ_SERVICE_HANDLE_T service);

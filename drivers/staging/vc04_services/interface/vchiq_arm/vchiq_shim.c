@@ -203,7 +203,7 @@ int32_t vchi_bulk_queue_receive(struct vchi_service_handle *handle, void *data_d
 				void *bulk_handle)
 {
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_BULK_MODE_T mode;
+	enum vchiq_bulk_mode mode;
 	enum vchiq_status status;
 
 	switch ((int)flags) {
@@ -263,7 +263,7 @@ int32_t vchi_bulk_queue_transmit(struct vchi_service_handle *handle,
 				 void *bulk_handle)
 {
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_BULK_MODE_T mode;
+	enum vchiq_bulk_mode mode;
 	enum vchiq_status status;
 
 	switch ((int)flags) {
