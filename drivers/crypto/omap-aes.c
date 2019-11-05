@@ -747,7 +747,7 @@ static struct skcipher_alg algs_ctr[] = {
 	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_ASYNC |
 				  CRYPTO_ALG_NEED_FALLBACK,
-	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_blocksize	= 1,
 	.base.cra_ctxsize	= sizeof(struct omap_aes_ctx),
 	.base.cra_module	= THIS_MODULE,
 
