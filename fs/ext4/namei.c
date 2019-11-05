@@ -2550,9 +2550,12 @@ static void ext4_dec_count(handle_t *handle, struct inode *inode)
 static int ext4_add_nondir(handle_t *handle,
 		struct dentry *dentry, struct inode *inode)
 {
+	struct inode *dir = d_inode(dentry->d_parent);
 	int err = ext4_add_entry(handle, dentry, inode);
 	if (!err) {
 		ext4_mark_inode_dirty(handle, inode);
+		if (IS_DIRSYNC(dir))
+			ext4_handle_sync(handle);
 		d_instantiate_new(dentry, inode);
 		return 0;
 	}
@@ -2593,8 +2596,6 @@ retry:
 		inode->i_fop = &ext4_file_operations;
 		ext4_set_aops(inode);
 		err = ext4_add_nondir(handle, dentry, inode);
-		if (!err && IS_DIRSYNC(dir))
-			ext4_handle_sync(handle);
 	}
 	if (handle)
 		ext4_journal_stop(handle);
@@ -2625,8 +2626,6 @@ retry:
 		init_special_inode(inode, inode->i_mode, rdev);
 		inode->i_op = &ext4_special_inode_operations;
 		err = ext4_add_nondir(handle, dentry, inode);
-		if (!err && IS_DIRSYNC(dir))
-			ext4_handle_sync(handle);
 	}
 	if (handle)
 		ext4_journal_stop(handle);
@@ -3329,9 +3328,6 @@ static int ext4_symlink(struct inode *dir,
 	}
 	EXT4_I(inode)->i_disksize = inode->i_size;
 	err = ext4_add_nondir(handle, dentry, inode);
-	if (!err && IS_DIRSYNC(dir))
-		ext4_handle_sync(handle);
-
 	if (handle)
 		ext4_journal_stop(handle);
 	goto out_free_encrypted_link;
