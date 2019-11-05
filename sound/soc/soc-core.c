@@ -470,14 +470,6 @@ free_rtd:
 	return NULL;
 }
 
-static void soc_remove_pcm_runtimes(struct snd_soc_card *card)
-{
-	struct snd_soc_pcm_runtime *rtd, *_rtd;
-
-	for_each_card_rtds_safe(card, rtd, _rtd)
-		soc_free_pcm_runtime(rtd);
-}
-
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 		const char *dai_link)
 {
@@ -1037,6 +1029,16 @@ static int soc_dai_link_sanity_check(struct snd_soc_card *card,
 	return 0;
 }
 
+static void soc_unbind_dai_link(struct snd_soc_card *card,
+				struct snd_soc_dai_link *dai_link)
+{
+	struct snd_soc_pcm_runtime *rtd;
+
+	rtd = snd_soc_get_pcm_runtime(card, dai_link->name);
+	if (rtd)
+		soc_free_pcm_runtime(rtd);
+}
+
 static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_dai_link *dai_link)
 {
@@ -1466,6 +1468,8 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 		card->remove_dai_link(card, dai_link);
 
 	list_del(&dai_link->list);
+
+	soc_unbind_dai_link(card, dai_link);
 }
 EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
 
@@ -1973,8 +1977,6 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 
 	for_each_card_links_safe(card, link, _link)
 		snd_soc_remove_dai_link(card, link);
-
-	soc_remove_pcm_runtimes(card);
 
 	/* remove auxiliary devices */
 	soc_remove_aux_devices(card);
