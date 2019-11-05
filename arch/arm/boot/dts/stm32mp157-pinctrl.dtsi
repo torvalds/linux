@@ -587,6 +587,25 @@
 				};
 			};
 
+			pwm1_pins_a: pwm1-0 {
+				pins {
+					pinmux = <STM32_PINMUX('E', 9, AF1)>, /* TIM1_CH1 */
+						 <STM32_PINMUX('E', 11, AF1)>, /* TIM1_CH2 */
+						 <STM32_PINMUX('E', 14, AF1)>; /* TIM1_CH4 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
+			pwm1_sleep_pins_a: pwm1-sleep-0 {
+				pins {
+					pinmux = <STM32_PINMUX('E', 9, ANALOG)>, /* TIM1_CH1 */
+						 <STM32_PINMUX('E', 11, ANALOG)>, /* TIM1_CH2 */
+						 <STM32_PINMUX('E', 14, ANALOG)>; /* TIM1_CH4 */
+				};
+			};
+
 			pwm2_pins_a: pwm2-0 {
 				pins {
 					pinmux = <STM32_PINMUX('A', 3, AF1)>; /* TIM2_CH4 */
@@ -599,6 +618,68 @@
 			pwm2_sleep_pins_a: pwm2-sleep-0 {
 				pins {
 					pinmux = <STM32_PINMUX('A', 3, ANALOG)>; /* TIM2_CH4 */
+				};
+			};
+
+			pwm3_pins_a: pwm3-0 {
+				pins {
+					pinmux = <STM32_PINMUX('C', 7, AF2)>; /* TIM3_CH2 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
+			pwm3_sleep_pins_a: pwm3-sleep-0 {
+				pins {
+					pinmux = <STM32_PINMUX('C', 7, ANALOG)>; /* TIM3_CH2 */
+				};
+			};
+
+			pwm4_pins_a: pwm4-0 {
+				pins {
+					pinmux = <STM32_PINMUX('D', 14, AF2)>, /* TIM4_CH3 */
+						 <STM32_PINMUX('D', 15, AF2)>; /* TIM4_CH4 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
+			pwm4_sleep_pins_a: pwm4-sleep-0 {
+				pins {
+					pinmux = <STM32_PINMUX('D', 14, ANALOG)>, /* TIM4_CH3 */
+						 <STM32_PINMUX('D', 15, ANALOG)>; /* TIM4_CH4 */
+				};
+			};
+
+			pwm4_pins_b: pwm4-1 {
+				pins {
+					pinmux = <STM32_PINMUX('D', 13, AF2)>; /* TIM4_CH2 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
+			pwm4_sleep_pins_b: pwm4-sleep-1 {
+				pins {
+					pinmux = <STM32_PINMUX('D', 13, ANALOG)>; /* TIM4_CH2 */
+				};
+			};
+
+			pwm5_pins_a: pwm5-0 {
+				pins {
+					pinmux = <STM32_PINMUX('H', 11, AF2)>; /* TIM5_CH2 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
+			pwm5_sleep_pins_a: pwm5-sleep-0 {
+				pins {
+					pinmux = <STM32_PINMUX('H', 11, ANALOG)>; /* TIM5_CH2 */
 				};
 			};
 
