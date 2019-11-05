@@ -166,11 +166,9 @@ enum {
 	NFS_STATE_RECOVERY_FAILED,	/* OPEN stateid state recovery failed */
 	NFS_STATE_MAY_NOTIFY_LOCK,	/* server may CB_NOTIFY_LOCK */
 	NFS_STATE_CHANGE_WAIT,		/* A state changing operation is outstanding */
-#ifdef CONFIG_NFS_V4_2
 	NFS_CLNT_DST_SSC_COPY_STATE,    /* dst server open state on client*/
 	NFS_CLNT_SRC_SSC_COPY_STATE,    /* src server open state on client*/
 	NFS_SRV_SSC_COPY_STATE,		/* ssc state on the dst server */
-#endif /* CONFIG_NFS_V4_2 */
 };
 
 struct nfs4_state {
