@@ -157,18 +157,18 @@ MODULE_PARM_DESC(interrupt_out_interval, "Interrupt out interval in ms");
 #define LEGO_USB_TOWER_REQUEST_GET_VERSION	0xFD
 
 struct tower_reset_reply {
-	__le16 size;		/* little-endian */
+	__le16 size;
 	__u8 err_code;
 	__u8 spare;
 };
 
 struct tower_get_version_reply {
-	__le16 size;		/* little-endian */
+	__le16 size;
 	__u8 err_code;
 	__u8 spare;
 	__u8 major;
 	__u8 minor;
-	__le16 build_no;		/* little-endian */
+	__le16 build_no;
 };
 
 
