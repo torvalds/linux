@@ -2607,11 +2607,15 @@ struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
 					 struct snd_soc_dai_driver *dai_drv,
 					 bool legacy_dai_naming)
 {
-	if (dai_drv->dobj.type != SND_SOC_DOBJ_PCM) {
-		dev_err(component->dev, "Invalid dai type %d\n",
-			dai_drv->dobj.type);
+	struct device *dev = component->dev;
+
+	if (dai_drv->dobj.type &&
+	    dai_drv->dobj.type != SND_SOC_DOBJ_PCM) {
+		dev_err(dev, "Invalid dai type %d\n", dai_drv->dobj.type);
 		return NULL;
 	}
+
+	dev_dbg(dev, "ASoC: dai register %s\n", dai_drv->name);
 
 	lockdep_assert_held(&client_mutex);
 	return soc_add_dai(component, dai_drv, legacy_dai_naming);
@@ -2642,16 +2646,12 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 				 struct snd_soc_dai_driver *dai_drv,
 				 size_t count)
 {
-	struct device *dev = component->dev;
 	struct snd_soc_dai *dai;
 	unsigned int i;
 	int ret;
 
-	dev_dbg(dev, "ASoC: dai register %s #%zu\n", dev_name(dev), count);
-
 	for (i = 0; i < count; i++) {
-
-		dai = soc_add_dai(component, dai_drv + i, count == 1 &&
+		dai = snd_soc_register_dai(component, dai_drv + i, count == 1 &&
 				  !component->driver->non_legacy_dai_naming);
 		if (dai == NULL) {
 			ret = -ENOMEM;
