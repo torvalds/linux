@@ -986,7 +986,7 @@ void sd_int_dpc(struct adapter *adapter)
 				if (c2h_id_filter_ccx_8723b((u8 *)c2h_evt)) {
 					/* Handle CCX report here */
 					rtw_hal_c2h_handler(adapter, (u8 *)c2h_evt);
-					kfree((u8 *)c2h_evt);
+					kfree(c2h_evt);
 				} else {
 					rtw_c2h_wk_cmd(adapter, (u8 *)c2h_evt);
 				}
