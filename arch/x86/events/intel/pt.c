@@ -482,6 +482,8 @@ static u64 pt_config_filters(struct perf_event *event)
 
 static void pt_config(struct perf_event *event)
 {
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
+	struct pt_buffer *buf = perf_get_aux(&pt->handle);
 	u64 reg;
 
 	/* First round: clear STATUS, in particular the PSB byte counter. */
@@ -491,7 +493,9 @@ static void pt_config(struct perf_event *event)
 	}
 
 	reg = pt_config_filters(event);
-	reg |= RTIT_CTL_TOPA | RTIT_CTL_TRACEEN;
+	reg |= RTIT_CTL_TRACEEN;
+	if (!buf->single)
+		reg |= RTIT_CTL_TOPA;
 
 	/*
 	 * Previously, we had BRANCH_EN on by default, but now that PT has
@@ -541,18 +545,6 @@ static void pt_config_stop(struct perf_event *event)
 	 * the consumer's RMB that separates aux_head load and data load.
 	 */
 	wmb();
-}
-
-static void pt_config_buffer(void *buf, unsigned int topa_idx,
-			     unsigned int output_off)
-{
-	u64 reg;
-
-	wrmsrl(MSR_IA32_RTIT_OUTPUT_BASE, virt_to_phys(buf));
-
-	reg = 0x7f | ((u64)topa_idx << 7) | ((u64)output_off << 32);
-
-	wrmsrl(MSR_IA32_RTIT_OUTPUT_MASK, reg);
 }
 
 /**
@@ -611,6 +603,26 @@ static inline phys_addr_t topa_pfn(struct topa *topa)
 		: &topa_to_page(t)->table[(i)])
 #define TOPA_ENTRY_SIZE(t, i) (sizes(TOPA_ENTRY((t), (i))->size))
 #define TOPA_ENTRY_PAGES(t, i) (1 << TOPA_ENTRY((t), (i))->size)
+
+static void pt_config_buffer(struct pt_buffer *buf)
+{
+	u64 reg, mask;
+	void *base;
+
+	if (buf->single) {
+		base = buf->data_pages[0];
+		mask = (buf->nr_pages * PAGE_SIZE - 1) >> 7;
+	} else {
+		base = topa_to_page(buf->cur)->table;
+		mask = (u64)buf->cur_idx;
+	}
+
+	wrmsrl(MSR_IA32_RTIT_OUTPUT_BASE, virt_to_phys(base));
+
+	reg = 0x7f | (mask << 7) | ((u64)buf->output_off << 32);
+
+	wrmsrl(MSR_IA32_RTIT_OUTPUT_MASK, reg);
+}
 
 /**
  * topa_alloc() - allocate page-sized ToPA table
@@ -812,6 +824,11 @@ static void pt_update_head(struct pt *pt)
 	struct pt_buffer *buf = perf_get_aux(&pt->handle);
 	u64 topa_idx, base, old;
 
+	if (buf->single) {
+		local_set(&buf->data_size, buf->output_off);
+		return;
+	}
+
 	/* offset of the first region in this table from the beginning of buf */
 	base = buf->cur->offset + buf->output_off;
 
@@ -913,18 +930,21 @@ static void pt_handle_status(struct pt *pt)
  */
 static void pt_read_offset(struct pt_buffer *buf)
 {
-	u64 offset, base_topa;
+	u64 offset, base;
 	struct topa_page *tp;
 
-	rdmsrl(MSR_IA32_RTIT_OUTPUT_BASE, base_topa);
-	tp = phys_to_virt(base_topa);
-	buf->cur = &tp->topa;
+	if (!buf->single) {
+		rdmsrl(MSR_IA32_RTIT_OUTPUT_BASE, base);
+		tp = phys_to_virt(base);
+		buf->cur = &tp->topa;
+	}
 
 	rdmsrl(MSR_IA32_RTIT_OUTPUT_MASK, offset);
 	/* offset within current output region */
 	buf->output_off = offset >> 32;
 	/* index of current output region within this table */
-	buf->cur_idx = (offset & 0xffffff80) >> 7;
+	if (!buf->single)
+		buf->cur_idx = (offset & 0xffffff80) >> 7;
 }
 
 static struct topa_entry *
@@ -1040,6 +1060,9 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 	unsigned long head = local64_read(&buf->head);
 	unsigned long idx, npages, wakeup;
 
+	if (buf->single)
+		return 0;
+
 	/* can't stop in the middle of an output region */
 	if (buf->output_off + handle->size + 1 < pt_buffer_region_size(buf)) {
 		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
@@ -1121,13 +1144,17 @@ static void pt_buffer_reset_offsets(struct pt_buffer *buf, unsigned long head)
 	if (buf->snapshot)
 		head &= (buf->nr_pages << PAGE_SHIFT) - 1;
 
-	pg = (head >> PAGE_SHIFT) & (buf->nr_pages - 1);
-	te = pt_topa_entry_for_page(buf, pg);
+	if (!buf->single) {
+		pg = (head >> PAGE_SHIFT) & (buf->nr_pages - 1);
+		te = pt_topa_entry_for_page(buf, pg);
 
-	cur_tp = topa_entry_to_page(te);
-	buf->cur = &cur_tp->topa;
-	buf->cur_idx = te - TOPA_ENTRY(buf->cur, 0);
-	buf->output_off = head & (pt_buffer_region_size(buf) - 1);
+		cur_tp = topa_entry_to_page(te);
+		buf->cur = &cur_tp->topa;
+		buf->cur_idx = te - TOPA_ENTRY(buf->cur, 0);
+		buf->output_off = head & (pt_buffer_region_size(buf) - 1);
+	} else {
+		buf->output_off = head;
+	}
 
 	local64_set(&buf->head, head);
 	local_set(&buf->data_size, 0);
@@ -1140,6 +1167,9 @@ static void pt_buffer_reset_offsets(struct pt_buffer *buf, unsigned long head)
 static void pt_buffer_fini_topa(struct pt_buffer *buf)
 {
 	struct topa *topa, *iter;
+
+	if (buf->single)
+		return;
 
 	list_for_each_entry_safe(topa, iter, &buf->tables, list) {
 		/*
@@ -1186,6 +1216,36 @@ static int pt_buffer_init_topa(struct pt_buffer *buf, int cpu,
 	return 0;
 }
 
+static int pt_buffer_try_single(struct pt_buffer *buf, int nr_pages)
+{
+	struct page *p = virt_to_page(buf->data_pages[0]);
+	int ret = -ENOTSUPP, order = 0;
+
+	/*
+	 * We can use single range output mode
+	 * + in snapshot mode, where we don't need interrupts;
+	 * + if the hardware supports it;
+	 * + if the entire buffer is one contiguous allocation.
+	 */
+	if (!buf->snapshot)
+		goto out;
+
+	if (!intel_pt_validate_hw_cap(PT_CAP_single_range_output))
+		goto out;
+
+	if (PagePrivate(p))
+		order = page_private(p);
+
+	if (1 << order != nr_pages)
+		goto out;
+
+	buf->single = true;
+	buf->nr_pages = nr_pages;
+	ret = 0;
+out:
+	return ret;
+}
+
 /**
  * pt_buffer_setup_aux() - set up topa tables for a PT buffer
  * @cpu:	Cpu on which to allocate, -1 means current.
@@ -1229,6 +1289,10 @@ pt_buffer_setup_aux(struct perf_event *event, void **pages,
 	buf->intr_pos = -1;
 
 	INIT_LIST_HEAD(&buf->tables);
+
+	ret = pt_buffer_try_single(buf, nr_pages);
+	if (!ret)
+		return buf;
 
 	ret = pt_buffer_init_topa(buf, cpu, nr_pages, GFP_KERNEL);
 	if (ret) {
@@ -1396,8 +1460,7 @@ void intel_pt_interrupt(void)
 			return;
 		}
 
-		pt_config_buffer(topa_to_page(buf->cur)->table, buf->cur_idx,
-				 buf->output_off);
+		pt_config_buffer(buf);
 		pt_config_start(event);
 	}
 }
@@ -1461,8 +1524,7 @@ static void pt_event_start(struct perf_event *event, int mode)
 	WRITE_ONCE(pt->handle_nmi, 1);
 	hwc->state = 0;
 
-	pt_config_buffer(topa_to_page(buf->cur)->table, buf->cur_idx,
-			 buf->output_off);
+	pt_config_buffer(buf);
 	pt_config(event);
 
 	return;
