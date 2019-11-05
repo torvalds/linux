@@ -16,7 +16,7 @@ struct shim_service {
 
 	struct vchiu_queue queue;
 
-	VCHI_CALLBACK_T callback;
+	vchi_callback callback;
 	void *callback_param;
 };
 

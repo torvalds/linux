@@ -86,9 +86,9 @@ enum vchi_service_option {
 };
 
 //Callback used by all services / bulk transfers
-typedef void (*VCHI_CALLBACK_T)(void *callback_param, //my service local param
-				enum vchi_callback_reason reason,
-				void *handle); //for transmitting msg's only
+typedef void (*vchi_callback)(void *callback_param, //my service local param
+			      enum vchi_callback_reason reason,
+			      void *handle); //for transmitting msg's only
 
 /*
  * Define vector struct for scatter-gather (vector) operations
