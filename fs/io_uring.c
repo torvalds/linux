@@ -2152,21 +2152,11 @@ static bool io_cancel_cb(struct io_wq_work *work, void *data)
 	return req->user_data == (unsigned long) data;
 }
 
-static int io_async_cancel(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			   struct io_kiocb **nxt)
+static int io_async_cancel_one(struct io_ring_ctx *ctx, void *sqe_addr)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	enum io_wq_cancel cancel_ret;
-	void *sqe_addr;
 	int ret = 0;
 
-	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
-		return -EINVAL;
-	if (sqe->flags || sqe->ioprio || sqe->off || sqe->len ||
-	    sqe->cancel_flags)
-		return -EINVAL;
-
-	sqe_addr = (void *) (unsigned long) READ_ONCE(sqe->addr);
 	cancel_ret = io_wq_cancel_cb(ctx->io_wq, io_cancel_cb, sqe_addr);
 	switch (cancel_ret) {
 	case IO_WQ_CANCEL_OK:
@@ -2179,6 +2169,25 @@ static int io_async_cancel(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		ret = -ENOENT;
 		break;
 	}
+
+	return ret;
+}
+
+static int io_async_cancel(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+			   struct io_kiocb **nxt)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	void *sqe_addr;
+	int ret;
+
+	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (sqe->flags || sqe->ioprio || sqe->off || sqe->len ||
+	    sqe->cancel_flags)
+		return -EINVAL;
+
+	sqe_addr = (void *) (unsigned long) READ_ONCE(sqe->addr);
+	ret = io_async_cancel_one(ctx, sqe_addr);
 
 	if (ret < 0 && (req->flags & REQ_F_LINK))
 		req->flags |= REQ_F_FAIL_LINK;
