@@ -3494,7 +3494,6 @@ static int ext4_iomap_alloc(struct inode *inode, struct ext4_map_blocks *map,
 			    unsigned int flags)
 {
 	handle_t *handle;
-	u8 blkbits = inode->i_blkbits;
 	int ret, dio_credits, retries = 0;
 
 	/*
@@ -3517,28 +3516,7 @@ retry:
 		return PTR_ERR(handle);
 
 	ret = ext4_map_blocks(handle, inode, map, EXT4_GET_BLOCKS_CREATE_ZERO);
-	if (ret < 0)
-		goto journal_stop;
 
-	/*
-	 * If we've allocated blocks beyond EOF, we need to ensure that they're
-	 * truncated if we crash before updating the inode size metadata within
-	 * ext4_iomap_end(). For faults, we don't need to do that (and cannot
-	 * due to orphan list operations needing an inode_lock()). If we happen
-	 * to instantiate blocks beyond EOF, it is because we race with a
-	 * truncate operation, which already has added the inode onto the
-	 * orphan list.
-	 */
-	if (!(flags & IOMAP_FAULT) && map->m_lblk + map->m_len >
-	    (i_size_read(inode) + (1 << blkbits) - 1) >> blkbits) {
-		int err;
-
-		err = ext4_orphan_add(handle, inode);
-		if (err < 0)
-			ret = err;
-	}
-
-journal_stop:
 	ext4_journal_stop(handle);
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
