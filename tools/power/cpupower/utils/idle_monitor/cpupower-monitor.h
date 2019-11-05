@@ -62,6 +62,7 @@ struct cpuidle_monitor {
 	unsigned int overflow_s;
 	struct {
 		unsigned int needs_root:1;
+		unsigned int per_cpu_schedule:1;
 	} flags;
 };
 

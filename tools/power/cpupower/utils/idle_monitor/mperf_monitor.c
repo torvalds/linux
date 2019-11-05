@@ -86,15 +86,35 @@ static int mperf_get_tsc(unsigned long long *tsc)
 	return ret;
 }
 
-static int mperf_init_stats(unsigned int cpu)
+static int get_aperf_mperf(int cpu, unsigned long long *aval,
+				    unsigned long long *mval)
 {
-	unsigned long long val;
 	int ret;
 
-	ret = read_msr(cpu, MSR_APERF, &val);
-	aperf_previous_count[cpu] = val;
-	ret |= read_msr(cpu, MSR_MPERF, &val);
-	mperf_previous_count[cpu] = val;
+	/*
+	 * Running on the cpu from which we read the registers will
+	 * prevent APERF/MPERF from going out of sync because of IPI
+	 * latency introduced by read_msr()s.
+	 */
+	if (mperf_monitor.flags.per_cpu_schedule) {
+		if (bind_cpu(cpu))
+			return 1;
+	}
+
+	ret  = read_msr(cpu, MSR_APERF, aval);
+	ret |= read_msr(cpu, MSR_MPERF, mval);
+
+	return ret;
+}
+
+static int mperf_init_stats(unsigned int cpu)
+{
+	unsigned long long aval, mval;
+	int ret;
+
+	ret = get_aperf_mperf(cpu, &aval, &mval);
+	aperf_previous_count[cpu] = aval;
+	mperf_previous_count[cpu] = mval;
 	is_valid[cpu] = !ret;
 
 	return 0;
@@ -102,13 +122,12 @@ static int mperf_init_stats(unsigned int cpu)
 
 static int mperf_measure_stats(unsigned int cpu)
 {
-	unsigned long long val;
+	unsigned long long aval, mval;
 	int ret;
 
-	ret = read_msr(cpu, MSR_APERF, &val);
-	aperf_current_count[cpu] = val;
-	ret |= read_msr(cpu, MSR_MPERF, &val);
-	mperf_current_count[cpu] = val;
+	ret = get_aperf_mperf(cpu, &aval, &mval);
+	aperf_current_count[cpu] = aval;
+	mperf_current_count[cpu] = mval;
 	is_valid[cpu] = !ret;
 
 	return 0;
@@ -304,6 +323,9 @@ struct cpuidle_monitor *mperf_register(void)
 
 	if (init_maxfreq_mode())
 		return NULL;
+
+	if (cpupower_cpu_info.vendor == X86_VENDOR_AMD)
+		mperf_monitor.flags.per_cpu_schedule = 1;
 
 	/* Free this at program termination */
 	is_valid = calloc(cpu_count, sizeof(int));
