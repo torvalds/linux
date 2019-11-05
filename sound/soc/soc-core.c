@@ -2764,12 +2764,7 @@ static void snd_soc_component_add(struct snd_soc_component *component)
 	mutex_unlock(&client_mutex);
 }
 
-static void snd_soc_component_cleanup(struct snd_soc_component *component)
-{
-	snd_soc_unregister_dais(component);
-}
-
-static void snd_soc_component_del_unlocked(struct snd_soc_component *component)
+static void snd_soc_component_del(struct snd_soc_component *component)
 {
 	struct snd_soc_card *card = component->card;
 
@@ -2823,6 +2818,12 @@ static void snd_soc_try_rebind_card(void)
 			list_del(&card->list);
 }
 
+static void snd_soc_del_component_unlocked(struct snd_soc_component *component)
+{
+	snd_soc_unregister_dais(component);
+	snd_soc_component_del(component);
+}
+
 int snd_soc_add_component(struct device *dev,
 			struct snd_soc_component *component,
 			const struct snd_soc_component_driver *component_driver,
@@ -2855,7 +2856,7 @@ int snd_soc_add_component(struct device *dev,
 	return 0;
 
 err_cleanup:
-	snd_soc_component_cleanup(component);
+	snd_soc_del_component_unlocked(component);
 err_free:
 	return ret;
 }
@@ -2893,14 +2894,11 @@ static int __snd_soc_unregister_component(struct device *dev)
 		if (dev != component->dev)
 			continue;
 
-		snd_soc_component_del_unlocked(component);
+		snd_soc_del_component_unlocked(component);
 		found = 1;
 		break;
 	}
 	mutex_unlock(&client_mutex);
-
-	if (found)
-		snd_soc_component_cleanup(component);
 
 	return found;
 }
