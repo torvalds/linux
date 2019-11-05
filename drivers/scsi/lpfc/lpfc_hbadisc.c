@@ -3452,8 +3452,8 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				phba->pport->port_state, vport->fc_flag);
 		else if (attn_type == LPFC_ATT_UNEXP_WWPN)
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
-				"1313 Link Down UNEXP WWPN Event x%x received "
-				"Data: x%x x%x x%x x%x x%x\n",
+				"1313 Link Down Unexpected FA WWPN Event x%x "
+				"received Data: x%x x%x x%x x%x x%x\n",
 				la->eventTag, phba->fc_eventTag,
 				phba->pport->port_state, vport->fc_flag,
 				bf_get(lpfc_mbx_read_top_mm, la),
