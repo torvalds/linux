@@ -586,6 +586,22 @@ int dsa_devlink_params_register(struct dsa_switch *ds,
 void dsa_devlink_params_unregister(struct dsa_switch *ds,
 				   const struct devlink_param *params,
 				   size_t params_count);
+int dsa_devlink_resource_register(struct dsa_switch *ds,
+				  const char *resource_name,
+				  u64 resource_size,
+				  u64 resource_id,
+				  u64 parent_resource_id,
+				  const struct devlink_resource_size_params *size_params);
+
+void dsa_devlink_resources_unregister(struct dsa_switch *ds);
+
+void dsa_devlink_resource_occ_get_register(struct dsa_switch *ds,
+					   u64 resource_id,
+					   devlink_resource_occ_get_t *occ_get,
+					   void *occ_get_priv);
+void dsa_devlink_resource_occ_get_unregister(struct dsa_switch *ds,
+					     u64 resource_id);
+
 struct dsa_devlink_priv {
 	struct dsa_switch *ds;
 };
