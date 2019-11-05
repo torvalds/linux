@@ -525,6 +525,9 @@ static int omap_aes_crypt(struct skcipher_request *req, unsigned long mode)
 	struct omap_aes_dev *dd;
 	int ret;
 
+	if ((req->cryptlen % AES_BLOCK_SIZE) && !(mode & FLAGS_CTR))
+		return -EINVAL;
+
 	pr_debug("nbytes: %d, enc: %d, cbc: %d\n", req->cryptlen,
 		  !!(mode & FLAGS_ENCRYPT),
 		  !!(mode & FLAGS_CBC));
