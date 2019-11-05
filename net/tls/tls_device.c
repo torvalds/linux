@@ -623,8 +623,10 @@ static int tls_device_push_pending_record(struct sock *sk, int flags)
 
 void tls_device_write_space(struct sock *sk, struct tls_context *ctx)
 {
-	if (!sk->sk_write_pending && tls_is_partially_sent_record(ctx)) {
+	if (tls_is_partially_sent_record(ctx)) {
 		gfp_t sk_allocation = sk->sk_allocation;
+
+		WARN_ON_ONCE(sk->sk_write_pending);
 
 		sk->sk_allocation = GFP_ATOMIC;
 		tls_push_partial_record(sk, ctx,
