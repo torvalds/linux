@@ -2532,22 +2532,6 @@ static inline char *fmt_multiple_name(struct device *dev,
 	return devm_kstrdup(dev, dai_drv->name, GFP_KERNEL);
 }
 
-/**
- * snd_soc_unregister_dai - Unregister DAIs from the ASoC core
- *
- * @component: The component for which the DAIs should be unregistered
- */
-static void snd_soc_unregister_dais(struct snd_soc_component *component)
-{
-	struct snd_soc_dai *dai, *_dai;
-
-	for_each_component_dais_safe(component, dai, _dai) {
-		dev_dbg(component->dev, "ASoC: Unregistered DAI '%s'\n",
-			dai->name);
-		list_del(&dai->list);
-	}
-}
-
 /* Create a DAI and add it to the component's DAI list */
 static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 	struct snd_soc_dai_driver *dai_drv,
@@ -2639,6 +2623,22 @@ int snd_soc_register_dai(struct snd_soc_component *component,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_dai);
+
+/**
+ * snd_soc_unregister_dai - Unregister DAIs from the ASoC core
+ *
+ * @component: The component for which the DAIs should be unregistered
+ */
+static void snd_soc_unregister_dais(struct snd_soc_component *component)
+{
+	struct snd_soc_dai *dai, *_dai;
+
+	for_each_component_dais_safe(component, dai, _dai) {
+		dev_dbg(component->dev, "ASoC: Unregistered DAI '%s'\n",
+			dai->name);
+		list_del(&dai->list);
+	}
+}
 
 /**
  * snd_soc_register_dais - Register a DAI with the ASoC core
