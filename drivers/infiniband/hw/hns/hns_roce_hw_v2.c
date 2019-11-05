@@ -6370,12 +6370,14 @@ static const struct pci_device_id hns_roce_hw_v2_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, hns_roce_hw_v2_pci_tbl);
 
-static int hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
+static void hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 				  struct hnae3_handle *handle)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	int i;
 
+	hr_dev->pci_dev = handle->pdev;
+	hr_dev->dev = &handle->pdev->dev;
 	hr_dev->hw = &hns_roce_hw_v2;
 	hr_dev->dfx = &hns_roce_dfx_hw_v2;
 	hr_dev->sdb_offset = ROCEE_DB_SQ_L_0_REG;
@@ -6400,8 +6402,6 @@ static int hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 
 	hr_dev->reset_cnt = handle->ae_algo->ops->ae_dev_reset_cnt(handle);
 	priv->handle = handle;
-
-	return 0;
 }
 
 static int __hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
@@ -6419,14 +6419,7 @@ static int __hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 		goto error_failed_kzalloc;
 	}
 
-	hr_dev->pci_dev = handle->pdev;
-	hr_dev->dev = &handle->pdev->dev;
-
-	ret = hns_roce_hw_v2_get_cfg(hr_dev, handle);
-	if (ret) {
-		dev_err(hr_dev->dev, "Get Configuration failed!\n");
-		goto error_failed_get_cfg;
-	}
+	hns_roce_hw_v2_get_cfg(hr_dev, handle);
 
 	ret = hns_roce_init(hr_dev);
 	if (ret) {
