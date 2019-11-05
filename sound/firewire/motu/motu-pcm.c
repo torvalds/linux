@@ -218,8 +218,7 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_motu *motu = substream->private_data;
 	int err;
 
-	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-					       params_buffer_bytes(hw_params));
+	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 	if (err < 0)
 		return err;
 
@@ -252,7 +251,7 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 
 	mutex_unlock(&motu->mutex);
 
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	return snd_pcm_lib_free_pages(substream);
 }
 
 static int capture_prepare(struct snd_pcm_substream *substream)
@@ -356,7 +355,6 @@ int snd_motu_create_pcm_devices(struct snd_motu *motu)
 		.trigger   = capture_trigger,
 		.pointer   = capture_pointer,
 		.ack       = capture_ack,
-		.page      = snd_pcm_lib_get_vmalloc_page,
 	};
 	static const struct snd_pcm_ops playback_ops = {
 		.open      = pcm_open,
@@ -368,7 +366,6 @@ int snd_motu_create_pcm_devices(struct snd_motu *motu)
 		.trigger   = playback_trigger,
 		.pointer   = playback_pointer,
 		.ack       = playback_ack,
-		.page      = snd_pcm_lib_get_vmalloc_page,
 	};
 	struct snd_pcm *pcm;
 	int err;
@@ -381,6 +378,8 @@ int snd_motu_create_pcm_devices(struct snd_motu *motu)
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &capture_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &playback_ops);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
+					      NULL, 0, 0);
 
 	return 0;
 }
