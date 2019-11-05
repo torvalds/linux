@@ -279,6 +279,12 @@ resource_test()
 	devlink -N testns1 dev reload $DL_HANDLE netns testns2
 	check_fail $? "Unexpected successful reload from netns \"testns1\" into netns \"testns2\""
 
+	devlink -N testns2 resource set $DL_HANDLE path IPv4/fib size ' -1'
+	check_err $? "Failed to reset IPv4/fib resource size"
+
+	devlink -N testns2 dev reload $DL_HANDLE netns 1
+	check_err $? "Failed to reload devlink back"
+
 	ip netns del testns2
 	ip netns del testns1
 
