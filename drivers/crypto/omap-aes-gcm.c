@@ -244,7 +244,7 @@ static int omap_aes_gcm_handle_queue(struct omap_aes_dev *dd,
 
 	err = omap_aes_write_ctrl(dd);
 	if (!err) {
-		if (dd->in_sg_len && dd->out_sg_len)
+		if (dd->in_sg_len)
 			err = omap_aes_crypt_dma_start(dd);
 		else
 			omap_aes_gcm_dma_out_callback(dd);

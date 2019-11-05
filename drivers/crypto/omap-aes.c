@@ -269,13 +269,14 @@ static int omap_aes_crypt_dma(struct omap_aes_dev *dd,
 			      struct scatterlist *out_sg,
 			      int in_sg_len, int out_sg_len)
 {
-	struct dma_async_tx_descriptor *tx_in, *tx_out;
+	struct dma_async_tx_descriptor *tx_in, *tx_out = NULL, *cb_desc;
 	struct dma_slave_config cfg;
 	int ret;
 
 	if (dd->pio_only) {
 		scatterwalk_start(&dd->in_walk, dd->in_sg);
-		scatterwalk_start(&dd->out_walk, dd->out_sg);
+		if (out_sg_len)
+			scatterwalk_start(&dd->out_walk, dd->out_sg);
 
 		/* Enable DATAIN interrupt and let it take
 		   care of the rest */
@@ -312,34 +313,45 @@ static int omap_aes_crypt_dma(struct omap_aes_dev *dd,
 
 	/* No callback necessary */
 	tx_in->callback_param = dd;
+	tx_in->callback = NULL;
 
 	/* OUT */
-	ret = dmaengine_slave_config(dd->dma_lch_out, &cfg);
-	if (ret) {
-		dev_err(dd->dev, "can't configure OUT dmaengine slave: %d\n",
-			ret);
-		return ret;
-	}
+	if (out_sg_len) {
+		ret = dmaengine_slave_config(dd->dma_lch_out, &cfg);
+		if (ret) {
+			dev_err(dd->dev, "can't configure OUT dmaengine slave: %d\n",
+				ret);
+			return ret;
+		}
 
-	tx_out = dmaengine_prep_slave_sg(dd->dma_lch_out, out_sg, out_sg_len,
-					DMA_DEV_TO_MEM,
-					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!tx_out) {
-		dev_err(dd->dev, "OUT prep_slave_sg() failed\n");
-		return -EINVAL;
+		tx_out = dmaengine_prep_slave_sg(dd->dma_lch_out, out_sg,
+						 out_sg_len,
+						 DMA_DEV_TO_MEM,
+						 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!tx_out) {
+			dev_err(dd->dev, "OUT prep_slave_sg() failed\n");
+			return -EINVAL;
+		}
+
+		cb_desc = tx_out;
+	} else {
+		cb_desc = tx_in;
 	}
 
 	if (dd->flags & FLAGS_GCM)
-		tx_out->callback = omap_aes_gcm_dma_out_callback;
+		cb_desc->callback = omap_aes_gcm_dma_out_callback;
 	else
-		tx_out->callback = omap_aes_dma_out_callback;
-	tx_out->callback_param = dd;
+		cb_desc->callback = omap_aes_dma_out_callback;
+	cb_desc->callback_param = dd;
+
 
 	dmaengine_submit(tx_in);
-	dmaengine_submit(tx_out);
+	if (tx_out)
+		dmaengine_submit(tx_out);
 
 	dma_async_issue_pending(dd->dma_lch_in);
-	dma_async_issue_pending(dd->dma_lch_out);
+	if (out_sg_len)
+		dma_async_issue_pending(dd->dma_lch_out);
 
 	/* start DMA */
 	dd->pdata->trigger(dd, dd->total);
@@ -361,11 +373,13 @@ int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
 			return -EINVAL;
 		}
 
-		err = dma_map_sg(dd->dev, dd->out_sg, dd->out_sg_len,
-				 DMA_FROM_DEVICE);
-		if (!err) {
-			dev_err(dd->dev, "dma_map_sg() error\n");
-			return -EINVAL;
+		if (dd->out_sg_len) {
+			err = dma_map_sg(dd->dev, dd->out_sg, dd->out_sg_len,
+					 DMA_FROM_DEVICE);
+			if (!err) {
+				dev_err(dd->dev, "dma_map_sg() error\n");
+				return -EINVAL;
+			}
 		}
 	}
 
@@ -373,8 +387,9 @@ int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
 				 dd->out_sg_len);
 	if (err && !dd->pio_only) {
 		dma_unmap_sg(dd->dev, dd->in_sg, dd->in_sg_len, DMA_TO_DEVICE);
-		dma_unmap_sg(dd->dev, dd->out_sg, dd->out_sg_len,
-			     DMA_FROM_DEVICE);
+		if (dd->out_sg_len)
+			dma_unmap_sg(dd->dev, dd->out_sg, dd->out_sg_len,
+				     DMA_FROM_DEVICE);
 	}
 
 	return err;
