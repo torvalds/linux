@@ -73,12 +73,13 @@ static void hns_roce_ib_cq_event(struct hns_roce_cq *hr_cq,
 	}
 }
 
-static int hns_roce_sw2hw_cq(struct hns_roce_dev *dev,
-			     struct hns_roce_cmd_mailbox *mailbox,
-			     unsigned long cq_num)
+static int hns_roce_hw_create_cq(struct hns_roce_dev *dev,
+				 struct hns_roce_cmd_mailbox *mailbox,
+				 unsigned long cq_num)
 {
 	return hns_roce_cmd_mbox(dev, mailbox->dma, 0, cq_num, 0,
-			    HNS_ROCE_CMD_SW2HW_CQ, HNS_ROCE_CMD_TIMEOUT_MSECS);
+				 HNS_ROCE_CMD_CREATE_CQ,
+				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
 static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
@@ -144,7 +145,7 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 			      nent, vector);
 
 	/* Send mailbox to hw */
-	ret = hns_roce_sw2hw_cq(hr_dev, mailbox, hr_cq->cqn);
+	ret = hns_roce_hw_create_cq(hr_dev, mailbox, hr_cq->cqn);
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	if (ret) {
 		dev_err(dev, "CQ alloc.Failed to cmd mailbox.\n");
@@ -170,12 +171,12 @@ err_out:
 	return ret;
 }
 
-static int hns_roce_hw2sw_cq(struct hns_roce_dev *dev,
-			     struct hns_roce_cmd_mailbox *mailbox,
-			     unsigned long cq_num)
+static int hns_roce_hw_destroy_cq(struct hns_roce_dev *dev,
+				  struct hns_roce_cmd_mailbox *mailbox,
+				  unsigned long cq_num)
 {
 	return hns_roce_cmd_mbox(dev, 0, mailbox ? mailbox->dma : 0, cq_num,
-				 mailbox ? 0 : 1, HNS_ROCE_CMD_HW2SW_CQ,
+				 mailbox ? 0 : 1, HNS_ROCE_CMD_DESTROY_CQ,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
@@ -185,9 +186,9 @@ void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	struct device *dev = hr_dev->dev;
 	int ret;
 
-	ret = hns_roce_hw2sw_cq(hr_dev, NULL, hr_cq->cqn);
+	ret = hns_roce_hw_destroy_cq(hr_dev, NULL, hr_cq->cqn);
 	if (ret)
-		dev_err(dev, "HW2SW_CQ failed (%d) for CQN %06lx\n", ret,
+		dev_err(dev, "DESTROY_CQ failed (%d) for CQN %06lx\n", ret,
 			hr_cq->cqn);
 
 	xa_erase(&cq_table->array, hr_cq->cqn);

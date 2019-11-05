@@ -59,21 +59,21 @@ static void hns_roce_ib_srq_event(struct hns_roce_srq *srq,
 	}
 }
 
-static int hns_roce_sw2hw_srq(struct hns_roce_dev *dev,
-			      struct hns_roce_cmd_mailbox *mailbox,
-			      unsigned long srq_num)
+static int hns_roce_hw_create_srq(struct hns_roce_dev *dev,
+				  struct hns_roce_cmd_mailbox *mailbox,
+				  unsigned long srq_num)
 {
 	return hns_roce_cmd_mbox(dev, mailbox->dma, 0, srq_num, 0,
-				 HNS_ROCE_CMD_SW2HW_SRQ,
+				 HNS_ROCE_CMD_CREATE_SRQ,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
-static int hns_roce_hw2sw_srq(struct hns_roce_dev *dev,
-			     struct hns_roce_cmd_mailbox *mailbox,
-			     unsigned long srq_num)
+static int hns_roce_hw_destroy_srq(struct hns_roce_dev *dev,
+				   struct hns_roce_cmd_mailbox *mailbox,
+				   unsigned long srq_num)
 {
 	return hns_roce_cmd_mbox(dev, 0, mailbox ? mailbox->dma : 0, srq_num,
-				 mailbox ? 0 : 1, HNS_ROCE_CMD_HW2SW_SRQ,
+				 mailbox ? 0 : 1, HNS_ROCE_CMD_DESTROY_SRQ,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
@@ -134,7 +134,7 @@ static int hns_roce_srq_alloc(struct hns_roce_dev *hr_dev, u32 pdn, u32 cqn,
 			       mtts_wqe, mtts_idx, dma_handle_wqe,
 			       dma_handle_idx);
 
-	ret = hns_roce_sw2hw_srq(hr_dev, mailbox, srq->srqn);
+	ret = hns_roce_hw_create_srq(hr_dev, mailbox, srq->srqn);
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	if (ret)
 		goto err_xa;
@@ -160,9 +160,9 @@ static void hns_roce_srq_free(struct hns_roce_dev *hr_dev,
 	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
 	int ret;
 
-	ret = hns_roce_hw2sw_srq(hr_dev, NULL, srq->srqn);
+	ret = hns_roce_hw_destroy_srq(hr_dev, NULL, srq->srqn);
 	if (ret)
-		dev_err(hr_dev->dev, "HW2SW_SRQ failed (%d) for CQN %06lx\n",
+		dev_err(hr_dev->dev, "DESTROY_SRQ failed (%d) for SRQN %06lx\n",
 			ret, srq->srqn);
 
 	xa_erase(&srq_table->xa, srq->srqn);

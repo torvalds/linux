@@ -1114,9 +1114,10 @@ static int hns_roce_v1_dereg_mr(struct hns_roce_dev *hr_dev,
 	free_mr = &priv->free_mr;
 
 	if (mr->enabled) {
-		if (hns_roce_hw2sw_mpt(hr_dev, NULL, key_to_hw_index(mr->key)
-				       & (hr_dev->caps.num_mtpts - 1)))
-			dev_warn(dev, "HW2SW_MPT failed!\n");
+		if (hns_roce_hw_destroy_mpt(hr_dev, NULL,
+					    key_to_hw_index(mr->key) &
+					    (hr_dev->caps.num_mtpts - 1)))
+			dev_warn(dev, "DESTROY_MPT failed!\n");
 	}
 
 	mr_work = kzalloc(sizeof(*mr_work), GFP_KERNEL);
