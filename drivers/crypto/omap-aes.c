@@ -645,7 +645,6 @@ static int omap_aes_init_tfm(struct crypto_skcipher *tfm)
 static int omap_aes_gcm_cra_init(struct crypto_aead *tfm)
 {
 	struct omap_aes_dev *dd = NULL;
-	struct omap_aes_ctx *ctx = crypto_aead_ctx(tfm);
 	int err;
 
 	/* Find AES device, currently picks the first device */
@@ -663,12 +662,6 @@ static int omap_aes_gcm_cra_init(struct crypto_aead *tfm)
 	}
 
 	tfm->reqsize = sizeof(struct omap_aes_reqctx);
-	ctx->ctr = crypto_alloc_skcipher("ecb(aes)", 0, 0);
-	if (IS_ERR(ctx->ctr)) {
-		pr_warn("could not load aes driver for encrypting IV\n");
-		return PTR_ERR(ctx->ctr);
-	}
-
 	return 0;
 }
 
@@ -680,19 +673,6 @@ static void omap_aes_exit_tfm(struct crypto_skcipher *tfm)
 		crypto_free_sync_skcipher(ctx->fallback);
 
 	ctx->fallback = NULL;
-}
-
-static void omap_aes_gcm_cra_exit(struct crypto_aead *tfm)
-{
-	struct omap_aes_ctx *ctx = crypto_aead_ctx(tfm);
-
-	if (ctx->fallback)
-		crypto_free_sync_skcipher(ctx->fallback);
-
-	ctx->fallback = NULL;
-
-	if (ctx->ctr)
-		crypto_free_skcipher(ctx->ctr);
 }
 
 /* ********************** ALGS ************************************ */
@@ -778,12 +758,11 @@ static struct aead_alg algs_aead_gcm[] = {
 		.cra_flags		= CRYPTO_ALG_ASYNC |
 					  CRYPTO_ALG_KERN_DRIVER_ONLY,
 		.cra_blocksize		= 1,
-		.cra_ctxsize		= sizeof(struct omap_aes_ctx),
+		.cra_ctxsize		= sizeof(struct omap_aes_gcm_ctx),
 		.cra_alignmask		= 0xf,
 		.cra_module		= THIS_MODULE,
 	},
 	.init		= omap_aes_gcm_cra_init,
-	.exit		= omap_aes_gcm_cra_exit,
 	.ivsize		= GCM_AES_IV_SIZE,
 	.maxauthsize	= AES_BLOCK_SIZE,
 	.setkey		= omap_aes_gcm_setkey,
@@ -799,12 +778,11 @@ static struct aead_alg algs_aead_gcm[] = {
 		.cra_flags		= CRYPTO_ALG_ASYNC |
 					  CRYPTO_ALG_KERN_DRIVER_ONLY,
 		.cra_blocksize		= 1,
-		.cra_ctxsize		= sizeof(struct omap_aes_ctx),
+		.cra_ctxsize		= sizeof(struct omap_aes_gcm_ctx),
 		.cra_alignmask		= 0xf,
 		.cra_module		= THIS_MODULE,
 	},
 	.init		= omap_aes_gcm_cra_init,
-	.exit		= omap_aes_gcm_cra_exit,
 	.maxauthsize	= AES_BLOCK_SIZE,
 	.ivsize		= GCM_RFC4106_IV_SIZE,
 	.setkey		= omap_aes_4106gcm_setkey,

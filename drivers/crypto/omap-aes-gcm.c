@@ -167,62 +167,12 @@ static int omap_aes_gcm_copy_buffers(struct omap_aes_dev *dd,
 	return 0;
 }
 
-static void omap_aes_gcm_complete(struct crypto_async_request *req, int err)
-{
-	struct omap_aes_gcm_result *res = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	res->err = err;
-	complete(&res->completion);
-}
-
 static int do_encrypt_iv(struct aead_request *req, u32 *tag, u32 *iv)
 {
-	struct scatterlist iv_sg, tag_sg;
-	struct skcipher_request *sk_req;
-	struct omap_aes_gcm_result result;
-	struct omap_aes_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
-	int ret = 0;
+	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 
-	sk_req = skcipher_request_alloc(ctx->ctr, GFP_KERNEL);
-	if (!sk_req) {
-		pr_err("skcipher: Failed to allocate request\n");
-		return -ENOMEM;
-	}
-
-	init_completion(&result.completion);
-
-	sg_init_one(&iv_sg, iv, AES_BLOCK_SIZE);
-	sg_init_one(&tag_sg, tag, AES_BLOCK_SIZE);
-	skcipher_request_set_callback(sk_req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				      omap_aes_gcm_complete, &result);
-	ret = crypto_skcipher_setkey(ctx->ctr, (u8 *)ctx->key, ctx->keylen);
-	skcipher_request_set_crypt(sk_req, &iv_sg, &tag_sg, AES_BLOCK_SIZE,
-				   NULL);
-	ret = crypto_skcipher_encrypt(sk_req);
-	switch (ret) {
-	case 0:
-		break;
-	case -EINPROGRESS:
-	case -EBUSY:
-		ret = wait_for_completion_interruptible(&result.completion);
-		if (!ret) {
-			ret = result.err;
-			if (!ret) {
-				reinit_completion(&result.completion);
-				break;
-			}
-		}
-		/* fall through */
-	default:
-		pr_err("Encryption of IV failed for GCM mode\n");
-		break;
-	}
-
-	skcipher_request_free(sk_req);
-	return ret;
+	aes_encrypt(&ctx->actx, (u8 *)tag, (u8 *)iv);
+	return 0;
 }
 
 void omap_aes_gcm_dma_out_callback(void *data)
@@ -252,7 +202,7 @@ void omap_aes_gcm_dma_out_callback(void *data)
 static int omap_aes_gcm_handle_queue(struct omap_aes_dev *dd,
 				     struct aead_request *req)
 {
-	struct omap_aes_ctx *ctx;
+	struct omap_aes_gcm_ctx *ctx;
 	struct aead_request *backlog;
 	struct omap_aes_reqctx *rctx;
 	unsigned long flags;
@@ -281,7 +231,7 @@ static int omap_aes_gcm_handle_queue(struct omap_aes_dev *dd,
 	ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	rctx = aead_request_ctx(req);
 
-	dd->ctx = ctx;
+	dd->ctx = &ctx->octx;
 	rctx->dd = dd;
 	dd->aead_req = req;
 
@@ -360,10 +310,10 @@ int omap_aes_gcm_decrypt(struct aead_request *req)
 
 int omap_aes_4106gcm_encrypt(struct aead_request *req)
 {
-	struct omap_aes_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
+	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
 
-	memcpy(rctx->iv, ctx->nonce, 4);
+	memcpy(rctx->iv, ctx->octx.nonce, 4);
 	memcpy(rctx->iv + 4, req->iv, 8);
 	return crypto_ipsec_check_assoclen(req->assoclen) ?:
 	       omap_aes_gcm_crypt(req, FLAGS_ENCRYPT | FLAGS_GCM |
@@ -372,10 +322,10 @@ int omap_aes_4106gcm_encrypt(struct aead_request *req)
 
 int omap_aes_4106gcm_decrypt(struct aead_request *req)
 {
-	struct omap_aes_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
+	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
 
-	memcpy(rctx->iv, ctx->nonce, 4);
+	memcpy(rctx->iv, ctx->octx.nonce, 4);
 	memcpy(rctx->iv + 4, req->iv, 8);
 	return crypto_ipsec_check_assoclen(req->assoclen) ?:
 	       omap_aes_gcm_crypt(req, FLAGS_GCM | FLAGS_RFC4106_GCM);
@@ -384,14 +334,15 @@ int omap_aes_4106gcm_decrypt(struct aead_request *req)
 int omap_aes_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 			unsigned int keylen)
 {
-	struct omap_aes_ctx *ctx = crypto_aead_ctx(tfm);
+	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(tfm);
+	int ret;
 
-	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
-	    keylen != AES_KEYSIZE_256)
-		return -EINVAL;
+	ret = aes_expandkey(&ctx->actx, key, keylen);
+	if (ret)
+		return ret;
 
-	memcpy(ctx->key, key, keylen);
-	ctx->keylen = keylen;
+	memcpy(ctx->octx.key, key, keylen);
+	ctx->octx.keylen = keylen;
 
 	return 0;
 }
@@ -399,19 +350,20 @@ int omap_aes_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 int omap_aes_4106gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 			    unsigned int keylen)
 {
-	struct omap_aes_ctx *ctx = crypto_aead_ctx(tfm);
+	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(tfm);
+	int ret;
 
 	if (keylen < 4)
 		return -EINVAL;
-
 	keylen -= 4;
-	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
-	    keylen != AES_KEYSIZE_256)
-		return -EINVAL;
 
-	memcpy(ctx->key, key, keylen);
-	memcpy(ctx->nonce, key + keylen, 4);
-	ctx->keylen = keylen;
+	ret = aes_expandkey(&ctx->actx, key, keylen);
+	if (ret)
+		return ret;
+
+	memcpy(ctx->octx.key, key, keylen);
+	memcpy(ctx->octx.nonce, key + keylen, 4);
+	ctx->octx.keylen = keylen;
 
 	return 0;
 }

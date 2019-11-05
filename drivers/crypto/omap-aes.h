@@ -9,6 +9,7 @@
 #ifndef __OMAP_AES_H__
 #define __OMAP_AES_H__
 
+#include <crypto/aes.h>
 #include <crypto/engine.h>
 
 #define DST_MAXBURST			4
@@ -98,7 +99,11 @@ struct omap_aes_ctx {
 	u32		key[AES_KEYSIZE_256 / sizeof(u32)];
 	u8		nonce[4];
 	struct crypto_sync_skcipher	*fallback;
-	struct crypto_skcipher	*ctr;
+};
+
+struct omap_aes_gcm_ctx {
+	struct omap_aes_ctx	octx;
+	struct crypto_aes_ctx	actx;
 };
 
 struct omap_aes_reqctx {
