@@ -702,7 +702,7 @@ static int snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 	if (!fake_buffer) {
 		snd_pcm_lib_preallocate_pages_for_all(pcm,
 			SNDRV_DMA_TYPE_CONTINUOUS,
-			snd_dma_continuous_data(GFP_KERNEL),
+			NULL,
 			0, 64*1024);
 	}
 	return 0;
