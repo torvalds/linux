@@ -1433,22 +1433,10 @@ static void byt_init_irq_valid_mask(struct gpio_chip *chip,
 				    unsigned long *valid_mask,
 				    unsigned int ngpios)
 {
-	/*
-	 * FIXME: currently the valid_mask is filled in as part of
-	 * initializing the irq_chip below in byt_gpio_irq_init_hw().
-	 * when converting this driver to the new way of passing the
-	 * gpio_irq_chip along when adding the gpio_chip, move the
-	 * mask initialization into this callback instead. Right now
-	 * this callback is here to make sure the mask gets allocated.
-	 */
-}
-
-static int byt_gpio_irq_init_hw(struct gpio_chip *chip)
-{
 	struct byt_gpio *vg = gpiochip_get_data(chip);
 	struct device *dev = &vg->pdev->dev;
 	void __iomem *reg;
-	u32 base, value;
+	u32 value;
 	int i;
 
 	/*
@@ -1469,13 +1457,20 @@ static int byt_gpio_irq_init_hw(struct gpio_chip *chip)
 
 		value = readl(reg);
 		if (value & BYT_DIRECT_IRQ_EN) {
-			clear_bit(i, chip->irq.valid_mask);
+			clear_bit(i, valid_mask);
 			dev_dbg(dev, "excluding GPIO %d from IRQ domain\n", i);
 		} else if ((value & BYT_PIN_MUX) == byt_get_gpio_mux(vg, i)) {
 			byt_gpio_clear_triggering(vg, i);
 			dev_dbg(dev, "disabling GPIO %d\n", i);
 		}
 	}
+}
+
+static int byt_gpio_irq_init_hw(struct gpio_chip *chip)
+{
+	struct byt_gpio *vg = gpiochip_get_data(chip);
+	void __iomem *reg;
+	u32 base, value;
 
 	/* clear interrupt status trigger registers */
 	for (base = 0; base < vg->soc_data->npins; base += 32) {
