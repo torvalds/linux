@@ -450,6 +450,9 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	struct drm_i915_gem_object *obj;
 	int ret;
 
+	if (!i915_ggtt_has_aperture(&to_i915(dev)->ggtt))
+		return -ENODEV;
+
 	obj = i915_gem_object_lookup(file, handle);
 	if (!obj)
 		return -ENOENT;
