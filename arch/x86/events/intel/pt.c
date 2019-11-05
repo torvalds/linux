@@ -606,6 +606,7 @@ static inline phys_addr_t topa_pfn(struct topa *topa)
 
 static void pt_config_buffer(struct pt_buffer *buf)
 {
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	u64 reg, mask;
 	void *base;
 
@@ -617,11 +618,17 @@ static void pt_config_buffer(struct pt_buffer *buf)
 		mask = (u64)buf->cur_idx;
 	}
 
-	wrmsrl(MSR_IA32_RTIT_OUTPUT_BASE, virt_to_phys(base));
+	reg = virt_to_phys(base);
+	if (pt->output_base != reg) {
+		pt->output_base = reg;
+		wrmsrl(MSR_IA32_RTIT_OUTPUT_BASE, reg);
+	}
 
 	reg = 0x7f | (mask << 7) | ((u64)buf->output_off << 32);
-
-	wrmsrl(MSR_IA32_RTIT_OUTPUT_MASK, reg);
+	if (pt->output_mask != reg) {
+		pt->output_mask = reg;
+		wrmsrl(MSR_IA32_RTIT_OUTPUT_MASK, reg);
+	}
 }
 
 /**
@@ -930,21 +937,21 @@ static void pt_handle_status(struct pt *pt)
  */
 static void pt_read_offset(struct pt_buffer *buf)
 {
-	u64 offset, base;
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	struct topa_page *tp;
 
 	if (!buf->single) {
-		rdmsrl(MSR_IA32_RTIT_OUTPUT_BASE, base);
-		tp = phys_to_virt(base);
+		rdmsrl(MSR_IA32_RTIT_OUTPUT_BASE, pt->output_base);
+		tp = phys_to_virt(pt->output_base);
 		buf->cur = &tp->topa;
 	}
 
-	rdmsrl(MSR_IA32_RTIT_OUTPUT_MASK, offset);
+	rdmsrl(MSR_IA32_RTIT_OUTPUT_MASK, pt->output_mask);
 	/* offset within current output region */
-	buf->output_off = offset >> 32;
+	buf->output_off = pt->output_mask >> 32;
 	/* index of current output region within this table */
 	if (!buf->single)
-		buf->cur_idx = (offset & 0xffffff80) >> 7;
+		buf->cur_idx = (pt->output_mask & 0xffffff80) >> 7;
 }
 
 static struct topa_entry *

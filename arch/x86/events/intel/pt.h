@@ -113,16 +113,20 @@ struct pt_filters {
 
 /**
  * struct pt - per-cpu pt context
- * @handle:	perf output handle
+ * @handle:		perf output handle
  * @filters:		last configured filters
- * @handle_nmi:	do handle PT PMI on this cpu, there's an active event
- * @vmx_on:	1 if VMX is ON on this cpu
+ * @handle_nmi:		do handle PT PMI on this cpu, there's an active event
+ * @vmx_on:		1 if VMX is ON on this cpu
+ * @output_base:	cached RTIT_OUTPUT_BASE MSR value
+ * @output_mask:	cached RTIT_OUTPUT_MASK MSR value
  */
 struct pt {
 	struct perf_output_handle handle;
 	struct pt_filters	filters;
 	int			handle_nmi;
 	int			vmx_on;
+	u64			output_base;
+	u64			output_mask;
 };
 
 #endif /* __INTEL_PT_H__ */
