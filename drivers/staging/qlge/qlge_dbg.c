@@ -1649,7 +1649,7 @@ void ql_dump_wqicb(struct wqicb *wqicb)
 
 void ql_dump_tx_ring(struct tx_ring *tx_ring)
 {
-	if (tx_ring == NULL)
+	if (!tx_ring)
 		return;
 	pr_err("===================== Dumping tx_ring %d ===============\n",
 	       tx_ring->wq_id);
@@ -1741,7 +1741,7 @@ static const char *qlge_rx_ring_type_name(struct rx_ring *rx_ring)
 
 void ql_dump_rx_ring(struct rx_ring *rx_ring)
 {
-	if (rx_ring == NULL)
+	if (!rx_ring)
 		return;
 	pr_err("===================== Dumping rx_ring %d ===============\n",
 	       rx_ring->cq_id);

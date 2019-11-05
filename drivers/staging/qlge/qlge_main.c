@@ -1588,7 +1588,7 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 	skb = sbq_desc->p.skb;
 	/* Allocate new_skb and copy */
 	new_skb = netdev_alloc_skb(qdev->ndev, length + NET_IP_ALIGN);
-	if (new_skb == NULL) {
+	if (!new_skb) {
 		rx_ring->rx_dropped++;
 		return;
 	}
@@ -1792,7 +1792,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 			 */
 			lbq_desc = ql_get_curr_lchunk(qdev, rx_ring);
 			skb = netdev_alloc_skb(qdev->ndev, length);
-			if (skb == NULL) {
+			if (!skb) {
 				netif_printk(qdev, probe, KERN_DEBUG, qdev->ndev,
 					     "No skb available, drop the packet.\n");
 				return NULL;
@@ -2663,7 +2663,7 @@ static int ql_alloc_shadow_space(struct ql_adapter *qdev)
 	qdev->rx_ring_shadow_reg_area =
 		pci_zalloc_consistent(qdev->pdev, PAGE_SIZE,
 				      &qdev->rx_ring_shadow_reg_dma);
-	if (qdev->rx_ring_shadow_reg_area == NULL) {
+	if (!qdev->rx_ring_shadow_reg_area) {
 		netif_err(qdev, ifup, qdev->ndev,
 			  "Allocation of RX shadow space failed.\n");
 		return -ENOMEM;
@@ -2672,7 +2672,7 @@ static int ql_alloc_shadow_space(struct ql_adapter *qdev)
 	qdev->tx_ring_shadow_reg_area =
 		pci_zalloc_consistent(qdev->pdev, PAGE_SIZE,
 				      &qdev->tx_ring_shadow_reg_dma);
-	if (qdev->tx_ring_shadow_reg_area == NULL) {
+	if (!qdev->tx_ring_shadow_reg_area) {
 		netif_err(qdev, ifup, qdev->ndev,
 			  "Allocation of TX shadow space failed.\n");
 		goto err_wqp_sh_area;
@@ -2724,14 +2724,14 @@ static int ql_alloc_tx_resources(struct ql_adapter *qdev,
 	    pci_alloc_consistent(qdev->pdev, tx_ring->wq_size,
 				 &tx_ring->wq_base_dma);
 
-	if ((tx_ring->wq_base == NULL) ||
+	if (!tx_ring->wq_base ||
 	    tx_ring->wq_base_dma & WQ_ADDR_ALIGN)
 		goto pci_alloc_err;
 
 	tx_ring->q =
 	    kmalloc_array(tx_ring->wq_len, sizeof(struct tx_ring_desc),
 			  GFP_KERNEL);
-	if (tx_ring->q == NULL)
+	if (!tx_ring->q)
 		goto err;
 
 	return 0;
@@ -2778,7 +2778,7 @@ static void ql_free_sbq_buffers(struct ql_adapter *qdev, struct rx_ring *rx_ring
 	for (i = 0; i < QLGE_BQ_LEN; i++) {
 		struct qlge_bq_desc *sbq_desc = &rx_ring->sbq.queue[i];
 
-		if (sbq_desc == NULL) {
+		if (!sbq_desc) {
 			netif_err(qdev, ifup, qdev->ndev,
 				  "sbq_desc %d is NULL.\n", i);
 			return;
@@ -2899,7 +2899,7 @@ static int ql_alloc_rx_resources(struct ql_adapter *qdev,
 	    pci_alloc_consistent(qdev->pdev, rx_ring->cq_size,
 				 &rx_ring->cq_base_dma);
 
-	if (rx_ring->cq_base == NULL) {
+	if (!rx_ring->cq_base) {
 		netif_err(qdev, ifup, qdev->ndev, "rx_ring alloc failed.\n");
 		return -ENOMEM;
 	}
@@ -4485,7 +4485,7 @@ static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
 	if (qlge_mpi_coredump) {
 		qdev->mpi_coredump =
 			vmalloc(sizeof(struct ql_mpi_coredump));
-		if (qdev->mpi_coredump == NULL) {
+		if (!qdev->mpi_coredump) {
 			err = -ENOMEM;
 			goto err_out2;
 		}
