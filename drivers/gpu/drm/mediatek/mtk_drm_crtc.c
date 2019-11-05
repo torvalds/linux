@@ -207,6 +207,28 @@ static void mtk_crtc_ddp_clk_disable(struct mtk_drm_crtc *mtk_crtc)
 		clk_disable_unprepare(mtk_crtc->ddp_comp[i]->clk);
 }
 
+static
+struct mtk_ddp_comp *mtk_drm_ddp_comp_for_plane(struct drm_crtc *crtc,
+						struct drm_plane *plane,
+						unsigned int *local_layer)
+{
+	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
+	struct mtk_ddp_comp *comp;
+	int i, count = 0;
+
+	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++) {
+		comp = mtk_crtc->ddp_comp[i];
+		if (plane->index < (count + mtk_ddp_comp_layer_nr(comp))) {
+			*local_layer = plane->index - count;
+			return comp;
+		}
+		count += mtk_ddp_comp_layer_nr(comp);
+	}
+
+	WARN(1, "Failed to find component for plane %d\n", plane->index);
+	return NULL;
+}
+
 static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 {
 	struct drm_crtc *crtc = &mtk_crtc->base;
@@ -283,19 +305,12 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 	for (i = 0; i < mtk_crtc->layer_nr; i++) {
 		struct drm_plane *plane = &mtk_crtc->planes[i];
 		struct mtk_plane_state *plane_state;
-		struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[0];
-		unsigned int comp_layer_nr = mtk_ddp_comp_layer_nr(comp);
+		struct mtk_ddp_comp *comp;
 		unsigned int local_layer;
 
 		plane_state = to_mtk_plane_state(plane->state);
-
-		if (i >= comp_layer_nr) {
-			comp = mtk_crtc->ddp_comp[1];
-			local_layer = i - comp_layer_nr;
-		} else
-			local_layer = i;
-		mtk_ddp_comp_layer_config(comp, local_layer,
-					  plane_state);
+		comp = mtk_drm_ddp_comp_for_plane(crtc, plane, &local_layer);
+		mtk_ddp_comp_layer_config(comp, local_layer, plane_state);
 	}
 
 	return 0;
@@ -343,7 +358,6 @@ static void mtk_crtc_ddp_config(struct drm_crtc *crtc)
 	struct mtk_crtc_state *state = to_mtk_crtc_state(mtk_crtc->base.state);
 	struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[0];
 	unsigned int i;
-	unsigned int comp_layer_nr = mtk_ddp_comp_layer_nr(comp);
 	unsigned int local_layer;
 
 	/*
@@ -366,17 +380,15 @@ static void mtk_crtc_ddp_config(struct drm_crtc *crtc)
 
 			plane_state = to_mtk_plane_state(plane->state);
 
-			if (plane_state->pending.config) {
-				if (i >= comp_layer_nr) {
-					comp = mtk_crtc->ddp_comp[1];
-					local_layer = i - comp_layer_nr;
-				} else
-					local_layer = i;
+			if (!plane_state->pending.config)
+				continue;
 
-				mtk_ddp_comp_layer_config(comp, local_layer,
-							  plane_state);
-				plane_state->pending.config = false;
-			}
+			comp = mtk_drm_ddp_comp_for_plane(crtc, plane,
+							  &local_layer);
+
+			mtk_ddp_comp_layer_config(comp, local_layer,
+						  plane_state);
+			plane_state->pending.config = false;
 		}
 		mtk_crtc->pending_planes = false;
 	}
