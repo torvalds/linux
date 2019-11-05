@@ -963,7 +963,7 @@ void pci_refresh_power_state(struct pci_dev *dev)
  * @dev: PCI device to handle.
  * @state: State to put the device into.
  */
-static int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
+int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
 {
 	int error;
 
@@ -979,6 +979,7 @@ static int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
 
 	return error;
 }
+EXPORT_SYMBOL_GPL(pci_platform_power_transition);
 
 /**
  * pci_wakeup - Wake up a PCI device
@@ -1061,7 +1062,7 @@ void pci_bus_set_current_state(struct pci_bus *bus, pci_power_t state)
  *
  * This function should not be called directly by device drivers.
  */
-int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state)
+static int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state)
 {
 	int ret;
 
@@ -1073,7 +1074,6 @@ int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state)
 		pci_bus_set_current_state(dev->subordinate, PCI_D3cold);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__pci_complete_power_transition);
 
 /**
  * pci_set_power_state - Set the power state of a PCI device
