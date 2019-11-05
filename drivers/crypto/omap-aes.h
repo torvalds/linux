@@ -80,7 +80,6 @@
 
 #define FLAGS_INIT		BIT(5)
 #define FLAGS_FAST		BIT(6)
-#define FLAGS_BUSY		BIT(7)
 
 #define FLAGS_IN_DATA_ST_SHIFT	8
 #define FLAGS_OUT_DATA_ST_SHIFT	10
@@ -212,6 +211,7 @@ int omap_aes_4106gcm_encrypt(struct aead_request *req);
 int omap_aes_4106gcm_decrypt(struct aead_request *req);
 int omap_aes_4106gcm_setauthsize(struct crypto_aead *parent,
 				 unsigned int authsize);
+int omap_aes_gcm_cra_init(struct crypto_aead *tfm);
 int omap_aes_write_ctrl(struct omap_aes_dev *dd);
 int omap_aes_crypt_dma_start(struct omap_aes_dev *dd);
 int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd);

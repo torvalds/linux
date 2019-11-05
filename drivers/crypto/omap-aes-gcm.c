@@ -13,6 +13,7 @@
 #include <linux/dmaengine.h>
 #include <linux/omap-dma.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <crypto/aes.h>
 #include <crypto/gcm.h>
 #include <crypto/scatterwalk.h>
@@ -29,11 +30,13 @@ static void omap_aes_gcm_finish_req(struct omap_aes_dev *dd, int ret)
 {
 	struct aead_request *req = dd->aead_req;
 
-	dd->flags &= ~FLAGS_BUSY;
 	dd->in_sg = NULL;
 	dd->out_sg = NULL;
 
-	req->base.complete(&req->base, ret);
+	crypto_finalize_aead_request(dd->engine, req, ret);
+
+	pm_runtime_mark_last_busy(dd->dev);
+	pm_runtime_put_autosuspend(dd->dev);
 }
 
 static void omap_aes_gcm_done_task(struct omap_aes_dev *dd)
@@ -81,7 +84,6 @@ static void omap_aes_gcm_done_task(struct omap_aes_dev *dd)
 	}
 
 	omap_aes_gcm_finish_req(dd, ret);
-	omap_aes_gcm_handle_queue(dd, NULL);
 }
 
 static int omap_aes_gcm_copy_buffers(struct omap_aes_dev *dd,
@@ -127,6 +129,9 @@ static int omap_aes_gcm_copy_buffers(struct omap_aes_dev *dd,
 	if (cryptlen) {
 		tmp = scatterwalk_ffwd(sg_arr, req->src, req->assoclen);
 
+		if (nsg)
+			sg_unmark_end(dd->in_sgl);
+
 		ret = omap_crypto_align_sg(&tmp, cryptlen,
 					   AES_BLOCK_SIZE, &dd->in_sgl[nsg],
 					   OMAP_CRYPTO_COPY_DATA |
@@ -146,7 +151,7 @@ static int omap_aes_gcm_copy_buffers(struct omap_aes_dev *dd,
 	dd->out_sg = req->dst;
 	dd->orig_out = req->dst;
 
-	dd->out_sg = scatterwalk_ffwd(sg_arr, req->dst, assoclen);
+	dd->out_sg = scatterwalk_ffwd(sg_arr, req->dst, req->assoclen);
 
 	flags = 0;
 	if (req->src == req->dst || dd->out_sg == sg_arr)
@@ -202,37 +207,21 @@ void omap_aes_gcm_dma_out_callback(void *data)
 static int omap_aes_gcm_handle_queue(struct omap_aes_dev *dd,
 				     struct aead_request *req)
 {
-	struct omap_aes_gcm_ctx *ctx;
-	struct aead_request *backlog;
-	struct omap_aes_reqctx *rctx;
-	unsigned long flags;
-	int err, ret = 0;
-
-	spin_lock_irqsave(&dd->lock, flags);
 	if (req)
-		ret = aead_enqueue_request(&dd->aead_queue, req);
-	if (dd->flags & FLAGS_BUSY) {
-		spin_unlock_irqrestore(&dd->lock, flags);
-		return ret;
-	}
+		return crypto_transfer_aead_request_to_engine(dd->engine, req);
 
-	backlog = aead_get_backlog(&dd->aead_queue);
-	req = aead_dequeue_request(&dd->aead_queue);
-	if (req)
-		dd->flags |= FLAGS_BUSY;
-	spin_unlock_irqrestore(&dd->lock, flags);
+	return 0;
+}
 
-	if (!req)
-		return ret;
+static int omap_aes_gcm_prepare_req(struct crypto_engine *engine, void *areq)
+{
+	struct aead_request *req = container_of(areq, struct aead_request,
+						base);
+	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
+	struct omap_aes_dev *dd = rctx->dd;
+	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
+	int err;
 
-	if (backlog)
-		backlog->base.complete(&backlog->base, -EINPROGRESS);
-
-	ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
-	rctx = aead_request_ctx(req);
-
-	dd->ctx = &ctx->octx;
-	rctx->dd = dd;
 	dd->aead_req = req;
 
 	rctx->mode &= FLAGS_MODE_MASK;
@@ -242,20 +231,9 @@ static int omap_aes_gcm_handle_queue(struct omap_aes_dev *dd,
 	if (err)
 		return err;
 
-	err = omap_aes_write_ctrl(dd);
-	if (!err) {
-		if (dd->in_sg_len)
-			err = omap_aes_crypt_dma_start(dd);
-		else
-			omap_aes_gcm_dma_out_callback(dd);
-	}
+	dd->ctx = &ctx->octx;
 
-	if (err) {
-		omap_aes_gcm_finish_req(dd, err);
-		omap_aes_gcm_handle_queue(dd, NULL);
-	}
-
-	return ret;
+	return omap_aes_write_ctrl(dd);
 }
 
 static int omap_aes_gcm_crypt(struct aead_request *req, unsigned long mode)
@@ -377,4 +355,36 @@ int omap_aes_4106gcm_setauthsize(struct crypto_aead *parent,
 				 unsigned int authsize)
 {
 	return crypto_rfc4106_check_authsize(authsize);
+}
+
+static int omap_aes_gcm_crypt_req(struct crypto_engine *engine, void *areq)
+{
+	struct aead_request *req = container_of(areq, struct aead_request,
+						base);
+	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
+	struct omap_aes_dev *dd = rctx->dd;
+	int ret = 0;
+
+	if (!dd)
+		return -ENODEV;
+
+	if (dd->in_sg_len)
+		ret = omap_aes_crypt_dma_start(dd);
+	else
+		omap_aes_gcm_dma_out_callback(dd);
+
+	return ret;
+}
+
+int omap_aes_gcm_cra_init(struct crypto_aead *tfm)
+{
+	struct omap_aes_ctx *ctx = crypto_aead_ctx(tfm);
+
+	ctx->enginectx.op.prepare_request = omap_aes_gcm_prepare_req;
+	ctx->enginectx.op.unprepare_request = NULL;
+	ctx->enginectx.op.do_one_request = omap_aes_gcm_crypt_req;
+
+	crypto_aead_set_reqsize(tfm, sizeof(struct omap_aes_reqctx));
+
+	return 0;
 }
