@@ -123,8 +123,7 @@ __gnet_stats_copy_basic_cpu(struct gnet_stats_basic_packed *bstats,
 	for_each_possible_cpu(i) {
 		struct gnet_stats_basic_cpu *bcpu = per_cpu_ptr(cpu, i);
 		unsigned int start;
-		u64 bytes;
-		u32 packets;
+		u64 bytes, packets;
 
 		do {
 			start = u64_stats_fetch_begin_irq(&bcpu->syncp);
