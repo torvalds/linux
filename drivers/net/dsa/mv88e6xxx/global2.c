@@ -288,16 +288,9 @@ int mv88e6xxx_g2_atu_stats_set(struct mv88e6xxx_chip *chip, u16 kind, u16 bin)
 				  kind | bin);
 }
 
-int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip)
+int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip, u16 *stats)
 {
-	int err;
-	u16 val;
-
-	err = mv88e6xxx_g2_read(chip, MV88E6XXX_G2_ATU_STATS, &val);
-	if (err)
-		return err;
-
-	return val & MV88E6XXX_G2_ATU_STATS_MASK;
+	return mv88e6xxx_g2_read(chip, MV88E6XXX_G2_ATU_STATS, stats);
 }
 
 /* Offset 0x0F: Priority Override Table */

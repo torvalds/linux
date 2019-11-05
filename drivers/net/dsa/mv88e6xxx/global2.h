@@ -363,7 +363,7 @@ extern const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops;
 int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 				      bool external);
 int mv88e6xxx_g2_atu_stats_set(struct mv88e6xxx_chip *chip, u16 kind, u16 bin);
-int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip);
+int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip, u16 *stats);
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
 
