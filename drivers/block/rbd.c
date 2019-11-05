@@ -377,7 +377,6 @@ struct rbd_client_id {
 
 struct rbd_mapping {
 	u64                     size;
-	u64                     features;
 };
 
 /*
@@ -644,8 +643,6 @@ static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev,
 					u64 snap_id);
 static int _rbd_dev_v2_snap_size(struct rbd_device *rbd_dev, u64 snap_id,
 				u8 *order, u64 *snap_size);
-static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
-		u64 *snap_features);
 static int rbd_dev_v2_get_flags(struct rbd_device *rbd_dev);
 
 static void rbd_obj_handle_request(struct rbd_obj_request *obj_req, int result);
@@ -1320,51 +1317,23 @@ static int rbd_snap_size(struct rbd_device *rbd_dev, u64 snap_id,
 	return 0;
 }
 
-static int rbd_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
-			u64 *snap_features)
-{
-	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
-	if (snap_id == CEPH_NOSNAP) {
-		*snap_features = rbd_dev->header.features;
-	} else if (rbd_dev->image_format == 1) {
-		*snap_features = 0;	/* No features for format 1 */
-	} else {
-		u64 features = 0;
-		int ret;
-
-		ret = _rbd_dev_v2_snap_features(rbd_dev, snap_id, &features);
-		if (ret)
-			return ret;
-
-		*snap_features = features;
-	}
-	return 0;
-}
-
 static int rbd_dev_mapping_set(struct rbd_device *rbd_dev)
 {
 	u64 snap_id = rbd_dev->spec->snap_id;
 	u64 size = 0;
-	u64 features = 0;
 	int ret;
 
 	ret = rbd_snap_size(rbd_dev, snap_id, &size);
 	if (ret)
 		return ret;
-	ret = rbd_snap_features(rbd_dev, snap_id, &features);
-	if (ret)
-		return ret;
 
 	rbd_dev->mapping.size = size;
-	rbd_dev->mapping.features = features;
-
 	return 0;
 }
 
 static void rbd_dev_mapping_clear(struct rbd_device *rbd_dev)
 {
 	rbd_dev->mapping.size = 0;
-	rbd_dev->mapping.features = 0;
 }
 
 static void zero_bvec(struct bio_vec *bv)
@@ -5207,17 +5176,12 @@ static ssize_t rbd_size_show(struct device *dev,
 		(unsigned long long)rbd_dev->mapping.size);
 }
 
-/*
- * Note this shows the features for whatever's mapped, which is not
- * necessarily the base image.
- */
 static ssize_t rbd_features_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
-	return sprintf(buf, "0x%016llx\n",
-			(unsigned long long)rbd_dev->mapping.features);
+	return sprintf(buf, "0x%016llx\n", rbd_dev->header.features);
 }
 
 static ssize_t rbd_major_show(struct device *dev,
