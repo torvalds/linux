@@ -174,7 +174,7 @@ int vboxsf_stat_dentry(struct dentry *dentry, struct shfl_fsobjinfo *info)
 
 int vboxsf_inode_revalidate(struct dentry *dentry)
 {
-	struct vboxsf_sbi *sbi = VBOXSF_SBI(dentry->d_sb);
+	struct vboxsf_sbi *sbi;
 	struct vboxsf_inode *sf_i;
 	struct shfl_fsobjinfo info;
 	struct timespec64 prev_mtime;
@@ -187,6 +187,7 @@ int vboxsf_inode_revalidate(struct dentry *dentry)
 	inode = d_inode(dentry);
 	prev_mtime = inode->i_mtime;
 	sf_i = VBOXSF_I(inode);
+	sbi = VBOXSF_SBI(dentry->d_sb);
 	if (!sf_i->force_restat) {
 		if (time_before(jiffies, dentry->d_time + sbi->o.ttl))
 			return 0;
