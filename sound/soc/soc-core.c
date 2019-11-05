@@ -2598,42 +2598,6 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 }
 
 /**
- * snd_soc_register_dais - Register a DAI with the ASoC core
- *
- * @component: The component the DAIs are registered for
- * @dai_drv: DAI driver to use for the DAIs
- * @count: Number of DAIs
- */
-static int snd_soc_register_dais(struct snd_soc_component *component,
-				 struct snd_soc_dai_driver *dai_drv,
-				 size_t count)
-{
-	struct device *dev = component->dev;
-	struct snd_soc_dai *dai;
-	unsigned int i;
-	int ret;
-
-	dev_dbg(dev, "ASoC: dai register %s #%zu\n", dev_name(dev), count);
-
-	for (i = 0; i < count; i++) {
-
-		dai = soc_add_dai(component, dai_drv + i, count == 1 &&
-				  !component->driver->non_legacy_dai_naming);
-		if (dai == NULL) {
-			ret = -ENOMEM;
-			goto err;
-		}
-	}
-
-	return 0;
-
-err:
-	snd_soc_unregister_dais(component);
-
-	return ret;
-}
-
-/**
  * snd_soc_register_dai - Register a DAI dynamically & create its widgets
  *
  * @component: The component the DAIs are registered for
@@ -2675,6 +2639,42 @@ int snd_soc_register_dai(struct snd_soc_component *component,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_dai);
+
+/**
+ * snd_soc_register_dais - Register a DAI with the ASoC core
+ *
+ * @component: The component the DAIs are registered for
+ * @dai_drv: DAI driver to use for the DAIs
+ * @count: Number of DAIs
+ */
+static int snd_soc_register_dais(struct snd_soc_component *component,
+				 struct snd_soc_dai_driver *dai_drv,
+				 size_t count)
+{
+	struct device *dev = component->dev;
+	struct snd_soc_dai *dai;
+	unsigned int i;
+	int ret;
+
+	dev_dbg(dev, "ASoC: dai register %s #%zu\n", dev_name(dev), count);
+
+	for (i = 0; i < count; i++) {
+
+		dai = soc_add_dai(component, dai_drv + i, count == 1 &&
+				  !component->driver->non_legacy_dai_naming);
+		if (dai == NULL) {
+			ret = -ENOMEM;
+			goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	snd_soc_unregister_dais(component);
+
+	return ret;
+}
 
 static int snd_soc_component_initialize(struct snd_soc_component *component,
 	const struct snd_soc_component_driver *driver, struct device *dev)
