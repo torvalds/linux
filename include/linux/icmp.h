@@ -20,4 +20,19 @@ static inline struct icmphdr *icmp_hdr(const struct sk_buff *skb)
 {
 	return (struct icmphdr *)skb_transport_header(skb);
 }
+
+static inline bool icmp_is_err(int type)
+{
+	switch (type) {
+	case ICMP_DEST_UNREACH:
+	case ICMP_SOURCE_QUENCH:
+	case ICMP_REDIRECT:
+	case ICMP_TIME_EXCEEDED:
+	case ICMP_PARAMETERPROB:
+		return true;
+	}
+
+	return false;
+}
+
 #endif	/* _LINUX_ICMP_H */
