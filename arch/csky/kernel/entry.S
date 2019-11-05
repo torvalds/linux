@@ -128,7 +128,10 @@ tlbop_end 1
 ENTRY(csky_systemcall)
 	SAVE_ALL TRAP0_SIZE
 	zero_fp
-
+#ifdef CONFIG_RSEQ_DEBUG
+	mov	a0, sp
+	jbsr	rseq_syscall
+#endif
 	psrset  ee, ie
 
 	lrw     r11, __NR_syscalls
