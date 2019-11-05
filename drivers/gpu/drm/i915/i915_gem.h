@@ -77,6 +77,12 @@ struct drm_i915_private;
 
 #define I915_GEM_IDLE_TIMEOUT (HZ / 5)
 
+static inline void tasklet_lock(struct tasklet_struct *t)
+{
+	while (!tasklet_trylock(t))
+		cpu_relax();
+}
+
 static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
 {
 	if (!atomic_fetch_inc(&t->count))

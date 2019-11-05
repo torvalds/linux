@@ -111,13 +111,13 @@
 		reg = <0x70>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
 
 		i2c@0 {
 			/* FMC A */
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
-			i2c-mux-idle-disconnect;
 		};
 
 		i2c@1 {
@@ -125,7 +125,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <1>;
-			i2c-mux-idle-disconnect;
 		};
 
 		i2c@2 {
@@ -133,7 +132,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
-			i2c-mux-idle-disconnect;
 		};
 
 		i2c@3 {
@@ -141,7 +139,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <3>;
-			i2c-mux-idle-disconnect;
 		};
 
 		i2c@4 {
@@ -149,14 +146,12 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
-			i2c-mux-idle-disconnect;
 		};
 
 		i2c@5 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <5>;
-			i2c-mux-idle-disconnect;
 
 			ina230@40 { compatible = "ti,ina230"; reg = <0x40>; shunt-resistor = <5000>; };
 			ina230@41 { compatible = "ti,ina230"; reg = <0x41>; shunt-resistor = <5000>; };
@@ -182,14 +177,12 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <6>;
-			i2c-mux-idle-disconnect;
 		};
 
 		i2c@7 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <7>;
-			i2c-mux-idle-disconnect;
 
 			u41: pca9575@20 {
 				compatible = "nxp,pca9575";

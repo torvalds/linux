@@ -67,7 +67,11 @@ properties:
     description:
       Overrides the detected port count
 
-  phys: true
+  phys:
+    description: PHY specifier for the USB PHY
+
+  phy-names:
+    const: usb
 
 required:
   - compatible
@@ -84,6 +88,7 @@ examples:
           interrupts = <64>;
           clocks = <&usb_clk 6>, <&ahb_gates 2>;
           phys = <&usbphy 1>;
+          phy-names = "usb";
       };
 
 ...

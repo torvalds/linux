@@ -1083,6 +1083,9 @@ void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits);
 #define VMX_BASIC_MEM_TYPE_WB	6LLU
 #define VMX_BASIC_INOUT		0x0040000000000000LLU
 
+/* VMX_EPT_VPID_CAP bits */
+#define VMX_EPT_VPID_CAP_AD_BITS	(1ULL << 21)
+
 /* MSR_IA32_VMX_MISC bits */
 #define MSR_IA32_VMX_MISC_VMWRITE_SHADOW_RO_FIELDS (1ULL << 29)
 #define MSR_IA32_VMX_MISC_PREEMPTION_TIMER_SCALE   0x1F

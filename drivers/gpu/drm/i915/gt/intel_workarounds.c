@@ -1063,6 +1063,9 @@ static void gen9_whitelist_build(struct i915_wa_list *w)
 
 	/* WaAllowUMDToModifyHDCChicken1:skl,bxt,kbl,glk,cfl */
 	whitelist_reg(w, GEN8_HDC_CHICKEN1);
+
+	/* WaSendPushConstantsFromMMIO:skl,bxt */
+	whitelist_reg(w, COMMON_SLICE_CHICKEN2);
 }
 
 static void skl_whitelist_build(struct intel_engine_cs *engine)

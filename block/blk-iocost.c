@@ -2110,10 +2110,10 @@ static ssize_t ioc_weight_write(struct kernfs_open_file *of, char *buf,
 			goto einval;
 	}
 
-	spin_lock_irq(&iocg->ioc->lock);
+	spin_lock(&iocg->ioc->lock);
 	iocg->cfg_weight = v;
 	weight_updated(iocg);
-	spin_unlock_irq(&iocg->ioc->lock);
+	spin_unlock(&iocg->ioc->lock);
 
 	blkg_conf_finish(&ctx);
 	return nbytes;

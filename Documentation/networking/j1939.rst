@@ -272,7 +272,7 @@ supported flags are:
 * MSG_DONTWAIT, i.e. non-blocking operation.
 
 recvmsg(2)
-^^^^^^^^^
+^^^^^^^^^^
 
 In most cases recvmsg(2) is needed if you want to extract more information than
 recvfrom(2) can provide. For example package priority and timestamp. The

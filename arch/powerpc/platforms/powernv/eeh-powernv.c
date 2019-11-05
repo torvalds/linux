@@ -42,7 +42,7 @@ void pnv_pcibios_bus_add_device(struct pci_dev *pdev)
 {
 	struct pci_dn *pdn = pci_get_pdn(pdev);
 
-	if (eeh_has_flag(EEH_FORCE_DISABLED))
+	if (!pdn || eeh_has_flag(EEH_FORCE_DISABLED))
 		return;
 
 	dev_dbg(&pdev->dev, "EEH: Setting up device\n");

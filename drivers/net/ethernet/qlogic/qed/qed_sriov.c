@@ -2005,7 +2005,7 @@ static void qed_iov_vf_mbx_stop_vport(struct qed_hwfn *p_hwfn,
 	    (qed_iov_validate_active_txq(p_hwfn, vf))) {
 		vf->b_malicious = true;
 		DP_NOTICE(p_hwfn,
-			  "VF [%02x] - considered malicious; Unable to stop RX/TX queuess\n",
+			  "VF [%02x] - considered malicious; Unable to stop RX/TX queues\n",
 			  vf->abs_vf_id);
 		status = PFVF_STATUS_MALICIOUS;
 		goto out;
