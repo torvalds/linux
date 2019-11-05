@@ -358,6 +358,7 @@ static inline
 void rsc_add_data(struct netvsc_channel *nvchan,
 		  const struct ndis_pkt_8021q_info *vlan,
 		  const struct ndis_tcp_ip_checksum_info *csum_info,
+		  const u32 *hash_info,
 		  void *data, u32 len)
 {
 	u32 cnt = nvchan->rsc.cnt;
@@ -368,6 +369,7 @@ void rsc_add_data(struct netvsc_channel *nvchan,
 		nvchan->rsc.vlan = vlan;
 		nvchan->rsc.csum_info = csum_info;
 		nvchan->rsc.pktlen = len;
+		nvchan->rsc.hash_info = hash_info;
 	}
 
 	nvchan->rsc.data[cnt] = data;
@@ -385,6 +387,7 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	const struct ndis_tcp_ip_checksum_info *csum_info;
 	const struct ndis_pkt_8021q_info *vlan;
 	const struct rndis_pktinfo_id *pktinfo_id;
+	const u32 *hash_info;
 	u32 data_offset;
 	void *data;
 	bool rsc_more = false;
@@ -410,6 +413,8 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO, 0);
 
 	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO, 0);
+
+	hash_info = rndis_get_ppi(rndis_pkt, NBL_HASH_VALUE, 0);
 
 	pktinfo_id = rndis_get_ppi(rndis_pkt, RNDIS_PKTINFO_ID, 1);
 
@@ -441,7 +446,8 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	 * rndis_pkt->data_len tell us the real data length, we only copy
 	 * the data packet to the stack, without the rndis trailer padding
 	 */
-	rsc_add_data(nvchan, vlan, csum_info, data, rndis_pkt->data_len);
+	rsc_add_data(nvchan, vlan, csum_info, hash_info,
+		     data, rndis_pkt->data_len);
 
 	if (rsc_more)
 		return NVSP_STAT_SUCCESS;
