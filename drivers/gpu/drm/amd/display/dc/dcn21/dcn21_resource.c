@@ -1000,6 +1000,8 @@ static void calculate_wm_set_for_vlevel(
 	pipes[0].clks_cfg.socclk_mhz = dml->soc.clock_limits[vlevel].socclk_mhz;
 
 	dml->soc.dram_clock_change_latency_us = table_entry->pstate_latency_us;
+	dml->soc.sr_exit_time_us = table_entry->sr_exit_time_us;
+	dml->soc.sr_enter_plus_exit_time_us = table_entry->sr_enter_plus_exit_time_us;
 
 	wm_set->urgent_ns = get_wm_urgent(dml, pipes, pipe_cnt) * 1000;
 	wm_set->cstate_pstate.cstate_enter_plus_exit_ns = get_wm_stutter_enter_exit(dml, pipes, pipe_cnt) * 1000;
@@ -1017,14 +1019,21 @@ static void calculate_wm_set_for_vlevel(
 
 static void patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb)
 {
+	int i;
+
 	kernel_fpu_begin();
 	if (dc->bb_overrides.sr_exit_time_ns) {
-		bb->sr_exit_time_us = dc->bb_overrides.sr_exit_time_ns / 1000.0;
+		for (i = 0; i < WM_SET_COUNT; i++) {
+			  dc->clk_mgr->bw_params->wm_table.entries[i].sr_exit_time_us =
+					  dc->bb_overrides.sr_exit_time_ns / 1000.0;
+		}
 	}
 
 	if (dc->bb_overrides.sr_enter_plus_exit_time_ns) {
-		bb->sr_enter_plus_exit_time_us =
-				dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
+		for (i = 0; i < WM_SET_COUNT; i++) {
+			  dc->clk_mgr->bw_params->wm_table.entries[i].sr_enter_plus_exit_time_us =
+					  dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
+		}
 	}
 
 	if (dc->bb_overrides.urgent_latency_ns) {

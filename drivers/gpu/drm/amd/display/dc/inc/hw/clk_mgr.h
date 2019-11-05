@@ -69,6 +69,8 @@ struct wm_range_table_entry {
 	unsigned int wm_inst;
 	unsigned int wm_type;
 	double pstate_latency_us;
+	double sr_exit_time_us;
+	double sr_enter_plus_exit_time_us;
 	bool valid;
 };
 
