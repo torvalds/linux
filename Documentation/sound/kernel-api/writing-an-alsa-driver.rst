@@ -2095,10 +2095,12 @@ This callback is atomic as default.
 page callback
 ~~~~~~~~~~~~~
 
-This callback is optional too. This callback is used mainly for
-non-contiguous buffers. The mmap calls this callback to get the page
-address. Some examples will be explained in the later section `Buffer
-and Memory Management`_, too.
+This callback is optional too. The mmap calls this callback to get the
+page fault address.
+
+Since the recent changes, you need no special callback any longer for
+the standard SG-buffer or vmalloc-buffer. Hence this callback should
+be rarely used.
 
 mmap calllback
 ~~~~~~~~~~~~~~
@@ -3700,8 +3702,15 @@ For creating the SG-buffer handler, call
 ``SNDRV_DMA_TYPE_DEV_SG`` in the PCM constructor like other PCI
 pre-allocator. You need to pass ``snd_dma_pci_data(pci)``, where pci is
 the :c:type:`struct pci_dev <pci_dev>` pointer of the chip as
-well. The ``struct snd_sg_buf`` instance is created as
-``substream->dma_private``. You can cast the pointer like:
+well.
+
+::
+
+  snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+                                        snd_dma_pci_data(pci), size, max);
+
+The ``struct snd_sg_buf`` instance is created as
+``substream->dma_private`` in turn. You can cast the pointer like:
 
 ::
 
@@ -3717,10 +3726,6 @@ physically non-contiguous. The physical address table is set up in
 ``sgbuf->table``. You can get the physical address at a certain offset
 via :c:func:`snd_pcm_sgbuf_get_addr()`.
 
-When a SG-handler is used, you need to set
-:c:func:`snd_pcm_sgbuf_ops_page()` as the ``page`` callback. (See
-`page callback`_ section.)
-
 To release the data, call :c:func:`snd_pcm_lib_free_pages()` in
 the ``hw_free`` callback as usual.
 
@@ -3728,30 +3733,33 @@ Vmalloc'ed Buffers
 ------------------
 
 It's possible to use a buffer allocated via :c:func:`vmalloc()`, for
-example, for an intermediate buffer. Since the allocated pages are not
-contiguous, you need to set the ``page`` callback to obtain the physical
-address at every offset.
-
-The easiest way to achieve it would be to use
-:c:func:`snd_pcm_lib_alloc_vmalloc_buffer()` for allocating the buffer
-via :c:func:`vmalloc()`, and set :c:func:`snd_pcm_sgbuf_ops_page()` to
-the ``page`` callback.  At release, you need to call
-:c:func:`snd_pcm_lib_free_vmalloc_buffer()`.
-
-If you want to implementation the ``page`` manually, it would be like
-this:
+example, for an intermediate buffer. In the recent version of kernel,
+you can simply allocate it via standard
+:c:func:`snd_pcm_lib_malloc_pages()` and co after setting up the
+buffer preallocation with ``SNDRV_DMA_TYPE_VMALLOC`` type.
 
 ::
 
-  #include <linux/vmalloc.h>
+  snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
+                                        NULL, 0, 0);
 
-  /* get the physical page pointer on the given offset */
-  static struct page *mychip_page(struct snd_pcm_substream *substream,
-                                  unsigned long offset)
-  {
-          void *pageptr = substream->runtime->dma_area + offset;
-          return vmalloc_to_page(pageptr);
-  }
+The NULL is passed to the device pointer argument, which indicates
+that the default pages (GFP_KERNEL and GFP_HIGHMEM) will be
+allocated.
+
+Also, note that zero is passed to both the size and the max size
+arguments here.  Since each vmalloc call should succeed at any time,
+we don't need to pre-allocate the buffers like other continuous
+pages.
+
+If you need the 32bit DMA allocation, pass the device pointer encoded
+by :c:func:`snd_dma_continuous_data()` with ``GFP_KERNEL|__GFP_DMA32``
+argument.
+
+::
+
+  snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
+          snd_dma_continuous_data(GFP_KERNEL | __GFP_DMA32), 0, 0);
 
 Proc Interface
 ==============
