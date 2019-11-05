@@ -1746,15 +1746,16 @@ TRACE_EVENT(ext4_load_inode,
 
 TRACE_EVENT(ext4_journal_start,
 	TP_PROTO(struct super_block *sb, int blocks, int rsv_blocks,
-		 unsigned long IP),
+		 int revoke_creds, unsigned long IP),
 
-	TP_ARGS(sb, blocks, rsv_blocks, IP),
+	TP_ARGS(sb, blocks, rsv_blocks, revoke_creds, IP),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(unsigned long,	ip			)
 		__field(	  int,	blocks			)
 		__field(	  int,	rsv_blocks		)
+		__field(	  int,	revoke_creds		)
 	),
 
 	TP_fast_assign(
@@ -1762,11 +1763,13 @@ TRACE_EVENT(ext4_journal_start,
 		__entry->ip		 = IP;
 		__entry->blocks		 = blocks;
 		__entry->rsv_blocks	 = rsv_blocks;
+		__entry->revoke_creds	 = revoke_creds;
 	),
 
-	TP_printk("dev %d,%d blocks, %d rsv_blocks, %d caller %pS",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->blocks, __entry->rsv_blocks, (void *)__entry->ip)
+	TP_printk("dev %d,%d blocks %d, rsv_blocks %d, revoke_creds %d, "
+		  "caller %pS", MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->blocks, __entry->rsv_blocks, __entry->revoke_creds,
+		  (void *)__entry->ip)
 );
 
 TRACE_EVENT(ext4_journal_start_reserved,

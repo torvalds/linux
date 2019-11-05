@@ -164,39 +164,18 @@ int ext4_inode_is_fast_symlink(struct inode *inode)
 }
 
 /*
- * Restart the transaction associated with *handle.  This does a commit,
- * so before we call here everything must be consistently dirtied against
- * this transaction.
- */
-int ext4_truncate_restart_trans(handle_t *handle, struct inode *inode,
-				 int nblocks)
-{
-	int ret;
-
-	/*
-	 * Drop i_data_sem to avoid deadlock with ext4_map_blocks.  At this
-	 * moment, get_block can be called only for blocks inside i_size since
-	 * page cache has been already dropped and writes are blocked by
-	 * i_mutex. So we can safely drop the i_data_sem here.
-	 */
-	BUG_ON(EXT4_JOURNAL(inode) == NULL);
-	jbd_debug(2, "restarting handle %p\n", handle);
-	up_write(&EXT4_I(inode)->i_data_sem);
-	ret = ext4_journal_restart(handle, nblocks);
-	down_write(&EXT4_I(inode)->i_data_sem);
-	ext4_discard_preallocations(inode);
-
-	return ret;
-}
-
-/*
  * Called at the last iput() if i_nlink is zero.
  */
 void ext4_evict_inode(struct inode *inode)
 {
 	handle_t *handle;
 	int err;
-	int extra_credits = 3;
+	/*
+	 * Credits for final inode cleanup and freeing:
+	 * sb + inode (ext4_orphan_del()), block bitmap, group descriptor
+	 * (xattr block freeing), bitmap, group descriptor (inode freeing)
+	 */
+	int extra_credits = 6;
 	struct ext4_xattr_inode_array *ea_inode_array = NULL;
 
 	trace_ext4_evict_inode(inode);
@@ -252,8 +231,12 @@ void ext4_evict_inode(struct inode *inode)
 	if (!IS_NOQUOTA(inode))
 		extra_credits += EXT4_MAXQUOTAS_DEL_BLOCKS(inode->i_sb);
 
+	/*
+	 * Block bitmap, group descriptor, and inode are accounted in both
+	 * ext4_blocks_for_truncate() and extra_credits. So subtract 3.
+	 */
 	handle = ext4_journal_start(inode, EXT4_HT_TRUNCATE,
-				 ext4_blocks_for_truncate(inode)+extra_credits);
+			 ext4_blocks_for_truncate(inode) + extra_credits - 3);
 	if (IS_ERR(handle)) {
 		ext4_std_error(inode->i_sb, PTR_ERR(handle));
 		/*
@@ -6009,9 +5992,8 @@ static int ext4_try_to_expand_extra_isize(struct inode *inode,
 	 * If this is felt to be critical, then e2fsck should be run to
 	 * force a large enough s_min_extra_isize.
 	 */
-	if (ext4_handle_valid(handle) &&
-	    jbd2_journal_extend(handle,
-				EXT4_DATA_TRANS_BLOCKS(inode->i_sb)) != 0)
+	if (ext4_journal_extend(handle,
+				EXT4_DATA_TRANS_BLOCKS(inode->i_sb), 0) != 0)
 		return -ENOSPC;
 
 	if (ext4_write_trylock_xattr(inode, &no_expand) == 0)
