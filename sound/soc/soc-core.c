@@ -1015,7 +1015,7 @@ static int soc_dai_link_sanity_check(struct snd_soc_card *card,
 	}
 
 	/*
-	 * Defer card registartion if cpu dai component is not added to
+	 * Defer card registration if cpu dai component is not added to
 	 * component list.
 	 */
 	if ((link->cpus->of_node || link->cpus->name) &&
