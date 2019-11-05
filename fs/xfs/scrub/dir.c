@@ -113,6 +113,9 @@ xchk_dir_actor(
 	offset = xfs_dir2_db_to_da(mp->m_dir_geo,
 			xfs_dir2_dataptr_to_db(mp->m_dir_geo, pos));
 
+	if (xchk_should_terminate(sdc->sc, &error))
+		return error;
+
 	/* Does this inode number make sense? */
 	if (!xfs_verify_dir_ino(mp, ino)) {
 		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
