@@ -312,7 +312,6 @@ static int tower_open(struct inode *inode, struct file *file)
 	int result;
 
 	reset_reply = kmalloc(sizeof(*reset_reply), GFP_KERNEL);
-
 	if (!reset_reply) {
 		retval = -ENOMEM;
 		goto exit;
@@ -322,7 +321,6 @@ static int tower_open(struct inode *inode, struct file *file)
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&tower_driver, subminor);
-
 	if (!interface) {
 		pr_err("error, can't find device for minor %d\n", subminor);
 		retval = -ENODEV;
@@ -409,7 +407,6 @@ static int tower_release(struct inode *inode, struct file *file)
 	int retval = 0;
 
 	dev = file->private_data;
-
 	if (dev == NULL) {
 		retval = -ENODEV;
 		goto exit;
@@ -802,7 +799,6 @@ static int tower_probe(struct usb_interface *interface, const struct usb_device_
 	dev->interrupt_out_interval = interrupt_out_interval ? interrupt_out_interval : dev->interrupt_out_endpoint->bInterval;
 
 	get_version_reply = kmalloc(sizeof(*get_version_reply), GFP_KERNEL);
-
 	if (!get_version_reply) {
 		retval = -ENOMEM;
 		goto error;
@@ -835,7 +831,6 @@ static int tower_probe(struct usb_interface *interface, const struct usb_device_
 	usb_set_intfdata(interface, dev);
 
 	retval = usb_register_dev(interface, &tower_class);
-
 	if (retval) {
 		/* something prevented us from registering this driver */
 		dev_err(idev, "Not able to get a minor for this device.\n");
