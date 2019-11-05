@@ -12,6 +12,7 @@
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
 #include "i915_vma.h"
+#include "i915_gem_lmem.h"
 
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 {
@@ -419,10 +420,15 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     const struct i915_ggtt_view *view,
 				     unsigned int flags)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_vma *vma;
 	int ret;
 
 	assert_object_held(obj);
+
+	/* Frame buffer must be in LMEM (no migration yet) */
+	if (HAS_LMEM(i915) && !i915_gem_object_is_lmem(obj))
+		return ERR_PTR(-EINVAL);
 
 	/*
 	 * The display engine is not coherent with the LLC cache on gen6.  As
@@ -435,7 +441,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * with that bit in the PTE to main memory with just one PIPE_CONTROL.
 	 */
 	ret = i915_gem_object_set_cache_level(obj,
-					      HAS_WT(to_i915(obj->base.dev)) ?
+					      HAS_WT(i915) ?
 					      I915_CACHE_WT : I915_CACHE_NONE);
 	if (ret)
 		return ERR_PTR(ret);
