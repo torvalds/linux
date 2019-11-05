@@ -26,10 +26,6 @@ struct gnet_stats_basic {
 	__u64	bytes;
 	__u32	packets;
 };
-struct gnet_stats_basic_packed {
-	__u64	bytes;
-	__u32	packets;
-} __attribute__ ((packed));
 
 /**
  * struct gnet_stats_rate_est - rate estimator
