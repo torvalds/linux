@@ -1842,7 +1842,7 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	list_add(&dai_drv->dobj.list, &tplg->comp->dobj_list);
 
 	/* register the DAI to the component */
-	return snd_soc_register_dai(tplg->comp, dai_drv);
+	return snd_soc_register_dai(tplg->comp, dai_drv, false);
 }
 
 static void set_link_flags(struct snd_soc_dai_link *link,
