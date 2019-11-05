@@ -40,6 +40,7 @@
 #include <linux/irq.h>
 #include <linux/bitops.h>
 #include <linux/crash_dump.h>
+#include <linux/cpu.h>
 #include <linux/cpuhotplug.h>
 
 #include <scsi/scsi.h>
@@ -5996,6 +5997,35 @@ static void lpfc_log_intr_mode(struct lpfc_hba *phba, uint32_t intr_mode)
 }
 
 /**
+ * lpfc_cpumask_of_node_init - initalizes cpumask of phba's NUMA node
+ * @phba: Pointer to HBA context object.
+ *
+ **/
+static void
+lpfc_cpumask_of_node_init(struct lpfc_hba *phba)
+{
+	unsigned int cpu, numa_node;
+	struct cpumask *numa_mask = NULL;
+
+#ifdef CONFIG_NUMA
+	numa_node = phba->pcidev->dev.numa_node;
+#else
+	numa_node = NUMA_NO_NODE;
+#endif
+	numa_mask = &phba->sli4_hba.numa_mask;
+
+	cpumask_clear(numa_mask);
+
+	/* Check if we're a NUMA architecture */
+	if (!cpumask_of_node(numa_node))
+		return;
+
+	for_each_possible_cpu(cpu)
+		if (cpu_to_node(cpu) == numa_node)
+			cpumask_set_cpu(cpu, numa_mask);
+}
+
+/**
  * lpfc_enable_pci_dev - Enable a generic PCI device.
  * @phba: pointer to lpfc hba data structure.
  *
@@ -6438,6 +6468,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	phba->sli4_hba.num_present_cpu = lpfc_present_cpu;
 	phba->sli4_hba.num_possible_cpu = num_possible_cpus();
 	phba->sli4_hba.curr_disp_cpu = 0;
+	lpfc_cpumask_of_node_init(phba);
 
 	/* Get all the module params for configuring this host */
 	lpfc_get_cfgparam(phba);
@@ -6973,6 +7004,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 	phba->sli4_hba.num_possible_cpu = 0;
 	phba->sli4_hba.num_present_cpu = 0;
 	phba->sli4_hba.curr_disp_cpu = 0;
+	cpumask_clear(&phba->sli4_hba.numa_mask);
 
 	/* Free memory allocated for fast-path work queue handles */
 	kfree(phba->sli4_hba.hba_eq_hdl);
@@ -10686,7 +10718,6 @@ lpfc_find_cpu_handle(struct lpfc_hba *phba, uint16_t id, int match)
 		 */
 		if ((match == LPFC_FIND_BY_EQ) &&
 		    (cpup->flag & LPFC_CPU_FIRST_IRQ) &&
-		    (cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
 		    (cpup->eq == id))
 			return cpu;
 
@@ -10724,6 +10755,75 @@ lpfc_find_hyper(struct lpfc_hba *phba, int cpu,
 }
 #endif
 
+/*
+ * lpfc_assign_eq_map_info - Assigns eq for vector_map structure
+ * @phba: pointer to lpfc hba data structure.
+ * @eqidx: index for eq and irq vector
+ * @flag: flags to set for vector_map structure
+ * @cpu: cpu used to index vector_map structure
+ *
+ * The routine assigns eq info into vector_map structure
+ */
+static inline void
+lpfc_assign_eq_map_info(struct lpfc_hba *phba, uint16_t eqidx, uint16_t flag,
+			unsigned int cpu)
+{
+	struct lpfc_vector_map_info *cpup = &phba->sli4_hba.cpu_map[cpu];
+	struct lpfc_hba_eq_hdl *eqhdl = lpfc_get_eq_hdl(eqidx);
+
+	cpup->eq = eqidx;
+	cpup->flag |= flag;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"3336 Set Affinity: CPU %d irq %d eq %d flag x%x\n",
+			cpu, eqhdl->irq, cpup->eq, cpup->flag);
+}
+
+/**
+ * lpfc_cpu_map_array_init - Initialize cpu_map structure
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * The routine initializes the cpu_map array structure
+ */
+static void
+lpfc_cpu_map_array_init(struct lpfc_hba *phba)
+{
+	struct lpfc_vector_map_info *cpup;
+	struct lpfc_eq_intr_info *eqi;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+		cpup->phys_id = LPFC_VECTOR_MAP_EMPTY;
+		cpup->core_id = LPFC_VECTOR_MAP_EMPTY;
+		cpup->hdwq = LPFC_VECTOR_MAP_EMPTY;
+		cpup->eq = LPFC_VECTOR_MAP_EMPTY;
+		cpup->flag = 0;
+		eqi = per_cpu_ptr(phba->sli4_hba.eq_info, cpu);
+		INIT_LIST_HEAD(&eqi->list);
+		eqi->icnt = 0;
+	}
+}
+
+/**
+ * lpfc_hba_eq_hdl_array_init - Initialize hba_eq_hdl structure
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * The routine initializes the hba_eq_hdl array structure
+ */
+static void
+lpfc_hba_eq_hdl_array_init(struct lpfc_hba *phba)
+{
+	struct lpfc_hba_eq_hdl *eqhdl;
+	int i;
+
+	for (i = 0; i < phba->cfg_irq_chann; i++) {
+		eqhdl = lpfc_get_eq_hdl(i);
+		eqhdl->irq = LPFC_VECTOR_MAP_EMPTY;
+		eqhdl->phba = phba;
+	}
+}
+
 /**
  * lpfc_cpu_affinity_check - Check vector CPU affinity mappings
  * @phba: pointer to lpfc hba data structure.
@@ -10742,21 +10842,9 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 	int max_core_id, min_core_id;
 	struct lpfc_vector_map_info *cpup;
 	struct lpfc_vector_map_info *new_cpup;
-	const struct cpumask *maskp;
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
 #endif
-
-	/* Init cpu_map array */
-	for_each_possible_cpu(cpu) {
-		cpup = &phba->sli4_hba.cpu_map[cpu];
-		cpup->phys_id = LPFC_VECTOR_MAP_EMPTY;
-		cpup->core_id = LPFC_VECTOR_MAP_EMPTY;
-		cpup->hdwq = LPFC_VECTOR_MAP_EMPTY;
-		cpup->eq = LPFC_VECTOR_MAP_EMPTY;
-		cpup->irq = LPFC_VECTOR_MAP_EMPTY;
-		cpup->flag = 0;
-	}
 
 	max_phys_id = 0;
 	min_phys_id = LPFC_VECTOR_MAP_EMPTY;
@@ -10793,65 +10881,6 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 			min_core_id = cpup->core_id;
 	}
 
-	for_each_possible_cpu(i) {
-		struct lpfc_eq_intr_info *eqi =
-			per_cpu_ptr(phba->sli4_hba.eq_info, i);
-
-		INIT_LIST_HEAD(&eqi->list);
-		eqi->icnt = 0;
-	}
-
-	/* This loop sets up all CPUs that are affinitized with a
-	 * irq vector assigned to the driver. All affinitized CPUs
-	 * will get a link to that vectors IRQ and EQ.
-	 *
-	 * NULL affinity mask handling:
-	 * If irq count is greater than one, log an error message.
-	 * If the null mask is received for the first irq, find the
-	 * first present cpu, and assign the eq index to ensure at
-	 * least one EQ is assigned.
-	 */
-	for (idx = 0; idx <  phba->cfg_irq_chann; idx++) {
-		/* Get a CPU mask for all CPUs affinitized to this vector */
-		maskp = pci_irq_get_affinity(phba->pcidev, idx);
-		if (!maskp) {
-			if (phba->cfg_irq_chann > 1)
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-						"3329 No affinity mask found "
-						"for vector %d (%d)\n",
-						idx, phba->cfg_irq_chann);
-			if (!idx) {
-				cpu = cpumask_first(cpu_present_mask);
-				cpup = &phba->sli4_hba.cpu_map[cpu];
-				cpup->eq = idx;
-				cpup->irq = pci_irq_vector(phba->pcidev, idx);
-				cpup->flag |= LPFC_CPU_FIRST_IRQ;
-			}
-			break;
-		}
-
-		i = 0;
-		/* Loop through all CPUs associated with vector idx */
-		for_each_cpu_and(cpu, maskp, cpu_present_mask) {
-			/* Set the EQ index and IRQ for that vector */
-			cpup = &phba->sli4_hba.cpu_map[cpu];
-			cpup->eq = idx;
-			cpup->irq = pci_irq_vector(phba->pcidev, idx);
-
-			/* If this is the first CPU thats assigned to this
-			 * vector, set LPFC_CPU_FIRST_IRQ.
-			 */
-			if (!i)
-				cpup->flag |= LPFC_CPU_FIRST_IRQ;
-			i++;
-
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"3336 Set Affinity: CPU %d "
-					"irq %d eq %d flag x%x\n",
-					cpu, cpup->irq, cpup->eq, cpup->flag);
-		}
-	}
-
 	/* After looking at each irq vector assigned to this pcidev, its
 	 * possible to see that not ALL CPUs have been accounted for.
 	 * Next we will set any unassigned (unaffinitized) cpu map
@@ -10877,7 +10906,7 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 			for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
 				new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
 				if (!(new_cpup->flag & LPFC_CPU_MAP_UNASSIGN) &&
-				    (new_cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
+				    (new_cpup->eq != LPFC_VECTOR_MAP_EMPTY) &&
 				    (new_cpup->phys_id == cpup->phys_id))
 					goto found_same;
 				new_cpu = cpumask_next(
@@ -10890,7 +10919,6 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 found_same:
 			/* We found a matching phys_id, so copy the IRQ info */
 			cpup->eq = new_cpup->eq;
-			cpup->irq = new_cpup->irq;
 
 			/* Bump start_cpu to the next slot to minmize the
 			 * chance of having multiple unassigned CPU entries
@@ -10902,9 +10930,10 @@ found_same:
 
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"3337 Set Affinity: CPU %d "
-					"irq %d from id %d same "
+					"eq %d from peer cpu %d same "
 					"phys_id (%d)\n",
-					cpu, cpup->irq, new_cpu, cpup->phys_id);
+					cpu, cpup->eq, new_cpu,
+					cpup->phys_id);
 		}
 	}
 
@@ -10928,7 +10957,7 @@ found_same:
 			for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
 				new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
 				if (!(new_cpup->flag & LPFC_CPU_MAP_UNASSIGN) &&
-				    (new_cpup->irq != LPFC_VECTOR_MAP_EMPTY))
+				    (new_cpup->eq != LPFC_VECTOR_MAP_EMPTY))
 					goto found_any;
 				new_cpu = cpumask_next(
 					new_cpu, cpu_present_mask);
@@ -10938,13 +10967,12 @@ found_same:
 			/* We should never leave an entry unassigned */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"3339 Set Affinity: CPU %d "
-					"irq %d UNASSIGNED\n",
-					cpup->hdwq, cpup->irq);
+					"eq %d UNASSIGNED\n",
+					cpup->hdwq, cpup->eq);
 			continue;
 found_any:
 			/* We found an available entry, copy the IRQ info */
 			cpup->eq = new_cpup->eq;
-			cpup->irq = new_cpup->irq;
 
 			/* Bump start_cpu to the next slot to minmize the
 			 * chance of having multiple unassigned CPU entries
@@ -10956,8 +10984,8 @@ found_any:
 
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"3338 Set Affinity: CPU %d "
-					"irq %d from id %d (%d/%d)\n",
-					cpu, cpup->irq, new_cpu,
+					"eq %d from peer cpu %d (%d/%d)\n",
+					cpu, cpup->eq, new_cpu,
 					new_cpup->phys_id, new_cpup->core_id);
 		}
 	}
@@ -10978,9 +11006,9 @@ found_any:
 		idx++;
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3333 Set Affinity: CPU %d (phys %d core %d): "
-				"hdwq %d eq %d irq %d flg x%x\n",
+				"hdwq %d eq %d flg x%x\n",
 				cpu, cpup->phys_id, cpup->core_id,
-				cpup->hdwq, cpup->eq, cpup->irq, cpup->flag);
+				cpup->hdwq, cpup->eq, cpup->flag);
 	}
 	/* Finally we need to associate a hdwq with each cpu_map entry
 	 * This will be 1 to 1 - hdwq to cpu, unless there are less
@@ -11056,9 +11084,9 @@ found_any:
  logit:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3335 Set Affinity: CPU %d (phys %d core %d): "
-				"hdwq %d eq %d irq %d flg x%x\n",
+				"hdwq %d eq %d flg x%x\n",
 				cpu, cpup->phys_id, cpup->core_id,
-				cpup->hdwq, cpup->eq, cpup->irq, cpup->flag);
+				cpup->hdwq, cpup->eq, cpup->flag);
 	}
 
 	/* The cpu_map array will be used later during initialization
@@ -11078,10 +11106,8 @@ static void
 lpfc_cpuhp_get_eq(struct lpfc_hba *phba, unsigned int cpu,
 		  struct list_head *eqlist)
 {
-	struct lpfc_vector_map_info *map;
 	const struct cpumask *maskp;
 	struct lpfc_queue *eq;
-	unsigned int i;
 	cpumask_t tmp;
 	u16 idx;
 
@@ -11111,15 +11137,8 @@ lpfc_cpuhp_get_eq(struct lpfc_hba *phba, unsigned int cpu,
 		 * the software can share an eq, but eventually
 		 * only eq will be mapped to this vector
 		 */
-		for_each_possible_cpu(i) {
-			map = &phba->sli4_hba.cpu_map[i];
-			if (!(map->irq == pci_irq_vector(phba->pcidev, idx)))
-				continue;
-			eq = phba->sli4_hba.hdwq[map->hdwq].hba_eq;
-			list_add(&eq->_poll_list, eqlist);
-			/* 1 is good enough. others will be a copy of this */
-			break;
-		}
+		eq = phba->sli4_hba.hba_eq_hdl[idx].eq;
+		list_add(&eq->_poll_list, eqlist);
 	}
 }
 
@@ -11181,6 +11200,99 @@ static int __lpfc_cpuhp_checks(struct lpfc_hba *phba, int *retval)
 	return false;
 }
 
+/**
+ * lpfc_irq_set_aff - set IRQ affinity
+ * @eqhdl: EQ handle
+ * @cpu: cpu to set affinity
+ *
+ **/
+static inline void
+lpfc_irq_set_aff(struct lpfc_hba_eq_hdl *eqhdl, unsigned int cpu)
+{
+	cpumask_clear(&eqhdl->aff_mask);
+	cpumask_set_cpu(cpu, &eqhdl->aff_mask);
+	irq_set_status_flags(eqhdl->irq, IRQ_NO_BALANCING);
+	irq_set_affinity_hint(eqhdl->irq, &eqhdl->aff_mask);
+}
+
+/**
+ * lpfc_irq_clear_aff - clear IRQ affinity
+ * @eqhdl: EQ handle
+ *
+ **/
+static inline void
+lpfc_irq_clear_aff(struct lpfc_hba_eq_hdl *eqhdl)
+{
+	cpumask_clear(&eqhdl->aff_mask);
+	irq_clear_status_flags(eqhdl->irq, IRQ_NO_BALANCING);
+	irq_set_affinity_hint(eqhdl->irq, &eqhdl->aff_mask);
+}
+
+/**
+ * lpfc_irq_rebalance - rebalances IRQ affinity according to cpuhp event
+ * @phba: pointer to HBA context object.
+ * @cpu: cpu going offline/online
+ * @offline: true, cpu is going offline. false, cpu is coming online.
+ *
+ * If cpu is going offline, we'll try our best effort to find the next
+ * online cpu on the phba's NUMA node and migrate all offlining IRQ affinities.
+ *
+ * If cpu is coming online, reaffinitize the IRQ back to the onlineng cpu.
+ *
+ * Note: Call only if cfg_irq_numa is enabled, otherwise rely on
+ *	 PCI_IRQ_AFFINITY to auto-manage IRQ affinity.
+ *
+ **/
+static void
+lpfc_irq_rebalance(struct lpfc_hba *phba, unsigned int cpu, bool offline)
+{
+	struct lpfc_vector_map_info *cpup;
+	struct cpumask *aff_mask;
+	unsigned int cpu_select, cpu_next, idx;
+	const struct cpumask *numa_mask;
+
+	if (!phba->cfg_irq_numa)
+		return;
+
+	numa_mask = &phba->sli4_hba.numa_mask;
+
+	if (!cpumask_test_cpu(cpu, numa_mask))
+		return;
+
+	cpup = &phba->sli4_hba.cpu_map[cpu];
+
+	if (!(cpup->flag & LPFC_CPU_FIRST_IRQ))
+		return;
+
+	if (offline) {
+		/* Find next online CPU on NUMA node */
+		cpu_next = cpumask_next_wrap(cpu, numa_mask, cpu, true);
+		cpu_select = lpfc_next_online_numa_cpu(numa_mask, cpu_next);
+
+		/* Found a valid CPU */
+		if ((cpu_select < nr_cpu_ids) && (cpu_select != cpu)) {
+			/* Go through each eqhdl and ensure offlining
+			 * cpu aff_mask is migrated
+			 */
+			for (idx = 0; idx < phba->cfg_irq_chann; idx++) {
+				aff_mask = lpfc_get_aff_mask(idx);
+
+				/* Migrate affinity */
+				if (cpumask_test_cpu(cpu, aff_mask))
+					lpfc_irq_set_aff(lpfc_get_eq_hdl(idx),
+							 cpu_select);
+			}
+		} else {
+			/* Rely on irqbalance if no online CPUs left on NUMA */
+			for (idx = 0; idx < phba->cfg_irq_chann; idx++)
+				lpfc_irq_clear_aff(lpfc_get_eq_hdl(idx));
+		}
+	} else {
+		/* Migrate affinity back to this CPU */
+		lpfc_irq_set_aff(lpfc_get_eq_hdl(cpup->eq), cpu);
+	}
+}
+
 static int lpfc_cpu_offline(unsigned int cpu, struct hlist_node *node)
 {
 	struct lpfc_hba *phba = hlist_entry_safe(node, struct lpfc_hba, cpuhp);
@@ -11195,6 +11307,8 @@ static int lpfc_cpu_offline(unsigned int cpu, struct hlist_node *node)
 
 	if (__lpfc_cpuhp_checks(phba, &retval))
 		return retval;
+
+	lpfc_irq_rebalance(phba, cpu, true);
 
 	lpfc_cpuhp_get_eq(phba, cpu, &eqlist);
 
@@ -11222,6 +11336,8 @@ static int lpfc_cpu_online(unsigned int cpu, struct hlist_node *node)
 	if (__lpfc_cpuhp_checks(phba, &retval))
 		return retval;
 
+	lpfc_irq_rebalance(phba, cpu, false);
+
 	list_for_each_entry_safe(eq, next, &phba->poll_list, _poll_list) {
 		n = lpfc_find_cpu_handle(phba, eq->hdwq, LPFC_FIND_BY_HDWQ);
 		if (n == cpu)
@@ -11236,7 +11352,24 @@ static int lpfc_cpu_online(unsigned int cpu, struct hlist_node *node)
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to enable the MSI-X interrupt vectors to device
- * with SLI-4 interface spec.
+ * with SLI-4 interface spec.  It also allocates MSI-X vectors and maps them
+ * to cpus on the system.
+ *
+ * When cfg_irq_numa is enabled, the adapter will only allocate vectors for
+ * the number of cpus on the same numa node as this adapter.  The vectors are
+ * allocated without requesting OS affinity mapping.  A vector will be
+ * allocated and assigned to each online and offline cpu.  If the cpu is
+ * online, then affinity will be set to that cpu.  If the cpu is offline, then
+ * affinity will be set to the nearest peer cpu within the numa node that is
+ * online.  If there are no online cpus within the numa node, affinity is not
+ * assigned and the OS may do as it pleases. Note: cpu vector affinity mapping
+ * is consistent with the way cpu online/offline is handled when cfg_irq_numa is
+ * configured.
+ *
+ * If numa mode is not enabled and there is more than 1 vector allocated, then
+ * the driver relies on the managed irq interface where the OS assigns vector to
+ * cpu affinity.  The driver will then use that affinity mapping to setup its
+ * cpu mapping table.
  *
  * Return codes
  * 0 - successful
@@ -11247,13 +11380,31 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 {
 	int vectors, rc, index;
 	char *name;
+	const struct cpumask *numa_mask = NULL;
+	unsigned int cpu = 0, cpu_cnt = 0, cpu_select = nr_cpu_ids;
+	struct lpfc_hba_eq_hdl *eqhdl;
+	const struct cpumask *maskp;
+	bool first;
+	unsigned int flags = PCI_IRQ_MSIX;
 
 	/* Set up MSI-X multi-message vectors */
 	vectors = phba->cfg_irq_chann;
 
-	rc = pci_alloc_irq_vectors(phba->pcidev,
-				1,
-				vectors, PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
+	if (phba->cfg_irq_numa) {
+		numa_mask = &phba->sli4_hba.numa_mask;
+		cpu_cnt = cpumask_weight(numa_mask);
+		vectors = min(phba->cfg_irq_chann, cpu_cnt);
+
+		/* cpu: iterates over numa_mask including offline or online
+		 * cpu_select: iterates over online numa_mask to set affinity
+		 */
+		cpu = cpumask_first(numa_mask);
+		cpu_select = lpfc_next_online_numa_cpu(numa_mask, cpu);
+	} else {
+		flags |= PCI_IRQ_AFFINITY;
+	}
+
+	rc = pci_alloc_irq_vectors(phba->pcidev, 1, vectors, flags);
 	if (rc < 0) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0484 PCI enable MSI-X failed (%d)\n", rc);
@@ -11263,22 +11414,60 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 
 	/* Assign MSI-X vectors to interrupt handlers */
 	for (index = 0; index < vectors; index++) {
-		name = phba->sli4_hba.hba_eq_hdl[index].handler_name;
+		eqhdl = lpfc_get_eq_hdl(index);
+		name = eqhdl->handler_name;
 		memset(name, 0, LPFC_SLI4_HANDLER_NAME_SZ);
 		snprintf(name, LPFC_SLI4_HANDLER_NAME_SZ,
 			 LPFC_DRIVER_HANDLER_NAME"%d", index);
 
-		phba->sli4_hba.hba_eq_hdl[index].idx = index;
-		phba->sli4_hba.hba_eq_hdl[index].phba = phba;
+		eqhdl->idx = index;
 		rc = request_irq(pci_irq_vector(phba->pcidev, index),
 			 &lpfc_sli4_hba_intr_handler, 0,
-			 name,
-			 &phba->sli4_hba.hba_eq_hdl[index]);
+			 name, eqhdl);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 					"0486 MSI-X fast-path (%d) "
 					"request_irq failed (%d)\n", index, rc);
 			goto cfg_fail_out;
+		}
+
+		eqhdl->irq = pci_irq_vector(phba->pcidev, index);
+
+		if (phba->cfg_irq_numa) {
+			/* If found a neighboring online cpu, set affinity */
+			if (cpu_select < nr_cpu_ids)
+				lpfc_irq_set_aff(eqhdl, cpu_select);
+
+			/* Assign EQ to cpu_map */
+			lpfc_assign_eq_map_info(phba, index,
+						LPFC_CPU_FIRST_IRQ,
+						cpu);
+
+			/* Iterate to next offline or online cpu in numa_mask */
+			cpu = cpumask_next(cpu, numa_mask);
+
+			/* Find next online cpu in numa_mask to set affinity */
+			cpu_select = lpfc_next_online_numa_cpu(numa_mask, cpu);
+		} else if (vectors == 1) {
+			cpu = cpumask_first(cpu_present_mask);
+			lpfc_assign_eq_map_info(phba, index, LPFC_CPU_FIRST_IRQ,
+						cpu);
+		} else {
+			maskp = pci_irq_get_affinity(phba->pcidev, index);
+
+			first = true;
+			/* Loop through all CPUs associated with vector index */
+			for_each_cpu_and(cpu, maskp, cpu_present_mask) {
+				/* If this is the first CPU thats assigned to
+				 * this vector, set LPFC_CPU_FIRST_IRQ.
+				 */
+				lpfc_assign_eq_map_info(phba, index,
+							first ?
+							LPFC_CPU_FIRST_IRQ : 0,
+							cpu);
+				if (first)
+					first = false;
+			}
 		}
 	}
 
@@ -11295,9 +11484,12 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 
 cfg_fail_out:
 	/* free the irq already requested */
-	for (--index; index >= 0; index--)
-		free_irq(pci_irq_vector(phba->pcidev, index),
-				&phba->sli4_hba.hba_eq_hdl[index]);
+	for (--index; index >= 0; index--) {
+		eqhdl = lpfc_get_eq_hdl(index);
+		lpfc_irq_clear_aff(eqhdl);
+		irq_set_affinity_hint(eqhdl->irq, NULL);
+		free_irq(eqhdl->irq, eqhdl);
+	}
 
 	/* Unconfigure MSI-X capability structure */
 	pci_free_irq_vectors(phba->pcidev);
@@ -11324,6 +11516,8 @@ static int
 lpfc_sli4_enable_msi(struct lpfc_hba *phba)
 {
 	int rc, index;
+	unsigned int cpu;
+	struct lpfc_hba_eq_hdl *eqhdl;
 
 	rc = pci_alloc_irq_vectors(phba->pcidev, 1, 1,
 				   PCI_IRQ_MSI | PCI_IRQ_AFFINITY);
@@ -11345,9 +11539,15 @@ lpfc_sli4_enable_msi(struct lpfc_hba *phba)
 		return rc;
 	}
 
+	eqhdl = lpfc_get_eq_hdl(0);
+	eqhdl->irq = pci_irq_vector(phba->pcidev, 0);
+
+	cpu = cpumask_first(cpu_present_mask);
+	lpfc_assign_eq_map_info(phba, 0, LPFC_CPU_FIRST_IRQ, cpu);
+
 	for (index = 0; index < phba->cfg_irq_chann; index++) {
-		phba->sli4_hba.hba_eq_hdl[index].idx = index;
-		phba->sli4_hba.hba_eq_hdl[index].phba = phba;
+		eqhdl = lpfc_get_eq_hdl(index);
+		eqhdl->idx = index;
 	}
 
 	return 0;
@@ -11380,7 +11580,9 @@ lpfc_sli4_enable_intr(struct lpfc_hba *phba, uint32_t cfg_mode)
 		retval = 0;
 		if (!retval) {
 			/* Now, try to enable MSI-X interrupt mode */
+			get_online_cpus();
 			retval = lpfc_sli4_enable_msix(phba);
+			put_online_cpus();
 			if (!retval) {
 				/* Indicate initialization to MSI-X mode */
 				phba->intr_type = MSIX;
@@ -11405,15 +11607,21 @@ lpfc_sli4_enable_intr(struct lpfc_hba *phba, uint32_t cfg_mode)
 				     IRQF_SHARED, LPFC_DRIVER_NAME, phba);
 		if (!retval) {
 			struct lpfc_hba_eq_hdl *eqhdl;
+			unsigned int cpu;
 
 			/* Indicate initialization to INTx mode */
 			phba->intr_type = INTx;
 			intr_mode = 0;
 
+			eqhdl = lpfc_get_eq_hdl(0);
+			eqhdl->irq = pci_irq_vector(phba->pcidev, 0);
+
+			cpu = cpumask_first(cpu_present_mask);
+			lpfc_assign_eq_map_info(phba, 0, LPFC_CPU_FIRST_IRQ,
+						cpu);
 			for (idx = 0; idx < phba->cfg_irq_chann; idx++) {
-				eqhdl = &phba->sli4_hba.hba_eq_hdl[idx];
+				eqhdl = lpfc_get_eq_hdl(idx);
 				eqhdl->idx = idx;
-				eqhdl->phba = phba;
 			}
 		}
 	}
@@ -11435,14 +11643,14 @@ lpfc_sli4_disable_intr(struct lpfc_hba *phba)
 	/* Disable the currently initialized interrupt mode */
 	if (phba->intr_type == MSIX) {
 		int index;
+		struct lpfc_hba_eq_hdl *eqhdl;
 
 		/* Free up MSI-X multi-message vectors */
 		for (index = 0; index < phba->cfg_irq_chann; index++) {
-			irq_set_affinity_hint(
-				pci_irq_vector(phba->pcidev, index),
-				NULL);
-			free_irq(pci_irq_vector(phba->pcidev, index),
-					&phba->sli4_hba.hba_eq_hdl[index]);
+			eqhdl = lpfc_get_eq_hdl(index);
+			lpfc_irq_clear_aff(eqhdl);
+			irq_set_affinity_hint(eqhdl->irq, NULL);
+			free_irq(eqhdl->irq, eqhdl);
 		}
 	} else {
 		free_irq(phba->pcidev->irq, phba);
@@ -12847,6 +13055,12 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Put device to a known state before enabling interrupt */
 	phba->pport = NULL;
 	lpfc_stop_port(phba);
+
+	/* Init cpu_map array */
+	lpfc_cpu_map_array_init(phba);
+
+	/* Init hba_eq_hdl array */
+	lpfc_hba_eq_hdl_array_init(phba);
 
 	/* Configure and enable interrupt */
 	intr_mode = lpfc_sli4_enable_intr(phba, cfg_mode);

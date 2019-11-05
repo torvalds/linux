@@ -837,6 +837,7 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_mq_threshold;
 	uint32_t cfg_hdw_queue;
 	uint32_t cfg_irq_chann;
+	uint32_t cfg_irq_numa;
 	uint32_t cfg_suppress_rsp;
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_embed_cmd;
@@ -1311,6 +1312,26 @@ lpfc_phba_elsring(struct lpfc_hba *phba)
 	return &phba->sli.sli3_ring[LPFC_ELS_RING];
 }
 
+/**
+ * lpfc_next_online_numa_cpu - Finds next online CPU on NUMA node
+ * @numa_mask: Pointer to phba's numa_mask member.
+ * @start: starting cpu index
+ *
+ * Note: If no valid cpu found, then nr_cpu_ids is returned.
+ *
+ **/
+static inline unsigned int
+lpfc_next_online_numa_cpu(const struct cpumask *numa_mask, unsigned int start)
+{
+	unsigned int cpu_it;
+
+	for_each_cpu_wrap(cpu_it, numa_mask, start) {
+		if (cpu_online(cpu_it))
+			break;
+	}
+
+	return cpu_it;
+}
 /**
  * lpfc_sli4_mod_hba_eq_delay - update EQ delay
  * @phba: Pointer to HBA context object.
