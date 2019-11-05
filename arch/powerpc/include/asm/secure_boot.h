@@ -11,10 +11,16 @@
 #ifdef CONFIG_PPC_SECURE_BOOT
 
 bool is_ppc_secureboot_enabled(void);
+bool is_ppc_trustedboot_enabled(void);
 
 #else
 
 static inline bool is_ppc_secureboot_enabled(void)
+{
+	return false;
+}
+
+static inline bool is_ppc_trustedboot_enabled(void)
 {
 	return false;
 }
