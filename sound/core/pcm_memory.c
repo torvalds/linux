@@ -203,7 +203,8 @@ static void snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
 	if (substream->dma_buffer.bytes > 0)
 		substream->buffer_bytes_max = substream->dma_buffer.bytes;
 	substream->dma_max = max;
-	preallocate_info_init(substream);
+	if (max > 0)
+		preallocate_info_init(substream);
 }
 
 
