@@ -1563,15 +1563,6 @@ static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
 }
 
 /*
- * Return the minimum number of blocks which must be free in the journal
- * before a new transaction may be started.  Must be called under j_state_lock.
- */
-static inline int jbd2_space_needed(journal_t *journal)
-{
-	return journal->j_max_transaction_buffers;
-}
-
-/*
  * Return number of free blocks in the log. Must be called under j_state_lock.
  */
 static inline unsigned long jbd2_log_space_left(journal_t *journal)
