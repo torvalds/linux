@@ -36,7 +36,6 @@ config DRM_I915_DEBUG
 	select DRM_I915_SELFTEST
 	select DRM_I915_DEBUG_RUNTIME_PM
 	select DRM_I915_DEBUG_MMIO
-	select BROKEN # for prototype uAPI
 	default n
 	help
 	  Choose this option to turn on extra driver debugging that may affect
