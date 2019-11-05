@@ -111,7 +111,7 @@ static int hns_roce_srq_alloc(struct hns_roce_dev *hr_dev, u32 pdn, u32 cqn,
 	}
 
 	ret = hns_roce_bitmap_alloc(&srq_table->bitmap, &srq->srqn);
-	if (ret == -1) {
+	if (ret) {
 		dev_err(hr_dev->dev, "SRQ alloc.Failed to alloc index.\n");
 		return -ENOMEM;
 	}

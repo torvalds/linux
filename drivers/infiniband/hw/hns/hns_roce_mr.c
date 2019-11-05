@@ -83,7 +83,7 @@ static int hns_roce_buddy_alloc(struct hns_roce_buddy *buddy, int order,
 		}
 	}
 	spin_unlock(&buddy->lock);
-	return -1;
+	return -EINVAL;
 
  found:
 	clear_bit(*seg, buddy->bits[o]);
@@ -206,13 +206,14 @@ static int hns_roce_alloc_mtt_range(struct hns_roce_dev *hr_dev, int order,
 	}
 
 	ret = hns_roce_buddy_alloc(buddy, order, seg);
-	if (ret == -1)
-		return -1;
+	if (ret)
+		return ret;
 
-	if (hns_roce_table_get_range(hr_dev, table, *seg,
-				     *seg + (1 << order) - 1)) {
+	ret = hns_roce_table_get_range(hr_dev, table, *seg,
+				       *seg + (1 << order) - 1);
+	if (ret) {
 		hns_roce_buddy_free(buddy, *seg, order);
-		return -1;
+		return ret;
 	}
 
 	return 0;
@@ -578,7 +579,7 @@ static int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova,
 
 	/* Allocate a key for mr from mr_table */
 	ret = hns_roce_bitmap_alloc(&hr_dev->mr_table.mtpt_bitmap, &index);
-	if (ret == -1)
+	if (ret)
 		return -ENOMEM;
 
 	mr->iova = iova;			/* MR va starting addr */

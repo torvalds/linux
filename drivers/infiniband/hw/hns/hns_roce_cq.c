@@ -116,9 +116,9 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 	hr_cq->vector = vector;
 
 	ret = hns_roce_bitmap_alloc(&cq_table->bitmap, &hr_cq->cqn);
-	if (ret == -1) {
+	if (ret) {
 		dev_err(dev, "CQ alloc.Failed to alloc index.\n");
-		return -ENOMEM;
+		return ret;
 	}
 
 	/* Get CQC memory HEM(Hardware Entry Memory) table */

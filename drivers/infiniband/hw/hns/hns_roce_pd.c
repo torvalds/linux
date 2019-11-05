@@ -96,7 +96,7 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 
 	/* Using bitmap to manager UAR index */
 	ret = hns_roce_bitmap_alloc(&hr_dev->uar_table.bitmap, &uar->logic_idx);
-	if (ret == -1)
+	if (ret)
 		return -ENOMEM;
 
 	if (uar->logic_idx > 0 && hr_dev->caps.phy_num_uars > 1)

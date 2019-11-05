@@ -55,7 +55,7 @@ int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj)
 			bitmap->last = 0;
 		*obj |= bitmap->top;
 	} else {
-		ret = -1;
+		ret = -EINVAL;
 	}
 
 	spin_unlock(&bitmap->lock);
@@ -100,7 +100,7 @@ int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
 		}
 		*obj |= bitmap->top;
 	} else {
-		ret = -1;
+		ret = -EINVAL;
 	}
 
 	spin_unlock(&bitmap->lock);
