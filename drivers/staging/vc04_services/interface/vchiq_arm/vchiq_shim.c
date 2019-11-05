@@ -573,7 +573,7 @@ static struct shim_service *service_alloc(struct vchiq_instance *instance,
 	(void)instance;
 
 	if (service) {
-		if (vchiu_queue_init(&service->queue, 64)) {
+		if (!vchiu_queue_init(&service->queue, 64)) {
 			service->callback = setup->callback;
 			service->callback_param = setup->callback_param;
 		} else {
