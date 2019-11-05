@@ -220,7 +220,7 @@ struct net_device *wilc_wfi_init_mon_interface(struct wilc *wl,
 {
 	struct wilc_wfi_mon_priv *priv;
 
-	/*If monitor interface is already initialized, return it*/
+	/* If monitor interface is already initialized, return it */
 	if (wl->monitor_dev)
 		return wl->monitor_dev;
 

@@ -190,7 +190,7 @@
 
 #define ENABLE_RX_VMM		(SEL_VMM_TBL1 | EN_VMM)
 #define ENABLE_TX_VMM		(SEL_VMM_TBL0 | EN_VMM)
-/*time for expiring the completion of cfg packets*/
+/* time for expiring the completion of cfg packets */
 #define WILC_CFG_PKTS_TIMEOUT	msecs_to_jiffies(2000)
 
 #define IS_MANAGMEMENT		0x100

@@ -750,10 +750,10 @@ enum {
 	WID_REMOVE_KEY			= 0x301E,
 	WID_ASSOC_REQ_INFO		= 0x301F,
 	WID_ASSOC_RES_INFO		= 0x3020,
-	WID_MANUFACTURER		= 0x3026, /*Added for CAPI tool */
-	WID_MODEL_NAME			= 0x3027, /*Added for CAPI tool */
-	WID_MODEL_NUM			= 0x3028, /*Added for CAPI tool */
-	WID_DEVICE_NAME			= 0x3029, /*Added for CAPI tool */
+	WID_MANUFACTURER		= 0x3026, /* Added for CAPI tool */
+	WID_MODEL_NAME			= 0x3027, /* Added for CAPI tool */
+	WID_MODEL_NUM			= 0x3028, /* Added for CAPI tool */
+	WID_DEVICE_NAME			= 0x3029, /* Added for CAPI tool */
 
 	/* NMAC String WID list */
 	WID_SET_OPERATION_MODE		= 0x3079,

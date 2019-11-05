@@ -378,7 +378,7 @@ void wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 		wilc_wlan_parse_info_frame(wilc, frame);
 		rsp->type = WILC_CFG_RSP_STATUS;
 		rsp->seq_no = msg_id;
-		/*call host interface info parse as well*/
+		/* call host interface info parse as well */
 		wilc_gnrl_async_info_received(wilc, frame - 4, size + 4);
 		break;
 
