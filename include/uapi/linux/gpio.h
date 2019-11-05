@@ -35,6 +35,7 @@ struct gpiochip_info {
 #define GPIOLINE_FLAG_OPEN_SOURCE	(1UL << 4)
 #define GPIOLINE_FLAG_BIAS_PULL_UP	(1UL << 5)
 #define GPIOLINE_FLAG_BIAS_PULL_DOWN	(1UL << 6)
+#define GPIOLINE_FLAG_BIAS_DISABLE	(1UL << 7)
 
 /**
  * struct gpioline_info - Information about a certain GPIO line
@@ -66,6 +67,7 @@ struct gpioline_info {
 #define GPIOHANDLE_REQUEST_OPEN_SOURCE	(1UL << 4)
 #define GPIOHANDLE_REQUEST_BIAS_PULL_UP	(1UL << 5)
 #define GPIOHANDLE_REQUEST_BIAS_PULL_DOWN	(1UL << 6)
+#define GPIOHANDLE_REQUEST_BIAS_DISABLE	(1UL << 7)
 
 /**
  * struct gpiohandle_request - Information about a GPIO handle request
