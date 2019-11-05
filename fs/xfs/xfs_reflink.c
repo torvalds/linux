@@ -1442,7 +1442,7 @@ xfs_reflink_dirty_extents(
 			flen = XFS_FSB_TO_B(mp, rlen);
 			if (fpos + flen > isize)
 				flen = isize - fpos;
-			error = iomap_file_dirty(VFS_I(ip), fpos, flen,
+			error = iomap_file_unshare(VFS_I(ip), fpos, flen,
 					&xfs_iomap_ops);
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
 			if (error)
