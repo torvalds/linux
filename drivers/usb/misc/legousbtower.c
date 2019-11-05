@@ -448,8 +448,7 @@ static void tower_abort_transfers (struct lego_usb_tower *dev)
 {
 	/* shutdown transfer */
 	usb_kill_urb(dev->interrupt_in_urb);
-	if (dev->interrupt_out_busy)
-		usb_kill_urb(dev->interrupt_out_urb);
+	usb_kill_urb(dev->interrupt_out_urb);
 }
 
 
