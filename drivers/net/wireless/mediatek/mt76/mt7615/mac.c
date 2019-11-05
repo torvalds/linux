@@ -382,6 +382,7 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	bool multicast = is_multicast_ether_addr(hdr->addr1);
 	struct ieee80211_vif *vif = info->control.vif;
 	struct mt76_phy *mphy = &dev->mphy;
+	bool ext_phy = info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY;
 	int tx_count = 8;
 	u8 fc_type, fc_stype, p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	__le16 fc = hdr->frame_control;
@@ -401,7 +402,7 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 		tx_count = msta->rate_count;
 	}
 
-	if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && dev->mt76.phy2)
+	if (ext_phy && dev->mt76.phy2)
 		mphy = dev->mt76.phy2;
 
 	fc_type = (le16_to_cpu(fc) & IEEE80211_FCTL_FTYPE) >> 2;
@@ -412,10 +413,16 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			skb_get_queue_mapping(skb);
 		p_fmt = MT_TX_TYPE_CT;
 	} else if (ieee80211_is_beacon(fc)) {
-		q_idx = MT_LMAC_BCN0;
+		if (ext_phy)
+			q_idx = MT_LMAC_BCN1;
+		else
+			q_idx = MT_LMAC_BCN0;
 		p_fmt = MT_TX_TYPE_FW;
 	} else {
-		q_idx = MT_LMAC_ALTX0;
+		if (ext_phy)
+			q_idx = MT_LMAC_ALTX1;
+		else
+			q_idx = MT_LMAC_ALTX0;
 		p_fmt = MT_TX_TYPE_CT;
 	}
 

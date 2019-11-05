@@ -126,6 +126,10 @@ enum tx_pkt_queue_idx {
 	MT_LMAC_BMC0,
 	MT_LMAC_BCN0,
 	MT_LMAC_PSMP0,
+	MT_LMAC_ALTX1,
+	MT_LMAC_BMC1,
+	MT_LMAC_BCN1,
+	MT_LMAC_PSMP1,
 };
 
 enum tx_port_idx {
