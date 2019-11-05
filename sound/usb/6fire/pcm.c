@@ -660,13 +660,6 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &pcm_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pcm_ops);
 
-	if (ret) {
-		usb6fire_pcm_buffers_destroy(rt);
-		kfree(rt);
-		dev_err(&chip->dev->dev,
-			"error preallocating pcm buffers.\n");
-		return ret;
-	}
 	rt->instance = pcm;
 
 	chip->pcm = rt;
