@@ -3223,7 +3223,7 @@ void vchiq_get_config(struct vchiq_config *config)
 
 enum vchiq_status
 vchiq_set_service_option(VCHIQ_SERVICE_HANDLE_T handle,
-	VCHIQ_SERVICE_OPTION_T option, int value)
+	enum vchiq_service_option option, int value)
 {
 	struct vchiq_service *service = find_service_by_handle(handle);
 	enum vchiq_status status = VCHIQ_ERROR;

@@ -38,13 +38,13 @@ enum vchiq_bulk_mode {
 	VCHIQ_BULK_MODE_WAITING		/* Reserved for internal use */
 };
 
-typedef enum {
+enum vchiq_service_option {
 	VCHIQ_SERVICE_OPTION_AUTOCLOSE,
 	VCHIQ_SERVICE_OPTION_SLOT_QUOTA,
 	VCHIQ_SERVICE_OPTION_MESSAGE_QUOTA,
 	VCHIQ_SERVICE_OPTION_SYNCHRONOUS,
 	VCHIQ_SERVICE_OPTION_TRACE
-} VCHIQ_SERVICE_OPTION_T;
+};
 
 struct vchiq_header {
 	/* The message identifier - opaque to applications. */
@@ -133,7 +133,7 @@ extern void *vchiq_get_service_userdata(VCHIQ_SERVICE_HANDLE_T service);
 extern int   vchiq_get_service_fourcc(VCHIQ_SERVICE_HANDLE_T service);
 extern void vchiq_get_config(struct vchiq_config *config);
 extern enum vchiq_status vchiq_set_service_option(VCHIQ_SERVICE_HANDLE_T service,
-	VCHIQ_SERVICE_OPTION_T option, int value);
+	enum vchiq_service_option option, int value);
 
 extern enum vchiq_status vchiq_remote_use(VCHIQ_INSTANCE_T instance,
 	VCHIQ_REMOTE_USE_CALLBACK_T callback, void *cb_arg);

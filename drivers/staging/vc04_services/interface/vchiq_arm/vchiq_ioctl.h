@@ -60,7 +60,7 @@ struct vchiq_get_config {
 
 struct vchiq_set_service_option {
 	unsigned int handle;
-	VCHIQ_SERVICE_OPTION_T option;
+	enum vchiq_service_option option;
 	int value;
 };
 

@@ -667,7 +667,7 @@ int32_t vchi_service_set_option(const struct vchi_service_handle *handle,
 {
 	int32_t ret = -1;
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_SERVICE_OPTION_T vchiq_option;
+	enum vchiq_service_option vchiq_option;
 
 	switch (option) {
 	case VCHI_SERVICE_OPTION_TRACE:
