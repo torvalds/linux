@@ -897,14 +897,8 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	if (msg->msg_flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL))
 		return -ENOTSUPP;
 
+	mutex_lock(&tls_ctx->tx_lock);
 	lock_sock(sk);
-
-	/* Wait till there is any pending write on socket */
-	if (unlikely(sk->sk_write_pending)) {
-		ret = wait_on_pending_writer(sk, &timeo);
-		if (unlikely(ret))
-			goto send_end;
-	}
 
 	if (unlikely(msg->msg_controllen)) {
 		ret = tls_proccess_cmsg(sk, msg, &record_type);
@@ -1091,6 +1085,7 @@ send_end:
 	ret = sk_stream_error(sk, msg->msg_flags, ret);
 
 	release_sock(sk);
+	mutex_unlock(&tls_ctx->tx_lock);
 	return copied ? copied : ret;
 }
 
@@ -1113,13 +1108,6 @@ static int tls_sw_do_sendpage(struct sock *sk, struct page *page,
 
 	eor = !(flags & (MSG_MORE | MSG_SENDPAGE_NOTLAST));
 	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
-
-	/* Wait till there is any pending write on socket */
-	if (unlikely(sk->sk_write_pending)) {
-		ret = wait_on_pending_writer(sk, &timeo);
-		if (unlikely(ret))
-			goto sendpage_end;
-	}
 
 	/* Call the sk_stream functions to manage the sndbuf mem. */
 	while (size > 0) {
@@ -1219,15 +1207,18 @@ sendpage_end:
 int tls_sw_sendpage(struct sock *sk, struct page *page,
 		    int offset, size_t size, int flags)
 {
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	int ret;
 
 	if (flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL |
 		      MSG_SENDPAGE_NOTLAST | MSG_SENDPAGE_NOPOLICY))
 		return -ENOTSUPP;
 
+	mutex_lock(&tls_ctx->tx_lock);
 	lock_sock(sk);
 	ret = tls_sw_do_sendpage(sk, page, offset, size, flags);
 	release_sock(sk);
+	mutex_unlock(&tls_ctx->tx_lock);
 	return ret;
 }
 
@@ -2170,9 +2161,11 @@ static void tx_work_handler(struct work_struct *work)
 
 	if (!test_and_clear_bit(BIT_TX_SCHEDULED, &ctx->tx_bitmask))
 		return;
+	mutex_lock(&tls_ctx->tx_lock);
 	lock_sock(sk);
 	tls_tx_records(sk, -1);
 	release_sock(sk);
+	mutex_unlock(&tls_ctx->tx_lock);
 }
 
 void tls_sw_write_space(struct sock *sk, struct tls_context *ctx)
