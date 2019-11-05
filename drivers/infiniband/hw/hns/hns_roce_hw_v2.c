@@ -4944,10 +4944,7 @@ static void hns_roce_v2_init_irq_work(struct hns_roce_dev *hr_dev,
 static void set_eq_cons_index_v2(struct hns_roce_eq *eq)
 {
 	struct hns_roce_dev *hr_dev = eq->hr_dev;
-	__le32 doorbell[2];
-
-	doorbell[0] = 0;
-	doorbell[1] = 0;
+	__le32 doorbell[2] = {};
 
 	if (eq->type_flag == HNS_ROCE_AEQ) {
 		roce_set_field(doorbell[0], HNS_ROCE_V2_EQ_DB_CMD_M,
