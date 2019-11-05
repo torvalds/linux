@@ -673,10 +673,10 @@ static int omap_sham_copy_sg_lists(struct omap_sham_reqctx *ctx,
 	while (sg && new_len) {
 		int len = sg->length - offset;
 
-		if (offset) {
+		if (len <= 0) {
 			offset -= sg->length;
-			if (offset < 0)
-				offset = 0;
+			sg = sg_next(sg);
+			continue;
 		}
 
 		if (new_len < len)
@@ -684,7 +684,9 @@ static int omap_sham_copy_sg_lists(struct omap_sham_reqctx *ctx,
 
 		if (len > 0) {
 			new_len -= len;
-			sg_set_page(tmp, sg_page(sg), len, sg->offset);
+			sg_set_page(tmp, sg_page(sg), len, sg->offset + offset);
+			offset = 0;
+			ctx->offset = 0;
 			ctx->sg_len++;
 			if (new_len <= 0)
 				break;
@@ -834,7 +836,14 @@ static int omap_sham_align_sgs(struct scatterlist *sg,
 	rctx->total = new_len;
 	rctx->offset += new_len;
 	rctx->sg_len = n;
-	rctx->sg = sg;
+	if (rctx->bufcnt) {
+		sg_init_table(rctx->sgl, 2);
+		sg_set_buf(rctx->sgl, rctx->dd->xmit_buf, rctx->bufcnt);
+		sg_chain(rctx->sgl, 2, sg);
+		rctx->sg = rctx->sgl;
+	} else {
+		rctx->sg = sg;
+	}
 
 	return 0;
 }
