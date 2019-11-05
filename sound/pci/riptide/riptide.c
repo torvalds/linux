@@ -1550,7 +1550,7 @@ snd_riptide_hw_params(struct snd_pcm_substream *substream,
 	if (sgdlist->area)
 		snd_dma_free_pages(sgdlist);
 	if ((err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-				       snd_dma_pci_data(chip->pci),
+				       &chip->pci->dev,
 				       sizeof(struct sgd) * (DESC_MAX_MASK + 1),
 				       sgdlist)) < 0) {
 		snd_printk(KERN_ERR "Riptide: failed to alloc %d dma bytes\n",
@@ -1693,7 +1693,7 @@ static int snd_riptide_pcm(struct snd_riptide *chip, int device)
 	strcpy(pcm->name, "RIPTIDE");
 	chip->pcm = pcm;
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      64 * 1024, 128 * 1024);
 	return 0;
 }

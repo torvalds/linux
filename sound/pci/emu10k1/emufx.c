@@ -2464,7 +2464,7 @@ int snd_emu10k1_fx8010_tram_setup(struct snd_emu10k1 *emu, u32 size)
 	}
 
 	if (size > 0) {
-		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(emu->pci),
+		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &emu->pci->dev,
 					size * 2, &emu->fx8010.etram_pages) < 0)
 			return -ENOMEM;
 		memset(emu->fx8010.etram_pages.area, 0, size * 2);

@@ -591,7 +591,7 @@ int lola_create_pcm(struct lola *chip)
 
 	for (i = 0; i < 2; i++) {
 		err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-					  snd_dma_pci_data(chip->pci),
+					  &chip->pci->dev,
 					  PAGE_SIZE, &chip->pcm[i].bdl);
 		if (err < 0)
 			return err;
@@ -611,7 +611,7 @@ int lola_create_pcm(struct lola *chip)
 	}
 	/* buffer pre-allocation */
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      1024 * 64, 32 * 1024 * 1024);
 	return 0;
 }

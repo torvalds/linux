@@ -884,7 +884,8 @@ static int snd_ice1712_pcm(struct snd_ice1712 *ice, int device)
 	ice->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(ice->pci), 64*1024, 64*1024);
+					      &ice->pci->dev,
+					      64*1024, 64*1024);
 
 	dev_warn(ice->card->dev,
 		 "Consumer PCM code does not work well at the moment --jk\n");
@@ -909,7 +910,8 @@ static int snd_ice1712_pcm_ds(struct snd_ice1712 *ice, int device)
 	ice->pcm_ds = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(ice->pci), 64*1024, 128*1024);
+					      &ice->pci->dev,
+					      64*1024, 128*1024);
 
 	return 0;
 }
@@ -1253,7 +1255,8 @@ static int snd_ice1712_pcm_profi(struct snd_ice1712 *ice, int device)
 	strcpy(pcm->name, "ICE1712 multi");
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(ice->pci), 256*1024, 256*1024);
+					      &ice->pci->dev,
+					      256*1024, 256*1024);
 
 	ice->pcm_pro = pcm;
 

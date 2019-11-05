@@ -1672,7 +1672,7 @@ static int snd_ali_pcm(struct snd_ali *codec, int device,
 				desc->capture_ops);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(codec->pci),
+					      &codec->pci->dev,
 					      64*1024, 128*1024);
 
 	pcm->info_flags = 0;

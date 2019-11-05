@@ -884,7 +884,8 @@ static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device)
 	sonic->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(sonic->pci), 64*1024, 128*1024);
+					      &sonic->pci->dev,
+					      64*1024, 128*1024);
 
 	return 0;
 }

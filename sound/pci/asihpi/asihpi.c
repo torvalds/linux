@@ -1325,8 +1325,8 @@ static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 	/*? do we want to emulate MMAP for non-BBM cards?
 	Jack doesn't work with ALSAs MMAP emulation - WHY NOT? */
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						snd_dma_pci_data(asihpi->pci),
-						64*1024, BUFFER_BYTES_MAX);
+					      &asihpi->pci->dev,
+					      64*1024, BUFFER_BYTES_MAX);
 
 	return 0;
 }

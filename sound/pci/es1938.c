@@ -1032,7 +1032,8 @@ static int snd_es1938_new_pcm(struct es1938 *chip, int device)
 	strcpy(pcm->name, "ESS Solo-1");
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci), 64*1024, 64*1024);
+					      &chip->pci->dev,
+					      64*1024, 64*1024);
 
 	chip->pcm = pcm;
 	return 0;

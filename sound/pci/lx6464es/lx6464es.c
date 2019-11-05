@@ -846,7 +846,7 @@ static int lx_pcm_create(struct lx6464es *chip)
 	strcpy(pcm->name, card_name);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      size, size);
 
 	chip->pcm = pcm;

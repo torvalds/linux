@@ -713,13 +713,13 @@ int oxygen_pcm_init(struct oxygen *chip)
 		if (outs)
 			snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
 						      SNDRV_DMA_TYPE_DEV,
-						      snd_dma_pci_data(chip->pci),
+						      &chip->pci->dev,
 						      DEFAULT_BUFFER_BYTES_MULTICH,
 						      BUFFER_BYTES_MAX_MULTICH);
 		if (ins)
 			snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
 						      SNDRV_DMA_TYPE_DEV,
-						      snd_dma_pci_data(chip->pci),
+						      &chip->pci->dev,
 						      DEFAULT_BUFFER_BYTES,
 						      BUFFER_BYTES_MAX);
 	}
@@ -739,7 +739,7 @@ int oxygen_pcm_init(struct oxygen *chip)
 		pcm->private_data = chip;
 		strcpy(pcm->name, "Digital");
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      snd_dma_pci_data(chip->pci),
+						      &chip->pci->dev,
 						      DEFAULT_BUFFER_BYTES,
 						      BUFFER_BYTES_MAX);
 	}
@@ -769,7 +769,7 @@ int oxygen_pcm_init(struct oxygen *chip)
 		pcm->private_data = chip;
 		strcpy(pcm->name, outs ? "Front Panel" : "Analog 2");
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      snd_dma_pci_data(chip->pci),
+						      &chip->pci->dev,
 						      DEFAULT_BUFFER_BYTES,
 						      BUFFER_BYTES_MAX);
 	}
@@ -787,7 +787,7 @@ int oxygen_pcm_init(struct oxygen *chip)
 		pcm->private_data = chip;
 		strcpy(pcm->name, "Analog 3");
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      snd_dma_pci_data(chip->pci),
+						      &chip->pci->dev,
 						      DEFAULT_BUFFER_BYTES,
 						      BUFFER_BYTES_MAX);
 	}
