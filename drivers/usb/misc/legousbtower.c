@@ -186,13 +186,13 @@ MODULE_DEVICE_TABLE (usb, tower_table);
 /* Structure to hold all of our device specific stuff */
 struct lego_usb_tower {
 	struct mutex		lock;		/* locks this structure */
-	struct usb_device*	udev;		/* save off the usb device pointer */
+	struct usb_device	*udev;		/* save off the usb device pointer */
 	unsigned char		minor;		/* the starting minor number for this device */
 
 	int			open_count;	/* number of times this port has been opened */
 	unsigned long		disconnected:1;
 
-	char*			read_buffer;
+	char			*read_buffer;
 	size_t			read_buffer_length; /* this much came in */
 	size_t			read_packet_length; /* this much will be returned on read */
 	spinlock_t		read_buffer_lock;
@@ -202,15 +202,15 @@ struct lego_usb_tower {
 	wait_queue_head_t	read_wait;
 	wait_queue_head_t	write_wait;
 
-	char*			interrupt_in_buffer;
-	struct usb_endpoint_descriptor* interrupt_in_endpoint;
-	struct urb*		interrupt_in_urb;
+	char			*interrupt_in_buffer;
+	struct usb_endpoint_descriptor *interrupt_in_endpoint;
+	struct urb		*interrupt_in_urb;
 	int			interrupt_in_interval;
 	int			interrupt_in_done;
 
-	char*			interrupt_out_buffer;
-	struct usb_endpoint_descriptor* interrupt_out_endpoint;
-	struct urb*		interrupt_out_urb;
+	char			*interrupt_out_buffer;
+	struct usb_endpoint_descriptor *interrupt_out_endpoint;
+	struct urb		*interrupt_out_urb;
 	int			interrupt_out_interval;
 	int			interrupt_out_busy;
 
