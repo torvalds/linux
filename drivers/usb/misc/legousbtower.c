@@ -206,7 +206,6 @@ struct lego_usb_tower {
 	struct usb_endpoint_descriptor* interrupt_in_endpoint;
 	struct urb*		interrupt_in_urb;
 	int			interrupt_in_interval;
-	int			interrupt_in_running;
 	int			interrupt_in_done;
 
 	char*			interrupt_out_buffer;
@@ -379,7 +378,6 @@ static int tower_open (struct inode *inode, struct file *file)
 			  dev,
 			  dev->interrupt_in_interval);
 
-	dev->interrupt_in_running = 1;
 	dev->interrupt_in_done = 0;
 	mb();
 
@@ -387,7 +385,6 @@ static int tower_open (struct inode *inode, struct file *file)
 	if (retval) {
 		dev_err(&dev->udev->dev,
 			"Couldn't submit interrupt_in_urb %d\n", retval);
-		dev->interrupt_in_running = 0;
 		goto unlock_exit;
 	}
 
@@ -450,11 +447,7 @@ exit:
 static void tower_abort_transfers (struct lego_usb_tower *dev)
 {
 	/* shutdown transfer */
-	if (dev->interrupt_in_running) {
-		dev->interrupt_in_running = 0;
-		mb();
-		usb_kill_urb(dev->interrupt_in_urb);
-	}
+	usb_kill_urb(dev->interrupt_in_urb);
 	if (dev->interrupt_out_busy)
 		usb_kill_urb(dev->interrupt_out_urb);
 }
@@ -731,15 +724,11 @@ static void tower_interrupt_in_callback (struct urb *urb)
 	}
 
 resubmit:
-	/* resubmit if we're still running */
-	if (dev->interrupt_in_running) {
-		retval = usb_submit_urb (dev->interrupt_in_urb, GFP_ATOMIC);
-		if (retval)
-			dev_err(&dev->udev->dev,
-				"%s: usb_submit_urb failed (%d)\n",
-				__func__, retval);
+	retval = usb_submit_urb(dev->interrupt_in_urb, GFP_ATOMIC);
+	if (retval) {
+		dev_err(&dev->udev->dev, "%s: usb_submit_urb failed (%d)\n",
+			__func__, retval);
 	}
-
 exit:
 	dev->interrupt_in_done = 1;
 	wake_up_interruptible (&dev->read_wait);
