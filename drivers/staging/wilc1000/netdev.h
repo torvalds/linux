@@ -4,8 +4,8 @@
  * All rights reserved.
  */
 
-#ifndef WILC_WFI_NETDEVICE
-#define WILC_WFI_NETDEVICE
+#ifndef WILC_NETDEV_H
+#define WILC_NETDEV_H
 
 #include <linux/tcp.h>
 #include <linux/ieee80211.h>

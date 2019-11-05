@@ -4,8 +4,8 @@
  * All rights reserved.
  */
 
-#ifndef NM_WFI_CFGOPERATIONS
-#define NM_WFI_CFGOPERATIONS
+#ifndef WILC_CFG80211_H
+#define WILC_CFG80211_H
 #include "netdev.h"
 
 struct wiphy *wilc_cfg_alloc(void);
