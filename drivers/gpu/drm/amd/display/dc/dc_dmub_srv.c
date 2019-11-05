@@ -112,10 +112,23 @@ void dc_dmub_srv_wait_phy_init(struct dc_dmub_srv *dc_dmub_srv)
 	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
 	enum dmub_status status;
 
-	status = dmub_srv_wait_for_phy_init(dmub, 10000000);
-	if (status != DMUB_STATUS_OK) {
-		DC_ERROR("Error waiting for DMUB phy init: status=%d\n",
-			 status);
+	for (;;) {
+		/* Wait up to a second for PHY init. */
+		status = dmub_srv_wait_for_phy_init(dmub, 1000000);
+		if (status == DMUB_STATUS_OK)
+			/* Initialization OK */
+			break;
+
+		DC_ERROR("DMCUB PHY init failed: status=%d\n", status);
 		ASSERT(0);
+
+		if (status != DMUB_STATUS_TIMEOUT)
+			/*
+			 * Server likely initialized or we don't have
+			 * DMCUB HW support - this won't end.
+			 */
+			break;
+
+		/* Continue spinning so we don't hang the ASIC. */
 	}
 }
