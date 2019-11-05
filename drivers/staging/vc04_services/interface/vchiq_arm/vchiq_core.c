@@ -2955,7 +2955,7 @@ vchiq_remove_service(VCHIQ_SERVICE_HANDLE_T handle)
 enum vchiq_status vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 				   void *offset, int size, void *userdata,
 				   enum vchiq_bulk_mode mode,
-				   VCHIQ_BULK_DIR_T dir)
+				   enum vchiq_bulk_dir dir)
 {
 	struct vchiq_service *service = find_service_by_handle(handle);
 	struct vchiq_bulk_queue *queue;

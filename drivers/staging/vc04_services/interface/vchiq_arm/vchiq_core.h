@@ -202,10 +202,10 @@ enum {
 	VCHIQ_POLL_COUNT
 };
 
-typedef enum {
+enum vchiq_bulk_dir {
 	VCHIQ_BULK_TRANSMIT,
 	VCHIQ_BULK_RECEIVE
-} VCHIQ_BULK_DIR_T;
+};
 
 typedef void (*VCHIQ_USERDATA_TERM_T)(void *userdata);
 
@@ -524,7 +524,7 @@ remote_event_pollall(struct vchiq_state *state);
 extern enum vchiq_status
 vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *offset, int size,
 		    void *userdata, enum vchiq_bulk_mode mode,
-		    VCHIQ_BULK_DIR_T dir);
+		    enum vchiq_bulk_dir dir);
 
 extern void
 vchiq_dump_state(void *dump_context, struct vchiq_state *state);
