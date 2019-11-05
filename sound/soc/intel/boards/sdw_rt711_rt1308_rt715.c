@@ -26,7 +26,6 @@
 #include "hda_dsp_common.h"
 
 /* comment out this define for mono configurations */
-#define ENABLE_RT1308_SDW2
 
 #define MAX_NO_PROPS 2
 
@@ -38,6 +37,7 @@ enum {
 };
 
 #define SOF_RT711_JDSRC(quirk)		((quirk) & GENMASK(1, 0))
+#define SOF_SDW_MONO_SPK		BIT(2)
 
 static unsigned long sof_rt711_rt1308_rt715_quirk = SOF_RT711_JD_SRC_JD1;
 
@@ -186,7 +186,8 @@ static const struct dmi_system_id sof_sdw_rt711_rt1308_rt715_quirk_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
 		},
-		.driver_data = (void *)(SOF_RT711_JD_SRC_JD2),
+		.driver_data = (void *)(SOF_RT711_JD_SRC_JD2 |
+					SOF_SDW_MONO_SPK),
 	},
 	{}
 };
@@ -230,10 +231,11 @@ static const struct snd_soc_dapm_route map[] = {
 	/* Speakers */
 	{ "Speaker", NULL, "rt1308-1 SPOL" },
 	{ "Speaker", NULL, "rt1308-1 SPOR" },
-#ifdef ENABLE_RT1308_SDW2
+};
+
+static const struct snd_soc_dapm_route second_speaker_map[] = {
 	{ "Speaker", NULL, "rt1308-2 SPOL" },
 	{ "Speaker", NULL, "rt1308-2 SPOR" },
-#endif
 };
 
 static const struct snd_kcontrol_new controls[] = {
@@ -241,6 +243,20 @@ static const struct snd_kcontrol_new controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 };
+
+static int second_spk_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_card *card = rtd->card;
+	int ret;
+
+	ret = snd_soc_dapm_add_routes(&card->dapm, second_speaker_map,
+				      ARRAY_SIZE(second_speaker_map));
+
+	if (ret)
+		dev_err(rtd->dev, "second Speaker map addition failed: %d\n",
+			ret);
+	return ret;
+}
 
 SND_SOC_DAILINK_DEF(sdw0_pin2,
 	DAILINK_COMP_ARRAY(COMP_CPU("SDW0 Pin2")));
@@ -254,12 +270,10 @@ SND_SOC_DAILINK_DEF(sdw1_pin2,
 SND_SOC_DAILINK_DEF(sdw1_codec,
 	DAILINK_COMP_ARRAY(COMP_CODEC("sdw:1:25d:1308:0", "rt1308-aif")));
 
-#ifdef ENABLE_RT1308_SDW2
 SND_SOC_DAILINK_DEF(sdw2_pin2,
 	DAILINK_COMP_ARRAY(COMP_CPU("SDW2 Pin2")));
 SND_SOC_DAILINK_DEF(sdw2_codec,
 	DAILINK_COMP_ARRAY(COMP_CODEC("sdw:2:25d:1308:0", "rt1308-aif")));
-#endif
 
 SND_SOC_DAILINK_DEF(sdw3_pin2,
 	DAILINK_COMP_ARRAY(COMP_CPU("SDW3 Pin2")));
@@ -295,15 +309,13 @@ static struct snd_soc_codec_conf codec_conf[] = {
 		.dev_name = "sdw:1:25d:1308:0",
 		.name_prefix = "rt1308-1",
 	},
-#ifdef ENABLE_RT1308_SDW2
-	{
-		.dev_name = "sdw:2:25d:1308:0",
-		.name_prefix = "rt1308-2",
-	},
-#endif
 	{
 		.dev_name = "sdw:3:25d:715:0",
 		.name_prefix = "rt715",
+	},
+	{
+		.dev_name = "sdw:2:25d:1308:0",
+		.name_prefix = "rt1308-2",
 	},
 
 };
@@ -334,16 +346,6 @@ struct snd_soc_dai_link dailink[] = {
 		.nonatomic = true,
 		SND_SOC_DAILINK_REG(sdw1_pin2, sdw1_codec, platform),
 	},
-#ifdef ENABLE_RT1308_SDW2
-	{
-		.name = "SDW2-Playback",
-		.id = 3,
-		.no_pcm = 1,
-		.dpcm_playback = 1,
-		.nonatomic = true,
-		SND_SOC_DAILINK_REG(sdw2_pin2, sdw2_codec, platform),
-	},
-#endif
 	{
 		.name = "SDW3-Capture",
 		.id = 4,
@@ -379,6 +381,15 @@ struct snd_soc_dai_link dailink[] = {
 		SND_SOC_DAILINK_REG(idisp3_pin, idisp3_codec, platform),
 	},
 #endif
+	{
+		.name = "SDW2-Playback",
+		.id = 3,
+		.init = second_spk_init,
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.nonatomic = true,
+		SND_SOC_DAILINK_REG(sdw2_pin2, sdw2_codec, platform),
+	},
 };
 
 /* SoC card */
@@ -432,6 +443,13 @@ static int mc_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, ctx);
 
 	sof_rt711_add_codec_device_props("sdw:0:25d:711:0");
+
+	if (sof_rt711_rt1308_rt715_quirk & SOF_SDW_MONO_SPK) {
+		/* Remove rt1308-2 codec from dailink and codec_conf */
+		card->num_links--;
+		card->num_configs--;
+	}
+
 	/* Register the card */
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
