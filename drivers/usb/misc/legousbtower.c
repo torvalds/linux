@@ -160,7 +160,7 @@ struct tower_reset_reply {
 	__le16 size;		/* little-endian */
 	__u8 err_code;
 	__u8 spare;
-} __attribute__ ((packed));
+};
 
 struct tower_get_version_reply {
 	__le16 size;		/* little-endian */
@@ -169,7 +169,7 @@ struct tower_get_version_reply {
 	__u8 major;
 	__u8 minor;
 	__le16 build_no;		/* little-endian */
-} __attribute__ ((packed));
+};
 
 
 /* table of devices that work with this driver */
