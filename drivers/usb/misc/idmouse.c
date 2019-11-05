@@ -278,12 +278,6 @@ static int idmouse_release(struct inode *inode, struct file *file)
 	/* lock our device */
 	mutex_lock(&dev->lock);
 
-	/* are we really open? */
-	if (dev->open <= 0) {
-		mutex_unlock(&dev->lock);
-		return -ENODEV;
-	}
-
 	--dev->open;
 
 	if (!dev->present) {
