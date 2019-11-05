@@ -2746,34 +2746,6 @@ EXPORT_SYMBOL_GPL(snd_soc_component_exit_regmap);
 
 #endif
 
-static void snd_soc_component_add(struct snd_soc_component *component)
-{
-	mutex_lock(&client_mutex);
-
-	if (!component->driver->write && !component->driver->read) {
-		if (!component->regmap)
-			component->regmap = dev_get_regmap(component->dev,
-							   NULL);
-		if (component->regmap)
-			snd_soc_component_setup_regmap(component);
-	}
-
-	/* see for_each_component */
-	list_add(&component->list, &component_list);
-
-	mutex_unlock(&client_mutex);
-}
-
-static void snd_soc_component_del(struct snd_soc_component *component)
-{
-	struct snd_soc_card *card = component->card;
-
-	if (card)
-		snd_soc_unbind_card(card, false);
-
-	list_del(&component->list);
-}
-
 #define ENDIANNESS_MAP(name) \
 	(SNDRV_PCM_FMTBIT_##name##LE | SNDRV_PCM_FMTBIT_##name##BE)
 static u64 endianness_format_map[] = {
@@ -2820,8 +2792,14 @@ static void snd_soc_try_rebind_card(void)
 
 static void snd_soc_del_component_unlocked(struct snd_soc_component *component)
 {
+	struct snd_soc_card *card = component->card;
+
 	snd_soc_unregister_dais(component);
-	snd_soc_component_del(component);
+
+	if (card)
+		snd_soc_unbind_card(card, false);
+
+	list_del(&component->list);
 }
 
 int snd_soc_add_component(struct device *dev,
@@ -2832,6 +2810,8 @@ int snd_soc_add_component(struct device *dev,
 {
 	int ret;
 	int i;
+
+	mutex_lock(&client_mutex);
 
 	ret = snd_soc_component_initialize(component, component_driver, dev);
 	if (ret)
@@ -2850,14 +2830,26 @@ int snd_soc_add_component(struct device *dev,
 		goto err_cleanup;
 	}
 
-	snd_soc_component_add(component);
-	snd_soc_try_rebind_card();
+	if (!component->driver->write && !component->driver->read) {
+		if (!component->regmap)
+			component->regmap = dev_get_regmap(component->dev,
+							   NULL);
+		if (component->regmap)
+			snd_soc_component_setup_regmap(component);
+	}
 
-	return 0;
+	/* see for_each_component */
+	list_add(&component->list, &component_list);
 
 err_cleanup:
-	snd_soc_del_component_unlocked(component);
+	if (ret < 0)
+		snd_soc_del_component_unlocked(component);
 err_free:
+	mutex_unlock(&client_mutex);
+
+	if (ret == 0)
+		snd_soc_try_rebind_card();
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_component);
