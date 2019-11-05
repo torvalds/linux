@@ -226,7 +226,6 @@ static int tower_release	(struct inode *inode, struct file *file);
 static __poll_t tower_poll	(struct file *file, poll_table *wait);
 static loff_t tower_llseek	(struct file *file, loff_t off, int whence);
 
-static void tower_abort_transfers (struct lego_usb_tower *dev);
 static void tower_check_for_read_packet (struct lego_usb_tower *dev);
 static void tower_interrupt_in_callback (struct urb *urb);
 static void tower_interrupt_out_callback (struct urb *urb);
@@ -431,26 +430,17 @@ static int tower_release (struct inode *inode, struct file *file)
 	if (dev->interrupt_out_busy) {
 		wait_event_interruptible_timeout (dev->write_wait, !dev->interrupt_out_busy, 2 * HZ);
 	}
-	tower_abort_transfers (dev);
+
+	/* shutdown transfers */
+	usb_kill_urb(dev->interrupt_in_urb);
+	usb_kill_urb(dev->interrupt_out_urb);
+
 	dev->open_count = 0;
 
 	mutex_unlock(&dev->lock);
 exit:
 	return retval;
 }
-
-
-/**
- *	tower_abort_transfers
- *      aborts transfers and frees associated data structures
- */
-static void tower_abort_transfers (struct lego_usb_tower *dev)
-{
-	/* shutdown transfer */
-	usb_kill_urb(dev->interrupt_in_urb);
-	usb_kill_urb(dev->interrupt_out_urb);
-}
-
 
 /**
  *	tower_check_for_read_packet
