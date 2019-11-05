@@ -99,6 +99,13 @@ static void snd_free_dev_iram(struct snd_dma_buffer *dmab)
  *
  */
 
+static inline gfp_t snd_mem_get_gfp_flags(const struct device *dev)
+{
+	if (!dev)
+		return GFP_KERNEL;
+	else
+		return (__force gfp_t)(unsigned long)dev;
+}
 
 /**
  * snd_dma_alloc_pages - allocate the buffer area according to the given type
@@ -120,8 +127,6 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		return -ENXIO;
 	if (WARN_ON(!dmab))
 		return -ENXIO;
-	if (WARN_ON(!device))
-		return -EINVAL;
 
 	dmab->dev.type = type;
 	dmab->dev.dev = device;
@@ -129,7 +134,7 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 	switch (type) {
 	case SNDRV_DMA_TYPE_CONTINUOUS:
 		dmab->area = alloc_pages_exact(size,
-					       (__force gfp_t)(unsigned long)device);
+					       snd_mem_get_gfp_flags(device));
 		dmab->addr = 0;
 		break;
 #ifdef CONFIG_HAS_DMA

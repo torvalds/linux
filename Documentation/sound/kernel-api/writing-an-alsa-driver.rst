@@ -3523,12 +3523,14 @@ The second argument (type) and the third argument (device pointer) are
 dependent on the bus. For normal devices, pass the device pointer
 (typically identical as ``card->dev``) to the third argument with
 ``SNDRV_DMA_TYPE_DEV`` type. For the continuous buffer unrelated to the
-bus can be pre-allocated with ``SNDRV_DMA_TYPE_CONTINUOUS`` type and the
-``snd_dma_continuous_data(GFP_KERNEL)`` device pointer, where
-``GFP_KERNEL`` is the kernel allocation flag to use. For the
-scatter-gather buffers, use ``SNDRV_DMA_TYPE_DEV_SG`` with the device
-pointer (see the `Non-Contiguous Buffers`_
-section).
+bus can be pre-allocated with ``SNDRV_DMA_TYPE_CONTINUOUS`` type.
+You can pass NULL to the device pointer in that case, which is the
+default mode implying to allocate with ``GFP_KRENEL`` flag.
+If you need a different GFP flag, you can pass it by encoding the flag
+into the device pointer via a special macro
+:c:func:`snd_dma_continuous_data()`.
+For the scatter-gather buffers, use ``SNDRV_DMA_TYPE_DEV_SG`` with the
+device pointer (see the `Non-Contiguous Buffers`_ section).
 
 Once the buffer is pre-allocated, you can use the allocator in the
 ``hw_params`` callback:
