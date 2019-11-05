@@ -600,13 +600,15 @@ static int mtk_drm_crtc_init_comp_planes(struct drm_device *drm_dev,
 					 int comp_idx, int pipe)
 {
 	int num_planes = mtk_drm_crtc_num_comp_planes(mtk_crtc, comp_idx);
+	struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[comp_idx];
 	int i, ret;
 
 	for (i = 0; i < num_planes; i++) {
 		ret = mtk_plane_init(drm_dev,
 				&mtk_crtc->planes[mtk_crtc->layer_nr],
 				BIT(pipe),
-				mtk_drm_crtc_plane_type(mtk_crtc->layer_nr));
+				mtk_drm_crtc_plane_type(mtk_crtc->layer_nr),
+				mtk_ddp_comp_supported_rotations(comp));
 		if (ret)
 			return ret;
 

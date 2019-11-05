@@ -144,6 +144,7 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 	state->pending.y = plane->state->dst.y1;
 	state->pending.width = drm_rect_width(&plane->state->dst);
 	state->pending.height = drm_rect_height(&plane->state->dst);
+	state->pending.rotation = plane->state->rotation;
 	wmb(); /* Make sure the above parameters are set before update */
 	state->pending.dirty = true;
 }
@@ -166,7 +167,8 @@ static const struct drm_plane_helper_funcs mtk_plane_helper_funcs = {
 };
 
 int mtk_plane_init(struct drm_device *dev, struct drm_plane *plane,
-		   unsigned long possible_crtcs, enum drm_plane_type type)
+		   unsigned long possible_crtcs, enum drm_plane_type type,
+		   unsigned int supported_rotations)
 {
 	int err;
 
@@ -176,6 +178,14 @@ int mtk_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	if (err) {
 		DRM_ERROR("failed to initialize plane\n");
 		return err;
+	}
+
+	if (supported_rotations & ~DRM_MODE_ROTATE_0) {
+		err = drm_plane_create_rotation_property(plane,
+							 DRM_MODE_ROTATE_0,
+							 supported_rotations);
+		if (err)
+			DRM_INFO("Create rotation property failed\n");
 	}
 
 	drm_plane_helper_add(plane, &mtk_plane_helper_funcs);
