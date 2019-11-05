@@ -67,7 +67,7 @@ examples:
         #size-cells = <0>;
         adau7118_codec: audio-codec@14 {
                 compatible = "adi,adau7118";
-                reg = <14>;
+                reg = <0x14>;
                 #sound-dai-cells = <0>;
                 iovdd-supply = <&supply>;
                 dvdd-supply = <&supply>;
