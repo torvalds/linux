@@ -1878,7 +1878,7 @@ static int esw_vport_create_ingress_acl_group(struct mlx5_eswitch *esw,
 	if (IS_ERR(g)) {
 		ret = PTR_ERR(g);
 		esw_warn(esw->dev,
-			 "Failed to create vport[%d] ingress metdata group, err(%d)\n",
+			 "Failed to create vport[%d] ingress metadata group, err(%d)\n",
 			 vport->vport, ret);
 		goto grp_err;
 	}
