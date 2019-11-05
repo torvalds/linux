@@ -1506,9 +1506,6 @@ static int ocelot_netdevice_port_event(struct net_device *dev,
 	struct ocelot_port *ocelot_port = netdev_priv(dev);
 	int err = 0;
 
-	if (!ocelot_netdevice_dev_check(dev))
-		return 0;
-
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
 		if (netif_is_bridge_master(info->upper_dev)) {
@@ -1544,6 +1541,9 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 	struct netdev_notifier_changeupper_info *info = ptr;
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	int ret = 0;
+
+	if (!ocelot_netdevice_dev_check(dev))
+		return 0;
 
 	if (event == NETDEV_PRECHANGEUPPER &&
 	    netif_is_lag_master(info->upper_dev)) {
