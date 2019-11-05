@@ -941,6 +941,102 @@ static bool soc_is_dai_link_bound(struct snd_soc_card *card,
 	return false;
 }
 
+static int soc_init_dai_link(struct snd_soc_card *card,
+			     struct snd_soc_dai_link *link)
+{
+	int i;
+	struct snd_soc_dai_link_component *codec, *platform;
+
+	for_each_link_codecs(link, i, codec) {
+		/*
+		 * Codec must be specified by 1 of name or OF node,
+		 * not both or neither.
+		 */
+		if (!!codec->name == !!codec->of_node) {
+			dev_err(card->dev, "ASoC: Neither/both codec name/of_node are set for %s\n",
+				link->name);
+			return -EINVAL;
+		}
+
+		/* Codec DAI name must be specified */
+		if (!codec->dai_name) {
+			dev_err(card->dev, "ASoC: codec_dai_name not set for %s\n",
+				link->name);
+			return -EINVAL;
+		}
+
+		/*
+		 * Defer card registration if codec component is not added to
+		 * component list.
+		 */
+		if (!soc_find_component(codec))
+			return -EPROBE_DEFER;
+	}
+
+	for_each_link_platforms(link, i, platform) {
+		/*
+		 * Platform may be specified by either name or OF node, but it
+		 * can be left unspecified, then no components will be inserted
+		 * in the rtdcom list
+		 */
+		if (!!platform->name == !!platform->of_node) {
+			dev_err(card->dev,
+				"ASoC: Neither/both platform name/of_node are set for %s\n",
+				link->name);
+			return -EINVAL;
+		}
+
+		/*
+		 * Defer card registration if platform component is not added to
+		 * component list.
+		 */
+		if (!soc_find_component(platform))
+			return -EPROBE_DEFER;
+	}
+
+	/* FIXME */
+	if (link->num_cpus > 1) {
+		dev_err(card->dev,
+			"ASoC: multi cpu is not yet supported %s\n",
+			link->name);
+		return -EINVAL;
+	}
+
+	/*
+	 * CPU device may be specified by either name or OF node, but
+	 * can be left unspecified, and will be matched based on DAI
+	 * name alone..
+	 */
+	if (link->cpus->name && link->cpus->of_node) {
+		dev_err(card->dev,
+			"ASoC: Neither/both cpu name/of_node are set for %s\n",
+			link->name);
+		return -EINVAL;
+	}
+
+	/*
+	 * Defer card registartion if cpu dai component is not added to
+	 * component list.
+	 */
+	if ((link->cpus->of_node || link->cpus->name) &&
+	    !soc_find_component(link->cpus))
+		return -EPROBE_DEFER;
+
+	/*
+	 * At least one of CPU DAI name or CPU device name/node must be
+	 * specified
+	 */
+	if (!link->cpus->dai_name &&
+	    !(link->cpus->name || link->cpus->of_node)) {
+		dev_err(card->dev,
+			"ASoC: Neither cpu_dai_name nor cpu_name/of_node are set for %s\n",
+			link->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_dai_link *dai_link)
 {
@@ -1278,102 +1374,6 @@ static int soc_probe_link_components(struct snd_soc_card *card)
 					return ret;
 			}
 		}
-	}
-
-	return 0;
-}
-
-static int soc_init_dai_link(struct snd_soc_card *card,
-			     struct snd_soc_dai_link *link)
-{
-	int i;
-	struct snd_soc_dai_link_component *codec, *platform;
-
-	for_each_link_codecs(link, i, codec) {
-		/*
-		 * Codec must be specified by 1 of name or OF node,
-		 * not both or neither.
-		 */
-		if (!!codec->name == !!codec->of_node) {
-			dev_err(card->dev, "ASoC: Neither/both codec name/of_node are set for %s\n",
-				link->name);
-			return -EINVAL;
-		}
-
-		/* Codec DAI name must be specified */
-		if (!codec->dai_name) {
-			dev_err(card->dev, "ASoC: codec_dai_name not set for %s\n",
-				link->name);
-			return -EINVAL;
-		}
-
-		/*
-		 * Defer card registration if codec component is not added to
-		 * component list.
-		 */
-		if (!soc_find_component(codec))
-			return -EPROBE_DEFER;
-	}
-
-	for_each_link_platforms(link, i, platform) {
-		/*
-		 * Platform may be specified by either name or OF node, but it
-		 * can be left unspecified, then no components will be inserted
-		 * in the rtdcom list
-		 */
-		if (!!platform->name == !!platform->of_node) {
-			dev_err(card->dev,
-				"ASoC: Neither/both platform name/of_node are set for %s\n",
-				link->name);
-			return -EINVAL;
-		}
-
-		/*
-		 * Defer card registration if platform component is not added to
-		 * component list.
-		 */
-		if (!soc_find_component(platform))
-			return -EPROBE_DEFER;
-	}
-
-	/* FIXME */
-	if (link->num_cpus > 1) {
-		dev_err(card->dev,
-			"ASoC: multi cpu is not yet supported %s\n",
-			link->name);
-		return -EINVAL;
-	}
-
-	/*
-	 * CPU device may be specified by either name or OF node, but
-	 * can be left unspecified, and will be matched based on DAI
-	 * name alone..
-	 */
-	if (link->cpus->name && link->cpus->of_node) {
-		dev_err(card->dev,
-			"ASoC: Neither/both cpu name/of_node are set for %s\n",
-			link->name);
-		return -EINVAL;
-	}
-
-	/*
-	 * Defer card registartion if cpu dai component is not added to
-	 * component list.
-	 */
-	if ((link->cpus->of_node || link->cpus->name) &&
-	    !soc_find_component(link->cpus))
-		return -EPROBE_DEFER;
-
-	/*
-	 * At least one of CPU DAI name or CPU device name/node must be
-	 * specified
-	 */
-	if (!link->cpus->dai_name &&
-	    !(link->cpus->name || link->cpus->of_node)) {
-		dev_err(card->dev,
-			"ASoC: Neither cpu_dai_name nor cpu_name/of_node are set for %s\n",
-			link->name);
-		return -EINVAL;
 	}
 
 	return 0;
