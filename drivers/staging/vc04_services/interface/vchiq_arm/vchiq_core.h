@@ -169,7 +169,7 @@ enum {
 
 #endif /* VCHIQ_ENABLE_DEBUG */
 
-typedef enum {
+enum vchiq_connstate {
 	VCHIQ_CONNSTATE_DISCONNECTED,
 	VCHIQ_CONNSTATE_CONNECTING,
 	VCHIQ_CONNSTATE_CONNECTED,
@@ -179,7 +179,7 @@ typedef enum {
 	VCHIQ_CONNSTATE_RESUMING,
 	VCHIQ_CONNSTATE_PAUSE_TIMEOUT,
 	VCHIQ_CONNSTATE_RESUME_TIMEOUT
-} VCHIQ_CONNSTATE_T;
+};
 
 enum {
 	VCHIQ_SRVSTATE_FREE,
@@ -367,7 +367,7 @@ struct vchiq_slot_zero {
 struct vchiq_state {
 	int id;
 	int initialised;
-	VCHIQ_CONNSTATE_T conn_state;
+	enum vchiq_connstate conn_state;
 	short version_common;
 
 	struct vchiq_shared_state *local;
@@ -486,7 +486,7 @@ extern int vchiq_sync_log_level;
 extern struct vchiq_state *vchiq_states[VCHIQ_MAX_STATES];
 
 extern const char *
-get_conn_state_name(VCHIQ_CONNSTATE_T conn_state);
+get_conn_state_name(enum vchiq_connstate conn_state);
 
 extern struct vchiq_slot_zero *
 vchiq_init_slots(void *mem_base, int mem_size);
@@ -644,14 +644,14 @@ vchiq_send_remote_use_active(struct vchiq_state *state);
 
 extern void
 vchiq_platform_conn_state_changed(struct vchiq_state *state,
-				  VCHIQ_CONNSTATE_T oldstate,
-				  VCHIQ_CONNSTATE_T newstate);
+				  enum vchiq_connstate oldstate,
+				  enum vchiq_connstate newstate);
 
 extern void
 vchiq_platform_handle_timeout(struct vchiq_state *state);
 
 extern void
-vchiq_set_conn_state(struct vchiq_state *state, VCHIQ_CONNSTATE_T newstate);
+vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate);
 
 extern void
 vchiq_log_dump_mem(const char *label, uint32_t addr, const void *voidMem,

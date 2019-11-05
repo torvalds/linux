@@ -375,9 +375,9 @@ make_service_callback(struct vchiq_service *service, enum vchiq_reason reason,
 }
 
 inline void
-vchiq_set_conn_state(struct vchiq_state *state, VCHIQ_CONNSTATE_T newstate)
+vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate)
 {
-	VCHIQ_CONNSTATE_T oldstate = state->conn_state;
+	enum vchiq_connstate oldstate = state->conn_state;
 
 	vchiq_log_info(vchiq_core_log_level, "%d: %s->%s", state->id,
 		conn_state_names[oldstate],
@@ -2078,7 +2078,7 @@ init_bulk_queue(struct vchiq_bulk_queue *queue)
 }
 
 inline const char *
-get_conn_state_name(VCHIQ_CONNSTATE_T conn_state)
+get_conn_state_name(enum vchiq_connstate conn_state)
 {
 	return conn_state_names[conn_state];
 }
