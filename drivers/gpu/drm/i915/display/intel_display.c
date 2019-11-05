@@ -7191,11 +7191,13 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_bw_state *bw_state =
 		to_intel_bw_state(dev_priv->bw_obj.state);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->state);
 	enum intel_display_power_domain domain;
 	struct intel_plane *plane;
 	u64 domains;
 	struct drm_atomic_state *state;
-	struct intel_crtc_state *crtc_state;
+	struct intel_crtc_state *temp_crtc_state;
 	int ret;
 
 	if (!intel_crtc->active)
@@ -7219,12 +7221,12 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 	state->acquire_ctx = ctx;
 
 	/* Everything's already locked, -EDEADLK can't happen. */
-	crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
+	temp_crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
 	ret = drm_atomic_add_affected_connectors(state, crtc);
 
-	WARN_ON(IS_ERR(crtc_state) || ret);
+	WARN_ON(IS_ERR(temp_crtc_state) || ret);
 
-	dev_priv->display.crtc_disable(crtc_state, to_intel_atomic_state(state));
+	dev_priv->display.crtc_disable(temp_crtc_state, to_intel_atomic_state(state));
 
 	drm_atomic_state_put(state);
 
