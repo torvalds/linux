@@ -426,7 +426,7 @@ static void sctp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 		r->idiag_wqueue = infox->asoc->sndbuf_used;
 	} else {
 		r->idiag_rqueue = READ_ONCE(sk->sk_ack_backlog);
-		r->idiag_wqueue = sk->sk_max_ack_backlog;
+		r->idiag_wqueue = READ_ONCE(sk->sk_max_ack_backlog);
 	}
 	if (infox->sctpinfo)
 		sctp_get_sctp_info(sk, infox->asoc, infox->sctpinfo);

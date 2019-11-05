@@ -532,7 +532,7 @@ META_COLLECTOR(int_sk_max_ack_bl)
 		*err = -1;
 		return;
 	}
-	dst->value = sk->sk_max_ack_backlog;
+	dst->value = READ_ONCE(sk->sk_max_ack_backlog);
 }
 
 META_COLLECTOR(int_sk_prio)
