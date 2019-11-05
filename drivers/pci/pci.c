@@ -1033,6 +1033,16 @@ static void __pci_start_power_transition(struct pci_dev *dev, pci_power_t state)
 }
 
 /**
+ * pci_power_up - Put the given device into D0
+ * @dev: PCI device to power up
+ */
+int pci_power_up(struct pci_dev *dev)
+{
+	__pci_start_power_transition(dev, PCI_D0);
+	return pci_raw_set_power_state(dev, PCI_D0);
+}
+
+/**
  * __pci_dev_set_current_state - Set current state of a PCI device
  * @dev: Device to handle
  * @data: pointer to state to be set
@@ -1117,14 +1127,15 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (dev->current_state == state)
 		return 0;
 
+	if (state == PCI_D0)
+		return pci_power_up(dev);
+
 	/*
 	 * This device is quirked not to be put into D3, so don't put it in
 	 * D3
 	 */
 	if (state >= PCI_D3hot && (dev->dev_flags & PCI_DEV_FLAGS_NO_D3))
 		return 0;
-
-	__pci_start_power_transition(dev, state);
 
 	/*
 	 * To put device in D3cold, we put device into D3hot in native
@@ -1139,16 +1150,6 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return error;
 }
 EXPORT_SYMBOL(pci_set_power_state);
-
-/**
- * pci_power_up - Put the given device into D0 forcibly
- * @dev: PCI device to power up
- */
-void pci_power_up(struct pci_dev *dev)
-{
-	__pci_start_power_transition(dev, PCI_D0);
-	pci_raw_set_power_state(dev, PCI_D0);
-}
 
 /**
  * pci_choose_state - Choose the power state of a PCI device
