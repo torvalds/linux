@@ -1402,15 +1402,10 @@ smb2_ioctl_query_info(const unsigned int xid,
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	buffer = kmalloc(qi.output_buffer_length, GFP_KERNEL);
-	if (buffer == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(buffer, arg + sizeof(struct smb_query_info),
-			   qi.output_buffer_length)) {
-		rc = -EFAULT;
-		goto iqinf_exit;
-	}
+	buffer = memdup_user(arg + sizeof(struct smb_query_info),
+			     qi.output_buffer_length);
+	if (IS_ERR(buffer))
+		return PTR_ERR(buffer);
 
 	/* Open */
 	memset(&open_iov, 0, sizeof(open_iov));
