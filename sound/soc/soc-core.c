@@ -941,8 +941,8 @@ static bool soc_is_dai_link_bound(struct snd_soc_card *card,
 	return false;
 }
 
-static int soc_init_dai_link(struct snd_soc_card *card,
-			     struct snd_soc_dai_link *link)
+static int soc_dai_link_sanity_check(struct snd_soc_card *card,
+				     struct snd_soc_dai_link *link)
 {
 	int i;
 	struct snd_soc_dai_link_component *codec, *platform;
@@ -1043,7 +1043,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link_component *codec, *platform;
 	struct snd_soc_component *component;
-	int i;
+	int i, ret;
 
 	if (dai_link->ignore)
 		return 0;
@@ -1055,6 +1055,10 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 			dai_link->name);
 		return 0;
 	}
+
+	ret = soc_dai_link_sanity_check(card, dai_link);
+	if (ret < 0)
+		return ret;
 
 	rtd = soc_new_pcm_runtime(card, dai_link);
 	if (!rtd)
@@ -1985,15 +1989,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	int ret, i;
 
 	mutex_lock(&client_mutex);
-	for_each_card_prelinks(card, i, dai_link) {
-		ret = soc_init_dai_link(card, dai_link);
-		if (ret) {
-			dev_err(card->dev, "ASoC: failed to init link %s: %d\n",
-				dai_link->name, ret);
-			mutex_unlock(&client_mutex);
-			return ret;
-		}
-	}
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
 
 	snd_soc_dapm_init(&card->dapm, card, NULL);
@@ -2073,9 +2068,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		if (soc_is_dai_link_bound(card, dai_link))
 			continue;
 
-		ret = soc_init_dai_link(card, dai_link);
-		if (ret)
-			goto probe_end;
 		ret = soc_bind_dai_link(card, dai_link);
 		if (ret)
 			goto probe_end;
