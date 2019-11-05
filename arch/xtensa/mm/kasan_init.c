@@ -20,7 +20,8 @@ void __init kasan_early_init(void)
 {
 	unsigned long vaddr = KASAN_SHADOW_START;
 	pgd_t *pgd = pgd_offset_k(vaddr);
-	pmd_t *pmd = pmd_offset(pgd, vaddr);
+	pud_t *pud = pud_offset(pgd, vaddr);
+	pmd_t *pmd = pmd_offset(pud, vaddr);
 	int i;
 
 	for (i = 0; i < PTRS_PER_PTE; ++i)
@@ -42,7 +43,8 @@ static void __init populate(void *start, void *end)
 	unsigned long i, j;
 	unsigned long vaddr = (unsigned long)start;
 	pgd_t *pgd = pgd_offset_k(vaddr);
-	pmd_t *pmd = pmd_offset(pgd, vaddr);
+	pud_t *pud = pud_offset(pgd, vaddr);
+	pmd_t *pmd = pmd_offset(pud, vaddr);
 	pte_t *pte = memblock_alloc(n_pages * sizeof(pte_t), PAGE_SIZE);
 
 	if (!pte)

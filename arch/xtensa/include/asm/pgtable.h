@@ -371,9 +371,6 @@ ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 
 #define pgd_index(address)	((address) >> PGDIR_SHIFT)
 
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(dir,address) ((pmd_t*)(dir))
-
 /* Find an entry in the third-level page table.. */
 #define pte_index(address)	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir,addr) 					\

@@ -169,6 +169,7 @@ static unsigned get_pte_for_vaddr(unsigned vaddr)
 	struct task_struct *task = get_current();
 	struct mm_struct *mm = task->mm;
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
@@ -177,7 +178,10 @@ static unsigned get_pte_for_vaddr(unsigned vaddr)
 	pgd = pgd_offset(mm, vaddr);
 	if (pgd_none_or_clear_bad(pgd))
 		return 0;
-	pmd = pmd_offset(pgd, vaddr);
+	pud = pud_offset(pgd, vaddr);
+	if (pud_none_or_clear_bad(pud))
+		return 0;
+	pmd = pmd_offset(pud, vaddr);
 	if (pmd_none_or_clear_bad(pmd))
 		return 0;
 	pte = pte_offset_map(pmd, vaddr);

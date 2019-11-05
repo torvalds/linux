@@ -197,6 +197,7 @@ vmalloc_fault:
 		struct mm_struct *act_mm = current->active_mm;
 		int index = pgd_index(address);
 		pgd_t *pgd, *pgd_k;
+		pud_t *pud, *pud_k;
 		pmd_t *pmd, *pmd_k;
 		pte_t *pte_k;
 
@@ -211,8 +212,13 @@ vmalloc_fault:
 
 		pgd_val(*pgd) = pgd_val(*pgd_k);
 
-		pmd = pmd_offset(pgd, address);
-		pmd_k = pmd_offset(pgd_k, address);
+		pud = pud_offset(pgd, address);
+		pud_k = pud_offset(pgd_k, address);
+		if (!pud_present(*pud) || !pud_present(*pud_k))
+			goto bad_page_fault;
+
+		pmd = pmd_offset(pud, address);
+		pmd_k = pmd_offset(pud_k, address);
 		if (!pmd_present(*pmd) || !pmd_present(*pmd_k))
 			goto bad_page_fault;
 
