@@ -512,12 +512,17 @@ handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
 }
 EXPORT_SYMBOL(jbd2_journal_start);
 
-void jbd2_journal_free_reserved(handle_t *handle)
+static void __jbd2_journal_unreserve_handle(handle_t *handle)
 {
 	journal_t *journal = handle->h_journal;
 
 	WARN_ON(!handle->h_reserved);
 	sub_reserved_credits(journal, handle->h_buffer_credits);
+}
+
+void jbd2_journal_free_reserved(handle_t *handle)
+{
+	__jbd2_journal_unreserve_handle(handle);
 	jbd2_free_handle(handle);
 }
 EXPORT_SYMBOL(jbd2_journal_free_reserved);
@@ -655,6 +660,28 @@ error_out:
 	return result;
 }
 
+static void stop_this_handle(handle_t *handle)
+{
+	transaction_t *transaction = handle->h_transaction;
+	journal_t *journal = transaction->t_journal;
+
+	J_ASSERT(journal_current_handle() == handle);
+	J_ASSERT(atomic_read(&transaction->t_updates) > 0);
+	current->journal_info = NULL;
+	atomic_sub(handle->h_buffer_credits,
+		   &transaction->t_outstanding_credits);
+	if (handle->h_rsv_handle)
+		__jbd2_journal_unreserve_handle(handle->h_rsv_handle);
+	if (atomic_dec_and_test(&transaction->t_updates))
+		wake_up(&journal->j_wait_updates);
+
+	rwsem_release(&journal->j_trans_commit_map, 1, _THIS_IP_);
+	/*
+	 * Scope of the GFP_NOFS context is over here and so we can restore the
+	 * original alloc context.
+	 */
+	memalloc_nofs_restore(handle->saved_alloc_context);
+}
 
 /**
  * int jbd2_journal_restart() - restart a handle .
@@ -677,52 +704,34 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, gfp_t gfp_mask)
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal;
 	tid_t		tid;
-	int		need_to_start, ret;
+	int		need_to_start;
 
 	/* If we've had an abort of any type, don't even think about
 	 * actually doing the restart! */
 	if (is_handle_aborted(handle))
 		return 0;
 	journal = transaction->t_journal;
+	tid = transaction->t_tid;
 
 	/*
 	 * First unlink the handle from its current transaction, and start the
 	 * commit on that.
 	 */
-	J_ASSERT(atomic_read(&transaction->t_updates) > 0);
-	J_ASSERT(journal_current_handle() == handle);
-
-	read_lock(&journal->j_state_lock);
-	spin_lock(&transaction->t_handle_lock);
-	atomic_sub(handle->h_buffer_credits,
-		   &transaction->t_outstanding_credits);
-	if (handle->h_rsv_handle) {
-		sub_reserved_credits(journal,
-				     handle->h_rsv_handle->h_buffer_credits);
-	}
-	if (atomic_dec_and_test(&transaction->t_updates))
-		wake_up(&journal->j_wait_updates);
-	tid = transaction->t_tid;
-	spin_unlock(&transaction->t_handle_lock);
-	handle->h_transaction = NULL;
-	current->journal_info = NULL;
-
 	jbd_debug(2, "restarting handle %p\n", handle);
+	stop_this_handle(handle);
+	handle->h_transaction = NULL;
+
+	/*
+	 * TODO: If we use READ_ONCE / WRITE_ONCE for j_commit_request we can
+ 	 * get rid of pointless j_state_lock traffic like this.
+	 */
+	read_lock(&journal->j_state_lock);
 	need_to_start = !tid_geq(journal->j_commit_request, tid);
 	read_unlock(&journal->j_state_lock);
 	if (need_to_start)
 		jbd2_log_start_commit(journal, tid);
-
-	rwsem_release(&journal->j_trans_commit_map, 1, _THIS_IP_);
 	handle->h_buffer_credits = nblocks;
-	/*
-	 * Restore the original nofs context because the journal restart
-	 * is basically the same thing as journal stop and start.
-	 * start_this_handle will start a new nofs context.
-	 */
-	memalloc_nofs_restore(handle->saved_alloc_context);
-	ret = start_this_handle(journal, handle, gfp_mask);
-	return ret;
+	return start_this_handle(journal, handle, gfp_mask);
 }
 EXPORT_SYMBOL(jbd2__journal_restart);
 
@@ -1718,15 +1727,11 @@ int jbd2_journal_stop(handle_t *handle)
 		 * Handle is already detached from the transaction so there is
 		 * nothing to do other than free the handle.
 		 */
-		if (handle->h_rsv_handle)
-			jbd2_free_handle(handle->h_rsv_handle);
+		memalloc_nofs_restore(handle->saved_alloc_context);
 		goto free_and_exit;
 	}
 	journal = transaction->t_journal;
 	tid = transaction->t_tid;
-
-	J_ASSERT(journal_current_handle() == handle);
-	J_ASSERT(atomic_read(&transaction->t_updates) > 0);
 
 	if (is_handle_aborted(handle))
 		err = -EIO;
@@ -1797,9 +1802,6 @@ int jbd2_journal_stop(handle_t *handle)
 
 	if (handle->h_sync)
 		transaction->t_synchronous_commit = 1;
-	current->journal_info = NULL;
-	atomic_sub(handle->h_buffer_credits,
-		   &transaction->t_outstanding_credits);
 
 	/*
 	 * If the handle is marked SYNC, we need to set another commit
@@ -1826,27 +1828,19 @@ int jbd2_journal_stop(handle_t *handle)
 	}
 
 	/*
-	 * Once we drop t_updates, if it goes to zero the transaction
-	 * could start committing on us and eventually disappear.  So
-	 * once we do this, we must not dereference transaction
-	 * pointer again.
+	 * Once stop_this_handle() drops t_updates, the transaction could start
+	 * committing on us and eventually disappear.  So we must not
+	 * dereference transaction pointer again after calling
+	 * stop_this_handle().
 	 */
-	if (atomic_dec_and_test(&transaction->t_updates))
-		wake_up(&journal->j_wait_updates);
-
-	rwsem_release(&journal->j_trans_commit_map, 1, _THIS_IP_);
+	stop_this_handle(handle);
 
 	if (wait_for_commit)
 		err = jbd2_log_wait_commit(journal, tid);
 
-	if (handle->h_rsv_handle)
-		jbd2_journal_free_reserved(handle->h_rsv_handle);
 free_and_exit:
-	/*
-	 * Scope of the GFP_NOFS context is over here and so we can restore the
-	 * original alloc context.
-	 */
-	memalloc_nofs_restore(handle->saved_alloc_context);
+	if (handle->h_rsv_handle)
+		jbd2_free_handle(handle->h_rsv_handle);
 	jbd2_free_handle(handle);
 	return err;
 }
