@@ -2877,12 +2877,6 @@ static int bcmgenet_open(struct net_device *dev)
 	if (priv->internal_phy)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
-	ret = bcmgenet_mii_connect(dev);
-	if (ret) {
-		netdev_err(dev, "failed to connect to PHY\n");
-		goto err_clk_disable;
-	}
-
 	/* take MAC out of reset */
 	bcmgenet_umac_reset(priv);
 
@@ -2891,12 +2885,6 @@ static int bcmgenet_open(struct net_device *dev)
 	/* Make sure we reflect the value of CRC_CMD_FWD */
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 	priv->crc_fwd_en = !!(reg & CMD_CRC_FWD);
-
-	ret = bcmgenet_mii_config(dev, true);
-	if (ret) {
-		netdev_err(dev, "unsupported PHY\n");
-		goto err_disconnect_phy;
-	}
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
@@ -2913,7 +2901,7 @@ static int bcmgenet_open(struct net_device *dev)
 	ret = bcmgenet_init_dma(priv);
 	if (ret) {
 		netdev_err(dev, "failed to initialize DMA\n");
-		goto err_disconnect_phy;
+		goto err_clk_disable;
 	}
 
 	/* Always enable ring 16 - descriptor ring */
@@ -2936,19 +2924,25 @@ static int bcmgenet_open(struct net_device *dev)
 		goto err_irq0;
 	}
 
+	ret = bcmgenet_mii_probe(dev);
+	if (ret) {
+		netdev_err(dev, "failed to connect to PHY\n");
+		goto err_irq1;
+	}
+
 	bcmgenet_netif_start(dev);
 
 	netif_tx_start_all_queues(dev);
 
 	return 0;
 
+err_irq1:
+	free_irq(priv->irq1, priv);
 err_irq0:
 	free_irq(priv->irq0, priv);
 err_fini_dma:
 	bcmgenet_dma_teardown(priv);
 	bcmgenet_fini_dma(priv);
-err_disconnect_phy:
-	phy_disconnect(dev->phydev);
 err_clk_disable:
 	if (priv->internal_phy)
 		bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
@@ -3629,8 +3623,6 @@ static int bcmgenet_resume(struct device *d)
 	if (priv->internal_phy)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
-	phy_init_hw(dev->phydev);
-
 	bcmgenet_umac_reset(priv);
 
 	init_umac(priv);
@@ -3638,6 +3630,8 @@ static int bcmgenet_resume(struct device *d)
 	/* From WOL-enabled suspend, switch to regular clock */
 	if (priv->wolopts)
 		clk_disable_unprepare(priv->clk_wol);
+
+	phy_init_hw(dev->phydev);
 
 	/* Speed settings must be restored */
 	bcmgenet_mii_config(priv->dev, false);
