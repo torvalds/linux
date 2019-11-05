@@ -740,11 +740,12 @@ static int omap_sham_align_sgs(struct scatterlist *sg,
 	struct scatterlist *sg_tmp = sg;
 	int new_len;
 	int offset = rctx->offset;
+	int bufcnt = rctx->bufcnt;
 
 	if (!sg || !sg->length || !nbytes)
 		return 0;
 
-	new_len = nbytes - offset;
+	new_len = nbytes;
 
 	if (offset)
 		list_ok = false;
@@ -762,6 +763,16 @@ static int omap_sham_align_sgs(struct scatterlist *sg,
 
 	while (nbytes > 0 && sg_tmp) {
 		n++;
+
+		if (bufcnt) {
+			if (!IS_ALIGNED(bufcnt, bs)) {
+				aligned = false;
+				break;
+			}
+			nbytes -= bufcnt;
+			bufcnt = 0;
+			continue;
+		}
 
 #ifdef CONFIG_ZONE_DMA
 		if (page_zonenum(sg_page(sg_tmp)) != ZONE_DMA) {
@@ -859,7 +870,7 @@ static int omap_sham_prepare_request(struct ahash_request *req, bool update)
 	if (rctx->bufcnt)
 		memcpy(rctx->dd->xmit_buf, rctx->buffer, rctx->bufcnt);
 
-	ret = omap_sham_align_sgs(req->src, nbytes, bs, final, rctx);
+	ret = omap_sham_align_sgs(req->src, rctx->total, bs, final, rctx);
 	if (ret)
 		return ret;
 
