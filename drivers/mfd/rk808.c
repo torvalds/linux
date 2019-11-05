@@ -840,6 +840,9 @@ static void rk818_device_shutdown(void)
 		dev_err(&rk808_i2c_client->dev, "Failed to shutdown device!\n");
 }
 
+/* Called in syscore shutdown */
+static void (*pm_shutdown)(void);
+
 static void rk8xx_syscore_shutdown(void)
 {
 	int ret;
@@ -866,15 +869,26 @@ static void rk8xx_syscore_shutdown(void)
 	 * been stopped or PMIC may not be able to get i2c transfer while
 	 * there are too many devices are competiting.
 	 */
-	if (system_state == SYSTEM_POWER_OFF &&
-	    (rk808->variant == RK809_ID || rk808->variant == RK817_ID)) {
-		ret = regmap_update_bits(rk808->regmap,
-					 RK817_SYS_CFG(3),
-					 RK817_SLPPIN_FUNC_MSK,
-					 SLPPIN_DN_FUN);
-		if (ret) {
-			dev_warn(&rk808_i2c_client->dev,
-				 "Cannot switch to power down function\n");
+	if (system_state == SYSTEM_POWER_OFF) {
+		if (rk808->variant == RK809_ID || rk808->variant == RK817_ID) {
+			ret = regmap_update_bits(rk808->regmap,
+						 RK817_SYS_CFG(3),
+						 RK817_SLPPIN_FUNC_MSK,
+						 SLPPIN_DN_FUN);
+			if (ret) {
+				dev_warn(&rk808_i2c_client->dev,
+					 "Cannot switch to power down function\n");
+			}
+		}
+
+		if (pm_shutdown) {
+			dev_info(&rk808_i2c_client->dev, "System power off\n");
+			pm_shutdown();
+			mdelay(10);
+			dev_info(&rk808_i2c_client->dev,
+				 "Power off failed !\n");
+			while (1)
+				;
 		}
 	}
 }
@@ -1254,7 +1268,6 @@ static int rk808_probe(struct i2c_client *client,
 		nr_cells = ARRAY_SIZE(rk817s);
 		on_source = RK817_ON_SOURCE_REG;
 		off_source = RK817_OFF_SOURCE_REG;
-		register_syscore_ops(&rk808_syscore_ops);
 		suspend_reg = rk817_suspend_reg;
 		suspend_reg_num = ARRAY_SIZE(rk817_suspend_reg);
 		resume_reg = rk817_resume_reg;
@@ -1357,8 +1370,12 @@ static int rk808_probe(struct i2c_client *client,
 	if (pm_off) {
 		if (!pm_power_off_prepare)
 			pm_power_off_prepare = rk808->pm_pwroff_prep_fn;
-		if (!pm_power_off_prepare)
-			pm_power_off = rk808->pm_pwroff_fn;
+
+		if (rk808->pm_pwroff_fn) {
+			register_syscore_ops(&rk808_syscore_ops);
+			/* power off system in the syscore shutdown ! */
+			pm_shutdown = rk808->pm_pwroff_fn;
+		}
 	}
 
 	rk8xx_kobj = kobject_create_and_add("rk8xx", NULL);
@@ -1400,6 +1417,9 @@ static int rk808_remove(struct i2c_client *client)
 	if (rk808->pm_pwroff_prep_fn &&
 	    pm_power_off_prepare == rk808->pm_pwroff_prep_fn)
 		pm_power_off_prepare = NULL;
+
+	if (pm_shutdown)
+		unregister_syscore_ops(&rk808_syscore_ops);
 
 	return 0;
 }
