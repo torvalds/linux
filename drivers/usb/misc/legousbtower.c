@@ -791,44 +791,23 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 {
 	struct device *idev = &interface->dev;
 	struct usb_device *udev = interface_to_usbdev(interface);
-	struct lego_usb_tower *dev = NULL;
+	struct lego_usb_tower *dev;
 	struct tower_get_version_reply *get_version_reply = NULL;
 	int retval = -ENOMEM;
 	int result;
 
 	/* allocate memory for our device state and initialize it */
-
-	dev = kmalloc (sizeof(struct lego_usb_tower), GFP_KERNEL);
-
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		goto exit;
 
 	mutex_init(&dev->lock);
-
 	dev->udev = usb_get_dev(udev);
-	dev->open_count = 0;
-	dev->disconnected = 0;
-
-	dev->read_buffer = NULL;
-	dev->read_buffer_length = 0;
-	dev->read_packet_length = 0;
 	spin_lock_init (&dev->read_buffer_lock);
 	dev->packet_timeout_jiffies = msecs_to_jiffies(packet_timeout);
 	dev->read_last_arrival = jiffies;
-
 	init_waitqueue_head (&dev->read_wait);
 	init_waitqueue_head (&dev->write_wait);
-
-	dev->interrupt_in_buffer = NULL;
-	dev->interrupt_in_endpoint = NULL;
-	dev->interrupt_in_urb = NULL;
-	dev->interrupt_in_running = 0;
-	dev->interrupt_in_done = 0;
-
-	dev->interrupt_out_buffer = NULL;
-	dev->interrupt_out_endpoint = NULL;
-	dev->interrupt_out_urb = NULL;
-	dev->interrupt_out_busy = 0;
 
 	result = usb_find_common_endpoints_reverse(interface->cur_altsetting,
 			NULL, NULL,
