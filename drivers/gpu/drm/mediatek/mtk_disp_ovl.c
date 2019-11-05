@@ -143,8 +143,8 @@ static unsigned int mtk_ovl_layer_nr(struct mtk_ddp_comp *comp)
 
 static unsigned int mtk_ovl_supported_rotations(struct mtk_ddp_comp *comp)
 {
-	return DRM_MODE_ROTATE_0 | DRM_MODE_REFLECT_Y |
-	       DRM_MODE_REFLECT_X;
+	return DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
+	       DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y;
 }
 
 static int mtk_ovl_layer_check(struct mtk_ddp_comp *comp, unsigned int idx,
