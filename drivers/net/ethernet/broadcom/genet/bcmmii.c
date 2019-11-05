@@ -184,7 +184,37 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 	const char *phy_name = NULL;
 	u32 id_mode_dis = 0;
 	u32 port_ctrl;
+	int bmcr = -1;
+	int ret;
 	u32 reg;
+
+	/* MAC clocking workaround during reset of umac state machines */
+	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
+	if (reg & CMD_SW_RESET) {
+		/* An MII PHY must be isolated to prevent TXC contention */
+		if (priv->phy_interface == PHY_INTERFACE_MODE_MII) {
+			ret = phy_read(phydev, MII_BMCR);
+			if (ret >= 0) {
+				bmcr = ret;
+				ret = phy_write(phydev, MII_BMCR,
+						bmcr | BMCR_ISOLATE);
+			}
+			if (ret) {
+				netdev_err(dev, "failed to isolate PHY\n");
+				return ret;
+			}
+		}
+		/* Switch MAC clocking to RGMII generated clock */
+		bcmgenet_sys_writel(priv, PORT_MODE_EXT_GPHY, SYS_PORT_CTRL);
+		/* Ensure 5 clks with Rx disabled
+		 * followed by 5 clks with Reset asserted
+		 */
+		udelay(4);
+		reg &= ~(CMD_SW_RESET | CMD_LCL_LOOP_EN);
+		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+		/* Ensure 5 more clocks before Rx is enabled */
+		udelay(2);
+	}
 
 	priv->ext_phy = !priv->internal_phy &&
 			(priv->phy_interface != PHY_INTERFACE_MODE_MOCA);
@@ -217,6 +247,9 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		phydev->supported &= PHY_BASIC_FEATURES;
 		bcmgenet_sys_writel(priv,
 				    PORT_MODE_EXT_EPHY, SYS_PORT_CTRL);
+		/* Restore the MII PHY after isolation */
+		if (bmcr >= 0)
+			phy_write(phydev, MII_BMCR, bmcr);
 		break;
 
 	case PHY_INTERFACE_MODE_REVMII:
