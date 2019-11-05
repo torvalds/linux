@@ -365,7 +365,8 @@ int omap_aes_4106gcm_encrypt(struct aead_request *req)
 
 	memcpy(rctx->iv, ctx->nonce, 4);
 	memcpy(rctx->iv + 4, req->iv, 8);
-	return omap_aes_gcm_crypt(req, FLAGS_ENCRYPT | FLAGS_GCM |
+	return crypto_ipsec_check_assoclen(req->assoclen) ?:
+	       omap_aes_gcm_crypt(req, FLAGS_ENCRYPT | FLAGS_GCM |
 				  FLAGS_RFC4106_GCM);
 }
 
@@ -376,7 +377,8 @@ int omap_aes_4106gcm_decrypt(struct aead_request *req)
 
 	memcpy(rctx->iv, ctx->nonce, 4);
 	memcpy(rctx->iv + 4, req->iv, 8);
-	return omap_aes_gcm_crypt(req, FLAGS_GCM | FLAGS_RFC4106_GCM);
+	return crypto_ipsec_check_assoclen(req->assoclen) ?:
+	       omap_aes_gcm_crypt(req, FLAGS_GCM | FLAGS_RFC4106_GCM);
 }
 
 int omap_aes_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
