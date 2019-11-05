@@ -4,10 +4,10 @@
  * All rights reserved.
  */
 
-#include "wilc_wlan_if.h"
-#include "wilc_wlan.h"
-#include "wilc_wlan_cfg.h"
-#include "wilc_wfi_netdevice.h"
+#include "wlan_if.h"
+#include "wlan.h"
+#include "wlan_cfg.h"
+#include "netdev.h"
 
 enum cfg_cmd_type {
 	CFG_BYTE_CMD	= 0,

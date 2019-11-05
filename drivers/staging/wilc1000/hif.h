@@ -7,7 +7,7 @@
 #ifndef HOST_INT_H
 #define HOST_INT_H
 #include <linux/ieee80211.h>
-#include "wilc_wlan_if.h"
+#include "wlan_if.h"
 
 enum {
 	WILC_IDLE_MODE = 0x0,

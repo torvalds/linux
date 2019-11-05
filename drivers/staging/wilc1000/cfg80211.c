@@ -4,7 +4,7 @@
  * All rights reserved.
  */
 
-#include "wilc_wfi_cfgoperations.h"
+#include "cfg80211.h"
 
 #define FRAME_TYPE_ID			0
 #define ACTION_CAT_ID			24

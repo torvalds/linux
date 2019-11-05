@@ -8,8 +8,8 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/host.h>
 
-#include "wilc_wfi_netdevice.h"
-#include "wilc_wfi_cfgoperations.h"
+#include "netdev.h"
+#include "cfg80211.h"
 
 #define SDIO_MODALIAS "wilc1000_sdio"
 

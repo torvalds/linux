@@ -10,8 +10,8 @@
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 
-#include "wilc_wfi_cfgoperations.h"
-#include "wilc_wlan_cfg.h"
+#include "cfg80211.h"
+#include "wlan_cfg.h"
 
 #define WILC_MULTICAST_TABLE_SIZE	8
 

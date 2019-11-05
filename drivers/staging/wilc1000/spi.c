@@ -7,8 +7,8 @@
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
 
-#include "wilc_wfi_netdevice.h"
-#include "wilc_wfi_cfgoperations.h"
+#include "netdev.h"
+#include "cfg80211.h"
 
 struct wilc_spi {
 	int crc_off;

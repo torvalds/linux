@@ -6,7 +6,7 @@
 
 #ifndef NM_WFI_CFGOPERATIONS
 #define NM_WFI_CFGOPERATIONS
-#include "wilc_wfi_netdevice.h"
+#include "netdev.h"
 
 struct wiphy *wilc_cfg_alloc(void);
 int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,

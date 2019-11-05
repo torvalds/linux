@@ -4,7 +4,7 @@
  * All rights reserved.
  */
 
-#include "wilc_wfi_netdevice.h"
+#include "netdev.h"
 
 #define WILC_HIF_SCAN_TIMEOUT_MS                5000
 #define WILC_HIF_CONNECT_TIMEOUT_MS             9500

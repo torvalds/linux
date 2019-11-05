@@ -4,7 +4,7 @@
  * All rights reserved.
  */
 
-#include "wilc_wfi_cfgoperations.h"
+#include "cfg80211.h"
 
 struct wilc_wfi_radiotap_hdr {
 	struct ieee80211_radiotap_header hdr;

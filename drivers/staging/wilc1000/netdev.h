@@ -14,9 +14,9 @@
 #include <linux/if_arp.h>
 #include <linux/gpio/consumer.h>
 
-#include "wilc_hif.h"
-#include "wilc_wlan.h"
-#include "wilc_wlan_cfg.h"
+#include "hif.h"
+#include "wlan.h"
+#include "wlan_cfg.h"
 
 #define FLOW_CONTROL_LOWER_THRESHOLD		128
 #define FLOW_CONTROL_UPPER_THRESHOLD		256

@@ -6,8 +6,8 @@
 
 #include <linux/if_ether.h>
 #include <linux/ip.h>
-#include "wilc_wfi_cfgoperations.h"
-#include "wilc_wlan_cfg.h"
+#include "cfg80211.h"
+#include "wlan_cfg.h"
 
 static inline bool is_wilc1000(u32 id)
 {
