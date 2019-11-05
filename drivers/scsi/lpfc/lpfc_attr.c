@@ -5981,7 +5981,7 @@ lpfc_ras_fwlog_buffsize_set(struct lpfc_hba  *phba, uint val)
 	if (phba->cfg_ras_fwlog_buffsize == val)
 		return 0;
 
-	if (phba->cfg_ras_fwlog_func == PCI_FUNC(phba->pcidev->devfn))
+	if (phba->cfg_ras_fwlog_func != PCI_FUNC(phba->pcidev->devfn))
 		return -EINVAL;
 
 	spin_lock_irq(&phba->hbalock);
