@@ -1066,7 +1066,7 @@ virtio_transport_recv_listen(struct sock *sk, struct virtio_vsock_pkt *pkt)
 		return -ENOMEM;
 	}
 
-	sk->sk_ack_backlog++;
+	sk_acceptq_added(sk);
 
 	lock_sock_nested(child, SINGLE_DEPTH_NESTING);
 

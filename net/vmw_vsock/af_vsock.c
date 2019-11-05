@@ -439,7 +439,7 @@ static void vsock_pending_work(struct work_struct *work)
 	if (vsock_is_pending(sk)) {
 		vsock_remove_pending(listener, sk);
 
-		listener->sk_ack_backlog--;
+		sk_acceptq_removed(listener);
 	} else if (!vsk->rejected) {
 		/* We are not on the pending list and accept() did not reject
 		 * us, so we must have been accepted by our user process.  We
@@ -1299,7 +1299,7 @@ static int vsock_accept(struct socket *sock, struct socket *newsock, int flags,
 		err = -listener->sk_err;
 
 	if (connected) {
-		listener->sk_ack_backlog--;
+		sk_acceptq_removed(listener);
 
 		lock_sock_nested(connected, SINGLE_DEPTH_NESTING);
 		vconnected = vsock_sk(connected);

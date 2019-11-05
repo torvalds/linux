@@ -891,7 +891,7 @@ static int x25_accept(struct socket *sock, struct socket *newsock, int flags,
 	/* Now attach up the new socket */
 	skb->sk = NULL;
 	kfree_skb(skb);
-	sk->sk_ack_backlog--;
+	sk_acceptq_removed(sk);
 	newsock->state = SS_CONNECTED;
 	rc = 0;
 out2:
@@ -1062,7 +1062,7 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	skb_copy_from_linear_data(skb, makex25->calluserdata.cuddata, skb->len);
 	makex25->calluserdata.cudlength = skb->len;
 
-	sk->sk_ack_backlog++;
+	sk_acceptq_added(sk);
 
 	x25_insert_socket(make);
 

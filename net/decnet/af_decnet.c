@@ -1091,7 +1091,7 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags,
 	}
 
 	cb = DN_SKB_CB(skb);
-	sk->sk_ack_backlog--;
+	sk_acceptq_removed(sk);
 	newsk = dn_alloc_sock(sock_net(sk), newsock, sk->sk_allocation, kern);
 	if (newsk == NULL) {
 		release_sock(sk);
