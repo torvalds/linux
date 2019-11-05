@@ -2603,37 +2603,18 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
  * These DAIs's widgets will be freed in the card cleanup and the DAIs
  * will be freed in the component cleanup.
  */
-int snd_soc_register_dai(struct snd_soc_component *component,
-			 struct snd_soc_dai_driver *dai_drv,
-			 bool legacy_dai_naming)
+struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
+					 struct snd_soc_dai_driver *dai_drv,
+					 bool legacy_dai_naming)
 {
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
-	struct snd_soc_dai *dai;
-	int ret;
-
 	if (dai_drv->dobj.type != SND_SOC_DOBJ_PCM) {
 		dev_err(component->dev, "Invalid dai type %d\n",
 			dai_drv->dobj.type);
-		return -EINVAL;
+		return NULL;
 	}
 
 	lockdep_assert_held(&client_mutex);
-	dai = soc_add_dai(component, dai_drv, legacy_dai_naming);
-	if (!dai)
-		return -ENOMEM;
-
-	/*
-	 * Create the DAI widgets here. After adding DAIs, topology may
-	 * also add routes that need these widgets as source or sink.
-	 */
-	ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
-	if (ret != 0) {
-		dev_err(component->dev,
-			"Failed to create DAI widgets %d\n", ret);
-	}
-
-	return ret;
+	return soc_add_dai(component, dai_drv, legacy_dai_naming);
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 
