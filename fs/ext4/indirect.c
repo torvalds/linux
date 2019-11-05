@@ -699,27 +699,62 @@ int ext4_ind_trans_blocks(struct inode *inode, int nrblocks)
 	return DIV_ROUND_UP(nrblocks, EXT4_ADDR_PER_BLOCK(inode->i_sb)) + 4;
 }
 
+static int ext4_ind_trunc_restart_fn(handle_t *handle, struct inode *inode,
+				     struct buffer_head *bh, int *dropped)
+{
+	int err;
+
+	if (bh) {
+		BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
+		err = ext4_handle_dirty_metadata(handle, inode, bh);
+		if (unlikely(err))
+			return err;
+	}
+	err = ext4_mark_inode_dirty(handle, inode);
+	if (unlikely(err))
+		return err;
+	/*
+	 * Drop i_data_sem to avoid deadlock with ext4_map_blocks.  At this
+	 * moment, get_block can be called only for blocks inside i_size since
+	 * page cache has been already dropped and writes are blocked by
+	 * i_mutex. So we can safely drop the i_data_sem here.
+	 */
+	BUG_ON(EXT4_JOURNAL(inode) == NULL);
+	ext4_discard_preallocations(inode);
+	up_write(&EXT4_I(inode)->i_data_sem);
+	*dropped = 1;
+	return 0;
+}
+
 /*
  * Truncate transactions can be complex and absolutely huge.  So we need to
  * be able to restart the transaction at a conventient checkpoint to make
  * sure we don't overflow the journal.
  *
  * Try to extend this transaction for the purposes of truncation.  If
- * extend fails, we need to propagate the failure up and restart the
- * transaction in the top-level truncate loop. --sct
- *
- * Returns 0 if we managed to create more room.  If we can't create more
- * room, and the transaction must be restarted we return 1.
+ * extend fails, we restart transaction.
  */
-static int try_to_extend_transaction(handle_t *handle, struct inode *inode)
+static int ext4_ind_truncate_ensure_credits(handle_t *handle,
+					    struct inode *inode,
+					    struct buffer_head *bh)
 {
-	if (!ext4_handle_valid(handle))
-		return 0;
-	if (ext4_handle_has_enough_credits(handle, EXT4_RESERVE_TRANS_BLOCKS+1))
-		return 0;
-	if (!ext4_journal_extend(handle, ext4_blocks_for_truncate(inode)))
-		return 0;
-	return 1;
+	int ret;
+	int dropped = 0;
+
+	ret = ext4_journal_ensure_credits_fn(handle, EXT4_RESERVE_TRANS_BLOCKS,
+			ext4_blocks_for_truncate(inode),
+			ext4_ind_trunc_restart_fn(handle, inode, bh, &dropped));
+	if (dropped)
+		down_write(&EXT4_I(inode)->i_data_sem);
+	if (ret <= 0)
+		return ret;
+	if (bh) {
+		BUFFER_TRACE(bh, "retaking write access");
+		ret = ext4_journal_get_write_access(handle, bh);
+		if (unlikely(ret))
+			return ret;
+	}
+	return 0;
 }
 
 /*
@@ -854,27 +889,9 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 		return 1;
 	}
 
-	if (try_to_extend_transaction(handle, inode)) {
-		if (bh) {
-			BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
-			err = ext4_handle_dirty_metadata(handle, inode, bh);
-			if (unlikely(err))
-				goto out_err;
-		}
-		err = ext4_mark_inode_dirty(handle, inode);
-		if (unlikely(err))
-			goto out_err;
-		err = ext4_truncate_restart_trans(handle, inode,
-					ext4_blocks_for_truncate(inode));
-		if (unlikely(err))
-			goto out_err;
-		if (bh) {
-			BUFFER_TRACE(bh, "retaking write access");
-			err = ext4_journal_get_write_access(handle, bh);
-			if (unlikely(err))
-				goto out_err;
-		}
-	}
+	err = ext4_ind_truncate_ensure_credits(handle, inode, bh);
+	if (err < 0)
+		goto out_err;
 
 	for (p = first; p < last; p++)
 		*p = 0;
@@ -1057,11 +1074,9 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			 */
 			if (ext4_handle_is_aborted(handle))
 				return;
-			if (try_to_extend_transaction(handle, inode)) {
-				ext4_mark_inode_dirty(handle, inode);
-				ext4_truncate_restart_trans(handle, inode,
-					    ext4_blocks_for_truncate(inode));
-			}
+			if (ext4_ind_truncate_ensure_credits(handle, inode,
+							     NULL) < 0)
+				return;
 
 			/*
 			 * The forget flag here is critical because if

@@ -346,6 +346,54 @@ static inline int ext4_journal_restart(handle_t *handle, int nblocks)
 	return 0;
 }
 
+int __ext4_journal_ensure_credits(handle_t *handle, int check_cred,
+				  int extend_cred);
+
+
+/*
+ * Ensure @handle has at least @check_creds credits available. If not,
+ * transaction will be extended or restarted to contain at least @extend_cred
+ * credits. Before restarting transaction @fn is executed to allow for cleanup
+ * before the transaction is restarted.
+ *
+ * The return value is < 0 in case of error, 0 in case the handle has enough
+ * credits or transaction extension succeeded, 1 in case transaction had to be
+ * restarted.
+ */
+#define ext4_journal_ensure_credits_fn(handle, check_cred, extend_cred, fn) \
+({									\
+	__label__ __ensure_end;						\
+	int err = __ext4_journal_ensure_credits((handle), (check_cred),	\
+						(extend_cred));		\
+									\
+	if (err <= 0)							\
+		goto __ensure_end;					\
+	err = (fn);							\
+	if (err < 0)							\
+		goto __ensure_end;					\
+	err = ext4_journal_restart((handle), (extend_cred));		\
+	if (err == 0)							\
+		err = 1;						\
+__ensure_end:								\
+	err;								\
+})
+
+/*
+ * Ensure given handle has at least requested amount of credits available,
+ * possibly restarting transaction if needed.
+ */
+static inline int ext4_journal_ensure_credits(handle_t *handle, int credits)
+{
+	return ext4_journal_ensure_credits_fn(handle, credits, credits, 0);
+}
+
+static inline int ext4_journal_ensure_credits_batch(handle_t *handle,
+						    int credits)
+{
+	return ext4_journal_ensure_credits_fn(handle, credits,
+					      EXT4_MAX_TRANS_DATA, 0);
+}
+
 static inline int ext4_journal_blocks_per_page(struct inode *inode)
 {
 	if (EXT4_JOURNAL(inode) != NULL)

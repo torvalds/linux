@@ -133,6 +133,17 @@ handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
 	return handle;
 }
 
+int __ext4_journal_ensure_credits(handle_t *handle, int check_cred,
+				  int extend_cred)
+{
+	if (!ext4_handle_valid(handle))
+		return 0;
+	if (handle->h_buffer_credits >= check_cred)
+		return 0;
+	return ext4_journal_extend(handle,
+				   extend_cred - handle->h_buffer_credits);
+}
+
 static void ext4_journal_abort_handle(const char *caller, unsigned int line,
 				      const char *err_fn,
 				      struct buffer_head *bh,

@@ -164,32 +164,6 @@ int ext4_inode_is_fast_symlink(struct inode *inode)
 }
 
 /*
- * Restart the transaction associated with *handle.  This does a commit,
- * so before we call here everything must be consistently dirtied against
- * this transaction.
- */
-int ext4_truncate_restart_trans(handle_t *handle, struct inode *inode,
-				 int nblocks)
-{
-	int ret;
-
-	/*
-	 * Drop i_data_sem to avoid deadlock with ext4_map_blocks.  At this
-	 * moment, get_block can be called only for blocks inside i_size since
-	 * page cache has been already dropped and writes are blocked by
-	 * i_mutex. So we can safely drop the i_data_sem here.
-	 */
-	BUG_ON(EXT4_JOURNAL(inode) == NULL);
-	jbd_debug(2, "restarting handle %p\n", handle);
-	up_write(&EXT4_I(inode)->i_data_sem);
-	ret = ext4_journal_restart(handle, nblocks);
-	down_write(&EXT4_I(inode)->i_data_sem);
-	ext4_discard_preallocations(inode);
-
-	return ret;
-}
-
-/*
  * Called at the last iput() if i_nlink is zero.
  */
 void ext4_evict_inode(struct inode *inode)
