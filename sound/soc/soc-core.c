@@ -2532,6 +2532,12 @@ static inline char *fmt_multiple_name(struct device *dev,
 	return devm_kstrdup(dev, dai_drv->name, GFP_KERNEL);
 }
 
+static void soc_del_dai(struct snd_soc_dai *dai)
+{
+	dev_dbg(dai->dev, "ASoC: Unregistered DAI '%s'\n", dai->name);
+	list_del(&dai->list);
+}
+
 /* Create a DAI and add it to the component's DAI list */
 static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 	struct snd_soc_dai_driver *dai_drv,
@@ -2580,6 +2586,12 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
 	return dai;
 }
+
+void snd_soc_unregister_dai(struct snd_soc_dai *dai)
+{
+	soc_del_dai(dai);
+}
+EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
 
 /**
  * snd_soc_register_dai - Register a DAI dynamically & create its widgets
@@ -2633,11 +2645,8 @@ static void snd_soc_unregister_dais(struct snd_soc_component *component)
 {
 	struct snd_soc_dai *dai, *_dai;
 
-	for_each_component_dais_safe(component, dai, _dai) {
-		dev_dbg(component->dev, "ASoC: Unregistered DAI '%s'\n",
-			dai->name);
-		list_del(&dai->list);
-	}
+	for_each_component_dais_safe(component, dai, _dai)
+		snd_soc_unregister_dai(dai);
 }
 
 /**
