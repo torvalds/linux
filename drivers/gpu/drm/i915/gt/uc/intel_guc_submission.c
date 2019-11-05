@@ -1011,74 +1011,28 @@ void intel_guc_submission_fini(struct intel_guc *guc)
 
 static void guc_interrupts_capture(struct intel_gt *gt)
 {
-	struct intel_rps *rps = &gt->rps;
 	struct intel_uncore *uncore = gt->uncore;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int irqs;
+	u32 irqs = GT_CONTEXT_SWITCH_INTERRUPT;
+	u32 dmask = irqs << 16 | irqs;
 
-	/* tell all command streamers to forward interrupts (but not vblank)
-	 * to GuC
-	 */
-	irqs = _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, gt, id)
-		ENGINE_WRITE(engine, RING_MODE_GEN7, irqs);
+	GEM_BUG_ON(INTEL_GEN(gt->i915) < 11);
 
-	/* route USER_INTERRUPT to Host, all others are sent to GuC. */
-	irqs = GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
-	       GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
-	/* These three registers have the same bit definitions */
-	intel_uncore_write(uncore, GUC_BCS_RCS_IER, ~irqs);
-	intel_uncore_write(uncore, GUC_VCS2_VCS1_IER, ~irqs);
-	intel_uncore_write(uncore, GUC_WD_VECS_IER, ~irqs);
-
-	/*
-	 * The REDIRECT_TO_GUC bit of the PMINTRMSK register directs all
-	 * (unmasked) PM interrupts to the GuC. All other bits of this
-	 * register *disable* generation of a specific interrupt.
-	 *
-	 * 'pm_intrmsk_mbz' indicates bits that are NOT to be set when
-	 * writing to the PM interrupt mask register, i.e. interrupts
-	 * that must not be disabled.
-	 *
-	 * If the GuC is handling these interrupts, then we must not let
-	 * the PM code disable ANY interrupt that the GuC is expecting.
-	 * So for each ENABLED (0) bit in this register, we must SET the
-	 * bit in pm_intrmsk_mbz so that it's left enabled for the GuC.
-	 * GuC needs ARAT expired interrupt unmasked hence it is set in
-	 * pm_intrmsk_mbz.
-	 *
-	 * Here we CLEAR REDIRECT_TO_GUC bit in pm_intrmsk_mbz, which will
-	 * result in the register bit being left SET!
-	 */
-	rps->pm_intrmsk_mbz |= ARAT_EXPIRED_INTRMSK;
-	rps->pm_intrmsk_mbz &= ~GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
+	/* Don't handle the ctx switch interrupt in GuC submission mode */
+	intel_uncore_rmw(uncore, GEN11_RENDER_COPY_INTR_ENABLE, dmask, 0);
+	intel_uncore_rmw(uncore, GEN11_VCS_VECS_INTR_ENABLE, dmask, 0);
 }
 
 static void guc_interrupts_release(struct intel_gt *gt)
 {
-	struct intel_rps *rps = &gt->rps;
 	struct intel_uncore *uncore = gt->uncore;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int irqs;
+	u32 irqs = GT_CONTEXT_SWITCH_INTERRUPT;
+	u32 dmask = irqs << 16 | irqs;
 
-	/*
-	 * tell all command streamers NOT to forward interrupts or vblank
-	 * to GuC.
-	 */
-	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
-	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, gt, id)
-		ENGINE_WRITE(engine, RING_MODE_GEN7, irqs);
+	GEM_BUG_ON(INTEL_GEN(gt->i915) < 11);
 
-	/* route all GT interrupts to the host */
-	intel_uncore_write(uncore, GUC_BCS_RCS_IER, 0);
-	intel_uncore_write(uncore, GUC_VCS2_VCS1_IER, 0);
-	intel_uncore_write(uncore, GUC_WD_VECS_IER, 0);
-
-	rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
-	rps->pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
+	/* Handle ctx switch interrupts again */
+	intel_uncore_rmw(uncore, GEN11_RENDER_COPY_INTR_ENABLE, 0, dmask);
+	intel_uncore_rmw(uncore, GEN11_VCS_VECS_INTR_ENABLE, 0, dmask);
 }
 
 static void guc_set_default_submission(struct intel_engine_cs *engine)

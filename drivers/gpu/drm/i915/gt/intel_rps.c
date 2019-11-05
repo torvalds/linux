@@ -1663,7 +1663,7 @@ void intel_rps_init(struct intel_rps *rps)
 	if (INTEL_GEN(i915) <= 7)
 		rps->pm_intrmsk_mbz |= GEN6_PM_RP_UP_EI_EXPIRED;
 
-	if (INTEL_GEN(i915) >= 8)
+	if (INTEL_GEN(i915) >= 8 && INTEL_GEN(i915) < 11)
 		rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 }
 
