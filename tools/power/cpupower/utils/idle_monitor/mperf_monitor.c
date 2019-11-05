@@ -19,6 +19,10 @@
 #define MSR_APERF	0xE8
 #define MSR_MPERF	0xE7
 
+#define RDPRU ".byte 0x0f, 0x01, 0xfd"
+#define RDPRU_ECX_MPERF	0
+#define RDPRU_ECX_APERF	1
+
 #define MSR_TSC	0x10
 
 #define MSR_AMD_HWCR 0xc0010015
@@ -89,6 +93,8 @@ static int mperf_get_tsc(unsigned long long *tsc)
 static int get_aperf_mperf(int cpu, unsigned long long *aval,
 				    unsigned long long *mval)
 {
+	unsigned long low_a, high_a;
+	unsigned long low_m, high_m;
 	int ret;
 
 	/*
@@ -99,6 +105,20 @@ static int get_aperf_mperf(int cpu, unsigned long long *aval,
 	if (mperf_monitor.flags.per_cpu_schedule) {
 		if (bind_cpu(cpu))
 			return 1;
+	}
+
+	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_RDPRU) {
+		asm volatile(RDPRU
+			     : "=a" (low_a), "=d" (high_a)
+			     : "c" (RDPRU_ECX_APERF));
+		asm volatile(RDPRU
+			     : "=a" (low_m), "=d" (high_m)
+			     : "c" (RDPRU_ECX_MPERF));
+
+		*aval = ((low_a) | (high_a) << 32);
+		*mval = ((low_m) | (high_m) << 32);
+
+		return 0;
 	}
 
 	ret  = read_msr(cpu, MSR_APERF, aval);
