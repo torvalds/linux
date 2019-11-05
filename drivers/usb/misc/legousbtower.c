@@ -457,9 +457,6 @@ exit:
  */
 static void tower_abort_transfers (struct lego_usb_tower *dev)
 {
-	if (dev == NULL)
-		return;
-
 	/* shutdown transfer */
 	if (dev->interrupt_in_running) {
 		dev->interrupt_in_running = 0;
