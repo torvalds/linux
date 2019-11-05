@@ -1097,6 +1097,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 		struct dc_stream_state *stream)
 {
 	struct dc *dc = stream->ctx->dc;
+	struct dce_hwseq *hws = dc->hwseq;
 	struct resource_context *res_ctx = &context->res_ctx;
 	unsigned int underlay_idx = pool->underlay_pipe_index;
 	struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[underlay_idx];
@@ -1117,7 +1118,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 		struct tg_color black_color = {0};
 		struct dc_bios *dcb = dc->ctx->dc_bios;
 
-		dc->hwss.enable_display_power_gating(
+		hws->funcs.enable_display_power_gating(
 				dc,
 				pipe_ctx->stream_res.tg->inst,
 				dcb, PIPE_GATING_CONTROL_DISABLE);

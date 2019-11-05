@@ -33,9 +33,6 @@
 #include "resource.h"
 #include "ipp.h"
 #include "timing_generator.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-#include "dcn10/dcn10_hw_sequencer.h"
-#endif
 
 #define DC_LOGGER dc->ctx->logger
 

@@ -26,6 +26,8 @@
 #ifndef __DC_HWSS_DCN21_H__
 #define __DC_HWSS_DCN21_H__
 
+#include "hw_sequencer_private.h"
+
 struct dc;
 
 int dcn21_init_sys_ctx(struct dce_hwseq *hws,

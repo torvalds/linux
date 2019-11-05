@@ -26,6 +26,8 @@
 #ifndef __DC_HWSS_DCN20_H__
 #define __DC_HWSS_DCN20_H__
 
+#include "hw_sequencer_private.h"
+
 bool dcn20_set_blend_lut(
 	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state);
 bool dcn20_set_shaper_3dlut(
@@ -111,6 +113,7 @@ void dcn20_disable_writeback(
 void dcn20_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx);
 bool dcn20_dmdata_status_done(struct pipe_ctx *pipe_ctx);
 void dcn20_program_dmdata_engine(struct pipe_ctx *pipe_ctx);
+void dcn20_set_dmdata_attributes(struct pipe_ctx *pipe_ctx);
 void dcn20_init_vm_ctx(
 		struct dce_hwseq *hws,
 		struct dc *dc,

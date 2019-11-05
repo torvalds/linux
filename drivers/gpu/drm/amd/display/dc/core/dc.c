@@ -2004,6 +2004,12 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				dc->hwss.update_info_frame(pipe_ctx);
 			}
 
+			if (stream_update->hdr_static_metadata &&
+					stream->use_dynamic_meta &&
+					dc->hwss.set_dmdata_attributes &&
+					pipe_ctx->stream->dmdata_address.quad_part != 0)
+				dc->hwss.set_dmdata_attributes(pipe_ctx);
+
 			if (stream_update->gamut_remap)
 				dc_stream_set_gamut_remap(dc, stream);
 

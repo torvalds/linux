@@ -25,7 +25,7 @@
 #ifndef __DCE_HWSEQ_H__
 #define __DCE_HWSEQ_H__
 
-#include "hw_sequencer.h"
+#include "dc_types.h"
 
 #define BL_REG_LIST()\
 	SR(LVTMA_PWRSEQ_CNTL), \
@@ -810,6 +810,10 @@ enum blnd_mode {
 	BLND_MODE_OTHER_PIPE, /* Data from other pipe only */
 	BLND_MODE_BLENDING,/* Alpha blending - blend 'current' and 'other' */
 };
+
+struct dce_hwseq;
+struct pipe_ctx;
+struct clock_source;
 
 void dce_enable_fe_clock(struct dce_hwseq *hwss,
 		unsigned int inst, bool enable);

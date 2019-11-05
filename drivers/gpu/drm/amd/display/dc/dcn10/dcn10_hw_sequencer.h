@@ -27,6 +27,7 @@
 #define __DC_HWSS_DCN10_H__
 
 #include "core_types.h"
+#include "hw_sequencer_private.h"
 
 struct dc;
 

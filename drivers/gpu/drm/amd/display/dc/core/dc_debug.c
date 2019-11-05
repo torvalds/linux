@@ -33,7 +33,6 @@
 
 #include "core_status.h"
 #include "core_types.h"
-#include "hw_sequencer.h"
 
 #include "resource.h"
 
