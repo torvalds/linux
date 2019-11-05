@@ -290,10 +290,12 @@ err:
 		ret2 = PTR_ERR_OR_ZERO(inode_iter);
 
 		if (!ret2 &&
-		    inode_u.bi_size < new_i_size)
+		    inode_u.bi_size < new_i_size) {
+			inode_u.bi_size = new_i_size;
 			ret2  = bch2_inode_write(&trans, inode_iter, &inode_u) ?:
 				bch2_trans_commit(&trans, NULL, journal_seq,
 						  BTREE_INSERT_ATOMIC);
+		}
 	} while (ret2 == -EINTR);
 
 	ret = bch2_trans_exit(&trans) ?: ret;

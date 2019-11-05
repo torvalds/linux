@@ -2799,8 +2799,8 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	struct bch_inode_info *dst = file_bch_inode(file_dst);
 	struct bch_fs *c = src->v.i_sb->s_fs_info;
 	s64 i_sectors_delta = 0;
+	u64 aligned_len;
 	loff_t ret = 0;
-	loff_t aligned_len;
 
 	if (remap_flags & ~(REMAP_FILE_DEDUP|REMAP_FILE_ADVISORY))
 		return -EINVAL;
@@ -2829,10 +2829,10 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	if (ret < 0 || len == 0)
 		goto err;
 
-	aligned_len = round_up(len, block_bytes(c));
+	aligned_len = round_up((u64) len, block_bytes(c));
 
 	ret = write_invalidate_inode_pages_range(dst->v.i_mapping,
-				pos_dst, pos_dst + aligned_len);
+				pos_dst, pos_dst + len - 1);
 	if (ret)
 		goto err;
 
@@ -2847,18 +2847,17 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	if (ret < 0)
 		goto err;
 
-	ret <<= 9;
 	/*
 	 * due to alignment, we might have remapped slightly more than requsted
 	 */
-	ret = min(ret, len);
+	ret = min((u64) ret << 9, (u64) len);
 
 	/* XXX get a quota reservation */
 	i_sectors_acct(c, dst, NULL, i_sectors_delta);
 
 	spin_lock(&dst->v.i_lock);
-	if (pos_dst + len > dst->v.i_size)
-		i_size_write(&dst->v, pos_dst + len);
+	if (pos_dst + ret > dst->v.i_size)
+		i_size_write(&dst->v, pos_dst + ret);
 	spin_unlock(&dst->v.i_lock);
 err:
 	bch2_unlock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
