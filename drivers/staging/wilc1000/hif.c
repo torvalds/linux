@@ -552,7 +552,7 @@ void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 
 		param->mode_802_11i = 2;
 		param->rsn_found = true;
-		//extract RSN capabilities
+		/* extract RSN capabilities */
 		offset += (rsn_ie[offset] * 4) + 2;
 		offset += (rsn_ie[offset] * 4) + 2;
 		memcpy(param->rsn_cap, &rsn_ie[offset], 2);
