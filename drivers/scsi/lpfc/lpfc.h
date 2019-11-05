@@ -1215,6 +1215,13 @@ struct lpfc_hba {
 	uint64_t ktime_seg10_min;
 	uint64_t ktime_seg10_max;
 #endif
+
+	struct hlist_node cpuhp;	/* used for cpuhp per hba callback */
+	struct timer_list cpuhp_poll_timer;
+	struct list_head poll_list;	/* slowpath eq polling list */
+#define LPFC_POLL_HB	1		/* slowpath heartbeat */
+#define LPFC_POLL_FASTPATH	0	/* called from fastpath */
+#define LPFC_POLL_SLOWPATH	1	/* called from slowpath */
 };
 
 static inline struct Scsi_Host *

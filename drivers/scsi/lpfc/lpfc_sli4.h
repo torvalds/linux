@@ -133,6 +133,23 @@ struct lpfc_rqb {
 struct lpfc_queue {
 	struct list_head list;
 	struct list_head wq_list;
+
+	/*
+	 * If interrupts are in effect on _all_ the eq's the footprint
+	 * of polling code is zero (except mode). This memory is chec-
+	 * ked for every io to see if the io needs to be polled and
+	 * while completion to check if the eq's needs to be rearmed.
+	 * Keep in same cacheline as the queue ptr to avoid cpu fetch
+	 * stalls. Using 1B memory will leave us with 7B hole. Fill
+	 * it with other frequently used members.
+	 */
+	uint16_t last_cpu;	/* most recent cpu */
+	uint16_t hdwq;
+	uint8_t	 qe_valid;
+	uint8_t  mode;	/* interrupt or polling */
+#define LPFC_EQ_INTERRUPT	0
+#define LPFC_EQ_POLL		1
+
 	struct list_head wqfull_list;
 	enum lpfc_sli4_queue_type type;
 	enum lpfc_sli4_queue_subtype subtype;
@@ -240,10 +257,8 @@ struct lpfc_queue {
 	struct delayed_work	sched_spwork;
 
 	uint64_t isr_timestamp;
-	uint16_t hdwq;
-	uint16_t last_cpu;	/* most recent cpu */
-	uint8_t	qe_valid;
 	struct lpfc_queue *assoc_qp;
+	struct list_head _poll_list;
 	void **q_pgs;	/* array to index entries per page */
 };
 

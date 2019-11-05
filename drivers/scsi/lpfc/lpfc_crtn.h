@@ -215,6 +215,12 @@ irqreturn_t lpfc_sli_fp_intr_handler(int, void *);
 irqreturn_t lpfc_sli4_intr_handler(int, void *);
 irqreturn_t lpfc_sli4_hba_intr_handler(int, void *);
 
+inline void lpfc_sli4_cleanup_poll_list(struct lpfc_hba *phba);
+int lpfc_sli4_poll_eq(struct lpfc_queue *q, uint8_t path);
+void lpfc_sli4_poll_hbtimer(struct timer_list *t);
+void lpfc_sli4_start_polling(struct lpfc_queue *q);
+void lpfc_sli4_stop_polling(struct lpfc_queue *q);
+
 void lpfc_read_rev(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_sli4_swap_str(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_config_ring(struct lpfc_hba *, int, LPFC_MBOXQ_t *);

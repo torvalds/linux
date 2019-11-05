@@ -40,6 +40,7 @@
 #include <linux/irq.h>
 #include <linux/bitops.h>
 #include <linux/crash_dump.h>
+#include <linux/cpuhotplug.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -66,9 +67,13 @@
 #include "lpfc_version.h"
 #include "lpfc_ids.h"
 
+static enum cpuhp_state lpfc_cpuhp_state;
 /* Used when mapping IRQ vectors in a driver centric manner */
 static uint32_t lpfc_present_cpu;
 
+static void __lpfc_cpuhp_remove(struct lpfc_hba *phba);
+static void lpfc_cpuhp_remove(struct lpfc_hba *phba);
+static void lpfc_cpuhp_add(struct lpfc_hba *phba);
 static void lpfc_get_hba_model_desc(struct lpfc_hba *, uint8_t *, uint8_t *);
 static int lpfc_post_rcv_buf(struct lpfc_hba *);
 static int lpfc_sli4_queue_verify(struct lpfc_hba *);
@@ -3379,6 +3384,8 @@ lpfc_online(struct lpfc_hba *phba)
 	if (phba->cfg_xri_rebalancing)
 		lpfc_create_multixri_pools(phba);
 
+	lpfc_cpuhp_add(phba);
+
 	lpfc_unblock_mgmt_io(phba);
 	return 0;
 }
@@ -3542,6 +3549,7 @@ lpfc_offline(struct lpfc_hba *phba)
 			spin_unlock_irq(shost->host_lock);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
+	__lpfc_cpuhp_remove(phba);
 
 	if (phba->cfg_xri_rebalancing)
 		lpfc_destroy_multixri_pools(phba);
@@ -9255,6 +9263,8 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 	}
 	spin_unlock_irq(&phba->hbalock);
 
+	lpfc_sli4_cleanup_poll_list(phba);
+
 	/* Release HBA eqs */
 	if (phba->sli4_hba.hdwq)
 		lpfc_sli4_release_hdwq(phba);
@@ -11058,6 +11068,170 @@ found_any:
 }
 
 /**
+ * lpfc_cpuhp_get_eq
+ *
+ * @phba:   pointer to lpfc hba data structure.
+ * @cpu:    cpu going offline
+ * @eqlist:
+ */
+static void
+lpfc_cpuhp_get_eq(struct lpfc_hba *phba, unsigned int cpu,
+		  struct list_head *eqlist)
+{
+	struct lpfc_vector_map_info *map;
+	const struct cpumask *maskp;
+	struct lpfc_queue *eq;
+	unsigned int i;
+	cpumask_t tmp;
+	u16 idx;
+
+	for (idx = 0; idx < phba->cfg_irq_chann; idx++) {
+		maskp = pci_irq_get_affinity(phba->pcidev, idx);
+		if (!maskp)
+			continue;
+		/*
+		 * if irq is not affinitized to the cpu going
+		 * then we don't need to poll the eq attached
+		 * to it.
+		 */
+		if (!cpumask_and(&tmp, maskp, cpumask_of(cpu)))
+			continue;
+		/* get the cpus that are online and are affini-
+		 * tized to this irq vector.  If the count is
+		 * more than 1 then cpuhp is not going to shut-
+		 * down this vector.  Since this cpu has not
+		 * gone offline yet, we need >1.
+		 */
+		cpumask_and(&tmp, maskp, cpu_online_mask);
+		if (cpumask_weight(&tmp) > 1)
+			continue;
+
+		/* Now that we have an irq to shutdown, get the eq
+		 * mapped to this irq.  Note: multiple hdwq's in
+		 * the software can share an eq, but eventually
+		 * only eq will be mapped to this vector
+		 */
+		for_each_possible_cpu(i) {
+			map = &phba->sli4_hba.cpu_map[i];
+			if (!(map->irq == pci_irq_vector(phba->pcidev, idx)))
+				continue;
+			eq = phba->sli4_hba.hdwq[map->hdwq].hba_eq;
+			list_add(&eq->_poll_list, eqlist);
+			/* 1 is good enough. others will be a copy of this */
+			break;
+		}
+	}
+}
+
+static void __lpfc_cpuhp_remove(struct lpfc_hba *phba)
+{
+	if (phba->sli_rev != LPFC_SLI_REV4)
+		return;
+
+	cpuhp_state_remove_instance_nocalls(lpfc_cpuhp_state,
+					    &phba->cpuhp);
+	/*
+	 * unregistering the instance doesn't stop the polling
+	 * timer. Wait for the poll timer to retire.
+	 */
+	synchronize_rcu();
+	del_timer_sync(&phba->cpuhp_poll_timer);
+}
+
+static void lpfc_cpuhp_remove(struct lpfc_hba *phba)
+{
+	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
+		return;
+
+	__lpfc_cpuhp_remove(phba);
+}
+
+static void lpfc_cpuhp_add(struct lpfc_hba *phba)
+{
+	if (phba->sli_rev != LPFC_SLI_REV4)
+		return;
+
+	rcu_read_lock();
+
+	if (!list_empty(&phba->poll_list)) {
+		timer_setup(&phba->cpuhp_poll_timer, lpfc_sli4_poll_hbtimer, 0);
+		mod_timer(&phba->cpuhp_poll_timer,
+			  jiffies + msecs_to_jiffies(LPFC_POLL_HB));
+	}
+
+	rcu_read_unlock();
+
+	cpuhp_state_add_instance_nocalls(lpfc_cpuhp_state,
+					 &phba->cpuhp);
+}
+
+static int __lpfc_cpuhp_checks(struct lpfc_hba *phba, int *retval)
+{
+	if (phba->pport->load_flag & FC_UNLOADING) {
+		*retval = -EAGAIN;
+		return true;
+	}
+
+	if (phba->sli_rev != LPFC_SLI_REV4) {
+		*retval = 0;
+		return true;
+	}
+
+	/* proceed with the hotplug */
+	return false;
+}
+
+static int lpfc_cpu_offline(unsigned int cpu, struct hlist_node *node)
+{
+	struct lpfc_hba *phba = hlist_entry_safe(node, struct lpfc_hba, cpuhp);
+	struct lpfc_queue *eq, *next;
+	LIST_HEAD(eqlist);
+	int retval;
+
+	if (!phba) {
+		WARN_ONCE(!phba, "cpu: %u. phba:NULL", raw_smp_processor_id());
+		return 0;
+	}
+
+	if (__lpfc_cpuhp_checks(phba, &retval))
+		return retval;
+
+	lpfc_cpuhp_get_eq(phba, cpu, &eqlist);
+
+	/* start polling on these eq's */
+	list_for_each_entry_safe(eq, next, &eqlist, _poll_list) {
+		list_del_init(&eq->_poll_list);
+		lpfc_sli4_start_polling(eq);
+	}
+
+	return 0;
+}
+
+static int lpfc_cpu_online(unsigned int cpu, struct hlist_node *node)
+{
+	struct lpfc_hba *phba = hlist_entry_safe(node, struct lpfc_hba, cpuhp);
+	struct lpfc_queue *eq, *next;
+	unsigned int n;
+	int retval;
+
+	if (!phba) {
+		WARN_ONCE(!phba, "cpu: %u. phba:NULL", raw_smp_processor_id());
+		return 0;
+	}
+
+	if (__lpfc_cpuhp_checks(phba, &retval))
+		return retval;
+
+	list_for_each_entry_safe(eq, next, &phba->poll_list, _poll_list) {
+		n = lpfc_find_cpu_handle(phba, eq->hdwq, LPFC_FIND_BY_HDWQ);
+		if (n == cpu)
+			lpfc_sli4_stop_polling(eq);
+	}
+
+	return 0;
+}
+
+/**
  * lpfc_sli4_enable_msix - Enable MSI-X interrupt mode to SLI-4 device
  * @phba: pointer to lpfc hba data structure.
  *
@@ -11459,6 +11633,9 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 
 	/* Wait for completion of device XRI exchange busy */
 	lpfc_sli4_xri_exchange_busy_wait(phba);
+
+	/* per-phba callback de-registration for hotplug event */
+	lpfc_cpuhp_remove(phba);
 
 	/* Disable PCI subsystem interrupt */
 	lpfc_sli4_disable_intr(phba);
@@ -12752,6 +12929,9 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Enable RAS FW log support */
 	lpfc_sli4_ras_setup(phba);
 
+	INIT_LIST_HEAD(&phba->poll_list);
+	cpuhp_state_add_instance_nocalls(lpfc_cpuhp_state, &phba->cpuhp);
+
 	return 0;
 
 out_free_sysfs_attr:
@@ -13569,11 +13749,24 @@ lpfc_init(void)
 	/* Initialize in case vector mapping is needed */
 	lpfc_present_cpu = num_present_cpus();
 
+	error = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
+					"lpfc/sli4:online",
+					lpfc_cpu_online, lpfc_cpu_offline);
+	if (error < 0)
+		goto cpuhp_failure;
+	lpfc_cpuhp_state = error;
+
 	error = pci_register_driver(&lpfc_driver);
-	if (error) {
-		fc_release_transport(lpfc_transport_template);
-		fc_release_transport(lpfc_vport_transport_template);
-	}
+	if (error)
+		goto unwind;
+
+	return error;
+
+unwind:
+	cpuhp_remove_multi_state(lpfc_cpuhp_state);
+cpuhp_failure:
+	fc_release_transport(lpfc_transport_template);
+	fc_release_transport(lpfc_vport_transport_template);
 
 	return error;
 }
@@ -13590,6 +13783,7 @@ lpfc_exit(void)
 {
 	misc_deregister(&lpfc_mgmt_dev);
 	pci_unregister_driver(&lpfc_driver);
+	cpuhp_remove_multi_state(lpfc_cpuhp_state);
 	fc_release_transport(lpfc_transport_template);
 	fc_release_transport(lpfc_vport_transport_template);
 	idr_destroy(&lpfc_hba_index);
