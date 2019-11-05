@@ -204,6 +204,12 @@ static const struct config_entry config_table[] = {
 					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
 				}
 			},
+			{
+				.ident = "Dell laptop",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+				}
+			},
 			{}
 		}
 	},
