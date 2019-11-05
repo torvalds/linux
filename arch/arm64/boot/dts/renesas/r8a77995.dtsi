@@ -1024,7 +1024,7 @@
 			reset-names = "du.0";
 
 			renesas,cmms = <&cmm0>, <&cmm1>;
-			vsps = <&vspd0 0>, <&vspd1 0>;
+			renesas,vsps = <&vspd0 0>, <&vspd1 0>;
 
 			status = "disabled";
 

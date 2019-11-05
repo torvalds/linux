@@ -1813,7 +1813,8 @@
 			clocks = <&cpg CPG_MOD 724>,
 				 <&cpg CPG_MOD 723>;
 			clock-names = "du.0", "du.1";
-			vsps = <&vspd0 0>, <&vspd1 0>;
+			renesas,vsps = <&vspd0 0>, <&vspd1 0>;
+
 			status = "disabled";
 
 			ports {

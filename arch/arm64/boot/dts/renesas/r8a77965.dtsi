@@ -2500,7 +2500,7 @@
 			clock-names = "du.0", "du.1", "du.3";
 
 			renesas,cmms = <&cmm0>, <&cmm1>, <&cmm3>;
-			vsps = <&vspd0 0>, <&vspd1 0>, <&vspd0 1>;
+			renesas,vsps = <&vspd0 0>, <&vspd1 0>, <&vspd0 1>;
 
 			status = "disabled";
 

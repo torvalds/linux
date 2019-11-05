@@ -2640,7 +2640,7 @@
 			clock-names = "du.0", "du.1", "du.2";
 			status = "disabled";
 
-			vsps = <&vspd0 0>, <&vspd1 0>, <&vspd2 0>;
+			renesas,vsps = <&vspd0 0>, <&vspd1 0>, <&vspd2 0>;
 
 			ports {
 				#address-cells = <1>;
