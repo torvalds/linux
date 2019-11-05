@@ -747,6 +747,7 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, int revoke_records,
 	journal_t *journal;
 	tid_t		tid;
 	int		need_to_start;
+	int		ret;
 
 	/* If we've had an abort of any type, don't even think about
 	 * actually doing the restart! */
@@ -776,7 +777,12 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, int revoke_records,
 		DIV_ROUND_UP(revoke_records,
 			     journal->j_revoke_records_per_block);
 	handle->h_revoke_credits = revoke_records;
-	return start_this_handle(journal, handle, gfp_mask);
+	ret = start_this_handle(journal, handle, gfp_mask);
+	trace_jbd2_handle_restart(journal->j_fs_dev->bd_dev,
+				 ret ? 0 : handle->h_transaction->t_tid,
+				 handle->h_type, handle->h_line_no,
+				 handle->h_total_credits);
+	return ret;
 }
 EXPORT_SYMBOL(jbd2__journal_restart);
 
