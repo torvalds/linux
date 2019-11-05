@@ -2121,7 +2121,9 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		if (bf_get_be32(prli_init, nvpr))
 			ndlp->nlp_type |= NLP_NVME_INITIATOR;
 
-		if (phba->nsler && bf_get_be32(prli_nsler, nvpr))
+		if (phba->nsler && bf_get_be32(prli_nsler, nvpr) &&
+		    bf_get_be32(prli_conf, nvpr))
+
 			ndlp->nlp_nvme_info |= NLP_NVME_NSLER;
 		else
 			ndlp->nlp_nvme_info &= ~NLP_NVME_NSLER;
