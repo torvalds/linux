@@ -78,7 +78,8 @@ static inline u32 zmii_mode_mask(int mode, int input)
 	}
 }
 
-int zmii_attach(struct platform_device *ofdev, int input, int *mode)
+int zmii_attach(struct platform_device *ofdev, int input,
+		phy_interface_t *mode)
 {
 	struct zmii_instance *dev = platform_get_drvdata(ofdev);
 	struct zmii_regs __iomem *p = dev->base;
