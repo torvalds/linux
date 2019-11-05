@@ -1694,7 +1694,8 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	if (ret < 0)
 		goto fail;
 
-	ret = fw_iso_buffer_map_vma(&client->buffer, vma);
+	ret = vm_map_pages_zero(vma, client->buffer.pages,
+				client->buffer.page_count);
 	if (ret < 0)
 		goto fail;
 
