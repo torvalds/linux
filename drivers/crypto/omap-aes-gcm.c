@@ -148,12 +148,14 @@ static int omap_aes_gcm_copy_buffers(struct omap_aes_dev *dd,
 	if (req->src == req->dst || dd->out_sg == sg_arr)
 		flags |= OMAP_CRYPTO_FORCE_COPY;
 
-	ret = omap_crypto_align_sg(&dd->out_sg, cryptlen,
-				   AES_BLOCK_SIZE, &dd->out_sgl,
-				   flags,
-				   FLAGS_OUT_DATA_ST_SHIFT, &dd->flags);
-	if (ret)
-		return ret;
+	if (cryptlen) {
+		ret = omap_crypto_align_sg(&dd->out_sg, cryptlen,
+					   AES_BLOCK_SIZE, &dd->out_sgl,
+					   flags,
+					   FLAGS_OUT_DATA_ST_SHIFT, &dd->flags);
+		if (ret)
+			return ret;
+	}
 
 	dd->in_sg_len = sg_nents_for_len(dd->in_sg, alen + clen);
 	dd->out_sg_len = sg_nents_for_len(dd->out_sg, clen);
@@ -287,8 +289,12 @@ static int omap_aes_gcm_handle_queue(struct omap_aes_dev *dd,
 		return err;
 
 	err = omap_aes_write_ctrl(dd);
-	if (!err)
-		err = omap_aes_crypt_dma_start(dd);
+	if (!err) {
+		if (dd->in_sg_len && dd->out_sg_len)
+			err = omap_aes_crypt_dma_start(dd);
+		else
+			omap_aes_gcm_dma_out_callback(dd);
+	}
 
 	if (err) {
 		omap_aes_gcm_finish_req(dd, err);
