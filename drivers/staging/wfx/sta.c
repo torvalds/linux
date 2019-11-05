@@ -114,8 +114,6 @@ end:
 static int wfx_set_uapsd_param(struct wfx_vif *wvif,
 			   const struct wfx_edca_params *arg)
 {
-	int ret;
-
 	/* Here's the mapping AC [queue, bit]
 	 *  VO [0,3], VI [1, 2], BE [2, 1], BK [3, 0]
 	 */
@@ -148,8 +146,7 @@ static int wfx_set_uapsd_param(struct wfx_vif *wvif,
 	wvif->uapsd_info.max_auto_trigger_interval = 0;
 	wvif->uapsd_info.auto_trigger_step = 0;
 
-	ret = hif_set_uapsd_info(wvif, &wvif->uapsd_info);
-	return ret;
+	return hif_set_uapsd_info(wvif, &wvif->uapsd_info);
 }
 
 int wfx_fwd_probe_req(struct wfx_vif *wvif, bool enable)
