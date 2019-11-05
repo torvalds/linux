@@ -1688,21 +1688,20 @@ static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 
 static int read_one_block_group(struct btrfs_fs_info *info,
 				struct btrfs_path *path,
+				const struct btrfs_key *key,
 				int need_clear)
 {
 	struct extent_buffer *leaf = path->nodes[0];
 	struct btrfs_block_group_cache *cache;
 	struct btrfs_space_info *space_info;
-	struct btrfs_key key;
 	struct btrfs_block_group_item bgi;
 	const bool mixed = btrfs_fs_incompat(info, MIXED_GROUPS);
 	int slot = path->slots[0];
 	int ret;
 
-	btrfs_item_key_to_cpu(leaf, &key, slot);
-	ASSERT(key.type == BTRFS_BLOCK_GROUP_ITEM_KEY);
+	ASSERT(key->type == BTRFS_BLOCK_GROUP_ITEM_KEY);
 
-	cache = btrfs_create_block_group_cache(info, key.objectid, key.offset);
+	cache = btrfs_create_block_group_cache(info, key->objectid, key->offset);
 	if (!cache)
 		return -ENOMEM;
 
@@ -1751,15 +1750,15 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 	 * are empty, and we can just add all the space in and be done with it.
 	 * This saves us _a_lot_ of time, particularly in the full case.
 	 */
-	if (key.offset == cache->used) {
+	if (key->offset == cache->used) {
 		cache->last_byte_to_unpin = (u64)-1;
 		cache->cached = BTRFS_CACHE_FINISHED;
 		btrfs_free_excluded_extents(cache);
 	} else if (cache->used == 0) {
 		cache->last_byte_to_unpin = (u64)-1;
 		cache->cached = BTRFS_CACHE_FINISHED;
-		add_new_free_space(cache, key.objectid,
-				   key.objectid + key.offset);
+		add_new_free_space(cache, key->objectid,
+				   key->objectid + key->offset);
 		btrfs_free_excluded_extents(cache);
 	}
 
@@ -1769,7 +1768,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 		goto error;
 	}
 	trace_btrfs_add_block_group(info, cache, 0);
-	btrfs_update_space_info(info, cache->flags, key.offset,
+	btrfs_update_space_info(info, cache->flags, key->offset,
 				cache->used, cache->bytes_super, &space_info);
 
 	cache->space_info = space_info;
@@ -1822,7 +1821,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 			goto error;
 
 		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-		ret = read_one_block_group(info, path, need_clear);
+		ret = read_one_block_group(info, path, &key, need_clear);
 		if (ret < 0)
 			goto error;
 		key.objectid += key.offset;
