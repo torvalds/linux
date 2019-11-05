@@ -478,6 +478,7 @@ struct jbd2_revoke_table_s;
  * @h_journal: Which journal handle belongs to - used iff h_reserved set.
  * @h_rsv_handle: Handle reserved for finishing the logical operation.
  * @h_buffer_credits: Number of remaining buffers we are allowed to dirty.
+ * @h_revoke_credits: Number of remaining revoke records available for handle
  * @h_ref: Reference count on this handle.
  * @h_err: Field for caller's use to track errors through large fs operations.
  * @h_sync: Flag for sync-on-close.
@@ -488,6 +489,7 @@ struct jbd2_revoke_table_s;
  * @h_line_no: For handle statistics.
  * @h_start_jiffies: Handle Start time.
  * @h_requested_credits: Holds @h_buffer_credits after handle is started.
+ * @h_revoke_credits_requested: Holds @h_revoke_credits after handle is started.
  * @saved_alloc_context: Saved context while transaction is open.
  **/
 
@@ -505,6 +507,8 @@ struct jbd2_journal_handle
 
 	handle_t		*h_rsv_handle;
 	int			h_buffer_credits;
+	int			h_revoke_credits;
+	int			h_revoke_credits_requested;
 	int			h_ref;
 	int			h_err;
 
@@ -689,6 +693,17 @@ struct transaction_s
 	atomic_t		t_outstanding_credits;
 
 	/*
+	 * Number of revoke records for this transaction added by already
+	 * stopped handles. [none]
+	 */
+	atomic_t		t_outstanding_revokes;
+
+	/*
+	 * How many handles used this transaction? [none]
+	 */
+	atomic_t		t_handle_count;
+
+	/*
 	 * Forward and backward links for the circular list of all transactions
 	 * awaiting checkpoint. [j_list_lock]
 	 */
@@ -704,11 +719,6 @@ struct transaction_s
 	 * When this transaction started, in nanoseconds [no locking]
 	 */
 	ktime_t			t_start_time;
-
-	/*
-	 * How many handles used this transaction? [none]
-	 */
-	atomic_t		t_handle_count;
 
 	/*
 	 * This transaction is being forced and some process is
@@ -1025,6 +1035,13 @@ struct journal_s
 	 * commit transaction.
 	 */
 	int			j_max_transaction_buffers;
+
+	/**
+	 * @j_revoke_records_per_block:
+	 *
+	 * Number of revoke records that fit in one descriptor block.
+	 */
+	int			j_revoke_records_per_block;
 
 	/**
 	 * @j_commit_interval:
@@ -1360,14 +1377,16 @@ static inline handle_t *journal_current_handle(void)
 
 extern handle_t *jbd2_journal_start(journal_t *, int nblocks);
 extern handle_t *jbd2__journal_start(journal_t *, int blocks, int rsv_blocks,
-				     gfp_t gfp_mask, unsigned int type,
-				     unsigned int line_no);
+				     int revoke_records, gfp_t gfp_mask,
+				     unsigned int type, unsigned int line_no);
 extern int	 jbd2_journal_restart(handle_t *, int nblocks);
-extern int	 jbd2__journal_restart(handle_t *, int nblocks, gfp_t gfp_mask);
+extern int	 jbd2__journal_restart(handle_t *, int nblocks,
+				       int revoke_records, gfp_t gfp_mask);
 extern int	 jbd2_journal_start_reserved(handle_t *handle,
 				unsigned int type, unsigned int line_no);
 extern void	 jbd2_journal_free_reserved(handle_t *handle);
-extern int	 jbd2_journal_extend (handle_t *, int nblocks);
+extern int	 jbd2_journal_extend(handle_t *handle, int nblocks,
+				     int revoke_records);
 extern int	 jbd2_journal_get_write_access(handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_get_create_access (handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_get_undo_access(handle_t *, struct buffer_head *);
@@ -1631,7 +1650,11 @@ static inline tid_t  jbd2_get_latest_transaction(journal_t *journal)
 
 static inline int jbd2_handle_buffer_credits(handle_t *handle)
 {
-	return handle->h_buffer_credits;
+	journal_t *journal = handle->h_transaction->t_journal;
+
+	return handle->h_buffer_credits -
+		DIV_ROUND_UP(handle->h_revoke_credits_requested,
+			     journal->j_revoke_records_per_block);
 }
 
 #ifdef __KERNEL__
