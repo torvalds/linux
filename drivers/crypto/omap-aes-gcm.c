@@ -120,6 +120,8 @@ static int omap_aes_gcm_copy_buffers(struct omap_aes_dev *dd,
 					   OMAP_CRYPTO_FORCE_SINGLE_ENTRY,
 					   FLAGS_ASSOC_DATA_ST_SHIFT,
 					   &dd->flags);
+		if (ret)
+			return ret;
 	}
 
 	if (cryptlen) {
@@ -132,6 +134,8 @@ static int omap_aes_gcm_copy_buffers(struct omap_aes_dev *dd,
 					   OMAP_CRYPTO_FORCE_SINGLE_ENTRY,
 					   FLAGS_IN_DATA_ST_SHIFT,
 					   &dd->flags);
+		if (ret)
+			return ret;
 	}
 
 	dd->in_sg = dd->in_sgl;
