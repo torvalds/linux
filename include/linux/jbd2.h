@@ -477,7 +477,8 @@ struct jbd2_revoke_table_s;
  * @h_transaction: Which compound transaction is this update a part of?
  * @h_journal: Which journal handle belongs to - used iff h_reserved set.
  * @h_rsv_handle: Handle reserved for finishing the logical operation.
- * @h_buffer_credits: Number of remaining buffers we are allowed to dirty.
+ * @h_total_credits: Number of remaining buffers we are allowed to add to
+	journal. These are dirty buffers and revoke descriptor blocks.
  * @h_revoke_credits: Number of remaining revoke records available for handle
  * @h_ref: Reference count on this handle.
  * @h_err: Field for caller's use to track errors through large fs operations.
@@ -488,7 +489,7 @@ struct jbd2_revoke_table_s;
  * @h_type: For handle statistics.
  * @h_line_no: For handle statistics.
  * @h_start_jiffies: Handle Start time.
- * @h_requested_credits: Holds @h_buffer_credits after handle is started.
+ * @h_requested_credits: Holds @h_total_credits after handle is started.
  * @h_revoke_credits_requested: Holds @h_revoke_credits after handle is started.
  * @saved_alloc_context: Saved context while transaction is open.
  **/
@@ -506,7 +507,7 @@ struct jbd2_journal_handle
 	};
 
 	handle_t		*h_rsv_handle;
-	int			h_buffer_credits;
+	int			h_total_credits;
 	int			h_revoke_credits;
 	int			h_revoke_credits_requested;
 	int			h_ref;
@@ -1652,7 +1653,7 @@ static inline int jbd2_handle_buffer_credits(handle_t *handle)
 {
 	journal_t *journal = handle->h_transaction->t_journal;
 
-	return handle->h_buffer_credits -
+	return handle->h_total_credits -
 		DIV_ROUND_UP(handle->h_revoke_credits_requested,
 			     journal->j_revoke_records_per_block);
 }

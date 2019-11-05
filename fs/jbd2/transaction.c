@@ -313,12 +313,12 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 			     gfp_t gfp_mask)
 {
 	transaction_t	*transaction, *new_transaction = NULL;
-	int		blocks = handle->h_buffer_credits;
+	int		blocks = handle->h_total_credits;
 	int		rsv_blocks = 0;
 	unsigned long ts = jiffies;
 
 	if (handle->h_rsv_handle)
-		rsv_blocks = handle->h_rsv_handle->h_buffer_credits;
+		rsv_blocks = handle->h_rsv_handle->h_total_credits;
 
 	/*
 	 * Limit the number of reserved credits to 1/2 of maximum transaction
@@ -446,7 +446,7 @@ static handle_t *new_handle(int nblocks)
 	handle_t *handle = jbd2_alloc_handle(GFP_NOFS);
 	if (!handle)
 		return NULL;
-	handle->h_buffer_credits = nblocks;
+	handle->h_total_credits = nblocks;
 	handle->h_ref = 1;
 
 	return handle;
@@ -535,7 +535,7 @@ static void __jbd2_journal_unreserve_handle(handle_t *handle)
 	journal_t *journal = handle->h_journal;
 
 	WARN_ON(!handle->h_reserved);
-	sub_reserved_credits(journal, handle->h_buffer_credits);
+	sub_reserved_credits(journal, handle->h_total_credits);
 }
 
 void jbd2_journal_free_reserved(handle_t *handle)
@@ -594,7 +594,7 @@ int jbd2_journal_start_reserved(handle_t *handle, unsigned int type,
 	handle->h_line_no = line_no;
 	trace_jbd2_handle_start(journal->j_fs_dev->bd_dev,
 				handle->h_transaction->t_tid, type,
-				line_no, handle->h_buffer_credits);
+				line_no, handle->h_total_credits);
 	return 0;
 }
 EXPORT_SYMBOL(jbd2_journal_start_reserved);
@@ -662,10 +662,10 @@ int jbd2_journal_extend(handle_t *handle, int nblocks, int revoke_records)
 	trace_jbd2_handle_extend(journal->j_fs_dev->bd_dev,
 				 transaction->t_tid,
 				 handle->h_type, handle->h_line_no,
-				 handle->h_buffer_credits,
+				 handle->h_total_credits,
 				 nblocks);
 
-	handle->h_buffer_credits += nblocks;
+	handle->h_total_credits += nblocks;
 	handle->h_requested_credits += nblocks;
 	handle->h_revoke_credits += revoke_records;
 	handle->h_revoke_credits_requested += revoke_records;
@@ -700,15 +700,15 @@ static void stop_this_handle(handle_t *handle)
 		int rr_per_blk = journal->j_revoke_records_per_block;
 
 		WARN_ON_ONCE(DIV_ROUND_UP(revokes, rr_per_blk)
-				> handle->h_buffer_credits);
+				> handle->h_total_credits);
 		t_revokes = atomic_add_return(revokes,
 				&transaction->t_outstanding_revokes);
 		revoke_descriptors =
 			DIV_ROUND_UP(t_revokes, rr_per_blk) -
 			DIV_ROUND_UP(t_revokes - revokes, rr_per_blk);
-		handle->h_buffer_credits -= revoke_descriptors;
+		handle->h_total_credits -= revoke_descriptors;
 	}
-	atomic_sub(handle->h_buffer_credits,
+	atomic_sub(handle->h_total_credits,
 		   &transaction->t_outstanding_credits);
 	if (handle->h_rsv_handle)
 		__jbd2_journal_unreserve_handle(handle->h_rsv_handle);
@@ -772,7 +772,7 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, int revoke_records,
 	read_unlock(&journal->j_state_lock);
 	if (need_to_start)
 		jbd2_log_start_commit(journal, tid);
-	handle->h_buffer_credits = nblocks +
+	handle->h_total_credits = nblocks +
 		DIV_ROUND_UP(revoke_records,
 			     journal->j_revoke_records_per_block);
 	handle->h_revoke_credits = revoke_records;
@@ -1477,12 +1477,12 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 		 * of the transaction. This needs to be done
 		 * once a transaction -bzzz
 		 */
-		if (handle->h_buffer_credits <= 0) {
+		if (handle->h_total_credits <= 0) {
 			ret = -ENOSPC;
 			goto out_unlock_bh;
 		}
 		jh->b_modified = 1;
-		handle->h_buffer_credits--;
+		handle->h_total_credits--;
 	}
 
 	/*
@@ -1726,7 +1726,7 @@ int jbd2_journal_forget (handle_t *handle, struct buffer_head *bh)
 drop:
 	if (drop_reserve) {
 		/* no need to reserve log space for this block -bzzz */
-		handle->h_buffer_credits++;
+		handle->h_total_credits++;
 	}
 	return err;
 
@@ -1787,7 +1787,7 @@ int jbd2_journal_stop(handle_t *handle)
 				jiffies - handle->h_start_jiffies,
 				handle->h_sync, handle->h_requested_credits,
 				(handle->h_requested_credits -
-				 handle->h_buffer_credits));
+				 handle->h_total_credits));
 
 	/*
 	 * Implement synchronous transaction batching.  If the handle
