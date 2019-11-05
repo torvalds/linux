@@ -1019,7 +1019,6 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
 	struct ib_device *ibdev = &hr_dev->ib_dev;
-	struct hns_roce_sqp *hr_sqp;
 	struct hns_roce_qp *hr_qp;
 	int ret;
 
@@ -1049,11 +1048,10 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 			return ERR_PTR(-EINVAL);
 		}
 
-		hr_sqp = kzalloc(sizeof(*hr_sqp), GFP_KERNEL);
-		if (!hr_sqp)
+		hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
+		if (!hr_qp)
 			return ERR_PTR(-ENOMEM);
 
-		hr_qp = &hr_sqp->hr_qp;
 		hr_qp->port = init_attr->port_num - 1;
 		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
 
@@ -1068,7 +1066,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 						hr_qp->ibqp.qp_num, hr_qp);
 		if (ret) {
 			ibdev_err(ibdev, "Create GSI QP failed!\n");
-			kfree(hr_sqp);
+			kfree(hr_qp);
 			return ERR_PTR(ret);
 		}
 

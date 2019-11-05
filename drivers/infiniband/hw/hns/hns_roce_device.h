@@ -692,10 +692,6 @@ struct hns_roce_qp {
 	struct hns_roce_rinl_buf rq_inl_buf;
 };
 
-struct hns_roce_sqp {
-	struct hns_roce_qp	hr_qp;
-};
-
 struct hns_roce_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
@@ -1087,11 +1083,6 @@ static inline struct hns_roce_cq *to_hr_cq(struct ib_cq *ib_cq)
 static inline struct hns_roce_srq *to_hr_srq(struct ib_srq *ibsrq)
 {
 	return container_of(ibsrq, struct hns_roce_srq, ibsrq);
-}
-
-static inline struct hns_roce_sqp *hr_to_hr_sqp(struct hns_roce_qp *hr_qp)
-{
-	return container_of(hr_qp, struct hns_roce_sqp, hr_qp);
 }
 
 static inline void hns_roce_write64_k(__le32 val[2], void __iomem *dest)
