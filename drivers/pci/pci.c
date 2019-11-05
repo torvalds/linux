@@ -1056,26 +1056,6 @@ void pci_bus_set_current_state(struct pci_bus *bus, pci_power_t state)
 }
 
 /**
- * __pci_complete_power_transition - Complete power transition of a PCI device
- * @dev: PCI device to handle.
- * @state: State to put the device into.
- *
- * This function should not be called directly by device drivers.
- */
-static int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state)
-{
-	int ret;
-
-	if (state <= PCI_D0)
-		return -EINVAL;
-	ret = pci_platform_power_transition(dev, state);
-	/* Power off the bridge may power off the whole hierarchy */
-	if (!ret && state == PCI_D3cold)
-		pci_bus_set_current_state(dev->subordinate, PCI_D3cold);
-	return ret;
-}
-
-/**
  * pci_set_power_state - Set the power state of a PCI device
  * @dev: PCI device to handle.
  * @state: PCI power state (D0, D1, D2, D3hot) to put the device into.
@@ -1132,10 +1112,14 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	error = pci_raw_set_power_state(dev, state > PCI_D3hot ?
 					PCI_D3hot : state);
 
-	if (!__pci_complete_power_transition(dev, state))
-		error = 0;
+	if (pci_platform_power_transition(dev, state))
+		return error;
 
-	return error;
+	/* Powering off a bridge may power off the whole hierarchy */
+	if (state == PCI_D3cold)
+		pci_bus_set_current_state(dev->subordinate, PCI_D3cold);
+
+	return 0;
 }
 EXPORT_SYMBOL(pci_set_power_state);
 
