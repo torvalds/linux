@@ -481,12 +481,10 @@ static __poll_t tower_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &dev->write_wait, wait);
 
 	tower_check_for_read_packet(dev);
-	if (dev->read_packet_length > 0) {
+	if (dev->read_packet_length > 0)
 		mask |= EPOLLIN | EPOLLRDNORM;
-	}
-	if (!dev->interrupt_out_busy) {
+	if (!dev->interrupt_out_busy)
 		mask |= EPOLLOUT | EPOLLWRNORM;
-	}
 
 	return mask;
 }
@@ -532,9 +530,8 @@ static ssize_t tower_read(struct file *file, char __user *buffer, size_t count, 
 		goto unlock_exit;
 	}
 
-	if (read_timeout) {
+	if (read_timeout)
 		timeout = jiffies + msecs_to_jiffies(read_timeout);
-	}
 
 	/* wait for data */
 	tower_check_for_read_packet(dev);
@@ -544,9 +541,8 @@ static ssize_t tower_read(struct file *file, char __user *buffer, size_t count, 
 			goto unlock_exit;
 		}
 		retval = wait_event_interruptible_timeout(dev->read_wait, dev->interrupt_in_done, dev->packet_timeout_jiffies);
-		if (retval < 0) {
+		if (retval < 0)
 			goto unlock_exit;
-		}
 
 		/* reset read timeout during read or write activity */
 		if (read_timeout
@@ -572,9 +568,8 @@ static ssize_t tower_read(struct file *file, char __user *buffer, size_t count, 
 	spin_lock_irq(&dev->read_buffer_lock);
 	dev->read_buffer_length -= bytes_to_read;
 	dev->read_packet_length -= bytes_to_read;
-	for (i=0; i<dev->read_buffer_length; i++) {
+	for (i = 0; i < dev->read_buffer_length; i++)
 		dev->read_buffer[i] = dev->read_buffer[i+bytes_to_read];
-	}
 	spin_unlock_irq(&dev->read_buffer_lock);
 
 	retval = bytes_to_read;
@@ -625,9 +620,8 @@ static ssize_t tower_write(struct file *file, const char __user *buffer, size_t 
 		}
 		retval = wait_event_interruptible(dev->write_wait,
 						  !dev->interrupt_out_busy);
-		if (retval) {
+		if (retval)
 			goto unlock_exit;
-		}
 	}
 
 	/* write the data into interrupt_out_buffer from userspace */
