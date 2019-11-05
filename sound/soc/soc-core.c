@@ -2065,9 +2065,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	 * Components with topology may bring new DAIs and DAI links.
 	 */
 	for_each_card_links(card, dai_link) {
-		if (soc_is_dai_link_bound(card, dai_link))
-			continue;
-
 		ret = soc_bind_dai_link(card, dai_link);
 		if (ret)
 			goto probe_end;
