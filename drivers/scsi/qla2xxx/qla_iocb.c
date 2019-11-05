@@ -2760,9 +2760,8 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 		case CS_COMPLETE:
 			memset(&ea, 0, sizeof(ea));
 			ea.fcport = fcport;
-			ea.data[0] = MBS_COMMAND_COMPLETE;
-			ea.sp = sp;
-			qla24xx_handle_plogi_done_event(vha, &ea);
+			ea.rc = res;
+			qla_handle_els_plogi_done(vha, &ea);
 			break;
 
 		case CS_IOCB_ERROR:
