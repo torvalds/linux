@@ -540,7 +540,6 @@ static ssize_t tower_read (struct file *file, char __user *buffer, size_t count,
 	/* verify that the device wasn't unplugged */
 	if (dev->disconnected) {
 		retval = -ENODEV;
-		pr_err("No device or device unplugged %d\n", retval);
 		goto unlock_exit;
 	}
 
@@ -626,7 +625,6 @@ static ssize_t tower_write (struct file *file, const char __user *buffer, size_t
 	/* verify that the device wasn't unplugged */
 	if (dev->disconnected) {
 		retval = -ENODEV;
-		pr_err("No device or device unplugged %d\n", retval);
 		goto unlock_exit;
 	}
 
