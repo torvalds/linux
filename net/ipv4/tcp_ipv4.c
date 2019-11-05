@@ -2451,7 +2451,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i)
 
 	state = inet_sk_state_load(sk);
 	if (state == TCP_LISTEN)
-		rx_queue = sk->sk_ack_backlog;
+		rx_queue = READ_ONCE(sk->sk_ack_backlog);
 	else
 		/* Because we don't lock the socket,
 		 * we might find a transient negative value.
