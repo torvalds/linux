@@ -1253,7 +1253,7 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 	struct mlx5_flow_destination drop_ctr_dst = {0};
 	struct mlx5_flow_destination *dst = NULL;
 	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_spec *spec;
+	struct mlx5_flow_spec *spec = NULL;
 	int dest_num = 0;
 	int err = 0;
 	u8 *smac_v;
