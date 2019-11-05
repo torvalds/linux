@@ -221,6 +221,8 @@ void snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
 				  int type, struct device *data,
 				  size_t size, size_t max)
 {
+	if (snd_BUG_ON(substream->dma_buffer.dev.type))
+		return;
 	substream->dma_buffer.dev.type = type;
 	substream->dma_buffer.dev.dev = data;
 	snd_pcm_lib_preallocate_pages1(substream, size, max);
