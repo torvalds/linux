@@ -502,10 +502,10 @@ static void omap_aes_done_task(unsigned long data)
 		omap_aes_crypt_dma_stop(dd);
 	}
 
-	omap_crypto_cleanup(dd->in_sgl, NULL, 0, dd->total_save,
+	omap_crypto_cleanup(dd->in_sg, NULL, 0, dd->total_save,
 			    FLAGS_IN_DATA_ST_SHIFT, dd->flags);
 
-	omap_crypto_cleanup(&dd->out_sgl, dd->orig_out, 0, dd->total_save,
+	omap_crypto_cleanup(dd->out_sg, dd->orig_out, 0, dd->total_save,
 			    FLAGS_OUT_DATA_ST_SHIFT, dd->flags);
 
 	/* Update IV output */
