@@ -162,19 +162,19 @@ vchiq_release_internal(struct vchiq_state *state,
 		       struct vchiq_service *service);
 
 extern struct vchiq_debugfs_node *
-vchiq_instance_get_debugfs_node(VCHIQ_INSTANCE_T instance);
+vchiq_instance_get_debugfs_node(struct vchiq_instance *instance);
 
 extern int
-vchiq_instance_get_use_count(VCHIQ_INSTANCE_T instance);
+vchiq_instance_get_use_count(struct vchiq_instance *instance);
 
 extern int
-vchiq_instance_get_pid(VCHIQ_INSTANCE_T instance);
+vchiq_instance_get_pid(struct vchiq_instance *instance);
 
 extern int
-vchiq_instance_get_trace(VCHIQ_INSTANCE_T instance);
+vchiq_instance_get_trace(struct vchiq_instance *instance);
 
 extern void
-vchiq_instance_set_trace(VCHIQ_INSTANCE_T instance, int trace);
+vchiq_instance_set_trace(struct vchiq_instance *instance, int trace);
 
 extern void
 set_suspend_state(struct vchiq_arm_state *arm_state,

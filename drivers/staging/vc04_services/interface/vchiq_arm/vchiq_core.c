@@ -177,7 +177,7 @@ find_service_by_port(struct vchiq_state *state, int localport)
 }
 
 struct vchiq_service *
-find_service_for_instance(VCHIQ_INSTANCE_T instance,
+find_service_for_instance(struct vchiq_instance *instance,
 	unsigned int handle)
 {
 	struct vchiq_service *service;
@@ -201,7 +201,7 @@ find_service_for_instance(VCHIQ_INSTANCE_T instance,
 }
 
 struct vchiq_service *
-find_closed_service_for_instance(VCHIQ_INSTANCE_T instance,
+find_closed_service_for_instance(struct vchiq_instance *instance,
 	unsigned int handle)
 {
 	struct vchiq_service *service;
@@ -227,7 +227,7 @@ find_closed_service_for_instance(VCHIQ_INSTANCE_T instance,
 }
 
 struct vchiq_service *
-next_service_by_instance(struct vchiq_state *state, VCHIQ_INSTANCE_T instance,
+next_service_by_instance(struct vchiq_state *state, struct vchiq_instance *instance,
 			 int *pidx)
 {
 	struct vchiq_service *service = NULL;
@@ -2280,7 +2280,7 @@ fail_free_handler_thread:
 struct vchiq_service *
 vchiq_add_service_internal(struct vchiq_state *state,
 			   const struct vchiq_service_params *params,
-			   int srvstate, VCHIQ_INSTANCE_T instance,
+			   int srvstate, struct vchiq_instance *instance,
 			   vchiq_userdata_term userdata_term)
 {
 	struct vchiq_service *service;
@@ -2775,7 +2775,7 @@ vchiq_free_service_internal(struct vchiq_service *service)
 }
 
 enum vchiq_status
-vchiq_connect_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance)
+vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instance)
 {
 	struct vchiq_service *service;
 	int i;
@@ -2811,7 +2811,7 @@ vchiq_connect_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance)
 }
 
 enum vchiq_status
-vchiq_shutdown_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance)
+vchiq_shutdown_internal(struct vchiq_state *state, struct vchiq_instance *instance)
 {
 	struct vchiq_service *service;
 	int i;

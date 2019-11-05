@@ -90,16 +90,16 @@ struct vchiq_config {
 	short version_min;  /* The minimum compatible version of VCHIQ */
 };
 
-typedef struct vchiq_instance_struct *VCHIQ_INSTANCE_T;
+struct vchiq_instance;
 typedef void (*vchiq_remote_callback)(void *cb_arg);
 
-extern enum vchiq_status vchiq_initialise(VCHIQ_INSTANCE_T *pinstance);
-extern enum vchiq_status vchiq_shutdown(VCHIQ_INSTANCE_T instance);
-extern enum vchiq_status vchiq_connect(VCHIQ_INSTANCE_T instance);
-extern enum vchiq_status vchiq_add_service(VCHIQ_INSTANCE_T instance,
+extern enum vchiq_status vchiq_initialise(struct vchiq_instance **pinstance);
+extern enum vchiq_status vchiq_shutdown(struct vchiq_instance *instance);
+extern enum vchiq_status vchiq_connect(struct vchiq_instance *instance);
+extern enum vchiq_status vchiq_add_service(struct vchiq_instance *instance,
 	const struct vchiq_service_params *params,
 	unsigned int *pservice);
-extern enum vchiq_status vchiq_open_service(VCHIQ_INSTANCE_T instance,
+extern enum vchiq_status vchiq_open_service(struct vchiq_instance *instance,
 	const struct vchiq_service_params *params,
 	unsigned int *pservice);
 extern enum vchiq_status vchiq_close_service(unsigned int service);
@@ -133,9 +133,9 @@ extern void vchiq_get_config(struct vchiq_config *config);
 extern enum vchiq_status vchiq_set_service_option(unsigned int service,
 	enum vchiq_service_option option, int value);
 
-extern enum vchiq_status vchiq_remote_use(VCHIQ_INSTANCE_T instance,
+extern enum vchiq_status vchiq_remote_use(struct vchiq_instance *instance,
 	vchiq_remote_callback callback, void *cb_arg);
-extern enum vchiq_status vchiq_remote_release(VCHIQ_INSTANCE_T instance);
+extern enum vchiq_status vchiq_remote_release(struct vchiq_instance *instance);
 
 extern enum vchiq_status vchiq_dump_phys_mem(unsigned int service,
 	void *ptr, size_t num_bytes);

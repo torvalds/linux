@@ -440,7 +440,7 @@ EXPORT_SYMBOL(vchi_msg_hold);
 
 int32_t vchi_initialise(struct vchi_instance_handle **instance_handle)
 {
-	VCHIQ_INSTANCE_T instance;
+	struct vchiq_instance *instance;
 	enum vchiq_status status;
 
 	status = vchiq_initialise(&instance);
@@ -464,7 +464,7 @@ EXPORT_SYMBOL(vchi_initialise);
  ***********************************************************/
 int32_t vchi_connect(struct vchi_instance_handle *instance_handle)
 {
-	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
+	struct vchiq_instance *instance = (struct vchiq_instance *)instance_handle;
 
 	return vchiq_connect(instance);
 }
@@ -483,7 +483,7 @@ EXPORT_SYMBOL(vchi_connect);
  ***********************************************************/
 int32_t vchi_disconnect(struct vchi_instance_handle *instance_handle)
 {
-	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
+	struct vchiq_instance *instance = (struct vchiq_instance *)instance_handle;
 
 	return vchiq_status_to_vchi(vchiq_shutdown(instance));
 }
@@ -565,7 +565,7 @@ done:
 	return VCHIQ_SUCCESS;
 }
 
-static struct shim_service *service_alloc(VCHIQ_INSTANCE_T instance,
+static struct shim_service *service_alloc(struct vchiq_instance *instance,
 	struct service_creation *setup)
 {
 	struct shim_service *service = kzalloc(sizeof(struct shim_service), GFP_KERNEL);
@@ -597,7 +597,7 @@ int32_t vchi_service_open(struct vchi_instance_handle *instance_handle,
 	struct service_creation *setup,
 	struct vchi_service_handle **handle)
 {
-	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
+	struct vchiq_instance *instance = (struct vchiq_instance *)instance_handle;
 	struct shim_service *service = service_alloc(instance, setup);
 
 	*handle = (struct vchi_service_handle *)service;

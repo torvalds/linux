@@ -268,7 +268,7 @@ struct vchiq_service {
 	short peer_version;
 
 	struct vchiq_state *state;
-	VCHIQ_INSTANCE_T instance;
+	struct vchiq_instance *instance;
 
 	int service_use_count;
 
@@ -382,7 +382,7 @@ struct vchiq_state {
 
 	/* Mutex protecting services */
 	struct mutex mutex;
-	VCHIQ_INSTANCE_T *instance;
+	struct vchiq_instance **instance;
 
 	/* Processes incoming messages */
 	struct task_struct *slot_handler_thread;
@@ -495,12 +495,12 @@ extern enum vchiq_status
 vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero);
 
 extern enum vchiq_status
-vchiq_connect_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance);
+vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instance);
 
 extern struct vchiq_service *
 vchiq_add_service_internal(struct vchiq_state *state,
 			   const struct vchiq_service_params *params,
-			   int srvstate, VCHIQ_INSTANCE_T instance,
+			   int srvstate, struct vchiq_instance *instance,
 			   vchiq_userdata_term userdata_term);
 
 extern enum vchiq_status
@@ -516,7 +516,7 @@ extern void
 vchiq_free_service_internal(struct vchiq_service *service);
 
 extern enum vchiq_status
-vchiq_shutdown_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance);
+vchiq_shutdown_internal(struct vchiq_state *state, struct vchiq_instance *instance);
 
 extern void
 remote_event_pollall(struct vchiq_state *state);
@@ -560,15 +560,15 @@ extern struct vchiq_service *
 find_service_by_port(struct vchiq_state *state, int localport);
 
 extern struct vchiq_service *
-find_service_for_instance(VCHIQ_INSTANCE_T instance,
+find_service_for_instance(struct vchiq_instance *instance,
 	unsigned int handle);
 
 extern struct vchiq_service *
-find_closed_service_for_instance(VCHIQ_INSTANCE_T instance,
+find_closed_service_for_instance(struct vchiq_instance *instance,
 	unsigned int handle);
 
 extern struct vchiq_service *
-next_service_by_instance(struct vchiq_state *state, VCHIQ_INSTANCE_T instance,
+next_service_by_instance(struct vchiq_state *state, struct vchiq_instance *instance,
 			 int *pidx);
 
 extern void
