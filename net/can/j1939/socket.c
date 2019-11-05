@@ -593,8 +593,8 @@ static int j1939_sk_release(struct socket *sock)
 	if (!sk)
 		return 0;
 
-	jsk = j1939_sk(sk);
 	lock_sock(sk);
+	jsk = j1939_sk(sk);
 
 	if (jsk->state & J1939_SOCK_BOUND) {
 		struct j1939_priv *priv = jsk->priv;
@@ -1092,50 +1092,71 @@ static int j1939_sk_sendmsg(struct socket *sock, struct msghdr *msg,
 {
 	struct sock *sk = sock->sk;
 	struct j1939_sock *jsk = j1939_sk(sk);
-	struct j1939_priv *priv = jsk->priv;
+	struct j1939_priv *priv;
 	int ifindex;
 	int ret;
 
+	lock_sock(sock->sk);
 	/* various socket state tests */
-	if (!(jsk->state & J1939_SOCK_BOUND))
-		return -EBADFD;
+	if (!(jsk->state & J1939_SOCK_BOUND)) {
+		ret = -EBADFD;
+		goto sendmsg_done;
+	}
 
+	priv = jsk->priv;
 	ifindex = jsk->ifindex;
 
-	if (!jsk->addr.src_name && jsk->addr.sa == J1939_NO_ADDR)
+	if (!jsk->addr.src_name && jsk->addr.sa == J1939_NO_ADDR) {
 		/* no source address assigned yet */
-		return -EBADFD;
+		ret = -EBADFD;
+		goto sendmsg_done;
+	}
 
 	/* deal with provided destination address info */
 	if (msg->msg_name) {
 		struct sockaddr_can *addr = msg->msg_name;
 
-		if (msg->msg_namelen < J1939_MIN_NAMELEN)
-			return -EINVAL;
+		if (msg->msg_namelen < J1939_MIN_NAMELEN) {
+			ret = -EINVAL;
+			goto sendmsg_done;
+		}
 
-		if (addr->can_family != AF_CAN)
-			return -EINVAL;
+		if (addr->can_family != AF_CAN) {
+			ret = -EINVAL;
+			goto sendmsg_done;
+		}
 
-		if (addr->can_ifindex && addr->can_ifindex != ifindex)
-			return -EBADFD;
+		if (addr->can_ifindex && addr->can_ifindex != ifindex) {
+			ret = -EBADFD;
+			goto sendmsg_done;
+		}
 
 		if (j1939_pgn_is_valid(addr->can_addr.j1939.pgn) &&
-		    !j1939_pgn_is_clean_pdu(addr->can_addr.j1939.pgn))
-			return -EINVAL;
+		    !j1939_pgn_is_clean_pdu(addr->can_addr.j1939.pgn)) {
+			ret = -EINVAL;
+			goto sendmsg_done;
+		}
 
 		if (!addr->can_addr.j1939.name &&
 		    addr->can_addr.j1939.addr == J1939_NO_ADDR &&
-		    !sock_flag(sk, SOCK_BROADCAST))
+		    !sock_flag(sk, SOCK_BROADCAST)) {
 			/* broadcast, but SO_BROADCAST not set */
-			return -EACCES;
+			ret = -EACCES;
+			goto sendmsg_done;
+		}
 	} else {
 		if (!jsk->addr.dst_name && jsk->addr.da == J1939_NO_ADDR &&
-		    !sock_flag(sk, SOCK_BROADCAST))
+		    !sock_flag(sk, SOCK_BROADCAST)) {
 			/* broadcast, but SO_BROADCAST not set */
-			return -EACCES;
+			ret = -EACCES;
+			goto sendmsg_done;
+		}
 	}
 
 	ret = j1939_sk_send_loop(priv, sk, msg, size);
+
+sendmsg_done:
+	release_sock(sock->sk);
 
 	return ret;
 }
