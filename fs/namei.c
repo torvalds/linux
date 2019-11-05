@@ -1206,25 +1206,25 @@ static int follow_automount(struct path *path, struct nameidata *nd,
  * - Flagged as automount point
  *
  * This may only be called in refwalk mode.
+ * On success path->dentry is known positive.
  *
  * Serialization is taken care of in namespace.c
  */
 static int follow_managed(struct path *path, struct nameidata *nd)
 {
 	struct vfsmount *mnt = path->mnt; /* held by caller, must be left alone */
-	unsigned managed;
+	unsigned flags;
 	bool need_mntput = false;
 	int ret = 0;
 
 	/* Given that we're not holding a lock here, we retain the value in a
 	 * local variable for each dentry as we look at it so that we don't see
 	 * the components of that value change under us */
-	while (managed = READ_ONCE(path->dentry->d_flags),
-	       managed &= DCACHE_MANAGED_DENTRY,
-	       unlikely(managed != 0)) {
+	while (flags = READ_ONCE(path->dentry->d_flags),
+	       unlikely(flags & DCACHE_MANAGED_DENTRY)) {
 		/* Allow the filesystem to manage the transit without i_mutex
 		 * being held. */
-		if (managed & DCACHE_MANAGE_TRANSIT) {
+		if (flags & DCACHE_MANAGE_TRANSIT) {
 			BUG_ON(!path->dentry->d_op);
 			BUG_ON(!path->dentry->d_op->d_manage);
 			ret = path->dentry->d_op->d_manage(path, false);
@@ -1233,7 +1233,7 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 		}
 
 		/* Transit to a mounted filesystem. */
-		if (managed & DCACHE_MOUNTED) {
+		if (flags & DCACHE_MOUNTED) {
 			struct vfsmount *mounted = lookup_mnt(path);
 			if (mounted) {
 				dput(path->dentry);
@@ -1252,7 +1252,7 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 		}
 
 		/* Handle an automount point */
-		if (managed & DCACHE_NEED_AUTOMOUNT) {
+		if (flags & DCACHE_NEED_AUTOMOUNT) {
 			ret = follow_automount(path, nd, &need_mntput);
 			if (ret < 0)
 				break;
@@ -1265,10 +1265,12 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 
 	if (need_mntput && path->mnt == mnt)
 		mntput(path->mnt);
-	if (ret == -EISDIR || !ret)
-		ret = 1;
 	if (need_mntput)
 		nd->flags |= LOOKUP_JUMPED;
+	if (ret == -EISDIR || !ret)
+		ret = 1;
+	if (ret > 0 && unlikely(d_flags_negative(flags)))
+		ret = -ENOENT;
 	if (unlikely(ret < 0))
 		path_put_conditional(path, nd);
 	return ret;
@@ -1617,10 +1619,6 @@ static int lookup_fast(struct nameidata *nd,
 		dput(dentry);
 		return status;
 	}
-	if (unlikely(d_is_negative(dentry))) {
-		dput(dentry);
-		return -ENOENT;
-	}
 
 	path->mnt = mnt;
 	path->dentry = dentry;
@@ -1806,11 +1804,6 @@ static int walk_component(struct nameidata *nd, int flags)
 		err = follow_managed(&path, nd);
 		if (unlikely(err < 0))
 			return err;
-
-		if (unlikely(d_is_negative(path.dentry))) {
-			path_to_nameidata(&path, nd);
-			return -ENOENT;
-		}
 
 		seq = 0;	/* we are already out of RCU mode */
 		inode = d_backing_inode(path.dentry);
@@ -3351,11 +3344,6 @@ static int do_last(struct nameidata *nd,
 	error = follow_managed(&path, nd);
 	if (unlikely(error < 0))
 		return error;
-
-	if (unlikely(d_is_negative(path.dentry))) {
-		path_to_nameidata(&path, nd);
-		return -ENOENT;
-	}
 
 	/*
 	 * create/update audit record if it already exists.
