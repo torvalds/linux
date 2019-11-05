@@ -1148,7 +1148,6 @@ void pci_power_up(struct pci_dev *dev)
 {
 	__pci_start_power_transition(dev, PCI_D0);
 	pci_raw_set_power_state(dev, PCI_D0);
-	pci_update_current_state(dev, PCI_D0);
 }
 
 /**

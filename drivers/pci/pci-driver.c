@@ -531,6 +531,7 @@ static void pci_pm_default_resume(struct pci_dev *pci_dev)
 static void pci_pm_default_resume_early(struct pci_dev *pci_dev)
 {
 	pci_power_up(pci_dev);
+	pci_update_current_state(pci_dev, PCI_D0);
 	pci_restore_state(pci_dev);
 	pci_pme_restore(pci_dev);
 }
