@@ -2440,7 +2440,6 @@ void rtw_cfg80211_indicate_sta_disassoc(struct adapter *padapter, unsigned char 
 
 static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struct net_device *ndev)
 {
-	int ret = 0;
 	int rtap_len;
 	int qos_len = 0;
 	int dot11_hdr_len = 24;
@@ -2506,9 +2505,7 @@ static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struc
 		DBG_8192C("should be eapol packet\n");
 
 		/* Use the real net device to transmit the packet */
-		ret = _rtw_xmit_entry(skb, padapter->pnetdev);
-
-		return ret;
+		return _rtw_xmit_entry(skb, padapter->pnetdev);
 
 	}
 	else if ((frame_control & (IEEE80211_FCTL_FTYPE|IEEE80211_FCTL_STYPE))
@@ -2815,14 +2812,11 @@ static int cfg80211_rtw_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 static int cfg80211_rtw_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
                                 struct cfg80211_beacon_data *info)
 {
-	int ret = 0;
 	struct adapter *adapter = (struct adapter *)rtw_netdev_priv(ndev);
 
 	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 
-	ret = rtw_add_beacon(adapter, info->head, info->head_len, info->tail, info->tail_len);
-
-	return ret;
+	return rtw_add_beacon(adapter, info->head, info->head_len, info->tail, info->tail_len);
 }
 
 static int cfg80211_rtw_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
