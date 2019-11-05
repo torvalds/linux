@@ -6203,6 +6203,14 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		mbox->u.mqe.un.set_feature.feature = LPFC_SET_MDS_DIAGS;
 		mbox->u.mqe.un.set_feature.param_len = 8;
 		break;
+	case LPFC_SET_DUAL_DUMP:
+		bf_set(lpfc_mbx_set_feature_dd,
+		       &mbox->u.mqe.un.set_feature, LPFC_ENABLE_DUAL_DUMP);
+		bf_set(lpfc_mbx_set_feature_ddquery,
+		       &mbox->u.mqe.un.set_feature, 0);
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_DUAL_DUMP;
+		mbox->u.mqe.un.set_feature.param_len = 4;
+		break;
 	}
 
 	return;
@@ -7200,7 +7208,7 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 int
 lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 {
-	int rc, i, cnt, len;
+	int rc, i, cnt, len, dd;
 	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_mqe *mqe;
 	uint8_t *vpd;
@@ -7451,6 +7459,23 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	phba->sli3_options |= (LPFC_SLI3_NPIV_ENABLED | LPFC_SLI3_HBQ_ENABLED);
 	spin_unlock_irq(&phba->hbalock);
 
+	/* Always try to enable dual dump feature if we can */
+	lpfc_set_features(phba, mboxq, LPFC_SET_DUAL_DUMP);
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	dd = bf_get(lpfc_mbx_set_feature_dd, &mboxq->u.mqe.un.set_feature);
+	if ((rc == MBX_SUCCESS) && (dd == LPFC_ENABLE_DUAL_DUMP))
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI | LOG_INIT,
+				"6448 Dual Dump is enabled\n");
+	else
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI | LOG_INIT,
+				"6447 Dual Dump Mailbox x%x (x%x/x%x) failed, "
+				"rc:x%x dd:x%x\n",
+				bf_get(lpfc_mqe_command, &mboxq->u.mqe),
+				lpfc_sli_config_mbox_subsys_get(
+					phba, mboxq),
+				lpfc_sli_config_mbox_opcode_get(
+					phba, mboxq),
+				rc, dd);
 	/*
 	 * Allocate all resources (xri,rpi,vpi,vfi) now.  Subsequent
 	 * calls depends on these resources to complete port setup.
