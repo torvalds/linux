@@ -436,7 +436,6 @@ static const struct snd_pcm_ops snd_vortex_playback_ops = {
 	.prepare = snd_vortex_pcm_prepare,
 	.trigger = snd_vortex_pcm_trigger,
 	.pointer = snd_vortex_pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 
 /*

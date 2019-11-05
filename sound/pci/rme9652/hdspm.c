@@ -6368,7 +6368,6 @@ static const struct snd_pcm_ops snd_hdspm_ops = {
 	.prepare = snd_hdspm_prepare,
 	.trigger = snd_hdspm_trigger,
 	.pointer = snd_hdspm_hw_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 
 static int snd_hdspm_create_hwdep(struct snd_card *card,

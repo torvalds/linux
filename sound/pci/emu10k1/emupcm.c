@@ -1366,7 +1366,6 @@ static const struct snd_pcm_ops snd_emu10k1_playback_ops = {
 	.prepare =		snd_emu10k1_playback_prepare,
 	.trigger =		snd_emu10k1_playback_trigger,
 	.pointer =		snd_emu10k1_playback_pointer,
-	.page =			snd_pcm_sgbuf_ops_page,
 };
 
 static const struct snd_pcm_ops snd_emu10k1_capture_ops = {
@@ -1390,7 +1389,6 @@ static const struct snd_pcm_ops snd_emu10k1_efx_playback_ops = {
 	.prepare =		snd_emu10k1_efx_playback_prepare,
 	.trigger =		snd_emu10k1_efx_playback_trigger,
 	.pointer =		snd_emu10k1_efx_playback_pointer,
-	.page =			snd_pcm_sgbuf_ops_page,
 };
 
 int snd_emu10k1_pcm(struct snd_emu10k1 *emu, int device)

@@ -545,7 +545,6 @@ static const struct snd_pcm_ops snd_bt87x_pcm_ops = {
 	.prepare = snd_bt87x_prepare,
 	.trigger = snd_bt87x_trigger,
 	.pointer = snd_bt87x_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 
 static int snd_bt87x_capture_volume_info(struct snd_kcontrol *kcontrol,

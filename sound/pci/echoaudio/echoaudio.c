@@ -824,7 +824,6 @@ static const struct snd_pcm_ops analog_playback_ops = {
 	.prepare = pcm_prepare,
 	.trigger = pcm_trigger,
 	.pointer = pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 static const struct snd_pcm_ops analog_capture_ops = {
 	.open = pcm_analog_in_open,
@@ -835,7 +834,6 @@ static const struct snd_pcm_ops analog_capture_ops = {
 	.prepare = pcm_prepare,
 	.trigger = pcm_trigger,
 	.pointer = pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 #ifdef ECHOCARD_HAS_DIGITAL_IO
 #ifndef ECHOCARD_HAS_VMIXER
@@ -848,7 +846,6 @@ static const struct snd_pcm_ops digital_playback_ops = {
 	.prepare = pcm_prepare,
 	.trigger = pcm_trigger,
 	.pointer = pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 #endif /* !ECHOCARD_HAS_VMIXER */
 static const struct snd_pcm_ops digital_capture_ops = {
@@ -860,7 +857,6 @@ static const struct snd_pcm_ops digital_capture_ops = {
 	.prepare = pcm_prepare,
 	.trigger = pcm_trigger,
 	.pointer = pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 #endif /* ECHOCARD_HAS_DIGITAL_IO */
 

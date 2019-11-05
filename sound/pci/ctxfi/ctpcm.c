@@ -379,7 +379,6 @@ static const struct snd_pcm_ops ct_pcm_playback_ops = {
 	.prepare	= ct_pcm_playback_prepare,
 	.trigger	= ct_pcm_playback_trigger,
 	.pointer	= ct_pcm_playback_pointer,
-	.page		= snd_pcm_sgbuf_ops_page,
 };
 
 /* PCM operators for capture */
@@ -392,7 +391,6 @@ static const struct snd_pcm_ops ct_pcm_capture_ops = {
 	.prepare	= ct_pcm_capture_prepare,
 	.trigger	= ct_pcm_capture_trigger,
 	.pointer	= ct_pcm_capture_pointer,
-	.page		= snd_pcm_sgbuf_ops_page,
 };
 
 static const struct snd_pcm_chmap_elem surround_map[] = {
