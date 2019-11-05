@@ -560,8 +560,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	stats.run.rs_logging = jiffies;
 	stats.run.rs_flushing = jbd2_time_diff(stats.run.rs_flushing,
 					       stats.run.rs_logging);
-	stats.run.rs_blocks =
-		atomic_read(&commit_transaction->t_outstanding_credits);
+	stats.run.rs_blocks = commit_transaction->t_nr_buffers;
 	stats.run.rs_blocks_logged = 0;
 
 	J_ASSERT(commit_transaction->t_nr_buffers <=
@@ -888,6 +887,9 @@ start_journal_io:
 
 	if (err)
 		jbd2_journal_abort(journal, err);
+
+	WARN_ON_ONCE(
+		atomic_read(&commit_transaction->t_outstanding_credits) < 0);
 
 	/*
 	 * Now disk caches for filesystem device are flushed so we are safe to

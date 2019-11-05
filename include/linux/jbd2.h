@@ -681,8 +681,10 @@ struct transaction_s
 	atomic_t		t_updates;
 
 	/*
-	 * Number of buffers reserved for use by all handles in this transaction
-	 * handle but not yet modified. [none]
+	 * Number of blocks reserved for this transaction in the journal.
+	 * This is including all credits reserved when starting transaction
+	 * handles as well as all journal descriptor blocks needed for this
+	 * transaction. [none]
 	 */
 	atomic_t		t_outstanding_credits;
 
@@ -1561,19 +1563,12 @@ static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
 }
 
 /*
- * We reserve t_outstanding_credits >> JBD2_CONTROL_BLOCKS_SHIFT for
- * transaction control blocks.
- */
-#define JBD2_CONTROL_BLOCKS_SHIFT 5
-
-/*
  * Return the minimum number of blocks which must be free in the journal
  * before a new transaction may be started.  Must be called under j_state_lock.
  */
 static inline int jbd2_space_needed(journal_t *journal)
 {
-	int nblocks = journal->j_max_transaction_buffers;
-	return nblocks + (nblocks >> JBD2_CONTROL_BLOCKS_SHIFT);
+	return journal->j_max_transaction_buffers;
 }
 
 /*
@@ -1585,11 +1580,8 @@ static inline unsigned long jbd2_log_space_left(journal_t *journal)
 	long free = journal->j_free - 32;
 
 	if (journal->j_committing_transaction) {
-		unsigned long committing = atomic_read(&journal->
-			j_committing_transaction->t_outstanding_credits);
-
-		/* Transaction + control blocks */
-		free -= committing + (committing >> JBD2_CONTROL_BLOCKS_SHIFT);
+		free -= atomic_read(&journal->
+                        j_committing_transaction->t_outstanding_credits);
 	}
 	return max_t(long, free, 0);
 }
