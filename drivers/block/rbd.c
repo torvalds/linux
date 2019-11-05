@@ -5669,9 +5669,12 @@ out:
 }
 
 static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
-		u64 *snap_features)
+				     bool read_only, u64 *snap_features)
 {
-	__le64 snapid = cpu_to_le64(snap_id);
+	struct {
+		__le64 snap_id;
+		u8 read_only;
+	} features_in;
 	struct {
 		__le64 features;
 		__le64 incompat;
@@ -5679,9 +5682,12 @@ static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 	u64 unsup;
 	int ret;
 
+	features_in.snap_id = cpu_to_le64(snap_id);
+	features_in.read_only = read_only;
+
 	ret = rbd_obj_method_sync(rbd_dev, &rbd_dev->header_oid,
 				  &rbd_dev->header_oloc, "get_features",
-				  &snapid, sizeof(snapid),
+				  &features_in, sizeof(features_in),
 				  &features_buf, sizeof(features_buf));
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
@@ -5709,7 +5715,8 @@ static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 static int rbd_dev_v2_features(struct rbd_device *rbd_dev)
 {
 	return _rbd_dev_v2_snap_features(rbd_dev, CEPH_NOSNAP,
-						&rbd_dev->header.features);
+					 rbd_is_ro(rbd_dev),
+					 &rbd_dev->header.features);
 }
 
 /*
