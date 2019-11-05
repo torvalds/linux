@@ -328,7 +328,7 @@ struct cpuidle_monitor amd_fam14h_monitor = {
 	.stop			= amd_fam14h_stop,
 	.do_register		= amd_fam14h_register,
 	.unregister		= amd_fam14h_unregister,
-	.needs_root		= 1,
+	.flags.needs_root	= 1,
 	.overflow_s		= OVERFLOW_MS / 1000,
 };
 #endif /* #if defined(__i386__) || defined(__x86_64__) */
