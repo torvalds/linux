@@ -207,6 +207,9 @@ static inline struct j1939_priv *j1939_ndev_to_priv(struct net_device *ndev)
 {
 	struct can_ml_priv *can_ml_priv = ndev->ml_priv;
 
+	if (!can_ml_priv)
+		return NULL;
+
 	return can_ml_priv->j1939_priv;
 }
 
