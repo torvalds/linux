@@ -973,6 +973,13 @@ static void gfx_v9_0_check_fw_write_wait(struct amdgpu_device *adev)
 	adev->gfx.me_fw_write_wait = false;
 	adev->gfx.mec_fw_write_wait = false;
 
+	if ((adev->gfx.mec_fw_version < 0x000001a5) ||
+	    (adev->gfx.mec_feature_version < 46) ||
+	    (adev->gfx.pfp_fw_version < 0x000000b7) ||
+	    (adev->gfx.pfp_feature_version < 46))
+		DRM_WARN_ONCE("Warning: check cp_fw_version and update it to realize \
+			      GRBM requires 1-cycle delay in cp firmware\n");
+
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		if ((adev->gfx.me_fw_version >= 0x0000009c) &&
