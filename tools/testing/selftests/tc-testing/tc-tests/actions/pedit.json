@@ -349,6 +349,256 @@
         ]
     },
     {
+        "id": "1762",
+        "name": "Add pedit action with RAW_OP offset u8 clear value",
+        "category": [
+            "actions",
+            "pedit",
+            "raw_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge offset 0 u8 clear",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:.*pedit.*keys 1.*key #0.*at 0: val 00000000 mask 00ffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "bcee",
+        "name": "Add pedit action with RAW_OP offset u8 retain value",
+        "category": [
+            "actions",
+            "pedit",
+            "raw_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge offset 0 u8 set 0x11 retain 0x0f",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:.*pedit.*keys 1.*key #0.*at 0: val 01000000 mask f0ffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "e89f",
+        "name": "Add pedit action with RAW_OP offset u16 retain value",
+        "category": [
+            "actions",
+            "pedit",
+            "raw_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge offset 0 u16 set 0x1122 retain 0xff00",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:.*pedit.*keys 1.*key #0.*at 0: val 11000000 mask 00ffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "c282",
+        "name": "Add pedit action with RAW_OP offset u32 clear value",
+        "category": [
+            "actions",
+            "pedit",
+            "raw_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge offset 0 u32 clear",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:.*pedit.*keys 1.*key #0.*at 0: val 00000000 mask 00000000",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "c422",
+        "name": "Add pedit action with RAW_OP offset u16 invert value",
+        "category": [
+            "actions",
+            "pedit",
+            "raw_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge offset 12 u16 invert",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:.*pedit.*keys 1.*key #0.*at 12: val ffff0000 mask ffffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "d3d3",
+        "name": "Add pedit action with RAW_OP offset u32 invert value",
+        "category": [
+            "actions",
+            "pedit",
+            "raw_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge offset 12 u32 invert",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:.*pedit.*keys 1.*key #0.*at 12: val ffffffff mask ffffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "57e5",
+        "name": "Add pedit action with RAW_OP offset u8 preserve value",
+        "category": [
+            "actions",
+            "pedit",
+            "raw_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge offset 0 u8 preserve",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:.*pedit.*keys 1.*key #0.*at 0: val 00000000 mask ffffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "99e0",
+        "name": "Add pedit action with RAW_OP offset u16 preserve value",
+        "category": [
+            "actions",
+            "pedit",
+            "raw_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge offset 0 u16 preserve",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:.*pedit.*keys 1.*key #0.*at 0: val 00000000 mask ffffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "1892",
+        "name": "Add pedit action with RAW_OP offset u32 preserve value",
+        "category": [
+            "actions",
+            "pedit",
+            "raw_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge offset 0 u32 preserve",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:.*pedit.*keys 1.*key #0.*at 0: val 00000000 mask ffffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "4b60",
+        "name": "Add pedit action with RAW_OP negative offset u16/u32 set value",
+        "category": [
+            "actions",
+            "pedit",
+            "raw_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit munge offset -14 u16 set 0x0000 munge offset -12 u32 set 0x00000100 munge offset -8 u32 set 0x0aaf0100 munge offset -4 u32 set 0x0008eb06 pipe",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:.*pedit.*keys 4.*key #0.*at -16: val 00000000 mask ffff0000.*key #1.*at -12: val 00000100 mask 00000000.*key #2.*at -8: val 0aaf0100 mask 00000000.*key #3.*at -4: val 0008eb06 mask 00000000",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
         "id": "a5a7",
         "name": "Add pedit action with LAYERED_OP eth set src",
         "category": [
