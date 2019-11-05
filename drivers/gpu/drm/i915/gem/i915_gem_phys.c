@@ -164,7 +164,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	if (err)
 		return err;
 
-	mutex_lock(&obj->mm.lock);
+	mutex_lock_nested(&obj->mm.lock, I915_MM_GET_PAGES);
 
 	if (obj->mm.madv != I915_MADV_WILLNEED) {
 		err = -EFAULT;

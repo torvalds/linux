@@ -32,7 +32,7 @@ static void close_objects(struct intel_memory_region *mem,
 		if (i915_gem_object_has_pinned_pages(obj))
 			i915_gem_object_unpin_pages(obj);
 		/* No polluting the memory region between tests */
-		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+		__i915_gem_object_put_pages(obj);
 		list_del(&obj->st_link);
 		i915_gem_object_put(obj);
 	}
@@ -122,7 +122,7 @@ put:
 static void igt_object_release(struct drm_i915_gem_object *obj)
 {
 	i915_gem_object_unpin_pages(obj);
-	__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+	__i915_gem_object_put_pages(obj);
 	list_del(&obj->st_link);
 	i915_gem_object_put(obj);
 }

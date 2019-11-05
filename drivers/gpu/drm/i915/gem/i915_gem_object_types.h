@@ -162,7 +162,11 @@ struct drm_i915_gem_object {
 	atomic_t bind_count;
 
 	struct {
-		struct mutex lock; /* protects the pages and their use */
+		/*
+		 * Protects the pages and their use. Do not use directly, but
+		 * instead go through the pin/unpin interfaces.
+		 */
+		struct mutex lock;
 		atomic_t pages_pin_count;
 		atomic_t shrink_pin;
 

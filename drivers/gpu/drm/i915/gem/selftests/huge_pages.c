@@ -517,7 +517,7 @@ static int igt_mock_memory_region_huge_pages(void *arg)
 			i915_vma_unpin(vma);
 			i915_vma_close(vma);
 
-			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			__i915_gem_object_put_pages(obj);
 			i915_gem_object_put(obj);
 		}
 	}
@@ -650,7 +650,7 @@ static int igt_mock_ppgtt_misaligned_dma(void *arg)
 		i915_vma_close(vma);
 
 		i915_gem_object_unpin_pages(obj);
-		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+		__i915_gem_object_put_pages(obj);
 		i915_gem_object_put(obj);
 	}
 
@@ -678,7 +678,7 @@ static void close_object_list(struct list_head *objects,
 
 		list_del(&obj->st_link);
 		i915_gem_object_unpin_pages(obj);
-		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+		__i915_gem_object_put_pages(obj);
 		i915_gem_object_put(obj);
 	}
 }
@@ -948,7 +948,7 @@ static int igt_mock_ppgtt_64K(void *arg)
 			i915_vma_close(vma);
 
 			i915_gem_object_unpin_pages(obj);
-			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			__i915_gem_object_put_pages(obj);
 			i915_gem_object_put(obj);
 		}
 	}
@@ -1301,7 +1301,7 @@ static int igt_ppgtt_exhaust_huge(void *arg)
 			}
 
 			i915_gem_object_unpin_pages(obj);
-			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			__i915_gem_object_put_pages(obj);
 			i915_gem_object_put(obj);
 		}
 	}
@@ -1442,7 +1442,7 @@ try_again:
 		}
 out_unpin:
 		i915_gem_object_unpin_pages(obj);
-		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+		__i915_gem_object_put_pages(obj);
 out_put:
 		i915_gem_object_put(obj);
 
@@ -1530,7 +1530,7 @@ static int igt_ppgtt_sanity_check(void *arg)
 			err = igt_write_huge(ctx, obj);
 
 			i915_gem_object_unpin_pages(obj);
-			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			__i915_gem_object_put_pages(obj);
 			i915_gem_object_put(obj);
 
 			if (err) {
