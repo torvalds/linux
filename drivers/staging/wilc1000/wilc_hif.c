@@ -32,7 +32,7 @@ struct wilc_op_mode {
 };
 
 struct wilc_reg_frame {
-	bool reg;
+	u8 reg;
 	u8 reg_id;
 	__le16 frame_type;
 } __packed;
@@ -1784,7 +1784,9 @@ void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 	wid.val = (u8 *)&reg_frame;
 
 	memset(&reg_frame, 0x0, sizeof(reg_frame));
-	reg_frame.reg = reg;
+
+	if (reg)
+		reg_frame.reg = 1;
 
 	switch (frame_type) {
 	case IEEE80211_STYPE_ACTION:
