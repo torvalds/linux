@@ -394,6 +394,16 @@ static void mtk_crtc_ddp_config(struct drm_crtc *crtc)
 	}
 }
 
+int mtk_drm_crtc_plane_check(struct drm_crtc *crtc, struct drm_plane *plane,
+			     struct mtk_plane_state *state)
+{
+	unsigned int local_layer;
+	struct mtk_ddp_comp *comp;
+
+	comp = mtk_drm_ddp_comp_for_plane(crtc, plane, &local_layer);
+	return mtk_ddp_comp_layer_check(comp, local_layer, state);
+}
+
 static void mtk_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 				       struct drm_crtc_state *old_state)
 {
