@@ -466,6 +466,7 @@ static int rockchip_init_temp_opp_table(struct monitor_dev_info *info)
 	opp_table = dev_pm_opp_get_opp_table(dev);
 	if (!opp_table) {
 		kfree(info->opp_table);
+		info->opp_table = NULL;
 		return -ENOMEM;
 	}
 	mutex_lock(&opp_table->lock);
