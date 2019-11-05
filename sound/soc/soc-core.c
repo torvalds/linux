@@ -1409,6 +1409,8 @@ EXPORT_SYMBOL_GPL(snd_soc_disconnect_sync);
 int snd_soc_add_dai_link(struct snd_soc_card *card,
 		struct snd_soc_dai_link *dai_link)
 {
+	int ret;
+
 	if (dai_link->dobj.type
 	    && dai_link->dobj.type != SND_SOC_DOBJ_DAI_LINK) {
 		dev_err(card->dev, "Invalid dai link type %d\n",
@@ -1423,6 +1425,10 @@ int snd_soc_add_dai_link(struct snd_soc_card *card,
 	 */
 	if (dai_link->dobj.type && card->add_dai_link)
 		card->add_dai_link(card, dai_link);
+
+	ret = soc_bind_dai_link(card, dai_link);
+	if (ret < 0)
+		return ret;
 
 	/* see for_each_card_links */
 	list_add_tail(&dai_link->list, &card->dai_link_list);
@@ -1996,13 +2002,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	/* check whether any platform is ignore machine FE and using topology */
 	soc_check_tplg_fes(card);
 
-	/* bind DAIs */
-	for_each_card_prelinks(card, i, dai_link) {
-		ret = soc_bind_dai_link(card, dai_link);
-		if (ret != 0)
-			goto probe_end;
-	}
-
 	/* bind aux_devs too */
 	ret = soc_bind_aux_dev(card);
 	if (ret < 0)
@@ -2059,16 +2058,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	ret = soc_probe_aux_devices(card);
 	if (ret < 0)
 		goto probe_end;
-
-	/*
-	 * Find new DAI links added during probing components and bind them.
-	 * Components with topology may bring new DAIs and DAI links.
-	 */
-	for_each_card_links(card, dai_link) {
-		ret = soc_bind_dai_link(card, dai_link);
-		if (ret)
-			goto probe_end;
-	}
 
 	/* probe all DAI links on this card */
 	ret = soc_probe_link_dais(card);
