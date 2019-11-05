@@ -261,7 +261,8 @@ int __ext4_handle_dirty_super(const char *where, unsigned int line,
 	__ext4_handle_dirty_super(__func__, __LINE__, (handle), (sb))
 
 handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
-				  int type, int blocks, int rsv_blocks);
+				  int type, int blocks, int rsv_blocks,
+				  int revoke_creds);
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle);
 
 #define EXT4_NOJOURNAL_MAX_REF_COUNT ((unsigned long) 4096)
@@ -288,21 +289,41 @@ static inline int ext4_handle_is_aborted(handle_t *handle)
 	return 0;
 }
 
+static inline int ext4_free_metadata_revoke_credits(struct super_block *sb,
+						    int blocks)
+{
+	/* Freeing each metadata block can result in freeing one cluster */
+	return blocks * EXT4_SB(sb)->s_cluster_ratio;
+}
+
+static inline int ext4_trans_default_revoke_credits(struct super_block *sb)
+{
+	return ext4_free_metadata_revoke_credits(sb, 8);
+}
+
 #define ext4_journal_start_sb(sb, type, nblocks)			\
-	__ext4_journal_start_sb((sb), __LINE__, (type), (nblocks), 0)
+	__ext4_journal_start_sb((sb), __LINE__, (type), (nblocks), 0,	\
+				ext4_trans_default_revoke_credits(sb))
 
 #define ext4_journal_start(inode, type, nblocks)			\
-	__ext4_journal_start((inode), __LINE__, (type), (nblocks), 0)
+	__ext4_journal_start((inode), __LINE__, (type), (nblocks), 0,	\
+			     ext4_trans_default_revoke_credits((inode)->i_sb))
 
-#define ext4_journal_start_with_reserve(inode, type, blocks, rsv_blocks) \
-	__ext4_journal_start((inode), __LINE__, (type), (blocks), (rsv_blocks))
+#define ext4_journal_start_with_reserve(inode, type, blocks, rsv_blocks)\
+	__ext4_journal_start((inode), __LINE__, (type), (blocks), (rsv_blocks),\
+			     ext4_trans_default_revoke_credits((inode)->i_sb))
+
+#define ext4_journal_start_with_revoke(inode, type, blocks, revoke_creds) \
+	__ext4_journal_start((inode), __LINE__, (type), (blocks), 0,	\
+			     (revoke_creds))
 
 static inline handle_t *__ext4_journal_start(struct inode *inode,
 					     unsigned int line, int type,
-					     int blocks, int rsv_blocks)
+					     int blocks, int rsv_blocks,
+					     int revoke_creds)
 {
 	return __ext4_journal_start_sb(inode->i_sb, line, type, blocks,
-				       rsv_blocks);
+				       rsv_blocks, revoke_creds);
 }
 
 #define ext4_journal_stop(handle) \
@@ -325,22 +346,23 @@ static inline handle_t *ext4_journal_current_handle(void)
 	return journal_current_handle();
 }
 
-static inline int ext4_journal_extend(handle_t *handle, int nblocks)
+static inline int ext4_journal_extend(handle_t *handle, int nblocks, int revoke)
 {
 	if (ext4_handle_valid(handle))
-		return jbd2_journal_extend(handle, nblocks, 1024);
+		return jbd2_journal_extend(handle, nblocks, revoke);
 	return 0;
 }
 
-static inline int ext4_journal_restart(handle_t *handle, int nblocks)
+static inline int ext4_journal_restart(handle_t *handle, int nblocks,
+				       int revoke)
 {
 	if (ext4_handle_valid(handle))
-		return jbd2__journal_restart(handle, nblocks, 1024, GFP_NOFS);
+		return jbd2__journal_restart(handle, nblocks, revoke, GFP_NOFS);
 	return 0;
 }
 
 int __ext4_journal_ensure_credits(handle_t *handle, int check_cred,
-				  int extend_cred);
+				  int extend_cred, int revoke_cred);
 
 
 /*
@@ -353,18 +375,19 @@ int __ext4_journal_ensure_credits(handle_t *handle, int check_cred,
  * credits or transaction extension succeeded, 1 in case transaction had to be
  * restarted.
  */
-#define ext4_journal_ensure_credits_fn(handle, check_cred, extend_cred, fn) \
+#define ext4_journal_ensure_credits_fn(handle, check_cred, extend_cred,	\
+				       revoke_cred, fn) \
 ({									\
 	__label__ __ensure_end;						\
 	int err = __ext4_journal_ensure_credits((handle), (check_cred),	\
-						(extend_cred));		\
+					(extend_cred), (revoke_cred));	\
 									\
 	if (err <= 0)							\
 		goto __ensure_end;					\
 	err = (fn);							\
 	if (err < 0)							\
 		goto __ensure_end;					\
-	err = ext4_journal_restart((handle), (extend_cred));		\
+	err = ext4_journal_restart((handle), (extend_cred), (revoke_cred)); \
 	if (err == 0)							\
 		err = 1;						\
 __ensure_end:								\
@@ -373,18 +396,16 @@ __ensure_end:								\
 
 /*
  * Ensure given handle has at least requested amount of credits available,
- * possibly restarting transaction if needed.
+ * possibly restarting transaction if needed. We also make sure the transaction
+ * has space for at least ext4_trans_default_revoke_credits(sb) revoke records
+ * as freeing one or two blocks is very common pattern and requesting this is
+ * very cheap.
  */
-static inline int ext4_journal_ensure_credits(handle_t *handle, int credits)
+static inline int ext4_journal_ensure_credits(handle_t *handle, int credits,
+					      int revoke_creds)
 {
-	return ext4_journal_ensure_credits_fn(handle, credits, credits, 0);
-}
-
-static inline int ext4_journal_ensure_credits_batch(handle_t *handle,
-						    int credits)
-{
-	return ext4_journal_ensure_credits_fn(handle, credits,
-					      EXT4_MAX_TRANS_DATA, 0);
+	return ext4_journal_ensure_credits_fn(handle, credits, credits,
+				revoke_creds, 0);
 }
 
 static inline int ext4_journal_blocks_per_page(struct inode *inode)
@@ -477,6 +498,19 @@ static inline int ext4_should_order_data(struct inode *inode)
 static inline int ext4_should_writeback_data(struct inode *inode)
 {
 	return ext4_inode_journal_mode(inode) & EXT4_INODE_WRITEBACK_DATA_MODE;
+}
+
+static inline int ext4_free_data_revoke_credits(struct inode *inode, int blocks)
+{
+	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA)
+		return 0;
+	if (!ext4_should_journal_data(inode))
+		return 0;
+	/*
+	 * Data blocks in one extent are contiguous, just account for partial
+	 * clusters at extent boundaries
+	 */
+	return blocks + 2*(EXT4_SB(inode->i_sb)->s_cluster_ratio - 1);
 }
 
 /*

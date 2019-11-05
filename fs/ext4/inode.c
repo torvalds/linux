@@ -5949,7 +5949,7 @@ static int ext4_try_to_expand_extra_isize(struct inode *inode,
 	 * force a large enough s_min_extra_isize.
 	 */
 	if (ext4_journal_extend(handle,
-				EXT4_DATA_TRANS_BLOCKS(inode->i_sb)) != 0)
+				EXT4_DATA_TRANS_BLOCKS(inode->i_sb), 0) != 0)
 		return -ENOSPC;
 
 	if (ext4_write_trylock_xattr(inode, &no_expand) == 0)

@@ -124,13 +124,14 @@ static int ext4_ext_trunc_restart_fn(struct inode *inode, int *dropped)
  * and < 0 in case of fatal error.
  */
 int ext4_datasem_ensure_credits(handle_t *handle, struct inode *inode,
-				int check_cred, int restart_cred)
+				int check_cred, int restart_cred,
+				int revoke_cred)
 {
 	int ret;
 	int dropped = 0;
 
 	ret = ext4_journal_ensure_credits_fn(handle, check_cred, restart_cred,
-			ext4_ext_trunc_restart_fn(inode, &dropped));
+		revoke_cred, ext4_ext_trunc_restart_fn(inode, &dropped));
 	if (dropped)
 		down_write(&EXT4_I(inode)->i_data_sem);
 	return ret;
@@ -1851,7 +1852,8 @@ static void ext4_ext_try_to_merge_up(handle_t *handle,
 	 * group descriptor to release the extent tree block.  If we
 	 * can't get the journal credits, give up.
 	 */
-	if (ext4_journal_extend(handle, 2))
+	if (ext4_journal_extend(handle, 2,
+			ext4_free_metadata_revoke_credits(inode->i_sb, 1)))
 		return;
 
 	/*
@@ -2738,7 +2740,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	int err = 0, correct_index = 0;
-	int depth = ext_depth(inode), credits;
+	int depth = ext_depth(inode), credits, revoke_credits;
 	struct ext4_extent_header *eh;
 	ext4_lblk_t a, b;
 	unsigned num;
@@ -2830,9 +2832,18 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			credits += (ext_depth(inode)) + 1;
 		}
 		credits += EXT4_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb);
+		/*
+		 * We may end up freeing some index blocks and data from the
+		 * punched range. Note that partial clusters are accounted for
+		 * by ext4_free_data_revoke_credits().
+		 */
+		revoke_credits =
+			ext4_free_metadata_revoke_credits(inode->i_sb,
+							  ext_depth(inode)) +
+			ext4_free_data_revoke_credits(inode, b - a + 1);
 
 		err = ext4_datasem_ensure_credits(handle, inode, credits,
-						  credits);
+						  credits, revoke_credits);
 		if (err) {
 			if (err > 0)
 				err = -EAGAIN;
@@ -2963,7 +2974,9 @@ int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start,
 	ext_debug("truncate since %u to %u\n", start, end);
 
 	/* probably first extent we're gonna free will be last in block */
-	handle = ext4_journal_start(inode, EXT4_HT_TRUNCATE, depth + 1);
+	handle = ext4_journal_start_with_revoke(inode, EXT4_HT_TRUNCATE,
+			depth + 1,
+			ext4_free_metadata_revoke_credits(inode->i_sb, depth));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -5222,7 +5235,7 @@ ext4_access_path(handle_t *handle, struct inode *inode,
 	 * groups
 	 */
 	credits = ext4_writepage_trans_blocks(inode);
-	err = ext4_datasem_ensure_credits(handle, inode, 7, credits);
+	err = ext4_datasem_ensure_credits(handle, inode, 7, credits, 0);
 	if (err < 0)
 		return err;
 

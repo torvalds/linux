@@ -388,6 +388,12 @@ static struct buffer_head *bclean(handle_t *handle, struct super_block *sb,
 	return bh;
 }
 
+static int ext4_resize_ensure_credits_batch(handle_t *handle, int credits)
+{
+	return ext4_journal_ensure_credits_fn(handle, credits,
+		EXT4_MAX_TRANS_DATA, 0, 0);
+}
+
 /*
  * set_flexbg_block_bitmap() mark clusters [@first_cluster, @last_cluster] used.
  *
@@ -427,7 +433,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 			continue;
 		}
 
-		err = ext4_journal_ensure_credits_batch(handle, 1);
+		err = ext4_resize_ensure_credits_batch(handle, 1);
 		if (err < 0)
 			return err;
 
@@ -520,7 +526,7 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 			struct buffer_head *gdb;
 
 			ext4_debug("update backup group %#04llx\n", block);
-			err = ext4_journal_ensure_credits_batch(handle, 1);
+			err = ext4_resize_ensure_credits_batch(handle, 1);
 			if (err < 0)
 				goto out;
 
@@ -578,7 +584,7 @@ handle_bb:
 
 		/* Initialize block bitmap of the @group */
 		block = group_data[i].block_bitmap;
-		err = ext4_journal_ensure_credits_batch(handle, 1);
+		err = ext4_resize_ensure_credits_batch(handle, 1);
 		if (err < 0)
 			goto out;
 
@@ -607,7 +613,7 @@ handle_ib:
 
 		/* Initialize inode bitmap of the @group */
 		block = group_data[i].inode_bitmap;
-		err = ext4_journal_ensure_credits_batch(handle, 1);
+		err = ext4_resize_ensure_credits_batch(handle, 1);
 		if (err < 0)
 			goto out;
 		/* Mark unused entries in inode bitmap used */
@@ -1085,7 +1091,7 @@ static void update_backups(struct super_block *sb, sector_t blk_off, char *data,
 		ext4_fsblk_t backup_block;
 
 		/* Out of journal space, and can't get more - abort - so sad */
-		err = ext4_journal_ensure_credits_batch(handle, 1);
+		err = ext4_resize_ensure_credits_batch(handle, 1);
 		if (err < 0)
 			break;
 

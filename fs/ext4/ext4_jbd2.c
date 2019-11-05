@@ -65,12 +65,14 @@ static int ext4_journal_check_start(struct super_block *sb)
 }
 
 handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
-				  int type, int blocks, int rsv_blocks)
+				  int type, int blocks, int rsv_blocks,
+				  int revoke_creds)
 {
 	journal_t *journal;
 	int err;
 
-	trace_ext4_journal_start(sb, blocks, rsv_blocks, _RET_IP_);
+	trace_ext4_journal_start(sb, blocks, rsv_blocks, revoke_creds,
+				 _RET_IP_);
 	err = ext4_journal_check_start(sb);
 	if (err < 0)
 		return ERR_PTR(err);
@@ -78,8 +80,8 @@ handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
 	journal = EXT4_SB(sb)->s_journal;
 	if (!journal)
 		return ext4_get_nojournal();
-	return jbd2__journal_start(journal, blocks, rsv_blocks, 1024, GFP_NOFS,
-				   type, line);
+	return jbd2__journal_start(journal, blocks, rsv_blocks, revoke_creds,
+				   GFP_NOFS, type, line);
 }
 
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
@@ -134,14 +136,16 @@ handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
 }
 
 int __ext4_journal_ensure_credits(handle_t *handle, int check_cred,
-				  int extend_cred)
+				  int extend_cred, int revoke_cred)
 {
 	if (!ext4_handle_valid(handle))
 		return 0;
-	if (jbd2_handle_buffer_credits(handle) >= check_cred)
+	if (jbd2_handle_buffer_credits(handle) >= check_cred &&
+	    handle->h_revoke_credits >= revoke_cred)
 		return 0;
-	return ext4_journal_extend(handle,
-			   extend_cred - jbd2_handle_buffer_credits(handle));
+	extend_cred = max(0, extend_cred - jbd2_handle_buffer_credits(handle));
+	revoke_cred = max(0, revoke_cred - handle->h_revoke_credits);
+	return ext4_journal_extend(handle, extend_cred, revoke_cred);
 }
 
 static void ext4_journal_abort_handle(const char *caller, unsigned int line,

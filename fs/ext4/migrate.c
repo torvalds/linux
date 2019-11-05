@@ -50,7 +50,7 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	needed = ext4_ext_calc_credits_for_single_extent(inode,
 		    lb->last_block - lb->first_block + 1, path);
 
-	retval = ext4_datasem_ensure_credits(handle, inode, needed, needed);
+	retval = ext4_datasem_ensure_credits(handle, inode, needed, needed, 0);
 	if (retval < 0)
 		goto err_out;
 	retval = ext4_ext_insert_extent(handle, inode, &path, &newext, 0);
@@ -182,10 +182,11 @@ static int free_dind_blocks(handle_t *handle,
 	int i;
 	__le32 *tmp_idata;
 	struct buffer_head *bh;
+	struct super_block *sb = inode->i_sb;
 	unsigned long max_entries = inode->i_sb->s_blocksize >> 2;
 	int err;
 
-	bh = ext4_sb_bread(inode->i_sb, le32_to_cpu(i_data), 0);
+	bh = ext4_sb_bread(sb, le32_to_cpu(i_data), 0);
 	if (IS_ERR(bh))
 		return PTR_ERR(bh);
 
@@ -193,7 +194,8 @@ static int free_dind_blocks(handle_t *handle,
 	for (i = 0; i < max_entries; i++) {
 		if (tmp_idata[i]) {
 			err = ext4_journal_ensure_credits(handle,
-						EXT4_RESERVE_TRANS_BLOCKS);
+				EXT4_RESERVE_TRANS_BLOCKS,
+				ext4_free_metadata_revoke_credits(sb, 1));
 			if (err < 0) {
 				put_bh(bh);
 				return err;
@@ -205,7 +207,8 @@ static int free_dind_blocks(handle_t *handle,
 		}
 	}
 	put_bh(bh);
-	err = ext4_journal_ensure_credits(handle, EXT4_RESERVE_TRANS_BLOCKS);
+	err = ext4_journal_ensure_credits(handle, EXT4_RESERVE_TRANS_BLOCKS,
+				ext4_free_metadata_revoke_credits(sb, 1));
 	if (err < 0)
 		return err;
 	ext4_free_blocks(handle, inode, NULL, le32_to_cpu(i_data), 1,
@@ -238,7 +241,8 @@ static int free_tind_blocks(handle_t *handle,
 		}
 	}
 	put_bh(bh);
-	retval = ext4_journal_ensure_credits(handle, EXT4_RESERVE_TRANS_BLOCKS);
+	retval = ext4_journal_ensure_credits(handle, EXT4_RESERVE_TRANS_BLOCKS,
+			ext4_free_metadata_revoke_credits(inode->i_sb, 1));
 	if (retval < 0)
 		return retval;
 	ext4_free_blocks(handle, inode, NULL, le32_to_cpu(i_data), 1,
@@ -254,7 +258,8 @@ static int free_ind_block(handle_t *handle, struct inode *inode, __le32 *i_data)
 	/* ei->i_data[EXT4_IND_BLOCK] */
 	if (i_data[0]) {
 		retval = ext4_journal_ensure_credits(handle,
-						     EXT4_RESERVE_TRANS_BLOCKS);
+			EXT4_RESERVE_TRANS_BLOCKS,
+			ext4_free_metadata_revoke_credits(inode->i_sb, 1));
 		if (retval < 0)
 			return retval;
 		ext4_free_blocks(handle, inode, NULL,
@@ -291,7 +296,7 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * One credit accounted for writing the
 	 * i_data field of the original inode
 	 */
-	retval = ext4_journal_ensure_credits(handle, 1);
+	retval = ext4_journal_ensure_credits(handle, 1, 0);
 	if (retval < 0)
 		goto err_out;
 
@@ -368,7 +373,8 @@ static int free_ext_idx(handle_t *handle, struct inode *inode,
 		}
 	}
 	put_bh(bh);
-	retval = ext4_journal_ensure_credits(handle, EXT4_RESERVE_TRANS_BLOCKS);
+	retval = ext4_journal_ensure_credits(handle, EXT4_RESERVE_TRANS_BLOCKS,
+			ext4_free_metadata_revoke_credits(inode->i_sb, 1));
 	if (retval < 0)
 		return retval;
 	ext4_free_blocks(handle, inode, NULL, block, 1,
@@ -548,7 +554,7 @@ err_out:
 	}
 
 	/* We mark the tmp_inode dirty via ext4_ext_tree_init. */
-	retval = ext4_journal_ensure_credits(handle, 1);
+	retval = ext4_journal_ensure_credits(handle, 1, 0);
 	if (retval < 0)
 		goto out_stop;
 	/*

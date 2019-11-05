@@ -736,13 +736,14 @@ static int ext4_ind_trunc_restart_fn(handle_t *handle, struct inode *inode,
  */
 static int ext4_ind_truncate_ensure_credits(handle_t *handle,
 					    struct inode *inode,
-					    struct buffer_head *bh)
+					    struct buffer_head *bh,
+					    int revoke_creds)
 {
 	int ret;
 	int dropped = 0;
 
 	ret = ext4_journal_ensure_credits_fn(handle, EXT4_RESERVE_TRANS_BLOCKS,
-			ext4_blocks_for_truncate(inode),
+			ext4_blocks_for_truncate(inode), revoke_creds,
 			ext4_ind_trunc_restart_fn(handle, inode, bh, &dropped));
 	if (dropped)
 		down_write(&EXT4_I(inode)->i_data_sem);
@@ -889,7 +890,8 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 		return 1;
 	}
 
-	err = ext4_ind_truncate_ensure_credits(handle, inode, bh);
+	err = ext4_ind_truncate_ensure_credits(handle, inode, bh,
+				ext4_free_data_revoke_credits(inode, count));
 	if (err < 0)
 		goto out_err;
 
@@ -1075,7 +1077,9 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			if (ext4_handle_is_aborted(handle))
 				return;
 			if (ext4_ind_truncate_ensure_credits(handle, inode,
-							     NULL) < 0)
+					NULL,
+					ext4_free_metadata_revoke_credits(
+							inode->i_sb, 1)) < 0)
 				return;
 
 			/*
