@@ -53,6 +53,7 @@
 #define	OVL_CON_AEN		BIT(8)
 #define	OVL_CON_ALPHA		0xff
 #define	OVL_CON_VIRT_FLIP	BIT(9)
+#define	OVL_CON_HORZ_FLIP	BIT(10)
 
 struct mtk_disp_ovl_data {
 	unsigned int addr;
@@ -142,7 +143,8 @@ static unsigned int mtk_ovl_layer_nr(struct mtk_ddp_comp *comp)
 
 static unsigned int mtk_ovl_supported_rotations(struct mtk_ddp_comp *comp)
 {
-	return DRM_MODE_ROTATE_0 | DRM_MODE_REFLECT_Y;
+	return DRM_MODE_ROTATE_0 | DRM_MODE_REFLECT_Y |
+	       DRM_MODE_REFLECT_X;
 }
 
 static int mtk_ovl_layer_check(struct mtk_ddp_comp *comp, unsigned int idx,
@@ -153,6 +155,7 @@ static int mtk_ovl_layer_check(struct mtk_ddp_comp *comp, unsigned int idx,
 
 	rotation = drm_rotation_simplify(state->rotation,
 					 DRM_MODE_ROTATE_0 |
+					 DRM_MODE_REFLECT_X |
 					 DRM_MODE_REFLECT_Y);
 	rotation &= ~DRM_MODE_ROTATE_0;
 
@@ -267,6 +270,11 @@ static void mtk_ovl_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 	if (pending->rotation & DRM_MODE_REFLECT_Y) {
 		con |= OVL_CON_VIRT_FLIP;
 		addr += (pending->height - 1) * pending->pitch;
+	}
+
+	if (pending->rotation & DRM_MODE_REFLECT_X) {
+		con |= OVL_CON_HORZ_FLIP;
+		addr += pending->pitch - 1;
 	}
 
 	writel_relaxed(con, comp->regs + DISP_REG_OVL_CON(idx));
