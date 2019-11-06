@@ -7,14 +7,19 @@
 #define phylink_to_dpaa2_mac(config) \
 	container_of((config), struct dpaa2_mac, phylink_config)
 
-static phy_interface_t phy_mode(enum dpmac_eth_if eth_if)
+static int phy_mode(enum dpmac_eth_if eth_if, phy_interface_t *if_mode)
 {
+	*if_mode = PHY_INTERFACE_MODE_NA;
+
 	switch (eth_if) {
 	case DPMAC_ETH_IF_RGMII:
-		return PHY_INTERFACE_MODE_RGMII;
+		*if_mode = PHY_INTERFACE_MODE_RGMII;
+		break;
 	default:
 		return -EINVAL;
 	}
+
+	return 0;
 }
 
 /* Caller must call of_node_put on the returned value */
@@ -51,11 +56,11 @@ static int dpaa2_mac_get_if_mode(struct device_node *node,
 	if (!err)
 		return if_mode;
 
-	if_mode = phy_mode(attr.eth_if);
-	if (if_mode >= 0)
+	err = phy_mode(attr.eth_if, &if_mode);
+	if (!err)
 		return if_mode;
 
-	return -ENODEV;
+	return err;
 }
 
 static bool dpaa2_mac_phy_mode_mismatch(struct dpaa2_mac *mac,
