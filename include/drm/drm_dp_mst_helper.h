@@ -502,6 +502,7 @@ struct drm_dp_payload {
 struct drm_dp_vcpi_allocation {
 	struct drm_dp_mst_port *port;
 	int vcpi;
+	int pbn;
 	bool dsc_enabled;
 	struct list_head next;
 };

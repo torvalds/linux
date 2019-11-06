@@ -4125,7 +4125,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 {
 	struct drm_dp_mst_topology_state *topology_state;
 	struct drm_dp_vcpi_allocation *pos, *vcpi = NULL;
-	int prev_slots, req_slots;
+	int prev_slots, prev_bw, req_slots;
 
 	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
 	if (IS_ERR(topology_state))
@@ -4136,6 +4136,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 		if (pos->port == port) {
 			vcpi = pos;
 			prev_slots = vcpi->vcpi;
+			prev_bw = vcpi->pbn;
 
 			/*
 			 * This should never happen, unless the driver tries
@@ -4151,8 +4152,10 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 			break;
 		}
 	}
-	if (!vcpi)
+	if (!vcpi) {
 		prev_slots = 0;
+		prev_bw = 0;
+	}
 
 	if (pbn_div <= 0)
 		pbn_div = mgr->pbn_div;
@@ -4162,6 +4165,9 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 	DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] [MST PORT:%p] VCPI %d -> %d\n",
 			 port->connector->base.id, port->connector->name,
 			 port, prev_slots, req_slots);
+	DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] [MST PORT:%p] PBN %d -> %d\n",
+			 port->connector->base.id, port->connector->name,
+			 port, prev_bw, pbn);
 
 	/* Add the new allocation to the state */
 	if (!vcpi) {
@@ -4174,6 +4180,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 		list_add(&vcpi->next, &topology_state->vcpis);
 	}
 	vcpi->vcpi = req_slots;
+	vcpi->pbn = pbn;
 
 	return req_slots;
 }
@@ -4750,6 +4757,58 @@ static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
 	kfree(mst_state);
 }
 
+static bool drm_dp_mst_port_downstream_of_branch(struct drm_dp_mst_port *port,
+						 struct drm_dp_mst_branch *branch)
+{
+	while (port->parent) {
+		if (port->parent == branch)
+			return true;
+
+		if (port->parent->port_parent)
+			port = port->parent->port_parent;
+		else
+			break;
+	}
+	return false;
+}
+
+static inline
+int drm_dp_mst_atomic_check_bw_limit(struct drm_dp_mst_branch *branch,
+				     struct drm_dp_mst_topology_state *mst_state)
+{
+	struct drm_dp_mst_port *port;
+	struct drm_dp_vcpi_allocation *vcpi;
+	int pbn_limit = 0, pbn_used = 0;
+
+	list_for_each_entry(port, &branch->ports, next) {
+		if (port->mstb)
+			if (drm_dp_mst_atomic_check_bw_limit(port->mstb, mst_state))
+				return -ENOSPC;
+
+		if (port->available_pbn > 0)
+			pbn_limit = port->available_pbn;
+	}
+	DRM_DEBUG_ATOMIC("[MST BRANCH:%p] branch has %d PBN available\n",
+			 branch, pbn_limit);
+
+	list_for_each_entry(vcpi, &mst_state->vcpis, next) {
+		if (!vcpi->pbn)
+			continue;
+
+		if (drm_dp_mst_port_downstream_of_branch(vcpi->port, branch))
+			pbn_used += vcpi->pbn;
+	}
+	DRM_DEBUG_ATOMIC("[MST BRANCH:%p] branch used %d PBN\n",
+			 branch, pbn_used);
+
+	if (pbn_used > pbn_limit) {
+		DRM_DEBUG_ATOMIC("[MST BRANCH:%p] No available bandwidth\n",
+				 branch);
+		return -ENOSPC;
+	}
+	return 0;
+}
+
 static inline int
 drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
 				       struct drm_dp_mst_topology_state *mst_state)
@@ -4879,6 +4938,9 @@ int drm_dp_mst_atomic_check(struct drm_atomic_state *state)
 
 	for_each_new_mst_mgr_in_state(state, mgr, mst_state, i) {
 		ret = drm_dp_mst_atomic_check_topology_state(mgr, mst_state);
+		if (ret)
+			break;
+		ret = drm_dp_mst_atomic_check_bw_limit(mgr->mst_primary, mst_state);
 		if (ret)
 			break;
 	}
