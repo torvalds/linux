@@ -1049,15 +1049,36 @@ static int soc_dai_link_sanity_check(struct snd_soc_card *card,
 	return 0;
 }
 
-static void soc_unbind_dai_link(struct snd_soc_card *card,
-				struct snd_soc_dai_link *dai_link)
+/**
+ * snd_soc_remove_dai_link - Remove a DAI link from the list
+ * @card: The ASoC card that owns the link
+ * @dai_link: The DAI link to remove
+ *
+ * This function removes a DAI link from the ASoC card's link list.
+ *
+ * For DAI links previously added by topology, topology should
+ * remove them by using the dobj embedded in the link.
+ */
+void snd_soc_remove_dai_link(struct snd_soc_card *card,
+			     struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
+
+	lockdep_assert_held(&client_mutex);
+
+	/*
+	 * Notify the machine driver for extra destruction
+	 */
+	if (card->remove_dai_link)
+		card->remove_dai_link(card, dai_link);
+
+	list_del(&dai_link->list);
 
 	rtd = snd_soc_get_pcm_runtime(card, dai_link->name);
 	if (rtd)
 		soc_free_pcm_runtime(rtd);
 }
+EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
 
 /**
  * snd_soc_add_dai_link - Add a DAI link dynamically
@@ -1433,33 +1454,6 @@ void snd_soc_disconnect_sync(struct device *dev)
 	snd_card_disconnect_sync(component->card->snd_card);
 }
 EXPORT_SYMBOL_GPL(snd_soc_disconnect_sync);
-
-/**
- * snd_soc_remove_dai_link - Remove a DAI link from the list
- * @card: The ASoC card that owns the link
- * @dai_link: The DAI link to remove
- *
- * This function removes a DAI link from the ASoC card's link list.
- *
- * For DAI links previously added by topology, topology should
- * remove them by using the dobj embedded in the link.
- */
-void snd_soc_remove_dai_link(struct snd_soc_card *card,
-			     struct snd_soc_dai_link *dai_link)
-{
-	lockdep_assert_held(&client_mutex);
-
-	/*
-	 * Notify the machine driver for extra destruction
-	 */
-	if (card->remove_dai_link)
-		card->remove_dai_link(card, dai_link);
-
-	list_del(&dai_link->list);
-
-	soc_unbind_dai_link(card, dai_link);
-}
-EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
 
 static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 				struct snd_soc_pcm_runtime *rtd)
