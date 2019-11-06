@@ -851,6 +851,11 @@ extern void i2c_del_driver(struct i2c_driver *driver);
 #define i2c_add_driver(driver) \
 	i2c_register_driver(THIS_MODULE, driver)
 
+static inline bool i2c_client_has_driver(struct i2c_client *client)
+{
+	return !IS_ERR_OR_NULL(client) && client->dev.driver;
+}
+
 /* call the i2c_client->command() of all attached clients with
  * the given arguments */
 extern void i2c_clients_command(struct i2c_adapter *adap,
