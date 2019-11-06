@@ -318,14 +318,6 @@ xfs_btree_get_bufs(
 	xfs_agblock_t		agbno);	/* allocation group block number */
 
 /*
- * Check for the cursor referring to the last block at the given level.
- */
-int					/* 1=is last block, 0=not last block */
-xfs_btree_islastblock(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level);	/* level to check */
-
-/*
  * Compute first and last byte offsets for the fields given.
  * Interprets the offsets table, which contains struct field offsets.
  */
@@ -523,5 +515,22 @@ union xfs_btree_key *xfs_btree_high_key_from_key(struct xfs_btree_cur *cur,
 int xfs_btree_has_record(struct xfs_btree_cur *cur, union xfs_btree_irec *low,
 		union xfs_btree_irec *high, bool *exists);
 bool xfs_btree_has_more_records(struct xfs_btree_cur *cur);
+
+/* Does this cursor point to the last block in the given level? */
+static inline bool
+xfs_btree_islastblock(
+	xfs_btree_cur_t		*cur,
+	int			level)
+{
+	struct xfs_btree_block	*block;
+	struct xfs_buf		*bp;
+
+	block = xfs_btree_get_block(cur, level, &bp);
+	ASSERT(block && xfs_btree_check_block(cur, block, level, bp) == 0);
+
+	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
+		return block->bb_u.l.bb_rightsib == cpu_to_be64(NULLFSBLOCK);
+	return block->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK);
+}
 
 #endif	/* __XFS_BTREE_H__ */
