@@ -315,8 +315,14 @@ static int ip_tun_encap_nlsize(struct lwtunnel_state *lwtstate)
 
 static int ip_tun_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b)
 {
-	return memcmp(lwt_tun_info(a), lwt_tun_info(b),
-		      sizeof(struct ip_tunnel_info));
+	struct ip_tunnel_info *info_a = lwt_tun_info(a);
+	struct ip_tunnel_info *info_b = lwt_tun_info(b);
+
+	return memcmp(info_a, info_b, sizeof(info_a->key)) ||
+	       info_a->mode != info_b->mode ||
+	       info_a->options_len != info_b->options_len ||
+	       memcmp(ip_tunnel_info_opts(info_a),
+		      ip_tunnel_info_opts(info_b), info_a->options_len);
 }
 
 static const struct lwtunnel_encap_ops ip_tun_lwt_ops = {
