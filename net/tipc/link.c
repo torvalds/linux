@@ -1731,21 +1731,6 @@ void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 		return;
 
 	__skb_queue_head_init(&tnlq);
-	__skb_queue_head_init(&tmpxq);
-	__skb_queue_head_init(&frags);
-
-	/* At least one packet required for safe algorithm => add dummy */
-	skb = tipc_msg_create(TIPC_LOW_IMPORTANCE, TIPC_DIRECT_MSG,
-			      BASIC_H_SIZE, 0, l->addr, tipc_own_addr(l->net),
-			      0, 0, TIPC_ERR_NO_PORT);
-	if (!skb) {
-		pr_warn("%sunable to create tunnel packet\n", link_co_err);
-		return;
-	}
-	__skb_queue_tail(&tnlq, skb);
-	tipc_link_xmit(l, &tnlq, &tmpxq);
-	__skb_queue_purge(&tmpxq);
-
 	/* Link Synching:
 	 * From now on, send only one single ("dummy") SYNCH message
 	 * to peer. The SYNCH message does not contain any data, just
@@ -1770,6 +1755,20 @@ void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 		tipc_link_xmit(tnl, &tnlq, xmitq);
 		return;
 	}
+
+	__skb_queue_head_init(&tmpxq);
+	__skb_queue_head_init(&frags);
+	/* At least one packet required for safe algorithm => add dummy */
+	skb = tipc_msg_create(TIPC_LOW_IMPORTANCE, TIPC_DIRECT_MSG,
+			      BASIC_H_SIZE, 0, l->addr, tipc_own_addr(l->net),
+			      0, 0, TIPC_ERR_NO_PORT);
+	if (!skb) {
+		pr_warn("%sunable to create tunnel packet\n", link_co_err);
+		return;
+	}
+	__skb_queue_tail(&tnlq, skb);
+	tipc_link_xmit(l, &tnlq, &tmpxq);
+	__skb_queue_purge(&tmpxq);
 
 	/* Initialize reusable tunnel packet header */
 	tipc_msg_init(tipc_own_addr(l->net), &tnlhdr, TUNNEL_PROTOCOL,
