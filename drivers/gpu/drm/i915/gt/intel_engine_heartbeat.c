@@ -141,8 +141,8 @@ void intel_engine_unpark_heartbeat(struct intel_engine_cs *engine)
 
 void intel_engine_park_heartbeat(struct intel_engine_cs *engine)
 {
-	cancel_delayed_work(&engine->heartbeat.work);
-	i915_request_put(fetch_and_zero(&engine->heartbeat.systole));
+	if (cancel_delayed_work(&engine->heartbeat.work))
+		i915_request_put(fetch_and_zero(&engine->heartbeat.systole));
 }
 
 void intel_engine_init_heartbeat(struct intel_engine_cs *engine)
