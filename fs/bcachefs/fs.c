@@ -775,10 +775,15 @@ static int bch2_getattr(struct mnt_idmap *idmap,
 
 	if (inode->ei_inode.bi_flags & BCH_INODE_IMMUTABLE)
 		stat->attributes |= STATX_ATTR_IMMUTABLE;
+	stat->attributes_mask	 |= STATX_ATTR_IMMUTABLE;
+
 	if (inode->ei_inode.bi_flags & BCH_INODE_APPEND)
 		stat->attributes |= STATX_ATTR_APPEND;
+	stat->attributes_mask	 |= STATX_ATTR_APPEND;
+
 	if (inode->ei_inode.bi_flags & BCH_INODE_NODUMP)
 		stat->attributes |= STATX_ATTR_NODUMP;
+	stat->attributes_mask	 |= STATX_ATTR_NODUMP;
 
 	return 0;
 }
