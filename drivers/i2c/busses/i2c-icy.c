@@ -187,10 +187,10 @@ static int icy_probe(struct zorro_dev *z,
 		ltc2990_info.fwnode = new_fwnode;
 
 		i2c->ltc2990_client =
-			i2c_new_probed_device(&i2c->adapter,
-					      &ltc2990_info,
-					      icy_ltc2990_addresses,
-					      NULL);
+			i2c_new_scanned_device(&i2c->adapter,
+					       &ltc2990_info,
+					       icy_ltc2990_addresses,
+					       NULL);
 	}
 
 	return 0;
