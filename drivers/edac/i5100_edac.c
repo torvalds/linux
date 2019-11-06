@@ -846,19 +846,16 @@ static void i5100_init_interleaving(struct pci_dev *pdev,
 
 static void i5100_init_csrows(struct mem_ctl_info *mci)
 {
-	int i;
 	struct i5100_priv *priv = mci->pvt_info;
+	struct dimm_info *dimm;
 
-	for (i = 0; i < mci->tot_dimms; i++) {
-		struct dimm_info *dimm;
-		const unsigned long npages = i5100_npages(mci, i);
-		const unsigned int chan = i5100_csrow_to_chan(mci, i);
-		const unsigned int rank = i5100_csrow_to_rank(mci, i);
+	mci_for_each_dimm(mci, dimm) {
+		const unsigned long npages = i5100_npages(mci, dimm->idx);
+		const unsigned int chan = i5100_csrow_to_chan(mci, dimm->idx);
+		const unsigned int rank = i5100_csrow_to_rank(mci, dimm->idx);
 
 		if (!npages)
 			continue;
-
-		dimm = edac_get_dimm(mci, chan, rank, 0);
 
 		dimm->nr_pages = npages;
 		dimm->grain = 32;

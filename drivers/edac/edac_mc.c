@@ -145,15 +145,18 @@ static void edac_mc_dump_channel(struct rank_info *chan)
 	edac_dbg(4, "    channel->dimm = %p\n", chan->dimm);
 }
 
-static void edac_mc_dump_dimm(struct dimm_info *dimm, int number)
+static void edac_mc_dump_dimm(struct dimm_info *dimm)
 {
 	char location[80];
+
+	if (!dimm->nr_pages)
+		return;
 
 	edac_dimm_info_location(dimm, location, sizeof(location));
 
 	edac_dbg(4, "%s%i: %smapped as virtual row %d, chan %d\n",
 		 dimm->mci->csbased ? "rank" : "dimm",
-		 number, location, dimm->csrow, dimm->cschannel);
+		 dimm->idx, location, dimm->csrow, dimm->cschannel);
 	edac_dbg(4, "  dimm = %p\n", dimm);
 	edac_dbg(4, "  dimm->label = '%s'\n", dimm->label);
 	edac_dbg(4, "  dimm->nr_pages = 0x%x\n", dimm->nr_pages);
@@ -712,6 +715,7 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 		edac_mc_dump_mci(mci);
 
 	if (edac_debug_level >= 4) {
+		struct dimm_info *dimm;
 		int i;
 
 		for (i = 0; i < mci->nr_csrows; i++) {
@@ -728,9 +732,9 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 				if (csrow->channels[j]->dimm->nr_pages)
 					edac_mc_dump_channel(csrow->channels[j]);
 		}
-		for (i = 0; i < mci->tot_dimms; i++)
-			if (mci->dimms[i]->nr_pages)
-				edac_mc_dump_dimm(mci->dimms[i], i);
+
+		mci_for_each_dimm(mci, dimm)
+			edac_mc_dump_dimm(dimm);
 	}
 #endif
 	mutex_lock(&mem_ctls_mutex);
@@ -1088,6 +1092,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  const char *msg,
 			  const char *other_detail)
 {
+	struct dimm_info *dimm;
 	char *p;
 	int row = -1, chan = -1;
 	int pos[EDAC_MAX_LAYERS] = { top_layer, mid_layer, low_layer };
@@ -1148,9 +1153,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	p = e->label;
 	*p = '\0';
 
-	for (i = 0; i < mci->tot_dimms; i++) {
-		struct dimm_info *dimm = mci->dimms[i];
-
+	mci_for_each_dimm(mci, dimm) {
 		if (top_layer >= 0 && top_layer != dimm->location[0])
 			continue;
 		if (mid_layer >= 0 && mid_layer != dimm->location[1])

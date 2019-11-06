@@ -90,12 +90,13 @@ static void ghes_edac_count_dimms(const struct dmi_header *dh, void *arg)
 
 static int get_dimm_smbios_index(struct mem_ctl_info *mci, u16 handle)
 {
-	int i;
+	struct dimm_info *dimm;
 
-	for (i = 0; i < mci->tot_dimms; i++) {
-		if (mci->dimms[i]->smbios_handle == handle)
-			return i;
+	mci_for_each_dimm(mci, dimm) {
+		if (dimm->smbios_handle == handle)
+			return dimm->idx;
 	}
+
 	return -1;
 }
 

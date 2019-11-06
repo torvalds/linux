@@ -599,6 +599,13 @@ struct mem_ctl_info {
 	u16 fake_inject_count;
 };
 
+#define mci_for_each_dimm(mci, dimm)				\
+	for ((dimm) = (mci)->dimms[0];				\
+	     (dimm);						\
+	     (dimm) = (dimm)->idx + 1 < (mci)->tot_dimms	\
+		     ? (mci)->dimms[(dimm)->idx + 1]		\
+		     : NULL)
+
 /**
  * edac_get_dimm_by_index - Get DIMM info at @index from a memory
  * 			    controller
