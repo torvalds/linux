@@ -2511,11 +2511,12 @@ static inline char *fmt_multiple_name(struct device *dev,
 	return devm_kstrdup(dev, dai_drv->name, GFP_KERNEL);
 }
 
-static void soc_del_dai(struct snd_soc_dai *dai)
+void snd_soc_unregister_dai(struct snd_soc_dai *dai)
 {
 	dev_dbg(dai->dev, "ASoC: Unregistered DAI '%s'\n", dai->name);
 	list_del(&dai->list);
 }
+EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
 
 /**
  * snd_soc_register_dai - Register a DAI dynamically & create its widgets
@@ -2576,13 +2577,6 @@ struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
 	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
 	return dai;
 }
-EXPORT_SYMBOL_GPL(snd_soc_register_dai);
-
-void snd_soc_unregister_dai(struct snd_soc_dai *dai)
-{
-	soc_del_dai(dai);
-}
-EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
 
 /**
  * snd_soc_unregister_dai - Unregister DAIs from the ASoC core
