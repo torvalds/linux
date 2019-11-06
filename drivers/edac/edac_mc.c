@@ -323,7 +323,8 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 	int i, j, row, chn, n, len;
 	bool per_rank = false;
 
-	BUG_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0);
+	if (WARN_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0))
+		return NULL;
 
 	/*
 	 * Calculate the total amount of dimms and csrows/cschannels while
