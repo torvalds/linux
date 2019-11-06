@@ -56,24 +56,24 @@ enum qca_baudrate {
 	QCA_BAUDRATE_RESERVED
 };
 
-enum rome_tlv_dnld_mode {
-	ROME_SKIP_EVT_NONE,
-	ROME_SKIP_EVT_VSE,
-	ROME_SKIP_EVT_CC,
-	ROME_SKIP_EVT_VSE_CC
+enum qca_tlv_dnld_mode {
+	QCA_SKIP_EVT_NONE,
+	QCA_SKIP_EVT_VSE,
+	QCA_SKIP_EVT_CC,
+	QCA_SKIP_EVT_VSE_CC
 };
 
-enum rome_tlv_type {
+enum qca_tlv_type {
 	TLV_TYPE_PATCH = 1,
 	TLV_TYPE_NVM
 };
 
-struct rome_config {
+struct qca_fw_config {
 	u8 type;
 	char fwname[64];
 	uint8_t user_baud_rate;
-	enum rome_tlv_dnld_mode dnld_mode;
-	enum rome_tlv_dnld_mode dnld_type;
+	enum qca_tlv_dnld_mode dnld_mode;
+	enum qca_tlv_dnld_mode dnld_type;
 };
 
 struct edl_event_hdr {
@@ -82,10 +82,10 @@ struct edl_event_hdr {
 	__u8 data[0];
 } __packed;
 
-struct rome_version {
+struct qca_btsoc_version {
 	__le32 product_id;
 	__le16 patch_ver;
-	__le16 rome_ver;
+	__le16 rom_ver;
 	__le32 soc_id;
 } __packed;
 
