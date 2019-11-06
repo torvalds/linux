@@ -61,5 +61,6 @@
 		phy_cmd_drv = <PHY_RON_34ohm>;
 		phy_dqs_drv = <PHY_RON_34ohm>;
 		phy_odt = <PHY_RTT_279ohm>;
+		ddr_2t = <ENABLE_DDR_2T>;
 	};
 };

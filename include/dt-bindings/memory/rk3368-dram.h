@@ -103,4 +103,7 @@
 #define PHY_RTT_80ohm		(14)
 #define PHY_RTT_74ohm		(15)
 
+#define ENABLE_DDR_2T		(1)
+#define DISABLE_DDR_2T		(0)
+
 #endif /*_DT_BINDINGS_DRAM_ROCKCHIP_RK3368_H*/

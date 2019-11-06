@@ -50,6 +50,8 @@ Required properties:
 
 - phy_odt : define the phy odt in ohm, default value isPHY_RTT_279ohm
 
+- ddr_2t : define the uptcl CMD/CLK 2T mode, default value is ENABLE_DDR_2T.
+
 the driver strength and odt value are defined at include/dt-bindings/dram/rockchip,rk3368.h
 
 Example:
@@ -73,5 +75,6 @@ Example:
                 phy_cmd_drv = <PHY_RON_34ohm>;
                 phy_dqs_drv = <PHY_RON_34ohm>;
                 phy_odt = <PHY_RTT_279ohm>;
+		ddr_2t = <ENABLE_DDR_2T>;
         };
 };
