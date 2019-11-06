@@ -199,6 +199,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	hw = to_me_hw(dev);
 	hw->mem_addr = pcim_iomap_table(pdev)[0];
+	hw->irq = pdev->irq;
 
 	pci_enable_msi(pdev);
 

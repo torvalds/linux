@@ -323,9 +323,9 @@ static void mei_me_intr_disable(struct mei_device *dev)
  */
 static void mei_me_synchronize_irq(struct mei_device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct mei_me_hw *hw = to_me_hw(dev);
 
-	synchronize_irq(pdev->irq);
+	synchronize_irq(hw->irq);
 }
 
 /**

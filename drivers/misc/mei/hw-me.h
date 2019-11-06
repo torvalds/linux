@@ -42,6 +42,7 @@ struct mei_cfg {
  *
  * @cfg: per device generation config and ops
  * @mem_addr: io memory address
+ * @irq: irq number
  * @pg_state: power gating state
  * @d0i3_supported: di03 support
  * @hbuf_depth: depth of hardware host/write buffer in slots
@@ -49,6 +50,7 @@ struct mei_cfg {
 struct mei_me_hw {
 	const struct mei_cfg *cfg;
 	void __iomem *mem_addr;
+	int irq;
 	enum mei_pg_state pg_state;
 	bool d0i3_supported;
 	u8 hbuf_depth;
