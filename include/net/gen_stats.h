@@ -7,6 +7,12 @@
 #include <linux/rtnetlink.h>
 #include <linux/pkt_sched.h>
 
+/* Note: this used to be in include/uapi/linux/gen_stats.h */
+struct gnet_stats_basic_packed {
+	__u64	bytes;
+	__u64	packets;
+};
+
 struct gnet_stats_basic_cpu {
 	struct gnet_stats_basic_packed bstats;
 	struct u64_stats_sync syncp;
