@@ -122,7 +122,6 @@ static int icy_probe(struct zorro_dev *z,
 	struct fwnode_handle *new_fwnode;
 	struct i2c_board_info ltc2990_info = {
 		.type		= "ltc2990",
-		.addr		= 0x4c,
 	};
 
 	i2c = devm_kzalloc(&z->dev, sizeof(*i2c), GFP_KERNEL);
