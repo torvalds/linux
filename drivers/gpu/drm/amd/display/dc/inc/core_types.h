@@ -87,9 +87,7 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 struct resource_pool;
 struct dc_state;
 struct resource_context;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 struct clk_bw_params;
-#endif
 
 struct resource_funcs {
 	void (*destroy)(struct resource_pool **pool);
@@ -143,11 +141,9 @@ struct resource_funcs {
 			struct dc_state *context,
 			display_e2e_pipe_params_st *pipes,
 			int pipe_cnt);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	void (*update_bw_bounding_box)(
 			struct dc *dc,
 			struct clk_bw_params *bw_params);
-#endif
 
 };
 

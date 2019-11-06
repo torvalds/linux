@@ -401,9 +401,7 @@ struct dc_debug_options {
 	bool dmub_command_table; /* for testing only */
 	struct dc_bw_validation_profile bw_val_profile;
 	bool disable_fec;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_1
 	bool disable_48mhz_pwrdwn;
-#endif
 	/* This forces a hard min on the DCFCLK requested to SMU/PP
 	 * watermarks are not affected.
 	 */

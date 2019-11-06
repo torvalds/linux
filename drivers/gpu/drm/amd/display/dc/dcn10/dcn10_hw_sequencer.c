@@ -677,10 +677,8 @@ static void dcn10_bios_golden_init(struct dc *dc)
 	int i;
 	bool allow_self_fresh_force_enable = true;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	if (dc->hwss.s0i3_golden_init_wa && dc->hwss.s0i3_golden_init_wa(dc))
 		return;
-#endif
 	if (dc->res_pool->hubbub->funcs->is_allow_self_refresh_enabled)
 		allow_self_fresh_force_enable =
 				dc->res_pool->hubbub->funcs->is_allow_self_refresh_enabled(dc->res_pool->hubbub);

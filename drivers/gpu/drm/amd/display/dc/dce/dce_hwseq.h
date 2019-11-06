@@ -276,7 +276,6 @@
 	SR(DC_IP_REQUEST_CNTL), \
 	BL_REG_LIST()
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #define HWSEQ_DCN21_REG_LIST()\
 	HWSEQ_DCN_REG_LIST(), \
 	HSWEQ_DCN_PIXEL_RATE_REG_LIST(OTG, 0), \
@@ -327,7 +326,6 @@
 	SR(D6VGA_CONTROL), \
 	SR(DC_IP_REQUEST_CNTL), \
 	BL_REG_LIST()
-#endif
 
 struct dce_hwseq_registers {
 
@@ -635,7 +633,6 @@ struct dce_hwseq_registers {
 	HWS_SF(, DC_IP_REQUEST_CNTL, IP_REQUEST_EN, mask_sh), \
 	HWSEQ_LVTMA_MASK_SH_LIST(mask_sh)
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #define HWSEQ_DCN21_MASK_SH_LIST(mask_sh)\
 	HWSEQ_DCN_MASK_SH_LIST(mask_sh), \
 	HWS_SF(, DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, mask_sh), \
@@ -678,7 +675,6 @@ struct dce_hwseq_registers {
 	HWSEQ_LVTMA_MASK_SH_LIST(mask_sh), \
 	HWS_SF(, LVTMA_PWRSEQ_CNTL, LVTMA_BLON, mask_sh), \
 	HWS_SF(, LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, mask_sh)
-#endif
 
 #define HWSEQ_REG_FIELD_LIST(type) \
 	type DCFE_CLOCK_ENABLE; \

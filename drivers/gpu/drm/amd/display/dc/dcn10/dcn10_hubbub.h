@@ -121,7 +121,6 @@ struct dcn_hubbub_registers {
 	uint32_t DCN_VM_AGP_BASE;
 	uint32_t DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_MSB;
 	uint32_t DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_LSB;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	uint32_t DCHUBBUB_ARB_FRAC_URG_BW_NOM_A;
 	uint32_t DCHUBBUB_ARB_FRAC_URG_BW_NOM_B;
 	uint32_t DCHUBBUB_ARB_FRAC_URG_BW_NOM_C;
@@ -140,7 +139,6 @@ struct dcn_hubbub_registers {
 	uint32_t DCHVM_CLK_CTRL;
 	uint32_t DCHVM_RIOMMU_CTRL0;
 	uint32_t DCHVM_RIOMMU_STAT0;
-#endif
 };
 
 /* set field name */
@@ -232,7 +230,6 @@ struct dcn_hubbub_registers {
 		type DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_C;\
 		type DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_D
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #define HUBBUB_HVM_REG_FIELD_LIST(type) \
 		type DCHUBBUB_ARB_MIN_REQ_OUTSTAND_COMMIT_THRESHOLD;\
 		type DCHUBBUB_ARB_VM_ROW_URGENCY_WATERMARK_A;\
@@ -278,22 +275,17 @@ struct dcn_hubbub_registers {
 		type HOSTVM_POWERSTATUS; \
 		type RIOMMU_ACTIVE; \
 		type HOSTVM_PREFETCH_DONE
-#endif
 
 struct dcn_hubbub_shift {
 	DCN_HUBBUB_REG_FIELD_LIST(uint8_t);
 	HUBBUB_STUTTER_REG_FIELD_LIST(uint8_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	HUBBUB_HVM_REG_FIELD_LIST(uint8_t);
-#endif
 };
 
 struct dcn_hubbub_mask {
 	DCN_HUBBUB_REG_FIELD_LIST(uint32_t);
 	HUBBUB_STUTTER_REG_FIELD_LIST(uint32_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	HUBBUB_HVM_REG_FIELD_LIST(uint32_t);
-#endif
 };
 
 struct dc;
