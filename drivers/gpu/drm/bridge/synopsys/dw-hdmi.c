@@ -15,6 +15,8 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/clk.h>
 #include <linux/hdmi.h>
 #include <linux/mutex.h>
@@ -31,9 +33,6 @@
 #include <drm/drm_encoder_slave.h>
 #include <drm/drm_scdc_helper.h>
 #include <drm/bridge/dw_hdmi.h>
-#ifdef CONFIG_SWITCH
-#include <linux/switch.h>
-#endif
 
 #include <uapi/linux/media-bus-format.h>
 #include <uapi/linux/videodev2.h>
@@ -53,6 +52,11 @@
 #define SCDC_MIN_SOURCE_VERSION	0x1
 
 #define HDMI14_MAX_TMDSCLK	340000000
+
+static const unsigned int dw_hdmi_cable[] = {
+	EXTCON_DISP_HDMI,
+	EXTCON_NONE,
+};
 
 enum hdmi_datamap {
 	RGB444_8B = 0x01,
@@ -264,9 +268,7 @@ struct dw_hdmi {
 	unsigned int audio_n;
 	bool audio_enable;
 
-#ifdef CONFIG_SWITCH
-	struct switch_dev switchdev;
-#endif
+	struct extcon_dev *extcon;
 
 	unsigned int reg_shift;
 	struct regmap *regm;
@@ -336,12 +338,7 @@ static void repo_hpd_event(struct work_struct *p_work)
 #endif
 	}
 
-#ifdef CONFIG_SWITCH
-	if (hdmi->hpd_state)
-		switch_set_state(&hdmi->switchdev, 1);
-	else
-		switch_set_state(&hdmi->switchdev, 0);
-#endif
+	extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, hdmi->hpd_state);
 }
 
 static bool check_hdmi_irq(struct dw_hdmi *hdmi, int intr_stat,
@@ -2701,7 +2698,6 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 	unsigned int in_bus_format = hdmi->hdmi_data.enc_in_bus_format;
 	unsigned int out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
 
-
 	if (!conn_state->crtc)
 		return;
 
@@ -2806,14 +2802,16 @@ static void dw_hdmi_connector_force(struct drm_connector *connector)
 					     connector);
 
 	mutex_lock(&hdmi->mutex);
-#ifdef CONFIG_SWITCH
+
 	if (!hdmi->disabled && hdmi->force != connector->force) {
 		if (connector->force == DRM_FORCE_OFF)
-			switch_set_state(&hdmi->switchdev, 0);
+			extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI,
+					      false);
 		else if (connector->force == DRM_FORCE_ON)
-			switch_set_state(&hdmi->switchdev, 1);
+			extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI,
+					      true);
 	}
-#endif
+
 	hdmi->force = connector->force;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
@@ -3596,6 +3594,8 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	mutex_init(&hdmi->audio_mutex);
 	spin_lock_init(&hdmi->audio_lock);
 
+	dev_set_name(dev, "hdmi");
+
 	ddc_node = of_parse_phandle(np, "ddc-i2c-bus", 0);
 	if (ddc_node) {
 		hdmi->ddc = of_get_i2c_adapter_by_node(ddc_node);
@@ -3838,10 +3838,27 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->cec = platform_device_register_full(&pdevinfo);
 	}
 
-#ifdef CONFIG_SWITCH
-	hdmi->switchdev.name = "hdmi";
-	switch_dev_register(&hdmi->switchdev);
-#endif
+	hdmi->extcon = devm_extcon_dev_allocate(hdmi->dev, dw_hdmi_cable);
+	if (IS_ERR(hdmi->extcon)) {
+		dev_err(hdmi->dev, "allocate extcon failed\n");
+		goto err_iahb;
+	}
+
+	ret = devm_extcon_dev_register(hdmi->dev, hdmi->extcon);
+	if (ret) {
+		dev_err(hdmi->dev, "failed to register extcon: %d\n",
+			ret);
+		goto err_iahb;
+	}
+
+	ret = extcon_set_property_capability(hdmi->extcon, EXTCON_DISP_HDMI,
+					     EXTCON_PROP_DISP_HPD);
+	if (ret) {
+		dev_err(hdmi->dev,
+			"failed to set USB property capability: %d\n",
+			ret);
+		goto err_iahb;
+	}
 
 	/* Reset HDMI DDC I2C master controller and mute I2CM interrupts */
 	if (hdmi->i2c)
@@ -3896,10 +3913,6 @@ static void __dw_hdmi_remove(struct dw_hdmi *hdmi)
 
 	/* Disable all interrupts */
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
-
-#ifdef CONFIG_SWITCH
-	switch_dev_unregister(&hdmi->switchdev);
-#endif
 
 	dw_hdmi_destroy_properties(hdmi);
 
