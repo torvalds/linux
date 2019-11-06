@@ -20,6 +20,10 @@ properties:
           - const: arm,mali-t604
       - items:
           - enum:
+             - samsung,exynos5420-mali
+          - const: arm,mali-t628
+      - items:
+          - enum:
              - allwinner,sun50i-h6-mali
           - const: arm,mali-t720
       - items:
@@ -38,7 +42,6 @@ properties:
           - const: arm,mali-t860
 
           # "arm,mali-t624"
-          # "arm,mali-t628"
           # "arm,mali-t830"
           # "arm,mali-t880"
 
