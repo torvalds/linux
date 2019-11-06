@@ -1672,6 +1672,8 @@ static int io_send_recvmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	}
 
 	io_cqring_add_event(req->ctx, sqe->user_data, ret);
+	if (ret < 0 && (req->flags & REQ_F_LINK))
+		req->flags |= REQ_F_FAIL_LINK;
 	io_put_req(req, nxt);
 	return 0;
 }
@@ -1787,6 +1789,8 @@ static int io_poll_remove(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	spin_unlock_irq(&ctx->completion_lock);
 
 	io_cqring_add_event(req->ctx, sqe->user_data, ret);
+	if (ret < 0 && (req->flags & REQ_F_LINK))
+		req->flags |= REQ_F_FAIL_LINK;
 	io_put_req(req, NULL);
 	return 0;
 }
@@ -1994,6 +1998,8 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 	io_cqring_ev_posted(ctx);
+	if (req->flags & REQ_F_LINK)
+		req->flags |= REQ_F_FAIL_LINK;
 	io_put_req(req, NULL);
 	return HRTIMER_NORESTART;
 }
@@ -2035,6 +2041,8 @@ fill_ev:
 		io_commit_cqring(ctx);
 		spin_unlock_irq(&ctx->completion_lock);
 		io_cqring_ev_posted(ctx);
+		if (req->flags & REQ_F_LINK)
+			req->flags |= REQ_F_FAIL_LINK;
 		io_put_req(req, NULL);
 		return 0;
 	}
@@ -2328,6 +2336,8 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 	io_put_req(req, NULL);
 
 	if (ret) {
+		if (req->flags & REQ_F_LINK)
+			req->flags |= REQ_F_FAIL_LINK;
 		io_cqring_add_event(ctx, sqe->user_data, ret);
 		io_put_req(req, NULL);
 	}
