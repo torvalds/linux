@@ -447,6 +447,14 @@ static void update_pgdat_span(struct pglist_data *pgdat)
 					     zone->spanned_pages;
 
 		/* No need to lock the zones, they can't change. */
+		if (!zone->spanned_pages)
+			continue;
+		if (!node_end_pfn) {
+			node_start_pfn = zone->zone_start_pfn;
+			node_end_pfn = zone_end_pfn;
+			continue;
+		}
+
 		if (zone_end_pfn > node_end_pfn)
 			node_end_pfn = zone_end_pfn;
 		if (zone->zone_start_pfn < node_start_pfn)

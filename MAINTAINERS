@@ -10519,8 +10519,12 @@ F:	mm/memblock.c
 F:	Documentation/core-api/boot-time-mm.rst
 
 MEMORY MANAGEMENT
+M:	Andrew Morton <akpm@linux-foundation.org>
 L:	linux-mm@kvack.org
 W:	http://www.linux-mm.org
+T:	quilt https://ozlabs.org/~akpm/mmotm/
+T:	quilt https://ozlabs.org/~akpm/mmots/
+T:	git git://github.com/hnaz/linux-mm.git
 S:	Maintained
 F:	include/linux/mm.h
 F:	include/linux/gfp.h
@@ -18034,6 +18038,7 @@ F:	Documentation/vm/zsmalloc.rst
 ZSWAP COMPRESSED SWAP CACHING
 M:	Seth Jennings <sjenning@redhat.com>
 M:	Dan Streetman <ddstreet@ieee.org>
+M:	Vitaly Wool <vitaly.wool@konsulko.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/zswap.c
