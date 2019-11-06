@@ -4687,8 +4687,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	struct ddi_vbt_port_info *port_info =
 		&dev_priv->vbt.ddi_port_info[port];
 	struct intel_digital_port *intel_dig_port;
-	struct intel_encoder *intel_encoder;
-	struct drm_encoder *encoder;
+	struct intel_encoder *encoder;
 	bool init_hdmi, init_dp, init_lspcon = false;
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 
@@ -4717,31 +4716,31 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	if (!intel_dig_port)
 		return;
 
-	intel_encoder = &intel_dig_port->base;
-	encoder = &intel_encoder->base;
+	encoder = &intel_dig_port->base;
 
-	drm_encoder_init(&dev_priv->drm, encoder, &intel_ddi_funcs,
+	drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 			 DRM_MODE_ENCODER_TMDS, "DDI %c", port_name(port));
 
-	intel_encoder->hotplug = intel_ddi_hotplug;
-	intel_encoder->compute_output_type = intel_ddi_compute_output_type;
-	intel_encoder->compute_config = intel_ddi_compute_config;
-	intel_encoder->enable = intel_enable_ddi;
-	intel_encoder->pre_pll_enable = intel_ddi_pre_pll_enable;
-	intel_encoder->post_pll_disable = intel_ddi_post_pll_disable;
-	intel_encoder->pre_enable = intel_ddi_pre_enable;
-	intel_encoder->disable = intel_disable_ddi;
-	intel_encoder->post_disable = intel_ddi_post_disable;
-	intel_encoder->update_pipe = intel_ddi_update_pipe;
-	intel_encoder->get_hw_state = intel_ddi_get_hw_state;
-	intel_encoder->get_config = intel_ddi_get_config;
-	intel_encoder->suspend = intel_dp_encoder_suspend;
-	intel_encoder->get_power_domains = intel_ddi_get_power_domains;
-	intel_encoder->type = INTEL_OUTPUT_DDI;
-	intel_encoder->power_domain = intel_port_to_power_domain(port);
-	intel_encoder->port = port;
-	intel_encoder->cloneable = 0;
-	intel_encoder->pipe_mask = ~0;
+	encoder->hotplug = intel_ddi_hotplug;
+	encoder->compute_output_type = intel_ddi_compute_output_type;
+	encoder->compute_config = intel_ddi_compute_config;
+	encoder->enable = intel_enable_ddi;
+	encoder->pre_pll_enable = intel_ddi_pre_pll_enable;
+	encoder->post_pll_disable = intel_ddi_post_pll_disable;
+	encoder->pre_enable = intel_ddi_pre_enable;
+	encoder->disable = intel_disable_ddi;
+	encoder->post_disable = intel_ddi_post_disable;
+	encoder->update_pipe = intel_ddi_update_pipe;
+	encoder->get_hw_state = intel_ddi_get_hw_state;
+	encoder->get_config = intel_ddi_get_config;
+	encoder->suspend = intel_dp_encoder_suspend;
+	encoder->get_power_domains = intel_ddi_get_power_domains;
+
+	encoder->type = INTEL_OUTPUT_DDI;
+	encoder->power_domain = intel_port_to_power_domain(port);
+	encoder->port = port;
+	encoder->cloneable = 0;
+	encoder->pipe_mask = ~0;
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
@@ -4749,6 +4748,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	else
 		intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
 			(DDI_BUF_PORT_REVERSAL | DDI_A_4_LANES);
+
 	intel_dig_port->dp.output_reg = INVALID_MMIO_REG;
 	intel_dig_port->max_lanes = intel_ddi_max_lanes(intel_dig_port);
 	intel_dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, port);
@@ -4759,8 +4759,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 
 		intel_tc_port_init(intel_dig_port, is_legacy);
 
-		intel_encoder->update_prepare = intel_ddi_update_prepare;
-		intel_encoder->update_complete = intel_ddi_update_complete;
+		encoder->update_prepare = intel_ddi_update_prepare;
+		encoder->update_complete = intel_ddi_update_complete;
 	}
 
 	WARN_ON(port > PORT_I);
@@ -4776,7 +4776,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 
 	/* In theory we don't need the encoder->type check, but leave it just in
 	 * case we have some really bad VBTs... */
-	if (intel_encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
+	if (encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
 		if (!intel_ddi_init_hdmi_connector(intel_dig_port))
 			goto err;
 	}
@@ -4800,6 +4800,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	return;
 
 err:
-	drm_encoder_cleanup(encoder);
+	drm_encoder_cleanup(&encoder->base);
 	kfree(intel_dig_port);
 }
