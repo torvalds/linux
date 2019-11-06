@@ -1070,6 +1070,7 @@ struct rk3368_dram_timing {
 	u32 phy_cmd_drv;
 	u32 phy_dqs_drv;
 	u32 phy_odt;
+	u32 ddr_2t;
 };
 
 struct rk3399_dram_timing {
@@ -1831,6 +1832,8 @@ static struct rk3368_dram_timing *of_get_rk3368_timings(struct device *dev,
 					    &timing->phy_dqs_drv);
 		ret |= of_property_read_u32(np_tim, "phy_odt",
 					    &timing->phy_odt);
+		ret |= of_property_read_u32(np_tim, "ddr_2t",
+					    &timing->ddr_2t);
 		if (ret) {
 			devm_kfree(dev, timing);
 			goto err;
