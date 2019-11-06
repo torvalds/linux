@@ -2960,8 +2960,6 @@ static int coda_probe(struct platform_device *pdev)
 	else
 		return -EINVAL;
 
-	spin_lock_init(&dev->irqlock);
-
 	dev->dev = &pdev->dev;
 	dev->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(dev->clk_per)) {
