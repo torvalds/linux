@@ -4490,6 +4490,30 @@ void regulator_unregister(struct regulator_dev *rdev)
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
 
+static int regulator_sync_supply(struct device *dev, void *data)
+{
+	struct regulator_dev *rdev = dev_to_rdev(dev);
+
+	if (rdev->dev.parent != data)
+		return 0;
+
+	if (!rdev->proxy_consumer)
+		return 0;
+
+	dev_dbg(data, "Removing regulator proxy consumer requests\n");
+	regulator_proxy_consumer_unregister(rdev->proxy_consumer);
+	rdev->proxy_consumer = NULL;
+
+	return 0;
+}
+
+void regulator_sync_state(struct device *dev)
+{
+	class_for_each_device(&regulator_class, NULL, dev,
+			      regulator_sync_supply);
+}
+EXPORT_SYMBOL_GPL(regulator_sync_state);
+
 #ifdef CONFIG_SUSPEND
 static int _regulator_suspend(struct device *dev, void *data)
 {
