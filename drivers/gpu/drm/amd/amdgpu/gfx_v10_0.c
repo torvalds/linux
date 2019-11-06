@@ -50,9 +50,6 @@
  * Navi10 has two graphic rings to share each graphic pipe.
  * 1. Primary ring
  * 2. Async ring
- *
- * In bring-up phase, it just used primary ring so set gfx ring number as 1 at
- * first.
  */
 #define GFX10_NUM_GFX_RINGS	2
 #define GFX10_MEC_HPD_SIZE	2048
