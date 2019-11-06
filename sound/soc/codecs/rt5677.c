@@ -38,6 +38,10 @@
 
 #define RT5677_DEVICE_ID 0x6327
 
+/* Register controlling boot vector */
+#define RT5677_DSP_BOOT_VECTOR		0x1801f090
+#define RT5677_MODEL_ADDR		0x5FFC9800
+
 #define RT5677_PR_RANGE_BASE (0xff + 1)
 #define RT5677_PR_SPACING 0x100
 
@@ -686,10 +690,8 @@ static int rt5677_dsp_mode_i2c_read(
 	return ret;
 }
 
-static void rt5677_set_dsp_mode(struct snd_soc_component *component, bool on)
+static void rt5677_set_dsp_mode(struct rt5677_priv *rt5677, bool on)
 {
-	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
-
 	if (on) {
 		regmap_update_bits(rt5677->regmap, RT5677_PWR_DSP1,
 			RT5677_PWR_DSP, RT5677_PWR_DSP);
@@ -701,86 +703,234 @@ static void rt5677_set_dsp_mode(struct snd_soc_component *component, bool on)
 	}
 }
 
+static unsigned int rt5677_set_vad_source(struct rt5677_priv *rt5677)
+{
+	/* DMIC1 power = enabled
+	 * DMIC CLK = 256 * fs / 12
+	 */
+	regmap_update_bits(rt5677->regmap, RT5677_DMIC_CTRL1,
+		RT5677_DMIC_CLK_MASK, 5 << RT5677_DMIC_CLK_SFT);
+
+	/* I2S pre divide 2 = /6 (clk_sys2) */
+	regmap_update_bits(rt5677->regmap, RT5677_CLK_TREE_CTRL1,
+		RT5677_I2S_PD2_MASK, RT5677_I2S_PD2_6);
+
+	/* DSP Clock = MCLK1 (bypassed PLL2) */
+	regmap_write(rt5677->regmap, RT5677_GLB_CLK2,
+		RT5677_DSP_CLK_SRC_BYPASS);
+
+	/* SAD Threshold1 */
+	regmap_write(rt5677->regmap, RT5677_VAD_CTRL2, 0x013f);
+	/* SAD Threshold2 */
+	regmap_write(rt5677->regmap, RT5677_VAD_CTRL3, 0x0ae5);
+	/* SAD Sample Rate Converter = Up 6 (8K to 48K)
+	 * SAD Output Sample Rate = Same as I2S
+	 * SAD Threshold3
+	 */
+	regmap_update_bits(rt5677->regmap, RT5677_VAD_CTRL4,
+		RT5677_VAD_OUT_SRC_RATE_MASK | RT5677_VAD_OUT_SRC_MASK |
+		RT5677_VAD_LV_DIFF_MASK, 0x7f << RT5677_VAD_LV_DIFF_SFT);
+	/* Minimum frame level within a pre-determined duration = 32 frames
+	 * Bypass ADPCM Encoder/Decoder = Bypass ADPCM
+	 * Automatic Push Data to SAD Buffer Once SAD Flag is triggered = enable
+	 * SAD Buffer Over-Writing = enable
+	 * SAD Buffer Pop Mode Control = disable
+	 * SAD Buffer Push Mode Control = enable
+	 * SAD Detector Control = enable
+	 * SAD Function Control = enable
+	 * SAD Function Reset = normal
+	 */
+	regmap_write(rt5677->regmap, RT5677_VAD_CTRL1,
+		RT5677_VAD_FUNC_RESET | RT5677_VAD_FUNC_ENABLE |
+		RT5677_VAD_DET_ENABLE | RT5677_VAD_BUF_PUSH |
+		RT5677_VAD_BUF_OW | RT5677_VAD_FG2ENC |
+		RT5677_VAD_ADPCM_BYPASS | 1 << RT5677_VAD_MIN_DUR_SFT);
+
+	/* IRQ Source of VAD Jack Detection = enable */
+	regmap_write(rt5677->regmap, RT5677_IRQ_CTRL2, 0x4000);
+
+	/* Private register, no doc */
+	regmap_update_bits(rt5677->regmap, RT5677_PR_BASE + RT5677_BIAS_CUR4,
+		0x0f00, 0x0100);
+
+	/* LDO2 output = 1.2V
+	 * LDO1 output = 1.2V (LDO_IN = 1.8V)
+	 */
+	regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG1,
+		RT5677_LDO1_SEL_MASK | RT5677_LDO2_SEL_MASK,
+		5 << RT5677_LDO1_SEL_SFT | 5 << RT5677_LDO2_SEL_SFT);
+
+	/* Codec core power =  power on
+	 * LDO1 power = power on
+	 */
+	regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG2,
+		RT5677_PWR_CORE | RT5677_PWR_LDO1,
+		RT5677_PWR_CORE | RT5677_PWR_LDO1);
+
+	/* Isolation for DCVDD4 = normal (set during probe)
+	 * Isolation for DCVDD2 = normal (set during probe)
+	 * Isolation for DSP = normal
+	 * Isolation for Band 0~7 = disable
+	 * Isolation for InBound 4~10 and OutBound 4~10 = disable
+	 */
+	regmap_write(rt5677->regmap, RT5677_PWR_DSP2,
+		RT5677_PWR_CORE_ISO | RT5677_PWR_DSP_ISO |
+		RT5677_PWR_SR7_ISO | RT5677_PWR_SR6_ISO |
+		RT5677_PWR_SR5_ISO | RT5677_PWR_SR4_ISO |
+		RT5677_PWR_SR3_ISO | RT5677_PWR_SR2_ISO |
+		RT5677_PWR_SR1_ISO | RT5677_PWR_SR0_ISO |
+		RT5677_PWR_MLT_ISO);
+
+	/* System Band 0~7 = power on
+	 * InBound 4~10 and OutBound 4~10 = power on
+	 * DSP = power on
+	 * DSP CPU = stop (will be set to "run" after firmware loaded)
+	 */
+	regmap_write(rt5677->regmap, RT5677_PWR_DSP1,
+		RT5677_PWR_SR7 | RT5677_PWR_SR6 |
+		RT5677_PWR_SR5 | RT5677_PWR_SR4 |
+		RT5677_PWR_SR3 | RT5677_PWR_SR2 |
+		RT5677_PWR_SR1 | RT5677_PWR_SR0 |
+		RT5677_PWR_MLT | RT5677_PWR_DSP |
+		RT5677_PWR_DSP_CPU);
+
+	return 0;
+}
+
+static int rt5677_parse_and_load_dsp(struct rt5677_priv *rt5677, const u8 *buf,
+		unsigned int len)
+{
+	struct snd_soc_component *component = rt5677->component;
+	Elf32_Ehdr *elf_hdr;
+	Elf32_Phdr *pr_hdr;
+	Elf32_Half i;
+	int ret = 0;
+
+	if (!buf || (len < sizeof(Elf32_Ehdr)))
+		return -ENOMEM;
+
+	elf_hdr = (Elf32_Ehdr *)buf;
+#ifndef EM_XTENSA
+#define EM_XTENSA	94
+#endif
+	if (strncmp(elf_hdr->e_ident, ELFMAG, sizeof(ELFMAG) - 1))
+		dev_err(component->dev, "Wrong ELF header prefix\n");
+	if (elf_hdr->e_ehsize != sizeof(Elf32_Ehdr))
+		dev_err(component->dev, "Wrong Elf header size\n");
+	if (elf_hdr->e_machine != EM_XTENSA)
+		dev_err(component->dev, "Wrong DSP code file\n");
+
+	if (len < elf_hdr->e_phoff)
+		return -ENOMEM;
+	pr_hdr = (Elf32_Phdr *)(buf + elf_hdr->e_phoff);
+	for (i = 0; i < elf_hdr->e_phnum; i++) {
+		/* TODO: handle p_memsz != p_filesz */
+		if (pr_hdr->p_paddr && pr_hdr->p_filesz) {
+			dev_info(component->dev, "Load 0x%x bytes to 0x%x\n",
+					pr_hdr->p_filesz, pr_hdr->p_paddr);
+
+			ret = rt5677_spi_write(pr_hdr->p_paddr,
+					buf + pr_hdr->p_offset,
+					pr_hdr->p_filesz);
+			if (ret)
+				dev_err(component->dev, "Load firmware failed %d\n",
+						ret);
+		}
+		pr_hdr++;
+	}
+	return ret;
+}
+
+static int rt5677_load_dsp_from_file(struct rt5677_priv *rt5677)
+{
+	const struct firmware *fwp;
+	struct device *dev = rt5677->component->dev;
+	int ret = 0;
+
+	/* Load dsp firmware from rt5677_elf_vad file */
+	ret = request_firmware(&fwp, "rt5677_elf_vad", dev);
+	if (ret) {
+		dev_err(dev, "Request rt5677_elf_vad failed %d\n", ret);
+		return ret;
+	}
+	dev_info(dev, "Requested rt5677_elf_vad (%zu)\n", fwp->size);
+
+	ret = rt5677_parse_and_load_dsp(rt5677, fwp->data, fwp->size);
+	release_firmware(fwp);
+	return ret;
+}
+
 static int rt5677_set_dsp_vad(struct snd_soc_component *component, bool on)
 {
 	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
-	static bool activity;
-	int ret;
+	rt5677->dsp_vad_en = on;
 
 	if (!IS_ENABLED(CONFIG_SND_SOC_RT5677_SPI))
 		return -ENXIO;
 
-	if (on && !activity) {
+	schedule_delayed_work(&rt5677->dsp_work, 0);
+	return 0;
+}
+
+static void rt5677_dsp_work(struct work_struct *work)
+{
+	struct rt5677_priv *rt5677 =
+		container_of(work, struct rt5677_priv, dsp_work.work);
+	static bool activity;
+	bool enable = rt5677->dsp_vad_en;
+
+
+	dev_info(rt5677->component->dev, "DSP VAD: enable=%d, activity=%d\n",
+			enable, activity);
+
+	if (enable && !activity) {
 		activity = true;
 
-		regcache_cache_only(rt5677->regmap, false);
-		regcache_cache_bypass(rt5677->regmap, true);
+		/* Set GPIO1 as an output pin driving a 0. Firmware will
+		 * raise GPIO1 upon hotword detect.
+		 */
+		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL2,
+			RT5677_GPIO1_DIR_MASK |	RT5677_GPIO1_OUT_MASK |
+			RT5677_GPIO1_P_MASK, RT5677_GPIO1_DIR_OUT |
+			RT5677_GPIO1_OUT_LO | RT5677_GPIO1_P_NOR);
+		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL1,
+			RT5677_GPIO1_PIN_MASK, RT5677_GPIO1_PIN_GPIO1);
 
-		regmap_update_bits(rt5677->regmap, RT5677_DIG_MISC, 0x1, 0x1);
-		regmap_update_bits(rt5677->regmap,
-			RT5677_PR_BASE + RT5677_BIAS_CUR4, 0x0f00, 0x0f00);
-		regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG1,
-			RT5677_LDO1_SEL_MASK, 0x0);
-		regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG2,
-			RT5677_PWR_LDO1, RT5677_PWR_LDO1);
-		switch (rt5677->type) {
-		case RT5677:
-			regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK1,
-				RT5677_MCLK_SRC_MASK, RT5677_MCLK2_SRC);
-			regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK2,
-				RT5677_PLL2_PR_SRC_MASK |
-				RT5677_DSP_CLK_SRC_MASK,
-				RT5677_PLL2_PR_SRC_MCLK2 |
-				RT5677_DSP_CLK_SRC_BYPASS);
-			break;
-		case RT5676:
-			regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK2,
-				RT5677_DSP_CLK_SRC_MASK,
-				RT5677_DSP_CLK_SRC_BYPASS);
-			break;
-		default:
-			break;
-		}
-		regmap_write(rt5677->regmap, RT5677_PWR_DSP2, 0x07ff);
-		regmap_write(rt5677->regmap, RT5677_PWR_DSP1, 0x07fd);
-		rt5677_set_dsp_mode(component, true);
+		rt5677_set_vad_source(rt5677);
+		rt5677_set_dsp_mode(rt5677, true);
 
-		ret = request_firmware(&rt5677->fw1, RT5677_FIRMWARE1,
-			component->dev);
-		if (ret == 0) {
-			rt5677_spi_write_firmware(0x50000000, rt5677->fw1);
-			release_firmware(rt5677->fw1);
-		}
+		/* Boot the firmware from IRAM instead of SRAM0. */
+		rt5677_dsp_mode_i2c_write_addr(rt5677, RT5677_DSP_BOOT_VECTOR,
+			0x0009, 0x0003);
+		rt5677_dsp_mode_i2c_write_addr(rt5677, RT5677_DSP_BOOT_VECTOR,
+			0x0019, 0x0003);
+		rt5677_dsp_mode_i2c_write_addr(rt5677, RT5677_DSP_BOOT_VECTOR,
+			0x0009, 0x0003);
 
-		ret = request_firmware(&rt5677->fw2, RT5677_FIRMWARE2,
-			component->dev);
-		if (ret == 0) {
-			rt5677_spi_write_firmware(0x60000000, rt5677->fw2);
-			release_firmware(rt5677->fw2);
-		}
+		rt5677_load_dsp_from_file(rt5677);
 
-		regmap_update_bits(rt5677->regmap, RT5677_PWR_DSP1, 0x1, 0x0);
-
-		regcache_cache_bypass(rt5677->regmap, false);
-		regcache_cache_only(rt5677->regmap, true);
-	} else if (!on && activity) {
+		/* Set DSP CPU to Run */
+		regmap_update_bits(rt5677->regmap, RT5677_PWR_DSP1,
+			RT5677_PWR_DSP_CPU, 0x0);
+	} else if (!enable && activity) {
 		activity = false;
 
-		regcache_cache_only(rt5677->regmap, false);
-		regcache_cache_bypass(rt5677->regmap, true);
+		/* Set DSP CPU to Stop */
+		regmap_update_bits(rt5677->regmap, RT5677_PWR_DSP1,
+			RT5677_PWR_DSP_CPU, RT5677_PWR_DSP_CPU);
 
-		regmap_update_bits(rt5677->regmap, RT5677_PWR_DSP1, 0x1, 0x1);
-		rt5677_set_dsp_mode(component, false);
-		regmap_write(rt5677->regmap, RT5677_PWR_DSP1, 0x0001);
+		rt5677_set_dsp_mode(rt5677, false);
 
-		regmap_write(rt5677->regmap, RT5677_RESET, 0x10ec);
+		/* Disable and clear VAD interrupt */
+		regmap_write(rt5677->regmap, RT5677_VAD_CTRL1, 0x2184);
+		regmap_update_bits(rt5677->regmap, RT5677_IRQ_CTRL2,
+			0xF000, 0x0000);
 
-		regcache_cache_bypass(rt5677->regmap, false);
-		regcache_mark_dirty(rt5677->regmap);
-		regcache_sync(rt5677->regmap);
+		/* Set GPIO1 pin back to be IRQ output for jack detect */
+		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL1,
+			RT5677_GPIO1_PIN_MASK, RT5677_GPIO1_PIN_IRQ);
+
 	}
-
-	return 0;
 }
 
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -6525, 75, 0);
@@ -819,7 +969,8 @@ static int rt5677_dsp_vad_put(struct snd_kcontrol *kcontrol,
 	rt5677->dsp_vad_en = !!ucontrol->value.integer.value[0];
 
 	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
-		rt5677_set_dsp_vad(component, rt5677->dsp_vad_en);
+		rt5677_set_dsp_vad(component,
+				!!ucontrol->value.integer.value[0]);
 
 	return 0;
 }
@@ -4740,6 +4891,8 @@ static void rt5677_remove(struct snd_soc_component *component)
 {
 	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
 
+	cancel_delayed_work_sync(&rt5677->dsp_work);
+
 	regmap_write(rt5677->regmap, RT5677_RESET, 0x10ec);
 	gpiod_set_value_cansleep(rt5677->pow_ldo2, 0);
 	gpiod_set_value_cansleep(rt5677->reset_pin, 1);
@@ -4938,6 +5091,17 @@ static struct snd_soc_dai_driver rt5677_dai[] = {
 		},
 		.ops = &rt5677_aif_dai_ops,
 	},
+	{
+		.name = "rt5677-dspbuffer",
+		.id = RT5677_DSPBUFF,
+		.capture = {
+			.stream_name = "DSP Buffer",
+			.channels_min = 1,
+			.channels_max = 1,
+			.rates = SNDRV_PCM_RATE_16000,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		},
+	},
 };
 
 static const struct snd_soc_component_driver soc_component_dev_rt5677 = {
@@ -5080,6 +5244,9 @@ static irqreturn_t rt5677_irq(int unused, void *data)
 	bool irq_fired = false;
 
 	mutex_lock(&rt5677->irq_lock);
+
+	if (rt5677->dsp_vad_en)
+		rt5677_spi_hotword_detected();
 
 	/*
 	 * Loop to handle interrupts until the last i2c read shows no pending
@@ -5271,6 +5438,8 @@ static int rt5677_i2c_probe(struct i2c_client *i2c)
 		return -ENOMEM;
 
 	rt5677->dev = &i2c->dev;
+	rt5677->set_dsp_vad = rt5677_set_dsp_vad;
+	INIT_DELAYED_WORK(&rt5677->dsp_work, rt5677_dsp_work);
 	i2c_set_clientdata(i2c, rt5677);
 
 	if (i2c->dev.of_node) {
