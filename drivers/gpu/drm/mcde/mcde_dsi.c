@@ -562,21 +562,6 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 		DSI_VID_VCA_SETTING2_EXACT_BURST_LIMIT_SHIFT;
 	writel(val, d->regs + DSI_VID_VCA_SETTING2);
 
-	/* Put IF1 into video mode */
-	val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
-	val |= DSI_MCTL_MAIN_DATA_CTL_IF1_MODE;
-	writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
-
-	/* Disable command mode on IF1 */
-	val = readl(d->regs + DSI_CMD_MODE_CTL);
-	val &= ~DSI_CMD_MODE_CTL_IF1_LP_EN;
-	writel(val, d->regs + DSI_CMD_MODE_CTL);
-
-	/* Enable some error interrupts */
-	val = readl(d->regs + DSI_VID_MODE_STS_CTL);
-	val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_VSYNC;
-	val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_DATA;
-	writel(val, d->regs + DSI_VID_MODE_STS_CTL);
 }
 
 static void mcde_dsi_start(struct mcde_dsi *d)
@@ -700,25 +685,12 @@ static void mcde_dsi_bridge_enable(struct drm_bridge *bridge)
 	dev_info(d->dev, "enable DSI master\n");
 };
 
-static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
-				     const struct drm_display_mode *mode,
-				     const struct drm_display_mode *adj)
+static void mcde_dsi_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
-	unsigned long pixel_clock_hz = mode->clock * 1000;
 	unsigned long hs_freq, lp_freq;
 	u32 val;
 	int ret;
-
-	if (!d->mdsi) {
-		dev_err(d->dev, "no DSI device attached to encoder!\n");
-		return;
-	}
-
-	dev_info(d->dev, "set DSI master to %dx%d %lu Hz %s mode\n",
-		 mode->hdisplay, mode->vdisplay, pixel_clock_hz,
-		 (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) ? "VIDEO" : "CMD"
-		);
 
 	/* Copy maximum clock frequencies */
 	if (d->mdsi->lp_rate)
@@ -758,7 +730,21 @@ static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
 			 d->hs_freq);
 
 	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
-		mcde_dsi_setup_video_mode(d, mode);
+		/* Put IF1 into video mode */
+		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
+		val |= DSI_MCTL_MAIN_DATA_CTL_IF1_MODE;
+		writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
+
+		/* Disable command mode on IF1 */
+		val = readl(d->regs + DSI_CMD_MODE_CTL);
+		val &= ~DSI_CMD_MODE_CTL_IF1_LP_EN;
+		writel(val, d->regs + DSI_CMD_MODE_CTL);
+
+		/* Enable some error interrupts */
+		val = readl(d->regs + DSI_VID_MODE_STS_CTL);
+		val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_VSYNC;
+		val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_DATA;
+		writel(val, d->regs + DSI_VID_MODE_STS_CTL);
 	} else {
 		/* Command mode, clear IF1 ID */
 		val = readl(d->regs + DSI_CMD_MODE_CTL);
@@ -770,6 +756,26 @@ static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
 		val &= ~DSI_CMD_MODE_CTL_IF1_ID_MASK;
 		writel(val, d->regs + DSI_CMD_MODE_CTL);
 	}
+}
+
+static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
+				     const struct drm_display_mode *mode,
+				     const struct drm_display_mode *adj)
+{
+	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
+
+	if (!d->mdsi) {
+		dev_err(d->dev, "no DSI device attached to encoder!\n");
+		return;
+	}
+
+	dev_info(d->dev, "set DSI master to %dx%d %u Hz %s mode\n",
+		 mode->hdisplay, mode->vdisplay, mode->clock * 1000,
+		 (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) ? "VIDEO" : "CMD"
+		);
+
+	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO)
+		mcde_dsi_setup_video_mode(d, mode);
 }
 
 static void mcde_dsi_wait_for_command_mode_stop(struct mcde_dsi *d)
@@ -863,6 +869,7 @@ static const struct drm_bridge_funcs mcde_dsi_bridge_funcs = {
 	.mode_set = mcde_dsi_bridge_mode_set,
 	.disable = mcde_dsi_bridge_disable,
 	.enable = mcde_dsi_bridge_enable,
+	.pre_enable = mcde_dsi_bridge_pre_enable,
 };
 
 static int mcde_dsi_bind(struct device *dev, struct device *master,
