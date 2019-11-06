@@ -359,6 +359,8 @@ struct dm_connector_state {
 	bool underscan_enable;
 	bool freesync_capable;
 	uint8_t abm_level;
+	int vcpi_slots;
+	uint64_t pbn;
 };
 
 #define to_dm_connector_state(x)\

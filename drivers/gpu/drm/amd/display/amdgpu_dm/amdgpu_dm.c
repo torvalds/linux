@@ -4095,7 +4095,8 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 		state->underscan_hborder = 0;
 		state->underscan_vborder = 0;
 		state->base.max_requested_bpc = 8;
-
+		state->vcpi_slots = 0;
+		state->pbn = 0;
 		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
 			state->abm_level = amdgpu_dm_abm_level;
 
@@ -4123,7 +4124,8 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
 	new_state->underscan_enable = state->underscan_enable;
 	new_state->underscan_hborder = state->underscan_hborder;
 	new_state->underscan_vborder = state->underscan_vborder;
-
+	new_state->vcpi_slots = state->vcpi_slots;
+	new_state->pbn = state->pbn;
 	return &new_state->base;
 }
 
@@ -4520,10 +4522,64 @@ static void dm_encoder_helper_disable(struct drm_encoder *encoder)
 
 }
 
+static int convert_dc_color_depth_into_bpc (enum dc_color_depth display_color_depth)
+{
+	switch (display_color_depth) {
+		case COLOR_DEPTH_666:
+			return 6;
+		case COLOR_DEPTH_888:
+			return 8;
+		case COLOR_DEPTH_101010:
+			return 10;
+		case COLOR_DEPTH_121212:
+			return 12;
+		case COLOR_DEPTH_141414:
+			return 14;
+		case COLOR_DEPTH_161616:
+			return 16;
+		default:
+			break;
+		}
+	return 0;
+}
+
 static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 					  struct drm_crtc_state *crtc_state,
 					  struct drm_connector_state *conn_state)
 {
+	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_connector *connector = conn_state->connector;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct dm_connector_state *dm_new_connector_state = to_dm_connector_state(conn_state);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	struct drm_dp_mst_topology_mgr *mst_mgr;
+	struct drm_dp_mst_port *mst_port;
+	enum dc_color_depth color_depth;
+	int clock, bpp = 0;
+
+	if (!aconnector->port || !aconnector->dc_sink)
+		return 0;
+
+	mst_port = aconnector->port;
+	mst_mgr = &aconnector->mst_port->mst_mgr;
+
+	if (!crtc_state->connectors_changed && !crtc_state->mode_changed)
+		return 0;
+
+	if (!state->duplicated) {
+		color_depth = convert_color_depth_from_display_info(connector, conn_state);
+		bpp = convert_dc_color_depth_into_bpc(color_depth) * 3;
+		clock = adjusted_mode->clock;
+		dm_new_connector_state->pbn = drm_dp_calc_pbn_mode(clock, bpp);
+	}
+	dm_new_connector_state->vcpi_slots = drm_dp_atomic_find_vcpi_slots(state,
+									   mst_mgr,
+									   mst_port,
+									   dm_new_connector_state->pbn);
+	if (dm_new_connector_state->vcpi_slots < 0) {
+		DRM_DEBUG_ATOMIC("failed finding vcpi slots: %d\n", (int)dm_new_connector_state->vcpi_slots);
+		return dm_new_connector_state->vcpi_slots;
+	}
 	return 0;
 }
 
@@ -7563,6 +7619,11 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 	/* Run this here since we want to validate the streams we created */
 	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		goto fail;
+
+	/* Perform validation of MST topology in the state*/
+	ret = drm_dp_mst_atomic_check(state);
 	if (ret)
 		goto fail;
 

@@ -182,15 +182,19 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 		bool enable)
 {
 	struct amdgpu_dm_connector *aconnector;
+	struct dm_connector_state *dm_conn_state;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	struct drm_dp_mst_port *mst_port;
-	int slots = 0;
 	bool ret;
-	int clock;
-	int bpp = 0;
-	int pbn = 0;
 
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+	/* Accessing the connector state is required for vcpi_slots allocation
+	 * and directly relies on behaviour in commit check
+	 * that blocks before commit guaranteeing that the state
+	 * is not gonna be swapped while still in use in commit tail */
+
+	dm_conn_state = to_dm_connector_state(aconnector->base.state);
+
 
 	if (!aconnector || !aconnector->mst_port)
 		return false;
@@ -203,42 +207,10 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	mst_port = aconnector->port;
 
 	if (enable) {
-		clock = stream->timing.pix_clk_100hz / 10;
 
-		switch (stream->timing.display_color_depth) {
-
-		case COLOR_DEPTH_666:
-			bpp = 6;
-			break;
-		case COLOR_DEPTH_888:
-			bpp = 8;
-			break;
-		case COLOR_DEPTH_101010:
-			bpp = 10;
-			break;
-		case COLOR_DEPTH_121212:
-			bpp = 12;
-			break;
-		case COLOR_DEPTH_141414:
-			bpp = 14;
-			break;
-		case COLOR_DEPTH_161616:
-			bpp = 16;
-			break;
-		default:
-			ASSERT(bpp != 0);
-			break;
-		}
-
-		bpp = bpp * 3;
-
-		/* TODO need to know link rate */
-
-		pbn = drm_dp_calc_pbn_mode(clock, bpp);
-
-		slots = drm_dp_find_vcpi_slots(mst_mgr, pbn);
-		ret = drm_dp_mst_allocate_vcpi(mst_mgr, mst_port, pbn, slots);
-
+		ret = drm_dp_mst_allocate_vcpi(mst_mgr, mst_port,
+					       dm_conn_state->pbn,
+					       dm_conn_state->vcpi_slots);
 		if (!ret)
 			return false;
 
