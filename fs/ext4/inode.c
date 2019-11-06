@@ -2240,6 +2240,10 @@ static int mpage_process_page(struct mpage_da_data *mpd, struct page *page,
 				err = 0;
 			if (!err && mpd->map.m_len && mpd->map.m_lblk > lblk) {
 				io_end_vec = ext4_alloc_io_end_vec(io_end);
+				if (IS_ERR(io_end_vec)) {
+					err = PTR_ERR(io_end_vec);
+					goto out;
+				}
 				io_end_vec->offset = mpd->map.m_lblk << blkbits;
 			}
 			*map_bh = true;
@@ -2405,8 +2409,11 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 	loff_t disksize;
 	int progress = 0;
 	ext4_io_end_t *io_end = mpd->io_submit.io_end;
-	struct ext4_io_end_vec *io_end_vec = ext4_alloc_io_end_vec(io_end);
+	struct ext4_io_end_vec *io_end_vec;
 
+	io_end_vec = ext4_alloc_io_end_vec(io_end);
+	if (IS_ERR(io_end_vec))
+		return PTR_ERR(io_end_vec);
 	io_end_vec->offset = ((loff_t)map->m_lblk) << inode->i_blkbits;
 	do {
 		err = mpage_map_one_extent(handle, mpd);
