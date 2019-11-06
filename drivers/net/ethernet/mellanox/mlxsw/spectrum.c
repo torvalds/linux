@@ -4079,8 +4079,10 @@ static int mlxsw_sp_port_module_info_init(struct mlxsw_sp *mlxsw_sp)
 		mlxsw_sp->port_mapping[i] = kmemdup(&port_mapping,
 						    sizeof(port_mapping),
 						    GFP_KERNEL);
-		if (!mlxsw_sp->port_mapping[i])
+		if (!mlxsw_sp->port_mapping[i]) {
+			err = -ENOMEM;
 			goto err_port_module_info_dup;
+		}
 	}
 	return 0;
 
