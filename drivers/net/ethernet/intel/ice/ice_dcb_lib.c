@@ -102,6 +102,16 @@ u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg)
 }
 
 /**
+ * ice_dcb_get_tc - Get the TC associated with the queue
+ * @vsi: ptr to the VSI
+ * @queue_index: queue number associated with VSI
+ */
+u8 ice_dcb_get_tc(struct ice_vsi *vsi, int queue_index)
+{
+	return vsi->tx_rings[queue_index]->dcb_tc;
+}
+
+/**
  * ice_vsi_cfg_dcb_rings - Update rings to reflect DCB TC
  * @vsi: VSI owner of rings being updated
  */

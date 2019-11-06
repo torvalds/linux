@@ -3649,6 +3649,48 @@ static void ice_set_rx_mode(struct net_device *netdev)
 }
 
 /**
+ * ice_set_tx_maxrate - NDO callback to set the maximum per-queue bitrate
+ * @netdev: network interface device structure
+ * @queue_index: Queue ID
+ * @maxrate: maximum bandwidth in Mbps
+ */
+static int
+ice_set_tx_maxrate(struct net_device *netdev, int queue_index, u32 maxrate)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	enum ice_status status;
+	u16 q_handle;
+	u8 tc;
+
+	/* Validate maxrate requested is within permitted range */
+	if (maxrate && (maxrate > (ICE_SCHED_MAX_BW / 1000))) {
+		netdev_err(netdev,
+			   "Invalid max rate %d specified for the queue %d\n",
+			   maxrate, queue_index);
+		return -EINVAL;
+	}
+
+	q_handle = vsi->tx_rings[queue_index]->q_handle;
+	tc = ice_dcb_get_tc(vsi, queue_index);
+
+	/* Set BW back to default, when user set maxrate to 0 */
+	if (!maxrate)
+		status = ice_cfg_q_bw_dflt_lmt(vsi->port_info, vsi->idx, tc,
+					       q_handle, ICE_MAX_BW);
+	else
+		status = ice_cfg_q_bw_lmt(vsi->port_info, vsi->idx, tc,
+					  q_handle, ICE_MAX_BW, maxrate * 1000);
+	if (status) {
+		netdev_err(netdev,
+			   "Unable to set Tx max rate, error %d\n", status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/**
  * ice_fdb_add - add an entry to the hardware database
  * @ndm: the input from the stack
  * @tb: pointer to array of nladdr (unused)
@@ -5159,6 +5201,7 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = ice_change_mtu,
 	.ndo_get_stats64 = ice_get_stats64,
+	.ndo_set_tx_maxrate = ice_set_tx_maxrate,
 	.ndo_set_vf_spoofchk = ice_set_vf_spoofchk,
 	.ndo_set_vf_mac = ice_set_vf_mac,
 	.ndo_get_vf_config = ice_get_vf_cfg,

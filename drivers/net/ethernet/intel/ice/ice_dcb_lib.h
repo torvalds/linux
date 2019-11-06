@@ -14,6 +14,7 @@
 void ice_dcb_rebuild(struct ice_pf *pf);
 u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg);
 u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg);
+u8 ice_dcb_get_tc(struct ice_vsi *vsi, int queue_index);
 void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi);
 int ice_init_pf_dcb(struct ice_pf *pf, bool locked);
 void ice_update_dcb_stats(struct ice_pf *pf);
@@ -40,6 +41,13 @@ static inline u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg __always_unused *dcbcfg)
 static inline u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg __always_unused *dcbcfg)
 {
 	return 1;
+}
+
+static inline u8
+ice_dcb_get_tc(struct ice_vsi __always_unused *vsi,
+	       int __always_unused queue_index)
+{
+	return 0;
 }
 
 static inline int
