@@ -12,6 +12,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 #include <linux/gpio.h>
 #include "gma_display.h"
 
@@ -182,6 +183,8 @@ struct gma_crtc {
 	struct psb_intel_crtc_state *crtc_state;
 
 	const struct gma_clock_funcs *clock_funcs;
+
+	struct drm_pending_vblank_event *page_flip_event;
 };
 
 #define to_gma_crtc(x)	\

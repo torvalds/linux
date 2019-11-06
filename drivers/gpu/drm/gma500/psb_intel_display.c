@@ -432,6 +432,7 @@ const struct drm_crtc_funcs psb_intel_crtc_funcs = {
 	.gamma_set = gma_crtc_gamma_set,
 	.set_config = gma_crtc_set_config,
 	.destroy = gma_crtc_destroy,
+	.page_flip = gma_crtc_page_flip,
 };
 
 const struct gma_clock_funcs psb_clock_funcs = {

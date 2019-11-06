@@ -503,6 +503,52 @@ void gma_crtc_destroy(struct drm_crtc *crtc)
 	kfree(gma_crtc);
 }
 
+int gma_crtc_page_flip(struct drm_crtc *crtc,
+		       struct drm_framebuffer *fb,
+		       struct drm_pending_vblank_event *event,
+		       uint32_t page_flip_flags,
+		       struct drm_modeset_acquire_ctx *ctx)
+{
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	struct drm_framebuffer *current_fb = crtc->primary->fb;
+	struct drm_framebuffer *old_fb = crtc->primary->old_fb;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	struct drm_device *dev = crtc->dev;
+	unsigned long flags;
+	int ret;
+
+	if (!crtc_funcs->mode_set_base)
+		return -EINVAL;
+
+	/* Using mode_set_base requires the new fb to be set already. */
+	crtc->primary->fb = fb;
+
+	if (event) {
+		spin_lock_irqsave(&dev->event_lock, flags);
+
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+
+		gma_crtc->page_flip_event = event;
+
+		/* Call this locked if we want an event at vblank interrupt. */
+		ret = crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y, old_fb);
+		if (ret) {
+			gma_crtc->page_flip_event = NULL;
+			drm_crtc_vblank_put(crtc);
+		}
+
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	} else {
+		ret = crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y, old_fb);
+	}
+
+	/* Restore previous fb in case of failure. */
+	if (ret)
+		crtc->primary->fb = current_fb;
+
+	return ret;
+}
+
 int gma_crtc_set_config(struct drm_mode_set *set,
 			struct drm_modeset_acquire_ctx *ctx)
 {

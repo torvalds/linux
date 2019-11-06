@@ -165,11 +165,23 @@ static void mid_pipe_event_handler(struct drm_device *dev, int pipe)
 		"%s, can't clear status bits for pipe %d, its value = 0x%x.\n",
 		__func__, pipe, PSB_RVDC32(pipe_stat_reg));
 
-	if (pipe_stat_val & PIPE_VBLANK_STATUS)
+	if (pipe_stat_val & PIPE_VBLANK_STATUS ||
+	    (IS_MFLD(dev) && pipe_stat_val & PIPE_TE_STATUS)) {
+		struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
+		struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+		unsigned long flags;
+
 		drm_handle_vblank(dev, pipe);
 
-	if (pipe_stat_val & PIPE_TE_STATUS)
-		drm_handle_vblank(dev, pipe);
+		spin_lock_irqsave(&dev->event_lock, flags);
+		if (gma_crtc->page_flip_event) {
+			drm_crtc_send_vblank_event(crtc,
+						   gma_crtc->page_flip_event);
+			gma_crtc->page_flip_event = NULL;
+			drm_crtc_vblank_put(crtc);
+		}
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	}
 }
 
 /*
