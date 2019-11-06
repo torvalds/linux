@@ -2456,7 +2456,6 @@ static int __io_queue_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		sqe_copy = kmemdup(s->sqe, sizeof(*sqe_copy), GFP_KERNEL);
 		if (sqe_copy) {
 			s->sqe = sqe_copy;
-			memcpy(&req->submit, s, sizeof(*s));
 			if (req->work.flags & IO_WQ_WORK_NEEDS_FILES) {
 				ret = io_grab_files(ctx, req);
 				if (ret) {
@@ -2591,13 +2590,11 @@ err_req:
 		}
 
 		s->sqe = sqe_copy;
-		memcpy(&req->submit, s, sizeof(*s));
 		trace_io_uring_link(ctx, req, prev);
 		list_add_tail(&req->list, &prev->link_list);
 	} else if (s->sqe->flags & IOSQE_IO_LINK) {
 		req->flags |= REQ_F_LINK;
 
-		memcpy(&req->submit, s, sizeof(*s));
 		INIT_LIST_HEAD(&req->link_list);
 		*link = req;
 	} else {
@@ -2702,8 +2699,8 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 	}
 
 	for (i = 0; i < nr; i++) {
-		struct sqe_submit s;
 		struct io_kiocb *req;
+		unsigned int sqe_flags;
 
 		req = io_get_req(ctx, statep);
 		if (unlikely(!req)) {
@@ -2711,12 +2708,12 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 				submitted = -EAGAIN;
 			break;
 		}
-		if (!io_get_sqring(ctx, &s)) {
+		if (!io_get_sqring(ctx, &req->submit)) {
 			__io_free_req(req);
 			break;
 		}
 
-		if (io_sqe_needs_user(s.sqe) && !*mm) {
+		if (io_sqe_needs_user(req->submit.sqe) && !*mm) {
 			mm_fault = mm_fault || !mmget_not_zero(ctx->sqo_mm);
 			if (!mm_fault) {
 				use_mm(ctx->sqo_mm);
@@ -2724,7 +2721,9 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 			}
 		}
 
-		if (link && (s.sqe->flags & IOSQE_IO_DRAIN)) {
+		sqe_flags = req->submit.sqe->flags;
+
+		if (link && (sqe_flags & IOSQE_IO_DRAIN)) {
 			if (!shadow_req) {
 				shadow_req = io_get_req(ctx, NULL);
 				if (unlikely(!shadow_req))
@@ -2732,24 +2731,25 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 				shadow_req->flags |= (REQ_F_IO_DRAIN | REQ_F_SHADOW_DRAIN);
 				refcount_dec(&shadow_req->refs);
 			}
-			shadow_req->sequence = s.sequence;
+			shadow_req->sequence = req->submit.sequence;
 		}
 
 out:
-		s.ring_file = ring_file;
-		s.ring_fd = ring_fd;
-		s.has_user = *mm != NULL;
-		s.in_async = async;
-		s.needs_fixed_file = async;
-		trace_io_uring_submit_sqe(ctx, s.sqe->user_data, true, async);
-		io_submit_sqe(ctx, req, &s, statep, &link);
+		req->submit.ring_file = ring_file;
+		req->submit.ring_fd = ring_fd;
+		req->submit.has_user = *mm != NULL;
+		req->submit.in_async = async;
+		req->submit.needs_fixed_file = async;
+		trace_io_uring_submit_sqe(ctx, req->submit.sqe->user_data,
+					  true, async);
+		io_submit_sqe(ctx, req, &req->submit, statep, &link);
 		submitted++;
 
 		/*
 		 * If previous wasn't linked and we have a linked command,
 		 * that's the end of the chain. Submit the previous link.
 		 */
-		if (!(s.sqe->flags & IOSQE_IO_LINK) && link) {
+		if (!(sqe_flags & IOSQE_IO_LINK) && link) {
 			io_queue_link_head(ctx, link, &link->submit, shadow_req);
 			link = NULL;
 			shadow_req = NULL;
