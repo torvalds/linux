@@ -469,7 +469,6 @@
 				 <&ccu CLK_PLL_VIDEO1_2X>;
 			clock-names = "ahb", "mod", "ddc", "pll-0", "pll-1";
 			resets = <&ccu RST_AHB1_HDMI>;
-			reset-names = "ahb";
 			dma-names = "ddc-tx", "ddc-rx", "audio-tx";
 			dmas = <&dma 13>, <&dma 13>, <&dma 14>;
 			status = "disabled";
