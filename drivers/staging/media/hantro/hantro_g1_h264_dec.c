@@ -81,7 +81,7 @@ static void set_params(struct hantro_ctx *ctx)
 		reg |= G1_REG_DEC_CTRL4_CABAC_E;
 	if (sps->flags & V4L2_H264_SPS_FLAG_DIRECT_8X8_INFERENCE)
 		reg |= G1_REG_DEC_CTRL4_DIR_8X8_INFER_E;
-	if (sps->chroma_format_idc == 0)
+	if (sps->profile_idc >= 100 && sps->chroma_format_idc == 0)
 		reg |= G1_REG_DEC_CTRL4_BLACKWHITE_E;
 	if (pps->flags & V4L2_H264_PPS_FLAG_WEIGHTED_PRED)
 		reg |= G1_REG_DEC_CTRL4_WEIGHT_PRED_E;
@@ -234,6 +234,7 @@ static void set_buffers(struct hantro_ctx *ctx)
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	struct hantro_dev *vpu = ctx->dev;
 	dma_addr_t src_dma, dst_dma;
+	size_t offset = 0;
 
 	src_buf = hantro_get_src_buf(ctx);
 	dst_buf = hantro_get_dst_buf(ctx);
@@ -244,18 +245,30 @@ static void set_buffers(struct hantro_ctx *ctx)
 
 	/* Destination (decoded frame) buffer. */
 	dst_dma = vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0);
-	vdpu_write_relaxed(vpu, dst_dma, G1_REG_ADDR_DST);
+	/* Adjust dma addr to start at second line for bottom field */
+	if (ctrls->slices[0].flags & V4L2_H264_SLICE_FLAG_BOTTOM_FIELD)
+		offset = ALIGN(ctx->src_fmt.width, MB_DIM);
+	vdpu_write_relaxed(vpu, dst_dma + offset, G1_REG_ADDR_DST);
 
 	/* Higher profiles require DMV buffer appended to reference frames. */
 	if (ctrls->sps->profile_idc > 66 && ctrls->decode->nal_ref_idc) {
-		size_t pic_size = ctx->h264_dec.pic_size;
-		size_t mv_offset = round_up(pic_size, 8);
+		unsigned int bytes_per_mb = 384;
 
+		/* DMV buffer for monochrome start directly after Y-plane */
+		if (ctrls->sps->profile_idc >= 100 &&
+		    ctrls->sps->chroma_format_idc == 0)
+			bytes_per_mb = 256;
+		offset = bytes_per_mb * MB_WIDTH(ctx->src_fmt.width) *
+			 MB_HEIGHT(ctx->src_fmt.height);
+
+		/*
+		 * DMV buffer is split in two for field encoded frames,
+		 * adjust offset for bottom field
+		 */
 		if (ctrls->slices[0].flags & V4L2_H264_SLICE_FLAG_BOTTOM_FIELD)
-			mv_offset += 32 * MB_WIDTH(ctx->dst_fmt.width);
-
-		vdpu_write_relaxed(vpu, dst_dma + mv_offset,
-				   G1_REG_ADDR_DIR_MV);
+			offset += 32 * MB_WIDTH(ctx->src_fmt.width) *
+				  MB_HEIGHT(ctx->src_fmt.height);
+		vdpu_write_relaxed(vpu, dst_dma + offset, G1_REG_ADDR_DIR_MV);
 	}
 
 	/* Auxiliary buffer prepared in hantro_g1_h264_dec_prepare_table(). */
