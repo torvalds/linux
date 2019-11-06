@@ -2,7 +2,7 @@
 /*
  * drivers/net/phy/at803x.c
  *
- * Driver for Atheros 803x PHY
+ * Driver for Qualcomm Atheros AR803x PHY
  *
  * Author: Matus Ujhelyi <ujhelyi.m@gmail.com>
  */
@@ -109,7 +109,7 @@
 #define ATH8035_PHY_ID 0x004dd072
 #define AT803X_PHY_ID_MASK			0xffffffef
 
-MODULE_DESCRIPTION("Atheros 803x PHY driver");
+MODULE_DESCRIPTION("Qualcomm Atheros AR803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
 MODULE_LICENSE("GPL");
 
@@ -706,9 +706,9 @@ static int at803x_read_status(struct phy_device *phydev)
 
 static struct phy_driver at803x_driver[] = {
 {
-	/* ATHEROS 8035 */
+	/* Qualcomm Atheros AR8035 */
 	.phy_id			= ATH8035_PHY_ID,
-	.name			= "Atheros 8035 ethernet",
+	.name			= "Qualcomm Atheros AR8035",
 	.phy_id_mask		= AT803X_PHY_ID_MASK,
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
@@ -721,9 +721,9 @@ static struct phy_driver at803x_driver[] = {
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
 }, {
-	/* ATHEROS 8030 */
+	/* Qualcomm Atheros AR8030 */
 	.phy_id			= ATH8030_PHY_ID,
-	.name			= "Atheros 8030 ethernet",
+	.name			= "Qualcomm Atheros AR8030",
 	.phy_id_mask		= AT803X_PHY_ID_MASK,
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
@@ -736,9 +736,9 @@ static struct phy_driver at803x_driver[] = {
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
 }, {
-	/* ATHEROS 8031/8033 */
+	/* Qualcomm Atheros AR8031/AR8033 */
 	.phy_id			= ATH8031_PHY_ID,
-	.name			= "Atheros 8031/8033 ethernet",
+	.name			= "Qualcomm Atheros AR8031/AR8033",
 	.phy_id_mask		= AT803X_PHY_ID_MASK,
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
@@ -754,7 +754,7 @@ static struct phy_driver at803x_driver[] = {
 }, {
 	/* ATHEROS AR9331 */
 	PHY_ID_MATCH_EXACT(ATH9331_PHY_ID),
-	.name			= "Atheros AR9331 built-in PHY",
+	.name			= "Qualcomm Atheros AR9331 built-in PHY",
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
 	.suspend		= at803x_suspend,
