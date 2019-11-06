@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
+ * Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -1461,19 +1461,19 @@ const struct mei_cfg *mei_me_get_cfg(kernel_ulong_t idx)
 /**
  * mei_me_dev_init - allocates and initializes the mei device structure
  *
- * @pdev: The pci device structure
+ * @parent: device associated with physical device (pci/platform)
  * @cfg: per device generation config
  *
  * Return: The mei_device pointer on success, NULL on failure.
  */
-struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
+struct mei_device *mei_me_dev_init(struct device *parent,
 				   const struct mei_cfg *cfg)
 {
 	struct mei_device *dev;
 	struct mei_me_hw *hw;
 	int i;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct mei_device) +
+	dev = devm_kzalloc(parent, sizeof(struct mei_device) +
 			   sizeof(struct mei_me_hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
@@ -1483,7 +1483,7 @@ struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
 	for (i = 0; i < DMA_DSCR_NUM; i++)
 		dev->dr_dscr[i].size = cfg->dma_size[i];
 
-	mei_device_init(dev, &pdev->dev, &mei_me_hw_ops);
+	mei_device_init(dev, parent, &mei_me_hw_ops);
 	hw->cfg = cfg;
 
 	dev->fw_f_fw_ver_supported = cfg->fw_ver_supported;
