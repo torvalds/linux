@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2013-2014, Intel Corporation. All rights reserved.
+ * Copyright (c) 2013-2019, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -660,14 +660,16 @@ static int mei_txe_fw_status(struct mei_device *dev,
 }
 
 /**
- *  mei_txe_hw_config - configure hardware at the start of the devices
+ * mei_txe_hw_config - configure hardware at the start of the devices
  *
  * @dev: the device structure
  *
  * Configure hardware at the start of the device should be done only
  *   once at the device probe time
+ *
+ * Return: always 0
  */
-static void mei_txe_hw_config(struct mei_device *dev)
+static int mei_txe_hw_config(struct mei_device *dev)
 {
 
 	struct mei_txe_hw *hw = to_txe_hw(dev);
@@ -677,6 +679,8 @@ static void mei_txe_hw_config(struct mei_device *dev)
 
 	dev_dbg(dev->dev, "aliveness_resp = 0x%08x, readiness = 0x%08x.\n",
 		hw->aliveness, hw->readiness);
+
+	return 0;
 }
 
 /**

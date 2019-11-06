@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
+ * Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -287,7 +287,7 @@ struct mei_hw_ops {
 	bool (*hw_is_ready)(struct mei_device *dev);
 	int (*hw_reset)(struct mei_device *dev, bool enable);
 	int (*hw_start)(struct mei_device *dev);
-	void (*hw_config)(struct mei_device *dev);
+	int (*hw_config)(struct mei_device *dev);
 
 	int (*fw_status)(struct mei_device *dev, struct mei_fw_status *fw_sts);
 	enum mei_pg_state (*pg_state)(struct mei_device *dev);
@@ -614,9 +614,9 @@ void mei_irq_compl_handler(struct mei_device *dev, struct list_head *cmpl_list);
  */
 
 
-static inline void mei_hw_config(struct mei_device *dev)
+static inline int mei_hw_config(struct mei_device *dev)
 {
-	dev->ops->hw_config(dev);
+	return dev->ops->hw_config(dev);
 }
 
 static inline enum mei_pg_state mei_pg_state(struct mei_device *dev)

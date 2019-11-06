@@ -121,6 +121,13 @@ static inline void mei_me_set_pm_domain(struct mei_device *dev) {}
 static inline void mei_me_unset_pm_domain(struct mei_device *dev) {}
 #endif /* CONFIG_PM */
 
+static int mei_me_read_fws(const struct mei_device *dev, int where, u32 *val)
+{
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	return pci_read_config_dword(pdev, where, val);
+}
+
 /**
  * mei_me_quirk_probe - probe for devices that doesn't valid ME interface
  *
@@ -200,6 +207,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw = to_me_hw(dev);
 	hw->mem_addr = pcim_iomap_table(pdev)[0];
 	hw->irq = pdev->irq;
+	hw->read_fws = mei_me_read_fws;
 
 	pci_enable_msi(pdev);
 

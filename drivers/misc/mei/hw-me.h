@@ -46,6 +46,7 @@ struct mei_cfg {
  * @pg_state: power gating state
  * @d0i3_supported: di03 support
  * @hbuf_depth: depth of hardware host/write buffer in slots
+ * @read_fws: read FW status register handler
  */
 struct mei_me_hw {
 	const struct mei_cfg *cfg;
@@ -54,6 +55,7 @@ struct mei_me_hw {
 	enum mei_pg_state pg_state;
 	bool d0i3_supported;
 	u8 hbuf_depth;
+	int (*read_fws)(const struct mei_device *dev, int where, u32 *val);
 };
 
 #define to_me_hw(dev) (struct mei_me_hw *)((dev)->hw)

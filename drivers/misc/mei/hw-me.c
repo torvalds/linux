@@ -183,20 +183,19 @@ static inline void mei_me_d0i3c_write(struct mei_device *dev, u32 reg)
 static int mei_me_fw_status(struct mei_device *dev,
 			    struct mei_fw_status *fw_status)
 {
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct mei_me_hw *hw = to_me_hw(dev);
 	const struct mei_fw_status *fw_src = &hw->cfg->fw_status;
 	int ret;
 	int i;
 
-	if (!fw_status)
+	if (!fw_status || !hw->read_fws)
 		return -EINVAL;
 
 	fw_status->count = fw_src->count;
 	for (i = 0; i < fw_src->count && i < MEI_FW_STATUS_MAX; i++) {
-		ret = pci_read_config_dword(pdev, fw_src->status[i],
-					    &fw_status->status[i]);
-		trace_mei_pci_cfg_read(dev->dev, "PCI_CFG_HSF_X",
+		ret = hw->read_fws(dev, fw_src->status[i],
+				   &fw_status->status[i]);
+		trace_mei_pci_cfg_read(dev->dev, "PCI_CFG_HFS_X",
 				       fw_src->status[i],
 				       fw_status->status[i]);
 		if (ret)
@@ -210,19 +209,26 @@ static int mei_me_fw_status(struct mei_device *dev,
  * mei_me_hw_config - configure hw dependent settings
  *
  * @dev: mei device
+ *
+ * Return:
+ *  * -EINVAL when read_fws is not set
+ *  * 0 on success
+ *
  */
-static void mei_me_hw_config(struct mei_device *dev)
+static int mei_me_hw_config(struct mei_device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr, reg;
+
+	if (WARN_ON(!hw->read_fws))
+		return -EINVAL;
 
 	/* Doesn't change in runtime */
 	hcsr = mei_hcsr_read(dev);
 	hw->hbuf_depth = (hcsr & H_CBD) >> 24;
 
 	reg = 0;
-	pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
+	hw->read_fws(dev, PCI_CFG_HFS_1, &reg);
 	trace_mei_pci_cfg_read(dev->dev, "PCI_CFG_HFS_1", PCI_CFG_HFS_1, reg);
 	hw->d0i3_supported =
 		((reg & PCI_CFG_HFS_1_D0I3_MSK) == PCI_CFG_HFS_1_D0I3_MSK);
@@ -233,6 +239,8 @@ static void mei_me_hw_config(struct mei_device *dev)
 		if (reg & H_D0I3C_I3)
 			hw->pg_state = MEI_PG_ON;
 	}
+
+	return 0;
 }
 
 /**
