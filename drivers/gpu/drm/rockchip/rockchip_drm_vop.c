@@ -2481,6 +2481,7 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	struct drm_plane *plane;
 	u64 bandwidth;
 	int cnt = 0, plane_num = 0;
+	struct drm_atomic_state *state = crtc_state->state;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	struct vop_dump_list *pos, *n;
 #endif
@@ -2503,12 +2504,8 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	}
 #endif
 
-	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
-		pstate = plane->state;
-		if (pstate->crtc != crtc || !pstate->fb)
-			continue;
+	drm_atomic_crtc_state_for_each_plane(plane, crtc_state)
 		plane_num++;
-	}
 
 	if (plane_num_total)
 		*plane_num_total += plane_num;
@@ -2518,7 +2515,7 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 		return -ENOMEM;
 
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
-		pstate = plane->state;
+		pstate = drm_atomic_get_existing_plane_state(state, plane);
 		if (pstate->crtc != crtc || !pstate->fb)
 			continue;
 
