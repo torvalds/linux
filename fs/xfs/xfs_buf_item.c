@@ -851,7 +851,7 @@ xfs_buf_item_log_segment(
 	 * first_bit and last_bit.
 	 */
 	while ((bits_to_set - bits_set) >= NBWORD) {
-		*wordp |= 0xffffffff;
+		*wordp = 0xffffffff;
 		bits_set += NBWORD;
 		wordp++;
 	}
