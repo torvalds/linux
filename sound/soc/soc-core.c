@@ -1974,6 +1974,9 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *link, *_link;
 
+	/* This should be called before snd_card_free() */
+	soc_remove_link_components(card);
+
 	/* free the ALSA card at first; this syncs with pending operations */
 	if (card->snd_card) {
 		snd_card_free(card->snd_card);
@@ -1982,7 +1985,6 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 
 	/* remove and free each DAI */
 	soc_remove_link_dais(card);
-	soc_remove_link_components(card);
 
 	for_each_card_links_safe(card, link, _link)
 		snd_soc_remove_dai_link(card, link);
