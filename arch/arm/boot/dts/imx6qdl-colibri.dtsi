@@ -166,8 +166,11 @@
  */
 &i2c2 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
+	pinctrl-0 = <&pinctrl_i2c2_gpio>;
+	scl-gpios = <&gpio2 30 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio3 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
 	pmic: pfuze100@8 {
@@ -312,9 +315,9 @@
  */
 &i2c3 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default", "recovery";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
-	pinctrl-1 = <&pinctrl_i2c3_recovery>;
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
 	scl-gpios = <&gpio1 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpio1 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "disabled";
@@ -426,6 +429,9 @@
 };
 
 &iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh_oc_1>;
+
 	pinctrl_audmux: audmuxgrp {
 		fsl,pins = <
 			MX6QDL_PAD_KEY_COL0__AUD5_TXC	0x130b0
@@ -509,6 +515,13 @@
 		>;
 	};
 
+	pinctrl_i2c2_gpio: i2c2grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_EB2__GPIO2_IO30 0x4001b8b1
+			MX6QDL_PAD_EIM_D16__GPIO3_IO16 0x4001b8b1
+		>;
+	};
+
 	pinctrl_i2c3: i2c3grp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_3__I2C3_SCL 0x4001b8b1
@@ -516,7 +529,7 @@
 		>;
 	};
 
-	pinctrl_i2c3_recovery: i2c3recoverygrp {
+	pinctrl_i2c3_gpio: i2c3gpiogrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_3__GPIO1_IO03 0x4001b8b1
 			MX6QDL_PAD_GPIO_6__GPIO1_IO06 0x4001b8b1
@@ -615,6 +628,13 @@
 		>;
 	};
 
+	pinctrl_usbh_oc_1: usbhoc1grp {
+		fsl,pins = <
+			/* USBH_OC */
+			MX6QDL_PAD_EIM_D30__GPIO3_IO30		0x1b0b0
+		>;
+	};
+
 	pinctrl_spdif: spdifgrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_17__SPDIF_OUT 0x1b0b0
@@ -678,6 +698,13 @@
 			MX6QDL_PAD_RGMII_TX_CTL__GPIO6_IO26	0x0f058
 			/* USBC_DET_OVERWRITE */
 			MX6QDL_PAD_RGMII_RXC__GPIO6_IO30	0x0f058
+		>;
+	};
+
+	pinctrl_usbc_id_1: usbc_id-1 {
+		fsl,pins = <
+			/* USBC_ID */
+			MX6QDL_PAD_NANDF_D2__GPIO2_IO02		0x1b0b0
 		>;
 	};
 

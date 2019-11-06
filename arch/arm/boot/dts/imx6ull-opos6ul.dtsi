@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 //
-// Copyright 2017 Armadeus Systems <support@armadeus.com>
+// Copyright 2019 Armadeus Systems <support@armadeus.com>
 
-#include "imx6ul.dtsi"
+#include "imx6ull.dtsi"
 #include "imx6ul-imx6ull-opos6ul.dtsi"

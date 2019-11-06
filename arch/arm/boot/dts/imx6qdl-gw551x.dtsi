@@ -105,19 +105,16 @@
 	sound-digital {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "tda1997x-audio";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sound_codec>;
+		simple-audio-card,frame-master = <&sound_codec>;
 
-		simple-audio-card,dai-link@0 {
-			format = "i2s";
+		sound_cpu: simple-audio-card,cpu {
+			sound-dai = <&ssi2>;
+		};
 
-			cpu {
-				sound-dai = <&ssi2>;
-			};
-
-			codec {
-				bitclock-master;
-				frame-master;
-				sound-dai = <&hdmi_receiver>;
-			};
+		sound_codec: simple-audio-card,codec {
+			sound-dai = <&hdmi_receiver>;
 		};
 	};
 };
