@@ -255,6 +255,8 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* Give the overlay scaler a chance to enable
 		 * if it's on this pipe */
 		/* psb_intel_crtc_dpms_video(crtc, true); TODO */
+
+		drm_crtc_vblank_on(crtc);
 		break;
 	case DRM_MODE_DPMS_OFF:
 		if (!gma_crtc->active)
