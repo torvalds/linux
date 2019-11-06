@@ -67,10 +67,9 @@ __modpost:
 
 else
 
-# When building external modules load the Kbuild file to retrieve EXTRA_SYMBOLS info
 ifneq ($(KBUILD_EXTMOD),)
 
-# set src + obj - they may be used when building the .mod.c file
+# set src + obj - they may be used in the modules's Makefile
 obj := $(KBUILD_EXTMOD)
 src := $(obj)
 
