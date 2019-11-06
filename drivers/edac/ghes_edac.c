@@ -207,7 +207,6 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 	struct ghes_edac_pvt *pvt;
 	unsigned long flags;
 	char *p;
-	u8 grain_bits;
 
 	/*
 	 * We can do the locking below because GHES defers error processing
@@ -442,18 +441,6 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 			     (long long)mem_err->responder_id);
 	if (p > pvt->other_detail)
 		*(p - 1) = '\0';
-
-	/* Sanity-check driver-supplied grain value. */
-	if (WARN_ON_ONCE(!e->grain))
-		e->grain = 1;
-
-	grain_bits = fls_long(e->grain - 1);
-
-	/* Generate the trace event */
-	trace_mc_event(type, e->msg, e->label, e->error_count,
-		       mci->mc_idx, e->top_layer, e->mid_layer, e->low_layer,
-		       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
-		       grain_bits, e->syndrome, e->other_detail);
 
 	edac_raw_mc_handle_error(type, mci, e);
 
