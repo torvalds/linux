@@ -127,18 +127,48 @@ struct amdgpu_xgmi {
 };
 
 struct amdgpu_gmc {
+	/* FB's physical address in MMIO space (for CPU to
+	 * map FB). This is different compared to the agp/
+	 * gart/vram_start/end field as the later is from
+	 * GPU's view and aper_base is from CPU's view.
+	 */
 	resource_size_t		aper_size;
 	resource_size_t		aper_base;
 	/* for some chips with <= 32MB we need to lie
 	 * about vram size near mc fb location */
 	u64			mc_vram_size;
 	u64			visible_vram_size;
+	/* AGP aperture start and end in MC address space
+	 * Driver find a hole in the MC address space
+	 * to place AGP by setting MC_VM_AGP_BOT/TOP registers
+	 * Under VMID0, logical address == MC address. AGP
+	 * aperture maps to physical bus or IOVA addressed.
+	 * AGP aperture is used to simulate FB in ZFB case.
+	 * AGP aperture is also used for page table in system
+	 * memory (mainly for APU).
+	 *
+	 */
 	u64			agp_size;
 	u64			agp_start;
 	u64			agp_end;
+	/* GART aperture start and end in MC address space
+	 * Driver find a hole in the MC address space
+	 * to place GART by setting VM_CONTEXT0_PAGE_TABLE_START/END_ADDR
+	 * registers
+	 * Under VMID0, logical address inside GART aperture will
+	 * be translated through gpuvm gart page table to access
+	 * paged system memory
+	 */
 	u64			gart_size;
 	u64			gart_start;
 	u64			gart_end;
+	/* Frame buffer aperture of this GPU device. Different from
+	 * fb_start (see below), this only covers the local GPU device.
+	 * Driver get fb_start from MC_VM_FB_LOCATION_BASE (set by vbios)
+	 * and calculate vram_start of this local device by adding an
+	 * offset inside the XGMI hive.
+	 * Under VMID0, logical address == MC address
+	 */
 	u64			vram_start;
 	u64			vram_end;
 	/* FB region , it's same as local vram region in single GPU, in XGMI
