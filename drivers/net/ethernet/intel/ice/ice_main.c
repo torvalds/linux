@@ -3776,6 +3776,7 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
 	int ret = 0;
 
 	/* Don't set any netdev advanced features with device in Safe Mode */
@@ -3783,6 +3784,13 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 		dev_err(&vsi->back->pdev->dev,
 			"Device is in Safe Mode - not enabling advanced netdev features\n");
 		return ret;
+	}
+
+	/* Do not change setting during reset */
+	if (ice_is_reset_in_progress(pf->state)) {
+		dev_err(&vsi->back->pdev->dev,
+			"Device is resetting, changing advanced netdev features temporarily unavailable.\n");
+		return -EBUSY;
 	}
 
 	/* Multiple features can be changed in one call so keep features in
