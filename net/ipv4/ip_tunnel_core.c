@@ -35,6 +35,7 @@
 #include <net/rtnetlink.h>
 #include <net/dst_metadata.h>
 #include <net/geneve.h>
+#include <net/vxlan.h>
 
 const struct ip_tunnel_encap_ops __rcu *
 		iptun_encaps[MAX_IPTUN_ENCAP_OPS] __read_mostly;
@@ -224,6 +225,7 @@ static const struct nla_policy ip_tun_policy[LWTUNNEL_IP_MAX + 1] = {
 
 static const struct nla_policy ip_opts_policy[LWTUNNEL_IP_OPTS_MAX + 1] = {
 	[LWTUNNEL_IP_OPTS_GENEVE]	= { .type = NLA_NESTED },
+	[LWTUNNEL_IP_OPTS_VXLAN]	= { .type = NLA_NESTED },
 };
 
 static const struct nla_policy
@@ -231,6 +233,11 @@ geneve_opt_policy[LWTUNNEL_IP_OPT_GENEVE_MAX + 1] = {
 	[LWTUNNEL_IP_OPT_GENEVE_CLASS]	= { .type = NLA_U16 },
 	[LWTUNNEL_IP_OPT_GENEVE_TYPE]	= { .type = NLA_U8 },
 	[LWTUNNEL_IP_OPT_GENEVE_DATA]	= { .type = NLA_BINARY, .len = 128 },
+};
+
+static const struct nla_policy
+vxlan_opt_policy[LWTUNNEL_IP_OPT_VXLAN_MAX + 1] = {
+	[LWTUNNEL_IP_OPT_VXLAN_GBP]	= { .type = NLA_U32 },
 };
 
 static int ip_tun_parse_opts_geneve(struct nlattr *attr,
@@ -270,6 +277,32 @@ static int ip_tun_parse_opts_geneve(struct nlattr *attr,
 	return sizeof(struct geneve_opt) + data_len;
 }
 
+static int ip_tun_parse_opts_vxlan(struct nlattr *attr,
+				   struct ip_tunnel_info *info,
+				   struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[LWTUNNEL_IP_OPT_VXLAN_MAX + 1];
+	int err;
+
+	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP_OPT_VXLAN_MAX,
+					  attr, vxlan_opt_policy, extack);
+	if (err)
+		return err;
+
+	if (!tb[LWTUNNEL_IP_OPT_VXLAN_GBP])
+		return -EINVAL;
+
+	if (info) {
+		struct vxlan_metadata *md = ip_tunnel_info_opts(info);
+
+		attr = tb[LWTUNNEL_IP_OPT_VXLAN_GBP];
+		md->gbp = nla_get_u32(attr);
+		info->key.tun_flags |= TUNNEL_VXLAN_OPT;
+	}
+
+	return sizeof(struct vxlan_metadata);
+}
+
 static int ip_tun_parse_opts(struct nlattr *attr, struct ip_tunnel_info *info,
 			     struct netlink_ext_ack *extack)
 {
@@ -287,6 +320,9 @@ static int ip_tun_parse_opts(struct nlattr *attr, struct ip_tunnel_info *info,
 	if (tb[LWTUNNEL_IP_OPTS_GENEVE])
 		err = ip_tun_parse_opts_geneve(tb[LWTUNNEL_IP_OPTS_GENEVE],
 					       info, extack);
+	else if (tb[LWTUNNEL_IP_OPTS_VXLAN])
+		err = ip_tun_parse_opts_vxlan(tb[LWTUNNEL_IP_OPTS_VXLAN],
+					      info, extack);
 	else
 		err = -EINVAL;
 
@@ -404,13 +440,34 @@ static int ip_tun_fill_encap_opts_geneve(struct sk_buff *skb,
 	return 0;
 }
 
+static int ip_tun_fill_encap_opts_vxlan(struct sk_buff *skb,
+					struct ip_tunnel_info *tun_info)
+{
+	struct vxlan_metadata *md;
+	struct nlattr *nest;
+
+	nest = nla_nest_start_noflag(skb, LWTUNNEL_IP_OPTS_VXLAN);
+	if (!nest)
+		return -ENOMEM;
+
+	md = ip_tunnel_info_opts(tun_info);
+	if (nla_put_u32(skb, LWTUNNEL_IP_OPT_VXLAN_GBP, md->gbp)) {
+		nla_nest_cancel(skb, nest);
+		return -ENOMEM;
+	}
+
+	nla_nest_end(skb, nest);
+	return 0;
+}
+
 static int ip_tun_fill_encap_opts(struct sk_buff *skb, int type,
 				  struct ip_tunnel_info *tun_info)
 {
 	struct nlattr *nest;
 	int err = 0;
 
-	if (!(tun_info->key.tun_flags & TUNNEL_GENEVE_OPT))
+	if (!(tun_info->key.tun_flags &
+	      (TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT)))
 		return 0;
 
 	nest = nla_nest_start_noflag(skb, type);
@@ -419,6 +476,8 @@ static int ip_tun_fill_encap_opts(struct sk_buff *skb, int type,
 
 	if (tun_info->key.tun_flags & TUNNEL_GENEVE_OPT)
 		err = ip_tun_fill_encap_opts_geneve(skb, tun_info);
+	else if (tun_info->key.tun_flags & TUNNEL_VXLAN_OPT)
+		err = ip_tun_fill_encap_opts_vxlan(skb, tun_info);
 
 	if (err) {
 		nla_nest_cancel(skb, nest);
@@ -451,7 +510,8 @@ static int ip_tun_opts_nlsize(struct ip_tunnel_info *info)
 {
 	int opt_len;
 
-	if (!(info->key.tun_flags & TUNNEL_GENEVE_OPT))
+	if (!(info->key.tun_flags &
+	      (TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT)))
 		return 0;
 
 	opt_len = nla_total_size(0);		/* LWTUNNEL_IP_OPTS */
@@ -463,6 +523,9 @@ static int ip_tun_opts_nlsize(struct ip_tunnel_info *info)
 			   + nla_total_size(1)	/* OPT_GENEVE_TYPE */
 			   + nla_total_size(opt->length * 4);
 						/* OPT_GENEVE_DATA */
+	} else if (info->key.tun_flags & TUNNEL_VXLAN_OPT) {
+		opt_len += nla_total_size(0)	/* LWTUNNEL_IP_OPTS_VXLAN */
+			   + nla_total_size(4);	/* OPT_VXLAN_GBP */
 	}
 
 	return opt_len;
