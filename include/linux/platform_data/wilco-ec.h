@@ -122,6 +122,19 @@ struct wilco_ec_message {
  */
 int wilco_ec_mailbox(struct wilco_ec_device *ec, struct wilco_ec_message *msg);
 
+/**
+ * wilco_keyboard_leds_init() - Set up the keyboard backlight LEDs.
+ * @ec: EC device to query.
+ *
+ * After this call, the keyboard backlight will be exposed through a an LED
+ * device at /sys/class/leds.
+ *
+ * This may sleep because it uses wilco_ec_mailbox().
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int wilco_keyboard_leds_init(struct wilco_ec_device *ec);
+
 /*
  * A Property is typically a data item that is stored to NVRAM
  * by the EC. Each of these data items has an index associated

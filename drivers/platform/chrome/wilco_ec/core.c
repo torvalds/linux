@@ -5,10 +5,6 @@
  * Copyright 2018 Google LLC
  *
  * This is the entry point for the drivers that control the Wilco EC.
- * This driver is responsible for several tasks:
- * - Initialize the register interface that is used by wilco_ec_mailbox()
- * - Create a platform device which is picked up by the debugfs driver
- * - Create a platform device which is picked up by the RTC driver
  */
 
 #include <linux/acpi.h>
@@ -85,6 +81,15 @@ static int wilco_ec_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to create RTC platform device\n");
 		ret = PTR_ERR(ec->rtc_pdev);
 		goto unregister_debugfs;
+	}
+
+	/* Set up the keyboard backlight LEDs. */
+	ret = wilco_keyboard_leds_init(ec);
+	if (ret < 0) {
+		dev_err(dev,
+			"Failed to initialize keyboard LEDs: %d\n",
+			ret);
+		goto unregister_rtc;
 	}
 
 	ret = wilco_ec_add_sysfs(ec);
