@@ -707,6 +707,13 @@ static void rt5677_set_dsp_mode(struct rt5677_priv *rt5677, bool on)
 
 static unsigned int rt5677_set_vad_source(struct rt5677_priv *rt5677)
 {
+	struct snd_soc_dapm_context *dapm =
+			snd_soc_component_get_dapm(rt5677->component);
+	/* Force dapm to sync before we enable the
+	 * DSP to prevent write corruption
+	 */
+	snd_soc_dapm_sync(dapm);
+
 	/* DMIC1 power = enabled
 	 * DMIC CLK = 256 * fs / 12
 	 */
@@ -3167,6 +3174,7 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("AIF4TX", "AIF4 Capture", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("SLBRX", "SLIMBus Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("SLBTX", "SLIMBus Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DSPTX", "DSP Buffer", 0, SND_SOC_NOPM, 0, 0),
 
 	/* Sidetone Mux */
 	SND_SOC_DAPM_MUX("Sidetone Mux", SND_SOC_NOPM, 0, 0,
@@ -3701,11 +3709,24 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "SLBTX", NULL, "SLB ADC3 Mux" },
 	{ "SLBTX", NULL, "SLB ADC4 Mux" },
 
+	{ "DSPTX", NULL, "IB01 Bypass Mux" },
+
 	{ "IB01 Mux", "IF1 DAC 01", "IF1 DAC01" },
 	{ "IB01 Mux", "IF2 DAC 01", "IF2 DAC01" },
 	{ "IB01 Mux", "SLB DAC 01", "SLB DAC01" },
 	{ "IB01 Mux", "STO1 ADC MIX", "Stereo1 ADC MIX" },
-	{ "IB01 Mux", "VAD ADC/DAC1 FS", "DAC1 FS" },
+	/* The IB01 Mux controls the source for InBound0 and InBound1.
+	 * When the mux option "VAD ADC/DAC1 FS" is selected, "VAD ADC" goes to
+	 * InBound0 and "DAC1 FS" goes to InBound1. "VAD ADC" is used for
+	 * hotwording. "DAC1 FS" is not used currently.
+	 *
+	 * Creating a common widget node for "VAD ADC" + "DAC1 FS" and
+	 * connecting the common widget to IB01 Mux causes the issue where
+	 * there is an active path going from system playback -> "DAC1 FS" ->
+	 * IB01 Mux -> DSP Buffer -> hotword stream. This wrong path confuses
+	 * DAPM. Therefore "DAC1 FS" is ignored for now.
+	 */
+	{ "IB01 Mux", "VAD ADC/DAC1 FS", "VAD ADC Mux" },
 
 	{ "IB01 Bypass Mux", "Bypass", "IB01 Mux" },
 	{ "IB01 Bypass Mux", "Pass SRC", "IB01 Mux" },
