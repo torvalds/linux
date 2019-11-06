@@ -155,6 +155,7 @@ struct io_uring_params {
  * io_uring_params->features flags
  */
 #define IORING_FEAT_SINGLE_MMAP		(1U << 0)
+#define IORING_FEAT_NODROP		(1U << 1)
 
 /*
  * io_uring_register(2) opcodes and arguments
