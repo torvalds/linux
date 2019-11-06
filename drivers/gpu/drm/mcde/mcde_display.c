@@ -934,9 +934,9 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 		val = readl(mcde->regs + MCDE_CRC);
 		val |= MCDE_CRC_SYCEN0;
 		writel(val, mcde->regs + MCDE_CRC);
-
-		drm_crtc_vblank_on(crtc);
 	}
+
+	drm_crtc_vblank_on(crtc);
 
 	dev_info(drm->dev, "MCDE display is enabled\n");
 }
@@ -947,8 +947,7 @@ static void mcde_display_disable(struct drm_simple_display_pipe *pipe)
 	struct drm_device *drm = crtc->dev;
 	struct mcde *mcde = drm->dev_private;
 
-	if (mcde->te_sync)
-		drm_crtc_vblank_off(crtc);
+	drm_crtc_vblank_off(crtc);
 
 	/* Disable FIFO A flow */
 	mcde_disable_fifo(mcde, MCDE_FIFO_A, true);
@@ -1097,6 +1096,8 @@ static struct drm_simple_display_pipe_funcs mcde_display_funcs = {
 	.enable = mcde_display_enable,
 	.disable = mcde_display_disable,
 	.update = mcde_display_update,
+	.enable_vblank = mcde_display_enable_vblank,
+	.disable_vblank = mcde_display_disable_vblank,
 	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
@@ -1122,12 +1123,6 @@ int mcde_display_init(struct drm_device *drm)
 		DRM_FORMAT_BGR565,
 		DRM_FORMAT_YUV422,
 	};
-
-	/* Provide vblank only when we have TE enabled */
-	if (mcde->te_sync) {
-		mcde_display_funcs.enable_vblank = mcde_display_enable_vblank;
-		mcde_display_funcs.disable_vblank = mcde_display_disable_vblank;
-	}
 
 	ret = drm_simple_display_pipe_init(drm, &mcde->pipe,
 					   &mcde_display_funcs,

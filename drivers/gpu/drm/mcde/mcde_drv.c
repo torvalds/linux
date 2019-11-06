@@ -179,18 +179,10 @@ static int mcde_modeset_init(struct drm_device *drm)
 	mode_config->min_height = 1;
 	mode_config->max_height = 1080;
 
-	/*
-	 * Currently we only support vblank handling on the DSI bridge, using
-	 * TE synchronization. If TE sync is not set up, it is still possible
-	 * to push out a single update on demand, but this is hard for DRM to
-	 * exploit.
-	 */
-	if (mcde->te_sync) {
-		ret = drm_vblank_init(drm, 1);
-		if (ret) {
-			dev_err(drm->dev, "failed to init vblank\n");
-			goto out_config;
-		}
+	ret = drm_vblank_init(drm, 1);
+	if (ret) {
+		dev_err(drm->dev, "failed to init vblank\n");
+		goto out_config;
 	}
 
 	ret = mcde_display_init(drm);
