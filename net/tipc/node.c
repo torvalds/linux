@@ -667,6 +667,11 @@ static bool tipc_node_cleanup(struct tipc_node *peer)
 	}
 	tipc_node_write_unlock(peer);
 
+	if (!deleted) {
+		spin_unlock_bh(&tn->node_list_lock);
+		return deleted;
+	}
+
 	/* Calculate cluster capabilities */
 	tn->capabilities = TIPC_NODE_CAPABILITIES;
 	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
@@ -2043,7 +2048,7 @@ int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 	struct net *net = sock_net(skb->sk);
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct nlattr *attrs[TIPC_NLA_NET_MAX + 1];
-	struct tipc_node *peer;
+	struct tipc_node *peer, *temp_node;
 	u32 addr;
 	int err;
 
@@ -2084,6 +2089,11 @@ int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 	tipc_node_write_unlock(peer);
 	tipc_node_delete(peer);
 
+	/* Calculate cluster capabilities */
+	tn->capabilities = TIPC_NODE_CAPABILITIES;
+	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
+		tn->capabilities &= temp_node->capabilities;
+	}
 	err = 0;
 err_out:
 	tipc_node_put(peer);
