@@ -37,6 +37,7 @@
 #include <linux/mlx5/fs.h>
 #include "mlx5_core.h"
 #include "eswitch.h"
+#include "esw/acl/ofld.h"
 #include "esw/chains.h"
 #include "rdma.h"
 #include "en.h"
@@ -2093,37 +2094,6 @@ group_err:
 	return err;
 }
 
-static int esw_vport_egress_config(struct mlx5_eswitch *esw,
-				   struct mlx5_vport *vport)
-{
-	int err;
-
-	if (!MLX5_CAP_GEN(esw->dev, prio_tag_required))
-		return 0;
-
-	esw_vport_cleanup_egress_rules(esw, vport);
-
-	err = esw_vport_enable_egress_acl(esw, vport);
-	if (err)
-		return err;
-
-	/* For prio tag mode, there is only 1 FTEs:
-	 * 1) prio tag packets - pop the prio tag VLAN, allow
-	 * Unmatched traffic is allowed by default
-	 */
-	esw_debug(esw->dev,
-		  "vport[%d] configure prio tag egress rules\n", vport->vport);
-
-	/* prio tag vlan rule - pop it so VF receives untagged packets */
-	err = mlx5_esw_create_vport_egress_acl_vlan(esw, vport, 0,
-						    MLX5_FLOW_CONTEXT_ACTION_VLAN_POP |
-						    MLX5_FLOW_CONTEXT_ACTION_ALLOW);
-	if (err)
-		esw_vport_disable_egress_acl(esw, vport);
-
-	return err;
-}
-
 static bool
 esw_check_vport_match_metadata_supported(const struct mlx5_eswitch *esw)
 {
@@ -2167,7 +2137,7 @@ esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
 		return err;
 
 	if (mlx5_eswitch_is_vf_vport(esw, vport->vport)) {
-		err = esw_vport_egress_config(esw, vport);
+		err = esw_acl_egress_ofld_setup(esw, vport);
 		if (err) {
 			esw_vport_cleanup_ingress_rules(esw, vport);
 			esw_vport_del_ingress_acl_modify_metadata(esw, vport);
@@ -2182,7 +2152,7 @@ void
 esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
 				      struct mlx5_vport *vport)
 {
-	esw_vport_disable_egress_acl(esw, vport);
+	esw_acl_egress_ofld_cleanup(vport);
 	esw_vport_cleanup_ingress_rules(esw, vport);
 	esw_vport_del_ingress_acl_modify_metadata(esw, vport);
 	esw_vport_destroy_ingress_acl_group(vport);

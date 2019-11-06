@@ -99,10 +99,10 @@ struct vport_ingress {
 
 struct vport_egress {
 	struct mlx5_flow_table *acl;
-	struct mlx5_flow_group *allowed_vlans_grp;
-	struct mlx5_flow_group *drop_grp;
 	struct mlx5_flow_handle  *allowed_vlan;
+	struct mlx5_flow_group *vlan_grp;
 	struct {
+		struct mlx5_flow_group *drop_grp;
 		struct mlx5_flow_handle *drop_rule;
 		struct mlx5_fc *drop_counter;
 	} legacy;
@@ -291,12 +291,7 @@ int esw_vport_create_ingress_acl_table(struct mlx5_eswitch *esw,
 				       struct mlx5_vport *vport,
 				       int table_size);
 void esw_vport_destroy_ingress_acl_table(struct mlx5_vport *vport);
-void esw_vport_cleanup_egress_rules(struct mlx5_eswitch *esw,
-				    struct mlx5_vport *vport);
-int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
-				struct mlx5_vport *vport);
-void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
-				  struct mlx5_vport *vport);
+
 int mlx5_esw_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num,
 			       u32 rate_mbps);
 
@@ -457,10 +452,6 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				  u16 vport, u16 vlan, u8 qos, u8 set_flags);
-
-int mlx5_esw_create_vport_egress_acl_vlan(struct mlx5_eswitch *esw,
-					  struct mlx5_vport *vport,
-					  u16 vlan_id, u32 flow_action);
 
 static inline bool mlx5_esw_qos_enabled(struct mlx5_eswitch *esw)
 {
