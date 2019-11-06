@@ -114,6 +114,7 @@ struct fsck_err_state {
 	struct list_head	list;
 	const char		*fmt;
 	u64			nr;
+	bool			ratelimited;
 	char			buf[512];
 };
 

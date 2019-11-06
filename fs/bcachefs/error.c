@@ -64,7 +64,7 @@ void bch2_io_error(struct bch_dev *ca)
 enum fsck_err_ret bch2_fsck_err(struct bch_fs *c, unsigned flags,
 				const char *fmt, ...)
 {
-	struct fsck_err_state *s;
+	struct fsck_err_state *s = NULL;
 	va_list args;
 	bool fix = false, print = true, suppressing = false;
 	char _buf[sizeof(s->buf)], *buf = _buf;
@@ -99,8 +99,13 @@ enum fsck_err_ret bch2_fsck_err(struct bch_fs *c, unsigned flags,
 found:
 	list_move(&s->list, &c->fsck_errors);
 	s->nr++;
-	suppressing	= s->nr == FSCK_ERR_RATELIMIT_NR;
-	print		= s->nr <= FSCK_ERR_RATELIMIT_NR;
+	if (c->opts.ratelimit_errors &&
+	    s->nr >= FSCK_ERR_RATELIMIT_NR) {
+		if (s->nr == FSCK_ERR_RATELIMIT_NR)
+			suppressing = true;
+		else
+			print = false;
+	}
 	buf		= s->buf;
 print:
 	va_start(args, fmt);
@@ -156,7 +161,7 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 	mutex_lock(&c->fsck_error_lock);
 
 	list_for_each_entry_safe(s, n, &c->fsck_errors, list) {
-		if (s->nr > FSCK_ERR_RATELIMIT_NR)
+		if (s->ratelimited)
 			bch_err(c, "Saw %llu errors like:\n    %s", s->nr, s->buf);
 
 		list_del(&s->list);

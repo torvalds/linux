@@ -68,6 +68,12 @@ enum opt_type {
  *  - helptext
  */
 
+#ifdef __KERNEL__
+#define RATELIMIT_ERRORS true
+#else
+#define RATELIMIT_ERRORS false
+#endif
+
 #define BCH_OPTS()							\
 	x(block_size,			u16,				\
 	  OPT_FORMAT,							\
@@ -227,6 +233,11 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Fix errors during fsck without asking")	\
+	x(ratelimit_errors,		u8,				\
+	  OPT_MOUNT,							\
+	  OPT_BOOL(),							\
+	  NO_SB_OPT,			RATELIMIT_ERRORS,		\
+	  NULL,		"Ratelimit error messages during fsck")		\
 	x(nochanges,			u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\
