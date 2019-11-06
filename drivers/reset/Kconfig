@@ -89,6 +89,13 @@ config RESET_MESON_AUDIO_ARB
 	  This enables the reset driver for Audio Memory Arbiter of
 	  Amlogic's A113 based SoCs
 
+config RESET_NPCM
+	bool "NPCM BMC Reset Driver" if COMPILE_TEST
+	default ARCH_NPCM
+	help
+	  This enables the reset controller driver for Nuvoton NPCM
+	  BMC SoCs.
+
 config RESET_OXNAS
 	bool
 
