@@ -876,6 +876,7 @@ static int rt5677_load_dsp_from_file(struct rt5677_priv *rt5677)
 static int rt5677_set_dsp_vad(struct snd_soc_component *component, bool on)
 {
 	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
+	rt5677->dsp_vad_en_request = on;
 	rt5677->dsp_vad_en = on;
 
 	if (!IS_ENABLED(CONFIG_SND_SOC_RT5677_SPI))
@@ -969,7 +970,7 @@ static int rt5677_dsp_vad_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
 
-	ucontrol->value.integer.value[0] = rt5677->dsp_vad_en;
+	ucontrol->value.integer.value[0] = rt5677->dsp_vad_en_request;
 
 	return 0;
 }
@@ -4636,14 +4637,15 @@ static int rt5677_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
 	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
+	enum snd_soc_bias_level prev_bias =
+		snd_soc_component_get_bias_level(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_STANDBY) {
-			rt5677_set_dsp_vad(component, false);
+		if (prev_bias == SND_SOC_BIAS_STANDBY) {
 
 			regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG1,
 				RT5677_LDO1_SEL_MASK | RT5677_LDO2_SEL_MASK,
@@ -4667,9 +4669,25 @@ static int rt5677_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
+		if (prev_bias == SND_SOC_BIAS_OFF &&
+				rt5677->dsp_vad_en_request) {
+			/* Re-enable the DSP if it was turned off at suspend */
+			rt5677->dsp_vad_en = true;
+			/* The delay is to wait for MCLK */
+			schedule_delayed_work(&rt5677->dsp_work,
+					msecs_to_jiffies(1000));
+		}
 		break;
 
 	case SND_SOC_BIAS_OFF:
+		flush_delayed_work(&rt5677->dsp_work);
+		if (rt5677->is_dsp_mode) {
+			/* Turn off the DSP before suspend */
+			rt5677->dsp_vad_en = false;
+			schedule_delayed_work(&rt5677->dsp_work, 0);
+			flush_delayed_work(&rt5677->dsp_work);
+		}
+
 		regmap_update_bits(rt5677->regmap, RT5677_DIG_MISC, 0x1, 0x0);
 		regmap_write(rt5677->regmap, RT5677_PWR_DIG1, 0x0000);
 		regmap_write(rt5677->regmap, RT5677_PWR_ANLG1,
