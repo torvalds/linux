@@ -269,13 +269,6 @@ int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
 int drm_fb_helper_debug_enter(struct fb_info *info);
 int drm_fb_helper_debug_leave(struct fb_info *info);
 
-int drm_fb_helper_fbdev_setup(struct drm_device *dev,
-			      struct drm_fb_helper *fb_helper,
-			      const struct drm_fb_helper_funcs *funcs,
-			      unsigned int preferred_bpp,
-			      unsigned int max_conn_count);
-void drm_fb_helper_fbdev_teardown(struct drm_device *dev);
-
 void drm_fb_helper_lastclose(struct drm_device *dev);
 void drm_fb_helper_output_poll_changed(struct drm_device *dev);
 
@@ -450,24 +443,6 @@ static inline int drm_fb_helper_debug_enter(struct fb_info *info)
 static inline int drm_fb_helper_debug_leave(struct fb_info *info)
 {
 	return 0;
-}
-
-static inline int
-drm_fb_helper_fbdev_setup(struct drm_device *dev,
-			  struct drm_fb_helper *fb_helper,
-			  const struct drm_fb_helper_funcs *funcs,
-			  unsigned int preferred_bpp,
-			  unsigned int max_conn_count)
-{
-	/* So drivers can use it to free the struct */
-	dev->fb_helper = fb_helper;
-
-	return 0;
-}
-
-static inline void drm_fb_helper_fbdev_teardown(struct drm_device *dev)
-{
-	dev->fb_helper = NULL;
 }
 
 static inline void drm_fb_helper_lastclose(struct drm_device *dev)
