@@ -36,6 +36,7 @@
 #include <net/dst_metadata.h>
 #include <net/geneve.h>
 #include <net/vxlan.h>
+#include <net/erspan.h>
 
 const struct ip_tunnel_encap_ops __rcu *
 		iptun_encaps[MAX_IPTUN_ENCAP_OPS] __read_mostly;
@@ -226,6 +227,7 @@ static const struct nla_policy ip_tun_policy[LWTUNNEL_IP_MAX + 1] = {
 static const struct nla_policy ip_opts_policy[LWTUNNEL_IP_OPTS_MAX + 1] = {
 	[LWTUNNEL_IP_OPTS_GENEVE]	= { .type = NLA_NESTED },
 	[LWTUNNEL_IP_OPTS_VXLAN]	= { .type = NLA_NESTED },
+	[LWTUNNEL_IP_OPTS_ERSPAN]	= { .type = NLA_NESTED },
 };
 
 static const struct nla_policy
@@ -238,6 +240,14 @@ geneve_opt_policy[LWTUNNEL_IP_OPT_GENEVE_MAX + 1] = {
 static const struct nla_policy
 vxlan_opt_policy[LWTUNNEL_IP_OPT_VXLAN_MAX + 1] = {
 	[LWTUNNEL_IP_OPT_VXLAN_GBP]	= { .type = NLA_U32 },
+};
+
+static const struct nla_policy
+erspan_opt_policy[LWTUNNEL_IP_OPT_ERSPAN_MAX + 1] = {
+	[LWTUNNEL_IP_OPT_ERSPAN_VER]	= { .type = NLA_U8 },
+	[LWTUNNEL_IP_OPT_ERSPAN_INDEX]	= { .type = NLA_U32 },
+	[LWTUNNEL_IP_OPT_ERSPAN_DIR]	= { .type = NLA_U8 },
+	[LWTUNNEL_IP_OPT_ERSPAN_HWID]	= { .type = NLA_U8 },
 };
 
 static int ip_tun_parse_opts_geneve(struct nlattr *attr,
@@ -303,6 +313,46 @@ static int ip_tun_parse_opts_vxlan(struct nlattr *attr,
 	return sizeof(struct vxlan_metadata);
 }
 
+static int ip_tun_parse_opts_erspan(struct nlattr *attr,
+				    struct ip_tunnel_info *info,
+				    struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[LWTUNNEL_IP_OPT_ERSPAN_MAX + 1];
+	int err;
+
+	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP_OPT_ERSPAN_MAX,
+					  attr, erspan_opt_policy, extack);
+	if (err)
+		return err;
+
+	if (!tb[LWTUNNEL_IP_OPT_ERSPAN_VER])
+		return -EINVAL;
+
+	if (info) {
+		struct erspan_metadata *md = ip_tunnel_info_opts(info);
+
+		attr = tb[LWTUNNEL_IP_OPT_ERSPAN_VER];
+		md->version = nla_get_u8(attr);
+
+		if (md->version == 1 && tb[LWTUNNEL_IP_OPT_ERSPAN_INDEX]) {
+			attr = tb[LWTUNNEL_IP_OPT_ERSPAN_INDEX];
+			md->u.index = nla_get_be32(attr);
+		} else if (md->version == 2 && tb[LWTUNNEL_IP_OPT_ERSPAN_DIR] &&
+			   tb[LWTUNNEL_IP_OPT_ERSPAN_HWID]) {
+			attr = tb[LWTUNNEL_IP_OPT_ERSPAN_DIR];
+			md->u.md2.dir = nla_get_u8(attr);
+			attr = tb[LWTUNNEL_IP_OPT_ERSPAN_HWID];
+			set_hwid(&md->u.md2, nla_get_u8(attr));
+		} else {
+			return -EINVAL;
+		}
+
+		info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
+	}
+
+	return sizeof(struct erspan_metadata);
+}
+
 static int ip_tun_parse_opts(struct nlattr *attr, struct ip_tunnel_info *info,
 			     struct netlink_ext_ack *extack)
 {
@@ -323,6 +373,9 @@ static int ip_tun_parse_opts(struct nlattr *attr, struct ip_tunnel_info *info,
 	else if (tb[LWTUNNEL_IP_OPTS_VXLAN])
 		err = ip_tun_parse_opts_vxlan(tb[LWTUNNEL_IP_OPTS_VXLAN],
 					      info, extack);
+	else if (tb[LWTUNNEL_IP_OPTS_ERSPAN])
+		err = ip_tun_parse_opts_erspan(tb[LWTUNNEL_IP_OPTS_ERSPAN],
+					       info, extack);
 	else
 		err = -EINVAL;
 
@@ -460,6 +513,37 @@ static int ip_tun_fill_encap_opts_vxlan(struct sk_buff *skb,
 	return 0;
 }
 
+static int ip_tun_fill_encap_opts_erspan(struct sk_buff *skb,
+					 struct ip_tunnel_info *tun_info)
+{
+	struct erspan_metadata *md;
+	struct nlattr *nest;
+
+	nest = nla_nest_start_noflag(skb, LWTUNNEL_IP_OPTS_ERSPAN);
+	if (!nest)
+		return -ENOMEM;
+
+	md = ip_tunnel_info_opts(tun_info);
+	if (nla_put_u32(skb, LWTUNNEL_IP_OPT_ERSPAN_VER, md->version))
+		goto err;
+
+	if (md->version == 1 &&
+	    nla_put_be32(skb, LWTUNNEL_IP_OPT_ERSPAN_INDEX, md->u.index))
+		goto err;
+
+	if (md->version == 2 &&
+	    (nla_put_u8(skb, LWTUNNEL_IP_OPT_ERSPAN_DIR, md->u.md2.dir) ||
+	     nla_put_u8(skb, LWTUNNEL_IP_OPT_ERSPAN_HWID,
+			get_hwid(&md->u.md2))))
+		goto err;
+
+	nla_nest_end(skb, nest);
+	return 0;
+err:
+	nla_nest_cancel(skb, nest);
+	return -ENOMEM;
+}
+
 static int ip_tun_fill_encap_opts(struct sk_buff *skb, int type,
 				  struct ip_tunnel_info *tun_info)
 {
@@ -467,7 +551,7 @@ static int ip_tun_fill_encap_opts(struct sk_buff *skb, int type,
 	int err = 0;
 
 	if (!(tun_info->key.tun_flags &
-	      (TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT)))
+	      (TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT | TUNNEL_ERSPAN_OPT)))
 		return 0;
 
 	nest = nla_nest_start_noflag(skb, type);
@@ -478,6 +562,8 @@ static int ip_tun_fill_encap_opts(struct sk_buff *skb, int type,
 		err = ip_tun_fill_encap_opts_geneve(skb, tun_info);
 	else if (tun_info->key.tun_flags & TUNNEL_VXLAN_OPT)
 		err = ip_tun_fill_encap_opts_vxlan(skb, tun_info);
+	else if (tun_info->key.tun_flags & TUNNEL_ERSPAN_OPT)
+		err = ip_tun_fill_encap_opts_erspan(skb, tun_info);
 
 	if (err) {
 		nla_nest_cancel(skb, nest);
@@ -511,7 +597,7 @@ static int ip_tun_opts_nlsize(struct ip_tunnel_info *info)
 	int opt_len;
 
 	if (!(info->key.tun_flags &
-	      (TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT)))
+	      (TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT | TUNNEL_ERSPAN_OPT)))
 		return 0;
 
 	opt_len = nla_total_size(0);		/* LWTUNNEL_IP_OPTS */
@@ -526,6 +612,10 @@ static int ip_tun_opts_nlsize(struct ip_tunnel_info *info)
 	} else if (info->key.tun_flags & TUNNEL_VXLAN_OPT) {
 		opt_len += nla_total_size(0)	/* LWTUNNEL_IP_OPTS_VXLAN */
 			   + nla_total_size(4);	/* OPT_VXLAN_GBP */
+	} else if (info->key.tun_flags & TUNNEL_ERSPAN_OPT) {
+		opt_len += nla_total_size(0)	/* LWTUNNEL_IP_OPTS_ERSPAN */
+			   + nla_total_size(1)	/* OPT_ERSPAN_VER */
+			   + nla_total_size(4);	/* OPT_ERSPAN_INDEX/DIR/HWID */
 	}
 
 	return opt_len;
