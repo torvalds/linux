@@ -33,7 +33,7 @@
 #include "dc_bios_types.h"
 #include "mem_input.h"
 #include "hubp.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "mpc.h"
 #endif
 #include "dwb.h"
@@ -290,7 +290,7 @@ struct pipe_ctx {
 	struct pipe_ctx *next_odm_pipe;
 	struct pipe_ctx *prev_odm_pipe;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_DRM_AMD_DC_DCN
 	struct _vcs_dpi_display_dlg_regs_st dlg_regs;
 	struct _vcs_dpi_display_ttu_regs_st ttu_regs;
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
@@ -368,7 +368,7 @@ struct dc_state {
 
 	/* Note: these are big structures, do *not* put on stack! */
 	struct dm_pp_display_configuration pp_display_cfg;
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_DRM_AMD_DC_DCN
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 

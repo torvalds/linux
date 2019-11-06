@@ -32,7 +32,7 @@
 #include "resource.h"
 #include "ipp.h"
 #include "timing_generator.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dcn10/dcn10_hw_sequencer.h"
 #endif
 
@@ -235,7 +235,7 @@ struct dc_stream_status *dc_stream_get_status(
 
 static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
 {
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	unsigned int vupdate_line;
 	unsigned int lines_to_vupdate, us_to_vupdate, vpos, nvpos;
 	struct dc_stream_state *stream = pipe_ctx->stream;

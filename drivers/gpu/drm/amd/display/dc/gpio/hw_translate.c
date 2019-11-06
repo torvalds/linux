@@ -43,7 +43,7 @@
 #include "dce80/hw_translate_dce80.h"
 #include "dce110/hw_translate_dce110.h"
 #include "dce120/hw_translate_dce120.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dcn10/hw_translate_dcn10.h"
 #endif
 #include "dcn20/hw_translate_dcn20.h"
@@ -81,7 +81,7 @@ bool dal_hw_translate_init(
 	case DCE_VERSION_12_1:
 		dal_hw_translate_dce120_init(translate);
 		return true;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case DCN_VERSION_1_0:
 	case DCN_VERSION_1_01:
 		dal_hw_translate_dcn10_init(translate);

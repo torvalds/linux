@@ -905,7 +905,7 @@ static bool dce112_program_pix_clk(
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (IS_FPGA_MAXIMUS_DC(clock_source->ctx->dce_environment)) {
 		unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
 		unsigned dp_dto_ref_100hz = 7000000;

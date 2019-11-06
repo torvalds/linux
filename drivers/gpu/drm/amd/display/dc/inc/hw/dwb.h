@@ -54,7 +54,7 @@ enum dwb_source {
 /* DCN1.x, DCN2.x support 2 pipes */
 enum dwb_pipe {
 	dwb_pipe0 = 0,
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dwb_pipe1,
 #endif
 	dwb_pipe_max_num,

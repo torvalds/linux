@@ -2580,7 +2580,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 
 	psr_context->psr_level.u32all = 0;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/*skip power down the single pipe since it blocks the cstate*/
 	if (ASICREV_IS_RAVEN(link->ctx->asic_id.hw_internal_rev))
 		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;

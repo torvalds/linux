@@ -25,7 +25,7 @@
 
 DC_LIBS = basics bios calcs clk_mgr dce gpio irq virtual
 
-ifdef CONFIG_DRM_AMD_DC_DCN1_0
+ifdef CONFIG_DRM_AMD_DC_DCN
 DC_LIBS += dcn20
 DC_LIBS += dsc
 DC_LIBS += dcn10 dml
@@ -50,7 +50,7 @@ include $(AMD_DC)
 DISPLAY_CORE = dc.o dc_link.o dc_resource.o dc_hw_sequencer.o dc_sink.o \
 dc_surface.o dc_link_hwss.o dc_link_dp.o dc_link_ddc.o dc_debug.o dc_stream.o
 
-ifdef CONFIG_DRM_AMD_DC_DCN1_0
+ifdef CONFIG_DRM_AMD_DC_DCN
 DISPLAY_CORE += dc_vm_helper.o
 endif
 

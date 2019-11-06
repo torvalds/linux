@@ -132,7 +132,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			dce120_clk_mgr_construct(ctx, clk_mgr);
 		break;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case FAMILY_RV:
 		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev)) {
 			rn_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
