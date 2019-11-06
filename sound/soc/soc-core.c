@@ -1974,7 +1974,7 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 		card->remove(card);
 }
 
-static int snd_soc_instantiate_card(struct snd_soc_card *card)
+static int snd_soc_bind_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link *dai_link;
@@ -2105,6 +2105,19 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	card->instantiated = 1;
 	dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
+
+	/* deactivate pins to sleep state */
+	for_each_card_rtds(card, rtd) {
+		struct snd_soc_dai *dai;
+
+		for_each_rtd_codec_dai(rtd, i, dai) {
+			if (!dai->active)
+				pinctrl_pm_select_sleep_state(dai->dev);
+		}
+
+		if (!rtd->cpu_dai->active)
+			pinctrl_pm_select_sleep_state(rtd->cpu_dai->dev);
+	}
 
 probe_end:
 	if (ret < 0)
@@ -2337,33 +2350,6 @@ int snd_soc_add_dai_controls(struct snd_soc_dai *dai,
 			NULL, dai);
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_dai_controls);
-
-static int snd_soc_bind_card(struct snd_soc_card *card)
-{
-	struct snd_soc_pcm_runtime *rtd;
-	int ret;
-
-	ret = snd_soc_instantiate_card(card);
-	if (ret != 0)
-		return ret;
-
-	/* deactivate pins to sleep state */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-		struct snd_soc_dai *codec_dai;
-		int j;
-
-		for_each_rtd_codec_dai(rtd, j, codec_dai) {
-			if (!codec_dai->active)
-				pinctrl_pm_select_sleep_state(codec_dai->dev);
-		}
-
-		if (!cpu_dai->active)
-			pinctrl_pm_select_sleep_state(cpu_dai->dev);
-	}
-
-	return ret;
-}
 
 /**
  * snd_soc_register_card - Register a card with the ASoC core
