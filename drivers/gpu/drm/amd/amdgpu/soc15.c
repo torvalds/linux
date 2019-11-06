@@ -1243,7 +1243,15 @@ static int soc15_common_early_init(void *handle)
 		break;
 	case CHIP_RENOIR:
 		adev->asic_funcs = &soc15_asic_funcs;
-		adev->apu_flags |= AMD_APU_IS_RENOIR;
+		if (adev->pdev->device == 0x1636)
+			adev->apu_flags |= AMD_APU_IS_RENOIR;
+		else
+			adev->apu_flags |= AMD_APU_IS_GREEN_SARDINE;
+
+		if (adev->apu_flags & AMD_APU_IS_RENOIR)
+			adev->external_rev_id = adev->rev_id + 0x91;
+		else
+			adev->external_rev_id = adev->rev_id + 0xa1;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				 AMD_CG_SUPPORT_GFX_MGLS |
 				 AMD_CG_SUPPORT_GFX_3D_CGCG |
@@ -1268,7 +1276,6 @@ static int soc15_common_early_init(void *handle)
 				 AMD_PG_SUPPORT_VCN |
 				 AMD_PG_SUPPORT_JPEG |
 				 AMD_PG_SUPPORT_VCN_DPG;
-		adev->external_rev_id = adev->rev_id + 0x91;
 		break;
 	default:
 		/* FIXME: not supported yet */
