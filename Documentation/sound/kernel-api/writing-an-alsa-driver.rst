@@ -1383,7 +1383,7 @@ shows only the skeleton, how to build up the PCM interfaces.
               /* pre-allocation of buffers */
               /* NOTE: this may fail */
               snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-                                                    snd_dma_pci_data(chip->pci),
+                                                    &chip->pci->dev,
                                                     64*1024, 64*1024);
               return 0;
       }
@@ -1470,7 +1470,7 @@ buffer. For the pre-allocation, simply call the following:
 ::
 
   snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-                                        snd_dma_pci_data(chip->pci),
+                                        &chip->pci->dev,
                                         64*1024, 64*1024);
 
 It will allocate a buffer up to 64kB as default. Buffer management
@@ -3514,7 +3514,7 @@ bus).
 ::
 
   snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-                                        snd_dma_pci_data(pci), size, max);
+                                        &pci->dev, size, max);
 
 where ``size`` is the byte size to be pre-allocated and the ``max`` is
 the maximum size to be changed via the ``prealloc`` proc file. The
@@ -3700,14 +3700,14 @@ For creating the SG-buffer handler, call
 :c:func:`snd_pcm_lib_preallocate_pages()` or
 :c:func:`snd_pcm_lib_preallocate_pages_for_all()` with
 ``SNDRV_DMA_TYPE_DEV_SG`` in the PCM constructor like other PCI
-pre-allocator. You need to pass ``snd_dma_pci_data(pci)``, where pci is
+pre-allocator. You need to pass ``&pci->dev``, where pci is
 the :c:type:`struct pci_dev <pci_dev>` pointer of the chip as
 well.
 
 ::
 
   snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-                                        snd_dma_pci_data(pci), size, max);
+                                        &pci->dev, size, max);
 
 The ``struct snd_sg_buf`` instance is created as
 ``substream->dma_private`` in turn. You can cast the pointer like:

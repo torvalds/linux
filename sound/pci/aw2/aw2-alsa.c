@@ -613,7 +613,7 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 	/* Preallocate continuous pages. */
 	snd_pcm_lib_preallocate_pages_for_all(pcm_playback_ana,
 					      SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      64 * 1024, 64 * 1024);
 
 	err = snd_pcm_new(chip->card, "Audiowerk2 digital playback", 1, 1, 0,
@@ -645,7 +645,7 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 	/* Preallocate continuous pages. */
 	snd_pcm_lib_preallocate_pages_for_all(pcm_playback_num,
 					      SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      64 * 1024, 64 * 1024);
 
 	err = snd_pcm_new(chip->card, "Audiowerk2 capture", 2, 0, 1,
@@ -678,7 +678,7 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 	/* Preallocate continuous pages. */
 	snd_pcm_lib_preallocate_pages_for_all(pcm_capture,
 					      SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      64 * 1024, 64 * 1024);
 
 	/* Create control */

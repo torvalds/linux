@@ -1171,7 +1171,7 @@ int pcxhr_create_pcm(struct snd_pcxhr *chip)
 	strcpy(pcm->name, name);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->mgr->pci),
+					      &chip->mgr->pci->dev,
 					      32*1024, 32*1024);
 	chip->pcm = pcm;
 	return 0;
@@ -1644,7 +1644,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 
 	/* create hostport purgebuffer */
 	size = PAGE_ALIGN(sizeof(struct pcxhr_hostport));
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				size, &mgr->hostport) < 0) {
 		pcxhr_free(mgr);
 		return -ENOMEM;

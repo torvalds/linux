@@ -1389,7 +1389,7 @@ static int snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 	    substream; 
 	    substream = substream->next) {
 		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(emu->pci),
+					      &emu->pci->dev,
 					      64*1024, 64*1024);
 	}
 
@@ -1397,7 +1397,7 @@ static int snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 	      substream; 
 	      substream = substream->next) {
 		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(emu->pci),
+					      &emu->pci->dev,
 					      64*1024, 64*1024);
 	}
   
@@ -1692,7 +1692,7 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 	chip->irq = pci->irq;
 
 	/* This stores the periods table. */
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				1024, &chip->buffer) < 0) {
 		snd_ca0106_free(chip);
 		return -ENOMEM;
