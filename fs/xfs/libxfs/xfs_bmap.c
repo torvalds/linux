@@ -4014,7 +4014,8 @@ xfs_bmapi_allocate(
 	if (bma->wasdel) {
 		bma->length = (xfs_extlen_t)bma->got.br_blockcount;
 		bma->offset = bma->got.br_startoff;
-		xfs_iext_peek_prev_extent(ifp, &bma->icur, &bma->prev);
+		if (!xfs_iext_peek_prev_extent(ifp, &bma->icur, &bma->prev))
+			bma->prev.br_startoff = NULLFILEOFF;
 	} else {
 		bma->length = XFS_FILBLKS_MIN(bma->length, MAXEXTLEN);
 		if (!bma->eof)
