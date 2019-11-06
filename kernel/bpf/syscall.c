@@ -126,7 +126,7 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	return map;
 }
 
-void *bpf_map_area_alloc(size_t size, int numa_node)
+void *bpf_map_area_alloc(u64 size, int numa_node)
 {
 	/* We really just want to fail instead of triggering OOM killer
 	 * under memory pressure, therefore we set __GFP_NORETRY to kmalloc,
@@ -140,6 +140,9 @@ void *bpf_map_area_alloc(size_t size, int numa_node)
 
 	const gfp_t flags = __GFP_NOWARN | __GFP_ZERO;
 	void *area;
+
+	if (size >= SIZE_MAX)
+		return NULL;
 
 	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
 		area = kmalloc_node(size, GFP_USER | __GFP_NORETRY | flags,
@@ -197,7 +200,7 @@ static void bpf_uncharge_memlock(struct user_struct *user, u32 pages)
 		atomic_long_sub(pages, &user->locked_vm);
 }
 
-int bpf_map_charge_init(struct bpf_map_memory *mem, size_t size)
+int bpf_map_charge_init(struct bpf_map_memory *mem, u64 size)
 {
 	u32 pages = round_up(size, PAGE_SIZE) >> PAGE_SHIFT;
 	struct user_struct *user;
