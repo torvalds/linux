@@ -39,32 +39,27 @@ enum bpf_field_info_kind {
 #endif
 
 /*
- * Extract bitfield, identified by src->field, and put its value into u64
- * *res. All this is done in relocatable manner, so bitfield changes such as
+ * Extract bitfield, identified by s->field, and return its value as u64.
+ * All this is done in relocatable manner, so bitfield changes such as
  * signedness, bit size, offset changes, this will be handled automatically.
  * This version of macro is using bpf_probe_read() to read underlying integer
  * storage. Macro functions as an expression and its return type is
  * bpf_probe_read()'s return value: 0, on success, <0 on error.
  */
-#define BPF_CORE_READ_BITFIELD_PROBED(src, field, res) ({		      \
-	unsigned long long val;						      \
+#define BPF_CORE_READ_BITFIELD_PROBED(s, field) ({			      \
+	unsigned long long val = 0;					      \
 									      \
-	*res = 0;							      \
-	val = __CORE_BITFIELD_PROBE_READ(res, src, field);		      \
-	if (!val) {							      \
-		*res <<= __CORE_RELO(src, field, LSHIFT_U64);		      \
-		val = __CORE_RELO(src, field, RSHIFT_U64);		      \
-		if (__CORE_RELO(src, field, SIGNED))			      \
-			*res = ((long long)*res) >> val;		      \
-		else							      \
-			*res = ((unsigned long long)*res) >> val;	      \
-		val = 0;						      \
-	}								      \
+	__CORE_BITFIELD_PROBE_READ(&val, s, field);			      \
+	val <<= __CORE_RELO(s, field, LSHIFT_U64);			      \
+	if (__CORE_RELO(s, field, SIGNED))				      \
+		val = ((long long)val) >> __CORE_RELO(s, field, RSHIFT_U64);  \
+	else								      \
+		val = val >> __CORE_RELO(s, field, RSHIFT_U64);		      \
 	val;								      \
 })
 
 /*
- * Extract bitfield, identified by src->field, and return its value as u64.
+ * Extract bitfield, identified by s->field, and return its value as u64.
  * This version of macro is using direct memory reads and should be used from
  * BPF program types that support such functionality (e.g., typed raw
  * tracepoints).

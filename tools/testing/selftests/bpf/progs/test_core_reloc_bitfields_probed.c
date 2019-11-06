@@ -37,11 +37,6 @@ struct core_reloc_bitfields_output {
 	int64_t		s32;
 };
 
-#define TRANSFER_BITFIELD(in, out, field)				\
-	if (BPF_CORE_READ_BITFIELD_PROBED(in, field, &res))		\
-		return 1;						\
-	out->field = res
-
 SEC("raw_tracepoint/sys_enter")
 int test_core_bitfields(void *ctx)
 {
@@ -49,13 +44,13 @@ int test_core_bitfields(void *ctx)
 	struct core_reloc_bitfields_output *out = (void *)&data.out;
 	uint64_t res;
 
-	TRANSFER_BITFIELD(in, out, ub1);
-	TRANSFER_BITFIELD(in, out, ub2);
-	TRANSFER_BITFIELD(in, out, ub7);
-	TRANSFER_BITFIELD(in, out, sb4);
-	TRANSFER_BITFIELD(in, out, sb20);
-	TRANSFER_BITFIELD(in, out, u32);
-	TRANSFER_BITFIELD(in, out, s32);
+	out->ub1 = BPF_CORE_READ_BITFIELD_PROBED(in, ub1);
+	out->ub2 = BPF_CORE_READ_BITFIELD_PROBED(in, ub2);
+	out->ub7 = BPF_CORE_READ_BITFIELD_PROBED(in, ub7);
+	out->sb4 = BPF_CORE_READ_BITFIELD_PROBED(in, sb4);
+	out->sb20 = BPF_CORE_READ_BITFIELD_PROBED(in, sb20);
+	out->u32 = BPF_CORE_READ_BITFIELD_PROBED(in, u32);
+	out->s32 = BPF_CORE_READ_BITFIELD_PROBED(in, s32);
 
 	return 0;
 }
