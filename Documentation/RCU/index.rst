@@ -8,6 +8,7 @@ RCU concepts
    :maxdepth: 3
 
    arrayRCU
+   whatisRCU
    rcu
    listRCU
    NMI-RCU
