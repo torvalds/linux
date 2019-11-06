@@ -90,6 +90,7 @@ struct mt7615_dev {
 	u32 omac_mask;
 
 	__le32 rx_ampdu_ts;
+	u32 ampdu_ref;
 
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;

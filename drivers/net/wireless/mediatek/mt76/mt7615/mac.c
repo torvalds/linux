@@ -118,12 +118,12 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 
 		/* all subframes of an A-MPDU have the same timestamp */
 		if (dev->rx_ampdu_ts != rxd[12]) {
-			if (!++dev->mt76.ampdu_ref)
-				dev->mt76.ampdu_ref++;
+			if (!++dev->ampdu_ref)
+				dev->ampdu_ref++;
 		}
 		dev->rx_ampdu_ts = rxd[12];
 
-		status->ampdu_ref = dev->mt76.ampdu_ref;
+		status->ampdu_ref = dev->ampdu_ref;
 	}
 
 	remove_pad = rxd1 & MT_RXD1_NORMAL_HDR_OFFSET;

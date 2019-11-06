@@ -86,6 +86,7 @@ struct mt76x02_dev {
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
 	spinlock_t txstatus_fifo_lock;
 	u32 tx_airtime;
+	u32 ampdu_ref;
 
 	struct sk_buff *rx_head;
 

@@ -824,7 +824,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 
 	if (rxinfo & MT_RXINFO_AMPDU) {
 		status->flag |= RX_FLAG_AMPDU_DETAILS;
-		status->ampdu_ref = dev->mt76.ampdu_ref;
+		status->ampdu_ref = dev->ampdu_ref;
 
 		/*
 		 * When receiving an A-MPDU subframe and RSSI info is not valid,
@@ -832,8 +832,8 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 		 * are coming. The last one will have valid RSSI info
 		 */
 		if (rxinfo & MT_RXINFO_RSSI) {
-			if (!++dev->mt76.ampdu_ref)
-				dev->mt76.ampdu_ref++;
+			if (!++dev->ampdu_ref)
+				dev->ampdu_ref++;
 		}
 	}
 
