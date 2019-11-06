@@ -125,6 +125,7 @@ enum qca_btsoc_type {
 	QCA_AR3002,
 	QCA_ROME,
 	QCA_WCN3990,
+	QCA_WCN3991,
 	QCA_WCN3998,
 };
 
@@ -134,12 +135,14 @@ int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 		   enum qca_btsoc_type soc_type, u32 soc_ver,
 		   const char *firmware_name);
-int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version);
+int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
+			 enum qca_btsoc_type);
 int qca_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 int qca_send_pre_shutdown_cmd(struct hci_dev *hdev);
 static inline bool qca_is_wcn399x(enum qca_btsoc_type soc_type)
 {
-	return soc_type == QCA_WCN3990 || soc_type == QCA_WCN3998;
+	return soc_type == QCA_WCN3990 || soc_type == QCA_WCN3991 ||
+	       soc_type == QCA_WCN3998;
 }
 #else
 
@@ -155,7 +158,8 @@ static inline int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	return -EOPNOTSUPP;
 }
 
-static inline int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
+static inline int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
+				       enum qca_btsoc_type)
 {
 	return -EOPNOTSUPP;
 }
