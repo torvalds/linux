@@ -126,15 +126,14 @@ struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 
 	if (!md || md->type != METADATA_IP_TUNNEL ||
 	    md->u.tun_info.mode & IP_TUNNEL_INFO_TX)
-
 		return NULL;
 
-	res = metadata_dst_alloc(0, METADATA_IP_TUNNEL, flags);
+	src = &md->u.tun_info;
+	res = metadata_dst_alloc(src->options_len, METADATA_IP_TUNNEL, flags);
 	if (!res)
 		return NULL;
 
 	dst = &res->u.tun_info;
-	src = &md->u.tun_info;
 	dst->key.tun_id = src->key.tun_id;
 	if (src->mode & IP_TUNNEL_INFO_IPV6)
 		memcpy(&dst->key.u.ipv6.dst, &src->key.u.ipv6.src,
@@ -143,6 +142,8 @@ struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 		dst->key.u.ipv4.dst = src->key.u.ipv4.src;
 	dst->key.tun_flags = src->key.tun_flags;
 	dst->mode = src->mode | IP_TUNNEL_INFO_TX;
+	ip_tunnel_info_opts_set(dst, ip_tunnel_info_opts(src),
+				src->options_len, 0);
 
 	return res;
 }
