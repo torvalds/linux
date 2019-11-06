@@ -283,9 +283,8 @@ static inline void bch2_btree_node_iter_next_check(struct btree_node_iter *iter,
 /* Auxiliary search trees */
 
 #define BFLOAT_FAILED_UNPACKED	(U8_MAX - 0)
-#define BFLOAT_FAILED_PREV	(U8_MAX - 1)
-#define BFLOAT_FAILED_OVERFLOW	(U8_MAX - 2)
-#define BFLOAT_FAILED		(U8_MAX - 2)
+#define BFLOAT_FAILED_OVERFLOW	(U8_MAX - 1)
+#define BFLOAT_FAILED		(U8_MAX - 1)
 
 #define KEY_WORDS		BITS_TO_LONGS(1 << BKEY_EXPONENT_BITS)
 
@@ -698,13 +697,10 @@ static void make_bfloat(struct btree *b, struct bset_tree *t,
 {
 	struct bkey_float *f = bkey_float(b, t, j);
 	struct bkey_packed *m = tree_to_bkey(b, t, j);
-	struct bkey_packed *p = tree_to_prev_bkey(b, t, j);
 	struct bkey_packed *l, *r;
 	unsigned bits = j < BFLOAT_32BIT_NR ? 32 : 16;
 	unsigned mantissa;
 	int shift, exponent, high_bit;
-
-	EBUG_ON(bkey_next(p) != m);
 
 	if (is_power_of_2(j)) {
 		l = min_key;
@@ -747,8 +743,7 @@ static void make_bfloat(struct btree *b, struct bset_tree *t,
 	 * the original key.
 	 */
 
-	if (!bkey_packed(l) || !bkey_packed(r) ||
-	    !bkey_packed(p) || !bkey_packed(m) ||
+	if (!bkey_packed(l) || !bkey_packed(r) || !bkey_packed(m) ||
 	    !b->nr_key_bits) {
 		f->exponent = BFLOAT_FAILED_UNPACKED;
 		return;
@@ -797,19 +792,6 @@ static void make_bfloat(struct btree *b, struct bset_tree *t,
 		mantissa |= ~(~0U << -exponent);
 
 	bfloat_mantissa_set(f, j, mantissa);
-
-	/*
-	 * The bfloat must be able to tell its key apart from the previous key -
-	 * if its key and the previous key don't differ in the required bits,
-	 * flag as failed - unless the keys are actually equal, in which case
-	 * we aren't required to return a specific one:
-	 */
-	if (exponent > 0 &&
-	    bfloat_mantissa(f, j) == bkey_mantissa(p, f, j) &&
-	    bkey_cmp_packed(b, p, m)) {
-		f->exponent = BFLOAT_FAILED_PREV;
-		return;
-	}
 
 	/*
 	 * f->mantissa must compare >= the original key - for transitivity with
@@ -1805,9 +1787,6 @@ void bch2_btree_keys_stats(struct btree *b, struct bset_stats *stats)
 				case BFLOAT_FAILED_UNPACKED:
 					stats->failed_unpacked++;
 					break;
-				case BFLOAT_FAILED_PREV:
-					stats->failed_prev++;
-					break;
 				case BFLOAT_FAILED_OVERFLOW:
 					stats->failed_overflow++;
 					break;
@@ -1820,9 +1799,7 @@ void bch2_bfloat_to_text(struct printbuf *out, struct btree *b,
 			 struct bkey_packed *k)
 {
 	struct bset_tree *t = bch2_bkey_to_bset(b, k);
-	struct bkey_packed *l, *r, *p;
-	struct bkey uk, up;
-	char buf1[200], buf2[200];
+	struct bkey uk;
 	unsigned j, inorder;
 
 	if (out->pos != out->end)
@@ -1847,34 +1824,6 @@ void bch2_bfloat_to_text(struct printbuf *out, struct btree *b,
 		       "\t%llu:%llu\n",
 		       ilog2(j),
 		       uk.p.inode, uk.p.offset);
-		break;
-	case BFLOAT_FAILED_PREV:
-		p = tree_to_prev_bkey(b, t, j);
-		l = is_power_of_2(j)
-			? btree_bkey_first(b, t)
-			: tree_to_prev_bkey(b, t, j >> ffs(j));
-		r = is_power_of_2(j + 1)
-			? bch2_bkey_prev_all(b, t, btree_bkey_last(b, t))
-			: tree_to_bkey(b, t, j >> (ffz(j) + 1));
-
-		up = bkey_unpack_key(b, p);
-		uk = bkey_unpack_key(b, k);
-		bch2_to_binary(buf1, high_word(&b->format, p), b->nr_key_bits);
-		bch2_to_binary(buf2, high_word(&b->format, k), b->nr_key_bits);
-
-		pr_buf(out,
-		       "    failed prev at depth %u\n"
-		       "\tkey starts at bit %u but first differing bit at %u\n"
-		       "\t%llu:%llu\n"
-		       "\t%llu:%llu\n"
-		       "\t%s\n"
-		       "\t%s\n",
-		       ilog2(j),
-		       bch2_bkey_greatest_differing_bit(b, l, r),
-		       bch2_bkey_greatest_differing_bit(b, p, k),
-		       uk.p.inode, uk.p.offset,
-		       up.p.inode, up.p.offset,
-		       buf1, buf2);
 		break;
 	case BFLOAT_FAILED_OVERFLOW:
 		uk = bkey_unpack_key(b, k);

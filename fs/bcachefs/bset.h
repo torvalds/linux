@@ -598,7 +598,6 @@ struct bset_stats {
 
 	size_t floats;
 	size_t failed_unpacked;
-	size_t failed_prev;
 	size_t failed_overflow;
 };
 
