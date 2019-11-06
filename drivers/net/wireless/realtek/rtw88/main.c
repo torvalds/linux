@@ -1026,6 +1026,7 @@ static void rtw_load_firmware_cb(const struct firmware *firmware, void *context)
 
 	if (!firmware || !firmware->data) {
 		rtw_err(rtwdev, "failed to request firmware\n");
+		complete_all(&fw->completion);
 		return;
 	}
 
