@@ -41,9 +41,6 @@ config RTC_HCTOSYS_DEVICE
 	  device should record time in UTC, since the kernel won't do
 	  timezone correction.
 
-	  The driver for this RTC device must be loaded before late_initcall
-	  functions run, so it must usually be statically linked.
-
 	  This clock should be battery-backed, so that it reads the correct
 	  time when the system boots from a power-off state. Otherwise, your
 	  system will need an external clock source (like an NTP server).
