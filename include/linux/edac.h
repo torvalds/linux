@@ -457,15 +457,10 @@ struct errcount_attribute_data {
  *				(typically, a memory controller error)
  */
 struct edac_raw_error_desc {
-	/*
-	 * NOTE: everything before grain won't be cleaned by
-	 * edac_raw_error_desc_clean()
-	 */
 	char location[LOCATION_SIZE];
 	char label[(EDAC_MC_LABEL_LEN + 1 + sizeof(OTHER_LABEL)) * EDAC_MAX_LABELS];
 	long grain;
 
-	/* the vars below and grain will be cleaned on every new error report */
 	u16 error_count;
 	int top_layer;
 	int mid_layer;
