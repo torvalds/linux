@@ -62,6 +62,10 @@ int ice_vsi_release(struct ice_vsi *vsi);
 
 void ice_vsi_close(struct ice_vsi *vsi);
 
+int ice_ena_vsi(struct ice_vsi *vsi, bool locked);
+
+void ice_dis_vsi(struct ice_vsi *vsi, bool locked);
+
 int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id);
 
 int

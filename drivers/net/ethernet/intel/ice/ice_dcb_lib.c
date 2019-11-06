@@ -150,6 +150,7 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 {
 	struct ice_dcbx_cfg *old_cfg, *curr_cfg;
 	struct ice_aqc_port_ets_elem buf = { 0 };
+	struct ice_vsi *pf_vsi;
 	int ret = 0;
 
 	curr_cfg = &pf->hw.port_info->local_dcbx_cfg;
@@ -169,15 +170,23 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 	}
 
 	/* Store old config in case FW config fails */
-	old_cfg = devm_kzalloc(&pf->pdev->dev, sizeof(*old_cfg), GFP_KERNEL);
-	memcpy(old_cfg, curr_cfg, sizeof(*old_cfg));
+	old_cfg = kmemdup(curr_cfg, sizeof(*old_cfg), GFP_KERNEL);
+	if (!old_cfg)
+		return -ENOMEM;
+
+	pf_vsi = ice_get_main_vsi(pf);
+	if (!pf_vsi) {
+		dev_dbg(&pf->pdev->dev, "PF VSI doesn't exist\n");
+		ret = -EINVAL;
+		goto free_cfg;
+	}
 
 	/* avoid race conditions by holding the lock while disabling and
 	 * re-enabling the VSI
 	 */
 	if (!locked)
 		rtnl_lock();
-	ice_pf_dis_all_vsi(pf, true);
+	ice_dis_vsi(pf_vsi, true);
 
 	memcpy(curr_cfg, new_cfg, sizeof(*curr_cfg));
 	memcpy(&curr_cfg->etsrec, &curr_cfg->etscfg, sizeof(curr_cfg->etsrec));
@@ -204,10 +213,11 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 	ice_pf_dcb_recfg(pf);
 
 out:
-	ice_pf_ena_all_vsi(pf, true);
+	ice_ena_vsi(pf_vsi, true);
 	if (!locked)
 		rtnl_unlock();
-	devm_kfree(&pf->pdev->dev, old_cfg);
+free_cfg:
+	kfree(old_cfg);
 	return ret;
 }
 
@@ -690,6 +700,7 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 	struct ice_dcbx_cfg tmp_dcbx_cfg;
 	bool need_reconfig = false;
 	struct ice_port_info *pi;
+	struct ice_vsi *pf_vsi;
 	u8 type;
 	int ret;
 
@@ -761,8 +772,14 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 		clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
 	}
 
+	pf_vsi = ice_get_main_vsi(pf);
+	if (!pf_vsi) {
+		dev_dbg(&pf->pdev->dev, "PF VSI doesn't exist\n");
+		return;
+	}
+
 	rtnl_lock();
-	ice_pf_dis_all_vsi(pf, true);
+	ice_dis_vsi(pf_vsi, true);
 
 	ret = ice_query_port_ets(pf->hw.port_info, &buf, sizeof(buf), NULL);
 	if (ret) {
@@ -774,6 +791,6 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 	/* changes in configuration update VSI */
 	ice_pf_dcb_recfg(pf);
 
-	ice_pf_ena_all_vsi(pf, true);
+	ice_ena_vsi(pf_vsi, true);
 	rtnl_unlock();
 }
