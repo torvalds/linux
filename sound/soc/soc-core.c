@@ -2517,15 +2517,26 @@ static void soc_del_dai(struct snd_soc_dai *dai)
 	list_del(&dai->list);
 }
 
-/* Create a DAI and add it to the component's DAI list */
-static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
-	struct snd_soc_dai_driver *dai_drv,
-	bool legacy_dai_naming)
+/**
+ * snd_soc_register_dai - Register a DAI dynamically & create its widgets
+ *
+ * @component: The component the DAIs are registered for
+ * @dai_drv: DAI driver to use for the DAI
+ *
+ * Topology can use this API to register DAIs when probing a component.
+ * These DAIs's widgets will be freed in the card cleanup and the DAIs
+ * will be freed in the component cleanup.
+ */
+struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
+					 struct snd_soc_dai_driver *dai_drv,
+					 bool legacy_dai_naming)
 {
 	struct device *dev = component->dev;
 	struct snd_soc_dai *dai;
 
 	dev_dbg(dev, "ASoC: dynamically register DAI %s\n", dev_name(dev));
+
+	lockdep_assert_held(&client_mutex);
 
 	dai = devm_kzalloc(dev, sizeof(*dai), GFP_KERNEL);
 	if (dai == NULL)
@@ -2565,35 +2576,13 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
 	return dai;
 }
+EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 
 void snd_soc_unregister_dai(struct snd_soc_dai *dai)
 {
 	soc_del_dai(dai);
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
-
-/**
- * snd_soc_register_dai - Register a DAI dynamically & create its widgets
- *
- * @component: The component the DAIs are registered for
- * @dai_drv: DAI driver to use for the DAI
- *
- * Topology can use this API to register DAIs when probing a component.
- * These DAIs's widgets will be freed in the card cleanup and the DAIs
- * will be freed in the component cleanup.
- */
-struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
-					 struct snd_soc_dai_driver *dai_drv,
-					 bool legacy_dai_naming)
-{
-	struct device *dev = component->dev;
-
-	dev_dbg(dev, "ASoC: dai register %s\n", dai_drv->name);
-
-	lockdep_assert_held(&client_mutex);
-	return soc_add_dai(component, dai_drv, legacy_dai_naming);
-}
-EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 
 /**
  * snd_soc_unregister_dai - Unregister DAIs from the ASoC core
