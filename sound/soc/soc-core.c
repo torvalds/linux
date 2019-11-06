@@ -1579,21 +1579,18 @@ static int soc_bind_aux_dev(struct snd_soc_card *card)
 
 static int soc_probe_aux_devices(struct snd_soc_card *card)
 {
-	struct snd_soc_component *comp;
+	struct snd_soc_component *component;
 	int order;
 	int ret;
 
 	for_each_comp_order(order) {
-		for_each_card_auxs(card, comp) {
-			if (comp->driver->probe_order == order) {
-				ret = soc_probe_component(card,	comp);
-				if (ret < 0) {
-					dev_err(card->dev,
-						"ASoC: failed to probe aux component %s %d\n",
-						comp->name, ret);
-					return ret;
-				}
-			}
+		for_each_card_auxs(card, component) {
+			if (component->driver->probe_order != order)
+				continue;
+
+			ret = soc_probe_component(card,	component);
+			if (ret < 0)
+				return ret;
 		}
 	}
 
@@ -2042,8 +2039,11 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 
 	/* probe auxiliary components */
 	ret = soc_probe_aux_devices(card);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(card->dev,
+			"ASoC: failed to probe aux component %d\n", ret);
 		goto probe_end;
+	}
 
 	/* probe all DAI links on this card */
 	ret = soc_probe_link_dais(card);
