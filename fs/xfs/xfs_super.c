@@ -1362,7 +1362,7 @@ xfs_fc_fill_super(
 {
 	struct xfs_mount	*mp = sb->s_fs_info;
 	struct inode		*root;
-	int			flags = 0, error = -ENOMEM;
+	int			flags = 0, error;
 
 	mp->m_super = sb;
 
