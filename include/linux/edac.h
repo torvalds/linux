@@ -403,37 +403,6 @@ struct edac_mc_layer {
 	__i;								\
 })
 
-/**
- * EDAC_DIMM_PTR - Macro responsible to get a pointer inside a pointer array
- *		   for the element given by [layer0,layer1,layer2] position
- *
- * @layers:	a struct edac_mc_layer array, describing how many elements
- *		were allocated for each layer
- * @var:	name of the var where we want to get the pointer
- *		(like mci->dimms)
- * @nlayers:	Number of layers at the @layers array
- * @layer0:	layer0 position
- * @layer1:	layer1 position. Unused if n_layers < 2
- * @layer2:	layer2 position. Unused if n_layers < 3
- *
- * For 1 layer, this macro returns "var[layer0]";
- *
- * For 2 layers, this macro is similar to allocate a bi-dimensional array
- * and to return "var[layer0][layer1]";
- *
- * For 3 layers, this macro is similar to allocate a tri-dimensional array
- * and to return "var[layer0][layer1][layer2]";
- */
-#define EDAC_DIMM_PTR(layers, var, nlayers, layer0, layer1, layer2) ({	\
-	typeof(*var) __p;						\
-	int ___i = EDAC_DIMM_OFF(layers, nlayers, layer0, layer1, layer2);	\
-	if (___i < 0)							\
-		__p = NULL;						\
-	else								\
-		__p = (var)[___i];					\
-	__p;								\
-})
-
 struct dimm_info {
 	struct device dev;
 
@@ -669,4 +638,60 @@ struct mem_ctl_info {
 	bool fake_inject_ue;
 	u16 fake_inject_count;
 };
-#endif
+
+/**
+ * edac_get_dimm_by_index - Get DIMM info at @index from a memory
+ * 			    controller
+ *
+ * @mci:	MC descriptor struct mem_ctl_info
+ * @index:	index in the memory controller's DIMM array
+ *
+ * Returns a struct dimm_info * or NULL on failure.
+ */
+static inline struct dimm_info *
+edac_get_dimm_by_index(struct mem_ctl_info *mci, int index)
+{
+	if (index < 0 || index >= mci->tot_dimms)
+		return NULL;
+
+	return mci->dimms[index];
+}
+
+/**
+ * edac_get_dimm - Get DIMM info from a memory controller given by
+ *                 [layer0,layer1,layer2] position
+ *
+ * @mci:	MC descriptor struct mem_ctl_info
+ * @layer0:	layer0 position
+ * @layer1:	layer1 position. Unused if n_layers < 2
+ * @layer2:	layer2 position. Unused if n_layers < 3
+ *
+ * For 1 layer, this function returns "dimms[layer0]";
+ *
+ * For 2 layers, this function is similar to allocating a two-dimensional
+ * array and returning "dimms[layer0][layer1]";
+ *
+ * For 3 layers, this function is similar to allocating a tri-dimensional
+ * array and returning "dimms[layer0][layer1][layer2]";
+ */
+static inline struct dimm_info *edac_get_dimm(struct mem_ctl_info *mci,
+	int layer0, int layer1, int layer2)
+{
+	int index;
+
+	if (layer0 < 0
+	    || (mci->n_layers > 1 && layer1 < 0)
+	    || (mci->n_layers > 2 && layer2 < 0))
+		return NULL;
+
+	index = layer0;
+
+	if (mci->n_layers > 1)
+		index = index * mci->layers[1].size + layer1;
+
+	if (mci->n_layers > 2)
+		index = index * mci->layers[2].size + layer2;
+
+	return edac_get_dimm_by_index(mci, index);
+}
+#endif /* _LINUX_EDAC_H_ */

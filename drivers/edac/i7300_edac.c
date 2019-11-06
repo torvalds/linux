@@ -794,8 +794,7 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 			for (ch = 0; ch < max_channel; ch++) {
 				int channel = to_channel(ch, branch);
 
-				dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-					       mci->n_layers, branch, ch, slot);
+				dimm = edac_get_dimm(mci, branch, ch, slot);
 
 				dinfo = &pvt->dimm_info[slot][channel];
 

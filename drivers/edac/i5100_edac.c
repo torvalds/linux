@@ -858,8 +858,7 @@ static void i5100_init_csrows(struct mem_ctl_info *mci)
 		if (!npages)
 			continue;
 
-		dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers,
-			       chan, rank, 0);
+		dimm = edac_get_dimm(mci, chan, rank, 0);
 
 		dimm->nr_pages = npages;
 		dimm->grain = 32;

@@ -189,8 +189,7 @@ static int skx_get_dimm_config(struct mem_ctl_info *mci)
 		pci_read_config_dword(imc->chan[i].cdev, 0x8C, &amap);
 		pci_read_config_dword(imc->chan[i].cdev, 0x400, &mcddrtcfg);
 		for (j = 0; j < SKX_NUM_DIMMS; j++) {
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-					     mci->n_layers, i, j, 0);
+			dimm = edac_get_dimm(mci, i, j, 0);
 			pci_read_config_dword(imc->chan[i].cdev,
 					      0x80 + 4 * j, &mtr);
 			if (IS_DIMM_PRESENT(mtr)) {

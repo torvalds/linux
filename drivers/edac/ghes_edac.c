@@ -106,9 +106,7 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 
 	if (dh->type == DMI_ENTRY_MEM_DEVICE) {
 		struct memdev_dmi_entry *entry = (struct memdev_dmi_entry *)dh;
-		struct dimm_info *dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-						       mci->n_layers,
-						       dimm_fill->count, 0, 0);
+		struct dimm_info *dimm = edac_get_dimm(mci, dimm_fill->count, 0, 0);
 		u16 rdr_mask = BIT(7) | BIT(13);
 
 		if (entry->size == 0xffff) {
@@ -544,8 +542,7 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 		dimm_fill.mci = mci;
 		dmi_walk(ghes_edac_dmidecode, &dimm_fill);
 	} else {
-		struct dimm_info *dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-						       mci->n_layers, 0, 0, 0);
+		struct dimm_info *dimm = edac_get_dimm(mci, 0, 0, 0);
 
 		dimm->nr_pages = 1;
 		dimm->grain = 128;

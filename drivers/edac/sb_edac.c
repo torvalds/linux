@@ -1621,7 +1621,7 @@ static int __populate_dimms(struct mem_ctl_info *mci,
 		}
 
 		for (j = 0; j < max_dimms_per_channel; j++) {
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers, i, j, 0);
+			dimm = edac_get_dimm(mci, i, j, 0);
 			if (pvt->info.type == KNIGHTS_LANDING) {
 				pci_read_config_dword(pvt->knl.pci_channel[i],
 					knl_mtr_reg, &mtr);

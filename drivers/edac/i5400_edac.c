@@ -1187,8 +1187,7 @@ static int i5400_init_dimms(struct mem_ctl_info *mci)
 			if (!MTR_DIMMS_PRESENT(mtr))
 				continue;
 
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers,
-				       channel / 2, channel % 2, slot);
+			dimm = edac_get_dimm(mci, channel / 2, channel % 2, slot);
 
 			size_mb =  pvt->dimm_info[slot][channel].megabytes;
 
