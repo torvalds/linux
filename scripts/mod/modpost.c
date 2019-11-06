@@ -2549,6 +2549,8 @@ static void write_namespace_deps_files(void)
 		sprintf(fname, "%s.ns_deps", mod->name);
 		write_if_changed(&ns_deps_buf, fname);
 	}
+
+	free(ns_deps_buf.p);
 }
 
 struct ext_sym_list {
