@@ -46,6 +46,8 @@ static inline u32 ice_round_to_num(u32 N, u32 R)
 #define ICE_DBG_PKG		BIT_ULL(16)
 #define ICE_DBG_RES		BIT_ULL(17)
 #define ICE_DBG_AQ_MSG		BIT_ULL(24)
+#define ICE_DBG_AQ_DESC		BIT_ULL(25)
+#define ICE_DBG_AQ_DESC_BUF	BIT_ULL(26)
 #define ICE_DBG_AQ_CMD		BIT_ULL(27)
 #define ICE_DBG_USER		BIT_ULL(31)
 
