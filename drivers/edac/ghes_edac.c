@@ -21,8 +21,7 @@ struct ghes_edac_pvt {
 	struct mem_ctl_info *mci;
 
 	/* Buffers for the error handling routine */
-	char detail_location[240];
-	char other_detail[160];
+	char other_detail[400];
 	char msg[80];
 };
 
@@ -369,6 +368,8 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 
 	/* All other fields are mapped on e->other_detail */
 	p = pvt->other_detail;
+	p += snprintf(p, sizeof(pvt->other_detail),
+		"APEI location: %s ", e->location);
 	if (mem_err->validation_bits & CPER_MEM_VALID_ERROR_STATUS) {
 		u64 status = mem_err->error_status;
 
@@ -449,12 +450,10 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 	grain_bits = fls_long(e->grain - 1);
 
 	/* Generate the trace event */
-	snprintf(pvt->detail_location, sizeof(pvt->detail_location),
-		 "APEI location: %s %s", e->location, e->other_detail);
 	trace_mc_event(type, e->msg, e->label, e->error_count,
 		       mci->mc_idx, e->top_layer, e->mid_layer, e->low_layer,
 		       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
-		       grain_bits, e->syndrome, pvt->detail_location);
+		       grain_bits, e->syndrome, e->other_detail);
 
 	edac_raw_mc_handle_error(type, mci, e);
 
