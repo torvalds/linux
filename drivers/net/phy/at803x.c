@@ -93,8 +93,8 @@
 #define AT803X_CLK_OUT_125MHZ_PLL		6
 #define AT803X_CLK_OUT_125MHZ_DSP		7
 
-/* The AR8035 has another mask which is compatible with the AR8031 mask but
- * doesn't support choosing between XTAL/PLL and DSP.
+/* The AR8035 has another mask which is compatible with the AR8031/AR8033 mask
+ * but doesn't support choosing between XTAL/PLL and DSP.
  */
 #define AT8035_CLK_OUT_MASK			GENMASK(4, 3)
 
@@ -449,7 +449,9 @@ static int at803x_parse_dt(struct phy_device *phydev)
 		}
 	}
 
-	/* Only supported on AR8031, the AR8030/AR8035 use strapping options */
+	/* Only supported on AR8031/AR8033, the AR8030/AR8035 use strapping
+	 * options.
+	 */
 	if (at803x_match_phy_id(phydev, ATH8031_PHY_ID)) {
 		if (of_property_read_bool(node, "qca,keep-pll-enabled"))
 			priv->flags |= AT803X_KEEP_PLL_ENABLED;
@@ -734,9 +736,9 @@ static struct phy_driver at803x_driver[] = {
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
 }, {
-	/* ATHEROS 8031 */
+	/* ATHEROS 8031/8033 */
 	.phy_id			= ATH8031_PHY_ID,
-	.name			= "Atheros 8031 ethernet",
+	.name			= "Atheros 8031/8033 ethernet",
 	.phy_id_mask		= AT803X_PHY_ID_MASK,
 	.probe			= at803x_probe,
 	.config_init		= at803x_config_init,
