@@ -979,13 +979,8 @@ static int rt5677_dsp_vad_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
 
-	rt5677->dsp_vad_en = !!ucontrol->value.integer.value[0];
-
-	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
-		rt5677_set_dsp_vad(component,
-				!!ucontrol->value.integer.value[0]);
+	rt5677_set_dsp_vad(component, !!ucontrol->value.integer.value[0]);
 
 	return 0;
 }
