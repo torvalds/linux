@@ -379,6 +379,43 @@ void dsa_devlink_params_unregister(struct dsa_switch *ds,
 }
 EXPORT_SYMBOL_GPL(dsa_devlink_params_unregister);
 
+int dsa_devlink_resource_register(struct dsa_switch *ds,
+				  const char *resource_name,
+				  u64 resource_size,
+				  u64 resource_id,
+				  u64 parent_resource_id,
+				  const struct devlink_resource_size_params *size_params)
+{
+	return devlink_resource_register(ds->devlink, resource_name,
+					 resource_size, resource_id,
+					 parent_resource_id,
+					 size_params);
+}
+EXPORT_SYMBOL_GPL(dsa_devlink_resource_register);
+
+void dsa_devlink_resources_unregister(struct dsa_switch *ds)
+{
+	devlink_resources_unregister(ds->devlink, NULL);
+}
+EXPORT_SYMBOL_GPL(dsa_devlink_resources_unregister);
+
+void dsa_devlink_resource_occ_get_register(struct dsa_switch *ds,
+					   u64 resource_id,
+					   devlink_resource_occ_get_t *occ_get,
+					   void *occ_get_priv)
+{
+	return devlink_resource_occ_get_register(ds->devlink, resource_id,
+						 occ_get, occ_get_priv);
+}
+EXPORT_SYMBOL_GPL(dsa_devlink_resource_occ_get_register);
+
+void dsa_devlink_resource_occ_get_unregister(struct dsa_switch *ds,
+					     u64 resource_id)
+{
+	devlink_resource_occ_get_unregister(ds->devlink, resource_id);
+}
+EXPORT_SYMBOL_GPL(dsa_devlink_resource_occ_get_unregister);
+
 static int __init dsa_init_module(void)
 {
 	int rc;

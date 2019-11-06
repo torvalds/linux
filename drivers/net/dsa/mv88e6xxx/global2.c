@@ -280,6 +280,19 @@ int mv88e6xxx_g2_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
 	return err;
 }
 
+/* Offset 0x0E: ATU Statistics */
+
+int mv88e6xxx_g2_atu_stats_set(struct mv88e6xxx_chip *chip, u16 kind, u16 bin)
+{
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_ATU_STATS,
+				  kind | bin);
+}
+
+int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip, u16 *stats)
+{
+	return mv88e6xxx_g2_read(chip, MV88E6XXX_G2_ATU_STATS, stats);
+}
+
 /* Offset 0x0F: Priority Override Table */
 
 static int mv88e6xxx_g2_pot_write(struct mv88e6xxx_chip *chip, int pointer,
