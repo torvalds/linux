@@ -79,6 +79,8 @@ static inline void dmz_bio_endio(struct bio *bio, blk_status_t status)
 
 	if (status != BLK_STS_OK && bio->bi_status == BLK_STS_OK)
 		bio->bi_status = status;
+	if (bio->bi_status != BLK_STS_OK)
+		bioctx->target->dev->flags |= DMZ_CHECK_BDEV;
 
 	if (atomic_dec_and_test(&bioctx->ref)) {
 		struct dm_zone *zone = bioctx->zone;
@@ -564,29 +566,49 @@ out:
 }
 
 /*
- * Check the backing device availability. If it's on the way out,
+ * Check if the backing device is being removed. If it's on the way out,
  * start failing I/O. Reclaim and metadata components also call this
  * function to cleanly abort operation in the event of such failure.
  */
 bool dmz_bdev_is_dying(struct dmz_dev *dmz_dev)
 {
-	struct gendisk *disk;
+	if (dmz_dev->flags & DMZ_BDEV_DYING)
+		return true;
 
-	if (!(dmz_dev->flags & DMZ_BDEV_DYING)) {
-		disk = dmz_dev->bdev->bd_disk;
-		if (blk_queue_dying(bdev_get_queue(dmz_dev->bdev))) {
-			dmz_dev_warn(dmz_dev, "Backing device queue dying");
-			dmz_dev->flags |= DMZ_BDEV_DYING;
-		} else if (disk->fops->check_events) {
-			if (disk->fops->check_events(disk, 0) &
-					DISK_EVENT_MEDIA_CHANGE) {
-				dmz_dev_warn(dmz_dev, "Backing device offline");
-				dmz_dev->flags |= DMZ_BDEV_DYING;
-			}
-		}
+	if (dmz_dev->flags & DMZ_CHECK_BDEV)
+		return !dmz_check_bdev(dmz_dev);
+
+	if (blk_queue_dying(bdev_get_queue(dmz_dev->bdev))) {
+		dmz_dev_warn(dmz_dev, "Backing device queue dying");
+		dmz_dev->flags |= DMZ_BDEV_DYING;
 	}
 
 	return dmz_dev->flags & DMZ_BDEV_DYING;
+}
+
+/*
+ * Check the backing device availability. This detects such events as
+ * backing device going offline due to errors, media removals, etc.
+ * This check is less efficient than dmz_bdev_is_dying() and should
+ * only be performed as a part of error handling.
+ */
+bool dmz_check_bdev(struct dmz_dev *dmz_dev)
+{
+	struct gendisk *disk;
+
+	dmz_dev->flags &= ~DMZ_CHECK_BDEV;
+
+	if (dmz_bdev_is_dying(dmz_dev))
+		return false;
+
+	disk = dmz_dev->bdev->bd_disk;
+	if (disk->fops->check_events &&
+	    disk->fops->check_events(disk, 0) & DISK_EVENT_MEDIA_CHANGE) {
+		dmz_dev_warn(dmz_dev, "Backing device offline");
+		dmz_dev->flags |= DMZ_BDEV_DYING;
+	}
+
+	return !(dmz_dev->flags & DMZ_BDEV_DYING);
 }
 
 /*
@@ -902,8 +924,8 @@ static int dmz_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 {
 	struct dmz_target *dmz = ti->private;
 
-	if (dmz_bdev_is_dying(dmz->dev))
-		return -ENODEV;
+	if (!dmz_check_bdev(dmz->dev))
+		return -EIO;
 
 	*bdev = dmz->dev->bdev;
 
