@@ -165,7 +165,7 @@ struct chv_pinctrl {
 	struct gpio_chip chip;
 	struct irq_chip irqchip;
 	void __iomem *regs;
-	unsigned intr_lines[16];
+	unsigned int intr_lines[16];
 	const struct chv_community *community;
 	u32 saved_intmask;
 	struct chv_pin_context *saved_pin_context;
@@ -1480,7 +1480,7 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 
 	pending = readl(pctrl->regs + CHV_INTSTAT);
 	for_each_set_bit(intr_line, &pending, pctrl->community->nirqs) {
-		unsigned irq, offset;
+		unsigned int irq, offset;
 
 		offset = pctrl->intr_lines[intr_line];
 		irq = irq_find_mapping(gc->irq.domain, offset);
