@@ -1172,36 +1172,37 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 		 * channel/memory controller/...  may be affected.
 		 * Also, don't show errors for empty DIMM slots.
 		 */
-		if (e->enable_per_layer_report && dimm->nr_pages) {
-			if (n_labels >= EDAC_MAX_LABELS) {
-				e->enable_per_layer_report = false;
-				break;
-			}
-			n_labels++;
-			if (p != e->label) {
-				strcpy(p, OTHER_LABEL);
-				p += strlen(OTHER_LABEL);
-			}
-			strcpy(p, dimm->label);
-			p += strlen(p);
+		if (!e->enable_per_layer_report || !dimm->nr_pages)
+			continue;
 
-			/*
-			 * get csrow/channel of the DIMM, in order to allow
-			 * incrementing the compat API counters
-			 */
-			edac_dbg(4, "%s csrows map: (%d,%d)\n",
-				 mci->csbased ? "rank" : "dimm",
-				 dimm->csrow, dimm->cschannel);
-			if (row == -1)
-				row = dimm->csrow;
-			else if (row >= 0 && row != dimm->csrow)
-				row = -2;
-
-			if (chan == -1)
-				chan = dimm->cschannel;
-			else if (chan >= 0 && chan != dimm->cschannel)
-				chan = -2;
+		if (n_labels >= EDAC_MAX_LABELS) {
+			e->enable_per_layer_report = false;
+			break;
 		}
+		n_labels++;
+		if (p != e->label) {
+			strcpy(p, OTHER_LABEL);
+			p += strlen(OTHER_LABEL);
+		}
+		strcpy(p, dimm->label);
+		p += strlen(p);
+
+		/*
+		 * get csrow/channel of the DIMM, in order to allow
+		 * incrementing the compat API counters
+		 */
+		edac_dbg(4, "%s csrows map: (%d,%d)\n",
+			mci->csbased ? "rank" : "dimm",
+			dimm->csrow, dimm->cschannel);
+		if (row == -1)
+			row = dimm->csrow;
+		else if (row >= 0 && row != dimm->csrow)
+			row = -2;
+
+		if (chan == -1)
+			chan = dimm->cschannel;
+		else if (chan >= 0 && chan != dimm->cschannel)
+			chan = -2;
 	}
 
 	if (!e->enable_per_layer_report) {
