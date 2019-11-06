@@ -87,6 +87,8 @@ config MIPS
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
 	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
+	select ARCH_HAS_KCOV
+	select HAVE_GCC_PLUGINS
 
 menu "Machine selection"
 
