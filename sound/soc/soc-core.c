@@ -1059,13 +1059,32 @@ static void soc_unbind_dai_link(struct snd_soc_card *card,
 		soc_free_pcm_runtime(rtd);
 }
 
-static int soc_bind_dai_link(struct snd_soc_card *card,
-	struct snd_soc_dai_link *dai_link)
+/**
+ * snd_soc_add_dai_link - Add a DAI link dynamically
+ * @card: The ASoC card to which the DAI link is added
+ * @dai_link: The new DAI link to add
+ *
+ * This function adds a DAI link to the ASoC card's link list.
+ *
+ * Note: Topology can use this API to add DAI links when probing the
+ * topology component. And machine drivers can still define static
+ * DAI links in dai_link array.
+ */
+int snd_soc_add_dai_link(struct snd_soc_card *card,
+			 struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link_component *codec, *platform;
 	struct snd_soc_component *component;
 	int i, ret;
+
+	lockdep_assert_held(&client_mutex);
+
+	/*
+	 * Notify the machine driver for extra initialization
+	 */
+	if (card->add_dai_link)
+		card->add_dai_link(card, dai_link);
 
 	if (dai_link->ignore)
 		return 0;
@@ -1115,12 +1134,16 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 		}
 	}
 
+	/* see for_each_card_links */
+	list_add_tail(&dai_link->list, &card->dai_link_list);
+
 	return 0;
 
 _err_defer:
 	soc_free_pcm_runtime(rtd);
 	return -EPROBE_DEFER;
 }
+EXPORT_SYMBOL_GPL(snd_soc_add_dai_link);
 
 static void soc_set_of_name_prefix(struct snd_soc_component *component)
 {
@@ -1410,41 +1433,6 @@ void snd_soc_disconnect_sync(struct device *dev)
 	snd_card_disconnect_sync(component->card->snd_card);
 }
 EXPORT_SYMBOL_GPL(snd_soc_disconnect_sync);
-
-/**
- * snd_soc_add_dai_link - Add a DAI link dynamically
- * @card: The ASoC card to which the DAI link is added
- * @dai_link: The new DAI link to add
- *
- * This function adds a DAI link to the ASoC card's link list.
- *
- * Note: Topology can use this API to add DAI links when probing the
- * topology component. And machine drivers can still define static
- * DAI links in dai_link array.
- */
-int snd_soc_add_dai_link(struct snd_soc_card *card,
-		struct snd_soc_dai_link *dai_link)
-{
-	int ret;
-
-	lockdep_assert_held(&client_mutex);
-
-	/*
-	 * Notify the machine driver for extra initialization
-	 */
-	if (card->add_dai_link)
-		card->add_dai_link(card, dai_link);
-
-	ret = soc_bind_dai_link(card, dai_link);
-	if (ret < 0)
-		return ret;
-
-	/* see for_each_card_links */
-	list_add_tail(&dai_link->list, &card->dai_link_list);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_add_dai_link);
 
 /**
  * snd_soc_remove_dai_link - Remove a DAI link from the list
