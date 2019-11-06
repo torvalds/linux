@@ -1201,8 +1201,16 @@ static void soc_set_name_prefix(struct snd_soc_card *card,
 	soc_set_of_name_prefix(component);
 }
 
-static void soc_cleanup_component(struct snd_soc_component *component)
+static void soc_remove_component(struct snd_soc_component *component,
+				 int probed)
 {
+
+	if (!component->card)
+		return;
+
+	if (probed)
+		snd_soc_component_remove(component);
+
 	/* For framework level robustness */
 	snd_soc_component_set_jack(component, NULL, NULL);
 
@@ -1213,22 +1221,13 @@ static void soc_cleanup_component(struct snd_soc_component *component)
 	snd_soc_component_module_put_when_remove(component);
 }
 
-static void soc_remove_component(struct snd_soc_component *component)
-{
-	if (!component->card)
-		return;
-
-	snd_soc_component_remove(component);
-
-	soc_cleanup_component(component);
-}
-
 static int soc_probe_component(struct snd_soc_card *card,
 			       struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_component_get_dapm(component);
 	struct snd_soc_dai *dai;
+	int probed = 0;
 	int ret;
 
 	if (!strcmp(component->name, "snd-soc-dummy"))
@@ -1284,6 +1283,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 	     dapm->bias_level != SND_SOC_BIAS_OFF,
 	     "codec %s can not start from non-off bias with idle_bias_off==1\n",
 	     component->name);
+	probed = 1;
 
 	/* machine specific init */
 	if (component->init) {
@@ -1312,7 +1312,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 
 err_probe:
 	if (ret < 0)
-		soc_cleanup_component(component);
+		soc_remove_component(component, probed);
 
 	return ret;
 }
@@ -1414,7 +1414,7 @@ static void soc_remove_link_components(struct snd_soc_card *card)
 				if (component->driver->remove_order != order)
 					continue;
 
-				soc_remove_component(component);
+				soc_remove_component(component, 1);
 			}
 		}
 	}
@@ -1608,7 +1608,7 @@ static void soc_remove_aux_devices(struct snd_soc_card *card)
 	for_each_comp_order(order) {
 		for_each_card_auxs_safe(card, comp, _comp) {
 			if (comp->driver->remove_order == order)
-				soc_remove_component(comp);
+				soc_remove_component(comp, 1);
 		}
 	}
 }
