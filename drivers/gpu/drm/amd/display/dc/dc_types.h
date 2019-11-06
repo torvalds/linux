@@ -468,7 +468,6 @@ enum display_content_type {
 	DISPLAY_CONTENT_TYPE_GAME = 8
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 /* writeback */
 struct dwb_stereo_params {
 	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
@@ -499,7 +498,6 @@ struct dc_dwb_params {
 	enum dwb_subsample_position	subsample_position;
 	struct dc_transfer_func *out_transfer_func;
 };
-#endif
 
 /* audio*/
 
@@ -607,9 +605,7 @@ enum dc_infoframe_type {
 	DC_HDMI_INFOFRAME_TYPE_AVI = 0x82,
 	DC_HDMI_INFOFRAME_TYPE_SPD = 0x83,
 	DC_HDMI_INFOFRAME_TYPE_AUDIO = 0x84,
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	DC_DP_INFOFRAME_TYPE_PPS = 0x10,
-#endif
 };
 
 struct dc_info_packet {
@@ -788,7 +784,6 @@ struct dc_clock_config {
 #endif /*AMD_EDID_UTILITY*/
 //AMD EDID UTILITY does not need any of the above structures
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 /* DSC DPCD capabilities */
 union dsc_slice_caps1 {
 	struct {
@@ -858,6 +853,5 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_overall_throughput_1_mps; /* In MPs */
 	uint32_t branch_max_line_width;
 };
-#endif
 
 #endif /* DC_TYPES_H_ */

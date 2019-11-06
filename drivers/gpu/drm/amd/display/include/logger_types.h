@@ -66,12 +66,8 @@
 #define DC_LOG_GAMMA(...) pr_debug("[GAMMA]:"__VA_ARGS__)
 #define DC_LOG_ALL_GAMMA(...) pr_debug("[GAMMA]:"__VA_ARGS__)
 #define DC_LOG_ALL_TF_CHANNELS(...) pr_debug("[GAMMA]:"__VA_ARGS__)
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #define DC_LOG_DSC(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0) || defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #define DC_LOG_DWB(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#endif
 
 struct dal_logger;
 
@@ -116,9 +112,7 @@ enum dc_log_type {
 	LOG_PERF_TRACE,
 	LOG_DISPLAYSTATS,
 	LOG_HDMI_RETIMER_REDRIVER,
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	LOG_DSC,
-#endif
 	LOG_DWB,
 	LOG_GAMMA_DEBUG,
 	LOG_MAX_HW_POINTS,

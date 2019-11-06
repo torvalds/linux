@@ -12,12 +12,8 @@
 #include "dc_link_ddc.h"
 #include "dm_helpers.h"
 #include "dpcd_defs.h"
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #include "dsc.h"
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #include "resource.h"
-#endif
 
 static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
 {
@@ -374,7 +370,6 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 	}
 }
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #define DC_LOGGER \
 	dsc->ctx->logger
 static void dsc_optc_config_log(struct display_stream_compressor *dsc,
@@ -572,5 +567,4 @@ bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx)
 	dp_set_dsc_pps_sdp(pipe_ctx, true);
 	return true;
 }
-#endif
 

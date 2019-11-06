@@ -36,10 +36,8 @@
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "mpc.h"
 #endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #include "dwb.h"
 #include "mcif_wb.h"
-#endif
 
 #define MAX_CLOCK_SOURCES 7
 
@@ -135,7 +133,6 @@ struct resource_funcs {
 			struct resource_context *res_ctx,
 			const struct resource_pool *pool,
 			struct dc_stream_state *stream);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void (*populate_dml_writeback_from_context)(
 			struct dc *dc,
 			struct resource_context *res_ctx,
@@ -146,7 +143,6 @@ struct resource_funcs {
 			struct dc_state *context,
 			display_e2e_pipe_params_st *pipes,
 			int pipe_cnt);
-#endif
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	void (*update_bw_bounding_box)(
 			struct dc *dc,
@@ -180,7 +176,6 @@ struct resource_pool {
 	struct dce_i2c_sw *sw_i2cs[MAX_PIPES];
 	bool i2c_hw_buffer_in_use;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	struct dwbc *dwbc[MAX_DWB_PIPES];
 	struct mcif_wb *mcif_wb[MAX_DWB_PIPES];
 	struct {
@@ -188,11 +183,8 @@ struct resource_pool {
 		unsigned int gsl_1:1;
 		unsigned int gsl_2:1;
 	} gsl_groups;
-#endif
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	struct display_stream_compressor *dscs[MAX_PIPES];
-#endif
 
 	unsigned int pipe_count;
 	unsigned int underlay_pipe_index;
@@ -206,9 +198,7 @@ struct resource_pool {
 	unsigned int timing_generator_count;
 	unsigned int mpcc_count;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	unsigned int writeback_pipe_count;
-#endif
 	/*
 	 * reserved clock source for DP
 	 */
@@ -240,9 +230,7 @@ struct dcn_fe_bandwidth {
 
 struct stream_resource {
 	struct output_pixel_processor *opp;
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	struct display_stream_compressor *dsc;
-#endif
 	struct timing_generator *tg;
 	struct stream_encoder *stream_enc;
 	struct audio *audio;
@@ -251,12 +239,10 @@ struct stream_resource {
 	struct encoder_info_frame encoder_info_frame;
 
 	struct abm *abm;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	/* There are only (num_pipes+1)/2 groups. 0 means unassigned,
 	 * otherwise it's using group number 'gsl_group-1'
 	 */
 	uint8_t gsl_group;
-#endif
 };
 
 struct plane_resource {
@@ -315,10 +301,8 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_pipe_dest_params_st pipe_dlg_param;
 #endif
 	union pipe_update_flags update_flags;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
-#endif
 };
 
 struct resource_context {
@@ -327,9 +311,7 @@ struct resource_context {
 	bool is_audio_acquired[MAX_PIPES];
 	uint8_t clock_source_ref_count[MAX_CLOCK_SOURCES];
 	uint8_t dp_clock_source_ref_count;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	bool is_dsc_acquired[MAX_PIPES];
-#endif
 };
 
 struct dce_bw_output {
@@ -349,18 +331,14 @@ struct dce_bw_output {
 	int blackout_recovery_time_us;
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 struct dcn_bw_writeback {
 	struct mcif_arb_params mcif_wb_arb[MAX_DWB_PIPES];
 };
-#endif
 
 struct dcn_bw_output {
 	struct dc_clocks clk;
 	struct dcn_watermark_set watermarks;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	struct dcn_bw_writeback bw_writeback;
-#endif
 };
 
 union bw_output {

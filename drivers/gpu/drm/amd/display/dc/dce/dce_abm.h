@@ -67,7 +67,6 @@
 	SRI(DC_ABM1_HGLS_REG_READ_PROGRESS, ABM, id), \
 	NBIO_SR(BIOS_SCRATCH_2)
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #define ABM_DCN20_REG_LIST() \
 	ABM_COMMON_REG_LIST_DCE_BASE(), \
 	SR(DC_ABM1_HG_SAMPLE_RATE), \
@@ -81,7 +80,6 @@
 	SR(DC_ABM1_LS_MIN_MAX_PIXEL_VALUE_THRES), \
 	SR(DC_ABM1_HGLS_REG_READ_PROGRESS), \
 	NBIO_SR(BIOS_SCRATCH_2)
-#endif
 
 #define ABM_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -163,9 +161,7 @@
 	ABM_SF(ABM0_DC_ABM1_HGLS_REG_READ_PROGRESS, \
 			ABM1_BL_REG_READ_MISSED_FRAME_CLEAR, mask_sh)
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #define ABM_MASK_SH_LIST_DCN20(mask_sh) ABM_MASK_SH_LIST_DCE110(mask_sh)
-#endif
 
 #define ABM_REG_FIELD_LIST(type) \
 	type ABM1_HG_NUM_OF_BINS_SEL; \

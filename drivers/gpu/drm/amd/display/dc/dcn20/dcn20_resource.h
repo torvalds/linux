@@ -127,9 +127,7 @@ int dcn20_validate_apply_pipe_split_flags(
 		struct dc_state *context,
 		int vlevel,
 		bool *split);
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx);
-#endif
 void dcn20_split_stream_for_mpc(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,

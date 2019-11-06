@@ -67,12 +67,10 @@ GPIO_DCN10 = hw_translate_dcn10.o hw_factory_dcn10.o
 AMD_DAL_GPIO_DCN10 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn10/,$(GPIO_DCN10))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN10)
-endif
 
 ###############################################################################
 # DCN 2
 ###############################################################################
-ifdef CONFIG_DRM_AMD_DC_DCN2_0
 GPIO_DCN20 = hw_translate_dcn20.o hw_factory_dcn20.o
 
 AMD_DAL_GPIO_DCN20 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn20/,$(GPIO_DCN20))

@@ -1,4 +1,3 @@
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
 /*
  * Copyright 2017 Advanced Micro Devices, Inc.
@@ -82,4 +81,3 @@ void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_com
 
 #endif
 
-#endif

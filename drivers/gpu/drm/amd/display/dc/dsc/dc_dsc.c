@@ -22,7 +22,6 @@
  * Author: AMD
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #include "dc_hw_types.h"
 #include "dsc.h"
 #include <drm/drm_dp_helper.h>
@@ -903,4 +902,3 @@ bool dc_dsc_compute_config(
 			timing, dsc_min_slice_height_override, dsc_cfg);
 	return is_dsc_possible;
 }
-#endif /* CONFIG_DRM_AMD_DC_DSC_SUPPORT */

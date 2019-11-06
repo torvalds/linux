@@ -1,4 +1,3 @@
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #ifndef DC_DSC_H_
 #define DC_DSC_H_
 /*
@@ -68,5 +67,4 @@ bool dc_dsc_compute_config(
 		uint32_t target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_config *dsc_cfg);
-#endif
 #endif

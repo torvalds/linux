@@ -942,9 +942,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.flags.power_down_display_on_boot = true;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	init_data.soc_bounding_box = adev->dm.soc_bounding_box;
-#endif
 
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
@@ -2755,11 +2753,9 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		break;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	case CHIP_NAVI12:
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
-#endif
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	case CHIP_RENOIR:
 #endif
@@ -2915,7 +2911,6 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_dig = 4;
 		break;
 #endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	case CHIP_NAVI10:
 	case CHIP_NAVI12:
 		adev->mode_info.num_crtc = 6;
@@ -2927,7 +2922,6 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_hpd = 5;
 		adev->mode_info.num_dig = 5;
 		break;
-#endif
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	case CHIP_RENOIR:
 		adev->mode_info.num_crtc = 4;
@@ -3227,11 +3221,9 @@ fill_plane_buffer_attributes(struct amdgpu_device *adev,
 	if (adev->asic_type == CHIP_VEGA10 ||
 	    adev->asic_type == CHIP_VEGA12 ||
 	    adev->asic_type == CHIP_VEGA20 ||
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	    adev->asic_type == CHIP_NAVI10 ||
 	    adev->asic_type == CHIP_NAVI14 ||
 	    adev->asic_type == CHIP_NAVI12 ||
-#endif
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	    adev->asic_type == CHIP_RENOIR ||
 #endif
@@ -3940,10 +3932,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	bool scale = dm_state ? (dm_state->scaling != RMX_OFF) : false;
 	int mode_refresh;
 	int preferred_refresh = 0;
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	struct dsc_dec_dpcd_caps dsc_caps;
 	uint32_t link_bandwidth_kbps;
-#endif
 
 	struct dc_sink *sink = NULL;
 	if (aconnector == NULL) {
@@ -4018,7 +4008,6 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		fill_stream_properties_from_drm_display_mode(stream,
 			&mode, &aconnector->base, con_state, old_stream);
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	stream->timing.flags.DSC = 0;
 
 	if (aconnector->dc_link && sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT) {
@@ -4037,7 +4026,6 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 						  &stream->timing.dsc_cfg))
 				stream->timing.flags.DSC = 1;
 	}
-#endif
 
 	update_stream_scaling_settings(&mode, dm_state, stream);
 

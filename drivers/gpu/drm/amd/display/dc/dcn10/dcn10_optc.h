@@ -165,13 +165,11 @@ struct dcn_optc_registers {
 	uint32_t OTG_CRC0_WINDOWB_X_CONTROL;
 	uint32_t OTG_CRC0_WINDOWB_Y_CONTROL;
 	uint32_t GSL_SOURCE_SELECT;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	uint32_t DWB_SOURCE_SELECT;
 	uint32_t OTG_DSC_START_POSITION;
 	uint32_t OPTC_DATA_FORMAT_CONTROL;
 	uint32_t OPTC_BYTES_PER_PIXEL;
 	uint32_t OPTC_WIDTH_CONTROL;
-#endif
 };
 
 #define TG_COMMON_MASK_SH_LIST_DCN(mask_sh)\
@@ -456,7 +454,6 @@ struct dcn_optc_registers {
 	type MANUAL_FLOW_CONTROL;\
 	type MANUAL_FLOW_CONTROL_SEL;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 
 #define TG_REG_FIELD_LIST(type) \
 	TG_REG_FIELD_LIST_DCN1_0(type)\
@@ -479,12 +476,6 @@ struct dcn_optc_registers {
 	type OPTC_DWB0_SOURCE_SELECT;\
 	type OPTC_DWB1_SOURCE_SELECT;
 
-#else
-
-#define TG_REG_FIELD_LIST(type) \
-	TG_REG_FIELD_LIST_DCN1_0(type)
-
-#endif
 
 
 struct dcn_optc_shift {

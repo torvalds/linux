@@ -483,7 +483,6 @@ void hubp2_program_pixel_format(
 		REG_UPDATE(DCSURF_SURFACE_CONFIG,
 				SURFACE_PIXEL_FORMAT, 12);
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	case SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FIX:
 		REG_UPDATE(DCSURF_SURFACE_CONFIG,
 				SURFACE_PIXEL_FORMAT, 112);
@@ -504,7 +503,6 @@ void hubp2_program_pixel_format(
 		REG_UPDATE(DCSURF_SURFACE_CONFIG,
 				SURFACE_PIXEL_FORMAT, 119);
 		break;
-#endif
 	default:
 		BREAK_TO_DEBUGGER();
 		break;

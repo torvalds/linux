@@ -108,7 +108,6 @@ static void construct(struct dc_stream_state *stream,
 	/* EDID CAP translation for HDMI 2.0 */
 	stream->timing.flags.LTE_340MCSC_SCRAMBLE = dc_sink_data->edid_caps.lte_340mcsc_scramble;
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	memset(&stream->timing.dsc_cfg, 0, sizeof(stream->timing.dsc_cfg));
 	stream->timing.dsc_cfg.num_slices_h = 0;
 	stream->timing.dsc_cfg.num_slices_v = 0;
@@ -117,7 +116,6 @@ static void construct(struct dc_stream_state *stream,
 	stream->timing.dsc_cfg.linebuf_depth = 9;
 	stream->timing.dsc_cfg.version_minor = 2;
 	stream->timing.dsc_cfg.ycbcr422_simple = 0;
-#endif
 
 	update_stream_signal(stream, dc_sink_data);
 
@@ -367,7 +365,6 @@ bool dc_stream_set_cursor_position(
 	return true;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 bool dc_stream_add_writeback(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_writeback_info *wb_info)
@@ -480,7 +477,6 @@ bool dc_stream_remove_writeback(struct dc *dc,
 
 	return true;
 }
-#endif
 
 uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 {
@@ -567,7 +563,6 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 	return ret;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 bool dc_stream_dmdata_status_done(struct dc *dc, struct dc_stream_state *stream)
 {
 	bool status = true;
@@ -630,7 +625,6 @@ bool dc_stream_set_dynamic_metadata(struct dc *dc,
 
 	return true;
 }
-#endif
 
 void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 {

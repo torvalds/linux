@@ -323,9 +323,7 @@ void dcn21_link_encoder_disable_output(
 
 
 static const struct link_encoder_funcs dcn21_link_enc_funcs = {
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	.read_state = link_enc2_read_state,
-#endif
 	.validate_output_with_stream =
 		dcn10_link_encoder_validate_output_with_stream,
 	.hw_init = enc2_hw_init,

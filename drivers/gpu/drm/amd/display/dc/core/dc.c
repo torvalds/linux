@@ -60,13 +60,9 @@
 #include "dc_link_dp.h"
 #include "dc_dmub_srv.h"
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #include "dsc.h"
-#endif
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 #include "vm_helper.h"
-#endif
 
 #include "dce/dce_i2c.h"
 
@@ -578,11 +574,9 @@ static void destruct(struct dc *dc)
 	dc->dcn_ip = NULL;
 
 #endif
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	kfree(dc->vm_helper);
 	dc->vm_helper = NULL;
 
-#endif
 }
 
 static bool construct(struct dc *dc,
@@ -599,7 +593,6 @@ static bool construct(struct dc *dc,
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
 	dc->config = init_params->flags;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	// Allocate memory for the vm_helper
 	dc->vm_helper = kzalloc(sizeof(struct vm_helper), GFP_KERNEL);
 	if (!dc->vm_helper) {
@@ -607,7 +600,6 @@ static bool construct(struct dc *dc,
 		goto fail;
 	}
 
-#endif
 	memcpy(&dc->bb_overrides, &init_params->bb_overrides, sizeof(dc->bb_overrides));
 
 	dc_dceip = kzalloc(sizeof(*dc_dceip), GFP_KERNEL);
@@ -641,9 +633,7 @@ static bool construct(struct dc *dc,
 	}
 
 	dc->dcn_ip = dcn_ip;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	dc->soc_bounding_box = init_params->soc_bounding_box;
-#endif
 #endif
 
 	dc_ctx = kzalloc(sizeof(*dc_ctx), GFP_KERNEL);
@@ -745,7 +735,6 @@ fail:
 	return false;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 static bool disable_all_writeback_pipes_for_stream(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
@@ -758,7 +747,6 @@ static bool disable_all_writeback_pipes_for_stream(
 
 	return true;
 }
-#endif
 
 static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 {
@@ -784,16 +772,12 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 		}
 		if (should_disable && old_stream) {
 			dc_rem_all_planes_for_stream(dc, old_stream, dangling_context);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 			disable_all_writeback_pipes_for_stream(dc, old_stream, dangling_context);
-#endif
 			if (dc->hwss.apply_ctx_for_surface)
 				dc->hwss.apply_ctx_for_surface(dc, old_stream, 0, dangling_context);
 		}
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		if (dc->hwss.program_front_end_for_ctx)
 			dc->hwss.program_front_end_for_ctx(dc, dangling_context);
-#endif
 	}
 
 	current_ctx = dc->current_state;
@@ -1183,10 +1167,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 				context->stream_status[i].plane_count,
 				context); /* use new pipe config in new context */
 		}
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	if (dc->hwss.program_front_end_for_ctx)
 		dc->hwss.program_front_end_for_ctx(dc, context);
-#endif
 
 	/* Program hardware */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1205,10 +1187,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	}
 
 	/* Program all planes within new context*/
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	if (dc->hwss.program_front_end_for_ctx)
 		dc->hwss.program_front_end_for_ctx(dc, context);
-#endif
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_link *link = context->streams[i]->link;
 
@@ -1692,10 +1672,8 @@ static enum surface_update_type check_update_surfaces_for_stream(
 		if (stream_update->gamut_remap)
 			su_flags->bits.gamut_remap = 1;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		if (stream_update->wb_update)
 			su_flags->bits.wb_update = 1;
-#endif
 		if (su_flags->raw != 0)
 			overall_type = UPDATE_TYPE_FULL;
 
@@ -1860,7 +1838,6 @@ static void copy_surface_update_to_plane(
 			sizeof(struct dc_transfer_func_distributed_points));
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	if (srf_update->func_shaper &&
 			(surface->in_shaper_func !=
 			srf_update->func_shaper))
@@ -1879,7 +1856,6 @@ static void copy_surface_update_to_plane(
 		memcpy(surface->blend_tf, srf_update->blend_tf,
 		sizeof(*surface->blend_tf));
 
-#endif
 	if (srf_update->input_csc_color_matrix)
 		surface->input_csc_color_matrix =
 			*srf_update->input_csc_color_matrix;
@@ -1954,7 +1930,6 @@ static void copy_stream_update_to_stream(struct dc *dc,
 
 	if (update->dither_option)
 		stream->dither_option = *update->dither_option;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	/* update current stream with writeback info */
 	if (update->wb_update) {
 		int i;
@@ -1965,8 +1940,6 @@ static void copy_stream_update_to_stream(struct dc *dc,
 			stream->writeback_info[i] =
 				update->wb_update->writeback_info[i];
 	}
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
 	if (update->dsc_config) {
 		struct dc_dsc_config old_dsc_cfg = stream->timing.dsc_cfg;
 		uint32_t old_dsc_enabled = stream->timing.flags.DSC;
@@ -1981,7 +1954,6 @@ static void copy_stream_update_to_stream(struct dc *dc,
 			stream->timing.flags.DSC = old_dsc_enabled;
 		}
 	}
-#endif
 }
 
 static void commit_planes_do_stream_update(struct dc *dc,
@@ -2022,31 +1994,25 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				dc_stream_program_csc_matrix(dc, stream);
 
 			if (stream_update->dither_option) {
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 				struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
-#endif
 				resource_build_bit_depth_reduction_params(pipe_ctx->stream,
 									&pipe_ctx->stream->bit_depth_params);
 				pipe_ctx->stream_res.opp->funcs->opp_program_fmt(pipe_ctx->stream_res.opp,
 						&stream->bit_depth_params,
 						&stream->clamping);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 				while (odm_pipe) {
 					odm_pipe->stream_res.opp->funcs->opp_program_fmt(odm_pipe->stream_res.opp,
 							&stream->bit_depth_params,
 							&stream->clamping);
 					odm_pipe = odm_pipe->next_odm_pipe;
 				}
-#endif
 			}
 
-#if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
 			if (stream_update->dsc_config && dc->hwss.pipe_control_lock_global) {
 				dc->hwss.pipe_control_lock_global(dc, pipe_ctx, true);
 				dp_update_dsc_config(pipe_ctx);
 				dc->hwss.pipe_control_lock_global(dc, pipe_ctx, false);
 			}
-#endif
 			/* Full fe update*/
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
@@ -2133,15 +2099,12 @@ static void commit_planes_for_stream(struct dc *dc,
 		 */
 		if (dc->hwss.apply_ctx_for_surface)
 			dc->hwss.apply_ctx_for_surface(dc, stream, 0, context);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		if (dc->hwss.program_front_end_for_ctx)
 			dc->hwss.program_front_end_for_ctx(dc, context);
-#endif
 
 		return;
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
 		for (i = 0; i < surface_count; i++) {
 			struct dc_plane_state *plane_state = srf_updates[i].surface;
@@ -2163,7 +2126,6 @@ static void commit_planes_for_stream(struct dc *dc,
 			}
 		}
 	}
-#endif
 
 	// Update Type FULL, Surface updates
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
@@ -2184,7 +2146,6 @@ static void commit_planes_for_stream(struct dc *dc,
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 			ASSERT(!pipe_ctx->plane_state->triplebuffer_flips);
 
 			if (dc->hwss.program_triplebuffer != NULL &&
@@ -2193,7 +2154,6 @@ static void commit_planes_for_stream(struct dc *dc,
 				dc->hwss.program_triplebuffer(
 					dc, pipe_ctx, pipe_ctx->plane_state->triplebuffer_flips);
 			}
-#endif
 			stream_status =
 				stream_get_status(context, pipe_ctx->stream);
 
@@ -2202,10 +2162,8 @@ static void commit_planes_for_stream(struct dc *dc,
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
 		}
 	}
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	if (dc->hwss.program_front_end_for_ctx && update_type != UPDATE_TYPE_FAST)
 		dc->hwss.program_front_end_for_ctx(dc, context);
-#endif
 
 	// Update Type FAST, Surface updates
 	if (update_type == UPDATE_TYPE_FAST) {
@@ -2215,7 +2173,6 @@ static void commit_planes_for_stream(struct dc *dc,
 		 */
 		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, true);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		if (dc->hwss.set_flip_control_gsl)
 			for (i = 0; i < surface_count; i++) {
 				struct dc_plane_state *plane_state = srf_updates[i].surface;
@@ -2234,7 +2191,6 @@ static void commit_planes_for_stream(struct dc *dc,
 							plane_state->flip_immediate);
 				}
 			}
-#endif
 		/* Perform requested Updates */
 		for (i = 0; i < surface_count; i++) {
 			struct dc_plane_state *plane_state = srf_updates[i].surface;
@@ -2247,7 +2203,6 @@ static void commit_planes_for_stream(struct dc *dc,
 
 				if (pipe_ctx->plane_state != plane_state)
 					continue;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 				/*program triple buffer after lock based on flip type*/
 				if (dc->hwss.program_triplebuffer != NULL &&
 					!dc->debug.disable_tri_buf) {
@@ -2255,7 +2210,6 @@ static void commit_planes_for_stream(struct dc *dc,
 					dc->hwss.program_triplebuffer(
 						dc, pipe_ctx, plane_state->triplebuffer_flips);
 				}
-#endif
 				if (srf_updates[i].flip_addr)
 					dc->hwss.update_plane_addr(dc, pipe_ctx);
 			}
@@ -2421,12 +2375,10 @@ void dc_set_power_state(
 
 		dc->hwss.init_hw(dc);
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 		if (dc->hwss.init_sys_ctx != NULL &&
 			dc->vm_pa_config.valid) {
 			dc->hwss.init_sys_ctx(dc->hwseq, dc, &dc->vm_pa_config);
 		}
-#endif
 
 		break;
 	default:

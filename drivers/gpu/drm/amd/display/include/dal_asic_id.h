@@ -150,7 +150,6 @@
 
 #define FAMILY_RV 142 /* DCN 1*/
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
 #define FAMILY_NV 143 /* DCN 2*/
 
@@ -164,7 +163,6 @@ enum {
 #define ASICREV_IS_NAVI10_P(eChipRev)        (eChipRev < NV_NAVI12_P_A0)
 #define ASICREV_IS_NAVI12_P(eChipRev)        ((eChipRev >= NV_NAVI12_P_A0) && (eChipRev < NV_NAVI14_M_A0))
 #define ASICREV_IS_NAVI14_M(eChipRev)        ((eChipRev >= NV_NAVI14_M_A0) && (eChipRev < NV_UNKNOWN))
-#endif
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #define RENOIR_A0 0x91
 #define DEVICE_ID_RENOIR_1636 0x1636   // Renoir

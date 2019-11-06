@@ -30,7 +30,6 @@
 #include "inc/hw/aux_engine.h"
 
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 #define AUX_COMMON_REG_LIST0(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \
 	SRI(AUX_ARB_CONTROL, DP_AUX, id), \
@@ -39,7 +38,6 @@
 	SRI(AUX_INTERRUPT_CONTROL, DP_AUX, id), \
 	SRI(AUX_DPHY_RX_CONTROL1, DP_AUX, id), \
 	SRI(AUX_SW_STATUS, DP_AUX, id)
-#endif
 
 #define AUX_COMMON_REG_LIST(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \

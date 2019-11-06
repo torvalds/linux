@@ -263,9 +263,7 @@ struct oppbuf_params {
 	enum oppbuf_display_segmentation mso_segmentation;
 	uint32_t mso_overlap_pixel_num;
 	uint32_t pixel_repetition;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	uint32_t num_segment_padded_pixels;
-#endif
 };
 
 struct opp_funcs {
@@ -305,7 +303,6 @@ struct opp_funcs {
 			struct output_pixel_processor *opp,
 			bool enable);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void (*opp_set_disp_pattern_generator)(
 			struct output_pixel_processor *opp,
 			enum controller_dp_test_pattern test_pattern,
@@ -324,7 +321,6 @@ struct opp_funcs {
 	void (*opp_program_left_edge_extra_pixel)(
 			struct output_pixel_processor *opp,
 			bool count);
-#endif
 
 };
 

@@ -45,7 +45,6 @@ enum vrr_packet_type {
 	PACKET_TYPE_VTEM
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 union lut3d_control_flags {
 	unsigned int raw;
 	struct {
@@ -104,6 +103,5 @@ struct lut3d_settings {
 	enum lut3d_control_gamut_map map2;
 	enum lut3d_control_rotation_mode rotation2;
 };
-#endif
 
 #endif /* MOD_SHARED_H_ */

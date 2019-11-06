@@ -210,7 +210,6 @@
 	SR(DC_IP_REQUEST_CNTL), \
 	BL_REG_LIST()
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #define HWSEQ_DCN2_REG_LIST()\
 	HWSEQ_DCN_REG_LIST(), \
 	HSWEQ_DCN_PIXEL_RATE_REG_LIST(OTG, 0), \
@@ -276,7 +275,6 @@
 	SR(D6VGA_CONTROL), \
 	SR(DC_IP_REQUEST_CNTL), \
 	BL_REG_LIST()
-#endif
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #define HWSEQ_DCN21_REG_LIST()\
@@ -577,7 +575,6 @@ struct dce_hwseq_registers {
 	HWS_SF(, VGA_TEST_CONTROL, VGA_TEST_RENDER_START, mask_sh),\
 	HWSEQ_LVTMA_MASK_SH_LIST(mask_sh)
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #define HWSEQ_DCN2_MASK_SH_LIST(mask_sh)\
 	HWSEQ_DCN_MASK_SH_LIST(mask_sh), \
 	HWS_SF(, DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, mask_sh), \
@@ -637,7 +634,6 @@ struct dce_hwseq_registers {
 	HWS_SF(, DOMAIN21_PG_STATUS, DOMAIN21_PGFSM_PWR_STATUS, mask_sh), \
 	HWS_SF(, DC_IP_REQUEST_CNTL, IP_REQUEST_EN, mask_sh), \
 	HWSEQ_LVTMA_MASK_SH_LIST(mask_sh)
-#endif
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #define HWSEQ_DCN21_MASK_SH_LIST(mask_sh)\

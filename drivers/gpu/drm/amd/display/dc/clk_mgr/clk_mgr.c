@@ -152,13 +152,11 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			break;
 		}
 		break;
-#endif	/* Family RV */
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	case FAMILY_NV:
 		dcn20_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 		break;
-#endif /* Family NV */
+#endif	/* Family RV and NV*/
 
 	default:
 		ASSERT(0); /* Unknown Asic */
