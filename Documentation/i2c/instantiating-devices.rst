@@ -123,7 +123,7 @@ present or not (for example for an optional feature which is not present
 on cheap variants of a board but you have no way to tell them apart), or
 it may have different addresses from one board to the next (manufacturer
 changing its design without notice). In this case, you can call
-i2c_new_probed_device() instead of i2c_new_device().
+i2c_new_scanned_device() instead of i2c_new_device().
 
 Example (from the nxp OHCI driver)::
 
@@ -139,8 +139,8 @@ Example (from the nxp OHCI driver)::
 	i2c_adap = i2c_get_adapter(2);
 	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
 	strscpy(i2c_info.type, "isp1301_nxp", sizeof(i2c_info.type));
-	isp1301_i2c_client = i2c_new_probed_device(i2c_adap, &i2c_info,
-						   normal_i2c, NULL);
+	isp1301_i2c_client = i2c_new_scanned_device(i2c_adap, &i2c_info,
+						    normal_i2c, NULL);
 	i2c_put_adapter(i2c_adap);
 	(...)
   }
@@ -153,14 +153,14 @@ simply gives up.
 The driver which instantiated the I2C device is responsible for destroying
 it on cleanup. This is done by calling i2c_unregister_device() on the
 pointer that was earlier returned by i2c_new_device() or
-i2c_new_probed_device().
+i2c_new_scanned_device().
 
 
 Method 3: Probe an I2C bus for certain devices
 ----------------------------------------------
 
 Sometimes you do not have enough information about an I2C device, not even
-to call i2c_new_probed_device(). The typical case is hardware monitoring
+to call i2c_new_scanned_device(). The typical case is hardware monitoring
 chips on PC mainboards. There are several dozen models, which can live
 at 25 different addresses. Given the huge number of mainboards out there,
 it is next to impossible to build an exhaustive list of the hardware

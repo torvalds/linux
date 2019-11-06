@@ -2245,10 +2245,10 @@ int i2c_probe_func_quick_read(struct i2c_adapter *adap, unsigned short addr)
 EXPORT_SYMBOL_GPL(i2c_probe_func_quick_read);
 
 struct i2c_client *
-i2c_new_probed_device(struct i2c_adapter *adap,
-		      struct i2c_board_info *info,
-		      unsigned short const *addr_list,
-		      int (*probe)(struct i2c_adapter *adap, unsigned short addr))
+i2c_new_scanned_device(struct i2c_adapter *adap,
+		       struct i2c_board_info *info,
+		       unsigned short const *addr_list,
+		       int (*probe)(struct i2c_adapter *adap, unsigned short addr))
 {
 	int i;
 
@@ -2278,11 +2278,24 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 
 	if (addr_list[i] == I2C_CLIENT_END) {
 		dev_dbg(&adap->dev, "Probing failed, no device found\n");
-		return NULL;
+		return ERR_PTR(-ENODEV);
 	}
 
 	info->addr = addr_list[i];
-	return i2c_new_device(adap, info);
+	return i2c_new_client_device(adap, info);
+}
+EXPORT_SYMBOL_GPL(i2c_new_scanned_device);
+
+struct i2c_client *
+i2c_new_probed_device(struct i2c_adapter *adap,
+		      struct i2c_board_info *info,
+		      unsigned short const *addr_list,
+		      int (*probe)(struct i2c_adapter *adap, unsigned short addr))
+{
+	struct i2c_client *client;
+
+	client = i2c_new_scanned_device(adap, info, addr_list, probe);
+	return IS_ERR(client) ? NULL : client;
 }
 EXPORT_SYMBOL_GPL(i2c_new_probed_device);
 
