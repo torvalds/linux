@@ -101,7 +101,10 @@ static int tqmx86_gpio_direction_output(struct gpio_chip *chip,
 static int tqmx86_gpio_get_direction(struct gpio_chip *chip,
 				     unsigned int offset)
 {
-	return !!(TQMX86_DIR_INPUT_MASK & BIT(offset));
+	if (TQMX86_DIR_INPUT_MASK & BIT(offset))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static void tqmx86_gpio_irq_mask(struct irq_data *data)

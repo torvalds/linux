@@ -279,7 +279,10 @@ static int gpio_rcar_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
 
-	return !(gpio_rcar_read(p, INOUTSEL) & BIT(offset));
+	if (gpio_rcar_read(p, INOUTSEL) & BIT(offset))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int gpio_rcar_direction_input(struct gpio_chip *chip, unsigned offset)

@@ -165,10 +165,10 @@ static int twl4030_get_gpio_direction(int gpio)
 	if (ret < 0)
 		return ret;
 
-	/* 1 = output, but gpiolib semantics are inverse so invert */
-	ret = !(ret & d_msk);
+	if (ret & d_msk)
+		return GPIO_LINE_DIRECTION_OUT;
 
-	return ret;
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int twl4030_set_gpio_dataout(int gpio, int enable)
@@ -380,10 +380,10 @@ static int twl_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
 	/*
-	 * Default 0 = output
+	 * Default GPIO_LINE_DIRECTION_OUT
 	 * LED GPIOs >= TWL4030_GPIO_MAX are always output
 	 */
-	int ret = 0;
+	int ret = GPIO_LINE_DIRECTION_OUT;
 
 	mutex_lock(&priv->mutex);
 	if (offset < TWL4030_GPIO_MAX) {

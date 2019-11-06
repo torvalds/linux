@@ -159,7 +159,10 @@ static bool ichx_gpio_check_available(struct gpio_chip *gpio, unsigned nr)
 
 static int ichx_gpio_get_direction(struct gpio_chip *gpio, unsigned nr)
 {
-	return ichx_read_bit(GPIO_IO_SEL, nr);
+	if (ichx_read_bit(GPIO_IO_SEL, nr))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)

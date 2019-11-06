@@ -80,7 +80,10 @@ static int xgene_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	bank_offset = GPIO_SET_DR_OFFSET + GPIO_BANK_OFFSET(offset);
 	bit_offset = GPIO_BIT_OFFSET(offset);
 
-	return !!(ioread32(chip->base + bank_offset) & BIT(bit_offset));
+	if (ioread32(chip->base + bank_offset) & BIT(bit_offset))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int xgene_gpio_dir_in(struct gpio_chip *gc, unsigned int offset)

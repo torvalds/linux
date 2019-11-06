@@ -220,7 +220,10 @@ static int egpio_get_direction(struct gpio_chip *chip, unsigned offset)
 
 	egpio = gpiochip_get_data(chip);
 
-	return !test_bit(offset, &egpio->is_out);
+	if (test_bit(offset, &egpio->is_out))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static void egpio_write_cache(struct egpio_info *ei)

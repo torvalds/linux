@@ -215,7 +215,10 @@ static int tegra_gpio_get_direction(struct gpio_chip *chip,
 
 	oe = tegra_gpio_readl(tgi, GPIO_OE(tgi, offset));
 
-	return !(oe & pin_mask);
+	if (oe & pin_mask)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int tegra_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
