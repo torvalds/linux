@@ -63,7 +63,7 @@ config PCIE_ECRC
 #
 config PCIEASPM
 	bool "PCI Express ASPM control" if EXPERT
-	depends on PCI && PCIEPORTBUS
+	depends on PCI
 	default y
 	help
 	  This enables OS control over PCI Express ASPM (Active State
