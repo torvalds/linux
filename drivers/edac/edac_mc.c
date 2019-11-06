@@ -1184,7 +1184,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			}
 			strcpy(p, dimm->label);
 			p += strlen(p);
-			*p = '\0';
 
 			/*
 			 * get csrow/channel of the DIMM, in order to allow
