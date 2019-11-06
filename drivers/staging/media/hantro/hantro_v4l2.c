@@ -240,14 +240,30 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 		v4l2_fill_pixfmt_mp(pix_mp, fmt->fourcc, pix_mp->width,
 				    pix_mp->height);
 		/*
+		 * A decoded 8-bit 4:2:0 NV12 frame may need memory for up to
+		 * 448 bytes per macroblock with additional 32 bytes on
+		 * multi-core variants.
+		 *
 		 * The H264 decoder needs extra space on the output buffers
 		 * to store motion vectors. This is needed for reference
 		 * frames.
+		 *
+		 * Memory layout is as follow:
+		 *
+		 * +---------------------------+
+		 * | Y-plane   256 bytes x MBs |
+		 * +---------------------------+
+		 * | UV-plane  128 bytes x MBs |
+		 * +---------------------------+
+		 * | MV buffer  64 bytes x MBs |
+		 * +---------------------------+
+		 * | MC sync          32 bytes |
+		 * +---------------------------+
 		 */
 		if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_H264_SLICE)
 			pix_mp->plane_fmt[0].sizeimage +=
-				128 * DIV_ROUND_UP(pix_mp->width, 16) *
-				      DIV_ROUND_UP(pix_mp->height, 16);
+				64 * MB_WIDTH(pix_mp->width) *
+				     MB_WIDTH(pix_mp->height) + 32;
 	} else if (!pix_mp->plane_fmt[0].sizeimage) {
 		/*
 		 * For coded formats the application can specify
