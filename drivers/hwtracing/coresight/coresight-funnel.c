@@ -236,6 +236,7 @@ static int funnel_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->base = base;
 	pm_runtime_put(&adev->dev);
 
+	spin_lock_init(&drvdata->spinlock);
 	desc.type = CORESIGHT_DEV_TYPE_LINK;
 	desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_MERG;
 	desc.ops = &funnel_cs_ops;
