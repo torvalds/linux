@@ -319,8 +319,8 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 
 	/* Error address */
 	if (mem_err->validation_bits & CPER_MEM_VALID_PA) {
-		e->page_frame_number = mem_err->physical_addr >> PAGE_SHIFT;
-		e->offset_in_page = mem_err->physical_addr & ~PAGE_MASK;
+		e->page_frame_number = PHYS_PFN(mem_err->physical_addr);
+		e->offset_in_page = offset_in_page(mem_err->physical_addr);
 	}
 
 	/* Error grain */
