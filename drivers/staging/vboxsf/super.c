@@ -176,8 +176,10 @@ static int vboxsf_fill_super(struct super_block *sb, struct fs_context *fc)
 	/* Turn source into a shfl_string and map the folder */
 	size = strlen(fc->source) + 1;
 	folder_name = kmalloc(SHFLSTRING_HEADER_SIZE + size, GFP_KERNEL);
-	if (!folder_name)
+	if (!folder_name) {
+		err = -ENOMEM;
 		goto fail_free;
+	}
 	folder_name->size = size;
 	folder_name->length = size - 1;
 	strlcpy(folder_name->string.utf8, fc->source, size);
