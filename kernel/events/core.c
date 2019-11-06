@@ -10307,7 +10307,6 @@ static struct pmu *perf_init_event(struct perf_event *event)
 			goto unlock;
 	}
 
-	rcu_read_lock();
 	/*
 	 * PERF_TYPE_HARDWARE and PERF_TYPE_HW_CACHE
 	 * are often aliases for PERF_TYPE_RAW.
@@ -10317,6 +10316,7 @@ static struct pmu *perf_init_event(struct perf_event *event)
 		type = PERF_TYPE_RAW;
 
 again:
+	rcu_read_lock();
 	pmu = idr_find(&pmu_idr, type);
 	rcu_read_unlock();
 	if (pmu) {
