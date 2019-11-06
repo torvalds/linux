@@ -331,8 +331,6 @@ static int mcde_probe(struct platform_device *pdev)
 	drm->dev_private = mcde;
 	platform_set_drvdata(pdev, drm);
 
-	/* Enable use of the TE signal and interrupt */
-	mcde->te_sync = true;
 	/* Enable continuous updates: this is what Linux' framebuffer expects */
 	mcde->oneshot_mode = false;
 	drm->dev_private = mcde;

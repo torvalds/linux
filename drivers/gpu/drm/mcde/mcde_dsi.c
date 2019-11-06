@@ -130,6 +130,15 @@ bool mcde_dsi_irq(struct mipi_dsi_device *mdsi)
 	return te_received;
 }
 
+static void mcde_dsi_attach_to_mcde(struct mcde_dsi *d)
+{
+	d->mcde->mdsi = d->mdsi;
+
+	d->mcde->video_mode = !!(d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO);
+	/* Enable use of the TE signal for all command mode panels */
+	d->mcde->te_sync = !d->mcde->video_mode;
+}
+
 static int mcde_dsi_host_attach(struct mipi_dsi_host *host,
 				struct mipi_dsi_device *mdsi)
 {
@@ -148,7 +157,7 @@ static int mcde_dsi_host_attach(struct mipi_dsi_host *host,
 
 	d->mdsi = mdsi;
 	if (d->mcde)
-		d->mcde->mdsi = mdsi;
+		mcde_dsi_attach_to_mcde(d);
 
 	return 0;
 }
@@ -901,7 +910,7 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 	d->mcde = mcde;
 	/* If the display attached before binding, set this up */
 	if (d->mdsi)
-		d->mcde->mdsi = d->mdsi;
+		mcde_dsi_attach_to_mcde(d);
 
 	/* Obtain the clocks */
 	d->hs_clk = devm_clk_get(dev, "hs");

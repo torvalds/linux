@@ -498,24 +498,20 @@ static void mcde_configure_channel(struct mcde *mcde, enum mcde_channel ch,
 	}
 
 	/* Set up channel 0 sync (based on chnl_update_registers()) */
-	if (mcde->te_sync) {
-		/*
-		 * Turn on hardware TE0 synchronization
-		 */
+	if (mcde->video_mode || mcde->te_sync)
 		val = MCDE_CHNLXSYNCHMOD_SRC_SYNCH_HARDWARE
 			<< MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SHIFT;
-		val |= MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_TE0
-			<< MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_SHIFT;
-	} else {
-		/*
-		 * Set up sync source to software, out sync formatter
-		 * Code mostly from mcde_hw.c chnl_update_registers()
-		 */
+	else
 		val = MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SOFTWARE
 			<< MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SHIFT;
+
+	if (mcde->te_sync)
+		val |= MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_TE0
+			<< MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_SHIFT;
+	else
 		val |= MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_FORMATTER
 			<< MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_SHIFT;
-	}
+
 	writel(val, mcde->regs + sync);
 
 	/* Set up pixels per line and lines per frame */
@@ -938,6 +934,13 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 
 	drm_crtc_vblank_on(crtc);
 
+	if (mcde->video_mode)
+		/*
+		 * Keep FIFO permanently enabled in video mode,
+		 * otherwise MCDE will stop feeding data to the panel.
+		 */
+		mcde_enable_fifo(mcde, MCDE_FIFO_A);
+
 	dev_info(drm->dev, "MCDE display is enabled\n");
 }
 
@@ -1047,8 +1050,9 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 	 */
 	if (fb) {
 		mcde_set_extsrc(mcde, drm_fb_cma_get_gem_addr(fb, pstate, 0));
-		/* Send a single frame using software sync */
-		mcde_display_send_one_frame(mcde);
+		if (!mcde->video_mode)
+			/* Send a single frame using software sync */
+			mcde_display_send_one_frame(mcde);
 		dev_info_once(mcde->dev, "sent first display update\n");
 	} else {
 		/*
