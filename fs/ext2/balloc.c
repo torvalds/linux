@@ -671,29 +671,17 @@ ext2_try_to_allocate(struct super_block *sb, int group,
        	ext2_grpblk_t start, end;
 	unsigned long num = 0;
 
+	start = 0;
+	end = group_last_block - group_first_block + 1;
 	/* we do allocation within the reservation window if we have a window */
 	if (my_rsv) {
 		if (my_rsv->_rsv_start >= group_first_block)
 			start = my_rsv->_rsv_start - group_first_block;
-		else
-			/* reservation window cross group boundary */
-			start = 0;
-		end = my_rsv->_rsv_end - group_first_block + 1;
-		if (end > group_last_block - group_first_block + 1)
-			/* reservation window crosses group boundary */
-			end = group_last_block - group_first_block + 1;
-		if ((start <= grp_goal) && (grp_goal < end))
-			start = grp_goal;
-		else
+		if (my_rsv->_rsv_end < group_last_block)
+			end = my_rsv->_rsv_end - group_first_block + 1;
+		if (grp_goal < start || grp_goal >= end)
 			grp_goal = -1;
-	} else {
-		if (grp_goal > 0)
-			start = grp_goal;
-		else
-			start = 0;
-		end = group_last_block - group_first_block + 1;
 	}
-
 	BUG_ON(start > EXT2_BLOCKS_PER_GROUP(sb));
 
 repeat:
