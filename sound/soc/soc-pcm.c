@@ -1182,6 +1182,7 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 {
 	struct snd_soc_dpcm *dpcm;
 	unsigned long flags;
+	char *name;
 
 	/* only add new dpcms */
 	for_each_dpcm_be(fe, stream, dpcm) {
@@ -1207,9 +1208,15 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 			stream ? "<-" : "->", be->dai_link->name);
 
 #ifdef CONFIG_DEBUG_FS
-	dpcm->debugfs_state = debugfs_create_dir(be->dai_link->name,
-						 fe->debugfs_dpcm_root);
-	debugfs_create_u32("state", 0644, dpcm->debugfs_state, &dpcm->state);
+	name = kasprintf(GFP_KERNEL, "%s:%s", be->dai_link->name,
+			 stream ? "capture" : "playback");
+	if (name) {
+		dpcm->debugfs_state = debugfs_create_dir(name,
+							 fe->debugfs_dpcm_root);
+		debugfs_create_u32("state", 0644, dpcm->debugfs_state,
+				   &dpcm->state);
+		kfree(name);
+	}
 #endif
 	return 1;
 }
