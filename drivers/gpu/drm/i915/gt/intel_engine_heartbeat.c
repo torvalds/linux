@@ -63,14 +63,14 @@ static void heartbeat(struct work_struct *wrk)
 	struct intel_context *ce = engine->kernel_context;
 	struct i915_request *rq;
 
-	if (!intel_engine_pm_get_if_awake(engine))
-		return;
-
 	rq = engine->heartbeat.systole;
 	if (rq && i915_request_completed(rq)) {
 		i915_request_put(rq);
 		engine->heartbeat.systole = NULL;
 	}
+
+	if (!intel_engine_pm_get_if_awake(engine))
+		return;
 
 	if (intel_gt_is_wedged(engine->gt))
 		goto out;
