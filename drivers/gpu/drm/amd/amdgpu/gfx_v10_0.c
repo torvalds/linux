@@ -2825,7 +2825,7 @@ static int gfx_v10_0_cp_gfx_resume(struct amdgpu_device *adev)
 	/* Init gfx ring 0 for pipe 0 */
 	mutex_lock(&adev->srbm_mutex);
 	gfx_v10_0_cp_gfx_switch_pipe(adev, PIPE_ID0);
-	mutex_unlock(&adev->srbm_mutex);
+
 	/* Set ring buffer size */
 	ring = &adev->gfx.gfx_ring[0];
 	rb_bufsz = order_base_2(ring->ring_size / 8);
@@ -2863,11 +2863,11 @@ static int gfx_v10_0_cp_gfx_resume(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmCP_RB_ACTIVE, 1);
 
 	gfx_v10_0_cp_gfx_set_doorbell(adev, ring);
+	mutex_unlock(&adev->srbm_mutex);
 
 	/* Init gfx ring 1 for pipe 1 */
 	mutex_lock(&adev->srbm_mutex);
 	gfx_v10_0_cp_gfx_switch_pipe(adev, PIPE_ID1);
-	mutex_unlock(&adev->srbm_mutex);
 	ring = &adev->gfx.gfx_ring[1];
 	rb_bufsz = order_base_2(ring->ring_size / 8);
 	tmp = REG_SET_FIELD(0, CP_RB1_CNTL, RB_BUFSZ, rb_bufsz);
@@ -2897,6 +2897,7 @@ static int gfx_v10_0_cp_gfx_resume(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmCP_RB1_ACTIVE, 1);
 
 	gfx_v10_0_cp_gfx_set_doorbell(adev, ring);
+	mutex_unlock(&adev->srbm_mutex);
 
 	/* Switch to pipe 0 */
 	mutex_lock(&adev->srbm_mutex);
