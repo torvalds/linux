@@ -1294,8 +1294,10 @@ static int idtcm_probe(struct i2c_client *client,
 
 	err = set_tod_write_overhead(idtcm);
 
-	if (err)
+	if (err) {
+		mutex_unlock(&idtcm->reg_lock);
 		return err;
+	}
 
 	err = idtcm_load_firmware(idtcm, &client->dev);
 
