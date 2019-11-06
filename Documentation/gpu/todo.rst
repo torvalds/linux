@@ -171,21 +171,12 @@ Contact: Maintainer of the driver you plan to convert
 
 Level: Intermediate
 
-Convert drivers to use drm_fb_helper_fbdev_setup/teardown()
------------------------------------------------------------
+Convert drivers to use drm_fbdev_generic_setup()
+------------------------------------------------
 
-Most drivers can use drm_fb_helper_fbdev_setup() except maybe:
-
-- amdgpu which has special logic to decide whether to call
-  drm_helper_disable_unused_functions()
-
-- armada which isn't atomic and doesn't call
-  drm_helper_disable_unused_functions()
-
-- i915 which calls drm_fb_helper_initial_config() in a worker
-
-Drivers that use drm_framebuffer_remove() to clean up the fbdev framebuffer can
-probably use drm_fb_helper_fbdev_teardown().
+Most drivers can use drm_fbdev_generic_setup(). Driver have to implement
+atomic modesetting and GEM vmap support. Current generic fbdev emulation
+expects the framebuffer in system memory (or system-like memory).
 
 Contact: Maintainer of the driver you plan to convert
 
@@ -328,8 +319,8 @@ drm_fb_helper tasks
   these igt tests need to be fixed: kms_fbcon_fbt@psr and
   kms_fbcon_fbt@psr-suspend.
 
-- The max connector argument for drm_fb_helper_init() and
-  drm_fb_helper_fbdev_setup() isn't used anymore and can be removed.
+- The max connector argument for drm_fb_helper_init() isn't used anymore and
+  can be removed.
 
 - The helper doesn't keep an array of connectors anymore so these can be
   removed: drm_fb_helper_single_add_all_connectors(),
