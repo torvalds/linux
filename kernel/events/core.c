@@ -10535,6 +10535,15 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 		goto err_ns;
 	}
 
+	/*
+	 * Disallow uncore-cgroup events, they don't make sense as the cgroup will
+	 * be different on other CPUs in the uncore mask.
+	 */
+	if (pmu->task_ctx_nr == perf_invalid_context && cgroup_fd != -1) {
+		err = -EINVAL;
+		goto err_pmu;
+	}
+
 	if (event->attr.aux_output &&
 	    !(pmu->capabilities & PERF_PMU_CAP_AUX_OUTPUT)) {
 		err = -EOPNOTSUPP;
