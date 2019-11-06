@@ -330,6 +330,21 @@
 				status = "disabled";
 			};
 
+			timer: timer@1e782000 {
+				compatible = "aspeed,ast2600-timer";
+				reg = <0x1e782000 0x90>;
+				interrupts-extended = <&gic  GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+						<&gic  GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
+						<&gic  GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+						<&gic  GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+						<&gic  GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+						<&gic  GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+						<&gic  GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+						<&gic  GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_APB1>;
+				clock-names = "PCLK";
+                        };
+
 			uart1: serial@1e783000 {
 				compatible = "ns16550a";
 				reg = <0x1e783000 0x20>;
