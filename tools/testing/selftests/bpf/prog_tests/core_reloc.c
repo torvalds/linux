@@ -337,12 +337,6 @@ static struct core_reloc_test_case test_cases[] = {
 	INTS_CASE(ints___bool),
 	INTS_CASE(ints___reverse_sign),
 
-	INTS_ERR_CASE(ints___err_bitfield),
-	INTS_ERR_CASE(ints___err_wrong_sz_8),
-	INTS_ERR_CASE(ints___err_wrong_sz_16),
-	INTS_ERR_CASE(ints___err_wrong_sz_32),
-	INTS_ERR_CASE(ints___err_wrong_sz_64),
-	
 	/* validate edge cases of capturing relocations */
 	{
 		.case_name = "misc",
