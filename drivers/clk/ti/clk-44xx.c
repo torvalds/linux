@@ -37,7 +37,7 @@ static const struct omap_clkctrl_reg_data omap4_mpuss_clkctrl_regs[] __initconst
 };
 
 static const struct omap_clkctrl_reg_data omap4_tesla_clkctrl_regs[] __initconst = {
-	{ OMAP4_DSP_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_iva_m4x2_ck" },
+	{ OMAP4_DSP_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_iva_m4x2_ck" },
 	{ 0 },
 };
 
@@ -219,7 +219,7 @@ static const struct omap_clkctrl_reg_data omap4_l3_2_clkctrl_regs[] __initconst 
 };
 
 static const struct omap_clkctrl_reg_data omap4_ducati_clkctrl_regs[] __initconst = {
-	{ OMAP4_IPU_CLKCTRL, NULL, CLKF_HW_SUP, "ducati_clk_mux_ck" },
+	{ OMAP4_IPU_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "ducati_clk_mux_ck" },
 	{ 0 },
 };
 
