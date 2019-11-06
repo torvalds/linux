@@ -122,6 +122,10 @@
 	};
 };
 
+&usb1 {
+	dr_mode = "otg";
+};
+
 #include "fsl-ls1046-post.dtsi"
 
 &fman0 {
