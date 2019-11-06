@@ -391,6 +391,7 @@
 			interrupts = <39>;
 			clocks = <&ccu CLK_AHB_EHCI>;
 			phys = <&usbphy 1>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -400,6 +401,7 @@
 			interrupts = <40>;
 			clocks = <&ccu CLK_USB_OHCI>, <&ccu CLK_AHB_OHCI>;
 			phys = <&usbphy 1>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 

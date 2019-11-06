@@ -28,6 +28,8 @@ asm(".include \"asm/cpu_mf-insn.h\"\n");
 				 CPU_MF_INT_SF_PRA|CPU_MF_INT_SF_SACA|	\
 				 CPU_MF_INT_SF_LSDA)
 
+#define CPU_MF_SF_RIBM_NOTAV	0x1		/* Sampling unavailable */
+
 /* CPU measurement facility support */
 static inline int cpum_cf_avail(void)
 {
@@ -69,7 +71,8 @@ struct hws_qsi_info_block {	    /* Bit(s) */
 	unsigned long max_sampl_rate; /* 16-23: maximum sampling interval*/
 	unsigned long tear;	    /* 24-31: TEAR contents		 */
 	unsigned long dear;	    /* 32-39: DEAR contents		 */
-	unsigned int rsvrd0;	    /* 40-43: reserved			 */
+	unsigned int rsvrd0:24;	    /* 40-42: reserved			 */
+	unsigned int ribm:8;	    /* 43: Reserved by IBM		 */
 	unsigned int cpu_speed;     /* 44-47: CPU speed			 */
 	unsigned long long rsvrd1;  /* 48-55: reserved			 */
 	unsigned long long rsvrd2;  /* 56-63: reserved			 */
@@ -220,7 +223,8 @@ enum stcctm_ctr_set {
 	MT_DIAG = 5,
 	MT_DIAG_CLEARING = 9,	/* clears loss-of-MT-ctr-data alert */
 };
-static inline int stcctm(enum stcctm_ctr_set set, u64 range, u64 *dest)
+
+static __always_inline int stcctm(enum stcctm_ctr_set set, u64 range, u64 *dest)
 {
 	int cc;
 

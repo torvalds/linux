@@ -80,6 +80,7 @@ SYSCALL_DEFINE6(mips_mmap2, unsigned long, addr, unsigned long, len,
 
 save_static_function(sys_fork);
 save_static_function(sys_clone);
+save_static_function(sys_clone3);
 
 SYSCALL_DEFINE1(set_thread_area, unsigned long, addr)
 {

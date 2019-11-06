@@ -107,9 +107,14 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	llcp_sock->service_name = kmemdup(llcp_addr.service_name,
 					  llcp_sock->service_name_len,
 					  GFP_KERNEL);
-
+	if (!llcp_sock->service_name) {
+		ret = -ENOMEM;
+		goto put_dev;
+	}
 	llcp_sock->ssap = nfc_llcp_get_sdp_ssap(local, llcp_sock);
 	if (llcp_sock->ssap == LLCP_SAP_MAX) {
+		kfree(llcp_sock->service_name);
+		llcp_sock->service_name = NULL;
 		ret = -EADDRINUSE;
 		goto put_dev;
 	}

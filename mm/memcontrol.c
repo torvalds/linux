@@ -1567,6 +1567,11 @@ unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg)
 	return max;
 }
 
+unsigned long mem_cgroup_size(struct mem_cgroup *memcg)
+{
+	return page_counter_read(&memcg->memory);
+}
+
 static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 				     int order)
 {

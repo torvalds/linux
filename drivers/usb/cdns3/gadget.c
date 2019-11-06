@@ -2571,6 +2571,7 @@ static int cdns3_gadget_start(struct cdns3 *cdns)
 	switch (max_speed) {
 	case USB_SPEED_FULL:
 		writel(USB_CONF_SFORCE_FS, &priv_dev->regs->usb_conf);
+		writel(USB_CONF_USB3DIS, &priv_dev->regs->usb_conf);
 		break;
 	case USB_SPEED_HIGH:
 		writel(USB_CONF_USB3DIS, &priv_dev->regs->usb_conf);
@@ -2661,6 +2662,13 @@ err1:
 static int __cdns3_gadget_init(struct cdns3 *cdns)
 {
 	int ret = 0;
+
+	/* Ensure 32-bit DMA Mask in case we switched back from Host mode */
+	ret = dma_set_mask_and_coherent(cdns->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(cdns->dev, "Failed to set dma mask: %d\n", ret);
+		return ret;
+	}
 
 	cdns3_drd_switch_gadget(cdns, 1);
 	pm_runtime_get_sync(cdns->dev);

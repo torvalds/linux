@@ -160,10 +160,28 @@ static int cdns3_core_init_role(struct cdns3 *cdns)
 	if (ret)
 		goto err;
 
-	if (cdns->dr_mode != USB_DR_MODE_OTG) {
+	/* Initialize idle role to start with */
+	ret = cdns3_role_start(cdns, USB_ROLE_NONE);
+	if (ret)
+		goto err;
+
+	switch (cdns->dr_mode) {
+	case USB_DR_MODE_UNKNOWN:
+	case USB_DR_MODE_OTG:
 		ret = cdns3_hw_role_switch(cdns);
 		if (ret)
 			goto err;
+		break;
+	case USB_DR_MODE_PERIPHERAL:
+		ret = cdns3_role_start(cdns, USB_ROLE_DEVICE);
+		if (ret)
+			goto err;
+		break;
+	case USB_DR_MODE_HOST:
+		ret = cdns3_role_start(cdns, USB_ROLE_HOST);
+		if (ret)
+			goto err;
+		break;
 	}
 
 	return ret;

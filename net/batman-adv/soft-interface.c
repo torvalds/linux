@@ -436,7 +436,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	/* clean the netfilter state now that the batman-adv header has been
 	 * removed
 	 */
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	if (unlikely(!pskb_may_pull(skb, ETH_HLEN)))
 		goto dropped;

@@ -1932,7 +1932,7 @@ static int f2fs_quota_enable(struct super_block *sb, int type, int format_id,
 
 	/* Don't account quota for quota files to avoid recursion */
 	qf_inode->i_flags |= S_NOQUOTA;
-	err = dquot_enable(qf_inode, type, format_id, flags);
+	err = dquot_load_quota_inode(qf_inode, type, format_id, flags);
 	iput(qf_inode);
 	return err;
 }

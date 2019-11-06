@@ -4264,7 +4264,7 @@ static int mount_get_conns(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 		server->ops->qfs_tcon(*xid, tcon);
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RO_CACHE) {
 			if (tcon->fsDevInfo.DeviceCharacteristics &
-			    FILE_READ_ONLY_DEVICE)
+			    cpu_to_le32(FILE_READ_ONLY_DEVICE))
 				cifs_dbg(VFS, "mounted to read only share\n");
 			else if ((cifs_sb->mnt_cifs_flags &
 				  CIFS_MOUNT_RW_CACHE) == 0)
@@ -4445,7 +4445,7 @@ static int setup_dfs_tgt_conn(const char *path,
 	int rc;
 	struct dfs_info3_param ref = {0};
 	char *mdata = NULL, *fake_devname = NULL;
-	struct smb_vol fake_vol = {0};
+	struct smb_vol fake_vol = {NULL};
 
 	cifs_dbg(FYI, "%s: dfs path: %s\n", __func__, path);
 

@@ -52,10 +52,10 @@ extern struct module __this_module;
 	__ADDRESSABLE(sym)						\
 	asm("	.section \"___ksymtab" sec "+" #sym "\", \"a\"	\n"	\
 	    "	.balign	4					\n"	\
-	    "__ksymtab_" #sym NS_SEPARATOR #ns ":		\n"	\
+	    "__ksymtab_" #ns NS_SEPARATOR #sym ":		\n"	\
 	    "	.long	" #sym "- .				\n"	\
 	    "	.long	__kstrtab_" #sym "- .			\n"	\
-	    "	.long	__kstrtab_ns_" #sym "- .		\n"	\
+	    "	.long	__kstrtabns_" #sym "- .			\n"	\
 	    "	.previous					\n")
 
 #define __KSYMTAB_ENTRY(sym, sec)					\
@@ -76,10 +76,10 @@ struct kernel_symbol {
 #else
 #define __KSYMTAB_ENTRY_NS(sym, sec, ns)				\
 	static const struct kernel_symbol __ksymtab_##sym##__##ns	\
-	asm("__ksymtab_" #sym NS_SEPARATOR #ns)				\
+	asm("__ksymtab_" #ns NS_SEPARATOR #sym)				\
 	__attribute__((section("___ksymtab" sec "+" #sym), used))	\
 	__aligned(sizeof(void *))					\
-	= { (unsigned long)&sym, __kstrtab_##sym, __kstrtab_ns_##sym }
+	= { (unsigned long)&sym, __kstrtab_##sym, __kstrtabns_##sym }
 
 #define __KSYMTAB_ENTRY(sym, sec)					\
 	static const struct kernel_symbol __ksymtab_##sym		\
@@ -112,7 +112,7 @@ struct kernel_symbol {
 /* For every exported symbol, place a struct in the __ksymtab section */
 #define ___EXPORT_SYMBOL_NS(sym, sec, ns)				\
 	___export_symbol_common(sym, sec);				\
-	static const char __kstrtab_ns_##sym[]				\
+	static const char __kstrtabns_##sym[]				\
 	__attribute__((section("__ksymtab_strings"), used, aligned(1)))	\
 	= #ns;								\
 	__KSYMTAB_ENTRY_NS(sym, sec, ns)

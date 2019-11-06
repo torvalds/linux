@@ -61,6 +61,7 @@ struct sock_xprt {
 	struct mutex		recv_mutex;
 	struct sockaddr_storage	srcaddr;
 	unsigned short		srcport;
+	int			xprt_err;
 
 	/*
 	 * UDP socket buffer size parameters

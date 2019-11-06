@@ -728,6 +728,8 @@ static int tc_set_video_mode(struct tc_data *tc,
 	int lower_margin = mode->vsync_start - mode->vdisplay;
 	int vsync_len = mode->vsync_end - mode->vsync_start;
 	u32 dp0_syncval;
+	u32 bits_per_pixel = 24;
+	u32 in_bw, out_bw;
 
 	/*
 	 * Recommended maximum number of symbols transferred in a transfer unit:
@@ -735,7 +737,10 @@ static int tc_set_video_mode(struct tc_data *tc,
 	 *              (output active video bandwidth in bytes))
 	 * Must be less than tu_size.
 	 */
-	max_tu_symbol = TU_SIZE_RECOMMENDED - 1;
+
+	in_bw = mode->clock * bits_per_pixel / 8;
+	out_bw = tc->link.base.num_lanes * tc->link.base.rate;
+	max_tu_symbol = DIV_ROUND_UP(in_bw * TU_SIZE_RECOMMENDED, out_bw);
 
 	dev_dbg(tc->dev, "set mode %dx%d\n",
 		mode->hdisplay, mode->vdisplay);

@@ -85,4 +85,5 @@ examples:
                         <&pd IMX_SC_R_DSP_RAM>;
         mbox-names = "txdb0", "txdb1", "rxdb0", "rxdb1";
         mboxes = <&lsio_mu13 2 0>, <&lsio_mu13 2 1>, <&lsio_mu13 3 0>, <&lsio_mu13 3 1>;
+        memory-region = <&dsp_reserved>;
     };

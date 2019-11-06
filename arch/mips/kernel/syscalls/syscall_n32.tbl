@@ -373,4 +373,4 @@
 432	n32	fsmount				sys_fsmount
 433	n32	fspick				sys_fspick
 434	n32	pidfd_open			sys_pidfd_open
-# 435 reserved for clone3
+435	n32	clone3				__sys_clone3

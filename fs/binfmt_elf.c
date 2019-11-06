@@ -879,7 +879,7 @@ out_free_interp:
 	   the correct location in memory. */
 	for(i = 0, elf_ppnt = elf_phdata;
 	    i < loc->elf_ex.e_phnum; i++, elf_ppnt++) {
-		int elf_prot, elf_flags, elf_fixed = MAP_FIXED_NOREPLACE;
+		int elf_prot, elf_flags;
 		unsigned long k, vaddr;
 		unsigned long total_size = 0;
 
@@ -911,13 +911,6 @@ out_free_interp:
 					 */
 				}
 			}
-
-			/*
-			 * Some binaries have overlapping elf segments and then
-			 * we have to forcefully map over an existing mapping
-			 * e.g. over this newly established brk mapping.
-			 */
-			elf_fixed = MAP_FIXED;
 		}
 
 		elf_prot = make_prot(elf_ppnt->p_flags);
@@ -930,7 +923,7 @@ out_free_interp:
 		 * the ET_DYN load_addr calculations, proceed normally.
 		 */
 		if (loc->elf_ex.e_type == ET_EXEC || load_addr_set) {
-			elf_flags |= elf_fixed;
+			elf_flags |= MAP_FIXED;
 		} else if (loc->elf_ex.e_type == ET_DYN) {
 			/*
 			 * This logic is run once for the first LOAD Program
@@ -966,7 +959,7 @@ out_free_interp:
 				load_bias = ELF_ET_DYN_BASE;
 				if (current->flags & PF_RANDOMIZE)
 					load_bias += arch_mmap_rnd();
-				elf_flags |= elf_fixed;
+				elf_flags |= MAP_FIXED;
 			} else
 				load_bias = 0;
 

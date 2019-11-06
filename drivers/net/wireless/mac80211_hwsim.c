@@ -1261,8 +1261,8 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	skb_orphan(skb);
 	skb_dst_drop(skb);
 	skb->mark = 0;
-	secpath_reset(skb);
-	nf_reset(skb);
+	skb_ext_reset(skb);
+	nf_reset_ct(skb);
 
 	/*
 	 * Get absolute mactime here so all HWs RX at the "same time", and
