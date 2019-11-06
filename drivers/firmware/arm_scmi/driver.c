@@ -829,6 +829,39 @@ scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
 	scmi_set_handle(sdev);
 }
 
+#define MAX_SCMI_DEV_PER_PROTOCOL	2
+struct scmi_prot_devnames {
+	int protocol_id;
+	char *names[MAX_SCMI_DEV_PER_PROTOCOL];
+};
+
+static struct scmi_prot_devnames devnames[] = {
+	{ SCMI_PROTOCOL_POWER,  { "genpd" },},
+	{ SCMI_PROTOCOL_PERF,   { "cpufreq" },},
+	{ SCMI_PROTOCOL_CLOCK,  { "clocks" },},
+	{ SCMI_PROTOCOL_SENSOR, { "hwmon" },},
+};
+
+static inline void
+scmi_create_protocol_devices(struct device_node *np, struct scmi_info *info,
+			     int prot_id)
+{
+	int loop, cnt;
+
+	for (loop = 0; loop < ARRAY_SIZE(devnames); loop++) {
+		if (devnames[loop].protocol_id != prot_id)
+			continue;
+
+		for (cnt = 0; cnt < ARRAY_SIZE(devnames[loop].names); cnt++) {
+			const char *name = devnames[loop].names[cnt];
+
+			if (name)
+				scmi_create_protocol_device(np, info, prot_id,
+							    name);
+		}
+	}
+}
+
 static int scmi_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -897,7 +930,7 @@ static int scmi_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		scmi_create_protocol_device(child, info, prot_id, NULL);
+		scmi_create_protocol_devices(child, info, prot_id);
 	}
 
 	return 0;
