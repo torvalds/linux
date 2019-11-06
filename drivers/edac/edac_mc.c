@@ -314,25 +314,27 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 	struct dimm_info *dimm;
 	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
 	unsigned int pos[EDAC_MAX_LAYERS];
-	unsigned int size, tot_dimms = 1, count = 1;
+	unsigned int idx, size, tot_dimms = 1, count = 1;
 	unsigned int tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
 	void *pvt, *p, *ptr = NULL;
-	int i, j, row, chn, n, len, off;
+	int i, j, row, chn, n, len;
 	bool per_rank = false;
 
 	BUG_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0);
+
 	/*
 	 * Calculate the total amount of dimms and csrows/cschannels while
 	 * in the old API emulation mode
 	 */
-	for (i = 0; i < n_layers; i++) {
-		tot_dimms *= layers[i].size;
-		if (layers[i].is_virt_csrow)
-			tot_csrows *= layers[i].size;
-		else
-			tot_channels *= layers[i].size;
+	for (idx = 0; idx < n_layers; idx++) {
+		tot_dimms *= layers[idx].size;
 
-		if (layers[i].type == EDAC_MC_LAYER_CHIP_SELECT)
+		if (layers[idx].is_virt_csrow)
+			tot_csrows *= layers[idx].size;
+		else
+			tot_channels *= layers[idx].size;
+
+		if (layers[idx].type == EDAC_MC_LAYER_CHIP_SELECT)
 			per_rank = true;
 	}
 
@@ -425,19 +427,15 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 	memset(&pos, 0, sizeof(pos));
 	row = 0;
 	chn = 0;
-	for (i = 0; i < tot_dimms; i++) {
+	for (idx = 0; idx < tot_dimms; idx++) {
 		chan = mci->csrows[row]->channels[chn];
-		off = EDAC_DIMM_OFF(layer, n_layers, pos[0], pos[1], pos[2]);
-		if (off < 0 || off >= tot_dimms) {
-			edac_mc_printk(mci, KERN_ERR, "EDAC core bug: EDAC_DIMM_OFF is trying to do an illegal data access\n");
-			goto error;
-		}
 
 		dimm = kzalloc(sizeof(**mci->dimms), GFP_KERNEL);
 		if (!dimm)
 			goto error;
-		mci->dimms[off] = dimm;
+		mci->dimms[idx] = dimm;
 		dimm->mci = mci;
+		dimm->idx = idx;
 
 		/*
 		 * Copy DIMM location and initialize it.

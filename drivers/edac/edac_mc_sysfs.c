@@ -557,14 +557,8 @@ static ssize_t dimmdev_ce_count_show(struct device *dev,
 {
 	struct dimm_info *dimm = to_dimm(dev);
 	u32 count;
-	int off;
 
-	off = EDAC_DIMM_OFF(dimm->mci->layers,
-			    dimm->mci->n_layers,
-			    dimm->location[0],
-			    dimm->location[1],
-			    dimm->location[2]);
-	count = dimm->mci->ce_per_layer[dimm->mci->n_layers-1][off];
+	count = dimm->mci->ce_per_layer[dimm->mci->n_layers-1][dimm->idx];
 	return sprintf(data, "%u\n", count);
 }
 
@@ -574,14 +568,8 @@ static ssize_t dimmdev_ue_count_show(struct device *dev,
 {
 	struct dimm_info *dimm = to_dimm(dev);
 	u32 count;
-	int off;
 
-	off = EDAC_DIMM_OFF(dimm->mci->layers,
-			    dimm->mci->n_layers,
-			    dimm->location[0],
-			    dimm->location[1],
-			    dimm->location[2]);
-	count = dimm->mci->ue_per_layer[dimm->mci->n_layers-1][off];
+	count = dimm->mci->ue_per_layer[dimm->mci->n_layers-1][dimm->idx];
 	return sprintf(data, "%u\n", count);
 }
 
