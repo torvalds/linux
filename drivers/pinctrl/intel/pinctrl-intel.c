@@ -1131,7 +1131,7 @@ static irqreturn_t intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
 		pending &= enabled;
 
 		for_each_set_bit(gpp_offset, &pending, padgrp->size) {
-			unsigned irq;
+			unsigned int irq;
 
 			irq = irq_find_mapping(gc->irq.domain,
 					       padgrp->gpio_base + gpp_offset);
@@ -1181,7 +1181,7 @@ static int intel_gpio_add_pin_ranges(struct intel_pinctrl *pctrl,
 	return ret;
 }
 
-static unsigned intel_gpio_ngpio(const struct intel_pinctrl *pctrl)
+static unsigned int intel_gpio_ngpio(const struct intel_pinctrl *pctrl)
 {
 	const struct intel_community *community;
 	unsigned int ngpio = 0;
