@@ -8,3 +8,9 @@
 	model = "Samsung Galaxy A5U (EUR)";
 	compatible = "samsung,a5u-eur", "qcom,msm8916";
 };
+
+&pronto {
+	iris {
+		compatible = "qcom,wcn3680";
+	};
+};
