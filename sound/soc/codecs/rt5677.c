@@ -892,6 +892,7 @@ static void rt5677_dsp_work(struct work_struct *work)
 		container_of(work, struct rt5677_priv, dsp_work.work);
 	static bool activity;
 	bool enable = rt5677->dsp_vad_en;
+	int i, val;
 
 
 	dev_info(rt5677->component->dev, "DSP VAD: enable=%d, activity=%d\n",
@@ -912,6 +913,18 @@ static void rt5677_dsp_work(struct work_struct *work)
 
 		rt5677_set_vad_source(rt5677);
 		rt5677_set_dsp_mode(rt5677, true);
+
+#define RT5677_BOOT_RETRY 20
+		for (i = 0; i < RT5677_BOOT_RETRY; i++) {
+			regmap_read(rt5677->regmap, RT5677_PWR_DSP_ST, &val);
+			if (val == 0x3ff)
+				break;
+			udelay(500);
+		}
+		if (i == RT5677_BOOT_RETRY && val != 0x3ff) {
+			dev_err(rt5677->component->dev, "DSP Boot Timed Out!");
+			return;
+		}
 
 		/* Boot the firmware from IRAM instead of SRAM0. */
 		rt5677_dsp_mode_i2c_write_addr(rt5677, RT5677_DSP_BOOT_VECTOR,
