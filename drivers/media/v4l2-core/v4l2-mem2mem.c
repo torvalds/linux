@@ -335,7 +335,7 @@ static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
 		}
 	}
 
-	if (src && dst && (m2m_ctx->cap_q_ctx.q.subsystem_flags &
+	if (src && dst && (m2m_ctx->out_q_ctx.q.subsystem_flags &
 			   VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF))
 		m2m_ctx->new_frame = !dst->vb2_buf.copied_timestamp ||
 			dst->vb2_buf.timestamp != src->vb2_buf.timestamp;
@@ -474,7 +474,7 @@ void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 	 * holding capture buffers. Those should use
 	 * v4l2_m2m_buf_done_and_job_finish() instead.
 	 */
-	WARN_ON(m2m_ctx->cap_q_ctx.q.subsystem_flags &
+	WARN_ON(m2m_ctx->out_q_ctx.q.subsystem_flags &
 		VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF);
 	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
 	schedule_next = _v4l2_m2m_job_finish(m2m_dev, m2m_ctx);
