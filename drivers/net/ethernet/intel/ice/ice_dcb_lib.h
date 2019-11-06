@@ -9,12 +9,17 @@
 #include "ice_lib.h"
 
 #ifdef CONFIG_DCB
-#define ICE_TC_MAX_BW 100 /* Default Max BW percentage */
+#define ICE_TC_MAX_BW		100 /* Default Max BW percentage */
+#define ICE_DCB_HW_CHG_RST	0 /* DCB configuration changed with reset */
+#define ICE_DCB_NO_HW_CHG	1 /* DCB configuration did not change */
+#define ICE_DCB_HW_CHG		2 /* DCB configuration changed, no reset */
 
 void ice_dcb_rebuild(struct ice_pf *pf);
 u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg);
 u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg);
 u8 ice_dcb_get_tc(struct ice_vsi *vsi, int queue_index);
+int
+ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked);
 void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi);
 int ice_init_pf_dcb(struct ice_pf *pf, bool locked);
 void ice_update_dcb_stats(struct ice_pf *pf);
@@ -54,6 +59,14 @@ static inline int
 ice_init_pf_dcb(struct ice_pf *pf, bool __always_unused locked)
 {
 	dev_dbg(&pf->pdev->dev, "DCB not supported\n");
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_pf_dcb_cfg(struct ice_pf __always_unused *pf,
+	       struct ice_dcbx_cfg __always_unused *new_cfg,
+	       bool __always_unused locked)
+{
 	return -EOPNOTSUPP;
 }
 

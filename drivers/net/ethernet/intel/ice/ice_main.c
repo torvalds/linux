@@ -9,6 +9,7 @@
 #include "ice_base.h"
 #include "ice_lib.h"
 #include "ice_dcb_lib.h"
+#include "ice_dcb_nl.h"
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 8
@@ -2516,6 +2517,9 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 	/* netdev has to be configured before setting frame size */
 	ice_vsi_cfg_frame_size(vsi);
 
+	/* Setup DCB netlink interface */
+	ice_dcbnl_setup(vsi);
+
 	/* registering the NAPI handler requires both the queues and
 	 * netdev to be created, which are done in ice_pf_vsi_setup()
 	 * and ice_cfg_netdev() respectively
@@ -2596,6 +2600,7 @@ static void ice_deinit_pf(struct ice_pf *pf)
 {
 	ice_service_task_stop(pf);
 	mutex_destroy(&pf->sw_mutex);
+	mutex_destroy(&pf->tc_mutex);
 	mutex_destroy(&pf->avail_q_mutex);
 
 	if (pf->avail_txqs) {
@@ -2645,6 +2650,7 @@ static int ice_init_pf(struct ice_pf *pf)
 	ice_set_pf_caps(pf);
 
 	mutex_init(&pf->sw_mutex);
+	mutex_init(&pf->tc_mutex);
 
 	/* setup service timer and periodic service task */
 	timer_setup(&pf->serv_tmr, ice_service_timer, 0);

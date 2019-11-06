@@ -2,6 +2,7 @@
 /* Copyright (c) 2019, Intel Corporation. */
 
 #include "ice_dcb_lib.h"
+#include "ice_dcb_nl.h"
 
 static void ice_pf_dcb_recfg(struct ice_pf *pf);
 
@@ -155,15 +156,18 @@ void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi)
  * @new_cfg: DCBX config to apply
  * @locked: is the RTNL held
  */
-static
 int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 {
-	struct ice_dcbx_cfg *old_cfg, *curr_cfg;
 	struct ice_aqc_port_ets_elem buf = { 0 };
+	struct ice_dcbx_cfg *old_cfg, *curr_cfg;
+	int ret = ICE_DCB_NO_HW_CHG;
 	struct ice_vsi *pf_vsi;
-	int ret = 0;
 
 	curr_cfg = &pf->hw.port_info->local_dcbx_cfg;
+
+	/* FW does not care if change happened */
+	if (!pf->hw.port_info->is_sw_lldp)
+		ret = ICE_DCB_HW_CHG_RST;
 
 	/* Enable DCB tagging only when more than one TC */
 	if (ice_dcb_get_num_tc(new_cfg) > 1) {
@@ -184,6 +188,7 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 	if (!old_cfg)
 		return -ENOMEM;
 
+	dev_info(&pf->pdev->dev, "Commit DCB Configuration to the hardware\n");
 	pf_vsi = ice_get_main_vsi(pf);
 	if (!pf_vsi) {
 		dev_dbg(&pf->pdev->dev, "PF VSI doesn't exist\n");
@@ -200,6 +205,7 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 
 	memcpy(curr_cfg, new_cfg, sizeof(*curr_cfg));
 	memcpy(&curr_cfg->etsrec, &curr_cfg->etscfg, sizeof(curr_cfg->etsrec));
+	memcpy(&new_cfg->etsrec, &curr_cfg->etscfg, sizeof(curr_cfg->etsrec));
 
 	/* Only send new config to HW if we are in SW LLDP mode. Otherwise,
 	 * the new config came from the HW in the first place.
@@ -559,6 +565,8 @@ static void ice_pf_dcb_recfg(struct ice_pf *pf)
 		}
 
 		ice_vsi_map_rings_to_vectors(pf->vsi[v]);
+		if (pf->vsi[v]->type == ICE_VSI_PF)
+			ice_dcbnl_set_all(pf->vsi[v]);
 	}
 }
 
@@ -770,6 +778,7 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 
 	need_reconfig = ice_dcb_need_recfg(pf, &tmp_dcbx_cfg,
 					   &pi->local_dcbx_cfg);
+	ice_dcbnl_flush_apps(pf, &tmp_dcbx_cfg, &pi->local_dcbx_cfg);
 	if (!need_reconfig)
 		return;
 
