@@ -27,8 +27,10 @@
 
 static inline enum mod_hdcp_status validate_bksv(struct mod_hdcp *hdcp)
 {
-	uint64_t n = *(uint64_t *)hdcp->auth.msg.hdcp1.bksv;
+	uint64_t n = 0;
 	uint8_t count = 0;
+
+	memcpy(&n, hdcp->auth.msg.hdcp1.bksv, sizeof(uint64_t));
 
 	while (n) {
 		count++;
