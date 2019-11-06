@@ -2808,6 +2808,8 @@ xlog_state_do_iclog_callbacks(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	bool			aborted)
+		__releases(&log->l_icloglock)
+		__acquires(&log->l_icloglock)
 {
 	spin_unlock(&log->l_icloglock);
 	spin_lock(&iclog->ic_callback_lock);

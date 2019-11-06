@@ -537,7 +537,11 @@ xlog_cil_force(struct xlog *log)
  * by a spinlock. This matches the semantics of all the wait queues used in the
  * log code.
  */
-static inline void xlog_wait(wait_queue_head_t *wq, spinlock_t *lock)
+static inline void
+xlog_wait(
+	struct wait_queue_head	*wq,
+	struct spinlock		*lock)
+		__releases(lock)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
