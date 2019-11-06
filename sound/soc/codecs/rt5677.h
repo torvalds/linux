@@ -1336,6 +1336,8 @@
 #define RT5677_PLL_M_SFT			12
 #define RT5677_PLL_M_BP				(0x1 << 11)
 #define RT5677_PLL_M_BP_SFT			11
+#define RT5677_PLL_UPDATE_PLL1			(0x1 << 1)
+#define RT5677_PLL_UPDATE_PLL1_SFT		1
 
 /* Global Clock Control 1 (0x80) */
 #define RT5677_SCLK_SRC_MASK			(0x3 << 14)
