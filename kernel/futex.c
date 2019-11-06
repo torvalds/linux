@@ -3698,7 +3698,7 @@ static void exit_robust_list(struct task_struct *curr)
 	}
 }
 
-void futex_mm_release(struct task_struct *tsk)
+void futex_exec_release(struct task_struct *tsk)
 {
 	if (unlikely(tsk->robust_list)) {
 		exit_robust_list(tsk);
@@ -3714,6 +3714,11 @@ void futex_mm_release(struct task_struct *tsk)
 
 	if (unlikely(!list_empty(&tsk->pi_state_list)))
 		exit_pi_state_list(tsk);
+}
+
+void futex_exit_release(struct task_struct *tsk)
+{
+	futex_exec_release(tsk);
 }
 
 long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
