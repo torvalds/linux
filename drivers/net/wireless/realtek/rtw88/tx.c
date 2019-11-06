@@ -27,8 +27,6 @@ void rtw_tx_stats(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 			rtwvif = (struct rtw_vif *)vif->drv_priv;
 			rtwvif->stats.tx_unicast += skb->len;
 			rtwvif->stats.tx_cnt++;
-			if (rtwvif->stats.tx_cnt > RTW_LPS_THRESHOLD)
-				rtw_leave_lps_irqsafe(rtwdev, rtwvif);
 		}
 	}
 }
@@ -58,6 +56,7 @@ void rtw_tx_fill_tx_desc(struct rtw_tx_pkt_info *pkt_info, struct sk_buff *skb)
 	SET_TX_DESC_DATA_SHORT(txdesc, pkt_info->short_gi);
 	SET_TX_DESC_SPE_RPT(txdesc, pkt_info->report);
 	SET_TX_DESC_SW_DEFINE(txdesc, pkt_info->sn);
+	SET_TX_DESC_USE_RTS(txdesc, pkt_info->rts);
 }
 EXPORT_SYMBOL(rtw_tx_fill_tx_desc);
 
@@ -260,6 +259,9 @@ static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 		ampdu_density = get_tx_ampdu_density(sta);
 	}
 
+	if (info->control.use_rts)
+		pkt_info->rts = true;
+
 	if (sta->vht_cap.vht_supported)
 		rate = get_highest_vht_tx_rate(rtwdev, sta);
 	else if (sta->ht_cap.ht_supported)
@@ -364,4 +366,133 @@ void rtw_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
 	pkt_info->offset = chip->tx_pkt_desc_sz;
 	pkt_info->qsel = TX_DESC_QSEL_MGMT;
 	pkt_info->ls = true;
+}
+
+void rtw_tx(struct rtw_dev *rtwdev,
+	    struct ieee80211_tx_control *control,
+	    struct sk_buff *skb)
+{
+	struct rtw_tx_pkt_info pkt_info = {0};
+
+	rtw_tx_pkt_info_update(rtwdev, &pkt_info, control, skb);
+	if (rtw_hci_tx(rtwdev, &pkt_info, skb))
+		goto out;
+
+	return;
+
+out:
+	ieee80211_free_txskb(rtwdev->hw, skb);
+}
+
+static void rtw_txq_check_agg(struct rtw_dev *rtwdev,
+			      struct rtw_txq *rtwtxq,
+			      struct sk_buff *skb)
+{
+	struct ieee80211_txq *txq = rtwtxq_to_txq(rtwtxq);
+	struct ieee80211_tx_info *info;
+	struct rtw_sta_info *si;
+
+	if (test_bit(RTW_TXQ_AMPDU, &rtwtxq->flags)) {
+		info = IEEE80211_SKB_CB(skb);
+		info->flags |= IEEE80211_TX_CTL_AMPDU;
+		return;
+	}
+
+	if (skb_get_queue_mapping(skb) == IEEE80211_AC_VO)
+		return;
+
+	if (test_bit(RTW_TXQ_BLOCK_BA, &rtwtxq->flags))
+		return;
+
+	if (unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE)))
+		return;
+
+	if (!txq->sta)
+		return;
+
+	si = (struct rtw_sta_info *)txq->sta->drv_priv;
+	set_bit(txq->tid, si->tid_ba);
+
+	ieee80211_queue_work(rtwdev->hw, &rtwdev->ba_work);
+}
+
+static bool rtw_txq_dequeue(struct rtw_dev *rtwdev,
+			    struct rtw_txq *rtwtxq)
+{
+	struct ieee80211_txq *txq = rtwtxq_to_txq(rtwtxq);
+	struct ieee80211_tx_control control;
+	struct sk_buff *skb;
+
+	skb = ieee80211_tx_dequeue(rtwdev->hw, txq);
+	if (!skb)
+		return false;
+
+	rtw_txq_check_agg(rtwdev, rtwtxq, skb);
+
+	control.sta = txq->sta;
+	rtw_tx(rtwdev, &control, skb);
+	rtwtxq->last_push = jiffies;
+
+	return true;
+}
+
+static void rtw_txq_push(struct rtw_dev *rtwdev,
+			 struct rtw_txq *rtwtxq,
+			 unsigned long frames)
+{
+	int i;
+
+	rcu_read_lock();
+
+	for (i = 0; i < frames; i++)
+		if (!rtw_txq_dequeue(rtwdev, rtwtxq))
+			break;
+
+	rcu_read_unlock();
+}
+
+void rtw_tx_tasklet(unsigned long data)
+{
+	struct rtw_dev *rtwdev = (void *)data;
+	struct rtw_txq *rtwtxq, *tmp;
+
+	spin_lock_bh(&rtwdev->txq_lock);
+
+	list_for_each_entry_safe(rtwtxq, tmp, &rtwdev->txqs, list) {
+		struct ieee80211_txq *txq = rtwtxq_to_txq(rtwtxq);
+		unsigned long frame_cnt;
+		unsigned long byte_cnt;
+
+		ieee80211_txq_get_depth(txq, &frame_cnt, &byte_cnt);
+		rtw_txq_push(rtwdev, rtwtxq, frame_cnt);
+
+		list_del_init(&rtwtxq->list);
+	}
+
+	spin_unlock_bh(&rtwdev->txq_lock);
+}
+
+void rtw_txq_init(struct rtw_dev *rtwdev, struct ieee80211_txq *txq)
+{
+	struct rtw_txq *rtwtxq;
+
+	if (!txq)
+		return;
+
+	rtwtxq = (struct rtw_txq *)txq->drv_priv;
+	INIT_LIST_HEAD(&rtwtxq->list);
+}
+
+void rtw_txq_cleanup(struct rtw_dev *rtwdev, struct ieee80211_txq *txq)
+{
+	struct rtw_txq *rtwtxq;
+
+	if (!txq)
+		return;
+
+	rtwtxq = (struct rtw_txq *)txq->drv_priv;
+	spin_lock_bh(&rtwdev->txq_lock);
+	if (!list_empty(&rtwtxq->list))
+		list_del_init(&rtwtxq->list);
+	spin_unlock_bh(&rtwdev->txq_lock);
 }

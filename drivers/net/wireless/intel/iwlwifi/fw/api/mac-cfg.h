@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,6 +77,20 @@ enum iwl_mac_conf_subcmd_ids {
 	 * @CHANNEL_SWITCH_TIME_EVENT_CMD: &struct iwl_chan_switch_te_cmd
 	 */
 	CHANNEL_SWITCH_TIME_EVENT_CMD = 0x4,
+	/**
+	 * @MISSED_VAP_NOTIF: &struct iwl_missed_vap_notif
+	 */
+	MISSED_VAP_NOTIF = 0xFA,
+	/**
+	 * @SESSION_PROTECTION_CMD: &struct iwl_mvm_session_prot_cmd
+	 */
+	SESSION_PROTECTION_CMD = 0x5,
+
+	/**
+	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_notif
+	 */
+	SESSION_PROTECTION_NOTIF = 0xFB,
+
 	/**
 	 * @PROBE_RESPONSE_DATA_NOTIF: &struct iwl_probe_resp_data_notif
 	 */
@@ -129,6 +143,21 @@ struct iwl_probe_resp_data_notif {
 	u8 csa_counter;
 	u8 reserved[3];
 } __packed; /* PROBE_RESPONSE_DATA_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_missed_vap_notif - notification of missing vap detection
+ *
+ * @mac_id: the mac for which the ucode sends the notification for
+ * @num_beacon_intervals_elapsed: beacons elpased with no vap profile inside
+ * @profile_periodicity: beacons period to have our profile inside
+ * @reserved: reserved for alignment purposes
+ */
+struct iwl_missed_vap_notif {
+	__le32 mac_id;
+	u8 num_beacon_intervals_elapsed;
+	u8 profile_periodicity;
+	u8 reserved[2];
+} __packed; /* MISSED_VAP_NTFY_API_S_VER_1 */
 
 /**
  * struct iwl_channel_switch_noa_notif - Channel switch NOA notification

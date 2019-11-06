@@ -9,6 +9,7 @@
 #include "tx.h"
 #include "rx.h"
 #include "fw.h"
+#include "ps.h"
 #include "debug.h"
 
 static bool rtw_disable_msi;
@@ -457,9 +458,9 @@ static void rtw_pci_reset_buf_desc(struct rtw_dev *rtwdev)
 	/* reset read/write point */
 	rtw_write32(rtwdev, RTK_PCI_TXBD_RWPTR_CLR, 0xffffffff);
 
-	/* rest H2C Queue index */
-	rtw_write32_set(rtwdev, RTK_PCI_TXBD_H2CQ_CSR, BIT_CLR_H2CQ_HOST_IDX);
-	rtw_write32_set(rtwdev, RTK_PCI_TXBD_H2CQ_CSR, BIT_CLR_H2CQ_HW_IDX);
+	/* reset H2C Queue index in a single write */
+	rtw_write32_set(rtwdev, RTK_PCI_TXBD_H2CQ_CSR,
+			BIT_CLR_H2CQ_HOST_IDX | BIT_CLR_H2CQ_HW_IDX);
 }
 
 static void rtw_pci_reset_trx_ring(struct rtw_dev *rtwdev)
@@ -533,6 +534,69 @@ static void rtw_pci_stop(struct rtw_dev *rtwdev)
 	spin_lock_irqsave(&rtwpci->irq_lock, flags);
 	rtw_pci_disable_interrupt(rtwdev, rtwpci);
 	rtw_pci_dma_release(rtwdev, rtwpci);
+	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
+}
+
+static void rtw_pci_deep_ps_enter(struct rtw_dev *rtwdev)
+{
+	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+	struct rtw_pci_tx_ring *tx_ring;
+	bool tx_empty = true;
+	u8 queue;
+
+	lockdep_assert_held(&rtwpci->irq_lock);
+
+	/* Deep PS state is not allowed to TX-DMA */
+	for (queue = 0; queue < RTK_MAX_TX_QUEUE_NUM; queue++) {
+		/* BCN queue is rsvd page, does not have DMA interrupt
+		 * H2C queue is managed by firmware
+		 */
+		if (queue == RTW_TX_QUEUE_BCN ||
+		    queue == RTW_TX_QUEUE_H2C)
+			continue;
+
+		tx_ring = &rtwpci->tx_rings[queue];
+
+		/* check if there is any skb DMAing */
+		if (skb_queue_len(&tx_ring->queue)) {
+			tx_empty = false;
+			break;
+		}
+	}
+
+	if (!tx_empty) {
+		rtw_dbg(rtwdev, RTW_DBG_PS,
+			"TX path not empty, cannot enter deep power save state\n");
+		return;
+	}
+
+	set_bit(RTW_FLAG_LEISURE_PS_DEEP, rtwdev->flags);
+	rtw_power_mode_change(rtwdev, true);
+}
+
+static void rtw_pci_deep_ps_leave(struct rtw_dev *rtwdev)
+{
+	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+
+	lockdep_assert_held(&rtwpci->irq_lock);
+
+	if (test_and_clear_bit(RTW_FLAG_LEISURE_PS_DEEP, rtwdev->flags))
+		rtw_power_mode_change(rtwdev, false);
+}
+
+static void rtw_pci_deep_ps(struct rtw_dev *rtwdev, bool enter)
+{
+	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtwpci->irq_lock, flags);
+
+	if (enter && !test_bit(RTW_FLAG_LEISURE_PS_DEEP, rtwdev->flags))
+		rtw_pci_deep_ps_enter(rtwdev);
+
+	if (!enter && test_bit(RTW_FLAG_LEISURE_PS_DEEP, rtwdev->flags))
+		rtw_pci_deep_ps_leave(rtwdev);
+
 	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 }
 
@@ -616,6 +680,7 @@ static int rtw_pci_xmit(struct rtw_dev *rtwdev,
 	u8 *pkt_desc;
 	struct rtw_pci_tx_buffer_desc *buf_desc;
 	u32 bd_idx;
+	unsigned long flags;
 
 	ring = &rtwpci->tx_rings[queue];
 
@@ -651,6 +716,10 @@ static int rtw_pci_xmit(struct rtw_dev *rtwdev,
 	tx_data = rtw_pci_get_tx_data(skb);
 	tx_data->dma = dma;
 	tx_data->sn = pkt_info->sn;
+
+	spin_lock_irqsave(&rtwpci->irq_lock, flags);
+
+	rtw_pci_deep_ps_leave(rtwdev);
 	skb_queue_tail(&ring->queue, skb);
 
 	/* kick off tx queue */
@@ -666,6 +735,7 @@ static int rtw_pci_xmit(struct rtw_dev *rtwdev,
 		reg_bcn_work |= BIT_PCI_BCNQ_FLAG;
 		rtw_write8(rtwdev, RTK_PCI_TXBD_BCN_WORK, reg_bcn_work);
 	}
+	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 
 	return 0;
 }
@@ -1120,8 +1190,6 @@ static int rtw_pci_setup_resource(struct rtw_dev *rtwdev, struct pci_dev *pdev)
 		goto err_io_unmap;
 	}
 
-	rtw_pci_phy_cfg(rtwdev);
-
 	return 0;
 
 err_io_unmap:
@@ -1142,6 +1210,7 @@ static struct rtw_hci_ops rtw_pci_ops = {
 	.setup = rtw_pci_setup,
 	.start = rtw_pci_start,
 	.stop = rtw_pci_stop,
+	.deep_ps = rtw_pci_deep_ps,
 
 	.read8 = rtw_pci_read8,
 	.read16 = rtw_pci_read16,
@@ -1232,6 +1301,8 @@ static int rtw_pci_probe(struct pci_dev *pdev,
 		rtw_err(rtwdev, "failed to setup chip information\n");
 		goto err_destroy_pci;
 	}
+
+	rtw_pci_phy_cfg(rtwdev);
 
 	ret = rtw_register_hw(rtwdev, hw);
 	if (ret) {

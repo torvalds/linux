@@ -65,6 +65,14 @@
 #define __iwl_fw_api_d3_h__
 
 /**
+ * enum iwl_d0i3_flags - d0i3 flags
+ * @IWL_D0I3_RESET_REQUIRE: FW require reset upon resume
+ */
+enum iwl_d0i3_flags {
+	IWL_D0I3_RESET_REQUIRE = BIT(0),
+};
+
+/**
  * enum iwl_d3_wakeup_flags - D3 manager wakeup flags
  * @IWL_WAKEUP_D3_CONFIG_FW_ERROR: wake up on firmware sysassert
  */

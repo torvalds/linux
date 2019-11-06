@@ -228,18 +228,6 @@ struct iwl_fw_dbg {
 };
 
 /**
- * struct iwl_fw_ini_active_triggers
- * @active: is this trigger active
- * @size: allocated memory size of the trigger
- * @trig: trigger
- */
-struct iwl_fw_ini_active_triggers {
-	bool active;
-	size_t size;
-	struct iwl_fw_ini_trigger *trig;
-};
-
-/**
  * struct iwl_fw - variables associated with the firmware
  *
  * @ucode_ver: ucode version from the ucode file

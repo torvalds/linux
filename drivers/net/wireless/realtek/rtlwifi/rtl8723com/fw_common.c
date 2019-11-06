@@ -223,7 +223,6 @@ bool rtl8723_cmd_send_packet(struct ieee80211_hw *hw,
 	struct rtl8192_tx_ring *ring;
 	struct rtl_tx_desc *pdesc;
 	struct sk_buff *pskb = NULL;
-	u8 own;
 	unsigned long flags;
 
 	ring = &rtlpci->tx_ring[BEACON_QUEUE];
@@ -233,9 +232,6 @@ bool rtl8723_cmd_send_packet(struct ieee80211_hw *hw,
 	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
 
 	pdesc = &ring->desc[0];
-	own = (u8)rtlpriv->cfg->ops->get_desc(hw, (u8 *)pdesc, true,
-					      HW_DESC_OWN);
-
 	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *)pdesc, 1, 1, skb);
 
 	__skb_queue_tail(&ring->queue, skb);

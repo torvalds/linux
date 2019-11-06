@@ -155,6 +155,9 @@ const struct ath10k_hw_values qca6174_values = {
 	.num_target_ce_config_wlan	= 7,
 	.ce_desc_meta_data_mask		= 0xFFFC,
 	.ce_desc_meta_data_lsb		= 2,
+	.rfkill_pin			= 16,
+	.rfkill_cfg			= 0,
+	.rfkill_on_level		= 1,
 };
 
 const struct ath10k_hw_values qca99x0_values = {

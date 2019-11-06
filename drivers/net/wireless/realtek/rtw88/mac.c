@@ -47,7 +47,7 @@ void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 
 	value8 = rtw_read8(rtwdev, REG_CCK_CHECK);
 	value8 = value8 & ~BIT_CHECK_CCK_EN;
-	if (channel > 35)
+	if (IS_CH_5G_BAND(channel))
 		value8 |= BIT_CHECK_CCK_EN;
 	rtw_write8(rtwdev, REG_CCK_CHECK, value8);
 }
@@ -261,7 +261,7 @@ static int rtw_mac_init_system_cfg(struct rtw_dev *rtwdev)
 	value |= BIT_WL_PLATFORM_RST | BIT_DDMA_EN;
 	rtw_write32(rtwdev, REG_CPU_DMEM_CON, value);
 
-	rtw_write8(rtwdev, REG_SYS_FUNC_EN + 1, sys_func_en);
+	rtw_write8_set(rtwdev, REG_SYS_FUNC_EN + 1, sys_func_en);
 	value8 = (rtw_read8(rtwdev, REG_CR_EXT + 3) & 0xF0) | 0x0C;
 	rtw_write8(rtwdev, REG_CR_EXT + 3, value8);
 
@@ -312,15 +312,16 @@ void rtw_mac_power_off(struct rtw_dev *rtwdev)
 
 static bool check_firmware_size(const u8 *data, u32 size)
 {
+	const struct rtw_fw_hdr *fw_hdr = (const struct rtw_fw_hdr *)data;
 	u32 dmem_size;
 	u32 imem_size;
 	u32 emem_size;
 	u32 real_size;
 
-	dmem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_DMEM_SIZE)));
-	imem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_IMEM_SIZE)));
-	emem_size = ((*(data + FW_HDR_MEM_USAGE)) & BIT(4)) ?
-		    le32_to_cpu(*((__le32 *)(data + FW_HDR_EMEM_SIZE))) : 0;
+	dmem_size = le32_to_cpu(fw_hdr->dmem_size);
+	imem_size = le32_to_cpu(fw_hdr->imem_size);
+	emem_size = (fw_hdr->mem_usage & BIT(4)) ?
+		    le32_to_cpu(fw_hdr->emem_size) : 0;
 
 	dmem_size += FW_HDR_CHKSUM_SIZE;
 	imem_size += FW_HDR_CHKSUM_SIZE;
@@ -566,27 +567,10 @@ download_firmware_to_mem(struct rtw_dev *rtwdev, const u8 *data,
 	return 0;
 }
 
-static void update_firmware_info(struct rtw_dev *rtwdev,
-				 struct rtw_fw_state *fw)
-{
-	const u8 *data = fw->firmware->data;
-
-	fw->h2c_version =
-		le16_to_cpu(*((__le16 *)(data + FW_HDR_H2C_FMT_VER)));
-	fw->version =
-		le16_to_cpu(*((__le16 *)(data + FW_HDR_VERSION)));
-	fw->sub_version = *(data + FW_HDR_SUBVERSION);
-	fw->sub_index = *(data + FW_HDR_SUBINDEX);
-
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw h2c version: %x\n", fw->h2c_version);
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw version:     %x\n", fw->version);
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw sub version: %x\n", fw->sub_version);
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw sub index:   %x\n", fw->sub_index);
-}
-
 static int
 start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 {
+	const struct rtw_fw_hdr *fw_hdr = (const struct rtw_fw_hdr *)data;
 	const u8 *cur_fw;
 	u16 val;
 	u32 imem_size;
@@ -595,10 +579,10 @@ start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 	u32 addr;
 	int ret;
 
-	dmem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_DMEM_SIZE)));
-	imem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_IMEM_SIZE)));
-	emem_size = ((*(data + FW_HDR_MEM_USAGE)) & BIT(4)) ?
-		    le32_to_cpu(*((__le32 *)(data + FW_HDR_EMEM_SIZE))) : 0;
+	dmem_size = le32_to_cpu(fw_hdr->dmem_size);
+	imem_size = le32_to_cpu(fw_hdr->imem_size);
+	emem_size = (fw_hdr->mem_usage & BIT(4)) ?
+		    le32_to_cpu(fw_hdr->emem_size) : 0;
 	dmem_size += FW_HDR_CHKSUM_SIZE;
 	imem_size += FW_HDR_CHKSUM_SIZE;
 	emem_size += emem_size ? FW_HDR_CHKSUM_SIZE : 0;
@@ -608,14 +592,14 @@ start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 	rtw_write16(rtwdev, REG_MCUFW_CTRL, val);
 
 	cur_fw = data + FW_HDR_SIZE;
-	addr = le32_to_cpu(*((__le32 *)(data + FW_HDR_DMEM_ADDR)));
+	addr = le32_to_cpu(fw_hdr->dmem_addr);
 	addr &= ~BIT(31);
 	ret = download_firmware_to_mem(rtwdev, cur_fw, 0, addr, dmem_size);
 	if (ret)
 		return ret;
 
 	cur_fw = data + FW_HDR_SIZE + dmem_size;
-	addr = le32_to_cpu(*((__le32 *)(data + FW_HDR_IMEM_ADDR)));
+	addr = le32_to_cpu(fw_hdr->imem_addr);
 	addr &= ~BIT(31);
 	ret = download_firmware_to_mem(rtwdev, cur_fw, 0, addr, imem_size);
 	if (ret)
@@ -623,7 +607,7 @@ start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 
 	if (emem_size) {
 		cur_fw = data + FW_HDR_SIZE + dmem_size + imem_size;
-		addr = le32_to_cpu(*((__le32 *)(data + FW_HDR_EMEM_ADDR)));
+		addr = le32_to_cpu(fw_hdr->emem_addr);
 		addr &= ~BIT(31);
 		ret = download_firmware_to_mem(rtwdev, cur_fw, 0, addr,
 					       emem_size);
@@ -699,15 +683,13 @@ int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
 	if (ret)
 		goto dlfw_fail;
 
-	update_firmware_info(rtwdev, fw);
-
 	/* reset desc and index */
 	rtw_hci_setup(rtwdev);
 
 	rtwdev->h2c.last_box_num = 0;
 	rtwdev->h2c.seq = 0;
 
-	rtw_flag_set(rtwdev, RTW_FLAG_FW_RUNNING);
+	set_bit(RTW_FLAG_FW_RUNNING, rtwdev->flags);
 
 	return 0;
 
@@ -717,6 +699,93 @@ dlfw_fail:
 	rtw_write8_set(rtwdev, REG_SYS_FUNC_EN + 1, BIT_FEN_CPUEN);
 
 	return ret;
+}
+
+static u32 get_priority_queues(struct rtw_dev *rtwdev, u32 queues)
+{
+	struct rtw_rqpn *rqpn = rtwdev->fifo.rqpn;
+	u32 prio_queues = 0;
+
+	if (queues & BIT(IEEE80211_AC_VO))
+		prio_queues |= BIT(rqpn->dma_map_vo);
+	if (queues & BIT(IEEE80211_AC_VI))
+		prio_queues |= BIT(rqpn->dma_map_vi);
+	if (queues & BIT(IEEE80211_AC_BE))
+		prio_queues |= BIT(rqpn->dma_map_be);
+	if (queues & BIT(IEEE80211_AC_BK))
+		prio_queues |= BIT(rqpn->dma_map_bk);
+
+	return prio_queues;
+}
+
+static void __rtw_mac_flush_prio_queue(struct rtw_dev *rtwdev,
+				       u32 prio_queue, bool drop)
+{
+	u32 addr;
+	u16 avail_page, rsvd_page;
+	int i;
+
+	switch (prio_queue) {
+	case RTW_DMA_MAPPING_EXTRA:
+		addr = REG_FIFOPAGE_INFO_4;
+		break;
+	case RTW_DMA_MAPPING_LOW:
+		addr = REG_FIFOPAGE_INFO_2;
+		break;
+	case RTW_DMA_MAPPING_NORMAL:
+		addr = REG_FIFOPAGE_INFO_3;
+		break;
+	case RTW_DMA_MAPPING_HIGH:
+		addr = REG_FIFOPAGE_INFO_1;
+		break;
+	default:
+		return;
+	}
+
+	/* check if all of the reserved pages are available for 100 msecs */
+	for (i = 0; i < 5; i++) {
+		rsvd_page = rtw_read16(rtwdev, addr);
+		avail_page = rtw_read16(rtwdev, addr + 2);
+		if (rsvd_page == avail_page)
+			return;
+
+		msleep(20);
+	}
+
+	/* priority queue is still not empty, throw a warning,
+	 *
+	 * Note that if we want to flush the tx queue when having a lot of
+	 * traffic (ex, 100Mbps up), some of the packets could be dropped.
+	 * And it requires like ~2secs to flush the full priority queue.
+	 */
+	if (!drop)
+		rtw_warn(rtwdev, "timed out to flush queue %d\n", prio_queue);
+}
+
+static void rtw_mac_flush_prio_queues(struct rtw_dev *rtwdev,
+				      u32 prio_queues, bool drop)
+{
+	u32 q;
+
+	for (q = 0; q < RTW_DMA_MAPPING_MAX; q++)
+		if (prio_queues & BIT(q))
+			__rtw_mac_flush_prio_queue(rtwdev, q, drop);
+}
+
+void rtw_mac_flush_queues(struct rtw_dev *rtwdev, u32 queues, bool drop)
+{
+	u32 prio_queues = 0;
+
+	/* If all of the hardware queues are requested to flush,
+	 * or the priority queues are not mapped yet,
+	 * flush all of the priority queues
+	 */
+	if (queues == BIT(rtwdev->hw->queues) - 1 || !rtwdev->fifo.rqpn)
+		prio_queues = BIT(RTW_DMA_MAPPING_MAX) - 1;
+	else
+		prio_queues = get_priority_queues(rtwdev, queues);
+
+	rtw_mac_flush_prio_queues(rtwdev, prio_queues, drop);
 }
 
 static int txdma_queue_mapping(struct rtw_dev *rtwdev)
@@ -743,6 +812,7 @@ static int txdma_queue_mapping(struct rtw_dev *rtwdev)
 		return -EINVAL;
 	}
 
+	rtwdev->fifo.rqpn = rqpn;
 	txdma_pq_map |= BIT_TXDMA_HIQ_MAP(rqpn->dma_map_hi);
 	txdma_pq_map |= BIT_TXDMA_MGQ_MAP(rqpn->dma_map_mg);
 	txdma_pq_map |= BIT_TXDMA_BKQ_MAP(rqpn->dma_map_bk);
