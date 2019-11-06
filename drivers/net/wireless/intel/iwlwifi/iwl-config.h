@@ -303,6 +303,7 @@ struct iwl_pwr_tx_backoff {
  * @gen2: 22000 and on transport operation
  * @mq_rx_supported: multi-queue rx support
  * @integrated: discrete or integrated
+ * @low_latency_xtal: use the low latency xtal if supported
  */
 struct iwl_cfg_trans_params {
 	const struct iwl_base_params *base_params;
@@ -315,6 +316,7 @@ struct iwl_cfg_trans_params {
 	    gen2:1,
 	    mq_rx_supported:1,
 	    integrated:1,
+	    low_latency_xtal:1,
 	    bisr_workaround:1;
 };
 

@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2019        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2019        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,21 +65,23 @@
 #ifndef __iwl_fw_api_soc_h__
 #define __iwl_fw_api_soc_h__
 
-/* type of devices for defining SOC latency */
-enum iwl_soc_device_types {
-	SOC_CONFIG_CMD_INTEGRATED   = 0x0,
-	SOC_CONFIG_CMD_DISCRETE     = 0x1,
-};
+#define SOC_CONFIG_CMD_FLAGS_DISCRETE		BIT(0)
+#define SOC_CONFIG_CMD_FLAGS_LOW_LATENCY	BIT(1)
 
 /**
  * struct iwl_soc_configuration_cmd - Set device stabilization latency
  *
- * @device_type: the device type as defined in &enum iwl_soc_device_types
- * @soc_latency: time for SOC to ensure stable power & XTAL
+ * @flags: soc settings flags.  In VER_1, we can only set the DISCRETE
+ *	flag, because the FW treats the whole value as an integer. In
+ *	VER_2, we can set the bits independently.
+ * @latency: time for SOC to ensure stable power & XTAL
  */
 struct iwl_soc_configuration_cmd {
-	__le32 device_type;
-	__le32 soc_latency;
-} __packed; /* SOC_CONFIGURATION_CMD_S_VER_1 */
+	__le32 flags;
+	__le32 latency;
+} __packed; /*
+	     * SOC_CONFIGURATION_CMD_S_VER_1 (see description above)
+	     * SOC_CONFIGURATION_CMD_S_VER_2
+	     */
 
 #endif /* __iwl_fw_api_soc_h__ */

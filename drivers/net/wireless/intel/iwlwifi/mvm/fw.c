@@ -90,13 +90,24 @@ struct iwl_mvm_alive_data {
 /* set device type and latency */
 static int iwl_set_soc_latency(struct iwl_mvm *mvm)
 {
-	struct iwl_soc_configuration_cmd cmd;
+	struct iwl_soc_configuration_cmd cmd = {};
 	int ret;
 
-	cmd.device_type = (mvm->trans->trans_cfg->integrated) ?
-		cpu_to_le32(SOC_CONFIG_CMD_INTEGRATED) :
-		cpu_to_le32(SOC_CONFIG_CMD_DISCRETE);
-	cmd.soc_latency = cpu_to_le32(mvm->trans->trans_cfg->xtal_latency);
+	/*
+	 * In VER_1 of this command, the discrete value is considered
+	 * an integer; In VER_2, it's a bitmask.  Since we have only 2
+	 * values in VER_1, this is backwards-compatible with VER_2,
+	 * as long as we don't set any other bits.
+	 */
+	if (!mvm->trans->trans_cfg->integrated)
+		cmd.flags = cpu_to_le32(SOC_CONFIG_CMD_FLAGS_DISCRETE);
+
+	if (iwl_mvm_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+				   SCAN_REQ_UMAC) >= 2 &&
+	    (mvm->trans->trans_cfg->low_latency_xtal))
+		cmd.flags |= cpu_to_le32(SOC_CONFIG_CMD_FLAGS_LOW_LATENCY);
+
+	cmd.latency = cpu_to_le32(mvm->trans->trans_cfg->xtal_latency);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(SOC_CONFIGURATION_CMD,
 						   SYSTEM_GROUP, 0), 0,
