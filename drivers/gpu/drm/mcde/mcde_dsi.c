@@ -583,11 +583,6 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 	val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_VSYNC;
 	val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_DATA;
 	writel(val, d->regs + DSI_VID_MODE_STS_CTL);
-
-	/* Enable video mode */
-	val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
-	val |= DSI_MCTL_MAIN_DATA_CTL_VID_EN;
-	writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
 }
 
 static void mcde_dsi_start(struct mcde_dsi *d)
@@ -699,6 +694,14 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 static void mcde_dsi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
+	u32 val;
+
+	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
+		/* Enable video mode */
+		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
+		val |= DSI_MCTL_MAIN_DATA_CTL_VID_EN;
+		writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
+	}
 
 	dev_info(d->dev, "enable DSI master\n");
 };
