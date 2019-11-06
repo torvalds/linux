@@ -75,6 +75,10 @@ static const struct snd_soc_dapm_route bdw_rt5677_map[] = {
 	{"SSP0 CODEC IN", NULL, "AIF1 Capture"},
 	{"AIF1 Playback", NULL, "SSP0 CODEC OUT"},
 	{"DSP Capture", NULL, "DSP Buffer"},
+
+	/* DSP Clock Connections */
+	{ "DSP Buffer", NULL, "SSP0 CODEC IN" },
+	{ "SSP0 CODEC IN", NULL, "DSPTX" },
 };
 
 static const struct snd_kcontrol_new bdw_rt5677_controls[] = {
