@@ -38,6 +38,7 @@
 #define ICE_MAX_POLICY_INTR_PER_VF	33
 #define ICE_MIN_INTR_PER_VF		(ICE_MIN_QS_PER_VF + 1)
 #define ICE_DFLT_INTR_PER_VF		(ICE_DFLT_QS_PER_VF + 1)
+#define ICE_MAX_VF_RESET_WAIT		15
 
 /* Specific VF states */
 enum ice_vf_states {
