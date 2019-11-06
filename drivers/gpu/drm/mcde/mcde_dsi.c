@@ -124,7 +124,27 @@ bool mcde_dsi_irq(struct mipi_dsi_device *mdsi)
 
 	val = readl(d->regs + DSI_VID_MODE_STS_FLAG);
 	if (val)
-		dev_err(d->dev, "some video mode error status\n");
+		dev_dbg(d->dev, "DSI_VID_MODE_STS_FLAG = %08x\n", val);
+	if (val & DSI_VID_MODE_STS_VSG_RUNNING)
+		dev_dbg(d->dev, "VID mode VSG running\n");
+	if (val & DSI_VID_MODE_STS_ERR_MISSING_DATA)
+		dev_err(d->dev, "VID mode missing data\n");
+	if (val & DSI_VID_MODE_STS_ERR_MISSING_HSYNC)
+		dev_err(d->dev, "VID mode missing HSYNC\n");
+	if (val & DSI_VID_MODE_STS_ERR_MISSING_VSYNC)
+		dev_err(d->dev, "VID mode missing VSYNC\n");
+	if (val & DSI_VID_MODE_STS_REG_ERR_SMALL_LENGTH)
+		dev_err(d->dev, "VID mode less bytes than expected between two HSYNC\n");
+	if (val & DSI_VID_MODE_STS_REG_ERR_SMALL_HEIGHT)
+		dev_err(d->dev, "VID mode less lines than expected between two VSYNC\n");
+	if (val & (DSI_VID_MODE_STS_ERR_BURSTWRITE |
+		   DSI_VID_MODE_STS_ERR_LINEWRITE |
+		   DSI_VID_MODE_STS_ERR_LONGREAD))
+		dev_err(d->dev, "VID mode read/write error\n");
+	if (val & DSI_VID_MODE_STS_ERR_VRS_WRONG_LENGTH)
+		dev_err(d->dev, "VID mode received packets differ from expected size\n");
+	if (val & DSI_VID_MODE_STS_VSG_RECOVERY)
+		dev_err(d->dev, "VID mode VSG in recovery mode\n");
 	writel(val, d->regs + DSI_VID_MODE_STS_CLR);
 
 	return te_received;
