@@ -356,14 +356,13 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 }
 EXPORT_SYMBOL_GPL(snd_soc_rtdcom_lookup);
 
-struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
-						   const char *driver_name)
+static struct snd_soc_component
+*snd_soc_lookup_component_nolocked(struct device *dev, const char *driver_name)
 {
 	struct snd_soc_component *component;
 	struct snd_soc_component *found_component;
 
 	found_component = NULL;
-	mutex_lock(&client_mutex);
 	for_each_component(component) {
 		if ((dev == component->dev) &&
 		    (!driver_name ||
@@ -373,9 +372,20 @@ struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 			break;
 		}
 	}
-	mutex_unlock(&client_mutex);
 
 	return found_component;
+}
+
+struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
+						   const char *driver_name)
+{
+	struct snd_soc_component *component;
+
+	mutex_lock(&client_mutex);
+	component = snd_soc_lookup_component_nolocked(dev, driver_name);
+	mutex_unlock(&client_mutex);
+
+	return component;
 }
 EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
 
@@ -2855,7 +2865,7 @@ void snd_soc_unregister_component(struct device *dev)
 
 	mutex_lock(&client_mutex);
 	while (1) {
-		component = snd_soc_lookup_component(dev, NULL);
+		component = snd_soc_lookup_component_nolocked(dev, NULL);
 		if (!component)
 			break;
 
