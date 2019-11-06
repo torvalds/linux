@@ -283,11 +283,6 @@ static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 static int steam_input_open(struct input_dev *dev)
 {
 	struct steam_device *steam = input_get_drvdata(dev);
-	int ret;
-
-	ret = hid_hw_open(steam->hdev);
-	if (ret)
-		return ret;
 
 	mutex_lock(&steam->mutex);
 	if (!steam->client_opened && lizard_mode)
@@ -304,8 +299,6 @@ static void steam_input_close(struct input_dev *dev)
 	if (!steam->client_opened && lizard_mode)
 		steam_set_lizard_mode(steam, true);
 	mutex_unlock(&steam->mutex);
-
-	hid_hw_close(steam->hdev);
 }
 
 static enum power_supply_property steam_battery_props[] = {
@@ -506,6 +499,7 @@ static void steam_battery_unregister(struct steam_device *steam)
 static int steam_register(struct steam_device *steam)
 {
 	int ret;
+	bool client_opened;
 
 	/*
 	 * This function can be called several times in a row with the
@@ -518,9 +512,11 @@ static int steam_register(struct steam_device *steam)
 		 * Unlikely, but getting the serial could fail, and it is not so
 		 * important, so make up a serial number and go on.
 		 */
+		mutex_lock(&steam->mutex);
 		if (steam_get_serial(steam) < 0)
 			strlcpy(steam->serial_no, "XXXXXXXXXX",
 					sizeof(steam->serial_no));
+		mutex_unlock(&steam->mutex);
 
 		hid_info(steam->hdev, "Steam Controller '%s' connected",
 				steam->serial_no);
@@ -535,13 +531,15 @@ static int steam_register(struct steam_device *steam)
 	}
 
 	mutex_lock(&steam->mutex);
-	if (!steam->client_opened) {
+	client_opened = steam->client_opened;
+	if (!client_opened)
 		steam_set_lizard_mode(steam, lizard_mode);
-		ret = steam_input_register(steam);
-	} else {
-		ret = 0;
-	}
 	mutex_unlock(&steam->mutex);
+
+	if (!client_opened)
+		ret = steam_input_register(steam);
+	else
+		ret = 0;
 
 	return ret;
 }
@@ -623,11 +621,6 @@ static void steam_client_ll_stop(struct hid_device *hdev)
 static int steam_client_ll_open(struct hid_device *hdev)
 {
 	struct steam_device *steam = hdev->driver_data;
-	int ret;
-
-	ret = hid_hw_open(steam->hdev);
-	if (ret)
-		return ret;
 
 	mutex_lock(&steam->mutex);
 	steam->client_opened = true;
@@ -635,22 +628,28 @@ static int steam_client_ll_open(struct hid_device *hdev)
 
 	steam_input_unregister(steam);
 
-	return ret;
+	return 0;
 }
 
 static void steam_client_ll_close(struct hid_device *hdev)
 {
 	struct steam_device *steam = hdev->driver_data;
 
+	unsigned long flags;
+	bool connected;
+
+	spin_lock_irqsave(&steam->lock, flags);
+	connected = steam->connected;
+	spin_unlock_irqrestore(&steam->lock, flags);
+
 	mutex_lock(&steam->mutex);
 	steam->client_opened = false;
+	if (connected)
+		steam_set_lizard_mode(steam, lizard_mode);
 	mutex_unlock(&steam->mutex);
 
-	hid_hw_close(steam->hdev);
-	if (steam->connected) {
-		steam_set_lizard_mode(steam, lizard_mode);
+	if (connected)
 		steam_input_register(steam);
-	}
 }
 
 static int steam_client_ll_raw_request(struct hid_device *hdev,
@@ -759,14 +758,15 @@ static int steam_probe(struct hid_device *hdev,
 	if (ret)
 		goto client_hdev_add_fail;
 
+	ret = hid_hw_open(hdev);
+	if (ret) {
+		hid_err(hdev,
+			"%s:hid_hw_open\n",
+			__func__);
+		goto hid_hw_open_fail;
+	}
+
 	if (steam->quirks & STEAM_QUIRK_WIRELESS) {
-		ret = hid_hw_open(hdev);
-		if (ret) {
-			hid_err(hdev,
-				"%s:hid_hw_open for wireless\n",
-				__func__);
-			goto hid_hw_open_fail;
-		}
 		hid_info(hdev, "Steam wireless receiver connected");
 		steam_request_conn_status(steam);
 	} else {
@@ -781,8 +781,8 @@ static int steam_probe(struct hid_device *hdev,
 
 	return 0;
 
-hid_hw_open_fail:
 input_register_fail:
+hid_hw_open_fail:
 client_hdev_add_fail:
 	hid_hw_stop(hdev);
 hid_hw_start_fail:
@@ -809,8 +809,8 @@ static void steam_remove(struct hid_device *hdev)
 	cancel_work_sync(&steam->work_connect);
 	if (steam->quirks & STEAM_QUIRK_WIRELESS) {
 		hid_info(hdev, "Steam wireless receiver disconnected");
-		hid_hw_close(hdev);
 	}
+	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 	steam_unregister(steam);
 }

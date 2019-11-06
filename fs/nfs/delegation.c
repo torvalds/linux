@@ -1154,7 +1154,7 @@ bool nfs4_refresh_delegation_stateid(nfs4_stateid *dst, struct inode *inode)
 	if (delegation != NULL &&
 	    nfs4_stateid_match_other(dst, &delegation->stateid)) {
 		dst->seqid = delegation->stateid.seqid;
-		return ret;
+		ret = true;
 	}
 	rcu_read_unlock();
 out:
