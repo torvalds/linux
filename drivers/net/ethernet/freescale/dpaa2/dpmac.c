@@ -147,3 +147,37 @@ int dpmac_set_link_state(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
+
+/**
+ * dpmac_get_counter() - Read a specific DPMAC counter
+ * @mc_io:	Pointer to opaque I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPMAC object
+ * @id:		The requested counter ID
+ * @value:	Returned counter value
+ *
+ * Return:	The requested counter; '0' otherwise.
+ */
+int dpmac_get_counter(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		      enum dpmac_counter_id id, u64 *value)
+{
+	struct dpmac_cmd_get_counter *dpmac_cmd;
+	struct dpmac_rsp_get_counter *dpmac_rsp;
+	struct fsl_mc_command cmd = { 0 };
+	int err = 0;
+
+	cmd.header = mc_encode_cmd_header(DPMAC_CMDID_GET_COUNTER,
+					  cmd_flags,
+					  token);
+	dpmac_cmd = (struct dpmac_cmd_get_counter *)cmd.params;
+	dpmac_cmd->id = id;
+
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	dpmac_rsp = (struct dpmac_rsp_get_counter *)cmd.params;
+	*value = le64_to_cpu(dpmac_rsp->counter);
+
+	return 0;
+}

@@ -22,6 +22,8 @@
 #define DPMAC_CMDID_GET_ATTR		DPMAC_CMD(0x004)
 #define DPMAC_CMDID_SET_LINK_STATE	DPMAC_CMD_V2(0x0c3)
 
+#define DPMAC_CMDID_GET_COUNTER		DPMAC_CMD(0x0c4)
+
 /* Macros for accessing command fields smaller than 1byte */
 #define DPMAC_MASK(field)        \
 	GENMASK(DPMAC_##field##_SHIFT + DPMAC_##field##_SIZE - 1, \
@@ -57,6 +59,15 @@ struct dpmac_cmd_set_link_state {
 	u8 pad1[7];
 	__le64 supported;
 	__le64 advertising;
+};
+
+struct dpmac_cmd_get_counter {
+	u8 id;
+};
+
+struct dpmac_rsp_get_counter {
+	u64 pad;
+	u64 counter;
 };
 
 #endif /* _FSL_DPMAC_CMD_H */

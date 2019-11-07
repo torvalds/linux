@@ -173,6 +173,7 @@ static int dpaa2_eth_set_pauseparam(struct net_device *net_dev,
 static void dpaa2_eth_get_strings(struct net_device *netdev, u32 stringset,
 				  u8 *data)
 {
+	struct dpaa2_eth_priv *priv = netdev_priv(netdev);
 	u8 *p = data;
 	int i;
 
@@ -186,15 +187,22 @@ static void dpaa2_eth_get_strings(struct net_device *netdev, u32 stringset,
 			strlcpy(p, dpaa2_ethtool_extras[i], ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
+		if (priv->mac)
+			dpaa2_mac_get_strings(p);
 		break;
 	}
 }
 
 static int dpaa2_eth_get_sset_count(struct net_device *net_dev, int sset)
 {
+	int num_ss_stats = DPAA2_ETH_NUM_STATS + DPAA2_ETH_NUM_EXTRA_STATS;
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+
 	switch (sset) {
 	case ETH_SS_STATS: /* ethtool_get_stats(), ethtool_get_drvinfo() */
-		return DPAA2_ETH_NUM_STATS + DPAA2_ETH_NUM_EXTRA_STATS;
+		if (priv->mac)
+			num_ss_stats += dpaa2_mac_get_sset_count();
+		return num_ss_stats;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -293,6 +301,9 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 		return;
 	}
 	*(data + i++) = buf_cnt;
+
+	if (priv->mac)
+		dpaa2_mac_get_ethtool_stats(priv->mac, data + i);
 }
 
 static int prep_eth_rule(struct ethhdr *eth_value, struct ethhdr *eth_mask,
