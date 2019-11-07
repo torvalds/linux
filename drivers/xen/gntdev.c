@@ -112,14 +112,14 @@ static void gntdev_free_map(struct gntdev_grant_map *map)
 		gnttab_free_pages(map->count, map->pages);
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
-	kfree(map->frames);
+	kvfree(map->frames);
 #endif
-	kfree(map->pages);
-	kfree(map->grants);
-	kfree(map->map_ops);
-	kfree(map->unmap_ops);
-	kfree(map->kmap_ops);
-	kfree(map->kunmap_ops);
+	kvfree(map->pages);
+	kvfree(map->grants);
+	kvfree(map->map_ops);
+	kvfree(map->unmap_ops);
+	kvfree(map->kmap_ops);
+	kvfree(map->kunmap_ops);
 	kfree(map);
 }
 
@@ -133,12 +133,13 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	if (NULL == add)
 		return NULL;
 
-	add->grants    = kcalloc(count, sizeof(add->grants[0]), GFP_KERNEL);
-	add->map_ops   = kcalloc(count, sizeof(add->map_ops[0]), GFP_KERNEL);
-	add->unmap_ops = kcalloc(count, sizeof(add->unmap_ops[0]), GFP_KERNEL);
-	add->kmap_ops  = kcalloc(count, sizeof(add->kmap_ops[0]), GFP_KERNEL);
-	add->kunmap_ops = kcalloc(count, sizeof(add->kunmap_ops[0]), GFP_KERNEL);
-	add->pages     = kcalloc(count, sizeof(add->pages[0]), GFP_KERNEL);
+	add->grants    = kvcalloc(count, sizeof(add->grants[0]), GFP_KERNEL);
+	add->map_ops   = kvcalloc(count, sizeof(add->map_ops[0]), GFP_KERNEL);
+	add->unmap_ops = kvcalloc(count, sizeof(add->unmap_ops[0]), GFP_KERNEL);
+	add->kmap_ops  = kvcalloc(count, sizeof(add->kmap_ops[0]), GFP_KERNEL);
+	add->kunmap_ops = kvcalloc(count,
+				   sizeof(add->kunmap_ops[0]), GFP_KERNEL);
+	add->pages     = kvcalloc(count, sizeof(add->pages[0]), GFP_KERNEL);
 	if (NULL == add->grants    ||
 	    NULL == add->map_ops   ||
 	    NULL == add->unmap_ops ||
@@ -157,8 +158,8 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	if (dma_flags & (GNTDEV_DMA_FLAG_WC | GNTDEV_DMA_FLAG_COHERENT)) {
 		struct gnttab_dma_alloc_args args;
 
-		add->frames = kcalloc(count, sizeof(add->frames[0]),
-				      GFP_KERNEL);
+		add->frames = kvcalloc(count, sizeof(add->frames[0]),
+				       GFP_KERNEL);
 		if (!add->frames)
 			goto err;
 
