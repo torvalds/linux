@@ -121,6 +121,8 @@ struct ast_private {
 		unsigned int next_index;
 	} cursor;
 
+	struct drm_plane primary_plane;
+
 	bool support_wide_screen;
 	enum {
 		ast_use_p2a,

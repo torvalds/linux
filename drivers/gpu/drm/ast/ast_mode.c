@@ -31,6 +31,8 @@
 #include <linux/export.h>
 #include <linux/pci.h>
 
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fourcc.h>
@@ -50,6 +52,7 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 			  uint32_t height);
 static int ast_cursor_move(struct drm_crtc *crtc,
 			   int x, int y);
+
 
 static inline void ast_load_palette_index(struct ast_private *ast,
 				     u8 index, u8 red, u8 green,
@@ -538,6 +541,62 @@ static void ast_set_start_address_crt1(struct drm_crtc *crtc, unsigned offset)
 
 }
 
+/*
+ * Primary plane
+ */
+
+static const uint32_t ast_primary_plane_formats[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_C8,
+};
+
+int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
+					  struct drm_plane_state *state)
+{
+	return 0;
+}
+
+void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
+					    struct drm_plane_state *old_state)
+{
+	struct drm_plane_state *state = plane->state;
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_gem_vram_object *gbo;
+	s64 gpu_addr;
+
+	if (!crtc || !state->fb)
+		return;
+
+	gbo = drm_gem_vram_of_gem(state->fb->obj[0]);
+	gpu_addr = drm_gem_vram_offset(gbo);
+	if (WARN_ON_ONCE(gpu_addr < 0))
+		return; /* Bug: we didn't pin the BO to VRAM in prepare_fb. */
+
+	ast_set_offset_reg(crtc);
+	ast_set_start_address_crt1(crtc, (u32)gpu_addr);
+}
+
+static const struct drm_plane_helper_funcs ast_primary_plane_helper_funcs = {
+	.prepare_fb = drm_gem_vram_plane_helper_prepare_fb,
+	.cleanup_fb = drm_gem_vram_plane_helper_cleanup_fb,
+	.atomic_check = ast_primary_plane_helper_atomic_check,
+	.atomic_update = ast_primary_plane_helper_atomic_update,
+};
+
+static const struct drm_plane_funcs ast_primary_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = drm_plane_cleanup,
+	.reset = drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+};
+
+/*
+ * CRTC
+ */
+
 static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
@@ -711,16 +770,26 @@ static const struct drm_crtc_funcs ast_crtc_funcs = {
 
 static int ast_crtc_init(struct drm_device *dev)
 {
+	struct ast_private *ast = dev->dev_private;
 	struct ast_crtc *crtc;
+	int ret;
 
 	crtc = kzalloc(sizeof(struct ast_crtc), GFP_KERNEL);
 	if (!crtc)
 		return -ENOMEM;
 
-	drm_crtc_init(dev, &crtc->base, &ast_crtc_funcs);
+	ret = drm_crtc_init_with_planes(dev, &crtc->base, &ast->primary_plane,
+					NULL, &ast_crtc_funcs, NULL);
+	if (ret)
+		goto err_kfree;
+
 	drm_mode_crtc_set_gamma_size(&crtc->base, 256);
 	drm_crtc_helper_add(&crtc->base, &ast_crtc_helper_funcs);
 	return 0;
+
+err_kfree:
+	kfree(crtc);
+	return ret;
 }
 
 static void ast_encoder_destroy(struct drm_encoder *encoder)
@@ -753,7 +822,6 @@ static void ast_encoder_commit(struct drm_encoder *encoder)
 {
 
 }
-
 
 static const struct drm_encoder_helper_funcs ast_enc_helper_funcs = {
 	.dpms = ast_encoder_dpms,
@@ -976,10 +1044,27 @@ static void ast_cursor_fini(struct drm_device *dev)
 
 int ast_mode_init(struct drm_device *dev)
 {
+	struct ast_private *ast = dev->dev_private;
+	int ret;
+
+	memset(&ast->primary_plane, 0, sizeof(ast->primary_plane));
+	ret = drm_universal_plane_init(dev, &ast->primary_plane, 0x01,
+				       &ast_primary_plane_funcs,
+				       ast_primary_plane_formats,
+				       ARRAY_SIZE(ast_primary_plane_formats),
+				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret) {
+		DRM_ERROR("ast: drm_universal_plane_init() failed: %d\n", ret);
+		return ret;
+	}
+	drm_plane_helper_add(&ast->primary_plane,
+			     &ast_primary_plane_helper_funcs);
+
 	ast_cursor_init(dev);
 	ast_crtc_init(dev);
 	ast_encoder_init(dev);
 	ast_connector_init(dev);
+
 	return 0;
 }
 
