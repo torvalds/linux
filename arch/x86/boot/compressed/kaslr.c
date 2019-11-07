@@ -760,6 +760,10 @@ process_efi_entries(unsigned long minimum, unsigned long image_size)
 		if (md->type != EFI_CONVENTIONAL_MEMORY)
 			continue;
 
+		if (efi_soft_reserve_enabled() &&
+		    (md->attribute & EFI_MEMORY_SP))
+			continue;
+
 		if (efi_mirror_found &&
 		    !(md->attribute & EFI_MEMORY_MORE_RELIABLE))
 			continue;
