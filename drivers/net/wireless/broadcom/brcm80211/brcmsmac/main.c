@@ -7376,9 +7376,7 @@ static void brcms_c_update_beacon_hw(struct brcms_c_info *wlc,
 				     false, true);
 		/* mark beacon0 valid */
 		bcma_set32(core, D11REGOFFS(maccommand), MCMD_BCN1VLD);
-		return;
 	}
-	return;
 }
 
 /*
