@@ -78,6 +78,7 @@ static int aq_fw2x_set_state(struct aq_hw_s *self,
 
 static u32 aq_fw2x_mbox_get(struct aq_hw_s *self);
 static u32 aq_fw2x_rpc_get(struct aq_hw_s *self);
+static int aq_fw2x_settings_get(struct aq_hw_s *self, u32 *addr);
 static u32 aq_fw2x_state2_get(struct aq_hw_s *self);
 
 static int aq_fw2x_init(struct aq_hw_s *self)
@@ -94,6 +95,8 @@ static int aq_fw2x_init(struct aq_hw_s *self)
 					self, self->rpc_addr,
 					self->rpc_addr != 0U,
 					1000U, 100000U);
+
+	err = aq_fw2x_settings_get(self, &self->settings_addr);
 
 	return err;
 }
@@ -418,8 +421,7 @@ static int aq_fw2x_send_fw_request(struct aq_hw_s *self,
 	dword_cnt = size / sizeof(u32);
 	if (size % sizeof(u32))
 		dword_cnt++;
-	err = hw_atl_utils_fw_upload_dwords(self, aq_fw2x_rpc_get(self),
-					    (void *)fw_req, dword_cnt);
+	err = hw_atl_write_fwcfg_dwords(self, (void *)fw_req, dword_cnt);
 	if (err < 0)
 		goto err_exit;
 
@@ -545,6 +547,19 @@ static u32 aq_fw2x_mbox_get(struct aq_hw_s *self)
 static u32 aq_fw2x_rpc_get(struct aq_hw_s *self)
 {
 	return aq_hw_read_reg(self, HW_ATL_FW2X_MPI_RPC_ADDR);
+}
+
+static int aq_fw2x_settings_get(struct aq_hw_s *self, u32 *addr)
+{
+	int err = 0;
+	u32 offset;
+
+	offset = self->mbox_addr + offsetof(struct hw_atl_utils_mbox,
+					    info.setting_address);
+
+	err = hw_atl_utils_fw_downld_dwords(self, offset, addr, 1);
+
+	return err;
 }
 
 static u32 aq_fw2x_state2_get(struct aq_hw_s *self)

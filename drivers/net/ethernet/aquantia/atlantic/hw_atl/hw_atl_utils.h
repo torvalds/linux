@@ -277,6 +277,48 @@ struct __packed hw_fw_request_iface {
 	};
 };
 
+struct __packed hw_atl_utils_settings {
+	u32 mtu;
+	u32 downshift_retry_count;
+	u32 link_pause_frame_quanta_100m;
+	u32 link_pause_frame_threshold_100m;
+	u32 link_pause_frame_quanta_1g;
+	u32 link_pause_frame_threshold_1g;
+	u32 link_pause_frame_quanta_2p5g;
+	u32 link_pause_frame_threshold_2p5g;
+	u32 link_pause_frame_quanta_5g;
+	u32 link_pause_frame_threshold_5g;
+	u32 link_pause_frame_quanta_10g;
+	u32 link_pause_frame_threshold_10g;
+	u32 pfc_quanta_class_0;
+	u32 pfc_threshold_class_0;
+	u32 pfc_quanta_class_1;
+	u32 pfc_threshold_class_1;
+	u32 pfc_quanta_class_2;
+	u32 pfc_threshold_class_2;
+	u32 pfc_quanta_class_3;
+	u32 pfc_threshold_class_3;
+	u32 pfc_quanta_class_4;
+	u32 pfc_threshold_class_4;
+	u32 pfc_quanta_class_5;
+	u32 pfc_threshold_class_5;
+	u32 pfc_quanta_class_6;
+	u32 pfc_threshold_class_6;
+	u32 pfc_quanta_class_7;
+	u32 pfc_threshold_class_7;
+	u32 eee_link_down_timeout;
+	u32 eee_link_up_timeout;
+	u32 eee_max_link_drops;
+	u32 eee_rates_mask;
+	u32 wake_timer;
+	u32 thermal_shutdown_off_temp;
+	u32 thermal_shutdown_warning_temp;
+	u32 thermal_shutdown_cold_temp;
+	u32 msm_options;
+	u32 dac_cable_serdes_modes;
+	u32 media_detect;
+};
+
 enum hw_atl_rx_action_with_traffic {
 	HW_ATL_RX_DISCARD,
 	HW_ATL_RX_HOST,
@@ -554,7 +596,10 @@ struct aq_stats_s *hw_atl_utils_get_hw_stats(struct aq_hw_s *self);
 int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 				  u32 *p, u32 cnt);
 
-int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p, u32 cnt);
+int hw_atl_write_fwcfg_dwords(struct aq_hw_s *self, u32 *p, u32 cnt);
+
+int hw_atl_write_fwsettings_dwords(struct aq_hw_s *self, u32 offset, u32 *p,
+				   u32 cnt);
 
 int hw_atl_utils_fw_set_wol(struct aq_hw_s *self, bool wol_enabled, u8 *mac);
 

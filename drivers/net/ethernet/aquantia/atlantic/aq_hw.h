@@ -140,6 +140,7 @@ struct aq_hw_s {
 	atomic_t dpc;
 	u32 mbox_addr;
 	u32 rpc_addr;
+	u32 settings_addr;
 	u32 rpc_tid;
 	struct hw_atl_utils_fw_rpc rpc;
 	s64 ptp_clk_offset;

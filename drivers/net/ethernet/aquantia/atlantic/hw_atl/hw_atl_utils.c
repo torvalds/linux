@@ -47,6 +47,11 @@
 
 #define FORCE_FLASHLESS 0
 
+enum mcp_area {
+	MCP_AREA_CONFIG = 0x80000000,
+	MCP_AREA_SETTINGS = 0x20000000,
+};
+
 static int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
 
 static int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
@@ -327,10 +332,75 @@ err_exit:
 	return err;
 }
 
-int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p, u32 cnt)
+static int hw_atl_utils_write_b1_mbox(struct aq_hw_s *self, u32 addr,
+				      u32 *p, u32 cnt, enum mcp_area area)
 {
-	u32 val;
+	u32 data_offset = 0;
+	u32 offset = addr;
 	int err = 0;
+	u32 val;
+
+	switch (area) {
+	case MCP_AREA_CONFIG:
+		offset -= self->rpc_addr;
+		break;
+
+	case MCP_AREA_SETTINGS:
+		offset -= self->settings_addr;
+		break;
+	}
+
+	offset = offset / sizeof(u32);
+
+	for (; data_offset < cnt; ++data_offset, ++offset) {
+		aq_hw_write_reg(self, 0x328, p[data_offset]);
+		aq_hw_write_reg(self, 0x32C,
+				(area | (0xFFFF & (offset * 4))));
+		hw_atl_mcp_up_force_intr_set(self, 1);
+		/* 1000 times by 10us = 10ms */
+		err = readx_poll_timeout_atomic(hw_atl_scrpad12_get,
+						self, val,
+						(val & 0xF0000000) !=
+						area,
+						10U, 10000U);
+
+		if (err < 0)
+			break;
+	}
+
+	return err;
+}
+
+static int hw_atl_utils_write_b0_mbox(struct aq_hw_s *self, u32 addr,
+				      u32 *p, u32 cnt)
+{
+	u32 offset = 0;
+	int err = 0;
+	u32 val;
+
+	aq_hw_write_reg(self, 0x208, addr);
+
+	for (; offset < cnt; ++offset) {
+		aq_hw_write_reg(self, 0x20C, p[offset]);
+		aq_hw_write_reg(self, 0x200, 0xC000);
+
+		err = readx_poll_timeout_atomic(hw_atl_utils_mif_cmd_get,
+						self, val,
+						(val & 0x100) == 0U,
+						10U, 10000U);
+
+		if (err < 0)
+			break;
+	}
+
+	return err;
+}
+
+static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 addr, u32 *p,
+					 u32 cnt, enum mcp_area area)
+{
+	int err = 0;
+	u32 val;
 
 	err = readx_poll_timeout_atomic(hw_atl_sem_ram_get, self,
 					val, val == 1U,
@@ -338,41 +408,33 @@ int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p, u32 cnt)
 	if (err < 0)
 		goto err_exit;
 
-	if (IS_CHIP_FEATURE(REVISION_B1)) {
-		u32 offset = 0;
-
-		for (; offset < cnt; ++offset) {
-			aq_hw_write_reg(self, 0x328, p[offset]);
-			aq_hw_write_reg(self, 0x32C,
-					(0x80000000 | (0xFFFF & (offset * 4))));
-			hw_atl_mcp_up_force_intr_set(self, 1);
-			/* 1000 times by 10us = 10ms */
-			err = readx_poll_timeout_atomic(hw_atl_scrpad12_get,
-							self, val,
-							(val & 0xF0000000) !=
-							0x80000000,
-							10U, 10000U);
-		}
-	} else {
-		u32 offset = 0;
-
-		aq_hw_write_reg(self, 0x208, a);
-
-		for (; offset < cnt; ++offset) {
-			aq_hw_write_reg(self, 0x20C, p[offset]);
-			aq_hw_write_reg(self, 0x200, 0xC000);
-
-			err = readx_poll_timeout_atomic(hw_atl_utils_mif_cmd_get,
-							self, val,
-							(val & 0x100) == 0,
-							1000U, 10000U);
-		}
-	}
+	if (IS_CHIP_FEATURE(REVISION_B1))
+		err = hw_atl_utils_write_b1_mbox(self, addr, p, cnt, area);
+	else
+		err = hw_atl_utils_write_b0_mbox(self, addr, p, cnt);
 
 	hw_atl_reg_glb_cpu_sem_set(self, 1U, HW_ATL_FW_SM_RAM);
 
+	if (err < 0)
+		goto err_exit;
+
+	err = aq_hw_err_from_flags(self);
+
 err_exit:
 	return err;
+}
+
+int hw_atl_write_fwcfg_dwords(struct aq_hw_s *self, u32 *p, u32 cnt)
+{
+	return hw_atl_utils_fw_upload_dwords(self, self->rpc_addr, p,
+					     cnt, MCP_AREA_CONFIG);
+}
+
+int hw_atl_write_fwsettings_dwords(struct aq_hw_s *self, u32 offset, u32 *p,
+				   u32 cnt)
+{
+	return hw_atl_utils_fw_upload_dwords(self, self->settings_addr + offset,
+					     p, cnt, MCP_AREA_SETTINGS);
 }
 
 static int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual)
@@ -437,10 +499,9 @@ int hw_atl_utils_fw_rpc_call(struct aq_hw_s *self, unsigned int rpc_size)
 		err = -1;
 		goto err_exit;
 	}
-	err = hw_atl_utils_fw_upload_dwords(self, self->rpc_addr,
-					    (u32 *)(void *)&self->rpc,
-					    (rpc_size + sizeof(u32) -
-					     sizeof(u8)) / sizeof(u32));
+	err = hw_atl_write_fwcfg_dwords(self, (u32 *)(void *)&self->rpc,
+					(rpc_size + sizeof(u32) -
+					 sizeof(u8)) / sizeof(u32));
 	if (err < 0)
 		goto err_exit;
 
