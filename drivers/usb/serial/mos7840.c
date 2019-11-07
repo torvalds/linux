@@ -457,12 +457,6 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 		dev_dbg(&port->dev, "icount.rx is %d:\n", port->icount.rx);
 	}
 
-	if (!mos7840_port->read_urb) {
-		dev_dbg(&port->dev, "%s", "URB KILLED !!!\n");
-		mos7840_port->read_urb_busy = false;
-		return;
-	}
-
 	if (mos7840_port->has_led)
 		mos7840_led_activity(port);
 
@@ -1376,11 +1370,6 @@ static void mos7840_set_termios(struct tty_struct *tty,
 	/* change the port settings to the new ones specified */
 
 	mos7840_change_port_settings(tty, mos7840_port, old_termios);
-
-	if (!mos7840_port->read_urb) {
-		dev_dbg(&port->dev, "%s", "URB KILLED !!!!!\n");
-		return;
-	}
 
 	if (!mos7840_port->read_urb_busy) {
 		mos7840_port->read_urb_busy = true;
