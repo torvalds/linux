@@ -1122,6 +1122,50 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	return result;
 }
 
+/*
+ * This routine identifies the destination vcpus mask meant to receive the
+ * IOAPIC interrupts. It either uses kvm_apic_map_get_dest_lapic() to find
+ * out the destination vcpus array and set the bitmap or it traverses to
+ * each available vcpu to identify the same.
+ */
+void kvm_bitmap_or_dest_vcpus(struct kvm *kvm, struct kvm_lapic_irq *irq,
+			      unsigned long *vcpu_bitmap)
+{
+	struct kvm_lapic **dest_vcpu = NULL;
+	struct kvm_lapic *src = NULL;
+	struct kvm_apic_map *map;
+	struct kvm_vcpu *vcpu;
+	unsigned long bitmap;
+	int i, vcpu_idx;
+	bool ret;
+
+	rcu_read_lock();
+	map = rcu_dereference(kvm->arch.apic_map);
+
+	ret = kvm_apic_map_get_dest_lapic(kvm, &src, irq, map, &dest_vcpu,
+					  &bitmap);
+	if (ret) {
+		for_each_set_bit(i, &bitmap, 16) {
+			if (!dest_vcpu[i])
+				continue;
+			vcpu_idx = dest_vcpu[i]->vcpu->vcpu_idx;
+			__set_bit(vcpu_idx, vcpu_bitmap);
+		}
+	} else {
+		kvm_for_each_vcpu(i, vcpu, kvm) {
+			if (!kvm_apic_present(vcpu))
+				continue;
+			if (!kvm_apic_match_dest(vcpu, NULL,
+						 irq->delivery_mode,
+						 irq->dest_id,
+						 irq->dest_mode))
+				continue;
+			__set_bit(i, vcpu_bitmap);
+		}
+	}
+	rcu_read_unlock();
+}
+
 int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2)
 {
 	return vcpu1->arch.apic_arb_prio - vcpu2->arch.apic_arb_prio;
