@@ -160,7 +160,7 @@ properties:
           - enum: [ foo, bar ]
           - enum: [ baz, boo ]
 
-  vendor,property-in-standard-units-microvolts:
+  vendor,property-in-standard-units-microvolt:
     description: Vendor specific properties having a standard unit suffix
       don't need a type.
     enum: [ 100, 200, 300 ]
