@@ -202,32 +202,14 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 }
 EXPORT_SYMBOL_GPL(blkdev_report_zones);
 
-/*
- * Special case of zone reset operation to reset all zones in one command,
- * useful for applications like mkfs.
- */
-static int __blkdev_reset_all_zones(struct block_device *bdev, gfp_t gfp_mask)
-{
-	struct bio *bio = bio_alloc(gfp_mask, 0);
-	int ret;
-
-	/* across the zones operations, don't need any sectors */
-	bio_set_dev(bio, bdev);
-	bio_set_op_attrs(bio, REQ_OP_ZONE_RESET_ALL, 0);
-
-	ret = submit_bio_wait(bio);
-	bio_put(bio);
-
-	return ret;
-}
-
 static inline bool blkdev_allow_reset_all_zones(struct block_device *bdev,
+						sector_t sector,
 						sector_t nr_sectors)
 {
 	if (!blk_queue_zone_resetall(bdev_get_queue(bdev)))
 		return false;
 
-	if (nr_sectors != part_nr_sects_read(bdev->bd_part))
+	if (sector || nr_sectors != part_nr_sects_read(bdev->bd_part))
 		return false;
 	/*
 	 * REQ_OP_ZONE_RESET_ALL can be executed only if the block device is
@@ -239,26 +221,29 @@ static inline bool blkdev_allow_reset_all_zones(struct block_device *bdev,
 }
 
 /**
- * blkdev_reset_zones - Reset zones write pointer
+ * blkdev_zone_mgmt - Execute a zone management operation on a range of zones
  * @bdev:	Target block device
- * @sector:	Start sector of the first zone to reset
- * @nr_sectors:	Number of sectors, at least the length of one zone
+ * @op:		Operation to be performed on the zones
+ * @sector:	Start sector of the first zone to operate on
+ * @nr_sectors:	Number of sectors, should be at least the length of one zone and
+ *		must be zone size aligned.
  * @gfp_mask:	Memory allocation flags (for bio_alloc)
  *
  * Description:
- *    Reset the write pointer of the zones contained in the range
+ *    Perform the specified operation on the range of zones specified by
  *    @sector..@sector+@nr_sectors. Specifying the entire disk sector range
  *    is valid, but the specified range should not contain conventional zones.
+ *    The operation to execute on each zone can be a zone reset, open, close
+ *    or finish request.
  */
-int blkdev_reset_zones(struct block_device *bdev,
-		       sector_t sector, sector_t nr_sectors,
-		       gfp_t gfp_mask)
+int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
+		     sector_t sector, sector_t nr_sectors,
+		     gfp_t gfp_mask)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
-	sector_t zone_sectors;
+	sector_t zone_sectors = blk_queue_zone_sectors(q);
 	sector_t end_sector = sector + nr_sectors;
 	struct bio *bio = NULL;
-	struct blk_plug plug;
 	int ret;
 
 	if (!blk_queue_is_zoned(q))
@@ -267,15 +252,14 @@ int blkdev_reset_zones(struct block_device *bdev,
 	if (bdev_read_only(bdev))
 		return -EPERM;
 
+	if (!op_is_zone_mgmt(op))
+		return -EOPNOTSUPP;
+
 	if (!nr_sectors || end_sector > bdev->bd_part->nr_sects)
 		/* Out of range */
 		return -EINVAL;
 
-	if (blkdev_allow_reset_all_zones(bdev, nr_sectors))
-		return  __blkdev_reset_all_zones(bdev, gfp_mask);
-
 	/* Check alignment (handle eventual smaller last zone) */
-	zone_sectors = blk_queue_zone_sectors(q);
 	if (sector & (zone_sectors - 1))
 		return -EINVAL;
 
@@ -283,29 +267,34 @@ int blkdev_reset_zones(struct block_device *bdev,
 	    end_sector != bdev->bd_part->nr_sects)
 		return -EINVAL;
 
-	blk_start_plug(&plug);
 	while (sector < end_sector) {
-
 		bio = blk_next_bio(bio, 0, gfp_mask);
-		bio->bi_iter.bi_sector = sector;
 		bio_set_dev(bio, bdev);
-		bio_set_op_attrs(bio, REQ_OP_ZONE_RESET, 0);
 
+		/*
+		 * Special case for the zone reset operation that reset all
+		 * zones, this is useful for applications like mkfs.
+		 */
+		if (op == REQ_OP_ZONE_RESET &&
+		    blkdev_allow_reset_all_zones(bdev, sector, nr_sectors)) {
+			bio->bi_opf = REQ_OP_ZONE_RESET_ALL;
+			break;
+		}
+
+		bio->bi_opf = op;
+		bio->bi_iter.bi_sector = sector;
 		sector += zone_sectors;
 
 		/* This may take a while, so be nice to others */
 		cond_resched();
-
 	}
 
 	ret = submit_bio_wait(bio);
 	bio_put(bio);
 
-	blk_finish_plug(&plug);
-
 	return ret;
 }
-EXPORT_SYMBOL_GPL(blkdev_reset_zones);
+EXPORT_SYMBOL_GPL(blkdev_zone_mgmt);
 
 /*
  * BLKREPORTZONE ioctl processing.
@@ -368,15 +357,16 @@ int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
 }
 
 /*
- * BLKRESETZONE ioctl processing.
+ * BLKRESETZONE, BLKOPENZONE, BLKCLOSEZONE and BLKFINISHZONE ioctl processing.
  * Called from blkdev_ioctl.
  */
-int blkdev_reset_zones_ioctl(struct block_device *bdev, fmode_t mode,
-			     unsigned int cmd, unsigned long arg)
+int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
+			   unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	struct request_queue *q;
 	struct blk_zone_range zrange;
+	enum req_opf op;
 
 	if (!argp)
 		return -EINVAL;
@@ -397,8 +387,25 @@ int blkdev_reset_zones_ioctl(struct block_device *bdev, fmode_t mode,
 	if (copy_from_user(&zrange, argp, sizeof(struct blk_zone_range)))
 		return -EFAULT;
 
-	return blkdev_reset_zones(bdev, zrange.sector, zrange.nr_sectors,
-				  GFP_KERNEL);
+	switch (cmd) {
+	case BLKRESETZONE:
+		op = REQ_OP_ZONE_RESET;
+		break;
+	case BLKOPENZONE:
+		op = REQ_OP_ZONE_OPEN;
+		break;
+	case BLKCLOSEZONE:
+		op = REQ_OP_ZONE_CLOSE;
+		break;
+	case BLKFINISHZONE:
+		op = REQ_OP_ZONE_FINISH;
+		break;
+	default:
+		return -ENOTTY;
+	}
+
+	return blkdev_zone_mgmt(bdev, op, zrange.sector, zrange.nr_sectors,
+				GFP_KERNEL);
 }
 
 static inline unsigned long *blk_alloc_zone_bitmap(int node,
