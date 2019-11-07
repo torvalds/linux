@@ -81,7 +81,7 @@ void gntdev_add_map(struct gntdev_priv *priv, struct gntdev_grant_map *add);
 
 void gntdev_put_map(struct gntdev_priv *priv, struct gntdev_grant_map *map);
 
-bool gntdev_account_mapped_pages(int count);
+bool gntdev_test_page_count(unsigned int count);
 
 int gntdev_map_grant_pages(struct gntdev_grant_map *map);
 

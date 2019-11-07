@@ -55,12 +55,10 @@ MODULE_AUTHOR("Derek G. Murray <Derek.Murray@cl.cam.ac.uk>, "
 	      "Gerd Hoffmann <kraxel@redhat.com>");
 MODULE_DESCRIPTION("User-space granted page access driver");
 
-static int limit = 1024*1024;
-module_param(limit, int, 0644);
-MODULE_PARM_DESC(limit, "Maximum number of grants that may be mapped by "
-		"the gntdev device");
-
-static atomic_t pages_mapped = ATOMIC_INIT(0);
+static unsigned int limit = 64*1024;
+module_param(limit, uint, 0644);
+MODULE_PARM_DESC(limit,
+	"Maximum number of grants that may be mapped by one mapping request");
 
 static int use_ptemod;
 
@@ -71,9 +69,9 @@ static struct miscdevice gntdev_miscdev;
 
 /* ------------------------------------------------------------------ */
 
-bool gntdev_account_mapped_pages(int count)
+bool gntdev_test_page_count(unsigned int count)
 {
-	return atomic_add_return(count, &pages_mapped) > limit;
+	return !count || count > limit;
 }
 
 static void gntdev_print_maps(struct gntdev_priv *priv,
@@ -240,8 +238,6 @@ void gntdev_put_map(struct gntdev_priv *priv, struct gntdev_grant_map *map)
 
 	if (!refcount_dec_and_test(&map->users))
 		return;
-
-	atomic_sub(map->count, &pages_mapped);
 
 	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
 		notify_remote_via_evtchn(map->notify.event);
@@ -568,19 +564,13 @@ static long gntdev_ioctl_map_grant_ref(struct gntdev_priv *priv,
 	if (copy_from_user(&op, u, sizeof(op)) != 0)
 		return -EFAULT;
 	pr_debug("priv %p, add %d\n", priv, op.count);
-	if (unlikely(op.count <= 0))
+	if (unlikely(gntdev_test_page_count(op.count)))
 		return -EINVAL;
 
 	err = -ENOMEM;
 	map = gntdev_alloc_map(priv, op.count, 0 /* This is not a dma-buf. */);
 	if (!map)
 		return err;
-
-	if (unlikely(gntdev_account_mapped_pages(op.count))) {
-		pr_debug("can't map: over limit\n");
-		gntdev_put_map(NULL, map);
-		return err;
-	}
 
 	if (copy_from_user(map->grants, &u->refs,
 			   sizeof(map->grants[0]) * op.count) != 0) {
