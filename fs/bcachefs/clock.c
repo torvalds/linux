@@ -135,17 +135,16 @@ static struct io_timer *get_expired_timer(struct io_clock *clock,
 	return ret;
 }
 
-void bch2_increment_clock(struct bch_fs *c, unsigned sectors, int rw)
+void __bch2_increment_clock(struct io_clock *clock)
 {
-	struct io_clock *clock = &c->io_clock[rw];
 	struct io_timer *timer;
 	unsigned long now;
+	unsigned sectors;
 
 	/* Buffer up one megabyte worth of IO in the percpu counter */
 	preempt_disable();
 
-	if (likely(this_cpu_add_return(*clock->pcpu_buf, sectors) <
-		   IO_CLOCK_PCPU_SECTORS)) {
+	if (this_cpu_read(*clock->pcpu_buf) < IO_CLOCK_PCPU_SECTORS) {
 		preempt_enable();
 		return;
 	}
