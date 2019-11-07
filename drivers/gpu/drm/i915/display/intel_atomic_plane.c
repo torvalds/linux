@@ -41,6 +41,16 @@
 #include "intel_pm.h"
 #include "intel_sprite.h"
 
+static void intel_plane_state_reset(struct intel_plane_state *plane_state,
+				    struct intel_plane *plane)
+{
+	memset(plane_state, 0, sizeof(*plane_state));
+
+	__drm_atomic_helper_plane_state_reset(&plane_state->uapi, &plane->base);
+
+	plane_state->scaler_id = -1;
+}
+
 struct intel_plane *intel_plane_alloc(void)
 {
 	struct intel_plane_state *plane_state;
@@ -56,8 +66,9 @@ struct intel_plane *intel_plane_alloc(void)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	__drm_atomic_helper_plane_reset(&plane->base, &plane_state->uapi);
-	plane_state->scaler_id = -1;
+	intel_plane_state_reset(plane_state, plane);
+
+	plane->base.state = &plane_state->uapi;
 
 	return plane;
 }
