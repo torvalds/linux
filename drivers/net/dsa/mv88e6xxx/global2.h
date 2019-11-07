@@ -532,7 +532,8 @@ static inline int mv88e6xxx_g2_atu_stats_set(struct mv88e6xxx_chip *chip,
 	return -EOPNOTSUPP;
 }
 
-static inline int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip)
+static inline int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip,
+					     u16 *stats)
 {
 	return -EOPNOTSUPP;
 }
