@@ -349,7 +349,7 @@
 
 			anatop: anatop@30360000 {
 				compatible = "fsl,imx8mn-anatop", "fsl,imx8mm-anatop",
-					     "syscon", "simple-bus";
+					     "syscon";
 				reg = <0x30360000 0x10000>;
 			};
 
