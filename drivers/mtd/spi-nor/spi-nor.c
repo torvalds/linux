@@ -2047,20 +2047,7 @@ static int macronix_quad_enable(struct spi_nor *nor)
 
 	nor->bouncebuf[0] |= SR_QUAD_EN_MX;
 
-	ret = spi_nor_write_sr(nor, nor->bouncebuf, 1);
-	if (ret)
-		return ret;
-
-	ret = spi_nor_read_sr(nor, nor->bouncebuf);
-	if (ret)
-		return ret;
-
-	if (!(nor->bouncebuf[0] & SR_QUAD_EN_MX)) {
-		dev_dbg(nor->dev, "Macronix Quad bit not set\n");
-		return -EIO;
-	}
-
-	return 0;
+	return spi_nor_write_sr1_and_check(nor, nor->bouncebuf[0]);
 }
 
 /**
@@ -2080,6 +2067,7 @@ static int spansion_no_read_cr_quad_enable(struct spi_nor *nor)
 {
 	u8 *sr_cr = nor->bouncebuf;
 	int ret;
+	u8 sr_written;
 
 	/* Keep the current value of the Status Register. */
 	ret = spi_nor_read_sr(nor, sr_cr);
@@ -2088,7 +2076,22 @@ static int spansion_no_read_cr_quad_enable(struct spi_nor *nor)
 
 	sr_cr[1] = CR_QUAD_EN_SPAN;
 
-	return spi_nor_write_sr(nor, sr_cr, 2);
+	ret = spi_nor_write_sr(nor, sr_cr, 2);
+	if (ret)
+		return ret;
+
+	sr_written = sr_cr[0];
+
+	ret = spi_nor_read_sr(nor, sr_cr);
+	if (ret)
+		return ret;
+
+	if (sr_cr[0] != sr_written) {
+		dev_err(nor->dev, "SR: Read back test failed\n");
+		return -EIO;
+	}
+
+	return 0;
 }
 
 /**
@@ -2108,6 +2111,7 @@ static int spansion_read_cr_quad_enable(struct spi_nor *nor)
 {
 	u8 *sr_cr = nor->bouncebuf;
 	int ret;
+	u8 sr_written;
 
 	/* Check current Quad Enable bit value. */
 	ret = spi_nor_read_cr(nor, &sr_cr[1]);
@@ -2128,13 +2132,26 @@ static int spansion_read_cr_quad_enable(struct spi_nor *nor)
 	if (ret)
 		return ret;
 
+	sr_written = sr_cr[0];
+
+	ret = spi_nor_read_sr(nor, sr_cr);
+	if (ret)
+		return ret;
+
+	if (sr_written != sr_cr[0]) {
+		dev_err(nor->dev, "SR: Read back test failed\n");
+		return -EIO;
+	}
+
+	sr_written = sr_cr[1];
+
 	/* Read back and check it. */
 	ret = spi_nor_read_cr(nor, &sr_cr[1]);
 	if (ret)
 		return ret;
 
-	if (!(sr_cr[1] & CR_QUAD_EN_SPAN)) {
-		dev_dbg(nor->dev, "Spansion Quad bit not set\n");
+	if (sr_cr[1] != sr_written) {
+		dev_dbg(nor->dev, "CR: Read back test failed\n");
 		return -EIO;
 	}
 
@@ -2157,6 +2174,7 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 {
 	u8 *sr2 = nor->bouncebuf;
 	int ret;
+	u8 sr2_written;
 
 	/* Check current Quad Enable bit value. */
 	ret = spi_nor_read_sr2(nor, sr2);
@@ -2172,13 +2190,15 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 	if (ret)
 		return ret;
 
+	sr2_written = *sr2;
+
 	/* Read back and check it. */
 	ret = spi_nor_read_sr2(nor, sr2);
 	if (ret)
 		return ret;
 
-	if (!(*sr2 & SR2_QUAD_EN_BIT7)) {
-		dev_dbg(nor->dev, "SR2 Quad bit not set\n");
+	if (*sr2 != sr2_written) {
+		dev_dbg(nor->dev, "SR2: Read back test failed\n");
 		return -EIO;
 	}
 
