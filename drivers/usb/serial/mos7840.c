@@ -198,7 +198,6 @@ struct moschip_port {
 	struct urb *read_urb;	/* read URB for this port */
 	__u8 shadowLCR;		/* last LCR value received */
 	__u8 shadowMCR;		/* last MCR value received */
-	char open;
 	struct usb_serial_port *port;	/* loop back to the owner of this object */
 
 	/* Offsets */
@@ -497,8 +496,7 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 		return;
 	}
 
-	if (mos7840_port->open)
-		tty_port_tty_wakeup(&port->port);
+	tty_port_tty_wakeup(&port->port);
 
 }
 
@@ -714,9 +712,6 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* initialize our port settings */
 	/* Must set to enable ints! */
 	mos7840_port->shadowMCR = MCR_MASTER_IE;
-	/* send a open port command */
-	mos7840_port->open = 1;
-	/* mos7840_change_port_settings(mos7840_port,old_termios); */
 
 	return 0;
 err:
@@ -791,8 +786,6 @@ static void mos7840_close(struct usb_serial_port *port)
 
 	Data = 0x00;
 	mos7840_set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
-
-	mos7840_port->open = 0;
 }
 
 /*****************************************************************************
@@ -951,11 +944,6 @@ static void mos7840_throttle(struct tty_struct *tty)
 	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int status;
 
-	if (!mos7840_port->open) {
-		dev_dbg(&port->dev, "%s", "port not opened\n");
-		return;
-	}
-
 	/* if we are implementing XON/XOFF, send the stop character */
 	if (I_IXOFF(tty)) {
 		unsigned char stop_char = STOP_CHAR(tty);
@@ -984,11 +972,6 @@ static void mos7840_unthrottle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int status;
-
-	if (!mos7840_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
-		return;
-	}
 
 	/* if we are implementing XON/XOFF, send the start character */
 	if (I_IXOFF(tty)) {
@@ -1221,11 +1204,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	int status;
 	__u16 Data;
 
-	if (!mos7840_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
-		return;
-	}
-
 	lData = LCR_BITS_8;
 	lStop = LCR_STOP_1;
 	lParity = LCR_PAR_NONE;
@@ -1361,11 +1339,6 @@ static void mos7840_set_termios(struct tty_struct *tty,
 {
 	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int status;
-
-	if (!mos7840_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
-		return;
-	}
 
 	/* change the port settings to the new ones specified */
 
