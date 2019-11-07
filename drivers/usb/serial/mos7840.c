@@ -446,19 +446,6 @@ static void mos7840_led_activity(struct usb_serial_port *port)
 				jiffies + msecs_to_jiffies(LED_ON_MS));
 }
 
-static struct usb_serial *mos7840_get_usb_serial(struct usb_serial_port *port,
-						 const char *function)
-{
-	/* if no port was specified */
-	if (!port) {
-		/* then say that we don't have a valid usb_serial thing,
-		 * which will end up genrating -ENODEV return values */
-		return NULL;
-	}
-
-	return port->serial;
-}
-
 /*****************************************************************************
  * mos7840_bulk_in_callback
  *	this is the callback function for when we have received data on the
@@ -471,17 +458,10 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	struct usb_serial_port *port = mos7840_port->port;
 	int retval;
 	unsigned char *data;
-	struct usb_serial *serial;
 	int status = urb->status;
 
 	if (status) {
 		dev_dbg(&urb->dev->dev, "nonzero read bulk status received: %d\n", status);
-		mos7840_port->read_urb_busy = false;
-		return;
-	}
-
-	serial = mos7840_get_usb_serial(port, __func__);
-	if (!serial) {
 		mos7840_port->read_urb_busy = false;
 		return;
 	}
@@ -822,14 +802,9 @@ static int mos7840_chars_in_buffer(struct tty_struct *tty)
 
 static void mos7840_close(struct usb_serial_port *port)
 {
-	struct usb_serial *serial;
 	struct moschip_port *mos7840_port;
 	int j;
 	__u16 Data;
-
-	serial = mos7840_get_usb_serial(port, __func__);
-	if (!serial)
-		return;
 
 	mos7840_port = mos7840_get_port_private(port);
 	if (mos7840_port == NULL)
@@ -866,12 +841,7 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	unsigned char data;
-	struct usb_serial *serial;
 	struct moschip_port *mos7840_port;
-
-	serial = mos7840_get_usb_serial(port, __func__);
-	if (!serial)
-		return;
 
 	mos7840_port = mos7840_get_port_private(port);
 
