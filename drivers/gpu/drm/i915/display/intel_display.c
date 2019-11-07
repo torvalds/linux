@@ -15787,14 +15787,14 @@ static const struct drm_crtc_funcs i8xx_crtc_funcs = {
 static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	const struct drm_crtc_funcs *funcs;
-	struct intel_crtc *intel_crtc;
+	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state = NULL;
 	struct intel_plane *primary = NULL;
 	struct intel_plane *cursor = NULL;
 	int sprite, ret;
 
-	intel_crtc = kzalloc(sizeof(*intel_crtc), GFP_KERNEL);
-	if (!intel_crtc)
+	crtc = kzalloc(sizeof(*crtc), GFP_KERNEL);
+	if (!crtc)
 		return -ENOMEM;
 
 	crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
@@ -15802,15 +15802,15 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		ret = -ENOMEM;
 		goto fail;
 	}
-	__drm_atomic_helper_crtc_reset(&intel_crtc->base, &crtc_state->uapi);
-	intel_crtc->config = crtc_state;
+	__drm_atomic_helper_crtc_reset(&crtc->base, &crtc_state->uapi);
+	crtc->config = crtc_state;
 
 	primary = intel_primary_plane_create(dev_priv, pipe);
 	if (IS_ERR(primary)) {
 		ret = PTR_ERR(primary);
 		goto fail;
 	}
-	intel_crtc->plane_ids_mask |= BIT(primary->id);
+	crtc->plane_ids_mask |= BIT(primary->id);
 
 	for_each_sprite(dev_priv, pipe, sprite) {
 		struct intel_plane *plane;
@@ -15820,7 +15820,7 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 			ret = PTR_ERR(plane);
 			goto fail;
 		}
-		intel_crtc->plane_ids_mask |= BIT(plane->id);
+		crtc->plane_ids_mask |= BIT(plane->id);
 	}
 
 	cursor = intel_cursor_plane_create(dev_priv, pipe);
@@ -15828,7 +15828,7 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		ret = PTR_ERR(cursor);
 		goto fail;
 	}
-	intel_crtc->plane_ids_mask |= BIT(cursor->id);
+	crtc->plane_ids_mask |= BIT(cursor->id);
 
 	if (HAS_GMCH(dev_priv)) {
 		if (IS_CHERRYVIEW(dev_priv) ||
@@ -15849,32 +15849,32 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 			funcs = &ilk_crtc_funcs;
 	}
 
-	ret = drm_crtc_init_with_planes(&dev_priv->drm, &intel_crtc->base,
+	ret = drm_crtc_init_with_planes(&dev_priv->drm, &crtc->base,
 					&primary->base, &cursor->base,
 					funcs, "pipe %c", pipe_name(pipe));
 	if (ret)
 		goto fail;
 
-	intel_crtc->pipe = pipe;
+	crtc->pipe = pipe;
 
 	/* initialize shared scalers */
-	intel_crtc_init_scalers(intel_crtc, crtc_state);
+	intel_crtc_init_scalers(crtc, crtc_state);
 
 	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->pipe_to_crtc_mapping) ||
 	       dev_priv->pipe_to_crtc_mapping[pipe] != NULL);
-	dev_priv->pipe_to_crtc_mapping[pipe] = intel_crtc;
+	dev_priv->pipe_to_crtc_mapping[pipe] = crtc;
 
 	if (INTEL_GEN(dev_priv) < 9) {
 		enum i9xx_plane_id i9xx_plane = primary->i9xx_plane;
 
 		BUG_ON(i9xx_plane >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
 		       dev_priv->plane_to_crtc_mapping[i9xx_plane] != NULL);
-		dev_priv->plane_to_crtc_mapping[i9xx_plane] = intel_crtc;
+		dev_priv->plane_to_crtc_mapping[i9xx_plane] = crtc;
 	}
 
-	intel_color_init(intel_crtc);
+	intel_color_init(crtc);
 
-	WARN_ON(drm_crtc_index(&intel_crtc->base) != intel_crtc->pipe);
+	WARN_ON(drm_crtc_index(&crtc->base) != crtc->pipe);
 
 	return 0;
 
@@ -15884,7 +15884,7 @@ fail:
 	 * crtcs/planes already initialized.
 	 */
 	kfree(crtc_state);
-	kfree(intel_crtc);
+	kfree(crtc);
 
 	return ret;
 }
