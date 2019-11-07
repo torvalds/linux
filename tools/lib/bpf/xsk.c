@@ -562,7 +562,8 @@ static int xsk_setup_xdp_prog(struct xsk_socket *xsk)
 		}
 	}
 
-	err = xsk_set_bpf_maps(xsk);
+	if (xsk->rx)
+		err = xsk_set_bpf_maps(xsk);
 	if (err) {
 		xsk_delete_bpf_maps(xsk);
 		close(xsk->prog_fd);
@@ -583,7 +584,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 	struct xsk_socket *xsk;
 	int err;
 
-	if (!umem || !xsk_ptr || !rx || !tx)
+	if (!umem || !xsk_ptr || !(rx || tx))
 		return -EFAULT;
 
 	xsk = calloc(1, sizeof(*xsk));
