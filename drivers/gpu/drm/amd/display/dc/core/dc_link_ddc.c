@@ -374,6 +374,7 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 	enum display_dongle_type *dongle = &sink_cap->dongle_type;
 	uint8_t type2_dongle_buf[DP_ADAPTOR_TYPE2_SIZE];
 	bool is_type2_dongle = false;
+	int retry_count = 2;
 	struct dp_hdmi_dongle_signature_data *dongle_signature;
 
 	/* Assume we have no valid DP passive dongle connected */
@@ -386,13 +387,24 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 		DP_HDMI_DONGLE_ADDRESS,
 		type2_dongle_buf,
 		sizeof(type2_dongle_buf))) {
-		*dongle = DISPLAY_DONGLE_DP_DVI_DONGLE;
-		sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
+		/* Passive HDMI dongles can sometimes fail here without retrying*/
+		while (retry_count > 0) {
+			if (i2c_read(ddc,
+				DP_HDMI_DONGLE_ADDRESS,
+				type2_dongle_buf,
+				sizeof(type2_dongle_buf)))
+				break;
+			retry_count--;
+		}
+		if (retry_count == 0) {
+			*dongle = DISPLAY_DONGLE_DP_DVI_DONGLE;
+			sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
 
-		CONN_DATA_DETECT(ddc->link, type2_dongle_buf, sizeof(type2_dongle_buf),
-				"DP-DVI passive dongle %dMhz: ",
-				DP_ADAPTOR_DVI_MAX_TMDS_CLK / 1000);
-		return;
+			CONN_DATA_DETECT(ddc->link, type2_dongle_buf, sizeof(type2_dongle_buf),
+					"DP-DVI passive dongle %dMhz: ",
+					DP_ADAPTOR_DVI_MAX_TMDS_CLK / 1000);
+			return;
+		}
 	}
 
 	/* Check if Type 2 dongle.*/

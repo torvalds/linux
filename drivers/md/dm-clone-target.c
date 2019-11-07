@@ -591,8 +591,8 @@ static struct hash_table_bucket *get_hash_table_bucket(struct clone *clone,
  *
  * NOTE: Must be called with the bucket lock held
  */
-struct dm_clone_region_hydration *__hash_find(struct hash_table_bucket *bucket,
-					      unsigned long region_nr)
+static struct dm_clone_region_hydration *__hash_find(struct hash_table_bucket *bucket,
+						     unsigned long region_nr)
 {
 	struct dm_clone_region_hydration *hd;
 

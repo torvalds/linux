@@ -369,7 +369,7 @@
 		compatible = "ti,wl1285", "ti,wl1283";
 		reg = <2>;
 		/* gpio_100 with gpmc_wait2 pad as wakeirq */
-		interrupts-extended = <&gpio4 4 IRQ_TYPE_EDGE_RISING>,
+		interrupts-extended = <&gpio4 4 IRQ_TYPE_LEVEL_HIGH>,
 				      <&omap4_pmx_core 0x4e>;
 		interrupt-names = "irq", "wakeup";
 		ref-clock-frequency = <26000000>;

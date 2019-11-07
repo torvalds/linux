@@ -18,23 +18,6 @@ obj-$(CONFIG_SPU_BASE)			+= logo_spe_clut224.o
 
 # How to generate logo's
 
-# Use logo-cfiles to retrieve list of .c files to be built
-logo-cfiles = $(notdir $(patsubst %.$(2), %.c, \
-              $(wildcard $(srctree)/$(src)/*$(1).$(2))))
-
-
-# Mono logos
-extra-y += $(call logo-cfiles,_mono,pbm)
-
-# VGA16 logos
-extra-y += $(call logo-cfiles,_vga16,ppm)
-
-# 224 Logos
-extra-y += $(call logo-cfiles,_clut224,ppm)
-
-# Gray 256
-extra-y += $(call logo-cfiles,_gray256,pgm)
-
 pnmtologo := scripts/pnmtologo
 
 # Create commands like "pnmtologo -t mono -n logo_mac_mono -o ..."
@@ -55,5 +38,5 @@ $(obj)/%_clut224.c: $(src)/%_clut224.ppm $(pnmtologo) FORCE
 $(obj)/%_gray256.c: $(src)/%_gray256.pgm $(pnmtologo) FORCE
 	$(call if_changed,logo)
 
-# Files generated that shall be removed upon make clean
-clean-files := *.o *_mono.c *_vga16.c *_clut224.c *_gray256.c
+# generated C files
+targets += *_mono.c *_vga16.c *_clut224.c *_gray256.c

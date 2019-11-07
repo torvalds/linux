@@ -75,6 +75,8 @@ static int ucsi_displayport_enter(struct typec_altmode *alt)
 
 	if (cur != 0xff) {
 		mutex_unlock(&dp->con->lock);
+		if (dp->con->port_altmode[cur] == alt)
+			return 0;
 		return -EBUSY;
 	}
 

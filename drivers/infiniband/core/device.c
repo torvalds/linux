@@ -1987,8 +1987,6 @@ static int iw_query_port(struct ib_device *device,
 	if (!netdev)
 		return -ENODEV;
 
-	dev_put(netdev);
-
 	port_attr->max_mtu = IB_MTU_4096;
 	port_attr->active_mtu = ib_mtu_int_to_enum(netdev->mtu);
 
@@ -1996,19 +1994,22 @@ static int iw_query_port(struct ib_device *device,
 		port_attr->state = IB_PORT_DOWN;
 		port_attr->phys_state = IB_PORT_PHYS_STATE_DISABLED;
 	} else {
-		inetdev = in_dev_get(netdev);
+		rcu_read_lock();
+		inetdev = __in_dev_get_rcu(netdev);
 
 		if (inetdev && inetdev->ifa_list) {
 			port_attr->state = IB_PORT_ACTIVE;
 			port_attr->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
-			in_dev_put(inetdev);
 		} else {
 			port_attr->state = IB_PORT_INIT;
 			port_attr->phys_state =
 				IB_PORT_PHYS_STATE_PORT_CONFIGURATION_TRAINING;
 		}
+
+		rcu_read_unlock();
 	}
 
+	dev_put(netdev);
 	err = device->ops.query_port(device, port_num, port_attr);
 	if (err)
 		return err;
@@ -2714,6 +2715,8 @@ static int __init ib_core_init(void)
 		pr_warn("Couldn't create InfiniBand device class\n");
 		goto err_comp_unbound;
 	}
+
+	rdma_nl_init();
 
 	ret = addr_init();
 	if (ret) {

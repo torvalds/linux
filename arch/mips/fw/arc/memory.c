@@ -160,7 +160,6 @@ void __init prom_meminit(void)
 
 void __init prom_free_prom_memory(void)
 {
-	unsigned long addr;
 	int i;
 
 	if (prom_flags & PROM_FLAG_DONT_FREE_TEMP)

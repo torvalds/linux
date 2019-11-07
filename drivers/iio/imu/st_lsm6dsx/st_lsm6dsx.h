@@ -99,7 +99,9 @@ struct st_lsm6dsx_fs {
 #define ST_LSM6DSX_FS_LIST_SIZE		4
 struct st_lsm6dsx_fs_table_entry {
 	struct st_lsm6dsx_reg reg;
+
 	struct st_lsm6dsx_fs fs_avl[ST_LSM6DSX_FS_LIST_SIZE];
+	int fs_len;
 };
 
 /**

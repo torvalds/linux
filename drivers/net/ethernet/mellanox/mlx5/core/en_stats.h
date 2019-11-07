@@ -129,11 +129,12 @@ struct mlx5e_sw_stats {
 	u64 tx_tls_encrypted_bytes;
 	u64 tx_tls_ctx;
 	u64 tx_tls_ooo;
-	u64 tx_tls_resync_bytes;
-	u64 tx_tls_drop_no_sync_data;
-	u64 tx_tls_drop_bypass_req;
 	u64 tx_tls_dump_packets;
 	u64 tx_tls_dump_bytes;
+	u64 tx_tls_resync_bytes;
+	u64 tx_tls_skip_no_sync_data;
+	u64 tx_tls_drop_no_sync_data;
+	u64 tx_tls_drop_bypass_req;
 #endif
 
 	u64 rx_xsk_packets;
@@ -273,11 +274,12 @@ struct mlx5e_sq_stats {
 	u64 tls_encrypted_bytes;
 	u64 tls_ctx;
 	u64 tls_ooo;
-	u64 tls_resync_bytes;
-	u64 tls_drop_no_sync_data;
-	u64 tls_drop_bypass_req;
 	u64 tls_dump_packets;
 	u64 tls_dump_bytes;
+	u64 tls_resync_bytes;
+	u64 tls_skip_no_sync_data;
+	u64 tls_drop_no_sync_data;
+	u64 tls_drop_bypass_req;
 #endif
 	/* less likely accessed in data path */
 	u64 csum_none;

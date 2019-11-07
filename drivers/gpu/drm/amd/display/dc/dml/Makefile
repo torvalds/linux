@@ -24,15 +24,20 @@
 # It provides the general basic services required by other DAL
 # subcomponents.
 
-ifneq ($(call cc-option, -mpreferred-stack-boundary=4),)
-	cc_stack_align := -mpreferred-stack-boundary=4
-else ifneq ($(call cc-option, -mstack-alignment=16),)
-	cc_stack_align := -mstack-alignment=16
+dml_ccflags := -mhard-float -msse
+
+ifdef CONFIG_CC_IS_GCC
+ifeq ($(call cc-ifversion, -lt, 0701, y), y)
+IS_OLD_GCC = 1
+endif
 endif
 
-dml_ccflags := -mhard-float -msse $(cc_stack_align)
-
-ifdef CONFIG_CC_IS_CLANG
+ifdef IS_OLD_GCC
+# Stack alignment mismatch, proceed with caution.
+# GCC < 7.1 cannot compile code using `double` and -mpreferred-stack-boundary=3
+# (8B stack alignment).
+dml_ccflags += -mpreferred-stack-boundary=4
+else
 dml_ccflags += -msse2
 endif
 

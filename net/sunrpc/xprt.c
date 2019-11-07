@@ -1943,6 +1943,11 @@ static void xprt_destroy_cb(struct work_struct *work)
 	rpc_destroy_wait_queue(&xprt->backlog);
 	kfree(xprt->servername);
 	/*
+	 * Destroy any existing back channel
+	 */
+	xprt_destroy_backchannel(xprt, UINT_MAX);
+
+	/*
 	 * Tear down transport state and free the rpc_xprt
 	 */
 	xprt->ops->destroy(xprt);
