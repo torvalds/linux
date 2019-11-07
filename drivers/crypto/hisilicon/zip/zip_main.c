@@ -300,6 +300,10 @@ MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 1-4096, v2 1-1024)");
 static int uacce_mode;
 module_param(uacce_mode, int, 0);
 
+static u32 vfs_num;
+module_param(vfs_num, uint, 0444);
+MODULE_PARM_DESC(vfs_num, "Number of VFs to enable(1-63)");
+
 static const struct pci_device_id hisi_zip_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_ZIP_PF) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_ZIP_VF) },
@@ -684,90 +688,6 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	return 0;
 }
 
-static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
-{
-	struct hisi_zip *hisi_zip;
-	enum qm_hw_ver rev_id;
-	struct hisi_qm *qm;
-	int ret;
-
-	rev_id = hisi_qm_get_hw_version(pdev);
-	if (rev_id == QM_HW_UNKNOWN)
-		return -EINVAL;
-
-	hisi_zip = devm_kzalloc(&pdev->dev, sizeof(*hisi_zip), GFP_KERNEL);
-	if (!hisi_zip)
-		return -ENOMEM;
-	pci_set_drvdata(pdev, hisi_zip);
-
-	qm = &hisi_zip->qm;
-	qm->pdev = pdev;
-	qm->ver = rev_id;
-
-	qm->sqe_size = HZIP_SQE_SIZE;
-	qm->dev_name = hisi_zip_name;
-	qm->fun_type = (pdev->device == PCI_DEVICE_ID_ZIP_PF) ? QM_HW_PF :
-								QM_HW_VF;
-	switch (uacce_mode) {
-	case 0:
-		qm->use_dma_api = true;
-		break;
-	case 1:
-		qm->use_dma_api = false;
-		break;
-	case 2:
-		qm->use_dma_api = true;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = hisi_qm_init(qm);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to init qm!\n");
-		return ret;
-	}
-
-	if (qm->fun_type == QM_HW_PF) {
-		ret = hisi_zip_pf_probe_init(hisi_zip);
-		if (ret)
-			return ret;
-
-		qm->qp_base = HZIP_PF_DEF_Q_BASE;
-		qm->qp_num = pf_q_num;
-	} else if (qm->fun_type == QM_HW_VF) {
-		/*
-		 * have no way to get qm configure in VM in v1 hardware,
-		 * so currently force PF to uses HZIP_PF_DEF_Q_NUM, and force
-		 * to trigger only one VF in v1 hardware.
-		 *
-		 * v2 hardware has no such problem.
-		 */
-		if (qm->ver == QM_HW_V1) {
-			qm->qp_base = HZIP_PF_DEF_Q_NUM;
-			qm->qp_num = HZIP_QUEUE_NUM_V1 - HZIP_PF_DEF_Q_NUM;
-		} else if (qm->ver == QM_HW_V2)
-			/* v2 starts to support get vft by mailbox */
-			hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
-	}
-
-	ret = hisi_qm_start(qm);
-	if (ret)
-		goto err_qm_uninit;
-
-	ret = hisi_zip_debugfs_init(hisi_zip);
-	if (ret)
-		dev_err(&pdev->dev, "Failed to init debugfs (%d)!\n", ret);
-
-	hisi_zip_add_to_list(hisi_zip);
-
-	return 0;
-
-err_qm_uninit:
-	hisi_qm_uninit(qm);
-	return ret;
-}
-
 /* Currently we only support equal assignment */
 static int hisi_zip_vf_q_assign(struct hisi_zip *hisi_zip, int num_vfs)
 {
@@ -862,6 +782,100 @@ static int hisi_zip_sriov_disable(struct pci_dev *pdev)
 	pci_disable_sriov(pdev);
 
 	return hisi_zip_clear_vft_config(hisi_zip);
+}
+
+static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	struct hisi_zip *hisi_zip;
+	enum qm_hw_ver rev_id;
+	struct hisi_qm *qm;
+	int ret;
+
+	rev_id = hisi_qm_get_hw_version(pdev);
+	if (rev_id == QM_HW_UNKNOWN)
+		return -EINVAL;
+
+	hisi_zip = devm_kzalloc(&pdev->dev, sizeof(*hisi_zip), GFP_KERNEL);
+	if (!hisi_zip)
+		return -ENOMEM;
+	pci_set_drvdata(pdev, hisi_zip);
+
+	qm = &hisi_zip->qm;
+	qm->pdev = pdev;
+	qm->ver = rev_id;
+
+	qm->sqe_size = HZIP_SQE_SIZE;
+	qm->dev_name = hisi_zip_name;
+	qm->fun_type = (pdev->device == PCI_DEVICE_ID_ZIP_PF) ? QM_HW_PF :
+								QM_HW_VF;
+	switch (uacce_mode) {
+	case 0:
+		qm->use_dma_api = true;
+		break;
+	case 1:
+		qm->use_dma_api = false;
+		break;
+	case 2:
+		qm->use_dma_api = true;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = hisi_qm_init(qm);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to init qm!\n");
+		return ret;
+	}
+
+	if (qm->fun_type == QM_HW_PF) {
+		ret = hisi_zip_pf_probe_init(hisi_zip);
+		if (ret)
+			return ret;
+
+		qm->qp_base = HZIP_PF_DEF_Q_BASE;
+		qm->qp_num = pf_q_num;
+	} else if (qm->fun_type == QM_HW_VF) {
+		/*
+		 * have no way to get qm configure in VM in v1 hardware,
+		 * so currently force PF to uses HZIP_PF_DEF_Q_NUM, and force
+		 * to trigger only one VF in v1 hardware.
+		 *
+		 * v2 hardware has no such problem.
+		 */
+		if (qm->ver == QM_HW_V1) {
+			qm->qp_base = HZIP_PF_DEF_Q_NUM;
+			qm->qp_num = HZIP_QUEUE_NUM_V1 - HZIP_PF_DEF_Q_NUM;
+		} else if (qm->ver == QM_HW_V2)
+			/* v2 starts to support get vft by mailbox */
+			hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+	}
+
+	ret = hisi_qm_start(qm);
+	if (ret)
+		goto err_qm_uninit;
+
+	ret = hisi_zip_debugfs_init(hisi_zip);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to init debugfs (%d)!\n", ret);
+
+	hisi_zip_add_to_list(hisi_zip);
+
+	if (qm->fun_type == QM_HW_PF && vfs_num > 0) {
+		ret = hisi_zip_sriov_enable(pdev, vfs_num);
+		if (ret < 0)
+			goto err_remove_from_list;
+	}
+
+	return 0;
+
+err_remove_from_list:
+	hisi_zip_remove_from_list(hisi_zip);
+	hisi_zip_debugfs_exit(hisi_zip);
+	hisi_qm_stop(qm);
+err_qm_uninit:
+	hisi_qm_uninit(qm);
+	return ret;
 }
 
 static int hisi_zip_sriov_configure(struct pci_dev *pdev, int num_vfs)
