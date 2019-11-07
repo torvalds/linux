@@ -43,7 +43,9 @@
 			NETIF_F_NTUPLE |  \
 			NETIF_F_HW_VLAN_CTAG_FILTER | \
 			NETIF_F_HW_VLAN_CTAG_RX |     \
-			NETIF_F_HW_VLAN_CTAG_TX,      \
+			NETIF_F_HW_VLAN_CTAG_TX |     \
+			NETIF_F_GSO_UDP_L4      |     \
+			NETIF_F_GSO_PARTIAL,          \
 	.hw_priv_flags = IFF_UNICAST_FLT, \
 	.flow_control = true,		  \
 	.mtu = HW_ATL_B0_MTU_JUMBO,	  \
@@ -533,8 +535,9 @@ static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
 
 		buff = &ring->buff_ring[ring->sw_tail];
 
-		if (buff->is_gso) {
-			txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_TCP;
+		if (buff->is_gso_tcp || buff->is_gso_udp) {
+			if (buff->is_gso_tcp)
+				txd->ctl |= HW_ATL_B0_TXD_CTL_CMD_TCP;
 			txd->ctl |= HW_ATL_B0_TXD_CTL_DESC_TYPE_TXC;
 			txd->ctl |= (buff->len_l3 << 31) |
 				    (buff->len_l2 << 24);
@@ -554,7 +557,7 @@ static int hw_atl_b0_hw_ring_tx_xmit(struct aq_hw_s *self,
 			txd->ctl |= buff->vlan_tx_tag << 4;
 			is_vlan = true;
 		}
-		if (!buff->is_gso && !buff->is_vlan) {
+		if (!buff->is_gso_tcp && !buff->is_gso_udp && !buff->is_vlan) {
 			buff_pa_len = buff->len;
 
 			txd->buf_addr = buff->pa;

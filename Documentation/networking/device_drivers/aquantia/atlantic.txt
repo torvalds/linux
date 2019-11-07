@@ -325,6 +325,21 @@ Supported ethtool options
  Example:
  ethtool -N eth0 flow-type udp4 action 0 loc 32
 
+ UDP GSO hardware offload
+ ---------------------------------
+ UDP GSO allows to boost UDP tx rates by offloading UDP headers allocation
+ into hardware. A special userspace socket option is required for this,
+ could be validated with /kernel/tools/testing/selftests/net/
+
+    udpgso_bench_tx -u -4 -D 10.0.1.1 -s 6300 -S 100
+
+ Will cause sending out of 100 byte sized UDP packets formed from single
+ 6300 bytes user buffer.
+
+ UDP GSO is configured by:
+
+    ethtool -K eth0 tx-udp-segmentation on
+
  Private flags (testing)
  ---------------------------------
 

@@ -309,6 +309,7 @@ void aq_nic_ndev_init(struct aq_nic_s *self)
 	self->ndev->vlan_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
 				     NETIF_F_RXHASH | NETIF_F_SG |
 				     NETIF_F_LRO | NETIF_F_TSO;
+	self->ndev->gso_partial_features = NETIF_F_GSO_UDP_L4;
 	self->ndev->priv_flags = aq_hw_caps->hw_priv_flags;
 	self->ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
@@ -472,11 +473,18 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 {
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	struct aq_ring_buff_s *first = NULL;
+	u8 ipver = ip_hdr(skb)->version;
 	struct aq_ring_buff_s *dx_buff;
 	bool need_context_tag = false;
 	unsigned int frag_count = 0U;
 	unsigned int ret = 0U;
 	unsigned int dx;
+	u8 l4proto = 0;
+
+	if (ipver == 4)
+		l4proto = ip_hdr(skb)->protocol;
+	else if (ipver == 6)
+		l4proto = ipv6_hdr(skb)->nexthdr;
 
 	dx = ring->sw_tail;
 	dx_buff = &ring->buff_ring[dx];
@@ -484,14 +492,24 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 
 	if (unlikely(skb_is_gso(skb))) {
 		dx_buff->mss = skb_shinfo(skb)->gso_size;
-		dx_buff->is_gso = 1U;
+		if (l4proto == IPPROTO_TCP) {
+			dx_buff->is_gso_tcp = 1U;
+			dx_buff->len_l4 = tcp_hdrlen(skb);
+		} else if (l4proto == IPPROTO_UDP) {
+			dx_buff->is_gso_udp = 1U;
+			dx_buff->len_l4 = sizeof(struct udphdr);
+			/* UDP GSO Hardware does not replace packet length. */
+			udp_hdr(skb)->len = htons(dx_buff->mss +
+						  dx_buff->len_l4);
+		} else {
+			WARN_ONCE(true, "Bad GSO mode");
+			goto exit;
+		}
 		dx_buff->len_pkt = skb->len;
 		dx_buff->len_l2 = ETH_HLEN;
-		dx_buff->len_l3 = ip_hdrlen(skb);
-		dx_buff->len_l4 = tcp_hdrlen(skb);
+		dx_buff->len_l3 = skb_network_header_len(skb);
 		dx_buff->eop_index = 0xffffU;
-		dx_buff->is_ipv6 =
-			(ip_hdr(skb)->version == 6) ? 1U : 0U;
+		dx_buff->is_ipv6 = (ipver == 6);
 		need_context_tag = true;
 	}
 
@@ -525,24 +543,9 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 	++ret;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		dx_buff->is_ip_cso = (htons(ETH_P_IP) == skb->protocol) ?
-			1U : 0U;
-
-		if (ip_hdr(skb)->version == 4) {
-			dx_buff->is_tcp_cso =
-				(ip_hdr(skb)->protocol == IPPROTO_TCP) ?
-					1U : 0U;
-			dx_buff->is_udp_cso =
-				(ip_hdr(skb)->protocol == IPPROTO_UDP) ?
-					1U : 0U;
-		} else if (ip_hdr(skb)->version == 6) {
-			dx_buff->is_tcp_cso =
-				(ipv6_hdr(skb)->nexthdr == NEXTHDR_TCP) ?
-					1U : 0U;
-			dx_buff->is_udp_cso =
-				(ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP) ?
-					1U : 0U;
-		}
+		dx_buff->is_ip_cso = (htons(ETH_P_IP) == skb->protocol);
+		dx_buff->is_tcp_cso = (l4proto == IPPROTO_TCP);
+		dx_buff->is_udp_cso = (l4proto == IPPROTO_UDP);
 	}
 
 	for (; nr_frags--; ++frag_count) {
@@ -597,7 +600,8 @@ mapping_error:
 	     --ret, dx = aq_ring_next_dx(ring, dx)) {
 		dx_buff = &ring->buff_ring[dx];
 
-		if (!dx_buff->is_gso && !dx_buff->is_vlan && dx_buff->pa) {
+		if (!(dx_buff->is_gso_tcp || dx_buff->is_gso_udp) &&
+		    !dx_buff->is_vlan && dx_buff->pa) {
 			if (unlikely(dx_buff->is_sop)) {
 				dma_unmap_single(aq_nic_get_dev(self),
 						 dx_buff->pa,
