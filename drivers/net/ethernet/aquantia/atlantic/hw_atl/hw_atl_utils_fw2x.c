@@ -34,6 +34,7 @@
 #define HW_ATL_FW2X_CAP_SLEEP_PROXY      BIT(CAPS_HI_SLEEP_PROXY)
 #define HW_ATL_FW2X_CAP_WOL              BIT(CAPS_HI_WOL)
 
+#define HW_ATL_FW2X_CTRL_WAKE_ON_LINK     BIT(CTRL_WAKE_ON_LINK)
 #define HW_ATL_FW2X_CTRL_SLEEP_PROXY      BIT(CTRL_SLEEP_PROXY)
 #define HW_ATL_FW2X_CTRL_WOL              BIT(CTRL_WOL)
 #define HW_ATL_FW2X_CTRL_LINK_DROP        BIT(CTRL_LINK_DROP)
@@ -345,87 +346,46 @@ static int aq_fw2x_get_phy_temp(struct aq_hw_s *self, int *temp)
 	return 0;
 }
 
-static int aq_fw2x_set_sleep_proxy(struct aq_hw_s *self, u8 *mac)
+static int aq_fw2x_set_wol(struct aq_hw_s *self, u8 *mac)
 {
 	struct hw_atl_utils_fw_rpc *rpc = NULL;
-	struct offload_info *cfg = NULL;
-	unsigned int rpc_size = 0U;
-	u32 mpi_opts;
+	struct offload_info *info = NULL;
+	u32 wol_bits = 0;
+	u32 rpc_size;
 	int err = 0;
 	u32 val;
 
-	rpc_size = sizeof(rpc->msg_id) + sizeof(*cfg);
+	if (self->aq_nic_cfg->wol & WAKE_PHY) {
+		aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR,
+				HW_ATL_FW2X_CTRL_LINK_DROP);
+		readx_poll_timeout_atomic(aq_fw2x_state2_get, self, val,
+					  (val &
+					   HW_ATL_FW2X_CTRL_LINK_DROP) != 0,
+					  1000, 100000);
+		wol_bits |= HW_ATL_FW2X_CTRL_WAKE_ON_LINK;
+	}
 
-	err = hw_atl_utils_fw_rpc_wait(self, &rpc);
-	if (err < 0)
-		goto err_exit;
+	if (self->aq_nic_cfg->wol & WAKE_MAGIC) {
+		wol_bits |= HW_ATL_FW2X_CTRL_SLEEP_PROXY |
+			    HW_ATL_FW2X_CTRL_WOL;
 
-	memset(rpc, 0, rpc_size);
-	cfg = (struct offload_info *)(&rpc->msg_id + 1);
+		err = hw_atl_utils_fw_rpc_wait(self, &rpc);
+		if (err < 0)
+			goto err_exit;
 
-	memcpy(cfg->mac_addr, mac, ETH_ALEN);
-	cfg->len = sizeof(*cfg);
+		rpc_size = sizeof(*info) +
+			   offsetof(struct hw_atl_utils_fw_rpc, fw2x_offloads);
+		memset(rpc, 0, rpc_size);
+		info = &rpc->fw2x_offloads;
+		memcpy(info->mac_addr, mac, ETH_ALEN);
+		info->len = sizeof(*info);
 
-	/* Clear bit 0x36C.23 and 0x36C.22 */
-	mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
-	mpi_opts &= ~HW_ATL_FW2X_CTRL_SLEEP_PROXY;
-	mpi_opts &= ~HW_ATL_FW2X_CTRL_LINK_DROP;
+		err = hw_atl_utils_fw_rpc_call(self, rpc_size);
+		if (err < 0)
+			goto err_exit;
+	}
 
-	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
-
-	err = hw_atl_utils_fw_rpc_call(self, rpc_size);
-	if (err < 0)
-		goto err_exit;
-
-	/* Set bit 0x36C.23 */
-	mpi_opts |= HW_ATL_FW2X_CTRL_SLEEP_PROXY;
-	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
-
-	err = readx_poll_timeout_atomic(aq_fw2x_state2_get,
-					self, val,
-					val & HW_ATL_FW2X_CTRL_SLEEP_PROXY,
-					1U, 100000U);
-
-err_exit:
-	return err;
-}
-
-static int aq_fw2x_set_wol_params(struct aq_hw_s *self, u8 *mac)
-{
-	struct hw_atl_utils_fw_rpc *rpc = NULL;
-	struct fw2x_msg_wol *msg = NULL;
-	u32 mpi_opts;
-	int err = 0;
-	u32 val;
-
-	err = hw_atl_utils_fw_rpc_wait(self, &rpc);
-	if (err < 0)
-		goto err_exit;
-
-	msg = (struct fw2x_msg_wol *)rpc;
-
-	memset(msg, 0, sizeof(*msg));
-
-	msg->msg_id = HAL_ATLANTIC_UTILS_FW2X_MSG_WOL;
-	msg->magic_packet_enabled = true;
-	memcpy(msg->hw_addr, mac, ETH_ALEN);
-
-	mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
-	mpi_opts &= ~(HW_ATL_FW2X_CTRL_SLEEP_PROXY | HW_ATL_FW2X_CTRL_WOL);
-
-	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
-
-	err = hw_atl_utils_fw_rpc_call(self, sizeof(*msg));
-	if (err < 0)
-		goto err_exit;
-
-	/* Set bit 0x36C.24 */
-	mpi_opts |= HW_ATL_FW2X_CTRL_WOL;
-	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
-
-	err = readx_poll_timeout_atomic(aq_fw2x_state2_get,
-					self, val, val & HW_ATL_FW2X_CTRL_WOL,
-					1U, 10000U);
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, wol_bits);
 
 err_exit:
 	return err;
@@ -436,14 +396,9 @@ static int aq_fw2x_set_power(struct aq_hw_s *self, unsigned int power_state,
 {
 	int err = 0;
 
-	if (self->aq_nic_cfg->wol & AQ_NIC_WOL_ENABLED) {
-		err = aq_fw2x_set_sleep_proxy(self, mac);
-		if (err < 0)
-			goto err_exit;
-		err = aq_fw2x_set_wol_params(self, mac);
-	}
+	if (self->aq_nic_cfg->wol)
+		err = aq_fw2x_set_wol(self, mac);
 
-err_exit:
 	return err;
 }
 

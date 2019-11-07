@@ -79,6 +79,7 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	cfg->num_rss_queues = AQ_CFG_NUM_RSS_QUEUES_DEF;
 	cfg->aq_rss.base_cpu_number = AQ_CFG_RSS_BASE_CPU_NUM_DEF;
 	cfg->flow_control = AQ_CFG_FC_MODE;
+	cfg->wol = AQ_CFG_WOL_MODES;
 
 	cfg->mtu = AQ_CFG_MTU_DEF;
 	cfg->link_speed_msk = AQ_CFG_SPEED_MSK;
@@ -1000,7 +1001,20 @@ int aq_nic_stop(struct aq_nic_s *self)
 	return self->aq_hw_ops->hw_stop(self->aq_hw);
 }
 
-void aq_nic_deinit(struct aq_nic_s *self)
+void aq_nic_set_power(struct aq_nic_s *self)
+{
+	if (self->power_state != AQ_HW_POWER_STATE_D0 ||
+	    self->aq_hw->aq_nic_cfg->wol)
+		if (likely(self->aq_fw_ops->set_power)) {
+			mutex_lock(&self->fwreq_mutex);
+			self->aq_fw_ops->set_power(self->aq_hw,
+						   self->power_state,
+						   self->ndev->dev_addr);
+			mutex_unlock(&self->fwreq_mutex);
+		}
+}
+
+void aq_nic_deinit(struct aq_nic_s *self, bool link_down)
 {
 	struct aq_vec_s *aq_vec = NULL;
 	unsigned int i = 0U;
@@ -1017,22 +1031,11 @@ void aq_nic_deinit(struct aq_nic_s *self)
 	aq_ptp_ring_free(self);
 	aq_ptp_free(self);
 
-	if (likely(self->aq_fw_ops->deinit)) {
+	if (likely(self->aq_fw_ops->deinit) && link_down) {
 		mutex_lock(&self->fwreq_mutex);
 		self->aq_fw_ops->deinit(self->aq_hw);
 		mutex_unlock(&self->fwreq_mutex);
 	}
-
-	if (self->power_state != AQ_HW_POWER_STATE_D0 ||
-	    self->aq_hw->aq_nic_cfg->wol)
-		if (likely(self->aq_fw_ops->set_power)) {
-			mutex_lock(&self->fwreq_mutex);
-			self->aq_fw_ops->set_power(self->aq_hw,
-						   self->power_state,
-						   self->ndev->dev_addr);
-			mutex_unlock(&self->fwreq_mutex);
-		}
-
 
 err_exit:;
 }
@@ -1072,7 +1075,7 @@ int aq_nic_change_pm_state(struct aq_nic_s *self, pm_message_t *pm_msg)
 		if (err < 0)
 			goto err_exit;
 
-		aq_nic_deinit(self);
+		aq_nic_deinit(self, !self->aq_hw->aq_nic_cfg->wol);
 	} else {
 		err = aq_nic_init(self);
 		if (err < 0)
@@ -1108,7 +1111,8 @@ void aq_nic_shutdown(struct aq_nic_s *self)
 		if (err < 0)
 			goto err_exit;
 	}
-	aq_nic_deinit(self);
+	aq_nic_deinit(self, !self->aq_hw->aq_nic_cfg->wol);
+	aq_nic_set_power(self);
 
 err_exit:
 	rtnl_unlock();

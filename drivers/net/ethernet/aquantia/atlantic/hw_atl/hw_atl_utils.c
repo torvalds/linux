@@ -845,7 +845,8 @@ int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version)
 	return 0;
 }
 
-static int aq_fw1x_set_wol(struct aq_hw_s *self, bool wol_enabled, u8 *mac)
+static int aq_fw1x_set_wake_magic(struct aq_hw_s *self, bool wol_enabled,
+				  u8 *mac)
 {
 	struct hw_atl_utils_fw_rpc *prpc = NULL;
 	unsigned int rpc_size = 0U;
@@ -894,8 +895,8 @@ static int aq_fw1x_set_power(struct aq_hw_s *self, unsigned int power_state,
 	unsigned int rpc_size = 0U;
 	int err = 0;
 
-	if (self->aq_nic_cfg->wol & AQ_NIC_WOL_ENABLED) {
-		err = aq_fw1x_set_wol(self, 1, mac);
+	if (self->aq_nic_cfg->wol & WAKE_MAGIC) {
+		err = aq_fw1x_set_wake_magic(self, 1, mac);
 
 		if (err < 0)
 			goto err_exit;

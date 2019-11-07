@@ -78,6 +78,9 @@
 
 #define AQ_CFG_FC_MODE AQ_NIC_FC_FULL
 
+/* Default WOL modes used on initialization */
+#define AQ_CFG_WOL_MODES WAKE_MAGIC
+
 #define AQ_CFG_SPEED_MSK  0xFFFFU	/* 0xFFFFU==auto_neg */
 
 #define AQ_CFG_IS_AUTONEG_DEF       1U

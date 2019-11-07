@@ -356,11 +356,8 @@ static void aq_ethtool_get_wol(struct net_device *ndev,
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
 
-	wol->supported = WAKE_MAGIC;
-	wol->wolopts = 0;
-
-	if (cfg->wol)
-		wol->wolopts |= WAKE_MAGIC;
+	wol->supported = AQ_NIC_WOL_MODES;
+	wol->wolopts = cfg->wol;
 }
 
 static int aq_ethtool_set_wol(struct net_device *ndev,
@@ -371,11 +368,12 @@ static int aq_ethtool_set_wol(struct net_device *ndev,
 	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
 	int err = 0;
 
-	if (wol->wolopts & WAKE_MAGIC)
-		cfg->wol |= AQ_NIC_WOL_ENABLED;
-	else
-		cfg->wol &= ~AQ_NIC_WOL_ENABLED;
-	err = device_set_wakeup_enable(&pdev->dev, wol->wolopts);
+	if (wol->wolopts & ~AQ_NIC_WOL_MODES)
+		return -EOPNOTSUPP;
+
+	cfg->wol = wol->wolopts;
+
+	err = device_set_wakeup_enable(&pdev->dev, !!cfg->wol);
 
 	return err;
 }
