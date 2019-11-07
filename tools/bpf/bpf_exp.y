@@ -545,6 +545,16 @@ static void bpf_reduce_k_jumps(void)
 	}
 }
 
+static uint8_t bpf_encode_jt_jf_offset(int off, int i)
+{
+	int delta = off - i - 1;
+
+	if (delta < 0 || delta > 255)
+		fprintf(stderr, "warning: insn #%d jumps to insn #%d, "
+				"which is out of range\n", i, off);
+	return (uint8_t) delta;
+}
+
 static void bpf_reduce_jt_jumps(void)
 {
 	int i;
@@ -552,7 +562,7 @@ static void bpf_reduce_jt_jumps(void)
 	for (i = 0; i < curr_instr; i++) {
 		if (labels_jt[i]) {
 			int off = bpf_find_insns_offset(labels_jt[i]);
-			out[i].jt = (uint8_t) (off - i -1);
+			out[i].jt = bpf_encode_jt_jf_offset(off, i);
 		}
 	}
 }
@@ -564,7 +574,7 @@ static void bpf_reduce_jf_jumps(void)
 	for (i = 0; i < curr_instr; i++) {
 		if (labels_jf[i]) {
 			int off = bpf_find_insns_offset(labels_jf[i]);
-			out[i].jf = (uint8_t) (off - i - 1);
+			out[i].jf = bpf_encode_jt_jf_offset(off, i);
 		}
 	}
 }
