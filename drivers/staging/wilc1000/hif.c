@@ -485,16 +485,21 @@ void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 		memcpy(&param->supp_rates[1], rates_ie + 2, rates_len);
 	}
 
-	supp_rates_ie = cfg80211_find_ie(WLAN_EID_EXT_SUPP_RATES, ies->data,
-					 ies->len);
-	if (supp_rates_ie) {
-		if (supp_rates_ie[1] > (WILC_MAX_RATES_SUPPORTED - rates_len))
-			param->supp_rates[0] = WILC_MAX_RATES_SUPPORTED;
-		else
-			param->supp_rates[0] += supp_rates_ie[1];
+	if (rates_len < WILC_MAX_RATES_SUPPORTED) {
+		supp_rates_ie = cfg80211_find_ie(WLAN_EID_EXT_SUPP_RATES,
+						 ies->data, ies->len);
+		if (supp_rates_ie) {
+			u8 ext_rates = supp_rates_ie[1];
 
-		memcpy(&param->supp_rates[rates_len + 1], supp_rates_ie + 2,
-		       (param->supp_rates[0] - rates_len));
+			if (ext_rates > (WILC_MAX_RATES_SUPPORTED - rates_len))
+				param->supp_rates[0] = WILC_MAX_RATES_SUPPORTED;
+			else
+				param->supp_rates[0] += ext_rates;
+
+			memcpy(&param->supp_rates[rates_len + 1],
+			       supp_rates_ie + 2,
+			       (param->supp_rates[0] - rates_len));
+		}
 	}
 
 	ht_ie = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, ies->data, ies->len);
