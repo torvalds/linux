@@ -54,6 +54,16 @@ static int ast_cursor_move(struct drm_crtc *crtc,
 			   int x, int y);
 
 
+static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height);
+static int ast_cursor_update(void *dst, void *src, unsigned int width,
+			     unsigned int height);
+static void ast_cursor_set_base(struct ast_private *ast, u64 address);
+static int ast_show_cursor(struct drm_crtc *crtc, void *src,
+			   unsigned int width, unsigned int height);
+static void ast_hide_cursor(struct drm_crtc *crtc);
+static int ast_cursor_move(struct drm_crtc *crtc,
+			   int x, int y);
+
 static inline void ast_load_palette_index(struct ast_private *ast,
 				     u8 index, u8 red, u8 green,
 				     u8 blue)
@@ -594,6 +604,136 @@ static const struct drm_plane_funcs ast_primary_plane_funcs = {
 };
 
 /*
+ * Cursor plane
+ */
+
+static const uint32_t ast_cursor_plane_formats[] = {
+	DRM_FORMAT_ARGB8888,
+};
+
+static int
+ast_cursor_plane_helper_prepare_fb(struct drm_plane *plane,
+				   struct drm_plane_state *new_state)
+{
+	struct drm_framebuffer *fb = new_state->fb;
+	struct drm_crtc *crtc = new_state->crtc;
+	struct drm_gem_vram_object *gbo;
+	struct ast_private *ast;
+	int ret;
+	void *src, *dst;
+
+	if (!crtc || !fb)
+		return 0;
+
+	if (fb->width > AST_MAX_HWC_WIDTH || fb->height > AST_MAX_HWC_HEIGHT)
+		return -EINVAL;
+
+	ast = crtc->dev->dev_private;
+
+	gbo = drm_gem_vram_of_gem(fb->obj[0]);
+	src = drm_gem_vram_vmap(gbo);
+	if (IS_ERR(src)) {
+		ret = PTR_ERR(src);
+		goto err_drm_gem_vram_unpin;
+	}
+
+	dst = drm_gem_vram_vmap(ast->cursor.gbo[ast->cursor.next_index]);
+	if (IS_ERR(dst)) {
+		ret = PTR_ERR(dst);
+		goto err_drm_gem_vram_vunmap_src;
+	}
+
+	ret = ast_cursor_update(dst, src, fb->width, fb->height);
+	if (ret)
+		goto err_drm_gem_vram_vunmap_dst;
+
+	/* Always unmap buffers here. Destination buffers are
+	 * perma-pinned while the driver is active. We're only
+	 * changing ref-counters here.
+	 */
+	drm_gem_vram_vunmap(ast->cursor.gbo[ast->cursor.next_index], dst);
+	drm_gem_vram_vunmap(gbo, src);
+
+	return 0;
+
+err_drm_gem_vram_vunmap_dst:
+	drm_gem_vram_vunmap(ast->cursor.gbo[ast->cursor.next_index], dst);
+err_drm_gem_vram_vunmap_src:
+	drm_gem_vram_vunmap(gbo, src);
+err_drm_gem_vram_unpin:
+	drm_gem_vram_unpin(gbo);
+	return ret;
+}
+
+static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
+						struct drm_plane_state *state)
+{
+	return 0;
+}
+
+static void
+ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
+				      struct drm_plane_state *old_state)
+{
+	struct drm_plane_state *state = plane->state;
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = state->fb;
+	struct ast_private *ast = plane->dev->dev_private;
+	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
+	struct drm_gem_vram_object *gbo;
+	s64 off;
+	u8 jreg;
+
+	ast_crtc->offset_x = AST_MAX_HWC_WIDTH - fb->width;
+	ast_crtc->offset_y = AST_MAX_HWC_WIDTH - fb->height;
+
+	if (state->fb != old_state->fb) {
+		/* A new cursor image was installed. */
+		gbo = ast->cursor.gbo[ast->cursor.next_index];
+		off = drm_gem_vram_offset(gbo);
+		if (WARN_ON_ONCE(off < 0))
+			return; /* Bug: we didn't pin cursor HW BO to VRAM. */
+		ast_cursor_set_base(ast, off);
+
+		++ast->cursor.next_index;
+		ast->cursor.next_index %= ARRAY_SIZE(ast->cursor.gbo);
+	}
+
+	ast_cursor_move(crtc, state->crtc_x, state->crtc_y);
+
+	jreg = 0x2;
+	/* enable ARGB cursor */
+	jreg |= 1;
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
+}
+
+static void
+ast_cursor_plane_helper_atomic_disable(struct drm_plane *plane,
+				       struct drm_plane_state *old_state)
+{
+	struct ast_private *ast = plane->dev->dev_private;
+
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, 0x00);
+}
+
+static const struct drm_plane_helper_funcs ast_cursor_plane_helper_funcs = {
+	.prepare_fb = ast_cursor_plane_helper_prepare_fb,
+	.cleanup_fb = NULL, /* not required for cursor plane */
+	.atomic_check = ast_cursor_plane_helper_atomic_check,
+	.atomic_update = ast_cursor_plane_helper_atomic_update,
+	.atomic_disable = ast_cursor_plane_helper_atomic_disable,
+};
+
+static const struct drm_plane_funcs ast_cursor_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = drm_plane_cleanup,
+	.reset = drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+};
+
+/*
  * CRTC
  */
 
@@ -882,7 +1022,8 @@ static int ast_crtc_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	ret = drm_crtc_init_with_planes(dev, &crtc->base, &ast->primary_plane,
-					NULL, &ast_crtc_funcs, NULL);
+					&ast->cursor_plane, &ast_crtc_funcs,
+					NULL);
 	if (ret)
 		goto err_kfree;
 
@@ -1162,6 +1303,18 @@ int ast_mode_init(struct drm_device *dev)
 	}
 	drm_plane_helper_add(&ast->primary_plane,
 			     &ast_primary_plane_helper_funcs);
+
+	ret = drm_universal_plane_init(dev, &ast->cursor_plane, 0x01,
+				       &ast_cursor_plane_funcs,
+				       ast_cursor_plane_formats,
+				       ARRAY_SIZE(ast_cursor_plane_formats),
+				       NULL, DRM_PLANE_TYPE_CURSOR, NULL);
+	if (ret) {
+		DRM_ERROR("drm_universal_plane_failed(): %d\n", ret);
+		return ret;
+	}
+	drm_plane_helper_add(&ast->cursor_plane,
+			     &ast_cursor_plane_helper_funcs);
 
 	ast_cursor_init(dev);
 	ast_crtc_init(dev);
