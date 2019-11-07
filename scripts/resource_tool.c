@@ -12,75 +12,625 @@
 #include <sys/stat.h>
 #include <time.h>
 
-//#define DEBUG
+/**
+ * \brief	   SHA-1 context structure
+ */
+typedef struct
+{
+    unsigned long total[2];	/*!< number of bytes processed	*/
+    unsigned long state[5];	/*!< intermediate digest state	*/
+    unsigned char buffer[64];	/*!< data block being processed */
+}
+sha1_context;
+
+/*
+ * 32-bit integer manipulation macros (big endian)
+ */
+#ifndef GET_UINT32_BE
+#define GET_UINT32_BE(n,b,i) {				\
+	(n) = ( (unsigned long) (b)[(i)    ] << 24 )	\
+	    | ( (unsigned long) (b)[(i) + 1] << 16 )	\
+	    | ( (unsigned long) (b)[(i) + 2] <<  8 )	\
+	    | ( (unsigned long) (b)[(i) + 3]       );	\
+}
+#endif
+#ifndef PUT_UINT32_BE
+#define PUT_UINT32_BE(n,b,i) {				\
+	(b)[(i)    ] = (unsigned char) ( (n) >> 24 );	\
+	(b)[(i) + 1] = (unsigned char) ( (n) >> 16 );	\
+	(b)[(i) + 2] = (unsigned char) ( (n) >>  8 );	\
+	(b)[(i) + 3] = (unsigned char) ( (n)       );	\
+}
+#endif
+
+/*
+ * SHA-1 context setup
+ */
+static
+void sha1_starts (sha1_context * ctx)
+{
+	ctx->total[0] = 0;
+	ctx->total[1] = 0;
+
+	ctx->state[0] = 0x67452301;
+	ctx->state[1] = 0xEFCDAB89;
+	ctx->state[2] = 0x98BADCFE;
+	ctx->state[3] = 0x10325476;
+	ctx->state[4] = 0xC3D2E1F0;
+}
+
+static void sha1_process(sha1_context *ctx, const unsigned char data[64])
+{
+	unsigned long temp, W[16], A, B, C, D, E;
+
+	GET_UINT32_BE (W[0], data, 0);
+	GET_UINT32_BE (W[1], data, 4);
+	GET_UINT32_BE (W[2], data, 8);
+	GET_UINT32_BE (W[3], data, 12);
+	GET_UINT32_BE (W[4], data, 16);
+	GET_UINT32_BE (W[5], data, 20);
+	GET_UINT32_BE (W[6], data, 24);
+	GET_UINT32_BE (W[7], data, 28);
+	GET_UINT32_BE (W[8], data, 32);
+	GET_UINT32_BE (W[9], data, 36);
+	GET_UINT32_BE (W[10], data, 40);
+	GET_UINT32_BE (W[11], data, 44);
+	GET_UINT32_BE (W[12], data, 48);
+	GET_UINT32_BE (W[13], data, 52);
+	GET_UINT32_BE (W[14], data, 56);
+	GET_UINT32_BE (W[15], data, 60);
+
+#define S(x,n)	((x << n) | ((x & 0xFFFFFFFF) >> (32 - n)))
+
+#define R(t) (						\
+	temp = W[(t -  3) & 0x0F] ^ W[(t - 8) & 0x0F] ^	\
+	       W[(t - 14) & 0x0F] ^ W[ t      & 0x0F],	\
+	( W[t & 0x0F] = S(temp,1) )			\
+)
+
+#define P(a,b,c,d,e,x)	{				\
+	e += S(a,5) + F(b,c,d) + K + x; b = S(b,30);	\
+}
+
+	A = ctx->state[0];
+	B = ctx->state[1];
+	C = ctx->state[2];
+	D = ctx->state[3];
+	E = ctx->state[4];
+
+#define F(x,y,z) (z ^ (x & (y ^ z)))
+#define K 0x5A827999
+
+	P (A, B, C, D, E, W[0]);
+	P (E, A, B, C, D, W[1]);
+	P (D, E, A, B, C, W[2]);
+	P (C, D, E, A, B, W[3]);
+	P (B, C, D, E, A, W[4]);
+	P (A, B, C, D, E, W[5]);
+	P (E, A, B, C, D, W[6]);
+	P (D, E, A, B, C, W[7]);
+	P (C, D, E, A, B, W[8]);
+	P (B, C, D, E, A, W[9]);
+	P (A, B, C, D, E, W[10]);
+	P (E, A, B, C, D, W[11]);
+	P (D, E, A, B, C, W[12]);
+	P (C, D, E, A, B, W[13]);
+	P (B, C, D, E, A, W[14]);
+	P (A, B, C, D, E, W[15]);
+	P (E, A, B, C, D, R (16));
+	P (D, E, A, B, C, R (17));
+	P (C, D, E, A, B, R (18));
+	P (B, C, D, E, A, R (19));
+
+#undef K
+#undef F
+
+#define F(x,y,z) (x ^ y ^ z)
+#define K 0x6ED9EBA1
+
+	P (A, B, C, D, E, R (20));
+	P (E, A, B, C, D, R (21));
+	P (D, E, A, B, C, R (22));
+	P (C, D, E, A, B, R (23));
+	P (B, C, D, E, A, R (24));
+	P (A, B, C, D, E, R (25));
+	P (E, A, B, C, D, R (26));
+	P (D, E, A, B, C, R (27));
+	P (C, D, E, A, B, R (28));
+	P (B, C, D, E, A, R (29));
+	P (A, B, C, D, E, R (30));
+	P (E, A, B, C, D, R (31));
+	P (D, E, A, B, C, R (32));
+	P (C, D, E, A, B, R (33));
+	P (B, C, D, E, A, R (34));
+	P (A, B, C, D, E, R (35));
+	P (E, A, B, C, D, R (36));
+	P (D, E, A, B, C, R (37));
+	P (C, D, E, A, B, R (38));
+	P (B, C, D, E, A, R (39));
+
+#undef K
+#undef F
+
+#define F(x,y,z) ((x & y) | (z & (x | y)))
+#define K 0x8F1BBCDC
+
+	P (A, B, C, D, E, R (40));
+	P (E, A, B, C, D, R (41));
+	P (D, E, A, B, C, R (42));
+	P (C, D, E, A, B, R (43));
+	P (B, C, D, E, A, R (44));
+	P (A, B, C, D, E, R (45));
+	P (E, A, B, C, D, R (46));
+	P (D, E, A, B, C, R (47));
+	P (C, D, E, A, B, R (48));
+	P (B, C, D, E, A, R (49));
+	P (A, B, C, D, E, R (50));
+	P (E, A, B, C, D, R (51));
+	P (D, E, A, B, C, R (52));
+	P (C, D, E, A, B, R (53));
+	P (B, C, D, E, A, R (54));
+	P (A, B, C, D, E, R (55));
+	P (E, A, B, C, D, R (56));
+	P (D, E, A, B, C, R (57));
+	P (C, D, E, A, B, R (58));
+	P (B, C, D, E, A, R (59));
+
+#undef K
+#undef F
+
+#define F(x,y,z) (x ^ y ^ z)
+#define K 0xCA62C1D6
+
+	P (A, B, C, D, E, R (60));
+	P (E, A, B, C, D, R (61));
+	P (D, E, A, B, C, R (62));
+	P (C, D, E, A, B, R (63));
+	P (B, C, D, E, A, R (64));
+	P (A, B, C, D, E, R (65));
+	P (E, A, B, C, D, R (66));
+	P (D, E, A, B, C, R (67));
+	P (C, D, E, A, B, R (68));
+	P (B, C, D, E, A, R (69));
+	P (A, B, C, D, E, R (70));
+	P (E, A, B, C, D, R (71));
+	P (D, E, A, B, C, R (72));
+	P (C, D, E, A, B, R (73));
+	P (B, C, D, E, A, R (74));
+	P (A, B, C, D, E, R (75));
+	P (E, A, B, C, D, R (76));
+	P (D, E, A, B, C, R (77));
+	P (C, D, E, A, B, R (78));
+	P (B, C, D, E, A, R (79));
+
+#undef K
+#undef F
+
+	ctx->state[0] += A;
+	ctx->state[1] += B;
+	ctx->state[2] += C;
+	ctx->state[3] += D;
+	ctx->state[4] += E;
+}
+
+#undef P
+#undef R
+#undef S
+
+/*
+ * SHA-1 process buffer
+ */
+static
+void sha1_update(sha1_context *ctx, const unsigned char *input,
+		 unsigned int ilen)
+{
+	int fill;
+	unsigned long left;
+
+	if (ilen <= 0)
+		return;
+
+	left = ctx->total[0] & 0x3F;
+	fill = 64 - left;
+
+	ctx->total[0] += ilen;
+	ctx->total[0] &= 0xFFFFFFFF;
+
+	if (ctx->total[0] < (unsigned long) ilen)
+		ctx->total[1]++;
+
+	if (left && ilen >= fill) {
+		memcpy ((void *) (ctx->buffer + left), (void *) input, fill);
+		sha1_process (ctx, ctx->buffer);
+		input += fill;
+		ilen -= fill;
+		left = 0;
+	}
+
+	while (ilen >= 64) {
+		sha1_process (ctx, input);
+		input += 64;
+		ilen -= 64;
+	}
+
+	if (ilen > 0) {
+		memcpy ((void *) (ctx->buffer + left), (void *) input, ilen);
+	}
+}
+
+static const unsigned char sha1_padding[64] = {
+	0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
+/*
+ * SHA-1 final digest
+ */
+static
+void sha1_finish (sha1_context * ctx, unsigned char output[20])
+{
+	unsigned long last, padn;
+	unsigned long high, low;
+	unsigned char msglen[8];
+
+	high = (ctx->total[0] >> 29)
+		| (ctx->total[1] << 3);
+	low = (ctx->total[0] << 3);
+
+	PUT_UINT32_BE (high, msglen, 0);
+	PUT_UINT32_BE (low, msglen, 4);
+
+	last = ctx->total[0] & 0x3F;
+	padn = (last < 56) ? (56 - last) : (120 - last);
+
+	sha1_update (ctx, (unsigned char *) sha1_padding, padn);
+	sha1_update (ctx, msglen, 8);
+
+	PUT_UINT32_BE (ctx->state[0], output, 0);
+	PUT_UINT32_BE (ctx->state[1], output, 4);
+	PUT_UINT32_BE (ctx->state[2], output, 8);
+	PUT_UINT32_BE (ctx->state[3], output, 12);
+	PUT_UINT32_BE (ctx->state[4], output, 16);
+}
+
+/*
+ * Output = SHA-1( input buffer )
+ */
+static
+void sha1_csum(const unsigned char *input, unsigned int ilen,
+	       unsigned char *output)
+{
+	sha1_context ctx;
+
+	sha1_starts (&ctx);
+	sha1_update (&ctx, input, ilen);
+	sha1_finish (&ctx, output);
+}
+
+typedef struct {
+	uint32_t total[2];
+	uint32_t state[8];
+	uint8_t buffer[64];
+} sha256_context;
+
+static
+void sha256_starts(sha256_context * ctx)
+{
+	ctx->total[0] = 0;
+	ctx->total[1] = 0;
+
+	ctx->state[0] = 0x6A09E667;
+	ctx->state[1] = 0xBB67AE85;
+	ctx->state[2] = 0x3C6EF372;
+	ctx->state[3] = 0xA54FF53A;
+	ctx->state[4] = 0x510E527F;
+	ctx->state[5] = 0x9B05688C;
+	ctx->state[6] = 0x1F83D9AB;
+	ctx->state[7] = 0x5BE0CD19;
+}
+
+static void sha256_process(sha256_context *ctx, const uint8_t data[64])
+{
+	uint32_t temp1, temp2;
+	uint32_t W[64];
+	uint32_t A, B, C, D, E, F, G, H;
+
+	GET_UINT32_BE(W[0], data, 0);
+	GET_UINT32_BE(W[1], data, 4);
+	GET_UINT32_BE(W[2], data, 8);
+	GET_UINT32_BE(W[3], data, 12);
+	GET_UINT32_BE(W[4], data, 16);
+	GET_UINT32_BE(W[5], data, 20);
+	GET_UINT32_BE(W[6], data, 24);
+	GET_UINT32_BE(W[7], data, 28);
+	GET_UINT32_BE(W[8], data, 32);
+	GET_UINT32_BE(W[9], data, 36);
+	GET_UINT32_BE(W[10], data, 40);
+	GET_UINT32_BE(W[11], data, 44);
+	GET_UINT32_BE(W[12], data, 48);
+	GET_UINT32_BE(W[13], data, 52);
+	GET_UINT32_BE(W[14], data, 56);
+	GET_UINT32_BE(W[15], data, 60);
+
+#define SHR(x,n) ((x & 0xFFFFFFFF) >> n)
+#define ROTR(x,n) (SHR(x,n) | (x << (32 - n)))
+
+#define S0(x) (ROTR(x, 7) ^ ROTR(x,18) ^ SHR(x, 3))
+#define S1(x) (ROTR(x,17) ^ ROTR(x,19) ^ SHR(x,10))
+
+#define S2(x) (ROTR(x, 2) ^ ROTR(x,13) ^ ROTR(x,22))
+#define S3(x) (ROTR(x, 6) ^ ROTR(x,11) ^ ROTR(x,25))
+
+#define F0(x,y,z) ((x & y) | (z & (x | y)))
+#define F1(x,y,z) (z ^ (x & (y ^ z)))
+
+#define R(t)					\
+(						\
+	W[t] = S1(W[t - 2]) + W[t - 7] +	\
+		S0(W[t - 15]) + W[t - 16]	\
+)
+
+#define P(a,b,c,d,e,f,g,h,x,K) {		\
+	temp1 = h + S3(e) + F1(e,f,g) + K + x;	\
+	temp2 = S2(a) + F0(a,b,c);		\
+	d += temp1; h = temp1 + temp2;		\
+}
+
+	A = ctx->state[0];
+	B = ctx->state[1];
+	C = ctx->state[2];
+	D = ctx->state[3];
+	E = ctx->state[4];
+	F = ctx->state[5];
+	G = ctx->state[6];
+	H = ctx->state[7];
+
+	P(A, B, C, D, E, F, G, H, W[0], 0x428A2F98);
+	P(H, A, B, C, D, E, F, G, W[1], 0x71374491);
+	P(G, H, A, B, C, D, E, F, W[2], 0xB5C0FBCF);
+	P(F, G, H, A, B, C, D, E, W[3], 0xE9B5DBA5);
+	P(E, F, G, H, A, B, C, D, W[4], 0x3956C25B);
+	P(D, E, F, G, H, A, B, C, W[5], 0x59F111F1);
+	P(C, D, E, F, G, H, A, B, W[6], 0x923F82A4);
+	P(B, C, D, E, F, G, H, A, W[7], 0xAB1C5ED5);
+	P(A, B, C, D, E, F, G, H, W[8], 0xD807AA98);
+	P(H, A, B, C, D, E, F, G, W[9], 0x12835B01);
+	P(G, H, A, B, C, D, E, F, W[10], 0x243185BE);
+	P(F, G, H, A, B, C, D, E, W[11], 0x550C7DC3);
+	P(E, F, G, H, A, B, C, D, W[12], 0x72BE5D74);
+	P(D, E, F, G, H, A, B, C, W[13], 0x80DEB1FE);
+	P(C, D, E, F, G, H, A, B, W[14], 0x9BDC06A7);
+	P(B, C, D, E, F, G, H, A, W[15], 0xC19BF174);
+	P(A, B, C, D, E, F, G, H, R(16), 0xE49B69C1);
+	P(H, A, B, C, D, E, F, G, R(17), 0xEFBE4786);
+	P(G, H, A, B, C, D, E, F, R(18), 0x0FC19DC6);
+	P(F, G, H, A, B, C, D, E, R(19), 0x240CA1CC);
+	P(E, F, G, H, A, B, C, D, R(20), 0x2DE92C6F);
+	P(D, E, F, G, H, A, B, C, R(21), 0x4A7484AA);
+	P(C, D, E, F, G, H, A, B, R(22), 0x5CB0A9DC);
+	P(B, C, D, E, F, G, H, A, R(23), 0x76F988DA);
+	P(A, B, C, D, E, F, G, H, R(24), 0x983E5152);
+	P(H, A, B, C, D, E, F, G, R(25), 0xA831C66D);
+	P(G, H, A, B, C, D, E, F, R(26), 0xB00327C8);
+	P(F, G, H, A, B, C, D, E, R(27), 0xBF597FC7);
+	P(E, F, G, H, A, B, C, D, R(28), 0xC6E00BF3);
+	P(D, E, F, G, H, A, B, C, R(29), 0xD5A79147);
+	P(C, D, E, F, G, H, A, B, R(30), 0x06CA6351);
+	P(B, C, D, E, F, G, H, A, R(31), 0x14292967);
+	P(A, B, C, D, E, F, G, H, R(32), 0x27B70A85);
+	P(H, A, B, C, D, E, F, G, R(33), 0x2E1B2138);
+	P(G, H, A, B, C, D, E, F, R(34), 0x4D2C6DFC);
+	P(F, G, H, A, B, C, D, E, R(35), 0x53380D13);
+	P(E, F, G, H, A, B, C, D, R(36), 0x650A7354);
+	P(D, E, F, G, H, A, B, C, R(37), 0x766A0ABB);
+	P(C, D, E, F, G, H, A, B, R(38), 0x81C2C92E);
+	P(B, C, D, E, F, G, H, A, R(39), 0x92722C85);
+	P(A, B, C, D, E, F, G, H, R(40), 0xA2BFE8A1);
+	P(H, A, B, C, D, E, F, G, R(41), 0xA81A664B);
+	P(G, H, A, B, C, D, E, F, R(42), 0xC24B8B70);
+	P(F, G, H, A, B, C, D, E, R(43), 0xC76C51A3);
+	P(E, F, G, H, A, B, C, D, R(44), 0xD192E819);
+	P(D, E, F, G, H, A, B, C, R(45), 0xD6990624);
+	P(C, D, E, F, G, H, A, B, R(46), 0xF40E3585);
+	P(B, C, D, E, F, G, H, A, R(47), 0x106AA070);
+	P(A, B, C, D, E, F, G, H, R(48), 0x19A4C116);
+	P(H, A, B, C, D, E, F, G, R(49), 0x1E376C08);
+	P(G, H, A, B, C, D, E, F, R(50), 0x2748774C);
+	P(F, G, H, A, B, C, D, E, R(51), 0x34B0BCB5);
+	P(E, F, G, H, A, B, C, D, R(52), 0x391C0CB3);
+	P(D, E, F, G, H, A, B, C, R(53), 0x4ED8AA4A);
+	P(C, D, E, F, G, H, A, B, R(54), 0x5B9CCA4F);
+	P(B, C, D, E, F, G, H, A, R(55), 0x682E6FF3);
+	P(A, B, C, D, E, F, G, H, R(56), 0x748F82EE);
+	P(H, A, B, C, D, E, F, G, R(57), 0x78A5636F);
+	P(G, H, A, B, C, D, E, F, R(58), 0x84C87814);
+	P(F, G, H, A, B, C, D, E, R(59), 0x8CC70208);
+	P(E, F, G, H, A, B, C, D, R(60), 0x90BEFFFA);
+	P(D, E, F, G, H, A, B, C, R(61), 0xA4506CEB);
+	P(C, D, E, F, G, H, A, B, R(62), 0xBEF9A3F7);
+	P(B, C, D, E, F, G, H, A, R(63), 0xC67178F2);
+
+	ctx->state[0] += A;
+	ctx->state[1] += B;
+	ctx->state[2] += C;
+	ctx->state[3] += D;
+	ctx->state[4] += E;
+	ctx->state[5] += F;
+	ctx->state[6] += G;
+	ctx->state[7] += H;
+}
+
+#undef P
+#undef R
+#undef F1
+#undef F0
+#undef S3
+#undef S2
+#undef S1
+#undef S0
+#undef ROTR
+#undef SHR
+
+static
+void sha256_update(sha256_context *ctx, const uint8_t *input, uint32_t length)
+{
+	uint32_t left, fill;
+
+	if (!length)
+		return;
+
+	left = ctx->total[0] & 0x3F;
+	fill = 64 - left;
+
+	ctx->total[0] += length;
+	ctx->total[0] &= 0xFFFFFFFF;
+
+	if (ctx->total[0] < length)
+		ctx->total[1]++;
+
+	if (left && length >= fill) {
+		memcpy((void *) (ctx->buffer + left), (void *) input, fill);
+		sha256_process(ctx, ctx->buffer);
+		length -= fill;
+		input += fill;
+		left = 0;
+	}
+
+	while (length >= 64) {
+		sha256_process(ctx, input);
+		length -= 64;
+		input += 64;
+	}
+
+	if (length)
+		memcpy((void *) (ctx->buffer + left), (void *) input, length);
+}
+
+static uint8_t sha256_padding[64] = {
+	0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
+static
+void sha256_finish(sha256_context * ctx, uint8_t digest[32])
+{
+	uint32_t last, padn;
+	uint32_t high, low;
+	uint8_t msglen[8];
+
+	high = ((ctx->total[0] >> 29)
+		| (ctx->total[1] << 3));
+	low = (ctx->total[0] << 3);
+
+	PUT_UINT32_BE(high, msglen, 0);
+	PUT_UINT32_BE(low, msglen, 4);
+
+	last = ctx->total[0] & 0x3F;
+	padn = (last < 56) ? (56 - last) : (120 - last);
+
+	sha256_update(ctx, sha256_padding, padn);
+	sha256_update(ctx, msglen, 8);
+
+	PUT_UINT32_BE(ctx->state[0], digest, 0);
+	PUT_UINT32_BE(ctx->state[1], digest, 4);
+	PUT_UINT32_BE(ctx->state[2], digest, 8);
+	PUT_UINT32_BE(ctx->state[3], digest, 12);
+	PUT_UINT32_BE(ctx->state[4], digest, 16);
+	PUT_UINT32_BE(ctx->state[5], digest, 20);
+	PUT_UINT32_BE(ctx->state[6], digest, 24);
+	PUT_UINT32_BE(ctx->state[7], digest, 28);
+}
+
+/*
+ * Output = SHA-256( input buffer ).
+ */
+static
+void sha256_csum(const unsigned char *input, unsigned int ilen,
+		 unsigned char *output)
+{
+	sha256_context ctx;
+
+	sha256_starts(&ctx);
+	sha256_update(&ctx, input, ilen);
+	sha256_finish(&ctx, output);
+}
+
+/* #define DEBUG */
 
 static bool g_debug =
 #ifdef DEBUG
-	true;
+        true;
 #else
-	false;
-#endif //DEBUG
+        false;
+#endif /* DEBUG */
 
 #define LOGE(fmt, args...)                                                     \
-	fprintf(stderr, "E/%s(%d): " fmt "\n", __func__, __LINE__, ##args)
+  fprintf(stderr, "E/%s(%d): " fmt "\n", __func__, __LINE__, ##args)
 #define LOGD(fmt, args...)                                                     \
-	do {                                                                   \
-    if (g_debug) \
-			fprintf(stderr, "D/%s(%d): " fmt "\n", __func__,       \
-				__LINE__, ##args);                             \
-} while (0)
+  do {                                                                         \
+    if (g_debug)                                                               \
+      fprintf(stderr, "D/%s(%d): " fmt "\n", __func__, __LINE__, ##args);      \
+  } while (0)
 
-//sync with ./board/rockchip/rk30xx/rkloader.c #define FDT_PATH
-#define FDT_PATH                    "rk-kernel.dtb"
-#define DTD_SUBFIX                  ".dtb"
+/* sync with ./board/rockchip/rk30xx/rkloader.c #define FDT_PATH */
+#define FDT_PATH "rk-kernel.dtb"
+#define DTD_SUBFIX ".dtb"
 
-#define DEFAULT_IMAGE_PATH          "resource.img"
-#define DEFAULT_UNPACK_DIR          "out"
-#define BLOCK_SIZE                  512
+#define DEFAULT_IMAGE_PATH "resource.img"
+#define DEFAULT_UNPACK_DIR "out"
+#define BLOCK_SIZE 512
 
-#define RESOURCE_PTN_HDR_SIZE       1
-#define INDEX_TBL_ENTR_SIZE         1
+#define RESOURCE_PTN_HDR_SIZE 1
+#define INDEX_TBL_ENTR_SIZE 1
 
-#define RESOURCE_PTN_VERSION        0
-#define INDEX_TBL_VERSION           0
+#define RESOURCE_PTN_VERSION 0
+#define INDEX_TBL_VERSION 0
 
-#define RESOURCE_PTN_HDR_MAGIC      "RSCE"
+#define RESOURCE_PTN_HDR_MAGIC "RSCE"
 typedef struct {
-	char magic[4];		//tag, "RSCE"
+	char magic[4]; /* tag, "RSCE" */
 	uint16_t resource_ptn_version;
 	uint16_t index_tbl_version;
-	uint8_t header_size;	//blocks, size of ptn header.
-	uint8_t tbl_offset;	//blocks, offset of index table.
-	uint8_t tbl_entry_size;	//blocks, size of index table's entry.
-	uint32_t tbl_entry_num;	//numbers of index table's entry.
+	uint8_t header_size;    /* blocks, size of ptn header. */
+	uint8_t tbl_offset;     /* blocks, offset of index table. */
+	uint8_t tbl_entry_size; /* blocks, size of index table's entry. */
+	uint32_t tbl_entry_num; /* numbers of index table's entry. */
 } resource_ptn_header;
 
-#define INDEX_TBL_ENTR_TAG          "ENTR"
-#define MAX_INDEX_ENTRY_PATH_LEN    256
+#define INDEX_TBL_ENTR_TAG "ENTR"
+#define MAX_INDEX_ENTRY_PATH_LEN	220
+#define MAX_HASH_LEN			32
+
 typedef struct {
-	char tag[4];		//tag, "ENTR"
+	char tag[4]; /* tag, "ENTR" */
 	char path[MAX_INDEX_ENTRY_PATH_LEN];
-	uint32_t content_offset;	//blocks, offset of resource content.
-	uint32_t content_size;	//bytes, size of resource content.
+	char hash[MAX_HASH_LEN]; /* hash data */
+	uint32_t hash_size;	 /* 20 or 32 */
+	uint32_t content_offset; /* blocks, offset of resource content. */
+	uint32_t content_size;   /* bytes, size of resource content. */
 } index_tbl_entry;
 
-#define OPT_VERBOSE         "--verbose"
-#define OPT_HELP            "--help"
-#define OPT_VERSION         "--version"
-#define OPT_PRINT           "--print"
-#define OPT_PACK            "--pack"
-#define OPT_UNPACK          "--unpack"
-#define OPT_TEST_LOAD       "--test_load"
-#define OPT_TEST_CHARGE     "--test_charge"
-#define OPT_IMAGE           "--image="
-#define OPT_ROOT            "--root="
+#define OPT_VERBOSE "--verbose"
+#define OPT_HELP "--help"
+#define OPT_VERSION "--version"
+#define OPT_PRINT "--print"
+#define OPT_PACK "--pack"
+#define OPT_UNPACK "--unpack"
+#define OPT_TEST_LOAD "--test_load"
+#define OPT_TEST_CHARGE "--test_charge"
+#define OPT_IMAGE "--image="
+#define OPT_ROOT "--root="
 
-#define VERSION             "2014-5-31 14:43:42"
+#define VERSION "2014-5-31 14:43:42"
 
 typedef struct {
 	char path[MAX_INDEX_ENTRY_PATH_LEN];
-	uint32_t content_offset;	//blocks, offset of resource content.
-	uint32_t content_size;		//bytes, size of resource content.
+	uint32_t content_offset; /* blocks, offset of resource content. */
+	uint32_t content_size;   /* bytes, size of resource content. */
 	void *load_addr;
 } resource_content;
 
@@ -91,14 +641,14 @@ typedef struct {
 	char prefix[MAX_INDEX_ENTRY_PATH_LEN];
 } anim_level_conf;
 
-#define DEF_CHARGE_DESC_PATH        "charge_anim_desc.txt"
+#define DEF_CHARGE_DESC_PATH "charge_anim_desc.txt"
 
-#define OPT_CHARGE_ANIM_DELAY       "delay="
-#define OPT_CHARGE_ANIM_LOOP_CUR    "only_current_level="
-#define OPT_CHARGE_ANIM_LEVELS      "levels="
-#define OPT_CHARGE_ANIM_LEVEL_CONF  "max_level="
-#define OPT_CHARGE_ANIM_LEVEL_NUM   "num="
-#define OPT_CHARGE_ANIM_LEVEL_PFX   "prefix="
+#define OPT_CHARGE_ANIM_DELAY "delay="
+#define OPT_CHARGE_ANIM_LOOP_CUR "only_current_level="
+#define OPT_CHARGE_ANIM_LEVELS "levels="
+#define OPT_CHARGE_ANIM_LEVEL_CONF "max_level="
+#define OPT_CHARGE_ANIM_LEVEL_NUM "num="
+#define OPT_CHARGE_ANIM_LEVEL_PFX "prefix="
 
 static char image_path[MAX_INDEX_ENTRY_PATH_LEN] = "\0";
 
@@ -141,16 +691,15 @@ static uint32_t switch_int(uint32_t x)
 
 static void fix_header(resource_ptn_header *header)
 {
-	//switch for be.
-	header->resource_ptn_version =
-		switch_short(header->resource_ptn_version);
+	/* switch for be. */
+	header->resource_ptn_version = switch_short(header->resource_ptn_version);
 	header->index_tbl_version = switch_short(header->index_tbl_version);
 	header->tbl_entry_num = switch_int(header->tbl_entry_num);
 }
 
 static void fix_entry(index_tbl_entry *entry)
 {
-	//switch for be.
+	/* switch for be. */
 	entry->content_offset = switch_int(entry->content_offset);
 	entry->content_size = switch_int(entry->content_size);
 }
@@ -277,22 +826,20 @@ static bool load_content(resource_content *content)
 	if (!content->load_addr)
 		return false;
 	if (!StorageReadLba(get_ptn_offset() + content->content_offset,
-			    content->load_addr, blocks)) {
+	                    content->load_addr, blocks)) {
 		free_content(content);
 		return false;
 	}
 
-	tests_dump_file(content->path, content->load_addr,
-			content->content_size);
+	tests_dump_file(content->path, content->load_addr, content->content_size);
 	return true;
 }
 
 static bool load_content_data(resource_content *content, int offset_block,
-			      void *data, int blocks)
+                              void *data, int blocks)
 {
-	if (!StorageReadLba(get_ptn_offset() + content->content_offset +
-				    offset_block,
-			    data, blocks)) {
+	if (!StorageReadLba(get_ptn_offset() + content->content_offset + offset_block,
+	                    data, blocks)) {
 		return false;
 	}
 	tests_dump_file(content->path, data, blocks * BLOCK_SIZE);
@@ -314,10 +861,10 @@ static bool get_entry(const char *file_path, index_tbl_entry *entry)
 		LOGE("Not a resource image(%s)!", image_path);
 		goto end;
 	}
-	//test on pc, switch for be.
+	/* test on pc, switch for be. */
 	fix_header(&header);
 
-	//TODO: support header_size & tbl_entry_size
+	/* TODO: support header_size & tbl_entry_size */
 	if (header.resource_ptn_version != RESOURCE_PTN_VERSION ||
 	    header.header_size != RESOURCE_PTN_HDR_SIZE ||
 	    header.index_tbl_version != INDEX_TBL_VERSION ||
@@ -328,10 +875,10 @@ static bool get_entry(const char *file_path, index_tbl_entry *entry)
 
 	int i;
 	for (i = 0; i < header.tbl_entry_num; i++) {
-		//TODO: support tbl_entry_size
-		if (!StorageReadLba(get_ptn_offset() + header.header_size +
-					    i * header.tbl_entry_size,
-				    buf, 1)) {
+		/* TODO: support tbl_entry_size */
+		if (!StorageReadLba(
+		            get_ptn_offset() + header.header_size + i * header.tbl_entry_size,
+		            buf, 1)) {
 			LOGE("Failed to read index entry:%d!", i);
 			goto end;
 		}
@@ -349,11 +896,11 @@ static bool get_entry(const char *file_path, index_tbl_entry *entry)
 		LOGE("Cannot find %s!", file_path);
 		goto end;
 	}
-	//test on pc, switch for be.
+	/* test on pc, switch for be. */
 	fix_entry(entry);
 
-	printf("Found entry:\n\tpath:%s\n\toffset:%d\tsize:%d\n",
-	       entry->path, entry->content_offset, entry->content_size);
+	printf("Found entry:\n\tpath:%s\n\toffset:%d\tsize:%d\n", entry->path,
+	       entry->content_offset, entry->content_size);
 
 	ret = true;
 end:
@@ -415,8 +962,7 @@ static bool parse_level_conf(const char *arg, anim_level_conf *level_conf)
 	char *buf = NULL;
 	buf = strstr(arg, OPT_CHARGE_ANIM_LEVEL_CONF);
 	if (buf) {
-		level_conf->max_level =
-			atoi(buf + strlen(OPT_CHARGE_ANIM_LEVEL_CONF));
+		level_conf->max_level = atoi(buf + strlen(OPT_CHARGE_ANIM_LEVEL_CONF));
 	} else {
 		LOGE("Not found:%s", OPT_CHARGE_ANIM_LEVEL_CONF);
 		return false;
@@ -437,16 +983,16 @@ static bool parse_level_conf(const char *arg, anim_level_conf *level_conf)
 	}
 	buf = strstr(arg, OPT_CHARGE_ANIM_LEVEL_PFX);
 	if (buf) {
-		snprintf(level_conf->prefix, sizeof(level_conf->prefix),
-			 "%s", buf + strlen(OPT_CHARGE_ANIM_LEVEL_PFX));
+		snprintf(level_conf->prefix, sizeof(level_conf->prefix), "%s",
+		         buf + strlen(OPT_CHARGE_ANIM_LEVEL_PFX));
 	} else {
 		LOGE("Not found:%s", OPT_CHARGE_ANIM_LEVEL_PFX);
 		return false;
 	}
 
 	LOGD("Found conf:\nmax_level:%d, num:%d, delay:%d, prefix:%s",
-	     level_conf->max_level, level_conf->num,
-	     level_conf->delay, level_conf->prefix);
+	     level_conf->max_level, level_conf->num, level_conf->delay,
+	     level_conf->prefix);
 	return true;
 }
 
@@ -498,45 +1044,40 @@ static int test_charge(int argc, char **argv)
 
 		LOGD("parse arg:%s", arg);
 		if (!memcmp(arg, OPT_CHARGE_ANIM_LEVEL_CONF,
-			    strlen(OPT_CHARGE_ANIM_LEVEL_CONF))) {
+		            strlen(OPT_CHARGE_ANIM_LEVEL_CONF))) {
 			if (!level_confs) {
 				LOGE("Found level conf before levels!");
 				goto end;
 			}
 			if (level_conf_pos >= level_conf_num) {
-				LOGE("Too many level confs!(%d >= %d)",
-				     level_conf_pos, level_conf_num);
+				LOGE("Too many level confs!(%d >= %d)", level_conf_pos, level_conf_num);
 				goto end;
 			}
-			if (!parse_level_conf(arg,
-					      level_confs + level_conf_pos)) {
+			if (!parse_level_conf(arg, level_confs + level_conf_pos)) {
 				LOGE("Failed to parse level conf:%s", arg);
 				goto end;
 			}
 			level_conf_pos++;
 		} else if (!memcmp(arg, OPT_CHARGE_ANIM_DELAY,
-				   strlen(OPT_CHARGE_ANIM_DELAY))) {
+		                   strlen(OPT_CHARGE_ANIM_DELAY))) {
 			delay = atoi(arg + strlen(OPT_CHARGE_ANIM_DELAY));
 			LOGD("Found delay:%d", delay);
 		} else if (!memcmp(arg, OPT_CHARGE_ANIM_LOOP_CUR,
-				   strlen(OPT_CHARGE_ANIM_LOOP_CUR))) {
+		                   strlen(OPT_CHARGE_ANIM_LOOP_CUR))) {
 			only_current_level =
-				!memcmp(arg + strlen(OPT_CHARGE_ANIM_LOOP_CUR),
-					"true", 4);
+			        !memcmp(arg + strlen(OPT_CHARGE_ANIM_LOOP_CUR), "true", 4);
 			LOGD("Found only_current_level:%d", only_current_level);
 		} else if (!memcmp(arg, OPT_CHARGE_ANIM_LEVELS,
-				   strlen(OPT_CHARGE_ANIM_LEVELS))) {
+		                   strlen(OPT_CHARGE_ANIM_LEVELS))) {
 			if (level_conf_num) {
 				goto end;
 			}
-			level_conf_num =
-				atoi(arg + strlen(OPT_CHARGE_ANIM_LEVELS));
+			level_conf_num = atoi(arg + strlen(OPT_CHARGE_ANIM_LEVELS));
 			if (!level_conf_num) {
 				goto end;
 			}
 			level_confs =
-			    (anim_level_conf *) malloc(level_conf_num *
-						       sizeof(anim_level_conf));
+			        (anim_level_conf *)malloc(level_conf_num * sizeof(anim_level_conf));
 			LOGD("Found levels:%d", level_conf_num);
 		} else {
 			LOGE("Unknown arg:%s", arg);
@@ -559,15 +1100,14 @@ static int test_charge(int argc, char **argv)
 			goto end;
 		}
 		for (j = 0; j < i; j++) {
-			if (level_confs[j].max_level ==
-			    level_confs[i].max_level) {
+			if (level_confs[j].max_level == level_confs[i].max_level) {
 				LOGE("Dup level conf:%d", i);
 				goto end;
 			}
 			if (level_confs[j].max_level > level_confs[i].max_level) {
 				anim_level_conf conf = level_confs[i];
 				memmove(level_confs + j + 1, level_confs + j,
-					(i - j) * sizeof(anim_level_conf));
+				        (i - j) * sizeof(anim_level_conf));
 				level_confs[j] = conf;
 			}
 		}
@@ -577,9 +1117,8 @@ static int test_charge(int argc, char **argv)
 	printf("only_current_level=%d\n", only_current_level);
 	printf("level conf:\n");
 	for (i = 0; i < level_conf_num; i++) {
-		printf("\tmax=%d, delay=%d, num=%d, prefix=%s\n",
-		       level_confs[i].max_level, level_confs[i].delay,
-		       level_confs[i].num, level_confs[i].prefix);
+		printf("\tmax=%d, delay=%d, num=%d, prefix=%s\n", level_confs[i].max_level,
+		       level_confs[i].delay, level_confs[i].num, level_confs[i].prefix);
 	}
 
 end:
@@ -608,12 +1147,14 @@ static void usage(void)
 	printf("Options:\n");
 	printf("\t" OPT_PACK "\t\t\tPack image from given files.\n");
 	printf("\t" OPT_UNPACK "\t\tUnpack given image to current dir.\n");
-	printf("\t" OPT_IMAGE "path" "\t\tSpecify input/output image path.\n");
+	printf("\t" OPT_IMAGE "path"
+	       "\t\tSpecify input/output image path.\n");
 	printf("\t" OPT_PRINT "\t\t\tJust print informations.\n");
 	printf("\t" OPT_VERBOSE "\t\tDisplay more runtime informations.\n");
 	printf("\t" OPT_HELP "\t\t\tDisplay this information.\n");
 	printf("\t" OPT_VERSION "\t\tDisplay version information.\n");
-	printf("\t" OPT_ROOT "path" "\t\tSpecify resources' root dir.\n");
+	printf("\t" OPT_ROOT "path"
+	       "\t\tSpecify resources' root dir.\n");
 }
 
 static int pack_image(int file_num, const char **files);
@@ -634,7 +1175,7 @@ int main(int argc, char **argv)
 
 	argc--, argv++;
 	while (argc > 0 && argv[0][0] == '-') {
-		//it's a opt arg.
+		/* it's a opt arg. */
 		const char *arg = argv[0];
 		argc--, argv++;
 		if (!strcmp(OPT_VERBOSE, arg)) {
@@ -656,11 +1197,9 @@ int main(int argc, char **argv)
 		} else if (!strcmp(OPT_TEST_CHARGE, arg)) {
 			action = ACTION_TEST_CHARGE;
 		} else if (!memcmp(OPT_IMAGE, arg, strlen(OPT_IMAGE))) {
-			snprintf(image_path, sizeof(image_path),
-				 "%s", arg + strlen(OPT_IMAGE));
+			snprintf(image_path, sizeof(image_path), "%s", arg + strlen(OPT_IMAGE));
 		} else if (!memcmp(OPT_ROOT, arg, strlen(OPT_ROOT))) {
-			snprintf(root_path, sizeof(root_path),
-				 "%s", arg + strlen(OPT_ROOT));
+			snprintf(root_path, sizeof(root_path), "%s", arg + strlen(OPT_ROOT));
 		} else {
 			LOGE("Unknown opt:%s", arg);
 			usage();
@@ -669,37 +1208,31 @@ int main(int argc, char **argv)
 	}
 
 	if (!image_path[0]) {
-		snprintf(image_path, sizeof(image_path), "%s",
-			 DEFAULT_IMAGE_PATH);
+		snprintf(image_path, sizeof(image_path), "%s", DEFAULT_IMAGE_PATH);
 	}
 
 	switch (action) {
-	case ACTION_PACK:
-		{
-			int file_num = argc;
-			const char **files = (const char **)argv;
-			if (!file_num) {
-				LOGE("No file to pack!");
-				return 0;
-			}
-			LOGD("try to pack %d files.", file_num);
-			return pack_image(file_num, files);
+	case ACTION_PACK: {
+		int file_num = argc;
+		const char **files = (const char **)argv;
+		if (!file_num) {
+			LOGE("No file to pack!");
+			return 0;
 		}
-	case ACTION_UNPACK:
-		{
-			return unpack_image(argc >
-					    0 ? argv[0] : DEFAULT_UNPACK_DIR);
-		}
-	case ACTION_TEST_LOAD:
-		{
-			return test_load(argc, argv);
-		}
-	case ACTION_TEST_CHARGE:
-		{
-			return test_charge(argc, argv);
-		}
+		LOGD("try to pack %d files.", file_num);
+		return pack_image(file_num, files);
 	}
-	//not reach here.
+	case ACTION_UNPACK: {
+		return unpack_image(argc > 0 ? argv[0] : DEFAULT_UNPACK_DIR);
+	}
+	case ACTION_TEST_LOAD: {
+		return test_load(argc, argv);
+	}
+	case ACTION_TEST_CHARGE: {
+		return test_charge(argc, argv);
+	}
+	}
+	/* not reach here. */
 	return -1;
 }
 
@@ -724,7 +1257,8 @@ static bool mkdirs(char *path)
 	return ret;
 }
 
-static bool dump_file(FILE *file, const char *unpack_dir, index_tbl_entry entry)
+static bool dump_file(FILE *file, const char *unpack_dir,
+                      index_tbl_entry entry)
 {
 	LOGD("try to dump entry:%s", entry.path);
 	bool ret = false;
@@ -806,17 +1340,17 @@ static int unpack_image(const char *dir)
 		LOGE("Not a resource image(%s)!", image_path);
 		goto end;
 	}
-	//switch for be.
+	/* switch for be. */
 	fix_header(&header);
 
 	printf("Dump header:\n");
-	printf("partition version:%d.%d\n",
-	       header.resource_ptn_version, header.index_tbl_version);
+	printf("partition version:%d.%d\n", header.resource_ptn_version,
+	       header.index_tbl_version);
 	printf("header size:%d\n", header.header_size);
 	printf("index tbl:\n\toffset:%d\tentry size:%d\tentry num:%d\n",
 	       header.tbl_offset, header.tbl_entry_size, header.tbl_entry_num);
 
-	//TODO: support header_size & tbl_entry_size
+	/* TODO: support header_size & tbl_entry_size */
 	if (header.resource_ptn_version != RESOURCE_PTN_VERSION ||
 	    header.header_size != RESOURCE_PTN_HDR_SIZE ||
 	    header.index_tbl_version != INDEX_TBL_VERSION ||
@@ -829,7 +1363,7 @@ static int unpack_image(const char *dir)
 	index_tbl_entry entry;
 	int i;
 	for (i = 0; i < header.tbl_entry_num; i++) {
-		//TODO: support tbl_entry_size
+		/* TODO: support tbl_entry_size */
 		if (!fread(buf, BLOCK_SIZE, 1, image_file)) {
 			LOGE("Failed to read index entry:%d!", i);
 			goto end;
@@ -840,11 +1374,11 @@ static int unpack_image(const char *dir)
 			LOGE("Something wrong with index entry:%d!", i);
 			goto end;
 		}
-		//switch for be.
+		/* switch for be. */
 		fix_entry(&entry);
 
-		printf("entry(%d):\n\tpath:%s\n\toffset:%d\tsize:%d\n",
-		       i, entry.path, entry.content_offset, entry.content_size);
+		printf("entry(%d):\n\tpath:%s\n\toffset:%d\tsize:%d\n", i, entry.path,
+		       entry.content_offset, entry.content_size);
 		if (!dump_file(image_file, unpack_dir, entry)) {
 			goto end;
 		}
@@ -872,13 +1406,13 @@ static inline size_t get_file_size(const char *path)
 	return st.st_size;
 }
 
-static int write_file(int offset_block, const char *src_path)
+static int write_file(int offset_block, const char *src_path,
+		      char hash[], int hash_size)
 {
 	LOGD("try to write file(%s) to offset:%d...", src_path, offset_block);
-	char buf[BLOCK_SIZE];
+	char *buf = NULL;
 	int ret = -1;
 	size_t file_size;
-	int blocks;
 	FILE *src_file = fopen(src_path, "rb");
 	if (!src_file) {
 		LOGE("Failed to open:%s", src_path);
@@ -889,23 +1423,33 @@ static int write_file(int offset_block, const char *src_path)
 	if (file_size < 0) {
 		goto end;
 	}
-	blocks = fix_blocks(file_size);
 
-	int i;
-	for (i = 0; i < blocks; i++) {
-		memset(buf, 0, sizeof(buf));
-		if (!fread(buf, 1, BLOCK_SIZE, src_file)) {
-			LOGE("Failed to read:%s", src_path);
-			goto end;
-		}
-		if (!write_data(offset_block + i, buf, BLOCK_SIZE)) {
-			goto end;
-		}
-	}
-	ret = blocks;
+	buf = calloc(file_size, 1);
+	if (!buf)
+		goto end;
+
+	if (!fread(buf, file_size, 1, src_file))
+		goto end;
+
+	if (!write_data(offset_block, buf, file_size))
+		goto end;
+
+	if (hash_size == 20)
+		sha1_csum((const unsigned char *)buf, file_size,
+			  (unsigned char *)hash);
+	else if (hash_size == 32)
+		sha256_csum((const unsigned char *)buf, file_size,
+			    (unsigned char *)hash);
+	else
+		goto end;
+
+	ret = file_size;
 end:
 	if (src_file)
 		fclose(src_file);
+	if (buf)
+		free(buf);
+
 	return ret;
 }
 
@@ -920,7 +1464,7 @@ static bool write_header(const int file_num)
 	header.tbl_entry_size = INDEX_TBL_ENTR_SIZE;
 	header.tbl_entry_num = file_num;
 
-	//switch for le.
+	/* switch for le. */
 	resource_ptn_header hdr = header;
 	fix_header(&hdr);
 	return write_data(0, &hdr, sizeof(hdr));
@@ -931,11 +1475,13 @@ static bool write_index_tbl(const int file_num, const char **files)
 	LOGD("try to write index table...");
 	bool ret = false;
 	bool foundFdt = false;
-	int offset = header.header_size +
-		     header.tbl_entry_size * header.tbl_entry_num;
+	int offset =
+	        header.header_size + header.tbl_entry_size * header.tbl_entry_num;
 	index_tbl_entry entry;
-	memcpy(entry.tag, INDEX_TBL_ENTR_TAG, sizeof(entry.tag));
+	char hash[20];	/* sha1 */
 	int i;
+
+	memcpy(entry.tag, INDEX_TBL_ENTR_TAG, sizeof(entry.tag));
 	for (i = 0; i < file_num; i++) {
 		size_t file_size = get_file_size(files[i]);
 		if (file_size < 0)
@@ -943,12 +1489,15 @@ static bool write_index_tbl(const int file_num, const char **files)
 		entry.content_size = file_size;
 		entry.content_offset = offset;
 
-		if (write_file(offset, files[i]) < 0)
+		if (write_file(offset, files[i], hash, sizeof(hash)) < 0)
 			goto end;
+
+		memcpy(entry.hash, hash, sizeof(hash));
+		entry.hash_size = sizeof(hash);
 
 		LOGD("try to write index entry(%s)...", files[i]);
 
-		//switch for le.
+		/* switch for le. */
 		fix_entry(&entry);
 		memset(entry.path, 0, sizeof(entry.path));
 		const char *path = files[i];
@@ -960,20 +1509,18 @@ static bool write_index_tbl(const int file_num, const char **files)
 			}
 		}
 		path = fix_path(path);
-		if (!strcmp(files[i] + strlen(files[i]) - strlen(DTD_SUBFIX),
-			    DTD_SUBFIX)) {
+		if (!strcmp(files[i] + strlen(files[i]) - strlen(DTD_SUBFIX), DTD_SUBFIX)) {
 			if (!foundFdt) {
-				//use default path.
-				LOGD("mod fdt path:%s -> %s...", files[i],
-				     FDT_PATH);
+				/* use default path. */
+				LOGD("mod fdt path:%s -> %s...", files[i], FDT_PATH);
 				path = FDT_PATH;
 				foundFdt = true;
 			}
 		}
 		snprintf(entry.path, sizeof(entry.path), "%s", path);
 		offset += fix_blocks(file_size);
-		if (!write_data(header.header_size + i * header.tbl_entry_size,
-				&entry, sizeof(entry)))
+		if (!write_data(header.header_size + i * header.tbl_entry_size, &entry,
+		                sizeof(entry)))
 			goto end;
 	}
 	ret = true;
@@ -991,20 +1538,19 @@ static int pack_image(int file_num, const char **files)
 	}
 	fclose(image_file);
 
-	//prepare files
+	/* prepare files */
 	int i = 0;
 	int pos = 0;
 	const char *tmp;
 	for (i = 0; i < file_num; i++) {
-		if (!strcmp(files[i] + strlen(files[i]) - strlen(DTD_SUBFIX),
-			    DTD_SUBFIX)) {
-			//dtb files for kernel.
+		if (!strcmp(files[i] + strlen(files[i]) - strlen(DTD_SUBFIX), DTD_SUBFIX)) {
+			/* dtb files for kernel. */
 			tmp = files[pos];
 			files[pos] = files[i];
 			files[i] = tmp;
 			pos++;
 		} else if (!strcmp(fix_path(image_path), fix_path(files[i]))) {
-			//not to pack image itself!
+			/* not to pack image itself! */
 			tmp = files[file_num - 1];
 			files[file_num - 1] = files[i];
 			files[i] = tmp;
