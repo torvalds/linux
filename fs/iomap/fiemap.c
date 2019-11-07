@@ -133,12 +133,16 @@ iomap_bmap(struct address_space *mapping, sector_t bno,
 	struct inode *inode = mapping->host;
 	loff_t pos = bno << inode->i_blkbits;
 	unsigned blocksize = i_blocksize(inode);
+	int ret;
 
 	if (filemap_write_and_wait(mapping))
 		return 0;
 
 	bno = 0;
-	iomap_apply(inode, pos, blocksize, 0, ops, &bno, iomap_bmap_actor);
+	ret = iomap_apply(inode, pos, blocksize, 0, ops, &bno,
+			  iomap_bmap_actor);
+	if (ret)
+		return 0;
 	return bno;
 }
 EXPORT_SYMBOL_GPL(iomap_bmap);
