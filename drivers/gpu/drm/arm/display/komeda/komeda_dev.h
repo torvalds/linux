@@ -226,13 +226,7 @@ void komeda_dev_destroy(struct komeda_dev *mdev);
 
 struct komeda_dev *dev_to_mdev(struct device *dev);
 
-#ifdef CONFIG_DRM_KOMEDA_ERROR_PRINT
 void komeda_print_events(struct komeda_events *evts, struct drm_device *dev);
-#else
-static inline void komeda_print_events(struct komeda_events *evts,
-				       struct drm_device *dev)
-{}
-#endif
 
 int komeda_dev_resume(struct komeda_dev *mdev);
 int komeda_dev_suspend(struct komeda_dev *mdev);
