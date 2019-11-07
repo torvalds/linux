@@ -4,6 +4,10 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 
+struct memregion_info {
+	int target_node;
+};
+
 #ifdef CONFIG_MEMREGION
 int memregion_alloc(gfp_t gfp);
 void memregion_free(int id);
