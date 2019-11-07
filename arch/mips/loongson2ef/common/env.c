@@ -15,39 +15,21 @@
  */
 #include <linux/export.h>
 #include <asm/bootinfo.h>
+#include <asm/fw/fw.h>
 #include <loongson.h>
 
 u32 cpu_clock_freq;
 EXPORT_SYMBOL(cpu_clock_freq);
 
-unsigned long long smp_group[4];
-
-#define parse_even_earlier(res, option, p)				\
-do {									\
-	unsigned int tmp __maybe_unused;				\
-									\
-	if (strncmp(option, (char *)p, strlen(option)) == 0)		\
-		tmp = kstrtou32((char *)p + strlen(option"="), 10, &res); \
-} while (0)
-
 void __init prom_init_env(void)
 {
 	/* pmon passes arguments in 32bit pointers */
 	unsigned int processor_id;
-	int *_prom_envp;
-	long l;
 
-	/* firmware arguments are initialized in head.S */
-	_prom_envp = (int *)fw_arg2;
+	cpu_clock_freq = fw_getenvl("cpuclock");
+	memsize = fw_getenvl("memsize");
+	highmemsize = fw_getenvl("highmemsize");
 
-	l = (long)*_prom_envp;
-	while (l != 0) {
-		parse_even_earlier(cpu_clock_freq, "cpuclock", l);
-		parse_even_earlier(memsize, "memsize", l);
-		parse_even_earlier(highmemsize, "highmemsize", l);
-		_prom_envp++;
-		l = (long)*_prom_envp;
-	}
 	if (memsize == 0)
 		memsize = 256;
 

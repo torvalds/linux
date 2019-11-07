@@ -9,6 +9,7 @@
 #include <asm/traps.h>
 #include <asm/smp-ops.h>
 #include <asm/cacheflush.h>
+#include <asm/fw/fw.h>
 
 #include <loongson.h>
 
@@ -24,7 +25,7 @@ static void __init mips_nmi_setup(void)
 
 void __init prom_init(void)
 {
-	prom_init_cmdline();
+	fw_init_cmdline();
 	prom_init_env();
 
 	/* init base address of io space */

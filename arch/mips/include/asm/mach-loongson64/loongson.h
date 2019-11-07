@@ -24,7 +24,6 @@ extern const struct plat_smp_ops loongson3_smp_ops;
 
 /* loongson-specific command line, env and memory initialization */
 extern void __init prom_init_memory(void);
-extern void __init prom_init_cmdline(void);
 extern void __init prom_init_env(void);
 
 /* irq operation functions */

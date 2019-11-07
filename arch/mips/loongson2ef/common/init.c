@@ -9,6 +9,7 @@
 #include <asm/traps.h>
 #include <asm/smp-ops.h>
 #include <asm/cacheflush.h>
+#include <asm/fw/fw.h>
 
 #include <loongson.h>
 
@@ -32,7 +33,8 @@ void __init prom_init(void)
 		ioremap(LOONGSON_ADDRWINCFG_BASE, LOONGSON_ADDRWINCFG_SIZE);
 #endif
 
-	prom_init_cmdline();
+	fw_init_cmdline();
+	prom_init_machtype();
 	prom_init_env();
 
 	/* init base address of io space */
