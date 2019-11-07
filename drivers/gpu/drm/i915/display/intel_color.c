@@ -1025,16 +1025,13 @@ static void chv_load_luts(const struct intel_crtc_state *crtc_state)
 
 	cherryview_load_csc_matrix(crtc_state);
 
-	if (crtc_state_is_legacy_gamma(crtc_state)) {
-		i9xx_load_luts(crtc_state);
-		return;
-	}
-
-	if (degamma_lut)
+	if (crtc_state->cgm_mode & CGM_PIPE_MODE_DEGAMMA)
 		chv_load_cgm_degamma(crtc, degamma_lut);
 
-	if (gamma_lut)
+	if (crtc_state->cgm_mode & CGM_PIPE_MODE_GAMMA)
 		chv_load_cgm_gamma(crtc, gamma_lut);
+	else
+		i965_load_luts(crtc_state);
 }
 
 void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
