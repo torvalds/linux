@@ -241,7 +241,6 @@ struct drm_gem_object *udl_gem_prime_import(struct drm_device *dev,
 		goto fail_unmap;
 
 	uobj->base.import_attach = attach;
-	uobj->flags = UDL_BO_WC;
 
 	return &uobj->base;
 

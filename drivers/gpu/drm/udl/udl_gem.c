@@ -25,7 +25,6 @@ struct udl_gem_object *udl_gem_alloc_object(struct drm_device *dev,
 		return NULL;
 	}
 
-	obj->flags = UDL_BO_CACHEABLE;
 	return obj;
 }
 
@@ -57,23 +56,6 @@ udl_gem_create(struct drm_file *file,
 	return 0;
 }
 
-static void update_vm_cache_attr(struct udl_gem_object *obj,
-				 struct vm_area_struct *vma)
-{
-	DRM_DEBUG_KMS("flags = 0x%x\n", obj->flags);
-
-	/* non-cacheable as default. */
-	if (obj->flags & UDL_BO_CACHEABLE) {
-		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-	} else if (obj->flags & UDL_BO_WC) {
-		vma->vm_page_prot =
-			pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
-	} else {
-		vma->vm_page_prot =
-			pgprot_noncached(vm_get_page_prot(vma->vm_flags));
-	}
-}
-
 int udl_dumb_create(struct drm_file *file,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args)
@@ -86,16 +68,21 @@ int udl_dumb_create(struct drm_file *file,
 
 int udl_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
+	struct drm_gem_object *obj;
 	int ret;
 
 	ret = drm_gem_mmap(filp, vma);
 	if (ret)
 		return ret;
 
+	obj = vma->vm_private_data;
+
 	vma->vm_flags &= ~VM_PFNMAP;
 	vma->vm_flags |= VM_MIXEDMAP;
 
-	update_vm_cache_attr(to_udl_bo(vma->vm_private_data), vma);
+	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+	if (obj->import_attach)
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	return ret;
 }
@@ -155,7 +142,7 @@ int udl_gem_vmap(struct udl_gem_object *obj)
 			return -ENOMEM;
 		return 0;
 	}
-		
+
 	ret = udl_gem_get_pages(obj);
 	if (ret)
 		return ret;
