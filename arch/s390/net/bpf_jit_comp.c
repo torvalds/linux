@@ -42,7 +42,6 @@ struct bpf_jit {
 	int lit_start;		/* Start of literal pool */
 	int lit;		/* Current position in literal pool */
 	int base_ip;		/* Base address for literal pool */
-	int ret0_ip;		/* Address of return 0 */
 	int exit_ip;		/* Address of exit */
 	int r1_thunk_ip;	/* Address of expoline thunk for 'br %r1' */
 	int r14_thunk_ip;	/* Address of expoline thunk for 'br %r14' */
@@ -52,12 +51,10 @@ struct bpf_jit {
 
 #define BPF_SIZE_MAX	0xffff	/* Max size for program (16 bit branches) */
 
-#define SEEN_MEM	(1 << 0)	/* use mem[] for temporary storage */
-#define SEEN_RET0	(1 << 1)	/* ret0_ip points to a valid return 0 */
-#define SEEN_LITERAL	(1 << 2)	/* code uses literals */
-#define SEEN_FUNC	(1 << 3)	/* calls C functions */
-#define SEEN_TAIL_CALL	(1 << 4)	/* code uses tail calls */
-#define SEEN_REG_AX	(1 << 5)	/* code uses constant blinding */
+#define SEEN_MEM	BIT(0)		/* use mem[] for temporary storage */
+#define SEEN_LITERAL	BIT(1)		/* code uses literals */
+#define SEEN_FUNC	BIT(2)		/* calls C functions */
+#define SEEN_TAIL_CALL	BIT(3)		/* code uses tail calls */
 #define SEEN_STACK	(SEEN_FUNC | SEEN_MEM)
 
 /*
@@ -447,12 +444,6 @@ static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
  */
 static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 {
-	/* Return 0 */
-	if (jit->seen & SEEN_RET0) {
-		jit->ret0_ip = jit->prg;
-		/* lghi %b0,0 */
-		EMIT4_IMM(0xa7090000, BPF_REG_0, 0);
-	}
 	jit->exit_ip = jit->prg;
 	/* Load exit code: lgr %r2,%b0 */
 	EMIT4(0xb9040000, REG_2, BPF_REG_0);
@@ -515,8 +506,6 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	s16 off = insn->off;
 	unsigned int mask;
 
-	if (dst_reg == BPF_REG_AX || src_reg == BPF_REG_AX)
-		jit->seen |= SEEN_REG_AX;
 	switch (insn->code) {
 	/*
 	 * BPF_MOV
@@ -1111,7 +1100,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		break;
 	case BPF_JMP | BPF_EXIT: /* return b0 */
 		last = (i == fp->len - 1) ? 1 : 0;
-		if (last && !(jit->seen & SEEN_RET0))
+		if (last)
 			break;
 		/* j <exit> */
 		EMIT4_PCREL(0xa7f40000, jit->exit_ip - jit->prg);
