@@ -164,8 +164,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
-static void intel_crtc_init_scalers(struct intel_crtc *crtc,
-				    struct intel_crtc_state *crtc_state);
+static void intel_crtc_init_scalers(struct intel_crtc_state *crtc_state);
 static void skylake_pfit_enable(const struct intel_crtc_state *crtc_state);
 static void ironlake_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 static void ironlake_pfit_enable(const struct intel_crtc_state *crtc_state);
@@ -10630,7 +10629,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	u64 power_domain_mask;
 	bool active;
 
-	intel_crtc_init_scalers(crtc, pipe_config);
+	intel_crtc_init_scalers(pipe_config);
 
 	pipe_config->master_transcoder = INVALID_TRANSCODER;
 
@@ -15695,25 +15694,12 @@ fail:
 	return ERR_PTR(ret);
 }
 
-static void intel_crtc_init_scalers(struct intel_crtc *crtc,
-				    struct intel_crtc_state *crtc_state)
+static void intel_crtc_init_scalers(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	int i;
 
-	crtc->num_scalers = RUNTIME_INFO(dev_priv)->num_scalers[crtc->pipe];
-	if (!crtc->num_scalers)
-		return;
-
-	for (i = 0; i < crtc->num_scalers; i++) {
-		struct intel_scaler *scaler = &scaler_state->scalers[i];
-
-		scaler->in_use = 0;
-		scaler->mode = 0;
-	}
-
+	memset(scaler_state, 0, sizeof(*scaler_state));
 	scaler_state->scaler_id = -1;
 }
 
@@ -15784,26 +15770,48 @@ static const struct drm_crtc_funcs i8xx_crtc_funcs = {
 	.disable_vblank = i8xx_disable_vblank,
 };
 
-static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
+static struct intel_crtc *intel_crtc_alloc(void)
 {
-	const struct drm_crtc_funcs *funcs;
+	struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
-	struct intel_crtc_state *crtc_state = NULL;
-	struct intel_plane *primary = NULL;
-	struct intel_plane *cursor = NULL;
-	int sprite, ret;
 
 	crtc = kzalloc(sizeof(*crtc), GFP_KERNEL);
 	if (!crtc)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
 	if (!crtc_state) {
-		ret = -ENOMEM;
-		goto fail;
+		kfree(crtc);
+		return ERR_PTR(-ENOMEM);
 	}
+
 	__drm_atomic_helper_crtc_reset(&crtc->base, &crtc_state->uapi);
+	intel_crtc_init_scalers(crtc_state);
+
 	crtc->config = crtc_state;
+
+	return crtc;
+}
+
+static void intel_crtc_free(struct intel_crtc *crtc)
+{
+	intel_crtc_destroy_state(&crtc->base, crtc->base.state);
+	kfree(crtc);
+}
+
+static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	struct intel_plane *primary, *cursor;
+	const struct drm_crtc_funcs *funcs;
+	struct intel_crtc *crtc;
+	int sprite, ret;
+
+	crtc = intel_crtc_alloc();
+	if (IS_ERR(crtc))
+		return PTR_ERR(crtc);
+
+	crtc->pipe = pipe;
+	crtc->num_scalers = RUNTIME_INFO(dev_priv)->num_scalers[pipe];
 
 	primary = intel_primary_plane_create(dev_priv, pipe);
 	if (IS_ERR(primary)) {
@@ -15855,11 +15863,6 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (ret)
 		goto fail;
 
-	crtc->pipe = pipe;
-
-	/* initialize shared scalers */
-	intel_crtc_init_scalers(crtc, crtc_state);
-
 	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->pipe_to_crtc_mapping) ||
 	       dev_priv->pipe_to_crtc_mapping[pipe] != NULL);
 	dev_priv->pipe_to_crtc_mapping[pipe] = crtc;
@@ -15879,12 +15882,7 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	return 0;
 
 fail:
-	/*
-	 * drm_mode_config_cleanup() will free up any
-	 * crtcs/planes already initialized.
-	 */
-	kfree(crtc_state);
-	kfree(crtc);
+	intel_crtc_free(crtc);
 
 	return ret;
 }
