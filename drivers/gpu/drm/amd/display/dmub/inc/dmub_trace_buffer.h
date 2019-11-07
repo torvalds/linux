@@ -45,6 +45,7 @@ enum dmucb_trace_code {
 	DMCUB__DMCU_ISR_LOAD_END,
 	DMCUB__MAIN_IDLE,
 	DMCUB__PERF_TRACE,
+	DMCUB__PG_DONE,
 };
 
 struct dmcub_trace_buf_entry {
