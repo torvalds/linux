@@ -189,7 +189,6 @@ static int dm816x_usb_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct usb_otg *otg;
 	const struct of_device_id *of_id;
-	const struct usb_phy_data *phy_data;
 	int error;
 
 	of_id = of_match_device(of_match_ptr(dm816x_usb_phy_id_table),
@@ -219,8 +218,6 @@ static int dm816x_usb_phy_probe(struct platform_device *pdev)
 	phy->usbphy_ctrl = (res->start & 0xff) + 4;
 	if (phy->usbphy_ctrl == 0x2c)
 		phy->instance = 1;
-
-	phy_data = of_id->data;
 
 	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)
