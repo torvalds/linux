@@ -109,7 +109,7 @@ static int sigd_send(struct atm_vcc *vcc, struct sk_buff *skb)
 			dev_kfree_skb(skb);
 			goto as_indicate_complete;
 		}
-		sk->sk_ack_backlog++;
+		sk_acceptq_added(sk);
 		skb_queue_tail(&sk->sk_receive_queue, skb);
 		pr_debug("waking sk_sleep(sk) 0x%p\n", sk_sleep(sk));
 		sk->sk_state_change(sk);
