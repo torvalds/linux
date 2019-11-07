@@ -172,6 +172,7 @@ properties:
           - enum:
               - fsl,imx6sx-sabreauto      # i.MX6 SoloX Sabre Auto Board
               - fsl,imx6sx-sdb            # i.MX6 SoloX SDB Board
+              - fsl,imx6sx-sdb-reva       # i.MX6 SoloX SDB Rev-A Board
           - const: fsl,imx6sx
 
       - description: i.MX6UL based Boards
