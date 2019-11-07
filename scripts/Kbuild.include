@@ -210,9 +210,12 @@ endif
 # (needed for the shell)
 make-cmd = $(call escsq,$(subst $(pound),$$(pound),$(subst $$,$$$$,$(cmd_$(1)))))
 
-# Find any prerequisites that is newer than target or that does not exist.
+# Find any prerequisites that are newer than target or that do not exist.
+# (This is not true for now; $? should contain any non-existent prerequisites,
+# but it does not work as expected when .SECONDARY is present. This seems a bug
+# of GNU Make.)
 # PHONY targets skipped in both cases.
-any-prereq = $(filter-out $(PHONY),$?)$(filter-out $(PHONY) $(wildcard $^),$^)
+any-prereq = $(filter-out $(PHONY),$?)
 
 # Execute command if command has changed or prerequisite(s) are updated.
 if_changed = $(if $(any-prereq)$(cmd-check),                                 \
