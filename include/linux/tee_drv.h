@@ -49,7 +49,6 @@ struct tee_shm_pool;
  */
 struct tee_context {
 	struct tee_device *teedev;
-	struct list_head list_shm;
 	void *data;
 	struct kref refcount;
 	bool releasing;
@@ -170,7 +169,6 @@ void tee_device_unregister(struct tee_device *teedev);
  * struct tee_shm - shared memory object
  * @teedev:	device used to allocate the object
  * @ctx:	context using the object, if NULL the context is gone
- * @link	link element
  * @paddr:	physical address of the shared memory
  * @kaddr:	virtual address of the shared memory
  * @size:	size of shared memory
@@ -187,7 +185,6 @@ void tee_device_unregister(struct tee_device *teedev);
 struct tee_shm {
 	struct tee_device *teedev;
 	struct tee_context *ctx;
-	struct list_head link;
 	phys_addr_t paddr;
 	void *kaddr;
 	size_t size;
