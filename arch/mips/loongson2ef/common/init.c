@@ -44,7 +44,6 @@ void __init prom_init(void)
 
 	/*init the uart base address */
 	prom_init_uart_base();
-	register_smp_ops(&loongson3_smp_ops);
 	board_nmi_handler_setup = mips_nmi_setup;
 }
 

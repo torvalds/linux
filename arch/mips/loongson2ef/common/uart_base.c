@@ -6,6 +6,7 @@
 
 #include <linux/export.h>
 #include <asm/bootinfo.h>
+#include <asm/setup.h>
 
 #include <loongson.h>
 
@@ -38,4 +39,5 @@ void prom_init_loongson_uart_base(void)
 	}
 
 	_loongson_uart_base = TO_UNCAC(loongson_uart_base);
+	setup_8250_early_printk_port(_loongson_uart_base, 0, 1024);
 }
