@@ -1,5 +1,5 @@
-aQuantia AQtion Driver for the aQuantia Multi-Gigabit PCI Express Family of
-Ethernet Adapters
+Marvell(Aquantia) AQtion Driver for the aQuantia Multi-Gigabit PCI Express
+Family of Ethernet Adapters
 =============================================================================
 
 Contents
@@ -466,7 +466,7 @@ Support
 
 If an issue is identified with the released source code on the supported
 kernel with a supported adapter, email the specific information related
-to the issue to support@aquantia.com
+to the issue to aqn_support@marvell.com
 
 License
 =======

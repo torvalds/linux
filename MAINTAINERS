@@ -1182,10 +1182,10 @@ S:	Maintained
 F:	drivers/media/i2c/aptina-pll.*
 
 AQUANTIA ETHERNET DRIVER (atlantic)
-M:	Igor Russkikh <igor.russkikh@aquantia.com>
+M:	Igor Russkikh <irusskikh@marvell.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-W:	http://www.aquantia.com
+W:	https://www.marvell.com/
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/aquantia/atlantic/
 F:	Documentation/networking/device_drivers/aquantia/atlantic.txt
