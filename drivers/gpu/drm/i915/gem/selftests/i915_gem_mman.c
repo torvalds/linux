@@ -793,6 +793,116 @@ out:
 	return err;
 }
 
+static int check_present_pte(pte_t *pte, unsigned long addr, void *data)
+{
+	if (!pte_present(*pte) || pte_none(*pte)) {
+		pr_err("missing PTE:%lx\n",
+		       (addr - (unsigned long)data) >> PAGE_SHIFT);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int check_absent_pte(pte_t *pte, unsigned long addr, void *data)
+{
+	if (pte_present(*pte) && !pte_none(*pte)) {
+		pr_err("present PTE:%lx; expected to be revoked\n",
+		       (addr - (unsigned long)data) >> PAGE_SHIFT);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int check_present(unsigned long addr, unsigned long len)
+{
+	return apply_to_page_range(current->mm, addr, len,
+				   check_present_pte, (void *)addr);
+}
+
+static int check_absent(unsigned long addr, unsigned long len)
+{
+	return apply_to_page_range(current->mm, addr, len,
+				   check_absent_pte, (void *)addr);
+}
+
+static int prefault_range(u64 start, u64 len)
+{
+	const char __user *addr, *end;
+	char __maybe_unused c;
+	int err;
+
+	addr = u64_to_user_ptr(start);
+	end = addr + len;
+
+	for (; addr < end; addr += PAGE_SIZE) {
+		err = __get_user(c, addr);
+		if (err)
+			return err;
+	}
+
+	return __get_user(c, end - 1);
+}
+
+static int igt_mmap_gtt_revoke(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj;
+	unsigned long addr;
+	int err;
+
+	if (!i915_ggtt_has_aperture(&i915->ggtt))
+		return 0;
+
+	obj = i915_gem_object_create_internal(i915, SZ_4M);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	err = create_mmap_offset(obj);
+	if (err)
+		goto out;
+
+	addr = igt_mmap_node(i915, &obj->base.vma_node,
+			     0, PROT_WRITE, MAP_SHARED);
+	if (IS_ERR_VALUE(addr)) {
+		err = addr;
+		goto out;
+	}
+
+	err = prefault_range(addr, obj->base.size);
+	if (err)
+		goto out_unmap;
+
+	GEM_BUG_ON(!atomic_read(&obj->bind_count));
+
+	err = check_present(addr, obj->base.size);
+	if (err)
+		goto out_unmap;
+
+	/*
+	 * After unbinding the object from the GGTT, its address may be reused
+	 * for other objects. Ergo we have to revoke the previous mmap PTE
+	 * access as it no longer points to the same object.
+	 */
+	err = i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE);
+	if (err) {
+		pr_err("Failed to unbind object!\n");
+		goto out_unmap;
+	}
+	GEM_BUG_ON(atomic_read(&obj->bind_count));
+
+	err = check_absent(addr, obj->base.size);
+	if (err)
+		goto out_unmap;
+
+out_unmap:
+	vm_munmap(addr, obj->base.size);
+out:
+	i915_gem_object_put(obj);
+	return err;
+}
+
 int i915_gem_mman_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
@@ -800,6 +910,7 @@ int i915_gem_mman_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_smoke_tiling),
 		SUBTEST(igt_mmap_offset_exhaustion),
 		SUBTEST(igt_mmap_gtt),
+		SUBTEST(igt_mmap_gtt_revoke),
 	};
 
 	return i915_subtests(tests, i915);
