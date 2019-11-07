@@ -156,6 +156,16 @@
 		status = "okay";
 	};
 
+	rk_modem: rk-modem {
+		compatible="4g-modem-platdata";
+		pinctrl-names = "default";
+		pinctrl-0 = <&lte_vbat &lte_power_en &lte_reset>;
+		4G,vbat-gpio = <&gpio4 RK_PD0 GPIO_ACTIVE_HIGH>;
+		4G,power-gpio = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+		4G,reset-gpio = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
 	tc358749x_sound:tc358749x-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -1336,6 +1346,20 @@
 		uart0_gpios: uart0-gpios {
 			rockchip,pins =
 				<2 19 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	rk-modem {
+		lte_vbat: lte-vbat {
+			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		lte_power_en: lte-power-en {
+			rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		lte_reset: lte-reset {
+			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
