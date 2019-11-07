@@ -419,11 +419,10 @@ static void ast_set_dclk_reg(struct drm_device *dev, struct drm_display_mode *mo
 			       ((clk_info->param3 & 0x3) << 4));
 }
 
-static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			     struct ast_vbios_mode_info *vbios_mode)
+static void ast_set_color_reg(struct drm_crtc *crtc,
+			      const struct drm_framebuffer *fb)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
-	const struct drm_framebuffer *fb = crtc->primary->fb;
 	u8 jregA0 = 0, jregA3 = 0, jregA8 = 0;
 
 	switch (fb->format->cpp[0] * 8) {
@@ -448,6 +447,11 @@ static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa0, 0x8f, jregA0);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xf0, jregA3);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa8, 0xfd, jregA8);
+}
+
+static void ast_set_crtthd_reg(struct drm_crtc *crtc)
+{
+	struct ast_private *ast = crtc->dev->dev_private;
 
 	/* Set Threshold */
 	if (ast->chip == AST2300 || ast->chip == AST2400 ||
@@ -467,7 +471,7 @@ static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 }
 
 static void ast_set_sync_reg(struct drm_device *dev, struct drm_display_mode *mode,
-		      struct ast_vbios_mode_info *vbios_mode)
+			     struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = dev->dev_private;
 	u8 jreg;
@@ -595,7 +599,8 @@ static int ast_crtc_mode_set(struct drm_crtc *crtc,
 	ast_set_crtc_reg(crtc, adjusted_mode, &vbios_mode);
 	ast_set_offset_reg(crtc);
 	ast_set_dclk_reg(dev, adjusted_mode, &vbios_mode);
-	ast_set_ext_reg(crtc, adjusted_mode, &vbios_mode);
+	ast_set_color_reg(crtc, fb);
+	ast_set_crtthd_reg(crtc);
 	ast_set_sync_reg(dev, adjusted_mode, &vbios_mode);
 	ast_set_dac_reg(crtc, adjusted_mode, &vbios_mode);
 
