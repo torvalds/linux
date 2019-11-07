@@ -547,7 +547,7 @@ static int hisi_zip_core_debug_init(struct hisi_zip_ctrl *ctrl)
 	struct hisi_qm *qm = &hisi_zip->qm;
 	struct device *dev = &qm->pdev->dev;
 	struct debugfs_regset32 *regset;
-	struct dentry *tmp_d, *tmp;
+	struct dentry *tmp_d;
 	char buf[HZIP_BUF_SIZE];
 	int i;
 
@@ -557,10 +557,6 @@ static int hisi_zip_core_debug_init(struct hisi_zip_ctrl *ctrl)
 		else
 			sprintf(buf, "decomp_core%d", i - HZIP_COMP_CORE_NUM);
 
-		tmp_d = debugfs_create_dir(buf, ctrl->debug_root);
-		if (!tmp_d)
-			return -ENOENT;
-
 		regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 		if (!regset)
 			return -ENOENT;
@@ -569,9 +565,8 @@ static int hisi_zip_core_debug_init(struct hisi_zip_ctrl *ctrl)
 		regset->nregs = ARRAY_SIZE(hzip_dfx_regs);
 		regset->base = qm->io_base + core_offsets[i];
 
-		tmp = debugfs_create_regset32("regs", 0444, tmp_d, regset);
-		if (!tmp)
-			return -ENOENT;
+		tmp_d = debugfs_create_dir(buf, ctrl->debug_root);
+		debugfs_create_regset32("regs", 0444, tmp_d, regset);
 	}
 
 	return 0;
@@ -579,7 +574,6 @@ static int hisi_zip_core_debug_init(struct hisi_zip_ctrl *ctrl)
 
 static int hisi_zip_ctrl_debug_init(struct hisi_zip_ctrl *ctrl)
 {
-	struct dentry *tmp;
 	int i;
 
 	for (i = HZIP_CURRENT_QM; i < HZIP_DEBUG_FILE_NUM; i++) {
@@ -587,11 +581,9 @@ static int hisi_zip_ctrl_debug_init(struct hisi_zip_ctrl *ctrl)
 		ctrl->files[i].ctrl = ctrl;
 		ctrl->files[i].index = i;
 
-		tmp = debugfs_create_file(ctrl_debug_file_name[i], 0600,
-					  ctrl->debug_root, ctrl->files + i,
-					  &ctrl_debug_fops);
-		if (!tmp)
-			return -ENOENT;
+		debugfs_create_file(ctrl_debug_file_name[i], 0600,
+				    ctrl->debug_root, ctrl->files + i,
+				    &ctrl_debug_fops);
 	}
 
 	return hisi_zip_core_debug_init(ctrl);
@@ -605,8 +597,6 @@ static int hisi_zip_debugfs_init(struct hisi_zip *hisi_zip)
 	int ret;
 
 	dev_d = debugfs_create_dir(dev_name(dev), hzip_debugfs_root);
-	if (!dev_d)
-		return -ENOENT;
 
 	qm->debug.debug_root = dev_d;
 	ret = hisi_qm_debug_init(qm);
@@ -1001,8 +991,6 @@ static void hisi_zip_register_debugfs(void)
 		return;
 
 	hzip_debugfs_root = debugfs_create_dir("hisi_zip", NULL);
-	if (IS_ERR_OR_NULL(hzip_debugfs_root))
-		hzip_debugfs_root = NULL;
 }
 
 static void hisi_zip_unregister_debugfs(void)

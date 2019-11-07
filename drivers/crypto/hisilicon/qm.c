@@ -970,13 +970,11 @@ static const struct file_operations qm_regs_fops = {
 
 static int qm_create_debugfs_file(struct hisi_qm *qm, enum qm_debug_file index)
 {
-	struct dentry *qm_d = qm->debug.qm_d, *tmp;
+	struct dentry *qm_d = qm->debug.qm_d;
 	struct debugfs_file *file = qm->debug.files + index;
 
-	tmp = debugfs_create_file(qm_debug_file_name[index], 0600, qm_d, file,
-				  &qm_debug_fops);
-	if (IS_ERR(tmp))
-		return -ENOENT;
+	debugfs_create_file(qm_debug_file_name[index], 0600, qm_d, file,
+			    &qm_debug_fops);
 
 	file->index = index;
 	mutex_init(&file->lock);
@@ -1805,12 +1803,10 @@ EXPORT_SYMBOL_GPL(hisi_qm_stop);
  */
 int hisi_qm_debug_init(struct hisi_qm *qm)
 {
-	struct dentry *qm_d, *qm_regs;
+	struct dentry *qm_d;
 	int i, ret;
 
 	qm_d = debugfs_create_dir("qm", qm->debug.debug_root);
-	if (IS_ERR(qm_d))
-		return -ENOENT;
 	qm->debug.qm_d = qm_d;
 
 	/* only show this in PF */
@@ -1821,12 +1817,7 @@ int hisi_qm_debug_init(struct hisi_qm *qm)
 				goto failed_to_create;
 			}
 
-	qm_regs = debugfs_create_file("qm_regs", 0444, qm->debug.qm_d, qm,
-				      &qm_regs_fops);
-	if (IS_ERR(qm_regs)) {
-		ret = -ENOENT;
-		goto failed_to_create;
-	}
+	debugfs_create_file("qm_regs", 0444, qm->debug.qm_d, qm, &qm_regs_fops);
 
 	return 0;
 
