@@ -5250,6 +5250,80 @@ static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
 	return err;
 }
 
+static int mv88e6xxx_port_mirror_add(struct dsa_switch *ds, int port,
+				     struct dsa_mall_mirror_tc_entry *mirror,
+				     bool ingress)
+{
+	enum mv88e6xxx_egress_direction direction = ingress ?
+						MV88E6XXX_EGRESS_DIR_INGRESS :
+						MV88E6XXX_EGRESS_DIR_EGRESS;
+	struct mv88e6xxx_chip *chip = ds->priv;
+	bool other_mirrors = false;
+	int i;
+	int err;
+
+	if (!chip->info->ops->set_egress_port)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&chip->reg_lock);
+	if ((ingress ? chip->ingress_dest_port : chip->egress_dest_port) !=
+	    mirror->to_local_port) {
+		for (i = 0; i < mv88e6xxx_num_ports(chip); i++)
+			other_mirrors |= ingress ?
+					 chip->ports[i].mirror_ingress :
+					 chip->ports[i].mirror_egress;
+
+		/* Can't change egress port when other mirror is active */
+		if (other_mirrors) {
+			err = -EBUSY;
+			goto out;
+		}
+
+		err = chip->info->ops->set_egress_port(chip,
+						       direction,
+						       mirror->to_local_port);
+		if (err)
+			goto out;
+	}
+
+	err = mv88e6xxx_port_set_mirror(chip, port, direction, true);
+out:
+	mutex_unlock(&chip->reg_lock);
+
+	return err;
+}
+
+static void mv88e6xxx_port_mirror_del(struct dsa_switch *ds, int port,
+				      struct dsa_mall_mirror_tc_entry *mirror)
+{
+	enum mv88e6xxx_egress_direction direction = mirror->ingress ?
+						MV88E6XXX_EGRESS_DIR_INGRESS :
+						MV88E6XXX_EGRESS_DIR_EGRESS;
+	struct mv88e6xxx_chip *chip = ds->priv;
+	bool other_mirrors = false;
+	int i;
+
+	mutex_lock(&chip->reg_lock);
+	if (mv88e6xxx_port_set_mirror(chip, port, direction, false))
+		dev_err(ds->dev, "p%d: failed to disable mirroring\n", port);
+
+	for (i = 0; i < mv88e6xxx_num_ports(chip); i++)
+		other_mirrors |= mirror->ingress ?
+				 chip->ports[i].mirror_ingress :
+				 chip->ports[i].mirror_egress;
+
+	/* Reset egress port when no other mirror is active */
+	if (!other_mirrors) {
+		if (chip->info->ops->set_egress_port(chip,
+						     direction,
+						     dsa_upstream_port(ds,
+								       port)));
+			dev_err(ds->dev, "failed to set egress port\n");
+	}
+
+	mutex_unlock(&chip->reg_lock);
+}
+
 static int mv88e6xxx_port_egress_floods(struct dsa_switch *ds, int port,
 					 bool unicast, bool multicast)
 {
@@ -5305,6 +5379,8 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_mdb_prepare       = mv88e6xxx_port_mdb_prepare,
 	.port_mdb_add           = mv88e6xxx_port_mdb_add,
 	.port_mdb_del           = mv88e6xxx_port_mdb_del,
+	.port_mirror_add	= mv88e6xxx_port_mirror_add,
+	.port_mirror_del	= mv88e6xxx_port_mirror_del,
 	.crosschip_bridge_join	= mv88e6xxx_crosschip_bridge_join,
 	.crosschip_bridge_leave	= mv88e6xxx_crosschip_bridge_leave,
 	.port_hwtstamp_set	= mv88e6xxx_port_hwtstamp_set,

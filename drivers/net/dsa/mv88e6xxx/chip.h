@@ -233,6 +233,8 @@ struct mv88e6xxx_port {
 	u64 vtu_member_violation;
 	u64 vtu_miss_violation;
 	u8 cmode;
+	bool mirror_ingress;
+	bool mirror_egress;
 	unsigned int serdes_irq;
 };
 
@@ -315,6 +317,10 @@ struct mv88e6xxx_chip {
 	u16 trig_config;
 	u16 evcap_config;
 	u16 enable_count;
+
+	/* Current ingress and egress monitor ports */
+	int egress_dest_port;
+	int ingress_dest_port;
 
 	/* Per-port timestamping resources. */
 	struct mv88e6xxx_port_hwtstamp port_hwtstamp[DSA_MAX_PORTS];
