@@ -107,16 +107,21 @@ static bool is_new_frame(struct komeda_events *a)
 	       (KOMEDA_EVENT_FLIP | KOMEDA_EVENT_EOW);
 }
 
-void komeda_print_events(struct komeda_events *evts)
+void komeda_print_events(struct komeda_events *evts, struct drm_device *dev)
 {
-	u64 print_evts = KOMEDA_ERR_EVENTS;
+	u64 print_evts = 0;
 	static bool en_print = true;
+	struct komeda_dev *mdev = dev->dev_private;
+	u16 const err_verbosity = mdev->err_verbosity;
 
 	/* reduce the same msg print, only print the first evt for one frame */
 	if (evts->global || is_new_frame(evts))
 		en_print = true;
 	if (!en_print)
 		return;
+
+	if (err_verbosity & KOMEDA_DEV_PRINT_ERR_EVENTS)
+		print_evts |= KOMEDA_ERR_EVENTS;
 
 	if ((evts->global | evts->pipes[0] | evts->pipes[1]) & print_evts) {
 		char msg[256];

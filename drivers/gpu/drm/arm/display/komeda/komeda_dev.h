@@ -202,6 +202,14 @@ struct komeda_dev {
 
 	/** @debugfs_root: root directory of komeda debugfs */
 	struct dentry *debugfs_root;
+	/**
+	 * @err_verbosity: bitmask for how much extra info to print on error
+	 *
+	 * See KOMEDA_DEV_* macros for details.
+	 */
+	u16 err_verbosity;
+	/* Print a single line per error per frame with error events. */
+#define KOMEDA_DEV_PRINT_ERR_EVENTS BIT(0)
 };
 
 static inline bool
@@ -219,9 +227,11 @@ void komeda_dev_destroy(struct komeda_dev *mdev);
 struct komeda_dev *dev_to_mdev(struct device *dev);
 
 #ifdef CONFIG_DRM_KOMEDA_ERROR_PRINT
-void komeda_print_events(struct komeda_events *evts);
+void komeda_print_events(struct komeda_events *evts, struct drm_device *dev);
 #else
-static inline void komeda_print_events(struct komeda_events *evts) {}
+static inline void komeda_print_events(struct komeda_events *evts,
+				       struct drm_device *dev)
+{}
 #endif
 
 int komeda_dev_resume(struct komeda_dev *mdev);
