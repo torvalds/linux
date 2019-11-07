@@ -607,6 +607,20 @@ err_exit:
 	return err;
 }
 
+static u32 aq_get_msg_level(struct net_device *ndev)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+
+	return aq_nic->msg_enable;
+}
+
+static void aq_set_msg_level(struct net_device *ndev, u32 data)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+
+	aq_nic->msg_enable = data;
+}
+
 const struct ethtool_ops aq_ethtool_ops = {
 	.get_link            = aq_ethtool_get_link,
 	.get_regs_len        = aq_ethtool_get_regs_len,
@@ -628,6 +642,8 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.set_rxfh            = aq_ethtool_set_rss,
 	.get_rxnfc           = aq_ethtool_get_rxnfc,
 	.set_rxnfc           = aq_ethtool_set_rxnfc,
+	.get_msglevel        = aq_get_msg_level,
+	.set_msglevel        = aq_set_msg_level,
 	.get_sset_count      = aq_ethtool_get_sset_count,
 	.get_ethtool_stats   = aq_ethtool_stats,
 	.get_link_ksettings  = aq_ethtool_get_link_ksettings,

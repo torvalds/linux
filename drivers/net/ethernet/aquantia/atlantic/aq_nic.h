@@ -88,6 +88,7 @@ struct aq_hw_rx_fltrs_s {
 
 struct aq_nic_s {
 	atomic_t flags;
+	u32 msg_enable;
 	struct aq_vec_s *aq_vec[AQ_CFG_VECS_MAX];
 	struct aq_ring_s *aq_ring_tx[AQ_CFG_VECS_MAX * AQ_CFG_TCS_MAX];
 	struct aq_hw_s *aq_hw;
