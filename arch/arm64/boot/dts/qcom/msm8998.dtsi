@@ -847,6 +847,25 @@
 				<GIC_SPI 369 IRQ_TYPE_EDGE_RISING>;
 		};
 
+		anoc2_smmu: iommu@16c0000 {
+			compatible = "qcom,msm8998-smmu-v2", "qcom,smmu-v2";
+			reg = <0x016c0000 0x40000>;
+			#iommu-cells = <1>;
+
+			#global-interrupts = <0>;
+			interrupts =
+				<GIC_SPI 373 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 374 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 375 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 376 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 377 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 378 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 462 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 463 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 464 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 465 IRQ_TYPE_EDGE_RISING>;
+		};
+
 		pcie0: pci@1c00000 {
 			compatible = "qcom,pcie-msm8996";
 			reg =	<0x01c00000 0x2000>,
