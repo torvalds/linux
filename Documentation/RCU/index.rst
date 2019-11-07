@@ -8,6 +8,7 @@ RCU concepts
    :maxdepth: 3
 
    arrayRCU
+   rcubarrier
    rcu_dereference
    whatisRCU
    rcu
