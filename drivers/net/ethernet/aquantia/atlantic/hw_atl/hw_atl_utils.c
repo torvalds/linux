@@ -858,22 +858,26 @@ static int aq_fw1x_set_wol(struct aq_hw_s *self, bool wol_enabled, u8 *mac)
 	memset(prpc, 0, sizeof(*prpc));
 
 	if (wol_enabled) {
-		rpc_size = sizeof(prpc->msg_id) + sizeof(prpc->msg_wol);
+		rpc_size = offsetof(struct hw_atl_utils_fw_rpc, msg_wol_add) +
+			   sizeof(prpc->msg_wol_add);
+
 
 		prpc->msg_id = HAL_ATLANTIC_UTILS_FW_MSG_WOL_ADD;
-		prpc->msg_wol.priority =
+		prpc->msg_wol_add.priority =
 				HAL_ATLANTIC_UTILS_FW_MSG_WOL_PRIOR;
-		prpc->msg_wol.pattern_id =
+		prpc->msg_wol_add.pattern_id =
 				HAL_ATLANTIC_UTILS_FW_MSG_WOL_PATTERN;
-		prpc->msg_wol.wol_packet_type =
+		prpc->msg_wol_add.packet_type =
 				HAL_ATLANTIC_UTILS_FW_MSG_WOL_MAG_PKT;
 
-		ether_addr_copy((u8 *)&prpc->msg_wol.wol_pattern, mac);
+		ether_addr_copy((u8 *)&prpc->msg_wol_add.magic_packet_pattern,
+				mac);
 	} else {
-		rpc_size = sizeof(prpc->msg_id) + sizeof(prpc->msg_del_id);
+		rpc_size = sizeof(prpc->msg_wol_remove) +
+			   offsetof(struct hw_atl_utils_fw_rpc, msg_wol_remove);
 
 		prpc->msg_id = HAL_ATLANTIC_UTILS_FW_MSG_WOL_DEL;
-		prpc->msg_wol.pattern_id =
+		prpc->msg_wol_add.pattern_id =
 				HAL_ATLANTIC_UTILS_FW_MSG_WOL_PATTERN;
 	}
 
