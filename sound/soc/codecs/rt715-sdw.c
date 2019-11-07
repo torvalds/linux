@@ -431,6 +431,9 @@ static int rt715_read_prop(struct sdw_slave *slave)
 	/* set the timeout values */
 	prop->clk_stop_timeout = 20;
 
+	/* wake-up event */
+	prop->wake_capable = 1;
+
 	return 0;
 }
 
