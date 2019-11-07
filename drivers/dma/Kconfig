@@ -689,6 +689,8 @@ source "drivers/dma/dw-edma/Kconfig"
 
 source "drivers/dma/hsu/Kconfig"
 
+source "drivers/dma/sf-pdma/Kconfig"
+
 source "drivers/dma/sh/Kconfig"
 
 source "drivers/dma/ti/Kconfig"
