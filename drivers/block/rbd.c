@@ -514,6 +514,11 @@ static int minor_to_rbd_dev_id(int minor)
 	return minor >> RBD_SINGLE_MAJOR_PART_SHIFT;
 }
 
+static bool rbd_is_snap(struct rbd_device *rbd_dev)
+{
+	return rbd_dev->spec->snap_id != CEPH_NOSNAP;
+}
+
 static bool __rbd_is_lock_owner(struct rbd_device *rbd_dev)
 {
 	lockdep_assert_held(&rbd_dev->lock_rwsem);
@@ -696,7 +701,7 @@ static int rbd_ioctl_set_ro(struct rbd_device *rbd_dev, unsigned long arg)
 		return -EFAULT;
 
 	/* Snapshots can't be marked read-write */
-	if (rbd_dev->spec->snap_id != CEPH_NOSNAP && !ro)
+	if (rbd_is_snap(rbd_dev) && !ro)
 		return -EROFS;
 
 	/* Let blkdev_roset() handle it */
@@ -3555,7 +3560,7 @@ static bool need_exclusive_lock(struct rbd_img_request *img_req)
 	if (!(rbd_dev->header.features & RBD_FEATURE_EXCLUSIVE_LOCK))
 		return false;
 
-	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
+	if (rbd_is_snap(rbd_dev))
 		return false;
 
 	rbd_assert(!test_bit(IMG_REQ_CHILD, &img_req->flags));
@@ -4826,7 +4831,7 @@ static void rbd_queue_workfn(struct work_struct *work)
 		goto err_rq;
 	}
 
-	if (op_type != OBJ_OP_READ && rbd_dev->spec->snap_id != CEPH_NOSNAP) {
+	if (op_type != OBJ_OP_READ && rbd_is_snap(rbd_dev)) {
 		rbd_warn(rbd_dev, "%s on read-only snapshot",
 			 obj_op_name(op_type));
 		result = -EIO;
@@ -4841,7 +4846,7 @@ static void rbd_queue_workfn(struct work_struct *work)
 	 */
 	if (!test_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags)) {
 		dout("request for non-existent snapshot");
-		rbd_assert(rbd_dev->spec->snap_id != CEPH_NOSNAP);
+		rbd_assert(rbd_is_snap(rbd_dev));
 		result = -ENXIO;
 		goto err_rq;
 	}
@@ -5084,7 +5089,7 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 			goto out;
 	}
 
-	if (rbd_dev->spec->snap_id == CEPH_NOSNAP) {
+	if (!rbd_is_snap(rbd_dev)) {
 		rbd_dev->mapping.size = rbd_dev->header.image_size;
 	} else {
 		/* validate mapped snapshot's EXISTS flag */
@@ -6632,7 +6637,7 @@ static int rbd_add_acquire_lock(struct rbd_device *rbd_dev)
 		return -EINVAL;
 	}
 
-	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
+	if (rbd_is_snap(rbd_dev))
 		return 0;
 
 	rbd_assert(!rbd_is_lock_owner(rbd_dev));
@@ -7003,7 +7008,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 	if (ret)
 		goto err_out_probe;
 
-	if (rbd_dev->spec->snap_id != CEPH_NOSNAP &&
+	if (rbd_is_snap(rbd_dev) &&
 	    (rbd_dev->header.features & RBD_FEATURE_OBJECT_MAP)) {
 		ret = rbd_object_map_load(rbd_dev);
 		if (ret)
@@ -7093,7 +7098,7 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	}
 
 	/* If we are mapping a snapshot it must be marked read-only */
-	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
+	if (rbd_is_snap(rbd_dev))
 		rbd_dev->opts->read_only = true;
 
 	if (rbd_dev->opts->alloc_size > rbd_dev->layout.object_size) {
