@@ -163,6 +163,28 @@ static void snd_timer_request(struct snd_timer_id *tid)
 
 #endif
 
+/* move the slave if it belongs to the master; return 1 if match */
+static int check_matching_master_slave(struct snd_timer_instance *master,
+				       struct snd_timer_instance *slave)
+{
+	if (slave->slave_class != master->slave_class ||
+	    slave->slave_id != master->slave_id)
+		return 0;
+	if (master->timer->num_instances >= master->timer->max_instances)
+		return -EBUSY;
+	list_move_tail(&slave->open_list, &master->slave_list_head);
+	master->timer->num_instances++;
+	spin_lock_irq(&slave_active_lock);
+	spin_lock(&master->timer->lock);
+	slave->master = master;
+	slave->timer = master->timer;
+	if (slave->flags & SNDRV_TIMER_IFLG_RUNNING)
+		list_add_tail(&slave->active_list, &master->slave_active_head);
+	spin_unlock(&master->timer->lock);
+	spin_unlock_irq(&slave_active_lock);
+	return 1;
+}
+
 /*
  * look for a master instance matching with the slave id of the given slave.
  * when found, relink the open_link of the slave.
@@ -173,27 +195,18 @@ static int snd_timer_check_slave(struct snd_timer_instance *slave)
 {
 	struct snd_timer *timer;
 	struct snd_timer_instance *master;
+	int err = 0;
 
 	/* FIXME: it's really dumb to look up all entries.. */
 	list_for_each_entry(timer, &snd_timer_list, device_list) {
 		list_for_each_entry(master, &timer->open_list_head, open_list) {
-			if (slave->slave_class == master->slave_class &&
-			    slave->slave_id == master->slave_id) {
-				if (master->timer->num_instances >=
-				    master->timer->max_instances)
-					return -EBUSY;
-				list_move_tail(&slave->open_list,
-					       &master->slave_list_head);
-				master->timer->num_instances++;
-				spin_lock_irq(&slave_active_lock);
-				slave->master = master;
-				slave->timer = master->timer;
-				spin_unlock_irq(&slave_active_lock);
-				return 0;
-			}
+			err = check_matching_master_slave(master, slave);
+			if (err != 0) /* match found or error */
+				goto out;
 		}
 	}
-	return 0;
+ out:
+	return err < 0 ? err : 0;
 }
 
 /*
@@ -205,28 +218,15 @@ static int snd_timer_check_slave(struct snd_timer_instance *slave)
 static int snd_timer_check_master(struct snd_timer_instance *master)
 {
 	struct snd_timer_instance *slave, *tmp;
+	int err = 0;
 
 	/* check all pending slaves */
 	list_for_each_entry_safe(slave, tmp, &snd_timer_slave_list, open_list) {
-		if (slave->slave_class == master->slave_class &&
-		    slave->slave_id == master->slave_id) {
-			if (master->timer->num_instances >=
-			    master->timer->max_instances)
-				return -EBUSY;
-			list_move_tail(&slave->open_list, &master->slave_list_head);
-			master->timer->num_instances++;
-			spin_lock_irq(&slave_active_lock);
-			spin_lock(&master->timer->lock);
-			slave->master = master;
-			slave->timer = master->timer;
-			if (slave->flags & SNDRV_TIMER_IFLG_RUNNING)
-				list_add_tail(&slave->active_list,
-					      &master->slave_active_head);
-			spin_unlock(&master->timer->lock);
-			spin_unlock_irq(&slave_active_lock);
-		}
+		err = check_matching_master_slave(master, slave);
+		if (err < 0)
+			break;
 	}
-	return 0;
+	return err < 0 ? err : 0;
 }
 
 static int snd_timer_close_locked(struct snd_timer_instance *timeri,
