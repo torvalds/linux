@@ -1536,12 +1536,19 @@ enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state 
 
 static void acquire_dsc(struct resource_context *res_ctx,
 			const struct resource_pool *pool,
-			struct display_stream_compressor **dsc)
+			struct display_stream_compressor **dsc,
+			int pipe_idx)
 {
 	int i;
 
 	ASSERT(*dsc == NULL);
 	*dsc = NULL;
+
+	if (pool->res_cap->num_dsc == pool->res_cap->num_opp) {
+		*dsc = pool->dscs[pipe_idx];
+		res_ctx->is_dsc_acquired[pipe_idx] = true;
+		return;
+	}
 
 	/* Find first free DSC */
 	for (i = 0; i < pool->res_cap->num_dsc; i++)
@@ -1585,7 +1592,7 @@ static enum dc_status add_dsc_to_stream_resource(struct dc *dc,
 		if (pipe_ctx->stream != dc_stream)
 			continue;
 
-		acquire_dsc(&dc_ctx->res_ctx, pool, &pipe_ctx->stream_res.dsc);
+		acquire_dsc(&dc_ctx->res_ctx, pool, &pipe_ctx->stream_res.dsc, i);
 
 		/* The number of DSCs can be less than the number of pipes */
 		if (!pipe_ctx->stream_res.dsc) {
@@ -1785,7 +1792,7 @@ bool dcn20_split_stream_for_odm(
 	next_odm_pipe->stream_res.opp = pool->opps[next_odm_pipe->pipe_idx];
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	if (next_odm_pipe->stream->timing.flags.DSC == 1) {
-		acquire_dsc(res_ctx, pool, &next_odm_pipe->stream_res.dsc);
+		acquire_dsc(res_ctx, pool, &next_odm_pipe->stream_res.dsc, next_odm_pipe->pipe_idx);
 		ASSERT(next_odm_pipe->stream_res.dsc);
 		if (next_odm_pipe->stream_res.dsc == NULL)
 			return false;
