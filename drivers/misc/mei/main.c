@@ -701,6 +701,29 @@ static int mei_fasync(int fd, struct file *file, int band)
 }
 
 /**
+ * trc_show - mei device trc attribute show method
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf:  char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t trc_show(struct device *device,
+			struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	u32 trc;
+	int ret;
+
+	ret = mei_trc_status(dev, &trc);
+	if (ret)
+		return ret;
+	return sprintf(buf, "%08X\n", trc);
+}
+static DEVICE_ATTR_RO(trc);
+
+/**
  * fw_status_show - mei device fw_status attribute show method
  *
  * @device: device pointer
@@ -887,6 +910,7 @@ static struct attribute *mei_attrs[] = {
 	&dev_attr_tx_queue_limit.attr,
 	&dev_attr_fw_ver.attr,
 	&dev_attr_dev_state.attr,
+	&dev_attr_trc.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(mei);

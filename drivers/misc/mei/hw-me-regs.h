@@ -163,7 +163,8 @@ access to ME_CBD */
 #define ME_IS_HRA         0x00000002
 /* ME Interrupt Enable HRA - host read only access to ME_IE */
 #define ME_IE_HRA         0x00000001
-
+/* TRC control shadow register */
+#define ME_TRC            0x00000030
 
 /* H_HPG_CSR register bits */
 #define H_HPG_CSR_PGIHEXR 0x00000001

@@ -21,12 +21,14 @@
  * @quirk_probe: device exclusion quirk
  * @dma_size: device DMA buffers size
  * @fw_ver_supported: is fw version retrievable from FW
+ * @hw_trc_supported: does the hw support trc register
  */
 struct mei_cfg {
 	const struct mei_fw_status fw_status;
 	bool (*quirk_probe)(struct pci_dev *pdev);
 	size_t dma_size[DMA_DSCR_NUM];
 	u32 fw_ver_supported:1;
+	u32 hw_trc_supported:1;
 };
 
 
@@ -78,6 +80,7 @@ struct mei_me_hw {
  *                         servers platforms with quirk for
  *                         SPS firmware exclusion.
  * @MEI_ME_PCH12_CFG:      Platform Controller Hub Gen12 and newer
+ * @MEI_ME_PCH15_CFG:      Platform Controller Hub Gen15 and newer
  * @MEI_ME_NUM_CFG:        Upper Sentinel.
  */
 enum mei_cfg_idx {
@@ -90,6 +93,7 @@ enum mei_cfg_idx {
 	MEI_ME_PCH8_CFG,
 	MEI_ME_PCH8_SPS_CFG,
 	MEI_ME_PCH12_CFG,
+	MEI_ME_PCH15_CFG,
 	MEI_ME_NUM_CFG,
 };
 

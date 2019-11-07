@@ -80,3 +80,13 @@ Description:	Display the ME device state.
 		DISABLED
 		POWER_DOWN
 		POWER_UP
+
+What:		/sys/class/mei/meiN/trc
+Date:		Nov 2019
+KernelVersion:	5.5
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Display trc status register content
+
+		The ME FW writes Glitch Detection HW (TRC)
+		status information into trc status register
+		for BIOS and OS to monitor fw health.
