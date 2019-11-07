@@ -26,6 +26,12 @@
 
 #define DW_PER_PAGE (PAGE_SIZE / sizeof(u32))
 
+static inline struct i915_address_space *ctx_vm(struct i915_gem_context *ctx)
+{
+	/* single threaded, private ctx */
+	return rcu_dereference_protected(ctx->vm, true);
+}
+
 static int live_nop_switch(void *arg)
 {
 	const unsigned int nctx = 1024;
@@ -786,14 +792,15 @@ static int igt_shared_ctx_exec(void *arg)
 			}
 
 			mutex_lock(&ctx->mutex);
-			__assign_ppgtt(ctx, parent->vm);
+			__assign_ppgtt(ctx, ctx_vm(parent));
 			mutex_unlock(&ctx->mutex);
 
 			ce = i915_gem_context_get_engine(ctx, engine->legacy_idx);
 			GEM_BUG_ON(IS_ERR(ce));
 
 			if (!obj) {
-				obj = create_test_object(parent->vm, file, &objects);
+				obj = create_test_object(ctx_vm(parent),
+							 file, &objects);
 				if (IS_ERR(obj)) {
 					err = PTR_ERR(obj);
 					intel_context_put(ce);
@@ -1343,14 +1350,11 @@ static int igt_ctx_readonly(void *arg)
 		goto out_file;
 	}
 
-	rcu_read_lock();
-	vm = rcu_dereference(ctx->vm) ?: &i915->ggtt.alias->vm;
+	vm = ctx_vm(ctx) ?: &i915->ggtt.alias->vm;
 	if (!vm || !vm->has_read_only) {
-		rcu_read_unlock();
 		err = 0;
 		goto out_file;
 	}
-	rcu_read_unlock();
 
 	ndwords = 0;
 	dw = 0;
@@ -1380,7 +1384,7 @@ static int igt_ctx_readonly(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       ce->engine->name,
-				       yesno(!!rcu_access_pointer(ctx->vm)),
+				       yesno(!!ctx_vm(ctx)),
 				       err);
 				i915_gem_context_unlock_engines(ctx);
 				goto out_file;
@@ -1698,11 +1702,11 @@ static int igt_vm_isolation(void *arg)
 	}
 
 	/* We can only test vm isolation, if the vm are distinct */
-	if (ctx_a->vm == ctx_b->vm)
+	if (ctx_vm(ctx_a) == ctx_vm(ctx_b))
 		goto out_file;
 
-	vm_total = ctx_a->vm->total;
-	GEM_BUG_ON(ctx_b->vm->total != vm_total);
+	vm_total = ctx_vm(ctx_a)->total;
+	GEM_BUG_ON(ctx_vm(ctx_b)->total != vm_total);
 	vm_total -= I915_GTT_PAGE_SIZE;
 
 	count = 0;
