@@ -253,9 +253,13 @@ static void ast_set_std_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 		ast_set_index_reg(ast, AST_IO_SEQ_PORT, (i + 1) , jreg);
 	}
 
-	/* Set CRTC */
+	/* Set CRTC; except base address and offset */
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x00);
-	for (i = 0; i < 25; i++)
+	for (i = 0; i < 12; i++)
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, stdtable->crtc[i]);
+	for (i = 14; i < 19; i++)
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, stdtable->crtc[i]);
+	for (i = 20; i < 25; i++)
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, stdtable->crtc[i]);
 
 	/* set AR */
