@@ -446,8 +446,8 @@ static int mc_probe(struct platform_device *pdev)
 
 	if (sof_rt711_rt1308_rt715_quirk & SOF_SDW_MONO_SPK) {
 		/* Remove rt1308-2 codec from dailink and codec_conf */
-		card->num_links--;
-		card->num_configs--;
+		card->num_links = ARRAY_SIZE(dailink) - 1 ;
+		card->num_configs = ARRAY_SIZE(codec_conf) - 1;
 	}
 
 	/* Register the card */
