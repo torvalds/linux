@@ -379,8 +379,11 @@ enum dmub_status dmub_srv_wait_for_auto_load(struct dmub_srv *dmub,
 {
 	uint32_t i;
 
-	if (!dmub->hw_init || !dmub->hw_funcs.is_auto_load_done)
+	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
+
+	if (!dmub->hw_funcs.is_auto_load_done)
+		return DMUB_STATUS_OK;
 
 	for (i = 0; i <= timeout_us; i += 100) {
 		if (dmub->hw_funcs.is_auto_load_done(dmub))
@@ -397,8 +400,11 @@ enum dmub_status dmub_srv_wait_for_phy_init(struct dmub_srv *dmub,
 {
 	uint32_t i = 0;
 
-	if (!dmub->hw_init || !dmub->hw_funcs.is_phy_init)
+	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
+
+	if (!dmub->hw_funcs.is_phy_init)
+		return DMUB_STATUS_OK;
 
 	for (i = 0; i <= timeout_us; i += 10) {
 		if (dmub->hw_funcs.is_phy_init(dmub))
