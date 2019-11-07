@@ -72,8 +72,8 @@ struct aq_hw_rx_fl2 {
 };
 
 struct aq_hw_rx_fl3l4 {
-	u8   active_ipv4;
-	u8   active_ipv6:2;
+	u8 active_ipv4;
+	u8 active_ipv6:2;
 	u8 is_ipv6;
 	u8 reserved_count;
 };

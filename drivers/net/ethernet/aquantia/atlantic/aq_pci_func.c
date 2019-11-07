@@ -185,6 +185,7 @@ unsigned int aq_pci_func_get_irq_type(struct aq_nic_s *self)
 		return AQ_HW_IRQ_MSIX;
 	if (self->pdev->msi_enabled)
 		return AQ_HW_IRQ_MSI;
+
 	return AQ_HW_IRQ_LEGACY;
 }
 
@@ -196,12 +197,12 @@ static void aq_pci_free_irq_vectors(struct aq_nic_s *self)
 static int aq_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *pci_id)
 {
-	struct aq_nic_s *self;
-	int err;
 	struct net_device *ndev;
 	resource_size_t mmio_pa;
-	u32 bar;
+	struct aq_nic_s *self;
 	u32 numvecs;
+	u32 bar;
+	int err;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -311,6 +312,7 @@ err_ndev:
 	pci_release_regions(pdev);
 err_pci_func:
 	pci_disable_device(pdev);
+
 	return err;
 }
 

@@ -226,15 +226,20 @@ static int aq_fw2x_set_state(struct aq_hw_s *self,
 		break;
 	}
 	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_state);
+
 	return 0;
 }
 
 static int aq_fw2x_update_link_status(struct aq_hw_s *self)
 {
-	u32 mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE_ADDR);
-	u32 speed = mpi_state & (FW2X_RATE_100M | FW2X_RATE_1G |
-				 FW2X_RATE_2G5 | FW2X_RATE_5G | FW2X_RATE_10G);
 	struct aq_hw_link_status_s *link_status = &self->aq_link_status;
+	u32 mpi_state;
+	u32 speed;
+
+	mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE_ADDR);
+	speed = mpi_state & (FW2X_RATE_100M | FW2X_RATE_1G |
+			     FW2X_RATE_2G5 | FW2X_RATE_5G |
+			     FW2X_RATE_10G);
 
 	if (speed) {
 		if (speed & FW2X_RATE_10G)
@@ -258,11 +263,11 @@ static int aq_fw2x_update_link_status(struct aq_hw_s *self)
 
 static int aq_fw2x_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
 {
+	u32 efuse_addr = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_EFUSE_ADDR);
+	u32 mac_addr[2] = { 0 };
 	int err = 0;
 	u32 h = 0U;
 	u32 l = 0U;
-	u32 mac_addr[2] = { 0 };
-	u32 efuse_addr = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_EFUSE_ADDR);
 
 	if (efuse_addr != 0) {
 		err = hw_atl_utils_fw_downld_dwords(self,
@@ -296,15 +301,16 @@ static int aq_fw2x_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
 		h >>= 8;
 		mac[0] = (u8)(0xFFU & h);
 	}
+
 	return err;
 }
 
 static int aq_fw2x_update_stats(struct aq_hw_s *self)
 {
-	int err = 0;
 	u32 mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
 	u32 orig_stats_val = mpi_opts & BIT(CAPS_HI_STATISTICS);
 	u32 stats_val;
+	int err = 0;
 
 	/* Toggle statistics bit for FW to update */
 	mpi_opts = mpi_opts ^ BIT(CAPS_HI_STATISTICS);
@@ -331,9 +337,9 @@ static int aq_fw2x_get_phy_temp(struct aq_hw_s *self, int *temp)
 	int err = 0;
 	u32 val;
 
-	phy_temp_offset = self->mbox_addr +
-			  offsetof(struct hw_atl_utils_mbox, info) +
-			  offsetof(struct hw_aq_info, phy_temperature);
+	phy_temp_offset = self->mbox_addr + offsetof(struct hw_atl_utils_mbox,
+						     info.phy_temperature);
+
 	/* Toggle statistics bit for FW to 0x36C.18 (CTRL_TEMPERATURE) */
 	mpi_opts = mpi_opts ^ HW_ATL_FW2X_CTRL_TEMPERATURE;
 	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
@@ -486,11 +492,12 @@ static int aq_fw2x_get_eee_rate(struct aq_hw_s *self, u32 *rate,
 	u32 mpi_state;
 	u32 caps_hi;
 	int err = 0;
-	u32 addr = self->mbox_addr + offsetof(struct hw_atl_utils_mbox, info) +
-		   offsetof(struct hw_aq_info, caps_hi);
+	u32 offset;
 
-	err = hw_atl_utils_fw_downld_dwords(self, addr, &caps_hi,
-					    sizeof(caps_hi) / sizeof(u32));
+	offset = self->mbox_addr + offsetof(struct hw_atl_utils_mbox,
+					    info.caps_hi);
+
+	err = hw_atl_utils_fw_downld_dwords(self, offset, &caps_hi, 1);
 
 	if (err)
 		return err;
@@ -567,6 +574,7 @@ static int aq_fw2x_set_phyloopback(struct aq_hw_s *self, u32 mode, bool enable)
 	default:
 		return -EINVAL;
 	}
+
 	return 0;
 }
 

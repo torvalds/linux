@@ -18,7 +18,9 @@ static void aq_ethtool_get_regs(struct net_device *ndev,
 				struct ethtool_regs *regs, void *p)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	u32 regs_count = aq_nic_get_regs_count(aq_nic);
+	u32 regs_count;
+
+	regs_count = aq_nic_get_regs_count(aq_nic);
 
 	memset(p, 0, regs_count * sizeof(u32));
 	aq_nic_get_regs(aq_nic, regs, p);
@@ -27,7 +29,9 @@ static void aq_ethtool_get_regs(struct net_device *ndev,
 static int aq_ethtool_get_regs_len(struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	u32 regs_count = aq_nic_get_regs_count(aq_nic);
+	u32 regs_count;
+
+	regs_count = aq_nic_get_regs_count(aq_nic);
 
 	return regs_count * sizeof(u32);
 }
@@ -104,7 +108,9 @@ static void aq_ethtool_stats(struct net_device *ndev,
 			     struct ethtool_stats *stats, u64 *data)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
+
+	cfg = aq_nic_get_cfg(aq_nic);
 
 	memset(data, 0, (ARRAY_SIZE(aq_ethtool_stat_names) +
 			 ARRAY_SIZE(aq_ethtool_queue_stat_names) *
@@ -115,11 +121,15 @@ static void aq_ethtool_stats(struct net_device *ndev,
 static void aq_ethtool_get_drvinfo(struct net_device *ndev,
 				   struct ethtool_drvinfo *drvinfo)
 {
-	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
 	struct pci_dev *pdev = to_pci_dev(ndev->dev.parent);
-	u32 firmware_version = aq_nic_get_fw_version(aq_nic);
-	u32 regs_count = aq_nic_get_regs_count(aq_nic);
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct aq_nic_cfg_s *cfg;
+	u32 firmware_version;
+	u32 regs_count;
+
+	cfg = aq_nic_get_cfg(aq_nic);
+	firmware_version = aq_nic_get_fw_version(aq_nic);
+	regs_count = aq_nic_get_regs_count(aq_nic);
 
 	strlcat(drvinfo->driver, AQ_CFG_DRV_NAME, sizeof(drvinfo->driver));
 	strlcat(drvinfo->version, AQ_CFG_DRV_VERSION, sizeof(drvinfo->version));
@@ -140,10 +150,12 @@ static void aq_ethtool_get_drvinfo(struct net_device *ndev,
 static void aq_ethtool_get_strings(struct net_device *ndev,
 				   u32 stringset, u8 *data)
 {
-	int i, si;
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
 	u8 *p = data;
+	int i, si;
+
+	cfg = aq_nic_get_cfg(aq_nic);
 
 	switch (stringset) {
 	case ETH_SS_STATS:
@@ -198,9 +210,11 @@ static int aq_ethtool_set_phys_id(struct net_device *ndev,
 
 static int aq_ethtool_get_sset_count(struct net_device *ndev, int stringset)
 {
-	int ret = 0;
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
+	int ret = 0;
+
+	cfg = aq_nic_get_cfg(aq_nic);
 
 	switch (stringset) {
 	case ETH_SS_STATS:
@@ -213,6 +227,7 @@ static int aq_ethtool_get_sset_count(struct net_device *ndev, int stringset)
 	default:
 		ret = -EOPNOTSUPP;
 	}
+
 	return ret;
 }
 
@@ -224,7 +239,9 @@ static u32 aq_ethtool_get_rss_indir_size(struct net_device *ndev)
 static u32 aq_ethtool_get_rss_key_size(struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
+
+	cfg = aq_nic_get_cfg(aq_nic);
 
 	return sizeof(cfg->aq_rss.hash_secret_key);
 }
@@ -233,8 +250,10 @@ static int aq_ethtool_get_rss(struct net_device *ndev, u32 *indir, u8 *key,
 			      u8 *hfunc)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
 	unsigned int i = 0U;
+
+	cfg = aq_nic_get_cfg(aq_nic);
 
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP; /* Toeplitz */
@@ -245,6 +264,7 @@ static int aq_ethtool_get_rss(struct net_device *ndev, u32 *indir, u8 *key,
 	if (key)
 		memcpy(key, cfg->aq_rss.hash_secret_key,
 		       sizeof(cfg->aq_rss.hash_secret_key));
+
 	return 0;
 }
 
@@ -288,8 +308,10 @@ static int aq_ethtool_get_rxnfc(struct net_device *ndev,
 				u32 *rule_locs)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
 	int err = 0;
+
+	cfg = aq_nic_get_cfg(aq_nic);
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
@@ -315,8 +337,8 @@ static int aq_ethtool_get_rxnfc(struct net_device *ndev,
 static int aq_ethtool_set_rxnfc(struct net_device *ndev,
 				struct ethtool_rxnfc *cmd)
 {
-	int err = 0;
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	int err = 0;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
@@ -337,7 +359,9 @@ static int aq_ethtool_get_coalesce(struct net_device *ndev,
 				   struct ethtool_coalesce *coal)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
+
+	cfg = aq_nic_get_cfg(aq_nic);
 
 	if (cfg->itr == AQ_CFG_INTERRUPT_MODERATION_ON ||
 	    cfg->itr == AQ_CFG_INTERRUPT_MODERATION_AUTO) {
@@ -351,6 +375,7 @@ static int aq_ethtool_get_coalesce(struct net_device *ndev,
 		coal->rx_max_coalesced_frames = 1;
 		coal->tx_max_coalesced_frames = 1;
 	}
+
 	return 0;
 }
 
@@ -358,7 +383,9 @@ static int aq_ethtool_set_coalesce(struct net_device *ndev,
 				   struct ethtool_coalesce *coal)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
+
+	cfg = aq_nic_get_cfg(aq_nic);
 
 	/* This is not yet supported
 	 */
@@ -400,7 +427,9 @@ static void aq_ethtool_get_wol(struct net_device *ndev,
 			       struct ethtool_wolinfo *wol)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
+
+	cfg = aq_nic_get_cfg(aq_nic);
 
 	wol->supported = AQ_NIC_WOL_MODES;
 	wol->wolopts = cfg->wol;
@@ -411,8 +440,10 @@ static int aq_ethtool_set_wol(struct net_device *ndev,
 {
 	struct pci_dev *pdev = to_pci_dev(ndev->dev.parent);
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
 	int err = 0;
+
+	cfg = aq_nic_get_cfg(aq_nic);
 
 	if (wol->wolopts & ~AQ_NIC_WOL_MODES)
 		return -EOPNOTSUPP;
@@ -599,23 +630,28 @@ static void aq_get_ringparam(struct net_device *ndev,
 			     struct ethtool_ringparam *ring)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *aq_nic_cfg = aq_nic_get_cfg(aq_nic);
+	struct aq_nic_cfg_s *cfg;
 
-	ring->rx_pending = aq_nic_cfg->rxds;
-	ring->tx_pending = aq_nic_cfg->txds;
+	cfg = aq_nic_get_cfg(aq_nic);
 
-	ring->rx_max_pending = aq_nic_cfg->aq_hw_caps->rxds_max;
-	ring->tx_max_pending = aq_nic_cfg->aq_hw_caps->txds_max;
+	ring->rx_pending = cfg->rxds;
+	ring->tx_pending = cfg->txds;
+
+	ring->rx_max_pending = cfg->aq_hw_caps->rxds_max;
+	ring->tx_max_pending = cfg->aq_hw_caps->txds_max;
 }
 
 static int aq_set_ringparam(struct net_device *ndev,
 			    struct ethtool_ringparam *ring)
 {
-	int err = 0;
-	bool ndev_running = false;
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	struct aq_nic_cfg_s *aq_nic_cfg = aq_nic_get_cfg(aq_nic);
-	const struct aq_hw_caps_s *hw_caps = aq_nic_cfg->aq_hw_caps;
+	const struct aq_hw_caps_s *hw_caps;
+	bool ndev_running = false;
+	struct aq_nic_cfg_s *cfg;
+	int err = 0;
+
+	cfg = aq_nic_get_cfg(aq_nic);
+	hw_caps = cfg->aq_hw_caps;
 
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending) {
 		err = -EOPNOTSUPP;
@@ -629,18 +665,18 @@ static int aq_set_ringparam(struct net_device *ndev,
 
 	aq_nic_free_vectors(aq_nic);
 
-	aq_nic_cfg->rxds = max(ring->rx_pending, hw_caps->rxds_min);
-	aq_nic_cfg->rxds = min(aq_nic_cfg->rxds, hw_caps->rxds_max);
-	aq_nic_cfg->rxds = ALIGN(aq_nic_cfg->rxds, AQ_HW_RXD_MULTIPLE);
+	cfg->rxds = max(ring->rx_pending, hw_caps->rxds_min);
+	cfg->rxds = min(cfg->rxds, hw_caps->rxds_max);
+	cfg->rxds = ALIGN(cfg->rxds, AQ_HW_RXD_MULTIPLE);
 
-	aq_nic_cfg->txds = max(ring->tx_pending, hw_caps->txds_min);
-	aq_nic_cfg->txds = min(aq_nic_cfg->txds, hw_caps->txds_max);
-	aq_nic_cfg->txds = ALIGN(aq_nic_cfg->txds, AQ_HW_TXD_MULTIPLE);
+	cfg->txds = max(ring->tx_pending, hw_caps->txds_min);
+	cfg->txds = min(cfg->txds, hw_caps->txds_max);
+	cfg->txds = ALIGN(cfg->txds, AQ_HW_TXD_MULTIPLE);
 
-	for (aq_nic->aq_vecs = 0; aq_nic->aq_vecs < aq_nic_cfg->vecs;
+	for (aq_nic->aq_vecs = 0; aq_nic->aq_vecs < cfg->vecs;
 	     aq_nic->aq_vecs++) {
 		aq_nic->aq_vec[aq_nic->aq_vecs] =
-		    aq_vec_alloc(aq_nic, aq_nic->aq_vecs, aq_nic_cfg);
+		    aq_vec_alloc(aq_nic, aq_nic->aq_vecs, cfg);
 		if (unlikely(!aq_nic->aq_vec[aq_nic->aq_vecs])) {
 			err = -ENOMEM;
 			goto err_exit;
