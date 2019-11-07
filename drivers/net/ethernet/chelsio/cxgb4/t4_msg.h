@@ -1421,6 +1421,11 @@ enum {
 	CPL_FW4_ACK_FLAGS_FLOWC		= 0x4,	/* fw_flowc_wr complete */
 };
 
+#define CPL_FW4_ACK_FLOWID_S    0
+#define CPL_FW4_ACK_FLOWID_M    0xffffff
+#define CPL_FW4_ACK_FLOWID_G(x) \
+	(((x) >> CPL_FW4_ACK_FLOWID_S) & CPL_FW4_ACK_FLOWID_M)
+
 struct cpl_fw6_msg {
 	u8 opcode;
 	u8 type;

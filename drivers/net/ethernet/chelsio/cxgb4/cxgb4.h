@@ -805,6 +805,7 @@ struct sge_uld_txq_info {
 
 enum sge_eosw_state {
 	CXGB4_EO_STATE_CLOSED = 0, /* Not ready to accept traffic */
+	CXGB4_EO_STATE_ACTIVE, /* Ready to accept traffic */
 };
 
 struct sge_eosw_desc {
@@ -1951,6 +1952,8 @@ void free_tx_desc(struct adapter *adap, struct sge_txq *q,
 void cxgb4_eosw_txq_free_desc(struct adapter *adap, struct sge_eosw_txq *txq,
 			      u32 ndesc);
 void cxgb4_ethofld_restart(unsigned long data);
+int cxgb4_ethofld_rx_handler(struct sge_rspq *q, const __be64 *rsp,
+			     const struct pkt_gl *si);
 void free_txq(struct adapter *adap, struct sge_txq *q);
 void cxgb4_reclaim_completed_tx(struct adapter *adap,
 				struct sge_txq *q, bool unmap);

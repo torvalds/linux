@@ -174,7 +174,8 @@ static int cxgb4_mqprio_alloc_hw_resources(struct net_device *dev)
 		eorxq->fl.size = CXGB4_EOHW_FLQ_DEFAULT_DESC_NUM;
 
 		ret = t4_sge_alloc_rxq(adap, &eorxq->rspq, false,
-				       dev, msix, &eorxq->fl, NULL,
+				       dev, msix, &eorxq->fl,
+				       cxgb4_ethofld_rx_handler,
 				       NULL, 0);
 		if (ret)
 			goto out_free_queues;

@@ -87,6 +87,7 @@ enum fw_wr_opcodes {
 	FW_ULPTX_WR                    = 0x04,
 	FW_TP_WR                       = 0x05,
 	FW_ETH_TX_PKT_WR               = 0x08,
+	FW_ETH_TX_EO_WR                = 0x1c,
 	FW_OFLD_CONNECTION_WR          = 0x2f,
 	FW_FLOWC_WR                    = 0x0a,
 	FW_OFLD_TX_DATA_WR             = 0x0b,
@@ -533,6 +534,35 @@ struct fw_eth_tx_pkt_wr {
 	__be32 equiq_to_len16;
 	__be64 r3;
 };
+
+enum fw_eth_tx_eo_type {
+	FW_ETH_TX_EO_TYPE_TCPSEG = 1,
+};
+
+struct fw_eth_tx_eo_wr {
+	__be32 op_immdlen;
+	__be32 equiq_to_len16;
+	__be64 r3;
+	union fw_eth_tx_eo {
+		struct fw_eth_tx_eo_tcpseg {
+			__u8   type;
+			__u8   ethlen;
+			__be16 iplen;
+			__u8   tcplen;
+			__u8   tsclk_tsoff;
+			__be16 r4;
+			__be16 mss;
+			__be16 r5;
+			__be32 plen;
+		} tcpseg;
+	} u;
+};
+
+#define FW_ETH_TX_EO_WR_IMMDLEN_S	0
+#define FW_ETH_TX_EO_WR_IMMDLEN_M	0x1ff
+#define FW_ETH_TX_EO_WR_IMMDLEN_V(x)	((x) << FW_ETH_TX_EO_WR_IMMDLEN_S)
+#define FW_ETH_TX_EO_WR_IMMDLEN_G(x)	\
+	(((x) >> FW_ETH_TX_EO_WR_IMMDLEN_S) & FW_ETH_TX_EO_WR_IMMDLEN_M)
 
 struct fw_ofld_connection_wr {
 	__be32 op_compl;

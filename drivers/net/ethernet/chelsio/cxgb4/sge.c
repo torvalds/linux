@@ -55,6 +55,7 @@
 #include "t4fw_api.h"
 #include "cxgb4_ptp.h"
 #include "cxgb4_uld.h"
+#include "cxgb4_tc_mqprio.h"
 
 /*
  * Rx buffer size.  We use largish buffers if possible but settle for single
@@ -1309,6 +1310,35 @@ static inline void t6_fill_tnl_lso(struct sk_buff *skb,
 	tnl_lso->EthLenOffset_Size = htonl(CPL_TX_TNL_LSO_SIZE_V(skb->len));
 }
 
+static inline void *write_tso_wr(struct adapter *adap, struct sk_buff *skb,
+				 struct cpl_tx_pkt_lso_core *lso)
+{
+	int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
+	int l3hdr_len = skb_network_header_len(skb);
+	const struct skb_shared_info *ssi;
+	bool ipv6 = false;
+
+	ssi = skb_shinfo(skb);
+	if (ssi->gso_type & SKB_GSO_TCPV6)
+		ipv6 = true;
+
+	lso->lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
+			      LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
+			      LSO_IPV6_V(ipv6) |
+			      LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
+			      LSO_IPHDR_LEN_V(l3hdr_len / 4) |
+			      LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
+	lso->ipid_ofst = htons(0);
+	lso->mss = htons(ssi->gso_size);
+	lso->seqno_offset = htonl(0);
+	if (is_t4(adap->params.chip))
+		lso->len = htonl(skb->len);
+	else
+		lso->len = htonl(LSO_T5_XFER_SIZE_V(skb->len));
+
+	return (void *)(lso + 1);
+}
+
 /**
  *	t4_sge_eth_txq_egress_update - handle Ethernet TX Queue update
  *	@adap: the adapter
@@ -1498,9 +1528,6 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	len += sizeof(*cpl);
 	if (ssi->gso_size) {
 		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
-		bool v6 = (ssi->gso_type & SKB_GSO_TCPV6) != 0;
-		int l3hdr_len = skb_network_header_len(skb);
-		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
 		struct cpl_tx_tnl_lso *tnl_lso = (void *)(wr + 1);
 
 		if (tnl_type)
@@ -1527,30 +1554,8 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
 				cntrl = hwcsum(adap->params.chip, skb);
 		} else {
-			lso->lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
-					LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
-					LSO_IPV6_V(v6) |
-					LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
-					LSO_IPHDR_LEN_V(l3hdr_len / 4) |
-					LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
-			lso->ipid_ofst = htons(0);
-			lso->mss = htons(ssi->gso_size);
-			lso->seqno_offset = htonl(0);
-			if (is_t4(adap->params.chip))
-				lso->len = htonl(skb->len);
-			else
-				lso->len = htonl(LSO_T5_XFER_SIZE_V(skb->len));
-			cpl = (void *)(lso + 1);
-
-			if (CHELSIO_CHIP_VERSION(adap->params.chip)
-			    <= CHELSIO_T5)
-				cntrl =	TXPKT_ETHHDR_LEN_V(eth_xtra_len);
-			else
-				cntrl = T6_TXPKT_ETHHDR_LEN_V(eth_xtra_len);
-
-			cntrl |= TXPKT_CSUM_TYPE_V(v6 ?
-				 TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
-				 TXPKT_IPHDR_LEN_V(l3hdr_len);
+			cpl = write_tso_wr(adap, skb, lso);
+			cntrl = hwcsum(adap->params.chip, skb);
 		}
 		sgl = (u64 *)(cpl + 1); /* sgl start here */
 		if (unlikely((u8 *)sgl >= (u8 *)q->q.stat)) {
@@ -1996,6 +2001,26 @@ out_free:
 	return NETDEV_TX_OK;
 }
 
+/**
+ * reclaim_completed_tx_imm - reclaim completed control-queue Tx descs
+ * @q: the SGE control Tx queue
+ *
+ * This is a variant of cxgb4_reclaim_completed_tx() that is used
+ * for Tx queues that send only immediate data (presently just
+ * the control queues) and	thus do not have any sk_buffs to release.
+ */
+static inline void reclaim_completed_tx_imm(struct sge_txq *q)
+{
+	int hw_cidx = ntohs(READ_ONCE(q->stat->cidx));
+	int reclaim = hw_cidx - q->cidx;
+
+	if (reclaim < 0)
+		reclaim += q->size;
+
+	q->in_use -= reclaim;
+	q->cidx = hw_cidx;
+}
+
 static inline void eosw_txq_advance_index(u32 *idx, u32 n, u32 max)
 {
 	u32 val = *idx + n;
@@ -2027,15 +2052,263 @@ void cxgb4_eosw_txq_free_desc(struct adapter *adap,
 	}
 }
 
+static inline void eosw_txq_advance(struct sge_eosw_txq *eosw_txq, u32 n)
+{
+	eosw_txq_advance_index(&eosw_txq->pidx, n, eosw_txq->ndesc);
+	eosw_txq->inuse += n;
+}
+
+static inline int eosw_txq_enqueue(struct sge_eosw_txq *eosw_txq,
+				   struct sk_buff *skb)
+{
+	if (eosw_txq->inuse == eosw_txq->ndesc)
+		return -ENOMEM;
+
+	eosw_txq->desc[eosw_txq->pidx].skb = skb;
+	return 0;
+}
+
+static inline struct sk_buff *eosw_txq_peek(struct sge_eosw_txq *eosw_txq)
+{
+	return eosw_txq->desc[eosw_txq->last_pidx].skb;
+}
+
+static inline u8 ethofld_calc_tx_flits(struct adapter *adap,
+				       struct sk_buff *skb, u32 hdr_len)
+{
+	u8 flits, nsgl = 0;
+	u32 wrlen;
+
+	wrlen = sizeof(struct fw_eth_tx_eo_wr) + sizeof(struct cpl_tx_pkt_core);
+	if (skb_shinfo(skb)->gso_size)
+		wrlen += sizeof(struct cpl_tx_pkt_lso_core);
+
+	wrlen += roundup(hdr_len, 16);
+
+	/* Packet headers + WR + CPLs */
+	flits = DIV_ROUND_UP(wrlen, 8);
+
+	if (skb_shinfo(skb)->nr_frags > 0)
+		nsgl = sgl_len(skb_shinfo(skb)->nr_frags);
+	else if (skb->len - hdr_len)
+		nsgl = sgl_len(1);
+
+	return flits + nsgl;
+}
+
+static inline void *write_eo_wr(struct adapter *adap,
+				struct sge_eosw_txq *eosw_txq,
+				struct sk_buff *skb, struct fw_eth_tx_eo_wr *wr,
+				u32 hdr_len, u32 wrlen)
+{
+	const struct skb_shared_info *ssi = skb_shinfo(skb);
+	struct cpl_tx_pkt_core *cpl;
+	u32 immd_len, wrlen16;
+	bool compl = false;
+
+	wrlen16 = DIV_ROUND_UP(wrlen, 16);
+	immd_len = sizeof(struct cpl_tx_pkt_core);
+	if (skb_shinfo(skb)->gso_size) {
+		if (skb->encapsulation &&
+		    CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5)
+			immd_len += sizeof(struct cpl_tx_tnl_lso);
+		else
+			immd_len += sizeof(struct cpl_tx_pkt_lso_core);
+	}
+	immd_len += hdr_len;
+
+	if (!eosw_txq->ncompl ||
+	    eosw_txq->last_compl >= adap->params.ofldq_wr_cred / 2) {
+		compl = true;
+		eosw_txq->ncompl++;
+		eosw_txq->last_compl = 0;
+	}
+
+	wr->op_immdlen = cpu_to_be32(FW_WR_OP_V(FW_ETH_TX_EO_WR) |
+				     FW_ETH_TX_EO_WR_IMMDLEN_V(immd_len) |
+				     FW_WR_COMPL_V(compl));
+	wr->equiq_to_len16 = cpu_to_be32(FW_WR_LEN16_V(wrlen16) |
+					 FW_WR_FLOWID_V(eosw_txq->hwtid));
+	wr->r3 = 0;
+	wr->u.tcpseg.type = FW_ETH_TX_EO_TYPE_TCPSEG;
+	wr->u.tcpseg.ethlen = skb_network_offset(skb);
+	wr->u.tcpseg.iplen = cpu_to_be16(skb_network_header_len(skb));
+	wr->u.tcpseg.tcplen = tcp_hdrlen(skb);
+	wr->u.tcpseg.tsclk_tsoff = 0;
+	wr->u.tcpseg.r4 = 0;
+	wr->u.tcpseg.r5 = 0;
+	wr->u.tcpseg.plen = cpu_to_be32(skb->len - hdr_len);
+
+	if (ssi->gso_size) {
+		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
+
+		wr->u.tcpseg.mss = cpu_to_be16(ssi->gso_size);
+		cpl = write_tso_wr(adap, skb, lso);
+	} else {
+		wr->u.tcpseg.mss = cpu_to_be16(0xffff);
+		cpl = (void *)(wr + 1);
+	}
+
+	eosw_txq->cred -= wrlen16;
+	eosw_txq->last_compl += wrlen16;
+	return cpl;
+}
+
+static void ethofld_hard_xmit(struct net_device *dev,
+			      struct sge_eosw_txq *eosw_txq)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	u32 wrlen, wrlen16, hdr_len, data_len;
+	u64 cntrl, *start, *end, *sgl;
+	struct sge_eohw_txq *eohw_txq;
+	struct cpl_tx_pkt_core *cpl;
+	struct fw_eth_tx_eo_wr *wr;
+	struct sge_eosw_desc *d;
+	struct sk_buff *skb;
+	u8 flits, ndesc;
+	int left;
+
+	eohw_txq = &adap->sge.eohw_txq[eosw_txq->hwqid];
+	spin_lock(&eohw_txq->lock);
+	reclaim_completed_tx_imm(&eohw_txq->q);
+
+	d = &eosw_txq->desc[eosw_txq->last_pidx];
+	skb = d->skb;
+	skb_tx_timestamp(skb);
+
+	wr = (struct fw_eth_tx_eo_wr *)&eohw_txq->q.desc[eohw_txq->q.pidx];
+	hdr_len = eth_get_headlen(dev, skb->data, skb_headlen(skb));
+	data_len = skb->len - hdr_len;
+	flits = ethofld_calc_tx_flits(adap, skb, hdr_len);
+	ndesc = flits_to_desc(flits);
+	wrlen = flits * 8;
+	wrlen16 = DIV_ROUND_UP(wrlen, 16);
+
+	/* If there are no CPL credits, then wait for credits
+	 * to come back and retry again
+	 */
+	if (unlikely(wrlen16 > eosw_txq->cred))
+		goto out_unlock;
+
+	cpl = write_eo_wr(adap, eosw_txq, skb, wr, hdr_len, wrlen);
+	cntrl = hwcsum(adap->params.chip, skb);
+	if (skb_vlan_tag_present(skb))
+		cntrl |= TXPKT_VLAN_VLD_F | TXPKT_VLAN_V(skb_vlan_tag_get(skb));
+
+	cpl->ctrl0 = cpu_to_be32(TXPKT_OPCODE_V(CPL_TX_PKT_XT) |
+				 TXPKT_INTF_V(pi->tx_chan) |
+				 TXPKT_PF_V(adap->pf));
+	cpl->pack = 0;
+	cpl->len = cpu_to_be16(skb->len);
+	cpl->ctrl1 = cpu_to_be64(cntrl);
+
+	start = (u64 *)(cpl + 1);
+
+	sgl = (u64 *)inline_tx_skb_header(skb, &eohw_txq->q, (void *)start,
+					  hdr_len);
+	if (data_len) {
+		if (unlikely(cxgb4_map_skb(adap->pdev_dev, skb, d->addr))) {
+			memset(d->addr, 0, sizeof(d->addr));
+			eohw_txq->mapping_err++;
+			goto out_unlock;
+		}
+
+		end = (u64 *)wr + flits;
+		if (unlikely(start > sgl)) {
+			left = (u8 *)end - (u8 *)eohw_txq->q.stat;
+			end = (void *)eohw_txq->q.desc + left;
+		}
+
+		if (unlikely((u8 *)sgl >= (u8 *)eohw_txq->q.stat)) {
+			/* If current position is already at the end of the
+			 * txq, reset the current to point to start of the queue
+			 * and update the end ptr as well.
+			 */
+			left = (u8 *)end - (u8 *)eohw_txq->q.stat;
+
+			end = (void *)eohw_txq->q.desc + left;
+			sgl = (void *)eohw_txq->q.desc;
+		}
+
+		cxgb4_write_sgl(skb, &eohw_txq->q, (void *)sgl, end, hdr_len,
+				d->addr);
+	}
+
+	txq_advance(&eohw_txq->q, ndesc);
+	cxgb4_ring_tx_db(adap, &eohw_txq->q, ndesc);
+	eosw_txq_advance_index(&eosw_txq->last_pidx, 1, eosw_txq->ndesc);
+
+out_unlock:
+	spin_unlock(&eohw_txq->lock);
+}
+
+static void ethofld_xmit(struct net_device *dev, struct sge_eosw_txq *eosw_txq)
+{
+	struct sk_buff *skb;
+	int pktcount;
+
+	switch (eosw_txq->state) {
+	case CXGB4_EO_STATE_ACTIVE:
+		pktcount = eosw_txq->pidx - eosw_txq->last_pidx;
+		if (pktcount < 0)
+			pktcount += eosw_txq->ndesc;
+		break;
+	case CXGB4_EO_STATE_CLOSED:
+	default:
+		return;
+	};
+
+	while (pktcount--) {
+		skb = eosw_txq_peek(eosw_txq);
+		if (!skb) {
+			eosw_txq_advance_index(&eosw_txq->last_pidx, 1,
+					       eosw_txq->ndesc);
+			continue;
+		}
+
+		ethofld_hard_xmit(dev, eosw_txq);
+	}
+}
+
 static netdev_tx_t cxgb4_ethofld_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
+	struct cxgb4_tc_port_mqprio *tc_port_mqprio;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct sge_eosw_txq *eosw_txq;
+	u32 qid;
 	int ret;
 
 	ret = cxgb4_validate_skb(skb, dev, ETH_HLEN);
 	if (ret)
 		goto out_free;
 
+	tc_port_mqprio = &adap->tc_mqprio->port_mqprio[pi->port_id];
+	qid = skb_get_queue_mapping(skb) - pi->nqsets;
+	eosw_txq = &tc_port_mqprio->eosw_txq[qid];
+	spin_lock_bh(&eosw_txq->lock);
+	if (eosw_txq->state != CXGB4_EO_STATE_ACTIVE)
+		goto out_unlock;
+
+	ret = eosw_txq_enqueue(eosw_txq, skb);
+	if (ret)
+		goto out_unlock;
+
+	/* SKB is queued for processing until credits are available.
+	 * So, call the destructor now and we'll free the skb later
+	 * after it has been successfully transmitted.
+	 */
+	skb_orphan(skb);
+
+	eosw_txq_advance(eosw_txq, 1);
+	ethofld_xmit(dev, eosw_txq);
+	spin_unlock_bh(&eosw_txq->lock);
+	return NETDEV_TX_OK;
+
+out_unlock:
+	spin_unlock_bh(&eosw_txq->lock);
 out_free:
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
@@ -2053,26 +2326,6 @@ netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return cxgb4_ethofld_xmit(skb, dev);
 
 	return cxgb4_eth_xmit(skb, dev);
-}
-
-/**
- *	reclaim_completed_tx_imm - reclaim completed control-queue Tx descs
- *	@q: the SGE control Tx queue
- *
- *	This is a variant of cxgb4_reclaim_completed_tx() that is used
- *	for Tx queues that send only immediate data (presently just
- *	the control queues) and	thus do not have any sk_buffs to release.
- */
-static inline void reclaim_completed_tx_imm(struct sge_txq *q)
-{
-	int hw_cidx = ntohs(READ_ONCE(q->stat->cidx));
-	int reclaim = hw_cidx - q->cidx;
-
-	if (reclaim < 0)
-		reclaim += q->size;
-
-	q->in_use -= reclaim;
-	q->cidx = hw_cidx;
 }
 
 /**
@@ -3375,10 +3628,84 @@ void cxgb4_ethofld_restart(unsigned long data)
 	if (pktcount < 0)
 		pktcount += eosw_txq->ndesc;
 
-	if (pktcount)
+	if (pktcount) {
 		cxgb4_eosw_txq_free_desc(netdev2adap(eosw_txq->netdev),
 					 eosw_txq, pktcount);
+		eosw_txq->inuse -= pktcount;
+	}
+
+	/* There may be some packets waiting for completions. So,
+	 * attempt to send these packets now.
+	 */
+	ethofld_xmit(eosw_txq->netdev, eosw_txq);
 	spin_unlock(&eosw_txq->lock);
+}
+
+/* cxgb4_ethofld_rx_handler - Process ETHOFLD Tx completions
+ * @q: the response queue that received the packet
+ * @rsp: the response queue descriptor holding the CPL message
+ * @si: the gather list of packet fragments
+ *
+ * Process a ETHOFLD Tx completion. Increment the cidx here, but
+ * free up the descriptors in a tasklet later.
+ */
+int cxgb4_ethofld_rx_handler(struct sge_rspq *q, const __be64 *rsp,
+			     const struct pkt_gl *si)
+{
+	u8 opcode = ((const struct rss_header *)rsp)->opcode;
+
+	/* skip RSS header */
+	rsp++;
+
+	if (opcode == CPL_FW4_ACK) {
+		const struct cpl_fw4_ack *cpl;
+		struct sge_eosw_txq *eosw_txq;
+		struct eotid_entry *entry;
+		struct sk_buff *skb;
+		u32 hdr_len, eotid;
+		u8 flits, wrlen16;
+		int credits;
+
+		cpl = (const struct cpl_fw4_ack *)rsp;
+		eotid = CPL_FW4_ACK_FLOWID_G(ntohl(OPCODE_TID(cpl))) -
+			q->adap->tids.eotid_base;
+		entry = cxgb4_lookup_eotid(&q->adap->tids, eotid);
+		if (!entry)
+			goto out_done;
+
+		eosw_txq = (struct sge_eosw_txq *)entry->data;
+		if (!eosw_txq)
+			goto out_done;
+
+		spin_lock(&eosw_txq->lock);
+		credits = cpl->credits;
+		while (credits > 0) {
+			skb = eosw_txq->desc[eosw_txq->cidx].skb;
+			if (!skb)
+				break;
+
+			hdr_len = eth_get_headlen(eosw_txq->netdev, skb->data,
+						  skb_headlen(skb));
+			flits = ethofld_calc_tx_flits(q->adap, skb, hdr_len);
+			eosw_txq_advance_index(&eosw_txq->cidx, 1,
+					       eosw_txq->ndesc);
+			wrlen16 = DIV_ROUND_UP(flits * 8, 16);
+			credits -= wrlen16;
+		}
+
+		eosw_txq->cred += cpl->credits;
+		eosw_txq->ncompl--;
+
+		spin_unlock(&eosw_txq->lock);
+
+		/* Schedule a tasklet to reclaim SKBs and restart ETHOFLD Tx,
+		 * if there were packets waiting for completion.
+		 */
+		tasklet_schedule(&eosw_txq->qresume_tsk);
+	}
+
+out_done:
+	return 0;
 }
 
 /*
