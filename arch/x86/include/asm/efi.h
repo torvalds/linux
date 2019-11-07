@@ -263,4 +263,12 @@ static inline void efi_reserve_boot_services(void)
 }
 #endif /* CONFIG_EFI */
 
+#ifdef CONFIG_EFI_FAKE_MEMMAP
+extern void __init efi_fake_memmap_early(void);
+#else
+static inline void efi_fake_memmap_early(void)
+{
+}
+#endif
+
 #endif /* _ASM_X86_EFI_H */
