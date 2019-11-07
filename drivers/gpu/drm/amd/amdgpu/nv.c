@@ -407,6 +407,9 @@ legacy_init:
 	case CHIP_NAVI12:
 		navi12_reg_base_init(adev);
 		break;
+	case CHIP_SIENNA_CICHLID:
+		sienna_cichlid_reg_base_init(adev);
+		break;
 	default:
 		return -EINVAL;
 	}
