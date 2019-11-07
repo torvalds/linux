@@ -365,7 +365,8 @@ static const struct snd_pcm_hardware xtfpga_pcm_hardware = {
 	.fifo_size		= 16,
 };
 
-static int xtfpga_pcm_open(struct snd_pcm_substream *substream)
+static int xtfpga_pcm_open(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -378,13 +379,15 @@ static int xtfpga_pcm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int xtfpga_pcm_close(struct snd_pcm_substream *substream)
+static int xtfpga_pcm_close(struct snd_soc_component *component,
+			    struct snd_pcm_substream *substream)
 {
 	synchronize_rcu();
 	return 0;
 }
 
-static int xtfpga_pcm_hw_params(struct snd_pcm_substream *substream,
+static int xtfpga_pcm_hw_params(struct snd_soc_component *component,
+				struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *hw_params)
 {
 	int ret;
@@ -424,7 +427,8 @@ static int xtfpga_pcm_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static int xtfpga_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
+static int xtfpga_pcm_trigger(struct snd_soc_component *component,
+			      struct snd_pcm_substream *substream, int cmd)
 {
 	int ret = 0;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -452,7 +456,8 @@ static int xtfpga_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static snd_pcm_uframes_t xtfpga_pcm_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t xtfpga_pcm_pointer(struct snd_soc_component *component,
+					    struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct xtfpga_i2s *i2s = runtime->private_data;
@@ -461,7 +466,8 @@ static snd_pcm_uframes_t xtfpga_pcm_pointer(struct snd_pcm_substream *substream)
 	return pos < runtime->buffer_size ? pos : 0;
 }
 
-static int xtfpga_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int xtfpga_pcm_new(struct snd_soc_component *component,
+			  struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	size_t size = xtfpga_pcm_hardware.buffer_bytes_max;
@@ -471,19 +477,15 @@ static int xtfpga_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static const struct snd_pcm_ops xtfpga_pcm_ops = {
+static const struct snd_soc_component_driver xtfpga_i2s_component = {
+	.name		= DRV_NAME,
 	.open		= xtfpga_pcm_open,
 	.close		= xtfpga_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
+	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= xtfpga_pcm_hw_params,
 	.trigger	= xtfpga_pcm_trigger,
 	.pointer	= xtfpga_pcm_pointer,
-};
-
-static const struct snd_soc_component_driver xtfpga_i2s_component = {
-	.name		= DRV_NAME,
-	.pcm_new	= xtfpga_pcm_new,
-	.ops		= &xtfpga_pcm_ops,
+	.pcm_construct	= xtfpga_pcm_new,
 };
 
 static const struct snd_soc_dai_ops xtfpga_i2s_dai_ops = {

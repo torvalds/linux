@@ -27,6 +27,11 @@ Optional properties:
 
 - realtek,ldo1-en-gpios : The GPIO that controls the CODEC's LDO1_EN pin.
 
+- realtek,btndet-delay
+  The debounce delay for push button.
+  The delay time is realtek,btndet-delay value multiple of 8.192 ms.
+  If absent, the default is 16.
+
 Pins on the device (for linking into audio routes) for RT5682:
 
   * DMIC L1
@@ -47,4 +52,5 @@ rt5682 {
 	realtek,dmic1-data-pin = <1>;
 	realtek,dmic1-clk-pin = <1>;
 	realtek,jd-src = <1>;
+	realtek,btndet-delay = <16>;
 };
