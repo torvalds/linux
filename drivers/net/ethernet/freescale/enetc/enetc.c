@@ -1601,7 +1601,7 @@ int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 #endif
 
 	if (!ndev->phydev)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	return phy_mii_ioctl(ndev->phydev, rq, cmd);
 }
 
