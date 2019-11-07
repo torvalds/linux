@@ -124,6 +124,10 @@ void komeda_print_events(struct komeda_events *evts, struct drm_device *dev)
 
 	if (err_verbosity & KOMEDA_DEV_PRINT_ERR_EVENTS)
 		print_evts |= KOMEDA_ERR_EVENTS;
+	if (err_verbosity & KOMEDA_DEV_PRINT_WARN_EVENTS)
+		print_evts |= KOMEDA_WARN_EVENTS;
+	if (err_verbosity & KOMEDA_DEV_PRINT_INFO_EVENTS)
+		print_evts |= KOMEDA_INFO_EVENTS;
 
 	if (evts_mask & print_evts) {
 		char msg[256];
