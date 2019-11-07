@@ -154,6 +154,7 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 
 	struct fixed31_32 l_pow_m1;
 	struct fixed31_32 base, div;
+	struct fixed31_32 base2;
 
 
 	if (dc_fixpt_lt(in_x, dc_fixpt_zero))
@@ -163,13 +164,15 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 			dc_fixpt_div(dc_fixpt_one, m2));
 	base = dc_fixpt_sub(l_pow_m1, c1);
 
-	if (dc_fixpt_lt(base, dc_fixpt_zero))
-		base = dc_fixpt_zero;
-
 	div = dc_fixpt_sub(c2, dc_fixpt_mul(c3, l_pow_m1));
 
-	*out_y = dc_fixpt_pow(dc_fixpt_div(base, div),
-			dc_fixpt_div(dc_fixpt_one, m1));
+	base2 = dc_fixpt_div(base, div);
+	//avoid complex numbers
+	if (dc_fixpt_lt(base2, dc_fixpt_zero))
+		base2 = dc_fixpt_sub(dc_fixpt_zero, base2);
+
+
+	*out_y = dc_fixpt_pow(base2, dc_fixpt_div(dc_fixpt_one, m1));
 
 }
 
@@ -1998,10 +2001,28 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	tf_pts->x_point_at_y1_green = 1;
 	tf_pts->x_point_at_y1_blue = 1;
 
-	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
-			coordinates_x, axis_x, curve,
-			MAX_HW_POINTS, tf_pts,
-			mapUserRamp && ramp && ramp->type == GAMMA_RGB_256);
+	if (input_tf->tf == TRANSFER_FUNCTION_PQ) {
+		/* just copy current rgb_regamma into  tf_pts */
+		struct pwl_float_data_ex *curvePt = curve;
+		int i = 0;
+
+		while (i <= MAX_HW_POINTS) {
+			tf_pts->red[i]   = curvePt->r;
+			tf_pts->green[i] = curvePt->g;
+			tf_pts->blue[i]  = curvePt->b;
+			++curvePt;
+			++i;
+		}
+	} else {
+		//clamps to 0-1
+		map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
+				coordinates_x, axis_x, curve,
+				MAX_HW_POINTS, tf_pts,
+				mapUserRamp && ramp && ramp->type == GAMMA_RGB_256);
+	}
+
+
+
 	if (ramp->type == GAMMA_CUSTOM)
 		apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
 
