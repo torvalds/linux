@@ -18,6 +18,7 @@
 #include "srcline.h"
 #include "symbol.h"
 #include "thread.h"
+#include "block-info.h"
 #include "ui/progress.h"
 #include <errno.h>
 #include <math.h>
