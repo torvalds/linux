@@ -67,9 +67,6 @@ struct omap_hsmmc_platform_data {
 	/* string specifying a particular variant of hardware */
 	char *version;
 
-	/* if we have special card, init it using this callback */
-	void (*init_card)(struct mmc_card *card);
-
 	const char *name;
 	u32 ocr_mask;
 };
