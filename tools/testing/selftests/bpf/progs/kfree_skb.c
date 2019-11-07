@@ -43,6 +43,7 @@ struct sk_buff {
 	refcount_t users;
 	unsigned char *data;
 	char __pkt_type_offset[0];
+	char cb[48];
 };
 
 /* copy arguments from
@@ -57,27 +58,40 @@ struct trace_kfree_skb {
 	void *location;
 };
 
+struct meta {
+	int ifindex;
+	__u32 cb32_0;
+	__u8 cb8_0;
+};
+
 SEC("tp_btf/kfree_skb")
 int trace_kfree_skb(struct trace_kfree_skb *ctx)
 {
 	struct sk_buff *skb = ctx->skb;
 	struct net_device *dev;
-	int ifindex;
 	struct callback_head *ptr;
 	void *func;
 	int users;
 	unsigned char *data;
 	unsigned short pkt_data;
+	struct meta meta = {};
 	char pkt_type;
+	__u32 *cb32;
+	__u8 *cb8;
 
 	__builtin_preserve_access_index(({
 		users = skb->users.refs.counter;
 		data = skb->data;
 		dev = skb->dev;
-		ifindex = dev->ifindex;
 		ptr = dev->ifalias->rcuhead.next;
 		func = ptr->func;
+		cb8 = (__u8 *)&skb->cb;
+		cb32 = (__u32 *)&skb->cb;
 	}));
+
+	meta.ifindex = _(dev->ifindex);
+	meta.cb8_0 = cb8[8];
+	meta.cb32_0 = cb32[2];
 
 	bpf_probe_read_kernel(&pkt_type, sizeof(pkt_type), _(&skb->__pkt_type_offset));
 	pkt_type &= 7;
@@ -90,14 +104,15 @@ int trace_kfree_skb(struct trace_kfree_skb *ctx)
 		   _(skb->len), users, pkt_type);
 	bpf_printk("skb->queue_mapping %d\n", _(skb->queue_mapping));
 	bpf_printk("dev->ifindex %d data %llx pkt_data %x\n",
-		   ifindex, data, pkt_data);
+		   meta.ifindex, data, pkt_data);
+	bpf_printk("cb8_0:%x cb32_0:%x\n", meta.cb8_0, meta.cb32_0);
 
-	if (users != 1 || pkt_data != bpf_htons(0x86dd) || ifindex != 1)
+	if (users != 1 || pkt_data != bpf_htons(0x86dd) || meta.ifindex != 1)
 		/* raw tp ignores return value */
 		return 0;
 
 	/* send first 72 byte of the packet to user space */
 	bpf_skb_output(skb, &perf_buf_map, (72ull << 32) | BPF_F_CURRENT_CPU,
-		       &ifindex, sizeof(ifindex));
+		       &meta, sizeof(meta));
 	return 0;
 }
