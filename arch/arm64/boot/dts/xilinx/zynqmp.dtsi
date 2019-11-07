@@ -2,7 +2,7 @@
 /*
  * dts file for Xilinx ZynqMP
  *
- * (C) Copyright 2014 - 2015, Xilinx, Inc.
+ * (C) Copyright 2014 - 2019, Xilinx, Inc.
  *
  * Michal Simek <michal.simek@xilinx.com>
  *
@@ -119,6 +119,22 @@
 		zynqmp_firmware: zynqmp-firmware {
 			compatible = "xlnx,zynqmp-firmware";
 			method = "smc";
+
+			zynqmp_clk: clock-controller {
+				u-boot,dm-pre-reloc;
+				#clock-cells = <1>;
+				compatible = "xlnx,zynqmp-clk";
+				clocks = <&pss_ref_clk>,
+					 <&video_clk>,
+					 <&pss_alt_ref_clk>,
+					 <&aux_ref_clk>,
+					 <&gt_crx_ref_clk>;
+				clock-names = "pss_ref_clk",
+					      "video_clk",
+					      "pss_alt_ref_clk",
+					      "aux_ref_clk",
+					      "gt_crx_ref_clk";
+			};
 
 			nvmem_firmware {
 				compatible = "xlnx,zynqmp-nvmem-fw";
