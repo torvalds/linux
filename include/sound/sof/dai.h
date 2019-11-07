@@ -11,6 +11,7 @@
 
 #include <sound/sof/header.h>
 #include <sound/sof/dai-intel.h>
+#include <sound/sof/dai-imx.h>
 
 /*
  * DAI Configuration.
@@ -73,6 +74,7 @@ struct sof_ipc_dai_config {
 		struct sof_ipc_dai_dmic_params dmic;
 		struct sof_ipc_dai_hda_params hda;
 		struct sof_ipc_dai_alh_params alh;
+		struct sof_ipc_dai_esai_params esai;
 	};
 } __packed;
 

@@ -556,6 +556,9 @@ enum host_event_code {
 	/* Keyboard recovery combo with hardware reinitialization */
 	EC_HOST_EVENT_KEYBOARD_RECOVERY_HW_REINIT = 30,
 
+	/* WoV */
+	EC_HOST_EVENT_WOV = 31,
+
 	/*
 	 * The high bit of the event mask is not used as a host event code.  If
 	 * it reads back as set, then the entire event mask should be
@@ -1277,8 +1280,6 @@ enum ec_feature_code {
 	 * MOTIONSENSE_CMD_TABLET_MODE_LID_ANGLE.
 	 */
 	EC_FEATURE_REFINED_TABLET_MODE_HYSTERESIS = 37,
-	/* EC supports audio codec. */
-	EC_FEATURE_AUDIO_CODEC = 38,
 	/* The MCU is a System Companion Processor (SCP). */
 	EC_FEATURE_SCP = 39,
 	/* The MCU is an Integrated Sensor Hub */
@@ -4468,92 +4469,246 @@ enum mkbp_cec_event {
 
 /*****************************************************************************/
 
-/* Commands for I2S recording on audio codec. */
+/* Commands for audio codec. */
+#define EC_CMD_EC_CODEC 0x00BC
 
-#define EC_CMD_CODEC_I2S 0x00BC
-#define EC_WOV_I2S_SAMPLE_RATE 48000
-
-enum ec_codec_i2s_subcmd {
-	EC_CODEC_SET_SAMPLE_DEPTH = 0x0,
-	EC_CODEC_SET_GAIN = 0x1,
-	EC_CODEC_GET_GAIN = 0x2,
-	EC_CODEC_I2S_ENABLE = 0x3,
-	EC_CODEC_I2S_SET_CONFIG = 0x4,
-	EC_CODEC_I2S_SET_TDM_CONFIG = 0x5,
-	EC_CODEC_I2S_SET_BCLK = 0x6,
-	EC_CODEC_I2S_SUBCMD_COUNT = 0x7,
+enum ec_codec_subcmd {
+	EC_CODEC_GET_CAPABILITIES = 0x0,
+	EC_CODEC_GET_SHM_ADDR = 0x1,
+	EC_CODEC_SET_SHM_ADDR = 0x2,
+	EC_CODEC_SUBCMD_COUNT,
 };
 
-enum ec_sample_depth_value {
-	EC_CODEC_SAMPLE_DEPTH_16 = 0,
-	EC_CODEC_SAMPLE_DEPTH_24 = 1,
+enum ec_codec_cap {
+	EC_CODEC_CAP_WOV_AUDIO_SHM = 0,
+	EC_CODEC_CAP_WOV_LANG_SHM = 1,
+	EC_CODEC_CAP_LAST = 32,
 };
 
-enum ec_i2s_config {
-	EC_DAI_FMT_I2S = 0,
-	EC_DAI_FMT_RIGHT_J = 1,
-	EC_DAI_FMT_LEFT_J = 2,
-	EC_DAI_FMT_PCM_A = 3,
-	EC_DAI_FMT_PCM_B = 4,
-	EC_DAI_FMT_PCM_TDM = 5,
+enum ec_codec_shm_id {
+	EC_CODEC_SHM_ID_WOV_AUDIO = 0x0,
+	EC_CODEC_SHM_ID_WOV_LANG = 0x1,
+	EC_CODEC_SHM_ID_LAST,
 };
 
-/*
- * For subcommand EC_CODEC_GET_GAIN.
- */
-struct __ec_align1 ec_codec_i2s_gain {
-	uint8_t left;
-	uint8_t right;
+enum ec_codec_shm_type {
+	EC_CODEC_SHM_TYPE_EC_RAM = 0x0,
+	EC_CODEC_SHM_TYPE_SYSTEM_RAM = 0x1,
 };
 
-struct __ec_todo_unpacked ec_param_codec_i2s_tdm {
-	int16_t ch0_delay; /* 0 to 496 */
-	int16_t ch1_delay; /* -1 to 496 */
-	uint8_t adjacent_to_ch0;
-	uint8_t adjacent_to_ch1;
+struct __ec_align1 ec_param_ec_codec_get_shm_addr {
+	uint8_t shm_id;
+	uint8_t reserved[3];
 };
 
-struct __ec_todo_packed ec_param_codec_i2s {
-	/* enum ec_codec_i2s_subcmd */
-	uint8_t cmd;
+struct __ec_align4 ec_param_ec_codec_set_shm_addr {
+	uint64_t phys_addr;
+	uint32_t len;
+	uint8_t shm_id;
+	uint8_t reserved[3];
+};
+
+struct __ec_align4 ec_param_ec_codec {
+	uint8_t cmd; /* enum ec_codec_subcmd */
+	uint8_t reserved[3];
+
 	union {
-		/*
-		 * EC_CODEC_SET_SAMPLE_DEPTH
-		 * Value should be one of ec_sample_depth_value.
-		 */
-		uint8_t depth;
-
-		/*
-		 * EC_CODEC_SET_GAIN
-		 * Value should be 0~43 for both channels.
-		 */
-		struct ec_codec_i2s_gain gain;
-
-		/*
-		 * EC_CODEC_I2S_ENABLE
-		 * 1 to enable, 0 to disable.
-		 */
-		uint8_t i2s_enable;
-
-		/*
-		 * EC_CODEC_I2S_SET_CONFIG
-		 * Value should be one of ec_i2s_config.
-		 */
-		uint8_t i2s_config;
-
-		/*
-		 * EC_CODEC_I2S_SET_TDM_CONFIG
-		 * Value should be one of ec_i2s_config.
-		 */
-		struct ec_param_codec_i2s_tdm tdm_param;
-
-		/*
-		 * EC_CODEC_I2S_SET_BCLK
-		 */
-		uint32_t bclk;
+		struct ec_param_ec_codec_get_shm_addr
+				get_shm_addr_param;
+		struct ec_param_ec_codec_set_shm_addr
+				set_shm_addr_param;
 	};
 };
 
+struct __ec_align4 ec_response_ec_codec_get_capabilities {
+	uint32_t capabilities;
+};
+
+struct __ec_align4 ec_response_ec_codec_get_shm_addr {
+	uint64_t phys_addr;
+	uint32_t len;
+	uint8_t type;
+	uint8_t reserved[3];
+};
+
+/*****************************************************************************/
+
+/* Commands for DMIC on audio codec. */
+#define EC_CMD_EC_CODEC_DMIC 0x00BD
+
+enum ec_codec_dmic_subcmd {
+	EC_CODEC_DMIC_GET_MAX_GAIN = 0x0,
+	EC_CODEC_DMIC_SET_GAIN_IDX = 0x1,
+	EC_CODEC_DMIC_GET_GAIN_IDX = 0x2,
+	EC_CODEC_DMIC_SUBCMD_COUNT,
+};
+
+enum ec_codec_dmic_channel {
+	EC_CODEC_DMIC_CHANNEL_0 = 0x0,
+	EC_CODEC_DMIC_CHANNEL_1 = 0x1,
+	EC_CODEC_DMIC_CHANNEL_2 = 0x2,
+	EC_CODEC_DMIC_CHANNEL_3 = 0x3,
+	EC_CODEC_DMIC_CHANNEL_4 = 0x4,
+	EC_CODEC_DMIC_CHANNEL_5 = 0x5,
+	EC_CODEC_DMIC_CHANNEL_6 = 0x6,
+	EC_CODEC_DMIC_CHANNEL_7 = 0x7,
+	EC_CODEC_DMIC_CHANNEL_COUNT,
+};
+
+struct __ec_align1 ec_param_ec_codec_dmic_set_gain_idx {
+	uint8_t channel; /* enum ec_codec_dmic_channel */
+	uint8_t gain;
+	uint8_t reserved[2];
+};
+
+struct __ec_align1 ec_param_ec_codec_dmic_get_gain_idx {
+	uint8_t channel; /* enum ec_codec_dmic_channel */
+	uint8_t reserved[3];
+};
+
+struct __ec_align4 ec_param_ec_codec_dmic {
+	uint8_t cmd; /* enum ec_codec_dmic_subcmd */
+	uint8_t reserved[3];
+
+	union {
+		struct ec_param_ec_codec_dmic_set_gain_idx
+				set_gain_idx_param;
+		struct ec_param_ec_codec_dmic_get_gain_idx
+				get_gain_idx_param;
+	};
+};
+
+struct __ec_align1 ec_response_ec_codec_dmic_get_max_gain {
+	uint8_t max_gain;
+};
+
+struct __ec_align1 ec_response_ec_codec_dmic_get_gain_idx {
+	uint8_t gain;
+};
+
+/*****************************************************************************/
+
+/* Commands for I2S RX on audio codec. */
+
+#define EC_CMD_EC_CODEC_I2S_RX 0x00BE
+
+enum ec_codec_i2s_rx_subcmd {
+	EC_CODEC_I2S_RX_ENABLE = 0x0,
+	EC_CODEC_I2S_RX_DISABLE = 0x1,
+	EC_CODEC_I2S_RX_SET_SAMPLE_DEPTH = 0x2,
+	EC_CODEC_I2S_RX_SET_DAIFMT = 0x3,
+	EC_CODEC_I2S_RX_SET_BCLK = 0x4,
+	EC_CODEC_I2S_RX_SUBCMD_COUNT,
+};
+
+enum ec_codec_i2s_rx_sample_depth {
+	EC_CODEC_I2S_RX_SAMPLE_DEPTH_16 = 0x0,
+	EC_CODEC_I2S_RX_SAMPLE_DEPTH_24 = 0x1,
+	EC_CODEC_I2S_RX_SAMPLE_DEPTH_COUNT,
+};
+
+enum ec_codec_i2s_rx_daifmt {
+	EC_CODEC_I2S_RX_DAIFMT_I2S = 0x0,
+	EC_CODEC_I2S_RX_DAIFMT_RIGHT_J = 0x1,
+	EC_CODEC_I2S_RX_DAIFMT_LEFT_J = 0x2,
+	EC_CODEC_I2S_RX_DAIFMT_COUNT,
+};
+
+struct __ec_align1 ec_param_ec_codec_i2s_rx_set_sample_depth {
+	uint8_t depth;
+	uint8_t reserved[3];
+};
+
+struct __ec_align1 ec_param_ec_codec_i2s_rx_set_gain {
+	uint8_t left;
+	uint8_t right;
+	uint8_t reserved[2];
+};
+
+struct __ec_align1 ec_param_ec_codec_i2s_rx_set_daifmt {
+	uint8_t daifmt;
+	uint8_t reserved[3];
+};
+
+struct __ec_align4 ec_param_ec_codec_i2s_rx_set_bclk {
+	uint32_t bclk;
+};
+
+struct __ec_align4 ec_param_ec_codec_i2s_rx {
+	uint8_t cmd; /* enum ec_codec_i2s_rx_subcmd */
+	uint8_t reserved[3];
+
+	union {
+		struct ec_param_ec_codec_i2s_rx_set_sample_depth
+				set_sample_depth_param;
+		struct ec_param_ec_codec_i2s_rx_set_daifmt
+				set_daifmt_param;
+		struct ec_param_ec_codec_i2s_rx_set_bclk
+				set_bclk_param;
+	};
+};
+
+/*****************************************************************************/
+/* Commands for WoV on audio codec. */
+
+#define EC_CMD_EC_CODEC_WOV 0x00BF
+
+enum ec_codec_wov_subcmd {
+	EC_CODEC_WOV_SET_LANG = 0x0,
+	EC_CODEC_WOV_SET_LANG_SHM = 0x1,
+	EC_CODEC_WOV_GET_LANG = 0x2,
+	EC_CODEC_WOV_ENABLE = 0x3,
+	EC_CODEC_WOV_DISABLE = 0x4,
+	EC_CODEC_WOV_READ_AUDIO = 0x5,
+	EC_CODEC_WOV_READ_AUDIO_SHM = 0x6,
+	EC_CODEC_WOV_SUBCMD_COUNT,
+};
+
+/*
+ * @hash is SHA256 of the whole language model.
+ * @total_len indicates the length of whole language model.
+ * @offset is the cursor from the beginning of the model.
+ * @buf is the packet buffer.
+ * @len denotes how many bytes in the buf.
+ */
+struct __ec_align4 ec_param_ec_codec_wov_set_lang {
+	uint8_t hash[32];
+	uint32_t total_len;
+	uint32_t offset;
+	uint8_t buf[128];
+	uint32_t len;
+};
+
+struct __ec_align4 ec_param_ec_codec_wov_set_lang_shm {
+	uint8_t hash[32];
+	uint32_t total_len;
+};
+
+struct __ec_align4 ec_param_ec_codec_wov {
+	uint8_t cmd; /* enum ec_codec_wov_subcmd */
+	uint8_t reserved[3];
+
+	union {
+		struct ec_param_ec_codec_wov_set_lang
+				set_lang_param;
+		struct ec_param_ec_codec_wov_set_lang_shm
+				set_lang_shm_param;
+	};
+};
+
+struct __ec_align4 ec_response_ec_codec_wov_get_lang {
+	uint8_t hash[32];
+};
+
+struct __ec_align4 ec_response_ec_codec_wov_read_audio {
+	uint8_t buf[128];
+	uint32_t len;
+};
+
+struct __ec_align4 ec_response_ec_codec_wov_read_audio_shm {
+	uint32_t offset;
+	uint32_t len;
+};
 
 /*****************************************************************************/
 /* System commands */
