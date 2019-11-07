@@ -367,6 +367,7 @@ enum mlxsw_sp_fib_entry_type {
 	MLXSW_SP_FIB_ENTRY_TYPE_LOCAL,
 	MLXSW_SP_FIB_ENTRY_TYPE_TRAP,
 	MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE,
+	MLXSW_SP_FIB_ENTRY_TYPE_UNREACHABLE,
 
 	/* This is a special case of local delivery, where a packet should be
 	 * decapsulated on reception. Note that there is no corresponding ENCAP,
@@ -4274,6 +4275,23 @@ static int mlxsw_sp_fib_entry_op_blackhole(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
+mlxsw_sp_fib_entry_op_unreachable(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_fib_entry *fib_entry,
+				  enum mlxsw_reg_ralue_op op)
+{
+	enum mlxsw_reg_ralue_trap_action trap_action;
+	char ralue_pl[MLXSW_REG_RALUE_LEN];
+	u16 trap_id;
+
+	trap_action = MLXSW_REG_RALUE_TRAP_ACTION_TRAP;
+	trap_id = MLXSW_TRAP_ID_RTR_INGRESS1;
+
+	mlxsw_sp_fib_entry_ralue_pack(ralue_pl, fib_entry, op);
+	mlxsw_reg_ralue_act_local_pack(ralue_pl, trap_action, trap_id, 0);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
+}
+
+static int
 mlxsw_sp_fib_entry_op_ipip_decap(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_fib_entry *fib_entry,
 				 enum mlxsw_reg_ralue_op op)
@@ -4314,6 +4332,9 @@ static int __mlxsw_sp_fib_entry_op(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_sp_fib_entry_op_trap(mlxsw_sp, fib_entry, op);
 	case MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE:
 		return mlxsw_sp_fib_entry_op_blackhole(mlxsw_sp, fib_entry, op);
+	case MLXSW_SP_FIB_ENTRY_TYPE_UNREACHABLE:
+		return mlxsw_sp_fib_entry_op_unreachable(mlxsw_sp, fib_entry,
+							 op);
 	case MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP:
 		return mlxsw_sp_fib_entry_op_ipip_decap(mlxsw_sp,
 							fib_entry, op);
@@ -4391,7 +4412,7 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 		 * can do so with a lower priority than packets directed
 		 * at the host, so use action type local instead of trap.
 		 */
-		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
+		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_UNREACHABLE;
 		return 0;
 	case RTN_UNICAST:
 		if (mlxsw_sp_fi_is_gateway(mlxsw_sp, fi))
@@ -5351,7 +5372,7 @@ static void mlxsw_sp_fib6_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 	else if (rt->fib6_type == RTN_BLACKHOLE)
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE;
 	else if (rt->fib6_flags & RTF_REJECT)
-		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
+		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_UNREACHABLE;
 	else if (mlxsw_sp_rt6_is_gateway(mlxsw_sp, rt))
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_REMOTE;
 	else
