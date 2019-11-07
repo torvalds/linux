@@ -224,6 +224,8 @@ struct komeda_dev {
 #define KOMEDA_DEV_PRINT_INFO_EVENTS BIT(2)
 	/* Dump DRM state on an error or warning event. */
 #define KOMEDA_DEV_PRINT_DUMP_STATE_ON_EVENT BIT(8)
+	/* Disable rate limiting of event prints (normally one per commit) */
+#define KOMEDA_DEV_PRINT_DISABLE_RATELIMIT BIT(12)
 };
 
 static inline bool

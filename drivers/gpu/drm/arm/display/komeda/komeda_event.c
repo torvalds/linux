@@ -119,7 +119,7 @@ void komeda_print_events(struct komeda_events *evts, struct drm_device *dev)
 	/* reduce the same msg print, only print the first evt for one frame */
 	if (evts->global || is_new_frame(evts))
 		en_print = true;
-	if (!en_print)
+	if (!(err_verbosity & KOMEDA_DEV_PRINT_DISABLE_RATELIMIT) && !en_print)
 		return;
 
 	if (err_verbosity & KOMEDA_DEV_PRINT_ERR_EVENTS)
