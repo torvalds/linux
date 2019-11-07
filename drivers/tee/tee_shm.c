@@ -89,19 +89,13 @@ static const struct dma_buf_ops tee_shm_dma_buf_ops = {
 	.mmap = tee_shm_op_mmap,
 };
 
-static struct tee_shm *__tee_shm_alloc(struct tee_context *ctx,
-				       struct tee_device *teedev,
-				       size_t size, u32 flags)
+struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 {
+	struct tee_device *teedev = ctx->teedev;
 	struct tee_shm_pool_mgr *poolm = NULL;
 	struct tee_shm *shm;
 	void *ret;
 	int rc;
-
-	if (ctx && ctx->teedev != teedev) {
-		dev_err(teedev->dev.parent, "ctx and teedev mismatch\n");
-		return ERR_PTR(-EINVAL);
-	}
 
 	if (!(flags & TEE_SHM_MAPPED)) {
 		dev_err(teedev->dev.parent,
@@ -182,30 +176,7 @@ err_dev_put:
 	tee_device_put(teedev);
 	return ret;
 }
-
-/**
- * tee_shm_alloc() - Allocate shared memory
- * @ctx:	Context that allocates the shared memory
- * @size:	Requested size of shared memory
- * @flags:	Flags setting properties for the requested shared memory.
- *
- * Memory allocated as global shared memory is automatically freed when the
- * TEE file pointer is closed. The @flags field uses the bits defined by
- * TEE_SHM_* in <linux/tee_drv.h>. TEE_SHM_MAPPED must currently always be
- * set. If TEE_SHM_DMA_BUF global shared memory will be allocated and
- * associated with a dma-buf handle, else driver private memory.
- */
-struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
-{
-	return __tee_shm_alloc(ctx, ctx->teedev, size, flags);
-}
 EXPORT_SYMBOL_GPL(tee_shm_alloc);
-
-struct tee_shm *tee_shm_priv_alloc(struct tee_device *teedev, size_t size)
-{
-	return __tee_shm_alloc(NULL, teedev, size, TEE_SHM_MAPPED);
-}
-EXPORT_SYMBOL_GPL(tee_shm_priv_alloc);
 
 struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
 				 size_t length, u32 flags)
