@@ -3438,48 +3438,86 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	intel_dp->regs.dp_tp_ctl = TGL_DP_TP_CTL(transcoder);
 	intel_dp->regs.dp_tp_status = TGL_DP_TP_STATUS(transcoder);
 
-	/* 1.a got on intel_atomic_commit_tail() */
+	/*
+	 * 1. Enable Power Wells
+	 *
+	 * This was handled at the beginning of intel_atomic_commit_tail(),
+	 * before we called down into this function.
+	 */
 
-	/* 2. */
+	/* 2. Enable Panel Power if PPS is required */
 	intel_edp_panel_on(intel_dp);
 
 	/*
-	 * 1.b, 3. and 4.a is done before tgl_ddi_pre_enable_dp() by:
-	 * haswell_crtc_enable()->intel_encoders_pre_pll_enable() and
-	 * haswell_crtc_enable()->intel_enable_shared_dpll()
+	 * 3. For non-TBT Type-C ports, set FIA lane count
+	 * (DFLEXDPSP.DPX4TXLATC)
+	 *
+	 * This was done before tgl_ddi_pre_enable_dp by
+	 * haswell_crtc_enable()->intel_encoders_pre_pll_enable().
 	 */
 
-	/* 4.b */
+	/*
+	 * 4. Enable the port PLL.
+	 *
+	 * The PLL enabling itself was already done before this function by
+	 * haswell_crtc_enable()->intel_enable_shared_dpll().  We need only
+	 * configure the PLL to port mapping here.
+	 */
 	intel_ddi_clk_select(encoder, crtc_state);
 
-	/* 5. */
+	/* 5. If IO power is controlled through PWR_WELL_CTL, Enable IO Power */
 	if (!intel_phy_is_tc(dev_priv, phy) ||
 	    dig_port->tc_mode != TC_PORT_TBT_ALT)
 		intel_display_power_get(dev_priv,
 					dig_port->ddi_io_power_domain);
 
-	/* 6. */
+	/* 6. Program DP_MODE */
 	icl_program_mg_dp_mode(dig_port, crtc_state);
 
 	/*
-	 * 7.a - single stream or multi-stream master transcoder: Configure
-	 * Transcoder Clock Select. For additional MST streams this will be done
-	 * by intel_mst_pre_enable_dp() after programming VC Payload ID through
-	 * AUX.
+	 * 7. The rest of the below are substeps under the bspec's "Enable and
+	 * Train Display Port" step.  Note that steps that are specific to
+	 * MST will be handled by intel_mst_pre_enable_dp() before/after it
+	 * calls into this function.  Also intel_mst_pre_enable_dp() only calls
+	 * us when active_mst_links==0, so any steps designated for "single
+	 * stream or multi-stream master transcoder" can just be performed
+	 * unconditionally here.
+	 */
+
+	/*
+	 * 7.a Configure Transcoder Clock Select to direct the Port clock to the
+	 * Transcoder.
 	 */
 	intel_ddi_enable_pipe_clock(crtc_state);
 
-	/* 7.b */
+	/*
+	 * 7.b Configure TRANS_DDI_FUNC_CTL DDI Select, DDI Mode Select & MST
+	 * Transport Select
+	 */
 	intel_ddi_config_transcoder_func(crtc_state);
 
-	/* 7.d */
+	/*
+	 * 7.c Configure & enable DP_TP_CTL with link training pattern 1
+	 * selected
+	 *
+	 * This will be handled by the intel_dp_start_link_train() farther
+	 * down this function.
+	 */
+
+	/*
+	 * 7.d Type C with DP alternate or fixed/legacy/static connection -
+	 * Disable PHY clock gating per Type-C DDI Buffer page
+	 */
 	icl_phy_set_clock_gating(dig_port, false);
 
-	/* 7.e */
+	/* 7.e Configure voltage swing and related IO settings */
 	tgl_ddi_vswing_sequence(encoder, crtc_state->port_clock, level,
 				encoder->type);
 
-	/* 7.f */
+	/*
+	 * 7.f Combo PHY: Configure PORT_CL_DW10 Static Power Down to power up
+	 * the used lanes of the DDI.
+	 */
 	if (intel_phy_is_combo(dev_priv, phy)) {
 		bool lane_reversal =
 			dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
@@ -3489,7 +3527,14 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 					       lane_reversal);
 	}
 
-	/* 7.g */
+	/*
+	 * 7.g Configure and enable DDI_BUF_CTL
+	 * 7.h Wait for DDI_BUF_CTL DDI Idle Status = 0b (Not Idle), timeout
+	 *     after 500 us.
+	 *
+	 * We only configure what the register value will be here.  Actual
+	 * enabling happens during link training farther down.
+	 */
 	intel_ddi_init_dp_buf_reg(encoder);
 
 	if (!is_mst)
@@ -3502,10 +3547,17 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	 * training
 	 */
 	intel_dp_sink_set_fec_ready(intel_dp, crtc_state);
-	/* 7.c, 7.h, 7.i, 7.j */
+
+	/*
+	 * 7.i Follow DisplayPort specification training sequence (see notes for
+	 *     failure handling)
+	 * 7.j If DisplayPort multi-stream - Set DP_TP_CTL link training to Idle
+	 *     Pattern, wait for 5 idle patterns (DP_TP_STATUS Min_Idles_Sent)
+	 *     (timeout after 800 us)
+	 */
 	intel_dp_start_link_train(intel_dp);
 
-	/* 7.k */
+	/* 7.k Set DP_TP_CTL link training to Normal */
 	if (!is_trans_port_sync_mode(crtc_state))
 		intel_dp_stop_link_train(intel_dp);
 
@@ -3518,7 +3570,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	 * so not enabling it for now.
 	 */
 
-	/* 7.l */
+	/* 7.l Configure and enable FEC if needed */
 	intel_ddi_enable_fec(encoder, crtc_state);
 	intel_dsc_enable(encoder, crtc_state);
 }
