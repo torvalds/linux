@@ -346,26 +346,6 @@ static void mos7840_dump_serial_port(struct usb_serial_port *port,
 
 /************************************************************************/
 /************************************************************************/
-/*             I N T E R F A C E   F U N C T I O N S			*/
-/*             I N T E R F A C E   F U N C T I O N S			*/
-/************************************************************************/
-/************************************************************************/
-
-static inline void mos7840_set_port_private(struct usb_serial_port *port,
-					    struct moschip_port *data)
-{
-	usb_set_serial_port_data(port, (void *)data);
-}
-
-static inline struct moschip_port *mos7840_get_port_private(struct
-							    usb_serial_port
-							    *port)
-{
-	return (struct moschip_port *)usb_get_serial_port_data(port);
-}
-
-/************************************************************************/
-/************************************************************************/
 /*            U S B  C A L L B A C K   F U N C T I O N S                */
 /*            U S B  C A L L B A C K   F U N C T I O N S                */
 /************************************************************************/
@@ -541,17 +521,13 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 
 static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
 	int response;
 	int j;
 	struct urb *urb;
 	__u16 Data;
 	int status;
-	struct moschip_port *mos7840_port;
-
-	mos7840_port = mos7840_get_port_private(port);
-	if (mos7840_port == NULL)
-		return -ENODEV;
 
 	usb_clear_halt(serial->dev, port->write_urb->pipe);
 	usb_clear_halt(serial->dev, port->read_urb->pipe);
@@ -773,14 +749,10 @@ err:
 static int mos7840_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int i;
 	int chars = 0;
 	unsigned long flags;
-	struct moschip_port *mos7840_port;
-
-	mos7840_port = mos7840_get_port_private(port);
-	if (mos7840_port == NULL)
-		return 0;
 
 	spin_lock_irqsave(&mos7840_port->pool_lock, flags);
 	for (i = 0; i < NUM_URBS; ++i) {
@@ -802,13 +774,9 @@ static int mos7840_chars_in_buffer(struct tty_struct *tty)
 
 static void mos7840_close(struct usb_serial_port *port)
 {
-	struct moschip_port *mos7840_port;
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int j;
 	__u16 Data;
-
-	mos7840_port = mos7840_get_port_private(port);
-	if (mos7840_port == NULL)
-		return;
 
 	for (j = 0; j < NUM_URBS; ++j)
 		usb_kill_urb(mos7840_port->write_urb_pool[j]);
@@ -840,13 +808,8 @@ static void mos7840_close(struct usb_serial_port *port)
 static void mos7840_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	unsigned char data;
-	struct moschip_port *mos7840_port;
-
-	mos7840_port = mos7840_get_port_private(port);
-
-	if (mos7840_port == NULL)
-		return;
 
 	if (break_state == -1)
 		data = mos7840_port->shadowLCR | LCR_SET_BREAK;
@@ -871,14 +834,10 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 static int mos7840_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int i;
 	int room = 0;
 	unsigned long flags;
-	struct moschip_port *mos7840_port;
-
-	mos7840_port = mos7840_get_port_private(port);
-	if (mos7840_port == NULL)
-		return -1;
 
 	spin_lock_irqsave(&mos7840_port->pool_lock, flags);
 	for (i = 0; i < NUM_URBS; ++i) {
@@ -904,21 +863,16 @@ static int mos7840_write_room(struct tty_struct *tty)
 static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 			 const unsigned char *data, int count)
 {
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
 	int status;
 	int i;
 	int bytes_sent = 0;
 	int transfer_size;
 	unsigned long flags;
-
-	struct moschip_port *mos7840_port;
 	struct urb *urb;
 	/* __u16 Data; */
 	const unsigned char *current_position = data;
-
-	mos7840_port = mos7840_get_port_private(port);
-	if (mos7840_port == NULL)
-		return -1;
 
 	/* try to find a free urb in the list */
 	urb = NULL;
@@ -1000,13 +954,8 @@ exit:
 static void mos7840_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct moschip_port *mos7840_port;
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int status;
-
-	mos7840_port = mos7840_get_port_private(port);
-
-	if (mos7840_port == NULL)
-		return;
 
 	if (!mos7840_port->open) {
 		dev_dbg(&port->dev, "%s", "port not opened\n");
@@ -1039,11 +988,8 @@ static void mos7840_throttle(struct tty_struct *tty)
 static void mos7840_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int status;
-	struct moschip_port *mos7840_port = mos7840_get_port_private(port);
-
-	if (mos7840_port == NULL)
-		return;
 
 	if (!mos7840_port->open) {
 		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
@@ -1071,15 +1017,10 @@ static void mos7840_unthrottle(struct tty_struct *tty)
 static int mos7840_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct moschip_port *mos7840_port;
 	unsigned int result;
 	__u16 msr;
 	__u16 mcr;
 	int status;
-	mos7840_port = mos7840_get_port_private(port);
-
-	if (mos7840_port == NULL)
-		return -ENODEV;
 
 	status = mos7840_get_uart_reg(port, MODEM_STATUS_REGISTER, &msr);
 	if (status < 0)
@@ -1104,14 +1045,9 @@ static int mos7840_tiocmset(struct tty_struct *tty,
 			    unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct moschip_port *mos7840_port;
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	unsigned int mcr;
 	int status;
-
-	mos7840_port = mos7840_get_port_private(port);
-
-	if (mos7840_port == NULL)
-		return -ENODEV;
 
 	/* FIXME: What locks the port registers ? */
 	mcr = mos7840_port->shadowMCR;
@@ -1429,13 +1365,8 @@ static void mos7840_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
 				struct ktermios *old_termios)
 {
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int status;
-	struct moschip_port *mos7840_port;
-
-	mos7840_port = mos7840_get_port_private(port);
-
-	if (mos7840_port == NULL)
-		return;
 
 	if (!mos7840_port->open) {
 		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
@@ -1497,7 +1428,7 @@ static int mos7840_get_serial_info(struct tty_struct *tty,
 				   struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct moschip_port *mos7840_port = mos7840_get_port_private(port);
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 
 	ss->type = PORT_16550A;
 	ss->line = mos7840_port->port->minor;
@@ -1520,12 +1451,6 @@ static int mos7840_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 	void __user *argp = (void __user *)arg;
-	struct moschip_port *mos7840_port;
-
-	mos7840_port = mos7840_get_port_private(port);
-
-	if (mos7840_port == NULL)
-		return -1;
 
 	switch (cmd) {
 		/* return number of bytes available */
@@ -1692,7 +1617,6 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 	 * common to all port */
 
 	mos7840_port->port = port;
-	mos7840_set_port_private(port, mos7840_port);
 	spin_lock_init(&mos7840_port->pool_lock);
 
 	/* minor is not initialised until later by
@@ -1718,7 +1642,7 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 		mos7840_port->DcrRegOffset = 0x16 + 3 * (phy_num - 2);
 	}
 	mos7840_dump_serial_port(port, mos7840_port);
-	mos7840_set_port_private(port, mos7840_port);
+	usb_set_serial_port_data(port, mos7840_port);
 
 	/* enable rx_disable bit in control register */
 	status = mos7840_get_reg_sync(port,
@@ -1859,9 +1783,7 @@ error:
 
 static int mos7840_port_remove(struct usb_serial_port *port)
 {
-	struct moschip_port *mos7840_port;
-
-	mos7840_port = mos7840_get_port_private(port);
+	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 
 	if (mos7840_port->has_led) {
 		/* Turn off LED */
