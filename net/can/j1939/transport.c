@@ -255,6 +255,7 @@ static void __j1939_session_drop(struct j1939_session *session)
 		return;
 
 	j1939_sock_pending_del(session->sk);
+	sock_put(session->sk);
 }
 
 static void j1939_session_destroy(struct j1939_session *session)
@@ -1875,6 +1876,7 @@ struct j1939_session *j1939_tp_send(struct j1939_priv *priv,
 		return ERR_PTR(-ENOMEM);
 
 	/* skb is recounted in j1939_session_new() */
+	sock_hold(skb->sk);
 	session->sk = skb->sk;
 	session->transmission = true;
 	session->pkt.total = (size + 6) / 7;
