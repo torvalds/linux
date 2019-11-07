@@ -59,6 +59,4 @@ bool dmub_dcn20_is_hw_init(struct dmub_srv *dmub);
 
 bool dmub_dcn20_is_supported(struct dmub_srv *dmub);
 
-bool dmub_dcn20_is_phy_init(struct dmub_srv *dmub);
-
 #endif /* _DMUB_DCN20_H_ */

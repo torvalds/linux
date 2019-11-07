@@ -76,13 +76,13 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_inbox1_rptr = dmub_dcn20_get_inbox1_rptr;
 		funcs->set_inbox1_wptr = dmub_dcn20_set_inbox1_wptr;
 		funcs->is_supported = dmub_dcn20_is_supported;
-		funcs->is_phy_init = dmub_dcn20_is_phy_init;
 		funcs->is_hw_init = dmub_dcn20_is_hw_init;
 
 		if (asic == DMUB_ASIC_DCN21) {
 			funcs->backdoor_load = dmub_dcn21_backdoor_load;
 			funcs->setup_windows = dmub_dcn21_setup_windows;
 			funcs->is_auto_load_done = dmub_dcn21_is_auto_load_done;
+			funcs->is_phy_init = dmub_dcn21_is_phy_init;
 		}
 		break;
 

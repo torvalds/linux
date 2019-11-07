@@ -42,4 +42,6 @@ void dmub_dcn21_setup_windows(struct dmub_srv *dmub,
 
 bool dmub_dcn21_is_auto_load_done(struct dmub_srv *dmub);
 
+bool dmub_dcn21_is_phy_init(struct dmub_srv *dmub);
+
 #endif /* _DMUB_DCN21_H_ */

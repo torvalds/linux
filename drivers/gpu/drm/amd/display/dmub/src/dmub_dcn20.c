@@ -135,8 +135,3 @@ bool dmub_dcn20_is_supported(struct dmub_srv *dmub)
 
 	return supported;
 }
-
-bool dmub_dcn20_is_phy_init(struct dmub_srv *dmub)
-{
-	return REG_READ(DMCUB_SCRATCH10) == 0;
-}
