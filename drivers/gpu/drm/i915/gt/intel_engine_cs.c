@@ -344,7 +344,6 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	gt->engine_class[info->class][info->instance] = engine;
 	gt->engine[id] = engine;
 
-	intel_engine_add_user(engine);
 	gt->i915->engine[id] = engine;
 
 	return 0;
@@ -481,6 +480,8 @@ int intel_engines_init(struct intel_gt *gt)
 		err = init(engine);
 		if (err)
 			goto cleanup;
+
+		intel_engine_add_user(engine);
 	}
 
 	return 0;
