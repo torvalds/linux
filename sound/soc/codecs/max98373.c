@@ -960,11 +960,11 @@ static int max98373_i2c_probe(struct i2c_client *i2c,
 
 	/* Power on device */
 	if (gpio_is_valid(max98373->reset_gpio)) {
-		ret = gpio_request(max98373->reset_gpio, "MAX98373_RESET");
+		ret = devm_gpio_request(&i2c->dev, max98373->reset_gpio,
+					"MAX98373_RESET");
 		if (ret) {
 			dev_err(&i2c->dev, "%s: Failed to request gpio %d\n",
 				__func__, max98373->reset_gpio);
-			gpio_free(max98373->reset_gpio);
 			return -EINVAL;
 		}
 		gpio_direction_output(max98373->reset_gpio, 0);
