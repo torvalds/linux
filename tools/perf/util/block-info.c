@@ -437,3 +437,20 @@ struct block_report *block_info__create_report(struct evlist *evlist,
 
 	return block_reports;
 }
+
+int report__browse_block_hists(struct block_hist *bh, float min_percent,
+			       struct evsel *evsel __maybe_unused)
+{
+	switch (use_browser) {
+	case 0:
+		symbol_conf.report_individual_block = true;
+		hists__fprintf(&bh->block_hists, true, 0, 0, min_percent,
+			       stdout, true);
+		hists__delete_entries(&bh->block_hists);
+		return 0;
+	default:
+		return -1;
+	}
+
+	return 0;
+}

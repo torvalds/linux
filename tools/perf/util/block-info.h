@@ -7,6 +7,7 @@
 #include "hist.h"
 #include "symbol.h"
 #include "sort.h"
+#include "ui/ui.h"
 
 struct block_info {
 	struct symbol		*sym;
@@ -68,5 +69,8 @@ int block_info__process_sym(struct hist_entry *he, struct block_hist *bh,
 
 struct block_report *block_info__create_report(struct evlist *evlist,
 					       u64 total_cycles);
+
+int report__browse_block_hists(struct block_hist *bh, float min_percent,
+			       struct evsel *evsel);
 
 #endif /* __PERF_BLOCK_H */
