@@ -3224,6 +3224,10 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    req->req_q_in, req->req_q_out, rsp->rsp_q_in, rsp->rsp_q_out);
 
 	ha->wq = alloc_workqueue("qla2xxx_wq", 0, 0);
+	if (unlikely(!ha->wq)) {
+		ret = -ENOMEM;
+		goto probe_failed;
+	}
 
 	if (ha->isp_ops->initialize_adapter(base_vha)) {
 		ql_log(ql_log_fatal, base_vha, 0x00d6,
@@ -3530,6 +3534,10 @@ qla2x00_shutdown(struct pci_dev *pdev)
 		/* Stop currently executing firmware. */
 		qla2x00_try_to_stop_firmware(vha);
 	}
+
+	/* Disable timer */
+	if (vha->timer_active)
+		qla2x00_stop_timer(vha);
 
 	/* Turn adapter off line */
 	vha->flags.online = 0;
