@@ -4000,9 +4000,8 @@ int mlx5e_tc_configure_matchall(struct mlx5e_priv *priv,
 				struct tc_cls_matchall_offload *ma)
 {
 	struct netlink_ext_ack *extack = ma->common.extack;
-	int prio = TC_H_MAJ(ma->common.prio) >> 16;
 
-	if (prio != 1) {
+	if (ma->common.prio != 1) {
 		NL_SET_ERR_MSG_MOD(extack, "only priority 1 is supported");
 		return -EINVAL;
 	}
