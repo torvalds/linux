@@ -184,7 +184,7 @@ int qxl_device_init(struct qxl_device *qdev,
 
 	if (!qxl_check_device(qdev)) {
 		r = -ENODEV;
-		goto surface_mapping_free;
+		goto rom_unmap;
 	}
 
 	r = qxl_bo_init(qdev);
