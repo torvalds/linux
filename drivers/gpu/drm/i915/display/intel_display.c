@@ -164,7 +164,6 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
-static void intel_crtc_init_scalers(struct intel_crtc_state *crtc_state);
 static void skylake_pfit_enable(const struct intel_crtc_state *crtc_state);
 static void ironlake_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 static void ironlake_pfit_enable(const struct intel_crtc_state *crtc_state);
@@ -10629,8 +10628,6 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	u64 power_domain_mask;
 	bool active;
 
-	intel_crtc_init_scalers(pipe_config);
-
 	pipe_config->master_transcoder = INVALID_TRANSCODER;
 
 	power_domain = POWER_DOMAIN_PIPE(crtc->pipe);
@@ -11678,6 +11675,20 @@ static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 					 &pipe_config->fdi_m_n);
 }
 
+static void intel_crtc_state_reset(struct intel_crtc_state *crtc_state,
+				   struct intel_crtc *crtc)
+{
+	memset(crtc_state, 0, sizeof(*crtc_state));
+
+	__drm_atomic_helper_crtc_state_reset(&crtc_state->uapi, &crtc->base);
+
+	crtc_state->cpu_transcoder = INVALID_TRANSCODER;
+	crtc_state->master_transcoder = INVALID_TRANSCODER;
+	crtc_state->hsw_workaround_pipe = INVALID_PIPE;
+	crtc_state->output_format = INTEL_OUTPUT_FORMAT_INVALID;
+	crtc_state->scaler_state.scaler_id = -1;
+}
+
 /* Returns the currently programmed mode of the given encoder. */
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder)
@@ -11703,7 +11714,7 @@ intel_encoder_current_mode(struct intel_encoder *encoder)
 		return NULL;
 	}
 
-	crtc_state->uapi.crtc = &crtc->base;
+	intel_crtc_state_reset(crtc_state, crtc);
 
 	if (!dev_priv->display.get_pipe_config(crtc, crtc_state)) {
 		kfree(crtc_state);
@@ -13555,18 +13566,14 @@ verify_crtc_state(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_encoder *encoder;
-	struct intel_crtc_state *pipe_config;
-	struct drm_atomic_state *state;
+	struct intel_crtc_state *pipe_config = old_crtc_state;
+	struct drm_atomic_state *state = old_crtc_state->uapi.state;
 	bool active;
 
-	state = old_crtc_state->uapi.state;
 	__drm_atomic_helper_crtc_destroy_state(&old_crtc_state->uapi);
 	intel_crtc_free_hw_state(old_crtc_state);
-
-	pipe_config = old_crtc_state;
-	memset(pipe_config, 0, sizeof(*pipe_config));
-	pipe_config->uapi.crtc = &crtc->base;
-	pipe_config->uapi.state = state;
+	intel_crtc_state_reset(old_crtc_state, crtc);
+	old_crtc_state->uapi.state = state;
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.base.id, crtc->base.name);
 
@@ -15694,15 +15701,6 @@ fail:
 	return ERR_PTR(ret);
 }
 
-static void intel_crtc_init_scalers(struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc_scaler_state *scaler_state =
-		&crtc_state->scaler_state;
-
-	memset(scaler_state, 0, sizeof(*scaler_state));
-	scaler_state->scaler_id = -1;
-}
-
 #define INTEL_CRTC_FUNCS \
 	.gamma_set = drm_atomic_helper_legacy_gamma_set, \
 	.set_config = drm_atomic_helper_set_config, \
@@ -15785,9 +15783,9 @@ static struct intel_crtc *intel_crtc_alloc(void)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	__drm_atomic_helper_crtc_reset(&crtc->base, &crtc_state->uapi);
-	intel_crtc_init_scalers(crtc_state);
+	intel_crtc_state_reset(crtc_state, crtc);
 
+	crtc->base.state = &crtc_state->uapi;
 	crtc->config = crtc_state;
 
 	return crtc;
@@ -17408,8 +17406,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		__drm_atomic_helper_crtc_destroy_state(&crtc_state->uapi);
 		intel_crtc_free_hw_state(crtc_state);
-		memset(crtc_state, 0, sizeof(*crtc_state));
-		__drm_atomic_helper_crtc_reset(&crtc->base, &crtc_state->uapi);
+		intel_crtc_state_reset(crtc_state, crtc);
 
 		crtc_state->hw.active = crtc_state->hw.enable =
 			dev_priv->display.get_pipe_config(crtc, crtc_state);
