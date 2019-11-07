@@ -1057,44 +1057,6 @@ void aq_nic_free_vectors(struct aq_nic_s *self)
 err_exit:;
 }
 
-int aq_nic_change_pm_state(struct aq_nic_s *self, pm_message_t *pm_msg)
-{
-	int err = 0;
-
-	if (!netif_running(self->ndev)) {
-		err = 0;
-		goto out;
-	}
-	rtnl_lock();
-	if (pm_msg->event & PM_EVENT_SLEEP || pm_msg->event & PM_EVENT_FREEZE) {
-		self->power_state = AQ_HW_POWER_STATE_D3;
-		netif_device_detach(self->ndev);
-		netif_tx_stop_all_queues(self->ndev);
-
-		err = aq_nic_stop(self);
-		if (err < 0)
-			goto err_exit;
-
-		aq_nic_deinit(self, !self->aq_hw->aq_nic_cfg->wol);
-	} else {
-		err = aq_nic_init(self);
-		if (err < 0)
-			goto err_exit;
-
-		err = aq_nic_start(self);
-		if (err < 0)
-			goto err_exit;
-
-		netif_device_attach(self->ndev);
-		netif_tx_start_all_queues(self->ndev);
-	}
-
-err_exit:
-	rtnl_unlock();
-out:
-	return err;
-}
-
 void aq_nic_shutdown(struct aq_nic_s *self)
 {
 	int err = 0;
