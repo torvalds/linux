@@ -15,9 +15,11 @@ static void tee_shm_release(struct tee_shm *shm)
 {
 	struct tee_device *teedev = shm->teedev;
 
-	mutex_lock(&teedev->mutex);
-	idr_remove(&teedev->idr, shm->id);
-	mutex_unlock(&teedev->mutex);
+	if (shm->flags & TEE_SHM_DMA_BUF) {
+		mutex_lock(&teedev->mutex);
+		idr_remove(&teedev->idr, shm->id);
+		mutex_unlock(&teedev->mutex);
+	}
 
 	if (shm->flags & TEE_SHM_POOL) {
 		struct tee_shm_pool_mgr *poolm;
@@ -137,16 +139,17 @@ struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 		goto err_kfree;
 	}
 
-	mutex_lock(&teedev->mutex);
-	shm->id = idr_alloc(&teedev->idr, shm, 1, 0, GFP_KERNEL);
-	mutex_unlock(&teedev->mutex);
-	if (shm->id < 0) {
-		ret = ERR_PTR(shm->id);
-		goto err_pool_free;
-	}
 
 	if (flags & TEE_SHM_DMA_BUF) {
 		DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+
+		mutex_lock(&teedev->mutex);
+		shm->id = idr_alloc(&teedev->idr, shm, 1, 0, GFP_KERNEL);
+		mutex_unlock(&teedev->mutex);
+		if (shm->id < 0) {
+			ret = ERR_PTR(shm->id);
+			goto err_pool_free;
+		}
 
 		exp_info.ops = &tee_shm_dma_buf_ops;
 		exp_info.size = shm->size;
@@ -165,9 +168,11 @@ struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 
 	return shm;
 err_rem:
-	mutex_lock(&teedev->mutex);
-	idr_remove(&teedev->idr, shm->id);
-	mutex_unlock(&teedev->mutex);
+	if (flags & TEE_SHM_DMA_BUF) {
+		mutex_lock(&teedev->mutex);
+		idr_remove(&teedev->idr, shm->id);
+		mutex_unlock(&teedev->mutex);
+	}
 err_pool_free:
 	poolm->ops->free(poolm, shm);
 err_kfree:
