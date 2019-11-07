@@ -9,6 +9,7 @@ enum {
 	IO_WQ_WORK_HASHED	= 4,
 	IO_WQ_WORK_NEEDS_USER	= 8,
 	IO_WQ_WORK_NEEDS_FILES	= 16,
+	IO_WQ_WORK_UNBOUND	= 32,
 
 	IO_WQ_HASH_SHIFT	= 24,	/* upper 8 bits are used for hash key */
 };
@@ -33,7 +34,8 @@ struct io_wq_work {
 		(work)->files = NULL;			\
 	} while (0)					\
 
-struct io_wq *io_wq_create(unsigned concurrency, struct mm_struct *mm);
+struct io_wq *io_wq_create(unsigned bounded, struct mm_struct *mm,
+				struct user_struct *user);
 void io_wq_destroy(struct io_wq *wq);
 
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work);
