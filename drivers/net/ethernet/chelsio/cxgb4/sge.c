@@ -269,7 +269,6 @@ out_err:
 }
 EXPORT_SYMBOL(cxgb4_map_skb);
 
-#ifdef CONFIG_NEED_DMA_MAP_STATE
 static void unmap_skb(struct device *dev, const struct sk_buff *skb,
 		      const dma_addr_t *addr)
 {
@@ -284,6 +283,7 @@ static void unmap_skb(struct device *dev, const struct sk_buff *skb,
 		dma_unmap_page(dev, *addr++, skb_frag_size(fp), DMA_TO_DEVICE);
 }
 
+#ifdef CONFIG_NEED_DMA_MAP_STATE
 /**
  *	deferred_unmap_destructor - unmap a packet when it is freed
  *	@skb: the packet
@@ -1347,6 +1347,31 @@ int t4_sge_eth_txq_egress_update(struct adapter *adap, struct sge_eth_txq *eq,
 	return reclaimed;
 }
 
+static inline int cxgb4_validate_skb(struct sk_buff *skb,
+				     struct net_device *dev,
+				     u32 min_pkt_len)
+{
+	u32 max_pkt_len;
+
+	/* The chip min packet length is 10 octets but some firmware
+	 * commands have a minimum packet length requirement. So, play
+	 * safe and reject anything shorter than @min_pkt_len.
+	 */
+	if (unlikely(skb->len < min_pkt_len))
+		return -EINVAL;
+
+	/* Discard the packet if the length is greater than mtu */
+	max_pkt_len = ETH_HLEN + dev->mtu;
+
+	if (skb_vlan_tagged(skb))
+		max_pkt_len += VLAN_HLEN;
+
+	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
+		return -EINVAL;
+
+	return 0;
+}
+
 /**
  *	cxgb4_eth_xmit - add a packet to an Ethernet Tx queue
  *	@skb: the packet
@@ -1356,41 +1381,24 @@ int t4_sge_eth_txq_egress_update(struct adapter *adap, struct sge_eth_txq *eq,
  */
 static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	u32 wr_mid, ctrl0, op;
-	u64 cntrl, *end, *sgl;
-	int qidx, credits;
-	unsigned int flits, ndesc;
-	struct adapter *adap;
-	struct sge_eth_txq *q;
-	const struct port_info *pi;
+	enum cpl_tx_tnl_lso_type tnl_type = TX_TNL_TYPE_OPAQUE;
+	bool ptp_enabled = is_ptp_enabled(skb, dev);
+	dma_addr_t addr[MAX_SKB_FRAGS + 1];
+	const struct skb_shared_info *ssi;
 	struct fw_eth_tx_pkt_wr *wr;
 	struct cpl_tx_pkt_core *cpl;
-	const struct skb_shared_info *ssi;
-	dma_addr_t addr[MAX_SKB_FRAGS + 1];
+	int len, qidx, credits, ret;
+	const struct port_info *pi;
+	unsigned int flits, ndesc;
 	bool immediate = false;
-	int len, max_pkt_len;
-	bool ptp_enabled = is_ptp_enabled(skb, dev);
+	u32 wr_mid, ctrl0, op;
+	u64 cntrl, *end, *sgl;
+	struct sge_eth_txq *q;
 	unsigned int chip_ver;
-	enum cpl_tx_tnl_lso_type tnl_type = TX_TNL_TYPE_OPAQUE;
+	struct adapter *adap;
 
-#ifdef CONFIG_CHELSIO_T4_FCOE
-	int err;
-#endif /* CONFIG_CHELSIO_T4_FCOE */
-
-	/*
-	 * The chip min packet length is 10 octets but play safe and reject
-	 * anything shorter than an Ethernet header.
-	 */
-	if (unlikely(skb->len < ETH_HLEN)) {
-out_free:	dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
-	}
-
-	/* Discard the packet if the length is greater than mtu */
-	max_pkt_len = ETH_HLEN + dev->mtu;
-	if (skb_vlan_tagged(skb))
-		max_pkt_len += VLAN_HLEN;
-	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
+	ret = cxgb4_validate_skb(skb, dev, ETH_HLEN);
+	if (ret)
 		goto out_free;
 
 	pi = netdev_priv(dev);
@@ -1421,8 +1429,8 @@ out_free:	dev_kfree_skb_any(skb);
 	cntrl = TXPKT_L4CSUM_DIS_F | TXPKT_IPCSUM_DIS_F;
 
 #ifdef CONFIG_CHELSIO_T4_FCOE
-	err = cxgb_fcoe_offload(skb, adap, pi, &cntrl);
-	if (unlikely(err == -ENOTSUPP)) {
+	ret = cxgb_fcoe_offload(skb, adap, pi, &cntrl);
+	if (unlikely(ret == -ENOTSUPP)) {
 		if (ptp_enabled)
 			spin_unlock(&adap->ptp_lock);
 		goto out_free;
@@ -1622,6 +1630,10 @@ out_free:	dev_kfree_skb_any(skb);
 	if (ptp_enabled)
 		spin_unlock(&adap->ptp_lock);
 	return NETDEV_TX_OK;
+
+out_free:
+	dev_kfree_skb_any(skb);
+	return NETDEV_TX_OK;
 }
 
 /* Constants ... */
@@ -1710,32 +1722,25 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 	dma_addr_t addr[MAX_SKB_FRAGS + 1];
 	const struct skb_shared_info *ssi;
 	struct fw_eth_tx_pkt_vm_wr *wr;
-	int qidx, credits, max_pkt_len;
 	struct cpl_tx_pkt_core *cpl;
 	const struct port_info *pi;
 	unsigned int flits, ndesc;
 	struct sge_eth_txq *txq;
 	struct adapter *adapter;
+	int qidx, credits, ret;
+	size_t fw_hdr_copy_len;
 	u64 cntrl, *end;
 	u32 wr_mid;
-	const size_t fw_hdr_copy_len = sizeof(wr->ethmacdst) +
-				       sizeof(wr->ethmacsrc) +
-				       sizeof(wr->ethtype) +
-				       sizeof(wr->vlantci);
 
 	/* The chip minimum packet length is 10 octets but the firmware
 	 * command that we are using requires that we copy the Ethernet header
 	 * (including the VLAN tag) into the header so we reject anything
 	 * smaller than that ...
 	 */
-	if (unlikely(skb->len < fw_hdr_copy_len))
-		goto out_free;
-
-	/* Discard the packet if the length is greater than mtu */
-	max_pkt_len = ETH_HLEN + dev->mtu;
-	if (skb_vlan_tag_present(skb))
-		max_pkt_len += VLAN_HLEN;
-	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
+	fw_hdr_copy_len = sizeof(wr->ethmacdst) + sizeof(wr->ethmacsrc) +
+			  sizeof(wr->ethtype) + sizeof(wr->vlantci);
+	ret = cxgb4_validate_skb(skb, dev, fw_hdr_copy_len);
+	if (ret)
 		goto out_free;
 
 	/* Figure out which TX Queue we're going to use. */
@@ -1991,12 +1996,61 @@ out_free:
 	return NETDEV_TX_OK;
 }
 
+static inline void eosw_txq_advance_index(u32 *idx, u32 n, u32 max)
+{
+	u32 val = *idx + n;
+
+	if (val >= max)
+		val -= max;
+
+	*idx = val;
+}
+
+void cxgb4_eosw_txq_free_desc(struct adapter *adap,
+			      struct sge_eosw_txq *eosw_txq, u32 ndesc)
+{
+	struct sge_eosw_desc *d;
+
+	d = &eosw_txq->desc[eosw_txq->last_cidx];
+	while (ndesc--) {
+		if (d->skb) {
+			if (d->addr[0]) {
+				unmap_skb(adap->pdev_dev, d->skb, d->addr);
+				memset(d->addr, 0, sizeof(d->addr));
+			}
+			dev_consume_skb_any(d->skb);
+			d->skb = NULL;
+		}
+		eosw_txq_advance_index(&eosw_txq->last_cidx, 1,
+				       eosw_txq->ndesc);
+		d = &eosw_txq->desc[eosw_txq->last_cidx];
+	}
+}
+
+static netdev_tx_t cxgb4_ethofld_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
+{
+	int ret;
+
+	ret = cxgb4_validate_skb(skb, dev, ETH_HLEN);
+	if (ret)
+		goto out_free;
+
+out_free:
+	dev_kfree_skb_any(skb);
+	return NETDEV_TX_OK;
+}
+
 netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct port_info *pi = netdev_priv(dev);
+	u16 qid = skb_get_queue_mapping(skb);
 
 	if (unlikely(pi->eth_flags & PRIV_FLAG_PORT_TX_VM))
 		return cxgb4_vf_eth_xmit(skb, dev);
+
+	if (unlikely(qid >= pi->nqsets))
+		return cxgb4_ethofld_xmit(skb, dev);
 
 	return cxgb4_eth_xmit(skb, dev);
 }
@@ -3309,6 +3363,22 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 		wmb();
 	}
 	return work_done;
+}
+
+void cxgb4_ethofld_restart(unsigned long data)
+{
+	struct sge_eosw_txq *eosw_txq = (struct sge_eosw_txq *)data;
+	int pktcount;
+
+	spin_lock(&eosw_txq->lock);
+	pktcount = eosw_txq->cidx - eosw_txq->last_cidx;
+	if (pktcount < 0)
+		pktcount += eosw_txq->ndesc;
+
+	if (pktcount)
+		cxgb4_eosw_txq_free_desc(netdev2adap(eosw_txq->netdev),
+					 eosw_txq, pktcount);
+	spin_unlock(&eosw_txq->lock);
 }
 
 /*

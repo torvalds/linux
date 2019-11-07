@@ -186,6 +186,35 @@ static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
 	atomic_inc(&t->conns_in_use);
 }
 
+static inline struct eotid_entry *cxgb4_lookup_eotid(struct tid_info *t,
+						     u32 eotid)
+{
+	return eotid < t->neotids ? &t->eotid_tab[eotid] : NULL;
+}
+
+static inline int cxgb4_get_free_eotid(struct tid_info *t)
+{
+	int eotid;
+
+	eotid = find_first_zero_bit(t->eotid_bmap, t->neotids);
+	if (eotid >= t->neotids)
+		eotid = -1;
+
+	return eotid;
+}
+
+static inline void cxgb4_alloc_eotid(struct tid_info *t, u32 eotid, void *data)
+{
+	set_bit(eotid, t->eotid_bmap);
+	t->eotid_tab[eotid].data = data;
+}
+
+static inline void cxgb4_free_eotid(struct tid_info *t, u32 eotid)
+{
+	clear_bit(eotid, t->eotid_bmap);
+	t->eotid_tab[eotid].data = NULL;
+}
+
 int cxgb4_alloc_atid(struct tid_info *t, void *data);
 int cxgb4_alloc_stid(struct tid_info *t, int family, void *data);
 int cxgb4_alloc_sftid(struct tid_info *t, int family, void *data);

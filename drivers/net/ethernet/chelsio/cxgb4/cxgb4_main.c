@@ -65,6 +65,7 @@
 #include <linux/uaccess.h>
 #include <linux/crash_dump.h>
 #include <net/udp_tunnel.h>
+#include <net/xfrm.h>
 
 #include "cxgb4.h"
 #include "cxgb4_filter.h"
@@ -82,6 +83,7 @@
 #include "sched.h"
 #include "cxgb4_tc_u32.h"
 #include "cxgb4_tc_flower.h"
+#include "cxgb4_tc_mqprio.h"
 #include "cxgb4_ptp.h"
 #include "cxgb4_cudbg.h"
 
@@ -1116,6 +1118,18 @@ static u16 cxgb_select_queue(struct net_device *dev, struct sk_buff *skb,
 		return txq;
 	}
 #endif /* CONFIG_CHELSIO_T4_DCB */
+
+	if (dev->num_tc) {
+		struct port_info *pi = netdev2pinfo(dev);
+
+		/* Send unsupported traffic pattern to normal NIC queues. */
+		txq = netdev_pick_tx(dev, skb, sb_dev);
+		if (xfrm_offload(skb) || is_ptp_enabled(skb, dev) ||
+		    ip_hdr(skb)->protocol != IPPROTO_TCP)
+			txq = txq % pi->nqsets;
+
+		return txq;
+	}
 
 	if (select_queue) {
 		txq = (skb_rx_queue_recorded(skb)
@@ -2472,11 +2486,11 @@ static void cxgb_down(struct adapter *adapter)
 /*
  * net_device operations
  */
-static int cxgb_open(struct net_device *dev)
+int cxgb_open(struct net_device *dev)
 {
-	int err;
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
+	int err;
 
 	netif_carrier_off(dev);
 
@@ -2499,7 +2513,7 @@ static int cxgb_open(struct net_device *dev)
 	return err;
 }
 
-static int cxgb_close(struct net_device *dev)
+int cxgb_close(struct net_device *dev)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
@@ -3233,6 +3247,17 @@ static int cxgb_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
+static int cxgb_setup_tc_mqprio(struct net_device *dev,
+				struct tc_mqprio_qopt_offload *mqprio)
+{
+	struct adapter *adap = netdev2adap(dev);
+
+	if (!is_ethofld(adap) || !adap->tc_mqprio)
+		return -ENOMEM;
+
+	return cxgb4_setup_tc_mqprio(dev, mqprio);
+}
+
 static LIST_HEAD(cxgb_block_cb_list);
 
 static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
@@ -3241,6 +3266,8 @@ static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	struct port_info *pi = netdev2pinfo(dev);
 
 	switch (type) {
+	case TC_SETUP_QDISC_MQPRIO:
+		return cxgb_setup_tc_mqprio(dev, type_data);
 	case TC_SETUP_BLOCK:
 		return flow_block_cb_setup_simple(type_data,
 						  &cxgb_block_cb_list,
@@ -5668,6 +5695,7 @@ static void free_some_resources(struct adapter *adapter)
 	kvfree(adapter->srq);
 	t4_cleanup_sched(adapter);
 	kvfree(adapter->tids.tid_tab);
+	cxgb4_cleanup_tc_mqprio(adapter);
 	cxgb4_cleanup_tc_flower(adapter);
 	cxgb4_cleanup_tc_u32(adapter);
 	kfree(adapter->sge.egr_map);
@@ -6237,6 +6265,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (cxgb4_init_tc_flower(adapter))
 			dev_warn(&pdev->dev,
 				 "could not offload tc flower, continuing\n");
+
+		if (cxgb4_init_tc_mqprio(adapter))
+			dev_warn(&pdev->dev,
+				 "could not offload tc mqprio, continuing\n");
 	}
 
 	if (is_offload(adapter) || is_hashfilter(adapter)) {

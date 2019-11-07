@@ -803,6 +803,38 @@ struct sge_uld_txq_info {
 	u16 ntxq;		/* # of egress uld queues */
 };
 
+enum sge_eosw_state {
+	CXGB4_EO_STATE_CLOSED = 0, /* Not ready to accept traffic */
+};
+
+struct sge_eosw_desc {
+	struct sk_buff *skb; /* SKB to free after getting completion */
+	dma_addr_t addr[MAX_SKB_FRAGS + 1]; /* DMA mapped addresses */
+};
+
+struct sge_eosw_txq {
+	spinlock_t lock; /* Per queue lock to synchronize completions */
+	enum sge_eosw_state state; /* Current ETHOFLD State */
+	struct sge_eosw_desc *desc; /* Descriptor ring to hold packets */
+	u32 ndesc; /* Number of descriptors */
+	u32 pidx; /* Current Producer Index */
+	u32 last_pidx; /* Last successfully transmitted Producer Index */
+	u32 cidx; /* Current Consumer Index */
+	u32 last_cidx; /* Last successfully reclaimed Consumer Index */
+	u32 inuse; /* Number of packets held in ring */
+
+	u32 cred; /* Current available credits */
+	u32 ncompl; /* # of completions posted */
+	u32 last_compl; /* # of credits consumed since last completion req */
+
+	u32 eotid; /* Index into EOTID table in software */
+	u32 hwtid; /* Hardware EOTID index */
+
+	u32 hwqid; /* Underlying hardware queue index */
+	struct net_device *netdev; /* Pointer to netdevice */
+	struct tasklet_struct qresume_tsk; /* Restarts the queue */
+};
+
 struct sge {
 	struct sge_eth_txq ethtxq[MAX_ETH_QSETS];
 	struct sge_eth_txq ptptxq;
@@ -1044,6 +1076,9 @@ struct adapter {
 #if IS_ENABLED(CONFIG_THERMAL)
 	struct ch_thermal ch_thermal;
 #endif
+
+	/* TC MQPRIO offload */
+	struct cxgb4_tc_mqprio *tc_mqprio;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1895,6 +1930,9 @@ int t4_i2c_rd(struct adapter *adap, unsigned int mbox, int port,
 void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq, struct sge_fl *fl);
 void free_tx_desc(struct adapter *adap, struct sge_txq *q,
 		  unsigned int n, bool unmap);
+void cxgb4_eosw_txq_free_desc(struct adapter *adap, struct sge_eosw_txq *txq,
+			      u32 ndesc);
+void cxgb4_ethofld_restart(unsigned long data);
 void free_txq(struct adapter *adap, struct sge_txq *q);
 void cxgb4_reclaim_completed_tx(struct adapter *adap,
 				struct sge_txq *q, bool unmap);
@@ -1955,4 +1993,6 @@ int cxgb4_update_mac_filt(struct port_info *pi, unsigned int viid,
 			  bool persistent, u8 *smt_idx);
 int cxgb4_get_msix_idx_from_bmap(struct adapter *adap);
 void cxgb4_free_msix_idx_in_bmap(struct adapter *adap, u32 msix_idx);
+int cxgb_open(struct net_device *dev);
+int cxgb_close(struct net_device *dev);
 #endif /* __CXGB4_H__ */
