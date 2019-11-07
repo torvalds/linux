@@ -13,8 +13,9 @@
 #include "xfs_attr.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
-#include <linux/posix_acl_xattr.h>
+#include "xfs_acl.h"
 
+#include <linux/posix_acl_xattr.h>
 
 /*
  * Locking scheme:

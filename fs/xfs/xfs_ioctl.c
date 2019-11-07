@@ -34,6 +34,7 @@
 #include "xfs_ag.h"
 #include "xfs_health.h"
 #include "xfs_reflink.h"
+#include "xfs_ioctl.h"
 
 #include <linux/mount.h>
 #include <linux/namei.h>

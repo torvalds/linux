@@ -16,6 +16,7 @@
 #include "xfs_qm.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
+#include "xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
