@@ -356,6 +356,18 @@ devlink_trap_group_stats_idle_test()
 	fi
 }
 
+devlink_trap_exception_test()
+{
+	local trap_name=$1; shift
+	local group_name=$1; shift
+
+	devlink_trap_stats_idle_test $trap_name
+	check_fail $? "Trap stats idle when packets should have been trapped"
+
+	devlink_trap_group_stats_idle_test $group_name
+	check_fail $? "Trap group idle when packets should have been trapped"
+}
+
 devlink_trap_drop_test()
 {
 	local trap_name=$1; shift
