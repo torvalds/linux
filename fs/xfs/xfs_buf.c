@@ -461,7 +461,7 @@ _xfs_buf_map_pages(
 		unsigned nofs_flag;
 
 		/*
-		 * vm_map_ram() will allocate auxillary structures (e.g.
+		 * vm_map_ram() will allocate auxiliary structures (e.g.
 		 * pagetables) with GFP_KERNEL, yet we are likely to be under
 		 * GFP_NOFS context here. Hence we need to tell memory reclaim
 		 * that we are in such a context via PF_MEMALLOC_NOFS to prevent

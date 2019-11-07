@@ -1488,7 +1488,7 @@ xfs_alloc_ag_vextent_near(
 	dofirst = prandom_u32() & 1;
 #endif
 
-	/* handle unitialized agbno range so caller doesn't have to */
+	/* handle uninitialized agbno range so caller doesn't have to */
 	if (!args->min_agbno && !args->max_agbno)
 		args->max_agbno = args->mp->m_sb.sb_agblocks - 1;
 	ASSERT(args->min_agbno <= args->max_agbno);

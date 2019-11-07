@@ -829,7 +829,7 @@ xfs_attr_shortform_lookup(xfs_da_args_t *args)
 }
 
 /*
- * Retreive the attribute value and length.
+ * Retrieve the attribute value and length.
  *
  * If ATTR_KERNOVAL is specified, only the length needs to be returned.
  * Unlike a lookup, we only return an error if the attribute does not

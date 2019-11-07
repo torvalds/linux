@@ -482,7 +482,7 @@ xfs_dir2_leaf_bests_p(struct xfs_dir2_leaf_tail *ltp)
 }
 
 /*
- * Free space block defintions for the node format.
+ * Free space block definitions for the node format.
  */
 
 /*
