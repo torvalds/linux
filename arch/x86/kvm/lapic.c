@@ -111,11 +111,6 @@ static inline int apic_enabled(struct kvm_lapic *apic)
 	(LVT_MASK | APIC_MODE_MASK | APIC_INPUT_POLARITY | \
 	 APIC_LVT_REMOTE_IRR | APIC_LVT_LEVEL_TRIGGER)
 
-static inline u8 kvm_xapic_id(struct kvm_lapic *apic)
-{
-	return kvm_lapic_get_reg(apic, APIC_ID) >> 24;
-}
-
 static inline u32 kvm_x2apic_id(struct kvm_lapic *apic)
 {
 	return apic->vcpu->vcpu_id;

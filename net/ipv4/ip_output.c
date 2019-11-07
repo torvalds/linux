@@ -771,6 +771,7 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	struct rtable *rt = skb_rtable(skb);
 	unsigned int mtu, hlen, ll_rs;
 	struct ip_fraglist_iter iter;
+	ktime_t tstamp = skb->tstamp;
 	struct ip_frag_state state;
 	int err = 0;
 
@@ -846,6 +847,7 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 				ip_fraglist_prepare(skb, &iter);
 			}
 
+			skb->tstamp = tstamp;
 			err = output(net, sk, skb);
 
 			if (!err)
@@ -900,6 +902,7 @@ slow_path:
 		/*
 		 *	Put this fragment into the sending queue.
 		 */
+		skb2->tstamp = tstamp;
 		err = output(net, sk, skb2);
 		if (err)
 			goto fail;
