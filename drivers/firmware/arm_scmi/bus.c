@@ -60,6 +60,11 @@ static int scmi_protocol_init(int protocol_id, struct scmi_handle *handle)
 	return fn(handle);
 }
 
+static int scmi_protocol_dummy_init(struct scmi_handle *handle)
+{
+	return 0;
+}
+
 static int scmi_dev_probe(struct device *dev)
 {
 	struct scmi_driver *scmi_drv = to_scmi_driver(dev->driver);
@@ -77,6 +82,10 @@ static int scmi_dev_probe(struct device *dev)
 	ret = scmi_protocol_init(scmi_dev->protocol_id, scmi_dev->handle);
 	if (ret)
 		return ret;
+
+	/* Skip protocol initialisation for additional devices */
+	idr_replace(&scmi_protocols, &scmi_protocol_dummy_init,
+		    scmi_dev->protocol_id);
 
 	return scmi_drv->probe(scmi_dev);
 }
