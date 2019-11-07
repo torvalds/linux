@@ -835,6 +835,16 @@ struct sge_eosw_txq {
 	struct tasklet_struct qresume_tsk; /* Restarts the queue */
 };
 
+struct sge_eohw_txq {
+	spinlock_t lock; /* Per queue lock */
+	struct sge_txq q; /* HW Txq */
+	struct adapter *adap; /* Backpointer to adapter */
+	unsigned long tso; /* # of TSO requests */
+	unsigned long tx_cso; /* # of Tx checksum offloads */
+	unsigned long vlan_ins; /* # of Tx VLAN insertions */
+	unsigned long mapping_err; /* # of I/O MMU packet mapping errors */
+};
+
 struct sge {
 	struct sge_eth_txq ethtxq[MAX_ETH_QSETS];
 	struct sge_eth_txq ptptxq;
@@ -848,11 +858,16 @@ struct sge {
 	struct sge_rspq intrq ____cacheline_aligned_in_smp;
 	spinlock_t intrq_lock;
 
+	struct sge_eohw_txq *eohw_txq;
+	struct sge_ofld_rxq *eohw_rxq;
+
 	u16 max_ethqsets;           /* # of available Ethernet queue sets */
 	u16 ethqsets;               /* # of active Ethernet queue sets */
 	u16 ethtxq_rover;           /* Tx queue to clean up next */
 	u16 ofldqsets;              /* # of active ofld queue sets */
 	u16 nqs_per_uld;	    /* # of Rx queues per ULD */
+	u16 eoqsets;                /* # of ETHOFLD queues */
+
 	u16 timer_val[SGE_NTIMERS];
 	u8 counter_val[SGE_NCOUNTERS];
 	u16 dbqtimer_tick;
@@ -1466,6 +1481,9 @@ int t4_sge_mod_ctrl_txq(struct adapter *adap, unsigned int eqid,
 int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
 			 struct net_device *dev, unsigned int iqid,
 			 unsigned int uld_type);
+int t4_sge_alloc_ethofld_txq(struct adapter *adap, struct sge_eohw_txq *txq,
+			     struct net_device *dev, u32 iqid);
+void t4_sge_free_ethofld_txq(struct adapter *adap, struct sge_eohw_txq *txq);
 irqreturn_t t4_sge_intr_msix(int irq, void *cookie);
 int t4_sge_init(struct adapter *adap);
 void t4_sge_start(struct adapter *adap);
@@ -1995,4 +2013,6 @@ int cxgb4_get_msix_idx_from_bmap(struct adapter *adap);
 void cxgb4_free_msix_idx_in_bmap(struct adapter *adap, u32 msix_idx);
 int cxgb_open(struct net_device *dev);
 int cxgb_close(struct net_device *dev);
+void cxgb4_enable_rx(struct adapter *adap, struct sge_rspq *q);
+void cxgb4_quiesce_rx(struct sge_rspq *q);
 #endif /* __CXGB4_H__ */

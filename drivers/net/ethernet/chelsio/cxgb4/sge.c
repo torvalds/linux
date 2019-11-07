@@ -3982,30 +3982,30 @@ int t4_sge_mod_ctrl_txq(struct adapter *adap, unsigned int eqid,
 	return t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
 }
 
-int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
-			 struct net_device *dev, unsigned int iqid,
-			 unsigned int uld_type)
+static int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_txq *q,
+				 struct net_device *dev, u32 cmd, u32 iqid)
 {
 	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adap->params.chip);
-	int ret, nentries;
-	struct fw_eq_ofld_cmd c;
-	struct sge *s = &adap->sge;
 	struct port_info *pi = netdev_priv(dev);
-	int cmd = FW_EQ_OFLD_CMD;
+	struct sge *s = &adap->sge;
+	struct fw_eq_ofld_cmd c;
+	u32 fb_min, nentries;
+	int ret;
 
 	/* Add status entries */
-	nentries = txq->q.size + s->stat_len / sizeof(struct tx_desc);
-
-	txq->q.desc = alloc_ring(adap->pdev_dev, txq->q.size,
-			sizeof(struct tx_desc), sizeof(struct tx_sw_desc),
-			&txq->q.phys_addr, &txq->q.sdesc, s->stat_len,
-			NUMA_NO_NODE);
-	if (!txq->q.desc)
+	nentries = q->size + s->stat_len / sizeof(struct tx_desc);
+	q->desc = alloc_ring(adap->pdev_dev, q->size, sizeof(struct tx_desc),
+			     sizeof(struct tx_sw_desc), &q->phys_addr,
+			     &q->sdesc, s->stat_len, NUMA_NO_NODE);
+	if (!q->desc)
 		return -ENOMEM;
 
+	if (chip_ver <= CHELSIO_T5)
+		fb_min = FETCHBURSTMIN_64B_X;
+	else
+		fb_min = FETCHBURSTMIN_64B_T6_X;
+
 	memset(&c, 0, sizeof(c));
-	if (unlikely(uld_type == CXGB4_TX_CRYPTO))
-		cmd = FW_EQ_CTRL_CMD;
 	c.op_to_vfn = htonl(FW_CMD_OP_V(cmd) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
 			    FW_EQ_OFLD_CMD_PFN_V(adap->pf) |
@@ -4017,31 +4017,65 @@ int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
 		      FW_EQ_OFLD_CMD_PCIECHN_V(pi->tx_chan) |
 		      FW_EQ_OFLD_CMD_FETCHRO_F | FW_EQ_OFLD_CMD_IQID_V(iqid));
 	c.dcaen_to_eqsize =
-		htonl(FW_EQ_OFLD_CMD_FBMIN_V(chip_ver <= CHELSIO_T5
-					     ? FETCHBURSTMIN_64B_X
-					     : FETCHBURSTMIN_64B_T6_X) |
+		htonl(FW_EQ_OFLD_CMD_FBMIN_V(fb_min) |
 		      FW_EQ_OFLD_CMD_FBMAX_V(FETCHBURSTMAX_512B_X) |
 		      FW_EQ_OFLD_CMD_CIDXFTHRESH_V(CIDXFLUSHTHRESH_32_X) |
 		      FW_EQ_OFLD_CMD_EQSIZE_V(nentries));
-	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
+	c.eqaddr = cpu_to_be64(q->phys_addr);
 
 	ret = t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), &c);
 	if (ret) {
-		kfree(txq->q.sdesc);
-		txq->q.sdesc = NULL;
+		kfree(q->sdesc);
+		q->sdesc = NULL;
 		dma_free_coherent(adap->pdev_dev,
 				  nentries * sizeof(struct tx_desc),
-				  txq->q.desc, txq->q.phys_addr);
-		txq->q.desc = NULL;
+				  q->desc, q->phys_addr);
+		q->desc = NULL;
 		return ret;
 	}
 
+	init_txq(adap, q, FW_EQ_OFLD_CMD_EQID_G(ntohl(c.eqid_pkd)));
+	return 0;
+}
+
+int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
+			 struct net_device *dev, unsigned int iqid,
+			 unsigned int uld_type)
+{
+	u32 cmd = FW_EQ_OFLD_CMD;
+	int ret;
+
+	if (unlikely(uld_type == CXGB4_TX_CRYPTO))
+		cmd = FW_EQ_CTRL_CMD;
+
+	ret = t4_sge_alloc_ofld_txq(adap, &txq->q, dev, cmd, iqid);
+	if (ret)
+		return ret;
+
 	txq->q.q_type = CXGB4_TXQ_ULD;
-	init_txq(adap, &txq->q, FW_EQ_OFLD_CMD_EQID_G(ntohl(c.eqid_pkd)));
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
 	tasklet_init(&txq->qresume_tsk, restart_ofldq, (unsigned long)txq);
 	txq->full = 0;
+	txq->mapping_err = 0;
+	return 0;
+}
+
+int t4_sge_alloc_ethofld_txq(struct adapter *adap, struct sge_eohw_txq *txq,
+			     struct net_device *dev, u32 iqid)
+{
+	int ret;
+
+	ret = t4_sge_alloc_ofld_txq(adap, &txq->q, dev, FW_EQ_OFLD_CMD, iqid);
+	if (ret)
+		return ret;
+
+	txq->q.q_type = CXGB4_TXQ_ULD;
+	spin_lock_init(&txq->lock);
+	txq->adap = adap;
+	txq->tso = 0;
+	txq->tx_cso = 0;
+	txq->vlan_ins = 0;
 	txq->mapping_err = 0;
 	return 0;
 }
@@ -4099,6 +4133,17 @@ void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q)
 		if (q->rspq.desc)
 			free_rspq_fl(adap, &q->rspq,
 				     q->fl.size ? &q->fl : NULL);
+}
+
+void t4_sge_free_ethofld_txq(struct adapter *adap, struct sge_eohw_txq *txq)
+{
+	if (txq->q.desc) {
+		t4_ofld_eq_free(adap, adap->mbox, adap->pf, 0,
+				txq->q.cntxt_id);
+		free_tx_desc(adap, &txq->q, txq->q.in_use, false);
+		kfree(txq->q.sdesc);
+		free_txq(adap, &txq->q);
+	}
 }
 
 /**

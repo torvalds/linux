@@ -8,6 +8,15 @@
 
 #define CXGB4_EOSW_TXQ_DEFAULT_DESC_NUM 128
 
+#define CXGB4_EOHW_TXQ_DEFAULT_DESC_NUM 1024
+
+#define CXGB4_EOHW_RXQ_DEFAULT_DESC_NUM 1024
+#define CXGB4_EOHW_RXQ_DEFAULT_DESC_SIZE 64
+#define CXGB4_EOHW_RXQ_DEFAULT_INTR_USEC 5
+#define CXGB4_EOHW_RXQ_DEFAULT_PKT_CNT 8
+
+#define CXGB4_EOHW_FLQ_DEFAULT_DESC_NUM 72
+
 enum cxgb4_mqprio_state {
 	CXGB4_MQPRIO_STATE_DISABLED = 0,
 	CXGB4_MQPRIO_STATE_ACTIVE,
@@ -20,6 +29,7 @@ struct cxgb4_tc_port_mqprio {
 };
 
 struct cxgb4_tc_mqprio {
+	refcount_t refcnt; /* Refcount for adapter-wide resources */
 	struct cxgb4_tc_port_mqprio *port_mqprio; /* Per port MQPRIO info */
 };
 

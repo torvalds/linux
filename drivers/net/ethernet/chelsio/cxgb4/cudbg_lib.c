@@ -2930,6 +2930,10 @@ void cudbg_fill_qdesc_num_and_size(const struct adapter *padap,
 	tot_size += CXGB4_ULD_MAX * MAX_ULD_QSETS * SGE_MAX_IQ_SIZE *
 		    MAX_RXQ_DESC_SIZE;
 
+	/* ETHOFLD TXQ, RXQ, and FLQ */
+	tot_entries += MAX_OFLD_QSETS * 3;
+	tot_size += MAX_OFLD_QSETS * MAX_TXQ_ENTRIES * MAX_TXQ_DESC_SIZE;
+
 	tot_size += sizeof(struct cudbg_ver_hdr) +
 		    sizeof(struct cudbg_qdesc_info) +
 		    sizeof(struct cudbg_qdesc_entry) * tot_entries;
@@ -3085,6 +3089,23 @@ int cudbg_collect_qdesc(struct cudbg_init *pdbg_init,
 					      cudbg_uld_ciq_to_qtype(j),
 					      out_unlock);
 		}
+	}
+
+	/* ETHOFLD TXQ */
+	if (s->eohw_txq)
+		for (i = 0; i < s->eoqsets; i++)
+			QDESC_GET_TXQ(&s->eohw_txq[i].q,
+				      CUDBG_QTYPE_ETHOFLD_TXQ, out);
+
+	/* ETHOFLD RXQ and FLQ */
+	if (s->eohw_rxq) {
+		for (i = 0; i < s->eoqsets; i++)
+			QDESC_GET_RXQ(&s->eohw_rxq[i].rspq,
+				      CUDBG_QTYPE_ETHOFLD_RXQ, out);
+
+		for (i = 0; i < s->eoqsets; i++)
+			QDESC_GET_FLQ(&s->eohw_rxq[i].fl,
+				      CUDBG_QTYPE_ETHOFLD_FLQ, out);
 	}
 
 out_unlock:

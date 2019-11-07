@@ -120,6 +120,166 @@ static void cxgb4_free_eosw_txq(struct net_device *dev,
 	tasklet_kill(&eosw_txq->qresume_tsk);
 }
 
+static int cxgb4_mqprio_alloc_hw_resources(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct sge_ofld_rxq *eorxq;
+	struct sge_eohw_txq *eotxq;
+	int ret, msix = 0;
+	u32 i;
+
+	/* Allocate ETHOFLD hardware queue structures if not done already */
+	if (!refcount_read(&adap->tc_mqprio->refcnt)) {
+		adap->sge.eohw_rxq = kcalloc(adap->sge.eoqsets,
+					     sizeof(struct sge_ofld_rxq),
+					     GFP_KERNEL);
+		if (!adap->sge.eohw_rxq)
+			return -ENOMEM;
+
+		adap->sge.eohw_txq = kcalloc(adap->sge.eoqsets,
+					     sizeof(struct sge_eohw_txq),
+					     GFP_KERNEL);
+		if (!adap->sge.eohw_txq) {
+			kfree(adap->sge.eohw_rxq);
+			return -ENOMEM;
+		}
+	}
+
+	if (!(adap->flags & CXGB4_USING_MSIX))
+		msix = -((int)adap->sge.intrq.abs_id + 1);
+
+	for (i = 0; i < pi->nqsets; i++) {
+		eorxq = &adap->sge.eohw_rxq[pi->first_qset + i];
+		eotxq = &adap->sge.eohw_txq[pi->first_qset + i];
+
+		/* Allocate Rxqs for receiving ETHOFLD Tx completions */
+		if (msix >= 0) {
+			msix = cxgb4_get_msix_idx_from_bmap(adap);
+			if (msix < 0)
+				goto out_free_queues;
+
+			eorxq->msix = &adap->msix_info[msix];
+			snprintf(eorxq->msix->desc,
+				 sizeof(eorxq->msix->desc),
+				 "%s-eorxq%d", dev->name, i);
+		}
+
+		init_rspq(adap, &eorxq->rspq,
+			  CXGB4_EOHW_RXQ_DEFAULT_INTR_USEC,
+			  CXGB4_EOHW_RXQ_DEFAULT_PKT_CNT,
+			  CXGB4_EOHW_RXQ_DEFAULT_DESC_NUM,
+			  CXGB4_EOHW_RXQ_DEFAULT_DESC_SIZE);
+
+		eorxq->fl.size = CXGB4_EOHW_FLQ_DEFAULT_DESC_NUM;
+
+		ret = t4_sge_alloc_rxq(adap, &eorxq->rspq, false,
+				       dev, msix, &eorxq->fl, NULL,
+				       NULL, 0);
+		if (ret)
+			goto out_free_queues;
+
+		/* Allocate ETHOFLD hardware Txqs */
+		eotxq->q.size = CXGB4_EOHW_TXQ_DEFAULT_DESC_NUM;
+		ret = t4_sge_alloc_ethofld_txq(adap, eotxq, dev,
+					       eorxq->rspq.cntxt_id);
+		if (ret)
+			goto out_free_queues;
+
+		/* Allocate IRQs, set IRQ affinity, and start Rx */
+		if (adap->flags & CXGB4_USING_MSIX) {
+			ret = request_irq(eorxq->msix->vec, t4_sge_intr_msix, 0,
+					  eorxq->msix->desc, &eorxq->rspq);
+			if (ret)
+				goto out_free_msix;
+
+			cxgb4_set_msix_aff(adap, eorxq->msix->vec,
+					   &eorxq->msix->aff_mask, i);
+		}
+
+		if (adap->flags & CXGB4_FULL_INIT_DONE)
+			cxgb4_enable_rx(adap, &eorxq->rspq);
+	}
+
+	refcount_inc(&adap->tc_mqprio->refcnt);
+	return 0;
+
+out_free_msix:
+	while (i-- > 0) {
+		eorxq = &adap->sge.eohw_rxq[pi->first_qset + i];
+
+		if (adap->flags & CXGB4_FULL_INIT_DONE)
+			cxgb4_quiesce_rx(&eorxq->rspq);
+
+		if (adap->flags & CXGB4_USING_MSIX) {
+			cxgb4_clear_msix_aff(eorxq->msix->vec,
+					     eorxq->msix->aff_mask);
+			free_irq(eorxq->msix->vec, &eorxq->rspq);
+		}
+	}
+
+out_free_queues:
+	for (i = 0; i < pi->nqsets; i++) {
+		eorxq = &adap->sge.eohw_rxq[pi->first_qset + i];
+		eotxq = &adap->sge.eohw_txq[pi->first_qset + i];
+
+		if (eorxq->rspq.desc)
+			free_rspq_fl(adap, &eorxq->rspq, &eorxq->fl);
+		if (eorxq->msix)
+			cxgb4_free_msix_idx_in_bmap(adap, eorxq->msix->idx);
+		t4_sge_free_ethofld_txq(adap, eotxq);
+	}
+
+	kfree(adap->sge.eohw_txq);
+	kfree(adap->sge.eohw_rxq);
+
+	return ret;
+}
+
+void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct sge_ofld_rxq *eorxq;
+	struct sge_eohw_txq *eotxq;
+	u32 i;
+
+	/* Return if no ETHOFLD structures have been allocated yet */
+	if (!refcount_read(&adap->tc_mqprio->refcnt))
+		return;
+
+	/* Return if no hardware queues have been allocated */
+	if (!adap->sge.eohw_rxq[pi->first_qset].rspq.desc)
+		return;
+
+	for (i = 0; i < pi->nqsets; i++) {
+		eorxq = &adap->sge.eohw_rxq[pi->first_qset + i];
+		eotxq = &adap->sge.eohw_txq[pi->first_qset + i];
+
+		/* Device removal path will already disable NAPI
+		 * before unregistering netdevice. So, only disable
+		 * NAPI if we're not in device removal path
+		 */
+		if (!(adap->flags & CXGB4_SHUTTING_DOWN))
+			cxgb4_quiesce_rx(&eorxq->rspq);
+
+		if (adap->flags & CXGB4_USING_MSIX) {
+			cxgb4_clear_msix_aff(eorxq->msix->vec,
+					     eorxq->msix->aff_mask);
+			free_irq(eorxq->msix->vec, &eorxq->rspq);
+		}
+
+		free_rspq_fl(adap, &eorxq->rspq, &eorxq->fl);
+		t4_sge_free_ethofld_txq(adap, eotxq);
+	}
+
+	/* Free up ETHOFLD structures if there are no users */
+	if (refcount_dec_and_test(&adap->tc_mqprio->refcnt)) {
+		kfree(adap->sge.eohw_txq);
+		kfree(adap->sge.eohw_rxq);
+	}
+}
+
 static int cxgb4_mqprio_enable_offload(struct net_device *dev,
 				       struct tc_mqprio_qopt_offload *mqprio)
 {
@@ -130,6 +290,10 @@ static int cxgb4_mqprio_enable_offload(struct net_device *dev,
 	struct sge_eosw_txq *eosw_txq;
 	int eotid, ret;
 	u16 i, j;
+
+	ret = cxgb4_mqprio_alloc_hw_resources(dev);
+	if (ret)
+		return -ENOMEM;
 
 	tc_port_mqprio = &adap->tc_mqprio->port_mqprio[pi->port_id];
 	for (i = 0; i < mqprio->qopt.num_tc; i++) {
@@ -206,6 +370,7 @@ out_free_eotids:
 		}
 	}
 
+	cxgb4_mqprio_free_hw_resources(dev);
 	return ret;
 }
 
@@ -234,6 +399,8 @@ static void cxgb4_mqprio_disable_offload(struct net_device *dev)
 			cxgb4_free_eosw_txq(dev, eosw_txq);
 		}
 	}
+
+	cxgb4_mqprio_free_hw_resources(dev);
 
 	memset(&tc_port_mqprio->mqprio, 0,
 	       sizeof(struct tc_mqprio_qopt_offload));
@@ -310,6 +477,7 @@ int cxgb4_init_tc_mqprio(struct adapter *adap)
 	}
 
 	adap->tc_mqprio = tc_mqprio;
+	refcount_set(&adap->tc_mqprio->refcnt, 0);
 	return 0;
 
 out_free_ports:

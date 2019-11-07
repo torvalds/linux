@@ -366,33 +366,19 @@ free_msix_queue_irqs_uld(struct adapter *adap, unsigned int uld_type)
 	}
 }
 
-static void enable_rx(struct adapter *adap, struct sge_rspq *q)
-{
-	if (!q)
-		return;
-
-	if (q->handler)
-		napi_enable(&q->napi);
-
-	/* 0-increment GTS to start the timer and enable interrupts */
-	t4_write_reg(adap, MYPF_REG(SGE_PF_GTS_A),
-		     SEINTARM_V(q->intr_params) |
-		     INGRESSQID_V(q->cntxt_id));
-}
-
-static void quiesce_rx(struct adapter *adap, struct sge_rspq *q)
-{
-	if (q && q->handler)
-		napi_disable(&q->napi);
-}
-
 static void enable_rx_uld(struct adapter *adap, unsigned int uld_type)
 {
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
 	int idx;
 
-	for_each_uldrxq(rxq_info, idx)
-		enable_rx(adap, &rxq_info->uldrxq[idx].rspq);
+	for_each_uldrxq(rxq_info, idx) {
+		struct sge_rspq *q = &rxq_info->uldrxq[idx].rspq;
+
+		if (!q)
+			continue;
+
+		cxgb4_enable_rx(adap, q);
+	}
 }
 
 static void quiesce_rx_uld(struct adapter *adap, unsigned int uld_type)
@@ -400,8 +386,14 @@ static void quiesce_rx_uld(struct adapter *adap, unsigned int uld_type)
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
 	int idx;
 
-	for_each_uldrxq(rxq_info, idx)
-		quiesce_rx(adap, &rxq_info->uldrxq[idx].rspq);
+	for_each_uldrxq(rxq_info, idx) {
+		struct sge_rspq *q = &rxq_info->uldrxq[idx].rspq;
+
+		if (!q)
+			continue;
+
+		cxgb4_quiesce_rx(q);
+	}
 }
 
 static void

@@ -880,6 +880,12 @@ static unsigned int rxq_to_chan(const struct sge *p, unsigned int qid)
 	return netdev2pinfo(p->ingr_map[qid]->netdev)->tx_chan;
 }
 
+void cxgb4_quiesce_rx(struct sge_rspq *q)
+{
+	if (q->handler)
+		napi_disable(&q->napi);
+}
+
 /*
  * Wait until all NAPI handlers are descheduled.
  */
@@ -890,8 +896,10 @@ static void quiesce_rx(struct adapter *adap)
 	for (i = 0; i < adap->sge.ingr_sz; i++) {
 		struct sge_rspq *q = adap->sge.ingr_map[i];
 
-		if (q && q->handler)
-			napi_disable(&q->napi);
+		if (!q)
+			continue;
+
+		cxgb4_quiesce_rx(q);
 	}
 }
 
@@ -913,6 +921,17 @@ static void disable_interrupts(struct adapter *adap)
 	}
 }
 
+void cxgb4_enable_rx(struct adapter *adap, struct sge_rspq *q)
+{
+	if (q->handler)
+		napi_enable(&q->napi);
+
+	/* 0-increment GTS to start the timer and enable interrupts */
+	t4_write_reg(adap, MYPF_REG(SGE_PF_GTS_A),
+		     SEINTARM_V(q->intr_params) |
+		     INGRESSQID_V(q->cntxt_id));
+}
+
 /*
  * Enable NAPI scheduling and interrupt generation for all Rx queues.
  */
@@ -925,13 +944,8 @@ static void enable_rx(struct adapter *adap)
 
 		if (!q)
 			continue;
-		if (q->handler)
-			napi_enable(&q->napi);
 
-		/* 0-increment GTS to start the timer and enable interrupts */
-		t4_write_reg(adap, MYPF_REG(SGE_PF_GTS_A),
-			     SEINTARM_V(q->intr_params) |
-			     INGRESSQID_V(q->cntxt_id));
+		cxgb4_enable_rx(adap, q);
 	}
 }
 
@@ -5360,6 +5374,19 @@ static int cfg_queues(struct adapter *adap)
 		avail_qsets -= num_ulds * s->ofldqsets;
 	}
 
+	/* ETHOFLD Queues used for QoS offload should follow same
+	 * allocation scheme as normal Ethernet Queues.
+	 */
+	if (is_ethofld(adap)) {
+		if (avail_qsets < s->max_ethqsets) {
+			adap->params.ethofld = 0;
+			s->eoqsets = 0;
+		} else {
+			s->eoqsets = s->max_ethqsets;
+		}
+		avail_qsets -= s->eoqsets;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(s->ethrxq); i++) {
 		struct sge_eth_rxq *r = &s->ethrxq[i];
 
@@ -5473,9 +5500,9 @@ void cxgb4_free_msix_idx_in_bmap(struct adapter *adap,
 
 static int enable_msix(struct adapter *adap)
 {
+	u32 eth_need, uld_need = 0, ethofld_need = 0;
+	u32 ethqsets = 0, ofldqsets = 0, eoqsets = 0;
 	u8 num_uld = 0, nchan = adap->params.nports;
-	u32 ethqsets = 0, ofldqsets = 0;
-	u32 eth_need, uld_need = 0;
 	u32 i, want, need, num_vec;
 	struct sge *s = &adap->sge;
 	struct msix_entry *entries;
@@ -5497,6 +5524,12 @@ static int enable_msix(struct adapter *adap)
 		want += num_uld * s->ofldqsets;
 		uld_need = num_uld * nchan;
 		need += uld_need;
+	}
+
+	if (is_ethofld(adap)) {
+		want += s->eoqsets;
+		ethofld_need = eth_need;
+		need += ethofld_need;
 	}
 
 	want += EXTRA_VECS;
@@ -5531,7 +5564,9 @@ static int enable_msix(struct adapter *adap)
 		adap->params.crypto = 0;
 		adap->params.ethofld = 0;
 		s->ofldqsets = 0;
+		s->eoqsets = 0;
 		uld_need = 0;
+		ethofld_need = 0;
 	}
 
 	num_vec = allocated;
@@ -5543,10 +5578,12 @@ static int enable_msix(struct adapter *adap)
 		ethqsets = eth_need;
 		if (is_uld(adap))
 			ofldqsets = nchan;
+		if (is_ethofld(adap))
+			eoqsets = ethofld_need;
 
 		num_vec -= need;
 		while (num_vec) {
-			if (num_vec < eth_need ||
+			if (num_vec < eth_need + ethofld_need ||
 			    ethqsets > s->max_ethqsets)
 				break;
 
@@ -5557,6 +5594,10 @@ static int enable_msix(struct adapter *adap)
 
 				ethqsets++;
 				num_vec--;
+				if (ethofld_need) {
+					eoqsets++;
+					num_vec--;
+				}
 			}
 		}
 
@@ -5574,6 +5615,8 @@ static int enable_msix(struct adapter *adap)
 		ethqsets = s->max_ethqsets;
 		if (is_uld(adap))
 			ofldqsets = s->ofldqsets;
+		if (is_ethofld(adap))
+			eoqsets = s->eoqsets;
 	}
 
 	if (ethqsets < s->max_ethqsets) {
@@ -5586,6 +5629,9 @@ static int enable_msix(struct adapter *adap)
 		s->nqs_per_uld = s->ofldqsets;
 	}
 
+	if (is_ethofld(adap))
+		s->eoqsets = eoqsets;
+
 	/* map for msix */
 	ret = alloc_msix_info(adap, allocated);
 	if (ret)
@@ -5597,8 +5643,8 @@ static int enable_msix(struct adapter *adap)
 	}
 
 	dev_info(adap->pdev_dev,
-		 "%d MSI-X vectors allocated, nic %d per uld %d\n",
-		 allocated, s->max_ethqsets, s->nqs_per_uld);
+		 "%d MSI-X vectors allocated, nic %d eoqsets %d per uld %d\n",
+		 allocated, s->max_ethqsets, s->eoqsets, s->nqs_per_uld);
 
 	kfree(entries);
 	return 0;
