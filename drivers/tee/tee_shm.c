@@ -76,7 +76,7 @@ static int tee_shm_op_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	size_t size = vma->vm_end - vma->vm_start;
 
 	/* Refuse sharing shared memory provided by application */
-	if (shm->flags & TEE_SHM_REGISTER)
+	if (shm->flags & TEE_SHM_USER_MAPPED)
 		return -EINVAL;
 
 	return remap_pfn_range(vma, vma->vm_start, shm->paddr >> PAGE_SHIFT,
