@@ -446,21 +446,6 @@ static void mos7840_led_activity(struct usb_serial_port *port)
 				jiffies + msecs_to_jiffies(LED_ON_MS));
 }
 
-static int mos7840_port_paranoia_check(struct usb_serial_port *port,
-				       const char *function)
-{
-	if (!port) {
-		pr_debug("%s - port == NULL\n", function);
-		return -1;
-	}
-	if (!port->serial) {
-		pr_debug("%s - port->serial == NULL\n", function);
-		return -1;
-	}
-
-	return 0;
-}
-
 /* Inline functions to check the sanity of a pointer that is passed to us */
 static int mos7840_serial_paranoia_check(struct usb_serial *serial,
 					 const char *function)
@@ -482,7 +467,6 @@ static struct usb_serial *mos7840_get_usb_serial(struct usb_serial_port *port,
 {
 	/* if no port was specified, or it fails a paranoia check */
 	if (!port ||
-	    mos7840_port_paranoia_check(port, function) ||
 	    mos7840_serial_paranoia_check(port->serial, function)) {
 		/* then say that we don't have a valid usb_serial thing,
 		 * which will end up genrating -ENODEV return values */
@@ -501,20 +485,14 @@ static struct usb_serial *mos7840_get_usb_serial(struct usb_serial_port *port,
 static void mos7840_bulk_in_callback(struct urb *urb)
 {
 	struct moschip_port *mos7840_port = urb->context;
+	struct usb_serial_port *port = mos7840_port->port;
 	int retval;
 	unsigned char *data;
 	struct usb_serial *serial;
-	struct usb_serial_port *port;
 	int status = urb->status;
 
 	if (status) {
 		dev_dbg(&urb->dev->dev, "nonzero read bulk status received: %d\n", status);
-		mos7840_port->read_urb_busy = false;
-		return;
-	}
-
-	port = mos7840_port->port;
-	if (mos7840_port_paranoia_check(port, __func__)) {
 		mos7840_port->read_urb_busy = false;
 		return;
 	}
@@ -562,14 +540,12 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 
 static void mos7840_bulk_out_data_callback(struct urb *urb)
 {
-	struct moschip_port *mos7840_port;
-	struct usb_serial_port *port;
+	struct moschip_port *mos7840_port = urb->context;
+	struct usb_serial_port *port = mos7840_port->port;
 	int status = urb->status;
 	unsigned long flags;
 	int i;
 
-	mos7840_port = urb->context;
-	port = mos7840_port->port;
 	spin_lock_irqsave(&mos7840_port->pool_lock, flags);
 	for (i = 0; i < NUM_URBS; i++) {
 		if (urb == mos7840_port->write_urb_pool[i]) {
@@ -583,9 +559,6 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 		dev_dbg(&port->dev, "nonzero write bulk status received:%d\n", status);
 		return;
 	}
-
-	if (mos7840_port_paranoia_check(port, __func__))
-		return;
 
 	if (mos7840_port->open)
 		tty_port_tty_wakeup(&port->port);
@@ -605,18 +578,13 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 
 static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
+	struct usb_serial *serial = port->serial;
 	int response;
 	int j;
-	struct usb_serial *serial;
 	struct urb *urb;
 	__u16 Data;
 	int status;
 	struct moschip_port *mos7840_port;
-
-	if (mos7840_port_paranoia_check(port, __func__))
-		return -ENODEV;
-
-	serial = port->serial;
 
 	if (mos7840_serial_paranoia_check(serial, __func__))
 		return -ENODEV;
@@ -850,9 +818,6 @@ static int mos7840_chars_in_buffer(struct tty_struct *tty)
 	unsigned long flags;
 	struct moschip_port *mos7840_port;
 
-	if (mos7840_port_paranoia_check(port, __func__))
-		return 0;
-
 	mos7840_port = mos7840_get_port_private(port);
 	if (mos7840_port == NULL)
 		return 0;
@@ -881,9 +846,6 @@ static void mos7840_close(struct usb_serial_port *port)
 	struct moschip_port *mos7840_port;
 	int j;
 	__u16 Data;
-
-	if (mos7840_port_paranoia_check(port, __func__))
-		return;
 
 	serial = mos7840_get_usb_serial(port, __func__);
 	if (!serial)
@@ -927,9 +889,6 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 	struct usb_serial *serial;
 	struct moschip_port *mos7840_port;
 
-	if (mos7840_port_paranoia_check(port, __func__))
-		return;
-
 	serial = mos7840_get_usb_serial(port, __func__);
 	if (!serial)
 		return;
@@ -967,9 +926,6 @@ static int mos7840_write_room(struct tty_struct *tty)
 	unsigned long flags;
 	struct moschip_port *mos7840_port;
 
-	if (mos7840_port_paranoia_check(port, __func__))
-		return -1;
-
 	mos7840_port = mos7840_get_port_private(port);
 	if (mos7840_port == NULL)
 		return -1;
@@ -998,6 +954,7 @@ static int mos7840_write_room(struct tty_struct *tty)
 static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 			 const unsigned char *data, int count)
 {
+	struct usb_serial *serial = port->serial;
 	int status;
 	int i;
 	int bytes_sent = 0;
@@ -1005,15 +962,10 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 	unsigned long flags;
 
 	struct moschip_port *mos7840_port;
-	struct usb_serial *serial;
 	struct urb *urb;
 	/* __u16 Data; */
 	const unsigned char *current_position = data;
 
-	if (mos7840_port_paranoia_check(port, __func__))
-		return -1;
-
-	serial = port->serial;
 	if (mos7840_serial_paranoia_check(serial, __func__))
 		return -1;
 
@@ -1104,9 +1056,6 @@ static void mos7840_throttle(struct tty_struct *tty)
 	struct moschip_port *mos7840_port;
 	int status;
 
-	if (mos7840_port_paranoia_check(port, __func__))
-		return;
-
 	mos7840_port = mos7840_get_port_private(port);
 
 	if (mos7840_port == NULL)
@@ -1145,9 +1094,6 @@ static void mos7840_unthrottle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	int status;
 	struct moschip_port *mos7840_port = mos7840_get_port_private(port);
-
-	if (mos7840_port_paranoia_check(port, __func__))
-		return;
 
 	if (mos7840_port == NULL)
 		return;
@@ -1296,18 +1242,11 @@ static int mos7840_calc_baud_rate_divisor(struct usb_serial_port *port,
 static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
 					    int baudRate)
 {
+	struct usb_serial_port *port = mos7840_port->port;
 	int divisor = 0;
 	int status;
 	__u16 Data;
 	__u16 clk_sel_val;
-	struct usb_serial_port *port;
-
-	if (mos7840_port == NULL)
-		return -1;
-
-	port = mos7840_port->port;
-	if (mos7840_port_paranoia_check(port, __func__))
-		return -1;
 
 	if (mos7840_serial_paranoia_check(port->serial, __func__))
 		return -1;
@@ -1399,6 +1338,7 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
 static void mos7840_change_port_settings(struct tty_struct *tty,
 	struct moschip_port *mos7840_port, struct ktermios *old_termios)
 {
+	struct usb_serial_port *port = mos7840_port->port;
 	int baud;
 	unsigned cflag;
 	__u8 lData;
@@ -1406,15 +1346,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	__u8 lStop;
 	int status;
 	__u16 Data;
-	struct usb_serial_port *port;
-
-	if (mos7840_port == NULL)
-		return;
-
-	port = mos7840_port->port;
-
-	if (mos7840_port_paranoia_check(port, __func__))
-		return;
 
 	if (mos7840_serial_paranoia_check(port->serial, __func__))
 		return;
@@ -1557,14 +1488,10 @@ static void mos7840_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
 				struct ktermios *old_termios)
 {
+	struct usb_serial *serial = port->serial;
 	int status;
-	struct usb_serial *serial;
 	struct moschip_port *mos7840_port;
 
-	if (mos7840_port_paranoia_check(port, __func__))
-		return;
-
-	serial = port->serial;
 
 	if (mos7840_serial_paranoia_check(serial, __func__))
 		return;
@@ -1658,9 +1585,6 @@ static int mos7840_ioctl(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	void __user *argp = (void __user *)arg;
 	struct moschip_port *mos7840_port;
-
-	if (mos7840_port_paranoia_check(port, __func__))
-		return -1;
 
 	mos7840_port = mos7840_get_port_private(port);
 
