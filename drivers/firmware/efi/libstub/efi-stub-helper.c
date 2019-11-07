@@ -32,6 +32,7 @@ static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 static int __section(.data) __nokaslr;
 static int __section(.data) __quiet;
 static int __section(.data) __novamap;
+static bool __section(.data) efi_nosoftreserve;
 
 int __pure nokaslr(void)
 {
@@ -44,6 +45,10 @@ int __pure is_quiet(void)
 int __pure novamap(void)
 {
 	return __novamap;
+}
+bool __pure __efi_soft_reserve_enabled(void)
+{
+	return !efi_nosoftreserve;
 }
 
 #define EFI_MMAP_NR_SLACK_SLOTS	8
@@ -211,6 +216,10 @@ again:
 		if (desc->type != EFI_CONVENTIONAL_MEMORY)
 			continue;
 
+		if (efi_soft_reserve_enabled() &&
+		    (desc->attribute & EFI_MEMORY_SP))
+			continue;
+
 		if (desc->num_pages < nr_pages)
 			continue;
 
@@ -303,6 +312,10 @@ efi_status_t efi_low_alloc_above(efi_system_table_t *sys_table_arg,
 		desc = efi_early_memdesc_ptr(m, desc_size, i);
 
 		if (desc->type != EFI_CONVENTIONAL_MEMORY)
+			continue;
+
+		if (efi_soft_reserve_enabled() &&
+		    (desc->attribute & EFI_MEMORY_SP))
 			continue;
 
 		if (desc->num_pages < nr_pages)
@@ -482,6 +495,12 @@ efi_status_t efi_parse_options(char const *cmdline)
 		if (!strncmp(str, "novamap", 7)) {
 			str += strlen("novamap");
 			__novamap = 1;
+		}
+
+		if (IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
+		    !strncmp(str, "nosoftreserve", 7)) {
+			str += strlen("nosoftreserve");
+			efi_nosoftreserve = 1;
 		}
 
 		/* Group words together, delimited by "," */

@@ -1202,6 +1202,7 @@ extern int __init efi_setup_pcdp_console(char *);
 #define EFI_DBG			8	/* Print additional debug info at runtime */
 #define EFI_NX_PE_DATA		9	/* Can runtime data regions be mapped non-executable? */
 #define EFI_MEM_ATTR		10	/* Did firmware publish an EFI_MEMORY_ATTRIBUTES table? */
+#define EFI_MEM_NO_SOFT_RESERVE	11	/* Is the kernel configured to ignore soft reservations? */
 
 #ifdef CONFIG_EFI
 /*
@@ -1212,6 +1213,14 @@ static inline bool efi_enabled(int feature)
 	return test_bit(feature, &efi.flags) != 0;
 }
 extern void efi_reboot(enum reboot_mode reboot_mode, const char *__unused);
+
+bool __pure __efi_soft_reserve_enabled(void);
+
+static inline bool __pure efi_soft_reserve_enabled(void)
+{
+	return IS_ENABLED(CONFIG_EFI_SOFT_RESERVE)
+		&& __efi_soft_reserve_enabled();
+}
 #else
 static inline bool efi_enabled(int feature)
 {
@@ -1222,6 +1231,11 @@ efi_reboot(enum reboot_mode reboot_mode, const char *__unused) {}
 
 static inline bool
 efi_capsule_pending(int *reset_type)
+{
+	return false;
+}
+
+static inline bool efi_soft_reserve_enabled(void)
 {
 	return false;
 }
