@@ -2480,8 +2480,10 @@ typedef struct fc_port {
 	u16 n2n_chip_reset;
 } fc_port_t;
 
-#define FC4_PRIORITY_NVME	0
-#define FC4_PRIORITY_FCP	1
+enum {
+	FC4_PRIORITY_NVME = 1,
+	FC4_PRIORITY_FCP  = 2,
+};
 
 #define QLA_FCPORT_SCAN		1
 #define QLA_FCPORT_FOUND	2

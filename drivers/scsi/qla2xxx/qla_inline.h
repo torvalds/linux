@@ -317,5 +317,5 @@ qla2xxx_get_fc4_priority(struct scsi_qla_host *vha)
 	    ((uint8_t *)vha->hw->nvram)[NVRAM_DUAL_FCP_NVME_FLAG_OFFSET];
 
 
-	return ((data >> 6) & BIT_0);
+	return (data >> 6) & BIT_0 ? FC4_PRIORITY_FCP : FC4_PRIORITY_NVME;
 }
