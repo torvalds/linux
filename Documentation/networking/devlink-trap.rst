@@ -203,6 +203,26 @@ be added to the following table:
      - Traps IPv6 packets that the device decided to drop because they need to
        be routed and their IPv6 multicast destination IP has an interface-local scope
        (i.e., ffx1::/16)
+   * - ``mtu_value_is_too_small``
+     - ``exception``
+     - Traps packets that should have been routed by the device, but were bigger
+       than the MTU of the egress interface
+   * - ``unresolved_neigh``
+     - ``exception``
+     - Traps packets that did not have a matching IP neighbour after routing
+   * - ``mc_reverse_path_forwarding``
+     - ``exception``
+     - Traps multicast IP packets that failed reverse-path forwarding (RPF)
+       check during multicast routing
+   * - ``reject_route``
+     - ``exception``
+     - Traps packets that hit reject routes (i.e., "unreachable", "prohibit")
+   * - ``ipv4_lpm_miss``
+     - ``exception``
+     - Traps unicast IPv4 packets that did not match any route
+   * - ``ipv6_lpm_miss``
+     - ``exception``
+     - Traps unicast IPv6 packets that did not match any route
 
 Driver-specific Packet Traps
 ============================
