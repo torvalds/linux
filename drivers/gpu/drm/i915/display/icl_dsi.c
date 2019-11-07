@@ -745,6 +745,9 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		case PIPE_C:
 			tmp |= TRANS_DDI_EDP_INPUT_C_ONOFF;
 			break;
+		case PIPE_D:
+			tmp |= TRANS_DDI_EDP_INPUT_D_ONOFF;
+			break;
 		}
 
 		/* enable DDI buffer */
@@ -1324,6 +1327,9 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 			break;
 		case TRANS_DDI_EDP_INPUT_C_ONOFF:
 			*pipe = PIPE_C;
+			break;
+		case TRANS_DDI_EDP_INPUT_D_ONOFF:
+			*pipe = PIPE_D;
 			break;
 		default:
 			DRM_ERROR("Invalid PIPE input\n");
