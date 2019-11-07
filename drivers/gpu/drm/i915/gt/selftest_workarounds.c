@@ -711,7 +711,7 @@ static int live_dirty_whitelist(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
-	struct drm_file *file;
+	struct file *file;
 	int err = 0;
 
 	/* Can the user write to the whitelisted registers? */
@@ -739,7 +739,7 @@ static int live_dirty_whitelist(void *arg)
 	}
 
 out_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 

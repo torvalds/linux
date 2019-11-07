@@ -404,7 +404,7 @@ static int igt_lmem_write_gpu(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_context *ctx;
-	struct drm_file *file;
+	struct file *file;
 	I915_RND_STATE(prng);
 	u32 sz;
 	int err;
@@ -439,7 +439,7 @@ static int igt_lmem_write_gpu(void *arg)
 out_put:
 	i915_gem_object_put(obj);
 out_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 

@@ -136,7 +136,7 @@ static int igt_gem_suspend(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx;
-	struct drm_file *file;
+	struct file *file;
 	int err;
 
 	file = mock_file(i915);
@@ -163,7 +163,7 @@ static int igt_gem_suspend(void *arg)
 
 	err = switch_to_context(ctx);
 out:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 
@@ -171,7 +171,7 @@ static int igt_gem_hibernate(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx;
-	struct drm_file *file;
+	struct file *file;
 	int err;
 
 	file = mock_file(i915);
@@ -198,7 +198,7 @@ static int igt_gem_hibernate(void *arg)
 
 	err = switch_to_context(ctx);
 out:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 

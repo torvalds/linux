@@ -1912,9 +1912,9 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ppgtt_smoke_huge),
 		SUBTEST(igt_ppgtt_sanity_check),
 	};
-	struct drm_file *file;
 	struct i915_gem_context *ctx;
 	struct i915_address_space *vm;
+	struct file *file;
 	int err;
 
 	if (!HAS_PPGTT(i915)) {
@@ -1944,6 +1944,6 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 	err = i915_subtests(tests, ctx);
 
 out_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }

@@ -466,7 +466,7 @@ static int igt_evict_contexts(void *arg)
 	/* Overfill the GGTT with context objects and so try to evict one. */
 	for_each_engine(engine, gt, id) {
 		struct i915_sw_fence fence;
-		struct drm_file *file;
+		struct file *file;
 
 		file = mock_file(i915);
 		if (IS_ERR(file)) {
@@ -515,7 +515,7 @@ static int igt_evict_contexts(void *arg)
 		pr_info("Submitted %lu contexts/requests on %s\n",
 			count, engine->name);
 
-		mock_file_put(file);
+		fput(file);
 		if (err)
 			break;
 	}

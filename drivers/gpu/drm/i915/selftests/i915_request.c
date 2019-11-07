@@ -1306,9 +1306,9 @@ static int live_breadcrumbs_smoketest(void *arg)
 	struct task_struct **threads;
 	struct igt_live_test live;
 	intel_wakeref_t wakeref;
-	struct drm_file *file;
 	struct smoketest *smoke;
 	unsigned int n, idx;
+	struct file *file;
 	int ret = 0;
 
 	/*
@@ -1430,7 +1430,7 @@ out_threads:
 out_smoke:
 	kfree(smoke);
 out_file:
-	mock_file_put(file);
+	fput(file);
 out_rpm:
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 

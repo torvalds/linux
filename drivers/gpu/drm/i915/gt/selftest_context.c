@@ -289,7 +289,7 @@ static int live_active_context(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *fixme;
 	enum intel_engine_id id;
-	struct drm_file *file;
+	struct file *file;
 	int err = 0;
 
 	file = mock_file(gt->i915);
@@ -313,7 +313,7 @@ static int live_active_context(void *arg)
 	}
 
 out_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 
@@ -399,7 +399,7 @@ static int live_remote_context(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *fixme;
 	enum intel_engine_id id;
-	struct drm_file *file;
+	struct file *file;
 	int err = 0;
 
 	file = mock_file(gt->i915);
@@ -423,7 +423,7 @@ static int live_remote_context(void *arg)
 	}
 
 out_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 

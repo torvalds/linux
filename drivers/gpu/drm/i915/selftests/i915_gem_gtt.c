@@ -1001,9 +1001,9 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 				      u64 hole_start, u64 hole_end,
 				      unsigned long end_time))
 {
-	struct drm_file *file;
 	struct i915_ppgtt *ppgtt;
 	IGT_TIMEOUT(end_time);
+	struct file *file;
 	int err;
 
 	if (!HAS_FULL_PPGTT(dev_priv))
@@ -1026,7 +1026,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 	i915_vm_put(&ppgtt->vm);
 
 out_free:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 
@@ -1782,9 +1782,9 @@ static int igt_cs_tlb(void *arg)
 	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;
 	struct intel_context *ce;
-	struct drm_file *file;
 	struct i915_vma *vma;
 	I915_RND_STATE(prng);
+	struct file *file;
 	unsigned int i;
 	u32 *result;
 	u32 *batch;
@@ -2022,7 +2022,7 @@ out_put_bbe:
 out_vm:
 	i915_vm_put(vm);
 out_unlock:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 

@@ -5,6 +5,7 @@
  */
 
 #include "mock_context.h"
+#include "selftests/mock_drm.h"
 #include "selftests/mock_gtt.h"
 
 struct i915_gem_context *
@@ -74,7 +75,7 @@ void mock_init_contexts(struct drm_i915_private *i915)
 }
 
 struct i915_gem_context *
-live_context(struct drm_i915_private *i915, struct drm_file *file)
+live_context(struct drm_i915_private *i915, struct file *file)
 {
 	struct i915_gem_context *ctx;
 	int err;
@@ -83,7 +84,7 @@ live_context(struct drm_i915_private *i915, struct drm_file *file)
 	if (IS_ERR(ctx))
 		return ctx;
 
-	err = gem_context_register(ctx, file->driver_priv);
+	err = gem_context_register(ctx, to_drm_file(file)->driver_priv);
 	if (err < 0)
 		goto err_ctx;
 

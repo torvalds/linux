@@ -198,7 +198,7 @@ static int igt_fill_blt_thread(void *arg)
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_context *ctx;
 	struct intel_context *ce;
-	struct drm_file *file;
+	struct file *file;
 	unsigned int prio;
 	IGT_TIMEOUT(end);
 	int err;
@@ -301,7 +301,7 @@ err_flush:
 
 	intel_context_put(ce);
 out_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 
@@ -313,7 +313,7 @@ static int igt_copy_blt_thread(void *arg)
 	struct drm_i915_gem_object *src, *dst;
 	struct i915_gem_context *ctx;
 	struct intel_context *ce;
-	struct drm_file *file;
+	struct file *file;
 	unsigned int prio;
 	IGT_TIMEOUT(end);
 	int err;
@@ -432,7 +432,7 @@ err_flush:
 
 	intel_context_put(ce);
 out_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 

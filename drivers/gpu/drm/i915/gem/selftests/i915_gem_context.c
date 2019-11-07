@@ -33,7 +33,7 @@ static int live_nop_switch(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context **ctx;
 	struct igt_live_test t;
-	struct drm_file *file;
+	struct file *file;
 	unsigned long n;
 	int err = -ENODEV;
 
@@ -149,7 +149,7 @@ static int live_nop_switch(void *arg)
 	}
 
 out_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 
@@ -255,7 +255,7 @@ static int live_parallel_switch(void *arg)
 	int (* const *fn)(void *arg);
 	struct i915_gem_context *ctx;
 	struct intel_context *ce;
-	struct drm_file *file;
+	struct file *file;
 	int n, m, count;
 	int err = 0;
 
@@ -377,7 +377,7 @@ out:
 	}
 	kfree(data);
 out_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 
@@ -502,17 +502,17 @@ out_unmap:
 	return err;
 }
 
-static int file_add_object(struct drm_file *file,
-			    struct drm_i915_gem_object *obj)
+static int file_add_object(struct file *file, struct drm_i915_gem_object *obj)
 {
 	int err;
 
 	GEM_BUG_ON(obj->base.handle_count);
 
 	/* tie the object to the drm_file for easy reaping */
-	err = idr_alloc(&file->object_idr, &obj->base, 1, 0, GFP_KERNEL);
+	err = idr_alloc(&to_drm_file(file)->object_idr,
+			&obj->base, 1, 0, GFP_KERNEL);
 	if (err < 0)
-		return  err;
+		return err;
 
 	i915_gem_object_get(obj);
 	obj->base.handle_count++;
@@ -521,7 +521,7 @@ static int file_add_object(struct drm_file *file,
 
 static struct drm_i915_gem_object *
 create_test_object(struct i915_address_space *vm,
-		   struct drm_file *file,
+		   struct file *file,
 		   struct list_head *objects)
 {
 	struct drm_i915_gem_object *obj;
@@ -621,9 +621,9 @@ static int igt_ctx_exec(void *arg)
 		unsigned long ncontexts, ndwords, dw;
 		struct i915_request *tq[5] = {};
 		struct igt_live_test t;
-		struct drm_file *file;
 		IGT_TIMEOUT(end_time);
 		LIST_HEAD(objects);
+		struct file *file;
 
 		if (!intel_engine_can_store_dword(engine))
 			continue;
@@ -716,7 +716,7 @@ out_file:
 		if (igt_live_test_end(&t))
 			err = -EIO;
 
-		mock_file_put(file);
+		fput(file);
 		if (err)
 			return err;
 
@@ -733,7 +733,7 @@ static int igt_shared_ctx_exec(void *arg)
 	struct i915_gem_context *parent;
 	struct intel_engine_cs *engine;
 	struct igt_live_test t;
-	struct drm_file *file;
+	struct file *file;
 	int err = 0;
 
 	/*
@@ -854,7 +854,7 @@ out_test:
 	if (igt_live_test_end(&t))
 		err = -EIO;
 out_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 
@@ -1317,10 +1317,10 @@ static int igt_ctx_readonly(void *arg)
 	struct i915_gem_context *ctx;
 	unsigned long idx, ndwords, dw;
 	struct igt_live_test t;
-	struct drm_file *file;
 	I915_RND_STATE(prng);
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(objects);
+	struct file *file;
 	int err = -ENODEV;
 
 	/*
@@ -1426,7 +1426,7 @@ out_file:
 	if (igt_live_test_end(&t))
 		err = -EIO;
 
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 
@@ -1663,9 +1663,9 @@ static int igt_vm_isolation(void *arg)
 	struct i915_gem_context *ctx_a, *ctx_b;
 	struct intel_engine_cs *engine;
 	struct igt_live_test t;
-	struct drm_file *file;
 	I915_RND_STATE(prng);
 	unsigned long count;
+	struct file *file;
 	u64 vm_total;
 	int err;
 
@@ -1750,7 +1750,7 @@ static int igt_vm_isolation(void *arg)
 out_file:
 	if (igt_live_test_end(&t))
 		err = -EIO;
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 

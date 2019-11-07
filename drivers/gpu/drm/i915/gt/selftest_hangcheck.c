@@ -380,8 +380,8 @@ static int igt_reset_nop(void *arg)
 	struct i915_gem_context *ctx;
 	unsigned int reset_count, count;
 	enum intel_engine_id id;
-	struct drm_file *file;
 	IGT_TIMEOUT(end_time);
+	struct file *file;
 	int err = 0;
 
 	/* Check that we can reset during non-user portions of requests */
@@ -439,7 +439,7 @@ static int igt_reset_nop(void *arg)
 
 	err = igt_flush_test(gt->i915);
 out:
-	mock_file_put(file);
+	fput(file);
 	if (intel_gt_is_wedged(gt))
 		err = -EIO;
 	return err;
@@ -452,7 +452,7 @@ static int igt_reset_nop_engine(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
-	struct drm_file *file;
+	struct file *file;
 	int err = 0;
 
 	/* Check that we can engine-reset during non-user portions */
@@ -535,7 +535,7 @@ static int igt_reset_nop_engine(void *arg)
 
 	err = igt_flush_test(gt->i915);
 out:
-	mock_file_put(file);
+	fput(file);
 	if (intel_gt_is_wedged(gt))
 		err = -EIO;
 	return err;
@@ -700,8 +700,8 @@ static int active_engine(void *data)
 	struct intel_engine_cs *engine = arg->engine;
 	struct i915_request *rq[8] = {};
 	struct i915_gem_context *ctx[ARRAY_SIZE(rq)];
-	struct drm_file *file;
 	unsigned long count = 0;
+	struct file *file;
 	int err = 0;
 
 	file = mock_file(engine->i915);
@@ -752,7 +752,7 @@ static int active_engine(void *data)
 	}
 
 err_file:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 
@@ -1302,7 +1302,7 @@ static int igt_reset_evict_ppgtt(void *arg)
 	struct intel_gt *gt = arg;
 	struct i915_gem_context *ctx;
 	struct i915_address_space *vm;
-	struct drm_file *file;
+	struct file *file;
 	int err;
 
 	file = mock_file(gt->i915);
@@ -1325,7 +1325,7 @@ static int igt_reset_evict_ppgtt(void *arg)
 	i915_vm_put(vm);
 
 out:
-	mock_file_put(file);
+	fput(file);
 	return err;
 }
 
