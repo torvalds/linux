@@ -35,7 +35,7 @@ struct cpuidle_driver;
 struct cpuidle_state_usage {
 	unsigned long long	disable;
 	unsigned long long	usage;
-	unsigned long long	time; /* in US */
+	u64			time_ns;
 	unsigned long long	above; /* Number of times it's been too deep */
 	unsigned long long	below; /* Number of times it's been too shallow */
 #ifdef CONFIG_SUSPEND
@@ -48,6 +48,8 @@ struct cpuidle_state {
 	char		name[CPUIDLE_NAME_LEN];
 	char		desc[CPUIDLE_DESC_LEN];
 
+	u64		exit_latency_ns;
+	u64		target_residency_ns;
 	unsigned int	flags;
 	unsigned int	exit_latency; /* in US */
 	int		power_usage; /* in mW */
@@ -89,7 +91,7 @@ struct cpuidle_device {
 	ktime_t			next_hrtimer;
 
 	int			last_state_idx;
-	int			last_residency;
+	u64			last_residency_ns;
 	u64			poll_limit_ns;
 	struct cpuidle_state_usage	states_usage[CPUIDLE_STATE_MAX];
 	struct cpuidle_state_kobj *kobjs[CPUIDLE_STATE_MAX];
@@ -263,7 +265,7 @@ struct cpuidle_governor {
 
 #ifdef CONFIG_CPU_IDLE
 extern int cpuidle_register_governor(struct cpuidle_governor *gov);
-extern int cpuidle_governor_latency_req(unsigned int cpu);
+extern s64 cpuidle_governor_latency_req(unsigned int cpu);
 #else
 static inline int cpuidle_register_governor(struct cpuidle_governor *gov)
 {return 0;}

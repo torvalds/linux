@@ -104,7 +104,7 @@ struct teo_cpu {
 	u64 sleep_length_ns;
 	struct teo_idle_state states[CPUIDLE_STATE_MAX];
 	int interval_idx;
-	unsigned int intervals[INTERVALS];
+	u64 intervals[INTERVALS];
 };
 
 static DEFINE_PER_CPU(struct teo_cpu, teo_cpus);
@@ -117,9 +117,8 @@ static DEFINE_PER_CPU(struct teo_cpu, teo_cpus);
 static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 {
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
-	unsigned int sleep_length_us = ktime_to_us(cpu_data->sleep_length_ns);
 	int i, idx_hit = -1, idx_timer = -1;
-	unsigned int measured_us;
+	u64 measured_ns;
 
 	if (cpu_data->time_span_ns >= cpu_data->sleep_length_ns) {
 		/*
@@ -127,23 +126,21 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		 * enough to the closest timer event expected at the idle state
 		 * selection time to be discarded.
 		 */
-		measured_us = UINT_MAX;
+		measured_ns = U64_MAX;
 	} else {
-		unsigned int lat;
+		u64 lat_ns = drv->states[dev->last_state_idx].exit_latency_ns;
 
-		lat = drv->states[dev->last_state_idx].exit_latency;
-
-		measured_us = ktime_to_us(cpu_data->time_span_ns);
+		measured_ns = cpu_data->time_span_ns;
 		/*
 		 * The delay between the wakeup and the first instruction
 		 * executed by the CPU is not likely to be worst-case every
 		 * time, so take 1/2 of the exit latency as a very rough
 		 * approximation of the average of it.
 		 */
-		if (measured_us >= lat)
-			measured_us -= lat / 2;
+		if (measured_ns >= lat_ns)
+			measured_ns -= lat_ns / 2;
 		else
-			measured_us /= 2;
+			measured_ns /= 2;
 	}
 
 	/*
@@ -155,9 +152,9 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 
 		cpu_data->states[i].early_hits -= early_hits >> DECAY_SHIFT;
 
-		if (drv->states[i].target_residency <= sleep_length_us) {
+		if (drv->states[i].target_residency_ns <= cpu_data->sleep_length_ns) {
 			idx_timer = i;
-			if (drv->states[i].target_residency <= measured_us)
+			if (drv->states[i].target_residency_ns <= measured_ns)
 				idx_hit = i;
 		}
 	}
@@ -193,7 +190,7 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * Save idle duration values corresponding to non-timer wakeups for
 	 * pattern detection.
 	 */
-	cpu_data->intervals[cpu_data->interval_idx++] = measured_us;
+	cpu_data->intervals[cpu_data->interval_idx++] = measured_ns;
 	if (cpu_data->interval_idx > INTERVALS)
 		cpu_data->interval_idx = 0;
 }
@@ -203,11 +200,11 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
  * @drv: cpuidle driver containing state data.
  * @dev: Target CPU.
  * @state_idx: Index of the capping idle state.
- * @duration_us: Idle duration value to match.
+ * @duration_ns: Idle duration value to match.
  */
 static int teo_find_shallower_state(struct cpuidle_driver *drv,
 				    struct cpuidle_device *dev, int state_idx,
-				    unsigned int duration_us)
+				    u64 duration_ns)
 {
 	int i;
 
@@ -216,7 +213,7 @@ static int teo_find_shallower_state(struct cpuidle_driver *drv,
 			continue;
 
 		state_idx = i;
-		if (drv->states[i].target_residency <= duration_us)
+		if (drv->states[i].target_residency_ns <= duration_ns)
 			break;
 	}
 	return state_idx;
@@ -232,8 +229,9 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		      bool *stop_tick)
 {
 	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, dev->cpu);
-	int latency_req = cpuidle_governor_latency_req(dev->cpu);
-	unsigned int duration_us, hits, misses, early_hits;
+	s64 latency_req = cpuidle_governor_latency_req(dev->cpu);
+	u64 duration_ns;
+	unsigned int hits, misses, early_hits;
 	int max_early_idx, constraint_idx, idx, i;
 	ktime_t delta_tick;
 
@@ -244,8 +242,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 	cpu_data->time_span_ns = local_clock();
 
-	cpu_data->sleep_length_ns = tick_nohz_get_sleep_length(&delta_tick);
-	duration_us = ktime_to_us(cpu_data->sleep_length_ns);
+	duration_ns = tick_nohz_get_sleep_length(&delta_tick);
+	cpu_data->sleep_length_ns = duration_ns;
 
 	hits = 0;
 	misses = 0;
@@ -262,7 +260,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			 * Ignore disabled states with target residencies beyond
 			 * the anticipated idle duration.
 			 */
-			if (s->target_residency > duration_us)
+			if (s->target_residency_ns > duration_ns)
 				continue;
 
 			/*
@@ -301,7 +299,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			 * shallow for that role.
 			 */
 			if (!(tick_nohz_tick_stopped() &&
-			      drv->states[idx].target_residency < TICK_USEC)) {
+			      drv->states[idx].target_residency_ns < TICK_NSEC)) {
 				early_hits = cpu_data->states[i].early_hits;
 				max_early_idx = idx;
 			}
@@ -315,10 +313,10 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			misses = cpu_data->states[i].misses;
 		}
 
-		if (s->target_residency > duration_us)
+		if (s->target_residency_ns > duration_ns)
 			break;
 
-		if (s->exit_latency > latency_req && constraint_idx > i)
+		if (s->exit_latency_ns > latency_req && constraint_idx > i)
 			constraint_idx = i;
 
 		idx = i;
@@ -327,7 +325,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 		if (early_hits < cpu_data->states[i].early_hits &&
 		    !(tick_nohz_tick_stopped() &&
-		      drv->states[i].target_residency < TICK_USEC)) {
+		      drv->states[i].target_residency_ns < TICK_NSEC)) {
 			early_hits = cpu_data->states[i].early_hits;
 			max_early_idx = i;
 		}
@@ -343,7 +341,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	 */
 	if (hits <= misses && max_early_idx >= 0) {
 		idx = max_early_idx;
-		duration_us = drv->states[idx].target_residency;
+		duration_ns = drv->states[idx].target_residency_ns;
 	}
 
 	/*
@@ -364,9 +362,9 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		 * the current expected idle duration value.
 		 */
 		for (i = 0; i < INTERVALS; i++) {
-			unsigned int val = cpu_data->intervals[i];
+			u64 val = cpu_data->intervals[i];
 
-			if (val >= duration_us)
+			if (val >= duration_ns)
 				continue;
 
 			count++;
@@ -378,17 +376,17 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		 * values are in the interesting range.
 		 */
 		if (count > INTERVALS / 2) {
-			unsigned int avg_us = div64_u64(sum, count);
+			u64 avg_ns = div64_u64(sum, count);
 
 			/*
 			 * Avoid spending too much time in an idle state that
 			 * would be too shallow.
 			 */
-			if (!(tick_nohz_tick_stopped() && avg_us < TICK_USEC)) {
-				duration_us = avg_us;
-				if (drv->states[idx].target_residency > avg_us)
+			if (!(tick_nohz_tick_stopped() && avg_ns < TICK_NSEC)) {
+				duration_ns = avg_ns;
+				if (drv->states[idx].target_residency_ns > avg_ns)
 					idx = teo_find_shallower_state(drv, dev,
-								       idx, avg_us);
+								       idx, avg_ns);
 			}
 		}
 	}
@@ -398,9 +396,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	 * expected idle duration is shorter than the tick period length.
 	 */
 	if (((drv->states[idx].flags & CPUIDLE_FLAG_POLLING) ||
-	    duration_us < TICK_USEC) && !tick_nohz_tick_stopped()) {
-		unsigned int delta_tick_us = ktime_to_us(delta_tick);
-
+	    duration_ns < TICK_NSEC) && !tick_nohz_tick_stopped()) {
 		*stop_tick = false;
 
 		/*
@@ -409,8 +405,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		 * till the closest timer including the tick, try to correct
 		 * that.
 		 */
-		if (idx > 0 && drv->states[idx].target_residency > delta_tick_us)
-			idx = teo_find_shallower_state(drv, dev, idx, delta_tick_us);
+		if (idx > 0 && drv->states[idx].target_residency_ns > delta_tick)
+			idx = teo_find_shallower_state(drv, dev, idx, delta_tick);
 	}
 
 	return idx;
@@ -454,7 +450,7 @@ static int teo_enable_device(struct cpuidle_driver *drv,
 	memset(cpu_data, 0, sizeof(*cpu_data));
 
 	for (i = 0; i < INTERVALS; i++)
-		cpu_data->intervals[i] = UINT_MAX;
+		cpu_data->intervals[i] = U64_MAX;
 
 	return 0;
 }
