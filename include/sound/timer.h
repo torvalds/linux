@@ -119,7 +119,7 @@ int snd_timer_global_free(struct snd_timer *timer);
 int snd_timer_global_register(struct snd_timer *timer);
 
 int snd_timer_open(struct snd_timer_instance **ti, char *owner, struct snd_timer_id *tid, unsigned int slave_id);
-int snd_timer_close(struct snd_timer_instance *timeri);
+void snd_timer_close(struct snd_timer_instance *timeri);
 unsigned long snd_timer_resolution(struct snd_timer_instance *timeri);
 int snd_timer_start(struct snd_timer_instance *timeri, unsigned int ticks);
 int snd_timer_stop(struct snd_timer_instance *timeri);

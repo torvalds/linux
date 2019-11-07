@@ -229,8 +229,8 @@ static int snd_timer_check_master(struct snd_timer_instance *master)
 	return err < 0 ? err : 0;
 }
 
-static int snd_timer_close_locked(struct snd_timer_instance *timeri,
-				  struct device **card_devp_to_put);
+static void snd_timer_close_locked(struct snd_timer_instance *timeri,
+				   struct device **card_devp_to_put);
 
 /*
  * open a timer instance
@@ -351,8 +351,8 @@ EXPORT_SYMBOL(snd_timer_open);
  * close a timer instance
  * call this with register_mutex down.
  */
-static int snd_timer_close_locked(struct snd_timer_instance *timeri,
-				  struct device **card_devp_to_put)
+static void snd_timer_close_locked(struct snd_timer_instance *timeri,
+				   struct device **card_devp_to_put)
 {
 	struct snd_timer *timer = timeri->timer;
 	struct snd_timer_instance *slave, *tmp;
@@ -414,28 +414,24 @@ static int snd_timer_close_locked(struct snd_timer_instance *timeri,
 			*card_devp_to_put = &timer->card->card_dev;
 		module_put(timer->module);
 	}
-
-	return 0;
 }
 
 /*
  * close a timer instance
  */
-int snd_timer_close(struct snd_timer_instance *timeri)
+void snd_timer_close(struct snd_timer_instance *timeri)
 {
 	struct device *card_dev_to_put = NULL;
-	int err;
 
 	if (snd_BUG_ON(!timeri))
-		return -ENXIO;
+		return;
 
 	mutex_lock(&register_mutex);
-	err = snd_timer_close_locked(timeri, &card_dev_to_put);
+	snd_timer_close_locked(timeri, &card_dev_to_put);
 	mutex_unlock(&register_mutex);
 	/* put_device() is called after unlock for avoiding deadlock */
 	if (card_dev_to_put)
 		put_device(card_dev_to_put);
-	return err;
 }
 EXPORT_SYMBOL(snd_timer_close);
 
