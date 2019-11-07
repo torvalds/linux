@@ -205,11 +205,14 @@ struct komeda_dev {
 	/**
 	 * @err_verbosity: bitmask for how much extra info to print on error
 	 *
-	 * See KOMEDA_DEV_* macros for details.
+	 * See KOMEDA_DEV_* macros for details. Low byte contains the debug
+	 * level categories, the high byte contains extra debug options.
 	 */
 	u16 err_verbosity;
 	/* Print a single line per error per frame with error events. */
 #define KOMEDA_DEV_PRINT_ERR_EVENTS BIT(0)
+	/* Dump DRM state on an error or warning event. */
+#define KOMEDA_DEV_PRINT_DUMP_STATE_ON_EVENT BIT(8)
 };
 
 static inline bool

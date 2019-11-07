@@ -4,6 +4,7 @@
  * Author: James.Qian.Wang <james.qian.wang@arm.com>
  *
  */
+#include <drm/drm_atomic.h>
 #include <drm/drm_print.h>
 
 #include "komeda_dev.h"
@@ -113,6 +114,7 @@ void komeda_print_events(struct komeda_events *evts, struct drm_device *dev)
 	static bool en_print = true;
 	struct komeda_dev *mdev = dev->dev_private;
 	u16 const err_verbosity = mdev->err_verbosity;
+	u64 evts_mask = evts->global | evts->pipes[0] | evts->pipes[1];
 
 	/* reduce the same msg print, only print the first evt for one frame */
 	if (evts->global || is_new_frame(evts))
@@ -123,9 +125,10 @@ void komeda_print_events(struct komeda_events *evts, struct drm_device *dev)
 	if (err_verbosity & KOMEDA_DEV_PRINT_ERR_EVENTS)
 		print_evts |= KOMEDA_ERR_EVENTS;
 
-	if ((evts->global | evts->pipes[0] | evts->pipes[1]) & print_evts) {
+	if (evts_mask & print_evts) {
 		char msg[256];
 		struct komeda_str str;
+		struct drm_printer p = drm_info_printer(dev->dev);
 
 		str.str = msg;
 		str.sz  = sizeof(msg);
@@ -139,6 +142,9 @@ void komeda_print_events(struct komeda_events *evts, struct drm_device *dev)
 		evt_str(&str, evts->pipes[1]);
 
 		DRM_ERROR("err detect: %s\n", msg);
+		if ((err_verbosity & KOMEDA_DEV_PRINT_DUMP_STATE_ON_EVENT) &&
+		    (evts_mask & (KOMEDA_ERR_EVENTS | KOMEDA_WARN_EVENTS)))
+			drm_state_dump(dev, &p);
 
 		en_print = false;
 	}
