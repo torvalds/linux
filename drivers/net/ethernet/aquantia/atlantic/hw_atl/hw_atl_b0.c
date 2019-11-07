@@ -168,7 +168,7 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 						   (1024U / 32U) * 50U) /
 						   100U, tc);
 
-	hw_atl_b0_set_fc(self, self->aq_nic_cfg->flow_control, tc);
+	hw_atl_b0_set_fc(self, self->aq_nic_cfg->fc.req, tc);
 
 	/* Init TC2 for PTP_RX */
 	tc = 2;

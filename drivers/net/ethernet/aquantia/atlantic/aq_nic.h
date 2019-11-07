@@ -20,6 +20,18 @@ struct aq_vec_s;
 struct aq_ptp_s;
 enum aq_rx_filter_type;
 
+enum aq_fc_mode {
+	AQ_NIC_FC_OFF = 0,
+	AQ_NIC_FC_TX,
+	AQ_NIC_FC_RX,
+	AQ_NIC_FC_FULL,
+};
+
+struct aq_fc_info {
+	enum aq_fc_mode req;
+	enum aq_fc_mode cur;
+};
+
 struct aq_nic_cfg_s {
 	const struct aq_hw_caps_s *aq_hw_caps;
 	u64 features;
@@ -34,7 +46,7 @@ struct aq_nic_cfg_s {
 	u32 rxpageorder;
 	u32 num_rss_queues;
 	u32 mtu;
-	u32 flow_control;
+	struct aq_fc_info fc;
 	u32 link_speed_msk;
 	u32 wol;
 	u8 is_vlan_rx_strip;

@@ -588,7 +588,7 @@ static void aq_ethtool_get_pauseparam(struct net_device *ndev,
 				      struct ethtool_pauseparam *pause)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	u32 fc = aq_nic->aq_nic_cfg.flow_control;
+	u32 fc = aq_nic->aq_nic_cfg.fc.req;
 
 	pause->autoneg = 0;
 
@@ -610,14 +610,14 @@ static int aq_ethtool_set_pauseparam(struct net_device *ndev,
 		return -EOPNOTSUPP;
 
 	if (pause->rx_pause)
-		aq_nic->aq_hw->aq_nic_cfg->flow_control |= AQ_NIC_FC_RX;
+		aq_nic->aq_hw->aq_nic_cfg->fc.req |= AQ_NIC_FC_RX;
 	else
-		aq_nic->aq_hw->aq_nic_cfg->flow_control &= ~AQ_NIC_FC_RX;
+		aq_nic->aq_hw->aq_nic_cfg->fc.req &= ~AQ_NIC_FC_RX;
 
 	if (pause->tx_pause)
-		aq_nic->aq_hw->aq_nic_cfg->flow_control |= AQ_NIC_FC_TX;
+		aq_nic->aq_hw->aq_nic_cfg->fc.req |= AQ_NIC_FC_TX;
 	else
-		aq_nic->aq_hw->aq_nic_cfg->flow_control &= ~AQ_NIC_FC_TX;
+		aq_nic->aq_hw->aq_nic_cfg->fc.req &= ~AQ_NIC_FC_TX;
 
 	mutex_lock(&aq_nic->fwreq_mutex);
 	err = aq_nic->aq_fw_ops->set_flow_control(aq_nic->aq_hw);

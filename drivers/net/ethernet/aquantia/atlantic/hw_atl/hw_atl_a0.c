@@ -155,7 +155,7 @@ static int hw_atl_a0_hw_qos_set(struct aq_hw_s *self)
 
 	/* QoS Rx buf size per TC */
 	tc = 0;
-	is_rx_flow_control = (AQ_NIC_FC_RX & self->aq_nic_cfg->flow_control);
+	is_rx_flow_control = (AQ_NIC_FC_RX & self->aq_nic_cfg->fc.req);
 	buff_size = HW_ATL_A0_RXBUF_MAX;
 
 	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, buff_size, tc);

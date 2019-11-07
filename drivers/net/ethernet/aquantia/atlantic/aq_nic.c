@@ -79,7 +79,7 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	cfg->is_rss = AQ_CFG_IS_RSS_DEF;
 	cfg->num_rss_queues = AQ_CFG_NUM_RSS_QUEUES_DEF;
 	cfg->aq_rss.base_cpu_number = AQ_CFG_RSS_BASE_CPU_NUM_DEF;
-	cfg->flow_control = AQ_CFG_FC_MODE;
+	cfg->fc.req = AQ_CFG_FC_MODE;
 	cfg->wol = AQ_CFG_WOL_MODES;
 
 	cfg->mtu = AQ_CFG_MTU_DEF;
@@ -144,6 +144,10 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 	if (err)
 		return err;
 
+	if (self->aq_fw_ops->get_flow_control)
+		self->aq_fw_ops->get_flow_control(self->aq_hw, &fc);
+	self->aq_nic_cfg.fc.cur = fc;
+
 	if (self->link_status.mbps != self->aq_hw->aq_link_status.mbps) {
 		netdev_info(self->ndev, "%s: link change old %d new %d\n",
 			    AQ_CFG_DRV_NAME, self->link_status.mbps,
@@ -161,8 +165,6 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 		 * on any link event.
 		 * We should query FW whether it negotiated FC.
 		 */
-		if (self->aq_fw_ops->get_flow_control)
-			self->aq_fw_ops->get_flow_control(self->aq_hw, &fc);
 		if (self->aq_hw_ops->hw_set_fc)
 			self->aq_hw_ops->hw_set_fc(self->aq_hw, fc, 0);
 	}
@@ -862,9 +864,12 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     100baseT_Full);
 
-	if (self->aq_nic_cfg.aq_hw_caps->flow_control)
+	if (self->aq_nic_cfg.aq_hw_caps->flow_control) {
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     Pause);
+		ethtool_link_ksettings_add_link_mode(cmd, supported,
+						     Asym_Pause);
+	}
 
 	ethtool_link_ksettings_add_link_mode(cmd, supported, Autoneg);
 
@@ -898,13 +903,13 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     100baseT_Full);
 
-	if (self->aq_nic_cfg.flow_control & AQ_NIC_FC_RX)
+	if (self->aq_nic_cfg.fc.cur & AQ_NIC_FC_RX)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Pause);
 
 	/* Asym is when either RX or TX, but not both */
-	if (!!(self->aq_nic_cfg.flow_control & AQ_NIC_FC_TX) ^
-	    !!(self->aq_nic_cfg.flow_control & AQ_NIC_FC_RX))
+	if (!!(self->aq_nic_cfg.fc.cur & AQ_NIC_FC_TX) ^
+	    !!(self->aq_nic_cfg.fc.cur & AQ_NIC_FC_RX))
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Asym_Pause);
 

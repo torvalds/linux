@@ -181,17 +181,26 @@ static int aq_fw2x_set_link_speed(struct aq_hw_s *self, u32 speed)
 	return 0;
 }
 
-static void aq_fw2x_set_mpi_flow_control(struct aq_hw_s *self, u32 *mpi_state)
+static void aq_fw2x_upd_flow_control_bits(struct aq_hw_s *self,
+					  u32 *mpi_state, u32 fc)
 {
-	if (self->aq_nic_cfg->flow_control & AQ_NIC_FC_RX)
-		*mpi_state |= BIT(CAPS_HI_PAUSE);
-	else
-		*mpi_state &= ~BIT(CAPS_HI_PAUSE);
+	*mpi_state &= ~(HW_ATL_FW2X_CTRL_PAUSE |
+			HW_ATL_FW2X_CTRL_ASYMMETRIC_PAUSE);
 
-	if (self->aq_nic_cfg->flow_control & AQ_NIC_FC_TX)
-		*mpi_state |= BIT(CAPS_HI_ASYMMETRIC_PAUSE);
-	else
-		*mpi_state &= ~BIT(CAPS_HI_ASYMMETRIC_PAUSE);
+	switch (fc) {
+	/* There is not explicit mode of RX only pause frames,
+	 * thus, we join this mode with FC full.
+	 * FC full is either Rx, either Tx, or both.
+	 */
+	case AQ_NIC_FC_FULL:
+	case AQ_NIC_FC_RX:
+		*mpi_state |= HW_ATL_FW2X_CTRL_PAUSE |
+			      HW_ATL_FW2X_CTRL_ASYMMETRIC_PAUSE;
+		break;
+	case AQ_NIC_FC_TX:
+		*mpi_state |= HW_ATL_FW2X_CTRL_ASYMMETRIC_PAUSE;
+		break;
+	}
 }
 
 static void aq_fw2x_upd_eee_rate_bits(struct aq_hw_s *self, u32 *mpi_opts,
@@ -215,7 +224,8 @@ static int aq_fw2x_set_state(struct aq_hw_s *self,
 	case MPI_INIT:
 		mpi_state &= ~BIT(CAPS_HI_LINK_DROP);
 		aq_fw2x_upd_eee_rate_bits(self, &mpi_state, cfg->eee_speeds);
-		aq_fw2x_set_mpi_flow_control(self, &mpi_state);
+		aq_fw2x_upd_flow_control_bits(self, &mpi_state,
+					      self->aq_nic_cfg->fc.req);
 		break;
 	case MPI_DEINIT:
 		mpi_state |= BIT(CAPS_HI_LINK_DROP);
@@ -525,7 +535,8 @@ static int aq_fw2x_set_flow_control(struct aq_hw_s *self)
 {
 	u32 mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
 
-	aq_fw2x_set_mpi_flow_control(self, &mpi_state);
+	aq_fw2x_upd_flow_control_bits(self, &mpi_state,
+				      self->aq_nic_cfg->fc.req);
 
 	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_state);
 
@@ -535,17 +546,13 @@ static int aq_fw2x_set_flow_control(struct aq_hw_s *self)
 static u32 aq_fw2x_get_flow_control(struct aq_hw_s *self, u32 *fcmode)
 {
 	u32 mpi_state = aq_fw2x_state2_get(self);
+	*fcmode = 0;
 
 	if (mpi_state & HW_ATL_FW2X_CAP_PAUSE)
-		if (mpi_state & HW_ATL_FW2X_CAP_ASYM_PAUSE)
-			*fcmode = AQ_NIC_FC_RX;
-		else
-			*fcmode = AQ_NIC_FC_RX | AQ_NIC_FC_TX;
-	else
-		if (mpi_state & HW_ATL_FW2X_CAP_ASYM_PAUSE)
-			*fcmode = AQ_NIC_FC_TX;
-		else
-			*fcmode = 0;
+		*fcmode |= AQ_NIC_FC_RX;
+
+	if (mpi_state & HW_ATL_FW2X_CAP_ASYM_PAUSE)
+		*fcmode |= AQ_NIC_FC_TX;
 
 	return 0;
 }
