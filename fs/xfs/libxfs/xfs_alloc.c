@@ -1464,6 +1464,64 @@ xfs_alloc_ag_vextent_locality(
 	return 0;
 }
 
+/* Check the last block of the cnt btree for allocations. */
+static int
+xfs_alloc_ag_vextent_lastblock(
+	struct xfs_alloc_arg	*args,
+	struct xfs_alloc_cur	*acur,
+	xfs_agblock_t		*bno,
+	xfs_extlen_t		*len,
+	bool			*allocated)
+{
+	int			error;
+	int			i;
+
+#ifdef DEBUG
+	/* Randomly don't execute the first algorithm. */
+	if (prandom_u32() & 1)
+		return 0;
+#endif
+
+	/*
+	 * Start from the entry that lookup found, sequence through all larger
+	 * free blocks.  If we're actually pointing at a record smaller than
+	 * maxlen, go to the start of this block, and skip all those smaller
+	 * than minlen.
+	 */
+	if (len || args->alignment > 1) {
+		acur->cnt->bc_ptrs[0] = 1;
+		do {
+			error = xfs_alloc_get_rec(acur->cnt, bno, len, &i);
+			if (error)
+				return error;
+			XFS_WANT_CORRUPTED_RETURN(args->mp, i == 1);
+			if (*len >= args->minlen)
+				break;
+			error = xfs_btree_increment(acur->cnt, 0, &i);
+			if (error)
+				return error;
+		} while (i);
+		ASSERT(*len >= args->minlen);
+		if (!i)
+			return 0;
+	}
+
+	error = xfs_alloc_walk_iter(args, acur, acur->cnt, true, false, -1, &i);
+	if (error)
+		return error;
+
+	/*
+	 * It didn't work.  We COULD be in a case where there's a good record
+	 * somewhere, so try again.
+	 */
+	if (acur->len == 0)
+		return 0;
+
+	trace_xfs_alloc_near_first(args);
+	*allocated = true;
+	return 0;
+}
+
 /*
  * Allocate a variable extent near bno in the allocation group agno.
  * Extent's length (returned in len) will be between minlen and maxlen,
@@ -1479,14 +1537,6 @@ xfs_alloc_ag_vextent_near(
 	int			i;		/* result code, temporary */
 	xfs_agblock_t		bno;
 	xfs_extlen_t		len;
-#ifdef DEBUG
-	/*
-	 * Randomly don't execute the first algorithm.
-	 */
-	int		dofirst;	/* set to do first algorithm */
-
-	dofirst = prandom_u32() & 1;
-#endif
 
 	/* handle uninitialized agbno range so caller doesn't have to */
 	if (!args->min_agbno && !args->max_agbno)
@@ -1529,53 +1579,16 @@ restart:
 	 * near the right edge of the tree.  If it's in the last btree leaf
 	 * block, then we just examine all the entries in that block
 	 * that are big enough, and pick the best one.
-	 * This is written as a while loop so we can break out of it,
-	 * but we never loop back to the top.
 	 */
-	while (xfs_btree_islastblock(acur.cnt, 0)) {
-#ifdef DEBUG
-		if (dofirst)
-			break;
-#endif
-		/*
-		 * Start from the entry that lookup found, sequence through
-		 * all larger free blocks.  If we're actually pointing at a
-		 * record smaller than maxlen, go to the start of this block,
-		 * and skip all those smaller than minlen.
-		 */
-		if (len || args->alignment > 1) {
-			acur.cnt->bc_ptrs[0] = 1;
-			do {
-				error = xfs_alloc_get_rec(acur.cnt, &bno, &len,
-						&i);
-				if (error)
-					goto out;
-				XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, out);
-				if (len >= args->minlen)
-					break;
-				error = xfs_btree_increment(acur.cnt, 0, &i);
-				if (error)
-					goto out;
-			} while (i);
-			ASSERT(len >= args->minlen);
-			if (!i)
-				break;
-		}
+	if (xfs_btree_islastblock(acur.cnt, 0)) {
+		bool		allocated = false;
 
-		error = xfs_alloc_walk_iter(args, &acur, acur.cnt, true, false,
-					    -1, &i);
+		error = xfs_alloc_ag_vextent_lastblock(args, &acur, &bno, &len,
+				&allocated);
 		if (error)
 			goto out;
-
-		/*
-		 * It didn't work.  We COULD be in a case where
-		 * there's a good record somewhere, so try again.
-		 */
-		if (acur.len == 0)
-			break;
-
-		trace_xfs_alloc_near_first(args);
-		goto alloc;
+		if (allocated)
+			goto alloc_finish;
 	}
 
 	/*
@@ -1601,7 +1614,7 @@ restart:
 		goto out;
 	}
 
-alloc:
+alloc_finish:
 	/* fix up btrees on a successful allocation */
 	error = xfs_alloc_cur_finish(args, &acur);
 
