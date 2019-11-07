@@ -6,26 +6,43 @@
 #include <linux/dma-buf.h>
 #include <linux/vmalloc.h>
 
+#include <drm/drm_drv.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_prime.h>
 
 #include "udl_drv.h"
 
-struct udl_gem_object *udl_gem_alloc_object(struct drm_device *dev,
-					    size_t size)
+/*
+ * Helpers for struct drm_driver
+ */
+
+struct drm_gem_object *udl_driver_gem_create_object(struct drm_device *dev,
+						    size_t size)
 {
 	struct udl_gem_object *obj;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	if (!obj)
+		return NULL;
+
+	return &obj->base;
+}
+
+struct udl_gem_object *udl_gem_alloc_object(struct drm_device *dev,
+					    size_t size)
+{
+	struct drm_gem_object *obj;
+
+	obj = dev->driver->gem_create_object(dev, size);
 	if (obj == NULL)
 		return NULL;
 
-	if (drm_gem_object_init(dev, &obj->base, size) != 0) {
+	if (drm_gem_object_init(dev, obj, size) != 0) {
 		kfree(obj);
 		return NULL;
 	}
 
-	return obj;
+	return to_udl_bo(obj);
 }
 
 static int
