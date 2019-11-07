@@ -291,8 +291,7 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 		.frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM,
 		.flags = opt_umem_flags
 	};
-	int ret, i;
-	u32 idx;
+	int ret;
 
 	umem = calloc(1, sizeof(*umem));
 	if (!umem)
@@ -300,9 +299,17 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 
 	ret = xsk_umem__create(&umem->umem, buffer, size, &umem->fq, &umem->cq,
 			       &cfg);
-
 	if (ret)
 		exit_with_error(-ret);
+
+	umem->buffer = buffer;
+	return umem;
+}
+
+static void xsk_populate_fill_ring(struct xsk_umem_info *umem)
+{
+	int ret, i;
+	u32 idx;
 
 	ret = xsk_ring_prod__reserve(&umem->fq,
 				     XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
@@ -312,15 +319,15 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 		*xsk_ring_prod__fill_addr(&umem->fq, idx++) =
 			i * opt_xsk_frame_size;
 	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
-
-	umem->buffer = buffer;
-	return umem;
 }
 
-static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem)
+static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
+						    bool rx, bool tx)
 {
 	struct xsk_socket_config cfg;
 	struct xsk_socket_info *xsk;
+	struct xsk_ring_cons *rxr;
+	struct xsk_ring_prod *txr;
 	int ret;
 
 	xsk = calloc(1, sizeof(*xsk));
@@ -337,8 +344,10 @@ static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem)
 	cfg.xdp_flags = opt_xdp_flags;
 	cfg.bind_flags = opt_xdp_bind_flags;
 
-	ret = xsk_socket__create(&xsk->xsk, opt_if, opt_queue,
-				 umem->umem, &xsk->rx, &xsk->tx, &cfg);
+	rxr = rx ? &xsk->rx : NULL;
+	txr = tx ? &xsk->tx : NULL;
+	ret = xsk_socket__create(&xsk->xsk, opt_if, opt_queue, umem->umem,
+				 rxr, txr, &cfg);
 	if (ret)
 		exit_with_error(-ret);
 
@@ -783,6 +792,7 @@ static void enter_xsks_into_map(struct bpf_object *obj)
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	bool rx = false, tx = false;
 	struct xsk_umem_info *umem;
 	struct bpf_object *obj;
 	pthread_t pt;
@@ -811,11 +821,18 @@ int main(int argc, char **argv)
 
 	/* Create sockets... */
 	umem = xsk_configure_umem(bufs, NUM_FRAMES * opt_xsk_frame_size);
+	if (opt_bench == BENCH_RXDROP || opt_bench == BENCH_L2FWD) {
+		rx = true;
+		xsk_populate_fill_ring(umem);
+	}
+	if (opt_bench == BENCH_L2FWD || opt_bench == BENCH_TXONLY)
+		tx = true;
 	for (i = 0; i < opt_num_xsks; i++)
-		xsks[num_socks++] = xsk_configure_socket(umem);
+		xsks[num_socks++] = xsk_configure_socket(umem, rx, tx);
 
-	for (i = 0; i < NUM_FRAMES; i++)
-		gen_eth_frame(umem, i * opt_xsk_frame_size);
+	if (opt_bench == BENCH_TXONLY)
+		for (i = 0; i < NUM_FRAMES; i++)
+			gen_eth_frame(umem, i * opt_xsk_frame_size);
 
 	if (opt_num_xsks > 1 && opt_bench != BENCH_TXONLY)
 		enter_xsks_into_map(obj);
