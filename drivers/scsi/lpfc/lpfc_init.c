@@ -11580,9 +11580,7 @@ lpfc_sli4_enable_intr(struct lpfc_hba *phba, uint32_t cfg_mode)
 		retval = 0;
 		if (!retval) {
 			/* Now, try to enable MSI-X interrupt mode */
-			get_online_cpus();
 			retval = lpfc_sli4_enable_msix(phba);
-			put_online_cpus();
 			if (!retval) {
 				/* Indicate initialization to MSI-X mode */
 				phba->intr_type = MSIX;
