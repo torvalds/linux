@@ -446,28 +446,11 @@ static void mos7840_led_activity(struct usb_serial_port *port)
 				jiffies + msecs_to_jiffies(LED_ON_MS));
 }
 
-/* Inline functions to check the sanity of a pointer that is passed to us */
-static int mos7840_serial_paranoia_check(struct usb_serial *serial,
-					 const char *function)
-{
-	if (!serial) {
-		pr_debug("%s - serial == NULL\n", function);
-		return -1;
-	}
-	if (!serial->type) {
-		pr_debug("%s - serial->type == NULL!\n", function);
-		return -1;
-	}
-
-	return 0;
-}
-
 static struct usb_serial *mos7840_get_usb_serial(struct usb_serial_port *port,
 						 const char *function)
 {
-	/* if no port was specified, or it fails a paranoia check */
-	if (!port ||
-	    mos7840_serial_paranoia_check(port->serial, function)) {
+	/* if no port was specified */
+	if (!port) {
 		/* then say that we don't have a valid usb_serial thing,
 		 * which will end up genrating -ENODEV return values */
 		return NULL;
@@ -585,9 +568,6 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 	__u16 Data;
 	int status;
 	struct moschip_port *mos7840_port;
-
-	if (mos7840_serial_paranoia_check(serial, __func__))
-		return -ENODEV;
 
 	mos7840_port = mos7840_get_port_private(port);
 	if (mos7840_port == NULL)
@@ -966,9 +946,6 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* __u16 Data; */
 	const unsigned char *current_position = data;
 
-	if (mos7840_serial_paranoia_check(serial, __func__))
-		return -1;
-
 	mos7840_port = mos7840_get_port_private(port);
 	if (mos7840_port == NULL)
 		return -1;
@@ -1248,9 +1225,6 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
 	__u16 Data;
 	__u16 clk_sel_val;
 
-	if (mos7840_serial_paranoia_check(port->serial, __func__))
-		return -1;
-
 	dev_dbg(&port->dev, "%s - baud = %d\n", __func__, baudRate);
 	/* reset clk_uart_sel in spregOffset */
 	if (baudRate > 115200) {
@@ -1346,9 +1320,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	__u8 lStop;
 	int status;
 	__u16 Data;
-
-	if (mos7840_serial_paranoia_check(port->serial, __func__))
-		return;
 
 	if (!mos7840_port->open) {
 		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
@@ -1488,13 +1459,8 @@ static void mos7840_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
 				struct ktermios *old_termios)
 {
-	struct usb_serial *serial = port->serial;
 	int status;
 	struct moschip_port *mos7840_port;
-
-
-	if (mos7840_serial_paranoia_check(serial, __func__))
-		return;
 
 	mos7840_port = mos7840_get_port_private(port);
 
