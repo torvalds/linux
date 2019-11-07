@@ -99,6 +99,13 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 	REG_SET_2(DMCUB_REGION4_TOP_ADDRESS, 0, DMCUB_REGION4_TOP_ADDRESS,
 		  cw4->region.top - cw4->region.base - 1, DMCUB_REGION4_ENABLE,
 		  1);
+
+	REG_WRITE(DMCUB_REGION3_CW5_OFFSET, cw5->offset.u.low_part);
+	REG_WRITE(DMCUB_REGION3_CW5_OFFSET_HIGH, cw5->offset.u.high_part);
+	REG_WRITE(DMCUB_REGION3_CW5_BASE_ADDRESS, cw5->region.base);
+	REG_SET_2(DMCUB_REGION3_CW5_TOP_ADDRESS, 0,
+		  DMCUB_REGION3_CW5_TOP_ADDRESS, cw5->region.top,
+		  DMCUB_REGION3_CW5_ENABLE, 1);
 }
 
 void dmub_dcn20_setup_mailbox(struct dmub_srv *dmub,
