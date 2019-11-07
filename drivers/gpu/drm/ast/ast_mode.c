@@ -82,13 +82,12 @@ static void ast_crtc_load_lut(struct drm_crtc *crtc)
 		ast_load_palette_index(ast, i, *r++ >> 8, *g++ >> 8, *b++ >> 8);
 }
 
-static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mode *mode,
+static bool ast_get_vbios_mode_info(const struct drm_framebuffer *fb,
+				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode,
 				    struct ast_vbios_mode_info *vbios_mode)
 {
-	struct ast_private *ast = crtc->dev->dev_private;
-	const struct drm_framebuffer *fb = crtc->primary->fb;
-	u32 refresh_rate_index = 0, mode_id, color_index, refresh_rate;
+	u32 refresh_rate_index = 0, refresh_rate;
 	const struct ast_vbios_enhtable *best = NULL;
 	u32 hborder, vborder;
 	bool check_sync;
@@ -96,22 +95,19 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 	switch (fb->format->cpp[0] * 8) {
 	case 8:
 		vbios_mode->std_table = &vbios_stdtable[VGAModeIndex];
-		color_index = VGAModeIndex - 1;
 		break;
 	case 16:
 		vbios_mode->std_table = &vbios_stdtable[HiCModeIndex];
-		color_index = HiCModeIndex;
 		break;
 	case 24:
 	case 32:
 		vbios_mode->std_table = &vbios_stdtable[TrueCModeIndex];
-		color_index = TrueCModeIndex;
 		break;
 	default:
 		return false;
 	}
 
-	switch (crtc->mode.crtc_hdisplay) {
+	switch (mode->crtc_hdisplay) {
 	case 640:
 		vbios_mode->enh_table = &res_640x480[refresh_rate_index];
 		break;
@@ -122,7 +118,7 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		vbios_mode->enh_table = &res_1024x768[refresh_rate_index];
 		break;
 	case 1280:
-		if (crtc->mode.crtc_vdisplay == 800)
+		if (mode->crtc_vdisplay == 800)
 			vbios_mode->enh_table = &res_1280x800[refresh_rate_index];
 		else
 			vbios_mode->enh_table = &res_1280x1024[refresh_rate_index];
@@ -134,7 +130,7 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		vbios_mode->enh_table = &res_1440x900[refresh_rate_index];
 		break;
 	case 1600:
-		if (crtc->mode.crtc_vdisplay == 900)
+		if (mode->crtc_vdisplay == 900)
 			vbios_mode->enh_table = &res_1600x900[refresh_rate_index];
 		else
 			vbios_mode->enh_table = &res_1600x1200[refresh_rate_index];
@@ -143,7 +139,7 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		vbios_mode->enh_table = &res_1680x1050[refresh_rate_index];
 		break;
 	case 1920:
-		if (crtc->mode.crtc_vdisplay == 1080)
+		if (mode->crtc_vdisplay == 1080)
 			vbios_mode->enh_table = &res_1920x1080[refresh_rate_index];
 		else
 			vbios_mode->enh_table = &res_1920x1200[refresh_rate_index];
@@ -154,7 +150,8 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 
 	refresh_rate = drm_mode_vrefresh(mode);
 	check_sync = vbios_mode->enh_table->flags & WideScreenMode;
-	do {
+
+	while (1) {
 		const struct ast_vbios_enhtable *loop = vbios_mode->enh_table;
 
 		while (loop->refresh_rate != 0xff) {
@@ -178,7 +175,8 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		if (best || !check_sync)
 			break;
 		check_sync = 0;
-	} while (1);
+	}
+
 	if (best)
 		vbios_mode->enh_table = best;
 
@@ -203,34 +201,65 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 					 vbios_mode->enh_table->vfp +
 					 vbios_mode->enh_table->vsync);
 
+	return true;
+}
+
+static void ast_set_vbios_color_reg(struct drm_crtc *crtc,
+				    const struct drm_framebuffer *fb,
+				    const struct ast_vbios_mode_info *vbios_mode)
+{
+	struct ast_private *ast = crtc->dev->dev_private;
+	u32 color_index;
+
+	switch (fb->format->cpp[0]) {
+	case 1:
+		color_index = VGAModeIndex - 1;
+		break;
+	case 2:
+		color_index = HiCModeIndex;
+		break;
+	case 3:
+	case 4:
+		color_index = TrueCModeIndex;
+	default:
+		return;
+	}
+
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8c, (u8)((color_index & 0x0f) << 4));
+
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0x00);
+
+	if (vbios_mode->enh_table->flags & NewModeInfo) {
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0xa8);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x92, fb->format->cpp[0] * 8);
+	}
+}
+
+static void ast_set_vbios_mode_reg(struct drm_crtc *crtc,
+				   const struct drm_display_mode *adjusted_mode,
+				   const struct ast_vbios_mode_info *vbios_mode)
+{
+	struct ast_private *ast = crtc->dev->dev_private;
+	u32 refresh_rate_index, mode_id;
+
 	refresh_rate_index = vbios_mode->enh_table->refresh_rate_index;
 	mode_id = vbios_mode->enh_table->mode_id;
 
-	if (ast->chip == AST1180) {
-		/* TODO 1180 */
-	} else {
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8c, (u8)((color_index & 0xf) << 4));
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8d, refresh_rate_index & 0xff);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8e, mode_id & 0xff);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8d, refresh_rate_index & 0xff);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8e, mode_id & 0xff);
 
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0x00);
-		if (vbios_mode->enh_table->flags & NewModeInfo) {
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0xa8);
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x92,
-					  fb->format->cpp[0] * 8);
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x93, adjusted_mode->clock / 1000);
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x94, adjusted_mode->crtc_hdisplay);
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x95, adjusted_mode->crtc_hdisplay >> 8);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0x00);
 
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x96, adjusted_mode->crtc_vdisplay);
-			ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x97, adjusted_mode->crtc_vdisplay >> 8);
-		}
+	if (vbios_mode->enh_table->flags & NewModeInfo) {
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0xa8);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x93, adjusted_mode->clock / 1000);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x94, adjusted_mode->crtc_hdisplay);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x95, adjusted_mode->crtc_hdisplay >> 8);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x96, adjusted_mode->crtc_vdisplay);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x97, adjusted_mode->crtc_vdisplay >> 8);
 	}
-
-	return true;
-
-
 }
+
 static void ast_set_std_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			    struct ast_vbios_mode_info *vbios_mode)
 {
@@ -581,20 +610,24 @@ static int ast_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = crtc->dev->dev_private;
+	const struct drm_framebuffer *fb = crtc->primary->fb;
 	struct ast_vbios_mode_info vbios_mode;
-	bool ret;
+	bool succ;
+
 	if (ast->chip == AST1180) {
 		DRM_ERROR("AST 1180 modesetting not supported\n");
 		return -EINVAL;
 	}
 
-	ret = ast_get_vbios_mode_info(crtc, mode, adjusted_mode, &vbios_mode);
-	if (ret == false)
+	succ = ast_get_vbios_mode_info(fb, mode, adjusted_mode, &vbios_mode);
+	if (!succ)
 		return -EINVAL;
+
 	ast_open_key(ast);
 
+	ast_set_vbios_color_reg(crtc, fb, &vbios_mode);
+	ast_set_vbios_mode_reg(crtc, adjusted_mode, &vbios_mode);
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
-
 	ast_set_std_reg(crtc, adjusted_mode, &vbios_mode);
 	ast_set_crtc_reg(crtc, adjusted_mode, &vbios_mode);
 	ast_set_offset_reg(crtc);
