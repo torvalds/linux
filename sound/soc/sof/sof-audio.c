@@ -360,3 +360,81 @@ struct snd_sof_dai *snd_sof_find_dai(struct snd_soc_component *scomp,
 	return NULL;
 }
 
+/*
+ * SOF Driver enumeration.
+ */
+int sof_machine_check(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *sof_pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = sof_pdata->desc;
+	struct snd_soc_acpi_mach *mach;
+	int ret;
+
+	/* force nocodec mode */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
+		dev_warn(sdev->dev, "Force to use nocodec mode\n");
+		goto nocodec;
+#endif
+
+	/* find machine */
+	snd_sof_machine_select(sdev);
+	if (sof_pdata->machine) {
+		snd_sof_set_mach_params(sof_pdata->machine, sdev->dev);
+		return 0;
+	}
+
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
+	dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
+	return -ENODEV;
+#endif
+nocodec:
+	/* select nocodec mode */
+	dev_warn(sdev->dev, "Using nocodec machine driver\n");
+	mach = devm_kzalloc(sdev->dev, sizeof(*mach), GFP_KERNEL);
+	if (!mach)
+		return -ENOMEM;
+
+	ret = sof_nocodec_setup(sdev->dev, sof_pdata, mach, desc, desc->ops);
+	if (ret < 0)
+		return ret;
+
+	sof_pdata->machine = mach;
+	snd_sof_set_mach_params(sof_pdata->machine, sdev->dev);
+
+	return 0;
+}
+EXPORT_SYMBOL(sof_machine_check);
+
+int sof_machine_register(struct snd_sof_dev *sdev, void *pdata)
+{
+	struct snd_sof_pdata *plat_data = (struct snd_sof_pdata *)pdata;
+	const char *drv_name;
+	const void *mach;
+	int size;
+
+	drv_name = plat_data->machine->drv_name;
+	mach = (const void *)plat_data->machine;
+	size = sizeof(*plat_data->machine);
+
+	/* register machine driver, pass machine info as pdata */
+	plat_data->pdev_mach =
+		platform_device_register_data(sdev->dev, drv_name,
+					      PLATFORM_DEVID_NONE, mach, size);
+	if (IS_ERR(plat_data->pdev_mach))
+		return PTR_ERR(plat_data->pdev_mach);
+
+	dev_dbg(sdev->dev, "created machine %s\n",
+		dev_name(&plat_data->pdev_mach->dev));
+
+	return 0;
+}
+EXPORT_SYMBOL(sof_machine_register);
+
+void sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata)
+{
+	struct snd_sof_pdata *plat_data = (struct snd_sof_pdata *)pdata;
+
+	if (!IS_ERR_OR_NULL(plat_data->pdev_mach))
+		platform_device_unregister(plat_data->pdev_mach);
+}
+EXPORT_SYMBOL(sof_machine_unregister);

@@ -202,6 +202,15 @@ struct snd_sof_dsp_ops {
 	int (*get_window_offset)(struct snd_sof_dev *sdev,
 				 u32 id);/* mandatory for common loader code */
 
+	/* machine driver ops */
+	int (*machine_register)(struct snd_sof_dev *sdev,
+				void *pdata); /* optional */
+	void (*machine_unregister)(struct snd_sof_dev *sdev,
+				   void *pdata); /* optional */
+	void (*machine_select)(struct snd_sof_dev *sdev); /* optional */
+	void (*set_mach_params)(const struct snd_soc_acpi_mach *mach,
+				struct device *dev); /* optional */
+
 	/* DAI ops */
 	struct snd_soc_dai_driver *drv;
 	int num_drv;
@@ -510,5 +519,7 @@ int intel_pcm_open(struct snd_sof_dev *sdev,
 		   struct snd_pcm_substream *substream);
 int intel_pcm_close(struct snd_sof_dev *sdev,
 		    struct snd_pcm_substream *substream);
+
+int sof_machine_check(struct snd_sof_dev *sdev);
 
 #endif
