@@ -3,6 +3,7 @@
 
 #include "cxgb4.h"
 #include "cxgb4_tc_mqprio.h"
+#include "sched.h"
 
 static int cxgb4_mqprio_validate(struct net_device *dev,
 				 struct tc_mqprio_qopt_offload *mqprio)
@@ -103,6 +104,7 @@ static void cxgb4_clean_eosw_txq(struct net_device *dev,
 	eosw_txq->last_pidx = 0;
 	eosw_txq->cidx = 0;
 	eosw_txq->last_cidx = 0;
+	eosw_txq->flowc_idx = 0;
 	eosw_txq->inuse = 0;
 	eosw_txq->cred = adap->params.ofldq_wr_cred;
 	eosw_txq->ncompl = 0;
@@ -281,6 +283,109 @@ void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
 	}
 }
 
+static int cxgb4_mqprio_alloc_tc(struct net_device *dev,
+				 struct tc_mqprio_qopt_offload *mqprio)
+{
+	struct ch_sched_params p = {
+		.type = SCHED_CLASS_TYPE_PACKET,
+		.u.params.level = SCHED_CLASS_LEVEL_CL_RL,
+		.u.params.mode = SCHED_CLASS_MODE_FLOW,
+		.u.params.rateunit = SCHED_CLASS_RATEUNIT_BITS,
+		.u.params.ratemode = SCHED_CLASS_RATEMODE_ABS,
+		.u.params.class = SCHED_CLS_NONE,
+		.u.params.weight = 0,
+		.u.params.pktsize = dev->mtu,
+	};
+	struct cxgb4_tc_port_mqprio *tc_port_mqprio;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct sched_class *e;
+	int ret;
+	u8 i;
+
+	tc_port_mqprio = &adap->tc_mqprio->port_mqprio[pi->port_id];
+	p.u.params.channel = pi->tx_chan;
+	for (i = 0; i < mqprio->qopt.num_tc; i++) {
+		/* Convert from bytes per second to Kbps */
+		p.u.params.minrate = mqprio->min_rate[i] * 8 / 1000;
+		p.u.params.maxrate = mqprio->max_rate[i] * 8 / 1000;
+
+		e = cxgb4_sched_class_alloc(dev, &p);
+		if (!e) {
+			ret = -ENOMEM;
+			goto out_err;
+		}
+
+		tc_port_mqprio->tc_hwtc_map[i] = e->idx;
+	}
+
+	return 0;
+
+out_err:
+	while (i--)
+		cxgb4_sched_class_free(dev, tc_port_mqprio->tc_hwtc_map[i]);
+
+	return ret;
+}
+
+static void cxgb4_mqprio_free_tc(struct net_device *dev)
+{
+	struct cxgb4_tc_port_mqprio *tc_port_mqprio;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	u8 i;
+
+	tc_port_mqprio = &adap->tc_mqprio->port_mqprio[pi->port_id];
+	for (i = 0; i < tc_port_mqprio->mqprio.qopt.num_tc; i++)
+		cxgb4_sched_class_free(dev, tc_port_mqprio->tc_hwtc_map[i]);
+}
+
+static int cxgb4_mqprio_class_bind(struct net_device *dev,
+				   struct sge_eosw_txq *eosw_txq,
+				   u8 tc)
+{
+	struct ch_sched_flowc fe;
+	int ret;
+
+	init_completion(&eosw_txq->completion);
+
+	fe.tid = eosw_txq->eotid;
+	fe.class = tc;
+
+	ret = cxgb4_sched_class_bind(dev, &fe, SCHED_FLOWC);
+	if (ret)
+		return ret;
+
+	ret = wait_for_completion_timeout(&eosw_txq->completion,
+					  CXGB4_FLOWC_WAIT_TIMEOUT);
+	if (!ret)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static void cxgb4_mqprio_class_unbind(struct net_device *dev,
+				      struct sge_eosw_txq *eosw_txq,
+				      u8 tc)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct ch_sched_flowc fe;
+
+	/* If we're shutting down, interrupts are disabled and no completions
+	 * come back. So, skip waiting for completions in this scenario.
+	 */
+	if (!(adap->flags & CXGB4_SHUTTING_DOWN))
+		init_completion(&eosw_txq->completion);
+
+	fe.tid = eosw_txq->eotid;
+	fe.class = tc;
+	cxgb4_sched_class_unbind(dev, &fe, SCHED_FLOWC);
+
+	if (!(adap->flags & CXGB4_SHUTTING_DOWN))
+		wait_for_completion_timeout(&eosw_txq->completion,
+					    CXGB4_FLOWC_WAIT_TIMEOUT);
+}
+
 static int cxgb4_mqprio_enable_offload(struct net_device *dev,
 				       struct tc_mqprio_qopt_offload *mqprio)
 {
@@ -291,6 +396,7 @@ static int cxgb4_mqprio_enable_offload(struct net_device *dev,
 	struct sge_eosw_txq *eosw_txq;
 	int eotid, ret;
 	u16 i, j;
+	u8 hwtc;
 
 	ret = cxgb4_mqprio_alloc_hw_resources(dev);
 	if (ret)
@@ -316,6 +422,11 @@ static int cxgb4_mqprio_enable_offload(struct net_device *dev,
 				goto out_free_eotids;
 
 			cxgb4_alloc_eotid(&adap->tids, eotid, eosw_txq);
+
+			hwtc = tc_port_mqprio->tc_hwtc_map[i];
+			ret = cxgb4_mqprio_class_bind(dev, eosw_txq, hwtc);
+			if (ret)
+				goto out_free_eotids;
 		}
 	}
 
@@ -366,6 +477,10 @@ out_free_eotids:
 		qcount = mqprio->qopt.count[i];
 		for (j = 0; j < qcount; j++) {
 			eosw_txq = &tc_port_mqprio->eosw_txq[qoffset + j];
+
+			hwtc = tc_port_mqprio->tc_hwtc_map[i];
+			cxgb4_mqprio_class_unbind(dev, eosw_txq, hwtc);
+
 			cxgb4_free_eotid(&adap->tids, eosw_txq->eotid);
 			cxgb4_free_eosw_txq(dev, eosw_txq);
 		}
@@ -383,6 +498,7 @@ static void cxgb4_mqprio_disable_offload(struct net_device *dev)
 	struct sge_eosw_txq *eosw_txq;
 	u32 qoffset, qcount;
 	u16 i, j;
+	u8 hwtc;
 
 	tc_port_mqprio = &adap->tc_mqprio->port_mqprio[pi->port_id];
 	if (tc_port_mqprio->state != CXGB4_MQPRIO_STATE_ACTIVE)
@@ -396,12 +512,19 @@ static void cxgb4_mqprio_disable_offload(struct net_device *dev)
 		qcount = tc_port_mqprio->mqprio.qopt.count[i];
 		for (j = 0; j < qcount; j++) {
 			eosw_txq = &tc_port_mqprio->eosw_txq[qoffset + j];
+
+			hwtc = tc_port_mqprio->tc_hwtc_map[i];
+			cxgb4_mqprio_class_unbind(dev, eosw_txq, hwtc);
+
 			cxgb4_free_eotid(&adap->tids, eosw_txq->eotid);
 			cxgb4_free_eosw_txq(dev, eosw_txq);
 		}
 	}
 
 	cxgb4_mqprio_free_hw_resources(dev);
+
+	/* Free up the traffic classes */
+	cxgb4_mqprio_free_tc(dev);
 
 	memset(&tc_port_mqprio->mqprio, 0,
 	       sizeof(struct tc_mqprio_qopt_offload));
@@ -437,7 +560,18 @@ int cxgb4_setup_tc_mqprio(struct net_device *dev,
 	if (!mqprio->qopt.num_tc)
 		goto out;
 
+	/* Allocate free available traffic classes and configure
+	 * their rate parameters.
+	 */
+	ret = cxgb4_mqprio_alloc_tc(dev, mqprio);
+	if (ret)
+		goto out;
+
 	ret = cxgb4_mqprio_enable_offload(dev, mqprio);
+	if (ret) {
+		cxgb4_mqprio_free_tc(dev);
+		goto out;
+	}
 
 out:
 	if (needs_bring_up)

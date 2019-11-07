@@ -56,6 +56,7 @@
 #include "cxgb4_ptp.h"
 #include "cxgb4_uld.h"
 #include "cxgb4_tc_mqprio.h"
+#include "sched.h"
 
 /*
  * Rx buffer size.  We use largish buffers if possible but settle for single
@@ -2160,10 +2161,12 @@ static void ethofld_hard_xmit(struct net_device *dev,
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
 	u32 wrlen, wrlen16, hdr_len, data_len;
+	enum sge_eosw_state next_state;
 	u64 cntrl, *start, *end, *sgl;
 	struct sge_eohw_txq *eohw_txq;
 	struct cpl_tx_pkt_core *cpl;
 	struct fw_eth_tx_eo_wr *wr;
+	bool skip_eotx_wr = false;
 	struct sge_eosw_desc *d;
 	struct sk_buff *skb;
 	u8 flits, ndesc;
@@ -2178,9 +2181,21 @@ static void ethofld_hard_xmit(struct net_device *dev,
 	skb_tx_timestamp(skb);
 
 	wr = (struct fw_eth_tx_eo_wr *)&eohw_txq->q.desc[eohw_txq->q.pidx];
-	hdr_len = eth_get_headlen(dev, skb->data, skb_headlen(skb));
-	data_len = skb->len - hdr_len;
-	flits = ethofld_calc_tx_flits(adap, skb, hdr_len);
+	if (unlikely(eosw_txq->state != CXGB4_EO_STATE_ACTIVE &&
+		     eosw_txq->last_pidx == eosw_txq->flowc_idx)) {
+		hdr_len = skb->len;
+		data_len = 0;
+		flits = DIV_ROUND_UP(hdr_len, 8);
+		if (eosw_txq->state == CXGB4_EO_STATE_FLOWC_OPEN_SEND)
+			next_state = CXGB4_EO_STATE_FLOWC_OPEN_REPLY;
+		else
+			next_state = CXGB4_EO_STATE_FLOWC_CLOSE_REPLY;
+		skip_eotx_wr = true;
+	} else {
+		hdr_len = eth_get_headlen(dev, skb->data, skb_headlen(skb));
+		data_len = skb->len - hdr_len;
+		flits = ethofld_calc_tx_flits(adap, skb, hdr_len);
+	}
 	ndesc = flits_to_desc(flits);
 	wrlen = flits * 8;
 	wrlen16 = DIV_ROUND_UP(wrlen, 16);
@@ -2190,6 +2205,12 @@ static void ethofld_hard_xmit(struct net_device *dev,
 	 */
 	if (unlikely(wrlen16 > eosw_txq->cred))
 		goto out_unlock;
+
+	if (unlikely(skip_eotx_wr)) {
+		start = (u64 *)wr;
+		eosw_txq->state = next_state;
+		goto write_wr_headers;
+	}
 
 	cpl = write_eo_wr(adap, eosw_txq, skb, wr, hdr_len, wrlen);
 	cntrl = hwcsum(adap->params.chip, skb);
@@ -2205,6 +2226,7 @@ static void ethofld_hard_xmit(struct net_device *dev,
 
 	start = (u64 *)(cpl + 1);
 
+write_wr_headers:
 	sgl = (u64 *)inline_tx_skb_header(skb, &eohw_txq->q, (void *)start,
 					  hdr_len);
 	if (data_len) {
@@ -2250,10 +2272,14 @@ static void ethofld_xmit(struct net_device *dev, struct sge_eosw_txq *eosw_txq)
 
 	switch (eosw_txq->state) {
 	case CXGB4_EO_STATE_ACTIVE:
+	case CXGB4_EO_STATE_FLOWC_OPEN_SEND:
+	case CXGB4_EO_STATE_FLOWC_CLOSE_SEND:
 		pktcount = eosw_txq->pidx - eosw_txq->last_pidx;
 		if (pktcount < 0)
 			pktcount += eosw_txq->ndesc;
 		break;
+	case CXGB4_EO_STATE_FLOWC_OPEN_REPLY:
+	case CXGB4_EO_STATE_FLOWC_CLOSE_REPLY:
 	case CXGB4_EO_STATE_CLOSED:
 	default:
 		return;
@@ -2326,6 +2352,101 @@ netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return cxgb4_ethofld_xmit(skb, dev);
 
 	return cxgb4_eth_xmit(skb, dev);
+}
+
+/**
+ * cxgb4_ethofld_send_flowc - Send ETHOFLD flowc request to bind eotid to tc.
+ * @dev - netdevice
+ * @eotid - ETHOFLD tid to bind/unbind
+ * @tc - traffic class. If set to FW_SCHED_CLS_NONE, then unbinds the @eotid
+ *
+ * Send a FLOWC work request to bind an ETHOFLD TID to a traffic class.
+ * If @tc is set to FW_SCHED_CLS_NONE, then the @eotid is unbound from
+ * a traffic class.
+ */
+int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	enum sge_eosw_state next_state;
+	struct sge_eosw_txq *eosw_txq;
+	u32 len, len16, nparams = 6;
+	struct fw_flowc_wr *flowc;
+	struct eotid_entry *entry;
+	struct sge_ofld_rxq *rxq;
+	struct sk_buff *skb;
+	int ret = 0;
+
+	len = sizeof(*flowc) + sizeof(struct fw_flowc_mnemval) * nparams;
+	len16 = DIV_ROUND_UP(len, 16);
+
+	entry = cxgb4_lookup_eotid(&adap->tids, eotid);
+	if (!entry)
+		return -ENOMEM;
+
+	eosw_txq = (struct sge_eosw_txq *)entry->data;
+	if (!eosw_txq)
+		return -ENOMEM;
+
+	skb = alloc_skb(len, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	spin_lock_bh(&eosw_txq->lock);
+	if (tc != FW_SCHED_CLS_NONE) {
+		if (eosw_txq->state != CXGB4_EO_STATE_CLOSED)
+			goto out_unlock;
+
+		next_state = CXGB4_EO_STATE_FLOWC_OPEN_SEND;
+	} else {
+		if (eosw_txq->state != CXGB4_EO_STATE_ACTIVE)
+			goto out_unlock;
+
+		next_state = CXGB4_EO_STATE_FLOWC_CLOSE_SEND;
+	}
+
+	flowc = __skb_put(skb, len);
+	memset(flowc, 0, len);
+
+	rxq = &adap->sge.eohw_rxq[eosw_txq->hwqid];
+	flowc->flowid_len16 = cpu_to_be32(FW_WR_LEN16_V(len16) |
+					  FW_WR_FLOWID_V(eosw_txq->hwtid));
+	flowc->op_to_nparams = cpu_to_be32(FW_WR_OP_V(FW_FLOWC_WR) |
+					   FW_FLOWC_WR_NPARAMS_V(nparams) |
+					   FW_WR_COMPL_V(1));
+	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
+	flowc->mnemval[0].val = cpu_to_be32(FW_PFVF_CMD_PFN_V(adap->pf));
+	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
+	flowc->mnemval[1].val = cpu_to_be32(pi->tx_chan);
+	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
+	flowc->mnemval[2].val = cpu_to_be32(pi->tx_chan);
+	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
+	flowc->mnemval[3].val = cpu_to_be32(rxq->rspq.abs_id);
+	flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SCHEDCLASS;
+	flowc->mnemval[4].val = cpu_to_be32(tc);
+	flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_EOSTATE;
+	flowc->mnemval[5].val = cpu_to_be32(tc == FW_SCHED_CLS_NONE ?
+					    FW_FLOWC_MNEM_EOSTATE_CLOSING :
+					    FW_FLOWC_MNEM_EOSTATE_ESTABLISHED);
+
+	eosw_txq->cred -= len16;
+	eosw_txq->ncompl++;
+	eosw_txq->last_compl = 0;
+
+	ret = eosw_txq_enqueue(eosw_txq, skb);
+	if (ret) {
+		dev_consume_skb_any(skb);
+		goto out_unlock;
+	}
+
+	eosw_txq->state = next_state;
+	eosw_txq->flowc_idx = eosw_txq->pidx;
+	eosw_txq_advance(eosw_txq, 1);
+	ethofld_xmit(dev, eosw_txq);
+
+out_unlock:
+	spin_unlock_bh(&eosw_txq->lock);
+	return ret;
 }
 
 /**
@@ -3684,9 +3805,26 @@ int cxgb4_ethofld_rx_handler(struct sge_rspq *q, const __be64 *rsp,
 			if (!skb)
 				break;
 
-			hdr_len = eth_get_headlen(eosw_txq->netdev, skb->data,
-						  skb_headlen(skb));
-			flits = ethofld_calc_tx_flits(q->adap, skb, hdr_len);
+			if (unlikely((eosw_txq->state ==
+				      CXGB4_EO_STATE_FLOWC_OPEN_REPLY ||
+				      eosw_txq->state ==
+				      CXGB4_EO_STATE_FLOWC_CLOSE_REPLY) &&
+				     eosw_txq->cidx == eosw_txq->flowc_idx)) {
+				hdr_len = skb->len;
+				flits = DIV_ROUND_UP(skb->len, 8);
+				if (eosw_txq->state ==
+				    CXGB4_EO_STATE_FLOWC_OPEN_REPLY)
+					eosw_txq->state = CXGB4_EO_STATE_ACTIVE;
+				else
+					eosw_txq->state = CXGB4_EO_STATE_CLOSED;
+				complete(&eosw_txq->completion);
+			} else {
+				hdr_len = eth_get_headlen(eosw_txq->netdev,
+							  skb->data,
+							  skb_headlen(skb));
+				flits = ethofld_calc_tx_flits(q->adap, skb,
+							      hdr_len);
+			}
 			eosw_txq_advance_index(&eosw_txq->cidx, 1,
 					       eosw_txq->ndesc);
 			wrlen16 = DIV_ROUND_UP(flits * 8, 16);

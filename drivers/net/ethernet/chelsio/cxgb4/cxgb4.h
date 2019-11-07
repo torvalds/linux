@@ -805,7 +805,11 @@ struct sge_uld_txq_info {
 
 enum sge_eosw_state {
 	CXGB4_EO_STATE_CLOSED = 0, /* Not ready to accept traffic */
+	CXGB4_EO_STATE_FLOWC_OPEN_SEND, /* Send FLOWC open request */
+	CXGB4_EO_STATE_FLOWC_OPEN_REPLY, /* Waiting for FLOWC open reply */
 	CXGB4_EO_STATE_ACTIVE, /* Ready to accept traffic */
+	CXGB4_EO_STATE_FLOWC_CLOSE_SEND, /* Send FLOWC close request */
+	CXGB4_EO_STATE_FLOWC_CLOSE_REPLY, /* Waiting for FLOWC close reply */
 };
 
 struct sge_eosw_desc {
@@ -822,6 +826,7 @@ struct sge_eosw_txq {
 	u32 last_pidx; /* Last successfully transmitted Producer Index */
 	u32 cidx; /* Current Consumer Index */
 	u32 last_cidx; /* Last successfully reclaimed Consumer Index */
+	u32 flowc_idx; /* Descriptor containing a FLOWC request */
 	u32 inuse; /* Number of packets held in ring */
 
 	u32 cred; /* Current available credits */
@@ -834,6 +839,7 @@ struct sge_eosw_txq {
 	u32 hwqid; /* Underlying hardware queue index */
 	struct net_device *netdev; /* Pointer to netdevice */
 	struct tasklet_struct qresume_tsk; /* Restarts the queue */
+	struct completion completion; /* completion for FLOWC rendezvous */
 };
 
 struct sge_eohw_txq {
@@ -1128,6 +1134,7 @@ enum {
 
 enum {
 	SCHED_CLASS_MODE_CLASS = 0,     /* per-class scheduling */
+	SCHED_CLASS_MODE_FLOW,          /* per-flow scheduling */
 };
 
 enum {
@@ -1149,6 +1156,14 @@ struct tx_sw_desc {                /* SW state per Tx descriptor */
 struct ch_sched_queue {
 	s8   queue;    /* queue index */
 	s8   class;    /* class index */
+};
+
+/* Support for "sched_flowc" command to allow one or more FLOWC
+ * to be bound to a TX Scheduling Class.
+ */
+struct ch_sched_flowc {
+	s32 tid;   /* TID to bind */
+	s8  class; /* class index */
 };
 
 /* Defined bit width of user definable filter tuples
@@ -1951,6 +1966,7 @@ void free_tx_desc(struct adapter *adap, struct sge_txq *q,
 		  unsigned int n, bool unmap);
 void cxgb4_eosw_txq_free_desc(struct adapter *adap, struct sge_eosw_txq *txq,
 			      u32 ndesc);
+int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc);
 void cxgb4_ethofld_restart(unsigned long data);
 int cxgb4_ethofld_rx_handler(struct sge_rspq *q, const __be64 *rsp,
 			     const struct pkt_gl *si);

@@ -17,6 +17,8 @@
 
 #define CXGB4_EOHW_FLQ_DEFAULT_DESC_NUM 72
 
+#define CXGB4_FLOWC_WAIT_TIMEOUT (5 * HZ)
+
 enum cxgb4_mqprio_state {
 	CXGB4_MQPRIO_STATE_DISABLED = 0,
 	CXGB4_MQPRIO_STATE_ACTIVE,
@@ -26,6 +28,7 @@ struct cxgb4_tc_port_mqprio {
 	enum cxgb4_mqprio_state state; /* Current MQPRIO offload state */
 	struct tc_mqprio_qopt_offload mqprio; /* MQPRIO offload params */
 	struct sge_eosw_txq *eosw_txq; /* Netdev SW Tx queue array */
+	u8 tc_hwtc_map[TC_QOPT_MAX_QUEUE]; /* MQPRIO tc to hardware tc map */
 };
 
 struct cxgb4_tc_mqprio {

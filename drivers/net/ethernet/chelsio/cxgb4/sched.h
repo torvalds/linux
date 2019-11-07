@@ -56,6 +56,7 @@ enum sched_fw_ops {
 
 enum sched_bind_type {
 	SCHED_QUEUE,
+	SCHED_FLOWC,
 };
 
 struct sched_queue_entry {
@@ -64,11 +65,17 @@ struct sched_queue_entry {
 	struct ch_sched_queue param;
 };
 
+struct sched_flowc_entry {
+	struct list_head list;
+	struct ch_sched_flowc param;
+};
+
 struct sched_class {
 	u8 state;
 	u8 idx;
 	struct ch_sched_params info;
-	struct list_head queue_list;
+	enum sched_bind_type bind_type;
+	struct list_head entry_list;
 	atomic_t refcnt;
 };
 
@@ -102,6 +109,7 @@ int cxgb4_sched_class_unbind(struct net_device *dev, void *arg,
 
 struct sched_class *cxgb4_sched_class_alloc(struct net_device *dev,
 					    struct ch_sched_params *p);
+void cxgb4_sched_class_free(struct net_device *dev, u8 classid);
 
 struct sched_table *t4_init_sched(unsigned int size);
 void t4_cleanup_sched(struct adapter *adap);

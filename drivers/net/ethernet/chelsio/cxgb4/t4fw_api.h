@@ -690,6 +690,12 @@ enum fw_flowc_mnem_tcpstate {
 	FW_FLOWC_MNEM_TCPSTATE_TIMEWAIT = 10, /* not expected */
 };
 
+enum fw_flowc_mnem_eostate {
+	FW_FLOWC_MNEM_EOSTATE_ESTABLISHED = 1, /* default */
+	/* graceful close, after sending outstanding payload */
+	FW_FLOWC_MNEM_EOSTATE_CLOSING = 2,
+};
+
 enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_PFNVFN,		/* PFN [15:8] VFN [7:0] */
 	FW_FLOWC_MNEM_CH,
