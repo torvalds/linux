@@ -3,6 +3,8 @@
 
 #include "ice_dcb_lib.h"
 
+static void ice_pf_dcb_recfg(struct ice_pf *pf);
+
 /**
  * ice_vsi_cfg_netdev_tc - Setup the netdev TC configuration
  * @vsi: the VSI being configured
@@ -134,42 +136,6 @@ void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi)
 			tx_ring->dcb_tc = n;
 			rx_ring->dcb_tc = n;
 		}
-	}
-}
-
-/**
- * ice_pf_dcb_recfg - Reconfigure all VEBs and VSIs
- * @pf: pointer to the PF struct
- *
- * Assumed caller has already disabled all VSIs before
- * calling this function. Reconfiguring DCB based on
- * local_dcbx_cfg.
- */
-static void ice_pf_dcb_recfg(struct ice_pf *pf)
-{
-	struct ice_dcbx_cfg *dcbcfg = &pf->hw.port_info->local_dcbx_cfg;
-	u8 tc_map = 0;
-	int v, ret;
-
-	/* Update each VSI */
-	ice_for_each_vsi(pf, v) {
-		if (!pf->vsi[v])
-			continue;
-
-		if (pf->vsi[v]->type == ICE_VSI_PF)
-			tc_map = ice_dcb_get_ena_tc(dcbcfg);
-		else
-			tc_map = ICE_DFLT_TRAFFIC_CLASS;
-
-		ret = ice_vsi_cfg_tc(pf->vsi[v], tc_map);
-		if (ret) {
-			dev_err(&pf->pdev->dev,
-				"Failed to config TC for VSI index: %d\n",
-				pf->vsi[v]->idx);
-			continue;
-		}
-
-		ice_vsi_map_rings_to_vectors(pf->vsi[v]);
 	}
 }
 
@@ -437,9 +403,10 @@ static int ice_dcb_init_cfg(struct ice_pf *pf, bool locked)
 /**
  * ice_dcb_sw_default_config - Apply a default DCB config
  * @pf: PF to apply config to
+ * @ets_willing: configure ets willing
  * @locked: was this function called with RTNL held
  */
-static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
+static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked)
 {
 	struct ice_aqc_port_ets_elem buf = { 0 };
 	struct ice_dcbx_cfg *dcbcfg;
@@ -454,7 +421,7 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
 	memset(dcbcfg, 0, sizeof(*dcbcfg));
 	memset(&pi->local_dcbx_cfg, 0, sizeof(*dcbcfg));
 
-	dcbcfg->etscfg.willing = 1;
+	dcbcfg->etscfg.willing = ets_willing ? 1 : 0;
 	dcbcfg->etscfg.maxtcs = hw->func_caps.common_cap.maxtc;
 	dcbcfg->etscfg.tcbwtable[0] = 100;
 	dcbcfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
@@ -477,6 +444,102 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
 		return ret;
 
 	return ice_query_port_ets(pi, &buf, sizeof(buf), NULL);
+}
+
+/**
+ * ice_dcb_tc_contig - Check that TCs are contiguous
+ * @prio_table: pointer to priority table
+ *
+ * Check if TCs begin with TC0 and are contiguous
+ */
+static bool ice_dcb_tc_contig(u8 *prio_table)
+{
+	u8 max_tc = 0;
+	int i;
+
+	for (i = 0; i < CEE_DCBX_MAX_PRIO; i++) {
+		u8 cur_tc = prio_table[i];
+
+		if (cur_tc > max_tc)
+			return false;
+		else if (cur_tc == max_tc)
+			max_tc++;
+	}
+
+	return true;
+}
+
+/**
+ * ice_dcb_noncontig_cfg - Configure DCB for non-contiguous TCs
+ * @pf: pointer to the PF struct
+ *
+ * If non-contiguous TCs, then configure SW DCB with TC0 and ETS non-willing
+ */
+static int ice_dcb_noncontig_cfg(struct ice_pf *pf)
+{
+	struct ice_dcbx_cfg *dcbcfg = &pf->hw.port_info->local_dcbx_cfg;
+	int ret;
+
+	/* Configure SW DCB default with ETS non-willing */
+	ret = ice_dcb_sw_dflt_cfg(pf, false, true);
+	if (ret) {
+		dev_err(&pf->pdev->dev,
+			"Failed to set local DCB config %d\n", ret);
+		return ret;
+	}
+
+	/* Reconfigure with ETS willing so that FW will send LLDP MIB event */
+	dcbcfg->etscfg.willing = 1;
+	ret = ice_set_dcb_cfg(pf->hw.port_info);
+	if (ret)
+		dev_err(&pf->pdev->dev, "Failed to set DCB to unwilling\n");
+
+	return ret;
+}
+
+/**
+ * ice_pf_dcb_recfg - Reconfigure all VEBs and VSIs
+ * @pf: pointer to the PF struct
+ *
+ * Assumed caller has already disabled all VSIs before
+ * calling this function. Reconfiguring DCB based on
+ * local_dcbx_cfg.
+ */
+static void ice_pf_dcb_recfg(struct ice_pf *pf)
+{
+	struct ice_dcbx_cfg *dcbcfg = &pf->hw.port_info->local_dcbx_cfg;
+	u8 tc_map = 0;
+	int v, ret;
+
+	/* Update each VSI */
+	ice_for_each_vsi(pf, v) {
+		if (!pf->vsi[v])
+			continue;
+
+		if (pf->vsi[v]->type == ICE_VSI_PF) {
+			tc_map = ice_dcb_get_ena_tc(dcbcfg);
+
+			/* If DCBX request non-contiguous TC, then configure
+			 * default TC
+			 */
+			if (!ice_dcb_tc_contig(dcbcfg->etscfg.prio_table)) {
+				tc_map = ICE_DFLT_TRAFFIC_CLASS;
+				ice_dcb_noncontig_cfg(pf);
+			}
+		} else {
+			tc_map = ICE_DFLT_TRAFFIC_CLASS;
+		}
+
+		ret = ice_vsi_cfg_tc(pf->vsi[v], tc_map);
+		if (ret) {
+			dev_err(&pf->pdev->dev,
+				"Failed to config TC for VSI index: %d\n",
+				pf->vsi[v]->idx);
+			continue;
+		}
+
+		ice_vsi_map_rings_to_vectors(pf->vsi[v]);
+	}
 }
 
 /**
@@ -507,7 +570,7 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		dev_info(&pf->pdev->dev,
 			 "FW LLDP is disabled, DCBx/LLDP in SW mode.\n");
 		clear_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
-		err = ice_dcb_sw_dflt_cfg(pf, locked);
+		err = ice_dcb_sw_dflt_cfg(pf, true, locked);
 		if (err) {
 			dev_err(&pf->pdev->dev,
 				"Failed to set local DCB config %d\n", err);
