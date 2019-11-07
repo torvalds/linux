@@ -4,8 +4,9 @@
 
 #include <linux/types.h>
 #include <linux/refcount.h>
-#include "util/hist.h"
-#include "util/symbol.h"
+#include "hist.h"
+#include "symbol.h"
+#include "sort.h"
 
 struct block_info {
 	struct symbol		*sym;
@@ -18,6 +19,31 @@ struct block_info {
 	int			num;
 	int			num_aggr;
 	refcount_t		refcnt;
+};
+
+struct block_fmt {
+	struct perf_hpp_fmt	fmt;
+	int			idx;
+	int			width;
+	const char		*header;
+	u64			total_cycles;
+	u64			block_cycles;
+};
+
+enum {
+	PERF_HPP_REPORT__BLOCK_TOTAL_CYCLES_PCT,
+	PERF_HPP_REPORT__BLOCK_LBR_CYCLES,
+	PERF_HPP_REPORT__BLOCK_CYCLES_PCT,
+	PERF_HPP_REPORT__BLOCK_AVG_CYCLES,
+	PERF_HPP_REPORT__BLOCK_RANGE,
+	PERF_HPP_REPORT__BLOCK_DSO,
+	PERF_HPP_REPORT__BLOCK_MAX_INDEX
+};
+
+struct block_report {
+	struct block_hist	hist;
+	u64			cycles;
+	struct block_fmt	fmts[PERF_HPP_REPORT__BLOCK_MAX_INDEX];
 };
 
 struct block_hist;
@@ -39,5 +65,8 @@ int64_t block_info__cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 
 int block_info__process_sym(struct hist_entry *he, struct block_hist *bh,
 			    u64 *block_cycles_aggr, u64 total_cycles);
+
+struct block_report *block_info__create_report(struct evlist *evlist,
+					       u64 total_cycles);
 
 #endif /* __PERF_BLOCK_H */
