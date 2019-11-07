@@ -15,6 +15,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_modeset_helper.h>
 
 #include "udl_drv.h"
@@ -94,14 +95,12 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	if (!fb->active_16)
 		return 0;
 
-	if (!fb->obj->vmapping) {
-		ret = udl_gem_vmap(fb->obj);
-		if (ret == -ENOMEM) {
+	if (!fb->shmem->vaddr) {
+		void *vaddr;
+
+		vaddr = drm_gem_shmem_vmap(&fb->shmem->base);
+		if (IS_ERR(vaddr)) {
 			DRM_ERROR("failed to vmap fb\n");
-			return 0;
-		}
-		if (!fb->obj->vmapping) {
-			DRM_ERROR("failed to vmapping\n");
 			return 0;
 		}
 	}
@@ -127,7 +126,7 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 		const int byte_offset = line_offset + (x << log_bpp);
 		const int dev_byte_offset = (fb->base.width * i + x) << log_bpp;
 		if (udl_render_hline(dev, log_bpp, &urb,
-				     (char *) fb->obj->vmapping,
+				     (char *) fb->shmem->vaddr,
 				     &cmd, byte_offset, dev_byte_offset,
 				     width << log_bpp,
 				     &bytes_identical, &bytes_sent))
@@ -281,6 +280,7 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 				      unsigned num_clips)
 {
 	struct udl_framebuffer *ufb = to_udl_fb(fb);
+	struct dma_buf_attachment *import_attach;
 	int i;
 	int ret = 0;
 
@@ -289,8 +289,10 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	if (!ufb->active_16)
 		goto unlock;
 
-	if (ufb->obj->base.import_attach) {
-		ret = dma_buf_begin_cpu_access(ufb->obj->base.import_attach->dmabuf,
+	import_attach = ufb->shmem->base.import_attach;
+
+	if (import_attach) {
+		ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
 					       DMA_FROM_DEVICE);
 		if (ret)
 			goto unlock;
@@ -304,10 +306,9 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 			break;
 	}
 
-	if (ufb->obj->base.import_attach) {
-		ret = dma_buf_end_cpu_access(ufb->obj->base.import_attach->dmabuf,
+	if (import_attach)
+		ret = dma_buf_end_cpu_access(import_attach->dmabuf,
 					     DMA_FROM_DEVICE);
-	}
 
  unlock:
 	drm_modeset_unlock_all(fb->dev);
@@ -319,8 +320,8 @@ static void udl_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct udl_framebuffer *ufb = to_udl_fb(fb);
 
-	if (ufb->obj)
-		drm_gem_object_put_unlocked(&ufb->obj->base);
+	if (ufb->shmem)
+		drm_gem_object_put_unlocked(&ufb->shmem->base);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(ufb);
@@ -336,11 +337,11 @@ static int
 udl_framebuffer_init(struct drm_device *dev,
 		     struct udl_framebuffer *ufb,
 		     const struct drm_mode_fb_cmd2 *mode_cmd,
-		     struct udl_gem_object *obj)
+		     struct drm_gem_shmem_object *shmem)
 {
 	int ret;
 
-	ufb->obj = obj;
+	ufb->shmem = shmem;
 	drm_helper_mode_fill_fb_struct(dev, &ufb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &ufb->base, &udlfb_funcs);
 	return ret;
@@ -356,7 +357,8 @@ static int udlfb_create(struct drm_fb_helper *helper,
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd;
-	struct udl_gem_object *obj;
+	struct drm_gem_shmem_object *shmem;
+	void *vaddr;
 	uint32_t size;
 	int ret = 0;
 
@@ -373,12 +375,15 @@ static int udlfb_create(struct drm_fb_helper *helper,
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = ALIGN(size, PAGE_SIZE);
 
-	obj = udl_gem_alloc_object(dev, size);
-	if (!obj)
+	shmem = drm_gem_shmem_create(dev, size);
+	if (IS_ERR(shmem)) {
+		ret = PTR_ERR(shmem);
 		goto out;
+	}
 
-	ret = udl_gem_vmap(obj);
-	if (ret) {
+	vaddr = drm_gem_shmem_vmap(&shmem->base);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
 		DRM_ERROR("failed to vmap fb\n");
 		goto out_gfree;
 	}
@@ -389,7 +394,7 @@ static int udlfb_create(struct drm_fb_helper *helper,
 		goto out_gfree;
 	}
 
-	ret = udl_framebuffer_init(dev, &ufbdev->ufb, &mode_cmd, obj);
+	ret = udl_framebuffer_init(dev, &ufbdev->ufb, &mode_cmd, shmem);
 	if (ret)
 		goto out_gfree;
 
@@ -397,20 +402,20 @@ static int udlfb_create(struct drm_fb_helper *helper,
 
 	ufbdev->helper.fb = fb;
 
-	info->screen_base = ufbdev->ufb.obj->vmapping;
+	info->screen_base = vaddr;
 	info->fix.smem_len = size;
-	info->fix.smem_start = (unsigned long)ufbdev->ufb.obj->vmapping;
+	info->fix.smem_start = (unsigned long)vaddr;
 
 	info->fbops = &udlfb_ops;
 	drm_fb_helper_fill_info(info, &ufbdev->helper, sizes);
 
 	DRM_DEBUG_KMS("allocated %dx%d vmal %p\n",
 		      fb->width, fb->height,
-		      ufbdev->ufb.obj->vmapping);
+		      ufbdev->ufb.shmem->vaddr);
 
 	return ret;
 out_gfree:
-	drm_gem_object_put_unlocked(&ufbdev->ufb.obj->base);
+	drm_gem_object_put_unlocked(&ufbdev->ufb.shmem->base);
 out:
 	return ret;
 }
@@ -424,10 +429,10 @@ static void udl_fbdev_destroy(struct drm_device *dev,
 {
 	drm_fb_helper_unregister_fbi(&ufbdev->helper);
 	drm_fb_helper_fini(&ufbdev->helper);
-	if (ufbdev->ufb.obj) {
+	if (ufbdev->ufb.shmem) {
 		drm_framebuffer_unregister_private(&ufbdev->ufb.base);
 		drm_framebuffer_cleanup(&ufbdev->ufb.base);
-		drm_gem_object_put_unlocked(&ufbdev->ufb.obj->base);
+		drm_gem_object_put_unlocked(&ufbdev->ufb.shmem->base);
 	}
 }
 
@@ -518,7 +523,8 @@ udl_fb_user_fb_create(struct drm_device *dev,
 	if (ufb == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	ret = udl_framebuffer_init(dev, ufb, mode_cmd, to_udl_bo(obj));
+	ret = udl_framebuffer_init(dev, ufb, mode_cmd,
+				   to_drm_gem_shmem_obj(obj));
 	if (ret) {
 		kfree(ufb);
 		return ERR_PTR(-EINVAL);

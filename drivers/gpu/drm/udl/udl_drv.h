@@ -85,6 +85,7 @@ struct udl_gem_object {
 struct udl_framebuffer {
 	struct drm_framebuffer base;
 	struct udl_gem_object *obj;
+	struct drm_gem_shmem_object *shmem;
 	bool active_16; /* active on the 16-bit channel */
 };
 
