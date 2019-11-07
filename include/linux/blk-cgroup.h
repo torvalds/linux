@@ -15,7 +15,9 @@
  */
 
 #include <linux/cgroup.h>
+#include <linux/percpu.h>
 #include <linux/percpu_counter.h>
+#include <linux/u64_stats_sync.h>
 #include <linux/seq_file.h>
 #include <linux/radix-tree.h>
 #include <linux/blkdev.h>
@@ -30,6 +32,14 @@
 #define THROTL_IOPS_MAX		UINT_MAX
 
 #ifdef CONFIG_BLK_CGROUP
+
+enum blkg_iostat_type {
+	BLKG_IOSTAT_READ,
+	BLKG_IOSTAT_WRITE,
+	BLKG_IOSTAT_DISCARD,
+
+	BLKG_IOSTAT_NR,
+};
 
 enum blkg_rwstat_type {
 	BLKG_RWSTAT_READ,
@@ -59,6 +69,17 @@ struct blkcg {
 	struct list_head		cgwb_list;
 	refcount_t			cgwb_refcnt;
 #endif
+};
+
+struct blkg_iostat {
+	u64				bytes[BLKG_IOSTAT_NR];
+	u64				ios[BLKG_IOSTAT_NR];
+};
+
+struct blkg_iostat_set {
+	struct u64_stats_sync		sync;
+	struct blkg_iostat		cur;
+	struct blkg_iostat		last;
 };
 
 /*
@@ -127,8 +148,8 @@ struct blkcg_gq {
 	/* is this blkg online? protected by both blkcg and q locks */
 	bool				online;
 
-	struct blkg_rwstat		stat_bytes;
-	struct blkg_rwstat		stat_ios;
+	struct blkg_iostat_set __percpu	*iostat_cpu;
+	struct blkg_iostat_set		iostat;
 
 	struct blkg_policy_data		*pd[BLKCG_MAX_POLS];
 
@@ -740,15 +761,32 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
 	throtl = blk_throtl_bio(q, blkg, bio);
 
 	if (!throtl) {
+		struct blkg_iostat_set *bis;
+		int rwd, cpu;
+
+		if (op_is_discard(bio->bi_opf))
+			rwd = BLKG_IOSTAT_DISCARD;
+		else if (op_is_write(bio->bi_opf))
+			rwd = BLKG_IOSTAT_WRITE;
+		else
+			rwd = BLKG_IOSTAT_READ;
+
+		cpu = get_cpu();
+		bis = per_cpu_ptr(blkg->iostat_cpu, cpu);
+		u64_stats_update_begin(&bis->sync);
+
 		/*
 		 * If the bio is flagged with BIO_QUEUE_ENTERED it means this
 		 * is a split bio and we would have already accounted for the
 		 * size of the bio.
 		 */
 		if (!bio_flagged(bio, BIO_QUEUE_ENTERED))
-			blkg_rwstat_add(&blkg->stat_bytes, bio->bi_opf,
-					bio->bi_iter.bi_size);
-		blkg_rwstat_add(&blkg->stat_ios, bio->bi_opf, 1);
+			bis->cur.bytes[rwd] += bio->bi_iter.bi_size;
+		bis->cur.ios[rwd]++;
+
+		u64_stats_update_end(&bis->sync);
+		cgroup_rstat_updated(blkg->blkcg->css.cgroup, cpu);
+		put_cpu();
 	}
 
 	blkcg_bio_issue_init(bio);
