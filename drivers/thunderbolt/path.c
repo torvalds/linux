@@ -220,7 +220,8 @@ err:
  * Creates path between two ports starting with given @src_hopid. Reserves
  * HopIDs for each port (they can be different from @src_hopid depending on
  * how many HopIDs each port already have reserved). If there are dual
- * links on the path, prioritizes using @link_nr.
+ * links on the path, prioritizes using @link_nr but takes into account
+ * that the lanes may be bonded.
  *
  * Return: Returns a tb_path on success or NULL on failure.
  */
@@ -259,7 +260,9 @@ struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 		if (!in_port)
 			goto err;
 
-		if (in_port->dual_link_port && in_port->link_nr != link_nr)
+		/* When lanes are bonded primary link must be used */
+		if (!in_port->bonded && in_port->dual_link_port &&
+		    in_port->link_nr != link_nr)
 			in_port = in_port->dual_link_port;
 
 		ret = tb_port_alloc_in_hopid(in_port, in_hopid, in_hopid);
@@ -271,8 +274,27 @@ struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 		if (!out_port)
 			goto err;
 
-		if (out_port->dual_link_port && out_port->link_nr != link_nr)
-			out_port = out_port->dual_link_port;
+		/*
+		 * Pick up right port when going from non-bonded to
+		 * bonded or from bonded to non-bonded.
+		 */
+		if (out_port->dual_link_port) {
+			if (!in_port->bonded && out_port->bonded &&
+			    out_port->link_nr) {
+				/*
+				 * Use primary link when going from
+				 * non-bonded to bonded.
+				 */
+				out_port = out_port->dual_link_port;
+			} else if (!out_port->bonded &&
+				   out_port->link_nr != link_nr) {
+				/*
+				 * If out port is not bonded follow
+				 * link_nr.
+				 */
+				out_port = out_port->dual_link_port;
+			}
+		}
 
 		if (i == num_hops - 1)
 			ret = tb_port_alloc_out_hopid(out_port, dst_hopid,
@@ -533,5 +555,27 @@ bool tb_path_is_invalid(struct tb_path *path)
 		if (path->hops[i].out_port->sw->is_unplugged)
 			return true;
 	}
+	return false;
+}
+
+/**
+ * tb_path_switch_on_path() - Does the path go through certain switch
+ * @path: Path to check
+ * @sw: Switch to check
+ *
+ * Goes over all hops on path and checks if @sw is any of them.
+ * Direction does not matter.
+ */
+bool tb_path_switch_on_path(const struct tb_path *path,
+			    const struct tb_switch *sw)
+{
+	int i;
+
+	for (i = 0; i < path->path_length; i++) {
+		if (path->hops[i].in_port->sw == sw ||
+		    path->hops[i].out_port->sw == sw)
+			return true;
+	}
+
 	return false;
 }

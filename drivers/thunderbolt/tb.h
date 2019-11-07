@@ -61,6 +61,8 @@ struct tb_switch_nvm {
  * @device: Device ID of the switch
  * @vendor_name: Name of the vendor (or %NULL if not known)
  * @device_name: Name of the device (or %NULL if not known)
+ * @link_speed: Speed of the link in Gb/s
+ * @link_width: Width of the link (1 or 2)
  * @generation: Switch Thunderbolt generation
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
  * @cap_lc: Offset to the link controller capability (%0 if not found)
@@ -97,6 +99,8 @@ struct tb_switch {
 	u16 device;
 	const char *vendor_name;
 	const char *device_name;
+	unsigned int link_speed;
+	unsigned int link_width;
 	unsigned int generation;
 	int cap_plug_events;
 	int cap_lc;
@@ -127,11 +131,13 @@ struct tb_switch {
  * @cap_adap: Offset of the adapter specific capability (%0 if not present)
  * @port: Port number on switch
  * @disabled: Disabled by eeprom
+ * @bonded: true if the port is bonded (two lanes combined as one)
  * @dual_link_port: If the switch is connected using two ports, points
  *		    to the other port.
  * @link_nr: Is this primary or secondary port on the dual_link.
  * @in_hopids: Currently allocated input HopIDs
  * @out_hopids: Currently allocated output HopIDs
+ * @list: Used to link ports to DP resources list
  */
 struct tb_port {
 	struct tb_regs_port_header config;
@@ -142,10 +148,12 @@ struct tb_port {
 	int cap_adap;
 	u8 port;
 	bool disabled;
+	bool bonded;
 	struct tb_port *dual_link_port;
 	u8 link_nr:1;
 	struct ida in_hopids;
 	struct ida out_hopids;
+	struct list_head list;
 };
 
 /**
@@ -399,7 +407,7 @@ static inline int tb_sw_read(struct tb_switch *sw, void *buffer,
 			   length);
 }
 
-static inline int tb_sw_write(struct tb_switch *sw, void *buffer,
+static inline int tb_sw_write(struct tb_switch *sw, const void *buffer,
 			      enum tb_cfg_space space, u32 offset, u32 length)
 {
 	if (sw->is_unplugged)
@@ -530,6 +538,17 @@ struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link,
 struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_t *uuid);
 struct tb_switch *tb_switch_find_by_route(struct tb *tb, u64 route);
 
+/**
+ * tb_switch_for_each_port() - Iterate over each switch port
+ * @sw: Switch whose ports to iterate
+ * @p: Port used as iterator
+ *
+ * Iterates over each switch port skipping the control port (port %0).
+ */
+#define tb_switch_for_each_port(sw, p)					\
+	for ((p) = &(sw)->ports[1];					\
+	     (p) <= &(sw)->ports[(sw)->config.max_port_number]; (p)++)
+
 static inline struct tb_switch *tb_switch_get(struct tb_switch *sw)
 {
 	if (sw)
@@ -559,17 +578,17 @@ static inline struct tb_switch *tb_switch_parent(struct tb_switch *sw)
 	return tb_to_switch(sw->dev.parent);
 }
 
-static inline bool tb_switch_is_lr(const struct tb_switch *sw)
+static inline bool tb_switch_is_light_ridge(const struct tb_switch *sw)
 {
 	return sw->config.device_id == PCI_DEVICE_ID_INTEL_LIGHT_RIDGE;
 }
 
-static inline bool tb_switch_is_er(const struct tb_switch *sw)
+static inline bool tb_switch_is_eagle_ridge(const struct tb_switch *sw)
 {
 	return sw->config.device_id == PCI_DEVICE_ID_INTEL_EAGLE_RIDGE;
 }
 
-static inline bool tb_switch_is_cr(const struct tb_switch *sw)
+static inline bool tb_switch_is_cactus_ridge(const struct tb_switch *sw)
 {
 	switch (sw->config.device_id) {
 	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_2C:
@@ -580,7 +599,7 @@ static inline bool tb_switch_is_cr(const struct tb_switch *sw)
 	}
 }
 
-static inline bool tb_switch_is_fr(const struct tb_switch *sw)
+static inline bool tb_switch_is_falcon_ridge(const struct tb_switch *sw)
 {
 	switch (sw->config.device_id) {
 	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
@@ -590,6 +609,52 @@ static inline bool tb_switch_is_fr(const struct tb_switch *sw)
 		return false;
 	}
 }
+
+static inline bool tb_switch_is_alpine_ridge(const struct tb_switch *sw)
+{
+	switch (sw->config.device_id) {
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static inline bool tb_switch_is_titan_ridge(const struct tb_switch *sw)
+{
+	switch (sw->config.device_id) {
+	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/**
+ * tb_switch_is_icm() - Is the switch handled by ICM firmware
+ * @sw: Switch to check
+ *
+ * In case there is a need to differentiate whether ICM firmware or SW CM
+ * is handling @sw this function can be called. It is valid to call this
+ * after tb_switch_alloc() and tb_switch_configure() has been called
+ * (latter only for SW CM case).
+ */
+static inline bool tb_switch_is_icm(const struct tb_switch *sw)
+{
+	return !sw->config.enabled;
+}
+
+int tb_switch_lane_bonding_enable(struct tb_switch *sw);
+void tb_switch_lane_bonding_disable(struct tb_switch *sw);
+
+bool tb_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
+int tb_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
+void tb_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
 
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
@@ -626,6 +691,8 @@ void tb_path_free(struct tb_path *path);
 int tb_path_activate(struct tb_path *path);
 void tb_path_deactivate(struct tb_path *path);
 bool tb_path_is_invalid(struct tb_path *path);
+bool tb_path_switch_on_path(const struct tb_path *path,
+			    const struct tb_switch *sw);
 
 int tb_drom_read(struct tb_switch *sw);
 int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid);
@@ -634,6 +701,10 @@ int tb_lc_read_uuid(struct tb_switch *sw, u32 *uuid);
 int tb_lc_configure_link(struct tb_switch *sw);
 void tb_lc_unconfigure_link(struct tb_switch *sw);
 int tb_lc_set_sleep(struct tb_switch *sw);
+bool tb_lc_lane_bonding_possible(struct tb_switch *sw);
+bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in);
+int tb_lc_dp_sink_alloc(struct tb_switch *sw, struct tb_port *in);
+int tb_lc_dp_sink_dealloc(struct tb_switch *sw, struct tb_port *in);
 
 static inline int tb_route_length(u64 route)
 {
