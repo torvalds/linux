@@ -12,6 +12,7 @@
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
 #include "selftests/igt_flush_test.h"
+#include "selftests/igt_mmap.h"
 
 struct tile {
 	unsigned int width;
@@ -694,12 +695,111 @@ err_obj:
 	goto out;
 }
 
+#define expand32(x) (((x) << 0) | ((x) << 8) | ((x) << 16) | ((x) << 24))
+static int igt_mmap_gtt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj;
+	struct vm_area_struct *area;
+	unsigned long addr;
+	void *vaddr;
+	int err, i;
+
+	if (!i915_ggtt_has_aperture(&i915->ggtt))
+		return 0;
+
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		err = PTR_ERR(vaddr);
+		goto out;
+	}
+	memset(vaddr, POISON_INUSE, PAGE_SIZE);
+	i915_gem_object_flush_map(obj);
+	i915_gem_object_unpin_map(obj);
+
+	err = create_mmap_offset(obj);
+	if (err)
+		goto out;
+
+	addr = igt_mmap_node(i915, &obj->base.vma_node,
+			     0, PROT_WRITE, MAP_SHARED);
+	if (IS_ERR_VALUE(addr)) {
+		err = addr;
+		goto out;
+	}
+
+	pr_debug("igt_mmap(obj:gtt) @ %lx\n", addr);
+
+	area = find_vma(current->mm, addr);
+	if (!area) {
+		pr_err("Did not create a vm_area_struct for the mmap\n");
+		err = -EINVAL;
+		goto out_unmap;
+	}
+
+	if (area->vm_private_data != obj) {
+		pr_err("vm_area_struct did not point back to our object!\n");
+		err = -EINVAL;
+		goto out_unmap;
+	}
+
+	for (i = 0; i < PAGE_SIZE / sizeof(u32); i++) {
+		u32 __user *ux = u64_to_user_ptr((u64)(addr + i * sizeof(*ux)));
+		u32 x;
+
+		if (get_user(x, ux)) {
+			pr_err("Unable to read from GTT mmap, offset:%zd\n",
+			       i * sizeof(x));
+			err = -EFAULT;
+			break;
+		}
+
+		if (x != expand32(POISON_INUSE)) {
+			pr_err("Read incorrect value from GTT mmap, offset:%zd, found:%x, expected:%x\n",
+			       i * sizeof(x), x, expand32(POISON_INUSE));
+			err = -EINVAL;
+			break;
+		}
+
+		x = expand32(POISON_FREE);
+		if (put_user(x, ux)) {
+			pr_err("Unable to write to GTT mmap, offset:%zd\n",
+			       i * sizeof(x));
+			err = -EFAULT;
+			break;
+		}
+	}
+
+out_unmap:
+	vm_munmap(addr, PAGE_SIZE);
+
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_FORCE_WC);
+	if (IS_ERR(vaddr)) {
+		err = PTR_ERR(vaddr);
+		goto out;
+	}
+	if (err == 0 && memchr_inv(vaddr, POISON_FREE, PAGE_SIZE)) {
+		pr_err("Write via GGTT mmap did not land in backing store\n");
+		err = -EINVAL;
+	}
+	i915_gem_object_unpin_map(obj);
+
+out:
+	i915_gem_object_put(obj);
+	return err;
+}
+
 int i915_gem_mman_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_partial_tiling),
 		SUBTEST(igt_smoke_tiling),
 		SUBTEST(igt_mmap_offset_exhaustion),
+		SUBTEST(igt_mmap_gtt),
 	};
 
 	return i915_subtests(tests, i915);
