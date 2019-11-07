@@ -1458,19 +1458,23 @@ static int tid_init(struct tid_info *t)
 	struct adapter *adap = container_of(t, struct adapter, tids);
 	unsigned int max_ftids = t->nftids + t->nsftids;
 	unsigned int natids = t->natids;
+	unsigned int eotid_bmap_size;
 	unsigned int stid_bmap_size;
 	unsigned int ftid_bmap_size;
 	size_t size;
 
 	stid_bmap_size = BITS_TO_LONGS(t->nstids + t->nsftids);
 	ftid_bmap_size = BITS_TO_LONGS(t->nftids);
+	eotid_bmap_size = BITS_TO_LONGS(t->neotids);
 	size = t->ntids * sizeof(*t->tid_tab) +
 	       natids * sizeof(*t->atid_tab) +
 	       t->nstids * sizeof(*t->stid_tab) +
 	       t->nsftids * sizeof(*t->stid_tab) +
 	       stid_bmap_size * sizeof(long) +
 	       max_ftids * sizeof(*t->ftid_tab) +
-	       ftid_bmap_size * sizeof(long);
+	       ftid_bmap_size * sizeof(long) +
+	       t->neotids * sizeof(*t->eotid_tab) +
+	       eotid_bmap_size * sizeof(long);
 
 	t->tid_tab = kvzalloc(size, GFP_KERNEL);
 	if (!t->tid_tab)
@@ -1481,6 +1485,8 @@ static int tid_init(struct tid_info *t)
 	t->stid_bmap = (unsigned long *)&t->stid_tab[t->nstids + t->nsftids];
 	t->ftid_tab = (struct filter_entry *)&t->stid_bmap[stid_bmap_size];
 	t->ftid_bmap = (unsigned long *)&t->ftid_tab[max_ftids];
+	t->eotid_tab = (struct eotid_entry *)&t->ftid_bmap[ftid_bmap_size];
+	t->eotid_bmap = (unsigned long *)&t->eotid_tab[t->neotids];
 	spin_lock_init(&t->stid_lock);
 	spin_lock_init(&t->atid_lock);
 	spin_lock_init(&t->ftid_lock);
@@ -1507,6 +1513,9 @@ static int tid_init(struct tid_info *t)
 		if (!t->stid_base &&
 		    CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
 			__set_bit(0, t->stid_bmap);
+
+		if (t->neotids)
+			bitmap_zero(t->eotid_bmap, t->neotids);
 	}
 
 	bitmap_zero(t->ftid_bmap, t->nftids);
@@ -4604,11 +4613,18 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	adap->clipt_start = val[0];
 	adap->clipt_end = val[1];
 
-	/* We don't yet have a PARAMs calls to retrieve the number of Traffic
-	 * Classes supported by the hardware/firmware so we hard code it here
-	 * for now.
-	 */
-	adap->params.nsched_cls = is_t4(adap->params.chip) ? 15 : 16;
+	/* Get the supported number of traffic classes */
+	params[0] = FW_PARAM_DEV(NUM_TM_CLASS);
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, params, val);
+	if (ret < 0) {
+		/* We couldn't retrieve the number of Traffic Classes
+		 * supported by the hardware/firmware. So we hard
+		 * code it here.
+		 */
+		adap->params.nsched_cls = is_t4(adap->params.chip) ? 15 : 16;
+	} else {
+		adap->params.nsched_cls = val[0];
+	}
 
 	/* query params related to active filter region */
 	params[0] = FW_PARAM_PFVF(ACTIVE_FILTER_START);
@@ -4693,7 +4709,8 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 		adap->params.offload = 1;
 
 	if (caps_cmd.ofldcaps ||
-	    (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_HASHFILTER))) {
+	    (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_HASHFILTER)) ||
+	    (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_ETHOFLD))) {
 		/* query offload-related parameters */
 		params[0] = FW_PARAM_DEV(NTID);
 		params[1] = FW_PARAM_PFVF(SERVER_START);
@@ -4734,6 +4751,19 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 			init_hash_filter(adap);
 		} else {
 			adap->num_ofld_uld += 1;
+		}
+
+		if (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_ETHOFLD)) {
+			params[0] = FW_PARAM_PFVF(ETHOFLD_START);
+			params[1] = FW_PARAM_PFVF(ETHOFLD_END);
+			ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+					      params, val);
+			if (!ret) {
+				adap->tids.eotid_base = val[0];
+				adap->tids.neotids = min_t(u32, MAX_ATIDS,
+							   val[1] - val[0] + 1);
+				adap->params.ethofld = 1;
+			}
 		}
 	}
 	if (caps_cmd.rdmacaps) {
@@ -5942,8 +5972,14 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_LIST_HEAD(&adapter->mac_hlist);
 
 	for_each_port(adapter, i) {
+		/* For supporting MQPRIO Offload, need some extra
+		 * queues for each ETHOFLD TIDs. Keep it equal to
+		 * MAX_ATIDs for now. Once we connect to firmware
+		 * later and query the EOTID params, we'll come to
+		 * know the actual # of EOTIDs supported.
+		 */
 		netdev = alloc_etherdev_mq(sizeof(struct port_info),
-					   MAX_ETH_QSETS);
+					   MAX_ETH_QSETS + MAX_ATIDS);
 		if (!netdev) {
 			err = -ENOMEM;
 			goto out_free_dev;

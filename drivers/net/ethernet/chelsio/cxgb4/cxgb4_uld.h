@@ -89,6 +89,10 @@ union aopen_entry {
 	union aopen_entry *next;
 };
 
+struct eotid_entry {
+	void *data;
+};
+
 /*
  * Holds the size, base address, free list start, etc of the TID, server TID,
  * and active-open TID tables.  The tables themselves are allocated dynamically.
@@ -125,6 +129,12 @@ struct tid_info {
 	unsigned int stids_in_use;
 	unsigned int v6_stids_in_use;
 	unsigned int sftids_in_use;
+
+	/* ETHOFLD range */
+	struct eotid_entry *eotid_tab;
+	unsigned long *eotid_bmap;
+	unsigned int eotid_base;
+	unsigned int neotids;
 
 	/* TIDs in the TCAM */
 	atomic_t tids_in_use;

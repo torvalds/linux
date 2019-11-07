@@ -392,6 +392,7 @@ struct adapter_params {
 	struct arch_specific_params arch;  /* chip specific params */
 	unsigned char offload;
 	unsigned char crypto;		/* HW capability for crypto */
+	unsigned char ethofld;		/* QoS support */
 
 	unsigned char bypass;
 	unsigned char hash_filter;
@@ -1291,6 +1292,11 @@ static inline int is_pci_uld(const struct adapter *adap)
 static inline int is_uld(const struct adapter *adap)
 {
 	return (adap->params.offload || adap->params.crypto);
+}
+
+static inline int is_ethofld(const struct adapter *adap)
+{
+	return adap->params.ethofld;
 }
 
 static inline u32 t4_read_reg(struct adapter *adap, u32 reg_addr)
