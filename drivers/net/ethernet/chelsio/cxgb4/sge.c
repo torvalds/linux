@@ -4060,6 +4060,10 @@ void t4_free_sge_resources(struct adapter *adap)
 		if (eq->rspq.desc)
 			free_rspq_fl(adap, &eq->rspq,
 				     eq->fl.size ? &eq->fl : NULL);
+		if (eq->msix) {
+			cxgb4_free_msix_idx_in_bmap(adap, eq->msix->idx);
+			eq->msix = NULL;
+		}
 
 		etq = &adap->sge.ethtxq[i];
 		if (etq->q.desc) {
@@ -4086,8 +4090,15 @@ void t4_free_sge_resources(struct adapter *adap)
 		}
 	}
 
-	if (adap->sge.fw_evtq.desc)
+	if (adap->sge.fw_evtq.desc) {
 		free_rspq_fl(adap, &adap->sge.fw_evtq, NULL);
+		if (adap->sge.fwevtq_msix_idx >= 0)
+			cxgb4_free_msix_idx_in_bmap(adap,
+						    adap->sge.fwevtq_msix_idx);
+	}
+
+	if (adap->sge.nd_msix_idx >= 0)
+		cxgb4_free_msix_idx_in_bmap(adap, adap->sge.nd_msix_idx);
 
 	if (adap->sge.intrq.desc)
 		free_rspq_fl(adap, &adap->sge.intrq, NULL);

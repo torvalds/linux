@@ -712,6 +712,7 @@ struct sge_eth_rxq {                /* SW Ethernet Rx queue */
 	struct sge_rspq rspq;
 	struct sge_fl fl;
 	struct sge_eth_stats stats;
+	struct msix_info *msix;
 } ____cacheline_aligned_in_smp;
 
 struct sge_ofld_stats {             /* offload queue statistics */
@@ -725,6 +726,7 @@ struct sge_ofld_rxq {               /* SW offload Rx queue */
 	struct sge_rspq rspq;
 	struct sge_fl fl;
 	struct sge_ofld_stats stats;
+	struct msix_info *msix;
 } ____cacheline_aligned_in_smp;
 
 struct tx_desc {
@@ -789,7 +791,6 @@ struct sge_ctrl_txq {               /* state for an SGE control Tx queue */
 struct sge_uld_rxq_info {
 	char name[IFNAMSIZ];	/* name of ULD driver */
 	struct sge_ofld_rxq *uldrxq; /* Rxq's for ULD */
-	u16 *msix_tbl;		/* msix_tbl for uld */
 	u16 *rspq_id;		/* response queue id's of rxq */
 	u16 nrxq;		/* # of ingress uld queues */
 	u16 nciq;		/* # of completion queues */
@@ -842,6 +843,9 @@ struct sge {
 	unsigned long *blocked_fl;
 	struct timer_list rx_timer; /* refills starving FLs */
 	struct timer_list tx_timer; /* checks Tx queues */
+
+	int fwevtq_msix_idx; /* Index to firmware event queue MSI-X info */
+	int nd_msix_idx; /* Index to non-data interrupts MSI-X info */
 };
 
 #define for_each_ethrxq(sge, i) for (i = 0; i < (sge)->ethqsets; i++)
@@ -871,13 +875,13 @@ struct hash_mac_addr {
 	unsigned int iface_mac;
 };
 
-struct uld_msix_bmap {
+struct msix_bmap {
 	unsigned long *msix_bmap;
 	unsigned int mapsize;
 	spinlock_t lock; /* lock for acquiring bitmap */
 };
 
-struct uld_msix_info {
+struct msix_info {
 	unsigned short vec;
 	char desc[IFNAMSIZ + 10];
 	unsigned int idx;
@@ -946,14 +950,9 @@ struct adapter {
 	struct cxgb4_virt_res vres;
 	unsigned int swintr;
 
-	struct msix_info {
-		unsigned short vec;
-		char desc[IFNAMSIZ + 10];
-		cpumask_var_t aff_mask;
-	} msix_info[MAX_INGQ + 1];
-	struct uld_msix_info *msix_info_ulds; /* msix info for uld's */
-	struct uld_msix_bmap msix_bmap_ulds; /* msix bitmap for all uld */
-	int msi_idx;
+	/* MSI-X Info for NIC and OFLD queues */
+	struct msix_info *msix_info;
+	struct msix_bmap msix_bmap;
 
 	struct doorbell_stats db_stats;
 	struct sge sge;
@@ -1954,5 +1953,6 @@ int cxgb4_alloc_raw_mac_filt(struct adapter *adap,
 int cxgb4_update_mac_filt(struct port_info *pi, unsigned int viid,
 			  int *tcam_idx, const u8 *addr,
 			  bool persistent, u8 *smt_idx);
-
+int cxgb4_get_msix_idx_from_bmap(struct adapter *adap);
+void cxgb4_free_msix_idx_in_bmap(struct adapter *adap, u32 msix_idx);
 #endif /* __CXGB4_H__ */
