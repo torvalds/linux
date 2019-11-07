@@ -393,7 +393,8 @@ devlink_trap_drop_cleanup()
 {
 	local mz_pid=$1; shift
 	local dev=$1; shift
+	local proto=$1; shift
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
-	tc filter del dev $dev egress protocol ip pref 1 handle 101 flower
+	tc filter del dev $dev egress protocol $proto pref 1 handle 101 flower
 }

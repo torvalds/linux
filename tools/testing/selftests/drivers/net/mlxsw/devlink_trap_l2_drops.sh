@@ -111,7 +111,7 @@ source_mac_is_multicast_test()
 
 	log_test "Source MAC is multicast"
 
-	devlink_trap_drop_cleanup $mz_pid $swp2
+	devlink_trap_drop_cleanup $mz_pid $swp2 ip
 }
 
 __vlan_tag_mismatch_test()
@@ -148,7 +148,7 @@ __vlan_tag_mismatch_test()
 
 	devlink_trap_action_set $trap_name "drop"
 
-	devlink_trap_drop_cleanup $mz_pid $swp2
+	devlink_trap_drop_cleanup $mz_pid $swp2 ip
 }
 
 vlan_tag_mismatch_untagged_test()
@@ -212,7 +212,7 @@ ingress_vlan_filter_test()
 
 	log_test "Ingress VLAN filter"
 
-	devlink_trap_drop_cleanup $mz_pid $swp2
+	devlink_trap_drop_cleanup $mz_pid $swp2 ip
 
 	bridge vlan del vid $vid dev $swp1 master
 	bridge vlan del vid $vid dev $swp2 master
@@ -254,7 +254,7 @@ __ingress_stp_filter_test()
 
 	devlink_trap_action_set $trap_name "drop"
 
-	devlink_trap_drop_cleanup $mz_pid $swp2
+	devlink_trap_drop_cleanup $mz_pid $swp2 ip
 
 	bridge vlan del vid $vid dev $swp1 master
 	bridge vlan del vid $vid dev $swp2 master
@@ -326,7 +326,7 @@ port_list_is_empty_uc_test()
 
 	log_test "Port list is empty - unicast"
 
-	devlink_trap_drop_cleanup $mz_pid $swp2
+	devlink_trap_drop_cleanup $mz_pid $swp2 ip
 
 	ip link set dev $swp1 type bridge_slave flood on
 }
@@ -372,7 +372,7 @@ port_list_is_empty_mc_test()
 
 	log_test "Port list is empty - multicast"
 
-	devlink_trap_drop_cleanup $mz_pid $swp2
+	devlink_trap_drop_cleanup $mz_pid $swp2 ip
 
 	ip link set dev $swp1 type bridge_slave mcast_flood on
 }
@@ -419,7 +419,7 @@ port_loopback_filter_uc_test()
 
 	log_test "Port loopback filter - unicast"
 
-	devlink_trap_drop_cleanup $mz_pid $swp2
+	devlink_trap_drop_cleanup $mz_pid $swp2 ip
 }
 
 port_loopback_filter_test()
