@@ -164,6 +164,7 @@ static ssize_t mdev_link_direction_store(struct config_item *item,
 	    !sysfs_streq(page, "dir_tx") && !sysfs_streq(page, "tx"))
 		return -EINVAL;
 	strcpy(mdev_link->direction, page);
+	strim(mdev_link->direction);
 	return count;
 }
 
@@ -182,6 +183,7 @@ static ssize_t mdev_link_datatype_store(struct config_item *item,
 	    !sysfs_streq(page, "isoc_avp"))
 		return -EINVAL;
 	strcpy(mdev_link->datatype, page);
+	strim(mdev_link->datatype);
 	return count;
 }
 
@@ -196,6 +198,7 @@ static ssize_t mdev_link_device_store(struct config_item *item,
 	struct mdev_link *mdev_link = to_mdev_link(item);
 
 	strcpy(mdev_link->device, page);
+	strim(mdev_link->device);
 	return count;
 }
 
@@ -210,6 +213,7 @@ static ssize_t mdev_link_channel_store(struct config_item *item,
 	struct mdev_link *mdev_link = to_mdev_link(item);
 
 	strcpy(mdev_link->channel, page);
+	strim(mdev_link->channel);
 	return count;
 }
 

@@ -84,11 +84,11 @@ static const struct {
 	int most_ch_data_type;
 	const char *name;
 } ch_data_type[] = {
-	{ MOST_CH_CONTROL, "control\n" },
-	{ MOST_CH_ASYNC, "async\n" },
-	{ MOST_CH_SYNC, "sync\n" },
-	{ MOST_CH_ISOC, "isoc\n"},
-	{ MOST_CH_ISOC, "isoc_avp\n"},
+	{ MOST_CH_CONTROL, "control" },
+	{ MOST_CH_ASYNC, "async" },
+	{ MOST_CH_SYNC, "sync" },
+	{ MOST_CH_ISOC, "isoc"},
+	{ MOST_CH_ISOC, "isoc_avp"},
 };
 
 /**
@@ -675,13 +675,13 @@ int most_set_cfg_direction(char *mdev, char *mdev_ch, char *buf)
 
 	if (!c)
 		return -ENODEV;
-	if (!strcmp(buf, "dir_rx\n")) {
+	if (!strcmp(buf, "dir_rx")) {
 		c->cfg.direction = MOST_CH_RX;
-	} else if (!strcmp(buf, "rx\n")) {
+	} else if (!strcmp(buf, "rx")) {
 		c->cfg.direction = MOST_CH_RX;
-	} else if (!strcmp(buf, "dir_tx\n")) {
+	} else if (!strcmp(buf, "dir_tx")) {
 		c->cfg.direction = MOST_CH_TX;
-	} else if (!strcmp(buf, "tx\n")) {
+	} else if (!strcmp(buf, "tx")) {
 		c->cfg.direction = MOST_CH_TX;
 	} else {
 		pr_info("Invalid direction\n");
