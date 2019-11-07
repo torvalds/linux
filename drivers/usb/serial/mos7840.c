@@ -1955,6 +1955,13 @@ static int mos7840_ioctl(struct tty_struct *tty,
 	return -ENOIOCTLCMD;
 }
 
+/*
+ * Check if GPO (pin 42) is connected to GPI (pin 33) as recommended by ASIX
+ * for MCS7810 by bit-banging a 16-bit word.
+ *
+ * Note that GPO is really RTS of the third port so this will toggle RTS of
+ * port two or three on two- and four-port devices.
+ */
 static int mos7810_check(struct usb_serial *serial)
 {
 	int i, pass_count = 0;
