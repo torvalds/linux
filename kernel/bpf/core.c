@@ -1569,7 +1569,7 @@ out:
 #undef LDST
 #define LDX_PROBE(SIZEOP, SIZE)							\
 	LDX_PROBE_MEM_##SIZEOP:							\
-		bpf_probe_read_kernel(&DST, SIZE, (const void *)(long) SRC);	\
+		bpf_probe_read_kernel(&DST, SIZE, (const void *)(long) (SRC + insn->off));	\
 		CONT;
 	LDX_PROBE(B,  1)
 	LDX_PROBE(H,  2)
