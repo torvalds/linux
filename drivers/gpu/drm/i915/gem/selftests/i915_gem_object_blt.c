@@ -301,7 +301,7 @@ err_flush:
 
 	intel_context_put(ce);
 out_file:
-	mock_file_free(i915, file);
+	mock_file_put(file);
 	return err;
 }
 
@@ -432,7 +432,7 @@ err_flush:
 
 	intel_context_put(ce);
 out_file:
-	mock_file_free(i915, file);
+	mock_file_put(file);
 	return err;
 }
 

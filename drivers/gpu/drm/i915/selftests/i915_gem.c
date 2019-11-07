@@ -163,7 +163,7 @@ static int igt_gem_suspend(void *arg)
 
 	err = switch_to_context(ctx);
 out:
-	mock_file_free(i915, file);
+	mock_file_put(file);
 	return err;
 }
 
@@ -198,7 +198,7 @@ static int igt_gem_hibernate(void *arg)
 
 	err = switch_to_context(ctx);
 out:
-	mock_file_free(i915, file);
+	mock_file_put(file);
 	return err;
 }
 

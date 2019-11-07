@@ -739,7 +739,7 @@ static int live_dirty_whitelist(void *arg)
 	}
 
 out_file:
-	mock_file_free(gt->i915, file);
+	mock_file_put(file);
 	return err;
 }
 

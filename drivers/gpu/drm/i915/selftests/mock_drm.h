@@ -25,7 +25,13 @@
 #ifndef __MOCK_DRM_H
 #define __MOCK_DRM_H
 
+struct drm_file;
+struct drm_i915_private;
+
 struct drm_file *mock_file(struct drm_i915_private *i915);
-void mock_file_free(struct drm_i915_private *i915, struct drm_file *file);
+static inline void mock_file_put(struct drm_file *file)
+{
+	fput(file->filp);
+}
 
 #endif /* !__MOCK_DRM_H */

@@ -515,7 +515,7 @@ static int igt_evict_contexts(void *arg)
 		pr_info("Submitted %lu contexts/requests on %s\n",
 			count, engine->name);
 
-		mock_file_free(i915, file);
+		mock_file_put(file);
 		if (err)
 			break;
 	}

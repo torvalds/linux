@@ -439,7 +439,7 @@ static int igt_lmem_write_gpu(void *arg)
 out_put:
 	i915_gem_object_put(obj);
 out_file:
-	mock_file_free(i915, file);
+	mock_file_put(file);
 	return err;
 }
 

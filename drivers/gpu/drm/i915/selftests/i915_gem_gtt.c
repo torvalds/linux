@@ -1026,7 +1026,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 	i915_vm_put(&ppgtt->vm);
 
 out_free:
-	mock_file_free(dev_priv, file);
+	mock_file_put(file);
 	return err;
 }
 
@@ -2022,7 +2022,7 @@ out_put_bbe:
 out_vm:
 	i915_vm_put(vm);
 out_unlock:
-	mock_file_free(i915, file);
+	mock_file_put(file);
 	return err;
 }
 

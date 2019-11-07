@@ -313,7 +313,7 @@ static int live_active_context(void *arg)
 	}
 
 out_file:
-	mock_file_free(gt->i915, file);
+	mock_file_put(file);
 	return err;
 }
 
@@ -423,7 +423,7 @@ static int live_remote_context(void *arg)
 	}
 
 out_file:
-	mock_file_free(gt->i915, file);
+	mock_file_put(file);
 	return err;
 }
 

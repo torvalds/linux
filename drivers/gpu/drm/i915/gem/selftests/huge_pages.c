@@ -1944,6 +1944,6 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 	err = i915_subtests(tests, ctx);
 
 out_file:
-	mock_file_free(i915, file);
+	mock_file_put(file);
 	return err;
 }

@@ -439,7 +439,7 @@ static int igt_reset_nop(void *arg)
 
 	err = igt_flush_test(gt->i915);
 out:
-	mock_file_free(gt->i915, file);
+	mock_file_put(file);
 	if (intel_gt_is_wedged(gt))
 		err = -EIO;
 	return err;
@@ -535,7 +535,7 @@ static int igt_reset_nop_engine(void *arg)
 
 	err = igt_flush_test(gt->i915);
 out:
-	mock_file_free(gt->i915, file);
+	mock_file_put(file);
 	if (intel_gt_is_wedged(gt))
 		err = -EIO;
 	return err;
@@ -752,7 +752,7 @@ static int active_engine(void *data)
 	}
 
 err_file:
-	mock_file_free(engine->i915, file);
+	mock_file_put(file);
 	return err;
 }
 
@@ -1325,7 +1325,7 @@ static int igt_reset_evict_ppgtt(void *arg)
 	i915_vm_put(vm);
 
 out:
-	mock_file_free(gt->i915, file);
+	mock_file_put(file);
 	return err;
 }
 
