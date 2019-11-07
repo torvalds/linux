@@ -727,6 +727,103 @@ static void ast_crtc_commit(struct drm_crtc *crtc)
 	ast_crtc_load_lut(crtc);
 }
 
+static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
+					struct drm_crtc_state *state)
+{
+	struct ast_private *ast = crtc->dev->dev_private;
+	struct drm_plane_state *plane_state;
+	bool succ;
+	struct drm_display_mode adjusted_mode;
+	struct ast_vbios_mode_info vbios_mode;
+
+	if (ast->chip == AST1180) {
+		DRM_ERROR("AST 1180 modesetting not supported\n");
+		return -EINVAL;
+	}
+
+	plane_state = crtc->primary->state;
+
+	if (plane_state && plane_state->fb) {
+		succ = ast_get_vbios_mode_info(plane_state->fb, &state->mode,
+					       &adjusted_mode, &vbios_mode);
+		if (!succ)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void ast_crtc_helper_atomic_begin(struct drm_crtc *crtc,
+					 struct drm_crtc_state *old_crtc_state)
+{
+	struct ast_private *ast = crtc->dev->dev_private;
+
+	ast_open_key(ast);
+}
+
+static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
+					 struct drm_crtc_state *old_crtc_state)
+{
+	const struct drm_framebuffer *fb = crtc->primary->state->fb;
+	struct drm_display_mode adjusted_mode;
+	struct ast_vbios_mode_info vbios_mode;
+	bool succ;
+
+	crtc->state->no_vblank = true;
+
+	if (!fb)
+		return;
+
+	ast_set_color_reg(crtc, fb);
+
+	memset(&adjusted_mode, 0, sizeof(adjusted_mode));
+	drm_mode_copy(&adjusted_mode, &crtc->state->adjusted_mode);
+
+	succ = ast_get_vbios_mode_info(fb, &crtc->state->adjusted_mode,
+				       &adjusted_mode, &vbios_mode);
+	if (WARN_ON_ONCE(!succ))
+		return;
+
+	ast_set_vbios_color_reg(crtc, fb, &vbios_mode);
+}
+
+static void
+ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+			      struct drm_crtc_state *old_crtc_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct ast_private *ast = crtc->dev->dev_private;
+	const struct drm_framebuffer *fb = crtc->primary->state->fb;
+	struct drm_display_mode adjusted_mode;
+	struct ast_vbios_mode_info vbios_mode;
+	bool succ;
+
+	memset(&adjusted_mode, 0, sizeof(adjusted_mode));
+	drm_mode_copy(&adjusted_mode, &crtc->state->adjusted_mode);
+
+	succ = ast_get_vbios_mode_info(fb, &crtc->state->adjusted_mode,
+				       &adjusted_mode, &vbios_mode);
+	if (WARN_ON_ONCE(!succ))
+		return;
+
+	ast_set_vbios_mode_reg(crtc, &adjusted_mode, &vbios_mode);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
+	ast_set_std_reg(crtc, &adjusted_mode, &vbios_mode);
+	ast_set_crtc_reg(crtc, &adjusted_mode, &vbios_mode);
+	ast_set_dclk_reg(dev, &adjusted_mode, &vbios_mode);
+	ast_set_crtthd_reg(crtc);
+	ast_set_sync_reg(dev, &adjusted_mode, &vbios_mode);
+	ast_set_dac_reg(crtc, &adjusted_mode, &vbios_mode);
+
+	ast_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
+}
+
+static void
+ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
+			       struct drm_crtc_state *old_crtc_state)
+{
+	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+}
 
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.dpms = ast_crtc_dpms,
@@ -735,7 +832,11 @@ static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.disable = ast_crtc_disable,
 	.prepare = ast_crtc_prepare,
 	.commit = ast_crtc_commit,
-
+	.atomic_check = ast_crtc_helper_atomic_check,
+	.atomic_begin = ast_crtc_helper_atomic_begin,
+	.atomic_flush = ast_crtc_helper_atomic_flush,
+	.atomic_enable = ast_crtc_helper_atomic_enable,
+	.atomic_disable = ast_crtc_helper_atomic_disable,
 };
 
 static void ast_crtc_reset(struct drm_crtc *crtc)
@@ -766,6 +867,8 @@ static const struct drm_crtc_funcs ast_crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.gamma_set = ast_crtc_gamma_set,
 	.destroy = ast_crtc_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 static int ast_crtc_init(struct drm_device *dev)
