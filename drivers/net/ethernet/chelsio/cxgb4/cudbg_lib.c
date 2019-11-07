@@ -4,6 +4,7 @@
  */
 
 #include <linux/sort.h>
+#include <linux/string.h>
 
 #include "t4_regs.h"
 #include "cxgb4.h"
@@ -776,24 +777,18 @@ static int cudbg_get_mem_region(struct adapter *padap,
 				struct cudbg_mem_desc *mem_desc)
 {
 	u8 mc, found = 0;
-	u32 i, idx = 0;
-	int rc;
+	u32 idx = 0;
+	int rc, i;
 
 	rc = cudbg_meminfo_get_mem_index(padap, meminfo, mem_type, &mc);
 	if (rc)
 		return rc;
 
-	for (i = 0; i < ARRAY_SIZE(cudbg_region); i++) {
-		if (!strcmp(cudbg_region[i], region_name)) {
-			found = 1;
-			idx = i;
-			break;
-		}
-	}
-	if (!found)
+	i = match_string(cudbg_region, ARRAY_SIZE(cudbg_region), region_name);
+	if (i < 0)
 		return -EINVAL;
 
-	found = 0;
+	idx = i;
 	for (i = 0; i < meminfo->mem_c; i++) {
 		if (meminfo->mem[i].idx >= ARRAY_SIZE(cudbg_region))
 			continue; /* Skip holes */
