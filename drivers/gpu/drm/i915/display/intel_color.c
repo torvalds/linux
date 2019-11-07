@@ -392,6 +392,13 @@ static void cherryview_load_csc_matrix(const struct intel_crtc_state *crtc_state
 	intel_de_write(dev_priv, CGM_PIPE_MODE(pipe), crtc_state->cgm_mode);
 }
 
+static u32 i9xx_lut_8(const struct drm_color_lut *color)
+{
+	return drm_color_lut_extract(color->red, 8) << 16 |
+		drm_color_lut_extract(color->green, 8) << 8 |
+		drm_color_lut_extract(color->blue, 8);
+}
+
 /* i965+ "10.6" bit interpolated format "even DW" (low 8 bits) */
 static u32 i965_lut_10p6_ldw(const struct drm_color_lut *color)
 {
@@ -435,10 +442,7 @@ static void i9xx_load_luts_internal(const struct intel_crtc_state *crtc_state,
 		const struct drm_color_lut *lut = blob->data;
 
 		for (i = 0; i < 256; i++) {
-			u32 word =
-				(drm_color_lut_extract(lut[i].red, 8) << 16) |
-				(drm_color_lut_extract(lut[i].green, 8) << 8) |
-				drm_color_lut_extract(lut[i].blue, 8);
+			u32 word = i9xx_lut_8(&lut[i]);
 
 			if (HAS_GMCH(dev_priv))
 				intel_de_write(dev_priv, PALETTE(pipe, i),
