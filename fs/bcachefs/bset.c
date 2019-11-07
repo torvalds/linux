@@ -1326,6 +1326,25 @@ static int bset_search_tree_slowpath(const struct btree *b,
 				 packed_search, search) < 0;
 }
 
+static inline void prefetch_four_cachelines(void *p)
+{
+#ifdef CONFIG_X86_64
+	asm(".intel_syntax noprefix;"
+	    "prefetcht0 [%0 - 127 + 64 * 0];"
+	    "prefetcht0 [%0 - 127 + 64 * 1];"
+	    "prefetcht0 [%0 - 127 + 64 * 2];"
+	    "prefetcht0 [%0 - 127 + 64 * 3];"
+	    ".att_syntax prefix;"
+	    :
+	    : "r" (p + 127));
+#else
+	prefetch(p + L1_CACHE_BYTES * 0);
+	prefetch(p + L1_CACHE_BYTES * 1);
+	prefetch(p + L1_CACHE_BYTES * 2);
+	prefetch(p + L1_CACHE_BYTES * 3);
+#endif
+}
+
 __flatten
 static struct bkey_packed *bset_search_tree(const struct btree *b,
 				struct bset_tree *t,
@@ -1333,34 +1352,12 @@ static struct bkey_packed *bset_search_tree(const struct btree *b,
 				const struct bkey_packed *packed_search)
 {
 	struct ro_aux_tree *base = ro_aux_tree_base(b, t);
-	struct bkey_float *f = bkey_float_get(base, 1);
-	void *p;
+	struct bkey_float *f;
 	unsigned inorder, n = 1;
 
-	while (1) {
-		if (likely(n << 4 < t->size)) {
-			p = bkey_float_get(base, n << 4);
-			prefetch(p);
-		} else if (n << 3 < t->size) {
-			inorder = __eytzinger1_to_inorder(n, t->size, t->extra);
-			p = bset_cacheline(b, t, inorder);
-#ifdef CONFIG_X86_64
-			asm(".intel_syntax noprefix;"
-			    "prefetcht0 [%0 - 127 + 64 * 0];"
-			    "prefetcht0 [%0 - 127 + 64 * 1];"
-			    "prefetcht0 [%0 - 127 + 64 * 2];"
-			    "prefetcht0 [%0 - 127 + 64 * 3];"
-			    ".att_syntax prefix;"
-			    :
-			    : "r" (p + 127));
-#else
-			prefetch(p + L1_CACHE_BYTES * 0);
-			prefetch(p + L1_CACHE_BYTES * 1);
-			prefetch(p + L1_CACHE_BYTES * 2);
-			prefetch(p + L1_CACHE_BYTES * 3);
-#endif
-		} else if (n >= t->size)
-			break;
+	do {
+		if (likely(n << 4 < t->size))
+			prefetch(bkey_float_get(base, n << 4));
 
 		f = bkey_float_get(base, n);
 
@@ -1391,17 +1388,12 @@ static struct bkey_packed *bset_search_tree(const struct btree *b,
 	}
 }
 
-/*
- * Returns the first key greater than or equal to @search
- */
-__always_inline __flatten
-static struct bkey_packed *bch2_bset_search(struct btree *b,
+static __always_inline __flatten
+struct bkey_packed *__bch2_bset_search(struct btree *b,
 				struct bset_tree *t,
 				struct bpos *search,
-				struct bkey_packed *packed_search,
 				const struct bkey_packed *lossy_packed_search)
 {
-	struct bkey_packed *m;
 
 	/*
 	 * First, we search for a cacheline, then lastly we do a linear search
@@ -1420,11 +1412,9 @@ static struct bkey_packed *bch2_bset_search(struct btree *b,
 
 	switch (bset_aux_tree_type(t)) {
 	case BSET_NO_AUX_TREE:
-		m = btree_bkey_first(b, t);
-		break;
+		return btree_bkey_first(b, t);
 	case BSET_RW_AUX_TREE:
-		m = bset_search_write_set(b, t, search, lossy_packed_search);
-		break;
+		return bset_search_write_set(b, t, search, lossy_packed_search);
 	case BSET_RO_AUX_TREE:
 		/*
 		 * Each node in the auxiliary search tree covers a certain range
@@ -1436,10 +1426,20 @@ static struct bkey_packed *bch2_bset_search(struct btree *b,
 		if (bkey_cmp(*search, t->max_key) > 0)
 			return btree_bkey_last(b, t);
 
-		m = bset_search_tree(b, t, search, lossy_packed_search);
-		break;
+		return bset_search_tree(b, t, search, lossy_packed_search);
+	default:
+		unreachable();
 	}
+}
 
+static __always_inline __flatten
+struct bkey_packed *bch2_bset_search_linear(struct btree *b,
+				struct bset_tree *t,
+				struct bpos *search,
+				struct bkey_packed *packed_search,
+				const struct bkey_packed *lossy_packed_search,
+				struct bkey_packed *m)
+{
 	if (lossy_packed_search)
 		while (m != btree_bkey_last(b, t) &&
 		       bkey_iter_cmp_p_or_unp(b, search, lossy_packed_search,
@@ -1460,6 +1460,23 @@ static struct bkey_packed *bch2_bset_search(struct btree *b,
 	}
 
 	return m;
+}
+
+/*
+ * Returns the first key greater than or equal to @search
+ */
+static __always_inline __flatten
+struct bkey_packed *bch2_bset_search(struct btree *b,
+				struct bset_tree *t,
+				struct bpos *search,
+				struct bkey_packed *packed_search,
+				const struct bkey_packed *lossy_packed_search)
+{
+	struct bkey_packed *m = __bch2_bset_search(b, t, search,
+						   lossy_packed_search);
+
+	return bch2_bset_search_linear(b, t, search,
+				 packed_search, lossy_packed_search, m);
 }
 
 /* Btree node iterator */
@@ -1552,9 +1569,10 @@ __flatten
 void bch2_btree_node_iter_init(struct btree_node_iter *iter,
 			       struct btree *b, struct bpos *search)
 {
-	struct bset_tree *t;
 	struct bkey_packed p, *packed_search = NULL;
 	struct btree_node_iter_set *pos = iter->data;
+	struct bkey_packed *k[MAX_BSETS];
+	unsigned i;
 
 	EBUG_ON(bkey_cmp(*search, b->data->min_key) < 0);
 	bset_aux_tree_verify(b);
@@ -1573,14 +1591,20 @@ void bch2_btree_node_iter_init(struct btree_node_iter *iter,
 		return;
 	}
 
-	for_each_bset(b, t) {
-		struct bkey_packed *k = bch2_bset_search(b, t, search,
-							 packed_search, &p);
+	for (i = 0; i < b->nsets; i++) {
+		k[i] = __bch2_bset_search(b, b->set + i, search, &p);
+		prefetch_four_cachelines(k[i]);
+	}
+
+	for (i = 0; i < b->nsets; i++) {
+		struct bset_tree *t = b->set + i;
 		struct bkey_packed *end = btree_bkey_last(b, t);
 
-		if (k != end)
+		k[i] = bch2_bset_search_linear(b, t, search,
+					       packed_search, &p, k[i]);
+		if (k[i] != end)
 			*pos++ = (struct btree_node_iter_set) {
-				__btree_node_key_to_offset(b, k),
+				__btree_node_key_to_offset(b, k[i]),
 				__btree_node_key_to_offset(b, end)
 			};
 	}
