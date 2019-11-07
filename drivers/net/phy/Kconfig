@@ -441,6 +441,7 @@ config NXP_TJA11XX_PHY
 
 config AT803X_PHY
 	tristate "Qualcomm Atheros AR803X PHYs"
+	depends on REGULATOR
 	help
 	  Currently supports the AR8030, AR8031, AR8033 and AR8035 model
 
