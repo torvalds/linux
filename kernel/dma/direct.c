@@ -268,7 +268,7 @@ void dma_direct_sync_single_for_device(struct device *dev,
 		swiotlb_tbl_sync_single(dev, paddr, size, dir, SYNC_FOR_DEVICE);
 
 	if (!dev_is_dma_coherent(dev))
-		arch_sync_dma_for_device(dev, paddr, size, dir);
+		arch_sync_dma_for_device(paddr, size, dir);
 }
 EXPORT_SYMBOL(dma_direct_sync_single_for_device);
 
@@ -286,7 +286,7 @@ void dma_direct_sync_sg_for_device(struct device *dev,
 					dir, SYNC_FOR_DEVICE);
 
 		if (!dev_is_dma_coherent(dev))
-			arch_sync_dma_for_device(dev, paddr, sg->length,
+			arch_sync_dma_for_device(paddr, sg->length,
 					dir);
 	}
 }
@@ -302,8 +302,8 @@ void dma_direct_sync_single_for_cpu(struct device *dev,
 	phys_addr_t paddr = dma_to_phys(dev, addr);
 
 	if (!dev_is_dma_coherent(dev)) {
-		arch_sync_dma_for_cpu(dev, paddr, size, dir);
-		arch_sync_dma_for_cpu_all(dev);
+		arch_sync_dma_for_cpu(paddr, size, dir);
+		arch_sync_dma_for_cpu_all();
 	}
 
 	if (unlikely(is_swiotlb_buffer(paddr)))
@@ -321,7 +321,7 @@ void dma_direct_sync_sg_for_cpu(struct device *dev,
 		phys_addr_t paddr = dma_to_phys(dev, sg_dma_address(sg));
 
 		if (!dev_is_dma_coherent(dev))
-			arch_sync_dma_for_cpu(dev, paddr, sg->length, dir);
+			arch_sync_dma_for_cpu(paddr, sg->length, dir);
 
 		if (unlikely(is_swiotlb_buffer(paddr)))
 			swiotlb_tbl_sync_single(dev, paddr, sg->length, dir,
@@ -329,7 +329,7 @@ void dma_direct_sync_sg_for_cpu(struct device *dev,
 	}
 
 	if (!dev_is_dma_coherent(dev))
-		arch_sync_dma_for_cpu_all(dev);
+		arch_sync_dma_for_cpu_all();
 }
 EXPORT_SYMBOL(dma_direct_sync_sg_for_cpu);
 
@@ -380,7 +380,7 @@ dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 	}
 
 	if (!dev_is_dma_coherent(dev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		arch_sync_dma_for_device(dev, phys, size, dir);
+		arch_sync_dma_for_device(phys, size, dir);
 	return dma_addr;
 }
 EXPORT_SYMBOL(dma_direct_map_page);

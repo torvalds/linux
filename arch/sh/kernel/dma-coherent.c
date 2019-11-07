@@ -25,7 +25,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	 * Pages from the page allocator may have data present in
 	 * cache. So flush the cache before using uncached memory.
 	 */
-	arch_sync_dma_for_device(dev, virt_to_phys(ret), size,
+	arch_sync_dma_for_device(virt_to_phys(ret), size,
 			DMA_BIDIRECTIONAL);
 
 	ret_nocache = (void __force *)ioremap_nocache(virt_to_phys(ret), size);
@@ -59,8 +59,8 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 	iounmap(vaddr);
 }
 
-void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
 	void *addr = sh_cacheop_vaddr(phys_to_virt(paddr));
 
