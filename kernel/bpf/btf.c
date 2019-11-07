@@ -1036,6 +1036,82 @@ static const struct resolve_vertex *env_stack_peak(struct btf_verifier_env *env)
 	return env->top_stack ? &env->stack[env->top_stack - 1] : NULL;
 }
 
+/* Resolve the size of a passed-in "type"
+ *
+ * type: is an array (e.g. u32 array[x][y])
+ * return type: type "u32[x][y]", i.e. BTF_KIND_ARRAY,
+ * *type_size: (x * y * sizeof(u32)).  Hence, *type_size always
+ *             corresponds to the return type.
+ * *elem_type: u32
+ * *total_nelems: (x * y).  Hence, individual elem size is
+ *                (*type_size / *total_nelems)
+ *
+ * type: is not an array (e.g. const struct X)
+ * return type: type "struct X"
+ * *type_size: sizeof(struct X)
+ * *elem_type: same as return type ("struct X")
+ * *total_nelems: 1
+ */
+static const struct btf_type *
+btf_resolve_size(const struct btf *btf, const struct btf_type *type,
+		 u32 *type_size, const struct btf_type **elem_type,
+		 u32 *total_nelems)
+{
+	const struct btf_type *array_type = NULL;
+	const struct btf_array *array;
+	u32 i, size, nelems = 1;
+
+	for (i = 0; i < MAX_RESOLVE_DEPTH; i++) {
+		switch (BTF_INFO_KIND(type->info)) {
+		/* type->size can be used */
+		case BTF_KIND_INT:
+		case BTF_KIND_STRUCT:
+		case BTF_KIND_UNION:
+		case BTF_KIND_ENUM:
+			size = type->size;
+			goto resolved;
+
+		case BTF_KIND_PTR:
+			size = sizeof(void *);
+			goto resolved;
+
+		/* Modifiers */
+		case BTF_KIND_TYPEDEF:
+		case BTF_KIND_VOLATILE:
+		case BTF_KIND_CONST:
+		case BTF_KIND_RESTRICT:
+			type = btf_type_by_id(btf, type->type);
+			break;
+
+		case BTF_KIND_ARRAY:
+			if (!array_type)
+				array_type = type;
+			array = btf_type_array(type);
+			if (nelems && array->nelems > U32_MAX / nelems)
+				return ERR_PTR(-EINVAL);
+			nelems *= array->nelems;
+			type = btf_type_by_id(btf, array->type);
+			break;
+
+		/* type without size */
+		default:
+			return ERR_PTR(-EINVAL);
+		}
+	}
+
+	return ERR_PTR(-EINVAL);
+
+resolved:
+	if (nelems && size > U32_MAX / nelems)
+		return ERR_PTR(-EINVAL);
+
+	*type_size = nelems * size;
+	*total_nelems = nelems;
+	*elem_type = type;
+
+	return array_type ? : type;
+}
+
 /* The input param "type_id" must point to a needs_resolve type */
 static const struct btf_type *btf_type_id_resolve(const struct btf *btf,
 						  u32 *type_id)
@@ -3494,10 +3570,10 @@ int btf_struct_access(struct bpf_verifier_log *log,
 		      enum bpf_access_type atype,
 		      u32 *next_btf_id)
 {
+	u32 i, moff, mtrue_end, msize = 0, total_nelems = 0;
+	const struct btf_type *mtype, *elem_type = NULL;
 	const struct btf_member *member;
-	const struct btf_type *mtype;
 	const char *tname, *mname;
-	int i, moff = 0, msize;
 
 again:
 	tname = __btf_name_by_offset(btf_vmlinux, t->name_off);
@@ -3507,40 +3583,88 @@ again:
 	}
 
 	for_each_member(i, t, member) {
-		/* offset of the field in bits */
-		moff = btf_member_bit_offset(t, member);
-
 		if (btf_member_bitfield_size(t, member))
 			/* bitfields are not supported yet */
 			continue;
 
-		if (off + size <= moff / 8)
+		/* offset of the field in bytes */
+		moff = btf_member_bit_offset(t, member) / 8;
+		if (off + size <= moff)
 			/* won't find anything, field is already too far */
 			break;
+		/* In case of "off" is pointing to holes of a struct */
+		if (off < moff)
+			continue;
 
 		/* type of the field */
 		mtype = btf_type_by_id(btf_vmlinux, member->type);
 		mname = __btf_name_by_offset(btf_vmlinux, member->name_off);
 
-		/* skip modifiers */
-		while (btf_type_is_modifier(mtype))
-			mtype = btf_type_by_id(btf_vmlinux, mtype->type);
-
-		if (btf_type_is_array(mtype))
-			/* array deref is not supported yet */
-			continue;
-
-		if (!btf_type_has_size(mtype) && !btf_type_is_ptr(mtype)) {
+		mtype = btf_resolve_size(btf_vmlinux, mtype, &msize,
+					 &elem_type, &total_nelems);
+		if (IS_ERR(mtype)) {
 			bpf_log(log, "field %s doesn't have size\n", mname);
 			return -EFAULT;
 		}
-		if (btf_type_is_ptr(mtype))
-			msize = 8;
-		else
-			msize = mtype->size;
-		if (off >= moff / 8 + msize)
+
+		mtrue_end = moff + msize;
+		if (off >= mtrue_end)
 			/* no overlap with member, keep iterating */
 			continue;
+
+		if (btf_type_is_array(mtype)) {
+			u32 elem_idx;
+
+			/* btf_resolve_size() above helps to
+			 * linearize a multi-dimensional array.
+			 *
+			 * The logic here is treating an array
+			 * in a struct as the following way:
+			 *
+			 * struct outer {
+			 *	struct inner array[2][2];
+			 * };
+			 *
+			 * looks like:
+			 *
+			 * struct outer {
+			 *	struct inner array_elem0;
+			 *	struct inner array_elem1;
+			 *	struct inner array_elem2;
+			 *	struct inner array_elem3;
+			 * };
+			 *
+			 * When accessing outer->array[1][0], it moves
+			 * moff to "array_elem2", set mtype to
+			 * "struct inner", and msize also becomes
+			 * sizeof(struct inner).  Then most of the
+			 * remaining logic will fall through without
+			 * caring the current member is an array or
+			 * not.
+			 *
+			 * Unlike mtype/msize/moff, mtrue_end does not
+			 * change.  The naming difference ("_true") tells
+			 * that it is not always corresponding to
+			 * the current mtype/msize/moff.
+			 * It is the true end of the current
+			 * member (i.e. array in this case).  That
+			 * will allow an int array to be accessed like
+			 * a scratch space,
+			 * i.e. allow access beyond the size of
+			 *      the array's element as long as it is
+			 *      within the mtrue_end boundary.
+			 */
+
+			/* skip empty array */
+			if (moff == mtrue_end)
+				continue;
+
+			msize /= total_nelems;
+			elem_idx = (off - moff) / msize;
+			moff += elem_idx * msize;
+			mtype = elem_type;
+		}
+
 		/* the 'off' we're looking for is either equal to start
 		 * of this field or inside of this struct
 		 */
@@ -3549,19 +3673,19 @@ again:
 			t = mtype;
 
 			/* adjust offset we're looking for */
-			off -= moff / 8;
+			off -= moff;
 			goto again;
-		}
-		if (msize != size) {
-			/* field access size doesn't match */
-			bpf_log(log,
-				"cannot access %d bytes in struct %s field %s that has size %d\n",
-				size, tname, mname, msize);
-			return -EACCES;
 		}
 
 		if (btf_type_is_ptr(mtype)) {
 			const struct btf_type *stype;
+
+			if (msize != size || off != moff) {
+				bpf_log(log,
+					"cannot access ptr member %s with moff %u in struct %s with off %u size %u\n",
+					mname, moff, tname, off, size);
+				return -EACCES;
+			}
 
 			stype = btf_type_by_id(btf_vmlinux, mtype->type);
 			/* skip modifiers */
@@ -3572,7 +3696,20 @@ again:
 				return PTR_TO_BTF_ID;
 			}
 		}
-		/* all other fields are treated as scalars */
+
+		/* Allow more flexible access within an int as long as
+		 * it is within mtrue_end.
+		 * Since mtrue_end could be the end of an array,
+		 * that also allows using an array of int as a scratch
+		 * space. e.g. skb->cb[].
+		 */
+		if (off + size > mtrue_end) {
+			bpf_log(log,
+				"access beyond the end of member %s (mend:%u) in struct %s with off %u size %u\n",
+				mname, mtrue_end, tname, off, size);
+			return -EACCES;
+		}
+
 		return SCALAR_VALUE;
 	}
 	bpf_log(log, "struct %s doesn't have field at offset %d\n", tname, off);
