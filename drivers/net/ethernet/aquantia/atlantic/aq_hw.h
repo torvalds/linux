@@ -122,6 +122,20 @@ struct aq_stats_s {
 #define AQ_HW_LED_BLINK    0x2U
 #define AQ_HW_LED_DEFAULT  0x0U
 
+enum aq_priv_flags {
+	AQ_HW_LOOPBACK_DMA_SYS,
+	AQ_HW_LOOPBACK_PKT_SYS,
+	AQ_HW_LOOPBACK_DMA_NET,
+	AQ_HW_LOOPBACK_PHYINT_SYS,
+	AQ_HW_LOOPBACK_PHYEXT_SYS,
+};
+
+#define AQ_HW_LOOPBACK_MASK	(BIT(AQ_HW_LOOPBACK_DMA_SYS) |\
+				 BIT(AQ_HW_LOOPBACK_PKT_SYS) |\
+				 BIT(AQ_HW_LOOPBACK_DMA_NET) |\
+				 BIT(AQ_HW_LOOPBACK_PHYINT_SYS) |\
+				 BIT(AQ_HW_LOOPBACK_PHYEXT_SYS))
+
 struct aq_hw_s {
 	atomic_t flags;
 	u8 rbl_enabled:1;
@@ -280,6 +294,8 @@ struct aq_hw_ops {
 			    u64 *timestamp);
 
 	int (*hw_set_fc)(struct aq_hw_s *self, u32 fc, u32 tc);
+
+	int (*hw_set_loopback)(struct aq_hw_s *self, u32 mode, bool enable);
 };
 
 struct aq_fw_ops {
@@ -309,6 +325,8 @@ struct aq_fw_ops {
 	int (*set_flow_control)(struct aq_hw_s *self);
 
 	int (*led_control)(struct aq_hw_s *self, u32 mode);
+
+	int (*set_phyloopback)(struct aq_hw_s *self, u32 mode, bool enable);
 
 	int (*set_power)(struct aq_hw_s *self, unsigned int power_state,
 			 u8 *mac);

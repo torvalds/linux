@@ -42,6 +42,9 @@
 #define HW_ATL_FW2X_CTRL_PAUSE            BIT(CTRL_PAUSE)
 #define HW_ATL_FW2X_CTRL_TEMPERATURE      BIT(CTRL_TEMPERATURE)
 #define HW_ATL_FW2X_CTRL_ASYMMETRIC_PAUSE BIT(CTRL_ASYMMETRIC_PAUSE)
+#define HW_ATL_FW2X_CTRL_INT_LOOPBACK     BIT(CTRL_INT_LOOPBACK)
+#define HW_ATL_FW2X_CTRL_EXT_LOOPBACK     BIT(CTRL_EXT_LOOPBACK)
+#define HW_ATL_FW2X_CTRL_DOWNSHIFT        BIT(CTRL_DOWNSHIFT)
 #define HW_ATL_FW2X_CTRL_FORCE_RECONNECT  BIT(CTRL_FORCE_RECONNECT)
 
 #define HW_ATL_FW2X_CAP_EEE_1G_MASK      BIT(CAPS_HI_1000BASET_FD_EEE)
@@ -53,6 +56,7 @@
 #define HAL_ATLANTIC_UTILS_FW2X_MSG_WOL  0x0E
 
 #define HW_ATL_FW_VER_LED                0x03010026U
+#define HW_ATL_FW_VER_MEDIA_CONTROL      0x0301005aU
 
 struct __packed fw2x_msg_wol_pattern {
 	u8 mask[16];
@@ -539,6 +543,33 @@ static u32 aq_fw2x_get_flow_control(struct aq_hw_s *self, u32 *fcmode)
 	return 0;
 }
 
+static int aq_fw2x_set_phyloopback(struct aq_hw_s *self, u32 mode, bool enable)
+{
+	u32 mpi_opts;
+
+	switch (mode) {
+	case AQ_HW_LOOPBACK_PHYINT_SYS:
+		mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+		if (enable)
+			mpi_opts |= HW_ATL_FW2X_CTRL_INT_LOOPBACK;
+		else
+			mpi_opts &= ~HW_ATL_FW2X_CTRL_INT_LOOPBACK;
+		aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
+		break;
+	case AQ_HW_LOOPBACK_PHYEXT_SYS:
+		mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+		if (enable)
+			mpi_opts |= HW_ATL_FW2X_CTRL_EXT_LOOPBACK;
+		else
+			mpi_opts &= ~HW_ATL_FW2X_CTRL_EXT_LOOPBACK;
+		aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static u32 aq_fw2x_mbox_get(struct aq_hw_s *self)
 {
 	return aq_hw_read_reg(self, HW_ATL_FW2X_MPI_MBOX_ADDR);
@@ -586,4 +617,5 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.send_fw_request    = aq_fw2x_send_fw_request,
 	.enable_ptp         = aq_fw3x_enable_ptp,
 	.led_control        = aq_fw2x_led_control,
+	.set_phyloopback    = aq_fw2x_set_phyloopback,
 };

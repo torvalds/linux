@@ -92,6 +92,14 @@ static const char aq_ethtool_queue_stat_names[][ETH_GSTRING_LEN] = {
 	"Queue[%d] InErrors",
 };
 
+static const char aq_ethtool_priv_flag_names[][ETH_GSTRING_LEN] = {
+	"DMASystemLoopback",
+	"PKTSystemLoopback",
+	"DMANetworkLoopback",
+	"PHYInternalLoopback",
+	"PHYExternalLoopback",
+};
+
 static void aq_ethtool_stats(struct net_device *ndev,
 			     struct ethtool_stats *stats, u64 *data)
 {
@@ -137,7 +145,8 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
 	u8 *p = data;
 
-	if (stringset == ETH_SS_STATS) {
+	switch (stringset) {
+	case ETH_SS_STATS:
 		memcpy(p, aq_ethtool_stat_names,
 		       sizeof(aq_ethtool_stat_names));
 		p = p + sizeof(aq_ethtool_stat_names);
@@ -150,6 +159,11 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 				p += ETH_GSTRING_LEN;
 			}
 		}
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(p, aq_ethtool_priv_flag_names,
+		       sizeof(aq_ethtool_priv_flag_names));
+		break;
 	}
 }
 
@@ -192,6 +206,9 @@ static int aq_ethtool_get_sset_count(struct net_device *ndev, int stringset)
 	case ETH_SS_STATS:
 		ret = ARRAY_SIZE(aq_ethtool_stat_names) +
 			cfg->vecs * ARRAY_SIZE(aq_ethtool_queue_stat_names);
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		ret = ARRAY_SIZE(aq_ethtool_priv_flag_names);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -650,6 +667,40 @@ static void aq_set_msg_level(struct net_device *ndev, u32 data)
 	aq_nic->msg_enable = data;
 }
 
+u32 aq_ethtool_get_priv_flags(struct net_device *ndev)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+
+	return aq_nic->aq_nic_cfg.priv_flags;
+}
+
+int aq_ethtool_set_priv_flags(struct net_device *ndev, u32 flags)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct aq_nic_cfg_s *cfg;
+	u32 priv_flags;
+
+	cfg = aq_nic_get_cfg(aq_nic);
+	priv_flags = cfg->priv_flags;
+
+	if (flags & ~AQ_PRIV_FLAGS_MASK)
+		return -EOPNOTSUPP;
+
+	cfg->priv_flags = flags;
+
+	if ((priv_flags ^ flags) & BIT(AQ_HW_LOOPBACK_DMA_NET)) {
+		if (netif_running(ndev)) {
+			dev_close(ndev);
+
+			dev_open(ndev, NULL);
+		}
+	} else if ((priv_flags ^ flags) & AQ_HW_LOOPBACK_MASK) {
+		aq_nic_set_loopback(aq_nic);
+	}
+
+	return 0;
+}
+
 const struct ethtool_ops aq_ethtool_ops = {
 	.get_link            = aq_ethtool_get_link,
 	.get_regs_len        = aq_ethtool_get_regs_len,
@@ -676,6 +727,8 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.set_msglevel        = aq_set_msg_level,
 	.get_sset_count      = aq_ethtool_get_sset_count,
 	.get_ethtool_stats   = aq_ethtool_stats,
+	.get_priv_flags      = aq_ethtool_get_priv_flags,
+	.set_priv_flags      = aq_ethtool_set_priv_flags,
 	.get_link_ksettings  = aq_ethtool_get_link_ksettings,
 	.set_link_ksettings  = aq_ethtool_set_link_ksettings,
 	.get_coalesce	     = aq_ethtool_get_coalesce,

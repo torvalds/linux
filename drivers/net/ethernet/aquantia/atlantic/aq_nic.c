@@ -406,6 +406,8 @@ int aq_nic_start(struct aq_nic_s *self)
 
 	INIT_WORK(&self->service_task, aq_nic_service_task);
 
+	aq_nic_set_loopback(self);
+
 	timer_setup(&self->service_timer, aq_nic_service_timer_cb, 0);
 	aq_nic_service_timer_cb(&self->service_timer);
 
@@ -624,6 +626,11 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 	}
 
 	aq_ring_update_queue_state(ring);
+
+	if (self->aq_nic_cfg.priv_flags & BIT(AQ_HW_LOOPBACK_DMA_NET)) {
+		err = NETDEV_TX_BUSY;
+		goto err_exit;
+	}
 
 	/* Above status update may stop the queue. Check this. */
 	if (__netif_subqueue_stopped(self->ndev, ring->idx)) {
@@ -971,6 +978,44 @@ u32 aq_nic_get_fw_version(struct aq_nic_s *self)
 	self->aq_hw_ops->hw_get_fw_version(self->aq_hw, &fw_version);
 
 	return fw_version;
+}
+
+int aq_nic_set_loopback(struct aq_nic_s *self)
+{
+	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+
+	if (!self->aq_hw_ops->hw_set_loopback ||
+	    !self->aq_fw_ops->set_phyloopback)
+		return -ENOTSUPP;
+
+	mutex_lock(&self->fwreq_mutex);
+	self->aq_hw_ops->hw_set_loopback(self->aq_hw,
+					 AQ_HW_LOOPBACK_DMA_SYS,
+					 !!(cfg->priv_flags &
+					    BIT(AQ_HW_LOOPBACK_DMA_SYS)));
+
+	self->aq_hw_ops->hw_set_loopback(self->aq_hw,
+					 AQ_HW_LOOPBACK_PKT_SYS,
+					 !!(cfg->priv_flags &
+					    BIT(AQ_HW_LOOPBACK_PKT_SYS)));
+
+	self->aq_hw_ops->hw_set_loopback(self->aq_hw,
+					 AQ_HW_LOOPBACK_DMA_NET,
+					 !!(cfg->priv_flags &
+					    BIT(AQ_HW_LOOPBACK_DMA_NET)));
+
+	self->aq_fw_ops->set_phyloopback(self->aq_hw,
+					 AQ_HW_LOOPBACK_PHYINT_SYS,
+					 !!(cfg->priv_flags &
+					    BIT(AQ_HW_LOOPBACK_PHYINT_SYS)));
+
+	self->aq_fw_ops->set_phyloopback(self->aq_hw,
+					 AQ_HW_LOOPBACK_PHYEXT_SYS,
+					 !!(cfg->priv_flags &
+					    BIT(AQ_HW_LOOPBACK_PHYEXT_SYS)));
+	mutex_unlock(&self->fwreq_mutex);
+
+	return 0;
 }
 
 int aq_nic_stop(struct aq_nic_s *self)

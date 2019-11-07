@@ -1427,6 +1427,30 @@ static int hw_atl_b0_hw_vlan_ctrl(struct aq_hw_s *self, bool enable)
 	return aq_hw_err_from_flags(self);
 }
 
+static int hw_atl_b0_set_loopback(struct aq_hw_s *self, u32 mode, bool enable)
+{
+	switch (mode) {
+	case AQ_HW_LOOPBACK_DMA_SYS:
+		hw_atl_tpb_tx_dma_sys_lbk_en_set(self, enable);
+		hw_atl_rpb_dma_sys_lbk_set(self, enable);
+		break;
+	case AQ_HW_LOOPBACK_PKT_SYS:
+		hw_atl_tpo_tx_pkt_sys_lbk_en_set(self, enable);
+		hw_atl_rpf_tpo_to_rpf_sys_lbk_set(self, enable);
+		break;
+	case AQ_HW_LOOPBACK_DMA_NET:
+		hw_atl_rpf_vlan_prom_mode_en_set(self, enable);
+		hw_atl_rpfl2promiscuous_mode_en_set(self, enable);
+		hw_atl_tpb_tx_tx_clk_gate_en_set(self, !enable);
+		hw_atl_tpb_tx_dma_net_lbk_en_set(self, enable);
+		hw_atl_rpb_dma_net_lbk_set(self, enable);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_set_mac_address   = hw_atl_b0_hw_mac_addr_set,
 	.hw_init              = hw_atl_b0_hw_init,
@@ -1481,5 +1505,9 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.rx_extract_ts           = hw_atl_b0_rx_extract_ts,
 	.extract_hwts            = hw_atl_b0_extract_hwts,
 	.hw_set_offload          = hw_atl_b0_hw_offload_set,
-	.hw_set_fc                   = hw_atl_b0_set_fc,
+	.hw_get_hw_stats         = hw_atl_utils_get_hw_stats,
+	.hw_get_fw_version       = hw_atl_utils_get_fw_version,
+	.hw_set_offload          = hw_atl_b0_hw_offload_set,
+	.hw_set_loopback         = hw_atl_b0_set_loopback,
+	.hw_set_fc               = hw_atl_b0_set_fc,
 };

@@ -325,6 +325,31 @@ Supported ethtool options
  Example:
  ethtool -N eth0 flow-type udp4 action 0 loc 32
 
+ Private flags (testing)
+ ---------------------------------
+
+ Atlantic driver supports private flags for hardware custom features:
+
+	$ ethtool --show-priv-flags ethX
+
+	Private flags for ethX:
+	DMASystemLoopback  : off
+	PKTSystemLoopback  : off
+	DMANetworkLoopback : off
+	PHYInternalLoopback: off
+	PHYExternalLoopback: off
+
+ Example:
+
+	$ ethtool --set-priv-flags ethX DMASystemLoopback on
+
+ DMASystemLoopback:   DMA Host loopback.
+ PKTSystemLoopback:   Packet buffer host loopback.
+ DMANetworkLoopback:  Network side loopback on DMA block.
+ PHYInternalLoopback: Internal loopback on Phy.
+ PHYExternalLoopback: External loopback on Phy (with loopback ethernet cable).
+
+
 Command Line Parameters
 =======================
 The following command line parameters are available on atlantic driver:
