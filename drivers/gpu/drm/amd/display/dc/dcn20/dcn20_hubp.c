@@ -1257,6 +1257,7 @@ void hubp2_validate_dml_output(struct hubp *hubp,
 	struct _vcs_dpi_display_dlg_regs_st dlg_attr = {0};
 	struct _vcs_dpi_display_ttu_regs_st ttu_attr = {0};
 	DC_LOGGER_INIT(ctx->logger);
+	DC_LOG_DEBUG("DML Validation | Running Validation");
 
 	/* Requestor Regs */
 	REG_GET(HUBPRET_CONTROL,
