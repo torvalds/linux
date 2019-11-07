@@ -1202,9 +1202,10 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct amdgpu_device *adev = drm_dev->dev_private;
 	int ret;
 
-	if (!amdgpu_device_supports_boco(drm_dev)) {
+	if (!adev->runpm) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
@@ -1234,9 +1235,10 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct amdgpu_device *adev = drm_dev->dev_private;
 	int ret;
 
-	if (!amdgpu_device_supports_boco(drm_dev))
+	if (!adev->runpm)
 		return -EINVAL;
 
 	if (amdgpu_device_supports_boco(drm_dev)) {
@@ -1263,9 +1265,10 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 static int amdgpu_pmops_runtime_idle(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_dev->dev_private;
 	struct drm_crtc *crtc;
 
-	if (!amdgpu_device_supports_boco(drm_dev)) {
+	if (!adev->runpm) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
