@@ -500,16 +500,12 @@ static struct usb_serial *mos7840_get_usb_serial(struct usb_serial_port *port,
 
 static void mos7840_bulk_in_callback(struct urb *urb)
 {
+	struct moschip_port *mos7840_port = urb->context;
 	int retval;
 	unsigned char *data;
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
-	struct moschip_port *mos7840_port;
 	int status = urb->status;
-
-	mos7840_port = urb->context;
-	if (!mos7840_port)
-		return;
 
 	if (status) {
 		dev_dbg(&urb->dev->dev, "nonzero read bulk status received: %d\n", status);
