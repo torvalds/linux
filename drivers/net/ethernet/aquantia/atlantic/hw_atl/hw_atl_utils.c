@@ -970,4 +970,5 @@ const struct aq_fw_ops aq_fw_1x_ops = {
 	.set_flow_control = NULL,
 	.send_fw_request = NULL,
 	.enable_ptp = NULL,
+	.led_control = NULL,
 };

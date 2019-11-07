@@ -119,6 +119,9 @@ struct aq_stats_s {
 
 #define AQ_HW_MULTICAST_ADDRESS_MAX     32U
 
+#define AQ_HW_LED_BLINK    0x2U
+#define AQ_HW_LED_DEFAULT  0x0U
+
 struct aq_hw_s {
 	atomic_t flags;
 	u8 rbl_enabled:1;
@@ -303,6 +306,8 @@ struct aq_fw_ops {
 	u32 (*get_flow_control)(struct aq_hw_s *self, u32 *fcmode);
 
 	int (*set_flow_control)(struct aq_hw_s *self);
+
+	int (*led_control)(struct aq_hw_s *self, u32 mode);
 
 	int (*set_power)(struct aq_hw_s *self, unsigned int power_state,
 			 u8 *mac);

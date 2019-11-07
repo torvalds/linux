@@ -153,6 +153,35 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 	}
 }
 
+static int aq_ethtool_set_phys_id(struct net_device *ndev,
+				  enum ethtool_phys_id_state state)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct aq_hw_s *hw = aq_nic->aq_hw;
+	int ret = 0;
+
+	if (!aq_nic->aq_fw_ops->led_control)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&aq_nic->fwreq_mutex);
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		ret = aq_nic->aq_fw_ops->led_control(hw, AQ_HW_LED_BLINK |
+				 AQ_HW_LED_BLINK << 2 | AQ_HW_LED_BLINK << 4);
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		ret = aq_nic->aq_fw_ops->led_control(hw, AQ_HW_LED_DEFAULT);
+		break;
+	default:
+		break;
+	}
+
+	mutex_unlock(&aq_nic->fwreq_mutex);
+
+	return ret;
+}
+
 static int aq_ethtool_get_sset_count(struct net_device *ndev, int stringset)
 {
 	int ret = 0;
@@ -627,6 +656,7 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.get_regs            = aq_ethtool_get_regs,
 	.get_drvinfo         = aq_ethtool_get_drvinfo,
 	.get_strings         = aq_ethtool_get_strings,
+	.set_phys_id         = aq_ethtool_set_phys_id,
 	.get_rxfh_indir_size = aq_ethtool_get_rss_indir_size,
 	.get_wol             = aq_ethtool_get_wol,
 	.set_wol             = aq_ethtool_set_wol,

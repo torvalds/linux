@@ -17,6 +17,7 @@
 #include "hw_atl_utils.h"
 #include "hw_atl_llh.h"
 
+#define HW_ATL_FW2X_MPI_LED_ADDR         0x31c
 #define HW_ATL_FW2X_MPI_RPC_ADDR         0x334
 
 #define HW_ATL_FW2X_MPI_MBOX_ADDR        0x360
@@ -50,6 +51,8 @@
 
 #define HAL_ATLANTIC_WOL_FILTERS_COUNT   8
 #define HAL_ATLANTIC_UTILS_FW2X_MSG_WOL  0x0E
+
+#define HW_ATL_FW_VER_LED                0x03010026U
 
 struct __packed fw2x_msg_wol_pattern {
 	u8 mask[16];
@@ -450,6 +453,16 @@ static void aq_fw3x_enable_ptp(struct aq_hw_s *self, int enable)
 	aq_hw_write_reg(self, HW_ATL_FW3X_EXT_CONTROL_ADDR, ptp_opts);
 }
 
+static int aq_fw2x_led_control(struct aq_hw_s *self, u32 mode)
+{
+	if (self->fw_ver_actual < HW_ATL_FW_VER_LED)
+		return -EOPNOTSUPP;
+
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_LED_ADDR, mode);
+
+	return 0;
+}
+
 static int aq_fw2x_set_eee_rate(struct aq_hw_s *self, u32 speed)
 {
 	u32 mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
@@ -557,4 +570,5 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.get_flow_control   = aq_fw2x_get_flow_control,
 	.send_fw_request    = aq_fw2x_send_fw_request,
 	.enable_ptp         = aq_fw3x_enable_ptp,
+	.led_control        = aq_fw2x_led_control,
 };
