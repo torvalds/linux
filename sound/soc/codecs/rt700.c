@@ -1133,6 +1133,11 @@ int rt700_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt700->hw_init)
 		return 0;
 
+	if (rt700->first_init) {
+		regcache_cache_only(rt700->regmap, false);
+		regcache_cache_bypass(rt700->regmap, true);
+	}
+
 	/*
 	 * PM runtime is only enabled when a Slave reports as Attached
 	 */
@@ -1148,8 +1153,6 @@ int rt700_io_init(struct device *dev, struct sdw_slave *slave)
 		pm_runtime_mark_last_busy(&slave->dev);
 
 		pm_runtime_enable(&slave->dev);
-
-		rt700->first_init = true;
 	}
 
 	pm_runtime_get_noresume(&slave->dev);
@@ -1198,10 +1201,12 @@ int rt700_io_init(struct device *dev, struct sdw_slave *slave)
 	/* Finish Initial Settings, set power to D3 */
 	regmap_write(rt700->regmap, RT700_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
 
-	INIT_DELAYED_WORK(&rt700->jack_detect_work,
+	if (!rt700->first_init) {
+		INIT_DELAYED_WORK(&rt700->jack_detect_work,
 			rt700_jack_detect_handler);
-	INIT_DELAYED_WORK(&rt700->jack_btn_check_work,
+		INIT_DELAYED_WORK(&rt700->jack_btn_check_work,
 			rt700_btn_check_handler);
+	}
 
 	/*
 	 * if set_jack callback occurred early than io_init,
@@ -1209,6 +1214,11 @@ int rt700_io_init(struct device *dev, struct sdw_slave *slave)
 	 */
 	if (rt700->hs_jack)
 		rt700_jack_init(rt700);
+
+	if (rt700->first_init)
+		regcache_cache_bypass(rt700->regmap, false);
+	else
+		rt700->first_init = true;
 
 	/* Mark Slave initialization complete */
 	rt700->hw_init = true;
