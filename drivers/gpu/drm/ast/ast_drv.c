@@ -99,14 +99,14 @@ ast_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-
-
 static int ast_drm_freeze(struct drm_device *dev)
 {
-	drm_kms_helper_poll_disable(dev);
-	pci_save_state(dev->pdev);
-	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, true);
+	int error;
 
+	error = drm_mode_config_helper_suspend(dev);
+	if (error)
+		return error;
+	pci_save_state(dev->pdev);
 	return 0;
 }
 
@@ -114,11 +114,7 @@ static int ast_drm_thaw(struct drm_device *dev)
 {
 	ast_post_gpu(dev);
 
-	drm_mode_config_reset(dev);
-	drm_helper_resume_force_mode(dev);
-	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, false);
-
-	return 0;
+	return drm_mode_config_helper_resume(dev);
 }
 
 static int ast_drm_resume(struct drm_device *dev)
@@ -131,8 +127,6 @@ static int ast_drm_resume(struct drm_device *dev)
 	ret = ast_drm_thaw(dev);
 	if (ret)
 		return ret;
-
-	drm_kms_helper_poll_enable(dev);
 	return 0;
 }
 
@@ -150,6 +144,7 @@ static int ast_pm_suspend(struct device *dev)
 	pci_set_power_state(pdev, PCI_D3hot);
 	return 0;
 }
+
 static int ast_pm_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -165,7 +160,6 @@ static int ast_pm_freeze(struct device *dev)
 	if (!ddev || !ddev->dev_private)
 		return -ENODEV;
 	return ast_drm_freeze(ddev);
-
 }
 
 static int ast_pm_thaw(struct device *dev)
@@ -203,7 +197,9 @@ static struct pci_driver ast_pci_driver = {
 DEFINE_DRM_GEM_FOPS(ast_fops);
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM,
+	.driver_features = DRIVER_ATOMIC |
+			   DRIVER_GEM |
+			   DRIVER_MODESET,
 
 	.load = ast_driver_load,
 	.unload = ast_driver_unload,

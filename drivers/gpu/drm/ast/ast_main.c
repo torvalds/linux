@@ -28,6 +28,7 @@
 
 #include <linux/pci.h>
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
@@ -412,6 +413,8 @@ enum drm_mode_status ast_mode_config_mode_valid(struct drm_device *dev,
 static const struct drm_mode_config_funcs ast_mode_funcs = {
 	.fb_create = drm_gem_fb_create,
 	.mode_valid = ast_mode_config_mode_valid,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static u32 ast_get_vram_info(struct drm_device *dev)
@@ -528,6 +531,8 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	ret = ast_mode_init(dev);
 	if (ret)
 		goto out_free;
+
+	drm_mode_config_reset(dev);
 
 	ret = drm_fbdev_generic_setup(dev, 32);
 	if (ret)

@@ -45,11 +45,6 @@
 
 static struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev);
 static void ast_i2c_destroy(struct ast_i2c_chan *i2c);
-static int ast_cursor_set(struct drm_crtc *crtc,
-			  struct drm_file *file_priv,
-			  uint32_t handle,
-			  uint32_t width,
-			  uint32_t height);
 static int ast_cursor_move(struct drm_crtc *crtc,
 			   int x, int y);
 
@@ -58,9 +53,6 @@ static u32 copy_cursor_image(u8 *src, u8 *dst, int width, int height);
 static int ast_cursor_update(void *dst, void *src, unsigned int width,
 			     unsigned int height);
 static void ast_cursor_set_base(struct ast_private *ast, u64 address);
-static int ast_show_cursor(struct drm_crtc *crtc, void *src,
-			   unsigned int width, unsigned int height);
-static void ast_hide_cursor(struct drm_crtc *crtc);
 static int ast_cursor_move(struct drm_crtc *crtc,
 			   int x, int y);
 
@@ -434,7 +426,7 @@ static void ast_set_crtc_reg(struct drm_crtc *crtc, struct drm_display_mode *mod
 static void ast_set_offset_reg(struct drm_crtc *crtc)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
-	const struct drm_framebuffer *fb = crtc->primary->fb;
+	const struct drm_framebuffer *fb = crtc->primary->state->fb;
 
 	u16 offset;
 
@@ -528,7 +520,7 @@ static void ast_set_sync_reg(struct drm_device *dev, struct drm_display_mode *mo
 static bool ast_set_dac_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		     struct ast_vbios_mode_info *vbios_mode)
 {
-	const struct drm_framebuffer *fb = crtc->primary->fb;
+	const struct drm_framebuffer *fb = crtc->primary->state->fb;
 
 	switch (fb->format->cpp[0] * 8) {
 	case 8:
@@ -761,112 +753,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 }
 
-static int ast_crtc_do_set_base(struct drm_crtc *crtc,
-				struct drm_framebuffer *fb,
-				int x, int y, int atomic)
-{
-	struct drm_gem_vram_object *gbo;
-	int ret;
-	s64 gpu_addr;
-
-	if (!atomic && fb) {
-		gbo = drm_gem_vram_of_gem(fb->obj[0]);
-		drm_gem_vram_unpin(gbo);
-	}
-
-	gbo = drm_gem_vram_of_gem(crtc->primary->fb->obj[0]);
-
-	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
-	if (ret)
-		return ret;
-	gpu_addr = drm_gem_vram_offset(gbo);
-	if (gpu_addr < 0) {
-		ret = (int)gpu_addr;
-		goto err_drm_gem_vram_unpin;
-	}
-
-	ast_set_offset_reg(crtc);
-	ast_set_start_address_crt1(crtc, (u32)gpu_addr);
-
-	return 0;
-
-err_drm_gem_vram_unpin:
-	drm_gem_vram_unpin(gbo);
-	return ret;
-}
-
-static int ast_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-			     struct drm_framebuffer *old_fb)
-{
-	return ast_crtc_do_set_base(crtc, old_fb, x, y, 0);
-}
-
-static int ast_crtc_mode_set(struct drm_crtc *crtc,
-			     struct drm_display_mode *mode,
-			     struct drm_display_mode *adjusted_mode,
-			     int x, int y,
-			     struct drm_framebuffer *old_fb)
-{
-	struct drm_device *dev = crtc->dev;
-	struct ast_private *ast = crtc->dev->dev_private;
-	const struct drm_framebuffer *fb = crtc->primary->fb;
-	struct ast_vbios_mode_info vbios_mode;
-	bool succ;
-
-	if (ast->chip == AST1180) {
-		DRM_ERROR("AST 1180 modesetting not supported\n");
-		return -EINVAL;
-	}
-
-	succ = ast_get_vbios_mode_info(fb, mode, adjusted_mode, &vbios_mode);
-	if (!succ)
-		return -EINVAL;
-
-	ast_open_key(ast);
-
-	ast_set_vbios_color_reg(crtc, fb, &vbios_mode);
-	ast_set_vbios_mode_reg(crtc, adjusted_mode, &vbios_mode);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
-	ast_set_std_reg(crtc, adjusted_mode, &vbios_mode);
-	ast_set_crtc_reg(crtc, adjusted_mode, &vbios_mode);
-	ast_set_offset_reg(crtc);
-	ast_set_dclk_reg(dev, adjusted_mode, &vbios_mode);
-	ast_set_color_reg(crtc, fb);
-	ast_set_crtthd_reg(crtc);
-	ast_set_sync_reg(dev, adjusted_mode, &vbios_mode);
-	ast_set_dac_reg(crtc, adjusted_mode, &vbios_mode);
-
-	ast_crtc_mode_set_base(crtc, x, y, old_fb);
-
-	return 0;
-}
-
-static void ast_crtc_disable(struct drm_crtc *crtc)
-{
-	DRM_DEBUG_KMS("\n");
-	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-	if (crtc->primary->fb) {
-		struct drm_framebuffer *fb = crtc->primary->fb;
-		struct drm_gem_vram_object *gbo =
-			drm_gem_vram_of_gem(fb->obj[0]);
-
-		drm_gem_vram_unpin(gbo);
-	}
-	crtc->primary->fb = NULL;
-}
-
-static void ast_crtc_prepare(struct drm_crtc *crtc)
-{
-
-}
-
-static void ast_crtc_commit(struct drm_crtc *crtc)
-{
-	struct ast_private *ast = crtc->dev->dev_private;
-	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0);
-	ast_crtc_load_lut(crtc);
-}
-
 static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 					struct drm_crtc_state *state)
 {
@@ -966,33 +852,12 @@ ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
-	.dpms = ast_crtc_dpms,
-	.mode_set = ast_crtc_mode_set,
-	.mode_set_base = ast_crtc_mode_set_base,
-	.disable = ast_crtc_disable,
-	.prepare = ast_crtc_prepare,
-	.commit = ast_crtc_commit,
 	.atomic_check = ast_crtc_helper_atomic_check,
 	.atomic_begin = ast_crtc_helper_atomic_begin,
 	.atomic_flush = ast_crtc_helper_atomic_flush,
 	.atomic_enable = ast_crtc_helper_atomic_enable,
 	.atomic_disable = ast_crtc_helper_atomic_disable,
 };
-
-static void ast_crtc_reset(struct drm_crtc *crtc)
-{
-
-}
-
-static int ast_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-			      u16 *blue, uint32_t size,
-			      struct drm_modeset_acquire_ctx *ctx)
-{
-	ast_crtc_load_lut(crtc);
-
-	return 0;
-}
-
 
 static void ast_crtc_destroy(struct drm_crtc *crtc)
 {
@@ -1001,12 +866,12 @@ static void ast_crtc_destroy(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs ast_crtc_funcs = {
-	.cursor_set = ast_cursor_set,
-	.cursor_move = ast_cursor_move,
-	.reset = ast_crtc_reset,
+	.reset = drm_atomic_helper_crtc_reset,
 	.set_config = drm_crtc_helper_set_config,
-	.gamma_set = ast_crtc_gamma_set,
+	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.destroy = ast_crtc_destroy,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
@@ -1036,6 +901,10 @@ err_kfree:
 	return ret;
 }
 
+/*
+ * Encoder
+ */
+
 static void ast_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
@@ -1044,34 +913,6 @@ static void ast_encoder_destroy(struct drm_encoder *encoder)
 
 static const struct drm_encoder_funcs ast_enc_funcs = {
 	.destroy = ast_encoder_destroy,
-};
-
-static void ast_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-
-}
-
-static void ast_encoder_mode_set(struct drm_encoder *encoder,
-			       struct drm_display_mode *mode,
-			       struct drm_display_mode *adjusted_mode)
-{
-}
-
-static void ast_encoder_prepare(struct drm_encoder *encoder)
-{
-
-}
-
-static void ast_encoder_commit(struct drm_encoder *encoder)
-{
-
-}
-
-static const struct drm_encoder_helper_funcs ast_enc_helper_funcs = {
-	.dpms = ast_encoder_dpms,
-	.prepare = ast_encoder_prepare,
-	.commit = ast_encoder_commit,
-	.mode_set = ast_encoder_mode_set,
 };
 
 static int ast_encoder_init(struct drm_device *dev)
@@ -1084,11 +925,14 @@ static int ast_encoder_init(struct drm_device *dev)
 
 	drm_encoder_init(dev, &ast_encoder->base, &ast_enc_funcs,
 			 DRM_MODE_ENCODER_DAC, NULL);
-	drm_encoder_helper_add(&ast_encoder->base, &ast_enc_helper_funcs);
 
 	ast_encoder->base.possible_crtcs = 1;
 	return 0;
 }
+
+/*
+ * Connector
+ */
 
 static int ast_get_modes(struct drm_connector *connector)
 {
@@ -1188,14 +1032,16 @@ static void ast_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_helper_funcs ast_connector_helper_funcs = {
-	.mode_valid = ast_mode_valid,
 	.get_modes = ast_get_modes,
+	.mode_valid = ast_mode_valid,
 };
 
 static const struct drm_connector_funcs ast_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = ast_connector_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int ast_connector_init(struct drm_device *dev)
@@ -1534,106 +1380,6 @@ static void ast_cursor_set_base(struct ast_private *ast, u64 address)
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc8, addr0);
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc9, addr1);
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xca, addr2);
-}
-
-static int ast_show_cursor(struct drm_crtc *crtc, void *src,
-			   unsigned int width, unsigned int height)
-{
-	struct ast_private *ast = crtc->dev->dev_private;
-	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
-	struct drm_gem_vram_object *gbo;
-	void *dst;
-	s64 off;
-	int ret;
-	u8 jreg;
-
-	gbo = ast->cursor.gbo[ast->cursor.next_index];
-	dst = drm_gem_vram_vmap(gbo);
-	if (IS_ERR(dst))
-		return PTR_ERR(dst);
-	off = drm_gem_vram_offset(gbo);
-	if (off < 0) {
-		ret = (int)off;
-		goto err_drm_gem_vram_vunmap;
-	}
-
-	ret = ast_cursor_update(dst, src, width, height);
-	if (ret)
-		goto err_drm_gem_vram_vunmap;
-	ast_cursor_set_base(ast, off);
-
-	ast_crtc->offset_x = AST_MAX_HWC_WIDTH - width;
-	ast_crtc->offset_y = AST_MAX_HWC_WIDTH - height;
-
-	jreg = 0x2;
-	/* enable ARGB cursor */
-	jreg |= 1;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
-
-	++ast->cursor.next_index;
-	ast->cursor.next_index %= ARRAY_SIZE(ast->cursor.gbo);
-
-	drm_gem_vram_vunmap(gbo, dst);
-
-	return 0;
-
-err_drm_gem_vram_vunmap:
-	drm_gem_vram_vunmap(gbo, dst);
-	return ret;
-}
-
-static void ast_hide_cursor(struct drm_crtc *crtc)
-{
-	struct ast_private *ast = crtc->dev->dev_private;
-
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, 0x00);
-}
-
-static int ast_cursor_set(struct drm_crtc *crtc,
-			  struct drm_file *file_priv,
-			  uint32_t handle,
-			  uint32_t width,
-			  uint32_t height)
-{
-	struct drm_gem_object *obj;
-	struct drm_gem_vram_object *gbo;
-	u8 *src;
-	int ret;
-
-	if (!handle) {
-		ast_hide_cursor(crtc);
-		return 0;
-	}
-
-	if (width > AST_MAX_HWC_WIDTH || height > AST_MAX_HWC_HEIGHT)
-		return -EINVAL;
-
-	obj = drm_gem_object_lookup(file_priv, handle);
-	if (!obj) {
-		DRM_ERROR("Cannot find cursor object %x for crtc\n", handle);
-		return -ENOENT;
-	}
-	gbo = drm_gem_vram_of_gem(obj);
-	src = drm_gem_vram_vmap(gbo);
-	if (IS_ERR(src)) {
-		ret = PTR_ERR(src);
-		goto err_drm_gem_object_put_unlocked;
-	}
-
-	ret = ast_show_cursor(crtc, src, width, height);
-	if (ret)
-		goto err_drm_gem_vram_vunmap;
-
-	drm_gem_vram_vunmap(gbo, src);
-	drm_gem_object_put_unlocked(obj);
-
-	return 0;
-
-err_drm_gem_vram_vunmap:
-	drm_gem_vram_vunmap(gbo, src);
-err_drm_gem_object_put_unlocked:
-	drm_gem_object_put_unlocked(obj);
-	return ret;
 }
 
 static int ast_cursor_move(struct drm_crtc *crtc,
