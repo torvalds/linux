@@ -1450,6 +1450,10 @@ sub push_parameter($$$$) {
 	      # handles unnamed variable parameters
 	      $param = "...";
 	    }
+	    elsif ($param =~ /\w\.\.\.$/) {
+	      # for named variable parameters of the form `x...`, remove the dots
+	      $param =~ s/\.\.\.$//;
+	    }
 	    if (!defined $parameterdescs{$param} || $parameterdescs{$param} eq "") {
 		$parameterdescs{$param} = "variable arguments";
 	    }
@@ -1936,6 +1940,18 @@ sub process_name($$) {
 #
 sub process_body($$) {
     my $file = shift;
+
+    # Until all named variable macro parameters are
+    # documented using the bare name (`x`) rather than with
+    # dots (`x...`), strip the dots:
+    if ($section =~ /\w\.\.\.$/) {
+	$section =~ s/\.\.\.$//;
+
+	if ($verbose) {
+	    print STDERR "${file}:$.: warning: Variable macro arguments should be documented without dots\n";
+	    ++$warnings;
+	}
+    }
 
     if (/$doc_sect/i) { # case insensitive for supported section names
 	$newsection = $1;
