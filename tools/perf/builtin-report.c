@@ -509,7 +509,7 @@ static int perf_evlist__tty_browse_hists(struct evlist *evlist,
 
 		if (rep->total_cycles_mode) {
 			report__browse_block_hists(&rep->block_reports[i++].hist,
-						   0, pos);
+						   rep->min_percent, pos);
 			continue;
 		}
 

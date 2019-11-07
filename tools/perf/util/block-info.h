@@ -73,4 +73,6 @@ struct block_report *block_info__create_report(struct evlist *evlist,
 int report__browse_block_hists(struct block_hist *bh, float min_percent,
 			       struct evsel *evsel);
 
+float block_info__total_cycles_percent(struct hist_entry *he);
+
 #endif /* __PERF_BLOCK_H */
