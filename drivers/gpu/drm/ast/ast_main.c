@@ -535,27 +535,3 @@ void ast_driver_unload(struct drm_device *dev)
 	pci_iounmap(dev->pdev, ast->regs);
 	kfree(ast);
 }
-
-int ast_gem_create(struct drm_device *dev,
-		   u32 size, bool iskernel,
-		   struct drm_gem_object **obj)
-{
-	struct drm_gem_vram_object *gbo;
-	int ret;
-
-	*obj = NULL;
-
-	size = roundup(size, PAGE_SIZE);
-	if (size == 0)
-		return -EINVAL;
-
-	gbo = drm_gem_vram_create(dev, &dev->vram_mm->bdev, size, 0, false);
-	if (IS_ERR(gbo)) {
-		ret = PTR_ERR(gbo);
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("failed to allocate GEM object\n");
-		return ret;
-	}
-	*obj = &gbo->bo.base;
-	return 0;
-}
