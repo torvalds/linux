@@ -956,13 +956,13 @@ static int bpf_object__init_user_maps(struct bpf_object *obj, bool strict)
 	pr_debug("maps in %s: %d maps in %zd bytes\n",
 		 obj->path, nr_maps, data->d_size);
 
-	map_def_sz = data->d_size / nr_maps;
-	if (!data->d_size || (data->d_size % nr_maps) != 0) {
+	if (!data->d_size || nr_maps == 0 || (data->d_size % nr_maps) != 0) {
 		pr_warn("unable to determine map definition size "
 			"section %s, %d maps in %zd bytes\n",
 			obj->path, nr_maps, data->d_size);
 		return -EINVAL;
 	}
+	map_def_sz = data->d_size / nr_maps;
 
 	/* Fill obj->maps using data in "maps" section.  */
 	for (i = 0; i < nr_syms; i++) {
