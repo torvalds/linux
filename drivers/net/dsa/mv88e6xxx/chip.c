@@ -2390,7 +2390,14 @@ static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
 
 		if (chip->info->ops->set_egress_port) {
 			err = chip->info->ops->set_egress_port(chip,
-							       upstream_port);
+						MV88E6XXX_EGRESS_DIR_INGRESS,
+						upstream_port);
+			if (err)
+				return err;
+
+			err = chip->info->ops->set_egress_port(chip,
+						MV88E6XXX_EGRESS_DIR_EGRESS,
+						upstream_port);
 			if (err)
 				return err;
 		}

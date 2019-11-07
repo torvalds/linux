@@ -33,6 +33,11 @@ enum mv88e6xxx_egress_mode {
 	MV88E6XXX_EGRESS_MODE_ETHERTYPE,
 };
 
+enum mv88e6xxx_egress_direction {
+        MV88E6XXX_EGRESS_DIR_INGRESS,
+        MV88E6XXX_EGRESS_DIR_EGRESS,
+};
+
 enum mv88e6xxx_frame_mode {
 	MV88E6XXX_FRAME_MODE_NORMAL,
 	MV88E6XXX_FRAME_MODE_DSA,
@@ -465,7 +470,9 @@ struct mv88e6xxx_ops {
 	int (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
 			       uint64_t *data);
 	int (*set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
-	int (*set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+	int (*set_egress_port)(struct mv88e6xxx_chip *chip,
+			       enum mv88e6xxx_egress_direction direction,
+			       int port);
 
 #define MV88E6XXX_CASCADE_PORT_NONE		0xe
 #define MV88E6XXX_CASCADE_PORT_MULTIPLE		0xf
