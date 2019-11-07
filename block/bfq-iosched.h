@@ -10,6 +10,8 @@
 #include <linux/hrtimer.h>
 #include <linux/blk-cgroup.h>
 
+#include "blk-cgroup-rwstat.h"
+
 #define BFQ_IOPRIO_CLASSES	3
 #define BFQ_CL_IDLE_TIMEOUT	(HZ/5)
 

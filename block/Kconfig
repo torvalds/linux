@@ -32,6 +32,9 @@ config BLK_RQ_ALLOC_TIME
 config BLK_SCSI_REQUEST
 	bool
 
+config BLK_CGROUP_RWSTAT
+	bool
+
 config BLK_DEV_BSG
 	bool "Block layer SG support v4"
 	default y
@@ -86,6 +89,7 @@ config BLK_DEV_ZONED
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
 	depends on BLK_CGROUP=y
+	select BLK_CGROUP_RWSTAT
 	---help---
 	Block layer bio throttling support. It can be used to limit
 	the IO rate to a device. IO rate policies are per cgroup and

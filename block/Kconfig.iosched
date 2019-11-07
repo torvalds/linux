@@ -31,6 +31,7 @@ config IOSCHED_BFQ
 config BFQ_GROUP_IOSCHED
        bool "BFQ hierarchical scheduling support"
        depends on IOSCHED_BFQ && BLK_CGROUP
+       select BLK_CGROUP_RWSTAT
        ---help---
 
        Enable hierarchical scheduling in BFQ, using the blkio
