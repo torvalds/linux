@@ -299,17 +299,6 @@ config HEADERS_INSTALL
 	  user-space program samples. It is also needed by some features such
 	  as uapi header sanity checks.
 
-config HEADERS_CHECK
-	bool "Run sanity checks on uapi headers when building 'all'"
-	depends on HEADERS_INSTALL
-	help
-	  This option will run basic sanity checks on uapi headers when
-	  building the 'all' target, for example, ensure that they do not
-	  attempt to include files which were not exported, etc.
-
-	  If you're making modifications to header files which are
-	  relevant for userspace, say 'Y'.
-
 config OPTIMIZE_INLINING
 	def_bool y
 	help
