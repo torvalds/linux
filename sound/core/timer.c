@@ -88,12 +88,11 @@ static void snd_timer_reschedule(struct snd_timer * timer, unsigned long ticks_l
 
 /*
  * create a timer instance with the given owner string.
- * when timer is not NULL, increments the module counter
  */
-static struct snd_timer_instance *snd_timer_instance_new(char *owner,
-							 struct snd_timer *timer)
+struct snd_timer_instance *snd_timer_instance_new(const char *owner)
 {
 	struct snd_timer_instance *timeri;
+
 	timeri = kzalloc(sizeof(*timeri), GFP_KERNEL);
 	if (timeri == NULL)
 		return NULL;
@@ -108,15 +107,20 @@ static struct snd_timer_instance *snd_timer_instance_new(char *owner,
 	INIT_LIST_HEAD(&timeri->slave_list_head);
 	INIT_LIST_HEAD(&timeri->slave_active_head);
 
-	timeri->timer = timer;
-	if (timer && !try_module_get(timer->module)) {
-		kfree(timeri->owner);
-		kfree(timeri);
-		return NULL;
-	}
-
 	return timeri;
 }
+EXPORT_SYMBOL(snd_timer_instance_new);
+
+void snd_timer_instance_free(struct snd_timer_instance *timeri)
+{
+	if (timeri) {
+		if (timeri->private_free)
+			timeri->private_free(timeri);
+		kfree(timeri->owner);
+		kfree(timeri);
+	}
+}
+EXPORT_SYMBOL(snd_timer_instance_free);
 
 /*
  * find a timer instance from the given timer id
@@ -236,12 +240,11 @@ static void snd_timer_close_locked(struct snd_timer_instance *timeri,
  * open a timer instance
  * when opening a master, the slave id must be here given.
  */
-int snd_timer_open(struct snd_timer_instance **ti,
-		   char *owner, struct snd_timer_id *tid,
+int snd_timer_open(struct snd_timer_instance *timeri,
+		   struct snd_timer_id *tid,
 		   unsigned int slave_id)
 {
 	struct snd_timer *timer;
-	struct snd_timer_instance *timeri = NULL;
 	struct device *card_dev_to_put = NULL;
 	int err;
 
@@ -259,22 +262,14 @@ int snd_timer_open(struct snd_timer_instance **ti,
 			err = -EBUSY;
 			goto unlock;
 		}
-		timeri = snd_timer_instance_new(owner, NULL);
-		if (!timeri) {
-			err = -ENOMEM;
-			goto unlock;
-		}
 		timeri->slave_class = tid->dev_sclass;
 		timeri->slave_id = tid->device;
 		timeri->flags |= SNDRV_TIMER_IFLG_SLAVE;
 		list_add_tail(&timeri->open_list, &snd_timer_slave_list);
 		num_slaves++;
 		err = snd_timer_check_slave(timeri);
-		if (err < 0) {
-			snd_timer_close_locked(timeri, &card_dev_to_put);
-			timeri = NULL;
-		}
-		goto unlock;
+		if (err < 0)
+			goto close;
 	}
 
 	/* open a master instance */
@@ -304,45 +299,40 @@ int snd_timer_open(struct snd_timer_instance **ti,
 		err = -EBUSY;
 		goto unlock;
 	}
-	timeri = snd_timer_instance_new(owner, timer);
-	if (!timeri) {
-		err = -ENOMEM;
+	if (!try_module_get(timer->module)) {
+		err = -EBUSY;
 		goto unlock;
 	}
 	/* take a card refcount for safe disconnection */
-	if (timer->card)
+	if (timer->card) {
 		get_device(&timer->card->card_dev);
-	timeri->slave_class = tid->dev_sclass;
-	timeri->slave_id = slave_id;
+		card_dev_to_put = &timer->card->card_dev;
+	}
 
 	if (list_empty(&timer->open_list_head) && timer->hw.open) {
 		err = timer->hw.open(timer);
 		if (err) {
-			kfree(timeri->owner);
-			kfree(timeri);
-			timeri = NULL;
-
-			if (timer->card)
-				card_dev_to_put = &timer->card->card_dev;
 			module_put(timer->module);
 			goto unlock;
 		}
 	}
 
+	timeri->timer = timer;
+	timeri->slave_class = tid->dev_sclass;
+	timeri->slave_id = slave_id;
+
 	list_add_tail(&timeri->open_list, &timer->open_list_head);
 	timer->num_instances++;
 	err = snd_timer_check_master(timeri);
-	if (err < 0) {
+ close:
+	if (err < 0)
 		snd_timer_close_locked(timeri, &card_dev_to_put);
-		timeri = NULL;
-	}
 
  unlock:
 	mutex_unlock(&register_mutex);
 	/* put_device() is called after unlock for avoiding deadlock */
-	if (card_dev_to_put)
+	if (err < 0 && card_dev_to_put)
 		put_device(card_dev_to_put);
-	*ti = timeri;
 	return err;
 }
 EXPORT_SYMBOL(snd_timer_open);
@@ -363,9 +353,11 @@ static void snd_timer_close_locked(struct snd_timer_instance *timeri,
 		spin_unlock_irq(&timer->lock);
 	}
 
-	list_del(&timeri->open_list);
-	if (timeri->flags & SNDRV_TIMER_IFLG_SLAVE)
-		num_slaves--;
+	if (!list_empty(&timeri->open_list)) {
+		list_del_init(&timeri->open_list);
+		if (timeri->flags & SNDRV_TIMER_IFLG_SLAVE)
+			num_slaves--;
+	}
 
 	/* force to stop the timer */
 	snd_timer_stop(timeri);
@@ -384,6 +376,7 @@ static void snd_timer_close_locked(struct snd_timer_instance *timeri,
 		/* remove slave links */
 		spin_lock_irq(&slave_active_lock);
 		spin_lock(&timer->lock);
+		timeri->timer = NULL;
 		list_for_each_entry_safe(slave, tmp, &timeri->slave_list_head,
 					 open_list) {
 			list_move_tail(&slave->open_list, &snd_timer_slave_list);
@@ -400,11 +393,6 @@ static void snd_timer_close_locked(struct snd_timer_instance *timeri,
 		if (timeri->flags & SNDRV_TIMER_IFLG_SLAVE)
 			timer = NULL;
 	}
-
-	if (timeri->private_free)
-		timeri->private_free(timeri);
-	kfree(timeri->owner);
-	kfree(timeri);
 
 	if (timer) {
 		if (list_empty(&timer->open_list_head) && timer->hw.close)
@@ -1480,8 +1468,10 @@ static int snd_timer_user_release(struct inode *inode, struct file *file)
 		tu = file->private_data;
 		file->private_data = NULL;
 		mutex_lock(&tu->ioctl_lock);
-		if (tu->timeri)
+		if (tu->timeri) {
 			snd_timer_close(tu->timeri);
+			snd_timer_instance_free(tu->timeri);
+		}
 		mutex_unlock(&tu->ioctl_lock);
 		kfree(tu->queue);
 		kfree(tu->tqueue);
@@ -1722,6 +1712,7 @@ static int snd_timer_user_tselect(struct file *file,
 	tu = file->private_data;
 	if (tu->timeri) {
 		snd_timer_close(tu->timeri);
+		snd_timer_instance_free(tu->timeri);
 		tu->timeri = NULL;
 	}
 	if (copy_from_user(&tselect, _tselect, sizeof(tselect))) {
@@ -1731,9 +1722,11 @@ static int snd_timer_user_tselect(struct file *file,
 	sprintf(str, "application %i", current->pid);
 	if (tselect.id.dev_class != SNDRV_TIMER_CLASS_SLAVE)
 		tselect.id.dev_sclass = SNDRV_TIMER_SCLASS_APPLICATION;
-	err = snd_timer_open(&tu->timeri, str, &tselect.id, current->pid);
-	if (err < 0)
+	tu->timeri = snd_timer_instance_new(str);
+	if (!tu->timeri) {
+		err = -ENOMEM;
 		goto __err;
+	}
 
 	tu->timeri->flags |= SNDRV_TIMER_IFLG_FAST;
 	tu->timeri->callback = tu->tread
@@ -1741,6 +1734,12 @@ static int snd_timer_user_tselect(struct file *file,
 	tu->timeri->ccallback = snd_timer_user_ccallback;
 	tu->timeri->callback_data = (void *)tu;
 	tu->timeri->disconnect = snd_timer_user_disconnect;
+
+	err = snd_timer_open(tu->timeri, &tselect.id, current->pid);
+	if (err < 0) {
+		snd_timer_instance_free(tu->timeri);
+		tu->timeri = NULL;
+	}
 
       __err:
 	return err;
