@@ -131,7 +131,8 @@ static int meson_cipher(struct skcipher_request *areq)
 	if (areq->iv && ivsize > 0) {
 		if (ivsize > areq->cryptlen) {
 			dev_err(mc->dev, "invalid ivsize=%d vs len=%d\n", ivsize, areq->cryptlen);
-			return -EINVAL;
+			err = -EINVAL;
+			goto theend;
 		}
 		memcpy(bkeyiv + 32, areq->iv, ivsize);
 		keyivlen = 48;
@@ -151,9 +152,10 @@ static int meson_cipher(struct skcipher_request *areq)
 
 	phykeyiv = dma_map_single(mc->dev, bkeyiv, keyivlen,
 				  DMA_TO_DEVICE);
-	if (dma_mapping_error(mc->dev, phykeyiv)) {
+	err = dma_mapping_error(mc->dev, phykeyiv);
+	if (err) {
 		dev_err(mc->dev, "Cannot DMA MAP KEY IV\n");
-		return -EFAULT;
+		goto theend;
 	}
 
 	tloffset = 0;
@@ -245,7 +247,6 @@ static int meson_cipher(struct skcipher_request *areq)
 	if (areq->iv && ivsize > 0) {
 		if (rctx->op_dir == MESON_DECRYPT) {
 			memcpy(areq->iv, backup_iv, ivsize);
-			kzfree(backup_iv);
 		} else {
 			scatterwalk_map_and_copy(areq->iv, areq->dst,
 						 areq->cryptlen - ivsize,
@@ -254,6 +255,7 @@ static int meson_cipher(struct skcipher_request *areq)
 	}
 theend:
 	kzfree(bkeyiv);
+	kzfree(backup_iv);
 
 	return err;
 }
