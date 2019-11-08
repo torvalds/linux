@@ -12,7 +12,6 @@ struct xfs_mru_cache;
 struct xfs_nameops;
 struct xfs_ail;
 struct xfs_quotainfo;
-struct xfs_dir_ops;
 struct xfs_da_geometry;
 
 /* dynamic preallocation free space thresholds, 5% down to 1% */
@@ -156,7 +155,6 @@ typedef struct xfs_mount {
 	int			m_swidth;	/* stripe width */
 	uint8_t			m_sectbb_log;	/* sectlog - BBSHIFT */
 	const struct xfs_nameops *m_dirnameops;	/* vector of dir name ops */
-	const struct xfs_dir_ops *m_dir_inode_ops; /* vector of dir inode ops */
 	uint			m_chsize;	/* size of next field */
 	atomic_t		m_active_trans;	/* number trans frozen */
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */

@@ -29,15 +29,6 @@ extern struct xfs_name	xfs_name_dotdot;
 extern unsigned char xfs_mode_to_ftype(int mode);
 
 /*
- * directory operations vector for encode/decode routines
- */
-struct xfs_dir_ops {
-};
-
-extern const struct xfs_dir_ops *
-	xfs_dir_get_ops(struct xfs_mount *mp, struct xfs_inode *dp);
-
-/*
  * Generic directory interface routines
  */
 extern void xfs_dir_startup(void);

@@ -37,9 +37,6 @@ typedef struct xfs_inode {
 	struct xfs_ifork	*i_cowfp;	/* copy on write extents */
 	struct xfs_ifork	i_df;		/* data fork */
 
-	/* operations vectors */
-	const struct xfs_dir_ops *d_ops;		/* directory ops vector */
-
 	/* Transaction and locking information. */
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
 	mrlock_t		i_lock;		/* inode lock */

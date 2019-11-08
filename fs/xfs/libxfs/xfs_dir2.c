@@ -104,8 +104,6 @@ xfs_da_mount(
 	ASSERT(mp->m_sb.sb_versionnum & XFS_SB_VERSION_DIRV2BIT);
 	ASSERT(xfs_dir2_dirblock_bytes(&mp->m_sb) <= XFS_MAX_BLOCKSIZE);
 
-	mp->m_dir_inode_ops = xfs_dir_get_ops(mp, NULL);
-
 	mp->m_dir_geo = kmem_zalloc(sizeof(struct xfs_da_geometry),
 				    KM_MAYFAIL);
 	mp->m_attr_geo = kmem_zalloc(sizeof(struct xfs_da_geometry),

@@ -10,7 +10,6 @@
 struct xfs_inode;
 struct xfs_trans;
 struct zone;
-struct xfs_dir_ops;
 
 /*
  * Directory/attribute geometry information. There will be one of these for each
