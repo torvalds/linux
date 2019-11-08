@@ -400,44 +400,6 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 		((char *)hdr + sizeof(struct xfs_dir3_data_hdr));
 }
 
-/*
- * Convert data space db to the corresponding free db.
- */
-static xfs_dir2_db_t
-xfs_dir2_db_to_fdb(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
-{
-	return xfs_dir2_byte_to_db(geo, XFS_DIR2_FREE_OFFSET) +
-			(db / geo->free_max_bests);
-}
-
-/*
- * Convert data space db to the corresponding index in a free db.
- */
-static int
-xfs_dir2_db_to_fdindex(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
-{
-	return db % geo->free_max_bests;
-}
-
-/*
- * Convert data space db to the corresponding free db.
- */
-static xfs_dir2_db_t
-xfs_dir3_db_to_fdb(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
-{
-	return xfs_dir2_byte_to_db(geo, XFS_DIR2_FREE_OFFSET) +
-			(db / geo->free_max_bests);
-}
-
-/*
- * Convert data space db to the corresponding index in a free db.
- */
-static int
-xfs_dir3_db_to_fdindex(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
-{
-	return db % geo->free_max_bests;
-}
-
 static const struct xfs_dir_ops xfs_dir2_ops = {
 	.sf_entsize = xfs_dir2_sf_entsize,
 	.sf_nextentry = xfs_dir2_sf_nextentry,
@@ -467,9 +429,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_first_entry_p = xfs_dir2_data_first_entry_p,
 	.data_entry_p = xfs_dir2_data_entry_p,
 	.data_unused_p = xfs_dir2_data_unused_p,
-
-	.db_to_fdb = xfs_dir2_db_to_fdb,
-	.db_to_fdindex = xfs_dir2_db_to_fdindex,
 };
 
 static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
@@ -501,9 +460,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_first_entry_p = xfs_dir2_ftype_data_first_entry_p,
 	.data_entry_p = xfs_dir2_data_entry_p,
 	.data_unused_p = xfs_dir2_data_unused_p,
-
-	.db_to_fdb = xfs_dir2_db_to_fdb,
-	.db_to_fdindex = xfs_dir2_db_to_fdindex,
 };
 
 static const struct xfs_dir_ops xfs_dir3_ops = {
@@ -535,9 +491,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_first_entry_p = xfs_dir3_data_first_entry_p,
 	.data_entry_p = xfs_dir3_data_entry_p,
 	.data_unused_p = xfs_dir3_data_unused_p,
-
-	.db_to_fdb = xfs_dir3_db_to_fdb,
-	.db_to_fdindex = xfs_dir3_db_to_fdindex,
 };
 
 /*

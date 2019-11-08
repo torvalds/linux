@@ -71,11 +71,6 @@ struct xfs_dir_ops {
 		(*data_entry_p)(struct xfs_dir2_data_hdr *hdr);
 	struct xfs_dir2_data_unused *
 		(*data_unused_p)(struct xfs_dir2_data_hdr *hdr);
-
-	xfs_dir2_db_t (*db_to_fdb)(struct xfs_da_geometry *geo,
-				   xfs_dir2_db_t db);
-	int	(*db_to_fdindex)(struct xfs_da_geometry *geo,
-				 xfs_dir2_db_t db);
 };
 
 extern const struct xfs_dir_ops *

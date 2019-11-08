@@ -34,6 +34,25 @@ static int xfs_dir2_leafn_remove(xfs_da_args_t *args, struct xfs_buf *bp,
 				 int *rval);
 
 /*
+ * Convert data space db to the corresponding free db.
+ */
+static xfs_dir2_db_t
+xfs_dir2_db_to_fdb(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
+{
+	return xfs_dir2_byte_to_db(geo, XFS_DIR2_FREE_OFFSET) +
+			(db / geo->free_max_bests);
+}
+
+/*
+ * Convert data space db to the corresponding index in a free db.
+ */
+static int
+xfs_dir2_db_to_fdindex(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
+{
+	return db % geo->free_max_bests;
+}
+
+/*
  * Check internal consistency of a leafn block.
  */
 #ifdef DEBUG
@@ -680,7 +699,7 @@ xfs_dir2_leafn_lookup_for_addname(
 			 * Convert the data block to the free block
 			 * holding its freespace information.
 			 */
-			newfdb = dp->d_ops->db_to_fdb(args->geo, newdb);
+			newfdb = xfs_dir2_db_to_fdb(args->geo, newdb);
 			/*
 			 * If it's not the one we have in hand, read it in.
 			 */
@@ -704,7 +723,7 @@ xfs_dir2_leafn_lookup_for_addname(
 			/*
 			 * Get the index for our entry.
 			 */
-			fi = dp->d_ops->db_to_fdindex(args->geo, curdb);
+			fi = xfs_dir2_db_to_fdindex(args->geo, curdb);
 			/*
 			 * If it has room, return it.
 			 */
@@ -1326,7 +1345,7 @@ xfs_dir2_leafn_remove(
 		 * Convert the data block number to a free block,
 		 * read in the free block.
 		 */
-		fdb = dp->d_ops->db_to_fdb(args->geo, db);
+		fdb = xfs_dir2_db_to_fdb(args->geo, db);
 		error = xfs_dir2_free_read(tp, dp,
 					   xfs_dir2_db_to_da(args->geo, fdb),
 					   &fbp);
@@ -1346,7 +1365,7 @@ xfs_dir2_leafn_remove(
 		/*
 		 * Calculate which entry we need to fix.
 		 */
-		findex = dp->d_ops->db_to_fdindex(args->geo, db);
+		findex = xfs_dir2_db_to_fdindex(args->geo, db);
 		longest = be16_to_cpu(bf[0].length);
 		/*
 		 * If the data block is now empty we can get rid of it
@@ -1689,7 +1708,7 @@ xfs_dir2_node_add_datablk(
 	 * Get the freespace block corresponding to the data block
 	 * that was just allocated.
 	 */
-	fbno = dp->d_ops->db_to_fdb(args->geo, *dbno);
+	fbno = xfs_dir2_db_to_fdb(args->geo, *dbno);
 	error = xfs_dir2_free_try_read(tp, dp,
 			       xfs_dir2_db_to_da(args->geo, fbno), &fbp);
 	if (error)
@@ -1704,11 +1723,11 @@ xfs_dir2_node_add_datablk(
 		if (error)
 			return error;
 
-		if (dp->d_ops->db_to_fdb(args->geo, *dbno) != fbno) {
+		if (xfs_dir2_db_to_fdb(args->geo, *dbno) != fbno) {
 			xfs_alert(mp,
 "%s: dir ino %llu needed freesp block %lld for data block %lld, got %lld",
 				__func__, (unsigned long long)dp->i_ino,
-				(long long)dp->d_ops->db_to_fdb(args->geo, *dbno),
+				(long long)xfs_dir2_db_to_fdb(args->geo, *dbno),
 				(long long)*dbno, (long long)fbno);
 			if (fblk) {
 				xfs_alert(mp,
@@ -1737,7 +1756,7 @@ xfs_dir2_node_add_datablk(
 	}
 
 	/* Set the freespace block index from the data block number. */
-	*findex = dp->d_ops->db_to_fdindex(args->geo, *dbno);
+	*findex = xfs_dir2_db_to_fdindex(args->geo, *dbno);
 
 	/* Extend the freespace table if the new data block is off the end. */
 	if (*findex >= hdr->nvalid) {
