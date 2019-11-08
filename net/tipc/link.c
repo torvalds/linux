@@ -44,6 +44,7 @@
 #include "netlink.h"
 #include "monitor.h"
 #include "trace.h"
+#include "crypto.h"
 
 #include <linux/pkt_sched.h>
 
@@ -395,6 +396,15 @@ void tipc_link_set_mtu(struct tipc_link *l, int mtu)
 int tipc_link_mtu(struct tipc_link *l)
 {
 	return l->mtu;
+}
+
+int tipc_link_mss(struct tipc_link *l)
+{
+#ifdef CONFIG_TIPC_CRYPTO
+	return l->mtu - INT_H_SIZE - EMSG_OVERHEAD;
+#else
+	return l->mtu - INT_H_SIZE;
+#endif
 }
 
 u16 tipc_link_rcv_nxt(struct tipc_link *l)
@@ -948,6 +958,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 	u16 seqno = l->snd_nxt;
 	int pkt_cnt = skb_queue_len(list);
 	int imp = msg_importance(hdr);
+	unsigned int mss = tipc_link_mss(l);
 	unsigned int maxwin = l->window;
 	unsigned int mtu = l->mtu;
 	bool new_bundle;
@@ -1000,8 +1011,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 			continue;
 		}
 		if (tipc_msg_try_bundle(l->backlog[imp].target_bskb, &skb,
-					mtu - INT_H_SIZE, l->addr,
-					&new_bundle)) {
+					mss, l->addr, &new_bundle)) {
 			if (skb) {
 				/* Keep a ref. to the skb for next try */
 				l->backlog[imp].target_bskb = skb;
@@ -1154,7 +1164,7 @@ static int tipc_link_bc_retrans(struct tipc_link *l, struct tipc_link *r,
 		if (time_before(jiffies, TIPC_SKB_CB(skb)->nxt_retr))
 			continue;
 		TIPC_SKB_CB(skb)->nxt_retr = TIPC_BC_RETR_LIM;
-		_skb = __pskb_copy(skb, LL_MAX_HEADER + MIN_H_SIZE, GFP_ATOMIC);
+		_skb = pskb_copy(skb, GFP_ATOMIC);
 		if (!_skb)
 			return 0;
 		hdr = buf_msg(_skb);
@@ -1430,8 +1440,7 @@ next_gap_ack:
 			if (time_before(jiffies, TIPC_SKB_CB(skb)->nxt_retr))
 				continue;
 			TIPC_SKB_CB(skb)->nxt_retr = TIPC_UC_RETR_TIME;
-			_skb = __pskb_copy(skb, LL_MAX_HEADER + MIN_H_SIZE,
-					   GFP_ATOMIC);
+			_skb = pskb_copy(skb, GFP_ATOMIC);
 			if (!_skb)
 				continue;
 			hdr = buf_msg(_skb);

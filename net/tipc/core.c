@@ -44,6 +44,7 @@
 #include "socket.h"
 #include "bcast.h"
 #include "node.h"
+#include "crypto.h"
 
 #include <linux/module.h>
 
@@ -68,6 +69,11 @@ static int __net_init tipc_init_net(struct net *net)
 	INIT_LIST_HEAD(&tn->node_list);
 	spin_lock_init(&tn->node_list_lock);
 
+#ifdef CONFIG_TIPC_CRYPTO
+	err = tipc_crypto_start(&tn->crypto_tx, net, NULL);
+	if (err)
+		goto out_crypto;
+#endif
 	err = tipc_sk_rht_init(net);
 	if (err)
 		goto out_sk_rht;
@@ -93,6 +99,11 @@ out_bclink:
 out_nametbl:
 	tipc_sk_rht_destroy(net);
 out_sk_rht:
+
+#ifdef CONFIG_TIPC_CRYPTO
+	tipc_crypto_stop(&tn->crypto_tx);
+out_crypto:
+#endif
 	return err;
 }
 
@@ -103,6 +114,9 @@ static void __net_exit tipc_exit_net(struct net *net)
 	tipc_bcast_stop(net);
 	tipc_nametbl_stop(net);
 	tipc_sk_rht_destroy(net);
+#ifdef CONFIG_TIPC_CRYPTO
+	tipc_crypto_stop(&tipc_net(net)->crypto_tx);
+#endif
 }
 
 static void __net_exit tipc_pernet_pre_exit(struct net *net)
