@@ -43,4 +43,7 @@ struct amdgpu_jpeg {
 	unsigned harvest_config;
 };
 
+int amdgpu_jpeg_dec_ring_test_ring(struct amdgpu_ring *ring);
+int amdgpu_jpeg_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout);
+
 #endif /*__AMDGPU_JPEG_H__*/
