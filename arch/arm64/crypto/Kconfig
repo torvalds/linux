@@ -106,6 +106,12 @@ config CRYPTO_CHACHA20_NEON
 	select CRYPTO_LIB_CHACHA_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_CHACHA
 
+config CRYPTO_POLY1305_NEON
+	tristate "Poly1305 hash function using scalar or NEON instructions"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_HASH
+	select CRYPTO_ARCH_HAVE_LIB_POLY1305
+
 config CRYPTO_NHPOLY1305_NEON
 	tristate "NHPoly1305 hash function using NEON instructions (for Adiantum)"
 	depends on KERNEL_MODE_NEON
