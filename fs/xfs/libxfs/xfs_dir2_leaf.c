@@ -865,7 +865,7 @@ xfs_dir2_leaf_addname(
 	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, dep->namelen);
-	dp->d_ops->data_put_ftype(dep, args->filetype);
+	xfs_dir2_data_put_ftype(dp->i_mount, dep, args->filetype);
 	tagp = xfs_dir2_data_entry_tag_p(dp->i_mount, dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	/*
@@ -1195,7 +1195,7 @@ xfs_dir2_leaf_lookup(
 	 * Return the found inode number & CI name if appropriate
 	 */
 	args->inumber = be64_to_cpu(dep->inumber);
-	args->filetype = dp->d_ops->data_get_ftype(dep);
+	args->filetype = xfs_dir2_data_get_ftype(dp->i_mount, dep);
 	error = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
 	xfs_trans_brelse(tp, dbp);
 	xfs_trans_brelse(tp, lbp);
@@ -1526,7 +1526,7 @@ xfs_dir2_leaf_replace(
 	 * Put the new inode number in, log it.
 	 */
 	dep->inumber = cpu_to_be64(args->inumber);
-	dp->d_ops->data_put_ftype(dep, args->filetype);
+	xfs_dir2_data_put_ftype(dp->i_mount, dep, args->filetype);
 	tp = args->trans;
 	xfs_dir2_data_log_entry(args, dbp, dep);
 	xfs_dir3_leaf_check(dp, lbp);

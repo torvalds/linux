@@ -47,6 +47,34 @@ xfs_dir2_data_entry_tag_p(
 		xfs_dir2_data_entsize(mp, dep->namelen) - sizeof(__be16));
 }
 
+uint8_t
+xfs_dir2_data_get_ftype(
+	struct xfs_mount		*mp,
+	struct xfs_dir2_data_entry	*dep)
+{
+	if (xfs_sb_version_hasftype(&mp->m_sb)) {
+		uint8_t			ftype = dep->name[dep->namelen];
+
+		if (likely(ftype < XFS_DIR3_FT_MAX))
+			return ftype;
+	}
+
+	return XFS_DIR3_FT_UNKNOWN;
+}
+
+void
+xfs_dir2_data_put_ftype(
+	struct xfs_mount		*mp,
+	struct xfs_dir2_data_entry	*dep,
+	uint8_t				ftype)
+{
+	ASSERT(ftype < XFS_DIR3_FT_MAX);
+	ASSERT(dep->namelen != 0);
+
+	if (xfs_sb_version_hasftype(&mp->m_sb))
+		dep->name[dep->namelen] = ftype;
+}
+
 /*
  * The number of leaf entries is limited by the size of the block and the amount
  * of space used by the data entries.  We don't know how much space is used by
@@ -88,21 +116,12 @@ __xfs_dir3_data_check(
 	struct xfs_name		name;
 	unsigned int		offset;
 	unsigned int		end;
-	const struct xfs_dir_ops *ops;
 	struct xfs_da_geometry	*geo = mp->m_dir_geo;
 
 	/*
-	 * We can be passed a null dp here from a verifier, so we need to go the
-	 * hard way to get them.
+	 * If this isn't a directory, something is seriously wrong.  Bail out.
 	 */
-	ops = xfs_dir_get_ops(mp, dp);
-
-	/*
-	 * If this isn't a directory, or we don't get handed the dir ops,
-	 * something is seriously wrong.  Bail out.
-	 */
-	if ((dp && !S_ISDIR(VFS_I(dp)->i_mode)) ||
-	    ops != xfs_dir_get_ops(mp, NULL))
+	if (dp && !S_ISDIR(VFS_I(dp)->i_mode))
 		return __this_address;
 
 	hdr = bp->b_addr;
@@ -206,7 +225,7 @@ __xfs_dir3_data_check(
 			return __this_address;
 		if (be16_to_cpu(*xfs_dir2_data_entry_tag_p(mp, dep)) != offset)
 			return __this_address;
-		if (ops->data_get_ftype(dep) >= XFS_DIR3_FT_MAX)
+		if (xfs_dir2_data_get_ftype(mp, dep) >= XFS_DIR3_FT_MAX)
 			return __this_address;
 		count++;
 		lastfree = 0;

@@ -203,7 +203,7 @@ xfs_dir2_block_getdents(
 		cook = xfs_dir2_db_off_to_dataptr(geo, geo->datablk, offset);
 
 		ctx->pos = cook & 0x7fffffff;
-		filetype = dp->d_ops->data_get_ftype(dep);
+		filetype = xfs_dir2_data_get_ftype(dp->i_mount, dep);
 		/*
 		 * If it didn't fit, set the final offset to here & return.
 		 */
@@ -456,7 +456,7 @@ xfs_dir2_leaf_getdents(
 
 		dep = bp->b_addr + offset;
 		length = xfs_dir2_data_entsize(mp, dep->namelen);
-		filetype = dp->d_ops->data_get_ftype(dep);
+		filetype = xfs_dir2_data_get_ftype(mp, dep);
 
 		ctx->pos = xfs_dir2_byte_to_dataptr(curoff) & 0x7fffffff;
 		if (!xfs_dir2_namecheck(dep->name, dep->namelen)) {

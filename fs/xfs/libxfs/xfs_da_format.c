@@ -15,60 +15,13 @@
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 
-/*
- * Directory data block operations
- */
-
-static uint8_t
-xfs_dir2_data_get_ftype(
-	struct xfs_dir2_data_entry *dep)
-{
-	return XFS_DIR3_FT_UNKNOWN;
-}
-
-static void
-xfs_dir2_data_put_ftype(
-	struct xfs_dir2_data_entry *dep,
-	uint8_t			ftype)
-{
-	ASSERT(ftype < XFS_DIR3_FT_MAX);
-}
-
-static uint8_t
-xfs_dir3_data_get_ftype(
-	struct xfs_dir2_data_entry *dep)
-{
-	uint8_t		ftype = dep->name[dep->namelen];
-
-	if (ftype >= XFS_DIR3_FT_MAX)
-		return XFS_DIR3_FT_UNKNOWN;
-	return ftype;
-}
-
-static void
-xfs_dir3_data_put_ftype(
-	struct xfs_dir2_data_entry *dep,
-	uint8_t			type)
-{
-	ASSERT(type < XFS_DIR3_FT_MAX);
-	ASSERT(dep->namelen != 0);
-
-	dep->name[dep->namelen] = type;
-}
-
 static const struct xfs_dir_ops xfs_dir2_ops = {
-	.data_get_ftype = xfs_dir2_data_get_ftype,
-	.data_put_ftype = xfs_dir2_data_put_ftype,
 };
 
 static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
-	.data_get_ftype = xfs_dir3_data_get_ftype,
-	.data_put_ftype = xfs_dir3_data_put_ftype,
 };
 
 static const struct xfs_dir_ops xfs_dir3_ops = {
-	.data_get_ftype = xfs_dir3_data_get_ftype,
-	.data_put_ftype = xfs_dir3_data_put_ftype,
 };
 
 /*

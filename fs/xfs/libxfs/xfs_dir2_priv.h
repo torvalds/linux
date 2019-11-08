@@ -61,6 +61,10 @@ struct xfs_dir2_data_free *xfs_dir2_data_bestfree_p(struct xfs_mount *mp,
 		struct xfs_dir2_data_hdr *hdr);
 __be16 *xfs_dir2_data_entry_tag_p(struct xfs_mount *mp,
 		struct xfs_dir2_data_entry *dep);
+uint8_t xfs_dir2_data_get_ftype(struct xfs_mount *mp,
+		struct xfs_dir2_data_entry *dep);
+void xfs_dir2_data_put_ftype(struct xfs_mount *mp,
+		struct xfs_dir2_data_entry *dep, uint8_t ftype);
 
 #ifdef DEBUG
 extern void xfs_dir3_data_check(struct xfs_inode *dp, struct xfs_buf *bp);

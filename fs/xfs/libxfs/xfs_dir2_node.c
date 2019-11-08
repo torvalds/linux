@@ -884,7 +884,7 @@ xfs_dir2_leafn_lookup_for_entry(
 				xfs_trans_brelse(tp, state->extrablk.bp);
 			args->cmpresult = cmp;
 			args->inumber = be64_to_cpu(dep->inumber);
-			args->filetype = dp->d_ops->data_get_ftype(dep);
+			args->filetype = xfs_dir2_data_get_ftype(mp, dep);
 			*indexp = index;
 			state->extravalid = 1;
 			state->extrablk.bp = curbp;
@@ -1969,7 +1969,7 @@ xfs_dir2_node_addname_int(
 	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, dep->namelen);
-	dp->d_ops->data_put_ftype(dep, args->filetype);
+	xfs_dir2_data_put_ftype(dp->i_mount, dep, args->filetype);
 	tagp = xfs_dir2_data_entry_tag_p(dp->i_mount, dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	xfs_dir2_data_log_entry(args, dbp, dep);
@@ -2253,7 +2253,7 @@ xfs_dir2_node_replace(
 		 * Fill in the new inode number and log the entry.
 		 */
 		dep->inumber = cpu_to_be64(inum);
-		args->dp->d_ops->data_put_ftype(dep, ftype);
+		xfs_dir2_data_put_ftype(state->mp, dep, ftype);
 		xfs_dir2_data_log_entry(args, state->extrablk.bp, dep);
 		rval = 0;
 	}

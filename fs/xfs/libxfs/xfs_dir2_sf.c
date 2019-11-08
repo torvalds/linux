@@ -319,7 +319,7 @@ xfs_dir2_block_to_sf(
 			xfs_dir2_sf_put_ino(mp, sfp, sfep,
 					      be64_to_cpu(dep->inumber));
 			xfs_dir2_sf_put_ftype(mp, sfep,
-					dp->d_ops->data_get_ftype(dep));
+					xfs_dir2_data_get_ftype(mp, dep));
 
 			sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep);
 		}

@@ -541,7 +541,7 @@ xfs_dir2_block_addname(
 	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, args->namelen);
-	dp->d_ops->data_put_ftype(dep, args->filetype);
+	xfs_dir2_data_put_ftype(dp->i_mount, dep, args->filetype);
 	tagp = xfs_dir2_data_entry_tag_p(dp->i_mount, dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	/*
@@ -633,7 +633,7 @@ xfs_dir2_block_lookup(
 	 * Fill in inode number, CI name if appropriate, release the block.
 	 */
 	args->inumber = be64_to_cpu(dep->inumber);
-	args->filetype = dp->d_ops->data_get_ftype(dep);
+	args->filetype = xfs_dir2_data_get_ftype(dp->i_mount, dep);
 	error = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
 	xfs_trans_brelse(args->trans, bp);
 	return error;
@@ -865,7 +865,7 @@ xfs_dir2_block_replace(
 	 * Change the inode number to the new value.
 	 */
 	dep->inumber = cpu_to_be64(args->inumber);
-	dp->d_ops->data_put_ftype(dep, args->filetype);
+	xfs_dir2_data_put_ftype(dp->i_mount, dep, args->filetype);
 	xfs_dir2_data_log_entry(args, bp, dep);
 	xfs_dir3_data_check(dp, bp);
 	return 0;
@@ -1145,7 +1145,7 @@ xfs_dir2_sf_to_block(
 	dep->inumber = cpu_to_be64(dp->i_ino);
 	dep->namelen = 1;
 	dep->name[0] = '.';
-	dp->d_ops->data_put_ftype(dep, XFS_DIR3_FT_DIR);
+	xfs_dir2_data_put_ftype(mp, dep, XFS_DIR3_FT_DIR);
 	tagp = xfs_dir2_data_entry_tag_p(mp, dep);
 	*tagp = cpu_to_be16(offset);
 	xfs_dir2_data_log_entry(args, bp, dep);
@@ -1160,7 +1160,7 @@ xfs_dir2_sf_to_block(
 	dep->inumber = cpu_to_be64(xfs_dir2_sf_get_parent_ino(sfp));
 	dep->namelen = 2;
 	dep->name[0] = dep->name[1] = '.';
-	dp->d_ops->data_put_ftype(dep, XFS_DIR3_FT_DIR);
+	xfs_dir2_data_put_ftype(mp, dep, XFS_DIR3_FT_DIR);
 	tagp = xfs_dir2_data_entry_tag_p(mp, dep);
 	*tagp = cpu_to_be16(offset);
 	xfs_dir2_data_log_entry(args, bp, dep);
@@ -1210,7 +1210,8 @@ xfs_dir2_sf_to_block(
 		dep = bp->b_addr + newoffset;
 		dep->inumber = cpu_to_be64(xfs_dir2_sf_get_ino(mp, sfp, sfep));
 		dep->namelen = sfep->namelen;
-		dp->d_ops->data_put_ftype(dep, xfs_dir2_sf_get_ftype(mp, sfep));
+		xfs_dir2_data_put_ftype(mp, dep,
+				xfs_dir2_sf_get_ftype(mp, sfep));
 		memcpy(dep->name, sfep->name, dep->namelen);
 		tagp = xfs_dir2_data_entry_tag_p(mp, dep);
 		*tagp = cpu_to_be16(newoffset);
