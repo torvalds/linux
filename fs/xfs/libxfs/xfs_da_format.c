@@ -19,39 +19,6 @@
  * Directory data block operations
  */
 
-/*
- * For special situations, the dirent size ends up fixed because we always know
- * what the size of the entry is. That's true for the "." and "..", and
- * therefore we know that they are a fixed size and hence their offsets are
- * constant, as is the first entry.
- *
- * Hence, this calculation is written as a macro to be able to be calculated at
- * compile time and so certain offsets can be calculated directly in the
- * structure initaliser via the macro. There are two macros - one for dirents
- * with ftype and without so there are no unresolvable conditionals in the
- * calculations. We also use round_up() as XFS_DIR2_DATA_ALIGN is always a power
- * of 2 and the compiler doesn't reject it (unlike roundup()).
- */
-#define XFS_DIR2_DATA_ENTSIZE(n)					\
-	round_up((offsetof(struct xfs_dir2_data_entry, name[0]) + (n) +	\
-		 sizeof(xfs_dir2_data_off_t)), XFS_DIR2_DATA_ALIGN)
-
-#define XFS_DIR3_DATA_ENTSIZE(n)					\
-	round_up((offsetof(struct xfs_dir2_data_entry, name[0]) + (n) +	\
-		 sizeof(xfs_dir2_data_off_t) + sizeof(uint8_t)),	\
-		XFS_DIR2_DATA_ALIGN)
-
-int
-xfs_dir2_data_entsize(
-	struct xfs_mount	*mp,
-	int			n)
-{
-	if (xfs_sb_version_hasftype(&mp->m_sb))
-		return XFS_DIR3_DATA_ENTSIZE(n);
-	else
-		return XFS_DIR2_DATA_ENTSIZE(n);
-}
-
 static uint8_t
 xfs_dir2_data_get_ftype(
 	struct xfs_dir2_data_entry *dep)

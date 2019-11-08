@@ -57,7 +57,6 @@ extern int xfs_dir2_leaf_to_block(struct xfs_da_args *args,
 		struct xfs_buf *lbp, struct xfs_buf *dbp);
 
 /* xfs_dir2_data.c */
-int xfs_dir2_data_entsize(struct xfs_mount *mp, int n);
 __be16 *xfs_dir2_data_entry_tag_p(struct xfs_mount *mp,
 		struct xfs_dir2_data_entry *dep);
 
@@ -171,5 +170,19 @@ extern xfs_failaddr_t xfs_dir2_sf_verify(struct xfs_inode *ip);
 /* xfs_dir2_readdir.c */
 extern int xfs_readdir(struct xfs_trans *tp, struct xfs_inode *dp,
 		       struct dir_context *ctx, size_t bufsize);
+
+static inline unsigned int
+xfs_dir2_data_entsize(
+	struct xfs_mount	*mp,
+	unsigned int		namelen)
+{
+	unsigned int		len;
+
+	len = offsetof(struct xfs_dir2_data_entry, name[0]) + namelen +
+			sizeof(xfs_dir2_data_off_t) /* tag */;
+	if (xfs_sb_version_hasftype(&mp->m_sb))
+		len += sizeof(uint8_t);
+	return round_up(len, XFS_DIR2_DATA_ALIGN);
+}
 
 #endif /* __XFS_DIR2_PRIV_H__ */
