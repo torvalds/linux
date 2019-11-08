@@ -97,6 +97,14 @@ struct netns_sctp {
 	int pf_enable;
 
 	/*
+	 * Disable Potentially-Failed state exposure, ignored by default
+	 * pf_expose	-  0  : compatible with old applications (by default)
+	 *		-  1  : disable pf state exposure
+	 *		-  2  : enable  pf state exposure
+	 */
+	int pf_expose;
+
+	/*
 	 * Policy for preforming sctp/socket accounting
 	 * 0   - do socket level accounting, all assocs share sk_sndbuf
 	 * 1   - do sctp accounting, each asoc may use sk_sndbuf bytes

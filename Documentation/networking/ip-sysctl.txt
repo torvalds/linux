@@ -2091,6 +2091,28 @@ pf_enable - INTEGER
 
 	Default: 1
 
+pf_expose - INTEGER
+	Unset or enable/disable pf (pf is short for potentially failed) state
+	exposure.  Applications can control the exposure of the PF path state
+	in the SCTP_PEER_ADDR_CHANGE event and the SCTP_GET_PEER_ADDR_INFO
+	sockopt.   When it's unset, no SCTP_PEER_ADDR_CHANGE event with
+	SCTP_ADDR_PF state will be sent and a SCTP_PF-state transport info
+	can be got via SCTP_GET_PEER_ADDR_INFO sockopt;  When it's enabled,
+	a SCTP_PEER_ADDR_CHANGE event will be sent for a transport becoming
+	SCTP_PF state and a SCTP_PF-state transport info can be got via
+	SCTP_GET_PEER_ADDR_INFO sockopt;  When it's diabled, no
+	SCTP_PEER_ADDR_CHANGE event will be sent and it returns -EACCES when
+	trying to get a SCTP_PF-state transport info via SCTP_GET_PEER_ADDR_INFO
+	sockopt.
+
+	0: Unset pf state exposure, Compatible with old applications.
+
+	1: Disable pf state exposure.
+
+	2: Enable pf state exposure.
+
+	Default: 0
+
 addip_noauth_enable - BOOLEAN
 	Dynamic Address Reconfiguration (ADD-IP) requires the use of
 	authentication to protect the operations of adding or removing new
