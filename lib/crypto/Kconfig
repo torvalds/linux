@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0
+
+comment "Crypto library routines"
+
+config CRYPTO_LIB_AES
+	tristate
+
+config CRYPTO_LIB_ARC4
+	tristate
+
+config CRYPTO_LIB_DES
+	tristate
+
+config CRYPTO_LIB_SHA256
+	tristate

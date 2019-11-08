@@ -895,9 +895,6 @@ config CRYPTO_SHA1_PPC_SPE
 	  SHA-1 secure hash standard (DFIPS 180-4) implemented
 	  using powerpc SPE SIMD instruction set.
 
-config CRYPTO_LIB_SHA256
-	tristate
-
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
 	select CRYPTO_HASH
@@ -1036,9 +1033,6 @@ config CRYPTO_GHASH_CLMUL_NI_INTEL
 
 comment "Ciphers"
 
-config CRYPTO_LIB_AES
-	tristate
-
 config CRYPTO_AES
 	tristate "AES cipher algorithms"
 	select CRYPTO_ALGAPI
@@ -1166,9 +1160,6 @@ config CRYPTO_ANUBIS
 	  See also:
 	  <https://www.cosic.esat.kuleuven.be/nessie/reports/>
 	  <http://www.larc.usp.br/~pbarreto/AnubisPage.html>
-
-config CRYPTO_LIB_ARC4
-	tristate
 
 config CRYPTO_ARC4
 	tristate "ARC4 cipher algorithm"
@@ -1356,9 +1347,6 @@ config CRYPTO_CAST6_AVX_X86_64
 
 	  This module provides the Cast6 cipher algorithm that processes
 	  eight blocks parallel using the AVX instruction set.
-
-config CRYPTO_LIB_DES
-	tristate
 
 config CRYPTO_DES
 	tristate "DES and Triple DES EDE cipher algorithms"
@@ -1864,6 +1852,7 @@ config CRYPTO_STATS
 config CRYPTO_HASH_INFO
 	bool
 
+source "lib/crypto/Kconfig"
 source "drivers/crypto/Kconfig"
 source "crypto/asymmetric_keys/Kconfig"
 source "certs/Kconfig"
