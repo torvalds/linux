@@ -2735,14 +2735,6 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 		goto error_param;
 	}
 
-	if (ice_vsi_manage_vlan_stripping(vsi, add_v)) {
-		dev_err(&pf->pdev->dev,
-			"%sable VLAN stripping failed for VSI %i\n",
-			 add_v ? "en" : "dis", vsi->vsi_num);
-		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
-		goto error_param;
-	}
-
 	if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states) ||
 	    test_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states))
 		vlan_promisc = true;
@@ -2934,6 +2926,33 @@ error_param:
 }
 
 /**
+ * ice_vf_init_vlan_stripping - enable/disable VLAN stripping on initialization
+ * @vf: VF to enable/disable VLAN stripping for on initialization
+ *
+ * If the VIRTCHNL_VF_OFFLOAD_VLAN flag is set enable VLAN stripping, else if
+ * the flag is cleared then we want to disable stripping. For example, the flag
+ * will be cleared when port VLANs are configured by the administrator before
+ * passing the VF to the guest or if the AVF driver doesn't support VLAN
+ * offloads.
+ */
+static int ice_vf_init_vlan_stripping(struct ice_vf *vf)
+{
+	struct ice_vsi *vsi = vf->pf->vsi[vf->lan_vsi_idx];
+
+	if (!vsi)
+		return -EINVAL;
+
+	/* don't modify stripping if port VLAN is configured */
+	if (vsi->info.pvid)
+		return 0;
+
+	if (ice_vf_vlan_offload_ena(vf->driver_caps))
+		return ice_vsi_manage_vlan_stripping(vsi, true);
+	else
+		return ice_vsi_manage_vlan_stripping(vsi, false);
+}
+
+/**
  * ice_vc_process_vf_msg - Process request from VF
  * @pf: pointer to the PF structure
  * @event: pointer to the AQ event
@@ -2987,6 +3006,10 @@ error_handler:
 		break;
 	case VIRTCHNL_OP_GET_VF_RESOURCES:
 		err = ice_vc_get_vf_res_msg(vf, msg);
+		if (ice_vf_init_vlan_stripping(vf))
+			dev_err(&pf->pdev->dev,
+				"Failed to initialize VLAN stripping for VF %d\n",
+				vf->vf_id);
 		ice_vc_notify_vf_link_state(vf);
 		break;
 	case VIRTCHNL_OP_RESET_VF:
