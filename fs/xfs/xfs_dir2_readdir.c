@@ -48,6 +48,7 @@ xfs_dir2_sf_getdents(
 {
 	int			i;		/* shortform entry number */
 	struct xfs_inode	*dp = args->dp;	/* incore directory inode */
+	struct xfs_mount	*mp = dp->i_mount;
 	xfs_dir2_dataptr_t	off;		/* current entry's offset */
 	xfs_dir2_sf_entry_t	*sfep;		/* shortform directory entry */
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform structure */
@@ -109,7 +110,7 @@ xfs_dir2_sf_getdents(
 				xfs_dir2_sf_get_offset(sfep));
 
 		if (ctx->pos > off) {
-			sfep = dp->d_ops->sf_nextentry(sfp, sfep);
+			sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep);
 			continue;
 		}
 
@@ -122,9 +123,9 @@ xfs_dir2_sf_getdents(
 			return -EFSCORRUPTED;
 		}
 		if (!dir_emit(ctx, (char *)sfep->name, sfep->namelen, ino,
-			    xfs_dir3_get_dtype(dp->i_mount, filetype)))
+			    xfs_dir3_get_dtype(mp, filetype)))
 			return 0;
-		sfep = dp->d_ops->sf_nextentry(sfp, sfep);
+		sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep);
 	}
 
 	ctx->pos = xfs_dir2_db_off_to_dataptr(geo, geo->datablk + 1, 0) &
