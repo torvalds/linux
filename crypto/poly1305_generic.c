@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <asm/unaligned.h>
 
-int crypto_poly1305_init(struct shash_desc *desc)
+static int crypto_poly1305_init(struct shash_desc *desc)
 {
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 
@@ -30,7 +30,6 @@ int crypto_poly1305_init(struct shash_desc *desc)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(crypto_poly1305_init);
 
 static void poly1305_blocks(struct poly1305_desc_ctx *dctx, const u8 *src,
 			    unsigned int srclen)
@@ -47,8 +46,8 @@ static void poly1305_blocks(struct poly1305_desc_ctx *dctx, const u8 *src,
 			     srclen / POLY1305_BLOCK_SIZE, 1);
 }
 
-int crypto_poly1305_update(struct shash_desc *desc,
-			   const u8 *src, unsigned int srclen)
+static int crypto_poly1305_update(struct shash_desc *desc,
+				  const u8 *src, unsigned int srclen)
 {
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 	unsigned int bytes;
@@ -80,9 +79,8 @@ int crypto_poly1305_update(struct shash_desc *desc,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(crypto_poly1305_update);
 
-int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
+static int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
 {
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 
@@ -92,7 +90,6 @@ int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
 	poly1305_final_generic(dctx, dst);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(crypto_poly1305_final);
 
 static struct shash_alg poly1305_alg = {
 	.digestsize	= POLY1305_DIGEST_SIZE,

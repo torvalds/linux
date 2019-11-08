@@ -38,6 +38,24 @@ static void poly1305_simd_mult(u32 *a, const u32 *b)
 	poly1305_block_sse2(a, m, b, 1);
 }
 
+static unsigned int poly1305_scalar_blocks(struct poly1305_desc_ctx *dctx,
+					   const u8 *src, unsigned int srclen)
+{
+	unsigned int datalen;
+
+	if (unlikely(!dctx->sset)) {
+		datalen = crypto_poly1305_setdesckey(dctx, src, srclen);
+		src += srclen - datalen;
+		srclen = datalen;
+	}
+	if (srclen >= POLY1305_BLOCK_SIZE) {
+		poly1305_core_blocks(&dctx->h, dctx->r, src,
+				     srclen / POLY1305_BLOCK_SIZE, 1);
+		srclen %= POLY1305_BLOCK_SIZE;
+	}
+	return srclen;
+}
+
 static unsigned int poly1305_simd_blocks(struct poly1305_desc_ctx *dctx,
 					 const u8 *src, unsigned int srclen)
 {
@@ -95,12 +113,6 @@ static int poly1305_simd_update(struct shash_desc *desc,
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 	unsigned int bytes;
 
-	/* kernel_fpu_begin/end is costly, use fallback for small updates */
-	if (srclen <= 288 || !may_use_simd())
-		return crypto_poly1305_update(desc, src, srclen);
-
-	kernel_fpu_begin();
-
 	if (unlikely(dctx->buflen)) {
 		bytes = min(srclen, POLY1305_BLOCK_SIZE - dctx->buflen);
 		memcpy(dctx->buf + dctx->buflen, src, bytes);
@@ -109,25 +121,57 @@ static int poly1305_simd_update(struct shash_desc *desc,
 		dctx->buflen += bytes;
 
 		if (dctx->buflen == POLY1305_BLOCK_SIZE) {
-			poly1305_simd_blocks(dctx, dctx->buf,
-					     POLY1305_BLOCK_SIZE);
+			if (likely(may_use_simd())) {
+				kernel_fpu_begin();
+				poly1305_simd_blocks(dctx, dctx->buf,
+						     POLY1305_BLOCK_SIZE);
+				kernel_fpu_end();
+			} else {
+				poly1305_scalar_blocks(dctx, dctx->buf,
+						       POLY1305_BLOCK_SIZE);
+			}
 			dctx->buflen = 0;
 		}
 	}
 
 	if (likely(srclen >= POLY1305_BLOCK_SIZE)) {
-		bytes = poly1305_simd_blocks(dctx, src, srclen);
+		if (likely(may_use_simd())) {
+			kernel_fpu_begin();
+			bytes = poly1305_simd_blocks(dctx, src, srclen);
+			kernel_fpu_end();
+		} else {
+			bytes = poly1305_scalar_blocks(dctx, src, srclen);
+		}
 		src += srclen - bytes;
 		srclen = bytes;
 	}
-
-	kernel_fpu_end();
 
 	if (unlikely(srclen)) {
 		dctx->buflen = srclen;
 		memcpy(dctx->buf, src, srclen);
 	}
+}
 
+static int crypto_poly1305_init(struct shash_desc *desc)
+{
+	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
+
+	poly1305_core_init(&dctx->h);
+	dctx->buflen = 0;
+	dctx->rset = 0;
+	dctx->sset = false;
+
+	return 0;
+}
+
+static int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
+{
+	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
+
+	if (unlikely(!dctx->sset))
+		return -ENOKEY;
+
+	poly1305_final_generic(dctx, dst);
 	return 0;
 }
 
