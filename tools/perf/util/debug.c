@@ -24,6 +24,7 @@
 #include <linux/ctype.h>
 
 int verbose;
+int debug_peo_args;
 bool dump_trace = false, quiet = false;
 int debug_ordered_events;
 static int redirect_to_stderr;
@@ -180,6 +181,7 @@ static struct debug_variable {
 	{ .name = "ordered-events",	.ptr = &debug_ordered_events},
 	{ .name = "stderr",		.ptr = &redirect_to_stderr},
 	{ .name = "data-convert",	.ptr = &debug_data_convert },
+	{ .name = "perf-event-open",	.ptr = &debug_peo_args },
 	{ .name = NULL, }
 };
 
