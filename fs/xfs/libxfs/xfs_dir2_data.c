@@ -13,6 +13,7 @@
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_dir2.h"
+#include "xfs_dir2_priv.h"
 #include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
@@ -179,7 +180,7 @@ __xfs_dir3_data_check(
 			return __this_address;
 		if (xfs_dir_ino_validate(mp, be64_to_cpu(dep->inumber)))
 			return __this_address;
-		if (offset + ops->data_entsize(dep->namelen) > end)
+		if (offset + xfs_dir2_data_entsize(mp, dep->namelen) > end)
 			return __this_address;
 		if (be16_to_cpu(*ops->data_entry_tag_p(dep)) != offset)
 			return __this_address;
@@ -203,7 +204,7 @@ __xfs_dir3_data_check(
 			if (i >= be32_to_cpu(btp->count))
 				return __this_address;
 		}
-		offset += ops->data_entsize(dep->namelen);
+		offset += xfs_dir2_data_entsize(mp, dep->namelen);
 	}
 	/*
 	 * Need to have seen all the entries and all the bestfree slots.
@@ -567,7 +568,7 @@ xfs_dir2_data_freeremove(
  */
 void
 xfs_dir2_data_freescan_int(
-	struct xfs_da_geometry		*geo,
+	struct xfs_mount		*mp,
 	const struct xfs_dir_ops	*ops,
 	struct xfs_dir2_data_hdr	*hdr,
 	int				*loghead)
@@ -588,7 +589,7 @@ xfs_dir2_data_freescan_int(
 	memset(bf, 0, sizeof(*bf) * XFS_DIR2_DATA_FD_COUNT);
 	*loghead = 1;
 
-	end = xfs_dir3_data_end_offset(geo, addr);
+	end = xfs_dir3_data_end_offset(mp->m_dir_geo, addr);
 	while (offset < end) {
 		struct xfs_dir2_data_unused	*dup = addr + offset;
 		struct xfs_dir2_data_entry	*dep = addr + offset;
@@ -608,7 +609,7 @@ xfs_dir2_data_freescan_int(
 		 * For active entries, check their tags and skip them.
 		 */
 		ASSERT(offset == be16_to_cpu(*ops->data_entry_tag_p(dep)));
-		offset += ops->data_entsize(dep->namelen);
+		offset += xfs_dir2_data_entsize(mp, dep->namelen);
 	}
 }
 
@@ -618,8 +619,7 @@ xfs_dir2_data_freescan(
 	struct xfs_dir2_data_hdr *hdr,
 	int			*loghead)
 {
-	return xfs_dir2_data_freescan_int(dp->i_mount->m_dir_geo, dp->d_ops,
-			hdr, loghead);
+	return xfs_dir2_data_freescan_int(dp->i_mount, dp->d_ops, hdr, loghead);
 }
 
 /*

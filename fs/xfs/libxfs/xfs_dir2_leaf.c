@@ -660,7 +660,7 @@ xfs_dir2_leaf_addname(
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
 	ents = leafhdr.ents;
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
-	length = dp->d_ops->data_entsize(args->namelen);
+	length = xfs_dir2_data_entsize(dp->i_mount, args->namelen);
 
 	/*
 	 * See if there are any entries with the same hash value
@@ -1397,7 +1397,8 @@ xfs_dir2_leaf_removename(
 	 */
 	xfs_dir2_data_make_free(args, dbp,
 		(xfs_dir2_data_aoff_t)((char *)dep - (char *)hdr),
-		dp->d_ops->data_entsize(dep->namelen), &needlog, &needscan);
+		xfs_dir2_data_entsize(dp->i_mount, dep->namelen), &needlog,
+		&needscan);
 	/*
 	 * We just mark the leaf entry stale by putting a null in it.
 	 */

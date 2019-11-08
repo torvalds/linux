@@ -355,7 +355,7 @@ xfs_dir2_block_addname(
 	if (error)
 		return error;
 
-	len = dp->d_ops->data_entsize(args->namelen);
+	len = xfs_dir2_data_entsize(dp->i_mount, args->namelen);
 
 	/*
 	 * Set up pointers to parts of the block.
@@ -791,7 +791,8 @@ xfs_dir2_block_removename(
 	needlog = needscan = 0;
 	xfs_dir2_data_make_free(args, bp,
 		(xfs_dir2_data_aoff_t)((char *)dep - (char *)hdr),
-		dp->d_ops->data_entsize(dep->namelen), &needlog, &needscan);
+		xfs_dir2_data_entsize(dp->i_mount, dep->namelen), &needlog,
+		&needscan);
 	/*
 	 * Fix up the block tail.
 	 */
@@ -1149,7 +1150,7 @@ xfs_dir2_sf_to_block(
 	xfs_dir2_data_log_entry(args, bp, dep);
 	blp[0].hashval = cpu_to_be32(xfs_dir_hash_dot);
 	blp[0].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(offset));
-	offset += dp->d_ops->data_entsize(dep->namelen);
+	offset += xfs_dir2_data_entsize(mp, dep->namelen);
 
 	/*
 	 * Create entry for ..
@@ -1164,7 +1165,7 @@ xfs_dir2_sf_to_block(
 	xfs_dir2_data_log_entry(args, bp, dep);
 	blp[1].hashval = cpu_to_be32(xfs_dir_hash_dotdot);
 	blp[1].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(offset));
-	offset += dp->d_ops->data_entsize(dep->namelen);
+	offset += xfs_dir2_data_entsize(mp, dep->namelen);
 
 	/*
 	 * Loop over existing entries, stuff them in.

@@ -323,7 +323,7 @@ xfs_dir2_block_to_sf(
 
 			sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep);
 		}
-		offset += dp->d_ops->data_entsize(dep->namelen);
+		offset += xfs_dir2_data_entsize(mp, dep->namelen);
 	}
 	ASSERT((char *)sfep - (char *)sfp == size);
 
@@ -540,10 +540,10 @@ xfs_dir2_sf_addname_hard(
 	 */
 	for (offset = dp->d_ops->data_first_offset,
 	      oldsfep = xfs_dir2_sf_firstentry(oldsfp),
-	      add_datasize = dp->d_ops->data_entsize(args->namelen),
+	      add_datasize = xfs_dir2_data_entsize(mp, args->namelen),
 	      eof = (char *)oldsfep == &buf[old_isize];
 	     !eof;
-	     offset = new_offset + dp->d_ops->data_entsize(oldsfep->namelen),
+	     offset = new_offset + xfs_dir2_data_entsize(mp, oldsfep->namelen),
 	      oldsfep = xfs_dir2_sf_nextentry(mp, oldsfp, oldsfep),
 	      eof = (char *)oldsfep == &buf[old_isize]) {
 		new_offset = xfs_dir2_sf_get_offset(oldsfep);
@@ -615,7 +615,7 @@ xfs_dir2_sf_addname_pick(
 	int			used;		/* data bytes used */
 
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
-	size = dp->d_ops->data_entsize(args->namelen);
+	size = xfs_dir2_data_entsize(mp, args->namelen);
 	offset = dp->d_ops->data_first_offset;
 	sfep = xfs_dir2_sf_firstentry(sfp);
 	holefit = 0;
@@ -628,7 +628,7 @@ xfs_dir2_sf_addname_pick(
 		if (!holefit)
 			holefit = offset + size <= xfs_dir2_sf_get_offset(sfep);
 		offset = xfs_dir2_sf_get_offset(sfep) +
-			 dp->d_ops->data_entsize(sfep->namelen);
+			 xfs_dir2_data_entsize(mp, sfep->namelen);
 		sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep);
 	}
 	/*
@@ -693,7 +693,7 @@ xfs_dir2_sf_check(
 		i8count += ino > XFS_DIR2_MAX_SHORT_INUM;
 		offset =
 			xfs_dir2_sf_get_offset(sfep) +
-			dp->d_ops->data_entsize(sfep->namelen);
+			xfs_dir2_data_entsize(mp, sfep->namelen);
 		ASSERT(xfs_dir2_sf_get_ftype(mp, sfep) < XFS_DIR3_FT_MAX);
 	}
 	ASSERT(i8count == sfp->i8count);
@@ -793,7 +793,7 @@ xfs_dir2_sf_verify(
 			return __this_address;
 
 		offset = xfs_dir2_sf_get_offset(sfep) +
-				dops->data_entsize(sfep->namelen);
+				xfs_dir2_data_entsize(mp, sfep->namelen);
 
 		sfep = next_sfep;
 	}

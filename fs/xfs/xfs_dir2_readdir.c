@@ -78,7 +78,7 @@ xfs_dir2_sf_getdents(
 			dp->d_ops->data_entry_offset);
 	dotdot_offset = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
 			dp->d_ops->data_entry_offset +
-			dp->d_ops->data_entsize(sizeof(".") - 1));
+			xfs_dir2_data_entsize(mp, sizeof(".") - 1));
 
 	/*
 	 * Put . entry unless we're starting past it.
@@ -192,7 +192,7 @@ xfs_dir2_block_getdents(
 		/*
 		 * Bump pointer for the next iteration.
 		 */
-		offset += dp->d_ops->data_entsize(dep->namelen);
+		offset += xfs_dir2_data_entsize(dp->i_mount, dep->namelen);
 
 		/*
 		 * The entry is before the desired starting point, skip it.
@@ -347,6 +347,7 @@ xfs_dir2_leaf_getdents(
 	size_t			bufsize)
 {
 	struct xfs_inode	*dp = args->dp;
+	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp = NULL;	/* data block buffer */
 	xfs_dir2_data_entry_t	*dep;		/* data entry */
 	xfs_dir2_data_unused_t	*dup;		/* unused entry */
@@ -422,8 +423,8 @@ xfs_dir2_leaf_getdents(
 						continue;
 					}
 					dep = bp->b_addr + offset;
-					length =
-					   dp->d_ops->data_entsize(dep->namelen);
+					length = xfs_dir2_data_entsize(mp,
+							dep->namelen);
 					offset += length;
 				}
 				/*
@@ -454,7 +455,7 @@ xfs_dir2_leaf_getdents(
 		}
 
 		dep = bp->b_addr + offset;
-		length = dp->d_ops->data_entsize(dep->namelen);
+		length = xfs_dir2_data_entsize(mp, dep->namelen);
 		filetype = dp->d_ops->data_get_ftype(dep);
 
 		ctx->pos = xfs_dir2_byte_to_dataptr(curoff) & 0x7fffffff;

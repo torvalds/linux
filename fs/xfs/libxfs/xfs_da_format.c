@@ -41,18 +41,15 @@
 		 sizeof(xfs_dir2_data_off_t) + sizeof(uint8_t)),	\
 		XFS_DIR2_DATA_ALIGN)
 
-static int
+int
 xfs_dir2_data_entsize(
+	struct xfs_mount	*mp,
 	int			n)
 {
-	return XFS_DIR2_DATA_ENTSIZE(n);
-}
-
-static int
-xfs_dir3_data_entsize(
-	int			n)
-{
-	return XFS_DIR3_DATA_ENTSIZE(n);
+	if (xfs_sb_version_hasftype(&mp->m_sb))
+		return XFS_DIR3_DATA_ENTSIZE(n);
+	else
+		return XFS_DIR2_DATA_ENTSIZE(n);
 }
 
 static uint8_t
@@ -100,7 +97,7 @@ xfs_dir2_data_entry_tag_p(
 	struct xfs_dir2_data_entry *dep)
 {
 	return (__be16 *)((char *)dep +
-		xfs_dir2_data_entsize(dep->namelen) - sizeof(__be16));
+		XFS_DIR2_DATA_ENTSIZE(dep->namelen) - sizeof(__be16));
 }
 
 static __be16 *
@@ -108,7 +105,7 @@ xfs_dir3_data_entry_tag_p(
 	struct xfs_dir2_data_entry *dep)
 {
 	return (__be16 *)((char *)dep +
-		xfs_dir3_data_entsize(dep->namelen) - sizeof(__be16));
+		XFS_DIR3_DATA_ENTSIZE(dep->namelen) - sizeof(__be16));
 }
 
 static struct xfs_dir2_data_free *
@@ -124,7 +121,6 @@ xfs_dir3_data_bestfree_p(struct xfs_dir2_data_hdr *hdr)
 }
 
 static const struct xfs_dir_ops xfs_dir2_ops = {
-	.data_entsize = xfs_dir2_data_entsize,
 	.data_get_ftype = xfs_dir2_data_get_ftype,
 	.data_put_ftype = xfs_dir2_data_put_ftype,
 	.data_entry_tag_p = xfs_dir2_data_entry_tag_p,
@@ -137,7 +133,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 };
 
 static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
-	.data_entsize = xfs_dir3_data_entsize,
 	.data_get_ftype = xfs_dir3_data_get_ftype,
 	.data_put_ftype = xfs_dir3_data_put_ftype,
 	.data_entry_tag_p = xfs_dir3_data_entry_tag_p,
@@ -150,7 +145,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 };
 
 static const struct xfs_dir_ops xfs_dir3_ops = {
-	.data_entsize = xfs_dir3_data_entsize,
 	.data_get_ftype = xfs_dir3_data_get_ftype,
 	.data_put_ftype = xfs_dir3_data_put_ftype,
 	.data_entry_tag_p = xfs_dir3_data_entry_tag_p,

@@ -265,7 +265,7 @@ xchk_dir_rec(
 		}
 		if (dep == dent)
 			break;
-		iter_off += mp->m_dir_inode_ops->data_entsize(dep->namelen);
+		iter_off += xfs_dir2_data_entsize(mp, dep->namelen);
 	}
 
 	/* Retrieve the entry, sanity check it, and compare hashes. */
@@ -403,7 +403,7 @@ xchk_directory_data_bestfree(
 		if (dup->freetag != cpu_to_be16(XFS_DIR2_DATA_FREE_TAG)) {
 			struct xfs_dir2_data_entry *dep = bp->b_addr + offset;
 
-			newlen = d_ops->data_entsize(dep->namelen);
+			newlen = xfs_dir2_data_entsize(mp, dep->namelen);
 			if (newlen <= 0) {
 				xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,
 						lblk);
