@@ -1666,14 +1666,13 @@ xfs_dir2_node_add_datablk(
 	xfs_dir2_db_t		*dbno,
 	struct xfs_buf		**dbpp,
 	struct xfs_buf		**fbpp,
+	struct xfs_dir3_icfree_hdr *hdr,
 	int			*findex)
 {
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_trans	*tp = args->trans;
 	struct xfs_mount	*mp = dp->i_mount;
-	struct xfs_dir3_icfree_hdr freehdr;
 	struct xfs_dir2_data_free *bf;
-	struct xfs_dir2_data_hdr *hdr;
 	struct xfs_dir2_free	*free = NULL;
 	xfs_dir2_db_t		fbno;
 	struct xfs_buf		*fbp;
@@ -1736,25 +1735,25 @@ xfs_dir2_node_add_datablk(
 			return error;
 		free = fbp->b_addr;
 		bests = dp->d_ops->free_bests_p(free);
-		xfs_dir2_free_hdr_from_disk(mp, &freehdr, free);
+		xfs_dir2_free_hdr_from_disk(mp, hdr, free);
 
 		/* Remember the first slot as our empty slot. */
-		freehdr.firstdb = (fbno - xfs_dir2_byte_to_db(args->geo,
+		hdr->firstdb = (fbno - xfs_dir2_byte_to_db(args->geo,
 							XFS_DIR2_FREE_OFFSET)) *
 				dp->d_ops->free_max_bests(args->geo);
 	} else {
 		free = fbp->b_addr;
 		bests = dp->d_ops->free_bests_p(free);
-		xfs_dir2_free_hdr_from_disk(mp, &freehdr, free);
+		xfs_dir2_free_hdr_from_disk(mp, hdr, free);
 	}
 
 	/* Set the freespace block index from the data block number. */
 	*findex = dp->d_ops->db_to_fdindex(args->geo, *dbno);
 
 	/* Extend the freespace table if the new data block is off the end. */
-	if (*findex >= freehdr.nvalid) {
+	if (*findex >= hdr->nvalid) {
 		ASSERT(*findex < dp->d_ops->free_max_bests(args->geo));
-		freehdr.nvalid = *findex + 1;
+		hdr->nvalid = *findex + 1;
 		bests[*findex] = cpu_to_be16(NULLDATAOFF);
 	}
 
@@ -1763,14 +1762,13 @@ xfs_dir2_node_add_datablk(
 	 * true) then update the header.
 	 */
 	if (bests[*findex] == cpu_to_be16(NULLDATAOFF)) {
-		freehdr.nused++;
-		xfs_dir2_free_hdr_to_disk(mp, fbp->b_addr, &freehdr);
+		hdr->nused++;
+		xfs_dir2_free_hdr_to_disk(mp, fbp->b_addr, hdr);
 		xfs_dir2_free_log_header(args, fbp);
 	}
 
 	/* Update the freespace value for the new block in the table. */
-	hdr = dbp->b_addr;
-	bf = dp->d_ops->data_bestfree_p(hdr);
+	bf = dp->d_ops->data_bestfree_p(dbp->b_addr);
 	bests[*findex] = bf[0].length;
 
 	*dbpp = dbp;
@@ -1784,10 +1782,10 @@ xfs_dir2_node_find_freeblk(
 	struct xfs_da_state_blk	*fblk,
 	xfs_dir2_db_t		*dbnop,
 	struct xfs_buf		**fbpp,
+	struct xfs_dir3_icfree_hdr *hdr,
 	int			*findexp,
 	int			length)
 {
-	struct xfs_dir3_icfree_hdr freehdr;
 	struct xfs_dir2_free	*free = NULL;
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_trans	*tp = args->trans;
@@ -1814,13 +1812,12 @@ xfs_dir2_node_find_freeblk(
 		if (findex >= 0) {
 			/* caller already found the freespace for us. */
 			bests = dp->d_ops->free_bests_p(free);
-			xfs_dir2_free_hdr_from_disk(dp->i_mount, &freehdr,
-						    free);
+			xfs_dir2_free_hdr_from_disk(dp->i_mount, hdr, free);
 
-			ASSERT(findex < freehdr.nvalid);
+			ASSERT(findex < hdr->nvalid);
 			ASSERT(be16_to_cpu(bests[findex]) != NULLDATAOFF);
 			ASSERT(be16_to_cpu(bests[findex]) >= length);
-			dbno = freehdr.firstdb + findex;
+			dbno = hdr->firstdb + findex;
 			goto found_block;
 		}
 
@@ -1864,13 +1861,13 @@ xfs_dir2_node_find_freeblk(
 
 		free = fbp->b_addr;
 		bests = dp->d_ops->free_bests_p(free);
-		xfs_dir2_free_hdr_from_disk(dp->i_mount, &freehdr, free);
+		xfs_dir2_free_hdr_from_disk(dp->i_mount, hdr, free);
 
 		/* Scan the free entry array for a large enough free space. */
-		for (findex = freehdr.nvalid - 1; findex >= 0; findex--) {
+		for (findex = hdr->nvalid - 1; findex >= 0; findex--) {
 			if (be16_to_cpu(bests[findex]) != NULLDATAOFF &&
 			    be16_to_cpu(bests[findex]) >= length) {
-				dbno = freehdr.firstdb + findex;
+				dbno = hdr->firstdb + findex;
 				goto found_block;
 			}
 		}
@@ -1904,6 +1901,7 @@ xfs_dir2_node_addname_int(
 	struct xfs_dir2_free	*free = NULL;	/* freespace block structure */
 	struct xfs_trans	*tp = args->trans;
 	struct xfs_inode	*dp = args->dp;
+	struct xfs_dir3_icfree_hdr freehdr;
 	struct xfs_buf		*dbp;		/* data block buffer */
 	struct xfs_buf		*fbp;		/* freespace buffer */
 	xfs_dir2_data_aoff_t	aoff;
@@ -1918,8 +1916,8 @@ xfs_dir2_node_addname_int(
 	__be16			*bests;
 
 	length = dp->d_ops->data_entsize(args->namelen);
-	error = xfs_dir2_node_find_freeblk(args, fblk, &dbno, &fbp, &findex,
-					   length);
+	error = xfs_dir2_node_find_freeblk(args, fblk, &dbno, &fbp, &freehdr,
+					   &findex, length);
 	if (error)
 		return error;
 
@@ -1941,7 +1939,7 @@ xfs_dir2_node_addname_int(
 		/* we're going to have to log the free block index later */
 		logfree = 1;
 		error = xfs_dir2_node_add_datablk(args, fblk, &dbno, &dbp, &fbp,
-						  &findex);
+						  &freehdr, &findex);
 	} else {
 		/* Read the data block in. */
 		error = xfs_dir3_data_read(tp, dp,
