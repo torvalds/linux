@@ -265,13 +265,8 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	ext4_debug("freeing inode %lu\n", ino);
 	trace_ext4_free_inode(inode);
 
-	/*
-	 * Note: we must free any quota before locking the superblock,
-	 * as writing the quota to disk may need the lock as well.
-	 */
 	dquot_initialize(inode);
 	dquot_free_inode(inode);
-	dquot_drop(inode);
 
 	is_directory = S_ISDIR(inode->i_mode);
 
