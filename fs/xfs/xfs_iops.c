@@ -1323,7 +1323,6 @@ xfs_setup_inode(
 		lockdep_set_class(&ip->i_lock.mr_lock, &xfs_dir_ilock_class);
 		ip->d_ops = ip->i_mount->m_dir_inode_ops;
 	} else {
-		ip->d_ops = ip->i_mount->m_nondir_inode_ops;
 		lockdep_set_class(&ip->i_lock.mr_lock, &xfs_nondir_ilock_class);
 	}
 

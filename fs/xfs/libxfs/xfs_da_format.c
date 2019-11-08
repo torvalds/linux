@@ -652,8 +652,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
-	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
-
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
 	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
 	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
@@ -698,8 +696,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.leaf_hdr_from_disk = xfs_dir2_leaf_hdr_from_disk,
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
-
-	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
 	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
@@ -746,8 +742,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 	.leaf_max_ents = xfs_dir3_max_leaf_ents,
 	.leaf_ents_p = xfs_dir3_leaf_ents_p,
 
-	.node_hdr_size = sizeof(struct xfs_da3_node_hdr),
-
 	.free_hdr_size = sizeof(struct xfs_dir3_free_hdr),
 	.free_hdr_to_disk = xfs_dir3_free_hdr_to_disk,
 	.free_hdr_from_disk = xfs_dir3_free_hdr_from_disk,
@@ -755,14 +749,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 	.free_bests_p = xfs_dir3_free_bests_p,
 	.db_to_fdb = xfs_dir3_db_to_fdb,
 	.db_to_fdindex = xfs_dir3_db_to_fdindex,
-};
-
-static const struct xfs_dir_ops xfs_dir2_nondir_ops = {
-	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
-};
-
-static const struct xfs_dir_ops xfs_dir3_nondir_ops = {
-	.node_hdr_size = sizeof(struct xfs_da3_node_hdr),
 };
 
 /*
@@ -784,18 +770,4 @@ xfs_dir_get_ops(
 	if (xfs_sb_version_hasftype(&mp->m_sb))
 		return &xfs_dir2_ftype_ops;
 	return &xfs_dir2_ops;
-}
-
-const struct xfs_dir_ops *
-xfs_nondir_get_ops(
-	struct xfs_mount	*mp,
-	struct xfs_inode	*dp)
-{
-	if (dp)
-		return dp->d_ops;
-	if (mp->m_nondir_inode_ops)
-		return mp->m_nondir_inode_ops;
-	if (xfs_sb_version_hascrc(&mp->m_sb))
-		return &xfs_dir3_nondir_ops;
-	return &xfs_dir2_nondir_ops;
 }

@@ -99,16 +99,13 @@ xfs_da_mount(
 	struct xfs_mount	*mp)
 {
 	struct xfs_da_geometry	*dageo;
-	int			nodehdr_size;
 
 
 	ASSERT(mp->m_sb.sb_versionnum & XFS_SB_VERSION_DIRV2BIT);
 	ASSERT(xfs_dir2_dirblock_bytes(&mp->m_sb) <= XFS_MAX_BLOCKSIZE);
 
 	mp->m_dir_inode_ops = xfs_dir_get_ops(mp, NULL);
-	mp->m_nondir_inode_ops = xfs_nondir_get_ops(mp, NULL);
 
-	nodehdr_size = mp->m_dir_inode_ops->node_hdr_size;
 	mp->m_dir_geo = kmem_zalloc(sizeof(struct xfs_da_geometry),
 				    KM_MAYFAIL);
 	mp->m_attr_geo = kmem_zalloc(sizeof(struct xfs_da_geometry),
@@ -125,6 +122,10 @@ xfs_da_mount(
 	dageo->fsblog = mp->m_sb.sb_blocklog;
 	dageo->blksize = xfs_dir2_dirblock_bytes(&mp->m_sb);
 	dageo->fsbcount = 1 << mp->m_sb.sb_dirblklog;
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		dageo->node_hdr_size = sizeof(struct xfs_da3_node_hdr);
+	else
+		dageo->node_hdr_size = sizeof(struct xfs_da_node_hdr);
 
 	/*
 	 * Now we've set up the block conversion variables, we can calculate the
@@ -133,7 +134,7 @@ xfs_da_mount(
 	dageo->datablk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_DATA_OFFSET);
 	dageo->leafblk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_LEAF_OFFSET);
 	dageo->freeblk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_FREE_OFFSET);
-	dageo->node_ents = (dageo->blksize - nodehdr_size) /
+	dageo->node_ents = (dageo->blksize - dageo->node_hdr_size) /
 				(uint)sizeof(xfs_da_node_entry_t);
 	dageo->magicpct = (dageo->blksize * 37) / 100;
 
@@ -143,7 +144,8 @@ xfs_da_mount(
 	dageo->fsblog = mp->m_sb.sb_blocklog;
 	dageo->blksize = 1 << dageo->blklog;
 	dageo->fsbcount = 1;
-	dageo->node_ents = (dageo->blksize - nodehdr_size) /
+	dageo->node_hdr_size = mp->m_dir_geo->node_hdr_size;
+	dageo->node_ents = (dageo->blksize - dageo->node_hdr_size) /
 				(uint)sizeof(xfs_da_node_entry_t);
 	dageo->magicpct = (dageo->blksize * 37) / 100;
 

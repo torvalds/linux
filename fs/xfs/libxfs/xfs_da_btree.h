@@ -22,6 +22,7 @@ struct xfs_da_geometry {
 	unsigned int	fsbcount;	/* da block size in filesystem blocks */
 	uint8_t		fsblog;		/* log2 of _filesystem_ block size */
 	uint8_t		blklog;		/* log2 of da block size */
+	unsigned int	node_hdr_size;	/* danode header size in bytes */
 	unsigned int	node_ents;	/* # of entries in a danode */
 	unsigned int	magicpct;	/* 37% of block size in bytes */
 	xfs_dablk_t	datablk;	/* blockno of dir data v2 */

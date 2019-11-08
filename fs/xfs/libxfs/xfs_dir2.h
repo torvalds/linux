@@ -81,8 +81,6 @@ struct xfs_dir_ops {
 	struct xfs_dir2_leaf_entry *
 		(*leaf_ents_p)(struct xfs_dir2_leaf *lp);
 
-	int	node_hdr_size;
-
 	int	free_hdr_size;
 	void	(*free_hdr_to_disk)(struct xfs_dir2_free *to,
 				    struct xfs_dir3_icfree_hdr *from);
@@ -98,8 +96,6 @@ struct xfs_dir_ops {
 
 extern const struct xfs_dir_ops *
 	xfs_dir_get_ops(struct xfs_mount *mp, struct xfs_inode *dp);
-extern const struct xfs_dir_ops *
-	xfs_nondir_get_ops(struct xfs_mount *mp, struct xfs_inode *dp);
 
 /*
  * Generic directory interface routines
