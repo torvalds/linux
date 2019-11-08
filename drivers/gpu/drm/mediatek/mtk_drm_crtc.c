@@ -207,6 +207,28 @@ static void mtk_crtc_ddp_clk_disable(struct mtk_drm_crtc *mtk_crtc)
 		clk_disable_unprepare(mtk_crtc->ddp_comp[i]->clk);
 }
 
+static
+struct mtk_ddp_comp *mtk_drm_ddp_comp_for_plane(struct drm_crtc *crtc,
+						struct drm_plane *plane,
+						unsigned int *local_layer)
+{
+	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
+	struct mtk_ddp_comp *comp;
+	int i, count = 0;
+
+	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++) {
+		comp = mtk_crtc->ddp_comp[i];
+		if (plane->index < (count + mtk_ddp_comp_layer_nr(comp))) {
+			*local_layer = plane->index - count;
+			return comp;
+		}
+		count += mtk_ddp_comp_layer_nr(comp);
+	}
+
+	WARN(1, "Failed to find component for plane %d\n", plane->index);
+	return NULL;
+}
+
 static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 {
 	struct drm_crtc *crtc = &mtk_crtc->base;
@@ -283,19 +305,12 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 	for (i = 0; i < mtk_crtc->layer_nr; i++) {
 		struct drm_plane *plane = &mtk_crtc->planes[i];
 		struct mtk_plane_state *plane_state;
-		struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[0];
-		unsigned int comp_layer_nr = mtk_ddp_comp_layer_nr(comp);
+		struct mtk_ddp_comp *comp;
 		unsigned int local_layer;
 
 		plane_state = to_mtk_plane_state(plane->state);
-
-		if (i >= comp_layer_nr) {
-			comp = mtk_crtc->ddp_comp[1];
-			local_layer = i - comp_layer_nr;
-		} else
-			local_layer = i;
-		mtk_ddp_comp_layer_config(comp, local_layer,
-					  plane_state);
+		comp = mtk_drm_ddp_comp_for_plane(crtc, plane, &local_layer);
+		mtk_ddp_comp_layer_config(comp, local_layer, plane_state);
 	}
 
 	return 0;
@@ -343,7 +358,6 @@ static void mtk_crtc_ddp_config(struct drm_crtc *crtc)
 	struct mtk_crtc_state *state = to_mtk_crtc_state(mtk_crtc->base.state);
 	struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[0];
 	unsigned int i;
-	unsigned int comp_layer_nr = mtk_ddp_comp_layer_nr(comp);
 	unsigned int local_layer;
 
 	/*
@@ -366,20 +380,28 @@ static void mtk_crtc_ddp_config(struct drm_crtc *crtc)
 
 			plane_state = to_mtk_plane_state(plane->state);
 
-			if (plane_state->pending.config) {
-				if (i >= comp_layer_nr) {
-					comp = mtk_crtc->ddp_comp[1];
-					local_layer = i - comp_layer_nr;
-				} else
-					local_layer = i;
+			if (!plane_state->pending.config)
+				continue;
 
-				mtk_ddp_comp_layer_config(comp, local_layer,
-							  plane_state);
-				plane_state->pending.config = false;
-			}
+			comp = mtk_drm_ddp_comp_for_plane(crtc, plane,
+							  &local_layer);
+
+			mtk_ddp_comp_layer_config(comp, local_layer,
+						  plane_state);
+			plane_state->pending.config = false;
 		}
 		mtk_crtc->pending_planes = false;
 	}
+}
+
+int mtk_drm_crtc_plane_check(struct drm_crtc *crtc, struct drm_plane *plane,
+			     struct mtk_plane_state *state)
+{
+	unsigned int local_layer;
+	struct mtk_ddp_comp *comp;
+
+	comp = mtk_drm_ddp_comp_for_plane(crtc, plane, &local_layer);
+	return mtk_ddp_comp_layer_check(comp, local_layer, state);
 }
 
 static void mtk_drm_crtc_atomic_enable(struct drm_crtc *crtc,
@@ -543,14 +565,65 @@ void mtk_crtc_ddp_irq(struct drm_crtc *crtc, struct mtk_ddp_comp *comp)
 	mtk_drm_finish_page_flip(mtk_crtc);
 }
 
+static int mtk_drm_crtc_num_comp_planes(struct mtk_drm_crtc *mtk_crtc,
+					int comp_idx)
+{
+	struct mtk_ddp_comp *comp;
+
+	if (comp_idx > 1)
+		return 0;
+
+	comp = mtk_crtc->ddp_comp[comp_idx];
+	if (!comp->funcs)
+		return 0;
+
+	if (comp_idx == 1 && !comp->funcs->bgclr_in_on)
+		return 0;
+
+	return mtk_ddp_comp_layer_nr(comp);
+}
+
+static inline
+enum drm_plane_type mtk_drm_crtc_plane_type(unsigned int plane_idx)
+{
+	if (plane_idx == 0)
+		return DRM_PLANE_TYPE_PRIMARY;
+	else if (plane_idx == 1)
+		return DRM_PLANE_TYPE_CURSOR;
+	else
+		return DRM_PLANE_TYPE_OVERLAY;
+
+}
+
+static int mtk_drm_crtc_init_comp_planes(struct drm_device *drm_dev,
+					 struct mtk_drm_crtc *mtk_crtc,
+					 int comp_idx, int pipe)
+{
+	int num_planes = mtk_drm_crtc_num_comp_planes(mtk_crtc, comp_idx);
+	struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[comp_idx];
+	int i, ret;
+
+	for (i = 0; i < num_planes; i++) {
+		ret = mtk_plane_init(drm_dev,
+				&mtk_crtc->planes[mtk_crtc->layer_nr],
+				BIT(pipe),
+				mtk_drm_crtc_plane_type(mtk_crtc->layer_nr),
+				mtk_ddp_comp_supported_rotations(comp));
+		if (ret)
+			return ret;
+
+		mtk_crtc->layer_nr++;
+	}
+	return 0;
+}
+
 int mtk_drm_crtc_create(struct drm_device *drm_dev,
 			const enum mtk_ddp_comp_id *path, unsigned int path_len)
 {
 	struct mtk_drm_private *priv = drm_dev->dev_private;
 	struct device *dev = drm_dev->dev;
 	struct mtk_drm_crtc *mtk_crtc;
-	enum drm_plane_type type;
-	unsigned int zpos;
+	unsigned int num_comp_planes = 0;
 	int pipe = priv->num_pipes;
 	int ret;
 	int i;
@@ -606,23 +679,15 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 		mtk_crtc->ddp_comp[i] = comp;
 	}
 
-	mtk_crtc->layer_nr = mtk_ddp_comp_layer_nr(mtk_crtc->ddp_comp[0]);
-	if (mtk_crtc->ddp_comp_nr > 1) {
-		struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[1];
+	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++)
+		num_comp_planes += mtk_drm_crtc_num_comp_planes(mtk_crtc, i);
 
-		if (comp->funcs->bgclr_in_on)
-			mtk_crtc->layer_nr += mtk_ddp_comp_layer_nr(comp);
-	}
-	mtk_crtc->planes = devm_kcalloc(dev, mtk_crtc->layer_nr,
-					sizeof(struct drm_plane),
-					GFP_KERNEL);
+	mtk_crtc->planes = devm_kcalloc(dev, num_comp_planes,
+					sizeof(struct drm_plane), GFP_KERNEL);
 
-	for (zpos = 0; zpos < mtk_crtc->layer_nr; zpos++) {
-		type = (zpos == 0) ? DRM_PLANE_TYPE_PRIMARY :
-				(zpos == 1) ? DRM_PLANE_TYPE_CURSOR :
-						DRM_PLANE_TYPE_OVERLAY;
-		ret = mtk_plane_init(drm_dev, &mtk_crtc->planes[zpos],
-				     BIT(pipe), type);
+	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++) {
+		ret = mtk_drm_crtc_init_comp_planes(drm_dev, mtk_crtc, i,
+						    pipe);
 		if (ret)
 			return ret;
 	}

@@ -77,9 +77,13 @@ struct mtk_ddp_comp_funcs {
 	void (*stop)(struct mtk_ddp_comp *comp);
 	void (*enable_vblank)(struct mtk_ddp_comp *comp, struct drm_crtc *crtc);
 	void (*disable_vblank)(struct mtk_ddp_comp *comp);
+	unsigned int (*supported_rotations)(struct mtk_ddp_comp *comp);
 	unsigned int (*layer_nr)(struct mtk_ddp_comp *comp);
 	void (*layer_on)(struct mtk_ddp_comp *comp, unsigned int idx);
 	void (*layer_off)(struct mtk_ddp_comp *comp, unsigned int idx);
+	int (*layer_check)(struct mtk_ddp_comp *comp,
+			   unsigned int idx,
+			   struct mtk_plane_state *state);
 	void (*layer_config)(struct mtk_ddp_comp *comp, unsigned int idx,
 			     struct mtk_plane_state *state);
 	void (*gamma_set)(struct mtk_ddp_comp *comp,
@@ -130,6 +134,15 @@ static inline void mtk_ddp_comp_disable_vblank(struct mtk_ddp_comp *comp)
 		comp->funcs->disable_vblank(comp);
 }
 
+static inline
+unsigned int mtk_ddp_comp_supported_rotations(struct mtk_ddp_comp *comp)
+{
+	if (comp->funcs && comp->funcs->supported_rotations)
+		return comp->funcs->supported_rotations(comp);
+
+	return 0;
+}
+
 static inline unsigned int mtk_ddp_comp_layer_nr(struct mtk_ddp_comp *comp)
 {
 	if (comp->funcs && comp->funcs->layer_nr)
@@ -150,6 +163,15 @@ static inline void mtk_ddp_comp_layer_off(struct mtk_ddp_comp *comp,
 {
 	if (comp->funcs && comp->funcs->layer_off)
 		comp->funcs->layer_off(comp, idx);
+}
+
+static inline int mtk_ddp_comp_layer_check(struct mtk_ddp_comp *comp,
+					   unsigned int idx,
+					   struct mtk_plane_state *state)
+{
+	if (comp->funcs && comp->funcs->layer_check)
+		return comp->funcs->layer_check(comp, idx, state);
+	return 0;
 }
 
 static inline void mtk_ddp_comp_layer_config(struct mtk_ddp_comp *comp,

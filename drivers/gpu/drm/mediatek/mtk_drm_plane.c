@@ -20,6 +20,12 @@
 static const u32 formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_YUYV,
@@ -84,12 +90,18 @@ static int mtk_plane_atomic_check(struct drm_plane *plane,
 {
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_crtc_state *crtc_state;
+	int ret;
 
 	if (!fb)
 		return 0;
 
 	if (!state->crtc)
 		return 0;
+
+	ret = mtk_drm_crtc_plane_check(state->crtc, plane,
+				       to_mtk_plane_state(state));
+	if (ret)
+		return ret;
 
 	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
 	if (IS_ERR(crtc_state))
@@ -132,6 +144,7 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 	state->pending.y = plane->state->dst.y1;
 	state->pending.width = drm_rect_width(&plane->state->dst);
 	state->pending.height = drm_rect_height(&plane->state->dst);
+	state->pending.rotation = plane->state->rotation;
 	wmb(); /* Make sure the above parameters are set before update */
 	state->pending.dirty = true;
 }
@@ -154,7 +167,8 @@ static const struct drm_plane_helper_funcs mtk_plane_helper_funcs = {
 };
 
 int mtk_plane_init(struct drm_device *dev, struct drm_plane *plane,
-		   unsigned long possible_crtcs, enum drm_plane_type type)
+		   unsigned long possible_crtcs, enum drm_plane_type type,
+		   unsigned int supported_rotations)
 {
 	int err;
 
@@ -164,6 +178,14 @@ int mtk_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	if (err) {
 		DRM_ERROR("failed to initialize plane\n");
 		return err;
+	}
+
+	if (supported_rotations & ~DRM_MODE_ROTATE_0) {
+		err = drm_plane_create_rotation_property(plane,
+							 DRM_MODE_ROTATE_0,
+							 supported_rotations);
+		if (err)
+			DRM_INFO("Create rotation property failed\n");
 	}
 
 	drm_plane_helper_add(plane, &mtk_plane_helper_funcs);
