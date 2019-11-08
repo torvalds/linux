@@ -69,6 +69,7 @@
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
 #include "amdgpu_vcn.h"
+#include "amdgpu_jpeg.h"
 #include "amdgpu_mn.h"
 #include "amdgpu_gmc.h"
 #include "amdgpu_gfx.h"
@@ -704,6 +705,7 @@ enum amd_hw_ip_block_type {
 	MP1_HWIP,
 	UVD_HWIP,
 	VCN_HWIP = UVD_HWIP,
+	JPEG_HWIP = VCN_HWIP,
 	VCE_HWIP,
 	DF_HWIP,
 	DCE_HWIP,
@@ -898,6 +900,9 @@ struct amdgpu_device {
 
 	/* vcn */
 	struct amdgpu_vcn		vcn;
+
+	/* jpeg */
+	struct amdgpu_jpeg		jpeg;
 
 	/* firmwares */
 	struct amdgpu_firmware		firmware;
