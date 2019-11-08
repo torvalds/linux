@@ -715,18 +715,6 @@ static int ath10k_init_sdio(struct ath10k *ar, enum ath10k_firmware_mode mode)
 	if (ret)
 		return ret;
 
-	/* Explicitly set fwlog prints to zero as target may turn it on
-	 * based on scratch registers.
-	 */
-	ret = ath10k_bmi_read32(ar, hi_option_flag, &param);
-	if (ret)
-		return ret;
-
-	param |= HI_OPTION_DISABLE_DBGLOG;
-	ret = ath10k_bmi_write32(ar, hi_option_flag, param);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
