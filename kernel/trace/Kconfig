@@ -33,6 +33,9 @@ config HAVE_DYNAMIC_FTRACE
 config HAVE_DYNAMIC_FTRACE_WITH_REGS
 	bool
 
+config HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	bool
+
 config HAVE_FTRACE_MCOUNT_RECORD
 	bool
 	help
@@ -556,6 +559,11 @@ config DYNAMIC_FTRACE_WITH_REGS
 	def_bool y
 	depends on DYNAMIC_FTRACE
 	depends on HAVE_DYNAMIC_FTRACE_WITH_REGS
+
+config DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	def_bool y
+	depends on DYNAMIC_FTRACE
+	depends on HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 
 config FUNCTION_PROFILER
 	bool "Kernel function profiler"

@@ -144,6 +144,8 @@ ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops);
  * TRACE_ARRAY - The ops->private points to a trace_array descriptor.
  * PERMANENT - Set when the ops is permanent and should not be affected by
  *             ftrace_enabled.
+ * DIRECT - Used by the direct ftrace_ops helper for direct functions
+ *            (internal ftrace only, should not be used by others)
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
@@ -163,6 +165,7 @@ enum {
 	FTRACE_OPS_FL_RCU			= 1 << 14,
 	FTRACE_OPS_FL_TRACE_ARRAY		= 1 << 15,
 	FTRACE_OPS_FL_PERMANENT                 = 1 << 16,
+	FTRACE_OPS_FL_DIRECT			= 1 << 17,
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -241,6 +244,32 @@ static inline void ftrace_kill(void) { }
 static inline void ftrace_free_init_mem(void) { }
 static inline void ftrace_free_mem(struct module *mod, void *start, void *end) { }
 #endif /* CONFIG_FUNCTION_TRACER */
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+int register_ftrace_direct(unsigned long ip, unsigned long addr);
+int unregister_ftrace_direct(unsigned long ip, unsigned long addr);
+#else
+static inline int register_ftrace_direct(unsigned long ip, unsigned long addr)
+{
+	return -ENODEV;
+}
+static inline int unregister_ftrace_direct(unsigned long ip, unsigned long addr)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
+
+#ifndef CONFIG_HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+/*
+ * This must be implemented by the architecture.
+ * It is the way the ftrace direct_ops helper, when called
+ * via ftrace (because there's other callbacks besides the
+ * direct call), can inform the architecture's trampoline that this
+ * routine has a direct caller, and what the caller is.
+ */
+static inline void arch_ftrace_set_direct_caller(struct pt_regs *regs,
+						 unsigned long addr) { }
+#endif /* CONFIG_HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
 
 #ifdef CONFIG_STACK_TRACER
 
@@ -333,6 +362,7 @@ bool is_ftrace_trampoline(unsigned long addr);
  *  REGS_EN - the function is set up to save regs.
  *  IPMODIFY - the record allows for the IP address to be changed.
  *  DISABLED - the record is not ready to be touched yet
+ *  DIRECT   - there is a direct function to call
  *
  * When a new ftrace_ops is registered and wants a function to save
  * pt_regs, the rec->flag REGS is set. When the function has been
@@ -348,10 +378,12 @@ enum {
 	FTRACE_FL_TRAMP_EN	= (1UL << 27),
 	FTRACE_FL_IPMODIFY	= (1UL << 26),
 	FTRACE_FL_DISABLED	= (1UL << 25),
+	FTRACE_FL_DIRECT	= (1UL << 24),
+	FTRACE_FL_DIRECT_EN	= (1UL << 23),
 };
 
-#define FTRACE_REF_MAX_SHIFT	25
-#define FTRACE_FL_BITS		7
+#define FTRACE_REF_MAX_SHIFT	23
+#define FTRACE_FL_BITS		9
 #define FTRACE_FL_MASKED_BITS	((1UL << FTRACE_FL_BITS) - 1)
 #define FTRACE_FL_MASK		(FTRACE_FL_MASKED_BITS << FTRACE_REF_MAX_SHIFT)
 #define FTRACE_REF_MAX		((1UL << FTRACE_REF_MAX_SHIFT) - 1)
