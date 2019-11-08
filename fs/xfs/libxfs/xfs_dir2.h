@@ -73,8 +73,6 @@ struct xfs_dir_ops {
 		(*data_unused_p)(struct xfs_dir2_data_hdr *hdr);
 
 	int	leaf_hdr_size;
-	void	(*leaf_hdr_to_disk)(struct xfs_dir2_leaf *to,
-				    struct xfs_dir3_icleaf_hdr *from);
 	int	(*leaf_max_ents)(struct xfs_da_geometry *geo);
 	struct xfs_dir2_leaf_entry *
 		(*leaf_ents_p)(struct xfs_dir2_leaf *lp);

@@ -59,6 +59,35 @@ xfs_dir2_leaf_hdr_from_disk(
 	}
 }
 
+void
+xfs_dir2_leaf_hdr_to_disk(
+	struct xfs_mount		*mp,
+	struct xfs_dir2_leaf		*to,
+	struct xfs_dir3_icleaf_hdr	*from)
+{
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		struct xfs_dir3_leaf *to3 = (struct xfs_dir3_leaf *)to;
+
+		ASSERT(from->magic == XFS_DIR3_LEAF1_MAGIC ||
+		       from->magic == XFS_DIR3_LEAFN_MAGIC);
+
+		to3->hdr.info.hdr.forw = cpu_to_be32(from->forw);
+		to3->hdr.info.hdr.back = cpu_to_be32(from->back);
+		to3->hdr.info.hdr.magic = cpu_to_be16(from->magic);
+		to3->hdr.count = cpu_to_be16(from->count);
+		to3->hdr.stale = cpu_to_be16(from->stale);
+	} else {
+		ASSERT(from->magic == XFS_DIR2_LEAF1_MAGIC ||
+		       from->magic == XFS_DIR2_LEAFN_MAGIC);
+
+		to->hdr.info.forw = cpu_to_be32(from->forw);
+		to->hdr.info.back = cpu_to_be32(from->back);
+		to->hdr.info.magic = cpu_to_be16(from->magic);
+		to->hdr.count = cpu_to_be16(from->count);
+		to->hdr.stale = cpu_to_be16(from->stale);
+	}
+}
+
 /*
  * Check the internal consistency of a leaf1 block.
  * Pop an assert if something is wrong.
@@ -413,7 +442,7 @@ xfs_dir2_block_to_leaf(
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
 	leafhdr.count = be32_to_cpu(btp->count);
 	leafhdr.stale = be32_to_cpu(btp->stale);
-	dp->d_ops->leaf_hdr_to_disk(leaf, &leafhdr);
+	xfs_dir2_leaf_hdr_to_disk(dp->i_mount, leaf, &leafhdr);
 	xfs_dir3_leaf_log_header(args, lbp);
 
 	/*
@@ -881,7 +910,7 @@ xfs_dir2_leaf_addname(
 	/*
 	 * Log the leaf fields and give up the buffers.
 	 */
-	dp->d_ops->leaf_hdr_to_disk(leaf, &leafhdr);
+	xfs_dir2_leaf_hdr_to_disk(dp->i_mount, leaf, &leafhdr);
 	xfs_dir3_leaf_log_header(args, lbp);
 	xfs_dir3_leaf_log_ents(args, lbp, lfloglow, lfloghigh);
 	xfs_dir3_leaf_check(dp, lbp);
@@ -934,7 +963,7 @@ xfs_dir3_leaf_compact(
 	leafhdr->count -= leafhdr->stale;
 	leafhdr->stale = 0;
 
-	dp->d_ops->leaf_hdr_to_disk(leaf, leafhdr);
+	xfs_dir2_leaf_hdr_to_disk(dp->i_mount, leaf, leafhdr);
 	xfs_dir3_leaf_log_header(args, bp);
 	if (loglow != -1)
 		xfs_dir3_leaf_log_ents(args, bp, loglow, to - 1);
@@ -1386,7 +1415,7 @@ xfs_dir2_leaf_removename(
 	 * We just mark the leaf entry stale by putting a null in it.
 	 */
 	leafhdr.stale++;
-	dp->d_ops->leaf_hdr_to_disk(leaf, &leafhdr);
+	xfs_dir2_leaf_hdr_to_disk(dp->i_mount, leaf, &leafhdr);
 	xfs_dir3_leaf_log_header(args, lbp);
 
 	lep->address = cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
@@ -1777,7 +1806,7 @@ xfs_dir2_node_to_leaf(
 	memcpy(xfs_dir2_leaf_bests_p(ltp), dp->d_ops->free_bests_p(free),
 		freehdr.nvalid * sizeof(xfs_dir2_data_off_t));
 
-	dp->d_ops->leaf_hdr_to_disk(leaf, &leafhdr);
+	xfs_dir2_leaf_hdr_to_disk(mp, leaf, &leafhdr);
 	xfs_dir3_leaf_log_header(args, lbp);
 	xfs_dir3_leaf_log_bests(args, lbp, 0, be32_to_cpu(ltp->bestcount) - 1);
 	xfs_dir3_leaf_log_tail(args, lbp);

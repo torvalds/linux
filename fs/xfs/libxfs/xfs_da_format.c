@@ -430,38 +430,6 @@ xfs_dir3_leaf_ents_p(struct xfs_dir2_leaf *lp)
 	return ((struct xfs_dir3_leaf *)lp)->__ents;
 }
 
-static void
-xfs_dir2_leaf_hdr_to_disk(
-	struct xfs_dir2_leaf		*to,
-	struct xfs_dir3_icleaf_hdr	*from)
-{
-	ASSERT(from->magic == XFS_DIR2_LEAF1_MAGIC ||
-	       from->magic == XFS_DIR2_LEAFN_MAGIC);
-
-	to->hdr.info.forw = cpu_to_be32(from->forw);
-	to->hdr.info.back = cpu_to_be32(from->back);
-	to->hdr.info.magic = cpu_to_be16(from->magic);
-	to->hdr.count = cpu_to_be16(from->count);
-	to->hdr.stale = cpu_to_be16(from->stale);
-}
-
-static void
-xfs_dir3_leaf_hdr_to_disk(
-	struct xfs_dir2_leaf		*to,
-	struct xfs_dir3_icleaf_hdr	*from)
-{
-	struct xfs_dir3_leaf_hdr *hdr3 = (struct xfs_dir3_leaf_hdr *)to;
-
-	ASSERT(from->magic == XFS_DIR3_LEAF1_MAGIC ||
-	       from->magic == XFS_DIR3_LEAFN_MAGIC);
-
-	hdr3->info.hdr.forw = cpu_to_be32(from->forw);
-	hdr3->info.hdr.back = cpu_to_be32(from->back);
-	hdr3->info.hdr.magic = cpu_to_be16(from->magic);
-	hdr3->count = cpu_to_be16(from->count);
-	hdr3->stale = cpu_to_be16(from->stale);
-}
-
 /*
  * Directory free space block operations
  */
@@ -615,7 +583,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_unused_p = xfs_dir2_data_unused_p,
 
 	.leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr),
-	.leaf_hdr_to_disk = xfs_dir2_leaf_hdr_to_disk,
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
@@ -659,7 +626,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_unused_p = xfs_dir2_data_unused_p,
 
 	.leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr),
-	.leaf_hdr_to_disk = xfs_dir2_leaf_hdr_to_disk,
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
@@ -703,7 +669,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_unused_p = xfs_dir3_data_unused_p,
 
 	.leaf_hdr_size = sizeof(struct xfs_dir3_leaf_hdr),
-	.leaf_hdr_to_disk = xfs_dir3_leaf_hdr_to_disk,
 	.leaf_max_ents = xfs_dir3_max_leaf_ents,
 	.leaf_ents_p = xfs_dir3_leaf_ents_p,
 
