@@ -1599,7 +1599,7 @@ xfs_remount_rw(
 	if (error) {
 		xfs_err(mp,
 			"Error %d recovering leftover CoW allocations.", error);
-			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		return error;
 	}
 	xfs_start_block_reaping(mp);
