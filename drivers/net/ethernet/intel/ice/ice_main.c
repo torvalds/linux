@@ -5219,6 +5219,7 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_set_vf_trust = ice_set_vf_trust,
 	.ndo_set_vf_vlan = ice_set_vf_port_vlan,
 	.ndo_set_vf_link_state = ice_set_vf_link_state,
+	.ndo_get_vf_stats = ice_get_vf_stats,
 	.ndo_vlan_rx_add_vid = ice_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = ice_vlan_rx_kill_vid,
 	.ndo_set_features = ice_set_features,
