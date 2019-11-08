@@ -239,6 +239,9 @@ struct io_ring_ctx {
 	/* 0 is for ctx quiesce/reinit/free, 1 is for sqo_thread started */
 	struct completion	*completions;
 
+	/* if all else fails... */
+	struct io_kiocb		*fallback_req;
+
 #if defined(CONFIG_UNIX)
 	struct socket		*ring_sock;
 #endif
@@ -408,6 +411,10 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	if (!ctx)
 		return NULL;
 
+	ctx->fallback_req = kmem_cache_alloc(req_cachep, GFP_KERNEL);
+	if (!ctx->fallback_req)
+		goto err;
+
 	ctx->completions = kmalloc(2 * sizeof(struct completion), GFP_KERNEL);
 	if (!ctx->completions)
 		goto err;
@@ -433,6 +440,8 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->inflight_list);
 	return ctx;
 err:
+	if (ctx->fallback_req)
+		kmem_cache_free(req_cachep, ctx->fallback_req);
 	kfree(ctx->completions);
 	kfree(ctx);
 	return NULL;
@@ -712,6 +721,23 @@ static void io_cqring_add_event(struct io_kiocb *req, long res)
 	io_cqring_ev_posted(ctx);
 }
 
+static inline bool io_is_fallback_req(struct io_kiocb *req)
+{
+	return req == (struct io_kiocb *)
+			((unsigned long) req->ctx->fallback_req & ~1UL);
+}
+
+static struct io_kiocb *io_get_fallback_req(struct io_ring_ctx *ctx)
+{
+	struct io_kiocb *req;
+
+	req = ctx->fallback_req;
+	if (!test_and_set_bit_lock(0, (unsigned long *) ctx->fallback_req))
+		return req;
+
+	return NULL;
+}
+
 static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 				   struct io_submit_state *state)
 {
@@ -724,7 +750,7 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 	if (!state) {
 		req = kmem_cache_alloc(req_cachep, gfp);
 		if (unlikely(!req))
-			goto out;
+			goto fallback;
 	} else if (!state->free_reqs) {
 		size_t sz;
 		int ret;
@@ -739,7 +765,7 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 		if (unlikely(ret <= 0)) {
 			state->reqs[0] = kmem_cache_alloc(req_cachep, gfp);
 			if (!state->reqs[0])
-				goto out;
+				goto fallback;
 			ret = 1;
 		}
 		state->free_reqs = ret - 1;
@@ -751,6 +777,7 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 		state->cur_req++;
 	}
 
+got_it:
 	req->file = NULL;
 	req->ctx = ctx;
 	req->flags = 0;
@@ -759,7 +786,10 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 	req->result = 0;
 	INIT_IO_WORK(&req->work, io_wq_submit_work);
 	return req;
-out:
+fallback:
+	req = io_get_fallback_req(ctx);
+	if (req)
+		goto got_it;
 	percpu_ref_put(&ctx->refs);
 	return NULL;
 }
@@ -789,7 +819,10 @@ static void __io_free_req(struct io_kiocb *req)
 		spin_unlock_irqrestore(&ctx->inflight_lock, flags);
 	}
 	percpu_ref_put(&ctx->refs);
-	kmem_cache_free(req_cachep, req);
+	if (likely(!io_is_fallback_req(req)))
+		kmem_cache_free(req_cachep, req);
+	else
+		clear_bit_unlock(0, (unsigned long *) ctx->fallback_req);
 }
 
 static bool io_link_cancel_timeout(struct io_kiocb *req)
@@ -1005,8 +1038,8 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 			 * completions for those, only batch free for fixed
 			 * file and non-linked commands.
 			 */
-			if ((req->flags & (REQ_F_FIXED_FILE|REQ_F_LINK)) ==
-			    REQ_F_FIXED_FILE) {
+			if (((req->flags & (REQ_F_FIXED_FILE|REQ_F_LINK)) ==
+			    REQ_F_FIXED_FILE) && !io_is_fallback_req(req)) {
 				reqs[to_free++] = req;
 				if (to_free == ARRAY_SIZE(reqs))
 					io_free_req_many(ctx, reqs, &to_free);
@@ -4128,6 +4161,7 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 				ring_pages(ctx->sq_entries, ctx->cq_entries));
 	free_uid(ctx->user);
 	kfree(ctx->completions);
+	kmem_cache_free(req_cachep, ctx->fallback_req);
 	kfree(ctx);
 }
 
