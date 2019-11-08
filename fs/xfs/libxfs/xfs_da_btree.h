@@ -217,6 +217,8 @@ void xfs_da_state_free(xfs_da_state_t *state);
 
 void	xfs_da3_node_hdr_from_disk(struct xfs_mount *mp,
 		struct xfs_da3_icnode_hdr *to, struct xfs_da_intnode *from);
+void	xfs_da3_node_hdr_to_disk(struct xfs_mount *mp,
+		struct xfs_da_intnode *to, struct xfs_da3_icnode_hdr *from);
 
 extern struct kmem_zone *xfs_da_state_zone;
 extern const struct xfs_nameops xfs_default_nameops;

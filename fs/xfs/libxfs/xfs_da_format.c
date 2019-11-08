@@ -510,35 +510,6 @@ xfs_da3_node_tree_p(struct xfs_da_intnode *dap)
 	return ((struct xfs_da3_intnode *)dap)->__btree;
 }
 
-static void
-xfs_da2_node_hdr_to_disk(
-	struct xfs_da_intnode		*to,
-	struct xfs_da3_icnode_hdr	*from)
-{
-	ASSERT(from->magic == XFS_DA_NODE_MAGIC);
-	to->hdr.info.forw = cpu_to_be32(from->forw);
-	to->hdr.info.back = cpu_to_be32(from->back);
-	to->hdr.info.magic = cpu_to_be16(from->magic);
-	to->hdr.__count = cpu_to_be16(from->count);
-	to->hdr.__level = cpu_to_be16(from->level);
-}
-
-static void
-xfs_da3_node_hdr_to_disk(
-	struct xfs_da_intnode		*to,
-	struct xfs_da3_icnode_hdr	*from)
-{
-	struct xfs_da3_node_hdr *hdr3 = (struct xfs_da3_node_hdr *)to;
-
-	ASSERT(from->magic == XFS_DA3_NODE_MAGIC);
-	hdr3->info.hdr.forw = cpu_to_be32(from->forw);
-	hdr3->info.hdr.back = cpu_to_be32(from->back);
-	hdr3->info.hdr.magic = cpu_to_be16(from->magic);
-	hdr3->__count = cpu_to_be16(from->count);
-	hdr3->__level = cpu_to_be16(from->level);
-}
-
-
 /*
  * Directory free space block operations
  */
@@ -698,7 +669,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
 	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
-	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
@@ -747,7 +717,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
 	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
-	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
@@ -796,7 +765,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 	.leaf_ents_p = xfs_dir3_leaf_ents_p,
 
 	.node_hdr_size = sizeof(struct xfs_da3_node_hdr),
-	.node_hdr_to_disk = xfs_da3_node_hdr_to_disk,
 	.node_tree_p = xfs_da3_node_tree_p,
 
 	.free_hdr_size = sizeof(struct xfs_dir3_free_hdr),
@@ -810,13 +778,11 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 
 static const struct xfs_dir_ops xfs_dir2_nondir_ops = {
 	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
-	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 };
 
 static const struct xfs_dir_ops xfs_dir3_nondir_ops = {
 	.node_hdr_size = sizeof(struct xfs_da3_node_hdr),
-	.node_hdr_to_disk = xfs_da3_node_hdr_to_disk,
 	.node_tree_p = xfs_da3_node_tree_p,
 };
 

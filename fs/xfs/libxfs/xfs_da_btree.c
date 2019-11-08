@@ -135,6 +135,31 @@ xfs_da3_node_hdr_from_disk(
 	}
 }
 
+void
+xfs_da3_node_hdr_to_disk(
+	struct xfs_mount		*mp,
+	struct xfs_da_intnode		*to,
+	struct xfs_da3_icnode_hdr	*from)
+{
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		struct xfs_da3_intnode	*to3 = (struct xfs_da3_intnode *)to;
+
+		ASSERT(from->magic == XFS_DA3_NODE_MAGIC);
+		to3->hdr.info.hdr.forw = cpu_to_be32(from->forw);
+		to3->hdr.info.hdr.back = cpu_to_be32(from->back);
+		to3->hdr.info.hdr.magic = cpu_to_be16(from->magic);
+		to3->hdr.__count = cpu_to_be16(from->count);
+		to3->hdr.__level = cpu_to_be16(from->level);
+	} else {
+		ASSERT(from->magic == XFS_DA_NODE_MAGIC);
+		to->hdr.info.forw = cpu_to_be32(from->forw);
+		to->hdr.info.back = cpu_to_be32(from->back);
+		to->hdr.info.magic = cpu_to_be16(from->magic);
+		to->hdr.__count = cpu_to_be16(from->count);
+		to->hdr.__level = cpu_to_be16(from->level);
+	}
+}
+
 /*
  * Verify an xfs_da3_blkinfo structure. Note that the da3 fields are only
  * accessible on v5 filesystems. This header format is common across da node,
@@ -385,7 +410,7 @@ xfs_da3_node_create(
 	}
 	ichdr.level = level;
 
-	dp->d_ops->node_hdr_to_disk(node, &ichdr);
+	xfs_da3_node_hdr_to_disk(dp->i_mount, node, &ichdr);
 	xfs_trans_log_buf(tp, bp,
 		XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size));
 
@@ -668,7 +693,7 @@ xfs_da3_root_split(
 	btree[1].hashval = cpu_to_be32(blk2->hashval);
 	btree[1].before = cpu_to_be32(blk2->blkno);
 	nodehdr.count = 2;
-	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
+	xfs_da3_node_hdr_to_disk(dp->i_mount, node, &nodehdr);
 
 #ifdef DEBUG
 	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
@@ -893,11 +918,11 @@ xfs_da3_node_rebalance(
 	/*
 	 * Log header of node 1 and all current bits of node 2.
 	 */
-	dp->d_ops->node_hdr_to_disk(node1, &nodehdr1);
+	xfs_da3_node_hdr_to_disk(dp->i_mount, node1, &nodehdr1);
 	xfs_trans_log_buf(tp, blk1->bp,
 		XFS_DA_LOGRANGE(node1, &node1->hdr, dp->d_ops->node_hdr_size));
 
-	dp->d_ops->node_hdr_to_disk(node2, &nodehdr2);
+	xfs_da3_node_hdr_to_disk(dp->i_mount, node2, &nodehdr2);
 	xfs_trans_log_buf(tp, blk2->bp,
 		XFS_DA_LOGRANGE(node2, &node2->hdr,
 				dp->d_ops->node_hdr_size +
@@ -969,7 +994,7 @@ xfs_da3_node_add(
 				tmp + sizeof(*btree)));
 
 	nodehdr.count += 1;
-	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
+	xfs_da3_node_hdr_to_disk(dp->i_mount, node, &nodehdr);
 	xfs_trans_log_buf(state->args->trans, oldblk->bp,
 		XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size));
 
@@ -1405,7 +1430,7 @@ xfs_da3_node_remove(
 	xfs_trans_log_buf(state->args->trans, drop_blk->bp,
 	    XFS_DA_LOGRANGE(node, &btree[index], sizeof(btree[index])));
 	nodehdr.count -= 1;
-	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
+	xfs_da3_node_hdr_to_disk(dp->i_mount, node, &nodehdr);
 	xfs_trans_log_buf(state->args->trans, drop_blk->bp,
 	    XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size));
 
@@ -1477,7 +1502,7 @@ xfs_da3_node_unbalance(
 	memcpy(&save_btree[sindex], &drop_btree[0], tmp);
 	save_hdr.count += drop_hdr.count;
 
-	dp->d_ops->node_hdr_to_disk(save_node, &save_hdr);
+	xfs_da3_node_hdr_to_disk(dp->i_mount, save_node, &save_hdr);
 	xfs_trans_log_buf(tp, save_blk->bp,
 		XFS_DA_LOGRANGE(save_node, &save_node->hdr,
 				dp->d_ops->node_hdr_size));

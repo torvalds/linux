@@ -82,8 +82,6 @@ struct xfs_dir_ops {
 		(*leaf_ents_p)(struct xfs_dir2_leaf *lp);
 
 	int	node_hdr_size;
-	void	(*node_hdr_to_disk)(struct xfs_da_intnode *to,
-				    struct xfs_da3_icnode_hdr *from);
 	struct xfs_da_node_entry *
 		(*node_tree_p)(struct xfs_da_intnode *dap);
 
