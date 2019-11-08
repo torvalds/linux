@@ -99,7 +99,9 @@ properties:
 
       - description: Firefly ROC-RK3399-PC
         items:
-          - const: firefly,roc-rk3399-pc
+          - enum:
+              - firefly,roc-rk3399-pc
+              - firefly,roc-rk3399-pc-mezzanine
           - const: rockchip,rk3399
 
       - description: FriendlyElec NanoPi4 series boards
