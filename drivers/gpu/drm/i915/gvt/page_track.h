@@ -25,6 +25,9 @@
 #ifndef _GVT_PAGE_TRACK_H_
 #define _GVT_PAGE_TRACK_H_
 
+#include <linux/types.h>
+
+struct intel_vgpu;
 struct intel_vgpu_page_track;
 
 typedef int (*gvt_page_track_handler_t)(
