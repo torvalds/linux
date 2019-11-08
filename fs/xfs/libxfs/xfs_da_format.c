@@ -204,7 +204,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_entry_tag_p = xfs_dir2_data_entry_tag_p,
 	.data_bestfree_p = xfs_dir2_data_bestfree_p,
 
-	.data_dot_offset = sizeof(struct xfs_dir2_data_hdr),
 	.data_dotdot_offset = sizeof(struct xfs_dir2_data_hdr) +
 				XFS_DIR2_DATA_ENTSIZE(1),
 	.data_first_offset =  sizeof(struct xfs_dir2_data_hdr) +
@@ -225,7 +224,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_entry_tag_p = xfs_dir3_data_entry_tag_p,
 	.data_bestfree_p = xfs_dir2_data_bestfree_p,
 
-	.data_dot_offset = sizeof(struct xfs_dir2_data_hdr),
 	.data_dotdot_offset = sizeof(struct xfs_dir2_data_hdr) +
 				XFS_DIR3_DATA_ENTSIZE(1),
 	.data_first_offset =  sizeof(struct xfs_dir2_data_hdr) +
@@ -246,7 +244,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_entry_tag_p = xfs_dir3_data_entry_tag_p,
 	.data_bestfree_p = xfs_dir3_data_bestfree_p,
 
-	.data_dot_offset = sizeof(struct xfs_dir3_data_hdr),
 	.data_dotdot_offset = sizeof(struct xfs_dir3_data_hdr) +
 				XFS_DIR3_DATA_ENTSIZE(1),
 	.data_first_offset =  sizeof(struct xfs_dir3_data_hdr) +

@@ -70,13 +70,12 @@ xfs_dir2_sf_getdents(
 		return 0;
 
 	/*
-	 * Precalculate offsets for . and .. as we will always need them.
-	 *
-	 * XXX(hch): the second argument is sometimes 0 and sometimes
-	 * geo->datablk
+	 * Precalculate offsets for "." and ".." as we will always need them.
+	 * This relies on the fact that directories always start with the
+	 * entries for "." and "..".
 	 */
 	dot_offset = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
-						dp->d_ops->data_dot_offset);
+			dp->d_ops->data_entry_offset);
 	dotdot_offset = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
 						dp->d_ops->data_dotdot_offset);
 
