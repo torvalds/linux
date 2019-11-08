@@ -511,6 +511,9 @@ static int rt711_dev_resume(struct device *dev)
 	if (!rt711->hw_init)
 		return 0;
 
+	if (!slave->unattach_request)
+		goto regmap_sync;
+
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT711_PROBE_TIMEOUT));
 	if (!time) {
@@ -518,6 +521,8 @@ static int rt711_dev_resume(struct device *dev)
 		return -ETIMEDOUT;
 	}
 
+regmap_sync:
+	slave->unattach_request = 0;
 	regcache_cache_only(rt711->regmap, false);
 	regcache_sync_region(rt711->regmap, 0x3000, 0x8fff);
 	regcache_sync_region(rt711->regmap, 0x752010, 0x752091);
