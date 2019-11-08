@@ -29,6 +29,7 @@ struct xfs_da_geometry {
 	unsigned int	leaf_hdr_size;	/* dir2 leaf header size */
 	unsigned int	leaf_max_ents;	/* # of entries in dir2 leaf */
 	xfs_dablk_t	leafblk;	/* blockno of leaf data v2 */
+	unsigned int	free_hdr_size;	/* dir2 free header size */
 	xfs_dablk_t	freeblk;	/* blockno of free data v2 */
 };
 

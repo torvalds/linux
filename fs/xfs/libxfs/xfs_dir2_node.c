@@ -372,7 +372,7 @@ xfs_dir2_free_log_header(
 	       free->hdr.magic == cpu_to_be32(XFS_DIR3_FREE_MAGIC));
 #endif
 	xfs_trans_log_buf(args->trans, bp, 0,
-			  args->dp->d_ops->free_hdr_size - 1);
+			  args->geo->free_hdr_size - 1);
 }
 
 /*
