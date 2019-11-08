@@ -411,12 +411,6 @@ xfs_dir2_free_max_bests(struct xfs_da_geometry *geo)
 		sizeof(xfs_dir2_data_off_t);
 }
 
-static __be16 *
-xfs_dir2_free_bests_p(struct xfs_dir2_free *free)
-{
-	return (__be16 *)((char *)free + sizeof(struct xfs_dir2_free_hdr));
-}
-
 /*
  * Convert data space db to the corresponding free db.
  */
@@ -441,12 +435,6 @@ xfs_dir3_free_max_bests(struct xfs_da_geometry *geo)
 {
 	return (geo->blksize - sizeof(struct xfs_dir3_free_hdr)) /
 		sizeof(xfs_dir2_data_off_t);
-}
-
-static __be16 *
-xfs_dir3_free_bests_p(struct xfs_dir2_free *free)
-{
-	return (__be16 *)((char *)free + sizeof(struct xfs_dir3_free_hdr));
 }
 
 /*
@@ -500,7 +488,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
 	.free_max_bests = xfs_dir2_free_max_bests,
-	.free_bests_p = xfs_dir2_free_bests_p,
 	.db_to_fdb = xfs_dir2_db_to_fdb,
 	.db_to_fdindex = xfs_dir2_db_to_fdindex,
 };
@@ -537,7 +524,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
 	.free_max_bests = xfs_dir2_free_max_bests,
-	.free_bests_p = xfs_dir2_free_bests_p,
 	.db_to_fdb = xfs_dir2_db_to_fdb,
 	.db_to_fdindex = xfs_dir2_db_to_fdindex,
 };
@@ -574,7 +560,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 
 	.free_hdr_size = sizeof(struct xfs_dir3_free_hdr),
 	.free_max_bests = xfs_dir3_free_max_bests,
-	.free_bests_p = xfs_dir3_free_bests_p,
 	.db_to_fdb = xfs_dir3_db_to_fdb,
 	.db_to_fdindex = xfs_dir3_db_to_fdindex,
 };

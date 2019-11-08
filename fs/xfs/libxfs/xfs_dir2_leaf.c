@@ -1680,7 +1680,6 @@ xfs_dir2_node_to_leaf(
 	int			error;		/* error return code */
 	struct xfs_buf		*fbp;		/* buffer for freespace block */
 	xfs_fileoff_t		fo;		/* freespace file offset */
-	xfs_dir2_free_t		*free;		/* freespace structure */
 	struct xfs_buf		*lbp;		/* buffer for leaf block */
 	xfs_dir2_leaf_tail_t	*ltp;		/* tail of leaf structure */
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
@@ -1749,8 +1748,7 @@ xfs_dir2_node_to_leaf(
 	error = xfs_dir2_free_read(tp, dp,  args->geo->freeblk, &fbp);
 	if (error)
 		return error;
-	free = fbp->b_addr;
-	xfs_dir2_free_hdr_from_disk(mp, &freehdr, free);
+	xfs_dir2_free_hdr_from_disk(mp, &freehdr, fbp->b_addr);
 
 	ASSERT(!freehdr.firstdb);
 
@@ -1784,7 +1782,7 @@ xfs_dir2_node_to_leaf(
 	/*
 	 * Set up the leaf bests table.
 	 */
-	memcpy(xfs_dir2_leaf_bests_p(ltp), dp->d_ops->free_bests_p(free),
+	memcpy(xfs_dir2_leaf_bests_p(ltp), freehdr.bests,
 		freehdr.nvalid * sizeof(xfs_dir2_data_off_t));
 
 	xfs_dir2_leaf_hdr_to_disk(mp, leaf, &leafhdr);

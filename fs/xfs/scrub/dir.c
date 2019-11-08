@@ -583,7 +583,6 @@ xchk_directory_free_bestfree(
 	struct xfs_dir3_icfree_hdr	freehdr;
 	struct xfs_buf			*dbp;
 	struct xfs_buf			*bp;
-	__be16				*bestp;
 	__u16				best;
 	unsigned int			stale = 0;
 	int				i;
@@ -604,9 +603,8 @@ xchk_directory_free_bestfree(
 
 	/* Check all the entries. */
 	xfs_dir2_free_hdr_from_disk(sc->ip->i_mount, &freehdr, bp->b_addr);
-	bestp = sc->ip->d_ops->free_bests_p(bp->b_addr);
-	for (i = 0; i < freehdr.nvalid; i++, bestp++) {
-		best = be16_to_cpu(*bestp);
+	for (i = 0; i < freehdr.nvalid; i++) {
+		best = be16_to_cpu(freehdr.bests[i]);
 		if (best == NULLDATAOFF) {
 			stale++;
 			continue;

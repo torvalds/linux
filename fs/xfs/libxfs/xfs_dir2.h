@@ -74,7 +74,6 @@ struct xfs_dir_ops {
 
 	int	free_hdr_size;
 	int	(*free_max_bests)(struct xfs_da_geometry *geo);
-	__be16 * (*free_bests_p)(struct xfs_dir2_free *free);
 	xfs_dir2_db_t (*db_to_fdb)(struct xfs_da_geometry *geo,
 				   xfs_dir2_db_t db);
 	int	(*db_to_fdindex)(struct xfs_da_geometry *geo,

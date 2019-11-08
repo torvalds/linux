@@ -31,6 +31,12 @@ struct xfs_dir3_icfree_hdr {
 	uint32_t		firstdb;
 	uint32_t		nvalid;
 	uint32_t		nused;
+
+	/*
+	 * Pointer to the on-disk format entries, which are behind the
+	 * variable size (v4 vs v5) header in the on-disk block.
+	 */
+	__be16			*bests;
 };
 
 /* xfs_dir2.c */
