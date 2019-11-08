@@ -301,6 +301,31 @@ static int renoir_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 	return ret;
 }
 
+static int renoir_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int ret = 0;
+
+	if (enable) {
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0);
+			if (ret)
+				return ret;
+		}
+		power_gate->jpeg_gated = false;
+	} else {
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownJpeg, 0);
+			if (ret)
+				return ret;
+		}
+		power_gate->jpeg_gated = true;
+	}
+
+	return ret;
+}
+
 static int renoir_force_dpm_limit_value(struct smu_context *smu, bool highest)
 {
 	int ret = 0, i = 0;
@@ -683,6 +708,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.print_clk_levels = renoir_print_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
 	.dpm_set_uvd_enable = renoir_dpm_set_uvd_enable,
+	.dpm_set_jpeg_enable = renoir_dpm_set_jpeg_enable,
 	.force_dpm_limit_value = renoir_force_dpm_limit_value,
 	.unforce_dpm_levels = renoir_unforce_dpm_levels,
 	.get_workload_type = renoir_get_workload_type,
