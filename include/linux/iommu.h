@@ -245,6 +245,7 @@ struct iommu_iotlb_gather {
  * @sva_get_pasid: Get PASID associated to a SVA handle
  * @page_response: handle page request response
  * @pgsize_bitmap: bitmap of all possible supported page sizes
+ * @owner: Driver module providing these ops
  */
 struct iommu_ops {
 	bool (*capable)(enum iommu_cap);
@@ -308,6 +309,7 @@ struct iommu_ops {
 			     struct iommu_page_response *msg);
 
 	unsigned long pgsize_bitmap;
+	struct module *owner;
 };
 
 /**
