@@ -84,3 +84,29 @@ config CRYPTO_LIB_POLY1305
 	  Enable the Poly1305 library interface. This interface may be fulfilled
 	  by either the generic implementation or an arch-specific one, if one
 	  is available and enabled.
+
+config CRYPTO_ARCH_HAVE_LIB_CURVE25519
+	tristate
+	help
+	  Declares whether the architecture provides an arch-specific
+	  accelerated implementation of the Curve25519 library interface,
+	  either builtin or as a module.
+
+config CRYPTO_LIB_CURVE25519_GENERIC
+	tristate
+	help
+	  This symbol can be depended upon by arch implementations of the
+	  Curve25519 library interface that require the generic code as a
+	  fallback, e.g., for SIMD implementations. If no arch specific
+	  implementation is enabled, this implementation serves the users
+	  of CRYPTO_LIB_CURVE25519.
+
+config CRYPTO_LIB_CURVE25519
+	tristate "Curve25519 scalar multiplication library"
+	depends on CRYPTO_ARCH_HAVE_LIB_CURVE25519 || !CRYPTO_ARCH_HAVE_LIB_CURVE25519
+	select CRYPTO_LIB_CURVE25519_GENERIC if CRYPTO_ARCH_HAVE_LIB_CURVE25519=n
+	help
+	  Enable the Curve25519 library interface. This interface may be
+	  fulfilled by either the generic implementation or an arch-specific
+	  one, if one is available and enabled.
+
