@@ -34,7 +34,10 @@
 
 #define PM4_COUNT_ZERO (((1 << 15) - 1) << 16)
 
-static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
+/* Initialize a kernel queue, including allocations of GART memory
+ * needed for the queue.
+ */
+static bool kq_initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 		enum kfd_queue_type type, unsigned int queue_size)
 {
 	struct queue_properties prop;
@@ -88,7 +91,7 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->pq_gpu_addr = kq->pq->gpu_addr;
 
 	/* For CIK family asics, kq->eop_mem is not needed */
-	if (dev->device_info->asic_family > CHIP_HAWAII) {
+	if (dev->device_info->asic_family > CHIP_MULLINS) {
 		retval = kfd_gtt_sa_allocate(dev, PAGE_SIZE, &kq->eop_mem);
 		if (retval != 0)
 			goto err_eop_allocate_vidmem;
@@ -191,7 +194,8 @@ err_get_kernel_doorbell:
 
 }
 
-static void uninitialize(struct kernel_queue *kq)
+/* Uninitialize a kernel queue and free all its memory usages. */
+static void kq_uninitialize(struct kernel_queue *kq)
 {
 	if (kq->queue->properties.type == KFD_QUEUE_TYPE_HIQ)
 		kq->mqd_mgr->destroy_mqd(kq->mqd_mgr,
@@ -220,7 +224,7 @@ static void uninitialize(struct kernel_queue *kq)
 	uninit_queue(kq->queue);
 }
 
-static int acquire_packet_buffer(struct kernel_queue *kq,
+int kq_acquire_packet_buffer(struct kernel_queue *kq,
 		size_t packet_size_in_dwords, unsigned int **buffer_ptr)
 {
 	size_t available_size;
@@ -281,7 +285,7 @@ err_no_space:
 	return -ENOMEM;
 }
 
-static void submit_packet(struct kernel_queue *kq)
+void kq_submit_packet(struct kernel_queue *kq)
 {
 #ifdef DEBUG
 	int i;
@@ -304,7 +308,7 @@ static void submit_packet(struct kernel_queue *kq)
 	}
 }
 
-static void rollback_packet(struct kernel_queue *kq)
+void kq_rollback_packet(struct kernel_queue *kq)
 {
 	if (kq->dev->device_info->doorbell_size == 8) {
 		kq->pending_wptr64 = *kq->wptr64_kernel;
@@ -324,13 +328,7 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	if (!kq)
 		return NULL;
 
-	kq->ops.initialize = initialize;
-	kq->ops.uninitialize = uninitialize;
-	kq->ops.acquire_packet_buffer = acquire_packet_buffer;
-	kq->ops.submit_packet = submit_packet;
-	kq->ops.rollback_packet = rollback_packet;
-
-	if (kq->ops.initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE))
+	if (kq_initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE))
 		return kq;
 
 	pr_err("Failed to init kernel queue\n");
@@ -341,7 +339,7 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 
 void kernel_queue_uninit(struct kernel_queue *kq)
 {
-	kq->ops.uninitialize(kq);
+	kq_uninitialize(kq);
 	kfree(kq);
 }
 
@@ -361,7 +359,7 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 		return;
 	}
 
-	retval = kq->ops.acquire_packet_buffer(kq, 5, &buffer);
+	retval = kq_acquire_packet_buffer(kq, 5, &buffer);
 	if (unlikely(retval != 0)) {
 		pr_err("  Failed to acquire packet buffer\n");
 		pr_err("Kernel queue test failed\n");
@@ -369,7 +367,7 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 	}
 	for (i = 0; i < 5; i++)
 		buffer[i] = kq->nop_packet;
-	kq->ops.submit_packet(kq);
+	kq_submit_packet(kq);
 
 	pr_err("Ending kernel queue test\n");
 }
