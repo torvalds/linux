@@ -2195,6 +2195,18 @@ pf_retrans - INTEGER
 
 	Default: 0
 
+ps_retrans - INTEGER
+	Primary.Switchover.Max.Retrans (PSMR), it's a tunable parameter coming
+	from section-5 "Primary Path Switchover" in rfc7829.  The primary path
+	will be changed to another active path when the path error counter on
+	the old primary path exceeds PSMR, so that "the SCTP sender is allowed
+	to continue data transmission on a new working path even when the old
+	primary destination address becomes active again".   Note this feature
+	is disabled by initializing 'ps_retrans' per netns as 0xffff by default,
+	and its value can't be less than 'pf_retrans' when changing by sysctl.
+
+	Default: 0xffff
+
 rto_initial - INTEGER
 	The initial round trip timeout value in milliseconds that will be used
 	in calculating round trip times.  This is the initial time interval

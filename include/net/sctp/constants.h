@@ -296,6 +296,8 @@ enum {
 };
 #define SCTP_PF_EXPOSE_MAX	SCTP_PF_EXPOSE_ENABLE
 
+#define SCTP_PS_RETRANS_MAX	0xffff
+
 /* These return values describe the success or failure of a number of
  * routines which form the lower interface to SCTP_outqueue.
  */
