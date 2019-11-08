@@ -1241,8 +1241,17 @@ static ssize_t master_break_store(struct device *dev,
 
 static DEVICE_ATTR(break, 0200, NULL, master_break_store);
 
+static struct attribute *master_attrs[] = {
+	&dev_attr_break.attr,
+	&dev_attr_rescan.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(master);
+
 struct class fsi_master_class = {
 	.name = "fsi-master",
+	.dev_groups = master_groups,
 };
 
 int fsi_master_register(struct fsi_master *master)
@@ -1257,20 +1266,6 @@ int fsi_master_register(struct fsi_master *master)
 
 	rc = device_register(&master->dev);
 	if (rc) {
-		ida_simple_remove(&master_ida, master->idx);
-		return rc;
-	}
-
-	rc = device_create_file(&master->dev, &dev_attr_rescan);
-	if (rc) {
-		device_del(&master->dev);
-		ida_simple_remove(&master_ida, master->idx);
-		return rc;
-	}
-
-	rc = device_create_file(&master->dev, &dev_attr_break);
-	if (rc) {
-		device_del(&master->dev);
 		ida_simple_remove(&master_ida, master->idx);
 		return rc;
 	}
