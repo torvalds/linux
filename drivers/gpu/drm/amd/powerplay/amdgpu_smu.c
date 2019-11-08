@@ -415,6 +415,9 @@ int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 	case AMD_IP_BLOCK_TYPE_SDMA:
 		ret = smu_powergate_sdma(smu, gate);
 		break;
+	case AMD_IP_BLOCK_TYPE_JPEG:
+		ret = smu_dpm_set_jpeg_enable(smu, gate);
+		break;
 	default:
 		break;
 	}
