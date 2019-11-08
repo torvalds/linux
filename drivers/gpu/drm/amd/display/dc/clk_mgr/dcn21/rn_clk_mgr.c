@@ -569,7 +569,7 @@ static unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsi
 	return 0;
 }
 
-static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct hw_asic_id *asic_id)
+static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct integrated_info *bios_info)
 {
 	int i, j = 0;
 
@@ -601,8 +601,8 @@ static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params
 		bw_params->clk_table.entries[i].dcfclk_mhz = find_dcfclk_for_voltage(clock_table, clock_table->FClocks[j].Vol);
 	}
 
-	bw_params->vram_type = asic_id->vram_type;
-	bw_params->num_channels = asic_id->vram_width / DDR4_DRAM_WIDTH;
+	bw_params->vram_type = bios_info->memory_type;
+	bw_params->num_channels = bios_info->ma_channel_number;
 
 	for (i = 0; i < WM_SET_COUNT; i++) {
 		bw_params->wm_table.entries[i].wm_inst = i;
@@ -685,7 +685,9 @@ void rn_clk_mgr_construct(
 
 	if (pp_smu && pp_smu->rn_funcs.get_dpm_clock_table) {
 		pp_smu->rn_funcs.get_dpm_clock_table(&pp_smu->rn_funcs.pp_smu, &clock_table);
-		rn_clk_mgr_helper_populate_bw_params(clk_mgr->base.bw_params, &clock_table, &ctx->asic_id);
+		if (ctx->dc_bios && ctx->dc_bios->integrated_info) {
+			rn_clk_mgr_helper_populate_bw_params (clk_mgr->base.bw_params, &clock_table, ctx->dc_bios->integrated_info);
+		}
 	}
 
 	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment) && clk_mgr->smu_ver >= 0x00371500) {
