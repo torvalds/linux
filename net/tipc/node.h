@@ -119,5 +119,9 @@ int tipc_nl_node_get_monitor(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_node_dump_monitor(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_node_dump_monitor_peer(struct sk_buff *skb,
 				   struct netlink_callback *cb);
+#ifdef CONFIG_TIPC_CRYPTO
+int tipc_nl_node_set_key(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_node_flush_key(struct sk_buff *skb, struct genl_info *info);
+#endif
 void tipc_node_pre_cleanup_net(struct net *exit_net);
 #endif

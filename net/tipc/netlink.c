@@ -102,7 +102,11 @@ const struct nla_policy tipc_nl_link_policy[TIPC_NLA_LINK_MAX + 1] = {
 const struct nla_policy tipc_nl_node_policy[TIPC_NLA_NODE_MAX + 1] = {
 	[TIPC_NLA_NODE_UNSPEC]		= { .type = NLA_UNSPEC },
 	[TIPC_NLA_NODE_ADDR]		= { .type = NLA_U32 },
-	[TIPC_NLA_NODE_UP]		= { .type = NLA_FLAG }
+	[TIPC_NLA_NODE_UP]		= { .type = NLA_FLAG },
+	[TIPC_NLA_NODE_ID]		= { .type = NLA_BINARY,
+					    .len = TIPC_NODEID_LEN},
+	[TIPC_NLA_NODE_KEY]		= { .type = NLA_BINARY,
+					    .len = TIPC_AEAD_KEY_SIZE_MAX},
 };
 
 /* Properties valid for media, bearer and link */
@@ -255,6 +259,18 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 		.validate = GENL_DONT_VALIDATE_STRICT |
 			    GENL_DONT_VALIDATE_DUMP_STRICT,
 		.dumpit	= tipc_udp_nl_dump_remoteip,
+	},
+#endif
+#ifdef CONFIG_TIPC_CRYPTO
+	{
+		.cmd	= TIPC_NL_KEY_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.doit	= tipc_nl_node_set_key,
+	},
+	{
+		.cmd	= TIPC_NL_KEY_FLUSH,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.doit	= tipc_nl_node_flush_key,
 	},
 #endif
 };
