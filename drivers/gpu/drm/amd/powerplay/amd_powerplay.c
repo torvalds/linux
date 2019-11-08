@@ -969,6 +969,14 @@ static int pp_dpm_switch_power_profile(void *handle,
 		workload = hwmgr->workload_setting[index];
 	}
 
+	if (type == PP_SMC_POWER_PROFILE_COMPUTE &&
+		hwmgr->hwmgr_func->disable_power_features_for_compute_performance) {
+			if (hwmgr->hwmgr_func->disable_power_features_for_compute_performance(hwmgr, en)) {
+				mutex_unlock(&hwmgr->smu_lock);
+				return -EINVAL;
+			}
+	}
+
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
 		hwmgr->hwmgr_func->set_power_profile_mode(hwmgr, &workload, 0);
 	mutex_unlock(&hwmgr->smu_lock);

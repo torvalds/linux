@@ -5263,6 +5263,59 @@ static int vega10_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_
 	return 0;
 }
 
+static int vega10_disable_power_features_for_compute_performance(struct pp_hwmgr *hwmgr, bool disable)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	uint32_t feature_mask = 0;
+
+	if (disable) {
+		feature_mask |= data->smu_features[GNLD_ULV].enabled ?
+			data->smu_features[GNLD_ULV].smu_feature_bitmap : 0;
+		feature_mask |= data->smu_features[GNLD_DS_GFXCLK].enabled ?
+			data->smu_features[GNLD_DS_GFXCLK].smu_feature_bitmap : 0;
+		feature_mask |= data->smu_features[GNLD_DS_SOCCLK].enabled ?
+			data->smu_features[GNLD_DS_SOCCLK].smu_feature_bitmap : 0;
+		feature_mask |= data->smu_features[GNLD_DS_LCLK].enabled ?
+			data->smu_features[GNLD_DS_LCLK].smu_feature_bitmap : 0;
+		feature_mask |= data->smu_features[GNLD_DS_DCEFCLK].enabled ?
+			data->smu_features[GNLD_DS_DCEFCLK].smu_feature_bitmap : 0;
+	} else {
+		feature_mask |= (!data->smu_features[GNLD_ULV].enabled) ?
+			data->smu_features[GNLD_ULV].smu_feature_bitmap : 0;
+		feature_mask |= (!data->smu_features[GNLD_DS_GFXCLK].enabled) ?
+			data->smu_features[GNLD_DS_GFXCLK].smu_feature_bitmap : 0;
+		feature_mask |= (!data->smu_features[GNLD_DS_SOCCLK].enabled) ?
+			data->smu_features[GNLD_DS_SOCCLK].smu_feature_bitmap : 0;
+		feature_mask |= (!data->smu_features[GNLD_DS_LCLK].enabled) ?
+			data->smu_features[GNLD_DS_LCLK].smu_feature_bitmap : 0;
+		feature_mask |= (!data->smu_features[GNLD_DS_DCEFCLK].enabled) ?
+			data->smu_features[GNLD_DS_DCEFCLK].smu_feature_bitmap : 0;
+	}
+
+	if (feature_mask)
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
+				!disable, feature_mask),
+				"enable/disable power features for compute performance Failed!",
+				return -EINVAL);
+
+	if (disable) {
+		data->smu_features[GNLD_ULV].enabled = false;
+		data->smu_features[GNLD_DS_GFXCLK].enabled = false;
+		data->smu_features[GNLD_DS_SOCCLK].enabled = false;
+		data->smu_features[GNLD_DS_LCLK].enabled = false;
+		data->smu_features[GNLD_DS_DCEFCLK].enabled = false;
+	} else {
+		data->smu_features[GNLD_ULV].enabled = true;
+		data->smu_features[GNLD_DS_GFXCLK].enabled = true;
+		data->smu_features[GNLD_DS_SOCCLK].enabled = true;
+		data->smu_features[GNLD_DS_LCLK].enabled = true;
+		data->smu_features[GNLD_DS_DCEFCLK].enabled = true;
+	}
+
+	return 0;
+
+}
+
 static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.backend_init = vega10_hwmgr_backend_init,
 	.backend_fini = vega10_hwmgr_backend_fini,
@@ -5330,6 +5383,8 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.get_ppfeature_status = vega10_get_ppfeature_status,
 	.set_ppfeature_status = vega10_set_ppfeature_status,
 	.set_mp1_state = vega10_set_mp1_state,
+	.disable_power_features_for_compute_performance =
+			vega10_disable_power_features_for_compute_performance,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
