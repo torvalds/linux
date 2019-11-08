@@ -1241,6 +1241,10 @@ static ssize_t master_break_store(struct device *dev,
 
 static DEVICE_ATTR(break, 0200, NULL, master_break_store);
 
+struct class fsi_master_class = {
+	.name = "fsi-master",
+};
+
 int fsi_master_register(struct fsi_master *master)
 {
 	int rc;
@@ -1249,6 +1253,7 @@ int fsi_master_register(struct fsi_master *master)
 	mutex_init(&master->scan_lock);
 	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
 	dev_set_name(&master->dev, "fsi%d", master->idx);
+	master->dev.class = &fsi_master_class;
 
 	rc = device_register(&master->dev);
 	if (rc) {
@@ -1350,8 +1355,15 @@ static int __init fsi_init(void)
 	rc = bus_register(&fsi_bus_type);
 	if (rc)
 		goto fail_bus;
+
+	rc = class_register(&fsi_master_class);
+	if (rc)
+		goto fail_class;
+
 	return 0;
 
+ fail_class:
+	bus_unregister(&fsi_bus_type);
  fail_bus:
 	unregister_chrdev_region(fsi_base_dev, FSI_CHAR_MAX_DEVICES);
 	return rc;
@@ -1360,6 +1372,7 @@ postcore_initcall(fsi_init);
 
 static void fsi_exit(void)
 {
+	class_unregister(&fsi_master_class);
 	bus_unregister(&fsi_bus_type);
 	unregister_chrdev_region(fsi_base_dev, FSI_CHAR_MAX_DEVICES);
 	ida_destroy(&fsi_minor_ida);
