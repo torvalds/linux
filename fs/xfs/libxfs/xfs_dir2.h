@@ -45,8 +45,6 @@ struct xfs_dir_ops {
 
 	struct xfs_dir2_data_entry *
 		(*data_entry_p)(struct xfs_dir2_data_hdr *hdr);
-	struct xfs_dir2_data_unused *
-		(*data_unused_p)(struct xfs_dir2_data_hdr *hdr);
 };
 
 extern const struct xfs_dir_ops *

@@ -1112,7 +1112,7 @@ xfs_dir2_sf_to_block(
 	 * The whole thing is initialized to free by the init routine.
 	 * Say we're using the leaf and tail area.
 	 */
-	dup = dp->d_ops->data_unused_p(hdr);
+	dup = bp->b_addr + offset;
 	needlog = needscan = 0;
 	error = xfs_dir2_data_use_free(args, bp, dup, args->geo->blksize - i,
 			i, &needlog, &needscan);

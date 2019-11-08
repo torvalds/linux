@@ -631,24 +631,20 @@ xfs_dir2_data_freescan(
  */
 int						/* error */
 xfs_dir3_data_init(
-	xfs_da_args_t		*args,		/* directory operation args */
-	xfs_dir2_db_t		blkno,		/* logical dir block number */
-	struct xfs_buf		**bpp)		/* output block buffer */
+	struct xfs_da_args		*args,	/* directory operation args */
+	xfs_dir2_db_t			blkno,	/* logical dir block number */
+	struct xfs_buf			**bpp)	/* output block buffer */
 {
-	struct xfs_buf		*bp;		/* block buffer */
-	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
-	xfs_inode_t		*dp;		/* incore directory inode */
-	xfs_dir2_data_unused_t	*dup;		/* unused entry pointer */
-	struct xfs_dir2_data_free *bf;
-	int			error;		/* error return value */
-	int			i;		/* bestfree index */
-	xfs_mount_t		*mp;		/* filesystem mount point */
-	xfs_trans_t		*tp;		/* transaction pointer */
-	int                     t;              /* temp */
+	struct xfs_trans		*tp = args->trans;
+	struct xfs_inode		*dp = args->dp;
+	struct xfs_mount		*mp = dp->i_mount;
+	struct xfs_buf			*bp;
+	struct xfs_dir2_data_hdr	*hdr;
+	struct xfs_dir2_data_unused	*dup;
+	struct xfs_dir2_data_free 	*bf;
+	int				error;
+	int				i;
 
-	dp = args->dp;
-	mp = dp->i_mount;
-	tp = args->trans;
 	/*
 	 * Get the buffer set up for the block.
 	 */
@@ -677,6 +673,8 @@ xfs_dir3_data_init(
 
 	bf = dp->d_ops->data_bestfree_p(hdr);
 	bf[0].offset = cpu_to_be16(dp->d_ops->data_entry_offset);
+	bf[0].length =
+		cpu_to_be16(args->geo->blksize - dp->d_ops->data_entry_offset);
 	for (i = 1; i < XFS_DIR2_DATA_FD_COUNT; i++) {
 		bf[i].length = 0;
 		bf[i].offset = 0;
@@ -685,13 +683,11 @@ xfs_dir3_data_init(
 	/*
 	 * Set up an unused entry for the block's body.
 	 */
-	dup = dp->d_ops->data_unused_p(hdr);
+	dup = bp->b_addr + dp->d_ops->data_entry_offset;
 	dup->freetag = cpu_to_be16(XFS_DIR2_DATA_FREE_TAG);
-
-	t = args->geo->blksize - (uint)dp->d_ops->data_entry_offset;
-	bf[0].length = cpu_to_be16(t);
-	dup->length = cpu_to_be16(t);
+	dup->length = bf[0].length;
 	*xfs_dir2_data_unused_tag_p(dup) = cpu_to_be16((char *)dup - (char *)hdr);
+
 	/*
 	 * Log it and return it.
 	 */
