@@ -301,8 +301,7 @@ static const struct keyslot_mgmt_ll_ops ufshcd_ksm_ops = {
  * ufshcd_hba_init_crypto - Read crypto capabilities, init crypto fields in hba
  * @hba: Per adapter instance
  *
- * Returns 0 on success. Returns -ENODEV if such capabilities don't exist, and
- * -ENOMEM upon OOM.
+ * Return: 0 if crypto was initialized or is not supported, else a -errno value.
  */
 int ufshcd_hba_init_crypto_spec(struct ufs_hba *hba,
 				const struct keyslot_mgmt_ll_ops *ksm_ops)
@@ -313,10 +312,9 @@ int ufshcd_hba_init_crypto_spec(struct ufs_hba *hba,
 	/* Default to disabling crypto */
 	hba->caps &= ~UFSHCD_CAP_CRYPTO;
 
-	if (!(hba->capabilities & MASK_CRYPTO_SUPPORT)) {
-		err = -ENODEV;
+	/* Return 0 if crypto support isn't present */
+	if (!(hba->capabilities & MASK_CRYPTO_SUPPORT))
 		goto out;
-	}
 
 	/*
 	 * Crypto Capabilities should never be 0, because the
@@ -372,7 +370,6 @@ out_free_crypto_cfgs:
 out_free_cfg_mem:
 	devm_kfree(hba->dev, hba->crypto_cap_array);
 out:
-	// TODO: print error?
 	/* Indicate that init failed by setting crypto_capabilities to 0 */
 	hba->crypto_capabilities.reg_val = 0;
 	return err;
