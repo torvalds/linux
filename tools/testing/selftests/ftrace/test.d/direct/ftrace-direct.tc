@@ -51,3 +51,19 @@ done
 
 echo nop > current_tracer
 rmmod ftrace-direct ||:
+
+# Now do the same thing with another direct function registered
+echo "Running with another ftrace direct function"
+
+rmmod ftrace-direct-too ||:
+modprobe ftrace-direct-too
+
+for t in `cat available_tracers`; do
+	if [ "$t" != "nop" ]; then
+		test_tracer $t
+	fi
+done
+
+echo nop > current_tracer
+rmmod ftrace-direct ||:
+rmmod ftrace-direct-too ||:
