@@ -58,6 +58,8 @@ int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate);
 
 int smu_v12_0_powergate_vcn(struct smu_context *smu, bool gate);
 
+int smu_v12_0_powergate_jpeg(struct smu_context *smu, bool gate);
+
 int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable);
 
 uint32_t smu_v12_0_get_gfxoff_status(struct smu_context *smu);

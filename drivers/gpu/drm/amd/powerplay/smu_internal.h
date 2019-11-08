@@ -42,6 +42,8 @@
 	((smu)->ppt_funcs->powergate_sdma ? (smu)->ppt_funcs->powergate_sdma((smu), (gate)) : 0)
 #define smu_powergate_vcn(smu, gate) \
 	((smu)->ppt_funcs->powergate_vcn ? (smu)->ppt_funcs->powergate_vcn((smu), (gate)) : 0)
+#define smu_powergate_jpeg(smu, gate) \
+	((smu)->ppt_funcs->powergate_jpeg ? (smu)->ppt_funcs->powergate_jpeg((smu), (gate)) : 0)
 
 #define smu_get_vbios_bootup_values(smu) \
 	((smu)->ppt_funcs->get_vbios_bootup_values ? (smu)->ppt_funcs->get_vbios_bootup_values((smu)) : 0)
