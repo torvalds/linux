@@ -431,21 +431,6 @@ xfs_dir3_leaf_ents_p(struct xfs_dir2_leaf *lp)
 }
 
 static void
-xfs_dir2_leaf_hdr_from_disk(
-	struct xfs_dir3_icleaf_hdr	*to,
-	struct xfs_dir2_leaf		*from)
-{
-	to->forw = be32_to_cpu(from->hdr.info.forw);
-	to->back = be32_to_cpu(from->hdr.info.back);
-	to->magic = be16_to_cpu(from->hdr.info.magic);
-	to->count = be16_to_cpu(from->hdr.count);
-	to->stale = be16_to_cpu(from->hdr.stale);
-
-	ASSERT(to->magic == XFS_DIR2_LEAF1_MAGIC ||
-	       to->magic == XFS_DIR2_LEAFN_MAGIC);
-}
-
-static void
 xfs_dir2_leaf_hdr_to_disk(
 	struct xfs_dir2_leaf		*to,
 	struct xfs_dir3_icleaf_hdr	*from)
@@ -458,23 +443,6 @@ xfs_dir2_leaf_hdr_to_disk(
 	to->hdr.info.magic = cpu_to_be16(from->magic);
 	to->hdr.count = cpu_to_be16(from->count);
 	to->hdr.stale = cpu_to_be16(from->stale);
-}
-
-static void
-xfs_dir3_leaf_hdr_from_disk(
-	struct xfs_dir3_icleaf_hdr	*to,
-	struct xfs_dir2_leaf		*from)
-{
-	struct xfs_dir3_leaf_hdr *hdr3 = (struct xfs_dir3_leaf_hdr *)from;
-
-	to->forw = be32_to_cpu(hdr3->info.hdr.forw);
-	to->back = be32_to_cpu(hdr3->info.hdr.back);
-	to->magic = be16_to_cpu(hdr3->info.hdr.magic);
-	to->count = be16_to_cpu(hdr3->count);
-	to->stale = be16_to_cpu(hdr3->stale);
-
-	ASSERT(to->magic == XFS_DIR3_LEAF1_MAGIC ||
-	       to->magic == XFS_DIR3_LEAFN_MAGIC);
 }
 
 static void
@@ -648,7 +616,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 
 	.leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr),
 	.leaf_hdr_to_disk = xfs_dir2_leaf_hdr_to_disk,
-	.leaf_hdr_from_disk = xfs_dir2_leaf_hdr_from_disk,
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
@@ -693,7 +660,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 
 	.leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr),
 	.leaf_hdr_to_disk = xfs_dir2_leaf_hdr_to_disk,
-	.leaf_hdr_from_disk = xfs_dir2_leaf_hdr_from_disk,
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
@@ -738,7 +704,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 
 	.leaf_hdr_size = sizeof(struct xfs_dir3_leaf_hdr),
 	.leaf_hdr_to_disk = xfs_dir3_leaf_hdr_to_disk,
-	.leaf_hdr_from_disk = xfs_dir3_leaf_hdr_from_disk,
 	.leaf_max_ents = xfs_dir3_max_leaf_ents,
 	.leaf_ents_p = xfs_dir3_leaf_ents_p,
 

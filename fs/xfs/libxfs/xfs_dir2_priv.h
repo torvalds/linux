@@ -66,6 +66,8 @@ extern int xfs_dir3_data_init(struct xfs_da_args *args, xfs_dir2_db_t blkno,
 		struct xfs_buf **bpp);
 
 /* xfs_dir2_leaf.c */
+void xfs_dir2_leaf_hdr_from_disk(struct xfs_mount *mp,
+		struct xfs_dir3_icleaf_hdr *to, struct xfs_dir2_leaf *from);
 extern int xfs_dir3_leaf_read(struct xfs_trans *tp, struct xfs_inode *dp,
 		xfs_dablk_t fbno, xfs_daddr_t mappedbno, struct xfs_buf **bpp);
 extern int xfs_dir3_leafn_read(struct xfs_trans *tp, struct xfs_inode *dp,

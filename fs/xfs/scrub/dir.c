@@ -507,7 +507,7 @@ xchk_directory_leaf1_bestfree(
 	xchk_buffer_recheck(sc, bp);
 
 	leaf = bp->b_addr;
-	d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
+	xfs_dir2_leaf_hdr_from_disk(sc->ip->i_mount, &leafhdr, leaf);
 	ents = d_ops->leaf_ents_p(leaf);
 	ltp = xfs_dir2_leaf_tail_p(geo, leaf);
 	bestcount = be32_to_cpu(ltp->bestcount);

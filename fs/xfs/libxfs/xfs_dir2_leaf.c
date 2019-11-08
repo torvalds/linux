@@ -30,6 +30,35 @@ static void xfs_dir3_leaf_log_bests(struct xfs_da_args *args,
 static void xfs_dir3_leaf_log_tail(struct xfs_da_args *args,
 				   struct xfs_buf *bp);
 
+void
+xfs_dir2_leaf_hdr_from_disk(
+	struct xfs_mount		*mp,
+	struct xfs_dir3_icleaf_hdr	*to,
+	struct xfs_dir2_leaf		*from)
+{
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		struct xfs_dir3_leaf *from3 = (struct xfs_dir3_leaf *)from;
+
+		to->forw = be32_to_cpu(from3->hdr.info.hdr.forw);
+		to->back = be32_to_cpu(from3->hdr.info.hdr.back);
+		to->magic = be16_to_cpu(from3->hdr.info.hdr.magic);
+		to->count = be16_to_cpu(from3->hdr.count);
+		to->stale = be16_to_cpu(from3->hdr.stale);
+
+		ASSERT(to->magic == XFS_DIR3_LEAF1_MAGIC ||
+		       to->magic == XFS_DIR3_LEAFN_MAGIC);
+	} else {
+		to->forw = be32_to_cpu(from->hdr.info.forw);
+		to->back = be32_to_cpu(from->hdr.info.back);
+		to->magic = be16_to_cpu(from->hdr.info.magic);
+		to->count = be16_to_cpu(from->hdr.count);
+		to->stale = be16_to_cpu(from->hdr.stale);
+
+		ASSERT(to->magic == XFS_DIR2_LEAF1_MAGIC ||
+		       to->magic == XFS_DIR2_LEAFN_MAGIC);
+	}
+}
+
 /*
  * Check the internal consistency of a leaf1 block.
  * Pop an assert if something is wrong.
@@ -43,7 +72,7 @@ xfs_dir3_leaf1_check(
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
 	struct xfs_dir3_icleaf_hdr leafhdr;
 
-	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
+	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
 
 	if (leafhdr.magic == XFS_DIR3_LEAF1_MAGIC) {
 		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
@@ -96,7 +125,7 @@ xfs_dir3_leaf_check_int(
 	ops = xfs_dir_get_ops(mp, dp);
 
 	if (!hdr) {
-		ops->leaf_hdr_from_disk(&leafhdr, leaf);
+		xfs_dir2_leaf_hdr_from_disk(mp, &leafhdr, leaf);
 		hdr = &leafhdr;
 	}
 
@@ -381,7 +410,7 @@ xfs_dir2_block_to_leaf(
 	/*
 	 * Set the counts in the leaf header.
 	 */
-	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
+	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
 	leafhdr.count = be32_to_cpu(btp->count);
 	leafhdr.stale = be32_to_cpu(btp->stale);
 	dp->d_ops->leaf_hdr_to_disk(leaf, &leafhdr);
@@ -608,7 +637,7 @@ xfs_dir2_leaf_addname(
 	leaf = lbp->b_addr;
 	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
-	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
+	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
 	length = dp->d_ops->data_entsize(args->namelen);
 
@@ -1197,7 +1226,7 @@ xfs_dir2_leaf_lookup_int(
 	leaf = lbp->b_addr;
 	xfs_dir3_leaf_check(dp, lbp);
 	ents = dp->d_ops->leaf_ents_p(leaf);
-	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
+	xfs_dir2_leaf_hdr_from_disk(mp, &leafhdr, leaf);
 
 	/*
 	 * Look for the first leaf entry with our hash value.
@@ -1330,7 +1359,7 @@ xfs_dir2_leaf_removename(
 	hdr = dbp->b_addr;
 	xfs_dir3_data_check(dp, dbp);
 	bf = dp->d_ops->data_bestfree_p(hdr);
-	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
+	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
 	/*
 	 * Point to the leaf entry, use that to point to the data entry.
@@ -1511,7 +1540,7 @@ xfs_dir2_leaf_search_hash(
 
 	leaf = lbp->b_addr;
 	ents = args->dp->d_ops->leaf_ents_p(leaf);
-	args->dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
+	xfs_dir2_leaf_hdr_from_disk(args->dp->i_mount, &leafhdr, leaf);
 
 	/*
 	 * Note, the table cannot be empty, so we have to go through the loop.
@@ -1699,7 +1728,7 @@ xfs_dir2_node_to_leaf(
 		return 0;
 	lbp = state->path.blk[0].bp;
 	leaf = lbp->b_addr;
-	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
+	xfs_dir2_leaf_hdr_from_disk(mp, &leafhdr, leaf);
 
 	ASSERT(leafhdr.magic == XFS_DIR2_LEAFN_MAGIC ||
 	       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC);
