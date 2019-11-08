@@ -1886,7 +1886,6 @@ static int activate_lsp(struct opal_dev *dev, void *data)
 {
 	struct opal_lr_act *opal_act = data;
 	u8 user_lr[OPAL_UID_LENGTH];
-	u8 uint_3 = 0x83;
 	int err, i;
 
 	err = cmd_start(dev, opaluid[OPAL_LOCKINGSP_UID],
@@ -1899,10 +1898,7 @@ static int activate_lsp(struct opal_dev *dev, void *data)
 			return err;
 
 		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, uint_3);
-		add_token_u8(&err, dev, 6);
-		add_token_u8(&err, dev, 0);
-		add_token_u8(&err, dev, 0);
+		add_token_u64(&err, dev, OPAL_SUM_SET_LIST);
 
 		add_token_u8(&err, dev, OPAL_STARTLIST);
 		add_token_bytestring(&err, dev, user_lr, OPAL_UID_LENGTH);
