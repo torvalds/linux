@@ -24,6 +24,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/memblock.h>
 
 #include <asm/processor.h>
 #include <asm/hardirq.h>
@@ -39,6 +40,7 @@
 #include <asm/virtext.h>
 #include <asm/intel_pt.h>
 #include <asm/crash.h>
+#include <asm/cmdline.h>
 
 /* Used while preparing memory map entries for second kernel */
 struct crash_memmap_data {
@@ -66,6 +68,19 @@ static inline void cpu_crash_vmclear_loaded_vmcss(void)
 	if (do_vmclear_operation)
 		do_vmclear_operation();
 	rcu_read_unlock();
+}
+
+/*
+ * When the crashkernel option is specified, only use the low
+ * 1M for the real mode trampoline.
+ */
+void __init crash_reserve_low_1M(void)
+{
+	if (cmdline_find_option(boot_command_line, "crashkernel", NULL, 0) < 0)
+		return;
+
+	memblock_reserve(0, 1<<20);
+	pr_info("Reserving the low 1M of memory for crashkernel\n");
 }
 
 #if defined(CONFIG_SMP) && defined(CONFIG_X86_LOCAL_APIC)
