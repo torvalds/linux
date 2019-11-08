@@ -307,8 +307,8 @@ static int cxgb4_mqprio_alloc_tc(struct net_device *dev,
 	p.u.params.channel = pi->tx_chan;
 	for (i = 0; i < mqprio->qopt.num_tc; i++) {
 		/* Convert from bytes per second to Kbps */
-		p.u.params.minrate = mqprio->min_rate[i] * 8 / 1000;
-		p.u.params.maxrate = mqprio->max_rate[i] * 8 / 1000;
+		p.u.params.minrate = div_u64(mqprio->min_rate[i] * 8, 1000);
+		p.u.params.maxrate = div_u64(mqprio->max_rate[i] * 8, 1000);
 
 		e = cxgb4_sched_class_alloc(dev, &p);
 		if (!e) {
