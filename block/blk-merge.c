@@ -319,7 +319,8 @@ void __blk_queue_split(struct request_queue *q, struct bio **bio,
 		 */
 		if (!q->limits.chunk_sectors &&
 		    (*bio)->bi_vcnt == 1 &&
-		    (*bio)->bi_io_vec[0].bv_len <= PAGE_SIZE) {
+		    ((*bio)->bi_io_vec[0].bv_len +
+		     (*bio)->bi_io_vec[0].bv_offset) <= PAGE_SIZE) {
 			*nr_segs = 1;
 			break;
 		}
