@@ -152,6 +152,10 @@ static void __j1939_priv_release(struct kref *kref)
 
 	netdev_dbg(priv->ndev, "%s: 0x%p\n", __func__, priv);
 
+	WARN_ON_ONCE(!list_empty(&priv->active_session_list));
+	WARN_ON_ONCE(!list_empty(&priv->ecus));
+	WARN_ON_ONCE(!list_empty(&priv->j1939_socks));
+
 	dev_put(ndev);
 	kfree(priv);
 }
