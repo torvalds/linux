@@ -10,6 +10,7 @@
 #include <crypto/internal/poly1305.h>
 #include <crypto/internal/simd.h>
 #include <linux/crypto.h>
+#include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <asm/simd.h>
@@ -21,7 +22,8 @@ asmlinkage void poly1305_2block_sse2(u32 *h, const u8 *src, const u32 *r,
 asmlinkage void poly1305_4block_avx2(u32 *h, const u8 *src, const u32 *r,
 				     unsigned int blocks, const u32 *u);
 
-static bool poly1305_use_avx2 __ro_after_init;
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(poly1305_use_simd);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(poly1305_use_avx2);
 
 static void poly1305_simd_mult(u32 *a, const u32 *b)
 {
@@ -64,7 +66,7 @@ static unsigned int poly1305_simd_blocks(struct poly1305_desc_ctx *dctx,
 	}
 
 	if (IS_ENABLED(CONFIG_AS_AVX2) &&
-	    poly1305_use_avx2 &&
+	    static_branch_likely(&poly1305_use_avx2) &&
 	    srclen >= POLY1305_BLOCK_SIZE * 4) {
 		if (unlikely(dctx->rset < 4)) {
 			if (dctx->rset < 2) {
@@ -103,10 +105,15 @@ static unsigned int poly1305_simd_blocks(struct poly1305_desc_ctx *dctx,
 	return srclen;
 }
 
-static int poly1305_simd_update(struct shash_desc *desc,
-				const u8 *src, unsigned int srclen)
+void poly1305_init_arch(struct poly1305_desc_ctx *desc, const u8 *key)
 {
-	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
+	poly1305_init_generic(desc, key);
+}
+EXPORT_SYMBOL(poly1305_init_arch);
+
+void poly1305_update_arch(struct poly1305_desc_ctx *dctx, const u8 *src,
+			  unsigned int srclen)
+{
 	unsigned int bytes;
 
 	if (unlikely(dctx->buflen)) {
@@ -117,7 +124,8 @@ static int poly1305_simd_update(struct shash_desc *desc,
 		dctx->buflen += bytes;
 
 		if (dctx->buflen == POLY1305_BLOCK_SIZE) {
-			if (likely(crypto_simd_usable())) {
+			if (static_branch_likely(&poly1305_use_simd) &&
+			    likely(crypto_simd_usable())) {
 				kernel_fpu_begin();
 				poly1305_simd_blocks(dctx, dctx->buf,
 						     POLY1305_BLOCK_SIZE);
@@ -131,7 +139,8 @@ static int poly1305_simd_update(struct shash_desc *desc,
 	}
 
 	if (likely(srclen >= POLY1305_BLOCK_SIZE)) {
-		if (likely(crypto_simd_usable())) {
+		if (static_branch_likely(&poly1305_use_simd) &&
+		    likely(crypto_simd_usable())) {
 			kernel_fpu_begin();
 			bytes = poly1305_simd_blocks(dctx, src, srclen);
 			kernel_fpu_end();
@@ -147,6 +156,13 @@ static int poly1305_simd_update(struct shash_desc *desc,
 		memcpy(dctx->buf, src, srclen);
 	}
 }
+EXPORT_SYMBOL(poly1305_update_arch);
+
+void poly1305_final_arch(struct poly1305_desc_ctx *desc, u8 *digest)
+{
+	poly1305_final_generic(desc, digest);
+}
+EXPORT_SYMBOL(poly1305_final_arch);
 
 static int crypto_poly1305_init(struct shash_desc *desc)
 {
@@ -171,6 +187,15 @@ static int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
 	return 0;
 }
 
+static int poly1305_simd_update(struct shash_desc *desc,
+				const u8 *src, unsigned int srclen)
+{
+	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
+
+	poly1305_update_arch(dctx, src, srclen);
+	return 0;
+}
+
 static struct shash_alg alg = {
 	.digestsize	= POLY1305_DIGEST_SIZE,
 	.init		= crypto_poly1305_init,
@@ -189,15 +214,15 @@ static struct shash_alg alg = {
 static int __init poly1305_simd_mod_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_XMM2))
-		return -ENODEV;
+		return 0;
 
-	poly1305_use_avx2 = IS_ENABLED(CONFIG_AS_AVX2) &&
-			    boot_cpu_has(X86_FEATURE_AVX) &&
-			    boot_cpu_has(X86_FEATURE_AVX2) &&
-			    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
-	alg.descsize = sizeof(struct poly1305_desc_ctx) + 5 * sizeof(u32);
-	if (poly1305_use_avx2)
-		alg.descsize += 10 * sizeof(u32);
+	static_branch_enable(&poly1305_use_simd);
+
+	if (IS_ENABLED(CONFIG_AS_AVX2) &&
+	    boot_cpu_has(X86_FEATURE_AVX) &&
+	    boot_cpu_has(X86_FEATURE_AVX2) &&
+	    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL))
+		static_branch_enable(&poly1305_use_avx2);
 
 	return crypto_register_shash(&alg);
 }
