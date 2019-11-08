@@ -254,7 +254,7 @@ xfs_attr_node_list_lookup(
 		else
 			expected_level--;
 
-		btree = dp->d_ops->node_tree_p(node);
+		btree = nodehdr.btree;
 		for (i = 0; i < nodehdr.count; btree++, i++) {
 			if (cursor->hashval <= be32_to_cpu(btree->hashval)) {
 				cursor->blkno = be32_to_cpu(btree->before);

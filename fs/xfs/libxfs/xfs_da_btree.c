@@ -124,6 +124,7 @@ xfs_da3_node_hdr_from_disk(
 		to->magic = be16_to_cpu(from3->hdr.info.hdr.magic);
 		to->count = be16_to_cpu(from3->hdr.__count);
 		to->level = be16_to_cpu(from3->hdr.__level);
+		to->btree = from3->__btree;
 		ASSERT(to->magic == XFS_DA3_NODE_MAGIC);
 	} else {
 		to->forw = be32_to_cpu(from->hdr.info.forw);
@@ -131,6 +132,7 @@ xfs_da3_node_hdr_from_disk(
 		to->magic = be16_to_cpu(from->hdr.info.magic);
 		to->count = be16_to_cpu(from->hdr.__count);
 		to->level = be16_to_cpu(from->hdr.__level);
+		to->btree = from->__btree;
 		ASSERT(to->magic == XFS_DA_NODE_MAGIC);
 	}
 }
@@ -627,7 +629,7 @@ xfs_da3_root_split(
 		struct xfs_da3_icnode_hdr icnodehdr;
 
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &icnodehdr, oldroot);
-		btree = dp->d_ops->node_tree_p(oldroot);
+		btree = icnodehdr.btree;
 		size = (int)((char *)&btree[icnodehdr.count] - (char *)oldroot);
 		level = icnodehdr.level;
 
@@ -687,7 +689,7 @@ xfs_da3_root_split(
 
 	node = bp->b_addr;
 	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-	btree = dp->d_ops->node_tree_p(node);
+	btree = nodehdr.btree;
 	btree[0].hashval = cpu_to_be32(blk1->hashval);
 	btree[0].before = cpu_to_be32(blk1->blkno);
 	btree[1].hashval = cpu_to_be32(blk2->hashval);
@@ -839,8 +841,8 @@ xfs_da3_node_rebalance(
 	node2 = blk2->bp->b_addr;
 	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr1, node1);
 	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr2, node2);
-	btree1 = dp->d_ops->node_tree_p(node1);
-	btree2 = dp->d_ops->node_tree_p(node2);
+	btree1 = nodehdr1.btree;
+	btree2 = nodehdr2.btree;
 
 	/*
 	 * Figure out how many entries need to move, and in which direction.
@@ -855,8 +857,8 @@ xfs_da3_node_rebalance(
 		node2 = tmpnode;
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr1, node1);
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr2, node2);
-		btree1 = dp->d_ops->node_tree_p(node1);
-		btree2 = dp->d_ops->node_tree_p(node2);
+		btree1 = nodehdr1.btree;
+		btree2 = nodehdr2.btree;
 		swap = 1;
 	}
 
@@ -937,8 +939,8 @@ xfs_da3_node_rebalance(
 		node2 = blk2->bp->b_addr;
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr1, node1);
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr2, node2);
-		btree1 = dp->d_ops->node_tree_p(node1);
-		btree2 = dp->d_ops->node_tree_p(node2);
+		btree1 = nodehdr1.btree;
+		btree2 = nodehdr2.btree;
 	}
 	blk1->hashval = be32_to_cpu(btree1[nodehdr1.count - 1].hashval);
 	blk2->hashval = be32_to_cpu(btree2[nodehdr2.count - 1].hashval);
@@ -971,7 +973,7 @@ xfs_da3_node_add(
 
 	node = oldblk->bp->b_addr;
 	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-	btree = dp->d_ops->node_tree_p(node);
+	btree = nodehdr.btree;
 
 	ASSERT(oldblk->index >= 0 && oldblk->index <= nodehdr.count);
 	ASSERT(newblk->blkno != 0);
@@ -1131,7 +1133,6 @@ xfs_da3_root_join(
 	xfs_dablk_t		child;
 	struct xfs_buf		*bp;
 	struct xfs_da3_icnode_hdr oldroothdr;
-	struct xfs_da_node_entry *btree;
 	int			error;
 	struct xfs_inode	*dp = state->args->dp;
 
@@ -1155,8 +1156,7 @@ xfs_da3_root_join(
 	 * Read in the (only) child block, then copy those bytes into
 	 * the root block's buffer and free the original child block.
 	 */
-	btree = dp->d_ops->node_tree_p(oldroot);
-	child = be32_to_cpu(btree[0].before);
+	child = be32_to_cpu(oldroothdr.btree[0].before);
 	ASSERT(child != 0);
 	error = xfs_da3_node_read(args->trans, dp, child, -1, &bp,
 					     args->whichfork);
@@ -1321,18 +1321,14 @@ xfs_da3_node_lasthash(
 	struct xfs_buf		*bp,
 	int			*count)
 {
-	struct xfs_da_intnode	 *node;
-	struct xfs_da_node_entry *btree;
 	struct xfs_da3_icnode_hdr nodehdr;
 
-	node = bp->b_addr;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
+	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, bp->b_addr);
 	if (count)
 		*count = nodehdr.count;
 	if (!nodehdr.count)
 		return 0;
-	btree = dp->d_ops->node_tree_p(node);
-	return be32_to_cpu(btree[nodehdr.count - 1].hashval);
+	return be32_to_cpu(nodehdr.btree[nodehdr.count - 1].hashval);
 }
 
 /*
@@ -1378,7 +1374,7 @@ xfs_da3_fixhashpath(
 
 		node = blk->bp->b_addr;
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-		btree = dp->d_ops->node_tree_p(node);
+		btree = nodehdr.btree;
 		if (be32_to_cpu(btree[blk->index].hashval) == lasthash)
 			break;
 		blk->hashval = lasthash;
@@ -1417,7 +1413,7 @@ xfs_da3_node_remove(
 	 * Copy over the offending entry, or just zero it out.
 	 */
 	index = drop_blk->index;
-	btree = dp->d_ops->node_tree_p(node);
+	btree = nodehdr.btree;
 	if (index < nodehdr.count - 1) {
 		tmp  = nodehdr.count - index - 1;
 		tmp *= (uint)sizeof(xfs_da_node_entry_t);
@@ -1467,8 +1463,8 @@ xfs_da3_node_unbalance(
 	save_node = save_blk->bp->b_addr;
 	xfs_da3_node_hdr_from_disk(dp->i_mount, &drop_hdr, drop_node);
 	xfs_da3_node_hdr_from_disk(dp->i_mount, &save_hdr, save_node);
-	drop_btree = dp->d_ops->node_tree_p(drop_node);
-	save_btree = dp->d_ops->node_tree_p(save_node);
+	drop_btree = drop_hdr.btree;
+	save_btree = save_hdr.btree;
 	tp = state->args->trans;
 
 	/*
@@ -1602,7 +1598,7 @@ xfs_da3_node_lookup_int(
 		 */
 		node = blk->bp->b_addr;
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-		btree = dp->d_ops->node_tree_p(node);
+		btree = nodehdr.btree;
 
 		/* Tree taller than we can handle; bail out! */
 		if (nodehdr.level >= XFS_DA_NODE_MAXDEPTH) {
@@ -1739,8 +1735,8 @@ xfs_da3_node_order(
 	node2 = node2_bp->b_addr;
 	xfs_da3_node_hdr_from_disk(dp->i_mount, &node1hdr, node1);
 	xfs_da3_node_hdr_from_disk(dp->i_mount, &node2hdr, node2);
-	btree1 = dp->d_ops->node_tree_p(node1);
-	btree2 = dp->d_ops->node_tree_p(node2);
+	btree1 = node1hdr.btree;
+	btree2 = node2hdr.btree;
 
 	if (node1hdr.count > 0 && node2hdr.count > 0 &&
 	    ((be32_to_cpu(btree2[0].hashval) < be32_to_cpu(btree1[0].hashval)) ||
@@ -1937,7 +1933,6 @@ xfs_da3_path_shift(
 {
 	struct xfs_da_state_blk	*blk;
 	struct xfs_da_blkinfo	*info;
-	struct xfs_da_intnode	*node;
 	struct xfs_da_args	*args;
 	struct xfs_da_node_entry *btree;
 	struct xfs_da3_icnode_hdr nodehdr;
@@ -1960,17 +1955,16 @@ xfs_da3_path_shift(
 	ASSERT((path->active > 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	level = (path->active-1) - 1;	/* skip bottom layer in path */
 	for (blk = &path->blk[level]; level >= 0; blk--, level--) {
-		node = blk->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-		btree = dp->d_ops->node_tree_p(node);
+		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr,
+					   blk->bp->b_addr);
 
 		if (forward && (blk->index < nodehdr.count - 1)) {
 			blk->index++;
-			blkno = be32_to_cpu(btree[blk->index].before);
+			blkno = be32_to_cpu(nodehdr.btree[blk->index].before);
 			break;
 		} else if (!forward && (blk->index > 0)) {
 			blk->index--;
-			blkno = be32_to_cpu(btree[blk->index].before);
+			blkno = be32_to_cpu(nodehdr.btree[blk->index].before);
 			break;
 		}
 	}
@@ -2021,9 +2015,9 @@ xfs_da3_path_shift(
 		case XFS_DA_NODE_MAGIC:
 		case XFS_DA3_NODE_MAGIC:
 			blk->magic = XFS_DA_NODE_MAGIC;
-			node = (xfs_da_intnode_t *)info;
-			xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-			btree = dp->d_ops->node_tree_p(node);
+			xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr,
+						   bp->b_addr);
+			btree = nodehdr.btree;
 			blk->hashval = be32_to_cpu(btree[nodehdr.count - 1].hashval);
 			if (forward)
 				blk->index = 0;
@@ -2308,7 +2302,7 @@ xfs_da3_swap_lastblock(
 
 		dead_node = (xfs_da_intnode_t *)dead_info;
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &deadhdr, dead_node);
-		btree = dp->d_ops->node_tree_p(dead_node);
+		btree = deadhdr.btree;
 		dead_level = deadhdr.level;
 		dead_hash = be32_to_cpu(btree[deadhdr.count - 1].hashval);
 	}
@@ -2375,7 +2369,7 @@ xfs_da3_swap_lastblock(
 			goto done;
 		}
 		level = par_hdr.level;
-		btree = dp->d_ops->node_tree_p(par_node);
+		btree = par_hdr.btree;
 		for (entno = 0;
 		     entno < par_hdr.count &&
 		     be32_to_cpu(btree[entno].hashval) < dead_hash;
@@ -2425,7 +2419,7 @@ xfs_da3_swap_lastblock(
 			error = -EFSCORRUPTED;
 			goto done;
 		}
-		btree = dp->d_ops->node_tree_p(par_node);
+		btree = par_hdr.btree;
 		entno = 0;
 	}
 	/*

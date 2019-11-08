@@ -83,11 +83,12 @@ xchk_da_btree_node_entry(
 	int				level)
 {
 	struct xfs_da_state_blk		*blk = &ds->state->path.blk[level];
+	struct xfs_da3_icnode_hdr	hdr;
 
 	ASSERT(blk->magic == XFS_DA_NODE_MAGIC);
 
-	return (void *)ds->dargs.dp->d_ops->node_tree_p(blk->bp->b_addr) +
-		(blk->index * sizeof(struct xfs_da_node_entry));
+	xfs_da3_node_hdr_from_disk(ds->sc->mp, &hdr, blk->bp->b_addr);
+	return hdr.btree + blk->index;
 }
 
 /* Scrub a da btree hash (key). */
@@ -409,7 +410,7 @@ xchk_da_btree_block(
 		blk->magic = XFS_DA_NODE_MAGIC;
 		node = blk->bp->b_addr;
 		xfs_da3_node_hdr_from_disk(ip->i_mount, &nodehdr, node);
-		btree = ip->d_ops->node_tree_p(node);
+		btree = nodehdr.btree;
 		*pmaxrecs = nodehdr.count;
 		blk->hashval = be32_to_cpu(btree[*pmaxrecs - 1].hashval);
 		if (level == 0) {

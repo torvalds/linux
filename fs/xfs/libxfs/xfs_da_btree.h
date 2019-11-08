@@ -135,6 +135,12 @@ struct xfs_da3_icnode_hdr {
 	uint16_t		magic;
 	uint16_t		count;
 	uint16_t		level;
+
+	/*
+	 * Pointer to the on-disk format entries, which are behind the
+	 * variable size (v4 vs v5) header in the on-disk block.
+	 */
+	struct xfs_da_node_entry *btree;
 };
 
 /*
