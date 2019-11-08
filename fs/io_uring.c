@@ -204,6 +204,7 @@ struct io_ring_ctx {
 		unsigned		sq_mask;
 		unsigned		sq_thread_idle;
 		unsigned		cached_sq_dropped;
+		atomic_t		cached_cq_overflow;
 		struct io_uring_sqe	*sq_sqes;
 
 		struct list_head	defer_list;
@@ -213,25 +214,13 @@ struct io_ring_ctx {
 		wait_queue_head_t	inflight_wait;
 	} ____cacheline_aligned_in_smp;
 
+	struct io_rings	*rings;
+
 	/* IO offload */
 	struct io_wq		*io_wq;
 	struct task_struct	*sqo_thread;	/* if using sq thread polling */
 	struct mm_struct	*sqo_mm;
 	wait_queue_head_t	sqo_wait;
-	struct completion	sqo_thread_started;
-
-	struct {
-		unsigned		cached_cq_tail;
-		atomic_t		cached_cq_overflow;
-		unsigned		cq_entries;
-		unsigned		cq_mask;
-		struct wait_queue_head	cq_wait;
-		struct fasync_struct	*cq_fasync;
-		struct eventfd_ctx	*cq_ev_fd;
-		atomic_t		cq_timeouts;
-	} ____cacheline_aligned_in_smp;
-
-	struct io_rings	*rings;
 
 	/*
 	 * If used, fixed file set. Writers must ensure that ->refs is dead,
@@ -247,7 +236,22 @@ struct io_ring_ctx {
 
 	struct user_struct	*user;
 
-	struct completion	ctx_done;
+	/* 0 is for ctx quiesce/reinit/free, 1 is for sqo_thread started */
+	struct completion	*completions;
+
+#if defined(CONFIG_UNIX)
+	struct socket		*ring_sock;
+#endif
+
+	struct {
+		unsigned		cached_cq_tail;
+		unsigned		cq_entries;
+		unsigned		cq_mask;
+		atomic_t		cq_timeouts;
+		struct wait_queue_head	cq_wait;
+		struct fasync_struct	*cq_fasync;
+		struct eventfd_ctx	*cq_ev_fd;
+	} ____cacheline_aligned_in_smp;
 
 	struct {
 		struct mutex		uring_lock;
@@ -269,10 +273,6 @@ struct io_ring_ctx {
 		spinlock_t		inflight_lock;
 		struct list_head	inflight_list;
 	} ____cacheline_aligned_in_smp;
-
-#if defined(CONFIG_UNIX)
-	struct socket		*ring_sock;
-#endif
 };
 
 struct sqe_submit {
@@ -397,7 +397,7 @@ static void io_ring_ctx_ref_free(struct percpu_ref *ref)
 {
 	struct io_ring_ctx *ctx = container_of(ref, struct io_ring_ctx, refs);
 
-	complete(&ctx->ctx_done);
+	complete(&ctx->completions[0]);
 }
 
 static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
@@ -408,17 +408,19 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	if (!ctx)
 		return NULL;
 
+	ctx->completions = kmalloc(2 * sizeof(struct completion), GFP_KERNEL);
+	if (!ctx->completions)
+		goto err;
+
 	if (percpu_ref_init(&ctx->refs, io_ring_ctx_ref_free,
-			    PERCPU_REF_ALLOW_REINIT, GFP_KERNEL)) {
-		kfree(ctx);
-		return NULL;
-	}
+			    PERCPU_REF_ALLOW_REINIT, GFP_KERNEL))
+		goto err;
 
 	ctx->flags = p->flags;
 	init_waitqueue_head(&ctx->cq_wait);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
-	init_completion(&ctx->ctx_done);
-	init_completion(&ctx->sqo_thread_started);
+	init_completion(&ctx->completions[0]);
+	init_completion(&ctx->completions[1]);
 	mutex_init(&ctx->uring_lock);
 	init_waitqueue_head(&ctx->wait);
 	spin_lock_init(&ctx->completion_lock);
@@ -430,6 +432,10 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	spin_lock_init(&ctx->inflight_lock);
 	INIT_LIST_HEAD(&ctx->inflight_list);
 	return ctx;
+err:
+	kfree(ctx->completions);
+	kfree(ctx);
+	return NULL;
 }
 
 static inline bool __io_sequence_defer(struct io_ring_ctx *ctx,
@@ -3046,7 +3052,7 @@ static int io_sq_thread(void *data)
 	unsigned inflight;
 	unsigned long timeout;
 
-	complete(&ctx->sqo_thread_started);
+	complete(&ctx->completions[1]);
 
 	old_fs = get_fs();
 	set_fs(USER_DS);
@@ -3286,7 +3292,7 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 static void io_sq_thread_stop(struct io_ring_ctx *ctx)
 {
 	if (ctx->sqo_thread) {
-		wait_for_completion(&ctx->sqo_thread_started);
+		wait_for_completion(&ctx->completions[1]);
 		/*
 		 * The park is a bit of a work-around, without it we get
 		 * warning spews on shutdown with SQPOLL set and affinity
@@ -4108,6 +4114,7 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 		io_unaccount_mem(ctx->user,
 				ring_pages(ctx->sq_entries, ctx->cq_entries));
 	free_uid(ctx->user);
+	kfree(ctx->completions);
 	kfree(ctx);
 }
 
@@ -4152,7 +4159,7 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 
 	io_iopoll_reap_events(ctx);
 	io_cqring_overflow_flush(ctx, true);
-	wait_for_completion(&ctx->ctx_done);
+	wait_for_completion(&ctx->completions[0]);
 	io_ring_ctx_free(ctx);
 }
 
@@ -4555,7 +4562,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	 * no new references will come in after we've killed the percpu ref.
 	 */
 	mutex_unlock(&ctx->uring_lock);
-	wait_for_completion(&ctx->ctx_done);
+	wait_for_completion(&ctx->completions[0]);
 	mutex_lock(&ctx->uring_lock);
 
 	switch (opcode) {
@@ -4598,7 +4605,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	}
 
 	/* bring the ctx back to life */
-	reinit_completion(&ctx->ctx_done);
+	reinit_completion(&ctx->completions[0]);
 	percpu_ref_reinit(&ctx->refs);
 	return ret;
 }
