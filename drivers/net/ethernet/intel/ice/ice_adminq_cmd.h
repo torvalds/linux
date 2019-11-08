@@ -742,6 +742,10 @@ struct ice_aqc_add_elem {
 	struct ice_aqc_txsched_elem_data generic[1];
 };
 
+struct ice_aqc_conf_elem {
+	struct ice_aqc_txsched_elem_data generic[1];
+};
+
 struct ice_aqc_get_elem {
 	struct ice_aqc_txsched_elem_data generic[1];
 };
@@ -781,6 +785,44 @@ struct ice_aqc_port_ets_elem {
 #define ICE_TC_NODE_PRIO_S	0x4
 	u8 reserved1[4];
 	__le32 tc_node_teid[8]; /* Used for response, reserved in command */
+};
+
+/* Rate limiting profile for
+ * Add RL profile (indirect 0x0410)
+ * Query RL profile (indirect 0x0411)
+ * Remove RL profile (indirect 0x0415)
+ * These indirect commands acts on single or multiple
+ * RL profiles with specified data.
+ */
+struct ice_aqc_rl_profile {
+	__le16 num_profiles;
+	__le16 num_processed; /* Only for response. Reserved in Command. */
+	u8 reserved[4];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+struct ice_aqc_rl_profile_elem {
+	u8 level;
+	u8 flags;
+#define ICE_AQC_RL_PROFILE_TYPE_S	0x0
+#define ICE_AQC_RL_PROFILE_TYPE_M	(0x3 << ICE_AQC_RL_PROFILE_TYPE_S)
+#define ICE_AQC_RL_PROFILE_TYPE_CIR	0
+#define ICE_AQC_RL_PROFILE_TYPE_EIR	1
+#define ICE_AQC_RL_PROFILE_TYPE_SRL	2
+/* The following flag is used for Query RL Profile Data */
+#define ICE_AQC_RL_PROFILE_INVAL_S	0x7
+#define ICE_AQC_RL_PROFILE_INVAL_M	(0x1 << ICE_AQC_RL_PROFILE_INVAL_S)
+
+	__le16 profile_id;
+	__le16 max_burst_size;
+	__le16 rl_multiply;
+	__le16 wake_up_calc;
+	__le16 rl_encode;
+};
+
+struct ice_aqc_rl_profile_generic_elem {
+	struct ice_aqc_rl_profile_elem generic[1];
 };
 
 /* Query Scheduler Resource Allocation (indirect 0x0412)
@@ -1657,6 +1699,7 @@ struct ice_aq_desc {
 		struct ice_aqc_sched_elem_cmd sched_elem_cmd;
 		struct ice_aqc_query_txsched_res query_sched_res;
 		struct ice_aqc_query_port_ets port_ets;
+		struct ice_aqc_rl_profile rl_profile;
 		struct ice_aqc_nvm nvm;
 		struct ice_aqc_nvm_checksum nvm_checksum;
 		struct ice_aqc_pf_vf_msg virt;
@@ -1758,12 +1801,15 @@ enum ice_adminq_opc {
 	/* transmit scheduler commands */
 	ice_aqc_opc_get_dflt_topo			= 0x0400,
 	ice_aqc_opc_add_sched_elems			= 0x0401,
+	ice_aqc_opc_cfg_sched_elems			= 0x0403,
 	ice_aqc_opc_get_sched_elems			= 0x0404,
 	ice_aqc_opc_suspend_sched_elems			= 0x0409,
 	ice_aqc_opc_resume_sched_elems			= 0x040A,
 	ice_aqc_opc_query_port_ets			= 0x040E,
 	ice_aqc_opc_delete_sched_elems			= 0x040F,
+	ice_aqc_opc_add_rl_profiles			= 0x0410,
 	ice_aqc_opc_query_sched_res			= 0x0412,
+	ice_aqc_opc_remove_rl_profiles			= 0x0415,
 
 	/* PHY commands */
 	ice_aqc_opc_get_phy_caps			= 0x0600,

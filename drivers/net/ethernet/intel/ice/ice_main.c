@@ -9,6 +9,7 @@
 #include "ice_base.h"
 #include "ice_lib.h"
 #include "ice_dcb_lib.h"
+#include "ice_dcb_nl.h"
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 8
@@ -436,42 +437,11 @@ static void ice_sync_fltr_subtask(struct ice_pf *pf)
 }
 
 /**
- * ice_dis_vsi - pause a VSI
- * @vsi: the VSI being paused
- * @locked: is the rtnl_lock already held
- */
-static void ice_dis_vsi(struct ice_vsi *vsi, bool locked)
-{
-	if (test_bit(__ICE_DOWN, vsi->state))
-		return;
-
-	set_bit(__ICE_NEEDS_RESTART, vsi->state);
-
-	if (vsi->type == ICE_VSI_PF && vsi->netdev) {
-		if (netif_running(vsi->netdev)) {
-			if (!locked)
-				rtnl_lock();
-
-			ice_stop(vsi->netdev);
-
-			if (!locked)
-				rtnl_unlock();
-		} else {
-			ice_vsi_close(vsi);
-		}
-	}
-}
-
-/**
  * ice_pf_dis_all_vsi - Pause all VSIs on a PF
  * @pf: the PF
  * @locked: is the rtnl_lock already held
  */
-#ifdef CONFIG_DCB
-void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked)
-#else
 static void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked)
-#endif /* CONFIG_DCB */
 {
 	int v;
 
@@ -2547,6 +2517,9 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 	/* netdev has to be configured before setting frame size */
 	ice_vsi_cfg_frame_size(vsi);
 
+	/* Setup DCB netlink interface */
+	ice_dcbnl_setup(vsi);
+
 	/* registering the NAPI handler requires both the queues and
 	 * netdev to be created, which are done in ice_pf_vsi_setup()
 	 * and ice_cfg_netdev() respectively
@@ -2627,6 +2600,7 @@ static void ice_deinit_pf(struct ice_pf *pf)
 {
 	ice_service_task_stop(pf);
 	mutex_destroy(&pf->sw_mutex);
+	mutex_destroy(&pf->tc_mutex);
 	mutex_destroy(&pf->avail_q_mutex);
 
 	if (pf->avail_txqs) {
@@ -2676,6 +2650,7 @@ static int ice_init_pf(struct ice_pf *pf)
 	ice_set_pf_caps(pf);
 
 	mutex_init(&pf->sw_mutex);
+	mutex_init(&pf->tc_mutex);
 
 	/* setup service timer and periodic service task */
 	timer_setup(&pf->serv_tmr, ice_service_timer, 0);
@@ -2925,7 +2900,7 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 				ICE_PKG_SUPP_VER_MAJ, ICE_PKG_SUPP_VER_MNR);
 		break;
 	case ICE_ERR_AQ_ERROR:
-		switch (hw->adminq.sq_last_status) {
+		switch (hw->pkg_dwnld_status) {
 		case ICE_AQ_RC_ENOSEC:
 		case ICE_AQ_RC_EBADSIG:
 			dev_err(dev,
@@ -3680,6 +3655,48 @@ static void ice_set_rx_mode(struct net_device *netdev)
 }
 
 /**
+ * ice_set_tx_maxrate - NDO callback to set the maximum per-queue bitrate
+ * @netdev: network interface device structure
+ * @queue_index: Queue ID
+ * @maxrate: maximum bandwidth in Mbps
+ */
+static int
+ice_set_tx_maxrate(struct net_device *netdev, int queue_index, u32 maxrate)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	enum ice_status status;
+	u16 q_handle;
+	u8 tc;
+
+	/* Validate maxrate requested is within permitted range */
+	if (maxrate && (maxrate > (ICE_SCHED_MAX_BW / 1000))) {
+		netdev_err(netdev,
+			   "Invalid max rate %d specified for the queue %d\n",
+			   maxrate, queue_index);
+		return -EINVAL;
+	}
+
+	q_handle = vsi->tx_rings[queue_index]->q_handle;
+	tc = ice_dcb_get_tc(vsi, queue_index);
+
+	/* Set BW back to default, when user set maxrate to 0 */
+	if (!maxrate)
+		status = ice_cfg_q_bw_dflt_lmt(vsi->port_info, vsi->idx, tc,
+					       q_handle, ICE_MAX_BW);
+	else
+		status = ice_cfg_q_bw_lmt(vsi->port_info, vsi->idx, tc,
+					  q_handle, ICE_MAX_BW, maxrate * 1000);
+	if (status) {
+		netdev_err(netdev,
+			   "Unable to set Tx max rate, error %d\n", status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/**
  * ice_fdb_add - add an entry to the hardware database
  * @ndm: the input from the stack
  * @tb: pointer to array of nladdr (unused)
@@ -3759,6 +3776,7 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
 	int ret = 0;
 
 	/* Don't set any netdev advanced features with device in Safe Mode */
@@ -3766,6 +3784,13 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 		dev_err(&vsi->back->pdev->dev,
 			"Device is in Safe Mode - not enabling advanced netdev features\n");
 		return ret;
+	}
+
+	/* Do not change setting during reset */
+	if (ice_is_reset_in_progress(pf->state)) {
+		dev_err(&vsi->back->pdev->dev,
+			"Device is resetting, changing advanced netdev features temporarily unavailable.\n");
+		return -EBUSY;
 	}
 
 	/* Multiple features can be changed in one call so keep features in
@@ -4441,54 +4466,6 @@ static void ice_vsi_release_all(struct ice_pf *pf)
 }
 
 /**
- * ice_ena_vsi - resume a VSI
- * @vsi: the VSI being resume
- * @locked: is the rtnl_lock already held
- */
-static int ice_ena_vsi(struct ice_vsi *vsi, bool locked)
-{
-	int err = 0;
-
-	if (!test_bit(__ICE_NEEDS_RESTART, vsi->state))
-		return 0;
-
-	clear_bit(__ICE_NEEDS_RESTART, vsi->state);
-
-	if (vsi->netdev && vsi->type == ICE_VSI_PF) {
-		if (netif_running(vsi->netdev)) {
-			if (!locked)
-				rtnl_lock();
-
-			err = ice_open(vsi->netdev);
-
-			if (!locked)
-				rtnl_unlock();
-		}
-	}
-
-	return err;
-}
-
-/**
- * ice_pf_ena_all_vsi - Resume all VSIs on a PF
- * @pf: the PF
- * @locked: is the rtnl_lock already held
- */
-#ifdef CONFIG_DCB
-int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked)
-{
-	int v;
-
-	ice_for_each_vsi(pf, v)
-		if (pf->vsi[v])
-			if (ice_ena_vsi(pf->vsi[v], locked))
-				return -EIO;
-
-	return 0;
-}
-#endif /* CONFIG_DCB */
-
-/**
  * ice_vsi_rebuild_by_type - Rebuild VSI of a given type
  * @pf: pointer to the PF instance
  * @type: VSI type to rebuild
@@ -4510,8 +4487,8 @@ static int ice_vsi_rebuild_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 		err = ice_vsi_rebuild(vsi);
 		if (err) {
 			dev_err(&pf->pdev->dev,
-				"rebuild VSI failed, err %d, VSI index %d, type %d\n",
-				err, vsi->idx, type);
+				"rebuild VSI failed, err %d, VSI index %d, type %s\n",
+				err, vsi->idx, ice_vsi_type_str(type));
 			return err;
 		}
 
@@ -4519,8 +4496,8 @@ static int ice_vsi_rebuild_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 		status = ice_replay_vsi(&pf->hw, vsi->idx);
 		if (status) {
 			dev_err(&pf->pdev->dev,
-				"replay VSI failed, status %d, VSI index %d, type %d\n",
-				status, vsi->idx, type);
+				"replay VSI failed, status %d, VSI index %d, type %s\n",
+				status, vsi->idx, ice_vsi_type_str(type));
 			return -EIO;
 		}
 
@@ -4533,13 +4510,13 @@ static int ice_vsi_rebuild_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 		err = ice_ena_vsi(vsi, false);
 		if (err) {
 			dev_err(&pf->pdev->dev,
-				"enable VSI failed, err %d, VSI index %d, type %d\n",
-				err, vsi->idx, type);
+				"enable VSI failed, err %d, VSI index %d, type %s\n",
+				err, vsi->idx, ice_vsi_type_str(type));
 			return err;
 		}
 
-		dev_info(&pf->pdev->dev, "VSI rebuilt. VSI index %d, type %d\n",
-			 vsi->idx, type);
+		dev_info(&pf->pdev->dev, "VSI rebuilt. VSI index %d, type %s\n",
+			 vsi->idx, ice_vsi_type_str(type));
 	}
 
 	return 0;
@@ -5238,6 +5215,7 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = ice_change_mtu,
 	.ndo_get_stats64 = ice_get_stats64,
+	.ndo_set_tx_maxrate = ice_set_tx_maxrate,
 	.ndo_set_vf_spoofchk = ice_set_vf_spoofchk,
 	.ndo_set_vf_mac = ice_set_vf_mac,
 	.ndo_get_vf_config = ice_get_vf_cfg,

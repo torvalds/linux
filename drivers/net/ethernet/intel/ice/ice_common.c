@@ -855,6 +855,9 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 		goto err_unroll_sched;
 	}
 	INIT_LIST_HEAD(&hw->agg_list);
+	/* Initialize max burst size */
+	if (!hw->max_burst_size)
+		ice_cfg_rl_burst_size(hw, ICE_SCHED_DFLT_BURST_SIZE);
 
 	status = ice_init_fltr_mgmt_struct(hw);
 	if (status)
@@ -1247,56 +1250,6 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 	ICE_CTX_STORE(ice_tlan_ctx, int_q_state,		122,	171),
 	{ 0 }
 };
-
-/**
- * ice_debug_cq
- * @hw: pointer to the hardware structure
- * @mask: debug mask
- * @desc: pointer to control queue descriptor
- * @buf: pointer to command buffer
- * @buf_len: max length of buf
- *
- * Dumps debug log about control command with descriptor contents.
- */
-void
-ice_debug_cq(struct ice_hw *hw, u32 __maybe_unused mask, void *desc, void *buf,
-	     u16 buf_len)
-{
-	struct ice_aq_desc *cq_desc = (struct ice_aq_desc *)desc;
-	u16 len;
-
-#ifndef CONFIG_DYNAMIC_DEBUG
-	if (!(mask & hw->debug_mask))
-		return;
-#endif
-
-	if (!desc)
-		return;
-
-	len = le16_to_cpu(cq_desc->datalen);
-
-	ice_debug(hw, mask,
-		  "CQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
-		  le16_to_cpu(cq_desc->opcode),
-		  le16_to_cpu(cq_desc->flags),
-		  le16_to_cpu(cq_desc->datalen), le16_to_cpu(cq_desc->retval));
-	ice_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
-		  le32_to_cpu(cq_desc->cookie_high),
-		  le32_to_cpu(cq_desc->cookie_low));
-	ice_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
-		  le32_to_cpu(cq_desc->params.generic.param0),
-		  le32_to_cpu(cq_desc->params.generic.param1));
-	ice_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
-		  le32_to_cpu(cq_desc->params.generic.addr_high),
-		  le32_to_cpu(cq_desc->params.generic.addr_low));
-	if (buf && cq_desc->datalen != 0) {
-		ice_debug(hw, mask, "Buffer:\n");
-		if (buf_len < len)
-			len = buf_len;
-
-		ice_debug_array(hw, mask, 16, 1, (u8 *)buf, len);
-	}
-}
 
 /* FW Admin Queue command wrappers */
 
@@ -3260,7 +3213,7 @@ ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
  * @tc: TC number
  * @q_handle: software queue handle
  */
-static struct ice_q_ctx *
+struct ice_q_ctx *
 ice_get_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 q_handle)
 {
 	struct ice_vsi_ctx *vsi;
@@ -3357,9 +3310,12 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 	node.node_teid = buf->txqs[0].q_teid;
 	node.data.elem_type = ICE_AQC_ELEM_TYPE_LEAF;
 	q_ctx->q_handle = q_handle;
+	q_ctx->q_teid = le32_to_cpu(node.node_teid);
 
-	/* add a leaf node into schduler tree queue layer */
+	/* add a leaf node into scheduler tree queue layer */
 	status = ice_sched_add_node(pi, hw->num_tx_sched_layers - 1, &node);
+	if (!status)
+		status = ice_sched_replay_q_bw(pi, q_ctx);
 
 ena_txq_exit:
 	mutex_unlock(&pi->sched_lock);
