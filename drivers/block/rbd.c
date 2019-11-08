@@ -4837,11 +4837,14 @@ static void rbd_queue_workfn(struct work_struct *work)
 		goto err_rq;
 	}
 
-	if (op_type != OBJ_OP_READ && rbd_is_snap(rbd_dev)) {
-		rbd_warn(rbd_dev, "%s on read-only snapshot",
-			 obj_op_name(op_type));
-		result = -EIO;
-		goto err;
+	if (op_type != OBJ_OP_READ) {
+		if (rbd_is_ro(rbd_dev)) {
+			rbd_warn(rbd_dev, "%s on read-only mapping",
+				 obj_op_name(op_type));
+			result = -EIO;
+			goto err;
+		}
+		rbd_assert(!rbd_is_snap(rbd_dev));
 	}
 
 	/*
