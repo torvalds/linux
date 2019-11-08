@@ -43,8 +43,9 @@ void intel_gt_pm_fini(struct intel_gt *gt);
 
 void intel_gt_sanitize(struct intel_gt *gt, bool force);
 
+void intel_gt_suspend_prepare(struct intel_gt *gt);
+void intel_gt_suspend_late(struct intel_gt *gt);
 int intel_gt_resume(struct intel_gt *gt);
-void intel_gt_suspend(struct intel_gt *gt);
 
 void intel_gt_runtime_suspend(struct intel_gt *gt);
 int intel_gt_runtime_resume(struct intel_gt *gt);

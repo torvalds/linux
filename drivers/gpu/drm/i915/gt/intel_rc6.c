@@ -525,6 +525,11 @@ void intel_rc6_init(struct intel_rc6 *rc6)
 
 void intel_rc6_sanitize(struct intel_rc6 *rc6)
 {
+	if (rc6->enabled) { /* unbalanced suspend/resume */
+		rpm_get(rc6);
+		rc6->enabled = false;
+	}
+
 	if (rc6->supported)
 		__intel_rc6_disable(rc6);
 }

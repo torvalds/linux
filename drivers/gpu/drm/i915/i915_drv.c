@@ -603,8 +603,6 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_uncore;
 
-	i915_gem_init_mmio(dev_priv);
-
 	return 0;
 
 err_uncore:
@@ -1177,7 +1175,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_ggtt;
 
-	intel_gt_init_hw_early(dev_priv);
+	intel_gt_init_hw_early(&dev_priv->gt, &dev_priv->ggtt);
 
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret) {
@@ -1821,7 +1819,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
-	i915_gem_sanitize(dev_priv);
+	intel_gt_sanitize(&dev_priv->gt, true);
 
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret)
@@ -1951,8 +1949,6 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	intel_display_power_resume_early(dev_priv);
 
 	intel_power_domains_resume(dev_priv);
-
-	intel_gt_sanitize(&dev_priv->gt, true);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 

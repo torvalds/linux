@@ -11,58 +11,12 @@
 
 #include "i915_drv.h"
 
-static bool switch_to_kernel_context_sync(struct intel_gt *gt)
-{
-	bool result = !intel_gt_is_wedged(gt);
-
-	if (intel_gt_wait_for_idle(gt, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
-		/* XXX hide warning from gem_eio */
-		if (i915_modparams.reset) {
-			dev_err(gt->i915->drm.dev,
-				"Failed to idle engines, declaring wedged!\n");
-			GEM_TRACE_DUMP();
-		}
-
-		/*
-		 * Forcibly cancel outstanding work and leave
-		 * the gpu quiet.
-		 */
-		intel_gt_set_wedged(gt);
-		result = false;
-	}
-
-	if (intel_gt_pm_wait_for_idle(gt))
-		result = false;
-
-	return result;
-}
-
-static void user_forcewake(struct intel_gt *gt, bool suspend)
-{
-	int count = atomic_read(&gt->user_wakeref);
-
-	/* Inside suspend/resume so single threaded, no races to worry about. */
-	if (likely(!count))
-		return;
-
-	intel_gt_pm_get(gt);
-	if (suspend) {
-		GEM_BUG_ON(count > atomic_read(&gt->wakeref.count));
-		atomic_sub(count, &gt->wakeref.count);
-	} else {
-		atomic_add(count, &gt->wakeref.count);
-	}
-	intel_gt_pm_put(gt);
-}
-
 void i915_gem_suspend(struct drm_i915_private *i915)
 {
 	GEM_TRACE("\n");
 
 	intel_wakeref_auto(&i915->ggtt.userfault_wakeref, 0);
 	flush_workqueue(i915->wq);
-
-	user_forcewake(&i915->gt, true);
 
 	/*
 	 * We have to flush all the executing contexts to main memory so
@@ -73,8 +27,7 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	intel_gt_suspend(&i915->gt);
-	intel_uc_suspend(&i915->gt.uc);
+	intel_gt_suspend_prepare(&i915->gt);
 
 	i915_gem_drain_freed_objects(i915);
 }
@@ -116,6 +69,8 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 	 * machine in an unusable condition.
 	 */
 
+	intel_gt_suspend_late(&i915->gt);
+
 	spin_lock_irqsave(&i915->mm.obj_lock, flags);
 	for (phase = phases; *phase; phase++) {
 		LIST_HEAD(keep);
@@ -140,8 +95,6 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 		list_splice_tail(&keep, *phase);
 	}
 	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
-
-	i915_gem_sanitize(i915);
 }
 
 void i915_gem_resume(struct drm_i915_private *i915)
@@ -160,14 +113,6 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	 */
 	if (intel_gt_resume(&i915->gt))
 		goto err_wedged;
-
-	intel_uc_resume(&i915->gt.uc);
-
-	/* Always reload a context for powersaving. */
-	if (!switch_to_kernel_context_sync(&i915->gt))
-		goto err_wedged;
-
-	user_forcewake(&i915->gt, false);
 
 out_unlock:
 	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
