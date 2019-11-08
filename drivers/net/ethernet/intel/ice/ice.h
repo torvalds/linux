@@ -130,6 +130,8 @@ extern const char ice_drv_ver[];
 				     ICE_PROMISC_VLAN_TX  | \
 				     ICE_PROMISC_VLAN_RX)
 
+#define ice_pf_to_dev(pf) (&((pf)->pdev->dev))
+
 struct ice_txq_meta {
 	u32 q_teid;	/* Tx-scheduler element identifier */
 	u16 q_id;	/* Entry in VSI's txq_map bitmap */

@@ -101,7 +101,8 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, int v_idx)
 	struct ice_q_vector *q_vector;
 
 	/* allocate q_vector */
-	q_vector = devm_kzalloc(&pf->pdev->dev, sizeof(*q_vector), GFP_KERNEL);
+	q_vector = devm_kzalloc(ice_pf_to_dev(pf), sizeof(*q_vector),
+				GFP_KERNEL);
 	if (!q_vector)
 		return -ENOMEM;
 
@@ -138,10 +139,11 @@ static void ice_free_q_vector(struct ice_vsi *vsi, int v_idx)
 	struct ice_q_vector *q_vector;
 	struct ice_pf *pf = vsi->back;
 	struct ice_ring *ring;
+	struct device *dev;
 
+	dev = ice_pf_to_dev(pf);
 	if (!vsi->q_vectors[v_idx]) {
-		dev_dbg(&pf->pdev->dev, "Queue vector at index %d not found\n",
-			v_idx);
+		dev_dbg(dev, "Queue vector at index %d not found\n", v_idx);
 		return;
 	}
 	q_vector = vsi->q_vectors[v_idx];
@@ -155,7 +157,7 @@ static void ice_free_q_vector(struct ice_vsi *vsi, int v_idx)
 	if (vsi->netdev)
 		netif_napi_del(&q_vector->napi);
 
-	devm_kfree(&pf->pdev->dev, q_vector);
+	devm_kfree(dev, q_vector);
 	vsi->q_vectors[v_idx] = NULL;
 }
 
@@ -482,7 +484,7 @@ int ice_vsi_ctrl_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
 	/* wait for the change to finish */
 	ret = ice_pf_rxq_wait(pf, pf_q, ena);
 	if (ret)
-		dev_err(&pf->pdev->dev,
+		dev_err(ice_pf_to_dev(pf),
 			"VSI idx %d Rx ring %d %sable timeout\n",
 			vsi->idx, pf_q, (ena ? "en" : "dis"));
 
@@ -500,11 +502,12 @@ int ice_vsi_alloc_q_vectors(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	int v_idx = 0, num_q_vectors;
+	struct device *dev;
 	int err;
 
+	dev = ice_pf_to_dev(pf);
 	if (vsi->q_vectors[0]) {
-		dev_dbg(&pf->pdev->dev, "VSI %d has existing q_vectors\n",
-			vsi->vsi_num);
+		dev_dbg(dev, "VSI %d has existing q_vectors\n", vsi->vsi_num);
 		return -EEXIST;
 	}
 
@@ -522,8 +525,7 @@ err_out:
 	while (v_idx--)
 		ice_free_q_vector(vsi, v_idx);
 
-	dev_err(&pf->pdev->dev,
-		"Failed to allocate %d q_vector for VSI %d, ret=%d\n",
+	dev_err(dev, "Failed to allocate %d q_vector for VSI %d, ret=%d\n",
 		vsi->num_q_vectors, vsi->vsi_num, err);
 	vsi->num_q_vectors = 0;
 	return err;
@@ -640,7 +642,7 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring,
 	status = ice_ena_vsi_txq(vsi->port_info, vsi->idx, tc, ring->q_handle,
 				 1, qg_buf, buf_len, NULL);
 	if (status) {
-		dev_err(&pf->pdev->dev,
+		dev_err(ice_pf_to_dev(pf),
 			"Failed to set LAN Tx queue context, error: %d\n",
 			status);
 		return -ENODEV;

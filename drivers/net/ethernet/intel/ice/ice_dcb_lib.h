@@ -58,7 +58,7 @@ ice_dcb_get_tc(struct ice_vsi __always_unused *vsi,
 static inline int
 ice_init_pf_dcb(struct ice_pf *pf, bool __always_unused locked)
 {
-	dev_dbg(&pf->pdev->dev, "DCB not supported\n");
+	dev_dbg(ice_pf_to_dev(pf), "DCB not supported\n");
 	return -EOPNOTSUPP;
 }
 

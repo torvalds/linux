@@ -248,7 +248,7 @@ ice_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	int ret = 0;
 	u16 *buf;
 
-	dev = &pf->pdev->dev;
+	dev = ice_pf_to_dev(pf);
 
 	eeprom->magic = hw->vendor_id | (hw->device_id << 16);
 
@@ -343,6 +343,7 @@ static u64 ice_eeprom_test(struct net_device *netdev)
 static int ice_reg_pattern_test(struct ice_hw *hw, u32 reg, u32 mask)
 {
 	struct ice_pf *pf = (struct ice_pf *)hw->back;
+	struct device *dev = ice_pf_to_dev(pf);
 	static const u32 patterns[] = {
 		0x5A5A5A5A, 0xA5A5A5A5,
 		0x00000000, 0xFFFFFFFF
@@ -358,7 +359,7 @@ static int ice_reg_pattern_test(struct ice_hw *hw, u32 reg, u32 mask)
 		val = rd32(hw, reg);
 		if (val == pattern)
 			continue;
-		dev_err(&pf->pdev->dev,
+		dev_err(dev,
 			"%s: reg pattern test failed - reg 0x%08x pat 0x%08x val 0x%08x\n"
 			, __func__, reg, pattern, val);
 		return 1;
@@ -367,7 +368,7 @@ static int ice_reg_pattern_test(struct ice_hw *hw, u32 reg, u32 mask)
 	wr32(hw, reg, orig_val);
 	val = rd32(hw, reg);
 	if (val != orig_val) {
-		dev_err(&pf->pdev->dev,
+		dev_err(dev,
 			"%s: reg restore test failed - reg 0x%08x orig 0x%08x val 0x%08x\n"
 			, __func__, reg, orig_val, val);
 		return 1;
@@ -507,7 +508,7 @@ static int ice_lbtest_create_frame(struct ice_pf *pf, u8 **ret_data, u16 size)
 	if (!pf)
 		return -EINVAL;
 
-	data = devm_kzalloc(&pf->pdev->dev, size, GFP_KERNEL);
+	data = devm_kzalloc(ice_pf_to_dev(pf), size, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -649,9 +650,11 @@ static u64 ice_loopback_test(struct net_device *netdev)
 	u8 broadcast[ETH_ALEN], ret = 0;
 	int num_frames, valid_frames;
 	LIST_HEAD(tmp_list);
+	struct device *dev;
 	u8 *tx_frame;
 	int i;
 
+	dev = ice_pf_to_dev(pf);
 	netdev_info(netdev, "loopback test\n");
 
 	test_vsi = ice_lb_vsi_setup(pf, pf->hw.port_info);
@@ -712,12 +715,12 @@ static u64 ice_loopback_test(struct net_device *netdev)
 		ret = 10;
 
 lbtest_free_frame:
-	devm_kfree(&pf->pdev->dev, tx_frame);
+	devm_kfree(dev, tx_frame);
 remove_mac_filters:
 	if (ice_remove_mac(&pf->hw, &tmp_list))
 		netdev_err(netdev, "Could not remove MAC filter for the test VSI");
 free_mac_list:
-	ice_free_fltr_list(&pf->pdev->dev, &tmp_list);
+	ice_free_fltr_list(dev, &tmp_list);
 lbtest_mac_dis:
 	/* Disable MAC loopback after the test is completed. */
 	if (ice_aq_set_mac_loopback(&pf->hw, false, NULL))
@@ -774,6 +777,9 @@ ice_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	bool if_running = netif_running(netdev);
 	struct ice_pf *pf = np->vsi->back;
+	struct device *dev;
+
+	dev = ice_pf_to_dev(pf);
 
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		netdev_info(netdev, "offline testing starting\n");
@@ -781,7 +787,7 @@ ice_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
 		set_bit(__ICE_TESTING, pf->state);
 
 		if (ice_active_vfs(pf)) {
-			dev_warn(&pf->pdev->dev,
+			dev_warn(dev,
 				 "Please take active VFs and Netqueues offline and restart the adapter before running NIC diagnostics\n");
 			data[ICE_ETH_TEST_REG] = 1;
 			data[ICE_ETH_TEST_EEPROM] = 1;
@@ -816,8 +822,7 @@ ice_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
 			int status = ice_open(netdev);
 
 			if (status) {
-				dev_err(&pf->pdev->dev,
-					"Could not open device %s, err %d",
+				dev_err(dev, "Could not open device %s, err %d",
 					pf->int_name, status);
 			}
 		}
@@ -1155,12 +1160,14 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 	DECLARE_BITMAP(orig_flags, ICE_PF_FLAGS_NBITS);
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
+	struct device *dev;
 	int ret = 0;
 	u32 i;
 
 	if (flags > BIT(ICE_PRIV_FLAG_ARRAY_SIZE))
 		return -EINVAL;
 
+	dev = ice_pf_to_dev(pf);
 	set_bit(ICE_FLAG_ETHTOOL_CTXT, pf->flags);
 
 	bitmap_copy(orig_flags, pf->flags, ICE_PF_FLAGS_NBITS);
@@ -1189,7 +1196,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			 * events to respond to.
 			 */
 			if (status)
-				dev_info(&pf->pdev->dev,
+				dev_info(dev,
 					 "Failed to unreg for LLDP events\n");
 
 			/* The AQ call to stop the FW LLDP agent will generate
@@ -1197,15 +1204,14 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			 */
 			status = ice_aq_stop_lldp(&pf->hw, true, true, NULL);
 			if (status)
-				dev_warn(&pf->pdev->dev,
-					 "Fail to stop LLDP agent\n");
+				dev_warn(dev, "Fail to stop LLDP agent\n");
 			/* Use case for having the FW LLDP agent stopped
 			 * will likely not need DCB, so failure to init is
 			 * not a concern of ethtool
 			 */
 			status = ice_init_pf_dcb(pf, true);
 			if (status)
-				dev_warn(&pf->pdev->dev, "Fail to init DCB\n");
+				dev_warn(dev, "Fail to init DCB\n");
 		} else {
 			enum ice_status status;
 			bool dcbx_agent_status;
@@ -1215,8 +1221,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			 */
 			status = ice_aq_start_lldp(&pf->hw, true, NULL);
 			if (status)
-				dev_warn(&pf->pdev->dev,
-					 "Fail to start LLDP Agent\n");
+				dev_warn(dev, "Fail to start LLDP Agent\n");
 
 			/* AQ command to start FW DCBX agent will fail if
 			 * the agent is already started
@@ -1225,10 +1230,9 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 							&dcbx_agent_status,
 							NULL);
 			if (status)
-				dev_dbg(&pf->pdev->dev,
-					"Failed to start FW DCBX\n");
+				dev_dbg(dev, "Failed to start FW DCBX\n");
 
-			dev_info(&pf->pdev->dev, "FW DCBX agent is %s\n",
+			dev_info(dev, "FW DCBX agent is %s\n",
 				 dcbx_agent_status ? "ACTIVE" : "DISABLED");
 
 			/* Failure to configure MIB change or init DCB is not
@@ -1238,7 +1242,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			 */
 			status = ice_init_pf_dcb(pf, true);
 			if (status)
-				dev_dbg(&pf->pdev->dev, "Fail to init DCB\n");
+				dev_dbg(dev, "Fail to init DCB\n");
 
 			/* Remove rule to direct LLDP packets to default VSI.
 			 * The FW LLDP engine will now be consuming them.
@@ -1248,7 +1252,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			/* Register for MIB change events */
 			status = ice_cfg_lldp_mib_change(&pf->hw, true);
 			if (status)
-				dev_dbg(&pf->pdev->dev,
+				dev_dbg(dev,
 					"Fail to enable MIB change events\n");
 		}
 	}
@@ -3089,8 +3093,10 @@ ice_set_rxfh(struct net_device *netdev, const u32 *indir, const u8 *key,
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
+	struct device *dev;
 	u8 *seed = NULL;
 
+	dev = ice_pf_to_dev(pf);
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
@@ -3103,8 +3109,7 @@ ice_set_rxfh(struct net_device *netdev, const u32 *indir, const u8 *key,
 	if (key) {
 		if (!vsi->rss_hkey_user) {
 			vsi->rss_hkey_user =
-				devm_kzalloc(&pf->pdev->dev,
-					     ICE_VSIQF_HKEY_ARRAY_SIZE,
+				devm_kzalloc(dev, ICE_VSIQF_HKEY_ARRAY_SIZE,
 					     GFP_KERNEL);
 			if (!vsi->rss_hkey_user)
 				return -ENOMEM;
@@ -3114,8 +3119,7 @@ ice_set_rxfh(struct net_device *netdev, const u32 *indir, const u8 *key,
 	}
 
 	if (!vsi->rss_lut_user) {
-		vsi->rss_lut_user = devm_kzalloc(&pf->pdev->dev,
-						 vsi->rss_table_size,
+		vsi->rss_lut_user = devm_kzalloc(dev, vsi->rss_table_size,
 						 GFP_KERNEL);
 		if (!vsi->rss_lut_user)
 			return -ENOMEM;
@@ -3177,7 +3181,7 @@ ice_get_rc_coalesce(struct ethtool_coalesce *ec, enum ice_container_type c_type,
 		ec->tx_coalesce_usecs = rc->itr_setting & ~ICE_ITR_DYNAMIC;
 		break;
 	default:
-		dev_dbg(&pf->pdev->dev, "Invalid c_type %d\n", c_type);
+		dev_dbg(ice_pf_to_dev(pf), "Invalid c_type %d\n", c_type);
 		return -EINVAL;
 	}
 
@@ -3317,7 +3321,8 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 
 		break;
 	default:
-		dev_dbg(&pf->pdev->dev, "Invalid container type %d\n", c_type);
+		dev_dbg(ice_pf_to_dev(pf), "Invalid container type %d\n",
+			c_type);
 		return -EINVAL;
 	}
 
