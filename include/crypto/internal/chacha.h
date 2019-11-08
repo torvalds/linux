@@ -12,8 +12,6 @@ struct chacha_ctx {
 	int nrounds;
 };
 
-void crypto_chacha_init(u32 *state, const struct chacha_ctx *ctx, const u8 *iv);
-
 static inline int chacha_setkey(struct crypto_skcipher *tfm, const u8 *key,
 				unsigned int keysize, int nrounds)
 {
@@ -41,13 +39,5 @@ static int inline chacha12_setkey(struct crypto_skcipher *tfm, const u8 *key,
 {
 	return chacha_setkey(tfm, key, keysize, 12);
 }
-
-int crypto_chacha20_setkey(struct crypto_skcipher *tfm, const u8 *key,
-			   unsigned int keysize);
-int crypto_chacha12_setkey(struct crypto_skcipher *tfm, const u8 *key,
-			   unsigned int keysize);
-
-int crypto_chacha_crypt(struct skcipher_request *req);
-int crypto_xchacha_crypt(struct skcipher_request *req);
 
 #endif /* _CRYPTO_CHACHA_H */
