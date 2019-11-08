@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * SC7180 IDP board device tree source
+ *
+ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "sc7180.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. SC7180 IDP";
+	compatible = "qcom,sc7180-idp";
+
+	aliases {
+		serial0 = &uart8;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&qupv3_id_1 {
+	status = "okay";
+};
+
+&uart8 {
+	status = "okay";
+};
+
+/* PINCTRL - additions to nodes defined in sc7180.dtsi */
+
+&qup_uart8_default {
+	pinconf-tx {
+		pins = "gpio44";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	pinconf-rx {
+		pins = "gpio45";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+};
