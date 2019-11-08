@@ -142,17 +142,14 @@ xfs_dir2_block_getdents(
 	struct dir_context	*ctx)
 {
 	struct xfs_inode	*dp = args->dp;	/* incore directory inode */
-	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	struct xfs_buf		*bp;		/* buffer for block */
-	xfs_dir2_data_entry_t	*dep;		/* block data entry */
-	xfs_dir2_data_unused_t	*dup;		/* block unused entry */
-	char			*endptr;	/* end of the data entries */
 	int			error;		/* error return value */
-	char			*ptr;		/* current data entry */
 	int			wantoff;	/* starting block offset */
 	xfs_off_t		cook;
 	struct xfs_da_geometry	*geo = args->geo;
 	int			lock_mode;
+	unsigned int		offset;
+	unsigned int		end;
 
 	/*
 	 * If the block number in the offset is out of range, we're done.
@@ -171,44 +168,39 @@ xfs_dir2_block_getdents(
 	 * We'll skip entries before this.
 	 */
 	wantoff = xfs_dir2_dataptr_to_off(geo, ctx->pos);
-	hdr = bp->b_addr;
 	xfs_dir3_data_check(dp, bp);
-	/*
-	 * Set up values for the loop.
-	 */
-	ptr = (char *)dp->d_ops->data_entry_p(hdr);
-	endptr = xfs_dir3_data_endp(geo, hdr);
 
 	/*
 	 * Loop over the data portion of the block.
 	 * Each object is a real entry (dep) or an unused one (dup).
 	 */
-	while (ptr < endptr) {
+	offset = dp->d_ops->data_entry_offset;
+	end = xfs_dir3_data_endp(geo, bp->b_addr) - bp->b_addr;
+	while (offset < end) {
+		struct xfs_dir2_data_unused	*dup = bp->b_addr + offset;
+		struct xfs_dir2_data_entry	*dep = bp->b_addr + offset;
 		uint8_t filetype;
 
-		dup = (xfs_dir2_data_unused_t *)ptr;
 		/*
 		 * Unused, skip it.
 		 */
 		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
-			ptr += be16_to_cpu(dup->length);
+			offset += be16_to_cpu(dup->length);
 			continue;
 		}
-
-		dep = (xfs_dir2_data_entry_t *)ptr;
 
 		/*
 		 * Bump pointer for the next iteration.
 		 */
-		ptr += dp->d_ops->data_entsize(dep->namelen);
+		offset += dp->d_ops->data_entsize(dep->namelen);
+
 		/*
 		 * The entry is before the desired starting point, skip it.
 		 */
-		if ((char *)dep - (char *)hdr < wantoff)
+		if (offset < wantoff)
 			continue;
 
-		cook = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
-					    (char *)dep - (char *)hdr);
+		cook = xfs_dir2_db_off_to_dataptr(geo, geo->datablk, offset);
 
 		ctx->pos = cook & 0x7fffffff;
 		filetype = dp->d_ops->data_get_ftype(dep);
