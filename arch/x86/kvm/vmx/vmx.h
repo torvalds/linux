@@ -22,11 +22,11 @@ extern u32 get_umwait_control_msr(void);
 
 #define X2APIC_MSR(r) (APIC_BASE_MSR + ((r) >> 4))
 
-#define NR_AUTOLOAD_MSRS 8
+#define NR_LOADSTORE_MSRS 8
 
 struct vmx_msrs {
 	unsigned int		nr;
-	struct vmx_msr_entry	val[NR_AUTOLOAD_MSRS];
+	struct vmx_msr_entry	val[NR_LOADSTORE_MSRS];
 };
 
 struct shared_msr_entry {
