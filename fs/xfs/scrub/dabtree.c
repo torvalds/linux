@@ -77,40 +77,17 @@ xchk_da_set_corrupt(
 			__return_address);
 }
 
-/* Find an entry at a certain level in a da btree. */
-STATIC void *
-xchk_da_btree_entry(
-	struct xchk_da_btree	*ds,
-	int			level,
-	int			rec)
+static struct xfs_da_node_entry *
+xchk_da_btree_node_entry(
+	struct xchk_da_btree		*ds,
+	int				level)
 {
-	char			*ents;
-	struct xfs_da_state_blk	*blk;
-	void			*baddr;
+	struct xfs_da_state_blk		*blk = &ds->state->path.blk[level];
 
-	/* Dispatch the entry finding function. */
-	blk = &ds->state->path.blk[level];
-	baddr = blk->bp->b_addr;
-	switch (blk->magic) {
-	case XFS_ATTR_LEAF_MAGIC:
-	case XFS_ATTR3_LEAF_MAGIC:
-		ents = (char *)xfs_attr3_leaf_entryp(baddr);
-		return ents + (rec * sizeof(struct xfs_attr_leaf_entry));
-	case XFS_DIR2_LEAFN_MAGIC:
-	case XFS_DIR3_LEAFN_MAGIC:
-		ents = (char *)ds->dargs.dp->d_ops->leaf_ents_p(baddr);
-		return ents + (rec * sizeof(struct xfs_dir2_leaf_entry));
-	case XFS_DIR2_LEAF1_MAGIC:
-	case XFS_DIR3_LEAF1_MAGIC:
-		ents = (char *)ds->dargs.dp->d_ops->leaf_ents_p(baddr);
-		return ents + (rec * sizeof(struct xfs_dir2_leaf_entry));
-	case XFS_DA_NODE_MAGIC:
-	case XFS_DA3_NODE_MAGIC:
-		ents = (char *)ds->dargs.dp->d_ops->node_tree_p(baddr);
-		return ents + (rec * sizeof(struct xfs_da_node_entry));
-	}
+	ASSERT(blk->magic == XFS_DA_NODE_MAGIC);
 
-	return NULL;
+	return (void *)ds->dargs.dp->d_ops->node_tree_p(blk->bp->b_addr) +
+		(blk->index * sizeof(struct xfs_da_node_entry));
 }
 
 /* Scrub a da btree hash (key). */
@@ -120,7 +97,6 @@ xchk_da_btree_hash(
 	int				level,
 	__be32				*hashp)
 {
-	struct xfs_da_state_blk		*blks;
 	struct xfs_da_node_entry	*entry;
 	xfs_dahash_t			hash;
 	xfs_dahash_t			parent_hash;
@@ -135,8 +111,7 @@ xchk_da_btree_hash(
 		return 0;
 
 	/* Is this hash no larger than the parent hash? */
-	blks = ds->state->path.blk;
-	entry = xchk_da_btree_entry(ds, level - 1, blks[level - 1].index);
+	entry = xchk_da_btree_node_entry(ds, level - 1);
 	parent_hash = be32_to_cpu(entry->hashval);
 	if (parent_hash < hash)
 		xchk_da_set_corrupt(ds, level);
@@ -479,7 +454,6 @@ xchk_da_btree(
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_da_state_blk		*blks;
 	struct xfs_da_node_entry	*key;
-	void				*rec;
 	xfs_dablk_t			blkno;
 	int				level;
 	int				error;
@@ -537,9 +511,7 @@ xchk_da_btree(
 			}
 
 			/* Dispatch record scrubbing. */
-			rec = xchk_da_btree_entry(&ds, level,
-					blks[level].index);
-			error = scrub_fn(&ds, level, rec);
+			error = scrub_fn(&ds, level);
 			if (error)
 				break;
 			if (xchk_should_terminate(sc, &error) ||
@@ -561,7 +533,7 @@ xchk_da_btree(
 		}
 
 		/* Hashes in order for scrub? */
-		key = xchk_da_btree_entry(&ds, level, blks[level].index);
+		key = xchk_da_btree_node_entry(&ds, level);
 		error = xchk_da_btree_hash(&ds, level, &key->hashval);
 		if (error)
 			goto out;

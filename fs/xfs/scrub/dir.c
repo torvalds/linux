@@ -182,14 +182,14 @@ out:
 STATIC int
 xchk_dir_rec(
 	struct xchk_da_btree		*ds,
-	int				level,
-	void				*rec)
+	int				level)
 {
+	struct xfs_da_state_blk		*blk = &ds->state->path.blk[level];
 	struct xfs_mount		*mp = ds->state->mp;
-	struct xfs_dir2_leaf_entry	*ent = rec;
 	struct xfs_inode		*dp = ds->dargs.dp;
 	struct xfs_dir2_data_entry	*dent;
 	struct xfs_buf			*bp;
+	struct xfs_dir2_leaf_entry	*ent;
 	char				*p, *endp;
 	xfs_ino_t			ino;
 	xfs_dablk_t			rec_bno;
@@ -200,6 +200,12 @@ xchk_dir_rec(
 	xfs_dahash_t			hash;
 	unsigned int			tag;
 	int				error;
+
+	ASSERT(blk->magic == XFS_DIR2_LEAF1_MAGIC ||
+	       blk->magic == XFS_DIR2_LEAFN_MAGIC);
+
+	ent = (void *)ds->dargs.dp->d_ops->leaf_ents_p(blk->bp->b_addr) +
+		(blk->index * sizeof(struct xfs_dir2_leaf_entry));
 
 	/* Check the hash of the entry. */
 	error = xchk_da_btree_hash(ds, level, &ent->hashval);
