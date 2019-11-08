@@ -1132,6 +1132,27 @@ static noinline void check_move_tiny(struct xarray *xa)
 	XA_BUG_ON(xa, !xa_empty(xa));
 }
 
+static noinline void check_move_max(struct xarray *xa)
+{
+	XA_STATE(xas, xa, 0);
+
+	xa_store_index(xa, ULONG_MAX, GFP_KERNEL);
+	rcu_read_lock();
+	XA_BUG_ON(xa, xas_find(&xas, ULONG_MAX) != xa_mk_index(ULONG_MAX));
+	XA_BUG_ON(xa, xas_find(&xas, ULONG_MAX) != NULL);
+	rcu_read_unlock();
+
+	xas_set(&xas, 0);
+	rcu_read_lock();
+	XA_BUG_ON(xa, xas_find(&xas, ULONG_MAX) != xa_mk_index(ULONG_MAX));
+	xas_pause(&xas);
+	XA_BUG_ON(xa, xas_find(&xas, ULONG_MAX) != NULL);
+	rcu_read_unlock();
+
+	xa_erase_index(xa, ULONG_MAX);
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
 static noinline void check_move_small(struct xarray *xa, unsigned long idx)
 {
 	XA_STATE(xas, xa, 0);
@@ -1240,6 +1261,7 @@ static noinline void check_move(struct xarray *xa)
 	xa_destroy(xa);
 
 	check_move_tiny(xa);
+	check_move_max(xa);
 
 	for (i = 0; i < 16; i++)
 		check_move_small(xa, 1UL << i);
