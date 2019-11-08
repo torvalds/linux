@@ -14,6 +14,7 @@ crypto_algapi-y := algapi.o scatterwalk.o $(crypto_algapi-y)
 obj-$(CONFIG_CRYPTO_ALGAPI2) += crypto_algapi.o
 
 obj-$(CONFIG_CRYPTO_AEAD2) += aead.o
+obj-$(CONFIG_CRYPTO_AEAD2) += geniv.o
 
 crypto_skcipher-y := ablkcipher.o
 crypto_skcipher-y += skcipher.o
