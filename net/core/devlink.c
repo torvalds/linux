@@ -2884,6 +2884,11 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_RESET_DEV_ON_DRV_PROBE_NAME,
 		.type = DEVLINK_PARAM_GENERIC_RESET_DEV_ON_DRV_PROBE_TYPE,
 	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
+		.name = DEVLINK_PARAM_GENERIC_ENABLE_ROCE_NAME,
+		.type = DEVLINK_PARAM_GENERIC_ENABLE_ROCE_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
