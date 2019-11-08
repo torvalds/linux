@@ -627,13 +627,9 @@ struct ddi_vbt_port_info {
 
 	int max_tmds_clock;
 
-	/*
-	 * This is an index in the HDMI/DVI DDI buffer translation table.
-	 * The special value HDMI_LEVEL_SHIFT_UNKNOWN means the VBT didn't
-	 * populate this field.
-	 */
-#define HDMI_LEVEL_SHIFT_UNKNOWN	0xff
+	/* This is an index in the HDMI/DVI DDI buffer translation table. */
 	u8 hdmi_level_shift;
+	u8 hdmi_level_shift_set:1;
 
 	u8 supports_dvi:1;
 	u8 supports_hdmi:1;

@@ -888,10 +888,9 @@ icl_get_combo_buf_trans(struct drm_i915_private *dev_priv, int type, int rate,
 
 static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port port)
 {
+	struct ddi_vbt_port_info *port_info = &dev_priv->vbt.ddi_port_info[port];
 	int n_entries, level, default_entry;
 	enum phy phy = intel_port_to_phy(dev_priv, port);
-
-	level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		if (intel_phy_is_combo(dev_priv, phy))
@@ -927,12 +926,14 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 		return 0;
 	}
 
-	/* Choose a good default if VBT is badly populated */
-	if (level == HDMI_LEVEL_SHIFT_UNKNOWN || level >= n_entries)
-		level = default_entry;
-
 	if (WARN_ON_ONCE(n_entries == 0))
 		return 0;
+
+	if (port_info->hdmi_level_shift_set)
+		level = port_info->hdmi_level_shift;
+	else
+		level = default_entry;
+
 	if (WARN_ON_ONCE(level >= n_entries))
 		level = n_entries - 1;
 

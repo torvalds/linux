@@ -1509,6 +1509,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 			      port_name(port),
 			      hdmi_level_shift);
 		info->hdmi_level_shift = hdmi_level_shift;
+		info->hdmi_level_shift_set = true;
 	}
 
 	if (bdb_version >= 204) {
@@ -1692,8 +1693,6 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 static void
 init_vbt_defaults(struct drm_i915_private *dev_priv)
 {
-	enum port port;
-
 	dev_priv->vbt.crt_ddc_pin = GMBUS_PIN_VGADDC;
 
 	/* Default to having backlight */
@@ -1721,13 +1720,6 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	dev_priv->vbt.lvds_ssc_freq = intel_bios_ssc_frequency(dev_priv,
 			!HAS_PCH_SPLIT(dev_priv));
 	DRM_DEBUG_KMS("Set default to SSC at %d kHz\n", dev_priv->vbt.lvds_ssc_freq);
-
-	for_each_port(port) {
-		struct ddi_vbt_port_info *info =
-			&dev_priv->vbt.ddi_port_info[port];
-
-		info->hdmi_level_shift = HDMI_LEVEL_SHIFT_UNKNOWN;
-	}
 }
 
 /* Defaults to initialize only if there is no VBT. */
