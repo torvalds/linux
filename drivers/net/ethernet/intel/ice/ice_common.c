@@ -1673,6 +1673,10 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 			ice_debug(hw, ICE_DBG_INIT,
 				  "%s: valid_functions (bitmap) = %d\n", prefix,
 				  caps->valid_functions);
+
+			/* store func count for resource management purposes */
+			if (dev_p)
+				dev_p->num_funcs = hweight32(number);
 			break;
 		case ICE_AQC_CAPS_SRIOV:
 			caps->sr_iov_1_1 = (number == 1);
@@ -1875,8 +1879,7 @@ void ice_set_safe_mode_caps(struct ice_hw *hw)
 	struct ice_hw_dev_caps *dev_caps = &hw->dev_caps;
 	u32 valid_func, rxq_first_id, txq_first_id;
 	u32 msix_vector_first_id, max_mtu;
-	u32 num_func = 0;
-	u8 i;
+	u32 num_funcs;
 
 	/* cache some func_caps values that should be restored after memset */
 	valid_func = func_caps->common_cap.valid_functions;
@@ -1909,6 +1912,7 @@ void ice_set_safe_mode_caps(struct ice_hw *hw)
 	rxq_first_id = dev_caps->common_cap.rxq_first_id;
 	msix_vector_first_id = dev_caps->common_cap.msix_vector_first_id;
 	max_mtu = dev_caps->common_cap.max_mtu;
+	num_funcs = dev_caps->num_funcs;
 
 	/* unset dev capabilities */
 	memset(dev_caps, 0, sizeof(*dev_caps));
@@ -1919,19 +1923,14 @@ void ice_set_safe_mode_caps(struct ice_hw *hw)
 	dev_caps->common_cap.rxq_first_id = rxq_first_id;
 	dev_caps->common_cap.msix_vector_first_id = msix_vector_first_id;
 	dev_caps->common_cap.max_mtu = max_mtu;
-
-	/* valid_func is a bitmap. get number of functions */
-#define ICE_MAX_FUNCS 8
-	for (i = 0; i < ICE_MAX_FUNCS; i++)
-		if (valid_func & BIT(i))
-			num_func++;
+	dev_caps->num_funcs = num_funcs;
 
 	/* one Tx and one Rx queue per function in safe mode */
-	dev_caps->common_cap.num_rxq = num_func;
-	dev_caps->common_cap.num_txq = num_func;
+	dev_caps->common_cap.num_rxq = num_funcs;
+	dev_caps->common_cap.num_txq = num_funcs;
 
 	/* two MSIX vectors per function */
-	dev_caps->common_cap.num_msix_vectors = 2 * num_func;
+	dev_caps->common_cap.num_msix_vectors = 2 * num_funcs;
 }
 
 /**

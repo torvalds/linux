@@ -202,6 +202,7 @@ struct ice_hw_dev_caps {
 	struct ice_hw_common_caps common_cap;
 	u32 num_vfs_exposed;		/* Total number of VFs exposed */
 	u32 num_vsi_allocd_to_host;	/* Excluding EMP VSI */
+	u32 num_funcs;
 };
 
 /* MAC info */
