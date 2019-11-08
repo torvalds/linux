@@ -15,6 +15,14 @@
 #include <dt-bindings/gpio/tegra186-gpio.h>
 #include <dt-bindings/gpio/tegra194-gpio.h>
 
+/* security registers */
+#define TEGRA186_GPIO_CTL_SCR 0x0c
+#define  TEGRA186_GPIO_CTL_SCR_SEC_WEN BIT(28)
+#define  TEGRA186_GPIO_CTL_SCR_SEC_REN BIT(27)
+
+#define TEGRA186_GPIO_INT_ROUTE_MAPPING(p, x) (0x14 + (p) * 0x20 + (x) * 4)
+
+/* control registers */
 #define TEGRA186_GPIO_ENABLE_CONFIG 0x00
 #define  TEGRA186_GPIO_ENABLE_CONFIG_ENABLE BIT(0)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_OUT BIT(1)
@@ -64,6 +72,7 @@ struct tegra_gpio {
 
 	const struct tegra_gpio_soc *soc;
 
+	void __iomem *secure;
 	void __iomem *base;
 };
 
@@ -449,6 +458,37 @@ static const struct of_device_id tegra186_pmc_of_match[] = {
 	{ /* sentinel */ }
 };
 
+static void tegra186_gpio_init_route_mapping(struct tegra_gpio *gpio)
+{
+	unsigned int i, j;
+	u32 value;
+
+	for (i = 0; i < gpio->soc->num_ports; i++) {
+		const struct tegra_gpio_port *port = &gpio->soc->ports[i];
+		unsigned int offset, p = port->port;
+		void __iomem *base;
+
+		base = gpio->secure + port->bank * 0x1000 + 0x800;
+
+		value = readl(base + TEGRA186_GPIO_CTL_SCR);
+
+		/*
+		 * For controllers that haven't been locked down yet, make
+		 * sure to program the default interrupt route mapping.
+		 */
+		if ((value & TEGRA186_GPIO_CTL_SCR_SEC_REN) == 0 &&
+		    (value & TEGRA186_GPIO_CTL_SCR_SEC_WEN) == 0) {
+			for (j = 0; j < 8; j++) {
+				offset = TEGRA186_GPIO_INT_ROUTE_MAPPING(p, j);
+
+				value = readl(base + offset);
+				value = BIT(port->pins) - 1;
+				writel(value, base + offset);
+			}
+		}
+	}
+}
+
 static int tegra186_gpio_probe(struct platform_device *pdev)
 {
 	unsigned int i, j, offset;
@@ -463,6 +503,10 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gpio->soc = of_device_get_match_data(&pdev->dev);
+
+	gpio->secure = devm_platform_ioremap_resource_byname(pdev, "security");
+	if (IS_ERR(gpio->secure))
+		return PTR_ERR(gpio->secure);
 
 	gpio->base = devm_platform_ioremap_resource_byname(pdev, "gpio");
 	if (IS_ERR(gpio->base))
@@ -557,6 +601,8 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 		if (!irq->parent_domain)
 			return -EPROBE_DEFER;
 	}
+
+	tegra186_gpio_init_route_mapping(gpio);
 
 	irq->map = devm_kcalloc(&pdev->dev, gpio->gpio.ngpio,
 				sizeof(*irq->map), GFP_KERNEL);
