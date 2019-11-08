@@ -1049,9 +1049,11 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 	 * return address is actually off by one word, and we
 	 * need to adjust for that.
 	 */
-	if (ftrace_find_direct_func(self_addr + MCOUNT_INSN_SIZE)) {
-		self_addr = *parent;
-		parent++;
+	if (ftrace_direct_func_count) {
+		if (ftrace_find_direct_func(self_addr + MCOUNT_INSN_SIZE)) {
+			self_addr = *parent;
+			parent++;
+		}
 	}
 
 	/*

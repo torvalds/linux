@@ -2364,6 +2364,7 @@ ftrace_find_tramp_ops_new(struct dyn_ftrace *rec)
 /* Protected by rcu_tasks for reading, and direct_mutex for writing */
 static struct ftrace_hash *direct_functions = EMPTY_HASH;
 static DEFINE_MUTEX(direct_mutex);
+int ftrace_direct_func_count;
 
 /*
  * Search the direct_functions hash to see if the given instruction pointer
@@ -5056,6 +5057,7 @@ int register_ftrace_direct(unsigned long ip, unsigned long addr)
 		direct->addr = addr;
 		direct->count = 0;
 		list_add_rcu(&direct->next, &ftrace_direct_funcs);
+		ftrace_direct_func_count++;
 	}
 
 	entry->ip = ip;
@@ -5081,6 +5083,7 @@ int register_ftrace_direct(unsigned long ip, unsigned long addr)
 			if (free_hash)
 				free_ftrace_hash(free_hash);
 			free_hash = NULL;
+			ftrace_direct_func_count--;
 		}
 	} else {
 		if (!direct->count)
@@ -5141,6 +5144,7 @@ int unregister_ftrace_direct(unsigned long ip, unsigned long addr)
 			list_del_rcu(&direct->next);
 			synchronize_rcu_tasks();
 			kfree(direct);
+			ftrace_direct_func_count--;
 		}
 	}
  out_unlock:

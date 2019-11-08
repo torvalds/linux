@@ -247,10 +247,12 @@ static inline void ftrace_free_mem(struct module *mod, void *start, void *end) {
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+extern int ftrace_direct_func_count;
 int register_ftrace_direct(unsigned long ip, unsigned long addr);
 int unregister_ftrace_direct(unsigned long ip, unsigned long addr);
 struct ftrace_direct_func *ftrace_find_direct_func(unsigned long addr);
 #else
+# define ftrace_direct_func_count 0
 static inline int register_ftrace_direct(unsigned long ip, unsigned long addr)
 {
 	return -ENODEV;
