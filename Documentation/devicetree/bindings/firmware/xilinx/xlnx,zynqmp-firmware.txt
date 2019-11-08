@@ -11,7 +11,9 @@ power management service, FPGA service and other platform management
 services.
 
 Required properties:
- - compatible:	Must contain:	"xlnx,zynqmp-firmware"
+ - compatible:	Must contain any of below:
+		"xlnx,zynqmp-firmware" for Zynq Ultrascale+ MPSoC
+		"xlnx,versal-firmware" for Versal
  - method:	The method of calling the PM-API firmware layer.
 		Permitted values are:
 		  - "smc" : SMC #0, following the SMCCC
@@ -21,9 +23,21 @@ Required properties:
 Example
 -------
 
+Zynq Ultrascale+ MPSoC
+----------------------
 firmware {
 	zynqmp_firmware: zynqmp-firmware {
 		compatible = "xlnx,zynqmp-firmware";
+		method = "smc";
+		...
+	};
+};
+
+Versal
+------
+firmware {
+	versal_firmware: versal-firmware {
+		compatible = "xlnx,versal-firmware";
 		method = "smc";
 		...
 	};
