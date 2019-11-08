@@ -89,25 +89,6 @@ xfs_dir3_data_put_ftype(
 	dep->name[dep->namelen] = type;
 }
 
-/*
- * Pointer to an entry's tag word.
- */
-static __be16 *
-xfs_dir2_data_entry_tag_p(
-	struct xfs_dir2_data_entry *dep)
-{
-	return (__be16 *)((char *)dep +
-		XFS_DIR2_DATA_ENTSIZE(dep->namelen) - sizeof(__be16));
-}
-
-static __be16 *
-xfs_dir3_data_entry_tag_p(
-	struct xfs_dir2_data_entry *dep)
-{
-	return (__be16 *)((char *)dep +
-		XFS_DIR3_DATA_ENTSIZE(dep->namelen) - sizeof(__be16));
-}
-
 static struct xfs_dir2_data_free *
 xfs_dir2_data_bestfree_p(struct xfs_dir2_data_hdr *hdr)
 {
@@ -123,7 +104,6 @@ xfs_dir3_data_bestfree_p(struct xfs_dir2_data_hdr *hdr)
 static const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_get_ftype = xfs_dir2_data_get_ftype,
 	.data_put_ftype = xfs_dir2_data_put_ftype,
-	.data_entry_tag_p = xfs_dir2_data_entry_tag_p,
 	.data_bestfree_p = xfs_dir2_data_bestfree_p,
 
 	.data_first_offset =  sizeof(struct xfs_dir2_data_hdr) +
@@ -135,7 +115,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_get_ftype = xfs_dir3_data_get_ftype,
 	.data_put_ftype = xfs_dir3_data_put_ftype,
-	.data_entry_tag_p = xfs_dir3_data_entry_tag_p,
 	.data_bestfree_p = xfs_dir2_data_bestfree_p,
 
 	.data_first_offset =  sizeof(struct xfs_dir2_data_hdr) +
@@ -147,7 +126,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 static const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_get_ftype = xfs_dir3_data_get_ftype,
 	.data_put_ftype = xfs_dir3_data_put_ftype,
-	.data_entry_tag_p = xfs_dir3_data_entry_tag_p,
 	.data_bestfree_p = xfs_dir3_data_bestfree_p,
 
 	.data_first_offset =  sizeof(struct xfs_dir3_data_hdr) +

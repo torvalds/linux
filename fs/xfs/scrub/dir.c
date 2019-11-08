@@ -271,7 +271,7 @@ xchk_dir_rec(
 	/* Retrieve the entry, sanity check it, and compare hashes. */
 	ino = be64_to_cpu(dent->inumber);
 	hash = be32_to_cpu(ent->hashval);
-	tag = be16_to_cpup(dp->d_ops->data_entry_tag_p(dent));
+	tag = be16_to_cpup(xfs_dir2_data_entry_tag_p(mp, dent));
 	if (!xfs_verify_dir_ino(mp, ino) || tag != off)
 		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 	if (dent->namelen == 0) {

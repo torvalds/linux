@@ -542,7 +542,7 @@ xfs_dir2_block_addname(
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, args->namelen);
 	dp->d_ops->data_put_ftype(dep, args->filetype);
-	tagp = dp->d_ops->data_entry_tag_p(dep);
+	tagp = xfs_dir2_data_entry_tag_p(dp->i_mount, dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	/*
 	 * Clean up the bestfree array and log the header, tail, and entry.
@@ -1145,7 +1145,7 @@ xfs_dir2_sf_to_block(
 	dep->namelen = 1;
 	dep->name[0] = '.';
 	dp->d_ops->data_put_ftype(dep, XFS_DIR3_FT_DIR);
-	tagp = dp->d_ops->data_entry_tag_p(dep);
+	tagp = xfs_dir2_data_entry_tag_p(mp, dep);
 	*tagp = cpu_to_be16(offset);
 	xfs_dir2_data_log_entry(args, bp, dep);
 	blp[0].hashval = cpu_to_be32(xfs_dir_hash_dot);
@@ -1160,7 +1160,7 @@ xfs_dir2_sf_to_block(
 	dep->namelen = 2;
 	dep->name[0] = dep->name[1] = '.';
 	dp->d_ops->data_put_ftype(dep, XFS_DIR3_FT_DIR);
-	tagp = dp->d_ops->data_entry_tag_p(dep);
+	tagp = xfs_dir2_data_entry_tag_p(mp, dep);
 	*tagp = cpu_to_be16(offset);
 	xfs_dir2_data_log_entry(args, bp, dep);
 	blp[1].hashval = cpu_to_be32(xfs_dir_hash_dotdot);
@@ -1211,7 +1211,7 @@ xfs_dir2_sf_to_block(
 		dep->namelen = sfep->namelen;
 		dp->d_ops->data_put_ftype(dep, xfs_dir2_sf_get_ftype(mp, sfep));
 		memcpy(dep->name, sfep->name, dep->namelen);
-		tagp = dp->d_ops->data_entry_tag_p(dep);
+		tagp = xfs_dir2_data_entry_tag_p(mp, dep);
 		*tagp = cpu_to_be16(newoffset);
 		xfs_dir2_data_log_entry(args, bp, dep);
 		name.name = sfep->name;

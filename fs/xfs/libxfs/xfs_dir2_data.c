@@ -18,11 +18,24 @@
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_log.h"
+#include "xfs_dir2_priv.h"
 
 static xfs_failaddr_t xfs_dir2_data_freefind_verify(
 		struct xfs_dir2_data_hdr *hdr, struct xfs_dir2_data_free *bf,
 		struct xfs_dir2_data_unused *dup,
 		struct xfs_dir2_data_free **bf_ent);
+
+/*
+ * Pointer to an entry's tag word.
+ */
+__be16 *
+xfs_dir2_data_entry_tag_p(
+	struct xfs_mount		*mp,
+	struct xfs_dir2_data_entry	*dep)
+{
+	return (__be16 *)((char *)dep +
+		xfs_dir2_data_entsize(mp, dep->namelen) - sizeof(__be16));
+}
 
 /*
  * The number of leaf entries is limited by the size of the block and the amount
@@ -182,7 +195,7 @@ __xfs_dir3_data_check(
 			return __this_address;
 		if (offset + xfs_dir2_data_entsize(mp, dep->namelen) > end)
 			return __this_address;
-		if (be16_to_cpu(*ops->data_entry_tag_p(dep)) != offset)
+		if (be16_to_cpu(*xfs_dir2_data_entry_tag_p(mp, dep)) != offset)
 			return __this_address;
 		if (ops->data_get_ftype(dep) >= XFS_DIR3_FT_MAX)
 			return __this_address;
@@ -608,7 +621,8 @@ xfs_dir2_data_freescan_int(
 		/*
 		 * For active entries, check their tags and skip them.
 		 */
-		ASSERT(offset == be16_to_cpu(*ops->data_entry_tag_p(dep)));
+		ASSERT(offset ==
+		       be16_to_cpu(*xfs_dir2_data_entry_tag_p(mp, dep)));
 		offset += xfs_dir2_data_entsize(mp, dep->namelen);
 	}
 }
@@ -703,6 +717,7 @@ xfs_dir2_data_log_entry(
 	struct xfs_buf		*bp,
 	xfs_dir2_data_entry_t	*dep)		/* data entry pointer */
 {
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_dir2_data_hdr *hdr = bp->b_addr;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
@@ -711,7 +726,7 @@ xfs_dir2_data_log_entry(
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 
 	xfs_trans_log_buf(args->trans, bp, (uint)((char *)dep - (char *)hdr),
-		(uint)((char *)(args->dp->d_ops->data_entry_tag_p(dep) + 1) -
+		(uint)((char *)(xfs_dir2_data_entry_tag_p(mp, dep) + 1) -
 		       (char *)hdr - 1));
 }
 

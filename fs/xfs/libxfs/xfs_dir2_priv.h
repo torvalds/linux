@@ -58,6 +58,8 @@ extern int xfs_dir2_leaf_to_block(struct xfs_da_args *args,
 
 /* xfs_dir2_data.c */
 int xfs_dir2_data_entsize(struct xfs_mount *mp, int n);
+__be16 *xfs_dir2_data_entry_tag_p(struct xfs_mount *mp,
+		struct xfs_dir2_data_entry *dep);
 
 #ifdef DEBUG
 extern void xfs_dir3_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
