@@ -31,12 +31,12 @@ generate_deps() {
 	local mod_file=`echo $@ | sed -e 's/\.ko/\.mod/'`
 	local ns_deps_file=`echo $@ | sed -e 's/\.ko/\.ns_deps/'`
 	if [ ! -f "$ns_deps_file" ]; then return; fi
-	local mod_source_files=`cat $mod_file | sed -n 1p                      \
+	local mod_source_files="`cat $mod_file | sed -n 1p                      \
 					      | sed -e 's/\.o/\.c/g'           \
-					      | sed "s|[^ ]* *|${srctree}/&|g"`
+					      | sed "s|[^ ]* *|${srctree}/&|g"`"
 	for ns in `cat $ns_deps_file`; do
 		echo "Adding namespace $ns to module $mod_name (if needed)."
-		generate_deps_for_ns $ns $mod_source_files
+		generate_deps_for_ns $ns "$mod_source_files"
 		# sort the imports
 		for source_file in $mod_source_files; do
 			sed '/MODULE_IMPORT_NS/Q' $source_file > ${source_file}.tmp
