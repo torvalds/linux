@@ -2,6 +2,31 @@
 
 comment "Crypto library routines"
 
+config CRYPTO_ARCH_HAVE_LIB_BLAKE2S
+	tristate
+	help
+	  Declares whether the architecture provides an arch-specific
+	  accelerated implementation of the Blake2s library interface,
+	  either builtin or as a module.
+
+config CRYPTO_LIB_BLAKE2S_GENERIC
+	tristate
+	help
+	  This symbol can be depended upon by arch implementations of the
+	  Blake2s library interface that require the generic code as a
+	  fallback, e.g., for SIMD implementations. If no arch specific
+	  implementation is enabled, this implementation serves the users
+	  of CRYPTO_LIB_BLAKE2S.
+
+config CRYPTO_LIB_BLAKE2S
+	tristate "BLAKE2s hash function library"
+	depends on CRYPTO_ARCH_HAVE_LIB_BLAKE2S || !CRYPTO_ARCH_HAVE_LIB_BLAKE2S
+	select CRYPTO_LIB_BLAKE2S_GENERIC if CRYPTO_ARCH_HAVE_LIB_BLAKE2S=n
+	help
+	  Enable the Blake2s library interface. This interface may be fulfilled
+	  by either the generic implementation or an arch-specific one, if one
+	  is available and enabled.
+
 config CRYPTO_ARCH_HAVE_LIB_CHACHA
 	tristate
 	help
