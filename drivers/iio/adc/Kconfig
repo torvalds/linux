@@ -55,6 +55,16 @@ config AD7291
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7291.
 
+config AD7292
+	tristate "Analog Devices AD7292 ADC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD7292
+	  8 Channel ADC with temperature sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7292.
+
 config AD7298
 	tristate "Analog Devices AD7298 ADC driver"
 	depends on SPI
