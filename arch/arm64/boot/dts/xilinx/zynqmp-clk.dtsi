@@ -66,9 +66,9 @@
 
 	drm_clock: drm-clock {
 		compatible = "fixed-clock";
-		#clock-cells = <0x0>;
+		#clock-cells = <0>;
 		clock-frequency = <262750000>;
-		clock-accuracy = <0x64>;
+		clock-accuracy = <100>;
 	};
 };
 
