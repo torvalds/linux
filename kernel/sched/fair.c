@@ -9941,6 +9941,11 @@ static inline void nohz_newidle_balance(struct rq *this_rq) { }
 /*
  * idle_balance is called by schedule() if this_cpu is about to become
  * idle. Attempts to pull tasks from other CPUs.
+ *
+ * Returns:
+ *   < 0 - we released the lock and there are !fair tasks present
+ *     0 - failed, no new tasks
+ *   > 0 - success, new (fair) tasks present
  */
 int newidle_balance(struct rq *this_rq, struct rq_flags *rf)
 {
