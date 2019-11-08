@@ -37,5 +37,8 @@ config CRYPTO_LIB_CHACHA
 config CRYPTO_LIB_DES
 	tristate
 
+config CRYPTO_LIB_POLY1305_GENERIC
+	tristate
+
 config CRYPTO_LIB_SHA256
 	tristate
