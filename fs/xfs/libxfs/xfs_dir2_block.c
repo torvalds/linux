@@ -1038,39 +1038,35 @@ xfs_dir2_leaf_to_block(
  */
 int						/* error */
 xfs_dir2_sf_to_block(
-	xfs_da_args_t		*args)		/* operation arguments */
+	struct xfs_da_args	*args)
 {
+	struct xfs_trans	*tp = args->trans;
+	struct xfs_inode	*dp = args->dp;
+	struct xfs_mount	*mp = dp->i_mount;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(dp, XFS_DATA_FORK);
 	xfs_dir2_db_t		blkno;		/* dir-relative block # (0) */
 	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_leaf_entry_t	*blp;		/* block leaf entries */
 	struct xfs_buf		*bp;		/* block buffer */
 	xfs_dir2_block_tail_t	*btp;		/* block tail pointer */
 	xfs_dir2_data_entry_t	*dep;		/* data entry pointer */
-	xfs_inode_t		*dp;		/* incore directory inode */
 	int			dummy;		/* trash */
 	xfs_dir2_data_unused_t	*dup;		/* unused entry pointer */
 	int			endoffset;	/* end of data objects */
 	int			error;		/* error return value */
 	int			i;		/* index */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			needlog;	/* need to log block header */
 	int			needscan;	/* need to scan block freespc */
 	int			newoffset;	/* offset from current entry */
-	int			offset;		/* target block offset */
+	unsigned int		offset = dp->d_ops->data_entry_offset;
 	xfs_dir2_sf_entry_t	*sfep;		/* sf entry pointer */
 	xfs_dir2_sf_hdr_t	*oldsfp;	/* old shortform header  */
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform header  */
 	__be16			*tagp;		/* end of data entry */
-	xfs_trans_t		*tp;		/* transaction pointer */
 	struct xfs_name		name;
-	struct xfs_ifork	*ifp;
 
 	trace_xfs_dir2_sf_to_block(args);
 
-	dp = args->dp;
-	tp = args->trans;
-	mp = dp->i_mount;
-	ifp = XFS_IFORK_PTR(dp, XFS_DATA_FORK);
 	ASSERT(ifp->if_flags & XFS_IFINLINE);
 	ASSERT(dp->i_d.di_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
 
@@ -1139,35 +1135,37 @@ xfs_dir2_sf_to_block(
 			be16_to_cpu(dup->length), &needlog, &needscan);
 	if (error)
 		goto out_free;
+
 	/*
 	 * Create entry for .
 	 */
-	dep = dp->d_ops->data_dot_entry_p(hdr);
+	dep = bp->b_addr + offset;
 	dep->inumber = cpu_to_be64(dp->i_ino);
 	dep->namelen = 1;
 	dep->name[0] = '.';
 	dp->d_ops->data_put_ftype(dep, XFS_DIR3_FT_DIR);
 	tagp = dp->d_ops->data_entry_tag_p(dep);
-	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
+	*tagp = cpu_to_be16(offset);
 	xfs_dir2_data_log_entry(args, bp, dep);
 	blp[0].hashval = cpu_to_be32(xfs_dir_hash_dot);
-	blp[0].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(
-				(char *)dep - (char *)hdr));
+	blp[0].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(offset));
+	offset += dp->d_ops->data_entsize(dep->namelen);
+
 	/*
 	 * Create entry for ..
 	 */
-	dep = dp->d_ops->data_dotdot_entry_p(hdr);
+	dep = bp->b_addr + offset;
 	dep->inumber = cpu_to_be64(xfs_dir2_sf_get_parent_ino(sfp));
 	dep->namelen = 2;
 	dep->name[0] = dep->name[1] = '.';
 	dp->d_ops->data_put_ftype(dep, XFS_DIR3_FT_DIR);
 	tagp = dp->d_ops->data_entry_tag_p(dep);
-	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
+	*tagp = cpu_to_be16(offset);
 	xfs_dir2_data_log_entry(args, bp, dep);
 	blp[1].hashval = cpu_to_be32(xfs_dir_hash_dotdot);
-	blp[1].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(
-				(char *)dep - (char *)hdr));
-	offset = dp->d_ops->data_first_offset;
+	blp[1].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(offset));
+	offset += dp->d_ops->data_entsize(dep->namelen);
+
 	/*
 	 * Loop over existing entries, stuff them in.
 	 */
@@ -1176,6 +1174,7 @@ xfs_dir2_sf_to_block(
 		sfep = NULL;
 	else
 		sfep = xfs_dir2_sf_firstentry(sfp);
+
 	/*
 	 * Need to preserve the existing offset values in the sf directory.
 	 * Insert holes (unused entries) where necessary.
@@ -1192,11 +1191,10 @@ xfs_dir2_sf_to_block(
 		 * There should be a hole here, make one.
 		 */
 		if (offset < newoffset) {
-			dup = (xfs_dir2_data_unused_t *)((char *)hdr + offset);
+			dup = bp->b_addr + offset;
 			dup->freetag = cpu_to_be16(XFS_DIR2_DATA_FREE_TAG);
 			dup->length = cpu_to_be16(newoffset - offset);
-			*xfs_dir2_data_unused_tag_p(dup) = cpu_to_be16(
-				((char *)dup - (char *)hdr));
+			*xfs_dir2_data_unused_tag_p(dup) = cpu_to_be16(offset);
 			xfs_dir2_data_log_unused(args, bp, dup);
 			xfs_dir2_data_freeinsert(hdr,
 						 dp->d_ops->data_bestfree_p(hdr),
@@ -1207,20 +1205,20 @@ xfs_dir2_sf_to_block(
 		/*
 		 * Copy a real entry.
 		 */
-		dep = (xfs_dir2_data_entry_t *)((char *)hdr + newoffset);
+		dep = bp->b_addr + newoffset;
 		dep->inumber = cpu_to_be64(xfs_dir2_sf_get_ino(mp, sfp, sfep));
 		dep->namelen = sfep->namelen;
 		dp->d_ops->data_put_ftype(dep, xfs_dir2_sf_get_ftype(mp, sfep));
 		memcpy(dep->name, sfep->name, dep->namelen);
 		tagp = dp->d_ops->data_entry_tag_p(dep);
-		*tagp = cpu_to_be16((char *)dep - (char *)hdr);
+		*tagp = cpu_to_be16(newoffset);
 		xfs_dir2_data_log_entry(args, bp, dep);
 		name.name = sfep->name;
 		name.len = sfep->namelen;
-		blp[2 + i].hashval = cpu_to_be32(mp->m_dirnameops->
-							hashname(&name));
-		blp[2 + i].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(
-						 (char *)dep - (char *)hdr));
+		blp[2 + i].hashval =
+			cpu_to_be32(mp->m_dirnameops->hashname(&name));
+		blp[2 + i].address =
+			cpu_to_be32(xfs_dir2_byte_to_dataptr(newoffset));
 		offset = (int)((char *)(tagp + 1) - (char *)hdr);
 		if (++i == sfp->count)
 			sfep = NULL;
