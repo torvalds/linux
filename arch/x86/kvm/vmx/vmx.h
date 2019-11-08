@@ -233,6 +233,10 @@ struct vcpu_vmx {
 		struct vmx_msrs host;
 	} msr_autoload;
 
+	struct msr_autostore {
+		struct vmx_msrs guest;
+	} msr_autostore;
+
 	struct {
 		int vm86_active;
 		ulong save_rflags;
@@ -337,6 +341,7 @@ void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
 struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr);
 void pt_update_intercept_for_msr(struct vcpu_vmx *vmx);
 void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp);
+int vmx_find_msr_index(struct vmx_msrs *m, u32 msr);
 
 #define POSTED_INTR_ON  0
 #define POSTED_INTR_SN  1
