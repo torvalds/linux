@@ -115,7 +115,7 @@ xfs_dir2_sf_getdents(
 		}
 
 		ino = xfs_dir2_sf_get_ino(mp, sfp, sfep);
-		filetype = dp->d_ops->sf_get_ftype(sfep);
+		filetype = xfs_dir2_sf_get_ftype(mp, sfep);
 		ctx->pos = off & 0x7fffffff;
 		if (!xfs_dir2_namecheck(sfep->name, sfep->namelen)) {
 			XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW,

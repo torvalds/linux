@@ -32,10 +32,6 @@ extern unsigned char xfs_mode_to_ftype(int mode);
  * directory operations vector for encode/decode routines
  */
 struct xfs_dir_ops {
-	uint8_t (*sf_get_ftype)(struct xfs_dir2_sf_entry *sfep);
-	void	(*sf_put_ftype)(struct xfs_dir2_sf_entry *sfep,
-				uint8_t ftype);
-
 	int	(*data_entsize)(int len);
 	uint8_t (*data_get_ftype)(struct xfs_dir2_data_entry *dep);
 	void	(*data_put_ftype)(struct xfs_dir2_data_entry *dep,

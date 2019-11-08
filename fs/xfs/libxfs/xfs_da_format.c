@@ -16,49 +16,6 @@
 #include "xfs_dir2_priv.h"
 
 /*
- * For filetype enabled shortform directories, the file type field is stored at
- * the end of the name.  Because it's only a single byte, endian conversion is
- * not necessary. For non-filetype enable directories, the type is always
- * unknown and we never store the value.
- */
-static uint8_t
-xfs_dir2_sfe_get_ftype(
-	struct xfs_dir2_sf_entry *sfep)
-{
-	return XFS_DIR3_FT_UNKNOWN;
-}
-
-static void
-xfs_dir2_sfe_put_ftype(
-	struct xfs_dir2_sf_entry *sfep,
-	uint8_t			ftype)
-{
-	ASSERT(ftype < XFS_DIR3_FT_MAX);
-}
-
-static uint8_t
-xfs_dir3_sfe_get_ftype(
-	struct xfs_dir2_sf_entry *sfep)
-{
-	uint8_t		ftype;
-
-	ftype = sfep->name[sfep->namelen];
-	if (ftype >= XFS_DIR3_FT_MAX)
-		return XFS_DIR3_FT_UNKNOWN;
-	return ftype;
-}
-
-static void
-xfs_dir3_sfe_put_ftype(
-	struct xfs_dir2_sf_entry *sfep,
-	uint8_t			ftype)
-{
-	ASSERT(ftype < XFS_DIR3_FT_MAX);
-
-	sfep->name[sfep->namelen] = ftype;
-}
-
-/*
  * Directory data block operations
  */
 
@@ -271,9 +228,6 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 }
 
 static const struct xfs_dir_ops xfs_dir2_ops = {
-	.sf_get_ftype = xfs_dir2_sfe_get_ftype,
-	.sf_put_ftype = xfs_dir2_sfe_put_ftype,
-
 	.data_entsize = xfs_dir2_data_entsize,
 	.data_get_ftype = xfs_dir2_data_get_ftype,
 	.data_put_ftype = xfs_dir2_data_put_ftype,
@@ -296,9 +250,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 };
 
 static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
-	.sf_get_ftype = xfs_dir3_sfe_get_ftype,
-	.sf_put_ftype = xfs_dir3_sfe_put_ftype,
-
 	.data_entsize = xfs_dir3_data_entsize,
 	.data_get_ftype = xfs_dir3_data_get_ftype,
 	.data_put_ftype = xfs_dir3_data_put_ftype,
@@ -321,9 +272,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 };
 
 static const struct xfs_dir_ops xfs_dir3_ops = {
-	.sf_get_ftype = xfs_dir3_sfe_get_ftype,
-	.sf_put_ftype = xfs_dir3_sfe_put_ftype,
-
 	.data_entsize = xfs_dir3_data_entsize,
 	.data_get_ftype = xfs_dir3_data_get_ftype,
 	.data_put_ftype = xfs_dir3_data_put_ftype,

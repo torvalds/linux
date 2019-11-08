@@ -149,6 +149,8 @@ xfs_ino_t xfs_dir2_sf_get_ino(struct xfs_mount *mp, struct xfs_dir2_sf_hdr *hdr,
 		struct xfs_dir2_sf_entry *sfep);
 xfs_ino_t xfs_dir2_sf_get_parent_ino(struct xfs_dir2_sf_hdr *hdr);
 void xfs_dir2_sf_put_parent_ino(struct xfs_dir2_sf_hdr *hdr, xfs_ino_t ino);
+uint8_t xfs_dir2_sf_get_ftype(struct xfs_mount *mp,
+		struct xfs_dir2_sf_entry *sfep);
 struct xfs_dir2_sf_entry *xfs_dir2_sf_nextentry(struct xfs_mount *mp,
 		struct xfs_dir2_sf_hdr *hdr, struct xfs_dir2_sf_entry *sfep);
 extern int xfs_dir2_block_sfsize(struct xfs_inode *dp,
