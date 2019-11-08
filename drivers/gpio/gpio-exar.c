@@ -77,7 +77,10 @@ static int exar_get_direction(struct gpio_chip *chip, unsigned int offset)
 		EXAR_OFFSET_MPIOSEL_HI : EXAR_OFFSET_MPIOSEL_LO;
 	unsigned int bit  = (offset + exar_gpio->first_pin) % 8;
 
-	return !!(exar_get(chip, addr) & BIT(bit));
+	if (exar_get(chip, addr) & BIT(bit))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int exar_get_value(struct gpio_chip *chip, unsigned int offset)

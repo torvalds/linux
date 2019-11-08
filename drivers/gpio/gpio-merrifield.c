@@ -162,7 +162,10 @@ static int mrfld_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	void __iomem *gpdr = gpio_reg(chip, offset, GPDR);
 
-	return !(readl(gpdr) & BIT(offset % 32));
+	if (readl(gpdr) & BIT(offset % 32))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int mrfld_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,

@@ -1029,6 +1029,10 @@ static int r8168dp_2_mdio_read(struct rtl8169_private *tp, int reg)
 {
 	int value;
 
+	/* Work around issue with chip reporting wrong PHY ID */
+	if (reg == MII_PHYSID2)
+		return 0xc912;
+
 	r8168dp_2_mdio_start(tp);
 
 	value = r8169_mdio_read(tp, reg);

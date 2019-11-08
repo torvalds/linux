@@ -982,7 +982,7 @@ static int netvsc_attach(struct net_device *ndev,
 	if (netif_running(ndev)) {
 		ret = rndis_filter_open(nvdev);
 		if (ret)
-			return ret;
+			goto err;
 
 		rdev = nvdev->extension;
 		if (!rdev->link_state)
@@ -990,6 +990,13 @@ static int netvsc_attach(struct net_device *ndev,
 	}
 
 	return 0;
+
+err:
+	netif_device_detach(ndev);
+
+	rndis_filter_device_remove(hdev, nvdev);
+
+	return ret;
 }
 
 static int netvsc_set_channels(struct net_device *net,
@@ -1807,8 +1814,10 @@ static int netvsc_set_features(struct net_device *ndev,
 
 	ret = rndis_filter_set_offload_params(ndev, nvdev, &offloads);
 
-	if (ret)
+	if (ret) {
 		features ^= NETIF_F_LRO;
+		ndev->features = features;
+	}
 
 syncvf:
 	if (!vf_netdev)
@@ -2334,8 +2343,6 @@ static int netvsc_probe(struct hv_device *dev,
 		NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_CTAG_TX |
 		NETIF_F_HW_VLAN_CTAG_RX;
 	net->vlan_features = net->features;
-
-	netdev_lockdep_set_classes(net);
 
 	/* MTU range: 68 - 1500 or 65521 */
 	net->min_mtu = NETVSC_MTU_MIN;

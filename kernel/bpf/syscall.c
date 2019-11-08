@@ -1326,10 +1326,23 @@ static void __bpf_prog_put_rcu(struct rcu_head *rcu)
 {
 	struct bpf_prog_aux *aux = container_of(rcu, struct bpf_prog_aux, rcu);
 
+	kvfree(aux->func_info);
 	free_used_maps(aux);
 	bpf_prog_uncharge_memlock(aux->prog);
 	security_bpf_prog_free(aux);
 	bpf_prog_free(aux->prog);
+}
+
+static void __bpf_prog_put_noref(struct bpf_prog *prog, bool deferred)
+{
+	bpf_prog_kallsyms_del_all(prog);
+	btf_put(prog->aux->btf);
+	bpf_prog_free_linfo(prog);
+
+	if (deferred)
+		call_rcu(&prog->aux->rcu, __bpf_prog_put_rcu);
+	else
+		__bpf_prog_put_rcu(&prog->aux->rcu);
 }
 
 static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
@@ -1338,12 +1351,7 @@ static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
 		perf_event_bpf_event(prog, PERF_BPF_EVENT_PROG_UNLOAD, 0);
 		/* bpf_prog_free_id() must be called first */
 		bpf_prog_free_id(prog, do_idr_lock);
-		bpf_prog_kallsyms_del_all(prog);
-		btf_put(prog->aux->btf);
-		kvfree(prog->aux->func_info);
-		bpf_prog_free_linfo(prog);
-
-		call_rcu(&prog->aux->rcu, __bpf_prog_put_rcu);
+		__bpf_prog_put_noref(prog, true);
 	}
 }
 
@@ -1741,11 +1749,12 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 	return err;
 
 free_used_maps:
-	bpf_prog_free_linfo(prog);
-	kvfree(prog->aux->func_info);
-	btf_put(prog->aux->btf);
-	bpf_prog_kallsyms_del_subprogs(prog);
-	free_used_maps(prog->aux);
+	/* In case we have subprogs, we need to wait for a grace
+	 * period before we can tear down JIT memory since symbols
+	 * are already exposed under kallsyms.
+	 */
+	__bpf_prog_put_noref(prog, prog->aux->func_cnt);
+	return err;
 free_prog:
 	bpf_prog_uncharge_memlock(prog);
 free_prog_sec:
