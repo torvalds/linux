@@ -395,11 +395,12 @@ static const struct config_item_type mdev_link_type = {
 
 struct most_common {
 	struct config_group group;
+	struct configfs_subsystem subsys;
 };
 
-static struct most_common *to_most_common(struct config_item *item)
+static struct most_common *to_most_common(struct configfs_subsystem *subsys)
 {
-	return container_of(to_config_group(item), struct most_common, group);
+	return container_of(subsys, struct most_common, subsys);
 }
 
 static struct config_item *most_common_make_item(struct config_group *group,
@@ -426,7 +427,9 @@ static struct config_item *most_common_make_item(struct config_group *group,
 
 static void most_common_release(struct config_item *item)
 {
-	kfree(to_most_common(item));
+	struct config_group *group = to_config_group(item);
+
+	kfree(to_most_common(group->cg_subsys));
 }
 
 static struct configfs_item_operations most_common_item_ops = {
@@ -443,29 +446,35 @@ static const struct config_item_type most_common_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-static struct configfs_subsystem most_cdev_subsys = {
-	.su_group = {
-		.cg_item = {
-			.ci_namebuf = "most_cdev",
-			.ci_type = &most_common_type,
+static struct most_common most_cdev = {
+	.subsys = {
+		.su_group = {
+			.cg_item = {
+				.ci_namebuf = "most_cdev",
+				.ci_type = &most_common_type,
+			},
 		},
 	},
 };
 
-static struct configfs_subsystem most_net_subsys = {
-	.su_group = {
-		.cg_item = {
-			.ci_namebuf = "most_net",
-			.ci_type = &most_common_type,
+static struct most_common most_net = {
+	.subsys = {
+		.su_group = {
+			.cg_item = {
+				.ci_namebuf = "most_net",
+				.ci_type = &most_common_type,
+			},
 		},
 	},
 };
 
-static struct configfs_subsystem most_video_subsys = {
-	.su_group = {
-		.cg_item = {
-			.ci_namebuf = "most_video",
-			.ci_type = &most_common_type,
+static struct most_common most_video = {
+	.subsys = {
+		.su_group = {
+			.cg_item = {
+				.ci_namebuf = "most_video",
+				.ci_type = &most_common_type,
+			},
 		},
 	},
 };
@@ -597,16 +606,17 @@ int most_register_configfs_subsys(struct core_component *c)
 {
 	int ret;
 
-	if (!strcmp(c->name, "cdev"))
-		ret = configfs_register_subsystem(&most_cdev_subsys);
-	else if (!strcmp(c->name, "net"))
-		ret = configfs_register_subsystem(&most_net_subsys);
-	else if (!strcmp(c->name, "video"))
-		ret = configfs_register_subsystem(&most_video_subsys);
-	else if (!strcmp(c->name, "sound"))
+	if (!strcmp(c->name, "cdev")) {
+		ret = configfs_register_subsystem(&most_cdev.subsys);
+	} else if (!strcmp(c->name, "net")) {
+		ret = configfs_register_subsystem(&most_net.subsys);
+	} else if (!strcmp(c->name, "video")) {
+		ret = configfs_register_subsystem(&most_video.subsys);
+	} else if (!strcmp(c->name, "sound")) {
 		ret = configfs_register_subsystem(&most_sound_subsys.subsys);
-	else
+	} else {
 		return -ENODEV;
+	}
 
 	if (ret) {
 		pr_err("Error %d while registering subsystem %s\n",
@@ -635,11 +645,11 @@ void most_interface_register_notify(const char *mdev)
 void most_deregister_configfs_subsys(struct core_component *c)
 {
 	if (!strcmp(c->name, "cdev"))
-		configfs_unregister_subsystem(&most_cdev_subsys);
+		configfs_unregister_subsystem(&most_cdev.subsys);
 	else if (!strcmp(c->name, "net"))
-		configfs_unregister_subsystem(&most_net_subsys);
+		configfs_unregister_subsystem(&most_net.subsys);
 	else if (!strcmp(c->name, "video"))
-		configfs_unregister_subsystem(&most_video_subsys);
+		configfs_unregister_subsystem(&most_video.subsys);
 	else if (!strcmp(c->name, "sound"))
 		configfs_unregister_subsystem(&most_sound_subsys.subsys);
 }
@@ -647,14 +657,14 @@ EXPORT_SYMBOL_GPL(most_deregister_configfs_subsys);
 
 int __init configfs_init(void)
 {
-	config_group_init(&most_cdev_subsys.su_group);
-	mutex_init(&most_cdev_subsys.su_mutex);
+	config_group_init(&most_cdev.subsys.su_group);
+	mutex_init(&most_cdev.subsys.su_mutex);
 
-	config_group_init(&most_net_subsys.su_group);
-	mutex_init(&most_net_subsys.su_mutex);
+	config_group_init(&most_net.subsys.su_group);
+	mutex_init(&most_net.subsys.su_mutex);
 
-	config_group_init(&most_video_subsys.su_group);
-	mutex_init(&most_video_subsys.su_mutex);
+	config_group_init(&most_video.subsys.su_group);
+	mutex_init(&most_video.subsys.su_mutex);
 
 	config_group_init(&most_sound_subsys.subsys.su_group);
 	mutex_init(&most_sound_subsys.subsys.su_mutex);
