@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Epson RTC module RX-6110 SA
  *
  * Copyright(C) 2015 Pengutronix, Steffen Trumtrar <kernel@pengutronix.de>
  * Copyright(C) SEIKO EPSON CORPORATION 2013. All rights reserved.
- *
- * This driver software is distributed as is, without any warranty of any kind,
- * either express or implied as further specified in the GNU Public License.
- * This software may be used and distributed according to the terms of the GNU
- * Public License, version 2 as published by the Free Software Foundation.
- * See the file COPYING in the main directory of this archive for more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/bcd.h>
