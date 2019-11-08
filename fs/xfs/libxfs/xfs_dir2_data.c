@@ -562,16 +562,15 @@ xfs_dir2_data_freeremove(
  */
 void
 xfs_dir2_data_freescan_int(
-	struct xfs_da_geometry	*geo,
-	const struct xfs_dir_ops *ops,
-	struct xfs_dir2_data_hdr *hdr,
-	int			*loghead)
+	struct xfs_da_geometry		*geo,
+	const struct xfs_dir_ops	*ops,
+	struct xfs_dir2_data_hdr	*hdr,
+	int				*loghead)
 {
-	xfs_dir2_data_entry_t	*dep;		/* active data entry */
-	xfs_dir2_data_unused_t	*dup;		/* unused data entry */
-	struct xfs_dir2_data_free *bf;
-	char			*endp;		/* end of block's data */
-	char			*p;		/* current entry pointer */
+	struct xfs_dir2_data_free	*bf = ops->data_bestfree_p(hdr);
+	void				*addr = hdr;
+	unsigned int			offset = ops->data_entry_offset;
+	unsigned int			end;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
@@ -581,37 +580,30 @@ xfs_dir2_data_freescan_int(
 	/*
 	 * Start by clearing the table.
 	 */
-	bf = ops->data_bestfree_p(hdr);
 	memset(bf, 0, sizeof(*bf) * XFS_DIR2_DATA_FD_COUNT);
 	*loghead = 1;
-	/*
-	 * Set up pointers.
-	 */
-	p = (char *)ops->data_entry_p(hdr);
-	endp = xfs_dir3_data_endp(geo, hdr);
-	/*
-	 * Loop over the block's entries.
-	 */
-	while (p < endp) {
-		dup = (xfs_dir2_data_unused_t *)p;
+
+	end = xfs_dir3_data_endp(geo, addr) - addr;
+	while (offset < end) {
+		struct xfs_dir2_data_unused	*dup = addr + offset;
+		struct xfs_dir2_data_entry	*dep = addr + offset;
+
 		/*
 		 * If it's a free entry, insert it.
 		 */
 		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
-			ASSERT((char *)dup - (char *)hdr ==
+			ASSERT(offset ==
 			       be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup)));
 			xfs_dir2_data_freeinsert(hdr, bf, dup, loghead);
-			p += be16_to_cpu(dup->length);
+			offset += be16_to_cpu(dup->length);
+			continue;
 		}
+
 		/*
 		 * For active entries, check their tags and skip them.
 		 */
-		else {
-			dep = (xfs_dir2_data_entry_t *)p;
-			ASSERT((char *)dep - (char *)hdr ==
-			       be16_to_cpu(*ops->data_entry_tag_p(dep)));
-			p += ops->data_entsize(dep->namelen);
-		}
+		ASSERT(offset == be16_to_cpu(*ops->data_entry_tag_p(dep)));
+		offset += ops->data_entsize(dep->namelen);
 	}
 }
 
