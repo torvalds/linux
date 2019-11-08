@@ -109,30 +109,6 @@
  */
 
 /**
- * drm_color_lut_extract - clamp and round LUT entries
- * @user_input: input value
- * @bit_precision: number of bits the hw LUT supports
- *
- * Extract a degamma/gamma LUT value provided by user (in the form of
- * &drm_color_lut entries) and round it to the precision supported by the
- * hardware.
- */
-uint32_t drm_color_lut_extract(uint32_t user_input, uint32_t bit_precision)
-{
-	uint32_t val = user_input;
-	uint32_t max = 0xffff >> (16 - bit_precision);
-
-	/* Round only if we're not using full precision. */
-	if (bit_precision < 16) {
-		val += 1UL << (16 - bit_precision - 1);
-		val >>= 16 - bit_precision;
-	}
-
-	return clamp_val(val, 0, max);
-}
-EXPORT_SYMBOL(drm_color_lut_extract);
-
-/**
  * drm_color_ctm_s31_32_to_qm_n
  *
  * @user_input: input value
