@@ -1217,7 +1217,6 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 	struct bkey_i whiteout	= *insert;
 	struct bkey_packed *_k;
 	struct bkey unpacked;
-	BKEY_PADDED(k) tmp;
 
 	EBUG_ON(iter->level);
 	EBUG_ON(!insert->k.size);
@@ -1291,25 +1290,23 @@ next:
 	bch2_btree_iter_set_pos_same_leaf(iter, insert->k.p);
 
 	if (update_btree) {
-		bkey_copy(&tmp.k, insert);
-
 		if (deleting)
-			tmp.k.k.type = KEY_TYPE_discard;
+			insert->k.type = KEY_TYPE_discard;
 
-		EBUG_ON(bkey_deleted(&tmp.k.k) || !tmp.k.k.size);
+		EBUG_ON(bkey_deleted(&insert->k) || !insert->k.size);
 
-		extent_bset_insert(c, iter, &tmp.k);
+		extent_bset_insert(c, iter, insert);
 	}
 
 	if (update_journal) {
-		bkey_copy(&tmp.k, !deleting ? insert : &whiteout);
+		struct bkey_i *k = !deleting ? insert : &whiteout;
 
 		if (deleting)
-			tmp.k.k.type = KEY_TYPE_discard;
+			k->k.type = KEY_TYPE_discard;
 
-		EBUG_ON(bkey_deleted(&tmp.k.k) || !tmp.k.k.size);
+		EBUG_ON(bkey_deleted(&k->k) || !k->k.size);
 
-		bch2_btree_journal_key(trans, iter, &tmp.k);
+		bch2_btree_journal_key(trans, iter, k);
 	}
 
 	bch2_cut_front(insert->k.p, insert);

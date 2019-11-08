@@ -418,7 +418,7 @@ bch2_sort_repack_merge(struct bch_fs *c,
 	struct bkey_packed *prev = NULL, *k_packed;
 	struct bkey_s k;
 	struct btree_nr_keys nr;
-	BKEY_PADDED(k) tmp;
+	struct bkey unpacked;
 
 	memset(&nr, 0, sizeof(nr));
 
@@ -426,11 +426,7 @@ bch2_sort_repack_merge(struct bch_fs *c,
 		if (filter_whiteouts && bkey_whiteout(k_packed))
 			continue;
 
-		EBUG_ON(bkeyp_val_u64s(&src->format, k_packed) >
-			BKEY_EXTENT_VAL_U64s_MAX);
-
-		bch2_bkey_unpack(src, &tmp.k, k_packed);
-		k = bkey_i_to_s(&tmp.k);
+		k = __bkey_disassemble(src, k_packed, &unpacked);
 
 		if (filter_whiteouts &&
 		    bch2_bkey_normalize(c, k))
