@@ -57,6 +57,8 @@ extern int xfs_dir2_leaf_to_block(struct xfs_da_args *args,
 		struct xfs_buf *lbp, struct xfs_buf *dbp);
 
 /* xfs_dir2_data.c */
+struct xfs_dir2_data_free *xfs_dir2_data_bestfree_p(struct xfs_mount *mp,
+		struct xfs_dir2_data_hdr *hdr);
 __be16 *xfs_dir2_data_entry_tag_p(struct xfs_mount *mp,
 		struct xfs_dir2_data_entry *dep);
 

@@ -425,7 +425,7 @@ xfs_dir2_block_to_leaf(
 	xfs_dir3_data_check(dp, dbp);
 	btp = xfs_dir2_block_tail_p(args->geo, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
-	bf = dp->d_ops->data_bestfree_p(hdr);
+	bf = xfs_dir2_data_bestfree_p(dp->i_mount, hdr);
 
 	/*
 	 * Set the counts in the leaf header.
@@ -823,7 +823,7 @@ xfs_dir2_leaf_addname(
 		else
 			xfs_dir3_leaf_log_bests(args, lbp, use_block, use_block);
 		hdr = dbp->b_addr;
-		bf = dp->d_ops->data_bestfree_p(hdr);
+		bf = xfs_dir2_data_bestfree_p(dp->i_mount, hdr);
 		bestsp[use_block] = bf[0].length;
 		grown = 1;
 	} else {
@@ -839,7 +839,7 @@ xfs_dir2_leaf_addname(
 			return error;
 		}
 		hdr = dbp->b_addr;
-		bf = dp->d_ops->data_bestfree_p(hdr);
+		bf = xfs_dir2_data_bestfree_p(dp->i_mount, hdr);
 		grown = 0;
 	}
 	/*
@@ -1376,7 +1376,7 @@ xfs_dir2_leaf_removename(
 	leaf = lbp->b_addr;
 	hdr = dbp->b_addr;
 	xfs_dir3_data_check(dp, dbp);
-	bf = dp->d_ops->data_bestfree_p(hdr);
+	bf = xfs_dir2_data_bestfree_p(dp->i_mount, hdr);
 
 	/*
 	 * Point to the leaf entry, use that to point to the data entry.
@@ -1620,7 +1620,8 @@ xfs_dir2_leaf_trim_data(
 #ifdef DEBUG
 {
 	struct xfs_dir2_data_hdr *hdr = dbp->b_addr;
-	struct xfs_dir2_data_free *bf = dp->d_ops->data_bestfree_p(hdr);
+	struct xfs_dir2_data_free *bf =
+		xfs_dir2_data_bestfree_p(dp->i_mount, hdr);
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC));

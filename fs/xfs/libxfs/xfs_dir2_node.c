@@ -1317,7 +1317,7 @@ xfs_dir2_leafn_remove(
 	dbp = dblk->bp;
 	hdr = dbp->b_addr;
 	dep = (xfs_dir2_data_entry_t *)((char *)hdr + off);
-	bf = dp->d_ops->data_bestfree_p(hdr);
+	bf = xfs_dir2_data_bestfree_p(dp->i_mount, hdr);
 	longest = be16_to_cpu(bf[0].length);
 	needlog = needscan = 0;
 	xfs_dir2_data_make_free(args, dbp, off,
@@ -1775,7 +1775,7 @@ xfs_dir2_node_add_datablk(
 	}
 
 	/* Update the freespace value for the new block in the table. */
-	bf = dp->d_ops->data_bestfree_p(dbp->b_addr);
+	bf = xfs_dir2_data_bestfree_p(mp, dbp->b_addr);
 	hdr->bests[*findex] = bf[0].length;
 
 	*dbpp = dbp;
@@ -1948,7 +1948,7 @@ xfs_dir2_node_addname_int(
 
 	/* setup for data block up now */
 	hdr = dbp->b_addr;
-	bf = dp->d_ops->data_bestfree_p(hdr);
+	bf = xfs_dir2_data_bestfree_p(dp->i_mount, hdr);
 	ASSERT(be16_to_cpu(bf[0].length) >= length);
 
 	/* Point to the existing unused space. */

@@ -172,7 +172,7 @@ xfs_dir2_block_need_space(
 	struct xfs_dir2_data_unused	*enddup = NULL;
 
 	*compact = 0;
-	bf = dp->d_ops->data_bestfree_p(hdr);
+	bf = xfs_dir2_data_bestfree_p(dp->i_mount, hdr);
 
 	/*
 	 * If there are stale entries we'll use one for the leaf.
@@ -1199,8 +1199,8 @@ xfs_dir2_sf_to_block(
 			*xfs_dir2_data_unused_tag_p(dup) = cpu_to_be16(offset);
 			xfs_dir2_data_log_unused(args, bp, dup);
 			xfs_dir2_data_freeinsert(hdr,
-						 dp->d_ops->data_bestfree_p(hdr),
-						 dup, &dummy);
+					xfs_dir2_data_bestfree_p(mp, hdr),
+					dup, &dummy);
 			offset += be16_to_cpu(dup->length);
 			continue;
 		}

@@ -330,7 +330,6 @@ xchk_directory_data_bestfree(
 	struct xfs_buf			*bp;
 	struct xfs_dir2_data_free	*bf;
 	struct xfs_mount		*mp = sc->mp;
-	const struct xfs_dir_ops	*d_ops;
 	u16				tag;
 	unsigned int			nr_bestfrees = 0;
 	unsigned int			nr_frees = 0;
@@ -339,8 +338,6 @@ xchk_directory_data_bestfree(
 	unsigned int			offset;
 	unsigned int			end;
 	int				error;
-
-	d_ops = sc->ip->d_ops;
 
 	if (is_block) {
 		/* dir block format */
@@ -361,7 +358,7 @@ xchk_directory_data_bestfree(
 		goto out_buf;
 
 	/* Do the bestfrees correspond to actual free space? */
-	bf = d_ops->data_bestfree_p(bp->b_addr);
+	bf = xfs_dir2_data_bestfree_p(mp, bp->b_addr);
 	smallest_bestfree = UINT_MAX;
 	for (dfp = &bf[0]; dfp < &bf[XFS_DIR2_DATA_FD_COUNT]; dfp++) {
 		offset = be16_to_cpu(dfp->offset);
@@ -468,7 +465,7 @@ xchk_directory_check_freesp(
 {
 	struct xfs_dir2_data_free	*dfp;
 
-	dfp = sc->ip->d_ops->data_bestfree_p(dbp->b_addr);
+	dfp = xfs_dir2_data_bestfree_p(sc->mp, dbp->b_addr);
 
 	if (len != be16_to_cpu(dfp->length))
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);

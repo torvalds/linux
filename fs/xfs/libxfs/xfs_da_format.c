@@ -56,34 +56,19 @@ xfs_dir3_data_put_ftype(
 	dep->name[dep->namelen] = type;
 }
 
-static struct xfs_dir2_data_free *
-xfs_dir2_data_bestfree_p(struct xfs_dir2_data_hdr *hdr)
-{
-	return hdr->bestfree;
-}
-
-static struct xfs_dir2_data_free *
-xfs_dir3_data_bestfree_p(struct xfs_dir2_data_hdr *hdr)
-{
-	return ((struct xfs_dir3_data_hdr *)hdr)->best_free;
-}
-
 static const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_get_ftype = xfs_dir2_data_get_ftype,
 	.data_put_ftype = xfs_dir2_data_put_ftype,
-	.data_bestfree_p = xfs_dir2_data_bestfree_p,
 };
 
 static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_get_ftype = xfs_dir3_data_get_ftype,
 	.data_put_ftype = xfs_dir3_data_put_ftype,
-	.data_bestfree_p = xfs_dir2_data_bestfree_p,
 };
 
 static const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_get_ftype = xfs_dir3_data_get_ftype,
 	.data_put_ftype = xfs_dir3_data_put_ftype,
-	.data_bestfree_p = xfs_dir3_data_bestfree_p,
 };
 
 /*

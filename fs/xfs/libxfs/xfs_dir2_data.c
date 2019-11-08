@@ -25,6 +25,16 @@ static xfs_failaddr_t xfs_dir2_data_freefind_verify(
 		struct xfs_dir2_data_unused *dup,
 		struct xfs_dir2_data_free **bf_ent);
 
+struct xfs_dir2_data_free *
+xfs_dir2_data_bestfree_p(
+	struct xfs_mount		*mp,
+	struct xfs_dir2_data_hdr	*hdr)
+{
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		return ((struct xfs_dir3_data_hdr *)hdr)->best_free;
+	return hdr->bestfree;
+}
+
 /*
  * Pointer to an entry's tag word.
  */
@@ -121,7 +131,7 @@ __xfs_dir3_data_check(
 	/*
 	 * Account for zero bestfree entries.
 	 */
-	bf = ops->data_bestfree_p(hdr);
+	bf = xfs_dir2_data_bestfree_p(mp, hdr);
 	count = lastfree = freeseen = 0;
 	if (!bf[0].length) {
 		if (bf[0].offset)
@@ -581,12 +591,11 @@ xfs_dir2_data_freeremove(
 void
 xfs_dir2_data_freescan_int(
 	struct xfs_mount		*mp,
-	const struct xfs_dir_ops	*ops,
 	struct xfs_dir2_data_hdr	*hdr,
 	int				*loghead)
 {
 	struct xfs_da_geometry		*geo = mp->m_dir_geo;
-	struct xfs_dir2_data_free	*bf = ops->data_bestfree_p(hdr);
+	struct xfs_dir2_data_free	*bf = xfs_dir2_data_bestfree_p(mp, hdr);
 	void				*addr = hdr;
 	unsigned int			offset = geo->data_entry_offset;
 	unsigned int			end;
@@ -633,7 +642,7 @@ xfs_dir2_data_freescan(
 	struct xfs_dir2_data_hdr *hdr,
 	int			*loghead)
 {
-	return xfs_dir2_data_freescan_int(dp->i_mount, dp->d_ops, hdr, loghead);
+	return xfs_dir2_data_freescan_int(dp->i_mount, hdr, loghead);
 }
 
 /*
@@ -683,7 +692,7 @@ xfs_dir3_data_init(
 	} else
 		hdr->magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 
-	bf = dp->d_ops->data_bestfree_p(hdr);
+	bf = xfs_dir2_data_bestfree_p(mp, hdr);
 	bf[0].offset = cpu_to_be16(geo->data_entry_offset);
 	bf[0].length = cpu_to_be16(geo->blksize - geo->data_entry_offset);
 	for (i = 1; i < XFS_DIR2_DATA_FD_COUNT; i++) {
@@ -841,7 +850,7 @@ xfs_dir2_data_make_free(
 	 * Previous and following entries are both free,
 	 * merge everything into a single free entry.
 	 */
-	bf = args->dp->d_ops->data_bestfree_p(hdr);
+	bf = xfs_dir2_data_bestfree_p(args->dp->i_mount, hdr);
 	if (prevdup && postdup) {
 		xfs_dir2_data_free_t	*dfp2;	/* another bestfree pointer */
 
@@ -1032,7 +1041,7 @@ xfs_dir2_data_use_free(
 	 * Look up the entry in the bestfree table.
 	 */
 	oldlen = be16_to_cpu(dup->length);
-	bf = args->dp->d_ops->data_bestfree_p(hdr);
+	bf = xfs_dir2_data_bestfree_p(args->dp->i_mount, hdr);
 	dfp = xfs_dir2_data_freefind(hdr, bf, dup);
 	ASSERT(dfp || oldlen <= be16_to_cpu(bf[2].length));
 	/*
