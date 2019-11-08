@@ -97,22 +97,22 @@
 	status = "okay";
 
 	power-supply@68 {
-		compatible = "ibm,cffps2";
+		compatible = "ibm,cffps";
 		reg = <0x68>;
 	};
 
 	power-supply@69 {
-		compatible = "ibm,cffps2";
+		compatible = "ibm,cffps";
 		reg = <0x69>;
 	};
 
 	power-supply@6a {
-		compatible = "ibm,cffps2";
+		compatible = "ibm,cffps";
 		reg = <0x6a>;
 	};
 
 	power-supply@6b {
-		compatible = "ibm,cffps2";
+		compatible = "ibm,cffps";
 		reg = <0x6b>;
 	};
 };
