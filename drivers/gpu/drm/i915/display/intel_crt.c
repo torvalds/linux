@@ -864,6 +864,13 @@ load_detect:
 
 out:
 	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
+
+	/*
+	 * Make sure the refs for power wells enabled during detect are
+	 * dropped to avoid a new detect cycle triggered by HPD polling.
+	 */
+	intel_display_power_flush_work(dev_priv);
+
 	return status;
 }
 

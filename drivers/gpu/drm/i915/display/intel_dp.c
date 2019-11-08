@@ -1256,6 +1256,9 @@ static u32 skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 				u32 unused)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *i915 =
+			to_i915(intel_dig_port->base.base.dev);
+	enum phy phy = intel_port_to_phy(i915, intel_dig_port->base.port);
 	u32 ret;
 
 	ret = DP_AUX_CH_CTL_SEND_BUSY |
@@ -1268,7 +1271,8 @@ static u32 skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 	      DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL(32) |
 	      DP_AUX_CH_CTL_SYNC_PULSE_SKL(32);
 
-	if (intel_dig_port->tc_mode == TC_PORT_TBT_ALT)
+	if (intel_phy_is_tc(i915, phy) &&
+	    intel_dig_port->tc_mode == TC_PORT_TBT_ALT)
 		ret |= DP_AUX_CH_CTL_TBT_IO;
 
 	return ret;
@@ -5435,6 +5439,12 @@ intel_dp_detect(struct drm_connector *connector,
 out:
 	if (status != connector_status_connected && !intel_dp->is_mst)
 		intel_dp_unset_edid(intel_dp);
+
+	/*
+	 * Make sure the refs for power wells enabled during detect are
+	 * dropped to avoid a new detect cycle triggered by HPD polling.
+	 */
+	intel_display_power_flush_work(dev_priv);
 
 	return status;
 }
