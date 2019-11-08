@@ -1649,10 +1649,188 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 					  SMU_MSG_OverridePcieParameters,
 					  smu_pcie_arg);
 	}
+	return ret;
+}
+
+static inline void navi10_dump_od_table(OverDriveTable_t *od_table) {
+	pr_debug("OD: Gfxclk: (%d, %d)\n", od_table->GfxclkFmin, od_table->GfxclkFmax);
+	pr_debug("OD: Gfx1: (%d, %d)\n", od_table->GfxclkFreq1, od_table->GfxclkVolt1);
+	pr_debug("OD: Gfx2: (%d, %d)\n", od_table->GfxclkFreq2, od_table->GfxclkVolt2);
+	pr_debug("OD: Gfx3: (%d, %d)\n", od_table->GfxclkFreq3, od_table->GfxclkVolt3);
+	pr_debug("OD: UclkFmax: %d\n", od_table->UclkFmax);
+	pr_debug("OD: OverDrivePct: %d\n", od_table->OverDrivePct);
+}
+
+static inline bool navi10_od_feature_is_supported(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODFEATURE_ID feature)
+{
+	return od_table->cap[feature];
+}
+
+static int navi10_od_setting_check_range(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODSETTING_ID setting, uint32_t value)
+{
+	if (value < od_table->min[setting]) {
+		pr_warn("OD setting (%d, %d) is less than the minimum allowed (%d)\n", setting, value, od_table->min[setting]);
+		return -EINVAL;
+	}
+	if (value > od_table->max[setting]) {
+		pr_warn("OD setting (%d, %d) is greater than the maximum allowed (%d)\n", setting, value, od_table->max[setting]);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int navi10_setup_od_limits(struct smu_context *smu) {
+	struct smu_11_0_overdrive_table *overdrive_table = NULL;
+	struct smu_11_0_powerplay_table *powerplay_table = NULL;
+
+	if (!smu->smu_table.power_play_table) {
+		pr_err("powerplay table uninitialized!\n");
+		return -ENOENT;
+	}
+	powerplay_table = (struct smu_11_0_powerplay_table *)smu->smu_table.power_play_table;
+	overdrive_table = &powerplay_table->overdrive_table;
+	if (!smu->od_settings) {
+		smu->od_settings = kmemdup(overdrive_table, sizeof(struct smu_11_0_overdrive_table), GFP_KERNEL);
+	} else {
+		memcpy(smu->od_settings, overdrive_table, sizeof(struct smu_11_0_overdrive_table));
+	}
+	return 0;
+}
+
+static int navi10_set_default_od_settings(struct smu_context *smu, bool initialize) {
+	OverDriveTable_t *od_table;
+	int ret = 0;
+
+	ret = smu_v11_0_set_default_od_settings(smu, initialize, sizeof(OverDriveTable_t));
+	if (ret)
+		return ret;
+
+	if (initialize) {
+		ret = navi10_setup_od_limits(smu);
+		if (ret) {
+			pr_err("Failed to retrieve board OD limits\n");
+			return ret;
+		}
+
+	}
+
+	od_table = (OverDriveTable_t *)smu->smu_table.overdrive_table;
+	if (od_table) {
+		navi10_dump_od_table(od_table);
+	}
 
 	return ret;
 }
 
+static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABLE_COMMAND type, long input[], uint32_t size) {
+	int i;
+	int ret = 0;
+	struct smu_table_context *table_context = &smu->smu_table;
+	OverDriveTable_t *od_table;
+	struct smu_11_0_overdrive_table *od_settings;
+	od_table = (OverDriveTable_t *)table_context->overdrive_table;
+
+	if (!smu->od_enabled) {
+		pr_warn("OverDrive is not enabled!\n");
+		return -EINVAL;
+	}
+
+	if (!smu->od_settings) {
+		pr_err("OD board limits are not set!\n");
+		return -ENOENT;
+	}
+
+	od_settings = smu->od_settings;
+
+	switch (type) {
+	case PP_OD_EDIT_SCLK_VDDC_TABLE:
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_LIMITS)) {
+			pr_warn("GFXCLK_LIMITS not supported!\n");
+			return -ENOTSUPP;
+		}
+		if (!table_context->overdrive_table) {
+			pr_err("Overdrive is not initialized\n");
+			return -EINVAL;
+		}
+		for (i = 0; i < size; i += 2) {
+			if (i + 2 > size) {
+				pr_info("invalid number of input parameters %d\n", size);
+				return -EINVAL;
+			}
+			switch (input[i]) {
+			case 0:
+				freq_setting = SMU_11_0_ODSETTING_GFXCLKFMIN;
+				freq_ptr = &od_table->GfxclkFmin;
+				if (input[i + 1] > od_table->GfxclkFmax) {
+					pr_info("GfxclkFmin (%ld) must be <= GfxclkFmax (%u)!\n",
+						input[i + 1],
+						od_table->GfxclkFmin);
+					return -EINVAL;
+				}
+				break;
+			case 1:
+				freq_setting = SMU_11_0_ODSETTING_GFXCLKFMAX;
+				freq_ptr = &od_table->GfxclkFmax;
+				if (input[i + 1] < od_table->GfxclkFmin) {
+					pr_info("GfxclkFmax (%ld) must be >= GfxclkFmin (%u)!\n",
+						input[i + 1],
+						od_table->GfxclkFmax);
+					return -EINVAL;
+				}
+				break;
+			default:
+				pr_info("Invalid SCLK_VDDC_TABLE index: %ld\n", input[i]);
+				pr_info("Supported indices: [0:min,1:max]\n");
+				return -EINVAL;
+			}
+			ret = navi10_od_setting_check_range(od_settings, freq_setting, input[i + 1]);
+			if (ret)
+				return ret;
+			*freq_ptr = input[i + 1];
+		}
+		break;
+	case PP_OD_EDIT_MCLK_VDDC_TABLE:
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_UCLK_MAX)) {
+			pr_warn("UCLK_MAX not supported!\n");
+			return -ENOTSUPP;
+		}
+		if (size < 2) {
+			pr_info("invalid number of parameters: %d\n", size);
+			return -EINVAL;
+		}
+		if (input[0] != 1) {
+			pr_info("Invalid MCLK_VDDC_TABLE index: %ld\n", input[0]);
+			pr_info("Supported indices: [1:max]\n");
+			return -EINVAL;
+		}
+		ret = navi10_od_setting_check_range(od_settings, SMU_11_0_ODSETTING_UCLKFMAX, input[1]);
+		if (ret)
+			return ret;
+		od_table->UclkFmax = input[1];
+		break;
+	case PP_OD_COMMIT_DPM_TABLE:
+		navi10_dump_od_table(od_table);
+		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, true);
+		if (ret) {
+			pr_err("Failed to import overdrive table!\n");
+			return ret;
+		}
+		// no lock needed because smu_od_edit_dpm_table has it
+		ret = smu_handle_task(smu, smu->smu_dpm.dpm_level,
+			AMD_PP_TASK_READJUST_POWER_STATE,
+			false);
+		if (ret) {
+			return ret;
+		}
+		break;
+	case PP_OD_EDIT_VDDC_CURVE:
+		// TODO: implement
+		return -ENOSYS;
+	default:
+		return -ENOSYS;
+	}
+	return ret;
+}
 
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
@@ -1742,6 +1920,8 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
+	.set_default_od_settings = navi10_set_default_od_settings,
+	.od_edit_dpm_table = navi10_od_edit_dpm_table,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
