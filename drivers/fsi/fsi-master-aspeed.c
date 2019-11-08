@@ -77,6 +77,9 @@ static const u32 fsi_base = 0xa0000000;
 #define XFER_HALFWORD	(BIT(0))
 #define XFER_BYTE	(0)
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/fsi_master_aspeed.h>
+
 #define FSI_LINK_ENABLE_SETUP_TIME	10	/* in mS */
 
 #define DEFAULT_DIVISOR			14
@@ -101,6 +104,8 @@ static int __opb_write(struct fsi_master_aspeed *aspeed, u32 addr,
 				0, OPB_POLL_TIMEOUT);
 
 	status = readl(base + OPB0_STATUS);
+
+	trace_fsi_master_aspeed_opb_write(addr, val, transfer_size, status, reg);
 
 	/* Return error when poll timed out */
 	if (ret)
@@ -149,6 +154,10 @@ static int __opb_read(struct fsi_master_aspeed *aspeed, uint32_t addr,
 
 	result = readl(base + OPB0_FSI_DATA_R);
 
+	trace_fsi_master_aspeed_opb_read(addr, transfer_size, result,
+			readl(base + OPB0_STATUS),
+			reg);
+
 	/* Return error when poll timed out */
 	if (ret)
 		return ret;
@@ -195,6 +204,19 @@ static int opb_readb(struct fsi_master_aspeed *aspeed, uint32_t addr, u8 *out)
 static int check_errors(struct fsi_master_aspeed *aspeed, int err)
 {
 	int ret;
+
+	if (trace_fsi_master_aspeed_opb_error_enabled()) {
+		__be32 mresp0, mstap0, mesrb0;
+
+		opb_readl(aspeed, ctrl_base + FSI_MRESP0, &mresp0);
+		opb_readl(aspeed, ctrl_base + FSI_MSTAP0, &mstap0);
+		opb_readl(aspeed, ctrl_base + FSI_MESRB0, &mesrb0);
+
+		trace_fsi_master_aspeed_opb_error(
+				be32_to_cpu(mresp0),
+				be32_to_cpu(mstap0),
+				be32_to_cpu(mesrb0));
+	}
 
 	if (err == -EIO) {
 		/* Check MAEB (0x70) ? */
