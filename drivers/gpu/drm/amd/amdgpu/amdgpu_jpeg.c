@@ -26,8 +26,84 @@
 
 #include "amdgpu.h"
 #include "amdgpu_jpeg.h"
+#include "amdgpu_pm.h"
 #include "soc15d.h"
 #include "soc15_common.h"
+
+#define JPEG_IDLE_TIMEOUT	msecs_to_jiffies(1000)
+
+static void amdgpu_jpeg_idle_work_handler(struct work_struct *work);
+
+int amdgpu_jpeg_sw_init(struct amdgpu_device *adev)
+{
+	INIT_DELAYED_WORK(&adev->jpeg.idle_work, amdgpu_jpeg_idle_work_handler);
+
+	return 0;
+}
+
+int amdgpu_jpeg_sw_fini(struct amdgpu_device *adev)
+{
+	int i;
+
+	cancel_delayed_work_sync(&adev->jpeg.idle_work);
+
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
+		if (adev->jpeg.harvest_config & (1 << i))
+			continue;
+
+		amdgpu_ring_fini(&adev->jpeg.inst[i].ring_dec);
+	}
+
+	return 0;
+}
+
+int amdgpu_jpeg_suspend(struct amdgpu_device *adev)
+{
+	cancel_delayed_work_sync(&adev->jpeg.idle_work);
+
+	return 0;
+}
+
+int amdgpu_jpeg_resume(struct amdgpu_device *adev)
+{
+	return 0;
+}
+
+static void amdgpu_jpeg_idle_work_handler(struct work_struct *work)
+{
+	struct amdgpu_device *adev =
+		container_of(work, struct amdgpu_device, jpeg.idle_work.work);
+	unsigned int fences = 0;
+	unsigned int i;
+
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
+		if (adev->jpeg.harvest_config & (1 << i))
+			continue;
+
+		fences += amdgpu_fence_count_emitted(&adev->jpeg.inst[i].ring_dec);
+	}
+
+	if (fences == 0)
+		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_JPEG,
+						       AMD_PG_STATE_GATE);
+	else
+		schedule_delayed_work(&adev->jpeg.idle_work, JPEG_IDLE_TIMEOUT);
+}
+
+void amdgpu_jpeg_ring_begin_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	bool set_clocks = !cancel_delayed_work_sync(&adev->jpeg.idle_work);
+
+	if (set_clocks)
+		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_JPEG,
+						       AMD_PG_STATE_UNGATE);
+}
+
+void amdgpu_jpeg_ring_end_use(struct amdgpu_ring *ring)
+{
+	schedule_delayed_work(&ring->adev->jpeg.idle_work, JPEG_IDLE_TIMEOUT);
+}
 
 int amdgpu_jpeg_dec_ring_test_ring(struct amdgpu_ring *ring)
 {
