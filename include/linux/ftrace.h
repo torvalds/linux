@@ -51,6 +51,7 @@ static inline void early_trace_init(void) { }
 
 struct module;
 struct ftrace_hash;
+struct ftrace_direct_func;
 
 #if defined(CONFIG_FUNCTION_TRACER) && defined(CONFIG_MODULES) && \
 	defined(CONFIG_DYNAMIC_FTRACE)
@@ -248,6 +249,7 @@ static inline void ftrace_free_mem(struct module *mod, void *start, void *end) {
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 int register_ftrace_direct(unsigned long ip, unsigned long addr);
 int unregister_ftrace_direct(unsigned long ip, unsigned long addr);
+struct ftrace_direct_func *ftrace_find_direct_func(unsigned long addr);
 #else
 static inline int register_ftrace_direct(unsigned long ip, unsigned long addr)
 {
@@ -256,6 +258,10 @@ static inline int register_ftrace_direct(unsigned long ip, unsigned long addr)
 static inline int unregister_ftrace_direct(unsigned long ip, unsigned long addr)
 {
 	return -ENODEV;
+}
+static inline struct ftrace_direct_func *ftrace_find_direct_func(unsigned long addr)
+{
+	return NULL;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
 

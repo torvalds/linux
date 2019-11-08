@@ -4938,6 +4938,46 @@ ftrace_set_addr(struct ftrace_ops *ops, unsigned long ip, int remove,
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+
+struct ftrace_direct_func {
+	struct list_head	next;
+	unsigned long		addr;
+	int			count;
+};
+
+static LIST_HEAD(ftrace_direct_funcs);
+
+/**
+ * ftrace_find_direct_func - test an address if it is a registered direct caller
+ * @addr: The address of a registered direct caller
+ *
+ * This searches to see if a ftrace direct caller has been registered
+ * at a specific address, and if so, it returns a descriptor for it.
+ *
+ * This can be used by architecture code to see if an address is
+ * a direct caller (trampoline) attached to a fentry/mcount location.
+ * This is useful for the function_graph tracer, as it may need to
+ * do adjustments if it traced a location that also has a direct
+ * trampoline attached to it.
+ */
+struct ftrace_direct_func *ftrace_find_direct_func(unsigned long addr)
+{
+	struct ftrace_direct_func *entry;
+	bool found = false;
+
+	/* May be called by fgraph trampoline (protected by rcu tasks) */
+	list_for_each_entry_rcu(entry, &ftrace_direct_funcs, next) {
+		if (entry->addr == addr) {
+			found = true;
+			break;
+		}
+	}
+	if (found)
+		return entry;
+
+	return NULL;
+}
+
 /**
  * register_ftrace_direct - Call a custom trampoline directly
  * @ip: The address of the nop at the beginning of a function
@@ -4957,6 +4997,7 @@ ftrace_set_addr(struct ftrace_ops *ops, unsigned long ip, int remove,
  */
 int register_ftrace_direct(unsigned long ip, unsigned long addr)
 {
+	struct ftrace_direct_func *direct;
 	struct ftrace_func_entry *entry;
 	struct ftrace_hash *free_hash = NULL;
 	struct dyn_ftrace *rec;
@@ -5005,6 +5046,18 @@ int register_ftrace_direct(unsigned long ip, unsigned long addr)
 	if (!entry)
 		goto out_unlock;
 
+	direct = ftrace_find_direct_func(addr);
+	if (!direct) {
+		direct = kmalloc(sizeof(*direct), GFP_KERNEL);
+		if (!direct) {
+			kfree(entry);
+			goto out_unlock;
+		}
+		direct->addr = addr;
+		direct->count = 0;
+		list_add_rcu(&direct->next, &ftrace_direct_funcs);
+	}
+
 	entry->ip = ip;
 	entry->direct = addr;
 	__add_hash_entry(direct_functions, entry);
@@ -5019,8 +5072,20 @@ int register_ftrace_direct(unsigned long ip, unsigned long addr)
 			ftrace_set_filter_ip(&direct_ops, ip, 1, 0);
 	}
 
-	if (ret)
+	if (ret) {
 		kfree(entry);
+		if (!direct->count) {
+			list_del_rcu(&direct->next);
+			synchronize_rcu_tasks();
+			kfree(direct);
+			if (free_hash)
+				free_ftrace_hash(free_hash);
+			free_hash = NULL;
+		}
+	} else {
+		if (!direct->count)
+			direct->count++;
+	}
  out_unlock:
 	mutex_unlock(&direct_mutex);
 
@@ -5036,6 +5101,7 @@ EXPORT_SYMBOL_GPL(register_ftrace_direct);
 int unregister_ftrace_direct(unsigned long ip, unsigned long addr)
 {
 	struct ftrace_func_entry *entry;
+	struct ftrace_direct_func *direct;
 	struct dyn_ftrace *rec;
 	int ret = -ENODEV;
 
@@ -5066,6 +5132,17 @@ int unregister_ftrace_direct(unsigned long ip, unsigned long addr)
 
 	remove_hash_entry(direct_functions, entry);
 
+	direct = ftrace_find_direct_func(addr);
+	if (!WARN_ON(!direct)) {
+		/* This is the good path (see the ! before WARN) */
+		direct->count--;
+		WARN_ON(direct->count < 0);
+		if (!direct->count) {
+			list_del_rcu(&direct->next);
+			synchronize_rcu_tasks();
+			kfree(direct);
+		}
+	}
  out_unlock:
 	mutex_unlock(&direct_mutex);
 
