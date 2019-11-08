@@ -27,3 +27,6 @@ config CRYPTO_LIB_CHACHA
 	  Enable the ChaCha library interface. This interface may be fulfilled
 	  by either the generic implementation or an arch-specific one, if one
 	  is available and enabled.
+
+config CRYPTO_LIB_POLY1305_GENERIC
+	tristate

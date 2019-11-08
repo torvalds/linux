@@ -498,12 +498,12 @@ config CRYPTO_KEYWRAP
 config CRYPTO_NHPOLY1305
 	tristate
 	select CRYPTO_HASH
-	select CRYPTO_POLY1305
+	select CRYPTO_LIB_POLY1305_GENERIC
 
 config CRYPTO_ADIANTUM
 	tristate "Adiantum support"
 	select CRYPTO_CHACHA20
-	select CRYPTO_POLY1305
+	select CRYPTO_LIB_POLY1305_GENERIC
 	select CRYPTO_NHPOLY1305
 	help
 	  Adiantum is a tweakable, length-preserving encryption mode
@@ -684,6 +684,7 @@ config CRYPTO_GHASH
 config CRYPTO_POLY1305
 	tristate "Poly1305 authenticator algorithm"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_POLY1305_GENERIC
 	help
 	  Poly1305 authenticator algorithm, RFC7539.
 
