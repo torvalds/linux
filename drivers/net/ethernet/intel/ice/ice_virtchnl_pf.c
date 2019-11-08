@@ -459,13 +459,12 @@ static void ice_vsi_kill_pvid_fill_ctxt(struct ice_vsi_ctx *ctxt)
  */
 static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 vid, bool enable)
 {
-	struct device *dev = &vsi->back->pdev->dev;
 	struct ice_hw *hw = &vsi->back->hw;
 	struct ice_vsi_ctx *ctxt;
 	enum ice_status status;
 	int ret = 0;
 
-	ctxt = devm_kzalloc(dev, sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -477,7 +476,7 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 vid, bool enable)
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		dev_info(dev, "update VSI for port VLAN failed, err %d aq_err %d\n",
+		dev_info(&vsi->back->pdev->dev, "update VSI for port VLAN failed, err %d aq_err %d\n",
 			 status, hw->adminq.sq_last_status);
 		ret = -EIO;
 		goto out;
@@ -485,7 +484,7 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 vid, bool enable)
 
 	vsi->info = ctxt->info;
 out:
-	devm_kfree(dev, ctxt);
+	kfree(ctxt);
 	return ret;
 }
 
@@ -1624,7 +1623,7 @@ static int ice_vc_get_vf_res_msg(struct ice_vf *vf, u8 *msg)
 
 	len = sizeof(struct virtchnl_vf_resource);
 
-	vfres = devm_kzalloc(&pf->pdev->dev, len, GFP_KERNEL);
+	vfres = kzalloc(len, GFP_KERNEL);
 	if (!vfres) {
 		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
 		len = 0;
@@ -1700,7 +1699,7 @@ err:
 	ret = ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_GET_VF_RESOURCES, v_ret,
 				    (u8 *)vfres, len);
 
-	devm_kfree(&pf->pdev->dev, vfres);
+	kfree(vfres);
 	return ret;
 }
 
@@ -3167,7 +3166,7 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 		return 0;
 	}
 
-	ctx = devm_kzalloc(&pf->pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -3190,7 +3189,7 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 	vsi->info.sec_flags = ctx->info.sec_flags;
 	vsi->info.sw_flags2 = ctx->info.sw_flags2;
 out:
-	devm_kfree(&pf->pdev->dev, ctx);
+	kfree(ctx);
 	return ret;
 }
 

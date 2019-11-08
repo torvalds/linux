@@ -345,8 +345,7 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 	}
 
 	/* Retrieve DCB config and ensure same as current in SW */
-	prev_cfg = devm_kmemdup(&pf->pdev->dev, local_dcbx_cfg,
-				sizeof(*prev_cfg), GFP_KERNEL);
+	prev_cfg = kmemdup(local_dcbx_cfg, sizeof(*prev_cfg), GFP_KERNEL);
 	if (!prev_cfg) {
 		dev_err(&pf->pdev->dev, "Failed to alloc space for DCB cfg\n");
 		goto dcb_error;
@@ -361,11 +360,12 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 	if (ice_dcb_need_recfg(pf, prev_cfg, local_dcbx_cfg)) {
 		/* difference in cfg detected - disable DCB till next MIB */
 		dev_err(&pf->pdev->dev, "Set local MIB not accurate\n");
+		kfree(prev_cfg);
 		goto dcb_error;
 	}
 
 	/* fetched config congruent to previous configuration */
-	devm_kfree(&pf->pdev->dev, prev_cfg);
+	kfree(prev_cfg);
 
 	/* Set the local desired config */
 	if (local_dcbx_cfg->dcbx_mode == ICE_DCBX_MODE_CEE)
@@ -389,13 +389,16 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 
 dcb_error:
 	dev_err(&pf->pdev->dev, "Disabling DCB until new settings occur\n");
-	prev_cfg = devm_kzalloc(&pf->pdev->dev, sizeof(*prev_cfg), GFP_KERNEL);
+	prev_cfg = kzalloc(sizeof(*prev_cfg), GFP_KERNEL);
+	if (!prev_cfg)
+		return;
+
 	prev_cfg->etscfg.willing = true;
 	prev_cfg->etscfg.tcbwtable[0] = ICE_TC_MAX_BW;
 	prev_cfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
 	memcpy(&prev_cfg->etsrec, &prev_cfg->etscfg, sizeof(prev_cfg->etsrec));
 	ice_pf_dcb_cfg(pf, prev_cfg, false);
-	devm_kfree(&pf->pdev->dev, prev_cfg);
+	kfree(prev_cfg);
 }
 
 /**
@@ -410,18 +413,17 @@ static int ice_dcb_init_cfg(struct ice_pf *pf, bool locked)
 	int ret = 0;
 
 	pi = pf->hw.port_info;
-	newcfg = devm_kzalloc(&pf->pdev->dev, sizeof(*newcfg), GFP_KERNEL);
+	newcfg = kmemdup(&pi->local_dcbx_cfg, sizeof(*newcfg), GFP_KERNEL);
 	if (!newcfg)
 		return -ENOMEM;
 
-	memcpy(newcfg, &pi->local_dcbx_cfg, sizeof(*newcfg));
 	memset(&pi->local_dcbx_cfg, 0, sizeof(*newcfg));
 
 	dev_info(&pf->pdev->dev, "Configuring initial DCB values\n");
 	if (ice_pf_dcb_cfg(pf, newcfg, locked))
 		ret = -EINVAL;
 
-	devm_kfree(&pf->pdev->dev, newcfg);
+	kfree(newcfg);
 
 	return ret;
 }
@@ -442,9 +444,10 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked)
 
 	hw = &pf->hw;
 	pi = hw->port_info;
-	dcbcfg = devm_kzalloc(&pf->pdev->dev, sizeof(*dcbcfg), GFP_KERNEL);
+	dcbcfg = kzalloc(sizeof(*dcbcfg), GFP_KERNEL);
+	if (!dcbcfg)
+		return -ENOMEM;
 
-	memset(dcbcfg, 0, sizeof(*dcbcfg));
 	memset(&pi->local_dcbx_cfg, 0, sizeof(*dcbcfg));
 
 	dcbcfg->etscfg.willing = ets_willing ? 1 : 0;
@@ -465,7 +468,7 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked)
 	dcbcfg->app[0].prot_id = ICE_APP_PROT_ID_FCOE;
 
 	ret = ice_pf_dcb_cfg(pf, dcbcfg, locked);
-	devm_kfree(&pf->pdev->dev, dcbcfg);
+	kfree(dcbcfg);
 	if (ret)
 		return ret;
 

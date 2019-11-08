@@ -724,7 +724,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 		an = "False";
 
 	/* Get FEC mode requested based on PHY caps last SW configuration */
-	caps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*caps), GFP_KERNEL);
+	caps = kzalloc(sizeof(*caps), GFP_KERNEL);
 	if (!caps) {
 		fec_req = "Unknown";
 		goto done;
@@ -744,7 +744,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 	else
 		fec_req = "NONE";
 
-	devm_kfree(&vsi->back->pdev->dev, caps);
+	kfree(caps);
 
 done:
 	netdev_info(vsi->netdev, "NIC Link is up %sbps, Requested FEC: %s, FEC: %s, Autoneg: %s, Flow Control: %s\n",
@@ -1011,8 +1011,7 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 	}
 
 	event.buf_len = cq->rq_buf_size;
-	event.msg_buf = devm_kzalloc(&pf->pdev->dev, event.buf_len,
-				     GFP_KERNEL);
+	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
 	if (!event.msg_buf)
 		return 0;
 
@@ -1055,7 +1054,7 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		}
 	} while (pending && (i++ < ICE_DFLT_IRQ_WORK));
 
-	devm_kfree(&pf->pdev->dev, event.msg_buf);
+	kfree(event.msg_buf);
 
 	return pending && (i == ICE_DFLT_IRQ_WORK);
 }
@@ -1370,7 +1369,7 @@ static int ice_force_phys_link_state(struct ice_vsi *vsi, bool link_up)
 
 	pi = vsi->port_info;
 
-	pcaps = devm_kzalloc(dev, sizeof(*pcaps), GFP_KERNEL);
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -1389,7 +1388,7 @@ static int ice_force_phys_link_state(struct ice_vsi *vsi, bool link_up)
 	    link_up == !!(pi->phy.link_info.link_info & ICE_AQ_LINK_UP))
 		goto out;
 
-	cfg = devm_kzalloc(dev, sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg) {
 		retcode = -ENOMEM;
 		goto out;
@@ -1414,9 +1413,9 @@ static int ice_force_phys_link_state(struct ice_vsi *vsi, bool link_up)
 		retcode = -EIO;
 	}
 
-	devm_kfree(dev, cfg);
+	kfree(cfg);
 out:
-	devm_kfree(dev, pcaps);
+	kfree(pcaps);
 	return retcode;
 }
 
@@ -4866,7 +4865,6 @@ ice_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
  */
 static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 {
-	struct device *dev = &vsi->back->pdev->dev;
 	struct ice_aqc_vsi_props *vsi_props;
 	struct ice_hw *hw = &vsi->back->hw;
 	struct ice_vsi_ctx *ctxt;
@@ -4875,7 +4873,7 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 
 	vsi_props = &vsi->info;
 
-	ctxt = devm_kzalloc(dev, sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -4891,7 +4889,7 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		dev_err(dev, "update VSI for bridge mode failed, bmode = %d err %d aq_err %d\n",
+		dev_err(&vsi->back->pdev->dev, "update VSI for bridge mode failed, bmode = %d err %d aq_err %d\n",
 			bmode, status, hw->adminq.sq_last_status);
 		ret = -EIO;
 		goto out;
@@ -4900,7 +4898,7 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 	vsi_props->sw_flags = ctxt->info.sw_flags;
 
 out:
-	devm_kfree(dev, ctxt);
+	kfree(ctxt);
 	return ret;
 }
 
