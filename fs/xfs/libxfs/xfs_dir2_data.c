@@ -45,11 +45,10 @@ xfs_dir2_data_entry_tag_p(
  */
 static inline unsigned int
 xfs_dir2_data_max_leaf_entries(
-	const struct xfs_dir_ops	*ops,
 	struct xfs_da_geometry		*geo)
 {
 	return (geo->blksize - sizeof(struct xfs_dir2_block_tail) -
-		ops->data_entry_offset) /
+		geo->data_entry_offset) /
 			sizeof(struct xfs_dir2_leaf_entry);
 }
 
@@ -97,7 +96,7 @@ __xfs_dir3_data_check(
 		return __this_address;
 
 	hdr = bp->b_addr;
-	offset = ops->data_entry_offset;
+	offset = geo->data_entry_offset;
 
 	switch (hdr->magic) {
 	case cpu_to_be32(XFS_DIR3_BLOCK_MAGIC):
@@ -106,7 +105,7 @@ __xfs_dir3_data_check(
 		lep = xfs_dir2_block_leaf_p(btp);
 
 		if (be32_to_cpu(btp->count) >=
-		    xfs_dir2_data_max_leaf_entries(ops, geo))
+		    xfs_dir2_data_max_leaf_entries(geo))
 			return __this_address;
 		break;
 	case cpu_to_be32(XFS_DIR3_DATA_MAGIC):
@@ -586,9 +585,10 @@ xfs_dir2_data_freescan_int(
 	struct xfs_dir2_data_hdr	*hdr,
 	int				*loghead)
 {
+	struct xfs_da_geometry		*geo = mp->m_dir_geo;
 	struct xfs_dir2_data_free	*bf = ops->data_bestfree_p(hdr);
 	void				*addr = hdr;
-	unsigned int			offset = ops->data_entry_offset;
+	unsigned int			offset = geo->data_entry_offset;
 	unsigned int			end;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
@@ -602,7 +602,7 @@ xfs_dir2_data_freescan_int(
 	memset(bf, 0, sizeof(*bf) * XFS_DIR2_DATA_FD_COUNT);
 	*loghead = 1;
 
-	end = xfs_dir3_data_end_offset(mp->m_dir_geo, addr);
+	end = xfs_dir3_data_end_offset(geo, addr);
 	while (offset < end) {
 		struct xfs_dir2_data_unused	*dup = addr + offset;
 		struct xfs_dir2_data_entry	*dep = addr + offset;
@@ -649,6 +649,7 @@ xfs_dir3_data_init(
 	struct xfs_trans		*tp = args->trans;
 	struct xfs_inode		*dp = args->dp;
 	struct xfs_mount		*mp = dp->i_mount;
+	struct xfs_da_geometry		*geo = args->geo;
 	struct xfs_buf			*bp;
 	struct xfs_dir2_data_hdr	*hdr;
 	struct xfs_dir2_data_unused	*dup;
@@ -683,9 +684,8 @@ xfs_dir3_data_init(
 		hdr->magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 
 	bf = dp->d_ops->data_bestfree_p(hdr);
-	bf[0].offset = cpu_to_be16(dp->d_ops->data_entry_offset);
-	bf[0].length =
-		cpu_to_be16(args->geo->blksize - dp->d_ops->data_entry_offset);
+	bf[0].offset = cpu_to_be16(geo->data_entry_offset);
+	bf[0].length = cpu_to_be16(geo->blksize - geo->data_entry_offset);
 	for (i = 1; i < XFS_DIR2_DATA_FD_COUNT; i++) {
 		bf[i].length = 0;
 		bf[i].offset = 0;
@@ -694,7 +694,7 @@ xfs_dir3_data_init(
 	/*
 	 * Set up an unused entry for the block's body.
 	 */
-	dup = bp->b_addr + dp->d_ops->data_entry_offset;
+	dup = bp->b_addr + geo->data_entry_offset;
 	dup->freetag = cpu_to_be16(XFS_DIR2_DATA_FREE_TAG);
 	dup->length = bf[0].length;
 	*xfs_dir2_data_unused_tag_p(dup) = cpu_to_be16((char *)dup - (char *)hdr);
@@ -747,8 +747,7 @@ xfs_dir2_data_log_header(
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 #endif
 
-	xfs_trans_log_buf(args->trans, bp, 0,
-			  args->dp->d_ops->data_entry_offset - 1);
+	xfs_trans_log_buf(args->trans, bp, 0, args->geo->data_entry_offset - 1);
 }
 
 /*
@@ -816,7 +815,7 @@ xfs_dir2_data_make_free(
 	 * If this isn't the start of the block, then back up to
 	 * the previous entry and see if it's free.
 	 */
-	if (offset > args->dp->d_ops->data_entry_offset) {
+	if (offset > args->geo->data_entry_offset) {
 		__be16			*tagp;	/* tag just before us */
 
 		tagp = (__be16 *)((char *)hdr + offset) - 1;

@@ -75,9 +75,9 @@ xfs_dir2_sf_getdents(
 	 * entries for "." and "..".
 	 */
 	dot_offset = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
-			dp->d_ops->data_entry_offset);
+			geo->data_entry_offset);
 	dotdot_offset = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
-			dp->d_ops->data_entry_offset +
+			geo->data_entry_offset +
 			xfs_dir2_data_entsize(mp, sizeof(".") - 1));
 
 	/*
@@ -174,7 +174,7 @@ xfs_dir2_block_getdents(
 	 * Loop over the data portion of the block.
 	 * Each object is a real entry (dep) or an unused one (dup).
 	 */
-	offset = dp->d_ops->data_entry_offset;
+	offset = geo->data_entry_offset;
 	end = xfs_dir3_data_end_offset(geo, bp->b_addr);
 	while (offset < end) {
 		struct xfs_dir2_data_unused	*dup = bp->b_addr + offset;
@@ -401,13 +401,13 @@ xfs_dir2_leaf_getdents(
 			/*
 			 * Find our position in the block.
 			 */
-			offset = dp->d_ops->data_entry_offset;
+			offset = geo->data_entry_offset;
 			byteoff = xfs_dir2_byte_to_off(geo, curoff);
 			/*
 			 * Skip past the header.
 			 */
 			if (byteoff == 0)
-				curoff += dp->d_ops->data_entry_offset;
+				curoff += geo->data_entry_offset;
 			/*
 			 * Skip past entries until we reach our offset.
 			 */

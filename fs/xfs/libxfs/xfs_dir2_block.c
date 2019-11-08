@@ -937,7 +937,7 @@ xfs_dir2_leaf_to_block(
 	while (dp->i_d.di_size > args->geo->blksize) {
 		int hdrsz;
 
-		hdrsz = dp->d_ops->data_entry_offset;
+		hdrsz = args->geo->data_entry_offset;
 		bestsp = xfs_dir2_leaf_bests_p(ltp);
 		if (be16_to_cpu(bestsp[be32_to_cpu(ltp->bestcount) - 1]) ==
 					    args->geo->blksize - hdrsz) {
@@ -1045,6 +1045,7 @@ xfs_dir2_sf_to_block(
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(dp, XFS_DATA_FORK);
+	struct xfs_da_geometry	*geo = args->geo;
 	xfs_dir2_db_t		blkno;		/* dir-relative block # (0) */
 	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_leaf_entry_t	*blp;		/* block leaf entries */
@@ -1059,7 +1060,7 @@ xfs_dir2_sf_to_block(
 	int			needlog;	/* need to log block header */
 	int			needscan;	/* need to scan block freespc */
 	int			newoffset;	/* offset from current entry */
-	unsigned int		offset = dp->d_ops->data_entry_offset;
+	unsigned int		offset = geo->data_entry_offset;
 	xfs_dir2_sf_entry_t	*sfep;		/* sf entry pointer */
 	xfs_dir2_sf_hdr_t	*oldsfp;	/* old shortform header  */
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform header  */

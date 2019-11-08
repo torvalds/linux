@@ -187,6 +187,7 @@ xchk_dir_rec(
 	struct xfs_da_state_blk		*blk = &ds->state->path.blk[level];
 	struct xfs_mount		*mp = ds->state->mp;
 	struct xfs_inode		*dp = ds->dargs.dp;
+	struct xfs_da_geometry		*geo = mp->m_dir_geo;
 	struct xfs_dir2_data_entry	*dent;
 	struct xfs_buf			*bp;
 	struct xfs_dir2_leaf_entry	*ent;
@@ -220,11 +221,11 @@ xchk_dir_rec(
 		return 0;
 
 	/* Find the directory entry's location. */
-	db = xfs_dir2_dataptr_to_db(mp->m_dir_geo, ptr);
-	off = xfs_dir2_dataptr_to_off(mp->m_dir_geo, ptr);
-	rec_bno = xfs_dir2_db_to_da(mp->m_dir_geo, db);
+	db = xfs_dir2_dataptr_to_db(geo, ptr);
+	off = xfs_dir2_dataptr_to_off(geo, ptr);
+	rec_bno = xfs_dir2_db_to_da(geo, db);
 
-	if (rec_bno >= mp->m_dir_geo->leafblk) {
+	if (rec_bno >= geo->leafblk) {
 		xchk_da_set_corrupt(ds, level);
 		goto out;
 	}
@@ -244,8 +245,8 @@ xchk_dir_rec(
 	dent = bp->b_addr + off;
 
 	/* Make sure we got a real directory entry. */
-	iter_off = mp->m_dir_inode_ops->data_entry_offset;
-	end = xfs_dir3_data_end_offset(mp->m_dir_geo, bp->b_addr);
+	iter_off = geo->data_entry_offset;
+	end = xfs_dir3_data_end_offset(geo, bp->b_addr);
 	if (!end) {
 		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 		goto out_relse;
@@ -392,7 +393,7 @@ xchk_directory_data_bestfree(
 	}
 
 	/* Make sure the bestfrees are actually the best free spaces. */
-	offset = d_ops->data_entry_offset;
+	offset = mp->m_dir_geo->data_entry_offset;
 	end = xfs_dir3_data_end_offset(mp->m_dir_geo, bp->b_addr);
 
 	/* Iterate the entries, stopping when we hit or go past the end. */

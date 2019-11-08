@@ -266,7 +266,7 @@ xfs_dir2_block_to_sf(
 	int			logflags;	/* inode logging flags */
 	struct xfs_dir2_sf_entry *sfep;		/* shortform entry */
 	struct xfs_dir2_sf_hdr	*sfp;		/* shortform directory header */
-	unsigned int		offset = dp->d_ops->data_entry_offset;
+	unsigned int		offset = args->geo->data_entry_offset;
 	unsigned int		end;
 
 	trace_xfs_dir2_block_to_sf(args);
@@ -538,7 +538,7 @@ xfs_dir2_sf_addname_hard(
 	 * to insert the new entry.
 	 * If it's going to end up at the end then oldsfep will point there.
 	 */
-	for (offset = dp->d_ops->data_first_offset,
+	for (offset = args->geo->data_first_offset,
 	      oldsfep = xfs_dir2_sf_firstentry(oldsfp),
 	      add_datasize = xfs_dir2_data_entsize(mp, args->namelen),
 	      eof = (char *)oldsfep == &buf[old_isize];
@@ -616,7 +616,7 @@ xfs_dir2_sf_addname_pick(
 
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
 	size = xfs_dir2_data_entsize(mp, args->namelen);
-	offset = dp->d_ops->data_first_offset;
+	offset = args->geo->data_first_offset;
 	sfep = xfs_dir2_sf_firstentry(sfp);
 	holefit = 0;
 	/*
@@ -681,7 +681,7 @@ xfs_dir2_sf_check(
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform structure */
 
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
-	offset = dp->d_ops->data_first_offset;
+	offset = args->geo->data_first_offset;
 	ino = xfs_dir2_sf_get_parent_ino(sfp);
 	i8count = ino > XFS_DIR2_MAX_SHORT_INUM;
 
@@ -714,7 +714,6 @@ xfs_dir2_sf_verify(
 	struct xfs_dir2_sf_entry	*sfep;
 	struct xfs_dir2_sf_entry	*next_sfep;
 	char				*endp;
-	const struct xfs_dir_ops	*dops;
 	struct xfs_ifork		*ifp;
 	xfs_ino_t			ino;
 	int				i;
@@ -725,11 +724,6 @@ xfs_dir2_sf_verify(
 	uint8_t				filetype;
 
 	ASSERT(ip->i_d.di_format == XFS_DINODE_FMT_LOCAL);
-	/*
-	 * xfs_iread calls us before xfs_setup_inode sets up ip->d_ops,
-	 * so we can only trust the mountpoint to have the right pointer.
-	 */
-	dops = xfs_dir_get_ops(mp, NULL);
 
 	ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
 	sfp = (struct xfs_dir2_sf_hdr *)ifp->if_u1.if_data;
@@ -750,7 +744,7 @@ xfs_dir2_sf_verify(
 	error = xfs_dir_ino_validate(mp, ino);
 	if (error)
 		return __this_address;
-	offset = dops->data_first_offset;
+	offset = mp->m_dir_geo->data_first_offset;
 
 	/* Check all reported entries */
 	sfep = xfs_dir2_sf_firstentry(sfp);

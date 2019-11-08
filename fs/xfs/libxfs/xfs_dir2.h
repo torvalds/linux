@@ -37,9 +37,6 @@ struct xfs_dir_ops {
 				uint8_t ftype);
 	struct xfs_dir2_data_free *
 		(*data_bestfree_p)(struct xfs_dir2_data_hdr *hdr);
-
-	xfs_dir2_data_aoff_t data_first_offset;
-	size_t	data_entry_offset;
 };
 
 extern const struct xfs_dir_ops *

@@ -126,15 +126,23 @@ xfs_da_mount(
 		dageo->node_hdr_size = sizeof(struct xfs_da3_node_hdr);
 		dageo->leaf_hdr_size = sizeof(struct xfs_dir3_leaf_hdr);
 		dageo->free_hdr_size = sizeof(struct xfs_dir3_free_hdr);
+		dageo->data_entry_offset =
+				sizeof(struct xfs_dir3_data_hdr);
 	} else {
 		dageo->node_hdr_size = sizeof(struct xfs_da_node_hdr);
 		dageo->leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr);
 		dageo->free_hdr_size = sizeof(struct xfs_dir2_free_hdr);
+		dageo->data_entry_offset =
+				sizeof(struct xfs_dir2_data_hdr);
 	}
 	dageo->leaf_max_ents = (dageo->blksize - dageo->leaf_hdr_size) /
 			sizeof(struct xfs_dir2_leaf_entry);
 	dageo->free_max_bests = (dageo->blksize - dageo->free_hdr_size) /
 			sizeof(xfs_dir2_data_off_t);
+
+	dageo->data_first_offset = dageo->data_entry_offset +
+			xfs_dir2_data_entsize(mp, 1) +
+			xfs_dir2_data_entsize(mp, 2);
 
 	/*
 	 * Now we've set up the block conversion variables, we can calculate the

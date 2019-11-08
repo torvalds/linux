@@ -1263,6 +1263,7 @@ xfs_dir2_leafn_remove(
 	xfs_da_state_blk_t	*dblk,		/* data block */
 	int			*rval)		/* resulting block needs join */
 {
+	struct xfs_da_geometry	*geo = args->geo;
 	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_dir2_db_t		db;		/* data block number */
 	struct xfs_buf		*dbp;		/* data block buffer */
@@ -1293,9 +1294,9 @@ xfs_dir2_leafn_remove(
 	/*
 	 * Extract the data block and offset from the entry.
 	 */
-	db = xfs_dir2_dataptr_to_db(args->geo, be32_to_cpu(lep->address));
+	db = xfs_dir2_dataptr_to_db(geo, be32_to_cpu(lep->address));
 	ASSERT(dblk->blkno == db);
-	off = xfs_dir2_dataptr_to_off(args->geo, be32_to_cpu(lep->address));
+	off = xfs_dir2_dataptr_to_off(geo, be32_to_cpu(lep->address));
 	ASSERT(dblk->index == off);
 
 	/*
@@ -1346,9 +1347,8 @@ xfs_dir2_leafn_remove(
 		 * Convert the data block number to a free block,
 		 * read in the free block.
 		 */
-		fdb = xfs_dir2_db_to_fdb(args->geo, db);
-		error = xfs_dir2_free_read(tp, dp,
-					   xfs_dir2_db_to_da(args->geo, fdb),
+		fdb = xfs_dir2_db_to_fdb(geo, db);
+		error = xfs_dir2_free_read(tp, dp, xfs_dir2_db_to_da(geo, fdb),
 					   &fbp);
 		if (error)
 			return error;
@@ -1358,22 +1358,20 @@ xfs_dir2_leafn_remove(
 		struct xfs_dir3_icfree_hdr freehdr;
 
 		xfs_dir2_free_hdr_from_disk(dp->i_mount, &freehdr, free);
-		ASSERT(freehdr.firstdb == args->geo->free_max_bests *
-			(fdb - xfs_dir2_byte_to_db(args->geo,
-						   XFS_DIR2_FREE_OFFSET)));
+		ASSERT(freehdr.firstdb == geo->free_max_bests *
+			(fdb - xfs_dir2_byte_to_db(geo, XFS_DIR2_FREE_OFFSET)));
 	}
 #endif
 		/*
 		 * Calculate which entry we need to fix.
 		 */
-		findex = xfs_dir2_db_to_fdindex(args->geo, db);
+		findex = xfs_dir2_db_to_fdindex(geo, db);
 		longest = be16_to_cpu(bf[0].length);
 		/*
 		 * If the data block is now empty we can get rid of it
 		 * (usually).
 		 */
-		if (longest == args->geo->blksize -
-			       dp->d_ops->data_entry_offset) {
+		if (longest == geo->blksize - geo->data_entry_offset) {
 			/*
 			 * Try to punch out the data block.
 			 */
@@ -1405,9 +1403,9 @@ xfs_dir2_leafn_remove(
 	 * Return indication of whether this leaf block is empty enough
 	 * to justify trying to join it with a neighbor.
 	 */
-	*rval = (args->geo->leaf_hdr_size +
+	*rval = (geo->leaf_hdr_size +
 		 (uint)sizeof(leafhdr.ents) * (leafhdr.count - leafhdr.stale)) <
-		args->geo->magicpct;
+		geo->magicpct;
 	return 0;
 }
 

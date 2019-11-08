@@ -32,6 +32,9 @@ struct xfs_da_geometry {
 	unsigned int	free_hdr_size;	/* dir2 free header size */
 	unsigned int	free_max_bests;	/* # of bests entries in dir2 free */
 	xfs_dablk_t	freeblk;	/* blockno of free data v2 */
+
+	xfs_dir2_data_aoff_t data_first_offset;
+	size_t		data_entry_offset;
 };
 
 /*========================================================================
