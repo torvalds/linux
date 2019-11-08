@@ -1272,7 +1272,7 @@ static struct attribute *master_attrs[] = {
 
 ATTRIBUTE_GROUPS(master);
 
-struct class fsi_master_class = {
+static struct class fsi_master_class = {
 	.name = "fsi-master",
 	.dev_groups = master_groups,
 };
