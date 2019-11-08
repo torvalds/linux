@@ -11,6 +11,7 @@
 #include <crypto/internal/chacha.h>
 #include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
+#include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
@@ -29,9 +30,11 @@ asmlinkage void hchacha_block_neon(const u32 *state, u32 *out, int nrounds);
 asmlinkage void chacha_doarm(u8 *dst, const u8 *src, unsigned int bytes,
 			     const u32 *state, int nrounds);
 
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(use_neon);
+
 static inline bool neon_usable(void)
 {
-	return crypto_simd_usable();
+	return static_branch_likely(&use_neon) && crypto_simd_usable();
 }
 
 static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
@@ -59,6 +62,40 @@ static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
 		memcpy(dst, buf, bytes);
 	}
 }
+
+void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds)
+{
+	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !neon_usable()) {
+		hchacha_block_arm(state, stream, nrounds);
+	} else {
+		kernel_neon_begin();
+		hchacha_block_neon(state, stream, nrounds);
+		kernel_neon_end();
+	}
+}
+EXPORT_SYMBOL(hchacha_block_arch);
+
+void chacha_init_arch(u32 *state, const u32 *key, const u8 *iv)
+{
+	chacha_init_generic(state, key, iv);
+}
+EXPORT_SYMBOL(chacha_init_arch);
+
+void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src, unsigned int bytes,
+		       int nrounds)
+{
+	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !neon_usable() ||
+	    bytes <= CHACHA_BLOCK_SIZE) {
+		chacha_doarm(dst, src, bytes, state, nrounds);
+		state[12] += DIV_ROUND_UP(bytes, CHACHA_BLOCK_SIZE);
+		return;
+	}
+
+	kernel_neon_begin();
+	chacha_doneon(state, dst, src, bytes, nrounds);
+	kernel_neon_end();
+}
+EXPORT_SYMBOL(chacha_crypt_arch);
 
 static int chacha_stream_xor(struct skcipher_request *req,
 			     const struct chacha_ctx *ctx, const u8 *iv,
@@ -269,6 +306,8 @@ static int __init chacha_simd_mod_init(void)
 			for (i = 0; i < ARRAY_SIZE(neon_algs); i++)
 				neon_algs[i].base.cra_priority = 0;
 			break;
+		default:
+			static_branch_enable(&use_neon);
 		}
 
 		err = crypto_register_skciphers(neon_algs, ARRAY_SIZE(neon_algs));
