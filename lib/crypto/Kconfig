@@ -40,7 +40,7 @@ config CRYPTO_LIB_DES
 config CRYPTO_LIB_POLY1305_RSIZE
 	int
 	default 4 if X86_64
-	default 9 if ARM64
+	default 9 if ARM || ARM64
 	default 1
 
 config CRYPTO_ARCH_HAVE_LIB_POLY1305
