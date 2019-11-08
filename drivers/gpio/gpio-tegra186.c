@@ -32,6 +32,7 @@
 #define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_DOUBLE_EDGE (0x3 << 2)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_MASK (0x3 << 2)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_LEVEL BIT(4)
+#define  TEGRA186_GPIO_ENABLE_CONFIG_DEBOUNCE BIT(5)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_INTERRUPT BIT(6)
 
 #define TEGRA186_GPIO_DEBOUNCE_CONTROL 0x04
@@ -215,6 +216,42 @@ static void tegra186_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		value |= TEGRA186_GPIO_OUTPUT_VALUE_HIGH;
 
 	writel(value, base + TEGRA186_GPIO_OUTPUT_VALUE);
+}
+
+static int tegra186_gpio_set_config(struct gpio_chip *chip,
+				    unsigned int offset,
+				    unsigned long config)
+{
+	struct tegra_gpio *gpio = gpiochip_get_data(chip);
+	u32 debounce, value;
+	void __iomem *base;
+
+	base = tegra186_gpio_get_base(gpio, offset);
+	if (base == NULL)
+		return -ENXIO;
+
+	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+		return -ENOTSUPP;
+
+	debounce = pinconf_to_config_argument(config);
+
+	/*
+	 * The Tegra186 GPIO controller supports a maximum of 255 ms debounce
+	 * time.
+	 */
+	if (debounce > 255000)
+		return -EINVAL;
+
+	debounce = DIV_ROUND_UP(debounce, USEC_PER_MSEC);
+
+	value = TEGRA186_GPIO_DEBOUNCE_CONTROL_THRESHOLD(debounce);
+	writel(value, base + TEGRA186_GPIO_DEBOUNCE_CONTROL);
+
+	value = readl(base + TEGRA186_GPIO_ENABLE_CONFIG);
+	value |= TEGRA186_GPIO_ENABLE_CONFIG_DEBOUNCE;
+	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
+
+	return 0;
 }
 
 static int tegra186_gpio_of_xlate(struct gpio_chip *chip,
@@ -539,6 +576,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	gpio->gpio.direction_output = tegra186_gpio_direction_output;
 	gpio->gpio.get = tegra186_gpio_get,
 	gpio->gpio.set = tegra186_gpio_set;
+	gpio->gpio.set_config = tegra186_gpio_set_config;
 
 	gpio->gpio.base = -1;
 
