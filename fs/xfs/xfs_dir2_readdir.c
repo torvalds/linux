@@ -77,7 +77,8 @@ xfs_dir2_sf_getdents(
 	dot_offset = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
 			dp->d_ops->data_entry_offset);
 	dotdot_offset = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
-						dp->d_ops->data_dotdot_offset);
+			dp->d_ops->data_entry_offset +
+			dp->d_ops->data_entsize(sizeof(".") - 1));
 
 	/*
 	 * Put . entry unless we're starting past it.

@@ -40,7 +40,6 @@ struct xfs_dir_ops {
 	struct xfs_dir2_data_free *
 		(*data_bestfree_p)(struct xfs_dir2_data_hdr *hdr);
 
-	xfs_dir2_data_aoff_t data_dotdot_offset;
 	xfs_dir2_data_aoff_t data_first_offset;
 	size_t	data_entry_offset;
 
