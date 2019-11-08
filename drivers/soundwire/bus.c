@@ -1155,7 +1155,7 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
 }
 EXPORT_SYMBOL(sdw_handle_slave_status);
 
-void sdw_clear_slave_status(struct sdw_bus *bus)
+void sdw_clear_slave_status(struct sdw_bus *bus, u32 request)
 {
 	struct sdw_slave *slave;
 	int i;
@@ -1175,6 +1175,9 @@ void sdw_clear_slave_status(struct sdw_bus *bus)
 
 		if (slave->status != SDW_SLAVE_UNATTACHED)
 			sdw_modify_slave_status(slave, SDW_SLAVE_UNATTACHED);
+
+		/* keep track of request, used in pm_runtime resume */
+		slave->unattach_request = request;
 	}
 }
 EXPORT_SYMBOL(sdw_clear_slave_status);
