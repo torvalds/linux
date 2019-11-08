@@ -59,94 +59,6 @@ xfs_dir3_sfe_put_ftype(
 }
 
 /*
- * Inode numbers in short-form directories can come in two versions,
- * either 4 bytes or 8 bytes wide.  These helpers deal with the
- * two forms transparently by looking at the headers i8count field.
- *
- * For 64-bit inode number the most significant byte must be zero.
- */
-static xfs_ino_t
-xfs_dir2_sf_get_ino(
-	struct xfs_dir2_sf_hdr	*hdr,
-	uint8_t			*from)
-{
-	if (hdr->i8count)
-		return get_unaligned_be64(from) & 0x00ffffffffffffffULL;
-	else
-		return get_unaligned_be32(from);
-}
-
-static void
-xfs_dir2_sf_put_ino(
-	struct xfs_dir2_sf_hdr	*hdr,
-	uint8_t			*to,
-	xfs_ino_t		ino)
-{
-	ASSERT((ino & 0xff00000000000000ULL) == 0);
-
-	if (hdr->i8count)
-		put_unaligned_be64(ino, to);
-	else
-		put_unaligned_be32(ino, to);
-}
-
-xfs_ino_t
-xfs_dir2_sf_get_parent_ino(
-	struct xfs_dir2_sf_hdr	*hdr)
-{
-	return xfs_dir2_sf_get_ino(hdr, hdr->parent);
-}
-
-void
-xfs_dir2_sf_put_parent_ino(
-	struct xfs_dir2_sf_hdr	*hdr,
-	xfs_ino_t		ino)
-{
-	xfs_dir2_sf_put_ino(hdr, hdr->parent, ino);
-}
-
-/*
- * In short-form directory entries the inode numbers are stored at variable
- * offset behind the entry name. If the entry stores a filetype value, then it
- * sits between the name and the inode number. Hence the inode numbers may only
- * be accessed through the helpers below.
- */
-static xfs_ino_t
-xfs_dir2_sfe_get_ino(
-	struct xfs_dir2_sf_hdr	*hdr,
-	struct xfs_dir2_sf_entry *sfep)
-{
-	return xfs_dir2_sf_get_ino(hdr, &sfep->name[sfep->namelen]);
-}
-
-static void
-xfs_dir2_sfe_put_ino(
-	struct xfs_dir2_sf_hdr	*hdr,
-	struct xfs_dir2_sf_entry *sfep,
-	xfs_ino_t		ino)
-{
-	xfs_dir2_sf_put_ino(hdr, &sfep->name[sfep->namelen], ino);
-}
-
-static xfs_ino_t
-xfs_dir3_sfe_get_ino(
-	struct xfs_dir2_sf_hdr	*hdr,
-	struct xfs_dir2_sf_entry *sfep)
-{
-	return xfs_dir2_sf_get_ino(hdr, &sfep->name[sfep->namelen + 1]);
-}
-
-static void
-xfs_dir3_sfe_put_ino(
-	struct xfs_dir2_sf_hdr	*hdr,
-	struct xfs_dir2_sf_entry *sfep,
-	xfs_ino_t		ino)
-{
-	xfs_dir2_sf_put_ino(hdr, &sfep->name[sfep->namelen + 1], ino);
-}
-
-
-/*
  * Directory data block operations
  */
 
@@ -361,8 +273,6 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 static const struct xfs_dir_ops xfs_dir2_ops = {
 	.sf_get_ftype = xfs_dir2_sfe_get_ftype,
 	.sf_put_ftype = xfs_dir2_sfe_put_ftype,
-	.sf_get_ino = xfs_dir2_sfe_get_ino,
-	.sf_put_ino = xfs_dir2_sfe_put_ino,
 
 	.data_entsize = xfs_dir2_data_entsize,
 	.data_get_ftype = xfs_dir2_data_get_ftype,
@@ -388,8 +298,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.sf_get_ftype = xfs_dir3_sfe_get_ftype,
 	.sf_put_ftype = xfs_dir3_sfe_put_ftype,
-	.sf_get_ino = xfs_dir3_sfe_get_ino,
-	.sf_put_ino = xfs_dir3_sfe_put_ino,
 
 	.data_entsize = xfs_dir3_data_entsize,
 	.data_get_ftype = xfs_dir3_data_get_ftype,
@@ -415,8 +323,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 static const struct xfs_dir_ops xfs_dir3_ops = {
 	.sf_get_ftype = xfs_dir3_sfe_get_ftype,
 	.sf_put_ftype = xfs_dir3_sfe_put_ftype,
-	.sf_get_ino = xfs_dir3_sfe_get_ino,
-	.sf_put_ino = xfs_dir3_sfe_put_ino,
 
 	.data_entsize = xfs_dir3_data_entsize,
 	.data_get_ftype = xfs_dir3_data_get_ftype,

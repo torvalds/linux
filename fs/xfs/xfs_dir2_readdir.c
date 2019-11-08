@@ -114,7 +114,7 @@ xfs_dir2_sf_getdents(
 			continue;
 		}
 
-		ino = dp->d_ops->sf_get_ino(sfp, sfep);
+		ino = xfs_dir2_sf_get_ino(mp, sfp, sfep);
 		filetype = dp->d_ops->sf_get_ftype(sfep);
 		ctx->pos = off & 0x7fffffff;
 		if (!xfs_dir2_namecheck(sfep->name, sfep->namelen)) {
