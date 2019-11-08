@@ -1473,6 +1473,7 @@ N:	meson
 ARM/Amlogic Meson SoC Crypto Drivers
 M:	Corentin Labbe <clabbe@baylibre.com>
 L:	linux-crypto@vger.kernel.org
+L:	linux-amlogic@lists.infradead.org
 S:	Maintained
 F:	drivers/crypto/amlogic/
 F:	Documentation/devicetree/bindings/crypto/amlogic*
