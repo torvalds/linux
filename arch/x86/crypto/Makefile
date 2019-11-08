@@ -55,6 +55,7 @@ ifeq ($(avx_supported),yes)
 	obj-$(CONFIG_CRYPTO_CAST6_AVX_X86_64) += cast6-avx-x86_64.o
 	obj-$(CONFIG_CRYPTO_TWOFISH_AVX_X86_64) += twofish-avx-x86_64.o
 	obj-$(CONFIG_CRYPTO_SERPENT_AVX_X86_64) += serpent-avx-x86_64.o
+	obj-$(CONFIG_CRYPTO_BLAKE2S_X86) += blake2s-x86_64.o
 endif
 
 # These modules require assembler to support AVX2.
@@ -87,6 +88,8 @@ aegis256-aesni-y := aegis256-aesni-asm.o aegis256-aesni-glue.o
 
 morus640-sse2-y := morus640-sse2-asm.o morus640-sse2-glue.o
 morus1280-sse2-y := morus1280-sse2-asm.o morus1280-sse2-glue.o
+
+blake2s-x86_64-y := blake2s-core.o blake2s-glue.o
 
 ifeq ($(avx_supported),yes)
 	camellia-aesni-avx-x86_64-y := camellia-aesni-avx-asm_64.o \

@@ -656,6 +656,12 @@ config CRYPTO_BLAKE2S
 
 	  See https://blake2.net for further information.
 
+config CRYPTO_BLAKE2S_X86
+	tristate "BLAKE2s digest algorithm (x86 accelerated version)"
+	depends on X86 && 64BIT
+	select CRYPTO_LIB_BLAKE2S_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_BLAKE2S
+
 config CRYPTO_CRCT10DIF
 	tristate "CRCT10DIF algorithm"
 	select CRYPTO_HASH
