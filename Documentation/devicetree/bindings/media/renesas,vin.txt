@@ -41,9 +41,6 @@ on Gen3 and RZ/G2 platforms to a CSI-2 receiver.
  - interrupts: the interrupt for the device
  - clocks: Reference to the parent clock
 
-Additionally, an alias named vinX will need to be created to specify
-which video input device this is.
-
 The per-board settings for Gen2 and RZ/G1 platforms:
 
 - port - sub-node describing a single endpoint connected to the VIN
