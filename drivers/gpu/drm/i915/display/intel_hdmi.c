@@ -3140,6 +3140,9 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	DRM_DEBUG_KMS("Adding HDMI connector on [ENCODER:%d:%s]\n",
 		      intel_encoder->base.base.id, intel_encoder->base.name);
 
+	if (WARN_ON(port == PORT_A))
+		return;
+
 	if (WARN(intel_dig_port->max_lanes < 4,
 		 "Not enough lanes (%d) for HDMI on [ENCODER:%d:%s]\n",
 		 intel_dig_port->max_lanes, intel_encoder->base.base.id,
@@ -3159,8 +3162,6 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	intel_hdmi->ddc_bus = intel_hdmi_ddc_pin(dev_priv, port);
 
-	if (WARN_ON(port == PORT_A))
-		return;
 	intel_encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 
 	if (HAS_DDI(dev_priv))
