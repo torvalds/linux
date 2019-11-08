@@ -1,5 +1,5 @@
 /*
- * ARM NEON accelerated ChaCha and XChaCha stream ciphers,
+ * ARM NEON and scalar accelerated ChaCha and XChaCha stream ciphers,
  * including ChaCha20 (RFC7539)
  *
  * Copyright (C) 2016 - 2017 Linaro, Ltd. <ard.biesheuvel@linaro.org>
