@@ -26,7 +26,7 @@ enum kaslr_status {
 	KASLR_DISABLED_FDT_REMAP,
 };
 
-enum kaslr_status __ro_after_init kaslr_status;
+static enum kaslr_status __initdata kaslr_status;
 u64 __ro_after_init module_alloc_base;
 u16 __initdata memstart_offset_seed;
 
@@ -108,10 +108,6 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	 * Retrieve (and wipe) the seed from the FDT
 	 */
 	seed = get_kaslr_seed(fdt);
-	if (!seed) {
-		kaslr_status = KASLR_DISABLED_NO_SEED;
-		return 0;
-	}
 
 	/*
 	 * Check if 'nokaslr' appears on the command line, and
@@ -121,6 +117,11 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	str = strstr(cmdline, "nokaslr");
 	if (str == cmdline || (str > cmdline && *(str - 1) == ' ')) {
 		kaslr_status = KASLR_DISABLED_CMDLINE;
+		return 0;
+	}
+
+	if (!seed) {
+		kaslr_status = KASLR_DISABLED_NO_SEED;
 		return 0;
 	}
 
