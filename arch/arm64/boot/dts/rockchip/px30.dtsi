@@ -41,6 +41,7 @@
 		serial5 = &uart5;
 		spi0 = &spi0;
 		spi1 = &spi1;
+		spi2 = &sfc;
 	};
 
 	cpus {
@@ -1419,6 +1420,17 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 		power-domains = <&power PX30_PD_MMC_NAND>;
+		status = "disabled";
+	};
+
+	sfc: spi@ff3a0000 {
+		compatible = "rockchip,sfc";
+		reg = <0x0 0xff3a0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
+		clock-names = "clk_sfc", "hclk_sfc";
+		assigned-clocks = <&cru SCLK_SFC>;
+		assigned-clock-rates = <100000000>;
 		status = "disabled";
 	};
 
