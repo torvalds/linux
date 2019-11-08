@@ -708,6 +708,10 @@ static int lp_set_timeout64(unsigned int minor, void __user *arg)
 	if (copy_from_user(karg, arg, sizeof(karg)))
 		return -EFAULT;
 
+	/* sparc64 suseconds_t is 32-bit only */
+	if (IS_ENABLED(CONFIG_SPARC64) && !in_compat_syscall())
+		karg[1] >>= 32;
+
 	return lp_set_timeout(minor, karg[0], karg[1]);
 }
 
