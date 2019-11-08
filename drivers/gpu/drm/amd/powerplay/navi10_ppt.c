@@ -691,13 +691,25 @@ static bool navi10_is_support_fine_grained_dpm(struct smu_context *smu, enum smu
 	return dpm_desc->SnapToDiscrete == 0 ? true : false;
 }
 
+static inline bool navi10_od_feature_is_supported(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODFEATURE_ID feature)
+{
+	return od_table->cap[feature];
+}
+
+
 static int navi10_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
+	OverDriveTable_t *od_table;
+	struct smu_11_0_overdrive_table *od_settings;
+	uint16_t *curve_settings;
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t freq_values[3] = {0};
 	uint32_t mark_index = 0;
+	struct smu_table_context *table_context = &smu->smu_table;
+	od_table = (OverDriveTable_t *)table_context->overdrive_table;
+	od_settings = smu->od_settings;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -746,6 +758,45 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 						i == mark_index ? "*" : "");
 			}
 
+		}
+		break;
+	case SMU_OD_SCLK:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_LIMITS))
+			break;
+		size += sprintf(buf + size, "OD_SCLK:\n");
+		size += sprintf(buf + size, "0: %uMhz\n1: %uMhz\n", od_table->GfxclkFmin, od_table->GfxclkFmax);
+		break;
+	case SMU_OD_MCLK:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_UCLK_MAX))
+			break;
+		size += sprintf(buf + size, "OD_MCLK:\n");
+		size += sprintf(buf + size, "0: %uMHz\n", od_table->UclkFmax);
+		break;
+	case SMU_OD_VDDC_CURVE:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_CURVE))
+			break;
+		size += sprintf(buf + size, "OD_VDDC_CURVE:\n");
+		for (i = 0; i < 3; i++) {
+			switch (i) {
+			case 0:
+				curve_settings = &od_table->GfxclkFreq1;
+				break;
+			case 1:
+				curve_settings = &od_table->GfxclkFreq2;
+				break;
+			case 2:
+				curve_settings = &od_table->GfxclkFreq3;
+				break;
+			default:
+				break;
+			}
+			size += sprintf(buf + size, "%d: %uMHz @ %umV\n", i, curve_settings[0], curve_settings[1] / NAVI10_VOLTAGE_SCALE);
 		}
 		break;
 	default:
@@ -1659,11 +1710,6 @@ static inline void navi10_dump_od_table(OverDriveTable_t *od_table) {
 	pr_debug("OD: Gfx3: (%d, %d)\n", od_table->GfxclkFreq3, od_table->GfxclkVolt3);
 	pr_debug("OD: UclkFmax: %d\n", od_table->UclkFmax);
 	pr_debug("OD: OverDrivePct: %d\n", od_table->OverDrivePct);
-}
-
-static inline bool navi10_od_feature_is_supported(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODFEATURE_ID feature)
-{
-	return od_table->cap[feature];
 }
 
 static int navi10_od_setting_check_range(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODSETTING_ID setting, uint32_t value)
