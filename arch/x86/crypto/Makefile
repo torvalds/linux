@@ -47,6 +47,8 @@ obj-$(CONFIG_CRYPTO_MORUS1280_GLUE) += morus1280_glue.o
 obj-$(CONFIG_CRYPTO_MORUS640_SSE2) += morus640-sse2.o
 obj-$(CONFIG_CRYPTO_MORUS1280_SSE2) += morus1280-sse2.o
 
+obj-$(CONFIG_CRYPTO_CURVE25519_X86) += curve25519-x86_64.o
+
 # These modules require assembler to support AVX.
 ifeq ($(avx_supported),yes)
 	obj-$(CONFIG_CRYPTO_CAMELLIA_AESNI_AVX_X86_64) += \
