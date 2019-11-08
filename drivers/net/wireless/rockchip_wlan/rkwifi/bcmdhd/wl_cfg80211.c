@@ -11568,6 +11568,7 @@ wl_notify_connect_status_ap(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 	channel_info_t ci;
 #else
 	struct station_info sinfo;
+	memset(&sinfo, 0, sizeof(sinfo));
 #endif 
 
 	WL_DBG(("event %d status %d reason %d\n", event, ntoh32(e->status), reason));
