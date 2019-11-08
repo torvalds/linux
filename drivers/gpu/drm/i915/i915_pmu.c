@@ -292,6 +292,16 @@ add_sample(struct i915_pmu_sample *sample, u32 val)
 	sample->cur += val;
 }
 
+static bool exclusive_mmio_access(const struct drm_i915_private *i915)
+{
+	/*
+	 * We have to avoid concurrent mmio cache line access on gen7 or
+	 * risk a machine hang. For a fun history lesson dig out the old
+	 * userspace intel_gpu_top and run it on Ivybridge or Haswell!
+	 */
+	return IS_GEN(i915, 7);
+}
+
 static void
 engines_sample(struct intel_gt *gt, unsigned int period_ns)
 {
@@ -304,6 +314,7 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 
 	for_each_engine(engine, gt, id) {
 		struct intel_engine_pmu *pmu = &engine->pmu;
+		spinlock_t *mmio_lock;
 		unsigned long flags;
 		bool busy;
 		u32 val;
@@ -311,7 +322,12 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 		if (!intel_engine_pm_get_if_awake(engine))
 			continue;
 
-		spin_lock_irqsave(&engine->uncore->lock, flags);
+		mmio_lock = NULL;
+		if (exclusive_mmio_access(i915))
+			mmio_lock = &engine->uncore->lock;
+
+		if (unlikely(mmio_lock))
+			spin_lock_irqsave(mmio_lock, flags);
 
 		val = ENGINE_READ_FW(engine, RING_CTL);
 		if (val == 0) /* powerwell off => engine idle */
@@ -342,7 +358,8 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 			add_sample(&pmu->sample[I915_SAMPLE_BUSY], period_ns);
 
 skip:
-		spin_unlock_irqrestore(&engine->uncore->lock, flags);
+		if (unlikely(mmio_lock))
+			spin_unlock_irqrestore(mmio_lock, flags);
 		intel_engine_pm_put(engine);
 	}
 }
