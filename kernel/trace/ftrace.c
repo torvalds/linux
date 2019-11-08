@@ -1541,6 +1541,26 @@ static int ftrace_cmp_recs(const void *a, const void *b)
 	return 0;
 }
 
+static struct dyn_ftrace *lookup_rec(unsigned long start, unsigned long end)
+{
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec = NULL;
+	struct dyn_ftrace key;
+
+	key.ip = start;
+	key.flags = end;	/* overload flags, as it is unsigned long */
+
+	for (pg = ftrace_pages_start; pg; pg = pg->next) {
+		if (end < pg->records[0].ip ||
+		    start >= (pg->records[pg->index - 1].ip + MCOUNT_INSN_SIZE))
+			continue;
+		rec = bsearch(&key, pg->records, pg->index,
+			      sizeof(struct dyn_ftrace),
+			      ftrace_cmp_recs);
+	}
+	return rec;
+}
+
 /**
  * ftrace_location_range - return the first address of a traced location
  *	if it touches the given ip range
@@ -1555,23 +1575,11 @@ static int ftrace_cmp_recs(const void *a, const void *b)
  */
 unsigned long ftrace_location_range(unsigned long start, unsigned long end)
 {
-	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
-	struct dyn_ftrace key;
 
-	key.ip = start;
-	key.flags = end;	/* overload flags, as it is unsigned long */
-
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		if (end < pg->records[0].ip ||
-		    start >= (pg->records[pg->index - 1].ip + MCOUNT_INSN_SIZE))
-			continue;
-		rec = bsearch(&key, pg->records, pg->index,
-			      sizeof(struct dyn_ftrace),
-			      ftrace_cmp_recs);
-		if (rec)
-			return rec->ip;
-	}
+	rec = lookup_rec(start, end);
+	if (rec)
+		return rec->ip;
 
 	return 0;
 }
