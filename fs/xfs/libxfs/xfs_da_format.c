@@ -123,20 +123,6 @@ xfs_dir3_data_bestfree_p(struct xfs_dir2_data_hdr *hdr)
 	return ((struct xfs_dir3_data_hdr *)hdr)->best_free;
 }
 
-static struct xfs_dir2_data_entry *
-xfs_dir2_data_entry_p(struct xfs_dir2_data_hdr *hdr)
-{
-	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + sizeof(struct xfs_dir2_data_hdr));
-}
-
-static struct xfs_dir2_data_entry *
-xfs_dir3_data_entry_p(struct xfs_dir2_data_hdr *hdr)
-{
-	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + sizeof(struct xfs_dir3_data_hdr));
-}
-
 static const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_entsize = xfs_dir2_data_entsize,
 	.data_get_ftype = xfs_dir2_data_get_ftype,
@@ -148,8 +134,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 				XFS_DIR2_DATA_ENTSIZE(1) +
 				XFS_DIR2_DATA_ENTSIZE(2),
 	.data_entry_offset = sizeof(struct xfs_dir2_data_hdr),
-
-	.data_entry_p = xfs_dir2_data_entry_p,
 };
 
 static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
@@ -163,8 +147,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 				XFS_DIR3_DATA_ENTSIZE(1) +
 				XFS_DIR3_DATA_ENTSIZE(2),
 	.data_entry_offset = sizeof(struct xfs_dir2_data_hdr),
-
-	.data_entry_p = xfs_dir2_data_entry_p,
 };
 
 static const struct xfs_dir_ops xfs_dir3_ops = {
@@ -178,8 +160,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 				XFS_DIR3_DATA_ENTSIZE(1) +
 				XFS_DIR3_DATA_ENTSIZE(2),
 	.data_entry_offset = sizeof(struct xfs_dir3_data_hdr),
-
-	.data_entry_p = xfs_dir3_data_entry_p,
 };
 
 /*

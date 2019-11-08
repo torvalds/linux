@@ -42,9 +42,6 @@ struct xfs_dir_ops {
 
 	xfs_dir2_data_aoff_t data_first_offset;
 	size_t	data_entry_offset;
-
-	struct xfs_dir2_data_entry *
-		(*data_entry_p)(struct xfs_dir2_data_hdr *hdr);
 };
 
 extern const struct xfs_dir_ops *
