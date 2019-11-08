@@ -255,64 +255,48 @@ xfs_dir2_block_sfsize(
  */
 int						/* error */
 xfs_dir2_block_to_sf(
-	xfs_da_args_t		*args,		/* operation arguments */
+	struct xfs_da_args	*args,		/* operation arguments */
 	struct xfs_buf		*bp,
 	int			size,		/* shortform directory size */
-	xfs_dir2_sf_hdr_t	*sfhp)		/* shortform directory hdr */
+	struct xfs_dir2_sf_hdr	*sfhp)		/* shortform directory hdr */
 {
-	xfs_dir2_data_hdr_t	*hdr;		/* block header */
-	xfs_dir2_data_entry_t	*dep;		/* data entry pointer */
-	xfs_inode_t		*dp;		/* incore directory inode */
-	xfs_dir2_data_unused_t	*dup;		/* unused data pointer */
-	char			*endptr;	/* end of data entries */
+	struct xfs_inode	*dp = args->dp;
+	struct xfs_mount	*mp = dp->i_mount;
 	int			error;		/* error return value */
 	int			logflags;	/* inode logging flags */
-	xfs_mount_t		*mp;		/* filesystem mount point */
-	char			*ptr;		/* current data pointer */
-	xfs_dir2_sf_entry_t	*sfep;		/* shortform entry */
-	xfs_dir2_sf_hdr_t	*sfp;		/* shortform directory header */
-	xfs_dir2_sf_hdr_t	*dst;		/* temporary data buffer */
+	struct xfs_dir2_sf_entry *sfep;		/* shortform entry */
+	struct xfs_dir2_sf_hdr	*sfp;		/* shortform directory header */
+	unsigned int		offset = dp->d_ops->data_entry_offset;
+	unsigned int		end;
 
 	trace_xfs_dir2_block_to_sf(args);
 
-	dp = args->dp;
-	mp = dp->i_mount;
-
 	/*
-	 * allocate a temporary destination buffer the size of the inode
-	 * to format the data into. Once we have formatted the data, we
-	 * can free the block and copy the formatted data into the inode literal
-	 * area.
+	 * Allocate a temporary destination buffer the size of the inode to
+	 * format the data into.  Once we have formatted the data, we can free
+	 * the block and copy the formatted data into the inode literal area.
 	 */
-	dst = kmem_alloc(mp->m_sb.sb_inodesize, 0);
-	hdr = bp->b_addr;
-
-	/*
-	 * Copy the header into the newly allocate local space.
-	 */
-	sfp = (xfs_dir2_sf_hdr_t *)dst;
+	sfp = kmem_alloc(mp->m_sb.sb_inodesize, 0);
 	memcpy(sfp, sfhp, xfs_dir2_sf_hdr_size(sfhp->i8count));
 
 	/*
-	 * Set up to loop over the block's entries.
+	 * Loop over the active and unused entries.  Stop when we reach the
+	 * leaf/tail portion of the block.
 	 */
-	ptr = (char *)dp->d_ops->data_entry_p(hdr);
-	endptr = xfs_dir3_data_endp(args->geo, hdr);
+	end = xfs_dir3_data_endp(args->geo, bp->b_addr) - bp->b_addr;
 	sfep = xfs_dir2_sf_firstentry(sfp);
-	/*
-	 * Loop over the active and unused entries.
-	 * Stop when we reach the leaf/tail portion of the block.
-	 */
-	while (ptr < endptr) {
+	while (offset < end) {
+		struct xfs_dir2_data_unused	*dup = bp->b_addr + offset;
+		struct xfs_dir2_data_entry	*dep = bp->b_addr + offset;
+
 		/*
 		 * If it's unused, just skip over it.
 		 */
-		dup = (xfs_dir2_data_unused_t *)ptr;
 		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
-			ptr += be16_to_cpu(dup->length);
+			offset += be16_to_cpu(dup->length);
 			continue;
 		}
-		dep = (xfs_dir2_data_entry_t *)ptr;
+
 		/*
 		 * Skip .
 		 */
@@ -330,9 +314,7 @@ xfs_dir2_block_to_sf(
 		 */
 		else {
 			sfep->namelen = dep->namelen;
-			xfs_dir2_sf_put_offset(sfep,
-				(xfs_dir2_data_aoff_t)
-				((char *)dep - (char *)hdr));
+			xfs_dir2_sf_put_offset(sfep, offset);
 			memcpy(sfep->name, dep->name, dep->namelen);
 			xfs_dir2_sf_put_ino(mp, sfp, sfep,
 					      be64_to_cpu(dep->inumber));
@@ -341,7 +323,7 @@ xfs_dir2_block_to_sf(
 
 			sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep);
 		}
-		ptr += dp->d_ops->data_entsize(dep->namelen);
+		offset += dp->d_ops->data_entsize(dep->namelen);
 	}
 	ASSERT((char *)sfep - (char *)sfp == size);
 
@@ -360,7 +342,7 @@ xfs_dir2_block_to_sf(
 	 * Convert the inode to local format and copy the data in.
 	 */
 	ASSERT(dp->i_df.if_bytes == 0);
-	xfs_init_local_fork(dp, XFS_DATA_FORK, dst, size);
+	xfs_init_local_fork(dp, XFS_DATA_FORK, sfp, size);
 	dp->i_d.di_format = XFS_DINODE_FMT_LOCAL;
 	dp->i_d.di_size = size;
 
@@ -368,7 +350,7 @@ xfs_dir2_block_to_sf(
 	xfs_dir2_sf_check(args);
 out:
 	xfs_trans_log_inode(args->trans, dp, logflags);
-	kmem_free(dst);
+	kmem_free(sfp);
 	return error;
 }
 
