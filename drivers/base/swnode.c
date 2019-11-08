@@ -198,93 +198,84 @@ static int property_entry_read_string_array(const struct property_entry *props,
 
 static void property_entry_free_data(const struct property_entry *p)
 {
-	const void *pointer = property_get_pointer(p);
 	const char * const *src_str;
 	size_t i, nval;
 
-	if (!p->is_inline) {
-		if (p->type == DEV_PROP_STRING && p->pointer) {
-			src_str = p->pointer;
-			nval = p->length / sizeof(const char *);
-			for (i = 0; i < nval; i++)
-				kfree(src_str[i]);
-		}
-		kfree(pointer);
-	} else if (p->type == DEV_PROP_STRING) {
-		kfree(p->value.str);
+	if (p->type == DEV_PROP_STRING) {
+		src_str = property_get_pointer(p);
+		nval = p->length / sizeof(*src_str);
+		for (i = 0; i < nval; i++)
+			kfree(src_str[i]);
 	}
+
+	if (!p->is_inline)
+		kfree(p->pointer);
+
 	kfree(p->name);
 }
 
-static const char * const *
-property_copy_string_array(const struct property_entry *src)
+static bool property_copy_string_array(const char **dst_ptr,
+				       const char * const *src_ptr,
+				       size_t nval)
 {
-	const char **d;
-	const char * const *src_str = src->pointer;
-	size_t nval = src->length / sizeof(*d);
 	int i;
 
-	d = kcalloc(nval, sizeof(*d), GFP_KERNEL);
-	if (!d)
-		return NULL;
-
 	for (i = 0; i < nval; i++) {
-		d[i] = kstrdup(src_str[i], GFP_KERNEL);
-		if (!d[i] && src_str[i]) {
+		dst_ptr[i] = kstrdup(src_ptr[i], GFP_KERNEL);
+		if (!dst_ptr[i] && src_ptr[i]) {
 			while (--i >= 0)
-				kfree(d[i]);
-			kfree(d);
-			return NULL;
+				kfree(dst_ptr[i]);
+			return false;
 		}
 	}
 
-	return d;
+	return true;
 }
 
 static int property_entry_copy_data(struct property_entry *dst,
 				    const struct property_entry *src)
 {
 	const void *pointer = property_get_pointer(src);
-	const void *new;
+	void *dst_ptr;
+	size_t nval;
 
-	if (!src->is_inline) {
-		if (!src->length)
-			return -ENODATA;
+	/*
+	 * Properties with no data should not be marked as stored
+	 * out of line.
+	 */
+	if (!src->is_inline && !src->length)
+		return -ENODATA;
 
-		if (src->type == DEV_PROP_STRING) {
-			new = property_copy_string_array(src);
-			if (!new)
-				return -ENOMEM;
-		} else {
-			new = kmemdup(pointer, src->length, GFP_KERNEL);
-			if (!new)
-				return -ENOMEM;
-		}
-
-		dst->pointer = new;
-	} else if (src->type == DEV_PROP_STRING) {
-		new = kstrdup(src->value.str, GFP_KERNEL);
-		if (!new && src->value.str)
-			return -ENOMEM;
-
+	if (src->length <= sizeof(dst->value)) {
+		dst_ptr = &dst->value;
 		dst->is_inline = true;
-		dst->value.str = new;
 	} else {
-		dst->is_inline = true;
-		dst->value = src->value;
+		dst_ptr = kmalloc(src->length, GFP_KERNEL);
+		if (!dst_ptr)
+			return -ENOMEM;
+		dst->pointer = dst_ptr;
+	}
+
+	if (src->type == DEV_PROP_STRING) {
+		nval = src->length / sizeof(const char *);
+		if (!property_copy_string_array(dst_ptr, pointer, nval)) {
+			if (!dst->is_inline)
+				kfree(dst->pointer);
+			return -ENOMEM;
+		}
+	} else {
+		memcpy(dst_ptr, pointer, src->length);
 	}
 
 	dst->length = src->length;
 	dst->type = src->type;
 	dst->name = kstrdup(src->name, GFP_KERNEL);
-	if (!dst->name)
-		goto out_free_data;
+	if (!dst->name) {
+		property_entry_free_data(dst);
+		return -ENOMEM;
+	}
 
 	return 0;
-
-out_free_data:
-	property_entry_free_data(dst);
-	return -ENOMEM;
 }
 
 /**
@@ -484,6 +475,8 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 	const struct software_node_reference *ref;
 	const struct property_entry *prop;
 	struct fwnode_handle *refnode;
+	u32 nargs_prop_val;
+	int error;
 	int i;
 
 	if (!swnode || !swnode->node->references)
@@ -501,11 +494,13 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 		return -ENOENT;
 
 	if (nargs_prop) {
-		prop = property_entry_get(swnode->node->properties, nargs_prop);
-		if (!prop)
-			return -EINVAL;
+		error = property_entry_read_int_array(swnode->node->properties,
+						      nargs_prop, sizeof(u32),
+						      &nargs_prop_val, 1);
+		if (error)
+			return error;
 
-		nargs = prop->value.u32_data;
+		nargs = nargs_prop_val;
 	}
 
 	if (nargs > NR_FWNODE_REFERENCE_ARGS)

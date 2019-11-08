@@ -240,11 +240,11 @@ struct property_entry {
 	union {
 		const void *pointer;
 		union {
-			u8 u8_data;
-			u16 u16_data;
-			u32 u32_data;
-			u64 u64_data;
-			const char *str;
+			u8 u8_data[sizeof(u64) / sizeof(u8)];
+			u16 u16_data[sizeof(u64) / sizeof(u16)];
+			u32 u32_data[sizeof(u64) / sizeof(u32)];
+			u64 u64_data[sizeof(u64) / sizeof(u64)];
+			const char *str[sizeof(u64) / sizeof(char *)];
 		} value;
 	};
 };
@@ -256,7 +256,7 @@ struct property_entry {
  */
 
 #define __PROPERTY_ENTRY_ELEMENT_SIZE(_elem_)				\
-	sizeof(((struct property_entry *)NULL)->value._elem_)
+	sizeof(((struct property_entry *)NULL)->value._elem_[0])
 
 #define __PROPERTY_ENTRY_ARRAY_LEN(_name_, _elem_, _Type_, _val_, _len_)\
 (struct property_entry) {						\
@@ -294,7 +294,7 @@ struct property_entry {
 	.length = __PROPERTY_ENTRY_ELEMENT_SIZE(_elem_),		\
 	.is_inline = true,						\
 	.type = DEV_PROP_##_Type_,					\
-	{ .value = { ._elem_ = _val_ } },				\
+	{ .value = { ._elem_[0] = _val_ } },				\
 }
 
 #define PROPERTY_ENTRY_U8(_name_, _val_)				\
