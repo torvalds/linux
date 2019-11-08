@@ -518,43 +518,82 @@ struct clk_bw_params rn_bw_params = {
 		.num_entries = 4,
 	},
 
-	.wm_table = {
-		.entries = {
-			{
-				.wm_inst = WM_A,
-				.wm_type = WM_TYPE_PSTATE_CHG,
-				.pstate_latency_us = 11.72,
-				.sr_exit_time_us = 6.09,
-				.sr_enter_plus_exit_time_us = 7.14,
-				.valid = true,
-			},
-			{
-				.wm_inst = WM_B,
-				.wm_type = WM_TYPE_PSTATE_CHG,
-				.pstate_latency_us = 11.72,
-				.sr_exit_time_us = 10.12,
-				.sr_enter_plus_exit_time_us = 11.48,
-				.valid = true,
-			},
-			{
-				.wm_inst = WM_C,
-				.wm_type = WM_TYPE_PSTATE_CHG,
-				.pstate_latency_us = 11.72,
-				.sr_exit_time_us = 10.12,
-				.sr_enter_plus_exit_time_us = 11.48,
-				.valid = true,
-			},
-			{
-				.wm_inst = WM_D,
-				.wm_type = WM_TYPE_PSTATE_CHG,
-				.pstate_latency_us = 11.72,
-				.sr_exit_time_us = 10.12,
-				.sr_enter_plus_exit_time_us = 11.48,
-				.valid = true,
-			},
+};
+
+struct wm_table ddr4_wm_table = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 6.09,
+			.sr_enter_plus_exit_time_us = 7.14,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
 		},
 	}
 };
+
+struct wm_table lpddr4_wm_table = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 23.84,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 17.0,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 23.84,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 17.0,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 23.84,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 17.0,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 23.84,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 17.0,
+			.valid = true,
+		},
+	}
+};
+
 
 static unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
 {
@@ -677,9 +716,16 @@ void rn_clk_mgr_construct(
 			ASSERT(clk_mgr->base.dprefclk_khz == 600000);
 			clk_mgr->base.dprefclk_khz = 600000;
 		}
+
+		if (ctx->dc_bios->integrated_info->memory_type == LpDdr4MemType) {
+			rn_bw_params.wm_table = lpddr4_wm_table;
+		} else {
+			rn_bw_params.wm_table = ddr4_wm_table;
+		}
 	}
 
 	dce_clock_read_ss_info(clk_mgr);
+
 
 	clk_mgr->base.bw_params = &rn_bw_params;
 
