@@ -1772,6 +1772,13 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 		return false;
 	}
 
+	if (vbt->vbt_size > size) {
+		DRM_DEBUG_DRIVER("VBT incomplete (vbt_size overflows)\n");
+		return false;
+	}
+
+	size = vbt->vbt_size;
+
 	if (range_overflows_t(size_t,
 			      vbt->bdb_offset,
 			      sizeof(struct bdb_header),
