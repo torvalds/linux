@@ -711,7 +711,7 @@ static void z_erofs_decompress_kickoff(struct z_erofs_decompressqueue *io,
 		queue_work(z_erofs_workqueue, &io->u.work);
 }
 
-static void z_erofs_vle_read_endio(struct bio *bio)
+static void z_erofs_decompressqueue_endio(struct bio *bio)
 {
 	tagptr1_t t = tagptr_init(tagptr1_t, bio->bi_private);
 	struct z_erofs_decompressqueue *q = tagptr_unfold_ptr(t);
@@ -939,8 +939,8 @@ out:
 	return err;
 }
 
-static void z_erofs_vle_unzip_all(const struct z_erofs_decompressqueue *io,
-				  struct list_head *pagepool)
+static void z_erofs_decompress_queue(const struct z_erofs_decompressqueue *io,
+				     struct list_head *pagepool)
 {
 	z_erofs_next_pcluster_t owned = io->head;
 
@@ -960,14 +960,14 @@ static void z_erofs_vle_unzip_all(const struct z_erofs_decompressqueue *io,
 	}
 }
 
-static void z_erofs_vle_unzip_wq(struct work_struct *work)
+static void z_erofs_decompressqueue_work(struct work_struct *work)
 {
 	struct z_erofs_decompressqueue *bgq =
 		container_of(work, struct z_erofs_decompressqueue, u.work);
 	LIST_HEAD(pagepool);
 
 	DBG_BUGON(bgq->head == Z_EROFS_PCLUSTER_TAIL_CLOSED);
-	z_erofs_vle_unzip_all(bgq, &pagepool);
+	z_erofs_decompress_queue(bgq, &pagepool);
 
 	put_pages_list(&pagepool);
 	kvfree(bgq);
@@ -1097,7 +1097,7 @@ jobqueue_init(struct super_block *sb,
 			*fg = true;
 			goto fg_out;
 		}
-		INIT_WORK(&q->u.work, z_erofs_vle_unzip_wq);
+		INIT_WORK(&q->u.work, z_erofs_decompressqueue_work);
 	} else {
 fg_out:
 		q = fgq;
@@ -1163,11 +1163,11 @@ static bool postsubmit_is_all_bypassed(struct z_erofs_decompressqueue *q[],
 	return true;
 }
 
-static bool z_erofs_vle_submit_all(struct super_block *sb,
-				   z_erofs_next_pcluster_t owned_head,
-				   struct list_head *pagepool,
-				   struct z_erofs_decompressqueue *fgq,
-				   bool *force_fg)
+static bool z_erofs_submit_queue(struct super_block *sb,
+				 z_erofs_next_pcluster_t owned_head,
+				 struct list_head *pagepool,
+				 struct z_erofs_decompressqueue *fgq,
+				 bool *force_fg)
 {
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	z_erofs_next_pcluster_t qtail[NR_JOBQUEUES];
@@ -1234,7 +1234,7 @@ submit_bio_retry:
 		if (!bio) {
 			bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
 
-			bio->bi_end_io = z_erofs_vle_read_endio;
+			bio->bi_end_io = z_erofs_decompressqueue_endio;
 			bio_set_dev(bio, sb->s_bdev);
 			bio->bi_iter.bi_sector = (sector_t)(first_index + i) <<
 				LOG_SECTORS_PER_BLOCK;
@@ -1270,19 +1270,18 @@ skippage:
 	return true;
 }
 
-static void z_erofs_submit_and_unzip(struct super_block *sb,
-				     struct z_erofs_collector *clt,
-				     struct list_head *pagepool,
-				     bool force_fg)
+static void z_erofs_runqueue(struct super_block *sb,
+			     struct z_erofs_collector *clt,
+			     struct list_head *pagepool, bool force_fg)
 {
 	struct z_erofs_decompressqueue io[NR_JOBQUEUES];
 
-	if (!z_erofs_vle_submit_all(sb, clt->owned_head,
-				    pagepool, io, &force_fg))
+	if (!z_erofs_submit_queue(sb, clt->owned_head,
+				  pagepool, io, &force_fg))
 		return;
 
-	/* decompress no I/O pclusters immediately */
-	z_erofs_vle_unzip_all(&io[JQ_BYPASS], pagepool);
+	/* handle bypass queue (no i/o pclusters) immediately */
+	z_erofs_decompress_queue(&io[JQ_BYPASS], pagepool);
 
 	if (!force_fg)
 		return;
@@ -1291,12 +1290,11 @@ static void z_erofs_submit_and_unzip(struct super_block *sb,
 	io_wait_event(io[JQ_SUBMIT].u.wait,
 		      !atomic_read(&io[JQ_SUBMIT].pending_bios));
 
-	/* let's synchronous decompression */
-	z_erofs_vle_unzip_all(&io[JQ_SUBMIT], pagepool);
+	/* handle synchronous decompress queue in the caller context */
+	z_erofs_decompress_queue(&io[JQ_SUBMIT], pagepool);
 }
 
-static int z_erofs_vle_normalaccess_readpage(struct file *file,
-					     struct page *page)
+static int z_erofs_readpage(struct file *file, struct page *page)
 {
 	struct inode *const inode = page->mapping->host;
 	struct z_erofs_decompress_frontend f = DECOMPRESS_FRONTEND_INIT(inode);
@@ -1311,7 +1309,7 @@ static int z_erofs_vle_normalaccess_readpage(struct file *file,
 	(void)z_erofs_collector_end(&f.clt);
 
 	/* if some compressed cluster ready, need submit them anyway */
-	z_erofs_submit_and_unzip(inode->i_sb, &f.clt, &pagepool, true);
+	z_erofs_runqueue(inode->i_sb, &f.clt, &pagepool, true);
 
 	if (err)
 		erofs_err(inode->i_sb, "failed to read, err [%d]", err);
@@ -1330,10 +1328,8 @@ static bool should_decompress_synchronously(struct erofs_sb_info *sbi,
 	return nr <= sbi->max_sync_decompress_pages;
 }
 
-static int z_erofs_vle_normalaccess_readpages(struct file *filp,
-					      struct address_space *mapping,
-					      struct list_head *pages,
-					      unsigned int nr_pages)
+static int z_erofs_readpages(struct file *filp, struct address_space *mapping,
+			     struct list_head *pages, unsigned int nr_pages)
 {
 	struct inode *const inode = mapping->host;
 	struct erofs_sb_info *const sbi = EROFS_I_SB(inode);
@@ -1388,7 +1384,7 @@ static int z_erofs_vle_normalaccess_readpages(struct file *filp,
 
 	(void)z_erofs_collector_end(&f.clt);
 
-	z_erofs_submit_and_unzip(inode->i_sb, &f.clt, &pagepool, sync);
+	z_erofs_runqueue(inode->i_sb, &f.clt, &pagepool, sync);
 
 	if (f.map.mpage)
 		put_page(f.map.mpage);
@@ -1398,8 +1394,8 @@ static int z_erofs_vle_normalaccess_readpages(struct file *filp,
 	return 0;
 }
 
-const struct address_space_operations z_erofs_vle_normalaccess_aops = {
-	.readpage = z_erofs_vle_normalaccess_readpage,
-	.readpages = z_erofs_vle_normalaccess_readpages,
+const struct address_space_operations z_erofs_aops = {
+	.readpage = z_erofs_readpage,
+	.readpages = z_erofs_readpages,
 };
 

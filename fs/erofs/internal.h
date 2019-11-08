@@ -279,9 +279,7 @@ static inline unsigned int erofs_inode_datalayout(unsigned int value)
 extern const struct super_operations erofs_sops;
 
 extern const struct address_space_operations erofs_raw_access_aops;
-#ifdef CONFIG_EROFS_FS_ZIP
-extern const struct address_space_operations z_erofs_vle_normalaccess_aops;
-#endif
+extern const struct address_space_operations z_erofs_aops;
 
 /*
  * Logical to physical block mapping, used by erofs_map_blocks()
