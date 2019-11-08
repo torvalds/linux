@@ -26,6 +26,7 @@ struct xfs_da_geometry {
 	unsigned int	node_ents;	/* # of entries in a danode */
 	unsigned int	magicpct;	/* 37% of block size in bytes */
 	xfs_dablk_t	datablk;	/* blockno of dir data v2 */
+	unsigned int	leaf_hdr_size;	/* dir2 leaf header size */
 	xfs_dablk_t	leafblk;	/* blockno of leaf data v2 */
 	xfs_dablk_t	freeblk;	/* blockno of free data v2 */
 };

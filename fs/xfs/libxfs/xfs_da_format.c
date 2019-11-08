@@ -570,7 +570,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_entry_p = xfs_dir2_data_entry_p,
 	.data_unused_p = xfs_dir2_data_unused_p,
 
-	.leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr),
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
@@ -612,7 +611,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_entry_p = xfs_dir2_data_entry_p,
 	.data_unused_p = xfs_dir2_data_unused_p,
 
-	.leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr),
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
@@ -654,7 +652,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_entry_p = xfs_dir3_data_entry_p,
 	.data_unused_p = xfs_dir3_data_unused_p,
 
-	.leaf_hdr_size = sizeof(struct xfs_dir3_leaf_hdr),
 	.leaf_max_ents = xfs_dir3_max_leaf_ents,
 
 	.free_hdr_size = sizeof(struct xfs_dir3_free_hdr),

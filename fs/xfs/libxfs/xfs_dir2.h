@@ -72,7 +72,6 @@ struct xfs_dir_ops {
 	struct xfs_dir2_data_unused *
 		(*data_unused_p)(struct xfs_dir2_data_hdr *hdr);
 
-	int	leaf_hdr_size;
 	int	(*leaf_max_ents)(struct xfs_da_geometry *geo);
 
 	int	free_hdr_size;

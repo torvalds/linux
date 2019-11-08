@@ -1132,7 +1132,7 @@ xfs_dir3_leaf_log_header(
 
 	xfs_trans_log_buf(args->trans, bp,
 			  (uint)((char *)&leaf->hdr - (char *)leaf),
-			  args->dp->d_ops->leaf_hdr_size - 1);
+			  args->geo->leaf_hdr_size - 1);
 }
 
 /*

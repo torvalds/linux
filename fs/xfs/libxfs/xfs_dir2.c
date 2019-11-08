@@ -122,10 +122,13 @@ xfs_da_mount(
 	dageo->fsblog = mp->m_sb.sb_blocklog;
 	dageo->blksize = xfs_dir2_dirblock_bytes(&mp->m_sb);
 	dageo->fsbcount = 1 << mp->m_sb.sb_dirblklog;
-	if (xfs_sb_version_hascrc(&mp->m_sb))
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		dageo->node_hdr_size = sizeof(struct xfs_da3_node_hdr);
-	else
+		dageo->leaf_hdr_size = sizeof(struct xfs_dir3_leaf_hdr);
+	} else {
 		dageo->node_hdr_size = sizeof(struct xfs_da_node_hdr);
+		dageo->leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr);
+	}
 
 	/*
 	 * Now we've set up the block conversion variables, we can calculate the

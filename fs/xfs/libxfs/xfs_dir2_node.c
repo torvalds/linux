@@ -1340,7 +1340,7 @@ xfs_dir2_leafn_remove(
 	 * Return indication of whether this leaf block is empty enough
 	 * to justify trying to join it with a neighbor.
 	 */
-	*rval = (dp->d_ops->leaf_hdr_size +
+	*rval = (args->geo->leaf_hdr_size +
 		 (uint)sizeof(leafhdr.ents) * (leafhdr.count - leafhdr.stale)) <
 		args->geo->magicpct;
 	return 0;
@@ -1446,7 +1446,7 @@ xfs_dir2_leafn_toosmall(
 	xfs_dir3_leaf_check(dp, blk->bp);
 
 	count = leafhdr.count - leafhdr.stale;
-	bytes = dp->d_ops->leaf_hdr_size + count * sizeof(ents[0]);
+	bytes = state->args->geo->leaf_hdr_size + count * sizeof(ents[0]);
 	if (bytes > (state->args->geo->blksize >> 1)) {
 		/*
 		 * Blk over 50%, don't try to join.
