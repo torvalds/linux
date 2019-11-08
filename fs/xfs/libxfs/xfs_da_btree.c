@@ -640,15 +640,14 @@ xfs_da3_root_split(
 		xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DA_NODE_BUF);
 	} else {
 		struct xfs_dir3_icleaf_hdr leafhdr;
-		struct xfs_dir2_leaf_entry *ents;
 
 		leaf = (xfs_dir2_leaf_t *)oldroot;
 		xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
-		ents = dp->d_ops->leaf_ents_p(leaf);
 
 		ASSERT(leafhdr.magic == XFS_DIR2_LEAFN_MAGIC ||
 		       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC);
-		size = (int)((char *)&ents[leafhdr.count] - (char *)leaf);
+		size = (int)((char *)&leafhdr.ents[leafhdr.count] -
+			(char *)leaf);
 		level = 0;
 
 		/*
@@ -2297,7 +2296,7 @@ xfs_da3_swap_lastblock(
 		dead_leaf2 = (xfs_dir2_leaf_t *)dead_info;
 		xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr,
 					    dead_leaf2);
-		ents = dp->d_ops->leaf_ents_p(dead_leaf2);
+		ents = leafhdr.ents;
 		dead_level = 0;
 		dead_hash = be32_to_cpu(ents[leafhdr.count - 1].hashval);
 	} else {

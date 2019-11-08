@@ -18,6 +18,12 @@ struct xfs_dir3_icleaf_hdr {
 	uint16_t		magic;
 	uint16_t		count;
 	uint16_t		stale;
+
+	/*
+	 * Pointer to the on-disk format entries, which are behind the
+	 * variable size (v4 vs v5) header in the on-disk block.
+	 */
+	struct xfs_dir2_leaf_entry *ents;
 };
 
 struct xfs_dir3_icfree_hdr {
@@ -85,7 +91,8 @@ extern void xfs_dir3_leaf_compact_x1(struct xfs_dir3_icleaf_hdr *leafhdr,
 extern int xfs_dir3_leaf_get_buf(struct xfs_da_args *args, xfs_dir2_db_t bno,
 		struct xfs_buf **bpp, uint16_t magic);
 extern void xfs_dir3_leaf_log_ents(struct xfs_da_args *args,
-		struct xfs_buf *bp, int first, int last);
+		struct xfs_dir3_icleaf_hdr *hdr, struct xfs_buf *bp, int first,
+		int last);
 extern void xfs_dir3_leaf_log_header(struct xfs_da_args *args,
 		struct xfs_buf *bp);
 extern int xfs_dir2_leaf_lookup(struct xfs_da_args *args);

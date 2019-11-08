@@ -914,7 +914,6 @@ xfs_dir2_leaf_to_block(
 	__be16			*tagp;		/* end of entry (tag) */
 	int			to;		/* block/leaf to index */
 	xfs_trans_t		*tp;		/* transaction pointer */
-	struct xfs_dir2_leaf_entry *ents;
 	struct xfs_dir3_icleaf_hdr leafhdr;
 
 	trace_xfs_dir2_leaf_to_block(args);
@@ -924,7 +923,6 @@ xfs_dir2_leaf_to_block(
 	mp = dp->i_mount;
 	leaf = lbp->b_addr;
 	xfs_dir2_leaf_hdr_from_disk(mp, &leafhdr, leaf);
-	ents = dp->d_ops->leaf_ents_p(leaf);
 	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
 
 	ASSERT(leafhdr.magic == XFS_DIR2_LEAF1_MAGIC ||
@@ -1004,9 +1002,10 @@ xfs_dir2_leaf_to_block(
 	 */
 	lep = xfs_dir2_block_leaf_p(btp);
 	for (from = to = 0; from < leafhdr.count; from++) {
-		if (ents[from].address == cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
+		if (leafhdr.ents[from].address ==
+		    cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
 			continue;
-		lep[to++] = ents[from];
+		lep[to++] = leafhdr.ents[from];
 	}
 	ASSERT(to == be32_to_cpu(btp->count));
 	xfs_dir2_block_log_leaf(tp, dbp, 0, be32_to_cpu(btp->count) - 1);

@@ -198,14 +198,15 @@ xchk_dir_rec(
 	xfs_dir2_dataptr_t		ptr;
 	xfs_dahash_t			calc_hash;
 	xfs_dahash_t			hash;
+	struct xfs_dir3_icleaf_hdr	hdr;
 	unsigned int			tag;
 	int				error;
 
 	ASSERT(blk->magic == XFS_DIR2_LEAF1_MAGIC ||
 	       blk->magic == XFS_DIR2_LEAFN_MAGIC);
 
-	ent = (void *)ds->dargs.dp->d_ops->leaf_ents_p(blk->bp->b_addr) +
-		(blk->index * sizeof(struct xfs_dir2_leaf_entry));
+	xfs_dir2_leaf_hdr_from_disk(mp, &hdr, blk->bp->b_addr);
+	ent = hdr.ents + blk->index;
 
 	/* Check the hash of the entry. */
 	error = xchk_da_btree_hash(ds, level, &ent->hashval);
@@ -484,7 +485,6 @@ xchk_directory_leaf1_bestfree(
 	xfs_dablk_t			lblk)
 {
 	struct xfs_dir3_icleaf_hdr	leafhdr;
-	struct xfs_dir2_leaf_entry	*ents;
 	struct xfs_dir2_leaf_tail	*ltp;
 	struct xfs_dir2_leaf		*leaf;
 	struct xfs_buf			*dbp;
@@ -508,7 +508,6 @@ xchk_directory_leaf1_bestfree(
 
 	leaf = bp->b_addr;
 	xfs_dir2_leaf_hdr_from_disk(sc->ip->i_mount, &leafhdr, leaf);
-	ents = d_ops->leaf_ents_p(leaf);
 	ltp = xfs_dir2_leaf_tail_p(geo, leaf);
 	bestcount = be32_to_cpu(ltp->bestcount);
 	bestp = xfs_dir2_leaf_bests_p(ltp);
@@ -536,18 +535,19 @@ xchk_directory_leaf1_bestfree(
 	}
 
 	/* Leaves and bests don't overlap in leaf format. */
-	if ((char *)&ents[leafhdr.count] > (char *)bestp) {
+	if ((char *)&leafhdr.ents[leafhdr.count] > (char *)bestp) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		goto out;
 	}
 
 	/* Check hash value order, count stale entries.  */
 	for (i = 0; i < leafhdr.count; i++) {
-		hash = be32_to_cpu(ents[i].hashval);
+		hash = be32_to_cpu(leafhdr.ents[i].hashval);
 		if (i > 0 && lasthash > hash)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		lasthash = hash;
-		if (ents[i].address == cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
+		if (leafhdr.ents[i].address ==
+		    cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
 			stale++;
 	}
 	if (leafhdr.stale != stale)

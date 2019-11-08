@@ -441,7 +441,7 @@ xfs_dir2_leafn_add(
 	trace_xfs_dir2_leafn_add(args, index);
 
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
-	ents = dp->d_ops->leaf_ents_p(leaf);
+	ents = leafhdr.ents;
 
 	/*
 	 * Quick check just to make sure we are not going to index
@@ -499,7 +499,7 @@ xfs_dir2_leafn_add(
 
 	xfs_dir2_leaf_hdr_to_disk(dp->i_mount, leaf, &leafhdr);
 	xfs_dir3_leaf_log_header(args, bp);
-	xfs_dir3_leaf_log_ents(args, bp, lfloglow, lfloghigh);
+	xfs_dir3_leaf_log_ents(args, &leafhdr, bp, lfloglow, lfloghigh);
 	xfs_dir3_leaf_check(dp, bp);
 	return 0;
 }
@@ -534,11 +534,9 @@ xfs_dir2_leaf_lasthash(
 	struct xfs_buf	*bp,			/* leaf buffer */
 	int		*count)			/* count of entries in leaf */
 {
-	struct xfs_dir2_leaf	*leaf = bp->b_addr;
-	struct xfs_dir2_leaf_entry *ents;
 	struct xfs_dir3_icleaf_hdr leafhdr;
 
-	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
+	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, bp->b_addr);
 
 	ASSERT(leafhdr.magic == XFS_DIR2_LEAFN_MAGIC ||
 	       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC ||
@@ -549,9 +547,7 @@ xfs_dir2_leaf_lasthash(
 		*count = leafhdr.count;
 	if (!leafhdr.count)
 		return 0;
-
-	ents = dp->d_ops->leaf_ents_p(leaf);
-	return be32_to_cpu(ents[leafhdr.count - 1].hashval);
+	return be32_to_cpu(leafhdr.ents[leafhdr.count - 1].hashval);
 }
 
 /*
@@ -580,7 +576,6 @@ xfs_dir2_leafn_lookup_for_addname(
 	xfs_dir2_db_t		newdb;		/* new data block number */
 	xfs_dir2_db_t		newfdb;		/* new free block number */
 	xfs_trans_t		*tp;		/* transaction pointer */
-	struct xfs_dir2_leaf_entry *ents;
 	struct xfs_dir3_icleaf_hdr leafhdr;
 
 	dp = args->dp;
@@ -588,7 +583,6 @@ xfs_dir2_leafn_lookup_for_addname(
 	mp = dp->i_mount;
 	leaf = bp->b_addr;
 	xfs_dir2_leaf_hdr_from_disk(mp, &leafhdr, leaf);
-	ents = dp->d_ops->leaf_ents_p(leaf);
 
 	xfs_dir3_leaf_check(dp, bp);
 	ASSERT(leafhdr.count > 0);
@@ -612,7 +606,7 @@ xfs_dir2_leafn_lookup_for_addname(
 	/*
 	 * Loop over leaf entries with the right hash value.
 	 */
-	for (lep = &ents[index];
+	for (lep = &leafhdr.ents[index];
 	     index < leafhdr.count && be32_to_cpu(lep->hashval) == args->hashval;
 	     lep++, index++) {
 		/*
@@ -732,7 +726,6 @@ xfs_dir2_leafn_lookup_for_entry(
 	xfs_dir2_db_t		newdb;		/* new data block number */
 	xfs_trans_t		*tp;		/* transaction pointer */
 	enum xfs_dacmp		cmp;		/* comparison result */
-	struct xfs_dir2_leaf_entry *ents;
 	struct xfs_dir3_icleaf_hdr leafhdr;
 
 	dp = args->dp;
@@ -740,7 +733,6 @@ xfs_dir2_leafn_lookup_for_entry(
 	mp = dp->i_mount;
 	leaf = bp->b_addr;
 	xfs_dir2_leaf_hdr_from_disk(mp, &leafhdr, leaf);
-	ents = dp->d_ops->leaf_ents_p(leaf);
 
 	xfs_dir3_leaf_check(dp, bp);
 	if (leafhdr.count <= 0) {
@@ -762,7 +754,7 @@ xfs_dir2_leafn_lookup_for_entry(
 	/*
 	 * Loop over leaf entries with the right hash value.
 	 */
-	for (lep = &ents[index];
+	for (lep = &leafhdr.ents[index];
 	     index < leafhdr.count && be32_to_cpu(lep->hashval) == args->hashval;
 	     lep++, index++) {
 		/*
@@ -917,7 +909,7 @@ xfs_dir3_leafn_moveents(
 	if (start_d < dhdr->count) {
 		memmove(&dents[start_d + count], &dents[start_d],
 			(dhdr->count - start_d) * sizeof(xfs_dir2_leaf_entry_t));
-		xfs_dir3_leaf_log_ents(args, bp_d, start_d + count,
+		xfs_dir3_leaf_log_ents(args, dhdr, bp_d, start_d + count,
 				       count + dhdr->count - 1);
 	}
 	/*
@@ -939,7 +931,7 @@ xfs_dir3_leafn_moveents(
 	 */
 	memcpy(&dents[start_d], &sents[start_s],
 		count * sizeof(xfs_dir2_leaf_entry_t));
-	xfs_dir3_leaf_log_ents(args, bp_d, start_d, start_d + count - 1);
+	xfs_dir3_leaf_log_ents(args, dhdr, bp_d, start_d, start_d + count - 1);
 
 	/*
 	 * If there are source entries after the ones we copied,
@@ -948,7 +940,8 @@ xfs_dir3_leafn_moveents(
 	if (start_s + count < shdr->count) {
 		memmove(&sents[start_s], &sents[start_s + count],
 			count * sizeof(xfs_dir2_leaf_entry_t));
-		xfs_dir3_leaf_log_ents(args, bp_s, start_s, start_s + count - 1);
+		xfs_dir3_leaf_log_ents(args, shdr, bp_s, start_s,
+				       start_s + count - 1);
 	}
 
 	/*
@@ -979,8 +972,8 @@ xfs_dir2_leafn_order(
 
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &hdr1, leaf1);
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &hdr2, leaf2);
-	ents1 = dp->d_ops->leaf_ents_p(leaf1);
-	ents2 = dp->d_ops->leaf_ents_p(leaf2);
+	ents1 = hdr1.ents;
+	ents2 = hdr2.ents;
 
 	if (hdr1.count > 0 && hdr2.count > 0 &&
 	    (be32_to_cpu(ents2[0].hashval) < be32_to_cpu(ents1[0].hashval) ||
@@ -1032,8 +1025,8 @@ xfs_dir2_leafn_rebalance(
 	leaf2 = blk2->bp->b_addr;
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &hdr1, leaf1);
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &hdr2, leaf2);
-	ents1 = dp->d_ops->leaf_ents_p(leaf1);
-	ents2 = dp->d_ops->leaf_ents_p(leaf2);
+	ents1 = hdr1.ents;
+	ents2 = hdr2.ents;
 
 	oldsum = hdr1.count + hdr2.count;
 #if defined(DEBUG) || defined(XFS_WARN)
@@ -1221,7 +1214,6 @@ xfs_dir2_leafn_remove(
 	xfs_trans_t		*tp;		/* transaction pointer */
 	struct xfs_dir2_data_free *bf;		/* bestfree table */
 	struct xfs_dir3_icleaf_hdr leafhdr;
-	struct xfs_dir2_leaf_entry *ents;
 
 	trace_xfs_dir2_leafn_remove(args, index);
 
@@ -1229,12 +1221,11 @@ xfs_dir2_leafn_remove(
 	tp = args->trans;
 	leaf = bp->b_addr;
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
-	ents = dp->d_ops->leaf_ents_p(leaf);
 
 	/*
 	 * Point to the entry we're removing.
 	 */
-	lep = &ents[index];
+	lep = &leafhdr.ents[index];
 
 	/*
 	 * Extract the data block and offset from the entry.
@@ -1253,7 +1244,7 @@ xfs_dir2_leafn_remove(
 	xfs_dir3_leaf_log_header(args, bp);
 
 	lep->address = cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
-	xfs_dir3_leaf_log_ents(args, bp, index, index);
+	xfs_dir3_leaf_log_ents(args, &leafhdr, bp, index, index);
 
 	/*
 	 * Make the data entry free.  Keep track of the longest freespace
@@ -1350,7 +1341,7 @@ xfs_dir2_leafn_remove(
 	 * to justify trying to join it with a neighbor.
 	 */
 	*rval = (dp->d_ops->leaf_hdr_size +
-		 (uint)sizeof(ents[0]) * (leafhdr.count - leafhdr.stale)) <
+		 (uint)sizeof(leafhdr.ents) * (leafhdr.count - leafhdr.stale)) <
 		args->geo->magicpct;
 	return 0;
 }
@@ -1451,7 +1442,7 @@ xfs_dir2_leafn_toosmall(
 	blk = &state->path.blk[state->path.active - 1];
 	leaf = blk->bp->b_addr;
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &leafhdr, leaf);
-	ents = dp->d_ops->leaf_ents_p(leaf);
+	ents = leafhdr.ents;
 	xfs_dir3_leaf_check(dp, blk->bp);
 
 	count = leafhdr.count - leafhdr.stale;
@@ -1514,7 +1505,7 @@ xfs_dir2_leafn_toosmall(
 
 		leaf = bp->b_addr;
 		xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &hdr2, leaf);
-		ents = dp->d_ops->leaf_ents_p(leaf);
+		ents = hdr2.ents;
 		count += hdr2.count - hdr2.stale;
 		bytes -= count * sizeof(ents[0]);
 
@@ -1578,8 +1569,8 @@ xfs_dir2_leafn_unbalance(
 
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &savehdr, save_leaf);
 	xfs_dir2_leaf_hdr_from_disk(dp->i_mount, &drophdr, drop_leaf);
-	sents = dp->d_ops->leaf_ents_p(save_leaf);
-	dents = dp->d_ops->leaf_ents_p(drop_leaf);
+	sents = savehdr.ents;
+	dents = drophdr.ents;
 
 	/*
 	 * If there are any stale leaf entries, take this opportunity
@@ -2161,8 +2152,6 @@ xfs_dir2_node_replace(
 	int			i;		/* btree level */
 	xfs_ino_t		inum;		/* new inode number */
 	int			ftype;		/* new file type */
-	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
-	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry being changed */
 	int			rval;		/* internal return value */
 	xfs_da_state_t		*state;		/* btree cursor */
 
@@ -2194,16 +2183,17 @@ xfs_dir2_node_replace(
 	 * and locked it.  But paranoia is good.
 	 */
 	if (rval == -EEXIST) {
-		struct xfs_dir2_leaf_entry *ents;
+		struct xfs_dir3_icleaf_hdr	leafhdr;
+
 		/*
 		 * Find the leaf entry.
 		 */
 		blk = &state->path.blk[state->path.active - 1];
 		ASSERT(blk->magic == XFS_DIR2_LEAFN_MAGIC);
-		leaf = blk->bp->b_addr;
-		ents = args->dp->d_ops->leaf_ents_p(leaf);
-		lep = &ents[blk->index];
 		ASSERT(state->extravalid);
+
+		xfs_dir2_leaf_hdr_from_disk(state->mp, &leafhdr,
+					    blk->bp->b_addr);
 		/*
 		 * Point to the data entry.
 		 */
@@ -2213,7 +2203,7 @@ xfs_dir2_node_replace(
 		dep = (xfs_dir2_data_entry_t *)
 		      ((char *)hdr +
 		       xfs_dir2_dataptr_to_off(args->geo,
-					       be32_to_cpu(lep->address)));
+				be32_to_cpu(leafhdr.ents[blk->index].address)));
 		ASSERT(inum != be64_to_cpu(dep->inumber));
 		/*
 		 * Fill in the new inode number and log the entry.
