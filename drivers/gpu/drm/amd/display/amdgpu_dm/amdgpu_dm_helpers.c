@@ -193,11 +193,10 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	 * that blocks before commit guaranteeing that the state
 	 * is not gonna be swapped while still in use in commit tail */
 
-	dm_conn_state = to_dm_connector_state(aconnector->base.state);
-
-
 	if (!aconnector || !aconnector->mst_port)
 		return false;
+
+	dm_conn_state = to_dm_connector_state(aconnector->base.state);
 
 	mst_mgr = &aconnector->mst_port->mst_mgr;
 
