@@ -137,20 +137,14 @@ xfs_dir3_leaf_check(
 
 xfs_failaddr_t
 xfs_dir3_leaf_check_int(
-	struct xfs_mount	*mp,
-	struct xfs_dir3_icleaf_hdr *hdr,
-	struct xfs_dir2_leaf	*leaf)
+	struct xfs_mount		*mp,
+	struct xfs_dir3_icleaf_hdr	*hdr,
+	struct xfs_dir2_leaf		*leaf)
 {
-	xfs_dir2_leaf_tail_t	*ltp;
-	int			stale;
-	int			i;
-	struct xfs_dir3_icleaf_hdr leafhdr;
-	struct xfs_da_geometry	*geo = mp->m_dir_geo;
-
-	if (!hdr) {
-		xfs_dir2_leaf_hdr_from_disk(mp, &leafhdr, leaf);
-		hdr = &leafhdr;
-	}
+	struct xfs_da_geometry		*geo = mp->m_dir_geo;
+	xfs_dir2_leaf_tail_t		*ltp;
+	int				stale;
+	int				i;
 
 	ltp = xfs_dir2_leaf_tail_p(geo, leaf);
 
@@ -190,17 +184,18 @@ xfs_dir3_leaf_check_int(
  */
 static xfs_failaddr_t
 xfs_dir3_leaf_verify(
-	struct xfs_buf		*bp)
+	struct xfs_buf			*bp)
 {
-	struct xfs_mount	*mp = bp->b_mount;
-	struct xfs_dir2_leaf	*leaf = bp->b_addr;
-	xfs_failaddr_t		fa;
+	struct xfs_mount		*mp = bp->b_mount;
+	struct xfs_dir3_icleaf_hdr	leafhdr;
+	xfs_failaddr_t			fa;
 
 	fa = xfs_da3_blkinfo_verify(bp, bp->b_addr);
 	if (fa)
 		return fa;
 
-	return xfs_dir3_leaf_check_int(mp, NULL, leaf);
+	xfs_dir2_leaf_hdr_from_disk(mp, &leafhdr, bp->b_addr);
+	return xfs_dir3_leaf_check_int(mp, &leafhdr, bp->b_addr);
 }
 
 static void
