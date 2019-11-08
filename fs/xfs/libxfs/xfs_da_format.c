@@ -402,23 +402,6 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 
 
 /*
- * Directory Leaf block operations
- */
-static int
-xfs_dir2_max_leaf_ents(struct xfs_da_geometry *geo)
-{
-	return (geo->blksize - sizeof(struct xfs_dir2_leaf_hdr)) /
-		(uint)sizeof(struct xfs_dir2_leaf_entry);
-}
-
-static int
-xfs_dir3_max_leaf_ents(struct xfs_da_geometry *geo)
-{
-	return (geo->blksize - sizeof(struct xfs_dir3_leaf_hdr)) /
-		(uint)sizeof(struct xfs_dir2_leaf_entry);
-}
-
-/*
  * Directory free space block operations
  */
 static int
@@ -570,8 +553,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_entry_p = xfs_dir2_data_entry_p,
 	.data_unused_p = xfs_dir2_data_unused_p,
 
-	.leaf_max_ents = xfs_dir2_max_leaf_ents,
-
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
 	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
 	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
@@ -611,8 +592,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_entry_p = xfs_dir2_data_entry_p,
 	.data_unused_p = xfs_dir2_data_unused_p,
 
-	.leaf_max_ents = xfs_dir2_max_leaf_ents,
-
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
 	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
 	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
@@ -651,8 +630,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_first_entry_p = xfs_dir3_data_first_entry_p,
 	.data_entry_p = xfs_dir3_data_entry_p,
 	.data_unused_p = xfs_dir3_data_unused_p,
-
-	.leaf_max_ents = xfs_dir3_max_leaf_ents,
 
 	.free_hdr_size = sizeof(struct xfs_dir3_free_hdr),
 	.free_hdr_to_disk = xfs_dir3_free_hdr_to_disk,

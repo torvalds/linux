@@ -167,7 +167,7 @@ xfs_dir3_leaf_check_int(
 	 * Should factor in the size of the bests table as well.
 	 * We can deduce a value for that from di_size.
 	 */
-	if (hdr->count > ops->leaf_max_ents(geo))
+	if (hdr->count > geo->leaf_max_ents)
 		return __this_address;
 
 	/* Leaves and bests don't overlap in leaf format. */

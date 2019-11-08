@@ -489,7 +489,6 @@ xchk_directory_leaf1_bestfree(
 	struct xfs_dir2_leaf		*leaf;
 	struct xfs_buf			*dbp;
 	struct xfs_buf			*bp;
-	const struct xfs_dir_ops	*d_ops = sc->ip->d_ops;
 	struct xfs_da_geometry		*geo = sc->mp->m_dir_geo;
 	__be16				*bestp;
 	__u16				best;
@@ -529,7 +528,7 @@ xchk_directory_leaf1_bestfree(
 	}
 
 	/* Is the leaf count even remotely sane? */
-	if (leafhdr.count > d_ops->leaf_max_ents(geo)) {
+	if (leafhdr.count > geo->leaf_max_ents) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		goto out;
 	}

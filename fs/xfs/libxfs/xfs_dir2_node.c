@@ -459,7 +459,7 @@ xfs_dir2_leafn_add(
 	 * a compact.
 	 */
 
-	if (leafhdr.count == dp->d_ops->leaf_max_ents(args->geo)) {
+	if (leafhdr.count == args->geo->leaf_max_ents) {
 		if (!leafhdr.stale)
 			return -ENOSPC;
 		compact = leafhdr.stale > 1;
