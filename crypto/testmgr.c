@@ -4318,6 +4318,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
+		.alg = "curve25519",
+		.test = alg_test_kpp,
+		.suite = {
+			.kpp = __VECS(curve25519_tv_template)
+		}
+	}, {
 		.alg = "deflate",
 		.test = alg_test_comp,
 		.fips_allowed = 1,
