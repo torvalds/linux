@@ -498,6 +498,7 @@ put_nd:
 }
 
 static struct core_component comp = {
+	.mod = THIS_MODULE,
 	.name = "net",
 	.probe_channel = comp_probe_channel,
 	.disconnect_channel = comp_disconnect_channel,
