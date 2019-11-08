@@ -132,14 +132,14 @@ xfs_dir2_sf_put_ino(
 		put_unaligned_be32(ino, to);
 }
 
-static xfs_ino_t
+xfs_ino_t
 xfs_dir2_sf_get_parent_ino(
 	struct xfs_dir2_sf_hdr	*hdr)
 {
 	return xfs_dir2_sf_get_ino(hdr, hdr->parent);
 }
 
-static void
+void
 xfs_dir2_sf_put_parent_ino(
 	struct xfs_dir2_sf_hdr	*hdr,
 	xfs_ino_t		ino)
@@ -407,8 +407,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 	.sf_put_ftype = xfs_dir2_sfe_put_ftype,
 	.sf_get_ino = xfs_dir2_sfe_get_ino,
 	.sf_put_ino = xfs_dir2_sfe_put_ino,
-	.sf_get_parent_ino = xfs_dir2_sf_get_parent_ino,
-	.sf_put_parent_ino = xfs_dir2_sf_put_parent_ino,
 
 	.data_entsize = xfs_dir2_data_entsize,
 	.data_get_ftype = xfs_dir2_data_get_ftype,
@@ -438,8 +436,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.sf_put_ftype = xfs_dir3_sfe_put_ftype,
 	.sf_get_ino = xfs_dir3_sfe_get_ino,
 	.sf_put_ino = xfs_dir3_sfe_put_ino,
-	.sf_get_parent_ino = xfs_dir2_sf_get_parent_ino,
-	.sf_put_parent_ino = xfs_dir2_sf_put_parent_ino,
 
 	.data_entsize = xfs_dir3_data_entsize,
 	.data_get_ftype = xfs_dir3_data_get_ftype,
@@ -469,8 +465,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 	.sf_put_ftype = xfs_dir3_sfe_put_ftype,
 	.sf_get_ino = xfs_dir3_sfe_get_ino,
 	.sf_put_ino = xfs_dir3_sfe_put_ino,
-	.sf_get_parent_ino = xfs_dir2_sf_get_parent_ino,
-	.sf_put_parent_ino = xfs_dir2_sf_put_parent_ino,
 
 	.data_entsize = xfs_dir3_data_entsize,
 	.data_get_ftype = xfs_dir3_data_get_ftype,

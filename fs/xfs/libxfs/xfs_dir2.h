@@ -44,9 +44,6 @@ struct xfs_dir_ops {
 	void	(*sf_put_ino)(struct xfs_dir2_sf_hdr *hdr,
 			      struct xfs_dir2_sf_entry *sfep,
 			      xfs_ino_t ino);
-	xfs_ino_t (*sf_get_parent_ino)(struct xfs_dir2_sf_hdr *hdr);
-	void	(*sf_put_parent_ino)(struct xfs_dir2_sf_hdr *hdr,
-				     xfs_ino_t ino);
 
 	int	(*data_entsize)(int len);
 	uint8_t (*data_get_ftype)(struct xfs_dir2_data_entry *dep);

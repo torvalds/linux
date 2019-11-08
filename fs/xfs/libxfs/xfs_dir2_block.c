@@ -1157,7 +1157,7 @@ xfs_dir2_sf_to_block(
 	 * Create entry for ..
 	 */
 	dep = dp->d_ops->data_dotdot_entry_p(hdr);
-	dep->inumber = cpu_to_be64(dp->d_ops->sf_get_parent_ino(sfp));
+	dep->inumber = cpu_to_be64(xfs_dir2_sf_get_parent_ino(sfp));
 	dep->namelen = 2;
 	dep->name[0] = dep->name[1] = '.';
 	dp->d_ops->data_put_ftype(dep, XFS_DIR3_FT_DIR);
