@@ -160,10 +160,9 @@ xfs_dir3_free_header_check(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = dp->i_mount;
+	int			maxbests = mp->m_dir_geo->free_max_bests;
 	unsigned int		firstdb;
-	int			maxbests;
 
-	maxbests = dp->d_ops->free_max_bests(mp->m_dir_geo);
 	firstdb = (xfs_dir2_da_to_db(mp->m_dir_geo, fbno) -
 		   xfs_dir2_byte_to_db(mp->m_dir_geo, XFS_DIR2_FREE_OFFSET)) *
 			maxbests;
@@ -562,8 +561,7 @@ xfs_dir2_free_hdr_check(
 
 	xfs_dir2_free_hdr_from_disk(dp->i_mount, &hdr, bp->b_addr);
 
-	ASSERT((hdr.firstdb %
-		dp->d_ops->free_max_bests(dp->i_mount->m_dir_geo)) == 0);
+	ASSERT((hdr.firstdb % dp->i_mount->m_dir_geo->free_max_bests) == 0);
 	ASSERT(hdr.firstdb <= db);
 	ASSERT(db < hdr.firstdb + hdr.nvalid);
 }
@@ -1340,7 +1338,7 @@ xfs_dir2_leafn_remove(
 		struct xfs_dir3_icfree_hdr freehdr;
 
 		xfs_dir2_free_hdr_from_disk(dp->i_mount, &freehdr, free);
-		ASSERT(freehdr.firstdb == dp->d_ops->free_max_bests(args->geo) *
+		ASSERT(freehdr.firstdb == args->geo->free_max_bests *
 			(fdb - xfs_dir2_byte_to_db(args->geo,
 						   XFS_DIR2_FREE_OFFSET)));
 	}
@@ -1733,7 +1731,7 @@ xfs_dir2_node_add_datablk(
 		/* Remember the first slot as our empty slot. */
 		hdr->firstdb = (fbno - xfs_dir2_byte_to_db(args->geo,
 							XFS_DIR2_FREE_OFFSET)) *
-				dp->d_ops->free_max_bests(args->geo);
+				args->geo->free_max_bests;
 	} else {
 		xfs_dir2_free_hdr_from_disk(mp, hdr, fbp->b_addr);
 	}
@@ -1743,7 +1741,7 @@ xfs_dir2_node_add_datablk(
 
 	/* Extend the freespace table if the new data block is off the end. */
 	if (*findex >= hdr->nvalid) {
-		ASSERT(*findex < dp->d_ops->free_max_bests(args->geo));
+		ASSERT(*findex < args->geo->free_max_bests);
 		hdr->nvalid = *findex + 1;
 		hdr->bests[*findex] = cpu_to_be16(NULLDATAOFF);
 	}

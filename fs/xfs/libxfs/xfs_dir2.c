@@ -133,6 +133,8 @@ xfs_da_mount(
 	}
 	dageo->leaf_max_ents = (dageo->blksize - dageo->leaf_hdr_size) /
 			sizeof(struct xfs_dir2_leaf_entry);
+	dageo->free_max_bests = (dageo->blksize - dageo->free_hdr_size) /
+			sizeof(xfs_dir2_data_off_t);
 
 	/*
 	 * Now we've set up the block conversion variables, we can calculate the
