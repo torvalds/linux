@@ -22,20 +22,20 @@ struct poly1305_state {
 };
 
 struct poly1305_desc_ctx {
-	/* key */
-	struct poly1305_key r;
-	/* finalize key */
-	u32 s[4];
-	/* accumulator */
-	struct poly1305_state h;
 	/* partial buffer */
 	u8 buf[POLY1305_BLOCK_SIZE];
 	/* bytes used in partial buffer */
 	unsigned int buflen;
-	/* r key has been set */
-	bool rset;
-	/* s key has been set */
+	/* how many keys have been set in r[] */
+	unsigned short rset;
+	/* whether s[] has been set */
 	bool sset;
+	/* finalize key */
+	u32 s[4];
+	/* accumulator */
+	struct poly1305_state h;
+	/* key */
+	struct poly1305_key r[1];
 };
 
 #endif

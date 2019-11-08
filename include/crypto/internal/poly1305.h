@@ -46,10 +46,10 @@ unsigned int crypto_poly1305_setdesckey(struct poly1305_desc_ctx *dctx,
 {
 	if (!dctx->sset) {
 		if (!dctx->rset && srclen >= POLY1305_BLOCK_SIZE) {
-			poly1305_core_setkey(&dctx->r, src);
+			poly1305_core_setkey(dctx->r, src);
 			src += POLY1305_BLOCK_SIZE;
 			srclen -= POLY1305_BLOCK_SIZE;
-			dctx->rset = true;
+			dctx->rset = 1;
 		}
 		if (srclen >= POLY1305_BLOCK_SIZE) {
 			dctx->s[0] = get_unaligned_le32(src +  0);
