@@ -3607,7 +3607,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	qdisc_calculate_pkt_len(skb, q);
 
 	if (q->flags & TCQ_F_NOLOCK) {
-		if ((q->flags & TCQ_F_CAN_BYPASS) && q->empty &&
+		if ((q->flags & TCQ_F_CAN_BYPASS) && READ_ONCE(q->empty) &&
 		    qdisc_run_begin(q)) {
 			if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED,
 					      &q->state))) {

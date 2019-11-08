@@ -652,7 +652,7 @@ static struct sk_buff *pfifo_fast_dequeue(struct Qdisc *qdisc)
 	if (likely(skb)) {
 		qdisc_update_stats_at_dequeue(qdisc, skb);
 	} else {
-		qdisc->empty = true;
+		WRITE_ONCE(qdisc->empty, true);
 	}
 
 	return skb;
