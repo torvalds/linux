@@ -39,10 +39,16 @@
 #include "msg.h"
 #include "addr.h"
 #include "name_table.h"
+#include "crypto.h"
 
 #define MAX_FORWARD_SIZE 1024
+#ifdef CONFIG_TIPC_CRYPTO
+#define BUF_HEADROOM ALIGN(((LL_MAX_HEADER + 48) + EHDR_MAX_SIZE), 16)
+#define BUF_TAILROOM (TIPC_AES_GCM_TAG_SIZE)
+#else
 #define BUF_HEADROOM (LL_MAX_HEADER + 48)
 #define BUF_TAILROOM 16
+#endif
 
 static unsigned int align(unsigned int i)
 {
@@ -61,7 +67,11 @@ static unsigned int align(unsigned int i)
 struct sk_buff *tipc_buf_acquire(u32 size, gfp_t gfp)
 {
 	struct sk_buff *skb;
+#ifdef CONFIG_TIPC_CRYPTO
+	unsigned int buf_size = (BUF_HEADROOM + size + BUF_TAILROOM + 3) & ~3u;
+#else
 	unsigned int buf_size = (BUF_HEADROOM + size + 3) & ~3u;
+#endif
 
 	skb = alloc_skb_fclone(buf_size, gfp);
 	if (skb) {
@@ -173,7 +183,7 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 	}
 
 	if (fragid == LAST_FRAGMENT) {
-		TIPC_SKB_CB(head)->validated = false;
+		TIPC_SKB_CB(head)->validated = 0;
 		if (unlikely(!tipc_msg_validate(&head)))
 			goto err;
 		*buf = head;
@@ -271,6 +281,7 @@ bool tipc_msg_validate(struct sk_buff **_skb)
 
 	if (unlikely(TIPC_SKB_CB(skb)->validated))
 		return true;
+
 	if (unlikely(!pskb_may_pull(skb, MIN_H_SIZE)))
 		return false;
 
@@ -292,7 +303,7 @@ bool tipc_msg_validate(struct sk_buff **_skb)
 	if (unlikely(skb->len < msz))
 		return false;
 
-	TIPC_SKB_CB(skb)->validated = true;
+	TIPC_SKB_CB(skb)->validated = 1;
 	return true;
 }
 

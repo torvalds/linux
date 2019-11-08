@@ -102,16 +102,42 @@ struct plist;
 #define TIPC_MEDIA_INFO_OFFSET	5
 
 struct tipc_skb_cb {
-	struct sk_buff *tail;
-	unsigned long nxt_retr;
-	unsigned long retr_stamp;
-	u32 bytes_read;
-	u32 orig_member;
-	u16 chain_imp;
-	u16 ackers;
-	u16 retr_cnt;
-	bool validated;
-};
+	union {
+		struct {
+			struct sk_buff *tail;
+			unsigned long nxt_retr;
+			unsigned long retr_stamp;
+			u32 bytes_read;
+			u32 orig_member;
+			u16 chain_imp;
+			u16 ackers;
+			u16 retr_cnt;
+		} __packed;
+#ifdef CONFIG_TIPC_CRYPTO
+		struct {
+			struct tipc_crypto *rx;
+			struct tipc_aead *last;
+			u8 recurs;
+		} tx_clone_ctx __packed;
+#endif
+	} __packed;
+	union {
+		struct {
+			u8 validated:1;
+#ifdef CONFIG_TIPC_CRYPTO
+			u8 encrypted:1;
+			u8 decrypted:1;
+			u8 probe:1;
+			u8 tx_clone_deferred:1;
+#endif
+		};
+		u8 flags;
+	};
+	u8 reserved;
+#ifdef CONFIG_TIPC_CRYPTO
+	void *crypto_ctx;
+#endif
+} __packed;
 
 #define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))
 

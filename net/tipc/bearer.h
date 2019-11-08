@@ -232,7 +232,8 @@ void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
 			  struct tipc_media_addr *dest);
 void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		      struct sk_buff_head *xmitq,
-		      struct tipc_media_addr *dst);
+		      struct tipc_media_addr *dst,
+		      struct tipc_node *__dnode);
 void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 			 struct sk_buff_head *xmitq);
 void tipc_clone_to_loopback(struct net *net, struct sk_buff_head *pkts);

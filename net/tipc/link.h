@@ -141,6 +141,7 @@ void tipc_link_remove_bc_peer(struct tipc_link *snd_l,
 int tipc_link_bc_peers(struct tipc_link *l);
 void tipc_link_set_mtu(struct tipc_link *l, int mtu);
 int tipc_link_mtu(struct tipc_link *l);
+int tipc_link_mss(struct tipc_link *l);
 void tipc_link_bc_ack_rcv(struct tipc_link *l, u16 acked,
 			  struct sk_buff_head *xmitq);
 void tipc_link_build_bc_sync_msg(struct tipc_link *l,

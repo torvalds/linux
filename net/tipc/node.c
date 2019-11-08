@@ -44,6 +44,7 @@
 #include "discover.h"
 #include "netlink.h"
 #include "trace.h"
+#include "crypto.h"
 
 #define INVALID_NODE_SIG	0x10000
 #define NODE_CLEANUP_AFTER	300000
@@ -100,6 +101,7 @@ struct tipc_bclink_entry {
  * @publ_list: list of publications
  * @rcu: rcu struct for tipc_node
  * @delete_at: indicates the time for deleting a down node
+ * @crypto_rx: RX crypto handler
  */
 struct tipc_node {
 	u32 addr;
@@ -131,6 +133,9 @@ struct tipc_node {
 	unsigned long delete_at;
 	struct net *peer_net;
 	u32 peer_hash_mix;
+#ifdef CONFIG_TIPC_CRYPTO
+	struct tipc_crypto *crypto_rx;
+#endif
 };
 
 /* Node FSM states and events:
@@ -168,7 +173,6 @@ static void tipc_node_timeout(struct timer_list *t);
 static void tipc_node_fsm_evt(struct tipc_node *n, int evt);
 static struct tipc_node *tipc_node_find(struct net *net, u32 addr);
 static struct tipc_node *tipc_node_find_by_id(struct net *net, u8 *id);
-static void tipc_node_put(struct tipc_node *node);
 static bool node_is_up(struct tipc_node *n);
 static void tipc_node_delete_from_list(struct tipc_node *node);
 
@@ -258,15 +262,41 @@ char *tipc_node_get_id_str(struct tipc_node *node)
 	return node->peer_id_string;
 }
 
+#ifdef CONFIG_TIPC_CRYPTO
+/**
+ * tipc_node_crypto_rx - Retrieve crypto RX handle from node
+ * Note: node ref counter must be held first!
+ */
+struct tipc_crypto *tipc_node_crypto_rx(struct tipc_node *__n)
+{
+	return (__n) ? __n->crypto_rx : NULL;
+}
+
+struct tipc_crypto *tipc_node_crypto_rx_by_list(struct list_head *pos)
+{
+	return container_of(pos, struct tipc_node, list)->crypto_rx;
+}
+#endif
+
+void tipc_node_free(struct rcu_head *rp)
+{
+	struct tipc_node *n = container_of(rp, struct tipc_node, rcu);
+
+#ifdef CONFIG_TIPC_CRYPTO
+	tipc_crypto_stop(&n->crypto_rx);
+#endif
+	kfree(n);
+}
+
 static void tipc_node_kref_release(struct kref *kref)
 {
 	struct tipc_node *n = container_of(kref, struct tipc_node, kref);
 
 	kfree(n->bc_entry.link);
-	kfree_rcu(n, rcu);
+	call_rcu(&n->rcu, tipc_node_free);
 }
 
-static void tipc_node_put(struct tipc_node *node)
+void tipc_node_put(struct tipc_node *node)
 {
 	kref_put(&node->kref, tipc_node_kref_release);
 }
@@ -411,9 +441,9 @@ static void tipc_node_assign_peer_net(struct tipc_node *n, u32 hash_mixes)
 	}
 }
 
-static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
-					  u8 *peer_id, u16 capabilities,
-					  u32 hash_mixes, bool preliminary)
+struct tipc_node *tipc_node_create(struct net *net, u32 addr, u8 *peer_id,
+				   u16 capabilities, u32 hash_mixes,
+				   bool preliminary)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_node *n, *temp_node;
@@ -474,6 +504,14 @@ update:
 		goto exit;
 	}
 	tipc_nodeid2string(n->peer_id_string, peer_id);
+#ifdef CONFIG_TIPC_CRYPTO
+	if (unlikely(tipc_crypto_start(&n->crypto_rx, net, n))) {
+		pr_warn("Failed to start crypto RX(%s)!\n", n->peer_id_string);
+		kfree(n);
+		n = NULL;
+		goto exit;
+	}
+#endif
 	n->addr = addr;
 	n->preliminary = preliminary;
 	memcpy(&n->peer_id, peer_id, 16);
@@ -725,6 +763,10 @@ static void tipc_node_timeout(struct timer_list *t)
 		return;
 	}
 
+#ifdef CONFIG_TIPC_CRYPTO
+	/* Take any crypto key related actions first */
+	tipc_crypto_timeout(n->crypto_rx);
+#endif
 	__skb_queue_head_init(&xmitq);
 
 	/* Initial node interval to value larger (10 seconds), then it will be
@@ -745,7 +787,7 @@ static void tipc_node_timeout(struct timer_list *t)
 			remains--;
 		}
 		tipc_node_read_unlock(n);
-		tipc_bearer_xmit(n->net, bearer_id, &xmitq, &le->maddr);
+		tipc_bearer_xmit(n->net, bearer_id, &xmitq, &le->maddr, n);
 		if (rc & TIPC_LINK_DOWN_EVT)
 			tipc_node_link_down(n, bearer_id, false);
 	}
@@ -777,7 +819,7 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 	n->link_id = tipc_link_id(nl);
 
 	/* Leave room for tunnel header when returning 'mtu' to users: */
-	n->links[bearer_id].mtu = tipc_link_mtu(nl) - INT_H_SIZE;
+	n->links[bearer_id].mtu = tipc_link_mss(nl);
 
 	tipc_bearer_add_dest(n->net, bearer_id, n->addr);
 	tipc_bcast_inc_bearer_dst_cnt(n->net, bearer_id);
@@ -831,7 +873,7 @@ static void tipc_node_link_up(struct tipc_node *n, int bearer_id,
 	tipc_node_write_lock(n);
 	__tipc_node_link_up(n, bearer_id, xmitq);
 	maddr = &n->links[bearer_id].maddr;
-	tipc_bearer_xmit(n->net, bearer_id, xmitq, maddr);
+	tipc_bearer_xmit(n->net, bearer_id, xmitq, maddr, n);
 	tipc_node_write_unlock(n);
 }
 
@@ -986,7 +1028,7 @@ static void tipc_node_link_down(struct tipc_node *n, int bearer_id, bool delete)
 	if (delete)
 		tipc_mon_remove_peer(n->net, n->addr, old_bearer_id);
 	if (!skb_queue_empty(&xmitq))
-		tipc_bearer_xmit(n->net, bearer_id, &xmitq, maddr);
+		tipc_bearer_xmit(n->net, bearer_id, &xmitq, maddr, n);
 	tipc_sk_rcv(n->net, &le->inputq);
 }
 
@@ -1640,7 +1682,7 @@ int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
 	if (unlikely(rc == -ENOBUFS))
 		tipc_node_link_down(n, bearer_id, false);
 	else
-		tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr);
+		tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr, n);
 
 	tipc_node_put(n);
 
@@ -1788,7 +1830,7 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
 	}
 
 	if (!skb_queue_empty(&xmitq))
-		tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr);
+		tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr, n);
 
 	if (!skb_queue_empty(&be->inputq1))
 		tipc_node_mcast_rcv(n);
@@ -1966,20 +2008,38 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 {
 	struct sk_buff_head xmitq;
-	struct tipc_node *n;
-	struct tipc_msg *hdr;
-	int bearer_id = b->identity;
 	struct tipc_link_entry *le;
+	struct tipc_msg *hdr;
+	struct tipc_node *n;
+	int bearer_id = b->identity;
 	u32 self = tipc_own_addr(net);
 	int usr, rc = 0;
 	u16 bc_ack;
+#ifdef CONFIG_TIPC_CRYPTO
+	struct tipc_ehdr *ehdr;
 
-	__skb_queue_head_init(&xmitq);
+	/* Check if message must be decrypted first */
+	if (TIPC_SKB_CB(skb)->decrypted || !tipc_ehdr_validate(skb))
+		goto rcv;
 
+	ehdr = (struct tipc_ehdr *)skb->data;
+	if (likely(ehdr->user != LINK_CONFIG)) {
+		n = tipc_node_find(net, ntohl(ehdr->addr));
+		if (unlikely(!n))
+			goto discard;
+	} else {
+		n = tipc_node_find_by_id(net, ehdr->id);
+	}
+	tipc_crypto_rcv(net, (n) ? n->crypto_rx : NULL, &skb, b);
+	if (!skb)
+		return;
+
+rcv:
+#endif
 	/* Ensure message is well-formed before touching the header */
-	TIPC_SKB_CB(skb)->validated = false;
 	if (unlikely(!tipc_msg_validate(&skb)))
 		goto discard;
+	__skb_queue_head_init(&xmitq);
 	hdr = buf_msg(skb);
 	usr = msg_user(hdr);
 	bc_ack = msg_bcast_ack(hdr);
@@ -2050,7 +2110,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 		tipc_sk_rcv(net, &le->inputq);
 
 	if (!skb_queue_empty(&xmitq))
-		tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr);
+		tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr, n);
 
 	tipc_node_put(n);
 discard:
@@ -2081,7 +2141,7 @@ void tipc_node_apply_property(struct net *net, struct tipc_bearer *b,
 				tipc_link_set_mtu(e->link, b->mtu);
 		}
 		tipc_node_write_unlock(n);
-		tipc_bearer_xmit(net, bearer_id, &xmitq, &e->maddr);
+		tipc_bearer_xmit(net, bearer_id, &xmitq, &e->maddr, NULL);
 	}
 
 	rcu_read_unlock();
@@ -2323,7 +2383,8 @@ int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info)
 
 out:
 	tipc_node_read_unlock(node);
-	tipc_bearer_xmit(net, bearer_id, &xmitq, &node->links[bearer_id].maddr);
+	tipc_bearer_xmit(net, bearer_id, &xmitq, &node->links[bearer_id].maddr,
+			 NULL);
 	return res;
 }
 
