@@ -348,16 +348,15 @@ xfs_dir2_leaf_getdents(
 {
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_buf		*bp = NULL;	/* data block buffer */
-	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_dir2_data_entry_t	*dep;		/* data entry */
 	xfs_dir2_data_unused_t	*dup;		/* unused entry */
-	char			*ptr = NULL;	/* pointer to current data */
 	struct xfs_da_geometry	*geo = args->geo;
 	xfs_dablk_t		rablk = 0;	/* current readahead block */
 	xfs_dir2_off_t		curoff;		/* current overall offset */
 	int			length;		/* temporary length value */
 	int			byteoff;	/* offset in current block */
 	int			lock_mode;
+	unsigned int		offset = 0;
 	int			error = 0;	/* error return value */
 
 	/*
@@ -384,7 +383,7 @@ xfs_dir2_leaf_getdents(
 		 * If we have no buffer, or we're off the end of the
 		 * current buffer, need to get another one.
 		 */
-		if (!bp || ptr >= (char *)bp->b_addr + geo->blksize) {
+		if (!bp || offset >= geo->blksize) {
 			if (bp) {
 				xfs_trans_brelse(args->trans, bp);
 				bp = NULL;
@@ -397,12 +396,11 @@ xfs_dir2_leaf_getdents(
 			if (error || !bp)
 				break;
 
-			hdr = bp->b_addr;
 			xfs_dir3_data_check(dp, bp);
 			/*
 			 * Find our position in the block.
 			 */
-			ptr = (char *)dp->d_ops->data_entry_p(hdr);
+			offset = dp->d_ops->data_entry_offset;
 			byteoff = xfs_dir2_byte_to_off(geo, curoff);
 			/*
 			 * Skip past the header.
@@ -413,20 +411,20 @@ xfs_dir2_leaf_getdents(
 			 * Skip past entries until we reach our offset.
 			 */
 			else {
-				while ((char *)ptr - (char *)hdr < byteoff) {
-					dup = (xfs_dir2_data_unused_t *)ptr;
+				while (offset < byteoff) {
+					dup = bp->b_addr + offset;
 
 					if (be16_to_cpu(dup->freetag)
 						  == XFS_DIR2_DATA_FREE_TAG) {
 
 						length = be16_to_cpu(dup->length);
-						ptr += length;
+						offset += length;
 						continue;
 					}
-					dep = (xfs_dir2_data_entry_t *)ptr;
+					dep = bp->b_addr + offset;
 					length =
 					   dp->d_ops->data_entsize(dep->namelen);
-					ptr += length;
+					offset += length;
 				}
 				/*
 				 * Now set our real offset.
@@ -434,28 +432,28 @@ xfs_dir2_leaf_getdents(
 				curoff =
 					xfs_dir2_db_off_to_byte(geo,
 					    xfs_dir2_byte_to_db(geo, curoff),
-					    (char *)ptr - (char *)hdr);
-				if (ptr >= (char *)hdr + geo->blksize) {
+					    offset);
+				if (offset >= geo->blksize)
 					continue;
-				}
 			}
 		}
+
 		/*
-		 * We have a pointer to an entry.
-		 * Is it a live one?
+		 * We have a pointer to an entry.  Is it a live one?
 		 */
-		dup = (xfs_dir2_data_unused_t *)ptr;
+		dup = bp->b_addr + offset;
+
 		/*
 		 * No, it's unused, skip over it.
 		 */
 		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
 			length = be16_to_cpu(dup->length);
-			ptr += length;
+			offset += length;
 			curoff += length;
 			continue;
 		}
 
-		dep = (xfs_dir2_data_entry_t *)ptr;
+		dep = bp->b_addr + offset;
 		length = dp->d_ops->data_entsize(dep->namelen);
 		filetype = dp->d_ops->data_get_ftype(dep);
 
@@ -474,7 +472,7 @@ xfs_dir2_leaf_getdents(
 		/*
 		 * Advance to next entry in the block.
 		 */
-		ptr += length;
+		offset += length;
 		curoff += length;
 		/* bufsize may have just been a guess; don't go negative */
 		bufsize = bufsize > length ? bufsize - length : 0;
