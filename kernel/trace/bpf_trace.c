@@ -660,7 +660,7 @@ BPF_CALL_1(bpf_send_signal, u32, sig)
 			return -EINVAL;
 
 		work = this_cpu_ptr(&send_signal_work);
-		if (work->irq_work.flags & IRQ_WORK_BUSY)
+		if (atomic_read(&work->irq_work.flags) & IRQ_WORK_BUSY)
 			return -EBUSY;
 
 		/* Add the current task, which is the target of sending signal,

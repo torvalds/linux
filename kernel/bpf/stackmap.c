@@ -289,7 +289,7 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 
 	if (in_nmi()) {
 		work = this_cpu_ptr(&up_read_work);
-		if (work->irq_work.flags & IRQ_WORK_BUSY)
+		if (atomic_read(&work->irq_work.flags) & IRQ_WORK_BUSY)
 			/* cannot queue more up_read, fallback */
 			irq_work_busy = true;
 	}
