@@ -408,7 +408,7 @@ xchk_da_btree_block(
 				XFS_BLFT_DA_NODE_BUF);
 		blk->magic = XFS_DA_NODE_MAGIC;
 		node = blk->bp->b_addr;
-		ip->d_ops->node_hdr_from_disk(&nodehdr, node);
+		xfs_da3_node_hdr_from_disk(ip->i_mount, &nodehdr, node);
 		btree = ip->d_ops->node_tree_p(node);
 		*pmaxrecs = nodehdr.count;
 		blk->hashval = be32_to_cpu(btree[*pmaxrecs - 1].hashval);

@@ -240,7 +240,7 @@ xfs_attr_node_list_lookup(
 			goto out_corruptbuf;
 		}
 
-		dp->d_ops->node_hdr_from_disk(&nodehdr, node);
+		xfs_da3_node_hdr_from_disk(mp, &nodehdr, node);
 
 		/* Tree taller than we can handle; bail out! */
 		if (nodehdr.level >= XFS_DA_NODE_MAXDEPTH)

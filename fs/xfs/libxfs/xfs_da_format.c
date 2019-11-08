@@ -511,19 +511,6 @@ xfs_da3_node_tree_p(struct xfs_da_intnode *dap)
 }
 
 static void
-xfs_da2_node_hdr_from_disk(
-	struct xfs_da3_icnode_hdr	*to,
-	struct xfs_da_intnode		*from)
-{
-	ASSERT(from->hdr.info.magic == cpu_to_be16(XFS_DA_NODE_MAGIC));
-	to->forw = be32_to_cpu(from->hdr.info.forw);
-	to->back = be32_to_cpu(from->hdr.info.back);
-	to->magic = be16_to_cpu(from->hdr.info.magic);
-	to->count = be16_to_cpu(from->hdr.__count);
-	to->level = be16_to_cpu(from->hdr.__level);
-}
-
-static void
 xfs_da2_node_hdr_to_disk(
 	struct xfs_da_intnode		*to,
 	struct xfs_da3_icnode_hdr	*from)
@@ -534,21 +521,6 @@ xfs_da2_node_hdr_to_disk(
 	to->hdr.info.magic = cpu_to_be16(from->magic);
 	to->hdr.__count = cpu_to_be16(from->count);
 	to->hdr.__level = cpu_to_be16(from->level);
-}
-
-static void
-xfs_da3_node_hdr_from_disk(
-	struct xfs_da3_icnode_hdr	*to,
-	struct xfs_da_intnode		*from)
-{
-	struct xfs_da3_node_hdr *hdr3 = (struct xfs_da3_node_hdr *)from;
-
-	ASSERT(from->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC));
-	to->forw = be32_to_cpu(hdr3->info.hdr.forw);
-	to->back = be32_to_cpu(hdr3->info.hdr.back);
-	to->magic = be16_to_cpu(hdr3->info.hdr.magic);
-	to->count = be16_to_cpu(hdr3->__count);
-	to->level = be16_to_cpu(hdr3->__level);
 }
 
 static void
@@ -727,7 +699,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 
 	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
 	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
-	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
@@ -777,7 +748,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 
 	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
 	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
-	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
@@ -827,7 +797,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 
 	.node_hdr_size = sizeof(struct xfs_da3_node_hdr),
 	.node_hdr_to_disk = xfs_da3_node_hdr_to_disk,
-	.node_hdr_from_disk = xfs_da3_node_hdr_from_disk,
 	.node_tree_p = xfs_da3_node_tree_p,
 
 	.free_hdr_size = sizeof(struct xfs_dir3_free_hdr),
@@ -842,14 +811,12 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 static const struct xfs_dir_ops xfs_dir2_nondir_ops = {
 	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
 	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
-	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 };
 
 static const struct xfs_dir_ops xfs_dir3_nondir_ops = {
 	.node_hdr_size = sizeof(struct xfs_da3_node_hdr),
 	.node_hdr_to_disk = xfs_da3_node_hdr_to_disk,
-	.node_hdr_from_disk = xfs_da3_node_hdr_from_disk,
 	.node_tree_p = xfs_da3_node_tree_p,
 };
 

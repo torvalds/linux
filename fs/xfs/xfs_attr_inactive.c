@@ -215,7 +215,7 @@ xfs_attr3_node_inactive(
 	}
 
 	node = bp->b_addr;
-	dp->d_ops->node_hdr_from_disk(&ichdr, node);
+	xfs_da3_node_hdr_from_disk(dp->i_mount, &ichdr, node);
 	parent_blkno = bp->b_bn;
 	if (!ichdr.count) {
 		xfs_trans_brelse(*trans, bp);

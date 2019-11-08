@@ -1185,7 +1185,7 @@ xfs_attr3_leaf_to_node(
 	if (error)
 		goto out;
 	node = bp1->b_addr;
-	dp->d_ops->node_hdr_from_disk(&icnodehdr, node);
+	xfs_da3_node_hdr_from_disk(mp, &icnodehdr, node);
 	btree = dp->d_ops->node_tree_p(node);
 
 	leaf = bp2->b_addr;
