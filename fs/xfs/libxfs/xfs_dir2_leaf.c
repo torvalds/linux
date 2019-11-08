@@ -465,7 +465,7 @@ xfs_dir2_block_to_leaf(
 		hdr->magic = cpu_to_be32(XFS_DIR3_DATA_MAGIC);
 
 	if (needscan)
-		xfs_dir2_data_freescan(dp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp->i_mount, hdr, &needlog);
 	/*
 	 * Set up leaf tail and bests table.
 	 */
@@ -872,7 +872,7 @@ xfs_dir2_leaf_addname(
 	 * Need to scan fix up the bestfree table.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(dp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp->i_mount, hdr, &needlog);
 	/*
 	 * Need to log the data block's header.
 	 */
@@ -1415,7 +1415,7 @@ xfs_dir2_leaf_removename(
 	 * log the data block header if necessary.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(dp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp->i_mount, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(args, dbp);
 	/*
