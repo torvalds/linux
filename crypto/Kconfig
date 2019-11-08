@@ -269,6 +269,12 @@ config CRYPTO_CURVE25519
 	select CRYPTO_KPP
 	select CRYPTO_LIB_CURVE25519_GENERIC
 
+config CRYPTO_CURVE25519_X86
+	tristate "x86_64 accelerated Curve25519 scalar multiplication library"
+	depends on X86 && 64BIT
+	select CRYPTO_LIB_CURVE25519_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
+
 comment "Authenticated Encryption with Associated Data"
 
 config CRYPTO_CCM

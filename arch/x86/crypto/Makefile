@@ -39,6 +39,7 @@ obj-$(CONFIG_CRYPTO_AEGIS128_AESNI_SSE2) += aegis128-aesni.o
 
 obj-$(CONFIG_CRYPTO_NHPOLY1305_SSE2) += nhpoly1305-sse2.o
 obj-$(CONFIG_CRYPTO_NHPOLY1305_AVX2) += nhpoly1305-avx2.o
+obj-$(CONFIG_CRYPTO_CURVE25519_X86) += curve25519-x86_64.o
 
 # These modules require assembler to support AVX.
 ifeq ($(avx_supported),yes)
