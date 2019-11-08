@@ -33,6 +33,8 @@
 #define NAVI14_UMD_PSTATE_PEAK_XTX_GFXCLK     (1717)
 #define NAVI14_UMD_PSTATE_PEAK_XL_GFXCLK      (1448)
 
+#define NAVI10_VOLTAGE_SCALE (4)
+
 extern void navi10_set_ppt_funcs(struct smu_context *smu);
 
 #endif

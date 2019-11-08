@@ -1728,6 +1728,8 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 	struct smu_table_context *table_context = &smu->smu_table;
 	OverDriveTable_t *od_table;
 	struct smu_11_0_overdrive_table *od_settings;
+	enum SMU_11_0_ODSETTING_ID freq_setting, voltage_setting;
+	uint16_t *freq_ptr, *voltage_ptr;
 	od_table = (OverDriveTable_t *)table_context->overdrive_table;
 
 	if (!smu->od_enabled) {
@@ -1824,8 +1826,62 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		}
 		break;
 	case PP_OD_EDIT_VDDC_CURVE:
-		// TODO: implement
-		return -ENOSYS;
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_CURVE)) {
+			pr_warn("GFXCLK_CURVE not supported!\n");
+			return -ENOTSUPP;
+		}
+		if (size < 3) {
+			pr_info("invalid number of parameters: %d\n", size);
+			return -EINVAL;
+		}
+		if (!od_table) {
+			pr_info("Overdrive is not initialized\n");
+			return -EINVAL;
+		}
+
+		switch (input[0]) {
+		case 0:
+			freq_setting = SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P1;
+			voltage_setting = SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P1;
+			freq_ptr = &od_table->GfxclkFreq1;
+			voltage_ptr = &od_table->GfxclkVolt1;
+			break;
+		case 1:
+			freq_setting = SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P2;
+			voltage_setting = SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P2;
+			freq_ptr = &od_table->GfxclkFreq2;
+			voltage_ptr = &od_table->GfxclkVolt2;
+			break;
+		case 2:
+			freq_setting = SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P3;
+			voltage_setting = SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P3;
+			freq_ptr = &od_table->GfxclkFreq3;
+			voltage_ptr = &od_table->GfxclkVolt3;
+			break;
+		default:
+			pr_info("Invalid VDDC_CURVE index: %ld\n", input[0]);
+			pr_info("Supported indices: [0, 1, 2]\n");
+			return -EINVAL;
+		}
+		ret = navi10_od_setting_check_range(od_settings, freq_setting, input[1]);
+		if (ret)
+			return ret;
+		// Allow setting zero to disable the OverDrive VDDC curve
+		if (input[2] != 0) {
+			ret = navi10_od_setting_check_range(od_settings, voltage_setting, input[2]);
+			if (ret)
+				return ret;
+			*freq_ptr = input[1];
+			*voltage_ptr = ((uint16_t)input[2]) * NAVI10_VOLTAGE_SCALE;
+			pr_debug("OD: set curve %ld: (%d, %d)\n", input[0], *freq_ptr, *voltage_ptr);
+		} else {
+			// If setting 0, disable all voltage curve settings
+			od_table->GfxclkVolt1 = 0;
+			od_table->GfxclkVolt2 = 0;
+			od_table->GfxclkVolt3 = 0;
+		}
+		navi10_dump_od_table(od_table);
+		break;
 	default:
 		return -ENOSYS;
 	}
