@@ -3110,6 +3110,9 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 
 	DRM_INFO("amdgpu: finishing device.\n");
 	adev->shutdown = true;
+
+	flush_delayed_work(&adev->delayed_init_work);
+
 	/* disable all interrupts */
 	amdgpu_irq_disable_all(adev);
 	if (adev->mode_info.mode_config_initialized){
