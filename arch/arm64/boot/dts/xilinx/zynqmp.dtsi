@@ -115,6 +115,27 @@
 		method = "smc";
 	};
 
+	firmware {
+		zynqmp_firmware: zynqmp-firmware {
+			compatible = "xlnx,zynqmp-firmware";
+			method = "smc";
+
+			nvmem_firmware {
+				compatible = "xlnx,zynqmp-nvmem-fw";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				soc_revision: soc_revision@0 {
+					reg = <0x0 0x4>;
+				};
+			};
+
+			zynqmp_pcap: pcap {
+				compatible = "xlnx,zynqmp-pcap-fpga";
+			};
+		};
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupt-parent = <&gic>;
@@ -122,6 +143,14 @@
 			     <1 14 0xf08>,
 			     <1 11 0xf08>,
 			     <1 10 0xf08>;
+	};
+
+	fpga_full: fpga-full {
+		compatible = "fpga-region";
+		fpga-mgr = <&zynqmp_pcap>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
 	};
 
 	amba_apu: amba-apu@0 {
