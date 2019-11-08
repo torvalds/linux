@@ -16,6 +16,11 @@ libblake2s-generic-y				+= blake2s-generic.o
 obj-$(CONFIG_CRYPTO_LIB_BLAKE2S)		+= libblake2s.o
 libblake2s-y					+= blake2s.o
 
+obj-$(CONFIG_CRYPTO_LIB_CURVE25519_GENERIC)	+= libcurve25519.o
+libcurve25519-y					:= curve25519-fiat32.o
+libcurve25519-$(CONFIG_ARCH_SUPPORTS_INT128)	:= curve25519-hacl64.o
+libcurve25519-y					+= curve25519.o
+
 obj-$(CONFIG_CRYPTO_LIB_DES)			+= libdes.o
 libdes-y					:= des.o
 
