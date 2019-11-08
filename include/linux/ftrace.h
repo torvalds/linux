@@ -272,6 +272,12 @@ static inline struct ftrace_direct_func *ftrace_find_direct_func(unsigned long a
  * via ftrace (because there's other callbacks besides the
  * direct call), can inform the architecture's trampoline that this
  * routine has a direct caller, and what the caller is.
+ *
+ * For example, in x86, it returns the direct caller
+ * callback function via the regs->orig_ax parameter.
+ * Then in the ftrace trampoline, if this is set, it makes
+ * the return from the trampoline jump to the direct caller
+ * instead of going back to the function it just traced.
  */
 static inline void arch_ftrace_set_direct_caller(struct pt_regs *regs,
 						 unsigned long addr) { }
