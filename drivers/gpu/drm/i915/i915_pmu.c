@@ -366,8 +366,21 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 
 		val = rps->cur_freq;
 		if (intel_gt_pm_get_if_awake(gt)) {
-			val = intel_uncore_read_notrace(uncore, GEN6_RPSTAT1);
-			val = intel_get_cagf(rps, val);
+			u32 stat;
+
+			/*
+			 * We take a quick peek here without using forcewake
+			 * so that we don't perturb the system under observation
+			 * (forcewake => !rc6 => increased power use). We expect
+			 * that if the read fails because it is outside of the
+			 * mmio power well, then it will return 0 -- in which
+			 * case we assume the system is running at the intended
+			 * frequency. Fortunately, the read should rarely fail!
+			 */
+			stat = intel_uncore_read_fw(uncore, GEN6_RPSTAT1);
+			if (stat)
+				val = intel_get_cagf(rps, stat);
+
 			intel_gt_pm_put(gt);
 		}
 
