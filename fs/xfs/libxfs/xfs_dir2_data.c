@@ -24,6 +24,22 @@ static xfs_failaddr_t xfs_dir2_data_freefind_verify(
 		struct xfs_dir2_data_free **bf_ent);
 
 /*
+ * The number of leaf entries is limited by the size of the block and the amount
+ * of space used by the data entries.  We don't know how much space is used by
+ * the data entries yet, so just ensure that the count falls somewhere inside
+ * the block right now.
+ */
+static inline unsigned int
+xfs_dir2_data_max_leaf_entries(
+	const struct xfs_dir_ops	*ops,
+	struct xfs_da_geometry		*geo)
+{
+	return (geo->blksize - sizeof(struct xfs_dir2_block_tail) -
+		ops->data_entry_offset) /
+			sizeof(struct xfs_dir2_leaf_entry);
+}
+
+/*
  * Check the consistency of the data block.
  * The input can also be a block-format directory.
  * Return NULL if the buffer is good, otherwise the address of the error.
@@ -38,23 +54,20 @@ __xfs_dir3_data_check(
 	xfs_dir2_block_tail_t	*btp=NULL;	/* block tail */
 	int			count;		/* count of entries found */
 	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
-	xfs_dir2_data_entry_t	*dep;		/* data entry */
 	xfs_dir2_data_free_t	*dfp;		/* bestfree entry */
-	xfs_dir2_data_unused_t	*dup;		/* unused entry */
-	char			*endp;		/* end of useful data */
+	void			*endp;		/* end of useful data */
 	int			freeseen;	/* mask of bestfrees seen */
 	xfs_dahash_t		hash;		/* hash of current name */
 	int			i;		/* leaf index */
 	int			lastfree;	/* last entry was unused */
 	xfs_dir2_leaf_entry_t	*lep=NULL;	/* block leaf entries */
 	struct xfs_mount	*mp = bp->b_mount;
-	char			*p;		/* current data position */
 	int			stale;		/* count of stale leaves */
 	struct xfs_name		name;
+	unsigned int		offset;
+	unsigned int		end;
 	const struct xfs_dir_ops *ops;
-	struct xfs_da_geometry	*geo;
-
-	geo = mp->m_dir_geo;
+	struct xfs_da_geometry	*geo = mp->m_dir_geo;
 
 	/*
 	 * We can be passed a null dp here from a verifier, so we need to go the
@@ -71,7 +84,7 @@ __xfs_dir3_data_check(
 		return __this_address;
 
 	hdr = bp->b_addr;
-	p = (char *)ops->data_entry_p(hdr);
+	offset = ops->data_entry_offset;
 
 	switch (hdr->magic) {
 	case cpu_to_be32(XFS_DIR3_BLOCK_MAGIC):
@@ -79,15 +92,8 @@ __xfs_dir3_data_check(
 		btp = xfs_dir2_block_tail_p(geo, hdr);
 		lep = xfs_dir2_block_leaf_p(btp);
 
-		/*
-		 * The number of leaf entries is limited by the size of the
-		 * block and the amount of space used by the data entries.
-		 * We don't know how much space is used by the data entries yet,
-		 * so just ensure that the count falls somewhere inside the
-		 * block right now.
-		 */
 		if (be32_to_cpu(btp->count) >=
-		    ((char *)btp - p) / sizeof(struct xfs_dir2_leaf_entry))
+		    xfs_dir2_data_max_leaf_entries(ops, geo))
 			return __this_address;
 		break;
 	case cpu_to_be32(XFS_DIR3_DATA_MAGIC):
@@ -99,6 +105,7 @@ __xfs_dir3_data_check(
 	endp = xfs_dir3_data_endp(geo, hdr);
 	if (!endp)
 		return __this_address;
+	end = endp - bp->b_addr;
 
 	/*
 	 * Account for zero bestfree entries.
@@ -128,8 +135,10 @@ __xfs_dir3_data_check(
 	/*
 	 * Loop over the data/unused entries.
 	 */
-	while (p < endp) {
-		dup = (xfs_dir2_data_unused_t *)p;
+	while (offset < end) {
+		struct xfs_dir2_data_unused	*dup = bp->b_addr + offset;
+		struct xfs_dir2_data_entry	*dep = bp->b_addr + offset;
+
 		/*
 		 * If it's unused, look for the space in the bestfree table.
 		 * If we find it, account for that, else make sure it
@@ -140,10 +149,10 @@ __xfs_dir3_data_check(
 
 			if (lastfree != 0)
 				return __this_address;
-			if (endp < p + be16_to_cpu(dup->length))
+			if (offset + be16_to_cpu(dup->length) > end)
 				return __this_address;
 			if (be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup)) !=
-			    (char *)dup - (char *)hdr)
+			    offset)
 				return __this_address;
 			fa = xfs_dir2_data_freefind_verify(hdr, bf, dup, &dfp);
 			if (fa)
@@ -158,7 +167,7 @@ __xfs_dir3_data_check(
 				    be16_to_cpu(bf[2].length))
 					return __this_address;
 			}
-			p += be16_to_cpu(dup->length);
+			offset += be16_to_cpu(dup->length);
 			lastfree = 1;
 			continue;
 		}
@@ -168,15 +177,13 @@ __xfs_dir3_data_check(
 		 * in the leaf section of the block.
 		 * The linear search is crude but this is DEBUG code.
 		 */
-		dep = (xfs_dir2_data_entry_t *)p;
 		if (dep->namelen == 0)
 			return __this_address;
 		if (xfs_dir_ino_validate(mp, be64_to_cpu(dep->inumber)))
 			return __this_address;
-		if (endp < p + ops->data_entsize(dep->namelen))
+		if (offset + ops->data_entsize(dep->namelen) > end)
 			return __this_address;
-		if (be16_to_cpu(*ops->data_entry_tag_p(dep)) !=
-		    (char *)dep - (char *)hdr)
+		if (be16_to_cpu(*ops->data_entry_tag_p(dep)) != offset)
 			return __this_address;
 		if (ops->data_get_ftype(dep) >= XFS_DIR3_FT_MAX)
 			return __this_address;
@@ -198,7 +205,7 @@ __xfs_dir3_data_check(
 			if (i >= be32_to_cpu(btp->count))
 				return __this_address;
 		}
-		p += ops->data_entsize(dep->namelen);
+		offset += ops->data_entsize(dep->namelen);
 	}
 	/*
 	 * Need to have seen all the entries and all the bestfree slots.
