@@ -330,14 +330,13 @@ xchk_directory_data_bestfree(
 	struct xfs_dir2_data_free	*bf;
 	struct xfs_mount		*mp = sc->mp;
 	const struct xfs_dir_ops	*d_ops;
-	char				*ptr;
-	char				*endptr;
 	u16				tag;
 	unsigned int			nr_bestfrees = 0;
 	unsigned int			nr_frees = 0;
 	unsigned int			smallest_bestfree;
 	int				newlen;
-	int				offset;
+	unsigned int			offset;
+	unsigned int			end;
 	int				error;
 
 	d_ops = sc->ip->d_ops;
@@ -371,13 +370,13 @@ xchk_directory_data_bestfree(
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out_buf;
 		}
-		dup = (struct xfs_dir2_data_unused *)(bp->b_addr + offset);
+		dup = bp->b_addr + offset;
 		tag = be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup));
 
 		/* bestfree doesn't match the entry it points at? */
 		if (dup->freetag != cpu_to_be16(XFS_DIR2_DATA_FREE_TAG) ||
 		    be16_to_cpu(dup->length) != be16_to_cpu(dfp->length) ||
-		    tag != ((char *)dup - (char *)bp->b_addr)) {
+		    tag != offset) {
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out_buf;
 		}
@@ -393,30 +392,30 @@ xchk_directory_data_bestfree(
 	}
 
 	/* Make sure the bestfrees are actually the best free spaces. */
-	ptr = (char *)d_ops->data_entry_p(bp->b_addr);
-	endptr = xfs_dir3_data_endp(mp->m_dir_geo, bp->b_addr);
+	offset = d_ops->data_entry_offset;
+	end = xfs_dir3_data_endp(mp->m_dir_geo, bp->b_addr) - bp->b_addr;
 
 	/* Iterate the entries, stopping when we hit or go past the end. */
-	while (ptr < endptr) {
-		dup = (struct xfs_dir2_data_unused *)ptr;
+	while (offset < end) {
+		dup = bp->b_addr + offset;
+
 		/* Skip real entries */
 		if (dup->freetag != cpu_to_be16(XFS_DIR2_DATA_FREE_TAG)) {
-			struct xfs_dir2_data_entry	*dep;
+			struct xfs_dir2_data_entry *dep = bp->b_addr + offset;
 
-			dep = (struct xfs_dir2_data_entry *)ptr;
 			newlen = d_ops->data_entsize(dep->namelen);
 			if (newlen <= 0) {
 				xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,
 						lblk);
 				goto out_buf;
 			}
-			ptr += newlen;
+			offset += newlen;
 			continue;
 		}
 
 		/* Spot check this free entry */
 		tag = be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup));
-		if (tag != ((char *)dup - (char *)bp->b_addr)) {
+		if (tag != offset) {
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out_buf;
 		}
@@ -435,13 +434,13 @@ xchk_directory_data_bestfree(
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out_buf;
 		}
-		ptr += newlen;
-		if (ptr <= endptr)
+		offset += newlen;
+		if (offset <= end)
 			nr_frees++;
 	}
 
 	/* We're required to fill all the space. */
-	if (ptr != endptr)
+	if (offset != end)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 
 	/* Did we see at least as many free slots as there are bestfrees? */
