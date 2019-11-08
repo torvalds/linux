@@ -6005,19 +6005,13 @@ static void
 lpfc_cpumask_of_node_init(struct lpfc_hba *phba)
 {
 	unsigned int cpu, numa_node;
-	struct cpumask *numa_mask = NULL;
-
-#ifdef CONFIG_NUMA
-	numa_node = phba->pcidev->dev.numa_node;
-#else
-	numa_node = NUMA_NO_NODE;
-#endif
-	numa_mask = &phba->sli4_hba.numa_mask;
+	struct cpumask *numa_mask = &phba->sli4_hba.numa_mask;
 
 	cpumask_clear(numa_mask);
 
 	/* Check if we're a NUMA architecture */
-	if (!cpumask_of_node(numa_node))
+	numa_node = dev_to_node(&phba->pcidev->dev);
+	if (numa_node == NUMA_NO_NODE)
 		return;
 
 	for_each_possible_cpu(cpu)
