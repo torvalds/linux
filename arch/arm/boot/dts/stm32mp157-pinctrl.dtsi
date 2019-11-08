@@ -137,6 +137,12 @@
 				status = "disabled";
 			};
 
+			adc1_in6_pins_a: adc1-in6 {
+				pins {
+					pinmux = <STM32_PINMUX('F', 12, ANALOG)>;
+				};
+			};
+
 			adc12_ain_pins_a: adc12-ain-0 {
 				pins {
 					pinmux = <STM32_PINMUX('C', 3, ANALOG)>, /* ADC1 in13 */
