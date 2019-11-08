@@ -227,7 +227,7 @@ static int check_extent_data_item(struct extent_buffer *leaf,
 	 */
 	if (item_size < BTRFS_FILE_EXTENT_INLINE_DATA_START) {
 		file_extent_err(leaf, slot,
-				"invalid item size, have %u expect [%lu, %u)",
+				"invalid item size, have %u expect [%zu, %u)",
 				item_size, BTRFS_FILE_EXTENT_INLINE_DATA_START,
 				SZ_4K);
 		return -EUCLEAN;
