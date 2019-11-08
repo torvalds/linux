@@ -55,7 +55,6 @@ __xfs_dir3_data_check(
 	int			count;		/* count of entries found */
 	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_dir2_data_free_t	*dfp;		/* bestfree entry */
-	void			*endp;		/* end of useful data */
 	int			freeseen;	/* mask of bestfrees seen */
 	xfs_dahash_t		hash;		/* hash of current name */
 	int			i;		/* leaf index */
@@ -102,10 +101,9 @@ __xfs_dir3_data_check(
 	default:
 		return __this_address;
 	}
-	endp = xfs_dir3_data_endp(geo, hdr);
-	if (!endp)
+	end = xfs_dir3_data_end_offset(geo, hdr);
+	if (!end)
 		return __this_address;
-	end = endp - bp->b_addr;
 
 	/*
 	 * Account for zero bestfree entries.
@@ -590,7 +588,7 @@ xfs_dir2_data_freescan_int(
 	memset(bf, 0, sizeof(*bf) * XFS_DIR2_DATA_FD_COUNT);
 	*loghead = 1;
 
-	end = xfs_dir3_data_endp(geo, addr) - addr;
+	end = xfs_dir3_data_end_offset(geo, addr);
 	while (offset < end) {
 		struct xfs_dir2_data_unused	*dup = addr + offset;
 		struct xfs_dir2_data_entry	*dep = addr + offset;
@@ -784,11 +782,11 @@ xfs_dir2_data_make_free(
 {
 	xfs_dir2_data_hdr_t	*hdr;		/* data block pointer */
 	xfs_dir2_data_free_t	*dfp;		/* bestfree pointer */
-	char			*endptr;	/* end of data area */
 	int			needscan;	/* need to regen bestfree */
 	xfs_dir2_data_unused_t	*newdup;	/* new unused entry */
 	xfs_dir2_data_unused_t	*postdup;	/* unused entry after us */
 	xfs_dir2_data_unused_t	*prevdup;	/* unused entry before us */
+	unsigned int		end;
 	struct xfs_dir2_data_free *bf;
 
 	hdr = bp->b_addr;
@@ -796,8 +794,8 @@ xfs_dir2_data_make_free(
 	/*
 	 * Figure out where the end of the data area is.
 	 */
-	endptr = xfs_dir3_data_endp(args->geo, hdr);
-	ASSERT(endptr != NULL);
+	end = xfs_dir3_data_end_offset(args->geo, hdr);
+	ASSERT(end != 0);
 
 	/*
 	 * If this isn't the start of the block, then back up to
@@ -816,7 +814,7 @@ xfs_dir2_data_make_free(
 	 * If this isn't the end of the block, see if the entry after
 	 * us is free.
 	 */
-	if ((char *)hdr + offset + len < endptr) {
+	if (offset + len < end) {
 		postdup =
 			(xfs_dir2_data_unused_t *)((char *)hdr + offset + len);
 		if (be16_to_cpu(postdup->freetag) != XFS_DIR2_DATA_FREE_TAG)
@@ -1144,19 +1142,22 @@ corrupt:
 }
 
 /* Find the end of the entry data in a data/block format dir block. */
-void *
-xfs_dir3_data_endp(
+unsigned int
+xfs_dir3_data_end_offset(
 	struct xfs_da_geometry		*geo,
 	struct xfs_dir2_data_hdr	*hdr)
 {
+	void				*p;
+
 	switch (hdr->magic) {
 	case cpu_to_be32(XFS_DIR3_BLOCK_MAGIC):
 	case cpu_to_be32(XFS_DIR2_BLOCK_MAGIC):
-		return xfs_dir2_block_leaf_p(xfs_dir2_block_tail_p(geo, hdr));
+		p = xfs_dir2_block_leaf_p(xfs_dir2_block_tail_p(geo, hdr));
+		return p - (void *)hdr;
 	case cpu_to_be32(XFS_DIR3_DATA_MAGIC):
 	case cpu_to_be32(XFS_DIR2_DATA_MAGIC):
-		return (char *)hdr + geo->blksize;
+		return geo->blksize;
 	default:
-		return NULL;
+		return 0;
 	}
 }

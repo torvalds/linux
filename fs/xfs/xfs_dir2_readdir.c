@@ -175,7 +175,7 @@ xfs_dir2_block_getdents(
 	 * Each object is a real entry (dep) or an unused one (dup).
 	 */
 	offset = dp->d_ops->data_entry_offset;
-	end = xfs_dir3_data_endp(geo, bp->b_addr) - bp->b_addr;
+	end = xfs_dir3_data_end_offset(geo, bp->b_addr);
 	while (offset < end) {
 		struct xfs_dir2_data_unused	*dup = bp->b_addr + offset;
 		struct xfs_dir2_data_entry	*dep = bp->b_addr + offset;

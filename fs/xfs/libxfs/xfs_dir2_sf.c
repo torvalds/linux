@@ -283,7 +283,7 @@ xfs_dir2_block_to_sf(
 	 * Loop over the active and unused entries.  Stop when we reach the
 	 * leaf/tail portion of the block.
 	 */
-	end = xfs_dir3_data_endp(args->geo, bp->b_addr) - bp->b_addr;
+	end = xfs_dir3_data_end_offset(args->geo, bp->b_addr);
 	sfep = xfs_dir2_sf_firstentry(sfp);
 	while (offset < end) {
 		struct xfs_dir2_data_unused	*dup = bp->b_addr + offset;
