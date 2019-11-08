@@ -391,7 +391,7 @@ static void set_next_task_idle(struct rq *rq, struct task_struct *next)
 	schedstat_inc(rq->sched_goidle);
 }
 
-static struct task_struct *
+struct task_struct *
 pick_next_task_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	struct task_struct *next = rq->idle;
