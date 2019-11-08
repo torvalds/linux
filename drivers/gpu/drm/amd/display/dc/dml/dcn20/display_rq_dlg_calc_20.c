@@ -929,8 +929,7 @@ static void dml20_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 	min_dst_y_ttu_vblank = min_ttu_vblank * pclk_freq_in_mhz / (double) htotal;
 	dlg_vblank_start = interlaced ? (vblank_start / 2) : vblank_start;
 
-	disp_dlg_regs->min_dst_y_next_start = (unsigned int) (((double) dlg_vblank_start
-			+ min_dst_y_ttu_vblank) * dml_pow(2, 2));
+	disp_dlg_regs->min_dst_y_next_start = (unsigned int) ((double) dlg_vblank_start * dml_pow(2, 2));
 	ASSERT(disp_dlg_regs->min_dst_y_next_start < (unsigned int) dml_pow(2, 18));
 
 	dml_print("DML_DLG: %s: min_dcfclk_mhz                         = %3.2f\n",
