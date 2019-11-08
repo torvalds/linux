@@ -190,7 +190,8 @@ xchk_dir_rec(
 	struct xfs_dir2_data_entry	*dent;
 	struct xfs_buf			*bp;
 	struct xfs_dir2_leaf_entry	*ent;
-	char				*p, *endp;
+	void				*endp;
+	unsigned int			iter_off;
 	xfs_ino_t			ino;
 	xfs_dablk_t			rec_bno;
 	xfs_dir2_db_t			db;
@@ -240,32 +241,31 @@ xchk_dir_rec(
 	if (ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out_relse;
 
-	dent = (struct xfs_dir2_data_entry *)(((char *)bp->b_addr) + off);
+	dent = bp->b_addr + off;
 
 	/* Make sure we got a real directory entry. */
-	p = (char *)mp->m_dir_inode_ops->data_entry_p(bp->b_addr);
+	iter_off = mp->m_dir_inode_ops->data_entry_offset;
 	endp = xfs_dir3_data_endp(mp->m_dir_geo, bp->b_addr);
 	if (!endp) {
 		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 		goto out_relse;
 	}
-	while (p < endp) {
-		struct xfs_dir2_data_entry	*dep;
-		struct xfs_dir2_data_unused	*dup;
+	for (;;) {
+		struct xfs_dir2_data_entry	*dep = bp->b_addr + iter_off;
+		struct xfs_dir2_data_unused	*dup = bp->b_addr + iter_off;
 
-		dup = (struct xfs_dir2_data_unused *)p;
+		if (iter_off >= endp - bp->b_addr) {
+			xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+			goto out_relse;
+		}
+
 		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
-			p += be16_to_cpu(dup->length);
+			iter_off += be16_to_cpu(dup->length);
 			continue;
 		}
-		dep = (struct xfs_dir2_data_entry *)p;
 		if (dep == dent)
 			break;
-		p += mp->m_dir_inode_ops->data_entsize(dep->namelen);
-	}
-	if (p >= endp) {
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
-		goto out_relse;
+		iter_off += mp->m_dir_inode_ops->data_entsize(dep->namelen);
 	}
 
 	/* Retrieve the entry, sanity check it, and compare hashes. */
