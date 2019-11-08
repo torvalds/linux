@@ -43,6 +43,10 @@ static bool initialize_vi(struct kernel_queue *kq, struct kfd_dev *dev,
 {
 	int retval;
 
+	/*For CIK family asics, kq->eop_mem is not needed */
+	if (dev->device_info->asic_family <= CHIP_MULLINS)
+		return true;
+
 	retval = kfd_gtt_sa_allocate(dev, PAGE_SIZE, &kq->eop_mem);
 	if (retval != 0)
 		return false;
@@ -57,6 +61,9 @@ static bool initialize_vi(struct kernel_queue *kq, struct kfd_dev *dev,
 
 static void uninitialize_vi(struct kernel_queue *kq)
 {
+	/* For CIK family asics, kq->eop_mem is Null, kfd_gtt_sa_free()
+	 * is able to handle NULL properly.
+	 */
 	kfd_gtt_sa_free(kq->dev, kq->eop_mem);
 }
 

@@ -99,7 +99,6 @@ struct kernel_queue {
 	struct list_head	list;
 };
 
-void kernel_queue_init_cik(struct kernel_queue_ops *ops);
 void kernel_queue_init_vi(struct kernel_queue_ops *ops);
 void kernel_queue_init_v9(struct kernel_queue_ops *ops);
 

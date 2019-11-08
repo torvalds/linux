@@ -311,6 +311,8 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	kq->ops.rollback_packet = rollback_packet;
 
 	switch (dev->device_info->asic_family) {
+	case CHIP_KAVERI:
+	case CHIP_HAWAII:
 	case CHIP_CARRIZO:
 	case CHIP_TONGA:
 	case CHIP_FIJI:
@@ -319,11 +321,6 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	case CHIP_POLARIS12:
 	case CHIP_VEGAM:
 		kernel_queue_init_vi(&kq->ops_asic_specific);
-		break;
-
-	case CHIP_KAVERI:
-	case CHIP_HAWAII:
-		kernel_queue_init_cik(&kq->ops_asic_specific);
 		break;
 
 	case CHIP_VEGA10:
