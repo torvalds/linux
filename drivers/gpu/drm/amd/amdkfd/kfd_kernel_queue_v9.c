@@ -27,42 +27,6 @@
 #include "kfd_pm4_opcodes.h"
 #include "gc/gc_10_1_0_sh_mask.h"
 
-static bool initialize_v9(struct kernel_queue *kq, struct kfd_dev *dev,
-			enum kfd_queue_type type, unsigned int queue_size)
-{
-	int retval;
-
-	retval = kfd_gtt_sa_allocate(dev, PAGE_SIZE, &kq->eop_mem);
-	if (retval)
-		return false;
-
-	kq->eop_gpu_addr = kq->eop_mem->gpu_addr;
-	kq->eop_kernel_addr = kq->eop_mem->cpu_ptr;
-
-	memset(kq->eop_kernel_addr, 0, PAGE_SIZE);
-
-	return true;
-}
-
-static void uninitialize_v9(struct kernel_queue *kq)
-{
-	kfd_gtt_sa_free(kq->dev, kq->eop_mem);
-}
-
-static void submit_packet_v9(struct kernel_queue *kq)
-{
-	*kq->wptr64_kernel = kq->pending_wptr64;
-	write_kernel_doorbell64(kq->queue->properties.doorbell_ptr,
-				kq->pending_wptr64);
-}
-
-void kernel_queue_init_v9(struct kernel_queue_ops *ops)
-{
-	ops->initialize = initialize_v9;
-	ops->uninitialize = uninitialize_v9;
-	ops->submit_packet = submit_packet_v9;
-}
-
 static int pm_map_process_v9(struct packet_manager *pm,
 		uint32_t *buffer, struct qcm_process_device *qpd)
 {

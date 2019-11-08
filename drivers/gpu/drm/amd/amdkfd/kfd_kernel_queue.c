@@ -87,9 +87,17 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->pq_kernel_addr = kq->pq->cpu_ptr;
 	kq->pq_gpu_addr = kq->pq->gpu_addr;
 
-	retval = kq->ops_asic_specific.initialize(kq, dev, type, queue_size);
-	if (!retval)
-		goto err_eop_allocate_vidmem;
+	/* For CIK family asics, kq->eop_mem is not needed */
+	if (dev->device_info->asic_family > CHIP_HAWAII) {
+		retval = kfd_gtt_sa_allocate(dev, PAGE_SIZE, &kq->eop_mem);
+		if (retval != 0)
+			goto err_eop_allocate_vidmem;
+
+		kq->eop_gpu_addr = kq->eop_mem->gpu_addr;
+		kq->eop_kernel_addr = kq->eop_mem->cpu_ptr;
+
+		memset(kq->eop_kernel_addr, 0, PAGE_SIZE);
+	}
 
 	retval = kfd_gtt_sa_allocate(dev, sizeof(*kq->rptr_kernel),
 					&kq->rptr_mem);
@@ -200,7 +208,12 @@ static void uninitialize(struct kernel_queue *kq)
 
 	kfd_gtt_sa_free(kq->dev, kq->rptr_mem);
 	kfd_gtt_sa_free(kq->dev, kq->wptr_mem);
-	kq->ops_asic_specific.uninitialize(kq);
+
+	/* For CIK family asics, kq->eop_mem is Null, kfd_gtt_sa_free()
+	 * is able to handle NULL properly.
+	 */
+	kfd_gtt_sa_free(kq->dev, kq->eop_mem);
+
 	kfd_gtt_sa_free(kq->dev, kq->pq);
 	kfd_release_kernel_doorbell(kq->dev,
 					kq->queue->properties.doorbell_ptr);
@@ -280,8 +293,15 @@ static void submit_packet(struct kernel_queue *kq)
 	}
 	pr_debug("\n");
 #endif
-
-	kq->ops_asic_specific.submit_packet(kq);
+	if (kq->dev->device_info->doorbell_size == 8) {
+		*kq->wptr64_kernel = kq->pending_wptr64;
+		write_kernel_doorbell64(kq->queue->properties.doorbell_ptr,
+					kq->pending_wptr64);
+	} else {
+		*kq->wptr_kernel = kq->pending_wptr;
+		write_kernel_doorbell(kq->queue->properties.doorbell_ptr,
+					kq->pending_wptr);
+	}
 }
 
 static void rollback_packet(struct kernel_queue *kq)
@@ -310,42 +330,11 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	kq->ops.submit_packet = submit_packet;
 	kq->ops.rollback_packet = rollback_packet;
 
-	switch (dev->device_info->asic_family) {
-	case CHIP_KAVERI:
-	case CHIP_HAWAII:
-	case CHIP_CARRIZO:
-	case CHIP_TONGA:
-	case CHIP_FIJI:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-	case CHIP_VEGAM:
-		kernel_queue_init_vi(&kq->ops_asic_specific);
-		break;
-
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-	case CHIP_RAVEN:
-	case CHIP_RENOIR:
-	case CHIP_ARCTURUS:
-	case CHIP_NAVI10:
-	case CHIP_NAVI12:
-	case CHIP_NAVI14:
-		kernel_queue_init_v9(&kq->ops_asic_specific);
-		break;
-	default:
-		WARN(1, "Unexpected ASIC family %u",
-		     dev->device_info->asic_family);
-		goto out_free;
-	}
-
 	if (kq->ops.initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE))
 		return kq;
 
 	pr_err("Failed to init kernel queue\n");
 
-out_free:
 	kfree(kq);
 	return NULL;
 }

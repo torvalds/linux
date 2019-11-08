@@ -26,54 +26,6 @@
 #include "kfd_pm4_headers_vi.h"
 #include "kfd_pm4_opcodes.h"
 
-static bool initialize_vi(struct kernel_queue *kq, struct kfd_dev *dev,
-			enum kfd_queue_type type, unsigned int queue_size);
-static void uninitialize_vi(struct kernel_queue *kq);
-static void submit_packet_vi(struct kernel_queue *kq);
-
-void kernel_queue_init_vi(struct kernel_queue_ops *ops)
-{
-	ops->initialize = initialize_vi;
-	ops->uninitialize = uninitialize_vi;
-	ops->submit_packet = submit_packet_vi;
-}
-
-static bool initialize_vi(struct kernel_queue *kq, struct kfd_dev *dev,
-			enum kfd_queue_type type, unsigned int queue_size)
-{
-	int retval;
-
-	/*For CIK family asics, kq->eop_mem is not needed */
-	if (dev->device_info->asic_family <= CHIP_MULLINS)
-		return true;
-
-	retval = kfd_gtt_sa_allocate(dev, PAGE_SIZE, &kq->eop_mem);
-	if (retval != 0)
-		return false;
-
-	kq->eop_gpu_addr = kq->eop_mem->gpu_addr;
-	kq->eop_kernel_addr = kq->eop_mem->cpu_ptr;
-
-	memset(kq->eop_kernel_addr, 0, PAGE_SIZE);
-
-	return true;
-}
-
-static void uninitialize_vi(struct kernel_queue *kq)
-{
-	/* For CIK family asics, kq->eop_mem is Null, kfd_gtt_sa_free()
-	 * is able to handle NULL properly.
-	 */
-	kfd_gtt_sa_free(kq->dev, kq->eop_mem);
-}
-
-static void submit_packet_vi(struct kernel_queue *kq)
-{
-	*kq->wptr_kernel = kq->pending_wptr;
-	write_kernel_doorbell(kq->queue->properties.doorbell_ptr,
-				kq->pending_wptr);
-}
-
 unsigned int pm_build_pm4_header(unsigned int opcode, size_t packet_size)
 {
 	union PM4_MES_TYPE_3_HEADER header;
