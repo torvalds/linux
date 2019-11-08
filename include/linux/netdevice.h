@@ -2396,10 +2396,22 @@ struct pcpu_sw_netstats {
 } __aligned(4 * sizeof(u64));
 
 struct pcpu_lstats {
-	u64 packets;
-	u64 bytes;
+	u64_stats_t packets;
+	u64_stats_t bytes;
 	struct u64_stats_sync syncp;
 } __aligned(2 * sizeof(u64));
+
+void dev_lstats_read(struct net_device *dev, u64 *packets, u64 *bytes);
+
+static inline void dev_lstats_add(struct net_device *dev, unsigned int len)
+{
+	struct pcpu_lstats *lstats = this_cpu_ptr(dev->lstats);
+
+	u64_stats_update_begin(&lstats->syncp);
+	u64_stats_add(&lstats->bytes, len);
+	u64_stats_inc(&lstats->packets);
+	u64_stats_update_end(&lstats->syncp);
+}
 
 #define __netdev_alloc_pcpu_stats(type, gfp)				\
 ({									\
