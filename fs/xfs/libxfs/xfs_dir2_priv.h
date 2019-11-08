@@ -109,10 +109,11 @@ xfs_dir3_leaf_find_entry(struct xfs_dir3_icleaf_hdr *leafhdr,
 extern int xfs_dir2_node_to_leaf(struct xfs_da_state *state);
 
 extern xfs_failaddr_t xfs_dir3_leaf_check_int(struct xfs_mount *mp,
-		struct xfs_inode *dp, struct xfs_dir3_icleaf_hdr *hdr,
-		struct xfs_dir2_leaf *leaf);
+		struct xfs_dir3_icleaf_hdr *hdr, struct xfs_dir2_leaf *leaf);
 
 /* xfs_dir2_node.c */
+void xfs_dir2_free_hdr_from_disk(struct xfs_mount *mp,
+		struct xfs_dir3_icfree_hdr *to, struct xfs_dir2_free *from);
 extern int xfs_dir2_leaf_to_node(struct xfs_da_args *args,
 		struct xfs_buf *lbp);
 extern xfs_dahash_t xfs_dir2_leaf_lasthash(struct xfs_inode *dp,

@@ -113,7 +113,7 @@ xfs_dir3_leaf1_check(
 	} else if (leafhdr.magic != XFS_DIR2_LEAF1_MAGIC)
 		return __this_address;
 
-	return xfs_dir3_leaf_check_int(dp->i_mount, dp, &leafhdr, leaf);
+	return xfs_dir3_leaf_check_int(dp->i_mount, &leafhdr, leaf);
 }
 
 static inline void
@@ -138,22 +138,14 @@ xfs_dir3_leaf_check(
 xfs_failaddr_t
 xfs_dir3_leaf_check_int(
 	struct xfs_mount	*mp,
-	struct xfs_inode	*dp,
 	struct xfs_dir3_icleaf_hdr *hdr,
 	struct xfs_dir2_leaf	*leaf)
 {
 	xfs_dir2_leaf_tail_t	*ltp;
 	int			stale;
 	int			i;
-	const struct xfs_dir_ops *ops;
 	struct xfs_dir3_icleaf_hdr leafhdr;
 	struct xfs_da_geometry	*geo = mp->m_dir_geo;
-
-	/*
-	 * we can be passed a null dp here from a verifier, so we need to go the
-	 * hard way to get them.
-	 */
-	ops = xfs_dir_get_ops(mp, dp);
 
 	if (!hdr) {
 		xfs_dir2_leaf_hdr_from_disk(mp, &leafhdr, leaf);
@@ -208,7 +200,7 @@ xfs_dir3_leaf_verify(
 	if (fa)
 		return fa;
 
-	return xfs_dir3_leaf_check_int(mp, NULL, NULL, leaf);
+	return xfs_dir3_leaf_check_int(mp, NULL, leaf);
 }
 
 static void
@@ -1758,7 +1750,7 @@ xfs_dir2_node_to_leaf(
 	if (error)
 		return error;
 	free = fbp->b_addr;
-	dp->d_ops->free_hdr_from_disk(&freehdr, free);
+	xfs_dir2_free_hdr_from_disk(mp, &freehdr, free);
 
 	ASSERT(!freehdr.firstdb);
 

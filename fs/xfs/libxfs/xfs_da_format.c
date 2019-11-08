@@ -469,18 +469,6 @@ xfs_dir3_db_to_fdindex(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
 }
 
 static void
-xfs_dir2_free_hdr_from_disk(
-	struct xfs_dir3_icfree_hdr	*to,
-	struct xfs_dir2_free		*from)
-{
-	to->magic = be32_to_cpu(from->hdr.magic);
-	to->firstdb = be32_to_cpu(from->hdr.firstdb);
-	to->nvalid = be32_to_cpu(from->hdr.nvalid);
-	to->nused = be32_to_cpu(from->hdr.nused);
-	ASSERT(to->magic == XFS_DIR2_FREE_MAGIC);
-}
-
-static void
 xfs_dir2_free_hdr_to_disk(
 	struct xfs_dir2_free		*to,
 	struct xfs_dir3_icfree_hdr	*from)
@@ -491,21 +479,6 @@ xfs_dir2_free_hdr_to_disk(
 	to->hdr.firstdb = cpu_to_be32(from->firstdb);
 	to->hdr.nvalid = cpu_to_be32(from->nvalid);
 	to->hdr.nused = cpu_to_be32(from->nused);
-}
-
-static void
-xfs_dir3_free_hdr_from_disk(
-	struct xfs_dir3_icfree_hdr	*to,
-	struct xfs_dir2_free		*from)
-{
-	struct xfs_dir3_free_hdr *hdr3 = (struct xfs_dir3_free_hdr *)from;
-
-	to->magic = be32_to_cpu(hdr3->hdr.magic);
-	to->firstdb = be32_to_cpu(hdr3->firstdb);
-	to->nvalid = be32_to_cpu(hdr3->nvalid);
-	to->nused = be32_to_cpu(hdr3->nused);
-
-	ASSERT(to->magic == XFS_DIR3_FREE_MAGIC);
 }
 
 static void
@@ -555,7 +528,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
 	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
-	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
 	.free_max_bests = xfs_dir2_free_max_bests,
 	.free_bests_p = xfs_dir2_free_bests_p,
 	.db_to_fdb = xfs_dir2_db_to_fdb,
@@ -594,7 +566,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
 	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
-	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
 	.free_max_bests = xfs_dir2_free_max_bests,
 	.free_bests_p = xfs_dir2_free_bests_p,
 	.db_to_fdb = xfs_dir2_db_to_fdb,
@@ -633,7 +604,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 
 	.free_hdr_size = sizeof(struct xfs_dir3_free_hdr),
 	.free_hdr_to_disk = xfs_dir3_free_hdr_to_disk,
-	.free_hdr_from_disk = xfs_dir3_free_hdr_from_disk,
 	.free_max_bests = xfs_dir3_free_max_bests,
 	.free_bests_p = xfs_dir3_free_bests_p,
 	.db_to_fdb = xfs_dir3_db_to_fdb,

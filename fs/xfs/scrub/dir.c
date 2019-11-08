@@ -603,7 +603,7 @@ xchk_directory_free_bestfree(
 	}
 
 	/* Check all the entries. */
-	sc->ip->d_ops->free_hdr_from_disk(&freehdr, bp->b_addr);
+	xfs_dir2_free_hdr_from_disk(sc->ip->i_mount, &freehdr, bp->b_addr);
 	bestp = sc->ip->d_ops->free_bests_p(bp->b_addr);
 	for (i = 0; i < freehdr.nvalid; i++, bestp++) {
 		best = be16_to_cpu(*bestp);
