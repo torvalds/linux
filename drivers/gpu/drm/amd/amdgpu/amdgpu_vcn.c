@@ -214,8 +214,6 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->vcn.inst[j].ring_enc[i]);
-
-		amdgpu_ring_fini(&adev->vcn.inst[j].ring_jpeg);
 	}
 
 	release_firmware(adev->vcn.fw);
@@ -308,7 +306,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 			else
 				new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
 
-			if (amdgpu_fence_count_emitted(&adev->vcn.inst[j].ring_jpeg))
+			if (amdgpu_fence_count_emitted(&adev->jpeg.inst[j].ring_dec))
 				new_state.jpeg = VCN_DPG_STATE__PAUSE;
 			else
 				new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
@@ -316,7 +314,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 			adev->vcn.pause_dpg_mode(adev, &new_state);
 		}
 
-		fence[j] += amdgpu_fence_count_emitted(&adev->vcn.inst[j].ring_jpeg);
+		fence[j] += amdgpu_fence_count_emitted(&adev->jpeg.inst[j].ring_dec);
 		fence[j] += amdgpu_fence_count_emitted(&adev->vcn.inst[j].ring_dec);
 		fences += fence[j];
 	}
@@ -360,7 +358,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 		else
 			new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
 
-		if (amdgpu_fence_count_emitted(&adev->vcn.inst[ring->me].ring_jpeg))
+		if (amdgpu_fence_count_emitted(&adev->jpeg.inst[ring->me].ring_dec))
 			new_state.jpeg = VCN_DPG_STATE__PAUSE;
 		else
 			new_state.jpeg = VCN_DPG_STATE__UNPAUSE;

@@ -401,11 +401,11 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 		break;
 	case AMDGPU_HW_IP_VCN_JPEG:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-			if (adev->uvd.harvest_config & (1 << i))
+		for (i = 0; i < adev->jpeg.num_jpeg_inst; i++) {
+			if (adev->jpeg.harvest_config & (1 << i))
 				continue;
 
-			if (adev->vcn.inst[i].ring_jpeg.sched.ready)
+			if (adev->jpeg.inst[i].ring_dec.sched.ready)
 				++num_rings;
 		}
 		ib_start_alignment = 16;
