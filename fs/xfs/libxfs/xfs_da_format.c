@@ -468,34 +468,6 @@ xfs_dir3_db_to_fdindex(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
 	return db % xfs_dir3_free_max_bests(geo);
 }
 
-static void
-xfs_dir2_free_hdr_to_disk(
-	struct xfs_dir2_free		*to,
-	struct xfs_dir3_icfree_hdr	*from)
-{
-	ASSERT(from->magic == XFS_DIR2_FREE_MAGIC);
-
-	to->hdr.magic = cpu_to_be32(from->magic);
-	to->hdr.firstdb = cpu_to_be32(from->firstdb);
-	to->hdr.nvalid = cpu_to_be32(from->nvalid);
-	to->hdr.nused = cpu_to_be32(from->nused);
-}
-
-static void
-xfs_dir3_free_hdr_to_disk(
-	struct xfs_dir2_free		*to,
-	struct xfs_dir3_icfree_hdr	*from)
-{
-	struct xfs_dir3_free_hdr *hdr3 = (struct xfs_dir3_free_hdr *)to;
-
-	ASSERT(from->magic == XFS_DIR3_FREE_MAGIC);
-
-	hdr3->hdr.magic = cpu_to_be32(from->magic);
-	hdr3->firstdb = cpu_to_be32(from->firstdb);
-	hdr3->nvalid = cpu_to_be32(from->nvalid);
-	hdr3->nused = cpu_to_be32(from->nused);
-}
-
 static const struct xfs_dir_ops xfs_dir2_ops = {
 	.sf_entsize = xfs_dir2_sf_entsize,
 	.sf_nextentry = xfs_dir2_sf_nextentry,
@@ -527,7 +499,6 @@ static const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_unused_p = xfs_dir2_data_unused_p,
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
-	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
 	.free_max_bests = xfs_dir2_free_max_bests,
 	.free_bests_p = xfs_dir2_free_bests_p,
 	.db_to_fdb = xfs_dir2_db_to_fdb,
@@ -565,7 +536,6 @@ static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_unused_p = xfs_dir2_data_unused_p,
 
 	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
-	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
 	.free_max_bests = xfs_dir2_free_max_bests,
 	.free_bests_p = xfs_dir2_free_bests_p,
 	.db_to_fdb = xfs_dir2_db_to_fdb,
@@ -603,7 +573,6 @@ static const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_unused_p = xfs_dir3_data_unused_p,
 
 	.free_hdr_size = sizeof(struct xfs_dir3_free_hdr),
-	.free_hdr_to_disk = xfs_dir3_free_hdr_to_disk,
 	.free_max_bests = xfs_dir3_free_max_bests,
 	.free_bests_p = xfs_dir3_free_bests_p,
 	.db_to_fdb = xfs_dir3_db_to_fdb,

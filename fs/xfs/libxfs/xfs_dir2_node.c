@@ -244,6 +244,31 @@ xfs_dir2_free_hdr_from_disk(
 	}
 }
 
+static void
+xfs_dir2_free_hdr_to_disk(
+	struct xfs_mount		*mp,
+	struct xfs_dir2_free		*to,
+	struct xfs_dir3_icfree_hdr	*from)
+{
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		struct xfs_dir3_free	*to3 = (struct xfs_dir3_free *)to;
+
+		ASSERT(from->magic == XFS_DIR3_FREE_MAGIC);
+
+		to3->hdr.hdr.magic = cpu_to_be32(from->magic);
+		to3->hdr.firstdb = cpu_to_be32(from->firstdb);
+		to3->hdr.nvalid = cpu_to_be32(from->nvalid);
+		to3->hdr.nused = cpu_to_be32(from->nused);
+	} else {
+		ASSERT(from->magic == XFS_DIR2_FREE_MAGIC);
+
+		to->hdr.magic = cpu_to_be32(from->magic);
+		to->hdr.firstdb = cpu_to_be32(from->firstdb);
+		to->hdr.nvalid = cpu_to_be32(from->nvalid);
+		to->hdr.nused = cpu_to_be32(from->nused);
+	}
+}
+
 int
 xfs_dir2_free_read(
 	struct xfs_trans	*tp,
@@ -302,7 +327,7 @@ xfs_dir3_free_get_buf(
 		uuid_copy(&hdr3->hdr.uuid, &mp->m_sb.sb_meta_uuid);
 	} else
 		hdr.magic = XFS_DIR2_FREE_MAGIC;
-	dp->d_ops->free_hdr_to_disk(bp->b_addr, &hdr);
+	xfs_dir2_free_hdr_to_disk(mp, bp->b_addr, &hdr);
 	*bpp = bp;
 	return 0;
 }
@@ -420,7 +445,7 @@ xfs_dir2_leaf_to_node(
 	freehdr.nused = n;
 	freehdr.nvalid = be32_to_cpu(ltp->bestcount);
 
-	dp->d_ops->free_hdr_to_disk(fbp->b_addr, &freehdr);
+	xfs_dir2_free_hdr_to_disk(dp->i_mount, fbp->b_addr, &freehdr);
 	xfs_dir2_free_log_bests(args, fbp, 0, freehdr.nvalid - 1);
 	xfs_dir2_free_log_header(args, fbp);
 
@@ -1182,7 +1207,7 @@ xfs_dir3_data_block_free(
 		logfree = 1;
 	}
 
-	dp->d_ops->free_hdr_to_disk(free, &freehdr);
+	xfs_dir2_free_hdr_to_disk(dp->i_mount, free, &freehdr);
 	xfs_dir2_free_log_header(args, fbp);
 
 	/*
@@ -1739,7 +1764,7 @@ xfs_dir2_node_add_datablk(
 	 */
 	if (bests[*findex] == cpu_to_be16(NULLDATAOFF)) {
 		freehdr.nused++;
-		dp->d_ops->free_hdr_to_disk(fbp->b_addr, &freehdr);
+		xfs_dir2_free_hdr_to_disk(mp, fbp->b_addr, &freehdr);
 		xfs_dir2_free_log_header(args, fbp);
 	}
 

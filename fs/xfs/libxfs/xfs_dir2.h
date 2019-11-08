@@ -73,8 +73,6 @@ struct xfs_dir_ops {
 		(*data_unused_p)(struct xfs_dir2_data_hdr *hdr);
 
 	int	free_hdr_size;
-	void	(*free_hdr_to_disk)(struct xfs_dir2_free *to,
-				    struct xfs_dir3_icfree_hdr *from);
 	int	(*free_max_bests)(struct xfs_da_geometry *geo);
 	__be16 * (*free_bests_p)(struct xfs_dir2_free *free);
 	xfs_dir2_db_t (*db_to_fdb)(struct xfs_da_geometry *geo,
