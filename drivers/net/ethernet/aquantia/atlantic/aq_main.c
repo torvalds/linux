@@ -53,8 +53,8 @@ struct net_device *aq_ndev_alloc(void)
 
 static int aq_ndev_open(struct net_device *ndev)
 {
-	int err = 0;
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	int err = 0;
 
 	err = aq_nic_init(aq_nic);
 	if (err < 0)
@@ -74,19 +74,20 @@ static int aq_ndev_open(struct net_device *ndev)
 
 err_exit:
 	if (err < 0)
-		aq_nic_deinit(aq_nic);
+		aq_nic_deinit(aq_nic, true);
+
 	return err;
 }
 
 static int aq_ndev_close(struct net_device *ndev)
 {
-	int err = 0;
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	int err = 0;
 
 	err = aq_nic_stop(aq_nic);
 	if (err < 0)
 		goto err_exit;
-	aq_nic_deinit(aq_nic);
+	aq_nic_deinit(aq_nic, true);
 
 err_exit:
 	return err;
@@ -120,7 +121,9 @@ static int aq_ndev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 static int aq_ndev_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	int err = aq_nic_set_mtu(aq_nic, new_mtu + ETH_HLEN);
+	int err;
+
+	err = aq_nic_set_mtu(aq_nic, new_mtu + ETH_HLEN);
 
 	if (err < 0)
 		goto err_exit;
@@ -133,8 +136,8 @@ err_exit:
 static int aq_ndev_set_features(struct net_device *ndev,
 				netdev_features_t features)
 {
-	bool is_vlan_rx_strip = !!(features & NETIF_F_HW_VLAN_CTAG_RX);
 	bool is_vlan_tx_insert = !!(features & NETIF_F_HW_VLAN_CTAG_TX);
+	bool is_vlan_rx_strip = !!(features & NETIF_F_HW_VLAN_CTAG_RX);
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	bool need_ndev_restart = false;
 	struct aq_nic_cfg_s *aq_cfg;

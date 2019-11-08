@@ -1057,7 +1057,7 @@ static struct ptp_clock_info aq_ptp_clock = {
 		ptp_offset[__idx].ingress = (__ingress); } \
 		while (0)
 
-static void aq_ptp_offset_init_from_fw(const struct hw_aq_ptp_offset *offsets)
+static void aq_ptp_offset_init_from_fw(const struct hw_atl_ptp_offset *offsets)
 {
 	int i;
 
@@ -1098,7 +1098,7 @@ static void aq_ptp_offset_init_from_fw(const struct hw_aq_ptp_offset *offsets)
 	}
 }
 
-static void aq_ptp_offset_init(const struct hw_aq_ptp_offset *offsets)
+static void aq_ptp_offset_init(const struct hw_atl_ptp_offset *offsets)
 {
 	memset(ptp_offset, 0, sizeof(ptp_offset));
 
@@ -1106,7 +1106,7 @@ static void aq_ptp_offset_init(const struct hw_aq_ptp_offset *offsets)
 }
 
 static void aq_ptp_gpio_init(struct ptp_clock_info *info,
-			     struct hw_aq_info *hw_info)
+			     struct hw_atl_info *hw_info)
 {
 	struct ptp_pin_desc pin_desc[MAX_PTP_GPIO_COUNT];
 	u32 extts_pin_cnt = 0;

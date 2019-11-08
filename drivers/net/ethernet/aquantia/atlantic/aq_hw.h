@@ -119,6 +119,23 @@ struct aq_stats_s {
 
 #define AQ_HW_MULTICAST_ADDRESS_MAX     32U
 
+#define AQ_HW_LED_BLINK    0x2U
+#define AQ_HW_LED_DEFAULT  0x0U
+
+enum aq_priv_flags {
+	AQ_HW_LOOPBACK_DMA_SYS,
+	AQ_HW_LOOPBACK_PKT_SYS,
+	AQ_HW_LOOPBACK_DMA_NET,
+	AQ_HW_LOOPBACK_PHYINT_SYS,
+	AQ_HW_LOOPBACK_PHYEXT_SYS,
+};
+
+#define AQ_HW_LOOPBACK_MASK	(BIT(AQ_HW_LOOPBACK_DMA_SYS) |\
+				 BIT(AQ_HW_LOOPBACK_PKT_SYS) |\
+				 BIT(AQ_HW_LOOPBACK_DMA_NET) |\
+				 BIT(AQ_HW_LOOPBACK_PHYINT_SYS) |\
+				 BIT(AQ_HW_LOOPBACK_PHYEXT_SYS))
+
 struct aq_hw_s {
 	atomic_t flags;
 	u8 rbl_enabled:1;
@@ -137,6 +154,7 @@ struct aq_hw_s {
 	atomic_t dpc;
 	u32 mbox_addr;
 	u32 rpc_addr;
+	u32 settings_addr;
 	u32 rpc_tid;
 	struct hw_atl_utils_fw_rpc rpc;
 	s64 ptp_clk_offset;
@@ -276,6 +294,8 @@ struct aq_hw_ops {
 			    u64 *timestamp);
 
 	int (*hw_set_fc)(struct aq_hw_s *self, u32 fc, u32 tc);
+
+	int (*hw_set_loopback)(struct aq_hw_s *self, u32 mode, bool enable);
 };
 
 struct aq_fw_ops {
@@ -303,6 +323,10 @@ struct aq_fw_ops {
 	u32 (*get_flow_control)(struct aq_hw_s *self, u32 *fcmode);
 
 	int (*set_flow_control)(struct aq_hw_s *self);
+
+	int (*led_control)(struct aq_hw_s *self, u32 mode);
+
+	int (*set_phyloopback)(struct aq_hw_s *self, u32 mode, bool enable);
 
 	int (*set_power)(struct aq_hw_s *self, unsigned int power_state,
 			 u8 *mac);

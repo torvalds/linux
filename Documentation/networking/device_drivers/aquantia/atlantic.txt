@@ -1,5 +1,5 @@
-aQuantia AQtion Driver for the aQuantia Multi-Gigabit PCI Express Family of
-Ethernet Adapters
+Marvell(Aquantia) AQtion Driver for the aQuantia Multi-Gigabit PCI Express
+Family of Ethernet Adapters
 =============================================================================
 
 Contents
@@ -325,6 +325,46 @@ Supported ethtool options
  Example:
  ethtool -N eth0 flow-type udp4 action 0 loc 32
 
+ UDP GSO hardware offload
+ ---------------------------------
+ UDP GSO allows to boost UDP tx rates by offloading UDP headers allocation
+ into hardware. A special userspace socket option is required for this,
+ could be validated with /kernel/tools/testing/selftests/net/
+
+    udpgso_bench_tx -u -4 -D 10.0.1.1 -s 6300 -S 100
+
+ Will cause sending out of 100 byte sized UDP packets formed from single
+ 6300 bytes user buffer.
+
+ UDP GSO is configured by:
+
+    ethtool -K eth0 tx-udp-segmentation on
+
+ Private flags (testing)
+ ---------------------------------
+
+ Atlantic driver supports private flags for hardware custom features:
+
+	$ ethtool --show-priv-flags ethX
+
+	Private flags for ethX:
+	DMASystemLoopback  : off
+	PKTSystemLoopback  : off
+	DMANetworkLoopback : off
+	PHYInternalLoopback: off
+	PHYExternalLoopback: off
+
+ Example:
+
+	$ ethtool --set-priv-flags ethX DMASystemLoopback on
+
+ DMASystemLoopback:   DMA Host loopback.
+ PKTSystemLoopback:   Packet buffer host loopback.
+ DMANetworkLoopback:  Network side loopback on DMA block.
+ PHYInternalLoopback: Internal loopback on Phy.
+ PHYExternalLoopback: External loopback on Phy (with loopback ethernet cable).
+
+
 Command Line Parameters
 =======================
 The following command line parameters are available on atlantic driver:
@@ -426,7 +466,7 @@ Support
 
 If an issue is identified with the released source code on the supported
 kernel with a supported adapter, email the specific information related
-to the issue to support@aquantia.com
+to the issue to aqn_support@marvell.com
 
 License
 =======

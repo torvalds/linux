@@ -30,8 +30,8 @@ static int aq_get_rxpage(struct aq_rxpage *rxpage, unsigned int order,
 			 struct device *dev)
 {
 	struct page *page;
-	dma_addr_t daddr;
 	int ret = -ENOMEM;
+	dma_addr_t daddr;
 
 	page = dev_alloc_pages(order);
 	if (unlikely(!page))
@@ -118,6 +118,7 @@ err_exit:
 		aq_ring_free(self);
 		self = NULL;
 	}
+
 	return self;
 }
 
@@ -144,6 +145,7 @@ err_exit:
 		aq_ring_free(self);
 		self = NULL;
 	}
+
 	return self;
 }
 
@@ -175,6 +177,7 @@ err_exit:
 		aq_ring_free(self);
 		self = NULL;
 	}
+
 	return self;
 }
 
@@ -207,6 +210,7 @@ int aq_ring_init(struct aq_ring_s *self)
 	self->hw_head = 0;
 	self->sw_head = 0;
 	self->sw_tail = 0;
+
 	return 0;
 }
 

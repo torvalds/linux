@@ -554,6 +554,24 @@
 /* default value of bitfield dma_sys_loopback */
 #define HW_ATL_RPB_DMA_SYS_LBK_DEFAULT 0x0
 
+/* rx dma_net_loopback bitfield definitions
+ * preprocessor definitions for the bitfield "dma_net_loopback".
+ * port="pif_rpb_dma_net_lbk_i"
+ */
+
+/* register address for bitfield dma_net_loopback */
+#define HW_ATL_RPB_DMA_NET_LBK_ADR 0x00005000
+/* bitmask for bitfield dma_net_loopback */
+#define HW_ATL_RPB_DMA_NET_LBK_MSK 0x00000010
+/* inverted bitmask for bitfield dma_net_loopback */
+#define HW_ATL_RPB_DMA_NET_LBK_MSKN 0xffffffef
+/* lower bit position of bitfield dma_net_loopback */
+#define HW_ATL_RPB_DMA_NET_LBK_SHIFT 4
+/* width of bitfield dma_net_loopback */
+#define HW_ATL_RPB_DMA_NET_LBK_WIDTH 1
+/* default value of bitfield dma_net_loopback */
+#define HW_ATL_RPB_DMA_NET_LBK_DEFAULT 0x0
+
 /* rx rx_tc_mode bitfield definitions
  * preprocessor definitions for the bitfield "rx_tc_mode".
  * port="pif_rpb_rx_tc_mode_i,pif_rpf_rx_tc_mode_i"
@@ -2107,6 +2125,24 @@
 /* default value of bitfield dma_sys_loopback */
 #define HW_ATL_TPB_DMA_SYS_LBK_DEFAULT 0x0
 
+/* tx dma_net_loopback bitfield definitions
+ * preprocessor definitions for the bitfield "dma_net_loopback".
+ * port="pif_tpb_dma_net_lbk_i"
+ */
+
+/* register address for bitfield dma_net_loopback */
+#define HW_ATL_TPB_DMA_NET_LBK_ADR 0x00007000
+/* bitmask for bitfield dma_net_loopback */
+#define HW_ATL_TPB_DMA_NET_LBK_MSK 0x00000010
+/* inverted bitmask for bitfield dma_net_loopback */
+#define HW_ATL_TPB_DMA_NET_LBK_MSKN 0xffffffef
+/* lower bit position of bitfield dma_net_loopback */
+#define HW_ATL_TPB_DMA_NET_LBK_SHIFT 4
+/* width of bitfield dma_net_loopback */
+#define HW_ATL_TPB_DMA_NET_LBK_WIDTH 1
+/* default value of bitfield dma_net_loopback */
+#define HW_ATL_TPB_DMA_NET_LBK_DEFAULT 0x0
+
 /* tx tx{b}_buf_size[7:0] bitfield definitions
  * preprocessor definitions for the bitfield "tx{b}_buf_size[7:0]".
  * parameter: buffer {b} | stride size 0x10 | range [0, 7]
@@ -2143,6 +2179,24 @@
 #define HW_ATL_TPB_TX_SCP_INS_EN_WIDTH 1
 /* default value of bitfield tx_scp_ins_en */
 #define HW_ATL_TPB_TX_SCP_INS_EN_DEFAULT 0x0
+
+/* tx tx_clk_gate_en bitfield definitions
+ * preprocessor definitions for the bitfield "tx_clk_gate_en".
+ * port="pif_tpb_clk_gate_en_i"
+ */
+
+/* register address for bitfield tx_clk_gate_en */
+#define HW_ATL_TPB_TX_CLK_GATE_EN_ADR 0x00007900
+/* bitmask for bitfield tx_clk_gate_en */
+#define HW_ATL_TPB_TX_CLK_GATE_EN_MSK 0x00000010
+/* inverted bitmask for bitfield tx_clk_gate_en */
+#define HW_ATL_TPB_TX_CLK_GATE_EN_MSKN 0xffffffef
+/* lower bit position of bitfield tx_clk_gate_en */
+#define HW_ATL_TPB_TX_CLK_GATE_EN_SHIFT 4
+/* width of bitfield tx_clk_gate_en */
+#define HW_ATL_TPB_TX_CLK_GATE_EN_WIDTH 1
+/* default value of bitfield tx_clk_gate_en */
+#define HW_ATL_TPB_TX_CLK_GATE_EN_DEFAULT 0x1
 
 /* tx ipv4_chk_en bitfield definitions
  * preprocessor definitions for the bitfield "ipv4_chk_en".

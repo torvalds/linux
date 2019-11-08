@@ -4,14 +4,7 @@
 # aQuantia Ethernet Controller AQtion Linux Driver
 # Copyright(c) 2014-2017 aQuantia Corporation.
 #
-# Contact Information: <rdc-drv@aquantia.com>
-# aQuantia Corporation, 105 E. Tasman Dr. San Jose, CA 95134, USA
-#
 ################################################################################
-
-#
-# Makefile for the AQtion(tm) Ethernet driver
-#
 
 obj-$(CONFIG_AQTION) += atlantic.o
 
