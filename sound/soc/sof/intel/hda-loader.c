@@ -131,6 +131,12 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 		goto err;
 	}
 
+	/* set DONE bit to clear the reply IPC message */
+	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
+				       chip->ipc_ack,
+				       chip->ipc_ack_mask,
+				       chip->ipc_ack_mask);
+
 	/* step 5: power down corex */
 	ret = hda_dsp_core_power_down(sdev,
 				  chip->cores_mask & ~(HDA_DSP_CORE_MASK(0)));
