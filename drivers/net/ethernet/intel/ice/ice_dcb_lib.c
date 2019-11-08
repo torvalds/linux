@@ -4,8 +4,6 @@
 #include "ice_dcb_lib.h"
 #include "ice_dcb_nl.h"
 
-static void ice_pf_dcb_recfg(struct ice_pf *pf);
-
 /**
  * ice_vsi_cfg_netdev_tc - Setup the netdev TC configuration
  * @vsi: the VSI being configured
@@ -535,7 +533,7 @@ static int ice_dcb_noncontig_cfg(struct ice_pf *pf)
  * calling this function. Reconfiguring DCB based on
  * local_dcbx_cfg.
  */
-static void ice_pf_dcb_recfg(struct ice_pf *pf)
+void ice_pf_dcb_recfg(struct ice_pf *pf)
 {
 	struct ice_dcbx_cfg *dcbcfg = &pf->hw.port_info->local_dcbx_cfg;
 	u8 tc_map = 0;
