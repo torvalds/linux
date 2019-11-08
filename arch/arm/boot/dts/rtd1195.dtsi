@@ -93,28 +93,36 @@
 			 <0x18100000 0x18100000 0x01000000>,
 			 <0x80000000 0x80000000 0x80000000>;
 
-		wdt: watchdog@18007680 {
-			compatible = "realtek,rtd1295-watchdog";
-			reg = <0x18007680 0x100>;
-			clocks = <&osc27M>;
-		};
+		rbus: bus@18000000 {
+			compatible = "simple-bus";
+			reg = <0x18000000 0x70000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x18000000 0x70000>;
 
-		uart0: serial@18007800 {
-			compatible = "snps,dw-apb-uart";
-			reg = <0x18007800 0x400>;
-			reg-shift = <2>;
-			reg-io-width = <4>;
-			clock-frequency = <27000000>;
-			status = "disabled";
-		};
+			wdt: watchdog@7680 {
+				compatible = "realtek,rtd1295-watchdog";
+				reg = <0x7680 0x100>;
+				clocks = <&osc27M>;
+			};
 
-		uart1: serial@1801b200 {
-			compatible = "snps,dw-apb-uart";
-			reg = <0x1801b200 0x100>;
-			reg-shift = <2>;
-			reg-io-width = <4>;
-			clock-frequency = <27000000>;
-			status = "disabled";
+			uart0: serial@7800 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x7800 0x400>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				clock-frequency = <27000000>;
+				status = "disabled";
+			};
+
+			uart1: serial@1b200 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x1b200 0x100>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				clock-frequency = <27000000>;
+				status = "disabled";
+			};
 		};
 
 		gic: interrupt-controller@ff011000 {
