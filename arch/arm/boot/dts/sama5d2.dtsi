@@ -689,7 +689,7 @@
 				#clock-cells = <0>;
 			};
 
-			rtc@f80480b0 {
+			rtc: rtc@f80480b0 {
 				compatible = "atmel,at91rm9200-rtc";
 				reg = <0xf80480b0 0x30>;
 				interrupts = <74 IRQ_TYPE_LEVEL_HIGH 7>;
