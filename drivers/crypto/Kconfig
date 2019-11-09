@@ -708,7 +708,7 @@ config CRYPTO_DEV_BCM_SPU
 	select CRYPTO_SHA512
 	help
 	  This driver provides support for Broadcom crypto acceleration using the
-	  Secure Processing Unit (SPU). The SPU driver registers ablkcipher,
+	  Secure Processing Unit (SPU). The SPU driver registers skcipher,
 	  ahash, and aead algorithms with the kernel cryptographic API.
 
 source "drivers/crypto/stm32/Kconfig"
