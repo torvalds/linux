@@ -4,4 +4,4 @@ qcrypto-objs := core.o \
 		common.o \
 		dma.o \
 		sha.o \
-		ablkcipher.o
+		skcipher.o

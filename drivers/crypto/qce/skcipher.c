@@ -12,14 +12,14 @@
 
 #include "cipher.h"
 
-static LIST_HEAD(ablkcipher_algs);
+static LIST_HEAD(skcipher_algs);
 
-static void qce_ablkcipher_done(void *data)
+static void qce_skcipher_done(void *data)
 {
 	struct crypto_async_request *async_req = data;
-	struct ablkcipher_request *req = ablkcipher_request_cast(async_req);
-	struct qce_cipher_reqctx *rctx = ablkcipher_request_ctx(req);
-	struct qce_alg_template *tmpl = to_cipher_tmpl(async_req->tfm);
+	struct skcipher_request *req = skcipher_request_cast(async_req);
+	struct qce_cipher_reqctx *rctx = skcipher_request_ctx(req);
+	struct qce_alg_template *tmpl = to_cipher_tmpl(crypto_skcipher_reqtfm(req));
 	struct qce_device *qce = tmpl->qce;
 	enum dma_data_direction dir_src, dir_dst;
 	u32 status;
@@ -32,7 +32,7 @@ static void qce_ablkcipher_done(void *data)
 
 	error = qce_dma_terminate_all(&qce->dma);
 	if (error)
-		dev_dbg(qce->dev, "ablkcipher dma termination error (%d)\n",
+		dev_dbg(qce->dev, "skcipher dma termination error (%d)\n",
 			error);
 
 	if (diff_dst)
@@ -43,18 +43,18 @@ static void qce_ablkcipher_done(void *data)
 
 	error = qce_check_status(qce, &status);
 	if (error < 0)
-		dev_dbg(qce->dev, "ablkcipher operation error (%x)\n", status);
+		dev_dbg(qce->dev, "skcipher operation error (%x)\n", status);
 
 	qce->async_req_done(tmpl->qce, error);
 }
 
 static int
-qce_ablkcipher_async_req_handle(struct crypto_async_request *async_req)
+qce_skcipher_async_req_handle(struct crypto_async_request *async_req)
 {
-	struct ablkcipher_request *req = ablkcipher_request_cast(async_req);
-	struct qce_cipher_reqctx *rctx = ablkcipher_request_ctx(req);
-	struct crypto_ablkcipher *ablkcipher = crypto_ablkcipher_reqtfm(req);
-	struct qce_alg_template *tmpl = to_cipher_tmpl(async_req->tfm);
+	struct skcipher_request *req = skcipher_request_cast(async_req);
+	struct qce_cipher_reqctx *rctx = skcipher_request_ctx(req);
+	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
+	struct qce_alg_template *tmpl = to_cipher_tmpl(crypto_skcipher_reqtfm(req));
 	struct qce_device *qce = tmpl->qce;
 	enum dma_data_direction dir_src, dir_dst;
 	struct scatterlist *sg;
@@ -62,17 +62,17 @@ qce_ablkcipher_async_req_handle(struct crypto_async_request *async_req)
 	gfp_t gfp;
 	int ret;
 
-	rctx->iv = req->info;
-	rctx->ivsize = crypto_ablkcipher_ivsize(ablkcipher);
-	rctx->cryptlen = req->nbytes;
+	rctx->iv = req->iv;
+	rctx->ivsize = crypto_skcipher_ivsize(skcipher);
+	rctx->cryptlen = req->cryptlen;
 
 	diff_dst = (req->src != req->dst) ? true : false;
 	dir_src = diff_dst ? DMA_TO_DEVICE : DMA_BIDIRECTIONAL;
 	dir_dst = diff_dst ? DMA_FROM_DEVICE : DMA_BIDIRECTIONAL;
 
-	rctx->src_nents = sg_nents_for_len(req->src, req->nbytes);
+	rctx->src_nents = sg_nents_for_len(req->src, req->cryptlen);
 	if (diff_dst)
-		rctx->dst_nents = sg_nents_for_len(req->dst, req->nbytes);
+		rctx->dst_nents = sg_nents_for_len(req->dst, req->cryptlen);
 	else
 		rctx->dst_nents = rctx->src_nents;
 	if (rctx->src_nents < 0) {
@@ -125,13 +125,13 @@ qce_ablkcipher_async_req_handle(struct crypto_async_request *async_req)
 
 	ret = qce_dma_prep_sgs(&qce->dma, rctx->src_sg, rctx->src_nents,
 			       rctx->dst_sg, rctx->dst_nents,
-			       qce_ablkcipher_done, async_req);
+			       qce_skcipher_done, async_req);
 	if (ret)
 		goto error_unmap_src;
 
 	qce_dma_issue_pending(&qce->dma);
 
-	ret = qce_start(async_req, tmpl->crypto_alg_type, req->nbytes, 0);
+	ret = qce_start(async_req, tmpl->crypto_alg_type, req->cryptlen, 0);
 	if (ret)
 		goto error_terminate;
 
@@ -149,10 +149,10 @@ error_free:
 	return ret;
 }
 
-static int qce_ablkcipher_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
+static int qce_skcipher_setkey(struct crypto_skcipher *ablk, const u8 *key,
 				 unsigned int keylen)
 {
-	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(ablk);
+	struct crypto_tfm *tfm = crypto_skcipher_tfm(ablk);
 	struct qce_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 	int ret;
 
@@ -177,13 +177,13 @@ fallback:
 	return ret;
 }
 
-static int qce_des_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
+static int qce_des_setkey(struct crypto_skcipher *ablk, const u8 *key,
 			  unsigned int keylen)
 {
-	struct qce_cipher_ctx *ctx = crypto_ablkcipher_ctx(ablk);
+	struct qce_cipher_ctx *ctx = crypto_skcipher_ctx(ablk);
 	int err;
 
-	err = verify_ablkcipher_des_key(ablk, key);
+	err = verify_skcipher_des_key(ablk, key);
 	if (err)
 		return err;
 
@@ -192,13 +192,13 @@ static int qce_des_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
 	return 0;
 }
 
-static int qce_des3_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
+static int qce_des3_setkey(struct crypto_skcipher *ablk, const u8 *key,
 			   unsigned int keylen)
 {
-	struct qce_cipher_ctx *ctx = crypto_ablkcipher_ctx(ablk);
+	struct qce_cipher_ctx *ctx = crypto_skcipher_ctx(ablk);
 	int err;
 
-	err = verify_ablkcipher_des3_key(ablk, key);
+	err = verify_skcipher_des3_key(ablk, key);
 	if (err)
 		return err;
 
@@ -207,12 +207,11 @@ static int qce_des3_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
 	return 0;
 }
 
-static int qce_ablkcipher_crypt(struct ablkcipher_request *req, int encrypt)
+static int qce_skcipher_crypt(struct skcipher_request *req, int encrypt)
 {
-	struct crypto_tfm *tfm =
-			crypto_ablkcipher_tfm(crypto_ablkcipher_reqtfm(req));
-	struct qce_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct qce_cipher_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct qce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct qce_cipher_reqctx *rctx = skcipher_request_ctx(req);
 	struct qce_alg_template *tmpl = to_cipher_tmpl(tfm);
 	int ret;
 
@@ -227,7 +226,7 @@ static int qce_ablkcipher_crypt(struct ablkcipher_request *req, int encrypt)
 		skcipher_request_set_callback(subreq, req->base.flags,
 					      NULL, NULL);
 		skcipher_request_set_crypt(subreq, req->src, req->dst,
-					   req->nbytes, req->info);
+					   req->cryptlen, req->iv);
 		ret = encrypt ? crypto_skcipher_encrypt(subreq) :
 				crypto_skcipher_decrypt(subreq);
 		skcipher_request_zero(subreq);
@@ -237,36 +236,36 @@ static int qce_ablkcipher_crypt(struct ablkcipher_request *req, int encrypt)
 	return tmpl->qce->async_req_enqueue(tmpl->qce, &req->base);
 }
 
-static int qce_ablkcipher_encrypt(struct ablkcipher_request *req)
+static int qce_skcipher_encrypt(struct skcipher_request *req)
 {
-	return qce_ablkcipher_crypt(req, 1);
+	return qce_skcipher_crypt(req, 1);
 }
 
-static int qce_ablkcipher_decrypt(struct ablkcipher_request *req)
+static int qce_skcipher_decrypt(struct skcipher_request *req)
 {
-	return qce_ablkcipher_crypt(req, 0);
+	return qce_skcipher_crypt(req, 0);
 }
 
-static int qce_ablkcipher_init(struct crypto_tfm *tfm)
+static int qce_skcipher_init(struct crypto_skcipher *tfm)
 {
-	struct qce_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct qce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	memset(ctx, 0, sizeof(*ctx));
-	tfm->crt_ablkcipher.reqsize = sizeof(struct qce_cipher_reqctx);
+	crypto_skcipher_set_reqsize(tfm, sizeof(struct qce_cipher_reqctx));
 
-	ctx->fallback = crypto_alloc_sync_skcipher(crypto_tfm_alg_name(tfm),
+	ctx->fallback = crypto_alloc_sync_skcipher(crypto_tfm_alg_name(&tfm->base),
 						   0, CRYPTO_ALG_NEED_FALLBACK);
 	return PTR_ERR_OR_ZERO(ctx->fallback);
 }
 
-static void qce_ablkcipher_exit(struct crypto_tfm *tfm)
+static void qce_skcipher_exit(struct crypto_skcipher *tfm)
 {
-	struct qce_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct qce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	crypto_free_sync_skcipher(ctx->fallback);
 }
 
-struct qce_ablkcipher_def {
+struct qce_skcipher_def {
 	unsigned long flags;
 	const char *name;
 	const char *drv_name;
@@ -276,7 +275,7 @@ struct qce_ablkcipher_def {
 	unsigned int max_keysize;
 };
 
-static const struct qce_ablkcipher_def ablkcipher_def[] = {
+static const struct qce_skcipher_def skcipher_def[] = {
 	{
 		.flags		= QCE_ALG_AES | QCE_MODE_ECB,
 		.name		= "ecb(aes)",
@@ -351,90 +350,91 @@ static const struct qce_ablkcipher_def ablkcipher_def[] = {
 	},
 };
 
-static int qce_ablkcipher_register_one(const struct qce_ablkcipher_def *def,
+static int qce_skcipher_register_one(const struct qce_skcipher_def *def,
 				       struct qce_device *qce)
 {
 	struct qce_alg_template *tmpl;
-	struct crypto_alg *alg;
+	struct skcipher_alg *alg;
 	int ret;
 
 	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
 	if (!tmpl)
 		return -ENOMEM;
 
-	alg = &tmpl->alg.crypto;
+	alg = &tmpl->alg.skcipher;
 
-	snprintf(alg->cra_name, CRYPTO_MAX_ALG_NAME, "%s", def->name);
-	snprintf(alg->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
+	snprintf(alg->base.cra_name, CRYPTO_MAX_ALG_NAME, "%s", def->name);
+	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
 		 def->drv_name);
 
-	alg->cra_blocksize = def->blocksize;
-	alg->cra_ablkcipher.ivsize = def->ivsize;
-	alg->cra_ablkcipher.min_keysize = def->min_keysize;
-	alg->cra_ablkcipher.max_keysize = def->max_keysize;
-	alg->cra_ablkcipher.setkey = IS_3DES(def->flags) ? qce_des3_setkey :
-				     IS_DES(def->flags) ? qce_des_setkey :
-				     qce_ablkcipher_setkey;
-	alg->cra_ablkcipher.encrypt = qce_ablkcipher_encrypt;
-	alg->cra_ablkcipher.decrypt = qce_ablkcipher_decrypt;
+	alg->base.cra_blocksize		= def->blocksize;
+	alg->ivsize			= def->ivsize;
+	alg->min_keysize		= def->min_keysize;
+	alg->max_keysize		= def->max_keysize;
+	alg->setkey			= IS_3DES(def->flags) ? qce_des3_setkey :
+					  IS_DES(def->flags) ? qce_des_setkey :
+					  qce_skcipher_setkey;
+	alg->encrypt			= qce_skcipher_encrypt;
+	alg->decrypt			= qce_skcipher_decrypt;
 
-	alg->cra_priority = 300;
-	alg->cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC |
-			 CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_KERN_DRIVER_ONLY;
-	alg->cra_ctxsize = sizeof(struct qce_cipher_ctx);
-	alg->cra_alignmask = 0;
-	alg->cra_type = &crypto_ablkcipher_type;
-	alg->cra_module = THIS_MODULE;
-	alg->cra_init = qce_ablkcipher_init;
-	alg->cra_exit = qce_ablkcipher_exit;
+	alg->base.cra_priority		= 300;
+	alg->base.cra_flags		= CRYPTO_ALG_ASYNC |
+					  CRYPTO_ALG_NEED_FALLBACK |
+					  CRYPTO_ALG_KERN_DRIVER_ONLY;
+	alg->base.cra_ctxsize		= sizeof(struct qce_cipher_ctx);
+	alg->base.cra_alignmask		= 0;
+	alg->base.cra_module		= THIS_MODULE;
+
+	alg->init			= qce_skcipher_init;
+	alg->exit			= qce_skcipher_exit;
 
 	INIT_LIST_HEAD(&tmpl->entry);
-	tmpl->crypto_alg_type = CRYPTO_ALG_TYPE_ABLKCIPHER;
+	tmpl->crypto_alg_type = CRYPTO_ALG_TYPE_SKCIPHER;
 	tmpl->alg_flags = def->flags;
 	tmpl->qce = qce;
 
-	ret = crypto_register_alg(alg);
+	ret = crypto_register_skcipher(alg);
 	if (ret) {
 		kfree(tmpl);
-		dev_err(qce->dev, "%s registration failed\n", alg->cra_name);
+		dev_err(qce->dev, "%s registration failed\n", alg->base.cra_name);
 		return ret;
 	}
 
-	list_add_tail(&tmpl->entry, &ablkcipher_algs);
-	dev_dbg(qce->dev, "%s is registered\n", alg->cra_name);
+	list_add_tail(&tmpl->entry, &skcipher_algs);
+	dev_dbg(qce->dev, "%s is registered\n", alg->base.cra_name);
 	return 0;
 }
 
-static void qce_ablkcipher_unregister(struct qce_device *qce)
+static void qce_skcipher_unregister(struct qce_device *qce)
 {
 	struct qce_alg_template *tmpl, *n;
 
-	list_for_each_entry_safe(tmpl, n, &ablkcipher_algs, entry) {
-		crypto_unregister_alg(&tmpl->alg.crypto);
+	list_for_each_entry_safe(tmpl, n, &skcipher_algs, entry) {
+		crypto_unregister_skcipher(&tmpl->alg.skcipher);
 		list_del(&tmpl->entry);
 		kfree(tmpl);
 	}
 }
 
-static int qce_ablkcipher_register(struct qce_device *qce)
+static int qce_skcipher_register(struct qce_device *qce)
 {
 	int ret, i;
 
-	for (i = 0; i < ARRAY_SIZE(ablkcipher_def); i++) {
-		ret = qce_ablkcipher_register_one(&ablkcipher_def[i], qce);
+	for (i = 0; i < ARRAY_SIZE(skcipher_def); i++) {
+		ret = qce_skcipher_register_one(&skcipher_def[i], qce);
 		if (ret)
 			goto err;
 	}
 
 	return 0;
 err:
-	qce_ablkcipher_unregister(qce);
+	qce_skcipher_unregister(qce);
 	return ret;
 }
 
-const struct qce_algo_ops ablkcipher_ops = {
-	.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	.register_algs = qce_ablkcipher_register,
-	.unregister_algs = qce_ablkcipher_unregister,
-	.async_req_handle = qce_ablkcipher_async_req_handle,
+const struct qce_algo_ops skcipher_ops = {
+	.type = CRYPTO_ALG_TYPE_SKCIPHER,
+	.register_algs = qce_skcipher_register,
+	.unregister_algs = qce_skcipher_unregister,
+	.async_req_handle = qce_skcipher_async_req_handle,
 };
