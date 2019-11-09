@@ -2139,6 +2139,9 @@ static void vicodec_v4l2_dev_release(struct v4l2_device *v4l2_dev)
 	v4l2_m2m_release(dev->stateful_enc.m2m_dev);
 	v4l2_m2m_release(dev->stateful_dec.m2m_dev);
 	v4l2_m2m_release(dev->stateless_dec.m2m_dev);
+#ifdef CONFIG_MEDIA_CONTROLLER
+	media_device_cleanup(&dev->mdev);
+#endif
 	kfree(dev);
 }
 
@@ -2250,7 +2253,6 @@ static int vicodec_remove(struct platform_device *pdev)
 	v4l2_m2m_unregister_media_controller(dev->stateful_enc.m2m_dev);
 	v4l2_m2m_unregister_media_controller(dev->stateful_dec.m2m_dev);
 	v4l2_m2m_unregister_media_controller(dev->stateless_dec.m2m_dev);
-	media_device_cleanup(&dev->mdev);
 #endif
 
 	video_unregister_device(&dev->stateful_enc.vfd);
