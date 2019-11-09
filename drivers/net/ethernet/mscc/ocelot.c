@@ -1191,10 +1191,9 @@ static const struct net_device_ops ocelot_port_netdev_ops = {
 	.ndo_do_ioctl			= ocelot_ioctl,
 };
 
-static void ocelot_get_strings(struct net_device *netdev, u32 sset, u8 *data)
+static void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset,
+			       u8 *data)
 {
-	struct ocelot_port_private *priv = netdev_priv(netdev);
-	struct ocelot *ocelot = priv->port.ocelot;
 	int i;
 
 	if (sset != ETH_SS_STATS)
@@ -1203,6 +1202,16 @@ static void ocelot_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 	for (i = 0; i < ocelot->num_stats; i++)
 		memcpy(data + i * ETH_GSTRING_LEN, ocelot->stats_layout[i].name,
 		       ETH_GSTRING_LEN);
+}
+
+static void ocelot_port_get_strings(struct net_device *netdev, u32 sset,
+				    u8 *data)
+{
+	struct ocelot_port_private *priv = netdev_priv(netdev);
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
+
+	ocelot_get_strings(ocelot, port, sset, data);
 }
 
 static void ocelot_update_stats(struct ocelot *ocelot)
@@ -1245,12 +1254,8 @@ static void ocelot_check_stats_work(struct work_struct *work)
 			   OCELOT_STATS_CHECK_DELAY);
 }
 
-static void ocelot_get_ethtool_stats(struct net_device *dev,
-				     struct ethtool_stats *stats, u64 *data)
+static void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
 {
-	struct ocelot_port_private *priv = netdev_priv(dev);
-	struct ocelot *ocelot = priv->port.ocelot;
-	int port = priv->chip_port;
 	int i;
 
 	/* check and update now */
@@ -1261,25 +1266,37 @@ static void ocelot_get_ethtool_stats(struct net_device *dev,
 		*data++ = ocelot->stats[port * ocelot->num_stats + i];
 }
 
-static int ocelot_get_sset_count(struct net_device *dev, int sset)
+static void ocelot_port_get_ethtool_stats(struct net_device *dev,
+					  struct ethtool_stats *stats,
+					  u64 *data)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
 
+	ocelot_get_ethtool_stats(ocelot, port, data);
+}
+
+static int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
+{
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
+
 	return ocelot->num_stats;
 }
 
-static int ocelot_get_ts_info(struct net_device *dev,
-			      struct ethtool_ts_info *info)
+static int ocelot_port_get_sset_count(struct net_device *dev, int sset)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
 
-	if (!ocelot->ptp)
-		return ethtool_op_get_ts_info(dev, info);
+	return ocelot_get_sset_count(ocelot, port, sset);
+}
 
+static int ocelot_get_ts_info(struct ocelot *ocelot, int port,
+			      struct ethtool_ts_info *info)
+{
 	info->phc_index = ocelot->ptp_clock ?
 			  ptp_clock_index(ocelot->ptp_clock) : -1;
 	info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE |
@@ -1295,13 +1312,26 @@ static int ocelot_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static int ocelot_port_get_ts_info(struct net_device *dev,
+				   struct ethtool_ts_info *info)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
+
+	if (!ocelot->ptp)
+		return ethtool_op_get_ts_info(dev, info);
+
+	return ocelot_get_ts_info(ocelot, port, info);
+}
+
 static const struct ethtool_ops ocelot_ethtool_ops = {
-	.get_strings		= ocelot_get_strings,
-	.get_ethtool_stats	= ocelot_get_ethtool_stats,
-	.get_sset_count		= ocelot_get_sset_count,
+	.get_strings		= ocelot_port_get_strings,
+	.get_ethtool_stats	= ocelot_port_get_ethtool_stats,
+	.get_sset_count		= ocelot_port_get_sset_count,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
-	.get_ts_info		= ocelot_get_ts_info,
+	.get_ts_info		= ocelot_port_get_ts_info,
 };
 
 static void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port,
