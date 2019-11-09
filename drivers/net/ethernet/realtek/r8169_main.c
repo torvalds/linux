@@ -1086,6 +1086,17 @@ static void rtl_w0w1_phy(struct rtl8169_private *tp, int reg_addr, int p, int m)
 	rtl_writephy(tp, reg_addr, (val & ~m) | p);
 }
 
+static void r8168d_modify_extpage(struct phy_device *phydev, int extpage,
+				  int reg, u16 mask, u16 val)
+{
+	int oldpage = phy_select_page(phydev, 0x0007);
+
+	__phy_write(phydev, 0x1e, extpage);
+	__phy_modify(phydev, reg, mask, val);
+
+	phy_restore_page(phydev, oldpage, 0);
+}
+
 static void r8168d_phy_param(struct phy_device *phydev, u16 parm,
 			     u16 mask, u16 val)
 {
@@ -2830,30 +2841,18 @@ static void rtl8168d_3_hw_phy_config(struct rtl8169_private *tp)
 		{ 0x04, 0xf800 },
 		{ 0x04, 0xf000 },
 		{ 0x1f, 0x0000 },
-
-		{ 0x1f, 0x0007 },
-		{ 0x1e, 0x0023 },
-		{ 0x16, 0x0000 },
-		{ 0x1f, 0x0000 }
 	};
 
 	rtl_writephy_batch(tp, phy_reg_init);
+
+	r8168d_modify_extpage(tp->phydev, 0x0023, 0x16, 0xffff, 0x0000);
 }
 
 static void rtl8168d_4_hw_phy_config(struct rtl8169_private *tp)
 {
-	static const struct phy_reg phy_reg_init[] = {
-		{ 0x1f, 0x0001 },
-		{ 0x17, 0x0cc0 },
-
-		{ 0x1f, 0x0007 },
-		{ 0x1e, 0x002d },
-		{ 0x18, 0x0040 },
-		{ 0x1f, 0x0000 }
-	};
-
-	rtl_writephy_batch(tp, phy_reg_init);
-	rtl_patchphy(tp, 0x0d, 1 << 5);
+	phy_write_paged(tp->phydev, 0x0001, 0x17, 0x0cc0);
+	r8168d_modify_extpage(tp->phydev, 0x002d, 0x18, 0xffff, 0x0040);
+	phy_set_bits(tp->phydev, 0x0d, BIT(5));
 }
 
 static void rtl8168e_1_hw_phy_config(struct rtl8169_private *tp)
@@ -2867,17 +2866,6 @@ static void rtl8168e_1_hw_phy_config(struct rtl8169_private *tp)
 		{ 0x1f, 0x0003 },
 		{ 0x14, 0x6420 },
 		{ 0x1f, 0x0000 },
-
-		/* Update PFM & 10M TX idle timer */
-		{ 0x1f, 0x0007 },
-		{ 0x1e, 0x002f },
-		{ 0x15, 0x1919 },
-		{ 0x1f, 0x0000 },
-
-		{ 0x1f, 0x0007 },
-		{ 0x1e, 0x00ac },
-		{ 0x18, 0x0006 },
-		{ 0x1f, 0x0000 }
 	};
 	struct phy_device *phydev = tp->phydev;
 
@@ -2888,31 +2876,26 @@ static void rtl8168e_1_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl_writephy_batch(tp, phy_reg_init);
 
+	/* Update PFM & 10M TX idle timer */
+	r8168d_modify_extpage(phydev, 0x002f, 0x15, 0xffff, 0x1919);
+
+	r8168d_modify_extpage(phydev, 0x00ac, 0x18, 0xffff, 0x0006);
+
 	/* DCO enable for 10M IDLE Power */
-	rtl_writephy(tp, 0x1f, 0x0007);
-	rtl_writephy(tp, 0x1e, 0x0023);
-	rtl_w0w1_phy(tp, 0x17, 0x0006, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_modify_extpage(phydev, 0x0023, 0x17, 0x0000, 0x0006);
 
 	/* For impedance matching */
 	phy_modify_paged(phydev, 0x0002, 0x08, 0x7f00, 0x8000);
 
 	/* PHY auto speed down */
-	rtl_writephy(tp, 0x1f, 0x0007);
-	rtl_writephy(tp, 0x1e, 0x002d);
-	rtl_w0w1_phy(tp, 0x18, 0x0050, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
-	rtl_w0w1_phy(tp, 0x14, 0x8000, 0x0000);
+	r8168d_modify_extpage(phydev, 0x002d, 0x18, 0x0000, 0x0050);
+	phy_set_bits(phydev, 0x14, BIT(15));
 
 	r8168d_phy_param(phydev, 0x8b86, 0x0000, 0x0001);
 	r8168d_phy_param(phydev, 0x8b85, 0x2000, 0x0000);
 
-	rtl_writephy(tp, 0x1f, 0x0007);
-	rtl_writephy(tp, 0x1e, 0x0020);
-	rtl_w0w1_phy(tp, 0x15, 0x0000, 0x1100);
-	rtl_writephy(tp, 0x1f, 0x0006);
-	rtl_writephy(tp, 0x00, 0x5a00);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_modify_extpage(phydev, 0x0020, 0x15, 0x1100, 0x0000);
+	phy_write_paged(phydev, 0x0006, 0x00, 0x5a00);
 
 	phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, 0x0000);
 }
@@ -2933,27 +2916,15 @@ static void rtl_rar_exgmac_set(struct rtl8169_private *tp, u8 *addr)
 
 static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 {
-	static const struct phy_reg phy_reg_init[] = {
-		/* Enable Delay cap */
-		{ 0x1f, 0x0004 },
-		{ 0x1f, 0x0007 },
-		{ 0x1e, 0x00ac },
-		{ 0x18, 0x0006 },
-		{ 0x1f, 0x0002 },
-		{ 0x1f, 0x0000 },
-		{ 0x1f, 0x0000 },
-
-		/* Channel estimation fine tune */
-		{ 0x1f, 0x0003 },
-		{ 0x09, 0xa20f },
-		{ 0x1f, 0x0000 },
-		{ 0x1f, 0x0000 },
-	};
 	struct phy_device *phydev = tp->phydev;
 
 	rtl_apply_firmware(tp);
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	/* Enable Delay cap */
+	r8168d_modify_extpage(phydev, 0x00ac, 0x18, 0xffff, 0x0006);
+
+	/* Channel estimation fine tune */
+	phy_write_paged(phydev, 0x0003, 0x09, 0xa20f);
 
 	/* Green Setting */
 	r8168d_phy_param(phydev, 0x8b5b, 0xffff, 0x9222);
@@ -2967,13 +2938,8 @@ static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0000);
 
 	/* PHY auto speed down */
-	rtl_writephy(tp, 0x1f, 0x0004);
-	rtl_writephy(tp, 0x1f, 0x0007);
-	rtl_writephy(tp, 0x1e, 0x002d);
-	rtl_w0w1_phy(tp, 0x18, 0x0010, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0002);
-	rtl_writephy(tp, 0x1f, 0x0000);
-	rtl_w0w1_phy(tp, 0x14, 0x8000, 0x0000);
+	r8168d_modify_extpage(phydev, 0x002d, 0x18, 0x0000, 0x0010);
+	phy_set_bits(phydev, 0x14, BIT(15));
 
 	/* improve 10M EEE waveform */
 	r8168d_phy_param(phydev, 0x8b86, 0x0000, 0x0001);
@@ -3005,11 +2971,8 @@ static void rtl8168f_hw_phy_config(struct rtl8169_private *tp)
 	r8168d_phy_param(phydev, 0x8b80, 0x0000, 0x0006);
 
 	/* PHY auto speed down */
-	rtl_writephy(tp, 0x1f, 0x0007);
-	rtl_writephy(tp, 0x1e, 0x002d);
-	rtl_w0w1_phy(tp, 0x18, 0x0010, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
-	rtl_w0w1_phy(tp, 0x14, 0x8000, 0x0000);
+	r8168d_modify_extpage(phydev, 0x002d, 0x18, 0x0000, 0x0010);
+	phy_set_bits(phydev, 0x14, BIT(15));
 
 	/* Improve 10M EEE waveform */
 	r8168d_phy_param(phydev, 0x8b86, 0x0000, 0x0001);
@@ -3032,11 +2995,8 @@ static void rtl8168f_1_hw_phy_config(struct rtl8169_private *tp)
 	r8168d_phy_param(phydev, 0x8b5e, 0xffff, 0x0000);
 	r8168d_phy_param(phydev, 0x8b67, 0xffff, 0x0000);
 	r8168d_phy_param(phydev, 0x8b70, 0xffff, 0x0000);
-	phy_write(phydev, 0x1f, 0x0007);
-	phy_write(phydev, 0x1e, 0x0078);
-	phy_write(phydev, 0x17, 0x0000);
-	phy_write(phydev, 0x19, 0x00fb);
-	phy_write(phydev, 0x1f, 0x0000);
+	r8168d_modify_extpage(phydev, 0x0078, 0x17, 0xffff, 0x0000);
+	r8168d_modify_extpage(phydev, 0x0078, 0x19, 0xffff, 0x00fb);
 
 	/* Modify green table for 10M */
 	r8168d_phy_param(phydev, 0x8b79, 0xffff, 0xaa00);
@@ -3076,11 +3036,8 @@ static void rtl8411_hw_phy_config(struct rtl8169_private *tp)
 	r8168d_phy_param(phydev, 0x8b5e, 0xffff, 0x0000);
 	r8168d_phy_param(phydev, 0x8b67, 0xffff, 0x0000);
 	r8168d_phy_param(phydev, 0x8b70, 0xffff, 0x0000);
-	phy_write(phydev, 0x1f, 0x0007);
-	phy_write(phydev, 0x1e, 0x0078);
-	phy_write(phydev, 0x17, 0x0000);
-	phy_write(phydev, 0x19, 0x00aa);
-	phy_write(phydev, 0x1f, 0x0000);
+	r8168d_modify_extpage(phydev, 0x0078, 0x17, 0xffff, 0x0000);
+	r8168d_modify_extpage(phydev, 0x0078, 0x19, 0xffff, 0x00aa);
 
 	/* Modify green table for 10M */
 	r8168d_phy_param(phydev, 0x8b79, 0xffff, 0xaa00);
