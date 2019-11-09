@@ -580,9 +580,6 @@ EXPORT_SYMBOL_GPL(skcipher_walk_aead_decrypt);
 
 static unsigned int crypto_skcipher_extsize(struct crypto_alg *alg)
 {
-	if (alg->cra_type == &crypto_ablkcipher_type)
-		return sizeof(struct crypto_ablkcipher *);
-
 	return crypto_alg_extsize(alg);
 }
 
@@ -590,106 +587,6 @@ static void skcipher_set_needkey(struct crypto_skcipher *tfm)
 {
 	if (tfm->keysize)
 		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
-}
-
-static int skcipher_setkey_ablkcipher(struct crypto_skcipher *tfm,
-				      const u8 *key, unsigned int keylen)
-{
-	struct crypto_ablkcipher **ctx = crypto_skcipher_ctx(tfm);
-	struct crypto_ablkcipher *ablkcipher = *ctx;
-	int err;
-
-	crypto_ablkcipher_clear_flags(ablkcipher, ~0);
-	crypto_ablkcipher_set_flags(ablkcipher,
-				    crypto_skcipher_get_flags(tfm) &
-				    CRYPTO_TFM_REQ_MASK);
-	err = crypto_ablkcipher_setkey(ablkcipher, key, keylen);
-	crypto_skcipher_set_flags(tfm,
-				  crypto_ablkcipher_get_flags(ablkcipher) &
-				  CRYPTO_TFM_RES_MASK);
-	if (unlikely(err)) {
-		skcipher_set_needkey(tfm);
-		return err;
-	}
-
-	crypto_skcipher_clear_flags(tfm, CRYPTO_TFM_NEED_KEY);
-	return 0;
-}
-
-static int skcipher_crypt_ablkcipher(struct skcipher_request *req,
-				     int (*crypt)(struct ablkcipher_request *))
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct crypto_ablkcipher **ctx = crypto_skcipher_ctx(tfm);
-	struct ablkcipher_request *subreq = skcipher_request_ctx(req);
-
-	ablkcipher_request_set_tfm(subreq, *ctx);
-	ablkcipher_request_set_callback(subreq, skcipher_request_flags(req),
-					req->base.complete, req->base.data);
-	ablkcipher_request_set_crypt(subreq, req->src, req->dst, req->cryptlen,
-				     req->iv);
-
-	return crypt(subreq);
-}
-
-static int skcipher_encrypt_ablkcipher(struct skcipher_request *req)
-{
-	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(skcipher);
-	struct ablkcipher_alg *alg = &tfm->__crt_alg->cra_ablkcipher;
-
-	return skcipher_crypt_ablkcipher(req, alg->encrypt);
-}
-
-static int skcipher_decrypt_ablkcipher(struct skcipher_request *req)
-{
-	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(skcipher);
-	struct ablkcipher_alg *alg = &tfm->__crt_alg->cra_ablkcipher;
-
-	return skcipher_crypt_ablkcipher(req, alg->decrypt);
-}
-
-static void crypto_exit_skcipher_ops_ablkcipher(struct crypto_tfm *tfm)
-{
-	struct crypto_ablkcipher **ctx = crypto_tfm_ctx(tfm);
-
-	crypto_free_ablkcipher(*ctx);
-}
-
-static int crypto_init_skcipher_ops_ablkcipher(struct crypto_tfm *tfm)
-{
-	struct crypto_alg *calg = tfm->__crt_alg;
-	struct crypto_skcipher *skcipher = __crypto_skcipher_cast(tfm);
-	struct crypto_ablkcipher **ctx = crypto_tfm_ctx(tfm);
-	struct crypto_ablkcipher *ablkcipher;
-	struct crypto_tfm *abtfm;
-
-	if (!crypto_mod_get(calg))
-		return -EAGAIN;
-
-	abtfm = __crypto_alloc_tfm(calg, 0, 0);
-	if (IS_ERR(abtfm)) {
-		crypto_mod_put(calg);
-		return PTR_ERR(abtfm);
-	}
-
-	ablkcipher = __crypto_ablkcipher_cast(abtfm);
-	*ctx = ablkcipher;
-	tfm->exit = crypto_exit_skcipher_ops_ablkcipher;
-
-	skcipher->setkey = skcipher_setkey_ablkcipher;
-	skcipher->encrypt = skcipher_encrypt_ablkcipher;
-	skcipher->decrypt = skcipher_decrypt_ablkcipher;
-
-	skcipher->ivsize = crypto_ablkcipher_ivsize(ablkcipher);
-	skcipher->reqsize = crypto_ablkcipher_reqsize(ablkcipher) +
-			    sizeof(struct ablkcipher_request);
-	skcipher->keysize = calg->cra_ablkcipher.max_keysize;
-
-	skcipher_set_needkey(skcipher);
-
-	return 0;
 }
 
 static int skcipher_setkey_unaligned(struct crypto_skcipher *tfm,
@@ -785,9 +682,6 @@ static int crypto_skcipher_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_skcipher *skcipher = __crypto_skcipher_cast(tfm);
 	struct skcipher_alg *alg = crypto_skcipher_alg(skcipher);
-
-	if (tfm->__crt_alg->cra_type == &crypto_ablkcipher_type)
-		return crypto_init_skcipher_ops_ablkcipher(tfm);
 
 	skcipher->setkey = skcipher_setkey;
 	skcipher->encrypt = alg->encrypt;

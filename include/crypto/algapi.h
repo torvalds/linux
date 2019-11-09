@@ -85,25 +85,6 @@ struct scatter_walk {
 	unsigned int offset;
 };
 
-struct ablkcipher_walk {
-	struct {
-		struct page *page;
-		unsigned int offset;
-	} src, dst;
-
-	struct scatter_walk	in;
-	unsigned int		nbytes;
-	struct scatter_walk	out;
-	unsigned int		total;
-	struct list_head	buffers;
-	u8			*iv_buffer;
-	u8			*iv;
-	int			flags;
-	unsigned int		blocksize;
-};
-
-extern const struct crypto_type crypto_ablkcipher_type;
-
 void crypto_mod_put(struct crypto_alg *alg);
 
 int crypto_register_template(struct crypto_template *tmpl);
@@ -202,12 +183,6 @@ static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
 	}
 }
 
-int ablkcipher_walk_done(struct ablkcipher_request *req,
-			 struct ablkcipher_walk *walk, int err);
-int ablkcipher_walk_phys(struct ablkcipher_request *req,
-			 struct ablkcipher_walk *walk);
-void __ablkcipher_walk_complete(struct ablkcipher_walk *walk);
-
 static inline void *crypto_tfm_ctx_aligned(struct crypto_tfm *tfm)
 {
 	return PTR_ALIGN(crypto_tfm_ctx(tfm),
@@ -225,22 +200,6 @@ static inline void *crypto_instance_ctx(struct crypto_instance *inst)
 	return inst->__ctx;
 }
 
-static inline struct ablkcipher_alg *crypto_ablkcipher_alg(
-	struct crypto_ablkcipher *tfm)
-{
-	return &crypto_ablkcipher_tfm(tfm)->__crt_alg->cra_ablkcipher;
-}
-
-static inline void *crypto_ablkcipher_ctx(struct crypto_ablkcipher *tfm)
-{
-	return crypto_tfm_ctx(&tfm->base);
-}
-
-static inline void *crypto_ablkcipher_ctx_aligned(struct crypto_ablkcipher *tfm)
-{
-	return crypto_tfm_ctx_aligned(&tfm->base);
-}
-
 static inline struct crypto_cipher *crypto_spawn_cipher(
 	struct crypto_spawn *spawn)
 {
@@ -255,45 +214,11 @@ static inline struct cipher_alg *crypto_cipher_alg(struct crypto_cipher *tfm)
 	return &crypto_cipher_tfm(tfm)->__crt_alg->cra_cipher;
 }
 
-static inline void ablkcipher_walk_init(struct ablkcipher_walk *walk,
-					struct scatterlist *dst,
-					struct scatterlist *src,
-					unsigned int nbytes)
-{
-	walk->in.sg = src;
-	walk->out.sg = dst;
-	walk->total = nbytes;
-	INIT_LIST_HEAD(&walk->buffers);
-}
-
-static inline void ablkcipher_walk_complete(struct ablkcipher_walk *walk)
-{
-	if (unlikely(!list_empty(&walk->buffers)))
-		__ablkcipher_walk_complete(walk);
-}
-
 static inline struct crypto_async_request *crypto_get_backlog(
 	struct crypto_queue *queue)
 {
 	return queue->backlog == &queue->list ? NULL :
 	       container_of(queue->backlog, struct crypto_async_request, list);
-}
-
-static inline int ablkcipher_enqueue_request(struct crypto_queue *queue,
-					     struct ablkcipher_request *request)
-{
-	return crypto_enqueue_request(queue, &request->base);
-}
-
-static inline struct ablkcipher_request *ablkcipher_dequeue_request(
-	struct crypto_queue *queue)
-{
-	return ablkcipher_request_cast(crypto_dequeue_request(queue));
-}
-
-static inline void *ablkcipher_request_ctx(struct ablkcipher_request *req)
-{
-	return req->__ctx;
 }
 
 static inline struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb,

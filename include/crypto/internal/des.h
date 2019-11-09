@@ -117,18 +117,6 @@ static inline int verify_skcipher_des3_key(struct crypto_skcipher *tfm,
 	return crypto_des3_ede_verify_key(crypto_skcipher_tfm(tfm), key);
 }
 
-static inline int verify_ablkcipher_des_key(struct crypto_ablkcipher *tfm,
-					    const u8 *key)
-{
-	return crypto_des_verify_key(crypto_ablkcipher_tfm(tfm), key);
-}
-
-static inline int verify_ablkcipher_des3_key(struct crypto_ablkcipher *tfm,
-					     const u8 *key)
-{
-	return crypto_des3_ede_verify_key(crypto_ablkcipher_tfm(tfm), key);
-}
-
 static inline int verify_aead_des_key(struct crypto_aead *tfm, const u8 *key,
 				      int keylen)
 {

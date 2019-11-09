@@ -41,7 +41,6 @@
 #define CRYPTO_ALG_TYPE_CIPHER		0x00000001
 #define CRYPTO_ALG_TYPE_COMPRESS	0x00000002
 #define CRYPTO_ALG_TYPE_AEAD		0x00000003
-#define CRYPTO_ALG_TYPE_ABLKCIPHER	0x00000005
 #define CRYPTO_ALG_TYPE_SKCIPHER	0x00000005
 #define CRYPTO_ALG_TYPE_KPP		0x00000008
 #define CRYPTO_ALG_TYPE_ACOMPRESS	0x0000000a
@@ -137,7 +136,6 @@
 #define CRYPTO_MINALIGN_ATTR __attribute__ ((__aligned__(CRYPTO_MINALIGN)))
 
 struct scatterlist;
-struct crypto_ablkcipher;
 struct crypto_async_request;
 struct crypto_tfm;
 struct crypto_type;
@@ -160,76 +158,12 @@ struct crypto_async_request {
 	u32 flags;
 };
 
-struct ablkcipher_request {
-	struct crypto_async_request base;
-
-	unsigned int nbytes;
-
-	void *info;
-
-	struct scatterlist *src;
-	struct scatterlist *dst;
-
-	void *__ctx[] CRYPTO_MINALIGN_ATTR;
-};
-
 /**
  * DOC: Block Cipher Algorithm Definitions
  *
  * These data structures define modular crypto algorithm implementations,
  * managed via crypto_register_alg() and crypto_unregister_alg().
  */
-
-/**
- * struct ablkcipher_alg - asynchronous block cipher definition
- * @min_keysize: Minimum key size supported by the transformation. This is the
- *		 smallest key length supported by this transformation algorithm.
- *		 This must be set to one of the pre-defined values as this is
- *		 not hardware specific. Possible values for this field can be
- *		 found via git grep "_MIN_KEY_SIZE" include/crypto/
- * @max_keysize: Maximum key size supported by the transformation. This is the
- *		 largest key length supported by this transformation algorithm.
- *		 This must be set to one of the pre-defined values as this is
- *		 not hardware specific. Possible values for this field can be
- *		 found via git grep "_MAX_KEY_SIZE" include/crypto/
- * @setkey: Set key for the transformation. This function is used to either
- *	    program a supplied key into the hardware or store the key in the
- *	    transformation context for programming it later. Note that this
- *	    function does modify the transformation context. This function can
- *	    be called multiple times during the existence of the transformation
- *	    object, so one must make sure the key is properly reprogrammed into
- *	    the hardware. This function is also responsible for checking the key
- *	    length for validity. In case a software fallback was put in place in
- *	    the @cra_init call, this function might need to use the fallback if
- *	    the algorithm doesn't support all of the key sizes.
- * @encrypt: Encrypt a scatterlist of blocks. This function is used to encrypt
- *	     the supplied scatterlist containing the blocks of data. The crypto
- *	     API consumer is responsible for aligning the entries of the
- *	     scatterlist properly and making sure the chunks are correctly
- *	     sized. In case a software fallback was put in place in the
- *	     @cra_init call, this function might need to use the fallback if
- *	     the algorithm doesn't support all of the key sizes. In case the
- *	     key was stored in transformation context, the key might need to be
- *	     re-programmed into the hardware in this function. This function
- *	     shall not modify the transformation context, as this function may
- *	     be called in parallel with the same transformation object.
- * @decrypt: Decrypt a single block. This is a reverse counterpart to @encrypt
- *	     and the conditions are exactly the same.
- * @ivsize: IV size applicable for transformation. The consumer must provide an
- *	    IV of exactly that size to perform the encrypt or decrypt operation.
- *
- * All fields except @ivsize are mandatory and must be filled.
- */
-struct ablkcipher_alg {
-	int (*setkey)(struct crypto_ablkcipher *tfm, const u8 *key,
-	              unsigned int keylen);
-	int (*encrypt)(struct ablkcipher_request *req);
-	int (*decrypt)(struct ablkcipher_request *req);
-
-	unsigned int min_keysize;
-	unsigned int max_keysize;
-	unsigned int ivsize;
-};
 
 /**
  * struct cipher_alg - single-block symmetric ciphers definition
@@ -415,7 +349,6 @@ struct crypto_istat_rng {
 };
 #endif /* CONFIG_CRYPTO_STATS */
 
-#define cra_ablkcipher	cra_u.ablkcipher
 #define cra_cipher	cra_u.cipher
 #define cra_compress	cra_u.compress
 
@@ -483,8 +416,6 @@ struct crypto_istat_rng {
  * @cra_exit: Deinitialize the cryptographic transformation object. This is a
  *	      counterpart to @cra_init, used to remove various changes set in
  *	      @cra_init.
- * @cra_u.ablkcipher: Union member which contains an asynchronous block cipher
- *		      definition. See @struct @ablkcipher_alg.
  * @cra_u.cipher: Union member which contains a single-block symmetric cipher
  *		  definition. See @struct @cipher_alg.
  * @cra_u.compress: Union member which contains a (de)compression algorithm.
@@ -526,7 +457,6 @@ struct crypto_alg {
 	const struct crypto_type *cra_type;
 
 	union {
-		struct ablkcipher_alg ablkcipher;
 		struct cipher_alg cipher;
 		struct compress_alg compress;
 	} cra_u;
@@ -554,8 +484,6 @@ struct crypto_alg {
 #ifdef CONFIG_CRYPTO_STATS
 void crypto_stats_init(struct crypto_alg *alg);
 void crypto_stats_get(struct crypto_alg *alg);
-void crypto_stats_ablkcipher_encrypt(unsigned int nbytes, int ret, struct crypto_alg *alg);
-void crypto_stats_ablkcipher_decrypt(unsigned int nbytes, int ret, struct crypto_alg *alg);
 void crypto_stats_aead_encrypt(unsigned int cryptlen, struct crypto_alg *alg, int ret);
 void crypto_stats_aead_decrypt(unsigned int cryptlen, struct crypto_alg *alg, int ret);
 void crypto_stats_ahash_update(unsigned int nbytes, int ret, struct crypto_alg *alg);
@@ -577,10 +505,6 @@ void crypto_stats_skcipher_decrypt(unsigned int cryptlen, int ret, struct crypto
 static inline void crypto_stats_init(struct crypto_alg *alg)
 {}
 static inline void crypto_stats_get(struct crypto_alg *alg)
-{}
-static inline void crypto_stats_ablkcipher_encrypt(unsigned int nbytes, int ret, struct crypto_alg *alg)
-{}
-static inline void crypto_stats_ablkcipher_decrypt(unsigned int nbytes, int ret, struct crypto_alg *alg)
 {}
 static inline void crypto_stats_aead_encrypt(unsigned int cryptlen, struct crypto_alg *alg, int ret)
 {}
@@ -675,18 +599,6 @@ int crypto_has_alg(const char *name, u32 type, u32 mask);
  * crypto_free_*(), as well as the various helpers below.
  */
 
-struct ablkcipher_tfm {
-	int (*setkey)(struct crypto_ablkcipher *tfm, const u8 *key,
-	              unsigned int keylen);
-	int (*encrypt)(struct ablkcipher_request *req);
-	int (*decrypt)(struct ablkcipher_request *req);
-
-	struct crypto_ablkcipher *base;
-
-	unsigned int ivsize;
-	unsigned int reqsize;
-};
-
 struct cipher_tfm {
 	int (*cit_setkey)(struct crypto_tfm *tfm,
 	                  const u8 *key, unsigned int keylen);
@@ -703,7 +615,6 @@ struct compress_tfm {
 	                      u8 *dst, unsigned int *dlen);
 };
 
-#define crt_ablkcipher	crt_u.ablkcipher
 #define crt_cipher	crt_u.cipher
 #define crt_compress	crt_u.compress
 
@@ -712,7 +623,6 @@ struct crypto_tfm {
 	u32 crt_flags;
 	
 	union {
-		struct ablkcipher_tfm ablkcipher;
 		struct cipher_tfm cipher;
 		struct compress_tfm compress;
 	} crt_u;
@@ -722,10 +632,6 @@ struct crypto_tfm {
 	struct crypto_alg *__crt_alg;
 
 	void *__crt_ctx[] CRYPTO_MINALIGN_ATTR;
-};
-
-struct crypto_ablkcipher {
-	struct crypto_tfm base;
 };
 
 struct crypto_cipher {
@@ -833,347 +739,6 @@ static inline unsigned int crypto_tfm_ctx_alignment(void)
 {
 	struct crypto_tfm *tfm;
 	return __alignof__(tfm->__crt_ctx);
-}
-
-/*
- * API wrappers.
- */
-static inline struct crypto_ablkcipher *__crypto_ablkcipher_cast(
-	struct crypto_tfm *tfm)
-{
-	return (struct crypto_ablkcipher *)tfm;
-}
-
-/**
- * DOC: Asynchronous Block Cipher API
- *
- * Asynchronous block cipher API is used with the ciphers of type
- * CRYPTO_ALG_TYPE_ABLKCIPHER (listed as type "ablkcipher" in /proc/crypto).
- *
- * Asynchronous cipher operations imply that the function invocation for a
- * cipher request returns immediately before the completion of the operation.
- * The cipher request is scheduled as a separate kernel thread and therefore
- * load-balanced on the different CPUs via the process scheduler. To allow
- * the kernel crypto API to inform the caller about the completion of a cipher
- * request, the caller must provide a callback function. That function is
- * invoked with the cipher handle when the request completes.
- *
- * To support the asynchronous operation, additional information than just the
- * cipher handle must be supplied to the kernel crypto API. That additional
- * information is given by filling in the ablkcipher_request data structure.
- *
- * For the asynchronous block cipher API, the state is maintained with the tfm
- * cipher handle. A single tfm can be used across multiple calls and in
- * parallel. For asynchronous block cipher calls, context data supplied and
- * only used by the caller can be referenced the request data structure in
- * addition to the IV used for the cipher request. The maintenance of such
- * state information would be important for a crypto driver implementer to
- * have, because when calling the callback function upon completion of the
- * cipher operation, that callback function may need some information about
- * which operation just finished if it invoked multiple in parallel. This
- * state information is unused by the kernel crypto API.
- */
-
-static inline struct crypto_tfm *crypto_ablkcipher_tfm(
-	struct crypto_ablkcipher *tfm)
-{
-	return &tfm->base;
-}
-
-/**
- * crypto_free_ablkcipher() - zeroize and free cipher handle
- * @tfm: cipher handle to be freed
- */
-static inline void crypto_free_ablkcipher(struct crypto_ablkcipher *tfm)
-{
-	crypto_free_tfm(crypto_ablkcipher_tfm(tfm));
-}
-
-static inline struct ablkcipher_tfm *crypto_ablkcipher_crt(
-	struct crypto_ablkcipher *tfm)
-{
-	return &crypto_ablkcipher_tfm(tfm)->crt_ablkcipher;
-}
-
-/**
- * crypto_ablkcipher_ivsize() - obtain IV size
- * @tfm: cipher handle
- *
- * The size of the IV for the ablkcipher referenced by the cipher handle is
- * returned. This IV size may be zero if the cipher does not need an IV.
- *
- * Return: IV size in bytes
- */
-static inline unsigned int crypto_ablkcipher_ivsize(
-	struct crypto_ablkcipher *tfm)
-{
-	return crypto_ablkcipher_crt(tfm)->ivsize;
-}
-
-/**
- * crypto_ablkcipher_blocksize() - obtain block size of cipher
- * @tfm: cipher handle
- *
- * The block size for the ablkcipher referenced with the cipher handle is
- * returned. The caller may use that information to allocate appropriate
- * memory for the data returned by the encryption or decryption operation
- *
- * Return: block size of cipher
- */
-static inline unsigned int crypto_ablkcipher_blocksize(
-	struct crypto_ablkcipher *tfm)
-{
-	return crypto_tfm_alg_blocksize(crypto_ablkcipher_tfm(tfm));
-}
-
-static inline unsigned int crypto_ablkcipher_alignmask(
-	struct crypto_ablkcipher *tfm)
-{
-	return crypto_tfm_alg_alignmask(crypto_ablkcipher_tfm(tfm));
-}
-
-static inline u32 crypto_ablkcipher_get_flags(struct crypto_ablkcipher *tfm)
-{
-	return crypto_tfm_get_flags(crypto_ablkcipher_tfm(tfm));
-}
-
-static inline void crypto_ablkcipher_set_flags(struct crypto_ablkcipher *tfm,
-					       u32 flags)
-{
-	crypto_tfm_set_flags(crypto_ablkcipher_tfm(tfm), flags);
-}
-
-static inline void crypto_ablkcipher_clear_flags(struct crypto_ablkcipher *tfm,
-						 u32 flags)
-{
-	crypto_tfm_clear_flags(crypto_ablkcipher_tfm(tfm), flags);
-}
-
-/**
- * crypto_ablkcipher_setkey() - set key for cipher
- * @tfm: cipher handle
- * @key: buffer holding the key
- * @keylen: length of the key in bytes
- *
- * The caller provided key is set for the ablkcipher referenced by the cipher
- * handle.
- *
- * Note, the key length determines the cipher type. Many block ciphers implement
- * different cipher modes depending on the key size, such as AES-128 vs AES-192
- * vs. AES-256. When providing a 16 byte key for an AES cipher handle, AES-128
- * is performed.
- *
- * Return: 0 if the setting of the key was successful; < 0 if an error occurred
- */
-static inline int crypto_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
-					   const u8 *key, unsigned int keylen)
-{
-	struct ablkcipher_tfm *crt = crypto_ablkcipher_crt(tfm);
-
-	return crt->setkey(crt->base, key, keylen);
-}
-
-/**
- * crypto_ablkcipher_reqtfm() - obtain cipher handle from request
- * @req: ablkcipher_request out of which the cipher handle is to be obtained
- *
- * Return the crypto_ablkcipher handle when furnishing an ablkcipher_request
- * data structure.
- *
- * Return: crypto_ablkcipher handle
- */
-static inline struct crypto_ablkcipher *crypto_ablkcipher_reqtfm(
-	struct ablkcipher_request *req)
-{
-	return __crypto_ablkcipher_cast(req->base.tfm);
-}
-
-/**
- * crypto_ablkcipher_encrypt() - encrypt plaintext
- * @req: reference to the ablkcipher_request handle that holds all information
- *	 needed to perform the cipher operation
- *
- * Encrypt plaintext data using the ablkcipher_request handle. That data
- * structure and how it is filled with data is discussed with the
- * ablkcipher_request_* functions.
- *
- * Return: 0 if the cipher operation was successful; < 0 if an error occurred
- */
-static inline int crypto_ablkcipher_encrypt(struct ablkcipher_request *req)
-{
-	struct ablkcipher_tfm *crt =
-		crypto_ablkcipher_crt(crypto_ablkcipher_reqtfm(req));
-	struct crypto_alg *alg = crt->base->base.__crt_alg;
-	unsigned int nbytes = req->nbytes;
-	int ret;
-
-	crypto_stats_get(alg);
-	ret = crt->encrypt(req);
-	crypto_stats_ablkcipher_encrypt(nbytes, ret, alg);
-	return ret;
-}
-
-/**
- * crypto_ablkcipher_decrypt() - decrypt ciphertext
- * @req: reference to the ablkcipher_request handle that holds all information
- *	 needed to perform the cipher operation
- *
- * Decrypt ciphertext data using the ablkcipher_request handle. That data
- * structure and how it is filled with data is discussed with the
- * ablkcipher_request_* functions.
- *
- * Return: 0 if the cipher operation was successful; < 0 if an error occurred
- */
-static inline int crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
-{
-	struct ablkcipher_tfm *crt =
-		crypto_ablkcipher_crt(crypto_ablkcipher_reqtfm(req));
-	struct crypto_alg *alg = crt->base->base.__crt_alg;
-	unsigned int nbytes = req->nbytes;
-	int ret;
-
-	crypto_stats_get(alg);
-	ret = crt->decrypt(req);
-	crypto_stats_ablkcipher_decrypt(nbytes, ret, alg);
-	return ret;
-}
-
-/**
- * DOC: Asynchronous Cipher Request Handle
- *
- * The ablkcipher_request data structure contains all pointers to data
- * required for the asynchronous cipher operation. This includes the cipher
- * handle (which can be used by multiple ablkcipher_request instances), pointer
- * to plaintext and ciphertext, asynchronous callback function, etc. It acts
- * as a handle to the ablkcipher_request_* API calls in a similar way as
- * ablkcipher handle to the crypto_ablkcipher_* API calls.
- */
-
-/**
- * crypto_ablkcipher_reqsize() - obtain size of the request data structure
- * @tfm: cipher handle
- *
- * Return: number of bytes
- */
-static inline unsigned int crypto_ablkcipher_reqsize(
-	struct crypto_ablkcipher *tfm)
-{
-	return crypto_ablkcipher_crt(tfm)->reqsize;
-}
-
-/**
- * ablkcipher_request_set_tfm() - update cipher handle reference in request
- * @req: request handle to be modified
- * @tfm: cipher handle that shall be added to the request handle
- *
- * Allow the caller to replace the existing ablkcipher handle in the request
- * data structure with a different one.
- */
-static inline void ablkcipher_request_set_tfm(
-	struct ablkcipher_request *req, struct crypto_ablkcipher *tfm)
-{
-	req->base.tfm = crypto_ablkcipher_tfm(crypto_ablkcipher_crt(tfm)->base);
-}
-
-static inline struct ablkcipher_request *ablkcipher_request_cast(
-	struct crypto_async_request *req)
-{
-	return container_of(req, struct ablkcipher_request, base);
-}
-
-/**
- * ablkcipher_request_alloc() - allocate request data structure
- * @tfm: cipher handle to be registered with the request
- * @gfp: memory allocation flag that is handed to kmalloc by the API call.
- *
- * Allocate the request data structure that must be used with the ablkcipher
- * encrypt and decrypt API calls. During the allocation, the provided ablkcipher
- * handle is registered in the request data structure.
- *
- * Return: allocated request handle in case of success, or NULL if out of memory
- */
-static inline struct ablkcipher_request *ablkcipher_request_alloc(
-	struct crypto_ablkcipher *tfm, gfp_t gfp)
-{
-	struct ablkcipher_request *req;
-
-	req = kmalloc(sizeof(struct ablkcipher_request) +
-		      crypto_ablkcipher_reqsize(tfm), gfp);
-
-	if (likely(req))
-		ablkcipher_request_set_tfm(req, tfm);
-
-	return req;
-}
-
-/**
- * ablkcipher_request_free() - zeroize and free request data structure
- * @req: request data structure cipher handle to be freed
- */
-static inline void ablkcipher_request_free(struct ablkcipher_request *req)
-{
-	kzfree(req);
-}
-
-/**
- * ablkcipher_request_set_callback() - set asynchronous callback function
- * @req: request handle
- * @flags: specify zero or an ORing of the flags
- *	   CRYPTO_TFM_REQ_MAY_BACKLOG the request queue may back log and
- *	   increase the wait queue beyond the initial maximum size;
- *	   CRYPTO_TFM_REQ_MAY_SLEEP the request processing may sleep
- * @compl: callback function pointer to be registered with the request handle
- * @data: The data pointer refers to memory that is not used by the kernel
- *	  crypto API, but provided to the callback function for it to use. Here,
- *	  the caller can provide a reference to memory the callback function can
- *	  operate on. As the callback function is invoked asynchronously to the
- *	  related functionality, it may need to access data structures of the
- *	  related functionality which can be referenced using this pointer. The
- *	  callback function can access the memory via the "data" field in the
- *	  crypto_async_request data structure provided to the callback function.
- *
- * This function allows setting the callback function that is triggered once the
- * cipher operation completes.
- *
- * The callback function is registered with the ablkcipher_request handle and
- * must comply with the following template::
- *
- *	void callback_function(struct crypto_async_request *req, int error)
- */
-static inline void ablkcipher_request_set_callback(
-	struct ablkcipher_request *req,
-	u32 flags, crypto_completion_t compl, void *data)
-{
-	req->base.complete = compl;
-	req->base.data = data;
-	req->base.flags = flags;
-}
-
-/**
- * ablkcipher_request_set_crypt() - set data buffers
- * @req: request handle
- * @src: source scatter / gather list
- * @dst: destination scatter / gather list
- * @nbytes: number of bytes to process from @src
- * @iv: IV for the cipher operation which must comply with the IV size defined
- *      by crypto_ablkcipher_ivsize
- *
- * This function allows setting of the source data and destination data
- * scatter / gather lists.
- *
- * For encryption, the source is treated as the plaintext and the
- * destination is the ciphertext. For a decryption operation, the use is
- * reversed - the source is the ciphertext and the destination is the plaintext.
- */
-static inline void ablkcipher_request_set_crypt(
-	struct ablkcipher_request *req,
-	struct scatterlist *src, struct scatterlist *dst,
-	unsigned int nbytes, void *iv)
-{
-	req->src = src;
-	req->dst = dst;
-	req->nbytes = nbytes;
-	req->info = iv;
 }
 
 /**

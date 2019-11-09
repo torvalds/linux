@@ -16,9 +16,7 @@ obj-$(CONFIG_CRYPTO_ALGAPI2) += crypto_algapi.o
 obj-$(CONFIG_CRYPTO_AEAD2) += aead.o
 obj-$(CONFIG_CRYPTO_AEAD2) += geniv.o
 
-crypto_skcipher-y := ablkcipher.o
-crypto_skcipher-y += skcipher.o
-obj-$(CONFIG_CRYPTO_SKCIPHER2) += crypto_skcipher.o
+obj-$(CONFIG_CRYPTO_SKCIPHER2) += skcipher.o
 obj-$(CONFIG_CRYPTO_SEQIV) += seqiv.o
 obj-$(CONFIG_CRYPTO_ECHAINIV) += echainiv.o
 

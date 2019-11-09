@@ -5,7 +5,7 @@ Block Cipher Algorithm Definitions
    :doc: Block Cipher Algorithm Definitions
 
 .. kernel-doc:: include/linux/crypto.h
-   :functions: crypto_alg ablkcipher_alg cipher_alg compress_alg
+   :functions: crypto_alg cipher_alg compress_alg
 
 Symmetric Key Cipher API
 ------------------------
@@ -33,21 +33,3 @@ Single Block Cipher API
 
 .. kernel-doc:: include/linux/crypto.h
    :functions: crypto_alloc_cipher crypto_free_cipher crypto_has_cipher crypto_cipher_blocksize crypto_cipher_setkey crypto_cipher_encrypt_one crypto_cipher_decrypt_one
-
-Asynchronous Block Cipher API - Deprecated
-------------------------------------------
-
-.. kernel-doc:: include/linux/crypto.h
-   :doc: Asynchronous Block Cipher API
-
-.. kernel-doc:: include/linux/crypto.h
-   :functions: crypto_free_ablkcipher crypto_ablkcipher_ivsize crypto_ablkcipher_blocksize crypto_ablkcipher_setkey crypto_ablkcipher_reqtfm crypto_ablkcipher_encrypt crypto_ablkcipher_decrypt
-
-Asynchronous Cipher Request Handle - Deprecated
------------------------------------------------
-
-.. kernel-doc:: include/linux/crypto.h
-   :doc: Asynchronous Cipher Request Handle
-
-.. kernel-doc:: include/linux/crypto.h
-   :functions: crypto_ablkcipher_reqsize ablkcipher_request_set_tfm ablkcipher_request_alloc ablkcipher_request_free ablkcipher_request_set_callback ablkcipher_request_set_crypt
