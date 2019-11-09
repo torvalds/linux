@@ -479,11 +479,9 @@ struct ocelot {
 };
 
 struct ocelot_port {
-	struct net_device *dev;
 	struct ocelot *ocelot;
-	struct phy_device *phy;
+
 	void __iomem *regs;
-	u8 chip_port;
 
 	/* Ingress default VLAN (pvid) */
 	u16 pvid;
@@ -491,18 +489,23 @@ struct ocelot_port {
 	/* Egress default VLAN (vid) */
 	u16 vid;
 
-	u8 vlan_aware;
+	u8 ptp_cmd;
+	struct list_head skbs;
+	u8 ts_id;
+};
 
-	u64 *stats;
+struct ocelot_port_private {
+	struct ocelot_port port;
+	struct net_device *dev;
+	struct phy_device *phy;
+	u8 chip_port;
+
+	u8 vlan_aware;
 
 	phy_interface_t phy_mode;
 	struct phy *serdes;
 
 	struct ocelot_port_tc tc;
-
-	u8 ptp_cmd;
-	struct list_head skbs;
-	u8 ts_id;
 };
 
 struct ocelot_skb {

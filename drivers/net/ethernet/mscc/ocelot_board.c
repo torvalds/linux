@@ -95,6 +95,8 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 
 	do {
 		struct skb_shared_hwtstamps *shhwtstamps;
+		struct ocelot_port_private *priv;
+		struct ocelot_port *ocelot_port;
 		u64 tod_in_ns, full_ts_in_ns;
 		struct frame_info info = {};
 		struct net_device *dev;
@@ -114,7 +116,10 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 
 		ocelot_parse_ifh(ifh, &info);
 
-		dev = ocelot->ports[info.port]->dev;
+		ocelot_port = ocelot->ports[info.port];
+		priv = container_of(ocelot_port, struct ocelot_port_private,
+				    port);
+		dev = priv->dev;
 
 		skb = netdev_alloc_skb(dev, info.len);
 
@@ -363,6 +368,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	ocelot_init(ocelot);
 
 	for_each_available_child_of_node(ports, portnp) {
+		struct ocelot_port_private *priv;
+		struct ocelot_port *ocelot_port;
 		struct device_node *phy_node;
 		phy_interface_t phy_mode;
 		struct phy_device *phy;
@@ -398,13 +405,17 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 			goto out_put_ports;
 		}
 
+		ocelot_port = ocelot->ports[port];
+		priv = container_of(ocelot_port, struct ocelot_port_private,
+				    port);
+
 		err = of_get_phy_mode(portnp, &phy_mode);
 		if (err && err != -ENODEV)
 			goto out_put_ports;
 
-		ocelot->ports[port]->phy_mode = phy_mode;
+		priv->phy_mode = phy_mode;
 
-		switch (ocelot->ports[port]->phy_mode) {
+		switch (priv->phy_mode) {
 		case PHY_INTERFACE_MODE_NA:
 			continue;
 		case PHY_INTERFACE_MODE_SGMII:
@@ -413,7 +424,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 			/* Ensure clock signals and speed is set on all
 			 * QSGMII links
 			 */
-			ocelot_port_writel(ocelot->ports[port],
+			ocelot_port_writel(ocelot_port,
 					   DEV_CLOCK_CFG_LINK_SPEED
 					   (OCELOT_SPEED_1000),
 					   DEV_CLOCK_CFG);
@@ -441,7 +452,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 			goto out_put_ports;
 		}
 
-		ocelot->ports[port]->serdes = serdes;
+		priv->serdes = serdes;
 	}
 
 	register_netdevice_notifier(&ocelot_netdevice_nb);
