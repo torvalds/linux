@@ -536,13 +536,9 @@ static void ocelot_port_adjust_link(struct net_device *dev)
 	ocelot_write(ocelot, ocelot_wm_enc(atop_wm), SYS_ATOP_TOT_CFG);
 }
 
-static int ocelot_port_open(struct net_device *dev)
+static void ocelot_port_enable(struct ocelot *ocelot, int port,
+			       struct phy_device *phy)
 {
-	struct ocelot_port_private *priv = netdev_priv(dev);
-	struct ocelot *ocelot = priv->port.ocelot;
-	int port = priv->chip_port;
-	int err;
-
 	/* Enable receiving frames on the port, and activate auto-learning of
 	 * MAC addresses.
 	 */
@@ -550,6 +546,14 @@ static int ocelot_port_open(struct net_device *dev)
 			 ANA_PORT_PORT_CFG_RECV_ENA |
 			 ANA_PORT_PORT_CFG_PORTID_VAL(port),
 			 ANA_PORT_PORT_CFG, port);
+}
+
+static int ocelot_port_open(struct net_device *dev)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
+	int err;
 
 	if (priv->serdes) {
 		err = phy_set_mode_ext(priv->serdes, PHY_MODE_ETHERNET,
@@ -571,21 +575,33 @@ static int ocelot_port_open(struct net_device *dev)
 
 	phy_attached_info(priv->phy);
 	phy_start(priv->phy);
+
+	ocelot_port_enable(ocelot, port, priv->phy);
+
 	return 0;
+}
+
+static void ocelot_port_disable(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+	ocelot_port_writel(ocelot_port, 0, DEV_MAC_ENA_CFG);
+	ocelot_rmw_rix(ocelot, 0, QSYS_SWITCH_PORT_MODE_PORT_ENA,
+		       QSYS_SWITCH_PORT_MODE, port);
 }
 
 static int ocelot_port_stop(struct net_device *dev)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
-	struct ocelot_port *port = &priv->port;
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
 
 	phy_disconnect(priv->phy);
 
 	dev->phydev = NULL;
 
-	ocelot_port_writel(port, 0, DEV_MAC_ENA_CFG);
-	ocelot_rmw_rix(port->ocelot, 0, QSYS_SWITCH_PORT_MODE_PORT_ENA,
-		       QSYS_SWITCH_PORT_MODE, priv->chip_port);
+	ocelot_port_disable(ocelot, port);
+
 	return 0;
 }
 
