@@ -1285,26 +1285,20 @@ static const struct ethtool_ops ocelot_ethtool_ops = {
 	.get_ts_info		= ocelot_get_ts_info,
 };
 
-static int ocelot_port_attr_stp_state_set(struct ocelot_port *ocelot_port,
-					  struct switchdev_trans *trans,
-					  u8 state)
+static void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port,
+					u8 state)
 {
-	struct ocelot *ocelot = ocelot_port->ocelot;
 	u32 port_cfg;
-	int port, i;
+	int p, i;
 
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
+	if (!(BIT(port) & ocelot->bridge_mask))
+		return;
 
-	if (!(BIT(ocelot_port->chip_port) & ocelot->bridge_mask))
-		return 0;
-
-	port_cfg = ocelot_read_gix(ocelot, ANA_PORT_PORT_CFG,
-				   ocelot_port->chip_port);
+	port_cfg = ocelot_read_gix(ocelot, ANA_PORT_PORT_CFG, port);
 
 	switch (state) {
 	case BR_STATE_FORWARDING:
-		ocelot->bridge_fwd_mask |= BIT(ocelot_port->chip_port);
+		ocelot->bridge_fwd_mask |= BIT(port);
 		/* Fallthrough */
 	case BR_STATE_LEARNING:
 		port_cfg |= ANA_PORT_PORT_CFG_LEARN_ENA;
@@ -1312,19 +1306,18 @@ static int ocelot_port_attr_stp_state_set(struct ocelot_port *ocelot_port,
 
 	default:
 		port_cfg &= ~ANA_PORT_PORT_CFG_LEARN_ENA;
-		ocelot->bridge_fwd_mask &= ~BIT(ocelot_port->chip_port);
+		ocelot->bridge_fwd_mask &= ~BIT(port);
 		break;
 	}
 
-	ocelot_write_gix(ocelot, port_cfg, ANA_PORT_PORT_CFG,
-			 ocelot_port->chip_port);
+	ocelot_write_gix(ocelot, port_cfg, ANA_PORT_PORT_CFG, port);
 
 	/* Apply FWD mask. The loop is needed to add/remove the current port as
 	 * a source for the other ports.
 	 */
-	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		if (ocelot->bridge_fwd_mask & BIT(port)) {
-			unsigned long mask = ocelot->bridge_fwd_mask & ~BIT(port);
+	for (p = 0; p < ocelot->num_phys_ports; p++) {
+		if (ocelot->bridge_fwd_mask & BIT(p)) {
+			unsigned long mask = ocelot->bridge_fwd_mask & ~BIT(p);
 
 			for (i = 0; i < ocelot->num_phys_ports; i++) {
 				unsigned long bond_mask = ocelot->lags[i];
@@ -1332,7 +1325,7 @@ static int ocelot_port_attr_stp_state_set(struct ocelot_port *ocelot_port,
 				if (!bond_mask)
 					continue;
 
-				if (bond_mask & BIT(port)) {
+				if (bond_mask & BIT(p)) {
 					mask &= ~bond_mask;
 					break;
 				}
@@ -1340,47 +1333,55 @@ static int ocelot_port_attr_stp_state_set(struct ocelot_port *ocelot_port,
 
 			ocelot_write_rix(ocelot,
 					 BIT(ocelot->num_phys_ports) | mask,
-					 ANA_PGID_PGID, PGID_SRC + port);
+					 ANA_PGID_PGID, PGID_SRC + p);
 		} else {
 			/* Only the CPU port, this is compatible with link
 			 * aggregation.
 			 */
 			ocelot_write_rix(ocelot,
 					 BIT(ocelot->num_phys_ports),
-					 ANA_PGID_PGID, PGID_SRC + port);
+					 ANA_PGID_PGID, PGID_SRC + p);
 		}
 	}
-
-	return 0;
 }
 
-static void ocelot_port_attr_ageing_set(struct ocelot_port *ocelot_port,
-					unsigned long ageing_clock_t)
+static void ocelot_port_attr_stp_state_set(struct ocelot *ocelot, int port,
+					   struct switchdev_trans *trans,
+					   u8 state)
 {
-	struct ocelot *ocelot = ocelot_port->ocelot;
-	unsigned long ageing_jiffies = clock_t_to_jiffies(ageing_clock_t);
-	u32 ageing_time = jiffies_to_msecs(ageing_jiffies) / 1000;
+	if (switchdev_trans_ph_prepare(trans))
+		return;
 
-	ocelot_write(ocelot, ANA_AUTOAGE_AGE_PERIOD(ageing_time / 2),
+	ocelot_bridge_stp_state_set(ocelot, port, state);
+}
+
+static void ocelot_set_ageing_time(struct ocelot *ocelot, unsigned int msecs)
+{
+	ocelot_write(ocelot, ANA_AUTOAGE_AGE_PERIOD(msecs / 2),
 		     ANA_AUTOAGE);
 }
 
-static void ocelot_port_attr_mc_set(struct ocelot_port *port, bool mc)
+static void ocelot_port_attr_ageing_set(struct ocelot *ocelot, int port,
+					unsigned long ageing_clock_t)
 {
-	struct ocelot *ocelot = port->ocelot;
-	u32 val = ocelot_read_gix(ocelot, ANA_PORT_CPU_FWD_CFG,
-				  port->chip_port);
+	unsigned long ageing_jiffies = clock_t_to_jiffies(ageing_clock_t);
+	u32 ageing_time = jiffies_to_msecs(ageing_jiffies) / 1000;
+
+	ocelot_set_ageing_time(ocelot, ageing_time);
+}
+
+static void ocelot_port_attr_mc_set(struct ocelot *ocelot, int port, bool mc)
+{
+	u32 cpu_fwd_mcast = ANA_PORT_CPU_FWD_CFG_CPU_IGMP_REDIR_ENA |
+			    ANA_PORT_CPU_FWD_CFG_CPU_MLD_REDIR_ENA |
+			    ANA_PORT_CPU_FWD_CFG_CPU_IPMC_CTRL_COPY_ENA;
+	u32 val = 0;
 
 	if (mc)
-		val |= ANA_PORT_CPU_FWD_CFG_CPU_IGMP_REDIR_ENA |
-		       ANA_PORT_CPU_FWD_CFG_CPU_MLD_REDIR_ENA |
-		       ANA_PORT_CPU_FWD_CFG_CPU_IPMC_CTRL_COPY_ENA;
-	else
-		val &= ~(ANA_PORT_CPU_FWD_CFG_CPU_IGMP_REDIR_ENA |
-			 ANA_PORT_CPU_FWD_CFG_CPU_MLD_REDIR_ENA |
-			 ANA_PORT_CPU_FWD_CFG_CPU_IPMC_CTRL_COPY_ENA);
+		val = cpu_fwd_mcast;
 
-	ocelot_write_gix(ocelot, val, ANA_PORT_CPU_FWD_CFG, port->chip_port);
+	ocelot_rmw_gix(ocelot, val, cpu_fwd_mcast,
+		       ANA_PORT_CPU_FWD_CFG, port);
 }
 
 static int ocelot_port_attr_set(struct net_device *dev,
@@ -1389,22 +1390,23 @@ static int ocelot_port_attr_set(struct net_device *dev,
 {
 	struct ocelot_port *ocelot_port = netdev_priv(dev);
 	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = ocelot_port->chip_port;
 	int err = 0;
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
-		ocelot_port_attr_stp_state_set(ocelot_port, trans,
+		ocelot_port_attr_stp_state_set(ocelot, port, trans,
 					       attr->u.stp_state);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
-		ocelot_port_attr_ageing_set(ocelot_port, attr->u.ageing_time);
+		ocelot_port_attr_ageing_set(ocelot, port, attr->u.ageing_time);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
-		ocelot_port_vlan_filtering(ocelot, ocelot_port->chip_port,
+		ocelot_port_vlan_filtering(ocelot, port,
 					   attr->u.vlan_filtering);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_MC_DISABLED:
-		ocelot_port_attr_mc_set(ocelot_port, !attr->u.mc_disabled);
+		ocelot_port_attr_mc_set(ocelot, port, !attr->u.mc_disabled);
 		break;
 	default:
 		err = -EOPNOTSUPP;
