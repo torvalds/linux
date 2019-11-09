@@ -432,7 +432,7 @@ struct mqd_manager *mqd_manager_init_v10(enum KFD_MQD_TYPE type,
 		pr_debug("%s@%i\n", __func__, __LINE__);
 		break;
 	case KFD_MQD_TYPE_DIQ:
-		mqd->allocate_mqd = allocate_hiq_mqd;
+		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd_hiq;
 		mqd->free_mqd = free_mqd;
 		mqd->load_mqd = load_mqd;
