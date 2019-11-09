@@ -325,18 +325,6 @@ static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 			1 << CP_HQD_PQ_CONTROL__KMD_QUEUE__SHIFT;
 }
 
-static void update_mqd_hiq(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q)
-{
-	struct v9_mqd *m;
-
-	update_mqd(mm, mqd, q);
-
-	/* TODO: what's the point? update_mqd already does this. */
-	m = get_mqd(mqd);
-	m->cp_hqd_vmid = q->vmid;
-}
-
 static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 		struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
 		struct queue_properties *q)
@@ -462,7 +450,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		mqd->init_mqd = init_mqd_hiq;
 		mqd->free_mqd = free_mqd_hiq_sdma;
 		mqd->load_mqd = load_mqd;
-		mqd->update_mqd = update_mqd_hiq;
+		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
 		mqd->mqd_size = sizeof(struct v9_mqd);
@@ -475,7 +463,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		mqd->init_mqd = init_mqd_hiq;
 		mqd->free_mqd = free_mqd;
 		mqd->load_mqd = load_mqd;
-		mqd->update_mqd = update_mqd_hiq;
+		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
 		mqd->mqd_size = sizeof(struct v9_mqd);

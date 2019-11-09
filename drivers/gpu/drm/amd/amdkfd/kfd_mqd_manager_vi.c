@@ -312,11 +312,7 @@ static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 static void update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q)
 {
-	struct vi_mqd *m;
 	__update_mqd(mm, mqd, q, MTYPE_UC, 0);
-
-	m = get_mqd(mqd);
-	m->cp_hqd_vmid = q->vmid;
 }
 
 static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
