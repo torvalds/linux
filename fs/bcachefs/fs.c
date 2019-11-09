@@ -3,6 +3,7 @@
 
 #include "bcachefs.h"
 #include "acl.h"
+#include "bkey_on_stack.h"
 #include "btree_update.h"
 #include "buckets.h"
 #include "chardev.h"
@@ -875,7 +876,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	BKEY_PADDED(k) cur, prev;
+	struct bkey_on_stack cur, prev;
 	struct bpos end = POS(ei->v.i_ino, (start + len) >> 9);
 	unsigned offset_into_extent, sectors;
 	bool have_extent = false;
@@ -888,6 +889,8 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	if (start + len < start)
 		return -EINVAL;
 
+	bkey_on_stack_init(&cur);
+	bkey_on_stack_init(&prev);
 	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
@@ -902,15 +905,17 @@ retry:
 			continue;
 		}
 
-		bkey_reassemble(&cur.k, k);
-		k = bkey_i_to_s_c(&cur.k);
+		bkey_on_stack_realloc(&cur, c, k.k->u64s);
+		bkey_on_stack_realloc(&prev, c, k.k->u64s);
+		bkey_reassemble(cur.k, k);
+		k = bkey_i_to_s_c(cur.k);
 
 		offset_into_extent	= iter->pos.offset -
 			bkey_start_offset(k.k);
 		sectors			= k.k->size - offset_into_extent;
 
 		ret = bch2_read_indirect_extent(&trans,
-					&offset_into_extent, &cur.k);
+					&offset_into_extent, cur.k);
 		if (ret)
 			break;
 
@@ -920,19 +925,19 @@ retry:
 			bch2_cut_front(POS(k.k->p.inode,
 					   bkey_start_offset(k.k) +
 					   offset_into_extent),
-				       &cur.k);
-		bch2_key_resize(&cur.k.k, sectors);
-		cur.k.k.p = iter->pos;
-		cur.k.k.p.offset += cur.k.k.size;
+				       cur.k);
+		bch2_key_resize(&cur.k->k, sectors);
+		cur.k->k.p = iter->pos;
+		cur.k->k.p.offset += cur.k->k.size;
 
 		if (have_extent) {
 			ret = bch2_fill_extent(c, info,
-					bkey_i_to_s_c(&prev.k), 0);
+					bkey_i_to_s_c(prev.k), 0);
 			if (ret)
 				break;
 		}
 
-		bkey_copy(&prev.k, &cur.k);
+		bkey_copy(prev.k, cur.k);
 		have_extent = true;
 
 		if (k.k->type == KEY_TYPE_reflink_v)
@@ -945,10 +950,12 @@ retry:
 		goto retry;
 
 	if (!ret && have_extent)
-		ret = bch2_fill_extent(c, info, bkey_i_to_s_c(&prev.k),
+		ret = bch2_fill_extent(c, info, bkey_i_to_s_c(prev.k),
 				       FIEMAP_EXTENT_LAST);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
+	bkey_on_stack_exit(&cur, c);
+	bkey_on_stack_exit(&prev, c);
 	return ret < 0 ? ret : 0;
 }
 

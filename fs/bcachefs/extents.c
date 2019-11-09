@@ -8,6 +8,7 @@
 
 #include "bcachefs.h"
 #include "bkey_methods.h"
+#include "bkey_on_stack.h"
 #include "btree_gc.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
@@ -1132,7 +1133,11 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 		break;
 	}
 	case BCH_EXTENT_OVERLAP_MIDDLE: {
-		BKEY_PADDED(k) split;
+		struct bkey_on_stack split;
+
+		bkey_on_stack_init(&split);
+		bkey_on_stack_realloc(&split, c, k.k->u64s);
+
 		/*
 		 * The insert key falls 'in the middle' of k
 		 * The insert key splits k in 3:
@@ -1147,18 +1152,19 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 		 * modify k _before_ doing the insert (which will move
 		 * what k points to)
 		 */
-		bkey_reassemble(&split.k, k.s_c);
-		split.k.k.needs_whiteout |= bkey_written(l->b, _k);
+		bkey_reassemble(split.k, k.s_c);
+		split.k->k.needs_whiteout |= bkey_written(l->b, _k);
 
-		bch2_cut_back(bkey_start_pos(&insert->k), &split.k.k);
-		BUG_ON(bkey_deleted(&split.k.k));
+		bch2_cut_back(bkey_start_pos(&insert->k), &split.k->k);
+		BUG_ON(bkey_deleted(&split.k->k));
 
 		__bch2_cut_front(insert->k.p, k);
 		BUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
 		bch2_btree_iter_fix_key_modified(iter, l->b, _k);
 
-		extent_bset_insert(c, iter, &split.k);
+		extent_bset_insert(c, iter, split.k);
+		bkey_on_stack_exit(&split, c);
 		break;
 	}
 	}

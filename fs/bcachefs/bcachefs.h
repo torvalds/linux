@@ -729,6 +729,8 @@ struct bch_fs {
 
 	atomic64_t		key_version;
 
+	mempool_t		large_bkey_pool;
+
 	/* REBALANCE */
 	struct bch_fs_rebalance	rebalance;
 

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
+#include "bkey_on_stack.h"
 #include "btree_update.h"
 #include "extents.h"
 #include "inode.h"
@@ -160,7 +161,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 	struct btree_trans trans;
 	struct btree_iter *dst_iter, *src_iter;
 	struct bkey_s_c src_k;
-	BKEY_PADDED(k) new_dst, new_src;
+	BKEY_PADDED(k) new_dst;
+	struct bkey_on_stack new_src;
 	struct bpos dst_end = dst_start, src_end = src_start;
 	struct bpos dst_want, src_want;
 	u64 src_done, dst_done;
@@ -183,6 +185,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 	dst_end.offset += remap_sectors;
 	src_end.offset += remap_sectors;
 
+	bkey_on_stack_init(&new_src);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 4096);
 
 	src_iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, src_start,
@@ -222,14 +225,15 @@ s64 bch2_remap_range(struct bch_fs *c,
 			break;
 
 		if (src_k.k->type == KEY_TYPE_extent) {
-			bkey_reassemble(&new_src.k, src_k);
-			src_k = bkey_i_to_s_c(&new_src.k);
+			bkey_on_stack_realloc(&new_src, c, src_k.k->u64s);
+			bkey_reassemble(new_src.k, src_k);
+			src_k = bkey_i_to_s_c(new_src.k);
 
-			bch2_cut_front(src_iter->pos,	&new_src.k);
-			bch2_cut_back(src_end,		&new_src.k.k);
+			bch2_cut_front(src_iter->pos,	new_src.k);
+			bch2_cut_back(src_end,		&new_src.k->k);
 
 			ret = bch2_make_extent_indirect(&trans, src_iter,
-						bkey_i_to_extent(&new_src.k));
+						bkey_i_to_extent(new_src.k));
 			if (ret)
 				goto btree_err;
 
@@ -299,6 +303,7 @@ err:
 	} while (ret2 == -EINTR);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
+	bkey_on_stack_exit(&new_src, c);
 
 	percpu_ref_put(&c->writes);
 

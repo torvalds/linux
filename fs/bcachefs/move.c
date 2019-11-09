@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
+#include "bkey_on_stack.h"
 #include "btree_gc.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
@@ -489,7 +490,7 @@ static int __bch2_move_data(struct bch_fs *c,
 {
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
-	BKEY_PADDED(k) tmp;
+	struct bkey_on_stack sk;
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
@@ -498,6 +499,7 @@ static int __bch2_move_data(struct bch_fs *c,
 	u64 delay, cur_inum = U64_MAX;
 	int ret = 0, ret2;
 
+	bkey_on_stack_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
 
 	stats->data_type = BCH_DATA_USER;
@@ -577,8 +579,9 @@ peek:
 		}
 
 		/* unlock before doing IO: */
-		bkey_reassemble(&tmp.k, k);
-		k = bkey_i_to_s_c(&tmp.k);
+		bkey_on_stack_realloc(&sk, c, k.k->u64s);
+		bkey_reassemble(sk.k, k);
+		k = bkey_i_to_s_c(sk.k);
 		bch2_trans_unlock(&trans);
 
 		ret2 = bch2_move_extent(c, ctxt, wp, io_opts, btree_id, k,
@@ -605,6 +608,7 @@ next_nondata:
 	}
 out:
 	ret = bch2_trans_exit(&trans) ?: ret;
+	bkey_on_stack_exit(&sk, c);
 
 	return ret;
 }

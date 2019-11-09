@@ -4,6 +4,7 @@
  */
 
 #include "bcachefs.h"
+#include "bkey_on_stack.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "buckets.h"
@@ -40,9 +41,10 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	BKEY_PADDED(key) tmp;
+	struct bkey_on_stack sk;
 	int ret = 0;
 
+	bkey_on_stack_init(&sk);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	iter = bch2_trans_get_iter(&trans, btree_id, POS_MIN,
@@ -58,9 +60,10 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 			continue;
 		}
 
-		bkey_reassemble(&tmp.key, k);
+		bkey_on_stack_realloc(&sk, c, k.k->u64s);
+		bkey_reassemble(sk.k, k);
 
-		ret = drop_dev_ptrs(c, bkey_i_to_s(&tmp.key),
+		ret = drop_dev_ptrs(c, bkey_i_to_s(sk.k),
 				    dev_idx, flags, false);
 		if (ret)
 			break;
@@ -70,11 +73,11 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 		 * will do the appropriate thing with it (turning it into a
 		 * KEY_TYPE_error key, or just a discard if it was a cached extent)
 		 */
-		bch2_extent_normalize(c, bkey_i_to_s(&tmp.key));
+		bch2_extent_normalize(c, bkey_i_to_s(sk.k));
 
-		bch2_btree_iter_set_pos(iter, bkey_start_pos(&tmp.key.k));
+		bch2_btree_iter_set_pos(iter, bkey_start_pos(&sk.k->k));
 
-		bch2_trans_update(&trans, iter, &tmp.key);
+		bch2_trans_update(&trans, iter, sk.k);
 
 		ret = bch2_trans_commit(&trans, NULL, NULL,
 					BTREE_INSERT_ATOMIC|
@@ -92,6 +95,7 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 	}
 
 	ret = bch2_trans_exit(&trans) ?: ret;
+	bkey_on_stack_exit(&sk, c);
 
 	BUG_ON(ret == -EINTR);
 
