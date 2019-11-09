@@ -342,7 +342,8 @@ static inline void bkey_init(struct bkey *k)
 	x(quota,		13)			\
 	x(stripe,		14)			\
 	x(reflink_p,		15)			\
-	x(reflink_v,		16)
+	x(reflink_v,		16)			\
+	x(inline_data,		17)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -915,6 +916,13 @@ struct bch_reflink_v {
 	__u64			_data[0];
 };
 
+/* Inline data */
+
+struct bch_inline_data {
+	struct bch_val		v;
+	u8			data[0];
+};
+
 /* Optional/variable size superblock sections: */
 
 struct bch_sb_field {
@@ -1319,6 +1327,7 @@ enum bch_sb_features {
 	BCH_FEATURE_JOURNAL_SEQ_BLACKLIST_V3 = 5,
 	BCH_FEATURE_REFLINK		= 6,
 	BCH_FEATURE_NEW_SIPHASH		= 7,
+	BCH_FEATURE_INLINE_DATA		= 8,
 	BCH_FEATURE_NR,
 };
 

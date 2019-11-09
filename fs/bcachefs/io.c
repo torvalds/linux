@@ -539,16 +539,19 @@ static void __bch2_write_index(struct bch_write_op *op)
 
 	for (src = keys->keys; src != keys->top; src = n) {
 		n = bkey_next(src);
-		bkey_copy(dst, src);
 
-		bch2_bkey_drop_ptrs(bkey_i_to_s(dst), ptr,
-			test_bit(ptr->dev, op->failed.d));
+		if (bkey_extent_is_direct_data(&src->k)) {
+			bch2_bkey_drop_ptrs(bkey_i_to_s(src), ptr,
+					    test_bit(ptr->dev, op->failed.d));
 
-		if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(dst))) {
-			ret = -EIO;
-			goto err;
+			if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(src))) {
+				ret = -EIO;
+				goto err;
+			}
 		}
 
+		if (dst != src)
+			memmove_u64s_down(dst, src, src->u64s);
 		dst = bkey_next(dst);
 	}
 
@@ -1092,7 +1095,7 @@ again:
 
 		bio->bi_end_io	= bch2_write_endio;
 		bio->bi_private	= &op->cl;
-		bio->bi_opf	= REQ_OP_WRITE;
+		bio->bi_opf |= REQ_OP_WRITE;
 
 		if (!skip_put)
 			closure_get(bio->bi_private);
@@ -1129,6 +1132,47 @@ flush_io:
 	goto again;
 }
 
+static void bch2_write_data_inline(struct bch_write_op *op, unsigned data_len)
+{
+	struct closure *cl = &op->cl;
+	struct bio *bio = &op->wbio.bio;
+	struct bvec_iter iter;
+	struct bkey_i_inline_data *id;
+	unsigned sectors;
+	int ret;
+
+	ret = bch2_keylist_realloc(&op->insert_keys, op->inline_keys,
+				   ARRAY_SIZE(op->inline_keys),
+				   BKEY_U64s + DIV_ROUND_UP(data_len, 8));
+	if (ret) {
+		op->error = ret;
+		goto err;
+	}
+
+	sectors = bio_sectors(bio);
+	op->pos.offset += sectors;
+
+	id = bkey_inline_data_init(op->insert_keys.top);
+	id->k.p		= op->pos;
+	id->k.version	= op->version;
+	id->k.size	= sectors;
+
+	iter = bio->bi_iter;
+	iter.bi_size = data_len;
+	memcpy_from_bio(id->v.data, bio, iter);
+
+	while (data_len & 7)
+		id->v.data[data_len++] = '\0';
+	set_bkey_val_bytes(&id->k, data_len);
+	bch2_keylist_push(&op->insert_keys);
+
+	op->flags |= BCH_WRITE_WROTE_DATA_INLINE;
+	continue_at_nobarrier(cl, bch2_write_index, NULL);
+	return;
+err:
+	bch2_write_done(&op->cl);
+}
+
 /**
  * bch_write - handle a write to a cache device or flash only volume
  *
@@ -1150,21 +1194,21 @@ void bch2_write(struct closure *cl)
 	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
 	struct bio *bio = &op->wbio.bio;
 	struct bch_fs *c = op->c;
+	unsigned data_len;
 
 	BUG_ON(!op->nr_replicas);
 	BUG_ON(!op->write_point.v);
 	BUG_ON(!bkey_cmp(op->pos, POS_MAX));
+
+	op->start_time = local_clock();
+	bch2_keylist_init(&op->insert_keys, op->inline_keys);
+	wbio_init(bio)->put_bio = false;
 
 	if (bio_sectors(bio) & (c->opts.block_size - 1)) {
 		__bcache_io_error(c, "misaligned write");
 		op->error = -EIO;
 		goto err;
 	}
-
-	op->start_time = local_clock();
-
-	bch2_keylist_init(&op->insert_keys, op->inline_keys);
-	wbio_init(bio)->put_bio = false;
 
 	if (c->opts.nochanges ||
 	    !percpu_ref_tryget(&c->writes)) {
@@ -1174,6 +1218,14 @@ void bch2_write(struct closure *cl)
 	}
 
 	bch2_increment_clock(c, bio_sectors(bio), WRITE);
+
+	data_len = min_t(u64, bio->bi_iter.bi_size,
+			 op->new_i_size - (op->pos.offset << 9));
+
+	if (data_len <= min(block_bytes(c) / 2, 1024U)) {
+		bch2_write_data_inline(op, data_len);
+		return;
+	}
 
 	continue_at_nobarrier(cl, __bch2_write, NULL);
 	return;
@@ -1891,6 +1943,19 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 	bool bounce = false, read_full = false, narrow_crcs = false;
 	struct bpos pos = bkey_start_pos(k.k);
 	int pick_ret;
+
+	if (k.k->type == KEY_TYPE_inline_data) {
+		struct bkey_s_c_inline_data d = bkey_s_c_to_inline_data(k);
+		unsigned bytes = min_t(unsigned, iter.bi_size,
+				       bkey_val_bytes(d.k));
+
+		swap(iter.bi_size, bytes);
+		memcpy_to_bio(&orig->bio, iter, d.v->data);
+		swap(iter.bi_size, bytes);
+		bio_advance_iter(&orig->bio, &iter, bytes);
+		zero_fill_bio_iter(&orig->bio, iter);
+		goto out_read_done;
+	}
 
 	pick_ret = bch2_bkey_pick_read_device(c, k, failed, &pick);
 

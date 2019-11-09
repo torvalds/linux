@@ -913,6 +913,12 @@ int bch2_fs_recovery(struct bch_fs *c)
 		write_sb = true;
 	}
 
+	if (!(c->sb.features & (1ULL << BCH_FEATURE_INLINE_DATA))) {
+		c->disk_sb.sb->features[0] |=
+			cpu_to_le64(1ULL << BCH_FEATURE_INLINE_DATA);
+		write_sb = true;
+	}
+
 	if (!test_bit(BCH_FS_ERROR, &c->flags)) {
 		c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_FEAT_ALLOC_INFO;
 		write_sb = true;

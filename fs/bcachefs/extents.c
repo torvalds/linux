@@ -737,11 +737,6 @@ int bch2_cut_front_s(struct bpos where, struct bkey_s k)
 	}
 
 	switch (k.k->type) {
-	case KEY_TYPE_deleted:
-	case KEY_TYPE_discard:
-	case KEY_TYPE_error:
-	case KEY_TYPE_cookie:
-		break;
 	case KEY_TYPE_extent:
 	case KEY_TYPE_reflink_v: {
 		struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
@@ -779,10 +774,18 @@ int bch2_cut_front_s(struct bpos where, struct bkey_s k)
 		le64_add_cpu(&p.v->idx, sub);
 		break;
 	}
-	case KEY_TYPE_reservation:
+	case KEY_TYPE_inline_data: {
+		struct bkey_s_inline_data d = bkey_s_to_inline_data(k);
+
+		sub = min_t(u64, sub << 9, bkey_val_bytes(d.k));
+
+		memmove(d.v->data,
+			d.v->data + sub,
+			bkey_val_bytes(d.k) - sub);
+
+		new_val_u64s -= sub >> 3;
 		break;
-	default:
-		BUG();
+	}
 	}
 
 	val_u64s_delta = bkey_val_u64s(k.k) - new_val_u64s;
@@ -812,6 +815,12 @@ int bch2_cut_back_s(struct bpos where, struct bkey_s k)
 	if (!len) {
 		k.k->type = KEY_TYPE_deleted;
 		new_val_u64s = 0;
+	}
+
+	switch (k.k->type) {
+	case KEY_TYPE_inline_data:
+		new_val_u64s = min(new_val_u64s, k.k->size << 6);
+		break;
 	}
 
 	val_u64s_delta = bkey_val_u64s(k.k) - new_val_u64s;

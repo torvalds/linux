@@ -990,6 +990,18 @@ static void bch2_writepage_io_done(struct closure *cl)
 		}
 	}
 
+	if (io->op.flags & BCH_WRITE_WROTE_DATA_INLINE) {
+		bio_for_each_segment_all(bvec, bio, iter) {
+			struct bch_page_state *s;
+
+			s = __bch2_page_state(bvec->bv_page);
+			spin_lock(&s->lock);
+			for (i = 0; i < PAGE_SECTORS; i++)
+				s->s[i].nr_replicas = 0;
+			spin_unlock(&s->lock);
+		}
+	}
+
 	/*
 	 * racing with fallocate can cause us to add fewer sectors than
 	 * expected - but we shouldn't add more sectors than expected:

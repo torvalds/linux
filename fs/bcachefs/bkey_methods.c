@@ -63,6 +63,23 @@ static const char *key_type_cookie_invalid(const struct bch_fs *c,
 	.key_invalid = empty_val_key_invalid,		\
 }
 
+static const char *key_type_inline_data_invalid(const struct bch_fs *c,
+					   struct bkey_s_c k)
+{
+	return NULL;
+}
+
+static void key_type_inline_data_to_text(struct printbuf *out, struct bch_fs *c,
+					 struct bkey_s_c k)
+{
+	pr_buf(out, "(%zu bytes)", bkey_val_bytes(k.k));
+}
+
+static const struct bkey_ops bch2_bkey_ops_inline_data = {
+	.key_invalid	= key_type_inline_data_invalid,
+	.val_to_text	= key_type_inline_data_to_text,
+};
+
 static const struct bkey_ops bch2_bkey_ops[] = {
 #define x(name, nr) [KEY_TYPE_##name]	= bch2_bkey_ops_##name,
 	BCH_BKEY_TYPES()
@@ -83,9 +100,8 @@ const char *__bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	if (k.k->u64s < BKEY_U64s)
 		return "u64s too small";
 
-	if ((btree_node_type_is_extents(type) ||
-	     type == BKEY_TYPE_BTREE) &&
-	    bkey_val_u64s(k.k) > BKEY_EXTENT_VAL_U64s_MAX)
+	if (type == BKEY_TYPE_BTREE &&
+	    bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX)
 		return "value too big";
 
 	if (btree_node_type_is_extents(type)) {
