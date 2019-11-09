@@ -850,9 +850,6 @@ extern void i2c_del_driver(struct i2c_driver *driver);
 #define i2c_add_driver(driver) \
 	i2c_register_driver(THIS_MODULE, driver)
 
-extern struct i2c_client *i2c_use_client(struct i2c_client *client);
-extern void i2c_release_client(struct i2c_client *client);
-
 /* call the i2c_client->command() of all attached clients with
  * the given arguments */
 extern void i2c_clients_command(struct i2c_adapter *adap,

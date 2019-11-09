@@ -1743,38 +1743,6 @@ EXPORT_SYMBOL(i2c_del_driver);
 
 /* ------------------------------------------------------------------------- */
 
-/**
- * i2c_use_client - increments the reference count of the i2c client structure
- * @client: the client being referenced
- *
- * Each live reference to a client should be refcounted. The driver model does
- * that automatically as part of driver binding, so that most drivers don't
- * need to do this explicitly: they hold a reference until they're unbound
- * from the device.
- *
- * A pointer to the client with the incremented reference counter is returned.
- */
-struct i2c_client *i2c_use_client(struct i2c_client *client)
-{
-	if (client && get_device(&client->dev))
-		return client;
-	return NULL;
-}
-EXPORT_SYMBOL(i2c_use_client);
-
-/**
- * i2c_release_client - release a use of the i2c client structure
- * @client: the client being no longer referenced
- *
- * Must be called when a user of a client is finished with it.
- */
-void i2c_release_client(struct i2c_client *client)
-{
-	if (client)
-		put_device(&client->dev);
-}
-EXPORT_SYMBOL(i2c_release_client);
-
 struct i2c_cmd_arg {
 	unsigned	cmd;
 	void		*arg;
