@@ -66,6 +66,12 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 		m->compute_static_thread_mgmt_se3);
 }
 
+static void set_priority(struct v10_compute_mqd *m, struct queue_properties *q)
+{
+	m->cp_hqd_pipe_priority = pipe_priority_map[q->priority];
+	m->cp_hqd_queue_priority = q->priority;
+}
+
 static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 		struct queue_properties *q)
 {
@@ -108,9 +114,6 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	m->cp_hqd_quantum = 1 << CP_HQD_QUANTUM__QUANTUM_EN__SHIFT |
 			1 << CP_HQD_QUANTUM__QUANTUM_SCALE__SHIFT |
 			10 << CP_HQD_QUANTUM__QUANTUM_DURATION__SHIFT;
-
-	m->cp_hqd_pipe_priority = 1;
-	m->cp_hqd_queue_priority = 15;
 
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
 		m->cp_hqd_aql_control =
@@ -208,6 +211,7 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 		m->cp_hqd_ctx_save_control = 0;
 
 	update_cu_mask(mm, mqd, q);
+	set_priority(m, q);
 
 	q->is_active = (q->queue_size > 0 &&
 			q->queue_address != 0 &&
