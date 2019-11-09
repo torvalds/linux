@@ -403,20 +403,16 @@ static int load_one_timing_from_dt(struct tegra_clk_emc *tegra,
 	}
 
 	timing->parent_index = 0xff;
-	for (i = 0; i < ARRAY_SIZE(emc_parent_clk_names); i++) {
-		if (!strcmp(emc_parent_clk_names[i],
-			    __clk_get_name(timing->parent))) {
-			timing->parent_index = i;
-			break;
-		}
-	}
-	if (timing->parent_index == 0xff) {
+	i = match_string(emc_parent_clk_names, ARRAY_SIZE(emc_parent_clk_names),
+			 __clk_get_name(timing->parent));
+	if (i < 0) {
 		pr_err("timing %pOF: %s is not a valid parent\n",
 		       node, __clk_get_name(timing->parent));
 		clk_put(timing->parent);
 		return -EINVAL;
 	}
 
+	timing->parent_index = i;
 	return 0;
 }
 
