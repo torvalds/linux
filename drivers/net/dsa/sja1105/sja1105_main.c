@@ -1349,9 +1349,15 @@ static void sja1105_bridge_leave(struct dsa_switch *ds, int port,
  */
 int sja1105_static_config_reload(struct sja1105_private *priv)
 {
+	struct ptp_system_timestamp ptp_sts_before;
+	struct ptp_system_timestamp ptp_sts_after;
 	struct sja1105_mac_config_entry *mac;
 	int speed_mbps[SJA1105_NUM_PORTS];
+	struct dsa_switch *ds = priv->ds;
+	s64 t1, t2, t3, t4;
+	s64 t12, t34;
 	int rc, i;
+	s64 now;
 
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
 
@@ -1365,10 +1371,37 @@ int sja1105_static_config_reload(struct sja1105_private *priv)
 		mac[i].speed = SJA1105_SPEED_AUTO;
 	}
 
+	/* No PTP operations can run right now */
+	mutex_lock(&priv->ptp_data.lock);
+
+	rc = __sja1105_ptp_gettimex(ds, &now, &ptp_sts_before);
+	if (rc < 0)
+		goto out_unlock_ptp;
+
 	/* Reset switch and send updated static configuration */
 	rc = sja1105_static_config_upload(priv);
 	if (rc < 0)
-		goto out;
+		goto out_unlock_ptp;
+
+	rc = __sja1105_ptp_settime(ds, 0, &ptp_sts_after);
+	if (rc < 0)
+		goto out_unlock_ptp;
+
+	t1 = timespec64_to_ns(&ptp_sts_before.pre_ts);
+	t2 = timespec64_to_ns(&ptp_sts_before.post_ts);
+	t3 = timespec64_to_ns(&ptp_sts_after.pre_ts);
+	t4 = timespec64_to_ns(&ptp_sts_after.post_ts);
+	/* Mid point, corresponds to pre-reset PTPCLKVAL */
+	t12 = t1 + (t2 - t1) / 2;
+	/* Mid point, corresponds to post-reset PTPCLKVAL, aka 0 */
+	t34 = t3 + (t4 - t3) / 2;
+	/* Advance PTPCLKVAL by the time it took since its readout */
+	now += (t34 - t12);
+
+	__sja1105_ptp_adjtime(ds, now);
+
+out_unlock_ptp:
+	mutex_unlock(&priv->ptp_data.lock);
 
 	/* Configure the CGU (PLLs) for MII and RMII PHYs.
 	 * For these interfaces there is no dynamic configuration

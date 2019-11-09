@@ -511,12 +511,6 @@ int sja1105_static_config_upload(struct sja1105_private *priv)
 		dev_info(dev, "Succeeded after %d tried\n", RETRIES - retries);
 	}
 
-	rc = sja1105_ptp_reset(priv->ds);
-	if (rc < 0)
-		dev_err(dev, "Failed to reset PTP clock: %d\n", rc);
-
-	dev_info(dev, "Reset switch and programmed static config\n");
-
 out:
 	kfree(config_buf);
 	return rc;
