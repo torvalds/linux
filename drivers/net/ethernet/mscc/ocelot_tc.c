@@ -58,7 +58,8 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port *port,
 					 PSCHED_NS2TICKS(action->police.burst),
 					 PSCHED_TICKS_PER_SEC);
 
-		err = ocelot_port_policer_add(port, &pol);
+		err = ocelot_port_policer_add(port->ocelot, port->chip_port,
+					      &pol);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack, "Could not add policer\n");
 			return err;
@@ -71,7 +72,7 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port *port,
 		if (port->tc.police_id != f->cookie)
 			return -ENOENT;
 
-		err = ocelot_port_policer_del(port);
+		err = ocelot_port_policer_del(port->ocelot, port->chip_port);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Could not delete policer\n");

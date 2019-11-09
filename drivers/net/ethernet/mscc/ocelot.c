@@ -133,11 +133,11 @@ static void ocelot_mact_init(struct ocelot *ocelot)
 	ocelot_write(ocelot, MACACCESS_CMD_INIT, ANA_TABLES_MACACCESS);
 }
 
-static void ocelot_vcap_enable(struct ocelot *ocelot, struct ocelot_port *port)
+static void ocelot_vcap_enable(struct ocelot *ocelot, int port)
 {
 	ocelot_write_gix(ocelot, ANA_PORT_VCAP_S2_CFG_S2_ENA |
 			 ANA_PORT_VCAP_S2_CFG_S2_IP6_CFG(0xa),
-			 ANA_PORT_VCAP_S2_CFG, port->chip_port);
+			 ANA_PORT_VCAP_S2_CFG, port);
 }
 
 static inline u32 ocelot_vlant_read_vlanaccess(struct ocelot *ocelot)
@@ -170,19 +170,17 @@ static int ocelot_vlant_set_mask(struct ocelot *ocelot, u16 vid, u32 mask)
 	return ocelot_vlant_wait_for_completion(ocelot);
 }
 
-static void ocelot_vlan_mode(struct ocelot_port *port,
+static void ocelot_vlan_mode(struct ocelot *ocelot, int port,
 			     netdev_features_t features)
 {
-	struct ocelot *ocelot = port->ocelot;
-	u8 p = port->chip_port;
 	u32 val;
 
 	/* Filtering */
 	val = ocelot_read(ocelot, ANA_VLANMASK);
 	if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
-		val |= BIT(p);
+		val |= BIT(port);
 	else
-		val &= ~BIT(p);
+		val &= ~BIT(port);
 	ocelot_write(ocelot, val, ANA_VLANMASK);
 }
 
@@ -1034,18 +1032,20 @@ static int ocelot_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 static int ocelot_set_features(struct net_device *dev,
 			       netdev_features_t features)
 {
-	struct ocelot_port *port = netdev_priv(dev);
 	netdev_features_t changed = dev->features ^ features;
+	struct ocelot_port *ocelot_port = netdev_priv(dev);
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = ocelot_port->chip_port;
 
 	if ((dev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
-	    port->tc.offload_cnt) {
+	    ocelot_port->tc.offload_cnt) {
 		netdev_err(dev,
 			   "Cannot disable HW TC offload while offloads active\n");
 		return -EBUSY;
 	}
 
 	if (changed & NETIF_F_HW_VLAN_CTAG_FILTER)
-		ocelot_vlan_mode(port, features);
+		ocelot_vlan_mode(ocelot, port, features);
 
 	return 0;
 }
@@ -1586,11 +1586,9 @@ static int ocelot_port_obj_del(struct net_device *dev,
 	return ret;
 }
 
-static int ocelot_port_bridge_join(struct ocelot_port *ocelot_port,
+static int ocelot_port_bridge_join(struct ocelot *ocelot, int port,
 				   struct net_device *bridge)
 {
-	struct ocelot *ocelot = ocelot_port->ocelot;
-
 	if (!ocelot->bridge_mask) {
 		ocelot->hw_bridge_dev = bridge;
 	} else {
@@ -1600,17 +1598,14 @@ static int ocelot_port_bridge_join(struct ocelot_port *ocelot_port,
 			return -ENODEV;
 	}
 
-	ocelot->bridge_mask |= BIT(ocelot_port->chip_port);
+	ocelot->bridge_mask |= BIT(port);
 
 	return 0;
 }
 
-static int ocelot_port_bridge_leave(struct ocelot_port *ocelot_port,
+static int ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 				    struct net_device *bridge)
 {
-	struct ocelot *ocelot = ocelot_port->ocelot;
-	int port = ocelot_port->chip_port;
-
 	ocelot->bridge_mask &= ~BIT(port);
 
 	if (!ocelot->bridge_mask)
@@ -1679,14 +1674,12 @@ static void ocelot_setup_lag(struct ocelot *ocelot, int lag)
 	}
 }
 
-static int ocelot_port_lag_join(struct ocelot_port *ocelot_port,
+static int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 				struct net_device *bond)
 {
-	struct ocelot *ocelot = ocelot_port->ocelot;
-	int p = ocelot_port->chip_port;
-	int lag, lp;
 	struct net_device *ndev;
 	u32 bond_mask = 0;
+	int lag, lp;
 
 	rcu_read_lock();
 	for_each_netdev_in_bond_rcu(bond, ndev) {
@@ -1701,17 +1694,17 @@ static int ocelot_port_lag_join(struct ocelot_port *ocelot_port,
 	/* If the new port is the lowest one, use it as the logical port from
 	 * now on
 	 */
-	if (p == lp) {
-		lag = p;
-		ocelot->lags[p] = bond_mask;
-		bond_mask &= ~BIT(p);
+	if (port == lp) {
+		lag = port;
+		ocelot->lags[port] = bond_mask;
+		bond_mask &= ~BIT(port);
 		if (bond_mask) {
 			lp = __ffs(bond_mask);
 			ocelot->lags[lp] = 0;
 		}
 	} else {
 		lag = lp;
-		ocelot->lags[lp] |= BIT(p);
+		ocelot->lags[lp] |= BIT(port);
 	}
 
 	ocelot_setup_lag(ocelot, lag);
@@ -1720,34 +1713,32 @@ static int ocelot_port_lag_join(struct ocelot_port *ocelot_port,
 	return 0;
 }
 
-static void ocelot_port_lag_leave(struct ocelot_port *ocelot_port,
+static void ocelot_port_lag_leave(struct ocelot *ocelot, int port,
 				  struct net_device *bond)
 {
-	struct ocelot *ocelot = ocelot_port->ocelot;
-	int p = ocelot_port->chip_port;
 	u32 port_cfg;
 	int i;
 
 	/* Remove port from any lag */
 	for (i = 0; i < ocelot->num_phys_ports; i++)
-		ocelot->lags[i] &= ~BIT(ocelot_port->chip_port);
+		ocelot->lags[i] &= ~BIT(port);
 
 	/* if it was the logical port of the lag, move the lag config to the
 	 * next port
 	 */
-	if (ocelot->lags[p]) {
-		int n = __ffs(ocelot->lags[p]);
+	if (ocelot->lags[port]) {
+		int n = __ffs(ocelot->lags[port]);
 
-		ocelot->lags[n] = ocelot->lags[p];
-		ocelot->lags[p] = 0;
+		ocelot->lags[n] = ocelot->lags[port];
+		ocelot->lags[port] = 0;
 
 		ocelot_setup_lag(ocelot, n);
 	}
 
-	port_cfg = ocelot_read_gix(ocelot, ANA_PORT_PORT_CFG, p);
+	port_cfg = ocelot_read_gix(ocelot, ANA_PORT_PORT_CFG, port);
 	port_cfg &= ~ANA_PORT_PORT_CFG_PORTID_VAL_M;
-	ocelot_write_gix(ocelot, port_cfg | ANA_PORT_PORT_CFG_PORTID_VAL(p),
-			 ANA_PORT_PORT_CFG, p);
+	ocelot_write_gix(ocelot, port_cfg | ANA_PORT_PORT_CFG_PORTID_VAL(port),
+			 ANA_PORT_PORT_CFG, port);
 
 	ocelot_set_aggr_pgids(ocelot);
 }
@@ -1763,24 +1754,26 @@ static int ocelot_netdevice_port_event(struct net_device *dev,
 				       struct netdev_notifier_changeupper_info *info)
 {
 	struct ocelot_port *ocelot_port = netdev_priv(dev);
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = ocelot_port->chip_port;
 	int err = 0;
 
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
 		if (netif_is_bridge_master(info->upper_dev)) {
 			if (info->linking)
-				err = ocelot_port_bridge_join(ocelot_port,
+				err = ocelot_port_bridge_join(ocelot, port,
 							      info->upper_dev);
 			else
-				err = ocelot_port_bridge_leave(ocelot_port,
+				err = ocelot_port_bridge_leave(ocelot, port,
 							       info->upper_dev);
 		}
 		if (netif_is_lag_master(info->upper_dev)) {
 			if (info->linking)
-				err = ocelot_port_lag_join(ocelot_port,
+				err = ocelot_port_lag_join(ocelot, port,
 							   info->upper_dev);
 			else
-				ocelot_port_lag_leave(ocelot_port,
+				ocelot_port_lag_leave(ocelot, port,
 						      info->upper_dev);
 		}
 		break;
@@ -2136,7 +2129,7 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 		       REW_PORT_VLAN_CFG, port);
 
 	/* Enable vcap lookups */
-	ocelot_vcap_enable(ocelot, ocelot_port);
+	ocelot_vcap_enable(ocelot, port);
 
 	return 0;
 
