@@ -1595,7 +1595,7 @@ static int get_wave_state(struct device_queue_manager *dqm,
 		goto dqm_unlock;
 	}
 
-	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_COMPUTE];
+	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_CP];
 
 	if (!mqd_mgr->get_wave_state) {
 		r = -EINVAL;

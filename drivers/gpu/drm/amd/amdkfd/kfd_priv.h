@@ -508,8 +508,7 @@ struct queue {
  * Please read the kfd_mqd_manager.h description.
  */
 enum KFD_MQD_TYPE {
-	KFD_MQD_TYPE_COMPUTE = 0,	/* for no cp scheduling */
-	KFD_MQD_TYPE_HIQ,		/* for hiq */
+	KFD_MQD_TYPE_HIQ = 0,		/* for hiq */
 	KFD_MQD_TYPE_CP,		/* for cp queues and diq */
 	KFD_MQD_TYPE_SDMA,		/* for sdma queues */
 	KFD_MQD_TYPE_DIQ,		/* for diq */
