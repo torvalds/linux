@@ -278,6 +278,7 @@ struct _vcs_dpi_display_output_params_st {
 	int output_type;
 	int output_format;
 	int dsc_slices;
+	int max_audio_sample_rate;
 	struct writeback_st wb;
 };
 

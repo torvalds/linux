@@ -2811,3 +2811,51 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 		return -1;
 	}
 }
+static unsigned int get_max_audio_sample_rate(struct audio_mode *modes)
+{
+	if (modes) {
+		if (modes->sample_rates.rate.RATE_192)
+			return 192000;
+		if (modes->sample_rates.rate.RATE_176_4)
+			return 176400;
+		if (modes->sample_rates.rate.RATE_96)
+			return 96000;
+		if (modes->sample_rates.rate.RATE_88_2)
+			return 88200;
+		if (modes->sample_rates.rate.RATE_48)
+			return 48000;
+		if (modes->sample_rates.rate.RATE_44_1)
+			return 44100;
+		if (modes->sample_rates.rate.RATE_32)
+			return 32000;
+	}
+	/*original logic when no audio info*/
+	return 441000;
+}
+
+void get_audio_check(struct audio_info *aud_modes,
+	struct audio_check *audio_chk)
+{
+	unsigned int i;
+	unsigned int max_sample_rate = 0;
+
+	if (aud_modes) {
+		audio_chk->audio_packet_type = 0x2;/*audio sample packet AP = .25 for layout0, 1 for layout1*/
+
+		audio_chk->max_audiosample_rate = 0;
+		for (i = 0; i < aud_modes->mode_count; i++) {
+			max_sample_rate = get_max_audio_sample_rate(&aud_modes->modes[i]);
+			if (audio_chk->max_audiosample_rate < max_sample_rate)
+				audio_chk->max_audiosample_rate = max_sample_rate;
+			/*dts takes the same as type 2: AP = 0.25*/
+		}
+		/*check which one take more bandwidth*/
+		if (audio_chk->max_audiosample_rate > 192000)
+			audio_chk->audio_packet_type = 0x9;/*AP =1*/
+		audio_chk->acat = 0;/*not support*/
+	}
+}
+
+
+
+

@@ -454,7 +454,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				dout->dp_lanes;
 		/* TODO: Needs to be set based on dout->audio.audio_sample_rate_khz/sample_layout */
 		mode_lib->vba.AudioSampleRate[mode_lib->vba.NumberOfActivePlanes] =
-			44.1 * 1000;
+			dout->max_audio_sample_rate;
 		mode_lib->vba.AudioSampleLayout[mode_lib->vba.NumberOfActivePlanes] =
 			1;
 		mode_lib->vba.DRAMClockChangeLatencyOverride = 0.0;

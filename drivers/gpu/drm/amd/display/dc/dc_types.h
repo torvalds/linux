@@ -598,7 +598,11 @@ struct audio_info {
 	/* this field must be last in this struct */
 	struct audio_mode modes[DC_MAX_AUDIO_DESC_COUNT];
 };
-
+struct audio_check {
+	unsigned int audio_packet_type;
+	unsigned int max_audiosample_rate;
+	unsigned int acat;
+};
 enum dc_infoframe_type {
 	DC_HDMI_INFOFRAME_TYPE_VENDOR = 0x81,
 	DC_HDMI_INFOFRAME_TYPE_AVI = 0x82,
