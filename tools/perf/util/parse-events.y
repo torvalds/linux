@@ -284,6 +284,7 @@ PE_NAME opt_pmu_config
 	do {						\
 		parse_events_terms__delete($2);		\
 		parse_events_terms__delete(orig_terms);	\
+		free(list);				\
 		free($1);				\
 		free(pattern);				\
 		YYABORT;				\
@@ -550,7 +551,7 @@ tracepoint_name opt_event_config
 	free($1.event);
 	if (err) {
 		free(list);
-		return -1;
+		YYABORT;
 	}
 	$$ = list;
 }
