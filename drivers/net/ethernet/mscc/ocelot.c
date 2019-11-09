@@ -389,7 +389,8 @@ static void ocelot_vlan_init(struct ocelot *ocelot)
 	/* Set vlan ingress filter mask to all ports but the CPU port by
 	 * default.
 	 */
-	ocelot_write(ocelot, GENMASK(9, 0), ANA_VLANMASK);
+	ocelot_write(ocelot, GENMASK(ocelot->num_phys_ports - 1, 0),
+		     ANA_VLANMASK);
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		ocelot_write_gix(ocelot, 0, REW_PORT_VLAN_CFG, port);
