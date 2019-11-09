@@ -289,6 +289,7 @@ struct amdgpu_gfx {
 	uint32_t			mec2_feature_version;
 	bool				mec_fw_write_wait;
 	bool				me_fw_write_wait;
+	bool				cp_fw_write_wait;
 	struct amdgpu_ring		gfx_ring[AMDGPU_MAX_GFX_RINGS];
 	unsigned			num_gfx_rings;
 	struct amdgpu_ring		compute_ring[AMDGPU_MAX_COMPUTE_RINGS];

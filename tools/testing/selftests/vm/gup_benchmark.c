@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 			flags |= MAP_SHARED;
 			break;
 		case 'H':
-			flags |= MAP_HUGETLB;
+			flags |= (MAP_HUGETLB | MAP_ANONYMOUS);
 			break;
 		default:
 			return -1;
