@@ -2913,15 +2913,30 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.rotation = pipe_ctx->plane_state->rotation,
 		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
-	uint32_t x_plane = pipe_ctx->plane_state->dst_rect.x;
-	uint32_t y_plane = pipe_ctx->plane_state->dst_rect.y;
-	uint32_t x_offset = min(x_plane, pos_cpy.x);
-	uint32_t y_offset = min(y_plane, pos_cpy.y);
 
-	pos_cpy.x -= x_offset;
-	pos_cpy.y -= y_offset;
-	pos_cpy.x_hotspot += (x_plane - x_offset);
-	pos_cpy.y_hotspot += (y_plane - y_offset);
+	int x_plane = pipe_ctx->plane_state->dst_rect.x;
+	int y_plane = pipe_ctx->plane_state->dst_rect.y;
+	int x_pos = pos_cpy.x;
+	int y_pos = pos_cpy.y;
+
+	// translate cursor from stream space to plane space
+	x_pos = (x_pos - x_plane) * pipe_ctx->plane_state->src_rect.width /
+			pipe_ctx->plane_state->dst_rect.width;
+	y_pos = (y_pos - y_plane) * pipe_ctx->plane_state->src_rect.height /
+			pipe_ctx->plane_state->dst_rect.height;
+
+	if (x_pos < 0) {
+		pos_cpy.x_hotspot -= x_pos;
+		x_pos = 0;
+	}
+
+	if (y_pos < 0) {
+		pos_cpy.y_hotspot -= y_pos;
+		y_pos = 0;
+	}
+
+	pos_cpy.x = (uint32_t)x_pos;
+	pos_cpy.y = (uint32_t)y_pos;
 
 	if (pipe_ctx->plane_state->address.type
 			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
