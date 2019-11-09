@@ -562,60 +562,53 @@ int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
 			irq->level, irq->trig_mode, dest_map);
 }
 
+static int __pv_send_ipi(unsigned long *ipi_bitmap, struct kvm_apic_map *map,
+			 struct kvm_lapic_irq *irq, u32 min)
+{
+	int i, count = 0;
+	struct kvm_vcpu *vcpu;
+
+	if (min > map->max_apic_id)
+		return 0;
+
+	for_each_set_bit(i, ipi_bitmap,
+		min((u32)BITS_PER_LONG, (map->max_apic_id - min + 1))) {
+		if (map->phys_map[min + i]) {
+			vcpu = map->phys_map[min + i]->vcpu;
+			count += kvm_apic_set_irq(vcpu, irq, NULL);
+		}
+	}
+
+	return count;
+}
+
 int kvm_pv_send_ipi(struct kvm *kvm, unsigned long ipi_bitmap_low,
 		    unsigned long ipi_bitmap_high, u32 min,
 		    unsigned long icr, int op_64_bit)
 {
-	int i;
 	struct kvm_apic_map *map;
-	struct kvm_vcpu *vcpu;
 	struct kvm_lapic_irq irq = {0};
 	int cluster_size = op_64_bit ? 64 : 32;
-	int count = 0;
+	int count;
+
+	if (icr & (APIC_DEST_MASK | APIC_SHORT_MASK))
+		return -KVM_EINVAL;
 
 	irq.vector = icr & APIC_VECTOR_MASK;
 	irq.delivery_mode = icr & APIC_MODE_MASK;
 	irq.level = (icr & APIC_INT_ASSERT) != 0;
 	irq.trig_mode = icr & APIC_INT_LEVELTRIG;
 
-	if (icr & APIC_DEST_MASK)
-		return -KVM_EINVAL;
-	if (icr & APIC_SHORT_MASK)
-		return -KVM_EINVAL;
-
 	rcu_read_lock();
 	map = rcu_dereference(kvm->arch.apic_map);
 
-	if (unlikely(!map)) {
-		count = -EOPNOTSUPP;
-		goto out;
+	count = -EOPNOTSUPP;
+	if (likely(map)) {
+		count = __pv_send_ipi(&ipi_bitmap_low, map, &irq, min);
+		min += cluster_size;
+		count += __pv_send_ipi(&ipi_bitmap_high, map, &irq, min);
 	}
 
-	if (min > map->max_apic_id)
-		goto out;
-	/* Bits above cluster_size are masked in the caller.  */
-	for_each_set_bit(i, &ipi_bitmap_low,
-		min((u32)BITS_PER_LONG, (map->max_apic_id - min + 1))) {
-		if (map->phys_map[min + i]) {
-			vcpu = map->phys_map[min + i]->vcpu;
-			count += kvm_apic_set_irq(vcpu, &irq, NULL);
-		}
-	}
-
-	min += cluster_size;
-
-	if (min > map->max_apic_id)
-		goto out;
-
-	for_each_set_bit(i, &ipi_bitmap_high,
-		min((u32)BITS_PER_LONG, (map->max_apic_id - min + 1))) {
-		if (map->phys_map[min + i]) {
-			vcpu = map->phys_map[min + i]->vcpu;
-			count += kvm_apic_set_irq(vcpu, &irq, NULL);
-		}
-	}
-
-out:
 	rcu_read_unlock();
 	return count;
 }
