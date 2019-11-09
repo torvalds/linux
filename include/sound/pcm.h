@@ -1236,14 +1236,6 @@ static inline int snd_pcm_lib_alloc_vmalloc_32_buffer
  */
 #define snd_pcm_substream_sgbuf(substream) \
 	snd_pcm_get_dma_buf(substream)->private_data
-
-struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream,
-				    unsigned long offset);
-#else /* !SND_DMA_SGBUF */
-/*
- * fake using a continuous buffer
- */
-#define snd_pcm_sgbuf_ops_page	NULL
 #endif /* SND_DMA_SGBUF */
 
 /**

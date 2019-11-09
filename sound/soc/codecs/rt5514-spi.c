@@ -219,8 +219,7 @@ static int rt5514_spi_hw_params(struct snd_soc_component *component,
 	u8 buf[8];
 
 	mutex_lock(&rt5514_dsp->dma_lock);
-	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-			params_buffer_bytes(hw_params));
+	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 	rt5514_dsp->substream = substream;
 	rt5514_dsp->dma_offset = 0;
 
@@ -246,7 +245,7 @@ static int rt5514_spi_hw_free(struct snd_soc_component *component,
 
 	cancel_delayed_work_sync(&rt5514_dsp->copy_work);
 
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	return snd_pcm_lib_free_pages(substream);
 }
 
 static snd_pcm_uframes_t rt5514_spi_pcm_pointer(
@@ -260,12 +259,6 @@ static snd_pcm_uframes_t rt5514_spi_pcm_pointer(
 	return bytes_to_frames(runtime, rt5514_dsp->dma_offset);
 }
 
-static struct page *rt5514_spi_pcm_page(struct snd_soc_component *component,
-					struct snd_pcm_substream *substream,
-					unsigned long offset)
-{
-	return snd_pcm_lib_get_vmalloc_page(substream, offset);
-}
 
 static int rt5514_spi_pcm_probe(struct snd_soc_component *component)
 {
@@ -298,6 +291,14 @@ static int rt5514_spi_pcm_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+static int rt5514_spi_pcm_new(struct snd_soc_component *component,
+			      struct snd_soc_pcm_runtime *rtd)
+{
+	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm, SNDRV_DMA_TYPE_VMALLOC,
+					      NULL, 0, 0);
+	return 0;
+}
+
 static const struct snd_soc_component_driver rt5514_spi_component = {
 	.name		= DRV_NAME,
 	.probe		= rt5514_spi_pcm_probe,
@@ -305,7 +306,7 @@ static const struct snd_soc_component_driver rt5514_spi_component = {
 	.hw_params	= rt5514_spi_hw_params,
 	.hw_free	= rt5514_spi_hw_free,
 	.pointer	= rt5514_spi_pcm_pointer,
-	.page		= rt5514_spi_pcm_page,
+	.pcm_construct	= rt5514_spi_pcm_new,
 };
 
 /**
