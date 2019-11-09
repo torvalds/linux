@@ -410,15 +410,13 @@ static u16 ocelot_wm_enc(u16 value)
 	return value;
 }
 
-static void ocelot_port_adjust_link(struct net_device *dev)
+static void ocelot_adjust_link(struct ocelot *ocelot, int port,
+			       struct phy_device *phydev)
 {
-	struct ocelot_port_private *priv = netdev_priv(dev);
-	struct ocelot_port *ocelot_port = &priv->port;
-	struct ocelot *ocelot = ocelot_port->ocelot;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	int speed, atop_wm, mode = 0;
-	u8 port = priv->chip_port;
 
-	switch (dev->phydev->speed) {
+	switch (phydev->speed) {
 	case SPEED_10:
 		speed = OCELOT_SPEED_10;
 		break;
@@ -434,14 +432,14 @@ static void ocelot_port_adjust_link(struct net_device *dev)
 		mode = DEV_MAC_MODE_CFG_GIGA_MODE_ENA;
 		break;
 	default:
-		netdev_err(dev, "Unsupported PHY speed: %d\n",
-			   dev->phydev->speed);
+		dev_err(ocelot->dev, "Unsupported PHY speed on port %d: %d\n",
+			port, phydev->speed);
 		return;
 	}
 
-	phy_print_status(dev->phydev);
+	phy_print_status(phydev);
 
-	if (!dev->phydev->link)
+	if (!phydev->link)
 		return;
 
 	/* Only full duplex supported for now */
@@ -534,6 +532,15 @@ static void ocelot_port_adjust_link(struct net_device *dev)
 	ocelot_write_rix(ocelot, ocelot_wm_enc(9 * VLAN_ETH_FRAME_LEN),
 			 SYS_ATOP, port);
 	ocelot_write(ocelot, ocelot_wm_enc(atop_wm), SYS_ATOP_TOT_CFG);
+}
+
+static void ocelot_port_adjust_link(struct net_device *dev)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
+
+	ocelot_adjust_link(ocelot, port, dev->phydev);
 }
 
 static void ocelot_port_enable(struct ocelot *ocelot, int port,
