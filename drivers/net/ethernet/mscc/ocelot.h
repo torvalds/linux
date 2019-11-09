@@ -427,6 +427,13 @@ struct ocelot_multicast {
 	u16 ports;
 };
 
+enum ocelot_tag_prefix {
+	OCELOT_TAG_PREFIX_DISABLED	= 0,
+	OCELOT_TAG_PREFIX_NONE,
+	OCELOT_TAG_PREFIX_SHORT,
+	OCELOT_TAG_PREFIX_LONG,
+};
+
 struct ocelot_port;
 
 struct ocelot_stat_layout {
@@ -455,6 +462,7 @@ struct ocelot {
 
 	u8 num_phys_ports;
 	u8 num_cpu_ports;
+	u8 cpu;
 	struct ocelot_port **ports;
 
 	u32 *lags;
@@ -551,6 +559,10 @@ int ocelot_chip_init(struct ocelot *ocelot);
 int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 		      void __iomem *regs,
 		      struct phy_device *phy);
+
+void ocelot_set_cpu_port(struct ocelot *ocelot, int cpu,
+			 enum ocelot_tag_prefix injection,
+			 enum ocelot_tag_prefix extraction);
 
 extern struct notifier_block ocelot_netdevice_nb;
 extern struct notifier_block ocelot_switchdev_nb;

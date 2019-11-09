@@ -365,6 +365,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 				     sizeof(struct ocelot_port *), GFP_KERNEL);
 
 	ocelot_init(ocelot);
+	ocelot_set_cpu_port(ocelot, ocelot->num_phys_ports,
+			    OCELOT_TAG_PREFIX_NONE, OCELOT_TAG_PREFIX_NONE);
 
 	for_each_available_child_of_node(ports, portnp) {
 		struct ocelot_port_private *priv;

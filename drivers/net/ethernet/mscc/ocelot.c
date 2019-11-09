@@ -380,12 +380,6 @@ static void ocelot_vlan_init(struct ocelot *ocelot)
 	ocelot->vlan_mask[0] = GENMASK(ocelot->num_phys_ports - 1, 0);
 	ocelot_vlant_set_mask(ocelot, 0, ocelot->vlan_mask[0]);
 
-	/* Configure the CPU port to be VLAN aware */
-	ocelot_write_gix(ocelot, ANA_PORT_VLAN_CFG_VLAN_VID(0) |
-				 ANA_PORT_VLAN_CFG_VLAN_AWARE_ENA |
-				 ANA_PORT_VLAN_CFG_VLAN_POP_CNT(1),
-			 ANA_PORT_VLAN_CFG, ocelot->num_phys_ports);
-
 	/* Set vlan ingress filter mask to all ports but the CPU port by
 	 * default.
 	 */
@@ -2224,11 +2218,52 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 }
 EXPORT_SYMBOL(ocelot_probe_port);
 
+void ocelot_set_cpu_port(struct ocelot *ocelot, int cpu,
+			 enum ocelot_tag_prefix injection,
+			 enum ocelot_tag_prefix extraction)
+{
+	/* Configure and enable the CPU port. */
+	ocelot_write_rix(ocelot, 0, ANA_PGID_PGID, cpu);
+	ocelot_write_rix(ocelot, BIT(cpu), ANA_PGID_PGID, PGID_CPU);
+	ocelot_write_gix(ocelot, ANA_PORT_PORT_CFG_RECV_ENA |
+			 ANA_PORT_PORT_CFG_PORTID_VAL(cpu),
+			 ANA_PORT_PORT_CFG, cpu);
+
+	/* If the CPU port is a physical port, set up the port in Node
+	 * Processor Interface (NPI) mode. This is the mode through which
+	 * frames can be injected from and extracted to an external CPU.
+	 * Only one port can be an NPI at the same time.
+	 */
+	if (cpu < ocelot->num_phys_ports) {
+		ocelot_write(ocelot, QSYS_EXT_CPU_CFG_EXT_CPUQ_MSK_M |
+			     QSYS_EXT_CPU_CFG_EXT_CPU_PORT(cpu),
+			     QSYS_EXT_CPU_CFG);
+	}
+
+	/* CPU port Injection/Extraction configuration */
+	ocelot_write_rix(ocelot, QSYS_SWITCH_PORT_MODE_INGRESS_DROP_MODE |
+			 QSYS_SWITCH_PORT_MODE_SCH_NEXT_CFG(1) |
+			 QSYS_SWITCH_PORT_MODE_PORT_ENA,
+			 QSYS_SWITCH_PORT_MODE, cpu);
+	ocelot_write_rix(ocelot, SYS_PORT_MODE_INCL_XTR_HDR(extraction) |
+			 SYS_PORT_MODE_INCL_INJ_HDR(injection),
+			 SYS_PORT_MODE, cpu);
+
+	/* Configure the CPU port to be VLAN aware */
+	ocelot_write_gix(ocelot, ANA_PORT_VLAN_CFG_VLAN_VID(0) |
+				 ANA_PORT_VLAN_CFG_VLAN_AWARE_ENA |
+				 ANA_PORT_VLAN_CFG_VLAN_POP_CNT(1),
+			 ANA_PORT_VLAN_CFG, cpu);
+
+	ocelot->cpu = cpu;
+}
+EXPORT_SYMBOL(ocelot_set_cpu_port);
+
 int ocelot_init(struct ocelot *ocelot)
 {
-	u32 port;
-	int i, ret, cpu = ocelot->num_phys_ports;
 	char queue_name[32];
+	int i, ret;
+	u32 port;
 
 	ocelot->lags = devm_kcalloc(ocelot->dev, ocelot->num_phys_ports,
 				    sizeof(u32), GFP_KERNEL);
@@ -2308,13 +2343,6 @@ int ocelot_init(struct ocelot *ocelot)
 		ocelot_write_rix(ocelot, 0, ANA_PGID_PGID, PGID_SRC + port);
 	}
 
-	/* Configure and enable the CPU port. */
-	ocelot_write_rix(ocelot, 0, ANA_PGID_PGID, cpu);
-	ocelot_write_rix(ocelot, BIT(cpu), ANA_PGID_PGID, PGID_CPU);
-	ocelot_write_gix(ocelot, ANA_PORT_PORT_CFG_RECV_ENA |
-			 ANA_PORT_PORT_CFG_PORTID_VAL(cpu),
-			 ANA_PORT_PORT_CFG, cpu);
-
 	/* Allow broadcast MAC frames. */
 	for (i = ocelot->num_phys_ports + 1; i < PGID_CPU; i++) {
 		u32 val = ANA_PGID_PGID_PGID(GENMASK(ocelot->num_phys_ports - 1, 0));
@@ -2327,13 +2355,6 @@ int ocelot_init(struct ocelot *ocelot)
 	ocelot_write_rix(ocelot, 0, ANA_PGID_PGID, PGID_MCIPV4);
 	ocelot_write_rix(ocelot, 0, ANA_PGID_PGID, PGID_MCIPV6);
 
-	/* CPU port Injection/Extraction configuration */
-	ocelot_write_rix(ocelot, QSYS_SWITCH_PORT_MODE_INGRESS_DROP_MODE |
-			 QSYS_SWITCH_PORT_MODE_SCH_NEXT_CFG(1) |
-			 QSYS_SWITCH_PORT_MODE_PORT_ENA,
-			 QSYS_SWITCH_PORT_MODE, cpu);
-	ocelot_write_rix(ocelot, SYS_PORT_MODE_INCL_XTR_HDR(1) |
-			 SYS_PORT_MODE_INCL_INJ_HDR(1), SYS_PORT_MODE, cpu);
 	/* Allow manual injection via DEVCPU_QS registers, and byte swap these
 	 * registers endianness.
 	 */
