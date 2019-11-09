@@ -1086,6 +1086,17 @@ static void rtl_w0w1_phy(struct rtl8169_private *tp, int reg_addr, int p, int m)
 	rtl_writephy(tp, reg_addr, (val & ~m) | p);
 }
 
+static void r8168d_phy_param(struct phy_device *phydev, u16 parm,
+			     u16 mask, u16 val)
+{
+	int oldpage = phy_select_page(phydev, 0x0005);
+
+	__phy_write(phydev, 0x05, parm);
+	__phy_modify(phydev, 0x06, mask, val);
+
+	phy_restore_page(phydev, oldpage, 0);
+}
+
 static void r8168g_phy_param(struct phy_device *phydev, u16 parm,
 			     u16 mask, u16 val)
 {
@@ -2295,12 +2306,9 @@ static void rtl8168f_config_eee_phy(struct rtl8169_private *tp)
 	phy_write(phydev, 0x1f, 0x0007);
 	phy_write(phydev, 0x1e, 0x0020);
 	phy_set_bits(phydev, 0x15, BIT(8));
-
-	phy_write(phydev, 0x1f, 0x0005);
-	phy_write(phydev, 0x05, 0x8b85);
-	phy_set_bits(phydev, 0x06, BIT(13));
-
 	phy_write(phydev, 0x1f, 0x0000);
+
+	r8168d_phy_param(phydev, 0x8b85, 0, BIT(13));
 }
 
 static void rtl8168g_config_eee_phy(struct rtl8169_private *tp)
@@ -2738,15 +2746,8 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp)
 				rtl_writephy(tp, 0x0d, val | set[i]);
 		}
 	} else {
-		static const struct phy_reg phy_reg_init[] = {
-			{ 0x1f, 0x0002 },
-			{ 0x05, 0x6662 },
-			{ 0x1f, 0x0005 },
-			{ 0x05, 0x8330 },
-			{ 0x06, 0x6662 }
-		};
-
-		rtl_writephy_batch(tp, phy_reg_init);
+		phy_write_paged(tp->phydev, 0x0002, 0x05, 0x6662);
+		r8168d_phy_param(tp->phydev, 0x8330, 0xffff, 0x6662);
 	}
 
 	/* RSET couple improve */
@@ -2791,15 +2792,8 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp)
 				rtl_writephy(tp, 0x0d, val | set[i]);
 		}
 	} else {
-		static const struct phy_reg phy_reg_init[] = {
-			{ 0x1f, 0x0002 },
-			{ 0x05, 0x2642 },
-			{ 0x1f, 0x0005 },
-			{ 0x05, 0x8330 },
-			{ 0x06, 0x2642 }
-		};
-
-		rtl_writephy_batch(tp, phy_reg_init);
+		phy_write_paged(tp->phydev, 0x0002, 0x05, 0x2642);
+		r8168d_phy_param(tp->phydev, 0x8330, 0xffff, 0x2642);
 	}
 
 	/* Fine tune PLL performance */
@@ -2899,12 +2893,6 @@ static void rtl8168d_4_hw_phy_config(struct rtl8169_private *tp)
 static void rtl8168e_1_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
-		/* Enable Delay cap */
-		{ 0x1f, 0x0005 },
-		{ 0x05, 0x8b80 },
-		{ 0x06, 0xc896 },
-		{ 0x1f, 0x0000 },
-
 		/* Channel estimation fine tune */
 		{ 0x1f, 0x0001 },
 		{ 0x0b, 0x6c20 },
@@ -2925,8 +2913,12 @@ static void rtl8168e_1_hw_phy_config(struct rtl8169_private *tp)
 		{ 0x18, 0x0006 },
 		{ 0x1f, 0x0000 }
 	};
+	struct phy_device *phydev = tp->phydev;
 
 	rtl_apply_firmware(tp);
+
+	/* Enable Delay cap */
+	r8168d_phy_param(phydev, 0x8b80, 0xffff, 0xc896);
 
 	rtl_writephy_batch(tp, phy_reg_init);
 
@@ -2948,25 +2940,17 @@ static void rtl8168e_1_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0000);
 	rtl_w0w1_phy(tp, 0x14, 0x8000, 0x0000);
 
-	rtl_writephy(tp, 0x1f, 0x0005);
-	rtl_writephy(tp, 0x05, 0x8b86);
-	rtl_w0w1_phy(tp, 0x06, 0x0001, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_phy_param(phydev, 0x8b86, 0x0000, 0x0001);
+	r8168d_phy_param(phydev, 0x8b85, 0x2000, 0x0000);
 
-	rtl_writephy(tp, 0x1f, 0x0005);
-	rtl_writephy(tp, 0x05, 0x8b85);
-	rtl_w0w1_phy(tp, 0x06, 0x0000, 0x2000);
 	rtl_writephy(tp, 0x1f, 0x0007);
 	rtl_writephy(tp, 0x1e, 0x0020);
 	rtl_w0w1_phy(tp, 0x15, 0x0000, 0x1100);
 	rtl_writephy(tp, 0x1f, 0x0006);
 	rtl_writephy(tp, 0x00, 0x5a00);
 	rtl_writephy(tp, 0x1f, 0x0000);
-	rtl_writephy(tp, 0x0d, 0x0007);
-	rtl_writephy(tp, 0x0e, 0x003c);
-	rtl_writephy(tp, 0x0d, 0x4007);
-	rtl_writephy(tp, 0x0e, 0x0000);
-	rtl_writephy(tp, 0x0d, 0x0000);
+
+	phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, 0x0000);
 }
 
 static void rtl_rar_exgmac_set(struct rtl8169_private *tp, u8 *addr)
@@ -3000,21 +2984,17 @@ static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 		{ 0x09, 0xa20f },
 		{ 0x1f, 0x0000 },
 		{ 0x1f, 0x0000 },
-
-		/* Green Setting */
-		{ 0x1f, 0x0005 },
-		{ 0x05, 0x8b5b },
-		{ 0x06, 0x9222 },
-		{ 0x05, 0x8b6d },
-		{ 0x06, 0x8000 },
-		{ 0x05, 0x8b76 },
-		{ 0x06, 0x8000 },
-		{ 0x1f, 0x0000 }
 	};
+	struct phy_device *phydev = tp->phydev;
 
 	rtl_apply_firmware(tp);
 
 	rtl_writephy_batch(tp, phy_reg_init);
+
+	/* Green Setting */
+	r8168d_phy_param(phydev, 0x8b5b, 0xffff, 0x9222);
+	r8168d_phy_param(phydev, 0x8b6d, 0xffff, 0x8000);
+	r8168d_phy_param(phydev, 0x8b76, 0xffff, 0x8000);
 
 	/* For 4-corner performance improve */
 	rtl_writephy(tp, 0x1f, 0x0005);
@@ -3032,16 +3012,10 @@ static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 	rtl_w0w1_phy(tp, 0x14, 0x8000, 0x0000);
 
 	/* improve 10M EEE waveform */
-	rtl_writephy(tp, 0x1f, 0x0005);
-	rtl_writephy(tp, 0x05, 0x8b86);
-	rtl_w0w1_phy(tp, 0x06, 0x0001, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_phy_param(phydev, 0x8b86, 0x0000, 0x0001);
 
 	/* Improve 2-pair detection performance */
-	rtl_writephy(tp, 0x1f, 0x0005);
-	rtl_writephy(tp, 0x05, 0x8b85);
-	rtl_w0w1_phy(tp, 0x06, 0x4000, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_phy_param(phydev, 0x8b85, 0x0000, 0x4000);
 
 	rtl8168f_config_eee_phy(tp);
 	rtl_enable_eee(tp);
@@ -3061,11 +3035,10 @@ static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 
 static void rtl8168f_hw_phy_config(struct rtl8169_private *tp)
 {
+	struct phy_device *phydev = tp->phydev;
+
 	/* For 4-corner performance improve */
-	rtl_writephy(tp, 0x1f, 0x0005);
-	rtl_writephy(tp, 0x05, 0x8b80);
-	rtl_w0w1_phy(tp, 0x06, 0x0006, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_phy_param(phydev, 0x8b80, 0x0000, 0x0006);
 
 	/* PHY auto speed down */
 	rtl_writephy(tp, 0x1f, 0x0007);
@@ -3075,10 +3048,7 @@ static void rtl8168f_hw_phy_config(struct rtl8169_private *tp)
 	rtl_w0w1_phy(tp, 0x14, 0x8000, 0x0000);
 
 	/* Improve 10M EEE waveform */
-	rtl_writephy(tp, 0x1f, 0x0005);
-	rtl_writephy(tp, 0x05, 0x8b86);
-	rtl_w0w1_phy(tp, 0x06, 0x0001, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_phy_param(phydev, 0x8b86, 0x0000, 0x0001);
 
 	rtl8168f_config_eee_phy(tp);
 	rtl_enable_eee(tp);
@@ -3086,52 +3056,34 @@ static void rtl8168f_hw_phy_config(struct rtl8169_private *tp)
 
 static void rtl8168f_1_hw_phy_config(struct rtl8169_private *tp)
 {
-	static const struct phy_reg phy_reg_init[] = {
-		/* Channel estimation fine tune */
-		{ 0x1f, 0x0003 },
-		{ 0x09, 0xa20f },
-		{ 0x1f, 0x0000 },
-
-		/* Modify green table for giga & fnet */
-		{ 0x1f, 0x0005 },
-		{ 0x05, 0x8b55 },
-		{ 0x06, 0x0000 },
-		{ 0x05, 0x8b5e },
-		{ 0x06, 0x0000 },
-		{ 0x05, 0x8b67 },
-		{ 0x06, 0x0000 },
-		{ 0x05, 0x8b70 },
-		{ 0x06, 0x0000 },
-		{ 0x1f, 0x0000 },
-		{ 0x1f, 0x0007 },
-		{ 0x1e, 0x0078 },
-		{ 0x17, 0x0000 },
-		{ 0x19, 0x00fb },
-		{ 0x1f, 0x0000 },
-
-		/* Modify green table for 10M */
-		{ 0x1f, 0x0005 },
-		{ 0x05, 0x8b79 },
-		{ 0x06, 0xaa00 },
-		{ 0x1f, 0x0000 },
-
-		/* Disable hiimpedance detection (RTCT) */
-		{ 0x1f, 0x0003 },
-		{ 0x01, 0x328a },
-		{ 0x1f, 0x0000 }
-	};
+	struct phy_device *phydev = tp->phydev;
 
 	rtl_apply_firmware(tp);
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	/* Channel estimation fine tune */
+	phy_write_paged(phydev, 0x0003, 0x09, 0xa20f);
+
+	/* Modify green table for giga & fnet */
+	r8168d_phy_param(phydev, 0x8b55, 0xffff, 0x0000);
+	r8168d_phy_param(phydev, 0x8b5e, 0xffff, 0x0000);
+	r8168d_phy_param(phydev, 0x8b67, 0xffff, 0x0000);
+	r8168d_phy_param(phydev, 0x8b70, 0xffff, 0x0000);
+	phy_write(phydev, 0x1f, 0x0007);
+	phy_write(phydev, 0x1e, 0x0078);
+	phy_write(phydev, 0x17, 0x0000);
+	phy_write(phydev, 0x19, 0x00fb);
+	phy_write(phydev, 0x1f, 0x0000);
+
+	/* Modify green table for 10M */
+	r8168d_phy_param(phydev, 0x8b79, 0xffff, 0xaa00);
+
+	/* Disable hiimpedance detection (RTCT) */
+	phy_write_paged(phydev, 0x0003, 0x01, 0x328a);
 
 	rtl8168f_hw_phy_config(tp);
 
 	/* Improve 2-pair detection performance */
-	rtl_writephy(tp, 0x1f, 0x0005);
-	rtl_writephy(tp, 0x05, 0x8b85);
-	rtl_w0w1_phy(tp, 0x06, 0x4000, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_phy_param(phydev, 0x8b85, 0x0000, 0x4000);
 }
 
 static void rtl8168f_2_hw_phy_config(struct rtl8169_private *tp)
@@ -3143,77 +3095,46 @@ static void rtl8168f_2_hw_phy_config(struct rtl8169_private *tp)
 
 static void rtl8411_hw_phy_config(struct rtl8169_private *tp)
 {
-	static const struct phy_reg phy_reg_init[] = {
-		/* Channel estimation fine tune */
-		{ 0x1f, 0x0003 },
-		{ 0x09, 0xa20f },
-		{ 0x1f, 0x0000 },
-
-		/* Modify green table for giga & fnet */
-		{ 0x1f, 0x0005 },
-		{ 0x05, 0x8b55 },
-		{ 0x06, 0x0000 },
-		{ 0x05, 0x8b5e },
-		{ 0x06, 0x0000 },
-		{ 0x05, 0x8b67 },
-		{ 0x06, 0x0000 },
-		{ 0x05, 0x8b70 },
-		{ 0x06, 0x0000 },
-		{ 0x1f, 0x0000 },
-		{ 0x1f, 0x0007 },
-		{ 0x1e, 0x0078 },
-		{ 0x17, 0x0000 },
-		{ 0x19, 0x00aa },
-		{ 0x1f, 0x0000 },
-
-		/* Modify green table for 10M */
-		{ 0x1f, 0x0005 },
-		{ 0x05, 0x8b79 },
-		{ 0x06, 0xaa00 },
-		{ 0x1f, 0x0000 },
-
-		/* Disable hiimpedance detection (RTCT) */
-		{ 0x1f, 0x0003 },
-		{ 0x01, 0x328a },
-		{ 0x1f, 0x0000 }
-	};
-
+	struct phy_device *phydev = tp->phydev;
 
 	rtl_apply_firmware(tp);
 
 	rtl8168f_hw_phy_config(tp);
 
 	/* Improve 2-pair detection performance */
-	rtl_writephy(tp, 0x1f, 0x0005);
-	rtl_writephy(tp, 0x05, 0x8b85);
-	rtl_w0w1_phy(tp, 0x06, 0x4000, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_phy_param(phydev, 0x8b85, 0x0000, 0x4000);
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	/* Channel estimation fine tune */
+	phy_write_paged(phydev, 0x0003, 0x09, 0xa20f);
+
+	/* Modify green table for giga & fnet */
+	r8168d_phy_param(phydev, 0x8b55, 0xffff, 0x0000);
+	r8168d_phy_param(phydev, 0x8b5e, 0xffff, 0x0000);
+	r8168d_phy_param(phydev, 0x8b67, 0xffff, 0x0000);
+	r8168d_phy_param(phydev, 0x8b70, 0xffff, 0x0000);
+	phy_write(phydev, 0x1f, 0x0007);
+	phy_write(phydev, 0x1e, 0x0078);
+	phy_write(phydev, 0x17, 0x0000);
+	phy_write(phydev, 0x19, 0x00aa);
+	phy_write(phydev, 0x1f, 0x0000);
+
+	/* Modify green table for 10M */
+	r8168d_phy_param(phydev, 0x8b79, 0xffff, 0xaa00);
+
+	/* Disable hiimpedance detection (RTCT) */
+	phy_write_paged(phydev, 0x0003, 0x01, 0x328a);
 
 	/* Modify green table for giga */
-	rtl_writephy(tp, 0x1f, 0x0005);
-	rtl_writephy(tp, 0x05, 0x8b54);
-	rtl_w0w1_phy(tp, 0x06, 0x0000, 0x0800);
-	rtl_writephy(tp, 0x05, 0x8b5d);
-	rtl_w0w1_phy(tp, 0x06, 0x0000, 0x0800);
-	rtl_writephy(tp, 0x05, 0x8a7c);
-	rtl_w0w1_phy(tp, 0x06, 0x0000, 0x0100);
-	rtl_writephy(tp, 0x05, 0x8a7f);
-	rtl_w0w1_phy(tp, 0x06, 0x0100, 0x0000);
-	rtl_writephy(tp, 0x05, 0x8a82);
-	rtl_w0w1_phy(tp, 0x06, 0x0000, 0x0100);
-	rtl_writephy(tp, 0x05, 0x8a85);
-	rtl_w0w1_phy(tp, 0x06, 0x0000, 0x0100);
-	rtl_writephy(tp, 0x05, 0x8a88);
-	rtl_w0w1_phy(tp, 0x06, 0x0000, 0x0100);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_phy_param(phydev, 0x8b54, 0x0800, 0x0000);
+	r8168d_phy_param(phydev, 0x8b5d, 0x0800, 0x0000);
+	r8168d_phy_param(phydev, 0x8a7c, 0x0100, 0x0000);
+	r8168d_phy_param(phydev, 0x8a7f, 0x0000, 0x0100);
+	r8168d_phy_param(phydev, 0x8a82, 0x0100, 0x0000);
+	r8168d_phy_param(phydev, 0x8a85, 0x0100, 0x0000);
+	r8168d_phy_param(phydev, 0x8a88, 0x0100, 0x0000);
 
 	/* uc same-seed solution */
-	rtl_writephy(tp, 0x1f, 0x0005);
-	rtl_writephy(tp, 0x05, 0x8b85);
-	rtl_w0w1_phy(tp, 0x06, 0x8000, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	r8168d_phy_param(phydev, 0x8b85, 0x0000, 0x8000);
 
 	/* Green feature */
 	rtl_writephy(tp, 0x1f, 0x0003);
