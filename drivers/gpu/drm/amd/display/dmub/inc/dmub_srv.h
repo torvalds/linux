@@ -416,7 +416,7 @@ enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
  * dmub_srv_cmd_execute() - Executes a queued sequence to the dmub
  * @dmub: the dmub service
  *
- * Begins exeuction of queued commands on the dmub.
+ * Begins execution of queued commands on the dmub.
  *
  * Return:
  *   DMUB_STATUS_OK - success

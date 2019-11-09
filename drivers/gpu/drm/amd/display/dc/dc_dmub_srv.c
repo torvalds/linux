@@ -92,7 +92,7 @@ void dc_dmub_srv_cmd_execute(struct dc_dmub_srv *dc_dmub_srv)
 
 	status = dmub_srv_cmd_execute(dmub);
 	if (status != DMUB_STATUS_OK)
-		DC_ERROR("Error starting DMUB exeuction: status=%d\n", status);
+		DC_ERROR("Error starting DMUB execution: status=%d\n", status);
 }
 
 void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv)
