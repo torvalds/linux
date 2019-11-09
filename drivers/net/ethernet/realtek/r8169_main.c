@@ -2635,11 +2635,6 @@ static void rtl8168c_3_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0000);
 }
 
-static void rtl8168c_4_hw_phy_config(struct rtl8169_private *tp)
-{
-	rtl8168c_3_hw_phy_config(tp);
-}
-
 static const struct phy_reg rtl8168d_1_phy_reg_init_0[] = {
 	/* Channel Estimation */
 	{ 0x1f, 0x0001 },
@@ -3528,7 +3523,7 @@ static void rtl_hw_phy_config(struct net_device *dev)
 		[RTL_GIGA_MAC_VER_19] = rtl8168c_1_hw_phy_config,
 		[RTL_GIGA_MAC_VER_20] = rtl8168c_2_hw_phy_config,
 		[RTL_GIGA_MAC_VER_21] = rtl8168c_3_hw_phy_config,
-		[RTL_GIGA_MAC_VER_22] = rtl8168c_4_hw_phy_config,
+		[RTL_GIGA_MAC_VER_22] = rtl8168c_3_hw_phy_config,
 		[RTL_GIGA_MAC_VER_23] = rtl8168cp_2_hw_phy_config,
 		[RTL_GIGA_MAC_VER_24] = rtl8168cp_2_hw_phy_config,
 		[RTL_GIGA_MAC_VER_25] = rtl8168d_1_hw_phy_config,
