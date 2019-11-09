@@ -3188,18 +3188,6 @@ static void restore_ecc_error_reporting(struct ecc_settings *s, u16 nid,
 		amd64_warn("Error restoring NB MCGCTL settings!\n");
 }
 
-/*
- * EDAC requires that the BIOS have ECC enabled before
- * taking over the processing of ECC errors. A command line
- * option allows to force-enable hardware ECC later in
- * enable_ecc_error_reporting().
- */
-static const char *ecc_msg =
-	"ECC disabled in the BIOS or no ECC capability, module will not load.\n"
-	" Either enable ECC checking or force module loading by setting "
-	"'ecc_enable_override'.\n"
-	" (Note that use of the override may cause unknown side effects.)\n";
-
 static bool ecc_enabled(struct amd64_pvt *pvt)
 {
 	u16 nid = pvt->mc_node_id;
@@ -3246,11 +3234,10 @@ static bool ecc_enabled(struct amd64_pvt *pvt)
 	amd64_info("Node %d: DRAM ECC %s.\n",
 		   nid, (ecc_en ? "enabled" : "disabled"));
 
-	if (!ecc_en || !nb_mce_en) {
-		amd64_info("%s", ecc_msg);
+	if (!ecc_en || !nb_mce_en)
 		return false;
-	}
-	return true;
+	else
+		return true;
 }
 
 static inline void
