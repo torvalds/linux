@@ -183,7 +183,8 @@ static bool mlx5_eswitch_offload_is_uplink_port(const struct mlx5_eswitch *esw,
 	u32 port_mask, port_value;
 
 	if (MLX5_CAP_ESW_FLOWTABLE(esw->dev, flow_source))
-		return spec->flow_context.flow_source == MLX5_VPORT_UPLINK;
+		return spec->flow_context.flow_source ==
+					MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
 
 	port_mask = MLX5_GET(fte_match_param, spec->match_criteria,
 			     misc_parameters.source_port);
