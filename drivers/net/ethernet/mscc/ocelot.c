@@ -1383,7 +1383,7 @@ static void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port,
 	 * a source for the other ports.
 	 */
 	for (p = 0; p < ocelot->num_phys_ports; p++) {
-		if (ocelot->bridge_fwd_mask & BIT(p)) {
+		if (p == ocelot->cpu || (ocelot->bridge_fwd_mask & BIT(p))) {
 			unsigned long mask = ocelot->bridge_fwd_mask & ~BIT(p);
 
 			for (i = 0; i < ocelot->num_phys_ports; i++) {
@@ -1398,15 +1398,18 @@ static void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port,
 				}
 			}
 
-			ocelot_write_rix(ocelot,
-					 BIT(ocelot->num_phys_ports) | mask,
+			/* Avoid the NPI port from looping back to itself */
+			if (p != ocelot->cpu)
+				mask |= BIT(ocelot->cpu);
+
+			ocelot_write_rix(ocelot, mask,
 					 ANA_PGID_PGID, PGID_SRC + p);
 		} else {
 			/* Only the CPU port, this is compatible with link
 			 * aggregation.
 			 */
 			ocelot_write_rix(ocelot,
-					 BIT(ocelot->num_phys_ports),
+					 BIT(ocelot->cpu),
 					 ANA_PGID_PGID, PGID_SRC + p);
 		}
 	}
