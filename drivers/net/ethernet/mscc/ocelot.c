@@ -1062,17 +1062,17 @@ static int ocelot_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
-static int ocelot_hwstamp_get(struct ocelot_port *port, struct ifreq *ifr)
+static int ocelot_hwstamp_get(struct ocelot *ocelot, int port,
+			      struct ifreq *ifr)
 {
-	struct ocelot *ocelot = port->ocelot;
-
 	return copy_to_user(ifr->ifr_data, &ocelot->hwtstamp_config,
 			    sizeof(ocelot->hwtstamp_config)) ? -EFAULT : 0;
 }
 
-static int ocelot_hwstamp_set(struct ocelot_port *port, struct ifreq *ifr)
+static int ocelot_hwstamp_set(struct ocelot *ocelot, int port,
+			      struct ifreq *ifr)
 {
-	struct ocelot *ocelot = port->ocelot;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct hwtstamp_config cfg;
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
@@ -1085,16 +1085,16 @@ static int ocelot_hwstamp_set(struct ocelot_port *port, struct ifreq *ifr)
 	/* Tx type sanity check */
 	switch (cfg.tx_type) {
 	case HWTSTAMP_TX_ON:
-		port->ptp_cmd = IFH_REW_OP_TWO_STEP_PTP;
+		ocelot_port->ptp_cmd = IFH_REW_OP_TWO_STEP_PTP;
 		break;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
 		/* IFH_REW_OP_ONE_STEP_PTP updates the correctional field, we
 		 * need to update the origin time.
 		 */
-		port->ptp_cmd = IFH_REW_OP_ORIGIN_PTP;
+		ocelot_port->ptp_cmd = IFH_REW_OP_ORIGIN_PTP;
 		break;
 	case HWTSTAMP_TX_OFF:
-		port->ptp_cmd = 0;
+		ocelot_port->ptp_cmd = 0;
 		break;
 	default:
 		return -ERANGE;
@@ -1136,8 +1136,9 @@ static int ocelot_hwstamp_set(struct ocelot_port *port, struct ifreq *ifr)
 
 static int ocelot_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct ocelot_port *port = netdev_priv(dev);
-	struct ocelot *ocelot = port->ocelot;
+	struct ocelot_port *ocelot_port = netdev_priv(dev);
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = ocelot_port->chip_port;
 
 	/* The function is only used for PTP operations for now */
 	if (!ocelot->ptp)
@@ -1145,9 +1146,9 @@ static int ocelot_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return ocelot_hwstamp_set(port, ifr);
+		return ocelot_hwstamp_set(ocelot, port, ifr);
 	case SIOCGHWTSTAMP:
-		return ocelot_hwstamp_get(port, ifr);
+		return ocelot_hwstamp_get(ocelot, port, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
