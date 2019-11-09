@@ -3721,7 +3721,7 @@ retry_load:
 		free(log_buf);
 		goto retry_load;
 	}
-	ret = -LIBBPF_ERRNO__LOAD;
+	ret = -errno;
 	cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 	pr_warn("load bpf program failed: %s\n", cp);
 
@@ -3734,23 +3734,18 @@ retry_load:
 		pr_warn("Program too large (%zu insns), at most %d insns\n",
 			load_attr.insns_cnt, BPF_MAXINSNS);
 		ret = -LIBBPF_ERRNO__PROG2BIG;
-	} else {
+	} else if (load_attr.prog_type != BPF_PROG_TYPE_KPROBE) {
 		/* Wrong program type? */
-		if (load_attr.prog_type != BPF_PROG_TYPE_KPROBE) {
-			int fd;
+		int fd;
 
-			load_attr.prog_type = BPF_PROG_TYPE_KPROBE;
-			load_attr.expected_attach_type = 0;
-			fd = bpf_load_program_xattr(&load_attr, NULL, 0);
-			if (fd >= 0) {
-				close(fd);
-				ret = -LIBBPF_ERRNO__PROGTYPE;
-				goto out;
-			}
+		load_attr.prog_type = BPF_PROG_TYPE_KPROBE;
+		load_attr.expected_attach_type = 0;
+		fd = bpf_load_program_xattr(&load_attr, NULL, 0);
+		if (fd >= 0) {
+			close(fd);
+			ret = -LIBBPF_ERRNO__PROGTYPE;
+			goto out;
 		}
-
-		if (log_buf)
-			ret = -LIBBPF_ERRNO__KVER;
 	}
 
 out:
