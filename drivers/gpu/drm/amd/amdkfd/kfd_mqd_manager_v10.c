@@ -251,18 +251,22 @@ static int get_wave_state(struct mqd_manager *mm, void *mqd,
 {
 	struct v10_compute_mqd *m;
 
-	/* Control stack is located one page after MQD. */
-	void *mqd_ctl_stack = (void *)((uintptr_t)mqd + PAGE_SIZE);
-
 	m = get_mqd(mqd);
 
+	/* Control stack is written backwards, while workgroup context data
+	 * is written forwards. Both starts from m->cp_hqd_cntl_stack_size.
+	 * Current position is at m->cp_hqd_cntl_stack_offset and
+	 * m->cp_hqd_wg_state_offset, respectively.
+	 */
 	*ctl_stack_used_size = m->cp_hqd_cntl_stack_size -
 		m->cp_hqd_cntl_stack_offset;
 	*save_area_used_size = m->cp_hqd_wg_state_offset -
 		m->cp_hqd_cntl_stack_size;
 
-	if (copy_to_user(ctl_stack, mqd_ctl_stack, m->cp_hqd_cntl_stack_size))
-		return -EFAULT;
+	/* Control stack is not copied to user mode for GFXv10 because
+	 * it's part of the context save area that is already
+	 * accessible to user mode
+	 */
 
 	return 0;
 }
