@@ -1386,16 +1386,18 @@ static unsigned bch2_crc_field_size_max[] = {
 };
 
 static void bch2_extent_crc_pack(union bch_extent_crc *dst,
-				 struct bch_extent_crc_unpacked src)
+				 struct bch_extent_crc_unpacked src,
+				 enum bch_extent_entry_type type)
 {
 #define set_common_fields(_dst, _src)					\
+		_dst.type		= 1 << type;			\
 		_dst.csum_type		= _src.csum_type,		\
 		_dst.compression_type	= _src.compression_type,	\
 		_dst._compressed_size	= _src.compressed_size - 1,	\
 		_dst._uncompressed_size	= _src.uncompressed_size - 1,	\
 		_dst.offset		= _src.offset
 
-	switch (extent_entry_type(to_entry(dst))) {
+	switch (type) {
 	case BCH_EXTENT_ENTRY_crc32:
 		set_common_fields(dst->crc32, src);
 		dst->crc32.csum	 = *((__le32 *) &src.csum.lo);
@@ -1422,23 +1424,24 @@ void bch2_extent_crc_append(struct bkey_i *k,
 {
 	struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(k));
 	union bch_extent_crc *crc = (void *) ptrs.end;
+	enum bch_extent_entry_type type;
 
 	if (bch_crc_bytes[new.csum_type]	<= 4 &&
 	    new.uncompressed_size - 1		<= CRC32_SIZE_MAX &&
 	    new.nonce				<= CRC32_NONCE_MAX)
-		crc->type = 1 << BCH_EXTENT_ENTRY_crc32;
+		type = BCH_EXTENT_ENTRY_crc32;
 	else if (bch_crc_bytes[new.csum_type]	<= 10 &&
 		   new.uncompressed_size - 1	<= CRC64_SIZE_MAX &&
 		   new.nonce			<= CRC64_NONCE_MAX)
-		crc->type = 1 << BCH_EXTENT_ENTRY_crc64;
+		type = BCH_EXTENT_ENTRY_crc64;
 	else if (bch_crc_bytes[new.csum_type]	<= 16 &&
 		   new.uncompressed_size - 1	<= CRC128_SIZE_MAX &&
 		   new.nonce			<= CRC128_NONCE_MAX)
-		crc->type = 1 << BCH_EXTENT_ENTRY_crc128;
+		type = BCH_EXTENT_ENTRY_crc128;
 	else
 		BUG();
 
-	bch2_extent_crc_pack(crc, new);
+	bch2_extent_crc_pack(crc, new, type);
 
 	k->k.u64s += extent_entry_u64s(ptrs.end);
 
@@ -1641,7 +1644,8 @@ enum merge_result bch2_extent_merge(struct bch_fs *c,
 		crc_l.uncompressed_size	+= crc_r.uncompressed_size;
 		crc_l.compressed_size	+= crc_r.compressed_size;
 
-		bch2_extent_crc_pack(entry_to_crc(en_l), crc_l);
+		bch2_extent_crc_pack(entry_to_crc(en_l), crc_l,
+				     extent_entry_type(en_l));
 	}
 
 	bch2_key_resize(l.k, l.k->size + r.k->size);
