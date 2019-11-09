@@ -2133,6 +2133,28 @@ static int ocelot_init_timestamp(struct ocelot *ocelot)
 	return 0;
 }
 
+static void ocelot_init_port(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+	INIT_LIST_HEAD(&ocelot_port->skbs);
+
+	/* Basic L2 initialization */
+
+	/* Drop frames with multicast source address */
+	ocelot_rmw_gix(ocelot, ANA_PORT_DROP_CFG_DROP_MC_SMAC_ENA,
+		       ANA_PORT_DROP_CFG_DROP_MC_SMAC_ENA,
+		       ANA_PORT_DROP_CFG, port);
+
+	/* Set default VLAN and tag type to 8021Q. */
+	ocelot_rmw_gix(ocelot, REW_PORT_VLAN_CFG_PORT_TPID(ETH_P_8021Q),
+		       REW_PORT_VLAN_CFG_PORT_TPID_M,
+		       REW_PORT_VLAN_CFG, port);
+
+	/* Enable vcap lookups */
+	ocelot_vcap_enable(ocelot, port);
+}
+
 int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 		      void __iomem *regs,
 		      struct phy_device *phy)
@@ -2140,7 +2162,6 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 	struct ocelot_port_private *priv;
 	struct ocelot_port *ocelot_port;
 	struct net_device *dev;
-	u32 val;
 	int err;
 
 	dev = alloc_etherdev(sizeof(struct ocelot_port_private));
@@ -2168,32 +2189,14 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 	ocelot_mact_learn(ocelot, PGID_CPU, dev->dev_addr, ocelot_port->pvid,
 			  ENTRYTYPE_LOCKED);
 
-	INIT_LIST_HEAD(&ocelot_port->skbs);
+	ocelot_init_port(ocelot, port);
 
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(ocelot->dev, "register_netdev failed\n");
-		goto err_register_netdev;
+		free_netdev(dev);
 	}
 
-	/* Basic L2 initialization */
-
-	/* Drop frames with multicast source address */
-	val = ANA_PORT_DROP_CFG_DROP_MC_SMAC_ENA;
-	ocelot_rmw_gix(ocelot, val, val, ANA_PORT_DROP_CFG, port);
-
-	/* Set default VLAN and tag type to 8021Q. */
-	ocelot_rmw_gix(ocelot, REW_PORT_VLAN_CFG_PORT_TPID(ETH_P_8021Q),
-		       REW_PORT_VLAN_CFG_PORT_TPID_M,
-		       REW_PORT_VLAN_CFG, port);
-
-	/* Enable vcap lookups */
-	ocelot_vcap_enable(ocelot, port);
-
-	return 0;
-
-err_register_netdev:
-	free_netdev(dev);
 	return err;
 }
 EXPORT_SYMBOL(ocelot_probe_port);
