@@ -2405,13 +2405,7 @@ static void rtl8169s_hw_phy_config(struct rtl8169_private *tp)
 
 static void rtl8169sb_hw_phy_config(struct rtl8169_private *tp)
 {
-	static const struct phy_reg phy_reg_init[] = {
-		{ 0x1f, 0x0002 },
-		{ 0x01, 0x90d0 },
-		{ 0x1f, 0x0000 }
-	};
-
-	rtl_writephy_batch(tp, phy_reg_init);
+	phy_write_paged(tp->phydev, 0x0002, 0x01, 0x90d0);
 }
 
 static void rtl8169scd_hw_phy_config_quirk(struct rtl8169_private *tp)
@@ -2422,9 +2416,7 @@ static void rtl8169scd_hw_phy_config_quirk(struct rtl8169_private *tp)
 	    (pdev->subsystem_device != 0xe000))
 		return;
 
-	rtl_writephy(tp, 0x1f, 0x0001);
-	rtl_writephy(tp, 0x10, 0xf01b);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	phy_write_paged(tp->phydev, 0x0001, 0x10, 0xf01b);
 }
 
 static void rtl8169scd_hw_phy_config(struct rtl8169_private *tp)
@@ -2529,54 +2521,28 @@ static void rtl8169sce_hw_phy_config(struct rtl8169_private *tp)
 
 static void rtl8168bb_hw_phy_config(struct rtl8169_private *tp)
 {
-	static const struct phy_reg phy_reg_init[] = {
-		{ 0x10, 0xf41b },
-		{ 0x1f, 0x0000 }
-	};
-
 	rtl_writephy(tp, 0x1f, 0x0001);
 	rtl_patchphy(tp, 0x16, 1 << 0);
-
-	rtl_writephy_batch(tp, phy_reg_init);
+	rtl_writephy(tp, 0x10, 0xf41b);
+	rtl_writephy(tp, 0x1f, 0x0000);
 }
 
 static void rtl8168bef_hw_phy_config(struct rtl8169_private *tp)
 {
-	static const struct phy_reg phy_reg_init[] = {
-		{ 0x1f, 0x0001 },
-		{ 0x10, 0xf41b },
-		{ 0x1f, 0x0000 }
-	};
-
-	rtl_writephy_batch(tp, phy_reg_init);
+	phy_write_paged(tp->phydev, 0x0001, 0x10, 0xf41b);
 }
 
 static void rtl8168cp_1_hw_phy_config(struct rtl8169_private *tp)
 {
-	static const struct phy_reg phy_reg_init[] = {
-		{ 0x1f, 0x0000 },
-		{ 0x1d, 0x0f00 },
-		{ 0x1f, 0x0002 },
-		{ 0x0c, 0x1ec8 },
-		{ 0x1f, 0x0000 }
-	};
-
-	rtl_writephy_batch(tp, phy_reg_init);
+	phy_write(tp->phydev, 0x1d, 0x0f00);
+	phy_write_paged(tp->phydev, 0x0002, 0x0c, 0x1ec8);
 }
 
 static void rtl8168cp_2_hw_phy_config(struct rtl8169_private *tp)
 {
-	static const struct phy_reg phy_reg_init[] = {
-		{ 0x1f, 0x0001 },
-		{ 0x1d, 0x3d98 },
-		{ 0x1f, 0x0000 }
-	};
-
-	rtl_writephy(tp, 0x1f, 0x0000);
-	rtl_patchphy(tp, 0x14, 1 << 5);
-	rtl_patchphy(tp, 0x0d, 1 << 5);
-
-	rtl_writephy_batch(tp, phy_reg_init);
+	phy_set_bits(tp->phydev, 0x14, BIT(5));
+	phy_set_bits(tp->phydev, 0x0d, BIT(5));
+	phy_write_paged(tp->phydev, 0x0001, 0x1d, 0x3d98);
 }
 
 static void rtl8168c_1_hw_phy_config(struct rtl8169_private *tp)
@@ -2929,9 +2895,7 @@ static void rtl8168e_1_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0000);
 
 	/* For impedance matching */
-	rtl_writephy(tp, 0x1f, 0x0002);
-	rtl_w0w1_phy(tp, 0x08, 0x8000, 0x7f00);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	phy_modify_paged(phydev, 0x0002, 0x08, 0x7f00, 0x8000);
 
 	/* PHY auto speed down */
 	rtl_writephy(tp, 0x1f, 0x0007);
@@ -3428,35 +3392,21 @@ static void rtl8102e_hw_phy_config(struct rtl8169_private *tp)
 
 static void rtl8105e_hw_phy_config(struct rtl8169_private *tp)
 {
-	static const struct phy_reg phy_reg_init[] = {
-		{ 0x1f, 0x0005 },
-		{ 0x1a, 0x0000 },
-		{ 0x1f, 0x0000 },
-
-		{ 0x1f, 0x0004 },
-		{ 0x1c, 0x0000 },
-		{ 0x1f, 0x0000 },
-
-		{ 0x1f, 0x0001 },
-		{ 0x15, 0x7701 },
-		{ 0x1f, 0x0000 }
-	};
-
 	/* Disable ALDPS before ram code */
-	rtl_writephy(tp, 0x1f, 0x0000);
-	rtl_writephy(tp, 0x18, 0x0310);
+	phy_write(tp->phydev, 0x18, 0x0310);
 	msleep(100);
 
 	rtl_apply_firmware(tp);
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	phy_write_paged(tp->phydev, 0x0005, 0x1a, 0x0000);
+	phy_write_paged(tp->phydev, 0x0004, 0x1c, 0x0000);
+	phy_write_paged(tp->phydev, 0x0001, 0x15, 0x7701);
 }
 
 static void rtl8402_hw_phy_config(struct rtl8169_private *tp)
 {
 	/* Disable ALDPS before setting firmware */
-	rtl_writephy(tp, 0x1f, 0x0000);
-	rtl_writephy(tp, 0x18, 0x0310);
+	phy_write(tp->phydev, 0x18, 0x0310);
 	msleep(20);
 
 	rtl_apply_firmware(tp);
@@ -3479,8 +3429,7 @@ static void rtl8106e_hw_phy_config(struct rtl8169_private *tp)
 	};
 
 	/* Disable ALDPS before ram code */
-	rtl_writephy(tp, 0x1f, 0x0000);
-	rtl_writephy(tp, 0x18, 0x0310);
+	phy_write(tp->phydev, 0x18, 0x0310);
 	msleep(100);
 
 	rtl_apply_firmware(tp);
