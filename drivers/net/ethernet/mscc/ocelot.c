@@ -21,6 +21,7 @@
 #include <net/netevent.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
+#include <net/dsa.h>
 
 #include "ocelot.h"
 #include "ocelot_ace.h"
@@ -814,21 +815,18 @@ static void ocelot_get_stats64(struct net_device *dev,
 	stats->collisions = ocelot_read(ocelot, SYS_COUNT_TX_COLLISION);
 }
 
-static int ocelot_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
-			  struct net_device *dev, const unsigned char *addr,
-			  u16 vid, u16 flags,
-			  struct netlink_ext_ack *extack)
+static int ocelot_fdb_add(struct ocelot *ocelot, int port,
+			  const unsigned char *addr, u16 vid)
 {
-	struct ocelot_port *port = netdev_priv(dev);
-	struct ocelot *ocelot = port->ocelot;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
 	if (!vid) {
-		if (!port->vlan_aware)
+		if (!ocelot_port->vlan_aware)
 			/* If the bridge is not VLAN aware and no VID was
 			 * provided, set it to pvid to ensure the MAC entry
 			 * matches incoming untagged packets
 			 */
-			vid = port->pvid;
+			vid = ocelot_port->pvid;
 		else
 			/* If the bridge is VLAN aware a VID must be provided as
 			 * otherwise the learnt entry wouldn't match any frame.
@@ -836,18 +834,35 @@ static int ocelot_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			return -EINVAL;
 	}
 
-	return ocelot_mact_learn(ocelot, port->chip_port, addr, vid,
-				 ENTRYTYPE_LOCKED);
+	return ocelot_mact_learn(ocelot, port, addr, vid, ENTRYTYPE_LOCKED);
 }
 
-static int ocelot_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
-			  struct net_device *dev,
+static int ocelot_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+			       struct net_device *dev,
+			       const unsigned char *addr,
+			       u16 vid, u16 flags,
+			       struct netlink_ext_ack *extack)
+{
+	struct ocelot_port *ocelot_port = netdev_priv(dev);
+	struct ocelot *ocelot = ocelot_port->ocelot;
+
+	return ocelot_fdb_add(ocelot, ocelot_port->chip_port, addr, vid);
+}
+
+static int ocelot_fdb_del(struct ocelot *ocelot, int port,
 			  const unsigned char *addr, u16 vid)
 {
-	struct ocelot_port *port = netdev_priv(dev);
-	struct ocelot *ocelot = port->ocelot;
-
 	return ocelot_mact_forget(ocelot, addr, vid);
+}
+
+static int ocelot_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
+			       struct net_device *dev,
+			       const unsigned char *addr, u16 vid)
+{
+	struct ocelot_port *ocelot_port = netdev_priv(dev);
+	struct ocelot *ocelot = ocelot_port->ocelot;
+
+	return ocelot_fdb_del(ocelot, ocelot_port->chip_port, addr, vid);
 }
 
 struct ocelot_dump_ctx {
@@ -857,9 +872,10 @@ struct ocelot_dump_ctx {
 	int idx;
 };
 
-static int ocelot_fdb_do_dump(struct ocelot_mact_entry *entry,
-			      struct ocelot_dump_ctx *dump)
+static int ocelot_port_fdb_do_dump(const unsigned char *addr, u16 vid,
+				   bool is_static, void *data)
 {
+	struct ocelot_dump_ctx *dump = data;
 	u32 portid = NETLINK_CB(dump->cb->skb).portid;
 	u32 seq = dump->cb->nlh->nlmsg_seq;
 	struct nlmsghdr *nlh;
@@ -880,12 +896,12 @@ static int ocelot_fdb_do_dump(struct ocelot_mact_entry *entry,
 	ndm->ndm_flags   = NTF_SELF;
 	ndm->ndm_type    = 0;
 	ndm->ndm_ifindex = dump->dev->ifindex;
-	ndm->ndm_state   = NUD_REACHABLE;
+	ndm->ndm_state   = is_static ? NUD_NOARP : NUD_REACHABLE;
 
-	if (nla_put(dump->skb, NDA_LLADDR, ETH_ALEN, entry->mac))
+	if (nla_put(dump->skb, NDA_LLADDR, ETH_ALEN, addr))
 		goto nla_put_failure;
 
-	if (entry->vid && nla_put_u16(dump->skb, NDA_VLAN, entry->vid))
+	if (vid && nla_put_u16(dump->skb, NDA_VLAN, vid))
 		goto nla_put_failure;
 
 	nlmsg_end(dump->skb, nlh);
@@ -899,12 +915,11 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static inline int ocelot_mact_read(struct ocelot_port *port, int row, int col,
-				   struct ocelot_mact_entry *entry)
+static int ocelot_mact_read(struct ocelot *ocelot, int port, int row, int col,
+			    struct ocelot_mact_entry *entry)
 {
-	struct ocelot *ocelot = port->ocelot;
-	char mac[ETH_ALEN];
 	u32 val, dst, macl, mach;
+	char mac[ETH_ALEN];
 
 	/* Set row and column to read from */
 	ocelot_field_write(ocelot, ANA_TABLES_MACTINDX_M_INDEX, row);
@@ -927,7 +942,7 @@ static inline int ocelot_mact_read(struct ocelot_port *port, int row, int col,
 	 * do not report it.
 	 */
 	dst = (val & ANA_TABLES_MACACCESS_DEST_IDX_M) >> 3;
-	if (dst != port->chip_port)
+	if (dst != port)
 		return -EINVAL;
 
 	/* Get the entry's MAC address and VLAN id */
@@ -947,43 +962,60 @@ static inline int ocelot_mact_read(struct ocelot_port *port, int row, int col,
 	return 0;
 }
 
-static int ocelot_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			   struct net_device *dev,
-			   struct net_device *filter_dev, int *idx)
+static int ocelot_fdb_dump(struct ocelot *ocelot, int port,
+			   dsa_fdb_dump_cb_t *cb, void *data)
 {
-	struct ocelot_port *port = netdev_priv(dev);
-	int i, j, ret = 0;
-	struct ocelot_dump_ctx dump = {
-		.dev = dev,
-		.skb = skb,
-		.cb = cb,
-		.idx = *idx,
-	};
-
-	struct ocelot_mact_entry entry;
+	int i, j;
 
 	/* Loop through all the mac tables entries. There are 1024 rows of 4
 	 * entries.
 	 */
 	for (i = 0; i < 1024; i++) {
 		for (j = 0; j < 4; j++) {
-			ret = ocelot_mact_read(port, i, j, &entry);
+			struct ocelot_mact_entry entry;
+			bool is_static;
+			int ret;
+
+			ret = ocelot_mact_read(ocelot, port, i, j, &entry);
 			/* If the entry is invalid (wrong port, invalid...),
 			 * skip it.
 			 */
 			if (ret == -EINVAL)
 				continue;
 			else if (ret)
-				goto end;
+				return ret;
 
-			ret = ocelot_fdb_do_dump(&entry, &dump);
+			is_static = (entry.type == ENTRYTYPE_LOCKED);
+
+			ret = cb(entry.mac, entry.vid, is_static, data);
 			if (ret)
-				goto end;
+				return ret;
 		}
 	}
 
-end:
+	return 0;
+}
+
+static int ocelot_port_fdb_dump(struct sk_buff *skb,
+				struct netlink_callback *cb,
+				struct net_device *dev,
+				struct net_device *filter_dev, int *idx)
+{
+	struct ocelot_port *ocelot_port = netdev_priv(dev);
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	struct ocelot_dump_ctx dump = {
+		.dev = dev,
+		.skb = skb,
+		.cb = cb,
+		.idx = *idx,
+	};
+	int ret;
+
+	ret = ocelot_fdb_dump(ocelot, ocelot_port->chip_port,
+			      ocelot_port_fdb_do_dump, &dump);
+
 	*idx = dump.idx;
+
 	return ret;
 }
 
@@ -1129,9 +1161,9 @@ static const struct net_device_ops ocelot_port_netdev_ops = {
 	.ndo_get_phys_port_name		= ocelot_port_get_phys_port_name,
 	.ndo_set_mac_address		= ocelot_port_set_mac_address,
 	.ndo_get_stats64		= ocelot_get_stats64,
-	.ndo_fdb_add			= ocelot_fdb_add,
-	.ndo_fdb_del			= ocelot_fdb_del,
-	.ndo_fdb_dump			= ocelot_fdb_dump,
+	.ndo_fdb_add			= ocelot_port_fdb_add,
+	.ndo_fdb_del			= ocelot_port_fdb_del,
+	.ndo_fdb_dump			= ocelot_port_fdb_dump,
 	.ndo_vlan_rx_add_vid		= ocelot_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid		= ocelot_vlan_rx_kill_vid,
 	.ndo_set_features		= ocelot_set_features,
