@@ -1353,14 +1353,10 @@ static void sfp_sm_fault(struct sfp *sfp, bool warn)
 static void sfp_sm_mod_init(struct sfp *sfp)
 {
 	sfp_module_tx_enable(sfp);
+}
 
-	/* Wait t_init before indicating that the link is up, provided the
-	 * current state indicates no TX_FAULT.  If TX_FAULT clears before
-	 * this time, that's fine too.
-	 */
-	sfp_sm_next(sfp, SFP_S_INIT, T_INIT_JIFFIES);
-	sfp->sm_retries = 5;
-
+static void sfp_sm_probe_for_phy(struct sfp *sfp)
+{
 	/* Setting the serdes link mode is guesswork: there's no
 	 * field in the EEPROM which indicates what mode should
 	 * be used.
@@ -1645,8 +1641,17 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 	switch (sfp->sm_state) {
 	case SFP_S_DOWN:
 		if (sfp->sm_mod_state == SFP_MOD_PRESENT &&
-		    sfp->sm_dev_state == SFP_DEV_UP)
+		    sfp->sm_dev_state == SFP_DEV_UP) {
 			sfp_sm_mod_init(sfp);
+			sfp_sm_probe_for_phy(sfp);
+
+			/* Wait t_init before indicating that the link is up,
+			 * provided the current state indicates no TX_FAULT. If
+			 * TX_FAULT clears before this time, that's fine too.
+			 */
+			sfp_sm_next(sfp, SFP_S_INIT, T_INIT_JIFFIES);
+			sfp->sm_retries = 5;
+		}
 		break;
 
 	case SFP_S_INIT:
