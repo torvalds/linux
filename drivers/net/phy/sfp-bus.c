@@ -331,7 +331,7 @@ static void sfp_bus_release(struct kref *kref)
 
 /**
  * sfp_bus_put() - put a reference on the &struct sfp_bus
- * bus: the &struct sfp_bus found via sfp_bus_find_fwnode()
+ * @bus: the &struct sfp_bus found via sfp_bus_find_fwnode()
  *
  * Put a reference on the &struct sfp_bus and free the underlying structure
  * if this was the last reference.
