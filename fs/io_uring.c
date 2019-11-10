@@ -3118,16 +3118,16 @@ static int io_sq_thread(void *data)
 	DEFINE_WAIT(wait);
 	unsigned inflight;
 	unsigned long timeout;
+	int ret;
 
 	complete(&ctx->completions[1]);
 
 	old_fs = get_fs();
 	set_fs(USER_DS);
 
-	timeout = inflight = 0;
+	ret = timeout = inflight = 0;
 	while (!kthread_should_park()) {
 		unsigned int to_submit;
-		int ret;
 
 		if (inflight) {
 			unsigned nr_events = 0;
@@ -3161,13 +3161,21 @@ static int io_sq_thread(void *data)
 		}
 
 		to_submit = io_sqring_entries(ctx);
-		if (!to_submit) {
+
+		/*
+		 * If submit got -EBUSY, flag us as needing the application
+		 * to enter the kernel to reap and flush events.
+		 */
+		if (!to_submit || ret == -EBUSY) {
 			/*
 			 * We're polling. If we're within the defined idle
 			 * period, then let us spin without work before going
-			 * to sleep.
+			 * to sleep. The exception is if we got EBUSY doing
+			 * more IO, we should wait for the application to
+			 * reap events and wake us up.
 			 */
-			if (inflight || !time_after(jiffies, timeout)) {
+			if (inflight ||
+			    (!time_after(jiffies, timeout) && ret != -EBUSY)) {
 				cond_resched();
 				continue;
 			}
@@ -3193,7 +3201,7 @@ static int io_sq_thread(void *data)
 			smp_mb();
 
 			to_submit = io_sqring_entries(ctx);
-			if (!to_submit) {
+			if (!to_submit || ret == -EBUSY) {
 				if (kthread_should_park()) {
 					finish_wait(&ctx->sqo_wait, &wait);
 					break;
@@ -4351,6 +4359,8 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 	 */
 	ret = 0;
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
+		if (!list_empty_careful(&ctx->cq_overflow_list))
+			io_cqring_overflow_flush(ctx, false);
 		if (flags & IORING_ENTER_SQ_WAKEUP)
 			wake_up(&ctx->sqo_wait);
 		submitted = to_submit;
