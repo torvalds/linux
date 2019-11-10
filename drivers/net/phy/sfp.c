@@ -54,6 +54,7 @@ enum {
 	SFP_DEV_UP,
 
 	SFP_S_DOWN = 0,
+	SFP_S_WAIT,
 	SFP_S_INIT,
 	SFP_S_WAIT_LOS,
 	SFP_S_LINK_UP,
@@ -110,6 +111,7 @@ static const char *event_to_str(unsigned short event)
 
 static const char * const sm_state_strings[] = {
 	[SFP_S_DOWN] = "down",
+	[SFP_S_WAIT] = "wait",
 	[SFP_S_INIT] = "init",
 	[SFP_S_WAIT_LOS] = "wait_los",
 	[SFP_S_LINK_UP] = "link_up",
@@ -141,6 +143,7 @@ static const enum gpiod_flags gpio_flags[] = {
 	GPIOD_ASIS,
 };
 
+#define T_WAIT		msecs_to_jiffies(50)
 #define T_INIT_JIFFIES	msecs_to_jiffies(300)
 #define T_RESET_US	10
 #define T_FAULT_RECOVER	msecs_to_jiffies(1000)
@@ -160,9 +163,6 @@ static const enum gpiod_flags gpio_flags[] = {
  * 0x56 (which with mdio-i2c, translates to a PHY address of 22).
  */
 #define SFP_PHY_ADDR	22
-
-/* Give this long for the PHY to reset. */
-#define T_PHY_RESET_MS	50
 
 struct sff_data {
 	unsigned int gpios;
@@ -1267,8 +1267,6 @@ static void sfp_sm_probe_phy(struct sfp *sfp)
 	struct phy_device *phy;
 	int err;
 
-	msleep(T_PHY_RESET_MS);
-
 	phy = mdiobus_scan(sfp->i2c_mii, SFP_PHY_ADDR);
 	if (phy == ERR_PTR(-ENODEV)) {
 		dev_info(sfp->dev, "no PHY detected\n");
@@ -1623,6 +1621,8 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 
 static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 {
+	unsigned long timeout;
+
 	/* Some events are global */
 	if (sfp->sm_state != SFP_S_DOWN &&
 	    (sfp->sm_mod_state != SFP_MOD_PRESENT ||
@@ -1640,17 +1640,45 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 	/* The main state machine */
 	switch (sfp->sm_state) {
 	case SFP_S_DOWN:
-		if (sfp->sm_mod_state == SFP_MOD_PRESENT &&
-		    sfp->sm_dev_state == SFP_DEV_UP) {
-			sfp_sm_mod_init(sfp);
-			sfp_sm_probe_for_phy(sfp);
+		if (sfp->sm_mod_state != SFP_MOD_PRESENT ||
+		    sfp->sm_dev_state != SFP_DEV_UP)
+			break;
 
+		sfp_sm_mod_init(sfp);
+
+		/* Initialise the fault clearance retries */
+		sfp->sm_retries = 5;
+
+		/* We need to check the TX_FAULT state, which is not defined
+		 * while TX_DISABLE is asserted. The earliest we want to do
+		 * anything (such as probe for a PHY) is 50ms.
+		 */
+		sfp_sm_next(sfp, SFP_S_WAIT, T_WAIT);
+		break;
+
+	case SFP_S_WAIT:
+		if (event != SFP_E_TIMEOUT)
+			break;
+
+		sfp_sm_probe_for_phy(sfp);
+
+		if (sfp->state & SFP_F_TX_FAULT) {
 			/* Wait t_init before indicating that the link is up,
 			 * provided the current state indicates no TX_FAULT. If
 			 * TX_FAULT clears before this time, that's fine too.
 			 */
-			sfp_sm_next(sfp, SFP_S_INIT, T_INIT_JIFFIES);
-			sfp->sm_retries = 5;
+			timeout = T_INIT_JIFFIES;
+			if (timeout > T_WAIT)
+				timeout -= T_WAIT;
+			else
+				timeout = 1;
+
+			sfp_sm_next(sfp, SFP_S_INIT, timeout);
+		} else {
+			/* TX_FAULT is not asserted, assume the module has
+			 * finished initialising.
+			 */
+			goto init_done;
 		}
 		break;
 
@@ -1658,7 +1686,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		if (event == SFP_E_TIMEOUT && sfp->state & SFP_F_TX_FAULT)
 			sfp_sm_fault(sfp, true);
 		else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR)
-			sfp_sm_link_check_los(sfp);
+	init_done:	sfp_sm_link_check_los(sfp);
 		break;
 
 	case SFP_S_WAIT_LOS:
