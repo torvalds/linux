@@ -64,7 +64,7 @@ void bch2_dump_bset(struct btree *b, struct bset *i, unsigned set)
 	for (_k = i->start, k = bkey_unpack_key(b, _k);
 	     _k < vstruct_last(i);
 	     _k = _n, k = n) {
-		_n = bkey_next(_k);
+		_n = bkey_next_skip_noops(_k, vstruct_last(i));
 
 		bch2_bkey_to_text(&PBUF(buf), &k);
 		printk(KERN_ERR "block %u key %5u: %s\n", set,
@@ -132,9 +132,7 @@ void __bch2_verify_btree_nr_keys(struct btree *b)
 	struct btree_nr_keys nr = { 0 };
 
 	for_each_bset(b, t)
-		for (k = btree_bkey_first(b, t);
-		     k != btree_bkey_last(b, t);
-		     k = bkey_next(k))
+		bset_tree_for_each_key(b, t, k)
 			if (!bkey_whiteout(k))
 				btree_keys_account_key_add(&nr, t - b->set, k);
 
@@ -595,7 +593,7 @@ start:
 			       rw_aux_tree(b, t)[j - 1].offset);
 		}
 
-		k = bkey_next(k);
+		k = bkey_next_skip_noops(k, btree_bkey_last(b, t));
 		BUG_ON(k >= btree_bkey_last(b, t));
 	}
 }
@@ -786,9 +784,7 @@ static void __build_rw_aux_tree(struct btree *b, struct bset_tree *t)
 	rw_aux_tree(b, t)[0].offset =
 		__btree_node_key_to_offset(b, btree_bkey_first(b, t));
 
-	for (k = btree_bkey_first(b, t);
-	     k != btree_bkey_last(b, t);
-	     k = bkey_next(k)) {
+	bset_tree_for_each_key(b, t, k) {
 		if (t->size == bset_rw_tree_capacity(b, t))
 			break;
 
@@ -821,7 +817,7 @@ retry:
 	/* First we figure out where the first key in each cacheline is */
 	eytzinger1_for_each(j, t->size) {
 		while (bkey_to_cacheline(b, t, k) < cacheline)
-			prev = k, k = bkey_next(k);
+			prev = k, k = bkey_next_skip_noops(k, btree_bkey_last(b, t));
 
 		if (k >= btree_bkey_last(b, t)) {
 			/* XXX: this path sucks */
@@ -837,10 +833,10 @@ retry:
 		EBUG_ON(tree_to_bkey(b, t, j) != k);
 	}
 
-	while (bkey_next(k) != btree_bkey_last(b, t))
-		k = bkey_next(k);
+	while (k != btree_bkey_last(b, t))
+		prev = k, k = bkey_next_skip_noops(k, btree_bkey_last(b, t));
 
-	t->max_key = bkey_unpack_pos(b, k);
+	t->max_key = bkey_unpack_pos(b, prev);
 
 	/* Then we build the tree */
 	eytzinger1_for_each(j, t->size)
@@ -966,7 +962,7 @@ struct bkey_packed *bch2_bkey_prev_filter(struct btree *b,
 	struct bkey_packed *p, *i, *ret = NULL, *orig_k = k;
 
 	while ((p = __bkey_prev(b, t, k)) && !ret) {
-		for (i = p; i != k; i = bkey_next(i))
+		for (i = p; i != k; i = bkey_next_skip_noops(i, k))
 			if (i->type >= min_key_type)
 				ret = i;
 
@@ -976,9 +972,11 @@ struct bkey_packed *bch2_bkey_prev_filter(struct btree *b,
 	if (btree_keys_expensive_checks(b)) {
 		BUG_ON(ret >= orig_k);
 
-		for (i = ret ? bkey_next(ret) : btree_bkey_first(b, t);
+		for (i = ret
+			? bkey_next_skip_noops(ret, orig_k)
+			: btree_bkey_first(b, t);
 		     i != orig_k;
-		     i = bkey_next(i))
+		     i = bkey_next_skip_noops(i, orig_k))
 			BUG_ON(i->type >= min_key_type);
 	}
 
@@ -1013,7 +1011,7 @@ static void ro_aux_tree_fix_invalidated_key(struct btree *b,
 	/* signal to make_bfloat() that they're uninitialized: */
 	min_key.u64s = max_key.u64s = 0;
 
-	if (bkey_next(k) == btree_bkey_last(b, t)) {
+	if (bkey_next_skip_noops(k, btree_bkey_last(b, t)) == btree_bkey_last(b, t)) {
 		t->max_key = bkey_unpack_pos(b, k);
 
 		for (j = 1; j < t->size; j = j * 2 + 1)
@@ -1137,7 +1135,7 @@ static void bch2_bset_fix_lookup_table(struct btree *b,
 		struct bkey_packed *k = start;
 
 		while (1) {
-			k = bkey_next(k);
+			k = bkey_next_skip_noops(k, end);
 			if (k == end)
 				break;
 
@@ -1386,12 +1384,12 @@ struct bkey_packed *bch2_bset_search_linear(struct btree *b,
 		while (m != btree_bkey_last(b, t) &&
 		       bkey_iter_cmp_p_or_unp(b, search, lossy_packed_search,
 					      m) > 0)
-			m = bkey_next(m);
+			m = bkey_next_skip_noops(m, btree_bkey_last(b, t));
 
 	if (!packed_search)
 		while (m != btree_bkey_last(b, t) &&
 		       bkey_iter_pos_cmp(b, search, m) > 0)
-			m = bkey_next(m);
+			m = bkey_next_skip_noops(m, btree_bkey_last(b, t));
 
 	if (btree_keys_expensive_checks(b)) {
 		struct bkey_packed *prev = bch2_bkey_prev_all(b, t, m);
@@ -1624,6 +1622,10 @@ static inline void __bch2_btree_node_iter_advance(struct btree_node_iter *iter,
 	iter->data->k += __bch2_btree_node_iter_peek_all(iter, b)->u64s;
 
 	EBUG_ON(iter->data->k > iter->data->end);
+
+	while (!__btree_node_iter_set_end(iter, 0) &&
+	       !__bch2_btree_node_iter_peek_all(iter, b)->u64s)
+		iter->data->k++;
 
 	if (unlikely(__btree_node_iter_set_end(iter, 0))) {
 		bch2_btree_node_iter_set_drop(iter, iter->data);

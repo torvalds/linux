@@ -75,6 +75,10 @@ static void sort_key_next(struct btree_node_iter_large *iter,
 {
 	i->k += __btree_node_offset_to_key(b, i->k)->u64s;
 
+	while (i->k != i->end &&
+	       !__btree_node_offset_to_key(b, i->k)->u64s)
+		i->k++;
+
 	if (i->k == i->end)
 		*i = iter->data[--iter->used];
 }
@@ -119,7 +123,7 @@ static inline struct bkey_packed *sort_iter_peek(struct sort_iter *iter)
 
 static inline void sort_iter_advance(struct sort_iter *iter, sort_cmp_fn cmp)
 {
-	iter->data->k = bkey_next(iter->data->k);
+	iter->data->k = bkey_next_skip_noops(iter->data->k, iter->data->end);
 
 	BUG_ON(iter->data->k > iter->data->end);
 

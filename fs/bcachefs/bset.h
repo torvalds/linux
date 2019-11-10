@@ -284,8 +284,13 @@ static inline struct bkey_s __bkey_disassemble(struct btree *b,
 	return (struct bkey_s) { .k = u, .v = bkeyp_val(&b->format, k), };
 }
 
-#define for_each_bset(_b, _t)					\
+#define for_each_bset(_b, _t)						\
 	for (_t = (_b)->set; _t < (_b)->set + (_b)->nsets; _t++)
+
+#define bset_tree_for_each_key(_b, _t, _k)				\
+	for (_k = btree_bkey_first(_b, _t);				\
+	     _k != btree_bkey_last(_b, _t);				\
+	     _k = bkey_next_skip_noops(_k, btree_bkey_last(_b, _t)))
 
 static inline bool bset_has_ro_aux_tree(struct bset_tree *t)
 {

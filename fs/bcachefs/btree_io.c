@@ -25,34 +25,33 @@ static void verify_no_dups(struct btree *b,
 			   struct bkey_packed *end)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
-	struct bkey_packed *k;
+	struct bkey_packed *k, *p;
 
-	for (k = start; k != end && bkey_next(k) != end; k = bkey_next(k)) {
-		struct bkey l = bkey_unpack_key(b, k);
-		struct bkey r = bkey_unpack_key(b, bkey_next(k));
+	if (start == end)
+		return;
+
+	for (p = start, k = bkey_next_skip_noops(start, end);
+	     k != end;
+	     p = k, k = bkey_next_skip_noops(k, end)) {
+		struct bkey l = bkey_unpack_key(b, p);
+		struct bkey r = bkey_unpack_key(b, k);
 
 		BUG_ON(btree_node_is_extents(b)
 		       ? bkey_cmp(l.p, bkey_start_pos(&r)) > 0
 		       : bkey_cmp(l.p, bkey_start_pos(&r)) >= 0);
-		//BUG_ON(bkey_cmp_packed(&b->format, k, bkey_next(k)) >= 0);
+		//BUG_ON(bkey_cmp_packed(&b->format, p, k) >= 0);
 	}
 #endif
 }
 
-static void clear_needs_whiteout(struct bset *i)
+static void set_needs_whiteout(struct bset *i, int v)
 {
 	struct bkey_packed *k;
 
-	for (k = i->start; k != vstruct_last(i); k = bkey_next(k))
-		k->needs_whiteout = false;
-}
-
-static void set_needs_whiteout(struct bset *i)
-{
-	struct bkey_packed *k;
-
-	for (k = i->start; k != vstruct_last(i); k = bkey_next(k))
-		k->needs_whiteout = true;
+	for (k = i->start;
+	     k != vstruct_last(i);
+	     k = bkey_next_skip_noops(k, vstruct_last(i)))
+		k->needs_whiteout = v;
 }
 
 static void btree_bounce_free(struct bch_fs *c, unsigned order,
@@ -167,7 +166,7 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 		out = i->start;
 
 		for (k = start; k != end; k = n) {
-			n = bkey_next(k);
+			n = bkey_next_skip_noops(k, end);
 
 			if (bkey_deleted(k) && btree_node_is_extents(b))
 				continue;
@@ -260,7 +259,7 @@ static bool bch2_drop_whiteouts(struct btree *b)
 		out = i->start;
 
 		for (k = start; k != end; k = n) {
-			n = bkey_next(k);
+			n = bkey_next_skip_noops(k, end);
 
 			if (!bkey_whiteout(k)) {
 				bkey_copy(out, k);
@@ -679,14 +678,6 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 		struct bkey tmp;
 		const char *invalid;
 
-		if (btree_err_on(!k->u64s,
-				 BTREE_ERR_FIXABLE, c, b, i,
-				 "KEY_U64s 0: %zu bytes of metadata lost",
-				 vstruct_end(i) - (void *) k)) {
-			i->u64s = cpu_to_le16((u64 *) k - i->_data);
-			break;
-		}
-
 		if (btree_err_on(bkey_next(k) > vstruct_last(i),
 				 BTREE_ERR_FIXABLE, c, b, i,
 				 "key extends past end of bset")) {
@@ -755,7 +746,7 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 
 		prev_pos = u.k->p;
 		prev = k;
-		k = bkey_next(k);
+		k = bkey_next_skip_noops(k, vstruct_last(i));
 	}
 
 	SET_BSET_BIG_ENDIAN(i, CPU_BIG_ENDIAN);
@@ -914,12 +905,12 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 			continue;
 		}
 
-		k = bkey_next(k);
+		k = bkey_next_skip_noops(k, vstruct_last(i));
 	}
 
 	bch2_bset_build_aux_tree(b, b->set, false);
 
-	set_needs_whiteout(btree_bset_first(b));
+	set_needs_whiteout(btree_bset_first(b), true);
 
 	btree_node_reset_sib_u64s(b);
 out:
@@ -1424,7 +1415,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 		: bch2_sort_keys(i->start, &sort_iter, false);
 	le16_add_cpu(&i->u64s, u64s);
 
-	clear_needs_whiteout(i);
+	set_needs_whiteout(i, false);
 
 	/* do we have data to write? */
 	if (b->written && !i->u64s)
@@ -1579,7 +1570,7 @@ bool bch2_btree_post_write_cleanup(struct bch_fs *c, struct btree *b)
 	}
 
 	for_each_bset(b, t)
-		set_needs_whiteout(bset(b, t));
+		set_needs_whiteout(bset(b, t), true);
 
 	bch2_btree_verify(c, b);
 
