@@ -11,6 +11,7 @@ Required properties:
   * ingenic,jz4725b-cgu
   * ingenic,jz4770-cgu
   * ingenic,jz4780-cgu
+  * ingenic,x1000-cgu
 - reg : The address & length of the CGU registers.
 - clocks : List of phandle & clock specifiers for clocks external to the CGU.
   Two such external clocks should be specified - first the external crystal
