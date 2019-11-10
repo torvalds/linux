@@ -2286,7 +2286,8 @@ static void dcn10_update_dchubp_dpp(
 		hubp->funcs->mem_program_viewport(
 			hubp,
 			&pipe_ctx->plane_res.scl_data.viewport,
-			&pipe_ctx->plane_res.scl_data.viewport_c);
+			&pipe_ctx->plane_res.scl_data.viewport_c,
+			plane_state->rotation);
 	}
 
 	if (pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {

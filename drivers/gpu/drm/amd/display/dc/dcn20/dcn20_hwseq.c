@@ -1382,7 +1382,8 @@ static void dcn20_update_dchubp_dpp(
 		hubp->funcs->mem_program_viewport(
 			hubp,
 			&pipe_ctx->plane_res.scl_data.viewport,
-			&pipe_ctx->plane_res.scl_data.viewport_c);
+			&pipe_ctx->plane_res.scl_data.viewport_c,
+			plane_state->rotation);
 
 	/* Any updates are handled in dc interface, just need to apply existing for plane enable */
 	if ((pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed)
