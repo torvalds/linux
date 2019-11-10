@@ -1385,25 +1385,34 @@ static int sfp_module_parse_power(struct sfp *sfp)
 	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_HIGH_POWER_LEVEL))
 		power_mW = 2000;
 
-	if (sfp->id.ext.sff8472_compliance == SFP_SFF8472_COMPLIANCE_NONE &&
-	    (sfp->id.ext.diagmon & (SFP_DIAGMON_DDM | SFP_DIAGMON_ADDRMODE)) !=
-	    SFP_DIAGMON_DDM) {
-		/* The module appears not to implement bus address 0xa2,
-		 * or requires an address change sequence, so assume that
-		 * the module powers up in the indicated power mode.
-		 */
-		if (power_mW > sfp->max_power_mW) {
+	if (power_mW > sfp->max_power_mW) {
+		/* Module power specification exceeds the allowed maximum. */
+		if (sfp->id.ext.sff8472_compliance ==
+			SFP_SFF8472_COMPLIANCE_NONE &&
+		    !(sfp->id.ext.diagmon & SFP_DIAGMON_DDM)) {
+			/* The module appears not to implement bus address
+			 * 0xa2, so assume that the module powers up in the
+			 * indicated mode.
+			 */
 			dev_err(sfp->dev,
 				"Host does not support %u.%uW modules\n",
 				power_mW / 1000, (power_mW / 100) % 10);
 			return -EINVAL;
+		} else {
+			dev_warn(sfp->dev,
+				 "Host does not support %u.%uW modules, module left in power mode 1\n",
+				 power_mW / 1000, (power_mW / 100) % 10);
+			return 0;
 		}
-		return 0;
 	}
 
-	if (power_mW > sfp->max_power_mW) {
+	/* If the module requires a higher power mode, but also requires
+	 * an address change sequence, warn the user that the module may
+	 * not be functional.
+	 */
+	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE && power_mW > 1000) {
 		dev_warn(sfp->dev,
-			 "Host does not support %u.%uW modules, module left in power mode 1\n",
+			 "Address Change Sequence not supported but module requies %u.%uW, module may not be functional\n",
 			 power_mW / 1000, (power_mW / 100) % 10);
 		return 0;
 	}
