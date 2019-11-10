@@ -257,8 +257,8 @@ static int ip_tun_parse_opts_geneve(struct nlattr *attr,
 	struct nlattr *tb[LWTUNNEL_IP_OPT_GENEVE_MAX + 1];
 	int data_len, err;
 
-	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP_OPT_GENEVE_MAX,
-					  attr, geneve_opt_policy, extack);
+	err = nla_parse_nested(tb, LWTUNNEL_IP_OPT_GENEVE_MAX, attr,
+			       geneve_opt_policy, extack);
 	if (err)
 		return err;
 
@@ -294,8 +294,8 @@ static int ip_tun_parse_opts_vxlan(struct nlattr *attr,
 	struct nlattr *tb[LWTUNNEL_IP_OPT_VXLAN_MAX + 1];
 	int err;
 
-	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP_OPT_VXLAN_MAX,
-					  attr, vxlan_opt_policy, extack);
+	err = nla_parse_nested(tb, LWTUNNEL_IP_OPT_VXLAN_MAX, attr,
+			       vxlan_opt_policy, extack);
 	if (err)
 		return err;
 
@@ -320,8 +320,8 @@ static int ip_tun_parse_opts_erspan(struct nlattr *attr,
 	struct nlattr *tb[LWTUNNEL_IP_OPT_ERSPAN_MAX + 1];
 	int err;
 
-	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP_OPT_ERSPAN_MAX,
-					  attr, erspan_opt_policy, extack);
+	err = nla_parse_nested(tb, LWTUNNEL_IP_OPT_ERSPAN_MAX, attr,
+			       erspan_opt_policy, extack);
 	if (err)
 		return err;
 
@@ -362,8 +362,8 @@ static int ip_tun_parse_opts(struct nlattr *attr, struct ip_tunnel_info *info,
 	if (!attr)
 		return 0;
 
-	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP_OPTS_MAX, attr,
-					  ip_opts_policy, extack);
+	err = nla_parse_nested(tb, LWTUNNEL_IP_OPTS_MAX, attr,
+			       ip_opts_policy, extack);
 	if (err)
 		return err;
 
