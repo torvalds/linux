@@ -506,7 +506,7 @@ qedr_addr6_resolve(struct qedr_dev *dev,
 	return rc;
 }
 
-struct qedr_qp *qedr_iw_load_qp(struct qedr_dev *dev, u32 qpn)
+static struct qedr_qp *qedr_iw_load_qp(struct qedr_dev *dev, u32 qpn)
 {
 	struct qedr_qp *qp;
 
