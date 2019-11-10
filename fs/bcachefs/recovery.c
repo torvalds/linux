@@ -1013,7 +1013,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 		bch2_create_trans(&trans, BCACHEFS_ROOT_INO,
 				  &root_inode, &lostfound_inode,
 				  &lostfound,
-				  0, 0, S_IFDIR|0755, 0,
+				  0, 0, S_IFDIR|0700, 0,
 				  NULL, NULL));
 	if (ret)
 		goto err;
