@@ -36,6 +36,8 @@ enum {
 
 	SFP_E_INSERT = 0,
 	SFP_E_REMOVE,
+	SFP_E_DEV_ATTACH,
+	SFP_E_DEV_DETACH,
 	SFP_E_DEV_DOWN,
 	SFP_E_DEV_UP,
 	SFP_E_TX_FAULT,
@@ -50,7 +52,8 @@ enum {
 	SFP_MOD_PRESENT,
 	SFP_MOD_ERROR,
 
-	SFP_DEV_DOWN = 0,
+	SFP_DEV_DETACHED = 0,
+	SFP_DEV_DOWN,
 	SFP_DEV_UP,
 
 	SFP_S_DOWN = 0,
@@ -80,6 +83,7 @@ static const char *mod_state_to_str(unsigned short mod_state)
 }
 
 static const char * const dev_state_strings[] = {
+	[SFP_DEV_DETACHED] = "detached",
 	[SFP_DEV_DOWN] = "down",
 	[SFP_DEV_UP] = "up",
 };
@@ -94,6 +98,8 @@ static const char *dev_state_to_str(unsigned short dev_state)
 static const char * const event_strings[] = {
 	[SFP_E_INSERT] = "insert",
 	[SFP_E_REMOVE] = "remove",
+	[SFP_E_DEV_ATTACH] = "dev_attach",
+	[SFP_E_DEV_DETACH] = "dev_detach",
 	[SFP_E_DEV_DOWN] = "dev_down",
 	[SFP_E_DEV_UP] = "dev_up",
 	[SFP_E_TX_FAULT] = "tx_fault",
@@ -188,7 +194,6 @@ struct sfp {
 	struct gpio_desc *gpio[GPIO_MAX];
 	int gpio_irq[GPIO_MAX];
 
-	bool attached;
 	struct mutex st_mutex;			/* Protects state */
 	unsigned int state;
 	struct delayed_work poll;
@@ -1559,17 +1564,26 @@ static void sfp_sm_mod_remove(struct sfp *sfp)
 	dev_info(sfp->dev, "module removed\n");
 }
 
-/* This state machine tracks the netdev up/down state */
+/* This state machine tracks the upstream's state */
 static void sfp_sm_device(struct sfp *sfp, unsigned int event)
 {
 	switch (sfp->sm_dev_state) {
 	default:
-		if (event == SFP_E_DEV_UP)
+		if (event == SFP_E_DEV_ATTACH)
+			sfp->sm_dev_state = SFP_DEV_DOWN;
+		break;
+
+	case SFP_DEV_DOWN:
+		if (event == SFP_E_DEV_DETACH)
+			sfp->sm_dev_state = SFP_DEV_DETACHED;
+		else if (event == SFP_E_DEV_UP)
 			sfp->sm_dev_state = SFP_DEV_UP;
 		break;
 
 	case SFP_DEV_UP:
-		if (event == SFP_E_DEV_DOWN)
+		if (event == SFP_E_DEV_DETACH)
+			sfp->sm_dev_state = SFP_DEV_DETACHED;
+		else if (event == SFP_E_DEV_DOWN)
 			sfp->sm_dev_state = SFP_DEV_DOWN;
 		break;
 	}
@@ -1580,17 +1594,20 @@ static void sfp_sm_device(struct sfp *sfp, unsigned int event)
  */
 static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 {
-	/* Handle remove event globally, it resets this state machine */
-	if (event == SFP_E_REMOVE) {
+	/* Handle remove event globally, it resets this state machine.
+	 * Also deal with upstream detachment.
+	 */
+	if (event == SFP_E_REMOVE || sfp->sm_dev_state < SFP_DEV_DOWN) {
 		if (sfp->sm_mod_state > SFP_MOD_PROBE)
 			sfp_sm_mod_remove(sfp);
-		sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
+		if (sfp->sm_mod_state != SFP_MOD_EMPTY)
+			sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
 		return;
 	}
 
 	switch (sfp->sm_mod_state) {
 	default:
-		if (event == SFP_E_INSERT && sfp->attached)
+		if (event == SFP_E_INSERT)
 			sfp_sm_mod_next(sfp, SFP_MOD_PROBE, T_SERIAL);
 		break;
 
@@ -1756,8 +1773,8 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		sm_state_to_str(sfp->sm_state),
 		event_to_str(event));
 
-	sfp_sm_module(sfp, event);
 	sfp_sm_device(sfp, event);
+	sfp_sm_module(sfp, event);
 	sfp_sm_main(sfp, event);
 
 	dev_dbg(sfp->dev, "SM: exit %s:%s:%s\n",
@@ -1770,15 +1787,14 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 
 static void sfp_attach(struct sfp *sfp)
 {
-	sfp->attached = true;
+	sfp_sm_event(sfp, SFP_E_DEV_ATTACH);
 	if (sfp->state & SFP_F_PRESENT)
 		sfp_sm_event(sfp, SFP_E_INSERT);
 }
 
 static void sfp_detach(struct sfp *sfp)
 {
-	sfp->attached = false;
-	sfp_sm_event(sfp, SFP_E_REMOVE);
+	sfp_sm_event(sfp, SFP_E_DEV_DETACH);
 }
 
 static void sfp_start(struct sfp *sfp)
