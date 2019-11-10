@@ -203,7 +203,7 @@ TPROGLDLIBS_test_overhead	+= -lrt
 TPROGLDLIBS_xdpsock		+= -pthread
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:
-#  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
+#  make M=samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
 LLC ?= llc
 CLANG ?= clang
 LLVM_OBJCOPY ?= llvm-objcopy
@@ -246,7 +246,7 @@ endif
 
 # Trick to allow make to be run from this directory
 all:
-	$(MAKE) -C ../../ $(CURDIR)/ BPF_SAMPLES_PATH=$(CURDIR)
+	$(MAKE) -C ../../ M=$(CURDIR) BPF_SAMPLES_PATH=$(CURDIR)
 
 clean:
 	$(MAKE) -C ../../ M=$(CURDIR) clean

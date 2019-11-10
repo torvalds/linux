@@ -46,12 +46,10 @@ Compiling
 For building the BPF samples, issue the below command from the kernel
 top level directory::
 
- make samples/bpf/
-
-Do notice the "/" slash after the directory name.
+ make M=samples/bpf
 
 It is also possible to call make from this directory.  This will just
-hide the the invocation of make as above with the appended "/".
+hide the invocation of make as above.
 
 Manually compiling LLVM with 'bpf' support
 ------------------------------------------
@@ -77,7 +75,7 @@ Quick sniplet for manually compiling LLVM and clang
 It is also possible to point make to the newly compiled 'llc' or
 'clang' command via redefining LLC or CLANG on the make command line::
 
- make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
+ make M=samples/bpf LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
 
 Cross compiling samples
 -----------------------
@@ -98,10 +96,10 @@ Pointing LLC and CLANG is not necessarily if it's installed on HOST and have
 in its targets appropriate arm64 arch (usually it has several arches).
 Build samples::
 
- make samples/bpf/
+ make M=samples/bpf
 
 Or build samples with SYSROOT if some header or library is absent in toolchain,
 say libelf, providing address to file system containing headers and libs,
 can be RFS of target board::
 
- make samples/bpf/ SYSROOT=~/some_sysroot
+ make M=samples/bpf SYSROOT=~/some_sysroot
