@@ -104,9 +104,18 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 		}
 
 		entity = vimc_get_source_entity(ved->ent);
-		/* Check if the end of the pipeline was reached*/
-		if (!entity)
+		/* Check if the end of the pipeline was reached */
+		if (!entity) {
+			/* the first entity of the pipe should be source only */
+			if (!vimc_is_source(ved->ent)) {
+				dev_err(ved->dev,
+					"first entity in the pipe '%s' is not a source\n",
+					ved->ent->name);
+				vimc_streamer_pipeline_terminate(stream);
+				return -EPIPE;
+			}
 			return 0;
+		}
 
 		/* Get the next device in the pipeline */
 		if (is_media_entity_v4l2_subdev(entity)) {

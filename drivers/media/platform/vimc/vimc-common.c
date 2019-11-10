@@ -164,6 +164,16 @@ static const struct vimc_pix_map vimc_pix_map_list[] = {
 	},
 };
 
+bool vimc_is_source(struct media_entity *ent)
+{
+	unsigned int i;
+
+	for (i = 0; i < ent->num_pads; i++)
+		if (ent->pads[i].flags & MEDIA_PAD_FL_SINK)
+			return false;
+	return true;
+}
+
 const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i)
 {
 	if (i >= ARRAY_SIZE(vimc_pix_map_list))

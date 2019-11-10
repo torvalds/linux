@@ -139,6 +139,14 @@ struct vimc_ent_config {
 	void (*rm)(struct vimc_device *vimc, struct vimc_ent_device *ved);
 };
 
+/**
+ * vimc_is_source - returns true if the entity has only source pads
+ *
+ * @ent: pointer to &struct media_entity
+ *
+ */
+bool vimc_is_source(struct media_entity *ent);
+
 /* prototypes for vimc_ent_config add and rm hooks */
 struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 				     const char *vcfg_name);
