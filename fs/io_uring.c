@@ -1959,6 +1959,20 @@ static void io_poll_remove_all(struct io_ring_ctx *ctx)
 	spin_unlock_irq(&ctx->completion_lock);
 }
 
+static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr)
+{
+	struct io_kiocb *req;
+
+	list_for_each_entry(req, &ctx->cancel_list, list) {
+		if (req->user_data != sqe_addr)
+			continue;
+		io_poll_remove_one(req);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
 /*
  * Find a running poll command that matches one specified in sqe->addr,
  * and remove it if found.
@@ -1966,8 +1980,7 @@ static void io_poll_remove_all(struct io_ring_ctx *ctx)
 static int io_poll_remove(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_kiocb *poll_req, *next;
-	int ret = -ENOENT;
+	int ret;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
@@ -1976,13 +1989,7 @@ static int io_poll_remove(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EINVAL;
 
 	spin_lock_irq(&ctx->completion_lock);
-	list_for_each_entry_safe(poll_req, next, &ctx->cancel_list, list) {
-		if (READ_ONCE(sqe->addr) == poll_req->user_data) {
-			io_poll_remove_one(poll_req);
-			ret = 0;
-			break;
-		}
-	}
+	ret = io_poll_cancel(ctx, READ_ONCE(sqe->addr));
 	spin_unlock_irq(&ctx->completion_lock);
 
 	io_cqring_add_event(req, ret);
@@ -2202,6 +2209,31 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
+{
+	struct io_kiocb *req;
+	int ret = -ENOENT;
+
+	list_for_each_entry(req, &ctx->timeout_list, list) {
+		if (user_data == req->user_data) {
+			list_del_init(&req->list);
+			ret = 0;
+			break;
+		}
+	}
+
+	if (ret == -ENOENT)
+		return ret;
+
+	ret = hrtimer_try_to_cancel(&req->timeout.timer);
+	if (ret == -1)
+		return -EALREADY;
+
+	io_cqring_fill_event(req, -ECANCELED);
+	io_put_req(req);
+	return 0;
+}
+
 /*
  * Remove or update an existing timeout command
  */
@@ -2209,10 +2241,8 @@ static int io_timeout_remove(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_kiocb *treq;
-	int ret = -ENOENT;
-	__u64 user_data;
 	unsigned flags;
+	int ret;
 
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
@@ -2222,42 +2252,15 @@ static int io_timeout_remove(struct io_kiocb *req,
 	if (flags)
 		return -EINVAL;
 
-	user_data = READ_ONCE(sqe->addr);
 	spin_lock_irq(&ctx->completion_lock);
-	list_for_each_entry(treq, &ctx->timeout_list, list) {
-		if (user_data == treq->user_data) {
-			list_del_init(&treq->list);
-			ret = 0;
-			break;
-		}
-	}
+	ret = io_timeout_cancel(ctx, READ_ONCE(sqe->addr));
 
-	/* didn't find timeout */
-	if (ret) {
-fill_ev:
-		io_cqring_fill_event(req, ret);
-		io_commit_cqring(ctx);
-		spin_unlock_irq(&ctx->completion_lock);
-		io_cqring_ev_posted(ctx);
-		if (req->flags & REQ_F_LINK)
-			req->flags |= REQ_F_FAIL_LINK;
-		io_put_req(req);
-		return 0;
-	}
-
-	ret = hrtimer_try_to_cancel(&treq->timeout.timer);
-	if (ret == -1) {
-		ret = -EBUSY;
-		goto fill_ev;
-	}
-
-	io_cqring_fill_event(req, 0);
-	io_cqring_fill_event(treq, -ECANCELED);
+	io_cqring_fill_event(req, ret);
 	io_commit_cqring(ctx);
 	spin_unlock_irq(&ctx->completion_lock);
 	io_cqring_ev_posted(ctx);
-
-	io_put_req(treq);
+	if (ret < 0 && req->flags & REQ_F_LINK)
+		req->flags |= REQ_F_FAIL_LINK;
 	io_put_req(req);
 	return 0;
 }
@@ -2374,12 +2377,39 @@ static int io_async_cancel_one(struct io_ring_ctx *ctx, void *sqe_addr)
 	return ret;
 }
 
+static void io_async_find_and_cancel(struct io_ring_ctx *ctx,
+				     struct io_kiocb *req, __u64 sqe_addr,
+				     struct io_kiocb **nxt)
+{
+	unsigned long flags;
+	int ret;
+
+	ret = io_async_cancel_one(ctx, (void *) (unsigned long) sqe_addr);
+	if (ret != -ENOENT) {
+		spin_lock_irqsave(&ctx->completion_lock, flags);
+		goto done;
+	}
+
+	spin_lock_irqsave(&ctx->completion_lock, flags);
+	ret = io_timeout_cancel(ctx, sqe_addr);
+	if (ret != -ENOENT)
+		goto done;
+	ret = io_poll_cancel(ctx, sqe_addr);
+done:
+	io_cqring_fill_event(req, ret);
+	io_commit_cqring(ctx);
+	spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	io_cqring_ev_posted(ctx);
+
+	if (ret < 0 && (req->flags & REQ_F_LINK))
+		req->flags |= REQ_F_FAIL_LINK;
+	io_put_req_find_next(req, nxt);
+}
+
 static int io_async_cancel(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			   struct io_kiocb **nxt)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	void *sqe_addr;
-	int ret;
 
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
@@ -2387,13 +2417,7 @@ static int io_async_cancel(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	    sqe->cancel_flags)
 		return -EINVAL;
 
-	sqe_addr = (void *) (unsigned long) READ_ONCE(sqe->addr);
-	ret = io_async_cancel_one(ctx, sqe_addr);
-
-	if (ret < 0 && (req->flags & REQ_F_LINK))
-		req->flags |= REQ_F_FAIL_LINK;
-	io_cqring_add_event(req, ret);
-	io_put_req_find_next(req, nxt);
+	io_async_find_and_cancel(ctx, req, READ_ONCE(sqe->addr), NULL);
 	return 0;
 }
 
@@ -2655,7 +2679,6 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *prev = NULL;
 	unsigned long flags;
-	int ret = -ETIME;
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
 
@@ -2671,12 +2694,11 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 	if (prev) {
-		void *user_data = (void *) (unsigned long) prev->user_data;
-		ret = io_async_cancel_one(ctx, user_data);
+		io_async_find_and_cancel(ctx, req, prev->user_data, NULL);
+	} else {
+		io_cqring_add_event(req, -ETIME);
+		io_put_req(req);
 	}
-
-	io_cqring_add_event(req, ret);
-	io_put_req(req);
 	return HRTIMER_NORESTART;
 }
 
