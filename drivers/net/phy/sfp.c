@@ -1565,6 +1565,14 @@ static void sfp_sm_device(struct sfp *sfp, unsigned int event)
  */
 static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 {
+	/* Handle remove event globally, it resets this state machine */
+	if (event == SFP_E_REMOVE) {
+		if (sfp->sm_mod_state > SFP_MOD_PROBE)
+			sfp_sm_mod_remove(sfp);
+		sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
+		return;
+	}
+
 	switch (sfp->sm_mod_state) {
 	default:
 		if (event == SFP_E_INSERT && sfp->attached) {
@@ -1574,9 +1582,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 		break;
 
 	case SFP_MOD_PROBE:
-		if (event == SFP_E_REMOVE) {
-			sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
-		} else if (event == SFP_E_TIMEOUT) {
+		if (event == SFP_E_TIMEOUT) {
 			int val = sfp_sm_mod_probe(sfp);
 
 			if (val == 0)
@@ -1598,10 +1604,6 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 		/* fallthrough */
 	case SFP_MOD_PRESENT:
 	case SFP_MOD_ERROR:
-		if (event == SFP_E_REMOVE) {
-			sfp_sm_mod_remove(sfp);
-			sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
-		}
 		break;
 	}
 }
