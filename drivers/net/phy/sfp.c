@@ -1554,15 +1554,8 @@ static void sfp_sm_device(struct sfp *sfp, unsigned int event)
 		break;
 
 	case SFP_DEV_UP:
-		if (event == SFP_E_DEV_DOWN) {
-			/* If the module has a PHY, avoid raising TX disable
-			 * as this resets the PHY. Otherwise, raise it to
-			 * turn the laser off.
-			 */
-			if (!sfp->mod_phy)
-				sfp_module_tx_disable(sfp);
+		if (event == SFP_E_DEV_DOWN)
 			sfp->sm_dev_state = SFP_DEV_DOWN;
-		}
 		break;
 	}
 }
@@ -1624,6 +1617,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 			sfp_sm_link_down(sfp);
 		if (sfp->mod_phy)
 			sfp_sm_phy_detach(sfp);
+		sfp_module_tx_disable(sfp);
 		sfp_sm_next(sfp, SFP_S_DOWN, 0);
 		return;
 	}
