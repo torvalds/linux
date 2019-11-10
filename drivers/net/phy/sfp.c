@@ -218,6 +218,8 @@ struct sfp {
 
 #if IS_ENABLED(CONFIG_HWMON)
 	struct sfp_diag diag;
+	struct delayed_work hwmon_probe;
+	unsigned int hwmon_tries;
 	struct device *hwmon_dev;
 	char *hwmon_name;
 #endif
@@ -1159,10 +1161,43 @@ static const struct hwmon_chip_info sfp_hwmon_chip_info = {
 	.info = sfp_hwmon_info,
 };
 
-static int sfp_hwmon_insert(struct sfp *sfp)
+static void sfp_hwmon_probe(struct work_struct *work)
 {
+	struct sfp *sfp = container_of(work, struct sfp, hwmon_probe.work);
 	int err, i;
 
+	err = sfp_read(sfp, true, 0, &sfp->diag, sizeof(sfp->diag));
+	if (err < 0) {
+		if (sfp->hwmon_tries--) {
+			mod_delayed_work(system_wq, &sfp->hwmon_probe,
+					 T_PROBE_RETRY_SLOW);
+		} else {
+			dev_warn(sfp->dev, "hwmon probe failed: %d\n", err);
+		}
+		return;
+	}
+
+	sfp->hwmon_name = kstrdup(dev_name(sfp->dev), GFP_KERNEL);
+	if (!sfp->hwmon_name) {
+		dev_err(sfp->dev, "out of memory for hwmon name\n");
+		return;
+	}
+
+	for (i = 0; sfp->hwmon_name[i]; i++)
+		if (hwmon_is_bad_char(sfp->hwmon_name[i]))
+			sfp->hwmon_name[i] = '_';
+
+	sfp->hwmon_dev = hwmon_device_register_with_info(sfp->dev,
+							 sfp->hwmon_name, sfp,
+							 &sfp_hwmon_chip_info,
+							 NULL);
+	if (IS_ERR(sfp->hwmon_dev))
+		dev_err(sfp->dev, "failed to register hwmon device: %ld\n",
+			PTR_ERR(sfp->hwmon_dev));
+}
+
+static int sfp_hwmon_insert(struct sfp *sfp)
+{
 	if (sfp->id.ext.sff8472_compliance == SFP_SFF8472_COMPLIANCE_NONE)
 		return 0;
 
@@ -1175,33 +1210,32 @@ static int sfp_hwmon_insert(struct sfp *sfp)
 		 */
 		return 0;
 
-	err = sfp_read(sfp, true, 0, &sfp->diag, sizeof(sfp->diag));
-	if (err < 0)
-		return err;
+	mod_delayed_work(system_wq, &sfp->hwmon_probe, 1);
+	sfp->hwmon_tries = R_PROBE_RETRY_SLOW;
 
-	sfp->hwmon_name = kstrdup(dev_name(sfp->dev), GFP_KERNEL);
-	if (!sfp->hwmon_name)
-		return -ENODEV;
-
-	for (i = 0; sfp->hwmon_name[i]; i++)
-		if (hwmon_is_bad_char(sfp->hwmon_name[i]))
-			sfp->hwmon_name[i] = '_';
-
-	sfp->hwmon_dev = hwmon_device_register_with_info(sfp->dev,
-							 sfp->hwmon_name, sfp,
-							 &sfp_hwmon_chip_info,
-							 NULL);
-
-	return PTR_ERR_OR_ZERO(sfp->hwmon_dev);
+	return 0;
 }
 
 static void sfp_hwmon_remove(struct sfp *sfp)
 {
+	cancel_delayed_work_sync(&sfp->hwmon_probe);
 	if (!IS_ERR_OR_NULL(sfp->hwmon_dev)) {
 		hwmon_device_unregister(sfp->hwmon_dev);
 		sfp->hwmon_dev = NULL;
 		kfree(sfp->hwmon_name);
 	}
+}
+
+static int sfp_hwmon_init(struct sfp *sfp)
+{
+	INIT_DELAYED_WORK(&sfp->hwmon_probe, sfp_hwmon_probe);
+
+	return 0;
+}
+
+static void sfp_hwmon_exit(struct sfp *sfp)
+{
+	cancel_delayed_work_sync(&sfp->hwmon_probe);
 }
 #else
 static int sfp_hwmon_insert(struct sfp *sfp)
@@ -1210,6 +1244,15 @@ static int sfp_hwmon_insert(struct sfp *sfp)
 }
 
 static void sfp_hwmon_remove(struct sfp *sfp)
+{
+}
+
+static int sfp_hwmon_init(struct sfp *sfp)
+{
+	return 0;
+}
+
+static void sfp_hwmon_exit(struct sfp *sfp)
 {
 }
 #endif
@@ -1548,10 +1591,6 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	if (ret < 0)
 		return ret;
 
-	ret = sfp_hwmon_insert(sfp);
-	if (ret < 0)
-		return ret;
-
 	return 0;
 }
 
@@ -1700,6 +1739,15 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 	case SFP_MOD_ERROR:
 		break;
 	}
+
+#if IS_ENABLED(CONFIG_HWMON)
+	if (sfp->sm_mod_state >= SFP_MOD_WAITDEV &&
+	    IS_ERR_OR_NULL(sfp->hwmon_dev)) {
+		err = sfp_hwmon_insert(sfp);
+		if (err)
+			dev_warn(sfp->dev, "hwmon probe failed: %d\n", err);
+	}
+#endif
 }
 
 static void sfp_sm_main(struct sfp *sfp, unsigned int event)
@@ -2001,12 +2049,16 @@ static struct sfp *sfp_alloc(struct device *dev)
 	INIT_DELAYED_WORK(&sfp->poll, sfp_poll);
 	INIT_DELAYED_WORK(&sfp->timeout, sfp_timeout);
 
+	sfp_hwmon_init(sfp);
+
 	return sfp;
 }
 
 static void sfp_cleanup(void *data)
 {
 	struct sfp *sfp = data;
+
+	sfp_hwmon_exit(sfp);
 
 	cancel_delayed_work_sync(&sfp->poll);
 	cancel_delayed_work_sync(&sfp->timeout);
