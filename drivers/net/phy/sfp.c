@@ -1245,7 +1245,7 @@ static void sfp_sm_next(struct sfp *sfp, unsigned int state,
 	sfp_sm_set_timer(sfp, timeout);
 }
 
-static void sfp_sm_ins_next(struct sfp *sfp, unsigned int state,
+static void sfp_sm_mod_next(struct sfp *sfp, unsigned int state,
 			    unsigned int timeout)
 {
 	sfp->sm_mod_state = state;
@@ -1569,22 +1569,22 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 	default:
 		if (event == SFP_E_INSERT && sfp->attached) {
 			sfp_module_tx_disable(sfp);
-			sfp_sm_ins_next(sfp, SFP_MOD_PROBE, T_PROBE_INIT);
+			sfp_sm_mod_next(sfp, SFP_MOD_PROBE, T_PROBE_INIT);
 		}
 		break;
 
 	case SFP_MOD_PROBE:
 		if (event == SFP_E_REMOVE) {
-			sfp_sm_ins_next(sfp, SFP_MOD_EMPTY, 0);
+			sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
 		} else if (event == SFP_E_TIMEOUT) {
 			int val = sfp_sm_mod_probe(sfp);
 
 			if (val == 0)
-				sfp_sm_ins_next(sfp, SFP_MOD_PRESENT, 0);
+				sfp_sm_mod_next(sfp, SFP_MOD_PRESENT, 0);
 			else if (val > 0)
-				sfp_sm_ins_next(sfp, SFP_MOD_HPOWER, val);
+				sfp_sm_mod_next(sfp, SFP_MOD_HPOWER, val);
 			else if (val != -EAGAIN)
-				sfp_sm_ins_next(sfp, SFP_MOD_ERROR, 0);
+				sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
 			else
 				sfp_sm_set_timer(sfp, T_PROBE_RETRY);
 		}
@@ -1592,7 +1592,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 
 	case SFP_MOD_HPOWER:
 		if (event == SFP_E_TIMEOUT) {
-			sfp_sm_ins_next(sfp, SFP_MOD_PRESENT, 0);
+			sfp_sm_mod_next(sfp, SFP_MOD_PRESENT, 0);
 			break;
 		}
 		/* fallthrough */
@@ -1600,7 +1600,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 	case SFP_MOD_ERROR:
 		if (event == SFP_E_REMOVE) {
 			sfp_sm_mod_remove(sfp);
-			sfp_sm_ins_next(sfp, SFP_MOD_EMPTY, 0);
+			sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
 		}
 		break;
 	}
