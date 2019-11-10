@@ -167,9 +167,12 @@ static const enum gpiod_flags gpio_flags[] = {
  * The SFF-8472 specifies t_serial ("Time from power on until module is
  * ready for data transmission over the two wire serial bus.") as 300ms.
  */
-#define T_SERIAL	msecs_to_jiffies(300)
-#define T_HPOWER_LEVEL	msecs_to_jiffies(300)
-#define T_PROBE_RETRY	msecs_to_jiffies(100)
+#define T_SERIAL		msecs_to_jiffies(300)
+#define T_HPOWER_LEVEL		msecs_to_jiffies(300)
+#define T_PROBE_RETRY_INIT	msecs_to_jiffies(100)
+#define R_PROBE_RETRY_INIT	10
+#define T_PROBE_RETRY_SLOW	msecs_to_jiffies(5000)
+#define R_PROBE_RETRY_SLOW	12
 
 /* SFP modules appear to always have their PHY configured for bus address
  * 0x56 (which with mdio-i2c, translates to a PHY address of 22).
@@ -204,6 +207,8 @@ struct sfp {
 	struct delayed_work timeout;
 	struct mutex sm_mutex;			/* Protects state machine */
 	unsigned char sm_mod_state;
+	unsigned char sm_mod_tries_init;
+	unsigned char sm_mod_tries;
 	unsigned char sm_dev_state;
 	unsigned short sm_state;
 	unsigned int sm_retries;
@@ -1457,7 +1462,7 @@ static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 	return 0;
 }
 
-static int sfp_sm_mod_probe(struct sfp *sfp)
+static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 {
 	/* SFP module inserted - read I2C data */
 	struct sfp_eeprom_id id;
@@ -1467,7 +1472,8 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 
 	ret = sfp_read(sfp, false, 0, &id, sizeof(id));
 	if (ret < 0) {
-		dev_err(sfp->dev, "failed to read EEPROM: %d\n", ret);
+		if (report)
+			dev_err(sfp->dev, "failed to read EEPROM: %d\n", ret);
 		return -EAGAIN;
 	}
 
@@ -1614,8 +1620,11 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 
 	switch (sfp->sm_mod_state) {
 	default:
-		if (event == SFP_E_INSERT)
+		if (event == SFP_E_INSERT) {
 			sfp_sm_mod_next(sfp, SFP_MOD_PROBE, T_SERIAL);
+			sfp->sm_mod_tries_init = R_PROBE_RETRY_INIT;
+			sfp->sm_mod_tries = R_PROBE_RETRY_SLOW;
+		}
 		break;
 
 	case SFP_MOD_PROBE:
@@ -1623,10 +1632,19 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 		if (event != SFP_E_TIMEOUT)
 			break;
 
-		err = sfp_sm_mod_probe(sfp);
+		err = sfp_sm_mod_probe(sfp, sfp->sm_mod_tries == 1);
 		if (err == -EAGAIN) {
-			sfp_sm_set_timer(sfp, T_PROBE_RETRY);
-			break;
+			if (sfp->sm_mod_tries_init &&
+			   --sfp->sm_mod_tries_init) {
+				sfp_sm_set_timer(sfp, T_PROBE_RETRY_INIT);
+				break;
+			} else if (sfp->sm_mod_tries && --sfp->sm_mod_tries) {
+				if (sfp->sm_mod_tries == R_PROBE_RETRY_SLOW - 1)
+					dev_warn(sfp->dev,
+						 "please wait, module slow to respond\n");
+				sfp_sm_set_timer(sfp, T_PROBE_RETRY_SLOW);
+				break;
+			}
 		}
 		if (err < 0) {
 			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
@@ -1661,7 +1679,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 				sfp_module_remove(sfp->sfp_bus);
 				sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
 			} else {
-				sfp_sm_set_timer(sfp, T_PROBE_RETRY);
+				sfp_sm_set_timer(sfp, T_PROBE_RETRY_INIT);
 			}
 			break;
 		}
