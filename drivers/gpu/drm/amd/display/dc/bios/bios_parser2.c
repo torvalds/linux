@@ -834,6 +834,7 @@ static enum bp_result bios_parser_get_spread_spectrum_info(
 		case 1:
 			return get_ss_info_v4_1(bp, signal, index, ss_info);
 		case 2:
+		case 3:
 			return get_ss_info_v4_2(bp, signal, index, ss_info);
 		default:
 			break;
