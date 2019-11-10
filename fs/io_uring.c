@@ -3488,6 +3488,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	if (io_sqe_alloc_file_tables(ctx, nr_tables, nr_args)) {
 		kfree(ctx->file_table);
+		ctx->file_table = NULL;
 		return -ENOMEM;
 	}
 
