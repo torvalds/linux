@@ -154,7 +154,7 @@ int mlx5dr_matcher_select_builders(struct mlx5dr_matcher *matcher,
 	nic_matcher->num_of_builders =
 		nic_matcher->num_of_builders_arr[outer_ipv][inner_ipv];
 
-	if (!nic_matcher->ste_builder) {
+	if (!nic_matcher->num_of_builders) {
 		mlx5dr_dbg(matcher->tbl->dmn,
 			   "Rule not supported on this matcher due to IP related fields\n");
 		return -EINVAL;
