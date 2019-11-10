@@ -2,7 +2,7 @@
 /*
  * Realtek RTD1295 SoC
  *
- * Copyright (c) 2016-2017 Andreas Färber
+ * Copyright (c) 2016-2019 Andreas Färber
  */
 
 #include "rtd129x.dtsi"
@@ -44,17 +44,6 @@
 
 		l2: l2-cache {
 			compatible = "cache";
-		};
-	};
-
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		tee@10100000 {
-			reg = <0x10100000 0xf00000>;
-			no-map;
 		};
 	};
 
