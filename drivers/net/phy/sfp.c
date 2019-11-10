@@ -1334,7 +1334,7 @@ static bool sfp_los_event_inactive(struct sfp *sfp, unsigned int event)
 		event == SFP_E_LOS_LOW);
 }
 
-static void sfp_sm_fault(struct sfp *sfp, bool warn)
+static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
 {
 	if (sfp->sm_retries && !--sfp->sm_retries) {
 		dev_err(sfp->dev,
@@ -1344,7 +1344,7 @@ static void sfp_sm_fault(struct sfp *sfp, bool warn)
 		if (warn)
 			dev_err(sfp->dev, "module transmit fault indicated\n");
 
-		sfp_sm_next(sfp, SFP_S_TX_FAULT, T_FAULT_RECOVER);
+		sfp_sm_next(sfp, next_state, T_FAULT_RECOVER);
 	}
 }
 
@@ -1684,14 +1684,14 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 
 	case SFP_S_INIT:
 		if (event == SFP_E_TIMEOUT && sfp->state & SFP_F_TX_FAULT)
-			sfp_sm_fault(sfp, true);
+			sfp_sm_fault(sfp, SFP_S_TX_FAULT, true);
 		else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR)
 	init_done:	sfp_sm_link_check_los(sfp);
 		break;
 
 	case SFP_S_WAIT_LOS:
 		if (event == SFP_E_TX_FAULT)
-			sfp_sm_fault(sfp, true);
+			sfp_sm_fault(sfp, SFP_S_TX_FAULT, true);
 		else if (sfp_los_event_inactive(sfp, event))
 			sfp_sm_link_up(sfp);
 		break;
@@ -1699,7 +1699,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 	case SFP_S_LINK_UP:
 		if (event == SFP_E_TX_FAULT) {
 			sfp_sm_link_down(sfp);
-			sfp_sm_fault(sfp, true);
+			sfp_sm_fault(sfp, SFP_S_TX_FAULT, true);
 		} else if (sfp_los_event_active(sfp, event)) {
 			sfp_sm_link_down(sfp);
 			sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
@@ -1715,7 +1715,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 
 	case SFP_S_REINIT:
 		if (event == SFP_E_TIMEOUT && sfp->state & SFP_F_TX_FAULT) {
-			sfp_sm_fault(sfp, false);
+			sfp_sm_fault(sfp, SFP_S_TX_FAULT, false);
 		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
 			dev_info(sfp->dev, "module transmit fault recovered\n");
 			sfp_sm_link_check_los(sfp);
