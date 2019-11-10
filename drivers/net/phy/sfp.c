@@ -56,6 +56,7 @@ enum {
 	SFP_S_DOWN = 0,
 	SFP_S_WAIT,
 	SFP_S_INIT,
+	SFP_S_INIT_TX_FAULT,
 	SFP_S_WAIT_LOS,
 	SFP_S_LINK_UP,
 	SFP_S_TX_FAULT,
@@ -113,6 +114,7 @@ static const char * const sm_state_strings[] = {
 	[SFP_S_DOWN] = "down",
 	[SFP_S_WAIT] = "wait",
 	[SFP_S_INIT] = "init",
+	[SFP_S_INIT_TX_FAULT] = "init_tx_fault",
 	[SFP_S_WAIT_LOS] = "wait_los",
 	[SFP_S_LINK_UP] = "link_up",
 	[SFP_S_TX_FAULT] = "tx_fault",
@@ -1660,8 +1662,6 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		if (event != SFP_E_TIMEOUT)
 			break;
 
-		sfp_sm_probe_for_phy(sfp);
-
 		if (sfp->state & SFP_F_TX_FAULT) {
 			/* Wait t_init before indicating that the link is up,
 			 * provided the current state indicates no TX_FAULT. If
@@ -1683,10 +1683,29 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		break;
 
 	case SFP_S_INIT:
-		if (event == SFP_E_TIMEOUT && sfp->state & SFP_F_TX_FAULT)
-			sfp_sm_fault(sfp, SFP_S_TX_FAULT, true);
-		else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR)
-	init_done:	sfp_sm_link_check_los(sfp);
+		if (event == SFP_E_TIMEOUT && sfp->state & SFP_F_TX_FAULT) {
+			/* TX_FAULT is still asserted after t_init, so assume
+			 * there is a fault.
+			 */
+			sfp_sm_fault(sfp, SFP_S_INIT_TX_FAULT,
+				     sfp->sm_retries == 5);
+		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
+	init_done:	/* TX_FAULT deasserted or we timed out with TX_FAULT
+			 * clear.  Probe for the PHY and check the LOS state.
+			 */
+			sfp_sm_probe_for_phy(sfp);
+			sfp_sm_link_check_los(sfp);
+
+			/* Reset the fault retry count */
+			sfp->sm_retries = 5;
+		}
+		break;
+
+	case SFP_S_INIT_TX_FAULT:
+		if (event == SFP_E_TIMEOUT) {
+			sfp_module_tx_fault_reset(sfp);
+			sfp_sm_next(sfp, SFP_S_INIT, T_INIT_JIFFIES);
+		}
 		break;
 
 	case SFP_S_WAIT_LOS:
