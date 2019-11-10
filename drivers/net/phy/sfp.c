@@ -198,6 +198,8 @@ struct sfp {
 	unsigned int sm_retries;
 
 	struct sfp_eeprom_id id;
+	unsigned int module_power_mW;
+
 #if IS_ENABLED(CONFIG_HWMON)
 	struct sfp_diag diag;
 	struct device *hwmon_dev;
@@ -1374,17 +1376,14 @@ static void sfp_sm_mod_init(struct sfp *sfp)
 		sfp_sm_probe_phy(sfp);
 }
 
-static int sfp_sm_mod_hpower(struct sfp *sfp)
+static int sfp_module_parse_power(struct sfp *sfp)
 {
-	u32 power;
-	u8 val;
-	int err;
+	u32 power_mW = 1000;
 
-	power = 1000;
 	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_POWER_DECL))
-		power = 1500;
+		power_mW = 1500;
 	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_HIGH_POWER_LEVEL))
-		power = 2000;
+		power_mW = 2000;
 
 	if (sfp->id.ext.sff8472_compliance == SFP_SFF8472_COMPLIANCE_NONE &&
 	    (sfp->id.ext.diagmon & (SFP_DIAGMON_DDM | SFP_DIAGMON_ADDRMODE)) !=
@@ -1393,23 +1392,33 @@ static int sfp_sm_mod_hpower(struct sfp *sfp)
 		 * or requires an address change sequence, so assume that
 		 * the module powers up in the indicated power mode.
 		 */
-		if (power > sfp->max_power_mW) {
+		if (power_mW > sfp->max_power_mW) {
 			dev_err(sfp->dev,
 				"Host does not support %u.%uW modules\n",
-				power / 1000, (power / 100) % 10);
+				power_mW / 1000, (power_mW / 100) % 10);
 			return -EINVAL;
 		}
 		return 0;
 	}
 
-	if (power > sfp->max_power_mW) {
+	if (power_mW > sfp->max_power_mW) {
 		dev_warn(sfp->dev,
 			 "Host does not support %u.%uW modules, module left in power mode 1\n",
-			 power / 1000, (power / 100) % 10);
+			 power_mW / 1000, (power_mW / 100) % 10);
 		return 0;
 	}
 
-	if (power <= 1000)
+	sfp->module_power_mW = power_mW;
+
+	return 0;
+}
+
+static int sfp_sm_mod_hpower(struct sfp *sfp)
+{
+	u8 val;
+	int err;
+
+	if (sfp->module_power_mW <= 1000)
 		return 0;
 
 	err = sfp_read(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
@@ -1429,7 +1438,8 @@ static int sfp_sm_mod_hpower(struct sfp *sfp)
 	}
 
 	dev_info(sfp->dev, "Module switched to %u.%uW power level\n",
-		 power / 1000, (power / 100) % 10);
+		 sfp->module_power_mW / 1000,
+		 (sfp->module_power_mW / 100) % 10);
 	return T_HPOWER_LEVEL;
 
 err:
@@ -1516,6 +1526,11 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 		dev_warn(sfp->dev,
 			 "module address swap to access page 0xA2 is not supported.\n");
 
+	/* Parse the module power requirement */
+	ret = sfp_module_parse_power(sfp);
+	if (ret < 0)
+		return ret;
+
 	ret = sfp_hwmon_insert(sfp);
 	if (ret < 0)
 		return ret;
@@ -1539,6 +1554,7 @@ static void sfp_sm_mod_remove(struct sfp *sfp)
 	sfp_module_tx_disable(sfp);
 
 	memset(&sfp->id, 0, sizeof(sfp->id));
+	sfp->module_power_mW = 0;
 
 	dev_info(sfp->dev, "module removed\n");
 }
