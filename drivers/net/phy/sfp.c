@@ -49,6 +49,7 @@ enum {
 	SFP_MOD_EMPTY = 0,
 	SFP_MOD_PROBE,
 	SFP_MOD_HPOWER,
+	SFP_MOD_WAITPWR,
 	SFP_MOD_PRESENT,
 	SFP_MOD_ERROR,
 
@@ -71,6 +72,7 @@ static const char  * const mod_state_strings[] = {
 	[SFP_MOD_EMPTY] = "empty",
 	[SFP_MOD_PROBE] = "probe",
 	[SFP_MOD_HPOWER] = "hpower",
+	[SFP_MOD_WAITPWR] = "waitpwr",
 	[SFP_MOD_PRESENT] = "present",
 	[SFP_MOD_ERROR] = "error",
 };
@@ -1423,37 +1425,34 @@ static int sfp_module_parse_power(struct sfp *sfp)
 	return 0;
 }
 
-static int sfp_sm_mod_hpower(struct sfp *sfp)
+static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 {
 	u8 val;
 	int err;
 
-	if (sfp->module_power_mW <= 1000)
-		return 0;
-
 	err = sfp_read(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
 	if (err != sizeof(val)) {
 		dev_err(sfp->dev, "Failed to read EEPROM: %d\n", err);
-		err = -EAGAIN;
-		goto err;
+		return -EAGAIN;
 	}
 
-	val |= BIT(0);
+	if (enable)
+		val |= BIT(0);
+	else
+		val &= ~BIT(0);
 
 	err = sfp_write(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
 	if (err != sizeof(val)) {
 		dev_err(sfp->dev, "Failed to write EEPROM: %d\n", err);
-		err = -EAGAIN;
-		goto err;
+		return -EAGAIN;
 	}
 
-	dev_info(sfp->dev, "Module switched to %u.%uW power level\n",
-		 sfp->module_power_mW / 1000,
-		 (sfp->module_power_mW / 100) % 10);
-	return T_HPOWER_LEVEL;
+	if (enable)
+		dev_info(sfp->dev, "Module switched to %u.%uW power level\n",
+			 sfp->module_power_mW / 1000,
+			 (sfp->module_power_mW / 100) % 10);
 
-err:
-	return err;
+	return 0;
 }
 
 static int sfp_sm_mod_probe(struct sfp *sfp)
@@ -1549,7 +1548,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 	if (ret < 0)
 		return ret;
 
-	return sfp_sm_mod_hpower(sfp);
+	return 0;
 }
 
 static void sfp_sm_mod_remove(struct sfp *sfp)
@@ -1594,13 +1593,22 @@ static void sfp_sm_device(struct sfp *sfp, unsigned int event)
  */
 static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 {
-	/* Handle remove event globally, it resets this state machine.
-	 * Also deal with upstream detachment.
-	 */
-	if (event == SFP_E_REMOVE || sfp->sm_dev_state < SFP_DEV_DOWN) {
+	int err;
+
+	/* Handle remove event globally, it resets this state machine */
+	if (event == SFP_E_REMOVE) {
 		if (sfp->sm_mod_state > SFP_MOD_PROBE)
 			sfp_sm_mod_remove(sfp);
-		if (sfp->sm_mod_state != SFP_MOD_EMPTY)
+		sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
+		return;
+	}
+
+	/* Handle device detach globally */
+	if (sfp->sm_dev_state < SFP_DEV_DOWN) {
+		if (sfp->module_power_mW > 1000 &&
+		    sfp->sm_mod_state > SFP_MOD_HPOWER)
+			sfp_sm_mod_hpower(sfp, false);
+		if (sfp->sm_mod_state > SFP_MOD_EMPTY)
 			sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
 		return;
 	}
@@ -1612,26 +1620,45 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 		break;
 
 	case SFP_MOD_PROBE:
-		if (event == SFP_E_TIMEOUT) {
-			int val = sfp_sm_mod_probe(sfp);
+		if (event != SFP_E_TIMEOUT)
+			break;
 
-			if (val == 0)
-				sfp_sm_mod_next(sfp, SFP_MOD_PRESENT, 0);
-			else if (val > 0)
-				sfp_sm_mod_next(sfp, SFP_MOD_HPOWER, val);
-			else if (val != -EAGAIN)
-				sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
-			else
-				sfp_sm_set_timer(sfp, T_PROBE_RETRY);
-		}
-		break;
-
-	case SFP_MOD_HPOWER:
-		if (event == SFP_E_TIMEOUT) {
-			sfp_sm_mod_next(sfp, SFP_MOD_PRESENT, 0);
+		err = sfp_sm_mod_probe(sfp);
+		if (err == -EAGAIN) {
+			sfp_sm_set_timer(sfp, T_PROBE_RETRY);
 			break;
 		}
-		/* fallthrough */
+		if (err < 0) {
+			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
+			break;
+		}
+
+		/* If this is a power level 1 module, we are done */
+		if (sfp->module_power_mW <= 1000)
+			goto insert;
+
+		sfp_sm_mod_next(sfp, SFP_MOD_HPOWER, 0);
+		/* fall through */
+	case SFP_MOD_HPOWER:
+		/* Enable high power mode */
+		err = sfp_sm_mod_hpower(sfp, true);
+		if (err == 0)
+			sfp_sm_mod_next(sfp, SFP_MOD_WAITPWR, T_HPOWER_LEVEL);
+		else if (err != -EAGAIN)
+			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
+		else
+			sfp_sm_set_timer(sfp, T_PROBE_RETRY);
+		break;
+
+	case SFP_MOD_WAITPWR:
+		/* Wait for T_HPOWER_LEVEL to time out */
+		if (event != SFP_E_TIMEOUT)
+			break;
+
+	insert:
+		sfp_sm_mod_next(sfp, SFP_MOD_PRESENT, 0);
+		break;
+
 	case SFP_MOD_PRESENT:
 	case SFP_MOD_ERROR:
 		break;
