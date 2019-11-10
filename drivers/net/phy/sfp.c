@@ -149,11 +149,10 @@ static const enum gpiod_flags gpio_flags[] = {
  * the same length on the PCB, which means it's possible for MOD DEF 0 to
  * connect before the I2C bus on MOD DEF 1/2.
  *
- * The SFP MSA specifies 300ms as t_init (the time taken for TX_FAULT to
- * be deasserted) but makes no mention of the earliest time before we can
- * access the I2C EEPROM.  However, Avago modules require 300ms.
+ * The SFF-8472 specifies t_serial ("Time from power on until module is
+ * ready for data transmission over the two wire serial bus.") as 300ms.
  */
-#define T_PROBE_INIT	msecs_to_jiffies(300)
+#define T_SERIAL	msecs_to_jiffies(300)
 #define T_HPOWER_LEVEL	msecs_to_jiffies(300)
 #define T_PROBE_RETRY	msecs_to_jiffies(100)
 
@@ -1560,8 +1559,8 @@ static void sfp_sm_device(struct sfp *sfp, unsigned int event)
 	}
 }
 
-/* This state machine tracks the insert/remove state of
- * the module, and handles probing the on-board EEPROM.
+/* This state machine tracks the insert/remove state of the module, probes
+ * the on-board EEPROM, and sets up the power level.
  */
 static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 {
@@ -1577,7 +1576,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 	default:
 		if (event == SFP_E_INSERT && sfp->attached) {
 			sfp_module_tx_disable(sfp);
-			sfp_sm_mod_next(sfp, SFP_MOD_PROBE, T_PROBE_INIT);
+			sfp_sm_mod_next(sfp, SFP_MOD_PROBE, T_SERIAL);
 		}
 		break;
 
