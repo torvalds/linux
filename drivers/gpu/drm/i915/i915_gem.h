@@ -68,9 +68,10 @@ struct drm_i915_private;
 	pr_err(__VA_ARGS__);						\
 	trace_printk(__VA_ARGS__);					\
 } while (0)
-#define GEM_TRACE_DUMP() ftrace_dump(DUMP_ALL)
+#define GEM_TRACE_DUMP() \
+	do { ftrace_dump(DUMP_ALL); add_taint_for_CI(TAINT_WARN); } while (0)
 #define GEM_TRACE_DUMP_ON(expr) \
-	do { if (expr) ftrace_dump(DUMP_ALL); } while (0)
+	do { if (expr) GEM_TRACE_DUMP(); } while (0)
 #else
 #define GEM_TRACE(...) do { } while (0)
 #define GEM_TRACE_ERR(...) do { } while (0)
