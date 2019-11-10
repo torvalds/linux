@@ -2485,7 +2485,7 @@ reassemble:
 				move_pos.offset -= shift >> 9;
 				goto reassemble;
 			} else {
-				bch2_cut_back(atomic_end, &copy.k->k);
+				bch2_cut_back(atomic_end, copy.k);
 			}
 		}
 
@@ -2505,7 +2505,7 @@ reassemble:
 		 */
 		if (insert &&
 		    bkey_cmp(bkey_start_pos(&copy.k->k), delete.k.p) < 0) {
-			bch2_cut_back(bkey_start_pos(&copy.k->k), &delete.k);
+			bch2_cut_back(bkey_start_pos(&copy.k->k), &delete);
 		} else if (!insert &&
 			   bkey_cmp(copy.k->k.p,
 				    bkey_start_pos(&delete.k)) > 0) {
@@ -2652,8 +2652,8 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		reservation.k.p		= k.k->p;
 		reservation.k.size	= k.k->size;
 
-		bch2_cut_front(iter->pos, &reservation.k_i);
-		bch2_cut_back(end_pos, &reservation.k);
+		bch2_cut_front(iter->pos,	&reservation.k_i);
+		bch2_cut_back(end_pos,		&reservation.k_i);
 
 		sectors = reservation.k.size;
 		reservation.v.nr_replicas = bch2_bkey_nr_dirty_ptrs(k);

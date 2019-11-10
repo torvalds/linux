@@ -350,7 +350,7 @@ struct btree_nr_keys bch2_extent_sort_fix_overlapping(struct bch_fs *c,
 			if (bkey_cmp(l.k->p, r.k->p) >= 0) {
 				sort_key_next(iter, b, _r);
 			} else {
-				__bch2_cut_front(l.k->p, r);
+				bch2_cut_front_s(l.k->p, r);
 				extent_save(b, rk, r.k);
 			}
 
@@ -362,9 +362,9 @@ struct btree_nr_keys bch2_extent_sort_fix_overlapping(struct bch_fs *c,
 			 * r wins, but it overlaps in the middle of l - split l:
 			 */
 			bkey_reassemble(split.k, l.s_c);
-			bch2_cut_back(bkey_start_pos(r.k), &split.k->k);
+			bch2_cut_back(bkey_start_pos(r.k), split.k);
 
-			__bch2_cut_front(r.k->p, l);
+			bch2_cut_front_s(r.k->p, l);
 			extent_save(b, lk, l.k);
 
 			extent_sort_sift(iter, b, 0);
@@ -372,7 +372,7 @@ struct btree_nr_keys bch2_extent_sort_fix_overlapping(struct bch_fs *c,
 			extent_sort_append(c, f, &nr, dst->start,
 					   &prev, bkey_i_to_s(split.k));
 		} else {
-			bch2_cut_back(bkey_start_pos(r.k), l.k);
+			bch2_cut_back_s(bkey_start_pos(r.k), l);
 			extent_save(b, lk, l.k);
 		}
 	}

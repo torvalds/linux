@@ -40,7 +40,7 @@ enum merge_result bch2_reflink_p_merge(struct bch_fs *c,
 
 	if ((u64) l.k->size + r.k->size > KEY_SIZE_MAX) {
 		bch2_key_resize(l.k, KEY_SIZE_MAX);
-		__bch2_cut_front(l.k->p, _r);
+		bch2_cut_front_s(l.k->p, _r);
 		return BCH_MERGE_PARTIAL;
 	}
 
@@ -230,7 +230,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 			src_k = bkey_i_to_s_c(new_src.k);
 
 			bch2_cut_front(src_iter->pos,	new_src.k);
-			bch2_cut_back(src_end,		&new_src.k->k);
+			bch2_cut_back(src_end,		new_src.k);
 
 			ret = bch2_make_extent_indirect(&trans, src_iter,
 						bkey_i_to_extent(new_src.k));

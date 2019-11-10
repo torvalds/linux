@@ -534,14 +534,18 @@ do {									\
 	}								\
 } while (0)
 
-void __bch2_cut_front(struct bpos, struct bkey_s);
+int bch2_cut_front_s(struct bpos, struct bkey_s);
+int bch2_cut_back_s(struct bpos, struct bkey_s);
 
 static inline void bch2_cut_front(struct bpos where, struct bkey_i *k)
 {
-	__bch2_cut_front(where, bkey_i_to_s(k));
+	bch2_cut_front_s(where, bkey_i_to_s(k));
 }
 
-bool bch2_cut_back(struct bpos, struct bkey *);
+static inline void bch2_cut_back(struct bpos where, struct bkey_i *k)
+{
+	bch2_cut_back_s(where, bkey_i_to_s(k));
+}
 
 /**
  * bch_key_resize - adjust size of @k

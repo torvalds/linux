@@ -584,6 +584,16 @@ static inline void btree_keys_account_key(struct btree_nr_keys *n,
 		n->unpacked_keys += sign;
 }
 
+static inline void btree_keys_account_val_delta(struct btree *b,
+						struct bkey_packed *k,
+						int delta)
+{
+	struct bset_tree *t = bch2_bkey_to_bset(b, k);
+
+	b->nr.live_u64s			+= delta;
+	b->nr.bset_u64s[t - b->set]	+= delta;
+}
+
 #define btree_keys_account_key_add(_nr, _bset_idx, _k)		\
 	btree_keys_account_key(_nr, _bset_idx, _k, 1)
 #define btree_keys_account_key_drop(_nr, _bset_idx, _k)	\

@@ -720,12 +720,14 @@ void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 
 /* Extents */
 
-void __bch2_cut_front(struct bpos where, struct bkey_s k)
+int bch2_cut_front_s(struct bpos where, struct bkey_s k)
 {
+	unsigned new_val_u64s = bkey_val_u64s(k.k);
+	int val_u64s_delta;
 	u64 sub;
 
 	if (bkey_cmp(where, bkey_start_pos(k.k)) <= 0)
-		return;
+		return 0;
 
 	EBUG_ON(bkey_cmp(where, k.k->p) > 0);
 
@@ -733,8 +735,10 @@ void __bch2_cut_front(struct bpos where, struct bkey_s k)
 
 	k.k->size -= sub;
 
-	if (!k.k->size)
+	if (!k.k->size) {
 		k.k->type = KEY_TYPE_deleted;
+		new_val_u64s = 0;
+	}
 
 	switch (k.k->type) {
 	case KEY_TYPE_deleted:
@@ -784,26 +788,42 @@ void __bch2_cut_front(struct bpos where, struct bkey_s k)
 	default:
 		BUG();
 	}
+
+	val_u64s_delta = bkey_val_u64s(k.k) - new_val_u64s;
+	BUG_ON(val_u64s_delta < 0);
+
+	set_bkey_val_u64s(k.k, new_val_u64s);
+	memset(bkey_val_end(k), 0, val_u64s_delta * sizeof(u64));
+	return -val_u64s_delta;
 }
 
-bool bch2_cut_back(struct bpos where, struct bkey *k)
+int bch2_cut_back_s(struct bpos where, struct bkey_s k)
 {
+	unsigned new_val_u64s = bkey_val_u64s(k.k);
+	int val_u64s_delta;
 	u64 len = 0;
 
-	if (bkey_cmp(where, k->p) >= 0)
-		return false;
+	if (bkey_cmp(where, k.k->p) >= 0)
+		return 0;
 
-	EBUG_ON(bkey_cmp(where, bkey_start_pos(k)) < 0);
+	EBUG_ON(bkey_cmp(where, bkey_start_pos(k.k)) < 0);
 
-	len = where.offset - bkey_start_offset(k);
+	len = where.offset - bkey_start_offset(k.k);
 
-	k->p = where;
-	k->size = len;
+	k.k->p = where;
+	k.k->size = len;
 
-	if (!len)
-		k->type = KEY_TYPE_deleted;
+	if (!len) {
+		k.k->type = KEY_TYPE_deleted;
+		new_val_u64s = 0;
+	}
 
-	return true;
+	val_u64s_delta = bkey_val_u64s(k.k) - new_val_u64s;
+	BUG_ON(val_u64s_delta < 0);
+
+	set_bkey_val_u64s(k.k, new_val_u64s);
+	memset(bkey_val_end(k), 0, val_u64s_delta * sizeof(u64));
+	return -val_u64s_delta;
 }
 
 static unsigned bch2_bkey_nr_alloc_ptrs(struct bkey_s_c k)
@@ -942,7 +962,7 @@ int bch2_extent_trim_atomic(struct bkey_i *k, struct btree_iter *iter)
 	if (ret)
 		return ret;
 
-	bch2_cut_back(end, &k->k);
+	bch2_cut_back(end, k);
 	return 0;
 }
 
@@ -1085,11 +1105,14 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 	      enum bch_extent_overlap overlap)
 {
 	struct btree_iter_level *l = &iter->l[0];
+	int u64s_delta;
 
 	switch (overlap) {
 	case BCH_EXTENT_OVERLAP_FRONT:
 		/* insert overlaps with start of k: */
-		__bch2_cut_front(insert->k.p, k);
+		u64s_delta = bch2_cut_front_s(insert->k.p, k);
+		btree_keys_account_val_delta(l->b, _k, u64s_delta);
+
 		EBUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
 		bch2_btree_iter_fix_key_modified(iter, l->b, _k);
@@ -1097,7 +1120,9 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 
 	case BCH_EXTENT_OVERLAP_BACK:
 		/* insert overlaps with end of k: */
-		bch2_cut_back(bkey_start_pos(&insert->k), k.k);
+		u64s_delta = bch2_cut_back_s(bkey_start_pos(&insert->k), k);
+		btree_keys_account_val_delta(l->b, _k, u64s_delta);
+
 		EBUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
 
@@ -1155,10 +1180,12 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 		bkey_reassemble(split.k, k.s_c);
 		split.k->k.needs_whiteout |= bkey_written(l->b, _k);
 
-		bch2_cut_back(bkey_start_pos(&insert->k), &split.k->k);
+		bch2_cut_back(bkey_start_pos(&insert->k), split.k);
 		BUG_ON(bkey_deleted(&split.k->k));
 
-		__bch2_cut_front(insert->k.p, k);
+		u64s_delta = bch2_cut_front_s(insert->k.p, k);
+		btree_keys_account_val_delta(l->b, _k, u64s_delta);
+
 		BUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
 		bch2_btree_iter_fix_key_modified(iter, l->b, _k);
@@ -1748,7 +1775,7 @@ enum merge_result bch2_reservation_merge(struct bch_fs *c,
 
 	if ((u64) l.k->size + r.k->size > KEY_SIZE_MAX) {
 		bch2_key_resize(l.k, KEY_SIZE_MAX);
-		__bch2_cut_front(l.k->p, r.s);
+		bch2_cut_front_s(l.k->p, r.s);
 		return BCH_MERGE_PARTIAL;
 	}
 

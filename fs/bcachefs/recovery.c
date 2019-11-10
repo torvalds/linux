@@ -177,7 +177,7 @@ static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
 			if ((cmp_int(i[0].journal_seq, i[1].journal_seq) ?:
 			     cmp_int(i[0].journal_offset, i[1].journal_offset)) < 0) {
 				if (bkey_cmp(i[0].k->k.p, i[1].k->k.p) <= 0) {
-					bch2_cut_back(bkey_start_pos(&i[1].k->k), &i[0].k->k);
+					bch2_cut_back(bkey_start_pos(&i[1].k->k), i[0].k);
 				} else {
 					struct bkey_i *split =
 						kmalloc(bkey_bytes(i[0].k), GFP_KERNEL);
@@ -186,7 +186,7 @@ static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
 						goto err;
 
 					bkey_copy(split, i[0].k);
-					bch2_cut_back(bkey_start_pos(&i[1].k->k), &split->k);
+					bch2_cut_back(bkey_start_pos(&i[1].k->k), split);
 					keys_deduped.d[keys_deduped.nr++] = (struct journal_key) {
 						.btree_id	= i[0].btree_id,
 						.allocated	= true,
@@ -298,7 +298,7 @@ retry:
 
 		bkey_copy(split, k);
 		bch2_cut_front(split_iter->pos, split);
-		bch2_cut_back(atomic_end, &split->k);
+		bch2_cut_back(atomic_end, split);
 
 		bch2_trans_update(&trans, split_iter, split);
 		bch2_btree_iter_set_pos(iter, split->k.p);

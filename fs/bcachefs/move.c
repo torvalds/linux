@@ -96,10 +96,11 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 
 		bkey_copy(&_new.k, bch2_keylist_front(keys));
 		new = bkey_i_to_extent(&_new.k);
+		bch2_cut_front(iter->pos, &new->k_i);
 
-		bch2_cut_front(iter->pos, insert);
-		bch2_cut_back(new->k.p, &insert->k);
-		bch2_cut_back(insert->k.p, &new->k);
+		bch2_cut_front(iter->pos,	insert);
+		bch2_cut_back(new->k.p,		insert);
+		bch2_cut_back(insert->k.p,	&new->k_i);
 
 		if (m->data_cmd == DATA_REWRITE)
 			bch2_bkey_drop_device(bkey_i_to_s(insert),
@@ -168,8 +169,6 @@ next:
 			if (bch2_keylist_empty(keys))
 				goto out;
 		}
-
-		bch2_cut_front(iter->pos, bch2_keylist_front(keys));
 		continue;
 nomatch:
 		if (m->ctxt)
