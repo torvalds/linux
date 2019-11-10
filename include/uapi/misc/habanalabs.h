@@ -192,13 +192,15 @@ struct hl_info_args {
 /* Opcode to destroy previously created command buffer */
 #define HL_CB_OP_DESTROY	1
 
+#define HL_MAX_CB_SIZE		0x200000	/* 2MB */
+
 struct hl_cb_in {
 	/* Handle of CB or 0 if we want to create one */
 	__u64 cb_handle;
 	/* HL_CB_OP_* */
 	__u32 op;
-	/* Size of CB. Maximum size is 2MB. The minimum size that will be
-	 * allocated, regardless of this parameter's value, is PAGE_SIZE
+	/* Size of CB. Maximum size is HL_MAX_CB_SIZE. The minimum size that
+	 * will be allocated, regardless of this parameter's value, is PAGE_SIZE
 	 */
 	__u32 cb_size;
 	/* Context ID - Currently not in use */
@@ -244,6 +246,8 @@ struct hl_cs_chunk {
 
 #define HL_CS_STATUS_SUCCESS		0
 
+#define HL_MAX_JOBS_PER_CS		512
+
 struct hl_cs_in {
 	/* this holds address of array of hl_cs_chunk for restore phase */
 	__u64 chunks_restore;
@@ -253,9 +257,13 @@ struct hl_cs_in {
 	 * Currently not in use
 	 */
 	__u64 chunks_store;
-	/* Number of chunks in restore phase array */
+	/* Number of chunks in restore phase array. Maximum number is
+	 * HL_MAX_JOBS_PER_CS
+	 */
 	__u32 num_chunks_restore;
-	/* Number of chunks in execution array */
+	/* Number of chunks in execution array. Maximum number is
+	 * HL_MAX_JOBS_PER_CS
+	 */
 	__u32 num_chunks_execute;
 	/* Number of chunks in restore phase array - Currently not in use */
 	__u32 num_chunks_store;

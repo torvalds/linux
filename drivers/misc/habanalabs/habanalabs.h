@@ -40,8 +40,6 @@
 
 #define HL_MAX_QUEUES			128
 
-#define HL_MAX_JOBS_PER_CS		512
-
 /* MUST BE POWER OF 2 and larger than 1 */
 #define HL_MAX_PENDING_CS		64
 
@@ -241,8 +239,6 @@ struct hl_dma_fence {
 /*
  * Command Buffers
  */
-
-#define HL_MAX_CB_SIZE		0x200000	/* 2MB */
 
 /**
  * struct hl_cb_mgr - describes a Command Buffer Manager.
