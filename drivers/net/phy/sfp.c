@@ -1557,11 +1557,6 @@ static void sfp_sm_mod_remove(struct sfp *sfp)
 
 	sfp_hwmon_remove(sfp);
 
-	if (sfp->mod_phy)
-		sfp_sm_phy_detach(sfp);
-
-	sfp_module_tx_disable(sfp);
-
 	memset(&sfp->id, 0, sizeof(sfp->id));
 	sfp->module_power_mW = 0;
 
@@ -1599,10 +1594,8 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 
 	switch (sfp->sm_mod_state) {
 	default:
-		if (event == SFP_E_INSERT && sfp->attached) {
-			sfp_module_tx_disable(sfp);
+		if (event == SFP_E_INSERT && sfp->attached)
 			sfp_sm_mod_next(sfp, SFP_MOD_PROBE, T_SERIAL);
-		}
 		break;
 
 	case SFP_MOD_PROBE:
