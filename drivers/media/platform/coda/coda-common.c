@@ -933,7 +933,8 @@ static int coda_g_selection(struct file *file, void *fh,
 		rsel = &r;
 		/* fallthrough */
 	case V4L2_SEL_TGT_CROP:
-		if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT ||
+		    ctx->inst_type == CODA_INST_DECODER)
 			return -EINVAL;
 		break;
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
