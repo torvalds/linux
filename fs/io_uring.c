@@ -1887,6 +1887,8 @@ static int io_accept(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
 		return -EAGAIN;
 	}
+	if (ret == -ERESTARTSYS)
+		ret = -EINTR;
 	if (ret < 0 && (req->flags & REQ_F_LINK))
 		req->flags |= REQ_F_FAIL_LINK;
 	io_cqring_add_event(req, ret);
