@@ -40,4 +40,10 @@ properties:
           - enum:
               - synology,ds418 # Synology DiskStation DS418
           - const: realtek,rtd1296
+
+      # RTD1395 SoC based boards
+      - items:
+          - enum:
+              - bananapi,bpi-m4 # Banana Pi BPI-M4
+          - const: realtek,rtd1395
 ...
