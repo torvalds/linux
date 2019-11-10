@@ -1544,19 +1544,34 @@ static void sfp_sm_mod_remove(struct sfp *sfp)
 	dev_info(sfp->dev, "module removed\n");
 }
 
-static void sfp_sm_event(struct sfp *sfp, unsigned int event)
+/* This state machine tracks the netdev up/down state */
+static void sfp_sm_device(struct sfp *sfp, unsigned int event)
 {
-	mutex_lock(&sfp->sm_mutex);
+	switch (sfp->sm_dev_state) {
+	default:
+		if (event == SFP_E_DEV_UP)
+			sfp->sm_dev_state = SFP_DEV_UP;
+		break;
 
-	dev_dbg(sfp->dev, "SM: enter %s:%s:%s event %s\n",
-		mod_state_to_str(sfp->sm_mod_state),
-		dev_state_to_str(sfp->sm_dev_state),
-		sm_state_to_str(sfp->sm_state),
-		event_to_str(event));
+	case SFP_DEV_UP:
+		if (event == SFP_E_DEV_DOWN) {
+			/* If the module has a PHY, avoid raising TX disable
+			 * as this resets the PHY. Otherwise, raise it to
+			 * turn the laser off.
+			 */
+			if (!sfp->mod_phy)
+				sfp_module_tx_disable(sfp);
+			sfp->sm_dev_state = SFP_DEV_DOWN;
+		}
+		break;
+	}
+}
 
-	/* This state machine tracks the insert/remove state of
-	 * the module, and handles probing the on-board EEPROM.
-	 */
+/* This state machine tracks the insert/remove state of
+ * the module, and handles probing the on-board EEPROM.
+ */
+static void sfp_sm_module(struct sfp *sfp, unsigned int event)
+{
 	switch (sfp->sm_mod_state) {
 	default:
 		if (event == SFP_E_INSERT && sfp->attached) {
@@ -1596,27 +1611,10 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		}
 		break;
 	}
+}
 
-	/* This state machine tracks the netdev up/down state */
-	switch (sfp->sm_dev_state) {
-	default:
-		if (event == SFP_E_DEV_UP)
-			sfp->sm_dev_state = SFP_DEV_UP;
-		break;
-
-	case SFP_DEV_UP:
-		if (event == SFP_E_DEV_DOWN) {
-			/* If the module has a PHY, avoid raising TX disable
-			 * as this resets the PHY. Otherwise, raise it to
-			 * turn the laser off.
-			 */
-			if (!sfp->mod_phy)
-				sfp_module_tx_disable(sfp);
-			sfp->sm_dev_state = SFP_DEV_DOWN;
-		}
-		break;
-	}
-
+static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+{
 	/* Some events are global */
 	if (sfp->sm_state != SFP_S_DOWN &&
 	    (sfp->sm_mod_state != SFP_MOD_PRESENT ||
@@ -1627,7 +1625,6 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		if (sfp->mod_phy)
 			sfp_sm_phy_detach(sfp);
 		sfp_sm_next(sfp, SFP_S_DOWN, 0);
-		mutex_unlock(&sfp->sm_mutex);
 		return;
 	}
 
@@ -1682,6 +1679,21 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 	case SFP_S_TX_DISABLE:
 		break;
 	}
+}
+
+static void sfp_sm_event(struct sfp *sfp, unsigned int event)
+{
+	mutex_lock(&sfp->sm_mutex);
+
+	dev_dbg(sfp->dev, "SM: enter %s:%s:%s event %s\n",
+		mod_state_to_str(sfp->sm_mod_state),
+		dev_state_to_str(sfp->sm_dev_state),
+		sm_state_to_str(sfp->sm_state),
+		event_to_str(event));
+
+	sfp_sm_module(sfp, event);
+	sfp_sm_device(sfp, event);
+	sfp_sm_main(sfp, event);
 
 	dev_dbg(sfp->dev, "SM: exit %s:%s:%s\n",
 		mod_state_to_str(sfp->sm_mod_state),
