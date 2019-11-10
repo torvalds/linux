@@ -613,9 +613,15 @@ static int ip_tun_opts_nlsize(struct ip_tunnel_info *info)
 		opt_len += nla_total_size(0)	/* LWTUNNEL_IP_OPTS_VXLAN */
 			   + nla_total_size(4);	/* OPT_VXLAN_GBP */
 	} else if (info->key.tun_flags & TUNNEL_ERSPAN_OPT) {
+		struct erspan_metadata *md = ip_tunnel_info_opts(info);
+
 		opt_len += nla_total_size(0)	/* LWTUNNEL_IP_OPTS_ERSPAN */
 			   + nla_total_size(1)	/* OPT_ERSPAN_VER */
-			   + nla_total_size(4);	/* OPT_ERSPAN_INDEX/DIR/HWID */
+			   + (md->version == 1 ? nla_total_size(4)
+						/* OPT_ERSPAN_INDEX (v1) */
+					       : nla_total_size(1) +
+						 nla_total_size(1));
+						/* OPT_ERSPAN_DIR + HWID (v2) */
 	}
 
 	return opt_len;
