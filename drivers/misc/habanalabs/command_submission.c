@@ -626,9 +626,10 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 
 	rc = hl_hw_queue_schedule_cs(cs);
 	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to submit CS %d.%llu to H/W queues, error %d\n",
-			cs->ctx->asid, cs->sequence, rc);
+		if (rc != -EAGAIN)
+			dev_err(hdev->dev,
+				"Failed to submit CS %d.%llu to H/W queues, error %d\n",
+				cs->ctx->asid, cs->sequence, rc);
 		goto free_cs_object;
 	}
 
