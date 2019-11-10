@@ -47,11 +47,12 @@ enum {
 	SFP_E_TIMEOUT,
 
 	SFP_MOD_EMPTY = 0,
+	SFP_MOD_ERROR,
 	SFP_MOD_PROBE,
+	SFP_MOD_WAITDEV,
 	SFP_MOD_HPOWER,
 	SFP_MOD_WAITPWR,
 	SFP_MOD_PRESENT,
-	SFP_MOD_ERROR,
 
 	SFP_DEV_DETACHED = 0,
 	SFP_DEV_DOWN,
@@ -70,11 +71,12 @@ enum {
 
 static const char  * const mod_state_strings[] = {
 	[SFP_MOD_EMPTY] = "empty",
+	[SFP_MOD_ERROR] = "error",
 	[SFP_MOD_PROBE] = "probe",
+	[SFP_MOD_WAITDEV] = "waitdev",
 	[SFP_MOD_HPOWER] = "hpower",
 	[SFP_MOD_WAITPWR] = "waitpwr",
 	[SFP_MOD_PRESENT] = "present",
-	[SFP_MOD_ERROR] = "error",
 };
 
 static const char *mod_state_to_str(unsigned short mod_state)
@@ -1544,16 +1546,13 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 	if (ret < 0)
 		return ret;
 
-	ret = sfp_module_insert(sfp->sfp_bus, &sfp->id);
-	if (ret < 0)
-		return ret;
-
 	return 0;
 }
 
 static void sfp_sm_mod_remove(struct sfp *sfp)
 {
-	sfp_module_remove(sfp->sfp_bus);
+	if (sfp->sm_mod_state > SFP_MOD_WAITDEV)
+		sfp_module_remove(sfp->sfp_bus);
 
 	sfp_hwmon_remove(sfp);
 
@@ -1604,12 +1603,12 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 	}
 
 	/* Handle device detach globally */
-	if (sfp->sm_dev_state < SFP_DEV_DOWN) {
+	if (sfp->sm_dev_state < SFP_DEV_DOWN &&
+	    sfp->sm_mod_state > SFP_MOD_WAITDEV) {
 		if (sfp->module_power_mW > 1000 &&
 		    sfp->sm_mod_state > SFP_MOD_HPOWER)
 			sfp_sm_mod_hpower(sfp, false);
-		if (sfp->sm_mod_state > SFP_MOD_EMPTY)
-			sfp_sm_mod_next(sfp, SFP_MOD_EMPTY, 0);
+		sfp_sm_mod_next(sfp, SFP_MOD_WAITDEV, 0);
 		return;
 	}
 
@@ -1620,6 +1619,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 		break;
 
 	case SFP_MOD_PROBE:
+		/* Wait for T_PROBE_INIT to time out */
 		if (event != SFP_E_TIMEOUT)
 			break;
 
@@ -1628,6 +1628,20 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 			sfp_sm_set_timer(sfp, T_PROBE_RETRY);
 			break;
 		}
+		if (err < 0) {
+			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
+			break;
+		}
+
+		sfp_sm_mod_next(sfp, SFP_MOD_WAITDEV, 0);
+		/* fall through */
+	case SFP_MOD_WAITDEV:
+		/* Ensure that the device is attached before proceeding */
+		if (sfp->sm_dev_state < SFP_DEV_DOWN)
+			break;
+
+		/* Report the module insertion to the upstream device */
+		err = sfp_module_insert(sfp->sfp_bus, &sfp->id);
 		if (err < 0) {
 			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
 			break;
@@ -1642,12 +1656,17 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 	case SFP_MOD_HPOWER:
 		/* Enable high power mode */
 		err = sfp_sm_mod_hpower(sfp, true);
-		if (err == 0)
-			sfp_sm_mod_next(sfp, SFP_MOD_WAITPWR, T_HPOWER_LEVEL);
-		else if (err != -EAGAIN)
-			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
-		else
-			sfp_sm_set_timer(sfp, T_PROBE_RETRY);
+		if (err < 0) {
+			if (err != -EAGAIN) {
+				sfp_module_remove(sfp->sfp_bus);
+				sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
+			} else {
+				sfp_sm_set_timer(sfp, T_PROBE_RETRY);
+			}
+			break;
+		}
+
+		sfp_sm_mod_next(sfp, SFP_MOD_WAITPWR, T_HPOWER_LEVEL);
 		break;
 
 	case SFP_MOD_WAITPWR:
@@ -1815,8 +1834,6 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 static void sfp_attach(struct sfp *sfp)
 {
 	sfp_sm_event(sfp, SFP_E_DEV_ATTACH);
-	if (sfp->state & SFP_F_PRESENT)
-		sfp_sm_event(sfp, SFP_E_INSERT);
 }
 
 static void sfp_detach(struct sfp *sfp)
@@ -2084,6 +2101,11 @@ static int sfp_probe(struct platform_device *pdev)
 		sfp->state |= SFP_F_RATE_SELECT;
 	sfp_set_state(sfp, sfp->state);
 	sfp_module_tx_disable(sfp);
+	if (sfp->state & SFP_F_PRESENT) {
+		rtnl_lock();
+		sfp_sm_event(sfp, SFP_E_INSERT);
+		rtnl_unlock();
+	}
 
 	for (i = 0; i < GPIO_MAX; i++) {
 		if (gpio_flags[i] != GPIOD_IN || !sfp->gpio[i])
