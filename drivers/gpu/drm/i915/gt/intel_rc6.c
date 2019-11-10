@@ -88,15 +88,12 @@ static void gen11_rc6_enable(struct intel_rc6 *rc6)
 	 * do not want the enable hysteresis to less than the wakeup latency.
 	 *
 	 * igt/gem_exec_nop/sequential provides a rough estimate for the
-	 * service latency, and puts it around 10us for Broadwell (and other
-	 * big core) and around 40us for Broxton (and other low power cores).
-	 * [Note that for legacy ringbuffer submission, this is less than 1us!]
-	 * However, the wakeup latency on Broxton is closer to 100us. To be
-	 * conservative, we have to factor in a context switch on top (due
-	 * to ksoftirqd).
+	 * service latency, and puts it under 10us for Icelake, similar to
+	 * Broadwell+, To be conservative, we want to factor in a context
+	 * switch on top (due to ksoftirqd).
 	 */
-	set(uncore, GEN9_MEDIA_PG_IDLE_HYSTERESIS, 250);
-	set(uncore, GEN9_RENDER_PG_IDLE_HYSTERESIS, 250);
+	set(uncore, GEN9_MEDIA_PG_IDLE_HYSTERESIS, 60);
+	set(uncore, GEN9_RENDER_PG_IDLE_HYSTERESIS, 60);
 
 	/* 3a: Enable RC6 */
 	set(uncore, GEN6_RC_CONTROL,
