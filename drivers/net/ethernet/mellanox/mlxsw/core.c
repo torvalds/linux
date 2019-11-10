@@ -1186,10 +1186,11 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_thermal_init;
 
-	if (mlxsw_driver->params_register) {
+	if (mlxsw_driver->params_register)
 		devlink_params_publish(devlink);
+
+	if (!reload)
 		devlink_reload_enable(devlink);
-	}
 
 	return 0;
 
