@@ -330,8 +330,23 @@ struct x86_hw_tss {
 #define IO_BITMAP_BITS			65536
 #define IO_BITMAP_BYTES			(IO_BITMAP_BITS/8)
 #define IO_BITMAP_LONGS			(IO_BITMAP_BYTES/sizeof(long))
-#define IO_BITMAP_OFFSET		(offsetof(struct tss_struct, io_bitmap) - offsetof(struct tss_struct, x86_tss))
-#define INVALID_IO_BITMAP_OFFSET	0x8000
+
+#define IO_BITMAP_OFFSET_VALID				\
+	(offsetof(struct tss_struct, io_bitmap) -	\
+	 offsetof(struct tss_struct, x86_tss))
+
+/*
+ * sizeof(unsigned long) coming from an extra "long" at the end
+ * of the iobitmap.
+ *
+ * -1? seg base+limit should be pointing to the address of the
+ * last valid byte
+ */
+#define __KERNEL_TSS_LIMIT	\
+	(IO_BITMAP_OFFSET_VALID + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
+
+/* Base offset outside of TSS_LIMIT so unpriviledged IO causes #GP */
+#define IO_BITMAP_OFFSET_INVALID	(__KERNEL_TSS_LIMIT + 1)
 
 struct entry_stack {
 	unsigned long		words[64];
@@ -350,6 +365,15 @@ struct tss_struct {
 	struct x86_hw_tss	x86_tss;
 
 	/*
+	 * Store the dirty size of the last io bitmap offender. The next
+	 * one will have to do the cleanup as the switch out to a non io
+	 * bitmap user will just set x86_tss.io_bitmap_base to a value
+	 * outside of the TSS limit. So for sane tasks there is no need to
+	 * actually touch the io_bitmap at all.
+	 */
+	unsigned int		io_bitmap_prev_max;
+
+	/*
 	 * The extra 1 is there because the CPU will access an
 	 * additional byte beyond the end of the IO permission
 	 * bitmap. The extra byte must be all 1 bits, and must
@@ -359,16 +383,6 @@ struct tss_struct {
 } __aligned(PAGE_SIZE);
 
 DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
-
-/*
- * sizeof(unsigned long) coming from an extra "long" at the end
- * of the iobitmap.
- *
- * -1? seg base+limit should be pointing to the address of the
- * last valid byte
- */
-#define __KERNEL_TSS_LIMIT	\
-	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
 
 /* Per CPU interrupt stacks */
 struct irq_stack {
