@@ -93,31 +93,9 @@ unsigned int blkdev_nr_zones(struct block_device *bdev)
 	if (!blk_queue_is_zoned(q))
 		return 0;
 
-	return __blkdev_nr_zones(q, bdev->bd_part->nr_sects);
+	return __blkdev_nr_zones(q, get_capacity(bdev->bd_disk));
 }
 EXPORT_SYMBOL_GPL(blkdev_nr_zones);
-
-/*
- * Check that a zone report belongs to this partition, and if yes, fix its start
- * sector and write pointer and return true. Return false otherwise.
- */
-static bool blkdev_report_zone(struct block_device *bdev, struct blk_zone *rep)
-{
-	sector_t offset = get_start_sect(bdev);
-
-	if (rep->start < offset)
-		return false;
-
-	rep->start -= offset;
-	if (rep->start + rep->len > bdev->bd_part->nr_sects)
-		return false;
-
-	if (rep->type == BLK_ZONE_TYPE_CONVENTIONAL)
-		rep->wp = rep->start + rep->len;
-	else
-		rep->wp -= offset;
-	return true;
-}
 
 /**
  * blkdev_report_zones - Get zones information
@@ -140,8 +118,7 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 {
 	struct request_queue *q = bdev_get_queue(bdev);
 	struct gendisk *disk = bdev->bd_disk;
-	unsigned int i, nrz;
-	int ret;
+	sector_t capacity = get_capacity(disk);
 
 	if (!blk_queue_is_zoned(q))
 		return -EOPNOTSUPP;
@@ -154,27 +131,14 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 	if (WARN_ON_ONCE(!disk->fops->report_zones))
 		return -EOPNOTSUPP;
 
-	if (!*nr_zones || sector >= bdev->bd_part->nr_sects) {
+	if (!*nr_zones || sector >= capacity) {
 		*nr_zones = 0;
 		return 0;
 	}
 
-	nrz = min(*nr_zones,
-		  __blkdev_nr_zones(q, bdev->bd_part->nr_sects - sector));
-	ret = disk->fops->report_zones(disk, get_start_sect(bdev) + sector,
-				       zones, &nrz);
-	if (ret)
-		return ret;
+	*nr_zones = min(*nr_zones, __blkdev_nr_zones(q, capacity - sector));
 
-	for (i = 0; i < nrz; i++) {
-		if (!blkdev_report_zone(bdev, zones))
-			break;
-		zones++;
-	}
-
-	*nr_zones = i;
-
-	return 0;
+	return disk->fops->report_zones(disk, sector, zones, nr_zones);
 }
 EXPORT_SYMBOL_GPL(blkdev_report_zones);
 
@@ -185,15 +149,11 @@ static inline bool blkdev_allow_reset_all_zones(struct block_device *bdev,
 	if (!blk_queue_zone_resetall(bdev_get_queue(bdev)))
 		return false;
 
-	if (sector || nr_sectors != part_nr_sects_read(bdev->bd_part))
-		return false;
 	/*
-	 * REQ_OP_ZONE_RESET_ALL can be executed only if the block device is
-	 * the entire disk, that is, if the blocks device start offset is 0 and
-	 * its capacity is the same as the entire disk.
+	 * REQ_OP_ZONE_RESET_ALL can be executed only if the number of sectors
+	 * of the applicable zone range is the entire disk.
 	 */
-	return get_start_sect(bdev) == 0 &&
-	       part_nr_sects_read(bdev->bd_part) == get_capacity(bdev->bd_disk);
+	return !sector && nr_sectors == get_capacity(bdev->bd_disk);
 }
 
 /**
@@ -218,6 +178,7 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
 {
 	struct request_queue *q = bdev_get_queue(bdev);
 	sector_t zone_sectors = blk_queue_zone_sectors(q);
+	sector_t capacity = get_capacity(bdev->bd_disk);
 	sector_t end_sector = sector + nr_sectors;
 	struct bio *bio = NULL;
 	int ret;
@@ -231,7 +192,7 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
 	if (!op_is_zone_mgmt(op))
 		return -EOPNOTSUPP;
 
-	if (!nr_sectors || end_sector > bdev->bd_part->nr_sects)
+	if (!nr_sectors || end_sector > capacity)
 		/* Out of range */
 		return -EINVAL;
 
@@ -239,8 +200,7 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
 	if (sector & (zone_sectors - 1))
 		return -EINVAL;
 
-	if ((nr_sectors & (zone_sectors - 1)) &&
-	    end_sector != bdev->bd_part->nr_sects)
+	if ((nr_sectors & (zone_sectors - 1)) && end_sector != capacity)
 		return -EINVAL;
 
 	while (sector < end_sector) {
