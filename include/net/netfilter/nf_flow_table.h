@@ -8,6 +8,7 @@
 #include <linux/rcupdate.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_conntrack_tuple_common.h>
+#include <net/flow_offload.h>
 #include <net/dst.h>
 
 struct nf_flowtable;
@@ -16,9 +17,16 @@ struct nf_flowtable_type {
 	struct list_head		list;
 	int				family;
 	int				(*init)(struct nf_flowtable *ft);
+	int				(*setup)(struct nf_flowtable *ft,
+						 struct net_device *dev,
+						 enum flow_block_command cmd);
 	void				(*free)(struct nf_flowtable *ft);
 	nf_hookfn			*hook;
 	struct module			*owner;
+};
+
+enum nf_flowtable_flags {
+	NF_FLOWTABLE_HW_OFFLOAD		= 0x1,
 };
 
 struct nf_flowtable {
@@ -27,6 +35,9 @@ struct nf_flowtable {
 	int				priority;
 	const struct nf_flowtable_type	*type;
 	struct delayed_work		gc_work;
+	unsigned int			flags;
+	struct flow_block		flow_block;
+	possible_net_t			net;
 };
 
 enum flow_offload_tuple_dir {
@@ -130,5 +141,12 @@ unsigned int nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 
 #define MODULE_ALIAS_NF_FLOWTABLE(family)	\
 	MODULE_ALIAS("nf-flowtable-" __stringify(family))
+
+static inline int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
+					      struct net_device *dev,
+					      enum flow_block_command cmd)
+{
+	return 0;
+}
 
 #endif /* _NF_FLOW_TABLE_H */
