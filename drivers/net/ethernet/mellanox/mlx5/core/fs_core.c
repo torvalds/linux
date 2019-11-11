@@ -2558,23 +2558,95 @@ out_err:
 	steering->rdma_rx_root_ns = NULL;
 	return err;
 }
-static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
+
+/* FT and tc chains are stored in the same array so we can re-use the
+ * mlx5_get_fdb_sub_ns() and tc api for FT chains.
+ * When creating a new ns for each chain store it in the first available slot.
+ * Assume tc chains are created and stored first and only then the FT chain.
+ */
+static void store_fdb_sub_ns_prio_chain(struct mlx5_flow_steering *steering,
+					struct mlx5_flow_namespace *ns)
+{
+	int chain = 0;
+
+	while (steering->fdb_sub_ns[chain])
+		++chain;
+
+	steering->fdb_sub_ns[chain] = ns;
+}
+
+static int create_fdb_sub_ns_prio_chain(struct mlx5_flow_steering *steering,
+					struct fs_prio *maj_prio)
 {
 	struct mlx5_flow_namespace *ns;
-	struct fs_prio *maj_prio;
 	struct fs_prio *min_prio;
+	int prio;
+
+	ns = fs_create_namespace(maj_prio, MLX5_FLOW_TABLE_MISS_ACTION_DEF);
+	if (IS_ERR(ns))
+		return PTR_ERR(ns);
+
+	for (prio = 0; prio < FDB_TC_MAX_PRIO; prio++) {
+		min_prio = fs_create_prio(ns, prio, FDB_TC_LEVELS_PER_PRIO);
+		if (IS_ERR(min_prio))
+			return PTR_ERR(min_prio);
+	}
+
+	store_fdb_sub_ns_prio_chain(steering, ns);
+
+	return 0;
+}
+
+static int create_fdb_chains(struct mlx5_flow_steering *steering,
+			     int fs_prio,
+			     int chains)
+{
+	struct fs_prio *maj_prio;
 	int levels;
 	int chain;
-	int prio;
+	int err;
+
+	levels = FDB_TC_LEVELS_PER_PRIO * FDB_TC_MAX_PRIO * chains;
+	maj_prio = fs_create_prio_chained(&steering->fdb_root_ns->ns,
+					  fs_prio,
+					  levels);
+	if (IS_ERR(maj_prio))
+		return PTR_ERR(maj_prio);
+
+	for (chain = 0; chain < chains; chain++) {
+		err = create_fdb_sub_ns_prio_chain(steering, maj_prio);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int create_fdb_fast_path(struct mlx5_flow_steering *steering)
+{
+	const int total_chains = FDB_TC_MAX_CHAIN + 1;
+	int err;
+
+	steering->fdb_sub_ns = kcalloc(total_chains,
+				       sizeof(*steering->fdb_sub_ns),
+				       GFP_KERNEL);
+	if (!steering->fdb_sub_ns)
+		return -ENOMEM;
+
+	err = create_fdb_chains(steering, FDB_FAST_PATH, FDB_TC_MAX_CHAIN + 1);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
+{
+	struct fs_prio *maj_prio;
 	int err;
 
 	steering->fdb_root_ns = create_root_ns(steering, FS_FT_FDB);
 	if (!steering->fdb_root_ns)
-		return -ENOMEM;
-
-	steering->fdb_sub_ns = kzalloc(sizeof(steering->fdb_sub_ns) *
-				       (FDB_TC_MAX_CHAIN + 1), GFP_KERNEL);
-	if (!steering->fdb_sub_ns)
 		return -ENOMEM;
 
 	maj_prio = fs_create_prio(&steering->fdb_root_ns->ns, FDB_BYPASS_PATH,
@@ -2583,35 +2655,9 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 		err = PTR_ERR(maj_prio);
 		goto out_err;
 	}
-
-	levels = FDB_TC_LEVELS_PER_PRIO *
-		 FDB_TC_MAX_PRIO * (FDB_TC_MAX_CHAIN + 1);
-	maj_prio = fs_create_prio_chained(&steering->fdb_root_ns->ns,
-					  FDB_FAST_PATH,
-					  levels);
-	if (IS_ERR(maj_prio)) {
-		err = PTR_ERR(maj_prio);
+	err = create_fdb_fast_path(steering);
+	if (err)
 		goto out_err;
-	}
-
-	for (chain = 0; chain <= FDB_TC_MAX_CHAIN; chain++) {
-		ns = fs_create_namespace(maj_prio, MLX5_FLOW_TABLE_MISS_ACTION_DEF);
-		if (IS_ERR(ns)) {
-			err = PTR_ERR(ns);
-			goto out_err;
-		}
-
-		for (prio = 0; prio < FDB_TC_MAX_PRIO * (chain + 1); prio++) {
-			min_prio = fs_create_prio(ns, prio,
-						  FDB_TC_LEVELS_PER_PRIO);
-			if (IS_ERR(min_prio)) {
-				err = PTR_ERR(min_prio);
-				goto out_err;
-			}
-		}
-
-		steering->fdb_sub_ns[chain] = ns;
-	}
 
 	maj_prio = fs_create_prio(&steering->fdb_root_ns->ns, FDB_SLOW_PATH, 1);
 	if (IS_ERR(maj_prio)) {
