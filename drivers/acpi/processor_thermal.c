@@ -127,26 +127,34 @@ static int cpufreq_set_cur_state(unsigned int cpu, int state)
 
 void acpi_thermal_cpufreq_init(struct cpufreq_policy *policy)
 {
-	int cpu = policy->cpu;
-	struct acpi_processor *pr = per_cpu(processors, cpu);
-	int ret;
+	unsigned int cpu;
 
-	if (!pr)
-		return;
+	for_each_cpu(cpu, policy->related_cpus) {
+		struct acpi_processor *pr = per_cpu(processors, cpu);
+		int ret;
 
-	ret = freq_qos_add_request(&policy->constraints, &pr->thermal_req,
-				   FREQ_QOS_MAX, INT_MAX);
-	if (ret < 0)
-		pr_err("Failed to add freq constraint for CPU%d (%d)\n", cpu,
-		       ret);
+		if (!pr)
+			continue;
+
+		ret = freq_qos_add_request(&policy->constraints,
+					   &pr->thermal_req,
+					   FREQ_QOS_MAX, INT_MAX);
+		if (ret < 0)
+			pr_err("Failed to add freq constraint for CPU%d (%d)\n",
+			       cpu, ret);
+	}
 }
 
 void acpi_thermal_cpufreq_exit(struct cpufreq_policy *policy)
 {
-	struct acpi_processor *pr = per_cpu(processors, policy->cpu);
+	unsigned int cpu;
 
-	if (pr)
-		freq_qos_remove_request(&pr->thermal_req);
+	for_each_cpu(cpu, policy->related_cpus) {
+		struct acpi_processor *pr = per_cpu(processors, policy->cpu);
+
+		if (pr)
+			freq_qos_remove_request(&pr->thermal_req);
+	}
 }
 #else				/* ! CONFIG_CPU_FREQ */
 static int cpufreq_get_max_state(unsigned int cpu)

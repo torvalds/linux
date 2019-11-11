@@ -896,12 +896,13 @@ int tb_dp_port_set_hops(struct tb_port *port, unsigned int video,
  */
 bool tb_dp_port_is_enabled(struct tb_port *port)
 {
-	u32 data;
+	u32 data[2];
 
-	if (tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap, 1))
+	if (tb_port_read(port, data, TB_CFG_PORT, port->cap_adap,
+			 ARRAY_SIZE(data)))
 		return false;
 
-	return !!(data & (TB_DP_VIDEO_EN | TB_DP_AUX_EN));
+	return !!(data[0] & (TB_DP_VIDEO_EN | TB_DP_AUX_EN));
 }
 
 /**
@@ -914,19 +915,21 @@ bool tb_dp_port_is_enabled(struct tb_port *port)
  */
 int tb_dp_port_enable(struct tb_port *port, bool enable)
 {
-	u32 data;
+	u32 data[2];
 	int ret;
 
-	ret = tb_port_read(port, &data, TB_CFG_PORT, port->cap_adap, 1);
+	ret = tb_port_read(port, data, TB_CFG_PORT, port->cap_adap,
+			   ARRAY_SIZE(data));
 	if (ret)
 		return ret;
 
 	if (enable)
-		data |= TB_DP_VIDEO_EN | TB_DP_AUX_EN;
+		data[0] |= TB_DP_VIDEO_EN | TB_DP_AUX_EN;
 	else
-		data &= ~(TB_DP_VIDEO_EN | TB_DP_AUX_EN);
+		data[0] &= ~(TB_DP_VIDEO_EN | TB_DP_AUX_EN);
 
-	return tb_port_write(port, &data, TB_CFG_PORT, port->cap_adap, 1);
+	return tb_port_write(port, data, TB_CFG_PORT, port->cap_adap,
+			     ARRAY_SIZE(data));
 }
 
 /* switch utility functions */
@@ -1031,13 +1034,6 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 	if (sw->authorized)
 		goto unlock;
 
-	/*
-	 * Make sure there is no PCIe rescan ongoing when a new PCIe
-	 * tunnel is created. Otherwise the PCIe rescan code might find
-	 * the new tunnel too early.
-	 */
-	pci_lock_rescan_remove();
-
 	switch (val) {
 	/* Approve switch */
 	case 1:
@@ -1056,8 +1052,6 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 	default:
 		break;
 	}
-
-	pci_unlock_rescan_remove();
 
 	if (!ret) {
 		sw->authorized = val;

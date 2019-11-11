@@ -26,6 +26,7 @@
 
 #include <sound/soc.h>
 
+#include "rt5677.h"
 #include "rt5677-spi.h"
 
 #define DRV_NAME "rt5677spi"
@@ -111,10 +112,16 @@ static int rt5677_spi_pcm_close(
 		struct snd_soc_component *component,
 		struct snd_pcm_substream *substream)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *codec_component =
+			snd_soc_rtdcom_lookup(rtd, "rt5677");
+	struct rt5677_priv *rt5677 =
+			snd_soc_component_get_drvdata(codec_component);
 	struct rt5677_dsp *rt5677_dsp =
 			snd_soc_component_get_drvdata(component);
 
 	cancel_delayed_work_sync(&rt5677_dsp->copy_work);
+	rt5677->set_dsp_vad(codec_component, false);
 	return 0;
 }
 
@@ -128,8 +135,7 @@ static int rt5677_spi_hw_params(
 	int ret;
 
 	mutex_lock(&rt5677_dsp->dma_lock);
-	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-			params_buffer_bytes(hw_params));
+	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 	rt5677_dsp->substream = substream;
 	mutex_unlock(&rt5677_dsp->dma_lock);
 
@@ -147,16 +153,22 @@ static int rt5677_spi_hw_free(
 	rt5677_dsp->substream = NULL;
 	mutex_unlock(&rt5677_dsp->dma_lock);
 
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	return snd_pcm_lib_free_pages(substream);
 }
 
 static int rt5677_spi_prepare(
 		struct snd_soc_component *component,
 		struct snd_pcm_substream *substream)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *rt5677_component =
+			snd_soc_rtdcom_lookup(rtd, "rt5677");
+	struct rt5677_priv *rt5677 =
+			snd_soc_component_get_drvdata(rt5677_component);
 	struct rt5677_dsp *rt5677_dsp =
 			snd_soc_component_get_drvdata(component);
 
+	rt5677->set_dsp_vad(rt5677_component, true);
 	rt5677_dsp->dma_offset = 0;
 	rt5677_dsp->avail_bytes = 0;
 	return 0;
@@ -361,12 +373,12 @@ done:
 	mutex_unlock(&rt5677_dsp->dma_lock);
 }
 
-static struct page *rt5677_spi_pcm_page(
-		struct snd_soc_component *component,
-		struct snd_pcm_substream *substream,
-		unsigned long offset)
+static int rt5677_spi_pcm_new(struct snd_soc_component *component,
+			      struct snd_soc_pcm_runtime *rtd)
 {
-	return snd_pcm_lib_get_vmalloc_page(substream, offset);
+	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm, SNDRV_DMA_TYPE_VMALLOC,
+					      NULL, 0, 0);
+	return 0;
 }
 
 static int rt5677_spi_pcm_probe(struct snd_soc_component *component)
@@ -394,7 +406,7 @@ static const struct snd_soc_component_driver rt5677_spi_dai_component = {
 	.hw_free	= rt5677_spi_hw_free,
 	.prepare	= rt5677_spi_prepare,
 	.pointer	= rt5677_spi_pcm_pointer,
-	.page		= rt5677_spi_pcm_page,
+	.pcm_construct	= rt5677_spi_pcm_new,
 };
 
 /* Select a suitable transfer command for the next transfer to ensure
