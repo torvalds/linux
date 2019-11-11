@@ -694,7 +694,7 @@ out_pdev:
 	memregion_free(id);
 }
 
-static __init void hmat_register_target_devices(struct memory_target *target)
+static void hmat_register_target_devices(struct memory_target *target)
 {
 	struct resource *res;
 
