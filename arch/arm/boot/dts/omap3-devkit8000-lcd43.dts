@@ -11,7 +11,7 @@
 #include "omap3-devkit8000-lcd-common.dtsi"
 / {
 	model = "TimLL OMAP3 Devkit8000 with 4.3'' LCD panel";
-	compatible = "timll,omap3-devkit8000", "ti,omap3";
+	compatible = "timll,omap3-devkit8000", "ti,omap3430", "ti,omap3";
 
 	lcd0: display {
 		panel-timing {

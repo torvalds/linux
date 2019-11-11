@@ -10,7 +10,7 @@
 
 / {
 	model = "TI OMAP3430 LDP (Zoom1 Labrador)";
-	compatible = "ti,omap3-ldp", "ti,omap3";
+	compatible = "ti,omap3-ldp", "ti,omap3430", "ti,omap3";
 
 	memory@80000000 {
 		device_type = "memory";
