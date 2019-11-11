@@ -427,6 +427,13 @@ struct ocelot_multicast {
 	u16 ports;
 };
 
+enum ocelot_tag_prefix {
+	OCELOT_TAG_PREFIX_DISABLED	= 0,
+	OCELOT_TAG_PREFIX_NONE,
+	OCELOT_TAG_PREFIX_SHORT,
+	OCELOT_TAG_PREFIX_LONG,
+};
+
 struct ocelot_port;
 
 struct ocelot_stat_layout {
@@ -455,6 +462,7 @@ struct ocelot {
 
 	u8 num_phys_ports;
 	u8 num_cpu_ports;
+	u8 cpu;
 	struct ocelot_port **ports;
 
 	u32 *lags;
@@ -479,11 +487,9 @@ struct ocelot {
 };
 
 struct ocelot_port {
-	struct net_device *dev;
 	struct ocelot *ocelot;
-	struct phy_device *phy;
+
 	void __iomem *regs;
-	u8 chip_port;
 
 	/* Ingress default VLAN (pvid) */
 	u16 pvid;
@@ -491,18 +497,23 @@ struct ocelot_port {
 	/* Egress default VLAN (vid) */
 	u16 vid;
 
-	u8 vlan_aware;
+	u8 ptp_cmd;
+	struct list_head skbs;
+	u8 ts_id;
+};
 
-	u64 *stats;
+struct ocelot_port_private {
+	struct ocelot_port port;
+	struct net_device *dev;
+	struct phy_device *phy;
+	u8 chip_port;
+
+	u8 vlan_aware;
 
 	phy_interface_t phy_mode;
 	struct phy *serdes;
 
 	struct ocelot_port_tc tc;
-
-	u8 ptp_cmd;
-	struct list_head skbs;
-	u8 ts_id;
 };
 
 struct ocelot_skb {
@@ -548,6 +559,10 @@ int ocelot_chip_init(struct ocelot *ocelot);
 int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 		      void __iomem *regs,
 		      struct phy_device *phy);
+
+void ocelot_set_cpu_port(struct ocelot *ocelot, int cpu,
+			 enum ocelot_tag_prefix injection,
+			 enum ocelot_tag_prefix extraction);
 
 extern struct notifier_block ocelot_netdevice_nb;
 extern struct notifier_block ocelot_switchdev_nb;

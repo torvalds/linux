@@ -40,13 +40,12 @@ struct qos_policer_conf {
 	u8   ipg; /* Size of IPG when MSCC_QOS_RATE_MODE_LINE is chosen */
 };
 
-static int qos_policer_conf_set(struct ocelot_port *port, u32 pol_ix,
+static int qos_policer_conf_set(struct ocelot *ocelot, int port, u32 pol_ix,
 				struct qos_policer_conf *conf)
 {
 	u32 cf = 0, cir_ena = 0, frm_mode = POL_MODE_LINERATE;
 	u32 cir = 0, cbs = 0, pir = 0, pbs = 0;
 	bool cir_discard = 0, pir_discard = 0;
-	struct ocelot *ocelot = port->ocelot;
 	u32 pbs_max = 0, cbs_max = 0;
 	u8 ipg = 20;
 	u32 value;
@@ -123,22 +122,26 @@ static int qos_policer_conf_set(struct ocelot_port *port, u32 pol_ix,
 
 	/* Check limits */
 	if (pir > GENMASK(15, 0)) {
-		netdev_err(port->dev, "Invalid pir\n");
+		dev_err(ocelot->dev, "Invalid pir for port %d: %u (max %lu)\n",
+			port, pir, GENMASK(15, 0));
 		return -EINVAL;
 	}
 
 	if (cir > GENMASK(15, 0)) {
-		netdev_err(port->dev, "Invalid cir\n");
+		dev_err(ocelot->dev, "Invalid cir for port %d: %u (max %lu)\n",
+			port, cir, GENMASK(15, 0));
 		return -EINVAL;
 	}
 
 	if (pbs > pbs_max) {
-		netdev_err(port->dev, "Invalid pbs\n");
+		dev_err(ocelot->dev, "Invalid pbs for port %d: %u (max %u)\n",
+			port, pbs, pbs_max);
 		return -EINVAL;
 	}
 
 	if (cbs > cbs_max) {
-		netdev_err(port->dev, "Invalid cbs\n");
+		dev_err(ocelot->dev, "Invalid cbs for port %d: %u (max %u)\n",
+			port, cbs, cbs_max);
 		return -EINVAL;
 	}
 
@@ -171,10 +174,9 @@ static int qos_policer_conf_set(struct ocelot_port *port, u32 pol_ix,
 	return 0;
 }
 
-int ocelot_port_policer_add(struct ocelot_port *port,
+int ocelot_port_policer_add(struct ocelot *ocelot, int port,
 			    struct ocelot_policer *pol)
 {
-	struct ocelot *ocelot = port->ocelot;
 	struct qos_policer_conf pp = { 0 };
 	int err;
 
@@ -185,11 +187,10 @@ int ocelot_port_policer_add(struct ocelot_port *port,
 	pp.pir = pol->rate;
 	pp.pbs = pol->burst;
 
-	netdev_dbg(port->dev,
-		   "%s: port %u pir %u kbps, pbs %u bytes\n",
-		   __func__, port->chip_port, pp.pir, pp.pbs);
+	dev_dbg(ocelot->dev, "%s: port %u pir %u kbps, pbs %u bytes\n",
+		__func__, port, pp.pir, pp.pbs);
 
-	err = qos_policer_conf_set(port, POL_IX_PORT + port->chip_port, &pp);
+	err = qos_policer_conf_set(ocelot, port, POL_IX_PORT + port, &pp);
 	if (err)
 		return err;
 
@@ -198,22 +199,21 @@ int ocelot_port_policer_add(struct ocelot_port *port,
 		       ANA_PORT_POL_CFG_POL_ORDER(POL_ORDER),
 		       ANA_PORT_POL_CFG_PORT_POL_ENA |
 		       ANA_PORT_POL_CFG_POL_ORDER_M,
-		       ANA_PORT_POL_CFG, port->chip_port);
+		       ANA_PORT_POL_CFG, port);
 
 	return 0;
 }
 
-int ocelot_port_policer_del(struct ocelot_port *port)
+int ocelot_port_policer_del(struct ocelot *ocelot, int port)
 {
-	struct ocelot *ocelot = port->ocelot;
 	struct qos_policer_conf pp = { 0 };
 	int err;
 
-	netdev_dbg(port->dev, "%s: port %u\n", __func__, port->chip_port);
+	dev_dbg(ocelot->dev, "%s: port %u\n", __func__, port);
 
 	pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
 
-	err = qos_policer_conf_set(port, POL_IX_PORT + port->chip_port, &pp);
+	err = qos_policer_conf_set(ocelot, port, POL_IX_PORT + port, &pp);
 	if (err)
 		return err;
 
@@ -221,7 +221,7 @@ int ocelot_port_policer_del(struct ocelot_port *port)
 		       ANA_PORT_POL_CFG_POL_ORDER(POL_ORDER),
 		       ANA_PORT_POL_CFG_PORT_POL_ENA |
 		       ANA_PORT_POL_CFG_POL_ORDER_M,
-		       ANA_PORT_POL_CFG, port->chip_port);
+		       ANA_PORT_POL_CFG, port);
 
 	return 0;
 }
