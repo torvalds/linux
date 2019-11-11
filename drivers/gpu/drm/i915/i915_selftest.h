@@ -36,6 +36,7 @@ struct i915_selftest {
 	char *filter;
 	int mock;
 	int live;
+	int perf;
 };
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
@@ -45,6 +46,7 @@ extern struct i915_selftest i915_selftest;
 
 int i915_mock_selftests(void);
 int i915_live_selftests(struct pci_dev *pdev);
+int i915_perf_selftests(struct pci_dev *pdev);
 
 /* We extract the function declarations from i915_mock_selftests.h and
  * i915_live_selftests.h Add your unit test declarations there!
@@ -61,6 +63,7 @@ int i915_live_selftests(struct pci_dev *pdev);
 #undef selftest
 #define selftest(name, func) int func(struct drm_i915_private *i915);
 #include "selftests/i915_live_selftests.h"
+#include "selftests/i915_perf_selftests.h"
 #undef selftest
 
 struct i915_subtest {
@@ -109,6 +112,7 @@ int __i915_subtests(const char *caller,
 
 static inline int i915_mock_selftests(void) { return 0; }
 static inline int i915_live_selftests(struct pci_dev *pdev) { return 0; }
+static inline int i915_perf_selftests(struct pci_dev *pdev) { return 0; }
 
 #define I915_SELFTEST_DECLARE(x)
 #define I915_SELFTEST_ONLY(x) 0

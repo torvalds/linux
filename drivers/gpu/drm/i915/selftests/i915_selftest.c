@@ -57,6 +57,12 @@ enum {
 #undef selftest
 };
 
+enum {
+#define selftest(name, func) perf_##name,
+#include "i915_perf_selftests.h"
+#undef selftest
+};
+
 struct selftest {
 	bool enabled;
 	const char *name;
@@ -78,6 +84,12 @@ static struct selftest live_selftests[] = {
 };
 #undef selftest
 
+#define selftest(n, f) [perf_##n] = { .name = #n, { .live = f } },
+static struct selftest perf_selftests[] = {
+#include "i915_perf_selftests.h"
+};
+#undef selftest
+
 /* Embed the line number into the parameter name so that we can order tests */
 #define selftest(n, func) selftest_0(n, func, param(n))
 #define param(n) __PASTE(igt__, __PASTE(__LINE__, __mock_##n))
@@ -91,6 +103,13 @@ module_param_named(id, mock_selftests[mock_##n].enabled, bool, 0400);
 #define selftest_0(n, func, id) \
 module_param_named(id, live_selftests[live_##n].enabled, bool, 0400);
 #include "i915_live_selftests.h"
+#undef selftest_0
+#undef param
+
+#define param(n) __PASTE(igt__, __PASTE(__LINE__, __perf_##n))
+#define selftest_0(n, func, id) \
+module_param_named(id, perf_selftests[perf_##n].enabled, bool, 0400);
+#include "i915_perf_selftests.h"
 #undef selftest_0
 #undef param
 #undef selftest
@@ -194,6 +213,27 @@ int i915_live_selftests(struct pci_dev *pdev)
 
 	if (i915_selftest.live < 0) {
 		i915_selftest.live = -ENOTTY;
+		return 1;
+	}
+
+	return 0;
+}
+
+int i915_perf_selftests(struct pci_dev *pdev)
+{
+	int err;
+
+	if (!i915_selftest.perf)
+		return 0;
+
+	err = run_selftests(perf, pdev_to_i915(pdev));
+	if (err) {
+		i915_selftest.perf = err;
+		return err;
+	}
+
+	if (i915_selftest.perf < 0) {
+		i915_selftest.perf = -ENOTTY;
 		return 1;
 	}
 
@@ -365,3 +405,6 @@ MODULE_PARM_DESC(mock_selftests, "Run selftests before loading, using mock hardw
 
 module_param_named_unsafe(live_selftests, i915_selftest.live, int, 0400);
 MODULE_PARM_DESC(live_selftests, "Run selftests after driver initialisation on the live system (0:disabled [default], 1:run tests then continue, -1:run tests then exit module)");
+
+module_param_named_unsafe(perf_selftests, i915_selftest.perf, int, 0400);
+MODULE_PARM_DESC(perf_selftests, "Run performance orientated selftests after driver initialisation on the live system (0:disabled [default], 1:run tests then continue, -1:run tests then exit module)");

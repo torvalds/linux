@@ -526,8 +526,6 @@ static int igt_copy_blt_ctx0(void *arg)
 int i915_gem_object_blt_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
-		SUBTEST(perf_fill_blt),
-		SUBTEST(perf_copy_blt),
 		SUBTEST(igt_fill_blt),
 		SUBTEST(igt_fill_blt_ctx0),
 		SUBTEST(igt_copy_blt),
@@ -538,6 +536,19 @@ int i915_gem_object_blt_live_selftests(struct drm_i915_private *i915)
 		return 0;
 
 	if (!HAS_ENGINE(i915, BCS0))
+		return 0;
+
+	return i915_live_subtests(tests, i915);
+}
+
+int i915_gem_object_blt_perf_selftests(struct drm_i915_private *i915)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(perf_fill_blt),
+		SUBTEST(perf_copy_blt),
+	};
+
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	return i915_live_subtests(tests, i915);

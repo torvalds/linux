@@ -1003,6 +1003,12 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err > 0 ? -ENOTTY : err;
 	}
 
+	err = i915_perf_selftests(pdev);
+	if (err) {
+		i915_pci_remove(pdev);
+		return err > 0 ? -ENOTTY : err;
+	}
+
 	return 0;
 }
 
