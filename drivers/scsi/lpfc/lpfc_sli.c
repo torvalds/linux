@@ -14466,7 +14466,7 @@ static inline void lpfc_sli4_remove_from_poll_list(struct lpfc_queue *eq)
 		del_timer_sync(&phba->cpuhp_poll_timer);
 }
 
-inline void lpfc_sli4_cleanup_poll_list(struct lpfc_hba *phba)
+void lpfc_sli4_cleanup_poll_list(struct lpfc_hba *phba)
 {
 	struct lpfc_queue *eq, *next;
 
