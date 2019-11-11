@@ -1372,6 +1372,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		}
 
 		execlists_active_lock_bh(execlists);
+		rcu_read_lock();
 		for (port = execlists->active; (rq = *port); port++) {
 			char hdr[80];
 			int len;
@@ -1409,6 +1410,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			if (tl)
 				intel_timeline_put(tl);
 		}
+		rcu_read_unlock();
 		execlists_active_unlock_bh(execlists);
 	} else if (INTEL_GEN(dev_priv) > 6) {
 		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
