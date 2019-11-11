@@ -6167,7 +6167,11 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 
 static bool vmx_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu)
 {
-	return pi_test_on(vcpu_to_pi_desc(vcpu));
+	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
+
+	return pi_test_on(pi_desc) ||
+		(pi_test_sn(pi_desc) &&
+		!bitmap_empty((unsigned long *)pi_desc->pir, NR_VECTORS));
 }
 
 static void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
