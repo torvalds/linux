@@ -122,37 +122,13 @@ static int set_new_tls(struct task_struct *p, unsigned long tls)
 		return do_set_thread_area_64(p, ARCH_SET_FS, tls);
 }
 
-static inline int copy_io_bitmap(struct task_struct *tsk)
-{
-	struct io_bitmap *iobm = current->thread.io_bitmap;
-
-	if (likely(!test_tsk_thread_flag(current, TIF_IO_BITMAP)))
-		return 0;
-
-	tsk->thread.io_bitmap = kmemdup(iobm, sizeof(*iobm), GFP_KERNEL);
-
-	if (!tsk->thread.io_bitmap)
-		return -ENOMEM;
-
-	set_tsk_thread_flag(tsk, TIF_IO_BITMAP);
-	return 0;
-}
-
-static inline void free_io_bitmap(struct task_struct *tsk)
-{
-	if (tsk->thread.io_bitmap) {
-		kfree(tsk->thread.io_bitmap);
-		tsk->thread.io_bitmap = NULL;
-	}
-}
-
 int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
 		    unsigned long arg, struct task_struct *p, unsigned long tls)
 {
 	struct inactive_task_frame *frame;
 	struct fork_frame *fork_frame;
 	struct pt_regs *childregs;
-	int ret;
+	int ret = 0;
 
 	childregs = task_pt_regs(p);
 	fork_frame = container_of(childregs, struct fork_frame, regs);
@@ -199,16 +175,13 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
 	task_user_gs(p) = get_user_gs(current_pt_regs());
 #endif
 
-	ret = copy_io_bitmap(p);
-	if (ret)
-		return ret;
-
 	/* Set a new TLS for the child thread? */
-	if (clone_flags & CLONE_SETTLS) {
+	if (clone_flags & CLONE_SETTLS)
 		ret = set_new_tls(p, tls);
-		if (ret)
-			free_io_bitmap(p);
-	}
+
+	if (!ret && unlikely(test_tsk_thread_flag(current, TIF_IO_BITMAP)))
+		io_bitmap_share(p);
+
 	return ret;
 }
 

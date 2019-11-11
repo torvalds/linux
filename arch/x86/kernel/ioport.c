@@ -16,6 +16,17 @@
 
 static atomic64_t io_bitmap_sequence;
 
+void io_bitmap_share(struct task_struct *tsk)
+ {
+	/*
+	 * Take a refcount on current's bitmap. It can be used by
+	 * both tasks as long as none of them changes the bitmap.
+	 */
+	refcount_inc(&current->thread.io_bitmap->refcnt);
+	tsk->thread.io_bitmap = current->thread.io_bitmap;
+	set_tsk_thread_flag(tsk, TIF_IO_BITMAP);
+}
+
 void io_bitmap_exit(void)
 {
 	struct io_bitmap *iobm = current->thread.io_bitmap;
@@ -25,7 +36,8 @@ void io_bitmap_exit(void)
 	preempt_disable();
 	tss_update_io_bitmap();
 	preempt_enable();
-	kfree(iobm);
+	if (iobm && refcount_dec_and_test(&iobm->refcnt))
+		kfree(iobm);
 }
 
 /*
@@ -58,7 +70,30 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 			return -ENOMEM;
 
 		memset(iobm->bitmap, 0xff, sizeof(iobm->bitmap));
+		refcount_set(&iobm->refcnt, 1);
 	}
+
+	/*
+	 * If the bitmap is not shared, then nothing can take a refcount as
+	 * current can obviously not fork at the same time. If it's shared
+	 * duplicate it and drop the refcount on the original one.
+	 */
+	if (refcount_read(&iobm->refcnt) > 1) {
+		iobm = kmemdup(iobm, sizeof(*iobm), GFP_KERNEL);
+		if (!iobm)
+			return -ENOMEM;
+		refcount_set(&iobm->refcnt, 1);
+		io_bitmap_exit();
+	}
+
+	/*
+	 * Store the bitmap pointer (might be the same if the task already
+	 * head one). Must be done here so freeing the bitmap when all
+	 * permissions are dropped has the pointer set up.
+	 */
+	t->io_bitmap = iobm;
+	/* Mark it active for context switching and exit to user mode */
+	set_thread_flag(TIF_IO_BITMAP);
 
 	/*
 	 * Update the tasks bitmap. The update of the TSS bitmap happens on
@@ -86,16 +121,11 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 
 	iobm->max = (max_long + 1) * sizeof(unsigned long);
 
-	/* Update the sequence number to force an update in switch_to() */
-	iobm->sequence = atomic64_add_return(1, &io_bitmap_sequence);
-
 	/*
-	 * Store the bitmap pointer (might be the same if the task already
-	 * head one). Set the TIF flag, just in case this is the first
-	 * invocation.
+	 * Update the sequence number to force a TSS update on return to
+	 * user mode.
 	 */
-	t->io_bitmap = iobm;
-	set_thread_flag(TIF_IO_BITMAP);
+	iobm->sequence = atomic64_add_return(1, &io_bitmap_sequence);
 
 	return 0;
 }
