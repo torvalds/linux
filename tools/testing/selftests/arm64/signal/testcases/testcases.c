@@ -43,7 +43,7 @@ bool validate_extra_context(struct extra_context *extra, char **err)
 	else if (extra->size & 0x0fUL)
 		*err = "Extra SIZE misaligned";
 	else if (extra->datap != (uint64_t)term + sizeof(*term))
-		*err = "Extra DATAP misplaced (not contiguos)";
+		*err = "Extra DATAP misplaced (not contiguous)";
 	if (*err)
 		return false;
 
