@@ -253,6 +253,11 @@ static int convert_log(struct mc_info *mi)
 		case MSR_IA32_MCG_CAP:
 			m.mcgcap = g_physinfo[i].mc_msrvalues[j].value;
 			break;
+
+		case MSR_PPIN:
+		case MSR_AMD_PPIN:
+			m.ppin = g_physinfo[i].mc_msrvalues[j].value;
+			break;
 		}
 
 	mic = NULL;
