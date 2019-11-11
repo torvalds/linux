@@ -41,6 +41,7 @@
 #include <asm/desc.h>
 #include <asm/prctl.h>
 #include <asm/spec-ctrl.h>
+#include <asm/io_bitmap.h>
 #include <asm/proto.h>
 
 #include "process.h"
@@ -101,21 +102,20 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 void exit_thread(struct task_struct *tsk)
 {
 	struct thread_struct *t = &tsk->thread;
-	unsigned long *bp = t->io_bitmap_ptr;
+	struct io_bitmap *iobm = t->io_bitmap;
 	struct fpu *fpu = &t->fpu;
 	struct tss_struct *tss;
 
-	if (bp) {
+	if (iobm) {
 		preempt_disable();
 		tss = this_cpu_ptr(&cpu_tss_rw);
 
-		t->io_bitmap_ptr = NULL;
-		t->io_bitmap_max = 0;
+		t->io_bitmap = NULL;
 		clear_thread_flag(TIF_IO_BITMAP);
 		/* Invalidate the io bitmap base in the TSS */
 		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET_INVALID;
 		preempt_enable();
-		kfree(bp);
+		kfree(iobm);
 	}
 
 	free_vm86(t);
@@ -135,25 +135,25 @@ static int set_new_tls(struct task_struct *p, unsigned long tls)
 
 static inline int copy_io_bitmap(struct task_struct *tsk)
 {
+	struct io_bitmap *iobm = current->thread.io_bitmap;
+
 	if (likely(!test_tsk_thread_flag(current, TIF_IO_BITMAP)))
 		return 0;
 
-	tsk->thread.io_bitmap_ptr = kmemdup(current->thread.io_bitmap_ptr,
-					    IO_BITMAP_BYTES, GFP_KERNEL);
-	if (!tsk->thread.io_bitmap_ptr) {
-		tsk->thread.io_bitmap_max = 0;
+	tsk->thread.io_bitmap = kmemdup(iobm, sizeof(*iobm), GFP_KERNEL);
+
+	if (!tsk->thread.io_bitmap)
 		return -ENOMEM;
-	}
+
 	set_tsk_thread_flag(tsk, TIF_IO_BITMAP);
 	return 0;
 }
 
 static inline void free_io_bitmap(struct task_struct *tsk)
 {
-	if (tsk->thread.io_bitmap_ptr) {
-		kfree(tsk->thread.io_bitmap_ptr);
-		tsk->thread.io_bitmap_ptr = NULL;
-		tsk->thread.io_bitmap_max = 0;
+	if (tsk->thread.io_bitmap) {
+		kfree(tsk->thread.io_bitmap);
+		tsk->thread.io_bitmap = NULL;
 	}
 }
 
@@ -172,7 +172,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
 	frame->bp = 0;
 	frame->ret_addr = (unsigned long) ret_from_fork;
 	p->thread.sp = (unsigned long) fork_frame;
-	p->thread.io_bitmap_ptr = NULL;
+	p->thread.io_bitmap = NULL;
 	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
 #ifdef CONFIG_X86_64
@@ -366,6 +366,8 @@ static inline void switch_to_bitmap(struct thread_struct *next,
 	struct tss_struct *tss = this_cpu_ptr(&cpu_tss_rw);
 
 	if (tifn & _TIF_IO_BITMAP) {
+		struct io_bitmap *iobm = next->io_bitmap;
+
 		/*
 		 * Copy at least the size of the incoming tasks bitmap
 		 * which covers the last permitted I/O port.
@@ -374,11 +376,11 @@ static inline void switch_to_bitmap(struct thread_struct *next,
 		 * bits permitted, then the copy needs to cover those as
 		 * well so they get turned off.
 		 */
-		memcpy(tss->io_bitmap.bitmap, next->io_bitmap_ptr,
-		       max(tss->io_bitmap.prev_max, next->io_bitmap_max));
+		memcpy(tss->io_bitmap.bitmap, next->io_bitmap->bitmap,
+		       max(tss->io_bitmap.prev_max, next->io_bitmap->max));
 
 		/* Store the new max and set io_bitmap_base valid */
-		tss->io_bitmap.prev_max = next->io_bitmap_max;
+		tss->io_bitmap.prev_max = next->io_bitmap->max;
 		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET_VALID;
 
 		/*

@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
+#include <asm/io_bitmap.h>
 #include <asm/desc.h>
 
 /*
@@ -21,7 +22,7 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	unsigned int i, max_long, bytes, bytes_updated;
 	struct thread_struct *t = &current->thread;
 	struct tss_struct *tss;
-	unsigned long *bitmap;
+	struct io_bitmap *iobm;
 
 	if ((from + num <= from) || (from + num > IO_BITMAP_BITS))
 		return -EINVAL;
@@ -34,16 +35,16 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 * IO bitmap up. ioperm() is much less timing critical than clone(),
 	 * this is why we delay this operation until now:
 	 */
-	bitmap = t->io_bitmap_ptr;
-	if (!bitmap) {
+	iobm = t->io_bitmap;
+	if (!iobm) {
 		/* No point to allocate a bitmap just to clear permissions */
 		if (!turn_on)
 			return 0;
-		bitmap = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
-		if (!bitmap)
+		iobm = kmalloc(sizeof(*iobm), GFP_KERNEL);
+		if (!iobm)
 			return -ENOMEM;
 
-		memset(bitmap, 0xff, IO_BITMAP_BYTES);
+		memset(iobm->bitmap, 0xff, sizeof(iobm->bitmap));
 	}
 
 	/*
@@ -52,9 +53,9 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 */
 	preempt_disable();
 	if (turn_on)
-		bitmap_clear(bitmap, from, num);
+		bitmap_clear(iobm->bitmap, from, num);
 	else
-		bitmap_set(bitmap, from, num);
+		bitmap_set(iobm->bitmap, from, num);
 
 	/*
 	 * Search for a (possibly new) maximum. This is simple and stupid,
@@ -62,26 +63,26 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 */
 	max_long = 0;
 	for (i = 0; i < IO_BITMAP_LONGS; i++) {
-		if (bitmap[i] != ~0UL)
+		if (iobm->bitmap[i] != ~0UL)
 			max_long = i;
 	}
 
 	bytes = (max_long + 1) * sizeof(unsigned long);
-	bytes_updated = max(bytes, t->io_bitmap_max);
+	bytes_updated = max(bytes, t->io_bitmap->max);
 
 	/* Update the thread data */
-	t->io_bitmap_max = bytes;
+	iobm->max = bytes;
 	/*
 	 * Store the bitmap pointer (might be the same if the task already
 	 * head one). Set the TIF flag, just in case this is the first
 	 * invocation.
 	 */
-	t->io_bitmap_ptr = bitmap;
+	t->io_bitmap = iobm;
 	set_thread_flag(TIF_IO_BITMAP);
 
 	/* Update the TSS */
 	tss = this_cpu_ptr(&cpu_tss_rw);
-	memcpy(tss->io_bitmap.bitmap, t->io_bitmap_ptr, bytes_updated);
+	memcpy(tss->io_bitmap.bitmap, iobm->bitmap, bytes_updated);
 	/* Store the new end of the zero bits */
 	tss->io_bitmap.prev_max = bytes;
 	/* Make the bitmap base in the TSS valid */
