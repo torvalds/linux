@@ -11004,7 +11004,7 @@ found_any:
 				cpu, cpup->phys_id, cpup->core_id,
 				cpup->hdwq, cpup->eq, cpup->flag);
 	}
-	/* Finally we need to associate a hdwq with each cpu_map entry
+	/* Associate a hdwq with each cpu_map entry
 	 * This will be 1 to 1 - hdwq to cpu, unless there are less
 	 * hardware queues then CPUs. For that case we will just round-robin
 	 * the available hardware queues as they get assigned to CPUs.
@@ -11081,6 +11081,23 @@ found_any:
 				"hdwq %d eq %d flg x%x\n",
 				cpu, cpup->phys_id, cpup->core_id,
 				cpup->hdwq, cpup->eq, cpup->flag);
+	}
+
+	/*
+	 * Initialize the cpu_map slots for not-present cpus in case
+	 * a cpu is hot-added. Perform a simple hdwq round robin assignment.
+	 */
+	idx = 0;
+	for_each_possible_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+		if (cpup->hdwq != LPFC_VECTOR_MAP_EMPTY)
+			continue;
+
+		cpup->hdwq = idx++ % phba->cfg_hdw_queue;
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3340 Set Affinity: not present "
+				"CPU %d hdwq %d\n",
+				cpu, cpup->hdwq);
 	}
 
 	/* The cpu_map array will be used later during initialization
