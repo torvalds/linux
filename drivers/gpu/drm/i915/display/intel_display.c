@@ -9315,7 +9315,6 @@ static bool wrpll_uses_pch_ssc(struct drm_i915_private *dev_priv,
 static void lpt_init_pch_refclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
-	bool pch_ssc_in_use = false;
 	bool has_fdi = false;
 
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
@@ -9343,22 +9342,24 @@ static void lpt_init_pch_refclk(struct drm_i915_private *dev_priv)
 	 * clock hierarchy. That would also allow us to do
 	 * clock bending finally.
 	 */
+	dev_priv->pch_ssc_use = 0;
+
 	if (spll_uses_pch_ssc(dev_priv)) {
 		DRM_DEBUG_KMS("SPLL using PCH SSC\n");
-		pch_ssc_in_use = true;
+		dev_priv->pch_ssc_use |= BIT(DPLL_ID_SPLL);
 	}
 
 	if (wrpll_uses_pch_ssc(dev_priv, DPLL_ID_WRPLL1)) {
 		DRM_DEBUG_KMS("WRPLL1 using PCH SSC\n");
-		pch_ssc_in_use = true;
+		dev_priv->pch_ssc_use |= BIT(DPLL_ID_WRPLL1);
 	}
 
 	if (wrpll_uses_pch_ssc(dev_priv, DPLL_ID_WRPLL2)) {
 		DRM_DEBUG_KMS("WRPLL2 using PCH SSC\n");
-		pch_ssc_in_use = true;
+		dev_priv->pch_ssc_use |= BIT(DPLL_ID_WRPLL2);
 	}
 
-	if (pch_ssc_in_use)
+	if (dev_priv->pch_ssc_use)
 		return;
 
 	if (has_fdi) {

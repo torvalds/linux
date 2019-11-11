@@ -645,11 +645,12 @@ void ip_fraglist_prepare(struct sk_buff *skb, struct ip_fraglist_iter *iter)
 EXPORT_SYMBOL(ip_fraglist_prepare);
 
 void ip_frag_init(struct sk_buff *skb, unsigned int hlen,
-		  unsigned int ll_rs, unsigned int mtu,
+		  unsigned int ll_rs, unsigned int mtu, bool DF,
 		  struct ip_frag_state *state)
 {
 	struct iphdr *iph = ip_hdr(skb);
 
+	state->DF = DF;
 	state->hlen = hlen;
 	state->ll_rs = ll_rs;
 	state->mtu = mtu;
@@ -667,9 +668,6 @@ static void ip_frag_ipcb(struct sk_buff *from, struct sk_buff *to,
 {
 	/* Copy the flags to each fragment. */
 	IPCB(to)->flags = IPCB(from)->flags;
-
-	if (IPCB(from)->flags & IPSKB_FRAG_PMTU)
-		state->iph->frag_off |= htons(IP_DF);
 
 	/* ANK: dirty, but effective trick. Upgrade options only if
 	 * the segment to be fragmented was THE FIRST (otherwise,
@@ -738,6 +736,8 @@ struct sk_buff *ip_frag_next(struct sk_buff *skb, struct ip_frag_state *state)
 	 */
 	iph = ip_hdr(skb2);
 	iph->frag_off = htons((state->offset >> 3));
+	if (state->DF)
+		iph->frag_off |= htons(IP_DF);
 
 	/*
 	 *	Added AC : If we are fragmenting a fragment that's not the
@@ -883,7 +883,8 @@ slow_path:
 	 *	Fragment the datagram.
 	 */
 
-	ip_frag_init(skb, hlen, ll_rs, mtu, &state);
+	ip_frag_init(skb, hlen, ll_rs, mtu, IPCB(skb)->flags & IPSKB_FRAG_PMTU,
+		     &state);
 
 	/*
 	 *	Keep copying data until we run out.
