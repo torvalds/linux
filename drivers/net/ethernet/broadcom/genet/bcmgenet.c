@@ -2576,7 +2576,8 @@ static int bcmgenet_init_dma(struct bcmgenet_priv *priv)
 	}
 
 	/* Init rDma */
-	bcmgenet_rdma_writel(priv, DMA_MAX_BURST_LENGTH, DMA_SCB_BURST_SIZE);
+	bcmgenet_rdma_writel(priv, priv->dma_max_burst_length,
+			     DMA_SCB_BURST_SIZE);
 
 	/* Initialize Rx queues */
 	ret = bcmgenet_init_rx_queues(priv->dev);
@@ -2589,7 +2590,8 @@ static int bcmgenet_init_dma(struct bcmgenet_priv *priv)
 	}
 
 	/* Init tDma */
-	bcmgenet_tdma_writel(priv, DMA_MAX_BURST_LENGTH, DMA_SCB_BURST_SIZE);
+	bcmgenet_tdma_writel(priv, priv->dma_max_burst_length,
+			     DMA_SCB_BURST_SIZE);
 
 	/* Initialize Tx queues */
 	bcmgenet_init_tx_queues(priv->dev);
@@ -3420,12 +3422,48 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 		params->words_per_bd);
 }
 
+struct bcmgenet_plat_data {
+	enum bcmgenet_version version;
+	u32 dma_max_burst_length;
+};
+
+static const struct bcmgenet_plat_data v1_plat_data = {
+	.version = GENET_V1,
+	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
+};
+
+static const struct bcmgenet_plat_data v2_plat_data = {
+	.version = GENET_V2,
+	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
+};
+
+static const struct bcmgenet_plat_data v3_plat_data = {
+	.version = GENET_V3,
+	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
+};
+
+static const struct bcmgenet_plat_data v4_plat_data = {
+	.version = GENET_V4,
+	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
+};
+
+static const struct bcmgenet_plat_data v5_plat_data = {
+	.version = GENET_V5,
+	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
+};
+
+static const struct bcmgenet_plat_data bcm2711_plat_data = {
+	.version = GENET_V5,
+	.dma_max_burst_length = 0x08,
+};
+
 static const struct of_device_id bcmgenet_match[] = {
-	{ .compatible = "brcm,genet-v1", .data = (void *)GENET_V1 },
-	{ .compatible = "brcm,genet-v2", .data = (void *)GENET_V2 },
-	{ .compatible = "brcm,genet-v3", .data = (void *)GENET_V3 },
-	{ .compatible = "brcm,genet-v4", .data = (void *)GENET_V4 },
-	{ .compatible = "brcm,genet-v5", .data = (void *)GENET_V5 },
+	{ .compatible = "brcm,genet-v1", .data = &v1_plat_data },
+	{ .compatible = "brcm,genet-v2", .data = &v2_plat_data },
+	{ .compatible = "brcm,genet-v3", .data = &v3_plat_data },
+	{ .compatible = "brcm,genet-v4", .data = &v4_plat_data },
+	{ .compatible = "brcm,genet-v5", .data = &v5_plat_data },
+	{ .compatible = "brcm,bcm2711-genet-v5", .data = &bcm2711_plat_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bcmgenet_match);
@@ -3435,6 +3473,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	struct bcmgenet_platform_data *pd = pdev->dev.platform_data;
 	struct device_node *dn = pdev->dev.of_node;
 	const struct of_device_id *of_id = NULL;
+	const struct bcmgenet_plat_data *pdata;
 	struct bcmgenet_priv *priv;
 	struct net_device *dev;
 	const void *macaddr;
@@ -3516,10 +3555,14 @@ static int bcmgenet_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 	priv->pdev = pdev;
-	if (of_id)
-		priv->version = (enum bcmgenet_version)of_id->data;
-	else
+	if (of_id) {
+		pdata = of_id->data;
+		priv->version = pdata->version;
+		priv->dma_max_burst_length = pdata->dma_max_burst_length;
+	} else {
 		priv->version = pd->genet_version;
+		priv->dma_max_burst_length = DMA_MAX_BURST_LENGTH;
+	}
 
 	priv->clk = devm_clk_get(&priv->pdev->dev, "enet");
 	if (IS_ERR(priv->clk)) {
