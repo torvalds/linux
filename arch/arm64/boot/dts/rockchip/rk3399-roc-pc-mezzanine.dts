@@ -50,6 +50,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_perst>;
 	vpcie3v3-supply = <&vcc3v3_pcie>;
+	vpcie1v8-supply = <&vcc1v8_pmu>;
+	vpcie0v9-supply = <&vcca_0v9>;
 	status = "okay";
 };
 
