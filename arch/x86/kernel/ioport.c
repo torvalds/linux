@@ -14,6 +14,8 @@
 #include <asm/io_bitmap.h>
 #include <asm/desc.h>
 
+static atomic64_t io_bitmap_sequence;
+
 /*
  * this changes the io permissions bitmap in the current task.
  */
@@ -72,6 +74,9 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 
 	/* Update the thread data */
 	iobm->max = bytes;
+	/* Update the sequence number to force an update in switch_to() */
+	iobm->sequence = atomic64_add_return(1, &io_bitmap_sequence);
+
 	/*
 	 * Store the bitmap pointer (might be the same if the task already
 	 * head one). Set the TIF flag, just in case this is the first

@@ -361,6 +361,9 @@ struct entry_stack_page {
  * All IO bitmap related data stored in the TSS:
  */
 struct x86_io_bitmap {
+	/* The sequence number of the last active bitmap. */
+	u64			prev_sequence;
+
 	/*
 	 * Store the dirty size of the last io bitmap offender. The next
 	 * one will have to do the cleanup as the switch out to a non io

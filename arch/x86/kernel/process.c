@@ -360,6 +360,28 @@ void arch_setup_new_exec(void)
 	}
 }
 
+static void switch_to_update_io_bitmap(struct tss_struct *tss,
+				       struct io_bitmap *iobm)
+{
+	/*
+	 * Copy at least the byte range of the incoming tasks bitmap which
+	 * covers the permitted I/O ports.
+	 *
+	 * If the previous task which used an I/O bitmap had more bits
+	 * permitted, then the copy needs to cover those as well so they
+	 * get turned off.
+	 */
+	memcpy(tss->io_bitmap.bitmap, iobm->bitmap,
+	       max(tss->io_bitmap.prev_max, iobm->max));
+
+	/*
+	 * Store the new max and the sequence number of this bitmap
+	 * and a pointer to the bitmap itself.
+	 */
+	tss->io_bitmap.prev_max = iobm->max;
+	tss->io_bitmap.prev_sequence = iobm->sequence;
+}
+
 static inline void switch_to_bitmap(struct thread_struct *next,
 				    unsigned long tifp, unsigned long tifn)
 {
@@ -369,18 +391,14 @@ static inline void switch_to_bitmap(struct thread_struct *next,
 		struct io_bitmap *iobm = next->io_bitmap;
 
 		/*
-		 * Copy at least the size of the incoming tasks bitmap
-		 * which covers the last permitted I/O port.
-		 *
-		 * If the previous task which used an io bitmap had more
-		 * bits permitted, then the copy needs to cover those as
-		 * well so they get turned off.
+		 * Only copy bitmap data when the sequence number
+		 * differs. The update time is accounted to the incoming
+		 * task.
 		 */
-		memcpy(tss->io_bitmap.bitmap, next->io_bitmap->bitmap,
-		       max(tss->io_bitmap.prev_max, next->io_bitmap->max));
+		if (tss->io_bitmap.prev_sequence != iobm->sequence)
+			switch_to_update_io_bitmap(tss, iobm);
 
-		/* Store the new max and set io_bitmap_base valid */
-		tss->io_bitmap.prev_max = next->io_bitmap->max;
+		/* Enable the bitmap */
 		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET_VALID;
 
 		/*

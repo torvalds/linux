@@ -5,6 +5,7 @@
 #include <asm/processor.h>
 
 struct io_bitmap {
+	u64		sequence;
 	/* The maximum number of bytes to copy so all zero bits are covered */
 	unsigned int	max;
 	unsigned long	bitmap[IO_BITMAP_LONGS];
