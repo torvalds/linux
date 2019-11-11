@@ -1067,18 +1067,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id));
 			return -EINVAL;
 		}
-	} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id) ==
-		   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
-		   iwl_trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0) {
-		u32 hw_status;
-
-		hw_status = iwl_read_prph(iwl_trans, UMAG_GEN_HW_STATUS);
-		if (CSR_HW_RF_STEP(iwl_trans->hw_rf_id) == SILICON_B_STEP)
-			iwl_trans->cfg = &iwl22000_2ax_cfg_qnj_hr_b0;
-		else if ((hw_status & UMAG_GEN_HW_IS_FPGA) &&
-			 CSR_HW_RF_STEP(iwl_trans->hw_rf_id) ==
-			 SILICON_A_STEP)
-			iwl_trans->cfg = &iwl22000_2ax_cfg_qnj_hr_a0_f0;
 	}
 
 	/*
