@@ -1566,7 +1566,8 @@ static void igc_put_rx_buffer(struct igc_ring *rx_ring,
 
 /**
  * igc_alloc_rx_buffers - Replace used receive buffers; packet split
- * @adapter: address of board private structure
+ * @rx_ring: rx descriptor ring
+ * @cleaned_count: number of buffers to clean
  */
 static void igc_alloc_rx_buffers(struct igc_ring *rx_ring, u16 cleaned_count)
 {
