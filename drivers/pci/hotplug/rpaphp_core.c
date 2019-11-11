@@ -328,32 +328,54 @@ static int is_php_dn(struct device_node *dn, const int **indexes,
 	return 1;
 }
 
-/**
- * rpaphp_add_slot -- declare a hotplug slot to the hotplug subsystem.
- * @dn: device node of slot
- *
- * This subroutine will register a hotpluggable slot with the
- * PCI hotplug infrastructure. This routine is typically called
- * during boot time, if the hotplug slots are present at boot time,
- * or is called later, by the dlpar add code, if the slot is
- * being dynamically added during runtime.
- *
- * If the device node points at an embedded (built-in) slot, this
- * routine will just return without doing anything, since embedded
- * slots cannot be hotplugged.
- *
- * To remove a slot, it suffices to call rpaphp_deregister_slot().
- */
-int rpaphp_add_slot(struct device_node *dn)
+static int rpaphp_drc_info_add_slot(struct device_node *dn)
+{
+	struct slot *slot;
+	struct property *info;
+	struct of_drc_info drc;
+	char drc_name[MAX_DRC_NAME_LEN];
+	const __be32 *cur;
+	u32 count;
+	int retval = 0;
+
+	info = of_find_property(dn, "ibm,drc-info", NULL);
+	if (!info)
+		return 0;
+
+	cur = of_prop_next_u32(info, NULL, &count);
+	if (cur)
+		cur++;
+	else
+		return 0;
+
+	of_read_drc_info_cell(&info, &cur, &drc);
+	if (!is_php_type(drc.drc_type))
+		return 0;
+
+	sprintf(drc_name, "%s%d", drc.drc_name_prefix, drc.drc_name_suffix_start);
+
+	slot = alloc_slot_struct(dn, drc.drc_index_start, drc_name, drc.drc_power_domain);
+	if (!slot)
+		return -ENOMEM;
+
+	slot->type = simple_strtoul(drc.drc_type, NULL, 10);
+	retval = rpaphp_enable_slot(slot);
+	if (!retval)
+		retval = rpaphp_register_slot(slot);
+
+	if (retval)
+		dealloc_slot_struct(slot);
+
+	return retval;
+}
+
+static int rpaphp_drc_add_slot(struct device_node *dn)
 {
 	struct slot *slot;
 	int retval = 0;
 	int i;
 	const int *indexes, *names, *types, *power_domains;
 	char *name, *type;
-
-	if (!dn->name || strcmp(dn->name, "pci"))
-		return 0;
 
 	/* If this is not a hotplug slot, return without doing anything. */
 	if (!is_php_dn(dn, &indexes, &names, &types, &power_domains))
@@ -392,6 +414,33 @@ int rpaphp_add_slot(struct device_node *dn)
 
 	/* XXX FIXME: reports a failure only if last entry in loop failed */
 	return retval;
+}
+
+/**
+ * rpaphp_add_slot -- declare a hotplug slot to the hotplug subsystem.
+ * @dn: device node of slot
+ *
+ * This subroutine will register a hotpluggable slot with the
+ * PCI hotplug infrastructure. This routine is typically called
+ * during boot time, if the hotplug slots are present at boot time,
+ * or is called later, by the dlpar add code, if the slot is
+ * being dynamically added during runtime.
+ *
+ * If the device node points at an embedded (built-in) slot, this
+ * routine will just return without doing anything, since embedded
+ * slots cannot be hotplugged.
+ *
+ * To remove a slot, it suffices to call rpaphp_deregister_slot().
+ */
+int rpaphp_add_slot(struct device_node *dn)
+{
+	if (!dn->name || strcmp(dn->name, "pci"))
+		return 0;
+
+	if (of_find_property(dn, "ibm,drc-info", NULL))
+		return rpaphp_drc_info_add_slot(dn);
+	else
+		return rpaphp_drc_add_slot(dn);
 }
 EXPORT_SYMBOL_GPL(rpaphp_add_slot);
 
