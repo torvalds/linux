@@ -506,7 +506,6 @@ static const struct mmu_interval_notifier_ops gntdev_mmu_ops = {
 static int gntdev_open(struct inode *inode, struct file *flip)
 {
 	struct gntdev_priv *priv;
-	int ret = 0;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -518,16 +517,12 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 #ifdef CONFIG_XEN_GNTDEV_DMABUF
 	priv->dmabuf_priv = gntdev_dmabuf_init(flip);
 	if (IS_ERR(priv->dmabuf_priv)) {
-		ret = PTR_ERR(priv->dmabuf_priv);
+		int ret = PTR_ERR(priv->dmabuf_priv);
+
 		kfree(priv);
 		return ret;
 	}
 #endif
-
-	if (ret) {
-		kfree(priv);
-		return ret;
-	}
 
 	flip->private_data = priv;
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
