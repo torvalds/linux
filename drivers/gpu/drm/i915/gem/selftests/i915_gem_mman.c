@@ -607,28 +607,49 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_mm *mm = &i915->drm.vma_offset_manager->vm_addr_space_mm;
 	struct drm_i915_gem_object *obj;
-	struct drm_mm_node resv, *hole;
-	u64 hole_start, hole_end;
+	struct drm_mm_node *hole, *next;
 	int loop, err;
 
 	/* Disable background reaper */
 	disable_retire_worker(i915);
 	GEM_BUG_ON(!i915->gt.awake);
+	intel_gt_retire_requests(&i915->gt);
+	i915_gem_drain_freed_objects(i915);
 
 	/* Trim the device mmap space to only a page */
-	memset(&resv, 0, sizeof(resv));
-	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
-		resv.start = hole_start;
-		resv.size = hole_end - hole_start - 1; /* PAGE_SIZE units */
-		mmap_offset_lock(i915);
-		err = drm_mm_reserve_node(mm, &resv);
-		mmap_offset_unlock(i915);
-		if (err) {
-			pr_err("Failed to trim VMA manager, err=%d\n", err);
+	mmap_offset_lock(i915);
+	loop = 1; /* PAGE_SIZE units */
+	list_for_each_entry_safe(hole, next, &mm->hole_stack, hole_stack) {
+		struct drm_mm_node *resv;
+
+		resv = kzalloc(sizeof(*resv), GFP_NOWAIT);
+		if (!resv) {
+			err = -ENOMEM;
 			goto out_park;
 		}
-		break;
+
+		resv->start = drm_mm_hole_node_start(hole) + loop;
+		resv->size = hole->hole_size - loop;
+		resv->color = -1ul;
+		loop = 0;
+
+		if (!resv->size) {
+			kfree(resv);
+			continue;
+		}
+
+		pr_debug("Reserving hole [%llx + %llx]\n",
+			 resv->start, resv->size);
+
+		err = drm_mm_reserve_node(mm, resv);
+		if (err) {
+			pr_err("Failed to trim VMA manager, err=%d\n", err);
+			kfree(resv);
+			goto out_park;
+		}
 	}
+	GEM_BUG_ON(!list_is_singular(&mm->hole_stack));
+	mmap_offset_unlock(i915);
 
 	/* Just fits! */
 	if (!assert_mmap_offset(i915, PAGE_SIZE, 0)) {
@@ -685,9 +706,15 @@ static int igt_mmap_offset_exhaustion(void *arg)
 
 out:
 	mmap_offset_lock(i915);
-	drm_mm_remove_node(&resv);
-	mmap_offset_unlock(i915);
 out_park:
+	drm_mm_for_each_node_safe(hole, next, mm) {
+		if (hole->color != -1ul)
+			continue;
+
+		drm_mm_remove_node(hole);
+		kfree(hole);
+	}
+	mmap_offset_unlock(i915);
 	restore_retire_worker(i915);
 	return err;
 err_obj:
