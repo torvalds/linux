@@ -3053,6 +3053,7 @@ M:	Daniel Borkmann <daniel@iogearbox.net>
 R:	Martin KaFai Lau <kafai@fb.com>
 R:	Song Liu <songliubraving@fb.com>
 R:	Yonghong Song <yhs@fb.com>
+R:	Andrii Nakryiko <andriin@fb.com>
 L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf.git
@@ -3737,7 +3738,6 @@ F:	drivers/crypto/cavium/cpt/
 
 CAVIUM THUNDERX2 ARM64 SOC
 M:	Robert Richter <rrichter@cavium.com>
-M:	Jayachandran C <jnair@caviumnetworks.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm64/boot/dts/cavium/thunder2-99xx*
@@ -10519,8 +10519,12 @@ F:	mm/memblock.c
 F:	Documentation/core-api/boot-time-mm.rst
 
 MEMORY MANAGEMENT
+M:	Andrew Morton <akpm@linux-foundation.org>
 L:	linux-mm@kvack.org
 W:	http://www.linux-mm.org
+T:	quilt https://ozlabs.org/~akpm/mmotm/
+T:	quilt https://ozlabs.org/~akpm/mmots/
+T:	git git://github.com/hnaz/linux-mm.git
 S:	Maintained
 F:	include/linux/mm.h
 F:	include/linux/gfp.h
@@ -17334,6 +17338,12 @@ F:	include/linux/vbox_utils.h
 F:	include/uapi/linux/vbox*.h
 F:	drivers/virt/vboxguest/
 
+VIRTUAL BOX SHARED FOLDER VFS DRIVER:
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-fsdevel@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/vboxsf/*
+
 VIRTUAL SERIO DEVICE DRIVER
 M:	Stephen Chandler Paul <thatslyude@gmail.com>
 S:	Maintained
@@ -18034,6 +18044,7 @@ F:	Documentation/vm/zsmalloc.rst
 ZSWAP COMPRESSED SWAP CACHING
 M:	Seth Jennings <sjenning@redhat.com>
 M:	Dan Streetman <ddstreet@ieee.org>
+M:	Vitaly Wool <vitaly.wool@konsulko.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/zswap.c

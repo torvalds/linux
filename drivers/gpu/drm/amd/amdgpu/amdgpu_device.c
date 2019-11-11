@@ -2885,6 +2885,13 @@ fence_driver_init:
 			DRM_INFO("amdgpu: acceleration disabled, skipping benchmarks\n");
 	}
 
+	/*
+	 * Register gpu instance before amdgpu_device_enable_mgpu_fan_boost.
+	 * Otherwise the mgpu fan boost feature will be skipped due to the
+	 * gpu instance is counted less.
+	 */
+	amdgpu_register_gpu_instance(adev);
+
 	/* enable clockgating, etc. after ib tests, etc. since some blocks require
 	 * explicit gating rather than handling it automatically.
 	 */
