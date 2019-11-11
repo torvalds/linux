@@ -1261,15 +1261,14 @@ arcturus_get_profiling_clk_mask(struct smu_context *smu,
 
 static int arcturus_get_power_limit(struct smu_context *smu,
 				     uint32_t *limit,
-				     bool asic_default)
+				     bool cap)
 {
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	uint32_t asic_default_power_limit = 0;
 	int ret = 0;
 	int power_src;
 
-	if (!smu->default_power_limit ||
-	    !smu->power_limit) {
+	if (!smu->power_limit) {
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
 			power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
 			if (power_src < 0)
@@ -1292,17 +1291,11 @@ static int arcturus_get_power_limit(struct smu_context *smu,
 				pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
 		}
 
-		if (smu->od_enabled) {
-			asic_default_power_limit *= (100 + smu->smu_table.TDPODLimit);
-			asic_default_power_limit /= 100;
-		}
-
-		smu->default_power_limit = asic_default_power_limit;
 		smu->power_limit = asic_default_power_limit;
 	}
 
-	if (asic_default)
-		*limit = smu->default_power_limit;
+	if (cap)
+		*limit = smu_v11_0_get_max_power_limit(smu);
 	else
 		*limit = smu->power_limit;
 
@@ -2070,6 +2063,13 @@ static void arcturus_i2c_eeprom_control_fini(struct i2c_adapter *control)
 	i2c_del_adapter(control);
 }
 
+static uint32_t arcturus_get_pptable_power_limit(struct smu_context *smu)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+
+	return pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
+}
+
 static const struct pptable_funcs arcturus_ppt_funcs = {
 	/* translate smu index into arcturus specific index */
 	.get_smu_msg_index = arcturus_get_smu_msg_index,
@@ -2160,6 +2160,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
+	.get_pptable_power_limit = arcturus_get_pptable_power_limit,
 };
 
 void arcturus_set_ppt_funcs(struct smu_context *smu)

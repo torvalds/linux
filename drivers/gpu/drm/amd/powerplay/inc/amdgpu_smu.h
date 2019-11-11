@@ -261,7 +261,6 @@ struct smu_table_context
 	struct smu_table		*tables;
 	struct smu_table		memory_pool;
 	uint8_t                         thermal_controller_type;
-	uint16_t			TDPODLimit;
 
 	void				*overdrive_table;
 };
@@ -548,6 +547,7 @@ struct pptable_funcs {
 	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
 	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
 	int (*override_pcie_parameters)(struct smu_context *smu);
+	uint32_t (*get_pptable_power_limit)(struct smu_context *smu);
 };
 
 int smu_load_microcode(struct smu_context *smu);
@@ -716,5 +716,7 @@ int smu_get_uclk_dpm_states(struct smu_context *smu,
 
 int smu_get_dpm_clock_table(struct smu_context *smu,
 			    struct dpm_clocks *clock_table);
+
+uint32_t smu_get_pptable_power_limit(struct smu_context *smu);
 
 #endif

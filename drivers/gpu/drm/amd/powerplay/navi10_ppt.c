@@ -1633,17 +1633,22 @@ static int navi10_display_disable_memory_clock_switch(struct smu_context *smu,
 	return ret;
 }
 
+static uint32_t navi10_get_pptable_power_limit(struct smu_context *smu)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+	return pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
+}
+
 static int navi10_get_power_limit(struct smu_context *smu,
 				     uint32_t *limit,
-				     bool asic_default)
+				     bool cap)
 {
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	uint32_t asic_default_power_limit = 0;
 	int ret = 0;
 	int power_src;
 
-	if (!smu->default_power_limit ||
-	    !smu->power_limit) {
+	if (!smu->power_limit) {
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
 			power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
 			if (power_src < 0)
@@ -1666,17 +1671,11 @@ static int navi10_get_power_limit(struct smu_context *smu,
 				pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
 		}
 
-		if (smu->od_enabled) {
-			asic_default_power_limit *= (100 + smu->smu_table.TDPODLimit);
-			asic_default_power_limit /= 100;
-		}
-
-		smu->default_power_limit = asic_default_power_limit;
 		smu->power_limit = asic_default_power_limit;
 	}
 
-	if (asic_default)
-		*limit = smu->default_power_limit;
+	if (cap)
+		*limit = smu_v11_0_get_max_power_limit(smu);
 	else
 		*limit = smu->power_limit;
 
@@ -2024,6 +2023,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
 	.set_default_od_settings = navi10_set_default_od_settings,
 	.od_edit_dpm_table = navi10_od_edit_dpm_table,
+	.get_pptable_power_limit = navi10_get_pptable_power_limit,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

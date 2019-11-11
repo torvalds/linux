@@ -1109,7 +1109,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		if (ret)
 			return ret;
 
-		ret = smu_get_power_limit(smu, &smu->default_power_limit, true, false);
+		ret = smu_get_power_limit(smu, &smu->default_power_limit, false, false);
 		if (ret)
 			return ret;
 	}
@@ -2508,6 +2508,16 @@ int smu_get_dpm_clock_table(struct smu_context *smu,
 		ret = smu->ppt_funcs->get_dpm_clock_table(smu, clock_table);
 
 	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
+uint32_t smu_get_pptable_power_limit(struct smu_context *smu)
+{
+	uint32_t ret = 0;
+
+	if (smu->ppt_funcs->get_pptable_power_limit)
+		ret = smu->ppt_funcs->get_pptable_power_limit(smu);
 
 	return ret;
 }
