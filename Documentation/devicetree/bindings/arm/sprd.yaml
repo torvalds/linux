@@ -25,5 +25,9 @@ properties:
           - enum:
               - sprd,sp9860g-1h10
           - const: sprd,sc9860
+      - items:
+          - enum:
+              - sprd,sp9863a-1h10
+          - const: sprd,sc9863a
 
 ...
