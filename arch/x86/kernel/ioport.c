@@ -17,14 +17,33 @@
 static atomic64_t io_bitmap_sequence;
 
 void io_bitmap_share(struct task_struct *tsk)
- {
-	/*
-	 * Take a refcount on current's bitmap. It can be used by
-	 * both tasks as long as none of them changes the bitmap.
-	 */
-	refcount_inc(&current->thread.io_bitmap->refcnt);
-	tsk->thread.io_bitmap = current->thread.io_bitmap;
+{
+	/* Can be NULL when current->thread.iopl_emul == 3 */
+	if (current->thread.io_bitmap) {
+		/*
+		 * Take a refcount on current's bitmap. It can be used by
+		 * both tasks as long as none of them changes the bitmap.
+		 */
+		refcount_inc(&current->thread.io_bitmap->refcnt);
+		tsk->thread.io_bitmap = current->thread.io_bitmap;
+	}
 	set_tsk_thread_flag(tsk, TIF_IO_BITMAP);
+}
+
+static void task_update_io_bitmap(void)
+{
+	struct thread_struct *t = &current->thread;
+
+	if (t->iopl_emul == 3 || t->io_bitmap) {
+		/* TSS update is handled on exit to user space */
+		set_thread_flag(TIF_IO_BITMAP);
+	} else {
+		clear_thread_flag(TIF_IO_BITMAP);
+		/* Invalidate TSS */
+		preempt_disable();
+		tss_update_io_bitmap();
+		preempt_enable();
+	}
 }
 
 void io_bitmap_exit(void)
@@ -32,10 +51,7 @@ void io_bitmap_exit(void)
 	struct io_bitmap *iobm = current->thread.io_bitmap;
 
 	current->thread.io_bitmap = NULL;
-	clear_thread_flag(TIF_IO_BITMAP);
-	preempt_disable();
-	tss_update_io_bitmap();
-	preempt_enable();
+	task_update_io_bitmap();
 	if (iobm && refcount_dec_and_test(&iobm->refcnt))
 		kfree(iobm);
 }
@@ -157,36 +173,55 @@ SYSCALL_DEFINE3(ioperm, unsigned long, from, unsigned long, num, int, turn_on)
  */
 SYSCALL_DEFINE1(iopl, unsigned int, level)
 {
-	struct pt_regs *regs = current_pt_regs();
 	struct thread_struct *t = &current->thread;
+	struct pt_regs *regs = current_pt_regs();
+	unsigned int old;
 
 	/*
 	 * Careful: the IOPL bits in regs->flags are undefined under Xen PV
 	 * and changing them has no effect.
 	 */
-	unsigned int old = t->iopl >> X86_EFLAGS_IOPL_BIT;
+	if (IS_ENABLED(CONFIG_X86_IOPL_NONE))
+		return -ENOSYS;
 
 	if (level > 3)
 		return -EINVAL;
+
+	if (IS_ENABLED(CONFIG_X86_IOPL_EMULATION))
+		old = t->iopl_emul;
+	else
+		old = t->iopl >> X86_EFLAGS_IOPL_BIT;
+
+	/* No point in going further if nothing changes */
+	if (level == old)
+		return 0;
+
 	/* Trying to gain more privileges? */
 	if (level > old) {
 		if (!capable(CAP_SYS_RAWIO) ||
 		    security_locked_down(LOCKDOWN_IOPORT))
 			return -EPERM;
 	}
-	/*
-	 * Change the flags value on the return stack, which has been set
-	 * up on system-call entry. See also the fork and signal handling
-	 * code how this is handled.
-	 */
-	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) |
-		(level << X86_EFLAGS_IOPL_BIT);
-	/* Store the new level in the thread struct */
-	t->iopl = level << X86_EFLAGS_IOPL_BIT;
-	/*
-	 * X86_32 switches immediately and XEN handles it via emulation.
-	 */
-	set_iopl_mask(t->iopl);
+
+	if (IS_ENABLED(CONFIG_X86_IOPL_EMULATION)) {
+		t->iopl_emul = level;
+		task_update_io_bitmap();
+	} else {
+		/*
+		 * Change the flags value on the return stack, which has
+		 * been set up on system-call entry. See also the fork and
+		 * signal handling code how this is handled.
+		 */
+		regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) |
+			(level << X86_EFLAGS_IOPL_BIT);
+		/* Store the new level in the thread struct */
+		t->iopl = level << X86_EFLAGS_IOPL_BIT;
+		/*
+		 * X86_32 switches immediately and XEN handles it via
+		 * emulation.
+		 */
+		set_iopl_mask(t->iopl);
+	}
 
 	return 0;
 }
