@@ -87,6 +87,10 @@ static bool context_mark_guilty(struct i915_gem_context *ctx)
 	if (!i915_gem_context_is_bannable(ctx))
 		return false;
 
+	dev_notice(ctx->i915->drm.dev,
+		   "%s context reset due to GPU hang\n",
+		   ctx->name);
+
 	/* Record the timestamp for the last N hangs */
 	prev_hang = ctx->hang_timestamp[0];
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp) - 1; i++)
