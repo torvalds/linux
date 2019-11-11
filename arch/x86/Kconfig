@@ -1254,12 +1254,9 @@ config X86_VSYSCALL_EMULATION
 	 Disabling this option saves about 7K of kernel size and
 	 possibly 4K of additional runtime pagetable memory.
 
-choice
-	prompt "IOPL"
-	default X86_IOPL_EMULATION
-
 config X86_IOPL_EMULATION
 	bool "IOPL Emulation"
+	default y
 	---help---
 	  Legacy IOPL support is an overbroad mechanism which allows user
 	  space aside of accessing all 65536 I/O ports also to disable
@@ -1269,22 +1266,8 @@ config X86_IOPL_EMULATION
 
 	  The emulation restricts the functionality of the syscall to
 	  only allowing the full range I/O port access, but prevents the
-	  ability to disable interrupts from user space.
-
-config X86_IOPL_LEGACY
-	bool "IOPL Legacy"
-	---help---
-	Allow the full IOPL permissions, i.e. user space access to all
-	65536 I/O ports and also the ability to disable interrupts, which
-	is overbroad and can result in system lockups.
-
-config X86_IOPL_NONE
-	bool "IOPL None"
-	---help---
-	Disable the IOPL permission syscall. That's the safest option as
-	no sane application should depend on this functionality.
-
-endchoice
+	  ability to disable interrupts from user space which would be
+	  granted if the hardware IOPL mechanism would be used.
 
 config TOSHIBA
 	tristate "Toshiba Laptop support"

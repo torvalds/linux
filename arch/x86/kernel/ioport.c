@@ -153,28 +153,23 @@ SYSCALL_DEFINE3(ioperm, unsigned long, from, unsigned long, num, int, turn_on)
 
 /*
  * The sys_iopl functionality depends on the level argument, which if
- * granted for the task is used by the CPU to check I/O instruction and
- * CLI/STI against the current priviledge level (CPL). If CPL is less than
- * or equal the tasks IOPL level the instructions take effect. If not a #GP
- * is raised. The default IOPL is 0, i.e. no permissions.
+ * granted for the task is used to enable access to all 65536 I/O ports.
  *
- * Setting IOPL to level 0-2 is disabling the userspace access. Only level
- * 3 enables it. If set it allows the user space thread:
+ * This does not use the IOPL mechanism provided by the CPU as that would
+ * also allow the user space task to use the CLI/STI instructions.
  *
- * - Unrestricted access to all 65535 I/O ports
- * - The usage of CLI/STI instructions
+ * Disabling interrupts in a user space task is dangerous as it might lock
+ * up the machine and the semantics vs. syscalls and exceptions is
+ * undefined.
  *
- * The advantage over ioperm is that the context switch does not require to
- * update the I/O bitmap which is especially true when a large number of
- * ports is accessed. But the allowance of CLI/STI in userspace is
- * considered a major problem.
+ * Setting IOPL to level 0-2 is disabling I/O permissions. Level 3
+ * 3 enables them.
  *
  * IOPL is strictly per thread and inherited on fork.
  */
 SYSCALL_DEFINE1(iopl, unsigned int, level)
 {
 	struct thread_struct *t = &current->thread;
-	struct pt_regs *regs = current_pt_regs();
 	unsigned int old;
 
 	/*
@@ -187,10 +182,7 @@ SYSCALL_DEFINE1(iopl, unsigned int, level)
 	if (level > 3)
 		return -EINVAL;
 
-	if (IS_ENABLED(CONFIG_X86_IOPL_EMULATION))
-		old = t->iopl_emul;
-	else
-		old = t->iopl >> X86_EFLAGS_IOPL_BIT;
+	old = t->iopl_emul;
 
 	/* No point in going further if nothing changes */
 	if (level == old)
@@ -203,25 +195,8 @@ SYSCALL_DEFINE1(iopl, unsigned int, level)
 			return -EPERM;
 	}
 
-	if (IS_ENABLED(CONFIG_X86_IOPL_EMULATION)) {
-		t->iopl_emul = level;
-		task_update_io_bitmap();
-	} else {
-		/*
-		 * Change the flags value on the return stack, which has
-		 * been set up on system-call entry. See also the fork and
-		 * signal handling code how this is handled.
-		 */
-		regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) |
-			(level << X86_EFLAGS_IOPL_BIT);
-		/* Store the new level in the thread struct */
-		t->iopl = level << X86_EFLAGS_IOPL_BIT;
-		/*
-		 * X86_32 switches immediately and XEN handles it via
-		 * emulation.
-		 */
-		set_iopl_mask(t->iopl);
-	}
+	t->iopl_emul = level;
+	task_update_io_bitmap();
 
 	return 0;
 }

@@ -516,10 +516,10 @@ struct thread_struct {
 	struct io_bitmap	*io_bitmap;
 
 	/*
-	 * IOPL. Priviledge level dependent I/O permission which includes
-	 * user space CLI/STI when granted.
+	 * IOPL. Priviledge level dependent I/O permission which is
+	 * emulated via the I/O bitmap to prevent user space from disabling
+	 * interrupts.
 	 */
-	unsigned long		iopl;
 	unsigned long		iopl_emul;
 
 	mm_segment_t		addr_limit;
@@ -551,25 +551,6 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
  * have to worry about atomic accesses.
  */
 #define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
-
-/*
- * Set IOPL bits in EFLAGS from given mask
- */
-static inline void native_set_iopl_mask(unsigned mask)
-{
-#ifdef CONFIG_X86_32
-	unsigned int reg;
-
-	asm volatile ("pushfl;"
-		      "popl %0;"
-		      "andl %1, %0;"
-		      "orl %2, %0;"
-		      "pushl %0;"
-		      "popfl"
-		      : "=&r" (reg)
-		      : "i" (~X86_EFLAGS_IOPL), "r" (mask));
-#endif
-}
 
 static inline void
 native_load_sp0(unsigned long sp0)
@@ -610,7 +591,6 @@ static inline void load_sp0(unsigned long sp0)
 	native_load_sp0(sp0);
 }
 
-#define set_iopl_mask native_set_iopl_mask
 #endif /* CONFIG_PARAVIRT_XXL */
 
 /* Free all resources held by a thread. */
