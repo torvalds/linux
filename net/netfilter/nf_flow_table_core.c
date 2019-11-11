@@ -250,6 +250,9 @@ int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow)
 		return err;
 	}
 
+	if (flow_table->flags & NF_FLOWTABLE_HW_OFFLOAD)
+		nf_flow_offload_add(flow_table, flow);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(flow_offload_add);
@@ -350,9 +353,20 @@ static void nf_flow_offload_gc_step(struct flow_offload *flow, void *data)
 {
 	struct nf_flowtable *flow_table = data;
 
+	if (flow->flags & FLOW_OFFLOAD_HW)
+		nf_flow_offload_stats(flow_table, flow);
+
 	if (nf_flow_has_expired(flow) || nf_ct_is_dying(flow->ct) ||
-	    (flow->flags & (FLOW_OFFLOAD_DYING | FLOW_OFFLOAD_TEARDOWN)))
-		flow_offload_del(flow_table, flow);
+	    (flow->flags & (FLOW_OFFLOAD_DYING | FLOW_OFFLOAD_TEARDOWN))) {
+		if (flow->flags & FLOW_OFFLOAD_HW) {
+			if (!(flow->flags & FLOW_OFFLOAD_HW_DYING))
+				nf_flow_offload_del(flow_table, flow);
+			else if (flow->flags & FLOW_OFFLOAD_HW_DEAD)
+				flow_offload_del(flow_table, flow);
+		} else {
+			flow_offload_del(flow_table, flow);
+		}
+	}
 }
 
 static void nf_flow_offload_work_gc(struct work_struct *work)
@@ -485,6 +499,7 @@ int nf_flow_table_init(struct nf_flowtable *flowtable)
 	int err;
 
 	INIT_DEFERRABLE_WORK(&flowtable->gc_work, nf_flow_offload_work_gc);
+	flow_block_init(&flowtable->flow_block);
 
 	err = rhashtable_init(&flowtable->rhashtable,
 			      &nf_flow_offload_rhash_params);
@@ -520,6 +535,7 @@ static void nf_flow_table_do_cleanup(struct flow_offload *flow, void *data)
 static void nf_flow_table_iterate_cleanup(struct nf_flowtable *flowtable,
 					  struct net_device *dev)
 {
+	nf_flow_table_offload_flush(flowtable);
 	nf_flow_table_iterate(flowtable, nf_flow_table_do_cleanup, dev);
 	flush_delayed_work(&flowtable->gc_work);
 }
@@ -546,6 +562,19 @@ void nf_flow_table_free(struct nf_flowtable *flow_table)
 	rhashtable_destroy(&flow_table->rhashtable);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_free);
+
+static int __init nf_flow_table_module_init(void)
+{
+	return nf_flow_table_offload_init();
+}
+
+static void __exit nf_flow_table_module_exit(void)
+{
+	nf_flow_table_offload_exit();
+}
+
+module_init(nf_flow_table_module_init);
+module_exit(nf_flow_table_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");

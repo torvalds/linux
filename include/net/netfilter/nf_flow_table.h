@@ -12,6 +12,9 @@
 #include <net/dst.h>
 
 struct nf_flowtable;
+struct nf_flow_rule;
+struct flow_offload;
+enum flow_offload_tuple_dir;
 
 struct nf_flowtable_type {
 	struct list_head		list;
@@ -20,6 +23,10 @@ struct nf_flowtable_type {
 	int				(*setup)(struct nf_flowtable *ft,
 						 struct net_device *dev,
 						 enum flow_block_command cmd);
+	int				(*action)(struct net *net,
+						  const struct flow_offload *flow,
+						  enum flow_offload_tuple_dir dir,
+						  struct nf_flow_rule *flow_rule);
 	void				(*free)(struct nf_flowtable *ft);
 	nf_hookfn			*hook;
 	struct module			*owner;
@@ -80,6 +87,9 @@ struct flow_offload_tuple_rhash {
 #define FLOW_OFFLOAD_DNAT	0x2
 #define FLOW_OFFLOAD_DYING	0x4
 #define FLOW_OFFLOAD_TEARDOWN	0x8
+#define FLOW_OFFLOAD_HW		0x10
+#define FLOW_OFFLOAD_HW_DYING	0x20
+#define FLOW_OFFLOAD_HW_DEAD	0x40
 
 enum flow_offload_type {
 	NF_FLOW_OFFLOAD_UNSPEC	= 0,
@@ -142,11 +152,22 @@ unsigned int nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 #define MODULE_ALIAS_NF_FLOWTABLE(family)	\
 	MODULE_ALIAS("nf-flowtable-" __stringify(family))
 
-static inline int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
-					      struct net_device *dev,
-					      enum flow_block_command cmd)
-{
-	return 0;
-}
+void nf_flow_offload_add(struct nf_flowtable *flowtable,
+			 struct flow_offload *flow);
+void nf_flow_offload_del(struct nf_flowtable *flowtable,
+			 struct flow_offload *flow);
+void nf_flow_offload_stats(struct nf_flowtable *flowtable,
+			   struct flow_offload *flow);
+
+void nf_flow_table_offload_flush(struct nf_flowtable *flowtable);
+int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
+				struct net_device *dev,
+				enum flow_block_command cmd);
+int nf_flow_rule_route(struct net *net, const struct flow_offload *flow,
+		       enum flow_offload_tuple_dir dir,
+		       struct nf_flow_rule *flow_rule);
+
+int nf_flow_table_offload_init(void);
+void nf_flow_table_offload_exit(void);
 
 #endif /* _NF_FLOW_TABLE_H */
