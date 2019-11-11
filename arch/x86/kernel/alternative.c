@@ -1088,7 +1088,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 	 * First step: add a int3 trap to the address that will be patched.
 	 */
 	for (i = 0; i < nr_entries; i++)
-		text_poke(text_poke_addr(&tp[i]), &int3, sizeof(int3));
+		text_poke(text_poke_addr(&tp[i]), &int3, INT3_INSN_SIZE);
 
 	text_poke_sync();
 
@@ -1098,10 +1098,10 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 	for (do_sync = 0, i = 0; i < nr_entries; i++) {
 		int len = text_opcode_size(tp[i].opcode);
 
-		if (len - sizeof(int3) > 0) {
-			text_poke(text_poke_addr(&tp[i]) + sizeof(int3),
-				  (const char *)tp[i].text + sizeof(int3),
-				  len - sizeof(int3));
+		if (len - INT3_INSN_SIZE > 0) {
+			text_poke(text_poke_addr(&tp[i]) + INT3_INSN_SIZE,
+				  (const char *)tp[i].text + INT3_INSN_SIZE,
+				  len - INT3_INSN_SIZE);
 			do_sync++;
 		}
 	}
@@ -1123,7 +1123,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 		if (tp[i].text[0] == INT3_INSN_OPCODE)
 			continue;
 
-		text_poke(text_poke_addr(&tp[i]), tp[i].text, sizeof(int3));
+		text_poke(text_poke_addr(&tp[i]), tp[i].text, INT3_INSN_SIZE);
 		do_sync++;
 	}
 
