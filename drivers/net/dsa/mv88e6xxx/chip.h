@@ -33,6 +33,11 @@ enum mv88e6xxx_egress_mode {
 	MV88E6XXX_EGRESS_MODE_ETHERTYPE,
 };
 
+enum mv88e6xxx_egress_direction {
+        MV88E6XXX_EGRESS_DIR_INGRESS,
+        MV88E6XXX_EGRESS_DIR_EGRESS,
+};
+
 enum mv88e6xxx_frame_mode {
 	MV88E6XXX_FRAME_MODE_NORMAL,
 	MV88E6XXX_FRAME_MODE_DSA,
@@ -228,6 +233,8 @@ struct mv88e6xxx_port {
 	u64 vtu_member_violation;
 	u64 vtu_miss_violation;
 	u8 cmode;
+	bool mirror_ingress;
+	bool mirror_egress;
 	unsigned int serdes_irq;
 };
 
@@ -310,6 +317,10 @@ struct mv88e6xxx_chip {
 	u16 trig_config;
 	u16 evcap_config;
 	u16 enable_count;
+
+	/* Current ingress and egress monitor ports */
+	int egress_dest_port;
+	int ingress_dest_port;
 
 	/* Per-port timestamping resources. */
 	struct mv88e6xxx_port_hwtstamp port_hwtstamp[DSA_MAX_PORTS];
@@ -465,7 +476,9 @@ struct mv88e6xxx_ops {
 	int (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
 			       uint64_t *data);
 	int (*set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
-	int (*set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+	int (*set_egress_port)(struct mv88e6xxx_chip *chip,
+			       enum mv88e6xxx_egress_direction direction,
+			       int port);
 
 #define MV88E6XXX_CASCADE_PORT_NONE		0xe
 #define MV88E6XXX_CASCADE_PORT_MULTIPLE		0xf
