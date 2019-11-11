@@ -5252,13 +5252,11 @@ static int vega10_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_
 				PHM_PerformanceLevel *level)
 {
 	const struct vega10_power_state *ps;
-	struct vega10_hwmgr *data;
 	uint32_t i;
 
 	if (level == NULL || hwmgr == NULL || state == NULL)
 		return -EINVAL;
 
-	data = hwmgr->backend;
 	ps = cast_const_phw_vega10_power_state(state);
 
 	i = index > ps->performance_level_count - 1 ?
