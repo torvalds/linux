@@ -651,6 +651,9 @@ esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag);
 u32
 esw_get_max_restore_tag(struct mlx5_eswitch *esw);
 
+int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num);
+void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }

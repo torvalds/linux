@@ -1806,11 +1806,13 @@ static void esw_vport_cleanup(struct mlx5_eswitch *esw, struct mlx5_vport *vport
 	esw_vport_cleanup_acl(esw, vport);
 }
 
-static int esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
+static int esw_enable_vport(struct mlx5_eswitch *esw, u16 vport_num,
 			    enum mlx5_eswitch_vport_event enabled_events)
 {
-	u16 vport_num = vport->vport;
+	struct mlx5_vport *vport;
 	int ret;
+
+	vport = mlx5_eswitch_get_vport(esw, vport_num);
 
 	mutex_lock(&esw->state_lock);
 	WARN_ON(vport->enabled);
@@ -1841,10 +1843,11 @@ done:
 	return ret;
 }
 
-static void esw_disable_vport(struct mlx5_eswitch *esw,
-			      struct mlx5_vport *vport)
+static void esw_disable_vport(struct mlx5_eswitch *esw, u16 vport_num)
 {
-	u16 vport_num = vport->vport;
+	struct mlx5_vport *vport;
+
+	vport = mlx5_eswitch_get_vport(esw, vport_num);
 
 	mutex_lock(&esw->state_lock);
 	if (!vport->enabled)
@@ -1950,6 +1953,32 @@ static void mlx5_eswitch_clear_vf_vports_info(struct mlx5_eswitch *esw)
 /* Public E-Switch API */
 #define ESW_ALLOWED(esw) ((esw) && MLX5_ESWITCH_MANAGER((esw)->dev))
 
+static int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, u16 vport_num,
+				   enum mlx5_eswitch_vport_event enabled_events)
+{
+	int err;
+
+	err = esw_enable_vport(esw, vport_num, enabled_events);
+	if (err)
+		return err;
+
+	err = esw_offloads_load_rep(esw, vport_num);
+	if (err)
+		goto err_rep;
+
+	return err;
+
+err_rep:
+	esw_disable_vport(esw, vport_num);
+	return err;
+}
+
+static void mlx5_eswitch_unload_vport(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	esw_offloads_unload_rep(esw, vport_num);
+	esw_disable_vport(esw, vport_num);
+}
+
 /* mlx5_eswitch_enable_pf_vf_vports() enables vports of PF, ECPF and VFs
  * whichever are present on the eswitch.
  */
@@ -1957,28 +1986,25 @@ int
 mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
 				 enum mlx5_eswitch_vport_event enabled_events)
 {
-	struct mlx5_vport *vport;
 	int num_vfs;
 	int ret;
 	int i;
 
 	/* Enable PF vport */
-	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
-	ret = esw_enable_vport(esw, vport, enabled_events);
+	ret = mlx5_eswitch_load_vport(esw, MLX5_VPORT_PF, enabled_events);
 	if (ret)
 		return ret;
 
 	/* Enable ECPF vport */
 	if (mlx5_ecpf_vport_exists(esw->dev)) {
-		vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_ECPF);
-		ret = esw_enable_vport(esw, vport, enabled_events);
+		ret = mlx5_eswitch_load_vport(esw, MLX5_VPORT_ECPF, enabled_events);
 		if (ret)
 			goto ecpf_err;
 	}
 
 	/* Enable VF vports */
-	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->esw_funcs.num_vfs) {
-		ret = esw_enable_vport(esw, vport, enabled_events);
+	mlx5_esw_for_each_vf_vport_num(esw, i, esw->esw_funcs.num_vfs) {
+		ret = mlx5_eswitch_load_vport(esw, i, enabled_events);
 		if (ret)
 			goto vf_err;
 	}
@@ -1986,17 +2012,14 @@ mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
 
 vf_err:
 	num_vfs = i - 1;
-	mlx5_esw_for_each_vf_vport_reverse(esw, i, vport, num_vfs)
-		esw_disable_vport(esw, vport);
+	mlx5_esw_for_each_vf_vport_num_reverse(esw, i, num_vfs)
+		mlx5_eswitch_unload_vport(esw, i);
 
-	if (mlx5_ecpf_vport_exists(esw->dev)) {
-		vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_ECPF);
-		esw_disable_vport(esw, vport);
-	}
+	if (mlx5_ecpf_vport_exists(esw->dev))
+		mlx5_eswitch_unload_vport(esw, MLX5_VPORT_ECPF);
 
 ecpf_err:
-	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
-	esw_disable_vport(esw, vport);
+	mlx5_eswitch_unload_vport(esw, MLX5_VPORT_PF);
 	return ret;
 }
 
@@ -2005,11 +2028,15 @@ ecpf_err:
  */
 void mlx5_eswitch_disable_pf_vf_vports(struct mlx5_eswitch *esw)
 {
-	struct mlx5_vport *vport;
 	int i;
 
-	mlx5_esw_for_all_vports_reverse(esw, i, vport)
-		esw_disable_vport(esw, vport);
+	mlx5_esw_for_each_vf_vport_num_reverse(esw, i, esw->esw_funcs.num_vfs)
+		mlx5_eswitch_unload_vport(esw, i);
+
+	if (mlx5_ecpf_vport_exists(esw->dev))
+		mlx5_eswitch_unload_vport(esw, MLX5_VPORT_ECPF);
+
+	mlx5_eswitch_unload_vport(esw, MLX5_VPORT_PF);
 }
 
 static void mlx5_eswitch_get_devlink_param(struct mlx5_eswitch *esw)
