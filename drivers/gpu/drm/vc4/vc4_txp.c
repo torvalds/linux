@@ -231,7 +231,7 @@ static int vc4_txp_connector_atomic_check(struct drm_connector *conn,
 	int i;
 
 	conn_state = drm_atomic_get_new_connector_state(state, conn);
-	if (!conn_state->writeback_job || !conn_state->writeback_job->fb)
+	if (!conn_state->writeback_job)
 		return 0;
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
@@ -271,8 +271,7 @@ static void vc4_txp_connector_atomic_commit(struct drm_connector *conn,
 	u32 ctrl;
 	int i;
 
-	if (WARN_ON(!conn_state->writeback_job ||
-		    !conn_state->writeback_job->fb))
+	if (WARN_ON(!conn_state->writeback_job))
 		return;
 
 	mode = &conn_state->crtc->state->adjusted_mode;

@@ -66,9 +66,10 @@
 #define X2APIC_BROADCAST		0xFFFFFFFFul
 
 static bool lapic_timer_advance_dynamic __read_mostly;
-#define LAPIC_TIMER_ADVANCE_ADJUST_MIN 100
-#define LAPIC_TIMER_ADVANCE_ADJUST_MAX 5000
-#define LAPIC_TIMER_ADVANCE_ADJUST_INIT 1000
+#define LAPIC_TIMER_ADVANCE_ADJUST_MIN	100	/* clock cycles */
+#define LAPIC_TIMER_ADVANCE_ADJUST_MAX	10000	/* clock cycles */
+#define LAPIC_TIMER_ADVANCE_NS_INIT	1000
+#define LAPIC_TIMER_ADVANCE_NS_MAX     5000
 /* step-by-step approximation to mitigate fluctuation */
 #define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
 
@@ -109,11 +110,6 @@ static inline int apic_enabled(struct kvm_lapic *apic)
 #define LINT_MASK	\
 	(LVT_MASK | APIC_MODE_MASK | APIC_INPUT_POLARITY | \
 	 APIC_LVT_REMOTE_IRR | APIC_LVT_LEVEL_TRIGGER)
-
-static inline u8 kvm_xapic_id(struct kvm_lapic *apic)
-{
-	return kvm_lapic_get_reg(apic, APIC_ID) >> 24;
-}
 
 static inline u32 kvm_x2apic_id(struct kvm_lapic *apic)
 {
@@ -1504,8 +1500,8 @@ static inline void adjust_lapic_timer_advance(struct kvm_vcpu *vcpu,
 		timer_advance_ns += ns/LAPIC_TIMER_ADVANCE_ADJUST_STEP;
 	}
 
-	if (unlikely(timer_advance_ns > LAPIC_TIMER_ADVANCE_ADJUST_MAX))
-		timer_advance_ns = LAPIC_TIMER_ADVANCE_ADJUST_INIT;
+	if (unlikely(timer_advance_ns > LAPIC_TIMER_ADVANCE_NS_MAX))
+		timer_advance_ns = LAPIC_TIMER_ADVANCE_NS_INIT;
 	apic->lapic_timer.timer_advance_ns = timer_advance_ns;
 }
 
@@ -2302,7 +2298,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 		     HRTIMER_MODE_ABS_HARD);
 	apic->lapic_timer.timer.function = apic_timer_fn;
 	if (timer_advance_ns == -1) {
-		apic->lapic_timer.timer_advance_ns = LAPIC_TIMER_ADVANCE_ADJUST_INIT;
+		apic->lapic_timer.timer_advance_ns = LAPIC_TIMER_ADVANCE_NS_INIT;
 		lapic_timer_advance_dynamic = true;
 	} else {
 		apic->lapic_timer.timer_advance_ns = timer_advance_ns;

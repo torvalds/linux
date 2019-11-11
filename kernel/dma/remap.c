@@ -87,9 +87,9 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
  */
 void dma_common_free_remap(void *cpu_addr, size_t size)
 {
-	struct page **pages = dma_common_find_pages(cpu_addr);
+	struct vm_struct *area = find_vm_area(cpu_addr);
 
-	if (!pages) {
+	if (!area || area->flags != VM_DMA_COHERENT) {
 		WARN(1, "trying to free invalid coherent area: %p\n", cpu_addr);
 		return;
 	}

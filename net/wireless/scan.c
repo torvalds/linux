@@ -1703,8 +1703,7 @@ cfg80211_parse_mbssid_frame_data(struct wiphy *wiphy,
 static void
 cfg80211_update_notlisted_nontrans(struct wiphy *wiphy,
 				   struct cfg80211_bss *nontrans_bss,
-				   struct ieee80211_mgmt *mgmt, size_t len,
-				   gfp_t gfp)
+				   struct ieee80211_mgmt *mgmt, size_t len)
 {
 	u8 *ie, *new_ie, *pos;
 	const u8 *nontrans_ssid, *trans_ssid, *mbssid;
@@ -1715,6 +1714,8 @@ cfg80211_update_notlisted_nontrans(struct wiphy *wiphy,
 	const struct cfg80211_bss_ies *old;
 	u8 cpy_len;
 
+	lockdep_assert_held(&wiphy_to_rdev(wiphy)->bss_lock);
+
 	ie = mgmt->u.probe_resp.variable;
 
 	new_ie_len = ielen;
@@ -1723,26 +1724,30 @@ cfg80211_update_notlisted_nontrans(struct wiphy *wiphy,
 		return;
 	new_ie_len -= trans_ssid[1];
 	mbssid = cfg80211_find_ie(WLAN_EID_MULTIPLE_BSSID, ie, ielen);
-	if (!mbssid)
+	/*
+	 * It's not valid to have the MBSSID element before SSID
+	 * ignore if that happens - the code below assumes it is
+	 * after (while copying things inbetween).
+	 */
+	if (!mbssid || mbssid < trans_ssid)
 		return;
 	new_ie_len -= mbssid[1];
-	rcu_read_lock();
+
 	nontrans_ssid = ieee80211_bss_get_ie(nontrans_bss, WLAN_EID_SSID);
-	if (!nontrans_ssid) {
-		rcu_read_unlock();
+	if (!nontrans_ssid)
 		return;
-	}
+
 	new_ie_len += nontrans_ssid[1];
-	rcu_read_unlock();
 
 	/* generate new ie for nontrans BSS
 	 * 1. replace SSID with nontrans BSS' SSID
 	 * 2. skip MBSSID IE
 	 */
-	new_ie = kzalloc(new_ie_len, gfp);
+	new_ie = kzalloc(new_ie_len, GFP_ATOMIC);
 	if (!new_ie)
 		return;
-	new_ies = kzalloc(sizeof(*new_ies) + new_ie_len, gfp);
+
+	new_ies = kzalloc(sizeof(*new_ies) + new_ie_len, GFP_ATOMIC);
 	if (!new_ies)
 		goto out_free;
 
@@ -1896,6 +1901,8 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 	cfg80211_parse_mbssid_frame_data(wiphy, data, mgmt, len,
 					 &non_tx_data, gfp);
 
+	spin_lock_bh(&wiphy_to_rdev(wiphy)->bss_lock);
+
 	/* check if the res has other nontransmitting bss which is not
 	 * in MBSSID IE
 	 */
@@ -1910,8 +1917,9 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 		ies2 = rcu_access_pointer(tmp_bss->ies);
 		if (ies2->tsf < ies1->tsf)
 			cfg80211_update_notlisted_nontrans(wiphy, tmp_bss,
-							   mgmt, len, gfp);
+							   mgmt, len);
 	}
+	spin_unlock_bh(&wiphy_to_rdev(wiphy)->bss_lock);
 
 	return res;
 }

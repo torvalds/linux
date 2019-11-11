@@ -1146,7 +1146,7 @@
 		};
 	};
 
-	gpu_cm: clock-controller@1500 {
+	gpu_cm: gpu_cm@1500 {
 		compatible = "ti,omap4-cm";
 		reg = <0x1500 0x100>;
 		#address-cells = <1>;

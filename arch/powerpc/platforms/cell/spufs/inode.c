@@ -761,6 +761,7 @@ static int spufs_init_fs_context(struct fs_context *fc)
 	ctx->gid = current_gid();
 	ctx->mode = 0755;
 
+	fc->fs_private = ctx;
 	fc->s_fs_info = sbi;
 	fc->ops = &spufs_context_ops;
 	return 0;

@@ -97,15 +97,19 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	if (ret)
 		return ret;
 
-	if (mlx5_lag_is_multipath(mdev) && rt->rt_gw_family != AF_INET)
+	if (mlx5_lag_is_multipath(mdev) && rt->rt_gw_family != AF_INET) {
+		ip_rt_put(rt);
 		return -ENETUNREACH;
+	}
 #else
 	return -EOPNOTSUPP;
 #endif
 
 	ret = get_route_and_out_devs(priv, rt->dst.dev, route_dev, out_dev);
-	if (ret < 0)
+	if (ret < 0) {
+		ip_rt_put(rt);
 		return ret;
+	}
 
 	if (!(*out_ttl))
 		*out_ttl = ip4_dst_hoplimit(&rt->dst);
@@ -149,8 +153,10 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 		*out_ttl = ip6_dst_hoplimit(dst);
 
 	ret = get_route_and_out_devs(priv, dst->dev, route_dev, out_dev);
-	if (ret < 0)
+	if (ret < 0) {
+		dst_release(dst);
 		return ret;
+	}
 #else
 	return -EOPNOTSUPP;
 #endif

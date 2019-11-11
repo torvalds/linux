@@ -63,7 +63,6 @@ config TINYDRM_REPAPER
 	depends on DRM && SPI
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
-	depends on THERMAL || !THERMAL
 	help
 	  DRM driver for the following Pervasive Displays panels:
 	  1.44" TFT EPD Panel (E1144CS021)
