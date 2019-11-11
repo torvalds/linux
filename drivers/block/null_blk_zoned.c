@@ -67,21 +67,34 @@ void null_zone_exit(struct nullb_device *dev)
 }
 
 int null_report_zones(struct gendisk *disk, sector_t sector,
-		      struct blk_zone *zones, unsigned int *nr_zones)
+		unsigned int nr_zones, report_zones_cb cb, void *data)
 {
 	struct nullb *nullb = disk->private_data;
 	struct nullb_device *dev = nullb->dev;
-	unsigned int zno, nrz = 0;
+	unsigned int first_zone, i;
+	struct blk_zone zone;
+	int error;
 
-	zno = null_zone_no(dev, sector);
-	if (zno < dev->nr_zones) {
-		nrz = min_t(unsigned int, *nr_zones, dev->nr_zones - zno);
-		memcpy(zones, &dev->zones[zno], nrz * sizeof(struct blk_zone));
+	first_zone = null_zone_no(dev, sector);
+	if (first_zone >= dev->nr_zones)
+		return 0;
+
+	nr_zones = min(nr_zones, dev->nr_zones - first_zone);
+	for (i = 0; i < nr_zones; i++) {
+		/*
+		 * Stacked DM target drivers will remap the zone information by
+		 * modifying the zone information passed to the report callback.
+		 * So use a local copy to avoid corruption of the device zone
+		 * array.
+		 */
+		memcpy(&zone, &dev->zones[first_zone + i],
+		       sizeof(struct blk_zone));
+		error = cb(&zone, i, data);
+		if (error)
+			return error;
 	}
 
-	*nr_zones = nrz;
-
-	return 0;
+	return nr_zones;
 }
 
 size_t null_zone_valid_read_len(struct nullb *nullb,

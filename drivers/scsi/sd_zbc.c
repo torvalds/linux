@@ -19,34 +19,27 @@
 
 #include "sd.h"
 
-/**
- * sd_zbc_parse_report - Convert a zone descriptor to a struct blk_zone,
- * @sdkp: The disk the report originated from
- * @buf: Address of the report zone descriptor
- * @zone: the destination zone structure
- *
- * All LBA sized values are converted to 512B sectors unit.
- */
-static void sd_zbc_parse_report(struct scsi_disk *sdkp, u8 *buf,
-				struct blk_zone *zone)
+static int sd_zbc_parse_report(struct scsi_disk *sdkp, u8 *buf,
+			       unsigned int idx, report_zones_cb cb, void *data)
 {
 	struct scsi_device *sdp = sdkp->device;
+	struct blk_zone zone = { 0 };
 
-	memset(zone, 0, sizeof(struct blk_zone));
-
-	zone->type = buf[0] & 0x0f;
-	zone->cond = (buf[1] >> 4) & 0xf;
+	zone.type = buf[0] & 0x0f;
+	zone.cond = (buf[1] >> 4) & 0xf;
 	if (buf[1] & 0x01)
-		zone->reset = 1;
+		zone.reset = 1;
 	if (buf[1] & 0x02)
-		zone->non_seq = 1;
+		zone.non_seq = 1;
 
-	zone->len = logical_to_sectors(sdp, get_unaligned_be64(&buf[8]));
-	zone->start = logical_to_sectors(sdp, get_unaligned_be64(&buf[16]));
-	zone->wp = logical_to_sectors(sdp, get_unaligned_be64(&buf[24]));
-	if (zone->type != ZBC_ZONE_TYPE_CONV &&
-	    zone->cond == ZBC_ZONE_COND_FULL)
-		zone->wp = zone->start + zone->len;
+	zone.len = logical_to_sectors(sdp, get_unaligned_be64(&buf[8]));
+	zone.start = logical_to_sectors(sdp, get_unaligned_be64(&buf[16]));
+	zone.wp = logical_to_sectors(sdp, get_unaligned_be64(&buf[24]));
+	if (zone.type != ZBC_ZONE_TYPE_CONV &&
+	    zone.cond == ZBC_ZONE_COND_FULL)
+		zone.wp = zone.start + zone.len;
+
+	return cb(&zone, idx, data);
 }
 
 /**
@@ -154,58 +147,59 @@ static void *sd_zbc_alloc_report_buffer(struct scsi_disk *sdkp,
 }
 
 /**
- * sd_zbc_report_zones - Disk report zones operation.
- * @disk: The target disk
- * @sector: Start 512B sector of the report
- * @zones: Array of zone descriptors
- * @nr_zones: Number of descriptors in the array
- *
- * Execute a report zones command on the target disk.
- */
-int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
-			struct blk_zone *zones, unsigned int *nr_zones)
-{
-	struct scsi_disk *sdkp = scsi_disk(disk);
-	unsigned int i, nrz = *nr_zones;
-	unsigned char *buf;
-	size_t buflen = 0, offset = 0;
-	int ret = 0;
-
-	if (!sd_is_zoned(sdkp))
-		/* Not a zoned device */
-		return -EOPNOTSUPP;
-
-	buf = sd_zbc_alloc_report_buffer(sdkp, nrz, &buflen);
-	if (!buf)
-		return -ENOMEM;
-
-	ret = sd_zbc_do_report_zones(sdkp, buf, buflen,
-			sectors_to_logical(sdkp->device, sector), true);
-	if (ret)
-		goto out;
-
-	nrz = min(nrz, get_unaligned_be32(&buf[0]) / 64);
-	for (i = 0; i < nrz; i++) {
-		offset += 64;
-		sd_zbc_parse_report(sdkp, buf + offset, zones);
-		zones++;
-	}
-
-	*nr_zones = nrz;
-
-out:
-	kvfree(buf);
-
-	return ret;
-}
-
-/**
  * sd_zbc_zone_sectors - Get the device zone size in number of 512B sectors.
  * @sdkp: The target disk
  */
 static inline sector_t sd_zbc_zone_sectors(struct scsi_disk *sdkp)
 {
 	return logical_to_sectors(sdkp->device, sdkp->zone_blocks);
+}
+
+int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
+			unsigned int nr_zones, report_zones_cb cb, void *data)
+{
+	struct scsi_disk *sdkp = scsi_disk(disk);
+	unsigned int nr, i;
+	unsigned char *buf;
+	size_t offset, buflen = 0;
+	int zone_idx = 0;
+	int ret;
+
+	if (!sd_is_zoned(sdkp))
+		/* Not a zoned device */
+		return -EOPNOTSUPP;
+
+	buf = sd_zbc_alloc_report_buffer(sdkp, nr_zones, &buflen);
+	if (!buf)
+		return -ENOMEM;
+
+	while (zone_idx < nr_zones && sector < get_capacity(disk)) {
+		ret = sd_zbc_do_report_zones(sdkp, buf, buflen,
+				sectors_to_logical(sdkp->device, sector), true);
+		if (ret)
+			goto out;
+
+		offset = 0;
+		nr = min(nr_zones, get_unaligned_be32(&buf[0]) / 64);
+		if (!nr)
+			break;
+
+		for (i = 0; i < nr && zone_idx < nr_zones; i++) {
+			offset += 64;
+			ret = sd_zbc_parse_report(sdkp, buf + offset, zone_idx,
+						  cb, data);
+			if (ret)
+				goto out;
+			zone_idx++;
+		}
+
+		sector += sd_zbc_zone_sectors(sdkp) * i;
+	}
+
+	ret = zone_idx;
+out:
+	kvfree(buf);
+	return ret;
 }
 
 /**
