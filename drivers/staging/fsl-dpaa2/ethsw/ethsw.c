@@ -1314,10 +1314,6 @@ static int port_switchdev_blocking_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block port_switchdev_blocking_nb = {
-	.notifier_call = port_switchdev_blocking_event,
-};
-
 static int ethsw_register_notifier(struct device *dev)
 {
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
@@ -1337,7 +1333,8 @@ static int ethsw_register_notifier(struct device *dev)
 		goto err_switchdev_nb;
 	}
 
-	err = register_switchdev_blocking_notifier(&port_switchdev_blocking_nb);
+	ethsw->port_switchdevb_nb.notifier_call = port_switchdev_blocking_event;
+	err = register_switchdev_blocking_notifier(&ethsw->port_switchdevb_nb);
 	if (err) {
 		dev_err(dev, "Failed to register switchdev blocking notifier\n");
 		goto err_switchdev_blocking_nb;
@@ -1490,7 +1487,7 @@ static void ethsw_unregister_notifier(struct device *dev)
 	struct notifier_block *nb;
 	int err;
 
-	nb = &port_switchdev_blocking_nb;
+	nb = &ethsw->port_switchdevb_nb;
 	err = unregister_switchdev_blocking_notifier(nb);
 	if (err)
 		dev_err(dev,

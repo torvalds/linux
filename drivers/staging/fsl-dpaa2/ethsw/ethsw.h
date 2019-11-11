@@ -69,6 +69,7 @@ struct ethsw_core {
 
 	struct notifier_block		port_nb;
 	struct notifier_block		port_switchdev_nb;
+	struct notifier_block		port_switchdevb_nb;
 };
 
 #endif	/* __ETHSW_H */
