@@ -855,7 +855,7 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 	 */
 	nxt = list_first_entry_or_null(&req->link_list, struct io_kiocb, list);
 	while (nxt) {
-		list_del(&nxt->list);
+		list_del_init(&nxt->list);
 		if (!list_empty(&req->link_list)) {
 			INIT_LIST_HEAD(&nxt->link_list);
 			list_splice(&req->link_list, &nxt->link_list);
@@ -2688,13 +2688,17 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	 */
 	if (!list_empty(&req->list)) {
 		prev = list_entry(req->list.prev, struct io_kiocb, link_list);
-		list_del_init(&req->list);
+		if (refcount_inc_not_zero(&prev->refs))
+			list_del_init(&req->list);
+		else
+			prev = NULL;
 	}
 
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 	if (prev) {
 		io_async_find_and_cancel(ctx, req, prev->user_data, NULL);
+		io_put_req(prev);
 	} else {
 		io_cqring_add_event(req, -ETIME);
 		io_put_req(req);
@@ -2702,78 +2706,84 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static int io_queue_linked_timeout(struct io_kiocb *req, struct io_kiocb *nxt)
+static void io_queue_linked_timeout(struct io_kiocb *req, struct timespec64 *ts,
+				    enum hrtimer_mode *mode)
 {
-	const struct io_uring_sqe *sqe = nxt->submit.sqe;
-	enum hrtimer_mode mode;
-	struct timespec64 ts;
-	int ret = -EINVAL;
+	struct io_ring_ctx *ctx = req->ctx;
 
-	if (sqe->ioprio || sqe->buf_index || sqe->len != 1 || sqe->off)
-		goto err;
-	if (sqe->timeout_flags & ~IORING_TIMEOUT_ABS)
-		goto err;
-	if (get_timespec64(&ts, u64_to_user_ptr(sqe->addr))) {
-		ret = -EFAULT;
-		goto err;
+	/*
+	 * If the list is now empty, then our linked request finished before
+	 * we got a chance to setup the timer
+	 */
+	spin_lock_irq(&ctx->completion_lock);
+	if (!list_empty(&req->list)) {
+		req->timeout.timer.function = io_link_timeout_fn;
+		hrtimer_start(&req->timeout.timer, timespec64_to_ktime(*ts),
+				*mode);
 	}
+	spin_unlock_irq(&ctx->completion_lock);
 
-	req->flags |= REQ_F_LINK_TIMEOUT;
-
-	if (sqe->timeout_flags & IORING_TIMEOUT_ABS)
-		mode = HRTIMER_MODE_ABS;
-	else
-		mode = HRTIMER_MODE_REL;
-	hrtimer_init(&nxt->timeout.timer, CLOCK_MONOTONIC, mode);
-	nxt->timeout.timer.function = io_link_timeout_fn;
-	hrtimer_start(&nxt->timeout.timer, timespec64_to_ktime(ts), mode);
-	ret = 0;
-err:
 	/* drop submission reference */
-	io_put_req(nxt);
-
-	if (ret) {
-		struct io_ring_ctx *ctx = req->ctx;
-
-		/*
-		 * Break the link and fail linked timeout, parent will get
-		 * failed by the regular submission path.
-		 */
-		list_del(&nxt->list);
-		io_cqring_fill_event(nxt, ret);
-		trace_io_uring_fail_link(req, nxt);
-		io_commit_cqring(ctx);
-		io_put_req(nxt);
-		ret = -ECANCELED;
-	}
-
-	return ret;
+	io_put_req(req);
 }
 
-static inline struct io_kiocb *io_get_linked_timeout(struct io_kiocb *req)
+static int io_validate_link_timeout(const struct io_uring_sqe *sqe,
+				    struct timespec64 *ts)
+{
+	if (sqe->ioprio || sqe->buf_index || sqe->len != 1 || sqe->off)
+		return -EINVAL;
+	if (sqe->timeout_flags & ~IORING_TIMEOUT_ABS)
+		return -EINVAL;
+	if (get_timespec64(ts, u64_to_user_ptr(sqe->addr)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req,
+					       struct timespec64 *ts,
+					       enum hrtimer_mode *mode)
 {
 	struct io_kiocb *nxt;
+	int ret;
 
 	if (!(req->flags & REQ_F_LINK))
 		return NULL;
 
 	nxt = list_first_entry_or_null(&req->link_list, struct io_kiocb, list);
-	if (nxt && nxt->submit.sqe->opcode == IORING_OP_LINK_TIMEOUT)
-		return nxt;
+	if (!nxt || nxt->submit.sqe->opcode != IORING_OP_LINK_TIMEOUT)
+		return NULL;
 
-	return NULL;
+	ret = io_validate_link_timeout(nxt->submit.sqe, ts);
+	if (ret) {
+		list_del_init(&nxt->list);
+		io_cqring_add_event(nxt, ret);
+		io_double_put_req(nxt);
+		return ERR_PTR(-ECANCELED);
+	}
+
+	if (nxt->submit.sqe->timeout_flags & IORING_TIMEOUT_ABS)
+		*mode = HRTIMER_MODE_ABS;
+	else
+		*mode = HRTIMER_MODE_REL;
+
+	req->flags |= REQ_F_LINK_TIMEOUT;
+	hrtimer_init(&nxt->timeout.timer, CLOCK_MONOTONIC, *mode);
+	return nxt;
 }
 
 static int __io_queue_sqe(struct io_kiocb *req)
 {
+	enum hrtimer_mode mode;
 	struct io_kiocb *nxt;
+	struct timespec64 ts;
 	int ret;
 
-	nxt = io_get_linked_timeout(req);
-	if (unlikely(nxt)) {
-		ret = io_queue_linked_timeout(req, nxt);
-		if (ret)
-			goto err;
+	nxt = io_prep_linked_timeout(req, &ts, &mode);
+	if (IS_ERR(nxt)) {
+		ret = PTR_ERR(nxt);
+		nxt = NULL;
+		goto err;
 	}
 
 	ret = __io_submit_sqe(req, NULL, true);
@@ -2803,13 +2813,24 @@ static int __io_queue_sqe(struct io_kiocb *req)
 			 * submit reference when the iocb is actually submitted.
 			 */
 			io_queue_async_work(req);
+
+			if (nxt)
+				io_queue_linked_timeout(nxt, &ts, &mode);
+
 			return 0;
 		}
 	}
 
-	/* drop submission reference */
 err:
+	/* drop submission reference */
 	io_put_req(req);
+
+	if (nxt) {
+		if (!ret)
+			io_queue_linked_timeout(nxt, &ts, &mode);
+		else
+			io_put_req(nxt);
+	}
 
 	/* and drop final reference, if we failed */
 	if (ret) {
