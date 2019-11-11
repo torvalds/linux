@@ -461,11 +461,29 @@ static void kill_context(struct i915_gem_context *ctx)
 	}
 }
 
+static void set_closed_name(struct i915_gem_context *ctx)
+{
+	char *s;
+
+	/* Replace '[]' with '<>' to indicate closed in debug prints */
+
+	s = strrchr(ctx->name, '[');
+	if (!s)
+		return;
+
+	*s = '<';
+
+	s = strchr(s + 1, ']');
+	if (s)
+		*s = '>';
+}
+
 static void context_close(struct i915_gem_context *ctx)
 {
 	struct i915_address_space *vm;
 
 	i915_gem_context_set_closed(ctx);
+	set_closed_name(ctx);
 
 	mutex_lock(&ctx->mutex);
 
