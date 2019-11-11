@@ -229,6 +229,7 @@ struct bpf_map {
 	enum libbpf_map_type libbpf_type;
 	char *pin_path;
 	bool pinned;
+	bool reused;
 };
 
 struct bpf_secdata {
@@ -1995,6 +1996,7 @@ int bpf_map__reuse_fd(struct bpf_map *map, int fd)
 	map->def.map_flags = info.map_flags;
 	map->btf_key_type_id = info.btf_key_type_id;
 	map->btf_value_type_id = info.btf_value_type_id;
+	map->reused = true;
 
 	return 0;
 
@@ -3719,7 +3721,7 @@ retry_load:
 		free(log_buf);
 		goto retry_load;
 	}
-	ret = -LIBBPF_ERRNO__LOAD;
+	ret = -errno;
 	cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 	pr_warn("load bpf program failed: %s\n", cp);
 
@@ -3732,23 +3734,18 @@ retry_load:
 		pr_warn("Program too large (%zu insns), at most %d insns\n",
 			load_attr.insns_cnt, BPF_MAXINSNS);
 		ret = -LIBBPF_ERRNO__PROG2BIG;
-	} else {
+	} else if (load_attr.prog_type != BPF_PROG_TYPE_KPROBE) {
 		/* Wrong program type? */
-		if (load_attr.prog_type != BPF_PROG_TYPE_KPROBE) {
-			int fd;
+		int fd;
 
-			load_attr.prog_type = BPF_PROG_TYPE_KPROBE;
-			load_attr.expected_attach_type = 0;
-			fd = bpf_load_program_xattr(&load_attr, NULL, 0);
-			if (fd >= 0) {
-				close(fd);
-				ret = -LIBBPF_ERRNO__PROGTYPE;
-				goto out;
-			}
+		load_attr.prog_type = BPF_PROG_TYPE_KPROBE;
+		load_attr.expected_attach_type = 0;
+		fd = bpf_load_program_xattr(&load_attr, NULL, 0);
+		if (fd >= 0) {
+			close(fd);
+			ret = -LIBBPF_ERRNO__PROGTYPE;
+			goto out;
 		}
-
-		if (log_buf)
-			ret = -LIBBPF_ERRNO__KVER;
 	}
 
 out:
@@ -4026,7 +4023,7 @@ int bpf_object__unload(struct bpf_object *obj)
 int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 {
 	struct bpf_object *obj;
-	int err;
+	int err, i;
 
 	if (!attr)
 		return -EINVAL;
@@ -4047,6 +4044,11 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 
 	return 0;
 out:
+	/* unpin any maps that were auto-pinned during load */
+	for (i = 0; i < obj->nr_maps; i++)
+		if (obj->maps[i].pinned && !obj->maps[i].reused)
+			bpf_map__unpin(&obj->maps[i], NULL);
+
 	bpf_object__unload(obj);
 	pr_warn("failed to load object '%s'\n", obj->path);
 	return err;
@@ -4778,6 +4780,11 @@ const char *bpf_program__title(const struct bpf_program *prog, bool needs_copy)
 int bpf_program__fd(const struct bpf_program *prog)
 {
 	return bpf_program__nth_fd(prog, 0);
+}
+
+size_t bpf_program__size(const struct bpf_program *prog)
+{
+	return prog->insns_cnt * sizeof(struct bpf_insn);
 }
 
 int bpf_program__set_prep(struct bpf_program *prog, int nr_instances,

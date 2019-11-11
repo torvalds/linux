@@ -193,6 +193,7 @@ LIBBPF_0.0.5 {
 
 LIBBPF_0.0.6 {
 	global:
+		bpf_get_link_xdp_info;
 		bpf_map__get_pin_path;
 		bpf_map__is_pinned;
 		bpf_map__set_pin_path;
@@ -202,4 +203,5 @@ LIBBPF_0.0.6 {
 		bpf_program__get_type;
 		bpf_program__is_tracing;
 		bpf_program__set_tracing;
+		bpf_program__size;
 } LIBBPF_0.0.5;
