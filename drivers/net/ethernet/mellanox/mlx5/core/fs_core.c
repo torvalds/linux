@@ -2565,7 +2565,7 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 		return -ENOMEM;
 
 	steering->fdb_sub_ns = kzalloc(sizeof(steering->fdb_sub_ns) *
-				       (FDB_MAX_CHAIN + 1), GFP_KERNEL);
+				       (FDB_TC_MAX_CHAIN + 1), GFP_KERNEL);
 	if (!steering->fdb_sub_ns)
 		return -ENOMEM;
 
@@ -2576,7 +2576,7 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 		goto out_err;
 	}
 
-	levels = 2 * FDB_MAX_PRIO * (FDB_MAX_CHAIN + 1);
+	levels = 2 * FDB_TC_MAX_PRIO * (FDB_TC_MAX_CHAIN + 1);
 	maj_prio = fs_create_prio_chained(&steering->fdb_root_ns->ns,
 					  FDB_FAST_PATH,
 					  levels);
@@ -2585,14 +2585,14 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 		goto out_err;
 	}
 
-	for (chain = 0; chain <= FDB_MAX_CHAIN; chain++) {
+	for (chain = 0; chain <= FDB_TC_MAX_CHAIN; chain++) {
 		ns = fs_create_namespace(maj_prio, MLX5_FLOW_TABLE_MISS_ACTION_DEF);
 		if (IS_ERR(ns)) {
 			err = PTR_ERR(ns);
 			goto out_err;
 		}
 
-		for (prio = 0; prio < FDB_MAX_PRIO * (chain + 1); prio++) {
+		for (prio = 0; prio < FDB_TC_MAX_PRIO * (chain + 1); prio++) {
 			min_prio = fs_create_prio(ns, prio, 2);
 			if (IS_ERR(min_prio)) {
 				err = PTR_ERR(min_prio);

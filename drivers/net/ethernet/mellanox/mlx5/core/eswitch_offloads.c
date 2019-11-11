@@ -75,7 +75,7 @@ bool mlx5_eswitch_prios_supported(struct mlx5_eswitch *esw)
 u32 mlx5_eswitch_get_chain_range(struct mlx5_eswitch *esw)
 {
 	if (esw->fdb_table.flags & ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED)
-		return FDB_MAX_CHAIN;
+		return FDB_TC_MAX_CHAIN;
 
 	return 0;
 }
@@ -83,7 +83,7 @@ u32 mlx5_eswitch_get_chain_range(struct mlx5_eswitch *esw)
 u16 mlx5_eswitch_get_prio_range(struct mlx5_eswitch *esw)
 {
 	if (esw->fdb_table.flags & ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED)
-		return FDB_MAX_PRIO;
+		return FDB_TC_MAX_PRIO;
 
 	return 1;
 }
@@ -928,7 +928,7 @@ esw_get_prio_table(struct mlx5_eswitch *esw, u32 chain, u16 prio, int level)
 	int table_prio, l = 0;
 	u32 flags = 0;
 
-	if (chain == FDB_SLOW_PATH_CHAIN)
+	if (chain == FDB_TC_SLOW_PATH_CHAIN)
 		return esw->fdb_table.offloads.slow_fdb;
 
 	mutex_lock(&esw->fdb_table.offloads.fdb_prio_lock);
@@ -953,7 +953,7 @@ esw_get_prio_table(struct mlx5_eswitch *esw, u32 chain, u16 prio, int level)
 		flags |= (MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT |
 			  MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 
-	table_prio = (chain * FDB_MAX_PRIO) + prio - 1;
+	table_prio = (chain * FDB_TC_MAX_PRIO) + prio - 1;
 
 	/* create earlier levels for correct fs_core lookup when
 	 * connecting tables
@@ -990,7 +990,7 @@ esw_put_prio_table(struct mlx5_eswitch *esw, u32 chain, u16 prio, int level)
 {
 	int l;
 
-	if (chain == FDB_SLOW_PATH_CHAIN)
+	if (chain == FDB_TC_SLOW_PATH_CHAIN)
 		return;
 
 	mutex_lock(&esw->fdb_table.offloads.fdb_prio_lock);
