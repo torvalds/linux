@@ -16,7 +16,6 @@
 
 struct flow_offload_entry {
 	struct flow_offload	flow;
-	struct nf_conn		*ct;
 	struct rcu_head		rcu_head;
 };
 
@@ -79,7 +78,7 @@ flow_offload_alloc(struct nf_conn *ct, struct nf_flow_route *route)
 	if (!dst_hold_safe(route->tuple[FLOW_OFFLOAD_DIR_REPLY].dst))
 		goto err_dst_cache_reply;
 
-	entry->ct = ct;
+	flow->ct = ct;
 
 	flow_offload_fill_dir(flow, ct, route, FLOW_OFFLOAD_DIR_ORIGINAL);
 	flow_offload_fill_dir(flow, ct, route, FLOW_OFFLOAD_DIR_REPLY);
@@ -158,8 +157,8 @@ void flow_offload_free(struct flow_offload *flow)
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_cache);
 	e = container_of(flow, struct flow_offload_entry, flow);
 	if (flow->flags & FLOW_OFFLOAD_DYING)
-		nf_ct_delete(e->ct, 0, 0);
-	nf_ct_put(e->ct);
+		nf_ct_delete(flow->ct, 0, 0);
+	nf_ct_put(flow->ct);
 	kfree_rcu(e, rcu_head);
 }
 EXPORT_SYMBOL_GPL(flow_offload_free);
@@ -232,8 +231,6 @@ static inline bool nf_flow_has_expired(const struct flow_offload *flow)
 static void flow_offload_del(struct nf_flowtable *flow_table,
 			     struct flow_offload *flow)
 {
-	struct flow_offload_entry *e;
-
 	rhashtable_remove_fast(&flow_table->rhashtable,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].node,
 			       nf_flow_offload_rhash_params);
@@ -241,25 +238,21 @@ static void flow_offload_del(struct nf_flowtable *flow_table,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].node,
 			       nf_flow_offload_rhash_params);
 
-	e = container_of(flow, struct flow_offload_entry, flow);
-	clear_bit(IPS_OFFLOAD_BIT, &e->ct->status);
+	clear_bit(IPS_OFFLOAD_BIT, &flow->ct->status);
 
 	if (nf_flow_has_expired(flow))
-		flow_offload_fixup_ct(e->ct);
+		flow_offload_fixup_ct(flow->ct);
 	else if (flow->flags & FLOW_OFFLOAD_TEARDOWN)
-		flow_offload_fixup_ct_timeout(e->ct);
+		flow_offload_fixup_ct_timeout(flow->ct);
 
 	flow_offload_free(flow);
 }
 
 void flow_offload_teardown(struct flow_offload *flow)
 {
-	struct flow_offload_entry *e;
-
 	flow->flags |= FLOW_OFFLOAD_TEARDOWN;
 
-	e = container_of(flow, struct flow_offload_entry, flow);
-	flow_offload_fixup_ct_state(e->ct);
+	flow_offload_fixup_ct_state(flow->ct);
 }
 EXPORT_SYMBOL_GPL(flow_offload_teardown);
 
@@ -269,7 +262,6 @@ flow_offload_lookup(struct nf_flowtable *flow_table,
 {
 	struct flow_offload_tuple_rhash *tuplehash;
 	struct flow_offload *flow;
-	struct flow_offload_entry *e;
 	int dir;
 
 	tuplehash = rhashtable_lookup(&flow_table->rhashtable, tuple,
@@ -282,8 +274,7 @@ flow_offload_lookup(struct nf_flowtable *flow_table,
 	if (flow->flags & (FLOW_OFFLOAD_DYING | FLOW_OFFLOAD_TEARDOWN))
 		return NULL;
 
-	e = container_of(flow, struct flow_offload_entry, flow);
-	if (unlikely(nf_ct_is_dying(e->ct)))
+	if (unlikely(nf_ct_is_dying(flow->ct)))
 		return NULL;
 
 	return tuplehash;
@@ -327,10 +318,8 @@ nf_flow_table_iterate(struct nf_flowtable *flow_table,
 static void nf_flow_offload_gc_step(struct flow_offload *flow, void *data)
 {
 	struct nf_flowtable *flow_table = data;
-	struct flow_offload_entry *e;
 
-	e = container_of(flow, struct flow_offload_entry, flow);
-	if (nf_flow_has_expired(flow) || nf_ct_is_dying(e->ct) ||
+	if (nf_flow_has_expired(flow) || nf_ct_is_dying(flow->ct) ||
 	    (flow->flags & (FLOW_OFFLOAD_DYING | FLOW_OFFLOAD_TEARDOWN)))
 		flow_offload_del(flow_table, flow);
 }
@@ -485,15 +474,13 @@ EXPORT_SYMBOL_GPL(nf_flow_table_init);
 static void nf_flow_table_do_cleanup(struct flow_offload *flow, void *data)
 {
 	struct net_device *dev = data;
-	struct flow_offload_entry *e;
-
-	e = container_of(flow, struct flow_offload_entry, flow);
 
 	if (!dev) {
 		flow_offload_teardown(flow);
 		return;
 	}
-	if (net_eq(nf_ct_net(e->ct), dev_net(dev)) &&
+
+	if (net_eq(nf_ct_net(flow->ct), dev_net(dev)) &&
 	    (flow->tuplehash[0].tuple.iifidx == dev->ifindex ||
 	     flow->tuplehash[1].tuple.iifidx == dev->ifindex))
 		flow_offload_dead(flow);

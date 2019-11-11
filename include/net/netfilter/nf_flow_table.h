@@ -72,6 +72,7 @@ struct flow_offload_tuple_rhash {
 
 struct flow_offload {
 	struct flow_offload_tuple_rhash		tuplehash[FLOW_OFFLOAD_DIR_MAX];
+	struct nf_conn				*ct;
 	u32					flags;
 	union {
 		/* Your private driver data here. */
