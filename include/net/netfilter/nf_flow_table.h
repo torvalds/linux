@@ -75,6 +75,7 @@ struct flow_offload {
 	struct nf_conn				*ct;
 	u32					flags;
 	u32					timeout;
+	struct rcu_head				rcu_head;
 };
 
 #define NF_FLOW_TIMEOUT (30 * HZ)

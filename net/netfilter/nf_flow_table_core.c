@@ -14,11 +14,6 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 
-struct flow_offload_entry {
-	struct flow_offload	flow;
-	struct rcu_head		rcu_head;
-};
-
 static DEFINE_MUTEX(flowtable_lock);
 static LIST_HEAD(flowtables);
 
@@ -59,18 +54,15 @@ flow_offload_fill_dir(struct flow_offload *flow, struct nf_conn *ct,
 struct flow_offload *
 flow_offload_alloc(struct nf_conn *ct, struct nf_flow_route *route)
 {
-	struct flow_offload_entry *entry;
 	struct flow_offload *flow;
 
 	if (unlikely(nf_ct_is_dying(ct) ||
 	    !atomic_inc_not_zero(&ct->ct_general.use)))
 		return NULL;
 
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (!entry)
+	flow = kzalloc(sizeof(*flow), GFP_ATOMIC);
+	if (!flow)
 		goto err_ct_refcnt;
-
-	flow = &entry->flow;
 
 	if (!dst_hold_safe(route->tuple[FLOW_OFFLOAD_DIR_ORIGINAL].dst))
 		goto err_dst_cache_original;
@@ -93,7 +85,7 @@ flow_offload_alloc(struct nf_conn *ct, struct nf_flow_route *route)
 err_dst_cache_reply:
 	dst_release(route->tuple[FLOW_OFFLOAD_DIR_ORIGINAL].dst);
 err_dst_cache_original:
-	kfree(entry);
+	kfree(flow);
 err_ct_refcnt:
 	nf_ct_put(ct);
 
@@ -151,15 +143,12 @@ static void flow_offload_fixup_ct(struct nf_conn *ct)
 
 void flow_offload_free(struct flow_offload *flow)
 {
-	struct flow_offload_entry *e;
-
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_cache);
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_cache);
-	e = container_of(flow, struct flow_offload_entry, flow);
 	if (flow->flags & FLOW_OFFLOAD_DYING)
 		nf_ct_delete(flow->ct, 0, 0);
 	nf_ct_put(flow->ct);
-	kfree_rcu(e, rcu_head);
+	kfree_rcu(flow, rcu_head);
 }
 EXPORT_SYMBOL_GPL(flow_offload_free);
 
