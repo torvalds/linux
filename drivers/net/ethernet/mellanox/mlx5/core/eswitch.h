@@ -43,6 +43,10 @@
 #include <linux/mlx5/fs.h>
 #include "lib/mpfs.h"
 
+#define FDB_MAX_CHAIN 3
+#define FDB_SLOW_PATH_CHAIN (FDB_MAX_CHAIN + 1)
+#define FDB_MAX_PRIO 16
+
 #ifdef CONFIG_MLX5_ESWITCH
 
 #define MLX5_MAX_UC_PER_VPORT(dev) \
@@ -58,10 +62,6 @@
 
 #define mlx5_esw_has_fwd_fdb(dev) \
 	MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_to_table)
-
-#define FDB_MAX_CHAIN 3
-#define FDB_SLOW_PATH_CHAIN (FDB_MAX_CHAIN + 1)
-#define FDB_MAX_PRIO 16
 
 struct vport_ingress {
 	struct mlx5_flow_table *acl;
@@ -636,10 +636,6 @@ static inline const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev)
 }
 
 static inline void mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, const int num_vfs) {}
-
-#define FDB_MAX_CHAIN 1
-#define FDB_SLOW_PATH_CHAIN (FDB_MAX_CHAIN + 1)
-#define FDB_MAX_PRIO 1
 
 #endif /* CONFIG_MLX5_ESWITCH */
 
