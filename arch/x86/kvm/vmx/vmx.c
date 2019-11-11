@@ -1305,7 +1305,7 @@ after_clear_sn:
 	 */
 	smp_mb__after_atomic();
 
-	if (!bitmap_empty((unsigned long *)pi_desc->pir, NR_VECTORS))
+	if (!pi_is_pir_empty(pi_desc))
 		pi_set_on(pi_desc);
 }
 
@@ -6184,8 +6184,7 @@ static bool vmx_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu)
 	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
 
 	return pi_test_on(pi_desc) ||
-		(pi_test_sn(pi_desc) &&
-		!bitmap_empty((unsigned long *)pi_desc->pir, NR_VECTORS));
+		(pi_test_sn(pi_desc) && !pi_is_pir_empty(pi_desc));
 }
 
 static void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
