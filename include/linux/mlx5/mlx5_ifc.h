@@ -1545,9 +1545,8 @@ struct mlx5_ifc_extended_dest_format_bits {
 };
 
 union mlx5_ifc_dest_format_struct_flow_counter_list_auto_bits {
-	struct mlx5_ifc_dest_format_struct_bits dest_format_struct;
+	struct mlx5_ifc_extended_dest_format_bits extended_dest_format;
 	struct mlx5_ifc_flow_counter_list_bits flow_counter_list;
-	u8         reserved_at_0[0x40];
 };
 
 struct mlx5_ifc_fte_match_param_bits {

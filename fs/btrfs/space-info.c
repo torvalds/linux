@@ -893,6 +893,15 @@ static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
 	while (ticket->bytes > 0 && ticket->error == 0) {
 		ret = prepare_to_wait_event(&ticket->wait, &wait, TASK_KILLABLE);
 		if (ret) {
+			/*
+			 * Delete us from the list. After we unlock the space
+			 * info, we don't want the async reclaim job to reserve
+			 * space for this ticket. If that would happen, then the
+			 * ticket's task would not known that space was reserved
+			 * despite getting an error, resulting in a space leak
+			 * (bytes_may_use counter of our space_info).
+			 */
+			list_del_init(&ticket->list);
 			ticket->error = -EINTR;
 			break;
 		}
@@ -945,12 +954,24 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 	spin_lock(&space_info->lock);
 	ret = ticket->error;
 	if (ticket->bytes || ticket->error) {
+		/*
+		 * Need to delete here for priority tickets. For regular tickets
+		 * either the async reclaim job deletes the ticket from the list
+		 * or we delete it ourselves at wait_reserve_ticket().
+		 */
 		list_del_init(&ticket->list);
 		if (!ret)
 			ret = -ENOSPC;
 	}
 	spin_unlock(&space_info->lock);
 	ASSERT(list_empty(&ticket->list));
+	/*
+	 * Check that we can't have an error set if the reservation succeeded,
+	 * as that would confuse tasks and lead them to error out without
+	 * releasing reserved space (if an error happens the expectation is that
+	 * space wasn't reserved at all).
+	 */
+	ASSERT(!(ticket->bytes == 0 && ticket->error));
 	return ret;
 }
 

@@ -309,6 +309,7 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 
 	job->vm_pd_addr = amdgpu_gmc_pd_addr(adev->gart.bo);
 	job->vm_needs_flush = true;
+	job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->nop;
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	r = amdgpu_job_submit(job, &adev->mman.entity,
 			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
@@ -343,11 +344,9 @@ static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_hi32 + (2 * vmid),
 			      upper_32_bits(pd_addr));
 
-	amdgpu_ring_emit_wreg(ring, hub->vm_inv_eng0_req + eng, req);
-
-	/* wait for the invalidate to complete */
-	amdgpu_ring_emit_reg_wait(ring, hub->vm_inv_eng0_ack + eng,
-				  1 << vmid, 1 << vmid);
+	amdgpu_ring_emit_reg_write_reg_wait(ring, hub->vm_inv_eng0_req + eng,
+					    hub->vm_inv_eng0_ack + eng,
+					    req, 1 << vmid);
 
 	return pd_addr;
 }

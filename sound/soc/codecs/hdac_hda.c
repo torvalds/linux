@@ -410,8 +410,8 @@ static void hdac_hda_codec_remove(struct snd_soc_component *component)
 		return;
 	}
 
-	snd_hdac_ext_bus_link_put(hdev->bus, hlink);
 	pm_runtime_disable(&hdev->dev);
+	snd_hdac_ext_bus_link_put(hdev->bus, hlink);
 }
 
 static const struct snd_soc_dapm_route hdac_hda_dapm_routes[] = {

@@ -7,6 +7,7 @@
 #define _ASM_RISCV_PGTABLE_H
 
 #include <linux/mmzone.h>
+#include <linux/sizes.h>
 
 #include <asm/pgtable-bits.h>
 
@@ -86,6 +87,7 @@ extern pgd_t swapper_pg_dir[];
 #define VMALLOC_SIZE     (KERN_VIRT_SIZE >> 1)
 #define VMALLOC_END      (PAGE_OFFSET - 1)
 #define VMALLOC_START    (PAGE_OFFSET - VMALLOC_SIZE)
+#define PCI_IO_SIZE      SZ_16M
 
 /*
  * Roughly size the vmemmap space to be large enough to fit enough
@@ -100,7 +102,10 @@ extern pgd_t swapper_pg_dir[];
 
 #define vmemmap		((struct page *)VMEMMAP_START)
 
-#define FIXADDR_TOP      (VMEMMAP_START)
+#define PCI_IO_END       VMEMMAP_START
+#define PCI_IO_START     (PCI_IO_END - PCI_IO_SIZE)
+#define FIXADDR_TOP      PCI_IO_START
+
 #ifdef CONFIG_64BIT
 #define FIXADDR_SIZE     PMD_SIZE
 #else
