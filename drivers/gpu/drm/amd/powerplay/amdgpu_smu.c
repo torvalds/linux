@@ -591,9 +591,17 @@ int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size)
 	smu_table->power_play_table = smu_table->hardcode_pptable;
 	smu_table->power_play_table_size = size;
 
+	/*
+	 * Special hw_fini action(for Navi1x, the DPMs disablement will be
+	 * skipped) may be needed for custom pptable uploading.
+	 */
+	smu->uploading_custom_pp_table = true;
+
 	ret = smu_reset(smu);
 	if (ret)
 		pr_info("smu reset failed, ret = %d\n", ret);
+
+	smu->uploading_custom_pp_table = false;
 
 failed:
 	mutex_unlock(&smu->mutex);
@@ -1295,10 +1303,25 @@ static int smu_hw_fini(void *handle)
 		return ret;
 	}
 
-	ret = smu_stop_dpms(smu);
-	if (ret) {
-		pr_warn("Fail to stop Dpms!\n");
-		return ret;
+	/*
+	 * For custom pptable uploading, skip the DPM features
+	 * disable process on Navi1x ASICs.
+	 *   - As the gfx related features are under control of
+	 *     RLC on those ASICs. RLC reinitialization will be
+	 *     needed to reenable them. That will cost much more
+	 *     efforts.
+	 *
+	 *   - SMU firmware can handle the DPM reenablement
+	 *     properly.
+	 */
+	if (!smu->uploading_custom_pp_table ||
+	    !((adev->asic_type >= CHIP_NAVI10) &&
+	      (adev->asic_type <= CHIP_NAVI12))) {
+		ret = smu_stop_dpms(smu);
+		if (ret) {
+			pr_warn("Fail to stop Dpms!\n");
+			return ret;
+		}
 	}
 
 	kfree(table_context->driver_pptable);
