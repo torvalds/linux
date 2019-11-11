@@ -110,6 +110,7 @@ const char *amdgpu_asic_name[] = {
 	"RAVEN",
 	"ARCTURUS",
 	"RENOIR",
+	"ALDEBARAN",
 	"NAVI10",
 	"NAVI14",
 	"NAVI12",
