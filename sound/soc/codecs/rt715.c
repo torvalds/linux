@@ -53,22 +53,6 @@ static int rt715_index_write(struct regmap *regmap, unsigned int reg,
 	return ret;
 }
 
-static unsigned int rt715_index_read(struct regmap *regmap, unsigned int reg,
-		unsigned int *value)
-{
-	int ret;
-	unsigned int addr = ((RT715_PRIV_INDEX_W_H) << 8) | reg;
-
-	*value = 0;
-	ret = regmap_read(regmap, addr, value);
-	if (ret < 0) {
-		pr_err("Failed to get private value: %08x => %04x %d\n", ret,
-			addr, *value);
-	}
-
-	return ret;
-}
-
 static void rt715_get_gain(struct rt715_priv *rt715, unsigned int addr_h,
 				unsigned int addr_l, unsigned int val_h,
 				unsigned int *r_val, unsigned int *l_val)
