@@ -611,7 +611,7 @@ lpfc_get_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	}
 	spin_unlock_irqrestore(&phba->scsi_buf_list_get_lock, iflag);
 
-	if (lpfc_ndlp_check_qdepth(phba, ndlp)) {
+	if (lpfc_ndlp_check_qdepth(phba, ndlp) && lpfc_cmd) {
 		atomic_inc(&ndlp->cmd_pending);
 		lpfc_cmd->flags |= LPFC_SBUF_BUMP_QDEPTH;
 	}
