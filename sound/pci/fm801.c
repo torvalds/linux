@@ -721,7 +721,7 @@ static int snd_fm801_pcm(struct fm801 *chip, int device)
 	chip->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(pdev),
+					      &pdev->dev,
 					      chip->multichannel ? 128*1024 : 64*1024, 128*1024);
 
 	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,

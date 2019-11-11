@@ -948,7 +948,8 @@ static void preallocate_buffers(struct snd_mixart *chip, struct snd_pcm *pcm)
 	}
 #endif
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->mgr->pci), 32*1024, 32*1024);
+					      &chip->mgr->pci->dev,
+					      32*1024, 32*1024);
 }
 
 /*
@@ -1360,7 +1361,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	/* create array of streaminfo */
 	size = PAGE_ALIGN( (MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS *
 			    sizeof(struct mixart_flowinfo)) );
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				size, &mgr->flowinfo) < 0) {
 		snd_mixart_free(mgr);
 		return -ENOMEM;
@@ -1371,7 +1372,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	/* create array of bufferinfo */
 	size = PAGE_ALIGN( (MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS *
 			    sizeof(struct mixart_bufferinfo)) );
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				size, &mgr->bufferinfo) < 0) {
 		snd_mixart_free(mgr);
 		return -ENOMEM;

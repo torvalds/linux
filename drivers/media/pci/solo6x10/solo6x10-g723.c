@@ -353,7 +353,7 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm,
 					SNDRV_DMA_TYPE_CONTINUOUS,
-					snd_dma_continuous_data(GFP_KERNEL),
+					NULL,
 					G723_PERIOD_BYTES * PERIODS,
 					G723_PERIOD_BYTES * PERIODS);
 

@@ -847,7 +847,9 @@ struct snd_soc_dai_link {
 	unsigned int ignore:1;
 
 	struct list_head list; /* DAI link list of the soc card */
+#ifdef CONFIG_SND_SOC_TOPOLOGY
 	struct snd_soc_dobj dobj; /* For topology */
+#endif
 };
 #define for_each_link_codecs(link, i, codec)				\
 	for ((i) = 0;							\
@@ -1169,7 +1171,9 @@ struct soc_mixer_control {
 	unsigned int sign_bit;
 	unsigned int invert:1;
 	unsigned int autodisable:1;
+#ifdef CONFIG_SND_SOC_TOPOLOGY
 	struct snd_soc_dobj dobj;
+#endif
 };
 
 struct soc_bytes {
@@ -1180,8 +1184,9 @@ struct soc_bytes {
 
 struct soc_bytes_ext {
 	int max;
+#ifdef CONFIG_SND_SOC_TOPOLOGY
 	struct snd_soc_dobj dobj;
-
+#endif
 	/* used for TLV byte control */
 	int (*get)(struct snd_kcontrol *kcontrol, unsigned int __user *bytes,
 			unsigned int size);
@@ -1205,7 +1210,9 @@ struct soc_enum {
 	const char * const *texts;
 	const unsigned int *values;
 	unsigned int autodisable:1;
+#ifdef CONFIG_SND_SOC_TOPOLOGY
 	struct snd_soc_dobj dobj;
+#endif
 };
 
 /* device driver data */
@@ -1326,8 +1333,10 @@ struct snd_soc_dai_link *snd_soc_find_dai_link(struct snd_soc_card *card,
 					       int id, const char *name,
 					       const char *stream_name);
 
-int snd_soc_register_dai(struct snd_soc_component *component,
-	struct snd_soc_dai_driver *dai_drv);
+struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
+					 struct snd_soc_dai_driver *dai_drv,
+					 bool legacy_dai_naming);
+void snd_soc_unregister_dai(struct snd_soc_dai *dai);
 
 struct snd_soc_dai *snd_soc_find_dai(
 	const struct snd_soc_dai_link_component *dlc);

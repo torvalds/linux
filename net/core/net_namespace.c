@@ -246,11 +246,11 @@ static int __peernet2id(struct net *net, struct net *peer)
 }
 
 static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
-			      struct nlmsghdr *nlh);
+			      struct nlmsghdr *nlh, gfp_t gfp);
 /* This function returns the id of a peer netns. If no id is assigned, one will
  * be allocated and returned.
  */
-int peernet2id_alloc(struct net *net, struct net *peer)
+int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 {
 	bool alloc = false, alive = false;
 	int id;
@@ -269,7 +269,7 @@ int peernet2id_alloc(struct net *net, struct net *peer)
 	id = __peernet2id_alloc(net, peer, &alloc);
 	spin_unlock_bh(&net->nsid_lock);
 	if (alloc && id >= 0)
-		rtnl_net_notifyid(net, RTM_NEWNSID, id, 0, NULL);
+		rtnl_net_notifyid(net, RTM_NEWNSID, id, 0, NULL, gfp);
 	if (alive)
 		put_net(peer);
 	return id;
@@ -479,6 +479,7 @@ struct net *copy_net_ns(unsigned long flags,
 
 	if (rv < 0) {
 put_userns:
+		key_remove_domain(net->key_domain);
 		put_user_ns(user_ns);
 		net_drop_ns(net);
 dec_ucounts:
@@ -533,7 +534,8 @@ static void unhash_nsid(struct net *net, struct net *last)
 			idr_remove(&tmp->netns_ids, id);
 		spin_unlock_bh(&tmp->nsid_lock);
 		if (id >= 0)
-			rtnl_net_notifyid(tmp, RTM_DELNSID, id, 0, NULL);
+			rtnl_net_notifyid(tmp, RTM_DELNSID, id, 0, NULL,
+					  GFP_KERNEL);
 		if (tmp == last)
 			break;
 	}
@@ -766,7 +768,7 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh,
 	spin_unlock_bh(&net->nsid_lock);
 	if (err >= 0) {
 		rtnl_net_notifyid(net, RTM_NEWNSID, err, NETLINK_CB(skb).portid,
-				  nlh);
+				  nlh, GFP_KERNEL);
 		err = 0;
 	} else if (err == -ENOSPC && nsid >= 0) {
 		err = -EEXIST;
@@ -1054,7 +1056,7 @@ end:
 }
 
 static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
-			      struct nlmsghdr *nlh)
+			      struct nlmsghdr *nlh, gfp_t gfp)
 {
 	struct net_fill_args fillargs = {
 		.portid = portid,
@@ -1065,7 +1067,7 @@ static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
 	struct sk_buff *msg;
 	int err = -ENOMEM;
 
-	msg = nlmsg_new(rtnl_net_get_size(), GFP_KERNEL);
+	msg = nlmsg_new(rtnl_net_get_size(), gfp);
 	if (!msg)
 		goto out;
 
@@ -1073,7 +1075,7 @@ static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
 	if (err < 0)
 		goto err_out;
 
-	rtnl_notify(msg, net, portid, RTNLGRP_NSID, nlh, 0);
+	rtnl_notify(msg, net, portid, RTNLGRP_NSID, nlh, gfp);
 	return;
 
 err_out:

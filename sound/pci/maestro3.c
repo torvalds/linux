@@ -1861,7 +1861,8 @@ snd_m3_pcm(struct snd_m3 * chip, int device)
 	chip->pcm = pcm;
 	
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci), 64*1024, 64*1024);
+					      &chip->pci->dev,
+					      64*1024, 64*1024);
 
 	return 0;
 }

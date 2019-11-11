@@ -643,7 +643,7 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 	    substream; 
 	    substream = substream->next) {
 		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(emu->pci),
+					      &emu->pci->dev,
 					      (65536 - 64) * 8,
 					      (65536 - 64) * 8);
 		/*
@@ -656,7 +656,7 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 	      substream; 
 	      substream = substream->next) {
 		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(emu->pci),
+					      &emu->pci->dev,
 					      65536 - 64, 65536 - 64);
 		/*
 		dev_dbg(emu->card->dev,

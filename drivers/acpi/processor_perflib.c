@@ -159,26 +159,34 @@ void acpi_processor_ignore_ppc_init(void)
 
 void acpi_processor_ppc_init(struct cpufreq_policy *policy)
 {
-	int cpu = policy->cpu;
-	struct acpi_processor *pr = per_cpu(processors, cpu);
-	int ret;
+	unsigned int cpu;
 
-	if (!pr)
-		return;
+	for_each_cpu(cpu, policy->related_cpus) {
+		struct acpi_processor *pr = per_cpu(processors, cpu);
+		int ret;
 
-	ret = freq_qos_add_request(&policy->constraints, &pr->perflib_req,
-				   FREQ_QOS_MAX, INT_MAX);
-	if (ret < 0)
-		pr_err("Failed to add freq constraint for CPU%d (%d)\n", cpu,
-		       ret);
+		if (!pr)
+			continue;
+
+		ret = freq_qos_add_request(&policy->constraints,
+					   &pr->perflib_req,
+					   FREQ_QOS_MAX, INT_MAX);
+		if (ret < 0)
+			pr_err("Failed to add freq constraint for CPU%d (%d)\n",
+			       cpu, ret);
+	}
 }
 
 void acpi_processor_ppc_exit(struct cpufreq_policy *policy)
 {
-	struct acpi_processor *pr = per_cpu(processors, policy->cpu);
+	unsigned int cpu;
 
-	if (pr)
-		freq_qos_remove_request(&pr->perflib_req);
+	for_each_cpu(cpu, policy->related_cpus) {
+		struct acpi_processor *pr = per_cpu(processors, cpu);
+
+		if (pr)
+			freq_qos_remove_request(&pr->perflib_req);
+	}
 }
 
 static int acpi_processor_get_performance_control(struct acpi_processor *pr)

@@ -3587,12 +3587,28 @@ static int hclge_set_rst_done(struct hclge_dev *hdev)
 {
 	struct hclge_pf_rst_done_cmd *req;
 	struct hclge_desc desc;
+	int ret;
 
 	req = (struct hclge_pf_rst_done_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PF_RST_DONE, false);
 	req->pf_rst_done |= HCLGE_PF_RESET_DONE_BIT;
 
-	return hclge_cmd_send(&hdev->hw, &desc, 1);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	/* To be compatible with the old firmware, which does not support
+	 * command HCLGE_OPC_PF_RST_DONE, just print a warning and
+	 * return success
+	 */
+	if (ret == -EOPNOTSUPP) {
+		dev_warn(&hdev->pdev->dev,
+			 "current firmware does not support command(0x%x)!\n",
+			 HCLGE_OPC_PF_RST_DONE);
+		return 0;
+	} else if (ret) {
+		dev_err(&hdev->pdev->dev, "assert PF reset done fail %d!\n",
+			ret);
+	}
+
+	return ret;
 }
 
 static int hclge_reset_prepare_up(struct hclge_dev *hdev)
