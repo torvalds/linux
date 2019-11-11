@@ -41,7 +41,7 @@ void io_bitmap_exit(void)
 }
 
 /*
- * this changes the io permissions bitmap in the current task.
+ * This changes the io permissions bitmap in the current task.
  */
 long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 {
@@ -136,14 +136,24 @@ SYSCALL_DEFINE3(ioperm, unsigned long, from, unsigned long, num, int, turn_on)
 }
 
 /*
- * sys_iopl has to be used when you want to access the IO ports
- * beyond the 0x3ff range: to get the full 65536 ports bitmapped
- * you'd need 8kB of bitmaps/process, which is a bit excessive.
+ * The sys_iopl functionality depends on the level argument, which if
+ * granted for the task is used by the CPU to check I/O instruction and
+ * CLI/STI against the current priviledge level (CPL). If CPL is less than
+ * or equal the tasks IOPL level the instructions take effect. If not a #GP
+ * is raised. The default IOPL is 0, i.e. no permissions.
  *
- * Here we just change the flags value on the stack: we allow
- * only the super-user to do it. This depends on the stack-layout
- * on system-call entry - see also fork() and the signal handling
- * code.
+ * Setting IOPL to level 0-2 is disabling the userspace access. Only level
+ * 3 enables it. If set it allows the user space thread:
+ *
+ * - Unrestricted access to all 65535 I/O ports
+ * - The usage of CLI/STI instructions
+ *
+ * The advantage over ioperm is that the context switch does not require to
+ * update the I/O bitmap which is especially true when a large number of
+ * ports is accessed. But the allowance of CLI/STI in userspace is
+ * considered a major problem.
+ *
+ * IOPL is strictly per thread and inherited on fork.
  */
 SYSCALL_DEFINE1(iopl, unsigned int, level)
 {
@@ -164,9 +174,18 @@ SYSCALL_DEFINE1(iopl, unsigned int, level)
 		    security_locked_down(LOCKDOWN_IOPORT))
 			return -EPERM;
 	}
+	/*
+	 * Change the flags value on the return stack, which has been set
+	 * up on system-call entry. See also the fork and signal handling
+	 * code how this is handled.
+	 */
 	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) |
 		(level << X86_EFLAGS_IOPL_BIT);
+	/* Store the new level in the thread struct */
 	t->iopl = level << X86_EFLAGS_IOPL_BIT;
+	/*
+	 * X86_32 switches immediately and XEN handles it via emulation.
+	 */
 	set_iopl_mask(t->iopl);
 
 	return 0;
