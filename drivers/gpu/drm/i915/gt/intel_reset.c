@@ -81,6 +81,11 @@ static bool context_mark_guilty(struct i915_gem_context *ctx)
 	bool banned;
 	int i;
 
+	if (i915_gem_context_is_closed(ctx)) {
+		i915_gem_context_set_banned(ctx);
+		return true;
+	}
+
 	atomic_inc(&ctx->guilty_count);
 
 	/* Cool contexts are too cool to be banned! (Used for reset testing.) */
@@ -128,6 +133,7 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 
 	GEM_BUG_ON(i915_request_completed(rq));
 
+	rcu_read_lock(); /* protect the GEM context */
 	if (guilty) {
 		i915_request_skip(rq, -EIO);
 		if (context_mark_guilty(rq->gem_context))
@@ -136,6 +142,7 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 		dma_fence_set_error(&rq->fence, -EAGAIN);
 		context_mark_innocent(rq->gem_context);
 	}
+	rcu_read_unlock();
 }
 
 static bool i915_in_reset(struct pci_dev *pdev)
