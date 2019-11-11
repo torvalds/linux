@@ -1176,7 +1176,12 @@ void bch2_write(struct closure *cl)
 err:
 	if (!(op->flags & BCH_WRITE_NOPUT_RESERVATION))
 		bch2_disk_reservation_put(c, &op->res);
-	closure_return(cl);
+	if (op->end_io)
+		op->end_io(op);
+	if (cl->parent)
+		closure_return(cl);
+	else
+		closure_debug_destroy(cl);
 }
 
 /* Cache promotion on read */
