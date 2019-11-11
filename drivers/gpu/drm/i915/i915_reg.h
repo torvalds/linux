@@ -5036,14 +5036,20 @@ enum {
 #define   BLM_PCH_POLARITY			(1 << 29)
 #define BLC_PWM_PCH_CTL2	_MMIO(0xc8254)
 
-#define UTIL_PIN_CTL		_MMIO(0x48400)
-#define   UTIL_PIN_ENABLE	(1 << 31)
-
-#define   UTIL_PIN_PIPE(x)     ((x) << 29)
-#define   UTIL_PIN_PIPE_MASK   (3 << 29)
-#define   UTIL_PIN_MODE_PWM    (1 << 24)
-#define   UTIL_PIN_MODE_MASK   (0xf << 24)
-#define   UTIL_PIN_POLARITY    (1 << 22)
+#define UTIL_PIN_CTL			_MMIO(0x48400)
+#define   UTIL_PIN_ENABLE		(1 << 31)
+#define   UTIL_PIN_PIPE_MASK		(3 << 29)
+#define   UTIL_PIN_PIPE(x)		((x) << 29)
+#define   UTIL_PIN_MODE_MASK		(0xf << 24)
+#define   UTIL_PIN_MODE_DATA		(0 << 24)
+#define   UTIL_PIN_MODE_PWM		(1 << 24)
+#define   UTIL_PIN_MODE_VBLANK		(4 << 24)
+#define   UTIL_PIN_MODE_VSYNC		(5 << 24)
+#define   UTIL_PIN_MODE_EYE_LEVEL	(8 << 24)
+#define   UTIL_PIN_OUTPUT_DATA		(1 << 23)
+#define   UTIL_PIN_POLARITY		(1 << 22)
+#define   UTIL_PIN_DIRECTION_INPUT	(1 << 19)
+#define   UTIL_PIN_INPUT_DATA		(1 << 16)
 
 /* BXT backlight register definition. */
 #define _BXT_BLC_PWM_CTL1			0xC8250
@@ -7500,11 +7506,15 @@ enum {
 #define GEN8_DE_PORT_IMR _MMIO(0x44444)
 #define GEN8_DE_PORT_IIR _MMIO(0x44448)
 #define GEN8_DE_PORT_IER _MMIO(0x4444c)
+#define  DSI1_NON_TE			(1 << 31)
+#define  DSI0_NON_TE			(1 << 30)
 #define  ICL_AUX_CHANNEL_E		(1 << 29)
 #define  CNL_AUX_CHANNEL_F		(1 << 28)
 #define  GEN9_AUX_CHANNEL_D		(1 << 27)
 #define  GEN9_AUX_CHANNEL_C		(1 << 26)
 #define  GEN9_AUX_CHANNEL_B		(1 << 25)
+#define  DSI1_TE			(1 << 24)
+#define  DSI0_TE			(1 << 23)
 #define  BXT_DE_PORT_HP_DDIC		(1 << 5)
 #define  BXT_DE_PORT_HP_DDIB		(1 << 4)
 #define  BXT_DE_PORT_HP_DDIA		(1 << 3)
@@ -10770,6 +10780,57 @@ enum skl_power_gate {
 #define  ICL_ESC_CLK_DIV_SHIFT			0
 #define DSI_MAX_ESC_CLK			20000		/* in KHz */
 
+#define _DSI_CMD_FRMCTL_0		0x6b034
+#define _DSI_CMD_FRMCTL_1		0x6b834
+#define DSI_CMD_FRMCTL(port)		_MMIO_PORT(port,	\
+						   _DSI_CMD_FRMCTL_0,\
+						   _DSI_CMD_FRMCTL_1)
+#define   DSI_FRAME_UPDATE_REQUEST		(1 << 31)
+#define   DSI_PERIODIC_FRAME_UPDATE_ENABLE	(1 << 29)
+#define   DSI_NULL_PACKET_ENABLE		(1 << 28)
+#define   DSI_FRAME_IN_PROGRESS			(1 << 0)
+
+#define _DSI_INTR_MASK_REG_0		0x6b070
+#define _DSI_INTR_MASK_REG_1		0x6b870
+#define DSI_INTR_MASK_REG(port)		_MMIO_PORT(port,	\
+						   _DSI_INTR_MASK_REG_0,\
+						   _DSI_INTR_MASK_REG_1)
+
+#define _DSI_INTR_IDENT_REG_0		0x6b074
+#define _DSI_INTR_IDENT_REG_1		0x6b874
+#define DSI_INTR_IDENT_REG(port)	_MMIO_PORT(port,	\
+						   _DSI_INTR_IDENT_REG_0,\
+						   _DSI_INTR_IDENT_REG_1)
+#define   DSI_TE_EVENT				(1 << 31)
+#define   DSI_RX_DATA_OR_BTA_TERMINATED		(1 << 30)
+#define   DSI_TX_DATA				(1 << 29)
+#define   DSI_ULPS_ENTRY_DONE			(1 << 28)
+#define   DSI_NON_TE_TRIGGER_RECEIVED		(1 << 27)
+#define   DSI_HOST_CHKSUM_ERROR			(1 << 26)
+#define   DSI_HOST_MULTI_ECC_ERROR		(1 << 25)
+#define   DSI_HOST_SINGL_ECC_ERROR		(1 << 24)
+#define   DSI_HOST_CONTENTION_DETECTED		(1 << 23)
+#define   DSI_HOST_FALSE_CONTROL_ERROR		(1 << 22)
+#define   DSI_HOST_TIMEOUT_ERROR		(1 << 21)
+#define   DSI_HOST_LOW_POWER_TX_SYNC_ERROR	(1 << 20)
+#define   DSI_HOST_ESCAPE_MODE_ENTRY_ERROR	(1 << 19)
+#define   DSI_FRAME_UPDATE_DONE			(1 << 16)
+#define   DSI_PROTOCOL_VIOLATION_REPORTED	(1 << 15)
+#define   DSI_INVALID_TX_LENGTH			(1 << 13)
+#define   DSI_INVALID_VC			(1 << 12)
+#define   DSI_INVALID_DATA_TYPE			(1 << 11)
+#define   DSI_PERIPHERAL_CHKSUM_ERROR		(1 << 10)
+#define   DSI_PERIPHERAL_MULTI_ECC_ERROR	(1 << 9)
+#define   DSI_PERIPHERAL_SINGLE_ECC_ERROR	(1 << 8)
+#define   DSI_PERIPHERAL_CONTENTION_DETECTED	(1 << 7)
+#define   DSI_PERIPHERAL_FALSE_CTRL_ERROR	(1 << 6)
+#define   DSI_PERIPHERAL_TIMEOUT_ERROR		(1 << 5)
+#define   DSI_PERIPHERAL_LP_TX_SYNC_ERROR	(1 << 4)
+#define   DSI_PERIPHERAL_ESC_MODE_ENTRY_CMD_ERR	(1 << 3)
+#define   DSI_EOT_SYNC_ERROR			(1 << 2)
+#define   DSI_SOT_SYNC_ERROR			(1 << 1)
+#define   DSI_SOT_ERROR				(1 << 0)
+
 /* Gen4+ Timestamp and Pipe Frame time stamp registers */
 #define GEN4_TIMESTAMP		_MMIO(0x2358)
 #define ILK_TIMESTAMP_HI	_MMIO(0x70070)
@@ -11374,6 +11435,7 @@ enum skl_power_gate {
 #define  CMD_MODE_TE_GATE		(0x1 << 28)
 #define  VIDEO_MODE_SYNC_EVENT		(0x2 << 28)
 #define  VIDEO_MODE_SYNC_PULSE		(0x3 << 28)
+#define  TE_SOURCE_GPIO			(1 << 27)
 #define  LINK_READY			(1 << 20)
 #define  PIX_FMT_MASK			(0x3 << 16)
 #define  PIX_FMT_SHIFT			16
