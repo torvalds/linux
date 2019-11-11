@@ -3307,15 +3307,6 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 		}
 	}
 
-	if (props->hold_preemption) {
-		if (!props->single_context) {
-			DRM_DEBUG("preemption disable with no context\n");
-			ret = -EINVAL;
-			goto err;
-		}
-		privileged_op = true;
-	}
-
 	/*
 	 * On Haswell the OA unit supports clock gating off for a specific
 	 * context and in this mode there's no visibility of metrics for the
@@ -3335,11 +3326,20 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	 * doesn't request global stream access (i.e. query based sampling
 	 * using MI_RECORD_PERF_COUNT.
 	 */
-	if (IS_HASWELL(perf->i915) && specific_ctx && !props->hold_preemption)
+	if (IS_HASWELL(perf->i915) && specific_ctx)
 		privileged_op = false;
 	else if (IS_GEN(perf->i915, 12) && specific_ctx &&
 		 (props->sample_flags & SAMPLE_OA_REPORT) == 0)
 		privileged_op = false;
+
+	if (props->hold_preemption) {
+		if (!props->single_context) {
+			DRM_DEBUG("preemption disable with no context\n");
+			ret = -EINVAL;
+			goto err;
+		}
+		privileged_op = true;
+	}
 
 	/* Similar to perf's kernel.perf_paranoid_cpu sysctl option
 	 * we check a dev.i915.perf_stream_paranoid sysctl option
