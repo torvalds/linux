@@ -468,7 +468,7 @@ int snd_sof_resume(struct device *dev)
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	int ret;
 
-	if (sdev->s0_suspend) {
+	if (snd_sof_dsp_d0i3_on_suspend(sdev)) {
 		/* resume from D0I3 */
 		dev_dbg(sdev->dev, "DSP will exit from D0i3...\n");
 		ret = snd_sof_set_d0_substate(sdev, SOF_DSP_D0I0);
@@ -497,7 +497,7 @@ int snd_sof_suspend(struct device *dev)
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	int ret;
 
-	if (sdev->s0_suspend) {
+	if (snd_sof_dsp_d0i3_on_suspend(sdev)) {
 		/* suspend to D0i3 */
 		dev_dbg(sdev->dev, "DSP is trying to enter D0i3...\n");
 		ret = snd_sof_set_d0_substate(sdev, SOF_DSP_D0I3);
