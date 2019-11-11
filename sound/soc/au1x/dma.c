@@ -293,7 +293,7 @@ static int alchemy_pcm_new(struct snd_soc_component *component,
 	struct snd_pcm *pcm = rtd->pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-		snd_dma_continuous_data(GFP_KERNEL), 65536, (4096 * 1024) - 1);
+					      NULL, 65536, (4096 * 1024) - 1);
 
 	return 0;
 }

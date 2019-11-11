@@ -324,7 +324,7 @@ static int pcm_open(struct snd_pcm_substream *substream,
 
 	/* Finally allocate a page for the scatter-gather list */
 	if ((err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-				       snd_dma_pci_data(chip->pci),
+				       &chip->pci->dev,
 				       PAGE_SIZE, &pipe->sgpage)) < 0) {
 		dev_err(chip->card->dev, "s-g list allocation failed\n");
 		return err;
@@ -824,7 +824,6 @@ static const struct snd_pcm_ops analog_playback_ops = {
 	.prepare = pcm_prepare,
 	.trigger = pcm_trigger,
 	.pointer = pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 static const struct snd_pcm_ops analog_capture_ops = {
 	.open = pcm_analog_in_open,
@@ -835,7 +834,6 @@ static const struct snd_pcm_ops analog_capture_ops = {
 	.prepare = pcm_prepare,
 	.trigger = pcm_trigger,
 	.pointer = pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 #ifdef ECHOCARD_HAS_DIGITAL_IO
 #ifndef ECHOCARD_HAS_VMIXER
@@ -848,7 +846,6 @@ static const struct snd_pcm_ops digital_playback_ops = {
 	.prepare = pcm_prepare,
 	.trigger = pcm_trigger,
 	.pointer = pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 #endif /* !ECHOCARD_HAS_VMIXER */
 static const struct snd_pcm_ops digital_capture_ops = {
@@ -860,7 +857,6 @@ static const struct snd_pcm_ops digital_capture_ops = {
 	.prepare = pcm_prepare,
 	.trigger = pcm_trigger,
 	.pointer = pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 #endif /* ECHOCARD_HAS_DIGITAL_IO */
 
@@ -869,7 +865,7 @@ static const struct snd_pcm_ops digital_capture_ops = {
 /* Preallocate memory only for the first substream because it's the most
  * used one
  */
-static int snd_echo_preallocate_pages(struct snd_pcm *pcm, struct device *dev)
+static void snd_echo_preallocate_pages(struct snd_pcm *pcm, struct device *dev)
 {
 	struct snd_pcm_substream *ss;
 	int stream;
@@ -880,8 +876,6 @@ static int snd_echo_preallocate_pages(struct snd_pcm *pcm, struct device *dev)
 						      dev,
 						      ss->number ? 0 : 128<<10,
 						      256<<10);
-
-	return 0;
 }
 
 
@@ -908,8 +902,7 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 	strcpy(pcm->name, chip->card->shortname);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &analog_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &analog_capture_ops);
-	if ((err = snd_echo_preallocate_pages(pcm, snd_dma_pci_data(chip->pci))) < 0)
-		return err;
+	snd_echo_preallocate_pages(pcm, &chip->pci->dev);
 
 #ifdef ECHOCARD_HAS_DIGITAL_IO
 	/* PCM#1 Digital inputs, no outputs */
@@ -920,8 +913,7 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 	chip->digital_pcm = pcm;
 	strcpy(pcm->name, chip->card->shortname);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &digital_capture_ops);
-	if ((err = snd_echo_preallocate_pages(pcm, snd_dma_pci_data(chip->pci))) < 0)
-		return err;
+	snd_echo_preallocate_pages(pcm, &chip->pci->dev);
 #endif /* ECHOCARD_HAS_DIGITAL_IO */
 
 #else /* ECHOCARD_HAS_VMIXER */
@@ -941,8 +933,7 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 	strcpy(pcm->name, chip->card->shortname);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &analog_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &analog_capture_ops);
-	if ((err = snd_echo_preallocate_pages(pcm, snd_dma_pci_data(chip->pci))) < 0)
-		return err;
+	snd_echo_preallocate_pages(pcm, &chip->pci->dev);
 
 #ifdef ECHOCARD_HAS_DIGITAL_IO
 	/* PCM#1 Digital i/o */
@@ -955,8 +946,7 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 	strcpy(pcm->name, chip->card->shortname);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &digital_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &digital_capture_ops);
-	if ((err = snd_echo_preallocate_pages(pcm, snd_dma_pci_data(chip->pci))) < 0)
-		return err;
+	snd_echo_preallocate_pages(pcm, &chip->pci->dev);
 #endif /* ECHOCARD_HAS_DIGITAL_IO */
 
 #endif /* ECHOCARD_HAS_VMIXER */
@@ -1958,7 +1948,7 @@ static int snd_echo_create(struct snd_card *card,
 
 	/* Create the DSP comm page - this is the area of memory used for most
 	of the communication with the DSP, which accesses it via bus mastering */
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(chip->pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
 				sizeof(struct comm_page),
 				&chip->commpage_dma_buf) < 0) {
 		dev_err(chip->card->dev, "cannot allocate the comm page\n");

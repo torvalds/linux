@@ -796,17 +796,6 @@ static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_soc_component *component,
 	return offset;
 }
 
-#ifdef CONFIG_SND_DMA_SGBUF
-static struct page *hsw_pcm_page(struct snd_soc_component *component,
-				 struct snd_pcm_substream *substream,
-				 unsigned long offset)
-{
-	return snd_pcm_sgbuf_ops_page(substream, offset);
-}
-#else
-#define hsw_pcm_page NULL
-#endif /* CONFIG_SND_DMA_SGBUF */
-
 static int hsw_pcm_open(struct snd_soc_component *component,
 			struct snd_pcm_substream *substream)
 {
@@ -1128,7 +1117,6 @@ static const struct snd_soc_component_driver hsw_dai_component = {
 	.hw_free	= hsw_pcm_hw_free,
 	.trigger	= hsw_pcm_trigger,
 	.pointer	= hsw_pcm_pointer,
-	.page		= hsw_pcm_page,
 	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.pcm_construct	= hsw_pcm_new,
 	.controls	= hsw_volume_controls,

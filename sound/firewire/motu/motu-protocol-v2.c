@@ -12,10 +12,8 @@
 #define  V2_CLOCK_RATE_SHIFT			3
 #define  V2_CLOCK_SRC_MASK			0x00000007
 #define  V2_CLOCK_SRC_SHIFT			0
-#define  V2_CLOCK_TRAVELER_FETCH_DISABLE	0x04000000
-#define  V2_CLOCK_TRAVELER_FETCH_ENABLE		0x03000000
-#define  V2_CLOCK_8PRE_FETCH_DISABLE		0x02000000
-#define  V2_CLOCK_8PRE_FETCH_ENABLE		0x00000000
+#define  V2_CLOCK_FETCH_ENABLE			0x02000000
+#define  V2_CLOCK_MODEL_SPECIFIC		0x04000000
 
 #define V2_IN_OUT_CONF_OFFSET			0x0c04
 #define  V2_OPT_OUT_IFACE_MASK			0x00000c00
@@ -26,10 +24,20 @@
 #define  V2_OPT_IFACE_MODE_ADAT			1
 #define  V2_OPT_IFACE_MODE_SPDIF		2
 
+static int get_clock_rate(u32 data, unsigned int *rate)
+{
+	unsigned int index = (data & V2_CLOCK_RATE_MASK) >> V2_CLOCK_RATE_SHIFT;
+	if (index >= ARRAY_SIZE(snd_motu_clock_rates))
+		return -EIO;
+
+	*rate = snd_motu_clock_rates[index];
+
+	return 0;
+}
+
 static int v2_get_clock_rate(struct snd_motu *motu, unsigned int *rate)
 {
 	__be32 reg;
-	unsigned int index;
 	int err;
 
 	err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET, &reg,
@@ -37,13 +45,7 @@ static int v2_get_clock_rate(struct snd_motu *motu, unsigned int *rate)
 	if (err < 0)
 		return err;
 
-	index = (be32_to_cpu(reg) & V2_CLOCK_RATE_MASK) >> V2_CLOCK_RATE_SHIFT;
-	if (index >= ARRAY_SIZE(snd_motu_clock_rates))
-		return -EIO;
-
-	*rate = snd_motu_clock_rates[index];
-
-	return 0;
+	return get_clock_rate(be32_to_cpu(reg), rate);
 }
 
 static int v2_set_clock_rate(struct snd_motu *motu, unsigned int rate)
@@ -69,50 +71,43 @@ static int v2_set_clock_rate(struct snd_motu *motu, unsigned int rate)
 	data &= ~V2_CLOCK_RATE_MASK;
 	data |= i << V2_CLOCK_RATE_SHIFT;
 
-	if (motu->spec == &snd_motu_spec_traveler) {
-		data &= ~V2_CLOCK_TRAVELER_FETCH_ENABLE;
-		data |= V2_CLOCK_TRAVELER_FETCH_DISABLE;
-	}
-
 	reg = cpu_to_be32(data);
 	return snd_motu_transaction_write(motu, V2_CLOCK_STATUS_OFFSET, &reg,
 					  sizeof(reg));
 }
 
-static int v2_get_clock_source(struct snd_motu *motu,
-			       enum snd_motu_clock_source *src)
+static int get_clock_source(struct snd_motu *motu, u32 data,
+			    enum snd_motu_clock_source *src)
 {
-	__be32 reg;
-	unsigned int index;
-	int err;
-
-	err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET, &reg,
-					sizeof(reg));
-	if (err < 0)
-		return err;
-
-	index = be32_to_cpu(reg) & V2_CLOCK_SRC_MASK;
+	unsigned int index = data & V2_CLOCK_SRC_MASK;
 	if (index > 5)
 		return -EIO;
-
-	/* To check the configuration of optical interface. */
-	err = snd_motu_transaction_read(motu, V2_IN_OUT_CONF_OFFSET, &reg,
-					sizeof(reg));
-	if (err < 0)
-		return err;
 
 	switch (index) {
 	case 0:
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
 		break;
 	case 1:
+	{
+		__be32 reg;
+
+		// To check the configuration of optical interface.
+		int err = snd_motu_transaction_read(motu, V2_IN_OUT_CONF_OFFSET,
+						    &reg, sizeof(reg));
+		if (err < 0)
+			return err;
+
 		if (be32_to_cpu(reg) & 0x00000200)
 			*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT;
 		else
 			*src = SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT;
 		break;
+	}
 	case 2:
 		*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
+		break;
+	case 3:
+		*src = SND_MOTU_CLOCK_SOURCE_SPH;
 		break;
 	case 4:
 		*src = SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC;
@@ -127,44 +122,65 @@ static int v2_get_clock_source(struct snd_motu *motu,
 	return 0;
 }
 
+static int v2_get_clock_source(struct snd_motu *motu,
+			       enum snd_motu_clock_source *src)
+{
+	__be32 reg;
+	int err;
+
+	err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET, &reg,
+					sizeof(reg));
+	if (err < 0)
+		return err;
+
+	return get_clock_source(motu, be32_to_cpu(reg), src);
+}
+
 static int v2_switch_fetching_mode(struct snd_motu *motu, bool enable)
 {
+	enum snd_motu_clock_source src;
 	__be32 reg;
 	u32 data;
 	int err = 0;
 
-	if (motu->spec == &snd_motu_spec_traveler ||
-	    motu->spec == &snd_motu_spec_8pre) {
-		err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET,
-						&reg, sizeof(reg));
+	// 828mkII implements Altera ACEX 1K EP1K30. Nothing to do.
+	if (motu->spec == &snd_motu_spec_828mk2)
+		return 0;
+
+	err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET, &reg,
+					sizeof(reg));
+	if (err < 0)
+		return err;
+	data = be32_to_cpu(reg);
+
+	err = get_clock_source(motu, data, &src);
+	if (err < 0)
+		return err;
+
+	data &= ~(V2_CLOCK_FETCH_ENABLE | V2_CLOCK_MODEL_SPECIFIC);
+	if (enable)
+		data |= V2_CLOCK_FETCH_ENABLE;
+
+	if (motu->spec->flags & SND_MOTU_SPEC_SUPPORT_CLOCK_X4) {
+		// Expected for Traveler and 896HD, which implements Altera
+		// Cyclone EP1C3.
+		data |= V2_CLOCK_MODEL_SPECIFIC;
+	} else {
+		// For UltraLite and 8pre, which implements Xilinx Spartan
+		// XC3S200.
+		unsigned int rate;
+
+		err = get_clock_rate(data, &rate);
 		if (err < 0)
 			return err;
-		data = be32_to_cpu(reg);
 
-		if (motu->spec == &snd_motu_spec_traveler) {
-			data &= ~(V2_CLOCK_TRAVELER_FETCH_DISABLE |
-				  V2_CLOCK_TRAVELER_FETCH_ENABLE);
-
-			if (enable)
-				data |= V2_CLOCK_TRAVELER_FETCH_ENABLE;
-			else
-				data |= V2_CLOCK_TRAVELER_FETCH_DISABLE;
-		} else if (motu->spec == &snd_motu_spec_8pre) {
-			data &= ~(V2_CLOCK_8PRE_FETCH_DISABLE |
-				  V2_CLOCK_8PRE_FETCH_ENABLE);
-
-			if (enable)
-				data |= V2_CLOCK_8PRE_FETCH_DISABLE;
-			else
-				data |= V2_CLOCK_8PRE_FETCH_ENABLE;
-		}
-
-		reg = cpu_to_be32(data);
-		err = snd_motu_transaction_write(motu, V2_CLOCK_STATUS_OFFSET,
-						 &reg, sizeof(reg));
+		if (src == SND_MOTU_CLOCK_SOURCE_SPH && rate > 48000)
+			data |= V2_CLOCK_MODEL_SPECIFIC;
 	}
 
-	return err;
+	reg = cpu_to_be32(data);
+	return snd_motu_transaction_write(motu, V2_CLOCK_STATUS_OFFSET, &reg,
+					  sizeof(reg));
 }
 
 static void calculate_fixed_part(struct snd_motu_packet_format *formats,
@@ -191,7 +207,7 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 			pcm_chunks[1] += 2;
 		}
 	} else {
-		if (flags & SND_MOTU_SPEC_RX_SEPARETED_MAIN) {
+		if (flags & SND_MOTU_SPEC_RX_SEPARATED_MAIN) {
 			pcm_chunks[0] += 2;
 			pcm_chunks[1] += 2;
 		}

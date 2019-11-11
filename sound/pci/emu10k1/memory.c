@@ -387,7 +387,7 @@ int snd_emu10k1_alloc_pages_maybe_wider(struct snd_emu10k1 *emu, size_t size,
 	}
 
 	return snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-				   snd_dma_pci_data(emu->pci), size, dmab);
+				   &emu->pci->dev, size, dmab);
 }
 
 /*
@@ -477,7 +477,7 @@ static void __synth_free_pages(struct snd_emu10k1 *emu, int first_page,
 	int page;
 
 	dmab.dev.type = SNDRV_DMA_TYPE_DEV;
-	dmab.dev.dev = snd_dma_pci_data(emu->pci);
+	dmab.dev.dev = &emu->pci->dev;
 
 	for (page = first_page; page <= last_page; page++) {
 		if (emu->page_ptr_table[page] == NULL)

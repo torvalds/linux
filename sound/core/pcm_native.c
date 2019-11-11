@@ -13,6 +13,7 @@
 #include <linux/pm_qos.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/vmalloc.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/info.h>
@@ -222,7 +223,8 @@ static bool hw_support_mmap(struct snd_pcm_substream *substream)
 		return false;
 
 	if (substream->ops->mmap ||
-	    substream->dma_buffer.dev.type != SNDRV_DMA_TYPE_DEV)
+	    (substream->dma_buffer.dev.type != SNDRV_DMA_TYPE_DEV &&
+	     substream->dma_buffer.dev.type != SNDRV_DMA_TYPE_DEV_UC))
 		return true;
 
 	return dma_can_mmap(substream->dma_buffer.dev.dev);
@@ -3334,7 +3336,18 @@ static inline struct page *
 snd_pcm_default_page_ops(struct snd_pcm_substream *substream, unsigned long ofs)
 {
 	void *vaddr = substream->runtime->dma_area + ofs;
-	return virt_to_page(vaddr);
+
+	switch (substream->dma_buffer.dev.type) {
+#ifdef CONFIG_SND_DMA_SGBUF
+	case SNDRV_DMA_TYPE_DEV_SG:
+	case SNDRV_DMA_TYPE_DEV_UC_SG:
+		return snd_pcm_sgbuf_ops_page(substream, ofs);
+#endif /* CONFIG_SND_DMA_SGBUF */
+	case SNDRV_DMA_TYPE_VMALLOC:
+		return vmalloc_to_page(vaddr);
+	default:
+		return virt_to_page(vaddr);
+	}
 }
 
 /*
@@ -3403,7 +3416,8 @@ int snd_pcm_lib_default_mmap(struct snd_pcm_substream *substream,
 #endif /* CONFIG_GENERIC_ALLOCATOR */
 #ifndef CONFIG_X86 /* for avoiding warnings arch/x86/mm/pat.c */
 	if (IS_ENABLED(CONFIG_HAS_DMA) && !substream->ops->page &&
-	    substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV)
+	    (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV ||
+	     substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV_UC))
 		return dma_mmap_coherent(substream->dma_buffer.dev.dev,
 					 area,
 					 substream->runtime->dma_area,

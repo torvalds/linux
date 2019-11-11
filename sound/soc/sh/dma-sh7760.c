@@ -309,7 +309,7 @@ static int camelot_pcm_new(struct snd_soc_component *component,
 	 */
 	snd_pcm_lib_preallocate_pages_for_all(pcm,
 		SNDRV_DMA_TYPE_CONTINUOUS,
-		snd_dma_continuous_data(GFP_KERNEL),
+		NULL,
 		DMABRG_PREALLOC_BUFFER,	DMABRG_PREALLOC_BUFFER_MAX);
 
 	return 0;
