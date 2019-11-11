@@ -459,26 +459,31 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	if (pvec != NULL) {
 		struct mm_struct *mm = obj->userptr.mm->mm;
 		unsigned int flags = 0;
+		int locked = 0;
 
 		if (!i915_gem_object_is_readonly(obj))
 			flags |= FOLL_WRITE;
 
 		ret = -EFAULT;
 		if (mmget_not_zero(mm)) {
-			down_read(&mm->mmap_sem);
 			while (pinned < npages) {
+				if (!locked) {
+					down_read(&mm->mmap_sem);
+					locked = 1;
+				}
 				ret = get_user_pages_remote
 					(work->task, mm,
 					 obj->userptr.ptr + pinned * PAGE_SIZE,
 					 npages - pinned,
 					 flags,
-					 pvec + pinned, NULL, NULL);
+					 pvec + pinned, NULL, &locked);
 				if (ret < 0)
 					break;
 
 				pinned += ret;
 			}
-			up_read(&mm->mmap_sem);
+			if (locked)
+				up_read(&mm->mmap_sem);
 			mmput(mm);
 		}
 	}
