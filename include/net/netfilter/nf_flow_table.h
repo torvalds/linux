@@ -74,10 +74,7 @@ struct flow_offload {
 	struct flow_offload_tuple_rhash		tuplehash[FLOW_OFFLOAD_DIR_MAX];
 	struct nf_conn				*ct;
 	u32					flags;
-	union {
-		/* Your private driver data here. */
-		u32		timeout;
-	};
+	u32					timeout;
 };
 
 #define NF_FLOW_TIMEOUT (30 * HZ)
