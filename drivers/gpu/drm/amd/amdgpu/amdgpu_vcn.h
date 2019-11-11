@@ -158,7 +158,6 @@ struct amdgpu_vcn_reg{
 	unsigned	ib_size;
 	unsigned	gp_scratch8;
 	unsigned	scratch9;
-	unsigned	jpeg_pitch;
 };
 
 struct amdgpu_vcn_inst {
@@ -168,7 +167,6 @@ struct amdgpu_vcn_inst {
 	void			*saved_bo;
 	struct amdgpu_ring	ring_dec;
 	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
-	struct amdgpu_ring	ring_jpeg;
 	struct amdgpu_irq_src	irq;
 	struct amdgpu_vcn_reg	external;
 };
@@ -208,8 +206,5 @@ int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout);
-
-int amdgpu_vcn_jpeg_ring_test_ring(struct amdgpu_ring *ring);
-int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 #endif

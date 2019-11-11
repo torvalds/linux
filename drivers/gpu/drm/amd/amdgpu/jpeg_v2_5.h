@@ -21,42 +21,9 @@
  *
  */
 
-#ifndef __AMDGPU_JPEG_H__
-#define __AMDGPU_JPEG_H__
+#ifndef __JPEG_V2_5_H__
+#define __JPEG_V2_5_H__
 
-#define AMDGPU_MAX_JPEG_INSTANCES	2
+extern const struct amdgpu_ip_block_version jpeg_v2_5_ip_block;
 
-#define AMDGPU_JPEG_HARVEST_JPEG0 (1 << 0)
-#define AMDGPU_JPEG_HARVEST_JPEG1 (1 << 1)
-
-struct amdgpu_jpeg_reg{
-	unsigned jpeg_pitch;
-};
-
-struct amdgpu_jpeg_inst {
-	struct amdgpu_ring ring_dec;
-	struct amdgpu_irq_src irq;
-	struct amdgpu_jpeg_reg external;
-};
-
-struct amdgpu_jpeg {
-	uint8_t	num_jpeg_inst;
-	struct amdgpu_jpeg_inst inst[AMDGPU_MAX_JPEG_INSTANCES];
-	struct amdgpu_jpeg_reg internal;
-	unsigned harvest_config;
-	struct delayed_work idle_work;
-	enum amd_powergating_state cur_state;
-};
-
-int amdgpu_jpeg_sw_init(struct amdgpu_device *adev);
-int amdgpu_jpeg_sw_fini(struct amdgpu_device *adev);
-int amdgpu_jpeg_suspend(struct amdgpu_device *adev);
-int amdgpu_jpeg_resume(struct amdgpu_device *adev);
-
-void amdgpu_jpeg_ring_begin_use(struct amdgpu_ring *ring);
-void amdgpu_jpeg_ring_end_use(struct amdgpu_ring *ring);
-
-int amdgpu_jpeg_dec_ring_test_ring(struct amdgpu_ring *ring);
-int amdgpu_jpeg_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout);
-
-#endif /*__AMDGPU_JPEG_H__*/
+#endif /* __JPEG_V2_5_H__ */
