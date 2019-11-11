@@ -22,6 +22,7 @@
 #include <linux/moduleparam.h>
 #include <linux/mod_devicetable.h>
 #include <linux/mm.h>
+#include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/sched/smt.h>
 #include <linux/slab.h>
@@ -44,6 +45,7 @@
 #include <asm/spec-ctrl.h>
 #include <asm/virtext.h>
 #include <asm/vmx.h>
+#include <asm/timex.h>
 
 #include "capabilities.h"
 #include "cpuid.h"
@@ -60,6 +62,7 @@
 #include "vmcs12.h"
 #include "vmx.h"
 #include "x86.h"
+
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
@@ -5775,16 +5778,31 @@ void dump_vmcs(void)
 		       vmcs_read16(VIRTUAL_PROCESSOR_ID));
 }
 
+static void record(u32 exitReason, clock_t start) {
+   u64 elapsed_time = (u64)(get_cycles() - start);
+   u32 index = exitReason % EXIT_SIZE;
+   mutex_lock(&map_lock);
+
+   totalCounts++;
+   exitCountArray[index]++;
+
+   exitCycleArray[index] +=  elapsed_time;
+   totalCycles += elapsed_time;
+
+   mutex_unlock(&map_lock);
+}
+
+
 /*
  * The guest has exited.  See if we can fix it or if we need userspace
  * assistance.
  */
 static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 {
+	clock_t start = get_cycles();
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
-
 	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
 
 	/*
@@ -5798,17 +5816,25 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		vmx_flush_pml_buffer(vcpu);
 
 	/* If guest state is invalid, start emulating */
-	if (vmx->emulation_required)
+	if (vmx->emulation_required) {
+		// capture exist reason via insturmentation code
+		record(exit_reason, start);
 		return handle_invalid_guest_state(vcpu);
+	}
 
-	if (is_guest_mode(vcpu) && nested_vmx_exit_reflected(vcpu, exit_reason))
+	if (is_guest_mode(vcpu) && nested_vmx_exit_reflected(vcpu, exit_reason)) {
+		// capture exist reason via insturmentation code
+		record(exit_reason, start);
 		return nested_vmx_reflect_vmexit(vcpu, exit_reason);
+	}
 
 	if (exit_reason & VMX_EXIT_REASONS_FAILED_VMENTRY) {
 		dump_vmcs();
 		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		vcpu->run->fail_entry.hardware_entry_failure_reason
 			= exit_reason;
+		// capture exist reason via insturmentation code
+		record(exit_reason, start);
 		return 0;
 	}
 
@@ -5817,6 +5843,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		vcpu->run->fail_entry.hardware_entry_failure_reason
 			= vmcs_read32(VM_INSTRUCTION_ERROR);
+		// capture exist reason via insturmentation code
+		record(exit_reason, start);
 		return 0;
 	}
 
@@ -5843,6 +5871,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 			vcpu->run->internal.data[3] =
 				vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 		}
+		// capture exist reason via insturmentation code
+		record(exit_reason, start);
 		return 0;
 	}
 
@@ -5866,9 +5896,11 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	}
 
 	if (exit_reason < kvm_vmx_max_exit_handlers
-	    && kvm_vmx_exit_handlers[exit_reason])
+	    && kvm_vmx_exit_handlers[exit_reason]) {
+		// capture exist reason via insturmentation code
+		record(exit_reason, start);
 		return kvm_vmx_exit_handlers[exit_reason](vcpu);
-	else {
+	} else {
 		vcpu_unimpl(vcpu, "vmx: unexpected exit reason 0x%x\n",
 				exit_reason);
 		dump_vmcs();
@@ -5877,6 +5909,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 			KVM_INTERNAL_ERROR_UNEXPECTED_EXIT_REASON;
 		vcpu->run->internal.ndata = 1;
 		vcpu->run->internal.data[0] = exit_reason;
+		// capture exist reason via insturmentation code
+		record(exit_reason, start);
 		return 0;
 	}
 }

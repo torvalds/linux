@@ -23,6 +23,7 @@
 #include "mmu.h"
 #include "trace.h"
 #include "pmu.h"
+// #include "./vmx/vmx.h"
 
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
@@ -1013,16 +1014,52 @@ out:
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
 
+u64 totalCycles;
+EXPORT_SYMBOL_GPL(totalCycles);
+
+u64 exitCycleArray[EXIT_SIZE];
+EXPORT_SYMBOL_GPL(exitCycleArray);
+
+u32 totalCounts;
+EXPORT_SYMBOL_GPL(totalCounts);
+
+u32 exitCountArray[EXIT_SIZE];
+EXPORT_SYMBOL_GPL(exitCountArray);
+
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
 	u32 eax, ebx, ecx, edx;
+	// u64 cycles;
 
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+	
+        printk("eax int =================> %d \n", eax);
+        printk("eax =================> %08lx \n", eax);
+	// printk("total count --------------> %d \n", totalCounts);
+        if ( eax == 0x4FFFFFFF ) {
+		printk("----- first ------ \n");
+        	eax = totalCounts;
+	} else if ( eax == 0x4FFFFFFE ) {
+                printk("----- second ------ \n");
+		// cycles = totalCycles;
+		// ecx = cycles;
+		// ebx = (cycles >> 32);
+        } else if ( eax == 0x4FFFFFFD ) {
+		printk("----- third ------ \n");
+		// eax = exitCountArray[ecx % EXIT_SIZE];
+        } else if ( eax == 0x4FFFFFFC ) {
+		printk("----- four ------ \n");
+		// cycles = exitCycleArray[ecx % EXIT_SIZE]; 
+		// ecx = cycles;
+		// ebx = (cycles >> 32);
+	} else {
+	   kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+	}
+	// kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);

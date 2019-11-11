@@ -165,4 +165,12 @@ static inline bool cpuid_fault_enabled(struct kvm_vcpu *vcpu)
 		  MSR_MISC_FEATURES_ENABLES_CPUID_FAULT;
 }
 
+#define EXIT_SIZE 100
+
+extern u32 totalCounts;
+extern u64 totalCycles;
+
+extern u64 exitCycleArray[EXIT_SIZE];
+extern u32 exitCountArray[EXIT_SIZE];
+
 #endif

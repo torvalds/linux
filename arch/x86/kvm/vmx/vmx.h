@@ -3,6 +3,7 @@
 #define __KVM_X86_VMX_H
 
 #include <linux/kvm_host.h>
+#include <linux/mutex.h>
 
 #include <asm/kvm.h>
 #include <asm/intel_pt.h>
@@ -498,5 +499,9 @@ static inline void decache_tsc_multiplier(struct vcpu_vmx *vmx)
 }
 
 void dump_vmcs(void);
+
+static DEFINE_MUTEX(map_lock);
+
+#define EXIT_SIZE 100
 
 #endif /* __KVM_X86_VMX_H */
