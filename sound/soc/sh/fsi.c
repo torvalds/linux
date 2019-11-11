@@ -1718,7 +1718,8 @@ static const struct snd_pcm_hardware fsi_pcm_hardware = {
 	.fifo_size		= 256,
 };
 
-static int fsi_pcm_open(struct snd_pcm_substream *substream)
+static int fsi_pcm_open(struct snd_soc_component *component,
+			struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int ret = 0;
@@ -1731,33 +1732,28 @@ static int fsi_pcm_open(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static int fsi_hw_params(struct snd_pcm_substream *substream,
+static int fsi_hw_params(struct snd_soc_component *component,
+			 struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
 }
 
-static int fsi_hw_free(struct snd_pcm_substream *substream)
+static int fsi_hw_free(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream)
 {
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static snd_pcm_uframes_t fsi_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t fsi_pointer(struct snd_soc_component *component,
+				     struct snd_pcm_substream *substream)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	struct fsi_stream *io = fsi_stream_get(fsi, substream);
 
 	return fsi_sample2frame(fsi, io->buff_sample_pos);
 }
-
-static const struct snd_pcm_ops fsi_pcm_ops = {
-	.open		= fsi_pcm_open,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= fsi_hw_params,
-	.hw_free	= fsi_hw_free,
-	.pointer	= fsi_pointer,
-};
 
 /*
  *		snd_soc_component
@@ -1766,7 +1762,8 @@ static const struct snd_pcm_ops fsi_pcm_ops = {
 #define PREALLOC_BUFFER		(32 * 1024)
 #define PREALLOC_BUFFER_MAX	(32 * 1024)
 
-static int fsi_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int fsi_pcm_new(struct snd_soc_component *component,
+		       struct snd_soc_pcm_runtime *rtd)
 {
 	snd_pcm_lib_preallocate_pages_for_all(
 		rtd->pcm,
@@ -1817,8 +1814,12 @@ static struct snd_soc_dai_driver fsi_soc_dai[] = {
 
 static const struct snd_soc_component_driver fsi_soc_component = {
 	.name		= "fsi",
-	.ops		= &fsi_pcm_ops,
-	.pcm_new	= fsi_pcm_new,
+	.open		= fsi_pcm_open,
+	.ioctl		= snd_soc_pcm_lib_ioctl,
+	.hw_params	= fsi_hw_params,
+	.hw_free	= fsi_hw_free,
+	.pointer	= fsi_pointer,
+	.pcm_construct	= fsi_pcm_new,
 };
 
 /*

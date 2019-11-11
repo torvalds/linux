@@ -45,4 +45,12 @@ struct sof_ipc_pm_core_config {
 	uint32_t enable_mask;
 } __packed;
 
+struct sof_ipc_pm_gate {
+	struct sof_ipc_cmd_hdr hdr;
+	uint32_t flags;	/* platform specific */
+
+	/* reserved for future use */
+	uint32_t reserved[5];
+} __packed;
+
 #endif
