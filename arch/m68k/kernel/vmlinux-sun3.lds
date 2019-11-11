@@ -24,7 +24,7 @@ SECTIONS
 	*(.fixup)
 	*(.gnu.warning)
 	} :text = 0x4e75
-	RODATA
+	RO_DATA(4096)
 
   _etext = .;			/* End of text section */
 
