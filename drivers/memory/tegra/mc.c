@@ -5,6 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -17,39 +18,6 @@
 #include <soc/tegra/fuse.h>
 
 #include "mc.h"
-
-#define MC_INTSTATUS 0x000
-
-#define MC_INTMASK 0x004
-
-#define MC_ERR_STATUS 0x08
-#define  MC_ERR_STATUS_TYPE_SHIFT 28
-#define  MC_ERR_STATUS_TYPE_INVALID_SMMU_PAGE (6 << MC_ERR_STATUS_TYPE_SHIFT)
-#define  MC_ERR_STATUS_TYPE_MASK (0x7 << MC_ERR_STATUS_TYPE_SHIFT)
-#define  MC_ERR_STATUS_READABLE (1 << 27)
-#define  MC_ERR_STATUS_WRITABLE (1 << 26)
-#define  MC_ERR_STATUS_NONSECURE (1 << 25)
-#define  MC_ERR_STATUS_ADR_HI_SHIFT 20
-#define  MC_ERR_STATUS_ADR_HI_MASK 0x3
-#define  MC_ERR_STATUS_SECURITY (1 << 17)
-#define  MC_ERR_STATUS_RW (1 << 16)
-
-#define MC_ERR_ADR 0x0c
-
-#define MC_GART_ERROR_REQ		0x30
-#define MC_DECERR_EMEM_OTHERS_STATUS	0x58
-#define MC_SECURITY_VIOLATION_STATUS	0x74
-
-#define MC_EMEM_ARB_CFG 0x90
-#define  MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE(x)	(((x) & 0x1ff) << 0)
-#define  MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE_MASK	0x1ff
-#define MC_EMEM_ARB_MISC0 0xd8
-
-#define MC_EMEM_ADR_CFG 0x54
-#define MC_EMEM_ADR_CFG_EMEM_NUMDEV BIT(0)
-
-#define MC_TIMING_CONTROL		0xfc
-#define MC_TIMING_UPDATE		BIT(0)
 
 static const struct of_device_id tegra_mc_of_match[] = {
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
@@ -307,7 +275,7 @@ static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 	return 0;
 }
 
-void tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate)
+int tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate)
 {
 	unsigned int i;
 	struct tegra_mc_timing *timing = NULL;
@@ -322,11 +290,13 @@ void tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate)
 	if (!timing) {
 		dev_err(mc->dev, "no memory timing registered for rate %lu\n",
 			rate);
-		return;
+		return -EINVAL;
 	}
 
 	for (i = 0; i < mc->soc->num_emem_regs; ++i)
 		mc_writel(mc, timing->emem_data[i], mc->soc->emem_regs[i]);
+
+	return 0;
 }
 
 unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc)
@@ -626,6 +596,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct tegra_mc *mc;
 	void *isr;
+	u64 mask;
 	int err;
 
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
@@ -636,6 +607,14 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	spin_lock_init(&mc->lock);
 	mc->soc = of_device_get_match_data(&pdev->dev);
 	mc->dev = &pdev->dev;
+
+	mask = DMA_BIT_MASK(mc->soc->num_address_bits);
+
+	err = dma_coerce_mask_and_coherent(&pdev->dev, mask);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to set DMA mask: %d\n", err);
+		return err;
+	}
 
 	/* length of MC tick in nanoseconds */
 	mc->tick = 30;
@@ -658,6 +637,9 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	} else
 #endif
 	{
+		/* ensure that debug features are disabled */
+		mc_writel(mc, 0x00000000, MC_TIMING_CONTROL_DBG);
+
 		err = tegra_mc_setup_latency_allowance(mc);
 		if (err < 0) {
 			dev_err(&pdev->dev,
