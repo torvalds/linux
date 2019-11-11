@@ -227,16 +227,18 @@ static int jpeg_v2_0_disable_power_gating(struct amdgpu_device *adev)
 	uint32_t data;
 	int r = 0;
 
-	data = 1 << UVD_PGFSM_CONFIG__UVDJ_PWR_CONFIG__SHIFT;
-	WREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_PGFSM_CONFIG), data);
+	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG) {
+		data = 1 << UVD_PGFSM_CONFIG__UVDJ_PWR_CONFIG__SHIFT;
+		WREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_PGFSM_CONFIG), data);
 
-	SOC15_WAIT_ON_RREG(JPEG, 0,
-		mmUVD_PGFSM_STATUS, UVD_PGFSM_STATUS_UVDJ_PWR_ON,
-		UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK, r);
+		SOC15_WAIT_ON_RREG(JPEG, 0,
+			mmUVD_PGFSM_STATUS, UVD_PGFSM_STATUS_UVDJ_PWR_ON,
+			UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK, r);
 
-	if (r) {
-		DRM_ERROR("amdgpu: JPEG disable power gating failed\n");
-		return r;
+		if (r) {
+			DRM_ERROR("amdgpu: JPEG disable power gating failed\n");
+			return r;
+		}
 	}
 
 	/* Removing the anti hang mechanism to indicate the UVDJ tile is ON */
@@ -248,24 +250,26 @@ static int jpeg_v2_0_disable_power_gating(struct amdgpu_device *adev)
 
 static int jpeg_v2_0_enable_power_gating(struct amdgpu_device* adev)
 {
-	uint32_t data;
-	int r = 0;
+	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG) {
+		uint32_t data;
+		int r = 0;
 
-	data = RREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_JPEG_POWER_STATUS));
-	data &= ~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK;
-	data |=  0x1; //UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_TILES_OFF;
-	WREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_JPEG_POWER_STATUS), data);
+		data = RREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_JPEG_POWER_STATUS));
+		data &= ~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK;
+		data |=  0x1; //UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_TILES_OFF;
+		WREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_JPEG_POWER_STATUS), data);
 
-	data = 2 << UVD_PGFSM_CONFIG__UVDJ_PWR_CONFIG__SHIFT;
-	WREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_PGFSM_CONFIG), data);
+		data = 2 << UVD_PGFSM_CONFIG__UVDJ_PWR_CONFIG__SHIFT;
+		WREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_PGFSM_CONFIG), data);
 
-	SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_PGFSM_STATUS,
-		(2 << UVD_PGFSM_STATUS__UVDJ_PWR_STATUS__SHIFT),
-		UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK, r);
+		SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_PGFSM_STATUS,
+			(2 << UVD_PGFSM_STATUS__UVDJ_PWR_STATUS__SHIFT),
+			UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK, r);
 
-	if (r) {
-		DRM_ERROR("amdgpu: JPEG enable power gating failed\n");
-		return r;
+		if (r) {
+			DRM_ERROR("amdgpu: JPEG enable power gating failed\n");
+			return r;
+		}
 	}
 
 	return 0;
@@ -276,7 +280,10 @@ static void jpeg_v2_0_disable_clock_gating(struct amdgpu_device* adev)
 	uint32_t data;
 
 	data = RREG32_SOC15(JPEG, 0, mmJPEG_CGC_CTRL);
-	data |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+	if (adev->cg_flags & AMD_CG_SUPPORT_JPEG_MGCG)
+		data |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+	else
+		data &= ~JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 
 	data |= 1 << JPEG_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
 	data |= 4 << JPEG_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
@@ -296,7 +303,10 @@ static void jpeg_v2_0_enable_clock_gating(struct amdgpu_device* adev)
 	uint32_t data;
 
 	data = RREG32_SOC15(JPEG, 0, mmJPEG_CGC_CTRL);
-	data |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+	if (adev->cg_flags & AMD_CG_SUPPORT_JPEG_MGCG)
+		data |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+	else
+		data |= 0 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 
 	data |= 1 << JPEG_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
 	data |= 4 << JPEG_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
