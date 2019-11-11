@@ -1002,6 +1002,9 @@ static int __init opal_init(void)
 	/* Initialise OPAL Power control interface */
 	opal_power_control_init();
 
+	/* Initialize OPAL secure variables */
+	opal_pdev_init("ibm,secvar-backend");
+
 	return 0;
 }
 machine_subsys_initcall(powernv, opal_init);
