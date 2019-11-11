@@ -953,7 +953,7 @@ esw_get_prio_table(struct mlx5_eswitch *esw, u32 chain, u16 prio, int level)
 		flags |= (MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT |
 			  MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 
-	table_prio = (chain * FDB_TC_MAX_PRIO) + prio - 1;
+	table_prio = prio - 1;
 
 	/* create earlier levels for correct fs_core lookup when
 	 * connecting tables
