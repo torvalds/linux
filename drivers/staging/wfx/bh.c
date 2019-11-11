@@ -239,7 +239,7 @@ static int bh_work_tx(struct wfx_dev *wdev, int max_msg)
  */
 static void ack_sdio_data(struct wfx_dev *wdev)
 {
-	uint32_t cfg_reg;
+	u32 cfg_reg;
 
 	config_reg_read(wdev, &cfg_reg);
 	if (cfg_reg & 0xFF) {

@@ -453,7 +453,7 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 /* WSM callbacks */
 
-static void wfx_event_report_rssi(struct wfx_vif *wvif, uint8_t raw_rcpi_rssi)
+static void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi)
 {
 	/* RSSI: signed Q8.0, RCPI: unsigned Q7.1
 	 * RSSI = RCPI / 2 - 110
@@ -590,10 +590,10 @@ done:
 
 static void wfx_set_mfp(struct wfx_vif *wvif, struct cfg80211_bss *bss)
 {
-	const int pairwise_cipher_suite_count_offset = 8 / sizeof(uint16_t);
-	const int pairwise_cipher_suite_size = 4 / sizeof(uint16_t);
-	const int akm_suite_size = 4 / sizeof(uint16_t);
-	const uint16_t *ptr = NULL;
+	const int pairwise_cipher_suite_count_offset = 8 / sizeof(u16);
+	const int pairwise_cipher_suite_size = 4 / sizeof(u16);
+	const int akm_suite_size = 4 / sizeof(u16);
+	const u16 *ptr = NULL;
 	bool mfpc = false;
 	bool mfpr = false;
 
@@ -603,7 +603,8 @@ static void wfx_set_mfp(struct wfx_vif *wvif, struct cfg80211_bss *bss)
 
 	rcu_read_lock();
 	if (bss)
-		ptr = (const uint16_t *) ieee80211_bss_get_ie(bss, WLAN_EID_RSN);
+		ptr = (const u16 *) ieee80211_bss_get_ie(bss,
+							      WLAN_EID_RSN);
 
 	if (ptr) {
 		ptr += pairwise_cipher_suite_count_offset;

@@ -179,11 +179,11 @@ static inline int wvif_count(struct wfx_dev *wdev)
 	return ret;
 }
 
-static inline void memreverse(uint8_t *src, uint8_t length)
+static inline void memreverse(u8 *src, u8 length)
 {
-	uint8_t *lo = src;
-	uint8_t *hi = src + length - 1;
-	uint8_t swap;
+	u8 *lo = src;
+	u8 *hi = src + length - 1;
+	u8 swap;
 
 	while (lo < hi) {
 		swap = *lo;
@@ -194,7 +194,7 @@ static inline void memreverse(uint8_t *src, uint8_t length)
 
 static inline int memzcmp(void *src, unsigned int size)
 {
-	uint8_t *buf = src;
+	u8 *buf = src;
 
 	if (!size)
 		return 0;

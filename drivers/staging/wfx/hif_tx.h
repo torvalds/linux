@@ -18,7 +18,7 @@ struct wfx_vif;
 struct wfx_scan_params {
 	struct hif_req_start_scan scan_req;
 	struct hif_ssid_def *ssids;
-	uint8_t *ch;
+	u8 *ch;
 };
 
 struct wfx_hif_cmd {
@@ -59,9 +59,10 @@ int hif_beacon_transmit(struct wfx_vif *wvif, bool enable);
 int hif_map_link(struct wfx_vif *wvif, u8 *mac_addr, int flags, int sta_id);
 int hif_update_ie(struct wfx_vif *wvif, const struct hif_ie_flags *target_frame,
 		  const u8 *ies, size_t ies_len);
-int hif_sl_set_mac_key(struct wfx_dev *wdev, const uint8_t *slk_key, int destination);
+int hif_sl_set_mac_key(struct wfx_dev *wdev, const u8 *slk_key,
+		       int destination);
 int hif_sl_config(struct wfx_dev *wdev, const unsigned long *bitmap);
 int hif_sl_send_pub_keys(struct wfx_dev *wdev,
-			 const uint8_t *pubkey, const uint8_t *pubkey_hmac);
+			 const u8 *pubkey, const u8 *pubkey_hmac);
 
 #endif

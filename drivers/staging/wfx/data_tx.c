@@ -107,7 +107,7 @@ static void wfx_tx_policy_build(struct wfx_vif *wvif, struct tx_policy *policy,
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; ++i) {
 		int rateid;
-		uint8_t count;
+		u8 count;
 
 		if (rates[i].idx < 0)
 			break;
@@ -477,7 +477,7 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 		ieee80211_sta_set_buffered(sta, tx_priv->tid, true);
 }
 
-static uint8_t wfx_tx_get_raw_link_id(struct wfx_vif *wvif,
+static u8 wfx_tx_get_raw_link_id(struct wfx_vif *wvif,
 				      struct ieee80211_sta *sta,
 				      struct ieee80211_hdr *hdr)
 {
@@ -542,11 +542,11 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 		rates[i].flags &= ~IEEE80211_TX_RC_SHORT_GI;
 }
 
-static uint8_t wfx_tx_get_rate_id(struct wfx_vif *wvif,
+static u8 wfx_tx_get_rate_id(struct wfx_vif *wvif,
 				  struct ieee80211_tx_info *tx_info)
 {
 	bool tx_policy_renew = false;
-	uint8_t rate_id;
+	u8 rate_id;
 
 	rate_id = wfx_tx_policy_get(wvif,
 				    tx_info->driver_rates, &tx_policy_renew);
@@ -584,7 +584,7 @@ static struct hif_ht_tx_parameters wfx_tx_get_tx_parms(struct wfx_dev *wdev, str
 	return ret;
 }
 
-static uint8_t wfx_tx_get_tid(struct ieee80211_hdr *hdr)
+static u8 wfx_tx_get_tid(struct ieee80211_hdr *hdr)
 {
 	// FIXME: ieee80211_get_tid(hdr) should be sufficient for all cases.
 	if (!ieee80211_is_data(hdr->frame_control))

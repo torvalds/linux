@@ -145,7 +145,7 @@ static inline int hif_set_mfp(struct wfx_vif *wvif, bool capable, bool required)
 	}
 	if (!required)
 		val.unpmf_allowed = 1;
-	cpu_to_le32s((uint32_t *) &val);
+	cpu_to_le32s((u32 *) &val);
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_PROTECTED_MGMT_POLICY,
 			     &val, sizeof(val));

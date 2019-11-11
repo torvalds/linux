@@ -23,13 +23,13 @@
 #define HIF_COUNTER_MAX                    7
 
 struct hif_msg {
-	uint16_t    len;
-	uint8_t     id;
-	uint8_t     reserved:1;
-	uint8_t     interface:2;
-	uint8_t     seqnum:3;
-	uint8_t     encrypted:2;
-	uint8_t     body[];
+	u16    len;
+	u8     id;
+	u8     reserved:1;
+	u8     interface:2;
+	u8     seqnum:3;
+	u8     encrypted:2;
+	u8     body[];
 } __packed;
 
 enum hif_general_requests_ids {
@@ -117,22 +117,22 @@ enum hif_fw_type {
 };
 
 struct hif_capabilities {
-	uint8_t    link_mode:2;
-	uint8_t    reserved1:6;
-	uint8_t    reserved2;
-	uint8_t    reserved3;
-	uint8_t    reserved4;
+	u8    link_mode:2;
+	u8    reserved1:6;
+	u8    reserved2;
+	u8    reserved3;
+	u8    reserved4;
 } __packed;
 
 struct hif_otp_regul_sel_mode_info {
-	uint8_t    region_sel_mode:4;
-	uint8_t    reserved:4;
+	u8    region_sel_mode:4;
+	u8    reserved:4;
 } __packed;
 
 struct hif_otp_phy_info {
-	uint8_t    phy1_region:3;
-	uint8_t    phy0_region:3;
-	uint8_t    otp_phy_ver:2;
+	u8    phy1_region:3;
+	u8    phy0_region:3;
+	u8    otp_phy_ver:2;
 } __packed;
 
 #define API_OPN_SIZE                                    14
@@ -141,39 +141,39 @@ struct hif_otp_phy_info {
 #define API_FIRMWARE_LABEL_SIZE                         128
 
 struct hif_ind_startup {
-	uint32_t   status;
-	uint16_t   hardware_id;
-	uint8_t    opn[API_OPN_SIZE];
-	uint8_t    uid[API_UID_SIZE];
-	uint16_t   num_inp_ch_bufs;
-	uint16_t   size_inp_ch_buf;
-	uint8_t    num_links_ap;
-	uint8_t    num_interfaces;
-	uint8_t    mac_addr[2][ETH_ALEN];
-	uint8_t    api_version_minor;
-	uint8_t    api_version_major;
+	u32   status;
+	u16   hardware_id;
+	u8    opn[API_OPN_SIZE];
+	u8    uid[API_UID_SIZE];
+	u16   num_inp_ch_bufs;
+	u16   size_inp_ch_buf;
+	u8    num_links_ap;
+	u8    num_interfaces;
+	u8    mac_addr[2][ETH_ALEN];
+	u8    api_version_minor;
+	u8    api_version_major;
 	struct hif_capabilities capabilities;
-	uint8_t    firmware_build;
-	uint8_t    firmware_minor;
-	uint8_t    firmware_major;
-	uint8_t    firmware_type;
-	uint8_t    disabled_channel_list[API_DISABLED_CHANNEL_LIST_SIZE];
+	u8    firmware_build;
+	u8    firmware_minor;
+	u8    firmware_major;
+	u8    firmware_type;
+	u8    disabled_channel_list[API_DISABLED_CHANNEL_LIST_SIZE];
 	struct hif_otp_regul_sel_mode_info regul_sel_mode_info;
 	struct hif_otp_phy_info otp_phy_info;
-	uint32_t   supported_rate_mask;
-	uint8_t    firmware_label[API_FIRMWARE_LABEL_SIZE];
+	u32   supported_rate_mask;
+	u8    firmware_label[API_FIRMWARE_LABEL_SIZE];
 } __packed;
 
 struct hif_ind_wakeup {
 } __packed;
 
 struct hif_req_configuration {
-	uint16_t   length;
-	uint8_t    pds_data[];
+	u16   length;
+	u8    pds_data[];
 } __packed;
 
 struct hif_cnf_configuration {
-	uint32_t   status;
+	u32   status;
 } __packed;
 
 enum hif_gpio_mode {
@@ -187,8 +187,8 @@ enum hif_gpio_mode {
 };
 
 struct hif_req_control_gpio {
-	uint8_t gpio_label;
-	uint8_t gpio_mode;
+	u8 gpio_label;
+	u8 gpio_mode;
 } __packed;
 
 enum hif_gpio_error {
@@ -198,8 +198,8 @@ enum hif_gpio_error {
 };
 
 struct hif_cnf_control_gpio {
-	uint32_t status;
-	uint32_t value;
+	u32 status;
+	u32 value;
 } __packed;
 
 enum hif_generic_indication_type {
@@ -209,28 +209,28 @@ enum hif_generic_indication_type {
 };
 
 struct hif_rx_stats {
-	uint32_t   nb_rx_frame;
-	uint32_t   nb_crc_frame;
-	uint32_t   per_total;
-	uint32_t   throughput;
-	uint32_t   nb_rx_by_rate[API_RATE_NUM_ENTRIES];
-	uint16_t   per[API_RATE_NUM_ENTRIES];
-	int16_t    snr[API_RATE_NUM_ENTRIES];
-	int16_t    rssi[API_RATE_NUM_ENTRIES];
-	int16_t    cfo[API_RATE_NUM_ENTRIES];
-	uint32_t   date;
-	uint32_t   pwr_clk_freq;
-	uint8_t    is_ext_pwr_clk;
-	int8_t     current_temp;
+	u32   nb_rx_frame;
+	u32   nb_crc_frame;
+	u32   per_total;
+	u32   throughput;
+	u32   nb_rx_by_rate[API_RATE_NUM_ENTRIES];
+	u16   per[API_RATE_NUM_ENTRIES];
+	s16    snr[API_RATE_NUM_ENTRIES];
+	s16    rssi[API_RATE_NUM_ENTRIES];
+	s16    cfo[API_RATE_NUM_ENTRIES];
+	u32   date;
+	u32   pwr_clk_freq;
+	u8    is_ext_pwr_clk;
+	s8     current_temp;
 } __packed;
 
 union hif_indication_data {
 	struct hif_rx_stats                                   rx_stats;
-	uint8_t                                       raw_data[1];
+	u8                                       raw_data[1];
 };
 
 struct hif_ind_generic {
-	uint32_t indication_type;
+	u32 indication_type;
 	union hif_indication_data indication_data;
 } __packed;
 
@@ -238,7 +238,7 @@ struct hif_ind_generic {
 #define HIF_EXCEPTION_DATA_SIZE            124
 
 struct hif_ind_exception {
-	uint8_t    data[HIF_EXCEPTION_DATA_SIZE];
+	u8    data[HIF_EXCEPTION_DATA_SIZE];
 } __packed;
 
 
@@ -257,8 +257,8 @@ enum hif_error {
 };
 
 struct hif_ind_error {
-	uint32_t   type;
-	uint8_t    data[];
+	u32   type;
+	u8    data[];
 } __packed;
 
 enum hif_secure_link_state {
@@ -276,20 +276,20 @@ enum hif_sl_encryption_type {
 };
 
 struct hif_sl_msg_hdr {
-	uint32_t    seqnum:30;
-	uint32_t    encrypted:2;
+	u32    seqnum:30;
+	u32    encrypted:2;
 } __packed;
 
 struct hif_sl_msg {
 	struct hif_sl_msg_hdr hdr;
-	uint16_t        len;
-	uint8_t         payload[];
+	u16        len;
+	u8         payload[];
 } __packed;
 
 #define AES_CCM_TAG_SIZE     16
 
 struct hif_sl_tag {
-	uint8_t tag[16];
+	u8 tag[16];
 } __packed;
 
 enum hif_sl_mac_key_dest {
@@ -300,12 +300,12 @@ enum hif_sl_mac_key_dest {
 #define API_KEY_VALUE_SIZE      32
 
 struct hif_req_set_sl_mac_key {
-	uint8_t    otp_or_ram;
-	uint8_t    key_value[API_KEY_VALUE_SIZE];
+	u8    otp_or_ram;
+	u8    key_value[API_KEY_VALUE_SIZE];
 } __packed;
 
 struct hif_cnf_set_sl_mac_key {
-	uint32_t   status;
+	u32   status;
 } __packed;
 
 #define API_HOST_PUB_KEY_SIZE                           32
@@ -317,45 +317,45 @@ enum hif_sl_session_key_alg {
 };
 
 struct hif_req_sl_exchange_pub_keys {
-	uint8_t    algorithm:2;
-	uint8_t    reserved1:6;
-	uint8_t    reserved2[3];
-	uint8_t    host_pub_key[API_HOST_PUB_KEY_SIZE];
-	uint8_t    host_pub_key_mac[API_HOST_PUB_KEY_MAC_SIZE];
+	u8    algorithm:2;
+	u8    reserved1:6;
+	u8    reserved2[3];
+	u8    host_pub_key[API_HOST_PUB_KEY_SIZE];
+	u8    host_pub_key_mac[API_HOST_PUB_KEY_MAC_SIZE];
 } __packed;
 
 struct hif_cnf_sl_exchange_pub_keys {
-	uint32_t   status;
+	u32   status;
 } __packed;
 
 #define API_NCP_PUB_KEY_SIZE                            32
 #define API_NCP_PUB_KEY_MAC_SIZE                        64
 
 struct hif_ind_sl_exchange_pub_keys {
-	uint32_t   status;
-	uint8_t    ncp_pub_key[API_NCP_PUB_KEY_SIZE];
-	uint8_t    ncp_pub_key_mac[API_NCP_PUB_KEY_MAC_SIZE];
+	u32   status;
+	u8    ncp_pub_key[API_NCP_PUB_KEY_SIZE];
+	u8    ncp_pub_key_mac[API_NCP_PUB_KEY_MAC_SIZE];
 } __packed;
 
 #define API_ENCR_BMP_SIZE        32
 
 struct hif_req_sl_configure {
-	uint8_t    encr_bmp[API_ENCR_BMP_SIZE];
-	uint8_t    disable_session_key_protection:1;
-	uint8_t    reserved1:7;
-	uint8_t    reserved2[3];
+	u8    encr_bmp[API_ENCR_BMP_SIZE];
+	u8    disable_session_key_protection:1;
+	u8    reserved1:7;
+	u8    reserved2[3];
 } __packed;
 
 struct hif_cnf_sl_configure {
-	uint32_t status;
+	u32 status;
 } __packed;
 
 struct hif_req_prevent_rollback {
-	uint32_t   magic_word;
+	u32   magic_word;
 } __packed;
 
 struct hif_cnf_prevent_rollback {
-	uint32_t    status;
+	u32    status;
 } __packed;
 
 enum hif_pta_mode {
@@ -382,27 +382,27 @@ enum hif_grant_state {
 };
 
 struct hif_req_pta_settings {
-	uint8_t pta_mode;
-	uint8_t request_signal_active_level;
-	uint8_t priority_signal_active_level;
-	uint8_t freq_signal_active_level;
-	uint8_t grant_signal_active_level;
-	uint8_t coex_type;
-	uint8_t default_grant_state;
-	uint8_t simultaneous_rx_accesses;
-	uint8_t priority_sampling_time;
-	uint8_t tx_rx_sampling_time;
-	uint8_t freq_sampling_time;
-	uint8_t grant_valid_time;
-	uint8_t fem_control_time;
-	uint8_t first_slot_time;
-	uint16_t periodic_tx_rx_sampling_time;
-	uint16_t coex_quota;
-	uint16_t wlan_quota;
+	u8 pta_mode;
+	u8 request_signal_active_level;
+	u8 priority_signal_active_level;
+	u8 freq_signal_active_level;
+	u8 grant_signal_active_level;
+	u8 coex_type;
+	u8 default_grant_state;
+	u8 simultaneous_rx_accesses;
+	u8 priority_sampling_time;
+	u8 tx_rx_sampling_time;
+	u8 freq_sampling_time;
+	u8 grant_valid_time;
+	u8 fem_control_time;
+	u8 first_slot_time;
+	u16 periodic_tx_rx_sampling_time;
+	u16 coex_quota;
+	u16 wlan_quota;
 } __packed;
 
 struct hif_cnf_pta_settings {
-	uint32_t status;
+	u32 status;
 } __packed;
 
 enum hif_pta_priority {
@@ -414,11 +414,11 @@ enum hif_pta_priority {
 };
 
 struct hif_req_pta_priority {
-	uint32_t priority;
+	u32 priority;
 } __packed;
 
 struct hif_cnf_pta_priority {
-	uint32_t status;
+	u32 status;
 } __packed;
 
 enum hif_pta_state {
@@ -427,11 +427,11 @@ enum hif_pta_state {
 };
 
 struct hif_req_pta_state {
-	uint32_t pta_state;
+	u32 pta_state;
 } __packed;
 
 struct hif_cnf_pta_state {
-	uint32_t status;
+	u32 status;
 } __packed;
 
 #endif
