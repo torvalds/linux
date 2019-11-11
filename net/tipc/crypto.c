@@ -463,7 +463,7 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 			break;
 		}
 
-		err |= crypto_aead_setauthsize(tfm, TIPC_AES_GCM_TAG_SIZE);
+		err = crypto_aead_setauthsize(tfm, TIPC_AES_GCM_TAG_SIZE);
 		err |= crypto_aead_setkey(tfm, ukey->key, keylen);
 		if (unlikely(err)) {
 			crypto_free_aead(tfm);
