@@ -3810,7 +3810,6 @@ int cxgb4_ethofld_rx_handler(struct sge_rspq *q, const __be64 *rsp,
 				      eosw_txq->state ==
 				      CXGB4_EO_STATE_FLOWC_CLOSE_REPLY) &&
 				     eosw_txq->cidx == eosw_txq->flowc_idx)) {
-				hdr_len = skb->len;
 				flits = DIV_ROUND_UP(skb->len, 8);
 				if (eosw_txq->state ==
 				    CXGB4_EO_STATE_FLOWC_OPEN_REPLY)
