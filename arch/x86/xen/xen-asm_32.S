@@ -126,10 +126,9 @@ hyper_iret:
 	.globl xen_iret_start_crit, xen_iret_end_crit
 
 /*
- * This is called by xen_hypervisor_callback in entry.S when it sees
+ * This is called by xen_hypervisor_callback in entry_32.S when it sees
  * that the EIP at the time of interrupt was between
- * xen_iret_start_crit and xen_iret_end_crit.  We're passed the EIP in
- * %eax so we can do a more refined determination of what to do.
+ * xen_iret_start_crit and xen_iret_end_crit.
  *
  * The stack format at this point is:
  *	----------------
@@ -138,34 +137,23 @@ hyper_iret:
  *	 eflags		}  outer exception info
  *	 cs		}
  *	 eip		}
- *	---------------- <- edi (copy dest)
+ *	----------------
  *	 eax		:  outer eax if it hasn't been restored
  *	----------------
- *	 eflags		}  nested exception info
- *	 cs		}   (no ss/esp because we're nested
- *	 eip		}    from the same ring)
- *	 orig_eax	}<- esi (copy src)
- *	 - - - - - - - -
- *	 fs		}
- *	 es		}
- *	 ds		}  SAVE_ALL state
- *	 eax		}
- *	  :		:
- *	 ebx		}<- esp
- *	----------------
+ *	 eflags		}
+ *	 cs		}  nested exception info
+ *	 eip		}
+ *	 return address	: (into xen_hypervisor_callback)
  *
- * In order to deliver the nested exception properly, we need to shift
- * everything from the return addr up to the error code so it sits
- * just under the outer exception info.  This means that when we
- * handle the exception, we do it in the context of the outer
- * exception rather than starting a new one.
+ * In order to deliver the nested exception properly, we need to discard the
+ * nested exception frame such that when we handle the exception, we do it
+ * in the context of the outer exception rather than starting a new one.
  *
- * The only caveat is that if the outer eax hasn't been restored yet
- * (ie, it's still on stack), we need to insert its value into the
- * SAVE_ALL state before going on, since it's usermode state which we
- * eventually need to restore.
+ * The only caveat is that if the outer eax hasn't been restored yet (i.e.
+ * it's still on stack), we need to restore its value here.
  */
 ENTRY(xen_iret_crit_fixup)
+	pushl %ecx
 	/*
 	 * Paranoia: Make sure we're really coming from kernel space.
 	 * One could imagine a case where userspace jumps into the
@@ -176,32 +164,26 @@ ENTRY(xen_iret_crit_fixup)
 	 * jump instruction itself, not the destination, but some
 	 * virtual environments get this wrong.
 	 */
-	movl PT_CS(%esp), %ecx
+	movl 3*4(%esp), %ecx		/* nested CS */
 	andl $SEGMENT_RPL_MASK, %ecx
 	cmpl $USER_RPL, %ecx
+	popl %ecx
 	je 2f
-
-	lea PT_ORIG_EAX(%esp), %esi
-	lea PT_EFLAGS(%esp), %edi
 
 	/*
 	 * If eip is before iret_restore_end then stack
 	 * hasn't been restored yet.
 	 */
-	cmp $iret_restore_end, %eax
+	cmpl $iret_restore_end, 1*4(%esp)
 	jae 1f
 
-	movl 0+4(%edi), %eax		/* copy EAX (just above top of frame) */
-	movl %eax, PT_EAX(%esp)
+	movl 4*4(%esp), %eax		/* load outer EAX */
+	ret $4*4			/* discard nested EIP, CS, and EFLAGS as
+					 * well as the just restored EAX */
 
-	lea ESP_OFFSET(%edi), %edi	/* move dest up over saved regs */
+1:
+	ret $3*4			/* discard nested EIP, CS, and EFLAGS */
 
-	/* set up the copy */
-1:	std
-	mov $PT_EIP / 4, %ecx		/* saved regs up to orig_eax */
-	rep movsl
-	cld
-
-	lea 4(%edi), %esp		/* point esp to new frame */
-2:	jmp xen_do_upcall
-
+2:
+	ret
+END(xen_iret_crit_fixup)
