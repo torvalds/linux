@@ -183,7 +183,6 @@ struct mc_info {
 DEFINE_GUEST_HANDLE_STRUCT(mc_info);
 
 #define __MC_MSR_ARRAYSIZE 8
-#define __MC_MSR_MCGCAP 0
 #define __MC_NMSRS 1
 #define MC_NCAPS 7
 struct mcinfo_logical_cpu {
