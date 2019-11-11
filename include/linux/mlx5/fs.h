@@ -80,7 +80,8 @@ enum mlx5_flow_namespace_type {
 
 enum {
 	FDB_BYPASS_PATH,
-	FDB_FAST_PATH,
+	FDB_TC_OFFLOAD,
+	FDB_FT_OFFLOAD,
 	FDB_SLOW_PATH,
 };
 

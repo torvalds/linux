@@ -44,7 +44,12 @@
 #include "lib/mpfs.h"
 
 #define FDB_TC_MAX_CHAIN 3
-#define FDB_TC_SLOW_PATH_CHAIN (FDB_TC_MAX_CHAIN + 1)
+#define FDB_FT_CHAIN (FDB_TC_MAX_CHAIN + 1)
+#define FDB_TC_SLOW_PATH_CHAIN (FDB_FT_CHAIN + 1)
+
+/* The index of the last real chain (FT) + 1 as chain zero is valid as well */
+#define FDB_NUM_CHAINS (FDB_FT_CHAIN + 1)
+
 #define FDB_TC_MAX_PRIO 16
 #define FDB_TC_LEVELS_PER_PRIO 2
 
@@ -173,7 +178,7 @@ struct mlx5_eswitch_fdb {
 			struct {
 				struct mlx5_flow_table *fdb;
 				u32 num_rules;
-			} fdb_prio[FDB_TC_MAX_CHAIN + 1][FDB_TC_MAX_PRIO + 1][FDB_TC_LEVELS_PER_PRIO];
+			} fdb_prio[FDB_NUM_CHAINS][FDB_TC_MAX_PRIO + 1][FDB_TC_LEVELS_PER_PRIO];
 			/* Protects fdb_prio table */
 			struct mutex fdb_prio_lock;
 

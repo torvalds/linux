@@ -2624,16 +2624,19 @@ static int create_fdb_chains(struct mlx5_flow_steering *steering,
 
 static int create_fdb_fast_path(struct mlx5_flow_steering *steering)
 {
-	const int total_chains = FDB_TC_MAX_CHAIN + 1;
 	int err;
 
-	steering->fdb_sub_ns = kcalloc(total_chains,
+	steering->fdb_sub_ns = kcalloc(FDB_NUM_CHAINS,
 				       sizeof(*steering->fdb_sub_ns),
 				       GFP_KERNEL);
 	if (!steering->fdb_sub_ns)
 		return -ENOMEM;
 
-	err = create_fdb_chains(steering, FDB_FAST_PATH, FDB_TC_MAX_CHAIN + 1);
+	err = create_fdb_chains(steering, FDB_TC_OFFLOAD, FDB_TC_MAX_CHAIN + 1);
+	if (err)
+		return err;
+
+	err = create_fdb_chains(steering, FDB_FT_OFFLOAD, 1);
 	if (err)
 		return err;
 
