@@ -328,10 +328,16 @@ static int ms_play_effect(struct input_dev *dev, void *data,
 
 static int ms_init_ff(struct hid_device *hdev)
 {
-	struct hid_input *hidinput = list_entry(hdev->inputs.next,
-						struct hid_input, list);
-	struct input_dev *input_dev = hidinput->input;
+	struct hid_input *hidinput;
+	struct input_dev *input_dev;
 	struct ms_data *ms = hid_get_drvdata(hdev);
+
+	if (list_empty(&hdev->inputs)) {
+		hid_err(hdev, "no inputs found\n");
+		return -ENODEV;
+	}
+	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
+	input_dev = hidinput->input;
 
 	if (!(ms->quirks & MS_QUIRK_FF))
 		return 0;

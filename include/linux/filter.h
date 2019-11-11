@@ -1099,7 +1099,6 @@ static inline void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
 
 #endif /* CONFIG_BPF_JIT */
 
-void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp);
 void bpf_prog_kallsyms_del_all(struct bpf_prog *fp);
 
 #define BPF_ANC		BIT(15)

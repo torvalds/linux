@@ -814,7 +814,7 @@ static const struct resource_caps res_cap_nv14 = {
 		.num_audio = 6,
 		.num_stream_encoder = 5,
 		.num_pll = 5,
-		.num_dwb = 0,
+		.num_dwb = 1,
 		.num_ddc = 5,
 };
 
@@ -1106,6 +1106,11 @@ struct stream_encoder *dcn20_stream_encoder_create(
 
 	if (!enc1)
 		return NULL;
+
+	if (ASICREV_IS_NAVI14_M(ctx->asic_id.hw_internal_rev)) {
+		if (eng_id >= ENGINE_ID_DIGD)
+			eng_id++;
+	}
 
 	dcn20_stream_encoder_construct(enc1, ctx, ctx->dc_bios, eng_id,
 					&stream_enc_regs[eng_id],
