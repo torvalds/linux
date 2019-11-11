@@ -68,6 +68,7 @@ struct ethsw_core {
 	bool				learning;
 
 	struct notifier_block		port_nb;
+	struct notifier_block		port_switchdev_nb;
 };
 
 #endif	/* __ETHSW_H */

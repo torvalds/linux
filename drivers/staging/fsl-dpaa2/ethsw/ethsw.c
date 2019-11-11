@@ -1314,10 +1314,6 @@ static int port_switchdev_blocking_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block port_switchdev_nb = {
-	.notifier_call = port_switchdev_event,
-};
-
 static struct notifier_block port_switchdev_blocking_nb = {
 	.notifier_call = port_switchdev_blocking_event,
 };
@@ -1334,7 +1330,8 @@ static int ethsw_register_notifier(struct device *dev)
 		return err;
 	}
 
-	err = register_switchdev_notifier(&port_switchdev_nb);
+	ethsw->port_switchdev_nb.notifier_call = port_switchdev_event;
+	err = register_switchdev_notifier(&ethsw->port_switchdev_nb);
 	if (err) {
 		dev_err(dev, "Failed to register switchdev notifier\n");
 		goto err_switchdev_nb;
@@ -1349,7 +1346,7 @@ static int ethsw_register_notifier(struct device *dev)
 	return 0;
 
 err_switchdev_blocking_nb:
-	unregister_switchdev_notifier(&port_switchdev_nb);
+	unregister_switchdev_notifier(&ethsw->port_switchdev_nb);
 err_switchdev_nb:
 	unregister_netdevice_notifier(&ethsw->port_nb);
 	return err;
@@ -1499,7 +1496,7 @@ static void ethsw_unregister_notifier(struct device *dev)
 		dev_err(dev,
 			"Failed to unregister switchdev blocking notifier (%d)\n", err);
 
-	err = unregister_switchdev_notifier(&port_switchdev_nb);
+	err = unregister_switchdev_notifier(&ethsw->port_switchdev_nb);
 	if (err)
 		dev_err(dev,
 			"Failed to unregister switchdev notifier (%d)\n", err);
