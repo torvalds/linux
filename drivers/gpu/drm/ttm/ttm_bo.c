@@ -393,6 +393,18 @@ static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
 
 	r = dma_resv_copy_fences(&bo->base._resv, bo->base.resv);
 	dma_resv_unlock(&bo->base._resv);
+	if (r)
+		return r;
+
+	if (bo->type != ttm_bo_type_sg) {
+		/* This works because the BO is about to be destroyed and nobody
+		 * reference it any more. The only tricky case is the trylock on
+		 * the resv object while holding the lru_lock.
+		 */
+		spin_lock(&ttm_bo_glob.lru_lock);
+		bo->base.resv = &bo->base._resv;
+		spin_unlock(&ttm_bo_glob.lru_lock);
+	}
 
 	return r;
 }
@@ -720,7 +732,7 @@ static bool ttm_bo_evict_swapout_allowable(struct ttm_buffer_object *bo,
 
 	if (bo->base.resv == ctx->resv) {
 		dma_resv_assert_held(bo->base.resv);
-		if (ctx->flags & TTM_OPT_FLAG_ALLOW_RES_EVICT || bo->deleted)
+		if (ctx->flags & TTM_OPT_FLAG_ALLOW_RES_EVICT)
 			ret = true;
 		*locked = false;
 		if (busy)
