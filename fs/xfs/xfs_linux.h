@@ -229,6 +229,10 @@ int xfs_rw_bdev(struct block_device *bdev, sector_t sector, unsigned int count,
 #define ASSERT(expr)	\
 	(likely(expr) ? (void)0 : assfail(NULL, #expr, __FILE__, __LINE__))
 
+#define XFS_IS_CORRUPT(mp, expr)	\
+	(unlikely(expr) ? assfail((mp), #expr, __FILE__, __LINE__), \
+			  true : false)
+
 #else	/* !DEBUG */
 
 #ifdef XFS_WARN
@@ -236,9 +240,16 @@ int xfs_rw_bdev(struct block_device *bdev, sector_t sector, unsigned int count,
 #define ASSERT(expr)	\
 	(likely(expr) ? (void)0 : asswarn(NULL, #expr, __FILE__, __LINE__))
 
+#define XFS_IS_CORRUPT(mp, expr)	\
+	(unlikely(expr) ? asswarn((mp), #expr, __FILE__, __LINE__), \
+			  true : false)
+
 #else	/* !DEBUG && !XFS_WARN */
 
-#define ASSERT(expr)	((void)0)
+#define ASSERT(expr)		((void)0)
+#define XFS_IS_CORRUPT(mp, expr)	\
+	(unlikely(expr) ? XFS_ERROR_REPORT(#expr, XFS_ERRLEVEL_LOW, (mp)), \
+			  true : false)
 
 #endif /* XFS_WARN */
 #endif /* DEBUG */
