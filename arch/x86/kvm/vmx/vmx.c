@@ -6137,7 +6137,7 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 	if (pi_test_on(&vmx->pi_desc)) {
 		pi_clear_on(&vmx->pi_desc);
 		/*
-		 * IOMMU can write to PIR.ON, so the barrier matters even on UP.
+		 * IOMMU can write to PID.ON, so the barrier matters even on UP.
 		 * But on x86 this is just a compiler barrier anyway.
 		 */
 		smp_mb__after_atomic();
