@@ -1177,7 +1177,7 @@ xfs_refcount_finish_one(
 				XFS_ALLOC_FLAG_FREEING, &agbp);
 		if (error)
 			return error;
-		if (!agbp)
+		if (XFS_IS_CORRUPT(tp->t_mountp, !agbp))
 			return -EFSCORRUPTED;
 
 		rcur = xfs_refcountbt_init_cursor(mp, tp, agbp, agno);
@@ -1661,17 +1661,16 @@ struct xfs_refcount_recovery {
 /* Stuff an extent on the recovery list. */
 STATIC int
 xfs_refcount_recover_extent(
-	struct xfs_btree_cur 		*cur,
+	struct xfs_btree_cur		*cur,
 	union xfs_btree_rec		*rec,
 	void				*priv)
 {
 	struct list_head		*debris = priv;
 	struct xfs_refcount_recovery	*rr;
 
-	if (be32_to_cpu(rec->refc.rc_refcount) != 1) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, cur->bc_mp);
+	if (XFS_IS_CORRUPT(cur->bc_mp,
+			   be32_to_cpu(rec->refc.rc_refcount) != 1))
 		return -EFSCORRUPTED;
-	}
 
 	rr = kmem_alloc(sizeof(struct xfs_refcount_recovery), 0);
 	xfs_refcount_btrec_to_irec(rec, &rr->rr_rrec);

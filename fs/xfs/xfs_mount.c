@@ -761,9 +761,8 @@ xfs_mountfs(
 		goto out_free_dir;
 	}
 
-	if (!sbp->sb_logblocks) {
+	if (XFS_IS_CORRUPT(mp, !sbp->sb_logblocks)) {
 		xfs_warn(mp, "no log defined");
-		XFS_ERROR_REPORT("xfs_mountfs", XFS_ERRLEVEL_LOW, mp);
 		error = -EFSCORRUPTED;
 		goto out_free_perag;
 	}
@@ -801,12 +800,10 @@ xfs_mountfs(
 
 	ASSERT(rip != NULL);
 
-	if (unlikely(!S_ISDIR(VFS_I(rip)->i_mode))) {
+	if (XFS_IS_CORRUPT(mp, !S_ISDIR(VFS_I(rip)->i_mode))) {
 		xfs_warn(mp, "corrupted root inode %llu: not a directory",
 			(unsigned long long)rip->i_ino);
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
-		XFS_ERROR_REPORT("xfs_mountfs_int(2)", XFS_ERRLEVEL_LOW,
-				 mp);
 		error = -EFSCORRUPTED;
 		goto out_rele_rip;
 	}

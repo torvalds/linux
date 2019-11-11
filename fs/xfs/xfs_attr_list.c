@@ -86,11 +86,10 @@ xfs_attr_shortform_list(
 	    (XFS_ISRESET_CURSOR(cursor) &&
 	     (dp->i_afp->if_bytes + sf->hdr.count * 16) < context->bufsize)) {
 		for (i = 0, sfe = &sf->list[0]; i < sf->hdr.count; i++) {
-			if (!xfs_attr_namecheck(sfe->nameval, sfe->namelen)) {
-				XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW,
-						 context->dp->i_mount);
+			if (XFS_IS_CORRUPT(context->dp->i_mount,
+					   !xfs_attr_namecheck(sfe->nameval,
+							       sfe->namelen)))
 				return -EFSCORRUPTED;
-			}
 			context->put_listent(context,
 					     sfe->flags,
 					     sfe->nameval,
@@ -179,9 +178,9 @@ xfs_attr_shortform_list(
 			cursor->hashval = sbp->hash;
 			cursor->offset = 0;
 		}
-		if (!xfs_attr_namecheck(sbp->name, sbp->namelen)) {
-			XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW,
-					 context->dp->i_mount);
+		if (XFS_IS_CORRUPT(context->dp->i_mount,
+				   !xfs_attr_namecheck(sbp->name,
+						       sbp->namelen))) {
 			error = -EFSCORRUPTED;
 			goto out;
 		}
@@ -269,10 +268,8 @@ xfs_attr_node_list_lookup(
 			return 0;
 
 		/* We can't point back to the root. */
-		if (cursor->blkno == 0) {
-			XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
+		if (XFS_IS_CORRUPT(mp, cursor->blkno == 0))
 			return -EFSCORRUPTED;
-		}
 	}
 
 	if (expected_level != 0)
@@ -473,11 +470,9 @@ xfs_attr3_leaf_list_int(
 			valuelen = be32_to_cpu(name_rmt->valuelen);
 		}
 
-		if (!xfs_attr_namecheck(name, namelen)) {
-			XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW,
-					 context->dp->i_mount);
+		if (XFS_IS_CORRUPT(context->dp->i_mount,
+				   !xfs_attr_namecheck(name, namelen)))
 			return -EFSCORRUPTED;
-		}
 		context->put_listent(context, entry->flags,
 					      name, namelen, valuelen);
 		if (context->seen_enough)

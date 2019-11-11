@@ -208,10 +208,10 @@ xfs_dir_ino_validate(
 {
 	bool		ino_ok = xfs_verify_dir_ino(mp, ino);
 
-	if (unlikely(XFS_TEST_ERROR(!ino_ok, mp, XFS_ERRTAG_DIR_INO_VALIDATE))) {
+	if (XFS_IS_CORRUPT(mp, !ino_ok) ||
+	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_DIR_INO_VALIDATE)) {
 		xfs_warn(mp, "Invalid inode number 0x%Lx",
 				(unsigned long long) ino);
-		XFS_ERROR_REPORT("xfs_dir_ino_validate", XFS_ERRLEVEL_LOW, mp);
 		return -EFSCORRUPTED;
 	}
 	return 0;
@@ -617,10 +617,10 @@ xfs_dir2_isblock(
 	if ((rval = xfs_bmap_last_offset(args->dp, &last, XFS_DATA_FORK)))
 		return rval;
 	rval = XFS_FSB_TO_B(args->dp->i_mount, last) == args->geo->blksize;
-	if (rval != 0 && args->dp->i_d.di_size != args->geo->blksize) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, args->dp->i_mount);
+	if (XFS_IS_CORRUPT(args->dp->i_mount,
+			   rval != 0 &&
+			   args->dp->i_d.di_size != args->geo->blksize))
 		return -EFSCORRUPTED;
-	}
 	*vp = rval;
 	return 0;
 }

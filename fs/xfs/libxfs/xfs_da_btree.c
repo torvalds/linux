@@ -1663,17 +1663,12 @@ xfs_da3_node_lookup_int(
 		}
 
 		/* We can't point back to the root. */
-		if (blkno == args->geo->leafblk) {
-			XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW,
-					dp->i_mount);
+		if (XFS_IS_CORRUPT(dp->i_mount, blkno == args->geo->leafblk))
 			return -EFSCORRUPTED;
-		}
 	}
 
-	if (expected_level != 0) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, dp->i_mount);
+	if (XFS_IS_CORRUPT(dp->i_mount, expected_level != 0))
 		return -EFSCORRUPTED;
-	}
 
 	/*
 	 * A leaf block that ends in the hashval that we are interested in
@@ -2267,11 +2262,8 @@ xfs_da3_swap_lastblock(
 	error = xfs_bmap_last_before(tp, dp, &lastoff, w);
 	if (error)
 		return error;
-	if (unlikely(lastoff == 0)) {
-		XFS_ERROR_REPORT("xfs_da_swap_lastblock(1)", XFS_ERRLEVEL_LOW,
-				 mp);
+	if (XFS_IS_CORRUPT(mp, lastoff == 0))
 		return -EFSCORRUPTED;
-	}
 	/*
 	 * Read the last block in the btree space.
 	 */
@@ -2317,11 +2309,9 @@ xfs_da3_swap_lastblock(
 		if (error)
 			goto done;
 		sib_info = sib_buf->b_addr;
-		if (unlikely(
-		    be32_to_cpu(sib_info->forw) != last_blkno ||
-		    sib_info->magic != dead_info->magic)) {
-			XFS_ERROR_REPORT("xfs_da_swap_lastblock(2)",
-					 XFS_ERRLEVEL_LOW, mp);
+		if (XFS_IS_CORRUPT(mp,
+				   be32_to_cpu(sib_info->forw) != last_blkno ||
+				   sib_info->magic != dead_info->magic)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
@@ -2339,11 +2329,9 @@ xfs_da3_swap_lastblock(
 		if (error)
 			goto done;
 		sib_info = sib_buf->b_addr;
-		if (unlikely(
-		       be32_to_cpu(sib_info->back) != last_blkno ||
-		       sib_info->magic != dead_info->magic)) {
-			XFS_ERROR_REPORT("xfs_da_swap_lastblock(3)",
-					 XFS_ERRLEVEL_LOW, mp);
+		if (XFS_IS_CORRUPT(mp,
+				   be32_to_cpu(sib_info->back) != last_blkno ||
+				   sib_info->magic != dead_info->magic)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
@@ -2364,9 +2352,8 @@ xfs_da3_swap_lastblock(
 			goto done;
 		par_node = par_buf->b_addr;
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &par_hdr, par_node);
-		if (level >= 0 && level != par_hdr.level + 1) {
-			XFS_ERROR_REPORT("xfs_da_swap_lastblock(4)",
-					 XFS_ERRLEVEL_LOW, mp);
+		if (XFS_IS_CORRUPT(mp,
+				   level >= 0 && level != par_hdr.level + 1)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
@@ -2377,9 +2364,7 @@ xfs_da3_swap_lastblock(
 		     be32_to_cpu(btree[entno].hashval) < dead_hash;
 		     entno++)
 			continue;
-		if (entno == par_hdr.count) {
-			XFS_ERROR_REPORT("xfs_da_swap_lastblock(5)",
-					 XFS_ERRLEVEL_LOW, mp);
+		if (XFS_IS_CORRUPT(mp, entno == par_hdr.count)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
@@ -2404,9 +2389,7 @@ xfs_da3_swap_lastblock(
 		par_blkno = par_hdr.forw;
 		xfs_trans_brelse(tp, par_buf);
 		par_buf = NULL;
-		if (unlikely(par_blkno == 0)) {
-			XFS_ERROR_REPORT("xfs_da_swap_lastblock(6)",
-					 XFS_ERRLEVEL_LOW, mp);
+		if (XFS_IS_CORRUPT(mp, par_blkno == 0)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
@@ -2415,9 +2398,7 @@ xfs_da3_swap_lastblock(
 			goto done;
 		par_node = par_buf->b_addr;
 		xfs_da3_node_hdr_from_disk(dp->i_mount, &par_hdr, par_node);
-		if (par_hdr.level != level) {
-			XFS_ERROR_REPORT("xfs_da_swap_lastblock(7)",
-					 XFS_ERRLEVEL_LOW, mp);
+		if (XFS_IS_CORRUPT(mp, par_hdr.level != level)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
@@ -2611,7 +2592,7 @@ xfs_dabuf_map(
 
 	if (!xfs_da_map_covers_blocks(nirecs, irecs, bno, nfsb)) {
 		/* Caller ok with no mapping. */
-		if (mappedbno == -2) {
+		if (!XFS_IS_CORRUPT(mp, mappedbno != -2)) {
 			error = -1;
 			goto out;
 		}
@@ -2632,7 +2613,6 @@ xfs_dabuf_map(
 					irecs[i].br_state);
 			}
 		}
-		XFS_ERROR_REPORT("xfs_da_do_buf(1)", XFS_ERRLEVEL_LOW, mp);
 		error = -EFSCORRUPTED;
 		goto out;
 	}
