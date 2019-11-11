@@ -21,9 +21,8 @@ static atomic64_t io_bitmap_sequence;
  */
 long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 {
-	unsigned int i, max_long, bytes, bytes_updated;
 	struct thread_struct *t = &current->thread;
-	struct tss_struct *tss;
+	unsigned int i, max_long;
 	struct io_bitmap *iobm;
 
 	if ((from + num <= from) || (from + num > IO_BITMAP_BITS))
@@ -50,10 +49,9 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	}
 
 	/*
-	 * Update the bitmap and the TSS copy with preemption disabled to
-	 * prevent a race against context switch.
+	 * Update the tasks bitmap. The update of the TSS bitmap happens on
+	 * exit to user mode. So this needs no protection.
 	 */
-	preempt_disable();
 	if (turn_on)
 		bitmap_clear(iobm->bitmap, from, num);
 	else
@@ -69,11 +67,8 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 			max_long = i;
 	}
 
-	bytes = (max_long + 1) * sizeof(unsigned long);
-	bytes_updated = max(bytes, t->io_bitmap->max);
+	iobm->max = (max_long + 1) * sizeof(unsigned long);
 
-	/* Update the thread data */
-	iobm->max = bytes;
 	/* Update the sequence number to force an update in switch_to() */
 	iobm->sequence = atomic64_add_return(1, &io_bitmap_sequence);
 
@@ -84,18 +79,6 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 */
 	t->io_bitmap = iobm;
 	set_thread_flag(TIF_IO_BITMAP);
-
-	/* Update the TSS */
-	tss = this_cpu_ptr(&cpu_tss_rw);
-	memcpy(tss->io_bitmap.bitmap, iobm->bitmap, bytes_updated);
-	/* Store the new end of the zero bits */
-	tss->io_bitmap.prev_max = bytes;
-	/* Make the bitmap base in the TSS valid */
-	tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET_VALID;
-	/* Make sure the TSS limit covers the I/O bitmap. */
-	refresh_tss_limit();
-
-	preempt_enable();
 
 	return 0;
 }

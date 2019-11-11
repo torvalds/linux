@@ -11,4 +11,6 @@ struct io_bitmap {
 	unsigned long	bitmap[IO_BITMAP_LONGS];
 };
 
+void tss_update_io_bitmap(void);
+
 #endif

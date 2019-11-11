@@ -360,8 +360,34 @@ void arch_setup_new_exec(void)
 	}
 }
 
-static void switch_to_update_io_bitmap(struct tss_struct *tss,
-				       struct io_bitmap *iobm)
+static inline void tss_invalidate_io_bitmap(struct tss_struct *tss)
+{
+	/*
+	 * Invalidate the I/O bitmap by moving io_bitmap_base outside the
+	 * TSS limit so any subsequent I/O access from user space will
+	 * trigger a #GP.
+	 *
+	 * This is correct even when VMEXIT rewrites the TSS limit
+	 * to 0x67 as the only requirement is that the base points
+	 * outside the limit.
+	 */
+	tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET_INVALID;
+}
+
+static inline void switch_to_bitmap(unsigned long tifp)
+{
+	/*
+	 * Invalidate I/O bitmap if the previous task used it. This prevents
+	 * any possible leakage of an active I/O bitmap.
+	 *
+	 * If the next task has an I/O bitmap it will handle it on exit to
+	 * user mode.
+	 */
+	if (tifp & _TIF_IO_BITMAP)
+		tss_invalidate_io_bitmap(this_cpu_ptr(&cpu_tss_rw));
+}
+
+static void tss_copy_io_bitmap(struct tss_struct *tss, struct io_bitmap *iobm)
 {
 	/*
 	 * Copy at least the byte range of the incoming tasks bitmap which
@@ -382,13 +408,15 @@ static void switch_to_update_io_bitmap(struct tss_struct *tss,
 	tss->io_bitmap.prev_sequence = iobm->sequence;
 }
 
-static inline void switch_to_bitmap(struct thread_struct *next,
-				    unsigned long tifp, unsigned long tifn)
+/**
+ * tss_update_io_bitmap - Update I/O bitmap before exiting to usermode
+ */
+void tss_update_io_bitmap(void)
 {
 	struct tss_struct *tss = this_cpu_ptr(&cpu_tss_rw);
 
-	if (tifn & _TIF_IO_BITMAP) {
-		struct io_bitmap *iobm = next->io_bitmap;
+	if (test_thread_flag(TIF_IO_BITMAP)) {
+		struct io_bitmap *iobm = current->thread.io_bitmap;
 
 		/*
 		 * Only copy bitmap data when the sequence number
@@ -396,7 +424,7 @@ static inline void switch_to_bitmap(struct thread_struct *next,
 		 * task.
 		 */
 		if (tss->io_bitmap.prev_sequence != iobm->sequence)
-			switch_to_update_io_bitmap(tss, iobm);
+			tss_copy_io_bitmap(tss, iobm);
 
 		/* Enable the bitmap */
 		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET_VALID;
@@ -409,18 +437,8 @@ static inline void switch_to_bitmap(struct thread_struct *next,
 		 * limit.
 		 */
 		refresh_tss_limit();
-	} else if (tifp & _TIF_IO_BITMAP) {
-		/*
-		 * Do not touch the bitmap. Let the next bitmap using task
-		 * deal with the mess. Just make the io_bitmap_base invalid
-		 * by moving it outside the TSS limit so any subsequent I/O
-		 * access from user space will trigger a #GP.
-		 *
-		 * This is correct even when VMEXIT rewrites the TSS limit
-		 * to 0x67 as the only requirement is that the base points
-		 * outside the limit.
-		 */
-		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET_INVALID;
+	} else {
+		tss_invalidate_io_bitmap(tss);
 	}
 }
 
@@ -634,7 +652,8 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 
 	tifn = READ_ONCE(task_thread_info(next_p)->flags);
 	tifp = READ_ONCE(task_thread_info(prev_p)->flags);
-	switch_to_bitmap(next, tifp, tifn);
+
+	switch_to_bitmap(tifp);
 
 	propagate_user_return_notify(prev_p, next_p);
 
