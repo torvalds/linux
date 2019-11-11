@@ -12,9 +12,9 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
+#include "xfs_inode.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
-#include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_attr_leaf.h"
@@ -2092,18 +2092,6 @@ xfs_da_compname(
 	return (args->namelen == len && memcmp(args->name, name, len) == 0) ?
 					XFS_CMP_EXACT : XFS_CMP_DIFFERENT;
 }
-
-static xfs_dahash_t
-xfs_default_hashname(
-	struct xfs_name	*name)
-{
-	return xfs_da_hashname(name->name, name->len);
-}
-
-const struct xfs_nameops xfs_default_nameops = {
-	.hashname	= xfs_default_hashname,
-	.compname	= xfs_da_compname
-};
 
 int
 xfs_da_grow_inode_int(

@@ -158,16 +158,6 @@ struct xfs_da3_icnode_hdr {
 		(uint)(XFS_DA_LOGOFF(BASE, ADDR)), \
 		(uint)(XFS_DA_LOGOFF(BASE, ADDR)+(SIZE)-1)
 
-/*
- * Name ops for directory and/or attr name operations
- */
-struct xfs_nameops {
-	xfs_dahash_t	(*hashname)(struct xfs_name *);
-	enum xfs_dacmp	(*compname)(struct xfs_da_args *,
-					const unsigned char *, int);
-};
-
-
 /*========================================================================
  * Function prototypes.
  *========================================================================*/
@@ -234,6 +224,5 @@ void	xfs_da3_node_hdr_to_disk(struct xfs_mount *mp,
 		struct xfs_da_intnode *to, struct xfs_da3_icnode_hdr *from);
 
 extern struct kmem_zone *xfs_da_state_zone;
-extern const struct xfs_nameops xfs_default_nameops;
 
 #endif	/* __XFS_DA_BTREE_H__ */

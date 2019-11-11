@@ -875,7 +875,7 @@ xfs_dir2_leafn_lookup_for_entry(
 		 * EEXIST immediately. If it's the first case-insensitive
 		 * match, store the block & inode number and continue looking.
 		 */
-		cmp = mp->m_dirnameops->compname(args, dep->name, dep->namelen);
+		cmp = xfs_dir2_compname(args, dep->name, dep->namelen);
 		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
 			/* If there is a CI match block, drop it */
 			if (args->cmpresult != XFS_CMP_DIFFERENT &&

@@ -9,7 +9,6 @@
 struct xlog;
 struct xfs_inode;
 struct xfs_mru_cache;
-struct xfs_nameops;
 struct xfs_ail;
 struct xfs_quotainfo;
 struct xfs_da_geometry;
@@ -154,7 +153,6 @@ typedef struct xfs_mount {
 	int			m_dalign;	/* stripe unit */
 	int			m_swidth;	/* stripe width */
 	uint8_t			m_sectbb_log;	/* sectlog - BBSHIFT */
-	const struct xfs_nameops *m_dirnameops;	/* vector of dir name ops */
 	atomic_t		m_active_trans;	/* number trans frozen */
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */

@@ -914,8 +914,7 @@ xfs_dir2_sf_lookup(
 		 * number. If it's the first case-insensitive match, store the
 		 * inode number and continue looking for an exact match.
 		 */
-		cmp = dp->i_mount->m_dirnameops->compname(args, sfep->name,
-								sfep->namelen);
+		cmp = xfs_dir2_compname(args, sfep->name, sfep->namelen);
 		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
 			args->cmpresult = cmp;
 			args->inumber = xfs_dir2_sf_get_ino(mp, sfp, sfep);

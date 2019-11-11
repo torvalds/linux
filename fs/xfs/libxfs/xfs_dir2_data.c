@@ -236,7 +236,7 @@ __xfs_dir3_data_check(
 						((char *)dep - (char *)hdr));
 			name.name = dep->name;
 			name.len = dep->namelen;
-			hash = mp->m_dirnameops->hashname(&name);
+			hash = xfs_dir2_hashname(mp, &name);
 			for (i = 0; i < be32_to_cpu(btp->count); i++) {
 				if (be32_to_cpu(lep[i].address) == addr &&
 				    be32_to_cpu(lep[i].hashval) == hash)

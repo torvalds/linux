@@ -660,13 +660,11 @@ xfs_dir2_block_lookup_int(
 	int			high;		/* binary search high index */
 	int			low;		/* binary search low index */
 	int			mid;		/* binary search current idx */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_trans_t		*tp;		/* transaction pointer */
 	enum xfs_dacmp		cmp;		/* comparison result */
 
 	dp = args->dp;
 	tp = args->trans;
-	mp = dp->i_mount;
 
 	error = xfs_dir3_block_read(tp, dp, &bp);
 	if (error)
@@ -718,7 +716,7 @@ xfs_dir2_block_lookup_int(
 		 * and buffer. If it's the first case-insensitive match, store
 		 * the index and buffer and continue looking for an exact match.
 		 */
-		cmp = mp->m_dirnameops->compname(args, dep->name, dep->namelen);
+		cmp = xfs_dir2_compname(args, dep->name, dep->namelen);
 		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
 			args->cmpresult = cmp;
 			*bpp = bp;
@@ -1218,8 +1216,7 @@ xfs_dir2_sf_to_block(
 		xfs_dir2_data_log_entry(args, bp, dep);
 		name.name = sfep->name;
 		name.len = sfep->namelen;
-		blp[2 + i].hashval =
-			cpu_to_be32(mp->m_dirnameops->hashname(&name));
+		blp[2 + i].hashval = cpu_to_be32(xfs_dir2_hashname(mp, &name));
 		blp[2 + i].address =
 			cpu_to_be32(xfs_dir2_byte_to_dataptr(newoffset));
 		offset = (int)((char *)(tagp + 1) - (char *)hdr);
