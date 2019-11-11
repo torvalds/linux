@@ -2576,7 +2576,8 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 		goto out_err;
 	}
 
-	levels = 2 * FDB_TC_MAX_PRIO * (FDB_TC_MAX_CHAIN + 1);
+	levels = FDB_TC_LEVELS_PER_PRIO *
+		 FDB_TC_MAX_PRIO * (FDB_TC_MAX_CHAIN + 1);
 	maj_prio = fs_create_prio_chained(&steering->fdb_root_ns->ns,
 					  FDB_FAST_PATH,
 					  levels);
@@ -2593,7 +2594,8 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 		}
 
 		for (prio = 0; prio < FDB_TC_MAX_PRIO * (chain + 1); prio++) {
-			min_prio = fs_create_prio(ns, prio, 2);
+			min_prio = fs_create_prio(ns, prio,
+						  FDB_TC_LEVELS_PER_PRIO);
 			if (IS_ERR(min_prio)) {
 				err = PTR_ERR(min_prio);
 				goto out_err;
