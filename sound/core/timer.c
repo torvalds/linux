@@ -268,8 +268,7 @@ int snd_timer_open(struct snd_timer_instance *timeri,
 		list_add_tail(&timeri->open_list, &snd_timer_slave_list);
 		num_slaves++;
 		err = snd_timer_check_slave(timeri);
-		if (err < 0)
-			goto close;
+		goto list_added;
 	}
 
 	/* open a master instance */
@@ -324,7 +323,7 @@ int snd_timer_open(struct snd_timer_instance *timeri,
 	list_add_tail(&timeri->open_list, &timer->open_list_head);
 	timer->num_instances++;
 	err = snd_timer_check_master(timeri);
- close:
+list_added:
 	if (err < 0)
 		snd_timer_close_locked(timeri, &card_dev_to_put);
 
