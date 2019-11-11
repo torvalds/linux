@@ -697,9 +697,9 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
 }
 
 /*
- * Convert a struct timespec into a 64-bit change attribute
+ * Convert a struct timespec64 into a 64-bit change attribute
  *
- * This does approximately the same thing as timespec_to_ns(),
+ * This does approximately the same thing as timespec64_to_ns(),
  * but for calculation efficiency, we multiply the seconds by
  * 1024*1024*1024.
  */
