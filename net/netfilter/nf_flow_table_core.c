@@ -19,13 +19,10 @@ static LIST_HEAD(flowtables);
 
 static void
 flow_offload_fill_dir(struct flow_offload *flow, struct nf_conn *ct,
-		      struct nf_flow_route *route,
 		      enum flow_offload_tuple_dir dir)
 {
 	struct flow_offload_tuple *ft = &flow->tuplehash[dir].tuple;
 	struct nf_conntrack_tuple *ctt = &ct->tuplehash[dir].tuple;
-	struct dst_entry *other_dst = route->tuple[!dir].dst;
-	struct dst_entry *dst = route->tuple[dir].dst;
 
 	ft->dir = dir;
 
@@ -33,12 +30,10 @@ flow_offload_fill_dir(struct flow_offload *flow, struct nf_conn *ct,
 	case NFPROTO_IPV4:
 		ft->src_v4 = ctt->src.u3.in;
 		ft->dst_v4 = ctt->dst.u3.in;
-		ft->mtu = ip_dst_mtu_maybe_forward(dst, true);
 		break;
 	case NFPROTO_IPV6:
 		ft->src_v6 = ctt->src.u3.in6;
 		ft->dst_v6 = ctt->dst.u3.in6;
-		ft->mtu = ip6_dst_mtu_forward(dst);
 		break;
 	}
 
@@ -46,13 +41,9 @@ flow_offload_fill_dir(struct flow_offload *flow, struct nf_conn *ct,
 	ft->l4proto = ctt->dst.protonum;
 	ft->src_port = ctt->src.u.tcp.port;
 	ft->dst_port = ctt->dst.u.tcp.port;
-
-	ft->iifidx = other_dst->dev->ifindex;
-	ft->dst_cache = dst;
 }
 
-struct flow_offload *
-flow_offload_alloc(struct nf_conn *ct, struct nf_flow_route *route)
+struct flow_offload *flow_offload_alloc(struct nf_conn *ct)
 {
 	struct flow_offload *flow;
 
@@ -64,16 +55,10 @@ flow_offload_alloc(struct nf_conn *ct, struct nf_flow_route *route)
 	if (!flow)
 		goto err_ct_refcnt;
 
-	if (!dst_hold_safe(route->tuple[FLOW_OFFLOAD_DIR_ORIGINAL].dst))
-		goto err_dst_cache_original;
-
-	if (!dst_hold_safe(route->tuple[FLOW_OFFLOAD_DIR_REPLY].dst))
-		goto err_dst_cache_reply;
-
 	flow->ct = ct;
 
-	flow_offload_fill_dir(flow, ct, route, FLOW_OFFLOAD_DIR_ORIGINAL);
-	flow_offload_fill_dir(flow, ct, route, FLOW_OFFLOAD_DIR_REPLY);
+	flow_offload_fill_dir(flow, ct, FLOW_OFFLOAD_DIR_ORIGINAL);
+	flow_offload_fill_dir(flow, ct, FLOW_OFFLOAD_DIR_REPLY);
 
 	if (ct->status & IPS_SRC_NAT)
 		flow->flags |= FLOW_OFFLOAD_SNAT;
@@ -82,16 +67,62 @@ flow_offload_alloc(struct nf_conn *ct, struct nf_flow_route *route)
 
 	return flow;
 
-err_dst_cache_reply:
-	dst_release(route->tuple[FLOW_OFFLOAD_DIR_ORIGINAL].dst);
-err_dst_cache_original:
-	kfree(flow);
 err_ct_refcnt:
 	nf_ct_put(ct);
 
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(flow_offload_alloc);
+
+static int flow_offload_fill_route(struct flow_offload *flow,
+				   const struct nf_flow_route *route,
+				   enum flow_offload_tuple_dir dir)
+{
+	struct flow_offload_tuple *flow_tuple = &flow->tuplehash[dir].tuple;
+	struct dst_entry *other_dst = route->tuple[!dir].dst;
+	struct dst_entry *dst = route->tuple[dir].dst;
+
+	if (!dst_hold_safe(route->tuple[dir].dst))
+		return -1;
+
+	switch (flow_tuple->l3proto) {
+	case NFPROTO_IPV4:
+		flow_tuple->mtu = ip_dst_mtu_maybe_forward(dst, true);
+		break;
+	case NFPROTO_IPV6:
+		flow_tuple->mtu = ip6_dst_mtu_forward(dst);
+		break;
+	}
+
+	flow_tuple->iifidx = other_dst->dev->ifindex;
+	flow_tuple->dst_cache = dst;
+
+	return 0;
+}
+
+int flow_offload_route_init(struct flow_offload *flow,
+			    const struct nf_flow_route *route)
+{
+	int err;
+
+	err = flow_offload_fill_route(flow, route, FLOW_OFFLOAD_DIR_ORIGINAL);
+	if (err < 0)
+		return err;
+
+	err = flow_offload_fill_route(flow, route, FLOW_OFFLOAD_DIR_REPLY);
+	if (err < 0)
+		goto err_route_reply;
+
+	flow->type = NF_FLOW_OFFLOAD_ROUTE;
+
+	return 0;
+
+err_route_reply:
+	dst_release(route->tuple[FLOW_OFFLOAD_DIR_ORIGINAL].dst);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(flow_offload_route_init);
 
 static void flow_offload_fixup_tcp(struct ip_ct_tcp *tcp)
 {
@@ -141,10 +172,21 @@ static void flow_offload_fixup_ct(struct nf_conn *ct)
 	flow_offload_fixup_ct_timeout(ct);
 }
 
-void flow_offload_free(struct flow_offload *flow)
+static void flow_offload_route_release(struct flow_offload *flow)
 {
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_cache);
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_cache);
+}
+
+void flow_offload_free(struct flow_offload *flow)
+{
+	switch (flow->type) {
+	case NF_FLOW_OFFLOAD_ROUTE:
+		flow_offload_route_release(flow);
+		break;
+	default:
+		break;
+	}
 	if (flow->flags & FLOW_OFFLOAD_DYING)
 		nf_ct_delete(flow->ct, 0, 0);
 	nf_ct_put(flow->ct);

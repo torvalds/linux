@@ -70,10 +70,16 @@ struct flow_offload_tuple_rhash {
 #define FLOW_OFFLOAD_DYING	0x4
 #define FLOW_OFFLOAD_TEARDOWN	0x8
 
+enum flow_offload_type {
+	NF_FLOW_OFFLOAD_UNSPEC	= 0,
+	NF_FLOW_OFFLOAD_ROUTE,
+};
+
 struct flow_offload {
 	struct flow_offload_tuple_rhash		tuplehash[FLOW_OFFLOAD_DIR_MAX];
 	struct nf_conn				*ct;
-	u32					flags;
+	u16					flags;
+	u16					type;
 	u32					timeout;
 	struct rcu_head				rcu_head;
 };
@@ -86,9 +92,11 @@ struct nf_flow_route {
 	} tuple[FLOW_OFFLOAD_DIR_MAX];
 };
 
-struct flow_offload *flow_offload_alloc(struct nf_conn *ct,
-					struct nf_flow_route *route);
+struct flow_offload *flow_offload_alloc(struct nf_conn *ct);
 void flow_offload_free(struct flow_offload *flow);
+
+int flow_offload_route_init(struct flow_offload *flow,
+			    const struct nf_flow_route *route);
 
 int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow);
 struct flow_offload_tuple_rhash *flow_offload_lookup(struct nf_flowtable *flow_table,
