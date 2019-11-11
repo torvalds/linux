@@ -300,7 +300,7 @@ static int tw686x_snd_pcm_init(struct tw686x_dev *dev)
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm,
 				SNDRV_DMA_TYPE_DEV,
-				snd_dma_pci_data(dev->pci_dev),
+				&dev->pci_dev->dev,
 				TW686X_AUDIO_PAGE_MAX * AUDIO_DMA_SIZE_MAX,
 				TW686X_AUDIO_PAGE_MAX * AUDIO_DMA_SIZE_MAX);
 	return 0;
