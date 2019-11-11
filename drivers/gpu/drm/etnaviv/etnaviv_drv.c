@@ -297,6 +297,9 @@ static int etnaviv_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 	if (args->op & ~(ETNA_PREP_READ | ETNA_PREP_WRITE | ETNA_PREP_NOSYNC))
 		return -EINVAL;
 
+	if (args->timeout.tv_nsec > NSEC_PER_SEC)
+		return -EINVAL;
+
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
 		return -ENOENT;
@@ -360,6 +363,9 @@ static int etnaviv_ioctl_wait_fence(struct drm_device *dev, void *data,
 	if (args->flags & ~(ETNA_WAIT_NONBLOCK))
 		return -EINVAL;
 
+	if (args->timeout.tv_nsec > NSEC_PER_SEC)
+		return -EINVAL;
+
 	if (args->pipe >= ETNA_MAX_PIPES)
 		return -EINVAL;
 
@@ -409,6 +415,9 @@ static int etnaviv_ioctl_gem_wait(struct drm_device *dev, void *data,
 	int ret;
 
 	if (args->flags & ~(ETNA_WAIT_NONBLOCK))
+		return -EINVAL;
+
+	if (args->timeout.tv_nsec > NSEC_PER_SEC)
 		return -EINVAL;
 
 	if (args->pipe >= ETNA_MAX_PIPES)
