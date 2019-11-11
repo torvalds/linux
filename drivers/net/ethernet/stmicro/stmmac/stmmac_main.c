@@ -3443,6 +3443,55 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 	stmmac_set_rx_tail_ptr(priv, priv->ioaddr, rx_q->rx_tail_addr, queue);
 }
 
+static unsigned int stmmac_rx_buf1_len(struct stmmac_priv *priv,
+				       struct dma_desc *p,
+				       int status, unsigned int len)
+{
+	int ret, coe = priv->hw->rx_csum;
+	unsigned int plen = 0, hlen = 0;
+
+	/* Not first descriptor, buffer is always zero */
+	if (priv->sph && len)
+		return 0;
+
+	/* First descriptor, get split header length */
+	ret = stmmac_get_rx_header_len(priv, p, &hlen);
+	if (priv->sph && hlen) {
+		priv->xstats.rx_split_hdr_pkt_n++;
+		return hlen;
+	}
+
+	/* First descriptor, not last descriptor and not split header */
+	if (status & rx_not_ls)
+		return priv->dma_buf_sz;
+
+	plen = stmmac_get_rx_frame_len(priv, p, coe);
+
+	/* First descriptor and last descriptor and not split header */
+	return min_t(unsigned int, priv->dma_buf_sz, plen);
+}
+
+static unsigned int stmmac_rx_buf2_len(struct stmmac_priv *priv,
+				       struct dma_desc *p,
+				       int status, unsigned int len)
+{
+	int coe = priv->hw->rx_csum;
+	unsigned int plen = 0;
+
+	/* Not split header, buffer is not available */
+	if (!priv->sph)
+		return 0;
+
+	/* Not last descriptor */
+	if (status & rx_not_ls)
+		return priv->dma_buf_sz;
+
+	plen = stmmac_get_rx_frame_len(priv, p, coe);
+
+	/* Last descriptor */
+	return plen - len;
+}
+
 /**
  * stmmac_rx - manage the receive process
  * @priv: driver private structure
@@ -3472,11 +3521,10 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 		stmmac_display_ring(priv, rx_head, DMA_RX_SIZE, true);
 	}
 	while (count < limit) {
-		unsigned int hlen = 0, prev_len = 0;
+		unsigned int buf1_len = 0, buf2_len = 0;
 		enum pkt_hash_types hash_type;
 		struct stmmac_rx_buffer *buf;
 		struct dma_desc *np, *p;
-		unsigned int sec_len;
 		int entry;
 		u32 hash;
 
@@ -3495,7 +3543,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			break;
 
 read_again:
-		sec_len = 0;
+		buf1_len = 0;
+		buf2_len = 0;
 		entry = next_entry;
 		buf = &rx_q->buf_pool[entry];
 
@@ -3520,7 +3569,6 @@ read_again:
 			np = rx_q->dma_rx + next_entry;
 
 		prefetch(np);
-		prefetch(page_address(buf->page));
 
 		if (priv->extend_desc)
 			stmmac_rx_extended_status(priv, &priv->dev->stats,
@@ -3537,69 +3585,61 @@ read_again:
 			goto read_again;
 		if (unlikely(error)) {
 			dev_kfree_skb(skb);
+			skb = NULL;
 			count++;
 			continue;
 		}
 
 		/* Buffer is good. Go on. */
 
-		if (likely(status & rx_not_ls)) {
-			len += priv->dma_buf_sz;
-		} else {
-			prev_len = len;
-			len = stmmac_get_rx_frame_len(priv, p, coe);
+		prefetch(page_address(buf->page));
+		if (buf->sec_page)
+			prefetch(page_address(buf->sec_page));
 
-			/* ACS is set; GMAC core strips PAD/FCS for IEEE 802.3
-			 * Type frames (LLC/LLC-SNAP)
-			 *
-			 * llc_snap is never checked in GMAC >= 4, so this ACS
-			 * feature is always disabled and packets need to be
-			 * stripped manually.
-			 */
-			if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00) ||
-			    unlikely(status != llc_snap))
-				len -= ETH_FCS_LEN;
+		buf1_len = stmmac_rx_buf1_len(priv, p, status, len);
+		len += buf1_len;
+		buf2_len = stmmac_rx_buf2_len(priv, p, status, len);
+		len += buf2_len;
+
+		/* ACS is set; GMAC core strips PAD/FCS for IEEE 802.3
+		 * Type frames (LLC/LLC-SNAP)
+		 *
+		 * llc_snap is never checked in GMAC >= 4, so this ACS
+		 * feature is always disabled and packets need to be
+		 * stripped manually.
+		 */
+		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00) ||
+		    unlikely(status != llc_snap)) {
+			if (buf2_len)
+				buf2_len -= ETH_FCS_LEN;
+			else
+				buf1_len -= ETH_FCS_LEN;
+
+			len -= ETH_FCS_LEN;
 		}
 
 		if (!skb) {
-			int ret = stmmac_get_rx_header_len(priv, p, &hlen);
-
-			if (priv->sph && !ret && (hlen > 0)) {
-				sec_len = len;
-				if (!(status & rx_not_ls))
-					sec_len = sec_len - hlen;
-				len = hlen;
-
-				prefetch(page_address(buf->sec_page));
-				priv->xstats.rx_split_hdr_pkt_n++;
-			}
-
-			skb = napi_alloc_skb(&ch->rx_napi, len);
+			skb = napi_alloc_skb(&ch->rx_napi, buf1_len);
 			if (!skb) {
 				priv->dev->stats.rx_dropped++;
 				count++;
-				continue;
+				goto drain_data;
 			}
 
-			dma_sync_single_for_cpu(priv->device, buf->addr, len,
-						DMA_FROM_DEVICE);
+			dma_sync_single_for_cpu(priv->device, buf->addr,
+						buf1_len, DMA_FROM_DEVICE);
 			skb_copy_to_linear_data(skb, page_address(buf->page),
-						len);
-			skb_put(skb, len);
+						buf1_len);
+			skb_put(skb, buf1_len);
 
 			/* Data payload copied into SKB, page ready for recycle */
 			page_pool_recycle_direct(rx_q->page_pool, buf->page);
 			buf->page = NULL;
-		} else {
-			unsigned int buf_len = len - prev_len;
-
-			if (likely(status & rx_not_ls))
-				buf_len = priv->dma_buf_sz;
-
+		} else if (buf1_len) {
 			dma_sync_single_for_cpu(priv->device, buf->addr,
-						buf_len, DMA_FROM_DEVICE);
+						buf1_len, DMA_FROM_DEVICE);
 			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-					buf->page, 0, buf_len,
+					buf->page, 0, buf1_len,
 					priv->dma_buf_sz);
 
 			/* Data payload appended into SKB */
@@ -3607,22 +3647,23 @@ read_again:
 			buf->page = NULL;
 		}
 
-		if (sec_len > 0) {
+		if (buf2_len) {
 			dma_sync_single_for_cpu(priv->device, buf->sec_addr,
-						sec_len, DMA_FROM_DEVICE);
+						buf2_len, DMA_FROM_DEVICE);
 			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-					buf->sec_page, 0, sec_len,
+					buf->sec_page, 0, buf2_len,
 					priv->dma_buf_sz);
-
-			len += sec_len;
 
 			/* Data payload appended into SKB */
 			page_pool_release_page(rx_q->page_pool, buf->sec_page);
 			buf->sec_page = NULL;
 		}
 
+drain_data:
 		if (likely(status & rx_not_ls))
 			goto read_again;
+		if (!skb)
+			continue;
 
 		/* Got entire packet into SKB. Finish it. */
 
@@ -3640,13 +3681,14 @@ read_again:
 
 		skb_record_rx_queue(skb, queue);
 		napi_gro_receive(&ch->rx_napi, skb);
+		skb = NULL;
 
 		priv->dev->stats.rx_packets++;
 		priv->dev->stats.rx_bytes += len;
 		count++;
 	}
 
-	if (status & rx_not_ls) {
+	if (status & rx_not_ls || skb) {
 		rx_q->state_saved = true;
 		rx_q->state.skb = skb;
 		rx_q->state.error = error;
