@@ -277,9 +277,7 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	if (ctx->timeline)
 		intel_timeline_put(ctx->timeline);
 
-	kfree(ctx->name);
 	put_pid(ctx->pid);
-
 	mutex_destroy(&ctx->mutex);
 
 	kfree_rcu(ctx, rcu);
@@ -789,12 +787,8 @@ static int gem_context_register(struct i915_gem_context *ctx,
 	mutex_unlock(&ctx->mutex);
 
 	ctx->pid = get_task_pid(current, PIDTYPE_PID);
-	ctx->name = kasprintf(GFP_KERNEL, "%s[%d]",
-			      current->comm, pid_nr(ctx->pid));
-	if (!ctx->name) {
-		ret = -ENOMEM;
-		goto err_pid;
-	}
+	snprintf(ctx->name, sizeof(ctx->name), "%s[%d]",
+		 current->comm, pid_nr(ctx->pid));
 
 	/* And finally expose ourselves to userspace via the idr */
 	mutex_lock(&fpriv->context_idr_lock);
@@ -803,8 +797,6 @@ static int gem_context_register(struct i915_gem_context *ctx,
 	if (ret >= 0)
 		goto out;
 
-	kfree(fetch_and_zero(&ctx->name));
-err_pid:
 	put_pid(fetch_and_zero(&ctx->pid));
 out:
 	return ret;

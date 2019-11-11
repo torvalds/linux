@@ -100,15 +100,6 @@ struct i915_gem_context {
 	 */
 	struct pid *pid;
 
-	/**
-	 * @name: arbitrary name
-	 *
-	 * A name is constructed for the context from the creator's process
-	 * name, pid and user handle in order to uniquely identify the
-	 * context in messages.
-	 */
-	const char *name;
-
 	/** link: place with &drm_i915_private.context_list */
 	struct list_head link;
 	struct llist_node free_link;
@@ -176,6 +167,15 @@ struct i915_gem_context {
 	 * per vm, which may be one per context or shared with the global GTT)
 	 */
 	struct radix_tree_root handles_vma;
+
+	/**
+	 * @name: arbitrary name, used for user debug
+	 *
+	 * A name is constructed for the context from the creator's process
+	 * name, pid and user handle in order to uniquely identify the
+	 * context in messages.
+	 */
+	char name[TASK_COMM_LEN + 8];
 };
 
 #endif /* __I915_GEM_CONTEXT_TYPES_H__ */
