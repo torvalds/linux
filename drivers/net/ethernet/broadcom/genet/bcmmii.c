@@ -270,6 +270,11 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		phy_name = "external RGMII (TX delay)";
 		port_ctrl = PORT_MODE_EXT_GPHY;
 		break;
+
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		phy_name = "external RGMII (RX delay)";
+		port_ctrl = PORT_MODE_EXT_GPHY;
+		break;
 	default:
 		dev_err(kdev, "unknown phy mode: %d\n", priv->phy_interface);
 		return -EINVAL;
