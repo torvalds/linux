@@ -19,6 +19,10 @@
 		reg = <0 0 0>;
 	};
 
+	aliases {
+		ethernet0 = &genet;
+	};
+
 	leds {
 		act {
 			gpios = <&gpio 42 GPIO_ACTIVE_HIGH>;
@@ -95,6 +99,19 @@
 	vqmmc-supply = <&sd_io_1v8_reg>;
 	broken-cd;
 	status = "okay";
+};
+
+&genet {
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii-rxid";
+	status = "okay";
+};
+
+&genet_mdio {
+	phy1: ethernet-phy@1 {
+		/* No PHY interrupt */
+		reg = <0x1>;
+	};
 };
 
 /* uart0 communicates with the BT module */
