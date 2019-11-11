@@ -122,9 +122,11 @@ int sja1105_xfer_buf(const struct sja1105_private *priv,
 		     sja1105_spi_rw_mode_t rw, u64 reg_addr,
 		     u8 *buf, size_t len);
 int sja1105_xfer_u32(const struct sja1105_private *priv,
-		     sja1105_spi_rw_mode_t rw, u64 reg_addr, u32 *value);
+		     sja1105_spi_rw_mode_t rw, u64 reg_addr, u32 *value,
+		     struct ptp_system_timestamp *ptp_sts);
 int sja1105_xfer_u64(const struct sja1105_private *priv,
-		     sja1105_spi_rw_mode_t rw, u64 reg_addr, u64 *value);
+		     sja1105_spi_rw_mode_t rw, u64 reg_addr, u64 *value,
+		     struct ptp_system_timestamp *ptp_sts);
 int sja1105_static_config_upload(struct sja1105_private *priv);
 int sja1105_inhibit_tx(const struct sja1105_private *priv,
 		       unsigned long port_bitmap, bool tx_inhibited);

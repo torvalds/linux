@@ -51,8 +51,6 @@ int sja1105_get_ts_info(struct dsa_switch *ds, int port,
 void sja1105_ptp_txtstamp_skb(struct dsa_switch *ds, int slot,
 			      struct sk_buff *clone);
 
-int sja1105_ptp_reset(struct dsa_switch *ds);
-
 bool sja1105_port_rxtstamp(struct dsa_switch *ds, int port,
 			   struct sk_buff *skb, unsigned int type);
 
@@ -62,6 +60,14 @@ bool sja1105_port_txtstamp(struct dsa_switch *ds, int port,
 int sja1105_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr);
 
 int sja1105_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr);
+
+int __sja1105_ptp_gettimex(struct dsa_switch *ds, u64 *ns,
+			   struct ptp_system_timestamp *sts);
+
+int __sja1105_ptp_settime(struct dsa_switch *ds, u64 ns,
+			  struct ptp_system_timestamp *ptp_sts);
+
+int __sja1105_ptp_adjtime(struct dsa_switch *ds, s64 delta);
 
 #else
 
@@ -87,7 +93,19 @@ static inline void sja1105_ptp_txtstamp_skb(struct dsa_switch *ds, int slot,
 {
 }
 
-static inline int sja1105_ptp_reset(struct dsa_switch *ds)
+static inline int __sja1105_ptp_gettimex(struct dsa_switch *ds, u64 *ns,
+					 struct ptp_system_timestamp *sts)
+{
+	return 0;
+}
+
+static inline int __sja1105_ptp_settime(struct dsa_switch *ds, u64 ns,
+					struct ptp_system_timestamp *ptp_sts)
+{
+	return 0;
+}
+
+static inline int __sja1105_ptp_adjtime(struct dsa_switch *ds, s64 delta)
 {
 	return 0;
 }
