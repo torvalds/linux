@@ -549,11 +549,10 @@ i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
 
 	GEM_BUG_ON(!stolen);
 
+	i915_gem_object_release_memory_region(obj);
+
 	i915_gem_stolen_remove_node(i915, stolen);
 	kfree(stolen);
-
-	if (obj->mm.region)
-		i915_gem_object_release_memory_region(obj);
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_stolen_ops = {
@@ -563,9 +562,8 @@ static const struct drm_i915_gem_object_ops i915_gem_object_stolen_ops = {
 };
 
 static struct drm_i915_gem_object *
-__i915_gem_object_create_stolen(struct drm_i915_private *i915,
-				struct drm_mm_node *stolen,
-				struct intel_memory_region *mem)
+__i915_gem_object_create_stolen(struct intel_memory_region *mem,
+				struct drm_mm_node *stolen)
 {
 	static struct lock_class_key lock_class;
 	struct drm_i915_gem_object *obj;
@@ -576,20 +574,19 @@ __i915_gem_object_create_stolen(struct drm_i915_private *i915,
 	if (!obj)
 		goto err;
 
-	drm_gem_private_object_init(&i915->drm, &obj->base, stolen->size);
+	drm_gem_private_object_init(&mem->i915->drm, &obj->base, stolen->size);
 	i915_gem_object_init(obj, &i915_gem_object_stolen_ops, &lock_class);
 
 	obj->stolen = stolen;
 	obj->read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
-	cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	cache_level = HAS_LLC(mem->i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 
 	err = i915_gem_object_pin_pages(obj);
 	if (err)
 		goto cleanup;
 
-	if (mem)
-		i915_gem_object_init_memory_region(obj, mem, 0);
+	i915_gem_object_init_memory_region(obj, mem, 0);
 
 	return obj;
 
@@ -625,7 +622,7 @@ _i915_gem_object_create_stolen(struct intel_memory_region *mem,
 		goto err_free;
 	}
 
-	obj = __i915_gem_object_create_stolen(i915, stolen, mem);
+	obj = __i915_gem_object_create_stolen(mem, stolen);
 	if (IS_ERR(obj))
 		goto err_remove;
 
@@ -681,6 +678,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *i915,
 					       resource_size_t gtt_offset,
 					       resource_size_t size)
 {
+	struct intel_memory_region *mem = i915->mm.regions[INTEL_REGION_STOLEN];
 	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
@@ -714,7 +712,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *i915,
 		return ERR_PTR(ret);
 	}
 
-	obj = __i915_gem_object_create_stolen(i915, stolen, NULL);
+	obj = __i915_gem_object_create_stolen(mem, stolen);
 	if (IS_ERR(obj)) {
 		DRM_DEBUG_DRIVER("failed to allocate stolen object\n");
 		i915_gem_stolen_remove_node(i915, stolen);
