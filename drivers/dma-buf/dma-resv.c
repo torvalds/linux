@@ -97,13 +97,13 @@ static void dma_resv_list_free(struct dma_resv_list *list)
 }
 
 #if IS_ENABLED(CONFIG_LOCKDEP)
-static void __init dma_resv_lockdep(void)
+static int __init dma_resv_lockdep(void)
 {
 	struct mm_struct *mm = mm_alloc();
 	struct dma_resv obj;
 
 	if (!mm)
-		return;
+		return -ENOMEM;
 
 	dma_resv_init(&obj);
 
@@ -115,6 +115,8 @@ static void __init dma_resv_lockdep(void)
 	up_read(&mm->mmap_sem);
 	
 	mmput(mm);
+
+	return 0;
 }
 subsys_initcall(dma_resv_lockdep);
 #endif
