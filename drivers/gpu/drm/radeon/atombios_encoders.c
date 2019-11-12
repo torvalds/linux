@@ -140,6 +140,7 @@ atombios_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level)
 
 static u8 radeon_atom_bl_level(struct backlight_device *bd)
 {
+	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
 	u8 level;
 
 	/* Convert brightness to hardware level */
@@ -149,6 +150,9 @@ static u8 radeon_atom_bl_level(struct backlight_device *bd)
 		level = RADEON_MAX_BL_LEVEL;
 	else
 		level = bd->props.brightness;
+
+	if (pdata->negative)
+		level = RADEON_MAX_BL_LEVEL - level;
 
 	return level;
 }
@@ -169,8 +173,11 @@ static int radeon_atom_backlight_get_brightness(struct backlight_device *bd)
 	struct radeon_encoder *radeon_encoder = pdata->encoder;
 	struct drm_device *dev = radeon_encoder->base.dev;
 	struct radeon_device *rdev = dev->dev_private;
+	u8 backlight_level;
 
-	return radeon_atom_get_backlight_level_from_reg(rdev);
+	backlight_level = radeon_atom_get_backlight_level_from_reg(rdev);
+
+	return pdata->negative ? RADEON_MAX_BL_LEVEL - backlight_level : backlight_level;
 }
 
 static const struct backlight_ops radeon_atom_backlight_ops = {
@@ -212,7 +219,7 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 	}
 
 	memset(&props, 0, sizeof(props));
-	props.max_brightness = RADEON_MAX_BL_LEVEL;
+	props.max_brightness = pdata->negative ? RADEON_MAX_BL_LEVEL - 1 : RADEON_MAX_BL_LEVEL;
 	props.type = BACKLIGHT_RAW;
 	snprintf(bl_name, sizeof(bl_name),
 		 "radeon_bl%d", dev->primary->index);
