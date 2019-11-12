@@ -729,14 +729,7 @@ static inline struct exfat_inode_info *EXFAT_I(struct inode *inode)
 
 /* NLS management function */
 u16 nls_upper(struct super_block *sb, u16 a);
-int nls_dosname_cmp(struct super_block *sb, u8 *a, u8 *b);
 int nls_uniname_cmp(struct super_block *sb, u16 *a, u16 *b);
-void nls_uniname_to_dosname(struct super_block *sb,
-			    struct dos_name_t *p_dosname,
-			    struct uni_name_t *p_uniname, bool *p_lossy);
-void nls_dosname_to_uniname(struct super_block *sb,
-			    struct uni_name_t *p_uniname,
-			    struct dos_name_t *p_dosname);
 void nls_uniname_to_cstring(struct super_block *sb, u8 *p_cstring,
 			    struct uni_name_t *p_uniname);
 void nls_cstring_to_uniname(struct super_block *sb,
@@ -805,10 +798,6 @@ void exfat_set_entry_time(struct dentry_t *p_entry, struct timestamp_t *tp,
 			  u8 mode);
 s32 exfat_init_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 			 s32 entry, u32 type, u32 start_clu, u64 size);
-s32 exfat_init_ext_dir_entry(struct super_block *sb, struct chain_t *p_dir,
-			     s32 entry, s32 num_entries,
-			     struct uni_name_t *p_uniname,
-		struct dos_name_t *p_dosname);
 void init_file_entry(struct file_dentry_t *ep, u32 type);
 void init_strm_entry(struct strm_dentry_t *ep, u8 flags, u32 start_clu,
 		     u64 size);
@@ -850,25 +839,17 @@ bool is_dir_empty(struct super_block *sb, struct chain_t *p_dir);
 s32 get_num_entries_and_dos_name(struct super_block *sb, struct chain_t *p_dir,
 				 struct uni_name_t *p_uniname, s32 *entries,
 				 struct dos_name_t *p_dosname);
-void get_uni_name_from_dos_entry(struct super_block *sb,
-				 struct dos_dentry_t *ep,
-				 struct uni_name_t *p_uniname, u8 mode);
 void exfat_get_uni_name_from_ext_entry(struct super_block *sb,
 				       struct chain_t *p_dir, s32 entry,
 				       u16 *uniname);
 s32 extract_uni_name_from_name_entry(struct name_dentry_t *ep,
 				     u16 *uniname, s32 order);
-s32 fat_generate_dos_name(struct super_block *sb, struct chain_t *p_dir,
-			  struct dos_name_t *p_dosname);
-void fat_attach_count_to_dos_name(u8 *dosname, s32 count);
-s32 fat_calc_num_entries(struct uni_name_t *p_uniname);
 s32 exfat_calc_num_entries(struct uni_name_t *p_uniname);
 u16 calc_checksum_2byte(void *data, s32 len, u16 chksum, s32 type);
 
 /* name resolution functions */
 s32 resolve_path(struct inode *inode, char *path, struct chain_t *p_dir,
 		 struct uni_name_t *p_uniname);
-s32 resolve_name(u8 *name, u8 **arg);
 
 /* file operation functions */
 s32 exfat_mount(struct super_block *sb, struct pbr_sector_t *p_pbr);
