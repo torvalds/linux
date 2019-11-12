@@ -906,10 +906,10 @@ static enum link_training_result perform_channel_equalization_sequence(
 		/* 3. wait for receiver to lock-on*/
 		wait_time_microsec = lt_settings->eq_pattern_time;
 
-		if (!link->is_lttpr_mode_transparent)
+		if (is_repeater(link, offset))
 			wait_time_microsec =
 					translate_training_aux_read_interval(
-						link->dpcd_caps.lttpr_caps.aux_rd_interval[offset]);
+						link->dpcd_caps.lttpr_caps.aux_rd_interval[offset - 1]);
 
 		wait_for_training_aux_rd_interval(
 				link,
