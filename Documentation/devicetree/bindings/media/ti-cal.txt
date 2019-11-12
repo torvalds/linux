@@ -10,9 +10,14 @@ Required properties:
 - compatible: must be "ti,dra72-cal"
 - reg:	CAL Top level, Receiver Core #0, Receiver Core #1 and Camera RX
 	control address space
-- reg-names: cal_top, cal_rx_core0, cal_rx_core1, and camerrx_control
+- reg-names: cal_top, cal_rx_core0, cal_rx_core1 and camerrx_control
 	     registers
 - interrupts: should contain IRQ line for the CAL;
+- ti,camerrx-control: phandle to the device control module and offset to
+		      the control_camerarx_core register.
+		      This node is meant to replace the "camerrx_control"
+		      reg entry above but "camerrx_control" is still
+		      handled for backward compatibility.
 
 CAL supports 2 camera port nodes on MIPI bus. Each CSI2 camera port nodes
 should contain a 'port' child node with child 'endpoint' node. Please
@@ -25,13 +30,12 @@ Example:
 		ti,hwmods = "cal";
 		reg = <0x4845B000 0x400>,
 		      <0x4845B800 0x40>,
-		      <0x4845B900 0x40>,
-		      <0x4A002e94 0x4>;
+		      <0x4845B900 0x40>;
 		reg-names = "cal_top",
 			    "cal_rx_core0",
-			    "cal_rx_core1",
-			    "camerrx_control";
+			    "cal_rx_core1";
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+		ti,camerrx-control = <&scm_conf 0xE94>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
