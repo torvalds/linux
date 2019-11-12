@@ -71,6 +71,7 @@ struct mlxsw_core {
 		struct list_head trans_list;
 		spinlock_t trans_list_lock; /* protects trans_list writes */
 		bool use_emad;
+		bool enable_string_tlv;
 	} emad;
 	struct {
 		u8 *mapping; /* lag_id+port_index to local_port mapping */
@@ -323,6 +324,12 @@ static void mlxsw_emad_pack_reg_tlv(char *reg_tlv,
 	memcpy(reg_tlv + sizeof(u32), payload, reg->len);
 }
 
+static void mlxsw_emad_pack_string_tlv(char *string_tlv)
+{
+	mlxsw_emad_string_tlv_type_set(string_tlv, MLXSW_EMAD_TLV_TYPE_STRING);
+	mlxsw_emad_string_tlv_len_set(string_tlv, MLXSW_EMAD_STRING_TLV_LEN);
+}
+
 static void mlxsw_emad_pack_op_tlv(char *op_tlv,
 				   const struct mlxsw_reg_info *reg,
 				   enum mlxsw_core_reg_access_type type,
@@ -364,7 +371,7 @@ static void mlxsw_emad_construct(struct sk_buff *skb,
 				 const struct mlxsw_reg_info *reg,
 				 char *payload,
 				 enum mlxsw_core_reg_access_type type,
-				 u64 tid)
+				 u64 tid, bool enable_string_tlv)
 {
 	char *buf;
 
@@ -373,6 +380,11 @@ static void mlxsw_emad_construct(struct sk_buff *skb,
 
 	buf = skb_push(skb, reg->len + sizeof(u32));
 	mlxsw_emad_pack_reg_tlv(buf, reg, payload);
+
+	if (enable_string_tlv) {
+		buf = skb_push(skb, MLXSW_EMAD_STRING_TLV_LEN * sizeof(u32));
+		mlxsw_emad_pack_string_tlv(buf);
+	}
 
 	buf = skb_push(skb, MLXSW_EMAD_OP_TLV_LEN * sizeof(u32));
 	mlxsw_emad_pack_op_tlv(buf, reg, type, tid);
@@ -416,6 +428,17 @@ static char *mlxsw_emad_op_tlv(const struct sk_buff *skb)
 		(struct mlxsw_emad_tlv_offsets *) skb->cb;
 
 	return ((char *) (skb->data + offsets->op_tlv));
+}
+
+static char *mlxsw_emad_string_tlv(const struct sk_buff *skb)
+{
+	struct mlxsw_emad_tlv_offsets *offsets =
+		(struct mlxsw_emad_tlv_offsets *) skb->cb;
+
+	if (!offsets->string_tlv)
+		return NULL;
+
+	return ((char *) (skb->data + offsets->string_tlv));
 }
 
 static char *mlxsw_emad_reg_tlv(const struct sk_buff *skb)
@@ -499,9 +522,30 @@ struct mlxsw_reg_trans {
 	const struct mlxsw_reg_info *reg;
 	enum mlxsw_core_reg_access_type type;
 	int err;
+	char *emad_err_string;
 	enum mlxsw_emad_op_tlv_status emad_status;
 	struct rcu_head rcu;
 };
+
+static void mlxsw_emad_process_string_tlv(const struct sk_buff *skb,
+					  struct mlxsw_reg_trans *trans)
+{
+	char *string_tlv;
+	char *string;
+
+	string_tlv = mlxsw_emad_string_tlv(skb);
+	if (!string_tlv)
+		return;
+
+	trans->emad_err_string = kzalloc(MLXSW_EMAD_STRING_TLV_STRING_LEN,
+					 GFP_ATOMIC);
+	if (!trans->emad_err_string)
+		return;
+
+	string = mlxsw_emad_string_tlv_string_data(string_tlv);
+	strlcpy(trans->emad_err_string, string,
+		MLXSW_EMAD_STRING_TLV_STRING_LEN);
+}
 
 #define MLXSW_EMAD_TIMEOUT_DURING_FW_FLASH_MS	3000
 #define MLXSW_EMAD_TIMEOUT_MS			200
@@ -600,6 +644,8 @@ static void mlxsw_emad_process_response(struct mlxsw_core *mlxsw_core,
 				trans->cb(mlxsw_core,
 					  mlxsw_emad_reg_payload(reg_tlv),
 					  trans->reg->len, trans->cb_priv);
+		} else {
+			mlxsw_emad_process_string_tlv(skb, trans);
 		}
 		mlxsw_emad_trans_finish(trans, err);
 	}
@@ -692,7 +738,7 @@ static void mlxsw_emad_fini(struct mlxsw_core *mlxsw_core)
 }
 
 static struct sk_buff *mlxsw_emad_alloc(const struct mlxsw_core *mlxsw_core,
-					u16 reg_len)
+					u16 reg_len, bool enable_string_tlv)
 {
 	struct sk_buff *skb;
 	u16 emad_len;
@@ -700,6 +746,8 @@ static struct sk_buff *mlxsw_emad_alloc(const struct mlxsw_core *mlxsw_core,
 	emad_len = (reg_len + sizeof(u32) + MLXSW_EMAD_ETH_HDR_LEN +
 		    (MLXSW_EMAD_OP_TLV_LEN + MLXSW_EMAD_END_TLV_LEN) *
 		    sizeof(u32) + mlxsw_core->driver->txhdr_len);
+	if (enable_string_tlv)
+		emad_len += MLXSW_EMAD_STRING_TLV_LEN * sizeof(u32);
 	if (emad_len > MLXSW_EMAD_MAX_FRAME_LEN)
 		return NULL;
 
@@ -721,6 +769,7 @@ static int mlxsw_emad_reg_access(struct mlxsw_core *mlxsw_core,
 				 mlxsw_reg_trans_cb_t *cb,
 				 unsigned long cb_priv, u64 tid)
 {
+	bool enable_string_tlv;
 	struct sk_buff *skb;
 	int err;
 
@@ -728,7 +777,12 @@ static int mlxsw_emad_reg_access(struct mlxsw_core *mlxsw_core,
 		tid, reg->id, mlxsw_reg_id_str(reg->id),
 		mlxsw_core_reg_access_type_str(type));
 
-	skb = mlxsw_emad_alloc(mlxsw_core, reg->len);
+	/* Since this can be changed during emad_reg_access, read it once and
+	 * use the value all the way.
+	 */
+	enable_string_tlv = mlxsw_core->emad.enable_string_tlv;
+
+	skb = mlxsw_emad_alloc(mlxsw_core, reg->len, enable_string_tlv);
 	if (!skb)
 		return -ENOMEM;
 
@@ -745,7 +799,8 @@ static int mlxsw_emad_reg_access(struct mlxsw_core *mlxsw_core,
 	trans->reg = reg;
 	trans->type = type;
 
-	mlxsw_emad_construct(skb, reg, payload, type, trans->tid);
+	mlxsw_emad_construct(skb, reg, payload, type, trans->tid,
+			     enable_string_tlv);
 	mlxsw_core->driver->txhdr_construct(skb, &trans->tx_info);
 
 	spin_lock_bh(&mlxsw_core->emad.trans_list_lock);
@@ -1707,12 +1762,15 @@ static int mlxsw_reg_trans_wait(struct mlxsw_reg_trans *trans)
 			mlxsw_emad_op_tlv_status_str(trans->emad_status));
 
 		snprintf(err_string, MLXSW_REG_TRANS_ERR_STRING_SIZE,
-			 "(tid=%llx,reg_id=%x(%s)) %s\n", trans->tid,
+			 "(tid=%llx,reg_id=%x(%s)) %s (%s)\n", trans->tid,
 			 trans->reg->id, mlxsw_reg_id_str(trans->reg->id),
-			 mlxsw_emad_op_tlv_status_str(trans->emad_status));
+			 mlxsw_emad_op_tlv_status_str(trans->emad_status),
+			 trans->emad_err_string ? trans->emad_err_string : "");
 
 		trace_devlink_hwerr(priv_to_devlink(mlxsw_core),
 				    trans->emad_status, err_string);
+
+		kfree(trans->emad_err_string);
 	}
 
 	list_del(&trans->bulk_list);
@@ -2282,6 +2340,12 @@ u32 mlxsw_core_read_frc_l(struct mlxsw_core *mlxsw_core)
 	return mlxsw_core->bus->read_frc_l(mlxsw_core->bus_priv);
 }
 EXPORT_SYMBOL(mlxsw_core_read_frc_l);
+
+void mlxsw_core_emad_string_tlv_enable(struct mlxsw_core *mlxsw_core)
+{
+	mlxsw_core->emad.enable_string_tlv = true;
+}
+EXPORT_SYMBOL(mlxsw_core_emad_string_tlv_enable);
 
 static int __init mlxsw_core_module_init(void)
 {
