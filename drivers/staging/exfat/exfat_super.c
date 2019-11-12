@@ -457,7 +457,7 @@ static int ffsUmountVol(struct super_block *sb)
 	free_upcase_table(sb);
 	free_alloc_bitmap(sb);
 
-	FAT_release_all(sb);
+	exfat_fat_release_all(sb);
 	exfat_buf_release_all(sb);
 
 	/* close the block device */
@@ -722,8 +722,8 @@ static int ffsReadFile(struct inode *inode, struct file_id_t *fid, void *buffer,
 			}
 
 			while (clu_offset > 0) {
-				/* clu = FAT_read(sb, clu); */
-				if (FAT_read(sb, clu, &clu) == -1) {
+				/* clu = exfat_fat_read(sb, clu); */
+				if (exfat_fat_read(sb, clu, &clu) == -1) {
 					ret = -EIO;
 					goto out;
 				}
@@ -868,8 +868,8 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 
 			while ((clu_offset > 0) && (clu != CLUSTER_32(~0))) {
 				last_clu = clu;
-				/* clu = FAT_read(sb, clu); */
-				if (FAT_read(sb, clu, &clu) == -1) {
+				/* clu = exfat_fat_read(sb, clu); */
+				if (exfat_fat_read(sb, clu, &clu) == -1) {
 					ret = -EIO;
 					goto out;
 				}
@@ -911,7 +911,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 					modified = true;
 				}
 				if (new_clu.flags == 0x01)
-					FAT_write(sb, last_clu, new_clu.dir);
+					exfat_fat_write(sb, last_clu, new_clu.dir);
 			}
 
 			num_clusters += num_alloced;
@@ -1081,7 +1081,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 		} else {
 			while (num_clusters > 0) {
 				last_clu = clu.dir;
-				if (FAT_read(sb, clu.dir, &clu.dir) == -1) {
+				if (exfat_fat_read(sb, clu.dir, &clu.dir) == -1) {
 					ret = -EIO;
 					goto out;
 				}
@@ -1123,7 +1123,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 	/* (2) cut off from the FAT chain */
 	if (last_clu != CLUSTER_32(0)) {
 		if (fid->flags == 0x01)
-			FAT_write(sb, last_clu, CLUSTER_32(~0));
+			exfat_fat_write(sb, last_clu, CLUSTER_32(~0));
 	}
 
 	/* (3) free the clusters */
@@ -1687,7 +1687,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 
 		while ((clu_offset > 0) && (*clu != CLUSTER_32(~0))) {
 			last_clu = *clu;
-			if (FAT_read(sb, *clu, clu) == -1) {
+			if (exfat_fat_read(sb, *clu, clu) == -1) {
 				ret = -EIO;
 				goto out;
 			}
@@ -1727,7 +1727,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 				modified = true;
 			}
 			if (new_clu.flags == 0x01)
-				FAT_write(sb, last_clu, new_clu.dir);
+				exfat_fat_write(sb, last_clu, new_clu.dir);
 		}
 
 		num_clusters += num_alloced;
@@ -1888,8 +1888,8 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 			}
 
 			while (clu_offset > 0) {
-				/* clu.dir = FAT_read(sb, clu.dir); */
-				if (FAT_read(sb, clu.dir, &clu.dir) == -1) {
+				/* clu.dir = exfat_fat_read(sb, clu.dir); */
+				if (exfat_fat_read(sb, clu.dir, &clu.dir) == -1) {
 					ret = -EIO;
 					goto out;
 				}
@@ -1983,8 +1983,8 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 			else
 				clu.dir = CLUSTER_32(~0);
 		} else {
-			/* clu.dir = FAT_read(sb, clu.dir); */
-			if (FAT_read(sb, clu.dir, &clu.dir) == -1) {
+			/* clu.dir = exfat_fat_read(sb, clu.dir); */
+			if (exfat_fat_read(sb, clu.dir, &clu.dir) == -1) {
 				ret = -EIO;
 				goto out;
 			}
@@ -3821,7 +3821,7 @@ static void exfat_debug_kill_sb(struct super_block *sb)
 			 * dirty. We use this to simulate device removal.
 			 */
 			mutex_lock(&p_fs->v_mutex);
-			FAT_release_all(sb);
+			exfat_fat_release_all(sb);
 			exfat_buf_release_all(sb);
 			mutex_unlock(&p_fs->v_mutex);
 

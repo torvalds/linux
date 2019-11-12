@@ -193,7 +193,7 @@ void exfat_buf_shutdown(struct super_block *sb)
 {
 }
 
-static int __FAT_read(struct super_block *sb, u32 loc, u32 *content)
+static int __exfat_fat_read(struct super_block *sb, u32 loc, u32 *content)
 {
 	s32 off;
 	u32 _content;
@@ -206,7 +206,7 @@ static int __FAT_read(struct super_block *sb, u32 loc, u32 *content)
 		(loc >> (p_bd->sector_size_bits - 2));
 	off = (loc << 2) & p_bd->sector_size_mask;
 
-	fat_sector = FAT_getblk(sb, sec);
+	fat_sector = exfat_fat_getblk(sb, sec);
 	if (!fat_sector)
 		return -1;
 
@@ -226,18 +226,18 @@ static int __FAT_read(struct super_block *sb, u32 loc, u32 *content)
  * returns 0 on success
  *            -1 on error
  */
-int FAT_read(struct super_block *sb, u32 loc, u32 *content)
+int exfat_fat_read(struct super_block *sb, u32 loc, u32 *content)
 {
 	s32 ret;
 
 	mutex_lock(&f_mutex);
-	ret = __FAT_read(sb, loc, content);
+	ret = __exfat_fat_read(sb, loc, content);
 	mutex_unlock(&f_mutex);
 
 	return ret;
 }
 
-static s32 __FAT_write(struct super_block *sb, u32 loc, u32 content)
+static s32 __exfat_fat_write(struct super_block *sb, u32 loc, u32 content)
 {
 	s32 off;
 	sector_t sec;
@@ -249,7 +249,7 @@ static s32 __FAT_write(struct super_block *sb, u32 loc, u32 content)
 					 (p_bd->sector_size_bits - 2));
 	off = (loc << 2) & p_bd->sector_size_mask;
 
-	fat_sector = FAT_getblk(sb, sec);
+	fat_sector = exfat_fat_getblk(sb, sec);
 	if (!fat_sector)
 		return -1;
 
@@ -257,22 +257,22 @@ static s32 __FAT_write(struct super_block *sb, u32 loc, u32 content)
 
 	SET32_A(fat_entry, content);
 
-	FAT_modify(sb, sec);
+	exfat_fat_modify(sb, sec);
 	return 0;
 }
 
-int FAT_write(struct super_block *sb, u32 loc, u32 content)
+int exfat_fat_write(struct super_block *sb, u32 loc, u32 content)
 {
 	s32 ret;
 
 	mutex_lock(&f_mutex);
-	ret = __FAT_write(sb, loc, content);
+	ret = __exfat_fat_write(sb, loc, content);
 	mutex_unlock(&f_mutex);
 
 	return ret;
 }
 
-u8 *FAT_getblk(struct super_block *sb, sector_t sec)
+u8 *exfat_fat_getblk(struct super_block *sb, sector_t sec)
 {
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
@@ -307,7 +307,7 @@ u8 *FAT_getblk(struct super_block *sb, sector_t sec)
 	return bp->buf_bh->b_data;
 }
 
-void FAT_modify(struct super_block *sb, sector_t sec)
+void exfat_fat_modify(struct super_block *sb, sector_t sec)
 {
 	struct buf_cache_t *bp;
 
@@ -316,7 +316,7 @@ void FAT_modify(struct super_block *sb, sector_t sec)
 		sector_write(sb, sec, bp->buf_bh, 0);
 }
 
-void FAT_release_all(struct super_block *sb)
+void exfat_fat_release_all(struct super_block *sb)
 {
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
@@ -341,7 +341,7 @@ void FAT_release_all(struct super_block *sb)
 	mutex_unlock(&f_mutex);
 }
 
-void FAT_sync(struct super_block *sb)
+void exfat_fat_sync(struct super_block *sb)
 {
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);

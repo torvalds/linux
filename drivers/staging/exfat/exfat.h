@@ -739,12 +739,12 @@ void nls_cstring_to_uniname(struct super_block *sb,
 /* buffer cache management */
 void exfat_buf_init(struct super_block *sb);
 void exfat_buf_shutdown(struct super_block *sb);
-int FAT_read(struct super_block *sb, u32 loc, u32 *content);
-s32 FAT_write(struct super_block *sb, u32 loc, u32 content);
-u8 *FAT_getblk(struct super_block *sb, sector_t sec);
-void FAT_modify(struct super_block *sb, sector_t sec);
-void FAT_release_all(struct super_block *sb);
-void FAT_sync(struct super_block *sb);
+int exfat_fat_read(struct super_block *sb, u32 loc, u32 *content);
+s32 exfat_fat_write(struct super_block *sb, u32 loc, u32 content);
+u8 *exfat_fat_getblk(struct super_block *sb, sector_t sec);
+void exfat_fat_modify(struct super_block *sb, sector_t sec);
+void exfat_fat_release_all(struct super_block *sb);
+void exfat_fat_sync(struct super_block *sb);
 u8 *exfat_buf_getblk(struct super_block *sb, sector_t sec);
 void exfat_buf_modify(struct super_block *sb, sector_t sec);
 void exfat_buf_lock(struct super_block *sb, sector_t sec);

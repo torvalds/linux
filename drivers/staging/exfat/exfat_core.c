@@ -283,7 +283,7 @@ static s32 exfat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 		num_clusters++;
 
 		if (p_chain->flags == 0x01) {
-			if (FAT_write(sb, new_clu, CLUSTER_32(~0)) < 0)
+			if (exfat_fat_write(sb, new_clu, CLUSTER_32(~0)) < 0)
 				return -EIO;
 		}
 
@@ -291,7 +291,7 @@ static s32 exfat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 			p_chain->dir = new_clu;
 		} else {
 			if (p_chain->flags == 0x01) {
-				if (FAT_write(sb, last_clu, new_clu) < 0)
+				if (exfat_fat_write(sb, last_clu, new_clu) < 0)
 					return -EIO;
 			}
 		}
@@ -375,7 +375,7 @@ static void exfat_free_cluster(struct super_block *sb, struct chain_t *p_chain,
 			if (clr_alloc_bitmap(sb, clu - 2) != 0)
 				break;
 
-			if (FAT_read(sb, clu, &clu) == -1)
+			if (exfat_fat_read(sb, clu, &clu) == -1)
 				break;
 			num_clusters++;
 		} while ((clu != CLUSTER_32(0)) && (clu != CLUSTER_32(~0)));
@@ -395,7 +395,7 @@ static u32 find_last_cluster(struct super_block *sb, struct chain_t *p_chain)
 	if (p_chain->flags == 0x03) {
 		clu += p_chain->size - 1;
 	} else {
-		while ((FAT_read(sb, clu, &next) == 0) &&
+		while ((exfat_fat_read(sb, clu, &next) == 0) &&
 		       (next != CLUSTER_32(~0))) {
 			if (p_fs->dev_ejected)
 				break;
@@ -422,7 +422,7 @@ s32 count_num_clusters(struct super_block *sb, struct chain_t *p_chain)
 	} else {
 		for (i = 2; i < p_fs->num_clusters; i++) {
 			count++;
-			if (FAT_read(sb, clu, &clu) != 0)
+			if (exfat_fat_read(sb, clu, &clu) != 0)
 				return 0;
 			if (clu == CLUSTER_32(~0))
 				break;
@@ -461,12 +461,12 @@ void exfat_chain_cont_cluster(struct super_block *sb, u32 chain, s32 len)
 		return;
 
 	while (len > 1) {
-		if (FAT_write(sb, chain, chain + 1) < 0)
+		if (exfat_fat_write(sb, chain, chain + 1) < 0)
 			break;
 		chain++;
 		len--;
 	}
-	FAT_write(sb, chain, CLUSTER_32(~0));
+	exfat_fat_write(sb, chain, CLUSTER_32(~0));
 }
 
 /*
@@ -538,7 +538,7 @@ s32 load_alloc_bitmap(struct super_block *sb)
 			}
 		}
 
-		if (FAT_read(sb, clu.dir, &clu.dir) != 0)
+		if (exfat_fat_read(sb, clu.dir, &clu.dir) != 0)
 			return -EIO;
 	}
 
@@ -760,7 +760,7 @@ s32 load_upcase_table(struct super_block *sb)
 				break;
 			return 0;
 		}
-		if (FAT_read(sb, clu.dir, &clu.dir) != 0)
+		if (exfat_fat_read(sb, clu.dir, &clu.dir) != 0)
 			return -EIO;
 	}
 	/* load default upcase table */
@@ -1180,7 +1180,7 @@ static s32 __write_partial_entries_in_entry_set(struct super_block *sb,
 				if (es->alloc_flag == 0x03) {
 					clu++;
 				} else {
-					if (FAT_read(sb, clu, &clu) == -1)
+					if (exfat_fat_read(sb, clu, &clu) == -1)
 						goto err_out;
 				}
 				sec = START_SECTOR(clu);
@@ -1242,7 +1242,7 @@ static s32 _walk_fat_chain(struct super_block *sb, struct chain_t *p_dir,
 		cur_clu += clu_offset;
 	} else {
 		while (clu_offset > 0) {
-			if (FAT_read(sb, cur_clu, &cur_clu) == -1)
+			if (exfat_fat_read(sb, cur_clu, &cur_clu) == -1)
 				return -EIO;
 			clu_offset--;
 		}
@@ -1450,7 +1450,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 				if (es->alloc_flag == 0x03) {
 					clu++;
 				} else {
-					if (FAT_read(sb, clu, &clu) == -1)
+					if (exfat_fat_read(sb, clu, &clu) == -1)
 						goto err_out;
 				}
 				sec = START_SECTOR(clu);
@@ -1575,7 +1575,7 @@ static s32 search_deleted_or_unused_entry(struct super_block *sb,
 			else
 				clu.dir = CLUSTER_32(~0);
 		} else {
-			if (FAT_read(sb, clu.dir, &clu.dir) != 0)
+			if (exfat_fat_read(sb, clu.dir, &clu.dir) != 0)
 				return -1;
 		}
 	}
@@ -1625,7 +1625,7 @@ static s32 find_empty_entry(struct inode *inode, struct chain_t *p_dir, s32 num_
 			p_fs->hint_uentry.clu.flags = 0x01;
 		}
 		if (clu.flags == 0x01)
-			if (FAT_write(sb, last_clu, clu.dir) < 0)
+			if (exfat_fat_write(sb, last_clu, clu.dir) < 0)
 				return -EIO;
 
 		if (p_fs->hint_uentry.entry == -1) {
@@ -1822,7 +1822,7 @@ static s32 exfat_find_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 			else
 				clu.dir = CLUSTER_32(~0);
 		} else {
-			if (FAT_read(sb, clu.dir, &clu.dir) != 0)
+			if (exfat_fat_read(sb, clu.dir, &clu.dir) != 0)
 				return -2;
 		}
 	}
@@ -1903,7 +1903,7 @@ s32 count_dos_name_entries(struct super_block *sb, struct chain_t *p_dir,
 			else
 				clu.dir = CLUSTER_32(~0);
 		} else {
-			if (FAT_read(sb, clu.dir, &clu.dir) != 0)
+			if (exfat_fat_read(sb, clu.dir, &clu.dir) != 0)
 				return -EIO;
 		}
 	}
@@ -1963,7 +1963,7 @@ bool is_dir_empty(struct super_block *sb, struct chain_t *p_dir)
 			else
 				clu.dir = CLUSTER_32(~0);
 		}
-		if (FAT_read(sb, clu.dir, &clu.dir) != 0)
+		if (exfat_fat_read(sb, clu.dir, &clu.dir) != 0)
 			break;
 	}
 
