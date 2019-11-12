@@ -1006,6 +1006,8 @@ struct amdgpu_device {
 	struct mutex  lock_reset;
 	struct amdgpu_doorbell_index doorbell_index;
 
+	struct mutex			notifier_lock;
+
 	int asic_reset_res;
 	struct work_struct		xgmi_reset_work;
 

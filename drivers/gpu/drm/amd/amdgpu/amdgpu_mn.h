@@ -39,12 +39,10 @@ enum amdgpu_mn_type {
  * struct amdgpu_mn
  *
  * @adev: amdgpu device pointer
- * @mm: process address space
  * @type: type of MMU notifier
  * @work: destruction work item
  * @node: hash table node to find structure by adev and mn
  * @lock: rw semaphore protecting the notifier nodes
- * @objects: interval tree containing amdgpu_mn_nodes
  * @mirror: HMM mirror function support
  *
  * Data for each amdgpu device and process address space.
@@ -52,7 +50,6 @@ enum amdgpu_mn_type {
 struct amdgpu_mn {
 	/* constant after initialisation */
 	struct amdgpu_device	*adev;
-	struct mm_struct	*mm;
 	enum amdgpu_mn_type	type;
 
 	/* only used on destruction */
@@ -63,7 +60,6 @@ struct amdgpu_mn {
 
 	/* objects protected by lock */
 	struct rw_semaphore	lock;
-	struct rb_root_cached	objects;
 
 #ifdef CONFIG_HMM_MIRROR
 	/* HMM mirror */
