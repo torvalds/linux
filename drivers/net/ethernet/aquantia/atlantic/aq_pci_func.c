@@ -423,7 +423,7 @@ static int aq_pm_resume_restore(struct device *dev)
 	return atl_resume_common(dev, true);
 }
 
-const struct dev_pm_ops aq_pm_ops = {
+static const struct dev_pm_ops aq_pm_ops = {
 	.suspend = aq_pm_suspend_poweroff,
 	.poweroff = aq_pm_suspend_poweroff,
 	.freeze = aq_pm_freeze,

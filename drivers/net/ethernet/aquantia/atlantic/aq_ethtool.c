@@ -703,14 +703,14 @@ static void aq_set_msg_level(struct net_device *ndev, u32 data)
 	aq_nic->msg_enable = data;
 }
 
-u32 aq_ethtool_get_priv_flags(struct net_device *ndev)
+static u32 aq_ethtool_get_priv_flags(struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
 	return aq_nic->aq_nic_cfg.priv_flags;
 }
 
-int aq_ethtool_set_priv_flags(struct net_device *ndev, u32 flags)
+static int aq_ethtool_set_priv_flags(struct net_device *ndev, u32 flags)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg;
