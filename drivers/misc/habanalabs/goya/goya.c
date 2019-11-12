@@ -4180,6 +4180,96 @@ static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 	return rc;
 }
 
+static int goya_debugfs_read64(struct hl_device *hdev, u64 addr, u64 *val)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 ddr_bar_addr;
+	int rc = 0;
+
+	if ((addr >= CFG_BASE) && (addr <= CFG_BASE + CFG_SIZE - sizeof(u64))) {
+		u32 val_l = RREG32(addr - CFG_BASE);
+		u32 val_h = RREG32(addr + sizeof(u32) - CFG_BASE);
+
+		*val = (((u64) val_h) << 32) | val_l;
+
+	} else if ((addr >= SRAM_BASE_ADDR) &&
+			(addr <= SRAM_BASE_ADDR + SRAM_SIZE - sizeof(u64))) {
+
+		*val = readq(hdev->pcie_bar[SRAM_CFG_BAR_ID] +
+				(addr - SRAM_BASE_ADDR));
+
+	} else if ((addr >= DRAM_PHYS_BASE) &&
+		   (addr <=
+		    DRAM_PHYS_BASE + hdev->asic_prop.dram_size - sizeof(u64))) {
+
+		u64 bar_base_addr = DRAM_PHYS_BASE +
+				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
+
+		ddr_bar_addr = goya_set_ddr_bar_base(hdev, bar_base_addr);
+		if (ddr_bar_addr != U64_MAX) {
+			*val = readq(hdev->pcie_bar[DDR_BAR_ID] +
+						(addr - bar_base_addr));
+
+			ddr_bar_addr = goya_set_ddr_bar_base(hdev,
+							ddr_bar_addr);
+		}
+		if (ddr_bar_addr == U64_MAX)
+			rc = -EIO;
+
+	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
+		*val = *(u64 *) phys_to_virt(addr - HOST_PHYS_BASE);
+
+	} else {
+		rc = -EFAULT;
+	}
+
+	return rc;
+}
+
+static int goya_debugfs_write64(struct hl_device *hdev, u64 addr, u64 val)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 ddr_bar_addr;
+	int rc = 0;
+
+	if ((addr >= CFG_BASE) && (addr <= CFG_BASE + CFG_SIZE - sizeof(u64))) {
+		WREG32(addr - CFG_BASE, lower_32_bits(val));
+		WREG32(addr + sizeof(u32) - CFG_BASE, upper_32_bits(val));
+
+	} else if ((addr >= SRAM_BASE_ADDR) &&
+			(addr <= SRAM_BASE_ADDR + SRAM_SIZE - sizeof(u64))) {
+
+		writeq(val, hdev->pcie_bar[SRAM_CFG_BAR_ID] +
+					(addr - SRAM_BASE_ADDR));
+
+	} else if ((addr >= DRAM_PHYS_BASE) &&
+		   (addr <=
+		    DRAM_PHYS_BASE + hdev->asic_prop.dram_size - sizeof(u64))) {
+
+		u64 bar_base_addr = DRAM_PHYS_BASE +
+				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
+
+		ddr_bar_addr = goya_set_ddr_bar_base(hdev, bar_base_addr);
+		if (ddr_bar_addr != U64_MAX) {
+			writeq(val, hdev->pcie_bar[DDR_BAR_ID] +
+						(addr - bar_base_addr));
+
+			ddr_bar_addr = goya_set_ddr_bar_base(hdev,
+							ddr_bar_addr);
+		}
+		if (ddr_bar_addr == U64_MAX)
+			rc = -EIO;
+
+	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
+		*(u64 *) phys_to_virt(addr - HOST_PHYS_BASE) = val;
+
+	} else {
+		rc = -EFAULT;
+	}
+
+	return rc;
+}
+
 static u64 goya_read_pte(struct hl_device *hdev, u64 addr)
 {
 	struct goya_device *goya = hdev->asic_specific;
@@ -5186,6 +5276,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.restore_phase_topology = goya_restore_phase_topology,
 	.debugfs_read32 = goya_debugfs_read32,
 	.debugfs_write32 = goya_debugfs_write32,
+	.debugfs_read64 = goya_debugfs_read64,
+	.debugfs_write64 = goya_debugfs_write64,
 	.add_device_attr = goya_add_device_attr,
 	.handle_eqe = goya_handle_eqe,
 	.set_pll_profile = goya_set_pll_profile,

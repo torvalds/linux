@@ -710,6 +710,65 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	return count;
 }
 
+static ssize_t hl_data_read64(struct file *f, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	char tmp_buf[32];
+	u64 addr = entry->addr;
+	u64 val;
+	ssize_t rc;
+
+	if (*ppos)
+		return 0;
+
+	if (hl_is_device_va(hdev, addr)) {
+		rc = device_va_to_pa(hdev, addr, &addr);
+		if (rc)
+			return rc;
+	}
+
+	rc = hdev->asic_funcs->debugfs_read64(hdev, addr, &val);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to read from 0x%010llx\n", addr);
+		return rc;
+	}
+
+	sprintf(tmp_buf, "0x%016llx\n", val);
+	return simple_read_from_buffer(buf, count, ppos, tmp_buf,
+			strlen(tmp_buf));
+}
+
+static ssize_t hl_data_write64(struct file *f, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	u64 addr = entry->addr;
+	u64 value;
+	ssize_t rc;
+
+	rc = kstrtoull_from_user(buf, count, 16, &value);
+	if (rc)
+		return rc;
+
+	if (hl_is_device_va(hdev, addr)) {
+		rc = device_va_to_pa(hdev, addr, &addr);
+		if (rc)
+			return rc;
+	}
+
+	rc = hdev->asic_funcs->debugfs_write64(hdev, addr, value);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to write 0x%016llx to 0x%010llx\n",
+			value, addr);
+		return rc;
+	}
+
+	return count;
+}
+
 static ssize_t hl_get_power_state(struct file *f, char __user *buf,
 		size_t count, loff_t *ppos)
 {
@@ -917,6 +976,12 @@ static const struct file_operations hl_data32b_fops = {
 	.write = hl_data_write32
 };
 
+static const struct file_operations hl_data64b_fops = {
+	.owner = THIS_MODULE,
+	.read = hl_data_read64,
+	.write = hl_data_write64
+};
+
 static const struct file_operations hl_i2c_data_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_i2c_data_read,
@@ -1029,6 +1094,12 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				dev_entry,
 				&hl_data32b_fops);
+
+	debugfs_create_file("data64",
+				0644,
+				dev_entry->root,
+				dev_entry,
+				&hl_data64b_fops);
 
 	debugfs_create_file("set_power_state",
 				0200,
