@@ -33,6 +33,7 @@ struct ili2xxx_chip {
 	bool (*continue_polling)(const u8 *data, bool touch);
 	unsigned int max_touches;
 	unsigned int resolution;
+	bool has_calibrate_reg;
 };
 
 struct ili210x {
@@ -103,6 +104,7 @@ static const struct ili2xxx_chip ili210x_chip = {
 	.parse_touch_data	= ili210x_touchdata_to_coords,
 	.continue_polling	= ili210x_check_continue_polling,
 	.max_touches		= 2,
+	.has_calibrate_reg	= true,
 };
 
 static int ili211x_read_touch_data(struct i2c_client *client, u8 *data)
@@ -228,6 +230,7 @@ static const struct ili2xxx_chip ili251x_chip = {
 	.parse_touch_data	= ili251x_touchdata_to_coords,
 	.continue_polling	= ili251x_check_continue_polling,
 	.max_touches		= 10,
+	.has_calibrate_reg	= true,
 };
 
 static bool ili210x_report_events(struct ili210x *priv, u8 *touchdata)
@@ -311,8 +314,19 @@ static struct attribute *ili210x_attributes[] = {
 	NULL,
 };
 
+static umode_t ili210x_calibrate_visible(struct kobject *kobj,
+					  struct attribute *attr, int index)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+
+	return priv->chip->has_calibrate_reg;
+}
+
 static const struct attribute_group ili210x_attr_group = {
 	.attrs = ili210x_attributes,
+	.is_visible = ili210x_calibrate_visible,
 };
 
 static void ili210x_power_down(void *data)
