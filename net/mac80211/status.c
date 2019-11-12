@@ -1073,19 +1073,13 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		.skb = skb,
 		.info = IEEE80211_SKB_CB(skb),
 	};
-	struct rhlist_head *tmp;
 	struct sta_info *sta;
 
 	rcu_read_lock();
 
-	for_each_sta_info(local, hdr->addr1, sta, tmp) {
-		/* skip wrong virtual interface */
-		if (!ether_addr_equal(hdr->addr2, sta->sdata->vif.addr))
-			continue;
-
+	sta = sta_info_get_by_addrs(local, hdr->addr1, hdr->addr2);
+	if (sta)
 		status.sta = &sta->sta;
-		break;
-	}
 
 	__ieee80211_tx_status(hw, &status);
 	rcu_read_unlock();
