@@ -4414,12 +4414,11 @@ int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value)
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_string_put);
 
-int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
-			    u16 value_len)
+static int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+				   u16 value_len)
 {
 	return devlink_fmsg_put_value(fmsg, value, value_len, NLA_BINARY);
 }
-EXPORT_SYMBOL_GPL(devlink_fmsg_binary_put);
 
 int devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
 			       bool value)
@@ -4527,19 +4526,26 @@ int devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
 EXPORT_SYMBOL_GPL(devlink_fmsg_string_pair_put);
 
 int devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
-				 const void *value, u16 value_len)
+				 const void *value, u32 value_len)
 {
+	u32 data_size;
+	u32 offset;
 	int err;
 
-	err = devlink_fmsg_pair_nest_start(fmsg, name);
+	err = devlink_fmsg_arr_pair_nest_start(fmsg, name);
 	if (err)
 		return err;
 
-	err = devlink_fmsg_binary_put(fmsg, value, value_len);
-	if (err)
-		return err;
+	for (offset = 0; offset < value_len; offset += data_size) {
+		data_size = value_len - offset;
+		if (data_size > DEVLINK_FMSG_MAX_SIZE)
+			data_size = DEVLINK_FMSG_MAX_SIZE;
+		err = devlink_fmsg_binary_put(fmsg, value + offset, data_size);
+		if (err)
+			return err;
+	}
 
-	err = devlink_fmsg_pair_nest_end(fmsg);
+	err = devlink_fmsg_arr_pair_nest_end(fmsg);
 	if (err)
 		return err;
 

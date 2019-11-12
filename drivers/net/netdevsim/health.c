@@ -82,18 +82,12 @@ static int nsim_dev_dummy_fmsg_put(struct devlink_fmsg *fmsg, u32 binary_len)
 	if (err)
 		return err;
 
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, "test_binary");
-	if (err)
-		return err;
 	binary = kmalloc(binary_len, GFP_KERNEL);
 	if (!binary)
 		return -ENOMEM;
 	get_random_bytes(binary, binary_len);
-	err = devlink_fmsg_binary_put(fmsg, binary, binary_len);
+	err = devlink_fmsg_binary_pair_put(fmsg, "test_binary", binary, binary_len);
 	kfree(binary);
-	if (err)
-		return err;
-	err = devlink_fmsg_arr_pair_nest_end(fmsg);
 	if (err)
 		return err;
 
