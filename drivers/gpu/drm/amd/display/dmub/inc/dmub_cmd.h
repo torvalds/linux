@@ -27,6 +27,8 @@
 #define _DMUB_CMD_H_
 
 #include "dmub_types.h"
+#include "dmub_cmd_dal.h"
+#include "dmub_cmd_vbios.h"
 #include "atomfirmware.h"
 
 #define DMUB_RB_CMD_SIZE 64
@@ -34,43 +36,29 @@
 #define DMUB_RB_SIZE (DMUB_RB_CMD_SIZE * DMUB_RB_MAX_ENTRY)
 #define REG_SET_MASK 0xFFFF
 
-enum dmub_cmd_type {
-	DMUB_CMD__NULL,
-	DMUB_CMD__REG_SEQ_READ_MODIFY_WRITE,
-	DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ,
-	DMUB_CMD__REG_SEQ_BURST_WRITE,
-	DMUB_CMD__REG_REG_WAIT,
-	DMUB_CMD__DIGX_ENCODER_CONTROL,
-	DMUB_CMD__SET_PIXEL_CLOCK,
-	DMUB_CMD__ENABLE_DISP_POWER_GATING,
-	DMUB_CMD__DPPHY_INIT,
-	DMUB_CMD__DIG1_TRANSMITTER_CONTROL,
-	DMUB_CMD__SETUP_DISPLAY_MODE,
-	DMUB_CMD__BLANK_CRTC,
-	DMUB_CMD__ENABLE_DISPPATH,
-	DMUB_CMD__DISABLE_DISPPATH,
-	DMUB_CMD__DISABLE_DISPPATH_OUTPUT,
-	DMUB_CMD__READ_DISPPATH_EDID,
-	DMUB_CMD__DP_PRE_LINKTRAINING,
-	DMUB_CMD__INIT_CONTROLLER,
-	DMUB_CMD__RESET_CONTROLLER,
-	DMUB_CMD__SET_BRI_LEVEL,
-	DMUB_CMD__LVTMA_CONTROL,
+/*
+ * Command IDs should be treated as stable ABI.
+ * Do not reuse or modify IDs.
+ */
 
-	// PSR
-	DMUB_CMD__PSR_ENABLE,
-	DMUB_CMD__PSR_DISABLE,
-	DMUB_CMD__PSR_COPY_SETTINGS,
-	DMUB_CMD__PSR_SET_LEVEL,
+enum dmub_cmd_type {
+	DMUB_CMD__NULL = 0,
+	DMUB_CMD__REG_SEQ_READ_MODIFY_WRITE = 1,
+	DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ = 2,
+	DMUB_CMD__REG_SEQ_BURST_WRITE = 3,
+	DMUB_CMD__REG_REG_WAIT = 4,
+	DMUB_CMD__PSR = 64,
+	DMUB_CMD__VBIOS = 128,
 };
 
 #pragma pack(push, 1)
 
 struct dmub_cmd_header {
-	enum dmub_cmd_type type : 8;
-	unsigned int reserved0 : 16;
+	unsigned int type : 8;
+	unsigned int sub_type : 8;
+	unsigned int reserved0 : 8;
 	unsigned int payload_bytes : 6;  /* up to 60 bytes */
-	unsigned int reserved : 2;
+	unsigned int reserved1 : 2;
 };
 
 /*

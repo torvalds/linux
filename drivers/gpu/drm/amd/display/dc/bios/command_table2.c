@@ -111,7 +111,8 @@ static void encoder_control_dmcub(
 {
 	struct dmub_rb_cmd_digx_encoder_control encoder_control = { 0 };
 
-	encoder_control.header.type = DMUB_CMD__DIGX_ENCODER_CONTROL;
+	encoder_control.header.type = DMUB_CMD__VBIOS;
+	encoder_control.header.sub_type = DMUB_CMD__VBIOS_DIGX_ENCODER_CONTROL;
 	encoder_control.encoder_control.dig.stream_param = *dig;
 
 	dc_dmub_srv_cmd_queue(dmcub, &encoder_control.header);
@@ -219,7 +220,9 @@ static void transmitter_control_dmcub(
 {
 	struct dmub_rb_cmd_dig1_transmitter_control transmitter_control;
 
-	transmitter_control.header.type = DMUB_CMD__DIG1_TRANSMITTER_CONTROL;
+	transmitter_control.header.type = DMUB_CMD__VBIOS;
+	transmitter_control.header.sub_type =
+		DMUB_CMD__VBIOS_DIG1_TRANSMITTER_CONTROL;
 	transmitter_control.transmitter_control.dig = *dig;
 
 	dc_dmub_srv_cmd_queue(dmcub, &transmitter_control.header);
@@ -302,7 +305,8 @@ static void set_pixel_clock_dmcub(
 {
 	struct dmub_rb_cmd_set_pixel_clock pixel_clock = { 0 };
 
-	pixel_clock.header.type     = DMUB_CMD__SET_PIXEL_CLOCK;
+	pixel_clock.header.type = DMUB_CMD__VBIOS;
+	pixel_clock.header.sub_type = DMUB_CMD__VBIOS_SET_PIXEL_CLOCK;
 	pixel_clock.pixel_clock.clk = *clk;
 
 	dc_dmub_srv_cmd_queue(dmcub, &pixel_clock.header);
@@ -650,7 +654,8 @@ static void enable_disp_power_gating_dmcub(
 {
 	struct dmub_rb_cmd_enable_disp_power_gating power_gating;
 
-	power_gating.header.type      = DMUB_CMD__ENABLE_DISP_POWER_GATING;
+	power_gating.header.type = DMUB_CMD__VBIOS;
+	power_gating.header.sub_type = DMUB_CMD__VBIOS_ENABLE_DISP_POWER_GATING;
 	power_gating.power_gating.pwr = *pwr;
 
 	dc_dmub_srv_cmd_queue(dmcub, &power_gating.header);
