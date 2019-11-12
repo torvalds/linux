@@ -73,8 +73,6 @@ static const struct v4l2_fract
 #define CAL_NUM_INPUT 1
 #define CAL_NUM_CONTEXT 2
 
-#define bytes_per_line(pixel, bpp) (ALIGN(pixel * bpp, 16))
-
 #define reg_read(dev, offset) ioread32(dev->base + offset)
 #define reg_write(dev, offset, val) iowrite32(val, dev->base + offset)
 
@@ -93,102 +91,103 @@ static const struct v4l2_fract
 struct cal_fmt {
 	u32	fourcc;
 	u32	code;
-	u8	depth;
+	/* Bits per pixel */
+	u8	bpp;
 };
 
 static struct cal_fmt cal_formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
-		.depth		= 16,
+		.bpp		= 16,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_UYVY,
 		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
-		.depth		= 16,
+		.bpp		= 16,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_YVYU,
 		.code		= MEDIA_BUS_FMT_YVYU8_2X8,
-		.depth		= 16,
+		.bpp		= 16,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_VYUY,
 		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
-		.depth		= 16,
+		.bpp		= 16,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_RGB565, /* gggbbbbb rrrrrggg */
 		.code		= MEDIA_BUS_FMT_RGB565_2X8_LE,
-		.depth		= 16,
+		.bpp		= 16,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_RGB565X, /* rrrrrggg gggbbbbb */
 		.code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
-		.depth		= 16,
+		.bpp		= 16,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_RGB555, /* gggbbbbb arrrrrgg */
 		.code		= MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE,
-		.depth		= 16,
+		.bpp		= 16,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_RGB555X, /* arrrrrgg gggbbbbb */
 		.code		= MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE,
-		.depth		= 16,
+		.bpp		= 16,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_RGB24, /* rgb */
 		.code		= MEDIA_BUS_FMT_RGB888_2X12_LE,
-		.depth		= 24,
+		.bpp		= 24,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_BGR24, /* bgr */
 		.code		= MEDIA_BUS_FMT_RGB888_2X12_BE,
-		.depth		= 24,
+		.bpp		= 24,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_RGB32, /* argb */
 		.code		= MEDIA_BUS_FMT_ARGB8888_1X32,
-		.depth		= 32,
+		.bpp		= 32,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SBGGR8,
 		.code		= MEDIA_BUS_FMT_SBGGR8_1X8,
-		.depth		= 8,
+		.bpp		= 8,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SGBRG8,
 		.code		= MEDIA_BUS_FMT_SGBRG8_1X8,
-		.depth		= 8,
+		.bpp		= 8,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SGRBG8,
 		.code		= MEDIA_BUS_FMT_SGRBG8_1X8,
-		.depth		= 8,
+		.bpp		= 8,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SRGGB8,
 		.code		= MEDIA_BUS_FMT_SRGGB8_1X8,
-		.depth		= 8,
+		.bpp		= 8,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SBGGR10,
 		.code		= MEDIA_BUS_FMT_SBGGR10_1X10,
-		.depth		= 16,
+		.bpp		= 10,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SGBRG10,
 		.code		= MEDIA_BUS_FMT_SGBRG10_1X10,
-		.depth		= 16,
+		.bpp		= 10,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SGRBG10,
 		.code		= MEDIA_BUS_FMT_SGRBG10_1X10,
-		.depth		= 16,
+		.bpp		= 10,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SRGGB10,
 		.code		= MEDIA_BUS_FMT_SRGGB10_1X10,
-		.depth		= 16,
+		.bpp		= 10,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SBGGR12,
 		.code		= MEDIA_BUS_FMT_SBGGR12_1X12,
-		.depth		= 16,
+		.bpp		= 12,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SGBRG12,
 		.code		= MEDIA_BUS_FMT_SGBRG12_1X12,
-		.depth		= 16,
+		.bpp		= 12,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SGRBG12,
 		.code		= MEDIA_BUS_FMT_SGRBG12_1X12,
-		.depth		= 16,
+		.bpp		= 12,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SRGGB12,
 		.code		= MEDIA_BUS_FMT_SRGGB12_1X12,
-		.depth		= 16,
+		.bpp		= 12,
 	},
 };
 
@@ -870,41 +869,28 @@ static void cal_wr_dma_addr(struct cal_ctx *ctx, unsigned int dmaaddr)
 #define TCLK_TERM	0
 #define TCLK_MISS	1
 #define TCLK_SETTLE	14
-#define THS_SETTLE	15
 
 static void csi2_phy_config(struct cal_ctx *ctx)
 {
 	unsigned int reg0, reg1;
 	unsigned int ths_term, ths_settle;
-	unsigned int ddrclkperiod_us;
+	unsigned int csi2_ddrclk_khz;
+	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2 =
+			&ctx->endpoint.bus.mipi_csi2;
+	u32 num_lanes = mipi_csi2->num_data_lanes;
 
-	/*
-	 * THS_TERM: Programmed value = floor(20 ns/DDRClk period) - 2.
-	 */
-	ddrclkperiod_us = ctx->external_rate / 2000000;
-	ddrclkperiod_us = 1000000 / ddrclkperiod_us;
-	ctx_dbg(1, ctx, "ddrclkperiod_us: %d\n", ddrclkperiod_us);
+	/* DPHY timing configuration */
+	/* CSI-2 is DDR and we only count used lanes. */
+	csi2_ddrclk_khz = ctx->external_rate / 1000
+		/ (2 * num_lanes) * ctx->fmt->bpp;
+	ctx_dbg(1, ctx, "csi2_ddrclk_khz: %d\n", csi2_ddrclk_khz);
 
-	ths_term = 20000 / ddrclkperiod_us;
-	ths_term = (ths_term >= 2) ? ths_term - 2 : ths_term;
+	/* THS_TERM: Programmed value = floor(20 ns/DDRClk period) */
+	ths_term = 20 * csi2_ddrclk_khz / 1000000;
 	ctx_dbg(1, ctx, "ths_term: %d (0x%02x)\n", ths_term, ths_term);
 
-	/*
-	 * THS_SETTLE: Programmed value = floor(176.3 ns/CtrlClk period) - 1.
-	 *	Since CtrlClk is fixed at 96Mhz then we get
-	 *	ths_settle = floor(176.3 / 10.416) - 1 = 15
-	 * If we ever switch to a dynamic clock then this code might be useful
-	 *
-	 * unsigned int ctrlclkperiod_us;
-	 * ctrlclkperiod_us = 96000000 / 1000000;
-	 * ctrlclkperiod_us = 1000000 / ctrlclkperiod_us;
-	 * ctx_dbg(1, ctx, "ctrlclkperiod_us: %d\n", ctrlclkperiod_us);
-
-	 * ths_settle = 176300  / ctrlclkperiod_us;
-	 * ths_settle = (ths_settle > 1) ? ths_settle - 1 : ths_settle;
-	 */
-
-	ths_settle = THS_SETTLE;
+	/* THS_SETTLE: Programmed value = floor(105 ns/DDRClk period) + 4 */
+	ths_settle = (105 * csi2_ddrclk_khz / 1000000) + 4;
 	ctx_dbg(1, ctx, "ths_settle: %d (0x%02x)\n", ths_settle, ths_settle);
 
 	reg0 = reg_read(ctx->cc, CAL_CSI2_PHY_REG0);
@@ -1116,6 +1102,8 @@ static int cal_calc_format_size(struct cal_ctx *ctx,
 				const struct cal_fmt *fmt,
 				struct v4l2_format *f)
 {
+	u32 bpl;
+
 	if (!fmt) {
 		ctx_dbg(3, ctx, "No cal_fmt provided!\n");
 		return -EINVAL;
@@ -1123,8 +1111,10 @@ static int cal_calc_format_size(struct cal_ctx *ctx,
 
 	v4l_bound_align_image(&f->fmt.pix.width, 48, MAX_WIDTH, 2,
 			      &f->fmt.pix.height, 32, MAX_HEIGHT, 0, 0);
-	f->fmt.pix.bytesperline = bytes_per_line(f->fmt.pix.width,
-						 fmt->depth >> 3);
+
+	bpl = (f->fmt.pix.width * ALIGN(fmt->bpp, 8)) >> 3;
+	f->fmt.pix.bytesperline = ALIGN(bpl, 16);
+
 	f->fmt.pix.sizeimage = f->fmt.pix.height *
 			       f->fmt.pix.bytesperline;
 
