@@ -11,8 +11,6 @@
 #ifndef _SUNRPC_XDR_H_
 #define _SUNRPC_XDR_H_
 
-#ifdef __KERNEL__
-
 #include <linux/uio.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
@@ -552,6 +550,5 @@ xdr_stream_decode_uint32_array(struct xdr_stream *xdr,
 		*array = be32_to_cpup(p);
 	return retval;
 }
-#endif /* __KERNEL__ */
 
 #endif /* _SUNRPC_XDR_H_ */
