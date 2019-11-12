@@ -65,11 +65,6 @@ static const u8 blake2b_sigma[12][16] = {
 	{ 14, 10,  4,  8,  9, 15, 13,  6,  1, 12,  0,  2, 11,  7,  5,  3 }
 };
 
-static void blake2b_set_lastblock(struct blake2b_state *S)
-{
-	S->f[0] = (u64)-1;
-}
-
 static void blake2b_increment_counter(struct blake2b_state *S, const u64 inc)
 {
 	S->t[0] += inc;
@@ -231,7 +226,8 @@ static int blake2b_final(struct shash_desc *desc, u8 *out)
 	size_t i;
 
 	blake2b_increment_counter(state, state->buflen);
-	blake2b_set_lastblock(state);
+	/* Set last block */
+	state->f[0] = (u64)-1;
 	/* Padding */
 	memset(state->buf + state->buflen, 0, BLAKE2B_BLOCKBYTES - state->buflen);
 	blake2b_compress(state, state->buf);
