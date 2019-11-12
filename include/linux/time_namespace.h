@@ -23,6 +23,9 @@ struct time_namespace {
 	struct ucounts		*ucounts;
 	struct ns_common	ns;
 	struct timens_offsets	offsets;
+	struct page		*vvar_page;
+	/* If set prevents changing offsets after any task joined namespace. */
+	bool			frozen_offsets;
 } __randomize_layout;
 
 extern struct time_namespace init_time_ns;
