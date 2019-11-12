@@ -283,44 +283,42 @@ static const struct drm_i915_mocs_entry icelake_mocs_table[] = {
 static bool get_mocs_settings(const struct drm_i915_private *i915,
 			      struct drm_i915_mocs_table *table)
 {
-	bool result = false;
-
 	if (INTEL_GEN(i915) >= 12) {
 		table->size  = ARRAY_SIZE(tigerlake_mocs_table);
 		table->table = tigerlake_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
-		result = true;
 	} else if (IS_GEN(i915, 11)) {
 		table->size  = ARRAY_SIZE(icelake_mocs_table);
 		table->table = icelake_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
-		result = true;
 	} else if (IS_GEN9_BC(i915) || IS_CANNONLAKE(i915)) {
 		table->size  = ARRAY_SIZE(skylake_mocs_table);
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->table = skylake_mocs_table;
-		result = true;
 	} else if (IS_GEN9_LP(i915)) {
 		table->size  = ARRAY_SIZE(broxton_mocs_table);
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->table = broxton_mocs_table;
-		result = true;
 	} else {
 		WARN_ONCE(INTEL_GEN(i915) >= 9,
 			  "Platform that should have a MOCS table does not.\n");
+		return false;
 	}
+
+	if (GEM_DEBUG_WARN_ON(table->size > table->n_entries))
+		return false;
 
 	/* WaDisableSkipCaching:skl,bxt,kbl,glk */
 	if (IS_GEN(i915, 9)) {
 		int i;
 
 		for (i = 0; i < table->size; i++)
-			if (WARN_ON(table->table[i].l3cc_value &
-				    (L3_ESC(1) | L3_SCC(0x7))))
+			if (GEM_DEBUG_WARN_ON(table->table[i].l3cc_value &
+					      (L3_ESC(1) | L3_SCC(0x7))))
 				return false;
 	}
 
-	return result;
+	return true;
 }
 
 static i915_reg_t mocs_register(const struct intel_engine_cs *engine, int index)
@@ -389,9 +387,7 @@ static u16 get_entry_l3cc(const struct drm_i915_mocs_table *table,
 	return table->table[I915_MOCS_PTE].l3cc_value;
 }
 
-static inline u32 l3cc_combine(const struct drm_i915_mocs_table *table,
-			       u16 low,
-			       u16 high)
+static inline u32 l3cc_combine(u16 low, u16 high)
 {
 	return low | (u32)high << 16;
 }
@@ -409,7 +405,7 @@ static void init_l3cc_table(struct intel_engine_cs *engine,
 
 		intel_uncore_write(uncore,
 				   GEN9_LNCFCMOCS(i),
-				   l3cc_combine(table, low, high));
+				   l3cc_combine(low, high));
 	}
 
 	/* Odd table size - 1 left over */
@@ -418,7 +414,7 @@ static void init_l3cc_table(struct intel_engine_cs *engine,
 
 		intel_uncore_write(uncore,
 				   GEN9_LNCFCMOCS(i),
-				   l3cc_combine(table, low, unused_value));
+				   l3cc_combine(low, unused_value));
 		i++;
 	}
 
@@ -426,8 +422,7 @@ static void init_l3cc_table(struct intel_engine_cs *engine,
 	for (; i < table->n_entries / 2; i++)
 		intel_uncore_write(uncore,
 				   GEN9_LNCFCMOCS(i),
-				   l3cc_combine(table, unused_value,
-						unused_value));
+				   l3cc_combine(unused_value, unused_value));
 }
 
 void intel_mocs_init_engine(struct intel_engine_cs *engine)
@@ -463,9 +458,6 @@ static void intel_mocs_init_global(struct intel_gt *gt)
 	GEM_BUG_ON(!HAS_GLOBAL_MOCS_REGISTERS(gt->i915));
 
 	if (!get_mocs_settings(gt->i915, &table))
-		return;
-
-	if (GEM_DEBUG_WARN_ON(table.size > table.n_entries))
 		return;
 
 	for (index = 0; index < table.size; index++)
