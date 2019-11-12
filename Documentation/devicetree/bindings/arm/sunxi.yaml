@@ -470,6 +470,12 @@ properties:
           - const: emlid,neutis-n5
           - const: allwinner,sun50i-h5
 
+      - description: Emlid Neutis N5H3 Developper Board
+        items:
+          - const: emlid,neutis-n5h3-devboard
+          - const: emlid,neutis-n5h3
+          - const: allwinner,sun8i-h3
+
       - description: NextThing Co. CHIP
         items:
           - const: nextthing,chip
