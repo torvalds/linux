@@ -6481,7 +6481,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		}
 		break;
 	case 0x7392:
-		if (id->idProduct == 0x7811)
+		if (id->idProduct == 0x7811 || id->idProduct == 0xa611)
 			untested = 0;
 		break;
 	case 0x050d:
@@ -6688,6 +6688,8 @@ static const struct usb_device_id dev_table[] = {
 {USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0109, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192eu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0xb720, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8723bu_fops},
+{USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xa611, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8723bu_fops},
 #ifdef CONFIG_RTL8XXXU_UNTESTED
 /* Still supported by rtlwifi */
