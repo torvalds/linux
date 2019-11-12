@@ -49,7 +49,7 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 		.falloc_fh	= NFS_FH(inode),
 		.falloc_offset	= offset,
 		.falloc_length	= len,
-		.falloc_bitmask	= server->cache_consistency_bitmask,
+		.falloc_bitmask	= nfs4_fattr_bitmap,
 	};
 	struct nfs42_falloc_res res = {
 		.falloc_server	= server,
