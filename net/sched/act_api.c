@@ -1003,7 +1003,6 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 			err = PTR_ERR(act);
 			goto err;
 		}
-		act->order = i;
 		sz += tcf_action_fill_size(act);
 		/* Start from index 0 */
 		actions[i - 1] = act;
