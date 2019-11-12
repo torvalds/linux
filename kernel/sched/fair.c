@@ -6980,17 +6980,40 @@ static unsigned long __read_mostly max_load_balance_interval = HZ/10;
 enum fbq_type { regular, remote, all };
 
 /*
- * group_type describes the group of CPUs at the moment of the load balance.
+ * 'group_type' describes the group of CPUs at the moment of load balancing.
+ *
  * The enum is ordered by pulling priority, with the group with lowest priority
- * first so the groupe_type can be simply compared when selecting the busiest
- * group. see update_sd_pick_busiest().
+ * first so the group_type can simply be compared when selecting the busiest
+ * group. See update_sd_pick_busiest().
  */
 enum group_type {
+	/* The group has spare capacity that can be used to run more tasks.  */
 	group_has_spare = 0,
+	/*
+	 * The group is fully used and the tasks don't compete for more CPU
+	 * cycles. Nevertheless, some tasks might wait before running.
+	 */
 	group_fully_busy,
+	/*
+	 * SD_ASYM_CPUCAPACITY only: One task doesn't fit with CPU's capacity
+	 * and must be migrated to a more powerful CPU.
+	 */
 	group_misfit_task,
+	/*
+	 * SD_ASYM_PACKING only: One local CPU with higher capacity is available,
+	 * and the task should be migrated to it instead of running on the
+	 * current CPU.
+	 */
 	group_asym_packing,
+	/*
+	 * The tasks' affinity constraints previously prevented the scheduler
+	 * from balancing the load across the system.
+	 */
 	group_imbalanced,
+	/*
+	 * The CPU is overloaded and can't provide expected CPU cycles to all
+	 * tasks.
+	 */
 	group_overloaded
 };
 
@@ -8589,7 +8612,11 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 
 	/*
 	 * Try to use spare capacity of local group without overloading it or
-	 * emptying busiest
+	 * emptying busiest.
+	 * XXX Spreading tasks across NUMA nodes is not always the best policy
+	 * and special care should be taken for SD_NUMA domain level before
+	 * spreading the tasks. For now, load_balance() fully relies on
+	 * NUMA_BALANCING and fbq_classify_group/rq to override the decision.
 	 */
 	if (local->group_type == group_has_spare) {
 		if (busiest->group_type > group_fully_busy) {
