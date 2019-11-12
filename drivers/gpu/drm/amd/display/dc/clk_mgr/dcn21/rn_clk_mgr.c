@@ -562,7 +562,7 @@ struct wm_table lpddr4_wm_table = {
 		{
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 23.84,
+			.pstate_latency_us = 11.65333,
 			.sr_exit_time_us = 12.5,
 			.sr_enter_plus_exit_time_us = 17.0,
 			.valid = true,
@@ -570,7 +570,7 @@ struct wm_table lpddr4_wm_table = {
 		{
 			.wm_inst = WM_B,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 23.84,
+			.pstate_latency_us = 11.65333,
 			.sr_exit_time_us = 12.5,
 			.sr_enter_plus_exit_time_us = 17.0,
 			.valid = true,
@@ -578,7 +578,7 @@ struct wm_table lpddr4_wm_table = {
 		{
 			.wm_inst = WM_C,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 23.84,
+			.pstate_latency_us = 11.65333,
 			.sr_exit_time_us = 12.5,
 			.sr_enter_plus_exit_time_us = 17.0,
 			.valid = true,
@@ -586,7 +586,7 @@ struct wm_table lpddr4_wm_table = {
 		{
 			.wm_inst = WM_D,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 23.84,
+			.pstate_latency_us = 11.65333,
 			.sr_exit_time_us = 12.5,
 			.sr_enter_plus_exit_time_us = 17.0,
 			.valid = true,
