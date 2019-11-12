@@ -7,8 +7,9 @@
 #include <linux/mm_types.h>
 #include <linux/srcu.h>
 
+struct mmu_notifier_mm;
 struct mmu_notifier;
-struct mmu_notifier_ops;
+struct mmu_notifier_range;
 
 /**
  * enum mmu_notifier_event - reason for the mmu notifier callback
@@ -40,35 +41,7 @@ enum mmu_notifier_event {
 	MMU_NOTIFY_SOFT_DIRTY,
 };
 
-#ifdef CONFIG_MMU_NOTIFIER
-
-#ifdef CONFIG_LOCKDEP
-extern struct lockdep_map __mmu_notifier_invalidate_range_start_map;
-#endif
-
-/*
- * The mmu notifier_mm structure is allocated and installed in
- * mm->mmu_notifier_mm inside the mm_take_all_locks() protected
- * critical section and it's released only when mm_count reaches zero
- * in mmdrop().
- */
-struct mmu_notifier_mm {
-	/* all mmu notifiers registerd in this mm are queued in this list */
-	struct hlist_head list;
-	/* to serialize the list modifications and hlist_unhashed */
-	spinlock_t lock;
-};
-
 #define MMU_NOTIFIER_RANGE_BLOCKABLE (1 << 0)
-
-struct mmu_notifier_range {
-	struct vm_area_struct *vma;
-	struct mm_struct *mm;
-	unsigned long start;
-	unsigned long end;
-	unsigned flags;
-	enum mmu_notifier_event event;
-};
 
 struct mmu_notifier_ops {
 	/*
@@ -247,6 +220,21 @@ struct mmu_notifier {
 	struct mm_struct *mm;
 	struct rcu_head rcu;
 	unsigned int users;
+};
+
+#ifdef CONFIG_MMU_NOTIFIER
+
+#ifdef CONFIG_LOCKDEP
+extern struct lockdep_map __mmu_notifier_invalidate_range_start_map;
+#endif
+
+struct mmu_notifier_range {
+	struct vm_area_struct *vma;
+	struct mm_struct *mm;
+	unsigned long start;
+	unsigned long end;
+	unsigned flags;
+	enum mmu_notifier_event event;
 };
 
 static inline int mm_has_notifiers(struct mm_struct *mm)
