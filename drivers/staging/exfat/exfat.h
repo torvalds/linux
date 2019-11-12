@@ -208,9 +208,6 @@ static inline u16 get_row_index(u16 i)
 #define FM_REGULAR              0x00
 #define FM_SYMLINK              0x40
 
-/* return values */
-#define FFS_SUCCESS             0
-
 #define NUM_UPCASE              2918
 
 #define DOS_CUR_DIR_NAME        ".          "

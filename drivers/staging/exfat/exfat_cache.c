@@ -462,7 +462,7 @@ u8 *FAT_getblk(struct super_block *sb, sector_t sec)
 
 	FAT_cache_insert_hash(sb, bp);
 
-	if (sector_read(sb, sec, &bp->buf_bh, 1) != FFS_SUCCESS) {
+	if (sector_read(sb, sec, &bp->buf_bh, 1) != 0) {
 		FAT_cache_remove_hash(bp);
 		bp->drv = -1;
 		bp->sec = ~0;
@@ -582,7 +582,7 @@ static u8 *__buf_getblk(struct super_block *sb, sector_t sec)
 
 	buf_cache_insert_hash(sb, bp);
 
-	if (sector_read(sb, sec, &bp->buf_bh, 1) != FFS_SUCCESS) {
+	if (sector_read(sb, sec, &bp->buf_bh, 1) != 0) {
 		buf_cache_remove_hash(bp);
 		bp->drv = -1;
 		bp->sec = ~0;

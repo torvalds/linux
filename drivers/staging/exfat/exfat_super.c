@@ -373,7 +373,7 @@ static int ffsMountVol(struct super_block *sb)
 		sb_set_blocksize(sb, p_bd->sector_size);
 
 	/* read Sector 0 */
-	if (sector_read(sb, 0, &tmp_bh, 1) != FFS_SUCCESS) {
+	if (sector_read(sb, 0, &tmp_bh, 1) != 0) {
 		ret = -EIO;
 		goto out;
 	}
@@ -452,7 +452,7 @@ out:
 static int ffsUmountVol(struct super_block *sb)
 {
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
-	int err = FFS_SUCCESS;
+	int err = 0;
 
 	pr_info("[EXFAT] trying to unmount...\n");
 
@@ -493,7 +493,7 @@ static int ffsUmountVol(struct super_block *sb)
 
 static int ffsGetVolInfo(struct super_block *sb, struct vol_info_t *info)
 {
-	int err = FFS_SUCCESS;
+	int err = 0;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
 	/* check the validity of pointer parameters */
@@ -523,7 +523,7 @@ static int ffsGetVolInfo(struct super_block *sb, struct vol_info_t *info)
 
 static int ffsSyncVol(struct super_block *sb, bool do_sync)
 {
-	int err = FFS_SUCCESS;
+	int err = 0;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
 	/* acquire the lock for file system critical section */
@@ -776,13 +776,13 @@ static int ffsReadFile(struct inode *inode, struct file_id_t *fid, void *buffer,
 
 		if ((offset == 0) && (oneblkread == p_bd->sector_size)) {
 			if (sector_read(sb, LogSector, &tmp_bh, 1) !=
-			    FFS_SUCCESS)
+			    0)
 				goto err_out;
 			memcpy((char *)buffer + read_bytes,
 			       (char *)tmp_bh->b_data, (s32)oneblkread);
 		} else {
 			if (sector_read(sb, LogSector, &tmp_bh, 1) !=
-			    FFS_SUCCESS)
+			    0)
 				goto err_out;
 			memcpy((char *)buffer + read_bytes,
 			       (char *)tmp_bh->b_data + offset,
@@ -852,7 +852,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 	if (count == 0) {
 		if (wcount)
 			*wcount = 0;
-		ret = FFS_SUCCESS;
+		ret = 0;
 		goto out;
 	}
 
@@ -962,12 +962,12 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 
 		if ((offset == 0) && (oneblkwrite == p_bd->sector_size)) {
 			if (sector_read(sb, LogSector, &tmp_bh, 0) !=
-			    FFS_SUCCESS)
+			    0)
 				goto err_out;
 			memcpy((char *)tmp_bh->b_data,
 			       (char *)buffer + write_bytes, (s32)oneblkwrite);
 			if (sector_write(sb, LogSector, tmp_bh, 0) !=
-			    FFS_SUCCESS) {
+			    0) {
 				brelse(tmp_bh);
 				goto err_out;
 			}
@@ -975,18 +975,18 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 			if ((offset > 0) ||
 			    ((fid->rwoffset + oneblkwrite) < fid->size)) {
 				if (sector_read(sb, LogSector, &tmp_bh, 1) !=
-				    FFS_SUCCESS)
+				    0)
 					goto err_out;
 			} else {
 				if (sector_read(sb, LogSector, &tmp_bh, 0) !=
-				    FFS_SUCCESS)
+				    0)
 					goto err_out;
 			}
 
 			memcpy((char *)tmp_bh->b_data + offset,
 			       (char *)buffer + write_bytes, (s32)oneblkwrite);
 			if (sector_write(sb, LogSector, tmp_bh, 0) !=
-			    FFS_SUCCESS) {
+			    0) {
 				brelse(tmp_bh);
 				goto err_out;
 			}
@@ -1100,7 +1100,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 	}
 
 	if (old_size <= new_size) {
-		ret = FFS_SUCCESS;
+		ret = 0;
 		goto out;
 	}
 
@@ -1319,7 +1319,7 @@ static int ffsMoveFile(struct inode *old_parent_inode, struct file_id_t *fid,
 		ret = move_file(new_parent_inode, &olddir, dentry, &newdir,
 				&uni_name, fid);
 
-	if ((ret == FFS_SUCCESS) && new_inode) {
+	if ((ret == 0) && new_inode) {
 		/* delete entries of new_dir */
 		ep = get_entry_in_dir(sb, p_dir, new_entry, NULL);
 		if (!ep)
@@ -1350,7 +1350,7 @@ out2:
 static int ffsRemoveFile(struct inode *inode, struct file_id_t *fid)
 {
 	s32 dentry;
-	int ret = FFS_SUCCESS;
+	int ret = 0;
 	struct chain_t dir, clu_to_free;
 	struct dentry_t *ep;
 	struct super_block *sb = inode->i_sb;
@@ -1414,7 +1414,7 @@ out:
 static int ffsSetAttr(struct inode *inode, u32 attr)
 {
 	u32 type;
-	int ret = FFS_SUCCESS;
+	int ret = 0;
 	sector_t sector = 0;
 	struct dentry_t *ep;
 	struct super_block *sb = inode->i_sb;
@@ -1426,7 +1426,7 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 	if (fid->attr == attr) {
 		if (p_fs->dev_ejected)
 			return -EIO;
-		return FFS_SUCCESS;
+		return 0;
 	}
 
 	if (is_dir) {
@@ -1434,7 +1434,7 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 		    (fid->entry == -1)) {
 			if (p_fs->dev_ejected)
 				return -EIO;
-			return FFS_SUCCESS;
+			return 0;
 		}
 	}
 
@@ -1503,7 +1503,7 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 {
 	sector_t sector = 0;
 	s32 count;
-	int ret = FFS_SUCCESS;
+	int ret = 0;
 	struct chain_t dir;
 	struct uni_name_t uni_name;
 	struct timestamp_t tm;
@@ -1655,7 +1655,7 @@ out:
 static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 {
 	sector_t sector = 0;
-	int ret = FFS_SUCCESS;
+	int ret = 0;
 	struct timestamp_t tm;
 	struct dentry_t *ep, *ep2;
 	struct entry_set_cache_t *es = NULL;
@@ -1674,7 +1674,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 		    (fid->entry == -1)) {
 			if (p_fs->dev_ejected)
 				ret = -EIO;
-			ret = FFS_SUCCESS;
+			ret = 0;
 			goto out;
 		}
 	}
@@ -1745,7 +1745,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 	s32 num_clusters, num_alloced;
 	bool modified = false;
 	u32 last_clu;
-	int ret = FFS_SUCCESS;
+	int ret = 0;
 	sector_t sector = 0;
 	struct chain_t new_clu;
 	struct dentry_t *ep;
@@ -1898,7 +1898,7 @@ out:
 
 static int ffsCreateDir(struct inode *inode, char *path, struct file_id_t *fid)
 {
-	int ret = FFS_SUCCESS;
+	int ret = 0;
 	struct chain_t dir;
 	struct uni_name_t uni_name;
 	struct super_block *sb = inode->i_sb;
@@ -1939,7 +1939,7 @@ out:
 static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 {
 	int i, dentry, clu_offset;
-	int ret = FFS_SUCCESS;
+	int ret = 0;
 	s32 dentries_per_clu, dentries_per_clu_bits = 0;
 	u32 type;
 	sector_t sector;
@@ -2138,7 +2138,7 @@ out:
 static int ffsRemoveDir(struct inode *inode, struct file_id_t *fid)
 {
 	s32 dentry;
-	int ret = FFS_SUCCESS;
+	int ret = 0;
 	struct chain_t dir, clu_to_free;
 	struct super_block *sb = inode->i_sb;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
