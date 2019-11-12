@@ -276,25 +276,6 @@ static void blake2b_update(struct blake2b_state *S, const void *pin, size_t inle
 	}
 }
 
-static void blake2b_final(struct blake2b_state *S, void *out, size_t outlen)
-{
-	u8 buffer[BLAKE2B_OUTBYTES] = {0};
-	size_t i;
-
-	blake2b_increment_counter(S, S->buflen);
-	blake2b_set_lastblock(S);
-	/* Padding */
-	memset(S->buf + S->buflen, 0, BLAKE2B_BLOCKBYTES - S->buflen);
-	blake2b_compress(S, S->buf);
-
-	/* Output full hash to temp buffer */
-	for (i = 0; i < 8; ++i)
-		put_unaligned_le64(S->h[i], buffer + sizeof(S->h[i]) * i);
-
-	memcpy(out, buffer, S->outlen);
-	memzero_explicit(buffer, sizeof(buffer));
-}
-
 struct digest_tfm_ctx {
 	u8 key[BLAKE2B_KEYBYTES];
 	unsigned int keylen;
@@ -338,12 +319,23 @@ static int digest_update(struct shash_desc *desc, const u8 *data,
 	return 0;
 }
 
-static int digest_final(struct shash_desc *desc, u8 *out)
+static int blake2b_final(struct shash_desc *desc, u8 *out)
 {
 	struct blake2b_state *state = shash_desc_ctx(desc);
 	const int digestsize = crypto_shash_digestsize(desc->tfm);
+	size_t i;
 
-	blake2b_final(state, out, digestsize);
+	blake2b_increment_counter(state, state->buflen);
+	blake2b_set_lastblock(state);
+	/* Padding */
+	memset(state->buf + state->buflen, 0, BLAKE2B_BLOCKBYTES - state->buflen);
+	blake2b_compress(state, state->buf);
+
+	/* Avoid temporary buffer and switch the internal output to LE order */
+	for (i = 0; i < ARRAY_SIZE(state->h); i++)
+		__cpu_to_le64s(&state->h[i]);
+
+	memcpy(out, state->h, digestsize);
 	return 0;
 }
 
@@ -360,7 +352,7 @@ static struct shash_alg blake2b_algs[] = {
 		.setkey			= digest_setkey,
 		.init			= digest_init,
 		.update			= digest_update,
-		.final			= digest_final,
+		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
 	}, {
 		.base.cra_name		= "blake2b-256",
@@ -374,7 +366,7 @@ static struct shash_alg blake2b_algs[] = {
 		.setkey			= digest_setkey,
 		.init			= digest_init,
 		.update			= digest_update,
-		.final			= digest_final,
+		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
 	}, {
 		.base.cra_name		= "blake2b-384",
@@ -388,7 +380,7 @@ static struct shash_alg blake2b_algs[] = {
 		.setkey			= digest_setkey,
 		.init			= digest_init,
 		.update			= digest_update,
-		.final			= digest_final,
+		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
 	}, {
 		.base.cra_name		= "blake2b-512",
@@ -402,7 +394,7 @@ static struct shash_alg blake2b_algs[] = {
 		.setkey			= digest_setkey,
 		.init			= digest_init,
 		.update			= digest_update,
-		.final			= digest_final,
+		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
 	}
 };
