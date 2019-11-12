@@ -706,9 +706,16 @@ static int rbd_ioctl_set_ro(struct rbd_device *rbd_dev, unsigned long arg)
 	if (get_user(ro, (int __user *)arg))
 		return -EFAULT;
 
-	/* Snapshots can't be marked read-write */
-	if (rbd_is_snap(rbd_dev) && !ro)
-		return -EROFS;
+	/*
+	 * Both images mapped read-only and snapshots can't be marked
+	 * read-write.
+	 */
+	if (!ro) {
+		if (rbd_is_ro(rbd_dev))
+			return -EROFS;
+
+		rbd_assert(!rbd_is_snap(rbd_dev));
+	}
 
 	/* Let blkdev_roset() handle it */
 	return -ENOTTY;
