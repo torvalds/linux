@@ -13,6 +13,7 @@
 #include "exynos4412.dtsi"
 #include "exynos4412-ppmu-common.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/maxim,max77686.h>
 #include <dt-bindings/pinctrl/samsung.h>
@@ -90,6 +91,15 @@
 		regulator-max-microvolt = <1800000>;
 		gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	touchkey_reg: voltage-regulator-6 {
+		compatible = "regulator-fixed";
+		regulator-name = "LED_VDD_3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		status = "disabled";
 	};
 
 	gpio-keys {
@@ -194,6 +204,25 @@
 
 			maxim,over-heat-temp = <700>;
 			maxim,over-volt = <4500>;
+		};
+	};
+
+	i2c-gpio-4 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpl0 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpl0 1 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		touchkey@20 {
+			compatible = "cypress,midas-touchkey";
+			reg = <0x20>;
+			vdd-supply = <&touchkey_reg>;
+			vcc-supply = <&ldo5_reg>;
+			interrupt-parent = <&gpj0>;
+			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+			linux,keycodes = <KEY_BACK KEY_MENU>;
 		};
 	};
 
