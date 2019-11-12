@@ -144,7 +144,6 @@ s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 		#endif
 
 		pxmitbuf++;
-
 	}
 
 	pxmitpriv->free_xmitbuf_cnt = NR_XMITBUFF;
@@ -222,7 +221,6 @@ s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 		pxmitbuf->no = i;
 		#endif
 		pxmitbuf++;
-
 	}
 
 	pxmitpriv->free_xmit_extbuf_cnt = NR_XMIT_EXTBUFF;
@@ -479,7 +477,6 @@ static void update_attrib_phy_info(struct adapter *padapter, struct pkt_attrib *
 	if (psta->isrc && psta->pid > 0)
 		pattrib->pctrl = true;
 #endif
-
 }
 
 static s32 update_attrib_sec_info(struct adapter *padapter, struct pkt_attrib *pattrib, struct sta_info *psta)
@@ -529,7 +526,6 @@ static s32 update_attrib_sec_info(struct adapter *padapter, struct pkt_attrib *p
 		/* For WPS 1.0 WEP, driver should not encrypt EAPOL Packet for WPS handshake. */
 		if (((pattrib->encrypt == _WEP40_) || (pattrib->encrypt == _WEP104_)) && (pattrib->ether_type == 0x888e))
 			pattrib->encrypt = _NO_PRIVACY_;
-
 	}
 
 	switch (pattrib->encrypt) {
@@ -600,7 +596,6 @@ static s32 update_attrib_sec_info(struct adapter *padapter, struct pkt_attrib *p
 exit:
 
 	return res;
-
 }
 
 u8 qos_acm(u8 acm_mask, u8 priority)
@@ -723,7 +718,6 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 				DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_icmp);
 			}
 		}
-
 	} else if (0x888e == pattrib->ether_type) {
 		DBG_871X_LEVEL(_drv_always_, "send eapol packet\n");
 	}
@@ -809,7 +803,6 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 
 			if (pmlmepriv->acm_mask != 0)
 				pattrib->priority = qos_acm(pmlmepriv->acm_mask, pattrib->priority);
-
 		}
 	}
 
@@ -866,7 +859,6 @@ static s32 xmitframe_addmic(struct adapter *padapter, struct xmit_frame *pxmitfr
 					rtw_secmicappend(&micdata, &pframe[16], 6);
 				else
 					rtw_secmicappend(&micdata, &pframe[10], 6);
-
 			}
 
 			if (pattrib->qos_en)
@@ -939,7 +931,6 @@ static s32 xmitframe_swencrypt(struct adapter *padapter, struct xmit_frame *pxmi
 		default:
 				break;
 		}
-
 	} else
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_notice_, ("### xmitframe_hwencrypt\n"));
 
@@ -976,7 +967,6 @@ s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattr
 
 			if (pqospriv->qos_option)
 				qos_option = true;
-
 		} else if (check_fwstate(pmlmepriv,  WIFI_AP_STATE) == true) {
 			/* to_ds = 0, fr_ds = 1; */
 			SetFrDs(fctrl);
@@ -1067,13 +1057,10 @@ s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattr
 						psta->BA_starting_seqctrl[pattrib->priority & 0x0f] = (pattrib->seqnum+1)&0xfff;
 						pattrib->ampdu_en = true;/* AGG EN */
 					}
-
 				}
 			}
 		}
-
 	} else {
-
 	}
 
 exit:
@@ -1230,7 +1217,6 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, _pkt *pkt, struct xmit_fram
 
 		mem_start = (unsigned char *)RND4(addr) + hw_hdr_offset;
 		memcpy(mem_start, pbuf_start + hw_hdr_offset, pattrib->hdrlen);
-
 	}
 
 	if (xmitframe_addmic(padapter, pxmitframe) == _FAIL) {
@@ -1482,7 +1468,6 @@ void rtw_update_protection(struct adapter *padapter, u8 *ie, uint ie_len)
 		}
 
 		break;
-
 	}
 }
 
@@ -1566,7 +1551,6 @@ struct xmit_frame *__rtw_alloc_cmdxmitframe(struct xmit_priv *pxmitpriv,
 	pxmitbuf->priv_data = pcmdframe;
 
 	return pcmdframe;
-
 }
 
 struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv)
@@ -1607,7 +1591,6 @@ struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv)
 			DBG_871X("%s pxmitbuf->sctx is not NULL\n", __func__);
 			rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_BUF_ALLOC);
 		}
-
 	}
 
 	spin_unlock_irqrestore(&pfree_queue->lock, irqL);
@@ -1867,7 +1850,6 @@ s32 rtw_free_xmitframe(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitfram
 	else if (pxmitframe->ext_tag == 1)
 		queue = &pxmitpriv->free_xframe_ext_queue;
 	else {
-
 	}
 
 	spin_lock_bh(&queue->lock);
@@ -1911,7 +1893,6 @@ void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pfram
 		plist = get_next(plist);
 
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
-
 	}
 	spin_unlock_bh(&pframequeue->lock);
 }
@@ -1961,7 +1942,6 @@ struct tx_servq *rtw_get_sta_pending(struct adapter *padapter, struct sta_info *
 		*(ac) = 2;
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("rtw_get_sta_pending : BE\n"));
 	break;
-
 	}
 
 	return ptxservq;
@@ -2044,7 +2024,6 @@ s32 rtw_alloc_hwxmits(struct adapter *padapter)
 		hwxmits[3] .sta_queue = &pxmitpriv->bk_pending;
 
 		hwxmits[4] .sta_queue = &pxmitpriv->be_pending;
-
 	} else if (pxmitpriv->hwxmit_entry == 4) {
 
 		hwxmits[0] .sta_queue = &pxmitpriv->vo_pending;
@@ -2055,7 +2034,6 @@ s32 rtw_alloc_hwxmits(struct adapter *padapter)
 
 		hwxmits[3] .sta_queue = &pxmitpriv->bk_pending;
 	} else {
-
 	}
 
 	return _SUCCESS;
@@ -2109,11 +2087,9 @@ u32 rtw_get_ff_hwaddr(struct xmit_frame *pxmitframe)
 	default:
 		addr = MGT_QUEUE_INX;
 		break;
-
 	}
 
 	return addr;
-
 }
 
 static void do_queue_select(struct adapter	*padapter, struct pkt_attrib *pattrib)
@@ -2294,13 +2270,11 @@ sint xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fr
 			ret = true;
 
 			DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_mcast);
-
 		}
 
 		spin_unlock_bh(&psta->sleep_q.lock);
 
 		return ret;
-
 	}
 
 	spin_lock_bh(&psta->sleep_q.lock);
@@ -2353,13 +2327,11 @@ sint xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fr
 
 			DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_ucast);
 		}
-
 	}
 
 	spin_unlock_bh(&psta->sleep_q.lock);
 
 	return ret;
-
 }
 
 static void dequeue_xmitframes_to_sleeping_queue(struct adapter *padapter, struct sta_info *psta, struct __queue *pframequeue)
@@ -2393,9 +2365,7 @@ static void dequeue_xmitframes_to_sleeping_queue(struct adapter *padapter, struc
 			phwxmits[ac_index].accnt--;
 		} else {
 		}
-
 	}
-
 }
 
 void stop_sta_xmit(struct adapter *padapter, struct sta_info *psta)
@@ -2499,7 +2469,6 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 		pxmitframe->attrib.triggered = 1;
 
 		rtw_hal_xmitframe_enqueue(padapter, pxmitframe);
-
 	}
 
 	if (psta->sleepq_len == 0) {
@@ -2544,7 +2513,6 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 
 			pxmitframe->attrib.triggered = 1;
 			rtw_hal_xmitframe_enqueue(padapter, pxmitframe);
-
 		}
 
 		if (psta_bmc->sleepq_len == 0) {
@@ -2554,7 +2522,6 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 			pstapriv->tim_bitmap &= ~BIT(0);
 			pstapriv->sta_dz_bitmap &= ~BIT(0);
 		}
-
 	}
 
 _exit:
@@ -2563,7 +2530,6 @@ _exit:
 
 	if (update_mask)
 		update_beacon(padapter, _TIM_IE_, NULL, true);
-
 }
 
 void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *psta)
@@ -2628,7 +2594,6 @@ void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *pst
 
 			update_beacon(padapter, _TIM_IE_, NULL, true);
 		}
-
 	}
 
 	spin_unlock_bh(&pxmitpriv->lock);
