@@ -17338,12 +17338,6 @@ F:	include/linux/vbox_utils.h
 F:	include/uapi/linux/vbox*.h
 F:	drivers/virt/vboxguest/
 
-VIRTUAL BOX SHARED FOLDER VFS DRIVER:
-M:	Hans de Goede <hdegoede@redhat.com>
-L:	linux-fsdevel@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/vboxsf/*
-
 VIRTUAL SERIO DEVICE DRIVER
 M:	Stephen Chandler Paul <thatslyude@gmail.com>
 S:	Maintained
