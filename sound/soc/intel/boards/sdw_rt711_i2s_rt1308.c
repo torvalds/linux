@@ -18,6 +18,8 @@
 #include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/soundwire/sdw.h>
+#include <linux/soundwire/sdw_type.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -26,6 +28,17 @@
 #include "../../codecs/rt1308.h"
 #include "../../codecs/hdac_hdmi.h"
 #include "hda_dsp_common.h"
+
+#define MAX_NO_PROPS 2
+
+enum {
+	SOF_RT711_JD_SRC_JD1 = 1,
+	SOF_RT711_JD_SRC_JD2 = 2,
+};
+
+#define SOF_RT711_JDSRC(quirk)		((quirk) & GENMASK(1, 0))
+
+static unsigned long sof_rt711_rt1308_quirk = SOF_RT711_JD_SRC_JD1;
 
 struct mc_private {
 	struct list_head hdmi_pcm_list;
@@ -191,6 +204,50 @@ static int rt1308_hw_params(struct snd_pcm_substream *substream,
 static struct snd_soc_ops rt1308_ops = {
 	.hw_params = rt1308_hw_params,
 };
+
+static int sof_rt711_rt1308_quirk_cb(const struct dmi_system_id *id)
+{
+	sof_rt711_rt1308_quirk = (unsigned long)id->driver_data;
+	return 1;
+}
+
+static const struct dmi_system_id sof_sdw_rt711_rt1308_quirk_table[] = {
+	{
+		.callback = sof_rt711_rt1308_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IntelCorporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Tiger Lake Client"),
+		},
+		.driver_data = (void *)(SOF_RT711_JD_SRC_JD1),
+	},
+	{}
+};
+
+/*
+ * Note this MUST be called before snd_soc_register_card(), so that the props
+ * are in place before the codec component driver's probe function parses them.
+ */
+static int sof_rt711_add_codec_device_props(const char *sdw_dev_name)
+{
+	struct property_entry props[MAX_NO_PROPS] = {};
+	struct device *sdw_dev;
+	int ret, cnt = 0;
+	unsigned int quirk;
+
+	sdw_dev = bus_find_device_by_name(&sdw_bus_type, NULL, sdw_dev_name);
+	if (!sdw_dev)
+		return -EPROBE_DEFER;
+
+	if (SOF_RT711_JDSRC(sof_rt711_rt1308_quirk)) {
+		quirk = SOF_RT711_JDSRC(sof_rt711_rt1308_quirk);
+		props[cnt++] = PROPERTY_ENTRY_U32("realtek,jd-src", quirk);
+	}
+
+	ret = device_add_properties(sdw_dev, props);
+	put_device(sdw_dev);
+
+	return ret;
+}
 
 static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
@@ -366,6 +423,8 @@ static int mc_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
+	dmi_check_system(sof_sdw_rt711_rt1308_quirk_table);
+
 #if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 #endif
@@ -383,6 +442,8 @@ static int mc_probe(struct platform_device *pdev)
 	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
 
 	snd_soc_card_set_drvdata(card, ctx);
+
+	sof_rt711_add_codec_device_props("sdw:0:25d:711:0");
 
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }
