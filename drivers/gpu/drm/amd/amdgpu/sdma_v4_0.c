@@ -621,6 +621,9 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		else
 			chip_name = "green_sardine";
 		break;
+	case CHIP_ALDEBARAN:
+		chip_name = "aldebaran";
+		break;
 	default:
 		BUG();
 	}
@@ -1825,6 +1828,8 @@ static int sdma_v4_0_early_init(void *handle)
 		adev->sdma.num_instances = 1;
 	else if (adev->asic_type == CHIP_ARCTURUS)
 		adev->sdma.num_instances = 8;
+	else if (adev->asic_type == CHIP_ALDEBARAN)
+		adev->sdma.num_instances = 5;
 	else
 		adev->sdma.num_instances = 2;
 
