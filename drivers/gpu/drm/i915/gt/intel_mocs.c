@@ -452,3 +452,7 @@ void intel_mocs_init(struct intel_gt *gt)
 	if (HAS_GLOBAL_MOCS_REGISTERS(gt->i915))
 		init_global_mocs(gt);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_mocs.c"
+#endif
