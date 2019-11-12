@@ -273,7 +273,7 @@ static int dm_dp_mst_atomic_check(struct drm_connector *connector,
 		return 0;
 
 	if (new_conn_state->crtc) {
-		new_crtc_state = drm_atomic_get_old_crtc_state(state, new_conn_state->crtc);
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_conn_state->crtc);
 		if (!new_crtc_state ||
 		    !drm_atomic_crtc_needs_modeset(new_crtc_state) ||
 		    new_crtc_state->enable)
