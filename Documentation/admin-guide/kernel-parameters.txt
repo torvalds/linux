@@ -988,10 +988,6 @@
 			chosen node or the ACPI SPCR table if supported by
 			the platform.
 
-			[RISCV] When used with no options, the early
-			console is determined by the stdout-path
-			property in the device tree's chosen node.
-
 		cdns,<addr>[,options]
 			Start an early, polled-mode console on a Cadence
 			(xuartps) serial port at the specified address. Only
