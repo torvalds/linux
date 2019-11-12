@@ -495,7 +495,7 @@ void show_trace(struct task_struct *task, unsigned long *sp)
 
 #define STACK_DUMP_ENTRY_SIZE 4
 #define STACK_DUMP_LINE_SIZE 32
-static size_t kstack_depth_to_print = 24;
+static size_t kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
