@@ -615,6 +615,7 @@
 				interrupts = <38 IRQ_TYPE_LEVEL_HIGH 7>;
 				#pwm-cells = <3>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 38>;
+				status = "disabled";
 			};
 
 			sfr: sfr@f8030000 {
