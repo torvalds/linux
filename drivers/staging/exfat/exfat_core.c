@@ -156,6 +156,97 @@ static s32 clear_cluster(struct super_block *sb, u32 clu)
 	return ret;
 }
 
+static s32 set_alloc_bitmap(struct super_block *sb, u32 clu)
+{
+	int i, b;
+	sector_t sector;
+	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
+	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
+
+	i = clu >> (p_bd->sector_size_bits + 3);
+	b = clu & ((p_bd->sector_size << 3) - 1);
+
+	sector = START_SECTOR(p_fs->map_clu) + i;
+
+	exfat_bitmap_set((u8 *)p_fs->vol_amap[i]->b_data, b);
+
+	return sector_write(sb, sector, p_fs->vol_amap[i], 0);
+}
+
+static s32 clr_alloc_bitmap(struct super_block *sb, u32 clu)
+{
+	int i, b;
+	sector_t sector;
+#ifdef CONFIG_EXFAT_DISCARD
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+	struct exfat_mount_options *opts = &sbi->options;
+	int ret;
+#endif /* CONFIG_EXFAT_DISCARD */
+	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
+	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
+
+	i = clu >> (p_bd->sector_size_bits + 3);
+	b = clu & ((p_bd->sector_size << 3) - 1);
+
+	sector = START_SECTOR(p_fs->map_clu) + i;
+
+	exfat_bitmap_clear((u8 *)p_fs->vol_amap[i]->b_data, b);
+
+	return sector_write(sb, sector, p_fs->vol_amap[i], 0);
+
+#ifdef CONFIG_EXFAT_DISCARD
+	if (opts->discard) {
+		ret = sb_issue_discard(sb, START_SECTOR(clu),
+				       (1 << p_fs->sectors_per_clu_bits),
+				       GFP_NOFS, 0);
+		if (ret == -EOPNOTSUPP) {
+			pr_warn("discard not supported by device, disabling");
+			opts->discard = 0;
+		}
+	}
+#endif /* CONFIG_EXFAT_DISCARD */
+}
+
+static u32 test_alloc_bitmap(struct super_block *sb, u32 clu)
+{
+	int i, map_i, map_b;
+	u32 clu_base, clu_free;
+	u8 k, clu_mask;
+	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
+	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
+
+	clu_base = (clu & ~(0x7)) + 2;
+	clu_mask = (1 << (clu - clu_base + 2)) - 1;
+
+	map_i = clu >> (p_bd->sector_size_bits + 3);
+	map_b = (clu >> 3) & p_bd->sector_size_mask;
+
+	for (i = 2; i < p_fs->num_clusters; i += 8) {
+		k = *(((u8 *)p_fs->vol_amap[map_i]->b_data) + map_b);
+		if (clu_mask > 0) {
+			k |= clu_mask;
+			clu_mask = 0;
+		}
+		if (k < 0xFF) {
+			clu_free = clu_base + free_bit[k];
+			if (clu_free < p_fs->num_clusters)
+				return clu_free;
+		}
+		clu_base += 8;
+
+		if (((++map_b) >= p_bd->sector_size) ||
+		    (clu_base >= p_fs->num_clusters)) {
+			if ((++map_i) >= p_fs->map_sectors) {
+				clu_base = 2;
+				map_i = 0;
+			}
+			map_b = 0;
+		}
+	}
+
+	return CLUSTER_32(~0);
+}
+
 static s32 exfat_alloc_cluster(struct super_block *sb, s32 num_alloc,
 			struct chain_t *p_chain)
 {
@@ -466,97 +557,6 @@ void free_alloc_bitmap(struct super_block *sb)
 
 	kfree(p_fs->vol_amap);
 	p_fs->vol_amap = NULL;
-}
-
-s32 set_alloc_bitmap(struct super_block *sb, u32 clu)
-{
-	int i, b;
-	sector_t sector;
-	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
-	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
-
-	i = clu >> (p_bd->sector_size_bits + 3);
-	b = clu & ((p_bd->sector_size << 3) - 1);
-
-	sector = START_SECTOR(p_fs->map_clu) + i;
-
-	exfat_bitmap_set((u8 *)p_fs->vol_amap[i]->b_data, b);
-
-	return sector_write(sb, sector, p_fs->vol_amap[i], 0);
-}
-
-s32 clr_alloc_bitmap(struct super_block *sb, u32 clu)
-{
-	int i, b;
-	sector_t sector;
-#ifdef CONFIG_EXFAT_DISCARD
-	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct exfat_mount_options *opts = &sbi->options;
-	int ret;
-#endif /* CONFIG_EXFAT_DISCARD */
-	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
-	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
-
-	i = clu >> (p_bd->sector_size_bits + 3);
-	b = clu & ((p_bd->sector_size << 3) - 1);
-
-	sector = START_SECTOR(p_fs->map_clu) + i;
-
-	exfat_bitmap_clear((u8 *)p_fs->vol_amap[i]->b_data, b);
-
-	return sector_write(sb, sector, p_fs->vol_amap[i], 0);
-
-#ifdef CONFIG_EXFAT_DISCARD
-	if (opts->discard) {
-		ret = sb_issue_discard(sb, START_SECTOR(clu),
-				       (1 << p_fs->sectors_per_clu_bits),
-				       GFP_NOFS, 0);
-		if (ret == -EOPNOTSUPP) {
-			pr_warn("discard not supported by device, disabling");
-			opts->discard = 0;
-		}
-	}
-#endif /* CONFIG_EXFAT_DISCARD */
-}
-
-u32 test_alloc_bitmap(struct super_block *sb, u32 clu)
-{
-	int i, map_i, map_b;
-	u32 clu_base, clu_free;
-	u8 k, clu_mask;
-	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
-	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
-
-	clu_base = (clu & ~(0x7)) + 2;
-	clu_mask = (1 << (clu - clu_base + 2)) - 1;
-
-	map_i = clu >> (p_bd->sector_size_bits + 3);
-	map_b = (clu >> 3) & p_bd->sector_size_mask;
-
-	for (i = 2; i < p_fs->num_clusters; i += 8) {
-		k = *(((u8 *)p_fs->vol_amap[map_i]->b_data) + map_b);
-		if (clu_mask > 0) {
-			k |= clu_mask;
-			clu_mask = 0;
-		}
-		if (k < 0xFF) {
-			clu_free = clu_base + free_bit[k];
-			if (clu_free < p_fs->num_clusters)
-				return clu_free;
-		}
-		clu_base += 8;
-
-		if (((++map_b) >= p_bd->sector_size) ||
-		    (clu_base >= p_fs->num_clusters)) {
-			if ((++map_i) >= p_fs->map_sectors) {
-				clu_base = 2;
-				map_i = 0;
-			}
-			map_b = 0;
-		}
-	}
-
-	return CLUSTER_32(~0);
 }
 
 void sync_alloc_bitmap(struct super_block *sb)

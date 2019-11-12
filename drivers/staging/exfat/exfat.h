@@ -764,9 +764,6 @@ void exfat_chain_cont_cluster(struct super_block *sb, u32 chain, s32 len);
 /* allocation bitmap management functions */
 s32 load_alloc_bitmap(struct super_block *sb);
 void free_alloc_bitmap(struct super_block *sb);
-s32 set_alloc_bitmap(struct super_block *sb, u32 clu);
-s32 clr_alloc_bitmap(struct super_block *sb, u32 clu);
-u32 test_alloc_bitmap(struct super_block *sb, u32 clu);
 void sync_alloc_bitmap(struct super_block *sb);
 
 /* upcase table management functions */
