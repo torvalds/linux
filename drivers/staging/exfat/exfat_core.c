@@ -125,7 +125,7 @@ void fs_error(struct super_block *sb)
  *  Cluster Management Functions
  */
 
-s32 clear_cluster(struct super_block *sb, u32 clu)
+static s32 clear_cluster(struct super_block *sb, u32 clu)
 {
 	sector_t s, n;
 	s32 ret = 0;
@@ -294,7 +294,7 @@ static void exfat_free_cluster(struct super_block *sb, struct chain_t *p_chain,
 		p_fs->used_clusters -= num_clusters;
 }
 
-u32 find_last_cluster(struct super_block *sb, struct chain_t *p_chain)
+static u32 find_last_cluster(struct super_block *sb, struct chain_t *p_chain)
 {
 	u32 clu, next;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
@@ -1186,7 +1186,7 @@ static s32 _walk_fat_chain(struct super_block *sb, struct chain_t *p_dir,
 	return 0;
 }
 
-s32 find_location(struct super_block *sb, struct chain_t *p_dir, s32 entry,
+static s32 find_location(struct super_block *sb, struct chain_t *p_dir, s32 entry,
 		  sector_t *sector, s32 *offset)
 {
 	s32 off, ret;
@@ -1583,7 +1583,7 @@ s32 search_deleted_or_unused_entry(struct super_block *sb,
 	return -1;
 }
 
-s32 find_empty_entry(struct inode *inode, struct chain_t *p_dir, s32 num_entries)
+static s32 find_empty_entry(struct inode *inode, struct chain_t *p_dir, s32 num_entries)
 {
 	s32 ret, dentry;
 	u32 last_clu;
