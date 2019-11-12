@@ -137,30 +137,30 @@ static void blake2b_compress(struct blake2b_state *S,
 #undef G
 #undef ROUND
 
-struct digest_tfm_ctx {
+struct blake2b_tfm_ctx {
 	u8 key[BLAKE2B_KEYBYTES];
 	unsigned int keylen;
 };
 
-static int digest_setkey(struct crypto_shash *tfm, const u8 *key,
-			 unsigned int keylen)
+static int blake2b_setkey(struct crypto_shash *tfm, const u8 *key,
+			  unsigned int keylen)
 {
-	struct digest_tfm_ctx *mctx = crypto_shash_ctx(tfm);
+	struct blake2b_tfm_ctx *tctx = crypto_shash_ctx(tfm);
 
 	if (keylen == 0 || keylen > BLAKE2B_KEYBYTES) {
 		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
-	memcpy(mctx->key, key, keylen);
-	mctx->keylen = keylen;
+	memcpy(tctx->key, key, keylen);
+	tctx->keylen = keylen;
 
 	return 0;
 }
 
 static int blake2b_init(struct shash_desc *desc)
 {
-	struct digest_tfm_ctx *mctx = crypto_shash_ctx(desc->tfm);
+	struct blake2b_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct blake2b_state *state = shash_desc_ctx(desc);
 	const int digestsize = crypto_shash_digestsize(desc->tfm);
 
@@ -168,14 +168,14 @@ static int blake2b_init(struct shash_desc *desc)
 	memcpy(state->h, blake2b_IV, sizeof(state->h));
 
 	/* Parameter block is all zeros except index 0, no xor for 1..7 */
-	state->h[0] ^= 0x01010000 | mctx->keylen << 8 | digestsize;
+	state->h[0] ^= 0x01010000 | tctx->keylen << 8 | digestsize;
 
-	if (mctx->keylen) {
+	if (tctx->keylen) {
 		/*
 		 * Prefill the buffer with the key, next call to _update or
 		 * _final will process it
 		 */
-		memcpy(state->buf, mctx->key, mctx->keylen);
+		memcpy(state->buf, tctx->key, tctx->keylen);
 		state->buflen = BLAKE2B_BLOCKBYTES;
 	}
 	return 0;
@@ -241,10 +241,10 @@ static struct shash_alg blake2b_algs[] = {
 		.base.cra_priority	= 100,
 		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
 		.base.cra_blocksize	= BLAKE2B_BLOCKBYTES,
-		.base.cra_ctxsize	= sizeof(struct digest_tfm_ctx),
+		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx),
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= BLAKE2B_160_DIGEST_SIZE,
-		.setkey			= digest_setkey,
+		.setkey			= blake2b_setkey,
 		.init			= blake2b_init,
 		.update			= blake2b_update,
 		.final			= blake2b_final,
@@ -255,10 +255,10 @@ static struct shash_alg blake2b_algs[] = {
 		.base.cra_priority	= 100,
 		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
 		.base.cra_blocksize	= BLAKE2B_BLOCKBYTES,
-		.base.cra_ctxsize	= sizeof(struct digest_tfm_ctx),
+		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx),
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= BLAKE2B_256_DIGEST_SIZE,
-		.setkey			= digest_setkey,
+		.setkey			= blake2b_setkey,
 		.init			= blake2b_init,
 		.update			= blake2b_update,
 		.final			= blake2b_final,
@@ -269,10 +269,10 @@ static struct shash_alg blake2b_algs[] = {
 		.base.cra_priority	= 100,
 		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
 		.base.cra_blocksize	= BLAKE2B_BLOCKBYTES,
-		.base.cra_ctxsize	= sizeof(struct digest_tfm_ctx),
+		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx),
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= BLAKE2B_384_DIGEST_SIZE,
-		.setkey			= digest_setkey,
+		.setkey			= blake2b_setkey,
 		.init			= blake2b_init,
 		.update			= blake2b_update,
 		.final			= blake2b_final,
@@ -283,10 +283,10 @@ static struct shash_alg blake2b_algs[] = {
 		.base.cra_priority	= 100,
 		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
 		.base.cra_blocksize	= BLAKE2B_BLOCKBYTES,
-		.base.cra_ctxsize	= sizeof(struct digest_tfm_ctx),
+		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx),
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= BLAKE2B_512_DIGEST_SIZE,
-		.setkey			= digest_setkey,
+		.setkey			= blake2b_setkey,
 		.init			= blake2b_init,
 		.update			= blake2b_update,
 		.final			= blake2b_final,
