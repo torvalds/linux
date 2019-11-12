@@ -137,35 +137,6 @@ static void blake2b_compress(struct blake2b_state *S,
 #undef G
 #undef ROUND
 
-static void blake2b_update(struct blake2b_state *S, const void *pin, size_t inlen)
-{
-	const u8 *in = (const u8 *)pin;
-
-	if (inlen > 0) {
-		size_t left = S->buflen;
-		size_t fill = BLAKE2B_BLOCKBYTES - left;
-
-		if (inlen > fill) {
-			S->buflen = 0;
-			/* Fill buffer */
-			memcpy(S->buf + left, in, fill);
-			blake2b_increment_counter(S, BLAKE2B_BLOCKBYTES);
-			/* Compress */
-			blake2b_compress(S, S->buf);
-			in += fill;
-			inlen -= fill;
-			while (inlen > BLAKE2B_BLOCKBYTES) {
-				blake2b_increment_counter(S, BLAKE2B_BLOCKBYTES);
-				blake2b_compress(S, in);
-				in += BLAKE2B_BLOCKBYTES;
-				inlen -= BLAKE2B_BLOCKBYTES;
-			}
-		}
-		memcpy(S->buf + S->buflen, in, inlen);
-		S->buflen += inlen;
-	}
-}
-
 struct digest_tfm_ctx {
 	u8 key[BLAKE2B_KEYBYTES];
 	unsigned int keylen;
@@ -210,12 +181,35 @@ static int blake2b_init(struct shash_desc *desc)
 	return 0;
 }
 
-static int digest_update(struct shash_desc *desc, const u8 *data,
-			 unsigned int length)
+static int blake2b_update(struct shash_desc *desc, const u8 *in,
+			  unsigned int inlen)
 {
 	struct blake2b_state *state = shash_desc_ctx(desc);
+	const size_t left = state->buflen;
+	const size_t fill = BLAKE2B_BLOCKBYTES - left;
 
-	blake2b_update(state, data, length);
+	if (!inlen)
+		return 0;
+
+	if (inlen > fill) {
+		state->buflen = 0;
+		/* Fill buffer */
+		memcpy(state->buf + left, in, fill);
+		blake2b_increment_counter(state, BLAKE2B_BLOCKBYTES);
+		/* Compress */
+		blake2b_compress(state, state->buf);
+		in += fill;
+		inlen -= fill;
+		while (inlen > BLAKE2B_BLOCKBYTES) {
+			blake2b_increment_counter(state, BLAKE2B_BLOCKBYTES);
+			blake2b_compress(state, in);
+			in += BLAKE2B_BLOCKBYTES;
+			inlen -= BLAKE2B_BLOCKBYTES;
+		}
+	}
+	memcpy(state->buf + state->buflen, in, inlen);
+	state->buflen += inlen;
+
 	return 0;
 }
 
@@ -252,7 +246,7 @@ static struct shash_alg blake2b_algs[] = {
 		.digestsize		= BLAKE2B_160_DIGEST_SIZE,
 		.setkey			= digest_setkey,
 		.init			= blake2b_init,
-		.update			= digest_update,
+		.update			= blake2b_update,
 		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
 	}, {
@@ -266,7 +260,7 @@ static struct shash_alg blake2b_algs[] = {
 		.digestsize		= BLAKE2B_256_DIGEST_SIZE,
 		.setkey			= digest_setkey,
 		.init			= blake2b_init,
-		.update			= digest_update,
+		.update			= blake2b_update,
 		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
 	}, {
@@ -280,7 +274,7 @@ static struct shash_alg blake2b_algs[] = {
 		.digestsize		= BLAKE2B_384_DIGEST_SIZE,
 		.setkey			= digest_setkey,
 		.init			= blake2b_init,
-		.update			= digest_update,
+		.update			= blake2b_update,
 		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
 	}, {
@@ -294,7 +288,7 @@ static struct shash_alg blake2b_algs[] = {
 		.digestsize		= BLAKE2B_512_DIGEST_SIZE,
 		.setkey			= digest_setkey,
 		.init			= blake2b_init,
-		.update			= digest_update,
+		.update			= blake2b_update,
 		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
 	}
