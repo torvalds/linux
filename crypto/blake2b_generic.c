@@ -32,10 +32,7 @@
 
 enum blake2b_constant {
 	BLAKE2B_BLOCKBYTES    = 128,
-	BLAKE2B_OUTBYTES      = 64,
 	BLAKE2B_KEYBYTES      = 64,
-	BLAKE2B_SALTBYTES     = 16,
-	BLAKE2B_PERSONALBYTES = 16
 };
 
 struct blake2b_state {
@@ -44,24 +41,7 @@ struct blake2b_state {
 	u64      f[2];
 	u8       buf[BLAKE2B_BLOCKBYTES];
 	size_t   buflen;
-	size_t   outlen;
-	u8       last_node;
 };
-
-struct blake2b_param {
-	u8 digest_length;			/* 1 */
-	u8 key_length;				/* 2 */
-	u8 fanout;				/* 3 */
-	u8 depth;				/* 4 */
-	__le32 leaf_length;			/* 8 */
-	__le32 node_offset;			/* 12 */
-	__le32 xof_length;			/* 16 */
-	u8 node_depth;				/* 17 */
-	u8 inner_length;			/* 18 */
-	u8 reserved[14];			/* 32 */
-	u8 salt[BLAKE2B_SALTBYTES];		/* 48 */
-	u8 personal[BLAKE2B_PERSONALBYTES];	/* 64 */
-} __packed;
 
 static const u64 blake2b_IV[8] = {
 	0x6a09e667f3bcc908ULL, 0xbb67ae8584caa73bULL,
@@ -85,16 +65,8 @@ static const u8 blake2b_sigma[12][16] = {
 	{ 14, 10,  4,  8,  9, 15, 13,  6,  1, 12,  0,  2, 11,  7,  5,  3 }
 };
 
-static void blake2b_set_lastnode(struct blake2b_state *S)
-{
-	S->f[1] = (u64)-1;
-}
-
 static void blake2b_set_lastblock(struct blake2b_state *S)
 {
-	if (S->last_node)
-		blake2b_set_lastnode(S);
-
 	S->f[0] = (u64)-1;
 }
 
@@ -334,8 +306,6 @@ static struct shash_alg blake2b_algs[] = {
 
 static int __init blake2b_mod_init(void)
 {
-	BUILD_BUG_ON(sizeof(struct blake2b_param) != BLAKE2B_OUTBYTES);
-
 	return crypto_register_shashes(blake2b_algs, ARRAY_SIZE(blake2b_algs));
 }
 
