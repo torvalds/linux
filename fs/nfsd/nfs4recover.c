@@ -1578,6 +1578,7 @@ nfsd4_cld_tracking_init(struct net *net)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	bool running;
 	int retries = 10;
+	struct crypto_shash *tfm;
 
 	status = nfs4_cld_state_init(net);
 	if (status)
@@ -1586,11 +1587,6 @@ nfsd4_cld_tracking_init(struct net *net)
 	status = __nfsd4_init_cld_pipe(net);
 	if (status)
 		goto err_shutdown;
-	nn->cld_net->cn_tfm = crypto_alloc_shash("sha256", 0, 0);
-	if (IS_ERR(nn->cld_net->cn_tfm)) {
-		status = PTR_ERR(nn->cld_net->cn_tfm);
-		goto err_remove;
-	}
 
 	/*
 	 * rpc pipe upcalls take 30 seconds to time out, so we don't want to
@@ -1607,6 +1603,12 @@ nfsd4_cld_tracking_init(struct net *net)
 		status = -ETIMEDOUT;
 		goto err_remove;
 	}
+	tfm = crypto_alloc_shash("sha256", 0, 0);
+	if (IS_ERR(tfm)) {
+		status = PTR_ERR(tfm);
+		goto err_remove;
+	}
+	nn->cld_net->cn_tfm = tfm;
 
 	status = nfsd4_cld_get_version(nn);
 	if (status == -EOPNOTSUPP)
