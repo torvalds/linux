@@ -333,6 +333,9 @@ static int jpeg_v2_0_start(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring = &adev->jpeg.inst->ring_dec;
 	int r;
 
+	if (adev->pm.dpm_enabled)
+		amdgpu_dpm_enable_jpeg(adev, true);
+
 	/* disable power gating */
 	r = jpeg_v2_0_disable_power_gating(adev);
 	if (r)
@@ -388,8 +391,13 @@ static int jpeg_v2_0_stop(struct amdgpu_device *adev)
 
 	/* enable power gating */
 	r = jpeg_v2_0_enable_power_gating(adev);
+	if (r)
+		return r;
 
-	return r;
+	if (adev->pm.dpm_enabled)
+		amdgpu_dpm_enable_jpeg(adev, false);
+
+	return 0;
 }
 
 /**

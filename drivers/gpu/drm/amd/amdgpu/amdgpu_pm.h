@@ -41,5 +41,6 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev);
 void amdgpu_dpm_thermal_work_handler(struct work_struct *work);
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable);
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable);
+void amdgpu_dpm_enable_jpeg(struct amdgpu_device *adev, bool enable);
 
 #endif

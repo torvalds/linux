@@ -2718,6 +2718,18 @@ void amdgpu_pm_print_power_states(struct amdgpu_device *adev)
 
 }
 
+void amdgpu_dpm_enable_jpeg(struct amdgpu_device *adev, bool enable)
+{
+	int ret = 0;
+
+	if (is_support_sw_smu(adev)) {
+		ret = smu_dpm_set_power_gate(&adev->smu, AMD_IP_BLOCK_TYPE_JPEG, enable);
+		if (ret)
+			DRM_ERROR("[SW SMU]: dpm enable jpeg failed, state = %s, ret = %d. \n",
+				  enable ? "true" : "false", ret);
+	}
+}
+
 int amdgpu_pm_virt_sysfs_init(struct amdgpu_device *adev)
 {
 	int ret = 0;
