@@ -22,6 +22,7 @@ config TI_DAVINCI_EMAC
 	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 ) || COMPILE_TEST
 	select TI_DAVINCI_MDIO
 	select PHYLIB
+	select GENERIC_ALLOCATOR
 	---help---
 	  This driver supports TI's DaVinci Ethernet .
 
