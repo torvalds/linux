@@ -68,29 +68,6 @@
 #include <linux/completion.h>
 #include <linux/mmu_notifier.h>
 
-
-/*
- * struct hmm - HMM per mm struct
- *
- * @mm: mm struct this HMM struct is bound to
- * @lock: lock protecting ranges list
- * @ranges: list of range being snapshotted
- * @mirrors: list of mirrors for this mm
- * @mmu_notifier: mmu notifier to track updates to CPU page table
- * @mirrors_sem: read/write semaphore protecting the mirrors list
- * @wq: wait queue for user waiting on a range invalidation
- * @notifiers: count of active mmu notifiers
- */
-struct hmm {
-	struct mmu_notifier	mmu_notifier;
-	spinlock_t		ranges_lock;
-	struct list_head	ranges;
-	struct list_head	mirrors;
-	struct rw_semaphore	mirrors_sem;
-	wait_queue_head_t	wq;
-	long			notifiers;
-};
-
 /*
  * hmm_pfn_flag_e - HMM flag enums
  *
@@ -143,9 +120,8 @@ enum hmm_pfn_value_e {
 /*
  * struct hmm_range - track invalidation lock on virtual address range
  *
- * @notifier: an optional mmu_interval_notifier
- * @notifier_seq: when notifier is used this is the result of
- *                mmu_interval_read_begin()
+ * @notifier: a mmu_interval_notifier that includes the start/end
+ * @notifier_seq: result of mmu_interval_read_begin()
  * @hmm: the core HMM structure this range is active against
  * @vma: the vm area struct for the range
  * @list: all range lock are on a list
@@ -162,8 +138,6 @@ enum hmm_pfn_value_e {
 struct hmm_range {
 	struct mmu_interval_notifier *notifier;
 	unsigned long		notifier_seq;
-	struct hmm		*hmm;
-	struct list_head	list;
 	unsigned long		start;
 	unsigned long		end;
 	uint64_t		*pfns;
@@ -172,31 +146,7 @@ struct hmm_range {
 	uint64_t		default_flags;
 	uint64_t		pfn_flags_mask;
 	uint8_t			pfn_shift;
-	bool			valid;
 };
-
-/*
- * hmm_range_wait_until_valid() - wait for range to be valid
- * @range: range affected by invalidation to wait on
- * @timeout: time out for wait in ms (ie abort wait after that period of time)
- * Return: true if the range is valid, false otherwise.
- */
-static inline bool hmm_range_wait_until_valid(struct hmm_range *range,
-					      unsigned long timeout)
-{
-	return wait_event_timeout(range->hmm->wq, range->valid,
-				  msecs_to_jiffies(timeout)) != 0;
-}
-
-/*
- * hmm_range_valid() - test if a range is valid or not
- * @range: range
- * Return: true if the range is valid, false otherwise.
- */
-static inline bool hmm_range_valid(struct hmm_range *range)
-{
-	return range->valid;
-}
 
 /*
  * hmm_device_entry_to_page() - return struct page pointed to by a device entry
@@ -268,111 +218,6 @@ static inline uint64_t hmm_device_entry_from_pfn(const struct hmm_range *range,
 }
 
 /*
- * Mirroring: how to synchronize device page table with CPU page table.
- *
- * A device driver that is participating in HMM mirroring must always
- * synchronize with CPU page table updates. For this, device drivers can either
- * directly use mmu_notifier APIs or they can use the hmm_mirror API. Device
- * drivers can decide to register one mirror per device per process, or just
- * one mirror per process for a group of devices. The pattern is:
- *
- *      int device_bind_address_space(..., struct mm_struct *mm, ...)
- *      {
- *          struct device_address_space *das;
- *
- *          // Device driver specific initialization, and allocation of das
- *          // which contains an hmm_mirror struct as one of its fields.
- *          ...
- *
- *          ret = hmm_mirror_register(&das->mirror, mm, &device_mirror_ops);
- *          if (ret) {
- *              // Cleanup on error
- *              return ret;
- *          }
- *
- *          // Other device driver specific initialization
- *          ...
- *      }
- *
- * Once an hmm_mirror is registered for an address space, the device driver
- * will get callbacks through sync_cpu_device_pagetables() operation (see
- * hmm_mirror_ops struct).
- *
- * Device driver must not free the struct containing the hmm_mirror struct
- * before calling hmm_mirror_unregister(). The expected usage is to do that when
- * the device driver is unbinding from an address space.
- *
- *
- *      void device_unbind_address_space(struct device_address_space *das)
- *      {
- *          // Device driver specific cleanup
- *          ...
- *
- *          hmm_mirror_unregister(&das->mirror);
- *
- *          // Other device driver specific cleanup, and now das can be freed
- *          ...
- *      }
- */
-
-struct hmm_mirror;
-
-/*
- * struct hmm_mirror_ops - HMM mirror device operations callback
- *
- * @update: callback to update range on a device
- */
-struct hmm_mirror_ops {
-	/* release() - release hmm_mirror
-	 *
-	 * @mirror: pointer to struct hmm_mirror
-	 *
-	 * This is called when the mm_struct is being released.  The callback
-	 * must ensure that all access to any pages obtained from this mirror
-	 * is halted before the callback returns. All future access should
-	 * fault.
-	 */
-	void (*release)(struct hmm_mirror *mirror);
-
-	/* sync_cpu_device_pagetables() - synchronize page tables
-	 *
-	 * @mirror: pointer to struct hmm_mirror
-	 * @update: update information (see struct mmu_notifier_range)
-	 * Return: -EAGAIN if mmu_notifier_range_blockable(update) is false
-	 * and callback needs to block, 0 otherwise.
-	 *
-	 * This callback ultimately originates from mmu_notifiers when the CPU
-	 * page table is updated. The device driver must update its page table
-	 * in response to this callback. The update argument tells what action
-	 * to perform.
-	 *
-	 * The device driver must not return from this callback until the device
-	 * page tables are completely updated (TLBs flushed, etc); this is a
-	 * synchronous call.
-	 */
-	int (*sync_cpu_device_pagetables)(
-		struct hmm_mirror *mirror,
-		const struct mmu_notifier_range *update);
-};
-
-/*
- * struct hmm_mirror - mirror struct for a device driver
- *
- * @hmm: pointer to struct hmm (which is unique per mm_struct)
- * @ops: device driver callback for HMM mirror operations
- * @list: for list of mirrors of a given mm
- *
- * Each address space (mm_struct) being mirrored by a device must register one
- * instance of an hmm_mirror struct with HMM. HMM will track the list of all
- * mirrors for each mm_struct.
- */
-struct hmm_mirror {
-	struct hmm			*hmm;
-	const struct hmm_mirror_ops	*ops;
-	struct list_head		list;
-};
-
-/*
  * Retry fault if non-blocking, drop mmap_sem and return -EAGAIN in that case.
  */
 #define HMM_FAULT_ALLOW_RETRY		(1 << 0)
@@ -381,15 +226,9 @@ struct hmm_mirror {
 #define HMM_FAULT_SNAPSHOT		(1 << 1)
 
 #ifdef CONFIG_HMM_MIRROR
-int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
-void hmm_mirror_unregister(struct hmm_mirror *mirror);
-
 /*
  * Please see Documentation/vm/hmm.rst for how to use the range API.
  */
-int hmm_range_register(struct hmm_range *range, struct hmm_mirror *mirror);
-void hmm_range_unregister(struct hmm_range *range);
-
 long hmm_range_fault(struct hmm_range *range, unsigned int flags);
 
 long hmm_range_dma_map(struct hmm_range *range,
@@ -401,24 +240,6 @@ long hmm_range_dma_unmap(struct hmm_range *range,
 			 dma_addr_t *daddrs,
 			 bool dirty);
 #else
-int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
-{
-	return -EOPNOTSUPP;
-}
-
-void hmm_mirror_unregister(struct hmm_mirror *mirror)
-{
-}
-
-int hmm_range_register(struct hmm_range *range, struct hmm_mirror *mirror)
-{
-	return -EOPNOTSUPP;
-}
-
-void hmm_range_unregister(struct hmm_range *range)
-{
-}
-
 static inline long hmm_range_fault(struct hmm_range *range, unsigned int flags)
 {
 	return -EOPNOTSUPP;
