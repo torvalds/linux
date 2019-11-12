@@ -322,7 +322,7 @@ static irqreturn_t wled_short_irq_handler(int irq, void *_wled)
 		wled->short_count = 1;
 
 	if (wled->short_count > WLED_SHORT_CNT_MAX) {
-		dev_err(wled->dev, "Short trigged %d times, disabling WLED forever!\n",
+		dev_err(wled->dev, "Short triggered %d times, disabling WLED forever!\n",
 			wled->short_count);
 		wled->disabled_by_short = true;
 		goto unlock_mutex;
