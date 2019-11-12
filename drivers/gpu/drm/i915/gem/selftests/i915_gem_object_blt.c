@@ -435,7 +435,6 @@ static int igt_threaded_blt(struct drm_i915_private *i915,
 	struct task_struct **tsk;
 	unsigned int n_cpus, i;
 	I915_RND_STATE(prng);
-	struct file *file;
 	int err = 0;
 
 	n_cpus = num_online_cpus() + 1;
@@ -450,7 +449,7 @@ static int igt_threaded_blt(struct drm_i915_private *i915,
 
 	thread[0].file = mock_file(i915);
 	if (IS_ERR(thread[0].file)) {
-		err = PTR_ERR(file);
+		err = PTR_ERR(thread[0].file);
 		goto out_thread;
 	}
 
