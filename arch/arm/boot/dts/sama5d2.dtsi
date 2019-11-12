@@ -885,9 +885,12 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 18>;
 			};
 
-			secumod@fc040000 {
+			pioBU: secumod@fc040000 {
 				compatible = "atmel,sama5d2-secumod", "syscon";
 				reg = <0xfc040000 0x100>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
 			};
 
 			tdes@fc044000 {
