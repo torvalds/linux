@@ -133,6 +133,40 @@ uint32_t drm_color_lut_extract(uint32_t user_input, uint32_t bit_precision)
 EXPORT_SYMBOL(drm_color_lut_extract);
 
 /**
+ * drm_color_ctm_s31_32_to_qm_n
+ *
+ * @user_input: input value
+ * @m: number of integer bits, only support m <= 32, include the sign-bit
+ * @n: number of fractional bits, only support n <= 32
+ *
+ * Convert and clamp S31.32 sign-magnitude to Qm.n (signed 2's complement).
+ * The sign-bit BIT(m+n-1) and above are 0 for positive value and 1 for negative
+ * the range of value is [-2^(m-1), 2^(m-1) - 2^-n]
+ *
+ * For example
+ * A Q3.12 format number:
+ * - required bit: 3 + 12 = 15bits
+ * - range: [-2^2, 2^2 - 2^−15]
+ *
+ * NOTE: the m can be zero if all bit_precision are used to present fractional
+ *       bits like Q0.32
+ */
+u64 drm_color_ctm_s31_32_to_qm_n(u64 user_input, u32 m, u32 n)
+{
+	u64 mag = (user_input & ~BIT_ULL(63)) >> (32 - n);
+	bool negative = !!(user_input & BIT_ULL(63));
+	s64 val;
+
+	WARN_ON(m > 32 || n > 32);
+
+	val = clamp_val(mag, 0, negative ?
+				BIT_ULL(n + m - 1) : BIT_ULL(n + m - 1) - 1);
+
+	return negative ? -val : val;
+}
+EXPORT_SYMBOL(drm_color_ctm_s31_32_to_qm_n);
+
+/**
  * drm_crtc_enable_color_mgmt - enable color management properties
  * @crtc: DRM CRTC
  * @degamma_lut_size: the size of the degamma lut (before CSC)
