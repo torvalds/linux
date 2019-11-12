@@ -481,7 +481,7 @@ static void intel_mocs_init_global(struct intel_gt *gt)
 	for (; index < table.n_entries; index++)
 		intel_uncore_write(uncore,
 				   GEN12_GLOBAL_MOCS(index),
-				   table.table[0].control_value);
+				   table.table[I915_MOCS_PTE].control_value);
 }
 
 void intel_mocs_init(struct intel_gt *gt)
