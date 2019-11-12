@@ -341,13 +341,4 @@ struct sk_buff *dsa_8021q_remove_header(struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_remove_header);
 
-static const struct dsa_device_ops dsa_8021q_netdev_ops = {
-	.name		= "8021q",
-	.proto		= DSA_TAG_PROTO_8021Q,
-	.overhead	= VLAN_HLEN,
-};
-
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_8021Q);
-
-module_dsa_tag_driver(dsa_8021q_netdev_ops);
