@@ -62,7 +62,6 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		/* KBP is SPT compatible */
 		return PCH_SPT;
 	case INTEL_PCH_CNP_DEVICE_ID_TYPE:
-	case INTEL_PCH_CNP2_DEVICE_ID_TYPE:
 		DRM_DEBUG_KMS("Found Cannon Lake PCH (CNP)\n");
 		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_COFFEELAKE(dev_priv));
 		return PCH_CNP;
@@ -76,6 +75,11 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		WARN_ON(!IS_COFFEELAKE(dev_priv));
 		/* CometPoint is CNP Compatible */
 		return PCH_CNP;
+	case INTEL_PCH_CMP_V_DEVICE_ID_TYPE:
+		DRM_DEBUG_KMS("Found Comet Lake V PCH (CMP-V)\n");
+		WARN_ON(!IS_COFFEELAKE(dev_priv));
+		/* Comet Lake V PCH is based on KBP, which is SPT compatible */
+		return PCH_SPT;
 	case INTEL_PCH_ICP_DEVICE_ID_TYPE:
 		DRM_DEBUG_KMS("Found Ice Lake PCH\n");
 		WARN_ON(!IS_ICELAKE(dev_priv));
