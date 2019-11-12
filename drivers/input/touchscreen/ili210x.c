@@ -8,6 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
@@ -31,6 +32,7 @@ struct ili2xxx_chip {
 				 unsigned int *x, unsigned int *y);
 	bool (*continue_polling)(const u8 *data, bool touch);
 	unsigned int max_touches;
+	unsigned int resolution;
 };
 
 struct ili210x {
@@ -160,6 +162,7 @@ static const struct ili2xxx_chip ili211x_chip = {
 	.parse_touch_data	= ili211x_touchdata_to_coords,
 	.continue_polling	= ili211x_decline_polling,
 	.max_touches		= 10,
+	.resolution		= 2048,
 };
 
 static int ili251x_read_reg(struct i2c_client *client,
@@ -336,6 +339,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	struct gpio_desc *reset_gpio;
 	struct input_dev *input;
 	int error;
+	unsigned int max_xy;
 
 	dev_dbg(dev, "Probing for ILI210X I2C Touschreen driver");
 
@@ -386,8 +390,9 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 
 	/* Multi touch */
-	input_set_abs_params(input, ABS_MT_POSITION_X, 0, 0xffff, 0, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, 0xffff, 0, 0);
+	max_xy = (chip->resolution ?: SZ_64K) - 1;
+	input_set_abs_params(input, ABS_MT_POSITION_X, 0, max_xy, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, max_xy, 0, 0);
 	touchscreen_parse_properties(input, true, &priv->prop);
 
 	error = input_mt_init_slots(input, priv->chip->max_touches,
