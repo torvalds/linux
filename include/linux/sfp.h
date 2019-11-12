@@ -563,8 +563,8 @@ static inline struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
 	return NULL;
 }
 
-static int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
-				const struct sfp_upstream_ops *ops)
+static inline int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
+				       const struct sfp_upstream_ops *ops)
 {
 	return 0;
 }
