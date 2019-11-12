@@ -19,6 +19,7 @@
 #include <linux/types.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
@@ -49,7 +50,6 @@ struct anx6345 {
 	struct i2c_client *client;
 	struct edid *edid;
 	struct drm_connector connector;
-	struct drm_dp_link link;
 	struct drm_panel *panel;
 	struct regulator *dvdd12;
 	struct regulator *dvdd25;
@@ -97,7 +97,7 @@ static ssize_t anx6345_aux_transfer(struct drm_dp_aux *aux,
 static int anx6345_dp_link_training(struct anx6345 *anx6345)
 {
 	unsigned int value;
-	u8 dp_bw;
+	u8 dp_bw, dpcd[2];
 	int err;
 
 	err = anx6345_clear_bits(anx6345->map[I2C_IDX_TXCOM],
@@ -144,18 +144,34 @@ static int anx6345_dp_link_training(struct anx6345 *anx6345)
 	if (err)
 		return err;
 
-	/* Check link capabilities */
-	err = drm_dp_link_probe(&anx6345->aux, &anx6345->link);
-	if (err < 0) {
-		DRM_ERROR("Failed to probe link capabilities: %d\n", err);
-		return err;
-	}
+	/*
+	 * Power up the sink (DP_SET_POWER register is only available on DPCD
+	 * v1.1 and later).
+	 */
+	if (anx6345->dpcd[DP_DPCD_REV] >= 0x11) {
+		err = drm_dp_dpcd_readb(&anx6345->aux, DP_SET_POWER, &dpcd[0]);
+		if (err < 0) {
+			DRM_ERROR("Failed to read DP_SET_POWER register: %d\n",
+				  err);
+			return err;
+		}
 
-	/* Power up the sink */
-	err = drm_dp_link_power_up(&anx6345->aux, &anx6345->link);
-	if (err < 0) {
-		DRM_ERROR("Failed to power up DisplayPort link: %d\n", err);
-		return err;
+		dpcd[0] &= ~DP_SET_POWER_MASK;
+		dpcd[0] |= DP_SET_POWER_D0;
+
+		err = drm_dp_dpcd_writeb(&anx6345->aux, DP_SET_POWER, dpcd[0]);
+		if (err < 0) {
+			DRM_ERROR("Failed to power up DisplayPort link: %d\n",
+				  err);
+			return err;
+		}
+
+		/*
+		 * According to the DP 1.1 specification, a "Sink Device must
+		 * exit the power saving state within 1 ms" (Section 2.5.3.1,
+		 * Table 5-52, "Sink Control Field" (register 0x600).
+		 */
+		usleep_range(1000, 2000);
 	}
 
 	/* Possibly enable downspread on the sink */
@@ -194,20 +210,28 @@ static int anx6345_dp_link_training(struct anx6345 *anx6345)
 	if (err)
 		return err;
 
-	value = drm_dp_link_rate_to_bw_code(anx6345->link.rate);
+	dpcd[0] = drm_dp_max_link_rate(anx6345->dpcd);
+	dpcd[0] = drm_dp_link_rate_to_bw_code(dpcd[0]);
 	err = regmap_write(anx6345->map[I2C_IDX_DPTX],
-			   SP_DP_MAIN_LINK_BW_SET_REG, value);
+			   SP_DP_MAIN_LINK_BW_SET_REG, dpcd[0]);
 	if (err)
 		return err;
 
+	dpcd[1] = drm_dp_max_lane_count(anx6345->dpcd);
+
 	err = regmap_write(anx6345->map[I2C_IDX_DPTX],
-			   SP_DP_LANE_COUNT_SET_REG, anx6345->link.num_lanes);
+			   SP_DP_LANE_COUNT_SET_REG, dpcd[1]);
 	if (err)
 		return err;
 
-	err = drm_dp_link_configure(&anx6345->aux, &anx6345->link);
+	if (drm_dp_enhanced_frame_cap(anx6345->dpcd))
+		dpcd[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
+
+	err = drm_dp_dpcd_write(&anx6345->aux, DP_LINK_BW_SET, dpcd,
+				sizeof(dpcd));
+
 	if (err < 0) {
-		DRM_ERROR("Failed to configure DisplayPort link: %d\n", err);
+		DRM_ERROR("Failed to configure link: %d\n", err);
 		return err;
 	}
 
