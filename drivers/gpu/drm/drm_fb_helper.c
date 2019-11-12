@@ -2035,21 +2035,14 @@ static struct fb_deferred_io drm_fbdev_defio = {
 	.deferred_io	= drm_fb_helper_deferred_io,
 };
 
-/**
- * drm_fb_helper_generic_probe - Generic fbdev emulation probe helper
- * @fb_helper: fbdev helper structure
- * @sizes: describes fbdev size and scanout surface size
- *
+/*
  * This function uses the client API to create a framebuffer backed by a dumb buffer.
  *
  * The _sys_ versions are used for &fb_ops.fb_read, fb_write, fb_fillrect,
  * fb_copyarea, fb_imageblit.
- *
- * Returns:
- * Zero on success or negative error code on failure.
  */
-int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
-				struct drm_fb_helper_surface_size *sizes)
+static int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
+				       struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_client_buffer *buffer;
@@ -2121,7 +2114,6 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_fb_helper_generic_probe);
 
 static const struct drm_fb_helper_funcs drm_fb_helper_generic_funcs = {
 	.fb_probe = drm_fb_helper_generic_probe,
