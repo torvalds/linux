@@ -12,11 +12,17 @@
 struct user_namespace;
 extern struct user_namespace init_user_ns;
 
+struct timens_offsets {
+	struct timespec64 monotonic;
+	struct timespec64 boottime;
+};
+
 struct time_namespace {
 	struct kref		kref;
 	struct user_namespace	*user_ns;
 	struct ucounts		*ucounts;
 	struct ns_common	ns;
+	struct timens_offsets	offsets;
 } __randomize_layout;
 
 extern struct time_namespace init_time_ns;
@@ -37,6 +43,20 @@ int timens_on_fork(struct nsproxy *nsproxy, struct task_struct *tsk);
 static inline void put_time_ns(struct time_namespace *ns)
 {
 	kref_put(&ns->kref, free_time_ns);
+}
+
+static inline void timens_add_monotonic(struct timespec64 *ts)
+{
+	struct timens_offsets *ns_offsets = &current->nsproxy->time_ns->offsets;
+
+	*ts = timespec64_add(*ts, ns_offsets->monotonic);
+}
+
+static inline void timens_add_boottime(struct timespec64 *ts)
+{
+	struct timens_offsets *ns_offsets = &current->nsproxy->time_ns->offsets;
+
+	*ts = timespec64_add(*ts, ns_offsets->boottime);
 }
 
 #else
@@ -66,6 +86,8 @@ static inline int timens_on_fork(struct nsproxy *nsproxy,
 	return 0;
 }
 
+static inline void timens_add_monotonic(struct timespec64 *ts) { }
+static inline void timens_add_boottime(struct timespec64 *ts) { }
 #endif
 
 #endif /* _LINUX_TIMENS_H */
