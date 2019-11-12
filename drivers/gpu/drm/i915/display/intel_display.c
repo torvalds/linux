@@ -1146,11 +1146,15 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, bool state)
 {
 	bool cur_state;
-	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
-								      pipe);
 
 	if (HAS_DDI(dev_priv)) {
-		/* DDI does not have a specific FDI_TX register */
+		/*
+		 * DDI does not have a specific FDI_TX register.
+		 *
+		 * FDI is never fed from EDP transcoder
+		 * so pipe->transcoder cast is fine here.
+		 */
+		enum transcoder cpu_transcoder = (enum transcoder)pipe;
 		u32 val = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 		cur_state = !!(val & TRANS_DDI_FUNC_ENABLE);
 	} else {
