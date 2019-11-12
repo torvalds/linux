@@ -239,7 +239,7 @@ out_free_queues:
 	return ret;
 }
 
-void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
+static void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
