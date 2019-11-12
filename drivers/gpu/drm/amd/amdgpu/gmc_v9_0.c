@@ -50,6 +50,7 @@
 #include "athub_v1_0.h"
 #include "gfxhub_v1_1.h"
 #include "mmhub_v9_4.h"
+#include "mmhub_v1_7.h"
 #include "umc_v6_1.h"
 #include "umc_v6_0.h"
 
@@ -1249,6 +1250,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		case CHIP_VEGA12:  /* all engines support GPUVM */
 		case CHIP_VEGA20:
 		case CHIP_ARCTURUS:
+		case CHIP_ALDEBARAN:
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -1352,6 +1354,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RENOIR:
+	case CHIP_ALDEBARAN:
 		adev->num_vmhubs = 2;
 
 
