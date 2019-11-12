@@ -1552,23 +1552,13 @@ static void rk816_bat_set_chrg_param(struct rk816_battery *di,
 		di->ac_in = 1;
 		di->usb_in = 0;
 		di->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-		if (di->pdata->lp_input_current &&
-		    di->dsoc >= di->pdata->lp_soc_min &&
-		    di->dsoc <= di->pdata->lp_soc_max)
-			rk816_bat_set_current(di, di->chrg_cur_lp_input);
-		else
-			rk816_bat_set_current(di, di->chrg_cur_input);
+		rk816_bat_set_current(di, di->chrg_cur_input);
 		power_supply_changed(di->ac);
 		break;
 	case DC_TYPE_DC_CHARGER:
 		di->dc_in = 1;
 		di->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-		if (di->pdata->lp_input_current &&
-		    di->dsoc >= di->pdata->lp_soc_min &&
-		    di->dsoc <= di->pdata->lp_soc_max)
-			rk816_bat_set_current(di, di->chrg_cur_lp_input);
-		else
-			rk816_bat_set_current(di, di->chrg_cur_input);
+		rk816_bat_set_current(di, di->chrg_cur_input);
 		power_supply_changed(di->ac);
 		break;
 	case DC_TYPE_NONE_CHARGER:
@@ -2142,7 +2132,6 @@ static void rk816_bat_select_sample_res(struct rk816_battery *di)
 static void rk816_bat_select_chrg_cv(struct rk816_battery *di)
 {
 	int index, chrg_vol_sel, chrg_cur_sel, chrg_cur_input;
-	int chrg_cur_lp_input;
 
 	di->chrg_vol_sel = DEFAULT_CHRG_VOL_SEL;
 	di->chrg_cur_input = DEFAULT_CHRG_CUR_INPUT;
@@ -2152,7 +2141,6 @@ static void rk816_bat_select_chrg_cv(struct rk816_battery *di)
 	chrg_vol_sel = di->pdata->max_chrg_voltage;
 	chrg_cur_sel = di->pdata->max_chrg_current;
 	chrg_cur_input = di->pdata->max_input_current;
-	chrg_cur_lp_input = di->pdata->lp_input_current;
 
 	if (di->pdata->sample_res < 20) {
 		if (chrg_cur_sel > 2000)
@@ -2165,12 +2153,6 @@ static void rk816_bat_select_chrg_cv(struct rk816_battery *di)
 			chrg_cur_sel = 2400;
 		if (chrg_cur_sel < 1000)
 			chrg_cur_sel = 1000;
-	}
-
-	for (index = 0; index < ARRAY_SIZE(CHRG_CUR_INPUT); index++) {
-		if (chrg_cur_lp_input < CHRG_CUR_INPUT[index])
-			break;
-		di->chrg_cur_lp_input = (index << CHRG_CRU_INPUT_SHIFT);
 	}
 
 	for (index = 0; index < ARRAY_SIZE(CHRG_VOL_SEL); index++) {
@@ -4539,21 +4521,6 @@ static int rk816_bat_parse_dt(struct rk816_battery *di)
 
 	/* parse unnecessary param */
 	of_property_read_u32(np, "sample_res", &pdata->sample_res);
-
-	if (!of_find_property(np, "lp_input_current", &length)) {
-		pdata->lp_input_current = 0;
-	} else {
-		of_property_read_u32_index(np, "lp_input_current", 0,
-					   &pdata->lp_input_current);
-		of_property_read_u32_index(np, "lp_input_current", 1,
-					   &pdata->lp_soc_min);
-		of_property_read_u32_index(np, "lp_input_current", 2,
-					   &pdata->lp_soc_max);
-		if (pdata->lp_soc_max <= pdata->lp_soc_min) {
-			dev_err(dev, "lp input current set min max error\n");
-			pdata->lp_input_current = 0;
-		}
-	}
 
 	ret = of_property_read_u32(np, "fb_temperature", &pdata->fb_temp);
 	if (ret < 0)

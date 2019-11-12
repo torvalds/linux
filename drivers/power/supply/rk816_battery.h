@@ -172,9 +172,6 @@ struct battery_platform_data {
 	u32 max_input_current;
 	u32 max_chrg_current;
 	u32 max_chrg_voltage;
-	u32 lp_input_current;
-	u32 lp_soc_min;
-	u32 lp_soc_max;
 	u32 pwroff_vol;
 	u32 monitor_sec;
 	u32 zero_algorithm_vol;
