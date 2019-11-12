@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_ANALOGIX_ANX6345
 	tristate "Analogix ANX6345 bridge"
+	depends on OF
 	select DRM_ANALOGIX_DP
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
