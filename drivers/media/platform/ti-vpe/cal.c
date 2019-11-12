@@ -1493,6 +1493,7 @@ static int cal_enum_framesizes(struct file *file, void *fh,
 	fse.index = fsize->index;
 	fse.pad = 0;
 	fse.code = fmt->code;
+	fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 
 	ret = v4l2_subdev_call(ctx->sensor, pad, enum_frame_size, NULL, &fse);
 	if (ret)
@@ -1833,6 +1834,7 @@ static int cal_async_bound(struct v4l2_async_notifier *notifier,
 
 		memset(&mbus_code, 0, sizeof(mbus_code));
 		mbus_code.index = j;
+		mbus_code.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(subdev, pad, enum_mbus_code,
 				       NULL, &mbus_code);
 		if (ret)
