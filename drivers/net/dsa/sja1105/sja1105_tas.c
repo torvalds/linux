@@ -352,7 +352,7 @@ int sja1105_setup_tc_taprio(struct dsa_switch *ds, int port,
 		if (rc < 0)
 			return rc;
 
-		return sja1105_static_config_reload(priv);
+		return sja1105_static_config_reload(priv, SJA1105_SCHEDULING);
 	}
 
 	/* The cycle time extension is the amount of time the last cycle from
@@ -400,7 +400,7 @@ int sja1105_setup_tc_taprio(struct dsa_switch *ds, int port,
 	if (rc < 0)
 		return rc;
 
-	return sja1105_static_config_reload(priv);
+	return sja1105_static_config_reload(priv, SJA1105_SCHEDULING);
 }
 
 void sja1105_tas_setup(struct dsa_switch *ds)

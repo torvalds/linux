@@ -1341,13 +1341,21 @@ static void sja1105_bridge_leave(struct dsa_switch *ds, int port,
 	sja1105_bridge_member(ds, port, br, false);
 }
 
+static const char * const sja1105_reset_reasons[] = {
+	[SJA1105_VLAN_FILTERING] = "VLAN filtering",
+	[SJA1105_RX_HWTSTAMPING] = "RX timestamping",
+	[SJA1105_AGEING_TIME] = "Ageing time",
+	[SJA1105_SCHEDULING] = "Time-aware scheduling",
+};
+
 /* For situations where we need to change a setting at runtime that is only
  * available through the static configuration, resetting the switch in order
  * to upload the new static config is unavoidable. Back up the settings we
  * modify at runtime (currently only MAC) and restore them after uploading,
  * such that this operation is relatively seamless.
  */
-int sja1105_static_config_reload(struct sja1105_private *priv)
+int sja1105_static_config_reload(struct sja1105_private *priv,
+				 enum sja1105_reset_reason reason)
 {
 	struct ptp_system_timestamp ptp_sts_before;
 	struct ptp_system_timestamp ptp_sts_after;
@@ -1404,6 +1412,10 @@ int sja1105_static_config_reload(struct sja1105_private *priv)
 
 out_unlock_ptp:
 	mutex_unlock(&priv->ptp_data.lock);
+
+	dev_info(priv->ds->dev,
+		 "Reset switch and programmed static config. Reason: %s\n",
+		 sja1105_reset_reasons[reason]);
 
 	/* Configure the CGU (PLLs) for MII and RMII PHYs.
 	 * For these interfaces there is no dynamic configuration
@@ -1599,7 +1611,7 @@ static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 	l2_lookup_params = table->entries;
 	l2_lookup_params->shared_learn = !enabled;
 
-	rc = sja1105_static_config_reload(priv);
+	rc = sja1105_static_config_reload(priv, SJA1105_VLAN_FILTERING);
 	if (rc)
 		dev_err(ds->dev, "Failed to change VLAN Ethertype\n");
 
@@ -1871,7 +1883,7 @@ static int sja1105_set_ageing_time(struct dsa_switch *ds,
 
 	l2_lookup_params->maxage = maxage;
 
-	return sja1105_static_config_reload(priv);
+	return sja1105_static_config_reload(priv, SJA1105_AGEING_TIME);
 }
 
 static int sja1105_port_setup_tc(struct dsa_switch *ds, int port,
