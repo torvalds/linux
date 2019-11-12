@@ -52,7 +52,7 @@ struct most_channel {
 	u16 channel_id;
 	char name[STRING_SIZE];
 	bool is_poisoned;
-	struct mutex start_mutex;
+	struct mutex start_mutex; /* channel activation synchronization */
 	struct mutex nq_mutex; /* nq thread synchronization */
 	int is_starving;
 	struct most_interface *iface;
@@ -60,7 +60,7 @@ struct most_channel {
 	bool keep_mbo;
 	bool enqueue_halt;
 	struct list_head fifo;
-	spinlock_t fifo_lock;
+	spinlock_t fifo_lock; /* fifo access synchronization */
 	struct list_head halt_fifo;
 	struct list_head list;
 	struct pipe pipe0;
