@@ -68,40 +68,48 @@ actually necessary; the debugfs code provides a number of helper functions
 for simple situations.  Files containing a single integer value can be
 created with any of:
 
-    struct dentry *debugfs_create_u8(const char *name, umode_t mode,
-				     struct dentry *parent, u8 *value);
-    struct dentry *debugfs_create_u16(const char *name, umode_t mode,
-				      struct dentry *parent, u16 *value);
+    void debugfs_create_u8(const char *name, umode_t mode,
+			   struct dentry *parent, u8 *value);
+    void debugfs_create_u16(const char *name, umode_t mode,
+			    struct dentry *parent, u16 *value);
     struct dentry *debugfs_create_u32(const char *name, umode_t mode,
 				      struct dentry *parent, u32 *value);
-    struct dentry *debugfs_create_u64(const char *name, umode_t mode,
-				      struct dentry *parent, u64 *value);
+    void debugfs_create_u64(const char *name, umode_t mode,
+			    struct dentry *parent, u64 *value);
 
 These files support both reading and writing the given value; if a specific
 file should not be written to, simply set the mode bits accordingly.  The
 values in these files are in decimal; if hexadecimal is more appropriate,
 the following functions can be used instead:
 
-    struct dentry *debugfs_create_x8(const char *name, umode_t mode,
-				     struct dentry *parent, u8 *value);
-    struct dentry *debugfs_create_x16(const char *name, umode_t mode,
-				      struct dentry *parent, u16 *value);
-    struct dentry *debugfs_create_x32(const char *name, umode_t mode,
-				      struct dentry *parent, u32 *value);
-    struct dentry *debugfs_create_x64(const char *name, umode_t mode,
-				      struct dentry *parent, u64 *value);
+    void debugfs_create_x8(const char *name, umode_t mode,
+			   struct dentry *parent, u8 *value);
+    void debugfs_create_x16(const char *name, umode_t mode,
+			    struct dentry *parent, u16 *value);
+    void debugfs_create_x32(const char *name, umode_t mode,
+			    struct dentry *parent, u32 *value);
+    void debugfs_create_x64(const char *name, umode_t mode,
+			    struct dentry *parent, u64 *value);
 
 These functions are useful as long as the developer knows the size of the
 value to be exported.  Some types can have different widths on different
-architectures, though, complicating the situation somewhat.  There is a
-function meant to help out in one special case:
+architectures, though, complicating the situation somewhat.  There are
+functions meant to help out in such special cases:
 
-    struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
-				         struct dentry *parent, 
-					 size_t *value);
+    void debugfs_create_size_t(const char *name, umode_t mode,
+			       struct dentry *parent, size_t *value);
 
 As might be expected, this function will create a debugfs file to represent
 a variable of type size_t.
+
+Similarly, there are helpers for variables of type unsigned long, in decimal
+and hexadecimal:
+
+    struct dentry *debugfs_create_ulong(const char *name, umode_t mode,
+					struct dentry *parent,
+					unsigned long *value);
+    void debugfs_create_xul(const char *name, umode_t mode,
+			    struct dentry *parent, unsigned long *value);
 
 Boolean values can be placed in debugfs with:
 
@@ -114,8 +122,8 @@ lower-case values, or 1 or 0.  Any other input will be silently ignored.
 
 Also, atomic_t values can be placed in debugfs with:
 
-    struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
-				struct dentry *parent, atomic_t *value)
+    void debugfs_create_atomic_t(const char *name, umode_t mode,
+				 struct dentry *parent, atomic_t *value)
 
 A read of this file will get atomic_t values, and a write of this file
 will set atomic_t values.

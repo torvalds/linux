@@ -12,6 +12,7 @@
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <linux/io.h>
+#include <asm/platform_early.h>
 
 static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_REIE,
@@ -76,7 +77,7 @@ static struct platform_device *sh4202_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(sh4202_early_devices,
+	sh_early_platform_add_devices(sh4202_early_devices,
 				   ARRAY_SIZE(sh4202_early_devices));
 }
 
