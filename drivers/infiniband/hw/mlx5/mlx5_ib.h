@@ -1263,8 +1263,6 @@ int mlx5_ib_odp_init_one(struct mlx5_ib_dev *ibdev);
 void mlx5_ib_odp_cleanup_one(struct mlx5_ib_dev *ibdev);
 int __init mlx5_ib_odp_init(void);
 void mlx5_ib_odp_cleanup(void);
-void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
-			      unsigned long end);
 void mlx5_odp_init_mr_cache_entry(struct mlx5_cache_ent *ent);
 void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 			   size_t nentries, struct mlx5_ib_mr *mr, int flags);
@@ -1294,10 +1292,9 @@ mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 {
 	return -EOPNOTSUPP;
 }
-static inline void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp,
-					    unsigned long start,
-					    unsigned long end){};
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
+
+extern const struct mmu_interval_notifier_ops mlx5_mn_ops;
 
 /* Needed for rep profile */
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,

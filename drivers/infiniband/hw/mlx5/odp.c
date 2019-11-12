@@ -241,17 +241,26 @@ out_unlock:
 	xa_unlock(&imr->implicit_children);
 }
 
-void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
-			      unsigned long end)
+static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
+				     const struct mmu_notifier_range *range,
+				     unsigned long cur_seq)
 {
+	struct ib_umem_odp *umem_odp =
+		container_of(mni, struct ib_umem_odp, notifier);
 	struct mlx5_ib_mr *mr;
 	const u64 umr_block_mask = (MLX5_UMR_MTT_ALIGNMENT /
 				    sizeof(struct mlx5_mtt)) - 1;
 	u64 idx = 0, blk_start_idx = 0;
+	unsigned long start;
+	unsigned long end;
 	int in_block = 0;
 	u64 addr;
 
+	if (!mmu_notifier_range_blockable(range))
+		return false;
+
 	mutex_lock(&umem_odp->umem_mutex);
+	mmu_interval_set_seq(mni, cur_seq);
 	/*
 	 * If npages is zero then umem_odp->private may not be setup yet. This
 	 * does not complete until after the first page is mapped for DMA.
@@ -260,8 +269,8 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 		goto out;
 	mr = umem_odp->private;
 
-	start = max_t(u64, ib_umem_start(umem_odp), start);
-	end = min_t(u64, ib_umem_end(umem_odp), end);
+	start = max_t(u64, ib_umem_start(umem_odp), range->start);
+	end = min_t(u64, ib_umem_end(umem_odp), range->end);
 
 	/*
 	 * Iteration one - zap the HW's MTTs. The notifiers_count ensures that
@@ -312,7 +321,12 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 		destroy_unused_implicit_child_mr(mr);
 out:
 	mutex_unlock(&umem_odp->umem_mutex);
+	return true;
 }
+
+const struct mmu_interval_notifier_ops mlx5_mn_ops = {
+	.invalidate = mlx5_ib_invalidate_range,
+};
 
 void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 {
@@ -414,7 +428,7 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 
 	odp = ib_umem_odp_alloc_child(to_ib_umem_odp(imr->umem),
 				      idx * MLX5_IMR_MTT_SIZE,
-				      MLX5_IMR_MTT_SIZE);
+				      MLX5_IMR_MTT_SIZE, &mlx5_mn_ops);
 	if (IS_ERR(odp))
 		return ERR_CAST(odp);
 
@@ -600,8 +614,9 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 			     u64 user_va, size_t bcnt, u32 *bytes_mapped,
 			     u32 flags)
 {
-	int current_seq, page_shift, ret, np;
+	int page_shift, ret, np;
 	bool downgrade = flags & MLX5_PF_FLAGS_DOWNGRADE;
+	unsigned long current_seq;
 	u64 access_mask;
 	u64 start_idx, page_mask;
 
@@ -613,12 +628,7 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 	if (odp->umem.writable && !downgrade)
 		access_mask |= ODP_WRITE_ALLOWED_BIT;
 
-	current_seq = READ_ONCE(odp->notifiers_seq);
-	/*
-	 * Ensure the sequence number is valid for some time before we call
-	 * gup.
-	 */
-	smp_rmb();
+	current_seq = mmu_interval_read_begin(&odp->notifier);
 
 	np = ib_umem_odp_map_dma_pages(odp, user_va, bcnt, access_mask,
 				       current_seq);
@@ -626,7 +636,7 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 		return np;
 
 	mutex_lock(&odp->umem_mutex);
-	if (!ib_umem_mmu_notifier_retry(odp, current_seq)) {
+	if (!mmu_interval_read_retry(&odp->notifier, current_seq)) {
 		/*
 		 * No need to check whether the MTTs really belong to
 		 * this MR, since ib_umem_odp_map_dma_pages already
@@ -656,19 +666,6 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 	return np << (page_shift - PAGE_SHIFT);
 
 out:
-	if (ret == -EAGAIN) {
-		unsigned long timeout = msecs_to_jiffies(MMU_NOTIFIER_TIMEOUT);
-
-		if (!wait_for_completion_timeout(&odp->notifier_completion,
-						 timeout)) {
-			mlx5_ib_warn(
-				mr->dev,
-				"timeout waiting for mmu notifier. seq %d against %d. notifiers_count=%d\n",
-				current_seq, odp->notifiers_seq,
-				odp->notifiers_count);
-		}
-	}
-
 	return ret;
 }
 
@@ -1609,7 +1606,6 @@ void mlx5_odp_init_mr_cache_entry(struct mlx5_cache_ent *ent)
 
 static const struct ib_device_ops mlx5_ib_dev_odp_ops = {
 	.advise_mr = mlx5_ib_advise_mr,
-	.invalidate_range = mlx5_ib_invalidate_range,
 };
 
 int mlx5_ib_odp_init_one(struct mlx5_ib_dev *dev)
