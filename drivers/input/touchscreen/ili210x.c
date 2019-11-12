@@ -21,14 +21,7 @@
 /* Touchscreen commands */
 #define REG_TOUCHDATA		0x10
 #define REG_PANEL_INFO		0x20
-#define REG_FIRMWARE_VERSION	0x40
 #define REG_CALIBRATE		0xcc
-
-struct firmware_version {
-	u8 id;
-	u8 major;
-	u8 minor;
-} __packed;
 
 struct ili2xxx_chip {
 	int (*read_reg)(struct i2c_client *client, u8 reg,
@@ -342,7 +335,6 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	struct ili210x *priv;
 	struct gpio_desc *reset_gpio;
 	struct input_dev *input;
-	struct firmware_version firmware;
 	int error;
 
 	dev_dbg(dev, "Probing for ILI210X I2C Touschreen driver");
@@ -389,15 +381,6 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	priv->chip = chip;
 	i2c_set_clientdata(client, priv);
 
-	/* Get firmware version */
-	error = chip->read_reg(client, REG_FIRMWARE_VERSION,
-			       &firmware, sizeof(firmware));
-	if (error) {
-		dev_err(dev, "Failed to get firmware version, err: %d\n",
-			error);
-		return error;
-	}
-
 	/* Setup input device */
 	input->name = "ILI210x Touchscreen";
 	input->id.bustype = BUS_I2C;
@@ -438,10 +421,6 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 		dev_err(dev, "Cannot register input device, err: %d\n", error);
 		return error;
 	}
-
-	dev_dbg(dev,
-		"ILI210x initialized (IRQ: %d), firmware version %d.%d.%d",
-		client->irq, firmware.id, firmware.major, firmware.minor);
 
 	return 0;
 }
