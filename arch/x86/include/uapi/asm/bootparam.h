@@ -88,6 +88,7 @@ struct setup_header {
 	__u64	pref_address;
 	__u32	init_size;
 	__u32	handover_offset;
+	__u32	kernel_info_offset;
 } __attribute__((packed));
 
 struct sys_desc_table {
