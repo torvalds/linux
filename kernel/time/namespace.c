@@ -281,6 +281,7 @@ static void timens_put(struct ns_common *ns)
 static int timens_install(struct nsproxy *nsproxy, struct ns_common *new)
 {
 	struct time_namespace *ns = to_time_ns(new);
+	int err;
 
 	if (!current_is_single_threaded())
 		return -EUSERS;
@@ -290,6 +291,10 @@ static int timens_install(struct nsproxy *nsproxy, struct ns_common *new)
 		return -EPERM;
 
 	timens_set_vvar_page(current, ns);
+
+	err = vdso_join_timens(current, ns);
+	if (err)
+		return err;
 
 	get_time_ns(ns);
 	put_time_ns(nsproxy->time_ns);
@@ -305,12 +310,17 @@ int timens_on_fork(struct nsproxy *nsproxy, struct task_struct *tsk)
 {
 	struct ns_common *nsc = &nsproxy->time_ns_for_children->ns;
 	struct time_namespace *ns = to_time_ns(nsc);
+	int err;
 
 	/* create_new_namespaces() already incremented the ref counter */
 	if (nsproxy->time_ns == nsproxy->time_ns_for_children)
 		return 0;
 
 	timens_set_vvar_page(tsk, ns);
+
+	err = vdso_join_timens(tsk, ns);
+	if (err)
+		return err;
 
 	get_time_ns(ns);
 	put_time_ns(nsproxy->time_ns);
