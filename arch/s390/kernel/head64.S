@@ -42,12 +42,6 @@ ENTRY(startup_continue)
 #
 	brasl	%r14,startup_init
 
-# check control registers
-	stctg	%c0,%c15,0(%r15)
-	oi	6(%r15),0x60		# enable sigp emergency & external call
-	oi	4(%r15),0x10		# switch on low address proctection
-	lctlg	%c0,%c15,0(%r15)
-
 	lam	0,15,.Laregs-.LPG1(%r13)	# load acrs needed by uaccess
 	brasl	%r14,start_kernel		# go to C code
 #
