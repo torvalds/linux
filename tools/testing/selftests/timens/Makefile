@@ -1,6 +1,6 @@
-TEST_GEN_PROGS := timens timerfd
+TEST_GEN_PROGS := timens timerfd clock_nanosleep
 
-CFLAGS := -Wall -Werror
+CFLAGS := -Wall -Werror -pthread
 LDFLAGS := -lrt
 
 include ../lib.mk
