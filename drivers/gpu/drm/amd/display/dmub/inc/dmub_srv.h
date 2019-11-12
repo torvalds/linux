@@ -67,6 +67,7 @@
 #include "dmub_types.h"
 #include "dmub_cmd.h"
 #include "dmub_rb.h"
+#include "dmub_fw_state.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -102,7 +103,7 @@ enum dmub_window_id {
 	DMUB_WINDOW_3_VBIOS,
 	DMUB_WINDOW_4_MAILBOX,
 	DMUB_WINDOW_5_TRACEBUFF,
-	DMUB_WINDOW_6_RESERVED,
+	DMUB_WINDOW_6_FW_STATE,
 	DMUB_WINDOW_7_RESERVED,
 	DMUB_WINDOW_TOTAL,
 };
@@ -241,7 +242,8 @@ struct dmub_srv_hw_funcs {
 			      const struct dmub_window *cw2,
 			      const struct dmub_window *cw3,
 			      const struct dmub_window *cw4,
-				  const struct dmub_window *cw5);
+			      const struct dmub_window *cw5,
+			      const struct dmub_window *cw6);
 
 	void (*setup_mailbox)(struct dmub_srv *dmub,
 			      const struct dmub_region *inbox1);
@@ -296,11 +298,13 @@ struct dmub_srv_hw_params {
  * @asic: dmub asic identifier
  * @user_ctx: user provided context for the dmub_srv
  * @is_virtual: false if hardware support only
+ * @fw_state: dmub firmware state pointer
  */
 struct dmub_srv {
 	enum dmub_asic asic;
 	void *user_ctx;
 	bool is_virtual;
+	volatile const struct dmub_fw_state *fw_state;
 
 	/* private: internal use only */
 	struct dmub_srv_base_funcs funcs;

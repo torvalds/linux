@@ -23,41 +23,51 @@
  *
  */
 
-#ifndef _DMUB_DCN20_H_
-#define _DMUB_DCN20_H_
+#ifndef _DMUB_FW_STATE_H_
+#define _DMUB_FW_STATE_H_
 
-#include "../inc/dmub_types.h"
+#include "dmub_types.h"
 
-struct dmub_srv;
+#pragma pack(push, 1)
 
-/* Hardware functions. */
+struct dmub_fw_state {
+	/**
+	 * @phy_initialized_during_fw_boot:
+	 *
+	 * Detects if VBIOS/VBL has ran before firmware boot.
+	 * A value of 1 will usually mean S0i3 boot.
+	 */
+	uint8_t phy_initialized_during_fw_boot;
 
-void dmub_dcn20_init(struct dmub_srv *dmub);
+	/**
+	 * @intialized_phy:
+	 *
+	 * Bit vector of initialized PHY.
+	 */
+	uint8_t initialized_phy;
 
-void dmub_dcn20_reset(struct dmub_srv *dmub);
+	/**
+	 * @enabled_phy:
+	 *
+	 * Bit vector of enabled PHY for DP alt mode switch tracking.
+	 */
+	uint8_t enabled_phy;
 
-void dmub_dcn20_reset_release(struct dmub_srv *dmub);
+	/**
+	 * @dmcu_fw_loaded:
+	 *
+	 * DMCU auto load state.
+	 */
+	uint8_t dmcu_fw_loaded;
 
-void dmub_dcn20_backdoor_load(struct dmub_srv *dmub,
-			      const struct dmub_window *cw0,
-			      const struct dmub_window *cw1);
+	/**
+	 * @psr_state:
+	 *
+	 * PSR state tracking.
+	 */
+	uint8_t psr_state;
+};
 
-void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
-			      const struct dmub_window *cw2,
-			      const struct dmub_window *cw3,
-			      const struct dmub_window *cw4,
-			      const struct dmub_window *cw5,
-			      const struct dmub_window *cw6);
+#pragma pack(pop)
 
-void dmub_dcn20_setup_mailbox(struct dmub_srv *dmub,
-			      const struct dmub_region *inbox1);
-
-uint32_t dmub_dcn20_get_inbox1_rptr(struct dmub_srv *dmub);
-
-void dmub_dcn20_set_inbox1_wptr(struct dmub_srv *dmub, uint32_t wptr_offset);
-
-bool dmub_dcn20_is_hw_init(struct dmub_srv *dmub);
-
-bool dmub_dcn20_is_supported(struct dmub_srv *dmub);
-
-#endif /* _DMUB_DCN20_H_ */
+#endif /* _DMUB_FW_STATE_H_ */

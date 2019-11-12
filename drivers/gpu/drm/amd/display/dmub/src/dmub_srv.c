@@ -48,13 +48,14 @@
 
 
 /* Number of windows in use. */
-#define DMUB_NUM_WINDOWS (DMUB_WINDOW_5_TRACEBUFF + 1)
+#define DMUB_NUM_WINDOWS (DMUB_WINDOW_6_FW_STATE + 1)
 /* Base addresses. */
 
 #define DMUB_CW0_BASE (0x60000000)
 #define DMUB_CW1_BASE (0x61000000)
 #define DMUB_CW3_BASE (0x63000000)
 #define DMUB_CW5_BASE (0x65000000)
+#define DMUB_CW6_BASE (0x66000000)
 
 static inline uint32_t dmub_align(uint32_t val, uint32_t factor)
 {
@@ -158,6 +159,7 @@ dmub_srv_calc_region_info(struct dmub_srv *dmub,
 	struct dmub_region *bios = &out->regions[DMUB_WINDOW_3_VBIOS];
 	struct dmub_region *mail = &out->regions[DMUB_WINDOW_4_MAILBOX];
 	struct dmub_region *trace_buff = &out->regions[DMUB_WINDOW_5_TRACEBUFF];
+	struct dmub_region *fw_state = &out->regions[DMUB_WINDOW_6_FW_STATE];
 
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
@@ -184,7 +186,13 @@ dmub_srv_calc_region_info(struct dmub_srv *dmub,
 	trace_buff->base = dmub_align(mail->top, 256);
 	trace_buff->top = trace_buff->base + TRACE_BUF_SIZE;
 
-	out->fb_size = dmub_align(trace_buff->top, 4096);
+	fw_state->base = dmub_align(trace_buff->top, 256);
+
+	/* Align firmware state to size of cache line. */
+	fw_state->top =
+		fw_state->base + dmub_align(sizeof(struct dmub_fw_state), 64);
+
+	out->fb_size = dmub_align(fw_state->top, 4096);
 
 	return DMUB_STATUS_OK;
 }
@@ -258,9 +266,10 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	struct dmub_fb *bios_fb = params->fb[DMUB_WINDOW_3_VBIOS];
 	struct dmub_fb *mail_fb = params->fb[DMUB_WINDOW_4_MAILBOX];
 	struct dmub_fb *tracebuff_fb = params->fb[DMUB_WINDOW_5_TRACEBUFF];
+	struct dmub_fb *fw_state_fb = params->fb[DMUB_WINDOW_6_FW_STATE];
 
 	struct dmub_rb_init_params rb_params;
-	struct dmub_window cw0, cw1, cw2, cw3, cw4, cw5;
+	struct dmub_window cw0, cw1, cw2, cw3, cw4, cw5, cw6;
 	struct dmub_region inbox1;
 
 	if (!dmub->sw_init)
@@ -286,7 +295,8 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	if (dmub->hw_funcs.reset)
 		dmub->hw_funcs.reset(dmub);
 
-	if (inst_fb && data_fb && bios_fb && mail_fb) {
+	if (inst_fb && data_fb && bios_fb && mail_fb && tracebuff_fb &&
+	    fw_state_fb) {
 		cw2.offset.quad_part = data_fb->gpu_addr;
 		cw2.region.base = DMUB_CW0_BASE + inst_fb->size;
 		cw2.region.top = cw2.region.base + data_fb->size;
@@ -306,8 +316,15 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		cw5.region.base = DMUB_CW5_BASE;
 		cw5.region.top = cw5.region.base + tracebuff_fb->size;
 
+		cw6.offset.quad_part = fw_state_fb->gpu_addr;
+		cw6.region.base = DMUB_CW6_BASE;
+		cw6.region.top = cw6.region.base + fw_state_fb->size;
+
+		dmub->fw_state = fw_state_fb->cpu_addr;
+
 		if (dmub->hw_funcs.setup_windows)
-			dmub->hw_funcs.setup_windows(dmub, &cw2, &cw3, &cw4, &cw5);
+			dmub->hw_funcs.setup_windows(dmub, &cw2, &cw3, &cw4,
+						     &cw5, &cw6);
 
 		if (dmub->hw_funcs.setup_mailbox)
 			dmub->hw_funcs.setup_mailbox(dmub, &inbox1);
