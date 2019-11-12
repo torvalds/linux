@@ -624,12 +624,18 @@ void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
 			    struct sk_buff *skb)
 {
 	struct page **page_ptr;
+	struct page *next;
 
 	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
+	next = *page_ptr;
+	*page_ptr = NULL;
 
-	if (*page_ptr) {
-		__free_page(*page_ptr);
-		*page_ptr = NULL;
+	while (next) {
+		struct page *tmp = next;
+
+		next = *(void **)(page_address(next) + PAGE_SIZE -
+				  sizeof(void *));
+		__free_page(tmp);
 	}
 }
 
@@ -2067,8 +2073,18 @@ struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
 	if (!p->page)
 		goto alloc;
 
-	/* enough room on this page */
-	if (p->pos + len < (u8 *)page_address(p->page) + PAGE_SIZE)
+	/*
+	 * Check if there's enough room on this page
+	 *
+	 * Note that we put a page chaining pointer *last* in the
+	 * page - we need it somewhere, and if it's there then we
+	 * avoid DMA mapping the last bits of the page which may
+	 * trigger the 32-bit boundary hardware bug.
+	 *
+	 * (see also get_workaround_page() in tx-gen2.c)
+	 */
+	if (p->pos + len < (u8 *)page_address(p->page) + PAGE_SIZE -
+			   sizeof(void *))
 		goto out;
 
 	/* We don't have enough room on this page, get a new one. */
@@ -2079,6 +2095,8 @@ alloc:
 	if (!p->page)
 		return NULL;
 	p->pos = page_address(p->page);
+	/* set the chaining pointer to NULL */
+	*(void **)(page_address(p->page) + PAGE_SIZE - sizeof(void *)) = NULL;
 out:
 	*page_ptr = p->page;
 	get_page(p->page);
