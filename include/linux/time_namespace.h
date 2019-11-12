@@ -39,6 +39,7 @@ struct time_namespace *copy_time_ns(unsigned long flags,
 				    struct time_namespace *old_ns);
 void free_time_ns(struct kref *kref);
 int timens_on_fork(struct nsproxy *nsproxy, struct task_struct *tsk);
+struct vdso_data *arch_get_vdso_data(void *vvar_page);
 
 static inline void put_time_ns(struct time_namespace *ns)
 {
