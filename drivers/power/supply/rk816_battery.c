@@ -181,6 +181,7 @@ struct rk816_battery {
 	struct delayed_work		host_work;
 	struct delayed_work		discnt_work;
 	struct extcon_dev		*cable_edev;
+	int				charger_changed;
 	int				bat_res;
 	int				chrg_status;
 	int				res_fac;
@@ -1489,18 +1490,30 @@ static void rk816_bat_update_leds(struct rk816_battery *di, int prop)
 	}
 }
 
-static void rk816_bat_set_current(struct rk816_battery *di, int charge_current)
+static void rk816_bat_set_chrg_current(struct rk816_battery *di,
+				       u8 chrg_current)
+{
+	u8 chrg_ctrl_reg1;
+
+	chrg_ctrl_reg1 = rk816_bat_read(di, RK816_CHRG_CTRL_REG1);
+	chrg_ctrl_reg1 &= ~CHRG_CUR_MSK;
+	chrg_ctrl_reg1 |= (chrg_current);
+	rk816_bat_write(di, RK816_CHRG_CTRL_REG1, chrg_ctrl_reg1);
+}
+
+static void rk816_bat_set_input_current(struct rk816_battery *di,
+					int input_current)
 {
 	u8 usb_ctrl;
 
 	if (di->pdata->bat_mode == MODE_VIRTUAL) {
 		BAT_INFO("virtual power test mode, set max input current\n");
-		charge_current = di->chrg_cur_input;
+		input_current = di->chrg_cur_input;
 	}
 
 	usb_ctrl = rk816_bat_read(di, RK816_USB_CTRL_REG);
 	usb_ctrl &= ~INPUT_CUR_MSK;
-	usb_ctrl |= (charge_current);
+	usb_ctrl |= (input_current);
 	rk816_bat_write(di, RK816_USB_CTRL_REG, usb_ctrl);
 }
 
@@ -1517,7 +1530,8 @@ static void rk816_bat_set_chrg_param(struct rk816_battery *di,
 		di->ac_in = 0;
 		di->dc_in = 0;
 		di->prop_status = POWER_SUPPLY_STATUS_DISCHARGING;
-		rk816_bat_set_current(di, INPUT_CUR450MA);
+		rk816_bat_set_chrg_current(di, di->chrg_cur_sel);
+		rk816_bat_set_input_current(di, INPUT_CUR450MA);
 		power_supply_changed(di->bat);
 		power_supply_changed(di->usb);
 		power_supply_changed(di->ac);
@@ -1527,7 +1541,8 @@ static void rk816_bat_set_chrg_param(struct rk816_battery *di,
 		di->ac_in = 0;
 		if (di->dc_in == 0) {
 			di->prop_status = POWER_SUPPLY_STATUS_DISCHARGING;
-			rk816_bat_set_current(di, INPUT_CUR450MA);
+			rk816_bat_set_chrg_current(di, di->chrg_cur_sel);
+			rk816_bat_set_input_current(di, INPUT_CUR450MA);
 		}
 		power_supply_changed(di->usb);
 		power_supply_changed(di->ac);
@@ -1536,29 +1551,35 @@ static void rk816_bat_set_chrg_param(struct rk816_battery *di,
 		di->usb_in = 1;
 		di->ac_in = 0;
 		di->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-		if (di->dc_in == 0)
-			rk816_bat_set_current(di, INPUT_CUR450MA);
+		if (di->dc_in == 0) {
+			rk816_bat_set_chrg_current(di, di->chrg_cur_sel);
+			rk816_bat_set_input_current(di, INPUT_CUR450MA);
+		}
 		power_supply_changed(di->usb);
 		break;
 	case USB_TYPE_CDP_CHARGER:
 		di->usb_in = 1;
 		di->ac_in = 0;
 		di->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-		if (di->dc_in == 0)
-			rk816_bat_set_current(di, INPUT_CUR1500MA);
+		if (di->dc_in == 0) {
+			rk816_bat_set_chrg_current(di, di->chrg_cur_sel);
+			rk816_bat_set_input_current(di, INPUT_CUR1500MA);
+		}
 		power_supply_changed(di->usb);
 		break;
 	case USB_TYPE_AC_CHARGER:
 		di->ac_in = 1;
 		di->usb_in = 0;
 		di->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-		rk816_bat_set_current(di, di->chrg_cur_input);
+		rk816_bat_set_chrg_current(di, di->chrg_cur_sel);
+		rk816_bat_set_input_current(di, di->chrg_cur_input);
 		power_supply_changed(di->ac);
 		break;
 	case DC_TYPE_DC_CHARGER:
 		di->dc_in = 1;
 		di->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-		rk816_bat_set_current(di, di->chrg_cur_input);
+		rk816_bat_set_chrg_current(di, di->chrg_cur_sel);
+		rk816_bat_set_input_current(di, di->chrg_cur_input);
 		power_supply_changed(di->ac);
 		break;
 	case DC_TYPE_NONE_CHARGER:
@@ -1573,9 +1594,11 @@ static void rk816_bat_set_chrg_param(struct rk816_battery *di,
 			di->ac_in = 0;
 			di->usb_in = 0;
 			di->prop_status = POWER_SUPPLY_STATUS_DISCHARGING;
-			rk816_bat_set_current(di, INPUT_CUR450MA);
+			rk816_bat_set_chrg_current(di, di->chrg_cur_sel);
+			rk816_bat_set_input_current(di, INPUT_CUR450MA);
 		} else if (di->usb_in) {
-			rk816_bat_set_current(di, INPUT_CUR450MA);
+			rk816_bat_set_chrg_current(di, di->chrg_cur_sel);
+			rk816_bat_set_input_current(di, INPUT_CUR450MA);
 			di->prop_status = POWER_SUPPLY_STATUS_CHARGING;
 		}
 		power_supply_changed(di->usb);
@@ -1585,6 +1608,8 @@ static void rk816_bat_set_chrg_param(struct rk816_battery *di,
 		di->prop_status = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 	}
+
+	di->charger_changed = 1;
 
 	usb_ctrl = rk816_bat_read(di, RK816_USB_CTRL_REG);
 	chrg_ctrl1 = rk816_bat_read(di, RK816_CHRG_CTRL_REG1);
@@ -2129,57 +2154,80 @@ static void rk816_bat_select_sample_res(struct rk816_battery *di)
 	}
 }
 
-static void rk816_bat_select_chrg_cv(struct rk816_battery *di)
+static u8 rk816_bat_decode_input_current(struct rk816_battery *di,
+					u32 input_current)
 {
-	int index, chrg_vol_sel, chrg_cur_sel, chrg_cur_input;
-
-	di->chrg_vol_sel = DEFAULT_CHRG_VOL_SEL;
-	di->chrg_cur_input = DEFAULT_CHRG_CUR_INPUT;
-	di->chrg_cur_sel = DEFAULT_CHRG_CUR_SEL;
-	di->chrg_cur_lp_input = 0;
-
-	chrg_vol_sel = di->pdata->max_chrg_voltage;
-	chrg_cur_sel = di->pdata->max_chrg_current;
-	chrg_cur_input = di->pdata->max_input_current;
-
-	if (di->pdata->sample_res < 20) {
-		if (chrg_cur_sel > 2000)
-			chrg_cur_sel = RES_FAC_DIV(chrg_cur_sel, di->res_fac);
-		else
-			chrg_cur_sel = 1000;
-	} else if (di->pdata->sample_res > 20) {
-		chrg_cur_sel = RES_FAC_MUX(chrg_cur_sel, di->res_fac);
-		if (chrg_cur_sel > 2400)
-			chrg_cur_sel = 2400;
-		if (chrg_cur_sel < 1000)
-			chrg_cur_sel = 1000;
-	}
-
-	for (index = 0; index < ARRAY_SIZE(CHRG_VOL_SEL); index++) {
-		if (chrg_vol_sel < CHRG_VOL_SEL[index])
-			break;
-		di->chrg_vol_sel = (index << CHRG_VOL_SEL_SHIFT);
-	}
+	u8 val = DEFAULT_CHRG_CUR_INPUT;
+	u8 index;
 
 	for (index = 2; index < ARRAY_SIZE(CHRG_CUR_INPUT); index++) {
-		if (chrg_cur_input < 850 && chrg_cur_input > 80) {
-			di->chrg_cur_input = 0x0;
+		if (input_current < 850 && input_current > 80) {
+			val = 0x0;/* 450mA */
 			break;
-		} else if (chrg_cur_input <= 80) {
-			di->chrg_cur_input = 0x1;
+		} else if (input_current <= 80) {
+			val = 0x1;/* 80mA */
 			break;
 		} else {
-			if (chrg_cur_input < CHRG_CUR_INPUT[index])
+			if (input_current < CHRG_CUR_INPUT[index])
 				break;
-			di->chrg_cur_input = (index << CHRG_CRU_INPUT_SHIFT);
+			val = (index << CHRG_CRU_INPUT_SHIFT);
 		}
 	}
 
-	for (index = 0; index < ARRAY_SIZE(CHRG_CUR_SEL); index++) {
-		if (chrg_cur_sel < CHRG_CUR_SEL[index])
-			break;
-		di->chrg_cur_sel = (index << CHRG_CRU_SEL_SHIFT);
+	return val;
+}
+
+static u8 rk816_bat_decode_chrg_current(struct rk816_battery *di,
+				       u32 chrg_current)
+{
+	u8 val = DEFAULT_CHRG_CUR_SEL;
+	u8 index;
+
+	if (di->pdata->sample_res < 20) {
+		if (chrg_current > 2000)
+			chrg_current = RES_FAC_DIV(chrg_current, di->res_fac);
+		else
+			chrg_current = 1000;
+	} else if (di->pdata->sample_res > 20) {
+		chrg_current = RES_FAC_MUX(chrg_current, di->res_fac);
+		if (chrg_current > 2400)
+			chrg_current = 2400;
+		if (chrg_current < 1000)
+			chrg_current = 1000;
 	}
+
+	for (index = 0; index < ARRAY_SIZE(CHRG_CUR_SEL); index++) {
+		if (chrg_current < CHRG_CUR_SEL[index])
+			break;
+		val = (index << CHRG_CRU_SEL_SHIFT);
+	}
+
+	return val;
+}
+
+static u8 rk816_bat_decode_chrg_vol(struct rk816_battery *di,
+				    u32 chrg_vol)
+{
+	u8 val = DEFAULT_CHRG_VOL_SEL;
+	u8 index;
+
+	for (index = 0; index < ARRAY_SIZE(CHRG_VOL_SEL); index++) {
+		if (chrg_vol < CHRG_VOL_SEL[index])
+			break;
+		val = (index << CHRG_VOL_SEL_SHIFT);
+	}
+
+	return val;
+}
+
+static void rk816_bat_select_chrg_cv(struct rk816_battery *di)
+{
+	di->chrg_vol_sel = rk816_bat_decode_chrg_vol(di,
+					di->pdata->max_chrg_voltage);
+	di->chrg_cur_input = rk816_bat_decode_input_current(di,
+					di->pdata->max_input_current);
+	di->chrg_cur_sel = rk816_bat_decode_chrg_current(di,
+					di->pdata->max_chrg_current);
 
 	DBG("<%s>. vol = 0x%x, input = 0x%x, sel = 0x%x\n",
 	    __func__, di->chrg_vol_sel, di->chrg_cur_input, di->chrg_cur_sel);
@@ -3655,6 +3703,78 @@ static int rk816_bat_get_ntc_res(struct rk816_battery *di)
 	return res;
 }
 
+static int rk816_bat_temperature_chrg(struct rk816_battery *di, int temp)
+{
+	static int temp_triggered, config_index = -1;
+	int i, up_temp, down_temp, cfg_current;
+	u8 usb_ctrl, chrg_ctrl1;
+	int now_temp = temp;
+	int cur;
+
+	for (i = 0; i < di->pdata->tc_count; i++) {
+		up_temp = di->pdata->tc_table[i].temp_up;
+		down_temp = di->pdata->tc_table[i].temp_down;
+		cfg_current = di->pdata->tc_table[i].chrg_current;
+
+		if (now_temp >= down_temp && now_temp <= up_temp) {
+			/* Temp range or charger are not update, return */
+			if (config_index == i && !di->charger_changed)
+				return 0;
+
+			config_index = i;
+			di->charger_changed = 0;
+			temp_triggered = 1;
+
+			if (di->pdata->tc_table[i].set_chrg_current) {
+				rk816_bat_set_chrg_current(di, cfg_current);
+				if (!di->over_20mR)
+					cur =
+					  RES_FAC_MUX(CHRG_CUR_SEL[cfg_current],
+						      di->res_fac);
+				else
+					cur =
+					  RES_FAC_DIV(CHRG_CUR_SEL[cfg_current],
+						      di->res_fac);
+				BAT_INFO("temperature = %d'C[%d~%d'C], chrg current = %d\n",
+					 now_temp, down_temp, up_temp, cur);
+			} else {
+				rk816_bat_set_input_current(di, cfg_current);
+				BAT_INFO("temperature = %d'C[%d~%d'C], input current = %d\n",
+					 now_temp, down_temp, up_temp,
+					 CHRG_CUR_INPUT[cfg_current]);
+			}
+			return 0;	/* return after configure */
+		}
+	}
+
+	/*
+	 * means: current temperature not covers above case, temperature rolls
+	 * back to normal range, so restore default value
+	 */
+	if (temp_triggered) {
+		temp_triggered = 0;
+		config_index = -1;
+		rk816_bat_set_chrg_current(di, di->chrg_cur_sel);
+		if (di->ac_in || di->dc_in)
+			rk816_bat_set_input_current(di, di->chrg_cur_input);
+		else
+			rk816_bat_set_input_current(di, INPUT_CUR450MA);
+		usb_ctrl = rk816_bat_read(di, RK816_USB_CTRL_REG);
+		chrg_ctrl1 = rk816_bat_read(di, RK816_CHRG_CTRL_REG1);
+		cfg_current = chrg_ctrl1 & 0x0f;
+		if (!di->over_20mR)
+			cur =
+			  RES_FAC_MUX(CHRG_CUR_SEL[cfg_current], di->res_fac);
+		else
+			cur =
+			  RES_FAC_DIV(CHRG_CUR_SEL[cfg_current], di->res_fac);
+		BAT_INFO("roll back temp %d'C, current chrg = %d, input = %d\n",
+			 now_temp, cur, CHRG_CUR_INPUT[(usb_ctrl & 0x0f)]);
+	}
+
+	return 0;
+}
+
 static void rk816_bat_update_temperature(struct rk816_battery *di)
 {
 	u32 ntc_size, *ntc_table;
@@ -3668,14 +3788,18 @@ static void rk816_bat_update_temperature(struct rk816_battery *di)
 		res = rk816_bat_get_ntc_res(di);
 		if (res < ntc_table[ntc_size - 1]) {
 			BAT_INFO("bat ntc upper max degree: R=%d\n", res);
+			rk816_bat_set_input_current(di, INPUT_CUR80MA);
 		} else if (res > ntc_table[0]) {
 			BAT_INFO("bat ntc lower min degree: R=%d\n", res);
+			rk816_bat_set_input_current(di, INPUT_CUR80MA);
 		} else {
 			for (i = 0; i < ntc_size; i++) {
 				if (res >= ntc_table[i])
 					break;
 			}
+
 			di->temperature = (i + di->pdata->ntc_degree_from) * 10;
+			rk816_bat_temperature_chrg(di, di->temperature / 10);
 		}
 	}
 }
@@ -4410,6 +4534,62 @@ static int rk816_bat_read_ocv_tables(struct rk816_battery *di,
 	return 0;
 }
 
+static int parse_temperature_chrg_table(struct rk816_battery *di,
+					struct device_node *np)
+{
+	int size, count;
+	int i, chrg_current;
+	const __be32 *list;
+
+	if (!of_find_property(np, "temperature_chrg_table_v2", &size))
+		return 0;
+
+	list = of_get_property(np, "temperature_chrg_table_v2", &size);
+	size /= sizeof(u32);
+	if (!size || (size % 3)) {
+		dev_err(di->dev,
+			"invalid temperature_chrg_table: size=%d\n", size);
+		return -EINVAL;
+	}
+
+	count = size / 3;
+	di->pdata->tc_count = count;
+	di->pdata->tc_table = devm_kzalloc(di->dev,
+					   count * sizeof(*di->pdata->tc_table),
+					   GFP_KERNEL);
+	if (!di->pdata->tc_table)
+		return -ENOMEM;
+
+	for (i = 0; i < count; i++) {
+		/* temperature */
+		di->pdata->tc_table[i].temp_down = be32_to_cpu(*list++);
+		di->pdata->tc_table[i].temp_up = be32_to_cpu(*list++);
+
+		/*
+		 * because charge current lowest level is 1000mA:
+		 * higher than or equal 1000ma, select charge current;
+		 * lower than 1000ma, must select input current.
+		 */
+		chrg_current = be32_to_cpu(*list++);
+		if (chrg_current >= 1000) {
+			di->pdata->tc_table[i].set_chrg_current = 1;
+			di->pdata->tc_table[i].chrg_current =
+				rk816_bat_decode_chrg_current(di, chrg_current);
+		} else {
+			di->pdata->tc_table[i].chrg_current =
+				rk816_bat_decode_input_current(di, chrg_current);
+		}
+
+		DBG("temp%d: [%d, %d], chrg_current=%d\n",
+		    i, di->pdata->tc_table[i].temp_down,
+		    di->pdata->tc_table[i].temp_up,
+		    di->pdata->tc_table[i].chrg_current);
+	}
+
+	return 0;
+}
+
+
 static int rk816_bat_parse_dt(struct rk816_battery *di)
 {
 	u32 out_value;
@@ -4606,17 +4786,12 @@ static int rk816_bat_parse_dt(struct rk816_battery *di)
 		pdata->ntc_size = 0;
 	} else {
 		/* get ntc degree base value */
-		ret = of_property_read_u32_index(np, "ntc_degree_from", 1,
-						 &pdata->ntc_degree_from);
+		ret = of_property_read_s32(np, "ntc_degree_from_v2",
+					   &pdata->ntc_degree_from);
 		if (ret) {
-			dev_err(dev, "invalid ntc_degree_from\n");
+			dev_err(dev, "invalid ntc_degree_from_v2\n");
 			return -EINVAL;
 		}
-
-		of_property_read_u32_index(np, "ntc_degree_from", 0,
-					   &out_value);
-		if (out_value)
-			pdata->ntc_degree_from = -pdata->ntc_degree_from;
 
 		pdata->ntc_size = length / sizeof(u32);
 	}
@@ -4643,6 +4818,10 @@ static int rk816_bat_parse_dt(struct rk816_battery *di)
 			pdata->ntc_factor = NTC_CALC_FACTOR_20UA;
 	}
 
+	ret = parse_temperature_chrg_table(di, np);
+	if (ret)
+		return ret;
+
 	DBG("the battery dts info dump:\n"
 	    "bat_res:%d\n"
 	    "res_sample:%d\n"
@@ -4664,7 +4843,7 @@ static int rk816_bat_parse_dt(struct rk816_battery *di)
 	    "dc_det_adc:%d\n"
 	    "ntc_factor:%d\n"
 	    "ntc_size=%d\n"
-	    "ntc_degree_from:%d\n"
+	    "ntc_degree_from_v2:%d\n"
 	    "ntc_degree_to:%d\n",
 	    pdata->bat_res, pdata->sample_res, pdata->max_input_current,
 	    pdata->max_chrg_current, pdata->max_chrg_voltage,

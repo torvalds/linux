@@ -59,6 +59,7 @@
 #define CHRG_CT_EN		(1 << 7)
 #define INPUT_CUR_MSK		(0x0f)
 #define FINISH_CUR_MSK		0xc0
+#define CHRG_CUR_MSK		(0x0f)
 
 /* BAT_CTRL_REG */
 #define USB_SYS_EN		BIT(6)
@@ -69,7 +70,7 @@
 
 /*CHGR_CUR_INPUT*/
 #define INPUT_CUR450MA		(0x00)
-#define INPUT_CUR800MA		(0x01)
+#define INPUT_CUR80MA		(0x01)
 #define INPUT_CUR850MA		(0x02)
 #define INPUT_CUR1000MA		(0x03)
 #define INPUT_CUR1250MA		(0x04)
@@ -156,9 +157,18 @@
 #define MAX_INT			0x7FFF
 #define MAX_INTERPOLATE		1000
 
+struct temp_chrg_table {
+	int temp_down;
+	int temp_up;
+	u32 chrg_current;
+	u8 set_chrg_current;
+};
+
 struct battery_platform_data {
 	u32 *ocv_table;
 	u32 *zero_table;
+	struct temp_chrg_table *tc_table;
+	u32 tc_count;
 
 	u32 table_t[4][21];
 	int temp_t[4];
