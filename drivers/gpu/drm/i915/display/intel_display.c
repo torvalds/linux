@@ -1045,14 +1045,6 @@ bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
 				  NULL, best_clock);
 }
 
-enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
-					     enum pipe pipe)
-{
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-
-	return crtc->config->cpu_transcoder;
-}
-
 static bool pipe_scanline_is_moving(struct drm_i915_private *dev_priv,
 				    enum pipe pipe)
 {
@@ -1271,11 +1263,9 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 }
 
 void assert_pipe(struct drm_i915_private *dev_priv,
-		 enum pipe pipe, bool state)
+		 enum transcoder cpu_transcoder, bool state)
 {
 	bool cur_state;
-	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
-								      pipe);
 	enum intel_display_power_domain power_domain;
 	intel_wakeref_t wakeref;
 
@@ -1295,8 +1285,9 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	}
 
 	I915_STATE_WARN(cur_state != state,
-	     "pipe %c assertion failure (expected %s, current %s)\n",
-			pipe_name(pipe), onoff(state), onoff(cur_state));
+			"transcoder %s assertion failure (expected %s, current %s)\n",
+			transcoder_name(cpu_transcoder),
+			onoff(state), onoff(cur_state));
 }
 
 static void assert_plane(struct intel_plane *plane, bool state)
@@ -1423,7 +1414,7 @@ static void vlv_enable_pll(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	assert_pipe_disabled(dev_priv, pipe);
+	assert_pipe_disabled(dev_priv, pipe_config->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
 	assert_panel_unlocked(dev_priv, pipe);
@@ -1472,7 +1463,7 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	assert_pipe_disabled(dev_priv, pipe);
+	assert_pipe_disabled(dev_priv, pipe_config->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
 	assert_panel_unlocked(dev_priv, pipe);
@@ -1519,7 +1510,7 @@ static void i9xx_enable_pll(struct intel_crtc *crtc,
 	u32 dpll = crtc_state->dpll_hw_state.dpll;
 	int i;
 
-	assert_pipe_disabled(dev_priv, crtc->pipe);
+	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
 	if (i9xx_has_pps(dev_priv))
@@ -1568,7 +1559,7 @@ static void i9xx_disable_pll(const struct intel_crtc_state *crtc_state)
 		return;
 
 	/* Make sure the pipe isn't still relying on us */
-	assert_pipe_disabled(dev_priv, pipe);
+	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	I915_WRITE(DPLL(pipe), DPLL_VGA_MODE_DIS);
 	POSTING_READ(DPLL(pipe));
@@ -1579,7 +1570,7 @@ static void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	u32 val;
 
 	/* Make sure the pipe isn't still relying on us */
-	assert_pipe_disabled(dev_priv, pipe);
+	assert_pipe_disabled(dev_priv, (enum transcoder)pipe);
 
 	val = DPLL_INTEGRATED_REF_CLK_VLV |
 		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
@@ -1596,7 +1587,7 @@ static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	u32 val;
 
 	/* Make sure the pipe isn't still relying on us */
-	assert_pipe_disabled(dev_priv, pipe);
+	assert_pipe_disabled(dev_priv, (enum transcoder)pipe);
 
 	val = DPLL_SSC_REF_CLK_CHV |
 		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
@@ -4660,7 +4651,7 @@ static void ironlake_fdi_link_train(struct intel_crtc *crtc,
 	u32 temp, tries;
 
 	/* FDI needs bits from pipe first */
-	assert_pipe_enabled(dev_priv, pipe);
+	assert_pipe_enabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -6793,7 +6784,7 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 	 * according to register description and PRM.
 	 */
 	WARN_ON(I915_READ(PFIT_CONTROL) & PFIT_ENABLE);
-	assert_pipe_disabled(dev_priv, crtc->pipe);
+	assert_pipe_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	I915_WRITE(PFIT_PGM_RATIOS, crtc_state->gmch_pfit.pgm_ratios);
 	I915_WRITE(PFIT_CONTROL, crtc_state->gmch_pfit.control);
@@ -7099,7 +7090,7 @@ static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 	if (!old_crtc_state->gmch_pfit.control)
 		return;
 
-	assert_pipe_disabled(dev_priv, crtc->pipe);
+	assert_pipe_disabled(dev_priv, old_crtc_state->cpu_transcoder);
 
 	DRM_DEBUG_KMS("disabling pfit, current: 0x%08x\n",
 		      I915_READ(PFIT_CONTROL));
@@ -8110,6 +8101,7 @@ int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 		return -ENOMEM;
 
 	pipe_config->uapi.crtc = &crtc->base;
+	pipe_config->cpu_transcoder = (enum transcoder)pipe;
 	pipe_config->pixel_multiplier = 1;
 	pipe_config->dpll = *dpll;
 
