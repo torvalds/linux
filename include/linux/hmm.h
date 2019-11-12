@@ -62,8 +62,6 @@
 #include <linux/kconfig.h>
 #include <asm/pgtable.h>
 
-#ifdef CONFIG_HMM_MIRROR
-
 #include <linux/device.h>
 #include <linux/migrate.h>
 #include <linux/memremap.h>
@@ -374,6 +372,15 @@ struct hmm_mirror {
 	struct list_head		list;
 };
 
+/*
+ * Retry fault if non-blocking, drop mmap_sem and return -EAGAIN in that case.
+ */
+#define HMM_FAULT_ALLOW_RETRY		(1 << 0)
+
+/* Don't fault in missing PTEs, just snapshot the current state. */
+#define HMM_FAULT_SNAPSHOT		(1 << 1)
+
+#ifdef CONFIG_HMM_MIRROR
 int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
 void hmm_mirror_unregister(struct hmm_mirror *mirror);
 
@@ -382,14 +389,6 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
  */
 int hmm_range_register(struct hmm_range *range, struct hmm_mirror *mirror);
 void hmm_range_unregister(struct hmm_range *range);
-
-/*
- * Retry fault if non-blocking, drop mmap_sem and return -EAGAIN in that case.
- */
-#define HMM_FAULT_ALLOW_RETRY		(1 << 0)
-
-/* Don't fault in missing PTEs, just snapshot the current state. */
-#define HMM_FAULT_SNAPSHOT		(1 << 1)
 
 long hmm_range_fault(struct hmm_range *range, unsigned int flags);
 
@@ -401,6 +400,44 @@ long hmm_range_dma_unmap(struct hmm_range *range,
 			 struct device *device,
 			 dma_addr_t *daddrs,
 			 bool dirty);
+#else
+int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
+{
+	return -EOPNOTSUPP;
+}
+
+void hmm_mirror_unregister(struct hmm_mirror *mirror)
+{
+}
+
+int hmm_range_register(struct hmm_range *range, struct hmm_mirror *mirror)
+{
+	return -EOPNOTSUPP;
+}
+
+void hmm_range_unregister(struct hmm_range *range)
+{
+}
+
+static inline long hmm_range_fault(struct hmm_range *range, unsigned int flags)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline long hmm_range_dma_map(struct hmm_range *range,
+				     struct device *device, dma_addr_t *daddrs,
+				     unsigned int flags)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline long hmm_range_dma_unmap(struct hmm_range *range,
+				       struct device *device,
+				       dma_addr_t *daddrs, bool dirty)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 /*
  * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range
@@ -410,7 +447,5 @@ long hmm_range_dma_unmap(struct hmm_range *range,
  * wait already.
  */
 #define HMM_RANGE_DEFAULT_TIMEOUT 1000
-
-#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
 
 #endif /* LINUX_HMM_H */
