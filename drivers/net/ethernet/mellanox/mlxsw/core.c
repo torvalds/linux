@@ -249,6 +249,25 @@ MLXSW_ITEM32(emad, op_tlv, class, 0x04, 0, 8);
  */
 MLXSW_ITEM64(emad, op_tlv, tid, 0x08, 0, 64);
 
+/* emad_string_tlv_type
+ * Type of the TLV.
+ * Must be set to 0x2 (string TLV).
+ */
+MLXSW_ITEM32(emad, string_tlv, type, 0x00, 27, 5);
+
+/* emad_string_tlv_len
+ * Length of the string TLV in u32.
+ */
+MLXSW_ITEM32(emad, string_tlv, len, 0x00, 16, 11);
+
+#define MLXSW_EMAD_STRING_TLV_STRING_LEN 128
+
+/* emad_string_tlv_string
+ * String provided by the device's firmware in case of erroneous register access
+ */
+MLXSW_ITEM_BUF(emad, string_tlv, string, 0x04,
+	       MLXSW_EMAD_STRING_TLV_STRING_LEN);
+
 /* emad_reg_tlv_type
  * Type of the TLV.
  * Must be set to 0x3 (register TLV).
