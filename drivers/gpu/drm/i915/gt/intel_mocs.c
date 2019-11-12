@@ -262,7 +262,7 @@ static const struct drm_i915_mocs_entry tigerlake_mocs_table[] = {
 		   L3_1_UC),
 	/* HW Special Case (Displayable) */
 	MOCS_ENTRY(61,
-		   LE_1_UC | LE_TC_1_LLC | LE_SCF(1),
+		   LE_1_UC | LE_TC_1_LLC,
 		   L3_3_WB),
 };
 
