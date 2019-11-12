@@ -202,107 +202,22 @@ static int __FAT_read(struct super_block *sb, u32 loc, u32 *content)
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 
-	if (p_fs->vol_type == FAT12) {
-		sec = p_fs->FAT1_start_sector +
-			((loc + (loc >> 1)) >> p_bd->sector_size_bits);
-		off = (loc + (loc >> 1)) & p_bd->sector_size_mask;
+	sec = p_fs->FAT1_start_sector +
+		(loc >> (p_bd->sector_size_bits - 2));
+	off = (loc << 2) & p_bd->sector_size_mask;
 
-		if (off == (p_bd->sector_size - 1)) {
-			fat_sector = FAT_getblk(sb, sec);
-			if (!fat_sector)
-				return -1;
+	fat_sector = FAT_getblk(sb, sec);
+	if (!fat_sector)
+		return -1;
 
-			_content = (u32)fat_sector[off];
+	fat_entry = &fat_sector[off];
+	_content = GET32_A(fat_entry);
 
-			fat_sector = FAT_getblk(sb, ++sec);
-			if (!fat_sector)
-				return -1;
-
-			_content |= (u32)fat_sector[0] << 8;
-		} else {
-			fat_sector = FAT_getblk(sb, sec);
-			if (!fat_sector)
-				return -1;
-
-			fat_entry = &fat_sector[off];
-			_content = GET16(fat_entry);
-		}
-
-		if (loc & 1)
-			_content >>= 4;
-
-		_content &= 0x00000FFF;
-
-		if (_content >= CLUSTER_16(0x0FF8)) {
-			*content = CLUSTER_32(~0);
-			return 0;
-		}
-		*content = CLUSTER_32(_content);
-		return 0;
-	} else if (p_fs->vol_type == FAT16) {
-		sec = p_fs->FAT1_start_sector +
-			(loc >> (p_bd->sector_size_bits - 1));
-		off = (loc << 1) & p_bd->sector_size_mask;
-
-		fat_sector = FAT_getblk(sb, sec);
-		if (!fat_sector)
-			return -1;
-
-		fat_entry = &fat_sector[off];
-
-		_content = GET16_A(fat_entry);
-
-		_content &= 0x0000FFFF;
-
-		if (_content >= CLUSTER_16(0xFFF8)) {
-			*content = CLUSTER_32(~0);
-			return 0;
-		}
-		*content = CLUSTER_32(_content);
-		return 0;
-	} else if (p_fs->vol_type == FAT32) {
-		sec = p_fs->FAT1_start_sector +
-			(loc >> (p_bd->sector_size_bits - 2));
-		off = (loc << 2) & p_bd->sector_size_mask;
-
-		fat_sector = FAT_getblk(sb, sec);
-		if (!fat_sector)
-			return -1;
-
-		fat_entry = &fat_sector[off];
-
-		_content = GET32_A(fat_entry);
-
-		_content &= 0x0FFFFFFF;
-
-		if (_content >= CLUSTER_32(0x0FFFFFF8)) {
-			*content = CLUSTER_32(~0);
-			return 0;
-		}
-		*content = CLUSTER_32(_content);
-		return 0;
-	} else if (p_fs->vol_type == EXFAT) {
-		sec = p_fs->FAT1_start_sector +
-			(loc >> (p_bd->sector_size_bits - 2));
-		off = (loc << 2) & p_bd->sector_size_mask;
-
-		fat_sector = FAT_getblk(sb, sec);
-		if (!fat_sector)
-			return -1;
-
-		fat_entry = &fat_sector[off];
-		_content = GET32_A(fat_entry);
-
-		if (_content >= CLUSTER_32(0xFFFFFFF8)) {
-			*content = CLUSTER_32(~0);
-			return 0;
-		}
-		*content = CLUSTER_32(_content);
+	if (_content >= CLUSTER_32(0xFFFFFFF8)) {
+		*content = CLUSTER_32(~0);
 		return 0;
 	}
-
-	/* Unknown volume type, throw in the towel and go home */
-	*content = CLUSTER_32(~0);
+	*content = CLUSTER_32(_content);
 	return 0;
 }
 
@@ -330,101 +245,17 @@ static s32 __FAT_write(struct super_block *sb, u32 loc, u32 content)
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 
-	if (p_fs->vol_type == FAT12) {
-		content &= 0x00000FFF;
+	sec = p_fs->FAT1_start_sector + (loc >>
+					 (p_bd->sector_size_bits - 2));
+	off = (loc << 2) & p_bd->sector_size_mask;
 
-		sec = p_fs->FAT1_start_sector +
-			((loc + (loc >> 1)) >> p_bd->sector_size_bits);
-		off = (loc + (loc >> 1)) & p_bd->sector_size_mask;
+	fat_sector = FAT_getblk(sb, sec);
+	if (!fat_sector)
+		return -1;
 
-		fat_sector = FAT_getblk(sb, sec);
-		if (!fat_sector)
-			return -1;
+	fat_entry = &fat_sector[off];
 
-		if (loc & 1) { /* odd */
-			content <<= 4;
-
-			if (off == (p_bd->sector_size - 1)) {
-				fat_sector[off] = (u8)(content |
-						       (fat_sector[off] &
-							0x0F));
-				FAT_modify(sb, sec);
-
-				fat_sector = FAT_getblk(sb, ++sec);
-				if (!fat_sector)
-					return -1;
-
-				fat_sector[0] = (u8)(content >> 8);
-			} else {
-				fat_entry = &fat_sector[off];
-				content |= GET16(fat_entry) & 0x000F;
-
-				SET16(fat_entry, content);
-			}
-		} else { /* even */
-			fat_sector[off] = (u8)(content);
-
-			if (off == (p_bd->sector_size - 1)) {
-				fat_sector[off] = (u8)(content);
-				FAT_modify(sb, sec);
-
-				fat_sector = FAT_getblk(sb, ++sec);
-				if (!fat_sector)
-					return -1;
-				fat_sector[0] = (u8)((fat_sector[0] & 0xF0) |
-						     (content >> 8));
-			} else {
-				fat_entry = &fat_sector[off];
-				content |= GET16(fat_entry) & 0xF000;
-
-				SET16(fat_entry, content);
-			}
-		}
-	}
-
-	else if (p_fs->vol_type == FAT16) {
-		content &= 0x0000FFFF;
-
-		sec = p_fs->FAT1_start_sector + (loc >>
-						 (p_bd->sector_size_bits - 1));
-		off = (loc << 1) & p_bd->sector_size_mask;
-
-		fat_sector = FAT_getblk(sb, sec);
-		if (!fat_sector)
-			return -1;
-
-		fat_entry = &fat_sector[off];
-
-		SET16_A(fat_entry, content);
-	} else if (p_fs->vol_type == FAT32) {
-		content &= 0x0FFFFFFF;
-
-		sec = p_fs->FAT1_start_sector + (loc >>
-						 (p_bd->sector_size_bits - 2));
-		off = (loc << 2) & p_bd->sector_size_mask;
-
-		fat_sector = FAT_getblk(sb, sec);
-		if (!fat_sector)
-			return -1;
-
-		fat_entry = &fat_sector[off];
-
-		content |= GET32_A(fat_entry) & 0xF0000000;
-
-		SET32_A(fat_entry, content);
-	} else { /* p_fs->vol_type == EXFAT */
-		sec = p_fs->FAT1_start_sector + (loc >>
-						 (p_bd->sector_size_bits - 2));
-		off = (loc << 2) & p_bd->sector_size_mask;
-
-		fat_sector = FAT_getblk(sb, sec);
-		if (!fat_sector)
-			return -1;
-
-		fat_entry = &fat_sector[off];
-
-		SET32_A(fat_entry, content);
-	}
+	SET32_A(fat_entry, content);
 
 	FAT_modify(sb, sec);
 	return 0;
