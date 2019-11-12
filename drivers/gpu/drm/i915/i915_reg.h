@@ -11689,13 +11689,18 @@ enum skl_power_gate {
 /* MOCS (Memory Object Control State) registers */
 #define GEN9_LNCFCMOCS(i)	_MMIO(0xb020 + (i) * 4)	/* L3 Cache Control */
 
-#define GEN9_GFX_MOCS(i)	_MMIO(0xc800 + (i) * 4)	/* Graphics MOCS registers */
-#define GEN9_MFX0_MOCS(i)	_MMIO(0xc900 + (i) * 4)	/* Media 0 MOCS registers */
-#define GEN9_MFX1_MOCS(i)	_MMIO(0xca00 + (i) * 4)	/* Media 1 MOCS registers */
-#define GEN9_VEBOX_MOCS(i)	_MMIO(0xcb00 + (i) * 4)	/* Video MOCS registers */
-#define GEN9_BLT_MOCS(i)	_MMIO(0xcc00 + (i) * 4)	/* Blitter MOCS registers */
-/* Media decoder 2 MOCS registers */
-#define GEN11_MFX2_MOCS(i)	_MMIO(0x10000 + (i) * 4)
+#define __GEN9_RCS0_MOCS0	0xc800
+#define GEN9_GFX_MOCS(i)	_MMIO(__GEN9_RCS0_MOCS0 + (i) * 4)
+#define __GEN9_VCS0_MOCS0	0xc900
+#define GEN9_MFX0_MOCS(i)	_MMIO(__GEN9_VCS0_MOCS0 + (i) * 4)
+#define __GEN9_VCS1_MOCS0	0xca00
+#define GEN9_MFX1_MOCS(i)	_MMIO(__GEN9_VCS1_MOCS0 + (i) * 4)
+#define __GEN9_VECS0_MOCS0	0xcb00
+#define GEN9_VEBOX_MOCS(i)	_MMIO(__GEN9_VECS0_MOCS0 + (i) * 4)
+#define __GEN9_BCS0_MOCS0	0xcc00
+#define GEN9_BLT_MOCS(i)	_MMIO(__GEN9_BCS0_MOCS0 + (i) * 4)
+#define __GEN11_VCS2_MOCS0	0x10000
+#define GEN11_MFX2_MOCS(i)	_MMIO(__GEN11_VCS2_MOCS0 + (i) * 4)
 
 #define GEN10_SCRATCH_LNCF2		_MMIO(0xb0a0)
 #define   PMFLUSHDONE_LNICRSDROP	(1 << 20)
