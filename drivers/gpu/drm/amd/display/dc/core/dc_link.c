@@ -2638,28 +2638,13 @@ static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
 	return dc_fixpt_div_int(mbytes_per_sec, 54);
 }
 
-static int get_color_depth(enum dc_color_depth color_depth)
-{
-	switch (color_depth) {
-	case COLOR_DEPTH_666: return 6;
-	case COLOR_DEPTH_888: return 8;
-	case COLOR_DEPTH_101010: return 10;
-	case COLOR_DEPTH_121212: return 12;
-	case COLOR_DEPTH_141414: return 14;
-	case COLOR_DEPTH_161616: return 16;
-	default: return 0;
-	}
-}
-
 static struct fixed31_32 get_pbn_from_timing(struct pipe_ctx *pipe_ctx)
 {
-	uint32_t bpc;
 	uint64_t kbps;
 	struct fixed31_32 peak_kbps;
 	uint32_t numerator;
 	uint32_t denominator;
 
-	bpc = get_color_depth(pipe_ctx->stream_res.pix_clk_params.color_depth);
 	kbps = dc_bandwidth_in_kbps_from_timing(&pipe_ctx->stream->timing);
 
 	/*
