@@ -395,7 +395,7 @@ static int __bch2_link(struct bch_fs *c,
 		       struct dentry *dentry)
 {
 	struct btree_trans trans;
-	struct bch_inode_unpacked inode_u;
+	struct bch_inode_unpacked dir_u, inode_u;
 	int ret;
 
 	mutex_lock(&inode->ei_update_lock);
@@ -405,7 +405,7 @@ static int __bch2_link(struct bch_fs *c,
 		bch2_trans_begin(&trans);
 		ret   = bch2_link_trans(&trans,
 					dir->v.i_ino,
-					inode->v.i_ino, &inode_u,
+					inode->v.i_ino, &dir_u, &inode_u,
 					&dentry->d_name) ?:
 			bch2_trans_commit(&trans, NULL,
 					&inode->ei_journal_seq,
@@ -413,8 +413,14 @@ static int __bch2_link(struct bch_fs *c,
 					BTREE_INSERT_NOUNLOCK);
 	} while (ret == -EINTR);
 
-	if (likely(!ret))
+	if (likely(!ret)) {
+		BUG_ON(inode_u.bi_inum != inode->v.i_ino);
+
+		journal_seq_copy(inode, dir->ei_journal_seq);
+		bch2_inode_update_after_write(c, dir, &dir_u,
+					      ATTR_MTIME|ATTR_CTIME);
 		bch2_inode_update_after_write(c, inode, &inode_u, ATTR_CTIME);
+	}
 
 	bch2_trans_exit(&trans);
 	mutex_unlock(&inode->ei_update_lock);

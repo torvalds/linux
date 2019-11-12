@@ -80,7 +80,7 @@ static int reattach_inode(struct bch_fs *c,
 			  struct bch_inode_unpacked *lostfound_inode,
 			  u64 inum)
 {
-	struct bch_inode_unpacked inode_u;
+	struct bch_inode_unpacked dir_u, inode_u;
 	char name_buf[20];
 	struct qstr name;
 	int ret;
@@ -92,7 +92,7 @@ static int reattach_inode(struct bch_fs *c,
 			    BTREE_INSERT_ATOMIC|
 			    BTREE_INSERT_LAZY_RW,
 		bch2_link_trans(&trans, lostfound_inode->bi_inum,
-				inum, &inode_u, &name));
+				inum, &dir_u, &inode_u, &name));
 	if (ret)
 		bch_err(c, "error %i reattaching inode %llu", ret, inum);
 

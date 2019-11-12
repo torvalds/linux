@@ -76,11 +76,10 @@ int bch2_create_trans(struct btree_trans *trans, u64 dir_inum,
 }
 
 int bch2_link_trans(struct btree_trans *trans, u64 dir_inum,
-		    u64 inum, struct bch_inode_unpacked *inode_u,
-		    const struct qstr *name)
+		    u64 inum, struct bch_inode_unpacked *dir_u,
+		    struct bch_inode_unpacked *inode_u, const struct qstr *name)
 {
 	struct btree_iter *dir_iter, *inode_iter;
-	struct bch_inode_unpacked dir_u;
 	struct bch_hash_info dir_hash;
 	u64 now = bch2_current_time(trans->c);
 
@@ -91,18 +90,19 @@ int bch2_link_trans(struct btree_trans *trans, u64 dir_inum,
 	inode_u->bi_ctime = now;
 	bch2_inode_nlink_inc(inode_u);
 
-	dir_iter = bch2_inode_peek(trans, &dir_u, dir_inum, 0);
+	dir_iter = bch2_inode_peek(trans, dir_u, dir_inum, 0);
 	if (IS_ERR(dir_iter))
 		return PTR_ERR(dir_iter);
 
-	/* XXX: shouldn't we be updating mtime/ctime on the directory? */
+	dir_u->bi_mtime = dir_u->bi_ctime = now;
 
-	dir_hash = bch2_hash_info_init(trans->c, &dir_u);
+	dir_hash = bch2_hash_info_init(trans->c, dir_u);
 	bch2_trans_iter_put(trans, dir_iter);
 
 	return bch2_dirent_create(trans, dir_inum, &dir_hash,
 				  mode_to_type(inode_u->bi_mode),
 				  name, inum, BCH_HASH_SET_MUST_CREATE) ?:
+		bch2_inode_write(trans, dir_iter, dir_u) ?:
 		bch2_inode_write(trans, inode_iter, inode_u);
 }
 
