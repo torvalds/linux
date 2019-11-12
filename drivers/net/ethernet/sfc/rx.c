@@ -724,6 +724,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 				netif_err(efx, rx_err, efx->net_dev,
 					  "XDP TX failed (%d)\n", err);
 			channel->n_rx_xdp_bad_drops++;
+			trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
 		} else {
 			channel->n_rx_xdp_tx++;
 		}
@@ -737,6 +738,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 				netif_err(efx, rx_err, efx->net_dev,
 					  "XDP redirect failed (%d)\n", err);
 			channel->n_rx_xdp_bad_drops++;
+			trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
 		} else {
 			channel->n_rx_xdp_redirect++;
 		}
@@ -746,6 +748,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 		bpf_warn_invalid_xdp_action(xdp_act);
 		efx_free_rx_buffers(rx_queue, rx_buf, 1);
 		channel->n_rx_xdp_bad_drops++;
+		trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
 		break;
 
 	case XDP_ABORTED:
