@@ -316,6 +316,8 @@ static int rt5651_asrc_put(struct snd_kcontrol *kcontrol,
 		regmap_write(rt5651->regmap, 0x83, 0x1000);
 		regmap_write(rt5651->regmap, 0x84, 0x7000);
 		snd_soc_component_update_bits(component, 0x64, 0x0200, 0x0200);
+		snd_soc_component_update_bits(component, RT5651_D_MISC, 0xc00,
+						0xc00);
 	} else {
 		regmap_write(rt5651->regmap, 0x83, 0x0);
 		regmap_write(rt5651->regmap, 0x84, 0x0);
