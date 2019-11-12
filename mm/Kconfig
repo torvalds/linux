@@ -284,6 +284,7 @@ config VIRT_TO_BUS
 config MMU_NOTIFIER
 	bool
 	select SRCU
+	select INTERVAL_TREE
 
 config KSM
 	bool "Enable KSM for page merging"
