@@ -22,6 +22,8 @@ static inline s64 sja1105_ticks_to_ns(s64 ticks)
 }
 
 struct sja1105_ptp_cmd {
+	u64 ptpstrtsch;		/* start schedule */
+	u64 ptpstopsch;		/* stop schedule */
 	u64 resptp;		/* reset */
 	u64 corrclk4ts;		/* use the corrected clock for timestamps */
 	u64 ptpclkadd;		/* enum sja1105_ptp_clk_mode */
@@ -69,6 +71,9 @@ int __sja1105_ptp_settime(struct dsa_switch *ds, u64 ns,
 
 int __sja1105_ptp_adjtime(struct dsa_switch *ds, s64 delta);
 
+int sja1105_ptp_commit(struct dsa_switch *ds, struct sja1105_ptp_cmd *cmd,
+		       sja1105_spi_rw_mode_t rw);
+
 #else
 
 struct sja1105_ptp_cmd;
@@ -106,6 +111,13 @@ static inline int __sja1105_ptp_settime(struct dsa_switch *ds, u64 ns,
 }
 
 static inline int __sja1105_ptp_adjtime(struct dsa_switch *ds, s64 delta)
+{
+	return 0;
+}
+
+static inline int sja1105_ptp_commit(struct dsa_switch *ds,
+				     struct sja1105_ptp_cmd *cmd,
+				     sja1105_spi_rw_mode_t rw)
 {
 	return 0;
 }

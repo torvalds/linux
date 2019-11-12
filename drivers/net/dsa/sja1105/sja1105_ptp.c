@@ -201,6 +201,8 @@ void sja1105et_ptp_cmd_packing(u8 *buf, struct sja1105_ptp_cmd *cmd,
 	u64 valid = 1;
 
 	sja1105_packing(buf, &valid,           31, 31, size, op);
+	sja1105_packing(buf, &cmd->ptpstrtsch, 30, 30, size, op);
+	sja1105_packing(buf, &cmd->ptpstopsch, 29, 29, size, op);
 	sja1105_packing(buf, &cmd->resptp,      2,  2, size, op);
 	sja1105_packing(buf, &cmd->corrclk4ts,  1,  1, size, op);
 	sja1105_packing(buf, &cmd->ptpclkadd,   0,  0, size, op);
@@ -214,15 +216,17 @@ void sja1105pqrs_ptp_cmd_packing(u8 *buf, struct sja1105_ptp_cmd *cmd,
 	u64 valid = 1;
 
 	sja1105_packing(buf, &valid,           31, 31, size, op);
+	sja1105_packing(buf, &cmd->ptpstrtsch, 30, 30, size, op);
+	sja1105_packing(buf, &cmd->ptpstopsch, 29, 29, size, op);
 	sja1105_packing(buf, &cmd->resptp,      3,  3, size, op);
 	sja1105_packing(buf, &cmd->corrclk4ts,  2,  2, size, op);
 	sja1105_packing(buf, &cmd->ptpclkadd,   0,  0, size, op);
 }
 
-static int sja1105_ptp_commit(struct sja1105_private *priv,
-			      struct sja1105_ptp_cmd *cmd,
-			      sja1105_spi_rw_mode_t rw)
+int sja1105_ptp_commit(struct dsa_switch *ds, struct sja1105_ptp_cmd *cmd,
+		       sja1105_spi_rw_mode_t rw)
 {
+	const struct sja1105_private *priv = ds->priv;
 	const struct sja1105_regs *regs = priv->info->regs;
 	u8 buf[SJA1105_SIZE_PTP_CMD] = {0};
 	int rc;
@@ -448,7 +452,9 @@ static int sja1105_ptp_reset(struct dsa_switch *ds)
 	cmd.resptp = 1;
 
 	dev_dbg(ds->dev, "Resetting PTP clock\n");
-	rc = sja1105_ptp_commit(priv, &cmd, SPI_WRITE);
+	rc = sja1105_ptp_commit(ds, &cmd, SPI_WRITE);
+
+	sja1105_tas_clockstep(priv->ds);
 
 	mutex_unlock(&ptp_data->lock);
 
@@ -504,7 +510,7 @@ static int sja1105_ptp_mode_set(struct sja1105_private *priv,
 
 	ptp_data->cmd.ptpclkadd = mode;
 
-	return sja1105_ptp_commit(priv, &ptp_data->cmd, SPI_WRITE);
+	return sja1105_ptp_commit(priv->ds, &ptp_data->cmd, SPI_WRITE);
 }
 
 /* Write to PTPCLKVAL while PTPCLKADD is 0 */
@@ -521,7 +527,11 @@ int __sja1105_ptp_settime(struct dsa_switch *ds, u64 ns,
 		return rc;
 	}
 
-	return sja1105_ptpclkval_write(priv, ticks, ptp_sts);
+	rc = sja1105_ptpclkval_write(priv, ticks, ptp_sts);
+
+	sja1105_tas_clockstep(priv->ds);
+
+	return rc;
 }
 
 static int sja1105_ptp_settime(struct ptp_clock_info *ptp,
@@ -563,6 +573,8 @@ static int sja1105_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	rc = sja1105_xfer_u32(priv, SPI_WRITE, regs->ptpclkrate, &clkrate32,
 			      NULL);
 
+	sja1105_tas_adjfreq(priv->ds);
+
 	mutex_unlock(&ptp_data->lock);
 
 	return rc;
@@ -581,7 +593,11 @@ int __sja1105_ptp_adjtime(struct dsa_switch *ds, s64 delta)
 		return rc;
 	}
 
-	return sja1105_ptpclkval_write(priv, ticks, NULL);
+	rc = sja1105_ptpclkval_write(priv, ticks, NULL);
+
+	sja1105_tas_clockstep(priv->ds);
+
+	return rc;
 }
 
 static int sja1105_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
