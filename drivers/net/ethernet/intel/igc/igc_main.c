@@ -3109,7 +3109,7 @@ bool igc_has_link(struct igc_adapter *adapter)
 
 /**
  * igc_watchdog - Timer Call-back
- * @data: pointer to adapter cast into an unsigned long
+ * @t: timer for the watchdog
  */
 static void igc_watchdog(struct timer_list *t)
 {
@@ -3638,6 +3638,7 @@ static int igc_poll(struct napi_struct *napi, int budget)
 /**
  * igc_set_interrupt_capability - set MSI or MSI-X if supported
  * @adapter: Pointer to adapter structure
+ * @msix: boolean value for MSI-X capability
  *
  * Attempt to configure interrupts using the best available
  * capabilities of the hardware and kernel.
@@ -3906,6 +3907,7 @@ static void igc_cache_ring_register(struct igc_adapter *adapter)
 /**
  * igc_init_interrupt_scheme - initialize interrupts, allocate queues/vectors
  * @adapter: Pointer to adapter structure
+ * @msix: boolean for MSI-X capability
  *
  * This function initializes the interrupts and allocates all of the queues.
  */
@@ -4073,8 +4075,9 @@ static void igc_write_itr(struct igc_q_vector *q_vector)
 }
 
 /**
- * igc_open - Called when a network interface is made active
+ * __igc_open - Called when a network interface is made active
  * @netdev: network interface device structure
+ * @resuming: boolean indicating if the device is resuming
  *
  * Returns 0 on success, negative value on failure
  *
@@ -4164,8 +4167,9 @@ static int igc_open(struct net_device *netdev)
 }
 
 /**
- * igc_close - Disables a network interface
+ * __igc_close - Disables a network interface
  * @netdev: network interface device structure
+ * @suspending: boolean indicating the device is suspending
  *
  * Returns 0, this is not allowed to fail
  *
