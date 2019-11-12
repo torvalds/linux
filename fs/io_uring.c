@@ -341,6 +341,7 @@ struct io_kiocb {
 #define REQ_F_ISREG		2048	/* regular file */
 #define REQ_F_MUST_PUNT		4096	/* must be punted even for NONBLOCK */
 #define REQ_F_INFLIGHT		8192	/* on inflight list */
+#define REQ_F_COMP_LOCKED	16384	/* completion under lock */
 	u64			user_data;
 	u32			result;
 	u32			sequence;
@@ -931,14 +932,15 @@ static void io_free_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
 	 */
 	if (req->flags & REQ_F_FAIL_LINK) {
 		io_fail_links(req);
-	} else if (req->flags & REQ_F_LINK_TIMEOUT) {
+	} else if ((req->flags & (REQ_F_LINK_TIMEOUT | REQ_F_COMP_LOCKED)) ==
+			REQ_F_LINK_TIMEOUT) {
 		struct io_ring_ctx *ctx = req->ctx;
 		unsigned long flags;
 
 		/*
 		 * If this is a timeout link, we could be racing with the
 		 * timeout timer. Grab the completion lock for this case to
-		 * protection against that.
+		 * protect against that.
 		 */
 		spin_lock_irqsave(&ctx->completion_lock, flags);
 		io_req_link_next(req, nxt);
@@ -2064,13 +2066,20 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 
 	list_del_init(&poll->wait.entry);
 
+	/*
+	 * Run completion inline if we can. We're using trylock here because
+	 * we are violating the completion_lock -> poll wq lock ordering.
+	 * If we have a link timeout we're going to need the completion_lock
+	 * for finalizing the request, mark us as having grabbed that already.
+	 */
 	if (mask && spin_trylock_irqsave(&ctx->completion_lock, flags)) {
 		list_del(&req->list);
 		io_poll_complete(req, mask);
+		req->flags |= REQ_F_COMP_LOCKED;
+		io_put_req(req);
 		spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 		io_cqring_ev_posted(ctx);
-		io_put_req(req);
 	} else {
 		io_queue_async_work(req);
 	}
