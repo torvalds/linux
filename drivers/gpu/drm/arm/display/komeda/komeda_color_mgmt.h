@@ -18,6 +18,7 @@
 #define KOMEDA_N_CTM_COEFFS		9
 
 void drm_lut_to_fgamma_coeffs(struct drm_property_blob *lut_blob, u32 *coeffs);
+void drm_ctm_to_coeffs(struct drm_property_blob *ctm_blob, u32 *coeffs);
 
 const s32 *komeda_select_yuv2rgb_coeffs(u32 color_encoding, u32 color_range);
 

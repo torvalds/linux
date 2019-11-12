@@ -117,3 +117,17 @@ void drm_lut_to_fgamma_coeffs(struct drm_property_blob *lut_blob, u32 *coeffs)
 {
 	drm_lut_to_coeffs(lut_blob, coeffs, sector_tbl, ARRAY_SIZE(sector_tbl));
 }
+
+void drm_ctm_to_coeffs(struct drm_property_blob *ctm_blob, u32 *coeffs)
+{
+	struct drm_color_ctm *ctm;
+	u32 i;
+
+	if (!ctm_blob)
+		return;
+
+	ctm = ctm_blob->data;
+
+	for (i = 0; i < KOMEDA_N_CTM_COEFFS; i++)
+		coeffs[i] = drm_color_ctm_s31_32_to_qm_n(ctm->matrix[i], 3, 12);
+}
