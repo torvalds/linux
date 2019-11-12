@@ -35,6 +35,9 @@
 
 #define NAVI10_VOLTAGE_SCALE (4)
 
+#define smnPCIE_LC_SPEED_CNTL			0x11140290
+#define smnPCIE_LC_LINK_WIDTH_CNTL		0x11140288
+
 extern void navi10_set_ppt_funcs(struct smu_context *smu);
 
 #endif

@@ -1068,10 +1068,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		return ret;
 
 	if (adev->asic_type != CHIP_ARCTURUS) {
-		ret = smu_override_pcie_parameters(smu);
-		if (ret)
-			return ret;
-
 		ret = smu_notify_display_change(smu);
 		if (ret)
 			return ret;
@@ -1096,6 +1092,12 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 			return ret;
 
 		ret = smu_init_max_sustainable_clocks(smu);
+		if (ret)
+			return ret;
+	}
+
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		ret = smu_override_pcie_parameters(smu);
 		if (ret)
 			return ret;
 	}

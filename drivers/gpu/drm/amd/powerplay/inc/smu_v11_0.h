@@ -48,6 +48,8 @@
 
 #define SMU11_TOOL_SIZE			0x19000
 
+#define MAX_PCIE_CONF 2
+
 #define CLK_MAP(clk, index) \
 	[SMU_##clk] = {1, (index)}
 
@@ -88,6 +90,11 @@ struct smu_11_0_dpm_table {
 	uint32_t    max;        /* MHz */
 };
 
+struct smu_11_0_pcie_table {
+        uint8_t  pcie_gen[MAX_PCIE_CONF];
+        uint8_t  pcie_lane[MAX_PCIE_CONF];
+};
+
 struct smu_11_0_dpm_tables {
 	struct smu_11_0_dpm_table        soc_table;
 	struct smu_11_0_dpm_table        gfx_table;
@@ -100,6 +107,7 @@ struct smu_11_0_dpm_tables {
 	struct smu_11_0_dpm_table        display_table;
 	struct smu_11_0_dpm_table        phy_table;
 	struct smu_11_0_dpm_table        fclk_table;
+	struct smu_11_0_pcie_table       pcie_table;
 };
 
 struct smu_11_0_dpm_context {

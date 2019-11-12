@@ -36,6 +36,7 @@
 #include "navi10_ppt.h"
 #include "smu_v11_0_pptable.h"
 #include "smu_v11_0_ppsmc.h"
+#include "nbio/nbio_7_4_sh_mask.h"
 
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
 
@@ -599,6 +600,7 @@ static int navi10_set_default_dpm_table(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
 	PPTable_t *driver_ppt = NULL;
+	int i;
 
 	driver_ppt = table_context->driver_pptable;
 
@@ -628,6 +630,11 @@ static int navi10_set_default_dpm_table(struct smu_context *smu)
 
 	dpm_context->dpm_tables.phy_table.min = driver_ppt->FreqTablePhyclk[0];
 	dpm_context->dpm_tables.phy_table.max = driver_ppt->FreqTablePhyclk[NUM_PHYCLK_DPM_LEVELS - 1];
+
+	for (i = 0; i < MAX_PCIE_CONF; i++) {
+		dpm_context->dpm_tables.pcie_table.pcie_gen[i] = driver_ppt->PcieGenSpeed[i];
+		dpm_context->dpm_tables.pcie_table.pcie_lane[i] = driver_ppt->PcieLaneCount[i];
+	}
 
 	return 0;
 }
@@ -700,16 +707,20 @@ static inline bool navi10_od_feature_is_supported(struct smu_11_0_overdrive_tabl
 static int navi10_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
-	OverDriveTable_t *od_table;
-	struct smu_11_0_overdrive_table *od_settings;
 	uint16_t *curve_settings;
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t freq_values[3] = {0};
 	uint32_t mark_index = 0;
 	struct smu_table_context *table_context = &smu->smu_table;
-	od_table = (OverDriveTable_t *)table_context->overdrive_table;
-	od_settings = smu->od_settings;
+	uint32_t gen_speed, lane_width;
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	struct amdgpu_device *adev = smu->adev;
+	PPTable_t *pptable = (PPTable_t *)table_context->driver_pptable;
+	OverDriveTable_t *od_table =
+		(OverDriveTable_t *)table_context->overdrive_table;
+	struct smu_11_0_overdrive_table *od_settings = smu->od_settings;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -759,6 +770,30 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 			}
 
 		}
+		break;
+	case SMU_PCIE:
+		gen_speed = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
+			     PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
+			>> PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
+		lane_width = (RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL) &
+			      PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK)
+			>> PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT;
+		for (i = 0; i < NUM_LINK_LEVELS; i++)
+			size += sprintf(buf + size, "%d: %s %s %dMhz %s\n", i,
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 0) ? "2.5GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 1) ? "5.0GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 2) ? "8.0GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 3) ? "16.0GT/s," : "",
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 1) ? "x1" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 2) ? "x2" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 3) ? "x4" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 4) ? "x8" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 5) ? "x12" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 6) ? "x16" : "",
+					pptable->LclkFreq[i],
+					(gen_speed == dpm_context->dpm_tables.pcie_table.pcie_gen[i]) &&
+					(lane_width == dpm_context->dpm_tables.pcie_table.pcie_lane[i]) ?
+					"*" : "");
 		break;
 	case SMU_OD_SCLK:
 		if (!smu->od_enabled || !od_table || !od_settings)
@@ -1690,6 +1725,9 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 	int ret, i;
 	uint32_t smu_pcie_arg;
 
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+
 	for (i = 0; i < NUM_LINK_LEVELS; i++) {
 		smu_pcie_arg = (i << 16) |
 			((pptable->PcieGenSpeed[i] <= pcie_gen_cap) ? (pptable->PcieGenSpeed[i] << 8) :
@@ -1698,8 +1736,17 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 		ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_OverridePcieParameters,
 					  smu_pcie_arg);
+
+		if (ret)
+			return ret;
+
+		if (pptable->PcieGenSpeed[i] > pcie_gen_cap)
+			dpm_context->dpm_tables.pcie_table.pcie_gen[i] = pcie_gen_cap;
+		if (pptable->PcieLaneCount[i] > pcie_width_cap)
+			dpm_context->dpm_tables.pcie_table.pcie_lane[i] = pcie_width_cap;
 	}
-	return ret;
+
+	return 0;
 }
 
 static inline void navi10_dump_od_table(OverDriveTable_t *od_table) {
