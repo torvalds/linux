@@ -1953,8 +1953,8 @@ static void mlx5_eswitch_clear_vf_vports_info(struct mlx5_eswitch *esw)
 /* Public E-Switch API */
 #define ESW_ALLOWED(esw) ((esw) && MLX5_ESWITCH_MANAGER((esw)->dev))
 
-static int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, u16 vport_num,
-				   enum mlx5_eswitch_vport_event enabled_events)
+int mlx5_eswitch_load_vport(struct mlx5_eswitch *esw, u16 vport_num,
+			    enum mlx5_eswitch_vport_event enabled_events)
 {
 	int err;
 
@@ -1973,10 +1973,37 @@ err_rep:
 	return err;
 }
 
-static void mlx5_eswitch_unload_vport(struct mlx5_eswitch *esw, u16 vport_num)
+void mlx5_eswitch_unload_vport(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	esw_offloads_unload_rep(esw, vport_num);
 	esw_disable_vport(esw, vport_num);
+}
+
+void mlx5_eswitch_unload_vf_vports(struct mlx5_eswitch *esw, u16 num_vfs)
+{
+	int i;
+
+	mlx5_esw_for_each_vf_vport_num_reverse(esw, i, num_vfs)
+		mlx5_eswitch_unload_vport(esw, i);
+}
+
+int mlx5_eswitch_load_vf_vports(struct mlx5_eswitch *esw, u16 num_vfs,
+				enum mlx5_eswitch_vport_event enabled_events)
+{
+	int err;
+	int i;
+
+	mlx5_esw_for_each_vf_vport_num(esw, i, num_vfs) {
+		err = mlx5_eswitch_load_vport(esw, i, enabled_events);
+		if (err)
+			goto vf_err;
+	}
+
+	return 0;
+
+vf_err:
+	mlx5_eswitch_unload_vf_vports(esw, i - 1);
+	return err;
 }
 
 /* mlx5_eswitch_enable_pf_vf_vports() enables vports of PF, ECPF and VFs
@@ -1986,9 +2013,7 @@ int
 mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
 				 enum mlx5_eswitch_vport_event enabled_events)
 {
-	int num_vfs;
 	int ret;
-	int i;
 
 	/* Enable PF vport */
 	ret = mlx5_eswitch_load_vport(esw, MLX5_VPORT_PF, enabled_events);
@@ -2003,18 +2028,13 @@ mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
 	}
 
 	/* Enable VF vports */
-	mlx5_esw_for_each_vf_vport_num(esw, i, esw->esw_funcs.num_vfs) {
-		ret = mlx5_eswitch_load_vport(esw, i, enabled_events);
-		if (ret)
-			goto vf_err;
-	}
+	ret = mlx5_eswitch_load_vf_vports(esw, esw->esw_funcs.num_vfs,
+					  enabled_events);
+	if (ret)
+		goto vf_err;
 	return 0;
 
 vf_err:
-	num_vfs = i - 1;
-	mlx5_esw_for_each_vf_vport_num_reverse(esw, i, num_vfs)
-		mlx5_eswitch_unload_vport(esw, i);
-
 	if (mlx5_ecpf_vport_exists(esw->dev))
 		mlx5_eswitch_unload_vport(esw, MLX5_VPORT_ECPF);
 
@@ -2028,10 +2048,7 @@ ecpf_err:
  */
 void mlx5_eswitch_disable_pf_vf_vports(struct mlx5_eswitch *esw)
 {
-	int i;
-
-	mlx5_esw_for_each_vf_vport_num_reverse(esw, i, esw->esw_funcs.num_vfs)
-		mlx5_eswitch_unload_vport(esw, i);
+	mlx5_eswitch_unload_vf_vports(esw, esw->esw_funcs.num_vfs);
 
 	if (mlx5_ecpf_vport_exists(esw->dev))
 		mlx5_eswitch_unload_vport(esw, MLX5_VPORT_ECPF);

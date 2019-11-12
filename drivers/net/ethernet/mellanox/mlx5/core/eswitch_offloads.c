@@ -1662,74 +1662,12 @@ static void __unload_reps_vf_vport(struct mlx5_eswitch *esw, int nvports,
 		__esw_offloads_unload_rep(esw, rep, rep_type);
 }
 
-static void esw_offloads_unload_vf_reps(struct mlx5_eswitch *esw, int nvports)
-{
-	u8 rep_type = NUM_REP_TYPES;
-
-	while (rep_type-- > 0)
-		__unload_reps_vf_vport(esw, nvports, rep_type);
-}
-
 static void __unload_reps_all_vport(struct mlx5_eswitch *esw, u8 rep_type)
 {
 	__unload_reps_vf_vport(esw, esw->esw_funcs.num_vfs, rep_type);
 
 	/* Special vports must be the last to unload. */
 	__unload_reps_special_vport(esw, rep_type);
-}
-
-static int __esw_offloads_load_rep(struct mlx5_eswitch *esw,
-				   struct mlx5_eswitch_rep *rep, u8 rep_type)
-{
-	int err = 0;
-
-	if (atomic_cmpxchg(&rep->rep_data[rep_type].state,
-			   REP_REGISTERED, REP_LOADED) == REP_REGISTERED) {
-		err = esw->offloads.rep_ops[rep_type]->load(esw->dev, rep);
-		if (err)
-			atomic_set(&rep->rep_data[rep_type].state,
-				   REP_REGISTERED);
-	}
-
-	return err;
-}
-
-static int __load_reps_vf_vport(struct mlx5_eswitch *esw, int nvports,
-				u8 rep_type)
-{
-	struct mlx5_eswitch_rep *rep;
-	int err, i;
-
-	mlx5_esw_for_each_vf_rep(esw, i, rep, nvports) {
-		err = __esw_offloads_load_rep(esw, rep, rep_type);
-		if (err)
-			goto err_vf;
-	}
-
-	return 0;
-
-err_vf:
-	__unload_reps_vf_vport(esw, --i, rep_type);
-	return err;
-}
-
-static int esw_offloads_load_vf_reps(struct mlx5_eswitch *esw, int nvports)
-{
-	u8 rep_type = 0;
-	int err;
-
-	for (rep_type = 0; rep_type < NUM_REP_TYPES; rep_type++) {
-		err = __load_reps_vf_vport(esw, nvports, rep_type);
-		if (err)
-			goto err_reps;
-	}
-
-	return err;
-
-err_reps:
-	while (rep_type-- > 0)
-		__unload_reps_vf_vport(esw, nvports, rep_type);
-	return err;
 }
 
 int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num)
@@ -2346,11 +2284,12 @@ esw_vfs_changed_event_handler(struct mlx5_eswitch *esw, const u32 *out)
 
 	/* Number of VFs can only change from "0 to x" or "x to 0". */
 	if (esw->esw_funcs.num_vfs > 0) {
-		esw_offloads_unload_vf_reps(esw, esw->esw_funcs.num_vfs);
+		mlx5_eswitch_unload_vf_vports(esw, esw->esw_funcs.num_vfs);
 	} else {
 		int err;
 
-		err = esw_offloads_load_vf_reps(esw, new_num_vfs);
+		err = mlx5_eswitch_load_vf_vports(esw, new_num_vfs,
+						  MLX5_VPORT_UC_ADDR_CHANGE);
 		if (err)
 			return;
 	}
