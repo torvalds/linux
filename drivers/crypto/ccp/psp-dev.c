@@ -294,6 +294,9 @@ static int sev_ioctl_do_reset(struct sev_issue_cmd *argp)
 {
 	int state, rc;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	/*
 	 * The SEV spec requires that FACTORY_RESET must be issued in
 	 * UNINIT state. Before we go further lets check if any guest is
@@ -338,6 +341,9 @@ static int sev_ioctl_do_pek_pdh_gen(int cmd, struct sev_issue_cmd *argp)
 {
 	int rc;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	if (psp_master->sev_state == SEV_STATE_UNINIT) {
 		rc = __sev_platform_init_locked(&argp->error);
 		if (rc)
@@ -353,6 +359,9 @@ static int sev_ioctl_do_pek_csr(struct sev_issue_cmd *argp)
 	struct sev_data_pek_csr *data;
 	void *blob = NULL;
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
 		return -EFAULT;
@@ -540,6 +549,9 @@ static int sev_ioctl_do_pek_import(struct sev_issue_cmd *argp)
 	void *pek_blob, *oca_blob;
 	int ret;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
 		return -EFAULT;
 
@@ -695,6 +707,16 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp)
 	struct sev_data_pdh_cert_export *data;
 	int ret;
 
+	/* If platform is not in INIT state then transition it to INIT. */
+	if (psp_master->sev_state != SEV_STATE_INIT) {
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		ret = __sev_platform_init_locked(&argp->error);
+		if (ret)
+			return ret;
+	}
+
 	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
 		return -EFAULT;
 
@@ -741,13 +763,6 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp)
 	data->cert_chain_len = input.cert_chain_len;
 
 cmd:
-	/* If platform is not in INIT state then transition it to INIT. */
-	if (psp_master->sev_state != SEV_STATE_INIT) {
-		ret = __sev_platform_init_locked(&argp->error);
-		if (ret)
-			goto e_free_cert;
-	}
-
 	ret = __sev_do_cmd_locked(SEV_CMD_PDH_CERT_EXPORT, data, &argp->error);
 
 	/* If we query the length, FW responded with expected data. */
