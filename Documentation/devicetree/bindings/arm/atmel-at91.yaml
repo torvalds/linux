@@ -52,6 +52,21 @@ properties:
           - const: atmel,sama5d2
           - const: atmel,sama5
 
+      - description: Microchip SAMA5D27 WLSOM1
+        items:
+          - const: microchip,sama5d27-wlsom1
+          - const: atmel,sama5d27
+          - const: atmel,sama5d2
+          - const: atmel,sama5
+
+      - description: Microchip SAMA5D27 WLSOM1 Evaluation Kit
+        items:
+          - const: microchip,sama5d27-wlsom1-ek
+          - const: microchip,sama5d27-wlsom1
+          - const: atmel,sama5d27
+          - const: atmel,sama5d2
+          - const: atmel,sama5
+
       - items:
           - const: atmel,sama5d27
           - const: atmel,sama5d2
