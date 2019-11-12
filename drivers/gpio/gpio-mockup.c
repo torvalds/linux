@@ -34,14 +34,9 @@
 
 #define gpio_mockup_err(...)	pr_err(GPIO_MOCKUP_NAME ": " __VA_ARGS__)
 
-enum {
-	GPIO_MOCKUP_DIR_IN = 0,
-	GPIO_MOCKUP_DIR_OUT = 1,
-};
-
 /*
  * struct gpio_pin_status - structure describing a GPIO status
- * @dir:       Configures direction of gpio as "in" or "out", 0=in, 1=out
+ * @dir:       Configures direction of gpio as "in" or "out"
  * @value:     Configures status of the gpio as 0(low) or 1(high)
  */
 struct gpio_mockup_line_status {
@@ -152,7 +147,7 @@ static int gpio_mockup_dirout(struct gpio_chip *gc,
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
 	mutex_lock(&chip->lock);
-	chip->lines[offset].dir = GPIO_MOCKUP_DIR_OUT;
+	chip->lines[offset].dir = GPIO_LINE_DIRECTION_OUT;
 	__gpio_mockup_set(chip, offset, value);
 	mutex_unlock(&chip->lock);
 
@@ -164,7 +159,7 @@ static int gpio_mockup_dirin(struct gpio_chip *gc, unsigned int offset)
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
 	mutex_lock(&chip->lock);
-	chip->lines[offset].dir = GPIO_MOCKUP_DIR_IN;
+	chip->lines[offset].dir = GPIO_LINE_DIRECTION_IN;
 	mutex_unlock(&chip->lock);
 
 	return 0;

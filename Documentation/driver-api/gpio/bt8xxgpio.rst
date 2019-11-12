@@ -2,7 +2,7 @@
 A driver for a selfmade cheap BT8xx based PCI GPIO-card (bt8xxgpio)
 ===================================================================
 
-For advanced documentation, see http://www.bu3sch.de/btgpio.php
+For advanced documentation, see https://bues.ch/cms/unmaintained/btgpio.html
 
 A generic digital 24-port PCI GPIO card can be built out of an ordinary
 Brooktree bt848, bt849, bt878 or bt879 based analog TV tuner card. The

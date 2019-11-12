@@ -53,7 +53,7 @@ struct idi_48_gpio {
 
 static int idi_48_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
-	return 1;
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int idi_48_gpio_direction_input(struct gpio_chip *chip, unsigned offset)

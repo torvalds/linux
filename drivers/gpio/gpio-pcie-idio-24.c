@@ -104,15 +104,18 @@ static int idio_24_gpio_get_direction(struct gpio_chip *chip,
 
 	/* FET Outputs */
 	if (offset < 24)
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 
 	/* Isolated Inputs */
 	if (offset < 48)
-		return 1;
+		return GPIO_LINE_DIRECTION_IN;
 
 	/* TTL/CMOS I/O */
 	/* OUT MODE = 1 when TTL/CMOS Output Mode is set */
-	return !(ioread8(&idio24gpio->reg->ctl) & out_mode_mask);
+	if (ioread8(&idio24gpio->reg->ctl) & out_mode_mask)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int idio_24_gpio_direction_input(struct gpio_chip *chip,

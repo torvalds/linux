@@ -84,8 +84,9 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 /**
  * of_gpio_need_valid_mask() - figure out if the OF GPIO driver needs
  * to set the .valid_mask
- * @dev: the device for the GPIO provider
- * @return: true if the valid mask needs to be set
+ * @gc: the target gpio_chip
+ *
+ * Return: true if the valid mask needs to be set
  */
 bool of_gpio_need_valid_mask(const struct gpio_chip *gc)
 {
@@ -884,16 +885,13 @@ int of_gpiochip_add(struct gpio_chip *chip)
 	of_node_get(chip->of_node);
 
 	ret = of_gpiochip_scan_gpios(chip);
-	if (ret) {
+	if (ret)
 		of_node_put(chip->of_node);
-		gpiochip_remove_pin_ranges(chip);
-	}
 
 	return ret;
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)
 {
-	gpiochip_remove_pin_ranges(chip);
 	of_node_put(chip->of_node);
 }
