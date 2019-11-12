@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/remoteproc.h>
 #include <linux/remoteproc/mtk_scp.h>
+#include <linux/rpmsg/mtk_rpmsg.h>
 
 #include "mtk_common.h"
 #include "remoteproc_internal.h"
@@ -464,6 +465,54 @@ static void scp_unmap_memory_region(struct mtk_scp *scp)
 	of_reserved_mem_device_release(scp->dev);
 }
 
+static int scp_register_ipi(struct platform_device *pdev, u32 id,
+			    ipi_handler_t handler, void *priv)
+{
+	struct mtk_scp *scp = platform_get_drvdata(pdev);
+
+	return scp_ipi_register(scp, id, handler, priv);
+}
+
+static void scp_unregister_ipi(struct platform_device *pdev, u32 id)
+{
+	struct mtk_scp *scp = platform_get_drvdata(pdev);
+
+	scp_ipi_unregister(scp, id);
+}
+
+static int scp_send_ipi(struct platform_device *pdev, u32 id, void *buf,
+			unsigned int len, unsigned int wait)
+{
+	struct mtk_scp *scp = platform_get_drvdata(pdev);
+
+	return scp_ipi_send(scp, id, buf, len, wait);
+}
+
+static struct mtk_rpmsg_info mtk_scp_rpmsg_info = {
+	.send_ipi = scp_send_ipi,
+	.register_ipi = scp_register_ipi,
+	.unregister_ipi = scp_unregister_ipi,
+	.ns_ipi_id = SCP_IPI_NS_SERVICE,
+};
+
+static void scp_add_rpmsg_subdev(struct mtk_scp *scp)
+{
+	scp->rpmsg_subdev =
+		mtk_rpmsg_create_rproc_subdev(to_platform_device(scp->dev),
+					      &mtk_scp_rpmsg_info);
+	if (scp->rpmsg_subdev)
+		rproc_add_subdev(scp->rproc, scp->rpmsg_subdev);
+}
+
+static void scp_remove_rpmsg_subdev(struct mtk_scp *scp)
+{
+	if (scp->rpmsg_subdev) {
+		rproc_remove_subdev(scp->rproc, scp->rpmsg_subdev);
+		mtk_rpmsg_destroy_rproc_subdev(scp->rpmsg_subdev);
+		scp->rpmsg_subdev = NULL;
+	}
+}
+
 static int scp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -544,22 +593,25 @@ static int scp_probe(struct platform_device *pdev)
 	init_waitqueue_head(&scp->run.wq);
 	init_waitqueue_head(&scp->ack_wq);
 
+	scp_add_rpmsg_subdev(scp);
+
 	ret = devm_request_threaded_irq(dev, platform_get_irq(pdev, 0), NULL,
 					scp_irq_handler, IRQF_ONESHOT,
 					pdev->name, scp);
 
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
-		goto unregister_ipi;
+		goto remove_subdev;
 	}
 
 	ret = rproc_add(rproc);
 	if (ret)
-		goto unregister_ipi;
+		goto remove_subdev;
 
-	return ret;
+	return 0;
 
-unregister_ipi:
+remove_subdev:
+	scp_remove_rpmsg_subdev(scp);
 	scp_ipi_unregister(scp, SCP_IPI_INIT);
 release_dev_mem:
 	scp_unmap_memory_region(scp);
@@ -579,6 +631,7 @@ static int scp_remove(struct platform_device *pdev)
 	int i;
 
 	rproc_del(scp->rproc);
+	scp_remove_rpmsg_subdev(scp);
 	scp_ipi_unregister(scp, SCP_IPI_INIT);
 	scp_unmap_memory_region(scp);
 	for (i = 0; i < SCP_IPI_MAX; i++)
