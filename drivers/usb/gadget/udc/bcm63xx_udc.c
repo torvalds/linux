@@ -2248,7 +2248,7 @@ static void bcm63xx_udc_init_debugfs(struct bcm63xx_udc *udc)
 	if (!IS_ENABLED(CONFIG_USB_GADGET_DEBUG_FS))
 		return;
 
-	root = debugfs_create_dir(udc->gadget.name, NULL);
+	root = debugfs_create_dir(udc->gadget.name, usb_debug_root);
 	udc->debugfs_root = root;
 
 	debugfs_create_file("usbd", 0400, root, udc, &bcm63xx_usbd_dbg_fops);
