@@ -382,8 +382,16 @@ static void mlxsw_emad_construct(struct sk_buff *skb,
 
 struct mlxsw_emad_tlv_offsets {
 	u16 op_tlv;
+	u16 string_tlv;
 	u16 reg_tlv;
 };
+
+static bool mlxsw_emad_tlv_is_string_tlv(const char *tlv)
+{
+	u8 tlv_type = mlxsw_emad_string_tlv_type_get(tlv);
+
+	return tlv_type == MLXSW_EMAD_TLV_TYPE_STRING;
+}
 
 static void mlxsw_emad_tlv_parse(struct sk_buff *skb)
 {
@@ -391,8 +399,15 @@ static void mlxsw_emad_tlv_parse(struct sk_buff *skb)
 		(struct mlxsw_emad_tlv_offsets *) skb->cb;
 
 	offsets->op_tlv = MLXSW_EMAD_ETH_HDR_LEN;
+	offsets->string_tlv = 0;
 	offsets->reg_tlv = MLXSW_EMAD_ETH_HDR_LEN +
 			   MLXSW_EMAD_OP_TLV_LEN * sizeof(u32);
+
+	/* If string TLV is present, it must come after the operation TLV. */
+	if (mlxsw_emad_tlv_is_string_tlv(skb->data + offsets->reg_tlv)) {
+		offsets->string_tlv = offsets->reg_tlv;
+		offsets->reg_tlv += MLXSW_EMAD_STRING_TLV_LEN * sizeof(u32);
+	}
 }
 
 static char *mlxsw_emad_op_tlv(const struct sk_buff *skb)
