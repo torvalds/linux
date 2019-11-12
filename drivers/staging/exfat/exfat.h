@@ -915,8 +915,6 @@ s32 resolve_path(struct inode *inode, char *path, struct chain_t *p_dir,
 s32 resolve_name(u8 *name, u8 **arg);
 
 /* file operation functions */
-s32 fat16_mount(struct super_block *sb, struct pbr_sector_t *p_pbr);
-s32 fat32_mount(struct super_block *sb, struct pbr_sector_t *p_pbr);
 s32 exfat_mount(struct super_block *sb, struct pbr_sector_t *p_pbr);
 s32 create_dir(struct inode *inode, struct chain_t *p_dir,
 	       struct uni_name_t *p_uniname, struct file_id_t *fid);
