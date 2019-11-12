@@ -1,0 +1,17 @@
+DEFCONFIG=allmodconfig
+KCONFIG_ALLCONFIG=${ROOT_DIR}/common/arch/${ARCH%_*}/configs/gki_defconfig
+
+# XFS_FS is currently broken on this branch with clang-9
+# KVM_INTEL is broken on this branch due to lack of asm-goto support in clang
+POST_DEFCONFIG_CMDS="update_config"
+function update_config() {
+    ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
+         -d TEST_KMOD  \
+         -d XFS_FS \
+         -d CPU_BIG_ENDIAN \
+         -d STM \
+         -d TEST_MEMCAT_P \
+
+    (cd ${OUT_DIR} && \
+     make O=${OUT_DIR} $archsubarch CC=${CC} CROSS_COMPILE=${CROSS_COMPILE} olddefconfig)
+}
