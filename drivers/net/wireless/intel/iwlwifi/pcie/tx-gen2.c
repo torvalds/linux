@@ -246,7 +246,6 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 				     u8 hdr_len, struct iwl_device_cmd *dev_cmd)
 {
 #ifdef CONFIG_INET
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_cmd_gen2 *tx_cmd = (void *)dev_cmd->payload;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
@@ -254,7 +253,6 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 	u16 length, amsdu_pad;
 	u8 *start_hdr;
 	struct iwl_tso_hdr_page *hdr_page;
-	struct page **page_ptr;
 	struct tso_t tso;
 
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd),
@@ -270,14 +268,11 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr));
 
 	/* Our device supports 9 segments at most, it will fit in 1 page */
-	hdr_page = get_page_hdr(trans, hdr_room);
+	hdr_page = get_page_hdr(trans, hdr_room, skb);
 	if (!hdr_page)
 		return -ENOMEM;
 
-	get_page(hdr_page->page);
 	start_hdr = hdr_page->pos;
-	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
-	*page_ptr = hdr_page->page;
 
 	/*
 	 * Pull the ieee80211 header to be able to use TSO core,

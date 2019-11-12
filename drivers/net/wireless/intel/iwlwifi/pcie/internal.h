@@ -1082,7 +1082,8 @@ void iwl_pcie_apply_destination(struct iwl_trans *trans);
 void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
 			    struct sk_buff *skb);
 #ifdef CONFIG_INET
-struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len);
+struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
+				      struct sk_buff *skb);
 #endif
 
 /* common functions that are used by gen3 transport */

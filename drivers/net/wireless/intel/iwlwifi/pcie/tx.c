@@ -2052,17 +2052,24 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 }
 
 #ifdef CONFIG_INET
-struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len)
+struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
+				      struct sk_buff *skb)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tso_hdr_page *p = this_cpu_ptr(trans_pcie->tso_hdr_page);
+	struct page **page_ptr;
+
+	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
+
+	if (WARN_ON(*page_ptr))
+		return NULL;
 
 	if (!p->page)
 		goto alloc;
 
 	/* enough room on this page */
 	if (p->pos + len < (u8 *)page_address(p->page) + PAGE_SIZE)
-		return p;
+		goto out;
 
 	/* We don't have enough room on this page, get a new one. */
 	__free_page(p->page);
@@ -2072,6 +2079,9 @@ alloc:
 	if (!p->page)
 		return NULL;
 	p->pos = page_address(p->page);
+out:
+	*page_ptr = p->page;
+	get_page(p->page);
 	return p;
 }
 
@@ -2107,7 +2117,6 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	u16 length, iv_len, amsdu_pad;
 	u8 *start_hdr;
 	struct iwl_tso_hdr_page *hdr_page;
-	struct page **page_ptr;
 	struct tso_t tso;
 
 	/* if the packet is protected, then it must be CCMP or GCMP */
@@ -2130,14 +2139,11 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr)) + iv_len;
 
 	/* Our device supports 9 segments at most, it will fit in 1 page */
-	hdr_page = get_page_hdr(trans, hdr_room);
+	hdr_page = get_page_hdr(trans, hdr_room, skb);
 	if (!hdr_page)
 		return -ENOMEM;
 
-	get_page(hdr_page->page);
 	start_hdr = hdr_page->pos;
-	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
-	*page_ptr = hdr_page->page;
 	memcpy(hdr_page->pos, skb->data + hdr_len, iv_len);
 	hdr_page->pos += iv_len;
 
