@@ -1683,8 +1683,11 @@ int mlxsw_reg_trans_write(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_reg_trans_write);
 
+#define MLXSW_REG_TRANS_ERR_STRING_SIZE	256
+
 static int mlxsw_reg_trans_wait(struct mlxsw_reg_trans *trans)
 {
+	char err_string[MLXSW_REG_TRANS_ERR_STRING_SIZE];
 	struct mlxsw_core *mlxsw_core = trans->core;
 	int err;
 
@@ -1702,9 +1705,14 @@ static int mlxsw_reg_trans_wait(struct mlxsw_reg_trans *trans)
 			mlxsw_core_reg_access_type_str(trans->type),
 			trans->emad_status,
 			mlxsw_emad_op_tlv_status_str(trans->emad_status));
+
+		snprintf(err_string, MLXSW_REG_TRANS_ERR_STRING_SIZE,
+			 "(tid=%llx,reg_id=%x(%s)) %s\n", trans->tid,
+			 trans->reg->id, mlxsw_reg_id_str(trans->reg->id),
+			 mlxsw_emad_op_tlv_status_str(trans->emad_status));
+
 		trace_devlink_hwerr(priv_to_devlink(mlxsw_core),
-				    trans->emad_status,
-				    mlxsw_emad_op_tlv_status_str(trans->emad_status));
+				    trans->emad_status, err_string);
 	}
 
 	list_del(&trans->bulk_list);
