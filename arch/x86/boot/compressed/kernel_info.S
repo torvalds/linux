@@ -14,7 +14,7 @@ kernel_info:
 	/* Size total. */
 	.long	kernel_info_end - kernel_info
 
-	/* Maximal allowed type for setup_data. */
+	/* Maximal allowed type for setup_data and setup_indirect structs. */
 	.long	SETUP_TYPE_MAX
 
 kernel_info_var_len_data:
