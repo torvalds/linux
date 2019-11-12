@@ -472,10 +472,7 @@ static int kbase_devfreq_init_core_mask_table(struct kbase_device *kbdev)
 
 		if (of_property_read_u64(node, "opp-core-mask", &core_mask))
 			core_mask = shader_present;
-		if (core_mask != shader_present &&
-				(kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_11056) ||
-				 corestack_driver_control ||
-				 platform_power_down_only)) {
+		if (core_mask != shader_present && corestack_driver_control) {
 
 			dev_warn(kbdev->dev, "Ignoring OPP %llu - Dynamic Core Scaling not supported on this GPU\n",
 					opp_freq);
@@ -696,7 +693,9 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 				"simple_ondemand", NULL);
 	if (IS_ERR(kbdev->devfreq)) {
 		err = PTR_ERR(kbdev->devfreq);
-		goto add_device_failed;
+		kbase_devfreq_work_term(kbdev);
+		kbase_devfreq_term_freq_table(kbdev);
+		return err;
 	}
 
 	/* devfreq_add_device only copies a few of kbdev->dev's fields, so
@@ -754,10 +753,8 @@ opp_notifier_failed:
 		dev_err(kbdev->dev, "Failed to terminate devfreq (%d)\n", err);
 	else
 		kbdev->devfreq = NULL;
-add_device_failed:
-	kbase_devfreq_work_term(kbdev);
 
-	kbase_devfreq_term_freq_table(kbdev);
+	kbase_devfreq_work_term(kbdev);
 
 	return err;
 }

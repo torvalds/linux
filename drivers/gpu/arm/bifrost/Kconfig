@@ -106,20 +106,6 @@ config MALI_CORESTACK
 
 	  If unsure, say N.
 
-config MALI_PLATFORM_POWER_DOWN_ONLY
-	bool "Support disabling the power down of individual cores"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
-	default n
-	help
-	  Enabling this feature will let the driver avoid power down of the
-	  shader cores, the tiler, and the L2 cache.
-	  The entire GPU would be powered down at once through the platform
-	  specific code.
-	  This may be required for certain platform configurations only.
-	  This also limits the available power policies.
-
-	  If unsure, say N.
-
 config MALI_BIFROST_DEBUG
 	bool "Debug build"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT

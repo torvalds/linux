@@ -290,11 +290,11 @@ void __kbase_tlstream_tl_nret_kcpuqueue_ctx(
 void __kbase_tlstream_tl_event_kcpuqueue_enqueue_fence_signal(
 	struct kbase_tlstream *stream,
 	const void *kcpu_queue,
-	u64 fence);
+	const void *fence);
 void __kbase_tlstream_tl_event_kcpuqueue_enqueue_fence_wait(
 	struct kbase_tlstream *stream,
 	const void *kcpu_queue,
-	u64 fence);
+	const void *fence);
 void __kbase_tlstream_tl_event_array_begin_kcpuqueue_enqueue_cqs_wait(
 	struct kbase_tlstream *stream,
 	const void *kcpu_queue);
@@ -331,6 +331,10 @@ void __kbase_tlstream_tl_event_kcpuqueue_enqueue_map_import(
 	const void *kcpu_queue,
 	u64 map_import_buf_gpu_addr);
 void __kbase_tlstream_tl_event_kcpuqueue_enqueue_unmap_import(
+	struct kbase_tlstream *stream,
+	const void *kcpu_queue,
+	u64 map_import_buf_gpu_addr);
+void __kbase_tlstream_tl_event_kcpuqueue_enqueue_unmap_import_force(
 	struct kbase_tlstream *stream,
 	const void *kcpu_queue,
 	u64 map_import_buf_gpu_addr);
@@ -402,6 +406,12 @@ void __kbase_tlstream_tl_event_kcpuqueue_execute_unmap_import_start(
 	struct kbase_tlstream *stream,
 	const void *kcpu_queue);
 void __kbase_tlstream_tl_event_kcpuqueue_execute_unmap_import_end(
+	struct kbase_tlstream *stream,
+	const void *kcpu_queue);
+void __kbase_tlstream_tl_event_kcpuqueue_execute_unmap_import_force_start(
+	struct kbase_tlstream *stream,
+	const void *kcpu_queue);
+void __kbase_tlstream_tl_event_kcpuqueue_execute_unmap_import_force_end(
 	struct kbase_tlstream *stream,
 	const void *kcpu_queue);
 void __kbase_tlstream_tl_event_kcpuqueue_execute_jit_alloc_start(
@@ -1754,6 +1764,27 @@ struct kbase_tlstream;
 	} while (0)
 
 /**
+ * KBASE_TLSTREAM_TL_EVENT_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT_FORCE -
+ *   KCPU Queue enqueues Unmap Import ignoring reference count
+ *
+ * @kbdev:	Kbase device
+ * @kcpu_queue:	KCPU queue
+ * @map_import_buf_gpu_addr:	Map import buffer GPU ptr
+ */
+#define KBASE_TLSTREAM_TL_EVENT_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT_FORCE(	\
+	kbdev,	\
+	kcpu_queue,	\
+	map_import_buf_gpu_addr	\
+	)	\
+	do {	\
+		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		if (enabled & TLSTREAM_ENABLED)	\
+			__kbase_tlstream_tl_event_kcpuqueue_enqueue_unmap_import_force(	\
+				__TL_DISPATCH_STREAM(kbdev, obj), \
+				kcpu_queue, map_import_buf_gpu_addr);	\
+	} while (0)
+
+/**
  * KBASE_TLSTREAM_TL_EVENT_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_JIT_ALLOC -
  *   Begin array of KCPU Queue enqueues JIT Alloc
  *
@@ -2160,6 +2191,44 @@ struct kbase_tlstream;
 		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_event_kcpuqueue_execute_unmap_import_end(	\
+				__TL_DISPATCH_STREAM(kbdev, obj), \
+				kcpu_queue);	\
+	} while (0)
+
+/**
+ * KBASE_TLSTREAM_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_START -
+ *   KCPU Queue starts an Unmap Import ignoring reference count
+ *
+ * @kbdev:	Kbase device
+ * @kcpu_queue:	KCPU queue
+ */
+#define KBASE_TLSTREAM_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_START(	\
+	kbdev,	\
+	kcpu_queue	\
+	)	\
+	do {	\
+		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		if (enabled & TLSTREAM_ENABLED)	\
+			__kbase_tlstream_tl_event_kcpuqueue_execute_unmap_import_force_start(	\
+				__TL_DISPATCH_STREAM(kbdev, obj), \
+				kcpu_queue);	\
+	} while (0)
+
+/**
+ * KBASE_TLSTREAM_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_END -
+ *   KCPU Queue ends an Unmap Import ignoring reference count
+ *
+ * @kbdev:	Kbase device
+ * @kcpu_queue:	KCPU queue
+ */
+#define KBASE_TLSTREAM_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_END(	\
+	kbdev,	\
+	kcpu_queue	\
+	)	\
+	do {	\
+		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		if (enabled & TLSTREAM_ENABLED)	\
+			__kbase_tlstream_tl_event_kcpuqueue_execute_unmap_import_force_end(	\
 				__TL_DISPATCH_STREAM(kbdev, obj), \
 				kcpu_queue);	\
 	} while (0)

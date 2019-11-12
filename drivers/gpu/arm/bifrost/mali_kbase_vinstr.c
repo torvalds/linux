@@ -892,7 +892,7 @@ static long kbasep_vinstr_hwcnt_reader_ioctl(
 			cli, (enum base_hwcnt_reader_event)arg);
 		break;
 	default:
-		WARN_ON(true);
+		pr_warn("Unknown HWCNT ioctl 0x%x nr:%d", cmd, _IOC_NR(cmd));
 		rcode = -EINVAL;
 		break;
 	}

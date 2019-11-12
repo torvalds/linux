@@ -79,34 +79,12 @@ static int kbase_device_as_init(struct kbase_device *kbdev, int i)
 	INIT_WORK(&kbdev->as[i].work_pagefault, page_fault_worker);
 	INIT_WORK(&kbdev->as[i].work_busfault, bus_fault_worker);
 
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316)) {
-		struct hrtimer *poke_timer = &kbdev->as[i].poke_timer;
-		struct work_struct *poke_work = &kbdev->as[i].poke_work;
-
-		kbdev->as[i].poke_wq =
-			alloc_workqueue("mali_mmu%d_poker", 0, 1, i);
-		if (!kbdev->as[i].poke_wq) {
-			destroy_workqueue(kbdev->as[i].pf_wq);
-			return -EINVAL;
-		}
-		INIT_WORK(poke_work, kbasep_as_do_poke);
-
-		hrtimer_init(poke_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-
-		poke_timer->function = kbasep_as_poke_timer_callback;
-
-		kbdev->as[i].poke_refcount = 0;
-		kbdev->as[i].poke_state = 0u;
-	}
-
 	return 0;
 }
 
 static void kbase_device_as_term(struct kbase_device *kbdev, int i)
 {
 	destroy_workqueue(kbdev->as[i].pf_wq);
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316))
-		destroy_workqueue(kbdev->as[i].poke_wq);
 }
 
 static int kbase_device_all_as_init(struct kbase_device *kbdev)

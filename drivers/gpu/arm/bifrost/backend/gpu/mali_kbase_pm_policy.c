@@ -45,33 +45,10 @@ static const struct kbase_pm_policy *const all_policy_list[] = {
 #endif /* CONFIG_MALI_BIFROST_NO_MALI */
 };
 
-static void generate_filtered_policy_list(struct kbase_device *kbdev)
+void kbase_pm_policy_init(struct kbase_device *kbdev)
 {
-	size_t i;
-
-	for (i = 0; i < ARRAY_SIZE(all_policy_list); ++i) {
-		const struct kbase_pm_policy *pol = all_policy_list[i];
-
-		BUILD_BUG_ON(ARRAY_SIZE(all_policy_list) >
-			KBASE_PM_MAX_NUM_POLICIES);
-		if (platform_power_down_only &&
-				(pol->flags & KBASE_PM_POLICY_FLAG_DISABLED_WITH_POWER_DOWN_ONLY))
-			continue;
-
-		kbdev->policy_list[kbdev->policy_count++] = pol;
-	}
-}
-
-int kbase_pm_policy_init(struct kbase_device *kbdev)
-{
-	generate_filtered_policy_list(kbdev);
-	if (kbdev->policy_count == 0)
-		return -EINVAL;
-
-	kbdev->pm.backend.pm_current_policy = kbdev->policy_list[0];
+	kbdev->pm.backend.pm_current_policy = all_policy_list[0];
 	kbdev->pm.backend.pm_current_policy->init(kbdev);
-
-	return 0;
 }
 
 void kbase_pm_policy_term(struct kbase_device *kbdev)
@@ -106,7 +83,7 @@ void kbase_pm_update_active(struct kbase_device *kbdev)
 			pm->backend.poweron_required = true;
 			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		} else {
-			/* Cancel the the invocation of
+			/* Cancel the invocation of
 			 * kbase_pm_gpu_poweroff_wait_wq() from the L2 state
 			 * machine. This is safe - it
 			 * invoke_poweroff_wait_wq_when_l2_off is true, then
@@ -130,10 +107,34 @@ void kbase_pm_update_active(struct kbase_device *kbdev)
 			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 			/* Power off the GPU immediately */
-			kbase_pm_do_poweroff(kbdev, false);
+			kbase_pm_do_poweroff(kbdev);
 		} else {
 			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		}
+	}
+}
+
+void kbase_pm_update_dynamic_cores_onoff(struct kbase_device *kbdev)
+{
+	bool shaders_desired;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+	lockdep_assert_held(&kbdev->pm.lock);
+
+	if (kbdev->pm.backend.pm_current_policy == NULL)
+		return;
+	if (kbdev->pm.backend.poweroff_wait_in_progress)
+		return;
+	/* In protected transition, don't allow outside shader core request
+	 * affect transition, return directly
+	 */
+	if (kbdev->pm.backend.protected_transition_override)
+		return;
+
+	shaders_desired = kbdev->pm.backend.pm_current_policy->shaders_needed(kbdev);
+
+	if (shaders_desired && kbase_pm_is_l2_desired(kbdev)) {
+		kbase_pm_update_state(kbdev);
 	}
 }
 
@@ -178,11 +179,10 @@ void kbase_pm_update_cores_state(struct kbase_device *kbdev)
 int kbase_pm_list_policies(struct kbase_device *kbdev,
 	const struct kbase_pm_policy * const **list)
 {
-	WARN_ON(kbdev->policy_count == 0);
 	if (list)
-		*list = kbdev->policy_list;
+		*list = all_policy_list;
 
-	return kbdev->policy_count;
+	return ARRAY_SIZE(all_policy_list);
 }
 
 KBASE_EXPORT_TEST_API(kbase_pm_list_policies);

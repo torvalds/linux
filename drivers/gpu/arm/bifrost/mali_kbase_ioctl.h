@@ -82,7 +82,6 @@ extern "C" {
  * 11.17:
  * - Added BASE_JD_REQ_JOB_SLOT.
  * - Reused padding field in base_jd_atom_v2 to pass job slot number.
- * 11.18:
  * - New ioctl: KBASE_IOCTL_GET_CPU_GPU_TIMEINFO
  */
 #define BASE_UK_VERSION_MAJOR 11
@@ -740,6 +739,7 @@ union kbase_ioctl_get_cpu_gpu_timeinfo {
 
 #define KBASE_IOCTL_GET_CPU_GPU_TIMEINFO \
 	_IOWR(KBASE_IOCTL_TYPE, 50, union kbase_ioctl_get_cpu_gpu_timeinfo)
+
 
 /***************
  * test ioctls *

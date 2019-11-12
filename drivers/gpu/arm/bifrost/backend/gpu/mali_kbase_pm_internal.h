@@ -142,13 +142,12 @@ void kbase_pm_clock_on(struct kbase_device *kbdev, bool is_resume);
  *
  * @kbdev:      The kbase device structure for the device (must be a valid
  *              pointer)
- * @is_suspend: true if clock off due to suspend, false otherwise
  *
  * Return: true  if clock was turned off, or
  *         false if clock can not be turned off due to pending page/bus fault
  *               workers. Caller must flush MMU workqueues and retry
  */
-bool kbase_pm_clock_off(struct kbase_device *kbdev, bool is_suspend);
+bool kbase_pm_clock_off(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_enable_interrupts - Enable interrupts on the device.
@@ -245,9 +244,23 @@ void kbase_pm_wait_for_desired_state(struct kbase_device *kbdev);
 void kbase_pm_wait_for_l2_powered(struct kbase_device *kbdev);
 
 /**
+ * kbase_pm_update_dynamic_cores_onoff - Update the L2 and shader power state
+ *                                       machines after changing shader core
+ *                                       availability
+ *
+ * It can be called in any status, so need to check the l2 and shader core
+ * power status in this function or it will break shader/l2 state machine
+ *
+ * Caller must hold hwaccess_lock
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ */
+void kbase_pm_update_dynamic_cores_onoff(struct kbase_device *kbdev);
+
+/**
  * kbase_pm_update_cores_state_nolock - Variant of kbase_pm_update_cores_state()
  *                                      where the caller must hold
- *                                      kbase_device.pm.power_change_lock
+ *                                      kbase_device.hwaccess_lock
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  */
@@ -487,10 +500,8 @@ void kbase_pm_do_poweron(struct kbase_device *kbdev, bool is_resume);
  *
  * @kbdev:      The kbase device structure for the device (must be a valid
  *              pointer)
- * @is_suspend: true if power off due to suspend,
- *              false otherwise
  */
-void kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend);
+void kbase_pm_do_poweroff(struct kbase_device *kbdev);
 
 #if defined(CONFIG_MALI_BIFROST_DEVFREQ) || defined(CONFIG_MALI_BIFROST_DVFS)
 void kbase_pm_get_dvfs_metrics(struct kbase_device *kbdev,
@@ -661,11 +672,14 @@ void kbase_pm_protected_entry_override_disable(struct kbase_device *kbdev);
  */
 extern bool corestack_driver_control;
 
-/* If true, disable powering-down of individual cores, and just power-down at
- * the top-level using platform-specific code.
- * If false, use the expected behaviour of controlling the individual cores
- * from within the driver.
+/**
+ * kbase_pm_is_l2_desired - Check whether l2 is desired
+ *
+ * @kbdev: Device pointer
+ *
+ * This shall be called to check whether l2 is needed to power on
+ *
+ * Return: true if l2 need to power on
  */
-extern bool platform_power_down_only;
-
+bool kbase_pm_is_l2_desired(struct kbase_device *kbdev);
 #endif /* _KBASE_BACKEND_PM_INTERNAL_H_ */

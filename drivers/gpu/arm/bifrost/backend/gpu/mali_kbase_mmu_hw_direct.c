@@ -48,7 +48,7 @@ static inline u64 lock_region(struct kbase_device *kbdev, u64 pfn,
 
 	/* gracefully handle num_pages being zero */
 	if (0 == num_pages) {
-		region |= 11;
+		region |= KBASE_LOCK_REGION_MIN_SIZE;
 	} else {
 		u8 region_width;
 
@@ -57,8 +57,9 @@ static inline u64 lock_region(struct kbase_device *kbdev, u64 pfn,
 			/* not pow2, so must go up to the next pow2 */
 			region_width += 1;
 		}
+		region_width = MAX(region_width, KBASE_LOCK_REGION_MIN_SIZE);
+
 		KBASE_DEBUG_ASSERT(region_width <= KBASE_LOCK_REGION_MAX_SIZE);
-		KBASE_DEBUG_ASSERT(region_width >= KBASE_LOCK_REGION_MIN_SIZE);
 		region |= region_width;
 	}
 
@@ -313,25 +314,6 @@ int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
 
 		/* Wait for the flush to complete */
 		ret = wait_ready(kbdev, as->number);
-
-		if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_9630)) {
-			/* Issue an UNLOCK command to ensure that valid page
-			   tables are re-read by the GPU after an update.
-			   Note that, the FLUSH command should perform all the
-			   actions necessary, however the bus logs show that if
-			   multiple page faults occur within an 8 page region
-			   the MMU does not always re-read the updated page
-			   table entries for later faults or is only partially
-			   read, it subsequently raises the page fault IRQ for
-			   the same addresses, the unlock ensures that the MMU
-			   cache is flushed, so updates can be re-read.  As the
-			   region is now unlocked we need to issue 2 UNLOCK
-			   commands in order to flush the MMU/uTLB,
-			   see PRLAM-8812.
-			 */
-			write_cmd(kbdev, as->number, AS_COMMAND_UNLOCK);
-			write_cmd(kbdev, as->number, AS_COMMAND_UNLOCK);
-		}
 	}
 
 	return ret;

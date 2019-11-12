@@ -423,14 +423,9 @@
 /* End THREAD_* registers */
 
 /* SHADER_CONFIG register */
-#define SC_ALT_COUNTERS             (1ul << 3)
-#define SC_OVERRIDE_FWD_PIXEL_KILL  (1ul << 4)
-#define SC_SDC_DISABLE_OQ_DISCARD   (1ul << 6)
 #define SC_LS_ALLOW_ATTR_TYPES      (1ul << 16)
-#define SC_LS_PAUSEBUFFER_DISABLE   (1ul << 16)
 #define SC_TLS_HASH_ENABLE          (1ul << 17)
 #define SC_LS_ATTR_CHECK_DISABLE    (1ul << 18)
-#define SC_ENABLE_TEXGRD_FLAGS      (1ul << 25)
 #define SC_VAR_ALGORITHM            (1ul << 29)
 /* End SHADER_CONFIG register */
 

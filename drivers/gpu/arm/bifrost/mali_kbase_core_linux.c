@@ -1240,7 +1240,7 @@ static int kbase_api_sticky_resource_map(struct kbase_context *kctx,
 	if (ret != 0) {
 		while (i > 0) {
 			i--;
-			kbase_sticky_resource_release(kctx, NULL, gpu_addr[i]);
+			kbase_sticky_resource_release_force(kctx, NULL, gpu_addr[i]);
 		}
 	}
 
@@ -1268,7 +1268,7 @@ static int kbase_api_sticky_resource_unmap(struct kbase_context *kctx,
 	kbase_gpu_vm_lock(kctx);
 
 	for (i = 0; i < unmap->count; i++) {
-		if (!kbase_sticky_resource_release(kctx, NULL, gpu_addr[i])) {
+		if (!kbase_sticky_resource_release_force(kctx, NULL, gpu_addr[i])) {
 			/* Invalid resource, but we keep going anyway */
 			ret = -EINVAL;
 		}
@@ -1922,6 +1922,7 @@ static ssize_t set_core_mask(struct device *dev, struct device_attribute *attr, 
 	if (items == 1)
 		new_core_mask[1] = new_core_mask[2] = new_core_mask[0];
 
+	mutex_lock(&kbdev->pm.lock);
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 	shader_present = kbdev->gpu_props.props.raw_props.shader_present;
@@ -1962,6 +1963,7 @@ static ssize_t set_core_mask(struct device *dev, struct device_attribute *attr, 
 
 unlock:
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	mutex_unlock(&kbdev->pm.lock);
 end:
 	return err;
 }
@@ -2122,8 +2124,6 @@ static ssize_t set_js_timeouts(struct device *dev, struct device_attribute *attr
 		UPDATE_TIMEOUT(soft_stop_ticks_cl, js_soft_stop_ms_cl,
 				DEFAULT_JS_SOFT_STOP_TICKS_CL);
 		UPDATE_TIMEOUT(hard_stop_ticks_ss, js_hard_stop_ms_ss,
-				kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8408) ?
-				DEFAULT_JS_HARD_STOP_TICKS_SS_8408 :
 				DEFAULT_JS_HARD_STOP_TICKS_SS);
 		UPDATE_TIMEOUT(hard_stop_ticks_cl, js_hard_stop_ms_cl,
 				DEFAULT_JS_HARD_STOP_TICKS_CL);
@@ -2131,8 +2131,6 @@ static ssize_t set_js_timeouts(struct device *dev, struct device_attribute *attr
 				js_hard_stop_ms_dumping,
 				DEFAULT_JS_HARD_STOP_TICKS_DUMPING);
 		UPDATE_TIMEOUT(gpu_reset_ticks_ss, js_reset_ms_ss,
-				kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8408) ?
-				DEFAULT_JS_RESET_TICKS_SS_8408 :
 				DEFAULT_JS_RESET_TICKS_SS);
 		UPDATE_TIMEOUT(gpu_reset_ticks_cl, js_reset_ms_cl,
 				DEFAULT_JS_RESET_TICKS_CL);

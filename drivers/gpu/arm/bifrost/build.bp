@@ -102,9 +102,6 @@ bob_kernel_module {
     mali_corestack: {
         kbuild_options: ["CONFIG_MALI_CORESTACK=y"],
     },
-    mali_platform_power_down_only: {
-        kbuild_options: ["CONFIG_MALI_PLATFORM_POWER_DOWN_ONLY=y"],
-    },
     mali_error_inject: {
         kbuild_options: ["CONFIG_MALI_BIFROST_ERROR_INJECT=y"],
     },

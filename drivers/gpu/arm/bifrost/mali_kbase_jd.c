@@ -546,7 +546,6 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 		struct list_head *completed_jobs_ctx)
 {
 	struct kbase_context *kctx = katom->kctx;
-	struct kbase_device *kbdev = kctx->kbdev;
 	struct list_head completed_jobs;
 	struct list_head runnable_jobs;
 	bool need_to_try_schedule_context = false;
@@ -563,22 +562,6 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 		if (kbase_jd_katom_dep_atom(&katom->dep[i])) {
 			list_del(&katom->dep_item[i]);
 			kbase_jd_katom_dep_clear(&katom->dep[i]);
-		}
-	}
-
-	/* With PRLAM-10817 or PRLAM-10959 the last tile of a fragment job being soft-stopped can fail with
-	 * BASE_JD_EVENT_TILE_RANGE_FAULT.
-	 *
-	 * So here if the fragment job failed with TILE_RANGE_FAULT and it has been soft-stopped, then we promote the
-	 * error code to BASE_JD_EVENT_DONE
-	 */
-
-	if ((kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10817) || kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10959)) &&
-		  katom->event_code == BASE_JD_EVENT_TILE_RANGE_FAULT) {
-		if ((katom->core_req & BASE_JD_REQ_FS) && (katom->atom_flags & KBASE_KATOM_FLAG_BEEN_SOFT_STOPPPED)) {
-			/* Promote the failure to job done */
-			katom->event_code = BASE_JD_EVENT_DONE;
-			katom->atom_flags = katom->atom_flags & (~KBASE_KATOM_FLAG_BEEN_SOFT_STOPPPED);
 		}
 	}
 
@@ -1192,9 +1175,6 @@ void kbase_jd_done_worker(struct work_struct *data)
 			"t6xx: GPU fault 0x%02lx from job slot %d\n",
 					(unsigned long)katom->event_code,
 								katom->slot_nr);
-
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316))
-		kbase_as_poking_timer_release_atom(kbdev, kctx, katom);
 
 	/* Retain state before the katom disappears */
 	kbasep_js_atom_retained_state_copy(&katom_retained_state, katom);

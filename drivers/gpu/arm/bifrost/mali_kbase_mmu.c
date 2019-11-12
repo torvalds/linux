@@ -279,10 +279,7 @@ static void kbase_gpu_mmu_handle_write_fault(struct kbase_context *kctx,
 				1, region->flags, region->gpu_alloc->group_id);
 
 	/* flush L2 and unlock the VA (resumes the MMU) */
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_6367))
-		op = AS_COMMAND_FLUSH;
-	else
-		op = AS_COMMAND_FLUSH_PT;
+	op = AS_COMMAND_FLUSH_PT;
 
 	kbase_gpu_mmu_handle_write_faulting_as(kbdev, faulting_as,
 			fault_pfn, 1, op);
@@ -782,10 +779,7 @@ page_fault_retry:
 		mutex_lock(&kbdev->mmu_hw_mutex);
 
 		/* flush L2 and unlock the VA (resumes the MMU) */
-		if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_6367))
-			op = AS_COMMAND_FLUSH;
-		else
-			op = AS_COMMAND_FLUSH_PT;
+		op = AS_COMMAND_FLUSH_PT;
 
 		/* clear MMU interrupt - this needs to be done after updating
 		 * the page tables but before issuing a FLUSH command. The
@@ -1449,24 +1443,13 @@ static void kbase_mmu_flush_invalidate_noretain(struct kbase_context *kctx,
 		if (kbase_prepare_to_reset_gpu_locked(kbdev))
 			kbase_reset_gpu_locked(kbdev);
 	}
-
-#ifndef CONFIG_MALI_BIFROST_NO_MALI
-	/*
-	 * As this function could be called in interrupt context the sync
-	 * request can't block. Instead log the request and the next flush
-	 * request will pick it up.
-	 */
-	if ((!err) && sync &&
-			kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_6367))
-		atomic_set(&kctx->drain_pending, 1);
-#endif /* !CONFIG_MALI_BIFROST_NO_MALI */
 }
 
 /* Perform a flush/invalidate on a particular address space
  */
 static void kbase_mmu_flush_invalidate_as(struct kbase_device *kbdev,
 		struct kbase_as *as,
-		u64 vpfn, size_t nr, bool sync, bool drain_pending)
+		u64 vpfn, size_t nr, bool sync)
 {
 	int err;
 	u32 op;
@@ -1501,21 +1484,6 @@ static void kbase_mmu_flush_invalidate_as(struct kbase_device *kbdev,
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 	/* AS transaction end */
 
-#ifndef CONFIG_MALI_BIFROST_NO_MALI
-	/*
-	 * The transaction lock must be dropped before here
-	 * as kbase_wait_write_flush could take it if
-	 * the GPU was powered down (static analysis doesn't
-	 * know this can't happen).
-	 */
-	drain_pending |= (!err) && sync &&
-		kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_6367);
-	if (drain_pending) {
-		/* Wait for GPU to flush write buffer */
-		kbase_wait_write_flush(kbdev);
-	}
-#endif /* !CONFIG_MALI_BIFROST_NO_MALI */
-
 	kbase_pm_context_idle(kbdev);
 }
 
@@ -1525,7 +1493,7 @@ static void kbase_mmu_flush_invalidate_no_ctx(struct kbase_device *kbdev,
 	/* Skip if there is nothing to do */
 	if (nr) {
 		kbase_mmu_flush_invalidate_as(kbdev, &kbdev->as[as_nr], vpfn,
-					nr, sync, false);
+					nr, sync);
 	}
 }
 
@@ -1534,12 +1502,6 @@ static void kbase_mmu_flush_invalidate(struct kbase_context *kctx,
 {
 	struct kbase_device *kbdev;
 	bool ctx_is_in_runpool;
-	bool drain_pending = false;
-
-#ifndef CONFIG_MALI_BIFROST_NO_MALI
-	if (atomic_xchg(&kctx->drain_pending, 0))
-		drain_pending = true;
-#endif /* !CONFIG_MALI_BIFROST_NO_MALI */
 
 	/* Early out if there is nothing to do */
 	if (nr == 0)
@@ -1554,7 +1516,7 @@ static void kbase_mmu_flush_invalidate(struct kbase_context *kctx,
 		KBASE_DEBUG_ASSERT(kctx->as_nr != KBASEP_AS_NR_INVALID);
 
 		kbase_mmu_flush_invalidate_as(kbdev, &kbdev->as[kctx->as_nr],
-				vpfn, nr, sync, drain_pending);
+				vpfn, nr, sync);
 
 		kbasep_js_runpool_release_ctx(kbdev, kctx);
 	}
@@ -2101,7 +2063,6 @@ void bus_fault_worker(struct work_struct *data)
 	struct kbase_context *kctx;
 	struct kbase_device *kbdev;
 	struct kbase_fault *fault;
-	bool reset_status = false;
 
 	faulting_as = container_of(data, struct kbase_as, work_busfault);
 	fault = &faulting_as->bf_data;
@@ -2134,14 +2095,6 @@ void bus_fault_worker(struct work_struct *data)
 
 	}
 
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8245)) {
-		/* Due to H/W issue 8245 we need to reset the GPU after using UNMAPPED mode.
-		 * We start the reset before switching to UNMAPPED to ensure that unrelated jobs
-		 * are evicted from the GPU before the switch.
-		 */
-		dev_err(kbdev->dev, "GPU bus error occurred. For this GPU version we now soft-reset as part of bus error recovery\n");
-		reset_status = kbase_prepare_to_reset_gpu(kbdev);
-	}
 	/* NOTE: If GPU already powered off for suspend, we don't need to switch to unmapped */
 	if (!kbase_pm_context_active_handle_suspend(kbdev, KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE)) {
 		unsigned long flags;
@@ -2165,9 +2118,6 @@ void bus_fault_worker(struct work_struct *data)
 
 		kbase_pm_context_idle(kbdev);
 	}
-
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8245) && reset_status)
-		kbase_reset_gpu(kbdev);
 
 	kbasep_js_runpool_release_ctx(kbdev, kctx);
 
@@ -2379,8 +2329,6 @@ static void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx,
 	struct kbase_device *kbdev;
 	struct kbasep_js_device_data *js_devdata;
 
-	bool reset_status = false;
-
 	as_no = as->number;
 	kbdev = kctx->kbdev;
 	js_devdata = &kbdev->js_data;
@@ -2434,14 +2382,7 @@ static void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx,
 
 	/* AS transaction begin */
 	mutex_lock(&kbdev->mmu_hw_mutex);
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8245)) {
-		/* Due to H/W issue 8245 we need to reset the GPU after using UNMAPPED mode.
-		 * We start the reset before switching to UNMAPPED to ensure that unrelated jobs
-		 * are evicted from the GPU before the switch.
-		 */
-		dev_err(kbdev->dev, "Unhandled page fault. For this GPU version we now soft-reset the GPU as part of page fault recovery.");
-		reset_status = kbase_prepare_to_reset_gpu(kbdev);
-	}
+
 	/* switch to UNMAPPED mode, will abort all jobs and stop any hw counter dumping */
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	kbase_mmu_disable(kctx);
@@ -2456,165 +2397,6 @@ static void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx,
 			KBASE_MMU_FAULT_TYPE_PAGE_UNEXPECTED);
 	kbase_mmu_hw_enable_fault(kbdev, as,
 			KBASE_MMU_FAULT_TYPE_PAGE_UNEXPECTED);
-
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8245) && reset_status)
-		kbase_reset_gpu(kbdev);
-}
-
-void kbasep_as_do_poke(struct work_struct *work)
-{
-	struct kbase_as *as;
-	struct kbase_device *kbdev;
-	unsigned long flags;
-
-	KBASE_DEBUG_ASSERT(work);
-	as = container_of(work, struct kbase_as, poke_work);
-	kbdev = container_of(as, struct kbase_device, as[as->number]);
-	KBASE_DEBUG_ASSERT(as->poke_state & KBASE_AS_POKE_STATE_IN_FLIGHT);
-
-	/* GPU power will already be active by virtue of the caller holding a JS
-	 * reference on the address space, and will not release it until this worker
-	 * has finished */
-
-	/* Further to the comment above, we know that while this function is running
-	 * the AS will not be released as before the atom is released this workqueue
-	 * is flushed (in kbase_as_poking_timer_release_atom)
-	 */
-
-	/* AS transaction begin */
-	mutex_lock(&kbdev->mmu_hw_mutex);
-	/* Force a uTLB invalidate */
-	kbase_mmu_hw_do_operation(kbdev, as, 0, 0,
-				  AS_COMMAND_UNLOCK, 0);
-	mutex_unlock(&kbdev->mmu_hw_mutex);
-	/* AS transaction end */
-
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	if (as->poke_refcount &&
-		!(as->poke_state & KBASE_AS_POKE_STATE_KILLING_POKE)) {
-		/* Only queue up the timer if we need it, and we're not trying to kill it */
-		hrtimer_start(&as->poke_timer, HR_TIMER_DELAY_MSEC(5), HRTIMER_MODE_REL);
-	}
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-}
-
-enum hrtimer_restart kbasep_as_poke_timer_callback(struct hrtimer *timer)
-{
-	struct kbase_as *as;
-	int queue_work_ret;
-
-	KBASE_DEBUG_ASSERT(NULL != timer);
-	as = container_of(timer, struct kbase_as, poke_timer);
-	KBASE_DEBUG_ASSERT(as->poke_state & KBASE_AS_POKE_STATE_IN_FLIGHT);
-
-	queue_work_ret = queue_work(as->poke_wq, &as->poke_work);
-	KBASE_DEBUG_ASSERT(queue_work_ret);
-	return HRTIMER_NORESTART;
-}
-
-/**
- * Retain the poking timer on an atom's context (if the atom hasn't already
- * done so), and start the timer (if it's not already started).
- *
- * This must only be called on a context that's scheduled in, and an atom
- * that's running on the GPU.
- *
- * The caller must hold hwaccess_lock
- *
- * This can be called safely from atomic context
- */
-void kbase_as_poking_timer_retain_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom)
-{
-	struct kbase_as *as;
-
-	KBASE_DEBUG_ASSERT(kbdev);
-	KBASE_DEBUG_ASSERT(kctx);
-	KBASE_DEBUG_ASSERT(katom);
-	KBASE_DEBUG_ASSERT(kctx->as_nr != KBASEP_AS_NR_INVALID);
-	lockdep_assert_held(&kbdev->hwaccess_lock);
-
-	if (katom->poking)
-		return;
-
-	katom->poking = 1;
-
-	/* It's safe to work on the as/as_nr without an explicit reference,
-	 * because the caller holds the hwaccess_lock, and the atom itself
-	 * was also running and had already taken a reference  */
-	as = &kbdev->as[kctx->as_nr];
-
-	if (++(as->poke_refcount) == 1) {
-		/* First refcount for poke needed: check if not already in flight */
-		if (!as->poke_state) {
-			/* need to start poking */
-			as->poke_state |= KBASE_AS_POKE_STATE_IN_FLIGHT;
-			queue_work(as->poke_wq, &as->poke_work);
-		}
-	}
-}
-
-/**
- * If an atom holds a poking timer, release it and wait for it to finish
- *
- * This must only be called on a context that's scheduled in, and an atom
- * that still has a JS reference on the context
- *
- * This must \b not be called from atomic context, since it can sleep.
- */
-void kbase_as_poking_timer_release_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom)
-{
-	struct kbase_as *as;
-	unsigned long flags;
-
-	KBASE_DEBUG_ASSERT(kbdev);
-	KBASE_DEBUG_ASSERT(kctx);
-	KBASE_DEBUG_ASSERT(katom);
-	KBASE_DEBUG_ASSERT(kctx->as_nr != KBASEP_AS_NR_INVALID);
-
-	if (!katom->poking)
-		return;
-
-	as = &kbdev->as[kctx->as_nr];
-
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	KBASE_DEBUG_ASSERT(as->poke_refcount > 0);
-	KBASE_DEBUG_ASSERT(as->poke_state & KBASE_AS_POKE_STATE_IN_FLIGHT);
-
-	if (--(as->poke_refcount) == 0) {
-		as->poke_state |= KBASE_AS_POKE_STATE_KILLING_POKE;
-		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-
-		hrtimer_cancel(&as->poke_timer);
-		flush_workqueue(as->poke_wq);
-
-		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-
-		/* Re-check whether it's still needed */
-		if (as->poke_refcount) {
-			int queue_work_ret;
-			/* Poking still needed:
-			 * - Another retain will not be starting the timer or queueing work,
-			 * because it's still marked as in-flight
-			 * - The hrtimer has finished, and has not started a new timer or
-			 * queued work because it's been marked as killing
-			 *
-			 * So whatever happens now, just queue the work again */
-			as->poke_state &= ~((kbase_as_poke_state)KBASE_AS_POKE_STATE_KILLING_POKE);
-			queue_work_ret = queue_work(as->poke_wq, &as->poke_work);
-			KBASE_DEBUG_ASSERT(queue_work_ret);
-		} else {
-			/* It isn't - so mark it as not in flight, and not killing */
-			as->poke_state = 0u;
-
-			/* The poke associated with the atom has now finished. If this is
-			 * also the last atom on the context, then we can guarentee no more
-			 * pokes (and thus no more poking register accesses) will occur on
-			 * the context until new atoms are run */
-		}
-	}
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-
-	katom->poking = 0;
 }
 
 void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
@@ -2642,20 +2424,6 @@ void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
 					KBASE_MMU_FAULT_TYPE_PAGE_UNEXPECTED);
 			kbase_mmu_hw_enable_fault(kbdev, as,
 					KBASE_MMU_FAULT_TYPE_PAGE_UNEXPECTED);
-		}
-
-		if (kbase_as_has_bus_fault(as, fault) &&
-			    kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8245)) {
-			bool reset_status;
-			/*
-			 * Reset the GPU, like in bus_fault_worker, in case an
-			 * earlier error hasn't been properly cleared by this
-			 * point.
-			 */
-			dev_err(kbdev->dev, "GPU bus error occurred. For this GPU version we now soft-reset as part of bus error recovery\n");
-			reset_status = kbase_prepare_to_reset_gpu_locked(kbdev);
-			if (reset_status)
-				kbase_reset_gpu_locked(kbdev);
 		}
 
 		return;

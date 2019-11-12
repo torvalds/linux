@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -296,11 +296,7 @@ int kbase_hwcnt_gpu_info_init(
 	info->v5.l2_count = KBASE_DUMMY_MODEL_MAX_MEMSYS_BLOCKS;
 	info->v5.core_mask = (1ull << KBASE_DUMMY_MODEL_MAX_SHADER_CORES) - 1;
 #else
-	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_V4)) {
-		info->type = KBASE_HWCNT_GPU_GROUP_TYPE_V4;
-		info->v4.cg_count = kbdev->gpu_props.num_core_groups;
-		info->v4.cgs = kbdev->gpu_props.props.coherency_info.group;
-	} else {
+	{
 		const struct base_gpu_props *props = &kbdev->gpu_props.props;
 		const size_t l2_count = props->l2_props.num_l2_slices;
 		const size_t core_mask =

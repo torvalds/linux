@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016, 2018-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -60,7 +60,6 @@ const struct kbase_pm_policy kbase_pm_coarse_demand_policy_ops = {
 	coarse_demand_term,			/* term */
 	coarse_demand_shaders_needed,		/* shaders_needed */
 	coarse_demand_get_core_active,		/* get_core_active */
-	0u,					/* flags */
 	KBASE_PM_POLICY_ID_COARSE_DEMAND,	/* id */
 };
 

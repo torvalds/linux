@@ -84,6 +84,7 @@ enum tl_msg_id_obj {
 	KBASE_TL_EVENT_ARRAY_END_KCPUQUEUE_ENQUEUE_DEBUGCOPY,
 	KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_MAP_IMPORT,
 	KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT,
+	KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT_FORCE,
 	KBASE_TL_EVENT_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_JIT_ALLOC,
 	KBASE_TL_EVENT_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_JIT_ALLOC,
 	KBASE_TL_EVENT_ARRAY_END_KCPUQUEUE_ENQUEUE_JIT_ALLOC,
@@ -104,6 +105,8 @@ enum tl_msg_id_obj {
 	KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_MAP_IMPORT_END,
 	KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_START,
 	KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_END,
+	KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_START,
+	KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_END,
 	KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_JIT_ALLOC_START,
 	KBASE_TL_EVENT_ARRAY_BEGIN_KCPUQUEUE_EXECUTE_JIT_ALLOC_END,
 	KBASE_TL_EVENT_ARRAY_ITEM_KCPUQUEUE_EXECUTE_JIT_ALLOC_END,
@@ -286,11 +289,11 @@ enum tl_msg_id_aux {
 		"kcpu_queue,ctx") \
 	TP_DESC(KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_FENCE_SIGNAL, \
 		"KCPU Queue enqueues Signal on Fence", \
-		"@pL", \
+		"@pp", \
 		"kcpu_queue,fence") \
 	TP_DESC(KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_FENCE_WAIT, \
 		"KCPU Queue enqueues Wait on Fence", \
-		"@pL", \
+		"@pp", \
 		"kcpu_queue,fence") \
 	TP_DESC(KBASE_TL_EVENT_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_CQS_WAIT, \
 		"Begin array of KCPU Queue enqueues Wait on Cross Queue Sync Object", \
@@ -334,6 +337,10 @@ enum tl_msg_id_aux {
 		"kcpu_queue,map_import_buf_gpu_addr") \
 	TP_DESC(KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT, \
 		"KCPU Queue enqueues Unmap Import", \
+		"@pL", \
+		"kcpu_queue,map_import_buf_gpu_addr") \
+	TP_DESC(KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT_FORCE, \
+		"KCPU Queue enqueues Unmap Import ignoring reference count", \
 		"@pL", \
 		"kcpu_queue,map_import_buf_gpu_addr") \
 	TP_DESC(KBASE_TL_EVENT_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_JIT_ALLOC, \
@@ -414,6 +421,14 @@ enum tl_msg_id_aux {
 		"kcpu_queue") \
 	TP_DESC(KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_END, \
 		"KCPU Queue ends an Unmap Import", \
+		"@p", \
+		"kcpu_queue") \
+	TP_DESC(KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_START, \
+		"KCPU Queue starts an Unmap Import ignoring reference count", \
+		"@p", \
+		"kcpu_queue") \
+	TP_DESC(KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_END, \
+		"KCPU Queue ends an Unmap Import ignoring reference count", \
 		"@p", \
 		"kcpu_queue") \
 	TP_DESC(KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_JIT_ALLOC_START, \
@@ -1828,7 +1843,7 @@ void __kbase_tlstream_tl_nret_kcpuqueue_ctx(
 void __kbase_tlstream_tl_event_kcpuqueue_enqueue_fence_signal(
 	struct kbase_tlstream *stream,
 	const void *kcpu_queue,
-	u64 fence)
+	const void *fence)
 {
 	const u32 msg_id = KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_FENCE_SIGNAL;
 	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
@@ -1854,7 +1869,7 @@ void __kbase_tlstream_tl_event_kcpuqueue_enqueue_fence_signal(
 void __kbase_tlstream_tl_event_kcpuqueue_enqueue_fence_wait(
 	struct kbase_tlstream *stream,
 	const void *kcpu_queue,
-	u64 fence)
+	const void *fence)
 {
 	const u32 msg_id = KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_FENCE_WAIT;
 	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
@@ -2123,6 +2138,32 @@ void __kbase_tlstream_tl_event_kcpuqueue_enqueue_unmap_import(
 	u64 map_import_buf_gpu_addr)
 {
 	const u32 msg_id = KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(kcpu_queue)
+		+ sizeof(map_import_buf_gpu_addr)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &kcpu_queue, sizeof(kcpu_queue));
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &map_import_buf_gpu_addr, sizeof(map_import_buf_gpu_addr));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_event_kcpuqueue_enqueue_unmap_import_force(
+	struct kbase_tlstream *stream,
+	const void *kcpu_queue,
+	u64 map_import_buf_gpu_addr)
+{
+	const u32 msg_id = KBASE_TL_EVENT_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT_FORCE;
 	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
 		+ sizeof(kcpu_queue)
 		+ sizeof(map_import_buf_gpu_addr)
@@ -2606,6 +2647,50 @@ void __kbase_tlstream_tl_event_kcpuqueue_execute_unmap_import_end(
 	const void *kcpu_queue)
 {
 	const u32 msg_id = KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_END;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(kcpu_queue)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &kcpu_queue, sizeof(kcpu_queue));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_event_kcpuqueue_execute_unmap_import_force_start(
+	struct kbase_tlstream *stream,
+	const void *kcpu_queue)
+{
+	const u32 msg_id = KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_START;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(kcpu_queue)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &kcpu_queue, sizeof(kcpu_queue));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_event_kcpuqueue_execute_unmap_import_force_end(
+	struct kbase_tlstream *stream,
+	const void *kcpu_queue)
+{
+	const u32 msg_id = KBASE_TL_EVENT_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_END;
 	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
 		+ sizeof(kcpu_queue)
 		;

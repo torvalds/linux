@@ -290,6 +290,15 @@ u32 kbase_backend_get_current_flush_id(struct kbase_device *kbdev);
 void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
 				struct kbase_jd_atom *target_katom);
 
+/**
+ * kbase_gpu_atoms_submitted_any() - Inspect whether there are any atoms
+ * currently on the GPU
+ * @kbdev:  Device pointer
+ *
+ * Return: true if there are any atoms on the GPU, false otherwise
+ */
+bool kbase_gpu_atoms_submitted_any(struct kbase_device *kbdev);
+
 /* Object containing callbacks for enabling/disabling protected mode, used
  * on GPU which supports protected mode switching natively.
  */

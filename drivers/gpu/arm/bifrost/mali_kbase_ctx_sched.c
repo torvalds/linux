@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2017-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -32,16 +32,6 @@ int kbase_ctx_sched_init(struct kbase_device *kbdev)
 	/* These two must be recalculated if nr_hw_address_spaces changes
 	 * (e.g. for HW workarounds) */
 	kbdev->nr_user_address_spaces = kbdev->nr_hw_address_spaces;
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8987)) {
-		bool use_workaround;
-
-		use_workaround = DEFAULT_SECURE_BUT_LOSS_OF_PERFORMANCE;
-		if (use_workaround) {
-			dev_dbg(kbdev->dev, "GPU has HW ISSUE 8987, and driver configured for security workaround: 1 address space only");
-			kbdev->nr_user_address_spaces = 1;
-		}
-	}
-
 	kbdev->as_free = as_present; /* All ASs initially free */
 
 	memset(kbdev->as_to_kctx, 0, sizeof(kbdev->as_to_kctx));

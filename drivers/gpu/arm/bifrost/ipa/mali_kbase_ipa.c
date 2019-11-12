@@ -121,7 +121,8 @@ const char *kbase_ipa_model_name_from_id(u32 gpu_id)
 }
 KBASE_EXPORT_TEST_API(kbase_ipa_model_name_from_id);
 
-static struct device_node *get_model_dt_node(struct kbase_ipa_model *model)
+static struct device_node *get_model_dt_node(struct kbase_ipa_model *model,
+					     bool dt_required)
 {
 	struct device_node *model_dt_node;
 	char compat_string[64];
@@ -136,9 +137,10 @@ static struct device_node *get_model_dt_node(struct kbase_ipa_model *model)
 	model_dt_node = of_find_compatible_node(model->kbdev->dev->of_node,
 						NULL, compat_string);
 	if (!model_dt_node && !model->missing_dt_node_warning) {
-		dev_warn(model->kbdev->dev,
-			 "Couldn't find power_model DT node matching \'%s\'\n",
-			 compat_string);
+		if (dt_required)
+			dev_warn(model->kbdev->dev,
+			"Couldn't find power_model DT node matching \'%s\'\n",
+			compat_string);
 		model->missing_dt_node_warning = true;
 	}
 
@@ -150,7 +152,8 @@ int kbase_ipa_model_add_param_s32(struct kbase_ipa_model *model,
 				  size_t num_elems, bool dt_required)
 {
 	int err, i;
-	struct device_node *model_dt_node = get_model_dt_node(model);
+	struct device_node *model_dt_node = get_model_dt_node(model,
+								dt_required);
 	char *origin;
 
 	err = of_property_read_u32_array(model_dt_node, name, addr, num_elems);
@@ -199,7 +202,8 @@ int kbase_ipa_model_add_param_string(struct kbase_ipa_model *model,
 				     size_t size, bool dt_required)
 {
 	int err;
-	struct device_node *model_dt_node = get_model_dt_node(model);
+	struct device_node *model_dt_node = get_model_dt_node(model,
+								dt_required);
 	const char *string_prop_value;
 	char *origin;
 

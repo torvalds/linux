@@ -140,9 +140,6 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 	else
 		cfg |= JS_CONFIG_END_FLUSH_CLEAN_INVALIDATE;
 
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10649))
-		cfg |= JS_CONFIG_START_MMU;
-
 	cfg |= JS_CONFIG_THREAD_PRI(8);
 
 	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PROTECTED_MODE) &&
@@ -444,19 +441,6 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 			done = kbase_reg_read(kbdev,
 					JOB_CONTROL_REG(JOB_IRQ_RAWSTAT));
 
-			if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10883)) {
-				/* Workaround for missing interrupt caused by
-				 * PRLAM-10883 */
-				if (((active >> i) & 1) && (0 ==
-						kbase_reg_read(kbdev,
-							JOB_SLOT_REG(i,
-							JS_STATUS)))) {
-					/* Force job slot to be processed again
-					 */
-					done |= (1u << i);
-				}
-			}
-
 			failed = done >> 16;
 			finished = (done & 0xFFFF) | failed;
 			if (done)
@@ -476,32 +460,6 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 		kbasep_try_reset_gpu_early_locked(kbdev);
 	}
 	KBASE_TRACE_ADD(kbdev, JM_IRQ_END, NULL, NULL, 0, count);
-}
-
-static bool kbasep_soft_stop_allowed(struct kbase_device *kbdev,
-					struct kbase_jd_atom *katom)
-{
-	bool soft_stops_allowed = true;
-
-	if (kbase_jd_katom_is_protected(katom)) {
-		soft_stops_allowed = false;
-	} else if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8408)) {
-		if ((katom->core_req & BASE_JD_REQ_T) != 0)
-			soft_stops_allowed = false;
-	}
-	return soft_stops_allowed;
-}
-
-static bool kbasep_hard_stop_allowed(struct kbase_device *kbdev,
-						base_jd_core_req core_reqs)
-{
-	bool hard_stops_allowed = true;
-
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8394)) {
-		if ((core_reqs & BASE_JD_REQ_T) != 0)
-			hard_stops_allowed = false;
-	}
-	return hard_stops_allowed;
 }
 
 void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
@@ -527,13 +485,10 @@ void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
 #endif
 
 	if (action == JS_COMMAND_SOFT_STOP) {
-		bool soft_stop_allowed = kbasep_soft_stop_allowed(kbdev,
-								target_katom);
-
-		if (!soft_stop_allowed) {
+		if (kbase_jd_katom_is_protected(target_katom)) {
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 			dev_dbg(kbdev->dev,
-					"Attempt made to soft-stop a job that cannot be soft-stopped. core_reqs = 0x%X",
+					"Attempt made to soft-stop a job that cannot be soft-stopped. core_reqs = 0x%x",
 					(unsigned int)core_reqs);
 #endif				/* CONFIG_MALI_BIFROST_DEBUG */
 			return;
@@ -546,38 +501,6 @@ void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
 		/* Mark the point where we issue the soft-stop command */
 		KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_ISSUE(kbdev, target_katom);
 
-		if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316)) {
-			int i;
-
-			for (i = 0;
-			     i < kbase_backend_nr_atoms_submitted(kbdev, js);
-			     i++) {
-				struct kbase_jd_atom *katom;
-
-				katom = kbase_gpu_inspect(kbdev, js, i);
-
-				KBASE_DEBUG_ASSERT(katom);
-
-				/* For HW_ISSUE_8316, only 'bad' jobs attacking
-				 * the system can cause this issue: normally,
-				 * all memory should be allocated in multiples
-				 * of 4 pages, and growable memory should be
-				 * changed size in multiples of 4 pages.
-				 *
-				 * Whilst such 'bad' jobs can be cleared by a
-				 * GPU reset, the locking up of a uTLB entry
-				 * caused by the bad job could also stall other
-				 * ASs, meaning that other ASs' jobs don't
-				 * complete in the 'grace' period before the
-				 * reset. We don't want to lose other ASs' jobs
-				 * when they would normally complete fine, so we
-				 * must 'poke' the MMU regularly to help other
-				 * ASs complete */
-				kbase_as_poking_timer_retain_atom(
-						kbdev, katom->kctx, katom);
-			}
-		}
-
 		if (kbase_hw_has_feature(
 				kbdev,
 				BASE_HW_FEATURE_JOBCHAIN_DISAMBIGUATION)) {
@@ -587,34 +510,6 @@ void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
 				JS_COMMAND_SOFT_STOP_0;
 		}
 	} else if (action == JS_COMMAND_HARD_STOP) {
-		bool hard_stop_allowed = kbasep_hard_stop_allowed(kbdev,
-								core_reqs);
-
-		if (!hard_stop_allowed) {
-			/* Jobs can be hard-stopped for the following reasons:
-			 *  * CFS decides the job has been running too long (and
-			 *    soft-stop has not occurred). In this case the GPU
-			 *    will be reset by CFS if the job remains on the
-			 *    GPU.
-			 *
-			 *  * The context is destroyed, kbase_jd_zap_context
-			 *    will attempt to hard-stop the job. However it also
-			 *    has a watchdog which will cause the GPU to be
-			 *    reset if the job remains on the GPU.
-			 *
-			 *  * An (unhandled) MMU fault occurred. As long as
-			 *    BASE_HW_ISSUE_8245 is defined then the GPU will be
-			 *    reset.
-			 *
-			 * All three cases result in the GPU being reset if the
-			 * hard-stop fails, so it is safe to just return and
-			 * ignore the hard-stop request.
-			 */
-			dev_warn(kbdev->dev,
-					"Attempt made to hard-stop a job that cannot be hard-stopped. core_reqs = 0x%X",
-					(unsigned int)core_reqs);
-			return;
-		}
 		target_katom->atom_flags |= KBASE_KATOM_FLAG_BEEN_HARD_STOPPED;
 
 		if (kbase_hw_has_feature(
@@ -835,63 +730,6 @@ void kbase_job_slot_term(struct kbase_device *kbdev)
 }
 KBASE_EXPORT_TEST_API(kbase_job_slot_term);
 
-/**
- * kbasep_check_for_afbc_on_slot() - Check whether AFBC is in use on this slot
- * @kbdev: kbase device pointer
- * @kctx:  context to check against
- * @js:	   slot to check
- * @target_katom: An atom to check, or NULL if all atoms from @kctx on
- *                slot @js should be checked
- *
- * This checks are based upon parameters that would normally be passed to
- * kbase_job_slot_hardstop().
- *
- * In the event of @target_katom being NULL, this will check the last jobs that
- * are likely to be running on the slot to see if a) they belong to kctx, and
- * so would be stopped, and b) whether they have AFBC
- *
- * In that case, It's guaranteed that a job currently executing on the HW with
- * AFBC will be detected. However, this is a conservative check because it also
- * detects jobs that have just completed too.
- *
- * Return: true when hard-stop _might_ stop an afbc atom, else false.
- */
-static bool kbasep_check_for_afbc_on_slot(struct kbase_device *kbdev,
-		struct kbase_context *kctx, int js,
-		struct kbase_jd_atom *target_katom)
-{
-	bool ret = false;
-	int i;
-
-	lockdep_assert_held(&kbdev->hwaccess_lock);
-
-	/* When we have an atom the decision can be made straight away. */
-	if (target_katom)
-		return !!(target_katom->core_req & BASE_JD_REQ_FS_AFBC);
-
-	/* Otherwise, we must chweck the hardware to see if it has atoms from
-	 * this context with AFBC. */
-	for (i = 0; i < kbase_backend_nr_atoms_on_slot(kbdev, js); i++) {
-		struct kbase_jd_atom *katom;
-
-		katom = kbase_gpu_inspect(kbdev, js, i);
-		if (!katom)
-			continue;
-
-		/* Ignore atoms from other contexts, they won't be stopped when
-		 * we use this for checking if we should hard-stop them */
-		if (katom->kctx != kctx)
-			continue;
-
-		/* An atom on this slot and this context: check for AFBC */
-		if (katom->core_req & BASE_JD_REQ_FS_AFBC) {
-			ret = true;
-			break;
-		}
-	}
-
-	return ret;
-}
 
 /**
  * kbase_job_slot_softstop_swflags - Soft-stop a job with flags
@@ -948,31 +786,10 @@ void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
 {
 	struct kbase_device *kbdev = kctx->kbdev;
 	bool stopped;
-	/* We make the check for AFBC before evicting/stopping atoms.  Note
-	 * that no other thread can modify the slots whilst we have the
-	 * hwaccess_lock. */
-	int needs_workaround_for_afbc =
-			kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_T76X_3542)
-			&& kbasep_check_for_afbc_on_slot(kbdev, kctx, js,
-					 target_katom);
 
 	stopped = kbase_backend_soft_hard_stop_slot(kbdev, kctx, js,
 							target_katom,
 							JS_COMMAND_HARD_STOP);
-	if (stopped && (kbase_hw_has_issue(kctx->kbdev, BASE_HW_ISSUE_8401) ||
-			kbase_hw_has_issue(kctx->kbdev, BASE_HW_ISSUE_9510) ||
-			needs_workaround_for_afbc)) {
-		/* MIDBASE-2916 if a fragment job with AFBC encoding is
-		 * hardstopped, ensure to do a soft reset also in order to
-		 * clear the GPU status.
-		 * Workaround for HW issue 8401 has an issue,so after
-		 * hard-stopping just reset the GPU. This will ensure that the
-		 * jobs leave the GPU.*/
-		if (kbase_prepare_to_reset_gpu_locked(kbdev)) {
-			dev_err(kbdev->dev, "Issueing GPU soft-reset after hard stopping due to hardware issue");
-			kbase_reset_gpu_locked(kbdev);
-		}
-	}
 }
 
 /**
@@ -982,7 +799,7 @@ void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
  * @core_reqs: core requirements of the atom
  * @target_katom: the atom which is being affected
  *
- * For a certain soft/hard-stop action, work out whether to enter disjoint
+ * For a certain soft-stop action, work out whether to enter disjoint
  * state.
  *
  * This does not register multiple disjoint events if the atom has already
@@ -1000,16 +817,12 @@ void kbase_job_check_enter_disjoint(struct kbase_device *kbdev, u32 action,
 {
 	u32 hw_action = action & JS_COMMAND_MASK;
 
-	/* For hard-stop, don't enter if hard-stop not allowed */
-	if (hw_action == JS_COMMAND_HARD_STOP &&
-			!kbasep_hard_stop_allowed(kbdev, core_reqs))
-		return;
-
 	/* For soft-stop, don't enter if soft-stop not allowed, or isn't
-	 * causing disjoint */
+	 * causing disjoint.
+	 */
 	if (hw_action == JS_COMMAND_SOFT_STOP &&
-			!(kbasep_soft_stop_allowed(kbdev, target_katom) &&
-			  (action & JS_COMMAND_SW_CAUSES_DISJOINT)))
+			(kbase_jd_katom_is_protected(target_katom) ||
+			(0 == (action & JS_COMMAND_SW_CAUSES_DISJOINT))))
 		return;
 
 	/* Nothing to do if already logged disjoint state on this atom */

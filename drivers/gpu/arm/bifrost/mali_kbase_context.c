@@ -45,6 +45,7 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat,
 	struct page *p;
 	struct kbasep_js_kctx_info *js_kctx_info = NULL;
 	unsigned long irq_flags = 0;
+	const unsigned long cookies_mask = KBASE_COOKIE_MASK;
 
 	if (WARN_ON(!kbdev))
 		goto out;
@@ -103,8 +104,6 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat,
 	if (err)
 		goto free_jd;
 
-	atomic_set(&kctx->drain_pending, 0);
-
 	mutex_init(&kctx->reg_lock);
 
 	spin_lock_init(&kctx->mem_partials_lock);
@@ -129,7 +128,7 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat,
 
 	init_waitqueue_head(&kctx->event_queue);
 
-	kctx->cookies = KBASE_COOKIE_MASK;
+	bitmap_copy(kctx->cookies, &cookies_mask, BITS_PER_LONG);
 
 	/* Make sure page 0 is not used... */
 	err = kbase_region_tracker_init(kctx);
@@ -287,16 +286,19 @@ void kbase_destroy_context(struct kbase_context *kctx)
 		p, false);
 
 	/* free pending region setups */
-	pending_regions_to_clean = (~kctx->cookies) & KBASE_COOKIE_MASK;
+	pending_regions_to_clean = KBASE_COOKIE_MASK;
+	bitmap_andnot(&pending_regions_to_clean, &pending_regions_to_clean,
+		      kctx->cookies, BITS_PER_LONG);
 	while (pending_regions_to_clean) {
-		unsigned int cookie = __ffs(pending_regions_to_clean);
+		unsigned int cookie = find_first_bit(&pending_regions_to_clean,
+				BITS_PER_LONG);
 
 		BUG_ON(!kctx->pending_regions[cookie]);
 
 		kbase_reg_pending_dtor(kbdev, kctx->pending_regions[cookie]);
 
 		kctx->pending_regions[cookie] = NULL;
-		pending_regions_to_clean &= ~(1UL << cookie);
+		bitmap_clear(&pending_regions_to_clean, cookie, 1);
 	}
 
 	kbase_region_tracker_term(kctx);

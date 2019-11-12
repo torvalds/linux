@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2017, 2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -209,6 +209,18 @@ struct kbase_pm_callback_conf {
 	 * suspeneded by runtime PM, else OS error code
 	 */
 	int (*power_runtime_idle_callback)(struct kbase_device *kbdev);
+
+	/*
+	 * Optional callback for software reset
+	 *
+	 * This callback will be called by the power management core to trigger
+	 * a GPU soft reset.
+	 *
+	 * Return 0 if the soft reset was successful and the RESET_COMPLETED
+	 * interrupt will be raised, or a positive value if the interrupt won't
+	 * be raised. On error, return the corresponding OS error code.
+	 */
+	int (*soft_reset_callback)(struct kbase_device *kbdev);
 };
 
 #ifdef CONFIG_OF

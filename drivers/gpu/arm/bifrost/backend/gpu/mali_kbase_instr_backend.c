@@ -88,20 +88,11 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 					enable->mmu_l2_bm);
 	/* Due to PRLAM-8186 we need to disable the Tiler before we enable the
 	 * HW counter dump. */
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8186))
-		kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_TILER_EN), 0);
-	else
-		kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_TILER_EN),
-							enable->tiler_bm);
+	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_TILER_EN),
+			enable->tiler_bm);
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_CONFIG),
 			prfcnt_config | PRFCNT_CONFIG_MODE_MANUAL);
-
-	/* If HW has PRLAM-8186 we can now re-enable the tiler HW counters dump
-	 */
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8186))
-		kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_TILER_EN),
-							enable->tiler_bm);
 
 	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 

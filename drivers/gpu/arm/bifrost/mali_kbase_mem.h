@@ -1258,10 +1258,6 @@ int kbasep_find_enclosing_gpu_mapping_start_and_offset(
 		struct kbase_context *kctx,
 		u64 gpu_addr, size_t size, u64 *start, u64 *offset);
 
-enum hrtimer_restart kbasep_as_poke_timer_callback(struct hrtimer *timer);
-void kbase_as_poking_timer_retain_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom);
-void kbase_as_poking_timer_release_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom);
-
 /**
  * kbase_alloc_phy_pages_helper - Allocates physical pages.
  * @alloc:              allocation object to add pages to
@@ -1591,6 +1587,22 @@ struct kbase_ctx_ext_res_meta *kbase_sticky_resource_acquire(
  * Return: True if the release found the metadata and the reference was dropped.
  */
 bool kbase_sticky_resource_release(struct kbase_context *kctx,
+		struct kbase_ctx_ext_res_meta *meta, u64 gpu_addr);
+
+/**
+ * kbase_sticky_resource_release_force - Release a sticky resource.
+ * @kctx:     kbase context.
+ * @meta:     Binding metadata.
+ * @gpu_addr: GPU address of the external resource.
+ *
+ * If meta is NULL then gpu_addr will be used to scan the metadata list and
+ * find the matching metadata (if any), otherwise the provided meta will be
+ * used and gpu_addr will be ignored.
+ *
+ * Return: True if the release found the metadata and the resource was
+ * released.
+ */
+bool kbase_sticky_resource_release_force(struct kbase_context *kctx,
 		struct kbase_ctx_ext_res_meta *meta, u64 gpu_addr);
 
 /**

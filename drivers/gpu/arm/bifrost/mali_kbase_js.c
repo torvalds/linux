@@ -451,16 +451,10 @@ int kbasep_js_devdata_init(struct kbase_device * const kbdev)
 	jsdd->scheduling_period_ns = DEFAULT_JS_SCHEDULING_PERIOD_NS;
 	jsdd->soft_stop_ticks = DEFAULT_JS_SOFT_STOP_TICKS;
 	jsdd->soft_stop_ticks_cl = DEFAULT_JS_SOFT_STOP_TICKS_CL;
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8408))
-		jsdd->hard_stop_ticks_ss = DEFAULT_JS_HARD_STOP_TICKS_SS_8408;
-	else
-		jsdd->hard_stop_ticks_ss = DEFAULT_JS_HARD_STOP_TICKS_SS;
+	jsdd->hard_stop_ticks_ss = DEFAULT_JS_HARD_STOP_TICKS_SS;
 	jsdd->hard_stop_ticks_cl = DEFAULT_JS_HARD_STOP_TICKS_CL;
 	jsdd->hard_stop_ticks_dumping = DEFAULT_JS_HARD_STOP_TICKS_DUMPING;
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8408))
-		jsdd->gpu_reset_ticks_ss = DEFAULT_JS_RESET_TICKS_SS_8408;
-	else
-		jsdd->gpu_reset_ticks_ss = DEFAULT_JS_RESET_TICKS_SS;
+	jsdd->gpu_reset_ticks_ss = DEFAULT_JS_RESET_TICKS_SS;
 	jsdd->gpu_reset_ticks_cl = DEFAULT_JS_RESET_TICKS_CL;
 	jsdd->gpu_reset_ticks_dumping = DEFAULT_JS_RESET_TICKS_DUMPING;
 	jsdd->ctx_timeslice_ns = DEFAULT_JS_CTX_TIMESLICE_NS;
@@ -1016,14 +1010,7 @@ static bool kbase_js_dep_validate(struct kbase_context *kctx,
 					ret = false;
 					break;
 				}
-				/* Cross-slot dependencies must not violate
-				 * PRLAM-8987 affinity restrictions */
-				if (kbase_hw_has_issue(kbdev,
-							BASE_HW_ISSUE_8987) &&
-						(js == 2 || dep_js == 2)) {
-					ret = false;
-					break;
-				}
+
 				has_x_dep = true;
 			}
 
@@ -2026,11 +2013,6 @@ bool kbase_js_is_atom_valid(struct kbase_device *kbdev,
 								BASE_JD_REQ_T)))
 		return false;
 
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8987) &&
-	    (katom->core_req & BASE_JD_REQ_ONLY_COMPUTE) &&
-	    (katom->core_req & (BASE_JD_REQ_CS | BASE_JD_REQ_T)))
-		return false;
-
 	if ((katom->core_req & BASE_JD_REQ_JOB_SLOT) &&
 			(katom->jobslot >= BASE_JM_MAX_NR_SLOTS))
 		return false;
@@ -2050,8 +2032,6 @@ static int kbase_js_get_slot(struct kbase_device *kbdev,
 	if (katom->core_req & BASE_JD_REQ_ONLY_COMPUTE) {
 		if (katom->device_nr == 1 &&
 				kbdev->gpu_props.num_core_groups == 2)
-			return 2;
-		if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8987))
 			return 2;
 	}
 
@@ -2262,9 +2242,6 @@ static void js_return_worker(struct work_struct *data)
 	KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_EX(kbdev, katom);
 
 	kbase_backend_complete_wq(kbdev, katom);
-
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316))
-		kbase_as_poking_timer_release_atom(kbdev, kctx, katom);
 
 	kbasep_js_atom_retained_state_copy(&retained_state, katom);
 

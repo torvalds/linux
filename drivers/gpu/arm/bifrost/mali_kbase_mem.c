@@ -970,6 +970,9 @@ int kbase_mem_init(struct kbase_device *kbdev)
 					"Failed to get memory group manger module\n");
 				err = -ENODEV;
 				kbdev->mgm_dev = NULL;
+			} else {
+				dev_info(kbdev->dev,
+					"Memory group manager successfully loaded\n");
 			}
 		}
 		of_node_put(mgm_node);
@@ -1154,7 +1157,7 @@ void kbase_free_alloced_region(struct kbase_va_region *reg)
 		 * Remove the region from the sticky resource metadata
 		 * list should it be there.
 		 */
-		kbase_sticky_resource_release(kctx, NULL,
+		kbase_sticky_resource_release_force(kctx, NULL,
 				reg->start_pfn << PAGE_SHIFT);
 
 		kbase_mem_phy_alloc_put(reg->cpu_alloc);
@@ -1715,7 +1718,7 @@ int kbase_mem_free(struct kbase_context *kctx, u64 gpu_addr)
 		/* ask to unlink the cookie as we'll free it */
 
 		kctx->pending_regions[cookie] = NULL;
-		kctx->cookies |= (1UL << cookie);
+		bitmap_set(kctx->cookies, cookie, 1);
 
 		kbase_free_alloced_region(reg);
 	} else {
@@ -3795,6 +3798,7 @@ struct kbase_ctx_ext_res_meta *kbase_sticky_resource_acquire(
 	list_for_each_entry(walker, &kctx->ext_res_meta_head, ext_res_node) {
 		if (walker->gpu_addr == gpu_addr) {
 			meta = walker;
+			meta->ref++;
 			break;
 		}
 	}
@@ -3819,6 +3823,7 @@ struct kbase_ctx_ext_res_meta *kbase_sticky_resource_acquire(
 		 * for the physical resource.
 		 */
 		meta->alloc = kbase_map_external_resource(kctx, reg, NULL);
+		meta->ref = 1;
 
 		if (!meta->alloc)
 			goto fail_map;
@@ -3836,32 +3841,28 @@ failed:
 	return NULL;
 }
 
-bool kbase_sticky_resource_release(struct kbase_context *kctx,
-		struct kbase_ctx_ext_res_meta *meta, u64 gpu_addr)
+static struct kbase_ctx_ext_res_meta *
+find_sticky_resource_meta(struct kbase_context *kctx, u64 gpu_addr)
 {
 	struct kbase_ctx_ext_res_meta *walker;
-	struct kbase_va_region *reg;
 
 	lockdep_assert_held(&kctx->reg_lock);
 
-	/* Search of the metadata if one isn't provided. */
-	if (!meta) {
-		/*
-		 * Walk the per context external resource metadata list for the
-		 * metadata which matches the region which is being released.
-		 */
-		list_for_each_entry(walker, &kctx->ext_res_meta_head,
-				ext_res_node) {
-			if (walker->gpu_addr == gpu_addr) {
-				meta = walker;
-				break;
-			}
-		}
-	}
+	/*
+	 * Walk the per context external resource metadata list for the
+	 * metadata which matches the region which is being released.
+	 */
+	list_for_each_entry(walker, &kctx->ext_res_meta_head, ext_res_node)
+		if (walker->gpu_addr == gpu_addr)
+			return walker;
 
-	/* No metadata so just return. */
-	if (!meta)
-		return false;
+	return NULL;
+}
+
+static void release_sticky_resource_meta(struct kbase_context *kctx,
+		struct kbase_ctx_ext_res_meta *meta)
+{
+	struct kbase_va_region *reg;
 
 	/* Drop the physical memory reference and free the metadata. */
 	reg = kbase_region_tracker_find_region_enclosing_address(
@@ -3871,6 +3872,43 @@ bool kbase_sticky_resource_release(struct kbase_context *kctx,
 	kbase_unmap_external_resource(kctx, reg, meta->alloc);
 	list_del(&meta->ext_res_node);
 	kfree(meta);
+}
+
+bool kbase_sticky_resource_release(struct kbase_context *kctx,
+		struct kbase_ctx_ext_res_meta *meta, u64 gpu_addr)
+{
+	lockdep_assert_held(&kctx->reg_lock);
+
+	/* Search of the metadata if one isn't provided. */
+	if (!meta)
+		meta = find_sticky_resource_meta(kctx, gpu_addr);
+
+	/* No metadata so just return. */
+	if (!meta)
+		return false;
+
+	if (--meta->ref != 0)
+		return true;
+
+	release_sticky_resource_meta(kctx, meta);
+
+	return true;
+}
+
+bool kbase_sticky_resource_release_force(struct kbase_context *kctx,
+		struct kbase_ctx_ext_res_meta *meta, u64 gpu_addr)
+{
+	lockdep_assert_held(&kctx->reg_lock);
+
+	/* Search of the metadata if one isn't provided. */
+	if (!meta)
+		meta = find_sticky_resource_meta(kctx, gpu_addr);
+
+	/* No metadata so just return. */
+	if (!meta)
+		return false;
+
+	release_sticky_resource_meta(kctx, meta);
 
 	return true;
 }
@@ -3901,6 +3939,6 @@ void kbase_sticky_resource_term(struct kbase_context *kctx)
 		walker = list_first_entry(&kctx->ext_res_meta_head,
 				struct kbase_ctx_ext_res_meta, ext_res_node);
 
-		kbase_sticky_resource_release(kctx, walker, 0);
+		kbase_sticky_resource_release_force(kctx, walker, 0);
 	}
 }

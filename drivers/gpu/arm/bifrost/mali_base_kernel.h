@@ -1782,11 +1782,17 @@ static inline int base_context_mmu_group_id_get(
 #define BASE_TIMEINFO_TIMESTAMP_FLAG (1UL << 1)
 /* For GPU cycle counter */
 #define BASE_TIMEINFO_CYCLE_COUNTER_FLAG (1UL << 2)
+/* Specify kernel GPU register timestamp */
+#define BASE_TIMEINFO_KERNEL_SOURCE_FLAG (1UL << 30)
+/* Specify userspace cntvct_el0 timestamp source */
+#define BASE_TIMEINFO_USER_SOURCE_FLAG (1UL << 31)
 
 #define BASE_TIMEREQUEST_ALLOWED_FLAGS (\
 		BASE_TIMEINFO_MONOTONIC_FLAG | \
 		BASE_TIMEINFO_TIMESTAMP_FLAG | \
-		BASE_TIMEINFO_CYCLE_COUNTER_FLAG)
+		BASE_TIMEINFO_CYCLE_COUNTER_FLAG | \
+		BASE_TIMEINFO_KERNEL_SOURCE_FLAG | \
+		BASE_TIMEINFO_USER_SOURCE_FLAG)
 
 
 #endif				/* _BASE_KERNEL_H_ */

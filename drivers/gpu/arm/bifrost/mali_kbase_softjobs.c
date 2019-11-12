@@ -1419,7 +1419,7 @@ static void kbase_ext_res_process(struct kbase_jd_atom *katom, bool map)
 					gpu_addr))
 				goto failed_loop;
 		} else
-			if (!kbase_sticky_resource_release(katom->kctx, NULL,
+			if (!kbase_sticky_resource_release_force(katom->kctx, NULL,
 					gpu_addr))
 				failed = true;
 	}
@@ -1443,7 +1443,7 @@ failed_loop:
 		u64 const gpu_addr = ext_res->ext_res[i - 1].ext_resource &
 				~BASE_EXT_RES_ACCESS_EXCLUSIVE;
 
-		kbase_sticky_resource_release(katom->kctx, NULL, gpu_addr);
+		kbase_sticky_resource_release_force(katom->kctx, NULL, gpu_addr);
 
 		--i;
 	}

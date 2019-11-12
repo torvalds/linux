@@ -387,14 +387,14 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx,
 		unsigned long cookie, cookie_nr;
 
 		/* Bind to a cookie */
-		if (!kctx->cookies) {
+		if (bitmap_empty(kctx->cookies, BITS_PER_LONG)) {
 			dev_err(dev, "No cookies available for allocation!");
 			kbase_gpu_vm_unlock(kctx);
 			goto no_cookie;
 		}
 		/* return a cookie */
-		cookie_nr = __ffs(kctx->cookies);
-		kctx->cookies &= ~(1UL << cookie_nr);
+		cookie_nr = find_first_bit(kctx->cookies, BITS_PER_LONG);
+		bitmap_clear(kctx->cookies, cookie_nr, 1);
 		BUG_ON(kctx->pending_regions[cookie_nr]);
 		kctx->pending_regions[cookie_nr] = reg;
 
@@ -1740,13 +1740,13 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 #ifdef CONFIG_64BIT
 	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 		/* Bind to a cookie */
-		if (!kctx->cookies) {
+		if (bitmap_empty(kctx->cookies, BITS_PER_LONG)) {
 			dev_err(kctx->kbdev->dev, "No cookies available for allocation!");
 			goto no_cookie;
 		}
 		/* return a cookie */
-		gpu_va = __ffs(kctx->cookies);
-		kctx->cookies &= ~(1UL << gpu_va);
+		gpu_va = find_first_bit(kctx->cookies, BITS_PER_LONG);
+		bitmap_clear(kctx->cookies, gpu_va, 1);
 		BUG_ON(kctx->pending_regions[gpu_va]);
 		kctx->pending_regions[gpu_va] = reg;
 
@@ -1883,11 +1883,11 @@ int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
 	/* mmap needed to setup VA? */
 	if (*flags & (BASE_MEM_SAME_VA | BASE_MEM_NEED_MMAP)) {
 		/* Bind to a cookie */
-		if (!kctx->cookies)
+		if (bitmap_empty(kctx->cookies, BITS_PER_LONG))
 			goto no_cookie;
 		/* return a cookie */
-		*gpu_va = __ffs(kctx->cookies);
-		kctx->cookies &= ~(1UL << *gpu_va);
+		*gpu_va = find_first_bit(kctx->cookies, BITS_PER_LONG);
+		bitmap_clear(kctx->cookies, *gpu_va, 1);
 		BUG_ON(kctx->pending_regions[*gpu_va]);
 		kctx->pending_regions[*gpu_va] = reg;
 
@@ -2509,7 +2509,7 @@ static int kbasep_reg_mmap(struct kbase_context *kctx,
 	}
 	/* no need for the cookie anymore */
 	kctx->pending_regions[cookie] = NULL;
-	kctx->cookies |= (1UL << cookie);
+	bitmap_set(kctx->cookies, cookie, 1);
 
 	/*
 	 * Overwrite the offset with the region start_pfn, so we effectively
