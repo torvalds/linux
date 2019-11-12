@@ -361,20 +361,45 @@ static void mlxsw_emad_construct(struct sk_buff *skb,
 	mlxsw_emad_construct_eth_hdr(skb);
 }
 
+struct mlxsw_emad_tlv_offsets {
+	u16 op_tlv;
+	u16 reg_tlv;
+};
+
+static void mlxsw_emad_tlv_parse(struct sk_buff *skb)
+{
+	struct mlxsw_emad_tlv_offsets *offsets =
+		(struct mlxsw_emad_tlv_offsets *) skb->cb;
+
+	offsets->op_tlv = MLXSW_EMAD_ETH_HDR_LEN;
+	offsets->reg_tlv = MLXSW_EMAD_ETH_HDR_LEN +
+			   MLXSW_EMAD_OP_TLV_LEN * sizeof(u32);
+}
+
 static char *mlxsw_emad_op_tlv(const struct sk_buff *skb)
 {
-	return ((char *) (skb->data + MLXSW_EMAD_ETH_HDR_LEN));
+	struct mlxsw_emad_tlv_offsets *offsets =
+		(struct mlxsw_emad_tlv_offsets *) skb->cb;
+
+	return ((char *) (skb->data + offsets->op_tlv));
 }
 
 static char *mlxsw_emad_reg_tlv(const struct sk_buff *skb)
 {
-	return ((char *) (skb->data + MLXSW_EMAD_ETH_HDR_LEN +
-				      MLXSW_EMAD_OP_TLV_LEN * sizeof(u32)));
+	struct mlxsw_emad_tlv_offsets *offsets =
+		(struct mlxsw_emad_tlv_offsets *) skb->cb;
+
+	return ((char *) (skb->data + offsets->reg_tlv));
 }
 
-static char *mlxsw_emad_reg_payload(const char *op_tlv)
+static char *mlxsw_emad_reg_payload(const char *reg_tlv)
 {
-	return ((char *) (op_tlv + (MLXSW_EMAD_OP_TLV_LEN + 1) * sizeof(u32)));
+	return ((char *) (reg_tlv + sizeof(u32)));
+}
+
+static char *mlxsw_emad_reg_payload_cmd(const char *mbox)
+{
+	return ((char *) (mbox + (MLXSW_EMAD_OP_TLV_LEN + 1) * sizeof(u32)));
 }
 
 static u64 mlxsw_emad_get_tid(const struct sk_buff *skb)
@@ -535,11 +560,11 @@ static void mlxsw_emad_process_response(struct mlxsw_core *mlxsw_core,
 		mlxsw_emad_transmit_retry(mlxsw_core, trans);
 	} else {
 		if (err == 0) {
-			char *op_tlv = mlxsw_emad_op_tlv(skb);
+			char *reg_tlv = mlxsw_emad_reg_tlv(skb);
 
 			if (trans->cb)
 				trans->cb(mlxsw_core,
-					  mlxsw_emad_reg_payload(op_tlv),
+					  mlxsw_emad_reg_payload(reg_tlv),
 					  trans->reg->len, trans->cb_priv);
 		}
 		mlxsw_emad_trans_finish(trans, err);
@@ -555,6 +580,8 @@ static void mlxsw_emad_rx_listener_func(struct sk_buff *skb, u8 local_port,
 
 	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), true, 0,
 			    skb->data, skb->len);
+
+	mlxsw_emad_tlv_parse(skb);
 
 	if (!mlxsw_emad_is_resp(skb))
 		goto free_skb;
@@ -1395,12 +1422,16 @@ static void mlxsw_core_event_listener_func(struct sk_buff *skb, u8 local_port,
 	struct mlxsw_event_listener_item *event_listener_item = priv;
 	struct mlxsw_reg_info reg;
 	char *payload;
-	char *op_tlv = mlxsw_emad_op_tlv(skb);
-	char *reg_tlv = mlxsw_emad_reg_tlv(skb);
+	char *reg_tlv;
+	char *op_tlv;
+
+	mlxsw_emad_tlv_parse(skb);
+	op_tlv = mlxsw_emad_op_tlv(skb);
+	reg_tlv = mlxsw_emad_reg_tlv(skb);
 
 	reg.id = mlxsw_emad_op_tlv_register_id_get(op_tlv);
 	reg.len = (mlxsw_emad_reg_tlv_len_get(reg_tlv) - 1) * sizeof(u32);
-	payload = mlxsw_emad_reg_payload(op_tlv);
+	payload = mlxsw_emad_reg_payload(reg_tlv);
 	event_listener_item->el.func(&reg, payload, event_listener_item->priv);
 	dev_kfree_skb(skb);
 }
@@ -1713,7 +1744,7 @@ retry:
 	}
 
 	if (!err)
-		memcpy(payload, mlxsw_emad_reg_payload(out_mbox),
+		memcpy(payload, mlxsw_emad_reg_payload_cmd(out_mbox),
 		       reg->len);
 
 	mlxsw_cmd_mbox_free(out_mbox);
