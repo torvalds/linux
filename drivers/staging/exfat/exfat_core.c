@@ -2569,7 +2569,7 @@ int sector_read(struct super_block *sb, sector_t sec, struct buffer_head **bh,
 	}
 
 	if (!p_fs->dev_ejected) {
-		ret = bdev_read(sb, sec, bh, 1, read);
+		ret = exfat_bdev_read(sb, sec, bh, 1, read);
 		if (ret != 0)
 			p_fs->dev_ejected = 1;
 	}
@@ -2598,7 +2598,7 @@ int sector_write(struct super_block *sb, sector_t sec, struct buffer_head *bh,
 	}
 
 	if (!p_fs->dev_ejected) {
-		ret = bdev_write(sb, sec, bh, 1, sync);
+		ret = exfat_bdev_write(sb, sec, bh, 1, sync);
 		if (ret != 0)
 			p_fs->dev_ejected = 1;
 	}
@@ -2621,7 +2621,7 @@ int multi_sector_read(struct super_block *sb, sector_t sec,
 	}
 
 	if (!p_fs->dev_ejected) {
-		ret = bdev_read(sb, sec, bh, num_secs, read);
+		ret = exfat_bdev_read(sb, sec, bh, num_secs, read);
 		if (ret != 0)
 			p_fs->dev_ejected = 1;
 	}
@@ -2649,7 +2649,7 @@ int multi_sector_write(struct super_block *sb, sector_t sec,
 	}
 
 	if (!p_fs->dev_ejected) {
-		ret = bdev_write(sb, sec, bh, num_secs, sync);
+		ret = exfat_bdev_write(sb, sec, bh, num_secs, sync);
 		if (ret != 0)
 			p_fs->dev_ejected = 1;
 	}

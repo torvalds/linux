@@ -289,7 +289,7 @@ static DEFINE_MUTEX(z_mutex);
 static inline void fs_sync(struct super_block *sb, bool do_sync)
 {
 	if (do_sync)
-		bdev_sync(sb);
+		exfat_bdev_sync(sb);
 }
 
 /*
@@ -361,7 +361,7 @@ static int ffsMountVol(struct super_block *sb)
 	p_fs->dev_ejected = 0;
 
 	/* open the block device */
-	bdev_open(sb);
+	exfat_bdev_open(sb);
 
 	if (p_bd->sector_size < sb->s_blocksize) {
 		printk(KERN_INFO "EXFAT: maont failed - sector size %d less than blocksize %ld\n",
@@ -385,7 +385,7 @@ static int ffsMountVol(struct super_block *sb)
 	/* check the validity of PBR */
 	if (GET16_A(p_pbr->signature) != PBR_SIGNATURE) {
 		brelse(tmp_bh);
-		bdev_close(sb);
+		exfat_bdev_close(sb);
 		ret = -EFSCORRUPTED;
 		goto out;
 	}
@@ -407,26 +407,26 @@ static int ffsMountVol(struct super_block *sb)
 	brelse(tmp_bh);
 
 	if (ret) {
-		bdev_close(sb);
+		exfat_bdev_close(sb);
 		goto out;
 	}
 
 	ret = load_alloc_bitmap(sb);
 	if (ret) {
-		bdev_close(sb);
+		exfat_bdev_close(sb);
 		goto out;
 	}
 	ret = load_upcase_table(sb);
 	if (ret) {
 		free_alloc_bitmap(sb);
-		bdev_close(sb);
+		exfat_bdev_close(sb);
 		goto out;
 	}
 
 	if (p_fs->dev_ejected) {
 		free_upcase_table(sb);
 		free_alloc_bitmap(sb);
-		bdev_close(sb);
+		exfat_bdev_close(sb);
 		ret = -EIO;
 		goto out;
 	}
@@ -461,7 +461,7 @@ static int ffsUmountVol(struct super_block *sb)
 	buf_release_all(sb);
 
 	/* close the block device */
-	bdev_close(sb);
+	exfat_bdev_close(sb);
 
 	if (p_fs->dev_ejected) {
 		pr_info("[EXFAT] unmounted with media errors. Device is already ejected.\n");

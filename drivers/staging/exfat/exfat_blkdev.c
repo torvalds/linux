@@ -8,7 +8,7 @@
 #include <linux/fs.h>
 #include "exfat.h"
 
-void bdev_open(struct super_block *sb)
+void exfat_bdev_open(struct super_block *sb)
 {
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 
@@ -23,14 +23,14 @@ void bdev_open(struct super_block *sb)
 	p_bd->opened = true;
 }
 
-void bdev_close(struct super_block *sb)
+void exfat_bdev_close(struct super_block *sb)
 {
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 
 	p_bd->opened = false;
 }
 
-int bdev_read(struct super_block *sb, sector_t secno, struct buffer_head **bh,
+int exfat_bdev_read(struct super_block *sb, sector_t secno, struct buffer_head **bh,
 	      u32 num_secs, bool read)
 {
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
@@ -65,7 +65,7 @@ int bdev_read(struct super_block *sb, sector_t secno, struct buffer_head **bh,
 	return -EIO;
 }
 
-int bdev_write(struct super_block *sb, sector_t secno, struct buffer_head *bh,
+int exfat_bdev_write(struct super_block *sb, sector_t secno, struct buffer_head *bh,
 	       u32 num_secs, bool sync)
 {
 	s32 count;
@@ -118,7 +118,7 @@ no_bh:
 	return -EIO;
 }
 
-int bdev_sync(struct super_block *sb)
+int exfat_bdev_sync(struct super_block *sb)
 {
 	struct bd_info_t *p_bd = &(EXFAT_SB(sb)->bd_info);
 #ifdef CONFIG_EXFAT_KERNEL_DEBUG

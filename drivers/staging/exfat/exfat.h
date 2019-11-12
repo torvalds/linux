@@ -842,13 +842,13 @@ int multi_sector_read(struct super_block *sb, sector_t sec,
 int multi_sector_write(struct super_block *sb, sector_t sec,
 		       struct buffer_head *bh, s32 num_secs, bool sync);
 
-void bdev_open(struct super_block *sb);
-void bdev_close(struct super_block *sb);
-int bdev_read(struct super_block *sb, sector_t secno,
+void exfat_bdev_open(struct super_block *sb);
+void exfat_bdev_close(struct super_block *sb);
+int exfat_bdev_read(struct super_block *sb, sector_t secno,
 	      struct buffer_head **bh, u32 num_secs, bool read);
-int bdev_write(struct super_block *sb, sector_t secno,
+int exfat_bdev_write(struct super_block *sb, sector_t secno,
 	       struct buffer_head *bh, u32 num_secs, bool sync);
-int bdev_sync(struct super_block *sb);
+int exfat_bdev_sync(struct super_block *sb);
 
 extern const u8 uni_upcase[];
 #endif /* _EXFAT_H */
