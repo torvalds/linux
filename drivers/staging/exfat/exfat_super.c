@@ -364,7 +364,9 @@ static int ffsMountVol(struct super_block *sb)
 	bdev_open(sb);
 
 	if (p_bd->sector_size < sb->s_blocksize) {
-		ret = FFS_MEDIAERR;
+		printk(KERN_INFO "EXFAT: maont failed - sector size %d less than blocksize %ld\n",
+			p_bd->sector_size,  sb->s_blocksize);
+		ret = -EINVAL;
 		goto out;
 	}
 	if (p_bd->sector_size > sb->s_blocksize)
@@ -372,7 +374,7 @@ static int ffsMountVol(struct super_block *sb)
 
 	/* read Sector 0 */
 	if (sector_read(sb, 0, &tmp_bh, 1) != FFS_SUCCESS) {
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 		goto out;
 	}
 
@@ -435,7 +437,7 @@ static int ffsMountVol(struct super_block *sb)
 			free_alloc_bitmap(sb);
 		}
 		bdev_close(sb);
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 		goto out;
 	}
 
@@ -475,7 +477,7 @@ static int ffsUmountVol(struct super_block *sb)
 
 	if (p_fs->dev_ejected) {
 		pr_info("[EXFAT] unmounted with media errors. Device is already ejected.\n");
-		err = FFS_MEDIAERR;
+		err = -EIO;
 	}
 
 	buf_shutdown(sb);
@@ -511,7 +513,7 @@ static int ffsGetVolInfo(struct super_block *sb, struct vol_info_t *info)
 	info->FreeClusters = info->NumClusters - info->UsedClusters;
 
 	if (p_fs->dev_ejected)
-		err = FFS_MEDIAERR;
+		err = -EIO;
 
 	/* release the lock for file system critical section */
 	mutex_unlock(&p_fs->v_mutex);
@@ -532,7 +534,7 @@ static int ffsSyncVol(struct super_block *sb, bool do_sync)
 	fs_set_vol_flags(sb, VOL_CLEAN);
 
 	if (p_fs->dev_ejected)
-		err = FFS_MEDIAERR;
+		err = -EIO;
 
 	/* release the lock for file system critical section */
 	mutex_unlock(&p_fs->v_mutex);
@@ -601,14 +603,14 @@ static int ffsLookupFile(struct inode *inode, char *path, struct file_id_t *fid)
 			es = get_entry_set_in_dir(sb, &dir, dentry,
 						  ES_2_ENTRIES, &ep);
 			if (!es) {
-				ret =  FFS_MEDIAERR;
+				ret =  -ENOENT;
 				goto out;
 			}
 			ep2 = ep + 1;
 		} else {
 			ep = get_entry_in_dir(sb, &dir, dentry, NULL);
 			if (!ep) {
-				ret =  FFS_MEDIAERR;
+				ret =  -ENOENT;
 				goto out;
 			}
 			ep2 = ep;
@@ -633,7 +635,7 @@ static int ffsLookupFile(struct inode *inode, char *path, struct file_id_t *fid)
 	}
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 out:
 	/* release the lock for file system critical section */
 	mutex_unlock(&p_fs->v_mutex);
@@ -673,7 +675,7 @@ static int ffsCreateFile(struct inode *inode, char *path, u8 mode,
 #endif
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 
 out:
 	/* release the lock for file system critical section */
@@ -744,7 +746,7 @@ static int ffsReadFile(struct inode *inode, struct file_id_t *fid, void *buffer,
 			while (clu_offset > 0) {
 				/* clu = FAT_read(sb, clu); */
 				if (FAT_read(sb, clu, &clu) == -1) {
-					ret = FFS_MEDIAERR;
+					ret = -EIO;
 					goto out;
 				}
 
@@ -799,7 +801,7 @@ err_out:
 		*rcount = read_bytes;
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 
 out:
 	/* release the lock for file system critical section */
@@ -890,7 +892,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 				last_clu = clu;
 				/* clu = FAT_read(sb, clu); */
 				if (FAT_read(sb, clu, &clu) == -1) {
-					ret = FFS_MEDIAERR;
+					ret = -EIO;
 					goto out;
 				}
 				clu_offset--;
@@ -912,7 +914,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 			if (num_alloced == 0)
 				break;
 			if (num_alloced < 0) {
-				ret = FFS_MEDIAERR;
+				ret = num_alloced;
 				goto out;
 			}
 
@@ -1057,7 +1059,7 @@ err_out:
 		ret = -ENOSPC;
 
 	else if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 
 out:
 	/* release the lock for file system critical section */
@@ -1118,7 +1120,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 			while (num_clusters > 0) {
 				last_clu = clu.dir;
 				if (FAT_read(sb, clu.dir, &clu.dir) == -1) {
-					ret = FFS_MEDIAERR;
+					ret = -EIO;
 					goto out;
 				}
 				num_clusters--;
@@ -1140,14 +1142,14 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 		es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 					  ES_ALL_ENTRIES, &ep);
 		if (!es) {
-			ret = FFS_MEDIAERR;
+			ret = -ENOENT;
 			goto out;
 			}
 		ep2 = ep + 1;
 	} else {
 		ep = get_entry_in_dir(sb, &fid->dir, fid->entry, &sector);
 		if (!ep) {
-			ret = FFS_MEDIAERR;
+			ret = -ENOENT;
 			goto out;
 		}
 		ep2 = ep;
@@ -1189,7 +1191,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 #endif
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 
 out:
 	pr_debug("%s exited (%d)\n", __func__, ret);
@@ -1262,7 +1264,7 @@ static int ffsMoveFile(struct inode *old_parent_inode, struct file_id_t *fid,
 
 	ep = get_entry_in_dir(sb, &olddir, dentry, NULL);
 	if (!ep) {
-		ret = FFS_MEDIAERR;
+		ret = -ENOENT;
 		goto out2;
 	}
 
@@ -1275,7 +1277,7 @@ static int ffsMoveFile(struct inode *old_parent_inode, struct file_id_t *fid,
 	if (new_inode) {
 		u32 entry_type;
 
-		ret = FFS_MEDIAERR;
+		ret = -ENOENT;
 		new_fid = &EXFAT_I(new_inode)->fid;
 
 		update_parent_info(new_fid, new_parent_inode);
@@ -1337,7 +1339,7 @@ out:
 #endif
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 out2:
 	/* release the lock for file system critical section */
 	mutex_unlock(&p_fs->v_mutex);
@@ -1369,7 +1371,7 @@ static int ffsRemoveFile(struct inode *inode, struct file_id_t *fid)
 
 	ep = get_entry_in_dir(sb, &dir, dentry, NULL);
 	if (!ep) {
-		ret = FFS_MEDIAERR;
+		ret = -ENOENT;
 		goto out;
 	}
 
@@ -1399,7 +1401,7 @@ static int ffsRemoveFile(struct inode *inode, struct file_id_t *fid)
 #endif
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 out:
 	/* release the lock for file system critical section */
 	mutex_unlock(&p_fs->v_mutex);
@@ -1423,7 +1425,7 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 
 	if (fid->attr == attr) {
 		if (p_fs->dev_ejected)
-			return FFS_MEDIAERR;
+			return -EIO;
 		return FFS_SUCCESS;
 	}
 
@@ -1431,7 +1433,7 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 		if ((fid->dir.dir == p_fs->root_dir) &&
 		    (fid->entry == -1)) {
 			if (p_fs->dev_ejected)
-				return FFS_MEDIAERR;
+				return -EIO;
 			return FFS_SUCCESS;
 		}
 	}
@@ -1444,13 +1446,13 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 		es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 					  ES_ALL_ENTRIES, &ep);
 		if (!es) {
-			ret = FFS_MEDIAERR;
+			ret = -ENOENT;
 			goto out;
 		}
 	} else {
 		ep = get_entry_in_dir(sb, &fid->dir, fid->entry, &sector);
 		if (!ep) {
-			ret = FFS_MEDIAERR;
+			ret = -ENOENT;
 			goto out;
 		}
 	}
@@ -1460,7 +1462,7 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 	if (((type == TYPE_FILE) && (attr & ATTR_SUBDIR)) ||
 	    ((type == TYPE_DIR) && (!(attr & ATTR_SUBDIR)))) {
 		if (p_fs->dev_ejected)
-			ret = FFS_MEDIAERR;
+			ret = -EIO;
 		else
 			ret = FFS_ERROR;
 
@@ -1488,7 +1490,7 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 #endif
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 out:
 	/* release the lock for file system critical section */
 	mutex_unlock(&p_fs->v_mutex);
@@ -1544,13 +1546,13 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 
 			count = count_dos_name_entries(sb, &dir, TYPE_DIR);
 			if (count < 0) {
-				ret = FFS_MEDIAERR;
+				ret = count; /* propogate error upward */
 				goto out;
 			}
 			info->NumSubdirs = count;
 
 			if (p_fs->dev_ejected)
-				ret = FFS_MEDIAERR;
+				ret = -EIO;
 			goto out;
 		}
 	}
@@ -1560,14 +1562,14 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 		es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 					  ES_2_ENTRIES, &ep);
 		if (!es) {
-			ret = FFS_MEDIAERR;
+			ret = -ENOENT;
 			goto out;
 		}
 		ep2 = ep + 1;
 	} else {
 		ep = get_entry_in_dir(sb, &fid->dir, fid->entry, &sector);
 		if (!ep) {
-			ret = FFS_MEDIAERR;
+			ret = -ENOENT;
 			goto out;
 		}
 		ep2 = ep;
@@ -1633,14 +1635,14 @@ static int ffsReadStat(struct inode *inode, struct dir_entry_t *info)
 
 		count = count_dos_name_entries(sb, &dir, TYPE_DIR);
 		if (count < 0) {
-			ret = FFS_MEDIAERR;
+			ret = count; /* propogate error upward */
 			goto out;
 		}
 		info->NumSubdirs += count;
 	}
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 
 out:
 	/* release the lock for file system critical section */
@@ -1671,7 +1673,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 		if ((fid->dir.dir == p_fs->root_dir) &&
 		    (fid->entry == -1)) {
 			if (p_fs->dev_ejected)
-				ret = FFS_MEDIAERR;
+				ret = -EIO;
 			ret = FFS_SUCCESS;
 			goto out;
 		}
@@ -1684,7 +1686,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 		es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 					  ES_ALL_ENTRIES, &ep);
 		if (!es) {
-			ret = FFS_MEDIAERR;
+			ret = -ENOENT;
 			goto out;
 		}
 		ep2 = ep + 1;
@@ -1692,7 +1694,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 		/* for other than exfat */
 		ep = get_entry_in_dir(sb, &fid->dir, fid->entry, &sector);
 		if (!ep) {
-			ret = FFS_MEDIAERR;
+			ret = -ENOENT;
 			goto out;
 		}
 		ep2 = ep;
@@ -1727,7 +1729,7 @@ static int ffsWriteStat(struct inode *inode, struct dir_entry_t *info)
 	}
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 
 out:
 	/* release the lock for file system critical section */
@@ -1789,7 +1791,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 		while ((clu_offset > 0) && (*clu != CLUSTER_32(~0))) {
 			last_clu = *clu;
 			if (FAT_read(sb, *clu, clu) == -1) {
-				ret = FFS_MEDIAERR;
+				ret = -EIO;
 				goto out;
 			}
 			clu_offset--;
@@ -1807,7 +1809,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 		/* (1) allocate a cluster */
 		num_alloced = p_fs->fs_func->alloc_cluster(sb, 1, &new_clu);
 		if (num_alloced < 0) {
-			ret = FFS_MEDIAERR;
+			ret = -EIO;
 			goto out;
 		} else if (num_alloced == 0) {
 			ret = -ENOSPC;
@@ -1838,7 +1840,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 			es = get_entry_set_in_dir(sb, &fid->dir, fid->entry,
 						  ES_ALL_ENTRIES, &ep);
 			if (!es) {
-				ret = FFS_MEDIAERR;
+				ret = -ENOENT;
 				goto out;
 			}
 			/* get stream entry */
@@ -1851,7 +1853,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 				ep = get_entry_in_dir(sb, &fid->dir,
 						      fid->entry, &sector);
 				if (!ep) {
-					ret = FFS_MEDIAERR;
+					ret = -ENOENT;
 					goto out;
 				}
 			}
@@ -1881,7 +1883,7 @@ static int ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
 	fid->hint_last_clu = *clu;
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 
 out:
 	/* release the lock for file system critical section */
@@ -1926,7 +1928,7 @@ static int ffsCreateDir(struct inode *inode, char *path, struct file_id_t *fid)
 #endif
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 out:
 	/* release the lock for file system critical section */
 	mutex_unlock(&p_fs->v_mutex);
@@ -1956,7 +1958,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 
 	/* check if the given file ID is opened */
 	if (fid->type != TYPE_DIR)
-		return -EPERM;
+		return -ENOTDIR;
 
 	/* acquire the lock for file system critical section */
 	mutex_lock(&p_fs->v_mutex);
@@ -2006,7 +2008,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 			while (clu_offset > 0) {
 				/* clu.dir = FAT_read(sb, clu.dir); */
 				if (FAT_read(sb, clu.dir, &clu.dir) == -1) {
-					ret = FFS_MEDIAERR;
+					ret = -EIO;
 					goto out;
 				}
 				clu_offset--;
@@ -2026,7 +2028,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 		for ( ; i < dentries_per_clu; i++, dentry++) {
 			ep = get_entry_in_dir(sb, &clu, i, &sector);
 			if (!ep) {
-				ret = FFS_MEDIAERR;
+				ret = -ENOENT;
 				goto out;
 			}
 			type = fs_func->get_entry_type(ep);
@@ -2074,7 +2076,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 			if (p_fs->vol_type == EXFAT) {
 				ep = get_entry_in_dir(sb, &clu, i + 1, NULL);
 				if (!ep) {
-					ret = FFS_MEDIAERR;
+					ret = -ENOENT;
 					goto out;
 				}
 			} else {
@@ -2098,7 +2100,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 			fid->rwoffset = (s64)(++dentry);
 
 			if (p_fs->dev_ejected)
-				ret = FFS_MEDIAERR;
+				ret = -EIO;
 			goto out;
 		}
 
@@ -2113,7 +2115,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 		} else {
 			/* clu.dir = FAT_read(sb, clu.dir); */
 			if (FAT_read(sb, clu.dir, &clu.dir) == -1) {
-				ret = FFS_MEDIAERR;
+				ret = -EIO;
 				goto out;
 			}
 		}
@@ -2124,7 +2126,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 	fid->rwoffset = (s64)(++dentry);
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 
 out:
 	/* release the lock for file system critical section */
@@ -2187,7 +2189,7 @@ static int ffsRemoveDir(struct inode *inode, struct file_id_t *fid)
 #endif
 
 	if (p_fs->dev_ejected)
-		ret = FFS_MEDIAERR;
+		ret = -EIO;
 
 out:
 	/* release the lock for file system critical section */
@@ -2247,12 +2249,11 @@ get_new:
 		/* at least we tried to read a sector
 		 * move cpos to next sector position (should be aligned)
 		 */
-		if (err == FFS_MEDIAERR) {
+		if (err == -EIO) {
 			cpos += 1 << p_bd->sector_size_bits;
 			cpos &= ~((1 << p_bd->sector_size_bits) - 1);
 		}
 
-		err = -EIO;
 		goto end_of_dir;
 	}
 
@@ -3550,7 +3551,7 @@ static int exfat_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct vol_info_t info;
 
 	if (p_fs->used_clusters == UINT_MAX) {
-		if (ffsGetVolInfo(sb, &info) == FFS_MEDIAERR)
+		if (ffsGetVolInfo(sb, &info) == -EIO)
 			return -EIO;
 
 	} else {
