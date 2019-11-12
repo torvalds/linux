@@ -106,81 +106,6 @@ static void blake2b_increment_counter(struct blake2b_state *S, const u64 inc)
 	S->t[1] += (S->t[0] < inc);
 }
 
-static void blake2b_init0(struct blake2b_state *S)
-{
-	size_t i;
-
-	memset(S, 0, sizeof(struct blake2b_state));
-
-	for (i = 0; i < 8; ++i)
-		S->h[i] = blake2b_IV[i];
-}
-
-/* init xors IV with input parameter block */
-static void blake2b_init_param(struct blake2b_state *S,
-			       const struct blake2b_param *P)
-{
-	const u8 *p = (const u8 *)(P);
-	size_t i;
-
-	blake2b_init0(S);
-
-	/* IV XOR ParamBlock */
-	for (i = 0; i < 8; ++i)
-		S->h[i] ^= get_unaligned_le64(p + sizeof(S->h[i]) * i);
-
-	S->outlen = P->digest_length;
-}
-
-static void blake2b_init(struct blake2b_state *S, size_t outlen)
-{
-	struct blake2b_param P;
-
-	P.digest_length = (u8)outlen;
-	P.key_length    = 0;
-	P.fanout        = 1;
-	P.depth         = 1;
-	P.leaf_length   = 0;
-	P.node_offset   = 0;
-	P.xof_length    = 0;
-	P.node_depth    = 0;
-	P.inner_length  = 0;
-	memset(P.reserved, 0, sizeof(P.reserved));
-	memset(P.salt,     0, sizeof(P.salt));
-	memset(P.personal, 0, sizeof(P.personal));
-	blake2b_init_param(S, &P);
-}
-
-static void blake2b_init_key(struct blake2b_state *S, size_t outlen,
-			     const void *key, size_t keylen)
-{
-	struct blake2b_param P;
-
-	P.digest_length = (u8)outlen;
-	P.key_length    = (u8)keylen;
-	P.fanout        = 1;
-	P.depth         = 1;
-	P.leaf_length   = 0;
-	P.node_offset   = 0;
-	P.xof_length    = 0;
-	P.node_depth    = 0;
-	P.inner_length  = 0;
-	memset(P.reserved, 0, sizeof(P.reserved));
-	memset(P.salt,     0, sizeof(P.salt));
-	memset(P.personal, 0, sizeof(P.personal));
-
-	blake2b_init_param(S, &P);
-
-	{
-		u8 block[BLAKE2B_BLOCKBYTES];
-
-		memset(block, 0, BLAKE2B_BLOCKBYTES);
-		memcpy(block, key, keylen);
-		blake2b_update(S, block, BLAKE2B_BLOCKBYTES);
-		memzero_explicit(block, BLAKE2B_BLOCKBYTES);
-	}
-}
-
 #define G(r,i,a,b,c,d)                                  \
 	do {                                            \
 		a = a + b + m[blake2b_sigma[r][2*i+0]]; \
@@ -297,16 +222,26 @@ static int digest_setkey(struct crypto_shash *tfm, const u8 *key,
 	return 0;
 }
 
-static int digest_init(struct shash_desc *desc)
+static int blake2b_init(struct shash_desc *desc)
 {
 	struct digest_tfm_ctx *mctx = crypto_shash_ctx(desc->tfm);
 	struct blake2b_state *state = shash_desc_ctx(desc);
 	const int digestsize = crypto_shash_digestsize(desc->tfm);
 
-	if (mctx->keylen == 0)
-		blake2b_init(state, digestsize);
-	else
-		blake2b_init_key(state, digestsize, mctx->key, mctx->keylen);
+	memset(state, 0, sizeof(*state));
+	memcpy(state->h, blake2b_IV, sizeof(state->h));
+
+	/* Parameter block is all zeros except index 0, no xor for 1..7 */
+	state->h[0] ^= 0x01010000 | mctx->keylen << 8 | digestsize;
+
+	if (mctx->keylen) {
+		u8 block[BLAKE2B_BLOCKBYTES];
+
+		memset(block, 0, BLAKE2B_BLOCKBYTES);
+		memcpy(block, mctx->key, mctx->keylen);
+		blake2b_update(state, block, BLAKE2B_BLOCKBYTES);
+		memzero_explicit(block, BLAKE2B_BLOCKBYTES);
+	}
 	return 0;
 }
 
@@ -350,7 +285,7 @@ static struct shash_alg blake2b_algs[] = {
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= BLAKE2B_160_DIGEST_SIZE,
 		.setkey			= digest_setkey,
-		.init			= digest_init,
+		.init			= blake2b_init,
 		.update			= digest_update,
 		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
@@ -364,7 +299,7 @@ static struct shash_alg blake2b_algs[] = {
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= BLAKE2B_256_DIGEST_SIZE,
 		.setkey			= digest_setkey,
-		.init			= digest_init,
+		.init			= blake2b_init,
 		.update			= digest_update,
 		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
@@ -378,7 +313,7 @@ static struct shash_alg blake2b_algs[] = {
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= BLAKE2B_384_DIGEST_SIZE,
 		.setkey			= digest_setkey,
-		.init			= digest_init,
+		.init			= blake2b_init,
 		.update			= digest_update,
 		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
@@ -392,7 +327,7 @@ static struct shash_alg blake2b_algs[] = {
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= BLAKE2B_512_DIGEST_SIZE,
 		.setkey			= digest_setkey,
-		.init			= digest_init,
+		.init			= blake2b_init,
 		.update			= digest_update,
 		.final			= blake2b_final,
 		.descsize		= sizeof(struct blake2b_state),
