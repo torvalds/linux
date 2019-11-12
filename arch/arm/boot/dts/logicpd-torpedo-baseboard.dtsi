@@ -101,6 +101,12 @@
 	};
 };
 
+&hdqw1w {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdq_pins>;
+};
+
+
 &vpll2 {
 	regulator-always-on;
 };
@@ -166,6 +172,12 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d6, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcspi2_clk.gpio_178 */
 			OMAP3_CORE1_IOPAD(0x21dc, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcspi2_cs0.gpio_181 */
+		>;
+	};
+
+	hdq_pins: hdq_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21c6, PIN_INPUT_PULLUP | MUX_MODE0) /* hdq_sio */
 		>;
 	};
 
