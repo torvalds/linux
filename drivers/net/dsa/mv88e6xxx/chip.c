@@ -5317,7 +5317,7 @@ static void mv88e6xxx_port_mirror_del(struct dsa_switch *ds, int port,
 		if (chip->info->ops->set_egress_port(chip,
 						     direction,
 						     dsa_upstream_port(ds,
-								       port)));
+								       port)))
 			dev_err(ds->dev, "failed to set egress port\n");
 	}
 
