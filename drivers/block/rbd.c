@@ -1850,6 +1850,17 @@ static u8 rbd_object_map_get(struct rbd_device *rbd_dev, u64 objno)
 
 static bool use_object_map(struct rbd_device *rbd_dev)
 {
+	/*
+	 * An image mapped read-only can't use the object map -- it isn't
+	 * loaded because the header lock isn't acquired.  Someone else can
+	 * write to the image and update the object map behind our back.
+	 *
+	 * A snapshot can't be written to, so using the object map is always
+	 * safe.
+	 */
+	if (!rbd_is_snap(rbd_dev) && rbd_is_ro(rbd_dev))
+		return false;
+
 	return ((rbd_dev->header.features & RBD_FEATURE_OBJECT_MAP) &&
 		!(rbd_dev->object_map_flags & RBD_FLAG_OBJECT_MAP_INVALID));
 }
@@ -3573,7 +3584,7 @@ static bool need_exclusive_lock(struct rbd_img_request *img_req)
 	if (!(rbd_dev->header.features & RBD_FEATURE_EXCLUSIVE_LOCK))
 		return false;
 
-	if (rbd_is_snap(rbd_dev))
+	if (rbd_is_ro(rbd_dev))
 		return false;
 
 	rbd_assert(!test_bit(IMG_REQ_CHILD, &img_req->flags));
@@ -6653,7 +6664,7 @@ static int rbd_add_acquire_lock(struct rbd_device *rbd_dev)
 		return -EINVAL;
 	}
 
-	if (rbd_is_snap(rbd_dev))
+	if (rbd_is_ro(rbd_dev))
 		return 0;
 
 	rbd_assert(!rbd_is_lock_owner(rbd_dev));
