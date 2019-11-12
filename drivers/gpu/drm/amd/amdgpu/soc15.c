@@ -923,7 +923,8 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		adev->nbio.funcs = &nbio_v7_0_funcs;
 		adev->nbio.hdp_flush_reg = &nbio_v7_0_hdp_flush_reg;
 	} else if (adev->asic_type == CHIP_VEGA20 ||
-		   adev->asic_type == CHIP_ARCTURUS) {
+		   adev->asic_type == CHIP_ARCTURUS ||
+		   adev->asic_type == CHIP_ALDEBARAN) {
 		adev->nbio.funcs = &nbio_v7_4_funcs;
 		adev->nbio.hdp_flush_reg = &nbio_v7_4_hdp_flush_reg;
 	} else {
@@ -932,7 +933,9 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	}
 	adev->hdp.funcs = &hdp_v4_0_funcs;
 
-	if (adev->asic_type == CHIP_VEGA20 || adev->asic_type == CHIP_ARCTURUS)
+	if (adev->asic_type == CHIP_VEGA20 ||
+	    adev->asic_type == CHIP_ARCTURUS ||
+	    adev->asic_type == CHIP_ALDEBARAN)
 		adev->df.funcs = &df_v3_6_funcs;
 	else
 		adev->df.funcs = &df_v1_7_funcs;
@@ -1058,6 +1061,13 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		amdgpu_device_ip_block_add(adev, &vcn_v2_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &jpeg_v2_0_ip_block);
+		break;
+	case CHIP_ALDEBARAN:
+		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
+		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
 		break;
 	default:
 		return -EINVAL;
@@ -1478,6 +1488,11 @@ static int soc15_common_early_init(void *handle)
 				 AMD_PG_SUPPORT_VCN |
 				 AMD_PG_SUPPORT_JPEG |
 				 AMD_PG_SUPPORT_VCN_DPG;
+		break;
+	case CHIP_ALDEBARAN:
+		adev->asic_funcs = &vega20_asic_funcs;
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
 		break;
 	default:
 		/* FIXME: not supported yet */
