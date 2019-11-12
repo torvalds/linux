@@ -347,6 +347,8 @@ void mlxsw_core_fw_flash_end(struct mlxsw_core *mlxsw_core);
 u32 mlxsw_core_read_frc_h(struct mlxsw_core *mlxsw_core);
 u32 mlxsw_core_read_frc_l(struct mlxsw_core *mlxsw_core);
 
+void mlxsw_core_emad_string_tlv_enable(struct mlxsw_core *mlxsw_core);
+
 bool mlxsw_core_res_valid(struct mlxsw_core *mlxsw_core,
 			  enum mlxsw_res_id res_id);
 
