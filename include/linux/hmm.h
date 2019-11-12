@@ -145,6 +145,9 @@ enum hmm_pfn_value_e {
 /*
  * struct hmm_range - track invalidation lock on virtual address range
  *
+ * @notifier: an optional mmu_interval_notifier
+ * @notifier_seq: when notifier is used this is the result of
+ *                mmu_interval_read_begin()
  * @hmm: the core HMM structure this range is active against
  * @vma: the vm area struct for the range
  * @list: all range lock are on a list
@@ -159,6 +162,8 @@ enum hmm_pfn_value_e {
  * @valid: pfns array did not change since it has been fill by an HMM function
  */
 struct hmm_range {
+	struct mmu_interval_notifier *notifier;
+	unsigned long		notifier_seq;
 	struct hmm		*hmm;
 	struct list_head	list;
 	unsigned long		start;
