@@ -771,7 +771,7 @@ config TRACE_EVAL_MAP_FILE
        depends on TRACING
        help
 	The "print fmt" of the trace events will show the enum/sizeof names
-	instead	of their values. This can cause problems for user space tools
+	instead of their values. This can cause problems for user space tools
 	that use this string to parse the raw data as user space does not know
 	how to convert the string to its value.
 
@@ -792,7 +792,7 @@ config TRACE_EVAL_MAP_FILE
 	they are needed for the "eval_map" file. Enabling this option will
 	increase the memory footprint of the running kernel.
 
-	If unsure, say N
+	If unsure, say N.
 
 config GCOV_PROFILE_FTRACE
 	bool "Enable GCOV profiling on ftrace subsystem"
