@@ -319,7 +319,7 @@ static inline void __d_set_inode_and_type(struct dentry *dentry,
 	flags = READ_ONCE(dentry->d_flags);
 	flags &= ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
 	flags |= type_flags;
-	WRITE_ONCE(dentry->d_flags, flags);
+	smp_store_release(&dentry->d_flags, flags);
 }
 
 static inline void __d_clear_type_and_inode(struct dentry *dentry)

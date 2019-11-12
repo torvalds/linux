@@ -1220,7 +1220,7 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 	/* Given that we're not holding a lock here, we retain the value in a
 	 * local variable for each dentry as we look at it so that we don't see
 	 * the components of that value change under us */
-	while (flags = READ_ONCE(path->dentry->d_flags),
+	while (flags = smp_load_acquire(&path->dentry->d_flags),
 	       unlikely(flags & DCACHE_MANAGED_DENTRY)) {
 		/* Allow the filesystem to manage the transit without i_mutex
 		 * being held. */
@@ -2569,7 +2569,7 @@ struct dentry *lookup_positive_unlocked(const char *name,
 				       struct dentry *base, int len)
 {
 	struct dentry *ret = lookup_one_len_unlocked(name, base, len);
-	if (!IS_ERR(ret) && d_is_negative(ret)) {
+	if (!IS_ERR(ret) && d_flags_negative(smp_load_acquire(&ret->d_flags))) {
 		dput(ret);
 		ret = ERR_PTR(-ENOENT);
 	}
@@ -2671,7 +2671,7 @@ mountpoint_last(struct nameidata *nd)
 				return PTR_ERR(path.dentry);
 		}
 	}
-	if (d_is_negative(path.dentry)) {
+	if (d_flags_negative(smp_load_acquire(&path.dentry->d_flags))) {
 		dput(path.dentry);
 		return -ENOENT;
 	}
