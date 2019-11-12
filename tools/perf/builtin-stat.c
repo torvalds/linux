@@ -792,6 +792,8 @@ static struct option stat_options[] = {
 		     "aggregate counts per physical processor core", AGGR_CORE),
 	OPT_SET_UINT(0, "per-thread", &stat_config.aggr_mode,
 		     "aggregate counts per thread", AGGR_THREAD),
+	OPT_SET_UINT(0, "per-node", &stat_config.aggr_mode,
+		     "aggregate counts per numa node", AGGR_NODE),
 	OPT_UINTEGER('D', "delay", &stat_config.initial_delay,
 		     "ms to wait before starting measurement after program start"),
 	OPT_CALLBACK_NOOPT(0, "metric-only", &stat_config.metric_only, NULL,
@@ -830,6 +832,12 @@ static int perf_stat__get_core(struct perf_stat_config *config __maybe_unused,
 	return cpu_map__get_core(map, cpu, NULL);
 }
 
+static int perf_stat__get_node(struct perf_stat_config *config __maybe_unused,
+			       struct perf_cpu_map *map, int cpu)
+{
+	return cpu_map__get_node(map, cpu, NULL);
+}
+
 static int perf_stat__get_aggr(struct perf_stat_config *config,
 			       aggr_get_id_t get_id, struct perf_cpu_map *map, int idx)
 {
@@ -862,6 +870,12 @@ static int perf_stat__get_core_cached(struct perf_stat_config *config,
 				      struct perf_cpu_map *map, int idx)
 {
 	return perf_stat__get_aggr(config, perf_stat__get_core, map, idx);
+}
+
+static int perf_stat__get_node_cached(struct perf_stat_config *config,
+				      struct perf_cpu_map *map, int idx)
+{
+	return perf_stat__get_aggr(config, perf_stat__get_node, map, idx);
 }
 
 static bool term_percore_set(void)
@@ -901,6 +915,13 @@ static int perf_stat_init_aggr_mode(void)
 			return -1;
 		}
 		stat_config.aggr_get_id = perf_stat__get_core_cached;
+		break;
+	case AGGR_NODE:
+		if (cpu_map__build_node_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
+			perror("cannot build core map");
+			return -1;
+		}
+		stat_config.aggr_get_id = perf_stat__get_node_cached;
 		break;
 	case AGGR_NONE:
 		if (term_percore_set()) {
@@ -1014,6 +1035,13 @@ static int perf_env__get_core(struct perf_cpu_map *map, int idx, void *data)
 	return core;
 }
 
+static int perf_env__get_node(struct perf_cpu_map *map, int idx, void *data)
+{
+	int cpu = perf_env__get_cpu(data, map, idx);
+
+	return perf_env__numa_node(data, cpu);
+}
+
 static int perf_env__build_socket_map(struct perf_env *env, struct perf_cpu_map *cpus,
 				      struct perf_cpu_map **sockp)
 {
@@ -1032,6 +1060,12 @@ static int perf_env__build_core_map(struct perf_env *env, struct perf_cpu_map *c
 	return cpu_map__build_map(cpus, corep, perf_env__get_core, env);
 }
 
+static int perf_env__build_node_map(struct perf_env *env, struct perf_cpu_map *cpus,
+				    struct perf_cpu_map **nodep)
+{
+	return cpu_map__build_map(cpus, nodep, perf_env__get_node, env);
+}
+
 static int perf_stat__get_socket_file(struct perf_stat_config *config __maybe_unused,
 				      struct perf_cpu_map *map, int idx)
 {
@@ -1047,6 +1081,12 @@ static int perf_stat__get_core_file(struct perf_stat_config *config __maybe_unus
 				    struct perf_cpu_map *map, int idx)
 {
 	return perf_env__get_core(map, idx, &perf_stat.session->header.env);
+}
+
+static int perf_stat__get_node_file(struct perf_stat_config *config __maybe_unused,
+				    struct perf_cpu_map *map, int idx)
+{
+	return perf_env__get_node(map, idx, &perf_stat.session->header.env);
 }
 
 static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
@@ -1074,6 +1114,13 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 			return -1;
 		}
 		stat_config.aggr_get_id = perf_stat__get_core_file;
+		break;
+	case AGGR_NODE:
+		if (perf_env__build_node_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
+			perror("cannot build core map");
+			return -1;
+		}
+		stat_config.aggr_get_id = perf_stat__get_node_file;
 		break;
 	case AGGR_NONE:
 	case AGGR_GLOBAL:
@@ -1622,6 +1669,8 @@ static int __cmd_report(int argc, const char **argv)
 		     "aggregate counts per processor die", AGGR_DIE),
 	OPT_SET_UINT(0, "per-core", &perf_stat.aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
+	OPT_SET_UINT(0, "per-node", &perf_stat.aggr_mode,
+		     "aggregate counts per numa node", AGGR_NODE),
 	OPT_SET_UINT('A', "no-aggr", &perf_stat.aggr_mode,
 		     "disable CPU count aggregation", AGGR_NONE),
 	OPT_END()
@@ -1895,6 +1944,9 @@ int cmd_stat(int argc, const char **argv)
 			}
 		}
 	}
+
+	if (stat_config.aggr_mode == AGGR_NODE)
+		cpu__setup_cpunode_map();
 
 	if (stat_config.times && interval)
 		interval_count = true;

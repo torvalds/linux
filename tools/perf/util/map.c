@@ -288,7 +288,7 @@ bool map__has_symbols(const struct map *map)
 
 static void map__exit(struct map *map)
 {
-	BUG_ON(!RB_EMPTY_NODE(&map->rb_node));
+	BUG_ON(refcount_read(&map->refcnt) != 0);
 	dso__zput(map->dso);
 }
 
@@ -594,28 +594,20 @@ void map_groups__insert(struct map_groups *mg, struct map *map)
 
 static void __maps__purge(struct maps *maps)
 {
-	struct rb_root *root = &maps->entries;
-	struct rb_node *next = rb_first(root);
+	struct map *pos, *next;
 
-	while (next) {
-		struct map *pos = rb_entry(next, struct map, rb_node);
-
-		next = rb_next(&pos->rb_node);
-		rb_erase_init(&pos->rb_node, root);
+	maps__for_each_entry_safe(maps, pos, next) {
+		rb_erase_init(&pos->rb_node,  &maps->entries);
 		map__put(pos);
 	}
 }
 
 static void __maps__purge_names(struct maps *maps)
 {
-	struct rb_root *root = &maps->names;
-	struct rb_node *next = rb_first(root);
+	struct map *pos, *next;
 
-	while (next) {
-		struct map *pos = rb_entry(next, struct map, rb_node_name);
-
-		next = rb_next(&pos->rb_node_name);
-		rb_erase_init(&pos->rb_node_name, root);
+	maps__for_each_entry_by_name_safe(maps, pos, next) {
+		rb_erase_init(&pos->rb_node_name,  &maps->names);
 		map__put(pos);
 	}
 }
@@ -687,13 +679,11 @@ struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
 					 struct map **mapp)
 {
 	struct symbol *sym;
-	struct rb_node *nd;
+	struct map *pos;
 
 	down_read(&maps->lock);
 
-	for (nd = rb_first(&maps->entries); nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node);
-
+	maps__for_each_entry(maps, pos) {
 		sym = map__find_symbol_by_name(pos, name);
 
 		if (sym == NULL)
@@ -739,12 +729,11 @@ int map_groups__find_ams(struct addr_map_symbol *ams)
 static size_t maps__fprintf(struct maps *maps, FILE *fp)
 {
 	size_t printed = 0;
-	struct rb_node *nd;
+	struct map *pos;
 
 	down_read(&maps->lock);
 
-	for (nd = rb_first(&maps->entries); nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node);
+	maps__for_each_entry(maps, pos) {
 		printed += fprintf(fp, "Map:");
 		printed += map__fprintf(pos, fp);
 		if (verbose > 2) {
@@ -889,7 +878,7 @@ int map_groups__clone(struct thread *thread, struct map_groups *parent)
 
 	down_read(&maps->lock);
 
-	for (map = maps__first(maps); map; map = map__next(map)) {
+	maps__for_each_entry(maps, map) {
 		struct map *new = map__clone(map);
 		if (new == NULL)
 			goto out_unlock;
@@ -1007,13 +996,41 @@ struct map *maps__first(struct maps *maps)
 	return NULL;
 }
 
-struct map *map__next(struct map *map)
+static struct map *__map__next(struct map *map)
 {
 	struct rb_node *next = rb_next(&map->rb_node);
 
 	if (next)
 		return rb_entry(next, struct map, rb_node);
 	return NULL;
+}
+
+struct map *map__next(struct map *map)
+{
+	return map ? __map__next(map) : NULL;
+}
+
+struct map *maps__first_by_name(struct maps *maps)
+{
+	struct rb_node *first = rb_first(&maps->names);
+
+	if (first)
+		return rb_entry(first, struct map, rb_node_name);
+	return NULL;
+}
+
+static struct map *__map__next_by_name(struct map *map)
+{
+	struct rb_node *next = rb_next(&map->rb_node_name);
+
+	if (next)
+		return rb_entry(next, struct map, rb_node_name);
+	return NULL;
+}
+
+struct map *map__next_by_name(struct map *map)
+{
+	return map ? __map__next_by_name(map) : NULL;
 }
 
 struct kmap *__map__kmap(struct map *map)

@@ -1,4 +1,5 @@
 perf-y += annotate.o
+perf-y += block-info.o
 perf-y += block-range.o
 perf-y += build-id.o
 perf-y += cacheline.o

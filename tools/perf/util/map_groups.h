@@ -25,7 +25,22 @@ void maps__remove(struct maps *maps, struct map *map);
 struct map *maps__find(struct maps *maps, u64 addr);
 struct map *maps__first(struct maps *maps);
 struct map *map__next(struct map *map);
+
+#define maps__for_each_entry(maps, map) \
+	for (map = maps__first(maps); map; map = map__next(map))
+
+#define maps__for_each_entry_safe(maps, map, next) \
+	for (map = maps__first(maps), next = map__next(map); map; map = next, next = map__next(map))
+
 struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, struct map **mapp);
+struct map *maps__first_by_name(struct maps *maps);
+struct map *map__next_by_name(struct map *map);
+
+#define maps__for_each_entry_by_name(maps, map) \
+	for (map = maps__first_by_name(maps); map; map = map__next_by_name(map))
+
+#define maps__for_each_entry_by_name_safe(maps, map, next) \
+	for (map = maps__first_by_name(maps), next = map__next_by_name(map); map; map = next, next = map__next_by_name(map))
 
 struct map_groups {
 	struct maps	 maps;
@@ -74,12 +89,11 @@ static inline struct map *map_groups__find(struct map_groups *mg, u64 addr)
 	return maps__find(&mg->maps, addr);
 }
 
-struct map *map_groups__first(struct map_groups *mg);
+#define map_groups__for_each_entry(mg, map) \
+	for (map = maps__first(&mg->maps); map; map = map__next(map))
 
-static inline struct map *map_groups__next(struct map *map)
-{
-	return map__next(map);
-}
+#define map_groups__for_each_entry_safe(mg, map, next) \
+	for (map = maps__first(&mg->maps), next = map__next(map); map; map = next, next = map__next(map))
 
 struct symbol *map_groups__find_symbol(struct map_groups *mg, u64 addr, struct map **mapp);
 struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg, const char *name, struct map **mapp);
