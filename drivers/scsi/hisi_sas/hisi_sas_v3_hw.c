@@ -3302,8 +3302,6 @@ static void hisi_sas_v3_remove(struct pci_dev *pdev)
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
 	struct Scsi_Host *shost = sha->core.shost;
 
-	hisi_sas_debugfs_exit(hisi_hba);
-
 	if (timer_pending(&hisi_hba->timer))
 		del_timer(&hisi_hba->timer);
 
@@ -3315,6 +3313,7 @@ static void hisi_sas_v3_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	hisi_sas_free(hisi_hba);
+	hisi_sas_debugfs_exit(hisi_hba);
 	scsi_host_put(shost);
 }
 
