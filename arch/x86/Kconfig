@@ -1254,10 +1254,13 @@ config X86_VSYSCALL_EMULATION
 	 Disabling this option saves about 7K of kernel size and
 	 possibly 4K of additional runtime pagetable memory.
 
-config X86_IOPL_EMULATION
-	bool "IOPL Emulation"
+config X86_IOPL_IOPERM
+	bool "IOPERM and IOPL Emulation"
 	default y
 	---help---
+	  This enables the ioperm() and iopl() syscalls which are necessary
+	  for legacy applications.
+
 	  Legacy IOPL support is an overbroad mechanism which allows user
 	  space aside of accessing all 65536 I/O ports also to disable
 	  interrupts. To gain this access the caller needs CAP_SYS_RAWIO

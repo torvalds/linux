@@ -340,13 +340,18 @@ struct x86_hw_tss {
 	(offsetof(struct tss_struct, io_bitmap.mapall) -	\
 	 offsetof(struct tss_struct, x86_tss))
 
+#ifdef CONFIG_X86_IOPL_IOPERM
 /*
  * sizeof(unsigned long) coming from an extra "long" at the end of the
  * iobitmap. The limit is inclusive, i.e. the last valid byte.
  */
-#define __KERNEL_TSS_LIMIT	\
+# define __KERNEL_TSS_LIMIT	\
 	(IO_BITMAP_OFFSET_VALID_ALL + IO_BITMAP_BYTES + \
 	 sizeof(unsigned long) - 1)
+#else
+# define __KERNEL_TSS_LIMIT	\
+	(offsetof(struct tss_struct, x86_tss) + sizeof(struct x86_hw_tss) - 1)
+#endif
 
 /* Base offset outside of TSS_LIMIT so unpriviledged IO causes #GP */
 #define IO_BITMAP_OFFSET_INVALID	(__KERNEL_TSS_LIMIT + 1)
@@ -398,7 +403,9 @@ struct tss_struct {
 	 */
 	struct x86_hw_tss	x86_tss;
 
+#ifdef CONFIG_X86_IOPL_IOPERM
 	struct x86_io_bitmap	io_bitmap;
+#endif
 } __aligned(PAGE_SIZE);
 
 DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);

@@ -14,6 +14,8 @@
 #include <asm/io_bitmap.h>
 #include <asm/desc.h>
 
+#ifdef CONFIG_X86_IOPL_IOPERM
+
 static atomic64_t io_bitmap_sequence;
 
 void io_bitmap_share(struct task_struct *tsk)
@@ -172,13 +174,6 @@ SYSCALL_DEFINE1(iopl, unsigned int, level)
 	struct thread_struct *t = &current->thread;
 	unsigned int old;
 
-	/*
-	 * Careful: the IOPL bits in regs->flags are undefined under Xen PV
-	 * and changing them has no effect.
-	 */
-	if (IS_ENABLED(CONFIG_X86_IOPL_NONE))
-		return -ENOSYS;
-
 	if (level > 3)
 		return -EINVAL;
 
@@ -200,3 +195,20 @@ SYSCALL_DEFINE1(iopl, unsigned int, level)
 
 	return 0;
 }
+
+#else /* CONFIG_X86_IOPL_IOPERM */
+
+long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
+{
+	return -ENOSYS;
+}
+SYSCALL_DEFINE3(ioperm, unsigned long, from, unsigned long, num, int, turn_on)
+{
+	return -ENOSYS;
+}
+
+SYSCALL_DEFINE1(iopl, unsigned int, level)
+{
+	return -ENOSYS;
+}
+#endif
