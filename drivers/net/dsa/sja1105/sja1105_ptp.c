@@ -193,42 +193,50 @@ int sja1105_get_ts_info(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-int sja1105et_ptp_cmd(const struct dsa_switch *ds,
-		      const struct sja1105_ptp_cmd *cmd)
+void sja1105et_ptp_cmd_packing(u8 *buf, struct sja1105_ptp_cmd *cmd,
+			       enum packing_op op)
 {
-	const struct sja1105_private *priv = ds->priv;
-	const struct sja1105_regs *regs = priv->info->regs;
 	const int size = SJA1105_SIZE_PTP_CMD;
-	u8 buf[SJA1105_SIZE_PTP_CMD] = {0};
 	/* No need to keep this as part of the structure */
 	u64 valid = 1;
 
-	sja1105_pack(buf, &valid,           31, 31, size);
-	sja1105_pack(buf, &cmd->resptp,      2,  2, size);
-	sja1105_pack(buf, &cmd->corrclk4ts,  1,  1, size);
-	sja1105_pack(buf, &cmd->ptpclkadd,   0,  0, size);
-
-	return sja1105_xfer_buf(priv, SPI_WRITE, regs->ptp_control, buf,
-				SJA1105_SIZE_PTP_CMD);
+	sja1105_packing(buf, &valid,           31, 31, size, op);
+	sja1105_packing(buf, &cmd->resptp,      2,  2, size, op);
+	sja1105_packing(buf, &cmd->corrclk4ts,  1,  1, size, op);
+	sja1105_packing(buf, &cmd->ptpclkadd,   0,  0, size, op);
 }
 
-int sja1105pqrs_ptp_cmd(const struct dsa_switch *ds,
-			const struct sja1105_ptp_cmd *cmd)
+void sja1105pqrs_ptp_cmd_packing(u8 *buf, struct sja1105_ptp_cmd *cmd,
+				 enum packing_op op)
 {
-	const struct sja1105_private *priv = ds->priv;
-	const struct sja1105_regs *regs = priv->info->regs;
 	const int size = SJA1105_SIZE_PTP_CMD;
-	u8 buf[SJA1105_SIZE_PTP_CMD] = {0};
 	/* No need to keep this as part of the structure */
 	u64 valid = 1;
 
-	sja1105_pack(buf, &valid,           31, 31, size);
-	sja1105_pack(buf, &cmd->resptp,      3,  3, size);
-	sja1105_pack(buf, &cmd->corrclk4ts,  2,  2, size);
-	sja1105_pack(buf, &cmd->ptpclkadd,   0,  0, size);
+	sja1105_packing(buf, &valid,           31, 31, size, op);
+	sja1105_packing(buf, &cmd->resptp,      3,  3, size, op);
+	sja1105_packing(buf, &cmd->corrclk4ts,  2,  2, size, op);
+	sja1105_packing(buf, &cmd->ptpclkadd,   0,  0, size, op);
+}
 
-	return sja1105_xfer_buf(priv, SPI_WRITE, regs->ptp_control, buf,
-				SJA1105_SIZE_PTP_CMD);
+static int sja1105_ptp_commit(struct sja1105_private *priv,
+			      struct sja1105_ptp_cmd *cmd,
+			      sja1105_spi_rw_mode_t rw)
+{
+	const struct sja1105_regs *regs = priv->info->regs;
+	u8 buf[SJA1105_SIZE_PTP_CMD] = {0};
+	int rc;
+
+	if (rw == SPI_WRITE)
+		priv->info->ptp_cmd_packing(buf, cmd, PACK);
+
+	rc = sja1105_xfer_buf(priv, SPI_WRITE, regs->ptp_control, buf,
+			      SJA1105_SIZE_PTP_CMD);
+
+	if (rw == SPI_READ)
+		priv->info->ptp_cmd_packing(buf, cmd, UNPACK);
+
+	return rc;
 }
 
 /* The switch returns partial timestamps (24 bits for SJA1105 E/T, which wrap
@@ -438,8 +446,9 @@ static int sja1105_ptp_reset(struct dsa_switch *ds)
 	mutex_lock(&ptp_data->lock);
 
 	cmd.resptp = 1;
+
 	dev_dbg(ds->dev, "Resetting PTP clock\n");
-	rc = priv->info->ptp_cmd(ds, &cmd);
+	rc = sja1105_ptp_commit(priv, &cmd, SPI_WRITE);
 
 	mutex_unlock(&ptp_data->lock);
 
@@ -495,7 +504,7 @@ static int sja1105_ptp_mode_set(struct sja1105_private *priv,
 
 	ptp_data->cmd.ptpclkadd = mode;
 
-	return priv->info->ptp_cmd(priv->ds, &ptp_data->cmd);
+	return sja1105_ptp_commit(priv, &ptp_data->cmd, SPI_WRITE);
 }
 
 /* Write to PTPCLKVAL while PTPCLKADD is 0 */

@@ -39,11 +39,11 @@ int sja1105_ptp_clock_register(struct dsa_switch *ds);
 
 void sja1105_ptp_clock_unregister(struct dsa_switch *ds);
 
-int sja1105et_ptp_cmd(const struct dsa_switch *ds,
-		      const struct sja1105_ptp_cmd *cmd);
+void sja1105et_ptp_cmd_packing(u8 *buf, struct sja1105_ptp_cmd *cmd,
+			       enum packing_op op);
 
-int sja1105pqrs_ptp_cmd(const struct dsa_switch *ds,
-			const struct sja1105_ptp_cmd *cmd);
+void sja1105pqrs_ptp_cmd_packing(u8 *buf, struct sja1105_ptp_cmd *cmd,
+				 enum packing_op op);
 
 int sja1105_get_ts_info(struct dsa_switch *ds, int port,
 			struct ethtool_ts_info *ts);
@@ -110,9 +110,9 @@ static inline int __sja1105_ptp_adjtime(struct dsa_switch *ds, s64 delta)
 	return 0;
 }
 
-#define sja1105et_ptp_cmd NULL
+#define sja1105et_ptp_cmd_packing NULL
 
-#define sja1105pqrs_ptp_cmd NULL
+#define sja1105pqrs_ptp_cmd_packing NULL
 
 #define sja1105_get_ts_info NULL
 
