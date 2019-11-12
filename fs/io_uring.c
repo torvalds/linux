@@ -872,7 +872,7 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 			/* we dropped this link, get next */
 			nxt = list_first_entry_or_null(&req->link_list,
 							struct io_kiocb, list);
-		} else if (nxtptr && current_work()) {
+		} else if (nxtptr && io_wq_current_is_worker()) {
 			*nxtptr = nxt;
 			break;
 		} else {
