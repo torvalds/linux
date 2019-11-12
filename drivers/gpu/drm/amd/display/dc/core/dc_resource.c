@@ -1866,7 +1866,7 @@ static int acquire_resource_from_hw_enabled_state(
 	inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
 
 	if (inst == ENGINE_ID_UNKNOWN)
-		return false;
+		return -1;
 
 	for (i = 0; i < pool->stream_enc_count; i++) {
 		if (pool->stream_enc[i]->id == inst) {
@@ -1878,10 +1878,10 @@ static int acquire_resource_from_hw_enabled_state(
 
 	// tg_inst not found
 	if (i == pool->stream_enc_count)
-		return false;
+		return -1;
 
 	if (tg_inst >= pool->timing_generator_count)
-		return false;
+		return -1;
 
 	if (!res_ctx->pipe_ctx[tg_inst].stream) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[tg_inst];
