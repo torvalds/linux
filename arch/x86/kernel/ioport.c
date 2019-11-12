@@ -18,9 +18,10 @@
  */
 long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 {
+	unsigned int i, max_long, bytes, bytes_updated;
 	struct thread_struct *t = &current->thread;
 	struct tss_struct *tss;
-	unsigned int i, max_long, bytes, bytes_updated;
+	unsigned long *bitmap;
 
 	if ((from + num <= from) || (from + num > IO_BITMAP_BITS))
 		return -EINVAL;
@@ -33,59 +34,55 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 * IO bitmap up. ioperm() is much less timing critical than clone(),
 	 * this is why we delay this operation until now:
 	 */
-	if (!t->io_bitmap_ptr) {
-		unsigned long *bitmap = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
-
+	bitmap = t->io_bitmap_ptr;
+	if (!bitmap) {
+		bitmap = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
 		if (!bitmap)
 			return -ENOMEM;
 
 		memset(bitmap, 0xff, IO_BITMAP_BYTES);
-		t->io_bitmap_ptr = bitmap;
-		set_thread_flag(TIF_IO_BITMAP);
-
-		/*
-		 * Now that we have an IO bitmap, we need our TSS limit to be
-		 * correct.  It's fine if we are preempted after doing this:
-		 * with TIF_IO_BITMAP set, context switches will keep our TSS
-		 * limit correct.
-		 */
-		preempt_disable();
-		refresh_tss_limit();
-		preempt_enable();
 	}
 
 	/*
-	 * do it in the per-thread copy and in the TSS ...
-	 *
-	 * Disable preemption via get_cpu() - we must not switch away
-	 * because the ->io_bitmap_max value must match the bitmap
-	 * contents:
+	 * Update the bitmap and the TSS copy with preemption disabled to
+	 * prevent a race against context switch.
 	 */
-	tss = &per_cpu(cpu_tss_rw, get_cpu());
-
+	preempt_disable();
 	if (turn_on)
-		bitmap_clear(t->io_bitmap_ptr, from, num);
+		bitmap_clear(bitmap, from, num);
 	else
-		bitmap_set(t->io_bitmap_ptr, from, num);
+		bitmap_set(bitmap, from, num);
 
 	/*
 	 * Search for a (possibly new) maximum. This is simple and stupid,
 	 * to keep it obviously correct:
 	 */
 	max_long = 0;
-	for (i = 0; i < IO_BITMAP_LONGS; i++)
-		if (t->io_bitmap_ptr[i] != ~0UL)
+	for (i = 0; i < IO_BITMAP_LONGS; i++) {
+		if (bitmap[i] != ~0UL)
 			max_long = i;
+	}
 
 	bytes = (max_long + 1) * sizeof(unsigned long);
 	bytes_updated = max(bytes, t->io_bitmap_max);
 
+	/* Update the thread data */
 	t->io_bitmap_max = bytes;
+	/*
+	 * Store the bitmap pointer (might be the same if the task already
+	 * head one). Set the TIF flag, just in case this is the first
+	 * invocation.
+	 */
+	t->io_bitmap_ptr = bitmap;
+	set_thread_flag(TIF_IO_BITMAP);
 
-	/* Update the TSS: */
+	/* Update the TSS */
+	tss = this_cpu_ptr(&cpu_tss_rw);
 	memcpy(tss->io_bitmap, t->io_bitmap_ptr, bytes_updated);
+	/* Make sure the TSS limit covers the I/O bitmap. */
+	refresh_tss_limit();
 
-	put_cpu();
+	preempt_enable();
 
 	return 0;
 }
