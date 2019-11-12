@@ -85,8 +85,6 @@ static const u8 blake2b_sigma[12][16] = {
 	{ 14, 10,  4,  8,  9, 15, 13,  6,  1, 12,  0,  2, 11,  7,  5,  3 }
 };
 
-static void blake2b_update(struct blake2b_state *S, const void *pin, size_t inlen);
-
 static void blake2b_set_lastnode(struct blake2b_state *S)
 {
 	S->f[1] = (u64)-1;
@@ -235,12 +233,12 @@ static int blake2b_init(struct shash_desc *desc)
 	state->h[0] ^= 0x01010000 | mctx->keylen << 8 | digestsize;
 
 	if (mctx->keylen) {
-		u8 block[BLAKE2B_BLOCKBYTES];
-
-		memset(block, 0, BLAKE2B_BLOCKBYTES);
-		memcpy(block, mctx->key, mctx->keylen);
-		blake2b_update(state, block, BLAKE2B_BLOCKBYTES);
-		memzero_explicit(block, BLAKE2B_BLOCKBYTES);
+		/*
+		 * Prefill the buffer with the key, next call to _update or
+		 * _final will process it
+		 */
+		memcpy(state->buf, mctx->key, mctx->keylen);
+		state->buflen = BLAKE2B_BLOCKBYTES;
 	}
 	return 0;
 }
