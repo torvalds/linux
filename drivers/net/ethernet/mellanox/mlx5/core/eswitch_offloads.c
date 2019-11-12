@@ -1634,9 +1634,13 @@ static void __esw_offloads_unload_rep(struct mlx5_eswitch *esw,
 		esw->offloads.rep_ops[rep_type]->unload(rep);
 }
 
-static void __unload_reps_special_vport(struct mlx5_eswitch *esw, u8 rep_type)
+static void __unload_reps_all_vport(struct mlx5_eswitch *esw, u8 rep_type)
 {
 	struct mlx5_eswitch_rep *rep;
+	int i;
+
+	mlx5_esw_for_each_vf_rep_reverse(esw, i, rep, esw->esw_funcs.num_vfs)
+		__esw_offloads_unload_rep(esw, rep, rep_type);
 
 	if (mlx5_ecpf_vport_exists(esw->dev)) {
 		rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_ECPF);
@@ -1650,24 +1654,6 @@ static void __unload_reps_special_vport(struct mlx5_eswitch *esw, u8 rep_type)
 
 	rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_UPLINK);
 	__esw_offloads_unload_rep(esw, rep, rep_type);
-}
-
-static void __unload_reps_vf_vport(struct mlx5_eswitch *esw, int nvports,
-				   u8 rep_type)
-{
-	struct mlx5_eswitch_rep *rep;
-	int i;
-
-	mlx5_esw_for_each_vf_rep_reverse(esw, i, rep, nvports)
-		__esw_offloads_unload_rep(esw, rep, rep_type);
-}
-
-static void __unload_reps_all_vport(struct mlx5_eswitch *esw, u8 rep_type)
-{
-	__unload_reps_vf_vport(esw, esw->esw_funcs.num_vfs, rep_type);
-
-	/* Special vports must be the last to unload. */
-	__unload_reps_special_vport(esw, rep_type);
 }
 
 int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num)
