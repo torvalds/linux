@@ -1028,8 +1028,8 @@ EXPORT_SYMBOL_GPL(exitCountArray);
 
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
-	u32 eax, ebx, ecx, edx;
-	// u64 cycles;
+	u32 eax, ebx, ecx, edx, counts, low32, high32;
+	u64 cycles;
 
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
@@ -1037,29 +1037,35 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
 	
-        printk("eax int =================> %d \n", eax);
-        printk("eax =================> %08lx \n", eax);
-	// printk("total count --------------> %d \n", totalCounts);
         if ( eax == 0x4FFFFFFF ) {
-		printk("----- first ------ \n");
-        	eax = totalCounts;
+        	counts = totalCounts;
+		// printk("0x4FFFFFFF: %u \n", counts);
+ 		eax = counts;
 	} else if ( eax == 0x4FFFFFFE ) {
-                printk("----- second ------ \n");
-		// cycles = totalCycles;
-		// ecx = cycles;
-		// ebx = (cycles >> 32);
+		cycles = totalCycles;
+		// printk("0x4FFFFFFE: %llu \n", cycles);
+		low32 = (u32)(cycles & 0xffffffff); // low 32 bit
+		high32 = (u32)(cycles >> 32); // high 32 bit
+		// printk("0x4FFFFFFE, low32: %u \n", low32);
+		// printk("0x4FFFFFFE, high32: %u \n", high32);
+		ecx = low32;
+		ebx = high32;
         } else if ( eax == 0x4FFFFFFD ) {
-		printk("----- third ------ \n");
-		// eax = exitCountArray[ecx % EXIT_SIZE];
+		counts = exitCountArray[ecx % EXIT_SIZE];
+		printk("0x4FFFFFFD: %u \n", counts);
+		eax = counts;
         } else if ( eax == 0x4FFFFFFC ) {
-		printk("----- four ------ \n");
-		// cycles = exitCycleArray[ecx % EXIT_SIZE]; 
-		// ecx = cycles;
-		// ebx = (cycles >> 32);
+		cycles = exitCycleArray[ecx % EXIT_SIZE]; 
+		// printk("0x4FFFFFFE: %llu \n", cycles);
+		low32 = (u32)(cycles & 0xffffffff); // low 32 bit
+		high32 = (u32)(cycles >> 32); // high 32 bit
+		// printk("0x4FFFFFFE, low32: %u \n", low32);
+		// printk("0x4FFFFFFE, high32: %u \n", high32);
+		ecx = low32;
+		ebx = high32;
 	} else {
 	   kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	}
-	// kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);
