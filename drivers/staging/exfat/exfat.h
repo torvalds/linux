@@ -737,21 +737,21 @@ void nls_cstring_to_uniname(struct super_block *sb,
 			    bool *p_lossy);
 
 /* buffer cache management */
-void buf_init(struct super_block *sb);
-void buf_shutdown(struct super_block *sb);
+void exfat_buf_init(struct super_block *sb);
+void exfat_buf_shutdown(struct super_block *sb);
 int FAT_read(struct super_block *sb, u32 loc, u32 *content);
 s32 FAT_write(struct super_block *sb, u32 loc, u32 content);
 u8 *FAT_getblk(struct super_block *sb, sector_t sec);
 void FAT_modify(struct super_block *sb, sector_t sec);
 void FAT_release_all(struct super_block *sb);
 void FAT_sync(struct super_block *sb);
-u8 *buf_getblk(struct super_block *sb, sector_t sec);
-void buf_modify(struct super_block *sb, sector_t sec);
-void buf_lock(struct super_block *sb, sector_t sec);
-void buf_unlock(struct super_block *sb, sector_t sec);
-void buf_release(struct super_block *sb, sector_t sec);
-void buf_release_all(struct super_block *sb);
-void buf_sync(struct super_block *sb);
+u8 *exfat_buf_getblk(struct super_block *sb, sector_t sec);
+void exfat_buf_modify(struct super_block *sb, sector_t sec);
+void exfat_buf_lock(struct super_block *sb, sector_t sec);
+void exfat_buf_unlock(struct super_block *sb, sector_t sec);
+void exfat_buf_release(struct super_block *sb, sector_t sec);
+void exfat_buf_release_all(struct super_block *sb);
+void exfat_buf_sync(struct super_block *sb);
 
 /* fs management functions */
 void fs_set_vol_flags(struct super_block *sb, u32 new_flag);

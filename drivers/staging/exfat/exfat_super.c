@@ -355,7 +355,7 @@ static int ffsMountVol(struct super_block *sb)
 
 	mutex_lock(&z_mutex);
 
-	buf_init(sb);
+	exfat_buf_init(sb);
 
 	mutex_init(&p_fs->v_mutex);
 	p_fs->dev_ejected = 0;
@@ -458,7 +458,7 @@ static int ffsUmountVol(struct super_block *sb)
 	free_alloc_bitmap(sb);
 
 	FAT_release_all(sb);
-	buf_release_all(sb);
+	exfat_buf_release_all(sb);
 
 	/* close the block device */
 	exfat_bdev_close(sb);
@@ -468,7 +468,7 @@ static int ffsUmountVol(struct super_block *sb)
 		err = -EIO;
 	}
 
-	buf_shutdown(sb);
+	exfat_buf_shutdown(sb);
 
 	/* release the lock for file system critical section */
 	mutex_unlock(&p_fs->v_mutex);
@@ -1921,7 +1921,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 			if ((type != TYPE_FILE) && (type != TYPE_DIR))
 				continue;
 
-			buf_lock(sb, sector);
+			exfat_buf_lock(sb, sector);
 			dir_entry->Attr = fs_func->get_entry_attr(ep);
 
 			fs_func->get_entry_time(ep, &tm, TM_CREATE);
@@ -1949,7 +1949,7 @@ static int ffsReadDir(struct inode *inode, struct dir_entry_t *dir_entry)
 			fs_func->get_uni_name_from_ext_entry(sb, &dir, dentry,
 							     uni_name.name);
 			nls_uniname_to_cstring(sb, dir_entry->Name, &uni_name);
-			buf_unlock(sb, sector);
+			exfat_buf_unlock(sb, sector);
 
 			ep = get_entry_in_dir(sb, &clu, i + 1, NULL);
 			if (!ep) {
@@ -3822,7 +3822,7 @@ static void exfat_debug_kill_sb(struct super_block *sb)
 			 */
 			mutex_lock(&p_fs->v_mutex);
 			FAT_release_all(sb);
-			buf_release_all(sb);
+			exfat_buf_release_all(sb);
 			mutex_unlock(&p_fs->v_mutex);
 
 			invalidate_bdev(bdev);

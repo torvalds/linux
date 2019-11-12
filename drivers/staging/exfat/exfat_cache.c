@@ -128,7 +128,7 @@ static void buf_cache_remove_hash(struct buf_cache_t *bp)
 	(bp->hash_next)->hash_prev = bp->hash_prev;
 }
 
-void buf_init(struct super_block *sb)
+void exfat_buf_init(struct super_block *sb)
 {
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
 
@@ -189,7 +189,7 @@ void buf_init(struct super_block *sb)
 		buf_cache_insert_hash(sb, &p_fs->buf_cache_array[i]);
 }
 
-void buf_shutdown(struct super_block *sb)
+void exfat_buf_shutdown(struct super_block *sb)
 {
 }
 
@@ -392,7 +392,7 @@ static struct buf_cache_t *buf_cache_get(struct super_block *sb, sector_t sec)
 	return bp;
 }
 
-static u8 *__buf_getblk(struct super_block *sb, sector_t sec)
+static u8 *__exfat_buf_getblk(struct super_block *sb, sector_t sec)
 {
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
@@ -427,18 +427,18 @@ static u8 *__buf_getblk(struct super_block *sb, sector_t sec)
 	return bp->buf_bh->b_data;
 }
 
-u8 *buf_getblk(struct super_block *sb, sector_t sec)
+u8 *exfat_buf_getblk(struct super_block *sb, sector_t sec)
 {
 	u8 *buf;
 
 	mutex_lock(&b_mutex);
-	buf = __buf_getblk(sb, sec);
+	buf = __exfat_buf_getblk(sb, sec);
 	mutex_unlock(&b_mutex);
 
 	return buf;
 }
 
-void buf_modify(struct super_block *sb, sector_t sec)
+void exfat_buf_modify(struct super_block *sb, sector_t sec)
 {
 	struct buf_cache_t *bp;
 
@@ -454,7 +454,7 @@ void buf_modify(struct super_block *sb, sector_t sec)
 	mutex_unlock(&b_mutex);
 }
 
-void buf_lock(struct super_block *sb, sector_t sec)
+void exfat_buf_lock(struct super_block *sb, sector_t sec)
 {
 	struct buf_cache_t *bp;
 
@@ -470,7 +470,7 @@ void buf_lock(struct super_block *sb, sector_t sec)
 	mutex_unlock(&b_mutex);
 }
 
-void buf_unlock(struct super_block *sb, sector_t sec)
+void exfat_buf_unlock(struct super_block *sb, sector_t sec)
 {
 	struct buf_cache_t *bp;
 
@@ -486,7 +486,7 @@ void buf_unlock(struct super_block *sb, sector_t sec)
 	mutex_unlock(&b_mutex);
 }
 
-void buf_release(struct super_block *sb, sector_t sec)
+void exfat_buf_release(struct super_block *sb, sector_t sec)
 {
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
@@ -510,7 +510,7 @@ void buf_release(struct super_block *sb, sector_t sec)
 	mutex_unlock(&b_mutex);
 }
 
-void buf_release_all(struct super_block *sb)
+void exfat_buf_release_all(struct super_block *sb)
 {
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);
@@ -535,7 +535,7 @@ void buf_release_all(struct super_block *sb)
 	mutex_unlock(&b_mutex);
 }
 
-void buf_sync(struct super_block *sb)
+void exfat_buf_sync(struct super_block *sb)
 {
 	struct buf_cache_t *bp;
 	struct fs_info_t *p_fs = &(EXFAT_SB(sb)->fs_info);

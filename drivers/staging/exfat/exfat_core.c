@@ -352,7 +352,7 @@ static void exfat_free_cluster(struct super_block *sb, struct chain_t *p_chain,
 			if (do_relse) {
 				sector = START_SECTOR(clu);
 				for (i = 0; i < p_fs->sectors_per_clu; i++)
-					buf_release(sb, sector + i);
+					exfat_buf_release(sb, sector + i);
 			}
 
 			if (clr_alloc_bitmap(sb, clu - 2) != 0)
@@ -369,7 +369,7 @@ static void exfat_free_cluster(struct super_block *sb, struct chain_t *p_chain,
 			if (do_relse) {
 				sector = START_SECTOR(clu);
 				for (i = 0; i < p_fs->sectors_per_clu; i++)
-					buf_release(sb, sector + i);
+					exfat_buf_release(sb, sector + i);
 			}
 
 			if (clr_alloc_bitmap(sb, clu - 2) != 0)
@@ -1032,10 +1032,10 @@ static s32 exfat_init_dir_entry(struct super_block *sb, struct chain_t *p_dir,
 		return -ENOENT;
 
 	init_file_entry(file_ep, type);
-	buf_modify(sb, sector);
+	exfat_buf_modify(sb, sector);
 
 	init_strm_entry(strm_ep, flags, start_clu, size);
-	buf_modify(sb, sector);
+	exfat_buf_modify(sb, sector);
 
 	return 0;
 }
@@ -1058,7 +1058,7 @@ static s32 exfat_init_ext_entry(struct super_block *sb, struct chain_t *p_dir,
 		return -ENOENT;
 
 	file_ep->num_ext = (u8)(num_entries - 1);
-	buf_modify(sb, sector);
+	exfat_buf_modify(sb, sector);
 
 	strm_ep = (struct strm_dentry_t *)get_entry_in_dir(sb, p_dir, entry + 1,
 							   &sector);
@@ -1067,7 +1067,7 @@ static s32 exfat_init_ext_entry(struct super_block *sb, struct chain_t *p_dir,
 
 	strm_ep->name_len = p_uniname->name_len;
 	SET16_A(strm_ep->name_hash, p_uniname->name_hash);
-	buf_modify(sb, sector);
+	exfat_buf_modify(sb, sector);
 
 	for (i = 2; i < num_entries; i++) {
 		name_ep = (struct name_dentry_t *)get_entry_in_dir(sb, p_dir,
@@ -1077,7 +1077,7 @@ static s32 exfat_init_ext_entry(struct super_block *sb, struct chain_t *p_dir,
 			return -ENOENT;
 
 		init_name_entry(name_ep, uniname);
-		buf_modify(sb, sector);
+		exfat_buf_modify(sb, sector);
 		uniname += 15;
 	}
 
@@ -1100,7 +1100,7 @@ static void exfat_delete_dir_entry(struct super_block *sb, struct chain_t *p_dir
 			return;
 
 		p_fs->fs_func->set_entry_type(ep, TYPE_DELETED);
-		buf_modify(sb, sector);
+		exfat_buf_modify(sb, sector);
 	}
 }
 
@@ -1118,7 +1118,7 @@ void update_dir_checksum(struct super_block *sb, struct chain_t *p_dir,
 	if (!file_ep)
 		return;
 
-	buf_lock(sb, sector);
+	exfat_buf_lock(sb, sector);
 
 	num_entries = (s32)file_ep->num_ext + 1;
 	chksum = calc_checksum_2byte((void *)file_ep, DENTRY_SIZE, 0,
@@ -1127,7 +1127,7 @@ void update_dir_checksum(struct super_block *sb, struct chain_t *p_dir,
 	for (i = 1; i < num_entries; i++) {
 		ep = get_entry_in_dir(sb, p_dir, entry + i, NULL);
 		if (!ep) {
-			buf_unlock(sb, sector);
+			exfat_buf_unlock(sb, sector);
 			return;
 		}
 
@@ -1136,8 +1136,8 @@ void update_dir_checksum(struct super_block *sb, struct chain_t *p_dir,
 	}
 
 	SET16_A(file_ep->checksum, chksum);
-	buf_modify(sb, sector);
-	buf_unlock(sb, sector);
+	exfat_buf_modify(sb, sector);
+	exfat_buf_unlock(sb, sector);
 }
 
 static s32 __write_partial_entries_in_entry_set(struct super_block *sb,
@@ -1161,7 +1161,7 @@ static s32 __write_partial_entries_in_entry_set(struct super_block *sb,
 		copy_entries = min_t(s32,
 				     remaining_byte_in_sector >> DENTRY_SIZE_BITS,
 				     num_entries);
-		buf = buf_getblk(sb, sec);
+		buf = exfat_buf_getblk(sb, sec);
 		if (!buf)
 			goto err_out;
 		pr_debug("es->buf %p buf_off %u\n", esbuf, buf_off);
@@ -1170,7 +1170,7 @@ static s32 __write_partial_entries_in_entry_set(struct super_block *sb,
 			 (unsigned long long)sec);
 		memcpy(buf + off, esbuf + buf_off,
 		       copy_entries << DENTRY_SIZE_BITS);
-		buf_modify(sb, sec);
+		exfat_buf_modify(sb, sec);
 		num_entries -= copy_entries;
 
 		if (num_entries) {
@@ -1295,7 +1295,7 @@ struct dentry_t *get_entry_in_dir(struct super_block *sb, struct chain_t *p_dir,
 	if (find_location(sb, p_dir, entry, &sec, &off) != 0)
 		return NULL;
 
-	buf = buf_getblk(sb, sec);
+	buf = exfat_buf_getblk(sb, sec);
 
 	if (!buf)
 		return NULL;
@@ -1359,7 +1359,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 	sec = byte_offset >> p_bd->sector_size_bits;
 	sec += START_SECTOR(clu);
 
-	buf = buf_getblk(sb, sec);
+	buf = exfat_buf_getblk(sb, sec);
 	if (!buf)
 		goto err_out;
 
@@ -1457,7 +1457,7 @@ struct entry_set_cache_t *get_entry_set_in_dir(struct super_block *sb,
 			} else {
 				sec++;
 			}
-			buf = buf_getblk(sb, sec);
+			buf = exfat_buf_getblk(sb, sec);
 			if (!buf)
 				goto err_out;
 			off = 0;
@@ -1649,7 +1649,7 @@ static s32 find_empty_entry(struct inode *inode, struct chain_t *p_dir, s32 num_
 				return -ENOENT;
 			p_fs->fs_func->set_entry_size(ep, size);
 			p_fs->fs_func->set_entry_flag(ep, p_dir->flags);
-			buf_modify(sb, sector);
+			exfat_buf_modify(sb, sector);
 
 			update_dir_checksum(sb, &fid->dir,
 					    fid->entry);
@@ -2341,17 +2341,17 @@ void remove_file(struct inode *inode, struct chain_t *p_dir, s32 entry)
 	if (!ep)
 		return;
 
-	buf_lock(sb, sector);
+	exfat_buf_lock(sb, sector);
 
-	/* buf_lock() before call count_ext_entries() */
+	/* exfat_buf_lock() before call count_ext_entries() */
 	num_entries = fs_func->count_ext_entries(sb, p_dir, entry, ep);
 	if (num_entries < 0) {
-		buf_unlock(sb, sector);
+		exfat_buf_unlock(sb, sector);
 		return;
 	}
 	num_entries++;
 
-	buf_unlock(sb, sector);
+	exfat_buf_unlock(sb, sector);
 
 	/* (1) update the directory entry */
 	fs_func->delete_dir_entry(sb, p_dir, entry, 0, num_entries);
@@ -2372,13 +2372,13 @@ s32 rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
 	if (!epold)
 		return -ENOENT;
 
-	buf_lock(sb, sector_old);
+	exfat_buf_lock(sb, sector_old);
 
-	/* buf_lock() before call count_ext_entries() */
+	/* exfat_buf_lock() before call count_ext_entries() */
 	num_old_entries = fs_func->count_ext_entries(sb, p_dir, oldentry,
 						     epold);
 	if (num_old_entries < 0) {
-		buf_unlock(sb, sector_old);
+		exfat_buf_unlock(sb, sector_old);
 		return -ENOENT;
 	}
 	num_old_entries++;
@@ -2386,20 +2386,20 @@ s32 rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
 	ret = get_num_entries_and_dos_name(sb, p_dir, p_uniname,
 					   &num_new_entries, &dos_name);
 	if (ret) {
-		buf_unlock(sb, sector_old);
+		exfat_buf_unlock(sb, sector_old);
 		return ret;
 	}
 
 	if (num_old_entries < num_new_entries) {
 		newentry = find_empty_entry(inode, p_dir, num_new_entries);
 		if (newentry < 0) {
-			buf_unlock(sb, sector_old);
+			exfat_buf_unlock(sb, sector_old);
 			return -ENOSPC;
 		}
 
 		epnew = get_entry_in_dir(sb, p_dir, newentry, &sector_new);
 		if (!epnew) {
-			buf_unlock(sb, sector_old);
+			exfat_buf_unlock(sb, sector_old);
 			return -ENOENT;
 		}
 
@@ -2410,23 +2410,23 @@ s32 rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
 						ATTR_ARCHIVE);
 			fid->attr |= ATTR_ARCHIVE;
 		}
-		buf_modify(sb, sector_new);
-		buf_unlock(sb, sector_old);
+		exfat_buf_modify(sb, sector_new);
+		exfat_buf_unlock(sb, sector_old);
 
 		epold = get_entry_in_dir(sb, p_dir, oldentry + 1,
 					 &sector_old);
-		buf_lock(sb, sector_old);
+		exfat_buf_lock(sb, sector_old);
 		epnew = get_entry_in_dir(sb, p_dir, newentry + 1,
 					 &sector_new);
 
 		if (!epold || !epnew) {
-			buf_unlock(sb, sector_old);
+			exfat_buf_unlock(sb, sector_old);
 			return -ENOENT;
 		}
 
 		memcpy((void *)epnew, (void *)epold, DENTRY_SIZE);
-		buf_modify(sb, sector_new);
-		buf_unlock(sb, sector_old);
+		exfat_buf_modify(sb, sector_new);
+		exfat_buf_unlock(sb, sector_old);
 
 		ret = fs_func->init_ext_entry(sb, p_dir, newentry,
 					      num_new_entries, p_uniname,
@@ -2444,8 +2444,8 @@ s32 rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
 						ATTR_ARCHIVE);
 			fid->attr |= ATTR_ARCHIVE;
 		}
-		buf_modify(sb, sector_old);
-		buf_unlock(sb, sector_old);
+		exfat_buf_modify(sb, sector_old);
+		exfat_buf_unlock(sb, sector_old);
 
 		ret = fs_func->init_ext_entry(sb, p_dir, oldentry,
 					      num_new_entries, p_uniname,
@@ -2481,13 +2481,13 @@ s32 move_file(struct inode *inode, struct chain_t *p_olddir, s32 oldentry,
 	    fs_func->get_entry_clu0(epmov) == p_newdir->dir)
 		return -EINVAL;
 
-	buf_lock(sb, sector_mov);
+	exfat_buf_lock(sb, sector_mov);
 
-	/* buf_lock() before call count_ext_entries() */
+	/* exfat_buf_lock() before call count_ext_entries() */
 	num_old_entries = fs_func->count_ext_entries(sb, p_olddir, oldentry,
 						     epmov);
 	if (num_old_entries < 0) {
-		buf_unlock(sb, sector_mov);
+		exfat_buf_unlock(sb, sector_mov);
 		return -ENOENT;
 	}
 	num_old_entries++;
@@ -2495,19 +2495,19 @@ s32 move_file(struct inode *inode, struct chain_t *p_olddir, s32 oldentry,
 	ret = get_num_entries_and_dos_name(sb, p_newdir, p_uniname,
 					   &num_new_entries, &dos_name);
 	if (ret) {
-		buf_unlock(sb, sector_mov);
+		exfat_buf_unlock(sb, sector_mov);
 		return ret;
 	}
 
 	newentry = find_empty_entry(inode, p_newdir, num_new_entries);
 	if (newentry < 0) {
-		buf_unlock(sb, sector_mov);
+		exfat_buf_unlock(sb, sector_mov);
 		return -ENOSPC;
 	}
 
 	epnew = get_entry_in_dir(sb, p_newdir, newentry, &sector_new);
 	if (!epnew) {
-		buf_unlock(sb, sector_mov);
+		exfat_buf_unlock(sb, sector_mov);
 		return -ENOENT;
 	}
 
@@ -2517,22 +2517,22 @@ s32 move_file(struct inode *inode, struct chain_t *p_olddir, s32 oldentry,
 					ATTR_ARCHIVE);
 		fid->attr |= ATTR_ARCHIVE;
 	}
-	buf_modify(sb, sector_new);
-	buf_unlock(sb, sector_mov);
+	exfat_buf_modify(sb, sector_new);
+	exfat_buf_unlock(sb, sector_mov);
 
 	epmov = get_entry_in_dir(sb, p_olddir, oldentry + 1,
 				 &sector_mov);
-	buf_lock(sb, sector_mov);
+	exfat_buf_lock(sb, sector_mov);
 	epnew = get_entry_in_dir(sb, p_newdir, newentry + 1,
 				 &sector_new);
 	if (!epmov || !epnew) {
-		buf_unlock(sb, sector_mov);
+		exfat_buf_unlock(sb, sector_mov);
 		return -ENOENT;
 	}
 
 	memcpy((void *)epnew, (void *)epmov, DENTRY_SIZE);
-	buf_modify(sb, sector_new);
-	buf_unlock(sb, sector_mov);
+	exfat_buf_modify(sb, sector_new);
+	exfat_buf_unlock(sb, sector_mov);
 
 	ret = fs_func->init_ext_entry(sb, p_newdir, newentry, num_new_entries,
 				      p_uniname, &dos_name);
