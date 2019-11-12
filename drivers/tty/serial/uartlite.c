@@ -670,7 +670,7 @@ static int ulite_assign(struct device *dev, int id, u32 base, int irq,
 #endif
 
 	/* Register the port */
-	rc = uart_add_one_port(&ulite_uart_driver, port);
+	rc = uart_add_one_port(pdata->ulite_uart_driver, port);
 	if (rc) {
 		dev_err(dev, "uart_add_one_port() failed; err=%i\n", rc);
 		port->mapbase = 0;
@@ -681,7 +681,7 @@ static int ulite_assign(struct device *dev, int id, u32 base, int irq,
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
 	/* This is not port which is used for console that's why clean it up */
 	if (console_port == port &&
-	    !(ulite_uart_driver.cons->flags & CON_ENABLED))
+	    !(pdata->ulite_uart_driver->cons->flags & CON_ENABLED))
 		console_port = NULL;
 #endif
 
