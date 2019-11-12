@@ -912,7 +912,6 @@ static s32 xmitframe_addmic(struct adapter *padapter, struct xmit_frame *pxmitfr
 
 static s32 xmitframe_swencrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
-
 	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 
 	if (pattrib->bswenc) {
@@ -1328,7 +1327,6 @@ s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, _pkt *pkt, struct xmit
 				psta = rtw_get_stainfo(&padapter->stapriv, pattrib->ra);
 
 			if (!psta) {
-
 				DBG_871X("%s, psta ==NUL\n", __func__);
 				goto xmitframe_coalesce_fail;
 			}
@@ -1436,7 +1434,6 @@ s32 rtw_put_snap(u8 *data, u16 h_proto)
 
 void rtw_update_protection(struct adapter *padapter, u8 *ie, uint ie_len)
 {
-
 	uint	protection;
 	u8 *perp;
 	sint	 erp_len;
@@ -1565,7 +1562,6 @@ struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv)
 	if (list_empty(&pfree_queue->queue)) {
 		pxmitbuf = NULL;
 	} else {
-
 		phead = get_list_head(pfree_queue);
 
 		plist = get_next(phead);
@@ -1633,7 +1629,6 @@ struct xmit_buf *rtw_alloc_xmitbuf(struct xmit_priv *pxmitpriv)
 	if (list_empty(&pfree_xmitbuf_queue->queue)) {
 		pxmitbuf = NULL;
 	} else {
-
 		phead = get_list_head(pfree_xmitbuf_queue);
 
 		plist = get_next(phead);
@@ -1887,7 +1882,6 @@ void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pfram
 	plist = get_next(phead);
 
 	while (phead != plist) {
-
 		pxmitframe = LIST_CONTAINOR(plist, struct xmit_frame, list);
 
 		plist = get_next(plist);
@@ -2025,7 +2019,6 @@ s32 rtw_alloc_hwxmits(struct adapter *padapter)
 
 		hwxmits[4] .sta_queue = &pxmitpriv->be_pending;
 	} else if (pxmitpriv->hwxmit_entry == 4) {
-
 		hwxmits[0] .sta_queue = &pxmitpriv->vo_pending;
 
 		hwxmits[1] .sta_queue = &pxmitpriv->vi_pending;
@@ -2181,7 +2174,6 @@ inline bool xmitframe_hiq_filter(struct xmit_frame *xmitframe)
 	struct registry_priv *registry = &adapter->registrypriv;
 
 	if (registry->hiq_filter == RTW_HIQ_FILTER_ALLOW_SPECIAL) {
-
 		struct pkt_attrib *attrib = &xmitframe->attrib;
 
 		if (attrib->ether_type == 0x0806
