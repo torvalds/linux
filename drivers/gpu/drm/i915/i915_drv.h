@@ -1252,8 +1252,6 @@ struct drm_i915_private {
 	struct intel_gt gt;
 
 	struct {
-		struct notifier_block pm_notifier;
-
 		struct i915_gem_contexts {
 			spinlock_t lock; /* locks list */
 			struct list_head list;
