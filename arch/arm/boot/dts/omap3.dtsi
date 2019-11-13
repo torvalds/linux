@@ -8,6 +8,7 @@
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/bus/ti-sysc.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/omap.h>
@@ -500,6 +501,30 @@
 			clocks = <&mcbsp1_fck>;
 			clock-names = "fck";
 			status = "disabled";
+		};
+
+		/* Likely needs to be tagged disabled on HS devices */
+		rng_target: target-module@480a0000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x480a003c 0x4>,
+			      <0x480a0040 0x4>,
+			      <0x480a0044 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>;
+			ti,syss-mask = <1>;
+			clocks = <&rng_ick>;
+			clock-names = "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480a0000 0x2000>;
+
+			rng: rng@0 {
+				compatible = "ti,omap2-rng";
+				reg = <0x0 0x2000>;
+				interrupts = <52>;
+			};
 		};
 
 		mcbsp2: mcbsp@49022000 {
