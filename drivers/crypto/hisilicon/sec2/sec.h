@@ -119,9 +119,32 @@ enum sec_endian {
 	SEC_64BE
 };
 
+enum sec_debug_file_index {
+	SEC_CURRENT_QM,
+	SEC_CLEAR_ENABLE,
+	SEC_DEBUG_FILE_NUM,
+};
+
+struct sec_debug_file {
+	enum sec_debug_file_index index;
+	spinlock_t lock;
+	struct hisi_qm *qm;
+};
+
+struct sec_dfx {
+	u64 send_cnt;
+	u64 recv_cnt;
+};
+
+struct sec_debug {
+	struct sec_dfx dfx;
+	struct sec_debug_file files[SEC_DEBUG_FILE_NUM];
+};
+
 struct sec_dev {
 	struct hisi_qm qm;
 	struct list_head list;
+	struct sec_debug debug;
 	u32 ctx_q_num;
 	u32 num_vfs;
 	unsigned long status;

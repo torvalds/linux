@@ -120,6 +120,8 @@ static void sec_req_cb(struct hisi_qp *qp, void *resp)
 		return;
 	}
 
+	__sync_add_and_fetch(&req->ctx->sec->debug.dfx.recv_cnt, 1);
+
 	req->ctx->req_op->buf_unmap(req->ctx, req);
 
 	req->ctx->req_op->callback(req->ctx, req);
@@ -133,6 +135,7 @@ static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
 	mutex_lock(&qp_ctx->req_lock);
 	ret = hisi_qp_send(qp_ctx->qp, &req->sec_sqe);
 	mutex_unlock(&qp_ctx->req_lock);
+	__sync_add_and_fetch(&ctx->sec->debug.dfx.send_cnt, 1);
 
 	if (ret == -EBUSY)
 		return -ENOBUFS;
