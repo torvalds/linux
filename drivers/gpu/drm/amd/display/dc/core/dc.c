@@ -1167,8 +1167,6 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 				context->stream_status[i].plane_count,
 				context); /* use new pipe config in new context */
 		}
-	if (dc->hwss.program_front_end_for_ctx)
-		dc->hwss.program_front_end_for_ctx(dc, context);
 
 	/* Program hardware */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
