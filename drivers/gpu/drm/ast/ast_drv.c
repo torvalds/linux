@@ -104,17 +104,24 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
-	ret = drm_dev_register(dev, ent->driver_data);
+	ret = ast_driver_load(dev, ent->driver_data);
 	if (ret)
 		goto err_drm_dev_put;
 
+	ret = drm_dev_register(dev, ent->driver_data);
+	if (ret)
+		goto err_ast_driver_unload;
+
 	return 0;
 
+err_ast_driver_unload:
+	ast_driver_unload(dev);
 err_drm_dev_put:
 	drm_dev_put(dev);
 err_pci_disable_device:
 	pci_disable_device(pdev);
 	return ret;
+
 }
 
 static void
@@ -123,6 +130,7 @@ ast_pci_remove(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
 	drm_dev_unregister(dev);
+	ast_driver_unload(dev);
 	drm_dev_put(dev);
 }
 
@@ -227,9 +235,6 @@ static struct drm_driver driver = {
 	.driver_features = DRIVER_ATOMIC |
 			   DRIVER_GEM |
 			   DRIVER_MODESET,
-
-	.load = ast_driver_load,
-	.unload = ast_driver_unload,
 
 	.fops = &ast_fops,
 	.name = DRIVER_NAME,
