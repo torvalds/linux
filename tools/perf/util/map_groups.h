@@ -33,14 +33,6 @@ struct map *map__next(struct map *map);
 	for (map = maps__first(maps), next = map__next(map); map; map = next, next = map__next(map))
 
 struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, struct map **mapp);
-struct map *maps__first_by_name(struct maps *maps);
-struct map *map__next_by_name(struct map *map);
-
-#define maps__for_each_entry_by_name(maps, map) \
-	for (map = maps__first_by_name(maps); map; map = map__next_by_name(map))
-
-#define maps__for_each_entry_by_name_safe(maps, map, next) \
-	for (map = maps__first_by_name(maps), next = map__next_by_name(map); map; map = next, next = map__next_by_name(map))
 
 struct map_groups {
 	struct maps	 maps;

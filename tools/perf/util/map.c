@@ -589,15 +589,7 @@ static void __maps__purge(struct maps *maps)
 	maps__for_each_entry_safe(maps, pos, next) {
 		rb_erase_init(&pos->rb_node,  &maps->entries);
 		map__put(pos);
-	}
-}
-
-static void __maps__purge_names(struct maps *maps)
-{
-	struct map *pos, *next;
-
-	maps__for_each_entry_by_name_safe(maps, pos, next) {
-		rb_erase_init(&pos->rb_node_name,  &maps->names);
+		rb_erase_init(&pos->rb_node_name, &maps->names);
 		map__put(pos);
 	}
 }
@@ -606,7 +598,6 @@ static void maps__exit(struct maps *maps)
 {
 	down_write(&maps->lock);
 	__maps__purge(maps);
-	__maps__purge_names(maps);
 	up_write(&maps->lock);
 }
 
@@ -992,29 +983,6 @@ static struct map *__map__next(struct map *map)
 struct map *map__next(struct map *map)
 {
 	return map ? __map__next(map) : NULL;
-}
-
-struct map *maps__first_by_name(struct maps *maps)
-{
-	struct rb_node *first = rb_first(&maps->names);
-
-	if (first)
-		return rb_entry(first, struct map, rb_node_name);
-	return NULL;
-}
-
-static struct map *__map__next_by_name(struct map *map)
-{
-	struct rb_node *next = rb_next(&map->rb_node_name);
-
-	if (next)
-		return rb_entry(next, struct map, rb_node_name);
-	return NULL;
-}
-
-struct map *map__next_by_name(struct map *map)
-{
-	return map ? __map__next_by_name(map) : NULL;
 }
 
 struct kmap *__map__kmap(struct map *map)
