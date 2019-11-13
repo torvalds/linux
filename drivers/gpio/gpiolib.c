@@ -4894,9 +4894,9 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 
 	pr_info("GPIO line %d (%s) hogged as %s%s\n",
 		desc_to_gpio(desc), name,
-		(dflags&GPIOD_FLAGS_BIT_DIR_OUT) ? "output" : "input",
-		(dflags&GPIOD_FLAGS_BIT_DIR_OUT) ?
-		  (dflags&GPIOD_FLAGS_BIT_DIR_VAL) ? "/high" : "/low":"");
+		(dflags & GPIOD_FLAGS_BIT_DIR_OUT) ? "output" : "input",
+		(dflags & GPIOD_FLAGS_BIT_DIR_OUT) ?
+		  (dflags & GPIOD_FLAGS_BIT_DIR_VAL) ? "/high" : "/low" : "");
 
 	return 0;
 }
