@@ -1953,6 +1953,8 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 		card->snd_card = NULL;
 	}
 
+	snd_soc_dapm_shutdown(card);
+
 	/* remove and free each DAI */
 	soc_remove_link_dais(card);
 
@@ -2389,7 +2391,6 @@ static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
 {
 	if (card->instantiated) {
 		card->instantiated = false;
-		snd_soc_dapm_shutdown(card);
 		snd_soc_flush_all_delayed_work(card);
 
 		soc_cleanup_card_resources(card);
