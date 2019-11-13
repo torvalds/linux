@@ -9,11 +9,6 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 
-static const struct attribute_group *region_attr_groups[] = {
-	&nd_region_attribute_group,
-	NULL,
-};
-
 static const struct attribute_group *bus_attr_groups[] = {
 	&nvdimm_bus_attribute_group,
 	NULL,
@@ -65,7 +60,6 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 		 * structures so passing a stack pointer is fine.
 		 */
 		memset(&ndr_desc, 0, sizeof(ndr_desc));
-		ndr_desc.attr_groups = region_attr_groups;
 		ndr_desc.numa_node = dev_to_node(&pdev->dev);
 		ndr_desc.target_node = ndr_desc.numa_node;
 		ndr_desc.res = &pdev->resource[i];

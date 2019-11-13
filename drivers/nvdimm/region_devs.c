@@ -757,14 +757,14 @@ struct attribute_group nd_mapping_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(nd_mapping_attribute_group);
 
-struct attribute_group nd_region_attribute_group = {
+static const struct attribute_group nd_region_attribute_group = {
 	.attrs = nd_region_attributes,
 	.is_visible = region_visible,
 };
-EXPORT_SYMBOL_GPL(nd_region_attribute_group);
 
 static const struct attribute_group *nd_region_attribute_groups[] = {
 	&nd_device_attribute_group,
+	&nd_region_attribute_group,
 	&nd_numa_attribute_group,
 	NULL,
 };

@@ -285,7 +285,6 @@ int papr_scm_ndctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 }
 
 static const struct attribute_group *region_attr_groups[] = {
-	&nd_region_attribute_group,
 	&nd_mapping_attribute_group,
 	NULL,
 };

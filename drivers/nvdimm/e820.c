@@ -13,11 +13,6 @@ static const struct attribute_group *e820_pmem_attribute_groups[] = {
 	NULL,
 };
 
-static const struct attribute_group *e820_pmem_region_attribute_groups[] = {
-	&nd_region_attribute_group,
-	NULL,
-};
-
 static int e820_pmem_remove(struct platform_device *pdev)
 {
 	struct nvdimm_bus *nvdimm_bus = platform_get_drvdata(pdev);
@@ -45,7 +40,6 @@ static int e820_register_one(struct resource *res, void *data)
 
 	memset(&ndr_desc, 0, sizeof(ndr_desc));
 	ndr_desc.res = res;
-	ndr_desc.attr_groups = e820_pmem_region_attribute_groups;
 	ndr_desc.numa_node = e820_range_to_nid(res->start);
 	ndr_desc.target_node = ndr_desc.numa_node;
 	set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);
