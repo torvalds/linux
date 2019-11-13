@@ -1465,7 +1465,7 @@ static int sfp_module_parse_power(struct sfp *sfp)
 	 */
 	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE && power_mW > 1000) {
 		dev_warn(sfp->dev,
-			 "Address Change Sequence not supported but module requies %u.%uW, module may not be functional\n",
+			 "Address Change Sequence not supported but module requires %u.%uW, module may not be functional\n",
 			 power_mW / 1000, (power_mW / 100) % 10);
 		return 0;
 	}
