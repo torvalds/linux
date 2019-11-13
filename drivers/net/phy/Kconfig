@@ -359,6 +359,12 @@ config DP83867_PHY
 	---help---
 	  Currently supports the DP83867 PHY.
 
+config DP83869_PHY
+	tristate "Texas Instruments DP83869 Gigabit PHY"
+	---help---
+	  Currently supports the DP83869 PHY.  This PHY supports copper and
+	  fiber connections.
+
 config FIXED_PHY
 	tristate "MDIO Bus/PHY emulation with fixed speed/link PHYs"
 	depends on PHYLIB
