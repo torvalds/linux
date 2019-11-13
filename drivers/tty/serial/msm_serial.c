@@ -301,7 +301,7 @@ static void msm_request_tx_dma(struct msm_port *msm_port, resource_size_t base)
 	dma = &msm_port->tx_dma;
 
 	/* allocate DMA resources, if available */
-	dma->chan = dma_request_slave_channel_reason(dev, "tx");
+	dma->chan = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->chan))
 		goto no_tx;
 
@@ -344,7 +344,7 @@ static void msm_request_rx_dma(struct msm_port *msm_port, resource_size_t base)
 	dma = &msm_port->rx_dma;
 
 	/* allocate DMA resources, if available */
-	dma->chan = dma_request_slave_channel_reason(dev, "rx");
+	dma->chan = dma_request_chan(dev, "rx");
 	if (IS_ERR(dma->chan))
 		goto no_rx;
 
