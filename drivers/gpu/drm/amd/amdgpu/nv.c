@@ -40,6 +40,7 @@
 #include "gc/gc_10_1_0_sh_mask.h"
 #include "hdp/hdp_5_0_0_offset.h"
 #include "hdp/hdp_5_0_0_sh_mask.h"
+#include "smuio/smuio_11_0_0_offset.h"
 
 #include "soc15.h"
 #include "soc15_common.h"
@@ -156,8 +157,27 @@ static bool nv_read_disabled_bios(struct amdgpu_device *adev)
 static bool nv_read_bios_from_rom(struct amdgpu_device *adev,
 				  u8 *bios, u32 length_bytes)
 {
-	/* TODO: will implement it when SMU header is available */
-	return false;
+	u32 *dw_ptr;
+	u32 i, length_dw;
+
+	if (bios == NULL)
+		return false;
+	if (length_bytes == 0)
+		return false;
+	/* APU vbios image is part of sbios image */
+	if (adev->flags & AMD_IS_APU)
+		return false;
+
+	dw_ptr = (u32 *)bios;
+	length_dw = ALIGN(length_bytes, 4) / 4;
+
+	/* set rom index to 0 */
+	WREG32(SOC15_REG_OFFSET(SMUIO, 0, mmROM_INDEX), 0);
+	/* read out the rom data */
+	for (i = 0; i < length_dw; i++)
+		dw_ptr[i] = RREG32(SOC15_REG_OFFSET(SMUIO, 0, mmROM_DATA));
+
+	return true;
 }
 
 static struct soc15_allowed_register_entry nv_allowed_read_registers[] = {
