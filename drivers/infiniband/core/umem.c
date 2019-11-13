@@ -185,10 +185,9 @@ EXPORT_SYMBOL(ib_umem_find_best_pgsz);
  * @addr: userspace virtual address to start at
  * @size: length of region to pin
  * @access: IB_ACCESS_xxx flags for memory being pinned
- * @dmasync: flush in-flight DMA when the memory region is written
  */
 struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
-			    size_t size, int access, int dmasync)
+			    size_t size, int access)
 {
 	struct ib_ucontext *context;
 	struct ib_umem *umem;

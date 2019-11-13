@@ -186,7 +186,7 @@ static int create_user_srq(struct hns_roce_srq *srq, struct ib_udata *udata,
 	if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd)))
 		return -EFAULT;
 
-	srq->umem = ib_umem_get(udata, ucmd.buf_addr, srq_buf_size, 0, 0);
+	srq->umem = ib_umem_get(udata, ucmd.buf_addr, srq_buf_size, 0);
 	if (IS_ERR(srq->umem))
 		return PTR_ERR(srq->umem);
 
@@ -206,7 +206,7 @@ static int create_user_srq(struct hns_roce_srq *srq, struct ib_udata *udata,
 
 	/* config index queue BA */
 	srq->idx_que.umem = ib_umem_get(udata, ucmd.que_addr,
-					srq->idx_que.buf_size, 0, 0);
+					srq->idx_que.buf_size, 0);
 	if (IS_ERR(srq->idx_que.umem)) {
 		dev_err(hr_dev->dev, "ib_umem_get error for index queue\n");
 		ret = PTR_ERR(srq->idx_que.umem);
