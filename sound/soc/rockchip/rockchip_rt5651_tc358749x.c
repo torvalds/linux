@@ -20,9 +20,8 @@
 
 #include "rockchip_i2s.h"
 #include "../codecs/rt5651.h"
-#include "../codecs/tc358749x.h"
 
-#define DRV_NAME "rk3399-rt5651-tc358749x"
+#define DRV_NAME "rockchip-rt5651"
 
 static const struct snd_soc_dapm_widget rockchip_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphones", NULL),
@@ -145,10 +144,8 @@ static struct snd_soc_ops rockchip_sound_rt5651_voice_ops = {
 enum {
 	DAILINK_RT5651_HIFI,
 	DAILINK_RT5651_VOICE,
-	DAILINK_TC358749_HDMIIN,
+	DAILINK_RT5651_MAX
 };
-
-#define DAILINK_ENTITIES	(DAILINK_TC358749_HDMIIN + 1)
 
 static struct snd_soc_dai_link rockchip_dailinks[] = {
 	[DAILINK_RT5651_HIFI] = {
@@ -168,11 +165,6 @@ static struct snd_soc_dai_link rockchip_dailinks[] = {
 		/* set rt5651 as slave */
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
-	},
-	[DAILINK_TC358749_HDMIIN] = {
-		.name = "TC358749 HDMIIN",
-		.stream_name = "TC358749 PCM",
-		.codec_dai_name = "tc358749x-audio",
 	},
 };
 
@@ -204,7 +196,7 @@ static int rockchip_sound_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	for (i = 0; i < DAILINK_ENTITIES; i++) {
+	for (i = 0; i < DAILINK_RT5651_MAX; i++) {
 		rockchip_dailinks[i].platform_of_node = cpu_node;
 		rockchip_dailinks[i].cpu_of_node = cpu_node;
 
@@ -230,7 +222,7 @@ static int rockchip_sound_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id rockchip_sound_of_match[] = {
-	{ .compatible = "rockchip,rockchip-rt5651-tc358749x-sound", },
+	{ .compatible = "rockchip,rockchip-rt5651-sound", },
 	{},
 };
 
