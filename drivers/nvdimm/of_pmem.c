@@ -11,7 +11,6 @@
 
 static const struct attribute_group *region_attr_groups[] = {
 	&nd_region_attribute_group,
-	&nd_device_attribute_group,
 	NULL,
 };
 

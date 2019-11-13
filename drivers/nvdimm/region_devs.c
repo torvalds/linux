@@ -763,19 +763,27 @@ struct attribute_group nd_region_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(nd_region_attribute_group);
 
-static struct device_type nd_blk_device_type = {
+static const struct attribute_group *nd_region_attribute_groups[] = {
+	&nd_device_attribute_group,
+	NULL,
+};
+
+static const struct device_type nd_blk_device_type = {
 	.name = "nd_blk",
 	.release = nd_region_release,
+	.groups = nd_region_attribute_groups,
 };
 
-static struct device_type nd_pmem_device_type = {
+static const struct device_type nd_pmem_device_type = {
 	.name = "nd_pmem",
 	.release = nd_region_release,
+	.groups = nd_region_attribute_groups,
 };
 
-static struct device_type nd_volatile_device_type = {
+static const struct device_type nd_volatile_device_type = {
 	.name = "nd_volatile",
 	.release = nd_region_release,
+	.groups = nd_region_attribute_groups,
 };
 
 bool is_nd_pmem(struct device *dev)
@@ -931,8 +939,8 @@ void nd_region_release_lane(struct nd_region *nd_region, unsigned int lane)
 EXPORT_SYMBOL(nd_region_release_lane);
 
 static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
-		struct nd_region_desc *ndr_desc, struct device_type *dev_type,
-		const char *caller)
+		struct nd_region_desc *ndr_desc,
+		const struct device_type *dev_type, const char *caller)
 {
 	struct nd_region *nd_region;
 	struct device *dev;

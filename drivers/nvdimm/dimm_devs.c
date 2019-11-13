@@ -202,9 +202,15 @@ static void nvdimm_release(struct device *dev)
 	kfree(nvdimm);
 }
 
-static struct device_type nvdimm_device_type = {
+static const struct attribute_group *nvdimm_attribute_groups[] = {
+	&nd_device_attribute_group,
+	NULL,
+};
+
+static const struct device_type nvdimm_device_type = {
 	.name = "nvdimm",
 	.release = nvdimm_release,
+	.groups = nvdimm_attribute_groups,
 };
 
 bool is_nvdimm(struct device *dev)

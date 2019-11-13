@@ -669,10 +669,9 @@ static struct attribute *nd_device_attributes[] = {
 /*
  * nd_device_attribute_group - generic attributes for all devices on an nd bus
  */
-struct attribute_group nd_device_attribute_group = {
+const struct attribute_group nd_device_attribute_group = {
 	.attrs = nd_device_attributes,
 };
-EXPORT_SYMBOL_GPL(nd_device_attribute_group);
 
 static ssize_t numa_node_show(struct device *dev,
 		struct device_attribute *attr, char *buf)

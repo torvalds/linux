@@ -15,7 +15,6 @@ static const struct attribute_group *e820_pmem_attribute_groups[] = {
 
 static const struct attribute_group *e820_pmem_region_attribute_groups[] = {
 	&nd_region_attribute_group,
-	&nd_device_attribute_group,
 	NULL,
 };
 
