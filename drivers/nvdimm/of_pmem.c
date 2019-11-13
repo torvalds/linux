@@ -9,11 +9,6 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 
-static const struct attribute_group *bus_attr_groups[] = {
-	&nvdimm_bus_attribute_group,
-	NULL,
-};
-
 struct of_pmem_private {
 	struct nvdimm_bus_descriptor bus_desc;
 	struct nvdimm_bus *bus;
@@ -35,7 +30,6 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->bus_desc.attr_groups = bus_attr_groups;
 	priv->bus_desc.provider_name = kstrdup(pdev->name, GFP_KERNEL);
 	priv->bus_desc.module = THIS_MODULE;
 	priv->bus_desc.of_node = np;

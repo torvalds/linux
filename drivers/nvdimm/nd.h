@@ -241,6 +241,7 @@ void nd_region_exit(void);
 struct nvdimm;
 extern const struct attribute_group nd_device_attribute_group;
 extern const struct attribute_group nd_numa_attribute_group;
+extern const struct attribute_group *nvdimm_bus_attribute_groups[];
 struct nvdimm_drvdata *to_ndd(struct nd_mapping *nd_mapping);
 int nvdimm_check_config_data(struct device *dev);
 int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd);
