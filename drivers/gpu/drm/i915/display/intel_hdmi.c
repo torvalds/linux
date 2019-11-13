@@ -3140,7 +3140,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	DRM_DEBUG_KMS("Adding HDMI connector on [ENCODER:%d:%s]\n",
 		      intel_encoder->base.base.id, intel_encoder->base.name);
 
-	if (WARN_ON(port == PORT_A))
+	if (INTEL_GEN(dev_priv) < 12 && WARN_ON(port == PORT_A))
 		return;
 
 	if (WARN(intel_dig_port->max_lanes < 4,
