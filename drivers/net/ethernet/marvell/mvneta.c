@@ -2154,7 +2154,7 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 	prefetch(data);
 
 	xdp->data_hard_start = data;
-	xdp->data = data + MVNETA_SKB_HEADROOM + MVNETA_MH_SIZE;
+	xdp->data = data + pp->rx_offset_correction + MVNETA_MH_SIZE;
 	xdp->data_end = xdp->data + data_len;
 	xdp_set_data_meta_invalid(xdp);
 
@@ -2219,7 +2219,7 @@ mvneta_swbm_add_rx_fragment(struct mvneta_port *pp,
 		/* refill descriptor with new buffer later */
 		skb_add_rx_frag(rxq->skb,
 				skb_shinfo(rxq->skb)->nr_frags,
-				page, MVNETA_SKB_HEADROOM, data_len,
+				page, pp->rx_offset_correction, data_len,
 				PAGE_SIZE);
 	}
 	page_pool_release_page(rxq->page_pool, page);
