@@ -236,6 +236,71 @@ static void flow_offload_ipv4_dnat(struct net *net,
 			    (u8 *)&addr, (u8 *)&mask);
 }
 
+static void flow_offload_ipv6_mangle(struct nf_flow_rule *flow_rule,
+				     unsigned int offset,
+				     u8 *addr, u8 *mask)
+{
+	struct flow_action_entry *entry;
+	int i;
+
+	for (i = 0; i < sizeof(struct in6_addr) / sizeof(u32); i += sizeof(u32)) {
+		entry = flow_action_entry_next(flow_rule);
+		flow_offload_mangle(entry, FLOW_ACT_MANGLE_HDR_TYPE_IP6,
+				    offset + i,
+				    &addr[i], mask);
+	}
+}
+
+static void flow_offload_ipv6_snat(struct net *net,
+				   const struct flow_offload *flow,
+				   enum flow_offload_tuple_dir dir,
+				   struct nf_flow_rule *flow_rule)
+{
+	u32 mask = ~htonl(0xffffffff);
+	const u8 *addr;
+	u32 offset;
+
+	switch (dir) {
+	case FLOW_OFFLOAD_DIR_ORIGINAL:
+		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_v6.s6_addr;
+		offset = offsetof(struct ipv6hdr, saddr);
+		break;
+	case FLOW_OFFLOAD_DIR_REPLY:
+		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_v6.s6_addr;
+		offset = offsetof(struct ipv6hdr, daddr);
+		break;
+	default:
+		return;
+	}
+
+	flow_offload_ipv6_mangle(flow_rule, offset, (u8 *)addr, (u8 *)&mask);
+}
+
+static void flow_offload_ipv6_dnat(struct net *net,
+				   const struct flow_offload *flow,
+				   enum flow_offload_tuple_dir dir,
+				   struct nf_flow_rule *flow_rule)
+{
+	u32 mask = ~htonl(0xffffffff);
+	const u8 *addr;
+	u32 offset;
+
+	switch (dir) {
+	case FLOW_OFFLOAD_DIR_ORIGINAL:
+		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.src_v6.s6_addr;
+		offset = offsetof(struct ipv6hdr, daddr);
+		break;
+	case FLOW_OFFLOAD_DIR_REPLY:
+		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_v6.s6_addr;
+		offset = offsetof(struct ipv6hdr, saddr);
+		break;
+	default:
+		return;
+	}
+
+	flow_offload_ipv6_mangle(flow_rule, offset, (u8 *)addr, (u8 *)&mask);
+}
+
 static int flow_offload_l4proto(const struct flow_offload *flow)
 {
 	u8 protonum = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.l4proto;
@@ -342,9 +407,9 @@ static void flow_offload_redirect(const struct flow_offload *flow,
 	dev_hold(rt->dst.dev);
 }
 
-int nf_flow_rule_route(struct net *net, const struct flow_offload *flow,
-		       enum flow_offload_tuple_dir dir,
-		       struct nf_flow_rule *flow_rule)
+int nf_flow_rule_route_ipv4(struct net *net, const struct flow_offload *flow,
+			    enum flow_offload_tuple_dir dir,
+			    struct nf_flow_rule *flow_rule)
 {
 	if (flow_offload_eth_src(net, flow, dir, flow_rule) < 0 ||
 	    flow_offload_eth_dst(net, flow, dir, flow_rule) < 0)
@@ -366,7 +431,32 @@ int nf_flow_rule_route(struct net *net, const struct flow_offload *flow,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(nf_flow_rule_route);
+EXPORT_SYMBOL_GPL(nf_flow_rule_route_ipv4);
+
+int nf_flow_rule_route_ipv6(struct net *net, const struct flow_offload *flow,
+			    enum flow_offload_tuple_dir dir,
+			    struct nf_flow_rule *flow_rule)
+{
+	if (flow_offload_eth_src(net, flow, dir, flow_rule) < 0 ||
+	    flow_offload_eth_dst(net, flow, dir, flow_rule) < 0)
+		return -1;
+
+	if (flow->flags & FLOW_OFFLOAD_SNAT) {
+		flow_offload_ipv6_snat(net, flow, dir, flow_rule);
+		flow_offload_port_snat(net, flow, dir, flow_rule);
+	}
+	if (flow->flags & FLOW_OFFLOAD_DNAT) {
+		flow_offload_ipv6_dnat(net, flow, dir, flow_rule);
+		flow_offload_port_dnat(net, flow, dir, flow_rule);
+	}
+
+	flow_offload_redirect(flow, dir, flow_rule);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nf_flow_rule_route_ipv6);
+
+#define NF_FLOW_RULE_ACTION_MAX	16
 
 static struct nf_flow_rule *
 nf_flow_offload_rule_alloc(struct net *net,
@@ -383,7 +473,7 @@ nf_flow_offload_rule_alloc(struct net *net,
 	if (!flow_rule)
 		goto err_flow;
 
-	flow_rule->rule = flow_rule_alloc(10);
+	flow_rule->rule = flow_rule_alloc(NF_FLOW_RULE_ACTION_MAX);
 	if (!flow_rule->rule)
 		goto err_flow_rule;
 
