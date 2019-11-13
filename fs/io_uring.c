@@ -4303,7 +4303,6 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 	DEFINE_WAIT(wait);
 
 	while (!list_empty_careful(&ctx->inflight_list)) {
-		enum io_wq_cancel ret = IO_WQ_CANCEL_NOTFOUND;
 		struct io_kiocb *cancel_req = NULL;
 
 		spin_lock_irq(&ctx->inflight_lock);
@@ -4321,14 +4320,12 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 						TASK_UNINTERRUPTIBLE);
 		spin_unlock_irq(&ctx->inflight_lock);
 
-		if (cancel_req) {
-			ret = io_wq_cancel_work(ctx->io_wq, &cancel_req->work);
-			io_put_req(cancel_req);
-		}
-
 		/* We need to keep going until we don't find a matching req */
 		if (!cancel_req)
 			break;
+
+		io_wq_cancel_work(ctx->io_wq, &cancel_req->work);
+		io_put_req(cancel_req);
 		schedule();
 	}
 	finish_wait(&ctx->inflight_wait, &wait);
