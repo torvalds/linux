@@ -37,6 +37,7 @@ properties:
       - enum:
         - ti,ds90c185       # For the TI DS90C185 FPD-Link Serializer
         - ti,ds90c187       # For the TI DS90C187 FPD-Link Serializer
+        - ti,sn75lvds83     # For the TI SN75LVDS83 FlatLink transmitter
       - const: lvds-encoder # Generic LVDS encoder compatible fallback
 
   ports:
