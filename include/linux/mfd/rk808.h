@@ -1053,7 +1053,7 @@ enum {
 	RK809_ID = 0x8090,
 	RK816_ID = 0x8160,
 	RK817_ID = 0x8170,
-	RK818_ID = 0x8181,
+	RK818_ID = 0x8180,
 };
 
 struct rk808_pin_info {
