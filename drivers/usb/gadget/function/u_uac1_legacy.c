@@ -119,6 +119,10 @@ static int playback_default_hw_params(struct gaudio_snd_dev *snd)
 			snd->channels, 0);
 	_snd_pcm_hw_param_set(params, SNDRV_PCM_HW_PARAM_RATE,
 			snd->rate, 0);
+	_snd_pcm_hw_param_set(params, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+			      snd->rate / 10, 0);
+	_snd_pcm_hw_param_set(params, SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+			      snd->rate, 0);
 
 	snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DROP, NULL);
 	snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_HW_PARAMS, params);
