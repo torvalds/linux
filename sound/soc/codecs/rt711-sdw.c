@@ -525,7 +525,7 @@ regmap_sync:
 	slave->unattach_request = 0;
 	regcache_cache_only(rt711->regmap, false);
 	regcache_sync_region(rt711->regmap, 0x3000, 0x8fff);
-	regcache_sync_region(rt711->regmap, 0x752010, 0x752091);
+	regcache_sync_region(rt711->regmap, 0x752009, 0x752091);
 
 	return 0;
 }
