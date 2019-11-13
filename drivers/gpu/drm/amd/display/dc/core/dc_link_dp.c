@@ -2788,9 +2788,9 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	union hpd_irq_data hpd_irq_dpcd_data = { { { {0} } } };
 	union device_service_irq device_service_clear = { { 0 } };
 	enum dc_status result;
-
 	bool status = false;
 	struct pipe_ctx *pipe_ctx;
+	struct dc_link_settings previous_link_settings;
 	int i;
 
 	if (out_link_loss)
@@ -2873,9 +2873,10 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		if (pipe_ctx == NULL || pipe_ctx->stream == NULL)
 			return false;
 
+		previous_link_settings = link->cur_link_settings;
 		dp_disable_link_phy(link, pipe_ctx->stream->signal);
 
-		perform_link_training_with_retries(&link->cur_link_settings,
+		perform_link_training_with_retries(&previous_link_settings,
 			true, LINK_TRAINING_ATTEMPTS,
 			pipe_ctx,
 			pipe_ctx->stream->signal);
