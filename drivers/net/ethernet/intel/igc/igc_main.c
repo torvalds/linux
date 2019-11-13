@@ -4445,6 +4445,9 @@ static int igc_probe(struct pci_dev *pdev,
 	netdev->hw_features |= NETIF_F_NTUPLE;
 	netdev->hw_features |= netdev->features;
 
+	if (pci_using_dac)
+		netdev->features |= NETIF_F_HIGHDMA;
+
 	/* MTU range: 68 - 9216 */
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = MAX_STD_JUMBO_FRAME_SIZE;
