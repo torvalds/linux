@@ -51,7 +51,12 @@
 extern bool itlb_multihit_kvm_mitigation;
 
 static int __read_mostly nx_huge_pages = -1;
+#ifdef CONFIG_PREEMPT_RT
+/* Recovery can cause latency spikes, disable it for PREEMPT_RT.  */
+static uint __read_mostly nx_huge_pages_recovery_ratio = 0;
+#else
 static uint __read_mostly nx_huge_pages_recovery_ratio = 60;
+#endif
 
 static int set_nx_huge_pages(const char *val, const struct kernel_param *kp);
 static int set_nx_huge_pages_recovery_ratio(const char *val, const struct kernel_param *kp);
