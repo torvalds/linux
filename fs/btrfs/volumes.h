@@ -250,7 +250,7 @@ struct btrfs_fs_devices {
 	/* set when we find or add a device that doesn't have the
 	 * nonrot flag set
 	 */
-	int rotating;
+	bool rotating;
 
 	struct btrfs_fs_info *fs_info;
 	/* sysfs kobjects */

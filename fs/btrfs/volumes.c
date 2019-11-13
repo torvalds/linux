@@ -644,7 +644,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 
 	q = bdev_get_queue(bdev);
 	if (!blk_queue_nonrot(q))
-		fs_devices->rotating = 1;
+		fs_devices->rotating = true;
 
 	device->bdev = bdev;
 	clear_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
@@ -2274,7 +2274,7 @@ static int btrfs_prepare_sprout(struct btrfs_fs_info *fs_info)
 	fs_devices->num_devices = 0;
 	fs_devices->open_devices = 0;
 	fs_devices->missing_devices = 0;
-	fs_devices->rotating = 0;
+	fs_devices->rotating = false;
 	fs_devices->seed = seed_devices;
 
 	generate_random_uuid(fs_devices->fsid);
@@ -2469,7 +2469,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	atomic64_add(device->total_bytes, &fs_info->free_chunk_space);
 
 	if (!blk_queue_nonrot(q))
-		fs_devices->rotating = 1;
+		fs_devices->rotating = true;
 
 	orig_super_total_bytes = btrfs_super_total_bytes(fs_info->super_copy);
 	btrfs_set_super_total_bytes(fs_info->super_copy,
