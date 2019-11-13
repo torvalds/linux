@@ -112,13 +112,22 @@ static void flow_offload_mangle(struct flow_action_entry *entry,
 	memcpy(&entry->mangle.val, value, sizeof(u32));
 }
 
+static inline struct flow_action_entry *
+flow_action_entry_next(struct nf_flow_rule *flow_rule)
+{
+	int i = flow_rule->rule->action.num_entries++;
+
+	return &flow_rule->rule->action.entries[i];
+}
+
 static int flow_offload_eth_src(struct net *net,
 				const struct flow_offload *flow,
 				enum flow_offload_tuple_dir dir,
-				struct flow_action_entry *entry0,
-				struct flow_action_entry *entry1)
+				struct nf_flow_rule *flow_rule)
 {
 	const struct flow_offload_tuple *tuple = &flow->tuplehash[!dir].tuple;
+	struct flow_action_entry *entry0 = flow_action_entry_next(flow_rule);
+	struct flow_action_entry *entry1 = flow_action_entry_next(flow_rule);
 	struct net_device *dev;
 	u32 mask, val;
 	u16 val16;
@@ -145,10 +154,11 @@ static int flow_offload_eth_src(struct net *net,
 static int flow_offload_eth_dst(struct net *net,
 				const struct flow_offload *flow,
 				enum flow_offload_tuple_dir dir,
-				struct flow_action_entry *entry0,
-				struct flow_action_entry *entry1)
+				struct nf_flow_rule *flow_rule)
 {
 	const struct flow_offload_tuple *tuple = &flow->tuplehash[dir].tuple;
+	struct flow_action_entry *entry0 = flow_action_entry_next(flow_rule);
+	struct flow_action_entry *entry1 = flow_action_entry_next(flow_rule);
 	struct neighbour *n;
 	u32 mask, val;
 	u16 val16;
@@ -175,8 +185,9 @@ static int flow_offload_eth_dst(struct net *net,
 static void flow_offload_ipv4_snat(struct net *net,
 				   const struct flow_offload *flow,
 				   enum flow_offload_tuple_dir dir,
-				   struct flow_action_entry *entry)
+				   struct nf_flow_rule *flow_rule)
 {
+	struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
 	u32 mask = ~htonl(0xffffffff);
 	__be32 addr;
 	u32 offset;
@@ -201,8 +212,9 @@ static void flow_offload_ipv4_snat(struct net *net,
 static void flow_offload_ipv4_dnat(struct net *net,
 				   const struct flow_offload *flow,
 				   enum flow_offload_tuple_dir dir,
-				   struct flow_action_entry *entry)
+				   struct nf_flow_rule *flow_rule)
 {
+	struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
 	u32 mask = ~htonl(0xffffffff);
 	__be32 addr;
 	u32 offset;
@@ -246,8 +258,9 @@ static int flow_offload_l4proto(const struct flow_offload *flow)
 static void flow_offload_port_snat(struct net *net,
 				   const struct flow_offload *flow,
 				   enum flow_offload_tuple_dir dir,
-				   struct flow_action_entry *entry)
+				   struct nf_flow_rule *flow_rule)
 {
+	struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
 	u32 mask = ~htonl(0xffff0000);
 	__be16 port;
 	u32 offset;
@@ -272,8 +285,9 @@ static void flow_offload_port_snat(struct net *net,
 static void flow_offload_port_dnat(struct net *net,
 				   const struct flow_offload *flow,
 				   enum flow_offload_tuple_dir dir,
-				   struct flow_action_entry *entry)
+				   struct nf_flow_rule *flow_rule)
 {
+	struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
 	u32 mask = ~htonl(0xffff);
 	__be16 port;
 	u32 offset;
@@ -297,9 +311,10 @@ static void flow_offload_port_dnat(struct net *net,
 
 static void flow_offload_ipv4_checksum(struct net *net,
 				       const struct flow_offload *flow,
-				       struct flow_action_entry *entry)
+				       struct nf_flow_rule *flow_rule)
 {
 	u8 protonum = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.l4proto;
+	struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
 
 	entry->id = FLOW_ACTION_CSUM;
 	entry->csum_flags = TCA_CSUM_UPDATE_FLAG_IPV4HDR;
@@ -316,8 +331,9 @@ static void flow_offload_ipv4_checksum(struct net *net,
 
 static void flow_offload_redirect(const struct flow_offload *flow,
 				  enum flow_offload_tuple_dir dir,
-				  struct flow_action_entry *entry)
+				  struct nf_flow_rule *flow_rule)
 {
+	struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
 	struct rtable *rt;
 
 	rt = (struct rtable *)flow->tuplehash[dir].tuple.dst_cache;
@@ -330,39 +346,25 @@ int nf_flow_rule_route(struct net *net, const struct flow_offload *flow,
 		       enum flow_offload_tuple_dir dir,
 		       struct nf_flow_rule *flow_rule)
 {
-	int i;
-
-	if (flow_offload_eth_src(net, flow, dir,
-				 &flow_rule->rule->action.entries[0],
-				 &flow_rule->rule->action.entries[1]) < 0)
+	if (flow_offload_eth_src(net, flow, dir, flow_rule) < 0 ||
+	    flow_offload_eth_dst(net, flow, dir, flow_rule) < 0)
 		return -1;
 
-	if (flow_offload_eth_dst(net, flow, dir,
-				 &flow_rule->rule->action.entries[2],
-				 &flow_rule->rule->action.entries[3]) < 0)
-		return -1;
-
-	i = 4;
 	if (flow->flags & FLOW_OFFLOAD_SNAT) {
-		flow_offload_ipv4_snat(net, flow, dir,
-				       &flow_rule->rule->action.entries[i++]);
-		flow_offload_port_snat(net, flow, dir,
-				       &flow_rule->rule->action.entries[i++]);
+		flow_offload_ipv4_snat(net, flow, dir, flow_rule);
+		flow_offload_port_snat(net, flow, dir, flow_rule);
 	}
 	if (flow->flags & FLOW_OFFLOAD_DNAT) {
-		flow_offload_ipv4_dnat(net, flow, dir,
-				       &flow_rule->rule->action.entries[i++]);
-		flow_offload_port_dnat(net, flow, dir,
-				       &flow_rule->rule->action.entries[i++]);
+		flow_offload_ipv4_dnat(net, flow, dir, flow_rule);
+		flow_offload_port_dnat(net, flow, dir, flow_rule);
 	}
 	if (flow->flags & FLOW_OFFLOAD_SNAT ||
 	    flow->flags & FLOW_OFFLOAD_DNAT)
-		flow_offload_ipv4_checksum(net, flow,
-					   &flow_rule->rule->action.entries[i++]);
+		flow_offload_ipv4_checksum(net, flow, flow_rule);
 
-	flow_offload_redirect(flow, dir, &flow_rule->rule->action.entries[i++]);
+	flow_offload_redirect(flow, dir, flow_rule);
 
-	return i;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_flow_rule_route);
 
@@ -375,7 +377,7 @@ nf_flow_offload_rule_alloc(struct net *net,
 	const struct flow_offload *flow = offload->flow;
 	const struct flow_offload_tuple *tuple;
 	struct nf_flow_rule *flow_rule;
-	int err = -ENOMEM, num_actions;
+	int err = -ENOMEM;
 
 	flow_rule = kzalloc(sizeof(*flow_rule), GFP_KERNEL);
 	if (!flow_rule)
@@ -394,11 +396,9 @@ nf_flow_offload_rule_alloc(struct net *net,
 	if (err < 0)
 		goto err_flow_match;
 
-	num_actions = flowtable->type->action(net, flow, dir, flow_rule);
-	if (num_actions < 0)
+	flow_rule->rule->action.num_entries = 0;
+	if (flowtable->type->action(net, flow, dir, flow_rule) < 0)
 		goto err_flow_match;
-
-	flow_rule->rule->action.num_entries = num_actions;
 
 	return flow_rule;
 
