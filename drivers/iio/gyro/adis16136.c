@@ -80,19 +80,19 @@ static ssize_t adis16136_show_serial(struct file *file,
 
 	ret = adis_read_reg_16(&adis16136->adis, ADIS16136_REG_SERIAL_NUM,
 		&serial);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = adis_read_reg_16(&adis16136->adis, ADIS16136_REG_LOT1, &lot1);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = adis_read_reg_16(&adis16136->adis, ADIS16136_REG_LOT2, &lot2);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = adis_read_reg_16(&adis16136->adis, ADIS16136_REG_LOT3, &lot3);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	len = snprintf(buf, sizeof(buf), "%.4x%.4x%.4x-%.4x\n", lot1, lot2,
@@ -116,7 +116,7 @@ static int adis16136_show_product_id(void *arg, u64 *val)
 
 	ret = adis_read_reg_16(&adis16136->adis, ADIS16136_REG_PROD_ID,
 		&prod_id);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*val = prod_id;
@@ -134,7 +134,7 @@ static int adis16136_show_flash_count(void *arg, u64 *val)
 
 	ret = adis_read_reg_16(&adis16136->adis, ADIS16136_REG_FLASH_CNT,
 		&flash_count);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*val = flash_count;
@@ -191,7 +191,7 @@ static int adis16136_get_freq(struct adis16136 *adis16136, unsigned int *freq)
 	int ret;
 
 	ret = adis_read_reg_16(&adis16136->adis, ADIS16136_REG_SMPL_PRD, &t);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*freq = 32768 / (t + 1);
@@ -228,7 +228,7 @@ static ssize_t adis16136_read_frequency(struct device *dev,
 	int ret;
 
 	ret = adis16136_get_freq(adis16136, &freq);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	return sprintf(buf, "%d\n", freq);
@@ -256,7 +256,7 @@ static int adis16136_set_filter(struct iio_dev *indio_dev, int val)
 	int i, ret;
 
 	ret = adis16136_get_freq(adis16136, &freq);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	for (i = ARRAY_SIZE(adis16136_3db_divisors) - 1; i >= 1; i--) {
@@ -277,11 +277,11 @@ static int adis16136_get_filter(struct iio_dev *indio_dev, int *val)
 	mutex_lock(&indio_dev->mlock);
 
 	ret = adis_read_reg_16(&adis16136->adis, ADIS16136_REG_AVG_CNT, &val16);
-	if (ret < 0)
+	if (ret)
 		goto err_unlock;
 
 	ret = adis16136_get_freq(adis16136, &freq);
-	if (ret < 0)
+	if (ret)
 		goto err_unlock;
 
 	*val = freq / adis16136_3db_divisors[val16 & 0x07];
@@ -318,7 +318,7 @@ static int adis16136_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = adis_read_reg_32(&adis16136->adis,
 			ADIS16136_REG_GYRO_OFF2, &val32);
-		if (ret < 0)
+		if (ret)
 			return ret;
 
 		*val = sign_extend32(val32, 31);
