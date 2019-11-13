@@ -57,6 +57,11 @@ properties:
       - port@0
       - port@1
 
+  powerdown-gpios:
+    description:
+      The GPIO used to control the power down line of this device.
+    maxItems: 1
+
 required:
   - compatible
   - ports
