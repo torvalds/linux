@@ -1764,24 +1764,12 @@ struct map *map_groups__find_by_name(struct map_groups *mg, const char *name)
 {
 	struct maps *maps = &mg->maps;
 	struct map *map;
-	struct rb_node *node;
 
 	down_read(&maps->lock);
 
-	for (node = maps->names.rb_node; node; ) {
-		int rc;
-
-		map = rb_entry(node, struct map, rb_node_name);
-
-		rc = strcmp(map->dso->short_name, name);
-		if (rc < 0)
-			node = node->rb_left;
-		else if (rc > 0)
-			node = node->rb_right;
-		else
-
+	maps__for_each_entry(maps, map)
+		if (strcmp(map->dso->short_name, name) == 0)
 			goto out_unlock;
-	}
 
 	map = NULL;
 

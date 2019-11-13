@@ -16,7 +16,6 @@ struct thread;
 
 struct maps {
 	struct rb_root      entries;
-	struct rb_root	    names;
 	struct rw_semaphore lock;
 };
 

@@ -23,7 +23,6 @@ struct map {
 		struct rb_node	rb_node;
 		struct list_head node;
 	};
-	struct rb_node          rb_node_name;
 	u64			start;
 	u64			end;
 	bool			erange_warned;
