@@ -11,6 +11,5 @@
 #include "logicpd-torpedo-37xx-devkit.dts"
 
 &lcd0 {
-	/* To make it work, set CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK=4 */
 	compatible = "logicpd,type28";
 };
