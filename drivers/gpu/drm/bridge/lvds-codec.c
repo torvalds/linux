@@ -57,8 +57,6 @@ static struct drm_bridge_funcs funcs = {
 static int lvds_codec_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *port;
-	struct device_node *endpoint;
 	struct device_node *panel_node;
 	struct drm_panel *panel;
 	struct lvds_codec *lvds_codec;
@@ -79,23 +77,9 @@ static int lvds_codec_probe(struct platform_device *pdev)
 	}
 
 	/* Locate the panel DT node. */
-	port = of_graph_get_port_by_id(dev->of_node, 1);
-	if (!port) {
-		dev_dbg(dev, "port 1 not found\n");
-		return -ENXIO;
-	}
-
-	endpoint = of_get_child_by_name(port, "endpoint");
-	of_node_put(port);
-	if (!endpoint) {
-		dev_dbg(dev, "no endpoint for port 1\n");
-		return -ENXIO;
-	}
-
-	panel_node = of_graph_get_remote_port_parent(endpoint);
-	of_node_put(endpoint);
+	panel_node = of_graph_get_remote_node(dev->of_node, 1, 0);
 	if (!panel_node) {
-		dev_dbg(dev, "no remote endpoint for port 1\n");
+		dev_dbg(dev, "panel DT node not found\n");
 		return -ENXIO;
 	}
 
