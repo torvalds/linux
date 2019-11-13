@@ -1582,7 +1582,6 @@ static enum dc_status add_dsc_to_stream_resource(struct dc *dc,
 
 		/* The number of DSCs can be less than the number of pipes */
 		if (!pipe_ctx->stream_res.dsc) {
-			dm_output_to_console("No DSCs available\n");
 			result = DC_NO_DSC_RESOURCE;
 		}
 
