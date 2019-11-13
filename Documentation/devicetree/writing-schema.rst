@@ -133,11 +133,13 @@ binding schema. All of the DT binding documents can be validated using the
 
     make dt_binding_check
 
-In order to perform validation of DT source files, use the `dtbs_check` target::
+In order to perform validation of DT source files, use the ``dtbs_check`` target::
 
     make dtbs_check
 
-This will first run the `dt_binding_check` which generates the processed schema.
+Note that ``dtbs_check`` will skip any binding schema files with errors. It is
+necessary to use ``dt_binding_check`` to get all the validation errors in the
+binding schema files.
 
 It is also possible to run checks with a single schema file by setting the
 ``DT_SCHEMA_FILES`` variable to a specific schema file.
