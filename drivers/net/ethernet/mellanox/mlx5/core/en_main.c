@@ -2937,33 +2937,45 @@ void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv)
 	mlx5e_deactivate_channels(&priv->channels);
 }
 
-static void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
-				       struct mlx5e_channels *new_chs,
-				       mlx5e_fp_preactivate preactivate)
+static int mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
+				      struct mlx5e_channels *new_chs,
+				      mlx5e_fp_preactivate preactivate)
 {
 	struct net_device *netdev = priv->netdev;
+	struct mlx5e_channels old_chs;
 	int carrier_ok;
+	int err = 0;
 
 	carrier_ok = netif_carrier_ok(netdev);
 	netif_carrier_off(netdev);
 
 	mlx5e_deactivate_priv_channels(priv);
-	mlx5e_close_channels(&priv->channels);
 
+	old_chs = priv->channels;
 	priv->channels = *new_chs;
 
 	/* New channels are ready to roll, call the preactivate hook if needed
 	 * to modify HW settings or update kernel parameters.
 	 */
-	if (preactivate)
-		preactivate(priv);
+	if (preactivate) {
+		err = preactivate(priv);
+		if (err) {
+			priv->channels = old_chs;
+			goto out;
+		}
+	}
 
+	mlx5e_close_channels(&old_chs);
 	priv->profile->update_rx(priv);
+
+out:
 	mlx5e_activate_priv_channels(priv);
 
 	/* return carrier back if needed */
 	if (carrier_ok)
 		netif_carrier_on(netdev);
+
+	return err;
 }
 
 int mlx5e_safe_switch_channels(struct mlx5e_priv *priv,
@@ -2976,8 +2988,16 @@ int mlx5e_safe_switch_channels(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	mlx5e_switch_priv_channels(priv, new_chs, preactivate);
+	err = mlx5e_switch_priv_channels(priv, new_chs, preactivate);
+	if (err)
+		goto err_close;
+
 	return 0;
+
+err_close:
+	mlx5e_close_channels(new_chs);
+
+	return err;
 }
 
 int mlx5e_safe_reopen_channels(struct mlx5e_priv *priv)
