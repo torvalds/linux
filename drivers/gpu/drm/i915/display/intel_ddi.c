@@ -1794,10 +1794,8 @@ void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 	 * of Color Encoding Format and Content Color Gamut] while sending
 	 * YCBCR 420, HDR BT.2020 signals we should program MSA MISC1 fields
 	 * which indicate VSC SDP for the Pixel Encoding/Colorimetry Format.
-	 *
-	 * FIXME MST doesn't pass in the conn_state
 	 */
-	if (conn_state && intel_dp_needs_vsc_sdp(crtc_state, conn_state))
+	if (intel_dp_needs_vsc_sdp(crtc_state, conn_state))
 		temp |= DP_MSA_MISC_COLOR_VSC_SDP;
 
 	I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
@@ -3605,7 +3603,11 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	else
 		hsw_ddi_pre_enable_dp(encoder, crtc_state, conn_state);
 
-	intel_ddi_set_dp_msa(crtc_state, conn_state);
+	/* MST will call a setting of MSA after an allocating of Virtual Channel
+	 * from MST encoder pre_enable callback.
+	 */
+	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
+		intel_ddi_set_dp_msa(crtc_state, conn_state);
 }
 
 static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,

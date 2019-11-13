@@ -331,6 +331,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
 
 	intel_ddi_enable_pipe_clock(pipe_config);
+
+	intel_ddi_set_dp_msa(pipe_config, conn_state);
 }
 
 static void intel_mst_enable_dp(struct intel_encoder *encoder,
