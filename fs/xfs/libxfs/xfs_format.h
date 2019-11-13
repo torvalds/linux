@@ -920,13 +920,13 @@ static inline uint xfs_dinode_size(int version)
  * This enum is used in string mapping in xfs_trace.h; please keep the
  * TRACE_DEFINE_ENUMs for it up to date.
  */
-typedef enum xfs_dinode_fmt {
+enum xfs_dinode_fmt {
 	XFS_DINODE_FMT_DEV,		/* xfs_dev_t */
 	XFS_DINODE_FMT_LOCAL,		/* bulk data */
 	XFS_DINODE_FMT_EXTENTS,		/* struct xfs_bmbt_rec */
 	XFS_DINODE_FMT_BTREE,		/* struct xfs_bmdr_block */
 	XFS_DINODE_FMT_UUID		/* added long ago, but never used */
-} xfs_dinode_fmt_t;
+};
 
 #define XFS_INODE_FORMAT_STR \
 	{ XFS_DINODE_FMT_DEV,		"dev" }, \
