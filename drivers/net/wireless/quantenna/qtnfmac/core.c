@@ -67,6 +67,14 @@ static int qtnf_netdev_close(struct net_device *ndev)
 	return 0;
 }
 
+static void qtnf_packet_send_hi_pri(struct sk_buff *skb)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(skb->dev);
+
+	skb_queue_tail(&vif->high_pri_tx_queue, skb);
+	queue_work(vif->mac->bus->hprio_workqueue, &vif->high_pri_tx_work);
+}
+
 /* Netdev handler for data transmission.
  */
 static netdev_tx_t
@@ -106,6 +114,12 @@ qtnf_netdev_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* tx path is enabled: reset vif timeout */
 	vif->cons_tx_timeout_cnt = 0;
+
+	if (unlikely(skb->protocol == htons(ETH_P_PAE))) {
+		qtnf_packet_send_hi_pri(skb);
+		qtnf_update_tx_stats(ndev, skb);
+		return NETDEV_TX_OK;
+	}
 
 	return qtnf_bus_data_tx(mac->bus, skb);
 }
@@ -840,15 +854,6 @@ void qtnf_update_tx_stats(struct net_device *ndev, const struct sk_buff *skb)
 	u64_stats_update_end(&stats64->syncp);
 }
 EXPORT_SYMBOL_GPL(qtnf_update_tx_stats);
-
-void qtnf_packet_send_hi_pri(struct sk_buff *skb)
-{
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(skb->dev);
-
-	skb_queue_tail(&vif->high_pri_tx_queue, skb);
-	queue_work(vif->mac->bus->hprio_workqueue, &vif->high_pri_tx_work);
-}
-EXPORT_SYMBOL_GPL(qtnf_packet_send_hi_pri);
 
 struct dentry *qtnf_get_debugfs_dir(void)
 {

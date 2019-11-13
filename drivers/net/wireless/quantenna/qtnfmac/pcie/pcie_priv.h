@@ -63,7 +63,6 @@ struct qtnf_pcie_bus_priv {
 	u32 tx_done_count;
 	u32 tx_reclaim_done;
 	u32 tx_reclaim_req;
-	u32 tx_eapol;
 
 	u8 msi_enabled;
 	u8 tx_stopped;
