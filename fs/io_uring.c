@@ -4265,7 +4265,9 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 		io_wq_cancel_all(ctx->io_wq);
 
 	io_iopoll_reap_events(ctx);
-	io_cqring_overflow_flush(ctx, true);
+	/* if we failed setting up the ctx, we might not have any rings */
+	if (ctx->rings)
+		io_cqring_overflow_flush(ctx, true);
 	wait_for_completion(&ctx->completions[0]);
 	io_ring_ctx_free(ctx);
 }
