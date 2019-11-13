@@ -1349,16 +1349,16 @@ static void dcn20_update_dchubp_dpp(
 	if (pipe_ctx->update_flags.bits.mpcc
 			|| plane_state->update_flags.bits.global_alpha_change
 			|| plane_state->update_flags.bits.per_pixel_alpha_change) {
-		/* Need mpcc to be idle if changing opp */
-		if (pipe_ctx->update_flags.bits.opp_changed) {
-			struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
-			int mpcc_inst;
+		// MPCC inst is equal to pipe index in practice
+		int mpcc_inst = pipe_ctx->pipe_idx;
+		int opp_inst;
+		int opp_count = dc->res_pool->res_cap->num_opp;
 
-			for (mpcc_inst = 0; mpcc_inst < MAX_PIPES; mpcc_inst++) {
-				if (!old_pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst])
-					continue;
+		for (opp_inst = 0; opp_inst < opp_count; opp_inst++) {
+			if (dc->res_pool->opps[opp_inst]->mpcc_disconnect_pending[mpcc_inst]) {
 				dc->res_pool->mpc->funcs->wait_for_idle(dc->res_pool->mpc, mpcc_inst);
-				old_pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst] = false;
+				dc->res_pool->opps[opp_inst]->mpcc_disconnect_pending[mpcc_inst] = false;
+				break;
 			}
 		}
 		hws->funcs.update_mpcc(dc, pipe_ctx);
