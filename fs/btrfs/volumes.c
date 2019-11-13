@@ -634,7 +634,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 		}
 
 		clear_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
-		fs_devices->seeding = 1;
+		fs_devices->seeding = true;
 	} else {
 		if (bdev_read_only(bdev))
 			clear_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
@@ -1115,7 +1115,7 @@ static int close_fs_devices(struct btrfs_fs_devices *fs_devices)
 	WARN_ON(fs_devices->open_devices);
 	WARN_ON(fs_devices->rw_devices);
 	fs_devices->opened = 0;
-	fs_devices->seeding = 0;
+	fs_devices->seeding = false;
 
 	return 0;
 }
@@ -2270,7 +2270,7 @@ static int btrfs_prepare_sprout(struct btrfs_fs_info *fs_info)
 	list_splice_init(&fs_devices->alloc_list, &seed_devices->alloc_list);
 	mutex_unlock(&fs_info->chunk_mutex);
 
-	fs_devices->seeding = 0;
+	fs_devices->seeding = false;
 	fs_devices->num_devices = 0;
 	fs_devices->open_devices = 0;
 	fs_devices->missing_devices = 0;
@@ -6654,7 +6654,7 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 		if (IS_ERR(fs_devices))
 			return fs_devices;
 
-		fs_devices->seeding = 1;
+		fs_devices->seeding = true;
 		fs_devices->opened = 1;
 		return fs_devices;
 	}
