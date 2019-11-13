@@ -57,7 +57,6 @@ struct xfs_error_cfg {
 
 typedef struct xfs_mount {
 	struct super_block	*m_super;
-	xfs_tid_t		m_tid;		/* next unused tid for fs */
 
 	/*
 	 * Bitsets of per-fs metadata that have been checked and/or are sick.
