@@ -727,6 +727,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		vega20_set_ppt_funcs(smu);
 		break;
 	case CHIP_NAVI10:
@@ -735,6 +736,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		navi10_set_ppt_funcs(smu);
 		break;
 	case CHIP_ARCTURUS:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		arcturus_set_ppt_funcs(smu);
 		/* OD is not supported on Arcturus */
 		smu->od_enabled =false;
