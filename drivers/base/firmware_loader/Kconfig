@@ -169,5 +169,17 @@ config FW_LOADER_COMPRESS
 	  be compressed with either none or crc32 integrity check type (pass
 	  "-C crc32" option to xz command).
 
+config FW_CACHE
+	bool "Enable firmware caching during suspend"
+	depends on PM_SLEEP
+	default y if PM_SLEEP
+	help
+	  Because firmware caching generates uevent messages that are sent
+	  over a netlink socket, it can prevent suspend on many platforms.
+	  It is also not always useful, so on such platforms we have the
+	  option.
+
+	  If unsure, say Y.
+
 endif # FW_LOADER
 endmenu
