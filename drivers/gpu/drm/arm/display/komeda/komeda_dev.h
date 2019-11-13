@@ -51,12 +51,12 @@
 
 #define KOMEDA_WARN_EVENTS	KOMEDA_ERR_CSCE
 
-#define KOMEDA_INFO_EVENTS ({0 \
+#define KOMEDA_INFO_EVENTS (0 \
 			    | KOMEDA_EVENT_VSYNC \
 			    | KOMEDA_EVENT_FLIP \
 			    | KOMEDA_EVENT_EOW \
 			    | KOMEDA_EVENT_MODE \
-			    })
+			    )
 
 /* malidp device id */
 enum {
