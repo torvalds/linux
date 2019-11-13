@@ -49,7 +49,9 @@ struct io_worker {
 	struct task_struct *task;
 	wait_queue_head_t wait;
 	struct io_wqe *wqe;
+
 	struct io_wq_work *cur_work;
+	spinlock_t lock;
 
 	struct rcu_head rcu;
 	struct mm_struct *mm;
@@ -323,7 +325,6 @@ static void __io_worker_busy(struct io_wqe *wqe, struct io_worker *worker,
 		hlist_nulls_add_head_rcu(&worker->nulls_node,
 						&wqe->busy_list.head);
 	}
-	worker->cur_work = work;
 
 	/*
 	 * If worker is moving from bound to unbound (or vice versa), then
@@ -403,17 +404,6 @@ static void io_worker_handle_work(struct io_worker *worker)
 		unsigned hash = -1U;
 
 		/*
-		 * Signals are either sent to cancel specific work, or to just
-		 * cancel all work items. For the former, ->cur_work must
-		 * match. ->cur_work is NULL at this point, since we haven't
-		 * assigned any work, so it's safe to flush signals for that
-		 * case. For the latter case of cancelling all work, the caller
-		 * wil have set IO_WQ_BIT_CANCEL.
-		 */
-		if (signal_pending(current))
-			flush_signals(current);
-
-		/*
 		 * If we got some work, mark us as busy. If we didn't, but
 		 * the list isn't empty, it means we stalled on hashed work.
 		 * Mark us stalled so we don't keep looking for work when we
@@ -432,6 +422,14 @@ static void io_worker_handle_work(struct io_worker *worker)
 		if (!work)
 			break;
 next:
+		/* flush any pending signals before assigning new work */
+		if (signal_pending(current))
+			flush_signals(current);
+
+		spin_lock_irq(&worker->lock);
+		worker->cur_work = work;
+		spin_unlock_irq(&worker->lock);
+
 		if ((work->flags & IO_WQ_WORK_NEEDS_FILES) &&
 		    current->files != work->files) {
 			task_lock(current);
@@ -457,8 +455,12 @@ next:
 		old_work = work;
 		work->func(&work);
 
-		spin_lock_irq(&wqe->lock);
+		spin_lock_irq(&worker->lock);
 		worker->cur_work = NULL;
+		spin_unlock_irq(&worker->lock);
+
+		spin_lock_irq(&wqe->lock);
+
 		if (hash != -1U) {
 			wqe->hash_map &= ~BIT_ULL(hash);
 			wqe->flags &= ~IO_WQE_FLAG_STALLED;
@@ -577,6 +579,7 @@ static void create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 	worker->nulls_node.pprev = NULL;
 	init_waitqueue_head(&worker->wait);
 	worker->wqe = wqe;
+	spin_lock_init(&worker->lock);
 
 	worker->task = kthread_create_on_node(io_wqe_worker, worker, wqe->node,
 				"io_wqe_worker-%d/%d", index, wqe->node);
@@ -783,21 +786,20 @@ struct io_cb_cancel_data {
 static bool io_work_cancel(struct io_worker *worker, void *cancel_data)
 {
 	struct io_cb_cancel_data *data = cancel_data;
-	struct io_wqe *wqe = data->wqe;
 	unsigned long flags;
 	bool ret = false;
 
 	/*
 	 * Hold the lock to avoid ->cur_work going out of scope, caller
-	 * may deference the passed in work.
+	 * may dereference the passed in work.
 	 */
-	spin_lock_irqsave(&wqe->lock, flags);
+	spin_lock_irqsave(&worker->lock, flags);
 	if (worker->cur_work &&
 	    data->cancel(worker->cur_work, data->caller_data)) {
 		send_sig(SIGINT, worker->task, 1);
 		ret = true;
 	}
-	spin_unlock_irqrestore(&wqe->lock, flags);
+	spin_unlock_irqrestore(&worker->lock, flags);
 
 	return ret;
 }
@@ -864,13 +866,20 @@ enum io_wq_cancel io_wq_cancel_cb(struct io_wq *wq, work_cancel_fn *cancel,
 static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 {
 	struct io_wq_work *work = data;
+	unsigned long flags;
+	bool ret = false;
 
+	if (worker->cur_work != work)
+		return false;
+
+	spin_lock_irqsave(&worker->lock, flags);
 	if (worker->cur_work == work) {
 		send_sig(SIGINT, worker->task, 1);
-		return true;
+		ret = true;
 	}
+	spin_unlock_irqrestore(&worker->lock, flags);
 
-	return false;
+	return ret;
 }
 
 static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
