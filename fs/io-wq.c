@@ -106,6 +106,9 @@ struct io_wq {
 	unsigned long state;
 	unsigned nr_wqes;
 
+	get_work_fn *get_work;
+	put_work_fn *put_work;
+
 	struct task_struct *manager;
 	struct user_struct *user;
 	struct mm_struct *mm;
@@ -392,7 +395,7 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe, unsigned *hash)
 static void io_worker_handle_work(struct io_worker *worker)
 	__releases(wqe->lock)
 {
-	struct io_wq_work *work, *old_work;
+	struct io_wq_work *work, *old_work = NULL, *put_work = NULL;
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wq *wq = wqe->wq;
 
@@ -424,6 +427,8 @@ static void io_worker_handle_work(struct io_worker *worker)
 			wqe->flags |= IO_WQE_FLAG_STALLED;
 
 		spin_unlock_irq(&wqe->lock);
+		if (put_work && wq->put_work)
+			wq->put_work(old_work);
 		if (!work)
 			break;
 next:
@@ -444,6 +449,11 @@ next:
 		if (worker->mm)
 			work->flags |= IO_WQ_WORK_HAS_MM;
 
+		if (wq->get_work && !(work->flags & IO_WQ_WORK_INTERNAL)) {
+			put_work = work;
+			wq->get_work(work);
+		}
+
 		old_work = work;
 		work->func(&work);
 
@@ -455,6 +465,12 @@ next:
 		}
 		if (work && work != old_work) {
 			spin_unlock_irq(&wqe->lock);
+
+			if (put_work && wq->put_work) {
+				wq->put_work(put_work);
+				put_work = NULL;
+			}
+
 			/* dependent work not hashed */
 			hash = -1U;
 			goto next;
@@ -950,13 +966,15 @@ void io_wq_flush(struct io_wq *wq)
 
 		init_completion(&data.done);
 		INIT_IO_WORK(&data.work, io_wq_flush_func);
+		data.work.flags |= IO_WQ_WORK_INTERNAL;
 		io_wqe_enqueue(wqe, &data.work);
 		wait_for_completion(&data.done);
 	}
 }
 
 struct io_wq *io_wq_create(unsigned bounded, struct mm_struct *mm,
-			   struct user_struct *user)
+			   struct user_struct *user, get_work_fn *get_work,
+			   put_work_fn *put_work)
 {
 	int ret = -ENOMEM, i, node;
 	struct io_wq *wq;
@@ -971,6 +989,9 @@ struct io_wq *io_wq_create(unsigned bounded, struct mm_struct *mm,
 		kfree(wq);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	wq->get_work = get_work;
+	wq->put_work = put_work;
 
 	/* caller must already hold a reference to this */
 	wq->user = user;
