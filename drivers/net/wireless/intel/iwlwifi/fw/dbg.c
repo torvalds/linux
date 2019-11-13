@@ -1737,13 +1737,7 @@ iwl_dump_ini_mon_smem_get_size(struct iwl_fw_runtime *fwrt,
 			       struct iwl_dump_ini_region_data *reg_data)
 {
 	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
-	struct iwl_fw_ini_allocation_tlv *fw_mon_cfg;
-	u32 alloc_id = le32_to_cpu(reg->internal_buffer.alloc_id), size;
-
-	fw_mon_cfg = &fwrt->trans->dbg.fw_mon_cfg[alloc_id];
-	if (le32_to_cpu(fw_mon_cfg->buf_location) !=
-	    IWL_FW_INI_LOCATION_SRAM_PATH)
-		return 0;
+	u32 size;
 
 	size = le32_to_cpu(reg->internal_buffer.size);
 	if (!size)
