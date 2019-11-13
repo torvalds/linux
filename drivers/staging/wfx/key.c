@@ -171,28 +171,36 @@ static int wfx_add_key(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 		return -EINVAL;
 	k = &wdev->keys[idx];
 	k->int_id = wvif->id;
-	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 || key->cipher ==  WLAN_CIPHER_SUITE_WEP104) {
+	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	    key->cipher ==  WLAN_CIPHER_SUITE_WEP104) {
 		if (pairwise)
-			k->type = fill_wep_pair(&k->key.wep_pairwise_key, key, sta->addr);
+			k->type = fill_wep_pair(&k->key.wep_pairwise_key, key,
+						sta->addr);
 		else
 			k->type = fill_wep_group(&k->key.wep_group_key, key);
 	} else if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 		if (pairwise)
-			k->type = fill_tkip_pair(&k->key.tkip_pairwise_key, key, sta->addr);
+			k->type = fill_tkip_pair(&k->key.tkip_pairwise_key, key,
+						 sta->addr);
 		else
-			k->type = fill_tkip_group(&k->key.tkip_group_key, key, &seq, wvif->vif->type);
+			k->type = fill_tkip_group(&k->key.tkip_group_key, key,
+						  &seq, wvif->vif->type);
 	} else if (key->cipher == WLAN_CIPHER_SUITE_CCMP) {
 		if (pairwise)
-			k->type = fill_ccmp_pair(&k->key.aes_pairwise_key, key, sta->addr);
+			k->type = fill_ccmp_pair(&k->key.aes_pairwise_key, key,
+						 sta->addr);
 		else
-			k->type = fill_ccmp_group(&k->key.aes_group_key, key, &seq);
+			k->type = fill_ccmp_group(&k->key.aes_group_key, key,
+						  &seq);
 	} else if (key->cipher ==  WLAN_CIPHER_SUITE_SMS4) {
 		if (pairwise)
-			k->type = fill_sms4_pair(&k->key.wapi_pairwise_key, key, sta->addr);
+			k->type = fill_sms4_pair(&k->key.wapi_pairwise_key, key,
+						 sta->addr);
 		else
 			k->type = fill_sms4_group(&k->key.wapi_group_key, key);
 	} else if (key->cipher ==  WLAN_CIPHER_SUITE_AES_CMAC) {
-		k->type = fill_aes_cmac_group(&k->key.igtk_group_key, key, &seq);
+		k->type = fill_aes_cmac_group(&k->key.igtk_group_key, key,
+					      &seq);
 	} else {
 		dev_warn(wdev->dev, "unsupported key type %d\n", key->cipher);
 		wfx_free_key(wdev, idx);

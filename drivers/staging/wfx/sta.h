@@ -86,11 +86,13 @@ void wfx_change_chanctx(struct ieee80211_hw *hw,
 			struct ieee80211_chanctx_conf *conf, u32 changed);
 int wfx_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   struct ieee80211_chanctx_conf *conf);
-void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
 			      struct ieee80211_chanctx_conf *conf);
 
 // WSM Callbacks
-void wfx_suspend_resume(struct wfx_vif *wvif, struct hif_ind_suspend_resume_tx *arg);
+void wfx_suspend_resume(struct wfx_vif *wvif,
+			struct hif_ind_suspend_resume_tx *arg);
 
 // Other Helpers
 void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad);

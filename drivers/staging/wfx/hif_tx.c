@@ -24,7 +24,8 @@ void wfx_init_hif_cmd(struct wfx_hif_cmd *hif_cmd)
 	mutex_init(&hif_cmd->key_renew_lock);
 }
 
-static void wfx_fill_header(struct hif_msg *hif, int if_id, unsigned int cmd, size_t size)
+static void wfx_fill_header(struct hif_msg *hif, int if_id, unsigned int cmd,
+			    size_t size)
 {
 	if (if_id == -1)
 		if_id = 2;
@@ -47,7 +48,8 @@ static void *wfx_alloc_hif(size_t body_len, struct hif_msg **hif)
 		return NULL;
 }
 
-int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request, void *reply, size_t reply_len, bool async)
+int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request, void *reply,
+		 size_t reply_len, bool async)
 {
 	const char *mib_name = "";
 	const char *mib_sep = "";
@@ -100,7 +102,8 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request, void *reply, siz
 	wdev->hif_cmd.buf_send = NULL;
 	mutex_unlock(&wdev->hif_cmd.lock);
 
-	if (ret && (cmd == HIF_REQ_ID_READ_MIB || cmd == HIF_REQ_ID_WRITE_MIB)) {
+	if (ret &&
+	    (cmd == HIF_REQ_ID_READ_MIB || cmd == HIF_REQ_ID_WRITE_MIB)) {
 		mib_name = get_mib_name(((u16 *) request)[2]);
 		mib_sep = "/";
 	}
@@ -170,7 +173,8 @@ int hif_reset(struct wfx_vif *wvif, bool reset_stat)
 	return ret;
 }
 
-int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val, size_t val_len)
+int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val,
+		 size_t val_len)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -183,11 +187,13 @@ int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val, size_t
 	ret = wfx_cmd_send(wdev, hif, reply, buf_len, false);
 
 	if (!ret && mib_id != reply->mib_id) {
-		dev_warn(wdev->dev, "%s: confirmation mismatch request\n", __func__);
+		dev_warn(wdev->dev,
+			 "%s: confirmation mismatch request\n", __func__);
 		ret = -EIO;
 	}
 	if (ret == -ENOMEM)
-		dev_err(wdev->dev, "buffer is too small to receive %s (%zu < %d)\n",
+		dev_err(wdev->dev,
+			"buffer is too small to receive %s (%zu < %d)\n",
 			get_mib_name(mib_id), val_len, reply->length);
 	if (!ret)
 		memcpy(val, &reply->mib_data, reply->length);
@@ -198,7 +204,8 @@ int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val, size_t
 	return ret;
 }
 
-int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val, size_t val_len)
+int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val,
+		  size_t val_len)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -236,7 +243,8 @@ int hif_scan(struct wfx_vif *wvif, const struct wfx_scan_params *arg)
 	cpu_to_le32s(&body->min_channel_time);
 	cpu_to_le32s(&body->max_channel_time);
 	cpu_to_le32s(&body->tx_power_level);
-	memcpy(ptr, arg->ssids, arg->scan_req.num_of_ssi_ds * sizeof(struct hif_ssid_def));
+	memcpy(ptr, arg->ssids,
+	       arg->scan_req.num_of_ssi_ds * sizeof(struct hif_ssid_def));
 	ssids = (struct hif_ssid_def *) ptr;
 	for (i = 0; i < body->num_of_ssi_ds; ++i)
 		cpu_to_le32s(&ssids[i].ssid_length);
@@ -281,16 +289,19 @@ int hif_join(struct wfx_vif *wvif, const struct hif_req_join *arg)
 	return ret;
 }
 
-int hif_set_bss_params(struct wfx_vif *wvif, const struct hif_req_set_bss_params *arg)
+int hif_set_bss_params(struct wfx_vif *wvif,
+		       const struct hif_req_set_bss_params *arg)
 {
 	int ret;
 	struct hif_msg *hif;
-	struct hif_req_set_bss_params *body = wfx_alloc_hif(sizeof(*body), &hif);
+	struct hif_req_set_bss_params *body = wfx_alloc_hif(sizeof(*body),
+							    &hif);
 
 	memcpy(body, arg, sizeof(*body));
 	cpu_to_le16s(&body->aid);
 	cpu_to_le32s(&body->operational_rate_set);
-	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_SET_BSS_PARAMS, sizeof(*body));
+	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_SET_BSS_PARAMS,
+			sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);
 	return ret;
@@ -308,7 +319,8 @@ int hif_add_key(struct wfx_dev *wdev, const struct hif_req_add_key *arg)
 	if (wfx_api_older_than(wdev, 1, 5))
 		// Legacy firmwares expect that add_key to be sent on right
 		// interface.
-		wfx_fill_header(hif, arg->int_id, HIF_REQ_ID_ADD_KEY, sizeof(*body));
+		wfx_fill_header(hif, arg->int_id, HIF_REQ_ID_ADD_KEY,
+				sizeof(*body));
 	else
 		wfx_fill_header(hif, -1, HIF_REQ_ID_ADD_KEY, sizeof(*body));
 	ret = wfx_cmd_send(wdev, hif, NULL, 0, false);
@@ -329,18 +341,21 @@ int hif_remove_key(struct wfx_dev *wdev, int idx)
 	return ret;
 }
 
-int hif_set_edca_queue_params(struct wfx_vif *wvif, const struct hif_req_edca_queue_params *arg)
+int hif_set_edca_queue_params(struct wfx_vif *wvif,
+			      const struct hif_req_edca_queue_params *arg)
 {
 	int ret;
 	struct hif_msg *hif;
-	struct hif_req_edca_queue_params *body = wfx_alloc_hif(sizeof(*body), &hif);
+	struct hif_req_edca_queue_params *body = wfx_alloc_hif(sizeof(*body),
+							       &hif);
 
 	// NOTE: queues numerotation are not the same between WFx and Linux
 	memcpy(body, arg, sizeof(*body));
 	cpu_to_le16s(&body->cw_min);
 	cpu_to_le16s(&body->cw_max);
 	cpu_to_le16s(&body->tx_op_limit);
-	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_EDCA_QUEUE_PARAMS, sizeof(*body));
+	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_EDCA_QUEUE_PARAMS,
+			sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);
 	return ret;
@@ -379,10 +394,12 @@ int hif_beacon_transmit(struct wfx_vif *wvif, bool enable_beaconing)
 {
 	int ret;
 	struct hif_msg *hif;
-	struct hif_req_beacon_transmit *body = wfx_alloc_hif(sizeof(*body), &hif);
+	struct hif_req_beacon_transmit *body = wfx_alloc_hif(sizeof(*body),
+							     &hif);
 
 	body->enable_beaconing = enable_beaconing ? 1 : 0;
-	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_BEACON_TRANSMIT, sizeof(*body));
+	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_BEACON_TRANSMIT,
+			sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);
 	return ret;
@@ -421,16 +438,20 @@ int hif_update_ie(struct wfx_vif *wvif, const struct hif_ie_flags *target_frame,
 	return ret;
 }
 
-int hif_sl_send_pub_keys(struct wfx_dev *wdev, const uint8_t *pubkey, const uint8_t *pubkey_hmac)
+int hif_sl_send_pub_keys(struct wfx_dev *wdev, const uint8_t *pubkey,
+			 const uint8_t *pubkey_hmac)
 {
 	int ret;
 	struct hif_msg *hif;
-	struct hif_req_sl_exchange_pub_keys *body = wfx_alloc_hif(sizeof(*body), &hif);
+	struct hif_req_sl_exchange_pub_keys *body = wfx_alloc_hif(sizeof(*body),
+								  &hif);
 
 	body->algorithm = HIF_SL_CURVE25519;
 	memcpy(body->host_pub_key, pubkey, sizeof(body->host_pub_key));
-	memcpy(body->host_pub_key_mac, pubkey_hmac, sizeof(body->host_pub_key_mac));
-	wfx_fill_header(hif, -1, HIF_REQ_ID_SL_EXCHANGE_PUB_KEYS, sizeof(*body));
+	memcpy(body->host_pub_key_mac, pubkey_hmac,
+	       sizeof(body->host_pub_key_mac));
+	wfx_fill_header(hif, -1, HIF_REQ_ID_SL_EXCHANGE_PUB_KEYS,
+			sizeof(*body));
 	ret = wfx_cmd_send(wdev, hif, NULL, 0, false);
 	kfree(hif);
 	// Compatibility with legacy secure link
@@ -457,7 +478,8 @@ int hif_sl_set_mac_key(struct wfx_dev *wdev, const u8 *slk_key,
 {
 	int ret;
 	struct hif_msg *hif;
-	struct hif_req_set_sl_mac_key *body = wfx_alloc_hif(sizeof(*body), &hif);
+	struct hif_req_set_sl_mac_key *body = wfx_alloc_hif(sizeof(*body),
+							    &hif);
 
 	memcpy(body->key_value, slk_key, sizeof(body->key_value));
 	body->otp_or_ram = destination;

@@ -72,7 +72,8 @@ static int wfx_counters_show(struct seq_file *seq, void *v)
 		return -EIO;
 
 #define PUT_COUNTER(name) \
-	seq_printf(seq, "%24s %d\n", #name ":", le32_to_cpu(counters.count_##name))
+	seq_printf(seq, "%24s %d\n", #name ":",\
+		   le32_to_cpu(counters.count_##name))
 
 	PUT_COUNTER(tx_packets);
 	PUT_COUNTER(tx_multicast_frames);
@@ -211,7 +212,8 @@ struct dbgfs_hif_msg {
 	int ret;
 };
 
-static ssize_t wfx_send_hif_msg_write(struct file *file, const char __user *user_buf,
+static ssize_t wfx_send_hif_msg_write(struct file *file,
+				      const char __user *user_buf,
 				      size_t count, loff_t *ppos)
 {
 	struct dbgfs_hif_msg *context = file->private_data;
@@ -236,7 +238,8 @@ static ssize_t wfx_send_hif_msg_write(struct file *file, const char __user *user
 		kfree(request);
 		return -EINVAL;
 	}
-	context->ret = wfx_cmd_send(wdev, request, context->reply, sizeof(context->reply), false);
+	context->ret = wfx_cmd_send(wdev, request, context->reply,
+				    sizeof(context->reply), false);
 
 	kfree(request);
 	complete(&context->complete);
@@ -299,8 +302,10 @@ int wfx_debug_init(struct wfx_dev *wdev)
 	debugfs_create_file("counters", 0444, d, wdev, &wfx_counters_fops);
 	debugfs_create_file("rx_stats", 0444, d, wdev, &wfx_rx_stats_fops);
 	debugfs_create_file("send_pds", 0200, d, wdev, &wfx_send_pds_fops);
-	debugfs_create_file("burn_slk_key", 0200, d, wdev, &wfx_burn_slk_key_fops);
-	debugfs_create_file("send_hif_msg", 0600, d, wdev, &wfx_send_hif_msg_fops);
+	debugfs_create_file("burn_slk_key", 0200, d, wdev,
+			    &wfx_burn_slk_key_fops);
+	debugfs_create_file("send_hif_msg", 0600, d, wdev,
+			    &wfx_send_hif_msg_fops);
 
 	return 0;
 }

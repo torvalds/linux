@@ -34,12 +34,14 @@ static int read32(struct wfx_dev *wdev, int reg, u32 *val)
 	*val = ~0; // Never return undefined value
 	if (!tmp)
 		return -ENOMEM;
-	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv, reg, tmp, sizeof(u32));
+	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv, reg, tmp,
+					    sizeof(u32));
 	if (ret >= 0)
 		*val = le32_to_cpu(*tmp);
 	kfree(tmp);
 	if (ret)
-		dev_err(wdev->dev, "%s: bus communication error: %d\n", __func__, ret);
+		dev_err(wdev->dev, "%s: bus communication error: %d\n",
+			__func__, ret);
 	return ret;
 }
 
@@ -51,10 +53,12 @@ static int write32(struct wfx_dev *wdev, int reg, u32 val)
 	if (!tmp)
 		return -ENOMEM;
 	*tmp = cpu_to_le32(val);
-	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv, reg, tmp, sizeof(u32));
+	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv, reg, tmp,
+					  sizeof(u32));
 	kfree(tmp);
 	if (ret)
-		dev_err(wdev->dev, "%s: bus communication error: %d\n", __func__, ret);
+		dev_err(wdev->dev, "%s: bus communication error: %d\n",
+			__func__, ret);
 	return ret;
 }
 
@@ -102,7 +106,8 @@ err:
 	return ret;
 }
 
-static int indirect_read(struct wfx_dev *wdev, int reg, u32 addr, void *buf, size_t len)
+static int indirect_read(struct wfx_dev *wdev, int reg, u32 addr, void *buf,
+			 size_t len)
 {
 	int ret;
 	int i;
@@ -152,7 +157,8 @@ err:
 	return ret;
 }
 
-static int indirect_write(struct wfx_dev *wdev, int reg, u32 addr, const void *buf, size_t len)
+static int indirect_write(struct wfx_dev *wdev, int reg, u32 addr,
+			  const void *buf, size_t len)
 {
 	int ret;
 
@@ -165,7 +171,8 @@ static int indirect_write(struct wfx_dev *wdev, int reg, u32 addr, const void *b
 	return wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv, reg, buf, len);
 }
 
-static int indirect_read_locked(struct wfx_dev *wdev, int reg, u32 addr, void *buf, size_t len)
+static int indirect_read_locked(struct wfx_dev *wdev, int reg, u32 addr,
+				void *buf, size_t len)
 {
 	int ret;
 
@@ -176,7 +183,8 @@ static int indirect_read_locked(struct wfx_dev *wdev, int reg, u32 addr, void *b
 	return ret;
 }
 
-static int indirect_write_locked(struct wfx_dev *wdev, int reg, u32 addr, const void *buf, size_t len)
+static int indirect_write_locked(struct wfx_dev *wdev, int reg, u32 addr,
+				 const void *buf, size_t len)
 {
 	int ret;
 
@@ -187,7 +195,8 @@ static int indirect_write_locked(struct wfx_dev *wdev, int reg, u32 addr, const 
 	return ret;
 }
 
-static int indirect_read32_locked(struct wfx_dev *wdev, int reg, u32 addr, u32 *val)
+static int indirect_read32_locked(struct wfx_dev *wdev, int reg, u32 addr,
+				  u32 *val)
 {
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
@@ -203,7 +212,8 @@ static int indirect_read32_locked(struct wfx_dev *wdev, int reg, u32 addr, u32 *
 	return ret;
 }
 
-static int indirect_write32_locked(struct wfx_dev *wdev, int reg, u32 addr, u32 val)
+static int indirect_write32_locked(struct wfx_dev *wdev, int reg, u32 addr,
+				   u32 val)
 {
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
@@ -225,11 +235,13 @@ int wfx_data_read(struct wfx_dev *wdev, void *buf, size_t len)
 
 	WARN((long) buf & 3, "%s: unaligned buffer", __func__);
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv, WFX_REG_IN_OUT_QUEUE, buf, len);
+	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv,
+					    WFX_REG_IN_OUT_QUEUE, buf, len);
 	_trace_io_read(WFX_REG_IN_OUT_QUEUE, buf, len);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	if (ret)
-		dev_err(wdev->dev, "%s: bus communication error: %d\n", __func__, ret);
+		dev_err(wdev->dev, "%s: bus communication error: %d\n",
+			__func__, ret);
 	return ret;
 }
 
@@ -239,11 +251,13 @@ int wfx_data_write(struct wfx_dev *wdev, const void *buf, size_t len)
 
 	WARN((long) buf & 3, "%s: unaligned buffer", __func__);
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv, WFX_REG_IN_OUT_QUEUE, buf, len);
+	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv,
+					  WFX_REG_IN_OUT_QUEUE, buf, len);
 	_trace_io_write(WFX_REG_IN_OUT_QUEUE, buf, len);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	if (ret)
-		dev_err(wdev->dev, "%s: bus communication error: %d\n", __func__, ret);
+		dev_err(wdev->dev, "%s: bus communication error: %d\n",
+			__func__, ret);
 	return ret;
 }
 

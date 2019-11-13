@@ -57,8 +57,9 @@ static inline int hif_get_counters_table(struct wfx_dev *wdev,
 		return hif_read_mib(wdev, 0, HIF_MIB_ID_COUNTERS_TABLE,
 				    arg, sizeof(struct hif_mib_count_table));
 	} else {
-		return hif_read_mib(wdev, 0, HIF_MIB_ID_EXTENDED_COUNTERS_TABLE,
-				    arg, sizeof(struct hif_mib_extended_count_table));
+		return hif_read_mib(wdev, 0,
+				    HIF_MIB_ID_EXTENDED_COUNTERS_TABLE, arg,
+				sizeof(struct hif_mib_extended_count_table));
 	}
 }
 
@@ -112,7 +113,8 @@ static inline int hif_beacon_filter_control(struct wfx_vif *wvif,
 		.bcn_count = cpu_to_le32(beacon_count),
 	};
 	return hif_write_mib(wvif->wdev, wvif->id,
-			     HIF_MIB_ID_BEACON_FILTER_ENABLE, &arg, sizeof(arg));
+			     HIF_MIB_ID_BEACON_FILTER_ENABLE,
+			     &arg, sizeof(arg));
 }
 
 static inline int hif_set_operational_mode(struct wfx_dev *wdev,
@@ -173,7 +175,8 @@ static inline int hif_set_association_mode(struct wfx_vif *wvif,
 static inline int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
 					       struct hif_mib_set_tx_rate_retry_policy *arg)
 {
-	size_t size = struct_size(arg, tx_rate_retry_policy, arg->num_tx_rate_policies);
+	size_t size = struct_size(arg, tx_rate_retry_policy,
+				  arg->num_tx_rate_policies);
 
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_SET_TX_RATE_RETRY_POLICY, arg, size);

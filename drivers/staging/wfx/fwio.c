@@ -107,11 +107,14 @@ int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
 	const char *data;
 	int ret;
 
-	snprintf(filename, sizeof(filename), "%s_%02X.sec", wdev->pdata.file_fw, keyset_chip);
+	snprintf(filename, sizeof(filename), "%s_%02X.sec", wdev->pdata.file_fw,
+		 keyset_chip);
 	ret = firmware_request_nowarn(fw, filename, wdev->dev);
 	if (ret) {
-		dev_info(wdev->dev, "can't load %s, falling back to %s.sec\n", filename, wdev->pdata.file_fw);
-		snprintf(filename, sizeof(filename), "%s.sec", wdev->pdata.file_fw);
+		dev_info(wdev->dev, "can't load %s, falling back to %s.sec\n",
+			 filename, wdev->pdata.file_fw);
+		snprintf(filename, sizeof(filename), "%s.sec",
+			 wdev->pdata.file_fw);
 		ret = request_firmware(fw, filename, wdev->dev);
 		if (ret) {
 			dev_err(wdev->dev, "can't load %s\n", filename);
@@ -164,7 +167,8 @@ static int wait_ncp_status(struct wfx_dev *wdev, u32 status)
 			return -ETIMEDOUT;
 	}
 	if (ktime_compare(now, start))
-		dev_dbg(wdev->dev, "chip answer after %lldus\n", ktime_us_delta(now, start));
+		dev_dbg(wdev->dev, "chip answer after %lldus\n",
+			ktime_us_delta(now, start));
 	else
 		dev_dbg(wdev->dev, "chip answer immediately\n");
 	return 0;
@@ -188,15 +192,18 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 			if (ret < 0)
 				return ret;
 			now = ktime_get();
-			if (offs + DNLD_BLOCK_SIZE - bytes_done < DNLD_FIFO_SIZE)
+			if (offs +
+			    DNLD_BLOCK_SIZE - bytes_done < DNLD_FIFO_SIZE)
 				break;
 			if (ktime_after(now, ktime_add_ms(start, DCA_TIMEOUT)))
 				return -ETIMEDOUT;
 		}
 		if (ktime_compare(now, start))
-			dev_dbg(wdev->dev, "answer after %lldus\n", ktime_us_delta(now, start));
+			dev_dbg(wdev->dev, "answer after %lldus\n",
+				ktime_us_delta(now, start));
 
-		ret = sram_write_dma_safe(wdev, WFX_DNLD_FIFO + (offs % DNLD_FIFO_SIZE),
+		ret = sram_write_dma_safe(wdev, WFX_DNLD_FIFO +
+					  (offs % DNLD_FIFO_SIZE),
 					  data + offs, DNLD_BLOCK_SIZE);
 		if (ret < 0)
 			return ret;
@@ -220,10 +227,14 @@ static void print_boot_status(struct wfx_dev *wdev)
 		dev_info(wdev->dev, "no error reported by secure boot\n");
 	} else {
 		sram_reg_read(wdev, WFX_ERR_INFO, &val32);
-		if (val32 < ARRAY_SIZE(fwio_error_strings) && fwio_error_strings[val32])
-			dev_info(wdev->dev, "secure boot error: %s\n", fwio_error_strings[val32]);
+		if (val32 < ARRAY_SIZE(fwio_error_strings) &&
+		    fwio_error_strings[val32])
+			dev_info(wdev->dev, "secure boot error: %s\n",
+				 fwio_error_strings[val32]);
 		else
-			dev_info(wdev->dev, "secure boot error: Unknown (0x%02x)\n", val32);
+			dev_info(wdev->dev,
+				 "secure boot error: Unknown (0x%02x)\n",
+				 val32);
 	}
 }
 
@@ -262,9 +273,13 @@ static int load_firmware_secure(struct wfx_dev *wdev)
 		goto error;
 
 	sram_reg_write(wdev, WFX_DNLD_FIFO, 0xFFFFFFFF); // Fifo init
-	sram_write_dma_safe(wdev, WFX_DCA_FW_VERSION, "\x01\x00\x00\x00", FW_VERSION_SIZE);
-	sram_write_dma_safe(wdev, WFX_DCA_FW_SIGNATURE, fw->data + fw_offset, FW_SIGNATURE_SIZE);
-	sram_write_dma_safe(wdev, WFX_DCA_FW_HASH, fw->data + fw_offset + FW_SIGNATURE_SIZE, FW_HASH_SIZE);
+	sram_write_dma_safe(wdev, WFX_DCA_FW_VERSION, "\x01\x00\x00\x00",
+			    FW_VERSION_SIZE);
+	sram_write_dma_safe(wdev, WFX_DCA_FW_SIGNATURE, fw->data + fw_offset,
+			    FW_SIGNATURE_SIZE);
+	sram_write_dma_safe(wdev, WFX_DCA_FW_HASH,
+			    fw->data + fw_offset + FW_SIGNATURE_SIZE,
+			    FW_HASH_SIZE);
 	sram_reg_write(wdev, WFX_DCA_IMAGE_SIZE, fw->size - header_size);
 	sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_UPLOAD_PENDING);
 	ret = wait_ncp_status(wdev, NCP_DOWNLOAD_PENDING);
@@ -272,10 +287,12 @@ static int load_firmware_secure(struct wfx_dev *wdev)
 		goto error;
 
 	start = ktime_get();
-	ret = upload_firmware(wdev, fw->data + header_size, fw->size - header_size);
+	ret = upload_firmware(wdev, fw->data + header_size,
+			      fw->size - header_size);
 	if (ret)
 		goto error;
-	dev_dbg(wdev->dev, "firmware load after %lldus\n", ktime_us_delta(ktime_get(), start));
+	dev_dbg(wdev->dev, "firmware load after %lldus\n",
+		ktime_us_delta(ktime_get(), start));
 
 	sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_UPLOAD_COMPLETE);
 	ret = wait_ncp_status(wdev, NCP_AUTH_OK);
@@ -310,10 +327,12 @@ static int init_gpr(struct wfx_dev *wdev)
 	};
 
 	for (i = 0; i < ARRAY_SIZE(gpr_init); i++) {
-		ret = igpr_reg_write(wdev, gpr_init[i].index, gpr_init[i].value);
+		ret = igpr_reg_write(wdev, gpr_init[i].index,
+				     gpr_init[i].value);
 		if (ret < 0)
 			return ret;
-		dev_dbg(wdev->dev, "  index %02x: %08x\n", gpr_init[i].index, gpr_init[i].value);
+		dev_dbg(wdev->dev, "  index %02x: %08x\n", gpr_init[i].index,
+			gpr_init[i].value);
 	}
 	return 0;
 }
@@ -348,7 +367,8 @@ int wfx_init_device(struct wfx_dev *wdev)
 
 	hw_revision = FIELD_GET(CFG_DEVICE_ID_MAJOR, reg);
 	if (hw_revision == 0 || hw_revision > 2) {
-		dev_err(wdev->dev, "bad hardware revision number: %d\n", hw_revision);
+		dev_err(wdev->dev, "bad hardware revision number: %d\n",
+			hw_revision);
 		return -ENODEV;
 	}
 	hw_type = FIELD_GET(CFG_DEVICE_ID_TYPE, reg);
@@ -375,7 +395,8 @@ int wfx_init_device(struct wfx_dev *wdev)
 			return -ETIMEDOUT;
 		}
 	}
-	dev_dbg(wdev->dev, "chip wake up after %lldus\n", ktime_us_delta(now, start));
+	dev_dbg(wdev->dev, "chip wake up after %lldus\n",
+		ktime_us_delta(now, start));
 
 	ret = config_reg_write_bits(wdev, CFG_CPU_RESET, 0);
 	if (ret < 0)
@@ -383,6 +404,10 @@ int wfx_init_device(struct wfx_dev *wdev)
 	ret = load_firmware_secure(wdev);
 	if (ret < 0)
 		return ret;
-	ret = config_reg_write_bits(wdev, CFG_DIRECT_ACCESS_MODE | CFG_IRQ_ENABLE_DATA | CFG_IRQ_ENABLE_WRDY, CFG_IRQ_ENABLE_DATA);
+	ret = config_reg_write_bits(wdev,
+				    CFG_DIRECT_ACCESS_MODE |
+				    CFG_IRQ_ENABLE_DATA |
+				    CFG_IRQ_ENABLE_WRDY,
+				    CFG_IRQ_ENABLE_DATA);
 	return ret;
 }

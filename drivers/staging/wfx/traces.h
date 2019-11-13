@@ -177,14 +177,16 @@ DECLARE_EVENT_CLASS(hif_data,
 		else
 			__entry->msg_type = "REQ";
 		if (!is_recv &&
-		    (__entry->msg_id == HIF_REQ_ID_READ_MIB || __entry->msg_id == HIF_REQ_ID_WRITE_MIB)) {
+		    (__entry->msg_id == HIF_REQ_ID_READ_MIB ||
+		     __entry->msg_id == HIF_REQ_ID_WRITE_MIB)) {
 			__entry->mib = le16_to_cpup((u16 *) hif->body);
 			header_len = 4;
 		} else {
 			__entry->mib = -1;
 			header_len = 0;
 		}
-		__entry->buf_len = min_t(int, __entry->msg_len, sizeof(__entry->buf))
+		__entry->buf_len = min_t(int, __entry->msg_len,
+					 sizeof(__entry->buf))
 				   - sizeof(struct hif_msg) - header_len;
 		memcpy(__entry->buf, hif->body + header_len, __entry->buf_len);
 	),
@@ -203,11 +205,13 @@ DECLARE_EVENT_CLASS(hif_data,
 DEFINE_EVENT(hif_data, hif_send,
 	TP_PROTO(struct hif_msg *hif, int tx_fill_level, bool is_recv),
 	TP_ARGS(hif, tx_fill_level, is_recv));
-#define _trace_hif_send(hif, tx_fill_level) trace_hif_send(hif, tx_fill_level, false)
+#define _trace_hif_send(hif, tx_fill_level)\
+	trace_hif_send(hif, tx_fill_level, false)
 DEFINE_EVENT(hif_data, hif_recv,
 	TP_PROTO(struct hif_msg *hif, int tx_fill_level, bool is_recv),
 	TP_ARGS(hif, tx_fill_level, is_recv));
-#define _trace_hif_recv(hif, tx_fill_level) trace_hif_recv(hif, tx_fill_level, true)
+#define _trace_hif_recv(hif, tx_fill_level)\
+	trace_hif_recv(hif, tx_fill_level, true)
 
 #define wfx_reg_list_enum                                 \
 	wfx_reg_name(WFX_REG_CONFIG,       "CONFIG")      \
@@ -241,7 +245,8 @@ DECLARE_EVENT_CLASS(io_data,
 		__entry->reg = reg;
 		__entry->addr = addr;
 		__entry->msg_len = len;
-		__entry->buf_len = min_t(int, sizeof(__entry->buf), __entry->msg_len);
+		__entry->buf_len = min_t(int, sizeof(__entry->buf),
+					 __entry->msg_len);
 		memcpy(__entry->buf, io_buf, __entry->buf_len);
 		if (addr >= 0)
 			snprintf(__entry->addr_str, 10, "/%08x", addr);
@@ -259,12 +264,14 @@ DECLARE_EVENT_CLASS(io_data,
 DEFINE_EVENT(io_data, io_write,
 	TP_PROTO(int reg, int addr, const void *io_buf, size_t len),
 	TP_ARGS(reg, addr, io_buf, len));
-#define _trace_io_ind_write(reg, addr, io_buf, len) trace_io_write(reg, addr, io_buf, len)
+#define _trace_io_ind_write(reg, addr, io_buf, len)\
+	trace_io_write(reg, addr, io_buf, len)
 #define _trace_io_write(reg, io_buf, len) trace_io_write(reg, -1, io_buf, len)
 DEFINE_EVENT(io_data, io_read,
 	TP_PROTO(int reg, int addr, const void *io_buf, size_t len),
 	TP_ARGS(reg, addr, io_buf, len));
-#define _trace_io_ind_read(reg, addr, io_buf, len) trace_io_read(reg, addr, io_buf, len)
+#define _trace_io_ind_read(reg, addr, io_buf, len)\
+	trace_io_read(reg, addr, io_buf, len)
 #define _trace_io_read(reg, io_buf, len) trace_io_read(reg, -1, io_buf, len)
 
 DECLARE_EVENT_CLASS(io_data32,
@@ -348,7 +355,8 @@ TRACE_EVENT(bh_stats,
 		__entry->release ? "release" : "keep"
 	)
 );
-#define _trace_bh_stats(ind, req, cnf, busy, release) trace_bh_stats(ind, req, cnf, busy, release)
+#define _trace_bh_stats(ind, req, cnf, busy, release)\
+	trace_bh_stats(ind, req, cnf, busy, release)
 
 TRACE_EVENT(tx_stats,
 	TP_PROTO(struct hif_cnf_tx *tx_cnf, struct sk_buff *skb, int delay),
@@ -365,7 +373,8 @@ TRACE_EVENT(tx_stats,
 	),
 	TP_fast_assign(
 		// Keep sync with wfx_rates definition in main.c
-		static const int hw_rate[] = { 0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13 };
+		static const int hw_rate[] = { 0, 1, 2, 3, 6, 7, 8, 9,
+					       10, 11, 12, 13 };
 		struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 		struct ieee80211_tx_rate *rates = tx_info->driver_rates;
 		int i;
