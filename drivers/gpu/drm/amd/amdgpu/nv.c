@@ -539,6 +539,16 @@ static bool nv_need_reset_on_init(struct amdgpu_device *adev)
 	return false;
 }
 
+static uint64_t nv_get_pcie_replay_count(struct amdgpu_device *adev)
+{
+
+	/* TODO
+	 * dummy implement for pcie_replay_count sysfs interface
+	 * */
+
+	return 0;
+}
+
 static void nv_init_doorbell_index(struct amdgpu_device *adev)
 {
 	adev->doorbell_index.kiq = AMDGPU_NAVI10_DOORBELL_KIQ;
@@ -586,6 +596,7 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 	.need_full_reset = &nv_need_full_reset,
 	.get_pcie_usage = &nv_get_pcie_usage,
 	.need_reset_on_init = &nv_need_reset_on_init,
+	.get_pcie_replay_count = &nv_get_pcie_replay_count,
 };
 
 static int nv_common_early_init(void *handle)

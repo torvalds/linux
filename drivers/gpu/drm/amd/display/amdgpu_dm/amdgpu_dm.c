@@ -4239,8 +4239,8 @@ enum drm_mode_status amdgpu_dm_connector_mode_valid(struct drm_connector *connec
 		result = MODE_OK;
 	else
 		DRM_DEBUG_KMS("Mode %dx%d (clk %d) failed DC validation with error %d\n",
-			      mode->vdisplay,
 			      mode->hdisplay,
+			      mode->vdisplay,
 			      mode->clock,
 			      dc_result);
 

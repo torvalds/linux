@@ -159,7 +159,7 @@
 //FIXME need updating
 // Debug Overrides Bitmask
 #define DPM_OVERRIDE_DISABLE_UCLK_PID               0x00000001
-#define DPM_OVERRIDE_ENABLE_VOLT_LINK_VCN_FCLK      0x00000002
+#define DPM_OVERRIDE_DISABLE_VOLT_LINK_VCN_FCLK     0x00000002
 
 // I2C Config Bit Defines
 #define I2C_CONTROLLER_ENABLED           1

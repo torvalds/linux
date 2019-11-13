@@ -859,6 +859,9 @@ static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
 	struct amdgpu_device *adev = dev->dev_private;
 	int r = 0, i;
 
+	/* Avoid accidently unparking the sched thread during GPU reset */
+	mutex_lock(&adev->lock_reset);
+
 	/* hold on the scheduler */
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
@@ -883,6 +886,8 @@ static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
 			continue;
 		kthread_unpark(ring->sched.thread);
 	}
+
+	mutex_unlock(&adev->lock_reset);
 
 	return 0;
 }
@@ -1036,6 +1041,9 @@ static int amdgpu_debugfs_ib_preempt(void *data, u64 val)
 	if (!fences)
 		return -ENOMEM;
 
+	/* Avoid accidently unparking the sched thread during GPU reset */
+	mutex_lock(&adev->lock_reset);
+
 	/* stop the scheduler */
 	kthread_park(ring->sched.thread);
 
@@ -1074,6 +1082,8 @@ static int amdgpu_debugfs_ib_preempt(void *data, u64 val)
 failure:
 	/* restart the scheduler */
 	kthread_unpark(ring->sched.thread);
+
+	mutex_unlock(&adev->lock_reset);
 
 	ttm_bo_unlock_delayed_workqueue(&adev->mman.bdev, resched);
 

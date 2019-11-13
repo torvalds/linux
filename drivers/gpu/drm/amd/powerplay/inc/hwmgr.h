@@ -356,6 +356,9 @@ struct pp_hwmgr_func {
 	int (*asic_reset)(struct pp_hwmgr *hwmgr, enum SMU_ASIC_RESET_MODE mode);
 	int (*smu_i2c_bus_access)(struct pp_hwmgr *hwmgr, bool aquire);
 	int (*set_df_cstate)(struct pp_hwmgr *hwmgr, enum pp_df_cstate state);
+	int (*set_xgmi_pstate)(struct pp_hwmgr *hwmgr, uint32_t pstate);
+	int (*disable_power_features_for_compute_performance)(struct pp_hwmgr *hwmgr,
+					bool disable);
 };
 
 struct pp_table_func {

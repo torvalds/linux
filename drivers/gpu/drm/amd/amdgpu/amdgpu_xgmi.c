@@ -274,22 +274,55 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 {
 	int ret = 0;
 	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, 0);
+	struct amdgpu_device *tmp_adev;
+	bool update_hive_pstate = true;
+	bool is_high_pstate = pstate && adev->asic_type == CHIP_VEGA20;
 
 	if (!hive)
 		return 0;
 
-	if (hive->pstate == pstate)
-		return 0;
+	mutex_lock(&hive->hive_lock);
+
+	if (hive->pstate == pstate) {
+		adev->pstate = is_high_pstate ? pstate : adev->pstate;
+		goto out;
+	}
 
 	dev_dbg(adev->dev, "Set xgmi pstate %d.\n", pstate);
 
 	if (is_support_sw_smu_xgmi(adev))
 		ret = smu_set_xgmi_pstate(&adev->smu, pstate);
-	if (ret)
+	else if (adev->powerplay.pp_funcs &&
+		 adev->powerplay.pp_funcs->set_xgmi_pstate)
+		ret = adev->powerplay.pp_funcs->set_xgmi_pstate(adev->powerplay.pp_handle,
+								pstate);
+
+	if (ret) {
 		dev_err(adev->dev,
 			"XGMI: Set pstate failure on device %llx, hive %llx, ret %d",
 			adev->gmc.xgmi.node_id,
 			adev->gmc.xgmi.hive_id, ret);
+		goto out;
+	}
+
+	/* Update device pstate */
+	adev->pstate = pstate;
+
+	/*
+	 * Update the hive pstate only all devices of the hive
+	 * are in the same pstate
+	 */
+	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+		if (tmp_adev->pstate != adev->pstate) {
+			update_hive_pstate = false;
+			break;
+		}
+	}
+	if (update_hive_pstate || is_high_pstate)
+		hive->pstate = pstate;
+
+out:
+	mutex_unlock(&hive->hive_lock);
 
 	return ret;
 }
@@ -363,6 +396,9 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 			adev->gmc.xgmi.node_id, adev->gmc.xgmi.hive_id);
 		goto exit;
 	}
+
+	/* Set default device pstate */
+	adev->pstate = -1;
 
 	top_info = &adev->psp.xgmi_context.top_info;
 
