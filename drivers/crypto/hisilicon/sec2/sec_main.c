@@ -14,9 +14,11 @@
 
 #include "sec.h"
 
+#define SEC_VF_NUM			63
 #define SEC_QUEUE_NUM_V1		4096
 #define SEC_QUEUE_NUM_V2		1024
 #define SEC_PF_PCI_DEVICE_ID		0xa255
+#define SEC_VF_PCI_DEVICE_ID		0xa256
 
 #define SEC_XTS_MIV_ENABLE_REG		0x301384
 #define SEC_XTS_MIV_ENABLE_MSK		0x7FFFFFFF
@@ -202,6 +204,7 @@ MODULE_PARM_DESC(ctx_q_num, "Number of queue in ctx (2, 4, 6, ..., 1024)");
 
 static const struct pci_device_id sec_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, SEC_PF_PCI_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, SEC_VF_PCI_DEVICE_ID) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sec_dev_ids);
@@ -225,6 +228,15 @@ static u8 sec_get_endian(struct sec_dev *sec)
 	struct hisi_qm *qm = &sec->qm;
 	u32 reg;
 
+	/*
+	 * As for VF, it is a wrong way to get endian setting by
+	 * reading a register of the engine
+	 */
+	if (qm->pdev->is_virtfn) {
+		dev_err_ratelimited(&qm->pdev->dev,
+				    "cannot access a register in VF!\n");
+		return SEC_LE;
+	}
 	reg = readl_relaxed(qm->io_base + SEC_ENGINE_PF_CFG_OFF +
 			    SEC_ACC_COMMON_REG_OFF + SEC_CONTROL_REG);
 
@@ -376,6 +388,9 @@ static void sec_hw_error_disable(struct sec_dev *sec)
 
 static void sec_hw_error_init(struct sec_dev *sec)
 {
+	if (sec->qm.fun_type == QM_HW_VF)
+		return;
+
 	hisi_qm_hw_error_init(&sec->qm, QM_BASE_CE,
 			      QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT
 			      | QM_ACC_WB_NOT_READY_TIMEOUT, 0,
@@ -385,6 +400,9 @@ static void sec_hw_error_init(struct sec_dev *sec)
 
 static void sec_hw_error_uninit(struct sec_dev *sec)
 {
+	if (sec->qm.fun_type == QM_HW_VF)
+		return;
+
 	sec_hw_error_disable(sec);
 	writel(GENMASK(12, 0), sec->qm.io_base + SEC_QM_ABNORMAL_INT_MASK);
 }
@@ -443,10 +461,30 @@ static void sec_qm_uninit(struct hisi_qm *qm)
 
 static int sec_probe_init(struct hisi_qm *qm, struct sec_dev *sec)
 {
-	qm->qp_base = SEC_PF_DEF_Q_BASE;
-	qm->qp_num = pf_q_num;
+	if (qm->fun_type == QM_HW_PF) {
+		qm->qp_base = SEC_PF_DEF_Q_BASE;
+		qm->qp_num = pf_q_num;
 
-	return sec_pf_probe_init(sec);
+		return sec_pf_probe_init(sec);
+	} else if (qm->fun_type == QM_HW_VF) {
+		/*
+		 * have no way to get qm configure in VM in v1 hardware,
+		 * so currently force PF to uses SEC_PF_DEF_Q_NUM, and force
+		 * to trigger only one VF in v1 hardware.
+		 * v2 hardware has no such problem.
+		 */
+		if (qm->ver == QM_HW_V1) {
+			qm->qp_base = SEC_PF_DEF_Q_NUM;
+			qm->qp_num = SEC_QUEUE_NUM_V1 - SEC_PF_DEF_Q_NUM;
+		} else if (qm->ver == QM_HW_V2) {
+			/* v2 starts to support get vft by mailbox */
+			return hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+		}
+	} else {
+		return -ENODEV;
+	}
+
+	return 0;
 }
 
 static void sec_probe_uninit(struct sec_dev *sec)
@@ -511,6 +549,110 @@ err_qm_uninit:
 	return ret;
 }
 
+/* now we only support equal assignment */
+static int sec_vf_q_assign(struct sec_dev *sec, u32 num_vfs)
+{
+	struct hisi_qm *qm = &sec->qm;
+	u32 qp_num = qm->qp_num;
+	u32 q_base = qp_num;
+	u32 q_num, remain_q_num;
+	int i, j, ret;
+
+	if (!num_vfs)
+		return -EINVAL;
+
+	remain_q_num = qm->ctrl_qp_num - qp_num;
+	q_num = remain_q_num / num_vfs;
+
+	for (i = 1; i <= num_vfs; i++) {
+		if (i == num_vfs)
+			q_num += remain_q_num % num_vfs;
+		ret = hisi_qm_set_vft(qm, i, q_base, q_num);
+		if (ret) {
+			for (j = i; j > 0; j--)
+				hisi_qm_set_vft(qm, j, 0, 0);
+			return ret;
+		}
+		q_base += q_num;
+	}
+
+	return 0;
+}
+
+static int sec_clear_vft_config(struct sec_dev *sec)
+{
+	struct hisi_qm *qm = &sec->qm;
+	u32 num_vfs = sec->num_vfs;
+	int ret;
+	u32 i;
+
+	for (i = 1; i <= num_vfs; i++) {
+		ret = hisi_qm_set_vft(qm, i, 0, 0);
+		if (ret)
+			return ret;
+	}
+
+	sec->num_vfs = 0;
+
+	return 0;
+}
+
+static int sec_sriov_enable(struct pci_dev *pdev, int max_vfs)
+{
+	struct sec_dev *sec = pci_get_drvdata(pdev);
+	int pre_existing_vfs, ret;
+	u32 num_vfs;
+
+	pre_existing_vfs = pci_num_vf(pdev);
+
+	if (pre_existing_vfs) {
+		pci_err(pdev, "Can't enable VF. Please disable at first!\n");
+		return 0;
+	}
+
+	num_vfs = min_t(u32, max_vfs, SEC_VF_NUM);
+
+	ret = sec_vf_q_assign(sec, num_vfs);
+	if (ret) {
+		pci_err(pdev, "Can't assign queues for VF!\n");
+		return ret;
+	}
+
+	sec->num_vfs = num_vfs;
+
+	ret = pci_enable_sriov(pdev, num_vfs);
+	if (ret) {
+		pci_err(pdev, "Can't enable VF!\n");
+		sec_clear_vft_config(sec);
+		return ret;
+	}
+
+	return num_vfs;
+}
+
+static int sec_sriov_disable(struct pci_dev *pdev)
+{
+	struct sec_dev *sec = pci_get_drvdata(pdev);
+
+	if (pci_vfs_assigned(pdev)) {
+		pci_err(pdev, "Can't disable VFs while VFs are assigned!\n");
+		return -EPERM;
+	}
+
+	/* remove in sec_pci_driver will be called to free VF resources */
+	pci_disable_sriov(pdev);
+
+	return sec_clear_vft_config(sec);
+}
+
+static int sec_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	if (num_vfs)
+		return sec_sriov_enable(pdev, num_vfs);
+	else
+		return sec_sriov_disable(pdev);
+}
+
 static void sec_remove(struct pci_dev *pdev)
 {
 	struct sec_dev *sec = pci_get_drvdata(pdev);
@@ -519,6 +661,9 @@ static void sec_remove(struct pci_dev *pdev)
 	sec_unregister_from_crypto();
 
 	sec_remove_from_list(sec);
+
+	if (qm->fun_type == QM_HW_PF && sec->num_vfs)
+		(void)sec_sriov_disable(pdev);
 
 	(void)hisi_qm_stop(qm);
 
@@ -593,6 +738,9 @@ static pci_ers_result_t sec_process_hw_error(struct pci_dev *pdev)
 static pci_ers_result_t sec_error_detected(struct pci_dev *pdev,
 					   pci_channel_state_t state)
 {
+	if (pdev->is_virtfn)
+		return PCI_ERS_RESULT_NONE;
+
 	pci_info(pdev, "PCI error detected, state(=%d)!!\n", state);
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -610,6 +758,7 @@ static struct pci_driver sec_pci_driver = {
 	.probe = sec_probe,
 	.remove = sec_remove,
 	.err_handler = &sec_err_handler,
+	.sriov_configure = sec_sriov_configure,
 };
 
 static int __init sec_init(void)

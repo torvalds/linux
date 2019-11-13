@@ -123,6 +123,7 @@ struct sec_dev {
 	struct hisi_qm qm;
 	struct list_head list;
 	u32 ctx_q_num;
+	u32 num_vfs;
 	unsigned long status;
 };
 
