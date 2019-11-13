@@ -670,6 +670,11 @@ static int f_audio_get_alt(struct usb_function *f, unsigned intf)
 
 static void f_audio_disable(struct usb_function *f)
 {
+	struct f_audio *audio = func_to_audio(f);
+	struct usb_ep *out_ep = audio->out_ep;
+
+	usb_ep_disable(out_ep);
+
 	return;
 }
 
@@ -968,6 +973,7 @@ static void f_audio_free(struct usb_function *f)
 
 	gaudio_cleanup(&audio->card);
 	opts = container_of(f->fi, struct f_uac1_legacy_opts, func_inst);
+	opts->bound = false;
 	kfree(audio);
 	mutex_lock(&opts->lock);
 	--opts->refcnt;
