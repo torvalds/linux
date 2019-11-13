@@ -15,6 +15,14 @@
 #include <dt-bindings/gpio/tegra186-gpio.h>
 #include <dt-bindings/gpio/tegra194-gpio.h>
 
+/* security registers */
+#define TEGRA186_GPIO_CTL_SCR 0x0c
+#define  TEGRA186_GPIO_CTL_SCR_SEC_WEN BIT(28)
+#define  TEGRA186_GPIO_CTL_SCR_SEC_REN BIT(27)
+
+#define TEGRA186_GPIO_INT_ROUTE_MAPPING(p, x) (0x14 + (p) * 0x20 + (x) * 4)
+
+/* control registers */
 #define TEGRA186_GPIO_ENABLE_CONFIG 0x00
 #define  TEGRA186_GPIO_ENABLE_CONFIG_ENABLE BIT(0)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_OUT BIT(1)
@@ -24,6 +32,7 @@
 #define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_DOUBLE_EDGE (0x3 << 2)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_MASK (0x3 << 2)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_LEVEL BIT(4)
+#define  TEGRA186_GPIO_ENABLE_CONFIG_DEBOUNCE BIT(5)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_INTERRUPT BIT(6)
 
 #define TEGRA186_GPIO_DEBOUNCE_CONTROL 0x04
@@ -44,9 +53,9 @@
 
 struct tegra_gpio_port {
 	const char *name;
-	unsigned int offset;
+	unsigned int bank;
+	unsigned int port;
 	unsigned int pins;
-	unsigned int irq;
 };
 
 struct tegra_gpio_soc {
@@ -64,6 +73,7 @@ struct tegra_gpio {
 
 	const struct tegra_gpio_soc *soc;
 
+	void __iomem *secure;
 	void __iomem *base;
 };
 
@@ -90,12 +100,15 @@ static void __iomem *tegra186_gpio_get_base(struct tegra_gpio *gpio,
 					    unsigned int pin)
 {
 	const struct tegra_gpio_port *port;
+	unsigned int offset;
 
 	port = tegra186_gpio_get_port(gpio, &pin);
 	if (!port)
 		return NULL;
 
-	return gpio->base + port->offset + pin * 0x20;
+	offset = port->bank * 0x1000 + port->port * 0x200;
+
+	return gpio->base + offset + pin * 0x20;
 }
 
 static int tegra186_gpio_get_direction(struct gpio_chip *chip,
@@ -203,6 +216,42 @@ static void tegra186_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		value |= TEGRA186_GPIO_OUTPUT_VALUE_HIGH;
 
 	writel(value, base + TEGRA186_GPIO_OUTPUT_VALUE);
+}
+
+static int tegra186_gpio_set_config(struct gpio_chip *chip,
+				    unsigned int offset,
+				    unsigned long config)
+{
+	struct tegra_gpio *gpio = gpiochip_get_data(chip);
+	u32 debounce, value;
+	void __iomem *base;
+
+	base = tegra186_gpio_get_base(gpio, offset);
+	if (base == NULL)
+		return -ENXIO;
+
+	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+		return -ENOTSUPP;
+
+	debounce = pinconf_to_config_argument(config);
+
+	/*
+	 * The Tegra186 GPIO controller supports a maximum of 255 ms debounce
+	 * time.
+	 */
+	if (debounce > 255000)
+		return -EINVAL;
+
+	debounce = DIV_ROUND_UP(debounce, USEC_PER_MSEC);
+
+	value = TEGRA186_GPIO_DEBOUNCE_CONTROL_THRESHOLD(debounce);
+	writel(value, base + TEGRA186_GPIO_DEBOUNCE_CONTROL);
+
+	value = readl(base + TEGRA186_GPIO_ENABLE_CONFIG);
+	value |= TEGRA186_GPIO_ENABLE_CONFIG_DEBOUNCE;
+	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
+
+	return 0;
 }
 
 static int tegra186_gpio_of_xlate(struct gpio_chip *chip,
@@ -343,12 +392,14 @@ static void tegra186_gpio_irq(struct irq_desc *desc)
 
 	for (i = 0; i < gpio->soc->num_ports; i++) {
 		const struct tegra_gpio_port *port = &gpio->soc->ports[i];
-		void __iomem *base = gpio->base + port->offset;
 		unsigned int pin, irq;
 		unsigned long value;
+		void __iomem *base;
 
-		/* skip ports that are not associated with this controller */
-		if (parent != gpio->irq[port->irq])
+		base = gpio->base + port->bank * 0x1000 + port->port * 0x200;
+
+		/* skip ports that are not associated with this bank */
+		if (parent != gpio->irq[port->bank])
 			goto skip;
 
 		value = readl(base + TEGRA186_GPIO_INTERRUPT_STATUS(1));
@@ -444,13 +495,43 @@ static const struct of_device_id tegra186_pmc_of_match[] = {
 	{ /* sentinel */ }
 };
 
+static void tegra186_gpio_init_route_mapping(struct tegra_gpio *gpio)
+{
+	unsigned int i, j;
+	u32 value;
+
+	for (i = 0; i < gpio->soc->num_ports; i++) {
+		const struct tegra_gpio_port *port = &gpio->soc->ports[i];
+		unsigned int offset, p = port->port;
+		void __iomem *base;
+
+		base = gpio->secure + port->bank * 0x1000 + 0x800;
+
+		value = readl(base + TEGRA186_GPIO_CTL_SCR);
+
+		/*
+		 * For controllers that haven't been locked down yet, make
+		 * sure to program the default interrupt route mapping.
+		 */
+		if ((value & TEGRA186_GPIO_CTL_SCR_SEC_REN) == 0 &&
+		    (value & TEGRA186_GPIO_CTL_SCR_SEC_WEN) == 0) {
+			for (j = 0; j < 8; j++) {
+				offset = TEGRA186_GPIO_INT_ROUTE_MAPPING(p, j);
+
+				value = readl(base + offset);
+				value = BIT(port->pins) - 1;
+				writel(value, base + offset);
+			}
+		}
+	}
+}
+
 static int tegra186_gpio_probe(struct platform_device *pdev)
 {
 	unsigned int i, j, offset;
 	struct gpio_irq_chip *irq;
 	struct tegra_gpio *gpio;
 	struct device_node *np;
-	struct resource *res;
 	char **names;
 	int err;
 
@@ -460,8 +541,11 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 
 	gpio->soc = of_device_get_match_data(&pdev->dev);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpio");
-	gpio->base = devm_ioremap_resource(&pdev->dev, res);
+	gpio->secure = devm_platform_ioremap_resource_byname(pdev, "security");
+	if (IS_ERR(gpio->secure))
+		return PTR_ERR(gpio->secure);
+
+	gpio->base = devm_platform_ioremap_resource_byname(pdev, "gpio");
 	if (IS_ERR(gpio->base))
 		return PTR_ERR(gpio->base);
 
@@ -492,6 +576,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	gpio->gpio.direction_output = tegra186_gpio_direction_output;
 	gpio->gpio.get = tegra186_gpio_get,
 	gpio->gpio.set = tegra186_gpio_set;
+	gpio->gpio.set_config = tegra186_gpio_set_config;
 
 	gpio->gpio.base = -1;
 
@@ -555,6 +640,8 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 	}
 
+	tegra186_gpio_init_route_mapping(gpio);
+
 	irq->map = devm_kcalloc(&pdev->dev, gpio->gpio.ngpio,
 				sizeof(*irq->map), GFP_KERNEL);
 	if (!irq->map)
@@ -564,7 +651,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 		const struct tegra_gpio_port *port = &gpio->soc->ports[i];
 
 		for (j = 0; j < port->pins; j++)
-			irq->map[offset + j] = irq->parents[port->irq];
+			irq->map[offset + j] = irq->parents[port->bank];
 
 		offset += port->pins;
 	}
@@ -583,38 +670,38 @@ static int tegra186_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#define TEGRA186_MAIN_GPIO_PORT(port, base, count, controller)	\
-	[TEGRA186_MAIN_GPIO_PORT_##port] = {			\
-		.name = #port,					\
-		.offset = base,					\
-		.pins = count,					\
-		.irq = controller,				\
+#define TEGRA186_MAIN_GPIO_PORT(_name, _bank, _port, _pins)	\
+	[TEGRA186_MAIN_GPIO_PORT_##_name] = {			\
+		.name = #_name,					\
+		.bank = _bank,					\
+		.port = _port,					\
+		.pins = _pins,					\
 	}
 
 static const struct tegra_gpio_port tegra186_main_ports[] = {
-	TEGRA186_MAIN_GPIO_PORT( A, 0x2000, 7, 2),
-	TEGRA186_MAIN_GPIO_PORT( B, 0x3000, 7, 3),
-	TEGRA186_MAIN_GPIO_PORT( C, 0x3200, 7, 3),
-	TEGRA186_MAIN_GPIO_PORT( D, 0x3400, 6, 3),
-	TEGRA186_MAIN_GPIO_PORT( E, 0x2200, 8, 2),
-	TEGRA186_MAIN_GPIO_PORT( F, 0x2400, 6, 2),
-	TEGRA186_MAIN_GPIO_PORT( G, 0x4200, 6, 4),
-	TEGRA186_MAIN_GPIO_PORT( H, 0x1000, 7, 1),
-	TEGRA186_MAIN_GPIO_PORT( I, 0x0800, 8, 0),
-	TEGRA186_MAIN_GPIO_PORT( J, 0x5000, 8, 5),
-	TEGRA186_MAIN_GPIO_PORT( K, 0x5200, 1, 5),
-	TEGRA186_MAIN_GPIO_PORT( L, 0x1200, 8, 1),
-	TEGRA186_MAIN_GPIO_PORT( M, 0x5600, 6, 5),
-	TEGRA186_MAIN_GPIO_PORT( N, 0x0000, 7, 0),
-	TEGRA186_MAIN_GPIO_PORT( O, 0x0200, 4, 0),
-	TEGRA186_MAIN_GPIO_PORT( P, 0x4000, 7, 4),
-	TEGRA186_MAIN_GPIO_PORT( Q, 0x0400, 6, 0),
-	TEGRA186_MAIN_GPIO_PORT( R, 0x0a00, 6, 0),
-	TEGRA186_MAIN_GPIO_PORT( T, 0x0600, 4, 0),
-	TEGRA186_MAIN_GPIO_PORT( X, 0x1400, 8, 1),
-	TEGRA186_MAIN_GPIO_PORT( Y, 0x1600, 7, 1),
-	TEGRA186_MAIN_GPIO_PORT(BB, 0x2600, 2, 2),
-	TEGRA186_MAIN_GPIO_PORT(CC, 0x5400, 4, 5),
+	TEGRA186_MAIN_GPIO_PORT( A, 2, 0, 7),
+	TEGRA186_MAIN_GPIO_PORT( B, 3, 0, 7),
+	TEGRA186_MAIN_GPIO_PORT( C, 3, 1, 7),
+	TEGRA186_MAIN_GPIO_PORT( D, 3, 2, 6),
+	TEGRA186_MAIN_GPIO_PORT( E, 2, 1, 8),
+	TEGRA186_MAIN_GPIO_PORT( F, 2, 2, 6),
+	TEGRA186_MAIN_GPIO_PORT( G, 4, 1, 6),
+	TEGRA186_MAIN_GPIO_PORT( H, 1, 0, 7),
+	TEGRA186_MAIN_GPIO_PORT( I, 0, 4, 8),
+	TEGRA186_MAIN_GPIO_PORT( J, 5, 0, 8),
+	TEGRA186_MAIN_GPIO_PORT( K, 5, 1, 1),
+	TEGRA186_MAIN_GPIO_PORT( L, 1, 1, 8),
+	TEGRA186_MAIN_GPIO_PORT( M, 5, 3, 6),
+	TEGRA186_MAIN_GPIO_PORT( N, 0, 0, 7),
+	TEGRA186_MAIN_GPIO_PORT( O, 0, 1, 4),
+	TEGRA186_MAIN_GPIO_PORT( P, 4, 0, 7),
+	TEGRA186_MAIN_GPIO_PORT( Q, 0, 2, 6),
+	TEGRA186_MAIN_GPIO_PORT( R, 0, 5, 6),
+	TEGRA186_MAIN_GPIO_PORT( T, 0, 3, 4),
+	TEGRA186_MAIN_GPIO_PORT( X, 1, 2, 8),
+	TEGRA186_MAIN_GPIO_PORT( Y, 1, 3, 7),
+	TEGRA186_MAIN_GPIO_PORT(BB, 2, 3, 2),
+	TEGRA186_MAIN_GPIO_PORT(CC, 5, 2, 4),
 };
 
 static const struct tegra_gpio_soc tegra186_main_soc = {
@@ -624,23 +711,23 @@ static const struct tegra_gpio_soc tegra186_main_soc = {
 	.instance = 0,
 };
 
-#define TEGRA186_AON_GPIO_PORT(port, base, count, controller)	\
-	[TEGRA186_AON_GPIO_PORT_##port] = {			\
-		.name = #port,					\
-		.offset = base,					\
-		.pins = count,					\
-		.irq = controller,				\
+#define TEGRA186_AON_GPIO_PORT(_name, _bank, _port, _pins)	\
+	[TEGRA186_AON_GPIO_PORT_##_name] = {			\
+		.name = #_name,					\
+		.bank = _bank,					\
+		.port = _port,					\
+		.pins = _pins,					\
 	}
 
 static const struct tegra_gpio_port tegra186_aon_ports[] = {
-	TEGRA186_AON_GPIO_PORT( S, 0x0200, 5, 0),
-	TEGRA186_AON_GPIO_PORT( U, 0x0400, 6, 0),
-	TEGRA186_AON_GPIO_PORT( V, 0x0800, 8, 0),
-	TEGRA186_AON_GPIO_PORT( W, 0x0a00, 8, 0),
-	TEGRA186_AON_GPIO_PORT( Z, 0x0e00, 4, 0),
-	TEGRA186_AON_GPIO_PORT(AA, 0x0c00, 8, 0),
-	TEGRA186_AON_GPIO_PORT(EE, 0x0600, 3, 0),
-	TEGRA186_AON_GPIO_PORT(FF, 0x0000, 5, 0),
+	TEGRA186_AON_GPIO_PORT( S, 0, 1, 5),
+	TEGRA186_AON_GPIO_PORT( U, 0, 2, 6),
+	TEGRA186_AON_GPIO_PORT( V, 0, 4, 8),
+	TEGRA186_AON_GPIO_PORT( W, 0, 5, 8),
+	TEGRA186_AON_GPIO_PORT( Z, 0, 7, 4),
+	TEGRA186_AON_GPIO_PORT(AA, 0, 6, 8),
+	TEGRA186_AON_GPIO_PORT(EE, 0, 3, 3),
+	TEGRA186_AON_GPIO_PORT(FF, 0, 0, 5),
 };
 
 static const struct tegra_gpio_soc tegra186_aon_soc = {
@@ -650,43 +737,43 @@ static const struct tegra_gpio_soc tegra186_aon_soc = {
 	.instance = 1,
 };
 
-#define TEGRA194_MAIN_GPIO_PORT(port, base, count, controller)	\
-	[TEGRA194_MAIN_GPIO_PORT_##port] = {			\
-		.name = #port,					\
-		.offset = base,					\
-		.pins = count,					\
-		.irq = controller,				\
+#define TEGRA194_MAIN_GPIO_PORT(_name, _bank, _port, _pins)	\
+	[TEGRA194_MAIN_GPIO_PORT_##_name] = {			\
+		.name = #_name,					\
+		.bank = _bank,					\
+		.port = _port,					\
+		.pins = _pins,					\
 	}
 
 static const struct tegra_gpio_port tegra194_main_ports[] = {
-	TEGRA194_MAIN_GPIO_PORT( A, 0x1400, 8, 1),
-	TEGRA194_MAIN_GPIO_PORT( B, 0x4e00, 2, 4),
-	TEGRA194_MAIN_GPIO_PORT( C, 0x4600, 8, 4),
-	TEGRA194_MAIN_GPIO_PORT( D, 0x4800, 4, 4),
-	TEGRA194_MAIN_GPIO_PORT( E, 0x4a00, 8, 4),
-	TEGRA194_MAIN_GPIO_PORT( F, 0x4c00, 6, 4),
-	TEGRA194_MAIN_GPIO_PORT( G, 0x4000, 8, 4),
-	TEGRA194_MAIN_GPIO_PORT( H, 0x4200, 8, 4),
-	TEGRA194_MAIN_GPIO_PORT( I, 0x4400, 5, 4),
-	TEGRA194_MAIN_GPIO_PORT( J, 0x5200, 6, 5),
-	TEGRA194_MAIN_GPIO_PORT( K, 0x3000, 8, 3),
-	TEGRA194_MAIN_GPIO_PORT( L, 0x3200, 4, 3),
-	TEGRA194_MAIN_GPIO_PORT( M, 0x2600, 8, 2),
-	TEGRA194_MAIN_GPIO_PORT( N, 0x2800, 3, 2),
-	TEGRA194_MAIN_GPIO_PORT( O, 0x5000, 6, 5),
-	TEGRA194_MAIN_GPIO_PORT( P, 0x2a00, 8, 2),
-	TEGRA194_MAIN_GPIO_PORT( Q, 0x2c00, 8, 2),
-	TEGRA194_MAIN_GPIO_PORT( R, 0x2e00, 6, 2),
-	TEGRA194_MAIN_GPIO_PORT( S, 0x3600, 8, 3),
-	TEGRA194_MAIN_GPIO_PORT( T, 0x3800, 8, 3),
-	TEGRA194_MAIN_GPIO_PORT( U, 0x3a00, 1, 3),
-	TEGRA194_MAIN_GPIO_PORT( V, 0x1000, 8, 1),
-	TEGRA194_MAIN_GPIO_PORT( W, 0x1200, 2, 1),
-	TEGRA194_MAIN_GPIO_PORT( X, 0x2000, 8, 2),
-	TEGRA194_MAIN_GPIO_PORT( Y, 0x2200, 8, 2),
-	TEGRA194_MAIN_GPIO_PORT( Z, 0x2400, 8, 2),
-	TEGRA194_MAIN_GPIO_PORT(FF, 0x3400, 2, 3),
-	TEGRA194_MAIN_GPIO_PORT(GG, 0x0000, 2, 0)
+	TEGRA194_MAIN_GPIO_PORT( A, 1, 2, 8),
+	TEGRA194_MAIN_GPIO_PORT( B, 4, 7, 2),
+	TEGRA194_MAIN_GPIO_PORT( C, 4, 3, 8),
+	TEGRA194_MAIN_GPIO_PORT( D, 4, 4, 4),
+	TEGRA194_MAIN_GPIO_PORT( E, 4, 5, 8),
+	TEGRA194_MAIN_GPIO_PORT( F, 4, 6, 6),
+	TEGRA194_MAIN_GPIO_PORT( G, 4, 0, 8),
+	TEGRA194_MAIN_GPIO_PORT( H, 4, 1, 8),
+	TEGRA194_MAIN_GPIO_PORT( I, 4, 2, 5),
+	TEGRA194_MAIN_GPIO_PORT( J, 5, 1, 6),
+	TEGRA194_MAIN_GPIO_PORT( K, 3, 0, 8),
+	TEGRA194_MAIN_GPIO_PORT( L, 3, 1, 4),
+	TEGRA194_MAIN_GPIO_PORT( M, 2, 3, 8),
+	TEGRA194_MAIN_GPIO_PORT( N, 2, 4, 3),
+	TEGRA194_MAIN_GPIO_PORT( O, 5, 0, 6),
+	TEGRA194_MAIN_GPIO_PORT( P, 2, 5, 8),
+	TEGRA194_MAIN_GPIO_PORT( Q, 2, 6, 8),
+	TEGRA194_MAIN_GPIO_PORT( R, 2, 7, 6),
+	TEGRA194_MAIN_GPIO_PORT( S, 3, 3, 8),
+	TEGRA194_MAIN_GPIO_PORT( T, 3, 4, 8),
+	TEGRA194_MAIN_GPIO_PORT( U, 3, 5, 1),
+	TEGRA194_MAIN_GPIO_PORT( V, 1, 0, 8),
+	TEGRA194_MAIN_GPIO_PORT( W, 1, 1, 2),
+	TEGRA194_MAIN_GPIO_PORT( X, 2, 0, 8),
+	TEGRA194_MAIN_GPIO_PORT( Y, 2, 1, 8),
+	TEGRA194_MAIN_GPIO_PORT( Z, 2, 2, 8),
+	TEGRA194_MAIN_GPIO_PORT(FF, 3, 2, 2),
+	TEGRA194_MAIN_GPIO_PORT(GG, 0, 0, 2)
 };
 
 static const struct tegra_gpio_soc tegra194_main_soc = {
@@ -696,20 +783,20 @@ static const struct tegra_gpio_soc tegra194_main_soc = {
 	.instance = 0,
 };
 
-#define TEGRA194_AON_GPIO_PORT(port, base, count, controller)	\
-	[TEGRA194_AON_GPIO_PORT_##port] = {			\
-		.name = #port,					\
-		.offset = base,					\
-		.pins = count,					\
-		.irq = controller,				\
+#define TEGRA194_AON_GPIO_PORT(_name, _bank, _port, _pins)	\
+	[TEGRA194_AON_GPIO_PORT_##_name] = {			\
+		.name = #_name,					\
+		.bank = _bank,					\
+		.port = _port,					\
+		.pins = _pins,					\
 	}
 
 static const struct tegra_gpio_port tegra194_aon_ports[] = {
-	TEGRA194_AON_GPIO_PORT(AA, 0x0600, 8, 0),
-	TEGRA194_AON_GPIO_PORT(BB, 0x0800, 4, 0),
-	TEGRA194_AON_GPIO_PORT(CC, 0x0200, 8, 0),
-	TEGRA194_AON_GPIO_PORT(DD, 0x0400, 3, 0),
-	TEGRA194_AON_GPIO_PORT(EE, 0x0000, 7, 0)
+	TEGRA194_AON_GPIO_PORT(AA, 0, 3, 8),
+	TEGRA194_AON_GPIO_PORT(BB, 0, 4, 4),
+	TEGRA194_AON_GPIO_PORT(CC, 0, 1, 8),
+	TEGRA194_AON_GPIO_PORT(DD, 0, 2, 3),
+	TEGRA194_AON_GPIO_PORT(EE, 0, 0, 7)
 };
 
 static const struct tegra_gpio_soc tegra194_aon_soc = {

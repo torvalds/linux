@@ -386,7 +386,6 @@ static int bgpio_get_dir(struct gpio_chip *gc, unsigned int gpio)
 		if (!(gc->read_reg(gc->reg_dir_in) & bgpio_line2mask(gc, gpio)))
 			return GPIO_LINE_DIRECTION_OUT;
 
-	/* This should not happen */
 	return GPIO_LINE_DIRECTION_IN;
 }
 

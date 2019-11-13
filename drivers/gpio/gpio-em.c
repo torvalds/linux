@@ -269,13 +269,12 @@ static void em_gio_irq_domain_remove(void *data)
 static int em_gio_probe(struct platform_device *pdev)
 {
 	struct em_gio_priv *p;
-	struct resource *irq[2];
 	struct gpio_chip *gpio_chip;
 	struct irq_chip *irq_chip;
 	struct device *dev = &pdev->dev;
 	const char *name = dev_name(dev);
 	unsigned int ngpios;
-	int ret;
+	int irq[2], ret;
 
 	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
@@ -285,13 +284,13 @@ static int em_gio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, p);
 	spin_lock_init(&p->sense_lock);
 
-	irq[0] = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	irq[1] = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
+	irq[0] = platform_get_irq(pdev, 0);
+	if (irq[0] < 0)
+		return irq[0];
 
-	if (!irq[0] || !irq[1]) {
-		dev_err(dev, "missing IRQ or IOMEM\n");
-		return -EINVAL;
-	}
+	irq[1] = platform_get_irq(pdev, 1);
+	if (irq[1] < 0)
+		return irq[1];
 
 	p->base0 = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(p->base0))
@@ -322,7 +321,7 @@ static int em_gio_probe(struct platform_device *pdev)
 	gpio_chip->ngpio = ngpios;
 
 	irq_chip = &p->irq_chip;
-	irq_chip->name = name;
+	irq_chip->name = "gpio-em";
 	irq_chip->irq_mask = em_gio_irq_disable;
 	irq_chip->irq_unmask = em_gio_irq_enable;
 	irq_chip->irq_set_type = em_gio_irq_set_type;
@@ -342,14 +341,12 @@ static int em_gio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (devm_request_irq(dev, irq[0]->start,
-			     em_gio_irq_handler, 0, name, p)) {
+	if (devm_request_irq(dev, irq[0], em_gio_irq_handler, 0, name, p)) {
 		dev_err(dev, "failed to request low IRQ\n");
 		return -ENOENT;
 	}
 
-	if (devm_request_irq(dev, irq[1]->start,
-			     em_gio_irq_handler, 0, name, p)) {
+	if (devm_request_irq(dev, irq[1], em_gio_irq_handler, 0, name, p)) {
 		dev_err(dev, "failed to request high IRQ\n");
 		return -ENOENT;
 	}
