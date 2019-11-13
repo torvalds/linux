@@ -31,16 +31,12 @@ struct dc_dsc_policy {
 	bool use_min_slices_h;
 	int max_slices_h; // Maximum available if 0
 	int min_sice_height; // Must not be less than 8
-	int max_target_bpp;
-	int min_target_bpp; // Minimum target bits per pixel
 };
 
 const struct dc_dsc_policy dsc_policy = {
 	.use_min_slices_h = true, // DSC Policy: Use minimum number of slices that fits the pixel clock
 	.max_slices_h = 0, // DSC Policy: Use max available slices (in our case 4 for or 8, depending on the mode)
 	.min_sice_height = 108, // DSC Policy: Use slice height recommended by VESA DSC Spreadsheet user guide
-	.max_target_bpp = 16,
-	.min_target_bpp = 8,
 };
 
 
@@ -374,7 +370,6 @@ static void get_dsc_bandwidth_range(
  *        or if it couldn't be applied based on DSC policy.
  */
 static bool decide_dsc_target_bpp_x16(
-		const struct dc_dsc_policy *policy,
 		const struct dsc_enc_caps *dsc_common_caps,
 		const int target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
@@ -382,10 +377,13 @@ static bool decide_dsc_target_bpp_x16(
 {
 	bool should_use_dsc = false;
 	struct dc_dsc_bw_range range;
+	uint32_t min_target_bpp = 0;
+	uint32_t max_target_bpp = 0;
 
 	memset(&range, 0, sizeof(range));
 
-	get_dsc_bandwidth_range(policy->min_target_bpp, policy->max_target_bpp,
+	dc_dsc_get_bpp_range_for_pixel_encoding(timing->pixel_encoding, &min_target_bpp, &max_target_bpp);
+	get_dsc_bandwidth_range(min_target_bpp, max_target_bpp,
 			dsc_common_caps, timing, &range);
 	if (target_bandwidth_kbps >= range.stream_kbps) {
 		/* enough bandwidth without dsc */
@@ -599,7 +597,7 @@ static bool setup_dsc_config(
 		goto done;
 
 	if (target_bandwidth_kbps > 0) {
-		is_dsc_possible = decide_dsc_target_bpp_x16(&dsc_policy, &dsc_common_caps, target_bandwidth_kbps, timing, &target_bpp);
+		is_dsc_possible = decide_dsc_target_bpp_x16(&dsc_common_caps, target_bandwidth_kbps, timing, &target_bpp);
 		dsc_cfg->bits_per_pixel = target_bpp;
 	}
 	if (!is_dsc_possible)
@@ -905,4 +903,30 @@ bool dc_dsc_compute_config(
 			target_bandwidth_kbps,
 			timing, dsc_min_slice_height_override, dsc_cfg);
 	return is_dsc_possible;
+}
+
+bool dc_dsc_get_bpp_range_for_pixel_encoding(enum dc_pixel_encoding pixel_enc,
+		uint32_t *min_bpp,
+		uint32_t *max_bpp)
+{
+	bool result = true;
+
+	switch (pixel_enc) {
+	case PIXEL_ENCODING_RGB:
+	case PIXEL_ENCODING_YCBCR444:
+	case PIXEL_ENCODING_YCBCR422:
+		*min_bpp = 8;
+		*max_bpp = 16;
+		break;
+	case PIXEL_ENCODING_YCBCR420:
+		*min_bpp = 6;
+		*max_bpp = 16;
+		break;
+	default:
+		*min_bpp = 0;
+		*max_bpp = 0;
+		result = false;
+	}
+
+	return result;
 }

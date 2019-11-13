@@ -52,8 +52,8 @@ bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data,
 bool dc_dsc_compute_bandwidth_range(
 		const struct display_stream_compressor *dsc,
 		const uint32_t dsc_min_slice_height_override,
-		const uint32_t min_kbps,
-		const uint32_t max_kbps,
+		const uint32_t min_bpp,
+		const uint32_t max_bpp,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_bw_range *range);
@@ -65,4 +65,8 @@ bool dc_dsc_compute_config(
 		uint32_t target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_config *dsc_cfg);
+
+bool dc_dsc_get_bpp_range_for_pixel_encoding(enum dc_pixel_encoding pixel_enc,
+		uint32_t *min_bpp,
+		uint32_t *max_bpp);
 #endif
