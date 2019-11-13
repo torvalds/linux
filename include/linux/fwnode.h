@@ -97,15 +97,16 @@ struct fwnode_reference_args {
  *		available suppliers.
  *
  *		Return 0 if device links have been successfully created to all
- *		the suppliers this device needs to create device links to or if
- *		the supplier information is not known.
+ *		the known suppliers of this device or if the supplier
+ *		information is not known.
  *
- *		Return -ENODEV if and only if the suppliers needed for probing
- *		the device are not yet available to create device links to.
+ *		Return -ENODEV if the suppliers needed for probing this device
+ *		have not been registered yet (because device links can only be
+ *		created to devices registered with the driver core).
  *
- *		Return -EAGAIN if there are suppliers that need to be linked to
- *		that are not yet available but none of those suppliers are
- *		necessary for probing this device.
+ *		Return -EAGAIN if some of the suppliers of this device have not
+ *		been registered yet, but none of those suppliers are necessary
+ *		for probing the device.
  */
 struct fwnode_operations {
 	struct fwnode_handle *(*get)(struct fwnode_handle *fwnode);
