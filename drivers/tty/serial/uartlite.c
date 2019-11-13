@@ -63,7 +63,6 @@ static struct uart_port *console_port;
 struct uartlite_data {
 	const struct uartlite_reg_ops *reg_ops;
 	struct clk *clk;
-	struct uart_driver *ulite_uart_driver;
 };
 
 struct uartlite_reg_ops {
@@ -695,9 +694,7 @@ static int ulite_release(struct device *dev)
 	int rc = 0;
 
 	if (port) {
-		struct uartlite_data *pdata = port->private_data;
-
-		rc = uart_remove_one_port(pdata->ulite_uart_driver, port);
+		rc = uart_remove_one_port(&ulite_uart_driver, port);
 		dev_set_drvdata(dev, NULL);
 		port->mapbase = 0;
 	}
@@ -715,11 +712,8 @@ static int __maybe_unused ulite_suspend(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 
-	if (port) {
-		struct uartlite_data *pdata = port->private_data;
-
-		uart_suspend_port(pdata->ulite_uart_driver, port);
-	}
+	if (port)
+		uart_suspend_port(&ulite_uart_driver, port);
 
 	return 0;
 }
@@ -734,11 +728,8 @@ static int __maybe_unused ulite_resume(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 
-	if (port) {
-		struct uartlite_data *pdata = port->private_data;
-
-		uart_resume_port(pdata->ulite_uart_driver, port);
-	}
+	if (port)
+		uart_resume_port(&ulite_uart_driver, port);
 
 	return 0;
 }
@@ -813,7 +804,6 @@ static int ulite_probe(struct platform_device *pdev)
 		pdata->clk = NULL;
 	}
 
-	pdata->ulite_uart_driver = &ulite_uart_driver;
 	ret = clk_prepare_enable(pdata->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare clock\n");
