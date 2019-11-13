@@ -26,8 +26,6 @@ ENTRY(startup_continue)
 0:	larl	%r1,tod_clock_base
 	mvc	0(16,%r1),__LC_BOOT_CLOCK
 	larl	%r13,.LPG1		# get base
-	larl	%r0,boot_vdso_data
-	stg	%r0,__LC_VDSO_PER_CPU
 #
 # Setup stack
 #
