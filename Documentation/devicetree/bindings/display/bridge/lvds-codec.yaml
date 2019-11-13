@@ -30,9 +30,6 @@ description: |
 
 properties:
   compatible:
-    description: |
-      Must list the device specific compatible string first, followed by the
-      generic compatible string.
     oneOf:
       - items:
         - enum:
@@ -44,6 +41,8 @@ properties:
         - enum:
           - ti,ds90cf384a     # For the DS90CF384A FPD-Link LVDS Receiver
         - const: lvds-decoder # Generic LVDS decoders compatible fallback
+      - enum:
+        - thine,thc63lvdm83d  # For the THC63LVDM83D LVDS serializer
 
   ports:
     type: object
