@@ -139,6 +139,27 @@ static int renoir_get_smu_table_index(struct smu_context *smc, uint32_t index)
 	return mapping.map_to;
 }
 
+static int renoir_get_metrics_table(struct smu_context *smu,
+				    SmuMetrics_t *metrics_table)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	int ret = 0;
+
+	if (!smu_table->metrics_time || time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(100))) {
+		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
+				(void *)smu_table->metrics_table, false);
+		if (ret) {
+			pr_info("Failed to export SMU metrics table!\n");
+			return ret;
+		}
+		smu_table->metrics_time = jiffies;
+	}
+
+	memcpy(metrics_table, smu_table->metrics_table, sizeof(SmuMetrics_t));
+
+	return ret;
+}
+
 static int renoir_tables_init(struct smu_context *smu, struct smu_table *tables)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
@@ -153,6 +174,11 @@ static int renoir_tables_init(struct smu_context *smu, struct smu_table *tables)
 	smu_table->clocks_table = kzalloc(sizeof(DpmClocks_t), GFP_KERNEL);
 	if (!smu_table->clocks_table)
 		return -ENOMEM;
+
+	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	if (!smu_table->metrics_table)
+		return -ENOMEM;
+	smu_table->metrics_time = 0;
 
 	return 0;
 }
@@ -384,6 +410,32 @@ static int renoir_unforce_dpm_levels(struct smu_context *smu) {
 	}
 
 	return ret;
+}
+
+static int renoir_get_current_activity_percent(struct smu_context *smu,
+					       enum amd_pp_sensors sensor,
+					       uint32_t *value)
+{
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = renoir_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		*value = metrics.AverageGfxActivity;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving clock activity\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int renoir_get_workload_type(struct smu_context *smu, uint32_t profile)
@@ -699,6 +751,29 @@ static int renoir_get_power_profile_mode(struct smu_context *smu,
 	return size;
 }
 
+static int renoir_read_sensor(struct smu_context *smu,
+				 enum amd_pp_sensors sensor,
+				 void *data, uint32_t *size)
+{
+	int ret = 0;
+
+	if (!data || !size)
+		return -EINVAL;
+
+	mutex_lock(&smu->sensor_lock);
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		ret = renoir_get_current_activity_percent(smu, sensor, (uint32_t *)data);
+		*size = 4;
+		break;
+	default:
+		ret = smu_v12_0_read_sensor(smu, sensor, data, size);
+	}
+	mutex_unlock(&smu->sensor_lock);
+
+	return ret;
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
@@ -719,6 +794,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_dpm_clock_table = renoir_get_dpm_clock_table,
 	.set_watermarks_table = renoir_set_watermarks_table,
 	.get_power_profile_mode = renoir_get_power_profile_mode,
+	.read_sensor = renoir_read_sensor,
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
 	.powergate_sdma = smu_v12_0_powergate_sdma,

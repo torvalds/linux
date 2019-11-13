@@ -62,6 +62,10 @@ int smu_v12_0_powergate_jpeg(struct smu_context *smu, bool gate);
 
 int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable);
 
+int smu_v12_0_read_sensor(struct smu_context *smu,
+			  enum amd_pp_sensors sensor,
+			  void *data, uint32_t *size);
+
 uint32_t smu_v12_0_get_gfxoff_status(struct smu_context *smu);
 
 int smu_v12_0_gfx_off_control(struct smu_context *smu, bool enable);

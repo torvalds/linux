@@ -223,6 +223,39 @@ int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable)
 		SMU_MSG_SetGfxCGPG, enable ? 1 : 0);
 }
 
+int smu_v12_0_read_sensor(struct smu_context *smu,
+				 enum amd_pp_sensors sensor,
+				 void *data, uint32_t *size)
+{
+	int ret = 0;
+
+	if(!data || !size)
+		return -EINVAL;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		ret = smu_get_current_clk_freq(smu, SMU_UCLK, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
+		*(uint32_t *)data = 0;
+		*size = 4;
+		break;
+	default:
+		ret = smu_common_read_sensor(smu, sensor, data, size);
+		break;
+	}
+
+	if (ret)
+		*size = 0;
+
+	return ret;
+}
+
 /**
  * smu_v12_0_get_gfxoff_status - get gfxoff status
  *
