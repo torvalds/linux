@@ -230,31 +230,8 @@ static inline uint64_t hmm_device_entry_from_pfn(const struct hmm_range *range,
  * Please see Documentation/vm/hmm.rst for how to use the range API.
  */
 long hmm_range_fault(struct hmm_range *range, unsigned int flags);
-
-long hmm_range_dma_map(struct hmm_range *range,
-		       struct device *device,
-		       dma_addr_t *daddrs,
-		       unsigned int flags);
-long hmm_range_dma_unmap(struct hmm_range *range,
-			 struct device *device,
-			 dma_addr_t *daddrs,
-			 bool dirty);
 #else
 static inline long hmm_range_fault(struct hmm_range *range, unsigned int flags)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline long hmm_range_dma_map(struct hmm_range *range,
-				     struct device *device, dma_addr_t *daddrs,
-				     unsigned int flags)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline long hmm_range_dma_unmap(struct hmm_range *range,
-				       struct device *device,
-				       dma_addr_t *daddrs, bool dirty)
 {
 	return -EOPNOTSUPP;
 }
