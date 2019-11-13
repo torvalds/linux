@@ -115,20 +115,10 @@ s32 dev_pm_qos_read_value(struct device *dev, enum dev_pm_qos_req_type type)
 
 	spin_lock_irqsave(&dev->power.lock, flags);
 
-	switch (type) {
-	case DEV_PM_QOS_RESUME_LATENCY:
+	if (type == DEV_PM_QOS_RESUME_LATENCY) {
 		ret = IS_ERR_OR_NULL(qos) ? PM_QOS_RESUME_LATENCY_NO_CONSTRAINT
 			: pm_qos_read_value(&qos->resume_latency);
-		break;
-	case DEV_PM_QOS_MIN_FREQUENCY:
-		ret = IS_ERR_OR_NULL(qos) ? PM_QOS_MIN_FREQUENCY_DEFAULT_VALUE
-			: pm_qos_read_value(&qos->min_frequency);
-		break;
-	case DEV_PM_QOS_MAX_FREQUENCY:
-		ret = IS_ERR_OR_NULL(qos) ? PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE
-			: pm_qos_read_value(&qos->max_frequency);
-		break;
-	default:
+	} else {
 		WARN_ON(1);
 		ret = 0;
 	}
@@ -168,14 +158,6 @@ static int apply_constraint(struct dev_pm_qos_request *req,
 			value = pm_qos_read_value(&qos->latency_tolerance);
 			req->dev->power.set_latency_tolerance(req->dev, value);
 		}
-		break;
-	case DEV_PM_QOS_MIN_FREQUENCY:
-		ret = pm_qos_update_target(&qos->min_frequency,
-					   &req->data.pnode, action, value);
-		break;
-	case DEV_PM_QOS_MAX_FREQUENCY:
-		ret = pm_qos_update_target(&qos->max_frequency,
-					   &req->data.pnode, action, value);
 		break;
 	case DEV_PM_QOS_FLAGS:
 		ret = pm_qos_update_flags(&qos->flags, &req->data.flr,
@@ -226,24 +208,6 @@ static int dev_pm_qos_constraints_allocate(struct device *dev)
 	c->default_value = PM_QOS_LATENCY_TOLERANCE_DEFAULT_VALUE;
 	c->no_constraint_value = PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT;
 	c->type = PM_QOS_MIN;
-
-	c = &qos->min_frequency;
-	plist_head_init(&c->list);
-	c->target_value = PM_QOS_MIN_FREQUENCY_DEFAULT_VALUE;
-	c->default_value = PM_QOS_MIN_FREQUENCY_DEFAULT_VALUE;
-	c->no_constraint_value = PM_QOS_MIN_FREQUENCY_DEFAULT_VALUE;
-	c->type = PM_QOS_MAX;
-	c->notifiers = ++n;
-	BLOCKING_INIT_NOTIFIER_HEAD(n);
-
-	c = &qos->max_frequency;
-	plist_head_init(&c->list);
-	c->target_value = PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE;
-	c->default_value = PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE;
-	c->no_constraint_value = PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE;
-	c->type = PM_QOS_MIN;
-	c->notifiers = ++n;
-	BLOCKING_INIT_NOTIFIER_HEAD(n);
 
 	INIT_LIST_HEAD(&qos->flags.list);
 
@@ -302,18 +266,6 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 	c = &qos->latency_tolerance;
 	plist_for_each_entry_safe(req, tmp, &c->list, data.pnode) {
 		apply_constraint(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
-		memset(req, 0, sizeof(*req));
-	}
-
-	c = &qos->min_frequency;
-	plist_for_each_entry_safe(req, tmp, &c->list, data.pnode) {
-		apply_constraint(req, PM_QOS_REMOVE_REQ, PM_QOS_MIN_FREQUENCY_DEFAULT_VALUE);
-		memset(req, 0, sizeof(*req));
-	}
-
-	c = &qos->max_frequency;
-	plist_for_each_entry_safe(req, tmp, &c->list, data.pnode) {
-		apply_constraint(req, PM_QOS_REMOVE_REQ, PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE);
 		memset(req, 0, sizeof(*req));
 	}
 
@@ -428,8 +380,6 @@ static int __dev_pm_qos_update_request(struct dev_pm_qos_request *req,
 	switch(req->type) {
 	case DEV_PM_QOS_RESUME_LATENCY:
 	case DEV_PM_QOS_LATENCY_TOLERANCE:
-	case DEV_PM_QOS_MIN_FREQUENCY:
-	case DEV_PM_QOS_MAX_FREQUENCY:
 		curr_value = req->data.pnode.prio;
 		break;
 	case DEV_PM_QOS_FLAGS:
@@ -557,14 +507,6 @@ int dev_pm_qos_add_notifier(struct device *dev, struct notifier_block *notifier,
 		ret = blocking_notifier_chain_register(dev->power.qos->resume_latency.notifiers,
 						       notifier);
 		break;
-	case DEV_PM_QOS_MIN_FREQUENCY:
-		ret = blocking_notifier_chain_register(dev->power.qos->min_frequency.notifiers,
-						       notifier);
-		break;
-	case DEV_PM_QOS_MAX_FREQUENCY:
-		ret = blocking_notifier_chain_register(dev->power.qos->max_frequency.notifiers,
-						       notifier);
-		break;
 	default:
 		WARN_ON(1);
 		ret = -EINVAL;
@@ -602,14 +544,6 @@ int dev_pm_qos_remove_notifier(struct device *dev,
 	switch (type) {
 	case DEV_PM_QOS_RESUME_LATENCY:
 		ret = blocking_notifier_chain_unregister(dev->power.qos->resume_latency.notifiers,
-							 notifier);
-		break;
-	case DEV_PM_QOS_MIN_FREQUENCY:
-		ret = blocking_notifier_chain_unregister(dev->power.qos->min_frequency.notifiers,
-							 notifier);
-		break;
-	case DEV_PM_QOS_MAX_FREQUENCY:
-		ret = blocking_notifier_chain_unregister(dev->power.qos->max_frequency.notifiers,
 							 notifier);
 		break;
 	default:

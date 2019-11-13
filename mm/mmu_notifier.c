@@ -180,7 +180,7 @@ int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
 					mn->ops->invalidate_range_start, _ret,
 					!mmu_notifier_range_blockable(range) ? "non-" : "");
 				WARN_ON(mmu_notifier_range_blockable(range) ||
-					ret != -EAGAIN);
+					_ret != -EAGAIN);
 				ret = _ret;
 			}
 		}

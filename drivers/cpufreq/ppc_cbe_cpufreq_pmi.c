@@ -65,7 +65,7 @@ EXPORT_SYMBOL_GPL(cbe_cpufreq_set_pmode_pmi);
 static void cbe_cpufreq_handle_pmi(pmi_message_t pmi_msg)
 {
 	struct cpufreq_policy *policy;
-	struct dev_pm_qos_request *req;
+	struct freq_qos_request *req;
 	u8 node, slow_mode;
 	int cpu, ret;
 
@@ -86,7 +86,7 @@ static void cbe_cpufreq_handle_pmi(pmi_message_t pmi_msg)
 
 	req = policy->driver_data;
 
-	ret = dev_pm_qos_update_request(req,
+	ret = freq_qos_update_request(req,
 			policy->freq_table[slow_mode].frequency);
 	if (ret < 0)
 		pr_warn("Failed to update freq constraint: %d\n", ret);
@@ -103,7 +103,7 @@ static struct pmi_handler cbe_pmi_handler = {
 
 void cbe_cpufreq_pmi_policy_init(struct cpufreq_policy *policy)
 {
-	struct dev_pm_qos_request *req;
+	struct freq_qos_request *req;
 	int ret;
 
 	if (!cbe_cpufreq_has_pmi)
@@ -113,9 +113,8 @@ void cbe_cpufreq_pmi_policy_init(struct cpufreq_policy *policy)
 	if (!req)
 		return;
 
-	ret = dev_pm_qos_add_request(get_cpu_device(policy->cpu), req,
-				     DEV_PM_QOS_MAX_FREQUENCY,
-				     policy->freq_table[0].frequency);
+	ret = freq_qos_add_request(&policy->constraints, req, FREQ_QOS_MAX,
+				   policy->freq_table[0].frequency);
 	if (ret < 0) {
 		pr_err("Failed to add freq constraint (%d)\n", ret);
 		kfree(req);
@@ -128,10 +127,10 @@ EXPORT_SYMBOL_GPL(cbe_cpufreq_pmi_policy_init);
 
 void cbe_cpufreq_pmi_policy_exit(struct cpufreq_policy *policy)
 {
-	struct dev_pm_qos_request *req = policy->driver_data;
+	struct freq_qos_request *req = policy->driver_data;
 
 	if (cbe_cpufreq_has_pmi) {
-		dev_pm_qos_remove_request(req);
+		freq_qos_remove_request(req);
 		kfree(req);
 	}
 }
