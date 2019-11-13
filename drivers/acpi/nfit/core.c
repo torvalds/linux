@@ -2196,7 +2196,6 @@ static const struct attribute_group acpi_nfit_region_attribute_group = {
 };
 
 static const struct attribute_group *acpi_nfit_region_attribute_groups[] = {
-	&nd_mapping_attribute_group,
 	&acpi_nfit_region_attribute_group,
 	NULL,
 };
