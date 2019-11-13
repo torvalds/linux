@@ -166,8 +166,8 @@ bnxt_fill_l2_rewrite_fields(struct bnxt_tc_actions *actions,
 			actions->l2_rewrite_dmac[j] = cpu_to_be16(*(p + j));
 	}
 
-	if (!is_wildcard(&eth_addr_mask[ETH_ALEN], ETH_ALEN)) {
-		if (!is_exactmatch(&eth_addr_mask[ETH_ALEN], ETH_ALEN))
+	if (!is_wildcard(&eth_addr_mask[ETH_ALEN / 2], ETH_ALEN)) {
+		if (!is_exactmatch(&eth_addr_mask[ETH_ALEN / 2], ETH_ALEN))
 			return -EINVAL;
 		/* FW expects smac to be in u16 array format */
 		p = &eth_addr[ETH_ALEN / 2];

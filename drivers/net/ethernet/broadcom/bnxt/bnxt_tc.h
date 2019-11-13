@@ -64,9 +64,9 @@ struct bnxt_tc_tunnel_key {
 
 #define bnxt_eth_addr_key_mask_invalid(eth_addr, eth_addr_mask)		\
 	((is_wildcard(&(eth_addr)[0], ETH_ALEN) &&			\
-	 is_wildcard(&(eth_addr)[ETH_ALEN], ETH_ALEN)) ||		\
+	 is_wildcard(&(eth_addr)[ETH_ALEN / 2], ETH_ALEN)) ||		\
 	(is_wildcard(&(eth_addr_mask)[0], ETH_ALEN) &&			\
-	 is_wildcard(&(eth_addr_mask)[ETH_ALEN], ETH_ALEN)))
+	 is_wildcard(&(eth_addr_mask)[ETH_ALEN / 2], ETH_ALEN)))
 
 struct bnxt_tc_actions {
 	u32				flags;
