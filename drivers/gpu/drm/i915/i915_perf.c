@@ -1870,7 +1870,7 @@ alloc_oa_config_buffer(struct i915_perf_stream *stream,
 	config_length += num_lri_dwords(oa_config->mux_regs_len);
 	config_length += num_lri_dwords(oa_config->b_counter_regs_len);
 	config_length += num_lri_dwords(oa_config->flex_regs_len);
-	config_length++; /* MI_BATCH_BUFFER_END */
+	config_length += 3; /* MI_BATCH_BUFFER_START */
 	config_length = ALIGN(sizeof(u32) * config_length, I915_GTT_PAGE_SIZE);
 
 	obj = i915_gem_object_create_shmem(stream->perf->i915, config_length);
@@ -1895,7 +1895,12 @@ alloc_oa_config_buffer(struct i915_perf_stream *stream,
 			     oa_config->flex_regs,
 			     oa_config->flex_regs_len);
 
-	*cs++ = MI_BATCH_BUFFER_END;
+	/* Jump into the active wait. */
+	*cs++ = (INTEL_GEN(stream->perf->i915) < 8 ?
+		 MI_BATCH_BUFFER_START :
+		 MI_BATCH_BUFFER_START_GEN8);
+	*cs++ = i915_ggtt_offset(stream->noa_wait);
+	*cs++ = 0;
 
 	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
