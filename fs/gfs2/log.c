@@ -299,20 +299,17 @@ static void gfs2_ail1_wait(struct gfs2_sbd *sdp)
 }
 
 /**
- * gfs2_ail2_empty_one - Check whether or not a trans in the AIL has been synced
- * @sdp: the filesystem
- * @ai: the AIL entry
- *
+ * gfs2_ail_empty_tr - empty one of the ail lists for a transaction
  */
 
-static void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
+static void gfs2_ail_empty_tr(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+			      struct list_head *head)
 {
-	struct list_head *head = &tr->tr_ail2_list;
 	struct gfs2_bufdata *bd;
 
 	while (!list_empty(head)) {
-		bd = list_entry(head->prev, struct gfs2_bufdata,
-				bd_ail_st_list);
+		bd = list_first_entry(head, struct gfs2_bufdata,
+				      bd_ail_st_list);
 		gfs2_assert(sdp, bd->bd_tr == tr);
 		gfs2_remove_from_ail(bd);
 	}
@@ -334,7 +331,7 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
 		if (!rm)
 			continue;
 
-		gfs2_ail2_empty_one(sdp, tr);
+		gfs2_ail_empty_tr(sdp, tr, &tr->tr_ail2_list);
 		list_del(&tr->tr_list);
 		gfs2_assert_warn(sdp, list_empty(&tr->tr_ail1_list));
 		gfs2_assert_warn(sdp, list_empty(&tr->tr_ail2_list));
@@ -802,6 +799,40 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 }
 
 /**
+ * ail_drain - drain the ail lists after a withdraw
+ * @sdp: Pointer to GFS2 superblock
+ */
+static void ail_drain(struct gfs2_sbd *sdp)
+{
+	struct gfs2_trans *tr;
+
+	spin_lock(&sdp->sd_ail_lock);
+	/*
+	 * For transactions on the sd_ail1_list we need to drain both the
+	 * ail1 and ail2 lists. That's because function gfs2_ail1_start_one
+	 * (temporarily) moves items from its tr_ail1 list to tr_ail2 list
+	 * before revokes are sent for that block. Items on the sd_ail2_list
+	 * should have already gotten beyond that point, so no need.
+	 */
+	while (!list_empty(&sdp->sd_ail1_list)) {
+		tr = list_first_entry(&sdp->sd_ail1_list, struct gfs2_trans,
+				      tr_list);
+		gfs2_ail_empty_tr(sdp, tr, &tr->tr_ail1_list);
+		gfs2_ail_empty_tr(sdp, tr, &tr->tr_ail2_list);
+		list_del(&tr->tr_list);
+		kfree(tr);
+	}
+	while (!list_empty(&sdp->sd_ail2_list)) {
+		tr = list_first_entry(&sdp->sd_ail2_list, struct gfs2_trans,
+				      tr_list);
+		gfs2_ail_empty_tr(sdp, tr, &tr->tr_ail2_list);
+		list_del(&tr->tr_list);
+		kfree(tr);
+	}
+	spin_unlock(&sdp->sd_ail_lock);
+}
+
+/**
  * gfs2_log_flush - flush incore transaction(s)
  * @sdp: the filesystem
  * @gl: The glock structure to flush.  If NULL, flush the whole incore log
@@ -811,10 +842,17 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 
 void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 {
-	struct gfs2_trans *tr;
+	struct gfs2_trans *tr = NULL;
 	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
 
 	down_write(&sdp->sd_log_flush_lock);
+
+	/*
+	 * Do this check while holding the log_flush_lock to prevent new
+	 * buffers from being added to the ail via gfs2_pin()
+	 */
+	if (gfs2_withdrawn(sdp))
+		goto out;
 
 	/* Log might have been flushed while we waited for the flush lock */
 	if (gl && !test_bit(GLF_LFLUSH, &gl->gl_flags)) {
@@ -843,8 +881,14 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 			sdp->sd_log_num_revoke == sdp->sd_log_committed_revoke);
 
 	gfs2_ordered_write(sdp);
+	if (gfs2_withdrawn(sdp))
+		goto out;
 	lops_before_commit(sdp, tr);
+	if (gfs2_withdrawn(sdp))
+		goto out;
 	gfs2_log_submit_bio(&sdp->sd_log_bio, REQ_OP_WRITE);
+	if (gfs2_withdrawn(sdp))
+		goto out;
 
 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
 		log_flush_wait(sdp);
@@ -854,6 +898,8 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 		trace_gfs2_log_blocks(sdp, -1);
 		log_write_header(sdp, flags);
 	}
+	if (gfs2_withdrawn(sdp))
+		goto out;
 	lops_after_commit(sdp, tr);
 
 	gfs2_log_lock(sdp);
@@ -892,6 +938,11 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 	}
 
 out:
+	if (gfs2_withdrawn(sdp)) {
+		ail_drain(sdp); /* frees all transactions */
+		tr = NULL;
+	}
+
 	trace_gfs2_log_flush(sdp, 0, flags);
 	up_write(&sdp->sd_log_flush_lock);
 
