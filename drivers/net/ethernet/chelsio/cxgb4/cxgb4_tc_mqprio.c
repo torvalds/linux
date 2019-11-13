@@ -158,8 +158,10 @@ static int cxgb4_mqprio_alloc_hw_resources(struct net_device *dev)
 		/* Allocate Rxqs for receiving ETHOFLD Tx completions */
 		if (msix >= 0) {
 			msix = cxgb4_get_msix_idx_from_bmap(adap);
-			if (msix < 0)
+			if (msix < 0) {
+				ret = msix;
 				goto out_free_queues;
+			}
 
 			eorxq->msix = &adap->msix_info[msix];
 			snprintf(eorxq->msix->desc,
