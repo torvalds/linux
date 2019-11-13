@@ -33,7 +33,7 @@ static unsigned int tx_bd_size_param;
 module_param(tx_bd_size_param, uint, 0644);
 MODULE_PARM_DESC(tx_bd_size_param, "Tx descriptors queue size");
 
-static unsigned int rx_bd_size_param = 256;
+static unsigned int rx_bd_size_param;
 module_param(rx_bd_size_param, uint, 0644);
 MODULE_PARM_DESC(rx_bd_size_param, "Rx descriptors queue size");
 
@@ -341,7 +341,6 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	bus->fw_state = QTNF_FW_STATE_DETACHED;
 	pcie_priv->pdev = pdev;
 	pcie_priv->tx_stopped = 0;
-	pcie_priv->rx_bd_num = rx_bd_size_param;
 	pcie_priv->flashboot = flashboot;
 
 	if (fw_blksize_param > QTN_PCIE_MAX_FW_BUFSZ)
@@ -381,7 +380,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pcie_priv->epmem_bar = epmem_bar;
 	pci_save_state(pdev);
 
-	ret = pcie_priv->probe_cb(bus, tx_bd_size_param);
+	ret = pcie_priv->probe_cb(bus, tx_bd_size_param, rx_bd_size_param);
 	if (ret)
 		goto error;
 

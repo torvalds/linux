@@ -23,7 +23,8 @@
 struct qtnf_pcie_bus_priv {
 	struct pci_dev *pdev;
 
-	int (*probe_cb)(struct qtnf_bus *bus, unsigned int tx_bd_size);
+	int (*probe_cb)(struct qtnf_bus *bus, unsigned int tx_bd_size,
+			unsigned int rx_bd_size);
 	void (*remove_cb)(struct qtnf_bus *bus);
 	int (*suspend_cb)(struct qtnf_bus *bus);
 	int (*resume_cb)(struct qtnf_bus *bus);

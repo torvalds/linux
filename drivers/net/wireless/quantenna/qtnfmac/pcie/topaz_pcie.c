@@ -23,6 +23,7 @@
 #include "debug.h"
 
 #define TOPAZ_TX_BD_SIZE_DEFAULT	128
+#define TOPAZ_RX_BD_SIZE_DEFAULT	256
 
 struct qtnf_topaz_tx_bd {
 	__le32 addr;
@@ -331,7 +332,8 @@ static void qtnf_topaz_free_xfer_buffers(struct qtnf_pcie_topaz_state *ts)
 }
 
 static int qtnf_pcie_topaz_init_xfer(struct qtnf_pcie_topaz_state *ts,
-				     unsigned int tx_bd_size)
+				     unsigned int tx_bd_size,
+				     unsigned int rx_bd_size)
 {
 	struct qtnf_topaz_bda __iomem *bda = ts->bda;
 	struct qtnf_pcie_bus_priv *priv = &ts->base;
@@ -349,6 +351,17 @@ static int qtnf_pcie_topaz_init_xfer(struct qtnf_pcie_topaz_state *ts,
 
 	priv->tx_bd_num = tx_bd_size;
 	qtnf_non_posted_write(priv->tx_bd_num, &bda->bda_rc_tx_bd_num);
+
+	if (rx_bd_size == 0)
+		rx_bd_size = TOPAZ_RX_BD_SIZE_DEFAULT;
+
+	if (rx_bd_size > TOPAZ_RX_BD_SIZE_DEFAULT) {
+		pr_warn("RX BD queue cannot exceed %d\n",
+			TOPAZ_RX_BD_SIZE_DEFAULT);
+		rx_bd_size = TOPAZ_RX_BD_SIZE_DEFAULT;
+	}
+
+	priv->rx_bd_num = rx_bd_size;
 	qtnf_non_posted_write(priv->rx_bd_num, &bda->bda_rc_rx_bd_num);
 
 	priv->rx_bd_w_index = 0;
@@ -1111,7 +1124,8 @@ static u64 qtnf_topaz_dma_mask_get(void)
 	return DMA_BIT_MASK(32);
 }
 
-static int qtnf_pcie_topaz_probe(struct qtnf_bus *bus, unsigned int tx_bd_num)
+static int qtnf_pcie_topaz_probe(struct qtnf_bus *bus,
+				 unsigned int tx_bd_num, unsigned int rx_bd_num)
 {
 	struct qtnf_pcie_topaz_state *ts = get_bus_priv(bus);
 	struct pci_dev *pdev = ts->base.pdev;
@@ -1145,7 +1159,7 @@ static int qtnf_pcie_topaz_probe(struct qtnf_bus *bus, unsigned int tx_bd_num)
 		return ret;
 	}
 
-	ret = qtnf_pcie_topaz_init_xfer(ts, tx_bd_num);
+	ret = qtnf_pcie_topaz_init_xfer(ts, tx_bd_num, rx_bd_num);
 	if (ret) {
 		pr_err("PCIE xfer init failed\n");
 		return ret;
