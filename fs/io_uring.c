@@ -448,7 +448,7 @@ err:
 	return NULL;
 }
 
-static inline bool __io_sequence_defer(struct io_kiocb *req)
+static inline bool __req_need_defer(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -456,12 +456,12 @@ static inline bool __io_sequence_defer(struct io_kiocb *req)
 					+ atomic_read(&ctx->cached_cq_overflow);
 }
 
-static inline bool io_sequence_defer(struct io_kiocb *req)
+static inline bool req_need_defer(struct io_kiocb *req)
 {
-	if ((req->flags & (REQ_F_IO_DRAIN|REQ_F_IO_DRAINED)) != REQ_F_IO_DRAIN)
-		return false;
+	if ((req->flags & (REQ_F_IO_DRAIN|REQ_F_IO_DRAINED)) == REQ_F_IO_DRAIN)
+		return __req_need_defer(req);
 
-	return __io_sequence_defer(req);
+	return false;
 }
 
 static struct io_kiocb *io_get_deferred_req(struct io_ring_ctx *ctx)
@@ -469,7 +469,7 @@ static struct io_kiocb *io_get_deferred_req(struct io_ring_ctx *ctx)
 	struct io_kiocb *req;
 
 	req = list_first_entry_or_null(&ctx->defer_list, struct io_kiocb, list);
-	if (req && !io_sequence_defer(req)) {
+	if (req && !req_need_defer(req)) {
 		list_del_init(&req->list);
 		return req;
 	}
@@ -482,7 +482,7 @@ static struct io_kiocb *io_get_timeout_req(struct io_ring_ctx *ctx)
 	struct io_kiocb *req;
 
 	req = list_first_entry_or_null(&ctx->timeout_list, struct io_kiocb, list);
-	if (req && !__io_sequence_defer(req)) {
+	if (req && !__req_need_defer(req)) {
 		list_del_init(&req->list);
 		return req;
 	}
@@ -2436,7 +2436,8 @@ static int io_req_defer(struct io_kiocb *req)
 	struct io_uring_sqe *sqe_copy;
 	struct io_ring_ctx *ctx = req->ctx;
 
-	if (!io_sequence_defer(req) && list_empty(&ctx->defer_list))
+	/* Still need defer if there is pending req in defer list. */
+	if (!req_need_defer(req) && list_empty(&ctx->defer_list))
 		return 0;
 
 	sqe_copy = kmalloc(sizeof(*sqe_copy), GFP_KERNEL);
@@ -2444,7 +2445,7 @@ static int io_req_defer(struct io_kiocb *req)
 		return -EAGAIN;
 
 	spin_lock_irq(&ctx->completion_lock);
-	if (!io_sequence_defer(req) && list_empty(&ctx->defer_list)) {
+	if (!req_need_defer(req) && list_empty(&ctx->defer_list)) {
 		spin_unlock_irq(&ctx->completion_lock);
 		kfree(sqe_copy);
 		return 0;
