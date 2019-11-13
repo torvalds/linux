@@ -87,8 +87,6 @@ int siw_alloc_ucontext(struct ib_ucontext *base_ctx, struct ib_udata *udata)
 		rv = -ENOMEM;
 		goto err_out;
 	}
-
-	ctx->uobj_nextkey = 0;
 	ctx->sdev = sdev;
 
 	uresp.dev_id = sdev->vendor_part_id;

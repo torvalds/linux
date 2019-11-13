@@ -99,18 +99,9 @@ struct siw_device {
 	struct work_struct netdev_down;
 };
 
-struct siw_uobj {
-	void *addr;
-	u32 size;
-};
-
 struct siw_ucontext {
 	struct ib_ucontext base_ucontext;
 	struct siw_device *sdev;
-
-	/* xarray of user mappable objects */
-	struct xarray xa;
-	u32 uobj_nextkey;
 };
 
 /*
@@ -149,8 +140,6 @@ struct siw_pbl {
 	unsigned int max_buf;
 	struct siw_pble pbe[1];
 };
-
-struct siw_mr;
 
 /*
  * Generic memory representation for registered siw memory.
