@@ -137,6 +137,84 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 }
 
 /**
+ * dwc3_gadget_resize_tx_fifos - reallocate fifo spaces for current use-case
+ * @dwc: pointer to our context structure
+ *
+ * This function will a best effort FIFO allocation in order
+ * to improve FIFO usage and throughput, while still allowing
+ * us to enable as many endpoints as possible.
+ *
+ * Keep in mind that this operation will be highly dependent
+ * on the configured size for RAM1 - which contains TxFifo -,
+ * the amount of endpoints enabled on coreConsultant tool, and
+ * the width of the Master Bus.
+ *
+ * In the ideal world, we would always be able to satisfy the
+ * following equation:
+ *
+ * ((512 + 2 * MDWIDTH-Bytes) + (Number of IN Endpoints - 1) * \
+ * (3 * (1024 + MDWIDTH-Bytes) + MDWIDTH-Bytes)) / MDWIDTH-Bytes
+ *
+ * Unfortunately, due to many variables that's not always the case.
+ */
+static int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
+{
+	int		last_fifo_depth = 0;
+	int		fifo_size;
+	int		mdwidth;
+	u8		num, num_in_eps;
+
+	if (!dwc->needs_fifo_resize)
+		return 0;
+
+	num_in_eps = DWC3_NUM_IN_EPS(&dwc->hwparams);
+	mdwidth = DWC3_MDWIDTH(dwc->hwparams.hwparams0);
+	/* MDWIDTH is represented in bits, we need it in bytes */
+	mdwidth >>= 3;
+
+	for (num = 0; num < num_in_eps; num++) {
+		u8	epnum = (num << 1) | 1;
+		struct dwc3_ep  *dep = dwc->eps[epnum];
+		int	fifo_number = dep->number >> 1;
+		int	mult = 1;
+		int	tmp;
+
+		if (!(dep->flags & DWC3_EP_ENABLED))
+			continue;
+
+		if (usb_endpoint_xfer_bulk(dep->endpoint.desc) ||
+		    usb_endpoint_xfer_isoc(dep->endpoint.desc))
+			mult = 3;
+
+		/*
+		 * REVISIT: the following assumes we will always have enough
+		 * space available on the FIFO RAM for all possible use cases.
+		 * Make sure that's true somehow and change FIFO allocation
+		 * accordingly.
+		 * If we have Bulk or Isochronous endpoints, we want
+		 * them to be able to be very, very fast. So we're giving
+		 * those endpoints a fifo_size which is enough for 3 full
+		 * packets
+		 */
+		tmp = mult * (dep->endpoint.maxpacket + mdwidth);
+		tmp += mdwidth;
+
+		fifo_size = DIV_ROUND_UP(tmp, mdwidth);
+		fifo_size |= (last_fifo_depth << 16);
+
+		dev_dbg(dwc->dev, "%s: FIFO Addr %04x Size %d\n",
+			dep->name, last_fifo_depth, fifo_size & 0xffff);
+
+		dwc3_writel(dwc->regs, DWC3_GTXFIFOSIZ(fifo_number),
+			    fifo_size);
+
+		last_fifo_depth += (fifo_size & 0xffff);
+	}
+
+	return 0;
+}
+
+/**
  * dwc3_ep_inc_trb - increment a trb index.
  * @index: Pointer to the TRB index to increment.
  *
@@ -784,6 +862,8 @@ static int dwc3_gadget_ep_enable(struct usb_ep *ep,
 	spin_lock_irqsave(&dwc->lock, flags);
 	ret = __dwc3_gadget_ep_enable(dep, DWC3_DEPCFG_ACTION_INIT);
 	spin_unlock_irqrestore(&dwc->lock, flags);
+
+	dwc3_gadget_resize_tx_fifos(dwc);
 
 	return ret;
 }
