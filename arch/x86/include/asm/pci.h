@@ -120,10 +120,6 @@ void native_restore_msi_irqs(struct pci_dev *dev);
 #endif
 #endif  /* __KERNEL__ */
 
-#ifdef CONFIG_X86_64
-#include <asm/pci_64.h>
-#endif
-
 /* generic pci stuff */
 #include <asm-generic/pci.h>
 
