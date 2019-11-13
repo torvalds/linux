@@ -48,7 +48,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define DISABLE	0x00
 #define ENABLE	0x01
-#define OTG_SLP_ENABLE	0x03
+#define OTG_SLP_ENABLE	0x01
 #define OTG_SLP_DISABLE	0x00
 #define OTG_ENABLE		0x11
 #define OTG_DISABLE		0x10
@@ -192,6 +192,11 @@ enum charger_t {
 	DC_TYPE_NONE_CHARGER,
 };
 
+enum charger_state {
+	OFFLINE = 0,
+	ONLINE
+};
+
 enum rk817_charge_fields {
 	BOOST_EN, OTG_EN, OTG_SLP_EN, CHRG_CLK_SEL,
 	CHRG_EN, CHRG_VOL_SEL, CHRG_CT_EN, CHRG_CUR_SEL,
@@ -216,7 +221,7 @@ static const struct reg_field rk817_charge_reg_fields[] = {
 	[SOC_REG2] = REG_FIELD(0x9C, 0, 7),
 	[BOOST_EN] = REG_FIELD(0xB4, 1, 5),
 	[OTG_EN] = REG_FIELD(0xB4, 2, 6),
-	[OTG_SLP_EN] = REG_FIELD(0xB5, 5, 6),
+	[OTG_SLP_EN] = REG_FIELD(0xB5, 6, 6),
 	[CHRG_EN] = REG_FIELD(0xE4, 7, 7),
 	[CHRG_VOL_SEL] = REG_FIELD(0xE4, 4, 6),
 	[CHRG_CT_EN] = REG_FIELD(0xE4, 3, 3),
@@ -305,6 +310,7 @@ struct rk817_charger {
 	unsigned int bc_event;
 	enum charger_t usb_charger;
 	enum charger_t dc_charger;
+	struct regulator *otg5v_rdev;
 	u8 ac_in;
 	u8 usb_in;
 	u8 otg_in;
@@ -356,7 +362,7 @@ static int rk817_charge_ac_get_property(struct power_supply *psy,
 		else
 			val->intval = (charge->ac_in | charge->dc_in);
 
-		DBG("report online: %d\n", val->intval);
+		DBG("ac report online: %d\n", val->intval);
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
 		if (charge->pdata->virtual_power)
@@ -367,10 +373,10 @@ static int rk817_charge_ac_get_property(struct power_supply *psy,
 		DBG("report prop: %d\n", val->intval);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-		val->intval = charge->max_chrg_voltage;
+		val->intval = charge->max_chrg_voltage * 1000;	/* uV */
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		val->intval = charge->max_chrg_current;
+		val->intval = charge->max_chrg_current * 1000;	/* uA */
 		break;
 	default:
 		ret = -EINVAL;
@@ -394,7 +400,7 @@ static int rk817_charge_usb_get_property(struct power_supply *psy,
 		else
 			val->intval = charge->usb_in;
 
-		DBG("report online: %d\n", val->intval);
+		DBG("usb report online: %d\n", val->intval);
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
 		if (charge->pdata->virtual_power)
@@ -478,8 +484,7 @@ static int rk817_charge_field_write(struct rk817_charger *charge,
 
 static int rk817_charge_get_otg_state(struct rk817_charger *charge)
 {
-	return ((rk817_charge_field_read(charge, OTG_EN) &
-		OTG_MODE) == OTG_MODE_ON);
+	return regulator_is_enabled(charge->otg5v_rdev);
 }
 
 static void rk817_charge_boost_disable(struct rk817_charger *charge)
@@ -494,12 +499,30 @@ static void rk817_charge_boost_enable(struct rk817_charger *charge)
 
 static void rk817_charge_otg_disable(struct rk817_charger *charge)
 {
-	rk817_charge_field_write(charge, OTG_EN, OTG_DISABLE);
+	int ret;
+
+	ret = regulator_disable(charge->otg5v_rdev);
+
+	if (ret) {
+		DBG("disable otg5v failed:%d\n", ret);
+		return;
+	}
+
+	return;
 }
 
 static void rk817_charge_otg_enable(struct rk817_charger *charge)
 {
-	rk817_charge_field_write(charge, OTG_EN, OTG_ENABLE);
+	int ret;
+
+	ret = regulator_enable(charge->otg5v_rdev);
+
+	if (ret) {
+		DBG("enable otg5v failed:%d\n", ret);
+		return;
+	}
+
+	return;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -754,6 +777,11 @@ static int rk817_charge_get_dsoc(struct rk817_charger *charge)
 	return soc_save / 1000;
 }
 
+static void rk817_charge_set_otg_in(struct rk817_charger *charge, int online)
+{
+	charge->otg_in = online;
+}
+
 static void rk817_charge_set_chrg_param(struct rk817_charger *charge,
 					enum charger_t charger)
 {
@@ -830,7 +858,6 @@ static void rk817_charge_set_otg_state(struct rk817_charger *charge, int state)
 		if (charge->otg_in) {
 			DBG("otg5v is on yet, ignore..\n");
 		} else {
-			charge->otg_in = 1;
 
 			if (!rk817_charge_get_otg_state(charge)) {
 				rk817_charge_otg_enable(charge);
@@ -849,7 +876,6 @@ static void rk817_charge_set_otg_state(struct rk817_charger *charge, int state)
 		if (!charge->otg_in) {
 			DBG("otg5v is off yet, ignore..\n");
 		} else {
-			charge->otg_in = 0;
 
 			if (rk817_charge_get_otg_state(charge)) {
 				rk817_charge_otg_disable(charge);
@@ -907,13 +933,20 @@ static void rk817_charge_dc_det_worker(struct work_struct *work)
 	if (charger == DC_TYPE_DC_CHARGER) {
 		DBG("detect dc charger in..\n");
 		rk817_charge_set_chrg_param(charge, DC_TYPE_DC_CHARGER);
-		rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
+		/* check otg supply */
+		if (charge->otg_in && charge->pdata->power_dc2otg) {
+			DBG("otg power from dc adapter\n");
+			rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
+		}
+
 		rk817_charge_boost_disable(charge);
 	} else {
 		DBG("detect dc charger out..\n");
 		rk817_charge_set_chrg_param(charge, DC_TYPE_NONE_CHARGER);
 		rk817_charge_boost_enable(charge);
-		rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
+		/* check otg supply, power on anyway */
+		if (charge->otg_in)
+			rk817_charge_set_otg_state(charge, USB_OTG_POWER_ON);
 	}
 }
 
@@ -980,16 +1013,22 @@ static void rk817_charge_host_evt_worker(struct work_struct *work)
 			struct rk817_charger, host_work.work);
 	struct extcon_dev *edev = charge->cable_edev;
 
-	/* Determine charger type */
+	/* Determine cable/charger type */
 	if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0) {
 		DBG("receive type-c notifier event: OTG ON...\n");
-		if (charge->dc_in && charge->pdata->power_dc2otg)
+		if (charge->dc_in && charge->pdata->power_dc2otg) {
+			if (charge->otg_in)
+				rk817_charge_set_otg_state(charge,
+							   USB_OTG_POWER_OFF);
 			DBG("otg power from dc adapter\n");
-		else
+		} else {
 			rk817_charge_set_otg_state(charge, USB_OTG_POWER_ON);
+		}
+		rk817_charge_set_otg_in(charge, ONLINE);
 	} else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0) {
 		DBG("receive type-c notifier event: OTG OFF...\n");
 		rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
+		rk817_charge_set_otg_in(charge, OFFLINE);
 	}
 }
 
@@ -1002,7 +1041,7 @@ static void rk817_charger_evt_worker(struct work_struct *work)
 	static const char * const event[] = {"UN", "NONE", "USB",
 					     "AC", "CDP1.5A"};
 
-	/* Determine charger type */
+	/* Determine cable/charger type */
 	if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0)
 		charger = USB_TYPE_USB_CHARGER;
 	else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0)
@@ -1265,7 +1304,10 @@ static void rk817_charge_pre_init(struct rk817_charger *charge)
 
 	rk817_charge_set_chrg_finish_condition(charge);
 
-	rk817_charge_otg_disable(charge);
+	if (rk817_charge_get_otg_state(charge))
+		rk817_charge_otg_disable(charge);
+	rk817_charge_field_write(charge, OTG_EN, OTG_DISABLE);
+	rk817_charge_set_otg_in(charge, OFFLINE);
 	rk817_charge_sys_can_sd_disable(charge);
 	rk817_charge_usb_to_sys_enable(charge);
 	rk817_charge_enable_charge(charge);
@@ -1290,6 +1332,19 @@ static void rk817_chage_debug(struct rk817_charger *charge)
 	    charge->max_chrg_voltage,
 	    charge->chrg_finish_cur,
 	    charge->chrg_term_mode);
+}
+
+static int rk817_charge_get_otg5v_regulator(struct rk817_charger *charge)
+{
+	int ret;
+
+	charge->otg5v_rdev = devm_regulator_get(charge->dev, "otg_switch");
+	if (IS_ERR(charge->otg5v_rdev)) {
+		ret = PTR_ERR(charge->otg5v_rdev);
+		dev_warn(charge->dev, "failed to get otg regulator: %d\n", ret);
+	}
+
+	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -1555,6 +1610,7 @@ static int rk817_charge_probe(struct platform_device *pdev)
 		dev_err(charge->dev, "charge parse dt failed!\n");
 		return ret;
 	}
+	rk817_charge_get_otg5v_regulator(charge);
 
 	rk817_charge_pre_init(charge);
 
