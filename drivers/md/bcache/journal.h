@@ -157,10 +157,6 @@ struct journal_device {
 };
 
 #define BTREE_FLUSH_NR	8
-
-#define journal_pin_cmp(c, l, r)				\
-	(fifo_idx(&(c)->journal.pin, (l)) > fifo_idx(&(c)->journal.pin, (r)))
-
 #define JOURNAL_PIN	20000
 
 #define journal_full(j)						\
