@@ -720,8 +720,12 @@ void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 		rb_erase(n, &sdp->sd_rindex_tree);
 
 		if (gl) {
-			glock_clear_object(gl, rgd);
+			if (gl->gl_state != LM_ST_UNLOCKED) {
+				gfs2_glock_cb(gl, LM_ST_UNLOCKED);
+				flush_delayed_work(&gl->gl_work);
+			}
 			gfs2_rgrp_brelse(rgd);
+			glock_clear_object(gl, rgd);
 			gfs2_glock_put(gl);
 		}
 
@@ -1284,23 +1288,6 @@ void gfs2_rgrp_brelse(struct gfs2_rgrpd *rgd)
 			bi->bi_bh = NULL;
 		}
 	}
-
-}
-
-/**
- * gfs2_rgrp_go_unlock - Unlock a rgrp glock
- * @gh: The glock holder for the resource group
- *
- */
-
-void gfs2_rgrp_go_unlock(struct gfs2_holder *gh)
-{
-	struct gfs2_rgrpd *rgd = gh->gh_gl->gl_object;
-	int demote_requested = test_bit(GLF_DEMOTE, &gh->gh_gl->gl_flags) |
-		test_bit(GLF_PENDING_DEMOTE, &gh->gh_gl->gl_flags);
-
-	if (rgd && demote_requested)
-		gfs2_rgrp_brelse(rgd);
 }
 
 int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,

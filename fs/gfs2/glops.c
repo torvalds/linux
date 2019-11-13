@@ -145,14 +145,8 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct address_space *mapping = &sdp->sd_aspace;
-	struct gfs2_rgrpd *rgd;
+	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 	int error;
-
-	spin_lock(&gl->gl_lockref.lock);
-	rgd = gl->gl_object;
-	if (rgd)
-		gfs2_rgrp_brelse(rgd);
-	spin_unlock(&gl->gl_lockref.lock);
 
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		return;
@@ -601,7 +595,6 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_sync = rgrp_go_sync,
 	.go_inval = rgrp_go_inval,
 	.go_lock = gfs2_rgrp_go_lock,
-	.go_unlock = gfs2_rgrp_go_unlock,
 	.go_dump = gfs2_rgrp_dump,
 	.go_type = LM_TYPE_RGRP,
 	.go_flags = GLOF_LVB,

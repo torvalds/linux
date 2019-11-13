@@ -1241,7 +1241,6 @@ int gfs2_glock_poll(struct gfs2_holder *gh)
 void gfs2_glock_dq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	unsigned delay = 0;
 	int fast_path = 0;
 
@@ -1252,13 +1251,6 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	list_del_init(&gh->gh_list);
 	clear_bit(HIF_HOLDER, &gh->gh_iflags);
 	if (find_first_holder(gl) == NULL) {
-		if (glops->go_unlock) {
-			GLOCK_BUG_ON(gl, test_and_set_bit(GLF_LOCK, &gl->gl_flags));
-			spin_unlock(&gl->gl_lockref.lock);
-			glops->go_unlock(gh);
-			spin_lock(&gl->gl_lockref.lock);
-			clear_bit(GLF_LOCK, &gl->gl_flags);
-		}
 		if (list_empty(&gl->gl_holders) &&
 		    !test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
 		    !test_bit(GLF_DEMOTE, &gl->gl_flags))
