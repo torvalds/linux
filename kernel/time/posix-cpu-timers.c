@@ -266,7 +266,7 @@ static void update_gt_cputime(struct task_cputime_atomic *cputime_atomic,
 /**
  * thread_group_sample_cputime - Sample cputime for a given task
  * @tsk:	Task for which cputime needs to be started
- * @iimes:	Storage for time samples
+ * @samples:	Storage for time samples
  *
  * Called from sys_getitimer() to calculate the expiry time of an active
  * timer. That means group cputime accounting is already active. Called
@@ -1038,12 +1038,12 @@ unlock:
  * member of @pct->bases[CLK].nextevt. False otherwise
  */
 static inline bool
-task_cputimers_expired(const u64 *sample, struct posix_cputimers *pct)
+task_cputimers_expired(const u64 *samples, struct posix_cputimers *pct)
 {
 	int i;
 
 	for (i = 0; i < CPUCLOCK_MAX; i++) {
-		if (sample[i] >= pct->bases[i].nextevt)
+		if (samples[i] >= pct->bases[i].nextevt)
 			return true;
 	}
 	return false;
