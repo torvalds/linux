@@ -1973,6 +1973,21 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 		card->remove(card);
 }
 
+static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
+{
+	if (card->instantiated) {
+		card->instantiated = false;
+		snd_soc_flush_all_delayed_work(card);
+
+		soc_cleanup_card_resources(card);
+		if (!unregister)
+			list_add(&card->list, &unbind_card_list);
+	} else {
+		if (unregister)
+			list_del(&card->list);
+	}
+}
+
 static int snd_soc_bind_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
@@ -2386,21 +2401,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	return snd_soc_bind_card(card);
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_card);
-
-static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
-{
-	if (card->instantiated) {
-		card->instantiated = false;
-		snd_soc_flush_all_delayed_work(card);
-
-		soc_cleanup_card_resources(card);
-		if (!unregister)
-			list_add(&card->list, &unbind_card_list);
-	} else {
-		if (unregister)
-			list_del(&card->list);
-	}
-}
 
 /**
  * snd_soc_unregister_card - Unregister a card with the ASoC core
