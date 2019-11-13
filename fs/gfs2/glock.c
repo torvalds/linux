@@ -602,8 +602,20 @@ __acquires(&gl->gl_lockref.lock)
 	    (lck_flags & (LM_FLAG_TRY|LM_FLAG_TRY_1CB)))
 		clear_bit(GLF_BLOCKING, &gl->gl_flags);
 	spin_unlock(&gl->gl_lockref.lock);
-	if (glops->go_sync)
-		glops->go_sync(gl);
+	if (glops->go_sync) {
+		ret = glops->go_sync(gl);
+		/* If we had a problem syncing (due to io errors or whatever,
+		 * we should not invalidate the metadata or tell dlm to
+		 * release the glock to other nodes.
+		 */
+		if (ret) {
+			if (cmpxchg(&sdp->sd_log_error, 0, ret)) {
+				fs_err(sdp, "Error %d syncing glock \n", ret);
+				gfs2_dump_glock(NULL, gl, true);
+			}
+			return;
+		}
+	}
 	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags)) {
 		/*
 		 * The call to go_sync should have cleared out the ail list.
