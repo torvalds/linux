@@ -454,12 +454,8 @@ static u32 *gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 	GEM_BUG_ON(i915_request_active_timeline(rq)->hwsp_ggtt != rq->engine->status_page.vma);
 	GEM_BUG_ON(offset_in_page(i915_request_active_timeline(rq)->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
 
-	*cs++ = (MI_FLUSH_DW | MI_INVALIDATE_TLB |
-		 MI_FLUSH_DW_STORE_INDEX | MI_FLUSH_DW_OP_STOREDW);
-	*cs++ = I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT;
-	*cs++ = 0;
-
-	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
+	*cs++ = MI_FLUSH_DW | MI_INVALIDATE_TLB |
+		MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
 	*cs++ = I915_GEM_HWS_SEQNO_ADDR | MI_FLUSH_DW_USE_GTT;
 	*cs++ = rq->fence.seqno;
 
@@ -474,6 +470,7 @@ static u32 *gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 	*cs++ = 0;
 
 	*cs++ = MI_USER_INTERRUPT;
+	*cs++ = MI_NOOP;
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
