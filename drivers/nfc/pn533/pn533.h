@@ -224,8 +224,8 @@ struct pn533_phy_ops {
 	 * bring up it's interface to the chip and have it suspended for power
 	 * saving reasons otherwise.
 	 */
-	void (*dev_up)(struct pn533 *priv);
-	void (*dev_down)(struct pn533 *priv);
+	int (*dev_up)(struct pn533 *priv);
+	int (*dev_down)(struct pn533 *priv);
 };
 
 

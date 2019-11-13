@@ -2643,13 +2643,17 @@ static int pn532_sam_configuration(struct nfc_dev *nfc_dev)
 static int pn533_dev_up(struct nfc_dev *nfc_dev)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+	int rc;
 
-	if (dev->phy_ops->dev_up)
-		dev->phy_ops->dev_up(dev);
+	if (dev->phy_ops->dev_up) {
+		rc = dev->phy_ops->dev_up(dev);
+		if (rc)
+			return rc;
+	}
 
 	if ((dev->device_type == PN533_DEVICE_PN532) ||
 		(dev->device_type == PN533_DEVICE_PN532_AUTOPOLL)) {
-		int rc = pn532_sam_configuration(nfc_dev);
+		rc = pn532_sam_configuration(nfc_dev);
 
 		if (rc)
 			return rc;
@@ -2665,7 +2669,7 @@ static int pn533_dev_down(struct nfc_dev *nfc_dev)
 
 	ret = pn533_rf_field(nfc_dev, 0);
 	if (dev->phy_ops->dev_down && !ret)
-		dev->phy_ops->dev_down(dev);
+		ret = dev->phy_ops->dev_down(dev);
 
 	return ret;
 }

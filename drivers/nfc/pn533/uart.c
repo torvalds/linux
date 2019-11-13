@@ -100,20 +100,27 @@ static void pn532_uart_abort_cmd(struct pn533 *dev, gfp_t flags)
 	pn533_recv_frame(dev, NULL, -ENOENT);
 }
 
-static void pn532_dev_up(struct pn533 *dev)
+static int pn532_dev_up(struct pn533 *dev)
 {
 	struct pn532_uart_phy *pn532 = dev->phy;
+	int ret = 0;
 
-	serdev_device_open(pn532->serdev);
+	ret = serdev_device_open(pn532->serdev);
+	if (ret)
+		return ret;
+
 	pn532->send_wakeup = PN532_SEND_LAST_WAKEUP;
+	return ret;
 }
 
-static void pn532_dev_down(struct pn533 *dev)
+static int pn532_dev_down(struct pn533 *dev)
 {
 	struct pn532_uart_phy *pn532 = dev->phy;
 
 	serdev_device_close(pn532->serdev);
 	pn532->send_wakeup = PN532_SEND_WAKEUP;
+
+	return 0;
 }
 
 static struct pn533_phy_ops uart_phy_ops = {
