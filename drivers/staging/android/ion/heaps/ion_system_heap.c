@@ -208,6 +208,19 @@ static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,
 	return nr_total;
 }
 
+static long ion_system_get_pool_size(struct ion_heap *heap)
+{
+	struct ion_system_heap *sys_heap;
+	long total_pages = 0;
+	int i;
+
+	sys_heap = container_of(heap, struct ion_system_heap, heap);
+	for (i = 0; i < NUM_ORDERS; i++)
+		total_pages += ion_page_pool_nr_pages(sys_heap->pools[i]);
+
+	return total_pages;
+}
+
 static void ion_system_heap_destroy_pools(struct ion_page_pool **pools)
 {
 	int i;
@@ -245,6 +258,7 @@ static struct ion_heap_ops system_heap_ops = {
 	.allocate = ion_system_heap_allocate,
 	.free = ion_system_heap_free,
 	.shrink = ion_system_heap_shrink,
+	.get_pool_size = ion_system_get_pool_size,
 };
 
 static struct ion_system_heap system_heap = {

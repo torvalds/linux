@@ -1,0 +1,27 @@
+What:		/sys/kernel/ion
+Date:		Dec 2019
+KernelVersion:	4.14.158
+Contact:	Suren Baghdasaryan <surenb@google.com>,
+		Sandeep Patil <sspatil@google.com>
+Description:
+		The /sys/kernel/ion directory contains a snapshot of the
+		internal state of ION memory heaps and pools.
+Users:		kernel memory tuning tools
+
+What:		/sys/kernel/ion/total_heaps_kb
+Date:		Dec 2019
+KernelVersion:	4.14.158
+Contact:	Suren Baghdasaryan <surenb@google.com>,
+		Sandeep Patil <sspatil@google.com>
+Description:
+		The total_heaps_kb file is read-only and specifies how much
+		memory in Kb is allocated to ION heaps.
+
+What:		/sys/kernel/ion/total_pools_kb
+Date:		Dec 2019
+KernelVersion:	4.14.158
+Contact:	Suren Baghdasaryan <surenb@google.com>,
+		Sandeep Patil <sspatil@google.com>
+Description:
+		The total_pools_kb file is read-only and specifies how much
+		memory in Kb is allocated to ION pools.

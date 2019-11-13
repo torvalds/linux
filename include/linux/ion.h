@@ -53,6 +53,7 @@ struct ion_buffer {
  * struct ion_heap_ops - ops to operate on a given heap
  * @allocate:		allocate memory
  * @free:		free memory
+ * @get_pool_size:	get pool size in pages
  *
  * allocate returns 0 on success, -errno on error.
  * map_dma and map_kernel return pointer on success, ERR_PTR on
@@ -67,6 +68,7 @@ struct ion_heap_ops {
 			unsigned long flags);
 	void (*free)(struct ion_buffer *buffer);
 	int (*shrink)(struct ion_heap *heap, gfp_t gfp_mask, int nr_to_scan);
+	long (*get_pool_size)(struct ion_heap *heap);
 };
 
 /**

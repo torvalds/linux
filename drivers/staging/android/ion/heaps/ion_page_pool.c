@@ -97,6 +97,17 @@ static int ion_page_pool_total(struct ion_page_pool *pool, bool high)
 	return count << pool->order;
 }
 
+int ion_page_pool_nr_pages(struct ion_page_pool *pool)
+{
+	int nr_total_pages;
+
+	mutex_lock(&pool->mutex);
+	nr_total_pages = ion_page_pool_total(pool, true);
+	mutex_unlock(&pool->mutex);
+
+	return nr_total_pages;
+}
+
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 			 int nr_to_scan)
 {
