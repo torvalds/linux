@@ -148,6 +148,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define NTC_40UA_MAX_MEASURE		55000
 #define NTC_20UA_MAX_MEASURE		110000
 
+#define INPUT_CUR80MA			(0x01)
+
 static const char *bat_status[] = {
 	"charge off", "dead charge", "trickle charge", "cc cv",
 	"finish", "usb over vol", "bat temp error", "timer error",
@@ -2739,6 +2741,17 @@ static int rk818_bat_get_ntc_res(struct rk818_battery *di)
 	return res;
 }
 
+static void rk818_bat_set_input_current(struct rk818_battery *di,
+					int input_current)
+{
+	u8 usb_ctrl;
+
+	usb_ctrl = rk818_bat_read(di, RK818_USB_CTRL_REG);
+	usb_ctrl &= ~0x0f;
+	usb_ctrl |= (input_current);
+	rk818_bat_write(di, RK818_USB_CTRL_REG, usb_ctrl);
+}
+
 static BLOCKING_NOTIFIER_HEAD(rk818_bat_notifier_chain);
 
 int rk818_bat_temp_notifier_register(struct notifier_block *nb)
@@ -2771,9 +2784,13 @@ static void rk818_bat_update_temperature(struct rk818_battery *di)
 		if (res < ntc_table[ntc_size - 1]) {
 			di->temperature = di->pdata->ntc_degree_from +
 					  di->pdata->ntc_size - 1;
+			if (di->pdata->bat_mode != MODE_VIRTUAL)
+				rk818_bat_set_input_current(di, INPUT_CUR80MA);
 			BAT_INFO("bat ntc upper max degree: R=%d\n", res);
 		} else if (res > ntc_table[0]) {
 			di->temperature = di->pdata->ntc_degree_from;
+			if (di->pdata->bat_mode != MODE_VIRTUAL)
+				rk818_bat_set_input_current(di, INPUT_CUR80MA);
 			BAT_INFO("bat ntc lower min degree: R=%d\n", res);
 		} else {
 			for (i = 0; i < ntc_size; i++) {
@@ -3275,17 +3292,12 @@ static int rk818_bat_parse_dt(struct rk818_battery *di)
 		pdata->ntc_size = 0;
 	} else {
 		/* get ntc degree base value */
-		ret = of_property_read_u32_index(np, "ntc_degree_from", 1,
-						 &pdata->ntc_degree_from);
+		ret = of_property_read_s32(np, "ntc_degree_from_v2",
+					   &pdata->ntc_degree_from);
 		if (ret) {
-			dev_err(dev, "invalid ntc_degree_from\n");
+			dev_err(dev, "invalid ntc_degree_from_v2\n");
 			return -EINVAL;
 		}
-
-		of_property_read_u32_index(np, "ntc_degree_from", 0,
-					   &out_value);
-		if (out_value)
-			pdata->ntc_degree_from = -pdata->ntc_degree_from;
 
 		pdata->ntc_size = length / sizeof(u32);
 	}
@@ -3317,7 +3329,7 @@ static int rk818_bat_parse_dt(struct rk818_battery *di)
 	    "pwroff_vol:%d\n"
 	    "sample_res:%d\n"
 	    "ntc_size=%d\n"
-	    "ntc_degree_from:%d\n"
+	    "ntc_degree_from_v2:%d\n"
 	    "ntc_degree_to:%d\n",
 	    pdata->bat_res, pdata->design_capacity, pdata->design_qmax,
 	    pdata->sleep_enter_current, pdata->sleep_exit_current,

@@ -108,9 +108,9 @@ enum {
 };
 
 struct temp_chrg_table {
-	int temperature;
+	int temp_down;
+	int temp_up;
 	u32 chrg_current;
-	u32 offset;
 	u8 set_chrg_current;
 };
 
@@ -792,7 +792,6 @@ static u8 rk818_cg_decode_chrg_vol(struct rk818_charger *cg, u32 chrg_vol)
 		val = index << 4;
 	}
 
-	DBG("<%s>. vol=0x%x\n", __func__, val);
 	return val;
 }
 
@@ -815,7 +814,6 @@ static u8 rk818_cg_decode_input_current(struct rk818_charger *cg,
 		}
 	}
 
-	DBG("<%s>. input=0x%x\n", __func__, val);
 	return val;
 }
 
@@ -837,7 +835,6 @@ static u8 rk818_cg_decode_chrg_current(struct rk818_charger *cg,
 		val = index << 0;
 	}
 
-	DBG("<%s>. sel=0x%x\n", __func__, val);
 	return val;
 }
 
@@ -1420,30 +1417,18 @@ static int rk818_cg_temperature_notifier_call(struct notifier_block *nb,
 	struct rk818_charger *cg =
 		container_of(nb, struct rk818_charger, temp_nb);
 	static int temp_triggered, config_index = -1;
-	int i, up_temp, down_temp, cfg_temp, cfg_offset, cfg_current;
+	int i, up_temp, down_temp, cfg_current;
 	int now_temp = temp;
 	u8 usb_ctrl, chrg_ctrl1;
 
 	DBG("%s: receive notify temperature = %d\n", __func__, now_temp);
 	for (i = 0; i < cg->pdata->tc_count; i++) {
-		up_temp = 0;
-		down_temp = 0;
-		cfg_temp = cg->pdata->tc_table[i].temperature;
-		cfg_offset = cg->pdata->tc_table[i].offset;
+		up_temp = cg->pdata->tc_table[i].temp_up;
+		down_temp = cg->pdata->tc_table[i].temp_down;
 		cfg_current = cg->pdata->tc_table[i].chrg_current;
 
-		/* positive: [temp, temp+offset] */
-		if (cfg_temp >= 0)
-			up_temp = cfg_temp + cfg_offset;
-		/* negative: [temp-offset, temp] */
-		if (cfg_temp < 0)
-			down_temp = cfg_temp - cfg_offset;
-
-		if ((now_temp >= 0 && now_temp <= up_temp &&
-		     now_temp >= cfg_temp) ||
-		    (now_temp < 0 && now_temp >= down_temp &&
-		     now_temp <= cfg_temp)) {
-			/* if not charger or temp changed, not update */
+		if (now_temp >= down_temp && now_temp <= up_temp) {
+			/* Temp range or charger are not update, return */
 			if (config_index == i && !cg->charger_changed)
 				return NOTIFY_DONE;
 
@@ -1455,18 +1440,14 @@ static int rk818_cg_temperature_notifier_call(struct notifier_block *nb,
 				rk818_cg_set_chrg_current(cg, cfg_current);
 				CG_INFO("temperature = %d'C[%d~%d'C], "
 					"chrg current = %d\n",
-					now_temp,
-					(now_temp >= 0 ? cfg_temp : down_temp),
-					(now_temp >= 0 ? up_temp : cfg_temp),
+					now_temp, down_temp, up_temp,
 					chrg_cur_sel_array[cfg_current] *
 					cg->res_div);
 			} else {
 				rk818_cg_set_input_current(cg, cfg_current);
 				CG_INFO("temperature = %d'C[%d~%d'C], "
 					"input current = %d\n",
-					now_temp,
-					(now_temp >= 0 ? cfg_temp : down_temp),
-					(now_temp >= 0 ? up_temp : cfg_temp),
+					now_temp, down_temp, up_temp,
 					chrg_cur_input_array[cfg_current]);
 			}
 			return NOTIFY_DONE;
@@ -1474,14 +1455,17 @@ static int rk818_cg_temperature_notifier_call(struct notifier_block *nb,
 	}
 
 	/*
-	 * means: current temperature now covers above case, temperature rolls
+	 * means: current temperature not covers above case, temperature rolls
 	 * back to normal range, so restore default value
 	 */
 	if (temp_triggered) {
 		temp_triggered = 0;
 		config_index = -1;
 		rk818_cg_set_chrg_current(cg, cg->chrg_current);
-		rk818_cg_set_input_current(cg, cg->chrg_input);
+		if (cg->ac_in || cg->dc_in)
+			rk818_cg_set_input_current(cg, cg->chrg_input);
+		else
+			rk818_cg_set_input_current(cg, INPUT_CUR450MA);
 		usb_ctrl = rk818_reg_read(cg, RK818_USB_CTRL_REG);
 		chrg_ctrl1 = rk818_reg_read(cg, RK818_CHRG_CTRL_REG1);
 		CG_INFO("roll back temp %d'C, current chrg = %d, input = %d\n",
@@ -1497,21 +1481,21 @@ static int parse_temperature_chrg_table(struct rk818_charger *cg,
 					struct device_node *np)
 {
 	int size, count;
-	int i, sign, chrg_current;
+	int i, chrg_current;
 	const __be32 *list;
 
-	if (!of_find_property(np, "temperature_chrg_table", &size))
+	if (!of_find_property(np, "temperature_chrg_table_v2", &size))
 		return 0;
 
-	list = of_get_property(np, "temperature_chrg_table", &size);
+	list = of_get_property(np, "temperature_chrg_table_v2", &size);
 	size /= sizeof(u32);
-	if (!size || (size % 4)) {
+	if (!size || (size % 3)) {
 		dev_err(cg->dev,
 			"invalid temperature_chrg_table: size=%d\n", size);
 		return -EINVAL;
 	}
 
-	count = size / 4;
+	count = size / 3;
 	cg->pdata->tc_count = count;
 	cg->pdata->tc_table = devm_kzalloc(cg->dev,
 					   count * sizeof(*cg->pdata->tc_table),
@@ -1521,9 +1505,9 @@ static int parse_temperature_chrg_table(struct rk818_charger *cg,
 
 	for (i = 0; i < count; i++) {
 		/* temperature */
-		sign = be32_to_cpu(*list++);
-		cg->pdata->tc_table[i].temperature = sign ?
-				-be32_to_cpu(*list++) : be32_to_cpu(*list++);
+		cg->pdata->tc_table[i].temp_down = be32_to_cpu(*list++);
+		cg->pdata->tc_table[i].temp_up = be32_to_cpu(*list++);
+
 		/*
 		 * because charge current lowest level is 1000mA:
 		 * higher than or equal 1000ma, select charge current;
@@ -1539,16 +1523,14 @@ static int parse_temperature_chrg_table(struct rk818_charger *cg,
 				rk818_cg_decode_input_current(cg, chrg_current);
 		}
 
-		/* temperature offset */
-		cg->pdata->tc_table[i].offset = be32_to_cpu(*list++);
-
-		DBG("temp=%d, chrg=0x%x, offset=%d\n",
-		    cg->pdata->tc_table[i].temperature,
-		    cg->pdata->tc_table[i].chrg_current,
-		    cg->pdata->tc_table[i].offset);
+		DBG("temp%d: [%d, %d], chrg_current=%d\n",
+		    i, cg->pdata->tc_table[i].temp_down,
+		    cg->pdata->tc_table[i].temp_up,
+		    cg->pdata->tc_table[i].chrg_current);
 	}
 
 	return 0;
+
 }
 
 static int rk818_cg_register_temp_notifier(struct rk818_charger *cg)
