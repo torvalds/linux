@@ -809,6 +809,8 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	dc->caps.max_audios = dc->res_pool->audio_count;
 	dc->caps.linear_pitch_alignment = 64;
 
+	dc->caps.max_dp_protocol_version = DP_VERSION_1_4;
+
 	/* Populate versioning information */
 	dc->versions.dc_ver = DC_VER;
 
