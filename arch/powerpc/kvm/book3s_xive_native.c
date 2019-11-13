@@ -50,6 +50,24 @@ static void kvmppc_xive_native_cleanup_queue(struct kvm_vcpu *vcpu, int prio)
 	}
 }
 
+static int kvmppc_xive_native_configure_queue(u32 vp_id, struct xive_q *q,
+					      u8 prio, __be32 *qpage,
+					      u32 order, bool can_escalate)
+{
+	int rc;
+	__be32 *qpage_prev = q->qpage;
+
+	rc = xive_native_configure_queue(vp_id, q, prio, qpage, order,
+					 can_escalate);
+	if (rc)
+		return rc;
+
+	if (qpage_prev)
+		put_page(virt_to_page(qpage_prev));
+
+	return rc;
+}
+
 void kvmppc_xive_native_cleanup_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
@@ -575,17 +593,12 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 		q->guest_qaddr  = 0;
 		q->guest_qshift = 0;
 
-		rc = xive_native_configure_queue(xc->vp_id, q, priority,
-						 NULL, 0, true);
+		rc = kvmppc_xive_native_configure_queue(xc->vp_id, q, priority,
+							NULL, 0, true);
 		if (rc) {
 			pr_err("Failed to reset queue %d for VCPU %d: %d\n",
 			       priority, xc->server_num, rc);
 			return rc;
-		}
-
-		if (q->qpage) {
-			put_page(virt_to_page(q->qpage));
-			q->qpage = NULL;
 		}
 
 		return 0;
@@ -646,8 +659,8 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 	  * OPAL level because the use of END ESBs is not supported by
 	  * Linux.
 	  */
-	rc = xive_native_configure_queue(xc->vp_id, q, priority,
-					 (__be32 *) qaddr, kvm_eq.qshift, true);
+	rc = kvmppc_xive_native_configure_queue(xc->vp_id, q, priority,
+					(__be32 *) qaddr, kvm_eq.qshift, true);
 	if (rc) {
 		pr_err("Failed to configure queue %d for VCPU %d: %d\n",
 		       priority, xc->server_num, rc);
