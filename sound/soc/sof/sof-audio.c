@@ -394,7 +394,10 @@ nocodec:
 	if (!mach)
 		return -ENOMEM;
 
-	ret = sof_nocodec_setup(sdev->dev, sof_pdata, mach, desc, desc->ops);
+	mach->drv_name = "sof-nocodec";
+	sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
+
+	ret = sof_nocodec_setup(sdev->dev, desc->ops);
 	if (ret < 0)
 		return ret;
 

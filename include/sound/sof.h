@@ -97,8 +97,5 @@ struct sof_dev_desc {
 };
 
 int sof_nocodec_setup(struct device *dev,
-		      struct snd_sof_pdata *sof_pdata,
-		      struct snd_soc_acpi_mach *mach,
-		      const struct sof_dev_desc *desc,
 		      const struct snd_sof_dsp_ops *ops);
 #endif
