@@ -40,7 +40,7 @@ struct xfs_dquot {
 	xfs_fileoff_t		q_fileoffset;
 
 	struct xfs_disk_dquot	q_core;
-	xfs_dq_logitem_t	q_logitem;
+	struct xfs_dq_logitem	q_logitem;
 	/* total regular nblks used+reserved */
 	xfs_qcnt_t		q_res_bcount;
 	/* total inos allocd+reserved */
