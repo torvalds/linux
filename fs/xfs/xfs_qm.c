@@ -30,10 +30,10 @@
  * quota functionality, including maintaining the freelist and hash
  * tables of dquots.
  */
-STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
-STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
+STATIC int	xfs_qm_init_quotainos(struct xfs_mount *mp);
+STATIC int	xfs_qm_init_quotainfo(struct xfs_mount *mp);
 
-STATIC void	xfs_qm_destroy_quotainos(xfs_quotainfo_t *qi);
+STATIC void	xfs_qm_destroy_quotainos(struct xfs_quotainfo *qi);
 STATIC void	xfs_qm_dqfree_one(struct xfs_dquot *dqp);
 /*
  * We use the batch lookup interface to iterate over the dquots as it
@@ -540,9 +540,9 @@ xfs_qm_shrink_count(
 
 STATIC void
 xfs_qm_set_defquota(
-	xfs_mount_t	*mp,
-	uint		type,
-	xfs_quotainfo_t	*qinf)
+	struct xfs_mount	*mp,
+	uint			type,
+	struct xfs_quotainfo	*qinf)
 {
 	struct xfs_dquot	*dqp;
 	struct xfs_def_quota	*defq;
@@ -643,7 +643,7 @@ xfs_qm_init_quotainfo(
 
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
 
-	qinf = mp->m_quotainfo = kmem_zalloc(sizeof(xfs_quotainfo_t), 0);
+	qinf = mp->m_quotainfo = kmem_zalloc(sizeof(struct xfs_quotainfo), 0);
 
 	error = list_lru_init(&qinf->qi_lru);
 	if (error)
@@ -710,9 +710,9 @@ out_free_qinf:
  */
 void
 xfs_qm_destroy_quotainfo(
-	xfs_mount_t	*mp)
+	struct xfs_mount	*mp)
 {
-	xfs_quotainfo_t *qi;
+	struct xfs_quotainfo	*qi;
 
 	qi = mp->m_quotainfo;
 	ASSERT(qi != NULL);
@@ -1564,7 +1564,7 @@ error_rele:
 
 STATIC void
 xfs_qm_destroy_quotainos(
-	xfs_quotainfo_t	*qi)
+	struct xfs_quotainfo	*qi)
 {
 	if (qi->qi_uquotaip) {
 		xfs_irele(qi->qi_uquotaip);

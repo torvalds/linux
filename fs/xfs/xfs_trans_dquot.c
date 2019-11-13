@@ -585,7 +585,7 @@ xfs_trans_dqresv(
 	xfs_qwarncnt_t		warnlimit;
 	xfs_qcnt_t		total_count;
 	xfs_qcnt_t		*resbcountp;
-	xfs_quotainfo_t		*q = mp->m_quotainfo;
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	struct xfs_def_quota	*defq;
 
 
