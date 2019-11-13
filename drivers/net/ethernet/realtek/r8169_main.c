@@ -2324,11 +2324,7 @@ static void rtl8168f_config_eee_phy(struct rtl8169_private *tp)
 {
 	struct phy_device *phydev = tp->phydev;
 
-	phy_write(phydev, 0x1f, 0x0007);
-	phy_write(phydev, 0x1e, 0x0020);
-	phy_set_bits(phydev, 0x15, BIT(8));
-	phy_write(phydev, 0x1f, 0x0000);
-
+	r8168d_modify_extpage(phydev, 0x0020, 0x15, 0, BIT(8));
 	r8168d_phy_param(phydev, 0x8b85, 0, BIT(13));
 }
 
