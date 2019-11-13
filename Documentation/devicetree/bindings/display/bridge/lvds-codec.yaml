@@ -40,7 +40,10 @@ properties:
           - ti,ds90c187       # For the TI DS90C187 FPD-Link Serializer
           - ti,sn75lvds83     # For the TI SN75LVDS83 FlatLink transmitter
         - const: lvds-encoder # Generic LVDS encoder compatible fallback
-      - const: lvds-decoder   # Generic LVDS decoders compatible fallback
+      - items:
+        - enum:
+          - ti,ds90cf384a     # For the DS90CF384A FPD-Link LVDS Receiver
+        - const: lvds-decoder # Generic LVDS decoders compatible fallback
 
   ports:
     type: object
@@ -102,7 +105,7 @@ examples:
 
   - |
     lvds-decoder {
-      compatible = "lvds-decoder";
+      compatible = "ti,ds90cf384a", "lvds-decoder";
 
       ports {
         #address-cells = <1>;
