@@ -307,8 +307,8 @@ err_exit:
 irqreturn_t aq_vec_isr_legacy(int irq, void *private)
 {
 	struct aq_vec_s *self = private;
-	irqreturn_t err = 0;
 	u64 irq_mask = 0U;
+	int err;
 
 	if (!self)
 		return IRQ_NONE;
