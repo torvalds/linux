@@ -18,6 +18,7 @@
 #include "xfs_trace.h"
 #include "xfs_ag_resv.h"
 #include "xfs_trans.h"
+#include "xfs_filestream.h"
 
 struct xfs_fstrm_item {
 	struct xfs_mru_cache_elem	mru;
