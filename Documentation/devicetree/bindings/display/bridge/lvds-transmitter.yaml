@@ -31,11 +31,13 @@ description: |
 properties:
   compatible:
     description: |
-      Any encoder compatible with this generic binding, but with additional
-      properties not listed here, must define its own binding and list a device
-      specific compatible first followed by the generic compatible.
-    enum:
-      - lvds-encoder
+      Must list the device specific compatible string first, followed by the
+      generic compatible string.
+    items:
+      - enum:
+        - ti,ds90c185       # For the TI DS90C185 FPD-Link Serializer
+        - ti,ds90c187       # For the TI DS90C187 FPD-Link Serializer
+      - const: lvds-encoder # Generic LVDS encoder compatible fallback
 
   ports:
     type: object
@@ -69,7 +71,7 @@ required:
 examples:
   - |
     lvds-encoder {
-      compatible = "lvds-encoder";
+      compatible = "ti,ds90c185", "lvds-encoder";
 
       ports {
         #address-cells = <1>;
