@@ -812,6 +812,9 @@ int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
 	if (!(flowtable->flags & NF_FLOWTABLE_HW_OFFLOAD))
 		return 0;
 
+	if (!dev->netdev_ops->ndo_setup_tc)
+		return -EOPNOTSUPP;
+
 	bo.net		= dev_net(dev);
 	bo.block	= &flowtable->flow_block;
 	bo.command	= cmd;
