@@ -35,14 +35,14 @@ config DRM_DUMB_VGA_DAC
 	  Support for non-programmable RGB to VGA DAC bridges, such as ADI
 	  ADV7123, TI THS8134 and THS8135 or passive resistor ladder DACs.
 
-config DRM_LVDS_ENCODER
-	tristate "Transparent parallel to LVDS encoder support"
+config DRM_LVDS_CODEC
+	tristate "Transparent LVDS encoders and decoders support"
 	depends on OF
 	select DRM_KMS_HELPER
 	select DRM_PANEL_BRIDGE
 	help
-	  Support for transparent parallel to LVDS encoders that don't require
-	  any configuration.
+	  Support for transparent LVDS encoders and decoders that don't
+	  require any configuration.
 
 config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
 	tristate "MegaChips stdp4028-ge-b850v3-fw and stdp2690-ge-b850v3-fw"
