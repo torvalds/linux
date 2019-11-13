@@ -958,6 +958,7 @@ enum qlink_event_type {
 	QLINK_EVENT_FREQ_CHANGE		= 0x0028,
 	QLINK_EVENT_RADAR		= 0x0029,
 	QLINK_EVENT_EXTERNAL_AUTH	= 0x0030,
+	QLINK_EVENT_MIC_FAILURE		= 0x0031,
 };
 
 /**
@@ -1149,6 +1150,20 @@ struct qlink_event_external_auth {
 	u8 bssid[ETH_ALEN];
 	__le32 akm_suite;
 	u8 action;
+} __packed;
+
+/**
+ * struct qlink_event_mic_failure - data for QLINK_EVENT_MIC_FAILURE event
+ *
+ * @src: source MAC address of the frame
+ * @key_index: index of the key being reported
+ * @pairwise: whether the key is pairwise or group
+ */
+struct qlink_event_mic_failure {
+	struct qlink_event ehdr;
+	u8 src[ETH_ALEN];
+	u8 key_index;
+	u8 pairwise;
 } __packed;
 
 /* QLINK TLVs (Type-Length Values) definitions

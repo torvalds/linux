@@ -618,6 +618,42 @@ qtnf_event_handle_external_auth(struct qtnf_vif *vif,
 	return ret;
 }
 
+static int
+qtnf_event_handle_mic_failure(struct qtnf_vif *vif,
+			      const struct qlink_event_mic_failure *mic_ev,
+			      u16 len)
+{
+	struct wiphy *wiphy = priv_to_wiphy(vif->mac);
+	u8 pairwise;
+
+	if (len < sizeof(*mic_ev)) {
+		pr_err("VIF%u.%u: payload is too short (%u < %zu)\n",
+		       vif->mac->macid, vif->vifid, len,
+		       sizeof(struct qlink_event_mic_failure));
+		return -EINVAL;
+	}
+
+	if (!wiphy->registered || !vif->netdev)
+		return 0;
+
+	if (vif->wdev.iftype != NL80211_IFTYPE_STATION) {
+		pr_err("VIF%u.%u: MIC_FAILURE event when not in STA mode\n",
+		       vif->mac->macid, vif->vifid);
+		return -EPROTO;
+	}
+
+	pairwise = mic_ev->pairwise ?
+		NL80211_KEYTYPE_PAIRWISE : NL80211_KEYTYPE_GROUP;
+
+	pr_info("%s: MIC error: src=%pM key_index=%u pairwise=%u\n",
+		vif->netdev->name, mic_ev->src, mic_ev->key_index, pairwise);
+
+	cfg80211_michael_mic_failure(vif->netdev, mic_ev->src, pairwise,
+				     mic_ev->key_index, NULL, GFP_KERNEL);
+
+	return 0;
+}
+
 static int qtnf_event_parse(struct qtnf_wmac *mac,
 			    const struct sk_buff *event_skb)
 {
@@ -679,6 +715,10 @@ static int qtnf_event_parse(struct qtnf_wmac *mac,
 	case QLINK_EVENT_EXTERNAL_AUTH:
 		ret = qtnf_event_handle_external_auth(vif, (const void *)event,
 						      event_len);
+		break;
+	case QLINK_EVENT_MIC_FAILURE:
+		ret = qtnf_event_handle_mic_failure(vif, (const void *)event,
+						    event_len);
 		break;
 	default:
 		pr_warn("unknown event type: %x\n", event_id);
