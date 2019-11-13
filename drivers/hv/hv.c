@@ -202,7 +202,7 @@ int hv_synic_init(unsigned int cpu)
 {
 	hv_synic_enable_regs(cpu);
 
-	hv_stimer_init(cpu);
+	hv_stimer_legacy_init(cpu, VMBUS_MESSAGE_SINT);
 
 	return 0;
 }
@@ -277,7 +277,7 @@ int hv_synic_cleanup(unsigned int cpu)
 	if (channel_found && vmbus_connection.conn_state == CONNECTED)
 		return -EBUSY;
 
-	hv_stimer_cleanup(cpu);
+	hv_stimer_legacy_cleanup(cpu);
 
 	hv_synic_disable_regs(cpu);
 
