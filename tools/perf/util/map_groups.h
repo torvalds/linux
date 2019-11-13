@@ -36,6 +36,7 @@ struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, st
 struct map_groups {
 	struct maps	 maps;
 	struct machine	 *machine;
+	struct map	 *last_search_by_name;
 	refcount_t	 refcnt;
 #ifdef HAVE_LIBUNWIND_SUPPORT
 	void				*addr_space;
@@ -70,10 +71,7 @@ size_t map_groups__fprintf(struct map_groups *mg, FILE *fp);
 
 void map_groups__insert(struct map_groups *mg, struct map *map);
 
-static inline void map_groups__remove(struct map_groups *mg, struct map *map)
-{
-	maps__remove(&mg->maps, map);
-}
+void map_groups__remove(struct map_groups *mg, struct map *map);
 
 static inline struct map *map_groups__find(struct map_groups *mg, u64 addr)
 {

@@ -1767,9 +1767,16 @@ struct map *map_groups__find_by_name(struct map_groups *mg, const char *name)
 
 	down_read(&maps->lock);
 
+	if (mg->last_search_by_name && strcmp(mg->last_search_by_name->dso->short_name, name) == 0) {
+		map = mg->last_search_by_name;
+		goto out_unlock;
+	}
+
 	maps__for_each_entry(maps, map)
-		if (strcmp(map->dso->short_name, name) == 0)
+		if (strcmp(map->dso->short_name, name) == 0) {
+			mg->last_search_by_name = map;
 			goto out_unlock;
+		}
 
 	map = NULL;
 

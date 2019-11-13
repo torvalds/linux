@@ -572,12 +572,21 @@ void map_groups__init(struct map_groups *mg, struct machine *machine)
 {
 	maps__init(&mg->maps);
 	mg->machine = machine;
+	mg->last_search_by_name = NULL;
 	refcount_set(&mg->refcnt, 1);
 }
 
 void map_groups__insert(struct map_groups *mg, struct map *map)
 {
 	maps__insert(&mg->maps, map);
+}
+
+void map_groups__remove(struct map_groups *mg, struct map *map)
+{
+	if (mg->last_search_by_name == map)
+		mg->last_search_by_name = NULL;
+
+	maps__remove(&mg->maps, map);
 }
 
 static void __maps__purge(struct maps *maps)
