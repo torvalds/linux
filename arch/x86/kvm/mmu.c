@@ -6285,14 +6285,13 @@ static int set_nx_huge_pages(const char *val, const struct kernel_param *kp)
 
 	if (new_val != old_val) {
 		struct kvm *kvm;
-		int idx;
 
 		mutex_lock(&kvm_lock);
 
 		list_for_each_entry(kvm, &vm_list, vm_list) {
-			idx = srcu_read_lock(&kvm->srcu);
+			mutex_lock(&kvm->slots_lock);
 			kvm_mmu_zap_all_fast(kvm);
-			srcu_read_unlock(&kvm->srcu, idx);
+			mutex_unlock(&kvm->slots_lock);
 
 			wake_up_process(kvm->arch.nx_lpage_recovery_thread);
 		}
