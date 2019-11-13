@@ -355,12 +355,66 @@ static int cdn_dp_get_lower_link_rate(struct cdn_dp_device *dp)
 	return 0;
 }
 
+static int cdn_dp_main_link_config_cal(struct cdn_dp_device *dp)
+{
+	struct drm_display_info *display_info = &dp->connector.display_info;
+	struct drm_display_mode *mode = &dp->mode;
+	u32 rate, require_cap, bit_rate_cap, sink_max, source_max;
+	u8 num_lanes[] = {1, 2, 4};
+	u16 link_rate[] = {1620, 2700, 5400};
+	u8 bpc, x, y;
+	int ret;
+
+	switch (display_info->bpc) {
+	case 10:
+		bpc = 10;
+		break;
+	case 6:
+		bpc = 6;
+		break;
+	default:
+		bpc = 8;
+		break;
+	}
+
+	require_cap = mode->clock / 1000 * bpc * 3;
+	source_max = dp->lanes;
+	sink_max = drm_dp_max_lane_count(dp->dpcd);
+	dp->link.num_lanes = min(source_max, sink_max);
+	source_max = drm_dp_bw_code_to_link_rate(CDN_DP_MAX_LINK_RATE);
+	sink_max = drm_dp_max_link_rate(dp->dpcd);
+	rate = min(source_max, sink_max);
+	dp->link.rate = drm_dp_link_rate_to_bw_code(rate);
+
+	for (y = 0; y < ARRAY_SIZE(link_rate) &&
+					link_rate[y] <= rate / 100; y++) {
+		for (x = 0; x < ARRAY_SIZE(num_lanes) &&
+				num_lanes[x] <= dp->link.num_lanes; x++) {
+			bit_rate_cap = link_rate[y] * num_lanes[x] * 8 / 10;
+			if (require_cap < bit_rate_cap) {
+				rate = drm_dp_link_rate_to_bw_code(
+							link_rate[y] * 100);
+				ret = cdn_dp_tu_size_cal(dp,
+							num_lanes[x], rate);
+				if (ret)
+					continue;
+				dp->link.num_lanes = num_lanes[x];
+				dp->link.rate = rate;
+				dev_info(dp->dev, "%dMbps x %dlanes\n",
+					link_rate[y], dp->link.num_lanes);
+				return ret;
+			}
+		}
+	}
+	ret = cdn_dp_tu_size_cal(dp, dp->link.num_lanes, dp->link.rate);
+	return ret;
+}
+
 int cdn_dp_software_train_link(struct cdn_dp_device *dp)
 {
 	struct cdn_dp_port *port = dp->port[dp->active_port];
 	int ret, stop_err;
 	u8 link_config[2];
-	u32 rate, sink_max, source_max;
 	bool ssc_on;
 
 	ret = drm_dp_dpcd_read(&dp->aux, DP_DPCD_REV, dp->dpcd,
@@ -370,14 +424,11 @@ int cdn_dp_software_train_link(struct cdn_dp_device *dp)
 		return ret;
 	}
 
-	source_max = dp->lanes;
-	sink_max = drm_dp_max_lane_count(dp->dpcd);
-	dp->link.num_lanes = min(source_max, sink_max);
-
-	source_max = drm_dp_bw_code_to_link_rate(CDN_DP_MAX_LINK_RATE);
-	sink_max = drm_dp_max_link_rate(dp->dpcd);
-	rate = min(source_max, sink_max);
-	dp->link.rate = drm_dp_link_rate_to_bw_code(rate);
+	ret = cdn_dp_main_link_config_cal(dp);
+	if (ret) {
+		DRM_DEV_ERROR(dp->dev, "Failed to cal TU_SIZE %d\n", ret);
+		return ret;
+	}
 
 	ssc_on = !!(dp->dpcd[DP_MAX_DOWNSPREAD] & DP_MAX_DOWNSPREAD_0_5);
 	link_config[0] = ssc_on ? DP_SPREAD_AMP_0_5 : 0;

@@ -534,6 +534,7 @@ int cdn_dp_get_edid_block(void *dp, u8 *edid,
 			  unsigned int block, size_t length);
 int cdn_dp_train_link(struct cdn_dp_device *dp);
 int cdn_dp_set_video_status(struct cdn_dp_device *dp, int active);
+int cdn_dp_tu_size_cal(struct cdn_dp_device *dp, u8 lanes, u8 link_bw);
 int cdn_dp_config_video(struct cdn_dp_device *dp);
 int cdn_dp_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio);
 int cdn_dp_audio_mute(struct cdn_dp_device *dp, bool enable);

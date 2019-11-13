@@ -109,6 +109,9 @@ struct cdn_dp_device {
 	int active_port;
 	u8 train_set[4];
 
+	u8 tu_size;
+	u64 tu_symbol;
+
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	bool sink_has_audio;
 };

@@ -313,9 +313,6 @@ static int cdn_dp_connector_mode_valid(struct drm_connector *connector,
 		break;
 	}
 
-	if (!IS_ALIGNED(mode->hdisplay * bpc * 3, 32))
-		return MODE_H_ILLEGAL;
-
 	requested = mode->clock * bpc * 3 / 1000;
 
 	source_max = dp->lanes;

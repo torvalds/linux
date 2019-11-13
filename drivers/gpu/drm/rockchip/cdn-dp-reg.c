@@ -713,13 +713,52 @@ static int cdn_dp_get_msa_misc(struct video_info *video,
 	return msa_misc;
 }
 
+int cdn_dp_tu_size_cal(struct cdn_dp_device *dp, u8 lanes, u8 link_bw)
+{
+	struct video_info *video = &dp->video_info;
+	struct drm_display_mode *mode = &dp->mode;
+	u8 bit_per_pix, tu_size_reg = TU_SIZE;
+	u32 link_rate, rem;
+	u64 symbol;
+	int ret;
+
+	bit_per_pix = (video->color_fmt == YCBCR_4_2_2) ?
+			(video->color_depth * 2) : (video->color_depth * 3);
+
+	link_rate = drm_dp_bw_code_to_link_rate(link_bw) / 1000;
+
+	/*
+	 * get a best tu_size and valid symbol:
+	 * 1. chose Lclk freq(162Mhz, 270Mhz, 540Mhz), set TU to 32
+	 * 2. calculate VS(valid symbol) = TU * Pclk * Bpp / (Lclk * Lanes)
+	 * 3. if VS > *.85 or VS < *.1 or VS < 2 or TU < VS + 4, then set
+	 *    TU += 2 and repeat 2nd step.
+	 */
+	do {
+		tu_size_reg += 2;
+		symbol = tu_size_reg * mode->clock * bit_per_pix;
+		do_div(symbol, lanes * link_rate * 8);
+		rem = do_div(symbol, 1000);
+		if (tu_size_reg > 64) {
+			ret = -EINVAL;
+			return ret;
+		}
+	} while ((symbol <= 1) || (tu_size_reg - symbol < 4) ||
+		 (rem > 850) || (rem < 100));
+
+	dp->tu_size = tu_size_reg;
+	dp->tu_symbol = symbol;
+	return 0;
+}
+
 int cdn_dp_config_video(struct cdn_dp_device *dp)
 {
 	struct video_info *video = &dp->video_info;
 	struct drm_display_mode *mode = &dp->mode;
-	u64 symbol;
-	u32 val, link_rate, rem;
-	u8 bit_per_pix, tu_size_reg = TU_SIZE;
+	u8 tu_size_reg = dp->tu_size;
+	u64 symbol = dp->tu_symbol;
+	u32 val, link_rate;
+	u8 bit_per_pix;
 	int ret;
 
 	bit_per_pix = (video->color_fmt == YCBCR_4_2_2) ?
@@ -734,29 +773,6 @@ int cdn_dp_config_video(struct cdn_dp_device *dp)
 	ret = cdn_dp_reg_write(dp, HSYNC2VSYNC_POL_CTRL, 0);
 	if (ret)
 		goto err_config_video;
-
-	/*
-	 * get a best tu_size and valid symbol:
-	 * 1. chose Lclk freq(162Mhz, 270Mhz, 540Mhz), set TU to 32
-	 * 2. calculate VS(valid symbol) = TU * Pclk * Bpp / (Lclk * Lanes)
-	 * 3. if VS > *.85 or VS < *.1 or VS < 2 or TU < VS + 4, then set
-	 *    TU += 2 and repeat 2nd step.
-	 */
-	do {
-		tu_size_reg += 2;
-		symbol = tu_size_reg * mode->clock * bit_per_pix;
-		do_div(symbol, dp->link.num_lanes * link_rate * 8);
-		rem = do_div(symbol, 1000);
-		if (tu_size_reg > 64) {
-			ret = -EINVAL;
-			DRM_DEV_ERROR(dp->dev,
-				      "tu error, clk:%d, lanes:%d, rate:%d\n",
-				      mode->clock, dp->link.num_lanes,
-				      link_rate);
-			goto err_config_video;
-		}
-	} while ((symbol <= 1) || (tu_size_reg - symbol < 4) ||
-		 (rem > 850) || (rem < 100));
 
 	val = symbol + (tu_size_reg << 8);
 	val |= TU_CNT_RST_EN;
