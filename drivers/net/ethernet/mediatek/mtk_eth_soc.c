@@ -2184,6 +2184,9 @@ static void mtk_gdm_config(struct mtk_eth *eth, u32 config)
 {
 	int i;
 
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
+		return;
+
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		u32 val = mtk_r32(eth, MTK_GDMA_FWD_CFG(i));
 
@@ -2221,6 +2224,8 @@ static int mtk_open(struct net_device *dev)
 
 		if (err)
 			return err;
+
+		mtk_gdm_config(eth, MTK_GDMA_TO_PDMA);
 
 		napi_enable(&eth->tx_napi);
 		napi_enable(&eth->rx_napi);
@@ -2404,8 +2409,6 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	mtk_w32(eth, MTK_TX_DONE_INT, MTK_QDMA_INT_GRP1);
 	mtk_w32(eth, MTK_RX_DONE_INT, MTK_QDMA_INT_GRP2);
 	mtk_w32(eth, 0x21021000, MTK_FE_INT_GRP);
-
-	mtk_gdm_config(eth, MTK_GDMA_TO_PDMA);
 
 	return 0;
 
