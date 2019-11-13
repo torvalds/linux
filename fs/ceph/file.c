@@ -753,6 +753,9 @@ static void ceph_aio_complete(struct inode *inode,
 	if (!atomic_dec_and_test(&aio_req->pending_reqs))
 		return;
 
+	if (aio_req->iocb->ki_flags & IOCB_DIRECT)
+		inode_dio_end(inode);
+
 	ret = aio_req->error;
 	if (!ret)
 		ret = aio_req->total_len;
@@ -1091,6 +1094,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 					      CEPH_CAP_FILE_RD);
 
 		list_splice(&aio_req->osd_reqs, &osd_reqs);
+		inode_dio_begin(inode);
 		while (!list_empty(&osd_reqs)) {
 			req = list_first_entry(&osd_reqs,
 					       struct ceph_osd_request,
