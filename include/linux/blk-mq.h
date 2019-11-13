@@ -424,7 +424,6 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set);
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule);
 
 void blk_mq_free_request(struct request *rq);
-bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
 
 bool blk_mq_queue_inflight(struct request_queue *q);
 

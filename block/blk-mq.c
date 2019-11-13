@@ -260,12 +260,6 @@ void blk_mq_wake_waiters(struct request_queue *q)
 			blk_mq_tag_wakeup_all(hctx->tags, true);
 }
 
-bool blk_mq_can_queue(struct blk_mq_hw_ctx *hctx)
-{
-	return blk_mq_has_free_tags(hctx->tags);
-}
-EXPORT_SYMBOL(blk_mq_can_queue);
-
 /*
  * Only need start/end time stamping if we have iostat or
  * blk stats enabled, or using an IO scheduler.
