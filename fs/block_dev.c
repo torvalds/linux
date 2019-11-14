@@ -1433,6 +1433,7 @@ static void check_disk_size_change(struct gendisk *disk,
 		if (bdev_size > disk_size)
 			flush_disk(bdev, false);
 	}
+	bdev->bd_invalidated = 0;
 }
 
 /**
@@ -1462,7 +1463,6 @@ int revalidate_disk(struct gendisk *disk)
 
 		mutex_lock(&bdev->bd_mutex);
 		check_disk_size_change(disk, bdev, ret == 0);
-		bdev->bd_invalidated = 0;
 		mutex_unlock(&bdev->bd_mutex);
 		bdput(bdev);
 	}
@@ -1526,7 +1526,6 @@ rescan:
 		disk->fops->revalidate_disk(disk);
 
 	check_disk_size_change(disk, bdev, !invalidate);
-	bdev->bd_invalidated = 0;
 
 	if (get_capacity(disk)) {
 		ret = blk_add_partitions(disk, bdev);
