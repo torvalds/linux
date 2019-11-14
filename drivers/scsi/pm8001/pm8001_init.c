@@ -894,7 +894,6 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 	u32 number_of_intr;
 	int flag = 0;
 	int rc;
-	static char intr_drvname[PM8001_MAX_MSIX_VEC][sizeof(DRV_NAME)+3];
 
 	/* SPCv controllers supports 64 msi-x */
 	if (pm8001_ha->chip_id == chip_8001) {
@@ -915,14 +914,16 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 				rc, pm8001_ha->number_of_intr));
 
 	for (i = 0; i < number_of_intr; i++) {
-		snprintf(intr_drvname[i], sizeof(intr_drvname[0]),
-				DRV_NAME"%d", i);
+		snprintf(pm8001_ha->intr_drvname[i],
+			sizeof(pm8001_ha->intr_drvname[0]),
+			"%s-%d", pm8001_ha->name, i);
 		pm8001_ha->irq_vector[i].irq_id = i;
 		pm8001_ha->irq_vector[i].drv_inst = pm8001_ha;
 
 		rc = request_irq(pci_irq_vector(pm8001_ha->pdev, i),
 			pm8001_interrupt_handler_msix, flag,
-			intr_drvname[i], &(pm8001_ha->irq_vector[i]));
+			pm8001_ha->intr_drvname[i],
+			&(pm8001_ha->irq_vector[i]));
 		if (rc) {
 			for (j = 0; j < i; j++) {
 				free_irq(pci_irq_vector(pm8001_ha->pdev, i),
@@ -963,7 +964,7 @@ intx:
 	pm8001_ha->irq_vector[0].irq_id = 0;
 	pm8001_ha->irq_vector[0].drv_inst = pm8001_ha;
 	rc = request_irq(pdev->irq, pm8001_interrupt_handler_intx, IRQF_SHARED,
-		DRV_NAME, SHOST_TO_SAS_HA(pm8001_ha->shost));
+		pm8001_ha->name, SHOST_TO_SAS_HA(pm8001_ha->shost));
 	return rc;
 }
 

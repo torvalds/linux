@@ -541,6 +541,8 @@ struct pm8001_hba_info {
 	struct pm8001_ccb_info	*ccb_info;
 #ifdef PM8001_USE_MSIX
 	int			number_of_intr;/*will be used in remove()*/
+	char			intr_drvname[PM8001_MAX_MSIX_VEC]
+				[PM8001_NAME_LENGTH+1+3+1];
 #endif
 #ifdef PM8001_USE_TASKLET
 	struct tasklet_struct	tasklet[PM8001_MAX_MSIX_VEC];
