@@ -2400,7 +2400,7 @@ static int gfx_v10_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gfx_v10_0_cp_gfx_enable(struct amdgpu_device *adev, bool enable)
+static int gfx_v10_0_cp_gfx_enable(struct amdgpu_device *adev, bool enable)
 {
 	int i;
 	u32 tmp = RREG32_SOC15(GC, 0, mmCP_ME_CNTL);
@@ -2413,7 +2413,17 @@ static void gfx_v10_0_cp_gfx_enable(struct amdgpu_device *adev, bool enable)
 			adev->gfx.gfx_ring[i].sched.ready = false;
 	}
 	WREG32_SOC15(GC, 0, mmCP_ME_CNTL, tmp);
-	udelay(50);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (RREG32_SOC15(GC, 0, mmCP_STAT) == 0)
+			break;
+		udelay(1);
+	}
+
+	if (i >= adev->usec_timeout)
+		DRM_ERROR("failed to %s cp gfx\n", enable ? "unhalt" : "halt");
+
+	return 0;
 }
 
 static int gfx_v10_0_cp_gfx_load_pfp_microcode(struct amdgpu_device *adev)
