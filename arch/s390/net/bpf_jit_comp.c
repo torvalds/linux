@@ -305,6 +305,24 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 })
 
 /*
+ * Return whether this is the first pass. The first pass is special, since we
+ * don't know any sizes yet, and thus must be conservative.
+ */
+static bool is_first_pass(struct bpf_jit *jit)
+{
+	return jit->size == 0;
+}
+
+/*
+ * Return whether this is the code generation pass. The code generation pass is
+ * special, since we should change as little as possible.
+ */
+static bool is_codegen_pass(struct bpf_jit *jit)
+{
+	return jit->prg_buf;
+}
+
+/*
  * Fill whole space with illegal instructions
  */
 static void jit_fill_hole(void *area, unsigned int size)
@@ -381,8 +399,17 @@ static int get_end(struct bpf_jit *jit, int start)
  */
 static void save_restore_regs(struct bpf_jit *jit, int op, u32 stack_depth)
 {
-
+	const int last = 15, save_restore_size = 6;
 	int re = 6, rs;
+
+	if (is_first_pass(jit)) {
+		/*
+		 * We don't know yet which registers are used. Reserve space
+		 * conservatively.
+		 */
+		jit->prg += (last - re + 1) * save_restore_size;
+		return;
+	}
 
 	do {
 		rs = get_start(jit, re);
@@ -394,7 +421,7 @@ static void save_restore_regs(struct bpf_jit *jit, int op, u32 stack_depth)
 		else
 			restore_regs(jit, rs, re, stack_depth);
 		re++;
-	} while (re <= 15);
+	} while (re <= last);
 }
 
 /*
@@ -418,21 +445,21 @@ static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
 	/* Save registers */
 	save_restore_regs(jit, REGS_SAVE, stack_depth);
 	/* Setup literal pool */
-	if (jit->seen & SEEN_LITERAL) {
+	if (is_first_pass(jit) || (jit->seen & SEEN_LITERAL)) {
 		/* basr %r13,0 */
 		EMIT2(0x0d00, REG_L, REG_0);
 		jit->base_ip = jit->prg;
 	}
 	/* Setup stack and backchain */
-	if (jit->seen & SEEN_STACK) {
-		if (jit->seen & SEEN_FUNC)
+	if (is_first_pass(jit) || (jit->seen & SEEN_STACK)) {
+		if (is_first_pass(jit) || (jit->seen & SEEN_FUNC))
 			/* lgr %w1,%r15 (backchain) */
 			EMIT4(0xb9040000, REG_W1, REG_15);
 		/* la %bfp,STK_160_UNUSED(%r15) (BPF frame pointer) */
 		EMIT4_DISP(0x41000000, BPF_REG_FP, REG_15, STK_160_UNUSED);
 		/* aghi %r15,-STK_OFF */
 		EMIT4_IMM(0xa70b0000, REG_15, -(STK_OFF + stack_depth));
-		if (jit->seen & SEEN_FUNC)
+		if (is_first_pass(jit) || (jit->seen & SEEN_FUNC))
 			/* stg %w1,152(%r15) (backchain) */
 			EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0,
 				      REG_15, 152);
@@ -468,7 +495,7 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	_EMIT2(0x07fe);
 
 	if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable &&
-	    (jit->seen & SEEN_FUNC)) {
+	    (is_first_pass(jit) || (jit->seen & SEEN_FUNC))) {
 		jit->r1_thunk_ip = jit->prg;
 		/* Generate __s390_indirect_jump_r1 thunk */
 		if (test_facility(35)) {
@@ -1276,6 +1303,34 @@ branch_oc:
 }
 
 /*
+ * Return whether new i-th instruction address does not violate any invariant
+ */
+static bool bpf_is_new_addr_sane(struct bpf_jit *jit, int i)
+{
+	/* On the first pass anything goes */
+	if (is_first_pass(jit))
+		return true;
+
+	/* The codegen pass must not change anything */
+	if (is_codegen_pass(jit))
+		return jit->addrs[i] == jit->prg;
+
+	/* Passes in between must not increase code size */
+	return jit->addrs[i] >= jit->prg;
+}
+
+/*
+ * Update the address of i-th instruction
+ */
+static int bpf_set_addr(struct bpf_jit *jit, int i)
+{
+	if (!bpf_is_new_addr_sane(jit, i))
+		return -1;
+	jit->addrs[i] = jit->prg;
+	return 0;
+}
+
+/*
  * Compile eBPF program into s390x code
  */
 static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp,
@@ -1287,12 +1342,15 @@ static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp,
 	jit->prg = 0;
 
 	bpf_jit_prologue(jit, fp->aux->stack_depth);
+	if (bpf_set_addr(jit, 0) < 0)
+		return -1;
 	for (i = 0; i < fp->len; i += insn_count) {
 		insn_count = bpf_jit_insn(jit, fp, i, extra_pass);
 		if (insn_count < 0)
 			return -1;
 		/* Next instruction address */
-		jit->addrs[i + insn_count] = jit->prg;
+		if (bpf_set_addr(jit, i + insn_count) < 0)
+			return -1;
 	}
 	bpf_jit_epilogue(jit, fp->aux->stack_depth);
 
