@@ -73,6 +73,7 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	struct urb *urb;
 	int aligned_x;
 	int log_bpp;
+	void *vaddr;
 
 	BUG_ON(!is_power_of_2(fb->base.format->cpp[0]));
 	log_bpp = __ffs(fb->base.format->cpp[0]);
@@ -80,14 +81,10 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	if (!fb->active_16)
 		return 0;
 
-	if (!fb->shmem->vaddr) {
-		void *vaddr;
-
-		vaddr = drm_gem_shmem_vmap(&fb->shmem->base);
-		if (IS_ERR(vaddr)) {
-			DRM_ERROR("failed to vmap fb\n");
-			return 0;
-		}
+	vaddr = drm_gem_shmem_vmap(&fb->shmem->base);
+	if (IS_ERR(vaddr)) {
+		DRM_ERROR("failed to vmap fb\n");
+		return 0;
 	}
 
 	aligned_x = DL_ALIGN_DOWN(x, sizeof(unsigned long));
@@ -96,22 +93,23 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 
 	if ((width <= 0) ||
 	    (x + width > fb->base.width) ||
-	    (y + height > fb->base.height))
-		return -EINVAL;
+	    (y + height > fb->base.height)) {
+		ret = -EINVAL;
+		goto err_drm_gem_shmem_vunmap;
+	}
 
 	start_cycles = get_cycles();
 
 	urb = udl_get_urb(dev);
 	if (!urb)
-		return 0;
+		goto out;
 	cmd = urb->transfer_buffer;
 
 	for (i = y; i < y + height ; i++) {
 		const int line_offset = fb->base.pitches[0] * i;
 		const int byte_offset = line_offset + (x << log_bpp);
 		const int dev_byte_offset = (fb->base.width * i + x) << log_bpp;
-		if (udl_render_hline(dev, log_bpp, &urb,
-				     (char *) fb->shmem->vaddr,
+		if (udl_render_hline(dev, log_bpp, &urb, (char *)vaddr,
 				     &cmd, byte_offset, dev_byte_offset,
 				     width << log_bpp,
 				     &bytes_identical, &bytes_sent))
@@ -138,7 +136,14 @@ error:
 		    >> 10)), /* Kcycles */
 		   &udl->cpu_kcycles_used);
 
+out:
+	drm_gem_shmem_vunmap(&fb->shmem->base, vaddr);
+
 	return 0;
+
+err_drm_gem_shmem_vunmap:
+	drm_gem_shmem_vunmap(&fb->shmem->base, vaddr);
+	return ret;
 }
 
 static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
