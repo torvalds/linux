@@ -74,13 +74,6 @@ struct udl_device {
 
 #define to_udl(x) container_of(x, struct udl_device, drm)
 
-struct udl_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_shmem_object *shmem;
-};
-
-#define to_udl_fb(x) container_of(x, struct udl_framebuffer, base)
-
 /* modeset */
 int udl_modeset_init(struct drm_device *dev);
 void udl_modeset_restore(struct drm_device *dev);

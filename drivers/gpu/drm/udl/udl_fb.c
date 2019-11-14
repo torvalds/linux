@@ -14,6 +14,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_modeset_helper.h>
 
@@ -199,68 +200,17 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	return ret;
 }
 
-static void udl_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct udl_framebuffer *ufb = to_udl_fb(fb);
-
-	if (ufb->shmem)
-		drm_gem_object_put_unlocked(&ufb->shmem->base);
-
-	drm_framebuffer_cleanup(fb);
-	kfree(ufb);
-}
-
 static const struct drm_framebuffer_funcs udlfb_funcs = {
-	.destroy = udl_user_framebuffer_destroy,
-	.dirty = udl_user_framebuffer_dirty,
+	.destroy	= drm_gem_fb_destroy,
+	.create_handle	= drm_gem_fb_create_handle,
+	.dirty		= udl_user_framebuffer_dirty,
 };
-
-
-static int
-udl_framebuffer_init(struct drm_device *dev,
-		     struct udl_framebuffer *ufb,
-		     const struct drm_mode_fb_cmd2 *mode_cmd,
-		     struct drm_gem_shmem_object *shmem)
-{
-	int ret;
-
-	ufb->shmem = shmem;
-	drm_helper_mode_fill_fb_struct(dev, &ufb->base, mode_cmd);
-	ret = drm_framebuffer_init(dev, &ufb->base, &udlfb_funcs);
-	return ret;
-}
 
 struct drm_framebuffer *
 udl_fb_user_fb_create(struct drm_device *dev,
 		   struct drm_file *file,
 		   const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct drm_gem_object *obj;
-	struct udl_framebuffer *ufb;
-	int ret;
-	uint32_t size;
-
-	obj = drm_gem_object_lookup(file, mode_cmd->handles[0]);
-	if (obj == NULL)
-		return ERR_PTR(-ENOENT);
-
-	size = mode_cmd->pitches[0] * mode_cmd->height;
-	size = ALIGN(size, PAGE_SIZE);
-
-	if (size > obj->size) {
-		DRM_ERROR("object size not sufficient for fb %d %zu %d %d\n", size, obj->size, mode_cmd->pitches[0], mode_cmd->height);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	ufb = kzalloc(sizeof(*ufb), GFP_KERNEL);
-	if (ufb == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	ret = udl_framebuffer_init(dev, ufb, mode_cmd,
-				   to_drm_gem_shmem_obj(obj));
-	if (ret) {
-		kfree(ufb);
-		return ERR_PTR(-EINVAL);
-	}
-	return &ufb->base;
+	return drm_gem_fb_create_with_funcs(dev, file, mode_cmd,
+					    &udlfb_funcs);
 }
