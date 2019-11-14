@@ -387,6 +387,7 @@ static u8 rsm_ins_bytes[] = "\x0f\xaa";
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa);
 static void svm_complete_interrupts(struct vcpu_svm *svm);
+static inline void avic_post_state_restore(struct kvm_vcpu *vcpu);
 
 static int nested_svm_exit_handled(struct vcpu_svm *svm);
 static int nested_svm_intercept(struct vcpu_svm *svm);
@@ -1545,7 +1546,10 @@ static void avic_init_vmcb(struct vcpu_svm *svm)
 	vmcb->control.avic_logical_id = lpa & AVIC_HPA_MASK;
 	vmcb->control.avic_physical_id = ppa & AVIC_HPA_MASK;
 	vmcb->control.avic_physical_id |= AVIC_MAX_PHYSICAL_ID_COUNT;
-	vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
+	if (kvm_apicv_activated(svm->vcpu.kvm))
+		vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
+	else
+		vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
 }
 
 static void init_vmcb(struct vcpu_svm *svm)
@@ -1752,20 +1756,23 @@ out:
 
 static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 {
-	int ret;
 	u64 *entry, new_entry;
 	int id = vcpu->vcpu_id;
 	struct vcpu_svm *svm = to_svm(vcpu);
-
-	ret = avic_update_access_page(vcpu->kvm, true);
-	if (ret)
-		return ret;
 
 	if (id >= AVIC_MAX_PHYSICAL_ID_COUNT)
 		return -EINVAL;
 
 	if (!svm->vcpu.arch.apic->regs)
 		return -EINVAL;
+
+	if (kvm_apicv_activated(vcpu->kvm)) {
+		int ret;
+
+		ret = avic_update_access_page(vcpu->kvm, true);
+		if (ret)
+			return ret;
+	}
 
 	svm->avic_backing_page = virt_to_page(svm->vcpu.arch.apic->regs);
 
@@ -2234,7 +2241,8 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	/* We initialize this flag to true to make sure that the is_running
 	 * bit would be set the first time the vcpu is loaded.
 	 */
-	svm->avic_is_running = true;
+	if (irqchip_in_kernel(vcpu->kvm) && kvm_apicv_activated(vcpu->kvm))
+		svm->avic_is_running = true;
 
 	svm->nested.hsave = page_address(hsave_page);
 
@@ -2359,6 +2367,8 @@ static void svm_vcpu_blocking(struct kvm_vcpu *vcpu)
 
 static void svm_vcpu_unblocking(struct kvm_vcpu *vcpu)
 {
+	if (kvm_check_request(KVM_REQ_APICV_UPDATE, vcpu))
+		kvm_vcpu_update_apicv(vcpu);
 	avic_set_running(vcpu, true);
 }
 
@@ -5186,17 +5196,25 @@ out:
 	return ret;
 }
 
-/* Note: Currently only used by Hyper-V. */
 static void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
 	bool activated = kvm_vcpu_apicv_active(vcpu);
 
-	if (activated)
+	if (activated) {
+		/**
+		 * During AVIC temporary deactivation, guest could update
+		 * APIC ID, DFR and LDR registers, which would not be trapped
+		 * by avic_unaccelerated_access_interception(). In this case,
+		 * we need to check and update the AVIC logical APIC ID table
+		 * accordingly before re-activating.
+		 */
+		avic_post_state_restore(vcpu);
 		vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
-	else
+	} else {
 		vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
+	}
 	mark_dirty(vmcb, VMCB_AVIC);
 
 	svm_set_pi_irte_mode(vcpu, activated);
