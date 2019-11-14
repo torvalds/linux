@@ -4870,7 +4870,8 @@ static void goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	u32 status, timeout_usec;
 	int rc;
 
-	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU) ||
+		hdev->hard_reset_pending)
 		return;
 
 	/* no need in L1 only invalidation in Goya */
@@ -4909,7 +4910,8 @@ static void goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 	u32 status, timeout_usec, inv_data, pi;
 	int rc;
 
-	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU) ||
+		hdev->hard_reset_pending)
 		return;
 
 	/* no need in L1 only invalidation in Goya */
