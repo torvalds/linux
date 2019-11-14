@@ -138,6 +138,10 @@ struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
 					struct dentry *parent,
 					u32 *array, u32 elements);
 
+struct dentry *debugfs_create_u32_array_hex(const char *name, umode_t mode,
+					struct dentry *parent,
+					u32 *array, u32 elements);
+
 struct dentry *debugfs_create_devm_seqfile(struct device *dev, const char *name,
 					   struct dentry *parent,
 					   int (*read_fn)(struct seq_file *s,
@@ -355,6 +359,13 @@ static inline bool debugfs_initialized(void)
 }
 
 static inline struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
+					struct dentry *parent,
+					u32 *array, u32 elements)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct dentry *debugfs_create_u32_array_hex(const char *name, umode_t mode,
 					struct dentry *parent,
 					u32 *array, u32 elements)
 {

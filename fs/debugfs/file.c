@@ -965,6 +965,46 @@ static int u32_array_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
+static size_t u32_format_array_hex(char *buf, size_t bufsize, u32 *array, int array_size)
+{
+	int i = 0;
+
+	while (--array_size >= 0) {
+		size_t len;
+		char term = (array_size && (++i % 8)) ? ' ' : '\n';
+
+		len = snprintf(buf, bufsize, "%08X%c", *array++, term);
+		buf += len;
+		bufsize -= len;
+	}
+
+	return 0;
+}
+
+static int u32_array_open_hex(struct inode *inode, struct file *file)
+{
+	struct array_data *data = inode->i_private;
+	int size, elements = data->elements;
+	char *buf;
+
+	/*
+	 * Max size:
+	 *  - 8 digits + ' '/'\n' = 9 bytes per number
+	 *  - terminating NUL character
+	 */
+	size = elements * 9;
+	buf = kmalloc(size + 1, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf[size] = 0;
+
+	file->private_data = buf;
+	u32_format_array_hex(buf, size, data->array, data->elements);
+
+	return nonseekable_open(inode, file);
+}
+
 static ssize_t u32_array_read(struct file *file, char __user *buf, size_t len,
 			      loff_t *ppos)
 {
@@ -984,6 +1024,14 @@ static int u32_array_release(struct inode *inode, struct file *file)
 static const struct file_operations u32_array_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = u32_array_open,
+	.release = u32_array_release,
+	.read	 = u32_array_read,
+	.llseek  = no_llseek,
+};
+
+static const struct file_operations u32_array_hex_fops = {
+	.owner	 = THIS_MODULE,
+	.open	 = u32_array_open_hex,
 	.release = u32_array_release,
 	.read	 = u32_array_read,
 	.llseek  = no_llseek,
@@ -1024,6 +1072,23 @@ struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
 					&u32_array_fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u32_array);
+
+struct dentry *debugfs_create_u32_array_hex(const char *name, umode_t mode,
+					    struct dentry *parent,
+					    u32 *array, u32 elements)
+{
+	struct array_data *data = kmalloc(sizeof(*data), GFP_KERNEL);
+
+	if (data == NULL)
+		return NULL;
+
+	data->array = array;
+	data->elements = elements;
+
+	return debugfs_create_file_unsafe(name, mode, parent, data,
+					&u32_array_hex_fops);
+}
+EXPORT_SYMBOL_GPL(debugfs_create_u32_array_hex);
 
 #ifdef CONFIG_HAS_IOMEM
 
