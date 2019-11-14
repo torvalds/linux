@@ -75,7 +75,7 @@ DECLARE_EVENT_CLASS(writeback_page_template,
 
 	TP_printk("bdi %s: ino=%lu index=%lu",
 		__entry->name,
-		__entry->ino,
+		(unsigned long)__entry->ino,
 		__entry->index
 	)
 );
@@ -120,7 +120,7 @@ DECLARE_EVENT_CLASS(writeback_dirty_inode_template,
 
 	TP_printk("bdi %s: ino=%lu state=%s flags=%s",
 		__entry->name,
-		__entry->ino,
+		(unsigned long)__entry->ino,
 		show_inode_state(__entry->state),
 		show_inode_state(__entry->flags)
 	)
@@ -201,8 +201,8 @@ TRACE_EVENT(inode_foreign_history,
 
 	TP_printk("bdi %s: ino=%lu cgroup_ino=%lu history=0x%x",
 		__entry->name,
-		__entry->ino,
-		__entry->cgroup_ino,
+		(unsigned long)__entry->ino,
+		(unsigned long)__entry->cgroup_ino,
 		__entry->history
 	)
 );
@@ -230,9 +230,9 @@ TRACE_EVENT(inode_switch_wbs,
 
 	TP_printk("bdi %s: ino=%lu old_cgroup_ino=%lu new_cgroup_ino=%lu",
 		__entry->name,
-		__entry->ino,
-		__entry->old_cgroup_ino,
-		__entry->new_cgroup_ino
+		(unsigned long)__entry->ino,
+		(unsigned long)__entry->old_cgroup_ino,
+		(unsigned long)__entry->new_cgroup_ino
 	)
 );
 
@@ -266,10 +266,10 @@ TRACE_EVENT(track_foreign_dirty,
 	TP_printk("bdi %s[%llu]: ino=%lu memcg_id=%u cgroup_ino=%lu page_cgroup_ino=%lu",
 		__entry->name,
 		__entry->bdi_id,
-		__entry->ino,
+		(unsigned long)__entry->ino,
 		__entry->memcg_id,
-		__entry->cgroup_ino,
-		__entry->page_cgroup_ino
+		(unsigned long)__entry->cgroup_ino,
+		(unsigned long)__entry->page_cgroup_ino
 	)
 );
 
@@ -296,7 +296,7 @@ TRACE_EVENT(flush_foreign,
 
 	TP_printk("bdi %s: cgroup_ino=%lu frn_bdi_id=%u frn_memcg_id=%u",
 		__entry->name,
-		__entry->cgroup_ino,
+		(unsigned long)__entry->cgroup_ino,
 		__entry->frn_bdi_id,
 		__entry->frn_memcg_id
 	)
@@ -326,9 +326,9 @@ DECLARE_EVENT_CLASS(writeback_write_inode_template,
 
 	TP_printk("bdi %s: ino=%lu sync_mode=%d cgroup_ino=%lu",
 		__entry->name,
-		__entry->ino,
+		(unsigned long)__entry->ino,
 		__entry->sync_mode,
-		__entry->cgroup_ino
+		(unsigned long)__entry->cgroup_ino
 	)
 );
 
@@ -383,7 +383,7 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 		  __entry->range_cyclic,
 		  __entry->for_background,
 		  __print_symbolic(__entry->reason, WB_WORK_REASON),
-		  __entry->cgroup_ino
+		  (unsigned long)__entry->cgroup_ino
 	)
 );
 #define DEFINE_WRITEBACK_WORK_EVENT(name) \
@@ -421,7 +421,7 @@ DECLARE_EVENT_CLASS(writeback_class,
 	),
 	TP_printk("bdi %s: cgroup_ino=%lu",
 		  __entry->name,
-		  __entry->cgroup_ino
+		  (unsigned long)__entry->cgroup_ino
 	)
 );
 #define DEFINE_WRITEBACK_EVENT(name) \
@@ -489,7 +489,7 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__entry->range_cyclic,
 		__entry->range_start,
 		__entry->range_end,
-		__entry->cgroup_ino
+		(unsigned long)__entry->cgroup_ino
 	)
 )
 
@@ -528,7 +528,7 @@ TRACE_EVENT(writeback_queue_io,
 		__entry->age,	/* older_than_this in relative milliseconds */
 		__entry->moved,
 		__print_symbolic(__entry->reason, WB_WORK_REASON),
-		__entry->cgroup_ino
+		(unsigned long)__entry->cgroup_ino
 	)
 );
 
@@ -622,7 +622,7 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 		  __entry->dirty_ratelimit,	/* base ratelimit */
 		  __entry->task_ratelimit, /* ratelimit with position control */
 		  __entry->balanced_dirty_ratelimit, /* the balanced ratelimit */
-		  __entry->cgroup_ino
+		  (unsigned long)__entry->cgroup_ino
 	)
 );
 
@@ -707,7 +707,7 @@ TRACE_EVENT(balance_dirty_pages,
 		  __entry->pause,	/* ms */
 		  __entry->period,	/* ms */
 		  __entry->think,	/* ms */
-		  __entry->cgroup_ino
+		  (unsigned long)__entry->cgroup_ino
 	  )
 );
 
@@ -735,11 +735,11 @@ TRACE_EVENT(writeback_sb_inodes_requeue,
 
 	TP_printk("bdi %s: ino=%lu state=%s dirtied_when=%lu age=%lu cgroup_ino=%lu",
 		  __entry->name,
-		  __entry->ino,
+		  (unsigned long)__entry->ino,
 		  show_inode_state(__entry->state),
 		  __entry->dirtied_when,
 		  (jiffies - __entry->dirtied_when) / HZ,
-		  __entry->cgroup_ino
+		  (unsigned long)__entry->cgroup_ino
 	)
 );
 
@@ -813,14 +813,14 @@ DECLARE_EVENT_CLASS(writeback_single_inode_template,
 	TP_printk("bdi %s: ino=%lu state=%s dirtied_when=%lu age=%lu "
 		  "index=%lu to_write=%ld wrote=%lu cgroup_ino=%lu",
 		  __entry->name,
-		  __entry->ino,
+		  (unsigned long)__entry->ino,
 		  show_inode_state(__entry->state),
 		  __entry->dirtied_when,
 		  (jiffies - __entry->dirtied_when) / HZ,
 		  __entry->writeback_index,
 		  __entry->nr_to_write,
 		  __entry->wrote,
-		  __entry->cgroup_ino
+		  (unsigned long)__entry->cgroup_ino
 	)
 );
 
@@ -861,7 +861,7 @@ DECLARE_EVENT_CLASS(writeback_inode_template,
 
 	TP_printk("dev %d,%d ino %lu dirtied %lu state %s mode 0%o",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino, __entry->dirtied_when,
+		  (unsigned long)__entry->ino, __entry->dirtied_when,
 		  show_inode_state(__entry->state), __entry->mode)
 );
 
