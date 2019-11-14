@@ -36,7 +36,7 @@
 
 #define INTR_MASK(pfvfs) ((pfvfs < 64) ? (BIT_ULL(pfvfs) - 1) : (~0ull))
 
-#define MBOX_RSP_TIMEOUT	1000 /* in ms, Time to wait for mbox response */
+#define MBOX_RSP_TIMEOUT	2000 /* Time(ms) to wait for mbox response */
 
 #define MBOX_MSG_ALIGN		16  /* Align mbox msg start to 16bytes */
 
@@ -75,6 +75,7 @@ struct otx2_mbox {
 
 /* Header which preceeds all mbox messages */
 struct mbox_hdr {
+	u64 msg_size;	/* Total msgs size embedded */
 	u16  num_msgs;   /* No of msgs embedded */
 };
 
