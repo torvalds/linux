@@ -231,6 +231,17 @@ static int iwl_pcie_gen2_set_tb(struct iwl_trans *trans,
 	int idx = iwl_pcie_gen2_get_num_tbs(trans, tfd);
 	struct iwl_tfh_tb *tb;
 
+	/*
+	 * Only WARN here so we know about the issue, but we mess up our
+	 * unmap path because not every place currently checks for errors
+	 * returned from this function - it can only return an error if
+	 * there's no more space, and so when we know there is enough we
+	 * don't always check ...
+	 */
+	WARN(crosses_4g_boundary(addr, len),
+	     "possible DMA problem with iova:0x%llx, len:%d\n",
+	     (unsigned long long)addr, len);
+
 	if (WARN_ON(idx >= IWL_TFH_NUM_TBS))
 		return -EINVAL;
 	tb = &tfd->tbs[idx];
