@@ -747,7 +747,7 @@ DECLARE_PER_CPU(int, bpf_prog_active);
 extern const struct file_operations bpf_map_fops;
 extern const struct file_operations bpf_prog_fops;
 
-#define BPF_PROG_TYPE(_id, _name) \
+#define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
 	extern const struct bpf_prog_ops _name ## _prog_ops; \
 	extern const struct bpf_verifier_ops _name ## _verifier_ops;
 #define BPF_MAP_TYPE(_id, _ops) \
@@ -1213,6 +1213,15 @@ static inline u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 #endif
 
 #ifdef CONFIG_INET
+struct sk_reuseport_kern {
+	struct sk_buff *skb;
+	struct sock *sk;
+	struct sock *selected_sk;
+	void *data_end;
+	u32 hash;
+	u32 reuseport_id;
+	bool bind_inany;
+};
 bool bpf_tcp_sock_is_valid_access(int off, int size, enum bpf_access_type type,
 				  struct bpf_insn_access_aux *info);
 
