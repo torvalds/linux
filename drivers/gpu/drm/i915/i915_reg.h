@@ -562,6 +562,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
  */
 #define BCS_SWCTRL _MMIO(0x22200)
 
+/* There are 16 GPR registers */
+#define BCS_GPR(n)	_MMIO(0x22600 + (n) * 8)
+#define BCS_GPR_UDW(n)	_MMIO(0x22600 + (n) * 8 + 4)
+
 #define GPGPU_THREADS_DISPATCHED        _MMIO(0x2290)
 #define GPGPU_THREADS_DISPATCHED_UDW	_MMIO(0x2290 + 4)
 #define HS_INVOCATION_COUNT             _MMIO(0x2300)
@@ -7354,6 +7358,10 @@ enum {
 #define TGL_DMC_DEBUG_DC6_COUNT	_MMIO(0x101088)
 
 #define DMC_DEBUG3		_MMIO(0x101090)
+
+/* Display Internal Timeout Register */
+#define RM_TIMEOUT		_MMIO(0x42060)
+#define  MMIO_TIMEOUT_US(us)	((us) << 0)
 
 /* interrupts */
 #define DE_MASTER_IRQ_CONTROL   (1 << 31)
