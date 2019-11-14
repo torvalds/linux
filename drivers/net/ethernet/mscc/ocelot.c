@@ -576,11 +576,11 @@ static int ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	struct ocelot_port *ocelot_port = &priv->port;
 	struct ocelot *ocelot = ocelot_port->ocelot;
+	u32 val, ifh[OCELOT_TAG_LEN / 4];
 	struct frame_info info = {};
 	u8 grp = 0; /* Send everything on CPU group 0 */
 	unsigned int i, count, last;
 	int port = priv->chip_port;
-	u32 val, ifh[IFH_LEN];
 
 	val = ocelot_read(ocelot, QS_INJ_STATUS);
 	if (!(val & QS_INJ_STATUS_FIFO_RDY(BIT(grp))) ||
@@ -603,7 +603,7 @@ static int ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	ocelot_gen_ifh(ifh, &info);
 
-	for (i = 0; i < IFH_LEN; i++)
+	for (i = 0; i < OCELOT_TAG_LEN / 4; i++)
 		ocelot_write_rix(ocelot, (__force u32)cpu_to_be32(ifh[i]),
 				 QS_INJ_WR, grp);
 

@@ -43,8 +43,6 @@
 
 #define OCELOT_PTP_QUEUE_SZ	128
 
-#define IFH_LEN 4
-
 struct frame_info {
 	u32 len;
 	u16 port;
@@ -65,6 +63,8 @@ struct frame_info {
 #define IFH_REW_OP_ONE_STEP_PTP		0x2
 #define IFH_REW_OP_TWO_STEP_PTP		0x3
 #define IFH_REW_OP_ORIGIN_PTP		0x5
+
+#define OCELOT_TAG_LEN			16
 
 #define OCELOT_SPEED_2500 0
 #define OCELOT_SPEED_1000 1

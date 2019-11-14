@@ -105,7 +105,7 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 		int sz, len, buf_len;
 		struct sk_buff *skb;
 
-		for (i = 0; i < IFH_LEN; i++) {
+		for (i = 0; i < OCELOT_TAG_LEN / 4; i++) {
 			err = ocelot_rx_frame_word(ocelot, grp, true, &ifh[i]);
 			if (err != 4)
 				break;
