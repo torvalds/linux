@@ -944,7 +944,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		goto map_err;
 	}
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, false);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, false, *vm_type);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -1060,7 +1060,7 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 
 	unmap_phys_pg_pack(ctx, vaddr, phys_pg_pack);
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, *vm_type);
 
 	mutex_unlock(&ctx->mmu_lock);
 

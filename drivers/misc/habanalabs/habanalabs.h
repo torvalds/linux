@@ -114,8 +114,8 @@ struct hw_queue_properties {
  * @VM_TYPE_PHYS_PACK: mapping of DRAM memory to device virtual address.
  */
 enum vm_type_t {
-	VM_TYPE_USERPTR,
-	VM_TYPE_PHYS_PACK
+	VM_TYPE_USERPTR = 0x1,
+	VM_TYPE_PHYS_PACK = 0x2
 };
 
 /**
@@ -483,8 +483,8 @@ enum hl_pll_frequency {
  * @get_events_stat: retrieve event queue entries histogram.
  * @read_pte: read MMU page table entry from DRAM.
  * @write_pte: write MMU page table entry to DRAM.
- * @mmu_invalidate_cache: flush MMU STLB cache, either with soft (L1 only) or
- *                        hard (L0 & L1) flush.
+ * @mmu_invalidate_cache: flush MMU STLB host/DRAM cache, either with soft
+ *                        (L1 only) or hard (L0 & L1) flush.
  * @mmu_invalidate_cache_range: flush specific MMU STLB cache lines with
  *                              ASID-VA-size mask.
  * @send_heartbeat: send is-alive packet to ArmCP and verify response.
@@ -565,7 +565,8 @@ struct hl_asic_funcs {
 				u32 *size);
 	u64 (*read_pte)(struct hl_device *hdev, u64 addr);
 	void (*write_pte)(struct hl_device *hdev, u64 addr, u64 val);
-	void (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard);
+	void (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard,
+					u32 flags);
 	void (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
 			u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);

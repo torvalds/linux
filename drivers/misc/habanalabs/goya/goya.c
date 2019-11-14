@@ -2463,7 +2463,8 @@ int goya_mmu_init(struct hl_device *hdev)
 	WREG32_AND(mmSTLB_STLB_FEATURE_EN,
 			(~STLB_STLB_FEATURE_EN_FOLLOWER_EN_MASK));
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true,
+					VM_TYPE_USERPTR | VM_TYPE_PHYS_PACK);
 
 	WREG32(mmMMU_MMU_ENABLE, 1);
 	WREG32(mmMMU_SPI_MASK, 0xF);
@@ -4845,7 +4846,8 @@ static void goya_mmu_prepare(struct hl_device *hdev, u32 asid)
 		goya_mmu_prepare_reg(hdev, goya_mmu_regs[i], asid);
 }
 
-static void goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard)
+static void goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
+					u32 flags)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	u32 status, timeout_usec;
