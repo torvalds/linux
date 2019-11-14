@@ -3985,6 +3985,88 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 	return 0;
 }
 
+int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog)
+{
+	struct bpf_verifier_state *st = env->cur_state;
+	struct bpf_func_state *func = st->frame[st->curframe];
+	struct bpf_reg_state *reg = func->regs;
+	struct bpf_verifier_log *log = &env->log;
+	struct bpf_prog *prog = env->prog;
+	struct btf *btf = prog->aux->btf;
+	const struct btf_param *args;
+	const struct btf_type *t;
+	u32 i, nargs, btf_id;
+	const char *tname;
+
+	if (!prog->aux->func_info)
+		return 0;
+
+	btf_id = prog->aux->func_info[subprog].type_id;
+	if (!btf_id)
+		return 0;
+
+	if (prog->aux->func_info_aux[subprog].unreliable)
+		return 0;
+
+	t = btf_type_by_id(btf, btf_id);
+	if (!t || !btf_type_is_func(t)) {
+		bpf_log(log, "BTF of subprog %d doesn't point to KIND_FUNC\n",
+			subprog);
+		return -EINVAL;
+	}
+	tname = btf_name_by_offset(btf, t->name_off);
+
+	t = btf_type_by_id(btf, t->type);
+	if (!t || !btf_type_is_func_proto(t)) {
+		bpf_log(log, "Invalid type of func %s\n", tname);
+		return -EINVAL;
+	}
+	args = (const struct btf_param *)(t + 1);
+	nargs = btf_type_vlen(t);
+	if (nargs > 5) {
+		bpf_log(log, "Function %s has %d > 5 args\n", tname, nargs);
+		goto out;
+	}
+	/* check that BTF function arguments match actual types that the
+	 * verifier sees.
+	 */
+	for (i = 0; i < nargs; i++) {
+		t = btf_type_by_id(btf, args[i].type);
+		while (btf_type_is_modifier(t))
+			t = btf_type_by_id(btf, t->type);
+		if (btf_type_is_int(t) || btf_type_is_enum(t)) {
+			if (reg[i + 1].type == SCALAR_VALUE)
+				continue;
+			bpf_log(log, "R%d is not a scalar\n", i + 1);
+			goto out;
+		}
+		if (btf_type_is_ptr(t)) {
+			if (reg[i + 1].type == SCALAR_VALUE) {
+				bpf_log(log, "R%d is not a pointer\n", i + 1);
+				goto out;
+			}
+			/* If program is passing PTR_TO_CTX into subprogram
+			 * check that BTF type matches.
+			 */
+			if (reg[i + 1].type == PTR_TO_CTX &&
+			    !btf_get_prog_ctx_type(log, btf, t, prog->type))
+				goto out;
+			/* All other pointers are ok */
+			continue;
+		}
+		bpf_log(log, "Unrecognized argument type %s\n",
+			btf_kind_str[BTF_INFO_KIND(t->info)]);
+		goto out;
+	}
+	return 0;
+out:
+	/* LLVM optimizations can remove arguments from static functions. */
+	bpf_log(log,
+		"Type info disagrees with actual arguments due to compiler optimizations\n");
+	prog->aux->func_info_aux[subprog].unreliable = true;
+	return 0;
+}
+
 void btf_type_seq_show(const struct btf *btf, u32 type_id, void *obj,
 		       struct seq_file *m)
 {
