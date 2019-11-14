@@ -291,6 +291,35 @@ void cgx_lmac_promisc_config(int cgx_id, int lmac_id, bool enable)
 }
 EXPORT_SYMBOL(cgx_lmac_promisc_config);
 
+/* Enable or disable forwarding received pause frames to Tx block */
+void cgx_lmac_enadis_rx_pause_fwding(void *cgxd, int lmac_id, bool enable)
+{
+	struct cgx *cgx = cgxd;
+	u64 cfg;
+
+	if (!cgx)
+		return;
+
+	if (enable) {
+		cfg = cgx_read(cgx, lmac_id, CGXX_GMP_GMI_RXX_FRM_CTL);
+		cfg |= CGX_GMP_GMI_RXX_FRM_CTL_CTL_BCK;
+		cgx_write(cgx, lmac_id, CGXX_GMP_GMI_RXX_FRM_CTL, cfg);
+
+		cfg = cgx_read(cgx, lmac_id, CGXX_SMUX_RX_FRM_CTL);
+		cfg |= CGX_SMUX_RX_FRM_CTL_CTL_BCK;
+		cgx_write(cgx, lmac_id,	CGXX_SMUX_RX_FRM_CTL, cfg);
+	} else {
+		cfg = cgx_read(cgx, lmac_id, CGXX_GMP_GMI_RXX_FRM_CTL);
+		cfg &= ~CGX_GMP_GMI_RXX_FRM_CTL_CTL_BCK;
+		cgx_write(cgx, lmac_id, CGXX_GMP_GMI_RXX_FRM_CTL, cfg);
+
+		cfg = cgx_read(cgx, lmac_id, CGXX_SMUX_RX_FRM_CTL);
+		cfg &= ~CGX_SMUX_RX_FRM_CTL_CTL_BCK;
+		cgx_write(cgx, lmac_id,	CGXX_SMUX_RX_FRM_CTL, cfg);
+	}
+}
+EXPORT_SYMBOL(cgx_lmac_enadis_rx_pause_fwding);
+
 int cgx_get_rx_stats(void *cgxd, int lmac_id, int idx, u64 *rx_stat)
 {
 	struct cgx *cgx = cgxd;
@@ -330,6 +359,27 @@ int cgx_lmac_rx_tx_enable(void *cgxd, int lmac_id, bool enable)
 	return 0;
 }
 EXPORT_SYMBOL(cgx_lmac_rx_tx_enable);
+
+int cgx_lmac_tx_enable(void *cgxd, int lmac_id, bool enable)
+{
+	struct cgx *cgx = cgxd;
+	u64 cfg, last;
+
+	if (!cgx || lmac_id >= cgx->lmac_count)
+		return -ENODEV;
+
+	cfg = cgx_read(cgx, lmac_id, CGXX_CMRX_CFG);
+	last = cfg;
+	if (enable)
+		cfg |= DATA_PKT_TX_EN;
+	else
+		cfg &= ~DATA_PKT_TX_EN;
+
+	if (cfg != last)
+		cgx_write(cgx, lmac_id, CGXX_CMRX_CFG, cfg);
+	return !!(last & DATA_PKT_TX_EN);
+}
+EXPORT_SYMBOL(cgx_lmac_tx_enable);
 
 /* CGX Firmware interface low level support */
 static int cgx_fwi_cmd_send(u64 req, u64 *resp, struct lmac *lmac)

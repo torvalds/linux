@@ -184,10 +184,12 @@ struct rvu_pfvf {
 struct nix_txsch {
 	struct rsrc_bmap schq;
 	u8   lvl;
-#define NIX_TXSCHQ_TL1_CFG_DONE       BIT_ULL(0)
+#define NIX_TXSCHQ_FREE		      BIT_ULL(1)
+#define NIX_TXSCHQ_CFG_DONE	      BIT_ULL(0)
 #define TXSCH_MAP_FUNC(__pfvf_map)    ((__pfvf_map) & 0xFFFF)
 #define TXSCH_MAP_FLAGS(__pfvf_map)   ((__pfvf_map) >> 16)
 #define TXSCH_MAP(__func, __flags)    (((__func) & 0xFFFF) | ((__flags) << 16))
+#define TXSCH_SET_FLAG(__pfvf_map, flag)    ((__pfvf_map) | ((flag) << 16))
 	u32  *pfvf_map;
 };
 
@@ -221,6 +223,20 @@ struct nix_hw {
 	struct nix_lso lso;
 };
 
+/* RVU block's capabilities or functionality,
+ * which vary by silicon version/skew.
+ */
+struct hw_cap {
+	/* Transmit side supported functionality */
+	u8	nix_tx_aggr_lvl; /* Tx link's traffic aggregation level */
+	u16	nix_txsch_per_cgx_lmac; /* Max Q's transmitting to CGX LMAC */
+	u16	nix_txsch_per_lbk_lmac; /* Max Q's transmitting to LBK LMAC */
+	u16	nix_txsch_per_sdp_lmac; /* Max Q's transmitting to SDP LMAC */
+	bool	nix_fixed_txschq_mapping; /* Schq mapping fixed or flexible */
+	bool	nix_shaping;		 /* Is shaping and coloring supported */
+	bool	nix_tx_link_bp;		 /* Can link backpressure TL queues ? */
+};
+
 struct rvu_hwinfo {
 	u8	total_pfs;   /* MAX RVU PFs HW supports */
 	u16	total_vfs;   /* Max RVU VFs HW supports */
@@ -232,7 +248,7 @@ struct rvu_hwinfo {
 	u8	sdp_links;
 	u8	npc_kpus;          /* No of parser units */
 
-
+	struct hw_cap    cap;
 	struct rvu_block block[BLK_COUNT]; /* Block info */
 	struct nix_hw    *nix0;
 	struct npc_pkind pkind;
@@ -317,11 +333,20 @@ static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
 	return readq(rvu->pfreg_base + offset);
 }
 
-static inline bool is_rvu_9xxx_A0(struct rvu *rvu)
+/* Silicon revisions */
+static inline bool is_rvu_96xx_A0(struct rvu *rvu)
 {
 	struct pci_dev *pdev = rvu->pdev;
 
 	return (pdev->revision == 0x00) &&
+		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX);
+}
+
+static inline bool is_rvu_96xx_B0(struct rvu *rvu)
+{
+	struct pci_dev *pdev = rvu->pdev;
+
+	return ((pdev->revision == 0x00) || (pdev->revision == 0x01)) &&
 		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX);
 }
 
@@ -383,6 +408,7 @@ int rvu_cgx_init(struct rvu *rvu);
 int rvu_cgx_exit(struct rvu *rvu);
 void *rvu_cgx_pdata(u8 cgx_id, struct rvu *rvu);
 int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start);
+void rvu_cgx_enadis_rx_bp(struct rvu *rvu, int pf, bool enable);
 int rvu_cgx_nix_cuml_stats(struct rvu *rvu, void *cgxd, int lmac_id, int index,
 			   int rxtxflag, u64 *stat);
 /* NPA APIs */
@@ -400,6 +426,7 @@ int rvu_nix_reserve_mark_format(struct rvu *rvu, struct nix_hw *nix_hw,
 void rvu_nix_freemem(struct rvu *rvu);
 int rvu_get_nixlf_count(struct rvu *rvu);
 void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int npalf);
+int nix_get_nixlf(struct rvu *rvu, u16 pcifunc, int *nixlf);
 
 /* NPC APIs */
 int rvu_npc_init(struct rvu *rvu);

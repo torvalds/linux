@@ -348,6 +348,24 @@ int rvu_cgx_exit(struct rvu *rvu)
 	return 0;
 }
 
+void rvu_cgx_enadis_rx_bp(struct rvu *rvu, int pf, bool enable)
+{
+	u8 cgx_id, lmac_id;
+	void *cgxd;
+
+	if (!is_pf_cgxmapped(rvu, pf))
+		return;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	cgxd = rvu_cgx_pdata(cgx_id, rvu);
+
+	/* Set / clear CTL_BCK to control pause frame forwarding to NIX */
+	if (enable)
+		cgx_lmac_enadis_rx_pause_fwding(cgxd, lmac_id, true);
+	else
+		cgx_lmac_enadis_rx_pause_fwding(cgxd, lmac_id, false);
+}
+
 int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start)
 {
 	int pf = rvu_get_pf(pcifunc);
