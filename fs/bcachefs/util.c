@@ -556,7 +556,7 @@ size_t bch2_rand_range(size_t max)
 	return rand;
 }
 
-void memcpy_to_bio(struct bio *dst, struct bvec_iter dst_iter, void *src)
+void memcpy_to_bio(struct bio *dst, struct bvec_iter dst_iter, const void *src)
 {
 	struct bio_vec bv;
 	struct bvec_iter iter;
