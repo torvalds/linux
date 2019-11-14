@@ -656,6 +656,7 @@ void smc_llc_link_active(struct smc_link *link, int testlink_time)
 void smc_llc_link_deleting(struct smc_link *link)
 {
 	link->state = SMC_LNK_DELETING;
+	smc_wr_wakeup_tx_wait(link);
 }
 
 /* called in tasklet context */
@@ -663,6 +664,8 @@ void smc_llc_link_inactive(struct smc_link *link)
 {
 	link->state = SMC_LNK_INACTIVE;
 	cancel_delayed_work(&link->llc_testlink_wrk);
+	smc_wr_wakeup_reg_wait(link);
+	smc_wr_wakeup_tx_wait(link);
 }
 
 /* called in worker context */
