@@ -48,6 +48,7 @@ struct i915_active {
 	atomic_t count;
 	struct mutex mutex;
 
+	spinlock_t tree_lock;
 	struct active_node *cache;
 	struct rb_root tree;
 

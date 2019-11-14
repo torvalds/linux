@@ -277,8 +277,8 @@ void i915_active_unlock_wait(struct i915_active *ref)
 	}
 
 	/* And wait for the retire callback */
-	mutex_lock(&ref->mutex);
-	mutex_unlock(&ref->mutex);
+	spin_lock_irq(&ref->tree_lock);
+	spin_unlock_irq(&ref->tree_lock);
 
 	/* ... which may have been on a thread instead */
 	flush_work(&ref->work);
