@@ -67,11 +67,19 @@ enum mod_hdcp_status mod_hdcp_hdcp1_transition(struct mod_hdcp *hdcp,
 		break;
 	case H1_A2_COMPUTATIONS_A3_VALIDATE_RX_A6_TEST_FOR_REPEATER:
 		if (input->bcaps_read != PASS ||
-				input->r0p_read != PASS ||
-				input->rx_validation != PASS ||
-				(!conn->is_repeater && input->encryption != PASS)) {
+				input->r0p_read != PASS) {
+			fail_and_restart_in_ms(0, &status, output);
+			break;
+		} else if (input->rx_validation != PASS) {
 			/* 1A-06: consider invalid r0' a failure */
 			/* 1A-08: consider bksv listed in SRM a failure */
+			/*
+			 * some slow RX will fail rx validation when it is
+			 * not ready. give it more time to react before retry.
+			 */
+			fail_and_restart_in_ms(1000, &status, output);
+			break;
+		} else if (!conn->is_repeater && input->encryption != PASS) {
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		}
@@ -212,7 +220,11 @@ enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 				 * after 3 attempts.
 				 * 1A-08: consider bksv listed in SRM a failure
 				 */
-				fail_and_restart_in_ms(0, &status, output);
+				/*
+				 * some slow RX will fail rx validation when it is
+				 * not ready. give it more time to react before retry.
+				 */
+				fail_and_restart_in_ms(1000, &status, output);
 			}
 			break;
 		} else if ((!conn->is_repeater && input->encryption != PASS) ||
