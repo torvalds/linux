@@ -878,6 +878,7 @@ enum kvm_irqchip_mode {
 #define APICV_INHIBIT_REASON_DISABLE    0
 #define APICV_INHIBIT_REASON_HYPERV     1
 #define APICV_INHIBIT_REASON_NESTED     2
+#define APICV_INHIBIT_REASON_IRQWIN     3
 
 struct kvm_arch {
 	unsigned long n_used_mmu_pages;
