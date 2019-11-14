@@ -301,6 +301,54 @@ err:
 	return ret;
 }
 
+static int si2157_tune_wait(struct i2c_client *client)
+{
+#define TUN_TIMEOUT 40
+	struct si2157_dev *dev = i2c_get_clientdata(client);
+	int ret;
+	unsigned long timeout;
+	unsigned long start_time;
+	u8 wait_status;
+
+	mutex_lock(&dev->i2c_mutex);
+
+	/* wait tuner command complete */
+	start_time = jiffies;
+	timeout = start_time + msecs_to_jiffies(TUN_TIMEOUT);
+	while (!time_after(jiffies, timeout)) {
+		ret = i2c_master_recv(client, &wait_status,
+				      sizeof(wait_status));
+		if (ret < 0) {
+			goto err_mutex_unlock;
+		} else if (ret != sizeof(wait_status)) {
+			ret = -EREMOTEIO;
+			goto err_mutex_unlock;
+		}
+
+		/* tuner done? */
+		if ((wait_status & 0x81) == 0x81)
+			break;
+		usleep_range(5000, 10000);
+	}
+
+	dev_dbg(&client->dev, "tuning took %d ms, status=0x%x\n",
+		jiffies_to_msecs(jiffies) - jiffies_to_msecs(start_time),
+		wait_status);
+
+	if ((wait_status & 0xc0) != 0x80) {
+		ret = -ETIMEDOUT;
+		goto err_mutex_unlock;
+	}
+
+	mutex_unlock(&dev->i2c_mutex);
+	return 0;
+
+err_mutex_unlock:
+	mutex_unlock(&dev->i2c_mutex);
+	dev_err(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
 static int si2157_set_params(struct dvb_frontend *fe)
 {
 	struct i2c_client *client = fe->tuner_priv;
@@ -399,6 +447,8 @@ static int si2157_set_params(struct dvb_frontend *fe)
 
 	dev->bandwidth = bandwidth;
 	dev->frequency = c->frequency;
+
+	si2157_tune_wait(client); /* wait to complete, ignore any errors */
 
 	return 0;
 err:
@@ -594,6 +644,8 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 		goto err;
 
 	dev->bandwidth = bandwidth;
+
+	si2157_tune_wait(client); /* wait to complete, ignore any errors */
 
 	return 0;
 err:
