@@ -1,7 +1,0 @@
-TODO:
-- Find a file-system developer to review this and give their Reviewed-By
-- Address any items coming up during review
-- Move to fs/vboxfs
-
-Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-and Hans de Goede <hdegoede@redhat.com>
