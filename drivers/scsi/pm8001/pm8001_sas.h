@@ -546,6 +546,7 @@ struct pm8001_hba_info {
 	struct tasklet_struct	tasklet[PM8001_MAX_MSIX_VEC];
 #endif
 	u32			logging_level;
+	u32			link_rate;
 	u32			fw_status;
 	u32			smp_exp_mode;
 	bool			controller_fatal_error;

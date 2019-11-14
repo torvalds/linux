@@ -37,6 +37,7 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  */
+ #include <linux/version.h>
  #include <linux/slab.h>
  #include "pm8001_sas.h"
  #include "pm80xx_hwi.h"
@@ -4565,23 +4566,9 @@ pm80xx_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 
 	PM8001_INIT_DBG(pm8001_ha,
 		pm8001_printk("PHY START REQ for phy_id %d\n", phy_id));
-	/*
-	 ** [0:7]	PHY Identifier
-	 ** [8:11]	link rate 1.5G, 3G, 6G
-	 ** [12:13] link mode 01b SAS mode; 10b SATA mode; 11b Auto mode
-	 ** [14]	0b disable spin up hold; 1b enable spin up hold
-	 ** [15] ob no change in current PHY analig setup 1b enable using SPAST
-	 */
-	if (!IS_SPCV_12G(pm8001_ha->pdev))
-		payload.ase_sh_lm_slr_phyid = cpu_to_le32(SPINHOLD_DISABLE |
-				LINKMODE_AUTO | LINKRATE_15 |
-				LINKRATE_30 | LINKRATE_60 | phy_id);
-	else
-		payload.ase_sh_lm_slr_phyid = cpu_to_le32(SPINHOLD_DISABLE |
-				LINKMODE_AUTO | LINKRATE_15 |
-				LINKRATE_30 | LINKRATE_60 | LINKRATE_120 |
-				phy_id);
 
+	payload.ase_sh_lm_slr_phyid = cpu_to_le32(SPINHOLD_DISABLE |
+			LINKMODE_AUTO | pm8001_ha->link_rate | phy_id);
 	/* SSC Disable and SAS Analog ST configuration */
 	/**
 	payload.ase_sh_lm_slr_phyid =
@@ -4594,7 +4581,7 @@ pm80xx_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 	payload.sas_identify.dev_type = SAS_END_DEVICE;
 	payload.sas_identify.initiator_bits = SAS_PROTOCOL_ALL;
 	memcpy(payload.sas_identify.sas_addr,
-	  &pm8001_ha->phy[phy_id].dev_sas_addr, SAS_ADDR_SIZE);
+	  &pm8001_ha->sas_addr, SAS_ADDR_SIZE);
 	payload.sas_identify.phy_id = phy_id;
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opcode, &payload,
 			sizeof(payload), 0);
