@@ -237,14 +237,14 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 	return IRQ_HANDLED;
 }
 
-/* is this IRQ for ADSP ? - we only care about IPC here */
-irqreturn_t hda_dsp_ipc_irq_handler(int irq, void *context)
+/* Check if it is an IPC and disable IPC interrupt if yes */
+bool check_ipc(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_dev *sdev = context;
-	int ret = IRQ_NONE;
+	bool ret = false;
 	u32 irq_status;
 
-	spin_lock(&sdev->hw_lock);
+	/* The function can be called at irq thread, so use spin_lock_irq */
+	spin_lock_irq(&sdev->hw_lock);
 
 	/* store status */
 	irq_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIS);
@@ -260,11 +260,11 @@ irqreturn_t hda_dsp_ipc_irq_handler(int irq, void *context)
 		snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
 						 HDA_DSP_REG_ADSPIC,
 						 HDA_DSP_ADSPIC_IPC, 0);
-		ret = IRQ_WAKE_THREAD;
+		ret = true;
 	}
 
 out:
-	spin_unlock(&sdev->hw_lock);
+	spin_unlock_irq(&sdev->hw_lock);
 	return ret;
 }
 
