@@ -661,6 +661,21 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	return 0;
 }
 
+static const char *nix_get_ctx_name(int ctype)
+{
+	switch (ctype) {
+	case NIX_AQ_CTYPE_CQ:
+		return "CQ";
+	case NIX_AQ_CTYPE_SQ:
+		return "SQ";
+	case NIX_AQ_CTYPE_RQ:
+		return "RQ";
+	case NIX_AQ_CTYPE_RSS:
+		return "RSS";
+	}
+	return "";
+}
+
 static int nix_lf_hwctx_disable(struct rvu *rvu, struct hwctx_disable_req *req)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
@@ -705,12 +720,37 @@ static int nix_lf_hwctx_disable(struct rvu *rvu, struct hwctx_disable_req *req)
 		if (rc) {
 			err = rc;
 			dev_err(rvu->dev, "Failed to disable %s:%d context\n",
-				(req->ctype == NIX_AQ_CTYPE_CQ) ?
-				"CQ" : ((req->ctype == NIX_AQ_CTYPE_RQ) ?
-				"RQ" : "SQ"), qidx);
+				nix_get_ctx_name(req->ctype), qidx);
 		}
 	}
 
+	return err;
+}
+
+#ifdef CONFIG_NDC_DIS_DYNAMIC_CACHING
+static int nix_lf_hwctx_lockdown(struct rvu *rvu, struct nix_aq_enq_req *req)
+{
+	struct nix_aq_enq_req lock_ctx_req;
+	int err;
+
+	if (req->op != NIX_AQ_INSTOP_INIT)
+		return 0;
+
+	if (req->ctype == NIX_AQ_CTYPE_MCE ||
+	    req->ctype == NIX_AQ_CTYPE_DYNO)
+		return 0;
+
+	memset(&lock_ctx_req, 0, sizeof(struct nix_aq_enq_req));
+	lock_ctx_req.hdr.pcifunc = req->hdr.pcifunc;
+	lock_ctx_req.ctype = req->ctype;
+	lock_ctx_req.op = NIX_AQ_INSTOP_LOCK;
+	lock_ctx_req.qidx = req->qidx;
+	err = rvu_nix_aq_enq_inst(rvu, &lock_ctx_req, NULL);
+	if (err)
+		dev_err(rvu->dev,
+			"PFUNC 0x%x: Failed to lock NIX %s:%d context\n",
+			req->hdr.pcifunc,
+			nix_get_ctx_name(req->ctype), req->qidx);
 	return err;
 }
 
@@ -718,8 +758,22 @@ int rvu_mbox_handler_nix_aq_enq(struct rvu *rvu,
 				struct nix_aq_enq_req *req,
 				struct nix_aq_enq_rsp *rsp)
 {
+	int err;
+
+	err = rvu_nix_aq_enq_inst(rvu, req, rsp);
+	if (!err)
+		err = nix_lf_hwctx_lockdown(rvu, req);
+	return err;
+}
+#else
+
+int rvu_mbox_handler_nix_aq_enq(struct rvu *rvu,
+				struct nix_aq_enq_req *req,
+				struct nix_aq_enq_rsp *rsp)
+{
 	return rvu_nix_aq_enq_inst(rvu, req, rsp);
 }
+#endif
 
 int rvu_mbox_handler_nix_hwctx_disable(struct rvu *rvu,
 				       struct hwctx_disable_req *req,
@@ -2871,6 +2925,10 @@ static int nix_aq_init(struct rvu *rvu, struct rvu_block *block)
 	/* Do not bypass NDC cache */
 	cfg = rvu_read64(rvu, block->addr, NIX_AF_NDC_CFG);
 	cfg &= ~0x3FFEULL;
+#ifdef CONFIG_NDC_DIS_DYNAMIC_CACHING
+	/* Disable caching of SQB aka SQEs */
+	cfg |= 0x04ULL;
+#endif
 	rvu_write64(rvu, block->addr, NIX_AF_NDC_CFG, cfg);
 
 	/* Result structure can be followed by RQ/SQ/CQ context at
