@@ -21,6 +21,9 @@
 
 #define DEBUGFS_DIR_NAME "octeontx2"
 
+#define NDC_MAX_BANK(rvu, blk_addr) (rvu_read64(rvu, \
+						blk_addr, NDC_AF_CONST) & 0xFF)
+
 #define rvu_dbg_NULL NULL
 #define rvu_dbg_open_NULL NULL
 
@@ -609,6 +612,113 @@ static int rvu_dbg_npa_pool_ctx_display(struct seq_file *filp, void *unused)
 
 RVU_DEBUG_SEQ_FOPS(npa_pool_ctx, npa_pool_ctx_display, npa_pool_ctx_write);
 
+static void ndc_cache_stats(struct seq_file *s, int blk_addr,
+			    int ctype, int transaction)
+{
+	u64 req, out_req, lat, cant_alloc;
+	struct rvu *rvu = s->private;
+	int port;
+
+	for (port = 0; port < NDC_MAX_PORT; port++) {
+		req = rvu_read64(rvu, blk_addr, NDC_AF_PORTX_RTX_RWX_REQ_PC
+						(port, ctype, transaction));
+		lat = rvu_read64(rvu, blk_addr, NDC_AF_PORTX_RTX_RWX_LAT_PC
+						(port, ctype, transaction));
+		out_req = rvu_read64(rvu, blk_addr,
+				     NDC_AF_PORTX_RTX_RWX_OSTDN_PC
+				     (port, ctype, transaction));
+		cant_alloc = rvu_read64(rvu, blk_addr,
+					NDC_AF_PORTX_RTX_CANT_ALLOC_PC
+					(port, transaction));
+		seq_printf(s, "\nPort:%d\n", port);
+		seq_printf(s, "\tTotal Requests:\t\t%lld\n", req);
+		seq_printf(s, "\tTotal Time Taken:\t%lld cycles\n", lat);
+		seq_printf(s, "\tAvg Latency:\t\t%lld cycles\n", lat / req);
+		seq_printf(s, "\tOutstanding Requests:\t%lld\n", out_req);
+		seq_printf(s, "\tCant Alloc Requests:\t%lld\n", cant_alloc);
+	}
+}
+
+static int ndc_blk_cache_stats(struct seq_file *s, int idx, int blk_addr)
+{
+	seq_puts(s, "\n***** CACHE mode read stats *****\n");
+	ndc_cache_stats(s, blk_addr, CACHING, NDC_READ_TRANS);
+	seq_puts(s, "\n***** CACHE mode write stats *****\n");
+	ndc_cache_stats(s, blk_addr, CACHING, NDC_WRITE_TRANS);
+	seq_puts(s, "\n***** BY-PASS mode read stats *****\n");
+	ndc_cache_stats(s, blk_addr, BYPASS, NDC_READ_TRANS);
+	seq_puts(s, "\n***** BY-PASS mode write stats *****\n");
+	ndc_cache_stats(s, blk_addr, BYPASS, NDC_WRITE_TRANS);
+	return 0;
+}
+
+static int rvu_dbg_npa_ndc_cache_display(struct seq_file *filp, void *unused)
+{
+	return ndc_blk_cache_stats(filp, NPA0_U, BLKADDR_NDC_NPA0);
+}
+
+RVU_DEBUG_SEQ_FOPS(npa_ndc_cache, npa_ndc_cache_display, NULL);
+
+static int ndc_blk_hits_miss_stats(struct seq_file *s, int idx, int blk_addr)
+{
+	struct rvu *rvu = s->private;
+	int bank, max_bank;
+
+	max_bank = NDC_MAX_BANK(rvu, blk_addr);
+	for (bank = 0; bank < max_bank; bank++) {
+		seq_printf(s, "BANK:%d\n", bank);
+		seq_printf(s, "\tHits:\t%lld\n",
+			   (u64)rvu_read64(rvu, blk_addr,
+			   NDC_AF_BANKX_HIT_PC(bank)));
+		seq_printf(s, "\tMiss:\t%lld\n",
+			   (u64)rvu_read64(rvu, blk_addr,
+			    NDC_AF_BANKX_MISS_PC(bank)));
+	}
+	return 0;
+}
+
+static int rvu_dbg_nix_ndc_rx_cache_display(struct seq_file *filp, void *unused)
+{
+	return ndc_blk_cache_stats(filp, NIX0_RX,
+				   BLKADDR_NDC_NIX0_RX);
+}
+
+RVU_DEBUG_SEQ_FOPS(nix_ndc_rx_cache, nix_ndc_rx_cache_display, NULL);
+
+static int rvu_dbg_nix_ndc_tx_cache_display(struct seq_file *filp, void *unused)
+{
+	return ndc_blk_cache_stats(filp, NIX0_TX,
+				   BLKADDR_NDC_NIX0_TX);
+}
+
+RVU_DEBUG_SEQ_FOPS(nix_ndc_tx_cache, nix_ndc_tx_cache_display, NULL);
+
+static int rvu_dbg_npa_ndc_hits_miss_display(struct seq_file *filp,
+					     void *unused)
+{
+	return ndc_blk_hits_miss_stats(filp, NPA0_U, BLKADDR_NDC_NPA0);
+}
+
+RVU_DEBUG_SEQ_FOPS(npa_ndc_hits_miss, npa_ndc_hits_miss_display, NULL);
+
+static int rvu_dbg_nix_ndc_rx_hits_miss_display(struct seq_file *filp,
+						void *unused)
+{
+	return ndc_blk_hits_miss_stats(filp,
+				      NPA0_U, BLKADDR_NDC_NIX0_RX);
+}
+
+RVU_DEBUG_SEQ_FOPS(nix_ndc_rx_hits_miss, nix_ndc_rx_hits_miss_display, NULL);
+
+static int rvu_dbg_nix_ndc_tx_hits_miss_display(struct seq_file *filp,
+						void *unused)
+{
+	return ndc_blk_hits_miss_stats(filp,
+				      NPA0_U, BLKADDR_NDC_NIX0_TX);
+}
+
+RVU_DEBUG_SEQ_FOPS(nix_ndc_tx_hits_miss, nix_ndc_tx_hits_miss_display, NULL);
+
 /* Dumps given nix_sq's context */
 static void print_nix_sq_ctx(struct seq_file *m, struct nix_aq_enq_rsp *rsp)
 {
@@ -1087,6 +1197,26 @@ static void rvu_dbg_nix_init(struct rvu *rvu)
 	if (!pfile)
 		goto create_failed;
 
+	pfile = debugfs_create_file("ndc_tx_cache", 0600, rvu->rvu_dbg.nix, rvu,
+				    &rvu_dbg_nix_ndc_tx_cache_fops);
+	if (!pfile)
+		goto create_failed;
+
+	pfile = debugfs_create_file("ndc_rx_cache", 0600, rvu->rvu_dbg.nix, rvu,
+				    &rvu_dbg_nix_ndc_rx_cache_fops);
+	if (!pfile)
+		goto create_failed;
+
+	pfile = debugfs_create_file("ndc_tx_hits_miss", 0600, rvu->rvu_dbg.nix,
+				    rvu, &rvu_dbg_nix_ndc_tx_hits_miss_fops);
+	if (!pfile)
+		goto create_failed;
+
+	pfile = debugfs_create_file("ndc_rx_hits_miss", 0600, rvu->rvu_dbg.nix,
+				    rvu, &rvu_dbg_nix_ndc_rx_hits_miss_fops);
+	if (!pfile)
+		goto create_failed;
+
 	pfile = debugfs_create_file("qsize", 0600, rvu->rvu_dbg.nix, rvu,
 				    &rvu_dbg_nix_qsize_fops);
 	if (!pfile)
@@ -1119,6 +1249,16 @@ static void rvu_dbg_npa_init(struct rvu *rvu)
 
 	pfile = debugfs_create_file("pool_ctx", 0600, rvu->rvu_dbg.npa, rvu,
 				    &rvu_dbg_npa_pool_ctx_fops);
+	if (!pfile)
+		goto create_failed;
+
+	pfile = debugfs_create_file("ndc_cache", 0600, rvu->rvu_dbg.npa, rvu,
+				    &rvu_dbg_npa_ndc_cache_fops);
+	if (!pfile)
+		goto create_failed;
+
+	pfile = debugfs_create_file("ndc_hits_miss", 0600, rvu->rvu_dbg.npa,
+				    rvu, &rvu_dbg_npa_ndc_hits_miss_fops);
 	if (!pfile)
 		goto create_failed;
 
