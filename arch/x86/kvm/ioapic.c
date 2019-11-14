@@ -154,10 +154,16 @@ static void kvm_rtc_eoi_tracking_restore_all(struct kvm_ioapic *ioapic)
 	    __rtc_irq_eoi_tracking_restore_one(vcpu);
 }
 
-static void rtc_irq_eoi(struct kvm_ioapic *ioapic, struct kvm_vcpu *vcpu)
+static void rtc_irq_eoi(struct kvm_ioapic *ioapic, struct kvm_vcpu *vcpu,
+			int vector)
 {
-	if (test_and_clear_bit(vcpu->vcpu_id,
-			       ioapic->rtc_status.dest_map.map)) {
+	struct dest_map *dest_map = &ioapic->rtc_status.dest_map;
+
+	/* RTC special handling */
+	if (test_bit(vcpu->vcpu_id, dest_map->map) &&
+	    (vector == dest_map->vectors[vcpu->vcpu_id]) &&
+	    (test_and_clear_bit(vcpu->vcpu_id,
+				ioapic->rtc_status.dest_map.map))) {
 		--ioapic->rtc_status.pending_eoi;
 		rtc_status_pending_eoi_check_valid(ioapic);
 	}
@@ -454,72 +460,68 @@ static void kvm_ioapic_eoi_inject_work(struct work_struct *work)
 }
 
 #define IOAPIC_SUCCESSIVE_IRQ_MAX_COUNT 10000
-
-static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
-			struct kvm_ioapic *ioapic, int vector, int trigger_mode)
+static void kvm_ioapic_update_eoi_one(struct kvm_vcpu *vcpu,
+				      struct kvm_ioapic *ioapic,
+				      int trigger_mode,
+				      int pin)
 {
-	struct dest_map *dest_map = &ioapic->rtc_status.dest_map;
 	struct kvm_lapic *apic = vcpu->arch.apic;
-	int i;
+	union kvm_ioapic_redirect_entry *ent = &ioapic->redirtbl[pin];
 
-	/* RTC special handling */
-	if (test_bit(vcpu->vcpu_id, dest_map->map) &&
-	    vector == dest_map->vectors[vcpu->vcpu_id])
-		rtc_irq_eoi(ioapic, vcpu);
+	/*
+	 * We are dropping lock while calling ack notifiers because ack
+	 * notifier callbacks for assigned devices call into IOAPIC
+	 * recursively. Since remote_irr is cleared only after call
+	 * to notifiers if the same vector will be delivered while lock
+	 * is dropped it will be put into irr and will be delivered
+	 * after ack notifier returns.
+	 */
+	spin_unlock(&ioapic->lock);
+	kvm_notify_acked_irq(ioapic->kvm, KVM_IRQCHIP_IOAPIC, pin);
+	spin_lock(&ioapic->lock);
 
-	for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-		union kvm_ioapic_redirect_entry *ent = &ioapic->redirtbl[i];
+	if (trigger_mode != IOAPIC_LEVEL_TRIG ||
+	    kvm_lapic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI)
+		return;
 
-		if (ent->fields.vector != vector)
-			continue;
-
-		/*
-		 * We are dropping lock while calling ack notifiers because ack
-		 * notifier callbacks for assigned devices call into IOAPIC
-		 * recursively. Since remote_irr is cleared only after call
-		 * to notifiers if the same vector will be delivered while lock
-		 * is dropped it will be put into irr and will be delivered
-		 * after ack notifier returns.
-		 */
-		spin_unlock(&ioapic->lock);
-		kvm_notify_acked_irq(ioapic->kvm, KVM_IRQCHIP_IOAPIC, i);
-		spin_lock(&ioapic->lock);
-
-		if (trigger_mode != IOAPIC_LEVEL_TRIG ||
-		    kvm_lapic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI)
-			continue;
-
-		ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
-		ent->fields.remote_irr = 0;
-		if (!ent->fields.mask && (ioapic->irr & (1 << i))) {
-			++ioapic->irq_eoi[i];
-			if (ioapic->irq_eoi[i] == IOAPIC_SUCCESSIVE_IRQ_MAX_COUNT) {
-				/*
-				 * Real hardware does not deliver the interrupt
-				 * immediately during eoi broadcast, and this
-				 * lets a buggy guest make slow progress
-				 * even if it does not correctly handle a
-				 * level-triggered interrupt.  Emulate this
-				 * behavior if we detect an interrupt storm.
-				 */
-				schedule_delayed_work(&ioapic->eoi_inject, HZ / 100);
-				ioapic->irq_eoi[i] = 0;
-				trace_kvm_ioapic_delayed_eoi_inj(ent->bits);
-			} else {
-				ioapic_service(ioapic, i, false);
-			}
+	ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
+	ent->fields.remote_irr = 0;
+	if (!ent->fields.mask && (ioapic->irr & (1 << pin))) {
+		++ioapic->irq_eoi[pin];
+		if (ioapic->irq_eoi[pin] == IOAPIC_SUCCESSIVE_IRQ_MAX_COUNT) {
+			/*
+			 * Real hardware does not deliver the interrupt
+			 * immediately during eoi broadcast, and this
+			 * lets a buggy guest make slow progress
+			 * even if it does not correctly handle a
+			 * level-triggered interrupt.  Emulate this
+			 * behavior if we detect an interrupt storm.
+			 */
+			schedule_delayed_work(&ioapic->eoi_inject, HZ / 100);
+			ioapic->irq_eoi[pin] = 0;
+			trace_kvm_ioapic_delayed_eoi_inj(ent->bits);
 		} else {
-			ioapic->irq_eoi[i] = 0;
+			ioapic_service(ioapic, pin, false);
 		}
+	} else {
+		ioapic->irq_eoi[pin] = 0;
 	}
 }
 
 void kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu, int vector, int trigger_mode)
 {
+	int i;
 	struct kvm_ioapic *ioapic = vcpu->kvm->arch.vioapic;
 
 	spin_lock(&ioapic->lock);
-	__kvm_ioapic_update_eoi(vcpu, ioapic, vector, trigger_mode);
+	rtc_irq_eoi(ioapic, vcpu, vector);
+	for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+		union kvm_ioapic_redirect_entry *ent = &ioapic->redirtbl[i];
+
+		if (ent->fields.vector != vector)
+			continue;
+		kvm_ioapic_update_eoi_one(vcpu, ioapic, trigger_mode, i);
+	}
 	spin_unlock(&ioapic->lock);
 }
 
