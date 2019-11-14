@@ -178,8 +178,13 @@ static void gen9_rc6_enable(struct intel_rc6 *rc6)
 	    GEN6_RC_CTL_RC6_ENABLE |
 	    rc6_mode);
 
-	set(uncore, GEN9_PG_ENABLE,
-	    GEN9_RENDER_PG_ENABLE | GEN9_MEDIA_PG_ENABLE);
+	/*
+	 * WaRsDisableCoarsePowerGating:skl,cnl
+	 *   - Render/Media PG need to be disabled with RC6.
+	 */
+	if (!NEEDS_WaRsDisableCoarsePowerGating(rc6_to_i915(rc6)))
+		set(uncore, GEN9_PG_ENABLE,
+		    GEN9_RENDER_PG_ENABLE | GEN9_MEDIA_PG_ENABLE);
 }
 
 static void gen8_rc6_enable(struct intel_rc6 *rc6)
