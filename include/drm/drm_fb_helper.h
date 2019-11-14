@@ -231,8 +231,6 @@ void drm_fb_helper_fill_info(struct fb_info *info,
 			     struct drm_fb_helper *fb_helper,
 			     struct drm_fb_helper_surface_size *sizes);
 
-void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper);
-
 void drm_fb_helper_deferred_io(struct fb_info *info,
 			       struct list_head *pagelist);
 
@@ -352,10 +350,6 @@ static inline int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 				      unsigned long arg)
 {
 	return 0;
-}
-
-static inline void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper)
-{
 }
 
 static inline void drm_fb_helper_deferred_io(struct fb_info *info,
