@@ -21,7 +21,6 @@
 #include <net/netevent.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
-#include <net/dsa.h>
 
 #include "ocelot.h"
 #include "ocelot_ace.h"
@@ -184,8 +183,8 @@ static void ocelot_vlan_mode(struct ocelot *ocelot, int port,
 	ocelot_write(ocelot, val, ANA_VLANMASK);
 }
 
-static void ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
-				       bool vlan_aware)
+void ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
+				bool vlan_aware)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u32 val;
@@ -230,6 +229,7 @@ static void ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 		       REW_TAG_CFG_TAG_CFG_M,
 		       REW_TAG_CFG, port);
 }
+EXPORT_SYMBOL(ocelot_port_vlan_filtering);
 
 static int ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
 				       u16 vid)
@@ -267,8 +267,8 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port, u16 pvid)
 	ocelot_port->pvid = pvid;
 }
 
-static int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
-			   bool untagged)
+int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
+		    bool untagged)
 {
 	int ret;
 
@@ -291,6 +291,7 @@ static int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 
 	return 0;
 }
+EXPORT_SYMBOL(ocelot_vlan_add);
 
 static int ocelot_vlan_vid_add(struct net_device *dev, u16 vid, bool pvid,
 			       bool untagged)
@@ -312,7 +313,7 @@ static int ocelot_vlan_vid_add(struct net_device *dev, u16 vid, bool pvid,
 	return 0;
 }
 
-static int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
+int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	int ret;
@@ -333,6 +334,7 @@ static int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 
 	return 0;
 }
+EXPORT_SYMBOL(ocelot_vlan_del);
 
 static int ocelot_vlan_vid_del(struct net_device *dev, u16 vid)
 {
@@ -404,8 +406,8 @@ static u16 ocelot_wm_enc(u16 value)
 	return value;
 }
 
-static void ocelot_adjust_link(struct ocelot *ocelot, int port,
-			       struct phy_device *phydev)
+void ocelot_adjust_link(struct ocelot *ocelot, int port,
+			struct phy_device *phydev)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	int speed, mode = 0;
@@ -471,6 +473,7 @@ static void ocelot_adjust_link(struct ocelot *ocelot, int port,
 			 SYS_MAC_FC_CFG, port);
 	ocelot_write_rix(ocelot, 0, ANA_POL_FLOWC, port);
 }
+EXPORT_SYMBOL(ocelot_adjust_link);
 
 static void ocelot_port_adjust_link(struct net_device *dev)
 {
@@ -481,8 +484,8 @@ static void ocelot_port_adjust_link(struct net_device *dev)
 	ocelot_adjust_link(ocelot, port, dev->phydev);
 }
 
-static void ocelot_port_enable(struct ocelot *ocelot, int port,
-			       struct phy_device *phy)
+void ocelot_port_enable(struct ocelot *ocelot, int port,
+			struct phy_device *phy)
 {
 	/* Enable receiving frames on the port, and activate auto-learning of
 	 * MAC addresses.
@@ -492,6 +495,7 @@ static void ocelot_port_enable(struct ocelot *ocelot, int port,
 			 ANA_PORT_PORT_CFG_PORTID_VAL(port),
 			 ANA_PORT_PORT_CFG, port);
 }
+EXPORT_SYMBOL(ocelot_port_enable);
 
 static int ocelot_port_open(struct net_device *dev)
 {
@@ -526,7 +530,7 @@ static int ocelot_port_open(struct net_device *dev)
 	return 0;
 }
 
-static void ocelot_port_disable(struct ocelot *ocelot, int port)
+void ocelot_port_disable(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
@@ -534,6 +538,7 @@ static void ocelot_port_disable(struct ocelot *ocelot, int port)
 	ocelot_rmw_rix(ocelot, 0, QSYS_SWITCH_PORT_MODE_PORT_ENA,
 		       QSYS_SWITCH_PORT_MODE, port);
 }
+EXPORT_SYMBOL(ocelot_port_disable);
 
 static int ocelot_port_stop(struct net_device *dev)
 {
@@ -790,9 +795,8 @@ static void ocelot_get_stats64(struct net_device *dev,
 	stats->collisions = ocelot_read(ocelot, SYS_COUNT_TX_COLLISION);
 }
 
-static int ocelot_fdb_add(struct ocelot *ocelot, int port,
-			  const unsigned char *addr, u16 vid,
-			  bool vlan_aware)
+int ocelot_fdb_add(struct ocelot *ocelot, int port,
+		   const unsigned char *addr, u16 vid, bool vlan_aware)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
@@ -812,6 +816,7 @@ static int ocelot_fdb_add(struct ocelot *ocelot, int port,
 
 	return ocelot_mact_learn(ocelot, port, addr, vid, ENTRYTYPE_LOCKED);
 }
+EXPORT_SYMBOL(ocelot_fdb_add);
 
 static int ocelot_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			       struct net_device *dev,
@@ -826,11 +831,12 @@ static int ocelot_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	return ocelot_fdb_add(ocelot, port, addr, vid, priv->vlan_aware);
 }
 
-static int ocelot_fdb_del(struct ocelot *ocelot, int port,
-			  const unsigned char *addr, u16 vid)
+int ocelot_fdb_del(struct ocelot *ocelot, int port,
+		   const unsigned char *addr, u16 vid)
 {
 	return ocelot_mact_forget(ocelot, addr, vid);
 }
+EXPORT_SYMBOL(ocelot_fdb_del);
 
 static int ocelot_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			       struct net_device *dev,
@@ -940,8 +946,8 @@ static int ocelot_mact_read(struct ocelot *ocelot, int port, int row, int col,
 	return 0;
 }
 
-static int ocelot_fdb_dump(struct ocelot *ocelot, int port,
-			   dsa_fdb_dump_cb_t *cb, void *data)
+int ocelot_fdb_dump(struct ocelot *ocelot, int port,
+		    dsa_fdb_dump_cb_t *cb, void *data)
 {
 	int i, j;
 
@@ -973,6 +979,7 @@ static int ocelot_fdb_dump(struct ocelot *ocelot, int port,
 
 	return 0;
 }
+EXPORT_SYMBOL(ocelot_fdb_dump);
 
 static int ocelot_port_fdb_dump(struct sk_buff *skb,
 				struct netlink_callback *cb,
@@ -1153,8 +1160,7 @@ static const struct net_device_ops ocelot_port_netdev_ops = {
 	.ndo_do_ioctl			= ocelot_ioctl,
 };
 
-static void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset,
-			       u8 *data)
+void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data)
 {
 	int i;
 
@@ -1165,6 +1171,7 @@ static void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset,
 		memcpy(data + i * ETH_GSTRING_LEN, ocelot->stats_layout[i].name,
 		       ETH_GSTRING_LEN);
 }
+EXPORT_SYMBOL(ocelot_get_strings);
 
 static void ocelot_port_get_strings(struct net_device *netdev, u32 sset,
 				    u8 *data)
@@ -1216,7 +1223,7 @@ static void ocelot_check_stats_work(struct work_struct *work)
 			   OCELOT_STATS_CHECK_DELAY);
 }
 
-static void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
+void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
 {
 	int i;
 
@@ -1227,6 +1234,7 @@ static void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
 	for (i = 0; i < ocelot->num_stats; i++)
 		*data++ = ocelot->stats[port * ocelot->num_stats + i];
 }
+EXPORT_SYMBOL(ocelot_get_ethtool_stats);
 
 static void ocelot_port_get_ethtool_stats(struct net_device *dev,
 					  struct ethtool_stats *stats,
@@ -1239,13 +1247,14 @@ static void ocelot_port_get_ethtool_stats(struct net_device *dev,
 	ocelot_get_ethtool_stats(ocelot, port, data);
 }
 
-static int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
+int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
 {
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
 
 	return ocelot->num_stats;
 }
+EXPORT_SYMBOL(ocelot_get_sset_count);
 
 static int ocelot_port_get_sset_count(struct net_device *dev, int sset)
 {
@@ -1256,8 +1265,8 @@ static int ocelot_port_get_sset_count(struct net_device *dev, int sset)
 	return ocelot_get_sset_count(ocelot, port, sset);
 }
 
-static int ocelot_get_ts_info(struct ocelot *ocelot, int port,
-			      struct ethtool_ts_info *info)
+int ocelot_get_ts_info(struct ocelot *ocelot, int port,
+		       struct ethtool_ts_info *info)
 {
 	info->phc_index = ocelot->ptp_clock ?
 			  ptp_clock_index(ocelot->ptp_clock) : -1;
@@ -1273,6 +1282,7 @@ static int ocelot_get_ts_info(struct ocelot *ocelot, int port,
 
 	return 0;
 }
+EXPORT_SYMBOL(ocelot_get_ts_info);
 
 static int ocelot_port_get_ts_info(struct net_device *dev,
 				   struct ethtool_ts_info *info)
@@ -1296,8 +1306,7 @@ static const struct ethtool_ops ocelot_ethtool_ops = {
 	.get_ts_info		= ocelot_port_get_ts_info,
 };
 
-static void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port,
-					u8 state)
+void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state)
 {
 	u32 port_cfg;
 	int p, i;
@@ -1358,6 +1367,7 @@ static void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port,
 		}
 	}
 }
+EXPORT_SYMBOL(ocelot_bridge_stp_state_set);
 
 static void ocelot_port_attr_stp_state_set(struct ocelot *ocelot, int port,
 					   struct switchdev_trans *trans,
@@ -1369,11 +1379,12 @@ static void ocelot_port_attr_stp_state_set(struct ocelot *ocelot, int port,
 	ocelot_bridge_stp_state_set(ocelot, port, state);
 }
 
-static void ocelot_set_ageing_time(struct ocelot *ocelot, unsigned int msecs)
+void ocelot_set_ageing_time(struct ocelot *ocelot, unsigned int msecs)
 {
 	ocelot_write(ocelot, ANA_AUTOAGE_AGE_PERIOD(msecs / 2),
 		     ANA_AUTOAGE);
 }
+EXPORT_SYMBOL(ocelot_set_ageing_time);
 
 static void ocelot_port_attr_ageing_set(struct ocelot *ocelot, int port,
 					unsigned long ageing_clock_t)
@@ -1604,8 +1615,8 @@ static int ocelot_port_obj_del(struct net_device *dev,
 	return ret;
 }
 
-static int ocelot_port_bridge_join(struct ocelot *ocelot, int port,
-				   struct net_device *bridge)
+int ocelot_port_bridge_join(struct ocelot *ocelot, int port,
+			    struct net_device *bridge)
 {
 	if (!ocelot->bridge_mask) {
 		ocelot->hw_bridge_dev = bridge;
@@ -1620,9 +1631,10 @@ static int ocelot_port_bridge_join(struct ocelot *ocelot, int port,
 
 	return 0;
 }
+EXPORT_SYMBOL(ocelot_port_bridge_join);
 
-static int ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
-				    struct net_device *bridge)
+int ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
+			     struct net_device *bridge)
 {
 	ocelot->bridge_mask &= ~BIT(port);
 
@@ -1633,6 +1645,7 @@ static int ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 	ocelot_port_set_pvid(ocelot, port, 0);
 	return ocelot_port_set_native_vlan(ocelot, port, 0);
 }
+EXPORT_SYMBOL(ocelot_port_bridge_leave);
 
 static void ocelot_set_aggr_pgids(struct ocelot *ocelot)
 {
@@ -2119,7 +2132,7 @@ static void ocelot_port_set_mtu(struct ocelot *ocelot, int port, size_t mtu)
 	ocelot_write(ocelot, ocelot_wm_enc(atop_wm), SYS_ATOP_TOT_CFG);
 }
 
-static void ocelot_init_port(struct ocelot *ocelot, int port)
+void ocelot_init_port(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
@@ -2166,6 +2179,7 @@ static void ocelot_init_port(struct ocelot *ocelot, int port)
 	/* Enable vcap lookups */
 	ocelot_vcap_enable(ocelot, port);
 }
+EXPORT_SYMBOL(ocelot_init_port);
 
 int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 		      void __iomem *regs,
