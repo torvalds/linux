@@ -605,7 +605,7 @@ properties:
           - const: pine64,pine64-plus
           - const: allwinner,sun50i-a64
 
-      - description: Pine64 PineH64
+      - description: Pine64 PineH64 model A
         items:
           - const: pine64,pine-h64
           - const: allwinner,sun50i-h6
