@@ -2060,8 +2060,9 @@ xfs_buf_delwri_pushbuf(
 int __init
 xfs_buf_init(void)
 {
-	xfs_buf_zone = kmem_zone_init_flags(sizeof(xfs_buf_t), "xfs_buf",
-						KM_ZONE_HWALIGN, NULL);
+	xfs_buf_zone = kmem_cache_create("xfs_buf",
+					 sizeof(struct xfs_buf), 0,
+					 SLAB_HWCACHE_ALIGN, NULL);
 	if (!xfs_buf_zone)
 		goto out;
 

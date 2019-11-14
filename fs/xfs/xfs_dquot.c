@@ -1211,13 +1211,15 @@ xfs_dqlock2(
 int __init
 xfs_qm_init(void)
 {
-	xfs_qm_dqzone =
-		kmem_zone_init(sizeof(struct xfs_dquot), "xfs_dquot");
+	xfs_qm_dqzone = kmem_cache_create("xfs_dquot",
+					  sizeof(struct xfs_dquot),
+					  0, 0, NULL);
 	if (!xfs_qm_dqzone)
 		goto out;
 
-	xfs_qm_dqtrxzone =
-		kmem_zone_init(sizeof(struct xfs_dquot_acct), "xfs_dqtrx");
+	xfs_qm_dqtrxzone = kmem_cache_create("xfs_dqtrx",
+					     sizeof(struct xfs_dquot_acct),
+					     0, 0, NULL);
 	if (!xfs_qm_dqtrxzone)
 		goto out_free_dqzone;
 

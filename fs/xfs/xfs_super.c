@@ -1797,32 +1797,39 @@ MODULE_ALIAS_FS("xfs");
 STATIC int __init
 xfs_init_zones(void)
 {
-	xfs_log_ticket_zone = kmem_zone_init(sizeof(xlog_ticket_t),
-						"xfs_log_ticket");
+	xfs_log_ticket_zone = kmem_cache_create("xfs_log_ticket",
+						sizeof(struct xlog_ticket),
+						0, 0, NULL);
 	if (!xfs_log_ticket_zone)
 		goto out;
 
-	xfs_bmap_free_item_zone = kmem_zone_init(
-			sizeof(struct xfs_extent_free_item),
-			"xfs_bmap_free_item");
+	xfs_bmap_free_item_zone = kmem_cache_create("xfs_bmap_free_item",
+					sizeof(struct xfs_extent_free_item),
+					0, 0, NULL);
 	if (!xfs_bmap_free_item_zone)
 		goto out_destroy_log_ticket_zone;
 
-	xfs_btree_cur_zone = kmem_zone_init(sizeof(xfs_btree_cur_t),
-						"xfs_btree_cur");
+	xfs_btree_cur_zone = kmem_cache_create("xfs_btree_cur",
+					       sizeof(struct xfs_btree_cur),
+					       0, 0, NULL);
 	if (!xfs_btree_cur_zone)
 		goto out_destroy_bmap_free_item_zone;
 
-	xfs_da_state_zone = kmem_zone_init(sizeof(xfs_da_state_t),
-						"xfs_da_state");
+	xfs_da_state_zone = kmem_cache_create("xfs_da_state",
+					      sizeof(struct xfs_da_state),
+					      0, 0, NULL);
 	if (!xfs_da_state_zone)
 		goto out_destroy_btree_cur_zone;
 
-	xfs_ifork_zone = kmem_zone_init(sizeof(struct xfs_ifork), "xfs_ifork");
+	xfs_ifork_zone = kmem_cache_create("xfs_ifork",
+					   sizeof(struct xfs_ifork),
+					   0, 0, NULL);
 	if (!xfs_ifork_zone)
 		goto out_destroy_da_state_zone;
 
-	xfs_trans_zone = kmem_zone_init(sizeof(xfs_trans_t), "xfs_trans");
+	xfs_trans_zone = kmem_cache_create("xf_trans",
+					   sizeof(struct xfs_trans),
+					   0, 0, NULL);
 	if (!xfs_trans_zone)
 		goto out_destroy_ifork_zone;
 
@@ -1832,70 +1839,82 @@ xfs_init_zones(void)
 	 * size possible under XFS.  This wastes a little bit of memory,
 	 * but it is much faster.
 	 */
-	xfs_buf_item_zone = kmem_zone_init(sizeof(struct xfs_buf_log_item),
-					   "xfs_buf_item");
+	xfs_buf_item_zone = kmem_cache_create("xfs_buf_item",
+					      sizeof(struct xfs_buf_log_item),
+					      0, 0, NULL);
 	if (!xfs_buf_item_zone)
 		goto out_destroy_trans_zone;
 
-	xfs_efd_zone = kmem_zone_init((sizeof(xfs_efd_log_item_t) +
-			((XFS_EFD_MAX_FAST_EXTENTS - 1) *
-				 sizeof(xfs_extent_t))), "xfs_efd_item");
+	xfs_efd_zone = kmem_cache_create("xfs_efd_item",
+					(sizeof(struct xfs_efd_log_item) +
+					(XFS_EFD_MAX_FAST_EXTENTS - 1) *
+					sizeof(struct xfs_extent)),
+					0, 0, NULL);
 	if (!xfs_efd_zone)
 		goto out_destroy_buf_item_zone;
 
-	xfs_efi_zone = kmem_zone_init((sizeof(xfs_efi_log_item_t) +
-			((XFS_EFI_MAX_FAST_EXTENTS - 1) *
-				sizeof(xfs_extent_t))), "xfs_efi_item");
+	xfs_efi_zone = kmem_cache_create("xfs_efi_item",
+					 (sizeof(struct xfs_efi_log_item) +
+					 (XFS_EFI_MAX_FAST_EXTENTS - 1) *
+					 sizeof(struct xfs_extent)),
+					 0, 0, NULL);
 	if (!xfs_efi_zone)
 		goto out_destroy_efd_zone;
 
-	xfs_inode_zone =
-		kmem_zone_init_flags(sizeof(xfs_inode_t), "xfs_inode",
-			KM_ZONE_HWALIGN | KM_ZONE_RECLAIM | KM_ZONE_SPREAD |
-			KM_ZONE_ACCOUNT, xfs_fs_inode_init_once);
+	xfs_inode_zone = kmem_cache_create("xfs_inode",
+					   sizeof(struct xfs_inode), 0,
+					   (SLAB_HWCACHE_ALIGN |
+					    SLAB_RECLAIM_ACCOUNT |
+					    SLAB_MEM_SPREAD | SLAB_ACCOUNT),
+					   xfs_fs_inode_init_once);
 	if (!xfs_inode_zone)
 		goto out_destroy_efi_zone;
 
-	xfs_ili_zone =
-		kmem_zone_init_flags(sizeof(xfs_inode_log_item_t), "xfs_ili",
-					KM_ZONE_SPREAD, NULL);
+	xfs_ili_zone = kmem_cache_create("xfs_ili",
+					 sizeof(struct xfs_inode_log_item), 0,
+					 SLAB_MEM_SPREAD, NULL);
 	if (!xfs_ili_zone)
 		goto out_destroy_inode_zone;
-	xfs_icreate_zone = kmem_zone_init(sizeof(struct xfs_icreate_item),
-					"xfs_icr");
+
+	xfs_icreate_zone = kmem_cache_create("xfs_icr",
+					     sizeof(struct xfs_icreate_item),
+					     0, 0, NULL);
 	if (!xfs_icreate_zone)
 		goto out_destroy_ili_zone;
 
-	xfs_rud_zone = kmem_zone_init(sizeof(struct xfs_rud_log_item),
-			"xfs_rud_item");
+	xfs_rud_zone = kmem_cache_create("xfs_rud_item",
+					 sizeof(struct xfs_rud_log_item),
+					 0, 0, NULL);
 	if (!xfs_rud_zone)
 		goto out_destroy_icreate_zone;
 
-	xfs_rui_zone = kmem_zone_init(
+	xfs_rui_zone = kmem_cache_create("xfs_rui_item",
 			xfs_rui_log_item_sizeof(XFS_RUI_MAX_FAST_EXTENTS),
-			"xfs_rui_item");
+			0, 0, NULL);
 	if (!xfs_rui_zone)
 		goto out_destroy_rud_zone;
 
-	xfs_cud_zone = kmem_zone_init(sizeof(struct xfs_cud_log_item),
-			"xfs_cud_item");
+	xfs_cud_zone = kmem_cache_create("xfs_cud_item",
+					 sizeof(struct xfs_cud_log_item),
+					 0, 0, NULL);
 	if (!xfs_cud_zone)
 		goto out_destroy_rui_zone;
 
-	xfs_cui_zone = kmem_zone_init(
+	xfs_cui_zone = kmem_cache_create("xfs_cui_item",
 			xfs_cui_log_item_sizeof(XFS_CUI_MAX_FAST_EXTENTS),
-			"xfs_cui_item");
+			0, 0, NULL);
 	if (!xfs_cui_zone)
 		goto out_destroy_cud_zone;
 
-	xfs_bud_zone = kmem_zone_init(sizeof(struct xfs_bud_log_item),
-			"xfs_bud_item");
+	xfs_bud_zone = kmem_cache_create("xfs_bud_item",
+					 sizeof(struct xfs_bud_log_item),
+					 0, 0, NULL);
 	if (!xfs_bud_zone)
 		goto out_destroy_cui_zone;
 
-	xfs_bui_zone = kmem_zone_init(
+	xfs_bui_zone = kmem_cache_create("xfs_bui_item",
 			xfs_bui_log_item_sizeof(XFS_BUI_MAX_FAST_EXTENTS),
-			"xfs_bui_item");
+			0, 0, NULL);
 	if (!xfs_bui_zone)
 		goto out_destroy_bud_zone;
 
