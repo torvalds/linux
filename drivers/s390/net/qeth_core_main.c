@@ -5065,12 +5065,12 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	struct qdio_buffer_element *element = *__element;
 	struct qdio_buffer *buffer = qethbuffer->buffer;
 	int offset = *__offset;
+	bool use_rx_sg = false;
+	unsigned int headroom;
 	struct sk_buff *skb;
 	int skb_len = 0;
 	void *data_ptr;
 	int data_len;
-	int headroom = 0;
-	int use_rx_sg = 0;
 
 next_packet:
 	/* qeth_hdr must not cross element boundaries */
@@ -5086,6 +5086,7 @@ next_packet:
 	switch ((*hdr)->hdr.l2.id) {
 	case QETH_HEADER_TYPE_LAYER2:
 		skb_len = (*hdr)->hdr.l2.pkt_length;
+		headroom = 0;
 		break;
 	case QETH_HEADER_TYPE_LAYER3:
 		skb_len = (*hdr)->hdr.l3.length;
@@ -5120,11 +5121,10 @@ next_packet:
 	if (!skb_len)
 		return NULL;
 
-	if (((skb_len >= card->options.rx_sg_cb) &&
-	     !IS_OSN(card) &&
-	     (!atomic_read(&card->force_alloc_skb))) ||
-	    (card->options.cq == QETH_CQ_ENABLED))
-		use_rx_sg = 1;
+	use_rx_sg = (card->options.cq == QETH_CQ_ENABLED) ||
+		    ((skb_len >= card->options.rx_sg_cb) &&
+		     !atomic_read(&card->force_alloc_skb) &&
+		     !IS_OSN(card));
 
 	if (use_rx_sg && qethbuffer->rx_skb) {
 		/* QETH_CQ_ENABLED only: */
@@ -5135,9 +5135,10 @@ next_packet:
 
 		skb = napi_alloc_skb(&card->napi, linear + headroom);
 	}
+
 	if (!skb)
-		goto no_mem;
-	if (headroom)
+		QETH_CARD_STAT_INC(card, rx_dropped_nomem);
+	else if (headroom)
 		skb_reserve(skb, headroom);
 
 walk_packet:
@@ -5184,12 +5185,6 @@ walk_packet:
 				   skb_shinfo(skb)->nr_frags);
 	}
 	return skb;
-no_mem:
-	if (net_ratelimit()) {
-		QETH_CARD_TEXT(card, 2, "noskbmem");
-	}
-	QETH_CARD_STAT_INC(card, rx_dropped_nomem);
-	return NULL;
 }
 EXPORT_SYMBOL_GPL(qeth_core_get_next_skb);
 
