@@ -110,7 +110,7 @@ int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 struct drm_gem_object *udl_driver_gem_create_object(struct drm_device *dev,
 						    size_t size);
 
-int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
+int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 		      int width, int height);
 
 int udl_drop_usb(struct drm_device *dev);

@@ -301,7 +301,7 @@ static int udl_crtc_mode_set(struct drm_crtc *crtc,
 
 {
 	struct drm_device *dev = crtc->dev;
-	struct udl_framebuffer *ufb = to_udl_fb(crtc->primary->fb);
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	struct udl_device *udl = dev->dev_private;
 	char *buf;
 	char *wrptr;
@@ -333,12 +333,12 @@ static int udl_crtc_mode_set(struct drm_crtc *crtc,
 	wrptr = udl_dummy_render(wrptr);
 
 	spin_lock(&udl->active_fb_16_lock);
-	udl->active_fb_16 = &ufb->base;
+	udl->active_fb_16 = fb;
 	spin_unlock(&udl->active_fb_16_lock);
 	udl->mode_buf_len = wrptr - buf;
 
 	/* damage all of it */
-	udl_handle_damage(ufb, 0, 0, ufb->base.width, ufb->base.height);
+	udl_handle_damage(fb, 0, 0, fb->width, fb->height);
 	return 0;
 }
 
@@ -360,7 +360,6 @@ static int udl_crtc_page_flip(struct drm_crtc *crtc,
 			      uint32_t page_flip_flags,
 			      struct drm_modeset_acquire_ctx *ctx)
 {
-	struct udl_framebuffer *ufb = to_udl_fb(fb);
 	struct drm_device *dev = crtc->dev;
 	struct udl_device *udl = dev->dev_private;
 
@@ -368,7 +367,7 @@ static int udl_crtc_page_flip(struct drm_crtc *crtc,
 	udl->active_fb_16 = fb;
 	spin_unlock(&udl->active_fb_16_lock);
 
-	udl_handle_damage(ufb, 0, 0, fb->width, fb->height);
+	udl_handle_damage(fb, 0, 0, fb->width, fb->height);
 
 	spin_lock_irq(&dev->event_lock);
 	if (event)
@@ -448,13 +447,13 @@ int udl_modeset_init(struct drm_device *dev)
 void udl_modeset_restore(struct drm_device *dev)
 {
 	struct udl_device *udl = dev->dev_private;
-	struct udl_framebuffer *ufb;
+	struct drm_framebuffer *fb;
 
 	if (!udl->crtc || !udl->crtc->primary->fb)
 		return;
 	udl_crtc_commit(udl->crtc);
-	ufb = to_udl_fb(udl->crtc->primary->fb);
-	udl_handle_damage(ufb, 0, 0, ufb->base.width, ufb->base.height);
+	fb = udl->crtc->primary->fb;
+	udl_handle_damage(fb, 0, 0, fb->width, fb->height);
 }
 
 void udl_modeset_cleanup(struct drm_device *dev)
