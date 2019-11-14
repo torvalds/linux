@@ -14,6 +14,10 @@
 static DEFINE_PER_CPU(unsigned long, perf_nmi_tstamp);
 static unsigned long perf_nmi_window;
 
+/* AMD Event 0xFFF: Merge.  Used with Large Increment per Cycle events */
+#define AMD_MERGE_EVENT ((0xFULL << 32) | 0xFFULL)
+#define AMD_MERGE_EVENT_ENABLE (AMD_MERGE_EVENT | ARCH_PERFMON_EVENTSEL_ENABLE)
+
 static __initconst const u64 amd_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
@@ -334,6 +338,9 @@ static int amd_core_hw_config(struct perf_event *event)
 		event->hw.config |= AMD64_EVENTSEL_GUESTONLY;
 	else if (event->attr.exclude_guest)
 		event->hw.config |= AMD64_EVENTSEL_HOSTONLY;
+
+	if ((x86_pmu.flags & PMU_FL_PAIR) && amd_is_pair_event_code(&event->hw))
+		event->hw.flags |= PERF_X86_EVENT_PAIR;
 
 	return 0;
 }
@@ -880,6 +887,15 @@ amd_get_event_constraints_f17h(struct cpu_hw_events *cpuc, int idx,
 	return &unconstrained;
 }
 
+static void amd_put_event_constraints_f17h(struct cpu_hw_events *cpuc,
+					   struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (is_counter_pair(hwc))
+		--cpuc->n_pair;
+}
+
 static ssize_t amd_event_sysfs_show(char *page, u64 config)
 {
 	u64 event = (config & ARCH_PERFMON_EVENTSEL_EVENT) |
@@ -967,6 +983,8 @@ static int __init amd_core_pmu_init(void)
 				    PERF_X86_EVENT_PAIR);
 
 		x86_pmu.get_event_constraints = amd_get_event_constraints_f17h;
+		x86_pmu.put_event_constraints = amd_put_event_constraints_f17h;
+		x86_pmu.perf_ctr_pair_en = AMD_MERGE_EVENT_ENABLE;
 		x86_pmu.flags |= PMU_FL_PAIR;
 	}
 
