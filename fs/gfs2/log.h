@@ -76,6 +76,7 @@ extern void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 
 extern int gfs2_logd(void *data);
 extern void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
+extern void gfs2_glock_remove_revoke(struct gfs2_glock *gl);
 extern void gfs2_write_revokes(struct gfs2_sbd *sdp);
 
 #endif /* __LOG_DOT_H__ */
