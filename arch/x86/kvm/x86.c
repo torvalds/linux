@@ -26,6 +26,7 @@
 #include "cpuid.h"
 #include "pmu.h"
 #include "hyperv.h"
+#include "lapic.h"
 
 #include <linux/clocksource.h>
 #include <linux/interrupt.h>
@@ -8013,6 +8014,40 @@ void kvm_make_scan_ioapic_request(struct kvm *kvm)
 	kvm_make_all_cpus_request(kvm, KVM_REQ_SCAN_IOAPIC);
 }
 
+void kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu)
+{
+	if (!lapic_in_kernel(vcpu))
+		return;
+
+	vcpu->arch.apicv_active = kvm_apicv_activated(vcpu->kvm);
+	kvm_apic_update_apicv(vcpu);
+	kvm_x86_ops->refresh_apicv_exec_ctrl(vcpu);
+}
+EXPORT_SYMBOL_GPL(kvm_vcpu_update_apicv);
+
+/*
+ * NOTE: Do not hold any lock prior to calling this.
+ *
+ * In particular, kvm_request_apicv_update() expects kvm->srcu not to be
+ * locked, because it calls __x86_set_memory_region() which does
+ * synchronize_srcu(&kvm->srcu).
+ */
+void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
+{
+	if (activate) {
+		if (!test_and_clear_bit(bit, &kvm->arch.apicv_inhibit_reasons) ||
+		    !kvm_apicv_activated(kvm))
+			return;
+	} else {
+		if (test_and_set_bit(bit, &kvm->arch.apicv_inhibit_reasons) ||
+		    kvm_apicv_activated(kvm))
+			return;
+	}
+
+	kvm_make_all_cpus_request(kvm, KVM_REQ_APICV_UPDATE);
+}
+EXPORT_SYMBOL_GPL(kvm_request_apicv_update);
+
 static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
 {
 	if (!kvm_apic_present(vcpu))
@@ -8203,6 +8238,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		 */
 		if (kvm_check_request(KVM_REQ_HV_STIMER, vcpu))
 			kvm_hv_process_stimers(vcpu);
+		if (kvm_check_request(KVM_REQ_APICV_UPDATE, vcpu))
+			kvm_vcpu_update_apicv(vcpu);
 	}
 
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
