@@ -39,7 +39,6 @@
 
 
 static int qeth_l3_set_offline(struct ccwgroup_device *);
-static void qeth_l3_set_rx_mode(struct net_device *dev);
 static int qeth_l3_register_addr_entry(struct qeth_card *,
 		struct qeth_ipaddr *);
 static int qeth_l3_deregister_addr_entry(struct qeth_card *,
@@ -1297,7 +1296,6 @@ static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev,
 	QETH_CARD_TEXT_(card, 4, "kid:%d", vid);
 
 	clear_bit(vid, card->active_vlans);
-	qeth_l3_set_rx_mode(dev);
 	return 0;
 }
 
