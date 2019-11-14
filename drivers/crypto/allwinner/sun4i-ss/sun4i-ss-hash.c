@@ -227,7 +227,7 @@ static int sun4i_hash(struct ahash_request *areq)
 	 */
 	if (op->byte_count) {
 		ivmode = SS_IV_ARBITRARY;
-		for (i = 0; i < 5; i++)
+		for (i = 0; i < crypto_ahash_digestsize(tfm) / 4; i++)
 			writel(op->hash[i], ss->base + SS_IV0 + i * 4);
 	}
 	/* Enable the device */
