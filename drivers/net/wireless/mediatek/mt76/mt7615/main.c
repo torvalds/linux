@@ -547,4 +547,5 @@ const struct ieee80211_ops mt7615_ops = {
 	.get_txpower = mt76_get_txpower,
 	.channel_switch_beacon = mt7615_channel_switch_beacon,
 	.get_survey = mt76_get_survey,
+	.get_antenna = mt76_get_antenna,
 };

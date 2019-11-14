@@ -135,19 +135,6 @@ static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 	return 0;
 }
 
-static int mt76x2_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
-			      u32 *rx_ant)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	mutex_lock(&dev->mt76.mutex);
-	*tx_ant = dev->mt76.antenna_mask;
-	*rx_ant = dev->mt76.antenna_mask;
-	mutex_unlock(&dev->mt76.mutex);
-
-	return 0;
-}
-
 const struct ieee80211_ops mt76x2_ops = {
 	.tx = mt76x02_tx,
 	.start = mt76x2_start,
@@ -172,7 +159,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.get_survey = mt76_get_survey,
 	.set_tim = mt76_set_tim,
 	.set_antenna = mt76x2_set_antenna,
-	.get_antenna = mt76x2_get_antenna,
+	.get_antenna = mt76_get_antenna,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
 };
 

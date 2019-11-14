@@ -691,6 +691,7 @@ const struct ieee80211_ops mt7603_ops = {
 	.set_coverage_class = mt7603_set_coverage_class,
 	.set_tim = mt76_set_tim,
 	.get_survey = mt76_get_survey,
+	.get_antenna = mt76_get_antenna,
 };
 
 MODULE_LICENSE("Dual BSD/GPL");

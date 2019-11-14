@@ -1037,3 +1037,16 @@ void mt76_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	clear_bit(MT76_SCANNING, &dev->state);
 }
 EXPORT_SYMBOL_GPL(mt76_sw_scan_complete);
+
+int mt76_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+{
+	struct mt76_dev *dev = hw->priv;
+
+	mutex_lock(&dev->mutex);
+	*tx_ant = dev->antenna_mask;
+	*rx_ant = dev->antenna_mask;
+	mutex_unlock(&dev->mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76_get_antenna);
