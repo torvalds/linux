@@ -579,7 +579,9 @@ static void del_sw_flow_group(struct fs_node *node)
 
 	rhashtable_destroy(&fg->ftes_hash);
 	ida_destroy(&fg->fte_allocator);
-	if (ft->autogroup.active && fg->max_ftes == ft->autogroup.group_size)
+	if (ft->autogroup.active &&
+	    fg->max_ftes == ft->autogroup.group_size &&
+	    fg->start_index < ft->autogroup.max_fte)
 		ft->autogroup.num_groups--;
 	err = rhltable_remove(&ft->fgs_hash,
 			      &fg->hash,
@@ -1121,9 +1123,14 @@ struct mlx5_flow_table*
 mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 				    struct mlx5_flow_table_attr *ft_attr)
 {
+	int num_reserved_entries = ft_attr->autogroup.num_reserved_entries;
+	int autogroups_max_fte = ft_attr->max_fte - num_reserved_entries;
+	int max_num_groups = ft_attr->autogroup.max_num_groups;
 	struct mlx5_flow_table *ft;
 
-	if (ft_attr->autogroup.max_num_groups > ft_attr->max_fte)
+	if (max_num_groups > autogroups_max_fte)
+		return ERR_PTR(-EINVAL);
+	if (num_reserved_entries > ft_attr->max_fte)
 		return ERR_PTR(-EINVAL);
 
 	ft = mlx5_create_flow_table(ns, ft_attr);
@@ -1131,10 +1138,10 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 		return ft;
 
 	ft->autogroup.active = true;
-	ft->autogroup.required_groups = ft_attr->autogroup.max_num_groups;
+	ft->autogroup.required_groups = max_num_groups;
+	ft->autogroup.max_fte = autogroups_max_fte;
 	/* We save place for flow groups in addition to max types */
-	ft->autogroup.group_size = ft->max_fte /
-				   (ft->autogroup.required_groups + 1);
+	ft->autogroup.group_size = autogroups_max_fte / (max_num_groups + 1);
 
 	return ft;
 }
@@ -1156,7 +1163,7 @@ struct mlx5_flow_group *mlx5_create_flow_group(struct mlx5_flow_table *ft,
 	struct mlx5_flow_group *fg;
 	int err;
 
-	if (ft->autogroup.active)
+	if (ft->autogroup.active && start_index < ft->autogroup.max_fte)
 		return ERR_PTR(-EPERM);
 
 	down_write_ref_node(&ft->node, false);
@@ -1329,9 +1336,10 @@ static struct mlx5_flow_group *alloc_auto_flow_group(struct mlx5_flow_table  *ft
 						     const struct mlx5_flow_spec *spec)
 {
 	struct list_head *prev = &ft->node.children;
-	struct mlx5_flow_group *fg;
+	u32 max_fte = ft->autogroup.max_fte;
 	unsigned int candidate_index = 0;
 	unsigned int group_size = 0;
+	struct mlx5_flow_group *fg;
 
 	if (!ft->autogroup.active)
 		return ERR_PTR(-ENOENT);
@@ -1339,7 +1347,7 @@ static struct mlx5_flow_group *alloc_auto_flow_group(struct mlx5_flow_table  *ft
 	if (ft->autogroup.num_groups < ft->autogroup.required_groups)
 		group_size = ft->autogroup.group_size;
 
-	/*  ft->max_fte == ft->autogroup.max_types */
+	/*  max_fte == ft->autogroup.max_types */
 	if (group_size == 0)
 		group_size = 1;
 
@@ -1352,7 +1360,7 @@ static struct mlx5_flow_group *alloc_auto_flow_group(struct mlx5_flow_table  *ft
 		prev = &fg->node.list;
 	}
 
-	if (candidate_index + group_size > ft->max_fte)
+	if (candidate_index + group_size > max_fte)
 		return ERR_PTR(-ENOSPC);
 
 	fg = alloc_insert_flow_group(ft,

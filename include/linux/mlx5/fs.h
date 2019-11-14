@@ -155,6 +155,7 @@ struct mlx5_flow_table_attr {
 
 	struct {
 		int max_num_groups;
+		int num_reserved_entries;
 	} autogroup;
 };
 
