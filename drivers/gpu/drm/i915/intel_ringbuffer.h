@@ -584,9 +584,10 @@ struct intel_engine_cs {
 
 	struct intel_engine_hangcheck hangcheck;
 
-#define I915_ENGINE_NEEDS_CMD_PARSER BIT(0)
-#define I915_ENGINE_SUPPORTS_STATS   BIT(1)
-#define I915_ENGINE_HAS_PREEMPTION   BIT(2)
+#define I915_ENGINE_USING_CMD_PARSER	BIT(0)
+#define I915_ENGINE_SUPPORTS_STATS	BIT(1)
+#define I915_ENGINE_HAS_PREEMPTION	BIT(2)
+#define I915_ENGINE_REQUIRES_CMD_PARSER	BIT(3)
 	unsigned int flags;
 
 	/*
@@ -647,9 +648,15 @@ struct intel_engine_cs {
 };
 
 static inline bool
-intel_engine_needs_cmd_parser(const struct intel_engine_cs *engine)
+intel_engine_using_cmd_parser(const struct intel_engine_cs *engine)
 {
-	return engine->flags & I915_ENGINE_NEEDS_CMD_PARSER;
+	return engine->flags & I915_ENGINE_USING_CMD_PARSER;
+}
+
+static inline bool
+intel_engine_requires_cmd_parser(const struct intel_engine_cs *engine)
+{
+	return engine->flags & I915_ENGINE_REQUIRES_CMD_PARSER;
 }
 
 static inline bool

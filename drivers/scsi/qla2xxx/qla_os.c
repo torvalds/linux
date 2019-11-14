@@ -3496,6 +3496,10 @@ qla2x00_shutdown(struct pci_dev *pdev)
 		qla2x00_try_to_stop_firmware(vha);
 	}
 
+	/* Disable timer */
+	if (vha->timer_active)
+		qla2x00_stop_timer(vha);
+
 	/* Turn adapter off line */
 	vha->flags.online = 0;
 

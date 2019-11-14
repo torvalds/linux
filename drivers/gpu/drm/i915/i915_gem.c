@@ -174,6 +174,11 @@ static u32 __i915_gem_park(struct drm_i915_private *i915)
 	if (INTEL_GEN(i915) >= 6)
 		gen6_rps_idle(i915);
 
+	if (NEEDS_RC6_CTX_CORRUPTION_WA(i915)) {
+		i915_rc6_ctx_wa_check(i915);
+		intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	}
+
 	intel_display_power_put(i915, POWER_DOMAIN_GT_IRQ);
 
 	intel_runtime_pm_put(i915);
@@ -219,6 +224,9 @@ void i915_gem_unpark(struct drm_i915_private *i915)
 	 * GT activity, preventing any DC state transitions.
 	 */
 	intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
+
+	if (NEEDS_RC6_CTX_CORRUPTION_WA(i915))
+		intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
 
 	i915->gt.awake = true;
 	if (unlikely(++i915->gt.epoch == 0)) /* keep 0 as invalid */
@@ -4425,6 +4433,20 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_address_space *vm = &dev_priv->ggtt.vm;
+
+	return i915_gem_object_pin(obj, vm, view, size, alignment,
+				   flags | PIN_GLOBAL);
+}
+
+struct i915_vma *
+i915_gem_object_pin(struct drm_i915_gem_object *obj,
+		    struct i915_address_space *vm,
+		    const struct i915_ggtt_view *view,
+		    u64 size,
+		    u64 alignment,
+		    u64 flags)
+{
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_vma *vma;
 	int ret;
 
@@ -4488,7 +4510,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			return ERR_PTR(ret);
 	}
 
-	ret = i915_vma_pin(vma, size, alignment, flags | PIN_GLOBAL);
+	ret = i915_vma_pin(vma, size, alignment, flags);
 	if (ret)
 		return ERR_PTR(ret);
 

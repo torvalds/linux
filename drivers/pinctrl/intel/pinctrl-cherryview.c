@@ -1595,7 +1595,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
 
 		if (need_valid_mask && intsel >= community->nirqs)
-			clear_bit(i, chip->irq.valid_mask);
+			clear_bit(desc->number, chip->irq.valid_mask);
 	}
 
 	/*

@@ -253,8 +253,15 @@ static int ocelot_vlan_vid_add(struct net_device *dev, u16 vid, bool pvid,
 		port->pvid = vid;
 
 	/* Untagged egress vlan clasification */
-	if (untagged)
+	if (untagged && port->vid != vid) {
+		if (port->vid) {
+			dev_err(ocelot->dev,
+				"Port already has a native VLAN: %d\n",
+				port->vid);
+			return -EBUSY;
+		}
 		port->vid = vid;
+	}
 
 	ocelot_vlan_port_apply(ocelot, port);
 
@@ -886,7 +893,7 @@ end:
 static int ocelot_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 				  u16 vid)
 {
-	return ocelot_vlan_vid_add(dev, vid, false, true);
+	return ocelot_vlan_vid_add(dev, vid, false, false);
 }
 
 static int ocelot_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
@@ -1506,9 +1513,6 @@ static int ocelot_netdevice_port_event(struct net_device *dev,
 	struct ocelot_port *ocelot_port = netdev_priv(dev);
 	int err = 0;
 
-	if (!ocelot_netdevice_dev_check(dev))
-		return 0;
-
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
 		if (netif_is_bridge_master(info->upper_dev)) {
@@ -1545,12 +1549,16 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	int ret = 0;
 
+	if (!ocelot_netdevice_dev_check(dev))
+		return 0;
+
 	if (event == NETDEV_PRECHANGEUPPER &&
 	    netif_is_lag_master(info->upper_dev)) {
 		struct netdev_lag_upper_info *lag_upper_info = info->upper_info;
 		struct netlink_ext_ack *extack;
 
-		if (lag_upper_info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
+		if (lag_upper_info &&
+		    lag_upper_info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
 			extack = netdev_notifier_info_to_extack(&info->info);
 			NL_SET_ERR_MSG_MOD(extack, "LAG device using unsupported Tx type");
 

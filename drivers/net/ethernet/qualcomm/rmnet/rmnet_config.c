@@ -66,9 +66,9 @@ static int rmnet_unregister_real_device(struct net_device *real_dev,
 	if (port->nr_rmnet_devs)
 		return -EINVAL;
 
-	kfree(port);
-
 	netdev_rx_handler_unregister(real_dev);
+
+	kfree(port);
 
 	/* release reference on real_dev */
 	dev_put(real_dev);
