@@ -437,8 +437,7 @@ int nft_flow_rule_offload_commit(struct net *net)
 
 			err = nft_flow_offload_rule(trans->ctx.chain,
 						    nft_trans_rule(trans),
-						    nft_trans_flow_rule(trans),
-						    FLOW_CLS_DESTROY);
+						    NULL, FLOW_CLS_DESTROY);
 			break;
 		}
 
