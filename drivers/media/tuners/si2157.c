@@ -47,12 +47,18 @@ static int si2157_cmd_execute(struct i2c_client *client, struct si2157_cmd *cmd)
 				break;
 		}
 
-		dev_dbg(&client->dev, "cmd execution took %d ms\n",
-				jiffies_to_msecs(jiffies) -
-				(jiffies_to_msecs(timeout) - TIMEOUT));
+		dev_dbg(&client->dev, "cmd execution took %d ms, status=%x\n",
+			jiffies_to_msecs(jiffies) -
+			(jiffies_to_msecs(timeout) - TIMEOUT),
+			cmd->args[0]);
 
 		if (!((cmd->args[0] >> 7) & 0x01)) {
 			ret = -ETIMEDOUT;
+			goto err_mutex_unlock;
+		}
+		/* check error status bit */
+		if (cmd->args[0] & 0x40) {
+			ret = -EAGAIN;
 			goto err_mutex_unlock;
 		}
 	}
@@ -106,7 +112,7 @@ static int si2157_init(struct dvb_frontend *fe)
 	}
 	cmd.rlen = 1;
 	ret = si2157_cmd_execute(client, &cmd);
-	if (ret)
+	if (ret && (dev->chiptype != SI2157_CHIPTYPE_SI2141 || ret != -EAGAIN))
 		goto err;
 
 	/* Si2141 needs a second command before it answers the revision query */
@@ -478,7 +484,7 @@ static int si2157_probe(struct i2c_client *client,
 	cmd.wlen = 0;
 	cmd.rlen = 1;
 	ret = si2157_cmd_execute(client, &cmd);
-	if (ret)
+	if (ret && ret != -EAGAIN)
 		goto err_kfree;
 
 	memcpy(&fe->ops.tuner_ops, &si2157_ops, sizeof(struct dvb_tuner_ops));
