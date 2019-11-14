@@ -108,8 +108,9 @@ struct bpf_object_open_opts {
 	 * auto-pinned to that path on load; defaults to "/sys/fs/bpf".
 	 */
 	const char *pin_root_path;
+	__u32 attach_prog_fd;
 };
-#define bpf_object_open_opts__last_field pin_root_path
+#define bpf_object_open_opts__last_field attach_prog_fd
 
 LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
 LIBBPF_API struct bpf_object *
