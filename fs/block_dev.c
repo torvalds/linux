@@ -1511,10 +1511,7 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part);
 static void bdev_disk_changed(struct block_device *bdev, bool invalidate)
 {
 	if (disk_part_scan_enabled(bdev->bd_disk)) {
-		if (invalidate)
-			invalidate_partitions(bdev->bd_disk, bdev);
-		else
-			rescan_partitions(bdev->bd_disk, bdev);
+		rescan_partitions(bdev->bd_disk, bdev, invalidate);
 	} else {
 		check_disk_size_change(bdev->bd_disk, bdev, !invalidate);
 		bdev->bd_invalidated = 0;
