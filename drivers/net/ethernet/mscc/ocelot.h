@@ -435,13 +435,19 @@ enum ocelot_tag_prefix {
 };
 
 struct ocelot_port;
+struct ocelot;
 
 struct ocelot_stat_layout {
 	u32 offset;
 	char name[ETH_GSTRING_LEN];
 };
 
+struct ocelot_ops {
+	void (*pcs_init)(struct ocelot *ocelot, int port);
+};
+
 struct ocelot {
+	const struct ocelot_ops *ops;
 	struct device *dev;
 
 	struct regmap *targets[TARGET_MAX];
@@ -553,7 +559,7 @@ struct regmap *ocelot_regmap_init(struct ocelot *ocelot, struct resource *res);
 
 int ocelot_init(struct ocelot *ocelot);
 void ocelot_deinit(struct ocelot *ocelot);
-int ocelot_chip_init(struct ocelot *ocelot);
+int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops);
 int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 		      void __iomem *regs,
 		      struct phy_device *phy);
