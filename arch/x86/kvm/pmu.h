@@ -89,6 +89,12 @@ static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
 	return kvm_x86_ops->pmu_ops->pmc_is_enabled(pmc);
 }
 
+static inline bool kvm_valid_perf_global_ctrl(struct kvm_pmu *pmu,
+						 u64 data)
+{
+	return !(pmu->global_ctrl_mask & data);
+}
+
 /* returns general purpose PMC with the specified MSR. Note that it can be
  * used for both PERFCTRn and EVNTSELn; that is why it accepts base as a
  * paramenter to tell them apart.
