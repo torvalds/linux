@@ -170,8 +170,12 @@ static umode_t nvme_hwmon_is_visible(const void *_data,
 	case hwmon_temp_max:
 	case hwmon_temp_min:
 		if ((!channel && data->ctrl->wctemp) ||
-		    (channel && data->log.temp_sensor[channel - 1]))
+		    (channel && data->log.temp_sensor[channel - 1])) {
+			if (data->ctrl->quirks &
+			    NVME_QUIRK_NO_TEMP_THRESH_CHANGE)
+				return 0444;
 			return 0644;
+		}
 		break;
 	case hwmon_temp_alarm:
 		if (!channel)
