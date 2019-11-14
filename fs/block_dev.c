@@ -1508,9 +1508,9 @@ EXPORT_SYMBOL(bd_set_size);
 
 static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part);
 
-static int rescan_partitions(struct gendisk *disk, struct block_device *bdev,
-		bool invalidate)
+int bdev_disk_changed(struct block_device *bdev, bool invalidate)
 {
+	struct gendisk *disk = bdev->bd_disk;
 	int ret;
 
 rescan:
@@ -1526,30 +1526,19 @@ rescan:
 	check_disk_size_change(disk, bdev, !invalidate);
 	bdev->bd_invalidated = 0;
 
-	if (!get_capacity(disk)) {
+	if (get_capacity(disk)) {
+		ret = blk_add_partitions(disk, bdev);
+		if (ret == -EAGAIN)
+			goto rescan;
+	} else {
 		/*
 		 * Tell userspace that the media / partition table may have
 		 * changed.
 		 */
 		kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
-		return 0;
 	}
 
-	ret = blk_add_partitions(disk, bdev);
-	if (ret == -EAGAIN)
-		goto rescan;
 	return ret;
-}
-
-
-static void bdev_disk_changed(struct block_device *bdev, bool invalidate)
-{
-	if (disk_part_scan_enabled(bdev->bd_disk)) {
-		rescan_partitions(bdev->bd_disk, bdev, invalidate);
-	} else {
-		check_disk_size_change(bdev->bd_disk, bdev, !invalidate);
-		bdev->bd_invalidated = 0;
-	}
 }
 
 /*
