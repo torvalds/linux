@@ -120,6 +120,31 @@ static void npc_enable_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
 	}
 }
 
+static void npc_clear_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
+				 int blkaddr, int index)
+{
+	int bank = npc_get_bank(mcam, index);
+	int actbank = bank;
+
+	index &= (mcam->banksize - 1);
+	for (; bank < (actbank + mcam->banks_per_entry); bank++) {
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_INTF(index, bank, 1), 0);
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_INTF(index, bank, 0), 0);
+
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_W0(index, bank, 1), 0);
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_W0(index, bank, 0), 0);
+
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_W1(index, bank, 1), 0);
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_W1(index, bank, 0), 0);
+	}
+}
+
 static void npc_get_keyword(struct mcam_entry *entry, int idx,
 			    u64 *cam0, u64 *cam1)
 {
@@ -211,6 +236,12 @@ static void npc_config_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
 	actindex = index;
 	index &= (mcam->banksize - 1);
 
+	/* Disable before mcam entry update */
+	npc_enable_mcam_entry(rvu, mcam, blkaddr, actindex, false);
+
+	/* Clear mcam entry to avoid writes being suppressed by NPC */
+	npc_clear_mcam_entry(rvu, mcam, blkaddr, actindex);
+
 	/* CAM1 takes the comparison value and
 	 * CAM0 specifies match for a bit in key being '0' or '1' or 'dontcare'.
 	 * CAM1<n> = 0 & CAM0<n> = 1 => match if key<n> = 0
@@ -251,8 +282,6 @@ static void npc_config_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
 	/* Enable the entry */
 	if (enable)
 		npc_enable_mcam_entry(rvu, mcam, blkaddr, actindex, true);
-	else
-		npc_enable_mcam_entry(rvu, mcam, blkaddr, actindex, false);
 }
 
 static void npc_copy_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
