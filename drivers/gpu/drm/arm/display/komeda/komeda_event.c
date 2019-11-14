@@ -17,6 +17,7 @@ struct komeda_str {
 
 /* return 0 on success,  < 0 on no space.
  */
+__printf(2, 3)
 static int komeda_sprintf(struct komeda_str *str, const char *fmt, ...)
 {
 	va_list args;
