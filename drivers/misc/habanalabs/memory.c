@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/genalloc.h>
 
-#define PGS_IN_2MB_PAGE	(PAGE_SIZE_2MB >> PAGE_SHIFT)
 #define HL_MMU_DEBUG	0
 
 /*
@@ -516,8 +515,8 @@ static inline int add_va_block(struct hl_device *hdev,
  * - Return the start address of the virtual block
  */
 static u64 get_va_block(struct hl_device *hdev,
-		struct hl_va_range *va_range, u64 size, u64 hint_addr,
-		bool is_userptr)
+			struct hl_va_range *va_range, u64 size, u64 hint_addr,
+			bool is_userptr)
 {
 	struct hl_vm_va_block *va_block, *new_va_block = NULL;
 	u64 valid_start, valid_size, prev_start, prev_end, page_mask,
@@ -525,18 +524,17 @@ static u64 get_va_block(struct hl_device *hdev,
 	u32 page_size;
 	bool add_prev = false;
 
-	if (is_userptr) {
+	if (is_userptr)
 		/*
 		 * We cannot know if the user allocated memory with huge pages
 		 * or not, hence we continue with the biggest possible
 		 * granularity.
 		 */
-		page_size = PAGE_SIZE_2MB;
-		page_mask = PAGE_MASK_2MB;
-	} else {
-		page_size = hdev->asic_prop.dram_page_size;
-		page_mask = ~((u64)page_size - 1);
-	}
+		page_size = hdev->asic_prop.pmmu.huge_page_size;
+	else
+		page_size = hdev->asic_prop.dmmu.page_size;
+
+	page_mask = ~((u64)page_size - 1);
 
 	mutex_lock(&va_range->lock);
 
@@ -558,7 +556,6 @@ static u64 get_va_block(struct hl_device *hdev,
 
 		if (valid_size >= size &&
 			(!new_va_block || valid_size < res_valid_size)) {
-
 			new_va_block = va_block;
 			res_valid_start = valid_start;
 			res_valid_size = valid_size;
@@ -629,7 +626,7 @@ static u32 get_sg_info(struct scatterlist *sg, dma_addr_t *dma_addr)
 /*
  * init_phys_pg_pack_from_userptr - initialize physical page pack from host
  *                                  memory
- * @asid: current context ASID
+ * @ctx: current context
  * @userptr: userptr to initialize from
  * @pphys_pg_pack: result pointer
  *
@@ -638,16 +635,20 @@ static u32 get_sg_info(struct scatterlist *sg, dma_addr_t *dma_addr)
  * - Create a physical page pack from the physical pages related to the given
  *   virtual block
  */
-static int init_phys_pg_pack_from_userptr(u32 asid, struct hl_userptr *userptr,
+static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
+				struct hl_userptr *userptr,
 				struct hl_vm_phys_pg_pack **pphys_pg_pack)
 {
+	struct hl_mmu_properties *mmu_prop = &ctx->hdev->asic_prop.pmmu;
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct scatterlist *sg;
 	dma_addr_t dma_addr;
 	u64 page_mask, total_npages;
-	u32 npages, page_size = PAGE_SIZE;
+	u32 npages, page_size = PAGE_SIZE,
+		huge_page_size = mmu_prop->huge_page_size;
 	bool first = true, is_huge_page_opt = true;
 	int rc, i, j;
+	u32 pgs_in_huge_page = huge_page_size >> __ffs(page_size);
 
 	phys_pg_pack = kzalloc(sizeof(*phys_pg_pack), GFP_KERNEL);
 	if (!phys_pg_pack)
@@ -655,7 +656,7 @@ static int init_phys_pg_pack_from_userptr(u32 asid, struct hl_userptr *userptr,
 
 	phys_pg_pack->vm_type = userptr->vm_type;
 	phys_pg_pack->created_from_userptr = true;
-	phys_pg_pack->asid = asid;
+	phys_pg_pack->asid = ctx->asid;
 	atomic_set(&phys_pg_pack->mapping_cnt, 1);
 
 	/* Only if all dma_addrs are aligned to 2MB and their
@@ -670,14 +671,14 @@ static int init_phys_pg_pack_from_userptr(u32 asid, struct hl_userptr *userptr,
 
 		total_npages += npages;
 
-		if ((npages % PGS_IN_2MB_PAGE) ||
-					(dma_addr & (PAGE_SIZE_2MB - 1)))
+		if ((npages % pgs_in_huge_page) ||
+					(dma_addr & (huge_page_size - 1)))
 			is_huge_page_opt = false;
 	}
 
 	if (is_huge_page_opt) {
-		page_size = PAGE_SIZE_2MB;
-		total_npages /= PGS_IN_2MB_PAGE;
+		page_size = huge_page_size;
+		do_div(total_npages, pgs_in_huge_page);
 	}
 
 	page_mask = ~(((u64) page_size) - 1);
@@ -709,7 +710,7 @@ static int init_phys_pg_pack_from_userptr(u32 asid, struct hl_userptr *userptr,
 			dma_addr += page_size;
 
 			if (is_huge_page_opt)
-				npages -= PGS_IN_2MB_PAGE;
+				npages -= pgs_in_huge_page;
 			else
 				npages--;
 		}
@@ -872,7 +873,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 			return rc;
 		}
 
-		rc = init_phys_pg_pack_from_userptr(ctx->asid, userptr,
+		rc = init_phys_pg_pack_from_userptr(ctx, userptr,
 				&phys_pg_pack);
 		if (rc) {
 			dev_err(hdev->dev,
@@ -1029,7 +1030,7 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 	if (*vm_type == VM_TYPE_USERPTR) {
 		is_userptr = true;
 		userptr = hnode->ptr;
-		rc = init_phys_pg_pack_from_userptr(ctx->asid, userptr,
+		rc = init_phys_pg_pack_from_userptr(ctx, userptr,
 							&phys_pg_pack);
 		if (rc) {
 			dev_err(hdev->dev,

@@ -131,12 +131,44 @@ enum hl_device_hw_state {
 };
 
 /**
+ * struct hl_mmu_properties - ASIC specific MMU address translation properties.
+ * @hop0_shift: shift of hop 0 mask.
+ * @hop1_shift: shift of hop 1 mask.
+ * @hop2_shift: shift of hop 2 mask.
+ * @hop3_shift: shift of hop 3 mask.
+ * @hop4_shift: shift of hop 4 mask.
+ * @hop0_mask: mask to get the PTE address in hop 0.
+ * @hop1_mask: mask to get the PTE address in hop 1.
+ * @hop2_mask: mask to get the PTE address in hop 2.
+ * @hop3_mask: mask to get the PTE address in hop 3.
+ * @hop4_mask: mask to get the PTE address in hop 4.
+ * @page_size: default page size used to allocate memory.
+ * @huge_page_size: page size used to allocate memory with huge pages.
+ */
+struct hl_mmu_properties {
+	u64	hop0_shift;
+	u64	hop1_shift;
+	u64	hop2_shift;
+	u64	hop3_shift;
+	u64	hop4_shift;
+	u64	hop0_mask;
+	u64	hop1_mask;
+	u64	hop2_mask;
+	u64	hop3_mask;
+	u64	hop4_mask;
+	u32	page_size;
+	u32	huge_page_size;
+};
+
+/**
  * struct asic_fixed_properties - ASIC specific immutable properties.
  * @hw_queues_props: H/W queues properties.
  * @armcp_info: received various information from ArmCP regarding the H/W, e.g.
  *		available sensors.
  * @uboot_ver: F/W U-boot version.
  * @preboot_ver: F/W Preboot version.
+ * @dmmu: DRAM MMU address translation properties.
+ * @pmmu: PCI (host) MMU address translation properties.
  * @sram_base_address: SRAM physical start address.
  * @sram_end_address: SRAM physical end address.
  * @sram_user_base_address - SRAM physical start address for user access.
@@ -173,53 +205,55 @@ enum hl_device_hw_state {
  * @psoc_pci_pll_nf: PCI PLL NF value.
  * @psoc_pci_pll_od: PCI PLL OD value.
  * @psoc_pci_pll_div_factor: PCI PLL DIV FACTOR 1 value.
- * @completion_queues_count: number of completion queues.
  * @high_pll: high PLL frequency used by the device.
  * @cb_pool_cb_cnt: number of CBs in the CB pool.
  * @cb_pool_cb_size: size of each CB in the CB pool.
  * @tpc_enabled_mask: which TPCs are enabled.
+ * @completion_queues_count: number of completion queues.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	hw_queues_props[HL_MAX_QUEUES];
-	struct armcp_info	armcp_info;
-	char			uboot_ver[VERSION_MAX_LEN];
-	char			preboot_ver[VERSION_MAX_LEN];
-	u64			sram_base_address;
-	u64			sram_end_address;
-	u64			sram_user_base_address;
-	u64			dram_base_address;
-	u64			dram_end_address;
-	u64			dram_user_base_address;
-	u64			dram_size;
-	u64			dram_pci_bar_size;
-	u64			max_power_default;
-	u64			va_space_host_start_address;
-	u64			va_space_host_end_address;
-	u64			va_space_dram_start_address;
-	u64			va_space_dram_end_address;
-	u64			dram_size_for_default_page_mapping;
-	u64			pcie_dbi_base_address;
-	u64			pcie_aux_dbi_reg_addr;
-	u64			mmu_pgt_addr;
-	u64			mmu_dram_default_page_addr;
-	u32			mmu_pgt_size;
-	u32			mmu_pte_size;
-	u32			mmu_hop_table_size;
-	u32			mmu_hop0_tables_total_size;
-	u32			dram_page_size;
-	u32			cfg_size;
-	u32			sram_size;
-	u32			max_asid;
-	u32			num_of_events;
-	u32			psoc_pci_pll_nr;
-	u32			psoc_pci_pll_nf;
-	u32			psoc_pci_pll_od;
-	u32			psoc_pci_pll_div_factor;
-	u32			high_pll;
-	u32			cb_pool_cb_cnt;
-	u32			cb_pool_cb_size;
-	u8			completion_queues_count;
-	u8			tpc_enabled_mask;
+	struct armcp_info		armcp_info;
+	char				uboot_ver[VERSION_MAX_LEN];
+	char				preboot_ver[VERSION_MAX_LEN];
+	struct hl_mmu_properties	dmmu;
+	struct hl_mmu_properties	pmmu;
+	u64				sram_base_address;
+	u64				sram_end_address;
+	u64				sram_user_base_address;
+	u64				dram_base_address;
+	u64				dram_end_address;
+	u64				dram_user_base_address;
+	u64				dram_size;
+	u64				dram_pci_bar_size;
+	u64				max_power_default;
+	u64				va_space_host_start_address;
+	u64				va_space_host_end_address;
+	u64				va_space_dram_start_address;
+	u64				va_space_dram_end_address;
+	u64				dram_size_for_default_page_mapping;
+	u64				pcie_dbi_base_address;
+	u64				pcie_aux_dbi_reg_addr;
+	u64				mmu_pgt_addr;
+	u64				mmu_dram_default_page_addr;
+	u32				mmu_pgt_size;
+	u32				mmu_pte_size;
+	u32				mmu_hop_table_size;
+	u32				mmu_hop0_tables_total_size;
+	u32				dram_page_size;
+	u32				cfg_size;
+	u32				sram_size;
+	u32				max_asid;
+	u32				num_of_events;
+	u32				psoc_pci_pll_nr;
+	u32				psoc_pci_pll_nf;
+	u32				psoc_pci_pll_od;
+	u32				psoc_pci_pll_div_factor;
+	u32				high_pll;
+	u32				cb_pool_cb_cnt;
+	u32				cb_pool_cb_size;
+	u8				tpc_enabled_mask;
+	u8				completion_queues_count;
 };
 
 /**

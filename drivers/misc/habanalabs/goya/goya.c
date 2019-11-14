@@ -380,6 +380,23 @@ void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->mmu_hop0_tables_total_size = HOP0_TABLES_TOTAL_SIZE;
 	prop->dram_page_size = PAGE_SIZE_2MB;
 
+	prop->dmmu.hop0_shift = HOP0_SHIFT;
+	prop->dmmu.hop1_shift = HOP1_SHIFT;
+	prop->dmmu.hop2_shift = HOP2_SHIFT;
+	prop->dmmu.hop3_shift = HOP3_SHIFT;
+	prop->dmmu.hop4_shift = HOP4_SHIFT;
+	prop->dmmu.hop0_mask = HOP0_MASK;
+	prop->dmmu.hop1_mask = HOP1_MASK;
+	prop->dmmu.hop2_mask = HOP2_MASK;
+	prop->dmmu.hop3_mask = HOP3_MASK;
+	prop->dmmu.hop4_mask = HOP4_MASK;
+	prop->dmmu.huge_page_size = PAGE_SIZE_2MB;
+
+	/* No difference between PMMU and DMMU except of page size */
+	memcpy(&prop->pmmu, &prop->dmmu, sizeof(prop->dmmu));
+	prop->dmmu.page_size = PAGE_SIZE_2MB;
+	prop->pmmu.page_size = PAGE_SIZE_4KB;
+
 	prop->va_space_host_start_address = VA_HOST_SPACE_START;
 	prop->va_space_host_end_address = VA_HOST_SPACE_END;
 	prop->va_space_dram_start_address = VA_DDR_SPACE_START;
