@@ -25,16 +25,22 @@ static struct pgt_info *get_pgt_info(struct hl_ctx *ctx, u64 hop_addr)
 	return pgt_info;
 }
 
-static void free_hop(struct hl_ctx *ctx, u64 hop_addr)
+static void _free_hop(struct hl_ctx *ctx, struct pgt_info *pgt_info)
 {
 	struct hl_device *hdev = ctx->hdev;
-	struct pgt_info *pgt_info = get_pgt_info(ctx, hop_addr);
 
 	gen_pool_free(hdev->mmu_pgt_pool, pgt_info->phys_addr,
 			hdev->asic_prop.mmu_hop_table_size);
 	hash_del(&pgt_info->node);
 	kfree((u64 *) (uintptr_t) pgt_info->shadow_addr);
 	kfree(pgt_info);
+}
+
+static void free_hop(struct hl_ctx *ctx, u64 hop_addr)
+{
+	struct pgt_info *pgt_info = get_pgt_info(ctx, hop_addr);
+
+	_free_hop(ctx, pgt_info);
 }
 
 static u64 alloc_hop(struct hl_ctx *ctx)
@@ -159,7 +165,7 @@ static inline int put_pte(struct hl_ctx *ctx, u64 hop_addr)
 	 */
 	num_of_ptes_left = pgt_info->num_of_ptes;
 	if (!num_of_ptes_left)
-		free_hop(ctx, hop_addr);
+		_free_hop(ctx, pgt_info);
 
 	return num_of_ptes_left;
 }
@@ -516,13 +522,14 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
 	dram_default_mapping_fini(ctx);
 
 	if (!hash_empty(ctx->mmu_shadow_hash))
-		dev_err(hdev->dev, "ctx is freed while it has pgts in use\n");
+		dev_err(hdev->dev, "ctx %d is freed while it has pgts in use\n",
+			ctx->asid);
 
 	hash_for_each_safe(ctx->mmu_shadow_hash, i, tmp, pgt_info, node) {
-		dev_err(hdev->dev,
+		dev_err_ratelimited(hdev->dev,
 			"pgt_info of addr 0x%llx of asid %d was not destroyed, num_ptes: %d\n",
 			pgt_info->phys_addr, ctx->asid, pgt_info->num_of_ptes);
-		free_hop(ctx, pgt_info->shadow_addr);
+		_free_hop(ctx, pgt_info);
 	}
 
 	mutex_destroy(&ctx->mmu_lock);
