@@ -65,6 +65,8 @@ struct frame_info {
 #define IFH_REW_OP_ORIGIN_PTP		0x5
 
 #define OCELOT_TAG_LEN			16
+#define OCELOT_SHORT_PREFIX_LEN		4
+#define OCELOT_LONG_PREFIX_LEN		16
 
 #define OCELOT_SPEED_2500 0
 #define OCELOT_SPEED_1000 1

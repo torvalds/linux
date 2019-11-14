@@ -2230,9 +2230,18 @@ void ocelot_set_cpu_port(struct ocelot *ocelot, int cpu,
 	 * Only one port can be an NPI at the same time.
 	 */
 	if (cpu < ocelot->num_phys_ports) {
+		int mtu = VLAN_ETH_FRAME_LEN + OCELOT_TAG_LEN;
+
 		ocelot_write(ocelot, QSYS_EXT_CPU_CFG_EXT_CPUQ_MSK_M |
 			     QSYS_EXT_CPU_CFG_EXT_CPU_PORT(cpu),
 			     QSYS_EXT_CPU_CFG);
+
+		if (injection == OCELOT_TAG_PREFIX_SHORT)
+			mtu += OCELOT_SHORT_PREFIX_LEN;
+		else if (injection == OCELOT_TAG_PREFIX_LONG)
+			mtu += OCELOT_LONG_PREFIX_LEN;
+
+		ocelot_port_set_mtu(ocelot, cpu, mtu);
 	}
 
 	/* CPU port Injection/Extraction configuration */
