@@ -2075,7 +2075,7 @@ xfs_buf_init(void)
 void
 xfs_buf_terminate(void)
 {
-	kmem_zone_destroy(xfs_buf_zone);
+	kmem_cache_destroy(xfs_buf_zone);
 }
 
 void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)

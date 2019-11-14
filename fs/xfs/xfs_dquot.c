@@ -1226,7 +1226,7 @@ xfs_qm_init(void)
 	return 0;
 
 out_free_dqzone:
-	kmem_zone_destroy(xfs_qm_dqzone);
+	kmem_cache_destroy(xfs_qm_dqzone);
 out:
 	return -ENOMEM;
 }
@@ -1234,8 +1234,8 @@ out:
 void
 xfs_qm_exit(void)
 {
-	kmem_zone_destroy(xfs_qm_dqtrxzone);
-	kmem_zone_destroy(xfs_qm_dqzone);
+	kmem_cache_destroy(xfs_qm_dqtrxzone);
+	kmem_cache_destroy(xfs_qm_dqzone);
 }
 
 /*
