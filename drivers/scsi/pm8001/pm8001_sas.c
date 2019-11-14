@@ -388,6 +388,7 @@ static int pm8001_task_exec(struct sas_task *task,
 	struct pm8001_ccb_info *ccb;
 	u32 tag = 0xdeadbeef, rc = 0, n_elem = 0;
 	unsigned long flags = 0;
+	enum sas_protocol task_proto = t->task_proto;
 
 	if (!dev->port) {
 		struct task_status_struct *tsm = &t->task_status;
@@ -412,7 +413,7 @@ static int pm8001_task_exec(struct sas_task *task,
 		pm8001_dev = dev->lldd_dev;
 		port = &pm8001_ha->port[sas_find_local_port_id(dev)];
 		if (DEV_IS_GONE(pm8001_dev) || !port->port_attached) {
-			if (sas_protocol_ata(t->task_proto)) {
+			if (sas_protocol_ata(task_proto)) {
 				struct task_status_struct *ts = &t->task_status;
 				ts->resp = SAS_TASK_UNDELIVERED;
 				ts->stat = SAS_PHY_DOWN;
@@ -434,7 +435,7 @@ static int pm8001_task_exec(struct sas_task *task,
 			goto err_out;
 		ccb = &pm8001_ha->ccb_info[tag];
 
-		if (!sas_protocol_ata(t->task_proto)) {
+		if (!sas_protocol_ata(task_proto)) {
 			if (t->num_scatter) {
 				n_elem = dma_map_sg(pm8001_ha->dev,
 					t->scatter,
@@ -454,7 +455,7 @@ static int pm8001_task_exec(struct sas_task *task,
 		ccb->ccb_tag = tag;
 		ccb->task = t;
 		ccb->device = pm8001_dev;
-		switch (t->task_proto) {
+		switch (task_proto) {
 		case SAS_PROTOCOL_SMP:
 			rc = pm8001_task_prep_smp(pm8001_ha, ccb);
 			break;
@@ -471,8 +472,7 @@ static int pm8001_task_exec(struct sas_task *task,
 			break;
 		default:
 			dev_printk(KERN_ERR, pm8001_ha->dev,
-				"unknown sas_task proto: 0x%x\n",
-				t->task_proto);
+				"unknown sas_task proto: 0x%x\n", task_proto);
 			rc = -EINVAL;
 			break;
 		}
@@ -495,7 +495,7 @@ err_out_tag:
 	pm8001_tag_free(pm8001_ha, tag);
 err_out:
 	dev_printk(KERN_ERR, pm8001_ha->dev, "pm8001 exec failed[%d]!\n", rc);
-	if (!sas_protocol_ata(t->task_proto))
+	if (!sas_protocol_ata(task_proto))
 		if (n_elem)
 			dma_unmap_sg(pm8001_ha->dev, t->scatter, t->num_scatter,
 				t->data_dir);
