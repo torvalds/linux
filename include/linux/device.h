@@ -1232,6 +1232,17 @@ static inline struct device_node *dev_of_node(struct device *dev)
 	return dev->of_node;
 }
 
+static inline bool dev_has_sync_state(struct device *dev)
+{
+	if (!dev)
+		return false;
+	if (dev->driver && dev->driver->sync_state)
+		return true;
+	if (dev->bus && dev->bus->sync_state)
+		return true;
+	return false;
+}
+
 void driver_init(void);
 
 /*
