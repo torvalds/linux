@@ -544,7 +544,6 @@ static u64 get_va_block(struct hl_device *hdev,
 		/* calc the first possible aligned addr */
 		valid_start = va_block->start;
 
-
 		if (valid_start & (page_size - 1)) {
 			valid_start &= page_mask;
 			valid_start += page_size;
@@ -1588,43 +1587,16 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
  * @hdev                : pointer to the habanalabs structure
  * va_range             : pointer to virtual addresses range
  *
- * This function initializes the following:
- * - Checks that the given range contains the whole initial range
+ * This function does the following:
  * - Frees the virtual addresses block list and its lock
  */
 static void hl_va_range_fini(struct hl_device *hdev,
 		struct hl_va_range *va_range)
 {
-	struct hl_vm_va_block *va_block;
-
-	if (list_empty(&va_range->list)) {
-		dev_warn(hdev->dev,
-				"va list should not be empty on cleanup!\n");
-		goto out;
-	}
-
-	if (!list_is_singular(&va_range->list)) {
-		dev_warn(hdev->dev,
-			"va list should not contain multiple blocks on cleanup!\n");
-		goto free_va_list;
-	}
-
-	va_block = list_first_entry(&va_range->list, typeof(*va_block), node);
-
-	if (va_block->start != va_range->start_addr ||
-		va_block->end != va_range->end_addr) {
-		dev_warn(hdev->dev,
-			"wrong va block on cleanup, from 0x%llx to 0x%llx\n",
-				va_block->start, va_block->end);
-		goto free_va_list;
-	}
-
-free_va_list:
 	mutex_lock(&va_range->lock);
 	clear_va_list_locked(hdev, &va_range->list);
 	mutex_unlock(&va_range->lock);
 
-out:
 	mutex_destroy(&va_range->lock);
 }
 
@@ -1659,8 +1631,14 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 
 	hl_debugfs_remove_ctx_mem_hash(hdev, ctx);
 
-	if (!hash_empty(ctx->mem_hash))
-		dev_notice(hdev->dev, "ctx is freed while it has va in use\n");
+	/*
+	 * Clearly something went wrong on hard reset so no point in printing
+	 * another side effect error
+	 */
+	if (!hdev->hard_reset_pending && !hash_empty(ctx->mem_hash))
+		dev_notice(hdev->dev,
+				"ctx %d is freed while it has va in use\n",
+				ctx->asid);
 
 	hash_for_each_safe(ctx->mem_hash, i, tmp_node, hnode, node) {
 		dev_dbg(hdev->dev,
