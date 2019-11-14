@@ -44,6 +44,33 @@ enum {
 	CGX_STAT18,
 };
 
+/* NIX TX stats */
+enum nix_stat_lf_tx {
+	TX_UCAST	= 0x0,
+	TX_BCAST	= 0x1,
+	TX_MCAST	= 0x2,
+	TX_DROP		= 0x3,
+	TX_OCTS		= 0x4,
+	TX_STATS_ENUM_LAST,
+};
+
+/* NIX RX stats */
+enum nix_stat_lf_rx {
+	RX_OCTS		= 0x0,
+	RX_UCAST	= 0x1,
+	RX_BCAST	= 0x2,
+	RX_MCAST	= 0x3,
+	RX_DROP		= 0x4,
+	RX_DROP_OCTS	= 0x5,
+	RX_FCS		= 0x6,
+	RX_ERR		= 0x7,
+	RX_DRP_BCAST	= 0x8,
+	RX_DRP_MCAST	= 0x9,
+	RX_DRP_L3BCAST	= 0xa,
+	RX_DRP_L3MCAST	= 0xb,
+	RX_STATS_ENUM_LAST,
+};
+
 static char *cgx_rx_stats_fields[] = {
 	[CGX_STAT0]	= "Received packets",
 	[CGX_STAT1]	= "Octets of received packets",
@@ -1329,12 +1356,39 @@ create_failed:
 	debugfs_remove_recursive(rvu->rvu_dbg.npa);
 }
 
+#define PRINT_CGX_CUML_NIXRX_STATUS(idx, name)				\
+	({								\
+		u64 cnt;						\
+		err = rvu_cgx_nix_cuml_stats(rvu, cgxd, lmac_id, (idx),	\
+					     NIX_STATS_RX, &(cnt));	\
+		if (!err)						\
+			seq_printf(s, "%s: %llu\n", name, cnt);		\
+		cnt;							\
+	})
+
+#define PRINT_CGX_CUML_NIXTX_STATUS(idx, name)			\
+	({								\
+		u64 cnt;						\
+		err = rvu_cgx_nix_cuml_stats(rvu, cgxd, lmac_id, (idx),	\
+					  NIX_STATS_TX, &(cnt));	\
+		if (!err)						\
+			seq_printf(s, "%s: %llu\n", name, cnt);		\
+		cnt;							\
+	})
+
 static int cgx_print_stats(struct seq_file *s, int lmac_id)
 {
 	struct cgx_link_user_info linfo;
 	void *cgxd = s->private;
+	u64 ucast, mcast, bcast;
 	int stat = 0, err = 0;
 	u64 tx_stat, rx_stat;
+	struct rvu *rvu;
+
+	rvu = pci_get_drvdata(pci_get_device(PCI_VENDOR_ID_CAVIUM,
+					     PCI_DEVID_OCTEONTX2_RVU_AF, NULL));
+	if (!rvu)
+		return -ENODEV;
 
 	/* Link status */
 	seq_puts(s, "\n=======Link Status======\n\n");
@@ -1343,6 +1397,47 @@ static int cgx_print_stats(struct seq_file *s, int lmac_id)
 		seq_puts(s, "Failed to read link status\n");
 	seq_printf(s, "\nLink is %s %d Mbps\n\n",
 		   linfo.link_up ? "UP" : "DOWN", linfo.speed);
+
+	/* Rx stats */
+	seq_puts(s, "\n=======NIX RX_STATS(CGX port level)======\n\n");
+	ucast = PRINT_CGX_CUML_NIXRX_STATUS(RX_UCAST, "rx_ucast_frames");
+	if (err)
+		return err;
+	mcast = PRINT_CGX_CUML_NIXRX_STATUS(RX_MCAST, "rx_mcast_frames");
+	if (err)
+		return err;
+	bcast = PRINT_CGX_CUML_NIXRX_STATUS(RX_BCAST, "rx_bcast_frames");
+	if (err)
+		return err;
+	seq_printf(s, "rx_frames: %llu\n", ucast + mcast + bcast);
+	PRINT_CGX_CUML_NIXRX_STATUS(RX_OCTS, "rx_bytes");
+	if (err)
+		return err;
+	PRINT_CGX_CUML_NIXRX_STATUS(RX_DROP, "rx_drops");
+	if (err)
+		return err;
+	PRINT_CGX_CUML_NIXRX_STATUS(RX_ERR, "rx_errors");
+	if (err)
+		return err;
+
+	/* Tx stats */
+	seq_puts(s, "\n=======NIX TX_STATS(CGX port level)======\n\n");
+	ucast = PRINT_CGX_CUML_NIXTX_STATUS(TX_UCAST, "tx_ucast_frames");
+	if (err)
+		return err;
+	mcast = PRINT_CGX_CUML_NIXTX_STATUS(TX_MCAST, "tx_mcast_frames");
+	if (err)
+		return err;
+	bcast = PRINT_CGX_CUML_NIXTX_STATUS(TX_BCAST, "tx_bcast_frames");
+	if (err)
+		return err;
+	seq_printf(s, "tx_frames: %llu\n", ucast + mcast + bcast);
+	PRINT_CGX_CUML_NIXTX_STATUS(TX_OCTS, "tx_bytes");
+	if (err)
+		return err;
+	PRINT_CGX_CUML_NIXTX_STATUS(TX_DROP, "tx_drops");
+	if (err)
+		return err;
 
 	/* Rx stats */
 	seq_puts(s, "\n=======CGX RX_STATS======\n\n");
