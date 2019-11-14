@@ -2042,17 +2042,6 @@ static s32 exfat_calc_num_entries(struct uni_name_t *p_uniname)
 	return (len - 1) / 15 + 3;
 }
 
-u8 calc_checksum_1byte(void *data, s32 len, u8 chksum)
-{
-	int i;
-	u8 *c = (u8 *)data;
-
-	for (i = 0; i < len; i++, c++)
-		chksum = (((chksum & 1) << 7) | ((chksum & 0xFE) >> 1)) + *c;
-
-	return chksum;
-}
-
 u16 calc_checksum_2byte(void *data, s32 len, u16 chksum, s32 type)
 {
 	int i;
@@ -2072,30 +2061,6 @@ u16 calc_checksum_2byte(void *data, s32 len, u16 chksum, s32 type)
 		for (i = 0; i < len; i++, c++)
 			chksum = (((chksum & 1) << 15) |
 				  ((chksum & 0xFFFE) >> 1)) + (u16)*c;
-	}
-
-	return chksum;
-}
-
-u32 calc_checksum_4byte(void *data, s32 len, u32 chksum, s32 type)
-{
-	int i;
-	u8 *c = (u8 *)data;
-
-	switch (type) {
-	case CS_PBR_SECTOR:
-		for (i = 0; i < len; i++, c++) {
-			if ((i == 106) || (i == 107) || (i == 112))
-				continue;
-			chksum = (((chksum & 1) << 31) |
-				  ((chksum & 0xFFFFFFFE) >> 1)) + (u32)*c;
-		}
-		break;
-	default
-			:
-		for (i = 0; i < len; i++, c++)
-			chksum = (((chksum & 1) << 31) |
-				  ((chksum & 0xFFFFFFFE) >> 1)) + (u32)*c;
 	}
 
 	return chksum;
