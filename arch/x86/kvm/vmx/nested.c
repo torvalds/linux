@@ -10,6 +10,7 @@
 #include "hyperv.h"
 #include "mmu.h"
 #include "nested.h"
+#include "pmu.h"
 #include "trace.h"
 #include "x86.h"
 
@@ -2789,6 +2790,11 @@ static int nested_vmx_check_guest_state(struct kvm_vcpu *vcpu,
 		*exit_qual = ENTRY_FAIL_VMCS_LINK_PTR;
 		return -EINVAL;
 	}
+
+	if ((vmcs12->vm_entry_controls & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL) &&
+	    CC(!kvm_valid_perf_global_ctrl(vcpu_to_pmu(vcpu),
+					   vmcs12->guest_ia32_perf_global_ctrl)))
+		return -EINVAL;
 
 	/*
 	 * If the load IA32_EFER VM-entry control is 1, the following checks
