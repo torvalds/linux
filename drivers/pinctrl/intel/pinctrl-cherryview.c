@@ -149,6 +149,7 @@ struct chv_pin_context {
  * @chip: GPIO chip in this pin controller
  * @irqchip: IRQ chip in this pin controller
  * @regs: MMIO registers
+ * @irq: Our parent irq
  * @intr_lines: Stores mapping between 16 HW interrupt wires and GPIO
  *		offset (in GPIO number space)
  * @community: Community this pinctrl instance represents
@@ -165,6 +166,7 @@ struct chv_pinctrl {
 	struct gpio_chip chip;
 	struct irq_chip irqchip;
 	void __iomem *regs;
+	unsigned int irq;
 	unsigned int intr_lines[16];
 	const struct chv_community *community;
 	u32 saved_intmask;
@@ -1617,26 +1619,8 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	chip->add_pin_ranges = chv_gpio_add_pin_ranges;
 	chip->parent = pctrl->dev;
 	chip->base = -1;
-	if (need_valid_mask)
-		chip->irq.init_valid_mask = chv_init_irq_valid_mask;
 
-	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
-	if (ret) {
-		dev_err(pctrl->dev, "Failed to register gpiochip\n");
-		return ret;
-	}
-
-	chv_gpio_irq_init_hw(chip);
-
-	if (!need_valid_mask) {
-		irq_base = devm_irq_alloc_descs(pctrl->dev, -1, 0,
-						community->npins, NUMA_NO_NODE);
-		if (irq_base < 0) {
-			dev_err(pctrl->dev, "Failed to allocate IRQ numbers\n");
-			return irq_base;
-		}
-	}
-
+	pctrl->irq = irq;
 	pctrl->irqchip.name = "chv-gpio";
 	pctrl->irqchip.irq_startup = chv_gpio_irq_startup;
 	pctrl->irqchip.irq_ack = chv_gpio_irq_ack;
@@ -1645,10 +1629,27 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	pctrl->irqchip.irq_set_type = chv_gpio_irq_type;
 	pctrl->irqchip.flags = IRQCHIP_SKIP_SET_WAKE;
 
-	ret = gpiochip_irqchip_add(chip, &pctrl->irqchip, 0,
-				   handle_bad_irq, IRQ_TYPE_NONE);
+	chip->irq.chip = &pctrl->irqchip;
+	chip->irq.init_hw = chv_gpio_irq_init_hw;
+	chip->irq.parent_handler = chv_gpio_irq_handler;
+	chip->irq.num_parents = 1;
+	chip->irq.parents = &pctrl->irq;
+	chip->irq.default_type = IRQ_TYPE_NONE;
+	chip->irq.handler = handle_bad_irq;
+	if (need_valid_mask) {
+		chip->irq.init_valid_mask = chv_init_irq_valid_mask;
+	} else {
+		irq_base = devm_irq_alloc_descs(pctrl->dev, -1, 0,
+						community->npins, NUMA_NO_NODE);
+		if (irq_base < 0) {
+			dev_err(pctrl->dev, "Failed to allocate IRQ numbers\n");
+			return irq_base;
+		}
+	}
+
+	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
 	if (ret) {
-		dev_err(pctrl->dev, "failed to add IRQ chip\n");
+		dev_err(pctrl->dev, "Failed to register gpiochip\n");
 		return ret;
 	}
 
@@ -1662,8 +1663,6 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		}
 	}
 
-	gpiochip_set_chained_irqchip(chip, &pctrl->irqchip, irq,
-				     chv_gpio_irq_handler);
 	return 0;
 }
 
