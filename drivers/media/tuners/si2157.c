@@ -9,6 +9,10 @@
 
 static const struct dvb_tuner_ops si2157_ops;
 
+static int tuner_lock_debug;
+module_param(tuner_lock_debug, int, 0644);
+MODULE_PARM_DESC(tuner_lock_debug, "if set, signal lock is briefly waited on after setting params");
+
 /* execute firmware command */
 static int si2157_cmd_execute(struct i2c_client *client, struct si2157_cmd *cmd)
 {
@@ -301,14 +305,22 @@ err:
 	return ret;
 }
 
-static int si2157_tune_wait(struct i2c_client *client)
+static int si2157_tune_wait(struct i2c_client *client, u8 is_digital)
 {
 #define TUN_TIMEOUT 40
+#define DIG_TIMEOUT 30
+#define ANALOG_TIMEOUT 150
 	struct si2157_dev *dev = i2c_get_clientdata(client);
 	int ret;
 	unsigned long timeout;
 	unsigned long start_time;
 	u8 wait_status;
+	u8  tune_lock_mask;
+
+	if (is_digital)
+		tune_lock_mask = 0x04;
+	else
+		tune_lock_mask = 0x02;
 
 	mutex_lock(&dev->i2c_mutex);
 
@@ -334,6 +346,34 @@ static int si2157_tune_wait(struct i2c_client *client)
 	dev_dbg(&client->dev, "tuning took %d ms, status=0x%x\n",
 		jiffies_to_msecs(jiffies) - jiffies_to_msecs(start_time),
 		wait_status);
+
+	/* if we tuned ok, wait a bit for tuner lock */
+	if (tuner_lock_debug && (wait_status & 0x81) == 0x81) {
+		if (is_digital)
+			timeout = jiffies + msecs_to_jiffies(DIG_TIMEOUT);
+		else
+			timeout = jiffies + msecs_to_jiffies(ANALOG_TIMEOUT);
+
+		while (!time_after(jiffies, timeout)) {
+			ret = i2c_master_recv(client, &wait_status,
+					      sizeof(wait_status));
+			if (ret < 0) {
+				goto err_mutex_unlock;
+			} else if (ret != sizeof(wait_status)) {
+				ret = -EREMOTEIO;
+				goto err_mutex_unlock;
+			}
+
+			/* tuner locked? */
+			if (wait_status & tune_lock_mask)
+				break;
+			usleep_range(5000, 10000);
+		}
+
+		dev_dbg(&client->dev, "tuning+lock took %d ms, status=0x%x\n",
+			jiffies_to_msecs(jiffies) - jiffies_to_msecs(start_time),
+			wait_status);
+	}
 
 	if ((wait_status & 0xc0) != 0x80) {
 		ret = -ETIMEDOUT;
@@ -448,7 +488,7 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	dev->bandwidth = bandwidth;
 	dev->frequency = c->frequency;
 
-	si2157_tune_wait(client); /* wait to complete, ignore any errors */
+	si2157_tune_wait(client, 1); /* wait to complete, ignore any errors */
 
 	return 0;
 err:
@@ -645,7 +685,7 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 
 	dev->bandwidth = bandwidth;
 
-	si2157_tune_wait(client); /* wait to complete, ignore any errors */
+	si2157_tune_wait(client, 0); /* wait to complete, ignore any errors */
 
 	return 0;
 err:
