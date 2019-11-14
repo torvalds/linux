@@ -1966,7 +1966,7 @@ int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask)
 		goto exit_root_id;
 	}
 	root_cgrp->kn = root->kf_root->kn;
-	WARN_ON_ONCE(cgroup_id(root_cgrp) != 1);
+	WARN_ON_ONCE(cgroup_ino(root_cgrp) != 1);
 	root_cgrp->ancestor_ids[0] = cgroup_id(root_cgrp);
 
 	ret = css_populate_dir(&root_cgrp->self);
