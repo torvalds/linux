@@ -194,6 +194,11 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 		break;
 	case NIX_INTF_TYPE_LBK:
 		vf = (pcifunc & RVU_PFVF_FUNC_MASK) - 1;
+
+		/* Note that AF's VFs work in pairs and talk over consecutive
+		 * loopback channels.Therefore if odd number of AF VFs are
+		 * enabled then the last VF remains with no pair.
+		 */
 		pfvf->rx_chan_base = NIX_CHAN_LBK_CHX(0, vf);
 		pfvf->tx_chan_base = vf & 0x1 ? NIX_CHAN_LBK_CHX(0, vf - 1) :
 						NIX_CHAN_LBK_CHX(0, vf + 1);
@@ -3120,7 +3125,8 @@ int rvu_mbox_handler_nix_lf_start_rx(struct rvu *rvu, struct msg_req *req,
 		return err;
 
 	rvu_npc_enable_default_entries(rvu, pcifunc, nixlf);
-	return 0;
+
+	return rvu_cgx_start_stop_io(rvu, pcifunc, true);
 }
 
 int rvu_mbox_handler_nix_lf_stop_rx(struct rvu *rvu, struct msg_req *req,
@@ -3134,7 +3140,8 @@ int rvu_mbox_handler_nix_lf_stop_rx(struct rvu *rvu, struct msg_req *req,
 		return err;
 
 	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
-	return 0;
+
+	return rvu_cgx_start_stop_io(rvu, pcifunc, false);
 }
 
 void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
@@ -3149,6 +3156,8 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	nix_interface_deinit(rvu, pcifunc, nixlf);
 	nix_rx_sync(rvu, blkaddr);
 	nix_txschq_free(rvu, pcifunc);
+
+	rvu_cgx_start_stop_io(rvu, pcifunc, false);
 
 	if (pfvf->sq_ctx) {
 		ctx_req.ctype = NIX_AQ_CTYPE_SQ;

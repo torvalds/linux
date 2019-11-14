@@ -308,6 +308,8 @@ int rvu_cgx_init(struct rvu *rvu)
 	if (err)
 		return err;
 
+	mutex_init(&rvu->cgx_cfg_lock);
+
 	/* Ensure event handler registration is completed, before
 	 * we turn on the links
 	 */
@@ -637,4 +639,51 @@ int rvu_cgx_nix_cuml_stats(struct rvu *rvu, void *cgxd, int lmac_id,
 	}
 
 	return 0;
+}
+
+int rvu_cgx_start_stop_io(struct rvu *rvu, u16 pcifunc, bool start)
+{
+	struct rvu_pfvf *parent_pf, *pfvf;
+	int cgx_users, err = 0;
+
+	if (!is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc)))
+		return 0;
+
+	parent_pf = &rvu->pf[rvu_get_pf(pcifunc)];
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+
+	mutex_lock(&rvu->cgx_cfg_lock);
+
+	if (start && pfvf->cgx_in_use)
+		goto exit;  /* CGX is already started hence nothing to do */
+	if (!start && !pfvf->cgx_in_use)
+		goto exit; /* CGX is already stopped hence nothing to do */
+
+	if (start) {
+		cgx_users = parent_pf->cgx_users;
+		parent_pf->cgx_users++;
+	} else {
+		parent_pf->cgx_users--;
+		cgx_users = parent_pf->cgx_users;
+	}
+
+	/* Start CGX when first of all NIXLFs is started.
+	 * Stop CGX when last of all NIXLFs is stopped.
+	 */
+	if (!cgx_users) {
+		err = rvu_cgx_config_rxtx(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK,
+					  start);
+		if (err) {
+			dev_err(rvu->dev, "Unable to %s CGX\n",
+				start ? "start" : "stop");
+			/* Revert the usage count in case of error */
+			parent_pf->cgx_users = start ? parent_pf->cgx_users  - 1
+					       : parent_pf->cgx_users  + 1;
+			goto exit;
+		}
+	}
+	pfvf->cgx_in_use = start;
+exit:
+	mutex_unlock(&rvu->cgx_cfg_lock);
+	return err;
 }

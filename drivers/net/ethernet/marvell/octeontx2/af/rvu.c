@@ -2364,18 +2364,6 @@ static int rvu_enable_sriov(struct rvu *rvu)
 	if (vfs > chans)
 		vfs = chans;
 
-	/* AF's VFs work in pairs and talk over consecutive loopback channels.
-	 * Thus we want to enable maximum even number of VFs. In case
-	 * odd number of VFs are available then the last VF on the list
-	 * remains disabled.
-	 */
-	if (vfs & 0x1) {
-		dev_warn(&pdev->dev,
-			 "Number of VFs should be even. Enabling %d out of %d.\n",
-			 vfs - 1, vfs);
-		vfs--;
-	}
-
 	if (!vfs)
 		return 0;
 

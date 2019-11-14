@@ -179,6 +179,9 @@ struct rvu_pfvf {
 	struct mcam_entry entry;
 	int rxvlan_index;
 	bool rxvlan;
+
+	bool	cgx_in_use; /* this PF/VF using CGX? */
+	int	cgx_users;  /* number of cgx users - used only by PFs */
 };
 
 struct nix_txsch {
@@ -306,6 +309,7 @@ struct rvu {
 	struct			workqueue_struct *cgx_evh_wq;
 	spinlock_t		cgx_evq_lock; /* cgx event queue lock */
 	struct list_head	cgx_evq_head; /* cgx event queue head */
+	struct mutex		cgx_cfg_lock; /* serialize cgx configuration */
 
 	char mkex_pfl_name[MKEX_NAME_LEN]; /* Configured MKEX profile name */
 
@@ -410,6 +414,7 @@ int rvu_cgx_exit(struct rvu *rvu);
 void *rvu_cgx_pdata(u8 cgx_id, struct rvu *rvu);
 int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start);
 void rvu_cgx_enadis_rx_bp(struct rvu *rvu, int pf, bool enable);
+int rvu_cgx_start_stop_io(struct rvu *rvu, u16 pcifunc, bool start);
 int rvu_cgx_nix_cuml_stats(struct rvu *rvu, void *cgxd, int lmac_id, int index,
 			   int rxtxflag, u64 *stat);
 /* NPA APIs */
