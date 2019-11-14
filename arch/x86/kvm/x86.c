@@ -8034,6 +8034,10 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_update_apicv);
  */
 void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 {
+	if (!kvm_x86_ops->check_apicv_inhibit_reasons ||
+	    !kvm_x86_ops->check_apicv_inhibit_reasons(bit))
+		return;
+
 	if (activate) {
 		if (!test_and_clear_bit(bit, &kvm->arch.apicv_inhibit_reasons) ||
 		    !kvm_apicv_activated(kvm))

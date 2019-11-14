@@ -7298,6 +7298,13 @@ static bool svm_apic_init_signal_blocked(struct kvm_vcpu *vcpu)
 		   (svm->vmcb->control.intercept & (1ULL << INTERCEPT_INIT));
 }
 
+static bool svm_check_apicv_inhibit_reasons(ulong bit)
+{
+	ulong supported = BIT(APICV_INHIBIT_REASON_DISABLE);
+
+	return supported & BIT(bit);
+}
+
 static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -7373,6 +7380,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.update_cr8_intercept = update_cr8_intercept,
 	.set_virtual_apic_mode = svm_set_virtual_apic_mode,
 	.refresh_apicv_exec_ctrl = svm_refresh_apicv_exec_ctrl,
+	.check_apicv_inhibit_reasons = svm_check_apicv_inhibit_reasons,
 	.load_eoi_exitmap = svm_load_eoi_exitmap,
 	.hwapic_irr_update = svm_hwapic_irr_update,
 	.hwapic_isr_update = svm_hwapic_isr_update,
