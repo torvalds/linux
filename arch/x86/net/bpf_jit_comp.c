@@ -504,7 +504,8 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 	u8 *prog;
 	int ret;
 
-	if (!is_kernel_text((long)ip))
+	if (!is_kernel_text((long)ip) &&
+	    !is_bpf_text_address((long)ip))
 		/* BPF trampoline in modules is not supported */
 		return -EINVAL;
 

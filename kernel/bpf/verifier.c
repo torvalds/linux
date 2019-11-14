@@ -9390,13 +9390,17 @@ static void print_verification_stats(struct bpf_verifier_env *env)
 static int check_attach_btf_id(struct bpf_verifier_env *env)
 {
 	struct bpf_prog *prog = env->prog;
+	struct bpf_prog *tgt_prog = prog->aux->linked_prog;
 	u32 btf_id = prog->aux->attach_btf_id;
 	const char prefix[] = "btf_trace_";
+	int ret = 0, subprog = -1, i;
 	struct bpf_trampoline *tr;
 	const struct btf_type *t;
+	bool conservative = true;
 	const char *tname;
-	int ret = 0;
+	struct btf *btf;
 	long addr;
+	u64 key;
 
 	if (prog->type != BPF_PROG_TYPE_TRACING)
 		return 0;
@@ -9405,19 +9409,47 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 		verbose(env, "Tracing programs must provide btf_id\n");
 		return -EINVAL;
 	}
-	t = btf_type_by_id(btf_vmlinux, btf_id);
+	btf = bpf_prog_get_target_btf(prog);
+	if (!btf) {
+		verbose(env,
+			"FENTRY/FEXIT program can only be attached to another program annotated with BTF\n");
+		return -EINVAL;
+	}
+	t = btf_type_by_id(btf, btf_id);
 	if (!t) {
 		verbose(env, "attach_btf_id %u is invalid\n", btf_id);
 		return -EINVAL;
 	}
-	tname = btf_name_by_offset(btf_vmlinux, t->name_off);
+	tname = btf_name_by_offset(btf, t->name_off);
 	if (!tname) {
 		verbose(env, "attach_btf_id %u doesn't have a name\n", btf_id);
 		return -EINVAL;
 	}
+	if (tgt_prog) {
+		struct bpf_prog_aux *aux = tgt_prog->aux;
+
+		for (i = 0; i < aux->func_info_cnt; i++)
+			if (aux->func_info[i].type_id == btf_id) {
+				subprog = i;
+				break;
+			}
+		if (subprog == -1) {
+			verbose(env, "Subprog %s doesn't exist\n", tname);
+			return -EINVAL;
+		}
+		conservative = aux->func_info_aux[subprog].unreliable;
+		key = ((u64)aux->id) << 32 | btf_id;
+	} else {
+		key = btf_id;
+	}
 
 	switch (prog->expected_attach_type) {
 	case BPF_TRACE_RAW_TP:
+		if (tgt_prog) {
+			verbose(env,
+				"Only FENTRY/FEXIT progs are attachable to another BPF prog\n");
+			return -EINVAL;
+		}
 		if (!btf_type_is_typedef(t)) {
 			verbose(env, "attach_btf_id %u is not a typedef\n",
 				btf_id);
@@ -9429,11 +9461,11 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 			return -EINVAL;
 		}
 		tname += sizeof(prefix) - 1;
-		t = btf_type_by_id(btf_vmlinux, t->type);
+		t = btf_type_by_id(btf, t->type);
 		if (!btf_type_is_ptr(t))
 			/* should never happen in valid vmlinux build */
 			return -EINVAL;
-		t = btf_type_by_id(btf_vmlinux, t->type);
+		t = btf_type_by_id(btf, t->type);
 		if (!btf_type_is_func_proto(t))
 			/* should never happen in valid vmlinux build */
 			return -EINVAL;
@@ -9452,30 +9484,51 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 				btf_id);
 			return -EINVAL;
 		}
-		t = btf_type_by_id(btf_vmlinux, t->type);
+		t = btf_type_by_id(btf, t->type);
 		if (!btf_type_is_func_proto(t))
 			return -EINVAL;
-		tr = bpf_trampoline_lookup(btf_id);
+		tr = bpf_trampoline_lookup(key);
 		if (!tr)
 			return -ENOMEM;
 		prog->aux->attach_func_name = tname;
+		/* t is either vmlinux type or another program's type */
 		prog->aux->attach_func_proto = t;
 		mutex_lock(&tr->mutex);
 		if (tr->func.addr) {
 			prog->aux->trampoline = tr;
 			goto out;
 		}
-		ret = btf_distill_func_proto(&env->log, btf_vmlinux, t,
+		if (tgt_prog && conservative) {
+			prog->aux->attach_func_proto = NULL;
+			t = NULL;
+		}
+		ret = btf_distill_func_proto(&env->log, btf, t,
 					     tname, &tr->func.model);
 		if (ret < 0)
 			goto out;
-		addr = kallsyms_lookup_name(tname);
-		if (!addr) {
-			verbose(env,
-				"The address of function %s cannot be found\n",
-				tname);
-			ret = -ENOENT;
-			goto out;
+		if (tgt_prog) {
+			if (!tgt_prog->jited) {
+				/* for now */
+				verbose(env, "Can trace only JITed BPF progs\n");
+				ret = -EINVAL;
+				goto out;
+			}
+			if (tgt_prog->type == BPF_PROG_TYPE_TRACING) {
+				/* prevent cycles */
+				verbose(env, "Cannot recursively attach\n");
+				ret = -EINVAL;
+				goto out;
+			}
+			addr = (long) tgt_prog->aux->func[subprog]->bpf_func;
+		} else {
+			addr = kallsyms_lookup_name(tname);
+			if (!addr) {
+				verbose(env,
+					"The address of function %s cannot be found\n",
+					tname);
+				ret = -ENOENT;
+				goto out;
+			}
 		}
 		tr->func.addr = (void *)addr;
 		prog->aux->trampoline = tr;
