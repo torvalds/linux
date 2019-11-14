@@ -487,23 +487,17 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	}
 
 	/* Add OVS_PACKET_ATTR_MRU */
-	if (upcall_info->mru) {
-		if (nla_put_u16(user_skb, OVS_PACKET_ATTR_MRU,
-				upcall_info->mru)) {
-			err = -ENOBUFS;
-			goto out;
-		}
-		pad_packet(dp, user_skb);
+	if (upcall_info->mru &&
+	    nla_put_u16(user_skb, OVS_PACKET_ATTR_MRU, upcall_info->mru)) {
+		err = -ENOBUFS;
+		goto out;
 	}
 
 	/* Add OVS_PACKET_ATTR_LEN when packet is truncated */
-	if (cutlen > 0) {
-		if (nla_put_u32(user_skb, OVS_PACKET_ATTR_LEN,
-				skb->len)) {
-			err = -ENOBUFS;
-			goto out;
-		}
-		pad_packet(dp, user_skb);
+	if (cutlen > 0 &&
+	    nla_put_u32(user_skb, OVS_PACKET_ATTR_LEN, skb->len)) {
+		err = -ENOBUFS;
+		goto out;
 	}
 
 	/* Add OVS_PACKET_ATTR_HASH */
