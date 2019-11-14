@@ -268,7 +268,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		enum ocelot_target id;
 		char *name;
 		u8 optional:1;
-	} res[] = {
+	} io_target[] = {
 		{ SYS, "sys" },
 		{ REW, "rew" },
 		{ QSYS, "qsys" },
@@ -288,20 +288,23 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ocelot);
 	ocelot->dev = &pdev->dev;
 
-	for (i = 0; i < ARRAY_SIZE(res); i++) {
+	for (i = 0; i < ARRAY_SIZE(io_target); i++) {
 		struct regmap *target;
+		struct resource *res;
 
-		target = ocelot_io_platform_init(ocelot, pdev, res[i].name);
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   io_target[i].name);
+
+		target = ocelot_regmap_init(ocelot, res);
 		if (IS_ERR(target)) {
-			if (res[i].optional) {
-				ocelot->targets[res[i].id] = NULL;
+			if (io_target[i].optional) {
+				ocelot->targets[io_target[i].id] = NULL;
 				continue;
 			}
-
 			return PTR_ERR(target);
 		}
 
-		ocelot->targets[res[i].id] = target;
+		ocelot->targets[io_target[i].id] = target;
 	}
 
 	hsio = syscon_regmap_lookup_by_compatible("mscc,ocelot-hsio");
