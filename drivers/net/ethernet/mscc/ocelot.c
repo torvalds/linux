@@ -2097,10 +2097,31 @@ static int ocelot_init_timestamp(struct ocelot *ocelot)
 	return 0;
 }
 
-static void ocelot_init_port(struct ocelot *ocelot, int port)
+static void ocelot_port_set_mtu(struct ocelot *ocelot, int port, size_t mtu)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	int atop_wm;
+
+	ocelot_port_writel(ocelot_port, mtu, DEV_MAC_MAXLEN_CFG);
+
+	/* Set Pause WM hysteresis
+	 * 152 = 6 * mtu / OCELOT_BUFFER_CELL_SZ
+	 * 101 = 4 * mtu / OCELOT_BUFFER_CELL_SZ
+	 */
+	ocelot_write_rix(ocelot, SYS_PAUSE_CFG_PAUSE_ENA |
+			 SYS_PAUSE_CFG_PAUSE_STOP(101) |
+			 SYS_PAUSE_CFG_PAUSE_START(152), SYS_PAUSE_CFG, port);
+
+	/* Tail dropping watermark */
+	atop_wm = (ocelot->shared_queue_sz - 9 * mtu) / OCELOT_BUFFER_CELL_SZ;
+	ocelot_write_rix(ocelot, ocelot_wm_enc(9 * mtu),
+			 SYS_ATOP, port);
+	ocelot_write(ocelot, ocelot_wm_enc(atop_wm), SYS_ATOP_TOT_CFG);
+}
+
+static void ocelot_init_port(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
 	INIT_LIST_HEAD(&ocelot_port->skbs);
 
@@ -2122,8 +2143,7 @@ static void ocelot_init_port(struct ocelot *ocelot, int port)
 			   DEV_MAC_HDX_CFG);
 
 	/* Set Max Length and maximum tags allowed */
-	ocelot_port_writel(ocelot_port, VLAN_ETH_FRAME_LEN,
-			   DEV_MAC_MAXLEN_CFG);
+	ocelot_port_set_mtu(ocelot, port, VLAN_ETH_FRAME_LEN);
 	ocelot_port_writel(ocelot_port, DEV_MAC_TAGS_CFG_TAG_ID(ETH_P_8021AD) |
 			   DEV_MAC_TAGS_CFG_VLAN_AWR_ENA |
 			   DEV_MAC_TAGS_CFG_VLAN_LEN_AWR_ENA,
@@ -2132,20 +2152,6 @@ static void ocelot_init_port(struct ocelot *ocelot, int port)
 	/* Set SMAC of Pause frame (00:00:00:00:00:00) */
 	ocelot_port_writel(ocelot_port, 0, DEV_MAC_FC_MAC_HIGH_CFG);
 	ocelot_port_writel(ocelot_port, 0, DEV_MAC_FC_MAC_LOW_CFG);
-
-	/* Set Pause WM hysteresis
-	 * 152 = 6 * VLAN_ETH_FRAME_LEN / OCELOT_BUFFER_CELL_SZ
-	 * 101 = 4 * VLAN_ETH_FRAME_LEN / OCELOT_BUFFER_CELL_SZ
-	 */
-	ocelot_write_rix(ocelot, SYS_PAUSE_CFG_PAUSE_ENA |
-			 SYS_PAUSE_CFG_PAUSE_STOP(101) |
-			 SYS_PAUSE_CFG_PAUSE_START(152), SYS_PAUSE_CFG, port);
-
-	/* Tail dropping watermark */
-	atop_wm = (ocelot->shared_queue_sz - 9 * VLAN_ETH_FRAME_LEN) / OCELOT_BUFFER_CELL_SZ;
-	ocelot_write_rix(ocelot, ocelot_wm_enc(9 * VLAN_ETH_FRAME_LEN),
-			 SYS_ATOP, port);
-	ocelot_write(ocelot, ocelot_wm_enc(atop_wm), SYS_ATOP_TOT_CFG);
 
 	/* Drop frames with multicast source address */
 	ocelot_rmw_gix(ocelot, ANA_PORT_DROP_CFG_DROP_MC_SMAC_ENA,
