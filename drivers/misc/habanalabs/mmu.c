@@ -105,8 +105,8 @@ static inline void write_pte(struct hl_ctx *ctx, u64 shadow_pte_addr, u64 val)
 	 * clear the 12 LSBs and translate the shadow hop to its associated
 	 * physical hop, and add back the original 12 LSBs.
 	 */
-	u64 phys_val = get_phys_addr(ctx, val & PTE_PHYS_ADDR_MASK) |
-				(val & OFFSET_MASK);
+	u64 phys_val = get_phys_addr(ctx, val & HOP_PHYS_ADDR_MASK) |
+				(val & FLAGS_MASK);
 
 	ctx->hdev->asic_funcs->write_pte(ctx->hdev,
 					get_phys_addr(ctx, shadow_pte_addr),
@@ -199,7 +199,7 @@ static inline u64 get_hop4_pte_addr(struct hl_ctx *ctx, u64 hop_addr, u64 vaddr)
 static inline u64 get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte)
 {
 	if (curr_pte & PAGE_PRESENT_MASK)
-		return curr_pte & PHYS_ADDR_MASK;
+		return curr_pte & HOP_PHYS_ADDR_MASK;
 	else
 		return ULLONG_MAX;
 }
@@ -288,23 +288,23 @@ static int dram_default_mapping_init(struct hl_ctx *ctx)
 	}
 
 	/* need only pte 0 in hops 0 and 1 */
-	pte_val = (hop1_addr & PTE_PHYS_ADDR_MASK) | PAGE_PRESENT_MASK;
+	pte_val = (hop1_addr & HOP_PHYS_ADDR_MASK) | PAGE_PRESENT_MASK;
 	write_pte(ctx, hop0_addr, pte_val);
 
-	pte_val = (hop2_addr & PTE_PHYS_ADDR_MASK) | PAGE_PRESENT_MASK;
+	pte_val = (hop2_addr & HOP_PHYS_ADDR_MASK) | PAGE_PRESENT_MASK;
 	write_pte(ctx, hop1_addr, pte_val);
 	get_pte(ctx, hop1_addr);
 
 	hop2_pte_addr = hop2_addr;
 	for (i = 0 ; i < num_of_hop3 ; i++) {
-		pte_val = (ctx->dram_default_hops[i] & PTE_PHYS_ADDR_MASK) |
+		pte_val = (ctx->dram_default_hops[i] & HOP_PHYS_ADDR_MASK) |
 				PAGE_PRESENT_MASK;
 		write_pte(ctx, hop2_pte_addr, pte_val);
 		get_pte(ctx, hop2_addr);
 		hop2_pte_addr += HL_PTE_SIZE;
 	}
 
-	pte_val = (prop->mmu_dram_default_page_addr & PTE_PHYS_ADDR_MASK) |
+	pte_val = (prop->mmu_dram_default_page_addr & HOP_PHYS_ADDR_MASK) |
 			LAST_MASK | PAGE_PRESENT_MASK;
 
 	for (i = 0 ; i < num_of_hop3 ; i++) {
@@ -400,8 +400,6 @@ int hl_mmu_init(struct hl_device *hdev)
 	if (!hdev->mmu_enable)
 		return 0;
 
-	/* MMU H/W init was already done in device hw_init() */
-
 	hdev->mmu_pgt_pool =
 			gen_pool_create(__ffs(prop->mmu_hop_table_size), -1);
 
@@ -427,6 +425,8 @@ int hl_mmu_init(struct hl_device *hdev)
 		goto err_pool_add;
 	}
 
+	/* MMU H/W init will be done in device hw_init() */
+
 	return 0;
 
 err_pool_add:
@@ -450,10 +450,10 @@ void hl_mmu_fini(struct hl_device *hdev)
 	if (!hdev->mmu_enable)
 		return;
 
+	/* MMU H/W fini was already done in device hw_fini() */
+
 	kvfree(hdev->mmu_shadow_hop0);
 	gen_pool_destroy(hdev->mmu_pgt_pool);
-
-	/* MMU H/W fini will be done in device hw_fini() */
 }
 
 /**
@@ -584,7 +584,7 @@ static int _hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr)
 
 	if (hdev->dram_default_page_mapping && is_dram_addr) {
 		u64 default_pte = (prop->mmu_dram_default_page_addr &
-				PTE_PHYS_ADDR_MASK) | LAST_MASK |
+				HOP_PHYS_ADDR_MASK) | LAST_MASK |
 					PAGE_PRESENT_MASK;
 		if (curr_pte == default_pte) {
 			dev_err(hdev->dev,
@@ -773,7 +773,7 @@ static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 
 	if (hdev->dram_default_page_mapping && is_dram_addr) {
 		u64 default_pte = (prop->mmu_dram_default_page_addr &
-					PTE_PHYS_ADDR_MASK) | LAST_MASK |
+					HOP_PHYS_ADDR_MASK) | LAST_MASK |
 						PAGE_PRESENT_MASK;
 
 		if (curr_pte != default_pte) {
@@ -813,7 +813,7 @@ static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 		goto err;
 	}
 
-	curr_pte = (phys_addr & PTE_PHYS_ADDR_MASK) | LAST_MASK
+	curr_pte = (phys_addr & HOP_PHYS_ADDR_MASK) | LAST_MASK
 			| PAGE_PRESENT_MASK;
 
 	if (is_huge)
@@ -823,25 +823,25 @@ static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 
 	if (hop1_new) {
 		curr_pte =
-			(hop1_addr & PTE_PHYS_ADDR_MASK) | PAGE_PRESENT_MASK;
+			(hop1_addr & HOP_PHYS_ADDR_MASK) | PAGE_PRESENT_MASK;
 		write_pte(ctx, hop0_pte_addr, curr_pte);
 	}
 	if (hop2_new) {
 		curr_pte =
-			(hop2_addr & PTE_PHYS_ADDR_MASK) | PAGE_PRESENT_MASK;
+			(hop2_addr & HOP_PHYS_ADDR_MASK) | PAGE_PRESENT_MASK;
 		write_pte(ctx, hop1_pte_addr, curr_pte);
 		get_pte(ctx, hop1_addr);
 	}
 	if (hop3_new) {
 		curr_pte =
-			(hop3_addr & PTE_PHYS_ADDR_MASK) | PAGE_PRESENT_MASK;
+			(hop3_addr & HOP_PHYS_ADDR_MASK) | PAGE_PRESENT_MASK;
 		write_pte(ctx, hop2_pte_addr, curr_pte);
 		get_pte(ctx, hop2_addr);
 	}
 
 	if (!is_huge) {
 		if (hop4_new) {
-			curr_pte = (hop4_addr & PTE_PHYS_ADDR_MASK) |
+			curr_pte = (hop4_addr & HOP_PHYS_ADDR_MASK) |
 					PAGE_PRESENT_MASK;
 			write_pte(ctx, hop3_pte_addr, curr_pte);
 			get_pte(ctx, hop3_addr);

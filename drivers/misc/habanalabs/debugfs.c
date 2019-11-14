@@ -345,7 +345,7 @@ static inline u64 get_hop4_pte_addr(struct hl_ctx *ctx, u64 hop_addr,
 static inline u64 get_next_hop_addr(u64 curr_pte)
 {
 	if (curr_pte & PAGE_PRESENT_MASK)
-		return curr_pte & PHYS_ADDR_MASK;
+		return curr_pte & HOP_PHYS_ADDR_MASK;
 	else
 		return ULLONG_MAX;
 }
@@ -535,7 +535,7 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 {
 	struct hl_ctx *ctx = hdev->compute_ctx;
 	u64 hop_addr, hop_pte_addr, hop_pte;
-	u64 offset_mask = HOP4_MASK | OFFSET_MASK;
+	u64 offset_mask = HOP4_MASK | FLAGS_MASK;
 	int rc = 0;
 
 	if (!ctx) {
@@ -579,7 +579,7 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 		hop_pte_addr = get_hop4_pte_addr(ctx, hop_addr, virt_addr);
 		hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
 
-		offset_mask = OFFSET_MASK;
+		offset_mask = FLAGS_MASK;
 	}
 
 	if (!(hop_pte & PAGE_PRESENT_MASK))
