@@ -477,12 +477,15 @@ struct qeth_card_stats {
 	u64 rx_sg_frags;
 	u64 rx_sg_alloc_page;
 
+	u64 rx_dropped_nomem;
+	u64 rx_dropped_notsupp;
+
 	/* rtnl_link_stats64 */
 	u64 rx_packets;
 	u64 rx_bytes;
-	u64 rx_errors;
-	u64 rx_dropped;
 	u64 rx_multicast;
+	u64 rx_length_errors;
+	u64 rx_fifo_errors;
 };
 
 struct qeth_out_q_stats {

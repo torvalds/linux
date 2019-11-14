@@ -3093,7 +3093,7 @@ static int qeth_check_qdio_errors(struct qeth_card *card,
 			       buf->element[14].sflags);
 		QETH_CARD_TEXT_(card, 2, " qerr=%X", qdio_error);
 		if ((buf->element[15].sflags) == 0x12) {
-			QETH_CARD_STAT_INC(card, rx_dropped);
+			QETH_CARD_STAT_INC(card, rx_fifo_errors);
 			return 0;
 		} else
 			return 1;
@@ -4346,7 +4346,7 @@ static int qeth_mdio_read(struct net_device *dev, int phy_id, int regnum)
 	case MII_NWAYTEST: /* N-way auto-neg test register */
 		break;
 	case MII_RERRCOUNTER: /* rx error counter */
-		rc = card->stats.rx_errors;
+		rc = card->stats.rx_length_errors + card->stats.rx_fifo_errors;
 		break;
 	case MII_SREVISION: /* silicon revision */
 		break;
@@ -5092,6 +5092,7 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 		headroom = sizeof(struct qeth_hdr);
 		break;
 	default:
+		QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
 		break;
 	}
 
@@ -5134,7 +5135,7 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 				QETH_CARD_TEXT(card, 4, "unexeob");
 				QETH_CARD_HEX(card, 2, buffer, sizeof(void *));
 				dev_kfree_skb_any(skb);
-				QETH_CARD_STAT_INC(card, rx_errors);
+				QETH_CARD_STAT_INC(card, rx_length_errors);
 				return NULL;
 			}
 			element++;
@@ -5156,7 +5157,7 @@ no_mem:
 	if (net_ratelimit()) {
 		QETH_CARD_TEXT(card, 2, "noskbmem");
 	}
-	QETH_CARD_STAT_INC(card, rx_dropped);
+	QETH_CARD_STAT_INC(card, rx_dropped_nomem);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(qeth_core_get_next_skb);
@@ -6236,9 +6237,13 @@ void qeth_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 
 	stats->rx_packets = card->stats.rx_packets;
 	stats->rx_bytes = card->stats.rx_bytes;
-	stats->rx_errors = card->stats.rx_errors;
-	stats->rx_dropped = card->stats.rx_dropped;
+	stats->rx_errors = card->stats.rx_length_errors +
+			   card->stats.rx_fifo_errors;
+	stats->rx_dropped = card->stats.rx_dropped_nomem +
+			    card->stats.rx_dropped_notsupp;
 	stats->multicast = card->stats.rx_multicast;
+	stats->rx_length_errors = card->stats.rx_length_errors;
+	stats->rx_fifo_errors = card->stats.rx_fifo_errors;
 
 	for (i = 0; i < card->qdio.no_out_queues; i++) {
 		queue = card->qdio.out_qs[i];

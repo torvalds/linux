@@ -1391,6 +1391,7 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 			dev_kfree_skb_any(skb);
 			QETH_CARD_TEXT(card, 3, "inbunkno");
 			QETH_DBF_HEX(CTRL, 3, hdr, sizeof(*hdr));
+			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
 			continue;
 		}
 		work_done++;
