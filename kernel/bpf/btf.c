@@ -3721,7 +3721,8 @@ again:
 	return -EINVAL;
 }
 
-u32 btf_resolve_helper_id(struct bpf_verifier_log *log, void *fn, int arg)
+static int __btf_resolve_helper_id(struct bpf_verifier_log *log, void *fn,
+				   int arg)
 {
 	char fnname[KSYM_SYMBOL_LEN + 4] = "btf_";
 	const struct btf_param *args;
@@ -3787,6 +3788,29 @@ u32 btf_resolve_helper_id(struct bpf_verifier_log *log, void *fn, int arg)
 	bpf_log(log, "helper %s arg%d has btf_id %d struct %s\n", fnname + 4,
 		arg, btf_id, __btf_name_by_offset(btf_vmlinux, t->name_off));
 	return btf_id;
+}
+
+int btf_resolve_helper_id(struct bpf_verifier_log *log,
+			  const struct bpf_func_proto *fn, int arg)
+{
+	int *btf_id = &fn->btf_id[arg];
+	int ret;
+
+	if (fn->arg_type[arg] != ARG_PTR_TO_BTF_ID)
+		return -EINVAL;
+
+	ret = READ_ONCE(*btf_id);
+	if (ret)
+		return ret;
+	/* ok to race the search. The result is the same */
+	ret = __btf_resolve_helper_id(log, fn->func, arg);
+	if (!ret) {
+		/* Function argument cannot be type 'void' */
+		bpf_log(log, "BTF resolution bug\n");
+		return -EFAULT;
+	}
+	WRITE_ONCE(*btf_id, ret);
+	return ret;
 }
 
 static int __get_type_size(struct btf *btf, u32 btf_id,

@@ -3816,7 +3816,7 @@ static const struct bpf_func_proto bpf_skb_event_output_proto = {
 	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
 };
 
-static u32 bpf_skb_output_btf_ids[5];
+static int bpf_skb_output_btf_ids[5];
 const struct bpf_func_proto bpf_skb_output_proto = {
 	.func		= bpf_skb_event_output,
 	.gpl_only	= true,
