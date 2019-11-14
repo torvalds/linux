@@ -48,6 +48,16 @@ struct partial_cluster;
 	{ EXT4_GET_BLOCKS_KEEP_SIZE,		"KEEP_SIZE" },		\
 	{ EXT4_GET_BLOCKS_ZERO,			"ZERO" })
 
+/*
+ * __print_flags() requires that all enum values be wrapped in the
+ * TRACE_DEFINE_ENUM macro so that the enum value can be encoded in the ftrace
+ * ring buffer.
+ */
+TRACE_DEFINE_ENUM(BH_New);
+TRACE_DEFINE_ENUM(BH_Mapped);
+TRACE_DEFINE_ENUM(BH_Unwritten);
+TRACE_DEFINE_ENUM(BH_Boundary);
+
 #define show_mflags(flags) __print_flags(flags, "",	\
 	{ EXT4_MAP_NEW,		"N" },			\
 	{ EXT4_MAP_MAPPED,	"M" },			\
@@ -62,11 +72,18 @@ struct partial_cluster;
 	{ EXT4_FREE_BLOCKS_NOFREE_FIRST_CLUSTER,"1ST_CLUSTER" },\
 	{ EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER,	"LAST_CLUSTER" })
 
+TRACE_DEFINE_ENUM(ES_WRITTEN_B);
+TRACE_DEFINE_ENUM(ES_UNWRITTEN_B);
+TRACE_DEFINE_ENUM(ES_DELAYED_B);
+TRACE_DEFINE_ENUM(ES_HOLE_B);
+TRACE_DEFINE_ENUM(ES_REFERENCED_B);
+
 #define show_extent_status(status) __print_flags(status, "",	\
 	{ EXTENT_STATUS_WRITTEN,	"W" },			\
 	{ EXTENT_STATUS_UNWRITTEN,	"U" },			\
 	{ EXTENT_STATUS_DELAYED,	"D" },			\
-	{ EXTENT_STATUS_HOLE,		"H" })
+	{ EXTENT_STATUS_HOLE,		"H" },			\
+	{ EXTENT_STATUS_REFERENCED,	"R" })
 
 #define show_falloc_mode(mode) __print_flags(mode, "|",		\
 	{ FALLOC_FL_KEEP_SIZE,		"KEEP_SIZE"},		\
