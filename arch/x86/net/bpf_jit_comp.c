@@ -9,9 +9,11 @@
 #include <linux/filter.h>
 #include <linux/if_vlan.h>
 #include <linux/bpf.h>
+#include <linux/memory.h>
 #include <asm/extable.h>
 #include <asm/set_memory.h>
 #include <asm/nospec-branch.h>
+#include <asm/text-patching.h>
 
 static u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 {
@@ -484,6 +486,55 @@ static int emit_call(u8 **pprog, void *func, void *ip)
 	EMIT1_off32(0xE8, offset);
 	*pprog = prog;
 	return 0;
+}
+
+int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
+		       void *old_addr, void *new_addr)
+{
+	u8 old_insn[X86_CALL_SIZE] = {};
+	u8 new_insn[X86_CALL_SIZE] = {};
+	u8 *prog;
+	int ret;
+
+	if (!is_kernel_text((long)ip))
+		/* BPF trampoline in modules is not supported */
+		return -EINVAL;
+
+	if (old_addr) {
+		prog = old_insn;
+		ret = emit_call(&prog, old_addr, (void *)ip);
+		if (ret)
+			return ret;
+	}
+	if (new_addr) {
+		prog = new_insn;
+		ret = emit_call(&prog, new_addr, (void *)ip);
+		if (ret)
+			return ret;
+	}
+	ret = -EBUSY;
+	mutex_lock(&text_mutex);
+	switch (t) {
+	case BPF_MOD_NOP_TO_CALL:
+		if (memcmp(ip, ideal_nops[NOP_ATOMIC5], X86_CALL_SIZE))
+			goto out;
+		text_poke_bp(ip, new_insn, X86_CALL_SIZE, NULL);
+		break;
+	case BPF_MOD_CALL_TO_CALL:
+		if (memcmp(ip, old_insn, X86_CALL_SIZE))
+			goto out;
+		text_poke_bp(ip, new_insn, X86_CALL_SIZE, NULL);
+		break;
+	case BPF_MOD_CALL_TO_NOP:
+		if (memcmp(ip, old_insn, X86_CALL_SIZE))
+			goto out;
+		text_poke_bp(ip, ideal_nops[NOP_ATOMIC5], X86_CALL_SIZE, NULL);
+		break;
+	}
+	ret = 0;
+out:
+	mutex_unlock(&text_mutex);
+	return ret;
 }
 
 static bool ex_handler_bpf(const struct exception_table_entry *x,
