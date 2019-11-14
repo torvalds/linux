@@ -78,6 +78,7 @@ struct mlxsw_sp_router {
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 	u32 adj_discard_index;
+	bool adj_discard_index_valid;
 };
 
 struct mlxsw_sp_rif {
@@ -4203,13 +4204,33 @@ static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
 	u32 adj_discard_index = mlxsw_sp->router->adj_discard_index;
 	enum mlxsw_reg_ratr_trap_action trap_action;
 	char ratr_pl[MLXSW_REG_RATR_LEN];
+	int err;
+
+	if (mlxsw_sp->router->adj_discard_index_valid)
+		return 0;
+
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
+				  &mlxsw_sp->router->adj_discard_index);
+	if (err)
+		return err;
 
 	trap_action = MLXSW_REG_RATR_TRAP_ACTION_DISCARD_ERRORS;
 	mlxsw_reg_ratr_pack(ratr_pl, MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY, true,
 			    MLXSW_REG_RATR_TYPE_ETHERNET, adj_discard_index,
 			    rif_index);
 	mlxsw_reg_ratr_trap_action_set(ratr_pl, trap_action);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ratr), ratr_pl);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ratr), ratr_pl);
+	if (err)
+		goto err_ratr_write;
+
+	mlxsw_sp->router->adj_discard_index_valid = true;
+
+	return 0;
+
+err_ratr_write:
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
+			   mlxsw_sp->router->adj_discard_index);
+	return err;
 }
 
 static int mlxsw_sp_fib_entry_op_remote(struct mlxsw_sp *mlxsw_sp,
@@ -5956,6 +5977,16 @@ static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp)
 			continue;
 		mlxsw_sp_vr_fib_flush(mlxsw_sp, vr, MLXSW_SP_L3_PROTO_IPV6);
 	}
+
+	/* After flushing all the routes, it is not possible anyone is still
+	 * using the adjacency index that is discarding packets, so free it in
+	 * case it was allocated.
+	 */
+	if (!mlxsw_sp->router->adj_discard_index_valid)
+		return;
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
+			   mlxsw_sp->router->adj_discard_index);
+	mlxsw_sp->router->adj_discard_index_valid = false;
 }
 
 static void mlxsw_sp_router_fib_abort(struct mlxsw_sp *mlxsw_sp)
@@ -8170,11 +8201,6 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_neigh_init;
 
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
-				  &router->adj_discard_index);
-	if (err)
-		goto err_adj_discard_index_alloc;
-
 	mlxsw_sp->router->netevent_nb.notifier_call =
 		mlxsw_sp_router_netevent_event;
 	err = register_netevent_notifier(&mlxsw_sp->router->netevent_nb);
@@ -8203,9 +8229,6 @@ err_dscp_init:
 err_mp_hash_init:
 	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
 err_register_netevent_notifier:
-	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
-			   router->adj_discard_index);
-err_adj_discard_index_alloc:
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 err_neigh_init:
 	mlxsw_sp_vrs_fini(mlxsw_sp);
@@ -8237,8 +8260,6 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	unregister_fib_notifier(mlxsw_sp_net(mlxsw_sp),
 				&mlxsw_sp->router->fib_nb);
 	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
-	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
-			   mlxsw_sp->router->adj_discard_index);
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 	mlxsw_sp_mr_fini(mlxsw_sp);
