@@ -63,15 +63,6 @@ void qeth_l3_ipaddr_to_string(enum qeth_prot_versions proto, const __u8 *addr,
 		qeth_l3_ipaddr6_to_string(addr, buf);
 }
 
-static struct qeth_ipaddr *qeth_l3_get_addr_buffer(enum qeth_prot_versions prot)
-{
-	struct qeth_ipaddr *addr = kmalloc(sizeof(*addr), GFP_ATOMIC);
-
-	if (addr)
-		qeth_l3_init_ipaddr(addr, QETH_IP_TYPE_NORMAL, prot);
-	return addr;
-}
-
 static struct qeth_ipaddr *qeth_l3_find_addr_by_ip(struct qeth_card *card,
 						   struct qeth_ipaddr *query)
 {
@@ -216,12 +207,9 @@ static int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 			 "Registering IP address %s failed\n", buf);
 		return -EADDRINUSE;
 	} else {
-		addr = qeth_l3_get_addr_buffer(tmp_addr->proto);
+		addr = kmemdup(tmp_addr, sizeof(*tmp_addr), GFP_KERNEL);
 		if (!addr)
 			return -ENOMEM;
-
-		memcpy(addr, tmp_addr, sizeof(struct qeth_ipaddr));
-		addr->ref_counter = 1;
 
 		if (qeth_l3_is_addr_covered_by_ipato(card, addr)) {
 			QETH_CARD_TEXT(card, 2, "tkovaddr");
@@ -1115,11 +1103,11 @@ qeth_diags_trace(struct qeth_card *card, enum qeth_diags_trace_cmds diags_cmd)
 
 static int qeth_l3_add_mcast_rtnl(struct net_device *dev, int vid, void *arg)
 {
-	struct qeth_ipaddr *tmp = NULL;
 	struct qeth_card *card = arg;
 	struct inet6_dev *in6_dev;
 	struct in_device *in4_dev;
 	struct qeth_ipaddr *ipm;
+	struct qeth_ipaddr tmp;
 	struct ip_mc_list *im4;
 	struct ifmcaddr6 *im6;
 
@@ -1128,34 +1116,31 @@ static int qeth_l3_add_mcast_rtnl(struct net_device *dev, int vid, void *arg)
 	if (!dev || !(dev->flags & IFF_UP))
 		goto out;
 
-	tmp = qeth_l3_get_addr_buffer(QETH_PROT_IPV4);
-	if (!tmp)
-		goto out;
-
 	in4_dev = __in_dev_get_rtnl(dev);
 	if (!in4_dev)
 		goto walk_ipv6;
 
+	qeth_l3_init_ipaddr(&tmp, QETH_IP_TYPE_NORMAL, QETH_PROT_IPV4);
+	tmp.disp_flag = QETH_DISP_ADDR_ADD;
+	tmp.is_multicast = 1;
+
 	for (im4 = rtnl_dereference(in4_dev->mc_list); im4 != NULL;
 	     im4 = rtnl_dereference(im4->next_rcu)) {
-		tmp->u.a4.addr = im4->multiaddr;
-		tmp->is_multicast = 1;
+		tmp.u.a4.addr = im4->multiaddr;
 
-		ipm = qeth_l3_find_addr_by_ip(card, tmp);
+		ipm = qeth_l3_find_addr_by_ip(card, &tmp);
 		if (ipm) {
 			/* for mcast, by-IP match means full match */
 			ipm->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
-		} else {
-			ipm = qeth_l3_get_addr_buffer(QETH_PROT_IPV4);
-			if (!ipm)
-				continue;
-
-			ipm->u.a4.addr = im4->multiaddr;
-			ipm->is_multicast = 1;
-			ipm->disp_flag = QETH_DISP_ADDR_ADD;
-			hash_add(card->ip_mc_htable,
-					&ipm->hnode, qeth_l3_ipaddr_hash(ipm));
+			continue;
 		}
+
+		ipm = kmemdup(&tmp, sizeof(tmp), GFP_KERNEL);
+		if (!ipm)
+			continue;
+
+		hash_add(card->ip_mc_htable, &ipm->hnode,
+			 qeth_l3_ipaddr_hash(ipm));
 	}
 
 walk_ipv6:
@@ -1166,27 +1151,25 @@ walk_ipv6:
 	if (!in6_dev)
 		goto out;
 
-	qeth_l3_init_ipaddr(tmp, QETH_IP_TYPE_NORMAL, QETH_PROT_IPV6);
+	qeth_l3_init_ipaddr(&tmp, QETH_IP_TYPE_NORMAL, QETH_PROT_IPV6);
+	tmp.disp_flag = QETH_DISP_ADDR_ADD;
+	tmp.is_multicast = 1;
 
 	read_lock_bh(&in6_dev->lock);
 	for (im6 = in6_dev->mc_list; im6 != NULL; im6 = im6->next) {
-		tmp->u.a6.addr = im6->mca_addr;
-		tmp->is_multicast = 1;
+		tmp.u.a6.addr = im6->mca_addr;
 
-		ipm = qeth_l3_find_addr_by_ip(card, tmp);
+		ipm = qeth_l3_find_addr_by_ip(card, &tmp);
 		if (ipm) {
 			/* for mcast, by-IP match means full match */
 			ipm->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
 			continue;
 		}
 
-		ipm = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
+		ipm = kmemdup(&tmp, sizeof(tmp), GFP_ATOMIC);
 		if (!ipm)
 			continue;
 
-		ipm->u.a6.addr = im6->mca_addr;
-		ipm->is_multicast = 1;
-		ipm->disp_flag = QETH_DISP_ADDR_ADD;
 		hash_add(card->ip_mc_htable,
 				&ipm->hnode, qeth_l3_ipaddr_hash(ipm));
 
@@ -1194,7 +1177,6 @@ walk_ipv6:
 	read_unlock_bh(&in6_dev->lock);
 
 out:
-	kfree(tmp);
 	return 0;
 }
 
