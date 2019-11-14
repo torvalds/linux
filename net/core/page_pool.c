@@ -18,6 +18,9 @@
 
 #include <trace/events/page_pool.h>
 
+#define DEFER_TIME (msecs_to_jiffies(1000))
+#define DEFER_WARN_INTERVAL (60 * HZ)
+
 static int page_pool_init(struct page_pool *pool,
 			  const struct page_pool_params *params)
 {
@@ -193,22 +196,14 @@ static s32 page_pool_inflight(struct page_pool *pool)
 {
 	u32 release_cnt = atomic_read(&pool->pages_state_release_cnt);
 	u32 hold_cnt = READ_ONCE(pool->pages_state_hold_cnt);
-	s32 distance;
+	s32 inflight;
 
-	distance = _distance(hold_cnt, release_cnt);
+	inflight = _distance(hold_cnt, release_cnt);
 
-	trace_page_pool_inflight(pool, distance, hold_cnt, release_cnt);
-	return distance;
-}
-
-static bool __page_pool_safe_to_destroy(struct page_pool *pool)
-{
-	s32 inflight = page_pool_inflight(pool);
-
-	/* The distance should not be able to become negative */
+	trace_page_pool_inflight(pool, inflight, hold_cnt, release_cnt);
 	WARN(inflight < 0, "Negative(%d) inflight packet-pages", inflight);
 
-	return (inflight == 0);
+	return inflight;
 }
 
 /* Cleanup page_pool state from page */
@@ -216,6 +211,7 @@ static void __page_pool_clean_page(struct page_pool *pool,
 				   struct page *page)
 {
 	dma_addr_t dma;
+	int count;
 
 	if (!(pool->p.flags & PP_FLAG_DMA_MAP))
 		goto skip_dma_unmap;
@@ -227,9 +223,11 @@ static void __page_pool_clean_page(struct page_pool *pool,
 			     DMA_ATTR_SKIP_CPU_SYNC);
 	page->dma_addr = 0;
 skip_dma_unmap:
-	atomic_inc(&pool->pages_state_release_cnt);
-	trace_page_pool_state_release(pool, page,
-			      atomic_read(&pool->pages_state_release_cnt));
+	/* This may be the last page returned, releasing the pool, so
+	 * it is not safe to reference pool afterwards.
+	 */
+	count = atomic_inc_return(&pool->pages_state_release_cnt);
+	trace_page_pool_state_release(pool, page, count);
 }
 
 /* unmap the page and clean our state */
@@ -338,31 +336,10 @@ static void __page_pool_empty_ring(struct page_pool *pool)
 	}
 }
 
-static void __warn_in_flight(struct page_pool *pool)
+static void page_pool_free(struct page_pool *pool)
 {
-	u32 release_cnt = atomic_read(&pool->pages_state_release_cnt);
-	u32 hold_cnt = READ_ONCE(pool->pages_state_hold_cnt);
-	s32 distance;
-
-	distance = _distance(hold_cnt, release_cnt);
-
-	/* Drivers should fix this, but only problematic when DMA is used */
-	WARN(1, "Still in-flight pages:%d hold:%u released:%u",
-	     distance, hold_cnt, release_cnt);
-}
-
-void __page_pool_free(struct page_pool *pool)
-{
-	/* Only last user actually free/release resources */
-	if (!page_pool_put(pool))
-		return;
-
-	WARN(pool->alloc.count, "API usage violation");
-	WARN(!ptr_ring_empty(&pool->ring), "ptr_ring is not empty");
-
-	/* Can happen due to forced shutdown */
-	if (!__page_pool_safe_to_destroy(pool))
-		__warn_in_flight(pool);
+	if (pool->disconnect)
+		pool->disconnect(pool);
 
 	ptr_ring_cleanup(&pool->ring, NULL);
 
@@ -371,12 +348,8 @@ void __page_pool_free(struct page_pool *pool)
 
 	kfree(pool);
 }
-EXPORT_SYMBOL(__page_pool_free);
 
-/* Request to shutdown: release pages cached by page_pool, and check
- * for in-flight pages
- */
-bool __page_pool_request_shutdown(struct page_pool *pool)
+static void page_pool_scrub(struct page_pool *pool)
 {
 	struct page *page;
 
@@ -393,7 +366,64 @@ bool __page_pool_request_shutdown(struct page_pool *pool)
 	 * be in-flight.
 	 */
 	__page_pool_empty_ring(pool);
-
-	return __page_pool_safe_to_destroy(pool);
 }
-EXPORT_SYMBOL(__page_pool_request_shutdown);
+
+static int page_pool_release(struct page_pool *pool)
+{
+	int inflight;
+
+	page_pool_scrub(pool);
+	inflight = page_pool_inflight(pool);
+	if (!inflight)
+		page_pool_free(pool);
+
+	return inflight;
+}
+
+static void page_pool_release_retry(struct work_struct *wq)
+{
+	struct delayed_work *dwq = to_delayed_work(wq);
+	struct page_pool *pool = container_of(dwq, typeof(*pool), release_dw);
+	int inflight;
+
+	inflight = page_pool_release(pool);
+	if (!inflight)
+		return;
+
+	/* Periodic warning */
+	if (time_after_eq(jiffies, pool->defer_warn)) {
+		int sec = (s32)((u32)jiffies - (u32)pool->defer_start) / HZ;
+
+		pr_warn("%s() stalled pool shutdown %d inflight %d sec\n",
+			__func__, inflight, sec);
+		pool->defer_warn = jiffies + DEFER_WARN_INTERVAL;
+	}
+
+	/* Still not ready to be disconnected, retry later */
+	schedule_delayed_work(&pool->release_dw, DEFER_TIME);
+}
+
+void page_pool_use_xdp_mem(struct page_pool *pool, void (*disconnect)(void *))
+{
+	refcount_inc(&pool->user_cnt);
+	pool->disconnect = disconnect;
+}
+
+void page_pool_destroy(struct page_pool *pool)
+{
+	if (!pool)
+		return;
+
+	if (!page_pool_put(pool))
+		return;
+
+	if (!page_pool_release(pool))
+		return;
+
+	pool->defer_start = jiffies;
+	pool->defer_warn  = jiffies + DEFER_WARN_INTERVAL;
+
+	INIT_DELAYED_WORK(&pool->release_dw, page_pool_release_retry);
+	schedule_delayed_work(&pool->release_dw, DEFER_TIME);
+}
+EXPORT_SYMBOL(page_pool_destroy);

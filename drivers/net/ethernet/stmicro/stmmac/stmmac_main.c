@@ -1503,10 +1503,8 @@ static void free_dma_rx_desc_resources(struct stmmac_priv *priv)
 					  rx_q->dma_erx, rx_q->dma_rx_phy);
 
 		kfree(rx_q->buf_pool);
-		if (rx_q->page_pool) {
-			page_pool_request_shutdown(rx_q->page_pool);
+		if (rx_q->page_pool)
 			page_pool_destroy(rx_q->page_pool);
-		}
 	}
 }
 

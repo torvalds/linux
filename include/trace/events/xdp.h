@@ -317,19 +317,15 @@ __MEM_TYPE_MAP(__MEM_TYPE_TP_FN)
 
 TRACE_EVENT(mem_disconnect,
 
-	TP_PROTO(const struct xdp_mem_allocator *xa,
-		 bool safe_to_remove, bool force),
+	TP_PROTO(const struct xdp_mem_allocator *xa),
 
-	TP_ARGS(xa, safe_to_remove, force),
+	TP_ARGS(xa),
 
 	TP_STRUCT__entry(
 		__field(const struct xdp_mem_allocator *,	xa)
 		__field(u32,		mem_id)
 		__field(u32,		mem_type)
 		__field(const void *,	allocator)
-		__field(bool,		safe_to_remove)
-		__field(bool,		force)
-		__field(int,		disconnect_cnt)
 	),
 
 	TP_fast_assign(
@@ -337,19 +333,12 @@ TRACE_EVENT(mem_disconnect,
 		__entry->mem_id		= xa->mem.id;
 		__entry->mem_type	= xa->mem.type;
 		__entry->allocator	= xa->allocator;
-		__entry->safe_to_remove	= safe_to_remove;
-		__entry->force		= force;
-		__entry->disconnect_cnt	= xa->disconnect_cnt;
 	),
 
-	TP_printk("mem_id=%d mem_type=%s allocator=%p"
-		  " safe_to_remove=%s force=%s disconnect_cnt=%d",
+	TP_printk("mem_id=%d mem_type=%s allocator=%p",
 		  __entry->mem_id,
 		  __print_symbolic(__entry->mem_type, __MEM_TYPE_SYM_TAB),
-		  __entry->allocator,
-		  __entry->safe_to_remove ? "true" : "false",
-		  __entry->force ? "true" : "false",
-		  __entry->disconnect_cnt
+		  __entry->allocator
 	)
 );
 
