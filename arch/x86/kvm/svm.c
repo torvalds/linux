@@ -5988,6 +5988,14 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 		return;
 
 	guest_cpuid_clear(vcpu, X86_FEATURE_X2APIC);
+
+	/*
+	 * Currently, AVIC does not work with nested virtualization.
+	 * So, we disable AVIC when cpuid for SVM is set in the L1 guest.
+	 */
+	if (nested && guest_cpuid_has(vcpu, X86_FEATURE_SVM))
+		kvm_request_apicv_update(vcpu->kvm, false,
+					 APICV_INHIBIT_REASON_NESTED);
 }
 
 #define F feature_bit
@@ -7319,7 +7327,8 @@ static bool svm_apic_init_signal_blocked(struct kvm_vcpu *vcpu)
 static bool svm_check_apicv_inhibit_reasons(ulong bit)
 {
 	ulong supported = BIT(APICV_INHIBIT_REASON_DISABLE) |
-			  BIT(APICV_INHIBIT_REASON_HYPERV);
+			  BIT(APICV_INHIBIT_REASON_HYPERV) |
+			  BIT(APICV_INHIBIT_REASON_NESTED);
 
 	return supported & BIT(bit);
 }
