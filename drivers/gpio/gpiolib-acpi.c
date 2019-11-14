@@ -194,6 +194,7 @@ static void acpi_gpiochip_request_irqs(struct acpi_gpio_chip *acpi_gpio)
 		acpi_gpiochip_request_irq(acpi_gpio, event);
 }
 
+/* Always returns AE_OK so that we keep looping over the resources */
 static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 					     void *context)
 {
@@ -233,7 +234,7 @@ static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 		dev_err(chip->parent,
 			"Failed to request GPIO for pin 0x%04X, err %ld\n",
 			pin, PTR_ERR(desc));
-		return AE_ERROR;
+		return AE_OK;
 	}
 
 	ret = gpiochip_lock_as_irq(chip, pin);
@@ -293,7 +294,7 @@ fail_unlock_irq:
 fail_free_desc:
 	gpiochip_free_own_desc(desc);
 
-	return AE_ERROR;
+	return AE_OK;
 }
 
 /**
