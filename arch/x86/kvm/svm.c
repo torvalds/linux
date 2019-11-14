@@ -1729,23 +1729,22 @@ static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
  * field of the VMCB. Therefore, we set up the
  * APIC_ACCESS_PAGE_PRIVATE_MEMSLOT (4KB) here.
  */
-static int avic_init_access_page(struct kvm_vcpu *vcpu)
+static int avic_update_access_page(struct kvm *kvm, bool activate)
 {
-	struct kvm *kvm = vcpu->kvm;
 	int ret = 0;
 
 	mutex_lock(&kvm->slots_lock);
-	if (kvm->arch.apic_access_page_done)
+	if (kvm->arch.apic_access_page_done == activate)
 		goto out;
 
 	ret = __x86_set_memory_region(kvm,
 				      APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
 				      APIC_DEFAULT_PHYS_BASE,
-				      PAGE_SIZE);
+				      activate ? PAGE_SIZE : 0);
 	if (ret)
 		goto out;
 
-	kvm->arch.apic_access_page_done = true;
+	kvm->arch.apic_access_page_done = activate;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return ret;
@@ -1758,7 +1757,7 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	int id = vcpu->vcpu_id;
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	ret = avic_init_access_page(vcpu);
+	ret = avic_update_access_page(vcpu->kvm, true);
 	if (ret)
 		return ret;
 
