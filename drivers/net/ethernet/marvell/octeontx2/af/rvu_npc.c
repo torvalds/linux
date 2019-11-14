@@ -354,8 +354,8 @@ void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
 			      NIX_INTF_RX, &entry, true);
 
 	/* add VLAN matching, setup action and save entry back for later */
-	entry.kw[0] |= (NPC_LT_LB_STAG | NPC_LT_LB_CTAG) << 20;
-	entry.kw_mask[0] |= (NPC_LT_LB_STAG & NPC_LT_LB_CTAG) << 20;
+	entry.kw[0] |= (NPC_LT_LB_STAG_QINQ | NPC_LT_LB_CTAG) << 20;
+	entry.kw_mask[0] |= (NPC_LT_LB_STAG_QINQ & NPC_LT_LB_CTAG) << 20;
 
 	entry.vtag_action = VTAG0_VALID_BIT |
 			    FIELD_PREP(VTAG0_TYPE_MASK, 0) |
@@ -704,8 +704,7 @@ static void npc_config_ldata_extract(struct rvu *rvu, int blkaddr)
 	/* Layer B: Stacked VLAN (STAG|QinQ) */
 	/* CTAG VLAN[2..3] + Ethertype, 4 bytes, KW0[63:32] */
 	cfg = KEX_LD_CFG(0x03, 0x4, 0x1, 0x0, 0x4);
-	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LB, NPC_LT_LB_STAG, 0, cfg);
-	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LB, NPC_LT_LB_QINQ, 0, cfg);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LB, NPC_LT_LB_STAG_QINQ, 0, cfg);
 
 	/* Layer C: IPv4 */
 	/* SIP+DIP: 8 bytes, KW2[63:0] */
@@ -1151,7 +1150,7 @@ int rvu_npc_init(struct rvu *rvu)
 
 	/* Config Inner IPV4 NPC layer info */
 	rvu_write64(rvu, blkaddr, NPC_AF_PCK_DEF_IIP4,
-		    (NPC_LID_LF << 8) | (NPC_LT_LF_TU_IP << 4) | 0x0F);
+		    (NPC_LID_LG << 8) | (NPC_LT_LG_TU_IP << 4) | 0x0F);
 
 	/* Enable below for Rx pkts.
 	 * - Outer IPv4 header checksum validation.
