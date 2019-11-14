@@ -35,13 +35,8 @@ ENTRY(startup_continue)
 #ifdef CONFIG_KASAN
 	brasl	%r14,kasan_early_init
 #endif
-#
-# Early machine initialization and detection functions.
-#
-	brasl	%r14,startup_init
-
-	lam	0,15,.Laregs-.LPG1(%r13)	# load acrs needed by uaccess
-	brasl	%r14,start_kernel		# go to C code
+	brasl	%r14,startup_init		# s390 specific early init
+	brasl	%r14,start_kernel		# common init code
 #
 # We returned from start_kernel ?!? PANIK
 #
@@ -51,4 +46,3 @@ ENTRY(startup_continue)
 	.align	16
 .LPG1:
 .Ldw:	.quad	0x0002000180000000,0x0000000000000000
-.Laregs:.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

@@ -30,6 +30,7 @@
 #include <asm/sclp.h>
 #include <asm/facility.h>
 #include <asm/boot_data.h>
+#include <asm/switch_to.h>
 #include "entry.h"
 
 static void __init reset_tod_clock(void)
@@ -271,6 +272,13 @@ static inline void setup_control_registers(void)
 	__ctl_load(reg, 0, 0);
 }
 
+static inline void setup_access_registers(void)
+{
+	unsigned int acrs[NUM_ACRS] = { 0 };
+
+	restore_access_regs(acrs);
+}
+
 static int __init disable_vector_extension(char *str)
 {
 	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
@@ -329,5 +337,6 @@ void __init startup_init(void)
 	setup_topology();
 	sclp_early_detect();
 	setup_control_registers();
+	setup_access_registers();
 	lockdep_on();
 }
