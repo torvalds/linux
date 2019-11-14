@@ -497,7 +497,7 @@ static int __gfs2_readpage(void *file, struct page *page)
 		error = mpage_readpage(page, gfs2_block_map);
 	}
 
-	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags)))
+	if (unlikely(gfs2_withdrawn(sdp)))
 		return -EIO;
 
 	return error;
@@ -614,7 +614,7 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 	gfs2_glock_dq(&gh);
 out_uninit:
 	gfs2_holder_uninit(&gh);
-	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags)))
+	if (unlikely(gfs2_withdrawn(sdp)))
 		ret = -EIO;
 	return ret;
 }

@@ -1006,8 +1006,7 @@ hostdata_error:
 void gfs2_lm_unmount(struct gfs2_sbd *sdp)
 {
 	const struct lm_lockops *lm = sdp->sd_lockstruct.ls_ops;
-	if (likely(!test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) &&
-	    lm->lm_unmount)
+	if (likely(!gfs2_withdrawn(sdp)) && lm->lm_unmount)
 		lm->lm_unmount(sdp);
 }
 
