@@ -60,15 +60,17 @@ void test_kfree_skb(void)
 		.file = "./kfree_skb.o",
 	};
 
+	struct bpf_link *link = NULL, *link_fentry = NULL, *link_fexit = NULL;
+	struct bpf_map *perf_buf_map, *global_data;
+	struct bpf_program *prog, *fentry, *fexit;
 	struct bpf_object *obj, *obj2 = NULL;
 	struct perf_buffer_opts pb_opts = {};
 	struct perf_buffer *pb = NULL;
-	struct bpf_link *link = NULL;
-	struct bpf_map *perf_buf_map;
-	struct bpf_program *prog;
 	int err, kfree_skb_fd;
 	bool passed = false;
 	__u32 duration = 0;
+	const int zero = 0;
+	bool test_ok[2];
 
 	err = bpf_prog_load("./test_pkt_access.o", BPF_PROG_TYPE_SCHED_CLS,
 			    &obj, &tattr.prog_fd);
@@ -82,8 +84,27 @@ void test_kfree_skb(void)
 	prog = bpf_object__find_program_by_title(obj2, "tp_btf/kfree_skb");
 	if (CHECK(!prog, "find_prog", "prog kfree_skb not found\n"))
 		goto close_prog;
+	fentry = bpf_object__find_program_by_title(obj2, "fentry/eth_type_trans");
+	if (CHECK(!fentry, "find_prog", "prog eth_type_trans not found\n"))
+		goto close_prog;
+	fexit = bpf_object__find_program_by_title(obj2, "fexit/eth_type_trans");
+	if (CHECK(!fexit, "find_prog", "prog eth_type_trans not found\n"))
+		goto close_prog;
+
+	global_data = bpf_object__find_map_by_name(obj2, "kfree_sk.bss");
+	if (CHECK(!global_data, "find global data", "not found\n"))
+		goto close_prog;
+
 	link = bpf_program__attach_raw_tracepoint(prog, NULL);
 	if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n", PTR_ERR(link)))
+		goto close_prog;
+	link_fentry = bpf_program__attach_trace(fentry);
+	if (CHECK(IS_ERR(link_fentry), "attach fentry", "err %ld\n",
+		  PTR_ERR(link_fentry)))
+		goto close_prog;
+	link_fexit = bpf_program__attach_trace(fexit);
+	if (CHECK(IS_ERR(link_fexit), "attach fexit", "err %ld\n",
+		  PTR_ERR(link_fexit)))
 		goto close_prog;
 
 	perf_buf_map = bpf_object__find_map_by_name(obj2, "perf_buf_map");
@@ -108,14 +129,26 @@ void test_kfree_skb(void)
 	err = perf_buffer__poll(pb, 100);
 	if (CHECK(err < 0, "perf_buffer__poll", "err %d\n", err))
 		goto close_prog;
+
 	/* make sure kfree_skb program was triggered
 	 * and it sent expected skb into ring buffer
 	 */
 	CHECK_FAIL(!passed);
+
+	err = bpf_map_lookup_elem(bpf_map__fd(global_data), &zero, test_ok);
+	if (CHECK(err, "get_result",
+		  "failed to get output data: %d\n", err))
+		goto close_prog;
+
+	CHECK_FAIL(!test_ok[0] || !test_ok[1]);
 close_prog:
 	perf_buffer__free(pb);
 	if (!IS_ERR_OR_NULL(link))
 		bpf_link__destroy(link);
+	if (!IS_ERR_OR_NULL(link_fentry))
+		bpf_link__destroy(link_fentry);
+	if (!IS_ERR_OR_NULL(link_fexit))
+		bpf_link__destroy(link_fexit);
 	bpf_object__close(obj);
 	bpf_object__close(obj2);
 }
