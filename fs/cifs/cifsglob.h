@@ -1552,6 +1552,8 @@ struct close_cancelled_open {
 	struct cifs_fid         fid;
 	struct cifs_tcon        *tcon;
 	struct work_struct      work;
+	__u64 mid;
+	__u16 cmd;
 };
 
 /*	Make code in transport.c a little cleaner by moving
