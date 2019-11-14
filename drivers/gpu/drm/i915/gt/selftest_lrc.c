@@ -1915,6 +1915,201 @@ err_wedged:
 	goto err_client_lo;
 }
 
+static int create_gang(struct intel_engine_cs *engine,
+		       struct i915_request **prev)
+{
+	struct drm_i915_gem_object *obj;
+	struct intel_context *ce;
+	struct i915_request *rq;
+	struct i915_vma *vma;
+	u32 *cs;
+	int err;
+
+	ce = intel_context_create(engine->kernel_context->gem_context, engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	obj = i915_gem_object_create_internal(engine->i915, 4096);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto err_ce;
+	}
+
+	vma = i915_vma_instance(obj, ce->vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err_obj;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		goto err_obj;
+
+	cs = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	if (IS_ERR(cs))
+		goto err_obj;
+
+	/* Semaphore target: spin until zero */
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+
+	*cs++ = MI_SEMAPHORE_WAIT |
+		MI_SEMAPHORE_POLL |
+		MI_SEMAPHORE_SAD_EQ_SDD;
+	*cs++ = 0;
+	*cs++ = lower_32_bits(vma->node.start);
+	*cs++ = upper_32_bits(vma->node.start);
+
+	if (*prev) {
+		u64 offset = (*prev)->batch->node.start;
+
+		/* Terminate the spinner in the next lower priority batch. */
+		*cs++ = MI_STORE_DWORD_IMM_GEN4;
+		*cs++ = lower_32_bits(offset);
+		*cs++ = upper_32_bits(offset);
+		*cs++ = 0;
+	}
+
+	*cs++ = MI_BATCH_BUFFER_END;
+	i915_gem_object_flush_map(obj);
+	i915_gem_object_unpin_map(obj);
+
+	rq = intel_context_create_request(ce);
+	if (IS_ERR(rq))
+		goto err_obj;
+
+	rq->batch = vma;
+	i915_request_get(rq);
+
+	i915_vma_lock(vma);
+	err = i915_request_await_object(rq, vma->obj, false);
+	if (!err)
+		err = i915_vma_move_to_active(vma, rq, 0);
+	if (!err)
+		err = rq->engine->emit_bb_start(rq,
+						vma->node.start,
+						PAGE_SIZE, 0);
+	i915_vma_unlock(vma);
+	i915_request_add(rq);
+	if (err)
+		goto err_rq;
+
+	i915_gem_object_put(obj);
+	intel_context_put(ce);
+
+	rq->client_link.next = &(*prev)->client_link;
+	*prev = rq;
+	return 0;
+
+err_rq:
+	i915_request_put(rq);
+err_obj:
+	i915_gem_object_put(obj);
+err_ce:
+	intel_context_put(ce);
+	return err;
+}
+
+static int live_preempt_gang(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	if (!HAS_LOGICAL_RING_PREEMPTION(gt->i915))
+		return 0;
+
+	/*
+	 * Build as long a chain of preempters as we can, with each
+	 * request higher priority than the last. Once we are ready, we release
+	 * the last batch which then precolates down the chain, each releasing
+	 * the next oldest in turn. The intent is to simply push as hard as we
+	 * can with the number of preemptions, trying to exceed narrow HW
+	 * limits. At a minimum, we insist that we can sort all the user
+	 * high priority levels into execution order.
+	 */
+
+	for_each_engine(engine, gt, id) {
+		struct i915_request *rq = NULL;
+		struct igt_live_test t;
+		IGT_TIMEOUT(end_time);
+		int prio = 0;
+		int err = 0;
+		u32 *cs;
+
+		if (!intel_engine_has_preemption(engine))
+			continue;
+
+		if (igt_live_test_begin(&t, gt->i915, __func__, engine->name))
+			return -EIO;
+
+		do {
+			struct i915_sched_attr attr = {
+				.priority = I915_USER_PRIORITY(prio++),
+			};
+
+			err = create_gang(engine, &rq);
+			if (err)
+				break;
+
+			/* Submit each spinner at increasing priority */
+			engine->schedule(rq, &attr);
+
+			if (prio <= I915_PRIORITY_MAX)
+				continue;
+
+			if (prio > (INT_MAX >> I915_USER_PRIORITY_SHIFT))
+				break;
+
+			if (__igt_timeout(end_time, NULL))
+				break;
+		} while (1);
+		pr_debug("%s: Preempt chain of %d requests\n",
+			 engine->name, prio);
+
+		/*
+		 * Such that the last spinner is the highest priority and
+		 * should execute first. When that spinner completes,
+		 * it will terminate the next lowest spinner until there
+		 * are no more spinners and the gang is complete.
+		 */
+		cs = i915_gem_object_pin_map(rq->batch->obj, I915_MAP_WC);
+		if (!IS_ERR(cs)) {
+			*cs = 0;
+			i915_gem_object_unpin_map(rq->batch->obj);
+		} else {
+			err = PTR_ERR(cs);
+			intel_gt_set_wedged(gt);
+		}
+
+		while (rq) { /* wait for each rq from highest to lowest prio */
+			struct i915_request *n =
+				list_next_entry(rq, client_link);
+
+			if (err == 0 && i915_request_wait(rq, 0, HZ / 5) < 0) {
+				struct drm_printer p =
+					drm_info_printer(engine->i915->drm.dev);
+
+				pr_err("Failed to flush chain of %d requests, at %d\n",
+				       prio, rq_prio(rq) >> I915_USER_PRIORITY_SHIFT);
+				intel_engine_dump(engine, &p,
+						  "%s\n", engine->name);
+
+				err = -ETIME;
+			}
+
+			i915_request_put(rq);
+			rq = n;
+		}
+
+		if (igt_live_test_end(&t))
+			err = -EIO;
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int live_preempt_hang(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -3028,6 +3223,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_suppress_self_preempt),
 		SUBTEST(live_suppress_wait_preempt),
 		SUBTEST(live_chain_preempt),
+		SUBTEST(live_preempt_gang),
 		SUBTEST(live_preempt_hang),
 		SUBTEST(live_preempt_timeout),
 		SUBTEST(live_preempt_smoke),
