@@ -10,6 +10,37 @@
 
 #define IGC_CTRL_EXT_DRV_LOAD	0x10000000 /* Drv loaded bit for FW */
 
+/* Definitions for power management and wakeup registers */
+/* Wake Up Control */
+#define IGC_WUC_PME_EN	0x00000002 /* PME Enable */
+
+/* Wake Up Filter Control */
+#define IGC_WUFC_LNKC	0x00000001 /* Link Status Change Wakeup Enable */
+#define IGC_WUFC_MC	0x00000008 /* Directed Multicast Wakeup Enable */
+
+#define IGC_CTRL_ADVD3WUC	0x00100000  /* D3 WUC */
+
+/* Wake Up Status */
+#define IGC_WUS_EX	0x00000004 /* Directed Exact */
+#define IGC_WUS_ARPD	0x00000020 /* Directed ARP Request */
+#define IGC_WUS_IPV4	0x00000040 /* Directed IPv4 */
+#define IGC_WUS_IPV6	0x00000080 /* Directed IPv6 */
+#define IGC_WUS_NSD	0x00000400 /* Directed IPv6 Neighbor Solicitation */
+
+/* Packet types that are enabled for wake packet delivery */
+#define WAKE_PKT_WUS ( \
+	IGC_WUS_EX   | \
+	IGC_WUS_ARPD | \
+	IGC_WUS_IPV4 | \
+	IGC_WUS_IPV6 | \
+	IGC_WUS_NSD)
+
+/* Wake Up Packet Length */
+#define IGC_WUPL_MASK	0x00000FFF
+
+/* Wake Up Packet Memory stores the first 128 bytes of the wake up packet */
+#define IGC_WUPM_BYTES	128
+
 /* Physical Func Reset Done Indication */
 #define IGC_CTRL_EXT_LINK_MODE_MASK	0x00C00000
 
