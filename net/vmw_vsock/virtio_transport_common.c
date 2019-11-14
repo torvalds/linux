@@ -453,7 +453,7 @@ int virtio_transport_do_socket_init(struct vsock_sock *vsk,
 
 	vsk->trans = vvs;
 	vvs->vsk = vsk;
-	if (psk) {
+	if (psk && psk->trans) {
 		struct virtio_vsock_sock *ptrans = psk->trans;
 
 		vvs->peer_buf_alloc = ptrans->peer_buf_alloc;
@@ -986,13 +986,39 @@ virtio_transport_send_response(struct vsock_sock *vsk,
 	return virtio_transport_send_pkt_info(vsk, &info);
 }
 
+static bool virtio_transport_space_update(struct sock *sk,
+					  struct virtio_vsock_pkt *pkt)
+{
+	struct vsock_sock *vsk = vsock_sk(sk);
+	struct virtio_vsock_sock *vvs = vsk->trans;
+	bool space_available;
+
+	/* Listener sockets are not associated with any transport, so we are
+	 * not able to take the state to see if there is space available in the
+	 * remote peer, but since they are only used to receive requests, we
+	 * can assume that there is always space available in the other peer.
+	 */
+	if (!vvs)
+		return true;
+
+	/* buf_alloc and fwd_cnt is always included in the hdr */
+	spin_lock_bh(&vvs->tx_lock);
+	vvs->peer_buf_alloc = le32_to_cpu(pkt->hdr.buf_alloc);
+	vvs->peer_fwd_cnt = le32_to_cpu(pkt->hdr.fwd_cnt);
+	space_available = virtio_transport_has_space(vsk);
+	spin_unlock_bh(&vvs->tx_lock);
+	return space_available;
+}
+
 /* Handle server socket */
 static int
-virtio_transport_recv_listen(struct sock *sk, struct virtio_vsock_pkt *pkt)
+virtio_transport_recv_listen(struct sock *sk, struct virtio_vsock_pkt *pkt,
+			     struct virtio_transport *t)
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 	struct vsock_sock *vchild;
 	struct sock *child;
+	int ret;
 
 	if (le16_to_cpu(pkt->hdr.op) != VIRTIO_VSOCK_OP_REQUEST) {
 		virtio_transport_reset(vsk, pkt);
@@ -1022,6 +1048,20 @@ virtio_transport_recv_listen(struct sock *sk, struct virtio_vsock_pkt *pkt)
 	vsock_addr_init(&vchild->remote_addr, le64_to_cpu(pkt->hdr.src_cid),
 			le32_to_cpu(pkt->hdr.src_port));
 
+	ret = vsock_assign_transport(vchild, vsk);
+	/* Transport assigned (looking at remote_addr) must be the same
+	 * where we received the request.
+	 */
+	if (ret || vchild->transport != &t->transport) {
+		release_sock(child);
+		virtio_transport_reset(vsk, pkt);
+		sock_put(child);
+		return ret;
+	}
+
+	if (virtio_transport_space_update(child, pkt))
+		child->sk_write_space(child);
+
 	vsock_insert_connected(vchild);
 	vsock_enqueue_accept(sk, child);
 	virtio_transport_send_response(vchild, pkt);
@@ -1030,22 +1070,6 @@ virtio_transport_recv_listen(struct sock *sk, struct virtio_vsock_pkt *pkt)
 
 	sk->sk_data_ready(sk);
 	return 0;
-}
-
-static bool virtio_transport_space_update(struct sock *sk,
-					  struct virtio_vsock_pkt *pkt)
-{
-	struct vsock_sock *vsk = vsock_sk(sk);
-	struct virtio_vsock_sock *vvs = vsk->trans;
-	bool space_available;
-
-	/* buf_alloc and fwd_cnt is always included in the hdr */
-	spin_lock_bh(&vvs->tx_lock);
-	vvs->peer_buf_alloc = le32_to_cpu(pkt->hdr.buf_alloc);
-	vvs->peer_fwd_cnt = le32_to_cpu(pkt->hdr.fwd_cnt);
-	space_available = virtio_transport_has_space(vsk);
-	spin_unlock_bh(&vvs->tx_lock);
-	return space_available;
 }
 
 /* We are under the virtio-vsock's vsock->rx_lock or vhost-vsock's vq->mutex
@@ -1104,7 +1128,7 @@ void virtio_transport_recv_pkt(struct virtio_transport *t,
 
 	switch (sk->sk_state) {
 	case TCP_LISTEN:
-		virtio_transport_recv_listen(sk, pkt);
+		virtio_transport_recv_listen(sk, pkt, t);
 		virtio_transport_free_pkt(pkt);
 		break;
 	case TCP_SYN_SENT:
@@ -1122,6 +1146,7 @@ void virtio_transport_recv_pkt(struct virtio_transport *t,
 		virtio_transport_free_pkt(pkt);
 		break;
 	}
+
 	release_sock(sk);
 
 	/* Release refcnt obtained when we fetched this socket out of the
