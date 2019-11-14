@@ -21,6 +21,13 @@
 #include <asm/pgtable.h>
 #include <asm/kup.h>
 
+phys_addr_t memstart_addr __ro_after_init = (phys_addr_t)~0ull;
+EXPORT_SYMBOL_GPL(memstart_addr);
+phys_addr_t kernstart_addr __ro_after_init;
+EXPORT_SYMBOL_GPL(kernstart_addr);
+unsigned long kernstart_virt_addr __ro_after_init = KERNELBASE;
+EXPORT_SYMBOL_GPL(kernstart_virt_addr);
+
 static bool disable_kuep = !IS_ENABLED(CONFIG_PPC_KUEP);
 static bool disable_kuap = !IS_ENABLED(CONFIG_PPC_KUAP);
 
