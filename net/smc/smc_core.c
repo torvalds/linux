@@ -276,6 +276,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		lgr_list = &ini->ism_dev->lgr_list;
 		lgr_lock = &lgr->smcd->lgr_lock;
 		lgr->peer_shutdown = 0;
+		atomic_inc(&ini->ism_dev->lgr_cnt);
 	} else {
 		/* SMC-R specific settings */
 		get_device(&ini->ib_dev->ibdev->dev);
@@ -486,6 +487,8 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 			smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
 			put_device(&lgr->smcd->dev);
 		}
+		if (!atomic_dec_return(&lgr->smcd->lgr_cnt))
+			wake_up(&lgr->smcd->lgrs_deleted);
 	} else {
 		smc_link_clear(&lgr->lnk[SMC_SINGLE_LINK]);
 		put_device(&lgr->lnk[SMC_SINGLE_LINK].smcibdev->ibdev->dev);
@@ -685,6 +688,9 @@ void smc_smcd_terminate_all(struct smcd_dev *smcd)
 		list_del_init(&lgr->list);
 		__smc_lgr_terminate(lgr, false);
 	}
+
+	if (atomic_read(&smcd->lgr_cnt))
+		wait_event(smcd->lgrs_deleted, !atomic_read(&smcd->lgr_cnt));
 }
 
 /* Determine vlan of internal TCP socket.
