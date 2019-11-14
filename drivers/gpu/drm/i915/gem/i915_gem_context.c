@@ -2009,7 +2009,8 @@ static int clone_engines(struct i915_gem_context *dst,
 	user_engines = i915_gem_context_user_engines(src);
 	i915_gem_context_unlock_engines(src);
 
-	free_engines(dst->engines);
+	/* Serialised by constructor */
+	free_engines(__context_engines_static(dst));
 	RCU_INIT_POINTER(dst->engines, clone);
 	if (user_engines)
 		i915_gem_context_set_user_engines(dst);
@@ -2044,7 +2045,8 @@ static int clone_sseu(struct i915_gem_context *dst,
 	unsigned long n;
 	int err;
 
-	clone = dst->engines; /* no locking required; sole access */
+	/* no locking required; sole access under constructor*/
+	clone = __context_engines_static(dst);
 	if (e->num_engines != clone->num_engines) {
 		err = -EINVAL;
 		goto unlock;
