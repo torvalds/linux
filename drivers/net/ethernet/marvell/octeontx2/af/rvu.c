@@ -877,8 +877,8 @@ int rvu_aq_alloc(struct rvu *rvu, struct admin_queue **ad_queue,
 	return 0;
 }
 
-static int rvu_mbox_handler_ready(struct rvu *rvu, struct msg_req *req,
-				  struct ready_msg_rsp *rsp)
+int rvu_mbox_handler_ready(struct rvu *rvu, struct msg_req *req,
+			   struct ready_msg_rsp *rsp)
 {
 	return 0;
 }
@@ -1023,9 +1023,9 @@ static int rvu_detach_rsrcs(struct rvu *rvu, struct rsrc_detach *detach,
 	return 0;
 }
 
-static int rvu_mbox_handler_detach_resources(struct rvu *rvu,
-					     struct rsrc_detach *detach,
-					     struct msg_rsp *rsp)
+int rvu_mbox_handler_detach_resources(struct rvu *rvu,
+				      struct rsrc_detach *detach,
+				      struct msg_rsp *rsp)
 {
 	return rvu_detach_rsrcs(rvu, detach, detach->hdr.pcifunc);
 }
@@ -1171,9 +1171,9 @@ fail:
 	return -ENOSPC;
 }
 
-static int rvu_mbox_handler_attach_resources(struct rvu *rvu,
-					     struct rsrc_attach *attach,
-					     struct msg_rsp *rsp)
+int rvu_mbox_handler_attach_resources(struct rvu *rvu,
+				      struct rsrc_attach *attach,
+				      struct msg_rsp *rsp)
 {
 	u16 pcifunc = attach->hdr.pcifunc;
 	int err;
@@ -1294,8 +1294,8 @@ static void rvu_clear_msix_offset(struct rvu *rvu, struct rvu_pfvf *pfvf,
 	rvu_free_rsrc_contig(&pfvf->msix, nvecs, offset);
 }
 
-static int rvu_mbox_handler_msix_offset(struct rvu *rvu, struct msg_req *req,
-					struct msix_offset_rsp *rsp)
+int rvu_mbox_handler_msix_offset(struct rvu *rvu, struct msg_req *req,
+				 struct msix_offset_rsp *rsp)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
 	u16 pcifunc = req->hdr.pcifunc;
@@ -1343,8 +1343,8 @@ static int rvu_mbox_handler_msix_offset(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
-static int rvu_mbox_handler_vf_flr(struct rvu *rvu, struct msg_req *req,
-				   struct msg_rsp *rsp)
+int rvu_mbox_handler_vf_flr(struct rvu *rvu, struct msg_req *req,
+			    struct msg_rsp *rsp)
 {
 	u16 pcifunc = req->hdr.pcifunc;
 	u16 vf, numvfs;
