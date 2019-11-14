@@ -329,7 +329,7 @@ void smcd_unregister_dev(struct smcd_dev *smcd)
 	list_del_init(&smcd->list);
 	spin_unlock(&smcd_dev_list.lock);
 	smcd->going_away = 1;
-	smc_smcd_terminate(smcd, 0, VLAN_VID_MASK);
+	smc_smcd_terminate_all(smcd);
 	flush_workqueue(smcd->event_wq);
 	destroy_workqueue(smcd->event_wq);
 
