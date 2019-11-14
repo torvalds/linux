@@ -1064,6 +1064,13 @@ static int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	mcam->hprio_count = mcam->lprio_count;
 	mcam->hprio_end = mcam->hprio_count;
 
+	/* Reserve last counter for MCAM RX miss action which is set to
+	 * drop pkt. This way we will know how many pkts didn't match
+	 * any MCAM entry.
+	 */
+	mcam->counters.max--;
+	mcam->rx_miss_act_cntr = mcam->counters.max;
+
 	/* Allocate bitmap for managing MCAM counters and memory
 	 * for saving counter to RVU PFFUNC allocation mapping.
 	 */
@@ -1101,6 +1108,7 @@ free_mem:
 int rvu_npc_init(struct rvu *rvu)
 {
 	struct npc_pkind *pkind = &rvu->hw->pkind;
+	struct npc_mcam *mcam = &rvu->hw->mcam;
 	u64 keyz = NPC_MCAM_KEY_X2;
 	int blkaddr, entry, bank, err;
 	u64 cfg, nibble_ena;
@@ -1183,9 +1191,13 @@ int rvu_npc_init(struct rvu *rvu)
 	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_MISS_ACT(NIX_INTF_TX),
 		    NIX_TX_ACTIONOP_UCAST_DEFAULT);
 
-	/* If MCAM lookup doesn't result in a match, drop the received packet */
+	/* If MCAM lookup doesn't result in a match, drop the received packet.
+	 * And map this action to a counter to count dropped pkts.
+	 */
 	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_MISS_ACT(NIX_INTF_RX),
 		    NIX_RX_ACTIONOP_DROP);
+	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_MISS_STAT_ACT(NIX_INTF_RX),
+		    BIT_ULL(9) | mcam->rx_miss_act_cntr);
 
 	return 0;
 }
@@ -1198,6 +1210,44 @@ void rvu_npc_freemem(struct rvu *rvu)
 	kfree(pkind->rsrc.bmap);
 	kfree(mcam->counters.bmap);
 	mutex_destroy(&mcam->lock);
+}
+
+void rvu_npc_get_mcam_entry_alloc_info(struct rvu *rvu, u16 pcifunc,
+				       int blkaddr, int *alloc_cnt,
+				       int *enable_cnt)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int entry;
+
+	*alloc_cnt = 0;
+	*enable_cnt = 0;
+
+	for (entry = 0; entry < mcam->bmap_entries; entry++) {
+		if (mcam->entry2pfvf_map[entry] == pcifunc) {
+			(*alloc_cnt)++;
+			if (is_mcam_entry_enabled(rvu, mcam, blkaddr, entry))
+				(*enable_cnt)++;
+		}
+	}
+}
+
+void rvu_npc_get_mcam_counter_alloc_info(struct rvu *rvu, u16 pcifunc,
+					 int blkaddr, int *alloc_cnt,
+					 int *enable_cnt)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int cntr;
+
+	*alloc_cnt = 0;
+	*enable_cnt = 0;
+
+	for (cntr = 0; cntr < mcam->counters.max; cntr++) {
+		if (mcam->cntr2pfvf_map[cntr] == pcifunc) {
+			(*alloc_cnt)++;
+			if (mcam->cntr_refcnt[cntr])
+				(*enable_cnt)++;
+		}
+	}
 }
 
 static int npc_mcam_verify_entry(struct npc_mcam *mcam,
