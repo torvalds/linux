@@ -15,6 +15,7 @@
 #include "x86.h"
 #include "cpuid.h"
 #include "lapic.h"
+#include "nested.h"
 #include "pmu.h"
 
 static struct kvm_event_hw_type_mapping intel_arch_events[] = {
@@ -335,6 +336,8 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 		0, pmu->nr_arch_gp_counters);
 	bitmap_set(pmu->all_valid_pmc_idx,
 		INTEL_PMC_MAX_GENERIC, pmu->nr_arch_fixed_counters);
+
+	nested_vmx_pmu_entry_exit_ctls_update(vcpu);
 }
 
 static void intel_pmu_init(struct kvm_vcpu *vcpu)
