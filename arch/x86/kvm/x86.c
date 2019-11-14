@@ -8049,6 +8049,8 @@ void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 	}
 
 	trace_kvm_apicv_update_request(activate, bit);
+	if (kvm_x86_ops->pre_update_apicv_exec_ctrl)
+		kvm_x86_ops->pre_update_apicv_exec_ctrl(kvm, activate);
 	kvm_make_all_cpus_request(kvm, KVM_REQ_APICV_UPDATE);
 }
 EXPORT_SYMBOL_GPL(kvm_request_apicv_update);
