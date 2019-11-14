@@ -7457,19 +7457,6 @@ static void kvm_pv_kick_cpu_op(struct kvm *kvm, unsigned long flags, int apicid)
 	kvm_irq_delivery_to_apic(kvm, NULL, &lapic_irq, NULL);
 }
 
-void kvm_vcpu_deactivate_apicv(struct kvm_vcpu *vcpu)
-{
-	if (!lapic_in_kernel(vcpu)) {
-		WARN_ON_ONCE(vcpu->arch.apicv_active);
-		return;
-	}
-	if (!vcpu->arch.apicv_active)
-		return;
-
-	vcpu->arch.apicv_active = false;
-	kvm_x86_ops->refresh_apicv_exec_ctrl(vcpu);
-}
-
 bool kvm_apicv_activated(struct kvm *kvm)
 {
 	return (READ_ONCE(kvm->arch.apicv_inhibit_reasons) == 0);

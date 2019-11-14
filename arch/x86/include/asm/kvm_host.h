@@ -876,6 +876,7 @@ enum kvm_irqchip_mode {
 };
 
 #define APICV_INHIBIT_REASON_DISABLE    0
+#define APICV_INHIBIT_REASON_HYPERV     1
 
 struct kvm_arch {
 	unsigned long n_used_mmu_pages;
@@ -1483,7 +1484,6 @@ gpa_t kvm_mmu_gva_to_gpa_write(struct kvm_vcpu *vcpu, gva_t gva,
 gpa_t kvm_mmu_gva_to_gpa_system(struct kvm_vcpu *vcpu, gva_t gva,
 				struct x86_exception *exception);
 
-void kvm_vcpu_deactivate_apicv(struct kvm_vcpu *vcpu);
 bool kvm_apicv_activated(struct kvm *kvm);
 void kvm_apicv_init(struct kvm *kvm, bool enable);
 void kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu);
