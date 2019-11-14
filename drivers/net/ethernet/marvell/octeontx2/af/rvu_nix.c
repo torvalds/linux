@@ -64,7 +64,6 @@ enum nix_makr_fmt_indexes {
 
 struct mce {
 	struct hlist_node	node;
-	u16			idx;
 	u16			pcifunc;
 };
 
@@ -1754,7 +1753,7 @@ static int nix_setup_mce(struct rvu *rvu, int mce, u8 op,
 }
 
 static int nix_update_mce_list(struct nix_mce_list *mce_list,
-			       u16 pcifunc, int idx, bool add)
+			       u16 pcifunc, bool add)
 {
 	struct mce *mce, *tail = NULL;
 	bool delete = false;
@@ -1783,7 +1782,6 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 	mce = kzalloc(sizeof(*mce), GFP_KERNEL);
 	if (!mce)
 		return -ENOMEM;
-	mce->idx = idx;
 	mce->pcifunc = pcifunc;
 	if (!tail)
 		hlist_add_head(&mce->node, &mce_list->head);
@@ -1795,12 +1793,12 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 
 static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
 {
-	int err = 0, idx, next_idx, count;
+	int err = 0, idx, next_idx, last_idx;
 	struct nix_mce_list *mce_list;
-	struct mce *mce, *next_mce;
 	struct nix_mcast *mcast;
 	struct nix_hw *nix_hw;
 	struct rvu_pfvf *pfvf;
+	struct mce *mce;
 	int blkaddr;
 
 	/* Broadcast pkt replication is not needed for AF's VFs, hence skip */
@@ -1832,31 +1830,31 @@ static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
 
 	mutex_lock(&mcast->mce_lock);
 
-	err = nix_update_mce_list(mce_list, pcifunc, idx, add);
+	err = nix_update_mce_list(mce_list, pcifunc, add);
 	if (err)
 		goto end;
 
 	/* Disable MCAM entry in NPC */
-
-	if (!mce_list->count)
+	if (!mce_list->count) {
+		rvu_npc_disable_bcast_entry(rvu, pcifunc);
 		goto end;
-	count = mce_list->count;
+	}
 
 	/* Dump the updated list to HW */
+	idx = pfvf->bcast_mce_idx;
+	last_idx = idx + mce_list->count - 1;
 	hlist_for_each_entry(mce, &mce_list->head, node) {
-		next_idx = 0;
-		count--;
-		if (count) {
-			next_mce = hlist_entry(mce->node.next,
-					       struct mce, node);
-			next_idx = next_mce->idx;
-		}
+		if (idx > last_idx)
+			break;
+
+		next_idx = idx + 1;
 		/* EOL should be set in last MCE */
-		err = nix_setup_mce(rvu, mce->idx,
-				    NIX_AQ_INSTOP_WRITE, mce->pcifunc,
-				    next_idx, count ? false : true);
+		err = nix_setup_mce(rvu, idx, NIX_AQ_INSTOP_WRITE,
+				    mce->pcifunc, next_idx,
+				    (next_idx > last_idx) ? true : false);
 		if (err)
 			goto end;
+		idx++;
 	}
 
 end:

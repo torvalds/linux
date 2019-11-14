@@ -477,66 +477,73 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 {
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 	struct mcam_entry entry = { {0} };
+	struct rvu_hwinfo *hw = rvu->hw;
 	struct nix_rx_action action;
-#ifdef MCAST_MCE
 	struct rvu_pfvf *pfvf;
-#endif
 	int blkaddr, index;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0)
 		return;
 
-	/* Only PF can add a bcast match entry */
-	if (pcifunc & RVU_PFVF_FUNC_MASK)
+	/* Skip LBK VFs */
+	if (is_afvf(pcifunc))
 		return;
-#ifdef MCAST_MCE
-	pfvf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
-#endif
 
+	/* If pkt replication is not supported,
+	 * then only PF is allowed to add a bcast match entry.
+	 */
+	if (!hw->cap.nix_rx_multicast && pcifunc & RVU_PFVF_FUNC_MASK)
+		return;
+
+	/* Get 'pcifunc' of PF device */
+	pcifunc = pcifunc & ~RVU_PFVF_FUNC_MASK;
 	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
 					 nixlf, NIXLF_BCAST_ENTRY);
 
-	/* Check for L2B bit and LMAC channel
-	 * NOTE: Since MKEX default profile(a reduced version intended to
-	 * accommodate more capability but igoring few bits) a stap-gap
-	 * approach.
-	 * Since we care for L2B which by HRM NPC_PARSE_KEX_S at BIT_POS[25], So
-	 * moved to BIT_POS[13], ignoring ERRCODE, ERRLEV as we'll loose out
-	 * on capability features needed for CoS (/from ODP PoV) e.g: VLAN,
-	 * DSCP.
-	 *
-	 * Reduced layout of MKEX default profile -
-	 * Includes following are (i.e.CHAN, L2/3{B/M}, LA, LB, LC, LD):
-	 *
-	 * BIT_POS[31:28] : LD
-	 * BIT_POS[27:24] : LC
-	 * BIT_POS[23:20] : LB
-	 * BIT_POS[19:16] : LA
-	 * BIT_POS[15:12] : L3B, L3M, L2B, L2M
-	 * BIT_POS[11:00] : CHAN
-	 *
+	/* Match ingress channel */
+	entry.kw[0] = chan;
+	entry.kw_mask[0] = 0xfffull;
+
+	/* Match broadcast MAC address.
+	 * DMAC is extracted at 0th bit of PARSE_KEX::KW1
 	 */
-	entry.kw[0] = BIT_ULL(13) | chan;
-	entry.kw_mask[0] = BIT_ULL(13) | 0xFFFULL;
+	entry.kw[1] = 0xffffffffffffull;
+	entry.kw_mask[1] = 0xffffffffffffull;
 
 	*(u64 *)&action = 0x00;
-#ifdef MCAST_MCE
-	/* Early silicon doesn't support pkt replication,
-	 * so install entry with UCAST action, so that PF
-	 * receives all broadcast packets.
-	 */
-	action.op = NIX_RX_ACTIONOP_MCAST;
-	action.pf_func = pcifunc;
-	action.index = pfvf->bcast_mce_idx;
-#else
-	action.op = NIX_RX_ACTIONOP_UCAST;
-	action.pf_func = pcifunc;
-#endif
+	if (!hw->cap.nix_rx_multicast) {
+		/* Early silicon doesn't support pkt replication,
+		 * so install entry with UCAST action, so that PF
+		 * receives all broadcast packets.
+		 */
+		action.op = NIX_RX_ACTIONOP_UCAST;
+		action.pf_func = pcifunc;
+	} else {
+		pfvf = rvu_get_pfvf(rvu, pcifunc);
+		action.index = pfvf->bcast_mce_idx;
+		action.op = NIX_RX_ACTIONOP_MCAST;
+	}
 
 	entry.action = *(u64 *)&action;
 	npc_config_mcam_entry(rvu, mcam, blkaddr, index,
 			      NIX_INTF_RX, &entry, true);
+}
+
+void rvu_npc_disable_bcast_entry(struct rvu *rvu, u16 pcifunc)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int blkaddr, index;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return;
+
+	/* Get 'pcifunc' of PF device */
+	pcifunc = pcifunc & ~RVU_PFVF_FUNC_MASK;
+
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc, 0, NIXLF_BCAST_ENTRY);
+	npc_enable_mcam_entry(rvu, mcam, blkaddr, index, false);
 }
 
 void rvu_npc_update_flowkey_alg_idx(struct rvu *rvu, u16 pcifunc, int nixlf,

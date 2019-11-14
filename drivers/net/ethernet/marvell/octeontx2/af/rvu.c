@@ -64,6 +64,7 @@ static void rvu_setup_hw_capabilities(struct rvu *rvu)
 	hw->cap.nix_fixed_txschq_mapping = false;
 	hw->cap.nix_shaping = true;
 	hw->cap.nix_tx_link_bp = true;
+	hw->cap.nix_rx_multicast = true;
 
 	if (is_rvu_96xx_B0(rvu)) {
 		hw->cap.nix_fixed_txschq_mapping = true;
@@ -72,6 +73,8 @@ static void rvu_setup_hw_capabilities(struct rvu *rvu)
 		hw->cap.nix_txsch_per_sdp_lmac = 76;
 		hw->cap.nix_shaping = false;
 		hw->cap.nix_tx_link_bp = false;
+		if (is_rvu_96xx_A0(rvu))
+			hw->cap.nix_rx_multicast = false;
 	}
 }
 
