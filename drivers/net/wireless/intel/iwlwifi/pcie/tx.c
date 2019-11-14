@@ -213,8 +213,8 @@ static void iwl_pcie_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 	u8 sec_ctl = 0;
 	u16 len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
 	__le16 bc_ent;
-	struct iwl_tx_cmd *tx_cmd =
-		(void *)txq->entries[txq->write_ptr].cmd->payload;
+	struct iwl_device_tx_cmd *dev_cmd = txq->entries[txq->write_ptr].cmd;
+	struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
 	u8 sta_id = tx_cmd->sta_id;
 
 	scd_bc_tbl = trans_pcie->scd_bc_tbls.addr;
@@ -257,8 +257,8 @@ static void iwl_pcie_txq_inval_byte_cnt_tbl(struct iwl_trans *trans,
 	int read_ptr = txq->read_ptr;
 	u8 sta_id = 0;
 	__le16 bc_ent;
-	struct iwl_tx_cmd *tx_cmd =
-		(void *)txq->entries[read_ptr].cmd->payload;
+	struct iwl_device_tx_cmd *dev_cmd = txq->entries[read_ptr].cmd;
+	struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
 
 	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
 
@@ -1202,7 +1202,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 		while (!skb_queue_empty(&overflow_skbs)) {
 			struct sk_buff *skb = __skb_dequeue(&overflow_skbs);
-			struct iwl_device_cmd *dev_cmd_ptr;
+			struct iwl_device_tx_cmd *dev_cmd_ptr;
 
 			dev_cmd_ptr = *(void **)((u8 *)skb->cb +
 						 trans_pcie->dev_cmd_offs);
@@ -2125,7 +2125,8 @@ static void iwl_compute_pseudo_hdr_csum(void *iph, struct tcphdr *tcph,
 static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 				   struct iwl_txq *txq, u8 hdr_len,
 				   struct iwl_cmd_meta *out_meta,
-				   struct iwl_device_cmd *dev_cmd, u16 tb1_len)
+				   struct iwl_device_tx_cmd *dev_cmd,
+				   u16 tb1_len)
 {
 	struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
@@ -2303,7 +2304,8 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 				   struct iwl_txq *txq, u8 hdr_len,
 				   struct iwl_cmd_meta *out_meta,
-				   struct iwl_device_cmd *dev_cmd, u16 tb1_len)
+				   struct iwl_device_tx_cmd *dev_cmd,
+				   u16 tb1_len)
 {
 	/* No A-MSDU without CONFIG_INET */
 	WARN_ON(1);
@@ -2313,7 +2315,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 #endif /* CONFIG_INET */
 
 int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
-		      struct iwl_device_cmd *dev_cmd, int txq_id)
+		      struct iwl_device_tx_cmd *dev_cmd, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct ieee80211_hdr *hdr;
@@ -2370,7 +2372,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 		/* don't put the packet on the ring, if there is no room */
 		if (unlikely(iwl_queue_space(trans, txq) < 3)) {
-			struct iwl_device_cmd **dev_cmd_ptr;
+			struct iwl_device_tx_cmd **dev_cmd_ptr;
 
 			dev_cmd_ptr = (void *)((u8 *)skb->cb +
 					       trans_pcie->dev_cmd_offs);
