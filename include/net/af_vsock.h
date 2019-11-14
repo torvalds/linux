@@ -65,6 +65,11 @@ struct vsock_sock {
 	bool sent_request;
 	bool ignore_connecting_rst;
 
+	/* Protected by lock_sock(sk) */
+	u64 buffer_size;
+	u64 buffer_min_size;
+	u64 buffer_max_size;
+
 	/* Private to transport. */
 	void *trans;
 };
@@ -140,17 +145,11 @@ struct vsock_transport {
 		struct vsock_transport_send_notify_data *);
 	int (*notify_send_post_enqueue)(struct vsock_sock *, ssize_t,
 		struct vsock_transport_send_notify_data *);
+	/* sk_lock held by the caller */
+	void (*notify_buffer_size)(struct vsock_sock *, u64 *);
 
 	/* Shutdown. */
 	int (*shutdown)(struct vsock_sock *, int);
-
-	/* Buffer sizes. */
-	void (*set_buffer_size)(struct vsock_sock *, u64);
-	void (*set_min_buffer_size)(struct vsock_sock *, u64);
-	void (*set_max_buffer_size)(struct vsock_sock *, u64);
-	u64 (*get_buffer_size)(struct vsock_sock *);
-	u64 (*get_min_buffer_size)(struct vsock_sock *);
-	u64 (*get_max_buffer_size)(struct vsock_sock *);
 
 	/* Addressing. */
 	u32 (*get_local_cid)(void);

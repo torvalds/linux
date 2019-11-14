@@ -456,17 +456,13 @@ int virtio_transport_do_socket_init(struct vsock_sock *vsk,
 	if (psk) {
 		struct virtio_vsock_sock *ptrans = psk->trans;
 
-		vvs->buf_size	= ptrans->buf_size;
-		vvs->buf_size_min = ptrans->buf_size_min;
-		vvs->buf_size_max = ptrans->buf_size_max;
 		vvs->peer_buf_alloc = ptrans->peer_buf_alloc;
-	} else {
-		vvs->buf_size = VIRTIO_VSOCK_DEFAULT_BUF_SIZE;
-		vvs->buf_size_min = VIRTIO_VSOCK_DEFAULT_MIN_BUF_SIZE;
-		vvs->buf_size_max = VIRTIO_VSOCK_DEFAULT_MAX_BUF_SIZE;
 	}
 
-	vvs->buf_alloc = vvs->buf_size;
+	if (vsk->buffer_size > VIRTIO_VSOCK_MAX_BUF_SIZE)
+		vsk->buffer_size = VIRTIO_VSOCK_MAX_BUF_SIZE;
+
+	vvs->buf_alloc = vsk->buffer_size;
 
 	spin_lock_init(&vvs->rx_lock);
 	spin_lock_init(&vvs->tx_lock);
@@ -476,71 +472,20 @@ int virtio_transport_do_socket_init(struct vsock_sock *vsk,
 }
 EXPORT_SYMBOL_GPL(virtio_transport_do_socket_init);
 
-u64 virtio_transport_get_buffer_size(struct vsock_sock *vsk)
+/* sk_lock held by the caller */
+void virtio_transport_notify_buffer_size(struct vsock_sock *vsk, u64 *val)
 {
 	struct virtio_vsock_sock *vvs = vsk->trans;
 
-	return vvs->buf_size;
-}
-EXPORT_SYMBOL_GPL(virtio_transport_get_buffer_size);
+	if (*val > VIRTIO_VSOCK_MAX_BUF_SIZE)
+		*val = VIRTIO_VSOCK_MAX_BUF_SIZE;
 
-u64 virtio_transport_get_min_buffer_size(struct vsock_sock *vsk)
-{
-	struct virtio_vsock_sock *vvs = vsk->trans;
-
-	return vvs->buf_size_min;
-}
-EXPORT_SYMBOL_GPL(virtio_transport_get_min_buffer_size);
-
-u64 virtio_transport_get_max_buffer_size(struct vsock_sock *vsk)
-{
-	struct virtio_vsock_sock *vvs = vsk->trans;
-
-	return vvs->buf_size_max;
-}
-EXPORT_SYMBOL_GPL(virtio_transport_get_max_buffer_size);
-
-void virtio_transport_set_buffer_size(struct vsock_sock *vsk, u64 val)
-{
-	struct virtio_vsock_sock *vvs = vsk->trans;
-
-	if (val > VIRTIO_VSOCK_MAX_BUF_SIZE)
-		val = VIRTIO_VSOCK_MAX_BUF_SIZE;
-	if (val < vvs->buf_size_min)
-		vvs->buf_size_min = val;
-	if (val > vvs->buf_size_max)
-		vvs->buf_size_max = val;
-	vvs->buf_size = val;
-	vvs->buf_alloc = val;
+	vvs->buf_alloc = *val;
 
 	virtio_transport_send_credit_update(vsk, VIRTIO_VSOCK_TYPE_STREAM,
 					    NULL);
 }
-EXPORT_SYMBOL_GPL(virtio_transport_set_buffer_size);
-
-void virtio_transport_set_min_buffer_size(struct vsock_sock *vsk, u64 val)
-{
-	struct virtio_vsock_sock *vvs = vsk->trans;
-
-	if (val > VIRTIO_VSOCK_MAX_BUF_SIZE)
-		val = VIRTIO_VSOCK_MAX_BUF_SIZE;
-	if (val > vvs->buf_size)
-		vvs->buf_size = val;
-	vvs->buf_size_min = val;
-}
-EXPORT_SYMBOL_GPL(virtio_transport_set_min_buffer_size);
-
-void virtio_transport_set_max_buffer_size(struct vsock_sock *vsk, u64 val)
-{
-	struct virtio_vsock_sock *vvs = vsk->trans;
-
-	if (val > VIRTIO_VSOCK_MAX_BUF_SIZE)
-		val = VIRTIO_VSOCK_MAX_BUF_SIZE;
-	if (val < vvs->buf_size)
-		vvs->buf_size = val;
-	vvs->buf_size_max = val;
-}
-EXPORT_SYMBOL_GPL(virtio_transport_set_max_buffer_size);
+EXPORT_SYMBOL_GPL(virtio_transport_notify_buffer_size);
 
 int
 virtio_transport_notify_poll_in(struct vsock_sock *vsk,
@@ -632,9 +577,7 @@ EXPORT_SYMBOL_GPL(virtio_transport_notify_send_post_enqueue);
 
 u64 virtio_transport_stream_rcvhiwat(struct vsock_sock *vsk)
 {
-	struct virtio_vsock_sock *vvs = vsk->trans;
-
-	return vvs->buf_size;
+	return vsk->buffer_size;
 }
 EXPORT_SYMBOL_GPL(virtio_transport_stream_rcvhiwat);
 

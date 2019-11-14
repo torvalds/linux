@@ -845,36 +845,6 @@ int hvs_notify_send_post_enqueue(struct vsock_sock *vsk, ssize_t written,
 	return 0;
 }
 
-static void hvs_set_buffer_size(struct vsock_sock *vsk, u64 val)
-{
-	/* Ignored. */
-}
-
-static void hvs_set_min_buffer_size(struct vsock_sock *vsk, u64 val)
-{
-	/* Ignored. */
-}
-
-static void hvs_set_max_buffer_size(struct vsock_sock *vsk, u64 val)
-{
-	/* Ignored. */
-}
-
-static u64 hvs_get_buffer_size(struct vsock_sock *vsk)
-{
-	return -ENOPROTOOPT;
-}
-
-static u64 hvs_get_min_buffer_size(struct vsock_sock *vsk)
-{
-	return -ENOPROTOOPT;
-}
-
-static u64 hvs_get_max_buffer_size(struct vsock_sock *vsk)
-{
-	return -ENOPROTOOPT;
-}
-
 static struct vsock_transport hvs_transport = {
 	.get_local_cid            = hvs_get_local_cid,
 
@@ -908,12 +878,6 @@ static struct vsock_transport hvs_transport = {
 	.notify_send_pre_enqueue  = hvs_notify_send_pre_enqueue,
 	.notify_send_post_enqueue = hvs_notify_send_post_enqueue,
 
-	.set_buffer_size          = hvs_set_buffer_size,
-	.set_min_buffer_size      = hvs_set_min_buffer_size,
-	.set_max_buffer_size      = hvs_set_max_buffer_size,
-	.get_buffer_size          = hvs_get_buffer_size,
-	.get_min_buffer_size      = hvs_get_min_buffer_size,
-	.get_max_buffer_size      = hvs_get_max_buffer_size,
 };
 
 static int hvs_probe(struct hv_device *hdev,
