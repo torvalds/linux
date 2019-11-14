@@ -287,7 +287,7 @@ static inline struct smc_connection *smc_lgr_find_conn(
 
 static inline void smc_lgr_terminate_sched(struct smc_link_group *lgr)
 {
-	if (!lgr->terminating)
+	if (!lgr->terminating && !lgr->freeing)
 		schedule_work(&lgr->terminate_work);
 }
 
@@ -301,6 +301,7 @@ void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);
 void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid,
 			unsigned short vlan);
 void smc_smcd_terminate_all(struct smcd_dev *dev);
+void smc_smcr_terminate_all(struct smc_ib_device *smcibdev);
 int smc_buf_create(struct smc_sock *smc, bool is_smcd);
 int smc_uncompress_bufsize(u8 compressed);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,

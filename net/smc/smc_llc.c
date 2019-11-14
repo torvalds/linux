@@ -698,9 +698,11 @@ int smc_llc_do_confirm_rkey(struct smc_link *link,
 int smc_llc_do_delete_rkey(struct smc_link *link,
 			   struct smc_buf_desc *rmb_desc)
 {
-	int rc;
+	int rc = 0;
 
 	mutex_lock(&link->llc_delete_rkey_mutex);
+	if (link->state != SMC_LNK_ACTIVE)
+		goto out;
 	reinit_completion(&link->llc_delete_rkey);
 	rc = smc_llc_send_delete_rkey(link, rmb_desc);
 	if (rc)
