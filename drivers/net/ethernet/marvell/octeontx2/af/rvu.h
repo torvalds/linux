@@ -36,8 +36,18 @@
 #define RVU_PFVF_FUNC_MASK	0x3FF
 
 #ifdef CONFIG_DEBUG_FS
+struct dump_ctx {
+	int	lf;
+	int	id;
+	bool	all;
+};
+
 struct rvu_debugfs {
 	struct dentry *root;
+	struct dentry *npa;
+	struct dump_ctx npa_aura_ctx;
+	struct dump_ctx npa_pool_ctx;
+	int npa_qsize_id;
 };
 #endif
 
@@ -387,6 +397,8 @@ int rvu_mbox_handler_cgx_intlbk_disable(struct rvu *rvu, struct msg_req *req,
 int rvu_npa_init(struct rvu *rvu);
 void rvu_npa_freemem(struct rvu *rvu);
 void rvu_npa_lf_teardown(struct rvu *rvu, u16 pcifunc, int npalf);
+int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
+			struct npa_aq_enq_rsp *rsp);
 int rvu_mbox_handler_npa_aq_enq(struct rvu *rvu,
 				struct npa_aq_enq_req *req,
 				struct npa_aq_enq_rsp *rsp);

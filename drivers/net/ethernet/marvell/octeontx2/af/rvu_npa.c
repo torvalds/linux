@@ -52,8 +52,8 @@ static int npa_aq_enqueue_wait(struct rvu *rvu, struct rvu_block *block,
 	return 0;
 }
 
-static int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
-			       struct npa_aq_enq_rsp *rsp)
+int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
+			struct npa_aq_enq_rsp *rsp)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
 	u16 pcifunc = req->hdr.pcifunc;
