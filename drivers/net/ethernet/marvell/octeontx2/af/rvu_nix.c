@@ -378,7 +378,8 @@ static void nix_ctx_free(struct rvu *rvu, struct rvu_pfvf *pfvf)
 
 static int nixlf_rss_ctx_init(struct rvu *rvu, int blkaddr,
 			      struct rvu_pfvf *pfvf, int nixlf,
-			      int rss_sz, int rss_grps, int hwctx_size)
+			      int rss_sz, int rss_grps, int hwctx_size,
+			      u64 way_mask)
 {
 	int err, grp, num_indices;
 
@@ -398,7 +399,8 @@ static int nixlf_rss_ctx_init(struct rvu *rvu, int blkaddr,
 	/* Config full RSS table size, enable RSS and caching */
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_RSS_CFG(nixlf),
 		    BIT_ULL(36) | BIT_ULL(4) |
-		    ilog2(num_indices / MAX_RSS_INDIR_TBL_SIZE));
+		    ilog2(num_indices / MAX_RSS_INDIR_TBL_SIZE) |
+		    way_mask << 20);
 	/* Config RSS group offset and sizes */
 	for (grp = 0; grp < rss_grps; grp++)
 		rvu_write64(rvu, blkaddr, NIX_AF_LFX_RSS_GRPX(nixlf, grp),
@@ -741,6 +743,9 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	if (!req->rq_cnt || !req->sq_cnt || !req->cq_cnt)
 		return NIX_AF_ERR_PARAM;
 
+	if (req->way_mask)
+		req->way_mask &= 0xFFFF;
+
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
 	if (!pfvf->nixlf || blkaddr < 0)
@@ -806,7 +811,7 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 		    (u64)pfvf->rq_ctx->iova);
 
 	/* Set caching and queue count in HW */
-	cfg = BIT_ULL(36) | (req->rq_cnt - 1);
+	cfg = BIT_ULL(36) | (req->rq_cnt - 1) | req->way_mask << 20;
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_RQS_CFG(nixlf), cfg);
 
 	/* Alloc NIX SQ HW context memory and config the base */
@@ -821,7 +826,8 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_SQS_BASE(nixlf),
 		    (u64)pfvf->sq_ctx->iova);
-	cfg = BIT_ULL(36) | (req->sq_cnt - 1);
+
+	cfg = BIT_ULL(36) | (req->sq_cnt - 1) | req->way_mask << 20;
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_SQS_CFG(nixlf), cfg);
 
 	/* Alloc NIX CQ HW context memory and config the base */
@@ -836,13 +842,14 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_CQS_BASE(nixlf),
 		    (u64)pfvf->cq_ctx->iova);
-	cfg = BIT_ULL(36) | (req->cq_cnt - 1);
+
+	cfg = BIT_ULL(36) | (req->cq_cnt - 1) | req->way_mask << 20;
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_CQS_CFG(nixlf), cfg);
 
 	/* Initialize receive side scaling (RSS) */
 	hwctx_size = 1UL << ((ctx_cfg >> 12) & 0xF);
-	err = nixlf_rss_ctx_init(rvu, blkaddr, pfvf, nixlf,
-				 req->rss_sz, req->rss_grps, hwctx_size);
+	err = nixlf_rss_ctx_init(rvu, blkaddr, pfvf, nixlf, req->rss_sz,
+				 req->rss_grps, hwctx_size, req->way_mask);
 	if (err)
 		goto free_mem;
 
@@ -856,7 +863,9 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_CINTS_BASE(nixlf),
 		    (u64)pfvf->cq_ints_ctx->iova);
-	rvu_write64(rvu, blkaddr, NIX_AF_LFX_CINTS_CFG(nixlf), BIT_ULL(36));
+
+	rvu_write64(rvu, blkaddr, NIX_AF_LFX_CINTS_CFG(nixlf),
+		    BIT_ULL(36) | req->way_mask << 20);
 
 	/* Alloc memory for QINT's HW contexts */
 	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST2);
@@ -868,7 +877,8 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_QINTS_BASE(nixlf),
 		    (u64)pfvf->nix_qints_ctx->iova);
-	rvu_write64(rvu, blkaddr, NIX_AF_LFX_QINTS_CFG(nixlf), BIT_ULL(36));
+	rvu_write64(rvu, blkaddr, NIX_AF_LFX_QINTS_CFG(nixlf),
+		    BIT_ULL(36) | req->way_mask << 20);
 
 	/* Setup VLANX TPID's.
 	 * Use VLAN1 for 802.1Q

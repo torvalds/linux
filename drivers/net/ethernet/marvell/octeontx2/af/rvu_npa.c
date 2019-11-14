@@ -289,6 +289,9 @@ int rvu_mbox_handler_npa_lf_alloc(struct rvu *rvu,
 	    req->aura_sz == NPA_AURA_SZ_0 || !req->nr_pools)
 		return NPA_AF_ERR_PARAM;
 
+	if (req->way_mask)
+		req->way_mask &= 0xFFFF;
+
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPA, pcifunc);
 	if (!pfvf->npalf || blkaddr < 0)
@@ -345,7 +348,8 @@ int rvu_mbox_handler_npa_lf_alloc(struct rvu *rvu,
 	/* Clear way partition mask and set aura offset to '0' */
 	cfg &= ~(BIT_ULL(34) - 1);
 	/* Set aura size & enable caching of contexts */
-	cfg |= (req->aura_sz << 16) | BIT_ULL(34);
+	cfg |= (req->aura_sz << 16) | BIT_ULL(34) | req->way_mask;
+
 	rvu_write64(rvu, blkaddr, NPA_AF_LFX_AURAS_CFG(npalf), cfg);
 
 	/* Configure aura HW context's base */
@@ -353,7 +357,8 @@ int rvu_mbox_handler_npa_lf_alloc(struct rvu *rvu,
 		    (u64)pfvf->aura_ctx->iova);
 
 	/* Enable caching of qints hw context */
-	rvu_write64(rvu, blkaddr, NPA_AF_LFX_QINTS_CFG(npalf), BIT_ULL(36));
+	rvu_write64(rvu, blkaddr, NPA_AF_LFX_QINTS_CFG(npalf),
+		    BIT_ULL(36) | req->way_mask << 20);
 	rvu_write64(rvu, blkaddr, NPA_AF_LFX_QINTS_BASE(npalf),
 		    (u64)pfvf->npa_qints_ctx->iova);
 
