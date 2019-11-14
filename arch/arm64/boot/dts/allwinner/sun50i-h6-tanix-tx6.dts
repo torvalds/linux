@@ -45,6 +45,10 @@
 	status = "okay";
 };
 
+&dwc3 {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
@@ -100,5 +104,9 @@
 };
 
 &usb2phy {
+	status = "okay";
+};
+
+&usb3phy {
 	status = "okay";
 };
