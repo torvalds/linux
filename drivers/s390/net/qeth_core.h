@@ -368,6 +368,7 @@ enum qeth_header_ids {
 	QETH_HEADER_TYPE_L3_TSO	= 0x03,
 	QETH_HEADER_TYPE_OSN    = 0x04,
 	QETH_HEADER_TYPE_L2_TSO	= 0x06,
+	QETH_HEADER_MASK_INVAL	= 0x80,
 };
 /* flags for qeth_hdr.ext_flags */
 #define QETH_HDR_EXT_VLAN_FRAME       0x01
@@ -485,6 +486,7 @@ struct qeth_card_stats {
 	u64 rx_bytes;
 	u64 rx_multicast;
 	u64 rx_length_errors;
+	u64 rx_frame_errors;
 	u64 rx_fifo_errors;
 };
 

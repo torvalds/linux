@@ -1956,6 +1956,7 @@ static void qeth_idx_setup_activate_cmd(struct qeth_card *card,
 	ccw_device_get_id(CARD_DDEV(card), &dev_id);
 	iob->finalize = qeth_idx_finalize_cmd;
 
+	port |= QETH_IDX_ACT_INVAL_FRAME;
 	memcpy(QETH_IDX_ACT_PNO(iob->data), &port, 1);
 	memcpy(QETH_IDX_ACT_ISSUER_RM_TOKEN(iob->data),
 	       &card->token.issuer_rm_w, QETH_MPC_TOKEN_LENGTH);
@@ -4346,7 +4347,9 @@ static int qeth_mdio_read(struct net_device *dev, int phy_id, int regnum)
 	case MII_NWAYTEST: /* N-way auto-neg test register */
 		break;
 	case MII_RERRCOUNTER: /* rx error counter */
-		rc = card->stats.rx_length_errors + card->stats.rx_fifo_errors;
+		rc = card->stats.rx_length_errors +
+		     card->stats.rx_frame_errors +
+		     card->stats.rx_fifo_errors;
 		break;
 	case MII_SREVISION: /* silicon revision */
 		break;
@@ -5092,7 +5095,11 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 		headroom = sizeof(struct qeth_hdr);
 		break;
 	default:
-		QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
+		if ((*hdr)->hdr.l2.id & QETH_HEADER_MASK_INVAL)
+			QETH_CARD_STAT_INC(card, rx_frame_errors);
+		else
+			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
+
 		break;
 	}
 
@@ -6238,11 +6245,13 @@ void qeth_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->rx_packets = card->stats.rx_packets;
 	stats->rx_bytes = card->stats.rx_bytes;
 	stats->rx_errors = card->stats.rx_length_errors +
+			   card->stats.rx_frame_errors +
 			   card->stats.rx_fifo_errors;
 	stats->rx_dropped = card->stats.rx_dropped_nomem +
 			    card->stats.rx_dropped_notsupp;
 	stats->multicast = card->stats.rx_multicast;
 	stats->rx_length_errors = card->stats.rx_length_errors;
+	stats->rx_frame_errors = card->stats.rx_frame_errors;
 	stats->rx_fifo_errors = card->stats.rx_fifo_errors;
 
 	for (i = 0; i < card->qdio.no_out_queues; i++) {
