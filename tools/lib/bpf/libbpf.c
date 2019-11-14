@@ -3856,7 +3856,8 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 	return 0;
 }
 
-static int libbpf_attach_btf_id_by_name(const char *name, __u32 *btf_id);
+static int libbpf_attach_btf_id_by_name(const char *name,
+					enum bpf_attach_type attach_type);
 
 static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
@@ -3910,7 +3911,6 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	bpf_object__for_each_program(prog, obj) {
 		enum bpf_prog_type prog_type;
 		enum bpf_attach_type attach_type;
-		__u32 btf_id;
 
 		err = libbpf_prog_type_by_name(prog->section_name, &prog_type,
 					       &attach_type);
@@ -3923,10 +3923,11 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		bpf_program__set_type(prog, prog_type);
 		bpf_program__set_expected_attach_type(prog, attach_type);
 		if (prog_type == BPF_PROG_TYPE_TRACING) {
-			err = libbpf_attach_btf_id_by_name(prog->section_name, &btf_id);
-			if (err)
+			err = libbpf_attach_btf_id_by_name(prog->section_name,
+							   attach_type);
+			if (err <= 0)
 				goto out;
-			prog->attach_btf_id = btf_id;
+			prog->attach_btf_id = err;
 		}
 	}
 
@@ -4935,6 +4936,10 @@ static const struct {
 	BPF_PROG_SEC("raw_tp/",			BPF_PROG_TYPE_RAW_TRACEPOINT),
 	BPF_PROG_BTF("tp_btf/",			BPF_PROG_TYPE_TRACING,
 						BPF_TRACE_RAW_TP),
+	BPF_PROG_BTF("fentry/",			BPF_PROG_TYPE_TRACING,
+						BPF_TRACE_FENTRY),
+	BPF_PROG_BTF("fexit/",			BPF_PROG_TYPE_TRACING,
+						BPF_TRACE_FEXIT),
 	BPF_PROG_SEC("xdp",			BPF_PROG_TYPE_XDP),
 	BPF_PROG_SEC("perf_event",		BPF_PROG_TYPE_PERF_EVENT),
 	BPF_PROG_SEC("lwt_in",			BPF_PROG_TYPE_LWT_IN),
@@ -5052,43 +5057,56 @@ int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 }
 
 #define BTF_PREFIX "btf_trace_"
-static int libbpf_attach_btf_id_by_name(const char *name, __u32 *btf_id)
+int libbpf_find_vmlinux_btf_id(const char *name,
+			       enum bpf_attach_type attach_type)
 {
 	struct btf *btf = bpf_core_find_kernel_btf();
-	char raw_tp_btf_name[128] = BTF_PREFIX;
-	char *dst = raw_tp_btf_name + sizeof(BTF_PREFIX) - 1;
-	int ret, i, err = -EINVAL;
+	char raw_tp_btf[128] = BTF_PREFIX;
+	char *dst = raw_tp_btf + sizeof(BTF_PREFIX) - 1;
+	const char *btf_name;
+	int err = -EINVAL;
+	u32 kind;
 
 	if (IS_ERR(btf)) {
 		pr_warn("vmlinux BTF is not found\n");
 		return -EINVAL;
 	}
 
+	if (attach_type == BPF_TRACE_RAW_TP) {
+		/* prepend "btf_trace_" prefix per kernel convention */
+		strncat(dst, name, sizeof(raw_tp_btf) - sizeof(BTF_PREFIX));
+		btf_name = raw_tp_btf;
+		kind = BTF_KIND_TYPEDEF;
+	} else {
+		btf_name = name;
+		kind = BTF_KIND_FUNC;
+	}
+	err = btf__find_by_name_kind(btf, btf_name, kind);
+	btf__free(btf);
+	return err;
+}
+
+static int libbpf_attach_btf_id_by_name(const char *name,
+					enum bpf_attach_type attach_type)
+{
+	int i, err;
+
 	if (!name)
-		goto out;
+		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
 		if (!section_names[i].is_attach_btf)
 			continue;
 		if (strncmp(name, section_names[i].sec, section_names[i].len))
 			continue;
-		/* prepend "btf_trace_" prefix per kernel convention */
-		strncat(dst, name + section_names[i].len,
-			sizeof(raw_tp_btf_name) - sizeof(BTF_PREFIX));
-		ret = btf__find_by_name(btf, raw_tp_btf_name);
-		if (ret <= 0) {
-			pr_warn("%s is not found in vmlinux BTF\n", dst);
-			goto out;
-		}
-		*btf_id = ret;
-		err = 0;
-		goto out;
+		err = libbpf_find_vmlinux_btf_id(name + section_names[i].len,
+						 attach_type);
+		if (err <= 0)
+			pr_warn("%s is not found in vmlinux BTF\n", name);
+		return err;
 	}
 	pr_warn("failed to identify btf_id based on ELF section name '%s'\n", name);
-	err = -ESRCH;
-out:
-	btf__free(btf);
-	return err;
+	return -ESRCH;
 }
 
 int libbpf_attach_type_by_name(const char *name,
@@ -5709,6 +5727,37 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 		free(link);
 		pr_warn("program '%s': failed to attach to raw tracepoint '%s': %s\n",
 			bpf_program__title(prog, false), tp_name,
+			libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
+		return ERR_PTR(pfd);
+	}
+	link->fd = pfd;
+	return (struct bpf_link *)link;
+}
+
+struct bpf_link *bpf_program__attach_trace(struct bpf_program *prog)
+{
+	char errmsg[STRERR_BUFSIZE];
+	struct bpf_link_fd *link;
+	int prog_fd, pfd;
+
+	prog_fd = bpf_program__fd(prog);
+	if (prog_fd < 0) {
+		pr_warn("program '%s': can't attach before loaded\n",
+			bpf_program__title(prog, false));
+		return ERR_PTR(-EINVAL);
+	}
+
+	link = malloc(sizeof(*link));
+	if (!link)
+		return ERR_PTR(-ENOMEM);
+	link->link.destroy = &bpf_link__destroy_fd;
+
+	pfd = bpf_raw_tracepoint_open(NULL, prog_fd);
+	if (pfd < 0) {
+		pfd = -errno;
+		free(link);
+		pr_warn("program '%s': failed to attach to trace: %s\n",
+			bpf_program__title(prog, false),
 			libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
 		return ERR_PTR(pfd);
 	}
