@@ -9,11 +9,56 @@
 
 #include "nvme.h"
 
+/* These macros should be moved to linux/temperature.h */
+#define MILLICELSIUS_TO_KELVIN(t) DIV_ROUND_CLOSEST((t) + 273150, 1000)
+#define KELVIN_TO_MILLICELSIUS(t) ((t) * 1000L - 273150)
+
 struct nvme_hwmon_data {
 	struct nvme_ctrl *ctrl;
 	struct nvme_smart_log log;
 	struct mutex read_lock;
 };
+
+static int nvme_get_temp_thresh(struct nvme_ctrl *ctrl, int sensor, bool under,
+				long *temp)
+{
+	unsigned int threshold = sensor << NVME_TEMP_THRESH_SELECT_SHIFT;
+	u32 status;
+	int ret;
+
+	if (under)
+		threshold |= NVME_TEMP_THRESH_TYPE_UNDER;
+
+	ret = nvme_get_features(ctrl, NVME_FEAT_TEMP_THRESH, threshold, NULL, 0,
+				&status);
+	if (ret > 0)
+		return -EIO;
+	if (ret < 0)
+		return ret;
+	*temp = KELVIN_TO_MILLICELSIUS(status & NVME_TEMP_THRESH_MASK);
+
+	return 0;
+}
+
+static int nvme_set_temp_thresh(struct nvme_ctrl *ctrl, int sensor, bool under,
+				long temp)
+{
+	unsigned int threshold = sensor << NVME_TEMP_THRESH_SELECT_SHIFT;
+	int ret;
+
+	temp = MILLICELSIUS_TO_KELVIN(temp);
+	threshold |= clamp_val(temp, 0, NVME_TEMP_THRESH_MASK);
+
+	if (under)
+		threshold |= NVME_TEMP_THRESH_TYPE_UNDER;
+
+	ret = nvme_set_features(ctrl, NVME_FEAT_TEMP_THRESH, threshold, NULL, 0,
+				NULL);
+	if (ret > 0)
+		return -EIO;
+
+	return ret;
+}
 
 static int nvme_hwmon_get_smart_log(struct nvme_hwmon_data *data)
 {
@@ -39,10 +84,11 @@ static int nvme_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	 */
 	switch (attr) {
 	case hwmon_temp_max:
-		*val = (data->ctrl->wctemp - 273) * 1000;
-		return 0;
+		return nvme_get_temp_thresh(data->ctrl, channel, false, val);
+	case hwmon_temp_min:
+		return nvme_get_temp_thresh(data->ctrl, channel, true, val);
 	case hwmon_temp_crit:
-		*val = (data->ctrl->cctemp - 273) * 1000;
+		*val = KELVIN_TO_MILLICELSIUS(data->ctrl->cctemp);
 		return 0;
 	default:
 		break;
@@ -59,7 +105,7 @@ static int nvme_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			temp = get_unaligned_le16(log->temperature);
 		else
 			temp = le16_to_cpu(log->temp_sensor[channel - 1]);
-		*val = (temp - 273) * 1000;
+		*val = KELVIN_TO_MILLICELSIUS(temp);
 		break;
 	case hwmon_temp_alarm:
 		*val = !!(log->critical_warning & NVME_SMART_CRIT_TEMPERATURE);
@@ -71,6 +117,23 @@ static int nvme_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 unlock:
 	mutex_unlock(&data->read_lock);
 	return err;
+}
+
+static int nvme_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
+			    u32 attr, int channel, long val)
+{
+	struct nvme_hwmon_data *data = dev_get_drvdata(dev);
+
+	switch (attr) {
+	case hwmon_temp_max:
+		return nvme_set_temp_thresh(data->ctrl, channel, false, val);
+	case hwmon_temp_min:
+		return nvme_set_temp_thresh(data->ctrl, channel, true, val);
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
 }
 
 static const char * const nvme_hwmon_sensor_names[] = {
@@ -105,8 +168,10 @@ static umode_t nvme_hwmon_is_visible(const void *_data,
 			return 0444;
 		break;
 	case hwmon_temp_max:
-		if (!channel && data->ctrl->wctemp)
-			return 0444;
+	case hwmon_temp_min:
+		if ((!channel && data->ctrl->wctemp) ||
+		    (channel && data->log.temp_sensor[channel - 1]))
+			return 0644;
 		break;
 	case hwmon_temp_alarm:
 		if (!channel)
@@ -126,16 +191,24 @@ static umode_t nvme_hwmon_is_visible(const void *_data,
 static const struct hwmon_channel_info *nvme_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp,
-			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
-				HWMON_T_LABEL | HWMON_T_ALARM,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL),
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+				HWMON_T_CRIT | HWMON_T_LABEL | HWMON_T_ALARM,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+				HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+				HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+				HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+				HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+				HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+				HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+				HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+				HWMON_T_LABEL),
 	NULL
 };
 
@@ -143,6 +216,7 @@ static const struct hwmon_ops nvme_hwmon_ops = {
 	.is_visible	= nvme_hwmon_is_visible,
 	.read		= nvme_hwmon_read,
 	.read_string	= nvme_hwmon_read_string,
+	.write		= nvme_hwmon_write,
 };
 
 static const struct hwmon_chip_info nvme_hwmon_chip_info = {
