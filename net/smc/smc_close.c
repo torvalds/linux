@@ -110,6 +110,17 @@ int smc_close_abort(struct smc_connection *conn)
 	return smc_cdc_get_slot_and_msg_send(conn);
 }
 
+static void smc_close_cancel_work(struct smc_sock *smc)
+{
+	struct sock *sk = &smc->sk;
+
+	release_sock(sk);
+	cancel_work_sync(&smc->conn.close_work);
+	cancel_delayed_work_sync(&smc->conn.tx_work);
+	lock_sock(sk);
+	sk->sk_state = SMC_CLOSED;
+}
+
 /* terminate smc socket abnormally - active abort
  * link group is terminated, i.e. RDMA communication no longer possible
  */
@@ -126,23 +137,21 @@ void smc_close_active_abort(struct smc_sock *smc)
 	switch (sk->sk_state) {
 	case SMC_ACTIVE:
 		sk->sk_state = SMC_PEERABORTWAIT;
-		release_sock(sk);
-		cancel_delayed_work_sync(&smc->conn.tx_work);
-		lock_sock(sk);
+		smc_close_cancel_work(smc);
 		sk->sk_state = SMC_CLOSED;
 		sock_put(sk); /* passive closing */
 		break;
 	case SMC_APPCLOSEWAIT1:
 	case SMC_APPCLOSEWAIT2:
-		release_sock(sk);
-		cancel_delayed_work_sync(&smc->conn.tx_work);
-		lock_sock(sk);
+		smc_close_cancel_work(smc);
 		sk->sk_state = SMC_CLOSED;
 		sock_put(sk); /* postponed passive closing */
 		break;
 	case SMC_PEERCLOSEWAIT1:
 	case SMC_PEERCLOSEWAIT2:
 	case SMC_PEERFINCLOSEWAIT:
+		sk->sk_state = SMC_PEERABORTWAIT;
+		smc_close_cancel_work(smc);
 		sk->sk_state = SMC_CLOSED;
 		smc_conn_free(&smc->conn);
 		release_clcsock = true;
@@ -150,7 +159,11 @@ void smc_close_active_abort(struct smc_sock *smc)
 		break;
 	case SMC_PROCESSABORT:
 	case SMC_APPFINCLOSEWAIT:
+		sk->sk_state = SMC_PEERABORTWAIT;
+		smc_close_cancel_work(smc);
 		sk->sk_state = SMC_CLOSED;
+		smc_conn_free(&smc->conn);
+		release_clcsock = true;
 		break;
 	case SMC_INIT:
 	case SMC_PEERABORTWAIT:

@@ -37,6 +37,8 @@ struct smcd_dmb {
 #define ISM_EVENT_GID	1
 #define ISM_EVENT_SWR	2
 
+#define ISM_ERROR	0xFFFF
+
 struct smcd_event {
 	u32 type;
 	u32 code;

@@ -146,6 +146,10 @@ out:
 int smc_ism_unregister_dmb(struct smcd_dev *smcd, struct smc_buf_desc *dmb_desc)
 {
 	struct smcd_dmb dmb;
+	int rc = 0;
+
+	if (!dmb_desc->dma_addr)
+		return rc;
 
 	memset(&dmb, 0, sizeof(dmb));
 	dmb.dmb_tok = dmb_desc->token;
@@ -153,7 +157,13 @@ int smc_ism_unregister_dmb(struct smcd_dev *smcd, struct smc_buf_desc *dmb_desc)
 	dmb.cpu_addr = dmb_desc->cpu_addr;
 	dmb.dma_addr = dmb_desc->dma_addr;
 	dmb.dmb_len = dmb_desc->len;
-	return smcd->ops->unregister_dmb(smcd, &dmb);
+	rc = smcd->ops->unregister_dmb(smcd, &dmb);
+	if (!rc || rc == ISM_ERROR) {
+		dmb_desc->cpu_addr = NULL;
+		dmb_desc->dma_addr = 0;
+	}
+
+	return rc;
 }
 
 int smc_ism_register_dmb(struct smc_link_group *lgr, int dmb_len,
@@ -375,7 +385,7 @@ void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno)
 
 	spin_lock_irqsave(&smcd->lock, flags);
 	conn = smcd->conn[dmbno];
-	if (conn)
+	if (conn && !conn->killed)
 		tasklet_schedule(&conn->rx_tsklet);
 	spin_unlock_irqrestore(&smcd->lock, flags);
 }
