@@ -65,7 +65,7 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 						       false);
 
 		slots = drm_dp_atomic_find_vcpi_slots(state, &intel_dp->mst_mgr,
-						      port, crtc_state->pbn);
+						      port, crtc_state->pbn, 0);
 		if (slots == -EDEADLK)
 			return slots;
 		if (slots >= 0)

@@ -4938,7 +4938,8 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 	dm_new_connector_state->vcpi_slots = drm_dp_atomic_find_vcpi_slots(state,
 									   mst_mgr,
 									   mst_port,
-									   dm_new_connector_state->pbn);
+									   dm_new_connector_state->pbn,
+									   0);
 	if (dm_new_connector_state->vcpi_slots < 0) {
 		DRM_DEBUG_ATOMIC("failed finding vcpi slots: %d\n", (int)dm_new_connector_state->vcpi_slots);
 		return dm_new_connector_state->vcpi_slots;

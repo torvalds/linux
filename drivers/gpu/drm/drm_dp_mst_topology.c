@@ -4093,6 +4093,7 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
  * @mgr: MST topology manager for the port
  * @port: port to find vcpi slots for
  * @pbn: bandwidth required for the mode in PBN
+ * @pbn_div: divider for DSC mode that takes FEC into account
  *
  * Allocates VCPI slots to @port, replacing any previous VCPI allocations it
  * may have had. Any atomic drivers which support MST must call this function
@@ -4119,7 +4120,8 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
  */
 int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 				  struct drm_dp_mst_topology_mgr *mgr,
-				  struct drm_dp_mst_port *port, int pbn)
+				  struct drm_dp_mst_port *port, int pbn,
+				  int pbn_div)
 {
 	struct drm_dp_mst_topology_state *topology_state;
 	struct drm_dp_vcpi_allocation *pos, *vcpi = NULL;
@@ -4152,7 +4154,10 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 	if (!vcpi)
 		prev_slots = 0;
 
-	req_slots = DIV_ROUND_UP(pbn, mgr->pbn_div);
+	if (pbn_div <= 0)
+		pbn_div = mgr->pbn_div;
+
+	req_slots = DIV_ROUND_UP(pbn, pbn_div);
 
 	DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] [MST PORT:%p] VCPI %d -> %d\n",
 			 port->connector->base.id, port->connector->name,
