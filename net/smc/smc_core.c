@@ -161,10 +161,10 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
  * of the DELETE LINK sequence from server; or as server to
  * initiate the delete processing. See smc_llc_rx_delete_link().
  */
-static int smc_link_send_delete(struct smc_link *lnk)
+static int smc_link_send_delete(struct smc_link *lnk, bool orderly)
 {
 	if (lnk->state == SMC_LNK_ACTIVE &&
-	    !smc_llc_send_delete_link(lnk, SMC_LLC_REQ, true)) {
+	    !smc_llc_send_delete_link(lnk, SMC_LLC_REQ, orderly)) {
 		smc_llc_link_deleting(lnk);
 		return 0;
 	}
@@ -201,7 +201,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 	if (!lgr->is_smcd && !lgr->terminating)	{
 		/* try to send del link msg, on error free lgr immediately */
 		if (lnk->state == SMC_LNK_ACTIVE &&
-		    !smc_link_send_delete(lnk)) {
+		    !smc_link_send_delete(lnk, true)) {
 			/* reschedule in case we never receive a response */
 			smc_lgr_schedule_free_work(lgr);
 			spin_unlock_bh(lgr_lock);
@@ -1233,9 +1233,7 @@ static void smc_lgrs_shutdown(void)
 		if (!lgr->is_smcd) {
 			struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
 
-			if (lnk->state == SMC_LNK_ACTIVE)
-				smc_llc_send_delete_link(lnk, SMC_LLC_REQ,
-							 false);
+			smc_link_send_delete(&lgr->lnk[SMC_SINGLE_LINK], false);
 			smc_llc_link_inactive(lnk);
 		}
 		cancel_delayed_work_sync(&lgr->free_work);
