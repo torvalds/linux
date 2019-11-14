@@ -439,7 +439,7 @@ static bool disk_unlock_native_capacity(struct gendisk *disk)
 	}
 }
 
-static int drop_partitions(struct gendisk *disk, struct block_device *bdev)
+int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev)
 {
 	struct disk_part_iter piter;
 	struct hd_struct *part;
@@ -509,7 +509,7 @@ static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
 	return true;
 }
 
-static int blk_add_partitions(struct gendisk *disk, struct block_device *bdev)
+int blk_add_partitions(struct gendisk *disk, struct block_device *bdev)
 {
 	struct parsed_partitions *state;
 	int ret = -EAGAIN, p, highest;
@@ -573,39 +573,6 @@ static int blk_add_partitions(struct gendisk *disk, struct block_device *bdev)
 	ret = 0;
 out_free_state:
 	free_partitions(state);
-	return ret;
-}
-
-int rescan_partitions(struct gendisk *disk, struct block_device *bdev,
-		bool invalidate)
-{
-	int ret;
-
-rescan:
-	ret = drop_partitions(disk, bdev);
-	if (ret)
-		return ret;
-
-	if (invalidate)
-		set_capacity(disk, 0);
-	else if (disk->fops->revalidate_disk)
-		disk->fops->revalidate_disk(disk);
-
-	check_disk_size_change(disk, bdev, !invalidate);
-	bdev->bd_invalidated = 0;
-
-	if (!get_capacity(disk)) {
-		/*
-		 * Tell userspace that the media / partition table may have
-		 * changed.
-		 */
-		kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
-		return 0;
-	}
-
-	ret = blk_add_partitions(disk, bdev);
-	if (ret == -EAGAIN)
-		goto rescan;
 	return ret;
 }
 
