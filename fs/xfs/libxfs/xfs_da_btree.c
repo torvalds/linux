@@ -107,7 +107,7 @@ xfs_da_state_free(xfs_da_state_t *state)
 #ifdef DEBUG
 	memset((char *)state, 0, sizeof(*state));
 #endif /* DEBUG */
-	kmem_zone_free(xfs_da_state_zone, state);
+	kmem_cache_free(xfs_da_state_zone, state);
 }
 
 void

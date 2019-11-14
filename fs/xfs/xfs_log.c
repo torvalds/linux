@@ -3468,7 +3468,7 @@ xfs_log_ticket_put(
 {
 	ASSERT(atomic_read(&ticket->t_ref) > 0);
 	if (atomic_dec_and_test(&ticket->t_ref))
-		kmem_zone_free(xfs_log_ticket_zone, ticket);
+		kmem_cache_free(xfs_log_ticket_zone, ticket);
 }
 
 xlog_ticket_t *

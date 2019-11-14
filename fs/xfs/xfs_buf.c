@@ -238,7 +238,7 @@ _xfs_buf_alloc(
 	 */
 	error = xfs_buf_get_maps(bp, nmaps);
 	if (error)  {
-		kmem_zone_free(xfs_buf_zone, bp);
+		kmem_cache_free(xfs_buf_zone, bp);
 		return NULL;
 	}
 
@@ -328,7 +328,7 @@ xfs_buf_free(
 		kmem_free(bp->b_addr);
 	_xfs_buf_free_pages(bp);
 	xfs_buf_free_maps(bp);
-	kmem_zone_free(xfs_buf_zone, bp);
+	kmem_cache_free(xfs_buf_zone, bp);
 }
 
 /*
@@ -949,7 +949,7 @@ xfs_buf_get_uncached(
 	_xfs_buf_free_pages(bp);
  fail_free_buf:
 	xfs_buf_free_maps(bp);
-	kmem_zone_free(xfs_buf_zone, bp);
+	kmem_cache_free(xfs_buf_zone, bp);
  fail:
 	return NULL;
 }

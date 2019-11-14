@@ -667,7 +667,7 @@ xfs_inode_item_destroy(
 	xfs_inode_t	*ip)
 {
 	kmem_free(ip->i_itemp->ili_item.li_lv_shadow);
-	kmem_zone_free(xfs_ili_zone, ip->i_itemp);
+	kmem_cache_free(xfs_ili_zone, ip->i_itemp);
 }
 
 

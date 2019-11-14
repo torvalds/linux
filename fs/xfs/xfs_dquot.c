@@ -56,7 +56,7 @@ xfs_qm_dqdestroy(
 	mutex_destroy(&dqp->q_qlock);
 
 	XFS_STATS_DEC(dqp->q_mount, xs_qm_dquot);
-	kmem_zone_free(xfs_qm_dqzone, dqp);
+	kmem_cache_free(xfs_qm_dqzone, dqp);
 }
 
 /*

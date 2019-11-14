@@ -44,7 +44,7 @@ xfs_inode_alloc(
 	if (!ip)
 		return NULL;
 	if (inode_init_always(mp->m_super, VFS_I(ip))) {
-		kmem_zone_free(xfs_inode_zone, ip);
+		kmem_cache_free(xfs_inode_zone, ip);
 		return NULL;
 	}
 
@@ -104,7 +104,7 @@ xfs_inode_free_callback(
 		ip->i_itemp = NULL;
 	}
 
-	kmem_zone_free(xfs_inode_zone, ip);
+	kmem_cache_free(xfs_inode_zone, ip);
 }
 
 static void

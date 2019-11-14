@@ -34,7 +34,7 @@ xfs_cui_item_free(
 	if (cuip->cui_format.cui_nextents > XFS_CUI_MAX_FAST_EXTENTS)
 		kmem_free(cuip);
 	else
-		kmem_zone_free(xfs_cui_zone, cuip);
+		kmem_cache_free(xfs_cui_zone, cuip);
 }
 
 /*
@@ -206,7 +206,7 @@ xfs_cud_item_release(
 	struct xfs_cud_log_item	*cudp = CUD_ITEM(lip);
 
 	xfs_cui_release(cudp->cud_cuip);
-	kmem_zone_free(xfs_cud_zone, cudp);
+	kmem_cache_free(xfs_cud_zone, cudp);
 }
 
 static const struct xfs_item_ops xfs_cud_item_ops = {

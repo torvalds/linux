@@ -34,7 +34,7 @@ xfs_rui_item_free(
 	if (ruip->rui_format.rui_nextents > XFS_RUI_MAX_FAST_EXTENTS)
 		kmem_free(ruip);
 	else
-		kmem_zone_free(xfs_rui_zone, ruip);
+		kmem_cache_free(xfs_rui_zone, ruip);
 }
 
 /*
@@ -229,7 +229,7 @@ xfs_rud_item_release(
 	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
 
 	xfs_rui_release(rudp->rud_ruip);
-	kmem_zone_free(xfs_rud_zone, rudp);
+	kmem_cache_free(xfs_rud_zone, rudp);
 }
 
 static const struct xfs_item_ops xfs_rud_item_ops = {

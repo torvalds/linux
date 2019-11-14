@@ -35,7 +35,7 @@ void
 xfs_bui_item_free(
 	struct xfs_bui_log_item	*buip)
 {
-	kmem_zone_free(xfs_bui_zone, buip);
+	kmem_cache_free(xfs_bui_zone, buip);
 }
 
 /*
@@ -201,7 +201,7 @@ xfs_bud_item_release(
 	struct xfs_bud_log_item	*budp = BUD_ITEM(lip);
 
 	xfs_bui_release(budp->bud_buip);
-	kmem_zone_free(xfs_bud_zone, budp);
+	kmem_cache_free(xfs_bud_zone, budp);
 }
 
 static const struct xfs_item_ops xfs_bud_item_ops = {

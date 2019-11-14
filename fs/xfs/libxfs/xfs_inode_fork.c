@@ -120,10 +120,10 @@ xfs_iformat_fork(
 		break;
 	}
 	if (error) {
-		kmem_zone_free(xfs_ifork_zone, ip->i_afp);
+		kmem_cache_free(xfs_ifork_zone, ip->i_afp);
 		ip->i_afp = NULL;
 		if (ip->i_cowfp)
-			kmem_zone_free(xfs_ifork_zone, ip->i_cowfp);
+			kmem_cache_free(xfs_ifork_zone, ip->i_cowfp);
 		ip->i_cowfp = NULL;
 		xfs_idestroy_fork(ip, XFS_DATA_FORK);
 	}
@@ -531,10 +531,10 @@ xfs_idestroy_fork(
 	}
 
 	if (whichfork == XFS_ATTR_FORK) {
-		kmem_zone_free(xfs_ifork_zone, ip->i_afp);
+		kmem_cache_free(xfs_ifork_zone, ip->i_afp);
 		ip->i_afp = NULL;
 	} else if (whichfork == XFS_COW_FORK) {
-		kmem_zone_free(xfs_ifork_zone, ip->i_cowfp);
+		kmem_cache_free(xfs_ifork_zone, ip->i_cowfp);
 		ip->i_cowfp = NULL;
 	}
 }

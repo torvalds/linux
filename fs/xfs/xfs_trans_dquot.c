@@ -872,6 +872,6 @@ xfs_trans_free_dqinfo(
 {
 	if (!tp->t_dqinfo)
 		return;
-	kmem_zone_free(xfs_qm_dqtrxzone, tp->t_dqinfo);
+	kmem_cache_free(xfs_qm_dqtrxzone, tp->t_dqinfo);
 	tp->t_dqinfo = NULL;
 }

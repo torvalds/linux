@@ -382,7 +382,7 @@ xfs_btree_del_cursor(
 	/*
 	 * Free the cursor.
 	 */
-	kmem_zone_free(xfs_btree_cur_zone, cur);
+	kmem_cache_free(xfs_btree_cur_zone, cur);
 }
 
 /*

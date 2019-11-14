@@ -81,12 +81,6 @@ kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
 #define kmem_zone	kmem_cache
 #define kmem_zone_t	struct kmem_cache
 
-static inline void
-kmem_zone_free(kmem_zone_t *zone, void *ptr)
-{
-	kmem_cache_free(zone, ptr);
-}
-
 extern void *kmem_zone_alloc(kmem_zone_t *, xfs_km_flags_t);
 
 static inline void *

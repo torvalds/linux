@@ -55,7 +55,7 @@ STATIC void
 xfs_icreate_item_release(
 	struct xfs_log_item	*lip)
 {
-	kmem_zone_free(xfs_icreate_zone, ICR_ITEM(lip));
+	kmem_cache_free(xfs_icreate_zone, ICR_ITEM(lip));
 }
 
 static const struct xfs_item_ops xfs_icreate_item_ops = {

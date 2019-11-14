@@ -39,7 +39,7 @@ xfs_efi_item_free(
 	if (efip->efi_format.efi_nextents > XFS_EFI_MAX_FAST_EXTENTS)
 		kmem_free(efip);
 	else
-		kmem_zone_free(xfs_efi_zone, efip);
+		kmem_cache_free(xfs_efi_zone, efip);
 }
 
 /*
@@ -244,7 +244,7 @@ xfs_efd_item_free(struct xfs_efd_log_item *efdp)
 	if (efdp->efd_format.efd_nextents > XFS_EFD_MAX_FAST_EXTENTS)
 		kmem_free(efdp);
 	else
-		kmem_zone_free(xfs_efd_zone, efdp);
+		kmem_cache_free(xfs_efd_zone, efdp);
 }
 
 /*

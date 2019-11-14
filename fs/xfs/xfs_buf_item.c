@@ -763,7 +763,7 @@ xfs_buf_item_init(
 	error = xfs_buf_item_get_format(bip, bp->b_map_count);
 	ASSERT(error == 0);
 	if (error) {	/* to stop gcc throwing set-but-unused warnings */
-		kmem_zone_free(xfs_buf_item_zone, bip);
+		kmem_cache_free(xfs_buf_item_zone, bip);
 		return error;
 	}
 
@@ -939,7 +939,7 @@ xfs_buf_item_free(
 {
 	xfs_buf_item_free_format(bip);
 	kmem_free(bip->bli_item.li_lv_shadow);
-	kmem_zone_free(xfs_buf_item_zone, bip);
+	kmem_cache_free(xfs_buf_item_zone, bip);
 }
 
 /*
