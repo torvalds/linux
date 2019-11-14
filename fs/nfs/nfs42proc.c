@@ -524,9 +524,9 @@ static int nfs42_do_offload_cancel_async(struct file *dst,
 	return status;
 }
 
-int _nfs42_proc_copy_notify(struct file *src, struct file *dst,
-			    struct nfs42_copy_notify_args *args,
-			    struct nfs42_copy_notify_res *res)
+static int _nfs42_proc_copy_notify(struct file *src, struct file *dst,
+				   struct nfs42_copy_notify_args *args,
+				   struct nfs42_copy_notify_res *res)
 {
 	struct nfs_server *src_server = NFS_SERVER(file_inode(src));
 	struct rpc_message msg = {
