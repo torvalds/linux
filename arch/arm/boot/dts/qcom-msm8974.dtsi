@@ -21,12 +21,12 @@
 		#size-cells = <1>;
 		ranges;
 
-		mpss@8000000 {
+		mpss_region: mpss@8000000 {
 			reg = <0x08000000 0x5100000>;
 			no-map;
 		};
 
-		mba@d100000 {
+		mba_region: mba@d100000 {
 			reg = <0x0d100000 0x100000>;
 			no-map;
 		};
@@ -62,8 +62,11 @@
 		};
 
 		rmtfs@fd80000 {
+			compatible = "qcom,rmtfs-mem";
 			reg = <0x0fd80000 0x180000>;
 			no-map;
+
+			qcom,client-id = <1>;
 		};
 	};
 
@@ -796,6 +799,55 @@
 			clock-names = "core";
 		};
 
+		remoteproc@fc880000 {
+			compatible = "qcom,msm8974-mss-pil";
+			reg = <0xfc880000 0x100>, <0xfc820000 0x020>;
+			reg-names = "qdsp6", "rmb";
+
+			interrupts-extended = <&intc GIC_SPI 24 IRQ_TYPE_EDGE_RISING>,
+					      <&modem_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&modem_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&modem_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&modem_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
+
+			clocks = <&gcc GCC_MSS_Q6_BIMC_AXI_CLK>,
+				 <&gcc GCC_MSS_CFG_AHB_CLK>,
+				 <&gcc GCC_BOOT_ROM_AHB_CLK>,
+				 <&xo_board>;
+			clock-names = "iface", "bus", "mem", "xo";
+
+			resets = <&gcc GCC_MSS_RESTART>;
+			reset-names = "mss_restart";
+
+			cx-supply = <&pm8841_s2>;
+			mss-supply = <&pm8841_s3>;
+			mx-supply = <&pm8841_s1>;
+			pll-supply = <&pm8941_l12>;
+
+			qcom,halt-regs = <&tcsr_mutex_block 0x1180 0x1200 0x1280>;
+
+			qcom,smem-states = <&modem_smp2p_out 0>;
+			qcom,smem-state-names = "stop";
+
+			mba {
+				memory-region = <&mba_region>;
+			};
+
+			mpss {
+				memory-region = <&mpss_region>;
+			};
+
+			smd-edge {
+				interrupts = <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
+
+				qcom,ipc = <&apcs 8 12>;
+				qcom,smd-edge = <0>;
+
+				label = "modem";
+			};
+		};
+
 		pronto: remoteproc@fb21b000 {
 			compatible = "qcom,pronto-v2-pil", "qcom,pronto";
 			reg = <0xfb204000 0x2000>, <0xfb202000 0x1000>, <0xfb21b000 0x3000>;
@@ -1471,13 +1523,6 @@
 
 			qcom,ipc = <&apcs 8 8>;
 			qcom,smd-edge = <1>;
-		};
-
-		modem {
-			interrupts = <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
-
-			qcom,ipc = <&apcs 8 12>;
-			qcom,smd-edge = <0>;
 		};
 
 		rpm {
