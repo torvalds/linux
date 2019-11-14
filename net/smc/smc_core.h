@@ -228,6 +228,8 @@ struct smc_link_group {
 						/* Peer GID (remote) */
 			struct smcd_dev		*smcd;
 						/* ISM device for VLAN reg. */
+			u8			peer_shutdown : 1;
+						/* peer triggered shutdownn */
 		};
 	};
 };

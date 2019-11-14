@@ -226,6 +226,9 @@ int smc_ism_signal_shutdown(struct smc_link_group *lgr)
 	int rc;
 	union smcd_sw_event_info ev_info;
 
+	if (lgr->peer_shutdown)
+		return 0;
+
 	memcpy(ev_info.uid, lgr->id, SMC_LGR_ID_SIZE);
 	ev_info.vlan_id = lgr->vlan_id;
 	ev_info.code = ISM_EVENT_REQUEST;
@@ -313,12 +316,12 @@ EXPORT_SYMBOL_GPL(smcd_register_dev);
 void smcd_unregister_dev(struct smcd_dev *smcd)
 {
 	spin_lock(&smcd_dev_list.lock);
-	list_del(&smcd->list);
+	list_del_init(&smcd->list);
 	spin_unlock(&smcd_dev_list.lock);
 	smcd->going_away = 1;
+	smc_smcd_terminate(smcd, 0, VLAN_VID_MASK);
 	flush_workqueue(smcd->event_wq);
 	destroy_workqueue(smcd->event_wq);
-	smc_smcd_terminate(smcd, 0, VLAN_VID_MASK);
 
 	device_del(&smcd->dev);
 }
