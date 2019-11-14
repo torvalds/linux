@@ -28,6 +28,7 @@ config NET_DSA_SJA1105_TAS
 	bool "Support for the Time-Aware Scheduler on NXP SJA1105"
 	depends on NET_DSA_SJA1105 && NET_SCH_TAPRIO
 	depends on NET_SCH_TAPRIO=y || NET_DSA_SJA1105=m
+	depends on NET_DSA_SJA1105_PTP
 	help
 	  This enables support for the TTEthernet-based egress scheduling
 	  engine in the SJA1105 DSA driver, which is controlled using a

@@ -539,9 +539,11 @@ static struct sja1105_regs sja1105et_regs = {
 	.rmii_ref_clk = {0x100015, 0x10001C, 0x100023, 0x10002A, 0x100031},
 	.rmii_ext_tx_clk = {0x100018, 0x10001F, 0x100026, 0x10002D, 0x100034},
 	.ptpegr_ts = {0xC0, 0xC2, 0xC4, 0xC6, 0xC8},
+	.ptpschtm = 0x12, /* Spans 0x12 to 0x13 */
 	.ptp_control = 0x17,
 	.ptpclkval = 0x18, /* Spans 0x18 to 0x19 */
 	.ptpclkrate = 0x1A,
+	.ptpclkcorp = 0x1D,
 };
 
 static struct sja1105_regs sja1105pqrs_regs = {
@@ -569,9 +571,11 @@ static struct sja1105_regs sja1105pqrs_regs = {
 	.rmii_ext_tx_clk = {0x100017, 0x10001D, 0x100023, 0x100029, 0x10002F},
 	.qlevel = {0x604, 0x614, 0x624, 0x634, 0x644},
 	.ptpegr_ts = {0xC0, 0xC4, 0xC8, 0xCC, 0xD0},
+	.ptpschtm = 0x13, /* Spans 0x13 to 0x14 */
 	.ptp_control = 0x18,
 	.ptpclkval = 0x19,
 	.ptpclkrate = 0x1B,
+	.ptpclkcorp = 0x1E,
 };
 
 struct sja1105_info sja1105e_info = {
@@ -584,7 +588,7 @@ struct sja1105_info sja1105e_info = {
 	.reset_cmd		= sja1105et_reset_cmd,
 	.fdb_add_cmd		= sja1105et_fdb_add,
 	.fdb_del_cmd		= sja1105et_fdb_del,
-	.ptp_cmd		= sja1105et_ptp_cmd,
+	.ptp_cmd_packing	= sja1105et_ptp_cmd_packing,
 	.regs			= &sja1105et_regs,
 	.name			= "SJA1105E",
 };
@@ -598,7 +602,7 @@ struct sja1105_info sja1105t_info = {
 	.reset_cmd		= sja1105et_reset_cmd,
 	.fdb_add_cmd		= sja1105et_fdb_add,
 	.fdb_del_cmd		= sja1105et_fdb_del,
-	.ptp_cmd		= sja1105et_ptp_cmd,
+	.ptp_cmd_packing	= sja1105et_ptp_cmd_packing,
 	.regs			= &sja1105et_regs,
 	.name			= "SJA1105T",
 };
@@ -613,7 +617,7 @@ struct sja1105_info sja1105p_info = {
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
-	.ptp_cmd		= sja1105pqrs_ptp_cmd,
+	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105P",
 };
@@ -628,7 +632,7 @@ struct sja1105_info sja1105q_info = {
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
-	.ptp_cmd		= sja1105pqrs_ptp_cmd,
+	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105Q",
 };
@@ -643,7 +647,7 @@ struct sja1105_info sja1105r_info = {
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
-	.ptp_cmd		= sja1105pqrs_ptp_cmd,
+	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105R",
 };
@@ -659,6 +663,6 @@ struct sja1105_info sja1105s_info = {
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
-	.ptp_cmd		= sja1105pqrs_ptp_cmd,
+	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.name			= "SJA1105S",
 };
