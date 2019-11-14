@@ -548,6 +548,8 @@ static void smc_conn_kill(struct smc_connection *conn, bool soft)
 			tasklet_kill(&conn->rx_tsklet);
 		else
 			tasklet_unlock_wait(&conn->rx_tsklet);
+	} else {
+		smc_cdc_tx_dismiss_slots(conn);
 	}
 	smc_lgr_unregister_conn(conn);
 	smc_close_active_abort(smc);

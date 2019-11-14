@@ -520,9 +520,9 @@ static void smc_ib_cleanup_per_ibdev(struct smc_ib_device *smcibdev)
 	if (!smcibdev->initialized)
 		return;
 	smcibdev->initialized = 0;
-	smc_wr_remove_dev(smcibdev);
 	ib_destroy_cq(smcibdev->roce_cq_recv);
 	ib_destroy_cq(smcibdev->roce_cq_send);
+	smc_wr_remove_dev(smcibdev);
 }
 
 static struct ib_client smc_ib_client;

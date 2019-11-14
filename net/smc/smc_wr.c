@@ -50,6 +50,26 @@ struct smc_wr_tx_pend {	/* control data for a pending send request */
 
 /*------------------------------- completion --------------------------------*/
 
+/* returns true if at least one tx work request is pending on the given link */
+static inline bool smc_wr_is_tx_pend(struct smc_link *link)
+{
+	if (find_first_bit(link->wr_tx_mask, link->wr_tx_cnt) !=
+							link->wr_tx_cnt) {
+		return true;
+	}
+	return false;
+}
+
+/* wait till all pending tx work requests on the given link are completed */
+static inline int smc_wr_tx_wait_no_pending_sends(struct smc_link *link)
+{
+	if (wait_event_timeout(link->wr_tx_wait, !smc_wr_is_tx_pend(link),
+			       SMC_WR_TX_WAIT_PENDING_TIME))
+		return 0;
+	else /* timeout */
+		return -EPIPE;
+}
+
 static inline int smc_wr_tx_find_pending_index(struct smc_link *link, u64 wr_id)
 {
 	u32 i;
@@ -229,6 +249,7 @@ int smc_wr_tx_put_slot(struct smc_link *link,
 		memset(&link->wr_tx_bufs[idx], 0,
 		       sizeof(link->wr_tx_bufs[idx]));
 		test_and_clear_bit(idx, link->wr_tx_mask);
+		wake_up(&link->wr_tx_wait);
 		return 1;
 	}
 
@@ -512,8 +533,10 @@ void smc_wr_free_link(struct smc_link *lnk)
 {
 	struct ib_device *ibdev;
 
-	memset(lnk->wr_tx_mask, 0,
-	       BITS_TO_LONGS(SMC_WR_BUF_CNT) * sizeof(*lnk->wr_tx_mask));
+	if (smc_wr_tx_wait_no_pending_sends(lnk))
+		memset(lnk->wr_tx_mask, 0,
+		       BITS_TO_LONGS(SMC_WR_BUF_CNT) *
+						sizeof(*lnk->wr_tx_mask));
 
 	if (!lnk->smcibdev)
 		return;
