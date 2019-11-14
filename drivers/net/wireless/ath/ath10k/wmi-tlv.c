@@ -841,7 +841,7 @@ static int ath10k_wmi_tlv_op_pull_mgmt_rx_ev(struct ath10k *ar,
 	const struct wmi_tlv_mgmt_rx_ev *ev;
 	const u8 *frame;
 	u32 msdu_len;
-	int ret;
+	int ret, i;
 
 	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
 	if (IS_ERR(tb)) {
@@ -864,6 +864,9 @@ static int ath10k_wmi_tlv_op_pull_mgmt_rx_ev(struct ath10k *ar,
 	arg->snr = ev->snr;
 	arg->phy_mode = ev->phy_mode;
 	arg->rate = ev->rate;
+
+	for (i = 0; i < ARRAY_SIZE(ev->rssi); i++)
+		arg->rssi[i] = ev->rssi[i];
 
 	msdu_len = __le32_to_cpu(arg->buf_len);
 
