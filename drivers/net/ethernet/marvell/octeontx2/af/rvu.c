@@ -2456,6 +2456,9 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_irq;
 
+	/* Initialize debugfs */
+	rvu_dbg_init(rvu);
+
 	return 0;
 err_irq:
 	rvu_unregister_interrupts(rvu);
@@ -2482,6 +2485,7 @@ static void rvu_remove(struct pci_dev *pdev)
 {
 	struct rvu *rvu = pci_get_drvdata(pdev);
 
+	rvu_dbg_exit(rvu);
 	rvu_unregister_interrupts(rvu);
 	rvu_flr_wq_destroy(rvu);
 	rvu_cgx_exit(rvu);
