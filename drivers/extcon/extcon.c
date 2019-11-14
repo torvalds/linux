@@ -33,6 +33,9 @@
 #include <linux/sysfs.h>
 
 #include "extcon.h"
+#ifdef CONFIG_ARCH_ROCKCHIP
+#include "../base/base.h"
+#endif
 
 #define SUPPORTED_CABLE_MAX	32
 
@@ -1276,6 +1279,14 @@ int extcon_dev_register(struct extcon_dev *edev)
 	list_add(&edev->entry, &extcon_dev_list);
 	mutex_unlock(&extcon_dev_list_lock);
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	ret = sysfs_create_link(&edev->dev.class->p->subsys.kobj,
+				&edev->dev.kobj, edev->name);
+	if (ret)
+		dev_err(&edev->dev, "failed to create extcon %s link\n",
+			edev->name);
+#endif
+
 	return 0;
 
 err_dev:
@@ -1322,6 +1333,11 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 				dev_name(&edev->dev));
 		return;
 	}
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+	sysfs_delete_link(&edev->dev.class->p->subsys.kobj,
+			  &edev->dev.kobj, edev->name);
+#endif
 
 	device_unregister(&edev->dev);
 
