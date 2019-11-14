@@ -3517,13 +3517,18 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		args++;
 		nr_args--;
 	}
-	if (arg >= nr_args) {
-		bpf_log(log, "func '%s' doesn't have %d-th argument\n",
-			tname, arg);
-		return false;
-	}
 
-	t = btf_type_by_id(btf_vmlinux, args[arg].type);
+	if (prog->expected_attach_type == BPF_TRACE_FEXIT &&
+	    arg == nr_args) {
+		/* function return type */
+		t = btf_type_by_id(btf_vmlinux, t->type);
+	} else if (arg >= nr_args) {
+		bpf_log(log, "func '%s' doesn't have %d-th argument\n",
+			tname, arg + 1);
+		return false;
+	} else {
+		t = btf_type_by_id(btf_vmlinux, args[arg].type);
+	}
 	/* skip modifiers */
 	while (btf_type_is_modifier(t))
 		t = btf_type_by_id(btf_vmlinux, t->type);
@@ -3782,6 +3787,70 @@ u32 btf_resolve_helper_id(struct bpf_verifier_log *log, void *fn, int arg)
 	bpf_log(log, "helper %s arg%d has btf_id %d struct %s\n", fnname + 4,
 		arg, btf_id, __btf_name_by_offset(btf_vmlinux, t->name_off));
 	return btf_id;
+}
+
+static int __get_type_size(struct btf *btf, u32 btf_id,
+			   const struct btf_type **bad_type)
+{
+	const struct btf_type *t;
+
+	if (!btf_id)
+		/* void */
+		return 0;
+	t = btf_type_by_id(btf, btf_id);
+	while (t && btf_type_is_modifier(t))
+		t = btf_type_by_id(btf, t->type);
+	if (!t)
+		return -EINVAL;
+	if (btf_type_is_ptr(t))
+		/* kernel size of pointer. Not BPF's size of pointer*/
+		return sizeof(void *);
+	if (btf_type_is_int(t) || btf_type_is_enum(t))
+		return t->size;
+	*bad_type = t;
+	return -EINVAL;
+}
+
+int btf_distill_func_proto(struct bpf_verifier_log *log,
+			   struct btf *btf,
+			   const struct btf_type *func,
+			   const char *tname,
+			   struct btf_func_model *m)
+{
+	const struct btf_param *args;
+	const struct btf_type *t;
+	u32 i, nargs;
+	int ret;
+
+	args = (const struct btf_param *)(func + 1);
+	nargs = btf_type_vlen(func);
+	if (nargs >= MAX_BPF_FUNC_ARGS) {
+		bpf_log(log,
+			"The function %s has %d arguments. Too many.\n",
+			tname, nargs);
+		return -EINVAL;
+	}
+	ret = __get_type_size(btf, func->type, &t);
+	if (ret < 0) {
+		bpf_log(log,
+			"The function %s return type %s is unsupported.\n",
+			tname, btf_kind_str[BTF_INFO_KIND(t->info)]);
+		return -EINVAL;
+	}
+	m->ret_size = ret;
+
+	for (i = 0; i < nargs; i++) {
+		ret = __get_type_size(btf, args[i].type, &t);
+		if (ret < 0) {
+			bpf_log(log,
+				"The function %s arg%d type %s is unsupported.\n",
+				tname, i, btf_kind_str[BTF_INFO_KIND(t->info)]);
+			return -EINVAL;
+		}
+		m->arg_size[i] = ret;
+	}
+	m->nr_args = nargs;
+	return 0;
 }
 
 void btf_type_seq_show(const struct btf *btf, u32 type_id, void *obj,
