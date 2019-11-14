@@ -6,6 +6,7 @@
 #include <net/snmp.h>
 #include <net/tls.h>
 
+#ifdef CONFIG_PROC_FS
 static const struct snmp_mib tls_mib_list[] = {
 	SNMP_MIB_ITEM("TlsCurrTxSw", LINUX_MIB_TLSCURRTXSW),
 	SNMP_MIB_ITEM("TlsCurrRxSw", LINUX_MIB_TLSCURRRXSW),
@@ -32,6 +33,7 @@ static int tls_statistics_seq_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
+#endif
 
 int __net_init tls_proc_init(struct net *net)
 {
