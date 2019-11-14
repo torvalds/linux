@@ -46,45 +46,6 @@ enum tcpm_transmit_type {
 	TCPC_TX_BIST_MODE_2 = 7
 };
 
-/**
- * struct tcpc_config - Port configuration
- * @src_pdo:	PDO parameters sent to port partner as response to
- *		PD_CTRL_GET_SOURCE_CAP message
- * @nr_src_pdo:	Number of entries in @src_pdo
- * @snk_pdo:	PDO parameters sent to partner as response to
- *		PD_CTRL_GET_SINK_CAP message
- * @nr_snk_pdo:	Number of entries in @snk_pdo
- * @operating_snk_mw:
- *		Required operating sink power in mW
- * @type:	Port type (TYPEC_PORT_DFP, TYPEC_PORT_UFP, or
- *		TYPEC_PORT_DRP)
- * @default_role:
- *		Default port role (TYPEC_SINK or TYPEC_SOURCE).
- *		Set to TYPEC_NO_PREFERRED_ROLE if no default role.
- * @try_role_hw:True if try.{Src,Snk} is implemented in hardware
- * @alt_modes:	List of supported alternate modes
- */
-struct tcpc_config {
-	const u32 *src_pdo;
-	unsigned int nr_src_pdo;
-
-	const u32 *snk_pdo;
-	unsigned int nr_snk_pdo;
-
-	const u32 *snk_vdo;
-	unsigned int nr_snk_vdo;
-
-	unsigned int operating_snk_mw;
-
-	enum typec_port_type type;
-	enum typec_port_data data;
-	enum typec_role default_role;
-	bool try_role_hw;	/* try.{src,snk} implemented in hardware */
-	bool self_powered;	/* port belongs to a self powered device */
-
-	const struct typec_altmode_desc *alt_modes;
-};
-
 /* Mux state attributes */
 #define TCPC_MUX_USB_ENABLED		BIT(0)	/* USB enabled */
 #define TCPC_MUX_DP_ENABLED		BIT(1)	/* DP enabled */
@@ -92,7 +53,6 @@ struct tcpc_config {
 
 /**
  * struct tcpc_dev - Port configuration and callback functions
- * @config:	Pointer to port configuration
  * @fwnode:	Pointer to port fwnode
  * @get_vbus:	Called to read current VBUS state
  * @get_current_limit:
@@ -121,7 +81,6 @@ struct tcpc_config {
  * @mux:	Pointer to multiplexer data
  */
 struct tcpc_dev {
-	const struct tcpc_config *config;
 	struct fwnode_handle *fwnode;
 
 	int (*init)(struct tcpc_dev *dev);
