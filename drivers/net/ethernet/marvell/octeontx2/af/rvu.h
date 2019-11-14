@@ -63,6 +63,8 @@ struct rvu_debugfs {
 struct rvu_work {
 	struct	work_struct work;
 	struct	rvu *rvu;
+	int num_msgs;
+	int up_num_msgs;
 };
 
 struct rsrc_bmap {

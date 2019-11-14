@@ -1440,12 +1440,12 @@ static void __rvu_mbox_handler(struct rvu_work *mwork, int type)
 
 	/* Process received mbox messages */
 	req_hdr = mdev->mbase + mbox->rx_start;
-	if (req_hdr->num_msgs == 0)
+	if (mw->mbox_wrk[devid].num_msgs == 0)
 		return;
 
 	offset = mbox->rx_start + ALIGN(sizeof(*req_hdr), MBOX_MSG_ALIGN);
 
-	for (id = 0; id < req_hdr->num_msgs; id++) {
+	for (id = 0; id < mw->mbox_wrk[devid].num_msgs; id++) {
 		msg = mdev->mbase + offset;
 
 		/* Set which PF/VF sent this message based on mbox IRQ */
@@ -1471,13 +1471,14 @@ static void __rvu_mbox_handler(struct rvu_work *mwork, int type)
 		if (msg->pcifunc & RVU_PFVF_FUNC_MASK)
 			dev_warn(rvu->dev, "Error %d when processing message %s (0x%x) from PF%d:VF%d\n",
 				 err, otx2_mbox_id2name(msg->id),
-				 msg->id, devid,
+				 msg->id, rvu_get_pf(msg->pcifunc),
 				 (msg->pcifunc & RVU_PFVF_FUNC_MASK) - 1);
 		else
 			dev_warn(rvu->dev, "Error %d when processing message %s (0x%x) from PF%d\n",
 				 err, otx2_mbox_id2name(msg->id),
 				 msg->id, devid);
 	}
+	mw->mbox_wrk[devid].num_msgs = 0;
 
 	/* Send mbox responses to VF/PF */
 	otx2_mbox_msg_send(mbox, devid);
@@ -1523,14 +1524,14 @@ static void __rvu_mbox_up_handler(struct rvu_work *mwork, int type)
 	mdev = &mbox->dev[devid];
 
 	rsp_hdr = mdev->mbase + mbox->rx_start;
-	if (rsp_hdr->num_msgs == 0) {
+	if (mw->mbox_wrk_up[devid].up_num_msgs == 0) {
 		dev_warn(rvu->dev, "mbox up handler: num_msgs = 0\n");
 		return;
 	}
 
 	offset = mbox->rx_start + ALIGN(sizeof(*rsp_hdr), MBOX_MSG_ALIGN);
 
-	for (id = 0; id < rsp_hdr->num_msgs; id++) {
+	for (id = 0; id < mw->mbox_wrk_up[devid].up_num_msgs; id++) {
 		msg = mdev->mbase + offset;
 
 		if (msg->id >= MBOX_MSG_MAX) {
@@ -1560,6 +1561,7 @@ end:
 		offset = mbox->rx_start + msg->next_msgoff;
 		mdev->msgs_acked++;
 	}
+	mw->mbox_wrk_up[devid].up_num_msgs = 0;
 
 	otx2_mbox_reset(mbox, devid);
 }
@@ -1697,14 +1699,28 @@ static void rvu_queue_work(struct mbox_wq_info *mw, int first,
 		mbox = &mw->mbox;
 		mdev = &mbox->dev[i];
 		hdr = mdev->mbase + mbox->rx_start;
-		if (hdr->num_msgs)
-			queue_work(mw->mbox_wq, &mw->mbox_wrk[i].work);
 
+		/*The hdr->num_msgs is set to zero immediately in the interrupt
+		 * handler to  ensure that it holds a correct value next time
+		 * when the interrupt handler is called.
+		 * pf->mbox.num_msgs holds the data for use in pfaf_mbox_handler
+		 * pf>mbox.up_num_msgs holds the data for use in
+		 * pfaf_mbox_up_handler.
+		 */
+
+		if (hdr->num_msgs) {
+			mw->mbox_wrk[i].num_msgs = hdr->num_msgs;
+			hdr->num_msgs = 0;
+			queue_work(mw->mbox_wq, &mw->mbox_wrk[i].work);
+		}
 		mbox = &mw->mbox_up;
 		mdev = &mbox->dev[i];
 		hdr = mdev->mbase + mbox->rx_start;
-		if (hdr->num_msgs)
+		if (hdr->num_msgs) {
+			mw->mbox_wrk_up[i].up_num_msgs = hdr->num_msgs;
+			hdr->num_msgs = 0;
 			queue_work(mw->mbox_wq, &mw->mbox_wrk_up[i].work);
+		}
 	}
 }
 
