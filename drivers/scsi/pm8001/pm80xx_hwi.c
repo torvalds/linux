@@ -76,7 +76,7 @@ void pm80xx_pci_mem_copy(struct pm8001_hba_info  *pm8001_ha, u32 soffset,
 	destination1 = (u32 *)destination;
 
 	for (index = 0; index < dw_count; index += 4, destination1++) {
-		offset = (soffset + index / 4);
+		offset = (soffset + index);
 		if (offset < (64 * 1024)) {
 			value = pm8001_cr32(pm8001_ha, bus_base_number, offset);
 			*destination1 =  cpu_to_le32(value);
@@ -93,9 +93,12 @@ ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 	void __iomem *fatal_table_address = pm8001_ha->fatal_tbl_addr;
 	u32 accum_len , reg_val, index, *temp;
+	u32 status = 1;
 	unsigned long start;
 	u8 *direct_data;
 	char *fatal_error_data = buf;
+	u32 length_to_read;
+	u32 offset;
 
 	pm8001_ha->forensic_info.data_buf.direct_data = buf;
 	if (pm8001_ha->chip_id == chip_8001) {
@@ -105,16 +108,35 @@ ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 		return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
 			(char *)buf;
 	}
+	/* initialize variables for very first call from host application */
 	if (pm8001_ha->forensic_info.data_buf.direct_offset == 0) {
 		PM8001_IO_DBG(pm8001_ha,
 		pm8001_printk("forensic_info TYPE_NON_FATAL..............\n"));
 		direct_data = (u8 *)fatal_error_data;
 		pm8001_ha->forensic_info.data_type = TYPE_NON_FATAL;
 		pm8001_ha->forensic_info.data_buf.direct_len = SYSFS_OFFSET;
+		pm8001_ha->forensic_info.data_buf.direct_offset = 0;
 		pm8001_ha->forensic_info.data_buf.read_len = 0;
+		pm8001_ha->forensic_preserved_accumulated_transfer = 0;
+
+		/* Write signature to fatal dump table */
+		pm8001_mw32(fatal_table_address,
+				MPI_FATAL_EDUMP_TABLE_SIGNATURE, 0x1234abcd);
 
 		pm8001_ha->forensic_info.data_buf.direct_data = direct_data;
-
+		PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("ossaHwCB: status1 %d\n", status));
+		PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("ossaHwCB: read_len 0x%x\n",
+			pm8001_ha->forensic_info.data_buf.read_len));
+		PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("ossaHwCB: direct_len 0x%x\n",
+			pm8001_ha->forensic_info.data_buf.direct_len));
+		PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("ossaHwCB: direct_offset 0x%x\n",
+			pm8001_ha->forensic_info.data_buf.direct_offset));
+	}
+	if (pm8001_ha->forensic_info.data_buf.direct_offset == 0) {
 		/* start to get data */
 		/* Program the MEMBASE II Shifting Register with 0x00.*/
 		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
@@ -127,30 +149,66 @@ ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 	/* Read until accum_len is retrived */
 	accum_len = pm8001_mr32(fatal_table_address,
 				MPI_FATAL_EDUMP_TABLE_ACCUM_LEN);
-	PM8001_IO_DBG(pm8001_ha, pm8001_printk("accum_len 0x%x\n",
-						accum_len));
+	/* Determine length of data between previously stored transfer length
+	 * and current accumulated transfer length
+	 */
+	length_to_read =
+		accum_len - pm8001_ha->forensic_preserved_accumulated_transfer;
+	PM8001_IO_DBG(pm8001_ha,
+		pm8001_printk("get_fatal_spcv: accum_len 0x%x\n", accum_len));
+	PM8001_IO_DBG(pm8001_ha,
+		pm8001_printk("get_fatal_spcv: length_to_read 0x%x\n",
+		length_to_read));
+	PM8001_IO_DBG(pm8001_ha,
+		pm8001_printk("get_fatal_spcv: last_offset 0x%x\n",
+		pm8001_ha->forensic_last_offset));
+	PM8001_IO_DBG(pm8001_ha,
+		pm8001_printk("get_fatal_spcv: read_len 0x%x\n",
+		pm8001_ha->forensic_info.data_buf.read_len));
+	PM8001_IO_DBG(pm8001_ha,
+		pm8001_printk("get_fatal_spcv:: direct_len 0x%x\n",
+		pm8001_ha->forensic_info.data_buf.direct_len));
+	PM8001_IO_DBG(pm8001_ha,
+		pm8001_printk("get_fatal_spcv:: direct_offset 0x%x\n",
+		pm8001_ha->forensic_info.data_buf.direct_offset));
+
+	/* If accumulated length failed to read correctly fail the attempt.*/
 	if (accum_len == 0xFFFFFFFF) {
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("Possible PCI issue 0x%x not expected\n",
-				accum_len));
-		return -EIO;
+			accum_len));
+		return status;
 	}
-	if (accum_len == 0 || accum_len >= 0x100000) {
+	/* If accumulated length is zero fail the attempt */
+	if (accum_len == 0) {
 		pm8001_ha->forensic_info.data_buf.direct_data +=
 			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
-				"%08x ", 0xFFFFFFFF);
+			"%08x ", 0xFFFFFFFF);
 		return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
 			(char *)buf;
 	}
+	/* Accumulated length is good so start capturing the first data */
 	temp = (u32 *)pm8001_ha->memoryMap.region[FORENSIC_MEM].virt_ptr;
 	if (pm8001_ha->forensic_fatal_step == 0) {
 moreData:
+		/* If data to read is less than SYSFS_OFFSET then reduce the
+		 * length of dataLen
+		 */
+		if (pm8001_ha->forensic_last_offset + SYSFS_OFFSET
+				> length_to_read) {
+			pm8001_ha->forensic_info.data_buf.direct_len =
+				length_to_read -
+				pm8001_ha->forensic_last_offset;
+		} else {
+			pm8001_ha->forensic_info.data_buf.direct_len =
+				SYSFS_OFFSET;
+		}
 		if (pm8001_ha->forensic_info.data_buf.direct_data) {
 			/* Data is in bar, copy to host memory */
-			pm80xx_pci_mem_copy(pm8001_ha, pm8001_ha->fatal_bar_loc,
-			 pm8001_ha->memoryMap.region[FORENSIC_MEM].virt_ptr,
-				pm8001_ha->forensic_info.data_buf.direct_len ,
-					1);
+			pm80xx_pci_mem_copy(pm8001_ha,
+			pm8001_ha->fatal_bar_loc,
+			pm8001_ha->memoryMap.region[FORENSIC_MEM].virt_ptr,
+			pm8001_ha->forensic_info.data_buf.direct_len, 1);
 		}
 		pm8001_ha->fatal_bar_loc +=
 			pm8001_ha->forensic_info.data_buf.direct_len;
@@ -161,21 +219,29 @@ moreData:
 		pm8001_ha->forensic_info.data_buf.read_len =
 			pm8001_ha->forensic_info.data_buf.direct_len;
 
-		if (pm8001_ha->forensic_last_offset  >= accum_len) {
+		if (pm8001_ha->forensic_last_offset  >= length_to_read) {
 			pm8001_ha->forensic_info.data_buf.direct_data +=
 			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
 				"%08x ", 3);
-			for (index = 0; index < (SYSFS_OFFSET / 4); index++) {
+			for (index = 0; index <
+				(pm8001_ha->forensic_info.data_buf.direct_len
+				 / 4); index++) {
 				pm8001_ha->forensic_info.data_buf.direct_data +=
-					sprintf(pm8001_ha->
-					 forensic_info.data_buf.direct_data,
-						"%08x ", *(temp + index));
+				sprintf(
+				pm8001_ha->forensic_info.data_buf.direct_data,
+				"%08x ", *(temp + index));
 			}
 
 			pm8001_ha->fatal_bar_loc = 0;
 			pm8001_ha->forensic_fatal_step = 1;
 			pm8001_ha->fatal_forensic_shift_offset = 0;
 			pm8001_ha->forensic_last_offset	= 0;
+			status = 0;
+			offset = (int)
+			((char *)pm8001_ha->forensic_info.data_buf.direct_data
+			- (char *)buf);
+			PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("get_fatal_spcv:return1 0x%x\n", offset));
 			return (char *)pm8001_ha->
 				forensic_info.data_buf.direct_data -
 				(char *)buf;
@@ -185,12 +251,20 @@ moreData:
 				sprintf(pm8001_ha->
 					forensic_info.data_buf.direct_data,
 					"%08x ", 2);
-			for (index = 0; index < (SYSFS_OFFSET / 4); index++) {
-				pm8001_ha->forensic_info.data_buf.direct_data +=
-					sprintf(pm8001_ha->
+			for (index = 0; index <
+				(pm8001_ha->forensic_info.data_buf.direct_len
+				 / 4); index++) {
+				pm8001_ha->forensic_info.data_buf.direct_data
+					+= sprintf(pm8001_ha->
 					forensic_info.data_buf.direct_data,
 					"%08x ", *(temp + index));
 			}
+			status = 0;
+			offset = (int)
+			((char *)pm8001_ha->forensic_info.data_buf.direct_data
+			- (char *)buf);
+			PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("get_fatal_spcv:return2 0x%x\n", offset));
 			return (char *)pm8001_ha->
 				forensic_info.data_buf.direct_data -
 				(char *)buf;
@@ -200,63 +274,122 @@ moreData:
 		pm8001_ha->forensic_info.data_buf.direct_data +=
 			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
 				"%08x ", 2);
-		for (index = 0; index < 256; index++) {
+		for (index = 0; index <
+			(pm8001_ha->forensic_info.data_buf.direct_len
+			 / 4) ; index++) {
 			pm8001_ha->forensic_info.data_buf.direct_data +=
 				sprintf(pm8001_ha->
-					forensic_info.data_buf.direct_data,
-						"%08x ", *(temp + index));
+				forensic_info.data_buf.direct_data,
+				"%08x ", *(temp + index));
 		}
 		pm8001_ha->fatal_forensic_shift_offset += 0x100;
 		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
 			pm8001_ha->fatal_forensic_shift_offset);
 		pm8001_ha->fatal_bar_loc = 0;
+		status = 0;
+		offset = (int)
+			((char *)pm8001_ha->forensic_info.data_buf.direct_data
+			- (char *)buf);
+		PM8001_IO_DBG(pm8001_ha,
+		pm8001_printk("get_fatal_spcv: return3 0x%x\n", offset));
 		return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
 			(char *)buf;
 	}
 	if (pm8001_ha->forensic_fatal_step == 1) {
-		pm8001_ha->fatal_forensic_shift_offset = 0;
-		/* Read 64K of the debug data. */
-		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
-			pm8001_ha->fatal_forensic_shift_offset);
-		pm8001_mw32(fatal_table_address,
-			MPI_FATAL_EDUMP_TABLE_HANDSHAKE,
+		/* store previous accumulated length before triggering next
+		 * accumulated length update
+		 */
+		pm8001_ha->forensic_preserved_accumulated_transfer =
+			pm8001_mr32(fatal_table_address,
+			MPI_FATAL_EDUMP_TABLE_ACCUM_LEN);
+
+		/* continue capturing the fatal log until Dump status is 0x3 */
+		if (pm8001_mr32(fatal_table_address,
+			MPI_FATAL_EDUMP_TABLE_STATUS) <
+			MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_DONE) {
+
+			/* reset fddstat bit by writing to zero*/
+			pm8001_mw32(fatal_table_address,
+					MPI_FATAL_EDUMP_TABLE_STATUS, 0x0);
+
+			/* set dump control value to '1' so that new data will
+			 * be transferred to shared memory
+			 */
+			pm8001_mw32(fatal_table_address,
+				MPI_FATAL_EDUMP_TABLE_HANDSHAKE,
 				MPI_FATAL_EDUMP_HANDSHAKE_RDY);
 
-		/* Poll FDDHSHK  until clear  */
-		start = jiffies + (2 * HZ); /* 2 sec */
+			/*Poll FDDHSHK  until clear */
+			start = jiffies + (2 * HZ); /* 2 sec */
 
-		do {
-			reg_val = pm8001_mr32(fatal_table_address,
+			do {
+				reg_val = pm8001_mr32(fatal_table_address,
 					MPI_FATAL_EDUMP_TABLE_HANDSHAKE);
-		} while ((reg_val) && time_before(jiffies, start));
+			} while ((reg_val) && time_before(jiffies, start));
 
-		if (reg_val != 0) {
-			PM8001_FAIL_DBG(pm8001_ha,
-			pm8001_printk("TIMEOUT:MEMBASE_II_SHIFT_REGISTER"
-			" = 0x%x\n", reg_val));
-			return -EIO;
-		}
+			if (reg_val != 0) {
+				PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
+				"TIMEOUT:MPI_FATAL_EDUMP_TABLE_HDSHAKE 0x%x\n",
+				reg_val));
+			       /* Fail the dump if a timeout occurs */
+				pm8001_ha->forensic_info.data_buf.direct_data +=
+				sprintf(
+				pm8001_ha->forensic_info.data_buf.direct_data,
+				"%08x ", 0xFFFFFFFF);
+				return((char *)
+				pm8001_ha->forensic_info.data_buf.direct_data
+				- (char *)buf);
+			}
+			/* Poll status register until set to 2 or
+			 * 3 for up to 2 seconds
+			 */
+			start = jiffies + (2 * HZ); /* 2 sec */
 
-		/* Read the next 64K of the debug data. */
-		pm8001_ha->forensic_fatal_step = 0;
-		if (pm8001_mr32(fatal_table_address,
-			MPI_FATAL_EDUMP_TABLE_STATUS) !=
-				MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_DONE) {
-			pm8001_mw32(fatal_table_address,
-				MPI_FATAL_EDUMP_TABLE_HANDSHAKE, 0);
-			goto moreData;
-		} else {
-			pm8001_ha->forensic_info.data_buf.direct_data +=
-				sprintf(pm8001_ha->
-					forensic_info.data_buf.direct_data,
-						"%08x ", 4);
-			pm8001_ha->forensic_info.data_buf.read_len = 0xFFFFFFFF;
-			pm8001_ha->forensic_info.data_buf.direct_len =  0;
-			pm8001_ha->forensic_info.data_buf.direct_offset = 0;
-			pm8001_ha->forensic_info.data_buf.read_len = 0;
+			do {
+				reg_val = pm8001_mr32(fatal_table_address,
+					MPI_FATAL_EDUMP_TABLE_STATUS);
+			} while (((reg_val != 2) || (reg_val != 3)) &&
+					time_before(jiffies, start));
+
+			if (reg_val < 2) {
+				PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
+				"TIMEOUT:MPI_FATAL_EDUMP_TABLE_STATUS = 0x%x\n",
+				reg_val));
+				/* Fail the dump if a timeout occurs */
+				pm8001_ha->forensic_info.data_buf.direct_data +=
+				sprintf(
+				pm8001_ha->forensic_info.data_buf.direct_data,
+				"%08x ", 0xFFFFFFFF);
+				pm8001_cw32(pm8001_ha, 0,
+					MEMBASE_II_SHIFT_REGISTER,
+					pm8001_ha->fatal_forensic_shift_offset);
+			}
+			/* Read the next block of the debug data.*/
+			length_to_read = pm8001_mr32(fatal_table_address,
+			MPI_FATAL_EDUMP_TABLE_ACCUM_LEN) -
+			pm8001_ha->forensic_preserved_accumulated_transfer;
+			if (length_to_read != 0x0) {
+				pm8001_ha->forensic_fatal_step = 0;
+				goto moreData;
+			} else {
+				pm8001_ha->forensic_info.data_buf.direct_data +=
+				sprintf(
+				pm8001_ha->forensic_info.data_buf.direct_data,
+				"%08x ", 4);
+				pm8001_ha->forensic_info.data_buf.read_len
+								= 0xFFFFFFFF;
+				pm8001_ha->forensic_info.data_buf.direct_len
+								=  0;
+				pm8001_ha->forensic_info.data_buf.direct_offset
+								= 0;
+				pm8001_ha->forensic_info.data_buf.read_len = 0;
+			}
 		}
 	}
-
+	offset = (int)((char *)pm8001_ha->forensic_info.data_buf.direct_data
+			- (char *)buf);
+	PM8001_IO_DBG(pm8001_ha,
+		pm8001_printk("get_fatal_spcv: return4 0x%x\n", offset));
 	return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
 		(char *)buf;
 }
