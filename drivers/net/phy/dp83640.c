@@ -472,7 +472,8 @@ static int ptp_dp83640_enable(struct ptp_clock_info *ptp,
 		/* Reject requests with unsupported flags */
 		if (rq->extts.flags & ~(PTP_ENABLE_FEATURE |
 					PTP_RISING_EDGE |
-					PTP_FALLING_EDGE))
+					PTP_FALLING_EDGE |
+					PTP_STRICT_FLAGS))
 			return -EOPNOTSUPP;
 		index = rq->extts.index;
 		if (index >= N_EXT_TS)
