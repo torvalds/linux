@@ -1113,17 +1113,28 @@ qeth_diags_trace(struct qeth_card *card, enum qeth_diags_trace_cmds diags_cmd)
 	return qeth_send_ipa_cmd(card, iob, qeth_diags_trace_cb, NULL);
 }
 
-static void
-qeth_l3_add_mc_to_hash(struct qeth_card *card, struct in_device *in4_dev)
+static void qeth_l3_add_mcast_rcu(struct net_device *dev,
+				  struct qeth_card *card)
 {
+	struct qeth_ipaddr *tmp = NULL;
+	struct inet6_dev *in6_dev;
+	struct in_device *in4_dev;
+	struct qeth_ipaddr *ipm;
 	struct ip_mc_list *im4;
-	struct qeth_ipaddr *tmp, *ipm;
+	struct ifmcaddr6 *im6;
 
 	QETH_CARD_TEXT(card, 4, "addmc");
 
+	if (!dev || !(dev->flags & IFF_UP))
+		goto out;
+
 	tmp = qeth_l3_get_addr_buffer(QETH_PROT_IPV4);
 	if (!tmp)
-		return;
+		goto out;
+
+	in4_dev = __in_dev_get_rcu(dev);
+	if (!in4_dev)
+		goto walk_ipv6;
 
 	for (im4 = rcu_dereference(in4_dev->mc_list); im4 != NULL;
 	     im4 = rcu_dereference(im4->next_rcu)) {
@@ -1147,63 +1158,15 @@ qeth_l3_add_mc_to_hash(struct qeth_card *card, struct in_device *in4_dev)
 		}
 	}
 
-	kfree(tmp);
-}
+walk_ipv6:
+	if (!qeth_is_supported(card, IPA_IPV6))
+		goto out;
 
-/* called with rcu_read_lock */
-static void qeth_l3_add_vlan_mc(struct qeth_card *card)
-{
-	struct in_device *in_dev;
-	u16 vid;
+	in6_dev = __in6_dev_get(dev);
+	if (!in6_dev)
+		goto out;
 
-	QETH_CARD_TEXT(card, 4, "addmcvl");
-
-	if (!qeth_is_supported(card, IPA_FULL_VLAN))
-		return;
-
-	for_each_set_bit(vid, card->active_vlans, VLAN_N_VID) {
-		struct net_device *netdev;
-
-		netdev = __vlan_find_dev_deep_rcu(card->dev, htons(ETH_P_8021Q),
-					      vid);
-		if (netdev == NULL ||
-		    !(netdev->flags & IFF_UP))
-			continue;
-		in_dev = __in_dev_get_rcu(netdev);
-		if (!in_dev)
-			continue;
-		qeth_l3_add_mc_to_hash(card, in_dev);
-	}
-}
-
-static void qeth_l3_add_multicast_ipv4(struct qeth_card *card)
-{
-	struct in_device *in4_dev;
-
-	QETH_CARD_TEXT(card, 4, "chkmcv4");
-
-	rcu_read_lock();
-	in4_dev = __in_dev_get_rcu(card->dev);
-	if (in4_dev == NULL)
-		goto unlock;
-	qeth_l3_add_mc_to_hash(card, in4_dev);
-	qeth_l3_add_vlan_mc(card);
-unlock:
-	rcu_read_unlock();
-}
-
-static void qeth_l3_add_mc6_to_hash(struct qeth_card *card,
-				    struct inet6_dev *in6_dev)
-{
-	struct qeth_ipaddr *ipm;
-	struct ifmcaddr6 *im6;
-	struct qeth_ipaddr *tmp;
-
-	QETH_CARD_TEXT(card, 4, "addmc6");
-
-	tmp = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
-	if (!tmp)
-		return;
+	qeth_l3_init_ipaddr(tmp, QETH_IP_TYPE_NORMAL, QETH_PROT_IPV6);
 
 	read_lock_bh(&in6_dev->lock);
 	for (im6 = in6_dev->mc_list; im6 != NULL; im6 = im6->next) {
@@ -1230,13 +1193,13 @@ static void qeth_l3_add_mc6_to_hash(struct qeth_card *card,
 	}
 	read_unlock_bh(&in6_dev->lock);
 
+out:
 	kfree(tmp);
 }
 
 /* called with rcu_read_lock */
-static void qeth_l3_add_vlan_mc6(struct qeth_card *card)
+static void qeth_l3_add_vlan_mc(struct qeth_card *card)
 {
-	struct inet6_dev *in_dev;
 	u16 vid;
 
 	QETH_CARD_TEXT(card, 4, "admc6vl");
@@ -1249,34 +1212,8 @@ static void qeth_l3_add_vlan_mc6(struct qeth_card *card)
 
 		netdev = __vlan_find_dev_deep_rcu(card->dev, htons(ETH_P_8021Q),
 					      vid);
-		if (netdev == NULL ||
-		    !(netdev->flags & IFF_UP))
-			continue;
-		in_dev = in6_dev_get(netdev);
-		if (!in_dev)
-			continue;
-		qeth_l3_add_mc6_to_hash(card, in_dev);
-		in6_dev_put(in_dev);
+		qeth_l3_add_mcast_rcu(netdev, card);
 	}
-}
-
-static void qeth_l3_add_multicast_ipv6(struct qeth_card *card)
-{
-	struct inet6_dev *in6_dev;
-
-	QETH_CARD_TEXT(card, 4, "chkmcv6");
-
-	if (!qeth_is_supported(card, IPA_IPV6))
-		return ;
-	in6_dev = in6_dev_get(card->dev);
-	if (!in6_dev)
-		return;
-
-	rcu_read_lock();
-	qeth_l3_add_mc6_to_hash(card, in6_dev);
-	qeth_l3_add_vlan_mc6(card);
-	rcu_read_unlock();
-	in6_dev_put(in6_dev);
 }
 
 static int qeth_l3_vlan_rx_add_vid(struct net_device *dev,
@@ -1450,8 +1387,11 @@ static void qeth_l3_rx_mode_work(struct work_struct *work)
 	QETH_CARD_TEXT(card, 3, "setmulti");
 
 	if (!card->options.sniffer) {
-		qeth_l3_add_multicast_ipv4(card);
-		qeth_l3_add_multicast_ipv6(card);
+		rcu_read_lock();
+		qeth_l3_add_mcast_rcu(card->dev, card);
+		if (qeth_is_supported(card, IPA_FULL_VLAN))
+			qeth_l3_add_vlan_mc(card);
+		rcu_read_unlock();
 
 		hash_for_each_safe(card->ip_mc_htable, i, tmp, addr, hnode) {
 			switch (addr->disp_flag) {
