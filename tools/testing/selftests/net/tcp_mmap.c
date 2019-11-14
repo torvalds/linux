@@ -270,6 +270,11 @@ static void setup_sockaddr(int domain, const char *str_addr,
 
 static void do_accept(int fdlisten)
 {
+	pthread_attr_t attr;
+
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 	if (setsockopt(fdlisten, SOL_SOCKET, SO_RCVLOWAT,
 		       &chunk_size, sizeof(chunk_size)) == -1) {
 		perror("setsockopt SO_RCVLOWAT");
@@ -288,7 +293,7 @@ static void do_accept(int fdlisten)
 			perror("accept");
 			continue;
 		}
-		res = pthread_create(&th, NULL, child_thread,
+		res = pthread_create(&th, &attr, child_thread,
 				     (void *)(unsigned long)fd);
 		if (res) {
 			errno = res;
