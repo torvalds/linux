@@ -2,13 +2,18 @@
 menu "Kernel hardening options"
 
 config GCC_PLUGIN_STRUCTLEAK
-	bool "Force initialization of variables containing userspace addresses"
+	bool
 	help
-	  This plugin zero-initializes any structures containing a
-	  __user attribute. This can prevent some classes of information
-	  exposures.
+	  While the kernel is built with warnings enabled for any missed
+	  stack variable initializations, this warning is silenced for
+	  anything passed by reference to another function, under the
+	  occasionally misguided assumption that the function will do
+	  the initialization. As this regularly leads to exploitable
+	  flaws, this plugin is available to identify and zero-initialize
+	  such variables, depending on the chosen level of coverage.
 
-	  This plugin was ported from grsecurity/PaX. More information at:
+	  This plugin was originally ported from grsecurity/PaX. More
+	  information at:
 	   * https://grsecurity.net/
 	   * https://pax.grsecurity.net/
 
