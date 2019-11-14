@@ -70,6 +70,25 @@ static
 DEVICE_ATTR(interface_rev, S_IRUGO, pm8001_ctl_mpi_interface_rev_show, NULL);
 
 /**
+ * controller_fatal_error_show - check controller is under fatal err
+ * @cdev: pointer to embedded class device
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read only' shost attribute.
+ */
+static ssize_t controller_fatal_error_show(struct device *cdev,
+		struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			pm8001_ha->controller_fatal_error);
+}
+static DEVICE_ATTR_RO(controller_fatal_error);
+
+/**
  * pm8001_ctl_fw_version_show - firmware version
  * @cdev: pointer to embedded class device
  * @buf: the buffer returned
@@ -804,6 +823,7 @@ static DEVICE_ATTR(update_fw, S_IRUGO|S_IWUSR|S_IWGRP,
 	pm8001_show_update_fw, pm8001_store_update_fw);
 struct device_attribute *pm8001_host_attrs[] = {
 	&dev_attr_interface_rev,
+	&dev_attr_controller_fatal_error,
 	&dev_attr_fw_version,
 	&dev_attr_update_fw,
 	&dev_attr_aap_log,
