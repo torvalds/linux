@@ -634,9 +634,6 @@ static struct sock *__vsock_create(struct net *net,
 		return NULL;
 	}
 
-	if (sock)
-		vsock_insert_unbound(vsk);
-
 	return sk;
 }
 
@@ -1887,6 +1884,8 @@ static const struct proto_ops vsock_stream_ops = {
 static int vsock_create(struct net *net, struct socket *sock,
 			int protocol, int kern)
 {
+	struct sock *sk;
+
 	if (!sock)
 		return -EINVAL;
 
@@ -1906,7 +1905,13 @@ static int vsock_create(struct net *net, struct socket *sock,
 
 	sock->state = SS_UNCONNECTED;
 
-	return __vsock_create(net, sock, NULL, GFP_KERNEL, 0, kern) ? 0 : -ENOMEM;
+	sk = __vsock_create(net, sock, NULL, GFP_KERNEL, 0, kern);
+	if (!sk)
+		return -ENOMEM;
+
+	vsock_insert_unbound(vsock_sk(sk));
+
+	return 0;
 }
 
 static const struct net_proto_family vsock_family_ops = {
