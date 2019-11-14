@@ -88,7 +88,7 @@ static int rk_dailink_init(struct snd_soc_pcm_runtime *rtd)
 
 #ifdef CONFIG_SND_SOC_RK3308
 		if (rk3308_codec_set_jack_detect_cb)
-			rk3308_codec_set_jack_detect_cb(rtd->codec, &mc_hp_jack);
+			rk3308_codec_set_jack_detect_cb(rtd->codec_dai->component, &mc_hp_jack);
 #endif
 	}
 
