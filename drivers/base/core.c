@@ -553,7 +553,26 @@ int device_links_check_suppliers(struct device *dev)
 	return ret;
 }
 
-static void __device_links_supplier_sync_state(struct device *dev)
+/**
+ * __device_links_queue_sync_state - Queue a device for sync_state() callback
+ * @dev: Device to call sync_state() on
+ * @list: List head to queue the @dev on
+ *
+ * Queues a device for a sync_state() callback when the device links write lock
+ * isn't held. This allows the sync_state() execution flow to use device links
+ * APIs.  The caller must ensure this function is called with
+ * device_links_write_lock() held.
+ *
+ * This function does a get_device() to make sure the device is not freed while
+ * on this list.
+ *
+ * So the caller must also ensure that device_links_flush_sync_list() is called
+ * as soon as the caller releases device_links_write_lock().  This is necessary
+ * to make sure the sync_state() is called in a timely fashion and the
+ * put_device() is called on this device.
+ */
+static void __device_links_queue_sync_state(struct device *dev,
+					    struct list_head *list)
 {
 	struct device_link *link;
 
@@ -567,12 +586,45 @@ static void __device_links_supplier_sync_state(struct device *dev)
 			return;
 	}
 
-	if (dev->bus->sync_state)
-		dev->bus->sync_state(dev);
-	else if (dev->driver && dev->driver->sync_state)
-		dev->driver->sync_state(dev);
-
+	/*
+	 * Set the flag here to avoid adding the same device to a list more
+	 * than once. This can happen if new consumers get added to the device
+	 * and probed before the list is flushed.
+	 */
 	dev->state_synced = true;
+
+	if (WARN_ON(!list_empty(&dev->links.defer_sync)))
+		return;
+
+	get_device(dev);
+	list_add_tail(&dev->links.defer_sync, list);
+}
+
+/**
+ * device_links_flush_sync_list - Call sync_state() on a list of devices
+ * @list: List of devices to call sync_state() on
+ *
+ * Calls sync_state() on all the devices that have been queued for it. This
+ * function is used in conjunction with __device_links_queue_sync_state().
+ */
+static void device_links_flush_sync_list(struct list_head *list)
+{
+	struct device *dev, *tmp;
+
+	list_for_each_entry_safe(dev, tmp, list, links.defer_sync) {
+		list_del_init(&dev->links.defer_sync);
+
+		device_lock(dev);
+
+		if (dev->bus->sync_state)
+			dev->bus->sync_state(dev);
+		else if (dev->driver && dev->driver->sync_state)
+			dev->driver->sync_state(dev);
+
+		device_unlock(dev);
+
+		put_device(dev);
+	}
 }
 
 void device_links_supplier_sync_state_pause(void)
@@ -585,6 +637,7 @@ void device_links_supplier_sync_state_pause(void)
 void device_links_supplier_sync_state_resume(void)
 {
 	struct device *dev, *tmp;
+	LIST_HEAD(sync_list);
 
 	device_links_write_lock();
 	if (!defer_sync_state_count) {
@@ -596,11 +649,17 @@ void device_links_supplier_sync_state_resume(void)
 		goto out;
 
 	list_for_each_entry_safe(dev, tmp, &deferred_sync, links.defer_sync) {
-		__device_links_supplier_sync_state(dev);
+		/*
+		 * Delete from deferred_sync list before queuing it to
+		 * sync_list because defer_sync is used for both lists.
+		 */
 		list_del_init(&dev->links.defer_sync);
+		__device_links_queue_sync_state(dev, &sync_list);
 	}
 out:
 	device_links_write_unlock();
+
+	device_links_flush_sync_list(&sync_list);
 }
 
 static int sync_state_resume_initcall(void)
@@ -630,6 +689,7 @@ static void __device_links_supplier_defer_sync(struct device *sup)
 void device_links_driver_bound(struct device *dev)
 {
 	struct device_link *link;
+	LIST_HEAD(sync_list);
 
 	/*
 	 * If a device probes successfully, it's expected to have created all
@@ -660,12 +720,15 @@ void device_links_driver_bound(struct device *dev)
 		if (defer_sync_state_count)
 			__device_links_supplier_defer_sync(link->supplier);
 		else
-			__device_links_supplier_sync_state(link->supplier);
+			__device_links_queue_sync_state(link->supplier,
+							&sync_list);
 	}
 
 	dev->links.status = DL_DEV_DRIVER_BOUND;
 
 	device_links_write_unlock();
+
+	device_links_flush_sync_list(&sync_list);
 }
 
 /**
