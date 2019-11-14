@@ -1065,7 +1065,13 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr, bool ctx_free)
 
 	unmap_phys_pg_pack(ctx, vaddr, phys_pg_pack);
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, *vm_type);
+	/*
+	 * During context free this function is called in a loop to clean all
+	 * the context mappings. Hence the cache invalidation can be called once
+	 * at the loop end rather than for each iteration
+	 */
+	if (!ctx_free)
+		hdev->asic_funcs->mmu_invalidate_cache(hdev, true, *vm_type);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -1662,6 +1668,10 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 			hnode->vaddr, ctx->asid);
 		unmap_device_va(ctx, hnode->vaddr, true);
 	}
+
+	/* invalidate the cache once after the unmapping loop */
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_PHYS_PACK);
 
 	spin_lock(&vm->idr_lock);
 	idr_for_each_entry(&vm->phys_pg_pack_handles, phys_pg_list, i)
