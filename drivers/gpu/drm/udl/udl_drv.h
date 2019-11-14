@@ -53,6 +53,10 @@ struct udl_device {
 	struct usb_device *udev;
 	struct drm_crtc *crtc;
 
+	/* active framebuffer on the 16-bit channel */
+	const struct drm_framebuffer *active_fb_16;
+	spinlock_t active_fb_16_lock;
+
 	struct mutex gem_lock;
 
 	int sku_pixel_limit;
@@ -73,7 +77,6 @@ struct udl_device {
 struct udl_framebuffer {
 	struct drm_framebuffer base;
 	struct drm_gem_shmem_object *shmem;
-	bool active_16; /* active on the 16-bit channel */
 };
 
 #define to_udl_fb(x) container_of(x, struct udl_framebuffer, base)

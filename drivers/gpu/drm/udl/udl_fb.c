@@ -78,8 +78,12 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	BUG_ON(!is_power_of_2(fb->base.format->cpp[0]));
 	log_bpp = __ffs(fb->base.format->cpp[0]);
 
-	if (!fb->active_16)
+	spin_lock(&udl->active_fb_16_lock);
+	if (udl->active_fb_16 != &fb->base) {
+		spin_unlock(&udl->active_fb_16_lock);
 		return 0;
+	}
+	spin_unlock(&udl->active_fb_16_lock);
 
 	vaddr = drm_gem_shmem_vmap(&fb->shmem->base);
 	if (IS_ERR(vaddr)) {
@@ -153,14 +157,19 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 				      unsigned num_clips)
 {
 	struct udl_framebuffer *ufb = to_udl_fb(fb);
+	struct udl_device *udl = fb->dev->dev_private;
 	struct dma_buf_attachment *import_attach;
 	int i;
 	int ret = 0;
 
 	drm_modeset_lock_all(fb->dev);
 
-	if (!ufb->active_16)
+	spin_lock(&udl->active_fb_16_lock);
+	if (udl->active_fb_16 != fb) {
+		spin_unlock(&udl->active_fb_16_lock);
 		goto unlock;
+	}
+	spin_unlock(&udl->active_fb_16_lock);
 
 	import_attach = ufb->shmem->base.import_attach;
 

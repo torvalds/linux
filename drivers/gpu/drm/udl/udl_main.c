@@ -317,6 +317,9 @@ int udl_init(struct udl_device *udl)
 
 	DRM_DEBUG("\n");
 
+	udl->active_fb_16 = NULL;
+	spin_lock_init(&udl->active_fb_16_lock);
+
 	mutex_init(&udl->gem_lock);
 
 	if (!udl_parse_vendor_descriptor(dev, udl->udev)) {
