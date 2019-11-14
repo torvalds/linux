@@ -3132,31 +3132,32 @@ void vchiq_platform_conn_state_changed(struct vchiq_state *state,
 				       enum vchiq_connstate newstate)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
+	char threadname[16];
 
 	vchiq_log_info(vchiq_susp_log_level, "%d: %s->%s", state->id,
 		get_conn_state_name(oldstate), get_conn_state_name(newstate));
-	if (state->conn_state == VCHIQ_CONNSTATE_CONNECTED) {
-		write_lock_bh(&arm_state->susp_res_lock);
-		if (!arm_state->first_connect) {
-			char threadname[16];
+	if (state->conn_state != VCHIQ_CONNSTATE_CONNECTED)
+		return;
 
-			arm_state->first_connect = 1;
-			write_unlock_bh(&arm_state->susp_res_lock);
-			snprintf(threadname, sizeof(threadname), "vchiq-keep/%d",
-				state->id);
-			arm_state->ka_thread = kthread_create(
-				&vchiq_keepalive_thread_func,
-				(void *)state,
+	write_lock_bh(&arm_state->susp_res_lock);
+	if (arm_state->first_connect) {
+		write_unlock_bh(&arm_state->susp_res_lock);
+		return;
+	}
+
+	arm_state->first_connect = 1;
+	write_unlock_bh(&arm_state->susp_res_lock);
+	snprintf(threadname, sizeof(threadname), "vchiq-keep/%d",
+		 state->id);
+	arm_state->ka_thread = kthread_create(&vchiq_keepalive_thread_func,
+					      (void *)state,
+					      threadname);
+	if (IS_ERR(arm_state->ka_thread)) {
+		vchiq_log_error(vchiq_susp_log_level,
+				"vchiq: FATAL: couldn't create thread %s",
 				threadname);
-			if (IS_ERR(arm_state->ka_thread)) {
-				vchiq_log_error(vchiq_susp_log_level,
-					"vchiq: FATAL: couldn't create thread %s",
-					threadname);
-			} else {
-				wake_up_process(arm_state->ka_thread);
-			}
-		} else
-			write_unlock_bh(&arm_state->susp_res_lock);
+	} else {
+		wake_up_process(arm_state->ka_thread);
 	}
 }
 
