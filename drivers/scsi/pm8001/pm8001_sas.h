@@ -66,8 +66,11 @@
 #define PM8001_EH_LOGGING	0x10 /* libsas EH function logging*/
 #define PM8001_IOCTL_LOGGING	0x20 /* IOCTL message logging */
 #define PM8001_MSG_LOGGING	0x40 /* misc message logging */
-#define pm8001_printk(format, arg...)	printk(KERN_INFO "pm80xx %s %d:" \
-			format, __func__, __LINE__, ## arg)
+#define PM8001_DEV_LOGGING	0x80 /* development message logging */
+#define PM8001_DEVIO_LOGGING	0x100 /* development io message logging */
+#define PM8001_IOERR_LOGGING	0x200 /* development io err message logging */
+#define pm8001_printk(format, arg...)	pr_info("%s:: %s  %d:" \
+			format, pm8001_ha->name, __func__, __LINE__, ## arg)
 #define PM8001_CHECK_LOGGING(HBA, LEVEL, CMD)	\
 do {						\
 	if (unlikely(HBA->logging_level & LEVEL))	\
@@ -97,6 +100,14 @@ do {						\
 #define PM8001_MSG_DBG(HBA, CMD)		\
 	PM8001_CHECK_LOGGING(HBA, PM8001_MSG_LOGGING, CMD)
 
+#define PM8001_DEV_DBG(HBA, CMD)		\
+	PM8001_CHECK_LOGGING(HBA, PM8001_DEV_LOGGING, CMD)
+
+#define PM8001_DEVIO_DBG(HBA, CMD)		\
+	PM8001_CHECK_LOGGING(HBA, PM8001_DEVIO_LOGGING, CMD)
+
+#define PM8001_IOERR_DBG(HBA, CMD)		\
+	PM8001_CHECK_LOGGING(HBA, PM8001_IOERR_LOGGING, CMD)
 
 #define PM8001_USE_TASKLET
 #define PM8001_USE_MSIX

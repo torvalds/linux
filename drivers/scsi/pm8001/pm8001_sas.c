@@ -119,7 +119,7 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	mem_virt_alloc = dma_alloc_coherent(&pdev->dev, mem_size + align,
 					    &mem_dma_handle, GFP_KERNEL);
 	if (!mem_virt_alloc) {
-		pm8001_printk("memory allocation error\n");
+		pr_err("pm80xx: memory allocation error\n");
 		return -1;
 	}
 	*pphys_addr = mem_dma_handle;
@@ -249,6 +249,8 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		return 0;
 	default:
+		PM8001_DEVIO_DBG(pm8001_ha,
+			pm8001_printk("func 0x%x\n", func));
 		rc = -EOPNOTSUPP;
 	}
 	msleep(300);
@@ -1179,7 +1181,7 @@ int pm8001_query_task(struct sas_task *task)
 			break;
 		}
 	}
-	pm8001_printk(":rc= %d\n", rc);
+	pr_err("pm80xx: rc= %d\n", rc);
 	return rc;
 }
 

@@ -1364,7 +1364,7 @@ int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 	/*Update the PI to the firmware*/
 	pm8001_cw32(pm8001_ha, circularQ->pi_pci_bar,
 		circularQ->pi_offset, circularQ->producer_idx);
-	PM8001_IO_DBG(pm8001_ha,
+	PM8001_DEVIO_DBG(pm8001_ha,
 		pm8001_printk("INB Q %x OPCODE:%x , UPDATED PI=%d CI=%d\n",
 			responseQueue, opCode, circularQ->producer_idx,
 			circularQ->consumer_index));
@@ -1436,6 +1436,10 @@ u32 pm8001_mpi_msg_consume(struct pm8001_hba_info *pm8001_ha,
 			/* read header */
 			header_tmp = pm8001_read_32(msgHeader);
 			msgHeader_tmp = cpu_to_le32(header_tmp);
+			PM8001_DEVIO_DBG(pm8001_ha, pm8001_printk(
+				"outbound opcode msgheader:%x ci=%d pi=%d\n",
+				msgHeader_tmp, circularQ->consumer_idx,
+				circularQ->producer_index));
 			if (0 != (le32_to_cpu(msgHeader_tmp) & 0x80000000)) {
 				if (OPC_OUB_SKIP_ENTRY !=
 					(le32_to_cpu(msgHeader_tmp) & 0xfff)) {
@@ -1604,7 +1608,8 @@ void pm8001_work_fn(struct work_struct *work)
 				break;
 
 			default:
-				pm8001_printk("...query task failed!!!\n");
+				PM8001_DEVIO_DBG(pm8001_ha, pm8001_printk(
+					"...query task failed!!!\n"));
 				break;
 			});
 
@@ -1890,6 +1895,11 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 			pm8001_printk("SAS Address of IO Failure Drive:"
 			"%016llx", SAS_ADDR(t->dev->sas_addr)));
 
+	if (status)
+		PM8001_IOERR_DBG(pm8001_ha, pm8001_printk(
+			"status:0x%x, tag:0x%x, task:0x%p\n",
+			status, tag, t));
+
 	switch (status) {
 	case IO_SUCCESS:
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk("IO_SUCCESS"
@@ -2072,7 +2082,7 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
 	default:
-		PM8001_IO_DBG(pm8001_ha,
+		PM8001_DEVIO_DBG(pm8001_ha,
 			pm8001_printk("Unknown status 0x%x\n", status));
 		/* not allowed case. Therefore, return failed status */
 		ts->resp = SAS_TASK_COMPLETE;
@@ -2125,7 +2135,7 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	if (unlikely(!t || !t->lldd_task || !t->dev))
 		return;
 	ts = &t->task_status;
-	PM8001_IO_DBG(pm8001_ha,
+	PM8001_DEVIO_DBG(pm8001_ha,
 		pm8001_printk("port_id = %x,device_id = %x\n",
 		port_id, dev_id));
 	switch (event) {
@@ -2263,7 +2273,7 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 			pm8001_printk("  IO_XFER_CMD_FRAME_ISSUED\n"));
 		return;
 	default:
-		PM8001_IO_DBG(pm8001_ha,
+		PM8001_DEVIO_DBG(pm8001_ha,
 			pm8001_printk("Unknown status 0x%x\n", event));
 		/* not allowed case. Therefore, return failed status */
 		ts->resp = SAS_TASK_COMPLETE;
@@ -2352,6 +2362,12 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_printk("ts null\n"));
 		return;
 	}
+
+	if (status)
+		PM8001_IOERR_DBG(pm8001_ha, pm8001_printk(
+			"status:0x%x, tag:0x%x, task::0x%p\n",
+			status, tag, t));
+
 	/* Print sas address of IO failed device */
 	if ((status != IO_SUCCESS) && (status != IO_OVERFLOW) &&
 		(status != IO_UNDERFLOW)) {
@@ -2652,7 +2668,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
 	default:
-		PM8001_IO_DBG(pm8001_ha,
+		PM8001_DEVIO_DBG(pm8001_ha,
 			pm8001_printk("Unknown status 0x%x\n", status));
 		/* not allowed case. Therefore, return failed status */
 		ts->resp = SAS_TASK_COMPLETE;
@@ -2723,7 +2739,7 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	if (unlikely(!t || !t->lldd_task || !t->dev))
 		return;
 	ts = &t->task_status;
-	PM8001_IO_DBG(pm8001_ha, pm8001_printk(
+	PM8001_DEVIO_DBG(pm8001_ha, pm8001_printk(
 		"port_id:0x%x, device_id:0x%x, tag:0x%x, event:0x%x\n",
 		port_id, dev_id, tag, event));
 	switch (event) {
@@ -2872,7 +2888,7 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 		ts->stat = SAS_OPEN_TO;
 		break;
 	default:
-		PM8001_IO_DBG(pm8001_ha,
+		PM8001_DEVIO_DBG(pm8001_ha,
 			pm8001_printk("Unknown status 0x%x\n", event));
 		/* not allowed case. Therefore, return failed status */
 		ts->resp = SAS_TASK_COMPLETE;
@@ -2917,9 +2933,13 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	t = ccb->task;
 	ts = &t->task_status;
 	pm8001_dev = ccb->device;
-	if (status)
+	if (status) {
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("smp IO status 0x%x\n", status));
+		PM8001_IOERR_DBG(pm8001_ha,
+			pm8001_printk("status:0x%x, tag:0x%x, task:0x%p\n",
+			status, tag, t));
+	}
 	if (unlikely(!t || !t->lldd_task || !t->dev))
 		return;
 
@@ -3070,7 +3090,7 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
 	default:
-		PM8001_IO_DBG(pm8001_ha,
+		PM8001_DEVIO_DBG(pm8001_ha,
 			pm8001_printk("Unknown status 0x%x\n", status));
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_DEV_NO_RESPONSE;
@@ -3416,7 +3436,7 @@ hw_event_sas_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_get_lrate_mode(phy, link_rate);
 		break;
 	default:
-		PM8001_MSG_DBG(pm8001_ha,
+		PM8001_DEVIO_DBG(pm8001_ha,
 			pm8001_printk("unknown device type(%x)\n", deviceType));
 		break;
 	}
@@ -3463,7 +3483,7 @@ hw_event_sata_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	struct sas_ha_struct *sas_ha = pm8001_ha->sas;
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 	unsigned long flags;
-	PM8001_MSG_DBG(pm8001_ha,
+	PM8001_DEVIO_DBG(pm8001_ha,
 		pm8001_printk("HW_EVENT_SATA_PHY_UP port id = %d,"
 		" phy id = %d\n", port_id, phy_id));
 	port->port_state =  portstate;
@@ -3541,7 +3561,7 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	default:
 		port->port_attached = 0;
-		PM8001_MSG_DBG(pm8001_ha,
+		PM8001_DEVIO_DBG(pm8001_ha,
 			pm8001_printk(" phy Down and(default) = %x\n",
 			portstate));
 		break;
@@ -3689,7 +3709,7 @@ int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
 			pm8001_printk(": FLASH_UPDATE_DISABLED\n"));
 		break;
 	default:
-		PM8001_MSG_DBG(pm8001_ha,
+		PM8001_DEVIO_DBG(pm8001_ha,
 			pm8001_printk("No matched status = %d\n", status));
 		break;
 	}
@@ -3805,8 +3825,9 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void* piomb)
 	struct sas_ha_struct *sas_ha = pm8001_ha->sas;
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 	struct asd_sas_phy *sas_phy = sas_ha->sas_phy[phy_id];
-	PM8001_MSG_DBG(pm8001_ha,
-		pm8001_printk("outbound queue HW event & event type : "));
+	PM8001_DEVIO_DBG(pm8001_ha, pm8001_printk(
+		"SPC HW event for portid:%d, phyid:%d, event:%x, status:%x\n",
+		port_id, phy_id, eventType, status));
 	switch (eventType) {
 	case HW_EVENT_PHY_START_STATUS:
 		PM8001_MSG_DBG(pm8001_ha,
@@ -3990,7 +4011,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void* piomb)
 			pm8001_printk("EVENT_BROADCAST_ASYNCH_EVENT\n"));
 		break;
 	default:
-		PM8001_MSG_DBG(pm8001_ha,
+		PM8001_DEVIO_DBG(pm8001_ha,
 			pm8001_printk("Unknown event type = %x\n", eventType));
 		break;
 	}
@@ -4161,7 +4182,7 @@ static void process_one_iomb(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_printk("OPC_OUB_SAS_RE_INITIALIZE\n"));
 		break;
 	default:
-		PM8001_MSG_DBG(pm8001_ha,
+		PM8001_DEVIO_DBG(pm8001_ha,
 			pm8001_printk("Unknown outbound Queue IOMB OPC = %x\n",
 			opc));
 		break;
@@ -4649,6 +4670,9 @@ static irqreturn_t
 pm8001_chip_isr(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
 	pm8001_chip_interrupt_disable(pm8001_ha, vec);
+	PM8001_DEVIO_DBG(pm8001_ha, pm8001_printk(
+		"irq vec %d, ODMR:0x%x\n",
+		vec, pm8001_cr32(pm8001_ha, 0, 0x30)));
 	process_oq(pm8001_ha, vec);
 	pm8001_chip_interrupt_enable(pm8001_ha, vec);
 	return IRQ_HANDLED;
@@ -4960,6 +4984,8 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	if (!fw_control_context)
 		return -ENOMEM;
 	fw_control = (struct fw_control_info *)&ioctl_payload->func_specific;
+	PM8001_DEVIO_DBG(pm8001_ha, pm8001_printk(
+		"dma fw_control context input length :%x\n", fw_control->len));
 	memcpy(buffer, fw_control->buffer, fw_control->len);
 	flash_update_info.sgl.addr = cpu_to_le64(phys_addr);
 	flash_update_info.sgl.im_len.len = cpu_to_le32(fw_control->len);
