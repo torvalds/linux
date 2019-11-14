@@ -2032,51 +2032,82 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 		if (field_marker)
 			memset(&tmp, 0, sizeof(tmp));
 
+		field_marker = true;
+		keyoff_marker = true;
 		switch (key_type) {
 		case NIX_FLOW_KEY_TYPE_PORT:
 			field->sel_chan = true;
 			/* This should be set to 1, when SEL_CHAN is set */
 			field->bytesm1 = 1;
-			field_marker = true;
-			keyoff_marker = true;
 			break;
 		case NIX_FLOW_KEY_TYPE_IPV4:
+		case NIX_FLOW_KEY_TYPE_INNR_IPV4:
 			field->lid = NPC_LID_LC;
 			field->ltype_match = NPC_LT_LC_IP;
+			if (key_type == NIX_FLOW_KEY_TYPE_INNR_IPV4) {
+				field->lid = NPC_LID_LG;
+				field->ltype_match = NPC_LT_LG_TU_IP;
+			}
 			field->hdr_offset = 12; /* SIP offset */
 			field->bytesm1 = 7; /* SIP + DIP, 8 bytes */
 			field->ltype_mask = 0xF; /* Match only IPv4 */
-			field_marker = true;
 			keyoff_marker = false;
 			break;
 		case NIX_FLOW_KEY_TYPE_IPV6:
+		case NIX_FLOW_KEY_TYPE_INNR_IPV6:
 			field->lid = NPC_LID_LC;
 			field->ltype_match = NPC_LT_LC_IP6;
+			if (key_type == NIX_FLOW_KEY_TYPE_INNR_IPV6) {
+				field->lid = NPC_LID_LG;
+				field->ltype_match = NPC_LT_LG_TU_IP6;
+			}
 			field->hdr_offset = 8; /* SIP offset */
 			field->bytesm1 = 31; /* SIP + DIP, 32 bytes */
 			field->ltype_mask = 0xF; /* Match only IPv6 */
-			field_marker = true;
-			keyoff_marker = true;
 			break;
 		case NIX_FLOW_KEY_TYPE_TCP:
 		case NIX_FLOW_KEY_TYPE_UDP:
 		case NIX_FLOW_KEY_TYPE_SCTP:
+		case NIX_FLOW_KEY_TYPE_INNR_TCP:
+		case NIX_FLOW_KEY_TYPE_INNR_UDP:
+		case NIX_FLOW_KEY_TYPE_INNR_SCTP:
 			field->lid = NPC_LID_LD;
+			if (key_type == NIX_FLOW_KEY_TYPE_INNR_TCP ||
+			    key_type == NIX_FLOW_KEY_TYPE_INNR_UDP ||
+			    key_type == NIX_FLOW_KEY_TYPE_INNR_SCTP)
+				field->lid = NPC_LID_LH;
 			field->bytesm1 = 3; /* Sport + Dport, 4 bytes */
-			if (key_type == NIX_FLOW_KEY_TYPE_TCP && valid_key) {
+
+			/* Enum values for NPC_LID_LD and NPC_LID_LG are same,
+			 * so no need to change the ltype_match, just change
+			 * the lid for inner protocols
+			 */
+			BUILD_BUG_ON((int)NPC_LT_LD_TCP !=
+				     (int)NPC_LT_LH_TU_TCP);
+			BUILD_BUG_ON((int)NPC_LT_LD_UDP !=
+				     (int)NPC_LT_LH_TU_UDP);
+			BUILD_BUG_ON((int)NPC_LT_LD_SCTP !=
+				     (int)NPC_LT_LH_TU_SCTP);
+
+			if ((key_type == NIX_FLOW_KEY_TYPE_TCP ||
+			     key_type == NIX_FLOW_KEY_TYPE_INNR_TCP) &&
+			    valid_key) {
 				field->ltype_match |= NPC_LT_LD_TCP;
 				group_member = true;
-			} else if (key_type == NIX_FLOW_KEY_TYPE_UDP &&
+			} else if ((key_type == NIX_FLOW_KEY_TYPE_UDP ||
+				    key_type == NIX_FLOW_KEY_TYPE_INNR_UDP) &&
 				   valid_key) {
 				field->ltype_match |= NPC_LT_LD_UDP;
 				group_member = true;
-			} else if (key_type == NIX_FLOW_KEY_TYPE_SCTP &&
+			} else if ((key_type == NIX_FLOW_KEY_TYPE_SCTP ||
+				    key_type == NIX_FLOW_KEY_TYPE_INNR_SCTP) &&
 				   valid_key) {
 				field->ltype_match |= NPC_LT_LD_SCTP;
 				group_member = true;
 			}
 			field->ltype_mask = ~field->ltype_match;
-			if (key_type == NIX_FLOW_KEY_TYPE_SCTP) {
+			if (key_type == NIX_FLOW_KEY_TYPE_SCTP ||
+			    key_type == NIX_FLOW_KEY_TYPE_INNR_SCTP) {
 				/* Handle the case where any of the group item
 				 * is enabled in the group but not the final one
 				 */
@@ -2084,12 +2115,72 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 					valid_key = true;
 					group_member = false;
 				}
-				field_marker = true;
-				keyoff_marker = true;
 			} else {
 				field_marker = false;
 				keyoff_marker = false;
 			}
+			break;
+		case NIX_FLOW_KEY_TYPE_NVGRE:
+			field->lid = NPC_LID_LD;
+			field->hdr_offset = 4; /* VSID offset */
+			field->bytesm1 = 2;
+			field->ltype_match = NPC_LT_LD_NVGRE;
+			field->ltype_mask = 0xF;
+			break;
+		case NIX_FLOW_KEY_TYPE_VXLAN:
+		case NIX_FLOW_KEY_TYPE_GENEVE:
+			field->lid = NPC_LID_LE;
+			field->bytesm1 = 2;
+			field->hdr_offset = 4;
+			field->ltype_mask = 0xF;
+			field_marker = false;
+			keyoff_marker = false;
+
+			if (key_type == NIX_FLOW_KEY_TYPE_VXLAN && valid_key) {
+				field->ltype_match |= NPC_LT_LE_VXLAN;
+				group_member = true;
+			}
+
+			if (key_type == NIX_FLOW_KEY_TYPE_GENEVE && valid_key) {
+				field->ltype_match |= NPC_LT_LE_GENEVE;
+				group_member = true;
+			}
+
+			if (key_type == NIX_FLOW_KEY_TYPE_GENEVE) {
+				if (group_member) {
+					field->ltype_mask = ~field->ltype_match;
+					field_marker = true;
+					keyoff_marker = true;
+					valid_key = true;
+					group_member = false;
+				}
+			}
+			break;
+		case NIX_FLOW_KEY_TYPE_ETH_DMAC:
+		case NIX_FLOW_KEY_TYPE_INNR_ETH_DMAC:
+			field->lid = NPC_LID_LA;
+			field->ltype_match = NPC_LT_LA_ETHER;
+			if (key_type == NIX_FLOW_KEY_TYPE_INNR_ETH_DMAC) {
+				field->lid = NPC_LID_LF;
+				field->ltype_match = NPC_LT_LF_TU_ETHER;
+			}
+			field->hdr_offset = 0;
+			field->bytesm1 = 5; /* DMAC 6 Byte */
+			field->ltype_mask = 0xF;
+			break;
+		case NIX_FLOW_KEY_TYPE_IPV6_EXT:
+			field->lid = NPC_LID_LC;
+			field->hdr_offset = 40; /* IPV6 hdr */
+			field->bytesm1 = 0; /* 1 Byte ext hdr*/
+			field->ltype_match = NPC_LT_LC_IP6_EXT;
+			field->ltype_mask = 0xF;
+			break;
+		case NIX_FLOW_KEY_TYPE_GTPU:
+			field->lid = NPC_LID_LE;
+			field->hdr_offset = 4;
+			field->bytesm1 = 3; /* 4 bytes TID*/
+			field->ltype_match = NPC_LT_LE_GTPU;
+			field->ltype_mask = 0xF;
 			break;
 		}
 		field->ena = 1;
