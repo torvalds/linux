@@ -22,6 +22,7 @@
 #include <linux/regset.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
+#include <linux/seccomp.h>
 #include <linux/security.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
@@ -559,7 +560,8 @@ int do_syscall_trace_enter(struct pt_regs *regs)
 		return 0;
 	}
 
-	if (regs->syscall == NO_SYSCALL) {
+	if (regs->syscall == NO_SYSCALL ||
+	    secure_computing() == -1) {
 		do_syscall_trace_leave(regs);
 		return 0;
 	}
