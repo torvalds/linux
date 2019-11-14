@@ -256,6 +256,7 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 		(dev->board == CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_QUADHD_DVB) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1850) ||
+		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR5525) ||
 		(dev->board == CX23885_BOARD_MYGICA_X8507) ||
 		(dev->board == CX23885_BOARD_AVERMEDIA_HC81R) ||
 		(dev->board == CX23885_BOARD_VIEWCAST_260E) ||
@@ -999,6 +1000,7 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 	    (dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255) ||
 	    (dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255_22111) ||
 	    (dev->board == CX23885_BOARD_HAUPPAUGE_HVR1265_K4) ||
+	    (dev->board == CX23885_BOARD_HAUPPAUGE_HVR5525) ||
 	    (dev->board == CX23885_BOARD_HAUPPAUGE_QUADHD_DVB) ||
 	    (dev->board == CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC))
 		fe = &dev->ts1.analog_fe;
@@ -1031,6 +1033,7 @@ int cx23885_set_frequency(struct file *file, void *priv,
 	case CX23885_BOARD_HAUPPAUGE_HVR1255_22111:
 	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR5525:
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC:
 		ret = cx23885_set_freq_via_ops(dev, f);
