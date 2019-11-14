@@ -51,7 +51,7 @@ static inline void syscall_set_return_value(struct task_struct *task,
 					    struct pt_regs *regs,
 					    int error, long val)
 {
-	regs->areg[0] = (long) error ? error : val;
+	regs->areg[2] = (long) error ? error : val;
 }
 
 #define SYSCALL_MAX_ARGS 6
