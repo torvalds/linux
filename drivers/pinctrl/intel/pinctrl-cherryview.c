@@ -1581,6 +1581,27 @@ static int chv_gpio_irq_init_hw(struct gpio_chip *chip)
 	return 0;
 }
 
+static int chv_gpio_add_pin_ranges(struct gpio_chip *chip)
+{
+	struct chv_pinctrl *pctrl = gpiochip_get_data(chip);
+	const struct chv_community *community = pctrl->community;
+	const struct chv_gpio_pinrange *range;
+	int ret, i;
+
+	for (i = 0; i < community->ngpio_ranges; i++) {
+		range = &community->gpio_ranges[i];
+		ret = gpiochip_add_pin_range(chip, dev_name(pctrl->dev),
+					     range->base, range->base,
+					     range->npins);
+		if (ret) {
+			dev_err(pctrl->dev, "failed to add GPIO pin range\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 {
 	const struct chv_gpio_pinrange *range;
@@ -1593,6 +1614,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 
 	chip->ngpio = community->pins[community->npins - 1].number + 1;
 	chip->label = dev_name(pctrl->dev);
+	chip->add_pin_ranges = chv_gpio_add_pin_ranges;
 	chip->parent = pctrl->dev;
 	chip->base = -1;
 	if (need_valid_mask)
@@ -1602,17 +1624,6 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	if (ret) {
 		dev_err(pctrl->dev, "Failed to register gpiochip\n");
 		return ret;
-	}
-
-	for (i = 0; i < community->ngpio_ranges; i++) {
-		range = &community->gpio_ranges[i];
-		ret = gpiochip_add_pin_range(chip, dev_name(pctrl->dev),
-					     range->base, range->base,
-					     range->npins);
-		if (ret) {
-			dev_err(pctrl->dev, "failed to add GPIO pin range\n");
-			return ret;
-		}
 	}
 
 	chv_gpio_irq_init_hw(chip);
