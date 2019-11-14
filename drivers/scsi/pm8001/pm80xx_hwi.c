@@ -3132,8 +3132,10 @@ static int mpi_phy_start_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	if (status == 0) {
 		phy->phy_state = PHY_LINK_DOWN;
 		if (pm8001_ha->flags == PM8001F_RUN_TIME &&
-				phy->enable_completion != NULL)
+				phy->enable_completion != NULL) {
 			complete(phy->enable_completion);
+			phy->enable_completion = NULL;
+		}
 	}
 	return 0;
 
