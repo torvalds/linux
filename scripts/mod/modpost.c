@@ -308,6 +308,18 @@ static const char *sec_name(struct elf_info *elf, int secindex)
 	return sech_name(elf, &elf->sechdrs[secindex]);
 }
 
+static void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym)
+{
+	Elf_Shdr *sechdr = &info->sechdrs[sym->st_shndx];
+	unsigned long offset;
+
+	offset = sym->st_value;
+	if (info->hdr->e_type != ET_REL)
+		offset -= sechdr->sh_addr;
+
+	return (void *)info->hdr + sechdr->sh_offset + offset;
+}
+
 #define strstarts(str, prefix) (strncmp(str, prefix, strlen(prefix)) == 0)
 
 static enum export export_from_secname(struct elf_info *elf, unsigned int sec)
@@ -697,10 +709,7 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 			unsigned int *crcp;
 
 			/* symbol points to the CRC in the ELF object */
-			crcp = (void *)info->hdr + sym->st_value +
-			       info->sechdrs[sym->st_shndx].sh_offset -
-			       (info->hdr->e_type != ET_REL ?
-				info->sechdrs[sym->st_shndx].sh_addr : 0);
+			crcp = sym_get_data(info, sym);
 			crc = TO_NATIVE(*crcp);
 		}
 		sym_update_crc(symname + strlen("__crc_"), mod, crc,
