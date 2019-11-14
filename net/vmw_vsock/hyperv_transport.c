@@ -188,7 +188,8 @@ static void hvs_remote_addr_init(struct sockaddr_vm *remote,
 	static u32 host_ephemeral_port = MIN_HOST_EPHEMERAL_PORT;
 	struct sock *sk;
 
-	vsock_addr_init(remote, VMADDR_CID_ANY, VMADDR_PORT_ANY);
+	/* Remote peer is always the host */
+	vsock_addr_init(remote, VMADDR_CID_HOST, VMADDR_PORT_ANY);
 
 	while (1) {
 		/* Wrap around ? */
