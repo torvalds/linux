@@ -303,8 +303,6 @@ int mt7615_register_device(struct mt7615_dev *dev)
 			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK |
 			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
-	dev->mt76.chainmask = 0x404;
-	dev->mt76.antenna_mask = 0xf;
 	dev->dfs_state = -1;
 
 	ret = mt76_register_device(&dev->mt76, true, mt7615_rates,

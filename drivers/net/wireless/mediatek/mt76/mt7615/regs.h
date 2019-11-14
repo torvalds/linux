@@ -6,6 +6,8 @@
 
 #define MT_HW_REV			0x1000
 #define MT_HW_CHIPID			0x1008
+#define MT_TOP_STRAP_STA		0x1010
+#define MT_TOP_3NSS			BIT(24)
 #define MT_TOP_MISC2			0x1134
 #define MT_TOP_MISC2_FW_STATE		GENMASK(2, 0)
 
