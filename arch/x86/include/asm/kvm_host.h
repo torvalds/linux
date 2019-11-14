@@ -873,6 +873,8 @@ enum kvm_irqchip_mode {
 	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
 };
 
+#define APICV_INHIBIT_REASON_DISABLE    0
+
 struct kvm_arch {
 	unsigned long n_used_mmu_pages;
 	unsigned long n_requested_mmu_pages;
@@ -904,6 +906,7 @@ struct kvm_arch {
 	struct kvm_apic_map *apic_map;
 
 	bool apic_access_page_done;
+	unsigned long apicv_inhibit_reasons;
 
 	gpa_t wall_clock;
 
@@ -1478,6 +1481,8 @@ gpa_t kvm_mmu_gva_to_gpa_system(struct kvm_vcpu *vcpu, gva_t gva,
 				struct x86_exception *exception);
 
 void kvm_vcpu_deactivate_apicv(struct kvm_vcpu *vcpu);
+bool kvm_apicv_activated(struct kvm *kvm);
+void kvm_apicv_init(struct kvm *kvm, bool enable);
 
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
 

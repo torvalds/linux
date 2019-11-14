@@ -2052,6 +2052,18 @@ free_avic:
 	return err;
 }
 
+static int svm_vm_init(struct kvm *kvm)
+{
+	if (avic) {
+		int ret = avic_vm_init(kvm);
+		if (ret)
+			return ret;
+	}
+
+	kvm_apicv_init(kvm, avic && irqchip_split(kvm));
+	return 0;
+}
+
 static inline int
 avic_update_iommu_vcpu_affinity(struct kvm_vcpu *vcpu, int cpu, bool r)
 {
@@ -7274,7 +7286,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 
 	.vm_alloc = svm_vm_alloc,
 	.vm_free = svm_vm_free,
-	.vm_init = avic_vm_init,
+	.vm_init = svm_vm_init,
 	.vm_destroy = svm_vm_destroy,
 
 	.prepare_guest_switch = svm_prepare_guest_switch,
