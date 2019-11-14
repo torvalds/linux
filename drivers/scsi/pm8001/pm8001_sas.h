@@ -674,7 +674,8 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha);
 int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 			struct inbound_queue_table *circularQ,
-			u32 opCode, void *payload, u32 responseQueue);
+			u32 opCode, void *payload, size_t nb,
+			u32 responseQueue);
 int pm8001_mpi_msg_free_get(struct inbound_queue_table *circularQ,
 				u16 messageSize, void **messagePtr);
 u32 pm8001_mpi_msg_free_set(struct pm8001_hba_info *pm8001_ha, void *pMsg,
