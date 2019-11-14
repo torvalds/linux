@@ -17,22 +17,6 @@
  * GEM object funcs
  */
 
-static void udl_gem_object_free_object(struct drm_gem_object *obj)
-{
-	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
-
-	/* Fbdev emulation vmaps the buffer. Unmap it here for consistency
-	 * with the original udl GEM code.
-	 *
-	 * TODO: Switch to generic fbdev emulation and release the
-	 *       GEM object with drm_gem_shmem_free_object().
-	 */
-	if (shmem->vaddr)
-		drm_gem_shmem_vunmap(obj, shmem->vaddr);
-
-	drm_gem_shmem_free_object(obj);
-}
-
 static int udl_gem_object_mmap(struct drm_gem_object *obj,
 			       struct vm_area_struct *vma)
 {
@@ -91,7 +75,7 @@ err_zero_use:
 }
 
 static const struct drm_gem_object_funcs udl_gem_object_funcs = {
-	.free = udl_gem_object_free_object,
+	.free = drm_gem_shmem_free_object,
 	.print_info = drm_gem_shmem_print_info,
 	.pin = drm_gem_shmem_pin,
 	.unpin = drm_gem_shmem_unpin,
