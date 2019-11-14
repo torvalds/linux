@@ -47,8 +47,6 @@ struct urb_list {
 	size_t size;
 };
 
-struct udl_fbdev;
-
 struct udl_device {
 	struct drm_device drm;
 	struct device *dev;
@@ -62,7 +60,6 @@ struct udl_device {
 	struct urb_list urbs;
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
 
-	struct udl_fbdev *fbdev;
 	char mode_buf[1024];
 	uint32_t mode_buf_len;
 	atomic_t bytes_rendered; /* raw pixel-bytes driver asked to render */
@@ -97,9 +94,6 @@ void udl_urb_completion(struct urb *urb);
 int udl_init(struct udl_device *udl);
 void udl_fini(struct drm_device *dev);
 
-int udl_fbdev_init(struct drm_device *dev);
-void udl_fbdev_cleanup(struct drm_device *dev);
-void udl_fbdev_unplug(struct drm_device *dev);
 struct drm_framebuffer *
 udl_fb_user_fb_create(struct drm_device *dev,
 		      struct drm_file *file,

@@ -7,6 +7,7 @@
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_ioctl.h>
@@ -107,8 +108,14 @@ static int udl_usb_probe(struct usb_interface *interface,
 
 	DRM_INFO("Initialized udl on minor %d\n", udl->drm.primary->index);
 
+	r = drm_fbdev_generic_setup(&udl->drm, 16);
+	if (r)
+		goto err_drm_dev_unregister;
+
 	return 0;
 
+err_drm_dev_unregister:
+	drm_dev_unregister(&udl->drm);
 err_free:
 	drm_dev_put(&udl->drm);
 	return r;
@@ -119,7 +126,6 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	struct drm_device *dev = usb_get_intfdata(interface);
 
 	drm_kms_helper_poll_disable(dev);
-	udl_fbdev_unplug(dev);
 	udl_drop_usb(dev);
 	drm_dev_unplug(dev);
 	drm_dev_put(dev);

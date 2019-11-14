@@ -338,10 +338,6 @@ int udl_init(struct udl_device *udl)
 	if (ret)
 		goto err;
 
-	ret = udl_fbdev_init(dev);
-	if (ret)
-		goto err;
-
 	drm_kms_helper_poll_init(dev);
 
 	return 0;
@@ -367,6 +363,4 @@ void udl_fini(struct drm_device *dev)
 
 	if (udl->urbs.count)
 		udl_free_urb_list(dev);
-
-	udl_fbdev_cleanup(dev);
 }

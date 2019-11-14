@@ -422,7 +422,6 @@ static int udl_crtc_init(struct drm_device *dev)
 
 static const struct drm_mode_config_funcs udl_mode_funcs = {
 	.fb_create = udl_fb_user_fb_create,
-	.output_poll_changed = NULL,
 };
 
 int udl_modeset_init(struct drm_device *dev)
