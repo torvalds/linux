@@ -408,7 +408,7 @@ static void ocelot_adjust_link(struct ocelot *ocelot, int port,
 			       struct phy_device *phydev)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	int speed, atop_wm, mode = 0;
+	int speed, mode = 0;
 
 	switch (phydev->speed) {
 	case SPEED_10:
@@ -440,31 +440,8 @@ static void ocelot_adjust_link(struct ocelot *ocelot, int port,
 	ocelot_port_writel(ocelot_port, DEV_MAC_MODE_CFG_FDX_ENA |
 			   mode, DEV_MAC_MODE_CFG);
 
-	/* Set MAC IFG Gaps
-	 * FDX: TX_IFG = 5, RX_IFG1 = RX_IFG2 = 0
-	 * !FDX: TX_IFG = 5, RX_IFG1 = RX_IFG2 = 5
-	 */
-	ocelot_port_writel(ocelot_port, DEV_MAC_IFG_CFG_TX_IFG(5),
-			   DEV_MAC_IFG_CFG);
-
-	/* Load seed (0) and set MAC HDX late collision  */
-	ocelot_port_writel(ocelot_port, DEV_MAC_HDX_CFG_LATE_COL_POS(67) |
-			   DEV_MAC_HDX_CFG_SEED_LOAD,
-			   DEV_MAC_HDX_CFG);
-	mdelay(1);
-	ocelot_port_writel(ocelot_port, DEV_MAC_HDX_CFG_LATE_COL_POS(67),
-			   DEV_MAC_HDX_CFG);
-
 	if (ocelot->ops->pcs_init)
 		ocelot->ops->pcs_init(ocelot, port);
-
-	/* Set Max Length and maximum tags allowed */
-	ocelot_port_writel(ocelot_port, VLAN_ETH_FRAME_LEN,
-			   DEV_MAC_MAXLEN_CFG);
-	ocelot_port_writel(ocelot_port, DEV_MAC_TAGS_CFG_TAG_ID(ETH_P_8021AD) |
-			   DEV_MAC_TAGS_CFG_VLAN_AWR_ENA |
-			   DEV_MAC_TAGS_CFG_VLAN_LEN_AWR_ENA,
-			   DEV_MAC_TAGS_CFG);
 
 	/* Enable MAC module */
 	ocelot_port_writel(ocelot_port, DEV_MAC_ENA_CFG_RX_ENA |
@@ -475,21 +452,9 @@ static void ocelot_adjust_link(struct ocelot *ocelot, int port,
 	ocelot_port_writel(ocelot_port, DEV_CLOCK_CFG_LINK_SPEED(speed),
 			   DEV_CLOCK_CFG);
 
-	/* Set SMAC of Pause frame (00:00:00:00:00:00) */
-	ocelot_port_writel(ocelot_port, 0, DEV_MAC_FC_MAC_HIGH_CFG);
-	ocelot_port_writel(ocelot_port, 0, DEV_MAC_FC_MAC_LOW_CFG);
-
 	/* No PFC */
 	ocelot_write_gix(ocelot, ANA_PFC_PFC_CFG_FC_LINK_SPEED(speed),
 			 ANA_PFC_PFC_CFG, port);
-
-	/* Set Pause WM hysteresis
-	 * 152 = 6 * VLAN_ETH_FRAME_LEN / OCELOT_BUFFER_CELL_SZ
-	 * 101 = 4 * VLAN_ETH_FRAME_LEN / OCELOT_BUFFER_CELL_SZ
-	 */
-	ocelot_write_rix(ocelot, SYS_PAUSE_CFG_PAUSE_ENA |
-			 SYS_PAUSE_CFG_PAUSE_STOP(101) |
-			 SYS_PAUSE_CFG_PAUSE_START(152), SYS_PAUSE_CFG, port);
 
 	/* Core: Enable port for frame transfer */
 	ocelot_write_rix(ocelot, QSYS_SWITCH_PORT_MODE_INGRESS_DROP_MODE |
@@ -505,12 +470,6 @@ static void ocelot_adjust_link(struct ocelot *ocelot, int port,
 			 SYS_MAC_FC_CFG_FC_LINK_SPEED(speed),
 			 SYS_MAC_FC_CFG, port);
 	ocelot_write_rix(ocelot, 0, ANA_POL_FLOWC, port);
-
-	/* Tail dropping watermark */
-	atop_wm = (ocelot->shared_queue_sz - 9 * VLAN_ETH_FRAME_LEN) / OCELOT_BUFFER_CELL_SZ;
-	ocelot_write_rix(ocelot, ocelot_wm_enc(9 * VLAN_ETH_FRAME_LEN),
-			 SYS_ATOP, port);
-	ocelot_write(ocelot, ocelot_wm_enc(atop_wm), SYS_ATOP_TOT_CFG);
 }
 
 static void ocelot_port_adjust_link(struct net_device *dev)
@@ -2141,10 +2100,52 @@ static int ocelot_init_timestamp(struct ocelot *ocelot)
 static void ocelot_init_port(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	int atop_wm;
 
 	INIT_LIST_HEAD(&ocelot_port->skbs);
 
 	/* Basic L2 initialization */
+
+	/* Set MAC IFG Gaps
+	 * FDX: TX_IFG = 5, RX_IFG1 = RX_IFG2 = 0
+	 * !FDX: TX_IFG = 5, RX_IFG1 = RX_IFG2 = 5
+	 */
+	ocelot_port_writel(ocelot_port, DEV_MAC_IFG_CFG_TX_IFG(5),
+			   DEV_MAC_IFG_CFG);
+
+	/* Load seed (0) and set MAC HDX late collision  */
+	ocelot_port_writel(ocelot_port, DEV_MAC_HDX_CFG_LATE_COL_POS(67) |
+			   DEV_MAC_HDX_CFG_SEED_LOAD,
+			   DEV_MAC_HDX_CFG);
+	mdelay(1);
+	ocelot_port_writel(ocelot_port, DEV_MAC_HDX_CFG_LATE_COL_POS(67),
+			   DEV_MAC_HDX_CFG);
+
+	/* Set Max Length and maximum tags allowed */
+	ocelot_port_writel(ocelot_port, VLAN_ETH_FRAME_LEN,
+			   DEV_MAC_MAXLEN_CFG);
+	ocelot_port_writel(ocelot_port, DEV_MAC_TAGS_CFG_TAG_ID(ETH_P_8021AD) |
+			   DEV_MAC_TAGS_CFG_VLAN_AWR_ENA |
+			   DEV_MAC_TAGS_CFG_VLAN_LEN_AWR_ENA,
+			   DEV_MAC_TAGS_CFG);
+
+	/* Set SMAC of Pause frame (00:00:00:00:00:00) */
+	ocelot_port_writel(ocelot_port, 0, DEV_MAC_FC_MAC_HIGH_CFG);
+	ocelot_port_writel(ocelot_port, 0, DEV_MAC_FC_MAC_LOW_CFG);
+
+	/* Set Pause WM hysteresis
+	 * 152 = 6 * VLAN_ETH_FRAME_LEN / OCELOT_BUFFER_CELL_SZ
+	 * 101 = 4 * VLAN_ETH_FRAME_LEN / OCELOT_BUFFER_CELL_SZ
+	 */
+	ocelot_write_rix(ocelot, SYS_PAUSE_CFG_PAUSE_ENA |
+			 SYS_PAUSE_CFG_PAUSE_STOP(101) |
+			 SYS_PAUSE_CFG_PAUSE_START(152), SYS_PAUSE_CFG, port);
+
+	/* Tail dropping watermark */
+	atop_wm = (ocelot->shared_queue_sz - 9 * VLAN_ETH_FRAME_LEN) / OCELOT_BUFFER_CELL_SZ;
+	ocelot_write_rix(ocelot, ocelot_wm_enc(9 * VLAN_ETH_FRAME_LEN),
+			 SYS_ATOP, port);
+	ocelot_write(ocelot, ocelot_wm_enc(atop_wm), SYS_ATOP_TOT_CFG);
 
 	/* Drop frames with multicast source address */
 	ocelot_rmw_gix(ocelot, ANA_PORT_DROP_CFG_DROP_MC_SMAC_ENA,
