@@ -28,6 +28,16 @@ module_param(nested_early_check, bool, S_IRUGO);
 	failed;								\
 })
 
+#define SET_MSR_OR_WARN(vcpu, idx, data)				\
+({									\
+	bool failed = kvm_set_msr(vcpu, idx, data);			\
+	if (failed)							\
+		pr_warn_ratelimited(					\
+				"%s cannot write MSR (0x%x, 0x%llx)\n",	\
+				__func__, idx, data);			\
+	failed;								\
+})
+
 /*
  * Hyper-V requires all of these, so mark them as supported even though
  * they are just treated the same as all-context.
@@ -3879,8 +3889,8 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 		vcpu->arch.pat = vmcs12->host_ia32_pat;
 	}
 	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL)
-		vmcs_write64(GUEST_IA32_PERF_GLOBAL_CTRL,
-			vmcs12->host_ia32_perf_global_ctrl);
+		SET_MSR_OR_WARN(vcpu, MSR_CORE_PERF_GLOBAL_CTRL,
+				vmcs12->host_ia32_perf_global_ctrl);
 
 	/* Set L1 segment info according to Intel SDM
 	    27.5.2 Loading Host Segment and Descriptor-Table Registers */
