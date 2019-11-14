@@ -474,9 +474,9 @@ struct nix_cq_ctx_s {
 	u64 ena			: 1;
 	u64 drop_ena		: 1;
 	u64 drop		: 8;
-	u64 dp			: 8;
+	u64 bp			: 8;
 #else
-	u64 dp			: 8;
+	u64 bp			: 8;
 	u64 drop		: 8;
 	u64 drop_ena		: 1;
 	u64 ena			: 1;
