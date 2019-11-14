@@ -1308,11 +1308,12 @@ static int gmc_v9_0_hw_init(void *handle)
 		value = true;
 
 	gfxhub_v1_0_set_fault_enable_default(adev, value);
-	if (adev->asic_type == CHIP_ARCTURUS)
-		mmhub_v9_4_set_fault_enable_default(adev, value);
-	else
-		mmhub_v1_0_set_fault_enable_default(adev, value);
-
+	if (!amdgpu_sriov_vf(adev)) {
+		if (adev->asic_type == CHIP_ARCTURUS)
+			mmhub_v9_4_set_fault_enable_default(adev, value);
+		else
+			mmhub_v1_0_set_fault_enable_default(adev, value);
+	}
 	for (i = 0; i < adev->num_vmhubs; ++i)
 		gmc_v9_0_flush_gpu_tlb(adev, 0, i, 0);
 
