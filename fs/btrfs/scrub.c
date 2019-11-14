@@ -3579,45 +3579,6 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 * of btrfs_super_block::sys_chunk_array
 		 */
 		ret = btrfs_inc_block_group_ro(cache, false);
-		if (!ret && sctx->is_dev_replace) {
-			/*
-			 * If we are doing a device replace wait for any tasks
-			 * that started delalloc right before we set the block
-			 * group to RO mode, as they might have just allocated
-			 * an extent from it or decided they could do a nocow
-			 * write. And if any such tasks did that, wait for their
-			 * ordered extents to complete and then commit the
-			 * current transaction, so that we can later see the new
-			 * extent items in the extent tree - the ordered extents
-			 * create delayed data references (for cow writes) when
-			 * they complete, which will be run and insert the
-			 * corresponding extent items into the extent tree when
-			 * we commit the transaction they used when running
-			 * inode.c:btrfs_finish_ordered_io(). We later use
-			 * the commit root of the extent tree to find extents
-			 * to copy from the srcdev into the tgtdev, and we don't
-			 * want to miss any new extents.
-			 */
-			btrfs_wait_block_group_reservations(cache);
-			btrfs_wait_nocow_writers(cache);
-			ret = btrfs_wait_ordered_roots(fs_info, U64_MAX,
-						       cache->start,
-						       cache->length);
-			if (ret > 0) {
-				struct btrfs_trans_handle *trans;
-
-				trans = btrfs_join_transaction(root);
-				if (IS_ERR(trans))
-					ret = PTR_ERR(trans);
-				else
-					ret = btrfs_commit_transaction(trans);
-				if (ret) {
-					scrub_pause_off(fs_info);
-					btrfs_put_block_group(cache);
-					break;
-				}
-			}
-		}
 		scrub_pause_off(fs_info);
 
 		if (ret == 0) {
