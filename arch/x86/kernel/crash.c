@@ -202,8 +202,7 @@ static struct crash_mem *fill_up_crash_elf_data(void)
 	unsigned int nr_ranges = 0;
 	struct crash_mem *cmem;
 
-	walk_system_ram_res(0, -1, &nr_ranges,
-				get_nr_ram_ranges_callback);
+	walk_system_ram_res(0, -1, &nr_ranges, get_nr_ram_ranges_callback);
 	if (!nr_ranges)
 		return NULL;
 
@@ -240,10 +239,9 @@ static int elf_header_exclude_ranges(struct crash_mem *cmem)
 	if (ret)
 		return ret;
 
-	if (crashk_low_res.end) {
+	if (crashk_low_res.end)
 		ret = crash_exclude_mem_range(cmem, crashk_low_res.start,
-							crashk_low_res.end);
-	}
+					      crashk_low_res.end);
 
 	return ret;
 }
@@ -270,8 +268,7 @@ static int prepare_elf_headers(struct kimage *image, void **addr,
 	if (!cmem)
 		return -ENOMEM;
 
-	ret = walk_system_ram_res(0, -1, cmem,
-				prepare_elf64_ram_headers_callback);
+	ret = walk_system_ram_res(0, -1, cmem, prepare_elf64_ram_headers_callback);
 	if (ret)
 		goto out;
 
@@ -281,8 +278,7 @@ static int prepare_elf_headers(struct kimage *image, void **addr,
 		goto out;
 
 	/* By default prepare 64bit headers */
-	ret =  crash_prepare_elf64_headers(cmem,
-				IS_ENABLED(CONFIG_X86_64), addr, sz);
+	ret =  crash_prepare_elf64_headers(cmem, IS_ENABLED(CONFIG_X86_64), addr, sz);
 
 out:
 	vfree(cmem);
@@ -297,8 +293,7 @@ static int add_e820_entry(struct boot_params *params, struct e820_entry *entry)
 	if (nr_e820_entries >= E820_MAX_ENTRIES_ZEROPAGE)
 		return 1;
 
-	memcpy(&params->e820_table[nr_e820_entries], entry,
-			sizeof(struct e820_entry));
+	memcpy(&params->e820_table[nr_e820_entries], entry, sizeof(struct e820_entry));
 	params->e820_entries++;
 	return 0;
 }
@@ -353,24 +348,24 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 	cmd.type = E820_TYPE_RAM;
 	flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 	walk_iomem_res_desc(IORES_DESC_NONE, flags, 0, (1<<20)-1, &cmd,
-			memmap_entry_callback);
+			    memmap_entry_callback);
 
 	/* Add ACPI tables */
 	cmd.type = E820_TYPE_ACPI;
 	flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	walk_iomem_res_desc(IORES_DESC_ACPI_TABLES, flags, 0, -1, &cmd,
-		       memmap_entry_callback);
+			    memmap_entry_callback);
 
 	/* Add ACPI Non-volatile Storage */
 	cmd.type = E820_TYPE_NVS;
 	walk_iomem_res_desc(IORES_DESC_ACPI_NV_STORAGE, flags, 0, -1, &cmd,
-			memmap_entry_callback);
+			    memmap_entry_callback);
 
 	/* Add e820 reserved ranges */
 	cmd.type = E820_TYPE_RESERVED;
 	flags = IORESOURCE_MEM;
 	walk_iomem_res_desc(IORES_DESC_RESERVED, flags, 0, -1, &cmd,
-			   memmap_entry_callback);
+			    memmap_entry_callback);
 
 	/* Add crashk_low_res region */
 	if (crashk_low_res.end) {
@@ -381,8 +376,7 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 	}
 
 	/* Exclude some ranges from crashk_res and add rest to memmap */
-	ret = memmap_exclude_ranges(image, cmem, crashk_res.start,
-						crashk_res.end);
+	ret = memmap_exclude_ranges(image, cmem, crashk_res.start, crashk_res.end);
 	if (ret)
 		goto out;
 
