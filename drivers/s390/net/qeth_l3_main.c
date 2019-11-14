@@ -1366,7 +1366,6 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 	int work_done = 0;
 	struct sk_buff *skb;
 	struct qeth_hdr *hdr;
-	unsigned int len;
 
 	*done = 0;
 	WARN_ON_ONCE(!budget);
@@ -1378,26 +1377,17 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 			*done = 1;
 			break;
 		}
-		switch (hdr->hdr.l3.id) {
-		case QETH_HEADER_TYPE_LAYER3:
+
+		if (hdr->hdr.l3.id == QETH_HEADER_TYPE_LAYER3)
 			qeth_l3_rebuild_skb(card, skb, hdr);
-			/* fall through */
-		case QETH_HEADER_TYPE_LAYER2: /* for HiperSockets sniffer */
-			skb->protocol = eth_type_trans(skb, skb->dev);
-			len = skb->len;
-			napi_gro_receive(&card->napi, skb);
-			break;
-		default:
-			dev_kfree_skb_any(skb);
-			QETH_CARD_TEXT(card, 3, "inbunkno");
-			QETH_DBF_HEX(CTRL, 3, hdr, sizeof(*hdr));
-			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
-			continue;
-		}
+
+		skb->protocol = eth_type_trans(skb, skb->dev);
+		QETH_CARD_STAT_INC(card, rx_packets);
+		QETH_CARD_STAT_ADD(card, rx_bytes, skb->len);
+
+		napi_gro_receive(&card->napi, skb);
 		work_done++;
 		budget--;
-		QETH_CARD_STAT_INC(card, rx_packets);
-		QETH_CARD_STAT_ADD(card, rx_bytes, len);
 	}
 	return work_done;
 }

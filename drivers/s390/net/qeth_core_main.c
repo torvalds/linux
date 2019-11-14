@@ -5072,6 +5072,7 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	int headroom = 0;
 	int use_rx_sg = 0;
 
+next_packet:
 	/* qeth_hdr must not cross element boundaries */
 	while (element->length < offset + sizeof(struct qeth_hdr)) {
 		if (qeth_is_last_sbale(element))
@@ -5088,10 +5089,22 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 		break;
 	case QETH_HEADER_TYPE_LAYER3:
 		skb_len = (*hdr)->hdr.l3.length;
+		if (!IS_LAYER3(card)) {
+			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
+			skb = NULL;
+			goto walk_packet;
+		}
+
 		headroom = ETH_HLEN;
 		break;
 	case QETH_HEADER_TYPE_OSN:
 		skb_len = (*hdr)->hdr.osn.pdu_length;
+		if (!IS_OSN(card)) {
+			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
+			skb = NULL;
+			goto walk_packet;
+		}
+
 		headroom = sizeof(struct qeth_hdr);
 		break;
 	default:
@@ -5100,7 +5113,8 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 		else
 			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
 
-		break;
+		/* Can't determine packet length, drop the whole buffer. */
+		return NULL;
 	}
 
 	if (!skb_len)
@@ -5126,10 +5140,12 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	if (headroom)
 		skb_reserve(skb, headroom);
 
+walk_packet:
 	data_ptr = element->addr + offset;
 	while (skb_len) {
 		data_len = min(skb_len, (int)(element->length - offset));
-		if (data_len) {
+
+		if (skb && data_len) {
 			if (use_rx_sg)
 				qeth_create_skb_frag(element, skb, offset,
 						     data_len);
@@ -5141,8 +5157,11 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 			if (qeth_is_last_sbale(element)) {
 				QETH_CARD_TEXT(card, 4, "unexeob");
 				QETH_CARD_HEX(card, 2, buffer, sizeof(void *));
-				dev_kfree_skb_any(skb);
-				QETH_CARD_STAT_INC(card, rx_length_errors);
+				if (skb) {
+					dev_kfree_skb_any(skb);
+					QETH_CARD_STAT_INC(card,
+							   rx_length_errors);
+				}
 				return NULL;
 			}
 			element++;
@@ -5152,6 +5171,11 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 			offset += data_len;
 		}
 	}
+
+	/* This packet was skipped, go get another one: */
+	if (!skb)
+		goto next_packet;
+
 	*__element = element;
 	*__offset = offset;
 	if (use_rx_sg) {
