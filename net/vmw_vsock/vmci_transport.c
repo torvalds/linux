@@ -2054,19 +2054,21 @@ static bool vmci_check_transport(struct vsock_sock *vsk)
 	return vsk->transport == &vmci_transport;
 }
 
+void vmci_vsock_transport_cb(bool is_host)
+{
+	int features;
+
+	if (is_host)
+		features = VSOCK_TRANSPORT_F_H2G;
+	else
+		features = VSOCK_TRANSPORT_F_G2H;
+
+	vsock_core_register(&vmci_transport, features);
+}
+
 static int __init vmci_transport_init(void)
 {
-	int features = VSOCK_TRANSPORT_F_DGRAM | VSOCK_TRANSPORT_F_H2G;
-	int cid;
 	int err;
-
-	cid = vmci_get_context_id();
-
-	if (cid == VMCI_INVALID_ID)
-		return -EINVAL;
-
-	if (cid != VMCI_HOST_CONTEXT_ID)
-		features |= VSOCK_TRANSPORT_F_G2H;
 
 	/* Create the datagram handle that we will use to send and receive all
 	 * VSocket control messages for this context.
@@ -2080,7 +2082,6 @@ static int __init vmci_transport_init(void)
 		pr_err("Unable to create datagram handle. (%d)\n", err);
 		return vmci_transport_error_to_vsock_error(err);
 	}
-
 	err = vmci_event_subscribe(VMCI_EVENT_QP_RESUMED,
 				   vmci_transport_qp_resumed_cb,
 				   NULL, &vmci_transport_qp_resumed_sub_id);
@@ -2091,12 +2092,21 @@ static int __init vmci_transport_init(void)
 		goto err_destroy_stream_handle;
 	}
 
-	err = vsock_core_register(&vmci_transport, features);
+	/* Register only with dgram feature, other features (H2G, G2H) will be
+	 * registered when the first host or guest becomes active.
+	 */
+	err = vsock_core_register(&vmci_transport, VSOCK_TRANSPORT_F_DGRAM);
 	if (err < 0)
 		goto err_unsubscribe;
 
+	err = vmci_register_vsock_callback(vmci_vsock_transport_cb);
+	if (err < 0)
+		goto err_unregister;
+
 	return 0;
 
+err_unregister:
+	vsock_core_unregister(&vmci_transport);
 err_unsubscribe:
 	vmci_event_unsubscribe(vmci_transport_qp_resumed_sub_id);
 err_destroy_stream_handle:
@@ -2122,6 +2132,7 @@ static void __exit vmci_transport_exit(void)
 		vmci_transport_qp_resumed_sub_id = VMCI_INVALID_ID;
 	}
 
+	vmci_register_vsock_callback(NULL);
 	vsock_core_unregister(&vmci_transport);
 }
 module_exit(vmci_transport_exit);
