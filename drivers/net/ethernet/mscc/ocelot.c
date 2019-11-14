@@ -2269,6 +2269,14 @@ int ocelot_init(struct ocelot *ocelot)
 	int i, ret;
 	u32 port;
 
+	if (ocelot->ops->reset) {
+		ret = ocelot->ops->reset(ocelot);
+		if (ret) {
+			dev_err(ocelot->dev, "Switch reset failed\n");
+			return ret;
+		}
+	}
+
 	ocelot->lags = devm_kcalloc(ocelot->dev, ocelot->num_phys_ports,
 				    sizeof(u32), GFP_KERNEL);
 	if (!ocelot->lags)

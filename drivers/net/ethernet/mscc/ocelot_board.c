@@ -277,8 +277,32 @@ static void ocelot_port_pcs_init(struct ocelot *ocelot, int port)
 	ocelot_port_writel(ocelot_port, 0, PCS1G_LB_CFG);
 }
 
+static int ocelot_reset(struct ocelot *ocelot)
+{
+	int retries = 100;
+	u32 val;
+
+	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_INIT], 1);
+	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+
+	do {
+		msleep(1);
+		regmap_field_read(ocelot->regfields[SYS_RESET_CFG_MEM_INIT],
+				  &val);
+	} while (val && --retries);
+
+	if (!retries)
+		return -ETIMEDOUT;
+
+	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
+
+	return 0;
+}
+
 static const struct ocelot_ops ocelot_ops = {
 	.pcs_init		= ocelot_port_pcs_init,
+	.reset			= ocelot_reset,
 };
 
 static int mscc_ocelot_probe(struct platform_device *pdev)
@@ -289,7 +313,6 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	struct ocelot *ocelot;
 	struct regmap *hsio;
 	unsigned int i;
-	u32 val;
 
 	struct {
 		enum ocelot_target id;
@@ -368,18 +391,6 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		/* Both the PTP interrupt and the PTP bank are available */
 		ocelot->ptp = 1;
 	}
-
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_INIT], 1);
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
-
-	do {
-		msleep(1);
-		regmap_field_read(ocelot->regfields[SYS_RESET_CFG_MEM_INIT],
-				  &val);
-	} while (val);
-
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
 
 	ocelot->num_cpu_ports = 1; /* 1 port on the switch, two groups */
 

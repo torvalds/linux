@@ -446,6 +446,7 @@ struct ocelot_stat_layout {
 
 struct ocelot_ops {
 	void (*pcs_init)(struct ocelot *ocelot, int port);
+	int (*reset)(struct ocelot *ocelot);
 };
 
 struct ocelot {
