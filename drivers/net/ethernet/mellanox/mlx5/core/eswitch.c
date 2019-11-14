@@ -277,6 +277,7 @@ enum {
 
 static int esw_create_legacy_vepa_table(struct mlx5_eswitch *esw)
 {
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_flow_namespace *root_ns;
 	struct mlx5_flow_table *fdb;
@@ -289,8 +290,10 @@ static int esw_create_legacy_vepa_table(struct mlx5_eswitch *esw)
 	}
 
 	/* num FTE 2, num FG 2 */
-	fdb = mlx5_create_auto_grouped_flow_table(root_ns, LEGACY_VEPA_PRIO,
-						  2, 2, 0, 0);
+	ft_attr.prio = LEGACY_VEPA_PRIO;
+	ft_attr.max_fte = 2;
+	ft_attr.autogroup.max_num_groups = 2;
+	fdb = mlx5_create_auto_grouped_flow_table(root_ns, &ft_attr);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
 		esw_warn(dev, "Failed to create VEPA FDB err %d\n", err);

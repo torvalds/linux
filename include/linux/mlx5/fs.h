@@ -145,24 +145,24 @@ mlx5_get_flow_vport_acl_namespace(struct mlx5_core_dev *dev,
 				  enum mlx5_flow_namespace_type type,
 				  int vport);
 
-struct mlx5_flow_table *
-mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
-				    int prio,
-				    int num_flow_table_entries,
-				    int max_num_groups,
-				    u32 level,
-				    u32 flags);
-
 struct mlx5_flow_table_attr {
 	int prio;
 	int max_fte;
 	u32 level;
 	u32 flags;
+
+	struct {
+		int max_num_groups;
+	} autogroup;
 };
 
 struct mlx5_flow_table *
 mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 		       struct mlx5_flow_table_attr *ft_attr);
+
+struct mlx5_flow_table *
+mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
+				    struct mlx5_flow_table_attr *ft_attr);
 
 struct mlx5_flow_table *
 mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
