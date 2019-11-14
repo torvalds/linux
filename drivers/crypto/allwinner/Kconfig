@@ -7,7 +7,7 @@ config CRYPTO_DEV_ALLWINNER
 
 config CRYPTO_DEV_SUN4I_SS
 	tristate "Support for Allwinner Security System cryptographic accelerator"
-	depends on ARCH_SUNXI && !64BIT
+	depends on ARCH_SUNXI
 	depends on PM
 	depends on CRYPTO_DEV_ALLWINNER
 	select CRYPTO_MD5
