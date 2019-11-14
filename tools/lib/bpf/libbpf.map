@@ -204,4 +204,5 @@ LIBBPF_0.0.6 {
 		bpf_program__is_tracing;
 		bpf_program__set_tracing;
 		bpf_program__size;
+		btf__find_by_name_kind;
 } LIBBPF_0.0.5;
