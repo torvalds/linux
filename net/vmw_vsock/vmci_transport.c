@@ -2020,6 +2020,7 @@ static u32 vmci_transport_get_local_cid(void)
 }
 
 static struct vsock_transport vmci_transport = {
+	.module = THIS_MODULE,
 	.init = vmci_transport_socket_init,
 	.destruct = vmci_transport_destruct,
 	.release = vmci_transport_release,
