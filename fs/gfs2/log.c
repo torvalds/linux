@@ -161,7 +161,8 @@ restart:
 	list_for_each_entry_reverse(tr, head, tr_list) {
 		if (wbc->nr_to_write <= 0)
 			break;
-		if (gfs2_ail1_start_one(sdp, wbc, tr, &withdraw))
+		if (gfs2_ail1_start_one(sdp, wbc, tr, &withdraw) &&
+		    !gfs2_withdrawn(sdp))
 			goto restart;
 	}
 	spin_unlock(&sdp->sd_ail_lock);
