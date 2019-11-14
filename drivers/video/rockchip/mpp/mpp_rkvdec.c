@@ -779,8 +779,8 @@ static int rkvdec_run(struct mpp_dev *mpp,
 		mpp_write_relaxed(mpp, RKVDEC_REG_CACHE0_SIZE_BASE, reg);
 		mpp_write_relaxed(mpp, RKVDEC_REG_CACHE0_SIZE_BASE, reg);
 		/* clear cache */
-		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE0_BASE, 0);
-		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE1_BASE, 0);
+		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE0_BASE, 1);
+		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE1_BASE, 1);
 		/* set registers for hardware */
 		regidx_start = task->hw_info->regidx_start;
 		regidx_end = task->hw_info->regidx_end;

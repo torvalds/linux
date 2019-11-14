@@ -231,7 +231,7 @@ static int vepu_run(struct mpp_dev *mpp,
 	/* FIXME: spin lock here */
 	enc->current_task = task;
 	/* clear cache */
-	mpp_write_relaxed(mpp, VEPU1_REG_CLR_CACHE_BASE, 0);
+	mpp_write_relaxed(mpp, VEPU1_REG_CLR_CACHE_BASE, 1);
 	/* set registers for hardware */
 	regidx_start = task->hw_info->regidx_start;
 	regidx_end = task->hw_info->regidx_end;
