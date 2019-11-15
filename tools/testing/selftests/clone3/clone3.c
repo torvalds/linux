@@ -18,6 +18,7 @@
 #include <sched.h>
 
 #include "../kselftest.h"
+#include "clone3_selftests.h"
 
 /*
  * Different sizes of struct clone_args
@@ -34,11 +35,6 @@ enum test_mode {
 	CLONE3_ARGS_INVAL_EXIT_SIGNAL_CSIG,
 	CLONE3_ARGS_INVAL_EXIT_SIGNAL_NSIG,
 };
-
-static pid_t raw_clone(struct clone_args *args, size_t size)
-{
-	return syscall(__NR_clone3, args, size);
-}
 
 static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 {
@@ -83,7 +79,7 @@ static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 
 	memcpy(&args_ext.args, &args, sizeof(struct clone_args));
 
-	pid = raw_clone((struct clone_args *)&args_ext, size);
+	pid = sys_clone3((struct clone_args *)&args_ext, size);
 	if (pid < 0) {
 		ksft_print_msg("%s - Failed to create new process\n",
 				strerror(errno));

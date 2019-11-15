@@ -14,29 +14,11 @@
 #include <sys/wait.h>
 
 #include "../kselftest.h"
+#include "clone3_selftests.h"
 
 #ifndef CLONE_CLEAR_SIGHAND
 #define CLONE_CLEAR_SIGHAND 0x100000000ULL
 #endif
-
-#ifndef __NR_clone3
-#define __NR_clone3 -1
-struct clone_args {
-	__aligned_u64 flags;
-	__aligned_u64 pidfd;
-	__aligned_u64 child_tid;
-	__aligned_u64 parent_tid;
-	__aligned_u64 exit_signal;
-	__aligned_u64 stack;
-	__aligned_u64 stack_size;
-	__aligned_u64 tls;
-};
-#endif
-
-static pid_t sys_clone3(struct clone_args *args, size_t size)
-{
-	return syscall(__NR_clone3, args, size);
-}
 
 static void test_clone3_supported(void)
 {
