@@ -434,6 +434,56 @@ pwr_evt		Enable power events.  The power events provide information about
 		"0" otherwise.
 
 
+AUX area sampling option
+------------------------
+
+To select Intel PT "sampling" the AUX area sampling option can be used:
+
+	--aux-sample
+
+Optionally it can be followed by the sample size in bytes e.g.
+
+	--aux-sample=8192
+
+In addition, the Intel PT event to sample must be defined e.g.
+
+	-e intel_pt//u
+
+Samples on other events will be created containing Intel PT data e.g. the
+following will create Intel PT samples on the branch-misses event, note the
+events must be grouped using {}:
+
+	perf record --aux-sample -e '{intel_pt//u,branch-misses:u}'
+
+An alternative to '--aux-sample' is to add the config term 'aux-sample-size' to
+events.  In this case, the grouping is implied e.g.
+
+	perf record -e intel_pt//u -e branch-misses/aux-sample-size=8192/u
+
+is the same as:
+
+	perf record -e '{intel_pt//u,branch-misses/aux-sample-size=8192/u}'
+
+but allows for also using an address filter e.g.:
+
+	perf record -e intel_pt//u --filter 'filter * @/bin/ls' -e branch-misses/aux-sample-size=8192/u -- ls
+
+It is important to select a sample size that is big enough to contain at least
+one PSB packet.  If not a warning will be displayed:
+
+	Intel PT sample size (%zu) may be too small for PSB period (%zu)
+
+The calculation used for that is: if sample_size <= psb_period + 256 display the
+warning.  When sampling is used, psb_period defaults to 0 (2KiB).
+
+The default sample size is 4KiB.
+
+The sample size is passed in aux_sample_size in struct perf_event_attr.  The
+sample size is limited by the maximum event size which is 64KiB.  It is
+difficult to know how big the event might be without the trace sample attached,
+but the tool validates that the sample size is not greater than 60KiB.
+
+
 new snapshot option
 -------------------
 
@@ -487,8 +537,8 @@ their mlock limit (which defaults to 64KiB but is not multiplied by the number
 of cpus).
 
 In full-trace mode, powers of two are allowed for buffer size, with a minimum
-size of 2 pages.  In snapshot mode, it is the same but the minimum size is
-1 page.
+size of 2 pages.  In snapshot mode or sampling mode, it is the same but the
+minimum size is 1 page.
 
 The mmap size and auxtrace mmap size are displayed if the -vv option is used e.g.
 
@@ -501,11 +551,16 @@ Intel PT modes of operation
 
 Intel PT can be used in 2 modes:
 	full-trace mode
+	sample mode
 	snapshot mode
 
 Full-trace mode traces continuously e.g.
 
 	perf record -e intel_pt//u uname
+
+Sample mode attaches a Intel PT sample to other events e.g.
+
+	perf record --aux-sample -e intel_pt//u -e branch-misses:u
 
 Snapshot mode captures the available data when a signal is sent e.g.
 
