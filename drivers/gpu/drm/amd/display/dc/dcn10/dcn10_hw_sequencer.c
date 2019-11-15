@@ -2390,17 +2390,13 @@ void dcn10_set_hdr_multiplier(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 multiplier = pipe_ctx->plane_state->hdr_mult;
 	uint32_t hw_mult = 0x1f000; // 1.0 default multiplier
 	struct custom_float_format fmt;
-	bool mult_negative; // True if fixed31_32 sign bit indicates negative value
-	uint32_t mult_int; // int component of fixed31_32
 
 	fmt.exponenta_bits = 6;
 	fmt.mantissa_bits = 12;
 	fmt.sign = true;
 
-	mult_negative = multiplier.value >> 63 != 0;
-	mult_int = multiplier.value >> 32;
 
-	if (mult_int && !mult_negative) // Check if greater than 1
+	if (!dc_fixpt_eq(multiplier, dc_fixpt_from_int(0))) // check != 0
 		convert_to_custom_float_format(multiplier, &fmt, &hw_mult);
 
 	pipe_ctx->plane_res.dpp->funcs->dpp_set_hdr_multiplier(
