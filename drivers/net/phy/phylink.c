@@ -713,11 +713,6 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
 	int ret;
 
-	memset(&config, 0, sizeof(config));
-	linkmode_copy(supported, phy->supported);
-	linkmode_copy(config.advertising, phy->advertising);
-	config.interface = pl->link_config.interface;
-
 	/*
 	 * This is the new way of dealing with flow control for PHYs,
 	 * as described by Timur Tabi in commit 529ed1275263 ("net: phy:
@@ -725,10 +720,12 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 	 * using our validate call to the MAC, we rely upon the MAC
 	 * clearing the bits from both supported and advertising fields.
 	 */
-	if (phylink_test(supported, Pause))
-		phylink_set(config.advertising, Pause);
-	if (phylink_test(supported, Asym_Pause))
-		phylink_set(config.advertising, Asym_Pause);
+	phy_support_asym_pause(phy);
+
+	memset(&config, 0, sizeof(config));
+	linkmode_copy(supported, phy->supported);
+	linkmode_copy(config.advertising, phy->advertising);
+	config.interface = pl->link_config.interface;
 
 	ret = phylink_validate(pl, supported, &config);
 	if (ret)
