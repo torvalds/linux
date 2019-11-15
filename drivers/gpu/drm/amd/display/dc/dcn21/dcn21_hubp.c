@@ -200,7 +200,7 @@ void hubp21_set_viewport(
 	 *	Disable w/a when rotated 180 degrees, causes vertical chroma offset
 	 */
 	patched_viewport_height = viewport_c->height;
-	if (viewport_c->height != 0 && debug->nv12_iflip_vm_wa &&
+	if (debug->nv12_iflip_vm_wa && viewport_c->height > 512 &&
 			rotation != ROTATION_ANGLE_180) {
 		int pte_row_height = 0;
 		int pte_rows = 0;
