@@ -3685,7 +3685,6 @@ static void rs_free_sta(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta)
 	IWL_DEBUG_RATE(mvm, "leave\n");
 }
 
-#ifdef CONFIG_MAC80211_DEBUGFS
 int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 {
 
@@ -3741,14 +3740,15 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 	}
 
 	return scnprintf(buf, bufsz,
-			 "%s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s\n",
-			 type, rs_pretty_ant(ant), bw, mcs, nss,
+			 "0x%x: %s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s\n",
+			 rate, type, rs_pretty_ant(ant), bw, mcs, nss,
 			 (rate & RATE_MCS_SGI_MSK) ? "SGI " : "NGI ",
 			 (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
 			 (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
 			 (rate & RATE_MCS_BF_MSK) ? "BF " : "");
 }
 
+#ifdef CONFIG_MAC80211_DEBUGFS
 /**
  * Program the device to use fixed rate for frame transmit
  * This is for debugging/testing only
