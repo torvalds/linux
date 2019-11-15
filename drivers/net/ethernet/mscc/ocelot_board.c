@@ -105,7 +105,7 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 		int sz, len, buf_len;
 		struct sk_buff *skb;
 
-		for (i = 0; i < IFH_LEN; i++) {
+		for (i = 0; i < OCELOT_TAG_LEN / 4; i++) {
 			err = ocelot_rx_frame_word(ocelot, grp, true, &ifh[i]);
 			if (err != 4)
 				break;
@@ -254,6 +254,57 @@ static const struct of_device_id mscc_ocelot_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mscc_ocelot_match);
 
+static void ocelot_port_pcs_init(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+	/* Disable HDX fast control */
+	ocelot_port_writel(ocelot_port, DEV_PORT_MISC_HDX_FAST_DIS,
+			   DEV_PORT_MISC);
+
+	/* SGMII only for now */
+	ocelot_port_writel(ocelot_port, PCS1G_MODE_CFG_SGMII_MODE_ENA,
+			   PCS1G_MODE_CFG);
+	ocelot_port_writel(ocelot_port, PCS1G_SD_CFG_SD_SEL, PCS1G_SD_CFG);
+
+	/* Enable PCS */
+	ocelot_port_writel(ocelot_port, PCS1G_CFG_PCS_ENA, PCS1G_CFG);
+
+	/* No aneg on SGMII */
+	ocelot_port_writel(ocelot_port, 0, PCS1G_ANEG_CFG);
+
+	/* No loopback */
+	ocelot_port_writel(ocelot_port, 0, PCS1G_LB_CFG);
+}
+
+static int ocelot_reset(struct ocelot *ocelot)
+{
+	int retries = 100;
+	u32 val;
+
+	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_INIT], 1);
+	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+
+	do {
+		msleep(1);
+		regmap_field_read(ocelot->regfields[SYS_RESET_CFG_MEM_INIT],
+				  &val);
+	} while (val && --retries);
+
+	if (!retries)
+		return -ETIMEDOUT;
+
+	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
+
+	return 0;
+}
+
+static const struct ocelot_ops ocelot_ops = {
+	.pcs_init		= ocelot_port_pcs_init,
+	.reset			= ocelot_reset,
+};
+
 static int mscc_ocelot_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -262,13 +313,12 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	struct ocelot *ocelot;
 	struct regmap *hsio;
 	unsigned int i;
-	u32 val;
 
 	struct {
 		enum ocelot_target id;
 		char *name;
 		u8 optional:1;
-	} res[] = {
+	} io_target[] = {
 		{ SYS, "sys" },
 		{ REW, "rew" },
 		{ QSYS, "qsys" },
@@ -288,20 +338,23 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ocelot);
 	ocelot->dev = &pdev->dev;
 
-	for (i = 0; i < ARRAY_SIZE(res); i++) {
+	for (i = 0; i < ARRAY_SIZE(io_target); i++) {
 		struct regmap *target;
+		struct resource *res;
 
-		target = ocelot_io_platform_init(ocelot, pdev, res[i].name);
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   io_target[i].name);
+
+		target = ocelot_regmap_init(ocelot, res);
 		if (IS_ERR(target)) {
-			if (res[i].optional) {
-				ocelot->targets[res[i].id] = NULL;
+			if (io_target[i].optional) {
+				ocelot->targets[io_target[i].id] = NULL;
 				continue;
 			}
-
 			return PTR_ERR(target);
 		}
 
-		ocelot->targets[res[i].id] = target;
+		ocelot->targets[io_target[i].id] = target;
 	}
 
 	hsio = syscon_regmap_lookup_by_compatible("mscc,ocelot-hsio");
@@ -312,7 +365,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 
 	ocelot->targets[HSIO] = hsio;
 
-	err = ocelot_chip_init(ocelot);
+	err = ocelot_chip_init(ocelot, &ocelot_ops);
 	if (err)
 		return err;
 
@@ -338,18 +391,6 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		/* Both the PTP interrupt and the PTP bank are available */
 		ocelot->ptp = 1;
 	}
-
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_INIT], 1);
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
-
-	do {
-		msleep(1);
-		regmap_field_read(ocelot->regfields[SYS_RESET_CFG_MEM_INIT],
-				  &val);
-	} while (val);
-
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
 
 	ocelot->num_cpu_ports = 1; /* 1 port on the switch, two groups */
 

@@ -79,6 +79,13 @@ config NET_DSA_TAG_KSZ
 	  Say Y if you want to enable support for tagging frames for the
 	  Microchip 8795/9477/9893 families of switches.
 
+config NET_DSA_TAG_OCELOT
+	tristate "Tag driver for Ocelot family of switches"
+	select PACKING
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  Ocelot switches (VSC7511, VSC7512, VSC7513, VSC7514, VSC9959).
+
 config NET_DSA_TAG_QCA
 	tristate "Tag driver for Qualcomm Atheros QCA8K switches"
 	help
