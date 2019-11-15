@@ -801,7 +801,7 @@ void latency_fsnotify(struct trace_array *tr);
 
 #else
 
-static void latency_fsnotify(struct trace_array *tr) { }
+static inline void latency_fsnotify(struct trace_array *tr) { }
 
 #endif
 
