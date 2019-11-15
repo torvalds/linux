@@ -383,6 +383,7 @@ static void io_cqring_fill_event(struct io_kiocb *req, long res);
 static void __io_free_req(struct io_kiocb *req);
 static void io_put_req(struct io_kiocb *req);
 static void io_double_put_req(struct io_kiocb *req);
+static void __io_double_put_req(struct io_kiocb *req);
 
 static struct kmem_cache *req_cachep;
 
@@ -916,7 +917,7 @@ static void io_fail_links(struct io_kiocb *req)
 			io_link_cancel_timeout(link);
 		} else {
 			io_cqring_fill_event(link, -ECANCELED);
-			io_double_put_req(link);
+			__io_double_put_req(link);
 		}
 	}
 
@@ -990,11 +991,22 @@ static void io_put_req(struct io_kiocb *req)
 		io_free_req(req);
 }
 
-static void io_double_put_req(struct io_kiocb *req)
+/*
+ * Must only be used if we don't need to care about links, usually from
+ * within the completion handling itself.
+ */
+static void __io_double_put_req(struct io_kiocb *req)
 {
 	/* drop both submit and complete references */
 	if (refcount_sub_and_test(2, &req->refs))
 		__io_free_req(req);
+}
+
+static void io_double_put_req(struct io_kiocb *req)
+{
+	/* drop both submit and complete references */
+	if (refcount_sub_and_test(2, &req->refs))
+		io_free_req(req);
 }
 
 static unsigned io_cqring_events(struct io_ring_ctx *ctx, bool noflush)
