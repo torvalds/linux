@@ -152,7 +152,6 @@ struct mpp_dev {
 	atomic_t total_running;
 	/* task for work queue */
 	struct workqueue_struct *workq;
-	struct work_struct work;
 	/* set session max buffers */
 	u32 session_max_buffers;
 	/* point to MPP Service */
@@ -170,7 +169,7 @@ struct mpp_session {
 	struct mpp_dma_session *dma;
 
 	/* session tasks list lock */
-	struct mutex lock;
+	struct mutex list_lock;
 	struct list_head pending;
 
 	DECLARE_KFIFO_PTR(done_fifo, struct mpp_task *);
@@ -199,6 +198,10 @@ struct mpp_task {
 struct mpp_taskqueue {
 	/* taskqueue structure global lock */
 	struct mutex lock;
+	/* lock for task add and del */
+	struct mutex list_lock;
+	/* work for taskqueue */
+	struct work_struct work;
 
 	struct list_head pending;
 	atomic_t running;
@@ -280,6 +283,9 @@ struct mpp_dev_ops {
 	struct mpp_session *(*init_session)(struct mpp_dev *mpp);
 	int (*release_session)(struct mpp_session *session);
 };
+
+int mpp_taskqueue_init(struct mpp_taskqueue *queue,
+		       struct mpp_service *srv);
 
 /* It can handle the default ioctl */
 long mpp_dev_ioctl(struct file *filp, unsigned int cmd,

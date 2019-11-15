@@ -54,19 +54,6 @@ static int mpp_init_grf(struct device_node *np,
 	return 0;
 }
 
-static int mpp_init_drvdata(struct mpp_taskqueue *queue,
-			    struct mpp_service *srv)
-{
-	mutex_init(&queue->lock);
-	atomic_set(&queue->running, 0);
-	INIT_LIST_HEAD(&queue->pending);
-
-	queue->srv = srv;
-	queue->cur_task = NULL;
-
-	return 0;
-}
-
 static const struct file_operations mpp_dev_fops = {
 	.unlocked_ioctl = mpp_dev_ioctl,
 	.open		= mpp_dev_open,
@@ -175,7 +162,7 @@ static int mpp_service_probe(struct platform_device *pdev)
 			if (!queue)
 				continue;
 
-			mpp_init_drvdata(queue, srv);
+			mpp_taskqueue_init(queue, srv);
 			srv->task_queues[i] = queue;
 		}
 	}
