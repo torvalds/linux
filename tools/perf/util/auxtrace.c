@@ -31,6 +31,7 @@
 #include "map.h"
 #include "pmu.h"
 #include "evsel.h"
+#include "evsel_config.h"
 #include "symbol.h"
 #include "util/synthetic-events.h"
 #include "thread_map.h"
@@ -74,6 +75,53 @@ static bool perf_evsel__is_aux_event(struct evsel *evsel)
 	struct perf_pmu *pmu = perf_evsel__find_pmu(evsel);
 
 	return pmu && pmu->auxtrace;
+}
+
+/*
+ * Make a group from 'leader' to 'last', requiring that the events were not
+ * already grouped to a different leader.
+ */
+static int perf_evlist__regroup(struct evlist *evlist,
+				struct evsel *leader,
+				struct evsel *last)
+{
+	struct evsel *evsel;
+	bool grp;
+
+	if (!perf_evsel__is_group_leader(leader))
+		return -EINVAL;
+
+	grp = false;
+	evlist__for_each_entry(evlist, evsel) {
+		if (grp) {
+			if (!(evsel->leader == leader ||
+			     (evsel->leader == evsel &&
+			      evsel->core.nr_members <= 1)))
+				return -EINVAL;
+		} else if (evsel == leader) {
+			grp = true;
+		}
+		if (evsel == last)
+			break;
+	}
+
+	grp = false;
+	evlist__for_each_entry(evlist, evsel) {
+		if (grp) {
+			if (evsel->leader != leader) {
+				evsel->leader = leader;
+				if (leader->core.nr_members < 1)
+					leader->core.nr_members = 1;
+				leader->core.nr_members += 1;
+			}
+		} else if (evsel == leader) {
+			grp = true;
+		}
+		if (evsel == last)
+			break;
+	}
+
+	return 0;
 }
 
 static bool auxtrace__dont_decode(struct perf_session *session)
@@ -679,13 +727,16 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 				  struct evlist *evlist,
 				  struct record_opts *opts, const char *str)
 {
+	struct perf_evsel_config_term *term;
+	struct evsel *aux_evsel;
+	bool has_aux_sample_size = false;
 	bool has_aux_leader = false;
 	struct evsel *evsel;
 	char *endptr;
 	unsigned long sz;
 
 	if (!str)
-		return 0;
+		goto no_opt;
 
 	if (!itr) {
 		pr_err("No AUX area event to sample\n");
@@ -711,6 +762,29 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 		} else if (has_aux_leader) {
 			evsel->core.attr.aux_sample_size = sz;
 		}
+	}
+no_opt:
+	aux_evsel = NULL;
+	/* Override with aux_sample_size from config term */
+	evlist__for_each_entry(evlist, evsel) {
+		if (perf_evsel__is_aux_event(evsel))
+			aux_evsel = evsel;
+		term = perf_evsel__get_config_term(evsel, AUX_SAMPLE_SIZE);
+		if (term) {
+			has_aux_sample_size = true;
+			evsel->core.attr.aux_sample_size = term->val.aux_sample_size;
+			/* If possible, group with the AUX event */
+			if (aux_evsel && evsel->core.attr.aux_sample_size)
+				perf_evlist__regroup(evlist, aux_evsel, evsel);
+		}
+	}
+
+	if (!str && !has_aux_sample_size)
+		return 0;
+
+	if (!itr) {
+		pr_err("No AUX area event to sample\n");
+		return -EINVAL;
 	}
 
 	return auxtrace_validate_aux_sample_size(evlist, opts);

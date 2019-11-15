@@ -62,6 +62,9 @@ OPTIONS
 		    like this: name=\'CPU_CLK_UNHALTED.THREAD:cmask=0x1\'.
 	  - 'aux-output': Generate AUX records instead of events. This requires
 			  that an AUX area event is also provided.
+	  - 'aux-sample-size': Set sample size for AUX area sampling. If the
+	  '--aux-sample' option has been used, set aux-sample-size=0 to disable
+	  AUX area sampling for the event.
 
           See the linkperf:perf-list[1] man page for more parameters.
 
