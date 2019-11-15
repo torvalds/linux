@@ -191,7 +191,7 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 
 		if (!crtc_state ||
 		    !drm_atomic_crtc_needs_modeset(&crtc_state->uapi) ||
-		    crtc_state->hw.enable)
+		    crtc_state->uapi.enable)
 			return 0;
 	}
 
