@@ -304,8 +304,12 @@ static void __init taa_select_mitigation(void)
 		return;
 	}
 
-	/* TAA mitigation is turned off on the cmdline (tsx_async_abort=off) */
-	if (taa_mitigation == TAA_MITIGATION_OFF)
+	/*
+	 * TAA mitigation via VERW is turned off if both
+	 * tsx_async_abort=off and mds=off are specified.
+	 */
+	if (taa_mitigation == TAA_MITIGATION_OFF &&
+	    mds_mitigation == MDS_MITIGATION_OFF)
 		goto out;
 
 	if (boot_cpu_has(X86_FEATURE_MD_CLEAR))
@@ -339,6 +343,15 @@ static void __init taa_select_mitigation(void)
 	if (taa_nosmt || cpu_mitigations_auto_nosmt())
 		cpu_smt_disable(false);
 
+	/*
+	 * Update MDS mitigation, if necessary, as the mds_user_clear is
+	 * now enabled for TAA mitigation.
+	 */
+	if (mds_mitigation == MDS_MITIGATION_OFF &&
+	    boot_cpu_has_bug(X86_BUG_MDS)) {
+		mds_mitigation = MDS_MITIGATION_FULL;
+		mds_select_mitigation();
+	}
 out:
 	pr_info("%s\n", taa_strings[taa_mitigation]);
 }
