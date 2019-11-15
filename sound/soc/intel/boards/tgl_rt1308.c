@@ -28,7 +28,7 @@ struct tgl_card_private {
 	bool common_hdmi_codec_drv;
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
+#if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 static struct snd_soc_jack tgl_hdmi[4];
 
 struct tgl_hdmi_pcm {
@@ -173,6 +173,7 @@ SND_SOC_DAILINK_DEF(dmic_codec,
 SND_SOC_DAILINK_DEF(dmic16k,
 	DAILINK_COMP_ARRAY(COMP_CPU("DMIC16k Pin")));
 
+#if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 SND_SOC_DAILINK_DEF(idisp1_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("iDisp1 Pin")));
 SND_SOC_DAILINK_DEF(idisp1_codec,
@@ -192,6 +193,7 @@ SND_SOC_DAILINK_DEF(idisp4_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("iDisp4 Pin")));
 SND_SOC_DAILINK_DEF(idisp4_codec,
 	DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D2", "intel-hdmi-hifi4")));
+#endif
 
 static struct snd_soc_dai_link tgl_rt1308_dailink[] = {
 	{
@@ -219,7 +221,7 @@ static struct snd_soc_dai_link tgl_rt1308_dailink[] = {
 		.no_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic16k, dmic_codec, platform),
 	},
-#if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
+#if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 	{
 		.name = "iDisp1",
 		.id = 3,
@@ -283,7 +285,7 @@ static int tgl_rt1308_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+	if (IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI))
 		INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	mach = (&pdev->dev)->platform_data;
