@@ -32,6 +32,19 @@ enum {
 #define NO_TIMESTAMP    0xFF00
 #define FORMAT_LINEAR_PCM   0x0000
 
+struct q6asm_flac_cfg {
+        u32 sample_rate;
+        u32 ext_sample_rate;
+        u32 min_frame_size;
+        u32 max_frame_size;
+        u16 stream_info_present;
+        u16 min_blk_size;
+        u16 max_blk_size;
+        u16 ch_cfg;
+        u16 sample_size;
+        u16 md5_sum;
+};
+
 typedef void (*q6asm_cb) (uint32_t opcode, uint32_t token,
 			  void *payload, void *priv);
 struct audio_client;
@@ -54,6 +67,8 @@ int q6asm_media_format_block_multi_ch_pcm(struct audio_client *ac,
 					  uint32_t rate, uint32_t channels,
 					  u8 channel_map[PCM_MAX_NUM_CHANNEL],
 					  uint16_t bits_per_sample);
+int q6asm_stream_media_format_block_flac(struct audio_client *ac,
+					 struct q6asm_flac_cfg *cfg);
 int q6asm_run(struct audio_client *ac, uint32_t flags, uint32_t msw_ts,
 	      uint32_t lsw_ts);
 int q6asm_run_nowait(struct audio_client *ac, uint32_t flags, uint32_t msw_ts,
