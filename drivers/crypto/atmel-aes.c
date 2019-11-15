@@ -155,7 +155,7 @@ struct atmel_aes_authenc_ctx {
 
 struct atmel_aes_reqctx {
 	unsigned long		mode;
-	u32			lastc[AES_BLOCK_SIZE / sizeof(u32)];
+	u8			lastc[AES_BLOCK_SIZE];
 };
 
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_ATMEL_AUTHENC)
