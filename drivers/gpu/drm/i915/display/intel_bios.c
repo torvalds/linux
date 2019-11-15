@@ -208,17 +208,12 @@ get_lvds_fp_timing(const struct bdb_header *bdb,
 	return (const struct lvds_fp_timing *)((const u8 *)bdb + ofs);
 }
 
-/* Try to find integrated panel data */
+/* Parse general panel options */
 static void
-parse_lfp_panel_data(struct drm_i915_private *dev_priv,
-		     const struct bdb_header *bdb)
+parse_panel_options(struct drm_i915_private *dev_priv,
+		    const struct bdb_header *bdb)
 {
 	const struct bdb_lvds_options *lvds_options;
-	const struct bdb_lvds_lfp_data *lvds_lfp_data;
-	const struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
-	const struct lvds_dvo_timing *panel_dvo_timing;
-	const struct lvds_fp_timing *fp_timing;
-	struct drm_display_mode *panel_fixed_mode;
 	int panel_type;
 	int drrs_mode;
 	int ret;
@@ -267,6 +262,19 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("DRRS not supported (VBT input)\n");
 		break;
 	}
+}
+
+/* Try to find integrated panel timing data */
+static void
+parse_lfp_panel_dtd(struct drm_i915_private *dev_priv,
+		    const struct bdb_header *bdb)
+{
+	const struct bdb_lvds_lfp_data *lvds_lfp_data;
+	const struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
+	const struct lvds_dvo_timing *panel_dvo_timing;
+	const struct lvds_fp_timing *fp_timing;
+	struct drm_display_mode *panel_fixed_mode;
+	int panel_type = dev_priv->vbt.panel_type;
 
 	lvds_lfp_data = find_section(bdb, BDB_LVDS_LFP_DATA);
 	if (!lvds_lfp_data)
@@ -1868,7 +1876,8 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	/* Grab useful general definitions */
 	parse_general_features(dev_priv, bdb);
 	parse_general_definitions(dev_priv, bdb);
-	parse_lfp_panel_data(dev_priv, bdb);
+	parse_panel_options(dev_priv, bdb);
+	parse_lfp_panel_dtd(dev_priv, bdb);
 	parse_lfp_backlight(dev_priv, bdb);
 	parse_sdvo_panel_data(dev_priv, bdb);
 	parse_driver_features(dev_priv, bdb);
