@@ -301,9 +301,16 @@ struct io_poll_iocb {
 	struct wait_queue_entry		wait;
 };
 
+struct io_timeout_data {
+	struct io_kiocb			*req;
+	struct hrtimer			timer;
+	struct timespec64		ts;
+	enum hrtimer_mode		mode;
+};
+
 struct io_timeout {
 	struct file			*file;
-	struct hrtimer			timer;
+	struct io_timeout_data		*data;
 };
 
 /*
@@ -573,7 +580,7 @@ static void io_kill_timeout(struct io_kiocb *req)
 {
 	int ret;
 
-	ret = hrtimer_try_to_cancel(&req->timeout.timer);
+	ret = hrtimer_try_to_cancel(&req->timeout.data->timer);
 	if (ret != -1) {
 		atomic_inc(&req->ctx->cq_timeouts);
 		list_del_init(&req->list);
@@ -828,6 +835,8 @@ static void __io_free_req(struct io_kiocb *req)
 			wake_up(&ctx->inflight_wait);
 		spin_unlock_irqrestore(&ctx->inflight_lock, flags);
 	}
+	if (req->flags & REQ_F_TIMEOUT)
+		kfree(req->timeout.data);
 	percpu_ref_put(&ctx->refs);
 	if (likely(!io_is_fallback_req(req)))
 		kmem_cache_free(req_cachep, req);
@@ -840,7 +849,7 @@ static bool io_link_cancel_timeout(struct io_kiocb *req)
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
-	ret = hrtimer_try_to_cancel(&req->timeout.timer);
+	ret = hrtimer_try_to_cancel(&req->timeout.data->timer);
 	if (ret != -1) {
 		io_cqring_fill_event(req, -ECANCELED);
 		io_commit_cqring(ctx);
@@ -2236,12 +2245,12 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 {
-	struct io_ring_ctx *ctx;
-	struct io_kiocb *req;
+	struct io_timeout_data *data = container_of(timer,
+						struct io_timeout_data, timer);
+	struct io_kiocb *req = data->req;
+	struct io_ring_ctx *ctx = req->ctx;
 	unsigned long flags;
 
-	req = container_of(timer, struct io_kiocb, timeout.timer);
-	ctx = req->ctx;
 	atomic_inc(&ctx->cq_timeouts);
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
@@ -2291,7 +2300,7 @@ static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
 	if (ret == -ENOENT)
 		return ret;
 
-	ret = hrtimer_try_to_cancel(&req->timeout.timer);
+	ret = hrtimer_try_to_cancel(&req->timeout.data->timer);
 	if (ret == -1)
 		return -EALREADY;
 
@@ -2331,34 +2340,54 @@ static int io_timeout_remove(struct io_kiocb *req,
 	return 0;
 }
 
-static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static int io_timeout_setup(struct io_kiocb *req)
 {
-	unsigned count;
-	struct io_ring_ctx *ctx = req->ctx;
-	struct list_head *entry;
-	enum hrtimer_mode mode;
-	struct timespec64 ts;
-	unsigned span = 0;
+	const struct io_uring_sqe *sqe = req->submit.sqe;
+	struct io_timeout_data *data;
 	unsigned flags;
 
-	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
-	if (sqe->flags || sqe->ioprio || sqe->buf_index || sqe->len != 1)
+	if (sqe->ioprio || sqe->buf_index || sqe->len != 1)
 		return -EINVAL;
 	flags = READ_ONCE(sqe->timeout_flags);
 	if (flags & ~IORING_TIMEOUT_ABS)
 		return -EINVAL;
 
-	if (get_timespec64(&ts, u64_to_user_ptr(sqe->addr)))
+	data = kzalloc(sizeof(struct io_timeout_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+	data->req = req;
+	req->timeout.data = data;
+	req->flags |= REQ_F_TIMEOUT;
+
+	if (get_timespec64(&data->ts, u64_to_user_ptr(sqe->addr)))
 		return -EFAULT;
 
 	if (flags & IORING_TIMEOUT_ABS)
-		mode = HRTIMER_MODE_ABS;
+		data->mode = HRTIMER_MODE_ABS;
 	else
-		mode = HRTIMER_MODE_REL;
+		data->mode = HRTIMER_MODE_REL;
 
-	hrtimer_init(&req->timeout.timer, CLOCK_MONOTONIC, mode);
-	req->flags |= REQ_F_TIMEOUT;
+	hrtimer_init(&data->timer, CLOCK_MONOTONIC, data->mode);
+	return 0;
+}
+
+static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	unsigned count;
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_timeout_data *data;
+	struct list_head *entry;
+	unsigned span = 0;
+	int ret;
+
+	ret = io_timeout_setup(req);
+	/* common setup allows flags (like links) set, we don't */
+	if (!ret && sqe->flags)
+		ret = -EINVAL;
+	if (ret)
+		return ret;
 
 	/*
 	 * sqe->off holds how many events that need to occur for this
@@ -2418,8 +2447,9 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	req->sequence -= span;
 add:
 	list_add(&req->list, entry);
-	req->timeout.timer.function = io_timeout_fn;
-	hrtimer_start(&req->timeout.timer, timespec64_to_ktime(ts), mode);
+	data = req->timeout.data;
+	data->timer.function = io_timeout_fn;
+	hrtimer_start(&data->timer, timespec64_to_ktime(data->ts), data->mode);
 	spin_unlock_irq(&ctx->completion_lock);
 	return 0;
 }
@@ -2754,8 +2784,9 @@ static int io_grab_files(struct io_kiocb *req)
 
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 {
-	struct io_kiocb *req = container_of(timer, struct io_kiocb,
-						timeout.timer);
+	struct io_timeout_data *data = container_of(timer,
+						struct io_timeout_data, timer);
+	struct io_kiocb *req = data->req;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *prev = NULL;
 	unsigned long flags;
@@ -2786,9 +2817,9 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static void io_queue_linked_timeout(struct io_kiocb *req, struct timespec64 *ts,
-				    enum hrtimer_mode *mode)
+static void io_queue_linked_timeout(struct io_kiocb *req)
 {
+	struct io_timeout_data *data = req->timeout.data;
 	struct io_ring_ctx *ctx = req->ctx;
 
 	/*
@@ -2797,9 +2828,9 @@ static void io_queue_linked_timeout(struct io_kiocb *req, struct timespec64 *ts,
 	 */
 	spin_lock_irq(&ctx->completion_lock);
 	if (!list_empty(&req->list)) {
-		req->timeout.timer.function = io_link_timeout_fn;
-		hrtimer_start(&req->timeout.timer, timespec64_to_ktime(*ts),
-				*mode);
+		data->timer.function = io_link_timeout_fn;
+		hrtimer_start(&data->timer, timespec64_to_ktime(data->ts),
+				data->mode);
 	}
 	spin_unlock_irq(&ctx->completion_lock);
 
@@ -2807,22 +2838,7 @@ static void io_queue_linked_timeout(struct io_kiocb *req, struct timespec64 *ts,
 	io_put_req(req);
 }
 
-static int io_validate_link_timeout(const struct io_uring_sqe *sqe,
-				    struct timespec64 *ts)
-{
-	if (sqe->ioprio || sqe->buf_index || sqe->len != 1 || sqe->off)
-		return -EINVAL;
-	if (sqe->timeout_flags & ~IORING_TIMEOUT_ABS)
-		return -EINVAL;
-	if (get_timespec64(ts, u64_to_user_ptr(sqe->addr)))
-		return -EFAULT;
-
-	return 0;
-}
-
-static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req,
-					       struct timespec64 *ts,
-					       enum hrtimer_mode *mode)
+static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 {
 	struct io_kiocb *nxt;
 	int ret;
@@ -2834,7 +2850,10 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req,
 	if (!nxt || nxt->submit.sqe->opcode != IORING_OP_LINK_TIMEOUT)
 		return NULL;
 
-	ret = io_validate_link_timeout(nxt->submit.sqe, ts);
+	ret = io_timeout_setup(nxt);
+	/* common setup allows offset being set, we don't */
+	if (!ret && nxt->submit.sqe->off)
+		ret = -EINVAL;
 	if (ret) {
 		list_del_init(&nxt->list);
 		io_cqring_add_event(nxt, ret);
@@ -2842,24 +2861,16 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req,
 		return ERR_PTR(-ECANCELED);
 	}
 
-	if (nxt->submit.sqe->timeout_flags & IORING_TIMEOUT_ABS)
-		*mode = HRTIMER_MODE_ABS;
-	else
-		*mode = HRTIMER_MODE_REL;
-
 	req->flags |= REQ_F_LINK_TIMEOUT;
-	hrtimer_init(&nxt->timeout.timer, CLOCK_MONOTONIC, *mode);
 	return nxt;
 }
 
 static void __io_queue_sqe(struct io_kiocb *req)
 {
-	enum hrtimer_mode mode;
 	struct io_kiocb *nxt;
-	struct timespec64 ts;
 	int ret;
 
-	nxt = io_prep_linked_timeout(req, &ts, &mode);
+	nxt = io_prep_linked_timeout(req);
 	if (IS_ERR(nxt)) {
 		ret = PTR_ERR(nxt);
 		nxt = NULL;
@@ -2895,7 +2906,7 @@ static void __io_queue_sqe(struct io_kiocb *req)
 			io_queue_async_work(req);
 
 			if (nxt)
-				io_queue_linked_timeout(nxt, &ts, &mode);
+				io_queue_linked_timeout(nxt);
 
 			return;
 		}
@@ -2907,7 +2918,7 @@ err:
 
 	if (nxt) {
 		if (!ret)
-			io_queue_linked_timeout(nxt, &ts, &mode);
+			io_queue_linked_timeout(nxt);
 		else
 			io_put_req(nxt);
 	}
