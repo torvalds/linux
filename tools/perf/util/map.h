@@ -42,7 +42,6 @@ struct map {
 	u64			(*unmap_ip)(struct map *, u64);
 
 	struct dso		*dso;
-	struct map_groups	*groups;
 	refcount_t		refcnt;
 };
 

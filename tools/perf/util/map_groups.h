@@ -100,7 +100,7 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg, const char
 
 struct addr_map_symbol;
 
-int map_groups__find_ams(struct addr_map_symbol *ams);
+int map_groups__find_ams(struct map_groups *mg, struct addr_map_symbol *ams);
 
 int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map, FILE *fp);
 

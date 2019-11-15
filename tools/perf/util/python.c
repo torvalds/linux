@@ -65,6 +65,7 @@ struct perf_env perf_env;
  * implementing 'verbose' and 'eprintf'.
  */
 int verbose;
+int debug_peo_args;
 
 int eprintf(int level, int var, const char *fmt, ...);
 
