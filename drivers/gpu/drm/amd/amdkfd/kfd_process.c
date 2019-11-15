@@ -416,7 +416,7 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 
 	list_for_each_entry_safe(pdd, temp, &p->per_device_data,
 				 per_device_list) {
-		pr_debug("Releasing pdd (topology id %d) for process (pasid %d)\n",
+		pr_debug("Releasing pdd (topology id %d) for process (pasid 0x%x)\n",
 				pdd->dev->id, p->pasid);
 
 		if (pdd->drm_file) {
@@ -687,6 +687,8 @@ static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 			struct kfd_dev *dev)
 {
 	unsigned int i;
+	int range_start = dev->shared_resources.non_cp_doorbells_start;
+	int range_end = dev->shared_resources.non_cp_doorbells_end;
 
 	if (!KFD_IS_SOC15(dev->device_info->asic_family))
 		return 0;
@@ -698,14 +700,16 @@ static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 		return -ENOMEM;
 
 	/* Mask out doorbells reserved for SDMA, IH, and VCN on SOC15. */
+	pr_debug("reserved doorbell 0x%03x - 0x%03x\n", range_start, range_end);
+	pr_debug("reserved doorbell 0x%03x - 0x%03x\n",
+			range_start + KFD_QUEUE_DOORBELL_MIRROR_OFFSET,
+			range_end + KFD_QUEUE_DOORBELL_MIRROR_OFFSET);
+
 	for (i = 0; i < KFD_MAX_NUM_OF_QUEUES_PER_PROCESS / 2; i++) {
-		if (i >= dev->shared_resources.non_cp_doorbells_start
-			&& i <= dev->shared_resources.non_cp_doorbells_end) {
+		if (i >= range_start && i <= range_end) {
 			set_bit(i, qpd->doorbell_bitmap);
 			set_bit(i + KFD_QUEUE_DOORBELL_MIRROR_OFFSET,
 				qpd->doorbell_bitmap);
-			pr_debug("reserved doorbell 0x%03x and 0x%03x\n", i,
-				i + KFD_QUEUE_DOORBELL_MIRROR_OFFSET);
 		}
 	}
 
@@ -1020,7 +1024,7 @@ static void evict_process_worker(struct work_struct *work)
 	 */
 	flush_delayed_work(&p->restore_work);
 
-	pr_debug("Started evicting pasid %d\n", p->pasid);
+	pr_debug("Started evicting pasid 0x%x\n", p->pasid);
 	ret = kfd_process_evict_queues(p);
 	if (!ret) {
 		dma_fence_signal(p->ef);
@@ -1029,9 +1033,9 @@ static void evict_process_worker(struct work_struct *work)
 		queue_delayed_work(kfd_restore_wq, &p->restore_work,
 				msecs_to_jiffies(PROCESS_RESTORE_TIME_MS));
 
-		pr_debug("Finished evicting pasid %d\n", p->pasid);
+		pr_debug("Finished evicting pasid 0x%x\n", p->pasid);
 	} else
-		pr_err("Failed to evict queues of pasid %d\n", p->pasid);
+		pr_err("Failed to evict queues of pasid 0x%x\n", p->pasid);
 }
 
 static void restore_process_worker(struct work_struct *work)
@@ -1046,7 +1050,7 @@ static void restore_process_worker(struct work_struct *work)
 	 * lifetime of this thread, kfd_process p will be valid
 	 */
 	p = container_of(dwork, struct kfd_process, restore_work);
-	pr_debug("Started restoring pasid %d\n", p->pasid);
+	pr_debug("Started restoring pasid 0x%x\n", p->pasid);
 
 	/* Setting last_restore_timestamp before successful restoration.
 	 * Otherwise this would have to be set by KGD (restore_process_bos)
@@ -1062,7 +1066,7 @@ static void restore_process_worker(struct work_struct *work)
 	ret = amdgpu_amdkfd_gpuvm_restore_process_bos(p->kgd_process_info,
 						     &p->ef);
 	if (ret) {
-		pr_debug("Failed to restore BOs of pasid %d, retry after %d ms\n",
+		pr_debug("Failed to restore BOs of pasid 0x%x, retry after %d ms\n",
 			 p->pasid, PROCESS_BACK_OFF_TIME_MS);
 		ret = queue_delayed_work(kfd_restore_wq, &p->restore_work,
 				msecs_to_jiffies(PROCESS_BACK_OFF_TIME_MS));
@@ -1072,9 +1076,9 @@ static void restore_process_worker(struct work_struct *work)
 
 	ret = kfd_process_restore_queues(p);
 	if (!ret)
-		pr_debug("Finished restoring pasid %d\n", p->pasid);
+		pr_debug("Finished restoring pasid 0x%x\n", p->pasid);
 	else
-		pr_err("Failed to restore queues of pasid %d\n", p->pasid);
+		pr_err("Failed to restore queues of pasid 0x%x\n", p->pasid);
 }
 
 void kfd_suspend_all_processes(void)
@@ -1088,7 +1092,7 @@ void kfd_suspend_all_processes(void)
 		cancel_delayed_work_sync(&p->restore_work);
 
 		if (kfd_process_evict_queues(p))
-			pr_err("Failed to suspend process %d\n", p->pasid);
+			pr_err("Failed to suspend process 0x%x\n", p->pasid);
 		dma_fence_signal(p->ef);
 		dma_fence_put(p->ef);
 		p->ef = NULL;
@@ -1171,7 +1175,7 @@ int kfd_debugfs_mqds_by_process(struct seq_file *m, void *data)
 	int idx = srcu_read_lock(&kfd_processes_srcu);
 
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
-		seq_printf(m, "Process %d PASID %d:\n",
+		seq_printf(m, "Process %d PASID 0x%x:\n",
 			   p->lead_thread->tgid, p->pasid);
 
 		mutex_lock(&p->mutex);

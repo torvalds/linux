@@ -177,12 +177,10 @@ static int smu8_load_mec_firmware(struct pp_hwmgr *hwmgr)
 	uint32_t tmp;
 	int ret = 0;
 	struct cgs_firmware_info info = {0};
-	struct smu8_smumgr *smu8_smu;
 
 	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	smu8_smu = hwmgr->smu_backend;
 	ret = cgs_get_firmware_info(hwmgr->device,
 						CGS_UCODE_ID_CP_MEC, &info);
 

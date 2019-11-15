@@ -17,7 +17,6 @@ struct gr2d_soc {
 };
 
 struct gr2d {
-	struct iommu_group *group;
 	struct tegra_drm_client client;
 	struct host1x_channel *channel;
 	struct clk *clk;
@@ -40,7 +39,7 @@ static int gr2d_init(struct host1x_client *client)
 	struct gr2d *gr2d = to_gr2d(drm);
 	int err;
 
-	gr2d->channel = host1x_channel_request(client->dev);
+	gr2d->channel = host1x_channel_request(client);
 	if (!gr2d->channel)
 		return -ENOMEM;
 
@@ -51,9 +50,8 @@ static int gr2d_init(struct host1x_client *client)
 		goto put;
 	}
 
-	gr2d->group = host1x_client_iommu_attach(client, false);
-	if (IS_ERR(gr2d->group)) {
-		err = PTR_ERR(gr2d->group);
+	err = host1x_client_iommu_attach(client);
+	if (err < 0) {
 		dev_err(client->dev, "failed to attach to domain: %d\n", err);
 		goto free;
 	}
@@ -67,7 +65,7 @@ static int gr2d_init(struct host1x_client *client)
 	return 0;
 
 detach:
-	host1x_client_iommu_detach(client, gr2d->group);
+	host1x_client_iommu_detach(client);
 free:
 	host1x_syncpt_free(client->syncpts[0]);
 put:
@@ -87,7 +85,7 @@ static int gr2d_exit(struct host1x_client *client)
 	if (err < 0)
 		return err;
 
-	host1x_client_iommu_detach(client, gr2d->group);
+	host1x_client_iommu_detach(client);
 	host1x_syncpt_free(client->syncpts[0]);
 	host1x_channel_put(gr2d->channel);
 

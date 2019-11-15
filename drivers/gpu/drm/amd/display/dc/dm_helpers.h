@@ -74,7 +74,7 @@ void dm_helpers_dp_mst_clear_payload_allocation_table(
 /*
  * Polls for ACT (allocation change trigger) handled and
  */
-bool dm_helpers_dp_mst_poll_for_allocation_change_trigger(
+enum act_return_status dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream);
 /*

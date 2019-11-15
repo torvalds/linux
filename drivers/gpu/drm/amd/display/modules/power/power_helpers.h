@@ -38,6 +38,7 @@ struct dmcu_iram_parameters {
 	unsigned int backlight_lut_array_size;
 	unsigned int backlight_ramping_reduction;
 	unsigned int backlight_ramping_start;
+	unsigned int min_abm_backlight;
 	unsigned int set;
 };
 

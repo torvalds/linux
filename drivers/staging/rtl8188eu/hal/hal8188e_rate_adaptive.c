@@ -409,7 +409,7 @@ static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_inf
 		pRaInfo->PTModeSS = 3;
 	else if (pRaInfo->HighestRate > 0x0b)
 		pRaInfo->PTModeSS = 2;
-	else if (pRaInfo->HighestRate > 0x0b)
+	else if (pRaInfo->HighestRate > 0x03)
 		pRaInfo->PTModeSS = 1;
 	else
 		pRaInfo->PTModeSS = 0;

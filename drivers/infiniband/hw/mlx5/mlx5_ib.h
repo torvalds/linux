@@ -606,7 +606,7 @@ struct mlx5_ib_mr {
 	struct mlx5_ib_dev     *dev;
 	u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
 	struct mlx5_core_sig_ctx    *sig;
-	int			live;
+	unsigned int		live;
 	void			*descs_alloc;
 	int			access_flags; /* Needed for rereg MR */
 
@@ -639,7 +639,6 @@ struct mlx5_ib_mw {
 struct mlx5_ib_devx_mr {
 	struct mlx5_core_mkey	mmkey;
 	int			ndescs;
-	struct rcu_head		rcu;
 };
 
 struct mlx5_ib_umr_context {

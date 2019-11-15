@@ -132,9 +132,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		    global_node_page_state(NR_SHMEM_THPS) * HPAGE_PMD_NR);
 	show_val_kb(m, "ShmemPmdMapped: ",
 		    global_node_page_state(NR_SHMEM_PMDMAPPED) * HPAGE_PMD_NR);
-	show_val_kb(m, "FileHugePages: ",
+	show_val_kb(m, "FileHugePages:  ",
 		    global_node_page_state(NR_FILE_THPS) * HPAGE_PMD_NR);
-	show_val_kb(m, "FilePmdMapped: ",
+	show_val_kb(m, "FilePmdMapped:  ",
 		    global_node_page_state(NR_FILE_PMDMAPPED) * HPAGE_PMD_NR);
 #endif
 

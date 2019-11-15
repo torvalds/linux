@@ -282,7 +282,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 		goto err_bind_process;
 	}
 
-	pr_debug("Creating queue for PASID %d on gpu 0x%x\n",
+	pr_debug("Creating queue for PASID 0x%x on gpu 0x%x\n",
 			p->pasid,
 			dev->id);
 
@@ -332,7 +332,7 @@ static int kfd_ioctl_destroy_queue(struct file *filp, struct kfd_process *p,
 	int retval;
 	struct kfd_ioctl_destroy_queue_args *args = data;
 
-	pr_debug("Destroying queue id %d for pasid %d\n",
+	pr_debug("Destroying queue id %d for pasid 0x%x\n",
 				args->queue_id,
 				p->pasid);
 
@@ -378,7 +378,7 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	properties.queue_percent = args->queue_percentage;
 	properties.priority = args->queue_priority;
 
-	pr_debug("Updating queue id %d for pasid %d\n",
+	pr_debug("Updating queue id %d for pasid 0x%x\n",
 			args->queue_id, p->pasid);
 
 	mutex_lock(&p->mutex);
@@ -855,7 +855,7 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 	struct kfd_process_device_apertures *pAperture;
 	struct kfd_process_device *pdd;
 
-	dev_dbg(kfd_device, "get apertures for PASID %d", p->pasid);
+	dev_dbg(kfd_device, "get apertures for PASID 0x%x", p->pasid);
 
 	args->num_of_nodes = 0;
 
@@ -913,7 +913,7 @@ static int kfd_ioctl_get_process_apertures_new(struct file *filp,
 	uint32_t nodes = 0;
 	int ret;
 
-	dev_dbg(kfd_device, "get apertures for PASID %d", p->pasid);
+	dev_dbg(kfd_device, "get apertures for PASID 0x%x", p->pasid);
 
 	if (args->num_of_nodes == 0) {
 		/* Return number of nodes, so that user space can alloacate
@@ -1128,7 +1128,7 @@ static int kfd_ioctl_set_scratch_backing_va(struct file *filep,
 	mutex_unlock(&p->mutex);
 
 	if (dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS &&
-	    pdd->qpd.vmid != 0)
+	    pdd->qpd.vmid != 0 && dev->kfd2kgd->set_scratch_backing_va)
 		dev->kfd2kgd->set_scratch_backing_va(
 			dev->kgd, args->va_addr, pdd->qpd.vmid);
 
@@ -1801,7 +1801,7 @@ static long kfd_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	} else
 		goto err_i1;
 
-	dev_dbg(kfd_device, "ioctl cmd 0x%x (#%d), arg 0x%lx\n", cmd, nr, arg);
+	dev_dbg(kfd_device, "ioctl cmd 0x%x (#0x%x), arg 0x%lx\n", cmd, nr, arg);
 
 	process = kfd_get_process(current);
 	if (IS_ERR(process)) {
@@ -1856,7 +1856,8 @@ err_i1:
 		kfree(kdata);
 
 	if (retcode)
-		dev_dbg(kfd_device, "ret = %d\n", retcode);
+		dev_dbg(kfd_device, "ioctl cmd (#0x%x), arg 0x%lx, ret = %d\n",
+				nr, arg, retcode);
 
 	return retcode;
 }
@@ -1877,7 +1878,7 @@ static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	pr_debug("Process %d mapping mmio page\n"
+	pr_debug("pasid 0x%x mapping mmio page\n"
 		 "     target user address == 0x%08llX\n"
 		 "     physical address    == 0x%08llX\n"
 		 "     vm_flags            == 0x%04lX\n"

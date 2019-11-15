@@ -10,3 +10,5 @@
 
 - Compute job support. So called 'compute only' jobs need to be plumbed up to
   userspace.
+
+- Support core dump on job failure

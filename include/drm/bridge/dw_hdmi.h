@@ -126,6 +126,7 @@ struct dw_hdmi_plat_data {
 					   const struct drm_display_mode *mode);
 	unsigned long input_bus_format;
 	unsigned long input_bus_encoding;
+	bool use_drm_infoframe;
 
 	/* Vendor PHY support */
 	const struct dw_hdmi_phy_ops *phy_ops;

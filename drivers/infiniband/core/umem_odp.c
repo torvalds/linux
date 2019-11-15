@@ -451,8 +451,10 @@ void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
 	 * that the hardware will not attempt to access the MR any more.
 	 */
 	if (!umem_odp->is_implicit_odp) {
+		mutex_lock(&umem_odp->umem_mutex);
 		ib_umem_odp_unmap_dma_pages(umem_odp, ib_umem_start(umem_odp),
 					    ib_umem_end(umem_odp));
+		mutex_unlock(&umem_odp->umem_mutex);
 		kvfree(umem_odp->dma_list);
 		kvfree(umem_odp->page_list);
 	}
@@ -719,6 +721,8 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 virt,
 	u64 addr;
 	struct ib_device *dev = umem_odp->umem.ibdev;
 
+	lockdep_assert_held(&umem_odp->umem_mutex);
+
 	virt = max_t(u64, virt, ib_umem_start(umem_odp));
 	bound = min_t(u64, bound, ib_umem_end(umem_odp));
 	/* Note that during the run of this function, the
@@ -726,7 +730,6 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 virt,
 	 * faults from completion. We might be racing with other
 	 * invalidations, so we must make sure we free each page only
 	 * once. */
-	mutex_lock(&umem_odp->umem_mutex);
 	for (addr = virt; addr < bound; addr += BIT(umem_odp->page_shift)) {
 		idx = (addr - ib_umem_start(umem_odp)) >> umem_odp->page_shift;
 		if (umem_odp->page_list[idx]) {
@@ -757,7 +760,6 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 virt,
 			umem_odp->npages--;
 		}
 	}
-	mutex_unlock(&umem_odp->umem_mutex);
 }
 EXPORT_SYMBOL(ib_umem_odp_unmap_dma_pages);
 

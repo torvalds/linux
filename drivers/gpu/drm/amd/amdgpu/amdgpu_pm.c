@@ -161,7 +161,7 @@ static ssize_t amdgpu_get_dpm_state(struct device *dev,
 
 	if (is_support_sw_smu(adev)) {
 		if (adev->smu.ppt_funcs->get_current_power_state)
-			pm = amdgpu_smu_get_current_power_state(adev);
+			pm = smu_get_current_power_state(&adev->smu);
 		else
 			pm = adev->pm.dpm.user_state;
 	} else if (adev->powerplay.pp_funcs->get_current_power_state) {
@@ -805,8 +805,7 @@ static ssize_t amdgpu_get_pp_feature_status(struct device *dev,
 }
 
 /**
- * DOC: pp_dpm_sclk pp_dpm_mclk pp_dpm_socclk pp_dpm_fclk pp_dpm_dcefclk
- * pp_dpm_pcie
+ * DOC: pp_dpm_sclk pp_dpm_mclk pp_dpm_socclk pp_dpm_fclk pp_dpm_dcefclk pp_dpm_pcie
  *
  * The amdgpu driver provides a sysfs API for adjusting what power levels
  * are enabled for a given power state.  The files pp_dpm_sclk, pp_dpm_mclk,
@@ -822,9 +821,15 @@ static ssize_t amdgpu_get_pp_feature_status(struct device *dev,
  *
  * To manually adjust these states, first select manual using
  * power_dpm_force_performance_level.
- * Secondly,Enter a new value for each level by inputing a string that
+ * Secondly, enter a new value for each level by inputing a string that
  * contains " echo xx xx xx > pp_dpm_sclk/mclk/pcie"
- * E.g., echo 4 5 6 to > pp_dpm_sclk will enable sclk levels 4, 5, and 6.
+ * E.g.,
+ *
+ * .. code-block:: bash
+ *
+ *	echo "4 5 6" > pp_dpm_sclk
+ *
+ * will enable sclk levels 4, 5, and 6.
  *
  * NOTE: change to the dcefclk max dpm level is not supported now
  */
@@ -902,7 +907,7 @@ static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 		return ret;
 
 	if (is_support_sw_smu(adev))
-		ret = smu_force_clk_levels(&adev->smu, SMU_SCLK, mask);
+		ret = smu_force_clk_levels(&adev->smu, SMU_SCLK, mask, true);
 	else if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_SCLK, mask);
 
@@ -949,7 +954,7 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 		return ret;
 
 	if (is_support_sw_smu(adev))
-		ret = smu_force_clk_levels(&adev->smu, SMU_MCLK, mask);
+		ret = smu_force_clk_levels(&adev->smu, SMU_MCLK, mask, true);
 	else if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_MCLK, mask);
 
@@ -989,7 +994,7 @@ static ssize_t amdgpu_set_pp_dpm_socclk(struct device *dev,
 		return ret;
 
 	if (is_support_sw_smu(adev))
-		ret = smu_force_clk_levels(&adev->smu, SMU_SOCCLK, mask);
+		ret = smu_force_clk_levels(&adev->smu, SMU_SOCCLK, mask, true);
 	else if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_SOCCLK, mask);
 
@@ -1029,7 +1034,7 @@ static ssize_t amdgpu_set_pp_dpm_fclk(struct device *dev,
 		return ret;
 
 	if (is_support_sw_smu(adev))
-		ret = smu_force_clk_levels(&adev->smu, SMU_FCLK, mask);
+		ret = smu_force_clk_levels(&adev->smu, SMU_FCLK, mask, true);
 	else if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_FCLK, mask);
 
@@ -1069,7 +1074,7 @@ static ssize_t amdgpu_set_pp_dpm_dcefclk(struct device *dev,
 		return ret;
 
 	if (is_support_sw_smu(adev))
-		ret = smu_force_clk_levels(&adev->smu, SMU_DCEFCLK, mask);
+		ret = smu_force_clk_levels(&adev->smu, SMU_DCEFCLK, mask, true);
 	else if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_DCEFCLK, mask);
 
@@ -1109,7 +1114,7 @@ static ssize_t amdgpu_set_pp_dpm_pcie(struct device *dev,
 		return ret;
 
 	if (is_support_sw_smu(adev))
-		ret = smu_force_clk_levels(&adev->smu, SMU_PCIE, mask);
+		ret = smu_force_clk_levels(&adev->smu, SMU_PCIE, mask, true);
 	else if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_PCIE, mask);
 
@@ -1301,7 +1306,7 @@ static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
 	}
 	parameter[parameter_size] = profile_mode;
 	if (is_support_sw_smu(adev))
-		ret = smu_set_power_profile_mode(&adev->smu, parameter, parameter_size);
+		ret = smu_set_power_profile_mode(&adev->smu, parameter, parameter_size, true);
 	else if (adev->powerplay.pp_funcs->set_power_profile_mode)
 		ret = amdgpu_dpm_set_power_profile_mode(adev, parameter, parameter_size);
 	if (!ret)
@@ -2010,7 +2015,7 @@ static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
 	uint32_t limit = 0;
 
 	if (is_support_sw_smu(adev)) {
-		smu_get_power_limit(&adev->smu, &limit, true);
+		smu_get_power_limit(&adev->smu, &limit, true, true);
 		return snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
 	} else if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->get_power_limit) {
 		adev->powerplay.pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit, true);
@@ -2028,7 +2033,7 @@ static ssize_t amdgpu_hwmon_show_power_cap(struct device *dev,
 	uint32_t limit = 0;
 
 	if (is_support_sw_smu(adev)) {
-		smu_get_power_limit(&adev->smu, &limit, false);
+		smu_get_power_limit(&adev->smu, &limit, false,  true);
 		return snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
 	} else if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->get_power_limit) {
 		adev->powerplay.pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit, false);
@@ -2196,9 +2201,9 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * - fan1_input: fan speed in RPM
  *
- * - fan[1-*]_target: Desired fan speed Unit: revolution/min (RPM)
+ * - fan[1-\*]_target: Desired fan speed Unit: revolution/min (RPM)
  *
- * - fan[1-*]_enable: Enable or disable the sensors.1: Enable 0: Disable
+ * - fan[1-\*]_enable: Enable or disable the sensors.1: Enable 0: Disable
  *
  * hwmon interfaces for GPU clocks:
  *
@@ -2825,6 +2830,19 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("failed to create device file pp_dpm_sclk\n");
 		return ret;
 	}
+
+	/* Arcturus does not support standalone mclk/socclk/fclk level setting */
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		dev_attr_pp_dpm_mclk.attr.mode &= ~S_IWUGO;
+		dev_attr_pp_dpm_mclk.store = NULL;
+
+		dev_attr_pp_dpm_socclk.attr.mode &= ~S_IWUGO;
+		dev_attr_pp_dpm_socclk.store = NULL;
+
+		dev_attr_pp_dpm_fclk.attr.mode &= ~S_IWUGO;
+		dev_attr_pp_dpm_fclk.store = NULL;
+	}
+
 	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_mclk);
 	if (ret) {
 		DRM_ERROR("failed to create device file pp_dpm_mclk\n");
@@ -3008,7 +3026,8 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 		struct smu_dpm_context *smu_dpm = &adev->smu.smu_dpm;
 		smu_handle_task(&adev->smu,
 				smu_dpm->dpm_level,
-				AMD_PP_TASK_DISPLAY_CONFIG_CHANGE);
+				AMD_PP_TASK_DISPLAY_CONFIG_CHANGE,
+				true);
 	} else {
 		if (adev->powerplay.pp_funcs->dispatch_tasks) {
 			if (!amdgpu_device_has_dc_support(adev)) {

@@ -105,7 +105,6 @@ static void action_submit_complete(struct host1x_waitlist *waiter)
 	/*  Add nr_completed to trace */
 	trace_host1x_channel_submit_complete(dev_name(channel->dev),
 					     waiter->count, waiter->thresh);
-
 }
 
 static void action_wakeup(struct host1x_waitlist *waiter)

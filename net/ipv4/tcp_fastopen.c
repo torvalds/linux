@@ -253,7 +253,7 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	 */
 	tp = tcp_sk(child);
 
-	tp->fastopen_rsk = req;
+	rcu_assign_pointer(tp->fastopen_rsk, req);
 	tcp_rsk(req)->tfo_listener = true;
 
 	/* RFC1323: The window in SYN & SYN/ACK segments is never

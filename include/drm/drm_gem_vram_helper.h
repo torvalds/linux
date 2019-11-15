@@ -13,6 +13,9 @@
 #include <linux/kernel.h> /* for container_of() */
 
 struct drm_mode_create_dumb;
+struct drm_plane;
+struct drm_plane_state;
+struct drm_simple_display_pipe;
 struct drm_vram_mm_funcs;
 struct filp;
 struct vm_area_struct;
@@ -124,6 +127,28 @@ int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
 					 struct drm_device *dev,
 					 uint32_t handle, uint64_t *offset);
 
+/*
+ * Helpers for struct drm_plane_helper_funcs
+ */
+int
+drm_gem_vram_plane_helper_prepare_fb(struct drm_plane *plane,
+				     struct drm_plane_state *new_state);
+void
+drm_gem_vram_plane_helper_cleanup_fb(struct drm_plane *plane,
+				     struct drm_plane_state *old_state);
+
+/*
+ * Helpers for struct drm_simple_display_pipe_funcs
+ */
+
+int drm_gem_vram_simple_display_pipe_prepare_fb(
+	struct drm_simple_display_pipe *pipe,
+	struct drm_plane_state *new_state);
+
+void drm_gem_vram_simple_display_pipe_cleanup_fb(
+	struct drm_simple_display_pipe *pipe,
+	struct drm_plane_state *old_state);
+
 /**
  * define DRM_GEM_VRAM_DRIVER - default callback functions for \
 	&struct drm_driver
@@ -183,30 +208,5 @@ int drm_vram_mm_debugfs_init(struct drm_minor *minor);
 struct drm_vram_mm *drm_vram_helper_alloc_mm(
 	struct drm_device *dev, uint64_t vram_base, size_t vram_size);
 void drm_vram_helper_release_mm(struct drm_device *dev);
-
-/*
- * Helpers for &struct file_operations
- */
-
-int drm_vram_mm_file_operations_mmap(
-	struct file *filp, struct vm_area_struct *vma);
-
-/**
- * define DRM_VRAM_MM_FILE_OPERATIONS - default callback functions for \
-	&struct file_operations
- *
- * Drivers that use VRAM MM can use this macro to initialize
- * &struct file_operations with default functions.
- */
-#define DRM_VRAM_MM_FILE_OPERATIONS \
-	.llseek		= no_llseek, \
-	.read		= drm_read, \
-	.poll		= drm_poll, \
-	.unlocked_ioctl = drm_ioctl, \
-	.compat_ioctl	= drm_compat_ioctl, \
-	.mmap		= drm_vram_mm_file_operations_mmap, \
-	.open		= drm_open, \
-	.release	= drm_release \
-
 
 #endif

@@ -32,6 +32,8 @@
 #include "kfd_mqd_manager.h"
 
 
+#define VMID_NUM 16
+
 struct device_process_node {
 	struct qcm_process_device *qpd;
 	struct list_head list;
@@ -185,7 +187,8 @@ struct device_queue_manager {
 	unsigned int		*allocated_queues;
 	uint64_t		sdma_bitmap;
 	uint64_t		xgmi_sdma_bitmap;
-	unsigned int		vmid_bitmap;
+	/* the pasid mapping for each kfd vmid */
+	uint16_t		vmid_pasid[VMID_NUM];
 	uint64_t		pipelines_addr;
 	struct kfd_mem_obj	*pipeline_mem;
 	uint64_t		fence_gpu_addr;
@@ -198,6 +201,7 @@ struct device_queue_manager {
 	bool			is_hws_hang;
 	struct work_struct	hw_exception_work;
 	struct kfd_mem_obj	hiq_sdma_mqd;
+	bool			sched_running;
 };
 
 void device_queue_manager_init_cik(

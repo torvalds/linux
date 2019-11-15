@@ -63,6 +63,7 @@
 #include "gem/i915_gem_ioctls.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_rc6.h"
 
 #include "i915_debugfs.h"
 #include "i915_drv.h"
@@ -1815,6 +1816,8 @@ static int i915_drm_resume(struct drm_device *dev)
 	int ret;
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
+
+	intel_rc6_ctx_wa_resume(&dev_priv->gt.rc6);
 
 	intel_gt_sanitize(&dev_priv->gt, true);
 

@@ -207,7 +207,7 @@ static void extract_rq_regs(struct display_mode_lib *mode_lib,
 	rq_regs->rq_regs_l.swath_height = dml_log2(rq_param.dlg.rq_l.swath_height);
 	rq_regs->rq_regs_c.swath_height = dml_log2(rq_param.dlg.rq_c.swath_height);
 
-	// FIXME: take the max between luma, chroma chunk size?
+	// TODO: take the max between luma, chroma chunk size?
 	// okay for now, as we are setting chunk_bytes to 8kb anyways
 	if (rq_param.sizing.rq_l.chunk_bytes >= 32 * 1024) { //32kb
 		rq_regs->drq_expansion_mode = 0;
@@ -677,7 +677,7 @@ static void get_surf_rq_param(struct display_mode_lib *mode_lib,
 	unsigned int meta_pitch = 0;
 	unsigned int ppe = mode_422 ? 2 : 1;
 
-	// FIXME check if ppe apply for both luma and chroma in 422 case
+	// TODO check if ppe apply for both luma and chroma in 422 case
 	if (is_chroma) {
 		vp_width = pipe_src_param.viewport_width_c / ppe;
 		vp_height = pipe_src_param.viewport_height_c;
@@ -959,7 +959,7 @@ static void dml20_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 	// Source
 //             dcc_en              = src.dcc;
 	dual_plane = is_dual_plane((enum source_format_class)(src->source_format));
-	mode_422 = 0; // FIXME
+	mode_422 = 0; // TODO
 	access_dir = (src->source_scan == dm_vert); // vp access direction: horizontal or vertical accessed
 //      bytes_per_element_l = get_bytes_per_element(source_format_class(src.source_format), 0);
 //      bytes_per_element_c = get_bytes_per_element(source_format_class(src.source_format), 1);
@@ -1655,7 +1655,7 @@ static void calculate_ttu_cursor(struct display_mode_lib *mode_lib,
 		cur_width_ub = dml_ceil((double) cur_src_width / (double) cur_req_width, 1)
 				* (double) cur_req_width;
 		cur_req_per_width = cur_width_ub / (double) cur_req_width;
-		hactive_cur = (double) cur_src_width / hscl_ratio; // FIXME: oswin to think about what to do for cursor
+		hactive_cur = (double) cur_src_width / hscl_ratio; // TODO: oswin to think about what to do for cursor
 
 		if (vratio_pre_l <= 1.0) {
 			*refcyc_per_req_delivery_pre_cur = hactive_cur * ref_freq_to_pix_freq

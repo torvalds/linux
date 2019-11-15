@@ -155,15 +155,14 @@ int virtio_gpu_init(struct drm_device *dev)
 #ifdef __LITTLE_ENDIAN
 	if (virtio_has_feature(vgdev->vdev, VIRTIO_GPU_F_VIRGL))
 		vgdev->has_virgl_3d = true;
-	DRM_INFO("virgl 3d acceleration %s\n",
-		 vgdev->has_virgl_3d ? "enabled" : "not supported by host");
-#else
-	DRM_INFO("virgl 3d acceleration not supported by guest\n");
 #endif
 	if (virtio_has_feature(vgdev->vdev, VIRTIO_GPU_F_EDID)) {
 		vgdev->has_edid = true;
-		DRM_INFO("EDID support available.\n");
 	}
+
+	DRM_INFO("features: %cvirgl %cedid\n",
+		 vgdev->has_virgl_3d ? '+' : '-',
+		 vgdev->has_edid     ? '+' : '-');
 
 	ret = virtio_find_vqs(vgdev->vdev, 2, vqs, callbacks, names, NULL);
 	if (ret) {

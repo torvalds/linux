@@ -210,6 +210,7 @@ static const struct regulator_desc lochnagar_regulators[] = {
 
 		.enable_time = 3000,
 		.ramp_delay = 1000,
+		.off_on_delay = 15000,
 
 		.owner = THIS_MODULE,
 	},

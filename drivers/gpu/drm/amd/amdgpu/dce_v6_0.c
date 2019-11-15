@@ -281,9 +281,11 @@ static void dce_v6_0_hpd_init(struct amdgpu_device *adev)
 {
 	struct drm_device *dev = adev->ddev;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
 	u32 tmp;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
 		if (amdgpu_connector->hpd.hpd >= adev->mode_info.num_hpd)
@@ -309,7 +311,7 @@ static void dce_v6_0_hpd_init(struct amdgpu_device *adev)
 		dce_v6_0_hpd_set_polarity(adev, amdgpu_connector->hpd.hpd);
 		amdgpu_irq_get(adev, &adev->hpd_irq, amdgpu_connector->hpd.hpd);
 	}
-
+	drm_connector_list_iter_end(&iter);
 }
 
 /**
@@ -324,9 +326,11 @@ static void dce_v6_0_hpd_fini(struct amdgpu_device *adev)
 {
 	struct drm_device *dev = adev->ddev;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
 	u32 tmp;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
 		if (amdgpu_connector->hpd.hpd >= adev->mode_info.num_hpd)
@@ -338,6 +342,7 @@ static void dce_v6_0_hpd_fini(struct amdgpu_device *adev)
 
 		amdgpu_irq_put(adev, &adev->hpd_irq, amdgpu_connector->hpd.hpd);
 	}
+	drm_connector_list_iter_end(&iter);
 }
 
 static u32 dce_v6_0_hpd_get_gpio_reg(struct amdgpu_device *adev)
@@ -1124,20 +1129,24 @@ static void dce_v6_0_audio_select_pin(struct drm_encoder *encoder)
 static void dce_v6_0_audio_write_latency_fields(struct drm_encoder *encoder,
 						struct drm_display_mode *mode)
 {
-	struct amdgpu_device *adev = encoder->dev->dev_private;
+	struct drm_device *dev = encoder->dev;
+	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
 	struct amdgpu_connector *amdgpu_connector = NULL;
 	int interlace = 0;
 	u32 tmp;
 
-	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter) {
 		if (connector->encoder == encoder) {
 			amdgpu_connector = to_amdgpu_connector(connector);
 			break;
 		}
 	}
+	drm_connector_list_iter_end(&iter);
 
 	if (!amdgpu_connector) {
 		DRM_ERROR("Couldn't find encoder's connector\n");
@@ -1164,21 +1173,25 @@ static void dce_v6_0_audio_write_latency_fields(struct drm_encoder *encoder,
 
 static void dce_v6_0_audio_write_speaker_allocation(struct drm_encoder *encoder)
 {
-	struct amdgpu_device *adev = encoder->dev->dev_private;
+	struct drm_device *dev = encoder->dev;
+	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
 	struct amdgpu_connector *amdgpu_connector = NULL;
 	u8 *sadb = NULL;
 	int sad_count;
 	u32 tmp;
 
-	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter) {
 		if (connector->encoder == encoder) {
 			amdgpu_connector = to_amdgpu_connector(connector);
 			break;
 		}
 	}
+	drm_connector_list_iter_end(&iter);
 
 	if (!amdgpu_connector) {
 		DRM_ERROR("Couldn't find encoder's connector\n");
@@ -1221,10 +1234,12 @@ static void dce_v6_0_audio_write_speaker_allocation(struct drm_encoder *encoder)
 
 static void dce_v6_0_audio_write_sad_regs(struct drm_encoder *encoder)
 {
-	struct amdgpu_device *adev = encoder->dev->dev_private;
+	struct drm_device *dev = encoder->dev;
+	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
 	struct amdgpu_connector *amdgpu_connector = NULL;
 	struct cea_sad *sads;
 	int i, sad_count;
@@ -1244,12 +1259,14 @@ static void dce_v6_0_audio_write_sad_regs(struct drm_encoder *encoder)
 		{ ixAZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR13, HDMI_AUDIO_CODING_TYPE_WMA_PRO },
 	};
 
-	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter) {
 		if (connector->encoder == encoder) {
 			amdgpu_connector = to_amdgpu_connector(connector);
 			break;
 		}
 	}
+	drm_connector_list_iter_end(&iter);
 
 	if (!amdgpu_connector) {
 		DRM_ERROR("Couldn't find encoder's connector\n");
@@ -1257,10 +1274,10 @@ static void dce_v6_0_audio_write_sad_regs(struct drm_encoder *encoder)
 	}
 
 	sad_count = drm_edid_to_sad(amdgpu_connector_edid(connector), &sads);
-	if (sad_count <= 0) {
+	if (sad_count < 0)
 		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
+	if (sad_count <= 0)
 		return;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(eld_reg_to_type); i++) {
 		u32 tmp = 0;
@@ -1632,6 +1649,7 @@ static void dce_v6_0_afmt_setmode(struct drm_encoder *encoder,
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
 	struct amdgpu_connector *amdgpu_connector = NULL;
 	int em = amdgpu_atombios_encoder_get_encoder_mode(encoder);
 	int bpc = 8;
@@ -1639,12 +1657,14 @@ static void dce_v6_0_afmt_setmode(struct drm_encoder *encoder,
 	if (!dig || !dig->afmt)
 		return;
 
-	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter) {
 		if (connector->encoder == encoder) {
 			amdgpu_connector = to_amdgpu_connector(connector);
 			break;
 		}
 	}
+	drm_connector_list_iter_end(&iter);
 
 	if (!amdgpu_connector) {
 		DRM_ERROR("Couldn't find encoder's connector\n");

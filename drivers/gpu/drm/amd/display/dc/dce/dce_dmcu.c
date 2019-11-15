@@ -907,9 +907,6 @@ void dce_dmcu_destroy(struct dmcu **dmcu)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(*dmcu);
 
-	if (dmcu_dce->base.dmcu_state == DMCU_RUNNING)
-		dmcu_dce->base.funcs->set_psr_enable(*dmcu, false, true);
-
 	kfree(dmcu_dce);
 	*dmcu = NULL;
 }

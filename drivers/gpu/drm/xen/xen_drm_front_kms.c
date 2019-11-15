@@ -270,11 +270,12 @@ static void display_update(struct drm_simple_display_pipe *pipe,
 }
 
 static enum drm_mode_status
-display_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
+display_mode_valid(struct drm_simple_display_pipe *pipe,
+		   const struct drm_display_mode *mode)
 {
 	struct xen_drm_front_drm_pipeline *pipeline =
-			container_of(crtc, struct xen_drm_front_drm_pipeline,
-				     pipe.crtc);
+			container_of(pipe, struct xen_drm_front_drm_pipeline,
+				     pipe);
 
 	if (mode->hdisplay != pipeline->width)
 		return MODE_ERROR;

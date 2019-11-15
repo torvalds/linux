@@ -36,6 +36,10 @@
 	SR(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_B),\
 	SR(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_C),\
 	SR(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_D),\
+	SR(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_A),\
+	SR(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_B),\
+	SR(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_C),\
+	SR(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_D),\
 	SR(DCHUBBUB_ARB_HOSTVM_CNTL), \
 	SR(DCHVM_CTRL0), \
 	SR(DCHVM_MEM_CTRL), \
@@ -44,16 +48,9 @@
 	SR(DCHVM_RIOMMU_STAT0)
 
 #define HUBBUB_REG_LIST_DCN21()\
-	HUBBUB_REG_LIST_DCN_COMMON(), \
+	HUBBUB_REG_LIST_DCN20_COMMON(), \
 	HUBBUB_SR_WATERMARK_REG_LIST(), \
-	HUBBUB_HVM_REG_LIST(), \
-	SR(DCHUBBUB_CRC_CTRL), \
-	SR(DCN_VM_FB_LOCATION_BASE),\
-	SR(DCN_VM_FB_LOCATION_TOP),\
-	SR(DCN_VM_FB_OFFSET),\
-	SR(DCN_VM_AGP_BOT),\
-	SR(DCN_VM_AGP_TOP),\
-	SR(DCN_VM_AGP_BASE)
+	HUBBUB_HVM_REG_LIST()
 
 #define HUBBUB_MASK_SH_LIST_HVM(mask_sh) \
 	HUBBUB_SF(DCHUBBUB_ARB_DF_REQ_OUTSTAND, DCHUBBUB_ARB_MIN_REQ_OUTSTAND_COMMIT_THRESHOLD, mask_sh), \
@@ -102,7 +99,7 @@
 	HUBBUB_SF(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_D, DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_D, mask_sh)
 
 #define HUBBUB_MASK_SH_LIST_DCN21(mask_sh)\
-	HUBBUB_MASK_SH_LIST_HVM(mask_sh),\
+	HUBBUB_MASK_SH_LIST_HVM(mask_sh), \
 	HUBBUB_MASK_SH_LIST_DCN_COMMON(mask_sh), \
 	HUBBUB_MASK_SH_LIST_STUTTER(mask_sh), \
 	HUBBUB_SF(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, mask_sh), \
@@ -114,7 +111,24 @@
 	HUBBUB_SF(DCN_VM_AGP_BASE, AGP_BASE, mask_sh)
 
 void dcn21_dchvm_init(struct hubbub *hubbub);
+int hubbub21_init_dchub(struct hubbub *hubbub,
+		struct dcn_hubbub_phys_addr_config *pa_config);
 void hubbub21_program_watermarks(
+		struct hubbub *hubbub,
+		struct dcn_watermark_set *watermarks,
+		unsigned int refclk_mhz,
+		bool safe_to_lower);
+void hubbub21_program_urgent_watermarks(
+		struct hubbub *hubbub,
+		struct dcn_watermark_set *watermarks,
+		unsigned int refclk_mhz,
+		bool safe_to_lower);
+void hubbub21_program_stutter_watermarks(
+		struct hubbub *hubbub,
+		struct dcn_watermark_set *watermarks,
+		unsigned int refclk_mhz,
+		bool safe_to_lower);
+void hubbub21_program_pstate_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
