@@ -706,6 +706,15 @@ int meson8_aobus_parse_dt_extra(struct meson_pinctrl *pc)
 	return 0;
 }
 
+int meson_a1_parse_dt_extra(struct meson_pinctrl *pc)
+{
+	pc->reg_pull = pc->reg_gpio;
+	pc->reg_pullen = pc->reg_gpio;
+	pc->reg_ds = pc->reg_gpio;
+
+	return 0;
+}
+
 int meson_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
