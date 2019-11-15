@@ -800,7 +800,6 @@ static unsigned long descriptor_loc(struct super_block *sb,
 {
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 	unsigned long bg, first_meta_bg;
-	int has_super = 0;
 	
 	first_meta_bg = le32_to_cpu(sbi->s_es->s_first_meta_bg);
 
@@ -808,10 +807,8 @@ static unsigned long descriptor_loc(struct super_block *sb,
 	    nr < first_meta_bg)
 		return (logic_sb_block + nr + 1);
 	bg = sbi->s_desc_per_block * nr;
-	if (ext2_bg_has_super(sb, bg))
-		has_super = 1;
 
-	return ext2_group_first_block_no(sb, bg) + has_super;
+	return ext2_group_first_block_no(sb, bg) + ext2_bg_has_super(sb, bg);
 }
 
 static int ext2_fill_super(struct super_block *sb, void *data, int silent)
