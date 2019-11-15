@@ -646,7 +646,6 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 			     i);
 		ctdp_level = &pkg_dev->ctdp_level[i];
 
-		ctdp_level->processed = 1;
 		ctdp_level->level = i;
 		ctdp_level->control_cpu = cpu;
 		ctdp_level->pkg_id = get_physical_package_id(cpu);
@@ -654,7 +653,10 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 
 		ret = isst_get_ctdp_control(cpu, i, ctdp_level);
 		if (ret)
-			return ret;
+			continue;
+
+		pkg_dev->processed = 1;
+		ctdp_level->processed = 1;
 
 		if (ctdp_level->pbf_support) {
 			ret = isst_get_pbf_info(cpu, i, &ctdp_level->pbf_info);
@@ -723,8 +725,6 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 		isst_get_p1_info(cpu, i, ctdp_level);
 		isst_get_uncore_mem_freq(cpu, i, ctdp_level);
 	}
-
-	pkg_dev->processed = 1;
 
 	return 0;
 }
