@@ -1094,6 +1094,7 @@ static const char ath10k_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"d_rts_good",
 	"d_tx_power", /* in .5 dbM I think */
 	"d_rx_crc_err", /* fcs_bad */
+	"d_rx_crc_err_drop", /* frame with FCS error, dropped late in kernel */
 	"d_no_beacon",
 	"d_tx_mpdus_queued",
 	"d_tx_msdu_queued",
@@ -1193,6 +1194,7 @@ void ath10k_debug_get_et_stats(struct ieee80211_hw *hw,
 	data[i++] = pdev_stats->rts_good;
 	data[i++] = pdev_stats->chan_tx_power;
 	data[i++] = pdev_stats->fcs_bad;
+	data[i++] = ar->stats.rx_crc_err_drop;
 	data[i++] = pdev_stats->no_beacons;
 	data[i++] = pdev_stats->mpdu_enqued;
 	data[i++] = pdev_stats->msdu_enqued;

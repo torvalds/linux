@@ -1181,6 +1181,7 @@ struct ath10k {
 
 	struct {
 		/* protected by data_lock */
+		u32 rx_crc_err_drop;
 		u32 fw_crash_counter;
 		u32 fw_warm_reset_counter;
 		u32 fw_cold_reset_counter;
