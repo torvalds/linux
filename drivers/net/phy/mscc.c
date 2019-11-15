@@ -1680,7 +1680,7 @@ static int vsc8584_config_init(struct phy_device *phydev)
 		default:
 			ret = -EINVAL;
 			break;
-		};
+		}
 
 		if (ret)
 			goto err;
