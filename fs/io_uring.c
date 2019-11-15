@@ -2840,7 +2840,7 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req,
 	return nxt;
 }
 
-static int __io_queue_sqe(struct io_kiocb *req)
+static void __io_queue_sqe(struct io_kiocb *req)
 {
 	enum hrtimer_mode mode;
 	struct io_kiocb *nxt;
@@ -2885,7 +2885,7 @@ static int __io_queue_sqe(struct io_kiocb *req)
 			if (nxt)
 				io_queue_linked_timeout(nxt, &ts, &mode);
 
-			return 0;
+			return;
 		}
 	}
 
@@ -2907,11 +2907,9 @@ err:
 			req->flags |= REQ_F_FAIL_LINK;
 		io_put_req(req);
 	}
-
-	return ret;
 }
 
-static int io_queue_sqe(struct io_kiocb *req)
+static void io_queue_sqe(struct io_kiocb *req)
 {
 	int ret;
 
@@ -2921,20 +2919,20 @@ static int io_queue_sqe(struct io_kiocb *req)
 			io_cqring_add_event(req, ret);
 			io_double_put_req(req);
 		}
-		return 0;
-	}
-
-	return __io_queue_sqe(req);
+	} else
+		__io_queue_sqe(req);
 }
 
-static int io_queue_link_head(struct io_kiocb *req, struct io_kiocb *shadow)
+static void io_queue_link_head(struct io_kiocb *req, struct io_kiocb *shadow)
 {
 	int ret;
 	int need_submit = false;
 	struct io_ring_ctx *ctx = req->ctx;
 
-	if (!shadow)
-		return io_queue_sqe(req);
+	if (!shadow) {
+		io_queue_sqe(req);
+		return;
+	}
 
 	/*
 	 * Mark the first IO in link list as DRAIN, let all the following
@@ -2948,7 +2946,7 @@ static int io_queue_link_head(struct io_kiocb *req, struct io_kiocb *shadow)
 			io_cqring_add_event(req, ret);
 			io_double_put_req(req);
 			__io_free_req(shadow);
-			return 0;
+			return;
 		}
 	} else {
 		/*
@@ -2965,9 +2963,7 @@ static int io_queue_link_head(struct io_kiocb *req, struct io_kiocb *shadow)
 	spin_unlock_irq(&ctx->completion_lock);
 
 	if (need_submit)
-		return __io_queue_sqe(req);
-
-	return 0;
+		__io_queue_sqe(req);
 }
 
 #define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK)
