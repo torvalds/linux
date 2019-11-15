@@ -184,6 +184,7 @@ struct ceph_mds_session {
 
 	/* protected by s_cap_lock */
 	spinlock_t        s_cap_lock;
+	refcount_t        s_ref;
 	struct list_head  s_caps;     /* all caps issued by this session */
 	struct ceph_cap  *s_cap_iterator;
 	int               s_nr_caps;
@@ -198,7 +199,6 @@ struct ceph_mds_session {
 	unsigned long     s_renew_requested; /* last time we sent a renew req */
 	u64               s_renew_seq;
 
-	refcount_t        s_ref;
 	struct list_head  s_waiting;  /* waiting requests */
 	struct list_head  s_unsafe;   /* unsafe requests */
 };
@@ -234,6 +234,7 @@ struct ceph_mds_request {
 	struct rb_node r_node;
 	struct ceph_mds_client *r_mdsc;
 
+	struct kref       r_kref;
 	int r_op;                    /* mds op code */
 
 	/* operation on what? */
@@ -304,7 +305,6 @@ struct ceph_mds_request {
 	int               r_resend_mds; /* mds to resend to next, if any*/
 	u32               r_sent_on_mseq; /* cap mseq request was sent at*/
 
-	struct kref       r_kref;
 	struct list_head  r_wait;
 	struct completion r_completion;
 	struct completion r_safe_completion;
