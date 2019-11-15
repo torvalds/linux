@@ -1842,14 +1842,6 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 			   unsigned long flags);
 #define I915_GEM_OBJECT_UNBIND_ACTIVE BIT(0)
 
-struct i915_vma * __must_check
-i915_gem_object_pin(struct drm_i915_gem_object *obj,
-		    struct i915_address_space *vm,
-		    const struct i915_ggtt_view *view,
-		    u64 size,
-		    u64 alignment,
-		    u64 flags);
-
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 
 static inline int __must_check

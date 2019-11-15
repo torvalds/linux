@@ -891,22 +891,8 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 u64 alignment,
 			 u64 flags)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct i915_address_space *vm = &dev_priv->ggtt.vm;
-
-	return i915_gem_object_pin(obj, vm, view, size, alignment,
-				   flags | PIN_GLOBAL);
-}
-
-struct i915_vma *
-i915_gem_object_pin(struct drm_i915_gem_object *obj,
-		    struct i915_address_space *vm,
-		    const struct i915_ggtt_view *view,
-		    u64 size,
-		    u64 alignment,
-		    u64 flags)
-{
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct i915_vma *vma;
 	int ret;
 
@@ -915,17 +901,19 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 
 	if (flags & PIN_MAPPABLE &&
 	    (!view || view->type == I915_GGTT_VIEW_NORMAL)) {
-		/* If the required space is larger than the available
+		/*
+		 * If the required space is larger than the available
 		 * aperture, we will not able to find a slot for the
 		 * object and unbinding the object now will be in
 		 * vain. Worse, doing so may cause us to ping-pong
 		 * the object in and out of the Global GTT and
 		 * waste a lot of cycles under the mutex.
 		 */
-		if (obj->base.size > dev_priv->ggtt.mappable_end)
+		if (obj->base.size > ggtt->mappable_end)
 			return ERR_PTR(-E2BIG);
 
-		/* If NONBLOCK is set the caller is optimistically
+		/*
+		 * If NONBLOCK is set the caller is optimistically
 		 * trying to cache the full object within the mappable
 		 * aperture, and *must* have a fallback in place for
 		 * situations where we cannot bind the object. We
@@ -941,11 +929,11 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		 * we could try to minimise harm to others.
 		 */
 		if (flags & PIN_NONBLOCK &&
-		    obj->base.size > dev_priv->ggtt.mappable_end / 2)
+		    obj->base.size > ggtt->mappable_end / 2)
 			return ERR_PTR(-ENOSPC);
 	}
 
-	vma = i915_vma_instance(obj, vm, view);
+	vma = i915_vma_instance(obj, &ggtt->vm, view);
 	if (IS_ERR(vma))
 		return vma;
 
@@ -955,7 +943,7 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				return ERR_PTR(-ENOSPC);
 
 			if (flags & PIN_MAPPABLE &&
-			    vma->fence_size > dev_priv->ggtt.mappable_end / 2)
+			    vma->fence_size > ggtt->mappable_end / 2)
 				return ERR_PTR(-ENOSPC);
 		}
 
@@ -965,14 +953,14 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 	}
 
 	if (vma->fence && !i915_gem_object_is_tiled(obj)) {
-		mutex_lock(&vma->vm->mutex);
+		mutex_lock(&ggtt->vm.mutex);
 		ret = i915_vma_revoke_fence(vma);
-		mutex_unlock(&vma->vm->mutex);
+		mutex_unlock(&ggtt->vm.mutex);
 		if (ret)
 			return ERR_PTR(ret);
 	}
 
-	ret = i915_vma_pin(vma, size, alignment, flags);
+	ret = i915_vma_pin(vma, size, alignment, flags | PIN_GLOBAL);
 	if (ret)
 		return ERR_PTR(ret);
 

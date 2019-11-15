@@ -1995,28 +1995,38 @@ static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 static struct i915_vma *
 shadow_batch_pin(struct i915_execbuffer *eb, struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = eb->i915;
-	struct i915_vma * const vma = *eb->vma;
 	struct i915_address_space *vm;
+	struct i915_vma *vma;
 	u64 flags;
+	int err;
 
 	/*
 	 * PPGTT backed shadow buffers must be mapped RO, to prevent
 	 * post-scan tampering
 	 */
-	if (CMDPARSER_USES_GGTT(dev_priv)) {
+	if (CMDPARSER_USES_GGTT(eb->i915)) {
+		vm = &eb->engine->gt->ggtt->vm;
 		flags = PIN_GLOBAL;
-		vm = &dev_priv->ggtt.vm;
-	} else if (vma->vm->has_read_only) {
-		flags = PIN_USER;
-		vm = vma->vm;
-		i915_gem_object_set_readonly(obj);
 	} else {
-		DRM_DEBUG("Cannot prevent post-scan tampering without RO capable vm\n");
-		return ERR_PTR(-EINVAL);
+		vm = eb->context->vm;
+		if (!vm->has_read_only) {
+			DRM_DEBUG("Cannot prevent post-scan tampering without RO capable vm\n");
+			return ERR_PTR(-EINVAL);
+		}
+
+		i915_gem_object_set_readonly(obj);
+		flags = PIN_USER;
 	}
 
-	return i915_gem_object_pin(obj, vm, NULL, 0, 0, flags);
+	vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(vma))
+		return vma;
+
+	err = i915_vma_pin(vma, 0, 0, flags);
+	if (err)
+		return ERR_PTR(err);
+
+	return vma;
 }
 
 static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
@@ -2058,7 +2068,7 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 		 * For PPGTT backing however, we have no choice but to forcibly
 		 * reject unsafe buffers
 		 */
-		if (CMDPARSER_USES_GGTT(eb->i915) && (err == -EACCES))
+		if (i915_vma_is_ggtt(vma) && err == -EACCES)
 			/* Execute original buffer non-secure */
 			vma = NULL;
 		else
@@ -2075,7 +2085,7 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 	eb->batch_start_offset = 0;
 	eb->batch = vma;
 
-	if (CMDPARSER_USES_GGTT(eb->i915))
+	if (i915_vma_is_ggtt(vma))
 		eb->batch_flags |= I915_DISPATCH_SECURE;
 
 	/* eb->batch_len unchanged */
