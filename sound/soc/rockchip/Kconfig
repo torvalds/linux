@@ -6,6 +6,14 @@ config SND_SOC_ROCKCHIP
 	  the Rockchip SoCs' Audio interfaces. You will also need to
 	  select the audio interfaces to support below.
 
+config SND_SOC_ROCKCHIP_PREALLOC_BUFFER_SIZE
+	int "Default prealloc buffer size (kbytes)"
+	depends on SND_SOC_ROCKCHIP
+	default "512"
+	help
+	  The default value is 512 kilobytes. Only change this if you know
+	  what you are doing.
+
 config SND_SOC_ROCKCHIP_I2S
 	tristate "Rockchip I2S Device Driver"
 	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP

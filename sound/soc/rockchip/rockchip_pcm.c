@@ -24,17 +24,17 @@ static const struct snd_pcm_hardware snd_rockchip_hardware = {
 				  SNDRV_PCM_INFO_RESUME |
 				  SNDRV_PCM_INFO_INTERLEAVED,
 	.period_bytes_min	= 32,
-	.period_bytes_max	= 8192,
-	.periods_min		= 1,
-	.periods_max		= 52,
-	.buffer_bytes_max	= 64 * 1024,
+	.period_bytes_max	= SIZE_MAX,
+	.periods_min		= 2,
+	.periods_max		= 4096,
+	.buffer_bytes_max	= SIZE_MAX,
 	.fifo_size		= 32,
 };
 
 static const struct snd_dmaengine_pcm_config rk_dmaengine_pcm_config = {
 	.pcm_hardware = &snd_rockchip_hardware,
 	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
-	.prealloc_buffer_size = 32 * 1024,
+	.prealloc_buffer_size = CONFIG_SND_SOC_ROCKCHIP_PREALLOC_BUFFER_SIZE * 1024,
 };
 
 int rockchip_pcm_platform_register(struct device *dev)
