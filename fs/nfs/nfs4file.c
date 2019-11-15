@@ -318,7 +318,7 @@ nfs42_ssc_open(struct vfsmount *ss_mnt, struct nfs_fh *src_fh,
 	struct inode *r_ino = NULL;
 	struct nfs_open_context *ctx;
 	struct nfs4_state_owner *sp;
-	char *read_name;
+	char *read_name = NULL;
 	int len, status = 0;
 
 	server = NFS_SERVER(ss_mnt->mnt_root->d_inode);
@@ -342,14 +342,14 @@ nfs42_ssc_open(struct vfsmount *ss_mnt, struct nfs_fh *src_fh,
 			NULL);
 	if (IS_ERR(r_ino)) {
 		res = ERR_CAST(r_ino);
-		goto out;
+		goto out_free_name;
 	}
 
 	filep = alloc_file_pseudo(r_ino, ss_mnt, read_name, FMODE_READ,
 				     r_ino->i_fop);
 	if (IS_ERR(filep)) {
 		res = ERR_CAST(filep);
-		goto out;
+		goto out_free_name;
 	}
 	filep->f_mode |= FMODE_READ;
 
@@ -380,6 +380,8 @@ nfs42_ssc_open(struct vfsmount *ss_mnt, struct nfs_fh *src_fh,
 
 	file_ra_state_init(&filep->f_ra, filep->f_mapping->host->i_mapping);
 	res = filep;
+out_free_name:
+	kfree(read_name);
 out:
 	return res;
 out_stateowner:
@@ -388,7 +390,7 @@ out_ctx:
 	put_nfs_open_context(ctx);
 out_filep:
 	fput(filep);
-	goto out;
+	goto out_free_name;
 }
 EXPORT_SYMBOL_GPL(nfs42_ssc_open);
 void nfs42_ssc_close(struct file *filep)
