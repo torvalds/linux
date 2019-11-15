@@ -368,6 +368,7 @@ enum qeth_header_ids {
 	QETH_HEADER_TYPE_L3_TSO	= 0x03,
 	QETH_HEADER_TYPE_OSN    = 0x04,
 	QETH_HEADER_TYPE_L2_TSO	= 0x06,
+	QETH_HEADER_MASK_INVAL	= 0x80,
 };
 /* flags for qeth_hdr.ext_flags */
 #define QETH_HDR_EXT_VLAN_FRAME       0x01
@@ -477,12 +478,16 @@ struct qeth_card_stats {
 	u64 rx_sg_frags;
 	u64 rx_sg_alloc_page;
 
+	u64 rx_dropped_nomem;
+	u64 rx_dropped_notsupp;
+
 	/* rtnl_link_stats64 */
 	u64 rx_packets;
 	u64 rx_bytes;
-	u64 rx_errors;
-	u64 rx_dropped;
 	u64 rx_multicast;
+	u64 rx_length_errors;
+	u64 rx_frame_errors;
+	u64 rx_fifo_errors;
 };
 
 struct qeth_out_q_stats {
@@ -819,7 +824,6 @@ struct qeth_card {
 	struct workqueue_struct *event_wq;
 	struct workqueue_struct *cmd_wq;
 	wait_queue_head_t wait_q;
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	DECLARE_HASHTABLE(mac_htable, 4);
 	DECLARE_HASHTABLE(ip_htable, 4);
 	struct mutex ip_lock;

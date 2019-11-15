@@ -900,6 +900,7 @@ extern unsigned char IDX_ACTIVATE_WRITE[];
 #define IDX_ACTIVATE_SIZE	0x22
 #define QETH_IDX_ACT_PNO(buffer) (buffer+0x0b)
 #define QETH_IDX_ACT_ISSUER_RM_TOKEN(buffer) (buffer + 0x0c)
+#define QETH_IDX_ACT_INVAL_FRAME	0x40
 #define QETH_IDX_NO_PORTNAME_REQUIRED(buffer) ((buffer)[0x0b] & 0x80)
 #define QETH_IDX_ACT_FUNC_LEVEL(buffer) (buffer + 0x10)
 #define QETH_IDX_ACT_DATASET_NAME(buffer) (buffer + 0x16)
