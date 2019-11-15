@@ -2480,7 +2480,7 @@ static int io_async_cancel(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	    sqe->cancel_flags)
 		return -EINVAL;
 
-	io_async_find_and_cancel(ctx, req, READ_ONCE(sqe->addr), NULL);
+	io_async_find_and_cancel(ctx, req, READ_ONCE(sqe->addr), nxt);
 	return 0;
 }
 
