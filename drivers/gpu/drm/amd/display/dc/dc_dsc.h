@@ -45,6 +45,14 @@ struct display_stream_compressor {
 	int inst;
 };
 
+struct dc_dsc_policy {
+	bool use_min_slices_h;
+	int max_slices_h; // Maximum available if 0
+	int min_slice_height; // Must not be less than 8
+	uint32_t max_target_bpp;
+	uint32_t min_target_bpp;
+};
+
 bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data,
 		const uint8_t *dpcd_dsc_ext_data,
 		struct dsc_dec_dpcd_caps *dsc_sink_caps);
@@ -66,7 +74,7 @@ bool dc_dsc_compute_config(
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_config *dsc_cfg);
 
-bool dc_dsc_get_bpp_range_for_pixel_encoding(enum dc_pixel_encoding pixel_enc,
-		uint32_t *min_bpp,
-		uint32_t *max_bpp);
+void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
+		struct dc_dsc_policy *policy);
+
 #endif
