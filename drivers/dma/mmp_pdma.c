@@ -945,6 +945,8 @@ static int mmp_pdma_remove(struct platform_device *op)
 	struct mmp_pdma_phy *phy;
 	int i, irq = 0, irq_num = 0;
 
+	if (op->dev.of_node)
+		of_dma_controller_free(op->dev.of_node);
 
 	for (i = 0; i < pdev->dma_channels; i++) {
 		if (platform_get_irq(op, i) > 0)
