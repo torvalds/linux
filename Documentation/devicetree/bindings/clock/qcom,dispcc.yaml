@@ -16,6 +16,7 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,sc7180-dispcc
       - qcom,sdm845-dispcc
 
   clocks:
