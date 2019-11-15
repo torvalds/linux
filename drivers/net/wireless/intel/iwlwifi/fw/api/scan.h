@@ -913,6 +913,28 @@ struct iwl_scan_channel_params_v3 {
 } __packed; /* SCAN_CHANNEL_PARAMS_API_S_VER_3 */
 
 /**
+ * struct iwl_scan_channel_params_v4
+ * @flags: channel flags &enum iwl_scan_channel_flags
+ * @count: num of channels in scan request
+ * @num_of_aps_override: override the number of APs the FW uses to calculate
+ *	dwell time when adaptive dwell is used
+ * @reserved: for future use and alignment
+ * @channel_config: array of explicit channel configurations
+ *                  for 2.4Ghz and 5.2Ghz bands
+ * @adwell_ch_override_bitmap: when using adaptive dwell, override the number
+ *	of APs value with &num_of_aps_override for the channel.
+ *	To cast channel to index, use &iwl_mvm_scan_ch_and_band_to_idx
+ */
+struct iwl_scan_channel_params_v4 {
+	u8 flags;
+	u8 count;
+	u8 num_of_aps_override;
+	u8 reserved;
+	struct iwl_scan_channel_cfg_umac channel_config[SCAN_MAX_NUM_CHANS_V3];
+	u8 adwell_ch_override_bitmap[16];
+} __packed; /* SCAN_CHANNEL_PARAMS_API_S_VER_4 */
+
+/**
  * struct iwl_scan_general_params_v10
  * @flags: &enum iwl_umac_scan_flags
  * @reserved: reserved for future
@@ -979,6 +1001,20 @@ struct iwl_scan_req_params_v11 {
 } __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_11 */
 
 /**
+ * struct iwl_scan_req_params_v12
+ * @general_params: &struct iwl_scan_general_params_v10
+ * @channel_params: &struct iwl_scan_channel_params_v4
+ * @periodic_params: &struct iwl_scan_periodic_parms_v1
+ * @probe_params: &struct iwl_scan_probe_params_v3
+ */
+struct iwl_scan_req_params_v12 {
+	struct iwl_scan_general_params_v10 general_params;
+	struct iwl_scan_channel_params_v4 channel_params;
+	struct iwl_scan_periodic_parms_v1 periodic_params;
+	struct iwl_scan_probe_params_v3 probe_params;
+} __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_12 */
+
+/**
  * struct iwl_scan_req_umac_v11
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
@@ -989,6 +1025,18 @@ struct iwl_scan_req_umac_v11 {
 	__le32 ooc_priority;
 	struct iwl_scan_req_params_v11 scan_params;
 } __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_11 */
+
+/**
+ * struct iwl_scan_req_umac_v12
+ * @uid: scan id, &enum iwl_umac_scan_uid_offsets
+ * @ooc_priority: out of channel priority - &enum iwl_scan_priority
+ * @scan_params: scan parameters
+ */
+struct iwl_scan_req_umac_v12 {
+	__le32 uid;
+	__le32 ooc_priority;
+	struct iwl_scan_req_params_v12 scan_params;
+} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_12 */
 
 /**
  * struct iwl_umac_scan_abort

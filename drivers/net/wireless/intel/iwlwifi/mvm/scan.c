@@ -89,6 +89,10 @@
 #define IWL_SCAN_ADWELL_DEFAULT_LB_N_APS 2
 /* adaptive dwell default APs number in social channels (1, 6, 11) */
 #define IWL_SCAN_ADWELL_DEFAULT_N_APS_SOCIAL 10
+/* number of scan channels */
+#define IWL_SCAN_NUM_CHANNELS 112
+/* adaptive dwell default number of APs override */
+#define IWL_SCAN_ADWELL_DEFAULT_N_APS_OVERRIDE 10
 
 struct iwl_mvm_scan_timing_params {
 	u32 suspend_time;
@@ -1459,6 +1463,104 @@ iwl_mvm_scan_umac_dwell_v10(struct iwl_mvm *mvm,
 	general_params->passive_dwell[SCAN_HB_LMAC_IDX] = passive_dwell;
 }
 
+struct iwl_mvm_scan_channel_segment {
+	u8 start_idx;
+	u8 end_idx;
+	u8 first_channel_id;
+	u8 last_channel_id;
+	u8 channel_spacing_shift;
+	u8 band;
+};
+
+static const struct iwl_mvm_scan_channel_segment scan_channel_segments[] = {
+	{
+		.start_idx = 0,
+		.end_idx = 13,
+		.first_channel_id = 1,
+		.last_channel_id = 14,
+		.channel_spacing_shift = 0,
+		.band = PHY_BAND_24
+	},
+	{
+		.start_idx = 14,
+		.end_idx = 41,
+		.first_channel_id = 36,
+		.last_channel_id = 144,
+		.channel_spacing_shift = 2,
+		.band = PHY_BAND_5
+	},
+	{
+		.start_idx = 42,
+		.end_idx = 50,
+		.first_channel_id = 149,
+		.last_channel_id = 181,
+		.channel_spacing_shift = 2,
+		.band = PHY_BAND_5
+	},
+};
+
+static int iwl_mvm_scan_ch_and_band_to_idx(u8 channel_id, u8 band)
+{
+	int i, index;
+
+	if (!channel_id)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(scan_channel_segments); i++) {
+		const struct iwl_mvm_scan_channel_segment *ch_segment =
+			&scan_channel_segments[i];
+		u32 ch_offset;
+
+		if (ch_segment->band != band ||
+		    ch_segment->first_channel_id > channel_id ||
+		    ch_segment->last_channel_id < channel_id)
+			continue;
+
+		ch_offset = (channel_id - ch_segment->first_channel_id) >>
+			ch_segment->channel_spacing_shift;
+
+		index = scan_channel_segments[i].start_idx + ch_offset;
+		if (index < IWL_SCAN_NUM_CHANNELS)
+			return index;
+
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static void iwl_mvm_scan_ch_add_n_aps_override(enum nl80211_iftype vif_type,
+					       u8 ch_id, u8 band, u8 *ch_bitmap,
+					       size_t bitmap_n_entries)
+{
+	int i;
+	static const u8 p2p_go_friendly_chs[] = {
+		36, 40, 44, 48, 149, 153, 157, 161, 165,
+	};
+
+	if (vif_type != NL80211_IFTYPE_P2P_DEVICE)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(p2p_go_friendly_chs); i++) {
+		if (p2p_go_friendly_chs[i] == ch_id) {
+			int ch_idx, bitmap_idx;
+
+			ch_idx = iwl_mvm_scan_ch_and_band_to_idx(ch_id, band);
+			if (ch_idx < 0)
+				return;
+
+			bitmap_idx = ch_idx / 8;
+			if (bitmap_idx >= bitmap_n_entries)
+				return;
+
+			ch_idx = ch_idx % 8;
+			ch_bitmap[bitmap_idx] |= BIT(ch_idx);
+
+			return;
+		}
+	}
+}
+
 static void
 iwl_mvm_umac_scan_cfg_channels(struct iwl_mvm *mvm,
 			       struct ieee80211_channel **channels,
@@ -1481,6 +1583,35 @@ iwl_mvm_umac_scan_cfg_channels(struct iwl_mvm *mvm,
 			channel_cfg[i].v1.iter_count = 1;
 			channel_cfg[i].v1.iter_interval = 0;
 		}
+	}
+}
+
+static void
+iwl_mvm_umac_scan_cfg_channels_v4(struct iwl_mvm *mvm,
+				  struct ieee80211_channel **channels,
+				  struct iwl_scan_channel_params_v4 *cp,
+				  int n_channels, u32 flags,
+				  enum nl80211_iftype vif_type)
+{
+	u8 *bitmap = cp->adwell_ch_override_bitmap;
+	size_t bitmap_n_entries = ARRAY_SIZE(cp->adwell_ch_override_bitmap);
+	int i;
+
+	for (i = 0; i < n_channels; i++) {
+		enum nl80211_band band = channels[i]->band;
+		struct iwl_scan_channel_cfg_umac *cfg =
+			&cp->channel_config[i];
+
+		cfg->flags = cpu_to_le32(flags);
+		cfg->v2.channel_num = channels[i]->hw_value;
+		cfg->v2.band = iwl_mvm_phy_band_from_nl80211(band);
+		cfg->v2.iter_count = 1;
+		cfg->v2.iter_interval = 0;
+
+		iwl_mvm_scan_ch_add_n_aps_override(vif_type,
+						   cfg->v2.channel_num,
+						   cfg->v2.band, bitmap,
+						   bitmap_n_entries);
 	}
 }
 
@@ -1782,6 +1913,20 @@ iwl_mvm_scan_umac_fill_ch_p_v3(struct iwl_mvm *mvm,
 				       cp->channel_config);
 }
 
+static void
+iwl_mvm_scan_umac_fill_ch_p_v4(struct iwl_mvm *mvm,
+			       struct iwl_mvm_scan_params *params,
+			       struct ieee80211_vif *vif,
+			       struct iwl_scan_channel_params_v4 *cp)
+{
+	cp->flags = iwl_mvm_scan_umac_chan_flags_v2(mvm, params, vif);
+	cp->count = params->n_channels;
+	cp->num_of_aps_override = IWL_SCAN_ADWELL_DEFAULT_N_APS_OVERRIDE;
+
+	iwl_mvm_umac_scan_cfg_channels_v4(mvm, params->channels, cp,
+					  params->n_channels, 0, vif->type);
+}
+
 static int iwl_mvm_scan_umac_v11(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				 struct iwl_mvm_scan_params *params, int type,
 				 int uid)
@@ -1809,6 +1954,38 @@ static int iwl_mvm_scan_umac_v11(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_scan_umac_fill_probe_p_v3(params, &scan_p->probe_params);
 	iwl_mvm_scan_umac_fill_ch_p_v3(mvm, params, vif,
+				       &scan_p->channel_params);
+
+	return 0;
+}
+
+static int iwl_mvm_scan_umac_v12(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				 struct iwl_mvm_scan_params *params, int type,
+				 int uid)
+{
+	struct iwl_scan_req_umac_v12 *cmd = mvm->scan_cmd;
+	struct iwl_scan_req_params_v12 *scan_p = &cmd->scan_params;
+	int ret;
+	u16 gen_flags;
+
+	mvm->scan_uid_status[uid] = type;
+
+	cmd->ooc_priority = cpu_to_le32(iwl_mvm_scan_umac_ooc_priority(params));
+	cmd->uid = cpu_to_le32(uid);
+
+	gen_flags = iwl_mvm_scan_umac_flags_v2(mvm, params, vif, type);
+	iwl_mvm_scan_umac_fill_general_p_v10(mvm, params, vif,
+					     &scan_p->general_params,
+					     gen_flags);
+
+	 ret = iwl_mvm_fill_scan_sched_params(params,
+					      scan_p->periodic_params.schedule,
+					      &scan_p->periodic_params.delay);
+	if (ret)
+		return ret;
+
+	iwl_mvm_scan_umac_fill_probe_p_v3(params, &scan_p->probe_params);
+	iwl_mvm_scan_umac_fill_ch_p_v4(mvm, params, vif,
 				       &scan_p->channel_params);
 
 	return 0;
@@ -1928,6 +2105,8 @@ struct iwl_scan_umac_handler {
 }
 
 static const struct iwl_scan_umac_handler iwl_scan_umac_handlers[] = {
+	/* set the newest version first to shorten the list traverse time */
+	IWL_SCAN_UMAC_HANDLER(12),
 	IWL_SCAN_UMAC_HANDLER(11),
 };
 
@@ -2285,6 +2464,7 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 static int iwl_scan_req_umac_get_size(u8 scan_ver)
 {
 	switch (scan_ver) {
+		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(12);
 		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(11);
 	}
 
