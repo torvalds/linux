@@ -849,6 +849,8 @@ static void apply_config_terms(struct evsel *evsel,
 		case PERF_EVSEL__CONFIG_TERM_AUX_SAMPLE_SIZE:
 			/* Already applied by auxtrace */
 			break;
+		case PERF_EVSEL__CONFIG_TERM_CFG_CHG:
+			break;
 		default:
 			break;
 		}

@@ -26,6 +26,7 @@ enum evsel_term_type {
 	PERF_EVSEL__CONFIG_TERM_PERCORE,
 	PERF_EVSEL__CONFIG_TERM_AUX_OUTPUT,
 	PERF_EVSEL__CONFIG_TERM_AUX_SAMPLE_SIZE,
+	PERF_EVSEL__CONFIG_TERM_CFG_CHG,
 };
 
 struct perf_evsel_config_term {
@@ -46,6 +47,7 @@ struct perf_evsel_config_term {
 		bool	      percore;
 		bool	      aux_output;
 		u32	      aux_sample_size;
+		u64	      cfg_chg;
 	} val;
 	bool weak;
 };

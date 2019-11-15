@@ -1290,7 +1290,40 @@ do {								\
 			break;
 		}
 	}
-#undef ADD_EVSEL_CONFIG
+	return 0;
+}
+
+/*
+ * Add PERF_EVSEL__CONFIG_TERM_CFG_CHG where cfg_chg will have a bit set for
+ * each bit of attr->config that the user has changed.
+ */
+static int get_config_chgs(struct perf_pmu *pmu, struct list_head *head_config,
+			   struct list_head *head_terms)
+{
+	struct parse_events_term *term;
+	u64 bits = 0;
+	int type;
+
+	list_for_each_entry(term, head_config, list) {
+		switch (term->type_term) {
+		case PARSE_EVENTS__TERM_TYPE_USER:
+			type = perf_pmu__format_type(&pmu->format, term->config);
+			if (type != PERF_PMU_FORMAT_VALUE_CONFIG)
+				continue;
+			bits |= perf_pmu__format_bits(&pmu->format, term->config);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_CONFIG:
+			bits = ~(u64)0;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (bits)
+		ADD_CONFIG_TERM(CFG_CHG, cfg_chg, bits);
+
+#undef ADD_CONFIG_TERM
 	return 0;
 }
 
@@ -1417,6 +1450,13 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		return -EINVAL;
 
 	if (get_config_terms(head_config, &config_terms))
+		return -ENOMEM;
+
+	/*
+	 * When using default config, record which bits of attr->config were
+	 * changed by the user.
+	 */
+	if (pmu->default_config && get_config_chgs(pmu, head_config, &config_terms))
 		return -ENOMEM;
 
 	if (perf_pmu__config(pmu, &attr, head_config, parse_state->error)) {
