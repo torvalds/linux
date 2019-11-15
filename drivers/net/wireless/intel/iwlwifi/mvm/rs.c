@@ -1533,6 +1533,8 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	int i;
 
+	sta->max_amsdu_len = rs_fw_get_max_amsdu_len(sta);
+
 	/*
 	 * In case TLC offload is not active amsdu_enabled is either 0xFFFF
 	 * or 0, since there is no per-TID alg.

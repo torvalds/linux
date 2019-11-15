@@ -452,4 +452,6 @@ int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			bool enable);
 void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb);
+
+u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta);
 #endif /* __rs__ */
