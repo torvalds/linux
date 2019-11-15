@@ -243,13 +243,13 @@ static int cf_diag_event_init(struct perf_event *event)
 	int err = -ENOENT;
 
 	debug_sprintf_event(cf_diag_dbg, 5,
-			    "%s event %p cpu %d config %#llx "
+			    "%s event %p cpu %d config %#llx type:%u "
 			    "sample_type %#llx cf_diag_events %d\n", __func__,
-			    event, event->cpu, attr->config, attr->sample_type,
-			    atomic_read(&cf_diag_events));
+			    event, event->cpu, attr->config, event->pmu->type,
+			    attr->sample_type, atomic_read(&cf_diag_events));
 
 	if (event->attr.config != PERF_EVENT_CPUM_CF_DIAG ||
-	    event->attr.type != PERF_TYPE_RAW)
+	    event->attr.type != event->pmu->type)
 		goto out;
 
 	/* Raw events are used to access counters directly,
@@ -693,7 +693,7 @@ static int __init cf_diag_init(void)
 	}
 	debug_register_view(cf_diag_dbg, &debug_sprintf_view);
 
-	rc = perf_pmu_register(&cf_diag, "cpum_cf_diag", PERF_TYPE_RAW);
+	rc = perf_pmu_register(&cf_diag, "cpum_cf_diag", -1);
 	if (rc) {
 		debug_unregister_view(cf_diag_dbg, &debug_sprintf_view);
 		debug_unregister(cf_diag_dbg);
