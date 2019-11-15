@@ -5,6 +5,7 @@
  */
 
 #include "i915_selftest.h"
+#include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
 
@@ -200,6 +201,7 @@ static int live_context_size(void *arg)
 static int __live_active_context(struct intel_engine_cs *engine,
 				 struct i915_gem_context *fixme)
 {
+	unsigned long saved_heartbeat;
 	struct intel_context *ce;
 	int pass;
 	int err;
@@ -227,36 +229,50 @@ static int __live_active_context(struct intel_engine_cs *engine,
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
+	saved_heartbeat = engine->props.heartbeat_interval_ms;
+	engine->props.heartbeat_interval_ms = 0;
+
 	for (pass = 0; pass <= 2; pass++) {
 		struct i915_request *rq;
+
+		intel_engine_pm_get(engine);
 
 		rq = intel_context_create_request(ce);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			goto err;
+			goto out_engine;
 		}
 
 		err = request_sync(rq);
 		if (err)
-			goto err;
+			goto out_engine;
 
 		/* Context will be kept active until after an idle-barrier. */
 		if (i915_active_is_idle(&ce->active)) {
 			pr_err("context is not active; expected idle-barrier (%s pass %d)\n",
 			       engine->name, pass);
 			err = -EINVAL;
-			goto err;
+			goto out_engine;
 		}
 
 		if (!intel_engine_pm_is_awake(engine)) {
 			pr_err("%s is asleep before idle-barrier\n",
 			       engine->name);
 			err = -EINVAL;
-			goto err;
+			goto out_engine;
 		}
+
+out_engine:
+		intel_engine_pm_put(engine);
+		if (err)
+			goto err;
 	}
 
 	/* Now make sure our idle-barriers are flushed */
+	err = intel_engine_flush_barriers(engine);
+	if (err)
+		goto err;
+
 	err = context_sync(engine->kernel_context);
 	if (err)
 		goto err;
@@ -270,8 +286,9 @@ static int __live_active_context(struct intel_engine_cs *engine,
 		struct drm_printer p = drm_debug_printer(__func__);
 
 		intel_engine_dump(engine, &p,
-				  "%s is still awake after idle-barriers\n",
-				  engine->name);
+				  "%s is still awake:%d after idle-barriers\n",
+				  engine->name,
+				  atomic_read(&engine->wakeref.count));
 		GEM_TRACE_DUMP();
 
 		err = -EINVAL;
@@ -279,6 +296,7 @@ static int __live_active_context(struct intel_engine_cs *engine,
 	}
 
 err:
+	engine->props.heartbeat_interval_ms = saved_heartbeat;
 	intel_context_put(ce);
 	return err;
 }
@@ -349,6 +367,7 @@ static int __live_remote_context(struct intel_engine_cs *engine,
 				 struct i915_gem_context *fixme)
 {
 	struct intel_context *local, *remote;
+	unsigned long saved_heartbeat;
 	int pass;
 	int err;
 
@@ -360,6 +379,12 @@ static int __live_remote_context(struct intel_engine_cs *engine,
 	 * clobber the idle-barrier.
 	 */
 
+	if (intel_engine_pm_is_awake(engine)) {
+		pr_err("%s is awake before starting %s!\n",
+		       engine->name, __func__);
+		return -EINVAL;
+	}
+
 	remote = intel_context_create(fixme, engine);
 	if (IS_ERR(remote))
 		return PTR_ERR(remote);
@@ -369,6 +394,10 @@ static int __live_remote_context(struct intel_engine_cs *engine,
 		err = PTR_ERR(local);
 		goto err_remote;
 	}
+
+	saved_heartbeat = engine->props.heartbeat_interval_ms;
+	engine->props.heartbeat_interval_ms = 0;
+	intel_engine_pm_get(engine);
 
 	for (pass = 0; pass <= 2; pass++) {
 		err = __remote_sync(local, remote);
@@ -386,6 +415,9 @@ static int __live_remote_context(struct intel_engine_cs *engine,
 			break;
 		}
 	}
+
+	intel_engine_pm_put(engine);
+	engine->props.heartbeat_interval_ms = saved_heartbeat;
 
 	intel_context_put(local);
 err_remote:
