@@ -8,7 +8,6 @@
 #include <linux/file.h>
 #include <linux/falloc.h>
 #include <linux/nfs_fs.h>
-#include <linux/file.h>
 #include "delegation.h"
 #include "internal.h"
 #include "iostat.h"
