@@ -397,6 +397,7 @@ void intel_gt_driver_release(struct intel_gt *gt)
 void intel_gt_driver_late_release(struct intel_gt *gt)
 {
 	intel_uc_driver_late_release(&gt->uc);
+	intel_gt_fini_requests(gt);
 	intel_gt_fini_reset(gt);
 	intel_gt_fini_timelines(gt);
 }
