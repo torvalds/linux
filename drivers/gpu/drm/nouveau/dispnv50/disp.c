@@ -353,10 +353,20 @@ nv50_outp_atomic_check(struct drm_encoder *encoder,
 		       struct drm_crtc_state *crtc_state,
 		       struct drm_connector_state *conn_state)
 {
-	struct nouveau_connector *nv_connector =
-		nouveau_connector(conn_state->connector);
-	return nv50_outp_atomic_check_view(encoder, crtc_state, conn_state,
-					   nv_connector->native_mode);
+	struct drm_connector *connector = conn_state->connector;
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct nv50_head_atom *asyh = nv50_head_atom(crtc_state);
+	int ret;
+
+	ret = nv50_outp_atomic_check_view(encoder, crtc_state, conn_state,
+					  nv_connector->native_mode);
+	if (ret)
+		return ret;
+
+	if (crtc_state->mode_changed || crtc_state->connectors_changed)
+		asyh->or.bpc = connector->display_info.bpc;
+
+	return 0;
 }
 
 /******************************************************************************
@@ -786,10 +796,10 @@ nv50_msto_atomic_check(struct drm_encoder *encoder,
 	 * may have changed after the state was duplicated
 	 */
 	if (!state->duplicated) {
-		const int bpp = connector->display_info.bpc * 3;
 		const int clock = crtc_state->adjusted_mode.clock;
 
-		asyh->dp.pbn = drm_dp_calc_pbn_mode(clock, bpp);
+		asyh->or.bpc = connector->display_info.bpc;
+		asyh->dp.pbn = drm_dp_calc_pbn_mode(clock, asyh->or.bpc * 3);
 	}
 
 	slots = drm_dp_atomic_find_vcpi_slots(state, &mstm->mgr, mstc->port,
@@ -802,6 +812,17 @@ nv50_msto_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
+static u8
+nv50_dp_bpc_to_depth(unsigned int bpc)
+{
+	switch (bpc) {
+	case  6: return 0x2;
+	case  8: return 0x5;
+	case 10: /* fall-through */
+	default: return 0x6;
+	}
+}
+
 static void
 nv50_msto_enable(struct drm_encoder *encoder)
 {
@@ -812,7 +833,7 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	struct nv50_mstm *mstm = NULL;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
-	u8 proto, depth;
+	u8 proto;
 	bool r;
 
 	drm_connector_list_iter_begin(encoder->dev, &conn_iter);
@@ -841,14 +862,8 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	else
 		proto = 0x9;
 
-	switch (mstc->connector.display_info.bpc) {
-	case  6: depth = 0x2; break;
-	case  8: depth = 0x5; break;
-	case 10:
-	default: depth = 0x6; break;
-	}
-
-	mstm->outp->update(mstm->outp, head->base.index, armh, proto, depth);
+	mstm->outp->update(mstm->outp, head->base.index, armh, proto,
+			   nv50_dp_bpc_to_depth(armh->or.bpc));
 
 	msto->head = head;
 	msto->mstc = mstc;
@@ -1502,20 +1517,14 @@ nv50_sor_enable(struct drm_encoder *encoder)
 					lvds.lvds.script |= 0x0200;
 			}
 
-			if (nv_connector->base.display_info.bpc == 8)
+			if (asyh->or.bpc == 8)
 				lvds.lvds.script |= 0x0200;
 		}
 
 		nvif_mthd(&disp->disp->object, 0, &lvds, sizeof(lvds));
 		break;
 	case DCB_OUTPUT_DP:
-		if (nv_connector->base.display_info.bpc == 6)
-			depth = 0x2;
-		else
-		if (nv_connector->base.display_info.bpc == 8)
-			depth = 0x5;
-		else
-			depth = 0x6;
+		depth = nv50_dp_bpc_to_depth(asyh->or.bpc);
 
 		if (nv_encoder->link & 1)
 			proto = 0x8;
@@ -1666,7 +1675,7 @@ nv50_pior_enable(struct drm_encoder *encoder)
 	nv50_outp_acquire(nv_encoder);
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
-	switch (nv_connector->base.display_info.bpc) {
+	switch (asyh->or.bpc) {
 	case 10: asyh->or.depth = 0x6; break;
 	case  8: asyh->or.depth = 0x5; break;
 	case  6: asyh->or.depth = 0x2; break;
