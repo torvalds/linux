@@ -2655,7 +2655,7 @@ static int intel_pin2port(void *audio_ptr, int pin_nid)
 		base_nid = intel_base_nid(codec);
 		if (WARN_ON(pin_nid < base_nid || pin_nid >= base_nid + 3))
 			return -1;
-		return pin_nid - base_nid + 1; /* intel port is 1-based */
+		return pin_nid - base_nid + 1;
 	}
 
 	/*
@@ -2664,10 +2664,9 @@ static int intel_pin2port(void *audio_ptr, int pin_nid)
 	 */
 	for (i = 0; i < spec->port_num; i++) {
 		if (pin_nid == spec->port_map[i])
-			return i + 1;
+			return i;
 	}
 
-	/* return -1 if pin number exceeds our expectation */
 	codec_info(codec, "Can't find the HDMI/DP port for pin %d\n", pin_nid);
 	return -1;
 }
@@ -2680,13 +2679,12 @@ static int intel_port2pin(struct hda_codec *codec, int port)
 		/* we assume only from port-B to port-D */
 		if (port < 1 || port > 3)
 			return 0;
-		/* intel port is 1-based */
 		return port + intel_base_nid(codec) - 1;
 	}
 
-	if (port < 1 || port > spec->port_num)
+	if (port < 0 || port >= spec->port_num)
 		return 0;
-	return spec->port_map[port - 1];
+	return spec->port_map[port];
 }
 
 static void intel_pin_eld_notify(void *audio_ptr, int port, int pipe)
@@ -2838,9 +2836,9 @@ static int patch_i915_icl_hdmi(struct hda_codec *codec)
 {
 	/*
 	 * pin to port mapping table where the value indicate the pin number and
-	 * the index indicate the port number with 1 base.
+	 * the index indicate the port number.
 	 */
-	static const int map[] = {0x4, 0x6, 0x8, 0xa, 0xb};
+	static const int map[] = {0x0, 0x4, 0x6, 0x8, 0xa, 0xb};
 
 	return intel_hsw_common_init(codec, 0x02, map, ARRAY_SIZE(map));
 }
@@ -2849,13 +2847,12 @@ static int patch_i915_tgl_hdmi(struct hda_codec *codec)
 {
 	/*
 	 * pin to port mapping table where the value indicate the pin number and
-	 * the index indicate the port number with 1 base.
+	 * the index indicate the port number.
 	 */
 	static const int map[] = {0x4, 0x6, 0x8, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
 
 	return intel_hsw_common_init(codec, 0x02, map, ARRAY_SIZE(map));
 }
-
 
 /* Intel Baytrail and Braswell; with eld notifier */
 static int patch_i915_byt_hdmi(struct hda_codec *codec)
