@@ -64,12 +64,6 @@ void tilcdc_module_cleanup(struct tilcdc_module *mod)
 
 static struct of_device_id tilcdc_of_match[];
 
-static struct drm_framebuffer *tilcdc_fb_create(struct drm_device *dev,
-		struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	return drm_gem_fb_create(dev, file_priv, mode_cmd);
-}
-
 static int tilcdc_atomic_check(struct drm_device *dev,
 			       struct drm_atomic_state *state)
 {
@@ -140,7 +134,7 @@ static int tilcdc_commit(struct drm_device *dev,
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
-	.fb_create = tilcdc_fb_create,
+	.fb_create = drm_gem_fb_create,
 	.atomic_check = tilcdc_atomic_check,
 	.atomic_commit = tilcdc_commit,
 };
