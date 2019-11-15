@@ -770,32 +770,36 @@ nv50_msto_atomic_check(struct drm_encoder *encoder,
 	struct nv50_mstm *mstm = mstc->mstm;
 	struct nv50_head_atom *asyh = nv50_head_atom(crtc_state);
 	int slots;
+	int ret;
 
-	if (crtc_state->mode_changed || crtc_state->connectors_changed) {
-		/*
-		 * When restoring duplicated states, we need to make sure that
-		 * the bw remains the same and avoid recalculating it, as the
-		 * connector's bpc may have changed after the state was
-		 * duplicated
-		 */
-		if (!state->duplicated) {
-			const int bpp = connector->display_info.bpc * 3;
-			const int clock = crtc_state->adjusted_mode.clock;
+	ret = nv50_outp_atomic_check_view(encoder, crtc_state, conn_state,
+					  mstc->native);
+	if (ret)
+		return ret;
 
-			asyh->dp.pbn = drm_dp_calc_pbn_mode(clock, bpp);
-		}
+	if (!crtc_state->mode_changed && !crtc_state->connectors_changed)
+		return 0;
 
-		slots = drm_dp_atomic_find_vcpi_slots(state, &mstm->mgr,
-						      mstc->port,
-						      asyh->dp.pbn);
-		if (slots < 0)
-			return slots;
+	/*
+	 * When restoring duplicated states, we need to make sure that the bw
+	 * remains the same and avoid recalculating it, as the connector's bpc
+	 * may have changed after the state was duplicated
+	 */
+	if (!state->duplicated) {
+		const int bpp = connector->display_info.bpc * 3;
+		const int clock = crtc_state->adjusted_mode.clock;
 
-		asyh->dp.tu = slots;
+		asyh->dp.pbn = drm_dp_calc_pbn_mode(clock, bpp);
 	}
 
-	return nv50_outp_atomic_check_view(encoder, crtc_state, conn_state,
-					   mstc->native);
+	slots = drm_dp_atomic_find_vcpi_slots(state, &mstm->mgr, mstc->port,
+					      asyh->dp.pbn);
+	if (slots < 0)
+		return slots;
+
+	asyh->dp.tu = slots;
+
+	return 0;
 }
 
 static void
