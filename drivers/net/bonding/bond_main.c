@@ -41,6 +41,8 @@
 #include <linux/in.h>
 #include <net/ip.h>
 #include <linux/ip.h>
+#include <linux/icmp.h>
+#include <linux/icmpv6.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/slab.h>
@@ -3297,12 +3299,42 @@ static inline u32 bond_eth_hash(struct sk_buff *skb)
 	return 0;
 }
 
+static bool bond_flow_ip(struct sk_buff *skb, struct flow_keys *fk,
+			 int *noff, int *proto, bool l34)
+{
+	const struct ipv6hdr *iph6;
+	const struct iphdr *iph;
+
+	if (skb->protocol == htons(ETH_P_IP)) {
+		if (unlikely(!pskb_may_pull(skb, *noff + sizeof(*iph))))
+			return false;
+		iph = (const struct iphdr *)(skb->data + *noff);
+		iph_to_flow_copy_v4addrs(fk, iph);
+		*noff += iph->ihl << 2;
+		if (!ip_is_fragment(iph))
+			*proto = iph->protocol;
+	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+		if (unlikely(!pskb_may_pull(skb, *noff + sizeof(*iph6))))
+			return false;
+		iph6 = (const struct ipv6hdr *)(skb->data + *noff);
+		iph_to_flow_copy_v6addrs(fk, iph6);
+		*noff += sizeof(*iph6);
+		*proto = iph6->nexthdr;
+	} else {
+		return false;
+	}
+
+	if (l34 && *proto >= 0)
+		fk->ports.ports = skb_flow_get_ports(skb, *noff, *proto);
+
+	return true;
+}
+
 /* Extract the appropriate headers based on bond's xmit policy */
 static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 			      struct flow_keys *fk)
 {
-	const struct ipv6hdr *iph6;
-	const struct iphdr *iph;
+	bool l34 = bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34;
 	int noff, proto = -1;
 
 	if (bond->params.xmit_policy > BOND_XMIT_POLICY_LAYER23) {
@@ -3314,31 +3346,30 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 	fk->ports.ports = 0;
 	memset(&fk->icmp, 0, sizeof(fk->icmp));
 	noff = skb_network_offset(skb);
-	if (skb->protocol == htons(ETH_P_IP)) {
-		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph))))
-			return false;
-		iph = ip_hdr(skb);
-		iph_to_flow_copy_v4addrs(fk, iph);
-		noff += iph->ihl << 2;
-		if (!ip_is_fragment(iph))
-			proto = iph->protocol;
-	} else if (skb->protocol == htons(ETH_P_IPV6)) {
-		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph6))))
-			return false;
-		iph6 = ipv6_hdr(skb);
-		iph_to_flow_copy_v6addrs(fk, iph6);
-		noff += sizeof(*iph6);
-		proto = iph6->nexthdr;
-	} else {
+	if (!bond_flow_ip(skb, fk, &noff, &proto, l34))
 		return false;
-	}
-	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34 && proto >= 0) {
-		if (proto == IPPROTO_ICMP || proto == IPPROTO_ICMPV6)
-			skb_flow_get_icmp_tci(skb, &fk->icmp, skb->data,
-					      skb_transport_offset(skb),
-					      skb_headlen(skb));
-		else
-			fk->ports.ports = skb_flow_get_ports(skb, noff, proto);
+
+	/* ICMP error packets contains at least 8 bytes of the header
+	 * of the packet which generated the error. Use this information
+	 * to correlate ICMP error packets within the same flow which
+	 * generated the error.
+	 */
+	if (proto == IPPROTO_ICMP || proto == IPPROTO_ICMPV6) {
+		skb_flow_get_icmp_tci(skb, &fk->icmp, skb->data,
+				      skb_transport_offset(skb),
+				      skb_headlen(skb));
+		if (proto == IPPROTO_ICMP) {
+			if (!icmp_is_err(fk->icmp.type))
+				return true;
+
+			noff += sizeof(struct icmphdr);
+		} else if (proto == IPPROTO_ICMPV6) {
+			if (!icmpv6_is_err(fk->icmp.type))
+				return true;
+
+			noff += sizeof(struct icmp6hdr);
+		}
+		return bond_flow_ip(skb, fk, &noff, &proto, l34);
 	}
 
 	return true;
