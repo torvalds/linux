@@ -558,7 +558,14 @@ __acquires(&gl->gl_lockref.lock)
 	GLOCK_BUG_ON(gl, gl->gl_state == gl->gl_target);
 	if ((target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED) &&
 	    glops->go_inval) {
-		set_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);
+		/*
+		 * If another process is already doing the invalidate, let that
+		 * finish first.  The glock state machine will get back to this
+		 * holder again later.
+		 */
+		if (test_and_set_bit(GLF_INVALIDATE_IN_PROGRESS,
+				     &gl->gl_flags))
+			return;
 		do_error(gl, 0); /* Fail queued try locks */
 	}
 	gl->gl_req = target;
