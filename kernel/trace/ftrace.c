@@ -5112,30 +5112,40 @@ int register_ftrace_direct(unsigned long ip, unsigned long addr)
 }
 EXPORT_SYMBOL_GPL(register_ftrace_direct);
 
-int unregister_ftrace_direct(unsigned long ip, unsigned long addr)
+static struct ftrace_func_entry *find_direct_entry(unsigned long *ip)
 {
 	struct ftrace_func_entry *entry;
-	struct ftrace_direct_func *direct;
 	struct dyn_ftrace *rec;
+
+	rec = lookup_rec(*ip, *ip);
+	if (!rec)
+		return NULL;
+
+	entry = __ftrace_lookup_ip(direct_functions, rec->ip);
+	if (!entry) {
+		WARN_ON(rec->flags & FTRACE_FL_DIRECT);
+		return NULL;
+	}
+
+	WARN_ON(!(rec->flags & FTRACE_FL_DIRECT));
+
+	/* Passed in ip just needs to be on the call site */
+	*ip = rec->ip;
+
+	return entry;
+}
+
+int unregister_ftrace_direct(unsigned long ip, unsigned long addr)
+{
+	struct ftrace_direct_func *direct;
+	struct ftrace_func_entry *entry;
 	int ret = -ENODEV;
 
 	mutex_lock(&direct_mutex);
 
-	entry = __ftrace_lookup_ip(direct_functions, ip);
-	if (!entry) {
-		/* OK if it is off by a little */
-		rec = lookup_rec(ip, ip);
-		if (!rec || rec->ip == ip)
-			goto out_unlock;
-
-		entry = __ftrace_lookup_ip(direct_functions, rec->ip);
-		if (!entry) {
-			WARN_ON(rec->flags & FTRACE_FL_DIRECT);
-			goto out_unlock;
-		}
-
-		WARN_ON(!(rec->flags & FTRACE_FL_DIRECT));
-	}
+	entry = find_direct_entry(&ip);
+	if (!entry)
+		goto out_unlock;
 
 	if (direct_functions->count == 1)
 		unregister_ftrace_function(&direct_ops);
@@ -5187,24 +5197,13 @@ int modify_ftrace_direct(unsigned long ip,
 			 unsigned long old_addr, unsigned long new_addr)
 {
 	struct ftrace_func_entry *entry;
-	struct dyn_ftrace *rec;
 	int ret = -ENODEV;
 
 	mutex_lock(&direct_mutex);
-	entry = __ftrace_lookup_ip(direct_functions, ip);
-	if (!entry) {
-		/* OK if it is off by a little */
-		rec = lookup_rec(ip, ip);
-		if (!rec || rec->ip == ip)
-			goto out_unlock;
 
-		entry = __ftrace_lookup_ip(direct_functions, rec->ip);
-		if (!entry)
-			goto out_unlock;
-
-		ip = rec->ip;
-		WARN_ON(!(rec->flags & FTRACE_FL_DIRECT));
-	}
+	entry = find_direct_entry(&ip);
+	if (!entry)
+		goto out_unlock;
 
 	ret = -EINVAL;
 	if (entry->direct != old_addr)
