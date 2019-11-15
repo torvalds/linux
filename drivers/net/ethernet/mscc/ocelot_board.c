@@ -451,9 +451,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		priv = container_of(ocelot_port, struct ocelot_port_private,
 				    port);
 
-		err = of_get_phy_mode(portnp, &phy_mode);
-		if (err && err != -ENODEV)
-			goto out_put_ports;
+		of_get_phy_mode(portnp, &phy_mode);
 
 		priv->phy_mode = phy_mode;
 
