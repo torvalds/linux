@@ -649,7 +649,6 @@ static int ath10k_sdio_mbox_rx_fetch(struct ath10k *ar)
 
 	htc_hdr = (struct ath10k_htc_hdr *)skb->data;
 	pkt->act_len = le16_to_cpu(htc_hdr->len) + sizeof(*htc_hdr);
-	pkt->status = ret;
 	skb_put(skb, pkt->act_len);
 
 	return ret;
@@ -687,7 +686,6 @@ static int ath10k_sdio_mbox_rx_fetch_bundle(struct ath10k *ar)
 		pkt->act_len = le16_to_cpu(htc_hdr->len) + sizeof(*htc_hdr);
 
 		skb_put_data(pkt->skb, htc_hdr, pkt->act_len);
-		pkt->status = 0;
 		pkt_offset += pkt->alloc_len;
 	}
 

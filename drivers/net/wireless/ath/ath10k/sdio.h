@@ -126,7 +126,6 @@ struct ath10k_sdio_rx_data {
 	bool part_of_bundle;
 	bool last_in_bundle;
 	bool trailer_only;
-	int status;
 };
 
 struct ath10k_sdio_irq_proc_regs {
