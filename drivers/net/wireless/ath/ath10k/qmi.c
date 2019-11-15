@@ -635,7 +635,9 @@ static int ath10k_qmi_host_cap_send_sync(struct ath10k_qmi *qmi)
 	if (ret < 0)
 		goto out;
 
-	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
+	/* older FW didn't support this request, which is not fatal */
+	if (resp.resp.result != QMI_RESULT_SUCCESS_V01 &&
+	    resp.resp.error != QMI_ERR_NOT_SUPPORTED_V01) {
 		ath10k_err(ar, "host capability request rejected: %d\n", resp.resp.error);
 		ret = -EINVAL;
 		goto out;
