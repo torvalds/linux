@@ -69,6 +69,13 @@ static struct perf_pmu *perf_evsel__find_pmu(struct evsel *evsel)
 	return pmu;
 }
 
+static bool perf_evsel__is_aux_event(struct evsel *evsel)
+{
+	struct perf_pmu *pmu = perf_evsel__find_pmu(evsel);
+
+	return pmu && pmu->auxtrace;
+}
+
 static bool auxtrace__dont_decode(struct perf_session *session)
 {
 	return !session->itrace_synth_opts ||
@@ -607,6 +614,106 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 
 	pr_err("No AUX area tracing to snapshot\n");
 	return -EINVAL;
+}
+
+/*
+ * Event record size is 16-bit which results in a maximum size of about 64KiB.
+ * Allow about 4KiB for the rest of the sample record, to give a maximum
+ * AUX area sample size of 60KiB.
+ */
+#define MAX_AUX_SAMPLE_SIZE (60 * 1024)
+
+/* Arbitrary default size if no other default provided */
+#define DEFAULT_AUX_SAMPLE_SIZE (4 * 1024)
+
+static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
+					     struct record_opts *opts)
+{
+	struct evsel *evsel;
+	bool has_aux_leader = false;
+	u32 sz;
+
+	evlist__for_each_entry(evlist, evsel) {
+		sz = evsel->core.attr.aux_sample_size;
+		if (perf_evsel__is_group_leader(evsel)) {
+			has_aux_leader = perf_evsel__is_aux_event(evsel);
+			if (sz) {
+				if (has_aux_leader)
+					pr_err("Cannot add AUX area sampling to an AUX area event\n");
+				else
+					pr_err("Cannot add AUX area sampling to a group leader\n");
+				return -EINVAL;
+			}
+		}
+		if (sz > MAX_AUX_SAMPLE_SIZE) {
+			pr_err("AUX area sample size %u too big, max. %d\n",
+			       sz, MAX_AUX_SAMPLE_SIZE);
+			return -EINVAL;
+		}
+		if (sz) {
+			if (!has_aux_leader) {
+				pr_err("Cannot add AUX area sampling because group leader is not an AUX area event\n");
+				return -EINVAL;
+			}
+			perf_evsel__set_sample_bit(evsel, AUX);
+			opts->auxtrace_sample_mode = true;
+		} else {
+			perf_evsel__reset_sample_bit(evsel, AUX);
+		}
+	}
+
+	if (!opts->auxtrace_sample_mode) {
+		pr_err("AUX area sampling requires an AUX area event group leader plus other events to which to add samples\n");
+		return -EINVAL;
+	}
+
+	if (!perf_can_aux_sample()) {
+		pr_err("AUX area sampling is not supported by kernel\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int auxtrace_parse_sample_options(struct auxtrace_record *itr,
+				  struct evlist *evlist,
+				  struct record_opts *opts, const char *str)
+{
+	bool has_aux_leader = false;
+	struct evsel *evsel;
+	char *endptr;
+	unsigned long sz;
+
+	if (!str)
+		return 0;
+
+	if (!itr) {
+		pr_err("No AUX area event to sample\n");
+		return -EINVAL;
+	}
+
+	sz = strtoul(str, &endptr, 0);
+	if (*endptr || sz > UINT_MAX) {
+		pr_err("Bad AUX area sampling option: '%s'\n", str);
+		return -EINVAL;
+	}
+
+	if (!sz)
+		sz = itr->default_aux_sample_size;
+
+	if (!sz)
+		sz = DEFAULT_AUX_SAMPLE_SIZE;
+
+	/* Set aux_sample_size based on --aux-sample option */
+	evlist__for_each_entry(evlist, evsel) {
+		if (perf_evsel__is_group_leader(evsel)) {
+			has_aux_leader = perf_evsel__is_aux_event(evsel);
+		} else if (has_aux_leader) {
+			evsel->core.attr.aux_sample_size = sz;
+		}
+	}
+
+	return auxtrace_validate_aux_sample_size(evlist, opts);
 }
 
 struct auxtrace_record *__weak

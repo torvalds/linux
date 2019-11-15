@@ -313,6 +313,7 @@ struct auxtrace_mmap_params {
  * @reference: provide a 64-bit reference number for auxtrace_event
  * @read_finish: called after reading from an auxtrace mmap
  * @alignment: alignment (if any) for AUX area data
+ * @default_aux_sample_size: default sample size for --aux sample option
  */
 struct auxtrace_record {
 	int (*recording_options)(struct auxtrace_record *itr,
@@ -336,6 +337,7 @@ struct auxtrace_record {
 	u64 (*reference)(struct auxtrace_record *itr);
 	int (*read_finish)(struct auxtrace_record *itr, int idx);
 	unsigned int alignment;
+	unsigned int default_aux_sample_size;
 };
 
 /**
@@ -498,6 +500,9 @@ struct auxtrace_record *auxtrace_record__init(struct evlist *evlist,
 int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 				    struct record_opts *opts,
 				    const char *str);
+int auxtrace_parse_sample_options(struct auxtrace_record *itr,
+				  struct evlist *evlist,
+				  struct record_opts *opts, const char *str);
 int auxtrace_record__options(struct auxtrace_record *itr,
 			     struct evlist *evlist,
 			     struct record_opts *opts);
@@ -641,6 +646,18 @@ static inline
 int auxtrace_parse_snapshot_options(struct auxtrace_record *itr __maybe_unused,
 				    struct record_opts *opts __maybe_unused,
 				    const char *str)
+{
+	if (!str)
+		return 0;
+	pr_err("AUX area tracing not supported\n");
+	return -EINVAL;
+}
+
+static inline
+int auxtrace_parse_sample_options(struct auxtrace_record *itr __maybe_unused,
+				  struct evlist *evlist __maybe_unused,
+				  struct record_opts *opts __maybe_unused,
+				  const char *str)
 {
 	if (!str)
 		return 0;
