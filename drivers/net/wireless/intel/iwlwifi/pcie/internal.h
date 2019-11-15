@@ -702,9 +702,6 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
 void iwl_trans_pcie_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
-void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans_pcie *trans_pcie,
-				   struct iwl_txq *txq, u16 byte_cnt,
-				   int num_tbs);
 
 static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_trans *trans, void *_tfd,
 					  u8 idx)

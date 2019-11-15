@@ -86,9 +86,9 @@ void iwl_pcie_gen2_tx_stop(struct iwl_trans *trans)
 /*
  * iwl_pcie_txq_update_byte_tbl - Set up entry in Tx byte-count array
  */
-void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans_pcie *trans_pcie,
-				   struct iwl_txq *txq, u16 byte_cnt,
-				   int num_tbs)
+static void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans_pcie *trans_pcie,
+					  struct iwl_txq *txq, u16 byte_cnt,
+					  int num_tbs)
 {
 	struct iwlagn_scd_bc_tbl *scd_bc_tbl = txq->bc_tbl.addr;
 	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
