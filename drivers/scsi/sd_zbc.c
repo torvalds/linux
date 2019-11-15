@@ -338,7 +338,6 @@ static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
 static int sd_zbc_check_zones(struct scsi_disk *sdkp, unsigned char *buf,
 			      u32 *zblocks)
 {
-	size_t buflen;
 	u64 zone_blocks = 0;
 	sector_t max_lba;
 	unsigned char *rec;
@@ -363,7 +362,6 @@ static int sd_zbc_check_zones(struct scsi_disk *sdkp, unsigned char *buf,
 	}
 
 	/* Parse REPORT ZONES header */
-	buflen = min_t(size_t, get_unaligned_be32(&buf[0]) + 64, SD_BUF_SIZE);
 	rec = buf + 64;
 	zone_blocks = get_unaligned_be64(&rec[8]);
 	if (!zone_blocks || !is_power_of_2(zone_blocks)) {
