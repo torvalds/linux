@@ -554,6 +554,13 @@ int intel_guc_suspend(struct intel_guc *guc)
 	};
 
 	/*
+	 * If GuC communication is enabled but submission is not supported,
+	 * we do not need to suspend the GuC.
+	 */
+	if (!intel_guc_submission_is_enabled(guc))
+		return 0;
+
+	/*
 	 * The ENTER_S_STATE action queues the save/restore operation in GuC FW
 	 * and then returns, so waiting on the H2G is not enough to guarantee
 	 * GuC is done. When all the processing is done, GuC writes
@@ -609,6 +616,14 @@ int intel_guc_resume(struct intel_guc *guc)
 		INTEL_GUC_ACTION_EXIT_S_STATE,
 		GUC_POWER_D0,
 	};
+
+	/*
+	 * If GuC communication is enabled but submission is not supported,
+	 * we do not need to resume the GuC but we do need to enable the
+	 * GuC communication on resume (above).
+	 */
+	if (!intel_guc_submission_is_enabled(guc))
+		return 0;
 
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
