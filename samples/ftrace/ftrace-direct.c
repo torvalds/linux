@@ -6,7 +6,7 @@
 
 void my_direct_func(struct task_struct *p)
 {
-	trace_printk("wakeing up %s-%d\n", p->comm, p->pid);
+	trace_printk("waking up %s-%d\n", p->comm, p->pid);
 }
 
 extern void my_tramp(void *);

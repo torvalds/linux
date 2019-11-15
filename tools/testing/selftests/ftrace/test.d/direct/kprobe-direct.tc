@@ -16,7 +16,7 @@ fi
 echo "Let the module run a little"
 sleep 1
 
-grep -q "my_direct_func: wakeing up" trace
+grep -q "my_direct_func: waking up" trace
 
 rmmod ftrace-direct
 
@@ -26,7 +26,7 @@ start_direct() {
 	echo > trace
 	modprobe ftrace-direct
 	sleep 1
-	grep -q "my_direct_func: wakeing up" trace
+	grep -q "my_direct_func: waking up" trace
 }
 
 stop_direct() {
