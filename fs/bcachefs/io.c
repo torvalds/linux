@@ -19,7 +19,7 @@
 #include "disk_groups.h"
 #include "ec.h"
 #include "error.h"
-#include "extents.h"
+#include "extent_update.h"
 #include "inode.h"
 #include "io.h"
 #include "journal.h"

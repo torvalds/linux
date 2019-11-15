@@ -26,6 +26,7 @@ bcachefs-y		:=	\
 	ec.o			\
 	error.o			\
 	extents.o		\
+	extent_update.o		\
 	fs.o			\
 	fs-common.o		\
 	fs-ioctl.o		\

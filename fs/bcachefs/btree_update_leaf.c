@@ -10,7 +10,7 @@
 #include "buckets.h"
 #include "debug.h"
 #include "error.h"
-#include "extents.h"
+#include "extent_update.h"
 #include "journal.h"
 #include "journal_reclaim.h"
 #include "keylist.h"

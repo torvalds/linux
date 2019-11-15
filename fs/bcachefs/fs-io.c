@@ -9,6 +9,7 @@
 #include "clock.h"
 #include "error.h"
 #include "extents.h"
+#include "extent_update.h"
 #include "fs.h"
 #include "fs-io.h"
 #include "fsck.h"
