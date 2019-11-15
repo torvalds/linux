@@ -36,6 +36,7 @@ struct regulator {
 	struct list_head list;
 	unsigned int always_on:1;
 	unsigned int bypass:1;
+	unsigned int device_link:1;
 	int uA_load;
 	unsigned int enable_count;
 	unsigned int deferred_disables;
