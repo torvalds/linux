@@ -1427,17 +1427,13 @@ int enetc_close(struct net_device *ndev)
 	return 0;
 }
 
-int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
-		   void *type_data)
+int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct tc_mqprio_qopt *mqprio = type_data;
 	struct enetc_bdr *tx_ring;
 	u8 num_tc;
 	int i;
-
-	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 	num_tc = mqprio->num_tc;
@@ -1481,6 +1477,19 @@ int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		netdev_set_tc_queue(ndev, i, 1, i);
 
 	return 0;
+}
+
+int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
+		   void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_QDISC_MQPRIO:
+		return enetc_setup_tc_mqprio(ndev, type_data);
+	case TC_SETUP_QDISC_TAPRIO:
+		return enetc_setup_tc_taprio(ndev, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 struct net_device_stats *enetc_get_stats(struct net_device *ndev)
