@@ -118,6 +118,8 @@ enum enetc_errata {
 	ENETC_ERR_UCMCSWP	= BIT(2),
 };
 
+#define ENETC_SI_F_QBV BIT(0)
+
 /* PCI IEP device data */
 struct enetc_si {
 	struct pci_dev *pdev;
@@ -133,6 +135,7 @@ struct enetc_si {
 	int num_fs_entries;
 	int num_rss; /* number of RSS buckets */
 	unsigned short pad;
+	int hw_features;
 };
 
 #define ENETC_SI_ALIGN	32
@@ -173,6 +176,7 @@ struct enetc_cls_rule {
 enum enetc_active_offloads {
 	ENETC_F_RX_TSTAMP	= BIT(0),
 	ENETC_F_TX_TSTAMP	= BIT(1),
+	ENETC_F_QBV             = BIT(2),
 };
 
 struct enetc_ndev_priv {
@@ -187,6 +191,8 @@ struct enetc_ndev_priv {
 
 	u16 msg_enable;
 	int active_offloads;
+
+	u32 speed; /* store speed for compare update pspeed */
 
 	struct enetc_bdr *tx_ring[16];
 	struct enetc_bdr *rx_ring[16];
@@ -248,6 +254,8 @@ int enetc_send_cmd(struct enetc_si *si, struct enetc_cbd *cbd);
 
 #ifdef CONFIG_FSL_ENETC_QOS
 int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data);
+void enetc_sched_speed_set(struct net_device *ndev);
 #else
 #define enetc_setup_tc_taprio(ndev, type_data) -EOPNOTSUPP
+#define enetc_sched_speed_set(ndev) (void)0
 #endif

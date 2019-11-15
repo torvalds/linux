@@ -742,9 +742,14 @@ void enetc_get_si_caps(struct enetc_si *si)
 	si->num_rss = 0;
 	val = enetc_rd(hw, ENETC_SIPCAPR0);
 	if (val & ENETC_SIPCAPR0_RSS) {
-		val = enetc_rd(hw, ENETC_SIRSSCAPR);
-		si->num_rss = ENETC_SIRSSCAPR_GET_NUM_RSS(val);
+		u32 rss;
+
+		rss = enetc_rd(hw, ENETC_SIRSSCAPR);
+		si->num_rss = ENETC_SIRSSCAPR_GET_NUM_RSS(rss);
 	}
+
+	if (val & ENETC_SIPCAPR0_QBV)
+		si->hw_features |= ENETC_SI_F_QBV;
 }
 
 static int enetc_dma_alloc_bdr(struct enetc_bdr *r, size_t bd_size)
@@ -1314,7 +1319,11 @@ static void enetc_disable_interrupts(struct enetc_ndev_priv *priv)
 
 static void adjust_link(struct net_device *ndev)
 {
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct phy_device *phydev = ndev->phydev;
+
+	if (priv->active_offloads & ENETC_F_QBV)
+		enetc_sched_speed_set(ndev);
 
 	phy_print_status(phydev);
 }

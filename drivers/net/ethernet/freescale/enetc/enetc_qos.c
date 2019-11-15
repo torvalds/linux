@@ -11,6 +11,40 @@ static u16 enetc_get_max_gcl_len(struct enetc_hw *hw)
 		& ENETC_QBV_MAX_GCL_LEN_MASK;
 }
 
+void enetc_sched_speed_set(struct net_device *ndev)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct phy_device *phydev = ndev->phydev;
+	u32 old_speed = priv->speed;
+	u32 speed, pspeed;
+
+	if (phydev->speed == old_speed)
+		return;
+
+	speed = phydev->speed;
+	switch (speed) {
+	case SPEED_1000:
+		pspeed = ENETC_PMR_PSPEED_1000M;
+		break;
+	case SPEED_2500:
+		pspeed = ENETC_PMR_PSPEED_2500M;
+		break;
+	case SPEED_100:
+		pspeed = ENETC_PMR_PSPEED_100M;
+		break;
+	case SPEED_10:
+	default:
+		pspeed = ENETC_PMR_PSPEED_10M;
+		netdev_err(ndev, "Qbv PSPEED set speed link down.\n");
+	}
+
+	priv->speed = speed;
+	enetc_port_wr(&priv->si->hw, ENETC_PMR,
+		      (enetc_port_rd(&priv->si->hw, ENETC_PMR)
+		      & (~ENETC_PMR_PSPEED_MASK))
+		      | pspeed);
+}
+
 static int enetc_setup_taprio(struct net_device *ndev,
 			      struct tc_taprio_qopt_offload *admin_conf)
 {
