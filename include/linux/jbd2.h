@@ -1627,10 +1627,14 @@ static inline tid_t  jbd2_get_latest_transaction(journal_t *journal)
 	return tid;
 }
 
-
 static inline int jbd2_handle_buffer_credits(handle_t *handle)
 {
-	journal_t *journal = handle->h_transaction->t_journal;
+	journal_t *journal;
+
+	if (!handle->h_reserved)
+		journal = handle->h_transaction->t_journal;
+	else
+		journal = handle->h_journal;
 
 	return handle->h_total_credits -
 		DIV_ROUND_UP(handle->h_revoke_credits_requested,
