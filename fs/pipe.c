@@ -43,10 +43,12 @@ unsigned long pipe_user_pages_hard;
 unsigned long pipe_user_pages_soft = PIPE_DEF_BUFFERS * INR_OPEN_CUR;
 
 /*
- * We use a start+len construction, which provides full use of the 
- * allocated memory.
- * -- Florian Coosmann (FGC)
- * 
+ * We use head and tail indices that aren't masked off, except at the point of
+ * dereference, but rather they're allowed to wrap naturally.  This means there
+ * isn't a dead spot in the buffer, but the ring has to be a power of two and
+ * <= 2^31.
+ * -- David Howells 2019-09-23.
+ *
  * Reads with count = 0 should always return 0.
  * -- Julian Bradfield 1999-06-07.
  *
@@ -285,10 +287,12 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 	ret = 0;
 	__pipe_lock(pipe);
 	for (;;) {
-		int bufs = pipe->nrbufs;
-		if (bufs) {
-			int curbuf = pipe->curbuf;
-			struct pipe_buffer *buf = pipe->bufs + curbuf;
+		unsigned int head = pipe->head;
+		unsigned int tail = pipe->tail;
+		unsigned int mask = pipe->ring_size - 1;
+
+		if (!pipe_empty(head, tail)) {
+			struct pipe_buffer *buf = &pipe->bufs[tail & mask];
 			size_t chars = buf->len;
 			size_t written;
 			int error;
@@ -321,17 +325,17 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 
 			if (!buf->len) {
 				pipe_buf_release(pipe, buf);
-				curbuf = (curbuf + 1) & (pipe->buffers - 1);
-				pipe->curbuf = curbuf;
-				pipe->nrbufs = --bufs;
+				tail++;
+				pipe->tail = tail;
 				do_wakeup = 1;
 			}
 			total_len -= chars;
 			if (!total_len)
 				break;	/* common path: read succeeded */
+			if (!pipe_empty(head, tail))	/* More to do? */
+				continue;
 		}
-		if (bufs)	/* More to do? */
-			continue;
+
 		if (!pipe->writers)
 			break;
 		if (!pipe->waiting_writers) {
@@ -380,6 +384,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *filp = iocb->ki_filp;
 	struct pipe_inode_info *pipe = filp->private_data;
+	unsigned int head, tail, max_usage, mask;
 	ssize_t ret = 0;
 	int do_wakeup = 0;
 	size_t total_len = iov_iter_count(from);
@@ -397,12 +402,15 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 	}
 
+	tail = pipe->tail;
+	head = pipe->head;
+	max_usage = pipe->ring_size;
+	mask = pipe->ring_size - 1;
+
 	/* We try to merge small writes */
 	chars = total_len & (PAGE_SIZE-1); /* size of the last buffer */
-	if (pipe->nrbufs && chars != 0) {
-		int lastbuf = (pipe->curbuf + pipe->nrbufs - 1) &
-							(pipe->buffers - 1);
-		struct pipe_buffer *buf = pipe->bufs + lastbuf;
+	if (!pipe_empty(head, tail) && chars != 0) {
+		struct pipe_buffer *buf = &pipe->bufs[(head - 1) & mask];
 		int offset = buf->offset + buf->len;
 
 		if (pipe_buf_can_merge(buf) && offset + chars <= PAGE_SIZE) {
@@ -423,18 +431,16 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	for (;;) {
-		int bufs;
-
 		if (!pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			if (!ret)
 				ret = -EPIPE;
 			break;
 		}
-		bufs = pipe->nrbufs;
-		if (bufs < pipe->buffers) {
-			int newbuf = (pipe->curbuf + bufs) & (pipe->buffers-1);
-			struct pipe_buffer *buf = pipe->bufs + newbuf;
+
+		tail = pipe->tail;
+		if (!pipe_full(head, tail, max_usage)) {
+			struct pipe_buffer *buf = &pipe->bufs[head & mask];
 			struct page *page = pipe->tmp_page;
 			int copied;
 
@@ -470,14 +476,19 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 				buf->ops = &packet_pipe_buf_ops;
 				buf->flags = PIPE_BUF_FLAG_PACKET;
 			}
-			pipe->nrbufs = ++bufs;
+
+			head++;
+			pipe->head = head;
 			pipe->tmp_page = NULL;
 
 			if (!iov_iter_count(from))
 				break;
 		}
-		if (bufs < pipe->buffers)
+
+		if (!pipe_full(head, tail, max_usage))
 			continue;
+
+		/* Wait for buffer space to become available. */
 		if (filp->f_flags & O_NONBLOCK) {
 			if (!ret)
 				ret = -EAGAIN;
@@ -515,17 +526,19 @@ out:
 static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct pipe_inode_info *pipe = filp->private_data;
-	int count, buf, nrbufs;
+	int count, head, tail, mask;
 
 	switch (cmd) {
 		case FIONREAD:
 			__pipe_lock(pipe);
 			count = 0;
-			buf = pipe->curbuf;
-			nrbufs = pipe->nrbufs;
-			while (--nrbufs >= 0) {
-				count += pipe->bufs[buf].len;
-				buf = (buf+1) & (pipe->buffers - 1);
+			head = pipe->head;
+			tail = pipe->tail;
+			mask = pipe->ring_size - 1;
+
+			while (tail != head) {
+				count += pipe->bufs[tail & mask].len;
+				tail++;
 			}
 			__pipe_unlock(pipe);
 
@@ -541,21 +554,25 @@ pipe_poll(struct file *filp, poll_table *wait)
 {
 	__poll_t mask;
 	struct pipe_inode_info *pipe = filp->private_data;
-	int nrbufs;
+	unsigned int head = READ_ONCE(pipe->head);
+	unsigned int tail = READ_ONCE(pipe->tail);
 
 	poll_wait(filp, &pipe->wait, wait);
 
+	BUG_ON(pipe_occupancy(head, tail) > pipe->ring_size);
+
 	/* Reading only -- no need for acquiring the semaphore.  */
-	nrbufs = pipe->nrbufs;
 	mask = 0;
 	if (filp->f_mode & FMODE_READ) {
-		mask = (nrbufs > 0) ? EPOLLIN | EPOLLRDNORM : 0;
+		if (!pipe_empty(head, tail))
+			mask |= EPOLLIN | EPOLLRDNORM;
 		if (!pipe->writers && filp->f_version != pipe->w_counter)
 			mask |= EPOLLHUP;
 	}
 
 	if (filp->f_mode & FMODE_WRITE) {
-		mask |= (nrbufs < pipe->buffers) ? EPOLLOUT | EPOLLWRNORM : 0;
+		if (!pipe_full(head, tail, pipe->ring_size))
+			mask |= EPOLLOUT | EPOLLWRNORM;
 		/*
 		 * Most Unices do not set EPOLLERR for FIFOs but on Linux they
 		 * behave exactly like pipes for poll().
@@ -679,7 +696,7 @@ struct pipe_inode_info *alloc_pipe_info(void)
 	if (pipe->bufs) {
 		init_waitqueue_head(&pipe->wait);
 		pipe->r_counter = pipe->w_counter = 1;
-		pipe->buffers = pipe_bufs;
+		pipe->ring_size = pipe_bufs;
 		pipe->user = user;
 		mutex_init(&pipe->mutex);
 		return pipe;
@@ -697,9 +714,9 @@ void free_pipe_info(struct pipe_inode_info *pipe)
 {
 	int i;
 
-	(void) account_pipe_buffers(pipe->user, pipe->buffers, 0);
+	(void) account_pipe_buffers(pipe->user, pipe->ring_size, 0);
 	free_uid(pipe->user);
-	for (i = 0; i < pipe->buffers; i++) {
+	for (i = 0; i < pipe->ring_size; i++) {
 		struct pipe_buffer *buf = pipe->bufs + i;
 		if (buf->ops)
 			pipe_buf_release(pipe, buf);
@@ -880,7 +897,7 @@ SYSCALL_DEFINE1(pipe, int __user *, fildes)
 
 static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
 {
-	int cur = *cnt;	
+	int cur = *cnt;
 
 	while (cur == *cnt) {
 		pipe_wait(pipe);
@@ -955,7 +972,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 			}
 		}
 		break;
-	
+
 	case FMODE_WRITE:
 	/*
 	 *  O_WRONLY
@@ -975,7 +992,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 				goto err_wr;
 		}
 		break;
-	
+
 	case FMODE_READ | FMODE_WRITE:
 	/*
 	 *  O_RDWR
@@ -1054,14 +1071,14 @@ unsigned int round_pipe_size(unsigned long size)
 static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 {
 	struct pipe_buffer *bufs;
-	unsigned int size, nr_pages;
+	unsigned int size, nr_slots, head, tail, mask, n;
 	unsigned long user_bufs;
 	long ret = 0;
 
 	size = round_pipe_size(arg);
-	nr_pages = size >> PAGE_SHIFT;
+	nr_slots = size >> PAGE_SHIFT;
 
-	if (!nr_pages)
+	if (!nr_slots)
 		return -EINVAL;
 
 	/*
@@ -1071,13 +1088,13 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	 * Decreasing the pipe capacity is always permitted, even
 	 * if the user is currently over a limit.
 	 */
-	if (nr_pages > pipe->buffers &&
+	if (nr_slots > pipe->ring_size &&
 			size > pipe_max_size && !capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
-	user_bufs = account_pipe_buffers(pipe->user, pipe->buffers, nr_pages);
+	user_bufs = account_pipe_buffers(pipe->user, pipe->ring_size, nr_slots);
 
-	if (nr_pages > pipe->buffers &&
+	if (nr_slots > pipe->ring_size &&
 			(too_many_pipe_buffers_hard(user_bufs) ||
 			 too_many_pipe_buffers_soft(user_bufs)) &&
 			is_unprivileged_user()) {
@@ -1086,17 +1103,21 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	}
 
 	/*
-	 * We can shrink the pipe, if arg >= pipe->nrbufs. Since we don't
-	 * expect a lot of shrink+grow operations, just free and allocate
-	 * again like we would do for growing. If the pipe currently
+	 * We can shrink the pipe, if arg is greater than the ring occupancy.
+	 * Since we don't expect a lot of shrink+grow operations, just free and
+	 * allocate again like we would do for growing.  If the pipe currently
 	 * contains more buffers than arg, then return busy.
 	 */
-	if (nr_pages < pipe->nrbufs) {
+	mask = pipe->ring_size - 1;
+	head = pipe->head;
+	tail = pipe->tail;
+	n = pipe_occupancy(pipe->head, pipe->tail);
+	if (nr_slots < n) {
 		ret = -EBUSY;
 		goto out_revert_acct;
 	}
 
-	bufs = kcalloc(nr_pages, sizeof(*bufs),
+	bufs = kcalloc(nr_slots, sizeof(*bufs),
 		       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
 	if (unlikely(!bufs)) {
 		ret = -ENOMEM;
@@ -1105,33 +1126,36 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 
 	/*
 	 * The pipe array wraps around, so just start the new one at zero
-	 * and adjust the indexes.
+	 * and adjust the indices.
 	 */
-	if (pipe->nrbufs) {
-		unsigned int tail;
-		unsigned int head;
-
-		tail = pipe->curbuf + pipe->nrbufs;
-		if (tail < pipe->buffers)
-			tail = 0;
-		else
-			tail &= (pipe->buffers - 1);
-
-		head = pipe->nrbufs - tail;
-		if (head)
-			memcpy(bufs, pipe->bufs + pipe->curbuf, head * sizeof(struct pipe_buffer));
-		if (tail)
-			memcpy(bufs + head, pipe->bufs, tail * sizeof(struct pipe_buffer));
+	if (n > 0) {
+		unsigned int h = head & mask;
+		unsigned int t = tail & mask;
+		if (h > t) {
+			memcpy(bufs, pipe->bufs + t,
+			       n * sizeof(struct pipe_buffer));
+		} else {
+			unsigned int tsize = pipe->ring_size - t;
+			if (h > 0)
+				memcpy(bufs + tsize, pipe->bufs,
+				       h * sizeof(struct pipe_buffer));
+			memcpy(bufs, pipe->bufs + t,
+			       tsize * sizeof(struct pipe_buffer));
+		}
 	}
 
-	pipe->curbuf = 0;
+	head = n;
+	tail = 0;
+
 	kfree(pipe->bufs);
 	pipe->bufs = bufs;
-	pipe->buffers = nr_pages;
-	return nr_pages * PAGE_SIZE;
+	pipe->ring_size = nr_slots;
+	pipe->tail = tail;
+	pipe->head = head;
+	return pipe->ring_size * PAGE_SIZE;
 
 out_revert_acct:
-	(void) account_pipe_buffers(pipe->user, nr_pages, pipe->buffers);
+	(void) account_pipe_buffers(pipe->user, nr_slots, pipe->ring_size);
 	return ret;
 }
 
@@ -1161,7 +1185,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = pipe_set_size(pipe, arg);
 		break;
 	case F_GETPIPE_SZ:
-		ret = pipe->buffers * PAGE_SIZE;
+		ret = pipe->ring_size * PAGE_SIZE;
 		break;
 	default:
 		ret = -EINVAL;
