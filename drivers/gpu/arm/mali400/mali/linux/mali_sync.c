@@ -612,6 +612,10 @@ struct mali_internal_sync_fence *mali_sync_flag_create_fence(struct mali_sync_fl
 		return NULL;
 	}
 
+	/* 'sync_pt' no longer needs to hold a refcount of '*sync_pt', to put it off. */
+	dma_fence_put(&sync_pt->base);
+	sync_pt = NULL;
+
 	return sync_fence;
 }
 #endif
