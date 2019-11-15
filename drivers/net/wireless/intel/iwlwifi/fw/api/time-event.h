@@ -459,6 +459,7 @@ struct iwl_mvm_session_prot_cmd {
  * @mac_id: the mac id for which the session protection started / ended
  * @status: 1 means success, 0 means failure
  * @start: 1 means the session protection started, 0 means it ended
+ * @conf_id: the configuration id of the session that started / eneded
  *
  * Note that any session protection will always get two notifications: start
  * and end even the firmware could not schedule it.
@@ -467,6 +468,7 @@ struct iwl_mvm_session_prot_notif {
 	__le32 mac_id;
 	__le32 status;
 	__le32 start;
-} __packed; /* SESSION_PROTECTION_NOTIFICATION_API_S_VER_1 */
+	__le32 conf_id;
+} __packed; /* SESSION_PROTECTION_NOTIFICATION_API_S_VER_2 */
 
 #endif /* __iwl_fw_api_time_event_h__ */
