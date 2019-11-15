@@ -399,8 +399,7 @@ struct lfcc {
  * Returns: errno
  */
 
-static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
-				    struct gfs2_holder *freeze_gh)
+static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *ip;
 	struct gfs2_jdesc *jd;
@@ -425,7 +424,9 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	}
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_EXCLUSIVE,
-				   GL_NOCACHE, freeze_gh);
+				   GL_NOCACHE, &sdp->sd_freeze_gh);
+	if (error)
+		goto out;
 
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		error = gfs2_jdesc_check(jd);
@@ -441,7 +442,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	}
 
 	if (error)
-		gfs2_glock_dq_uninit(freeze_gh);
+		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 
 out:
 	while (!list_empty(&list)) {
@@ -767,15 +768,19 @@ static int gfs2_freeze(struct super_block *sb)
 			goto out;
 		}
 
-		error = gfs2_lock_fs_check_clean(sdp, &sdp->sd_freeze_gh);
+		error = gfs2_lock_fs_check_clean(sdp);
 		if (!error)
 			break;
 
 		if (error == -EBUSY)
 			fs_err(sdp, "waiting for recovery before freeze\n");
-		else
+		else if (error == -EIO) {
+			fs_err(sdp, "Fatal IO error: cannot freeze gfs2 due "
+			       "to recovery error.\n");
+			goto out;
+		} else {
 			fs_err(sdp, "error freezing FS: %d\n", error);
-
+		}
 		fs_err(sdp, "retrying...\n");
 		msleep(1000);
 	}
