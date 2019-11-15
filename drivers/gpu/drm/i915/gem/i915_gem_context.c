@@ -1141,7 +1141,7 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 
 	if (i915_gem_context_is_closed(ctx)) {
 		err = -ENOENT;
-		goto out;
+		goto unlock;
 	}
 
 	if (vm == rcu_access_pointer(ctx->vm))

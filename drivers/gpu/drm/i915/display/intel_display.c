@@ -66,6 +66,7 @@
 #include "intel_cdclk.h"
 #include "intel_color.h"
 #include "intel_display_types.h"
+#include "intel_dp_link_training.h"
 #include "intel_fbc.h"
 #include "intel_fbdev.h"
 #include "intel_fifo_underrun.h"
@@ -2528,6 +2529,9 @@ u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 	 * the highest stride limits of them all.
 	 */
 	crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_A);
+	if (!crtc)
+		return 0;
+
 	plane = to_intel_plane(crtc->base.primary);
 
 	return plane->max_stride(plane, pixel_format, modifier,
@@ -14201,6 +14205,11 @@ static void intel_update_crtc(struct intel_crtc *crtc,
 		/* vblanks work again, re-enable pipe CRC. */
 		intel_crtc_enable_pipe_crc(crtc);
 	} else {
+		if (new_crtc_state->preload_luts &&
+		    (new_crtc_state->base.color_mgmt_changed ||
+		     new_crtc_state->update_pipe))
+			intel_color_load_luts(new_crtc_state);
+
 		intel_pre_plane_update(old_crtc_state, new_crtc_state);
 
 		if (new_crtc_state->update_pipe)
@@ -14713,6 +14722,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (new_crtc_state->base.active &&
 		    !needs_modeset(new_crtc_state) &&
+		    !new_crtc_state->preload_luts &&
 		    (new_crtc_state->base.color_mgmt_changed ||
 		     new_crtc_state->update_pipe))
 			intel_color_load_luts(new_crtc_state);

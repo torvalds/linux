@@ -27,7 +27,6 @@
 
 #include <drm/drm_util.h>
 #include <drm/i915_drm.h>
-#include "intel_dp_link_training.h"
 
 enum link_m_n_set;
 struct dpll;
