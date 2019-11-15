@@ -1093,7 +1093,7 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	if (of_get_child_count(pdev->dev.of_node) == 0) {
 		dev_info(&pdev->dev,
 			 "device-tree node doesn't have memory timings\n");
-		return 0;
+		return -ENODEV;
 	}
 
 	np = of_parse_phandle(pdev->dev.of_node, "nvidia,memory-controller", 0);
