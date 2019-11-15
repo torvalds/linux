@@ -161,10 +161,10 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
  * of the DELETE LINK sequence from server; or as server to
  * initiate the delete processing. See smc_llc_rx_delete_link().
  */
-static int smc_link_send_delete(struct smc_link *lnk)
+static int smc_link_send_delete(struct smc_link *lnk, bool orderly)
 {
 	if (lnk->state == SMC_LNK_ACTIVE &&
-	    !smc_llc_send_delete_link(lnk, SMC_LLC_REQ, true)) {
+	    !smc_llc_send_delete_link(lnk, SMC_LLC_REQ, orderly)) {
 		smc_llc_link_deleting(lnk);
 		return 0;
 	}
@@ -201,7 +201,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 	if (!lgr->is_smcd && !lgr->terminating)	{
 		/* try to send del link msg, on error free lgr immediately */
 		if (lnk->state == SMC_LNK_ACTIVE &&
-		    !smc_link_send_delete(lnk)) {
+		    !smc_link_send_delete(lnk, true)) {
 			/* reschedule in case we never receive a response */
 			smc_lgr_schedule_free_work(lgr);
 			spin_unlock_bh(lgr_lock);
@@ -214,7 +214,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 
 	if (!lgr->is_smcd && lnk->state != SMC_LNK_INACTIVE)
 		smc_llc_link_inactive(lnk);
-	if (lgr->is_smcd)
+	if (lgr->is_smcd && !lgr->terminating)
 		smc_ism_signal_shutdown(lgr);
 	smc_lgr_free(lgr);
 }
@@ -224,7 +224,7 @@ static void smc_lgr_terminate_work(struct work_struct *work)
 	struct smc_link_group *lgr = container_of(work, struct smc_link_group,
 						  terminate_work);
 
-	smc_lgr_terminate(lgr);
+	smc_lgr_terminate(lgr, true);
 }
 
 /* create a new SMC link group */
@@ -275,6 +275,8 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		lgr->smcd = ini->ism_dev;
 		lgr_list = &ini->ism_dev->lgr_list;
 		lgr_lock = &lgr->smcd->lgr_lock;
+		lgr->peer_shutdown = 0;
+		atomic_inc(&ini->ism_dev->lgr_cnt);
 	} else {
 		/* SMC-R specific settings */
 		get_device(&ini->ib_dev->ibdev->dev);
@@ -380,7 +382,8 @@ void smc_conn_free(struct smc_connection *conn)
 	if (!lgr)
 		return;
 	if (lgr->is_smcd) {
-		smc_ism_unset_conn(conn);
+		if (!list_empty(&lgr->list))
+			smc_ism_unset_conn(conn);
 		tasklet_kill(&conn->rx_tsklet);
 	} else {
 		smc_cdc_tx_dismiss_slots(conn);
@@ -480,8 +483,12 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 {
 	smc_lgr_free_bufs(lgr);
 	if (lgr->is_smcd) {
-		smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
-		put_device(&lgr->smcd->dev);
+		if (!lgr->terminating) {
+			smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
+			put_device(&lgr->smcd->dev);
+		}
+		if (!atomic_dec_return(&lgr->smcd->lgr_cnt))
+			wake_up(&lgr->smcd->lgrs_deleted);
 	} else {
 		smc_link_clear(&lgr->lnk[SMC_SINGLE_LINK]);
 		put_device(&lgr->lnk[SMC_SINGLE_LINK].smcibdev->ibdev->dev);
@@ -502,6 +509,20 @@ void smc_lgr_forget(struct smc_link_group *lgr)
 	spin_unlock_bh(lgr_lock);
 }
 
+static void smcd_unregister_all_dmbs(struct smc_link_group *lgr)
+{
+	int i;
+
+	for (i = 0; i < SMC_RMBE_SIZES; i++) {
+		struct smc_buf_desc *buf_desc;
+
+		list_for_each_entry(buf_desc, &lgr->rmbs[i], list) {
+			buf_desc->len += sizeof(struct smcd_cdc_msg);
+			smc_ism_unregister_dmb(lgr->smcd, buf_desc);
+		}
+	}
+}
+
 static void smc_sk_wake_ups(struct smc_sock *smc)
 {
 	smc->sk.sk_write_space(&smc->sk);
@@ -510,20 +531,50 @@ static void smc_sk_wake_ups(struct smc_sock *smc)
 }
 
 /* kill a connection */
-static void smc_conn_kill(struct smc_connection *conn)
+static void smc_conn_kill(struct smc_connection *conn, bool soft)
 {
 	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
 
-	smc_close_abort(conn);
+	if (conn->lgr->is_smcd && conn->lgr->peer_shutdown)
+		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
+	else
+		smc_close_abort(conn);
 	conn->killed = 1;
-	smc_sk_wake_ups(smc);
-	smc_lgr_unregister_conn(conn);
 	smc->sk.sk_err = ECONNABORTED;
+	smc_sk_wake_ups(smc);
+	if (conn->lgr->is_smcd) {
+		smc_ism_unset_conn(conn);
+		if (soft)
+			tasklet_kill(&conn->rx_tsklet);
+		else
+			tasklet_unlock_wait(&conn->rx_tsklet);
+	} else {
+		smc_cdc_tx_dismiss_slots(conn);
+	}
+	smc_lgr_unregister_conn(conn);
 	smc_close_active_abort(smc);
 }
 
+static void smc_lgr_cleanup(struct smc_link_group *lgr)
+{
+	if (lgr->is_smcd) {
+		smc_ism_signal_shutdown(lgr);
+		smcd_unregister_all_dmbs(lgr);
+		smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
+		put_device(&lgr->smcd->dev);
+	} else {
+		struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
+
+		wake_up(&lnk->wr_reg_wait);
+		if (lnk->state != SMC_LNK_INACTIVE) {
+			smc_link_send_delete(lnk, false);
+			smc_llc_link_inactive(lnk);
+		}
+	}
+}
+
 /* terminate link group */
-static void __smc_lgr_terminate(struct smc_link_group *lgr)
+static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 {
 	struct smc_connection *conn;
 	struct smc_sock *smc;
@@ -531,6 +582,8 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr)
 
 	if (lgr->terminating)
 		return;	/* lgr already terminating */
+	if (!soft)
+		cancel_delayed_work_sync(&lgr->free_work);
 	lgr->terminating = 1;
 	if (!lgr->is_smcd)
 		smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
@@ -544,20 +597,25 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr)
 		smc = container_of(conn, struct smc_sock, conn);
 		sock_hold(&smc->sk); /* sock_put below */
 		lock_sock(&smc->sk);
-		smc_conn_kill(conn);
+		smc_conn_kill(conn, soft);
 		release_sock(&smc->sk);
 		sock_put(&smc->sk); /* sock_hold above */
 		read_lock_bh(&lgr->conns_lock);
 		node = rb_first(&lgr->conns_all);
 	}
 	read_unlock_bh(&lgr->conns_lock);
-	if (!lgr->is_smcd)
-		wake_up(&lgr->lnk[SMC_SINGLE_LINK].wr_reg_wait);
-	smc_lgr_schedule_free_work_fast(lgr);
+	smc_lgr_cleanup(lgr);
+	if (soft)
+		smc_lgr_schedule_free_work_fast(lgr);
+	else
+		smc_lgr_free(lgr);
 }
 
-/* unlink and terminate link group */
-void smc_lgr_terminate(struct smc_link_group *lgr)
+/* unlink and terminate link group
+ * @soft: true if link group shutdown can take its time
+ *	  false if immediate link group shutdown is required
+ */
+void smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 {
 	spinlock_t *lgr_lock;
 
@@ -567,9 +625,11 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 		spin_unlock_bh(lgr_lock);
 		return;	/* lgr already terminating */
 	}
+	if (!soft)
+		lgr->freeing = 1;
 	list_del_init(&lgr->list);
 	spin_unlock_bh(lgr_lock);
-	__smc_lgr_terminate(lgr);
+	__smc_lgr_terminate(lgr, soft);
 }
 
 /* Called when IB port is terminated */
@@ -582,18 +642,20 @@ void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
 	list_for_each_entry_safe(lgr, l, &smc_lgr_list.list, list) {
 		if (!lgr->is_smcd &&
 		    lgr->lnk[SMC_SINGLE_LINK].smcibdev == smcibdev &&
-		    lgr->lnk[SMC_SINGLE_LINK].ibport == ibport)
+		    lgr->lnk[SMC_SINGLE_LINK].ibport == ibport) {
 			list_move(&lgr->list, &lgr_free_list);
+			lgr->freeing = 1;
+		}
 	}
 	spin_unlock_bh(&smc_lgr_list.lock);
 
 	list_for_each_entry_safe(lgr, l, &lgr_free_list, list) {
 		list_del_init(&lgr->list);
-		__smc_lgr_terminate(lgr);
+		__smc_lgr_terminate(lgr, false);
 	}
 }
 
-/* Called when SMC-D device is terminated or peer is lost */
+/* Called when peer lgr shutdown (regularly or abnormally) is received */
 void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
 {
 	struct smc_link_group *lgr, *l;
@@ -604,6 +666,8 @@ void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
 	list_for_each_entry_safe(lgr, l, &dev->lgr_list, list) {
 		if ((!peer_gid || lgr->peer_gid == peer_gid) &&
 		    (vlan == VLAN_VID_MASK || lgr->vlan_id == vlan)) {
+			if (peer_gid) /* peer triggered termination */
+				lgr->peer_shutdown = 1;
 			list_move(&lgr->list, &lgr_free_list);
 		}
 	}
@@ -612,11 +676,58 @@ void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
 	/* cancel the regular free workers and actually free lgrs */
 	list_for_each_entry_safe(lgr, l, &lgr_free_list, list) {
 		list_del_init(&lgr->list);
-		__smc_lgr_terminate(lgr);
-		cancel_delayed_work_sync(&lgr->free_work);
-		if (!peer_gid && vlan == VLAN_VID_MASK) /* dev terminated? */
-			smc_ism_signal_shutdown(lgr);
-		smc_lgr_free(lgr);
+		schedule_work(&lgr->terminate_work);
+	}
+}
+
+/* Called when an SMCD device is removed or the smc module is unloaded */
+void smc_smcd_terminate_all(struct smcd_dev *smcd)
+{
+	struct smc_link_group *lgr, *lg;
+	LIST_HEAD(lgr_free_list);
+
+	spin_lock_bh(&smcd->lgr_lock);
+	list_splice_init(&smcd->lgr_list, &lgr_free_list);
+	list_for_each_entry(lgr, &lgr_free_list, list)
+		lgr->freeing = 1;
+	spin_unlock_bh(&smcd->lgr_lock);
+
+	list_for_each_entry_safe(lgr, lg, &lgr_free_list, list) {
+		list_del_init(&lgr->list);
+		__smc_lgr_terminate(lgr, false);
+	}
+
+	if (atomic_read(&smcd->lgr_cnt))
+		wait_event(smcd->lgrs_deleted, !atomic_read(&smcd->lgr_cnt));
+}
+
+/* Called when an SMCR device is removed or the smc module is unloaded.
+ * If smcibdev is given, all SMCR link groups using this device are terminated.
+ * If smcibdev is NULL, all SMCR link groups are terminated.
+ */
+void smc_smcr_terminate_all(struct smc_ib_device *smcibdev)
+{
+	struct smc_link_group *lgr, *lg;
+	LIST_HEAD(lgr_free_list);
+
+	spin_lock_bh(&smc_lgr_list.lock);
+	if (!smcibdev) {
+		list_splice_init(&smc_lgr_list.list, &lgr_free_list);
+		list_for_each_entry(lgr, &lgr_free_list, list)
+			lgr->freeing = 1;
+	} else {
+		list_for_each_entry_safe(lgr, lg, &smc_lgr_list.list, list) {
+			if (lgr->lnk[SMC_SINGLE_LINK].smcibdev == smcibdev) {
+				list_move(&lgr->list, &lgr_free_list);
+				lgr->freeing = 1;
+			}
+		}
+	}
+	spin_unlock_bh(&smc_lgr_list.lock);
+
+	list_for_each_entry_safe(lgr, lg, &lgr_free_list, list) {
+		list_del_init(&lgr->list);
+		__smc_lgr_terminate(lgr, false);
 	}
 }
 
@@ -1137,37 +1248,23 @@ static void smc_core_going_away(void)
 	spin_unlock(&smcd_dev_list.lock);
 }
 
-/* Called (from smc_exit) when module is removed */
-void smc_core_exit(void)
+/* Clean up all SMC link groups */
+static void smc_lgrs_shutdown(void)
 {
-	struct smc_link_group *lgr, *lg;
-	LIST_HEAD(lgr_freeing_list);
 	struct smcd_dev *smcd;
 
 	smc_core_going_away();
 
-	spin_lock_bh(&smc_lgr_list.lock);
-	list_splice_init(&smc_lgr_list.list, &lgr_freeing_list);
-	spin_unlock_bh(&smc_lgr_list.lock);
+	smc_smcr_terminate_all(NULL);
 
 	spin_lock(&smcd_dev_list.lock);
 	list_for_each_entry(smcd, &smcd_dev_list.list, list)
-		list_splice_init(&smcd->lgr_list, &lgr_freeing_list);
+		smc_smcd_terminate_all(smcd);
 	spin_unlock(&smcd_dev_list.lock);
+}
 
-	list_for_each_entry_safe(lgr, lg, &lgr_freeing_list, list) {
-		list_del_init(&lgr->list);
-		if (!lgr->is_smcd) {
-			struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
-
-			if (lnk->state == SMC_LNK_ACTIVE)
-				smc_llc_send_delete_link(lnk, SMC_LLC_REQ,
-							 false);
-			smc_llc_link_inactive(lnk);
-		}
-		cancel_delayed_work_sync(&lgr->free_work);
-		if (lgr->is_smcd)
-			smc_ism_signal_shutdown(lgr);
-		smc_lgr_free(lgr); /* free link group */
-	}
+/* Called (from smc_exit) when module is removed */
+void smc_core_exit(void)
+{
+	smc_lgrs_shutdown();
 }
