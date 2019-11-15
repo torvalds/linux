@@ -5030,7 +5030,12 @@ int register_ftrace_direct(unsigned long ip, unsigned long addr)
 		goto out_unlock;
 
 	/* Make sure the ip points to the exact record */
-	ip = rec->ip;
+	if (ip != rec->ip) {
+		ip = rec->ip;
+		/* Need to check this ip for a direct. */
+		if (find_rec_direct(ip))
+			goto out_unlock;
+	}
 
 	ret = -ENOMEM;
 	if (ftrace_hash_empty(direct_functions) ||
