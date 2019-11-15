@@ -35,7 +35,7 @@ struct imx_key_drv_data {
 
 struct imx_sc_msg_key {
 	struct imx_sc_rpc_msg hdr;
-	u8 state;
+	u32 state;
 };
 
 static int imx_sc_key_notify(struct notifier_block *nb,
