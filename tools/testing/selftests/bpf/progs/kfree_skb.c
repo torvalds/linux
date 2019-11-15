@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2019 Facebook
 #include <linux/bpf.h>
+#include <stdbool.h>
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
 
@@ -114,5 +115,56 @@ int trace_kfree_skb(struct trace_kfree_skb *ctx)
 	/* send first 72 byte of the packet to user space */
 	bpf_skb_output(skb, &perf_buf_map, (72ull << 32) | BPF_F_CURRENT_CPU,
 		       &meta, sizeof(meta));
+	return 0;
+}
+
+static volatile struct {
+	bool fentry_test_ok;
+	bool fexit_test_ok;
+} result;
+
+struct eth_type_trans_args {
+	struct sk_buff *skb;
+	struct net_device *dev;
+	unsigned short protocol; /* return value available to fexit progs */
+};
+
+SEC("fentry/eth_type_trans")
+int fentry_eth_type_trans(struct eth_type_trans_args *ctx)
+{
+	struct sk_buff *skb = ctx->skb;
+	struct net_device *dev = ctx->dev;
+	int len, ifindex;
+
+	__builtin_preserve_access_index(({
+		len = skb->len;
+		ifindex = dev->ifindex;
+	}));
+
+	/* fentry sees full packet including L2 header */
+	if (len != 74 || ifindex != 1)
+		return 0;
+	result.fentry_test_ok = true;
+	return 0;
+}
+
+SEC("fexit/eth_type_trans")
+int fexit_eth_type_trans(struct eth_type_trans_args *ctx)
+{
+	struct sk_buff *skb = ctx->skb;
+	struct net_device *dev = ctx->dev;
+	int len, ifindex;
+
+	__builtin_preserve_access_index(({
+		len = skb->len;
+		ifindex = dev->ifindex;
+	}));
+
+	/* fexit sees packet without L2 header that eth_type_trans should have
+	 * consumed.
+	 */
+	if (len != 60 || ctx->protocol != bpf_htons(0x86dd) || ifindex != 1)
+		return 0;
+	result.fexit_test_ok = true;
 	return 0;
 }
