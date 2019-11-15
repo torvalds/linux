@@ -5093,8 +5093,7 @@ int register_ftrace_direct(unsigned long ip, unsigned long addr)
 			ftrace_direct_func_count--;
 		}
 	} else {
-		if (!direct->count)
-			direct->count++;
+		direct->count++;
 	}
  out_unlock:
 	mutex_unlock(&direct_mutex);
