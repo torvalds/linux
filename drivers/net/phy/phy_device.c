@@ -489,7 +489,7 @@ static int phy_bus_match(struct device *dev, struct device_driver *drv)
 
 	if (phydev->is_c45) {
 		for (i = 1; i < num_ids; i++) {
-			if (!(phydev->c45_ids.devices_in_package & (1 << i)))
+			if (phydev->c45_ids.device_ids[i] == 0xffffffff)
 				continue;
 
 			if ((phydrv->phy_id & phydrv->phy_id_mask) ==
@@ -633,7 +633,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 		int i;
 
 		for (i = 1; i < num_ids; i++) {
-			if (!(c45_ids->devices_in_package & (1 << i)))
+			if (c45_ids->device_ids[i] == 0xffffffff)
 				continue;
 
 			ret = phy_request_driver_module(dev,
@@ -813,9 +813,12 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
  */
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 {
-	struct phy_c45_device_ids c45_ids = {0};
+	struct phy_c45_device_ids c45_ids;
 	u32 phy_id = 0;
 	int r;
+
+	c45_ids.devices_in_package = 0;
+	memset(c45_ids.device_ids, 0xff, sizeof(c45_ids.device_ids));
 
 	r = get_phy_id(bus, addr, &phy_id, is_c45, &c45_ids);
 	if (r)
