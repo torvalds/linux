@@ -138,7 +138,7 @@ static const struct iwl_base_params iwl_22000_base_params = {
 	.pcie_l1_allowed = true,
 };
 
-static const struct iwl_base_params iwl_22560_base_params = {
+static const struct iwl_base_params iwl_ax210_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 512,
 	.max_tfd_queue_size = 65536,
@@ -212,27 +212,11 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 		},							\
 	}
 
-#define IWL_DEVICE_22560						\
-	IWL_DEVICE_22000_COMMON,					\
-	.trans.device_family = IWL_DEVICE_FAMILY_22560,			\
-	.trans.base_params = &iwl_22560_base_params,			\
-	.trans.csr = &iwl_csr_v2,					\
-	.mon_dram_regs = {						\
-		.write_ptr = {						\
-			.addr = MON_BUFF_WRPTR_VER2,			\
-			.mask = 0xffffffff,				\
-		},							\
-		.cycle_cnt = {						\
-			.addr = MON_BUFF_CYCLE_CNT_VER2,		\
-			.mask = 0xffffffff,				\
-		},							\
-	}
-
 #define IWL_DEVICE_AX210						\
 	IWL_DEVICE_22000_COMMON,					\
 	.trans.umac_prph_offset = 0x300000,				\
 	.trans.device_family = IWL_DEVICE_FAMILY_AX210,			\
-	.trans.base_params = &iwl_22560_base_params,			\
+	.trans.base_params = &iwl_ax210_base_params,			\
 	.trans.csr = &iwl_csr_v1,					\
 	.min_txq_size = 128,						\
 	.gp2_reg_addr = 0xd02c68,					\
