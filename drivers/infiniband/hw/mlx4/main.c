@@ -256,6 +256,8 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 	int hw_update = 0;
 	int i;
 	struct gid_entry *gids = NULL;
+	u16 vlan_id = 0xffff;
+	u8 mac[ETH_ALEN];
 
 	if (!rdma_cap_roce_gid_table(attr->device, attr->port_num))
 		return -EINVAL;
@@ -266,12 +268,16 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 	if (!context)
 		return -EINVAL;
 
+	ret = rdma_read_gid_l2_fields(attr, &vlan_id, &mac[0]);
+	if (ret)
+		return ret;
 	port_gid_table = &iboe->gids[attr->port_num - 1];
 	spin_lock_bh(&iboe->lock);
 	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i) {
 		if (!memcmp(&port_gid_table->gids[i].gid,
 			    &attr->gid, sizeof(attr->gid)) &&
-		    port_gid_table->gids[i].gid_type == attr->gid_type)  {
+		    port_gid_table->gids[i].gid_type == attr->gid_type &&
+		    port_gid_table->gids[i].vlan_id == vlan_id)  {
 			found = i;
 			break;
 		}
@@ -291,6 +297,7 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 				memcpy(&port_gid_table->gids[free].gid,
 				       &attr->gid, sizeof(attr->gid));
 				port_gid_table->gids[free].gid_type = attr->gid_type;
+				port_gid_table->gids[free].vlan_id = vlan_id;
 				port_gid_table->gids[free].ctx->real_index = free;
 				port_gid_table->gids[free].ctx->refcount = 1;
 				hw_update = 1;
