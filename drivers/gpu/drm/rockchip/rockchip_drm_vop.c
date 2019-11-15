@@ -1749,8 +1749,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	if (is_yuv) {
 		VOP_WIN_SET(vop, win, uv_vir, DIV_ROUND_UP(fb->pitches[1], 4));
 		VOP_WIN_SET(vop, win, uv_mst, vop_plane_state->uv_mst);
-		VOP_WIN_SET(vop, win, fmt_10, is_yuv_10bit(fb->format->format));
 	}
+	VOP_WIN_SET(vop, win, fmt_10, is_yuv_10bit(fb->format->format));
 
 	if (win->phy->scl)
 		scl_vop_cal_scl_fac(vop, win, actual_w, actual_h,
