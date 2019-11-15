@@ -540,7 +540,8 @@ void intel_rc6_ctx_wa_check(struct intel_rc6 *rc6)
 	if (!intel_rc6_ctx_corrupted(rc6))
 		return;
 
-	DRM_NOTE("RC6 context corruption, disabling runtime power management\n");
+	dev_notice(i915->drm.dev,
+		   "RC6 context corruption, disabling runtime power management\n");
 
 	intel_rc6_disable(rc6);
 	rc6->ctx_corrupted = true;
