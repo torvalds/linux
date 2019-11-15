@@ -324,7 +324,8 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		struct mlx5_wqe_ctrl_seg cur_ctrl = wqe->ctrl;
 #endif
 		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
-		wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
+		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+		wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 #ifdef CONFIG_MLX5_EN_IPSEC
 		wqe->eth = cur_eth;
 #endif
@@ -389,7 +390,8 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 pi;
 
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
-	wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
+	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
 	/* might send skbs and update wqe and pi */
 	skb = mlx5e_accel_handle_tx(skb, sq, dev, &wqe, &pi);
@@ -622,10 +624,10 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
 	if (unlikely(contig_wqebbs_room < num_wqebbs)) {
 		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
-		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+		pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
 	}
 
-	mlx5i_sq_fetch_wqe(sq, &wqe, pi);
+	wqe = MLX5I_SQ_FETCH_WQE(sq, pi);
 
 	/* fill wqe */
 	wi       = &sq->db.wqe_info[pi];

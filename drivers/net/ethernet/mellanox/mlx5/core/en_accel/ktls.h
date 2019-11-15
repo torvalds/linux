@@ -27,6 +27,14 @@ struct mlx5e_dump_wqe {
 	struct mlx5_wqe_data_seg data;
 };
 
+#define MLX5E_TLS_FETCH_UMR_WQE(sq, pi) \
+	((struct mlx5e_umr_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, MLX5E_KTLS_STATIC_UMR_WQE_SZ))
+#define MLX5E_TLS_FETCH_PROGRESS_WQE(sq, pi) \
+	((struct mlx5e_tx_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, MLX5E_KTLS_PROGRESS_WQE_SZ))
+#define MLX5E_TLS_FETCH_DUMP_WQE(sq, pi) \
+	((struct mlx5e_dump_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, \
+						  sizeof(struct mlx5e_dump_wqe)))
+
 #define MLX5E_KTLS_DUMP_WQEBBS \
 	(DIV_ROUND_UP(sizeof(struct mlx5e_dump_wqe), MLX5_SEND_WQE_BB))
 

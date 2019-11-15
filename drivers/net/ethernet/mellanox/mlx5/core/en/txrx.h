@@ -33,18 +33,18 @@ mlx5e_wqc_has_room_for(struct mlx5_wq_cyc *wq, u16 cc, u16 pc, u16 n)
 	return (mlx5_wq_cyc_ctr2ix(wq, cc - pc) >= n) || (cc == pc);
 }
 
-static inline void *
-mlx5e_sq_fetch_wqe(struct mlx5e_txqsq *sq, size_t size, u16 *pi)
+static inline void *mlx5e_fetch_wqe(struct mlx5_wq_cyc *wq, u16 pi, size_t wqe_size)
 {
-	struct mlx5_wq_cyc *wq = &sq->wq;
 	void *wqe;
 
-	*pi  = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	wqe = mlx5_wq_cyc_get_wqe(wq, *pi);
-	memset(wqe, 0, size);
+	wqe = mlx5_wq_cyc_get_wqe(wq, pi);
+	memset(wqe, 0, wqe_size);
 
 	return wqe;
 }
+
+#define MLX5E_TX_FETCH_WQE(sq, pi) \
+	((struct mlx5e_tx_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, sizeof(struct mlx5e_tx_wqe)))
 
 static inline struct mlx5e_tx_wqe *
 mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)

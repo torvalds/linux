@@ -110,15 +110,8 @@ struct mlx5i_tx_wqe {
 	struct mlx5_wqe_data_seg     data[];
 };
 
-static inline void mlx5i_sq_fetch_wqe(struct mlx5e_txqsq *sq,
-				      struct mlx5i_tx_wqe **wqe,
-				      u16 pi)
-{
-	struct mlx5_wq_cyc *wq = &sq->wq;
-
-	*wqe = mlx5_wq_cyc_get_wqe(wq, pi);
-	memset(*wqe, 0, sizeof(**wqe));
-}
+#define MLX5I_SQ_FETCH_WQE(sq, pi) \
+	((struct mlx5i_tx_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, sizeof(struct mlx5i_tx_wqe)))
 
 netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5_av *av, u32 dqpn, u32 dqkey,

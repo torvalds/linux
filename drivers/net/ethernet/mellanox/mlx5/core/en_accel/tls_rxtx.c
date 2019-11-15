@@ -248,7 +248,8 @@ mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 	mlx5e_tls_complete_sync_skb(skb, nskb, tcp_seq, headln,
 				    cpu_to_be64(info.rcd_sn));
 	mlx5e_sq_xmit(sq, nskb, *wqe, *pi, true);
-	*wqe = mlx5e_sq_fetch_wqe(sq, sizeof(**wqe), pi);
+	*pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	*wqe = MLX5E_TX_FETCH_WQE(sq, *pi);
 	return skb;
 
 err_out:

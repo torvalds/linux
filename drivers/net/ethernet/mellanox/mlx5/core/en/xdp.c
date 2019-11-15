@@ -188,10 +188,12 @@ static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	contig_wqebbs = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
 
-	if (unlikely(contig_wqebbs < MLX5_SEND_WQE_MAX_WQEBBS))
+	if (unlikely(contig_wqebbs < MLX5_SEND_WQE_MAX_WQEBBS)) {
 		mlx5e_fill_xdpsq_frag_edge(sq, wq, pi, contig_wqebbs);
+		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	}
 
-	session->wqe = mlx5e_xdpsq_fetch_wqe(sq, &pi);
+	session->wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
 	prefetchw(session->wqe->data);
 	session->ds_count  = MLX5E_XDP_TX_EMPTY_DS_COUNT;

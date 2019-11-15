@@ -137,7 +137,8 @@ post_static_params(struct mlx5e_txqsq *sq,
 	struct mlx5e_umr_wqe *umr_wqe;
 	u16 pi;
 
-	umr_wqe = mlx5e_sq_fetch_wqe(sq, MLX5E_KTLS_STATIC_UMR_WQE_SZ, &pi);
+	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	umr_wqe = MLX5E_TLS_FETCH_UMR_WQE(sq, pi);
 	build_static_params(umr_wqe, sq->pc, sq->sqn, priv_tx, fence);
 	tx_fill_wi(sq, pi, MLX5E_KTLS_STATIC_WQEBBS, 0, NULL);
 	sq->pc += MLX5E_KTLS_STATIC_WQEBBS;
@@ -151,7 +152,8 @@ post_progress_params(struct mlx5e_txqsq *sq,
 	struct mlx5e_tx_wqe *wqe;
 	u16 pi;
 
-	wqe = mlx5e_sq_fetch_wqe(sq, MLX5E_KTLS_PROGRESS_WQE_SZ, &pi);
+	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	wqe = MLX5E_TLS_FETCH_PROGRESS_WQE(sq, pi);
 	build_progress_params(wqe, sq->pc, sq->sqn, priv_tx, fence);
 	tx_fill_wi(sq, pi, MLX5E_KTLS_PROGRESS_WQEBBS, 0, NULL);
 	sq->pc += MLX5E_KTLS_PROGRESS_WQEBBS;
@@ -278,7 +280,8 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool fir
 	int fsz;
 	u16 pi;
 
-	wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
+	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	wqe = MLX5E_TLS_FETCH_DUMP_WQE(sq, pi);
 
 	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
 
@@ -449,7 +452,8 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 
 	if (unlikely(mlx5e_ktls_tx_offload_test_and_clear_pending(priv_tx))) {
 		mlx5e_ktls_tx_post_param_wqes(sq, priv_tx, false, false);
-		*wqe = mlx5e_sq_fetch_wqe(sq, sizeof(**wqe), pi);
+		*pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+		*wqe = MLX5E_TX_FETCH_WQE(sq, *pi);
 		stats->tls_ctx++;
 	}
 
@@ -460,7 +464,8 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 
 		switch (ret) {
 		case MLX5E_KTLS_SYNC_DONE:
-			*wqe = mlx5e_sq_fetch_wqe(sq, sizeof(**wqe), pi);
+			*pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+			*wqe = MLX5E_TX_FETCH_WQE(sq, *pi);
 			break;
 		case MLX5E_KTLS_SYNC_SKIP_NO_DATA:
 			if (likely(!skb->decrypted))

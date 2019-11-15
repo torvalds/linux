@@ -186,19 +186,6 @@ mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
 	session->ds_count++;
 }
 
-static inline struct mlx5e_tx_wqe *
-mlx5e_xdpsq_fetch_wqe(struct mlx5e_xdpsq *sq, u16 *pi)
-{
-	struct mlx5_wq_cyc *wq = &sq->wq;
-	struct mlx5e_tx_wqe *wqe;
-
-	*pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	wqe = mlx5_wq_cyc_get_wqe(wq, *pi);
-	memset(wqe, 0, sizeof(*wqe));
-
-	return wqe;
-}
-
 static inline void
 mlx5e_xdpi_fifo_push(struct mlx5e_xdp_info_fifo *fifo,
 		     struct mlx5e_xdp_info *xi)
