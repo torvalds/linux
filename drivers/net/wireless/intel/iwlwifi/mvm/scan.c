@@ -1736,6 +1736,20 @@ static void iwl_mvm_fill_scan_type(struct iwl_mvm *mvm,
 	}
 }
 
+static int iwl_mvm_build_scan_cmd(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif,
+				  struct iwl_host_cmd *hcmd,
+				  struct iwl_mvm_scan_params *params,
+				  int type)
+{
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
+		hcmd->id = iwl_cmd_id(SCAN_REQ_UMAC, IWL_ALWAYS_LONG_GROUP, 0);
+		return  iwl_mvm_scan_umac(mvm, vif, params, type);
+	}
+	hcmd->id = SCAN_OFFLOAD_REQUEST_CMD;
+	return  iwl_mvm_scan_lmac(mvm, vif, params);
+}
+
 int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct cfg80211_scan_request *req,
 			   struct ieee80211_scan_ies *ies)
@@ -1793,14 +1807,8 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
 
-	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
-		hcmd.id = iwl_cmd_id(SCAN_REQ_UMAC, IWL_ALWAYS_LONG_GROUP, 0);
-		ret = iwl_mvm_scan_umac(mvm, vif, &params,
-					IWL_MVM_SCAN_REGULAR);
-	} else {
-		hcmd.id = SCAN_OFFLOAD_REQUEST_CMD;
-		ret = iwl_mvm_scan_lmac(mvm, vif, &params);
-	}
+	ret = iwl_mvm_build_scan_cmd(mvm, vif, &hcmd, &params,
+				     IWL_MVM_SCAN_REGULAR);
 
 	if (ret)
 		return ret;
@@ -1898,13 +1906,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
 
-	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
-		hcmd.id = iwl_cmd_id(SCAN_REQ_UMAC, IWL_ALWAYS_LONG_GROUP, 0);
-		ret = iwl_mvm_scan_umac(mvm, vif, &params, type);
-	} else {
-		hcmd.id = SCAN_OFFLOAD_REQUEST_CMD;
-		ret = iwl_mvm_scan_lmac(mvm, vif, &params);
-	}
+	ret = iwl_mvm_build_scan_cmd(mvm, vif, &hcmd, &params, type);
 
 	if (ret)
 		return ret;
