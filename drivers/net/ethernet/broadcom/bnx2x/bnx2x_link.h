@@ -127,8 +127,8 @@ struct link_vars;
 struct link_params;
 struct bnx2x_phy;
 
-typedef u8 (*config_init_t)(struct bnx2x_phy *phy, struct link_params *params,
-			    struct link_vars *vars);
+typedef void (*config_init_t)(struct bnx2x_phy *phy, struct link_params *params,
+			      struct link_vars *vars);
 typedef u8 (*read_status_t)(struct bnx2x_phy *phy, struct link_params *params,
 			    struct link_vars *vars);
 typedef void (*link_reset_t)(struct bnx2x_phy *phy,
