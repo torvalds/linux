@@ -4325,7 +4325,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 	rc->extent_root = extent_root;
 	rc->block_group = bg;
 
-	ret = btrfs_inc_block_group_ro(rc->block_group);
+	ret = btrfs_inc_block_group_ro(rc->block_group, true);
 	if (ret) {
 		err = ret;
 		goto out;
