@@ -5130,6 +5130,10 @@ static void kvm_init_msr_list(void)
 
 	perf_get_x86_pmu_capability(&x86_pmu);
 
+	num_msrs_to_save = 0;
+	num_emulated_msrs = 0;
+	num_msr_based_features = 0;
+
 	for (i = 0; i < ARRAY_SIZE(msrs_to_save_all); i++) {
 		if (rdmsr_safe(msrs_to_save_all[i], &dummy[0], &dummy[1]) < 0)
 			continue;
