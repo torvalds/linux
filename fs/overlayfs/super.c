@@ -224,13 +224,13 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 	if (ofs->upperdir_locked)
 		ovl_inuse_unlock(ofs->upper_mnt->mnt_root);
 	mntput(ofs->upper_mnt);
-	for (i = 0; i < ofs->numlower; i++) {
-		iput(ofs->lower_layers[i].trap);
-		mntput(ofs->lower_layers[i].mnt);
+	for (i = 1; i < ofs->numlayer; i++) {
+		iput(ofs->layers[i].trap);
+		mntput(ofs->layers[i].mnt);
 	}
 	for (i = 0; i < ofs->numlowerfs; i++)
 		free_anon_bdev(ofs->lower_fs[i].pseudo_dev);
-	kfree(ofs->lower_layers);
+	kfree(ofs->layers);
 	kfree(ofs->lower_fs);
 
 	kfree(ofs->config.lowerdir);
@@ -1319,22 +1319,28 @@ static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
 	return ofs->numlowerfs;
 }
 
-static int ovl_get_lower_layers(struct super_block *sb, struct ovl_fs *ofs,
-				struct path *stack, unsigned int numlower)
+static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
+			  struct path *stack, unsigned int numlower)
 {
 	int err;
 	unsigned int i;
 
 	err = -ENOMEM;
-	ofs->lower_layers = kcalloc(numlower, sizeof(struct ovl_layer),
-				    GFP_KERNEL);
-	if (ofs->lower_layers == NULL)
+	ofs->layers = kcalloc(numlower + 1, sizeof(struct ovl_layer),
+			      GFP_KERNEL);
+	if (ofs->layers == NULL)
 		goto out;
 
 	ofs->lower_fs = kcalloc(numlower, sizeof(struct ovl_sb),
 				GFP_KERNEL);
 	if (ofs->lower_fs == NULL)
 		goto out;
+
+	/* idx 0 is reserved for upper fs even with lower only overlay */
+	ofs->layers[0].mnt = ofs->upper_mnt;
+	ofs->layers[0].idx = 0;
+	ofs->layers[0].fsid = 0;
+	ofs->numlayer = 1;
 
 	for (i = 0; i < numlower; i++) {
 		struct vfsmount *mnt;
@@ -1369,15 +1375,15 @@ static int ovl_get_lower_layers(struct super_block *sb, struct ovl_fs *ofs,
 		 */
 		mnt->mnt_flags |= MNT_READONLY | MNT_NOATIME;
 
-		ofs->lower_layers[ofs->numlower].trap = trap;
-		ofs->lower_layers[ofs->numlower].mnt = mnt;
-		ofs->lower_layers[ofs->numlower].idx = i + 1;
-		ofs->lower_layers[ofs->numlower].fsid = fsid;
+		ofs->layers[ofs->numlayer].trap = trap;
+		ofs->layers[ofs->numlayer].mnt = mnt;
+		ofs->layers[ofs->numlayer].idx = ofs->numlayer;
+		ofs->layers[ofs->numlayer].fsid = fsid;
 		if (fsid) {
-			ofs->lower_layers[ofs->numlower].fs =
+			ofs->layers[ofs->numlayer].fs =
 				&ofs->lower_fs[fsid - 1];
 		}
-		ofs->numlower++;
+		ofs->numlayer++;
 	}
 
 	/*
@@ -1464,7 +1470,7 @@ static struct ovl_entry *ovl_get_lowerstack(struct super_block *sb,
 		goto out_err;
 	}
 
-	err = ovl_get_lower_layers(sb, ofs, stack, numlower);
+	err = ovl_get_layers(sb, ofs, stack, numlower);
 	if (err)
 		goto out_err;
 
@@ -1475,7 +1481,7 @@ static struct ovl_entry *ovl_get_lowerstack(struct super_block *sb,
 
 	for (i = 0; i < numlower; i++) {
 		oe->lowerstack[i].dentry = dget(stack[i].dentry);
-		oe->lowerstack[i].layer = &ofs->lower_layers[i];
+		oe->lowerstack[i].layer = &ofs->layers[i+1];
 	}
 
 	if (remote)
@@ -1556,9 +1562,9 @@ static int ovl_check_overlapping_layers(struct super_block *sb,
 			return err;
 	}
 
-	for (i = 0; i < ofs->numlower; i++) {
+	for (i = 1; i < ofs->numlayer; i++) {
 		err = ovl_check_layer(sb, ofs,
-				      ofs->lower_layers[i].mnt->mnt_root,
+				      ofs->layers[i].mnt->mnt_root,
 				      "lowerdir");
 		if (err)
 			return err;
