@@ -115,6 +115,7 @@ enum bdb_block_id {
 	BDB_MIPI_CONFIG			= 52,
 	BDB_MIPI_SEQUENCE		= 53,
 	BDB_COMPRESSION_PARAMETERS	= 56,
+	BDB_GENERIC_DTD			= 58,
 	BDB_SKIP			= 254, /* VBIOS private block, ignore */
 };
 
@@ -861,6 +862,36 @@ struct dsc_compression_parameters_entry {
 struct bdb_compression_parameters {
 	u16 entry_size;
 	struct dsc_compression_parameters_entry data[16];
+} __packed;
+
+/*
+ * Block 58 - Generic DTD Block
+ */
+
+struct generic_dtd_entry {
+	u32 pixel_clock;
+	u16 hactive;
+	u16 hblank;
+	u16 hfront_porch;
+	u16 hsync;
+	u16 vactive;
+	u16 vblank;
+	u16 vfront_porch;
+	u16 vsync;
+	u16 width_mm;
+	u16 height_mm;
+
+	/* Flags */
+	u8 rsvd_flags:6;
+	u8 vsync_positive_polarity:1;
+	u8 hsync_positive_polarity:1;
+
+	u8 rsvd[3];
+} __packed;
+
+struct bdb_generic_dtd {
+	u16 gdtd_size;
+	struct generic_dtd_entry dtd[];	/* up to 24 DTD's */
 } __packed;
 
 #endif /* _INTEL_VBT_DEFS_H_ */

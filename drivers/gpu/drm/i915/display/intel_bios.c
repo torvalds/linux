@@ -296,7 +296,7 @@ parse_lfp_panel_dtd(struct drm_i915_private *dev_priv,
 
 	dev_priv->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
 
-	DRM_DEBUG_KMS("Found panel mode in BIOS VBT tables:\n");
+	DRM_DEBUG_KMS("Found panel mode in BIOS VBT legacy lfp table:\n");
 	drm_mode_debug_printmodeline(panel_fixed_mode);
 
 	fp_timing = get_lvds_fp_timing(bdb, lvds_lfp_data,
@@ -311,6 +311,98 @@ parse_lfp_panel_dtd(struct drm_i915_private *dev_priv,
 				      dev_priv->vbt.bios_lvds_val);
 		}
 	}
+}
+
+static void
+parse_generic_dtd(struct drm_i915_private *dev_priv,
+		  const struct bdb_header *bdb)
+{
+	const struct bdb_generic_dtd *generic_dtd;
+	const struct generic_dtd_entry *dtd;
+	struct drm_display_mode *panel_fixed_mode;
+	int num_dtd;
+
+	generic_dtd = find_section(bdb, BDB_GENERIC_DTD);
+	if (!generic_dtd)
+		return;
+
+	if (generic_dtd->gdtd_size < sizeof(struct generic_dtd_entry)) {
+		DRM_ERROR("GDTD size %u is too small.\n",
+			  generic_dtd->gdtd_size);
+		return;
+	} else if (generic_dtd->gdtd_size !=
+		   sizeof(struct generic_dtd_entry)) {
+		DRM_ERROR("Unexpected GDTD size %u\n", generic_dtd->gdtd_size);
+		/* DTD has unknown fields, but keep going */
+	}
+
+	num_dtd = (get_blocksize(generic_dtd) -
+		   sizeof(struct bdb_generic_dtd)) / generic_dtd->gdtd_size;
+	if (dev_priv->vbt.panel_type > num_dtd) {
+		DRM_ERROR("Panel type %d not found in table of %d DTD's\n",
+			  dev_priv->vbt.panel_type, num_dtd);
+		return;
+	}
+
+	dtd = &generic_dtd->dtd[dev_priv->vbt.panel_type];
+
+	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
+	if (!panel_fixed_mode)
+		return;
+
+	panel_fixed_mode->hdisplay = dtd->hactive;
+	panel_fixed_mode->hsync_start =
+		panel_fixed_mode->hdisplay + dtd->hfront_porch;
+	panel_fixed_mode->hsync_end =
+		panel_fixed_mode->hsync_start + dtd->hsync;
+	panel_fixed_mode->htotal = panel_fixed_mode->hsync_end;
+
+	panel_fixed_mode->vdisplay = dtd->vactive;
+	panel_fixed_mode->vsync_start =
+		panel_fixed_mode->vdisplay + dtd->vfront_porch;
+	panel_fixed_mode->vsync_end =
+		panel_fixed_mode->vsync_start + dtd->vsync;
+	panel_fixed_mode->vtotal = panel_fixed_mode->vsync_end;
+
+	panel_fixed_mode->clock = dtd->pixel_clock;
+	panel_fixed_mode->width_mm = dtd->width_mm;
+	panel_fixed_mode->height_mm = dtd->height_mm;
+
+	panel_fixed_mode->type = DRM_MODE_TYPE_PREFERRED;
+	drm_mode_set_name(panel_fixed_mode);
+
+	if (dtd->hsync_positive_polarity)
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_PHSYNC;
+	else
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_NHSYNC;
+
+	if (dtd->vsync_positive_polarity)
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_PVSYNC;
+	else
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_NVSYNC;
+
+	DRM_DEBUG_KMS("Found panel mode in BIOS VBT generic dtd table:\n");
+	drm_mode_debug_printmodeline(panel_fixed_mode);
+
+	dev_priv->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
+}
+
+static void
+parse_panel_dtd(struct drm_i915_private *dev_priv,
+		const struct bdb_header *bdb)
+{
+	/*
+	 * Older VBTs provided provided DTD information for internal displays
+	 * through the "LFP panel DTD" block (42).  As of VBT revision 229,
+	 * that block is now deprecated and DTD information should be provided
+	 * via a newer "generic DTD" block (58).  Just to be safe, we'll
+	 * try the new generic DTD block first on VBT >= 229, but still fall
+	 * back to trying the old LFP block if that fails.
+	 */
+	if (bdb->version >= 229)
+		parse_generic_dtd(dev_priv, bdb);
+	if (!dev_priv->vbt.lfp_lvds_vbt_mode)
+		parse_lfp_panel_dtd(dev_priv, bdb);
 }
 
 static void
@@ -1877,7 +1969,7 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	parse_general_features(dev_priv, bdb);
 	parse_general_definitions(dev_priv, bdb);
 	parse_panel_options(dev_priv, bdb);
-	parse_lfp_panel_dtd(dev_priv, bdb);
+	parse_panel_dtd(dev_priv, bdb);
 	parse_lfp_backlight(dev_priv, bdb);
 	parse_sdvo_panel_data(dev_priv, bdb);
 	parse_driver_features(dev_priv, bdb);
