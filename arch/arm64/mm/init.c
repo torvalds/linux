@@ -53,6 +53,8 @@
 #include <asm/tlb.h>
 #include <asm/alternative.h>
 
+EXPORT_SYMBOL_GPL(kimage_vaddr);
+
 /*
  * We need to be able to catch inadvertent references to memstart_addr
  * that occur (potentially in generic code) before arm64_memblock_init()
