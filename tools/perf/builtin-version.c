@@ -2,8 +2,8 @@
 #include "builtin.h"
 #include "perf.h"
 #include "color.h"
-#include <linux/compiler.h>
 #include <tools/config.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <subcmd/parse-options.h>

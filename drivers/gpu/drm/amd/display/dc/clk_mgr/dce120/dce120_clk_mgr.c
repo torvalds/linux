@@ -127,11 +127,11 @@ static struct clk_mgr_funcs dce120_funcs = {
 
 void dce120_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_mgr)
 {
+	dce_clk_mgr_construct(ctx, clk_mgr);
+
 	memcpy(clk_mgr->max_clks_by_state,
 		dce120_max_clks_by_state,
 		sizeof(dce120_max_clks_by_state));
-
-	dce_clk_mgr_construct(ctx, clk_mgr);
 
 	clk_mgr->base.dprefclk_khz = 600000;
 	clk_mgr->base.funcs = &dce120_funcs;

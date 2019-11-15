@@ -37,21 +37,10 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 	unsigned int i;
 	u32 reg, offset;
 
-	if (priv->type == BCM7445_DEVICE_ID)
-		offset = CORE_STS_OVERRIDE_IMP;
-	else
-		offset = CORE_STS_OVERRIDE_IMP2;
-
 	/* Enable the port memories */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
 	reg &= ~P_TXQ_PSM_VDD(port);
 	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
-
-	/* Enable Broadcast, Multicast, Unicast forwarding to IMP port */
-	reg = core_readl(priv, CORE_IMP_CTL);
-	reg |= (RX_BCST_EN | RX_MCST_EN | RX_UCST_EN);
-	reg &= ~(RX_DIS | TX_DIS);
-	core_writel(priv, reg, CORE_IMP_CTL);
 
 	/* Enable forwarding */
 	core_writel(priv, SW_FWDG_EN, CORE_SWMODE);
@@ -71,10 +60,27 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 
 	b53_brcm_hdr_setup(ds, port);
 
-	/* Force link status for IMP port */
-	reg = core_readl(priv, offset);
-	reg |= (MII_SW_OR | LINK_STS);
-	core_writel(priv, reg, offset);
+	if (port == 8) {
+		if (priv->type == BCM7445_DEVICE_ID)
+			offset = CORE_STS_OVERRIDE_IMP;
+		else
+			offset = CORE_STS_OVERRIDE_IMP2;
+
+		/* Force link status for IMP port */
+		reg = core_readl(priv, offset);
+		reg |= (MII_SW_OR | LINK_STS);
+		core_writel(priv, reg, offset);
+
+		/* Enable Broadcast, Multicast, Unicast forwarding to IMP port */
+		reg = core_readl(priv, CORE_IMP_CTL);
+		reg |= (RX_BCST_EN | RX_MCST_EN | RX_UCST_EN);
+		reg &= ~(RX_DIS | TX_DIS);
+		core_writel(priv, reg, CORE_IMP_CTL);
+	} else {
+		reg = core_readl(priv, CORE_G_PCTL_PORT(port));
+		reg &= ~(RX_DIS | TX_DIS);
+		core_writel(priv, reg, CORE_G_PCTL_PORT(port));
+	}
 }
 
 static void bcm_sf2_gphy_enable_set(struct dsa_switch *ds, bool enable)
@@ -156,6 +162,9 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	unsigned int i;
 	u32 reg;
+
+	if (!dsa_is_user_port(ds, port))
+		return 0;
 
 	/* Clear the memory power down */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
@@ -478,6 +487,7 @@ static void bcm_sf2_sw_validate(struct dsa_switch *ds, int port,
 				unsigned long *supported,
 				struct phylink_link_state *state)
 {
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
 	if (!phy_interface_mode_is_rgmii(state->interface) &&
@@ -487,8 +497,10 @@ static void bcm_sf2_sw_validate(struct dsa_switch *ds, int port,
 	    state->interface != PHY_INTERFACE_MODE_INTERNAL &&
 	    state->interface != PHY_INTERFACE_MODE_MOCA) {
 		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-		dev_err(ds->dev,
-			"Unsupported interface: %d\n", state->interface);
+		if (port != core_readl(priv, CORE_IMP0_PRT_ID))
+			dev_err(ds->dev,
+				"Unsupported interface: %d for port %d\n",
+				state->interface, port);
 		return;
 	}
 
@@ -525,6 +537,9 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	u32 id_mode_dis = 0, port_mode;
 	u32 reg, offset;
+
+	if (port == core_readl(priv, CORE_IMP0_PRT_ID))
+		return;
 
 	if (priv->type == BCM7445_DEVICE_ID)
 		offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
@@ -1041,7 +1056,6 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	struct b53_device *dev;
 	struct dsa_switch *ds;
 	void __iomem **base;
-	struct resource *r;
 	unsigned int i;
 	u32 reg, rev;
 	int ret;
@@ -1107,8 +1121,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 	base = &priv->core;
 	for (i = 0; i < BCM_SF2_REGS_NUM; i++) {
-		r = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		*base = devm_ioremap_resource(&pdev->dev, r);
+		*base = devm_platform_ioremap_resource(pdev, i);
 		if (IS_ERR(*base)) {
 			pr_err("unable to find register: %s\n", reg_names[i]);
 			return PTR_ERR(*base);
@@ -1202,10 +1215,10 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
 
 	priv->wol_ports_mask = 0;
+	/* Disable interrupts */
+	bcm_sf2_intr_disable(priv);
 	dsa_unregister_switch(priv->dev->ds);
 	bcm_sf2_cfp_exit(priv->dev->ds);
-	/* Disable all ports and interrupts */
-	bcm_sf2_sw_suspend(priv->dev->ds);
 	bcm_sf2_mdio_unregister(priv);
 
 	return 0;

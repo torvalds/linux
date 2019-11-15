@@ -52,5 +52,4 @@ enum {
 	RTL8712_RFC_2T2R = 0x22
 };
 
-#endif /*_RTL8711_RF_H_*/
-
+#endif /*__RTL871X_RF_H_*/

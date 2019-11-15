@@ -162,10 +162,11 @@
  * * Enabling lower priority signals requires higher priority signals be
  *   disabled
  *
- * * A function represents a set of signals; functions are distinct if their
- *   sets of signals are not equal
+ * * A function represents a set of signals; functions are distinct if they
+ *   do not share a subset of signals (and may be distinct if they are a
+ *   strict subset).
  *
- * * Signals participate in one or more functions
+ * * Signals participate in one or more functions or groups
  *
  * * A function is described by an expression of one or more signal
  *   descriptors, which compare bit values in a register
@@ -507,20 +508,21 @@ struct aspeed_pin_desc {
  * @idx: The bit index in the register
  */
 #define SIG_DESC_SET(reg, idx) SIG_DESC_IP_BIT(ASPEED_IP_SCU, reg, idx, 1)
+#define SIG_DESC_CLEAR(reg, idx) { ASPEED_IP_SCU, reg, BIT_MASK(idx), 0, 0 }
 
-#define SIG_DESC_LIST_SYM(sig, func) sig_descs_ ## sig ## _ ## func
-#define SIG_DESC_LIST_DECL(sig, func, ...) \
-	static const struct aspeed_sig_desc SIG_DESC_LIST_SYM(sig, func)[] = \
+#define SIG_DESC_LIST_SYM(sig, group) sig_descs_ ## sig ## _ ## group
+#define SIG_DESC_LIST_DECL(sig, group, ...) \
+	static const struct aspeed_sig_desc SIG_DESC_LIST_SYM(sig, group)[] = \
 		{ __VA_ARGS__ }
 
-#define SIG_EXPR_SYM(sig, func) sig_expr_ ## sig ## _ ## func
-#define SIG_EXPR_DECL_(sig, func) \
-	static const struct aspeed_sig_expr SIG_EXPR_SYM(sig, func) = \
+#define SIG_EXPR_SYM(sig, group) sig_expr_ ## sig ## _ ## group
+#define SIG_EXPR_DECL_(sig, group, func) \
+	static const struct aspeed_sig_expr SIG_EXPR_SYM(sig, group) = \
 	{ \
 		.signal = #sig, \
 		.function = #func, \
-		.ndescs = ARRAY_SIZE(SIG_DESC_LIST_SYM(sig, func)), \
-		.descs = &(SIG_DESC_LIST_SYM(sig, func))[0], \
+		.ndescs = ARRAY_SIZE(SIG_DESC_LIST_SYM(sig, group)), \
+		.descs = &(SIG_DESC_LIST_SYM(sig, group))[0], \
 	}
 
 /**
@@ -533,16 +535,16 @@ struct aspeed_pin_desc {
  *
  * For example, the following declares the ROMD8 signal for the ROM16 function:
  *
- *     SIG_EXPR_DECL(ROMD8, ROM16, SIG_DESC_SET(SCU90, 6));
+ *     SIG_EXPR_DECL(ROMD8, ROM16, ROM16, SIG_DESC_SET(SCU90, 6));
  *
  * And with multiple signal descriptors:
  *
- *     SIG_EXPR_DECL(ROMD8, ROM16S, SIG_DESC_SET(HW_STRAP1, 4),
+ *     SIG_EXPR_DECL(ROMD8, ROM16S, ROM16S, SIG_DESC_SET(HW_STRAP1, 4),
  *              { HW_STRAP1, GENMASK(1, 0), 0, 0 });
  */
-#define SIG_EXPR_DECL(sig, func, ...) \
-	SIG_DESC_LIST_DECL(sig, func, __VA_ARGS__); \
-	SIG_EXPR_DECL_(sig, func)
+#define SIG_EXPR_DECL(sig, group, func, ...) \
+	SIG_DESC_LIST_DECL(sig, group, __VA_ARGS__); \
+	SIG_EXPR_DECL_(sig, group, func)
 
 /**
  * Declare a pointer to a signal expression
@@ -550,9 +552,9 @@ struct aspeed_pin_desc {
  * @sig: The macro symbol name for the signal (subjected to token pasting)
  * @func: The macro symbol name for the function (subjected to token pasting)
  */
-#define SIG_EXPR_PTR(sig, func) (&SIG_EXPR_SYM(sig, func))
+#define SIG_EXPR_PTR(sig, group) (&SIG_EXPR_SYM(sig, group))
 
-#define SIG_EXPR_LIST_SYM(sig) sig_exprs_ ## sig
+#define SIG_EXPR_LIST_SYM(sig, group) sig_exprs_ ## sig ## _ ## group
 
 /**
  * Declare a signal expression list for reference in a struct aspeed_pin_prio.
@@ -563,49 +565,138 @@ struct aspeed_pin_desc {
  * For example, the 16-bit ROM bus can be enabled by one of two possible signal
  * expressions:
  *
- *     SIG_EXPR_DECL(ROMD8, ROM16, SIG_DESC_SET(SCU90, 6));
- *     SIG_EXPR_DECL(ROMD8, ROM16S, SIG_DESC_SET(HW_STRAP1, 4),
+ *     SIG_EXPR_DECL(ROMD8, ROM16, ROM16, SIG_DESC_SET(SCU90, 6));
+ *     SIG_EXPR_DECL(ROMD8, ROM16S, ROM16S, SIG_DESC_SET(HW_STRAP1, 4),
  *              { HW_STRAP1, GENMASK(1, 0), 0, 0 });
  *     SIG_EXPR_LIST_DECL(ROMD8, SIG_EXPR_PTR(ROMD8, ROM16),
  *              SIG_EXPR_PTR(ROMD8, ROM16S));
  */
-#define SIG_EXPR_LIST_DECL(sig, ...) \
-	static const struct aspeed_sig_expr *SIG_EXPR_LIST_SYM(sig)[] = \
+#define SIG_EXPR_LIST_DECL(sig, group, ...) \
+	static const struct aspeed_sig_expr *SIG_EXPR_LIST_SYM(sig, group)[] =\
 		{ __VA_ARGS__, NULL }
+
+#define stringify(x) #x
+#define istringify(x) stringify(x)
+
+/**
+ * Create an expression symbol alias from (signal, group) to (pin, signal).
+ *
+ * @pin: The pin number
+ * @sig: The signal name
+ * @group: The name of the group of which the pin is a member that is
+ *         associated with the function's signal
+ *
+ * Using an alias in this way enables detection of copy/paste errors (defining
+ * the signal for a group multiple times) whilst enabling multiple pin groups
+ * to exist for a signal without intrusive side-effects on defining the list of
+ * signals available on a pin.
+ */
+#define SIG_EXPR_LIST_ALIAS(pin, sig, group) \
+	static const struct aspeed_sig_expr *\
+		SIG_EXPR_LIST_SYM(pin, sig)[ARRAY_SIZE(SIG_EXPR_LIST_SYM(sig, group))] \
+		__attribute__((alias(istringify(SIG_EXPR_LIST_SYM(sig, group)))))
 
 /**
  * A short-hand macro for declaring a function expression and an expression
- * list with a single function.
+ * list with a single expression (SE) and a single group (SG) of pins.
  *
- * @func: A macro symbol name for the function (is subjected to token pasting)
+ * @pin: The pin the signal will be routed to
+ * @sig: The signal that will be routed to the pin for the function
+ * @func: A macro symbol name for the function
  * @...: Function descriptors that define the function expression
  *
  * For example, signal NCTS6 participates in its own function with one group:
  *
- *     SIG_EXPR_LIST_DECL_SINGLE(NCTS6, NCTS6, SIG_DESC_SET(SCU90, 7));
+ *     SIG_EXPR_LIST_DECL_SINGLE(A18, NCTS6, NCTS6, SIG_DESC_SET(SCU90, 7));
  */
-#define SIG_EXPR_LIST_DECL_SINGLE(sig, func, ...) \
+#define SIG_EXPR_LIST_DECL_SESG(pin, sig, func, ...) \
 	SIG_DESC_LIST_DECL(sig, func, __VA_ARGS__); \
-	SIG_EXPR_DECL_(sig, func); \
-	SIG_EXPR_LIST_DECL(sig, SIG_EXPR_PTR(sig, func))
+	SIG_EXPR_DECL_(sig, func, func); \
+	SIG_EXPR_LIST_DECL(sig, func, SIG_EXPR_PTR(sig, func)); \
+	SIG_EXPR_LIST_ALIAS(pin, sig, func)
 
-#define SIG_EXPR_LIST_DECL_DUAL(sig, f0, f1) \
-	SIG_EXPR_LIST_DECL(sig, SIG_EXPR_PTR(sig, f0), SIG_EXPR_PTR(sig, f1))
+/**
+ * Similar to the above, but for pins with a single expression (SE) and
+ * multiple groups (MG) of pins.
+ *
+ * @pin: The pin the signal will be routed to
+ * @sig: The signal that will be routed to the pin for the function
+ * @group: The name of the function's pin group in which the pin participates
+ * @func: A macro symbol name for the function
+ * @...: Function descriptors that define the function expression
+ */
+#define SIG_EXPR_LIST_DECL_SEMG(pin, sig, group, func, ...) \
+	SIG_DESC_LIST_DECL(sig, group, __VA_ARGS__); \
+	SIG_EXPR_DECL_(sig, group, func); \
+	SIG_EXPR_LIST_DECL(sig, group, SIG_EXPR_PTR(sig, group)); \
+	SIG_EXPR_LIST_ALIAS(pin, sig, group)
 
-#define SIG_EXPR_LIST_PTR(sig) (&SIG_EXPR_LIST_SYM(sig)[0])
+/**
+ * Similar to the above, but for pins with a dual expressions (DE) and
+ * and a single group (SG) of pins.
+ *
+ * @pin: The pin the signal will be routed to
+ * @sig: The signal that will be routed to the pin for the function
+ * @group: The name of the function's pin group in which the pin participates
+ * @func: A macro symbol name for the function
+ * @...: Function descriptors that define the function expression
+ */
+#define SIG_EXPR_LIST_DECL_DESG(pin, sig, f0, f1) \
+	SIG_EXPR_LIST_DECL(sig, f0, \
+			   SIG_EXPR_PTR(sig, f0), \
+			   SIG_EXPR_PTR(sig, f1)); \
+	SIG_EXPR_LIST_ALIAS(pin, sig, f0)
+
+#define SIG_EXPR_LIST_PTR(sig, group) SIG_EXPR_LIST_SYM(sig, group)
 
 #define PIN_EXPRS_SYM(pin) pin_exprs_ ## pin
 #define PIN_EXPRS_PTR(pin) (&PIN_EXPRS_SYM(pin)[0])
 #define PIN_SYM(pin) pin_ ## pin
 
-#define MS_PIN_DECL_(pin, ...) \
+#define PIN_DECL_(pin, ...) \
 	static const struct aspeed_sig_expr **PIN_EXPRS_SYM(pin)[] = \
 		{ __VA_ARGS__, NULL }; \
 	static const struct aspeed_pin_desc PIN_SYM(pin) = \
 		{ #pin, PIN_EXPRS_PTR(pin) }
 
 /**
- * Declare a multi-signal pin
+ * Declare a single signal pin
+ *
+ * @pin: The pin number
+ * @other: Macro name for "other" functionality (subjected to stringification)
+ * @sig: Macro name for the signal (subjected to stringification)
+ *
+ * For example:
+ *
+ *     #define E3 80
+ *     SIG_EXPR_LIST_DECL_SINGLE(SCL5, I2C5, I2C5_DESC);
+ *     PIN_DECL_1(E3, GPIOK0, SCL5);
+ */
+#define PIN_DECL_1(pin, other, sig) \
+	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
+	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, sig), \
+		  SIG_EXPR_LIST_PTR(pin, other))
+
+/**
+ * Single signal, single function pin declaration
+ *
+ * @pin: The pin number
+ * @other: Macro name for "other" functionality (subjected to stringification)
+ * @sig: Macro name for the signal (subjected to stringification)
+ * @...: Signal descriptors that define the function expression
+ *
+ * For example:
+ *
+ *    SSSF_PIN_DECL(A4, GPIOA2, TIMER3, SIG_DESC_SET(SCU80, 2));
+ */
+#define SSSF_PIN_DECL(pin, other, sig, ...) \
+	SIG_EXPR_LIST_DECL_SESG(pin, sig, sig, __VA_ARGS__); \
+	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
+	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, sig), \
+		  SIG_EXPR_LIST_PTR(pin, other)); \
+	FUNC_GROUP_DECL(sig, pin)
+/**
+ * Declare a two-signal pin
  *
  * @pin: The pin number
  * @other: Macro name for "other" functionality (subjected to stringification)
@@ -621,59 +712,42 @@ struct aspeed_pin_desc {
  *     SIG_EXPR_LIST_DECL(ROMD8, SIG_EXPR_PTR(ROMD8, ROM16),
  *              SIG_EXPR_PTR(ROMD8, ROM16S));
  *     SIG_EXPR_LIST_DECL_SINGLE(NCTS6, NCTS6, SIG_DESC_SET(SCU90, 7));
- *     MS_PIN_DECL(A8, GPIOH0, ROMD8, NCTS6);
+ *     PIN_DECL_2(A8, GPIOH0, ROMD8, NCTS6);
  */
-#define MS_PIN_DECL(pin, other, high, low) \
-	SIG_EXPR_LIST_DECL_SINGLE(other, other); \
-	MS_PIN_DECL_(pin, \
-			SIG_EXPR_LIST_PTR(high), \
-			SIG_EXPR_LIST_PTR(low), \
-			SIG_EXPR_LIST_PTR(other))
+#define PIN_DECL_2(pin, other, high, low) \
+	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
+	PIN_DECL_(pin, \
+			SIG_EXPR_LIST_PTR(pin, high), \
+			SIG_EXPR_LIST_PTR(pin, low), \
+			SIG_EXPR_LIST_PTR(pin, other))
 
-#define PIN_GROUP_SYM(func) pins_ ## func
-#define FUNC_GROUP_SYM(func) groups_ ## func
+#define PIN_DECL_3(pin, other, high, medium, low) \
+	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
+	PIN_DECL_(pin, \
+			SIG_EXPR_LIST_PTR(pin, high), \
+			SIG_EXPR_LIST_PTR(pin, medium), \
+			SIG_EXPR_LIST_PTR(pin, low), \
+			SIG_EXPR_LIST_PTR(pin, other))
+
+#define GROUP_SYM(group) group_pins_ ## group
+#define GROUP_DECL(group, ...) \
+	static const int GROUP_SYM(group)[] = { __VA_ARGS__ }
+
+#define FUNC_SYM(func) func_groups_ ## func
+#define FUNC_DECL_(func, ...) \
+	static const char *FUNC_SYM(func)[] = { __VA_ARGS__ }
+
+#define FUNC_DECL_2(func, one, two) FUNC_DECL_(func, #one, #two)
+#define FUNC_DECL_3(func, one, two, three) FUNC_DECL_(func, #one, #two, #three)
+
 #define FUNC_GROUP_DECL(func, ...) \
-	static const int PIN_GROUP_SYM(func)[] = { __VA_ARGS__ }; \
-	static const char *FUNC_GROUP_SYM(func)[] = { #func }
+	GROUP_DECL(func, __VA_ARGS__); \
+	FUNC_DECL_(func, #func)
 
-/**
- * Declare a single signal pin
- *
- * @pin: The pin number
- * @other: Macro name for "other" functionality (subjected to stringification)
- * @sig: Macro name for the signal (subjected to stringification)
- *
- * For example:
- *
- *     #define E3 80
- *     SIG_EXPR_LIST_DECL_SINGLE(SCL5, I2C5, I2C5_DESC);
- *     SS_PIN_DECL(E3, GPIOK0, SCL5);
- */
-#define SS_PIN_DECL(pin, other, sig) \
-	SIG_EXPR_LIST_DECL_SINGLE(other, other); \
-	MS_PIN_DECL_(pin, SIG_EXPR_LIST_PTR(sig), SIG_EXPR_LIST_PTR(other))
-
-/**
- * Single signal, single function pin declaration
- *
- * @pin: The pin number
- * @other: Macro name for "other" functionality (subjected to stringification)
- * @sig: Macro name for the signal (subjected to stringification)
- * @...: Signal descriptors that define the function expression
- *
- * For example:
- *
- *    SSSF_PIN_DECL(A4, GPIOA2, TIMER3, SIG_DESC_SET(SCU80, 2));
- */
-#define SSSF_PIN_DECL(pin, other, sig, ...) \
-	SIG_EXPR_LIST_DECL_SINGLE(sig, sig, __VA_ARGS__); \
-	SIG_EXPR_LIST_DECL_SINGLE(other, other); \
-	MS_PIN_DECL_(pin, SIG_EXPR_LIST_PTR(sig), SIG_EXPR_LIST_PTR(other)); \
-	FUNC_GROUP_DECL(sig, pin)
 
 #define GPIO_PIN_DECL(pin, gpio) \
-	SIG_EXPR_LIST_DECL_SINGLE(gpio, gpio); \
-	MS_PIN_DECL_(pin, SIG_EXPR_LIST_PTR(gpio))
+	SIG_EXPR_LIST_DECL_SESG(pin, gpio, gpio); \
+	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, gpio))
 
 struct aspeed_pin_group {
 	const char *name;
@@ -683,8 +757,8 @@ struct aspeed_pin_group {
 
 #define ASPEED_PINCTRL_GROUP(name_) { \
 	.name = #name_, \
-	.pins = &(PIN_GROUP_SYM(name_))[0], \
-	.npins = ARRAY_SIZE(PIN_GROUP_SYM(name_)), \
+	.pins = &(GROUP_SYM(name_))[0], \
+	.npins = ARRAY_SIZE(GROUP_SYM(name_)), \
 }
 
 struct aspeed_pin_function {
@@ -695,18 +769,21 @@ struct aspeed_pin_function {
 
 #define ASPEED_PINCTRL_FUNC(name_, ...) { \
 	.name = #name_, \
-	.groups = &FUNC_GROUP_SYM(name_)[0], \
-	.ngroups = ARRAY_SIZE(FUNC_GROUP_SYM(name_)), \
+	.groups = &FUNC_SYM(name_)[0], \
+	.ngroups = ARRAY_SIZE(FUNC_SYM(name_)), \
 }
 
 struct aspeed_pinmux_data;
 
 struct aspeed_pinmux_ops {
-	int (*set)(const struct aspeed_pinmux_data *ctx,
+	int (*eval)(struct aspeed_pinmux_data *ctx,
+		    const struct aspeed_sig_expr *expr, bool enabled);
+	int (*set)(struct aspeed_pinmux_data *ctx,
 		   const struct aspeed_sig_expr *expr, bool enabled);
 };
 
 struct aspeed_pinmux_data {
+	struct device *dev;
 	struct regmap *maps[ASPEED_NR_PINMUX_IPS];
 
 	const struct aspeed_pinmux_ops *ops;
@@ -721,11 +798,10 @@ struct aspeed_pinmux_data {
 int aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc, bool enabled,
 			 struct regmap *map);
 
-int aspeed_sig_expr_eval(const struct aspeed_pinmux_data *ctx,
-			 const struct aspeed_sig_expr *expr,
-			 bool enabled);
+int aspeed_sig_expr_eval(struct aspeed_pinmux_data *ctx,
+			 const struct aspeed_sig_expr *expr, bool enabled);
 
-static inline int aspeed_sig_expr_set(const struct aspeed_pinmux_data *ctx,
+static inline int aspeed_sig_expr_set(struct aspeed_pinmux_data *ctx,
 				      const struct aspeed_sig_expr *expr,
 				      bool enabled)
 {

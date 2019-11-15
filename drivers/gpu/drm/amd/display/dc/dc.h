@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.35"
+#define DC_VER "3.2.48"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -121,6 +121,7 @@ struct dc_caps {
 struct dc_bug_wa {
 	bool no_connect_phy_config;
 	bool dedcn20_305_wa;
+	bool skip_clock_update;
 };
 #endif
 
@@ -219,7 +220,7 @@ struct dc_config {
 	bool power_down_display_on_boot;
 	bool edp_not_connected;
 	bool forced_clocks;
-
+	bool multi_mon_pp_mclk_switch;
 };
 
 enum visual_confirm {
@@ -252,7 +253,10 @@ enum wm_report_mode {
 struct dc_clocks {
 	int dispclk_khz;
 	int max_supported_dppclk_khz;
+	int max_supported_dispclk_khz;
 	int dppclk_khz;
+	int bw_dppclk_khz; /*a copy of dppclk_khz*/
+	int bw_dispclk_khz;
 	int dcfclk_khz;
 	int socclk_khz;
 	int dcfclk_deep_sleep_khz;
@@ -260,6 +264,12 @@ struct dc_clocks {
 	int phyclk_khz;
 	int dramclk_khz;
 	bool p_state_change_support;
+
+	/*
+	 * Elements below are not compared for the purposes of
+	 * optimization required
+	 */
+	bool prev_p_state_change_support;
 };
 
 struct dc_bw_validation_profile {
@@ -341,6 +351,7 @@ struct dc_debug_options {
 	bool disable_pplib_wm_range;
 	enum wm_report_mode pplib_wm_report_mode;
 	unsigned int min_disp_clk_khz;
+	unsigned int min_dpp_clk_khz;
 	int sr_exit_time_dpm0_ns;
 	int sr_enter_plus_exit_time_dpm0_ns;
 	int sr_exit_time_ns;
@@ -367,6 +378,7 @@ struct dc_debug_options {
 	bool scl_reset_length10;
 	bool hdmi20_disable;
 	bool skip_detection_link_training;
+	bool remove_disconnect_edp;
 	unsigned int force_odm_combine; //bit vector based on otg inst
 	unsigned int force_fclk_khz;
 	bool disable_tri_buf;
@@ -374,10 +386,18 @@ struct dc_debug_options {
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	bool disable_fec;
 #endif
+#ifdef CONFIG_DRM_AMD_DC_DCN2_1
+	bool disable_48mhz_pwrdwn;
+#endif
 	/* This forces a hard min on the DCFCLK requested to SMU/PP
 	 * watermarks are not affected.
 	 */
 	unsigned int force_min_dcfclk_mhz;
+	bool disable_timing_sync;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	bool cm_in_bypass;
+#endif
+	int force_clock_mode;/*every mode change.*/
 };
 
 struct dc_debug_data {
@@ -406,6 +426,7 @@ struct dc_phy_addr_space_config {
 	} gart_config;
 
 	bool valid;
+	uint64_t page_table_default_page_addr;
 };
 
 struct dc_virtual_addr_space_config {
@@ -597,8 +618,11 @@ enum dc_transfer_func_predefined {
 	TRANSFER_FUNCTION_UNITY,
 	TRANSFER_FUNCTION_HLG,
 	TRANSFER_FUNCTION_HLG12,
-	TRANSFER_FUNCTION_GAMMA22
+	TRANSFER_FUNCTION_GAMMA22,
+	TRANSFER_FUNCTION_GAMMA24,
+	TRANSFER_FUNCTION_GAMMA26
 };
+
 
 struct dc_transfer_func {
 	struct kref refcount;
@@ -615,12 +639,26 @@ struct dc_transfer_func {
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
+union dc_3dlut_state {
+	struct {
+		uint32_t initialized:1;		/*if 3dlut is went through color module for initialization */
+		uint32_t rmu_idx_valid:1;	/*if mux settings are valid*/
+		uint32_t rmu_mux_num:3;		/*index of mux to use*/
+		uint32_t mpc_rmu0_mux:4;	/*select mpcc on mux, one of the following : mpcc0, mpcc1, mpcc2, mpcc3*/
+		uint32_t mpc_rmu1_mux:4;
+		uint32_t mpc_rmu2_mux:4;
+		uint32_t reserved:15;
+	} bits;
+	uint32_t raw;
+};
+
 
 struct dc_3dlut {
 	struct kref refcount;
 	struct tetrahedral_params lut_3d;
 	uint32_t hdr_multiplier;
-	bool initialized;
+	bool initialized; /*remove after diag fix*/
+	union dc_3dlut_state state;
 	struct dc_context *ctx;
 };
 #endif
@@ -682,7 +720,7 @@ struct dc_plane_state {
 	struct rect dst_rect;
 	struct rect clip_rect;
 
-	union plane_size plane_size;
+	struct plane_size plane_size;
 	union dc_tiling_info tiling_info;
 
 	struct dc_plane_dcc_param dcc;
@@ -716,6 +754,7 @@ struct dc_plane_state {
 	bool visible;
 	bool flip_immediate;
 	bool horizontal_mirror;
+	int layer_index;
 
 	union surface_update_flags update_flags;
 	/* private to DC core */
@@ -731,7 +770,7 @@ struct dc_plane_state {
 };
 
 struct dc_plane_info {
-	union plane_size plane_size;
+	struct plane_size plane_size;
 	union dc_tiling_info tiling_info;
 	struct dc_plane_dcc_param dcc;
 	enum surface_pixel_format format;
@@ -745,6 +784,7 @@ struct dc_plane_info {
 	bool global_alpha;
 	int  global_alpha_value;
 	bool input_csc_enabled;
+	int layer_index;
 };
 
 struct dc_scaling_info {
@@ -833,6 +873,9 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
 void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
+
+bool dc_set_generic_gpio_for_stereo(bool enable,
+		struct gpio_service *gpio_service);
 
 /*
  * fast_validate: we return after determining if we can support the new state,
@@ -1020,6 +1063,8 @@ unsigned int dc_get_target_backlight_pwm(struct dc *dc);
 
 bool dc_is_dmcu_initialized(struct dc *dc);
 
+enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);
+void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg);
 #if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
 /*******************************************************************************
  * DSC Interfaces

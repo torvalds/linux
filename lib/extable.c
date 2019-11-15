@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/sort.h>
 #include <linux/uaccess.h>
+#include <linux/extable.h>
 
 #ifndef ARCH_HAS_RELATIVE_EXTABLE
 #define ex_to_insn(x)	((x)->insn)

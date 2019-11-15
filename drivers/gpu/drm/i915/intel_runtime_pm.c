@@ -32,6 +32,7 @@
 #include <drm/drm_print.h>
 
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 /**
  * DOC: runtime pm
@@ -221,13 +222,11 @@ __untrack_all_wakerefs(struct intel_runtime_pm_debug *debug,
 static void
 dump_and_free_wakeref_tracking(struct intel_runtime_pm_debug *debug)
 {
-	struct drm_printer p;
+	if (debug->count) {
+		struct drm_printer p = drm_debug_printer("i915");
 
-	if (!debug->count)
-		return;
-
-	p = drm_debug_printer("i915");
-	__print_intel_runtime_pm_wakeref(&p, debug);
+		__print_intel_runtime_pm_wakeref(&p, debug);
+	}
 
 	kfree(debug->owners);
 }
@@ -594,7 +593,7 @@ void intel_runtime_pm_disable(struct intel_runtime_pm *rpm)
 		pm_runtime_put(kdev);
 }
 
-void intel_runtime_pm_cleanup(struct intel_runtime_pm *rpm)
+void intel_runtime_pm_driver_release(struct intel_runtime_pm *rpm)
 {
 	int count = atomic_read(&rpm->wakeref_count);
 

@@ -10,17 +10,31 @@ maintainers:
   - Paul Walmsley <paul.walmsley@sifive.com>
   - Palmer Dabbelt <palmer@sifive.com>
 
+description: |
+  This document uses some terminology common to the RISC-V community
+  that is not widely used, the definitions of which are listed here:
+
+  hart: A hardware execution context, which contains all the state
+  mandated by the RISC-V ISA: a PC and some registers.  This
+  terminology is designed to disambiguate software's view of execution
+  contexts from any particular microarchitectural implementation
+  strategy.  For example, an Intel laptop containing one socket with
+  two cores, each of which has two hyperthreads, could be described as
+  having four harts.
+
 properties:
   compatible:
-    items:
-      - enum:
-          - sifive,rocket0
-          - sifive,e5
-          - sifive,e51
-          - sifive,u54-mc
-          - sifive,u54
-          - sifive,u5
-      - const: riscv
+    oneOf:
+      - items:
+          - enum:
+              - sifive,rocket0
+              - sifive,e5
+              - sifive,e51
+              - sifive,u54-mc
+              - sifive,u54
+              - sifive,u5
+          - const: riscv
+      - const: riscv    # Simulator only
     description:
       Identifies that the hart uses the RISC-V instruction set
       and identifies the type of the hart.
@@ -50,12 +64,12 @@ properties:
       User-Level ISA document, available from
       https://riscv.org/specifications/
 
-  timebase-frequency:
-    type: integer
-    minimum: 1
-    description:
-      Specifies the clock frequency of the system timer in Hz.
-      This value is common to all harts on a single system image.
+      While the isa strings in ISA specification are case
+      insensitive, letters in the riscv,isa string must be all
+      lowercase to simplify parsing.
+
+  # RISC-V requires 'timebase-frequency' in /cpus, so disallow it here
+  timebase-frequency: false
 
   interrupt-controller:
     type: object
@@ -77,7 +91,6 @@ properties:
 
 required:
   - riscv,isa
-  - timebase-frequency
   - interrupt-controller
 
 examples:

@@ -102,19 +102,31 @@ MODULE_DEVICE_TABLE(of, st_accel_of_match);
 
 static int st_accel_spi_probe(struct spi_device *spi)
 {
-	struct iio_dev *indio_dev;
+	const struct st_sensor_settings *settings;
 	struct st_sensor_data *adata;
+	struct iio_dev *indio_dev;
 	int err;
+
+	st_sensors_of_name_probe(&spi->dev, st_accel_of_match,
+				 spi->modalias, sizeof(spi->modalias));
+
+	settings = st_accel_get_settings(spi->modalias);
+	if (!settings) {
+		dev_err(&spi->dev, "device name %s not recognized.\n",
+			spi->modalias);
+		return -ENODEV;
+	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adata));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	adata = iio_priv(indio_dev);
+	adata->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_of_name_probe(&spi->dev, st_accel_of_match,
-				 spi->modalias, sizeof(spi->modalias));
-	st_sensors_spi_configure(indio_dev, spi, adata);
+	err = st_sensors_spi_configure(indio_dev, spi);
+	if (err < 0)
+		return err;
 
 	err = st_accel_common_probe(indio_dev);
 	if (err < 0)

@@ -167,15 +167,15 @@ scripts	Various scripts, see scripts/README.
 LIMITATIONS
 ===========
 
-The Linux-kernel memory model has the following limitations:
+The Linux-kernel memory model (LKMM) has the following limitations:
 
-1.	Compiler optimizations are not modeled.  Of course, the use
-	of READ_ONCE() and WRITE_ONCE() limits the compiler's ability
-	to optimize, but there is Linux-kernel code that uses bare C
-	memory accesses.  Handling this code is on the to-do list.
-	For more information, see Documentation/explanation.txt (in
-	particular, the "THE PROGRAM ORDER RELATION: po AND po-loc"
-	and "A WARNING" sections).
+1.	Compiler optimizations are not accurately modeled.  Of course,
+	the use of READ_ONCE() and WRITE_ONCE() limits the compiler's
+	ability to optimize, but under some circumstances it is possible
+	for the compiler to undermine the memory model.  For more
+	information, see Documentation/explanation.txt (in particular,
+	the "THE PROGRAM ORDER RELATION: po AND po-loc" and "A WARNING"
+	sections).
 
 	Note that this limitation in turn limits LKMM's ability to
 	accurately model address, control, and data dependencies.

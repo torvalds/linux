@@ -148,7 +148,7 @@ static inline void change_bit(unsigned int bit, volatile unsigned long *p)
 			"       getex   %0\n"
 			"       beqz    %0, 1b\n"
 			: "=&a" (tmp)
-			: "a" (~mask), "a" (p)
+			: "a" (mask), "a" (p)
 			: "memory");
 }
 

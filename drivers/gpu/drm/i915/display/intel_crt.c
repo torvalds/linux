@@ -38,7 +38,7 @@
 #include "intel_connector.h"
 #include "intel_crt.h"
 #include "intel_ddi.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
 #include "intel_hotplug.h"
@@ -443,9 +443,9 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 
 		I915_WRITE(crt->adpa_reg, adpa);
 
-		if (intel_wait_for_register(&dev_priv->uncore,
+		if (intel_de_wait_for_clear(dev_priv,
 					    crt->adpa_reg,
-					    ADPA_CRT_HOTPLUG_FORCE_TRIGGER, 0,
+					    ADPA_CRT_HOTPLUG_FORCE_TRIGGER,
 					    1000))
 			DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
 
@@ -497,10 +497,8 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 
 	I915_WRITE(crt->adpa_reg, adpa);
 
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    crt->adpa_reg,
-				    ADPA_CRT_HOTPLUG_FORCE_TRIGGER, 0,
-				    1000)) {
+	if (intel_de_wait_for_clear(dev_priv, crt->adpa_reg,
+				    ADPA_CRT_HOTPLUG_FORCE_TRIGGER, 1000)) {
 		DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
 		I915_WRITE(crt->adpa_reg, save_adpa);
 	}
@@ -550,9 +548,8 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 					      CRT_HOTPLUG_FORCE_DETECT,
 					      CRT_HOTPLUG_FORCE_DETECT);
 		/* wait for FORCE_DETECT to go off */
-		if (intel_wait_for_register(&dev_priv->uncore, PORT_HOTPLUG_EN,
-					    CRT_HOTPLUG_FORCE_DETECT, 0,
-					    1000))
+		if (intel_de_wait_for_clear(dev_priv, PORT_HOTPLUG_EN,
+					    CRT_HOTPLUG_FORCE_DETECT, 1000))
 			DRM_DEBUG_KMS("timed out waiting for FORCE_DETECT to go off");
 	}
 
@@ -867,6 +864,13 @@ load_detect:
 
 out:
 	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
+
+	/*
+	 * Make sure the refs for power wells enabled during detect are
+	 * dropped to avoid a new detect cycle triggered by HPD polling.
+	 */
+	intel_display_power_flush_work(dev_priv);
+
 	return status;
 }
 

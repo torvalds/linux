@@ -12,8 +12,8 @@ config NET_VENDOR_8390
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about Western Digital cards. If you say Y, you will be
-	  asked for your specific card in the following questions.
+	  the questions about National Semiconductor 8390 cards. If you say Y,
+	  you will be asked for your specific card in the following questions.
 
 if NET_VENDOR_8390
 

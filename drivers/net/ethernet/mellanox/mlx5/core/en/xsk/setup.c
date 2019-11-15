@@ -4,18 +4,23 @@
 #include "setup.h"
 #include "en/params.h"
 
+/* It matches XDP_UMEM_MIN_CHUNK_SIZE, but as this constant is private and may
+ * change unexpectedly, and mlx5e has a minimum valid stride size for striding
+ * RQ, keep this check in the driver.
+ */
+#define MLX5E_MIN_XSK_CHUNK_SIZE 2048
+
 bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 			      struct mlx5e_xsk_param *xsk,
 			      struct mlx5_core_dev *mdev)
 {
-	/* AF_XDP doesn't support frames larger than PAGE_SIZE, and the current
-	 * mlx5e XDP implementation doesn't support multiple packets per page.
-	 */
-	if (xsk->chunk_size != PAGE_SIZE)
+	/* AF_XDP doesn't support frames larger than PAGE_SIZE. */
+	if (xsk->chunk_size > PAGE_SIZE ||
+			xsk->chunk_size < MLX5E_MIN_XSK_CHUNK_SIZE)
 		return false;
 
 	/* Current MTU and XSK headroom don't allow packets to fit the frames. */
-	if (mlx5e_rx_get_linear_frag_sz(params, xsk) > xsk->chunk_size)
+	if (mlx5e_rx_get_min_frag_sz(params, xsk) > xsk->chunk_size)
 		return false;
 
 	/* frag_sz is different for regular and XSK RQs, so ensure that linear
@@ -60,24 +65,28 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 		   struct mlx5e_xsk_param *xsk, struct xdp_umem *umem,
 		   struct mlx5e_channel *c)
 {
-	struct mlx5e_channel_param cparam = {};
+	struct mlx5e_channel_param *cparam;
 	struct dim_cq_moder icocq_moder = {};
 	int err;
 
 	if (!mlx5e_validate_xsk_param(params, xsk, priv->mdev))
 		return -EINVAL;
 
-	mlx5e_build_xsk_cparam(priv, params, xsk, &cparam);
+	cparam = kvzalloc(sizeof(*cparam), GFP_KERNEL);
+	if (!cparam)
+		return -ENOMEM;
 
-	err = mlx5e_open_cq(c, params->rx_cq_moderation, &cparam.rx_cq, &c->xskrq.cq);
+	mlx5e_build_xsk_cparam(priv, params, xsk, cparam);
+
+	err = mlx5e_open_cq(c, params->rx_cq_moderation, &cparam->rx_cq, &c->xskrq.cq);
 	if (unlikely(err))
-		return err;
+		goto err_free_cparam;
 
-	err = mlx5e_open_rq(c, params, &cparam.rq, xsk, umem, &c->xskrq);
+	err = mlx5e_open_rq(c, params, &cparam->rq, xsk, umem, &c->xskrq);
 	if (unlikely(err))
 		goto err_close_rx_cq;
 
-	err = mlx5e_open_cq(c, params->tx_cq_moderation, &cparam.tx_cq, &c->xsksq.cq);
+	err = mlx5e_open_cq(c, params->tx_cq_moderation, &cparam->tx_cq, &c->xsksq.cq);
 	if (unlikely(err))
 		goto err_close_rq;
 
@@ -87,20 +96,22 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	 * is disabled and then reenabled, but the SQ continues receiving CQEs
 	 * from the old UMEM.
 	 */
-	err = mlx5e_open_xdpsq(c, params, &cparam.xdp_sq, umem, &c->xsksq, true);
+	err = mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, umem, &c->xsksq, true);
 	if (unlikely(err))
 		goto err_close_tx_cq;
 
-	err = mlx5e_open_cq(c, icocq_moder, &cparam.icosq_cq, &c->xskicosq.cq);
+	err = mlx5e_open_cq(c, icocq_moder, &cparam->icosq_cq, &c->xskicosq.cq);
 	if (unlikely(err))
 		goto err_close_sq;
 
 	/* Create a dedicated SQ for posting NOPs whenever we need an IRQ to be
 	 * triggered and NAPI to be called on the correct CPU.
 	 */
-	err = mlx5e_open_icosq(c, params, &cparam.icosq, &c->xskicosq);
+	err = mlx5e_open_icosq(c, params, &cparam->icosq, &c->xskicosq);
 	if (unlikely(err))
 		goto err_close_icocq;
+
+	kvfree(cparam);
 
 	spin_lock_init(&c->xskicosq_lock);
 
@@ -123,6 +134,9 @@ err_close_rq:
 err_close_rx_cq:
 	mlx5e_close_cq(&c->xskrq.cq);
 
+err_free_cparam:
+	kvfree(cparam);
+
 	return err;
 }
 
@@ -141,15 +155,20 @@ void mlx5e_close_xsk(struct mlx5e_channel *c)
 
 void mlx5e_activate_xsk(struct mlx5e_channel *c)
 {
+	mlx5e_activate_icosq(&c->xskicosq);
 	set_bit(MLX5E_RQ_STATE_ENABLED, &c->xskrq.state);
 	/* TX queue is created active. */
+
+	spin_lock(&c->xskicosq_lock);
 	mlx5e_trigger_irq(&c->xskicosq);
+	spin_unlock(&c->xskicosq_lock);
 }
 
 void mlx5e_deactivate_xsk(struct mlx5e_channel *c)
 {
 	mlx5e_deactivate_rq(&c->xskrq);
 	/* TX queue is disabled on close. */
+	mlx5e_deactivate_icosq(&c->xskicosq);
 }
 
 static int mlx5e_redirect_xsk_rqt(struct mlx5e_priv *priv, u16 ix, u32 rqn)

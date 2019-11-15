@@ -745,7 +745,7 @@ ap_ts_i2c: &i2c14 {
 	 * All the hardware muxes would allow us to hook things up in different
 	 * ways to some potential benefit for static configurations (you could
 	 * achieve extra USB2 bandwidth by using two different ports for the
-	 * two conenctors or possibly even get USB3 peripheral mode), but in
+	 * two connectors or possibly even get USB3 peripheral mode), but in
 	 * each case you end up forcing to disconnect/reconnect an in-use
 	 * USB session in some cases depending on what you hotplug into the
 	 * other connector.  Thus hardcoding this as peripheral makes sense.
@@ -963,27 +963,27 @@ ap_ts_i2c: &i2c14 {
 };
 
 &pm8998_adc {
-	adc-chan@ADC5_AMUX_THM1_100K_PU {
+	adc-chan@4d {
 		reg = <ADC5_AMUX_THM1_100K_PU>;
 		label = "sdm_temp";
 	};
 
-	adc-chan@ADC5_AMUX_THM2_100K_PU {
+	adc-chan@4e {
 		reg = <ADC5_AMUX_THM2_100K_PU>;
 		label = "quiet_temp";
 	};
 
-	adc-chan@ADC5_AMUX_THM3_100K_PU {
+	adc-chan@4f {
 		reg = <ADC5_AMUX_THM3_100K_PU>;
 		label = "lte_temp_1";
 	};
 
-	adc-chan@ADC5_AMUX_THM4_100K_PU {
+	adc-chan@50 {
 		reg = <ADC5_AMUX_THM4_100K_PU>;
 		label = "lte_temp_2";
 	};
 
-	adc-chan@ADC5_AMUX_THM5_100K_PU {
+	adc-chan@51 {
 		reg = <ADC5_AMUX_THM5_100K_PU>;
 		label = "charger_temp";
 	};

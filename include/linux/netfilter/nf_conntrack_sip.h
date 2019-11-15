@@ -1,11 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NF_CONNTRACK_SIP_H__
 #define __NF_CONNTRACK_SIP_H__
-#ifdef __KERNEL__
 
-#include <net/netfilter/nf_conntrack_expect.h>
-
+#include <linux/skbuff.h>
 #include <linux/types.h>
+#include <net/netfilter/nf_conntrack_expect.h>
 
 #define SIP_PORT	5060
 #define SIP_TIMEOUT	3600
@@ -196,5 +195,4 @@ int ct_sip_get_sdp_header(const struct nf_conn *ct, const char *dptr,
 			  enum sdp_header_types term,
 			  unsigned int *matchoff, unsigned int *matchlen);
 
-#endif /* __KERNEL__ */
 #endif /* __NF_CONNTRACK_SIP_H__ */

@@ -30,4 +30,9 @@ extern void opal_event_shutdown(void);
 
 bool cpu_core_split_required(void);
 
+struct memcons;
+ssize_t memcons_copy(struct memcons *mc, char *to, loff_t pos, size_t count);
+u32 memcons_get_size(struct memcons *mc);
+struct memcons *memcons_init(struct device_node *node, const char *mc_prop_name);
+
 #endif /* _POWERNV_H */

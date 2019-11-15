@@ -63,9 +63,8 @@ int remap_io_mapping(struct vm_area_struct *vma,
 	struct remap_pfn r;
 	int err;
 
-	GEM_BUG_ON((vma->vm_flags &
-		    (VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP)) !=
-		   (VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP));
+#define EXPECTED_FLAGS (VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP)
+	GEM_BUG_ON((vma->vm_flags & EXPECTED_FLAGS) != EXPECTED_FLAGS);
 
 	/* We rely on prevalidation of the io-mapping to skip track_pfn(). */
 	r.mm = vma->vm_mm;

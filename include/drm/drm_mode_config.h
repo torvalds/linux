@@ -849,8 +849,21 @@ struct drm_mode_config {
 	 */
 	struct drm_property *content_protection_property;
 
+	/**
+	 * @hdcp_content_type_property: DRM ENUM property for type of
+	 * Protected Content.
+	 */
+	struct drm_property *hdcp_content_type_property;
+
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
+
+	/**
+	 * @prefer_shadow_fbdev:
+	 *
+	 * Hint to framebuffer emulation to prefer shadow-fb rendering.
+	 */
+	bool prefer_shadow_fbdev;
 
 	/**
 	 * @quirk_addfb_prefer_xbgr_30bpp:

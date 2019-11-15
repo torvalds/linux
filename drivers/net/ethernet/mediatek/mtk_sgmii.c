@@ -16,8 +16,7 @@
 int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *r, u32 ana_rgc3)
 {
 	struct device_node *np;
-	const char *str;
-	int i, err;
+	int i;
 
 	ss->ana_rgc3 = ana_rgc3;
 
@@ -29,19 +28,6 @@ int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *r, u32 ana_rgc3)
 		ss->regmap[i] = syscon_node_to_regmap(np);
 		if (IS_ERR(ss->regmap[i]))
 			return PTR_ERR(ss->regmap[i]);
-
-		err = of_property_read_string(np, "mediatek,physpeed", &str);
-		if (err)
-			return err;
-
-		if (!strcmp(str, "2500"))
-			ss->flags[i] |= MTK_SGMII_PHYSPEED_2500;
-		else if (!strcmp(str, "1000"))
-			ss->flags[i] |= MTK_SGMII_PHYSPEED_1000;
-		else if (!strcmp(str, "auto"))
-			ss->flags[i] |= MTK_SGMII_PHYSPEED_AN;
-		else
-			return -EINVAL;
 	}
 
 	return 0;
@@ -73,27 +59,45 @@ int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id)
 	return 0;
 }
 
-int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id)
+int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
+			       const struct phylink_link_state *state)
 {
 	unsigned int val;
-	int mode;
 
 	if (!ss->regmap[id])
 		return -EINVAL;
 
 	regmap_read(ss->regmap[id], ss->ana_rgc3, &val);
-	val &= ~GENMASK(3, 2);
-	mode = ss->flags[id] & MTK_SGMII_PHYSPEED_MASK;
-	val |= (mode == MTK_SGMII_PHYSPEED_1000) ? 0 : BIT(2);
+	val &= ~RG_PHY_SPEED_MASK;
+	if (state->interface == PHY_INTERFACE_MODE_2500BASEX)
+		val |= RG_PHY_SPEED_3_125G;
 	regmap_write(ss->regmap[id], ss->ana_rgc3, val);
 
 	/* Disable SGMII AN */
 	regmap_read(ss->regmap[id], SGMSYS_PCS_CONTROL_1, &val);
-	val &= ~BIT(12);
+	val &= ~SGMII_AN_ENABLE;
 	regmap_write(ss->regmap[id], SGMSYS_PCS_CONTROL_1, val);
 
 	/* SGMII force mode setting */
-	val = 0x31120019;
+	regmap_read(ss->regmap[id], SGMSYS_SGMII_MODE, &val);
+	val &= ~SGMII_IF_MODE_MASK;
+
+	switch (state->speed) {
+	case SPEED_10:
+		val |= SGMII_SPEED_10;
+		break;
+	case SPEED_100:
+		val |= SGMII_SPEED_100;
+		break;
+	case SPEED_2500:
+	case SPEED_1000:
+		val |= SGMII_SPEED_1000;
+		break;
+	};
+
+	if (state->duplex == DUPLEX_FULL)
+		val |= SGMII_DUPLEX_FULL;
+
 	regmap_write(ss->regmap[id], SGMSYS_SGMII_MODE, val);
 
 	/* Release PHYA power down state */
@@ -102,4 +106,21 @@ int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id)
 	regmap_write(ss->regmap[id], SGMSYS_QPHY_PWR_STATE_CTRL, val);
 
 	return 0;
+}
+
+void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id)
+{
+	struct mtk_sgmii *ss = eth->sgmii;
+	unsigned int val, sid;
+
+	/* Decide how GMAC and SGMIISYS be mapped */
+	sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
+	       0 : mac_id;
+
+	if (!ss->regmap[sid])
+		return;
+
+	regmap_read(ss->regmap[sid], SGMSYS_PCS_CONTROL_1, &val);
+	val |= SGMII_AN_RESTART;
+	regmap_write(ss->regmap[sid], SGMSYS_PCS_CONTROL_1, val);
 }

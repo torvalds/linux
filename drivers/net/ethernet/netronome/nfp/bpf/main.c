@@ -300,6 +300,14 @@ nfp_bpf_parse_cap_adjust_tail(struct nfp_app_bpf *bpf, void __iomem *value,
 }
 
 static int
+nfp_bpf_parse_cap_cmsg_multi_ent(struct nfp_app_bpf *bpf, void __iomem *value,
+				 u32 length)
+{
+	bpf->cmsg_multi_ent = true;
+	return 0;
+}
+
+static int
 nfp_bpf_parse_cap_abi_version(struct nfp_app_bpf *bpf, void __iomem *value,
 			      u32 length)
 {
@@ -375,6 +383,11 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 							  length))
 				goto err_release_free;
 			break;
+		case NFP_BPF_CAP_TYPE_CMSG_MULTI_ENT:
+			if (nfp_bpf_parse_cap_cmsg_multi_ent(app->priv, value,
+							     length))
+				goto err_release_free;
+			break;
 		default:
 			nfp_dbg(cpp, "unknown BPF capability: %d\n", type);
 			break;
@@ -413,6 +426,25 @@ static void nfp_bpf_ndo_uninit(struct nfp_app *app, struct net_device *netdev)
 	struct nfp_app_bpf *bpf = app->priv;
 
 	bpf_offload_dev_netdev_unregister(bpf->bpf_dev, netdev);
+}
+
+static int nfp_bpf_start(struct nfp_app *app)
+{
+	struct nfp_app_bpf *bpf = app->priv;
+
+	if (app->ctrl->dp.mtu < nfp_bpf_ctrl_cmsg_min_mtu(bpf)) {
+		nfp_err(bpf->app->cpp,
+			"ctrl channel MTU below min required %u < %u\n",
+			app->ctrl->dp.mtu, nfp_bpf_ctrl_cmsg_min_mtu(bpf));
+		return -EINVAL;
+	}
+
+	if (bpf->cmsg_multi_ent)
+		bpf->cmsg_cache_cnt = nfp_bpf_ctrl_cmsg_cache_cnt(bpf);
+	else
+		bpf->cmsg_cache_cnt = 1;
+
+	return 0;
 }
 
 static int nfp_bpf_init(struct nfp_app *app)
@@ -488,6 +520,7 @@ const struct nfp_app_type app_bpf = {
 
 	.init		= nfp_bpf_init,
 	.clean		= nfp_bpf_clean,
+	.start		= nfp_bpf_start,
 
 	.check_mtu	= nfp_bpf_check_mtu,
 

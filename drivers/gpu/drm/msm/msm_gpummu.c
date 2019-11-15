@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2018 The Linux Foundation. All rights reserved. */
 
+#include <linux/dma-mapping.h>
+
 #include "msm_drv.h"
 #include "msm_mmu.h"
 #include "adreno/adreno_gpu.h"

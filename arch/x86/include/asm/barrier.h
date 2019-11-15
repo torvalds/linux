@@ -49,8 +49,7 @@ static inline unsigned long array_index_mask_nospec(unsigned long index,
 #define array_index_mask_nospec array_index_mask_nospec
 
 /* Prevent speculative execution past this barrier. */
-#define barrier_nospec() alternative_2("", "mfence", X86_FEATURE_MFENCE_RDTSC, \
-					   "lfence", X86_FEATURE_LFENCE_RDTSC)
+#define barrier_nospec() alternative("", "lfence", X86_FEATURE_LFENCE_RDTSC)
 
 #define dma_rmb()	barrier()
 #define dma_wmb()	barrier()

@@ -12,7 +12,7 @@ Optional properties:
             which disables using this rng to automatically fill the kernel's
             entropy pool.
 
-N.B. currently 'reg' must be four bytes wide and aligned
+N.B. currently 'reg' must be at least four bytes wide and 32-bit aligned
 
 Example:
 

@@ -215,7 +215,7 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 	}
 
 	/* Alternate Mode muxes */
-	nval = fwnode_property_read_u16_array(con->fwnode, "svid", NULL, 0);
+	nval = fwnode_property_count_u16(con->fwnode, "svid");
 	if (nval <= 0)
 		return NULL;
 

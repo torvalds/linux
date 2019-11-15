@@ -130,12 +130,17 @@ typedef enum _AMDGPU_VEGA20_DOORBELL_ASSIGNMENT
 	AMDGPU_VEGA20_DOORBELL_IH                      = 0x178,
 	/* MMSCH: 392~407
 	 * overlap the doorbell assignment with VCN as they are  mutually exclusive
-	 * VCE engine's doorbell is 32 bit and two VCE ring share one QWORD
+	 * VCN engine's doorbell is 32 bit and two VCN ring share one QWORD
 	 */
-	AMDGPU_VEGA20_DOORBELL64_VCN0_1                  = 0x188, /* lower 32 bits for VNC0 and upper 32 bits for VNC1 */
+	AMDGPU_VEGA20_DOORBELL64_VCN0_1                  = 0x188, /* VNC0 */
 	AMDGPU_VEGA20_DOORBELL64_VCN2_3                  = 0x189,
 	AMDGPU_VEGA20_DOORBELL64_VCN4_5                  = 0x18A,
 	AMDGPU_VEGA20_DOORBELL64_VCN6_7                  = 0x18B,
+
+	AMDGPU_VEGA20_DOORBELL64_VCN8_9                  = 0x18C, /* VNC1 */
+	AMDGPU_VEGA20_DOORBELL64_VCNa_b                  = 0x18D,
+	AMDGPU_VEGA20_DOORBELL64_VCNc_d                  = 0x18E,
+	AMDGPU_VEGA20_DOORBELL64_VCNe_f                  = 0x18F,
 
 	AMDGPU_VEGA20_DOORBELL64_UVD_RING0_1             = 0x188,
 	AMDGPU_VEGA20_DOORBELL64_UVD_RING2_3             = 0x189,

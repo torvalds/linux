@@ -3887,18 +3887,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.aead = __VECS(aegis128_tv_template)
 		}
 	}, {
-		.alg = "aegis128l",
-		.test = alg_test_aead,
-		.suite = {
-			.aead = __VECS(aegis128l_tv_template)
-		}
-	}, {
-		.alg = "aegis256",
-		.test = alg_test_aead,
-		.suite = {
-			.aead = __VECS(aegis256_tv_template)
-		}
-	}, {
 		.alg = "ansi_cprng",
 		.test = alg_test_cprng,
 		.suite = {
@@ -4557,6 +4545,20 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.akcipher = __VECS(ecrdsa_tv_template)
 		}
 	}, {
+		.alg = "essiv(authenc(hmac(sha256),cbc(aes)),sha256)",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = __VECS(essiv_hmac_sha256_aes_cbc_tv_temp)
+		}
+	}, {
+		.alg = "essiv(cbc(aes),sha256)",
+		.test = alg_test_skcipher,
+		.fips_allowed = 1,
+		.suite = {
+			.cipher = __VECS(essiv_aes_cbc_tv_template)
+		}
+	}, {
 		.alg = "gcm(aes)",
 		.generic_driver = "gcm_base(ctr(aes-generic),ghash-generic)",
 		.test = alg_test_aead,
@@ -4741,6 +4743,16 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "lzo-rle",
+		.test = alg_test_comp,
+		.fips_allowed = 1,
+		.suite = {
+			.comp = {
+				.comp = __VECS(lzorle_comp_tv_template),
+				.decomp = __VECS(lzorle_decomp_tv_template)
+			}
+		}
+	}, {
 		.alg = "md4",
 		.test = alg_test_hash,
 		.suite = {
@@ -4757,18 +4769,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_hash,
 		.suite = {
 			.hash = __VECS(michael_mic_tv_template)
-		}
-	}, {
-		.alg = "morus1280",
-		.test = alg_test_aead,
-		.suite = {
-			.aead = __VECS(morus1280_tv_template)
-		}
-	}, {
-		.alg = "morus640",
-		.test = alg_test_aead,
-		.suite = {
-			.aead = __VECS(morus640_tv_template)
 		}
 	}, {
 		.alg = "nhpoly1305",
@@ -5240,9 +5240,11 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 					     type, mask);
 
 test_done:
-	if (rc && (fips_enabled || panic_on_fail))
+	if (rc && (fips_enabled || panic_on_fail)) {
+		fips_fail_notify();
 		panic("alg: self-tests for %s (%s) failed in %s mode!\n",
 		      driver, alg, fips_enabled ? "fips" : "panic_on_fail");
+	}
 
 	if (fips_enabled && !rc)
 		pr_info("alg: self-tests for %s (%s) passed\n", driver, alg);

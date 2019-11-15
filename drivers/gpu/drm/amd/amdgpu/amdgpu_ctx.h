@@ -49,8 +49,8 @@ struct amdgpu_ctx {
 	enum drm_sched_priority		override_priority;
 	struct mutex			lock;
 	atomic_t			guilty;
-	uint32_t			ras_counter_ce;
-	uint32_t			ras_counter_ue;
+	unsigned long			ras_counter_ce;
+	unsigned long			ras_counter_ue;
 };
 
 struct amdgpu_ctx_mgr {

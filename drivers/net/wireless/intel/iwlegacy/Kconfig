@@ -91,9 +91,9 @@ config IWLEGACY_DEBUG
 	  any problems you may encounter.
 
 config IWLEGACY_DEBUGFS
-        bool "iwlegacy (iwl 3945/4965) debugfs support"
-        depends on IWLEGACY && MAC80211_DEBUGFS
-        ---help---
+	bool "iwlegacy (iwl 3945/4965) debugfs support"
+	depends on IWLEGACY && MAC80211_DEBUGFS
+	---help---
 	  Enable creation of debugfs files for the iwlegacy drivers. This
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.

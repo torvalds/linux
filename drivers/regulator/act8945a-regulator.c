@@ -169,16 +169,16 @@ static int act8945a_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		reg = ACT8945A_DCDC3_CTRL;
 		break;
 	case ACT8945A_ID_LDO1:
-		reg = ACT8945A_LDO1_SUS;
+		reg = ACT8945A_LDO1_CTRL;
 		break;
 	case ACT8945A_ID_LDO2:
-		reg = ACT8945A_LDO2_SUS;
+		reg = ACT8945A_LDO2_CTRL;
 		break;
 	case ACT8945A_ID_LDO3:
-		reg = ACT8945A_LDO3_SUS;
+		reg = ACT8945A_LDO3_CTRL;
 		break;
 	case ACT8945A_ID_LDO4:
-		reg = ACT8945A_LDO4_SUS;
+		reg = ACT8945A_LDO4_CTRL;
 		break;
 	default:
 		return -EINVAL;

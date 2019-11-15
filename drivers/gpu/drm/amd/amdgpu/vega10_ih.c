@@ -50,7 +50,7 @@ static void vega10_ih_enable_interrupts(struct amdgpu_device *adev)
 
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RB_ENABLE, 1);
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, ENABLE_INTR, 1);
-	if (amdgpu_virt_support_psp_prg_ih_reg(adev)) {
+	if (amdgpu_sriov_vf(adev)) {
 		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
 			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
 			return;
@@ -64,7 +64,7 @@ static void vega10_ih_enable_interrupts(struct amdgpu_device *adev)
 		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
 		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING1,
 					   RB_ENABLE, 1);
-		if (amdgpu_virt_support_psp_prg_ih_reg(adev)) {
+		if (amdgpu_sriov_vf(adev)) {
 			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING1,
 						ih_rb_cntl)) {
 				DRM_ERROR("program IH_RB_CNTL_RING1 failed!\n");
@@ -80,7 +80,7 @@ static void vega10_ih_enable_interrupts(struct amdgpu_device *adev)
 		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2);
 		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING2,
 					   RB_ENABLE, 1);
-		if (amdgpu_virt_support_psp_prg_ih_reg(adev)) {
+		if (amdgpu_sriov_vf(adev)) {
 			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING2,
 						ih_rb_cntl)) {
 				DRM_ERROR("program IH_RB_CNTL_RING2 failed!\n");
@@ -106,7 +106,7 @@ static void vega10_ih_disable_interrupts(struct amdgpu_device *adev)
 
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RB_ENABLE, 0);
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, ENABLE_INTR, 0);
-	if (amdgpu_virt_support_psp_prg_ih_reg(adev)) {
+	if (amdgpu_sriov_vf(adev)) {
 		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
 			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
 			return;
@@ -125,7 +125,7 @@ static void vega10_ih_disable_interrupts(struct amdgpu_device *adev)
 		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
 		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING1,
 					   RB_ENABLE, 0);
-		if (amdgpu_virt_support_psp_prg_ih_reg(adev)) {
+		if (amdgpu_sriov_vf(adev)) {
 			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING1,
 						ih_rb_cntl)) {
 				DRM_ERROR("program IH_RB_CNTL_RING1 failed!\n");
@@ -145,7 +145,7 @@ static void vega10_ih_disable_interrupts(struct amdgpu_device *adev)
 		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2);
 		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING2,
 					   RB_ENABLE, 0);
-		if (amdgpu_virt_support_psp_prg_ih_reg(adev)) {
+		if (amdgpu_sriov_vf(adev)) {
 			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING2,
 						ih_rb_cntl)) {
 				DRM_ERROR("program IH_RB_CNTL_RING2 failed!\n");
@@ -219,7 +219,7 @@ static uint32_t vega10_ih_doorbell_rptr(struct amdgpu_ih_ring *ih)
 static int vega10_ih_irq_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ih_ring *ih;
-	u32 ih_rb_cntl;
+	u32 ih_rb_cntl, ih_chicken;
 	int ret = 0;
 	u32 tmp;
 
@@ -234,11 +234,17 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI, (ih->gpu_addr >> 40) & 0xff);
 
 	ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
+	ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
 	ih_rb_cntl = vega10_ih_rb_cntl(ih, ih_rb_cntl);
+	if (adev->irq.ih.use_bus_addr) {
+		ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);
+	} else {
+		ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN, MC_SPACE_FBPA_ENABLE, 1);
+	}
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RPTR_REARM,
 				   !!adev->irq.msi_enabled);
 
-	if (amdgpu_virt_support_psp_prg_ih_reg(adev)) {
+	if (amdgpu_sriov_vf(adev)) {
 		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
 			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
 			return -ETIMEDOUT;
@@ -246,6 +252,11 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	} else {
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
 	}
+
+	if ((adev->asic_type == CHIP_ARCTURUS
+		&& adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)
+		|| adev->asic_type == CHIP_RENOIR)
+		WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
 
 	/* set the writeback address whether it's enabled or not */
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO,
@@ -272,7 +283,7 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 					   WPTR_OVERFLOW_ENABLE, 0);
 		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL,
 					   RB_FULL_DRAIN_ENABLE, 1);
-		if (amdgpu_virt_support_psp_prg_ih_reg(adev)) {
+		if (amdgpu_sriov_vf(adev)) {
 			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING1,
 						ih_rb_cntl)) {
 				DRM_ERROR("program IH_RB_CNTL_RING1 failed!\n");
@@ -299,7 +310,7 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2);
 		ih_rb_cntl = vega10_ih_rb_cntl(ih, ih_rb_cntl);
 
-		if (amdgpu_virt_support_psp_prg_ih_reg(adev)) {
+		if (amdgpu_sriov_vf(adev)) {
 			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING2,
 						ih_rb_cntl)) {
 				DRM_ERROR("program IH_RB_CNTL_RING2 failed!\n");

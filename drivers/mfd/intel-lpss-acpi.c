@@ -18,6 +18,10 @@
 
 #include "intel-lpss.h"
 
+static const struct intel_lpss_platform_info spt_info = {
+	.clk_rate = 120000000,
+};
+
 static struct property_entry spt_i2c_properties[] = {
 	PROPERTY_ENTRY_U32("i2c-sda-hold-time-ns", 230),
 	{ },
@@ -26,6 +30,19 @@ static struct property_entry spt_i2c_properties[] = {
 static const struct intel_lpss_platform_info spt_i2c_info = {
 	.clk_rate = 120000000,
 	.properties = spt_i2c_properties,
+};
+
+static struct property_entry uart_properties[] = {
+	PROPERTY_ENTRY_U32("reg-io-width", 4),
+	PROPERTY_ENTRY_U32("reg-shift", 2),
+	PROPERTY_ENTRY_BOOL("snps,uart-16550-compatible"),
+	{ },
+};
+
+static const struct intel_lpss_platform_info spt_uart_info = {
+	.clk_rate = 120000000,
+	.clk_con_id = "baudclk",
+	.properties = uart_properties,
 };
 
 static const struct intel_lpss_platform_info bxt_info = {
@@ -58,8 +75,17 @@ static const struct intel_lpss_platform_info apl_i2c_info = {
 
 static const struct acpi_device_id intel_lpss_acpi_ids[] = {
 	/* SPT */
+	{ "INT3440", (kernel_ulong_t)&spt_info },
+	{ "INT3441", (kernel_ulong_t)&spt_info },
+	{ "INT3442", (kernel_ulong_t)&spt_i2c_info },
+	{ "INT3443", (kernel_ulong_t)&spt_i2c_info },
+	{ "INT3444", (kernel_ulong_t)&spt_i2c_info },
+	{ "INT3445", (kernel_ulong_t)&spt_i2c_info },
 	{ "INT3446", (kernel_ulong_t)&spt_i2c_info },
 	{ "INT3447", (kernel_ulong_t)&spt_i2c_info },
+	{ "INT3448", (kernel_ulong_t)&spt_uart_info },
+	{ "INT3449", (kernel_ulong_t)&spt_uart_info },
+	{ "INT344A", (kernel_ulong_t)&spt_uart_info },
 	/* BXT */
 	{ "80860AAC", (kernel_ulong_t)&bxt_i2c_info },
 	{ "80860ABC", (kernel_ulong_t)&bxt_info },

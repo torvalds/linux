@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
-======================================================
-Linux* Driver for Intel(R) Ethernet Network Connection
-======================================================
+=====================================================
+Linux Driver for Intel(R) Ethernet Network Connection
+=====================================================
 
 Intel Gigabit Linux driver.
 Copyright(c) 2008-2018 Intel Corporation.
@@ -338,7 +338,7 @@ and higher cannot be forced. Use the autonegotiation advertising setting to
 manually set devices for 1 Gbps and higher.
 
 Speed, duplex, and autonegotiation advertising are configured through the
-ethtool* utility.
+ethtool utility.
 
 Caution: Only experienced network administrators should force speed and duplex
 or change autonegotiation advertising manually. The settings at the switch must
@@ -351,9 +351,9 @@ will not attempt to auto-negotiate with its link partner since those adapters
 operate only in full duplex and only at their native speed.
 
 
-Enabling Wake on LAN* (WoL)
----------------------------
-WoL is configured through the ethtool* utility.
+Enabling Wake on LAN (WoL)
+--------------------------
+WoL is configured through the ethtool utility.
 
 WoL will be enabled on the system during the next shut down or reboot. For
 this driver version, in order to enable WoL, the e1000e driver must be loaded

@@ -98,7 +98,7 @@ static const struct hclge_hw_error hclge_igu_egu_tnl_int[] = {
 	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(1), .msg = "rx_stp_fifo_overflow",
 	  .reset_level = HNAE3_GLOBAL_RESET },
-	{ .int_msk = BIT(2), .msg = "rx_stp_fifo_undeflow",
+	{ .int_msk = BIT(2), .msg = "rx_stp_fifo_underflow",
 	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(3), .msg = "tx_buf_overflow",
 	  .reset_level = HNAE3_GLOBAL_RESET },
@@ -637,8 +637,8 @@ static void hclge_log_error(struct device *dev, char *reg,
 {
 	while (err->msg) {
 		if (err->int_msk & err_sts) {
-			dev_warn(dev, "%s %s found [error status=0x%x]\n",
-				 reg, err->msg, err_sts);
+			dev_err(dev, "%s %s found [error status=0x%x]\n",
+				reg, err->msg, err_sts);
 			if (err->reset_level &&
 			    err->reset_level != HNAE3_NONE_RESET)
 				set_bit(err->reset_level, reset_requests);
@@ -652,16 +652,11 @@ static void hclge_log_error(struct device *dev, char *reg,
  * @desc: descriptor for describing the command
  * @cmd:  command opcode
  * @flag: flag for extended command structure
- * @w_num: offset for setting the read interrupt type.
- * @int_type: select which type of the interrupt for which the error
- * info will be read(RAS-CE/RAS-NFE/RAS-FE etc).
  *
  * This function query the error info from hw register/s using command
  */
 static int hclge_cmd_query_error(struct hclge_dev *hdev,
-				 struct hclge_desc *desc, u32 cmd,
-				 u16 flag, u8 w_num,
-				 enum hclge_err_int_type int_type)
+				 struct hclge_desc *desc, u32 cmd, u16 flag)
 {
 	struct device *dev = &hdev->pdev->dev;
 	int desc_num = 1;
@@ -673,8 +668,6 @@ static int hclge_cmd_query_error(struct hclge_dev *hdev,
 		hclge_cmd_setup_basic_desc(&desc[1], cmd, true);
 		desc_num = 2;
 	}
-	if (w_num)
-		desc[0].data[w_num] = cpu_to_le32(int_type);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], desc_num);
 	if (ret)
@@ -872,8 +865,7 @@ static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 	}
 
 	/* configure TM QCN hw errors */
-	ret = hclge_cmd_query_error(hdev, &desc, HCLGE_TM_QCN_MEM_INT_CFG,
-				    0, 0, 0);
+	ret = hclge_cmd_query_error(hdev, &desc, HCLGE_TM_QCN_MEM_INT_CFG, 0);
 	if (ret) {
 		dev_err(dev, "fail(%d) to read TM QCN CFG status\n", ret);
 		return ret;
@@ -938,32 +930,44 @@ static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 	/* configure PPU error interrupts */
 	if (cmd == HCLGE_PPU_MPF_ECC_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
-		desc[0].flag |= HCLGE_CMD_FLAG_NEXT;
+		desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
 		hclge_cmd_setup_basic_desc(&desc[1], cmd, false);
 		if (en) {
-			desc[0].data[0] = HCLGE_PPU_MPF_ABNORMAL_INT0_EN;
-			desc[0].data[1] = HCLGE_PPU_MPF_ABNORMAL_INT1_EN;
-			desc[1].data[3] = HCLGE_PPU_MPF_ABNORMAL_INT3_EN;
-			desc[1].data[4] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN;
+			desc[0].data[0] =
+				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT0_EN);
+			desc[0].data[1] =
+				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT1_EN);
+			desc[1].data[3] =
+				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT3_EN);
+			desc[1].data[4] =
+				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN);
 		}
 
-		desc[1].data[0] = HCLGE_PPU_MPF_ABNORMAL_INT0_EN_MASK;
-		desc[1].data[1] = HCLGE_PPU_MPF_ABNORMAL_INT1_EN_MASK;
-		desc[1].data[2] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN_MASK;
-		desc[1].data[3] |= HCLGE_PPU_MPF_ABNORMAL_INT3_EN_MASK;
+		desc[1].data[0] =
+			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT0_EN_MASK);
+		desc[1].data[1] =
+			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT1_EN_MASK);
+		desc[1].data[2] =
+			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN_MASK);
+		desc[1].data[3] |=
+			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT3_EN_MASK);
 		desc_num = 2;
 	} else if (cmd == HCLGE_PPU_MPF_OTHER_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
 		if (en)
-			desc[0].data[0] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN2;
+			desc[0].data[0] =
+				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN2);
 
-		desc[0].data[2] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN2_MASK;
+		desc[0].data[2] =
+			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN2_MASK);
 	} else if (cmd == HCLGE_PPU_PF_OTHER_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
 		if (en)
-			desc[0].data[0] = HCLGE_PPU_PF_ABNORMAL_INT_EN;
+			desc[0].data[0] =
+				cpu_to_le32(HCLGE_PPU_PF_ABNORMAL_INT_EN);
 
-		desc[0].data[2] = HCLGE_PPU_PF_ABNORMAL_INT_EN_MASK;
+		desc[0].data[2] =
+			cpu_to_le32(HCLGE_PPU_PF_ABNORMAL_INT_EN_MASK);
 	} else {
 		dev_err(dev, "Invalid cmd to configure PPU error interrupts\n");
 		return -EINVAL;
@@ -1171,8 +1175,8 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 
 	status = le32_to_cpu(*(desc_data + 3)) & BIT(0);
 	if (status) {
-		dev_warn(dev, "SSU_ECC_MULTI_BIT_INT_1 ssu_mem32_ecc_mbit_err found [error status=0x%x]\n",
-			 status);
+		dev_err(dev, "SSU_ECC_MULTI_BIT_INT_1 ssu_mem32_ecc_mbit_err found [error status=0x%x]\n",
+			status);
 		set_bit(HNAE3_GLOBAL_RESET, &ae_dev->hw_err_reset_req);
 	}
 
@@ -1208,8 +1212,8 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 	desc_data = (__le32 *)&desc[5];
 	status = le32_to_cpu(*(desc_data + 1));
 	if (status) {
-		dev_warn(dev, "PPU_MPF_ABNORMAL_INT_ST1 %s found\n",
-			 "rpu_rx_pkt_ecc_mbit_err");
+		dev_err(dev,
+			"PPU_MPF_ABNORMAL_INT_ST1 rpu_rx_pkt_ecc_mbit_err found\n");
 		set_bit(HNAE3_GLOBAL_RESET, &ae_dev->hw_err_reset_req);
 	}
 
@@ -1321,10 +1325,12 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 	/* log PPU(RCB) errors */
 	desc_data = (__le32 *)&desc[3];
 	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_INT_RAS_MASK;
-	if (status)
+	if (status) {
 		hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST0",
 				&hclge_ppu_pf_abnormal_int[0], status,
 				&ae_dev->hw_err_reset_req);
+		hclge_report_hw_error(hdev, HNAE3_PPU_POISON_ERROR);
+	}
 
 	/* clear all PF RAS errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
@@ -1387,17 +1393,17 @@ static int hclge_log_rocee_axi_error(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	dev_info(dev, "AXI1: %08X %08X %08X %08X %08X %08X\n",
-		 le32_to_cpu(desc[0].data[0]), le32_to_cpu(desc[0].data[1]),
-		 le32_to_cpu(desc[0].data[2]), le32_to_cpu(desc[0].data[3]),
-		 le32_to_cpu(desc[0].data[4]), le32_to_cpu(desc[0].data[5]));
-	dev_info(dev, "AXI2: %08X %08X %08X %08X %08X %08X\n",
-		 le32_to_cpu(desc[1].data[0]), le32_to_cpu(desc[1].data[1]),
-		 le32_to_cpu(desc[1].data[2]), le32_to_cpu(desc[1].data[3]),
-		 le32_to_cpu(desc[1].data[4]), le32_to_cpu(desc[1].data[5]));
-	dev_info(dev, "AXI3: %08X %08X %08X %08X\n",
-		 le32_to_cpu(desc[2].data[0]), le32_to_cpu(desc[2].data[1]),
-		 le32_to_cpu(desc[2].data[2]), le32_to_cpu(desc[2].data[3]));
+	dev_err(dev, "AXI1: %08X %08X %08X %08X %08X %08X\n",
+		le32_to_cpu(desc[0].data[0]), le32_to_cpu(desc[0].data[1]),
+		le32_to_cpu(desc[0].data[2]), le32_to_cpu(desc[0].data[3]),
+		le32_to_cpu(desc[0].data[4]), le32_to_cpu(desc[0].data[5]));
+	dev_err(dev, "AXI2: %08X %08X %08X %08X %08X %08X\n",
+		le32_to_cpu(desc[1].data[0]), le32_to_cpu(desc[1].data[1]),
+		le32_to_cpu(desc[1].data[2]), le32_to_cpu(desc[1].data[3]),
+		le32_to_cpu(desc[1].data[4]), le32_to_cpu(desc[1].data[5]));
+	dev_err(dev, "AXI3: %08X %08X %08X %08X\n",
+		le32_to_cpu(desc[2].data[0]), le32_to_cpu(desc[2].data[1]),
+		le32_to_cpu(desc[2].data[2]), le32_to_cpu(desc[2].data[3]));
 
 	return 0;
 }
@@ -1410,18 +1416,18 @@ static int hclge_log_rocee_ecc_error(struct hclge_dev *hdev)
 
 	ret = hclge_cmd_query_error(hdev, &desc[0],
 				    HCLGE_QUERY_ROCEE_ECC_RAS_INFO_CMD,
-				    HCLGE_CMD_FLAG_NEXT, 0, 0);
+				    HCLGE_CMD_FLAG_NEXT);
 	if (ret) {
 		dev_err(dev, "failed(%d) to query ROCEE ECC error sts\n", ret);
 		return ret;
 	}
 
-	dev_info(dev, "ECC1: %08X %08X %08X %08X %08X %08X\n",
-		 le32_to_cpu(desc[0].data[0]), le32_to_cpu(desc[0].data[1]),
-		 le32_to_cpu(desc[0].data[2]), le32_to_cpu(desc[0].data[3]),
-		 le32_to_cpu(desc[0].data[4]), le32_to_cpu(desc[0].data[5]));
-	dev_info(dev, "ECC2: %08X %08X %08X\n", le32_to_cpu(desc[1].data[0]),
-		 le32_to_cpu(desc[1].data[1]), le32_to_cpu(desc[1].data[2]));
+	dev_err(dev, "ECC1: %08X %08X %08X %08X %08X %08X\n",
+		le32_to_cpu(desc[0].data[0]), le32_to_cpu(desc[0].data[1]),
+		le32_to_cpu(desc[0].data[2]), le32_to_cpu(desc[0].data[3]),
+		le32_to_cpu(desc[0].data[4]), le32_to_cpu(desc[0].data[5]));
+	dev_err(dev, "ECC2: %08X %08X %08X\n", le32_to_cpu(desc[1].data[0]),
+		le32_to_cpu(desc[1].data[1]), le32_to_cpu(desc[1].data[2]));
 
 	return 0;
 }
@@ -1434,7 +1440,7 @@ static int hclge_log_rocee_ovf_error(struct hclge_dev *hdev)
 
 	/* read overflow error status */
 	ret = hclge_cmd_query_error(hdev, &desc[0], HCLGE_ROCEE_PF_RAS_INT_CMD,
-				    0, 0, 0);
+				    0);
 	if (ret) {
 		dev_err(dev, "failed(%d) to query ROCEE OVF error sts\n", ret);
 		return ret;
@@ -1450,9 +1456,9 @@ static int hclge_log_rocee_ovf_error(struct hclge_dev *hdev)
 			  le32_to_cpu(desc[0].data[0]);
 		while (err->msg) {
 			if (err->int_msk == err_sts) {
-				dev_warn(dev, "%s [error status=0x%x] found\n",
-					 err->msg,
-					 le32_to_cpu(desc[0].data[0]));
+				dev_err(dev, "%s [error status=0x%x] found\n",
+					err->msg,
+					le32_to_cpu(desc[0].data[0]));
 				break;
 			}
 			err++;
@@ -1460,13 +1466,13 @@ static int hclge_log_rocee_ovf_error(struct hclge_dev *hdev)
 	}
 
 	if (le32_to_cpu(desc[0].data[1]) & HCLGE_ROCEE_OVF_ERR_INT_MASK) {
-		dev_warn(dev, "ROCEE TSP OVF [error status=0x%x] found\n",
-			 le32_to_cpu(desc[0].data[1]));
+		dev_err(dev, "ROCEE TSP OVF [error status=0x%x] found\n",
+			le32_to_cpu(desc[0].data[1]));
 	}
 
 	if (le32_to_cpu(desc[0].data[2]) & HCLGE_ROCEE_OVF_ERR_INT_MASK) {
-		dev_warn(dev, "ROCEE SCC OVF [error status=0x%x] found\n",
-			 le32_to_cpu(desc[0].data[2]));
+		dev_err(dev, "ROCEE SCC OVF [error status=0x%x] found\n",
+			le32_to_cpu(desc[0].data[2]));
 	}
 
 	return 0;
@@ -1483,8 +1489,7 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 
 	/* read RAS error interrupt status */
 	ret = hclge_cmd_query_error(hdev, &desc[0],
-				    HCLGE_QUERY_CLEAR_ROCEE_RAS_INT,
-				    0, 0, 0);
+				    HCLGE_QUERY_CLEAR_ROCEE_RAS_INT, 0);
 	if (ret) {
 		dev_err(dev, "failed(%d) to query ROCEE RAS INT SRC\n", ret);
 		/* reset everything for now */
@@ -1495,10 +1500,10 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 
 	if (status & HCLGE_ROCEE_AXI_ERR_INT_MASK) {
 		if (status & HCLGE_ROCEE_RERR_INT_MASK)
-			dev_warn(dev, "ROCEE RAS AXI rresp error\n");
+			dev_err(dev, "ROCEE RAS AXI rresp error\n");
 
 		if (status & HCLGE_ROCEE_BERR_INT_MASK)
-			dev_warn(dev, "ROCEE RAS AXI bresp error\n");
+			dev_err(dev, "ROCEE RAS AXI bresp error\n");
 
 		reset_type = HNAE3_FUNC_RESET;
 
@@ -1508,7 +1513,7 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 	}
 
 	if (status & HCLGE_ROCEE_ECC_INT_MASK) {
-		dev_warn(dev, "ROCEE RAS 2bit ECC error\n");
+		dev_err(dev, "ROCEE RAS 2bit ECC error\n");
 		reset_type = HNAE3_GLOBAL_RESET;
 
 		ret = hclge_log_rocee_ecc_error(hdev);
@@ -1566,8 +1571,8 @@ int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en)
 
 static void hclge_handle_rocee_ras_error(struct hnae3_ae_dev *ae_dev)
 {
-	enum hnae3_reset_type reset_type = HNAE3_NONE_RESET;
 	struct hclge_dev *hdev = ae_dev->priv;
+	enum hnae3_reset_type reset_type;
 
 	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) ||
 	    hdev->pdev->revision < 0x21)
@@ -1649,16 +1654,16 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 
 	/* Handling Non-fatal HNS RAS errors */
 	if (status & HCLGE_RAS_REG_NFE_MASK) {
-		dev_warn(dev,
-			 "HNS Non-Fatal RAS error(status=0x%x) identified\n",
-			 status);
+		dev_err(dev,
+			"HNS Non-Fatal RAS error(status=0x%x) identified\n",
+			status);
 		hclge_handle_all_ras_errors(hdev);
 	}
 
 	/* Handling Non-fatal Rocee RAS errors */
 	if (hdev->pdev->revision >= 0x21 &&
 	    status & HCLGE_RAS_REG_ROCEE_ERR_MASK) {
-		dev_warn(dev, "ROCEE Non-Fatal RAS error identified\n");
+		dev_err(dev, "ROCEE Non-Fatal RAS error identified\n");
 		hclge_handle_rocee_ras_error(ae_dev);
 	}
 
@@ -1737,8 +1742,8 @@ static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
 		return;
 	}
 
-	dev_warn(dev, "PPU_PF_ABNORMAL_INT_ST over_8bd_no_fe found, vf_id(%d), queue_id(%d)\n",
-		 vf_id, q_id);
+	dev_err(dev, "PPU_PF_ABNORMAL_INT_ST over_8bd_no_fe found, vf_id(%u), queue_id(%u)\n",
+		vf_id, q_id);
 
 	if (vf_id) {
 		if (vf_id >= hdev->num_alloc_vport) {
@@ -1755,8 +1760,8 @@ static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
 
 		ret = hclge_inform_reset_assert_to_vf(&hdev->vport[vf_id]);
 		if (ret)
-			dev_warn(dev, "inform reset to vf(%d) failed %d!\n",
-				 hdev->vport->vport_id, ret);
+			dev_err(dev, "inform reset to vf(%u) failed %d!\n",
+				hdev->vport->vport_id, ret);
 	} else {
 		set_bit(HNAE3_FUNC_RESET, reset_requests);
 	}
@@ -1802,8 +1807,8 @@ static int hclge_handle_mpf_msix_error(struct hclge_dev *hdev,
 	status = le32_to_cpu(*(desc_data + 2)) &
 			HCLGE_PPU_MPF_INT_ST2_MSIX_MASK;
 	if (status)
-		dev_warn(dev, "PPU_MPF_ABNORMAL_INT_ST2 rx_q_search_miss found [dfx status=0x%x\n]",
-			 status);
+		dev_err(dev, "PPU_MPF_ABNORMAL_INT_ST2 rx_q_search_miss found [dfx status=0x%x\n]",
+			status);
 
 	/* clear all main PF MSIx errors */
 	ret = hclge_clear_hw_msix_error(hdev, desc, true, mpf_bd_num);
@@ -1997,7 +2002,7 @@ void hclge_handle_all_hns_hw_errors(struct hnae3_ae_dev *ae_dev)
 
 	/* Handle Non-fatal HNS RAS errors */
 	if (status & HCLGE_RAS_REG_NFE_MASK) {
-		dev_warn(dev, "HNS hw error(RAS) identified during init\n");
+		dev_err(dev, "HNS hw error(RAS) identified during init\n");
 		hclge_handle_all_ras_errors(hdev);
 	}
 

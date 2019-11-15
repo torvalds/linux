@@ -35,6 +35,25 @@ komeda_get_format_caps(struct komeda_format_caps_table *table,
 	return NULL;
 }
 
+u32 komeda_get_afbc_format_bpp(const struct drm_format_info *info, u64 modifier)
+{
+	u32 bpp;
+
+	switch (info->format) {
+	case DRM_FORMAT_YUV420_8BIT:
+		bpp = 12;
+		break;
+	case DRM_FORMAT_YUV420_10BIT:
+		bpp = 15;
+		break;
+	default:
+		bpp = info->cpp[0] * 8;
+		break;
+	}
+
+	return bpp;
+}
+
 /* Two assumptions
  * 1. RGB always has YTR
  * 2. Tiled RGB always has SC

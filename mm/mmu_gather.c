@@ -271,8 +271,6 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
 
 	tlb_flush_mmu(tlb);
 
-	/* keep the page table cache within bounds */
-	check_pgt_cache();
 #ifndef CONFIG_HAVE_MMU_GATHER_NO_GATHER
 	tlb_batch_list_free(tlb);
 #endif

@@ -22,6 +22,7 @@ struct swmii_regs {
 	u16 bmsr;
 	u16 lpa;
 	u16 lpagb;
+	u16 estat;
 };
 
 enum {
@@ -48,6 +49,7 @@ static const struct swmii_regs speed[] = {
 	[SWMII_SPEED_1000] = {
 		.bmsr  = BMSR_ESTATEN,
 		.lpagb = LPA_1000FULL | LPA_1000HALF,
+		.estat = ESTATUS_1000_TFULL | ESTATUS_1000_THALF,
 	},
 };
 
@@ -56,11 +58,13 @@ static const struct swmii_regs duplex[] = {
 		.bmsr  = BMSR_ESTATEN | BMSR_100HALF,
 		.lpa   = LPA_10HALF | LPA_100HALF,
 		.lpagb = LPA_1000HALF,
+		.estat = ESTATUS_1000_THALF,
 	},
 	[SWMII_DUPLEX_FULL] = {
 		.bmsr  = BMSR_ESTATEN | BMSR_100FULL,
 		.lpa   = LPA_10FULL | LPA_100FULL,
 		.lpagb = LPA_1000FULL,
+		.estat = ESTATUS_1000_TFULL,
 	},
 };
 
@@ -112,6 +116,7 @@ int swphy_read_reg(int reg, const struct fixed_phy_status *state)
 {
 	int speed_index, duplex_index;
 	u16 bmsr = BMSR_ANEGCAPABLE;
+	u16 estat = 0;
 	u16 lpagb = 0;
 	u16 lpa = 0;
 
@@ -125,6 +130,7 @@ int swphy_read_reg(int reg, const struct fixed_phy_status *state)
 	duplex_index = state->duplex ? SWMII_DUPLEX_FULL : SWMII_DUPLEX_HALF;
 
 	bmsr |= speed[speed_index].bmsr & duplex[duplex_index].bmsr;
+	estat |= speed[speed_index].estat & duplex[duplex_index].estat;
 
 	if (state->link) {
 		bmsr |= BMSR_LSTATUS | BMSR_ANEGCOMPLETE;
@@ -151,6 +157,8 @@ int swphy_read_reg(int reg, const struct fixed_phy_status *state)
 		return lpa;
 	case MII_STAT1000:
 		return lpagb;
+	case MII_ESTATUS:
+		return estat;
 
 	/*
 	 * We do not support emulating Clause 45 over Clause 22 register

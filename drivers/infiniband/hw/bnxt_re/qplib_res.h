@@ -111,7 +111,7 @@ struct bnxt_qplib_pd_tbl {
 };
 
 struct bnxt_qplib_sgid_tbl {
-	struct bnxt_qplib_gid		*tbl;
+	struct bnxt_qplib_gid_info	*tbl;
 	u16				*hw_id;
 	u16				max;
 	u16				active;

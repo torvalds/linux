@@ -35,7 +35,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 		kmem_cache_free(pgd_cache, pgd);
 }
 
-void __init pgd_cache_init(void)
+void __init pgtable_cache_init(void)
 {
 	if (PGD_SIZE == PAGE_SIZE)
 		return;

@@ -866,8 +866,6 @@ static void lenovo_remove_tpkbd(struct hid_device *hdev)
 
 	led_classdev_unregister(&data_pointer->led_micmute);
 	led_classdev_unregister(&data_pointer->led_mute);
-
-	hid_set_drvdata(hdev, NULL);
 }
 
 static void lenovo_remove_cptkbd(struct hid_device *hdev)

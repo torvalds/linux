@@ -87,9 +87,7 @@ static void vl600_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct vl600_state *s = dev->driver_priv;
 
-	if (s->current_rx_buf)
-		dev_kfree_skb(s->current_rx_buf);
-
+	dev_kfree_skb(s->current_rx_buf);
 	kfree(s);
 
 	return usbnet_cdc_unbind(dev, intf);

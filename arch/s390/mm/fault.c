@@ -327,6 +327,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 	case VM_FAULT_BADACCESS:
 		if (access == VM_EXEC && signal_return(regs) == 0)
 			break;
+		/* fallthrough */
 	case VM_FAULT_BADMAP:
 		/* Bad memory access. Check if it is kernel or user space. */
 		if (user_mode(regs)) {
@@ -336,7 +337,9 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 			do_sigsegv(regs, si_code);
 			break;
 		}
+		/* fallthrough */
 	case VM_FAULT_BADCONTEXT:
+		/* fallthrough */
 	case VM_FAULT_PFAULT:
 		do_no_context(regs);
 		break;

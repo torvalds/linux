@@ -65,6 +65,7 @@ available subsections can be seen below.
    dmaengine/index
    slimbus
    soundwire/index
+   thermal/index
    fpga/index
    acpi/index
    backlight/lp855x-driver.rst
@@ -75,6 +76,7 @@ available subsections can be seen below.
    dell_rbu
    edid
    eisa
+   ipmb
    isa
    isapnp
    generic-counter

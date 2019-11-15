@@ -97,6 +97,13 @@ int test_btf_dump_case(int n, struct btf_dump_test_case *test_case)
 	}
 
 	snprintf(test_file, sizeof(test_file), "progs/%s.c", test_case->name);
+	if (access(test_file, R_OK) == -1)
+		/*
+		 * When the test is run with O=, kselftest copies TEST_FILES
+		 * without preserving the directory structure.
+		 */
+		snprintf(test_file, sizeof(test_file), "%s.c",
+			test_case->name);
 	/*
 	 * Diff test output and expected test output, contained between
 	 * START-EXPECTED-OUTPUT and END-EXPECTED-OUTPUT lines in test case.

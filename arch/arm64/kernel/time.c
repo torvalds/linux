@@ -38,11 +38,8 @@ unsigned long profile_pc(struct pt_regs *regs)
 	if (!in_lock_functions(regs->pc))
 		return regs->pc;
 
-	frame.fp = regs->regs[29];
-	frame.pc = regs->pc;
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = 0;
-#endif
+	start_backtrace(&frame, regs->regs[29], regs->pc);
+
 	do {
 		int ret = unwind_frame(NULL, &frame);
 		if (ret < 0)

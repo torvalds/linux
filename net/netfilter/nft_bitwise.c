@@ -13,6 +13,7 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_offload.h>
 
 struct nft_bitwise {
 	enum nft_registers	sreg:8;
@@ -126,12 +127,31 @@ nla_put_failure:
 	return -1;
 }
 
+static struct nft_data zero;
+
+static int nft_bitwise_offload(struct nft_offload_ctx *ctx,
+                               struct nft_flow_rule *flow,
+                               const struct nft_expr *expr)
+{
+	const struct nft_bitwise *priv = nft_expr_priv(expr);
+	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
+
+	if (memcmp(&priv->xor, &zero, sizeof(priv->xor)) ||
+	    priv->sreg != priv->dreg || priv->len != reg->len)
+		return -EOPNOTSUPP;
+
+	memcpy(&reg->mask, &priv->mask, sizeof(priv->mask));
+
+	return 0;
+}
+
 static const struct nft_expr_ops nft_bitwise_ops = {
 	.type		= &nft_bitwise_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_bitwise)),
 	.eval		= nft_bitwise_eval,
 	.init		= nft_bitwise_init,
 	.dump		= nft_bitwise_dump,
+	.offload	= nft_bitwise_offload,
 };
 
 struct nft_expr_type nft_bitwise_type __read_mostly = {

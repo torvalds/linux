@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Packet engine device configuration
+# Packet Engines device configuration
 #
 
 config NET_VENDOR_PACKET_ENGINES
-	bool "Packet Engine devices"
+	bool "Packet Engines devices"
 	default y
 	depends on PCI
 	---help---
@@ -12,7 +12,7 @@ config NET_VENDOR_PACKET_ENGINES
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about packet engine devices. If you say Y, you will
+	  the questions about Packet Engines devices. If you say Y, you will
 	  be asked for your specific card in the following questions.
 
 if NET_VENDOR_PACKET_ENGINES

@@ -25,11 +25,6 @@
  * processed in the pipeline.
  * @pipe_size:		size of @ved_pipeline
  * @kthread:		thread that generates the frames of the stream.
- * @producer_pixfmt:	the pixel format requested from the pipeline. This must
- * be set just before calling vimc_streamer_s_stream(ent, 1). This value is
- * propagated up to the source of the base image (usually a sensor node) and
- * can be modified by entities during s_stream callback to request a different
- * format from rest of the pipeline.
  *
  * When the user call stream_on in a video device, struct vimc_stream is
  * used to keep track of all entities and subdevices that generates and
@@ -40,17 +35,8 @@ struct vimc_stream {
 	struct vimc_ent_device *ved_pipeline[VIMC_STREAMER_PIPELINE_MAX_SIZE];
 	unsigned int pipe_size;
 	struct task_struct *kthread;
-	u32 producer_pixfmt;
 };
 
-/**
- * vimc_streamer_s_streamer - start/stop the stream
- *
- * @stream:	the pointer to the stream to start or stop
- * @ved:	The last entity of the streamer pipeline
- * @enable:	any non-zero number start the stream, zero stop
- *
- */
 int vimc_streamer_s_stream(struct vimc_stream *stream,
 			   struct vimc_ent_device *ved,
 			   int enable);

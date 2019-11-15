@@ -1322,7 +1322,7 @@ void leaf_paste_entries(struct buffer_info *bi,
 	char *item;
 	struct reiserfs_de_head *deh;
 	char *insert_point;
-	int i, old_entry_num;
+	int i;
 	struct buffer_head *bh = bi->bi_bh;
 
 	if (new_entry_count == 0)
@@ -1362,7 +1362,6 @@ void leaf_paste_entries(struct buffer_info *bi,
 		put_deh_location(&deh[i],
 				 deh_location(&deh[i]) + paste_size);
 
-	old_entry_num = ih_entry_count(ih);
 	put_ih_entry_count(ih, ih_entry_count(ih) + new_entry_count);
 
 	/* prepare space for pasted records */

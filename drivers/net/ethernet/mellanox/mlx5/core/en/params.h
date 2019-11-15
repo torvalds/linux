@@ -66,15 +66,18 @@ static inline void mlx5e_qid_get_ch_and_group(struct mlx5e_params *params,
 	*group = qid / nch;
 }
 
-static inline bool mlx5e_qid_validate(struct mlx5e_params *params, u64 qid)
+static inline bool mlx5e_qid_validate(const struct mlx5e_profile *profile,
+				      struct mlx5e_params *params, u64 qid)
 {
-	return qid < params->num_channels * MLX5E_NUM_RQ_GROUPS;
+	return qid < params->num_channels * profile->rq_groups;
 }
 
 /* Parameter calculations */
 
 u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 				 struct mlx5e_xsk_param *xsk);
+u32 mlx5e_rx_get_min_frag_sz(struct mlx5e_params *params,
+			     struct mlx5e_xsk_param *xsk);
 u32 mlx5e_rx_get_linear_frag_sz(struct mlx5e_params *params,
 				struct mlx5e_xsk_param *xsk);
 u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params,

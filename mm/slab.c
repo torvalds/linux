@@ -4206,9 +4206,12 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
 
 /**
  * __ksize -- Uninstrumented ksize.
+ * @objp: pointer to the object
  *
  * Unlike ksize(), __ksize() is uninstrumented, and does not provide the same
  * safety checks as ksize() with KASAN instrumentation enabled.
+ *
+ * Return: size of the actual memory used by @objp in bytes
  */
 size_t __ksize(const void *objp)
 {

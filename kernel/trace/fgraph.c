@@ -276,7 +276,7 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 	int index = task->curr_ret_stack;
 	int i;
 
-	if (ret != (unsigned long)return_to_handler)
+	if (ret != (unsigned long)dereference_kernel_function_descriptor(return_to_handler))
 		return ret;
 
 	if (index < 0)
@@ -294,7 +294,7 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 {
 	int task_idx;
 
-	if (ret != (unsigned long)return_to_handler)
+	if (ret != (unsigned long)dereference_kernel_function_descriptor(return_to_handler))
 		return ret;
 
 	task_idx = task->curr_ret_stack;

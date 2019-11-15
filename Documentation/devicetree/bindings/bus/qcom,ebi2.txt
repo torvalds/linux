@@ -71,7 +71,7 @@ Optional subnodes:
 
 The following optional properties are properties that can be tagged onto
 any device subnode. We are assuming that there can be only ONE device per
-chipselect subnode, else the properties will become ambigous.
+chipselect subnode, else the properties will become ambiguous.
 
 Optional properties arrays for SLOW chip selects:
 - qcom,xmem-recovery-cycles: recovery cycles is the time the memory continues to

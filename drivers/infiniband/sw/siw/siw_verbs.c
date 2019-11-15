@@ -206,7 +206,8 @@ int siw_query_port(struct ib_device *base_dev, u8 port,
 	attr->gid_tbl_len = 1;
 	attr->max_msg_sz = -1;
 	attr->max_mtu = ib_mtu_int_to_enum(sdev->netdev->mtu);
-	attr->phys_state = sdev->state == IB_PORT_ACTIVE ? 5 : 3;
+	attr->phys_state = sdev->state == IB_PORT_ACTIVE ?
+		IB_PORT_PHYS_STATE_LINK_UP : IB_PORT_PHYS_STATE_DISABLED;
 	attr->pkey_tbl_len = 1;
 	attr->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_DEVICE_MGMT_SUP;
 	attr->state = sdev->state;
@@ -424,8 +425,7 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 		 */
 		qp->srq = to_siw_srq(attrs->srq);
 		qp->attrs.rq_size = 0;
-		siw_dbg(base_dev, "QP [%u]: [SRQ 0x%p] attached\n",
-			qp->qp_num, qp->srq);
+		siw_dbg(base_dev, "QP [%u]: SRQ attached\n", qp->qp_num);
 	} else if (num_rqe) {
 		if (qp->kernel_verbs)
 			qp->recvq = vzalloc(num_rqe * sizeof(struct siw_rqe));
@@ -604,13 +604,12 @@ out:
 int siw_destroy_qp(struct ib_qp *base_qp, struct ib_udata *udata)
 {
 	struct siw_qp *qp = to_siw_qp(base_qp);
-	struct siw_base_qp *siw_base_qp = to_siw_base_qp(base_qp);
 	struct siw_ucontext *uctx =
 		rdma_udata_to_drv_context(udata, struct siw_ucontext,
 					  base_ucontext);
 	struct siw_qp_attrs qp_attrs;
 
-	siw_dbg_qp(qp, "state %d, cep 0x%p\n", qp->attrs.state, qp->cep);
+	siw_dbg_qp(qp, "state %d\n", qp->attrs.state);
 
 	/*
 	 * Mark QP as in process of destruction to prevent from
@@ -641,7 +640,6 @@ int siw_destroy_qp(struct ib_qp *base_qp, struct ib_udata *udata)
 	qp->scq = qp->rcq = NULL;
 
 	siw_qp_put(qp);
-	kfree(siw_base_qp);
 
 	return 0;
 }
@@ -662,7 +660,7 @@ static int siw_copy_inline_sgl(const struct ib_send_wr *core_wr,
 	void *kbuf = &sqe->sge[1];
 	int num_sge = core_wr->num_sge, bytes = 0;
 
-	sqe->sge[0].laddr = (u64)kbuf;
+	sqe->sge[0].laddr = (uintptr_t)kbuf;
 	sqe->sge[0].lkey = 0;
 
 	while (num_sge--) {
@@ -825,7 +823,7 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 			break;
 
 		case IB_WR_REG_MR:
-			sqe->base_mr = (uint64_t)reg_wr(wr)->mr;
+			sqe->base_mr = (uintptr_t)reg_wr(wr)->mr;
 			sqe->rkey = reg_wr(wr)->key;
 			sqe->access = reg_wr(wr)->access & IWARP_ACCESS_MASK;
 			sqe->opcode = SIW_OP_REG_MR;
@@ -842,8 +840,9 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 			rv = -EINVAL;
 			break;
 		}
-		siw_dbg_qp(qp, "opcode %d, flags 0x%x, wr_id 0x%p\n",
-			   sqe->opcode, sqe->flags, (void *)sqe->id);
+		siw_dbg_qp(qp, "opcode %d, flags 0x%x, wr_id 0x%pK\n",
+			   sqe->opcode, sqe->flags,
+			   (void *)(uintptr_t)sqe->id);
 
 		if (unlikely(rv < 0))
 			break;
@@ -1049,7 +1048,7 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 
 	spin_lock_init(&cq->lock);
 
-	cq->notify = &((struct siw_cq_ctrl *)&cq->queue[size])->notify;
+	cq->notify = (struct siw_cq_ctrl *)&cq->queue[size];
 
 	if (udata) {
 		struct siw_uresp_create_cq uresp = {};
@@ -1141,11 +1140,17 @@ int siw_req_notify_cq(struct ib_cq *base_cq, enum ib_cq_notify_flags flags)
 	siw_dbg_cq(cq, "flags: 0x%02x\n", flags);
 
 	if ((flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED)
-		/* CQ event for next solicited completion */
-		smp_store_mb(*cq->notify, SIW_NOTIFY_SOLICITED);
+		/*
+		 * Enable CQ event for next solicited completion.
+		 * and make it visible to all associated producers.
+		 */
+		smp_store_mb(cq->notify->flags, SIW_NOTIFY_SOLICITED);
 	else
-		/* CQ event for any signalled completion */
-		smp_store_mb(*cq->notify, SIW_NOTIFY_ALL);
+		/*
+		 * Enable CQ event for any signalled completion.
+		 * and make it visible to all associated producers.
+		 */
+		smp_store_mb(cq->notify->flags, SIW_NOTIFY_ALL);
 
 	if (flags & IB_CQ_REPORT_MISSED_EVENTS)
 		return cq->cq_put - cq->cq_get;
@@ -1199,8 +1204,8 @@ struct ib_mr *siw_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 	unsigned long mem_limit = rlimit(RLIMIT_MEMLOCK);
 	int rv;
 
-	siw_dbg_pd(pd, "start: 0x%016llx, va: 0x%016llx, len: %llu\n",
-		   (unsigned long long)start, (unsigned long long)rnic_va,
+	siw_dbg_pd(pd, "start: 0x%pK, va: 0x%pK, len: %llu\n",
+		   (void *)(uintptr_t)start, (void *)(uintptr_t)rnic_va,
 		   (unsigned long long)len);
 
 	if (atomic_inc_return(&sdev->num_mr) > SIW_MAX_MR) {
@@ -1357,7 +1362,7 @@ int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
 	struct siw_mem *mem = mr->mem;
 	struct siw_pbl *pbl = mem->pbl;
 	struct siw_pble *pble;
-	u64 pbl_size;
+	unsigned long pbl_size;
 	int i, rv;
 
 	if (!pbl) {
@@ -1396,16 +1401,18 @@ int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
 			pbl_size += sg_dma_len(slp);
 		}
 		siw_dbg_mem(mem,
-			"sge[%d], size %llu, addr 0x%016llx, total %llu\n",
-			i, pble->size, pble->addr, pbl_size);
+			"sge[%d], size %u, addr 0x%p, total %lu\n",
+			i, pble->size, (void *)(uintptr_t)pble->addr,
+			pbl_size);
 	}
 	rv = ib_sg_to_pages(base_mr, sl, num_sle, sg_off, siw_set_pbl_page);
 	if (rv > 0) {
 		mem->len = base_mr->length;
 		mem->va = base_mr->iova;
 		siw_dbg_mem(mem,
-			"%llu bytes, start 0x%016llx, %u SLE to %u entries\n",
-			mem->len, mem->va, num_sle, pbl->num_buf);
+			"%llu bytes, start 0x%pK, %u SLE to %u entries\n",
+			mem->len, (void *)(uintptr_t)mem->va, num_sle,
+			pbl->num_buf);
 	}
 	return rv;
 }
@@ -1523,7 +1530,7 @@ int siw_create_srq(struct ib_srq *base_srq,
 	}
 	spin_lock_init(&srq->lock);
 
-	siw_dbg_pd(base_srq->pd, "[SRQ 0x%p]: success\n", srq);
+	siw_dbg_pd(base_srq->pd, "[SRQ]: success\n");
 
 	return 0;
 
@@ -1644,8 +1651,7 @@ int siw_post_srq_recv(struct ib_srq *base_srq, const struct ib_recv_wr *wr,
 
 	if (unlikely(!srq->kernel_verbs)) {
 		siw_dbg_pd(base_srq->pd,
-			   "[SRQ 0x%p]: no kernel post_recv for mapped srq\n",
-			   srq);
+			   "[SRQ]: no kernel post_recv for mapped srq\n");
 		rv = -EINVAL;
 		goto out;
 	}
@@ -1667,8 +1673,7 @@ int siw_post_srq_recv(struct ib_srq *base_srq, const struct ib_recv_wr *wr,
 		}
 		if (unlikely(wr->num_sge > srq->max_sge)) {
 			siw_dbg_pd(base_srq->pd,
-				   "[SRQ 0x%p]: too many sge's: %d\n", srq,
-				   wr->num_sge);
+				   "[SRQ]: too many sge's: %d\n", wr->num_sge);
 			rv = -EINVAL;
 			break;
 		}
@@ -1687,7 +1692,7 @@ int siw_post_srq_recv(struct ib_srq *base_srq, const struct ib_recv_wr *wr,
 	spin_unlock_irqrestore(&srq->lock, flags);
 out:
 	if (unlikely(rv < 0)) {
-		siw_dbg_pd(base_srq->pd, "[SRQ 0x%p]: error %d\n", srq, rv);
+		siw_dbg_pd(base_srq->pd, "[SRQ]: error %d\n", rv);
 		*bad_wr = wr;
 	}
 	return rv;

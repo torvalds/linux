@@ -2,8 +2,6 @@
 #ifndef BUILTIN_H
 #define BUILTIN_H
 
-#include "util/util.h"
-
 extern const char perf_usage_string[];
 extern const char perf_more_info_string[];
 

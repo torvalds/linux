@@ -71,7 +71,7 @@ int aspeed_pinmux_get_fn_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int aspeed_sig_expr_enable(const struct aspeed_pinmux_data *ctx,
+static int aspeed_sig_expr_enable(struct aspeed_pinmux_data *ctx,
 				  const struct aspeed_sig_expr *expr)
 {
 	int ret;
@@ -86,7 +86,7 @@ static int aspeed_sig_expr_enable(const struct aspeed_pinmux_data *ctx,
 	return 0;
 }
 
-static int aspeed_sig_expr_disable(const struct aspeed_pinmux_data *ctx,
+static int aspeed_sig_expr_disable(struct aspeed_pinmux_data *ctx,
 				   const struct aspeed_sig_expr *expr)
 {
 	int ret;
@@ -109,7 +109,7 @@ static int aspeed_sig_expr_disable(const struct aspeed_pinmux_data *ctx,
  *
  * Return: 0 if all expressions are disabled, otherwise a negative error code
  */
-static int aspeed_disable_sig(const struct aspeed_pinmux_data *ctx,
+static int aspeed_disable_sig(struct aspeed_pinmux_data *ctx,
 			      const struct aspeed_sig_expr **exprs)
 {
 	int ret = 0;
@@ -217,8 +217,7 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 {
 	int i;
 	int ret;
-	const struct aspeed_pinctrl_data *pdata =
-		pinctrl_dev_get_drvdata(pctldev);
+	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	const struct aspeed_pin_group *pgroup = &pdata->pinmux.groups[group];
 	const struct aspeed_pin_function *pfunc =
 		&pdata->pinmux.functions[function];
@@ -306,8 +305,7 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 			       unsigned int offset)
 {
 	int ret;
-	const struct aspeed_pinctrl_data *pdata =
-		pinctrl_dev_get_drvdata(pctldev);
+	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	const struct aspeed_pin_desc *pdesc = pdata->pins[offset].drv_data;
 	const struct aspeed_sig_expr ***prios, **funcs, *expr;
 

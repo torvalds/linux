@@ -6,43 +6,41 @@
 #ifndef _ASM_RISCV_TIMEX_H
 #define _ASM_RISCV_TIMEX_H
 
-#include <asm/param.h>
+#include <asm/csr.h>
 
 typedef unsigned long cycles_t;
 
-static inline cycles_t get_cycles_inline(void)
+static inline cycles_t get_cycles(void)
 {
-	cycles_t n;
-
-	__asm__ __volatile__ (
-		"rdtime %0"
-		: "=r" (n));
-	return n;
+	return csr_read(CSR_TIME);
 }
-#define get_cycles get_cycles_inline
+#define get_cycles get_cycles
 
 #ifdef CONFIG_64BIT
-static inline uint64_t get_cycles64(void)
+static inline u64 get_cycles64(void)
 {
-        return get_cycles();
+	return get_cycles();
 }
-#else
-static inline uint64_t get_cycles64(void)
+#else /* CONFIG_64BIT */
+static inline u32 get_cycles_hi(void)
 {
-	u32 lo, hi, tmp;
-	__asm__ __volatile__ (
-		"1:\n"
-		"rdtimeh %0\n"
-		"rdtime %1\n"
-		"rdtimeh %2\n"
-		"bne %0, %2, 1b"
-		: "=&r" (hi), "=&r" (lo), "=&r" (tmp));
+	return csr_read(CSR_TIMEH);
+}
+
+static inline u64 get_cycles64(void)
+{
+	u32 hi, lo;
+
+	do {
+		hi = get_cycles_hi();
+		lo = get_cycles();
+	} while (hi != get_cycles_hi());
+
 	return ((u64)hi << 32) | lo;
 }
-#endif
+#endif /* CONFIG_64BIT */
 
 #define ARCH_HAS_READ_CURRENT_TIMER
-
 static inline int read_current_timer(unsigned long *timer_val)
 {
 	*timer_val = get_cycles();

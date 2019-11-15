@@ -66,7 +66,7 @@ CFLAGS_vpermxor1.o += $(altivec_flags)
 CFLAGS_vpermxor2.o += $(altivec_flags)
 CFLAGS_vpermxor4.o += $(altivec_flags)
 CFLAGS_vpermxor8.o += $(altivec_flags)
-targets += vpermxor1.o vpermxor2.o vpermxor4.o vpermxor8.o
+targets += vpermxor1.c vpermxor2.c vpermxor4.c vpermxor8.c
 $(obj)/vpermxor%.c: $(src)/vpermxor.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 

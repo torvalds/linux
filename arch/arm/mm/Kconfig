@@ -106,7 +106,7 @@ config CPU_ARM922T
 	help
 	  The ARM922T is a version of the ARM920T, but with smaller
 	  instruction and data caches. It is used in Altera's
-	  Excalibur XA device family and Micrel's KS8695 Centaur.
+	  Excalibur XA device family and the ARM Integrator.
 
 	  Say Y if you want support for the ARM922T processor.
 	  Otherwise, say N.
@@ -663,6 +663,7 @@ config ARM_LPAE
 	depends on MMU && CPU_32v7 && !CPU_32v6 && !CPU_32v5 && \
 		!CPU_32v4 && !CPU_32v3
 	select PHYS_ADDR_T_64BIT
+	select SWIOTLB
 	help
 	  Say Y if you have an ARMv7 processor supporting the LPAE page
 	  table format and you would like to access memory beyond the

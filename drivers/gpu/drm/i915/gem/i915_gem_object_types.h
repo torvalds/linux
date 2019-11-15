@@ -13,6 +13,7 @@
 #include "i915_selftest.h"
 
 struct drm_i915_gem_object;
+struct intel_fronbuffer;
 
 /*
  * struct i915_lut_handle tracks the fast lookups from handle to vma used
@@ -31,7 +32,8 @@ struct drm_i915_gem_object_ops {
 #define I915_GEM_OBJECT_HAS_STRUCT_PAGE	BIT(0)
 #define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(1)
 #define I915_GEM_OBJECT_IS_PROXY	BIT(2)
-#define I915_GEM_OBJECT_ASYNC_CANCEL	BIT(3)
+#define I915_GEM_OBJECT_NO_GGTT		BIT(3)
+#define I915_GEM_OBJECT_ASYNC_CANCEL	BIT(4)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -114,7 +116,6 @@ struct drm_i915_gem_object {
 	unsigned int userfault_count;
 	struct list_head userfault_link;
 
-	struct list_head batch_pool_link;
 	I915_SELFTEST_DECLARE(struct list_head st_link);
 
 	/*
@@ -142,9 +143,7 @@ struct drm_i915_gem_object {
 	 */
 	u16 write_domain;
 
-	atomic_t frontbuffer_bits;
-	unsigned int frontbuffer_ggtt_origin; /* write once */
-	struct i915_active_request frontbuffer_write;
+	struct intel_frontbuffer *frontbuffer;
 
 	/** Current tiling stride for the object, if it's tiled. */
 	unsigned int tiling_and_stride;
@@ -154,7 +153,6 @@ struct drm_i915_gem_object {
 
 	/** Count of VMA actually bound by this object */
 	atomic_t bind_count;
-	unsigned int active_count;
 	/** Count of how many global VMA are currently pinned for use by HW */
 	unsigned int pin_global;
 
@@ -225,9 +223,6 @@ struct drm_i915_gem_object {
 		 */
 		bool quirked:1;
 	} mm;
-
-	/** References from framebuffers, locks out tiling changes. */
-	unsigned int framebuffer_references;
 
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;

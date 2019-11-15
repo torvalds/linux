@@ -27,6 +27,8 @@ config SND_SOC_SOF_INTEL_PCI
 	select SND_SOC_SOF_ICELAKE     if SND_SOC_SOF_ICELAKE_SUPPORT
 	select SND_SOC_SOF_COMETLAKE_LP if SND_SOC_SOF_COMETLAKE_LP_SUPPORT
 	select SND_SOC_SOF_COMETLAKE_H if SND_SOC_SOF_COMETLAKE_H_SUPPORT
+	select SND_SOC_SOF_TIGERLAKE   if SND_SOC_SOF_TIGERLAKE_SUPPORT
+	select SND_SOC_SOF_ELKHARTLAKE if SND_SOC_SOF_ELKHARTLAKE_SUPPORT
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
@@ -212,6 +214,36 @@ config SND_SOC_SOF_COMETLAKE_H_SUPPORT
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
+config SND_SOC_SOF_TIGERLAKE_SUPPORT
+	bool "SOF support for Tigerlake"
+	help
+          This adds support for Sound Open Firmware for Intel(R) platforms
+          using the Tigerlake processors.
+          Say Y if you have such a device.
+          If unsure select "N".
+
+config SND_SOC_SOF_TIGERLAKE
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	help
+          This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+
+config SND_SOC_SOF_ELKHARTLAKE_SUPPORT
+	bool "SOF support for ElkhartLake"
+	help
+          This adds support for Sound Open Firmware for Intel(R) platforms
+          using the ElkhartLake processors.
+          Say Y if you have such a device.
+          If unsure select "N".
+
+config SND_SOC_SOF_ELKHARTLAKE
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	help
+          This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+
 config SND_SOC_SOF_HDA_COMMON
 	tristate
 	select SND_SOC_SOF_INTEL_COMMON
@@ -241,6 +273,16 @@ config SND_SOC_SOF_HDA_AUDIO_CODEC
 	  Say Y if you want to enable HDAudio codecs with SOF.
 	  If unsure select "N".
 
+config SND_SOC_SOF_HDA_ALWAYS_ENABLE_DMI_L1
+	bool "SOF enable DMI Link L1"
+	help
+	  This option enables DMI L1 for both playback and capture
+	  and disables known workarounds for specific HDaudio platforms.
+	  Only use to look into power optimizations on platforms not
+	  affected by DMI L1 issues. This option is not recommended.
+	  Say Y if you want to enable DMI Link L1
+	  If unsure, select "N".
+
 endif ## SND_SOC_SOF_HDA_COMMON
 
 config SND_SOC_SOF_HDA_LINK_BASELINE
@@ -254,6 +296,7 @@ config SND_SOC_SOF_HDA
 	tristate
 	select SND_HDA_EXT_CORE if SND_SOC_SOF_HDA_LINK
 	select SND_SOC_HDAC_HDA if SND_SOC_SOF_HDA_AUDIO_CODEC
+	select SND_INTEL_NHLT if ACPI
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level

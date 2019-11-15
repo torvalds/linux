@@ -72,9 +72,8 @@
 };
 
 &ehci {
-	port@1 {
-		status = "okay";
-	};
+	phys = <&exynos_usbphy 2>;
+	phy-names = "hsic0";
 };
 
 &mshc_0 {

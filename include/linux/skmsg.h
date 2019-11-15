@@ -139,6 +139,11 @@ static inline void sk_msg_apply_bytes(struct sk_psock *psock, u32 bytes)
 	}
 }
 
+static inline u32 sk_msg_iter_dist(u32 start, u32 end)
+{
+	return end >= start ? end - start : end + (MAX_MSG_FRAGS - start);
+}
+
 #define sk_msg_iter_var_prev(var)			\
 	do {						\
 		if (var == 0)				\
@@ -198,9 +203,7 @@ static inline u32 sk_msg_elem_used(const struct sk_msg *msg)
 	if (sk_msg_full(msg))
 		return MAX_MSG_FRAGS;
 
-	return msg->sg.end >= msg->sg.start ?
-		msg->sg.end - msg->sg.start :
-		msg->sg.end + (MAX_MSG_FRAGS - msg->sg.start);
+	return sk_msg_iter_dist(msg->sg.start, msg->sg.end);
 }
 
 static inline struct scatterlist *sk_msg_elem(struct sk_msg *msg, int which)
@@ -354,7 +357,13 @@ static inline void sk_psock_restore_proto(struct sock *sk,
 	sk->sk_write_space = psock->saved_write_space;
 
 	if (psock->sk_proto) {
-		sk->sk_prot = psock->sk_proto;
+		struct inet_connection_sock *icsk = inet_csk(sk);
+		bool has_ulp = !!icsk->icsk_ulp_data;
+
+		if (has_ulp)
+			tcp_update_ulp(sk, psock->sk_proto);
+		else
+			sk->sk_prot = psock->sk_proto;
 		psock->sk_proto = NULL;
 	}
 }

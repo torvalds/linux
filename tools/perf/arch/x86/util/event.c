@@ -3,6 +3,8 @@
 #include <linux/string.h>
 #include <linux/zalloc.h>
 
+#include "../../util/event.h"
+#include "../../util/synthetic-events.h"
 #include "../../util/machine.h"
 #include "../../util/tool.h"
 #include "../../util/map.h"

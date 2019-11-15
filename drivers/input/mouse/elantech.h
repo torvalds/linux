@@ -184,32 +184,18 @@ struct elantech_data {
 	void (*original_set_rate)(struct psmouse *psmouse, unsigned int rate);
 };
 
-#ifdef CONFIG_MOUSE_PS2_ELANTECH
 int elantech_detect(struct psmouse *psmouse, bool set_properties);
 int elantech_init_ps2(struct psmouse *psmouse);
+
+#ifdef CONFIG_MOUSE_PS2_ELANTECH
 int elantech_init(struct psmouse *psmouse);
 #else
-static inline int elantech_detect(struct psmouse *psmouse, bool set_properties)
-{
-	return -ENOSYS;
-}
 static inline int elantech_init(struct psmouse *psmouse)
-{
-	return -ENOSYS;
-}
-static inline int elantech_init_ps2(struct psmouse *psmouse)
 {
 	return -ENOSYS;
 }
 #endif /* CONFIG_MOUSE_PS2_ELANTECH */
 
-#if defined(CONFIG_MOUSE_PS2_ELANTECH_SMBUS)
 int elantech_init_smbus(struct psmouse *psmouse);
-#else
-static inline int elantech_init_smbus(struct psmouse *psmouse)
-{
-	return -ENOSYS;
-}
-#endif /* CONFIG_MOUSE_PS2_ELANTECH_SMBUS */
 
 #endif

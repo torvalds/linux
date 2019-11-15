@@ -17,14 +17,13 @@
 #include <linux/if_link.h>
 
 #include "perf-sys.h"
-#include "trace_helpers.h"
 
 #define MAX_CPUS 128
-static int pmu_fds[MAX_CPUS], if_idx;
-static struct perf_event_mmap_page *headers[MAX_CPUS];
+static int if_idx;
 static char *if_name;
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static __u32 prog_id;
+static struct perf_buffer *pb = NULL;
 
 static int do_attach(int idx, int fd, const char *name)
 {
@@ -73,7 +72,7 @@ static int do_detach(int idx, const char *name)
 
 #define SAMPLE_SIZE 64
 
-static int print_bpf_output(void *data, int size)
+static void print_bpf_output(void *ctx, int cpu, void *data, __u32 size)
 {
 	struct {
 		__u16 cookie;
@@ -83,45 +82,20 @@ static int print_bpf_output(void *data, int size)
 	int i;
 
 	if (e->cookie != 0xdead) {
-		printf("BUG cookie %x sized %d\n",
-		       e->cookie, size);
-		return LIBBPF_PERF_EVENT_ERROR;
+		printf("BUG cookie %x sized %d\n", e->cookie, size);
+		return;
 	}
 
 	printf("Pkt len: %-5d bytes. Ethernet hdr: ", e->pkt_len);
 	for (i = 0; i < 14 && i < e->pkt_len; i++)
 		printf("%02x ", e->pkt_data[i]);
 	printf("\n");
-
-	return LIBBPF_PERF_EVENT_CONT;
-}
-
-static void test_bpf_perf_event(int map_fd, int num)
-{
-	struct perf_event_attr attr = {
-		.sample_type = PERF_SAMPLE_RAW,
-		.type = PERF_TYPE_SOFTWARE,
-		.config = PERF_COUNT_SW_BPF_OUTPUT,
-		.wakeup_events = 1, /* get an fd notification for every event */
-	};
-	int i;
-
-	for (i = 0; i < num; i++) {
-		int key = i;
-
-		pmu_fds[i] = sys_perf_event_open(&attr, -1/*pid*/, i/*cpu*/,
-						 -1/*group_fd*/, 0);
-
-		assert(pmu_fds[i] >= 0);
-		assert(bpf_map_update_elem(map_fd, &key,
-					   &pmu_fds[i], BPF_ANY) == 0);
-		ioctl(pmu_fds[i], PERF_EVENT_IOC_ENABLE, 0);
-	}
 }
 
 static void sig_handler(int signo)
 {
 	do_detach(if_idx, if_name);
+	perf_buffer__free(pb);
 	exit(0);
 }
 
@@ -140,13 +114,13 @@ int main(int argc, char **argv)
 	struct bpf_prog_load_attr prog_load_attr = {
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
+	struct perf_buffer_opts pb_opts = {};
 	const char *optstr = "F";
 	int prog_fd, map_fd, opt;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	char filename[256];
-	int ret, err, i;
-	int numcpus;
+	int ret, err;
 
 	while ((opt = getopt(argc, argv, optstr)) != -1) {
 		switch (opt) {
@@ -168,10 +142,6 @@ int main(int argc, char **argv)
 		perror("setrlimit(RLIMIT_MEMLOCK)");
 		return 1;
 	}
-
-	numcpus = get_nprocs();
-	if (numcpus > MAX_CPUS)
-		numcpus = MAX_CPUS;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	prog_load_attr.file = filename;
@@ -211,14 +181,17 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	test_bpf_perf_event(map_fd, numcpus);
+	pb_opts.sample_cb = print_bpf_output;
+	pb = perf_buffer__new(map_fd, 8, &pb_opts);
+	err = libbpf_get_error(pb);
+	if (err) {
+		perror("perf_buffer setup failed");
+		return 1;
+	}
 
-	for (i = 0; i < numcpus; i++)
-		if (perf_event_mmap_header(pmu_fds[i], &headers[i]) < 0)
-			return 1;
+	while ((ret = perf_buffer__poll(pb, 1000)) >= 0) {
+	}
 
-	ret = perf_event_poller_multi(pmu_fds, headers, numcpus,
-				      print_bpf_output);
 	kill(0, SIGINT);
 	return ret;
 }

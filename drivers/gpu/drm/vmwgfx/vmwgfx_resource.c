@@ -25,14 +25,43 @@
  *
  **************************************************************************/
 
-#include "vmwgfx_drv.h"
-#include <drm/vmwgfx_drm.h>
 #include <drm/ttm/ttm_placement.h>
-#include <drm/drmP.h>
+
 #include "vmwgfx_resource_priv.h"
 #include "vmwgfx_binding.h"
+#include "vmwgfx_drv.h"
 
 #define VMW_RES_EVICT_ERR_COUNT 10
+
+/**
+ * vmw_resource_mob_attach - Mark a resource as attached to its backing mob
+ * @res: The resource
+ */
+void vmw_resource_mob_attach(struct vmw_resource *res)
+{
+	struct vmw_buffer_object *backup = res->backup;
+
+	dma_resv_assert_held(res->backup->base.base.resv);
+	res->used_prio = (res->res_dirty) ? res->func->dirty_prio :
+		res->func->prio;
+	list_add_tail(&res->mob_head, &backup->res_list);
+	vmw_bo_prio_add(backup, res->used_prio);
+}
+
+/**
+ * vmw_resource_mob_detach - Mark a resource as detached from its backing mob
+ * @res: The resource
+ */
+void vmw_resource_mob_detach(struct vmw_resource *res)
+{
+	struct vmw_buffer_object *backup = res->backup;
+
+	dma_resv_assert_held(backup->base.base.resv);
+	if (vmw_resource_mob_attached(res)) {
+		list_del_init(&res->mob_head);
+		vmw_bo_prio_del(backup, res->used_prio);
+	}
+}
 
 struct vmw_resource *vmw_resource_reference(struct vmw_resource *res)
 {
@@ -80,7 +109,7 @@ static void vmw_resource_release(struct kref *kref)
 		struct ttm_buffer_object *bo = &res->backup->base;
 
 		ttm_bo_reserve(bo, false, false, NULL);
-		if (!list_empty(&res->mob_head) &&
+		if (vmw_resource_mob_attached(res) &&
 		    res->func->unbind != NULL) {
 			struct ttm_validate_buffer val_buf;
 
@@ -89,7 +118,7 @@ static void vmw_resource_release(struct kref *kref)
 			res->func->unbind(res, false, &val_buf);
 		}
 		res->backup_dirty = false;
-		list_del_init(&res->mob_head);
+		vmw_resource_mob_detach(res);
 		ttm_bo_unreserve(bo);
 		vmw_bo_unreference(&res->backup);
 	}
@@ -179,6 +208,7 @@ int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
 	res->backup_offset = 0;
 	res->backup_dirty = false;
 	res->res_dirty = false;
+	res->used_prio = 3;
 	if (delay_id)
 		return 0;
 	else
@@ -355,14 +385,14 @@ static int vmw_resource_do_validate(struct vmw_resource *res,
 	}
 
 	if (func->bind &&
-	    ((func->needs_backup && list_empty(&res->mob_head) &&
+	    ((func->needs_backup && !vmw_resource_mob_attached(res) &&
 	      val_buf->bo != NULL) ||
 	     (!func->needs_backup && val_buf->bo != NULL))) {
 		ret = func->bind(res, val_buf);
 		if (unlikely(ret != 0))
 			goto out_bind_failed;
 		if (func->needs_backup)
-			list_add_tail(&res->mob_head, &res->backup->res_list);
+			vmw_resource_mob_attach(res);
 	}
 
 	return 0;
@@ -402,15 +432,13 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 
 	if (switch_backup && new_backup != res->backup) {
 		if (res->backup) {
-			lockdep_assert_held(&res->backup->base.resv->lock.base);
-			list_del_init(&res->mob_head);
+			vmw_resource_mob_detach(res);
 			vmw_bo_unreference(&res->backup);
 		}
 
 		if (new_backup) {
 			res->backup = vmw_bo_reference(new_backup);
-			lockdep_assert_held(&new_backup->base.resv->lock.base);
-			list_add_tail(&res->mob_head, &new_backup->res_list);
+			vmw_resource_mob_attach(res);
 		} else {
 			res->backup = NULL;
 		}
@@ -469,7 +497,7 @@ vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
 	if (unlikely(ret != 0))
 		goto out_no_reserve;
 
-	if (res->func->needs_backup && list_empty(&res->mob_head))
+	if (res->func->needs_backup && !vmw_resource_mob_attached(res))
 		return 0;
 
 	backup_dirty = res->backup_dirty;
@@ -574,11 +602,11 @@ static int vmw_resource_do_evict(struct ww_acquire_ctx *ticket,
 		return ret;
 
 	if (unlikely(func->unbind != NULL &&
-		     (!func->needs_backup || !list_empty(&res->mob_head)))) {
+		     (!func->needs_backup || vmw_resource_mob_attached(res)))) {
 		ret = func->unbind(res, res->res_dirty, &val_buf);
 		if (unlikely(ret != 0))
 			goto out_no_unbind;
-		list_del_init(&res->mob_head);
+		vmw_resource_mob_detach(res);
 	}
 	ret = func->destroy(res);
 	res->backup_dirty = true;
@@ -660,7 +688,7 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr)
 	if (unlikely(ret != 0))
 		goto out_no_validate;
 	else if (!res->func->needs_backup && res->backup) {
-		list_del_init(&res->mob_head);
+		WARN_ON_ONCE(vmw_resource_mob_attached(res));
 		vmw_bo_unreference(&res->backup);
 	}
 
@@ -691,7 +719,7 @@ void vmw_resource_unbind_list(struct vmw_buffer_object *vbo)
 		.num_shared = 0
 	};
 
-	lockdep_assert_held(&vbo->base.resv->lock.base);
+	dma_resv_assert_held(vbo->base.base.resv);
 	list_for_each_entry_safe(res, next, &vbo->res_list, mob_head) {
 		if (!res->func->unbind)
 			continue;
@@ -699,7 +727,7 @@ void vmw_resource_unbind_list(struct vmw_buffer_object *vbo)
 		(void) res->func->unbind(res, res->res_dirty, &val_buf);
 		res->backup_dirty = true;
 		res->res_dirty = false;
-		list_del_init(&res->mob_head);
+		vmw_resource_mob_detach(res);
 	}
 
 	(void) ttm_bo_wait(&vbo->base, false, false);

@@ -63,7 +63,7 @@
 };
 
 &panel {
-	compatible = "bananapi,s070wv20-ct16", "simple-panel";
+	compatible = "bananapi,s070wv20-ct16";
 };
 
 &tcon0_out {

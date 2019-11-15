@@ -55,7 +55,7 @@ static int tcf_mpls_act(struct sk_buff *skb, const struct tc_action *a,
 	struct tcf_mpls *m = to_mpls(a);
 	struct tcf_mpls_params *p;
 	__be32 new_lse;
-	int ret;
+	int ret, mac_len;
 
 	tcf_lastuse_update(&m->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
@@ -63,8 +63,12 @@ static int tcf_mpls_act(struct sk_buff *skb, const struct tc_action *a,
 	/* Ensure 'data' points at mac_header prior calling mpls manipulating
 	 * functions.
 	 */
-	if (skb_at_tc_ingress(skb))
+	if (skb_at_tc_ingress(skb)) {
 		skb_push_rcsum(skb, skb->mac_len);
+		mac_len = skb->mac_len;
+	} else {
+		mac_len = skb_network_header(skb) - skb_mac_header(skb);
+	}
 
 	ret = READ_ONCE(m->tcf_action);
 
@@ -72,12 +76,12 @@ static int tcf_mpls_act(struct sk_buff *skb, const struct tc_action *a,
 
 	switch (p->tcfm_action) {
 	case TCA_MPLS_ACT_POP:
-		if (skb_mpls_pop(skb, p->tcfm_proto))
+		if (skb_mpls_pop(skb, p->tcfm_proto, mac_len))
 			goto drop;
 		break;
 	case TCA_MPLS_ACT_PUSH:
 		new_lse = tcf_mpls_get_lse(NULL, p, !eth_p_mpls(skb->protocol));
-		if (skb_mpls_push(skb, new_lse, p->tcfm_proto))
+		if (skb_mpls_push(skb, new_lse, p->tcfm_proto, mac_len))
 			goto drop;
 		break;
 	case TCA_MPLS_ACT_MODIFY:
@@ -138,6 +142,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 	struct tcf_mpls *m;
 	int ret = 0, err;
 	u8 mpls_ttl = 0;
+	u32 index;
 
 	if (!nla) {
 		NL_SET_ERR_MSG_MOD(extack, "Missing netlink attributes");
@@ -153,6 +158,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 	}
 	parm = nla_data(tb[TCA_MPLS_PARMS]);
+	index = parm->index;
 
 	/* Verify parameters against action type. */
 	switch (parm->m_action) {
@@ -209,7 +215,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 	}
 
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (err < 0)
 		return err;
 	exists = err;
@@ -217,10 +223,10 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		return 0;
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, parm->index, est, a,
+		ret = tcf_idr_create(tn, index, est, a,
 				     &act_mpls_ops, bind, true);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 
@@ -373,7 +379,7 @@ static __net_init int mpls_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, mpls_net_id);
 
-	return tc_action_net_init(tn, &act_mpls_ops);
+	return tc_action_net_init(net, tn, &act_mpls_ops);
 }
 
 static void __net_exit mpls_exit_net(struct list_head *net_list)

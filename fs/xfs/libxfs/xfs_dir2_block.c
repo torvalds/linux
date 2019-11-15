@@ -1092,11 +1092,11 @@ xfs_dir2_sf_to_block(
 	 * Copy the directory into a temporary buffer.
 	 * Then pitch the incore inode data so we can make extents.
 	 */
-	sfp = kmem_alloc(ifp->if_bytes, KM_SLEEP);
+	sfp = kmem_alloc(ifp->if_bytes, 0);
 	memcpy(sfp, oldsfp, ifp->if_bytes);
 
 	xfs_idata_realloc(dp, -ifp->if_bytes, XFS_DATA_FORK);
-	xfs_bmap_local_to_extents_empty(dp, XFS_DATA_FORK);
+	xfs_bmap_local_to_extents_empty(tp, dp, XFS_DATA_FORK);
 	dp->i_d.di_size = 0;
 
 	/*

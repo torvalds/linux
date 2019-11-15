@@ -30,26 +30,8 @@
 									      \
 /* Callbacks for augmented rbtree insert and remove */			      \
 									      \
-static inline ITTYPE ITPREFIX ## _compute_subtree_last(ITSTRUCT *node)	      \
-{									      \
-	ITTYPE max = ITLAST(node), subtree_last;			      \
-	if (node->ITRB.rb_left) {					      \
-		subtree_last = rb_entry(node->ITRB.rb_left,		      \
-					ITSTRUCT, ITRB)->ITSUBTREE;	      \
-		if (max < subtree_last)					      \
-			max = subtree_last;				      \
-	}								      \
-	if (node->ITRB.rb_right) {					      \
-		subtree_last = rb_entry(node->ITRB.rb_right,		      \
-					ITSTRUCT, ITRB)->ITSUBTREE;	      \
-		if (max < subtree_last)					      \
-			max = subtree_last;				      \
-	}								      \
-	return max;							      \
-}									      \
-									      \
-RB_DECLARE_CALLBACKS(static, ITPREFIX ## _augment, ITSTRUCT, ITRB,	      \
-		     ITTYPE, ITSUBTREE, ITPREFIX ## _compute_subtree_last)    \
+RB_DECLARE_CALLBACKS_MAX(static, ITPREFIX ## _augment,			      \
+			 ITSTRUCT, ITRB, ITTYPE, ITSUBTREE, ITLAST)	      \
 									      \
 /* Insert / remove interval nodes from the tree */			      \
 									      \

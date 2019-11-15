@@ -119,15 +119,17 @@ Supported chips:
 
 	       http://www.ti.com/product/tmp275
 
-  * NXP LM75B
+  * NXP LM75B, PCT2075
 
-    Prefix: 'lm75b'
+    Prefix: 'lm75b', 'pct2075'
 
     Addresses scanned: none
 
     Datasheet: Publicly available at the NXP website
 
 	       http://www.nxp.com/documents/data_sheet/LM75B.pdf
+
+               http://www.nxp.com/docs/en/data-sheet/PCT2075.pdf
 
 Author: Frodo Looijaard <frodol@dds.nl>
 

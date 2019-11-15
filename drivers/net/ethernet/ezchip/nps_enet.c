@@ -576,7 +576,6 @@ static s32 nps_enet_probe(struct platform_device *pdev)
 	struct nps_enet_priv *priv;
 	s32 err = 0;
 	const char *mac_addr;
-	struct resource *res_regs;
 
 	if (!dev->of_node)
 		return -ENODEV;
@@ -595,8 +594,7 @@ static s32 nps_enet_probe(struct platform_device *pdev)
 	/* FIXME :: no multicast support yet */
 	ndev->flags &= ~IFF_MULTICAST;
 
-	res_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs_base = devm_ioremap_resource(dev, res_regs);
+	priv->regs_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs_base)) {
 		err = PTR_ERR(priv->regs_base);
 		goto out_netdev;

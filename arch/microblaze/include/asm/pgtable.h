@@ -46,8 +46,6 @@ extern int mem_init_done;
 
 #define swapper_pg_dir ((pgd_t *) NULL)
 
-#define pgtable_cache_init()	do {} while (0)
-
 #define arch_enter_lazy_cpu_mode()	do {} while (0)
 
 #define pgprot_noncached_wc(prot)	prot
@@ -525,11 +523,6 @@ extern unsigned long iopa(unsigned long addr);
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
-
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()	do { } while (0)
 
 void do_page_fault(struct pt_regs *regs, unsigned long address,
 		   unsigned long error_code);

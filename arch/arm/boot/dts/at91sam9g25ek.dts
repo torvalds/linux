@@ -12,57 +12,54 @@
 / {
 	model = "Atmel AT91SAM9G25-EK";
 	compatible = "atmel,at91sam9g25ek", "atmel,at91sam9x5ek", "atmel,at91sam9x5", "atmel,at91sam9";
+};
 
-	ahb {
-		apb {
-			spi0: spi@f0000000 {
-				status = "disabled";
-			};
+&i2c0 {
+	camera@30 {
+		compatible = "ovti,ov2640";
+		reg = <0x30>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pck0_as_isi_mck &pinctrl_sensor_power &pinctrl_sensor_reset>;
+		resetb-gpios = <&pioA 7 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&pioA 13 GPIO_ACTIVE_HIGH>;
+		clocks = <&pmc PMC_TYPE_SYSTEM 8>;
+		clock-names = "xvclk";
+		assigned-clocks = <&pmc PMC_TYPE_SYSTEM 8>;
+		assigned-clock-rates = <25000000>;
+		status = "okay";
 
-			mmc1: mmc@f000c000 {
-				status = "disabled";
-			};
-
-			i2c0: i2c@f8010000 {
-				ov2640: camera@30 {
-					compatible = "ovti,ov2640";
-					reg = <0x30>;
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_pck0_as_isi_mck &pinctrl_sensor_power &pinctrl_sensor_reset>;
-					resetb-gpios = <&pioA 7 GPIO_ACTIVE_LOW>;
-					pwdn-gpios = <&pioA 13 GPIO_ACTIVE_HIGH>;
-					clocks = <&pmc PMC_TYPE_SYSTEM 8>;
-					clock-names = "xvclk";
-					assigned-clocks = <&pmc PMC_TYPE_SYSTEM 8>;
-					assigned-clock-rates = <25000000>;
-					status = "okay";
-
-					port {
-						ov2640_0: endpoint {
-							remote-endpoint = <&isi_0>;
-							bus-width = <8>;
-						};
-					};
-				};
-			};
-
-			macb0: ethernet@f802c000 {
-				phy-mode = "rmii";
-				status = "okay";
-			};
-
-			isi: isi@f8048000 {
-				status = "okay";
-				port {
-					isi_0: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&ov2640_0>;
-						bus-width = <8>;
-						vsync-active = <1>;
-						hsync-active = <1>;
-					};
-				};
+		port {
+			ov2640_0: endpoint {
+				remote-endpoint = <&isi_0>;
+				bus-width = <8>;
 			};
 		};
 	};
+};
+
+&isi {
+	status = "okay";
+
+	port {
+		isi_0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&ov2640_0>;
+			bus-width = <8>;
+			vsync-active = <1>;
+			hsync-active = <1>;
+		};
+	};
+};
+
+&macb0 {
+	phy-mode = "rmii";
+	status = "okay";
+};
+
+&mmc1 {
+	status = "disabled";
+};
+
+&spi0 {
+	status = "disabled";
 };

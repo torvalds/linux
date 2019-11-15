@@ -64,16 +64,17 @@
 #define KVM_INST_MTSRIN		0x7c0001e4
 
 static bool kvm_patching_worked = true;
-char kvm_tmp[1024 * 1024];
+extern char kvm_tmp[];
+extern char kvm_tmp_end[];
 static int kvm_tmp_index;
 
-static inline void kvm_patch_ins(u32 *inst, u32 new_inst)
+static void __init kvm_patch_ins(u32 *inst, u32 new_inst)
 {
 	*inst = new_inst;
 	flush_icache_range((ulong)inst, (ulong)inst + 4);
 }
 
-static void kvm_patch_ins_ll(u32 *inst, long addr, u32 rt)
+static void __init kvm_patch_ins_ll(u32 *inst, long addr, u32 rt)
 {
 #ifdef CONFIG_64BIT
 	kvm_patch_ins(inst, KVM_INST_LD | rt | (addr & 0x0000fffc));
@@ -82,7 +83,7 @@ static void kvm_patch_ins_ll(u32 *inst, long addr, u32 rt)
 #endif
 }
 
-static void kvm_patch_ins_ld(u32 *inst, long addr, u32 rt)
+static void __init kvm_patch_ins_ld(u32 *inst, long addr, u32 rt)
 {
 #ifdef CONFIG_64BIT
 	kvm_patch_ins(inst, KVM_INST_LD | rt | (addr & 0x0000fffc));
@@ -91,12 +92,12 @@ static void kvm_patch_ins_ld(u32 *inst, long addr, u32 rt)
 #endif
 }
 
-static void kvm_patch_ins_lwz(u32 *inst, long addr, u32 rt)
+static void __init kvm_patch_ins_lwz(u32 *inst, long addr, u32 rt)
 {
 	kvm_patch_ins(inst, KVM_INST_LWZ | rt | (addr & 0x0000ffff));
 }
 
-static void kvm_patch_ins_std(u32 *inst, long addr, u32 rt)
+static void __init kvm_patch_ins_std(u32 *inst, long addr, u32 rt)
 {
 #ifdef CONFIG_64BIT
 	kvm_patch_ins(inst, KVM_INST_STD | rt | (addr & 0x0000fffc));
@@ -105,17 +106,17 @@ static void kvm_patch_ins_std(u32 *inst, long addr, u32 rt)
 #endif
 }
 
-static void kvm_patch_ins_stw(u32 *inst, long addr, u32 rt)
+static void __init kvm_patch_ins_stw(u32 *inst, long addr, u32 rt)
 {
 	kvm_patch_ins(inst, KVM_INST_STW | rt | (addr & 0x0000fffc));
 }
 
-static void kvm_patch_ins_nop(u32 *inst)
+static void __init kvm_patch_ins_nop(u32 *inst)
 {
 	kvm_patch_ins(inst, KVM_INST_NOP);
 }
 
-static void kvm_patch_ins_b(u32 *inst, int addr)
+static void __init kvm_patch_ins_b(u32 *inst, int addr)
 {
 #if defined(CONFIG_RELOCATABLE) && defined(CONFIG_PPC_BOOK3S)
 	/* On relocatable kernels interrupts handlers and our code
@@ -128,11 +129,11 @@ static void kvm_patch_ins_b(u32 *inst, int addr)
 	kvm_patch_ins(inst, KVM_INST_B | (addr & KVM_INST_B_MASK));
 }
 
-static u32 *kvm_alloc(int len)
+static u32 * __init kvm_alloc(int len)
 {
 	u32 *p;
 
-	if ((kvm_tmp_index + len) > ARRAY_SIZE(kvm_tmp)) {
+	if ((kvm_tmp_index + len) > (kvm_tmp_end - kvm_tmp)) {
 		printk(KERN_ERR "KVM: No more space (%d + %d)\n",
 				kvm_tmp_index, len);
 		kvm_patching_worked = false;
@@ -151,7 +152,7 @@ extern u32 kvm_emulate_mtmsrd_orig_ins_offs;
 extern u32 kvm_emulate_mtmsrd_len;
 extern u32 kvm_emulate_mtmsrd[];
 
-static void kvm_patch_ins_mtmsrd(u32 *inst, u32 rt)
+static void __init kvm_patch_ins_mtmsrd(u32 *inst, u32 rt)
 {
 	u32 *p;
 	int distance_start;
@@ -204,7 +205,7 @@ extern u32 kvm_emulate_mtmsr_orig_ins_offs;
 extern u32 kvm_emulate_mtmsr_len;
 extern u32 kvm_emulate_mtmsr[];
 
-static void kvm_patch_ins_mtmsr(u32 *inst, u32 rt)
+static void __init kvm_patch_ins_mtmsr(u32 *inst, u32 rt)
 {
 	u32 *p;
 	int distance_start;
@@ -265,7 +266,7 @@ extern u32 kvm_emulate_wrtee_orig_ins_offs;
 extern u32 kvm_emulate_wrtee_len;
 extern u32 kvm_emulate_wrtee[];
 
-static void kvm_patch_ins_wrtee(u32 *inst, u32 rt, int imm_one)
+static void __init kvm_patch_ins_wrtee(u32 *inst, u32 rt, int imm_one)
 {
 	u32 *p;
 	int distance_start;
@@ -322,7 +323,7 @@ extern u32 kvm_emulate_wrteei_0_branch_offs;
 extern u32 kvm_emulate_wrteei_0_len;
 extern u32 kvm_emulate_wrteei_0[];
 
-static void kvm_patch_ins_wrteei_0(u32 *inst)
+static void __init kvm_patch_ins_wrteei_0(u32 *inst)
 {
 	u32 *p;
 	int distance_start;
@@ -363,7 +364,7 @@ extern u32 kvm_emulate_mtsrin_orig_ins_offs;
 extern u32 kvm_emulate_mtsrin_len;
 extern u32 kvm_emulate_mtsrin[];
 
-static void kvm_patch_ins_mtsrin(u32 *inst, u32 rt, u32 rb)
+static void __init kvm_patch_ins_mtsrin(u32 *inst, u32 rt, u32 rb)
 {
 	u32 *p;
 	int distance_start;
@@ -399,7 +400,7 @@ static void kvm_patch_ins_mtsrin(u32 *inst, u32 rt, u32 rb)
 
 #endif
 
-static void kvm_map_magic_page(void *data)
+static void __init kvm_map_magic_page(void *data)
 {
 	u32 *features = data;
 
@@ -414,7 +415,7 @@ static void kvm_map_magic_page(void *data)
 	*features = out[0];
 }
 
-static void kvm_check_ins(u32 *inst, u32 features)
+static void __init kvm_check_ins(u32 *inst, u32 features)
 {
 	u32 _inst = *inst;
 	u32 inst_no_rt = _inst & ~KVM_MASK_RT;
@@ -658,7 +659,7 @@ static void kvm_check_ins(u32 *inst, u32 features)
 extern u32 kvm_template_start[];
 extern u32 kvm_template_end[];
 
-static void kvm_use_magic_page(void)
+static void __init kvm_use_magic_page(void)
 {
 	u32 *p;
 	u32 *start, *end;
@@ -699,25 +700,13 @@ static void kvm_use_magic_page(void)
 			 kvm_patching_worked ? "worked" : "failed");
 }
 
-static __init void kvm_free_tmp(void)
-{
-	/*
-	 * Inform kmemleak about the hole in the .bss section since the
-	 * corresponding pages will be unmapped with DEBUG_PAGEALLOC=y.
-	 */
-	kmemleak_free_part(&kvm_tmp[kvm_tmp_index],
-			   ARRAY_SIZE(kvm_tmp) - kvm_tmp_index);
-	free_reserved_area(&kvm_tmp[kvm_tmp_index],
-			   &kvm_tmp[ARRAY_SIZE(kvm_tmp)], -1, NULL);
-}
-
 static int __init kvm_guest_init(void)
 {
 	if (!kvm_para_available())
-		goto free_tmp;
+		return 0;
 
 	if (!epapr_paravirt_enabled)
-		goto free_tmp;
+		return 0;
 
 	if (kvm_para_has_feature(KVM_FEATURE_MAGIC_PAGE))
 		kvm_use_magic_page();
@@ -726,9 +715,6 @@ static int __init kvm_guest_init(void)
 	/* Enable napping */
 	powersave_nap = 1;
 #endif
-
-free_tmp:
-	kvm_free_tmp();
 
 	return 0;
 }

@@ -95,7 +95,6 @@ void wbt_enable_default(struct request_queue *);
 u64 wbt_get_min_lat(struct request_queue *q);
 void wbt_set_min_lat(struct request_queue *q, u64 val);
 
-void wbt_set_queue_depth(struct request_queue *, unsigned int);
 void wbt_set_write_cache(struct request_queue *, bool);
 
 u64 wbt_default_latency_nsec(struct request_queue *);
@@ -116,9 +115,6 @@ static inline void wbt_disable_default(struct request_queue *q)
 {
 }
 static inline void wbt_enable_default(struct request_queue *q)
-{
-}
-static inline void wbt_set_queue_depth(struct request_queue *q, unsigned int depth)
 {
 }
 static inline void wbt_set_write_cache(struct request_queue *q, bool wc)

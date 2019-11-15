@@ -84,6 +84,7 @@
 
 #define DPNI_CMDID_SET_RX_FS_DIST			DPNI_CMD(0x273)
 #define DPNI_CMDID_SET_RX_HASH_DIST			DPNI_CMD(0x274)
+#define DPNI_CMDID_GET_LINK_CFG				DPNI_CMD(0x278)
 
 /* Macros for accessing command fields smaller than 1byte */
 #define DPNI_MASK(field)	\
@@ -284,7 +285,7 @@ struct dpni_rsp_get_statistics {
 	__le64 counter[DPNI_STATISTICS_CNT];
 };
 
-struct dpni_cmd_set_link_cfg {
+struct dpni_cmd_link_cfg {
 	/* cmd word 0 */
 	__le64 pad0;
 	/* cmd word 1 */

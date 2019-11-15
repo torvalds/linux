@@ -59,7 +59,7 @@ is at most 263 bytes long, though on disk you'll need to reference
      - File name.
 
 Since file names cannot be longer than 255 bytes, the new directory
-entry format shortens the rec\_len field and uses the space for a file
+entry format shortens the name\_len field and uses the space for a file
 type flag, probably to avoid having to load every inode during directory
 tree traversal. This format is ``ext4_dir_entry_2``, which is at most
 263 bytes long, though on disk you'll need to reference

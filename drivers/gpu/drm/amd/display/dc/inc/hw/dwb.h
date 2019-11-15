@@ -45,22 +45,10 @@ enum dwb_source {
 	dwb_src_scl = 0,	/* for DCE7x/9x, DCN won't support. */
 	dwb_src_blnd,		/* for DCE7x/9x */
 	dwb_src_fmt,		/* for DCE7x/9x */
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	dwb_src_otg0 = 0x100,	/* for DCN1.x/DCN2.x, register: mmDWB_SOURCE_SELECT */
 	dwb_src_otg1,		/* for DCN1.x/DCN2.x */
 	dwb_src_otg2,		/* for DCN1.x/DCN2.x */
 	dwb_src_otg3,		/* for DCN1.x/DCN2.x */
-#else
-	dwb_src_otg0 = 0x100,	/* for DCN1.x, register: mmDWB_SOURCE_SELECT */
-	dwb_src_otg1,		/* for DCN1.x */
-	dwb_src_otg2,		/* for DCN1.x */
-	dwb_src_otg3,		/* for DCN1.x */
-#endif
-	dwb_src_mpc0 = 0x200,	/* for DCN2, register: mmMPC_DWB0_MUX, mmMPC_DWB1_MUX, mmMPC_DWB2_MUX */
-	dwb_src_mpc1,		/* for DCN2 */
-	dwb_src_mpc2,		/* for DCN2 */
-	dwb_src_mpc3,		/* for DCN2 */
-	dwb_src_mpc4,		/* for DCN2 */
 };
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)

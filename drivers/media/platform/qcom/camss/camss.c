@@ -486,9 +486,9 @@ static int camss_of_parse_ports(struct camss *camss)
 		asd = v4l2_async_notifier_add_fwnode_subdev(
 			&camss->notifier, of_fwnode_handle(remote),
 			sizeof(*csd));
+		of_node_put(remote);
 		if (IS_ERR(asd)) {
 			ret = PTR_ERR(asd);
-			of_node_put(remote);
 			goto err_cleanup;
 		}
 

@@ -309,7 +309,7 @@ static int ec168_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 /* DVB USB Driver stuff */
 /* bInterfaceNumber 0 is HID
  * bInterfaceNumber 1 is DVB-T */
-static struct dvb_usb_device_properties ec168_props = {
+static const struct dvb_usb_device_properties ec168_props = {
 	.driver_name = KBUILD_MODNAME,
 	.owner = THIS_MODULE,
 	.adapter_nr = adapter_nr,

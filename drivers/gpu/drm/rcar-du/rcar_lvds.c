@@ -71,11 +71,11 @@ struct rcar_lvds {
 	bool dual_link;
 };
 
-#define bridge_to_rcar_lvds(bridge) \
-	container_of(bridge, struct rcar_lvds, bridge)
+#define bridge_to_rcar_lvds(b) \
+	container_of(b, struct rcar_lvds, bridge)
 
-#define connector_to_rcar_lvds(connector) \
-	container_of(connector, struct rcar_lvds, connector)
+#define connector_to_rcar_lvds(c) \
+	container_of(c, struct rcar_lvds, connector)
 
 static void rcar_lvds_write(struct rcar_lvds *lvds, u32 reg, u32 data)
 {
@@ -673,10 +673,8 @@ static int rcar_lvds_parse_dt_companion(struct rcar_lvds *lvds)
 
 	/* Locate the companion LVDS encoder for dual-link operation, if any. */
 	companion = of_parse_phandle(dev->of_node, "renesas,companion", 0);
-	if (!companion) {
-		dev_err(dev, "Companion LVDS encoder not found\n");
-		return -ENXIO;
-	}
+	if (!companion)
+		return 0;
 
 	/*
 	 * Sanity check: the companion encoder must have the same compatible

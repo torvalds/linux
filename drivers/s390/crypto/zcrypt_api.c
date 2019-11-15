@@ -35,6 +35,7 @@
 
 #include "zcrypt_msgtype6.h"
 #include "zcrypt_msgtype50.h"
+#include "zcrypt_ccamisc.h"
 
 /*
  * Module description.
@@ -133,18 +134,6 @@ struct zcdn_device {
 static int zcdn_create(const char *name);
 static int zcdn_destroy(const char *name);
 
-/* helper function, matches the name for find_zcdndev_by_name() */
-static int __match_zcdn_name(struct device *dev, const void *data)
-{
-	return strcmp(dev_name(dev), (const char *)data) == 0;
-}
-
-/* helper function, matches the devt value for find_zcdndev_by_devt() */
-static int __match_zcdn_devt(struct device *dev, const void *data)
-{
-	return dev->devt == *((dev_t *) data);
-}
-
 /*
  * Find zcdn device by name.
  * Returns reference to the zcdn device which needs to be released
@@ -152,10 +141,7 @@ static int __match_zcdn_devt(struct device *dev, const void *data)
  */
 static inline struct zcdn_device *find_zcdndev_by_name(const char *name)
 {
-	struct device *dev =
-		class_find_device(zcrypt_class, NULL,
-				  (void *) name,
-				  __match_zcdn_name);
+	struct device *dev = class_find_device_by_name(zcrypt_class, name);
 
 	return dev ? to_zcdn_dev(dev) : NULL;
 }
@@ -167,10 +153,7 @@ static inline struct zcdn_device *find_zcdndev_by_name(const char *name)
  */
 static inline struct zcdn_device *find_zcdndev_by_devt(dev_t devt)
 {
-	struct device *dev =
-		class_find_device(zcrypt_class, NULL,
-				  (void *) &devt,
-				  __match_zcdn_devt);
+	struct device *dev = class_find_device_by_devt(zcrypt_class, devt);
 
 	return dev ? to_zcdn_dev(dev) : NULL;
 }
@@ -539,8 +522,7 @@ static int zcrypt_release(struct inode *inode, struct file *filp)
 	if (filp->f_inode->i_cdev == &zcrypt_cdev) {
 		struct zcdn_device *zcdndev;
 
-		if (mutex_lock_interruptible(&ap_perms_mutex))
-			return -ERESTARTSYS;
+		mutex_lock(&ap_perms_mutex);
 		zcdndev = find_zcdndev_by_devt(filp->f_inode->i_rdev);
 		mutex_unlock(&ap_perms_mutex);
 		if (zcdndev) {
@@ -1159,6 +1141,34 @@ void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus)
 	spin_unlock(&zcrypt_list_lock);
 }
 EXPORT_SYMBOL(zcrypt_device_status_mask_ext);
+
+int zcrypt_device_status_ext(int card, int queue,
+			     struct zcrypt_device_status_ext *devstat)
+{
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
+
+	memset(devstat, 0, sizeof(*devstat));
+
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			if (card == AP_QID_CARD(zq->queue->qid) &&
+			    queue == AP_QID_QUEUE(zq->queue->qid)) {
+				devstat->hwtype = zc->card->ap_dev.device_type;
+				devstat->functions = zc->card->functions >> 26;
+				devstat->qid = zq->queue->qid;
+				devstat->online = zq->online ? 0x01 : 0x00;
+				spin_unlock(&zcrypt_list_lock);
+				return 0;
+			}
+		}
+	}
+	spin_unlock(&zcrypt_list_lock);
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL(zcrypt_device_status_ext);
 
 static void zcrypt_status_mask(char status[], size_t max_adapters)
 {
@@ -1874,6 +1884,7 @@ void __exit zcrypt_api_exit(void)
 	misc_deregister(&zcrypt_misc_device);
 	zcrypt_msgtype6_exit();
 	zcrypt_msgtype50_exit();
+	zcrypt_ccamisc_exit();
 	zcrypt_debug_exit();
 }
 

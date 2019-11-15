@@ -21,6 +21,27 @@
 #ifndef _mmhub_9_4_0_OFFSET_HEADER
 #define _mmhub_9_4_0_OFFSET_HEADER
 
+/* MMEA */
+#define mmMMEA0_SDP_ARB_FINAL_VG20                                                                     0x01ee
+#define mmMMEA0_SDP_ARB_FINAL_VG20_BASE_IDX                                                            0
+#define mmMMEA0_EDC_CNT_VG20                                                                           0x0206
+#define mmMMEA0_EDC_CNT_VG20_BASE_IDX                                                                  0
+#define mmMMEA0_EDC_CNT2_VG20                                                                          0x0207
+#define mmMMEA0_EDC_CNT2_VG20_BASE_IDX                                                                 0
+#define mmMMEA0_EDC_MODE_VG20                                                                          0x0210
+#define mmMMEA0_EDC_MODE_VG20_BASE_IDX                                                                 0
+#define mmMMEA0_ERR_STATUS_VG20                                                                        0x0211
+#define mmMMEA0_ERR_STATUS_VG20_BASE_IDX                                                               0
+#define mmMMEA1_SDP_ARB_FINAL_VG20                                                                     0x032e
+#define mmMMEA1_SDP_ARB_FINAL_VG20_BASE_IDX                                                            0
+#define mmMMEA1_EDC_CNT_VG20                                                                           0x0346
+#define mmMMEA1_EDC_CNT_VG20_BASE_IDX                                                                  0
+#define mmMMEA1_EDC_CNT2_VG20                                                                          0x0347
+#define mmMMEA1_EDC_CNT2_VG20_BASE_IDX                                                                 0
+#define mmMMEA1_EDC_MODE_VG20                                                                          0x0350
+#define mmMMEA1_EDC_MODE_VG20_BASE_IDX                                                                 0
+#define mmMMEA1_ERR_STATUS_VG20                                                                        0x0351
+#define mmMMEA1_ERR_STATUS_VG20_BASE_IDX                                                               0
 
 // addressBlock: mmhub_utcl2_vmsharedpfdec
 // base address: 0x6a040

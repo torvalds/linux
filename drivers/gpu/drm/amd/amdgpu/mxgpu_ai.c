@@ -449,20 +449,6 @@ void xgpu_ai_mailbox_put_irq(struct amdgpu_device *adev)
 	amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
 }
 
-static void xgpu_ai_init_reg_access_mode(struct amdgpu_device *adev)
-{
-	adev->virt.reg_access_mode = AMDGPU_VIRT_REG_ACCESS_LEGACY;
-
-	/* Enable L1 security reg access mode by defaul,  as non-security VF
-	 * will no longer be supported.
-	 */
-	adev->virt.reg_access_mode |= AMDGPU_VIRT_REG_ACCESS_RLC;
-
-	adev->virt.reg_access_mode |= AMDGPU_VIRT_REG_ACCESS_PSP_PRG_IH;
-
-	adev->virt.reg_access_mode |= AMDGPU_VIRT_REG_SKIP_SEETING;
-}
-
 const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.req_full_gpu	= xgpu_ai_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_ai_release_full_gpu_access,
@@ -471,5 +457,4 @@ const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.trans_msg = xgpu_ai_mailbox_trans_msg,
 	.get_pp_clk = xgpu_ai_get_pp_clk,
 	.force_dpm_level = xgpu_ai_force_dpm_level,
-	.init_reg_access_mode = xgpu_ai_init_reg_access_mode,
 };

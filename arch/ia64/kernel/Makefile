@@ -10,15 +10,14 @@ endif
 extra-y	:= head.o vmlinux.lds
 
 obj-y := entry.o efi.o efi_stub.o gate-data.o fsys.o ia64_ksyms.o irq.o irq_ia64.o	\
-	 irq_lsapic.o ivt.o machvec.o pal.o patch.o process.o perfmon.o ptrace.o sal.o		\
+	 irq_lsapic.o ivt.o pal.o patch.o process.o perfmon.o ptrace.o sal.o		\
 	 salinfo.o setup.o signal.o sys_ia64.o time.o traps.o unaligned.o \
-	 unwind.o mca.o mca_asm.o topology.o dma-mapping.o
+	 unwind.o mca.o mca_asm.o topology.o dma-mapping.o iosapic.o acpi.o \
+	 acpi-ext.o
 
-obj-$(CONFIG_ACPI)		+= acpi.o acpi-ext.o
 obj-$(CONFIG_IA64_BRL_EMU)	+= brl_emu.o
 
 obj-$(CONFIG_IA64_PALINFO)	+= palinfo.o
-obj-$(CONFIG_IOSAPIC)		+= iosapic.o
 obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_SMP)		+= smp.o smpboot.o
 obj-$(CONFIG_NUMA)		+= numa.o
@@ -31,7 +30,7 @@ obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o crash.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_IA64_UNCACHED_ALLOCATOR)	+= uncached.o
 obj-$(CONFIG_AUDIT)		+= audit.o
-obj-$(CONFIG_PCI_MSI)		+= msi_ia64.o
+obj-y				+= msi_ia64.o
 mca_recovery-y			+= mca_drv.o mca_drv_asm.o
 obj-$(CONFIG_IA64_MC_ERR_INJECT)+= err_inject.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o

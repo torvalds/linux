@@ -58,7 +58,7 @@ xfs_bmbt_to_iomap(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 
-	if (unlikely(!imap->br_startblock && !XFS_IS_REALTIME_INODE(ip)))
+	if (unlikely(!xfs_valid_startblock(ip, imap->br_startblock)))
 		return xfs_alert_fsblock_zero(ip, imap);
 
 	if (imap->br_startblock == HOLESTARTBLOCK) {
@@ -297,7 +297,7 @@ xfs_iomap_write_direct(
 		goto out_unlock;
 	}
 
-	if (!(imap->br_startblock || XFS_IS_REALTIME_INODE(ip)))
+	if (unlikely(!xfs_valid_startblock(ip, imap->br_startblock)))
 		error = xfs_alert_fsblock_zero(ip, imap);
 
 out_unlock:
@@ -814,7 +814,7 @@ xfs_iomap_write_unwritten(
 		if (error)
 			return error;
 
-		if (!(imap.br_startblock || XFS_IS_REALTIME_INODE(ip)))
+		if (unlikely(!xfs_valid_startblock(ip, imap.br_startblock)))
 			return xfs_alert_fsblock_zero(ip, &imap);
 
 		if ((numblks_fsb = imap.br_blockcount) == 0) {

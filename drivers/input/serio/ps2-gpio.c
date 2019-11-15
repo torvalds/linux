@@ -369,8 +369,6 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 
 	drvdata->irq = platform_get_irq(pdev, 0);
 	if (drvdata->irq < 0) {
-		dev_err(dev, "failed to get irq from platform resource: %d\n",
-			drvdata->irq);
 		error = drvdata->irq;
 		goto err_free_serio;
 	}

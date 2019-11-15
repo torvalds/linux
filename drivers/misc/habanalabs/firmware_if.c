@@ -24,7 +24,7 @@ int hl_fw_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
 {
 	const struct firmware *fw;
 	const u64 *fw_data;
-	size_t fw_size, i;
+	size_t fw_size;
 	int rc;
 
 	rc = request_firmware(&fw, fw_name, hdev->dev);
@@ -45,22 +45,7 @@ int hl_fw_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
 
 	fw_data = (const u64 *) fw->data;
 
-	if ((fw->size % 8) != 0)
-		fw_size -= 8;
-
-	for (i = 0 ; i < fw_size ; i += 8, fw_data++, dst += 8) {
-		if (!(i & (0x80000 - 1))) {
-			dev_dbg(hdev->dev,
-				"copied so far %zu out of %zu for %s firmware",
-				i, fw_size, fw_name);
-			usleep_range(20, 100);
-		}
-
-		writeq(*fw_data, dst);
-	}
-
-	if ((fw->size % 8) != 0)
-		writel(*(const u32 *) fw_data, dst);
+	memcpy_toio(dst, fw_data, fw_size);
 
 out:
 	release_firmware(fw);
@@ -112,7 +97,8 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	}
 
 	rc = hl_poll_timeout_memory(hdev, &pkt->fence, tmp,
-				(tmp == ARMCP_PACKET_FENCE_VAL), 1000, timeout);
+				(tmp == ARMCP_PACKET_FENCE_VAL), 1000,
+				timeout, true);
 
 	hl_hw_queue_inc_ci_kernel(hdev, hw_queue_id);
 

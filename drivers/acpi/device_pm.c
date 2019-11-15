@@ -166,6 +166,10 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	    || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
 		return -EINVAL;
 
+	acpi_handle_debug(device->handle, "Power state change: %s -> %s\n",
+			  acpi_power_state_string(device->power.state),
+			  acpi_power_state_string(state));
+
 	/* Make sure this is a valid target state */
 
 	/* There is a special case for D0 addressed below. */
@@ -232,13 +236,15 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		if (device->power.flags.power_resources)
 			result = acpi_power_transition(device, target_state);
 	} else {
+		int cur_state = device->power.state;
+
 		if (device->power.flags.power_resources) {
 			result = acpi_power_transition(device, ACPI_STATE_D0);
 			if (result)
 				goto end;
 		}
 
-		if (device->power.state == ACPI_STATE_D0) {
+		if (cur_state == ACPI_STATE_D0) {
 			int psc;
 
 			/* Nothing to do here if _PSC is not present. */
@@ -495,7 +501,8 @@ acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
 		goto out;
 
 	mutex_lock(&acpi_pm_notifier_lock);
-	adev->wakeup.ws = wakeup_source_register(dev_name(&adev->dev));
+	adev->wakeup.ws = wakeup_source_register(&adev->dev,
+						 dev_name(&adev->dev));
 	adev->wakeup.context.dev = dev;
 	adev->wakeup.context.func = func;
 	adev->wakeup.flags.notifier_present = true;
