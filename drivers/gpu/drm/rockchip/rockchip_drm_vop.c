@@ -1498,7 +1498,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 		vop->is_iommu_enabled = false;
 	}
 
-	pm_runtime_put(vop->dev);
+	pm_runtime_put_sync(vop->dev);
 	clk_disable_unprepare(vop->dclk);
 	clk_disable_unprepare(vop->aclk);
 	clk_disable_unprepare(vop->hclk);
@@ -1856,68 +1856,6 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_disable = vop_plane_atomic_disable,
 };
 
-static void vop_crtc_disable(struct drm_crtc *crtc)
-{
-	struct vop *vop = to_vop(crtc);
-	int sys_status = drm_crtc_index(crtc) ?
-				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
-
-	vop_lock(vop);
-	VOP_CTRL_SET(vop, reg_done_frm, 1);
-	VOP_CTRL_SET(vop, dsp_interlace, 0);
-	drm_crtc_vblank_off(crtc);
-	VOP_CTRL_SET(vop, afbdc_en, 0);
-	vop_disable_all_planes(vop);
-
-	/*
-	 * Vop standby will take effect at end of current frame,
-	 * if dsp hold valid irq happen, it means standby complete.
-	 *
-	 * we must wait standby complete when we want to disable aclk,
-	 * if not, memory bus maybe dead.
-	 */
-	reinit_completion(&vop->dsp_hold_completion);
-	vop_dsp_hold_valid_irq_enable(vop);
-
-	spin_lock(&vop->reg_lock);
-
-	VOP_CTRL_SET(vop, standby, 1);
-
-	spin_unlock(&vop->reg_lock);
-
-	WARN_ON(!wait_for_completion_timeout(&vop->dsp_hold_completion,
-					     msecs_to_jiffies(50)));
-
-	vop_dsp_hold_valid_irq_disable(vop);
-
-	vop->is_enabled = false;
-
-	if (vop->is_iommu_enabled) {
-		/*
-		 * vop standby complete, so iommu detach is safe.
-		 */
-		VOP_CTRL_SET(vop, dma_stop, 1);
-		rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
-		vop->is_iommu_enabled = false;
-	}
-
-	pm_runtime_put_sync(vop->dev);
-	clk_disable_unprepare(vop->dclk);
-	clk_disable_unprepare(vop->aclk);
-	clk_disable_unprepare(vop->hclk);
-	vop_unlock(vop);
-
-	rockchip_clear_system_status(sys_status);
-
-	if (crtc->state->event && !crtc->state->active) {
-		spin_lock_irq(&crtc->dev->event_lock);
-		drm_crtc_send_vblank_event(crtc, crtc->state->event);
-		spin_unlock_irq(&crtc->dev->event_lock);
-
-		crtc->state->event = NULL;
-	}
-}
-
 static void vop_plane_destroy(struct drm_plane *plane)
 {
 	drm_plane_cleanup(plane);
@@ -2164,7 +2102,7 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 		drm_crtc_vblank_on(crtc);
 		vop->loader_protect = true;
 	} else {
-		vop_crtc_disable(crtc);
+		vop_crtc_atomic_disable(crtc, NULL);
 
 		if (vop->dclk_source && vop->pll) {
 			vop->pll->use_count--;
