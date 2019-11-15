@@ -291,6 +291,7 @@ enum mlx5_ib_wq_flags {
 #define MLX5_MAX_SINGLE_WQE_LOG_NUM_STRIDES 16
 #define MLX5_MIN_SINGLE_STRIDE_LOG_NUM_BYTES 6
 #define MLX5_MAX_SINGLE_STRIDE_LOG_NUM_BYTES 13
+#define MLX5_EXT_MIN_SINGLE_WQE_LOG_NUM_STRIDES 3
 
 struct mlx5_ib_rwq {
 	struct ib_wq		ibwq;
