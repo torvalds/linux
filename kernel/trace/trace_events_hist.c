@@ -23,7 +23,7 @@
 #include "trace_dynevent.h"
 
 #define SYNTH_SYSTEM		"synthetic"
-#define SYNTH_FIELDS_MAX	16
+#define SYNTH_FIELDS_MAX	32
 
 #define STR_VAR_LEN_MAX		32 /* must be multiple of sizeof(u64) */
 
