@@ -798,7 +798,14 @@ nv50_msto_atomic_check(struct drm_encoder *encoder,
 	if (!state->duplicated) {
 		const int clock = crtc_state->adjusted_mode.clock;
 
-		asyh->or.bpc = connector->display_info.bpc;
+		/*
+		 * XXX: Since we don't use HDR in userspace quite yet, limit
+		 * the bpc to 8 to save bandwidth on the topology. In the
+		 * future, we'll want to properly fix this by dynamically
+		 * selecting the highest possible bpc that would fit in the
+		 * topology
+		 */
+		asyh->or.bpc = min(connector->display_info.bpc, 8U);
 		asyh->dp.pbn = drm_dp_calc_pbn_mode(clock, asyh->or.bpc * 3);
 	}
 
