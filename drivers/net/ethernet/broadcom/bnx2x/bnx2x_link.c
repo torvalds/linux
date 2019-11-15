@@ -5611,9 +5611,9 @@ static int bnx2x_get_link_speed_duplex(struct bnx2x_phy *phy,
 	return 0;
 }
 
-static int bnx2x_link_settings_status(struct bnx2x_phy *phy,
-				      struct link_params *params,
-				      struct link_vars *vars)
+static u8 bnx2x_link_settings_status(struct bnx2x_phy *phy,
+				     struct link_params *params,
+				     struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 
@@ -5685,7 +5685,7 @@ static int bnx2x_link_settings_status(struct bnx2x_phy *phy,
 	return rc;
 }
 
-static int bnx2x_warpcore_read_status(struct bnx2x_phy *phy,
+static u8 bnx2x_warpcore_read_status(struct bnx2x_phy *phy,
 				     struct link_params *params,
 				     struct link_vars *vars)
 {
@@ -8993,9 +8993,9 @@ static u8 bnx2x_8706_config_init(struct bnx2x_phy *phy,
 	return 0;
 }
 
-static int bnx2x_8706_read_status(struct bnx2x_phy *phy,
-				  struct link_params *params,
-				  struct link_vars *vars)
+static u8 bnx2x_8706_read_status(struct bnx2x_phy *phy,
+				 struct link_params *params,
+				 struct link_vars *vars)
 {
 	return bnx2x_8706_8726_read_status(phy, params, vars);
 }
@@ -11672,7 +11672,7 @@ static const struct bnx2x_phy phy_serdes = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_xgxs_config_init,
-	.read_status	= (read_status_t)bnx2x_link_settings_status,
+	.read_status	= bnx2x_link_settings_status,
 	.link_reset	= bnx2x_int_link_reset,
 	.config_loopback = NULL,
 	.format_fw_ver	= NULL,
@@ -11708,7 +11708,7 @@ static const struct bnx2x_phy phy_xgxs = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_xgxs_config_init,
-	.read_status	= (read_status_t)bnx2x_link_settings_status,
+	.read_status	= bnx2x_link_settings_status,
 	.link_reset	= bnx2x_int_link_reset,
 	.config_loopback = bnx2x_set_xgxs_loopback,
 	.format_fw_ver	= NULL,
@@ -11746,7 +11746,7 @@ static const struct bnx2x_phy phy_warpcore = {
 	/* req_duplex = */0,
 	/* rsrv = */0,
 	.config_init	= (config_init_t)bnx2x_warpcore_config_init,
-	.read_status	= (read_status_t)bnx2x_warpcore_read_status,
+	.read_status	= bnx2x_warpcore_read_status,
 	.link_reset	= bnx2x_warpcore_link_reset,
 	.config_loopback = bnx2x_set_warpcore_loopback,
 	.format_fw_ver	= NULL,
@@ -11777,7 +11777,7 @@ static const struct bnx2x_phy phy_7101 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_7101_config_init,
-	.read_status	= (read_status_t)bnx2x_7101_read_status,
+	.read_status	= bnx2x_7101_read_status,
 	.link_reset	= bnx2x_common_ext_link_reset,
 	.config_loopback = bnx2x_7101_config_loopback,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_7101_format_ver,
@@ -11808,7 +11808,7 @@ static const struct bnx2x_phy phy_8073 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_8073_config_init,
-	.read_status	= (read_status_t)bnx2x_8073_read_status,
+	.read_status	= bnx2x_8073_read_status,
 	.link_reset	= bnx2x_8073_link_reset,
 	.config_loopback = NULL,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_format_ver,
@@ -11836,7 +11836,7 @@ static const struct bnx2x_phy phy_8705 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_8705_config_init,
-	.read_status	= (read_status_t)bnx2x_8705_read_status,
+	.read_status	= bnx2x_8705_read_status,
 	.link_reset	= bnx2x_common_ext_link_reset,
 	.config_loopback = NULL,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_null_format_ver,
@@ -11865,7 +11865,7 @@ static const struct bnx2x_phy phy_8706 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_8706_config_init,
-	.read_status	= (read_status_t)bnx2x_8706_read_status,
+	.read_status	= bnx2x_8706_read_status,
 	.link_reset	= bnx2x_common_ext_link_reset,
 	.config_loopback = NULL,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_format_ver,
@@ -11897,7 +11897,7 @@ static const struct bnx2x_phy phy_8726 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_8726_config_init,
-	.read_status	= (read_status_t)bnx2x_8726_read_status,
+	.read_status	= bnx2x_8726_read_status,
 	.link_reset	= bnx2x_8726_link_reset,
 	.config_loopback = bnx2x_8726_config_loopback,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_format_ver,
@@ -11928,7 +11928,7 @@ static const struct bnx2x_phy phy_8727 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_8727_config_init,
-	.read_status	= (read_status_t)bnx2x_8727_read_status,
+	.read_status	= bnx2x_8727_read_status,
 	.link_reset	= bnx2x_8727_link_reset,
 	.config_loopback = NULL,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_format_ver,
@@ -11963,7 +11963,7 @@ static const struct bnx2x_phy phy_8481 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_8481_config_init,
-	.read_status	= (read_status_t)bnx2x_848xx_read_status,
+	.read_status	= bnx2x_848xx_read_status,
 	.link_reset	= bnx2x_8481_link_reset,
 	.config_loopback = NULL,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_848xx_format_ver,
@@ -12000,7 +12000,7 @@ static const struct bnx2x_phy phy_84823 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_848x3_config_init,
-	.read_status	= (read_status_t)bnx2x_848xx_read_status,
+	.read_status	= bnx2x_848xx_read_status,
 	.link_reset	= bnx2x_848x3_link_reset,
 	.config_loopback = NULL,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_848xx_format_ver,
@@ -12035,7 +12035,7 @@ static const struct bnx2x_phy phy_84833 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_848x3_config_init,
-	.read_status	= (read_status_t)bnx2x_848xx_read_status,
+	.read_status	= bnx2x_848xx_read_status,
 	.link_reset	= bnx2x_848x3_link_reset,
 	.config_loopback = NULL,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_848xx_format_ver,
@@ -12069,7 +12069,7 @@ static const struct bnx2x_phy phy_84834 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_848x3_config_init,
-	.read_status	= (read_status_t)bnx2x_848xx_read_status,
+	.read_status	= bnx2x_848xx_read_status,
 	.link_reset	= bnx2x_848x3_link_reset,
 	.config_loopback = NULL,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_848xx_format_ver,
@@ -12103,7 +12103,7 @@ static const struct bnx2x_phy phy_84858 = {
 	.req_duplex	= 0,
 	.rsrv		= 0,
 	.config_init	= (config_init_t)bnx2x_848x3_config_init,
-	.read_status	= (read_status_t)bnx2x_848xx_read_status,
+	.read_status	= bnx2x_848xx_read_status,
 	.link_reset	= bnx2x_848x3_link_reset,
 	.config_loopback = NULL,
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_8485x_format_ver,
@@ -12137,7 +12137,7 @@ static const struct bnx2x_phy phy_54618se = {
 	/* req_duplex = */0,
 	/* rsrv = */0,
 	.config_init	= (config_init_t)bnx2x_54618se_config_init,
-	.read_status	= (read_status_t)bnx2x_54618se_read_status,
+	.read_status	= bnx2x_54618se_read_status,
 	.link_reset	= bnx2x_54618se_link_reset,
 	.config_loopback = bnx2x_54618se_config_loopback,
 	.format_fw_ver	= NULL,
