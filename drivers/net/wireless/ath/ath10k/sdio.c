@@ -541,10 +541,8 @@ static int ath10k_sdio_mbox_rx_alloc(struct ath10k *ar,
 	int pkt_cnt = 0;
 
 	if (n_lookaheads > ATH10K_SDIO_MAX_RX_MSGS) {
-		ath10k_warn(ar,
-			    "the total number of pkgs to be fetched (%u) exceeds maximum %u\n",
-			    n_lookaheads,
-			    ATH10K_SDIO_MAX_RX_MSGS);
+		ath10k_warn(ar, "the total number of pkgs to be fetched (%u) exceeds maximum %u\n",
+			    n_lookaheads, ATH10K_SDIO_MAX_RX_MSGS);
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -553,10 +551,8 @@ static int ath10k_sdio_mbox_rx_alloc(struct ath10k *ar,
 		htc_hdr = (struct ath10k_htc_hdr *)&lookaheads[i];
 		last_in_bundle = false;
 
-		if (le16_to_cpu(htc_hdr->len) >
-		    ATH10K_HTC_MBOX_MAX_PAYLOAD_LENGTH) {
-			ath10k_warn(ar,
-				    "payload length %d exceeds max htc length: %zu\n",
+		if (le16_to_cpu(htc_hdr->len) > ATH10K_HTC_MBOX_MAX_PAYLOAD_LENGTH) {
+			ath10k_warn(ar, "payload length %d exceeds max htc length: %zu\n",
 				    le16_to_cpu(htc_hdr->len),
 				    ATH10K_HTC_MBOX_MAX_PAYLOAD_LENGTH);
 			ret = -ENOMEM;
@@ -567,8 +563,7 @@ static int ath10k_sdio_mbox_rx_alloc(struct ath10k *ar,
 		full_len = ath10k_sdio_calc_txrx_padded_len(ar_sdio, act_len);
 
 		if (full_len > ATH10K_SDIO_MAX_BUFFER_SIZE) {
-			ath10k_warn(ar,
-				    "rx buffer requested with invalid htc_hdr length (%d, 0x%x): %d\n",
+			ath10k_warn(ar, "rx buffer requested with invalid htc_hdr length (%d, 0x%x): %d\n",
 				    htc_hdr->eid, htc_hdr->flags,
 				    le16_to_cpu(htc_hdr->len));
 			ret = -EINVAL;
@@ -590,12 +585,14 @@ static int ath10k_sdio_mbox_rx_alloc(struct ath10k *ar,
 							    &bndl_cnt);
 
 			if (ret) {
-				ath10k_warn(ar, "alloc_bundle error %d\n", ret);
+				ath10k_warn(ar, "failed to allocate a bundle: %d\n",
+					    ret);
 				goto err;
 			}
 
 			pkt_cnt += bndl_cnt;
-			/*Next buffer will be the last in the bundle */
+
+			/* next buffer will be the last in the bundle */
 			last_in_bundle = true;
 		}
 
