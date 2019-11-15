@@ -23,6 +23,7 @@
 #include <linux/ethtool.h>
 #include <linux/phy.h>
 #include <linux/phy_led_triggers.h>
+#include <linux/sfp.h>
 #include <linux/workqueue.h>
 #include <linux/mdio.h>
 #include <linux/io.h>
@@ -841,6 +842,9 @@ void phy_stop(struct phy_device *phydev)
 
 	mutex_lock(&phydev->lock);
 
+	if (phydev->sfp_bus)
+		sfp_upstream_stop(phydev->sfp_bus);
+
 	phydev->state = PHY_HALTED;
 
 	mutex_unlock(&phydev->lock);
@@ -874,6 +878,9 @@ void phy_start(struct phy_device *phydev)
 		     phy_state_to_str(phydev->state));
 		goto out;
 	}
+
+	if (phydev->sfp_bus)
+		sfp_upstream_start(phydev->sfp_bus);
 
 	/* if phy was suspended, bring the physical link up again */
 	__phy_resume(phydev);

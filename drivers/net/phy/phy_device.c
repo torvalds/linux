@@ -27,6 +27,7 @@
 #include <linux/bitmap.h>
 #include <linux/phy.h>
 #include <linux/phy_led_triggers.h>
+#include <linux/sfp.h>
 #include <linux/mdio.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -1175,6 +1176,65 @@ phy_standalone_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(phy_standalone);
 
 /**
+ * phy_sfp_attach - attach the SFP bus to the PHY upstream network device
+ * @upstream: pointer to the phy device
+ * @bus: sfp bus representing cage being attached
+ *
+ * This is used to fill in the sfp_upstream_ops .attach member.
+ */
+void phy_sfp_attach(void *upstream, struct sfp_bus *bus)
+{
+	struct phy_device *phydev = upstream;
+
+	if (phydev->attached_dev)
+		phydev->attached_dev->sfp_bus = bus;
+	phydev->sfp_bus_attached = true;
+}
+EXPORT_SYMBOL(phy_sfp_attach);
+
+/**
+ * phy_sfp_detach - detach the SFP bus from the PHY upstream network device
+ * @upstream: pointer to the phy device
+ * @bus: sfp bus representing cage being attached
+ *
+ * This is used to fill in the sfp_upstream_ops .detach member.
+ */
+void phy_sfp_detach(void *upstream, struct sfp_bus *bus)
+{
+	struct phy_device *phydev = upstream;
+
+	if (phydev->attached_dev)
+		phydev->attached_dev->sfp_bus = NULL;
+	phydev->sfp_bus_attached = false;
+}
+EXPORT_SYMBOL(phy_sfp_detach);
+
+/**
+ * phy_sfp_probe - probe for a SFP cage attached to this PHY device
+ * @phydev: Pointer to phy_device
+ * @ops: SFP's upstream operations
+ */
+int phy_sfp_probe(struct phy_device *phydev,
+		  const struct sfp_upstream_ops *ops)
+{
+	struct sfp_bus *bus;
+	int ret;
+
+	if (phydev->mdio.dev.fwnode) {
+		bus = sfp_bus_find_fwnode(phydev->mdio.dev.fwnode);
+		if (IS_ERR(bus))
+			return PTR_ERR(bus);
+
+		phydev->sfp_bus = bus;
+
+		ret = sfp_bus_add_upstream(bus, phydev, ops);
+		sfp_bus_put(bus);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(phy_sfp_probe);
+
+/**
  * phy_attach_direct - attach a network device to a given PHY device pointer
  * @dev: network device to attach
  * @phydev: Pointer to phy_device to attach
@@ -1249,6 +1309,9 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	if (dev) {
 		phydev->attached_dev = dev;
 		dev->phydev = phydev;
+
+		if (phydev->sfp_bus_attached)
+			dev->sfp_bus = phydev->sfp_bus;
 	}
 
 	/* Some Ethernet drivers try to connect to a PHY device before
@@ -2417,6 +2480,9 @@ static int phy_remove(struct device *dev)
 	mutex_lock(&phydev->lock);
 	phydev->state = PHY_DOWN;
 	mutex_unlock(&phydev->lock);
+
+	sfp_bus_del_upstream(phydev->sfp_bus);
+	phydev->sfp_bus = NULL;
 
 	if (phydev->drv && phydev->drv->remove) {
 		phydev->drv->remove(phydev);
