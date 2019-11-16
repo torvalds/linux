@@ -119,12 +119,14 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins>;
+	/delete-property/mrvl,i2c-fast-mode;
 };
 
 &i2c1 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
+	/delete-property/mrvl,i2c-fast-mode;
 
 	lm75@48 {
 		status = "okay";
