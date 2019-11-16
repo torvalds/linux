@@ -493,3 +493,11 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 		aconnector->connector_id);
 }
 
+int dm_mst_get_pbn_divider(struct dc_link *link)
+{
+	if (!link)
+		return 0;
+
+	return dc_link_bandwidth_kbps(link,
+			dc_link_get_link_cap(link)) / (8 * 1000 * 54);
+}
