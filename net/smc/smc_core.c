@@ -13,6 +13,7 @@
 #include <linux/if_vlan.h>
 #include <linux/random.h>
 #include <linux/workqueue.h>
+#include <linux/wait.h>
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <rdma/ib_verbs.h>
@@ -38,6 +39,9 @@ static struct smc_lgr_list smc_lgr_list = {	/* established link groups */
 	.list = LIST_HEAD_INIT(smc_lgr_list.list),
 	.num = 0,
 };
+
+static atomic_t lgr_cnt;		/* number of existing link groups */
+static DECLARE_WAIT_QUEUE_HEAD(lgrs_deleted);
 
 static void smc_buf_free(struct smc_link_group *lgr, bool is_rmb,
 			 struct smc_buf_desc *buf_desc);
@@ -319,6 +323,8 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		rc = smc_wr_create_link(lnk);
 		if (rc)
 			goto destroy_qp;
+		atomic_inc(&lgr_cnt);
+		atomic_inc(&ini->ib_dev->lnk_cnt);
 	}
 	smc->conn.lgr = lgr;
 	spin_lock_bh(lgr_lock);
@@ -406,6 +412,8 @@ static void smc_link_clear(struct smc_link *lnk)
 	smc_ib_destroy_queue_pair(lnk);
 	smc_ib_dealloc_protection_domain(lnk);
 	smc_wr_free_link_mem(lnk);
+	if (!atomic_dec_return(&lnk->smcibdev->lnk_cnt))
+		wake_up(&lnk->smcibdev->lnks_deleted);
 }
 
 static void smcr_buf_free(struct smc_link_group *lgr, bool is_rmb,
@@ -492,6 +500,8 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 	} else {
 		smc_link_clear(&lgr->lnk[SMC_SINGLE_LINK]);
 		put_device(&lgr->lnk[SMC_SINGLE_LINK].smcibdev->ibdev->dev);
+		if (!atomic_dec_return(&lgr_cnt))
+			wake_up(&lgrs_deleted);
 	}
 	kfree(lgr);
 }
@@ -728,6 +738,15 @@ void smc_smcr_terminate_all(struct smc_ib_device *smcibdev)
 	list_for_each_entry_safe(lgr, lg, &lgr_free_list, list) {
 		list_del_init(&lgr->list);
 		__smc_lgr_terminate(lgr, false);
+	}
+
+	if (smcibdev) {
+		if (atomic_read(&smcibdev->lnk_cnt))
+			wait_event(smcibdev->lnks_deleted,
+				   !atomic_read(&smcibdev->lnk_cnt));
+	} else {
+		if (atomic_read(&lgr_cnt))
+			wait_event(lgrs_deleted, !atomic_read(&lgr_cnt));
 	}
 }
 
@@ -1261,6 +1280,12 @@ static void smc_lgrs_shutdown(void)
 	list_for_each_entry(smcd, &smcd_dev_list.list, list)
 		smc_smcd_terminate_all(smcd);
 	spin_unlock(&smcd_dev_list.lock);
+}
+
+int __init smc_core_init(void)
+{
+	atomic_set(&lgr_cnt, 0);
+	return 0;
 }
 
 /* Called (from smc_exit) when module is removed */
