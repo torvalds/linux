@@ -10,7 +10,7 @@
 
 #include <net/page_pool.h>
 
-TRACE_EVENT(page_pool_inflight,
+TRACE_EVENT(page_pool_release,
 
 	TP_PROTO(const struct page_pool *pool,
 		 s32 inflight, u32 hold, u32 release),
@@ -22,6 +22,7 @@ TRACE_EVENT(page_pool_inflight,
 		__field(s32,	inflight)
 		__field(u32,	hold)
 		__field(u32,	release)
+		__field(u64,	cnt)
 	),
 
 	TP_fast_assign(
@@ -29,10 +30,12 @@ TRACE_EVENT(page_pool_inflight,
 		__entry->inflight	= inflight;
 		__entry->hold		= hold;
 		__entry->release	= release;
+		__entry->cnt		= pool->destroy_cnt;
 	),
 
-	TP_printk("page_pool=%p inflight=%d hold=%u release=%u",
-	  __entry->pool, __entry->inflight, __entry->hold, __entry->release)
+	TP_printk("page_pool=%p inflight=%d hold=%u release=%u cnt=%llu",
+		__entry->pool, __entry->inflight, __entry->hold,
+		__entry->release, __entry->cnt)
 );
 
 TRACE_EVENT(page_pool_state_release,

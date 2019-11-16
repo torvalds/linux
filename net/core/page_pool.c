@@ -200,7 +200,7 @@ static s32 page_pool_inflight(struct page_pool *pool)
 
 	inflight = _distance(hold_cnt, release_cnt);
 
-	trace_page_pool_inflight(pool, inflight, hold_cnt, release_cnt);
+	trace_page_pool_release(pool, inflight, hold_cnt, release_cnt);
 	WARN(inflight < 0, "Negative(%d) inflight packet-pages", inflight);
 
 	return inflight;
@@ -349,9 +349,12 @@ static void page_pool_free(struct page_pool *pool)
 	kfree(pool);
 }
 
-static void page_pool_scrub(struct page_pool *pool)
+static void page_pool_empty_alloc_cache_once(struct page_pool *pool)
 {
 	struct page *page;
+
+	if (pool->destroy_cnt)
+		return;
 
 	/* Empty alloc cache, assume caller made sure this is
 	 * no-longer in use, and page_pool_alloc_pages() cannot be
@@ -361,6 +364,12 @@ static void page_pool_scrub(struct page_pool *pool)
 		page = pool->alloc.cache[--pool->alloc.count];
 		__page_pool_return_page(pool, page);
 	}
+}
+
+static void page_pool_scrub(struct page_pool *pool)
+{
+	page_pool_empty_alloc_cache_once(pool);
+	pool->destroy_cnt++;
 
 	/* No more consumers should exist, but producers could still
 	 * be in-flight.
