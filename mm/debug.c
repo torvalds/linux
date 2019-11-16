@@ -77,10 +77,10 @@ void __dump_page(struct page *page, const char *reason)
 		pr_warn("page:%px refcount:%d mapcount:%d mapping:%px index:%#lx\n",
 			page, page_ref_count(page), mapcount,
 			page->mapping, page_to_pgoff(page));
-	if (PageAnon(page))
-		pr_warn("anon flags: %#lx(%pGp)\n", page->flags, &page->flags);
-	else if (PageKsm(page))
+	if (PageKsm(page))
 		pr_warn("ksm flags: %#lx(%pGp)\n", page->flags, &page->flags);
+	else if (PageAnon(page))
+		pr_warn("anon flags: %#lx(%pGp)\n", page->flags, &page->flags);
 	else if (mapping) {
 		if (mapping->host && mapping->host->i_dentry.first) {
 			struct dentry *dentry;
