@@ -99,20 +99,21 @@ static int find_deepest_state(struct cpuidle_driver *drv,
 }
 
 /**
- * cpuidle_use_deepest_state - Set/clear governor override flag.
- * @enable: New value of the flag.
+ * cpuidle_use_deepest_state - Set/unset governor override mode.
+ * @latency_limit_ns: Idle state exit latency limit (or no override if 0).
  *
- * Set/unset the current CPU to use the deepest idle state (override governors
- * going forward if set).
+ * If @latency_limit_ns is nonzero, set the current CPU to use the deepest idle
+ * state with exit latency within @latency_limit_ns (override governors going
+ * forward), or do not override governors if it is zero.
  */
-void cpuidle_use_deepest_state(bool enable)
+void cpuidle_use_deepest_state(u64 latency_limit_ns)
 {
 	struct cpuidle_device *dev;
 
 	preempt_disable();
 	dev = cpuidle_get_device();
 	if (dev)
-		dev->use_deepest_state = enable;
+		dev->forced_idle_latency_limit_ns = latency_limit_ns;
 	preempt_enable();
 }
 
