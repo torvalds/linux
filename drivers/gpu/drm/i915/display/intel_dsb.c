@@ -107,7 +107,7 @@ intel_dsb_get(struct intel_crtc *crtc)
 	if (!HAS_DSB(i915))
 		return dsb;
 
-	if (atomic_add_return(1, &dsb->refcount) != 1)
+	if (dsb->refcount++ != 0)
 		return dsb;
 
 	dsb->id = DSB1;
@@ -123,7 +123,7 @@ intel_dsb_get(struct intel_crtc *crtc)
 	if (IS_ERR(vma)) {
 		DRM_ERROR("Vma creation failed\n");
 		i915_gem_object_put(obj);
-		atomic_dec(&dsb->refcount);
+		dsb->refcount--;
 		goto err;
 	}
 
@@ -132,7 +132,7 @@ intel_dsb_get(struct intel_crtc *crtc)
 		DRM_ERROR("Command buffer creation failed\n");
 		i915_vma_unpin_and_release(&vma, 0);
 		dsb->cmd_buf = NULL;
-		atomic_dec(&dsb->refcount);
+		dsb->refcount--;
 		goto err;
 	}
 	dsb->vma = vma;
@@ -158,10 +158,10 @@ void intel_dsb_put(struct intel_dsb *dsb)
 	if (!HAS_DSB(i915))
 		return;
 
-	if (WARN_ON(atomic_read(&dsb->refcount) == 0))
+	if (WARN_ON(dsb->refcount == 0))
 		return;
 
-	if (atomic_dec_and_test(&dsb->refcount)) {
+	if (--dsb->refcount == 0) {
 		i915_vma_unpin_and_release(&dsb->vma, I915_VMA_RELEASE_MAP);
 		dsb->cmd_buf = NULL;
 		dsb->free_pos = 0;
