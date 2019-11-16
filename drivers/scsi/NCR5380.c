@@ -172,6 +172,19 @@ static inline void advance_sg_buffer(struct scsi_cmnd *cmd)
 	}
 }
 
+static inline void set_resid_from_SCp(struct scsi_cmnd *cmd)
+{
+	int resid = cmd->SCp.this_residual;
+	struct scatterlist *s = cmd->SCp.buffer;
+
+	if (s)
+		while (!sg_is_last(s)) {
+			s = sg_next(s);
+			resid += s->length;
+		}
+	scsi_set_resid(cmd, resid);
+}
+
 /**
  * NCR5380_poll_politely2 - wait for two chip register values
  * @hostdata: host private data
@@ -1802,6 +1815,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					cmd->result &= ~0xffff;
 					cmd->result |= cmd->SCp.Status;
 					cmd->result |= cmd->SCp.Message << 8;
+
+					set_resid_from_SCp(cmd);
 
 					if (cmd->cmnd[0] == REQUEST_SENSE)
 						complete_cmd(instance, cmd);
