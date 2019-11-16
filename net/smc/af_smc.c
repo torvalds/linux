@@ -25,6 +25,7 @@
 #include <linux/in.h>
 #include <linux/sched/signal.h>
 #include <linux/if_vlan.h>
+#include <linux/rcupdate_wait.h>
 
 #include <net/sock.h>
 #include <net/tcp.h>
@@ -2111,6 +2112,7 @@ static void __exit smc_exit(void)
 	proto_unregister(&smc_proto);
 	smc_pnet_exit();
 	unregister_pernet_subsys(&smc_net_ops);
+	rcu_barrier();
 }
 
 module_init(smc_init);
