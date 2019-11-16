@@ -447,9 +447,6 @@ void bch2_insert_fixup_extent(struct btree_trans *,
 void bch2_bkey_mark_replicas_cached(struct bch_fs *, struct bkey_s,
 				    unsigned, unsigned);
 
-const struct bch_extent_ptr *
-bch2_extent_has_device(struct bkey_s_c_extent, unsigned);
-
 unsigned bch2_extent_is_compressed(struct bkey_s_c);
 
 bool bch2_bkey_matches_ptr(struct bch_fs *, struct bkey_s_c,

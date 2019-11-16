@@ -1097,7 +1097,7 @@ void bch2_journal_write(struct closure *cl)
 
 	for_each_rw_member(ca, c, i)
 		if (journal_flushes_device(ca) &&
-		    !bch2_extent_has_device(bkey_i_to_s_c_extent(&w->key), i)) {
+		    !bch2_bkey_has_device(bkey_i_to_s_c(&w->key), i)) {
 			percpu_ref_get(&ca->io_ref);
 
 			bio = ca->journal.bio;

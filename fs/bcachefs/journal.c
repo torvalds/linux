@@ -944,7 +944,7 @@ static bool bch2_journal_writing_to_device(struct journal *j, unsigned dev_idx)
 	w = j->buf + !state.idx;
 
 	ret = state.prev_buf_unwritten &&
-		bch2_extent_has_device(bkey_i_to_s_c_extent(&w->key), dev_idx);
+		bch2_bkey_has_device(bkey_i_to_s_c(&w->key), dev_idx);
 	spin_unlock(&j->lock);
 
 	return ret;
