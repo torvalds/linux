@@ -15,6 +15,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
+#include <linux/regulator/proxy-consumer.h>
 
 #include <soc/qcom/cmd-db.h>
 #include <soc/qcom/rpmh.h>
@@ -1805,12 +1806,17 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg)
 		return rc;
 	}
 
+	rc = devm_regulator_proxy_consumer_register(dev, vreg->of_node);
+	if (rc)
+		vreg_err(vreg, "failed to register proxy consumer, rc=%d\n",
+			rc);
+
 	vreg_debug(vreg, "successfully registered; set=%s\n",
 		vreg->set_active && vreg->set_sleep
 			? "active + sleep"
 			: vreg->set_active ? "active" : "sleep");
 
-	return rc;
+	return 0;
 }
 
 static const struct of_device_id rpmh_regulator_match_table[] = {
@@ -1972,6 +1978,7 @@ static struct platform_driver rpmh_regulator_driver = {
 	.driver = {
 		.name		= "qcom,rpmh-regulator",
 		.of_match_table	= rpmh_regulator_match_table,
+		.sync_state	= regulator_proxy_consumer_sync_state,
 	},
 	.probe = rpmh_regulator_probe,
 };
