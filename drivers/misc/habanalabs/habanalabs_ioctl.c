@@ -60,7 +60,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.tpc_enabled_mask = prop->tpc_enabled_mask;
 	hw_ip.sram_size = prop->sram_size - sram_kmd_size;
 	hw_ip.dram_size = prop->dram_size - dram_kmd_size;
-	if (hw_ip.dram_size > 0)
+	if (hw_ip.dram_size > PAGE_SIZE)
 		hw_ip.dram_enabled = 1;
 	hw_ip.num_of_events = prop->num_of_events;
 
@@ -184,16 +184,13 @@ static int debug_coresight(struct hl_device *hdev, struct hl_debug_args *args)
 		goto out;
 	}
 
-	if (output) {
-		if (copy_to_user((void __user *) (uintptr_t) args->output_ptr,
-					output,
-					args->output_size)) {
-			dev_err(hdev->dev,
-				"copy to user failed in debug ioctl\n");
-			rc = -EFAULT;
-			goto out;
-		}
+	if (output && copy_to_user((void __user *) (uintptr_t) args->output_ptr,
+					output, args->output_size)) {
+		dev_err(hdev->dev, "copy to user failed in debug ioctl\n");
+		rc = -EFAULT;
+		goto out;
 	}
+
 
 out:
 	kfree(params);
@@ -434,9 +431,8 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 
 	retcode = func(hpriv, kdata);
 
-	if (cmd & IOC_OUT)
-		if (copy_to_user((void __user *)arg, kdata, usize))
-			retcode = -EFAULT;
+	if ((cmd & IOC_OUT) && copy_to_user((void __user *)arg, kdata, usize))
+		retcode = -EFAULT;
 
 out_err:
 	if (retcode)
