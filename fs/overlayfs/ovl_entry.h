@@ -24,6 +24,8 @@ struct ovl_sb {
 	dev_t pseudo_dev;
 	/* Unusable (conflicting) uuid */
 	bool bad_uuid;
+	/* Used as a lower layer (but maybe also as upper) */
+	bool is_lower;
 };
 
 struct ovl_layer {

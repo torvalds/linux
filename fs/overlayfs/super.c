@@ -1260,7 +1260,7 @@ static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 	if (!ofs->config.nfs_export && !ofs->upper_mnt)
 		return true;
 
-	for (i = 1; i < ofs->numfs; i++) {
+	for (i = 0; i < ofs->numfs; i++) {
 		/*
 		 * We use uuid to associate an overlay lower file handle with a
 		 * lower layer, so we can accept lower fs with null uuid as long
@@ -1268,7 +1268,8 @@ static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 		 * if we detect multiple lower fs with the same uuid, we
 		 * disable lower file handle decoding on all of them.
 		 */
-		if (uuid_equal(&ofs->fs[i].sb->s_uuid, uuid)) {
+		if (ofs->fs[i].is_lower &&
+		    uuid_equal(&ofs->fs[i].sb->s_uuid, uuid)) {
 			ofs->fs[i].bad_uuid = true;
 			return false;
 		}
@@ -1342,10 +1343,12 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	/*
 	 * All lower layers that share the same fs as upper layer, use the real
 	 * upper st_dev.
+	 * is_lower will be set if upper fs is shared with a lower layer.
 	 */
 	if (ofs->upper_mnt) {
 		ofs->fs[0].sb = ofs->upper_mnt->mnt_sb;
 		ofs->fs[0].pseudo_dev = ofs->upper_mnt->mnt_sb->s_dev;
+		ofs->fs[0].is_lower = false;
 	}
 
 	for (i = 0; i < numlower; i++) {
@@ -1387,6 +1390,7 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		ofs->layers[ofs->numlayer].fsid = fsid;
 		ofs->layers[ofs->numlayer].fs = &ofs->fs[fsid];
 		ofs->numlayer++;
+		ofs->fs[fsid].is_lower = true;
 	}
 
 	/*
