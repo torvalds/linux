@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
+#include <trace/events/mmflags.h>
 #include <net/page_pool.h>
 
 TRACE_EVENT(page_pool_release,
@@ -49,16 +50,18 @@ TRACE_EVENT(page_pool_state_release,
 		__field(const struct page_pool *,	pool)
 		__field(const struct page *,		page)
 		__field(u32,				release)
+		__field(unsigned long,			pfn)
 	),
 
 	TP_fast_assign(
 		__entry->pool		= pool;
 		__entry->page		= page;
 		__entry->release	= release;
+		__entry->pfn		= page_to_pfn(page);
 	),
 
-	TP_printk("page_pool=%p page=%p release=%u",
-		  __entry->pool, __entry->page, __entry->release)
+	TP_printk("page_pool=%p page=%p pfn=%lu release=%u",
+		  __entry->pool, __entry->page, __entry->pfn, __entry->release)
 );
 
 TRACE_EVENT(page_pool_state_hold,
@@ -72,16 +75,18 @@ TRACE_EVENT(page_pool_state_hold,
 		__field(const struct page_pool *,	pool)
 		__field(const struct page *,		page)
 		__field(u32,				hold)
+		__field(unsigned long,			pfn)
 	),
 
 	TP_fast_assign(
 		__entry->pool	= pool;
 		__entry->page	= page;
 		__entry->hold	= hold;
+		__entry->pfn	= page_to_pfn(page);
 	),
 
-	TP_printk("page_pool=%p page=%p hold=%u",
-		  __entry->pool, __entry->page, __entry->hold)
+	TP_printk("page_pool=%p page=%p pfn=%lu hold=%u",
+		  __entry->pool, __entry->page, __entry->pfn, __entry->hold)
 );
 
 #endif /* _TRACE_PAGE_POOL_H */
