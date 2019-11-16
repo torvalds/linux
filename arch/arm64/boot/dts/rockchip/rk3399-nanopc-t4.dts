@@ -94,6 +94,11 @@
 	};
 };
 
+&pcie0 {
+	num-lanes = <4>;
+	vpcie3v3-supply = <&vcc3v3_sys>;
+};
+
 &pinctrl {
 	ir {
 		ir_rx: ir-rx {
