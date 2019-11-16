@@ -81,6 +81,11 @@ static struct ipv6_sr_hdr *get_srh(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, srhoff + len))
 		return NULL;
 
+	/* note that pskb_may_pull may change pointers in header;
+	 * for this reason it is necessary to reload them when needed.
+	 */
+	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
+
 	if (!seg6_validate_srh(srh, len))
 		return NULL;
 
