@@ -1024,8 +1024,11 @@ static void rtw_load_firmware_cb(const struct firmware *firmware, void *context)
 	struct rtw_fw_state *fw = &rtwdev->fw;
 	const struct rtw_fw_hdr *fw_hdr;
 
-	if (!firmware)
+	if (!firmware || !firmware->data) {
 		rtw_err(rtwdev, "failed to request firmware\n");
+		complete_all(&fw->completion);
+		return;
+	}
 
 	fw_hdr = (const struct rtw_fw_hdr *)firmware->data;
 	fw->h2c_version = le16_to_cpu(fw_hdr->h2c_fmt_ver);

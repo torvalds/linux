@@ -83,6 +83,7 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 	struct qlink_cmd *cmd;
 	struct qlink_resp *resp = NULL;
 	struct sk_buff *resp_skb = NULL;
+	int resp_res = 0;
 	u16 cmd_id;
 	u8 mac_id;
 	u8 vif_id;
@@ -113,6 +114,7 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 	}
 
 	resp = (struct qlink_resp *)resp_skb->data;
+	resp_res = le16_to_cpu(resp->result);
 	ret = qtnf_cmd_check_reply_header(resp, cmd_id, mac_id, vif_id,
 					  const_resp_size);
 	if (ret)
@@ -128,8 +130,8 @@ out:
 	else
 		consume_skb(resp_skb);
 
-	if (!ret && resp)
-		return qtnf_cmd_resp_result_decode(le16_to_cpu(resp->result));
+	if (!ret)
+		return qtnf_cmd_resp_result_decode(resp_res);
 
 	pr_warn("VIF%u.%u: cmd 0x%.4X failed: %d\n",
 		mac_id, vif_id, cmd_id, ret);
@@ -2637,6 +2639,71 @@ int qtnf_cmd_send_pm_set(const struct qtnf_vif *vif, u8 pm_mode, int timeout)
 
 out:
 	qtnf_bus_unlock(bus);
+
+	return ret;
+}
+
+int qtnf_cmd_get_tx_power(const struct qtnf_vif *vif, int *dbm)
+{
+	struct qtnf_bus *bus = vif->mac->bus;
+	const struct qlink_resp_txpwr *resp;
+	struct sk_buff *resp_skb = NULL;
+	struct qlink_cmd_txpwr *cmd;
+	struct sk_buff *cmd_skb;
+	int ret = 0;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_TXPWR, sizeof(*cmd));
+	if (!cmd_skb)
+		return -ENOMEM;
+
+	cmd = (struct qlink_cmd_txpwr *)cmd_skb->data;
+	cmd->op_type = QLINK_TXPWR_GET;
+
+	qtnf_bus_lock(bus);
+
+	ret = qtnf_cmd_send_with_reply(bus, cmd_skb, &resp_skb,
+				       sizeof(*resp), NULL);
+	if (ret)
+		goto out;
+
+	resp = (const struct qlink_resp_txpwr *)resp_skb->data;
+	*dbm = MBM_TO_DBM(le32_to_cpu(resp->txpwr));
+
+out:
+	qtnf_bus_unlock(bus);
+	consume_skb(resp_skb);
+
+	return ret;
+}
+
+int qtnf_cmd_set_tx_power(const struct qtnf_vif *vif,
+			  enum nl80211_tx_power_setting type, int mbm)
+{
+	struct qtnf_bus *bus = vif->mac->bus;
+	const struct qlink_resp_txpwr *resp;
+	struct sk_buff *resp_skb = NULL;
+	struct qlink_cmd_txpwr *cmd;
+	struct sk_buff *cmd_skb;
+	int ret = 0;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_TXPWR, sizeof(*cmd));
+	if (!cmd_skb)
+		return -ENOMEM;
+
+	cmd = (struct qlink_cmd_txpwr *)cmd_skb->data;
+	cmd->op_type = QLINK_TXPWR_SET;
+	cmd->txpwr_setting = type;
+	cmd->txpwr = cpu_to_le32(mbm);
+
+	qtnf_bus_lock(bus);
+
+	ret = qtnf_cmd_send_with_reply(bus, cmd_skb, &resp_skb,
+				       sizeof(*resp), NULL);
+
+	qtnf_bus_unlock(bus);
+	consume_skb(resp_skb);
 
 	return ret;
 }

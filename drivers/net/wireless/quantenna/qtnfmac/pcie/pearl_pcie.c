@@ -24,6 +24,7 @@
 #include "debug.h"
 
 #define PEARL_TX_BD_SIZE_DEFAULT	32
+#define PEARL_RX_BD_SIZE_DEFAULT	256
 
 struct qtnf_pearl_bda {
 	__le16 bda_len;
@@ -397,7 +398,8 @@ static int pearl_hhbm_init(struct qtnf_pcie_pearl_state *ps)
 }
 
 static int qtnf_pcie_pearl_init_xfer(struct qtnf_pcie_pearl_state *ps,
-				     unsigned int tx_bd_size)
+				     unsigned int tx_bd_size,
+				     unsigned int rx_bd_size)
 {
 	struct qtnf_pcie_bus_priv *priv = &ps->base;
 	int ret;
@@ -409,27 +411,28 @@ static int qtnf_pcie_pearl_init_xfer(struct qtnf_pcie_pearl_state *ps,
 	val = tx_bd_size * sizeof(struct qtnf_pearl_tx_bd);
 
 	if (!is_power_of_2(tx_bd_size) || val > PCIE_HHBM_MAX_SIZE) {
-		pr_warn("bad tx_bd_size value %u\n", tx_bd_size);
+		pr_warn("invalid tx_bd_size value %u, use default %u\n",
+			tx_bd_size, PEARL_TX_BD_SIZE_DEFAULT);
 		priv->tx_bd_num = PEARL_TX_BD_SIZE_DEFAULT;
 	} else {
 		priv->tx_bd_num = tx_bd_size;
 	}
 
+	if (rx_bd_size == 0)
+		rx_bd_size = PEARL_RX_BD_SIZE_DEFAULT;
+
+	val = rx_bd_size * sizeof(dma_addr_t);
+
+	if (!is_power_of_2(rx_bd_size) || val > PCIE_HHBM_MAX_SIZE) {
+		pr_warn("invalid rx_bd_size value %u, use default %u\n",
+			rx_bd_size, PEARL_RX_BD_SIZE_DEFAULT);
+		priv->rx_bd_num = PEARL_RX_BD_SIZE_DEFAULT;
+	} else {
+		priv->rx_bd_num = rx_bd_size;
+	}
+
 	priv->rx_bd_w_index = 0;
 	priv->rx_bd_r_index = 0;
-
-	if (!priv->rx_bd_num || !is_power_of_2(priv->rx_bd_num)) {
-		pr_err("rx_bd_size_param %u is not power of two\n",
-		       priv->rx_bd_num);
-		return -EINVAL;
-	}
-
-	val = priv->rx_bd_num * sizeof(dma_addr_t);
-	if (val > PCIE_HHBM_MAX_SIZE) {
-		pr_err("rx_bd_size_param %u is too large\n",
-		       priv->rx_bd_num);
-		return -EINVAL;
-	}
 
 	ret = pearl_hhbm_init(ps);
 	if (ret) {
@@ -1064,7 +1067,8 @@ static u64 qtnf_pearl_dma_mask_get(void)
 #endif
 }
 
-static int qtnf_pcie_pearl_probe(struct qtnf_bus *bus, unsigned int tx_bd_size)
+static int qtnf_pcie_pearl_probe(struct qtnf_bus *bus, unsigned int tx_bd_size,
+				 unsigned int rx_bd_size)
 {
 	struct qtnf_shm_ipc_int ipc_int;
 	struct qtnf_pcie_pearl_state *ps = get_bus_priv(bus);
@@ -1079,7 +1083,7 @@ static int qtnf_pcie_pearl_probe(struct qtnf_bus *bus, unsigned int tx_bd_size)
 	ps->bda = ps->base.epmem_bar;
 	writel(ps->base.msi_enabled, &ps->bda->bda_rc_msi_enabled);
 
-	ret = qtnf_pcie_pearl_init_xfer(ps, tx_bd_size);
+	ret = qtnf_pcie_pearl_init_xfer(ps, tx_bd_size, rx_bd_size);
 	if (ret) {
 		pr_err("PCIE xfer init failed\n");
 		return ret;

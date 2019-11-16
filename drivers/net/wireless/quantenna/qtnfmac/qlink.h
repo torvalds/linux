@@ -217,6 +217,8 @@ struct qlink_sta_info_state {
  *	command is supported only if device reports QLINK_HW_SUPPORTS_REG_UPDATE
  *	capability.
  * @QLINK_CMD_START_CAC: start radar detection procedure on a specified channel.
+ * @QLINK_CMD_TXPWR: get or set current channel transmit power for
+ *	the specified MAC.
  */
 enum qlink_cmd_type {
 	QLINK_CMD_FW_INIT		= 0x0001,
@@ -254,6 +256,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_PM_SET		= 0x0062,
 	QLINK_CMD_WOWLAN_SET		= 0x0063,
 	QLINK_CMD_EXTERNAL_AUTH		= 0x0066,
+	QLINK_CMD_TXPWR			= 0x0067,
 };
 
 /**
@@ -719,6 +722,32 @@ struct qlink_cmd_pm_set {
 } __packed;
 
 /**
+ * enum qlink_txpwr_op - transmit power operation type
+ * @QLINK_TXPWR_SET: set tx power
+ * @QLINK_TXPWR_GET: get current tx power setting
+ */
+enum qlink_txpwr_op {
+	QLINK_TXPWR_SET,
+	QLINK_TXPWR_GET
+};
+
+/**
+ * struct qlink_cmd_txpwr - get or set current transmit power
+ *
+ * @txpwr: new transmit power setting, in mBm
+ * @txpwr_setting: transmit power setting type, one of
+ *	&enum nl80211_tx_power_setting
+ * @op_type: type of operation, one of &enum qlink_txpwr_op
+ */
+struct qlink_cmd_txpwr {
+	struct qlink_cmd chdr;
+	__le32 txpwr;
+	u8 txpwr_setting;
+	u8 op_type;
+	u8 rsvd[2];
+} __packed;
+
+/**
  * enum qlink_wowlan_trigger
  *
  * @QLINK_WOWLAN_TRIG_DISCONNECT: wakeup on disconnect
@@ -944,6 +973,19 @@ struct qlink_resp_channel_get {
 	struct qlink_chandef chan;
 } __packed;
 
+/**
+ * struct qlink_resp_txpwr - response for QLINK_CMD_TXPWR command
+ *
+ * This response is intended for QLINK_TXPWR_GET operation and does not
+ * contain any meaningful information in case of QLINK_TXPWR_SET operation.
+ *
+ * @txpwr: current transmit power setting, in mBm
+ */
+struct qlink_resp_txpwr {
+	struct qlink_resp rhdr;
+	__le32 txpwr;
+} __packed;
+
 /* QLINK Events messages related definitions
  */
 
@@ -958,6 +1000,7 @@ enum qlink_event_type {
 	QLINK_EVENT_FREQ_CHANGE		= 0x0028,
 	QLINK_EVENT_RADAR		= 0x0029,
 	QLINK_EVENT_EXTERNAL_AUTH	= 0x0030,
+	QLINK_EVENT_MIC_FAILURE		= 0x0031,
 };
 
 /**
@@ -1149,6 +1192,20 @@ struct qlink_event_external_auth {
 	u8 bssid[ETH_ALEN];
 	__le32 akm_suite;
 	u8 action;
+} __packed;
+
+/**
+ * struct qlink_event_mic_failure - data for QLINK_EVENT_MIC_FAILURE event
+ *
+ * @src: source MAC address of the frame
+ * @key_index: index of the key being reported
+ * @pairwise: whether the key is pairwise or group
+ */
+struct qlink_event_mic_failure {
+	struct qlink_event ehdr;
+	u8 src[ETH_ALEN];
+	u8 key_index;
+	u8 pairwise;
 } __packed;
 
 /* QLINK TLVs (Type-Length Values) definitions

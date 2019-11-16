@@ -313,4 +313,22 @@ iwl_get_ucode_image(const struct iwl_fw *fw, enum iwl_ucode_type ucode_type)
 	return &fw->img[ucode_type];
 }
 
+static inline u8 iwl_mvm_lookup_cmd_ver(const struct iwl_fw *fw, u8 grp, u8 cmd)
+{
+	const struct iwl_fw_cmd_version *entry;
+	unsigned int i;
+
+	if (!fw->ucode_capa.cmd_versions ||
+	    !fw->ucode_capa.n_cmd_versions)
+		return IWL_FW_CMD_VER_UNKNOWN;
+
+	entry = fw->ucode_capa.cmd_versions;
+	for (i = 0; i < fw->ucode_capa.n_cmd_versions; i++, entry++) {
+		if (entry->group == grp && entry->cmd == cmd)
+			return entry->cmd_ver;
+	}
+
+	return IWL_FW_CMD_VER_UNKNOWN;
+}
+
 #endif  /* __iwl_fw_img_h__ */

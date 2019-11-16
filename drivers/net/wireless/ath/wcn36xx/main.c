@@ -935,8 +935,6 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 out:
 
 	mutex_unlock(&wcn->conf_mutex);
-
-	return;
 }
 
 /* this is required when using IEEE80211_HW_HAS_RATE_CONTROL */
