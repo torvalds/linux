@@ -123,9 +123,10 @@ void cpuidle_use_deepest_state(u64 latency_limit_ns)
  * @dev: cpuidle device for the given CPU.
  */
 int cpuidle_find_deepest_state(struct cpuidle_driver *drv,
-			       struct cpuidle_device *dev)
+			       struct cpuidle_device *dev,
+			       u64 latency_limit_ns)
 {
-	return find_deepest_state(drv, dev, U64_MAX, 0, false);
+	return find_deepest_state(drv, dev, latency_limit_ns, 0, false);
 }
 
 #ifdef CONFIG_SUSPEND
