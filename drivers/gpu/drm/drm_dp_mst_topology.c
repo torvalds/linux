@@ -4849,6 +4849,67 @@ drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
 }
 
 /**
+ * drm_dp_mst_add_affected_dsc_crtcs
+ * @state: Pointer to the new struct drm_dp_mst_topology_state
+ * @port: Port pointer of connector with new state
+ *
+ * Whenever there is a change in mst topology
+ * DSC configuration would have to be recalculated
+ * therefore we need to trigger modeset on all affected
+ * CRTCs in that topology
+ *
+ * See also:
+ * drm_dp_mst_atomic_enable_dsc()
+ */
+int drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state, struct drm_dp_mst_topology_mgr *mgr)
+{
+	struct drm_dp_mst_topology_state *mst_state;
+	struct drm_dp_vcpi_allocation *pos;
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+
+	mst_state = drm_atomic_get_mst_topology_state(state, mgr);
+
+	if (IS_ERR(mst_state))
+		return -EINVAL;
+
+	list_for_each_entry(pos, &mst_state->vcpis, next) {
+
+		connector = pos->port->connector;
+
+		if (!connector)
+			return -EINVAL;
+
+		conn_state = drm_atomic_get_connector_state(state, connector);
+
+		if (IS_ERR(conn_state))
+			return PTR_ERR(conn_state);
+
+		crtc = conn_state->crtc;
+
+		if (WARN_ON(!crtc))
+			return -EINVAL;
+
+		if (!drm_dp_mst_dsc_aux_for_port(pos->port))
+			continue;
+
+		crtc_state = drm_atomic_get_crtc_state(mst_state->base.state, crtc);
+
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		DRM_DEBUG_ATOMIC("[MST MGR:%p] Setting mode_changed flag on CRTC %p\n",
+				 mgr, crtc);
+
+		crtc_state->mode_changed = true;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_mst_add_affected_dsc_crtcs);
+
+/**
  * drm_dp_mst_atomic_enable_dsc - Set DSC Enable Flag to On/Off
  * @state: Pointer to the new drm_atomic_state
  * @port: Pointer to the affected MST Port
