@@ -14,6 +14,7 @@
 #include <linux/random.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>
+#include <linux/reboot.h>
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <rdma/ib_verbs.h>
@@ -1282,14 +1283,27 @@ static void smc_lgrs_shutdown(void)
 	spin_unlock(&smcd_dev_list.lock);
 }
 
+static int smc_core_reboot_event(struct notifier_block *this,
+				 unsigned long event, void *ptr)
+{
+	smc_lgrs_shutdown();
+
+	return 0;
+}
+
+static struct notifier_block smc_reboot_notifier = {
+	.notifier_call = smc_core_reboot_event,
+};
+
 int __init smc_core_init(void)
 {
 	atomic_set(&lgr_cnt, 0);
-	return 0;
+	return register_reboot_notifier(&smc_reboot_notifier);
 }
 
 /* Called (from smc_exit) when module is removed */
 void smc_core_exit(void)
 {
+	unregister_reboot_notifier(&smc_reboot_notifier);
 	smc_lgrs_shutdown();
 }
