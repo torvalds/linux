@@ -134,11 +134,11 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		 * If we're not fully overwriting @k, and it's compressed, we
 		 * need a reservation for all the pointers in @insert
 		 */
-		nr = bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(insert)) -
+		nr = bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(insert)) -
 			 m->nr_ptrs_reserved;
 
 		if (insert->k.size < k.k->size &&
-		    bch2_extent_is_compressed(k) &&
+		    bch2_bkey_sectors_compressed(k) &&
 		    nr > 0) {
 			ret = bch2_disk_reservation_add(c, &op->res,
 					keylist_sectors(keys) * nr, 0);
@@ -250,7 +250,7 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 		 */
 #if 0
 		int nr = (int) io_opts.data_replicas -
-			bch2_bkey_nr_dirty_ptrs(k);
+			bch2_bkey_nr_ptrs_allocated(k);
 #endif
 		int nr = (int) io_opts.data_replicas;
 
@@ -599,7 +599,7 @@ peek:
 		if (rate)
 			bch2_ratelimit_increment(rate, k.k->size);
 next:
-		atomic64_add(k.k->size * bch2_bkey_nr_dirty_ptrs(k),
+		atomic64_add(k.k->size * bch2_bkey_nr_ptrs_allocated(k),
 			     &stats->sectors_seen);
 next_nondata:
 		bch2_btree_iter_next(iter);

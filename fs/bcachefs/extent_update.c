@@ -200,7 +200,7 @@ bch2_extent_can_insert(struct btree_trans *trans,
 		*u64s += _k->u64s;
 
 	if (overlap == BCH_EXTENT_OVERLAP_MIDDLE &&
-	    (sectors = bch2_extent_is_compressed(k))) {
+	    (sectors = bch2_bkey_sectors_compressed(k))) {
 		int flags = trans->flags & BTREE_INSERT_NOFAIL
 			? BCH_DISK_RESERVATION_NOFAIL : 0;
 

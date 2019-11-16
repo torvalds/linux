@@ -254,7 +254,7 @@ static int bch2_extent_replay_key(struct bch_fs *c, enum btree_id btree_id,
 	 * Some extents aren't equivalent - w.r.t. what the triggers do
 	 * - if they're split:
 	 */
-	bool remark_if_split = bch2_extent_is_compressed(bkey_i_to_s_c(k)) ||
+	bool remark_if_split = bch2_bkey_sectors_compressed(bkey_i_to_s_c(k)) ||
 		k->k.type == KEY_TYPE_reflink_p;
 	bool remark = false;
 	int ret;
@@ -289,7 +289,7 @@ retry:
 		    bkey_cmp(atomic_end, k->k.p) < 0) {
 			ret = bch2_disk_reservation_add(c, &disk_res,
 					k->k.size *
-					bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(k)),
+					bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(k)),
 					BCH_DISK_RESERVATION_NOFAIL);
 			BUG_ON(ret);
 

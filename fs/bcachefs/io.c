@@ -202,8 +202,8 @@ static int sum_sector_overwrites(struct btree_trans *trans,
 
 	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, old, ret) {
 		if (!may_allocate &&
-		    bch2_bkey_nr_ptrs_allocated(old) <
-		    bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(new))) {
+		    bch2_bkey_nr_ptrs_fully_allocated(old) <
+		    bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(new))) {
 			ret = -ENOSPC;
 			break;
 		}

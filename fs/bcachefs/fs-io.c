@@ -675,7 +675,7 @@ static void bch2_add_page_sectors(struct bio *bio, struct bkey_s_c k)
 	struct bvec_iter iter;
 	struct bio_vec bv;
 	unsigned nr_ptrs = k.k->type == KEY_TYPE_reflink_v
-		? 0 : bch2_bkey_nr_ptrs_allocated(k);
+		? 0 : bch2_bkey_nr_ptrs_fully_allocated(k);
 	unsigned state = k.k->type == KEY_TYPE_reservation
 		? SECTOR_RESERVED
 		: SECTOR_ALLOCATED;
@@ -2543,7 +2543,7 @@ reassemble:
 		} else {
 			/* We might end up splitting compressed extents: */
 			unsigned nr_ptrs =
-				bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(copy.k));
+				bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(copy.k));
 
 			ret = bch2_disk_reservation_get(c, &disk_res,
 					copy.k->k.size, nr_ptrs,
@@ -2669,7 +2669,7 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		bch2_cut_back(end_pos,		&reservation.k_i);
 
 		sectors = reservation.k.size;
-		reservation.v.nr_replicas = bch2_bkey_nr_dirty_ptrs(k);
+		reservation.v.nr_replicas = bch2_bkey_nr_ptrs_allocated(k);
 
 		if (!bkey_extent_is_allocation(k.k)) {
 			ret = bch2_quota_reservation_add(c, inode,
@@ -2680,7 +2680,7 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		}
 
 		if (reservation.v.nr_replicas < replicas ||
-		    bch2_extent_is_compressed(k)) {
+		    bch2_bkey_sectors_compressed(k)) {
 			ret = bch2_disk_reservation_get(c, &disk_res, sectors,
 							replicas, 0);
 			if (unlikely(ret))
