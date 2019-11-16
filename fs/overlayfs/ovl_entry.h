@@ -71,9 +71,14 @@ struct ovl_fs {
 	struct inode *workbasedir_trap;
 	struct inode *workdir_trap;
 	struct inode *indexdir_trap;
-	/* Inode numbers in all layers do not use the high xino_bits */
-	unsigned int xino_bits;
+	/* -1: disabled, 0: same fs, 1..32: number of unused ino bits */
+	int xino_mode;
 };
+
+static inline struct ovl_fs *OVL_FS(struct super_block *sb)
+{
+	return (struct ovl_fs *)sb->s_fs_info;
+}
 
 /* private information held for every overlayfs dentry */
 struct ovl_entry {

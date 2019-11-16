@@ -224,7 +224,6 @@ int ovl_want_write(struct dentry *dentry);
 void ovl_drop_write(struct dentry *dentry);
 struct dentry *ovl_workdir(struct dentry *dentry);
 const struct cred *ovl_override_creds(struct super_block *sb);
-struct super_block *ovl_same_sb(struct super_block *sb);
 int ovl_can_decode_fh(struct super_block *sb);
 struct dentry *ovl_indexdir(struct super_block *sb);
 bool ovl_index_all(struct super_block *sb);
@@ -302,11 +301,21 @@ static inline bool ovl_is_impuredir(struct dentry *dentry)
 	return ovl_check_dir_xattr(dentry, OVL_XATTR_IMPURE);
 }
 
+/* All layers on same fs? */
+static inline bool ovl_same_fs(struct super_block *sb)
+{
+	return OVL_FS(sb)->xino_mode == 0;
+}
+
+/* All overlay inodes have same st_dev? */
+static inline bool ovl_same_dev(struct super_block *sb)
+{
+	return OVL_FS(sb)->xino_mode >= 0;
+}
+
 static inline unsigned int ovl_xino_bits(struct super_block *sb)
 {
-	struct ovl_fs *ofs = sb->s_fs_info;
-
-	return ofs->xino_bits;
+	return ovl_same_dev(sb) ? OVL_FS(sb)->xino_mode : 0;
 }
 
 static inline int ovl_inode_lock(struct inode *inode)

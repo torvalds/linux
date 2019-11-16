@@ -358,7 +358,7 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	if (ofs->config.nfs_export != ovl_nfs_export_def)
 		seq_printf(m, ",nfs_export=%s", ofs->config.nfs_export ?
 						"on" : "off");
-	if (ofs->config.xino != ovl_xino_def())
+	if (ofs->config.xino != ovl_xino_def() && !ovl_same_fs(sb))
 		seq_printf(m, ",xino=%s", ovl_xino_str[ofs->config.xino]);
 	if (ofs->config.metacopy != ovl_metacopy_def)
 		seq_printf(m, ",metacopy=%s",
@@ -811,7 +811,7 @@ static int ovl_lower_dir(const char *name, struct path *path,
 
 	/* Check if lower fs has 32bit inode numbers */
 	if (fh_type != FILEID_INO32_GEN)
-		ofs->xino_bits = 0;
+		ofs->xino_mode = -1;
 
 	return 0;
 
@@ -1142,7 +1142,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 
 	/* Check if upper fs has 32bit inode numbers */
 	if (fh_type != FILEID_INO32_GEN)
-		ofs->xino_bits = 0;
+		ofs->xino_mode = -1;
 
 	/* NFS export of r/w mount depends on index */
 	if (ofs->config.nfs_export && !ofs->config.index) {
@@ -1395,21 +1395,22 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	 * inode number.
 	 */
 	if (!ofs->numlowerfs || (ofs->numlowerfs == 1 && !ofs->upper_mnt)) {
-		ofs->xino_bits = 0;
-		ofs->config.xino = OVL_XINO_OFF;
-	} else if (ofs->config.xino == OVL_XINO_ON && !ofs->xino_bits) {
+		if (ofs->config.xino == OVL_XINO_ON)
+			pr_info("\"xino=on\" is useless with all layers on same fs, ignore.\n");
+		ofs->xino_mode = 0;
+	} else if (ofs->config.xino == OVL_XINO_ON && ofs->xino_mode < 0) {
 		/*
 		 * This is a roundup of number of bits needed for numlowerfs+1
 		 * (i.e. ilog2(numlowerfs+1 - 1) + 1). fsid 0 is reserved for
 		 * upper fs even with non upper overlay.
 		 */
 		BUILD_BUG_ON(ilog2(OVL_MAX_STACK) > 31);
-		ofs->xino_bits = ilog2(ofs->numlowerfs) + 1;
+		ofs->xino_mode = ilog2(ofs->numlowerfs) + 1;
 	}
 
-	if (ofs->xino_bits) {
+	if (ofs->xino_mode > 0) {
 		pr_info("\"xino\" feature enabled using %d upper inode bits.\n",
-			ofs->xino_bits);
+			ofs->xino_mode);
 	}
 
 	err = 0;
@@ -1610,7 +1611,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	/* Assume underlaying fs uses 32bit inodes unless proven otherwise */
 	if (ofs->config.xino != OVL_XINO_OFF)
-		ofs->xino_bits = BITS_PER_LONG - 32;
+		ofs->xino_mode = BITS_PER_LONG - 32;
 
 	/* alloc/destroy_inode needed for setting up traps in inode cache */
 	sb->s_op = &ovl_super_operations;

@@ -78,7 +78,7 @@ out:
 static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat,
 			   struct ovl_layer *lower_layer)
 {
-	bool samefs = ovl_same_sb(dentry->d_sb);
+	bool samefs = ovl_same_fs(dentry->d_sb);
 	unsigned int xinobits = ovl_xino_bits(dentry->d_sb);
 
 	if (samefs) {
@@ -146,7 +146,7 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 	struct path realpath;
 	const struct cred *old_cred;
 	bool is_dir = S_ISDIR(dentry->d_inode->i_mode);
-	bool samefs = ovl_same_sb(dentry->d_sb);
+	bool samefs = ovl_same_fs(dentry->d_sb);
 	struct ovl_layer *lower_layer = NULL;
 	int err;
 	bool metacopy_blocks = false;
@@ -168,7 +168,7 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 	 * If lower filesystem supports NFS file handles, this also guaranties
 	 * persistent st_ino across mount cycle.
 	 */
-	if (!is_dir || samefs || ovl_xino_bits(dentry->d_sb)) {
+	if (!is_dir || ovl_same_dev(dentry->d_sb)) {
 		if (!OVL_TYPE_UPPER(type)) {
 			lower_layer = ovl_layer_lower(dentry);
 		} else if (OVL_TYPE_ORIGIN(type)) {
@@ -586,7 +586,7 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
 	 * ovl_new_inode(), ino arg is 0, so i_ino will be updated to real
 	 * upper inode i_ino on ovl_inode_init() or ovl_inode_update().
 	 */
-	if (ovl_same_sb(inode->i_sb) || xinobits) {
+	if (ovl_same_dev(inode->i_sb)) {
 		inode->i_ino = ino;
 		if (xinobits && fsid && !(ino >> (64 - xinobits)))
 			inode->i_ino |= (unsigned long)fsid << (64 - xinobits);
