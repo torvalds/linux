@@ -72,6 +72,9 @@
  *
  */
 
+#define GOYA_UBOOT_FW_FILE	"habanalabs/goya/goya-u-boot.bin"
+#define GOYA_LINUX_FW_FILE	"habanalabs/goya/goya-fit.itb"
+
 #define GOYA_MMU_REGS_NUM		63
 
 #define GOYA_DMA_POOL_BLK_SIZE		0x100		/* 256 bytes */
@@ -2163,13 +2166,11 @@ static void goya_halt_engines(struct hl_device *hdev, bool hard_reset)
  */
 static int goya_push_uboot_to_device(struct hl_device *hdev)
 {
-	char fw_name[200];
 	void __iomem *dst;
 
-	snprintf(fw_name, sizeof(fw_name), "habanalabs/goya/goya-u-boot.bin");
 	dst = hdev->pcie_bar[SRAM_CFG_BAR_ID] + UBOOT_FW_OFFSET;
 
-	return hl_fw_push_fw_to_device(hdev, fw_name, dst);
+	return hl_fw_push_fw_to_device(hdev, GOYA_UBOOT_FW_FILE, dst);
 }
 
 /*
@@ -2182,13 +2183,11 @@ static int goya_push_uboot_to_device(struct hl_device *hdev)
  */
 static int goya_push_linux_to_device(struct hl_device *hdev)
 {
-	char fw_name[200];
 	void __iomem *dst;
 
-	snprintf(fw_name, sizeof(fw_name), "habanalabs/goya/goya-fit.itb");
 	dst = hdev->pcie_bar[DDR_BAR_ID] + LINUX_FW_OFFSET;
 
-	return hl_fw_push_fw_to_device(hdev, fw_name, dst);
+	return hl_fw_push_fw_to_device(hdev, GOYA_LINUX_FW_FILE, dst);
 }
 
 static int goya_pldm_init_cpu(struct hl_device *hdev)
