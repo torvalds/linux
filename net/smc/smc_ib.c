@@ -15,6 +15,7 @@
 #include <linux/random.h>
 #include <linux/workqueue.h>
 #include <linux/scatterlist.h>
+#include <linux/wait.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
 
@@ -543,7 +544,8 @@ static void smc_ib_add_dev(struct ib_device *ibdev)
 
 	smcibdev->ibdev = ibdev;
 	INIT_WORK(&smcibdev->port_event_work, smc_ib_port_event_work);
-
+	atomic_set(&smcibdev->lnk_cnt, 0);
+	init_waitqueue_head(&smcibdev->lnks_deleted);
 	spin_lock(&smc_ib_devices.lock);
 	list_add_tail(&smcibdev->list, &smc_ib_devices.list);
 	spin_unlock(&smc_ib_devices.lock);

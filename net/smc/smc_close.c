@@ -20,8 +20,6 @@
 #include "smc_cdc.h"
 #include "smc_close.h"
 
-#define SMC_CLOSE_WAIT_LISTEN_CLCSOCK_TIME	(5 * HZ)
-
 /* release the clcsock that is assigned to the smc_sock */
 void smc_clcsock_release(struct smc_sock *smc)
 {
