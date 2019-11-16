@@ -3006,9 +3006,6 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 			"H/W queue %d test failed (scratch(0x%08llX) == 0x%08X)\n",
 			hw_queue_id, (unsigned long long) fence_dma_addr, tmp);
 		rc = -EIO;
-	} else {
-		dev_info(hdev->dev, "queue test on H/W queue %d succeeded\n",
-			hw_queue_id);
 	}
 
 free_pkt:
