@@ -450,6 +450,13 @@ config MTD_NAND_PLATFORM
 	  devices. You will need to provide platform-specific functions
 	  via platform_data.
 
+config MTD_NAND_CADENCE
+	tristate "Support Cadence NAND (HPNFC) controller"
+	depends on OF || COMPILE_TEST
+	help
+	  Enable the driver for NAND flash on platforms using a Cadence NAND
+	  controller.
+
 comment "Misc"
 
 config MTD_SM_COMMON
