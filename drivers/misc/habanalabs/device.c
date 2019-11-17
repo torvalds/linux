@@ -891,7 +891,7 @@ again:
 	 * can't really exit until all its CSs are done, which is what we
 	 * do in cs rollback
 	 */
-	if (from_hard_reset_thread)
+	if (hard_reset)
 		device_kill_open_processes(hdev);
 
 	/* Release kernel context */
