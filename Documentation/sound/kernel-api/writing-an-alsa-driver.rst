@@ -1341,7 +1341,6 @@ shows only the skeleton, how to build up the PCM interfaces.
       static struct snd_pcm_ops snd_mychip_playback_ops = {
               .open =        snd_mychip_playback_open,
               .close =       snd_mychip_playback_close,
-              .ioctl =       snd_pcm_lib_ioctl,
               .hw_params =   snd_mychip_pcm_hw_params,
               .hw_free =     snd_mychip_pcm_hw_free,
               .prepare =     snd_mychip_pcm_prepare,
@@ -1353,7 +1352,6 @@ shows only the skeleton, how to build up the PCM interfaces.
       static struct snd_pcm_ops snd_mychip_capture_ops = {
               .open =        snd_mychip_capture_open,
               .close =       snd_mychip_capture_close,
-              .ioctl =       snd_pcm_lib_ioctl,
               .hw_params =   snd_mychip_pcm_hw_params,
               .hw_free =     snd_mychip_pcm_hw_free,
               .prepare =     snd_mychip_pcm_prepare,
@@ -1456,7 +1454,6 @@ The operators are defined typically like this:
   static struct snd_pcm_ops snd_mychip_playback_ops = {
           .open =        snd_mychip_pcm_open,
           .close =       snd_mychip_pcm_close,
-          .ioctl =       snd_pcm_lib_ioctl,
           .hw_params =   snd_mychip_pcm_hw_params,
           .hw_free =     snd_mychip_pcm_hw_free,
           .prepare =     snd_mychip_pcm_prepare,
@@ -1913,7 +1910,10 @@ ioctl callback
 ~~~~~~~~~~~~~~
 
 This is used for any special call to pcm ioctls. But usually you can
-pass a generic ioctl callback, :c:func:`snd_pcm_lib_ioctl()`.
+leave it as NULL, then PCM core calls the generic ioctl callback
+function :c:func:`snd_pcm_lib_ioctl()`.  If you need to deal with the
+unique setup of channel info or reset procedure, you can pass your own
+callback function here.
 
 hw_params callback
 ~~~~~~~~~~~~~~~~~~~
