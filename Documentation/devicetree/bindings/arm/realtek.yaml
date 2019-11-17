@@ -18,6 +18,7 @@ properties:
       - items:
           - enum:
               - mele,x1000 # MeLE X1000
+              - realtek,horseradish # Realtek Horseradish EVB
           - const: realtek,rtd1195
 
       # RTD1293 SoC based boards
