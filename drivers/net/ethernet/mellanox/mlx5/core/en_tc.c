@@ -48,6 +48,7 @@
 #include <net/tc_act/tc_csum.h>
 #include <net/arp.h>
 #include <net/ipv6_stubs.h>
+#include <net/bareudp.h>
 #include "en.h"
 #include "en_rep.h"
 #include "en/rep/tc.h"
@@ -3685,6 +3686,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	bool encap = false, decap = false;
 	u32 action = attr->action;
 	int err, i, if_count = 0;
+	bool mpls_push = false;
 
 	if (!flow_action_has_entries(flow_action))
 		return -EINVAL;
@@ -3698,6 +3700,16 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		case FLOW_ACTION_DROP:
 			action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
 				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			break;
+		case FLOW_ACTION_MPLS_PUSH:
+			if (!MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev,
+							reformat_l2_to_l3_tunnel) ||
+			    act->mpls_push.proto != htons(ETH_P_MPLS_UC)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "mpls push is supported only for mpls_uc protocol");
+				return -EOPNOTSUPP;
+			}
+			mpls_push = true;
 			break;
 		case FLOW_ACTION_MANGLE:
 		case FLOW_ACTION_ADD:
@@ -3727,6 +3739,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				 * the driver.
 				 */
 				return -EINVAL;
+			}
+
+			if (mpls_push && !netif_is_bareudp(out_dev)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "mpls is supported only through a bareudp device");
+				return -EOPNOTSUPP;
 			}
 
 			if (ft_flow && out_dev == priv->netdev) {

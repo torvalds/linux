@@ -4,6 +4,7 @@
 #include <net/vxlan.h>
 #include <net/gre.h>
 #include <net/geneve.h>
+#include <net/bareudp.h>
 #include "en/tc_tun.h"
 #include "en_tc.h"
 #include "rep/tc.h"
@@ -18,6 +19,8 @@ struct mlx5e_tc_tunnel *mlx5e_get_tc_tun(struct net_device *tunnel_dev)
 	else if (netif_is_gretap(tunnel_dev) ||
 		 netif_is_ip6gretap(tunnel_dev))
 		return &gre_tunnel;
+	else if (netif_is_bareudp(tunnel_dev))
+		return &mplsoudp_tunnel;
 	else
 		return NULL;
 }
