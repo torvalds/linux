@@ -322,6 +322,8 @@ struct io_kiocb {
 #define REQ_F_FAIL_LINK		256	/* fail rest of links */
 #define REQ_F_SHADOW_DRAIN	512	/* link-drain shadow req */
 #define REQ_F_TIMEOUT		1024	/* timeout request */
+#define REQ_F_ISREG		2048	/* regular file */
+#define REQ_F_MUST_PUNT		4096	/* must be punted even for NONBLOCK */
 	u64			user_data;
 	u32			result;
 	u32			sequence;
@@ -415,27 +417,27 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	return ctx;
 }
 
-static inline bool io_sequence_defer(struct io_ring_ctx *ctx,
-				     struct io_kiocb *req)
+static inline bool __io_sequence_defer(struct io_ring_ctx *ctx,
+				       struct io_kiocb *req)
 {
-	/* timeout requests always honor sequence */
-	if (!(req->flags & REQ_F_TIMEOUT) &&
-	    (req->flags & (REQ_F_IO_DRAIN|REQ_F_IO_DRAINED)) != REQ_F_IO_DRAIN)
-		return false;
-
 	return req->sequence != ctx->cached_cq_tail + ctx->rings->sq_dropped;
 }
 
-static struct io_kiocb *__io_get_deferred_req(struct io_ring_ctx *ctx,
-					      struct list_head *list)
+static inline bool io_sequence_defer(struct io_ring_ctx *ctx,
+				     struct io_kiocb *req)
+{
+	if ((req->flags & (REQ_F_IO_DRAIN|REQ_F_IO_DRAINED)) != REQ_F_IO_DRAIN)
+		return false;
+
+	return __io_sequence_defer(ctx, req);
+}
+
+static struct io_kiocb *io_get_deferred_req(struct io_ring_ctx *ctx)
 {
 	struct io_kiocb *req;
 
-	if (list_empty(list))
-		return NULL;
-
-	req = list_first_entry(list, struct io_kiocb, list);
-	if (!io_sequence_defer(ctx, req)) {
+	req = list_first_entry_or_null(&ctx->defer_list, struct io_kiocb, list);
+	if (req && !io_sequence_defer(ctx, req)) {
 		list_del_init(&req->list);
 		return req;
 	}
@@ -443,14 +445,17 @@ static struct io_kiocb *__io_get_deferred_req(struct io_ring_ctx *ctx,
 	return NULL;
 }
 
-static struct io_kiocb *io_get_deferred_req(struct io_ring_ctx *ctx)
-{
-	return __io_get_deferred_req(ctx, &ctx->defer_list);
-}
-
 static struct io_kiocb *io_get_timeout_req(struct io_ring_ctx *ctx)
 {
-	return __io_get_deferred_req(ctx, &ctx->timeout_list);
+	struct io_kiocb *req;
+
+	req = list_first_entry_or_null(&ctx->timeout_list, struct io_kiocb, list);
+	if (req && !__io_sequence_defer(ctx, req)) {
+		list_del_init(&req->list);
+		return req;
+	}
+
+	return NULL;
 }
 
 static void __io_commit_cqring(struct io_ring_ctx *ctx)
@@ -591,14 +596,6 @@ static void io_cqring_add_event(struct io_ring_ctx *ctx, u64 user_data,
 	io_cqring_ev_posted(ctx);
 }
 
-static void io_ring_drop_ctx_refs(struct io_ring_ctx *ctx, unsigned refs)
-{
-	percpu_ref_put_many(&ctx->refs, refs);
-
-	if (waitqueue_active(&ctx->wait))
-		wake_up(&ctx->wait);
-}
-
 static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 				   struct io_submit_state *state)
 {
@@ -646,7 +643,7 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 	req->result = 0;
 	return req;
 out:
-	io_ring_drop_ctx_refs(ctx, 1);
+	percpu_ref_put(&ctx->refs);
 	return NULL;
 }
 
@@ -654,7 +651,7 @@ static void io_free_req_many(struct io_ring_ctx *ctx, void **reqs, int *nr)
 {
 	if (*nr) {
 		kmem_cache_free_bulk(req_cachep, *nr, reqs);
-		io_ring_drop_ctx_refs(ctx, *nr);
+		percpu_ref_put_many(&ctx->refs, *nr);
 		*nr = 0;
 	}
 }
@@ -663,7 +660,7 @@ static void __io_free_req(struct io_kiocb *req)
 {
 	if (req->file && !(req->flags & REQ_F_FIXED_FILE))
 		fput(req->file);
-	io_ring_drop_ctx_refs(req->ctx, 1);
+	percpu_ref_put(&req->ctx->refs);
 	kmem_cache_free(req_cachep, req);
 }
 
@@ -919,26 +916,26 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned *nr_events,
 	return ret;
 }
 
-static void kiocb_end_write(struct kiocb *kiocb)
+static void kiocb_end_write(struct io_kiocb *req)
 {
-	if (kiocb->ki_flags & IOCB_WRITE) {
-		struct inode *inode = file_inode(kiocb->ki_filp);
+	/*
+	 * Tell lockdep we inherited freeze protection from submission
+	 * thread.
+	 */
+	if (req->flags & REQ_F_ISREG) {
+		struct inode *inode = file_inode(req->file);
 
-		/*
-		 * Tell lockdep we inherited freeze protection from submission
-		 * thread.
-		 */
-		if (S_ISREG(inode->i_mode))
-			__sb_writers_acquired(inode->i_sb, SB_FREEZE_WRITE);
-		file_end_write(kiocb->ki_filp);
+		__sb_writers_acquired(inode->i_sb, SB_FREEZE_WRITE);
 	}
+	file_end_write(req->file);
 }
 
 static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw);
 
-	kiocb_end_write(kiocb);
+	if (kiocb->ki_flags & IOCB_WRITE)
+		kiocb_end_write(req);
 
 	if ((req->flags & REQ_F_LINK) && res != req->result)
 		req->flags |= REQ_F_FAIL_LINK;
@@ -950,7 +947,8 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw);
 
-	kiocb_end_write(kiocb);
+	if (kiocb->ki_flags & IOCB_WRITE)
+		kiocb_end_write(req);
 
 	if ((req->flags & REQ_F_LINK) && res != req->result)
 		req->flags |= REQ_F_FAIL_LINK;
@@ -1064,8 +1062,17 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 	if (!req->file)
 		return -EBADF;
 
-	if (force_nonblock && !io_file_supports_async(req->file))
-		force_nonblock = false;
+	if (S_ISREG(file_inode(req->file)->i_mode))
+		req->flags |= REQ_F_ISREG;
+
+	/*
+	 * If the file doesn't support async, mark it as REQ_F_MUST_PUNT so
+	 * we know to async punt it even if it was opened O_NONBLOCK
+	 */
+	if (force_nonblock && !io_file_supports_async(req->file)) {
+		req->flags |= REQ_F_MUST_PUNT;
+		return -EAGAIN;
+	}
 
 	kiocb->ki_pos = READ_ONCE(sqe->off);
 	kiocb->ki_flags = iocb_flags(kiocb->ki_filp);
@@ -1086,7 +1093,8 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 		return ret;
 
 	/* don't allow async punt if RWF_NOWAIT was requested */
-	if (kiocb->ki_flags & IOCB_NOWAIT)
+	if ((kiocb->ki_flags & IOCB_NOWAIT) ||
+	    (req->file->f_flags & O_NONBLOCK))
 		req->flags |= REQ_F_NOWAIT;
 
 	if (force_nonblock)
@@ -1387,7 +1395,9 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 		 * need async punt anyway, so it's more efficient to do it
 		 * here.
 		 */
-		if (force_nonblock && ret2 > 0 && ret2 < read_size)
+		if (force_nonblock && !(req->flags & REQ_F_NOWAIT) &&
+		    (req->flags & REQ_F_ISREG) &&
+		    ret2 > 0 && ret2 < read_size)
 			ret2 = -EAGAIN;
 		/* Catch -EAGAIN return for forced non-blocking submission */
 		if (!force_nonblock || ret2 != -EAGAIN) {
@@ -1452,7 +1462,7 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 		 * released so that it doesn't complain about the held lock when
 		 * we return to userspace.
 		 */
-		if (S_ISREG(file_inode(file)->i_mode)) {
+		if (req->flags & REQ_F_ISREG) {
 			__sb_start_write(file_inode(file)->i_sb,
 						SB_FREEZE_WRITE, true);
 			__sb_writers_release(file_inode(file)->i_sb,
@@ -1889,18 +1899,18 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 
 static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	unsigned count, req_dist, tail_index;
+	unsigned count;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct list_head *entry;
-	struct timespec ts;
+	struct timespec64 ts;
 
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 	if (sqe->flags || sqe->ioprio || sqe->buf_index || sqe->timeout_flags ||
 	    sqe->len != 1)
 		return -EINVAL;
-	if (copy_from_user(&ts, (void __user *) (unsigned long) sqe->addr,
-	    sizeof(ts)))
+
+	if (get_timespec64(&ts, u64_to_user_ptr(sqe->addr)))
 		return -EFAULT;
 
 	/*
@@ -1912,21 +1922,36 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		count = 1;
 
 	req->sequence = ctx->cached_sq_head + count - 1;
+	/* reuse it to store the count */
+	req->submit.sequence = count;
 	req->flags |= REQ_F_TIMEOUT;
 
 	/*
 	 * Insertion sort, ensuring the first entry in the list is always
 	 * the one we need first.
 	 */
-	tail_index = ctx->cached_cq_tail - ctx->rings->sq_dropped;
-	req_dist = req->sequence - tail_index;
 	spin_lock_irq(&ctx->completion_lock);
 	list_for_each_prev(entry, &ctx->timeout_list) {
 		struct io_kiocb *nxt = list_entry(entry, struct io_kiocb, list);
-		unsigned dist;
+		unsigned nxt_sq_head;
+		long long tmp, tmp_nxt;
 
-		dist = nxt->sequence - tail_index;
-		if (req_dist >= dist)
+		/*
+		 * Since cached_sq_head + count - 1 can overflow, use type long
+		 * long to store it.
+		 */
+		tmp = (long long)ctx->cached_sq_head + count - 1;
+		nxt_sq_head = nxt->sequence - nxt->submit.sequence + 1;
+		tmp_nxt = (long long)nxt_sq_head + nxt->submit.sequence - 1;
+
+		/*
+		 * cached_sq_head may overflow, and it will never overflow twice
+		 * once there is some timeout req still be valid.
+		 */
+		if (ctx->cached_sq_head < nxt_sq_head)
+			tmp += UINT_MAX;
+
+		if (tmp >= tmp_nxt)
 			break;
 	}
 	list_add(&req->list, entry);
@@ -1934,7 +1959,7 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	hrtimer_init(&req->timeout.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	req->timeout.timer.function = io_timeout_fn;
-	hrtimer_start(&req->timeout.timer, timespec_to_ktime(ts),
+	hrtimer_start(&req->timeout.timer, timespec64_to_ktime(ts),
 			HRTIMER_MODE_REL);
 	return 0;
 }
@@ -2272,7 +2297,13 @@ static int __io_queue_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	int ret;
 
 	ret = __io_submit_sqe(ctx, req, s, force_nonblock);
-	if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
+
+	/*
+	 * We async punt it if the file wasn't marked NOWAIT, or if the file
+	 * doesn't support non-blocking read/write attempts
+	 */
+	if (ret == -EAGAIN && (!(req->flags & REQ_F_NOWAIT) ||
+	    (req->flags & REQ_F_MUST_PUNT))) {
 		struct io_uring_sqe *sqe_copy;
 
 		sqe_copy = kmemdup(s->sqe, sizeof(*sqe_copy), GFP_KERNEL);
@@ -2761,7 +2792,7 @@ out:
 
 	if (link)
 		io_queue_link_head(ctx, link, &link->submit, shadow_req,
-					block_for_last);
+					!block_for_last);
 	if (statep)
 		io_submit_state_end(statep);
 
@@ -2920,8 +2951,12 @@ static void io_finish_async(struct io_ring_ctx *ctx)
 static void io_destruct_skb(struct sk_buff *skb)
 {
 	struct io_ring_ctx *ctx = skb->sk->sk_user_data;
+	int i;
 
-	io_finish_async(ctx);
+	for (i = 0; i < ARRAY_SIZE(ctx->sqo_wq); i++)
+		if (ctx->sqo_wq[i])
+			flush_workqueue(ctx->sqo_wq[i]);
+
 	unix_destruct_scm(skb);
 }
 
@@ -3630,7 +3665,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		}
 	}
 
-	io_ring_drop_ctx_refs(ctx, 1);
+	percpu_ref_put(&ctx->refs);
 out_fput:
 	fdput(f);
 	return submitted ? submitted : ret;

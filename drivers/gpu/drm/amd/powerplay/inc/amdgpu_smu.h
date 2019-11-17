@@ -344,6 +344,7 @@ struct smu_context
 	const struct smu_funcs		*funcs;
 	const struct pptable_funcs	*ppt_funcs;
 	struct mutex			mutex;
+	struct mutex			sensor_lock;
 	uint64_t pool_size;
 
 	struct smu_table_context	smu_table;

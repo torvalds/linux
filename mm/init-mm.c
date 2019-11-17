@@ -5,6 +5,7 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/cpumask.h>
+#include <linux/mman.h>
 
 #include <linux/atomic.h>
 #include <linux/user_namespace.h>

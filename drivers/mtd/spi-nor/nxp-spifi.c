@@ -123,7 +123,8 @@ static int nxp_spifi_set_memory_mode_on(struct nxp_spifi *spifi)
 	return ret;
 }
 
-static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
+static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
+			      size_t len)
 {
 	struct nxp_spifi *spifi = nor->priv;
 	u32 cmd;
@@ -145,7 +146,8 @@ static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return nxp_spifi_wait_for_cmd(spifi);
 }
 
-static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
+static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
+			       size_t len)
 {
 	struct nxp_spifi *spifi = nor->priv;
 	u32 cmd;
@@ -263,8 +265,17 @@ static int nxp_spifi_setup_memory_cmd(struct nxp_spifi *spifi)
 static void nxp_spifi_dummy_id_read(struct spi_nor *nor)
 {
 	u8 id[SPI_NOR_MAX_ID_LEN];
-	nor->read_reg(nor, SPINOR_OP_RDID, id, SPI_NOR_MAX_ID_LEN);
+	nor->controller_ops->read_reg(nor, SPINOR_OP_RDID, id,
+				      SPI_NOR_MAX_ID_LEN);
 }
+
+static const struct spi_nor_controller_ops nxp_spifi_controller_ops = {
+	.read_reg  = nxp_spifi_read_reg,
+	.write_reg = nxp_spifi_write_reg,
+	.read  = nxp_spifi_read,
+	.write = nxp_spifi_write,
+	.erase = nxp_spifi_erase,
+};
 
 static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 				 struct device_node *np)
@@ -332,11 +343,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 	spifi->nor.dev   = spifi->dev;
 	spi_nor_set_flash_node(&spifi->nor, np);
 	spifi->nor.priv  = spifi;
-	spifi->nor.read  = nxp_spifi_read;
-	spifi->nor.write = nxp_spifi_write;
-	spifi->nor.erase = nxp_spifi_erase;
-	spifi->nor.read_reg  = nxp_spifi_read_reg;
-	spifi->nor.write_reg = nxp_spifi_write_reg;
+	spifi->nor.controller_ops = &nxp_spifi_controller_ops;
 
 	/*
 	 * The first read on a hard reset isn't reliable so do a

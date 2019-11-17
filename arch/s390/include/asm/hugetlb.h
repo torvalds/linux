@@ -12,8 +12,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 
-
-#define is_hugepage_only_range(mm, addr, len)	0
 #define hugetlb_free_pgd_range			free_pgd_range
 #define hugepages_supported()			(MACHINE_HAS_EDAT1)
 
@@ -22,6 +20,13 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 pte_t huge_ptep_get(pte_t *ptep);
 pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 			      unsigned long addr, pte_t *ptep);
+
+static inline bool is_hugepage_only_range(struct mm_struct *mm,
+					  unsigned long addr,
+					  unsigned long len)
+{
+	return false;
+}
 
 /*
  * If the arch doesn't supply something else, assume that hugepage

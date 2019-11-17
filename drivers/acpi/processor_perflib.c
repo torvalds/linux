@@ -162,21 +162,23 @@ void acpi_processor_ppc_init(int cpu)
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 	int ret;
 
+	if (!pr)
+		return;
+
 	ret = dev_pm_qos_add_request(get_cpu_device(cpu),
 				     &pr->perflib_req, DEV_PM_QOS_MAX_FREQUENCY,
 				     INT_MAX);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_err("Failed to add freq constraint for CPU%d (%d)\n", cpu,
 		       ret);
-		return;
-	}
 }
 
 void acpi_processor_ppc_exit(int cpu)
 {
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 
-	dev_pm_qos_remove_request(&pr->perflib_req);
+	if (pr)
+		dev_pm_qos_remove_request(&pr->perflib_req);
 }
 
 static int acpi_processor_get_performance_control(struct acpi_processor *pr)

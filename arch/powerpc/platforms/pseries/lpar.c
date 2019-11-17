@@ -1419,6 +1419,9 @@ void __init pseries_lpar_read_hblkrm_characteristics(void)
 	unsigned char local_buffer[SPLPAR_TLB_BIC_MAXLENGTH];
 	int call_status, len, idx, bpsize;
 
+	if (!firmware_has_feature(FW_FEATURE_BLOCK_REMOVE))
+		return;
+
 	spin_lock(&rtas_data_buf_lock);
 	memset(rtas_data_buf, 0, RTAS_DATA_BUF_SIZE);
 	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,

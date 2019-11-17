@@ -366,11 +366,11 @@ struct xfs_bulkstat {
 	uint64_t	bs_blocks;	/* number of blocks		*/
 	uint64_t	bs_xflags;	/* extended flags		*/
 
-	uint64_t	bs_atime;	/* access time, seconds		*/
-	uint64_t	bs_mtime;	/* modify time, seconds		*/
+	int64_t		bs_atime;	/* access time, seconds		*/
+	int64_t		bs_mtime;	/* modify time, seconds		*/
 
-	uint64_t	bs_ctime;	/* inode change time, seconds	*/
-	uint64_t	bs_btime;	/* creation time, seconds	*/
+	int64_t		bs_ctime;	/* inode change time, seconds	*/
+	int64_t		bs_btime;	/* creation time, seconds	*/
 
 	uint32_t	bs_gen;		/* generation count		*/
 	uint32_t	bs_uid;		/* user id			*/

@@ -156,7 +156,7 @@ static struct binder_buffer *binder_alloc_prepare_to_free_locked(
 }
 
 /**
- * binder_alloc_buffer_lookup() - get buffer given user ptr
+ * binder_alloc_prepare_to_free() - get buffer given user ptr
  * @alloc:	binder_alloc for this proc
  * @user_ptr:	User pointer to buffer data
  *

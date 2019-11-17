@@ -151,7 +151,7 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 	skb->ip_summed = CHECKSUM_NONE;
 
 	skb_dst_drop(skb);
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	rcu_read_lock();
 	dev = rcu_dereference(spriv->dev);
