@@ -8179,11 +8179,7 @@ static int replace_map_fd_with_map_ptr(struct bpf_verifier_env *env)
 			 * will be used by the valid program until it's unloaded
 			 * and all maps are released in free_used_maps()
 			 */
-			map = bpf_map_inc(map, false);
-			if (IS_ERR(map)) {
-				fdput(f);
-				return PTR_ERR(map);
-			}
+			bpf_map_inc(map);
 
 			aux->map_index = env->used_map_cnt;
 			env->used_maps[env->used_map_cnt++] = map;

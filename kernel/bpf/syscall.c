@@ -311,7 +311,7 @@ static void bpf_map_free_deferred(struct work_struct *work)
 
 static void bpf_map_put_uref(struct bpf_map *map)
 {
-	if (atomic_dec_and_test(&map->usercnt)) {
+	if (atomic64_dec_and_test(&map->usercnt)) {
 		if (map->ops->map_release_uref)
 			map->ops->map_release_uref(map);
 	}
@@ -322,7 +322,7 @@ static void bpf_map_put_uref(struct bpf_map *map)
  */
 static void __bpf_map_put(struct bpf_map *map, bool do_idr_lock)
 {
-	if (atomic_dec_and_test(&map->refcnt)) {
+	if (atomic64_dec_and_test(&map->refcnt)) {
 		/* bpf_map_free_id() must be called first */
 		bpf_map_free_id(map, do_idr_lock);
 		btf_put(map->btf);
@@ -575,8 +575,8 @@ static int map_create(union bpf_attr *attr)
 	if (err)
 		goto free_map;
 
-	atomic_set(&map->refcnt, 1);
-	atomic_set(&map->usercnt, 1);
+	atomic64_set(&map->refcnt, 1);
+	atomic64_set(&map->usercnt, 1);
 
 	if (attr->btf_key_type_id || attr->btf_value_type_id) {
 		struct btf *btf;
@@ -653,20 +653,18 @@ struct bpf_map *__bpf_map_get(struct fd f)
 	return f.file->private_data;
 }
 
-/* prog's and map's refcnt limit */
-#define BPF_MAX_REFCNT 32768
-
-struct bpf_map *bpf_map_inc(struct bpf_map *map, bool uref)
+void bpf_map_inc(struct bpf_map *map)
 {
-	if (atomic_inc_return(&map->refcnt) > BPF_MAX_REFCNT) {
-		atomic_dec(&map->refcnt);
-		return ERR_PTR(-EBUSY);
-	}
-	if (uref)
-		atomic_inc(&map->usercnt);
-	return map;
+	atomic64_inc(&map->refcnt);
 }
 EXPORT_SYMBOL_GPL(bpf_map_inc);
+
+void bpf_map_inc_with_uref(struct bpf_map *map)
+{
+	atomic64_inc(&map->refcnt);
+	atomic64_inc(&map->usercnt);
+}
+EXPORT_SYMBOL_GPL(bpf_map_inc_with_uref);
 
 struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 {
@@ -677,38 +675,30 @@ struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 	if (IS_ERR(map))
 		return map;
 
-	map = bpf_map_inc(map, true);
+	bpf_map_inc_with_uref(map);
 	fdput(f);
 
 	return map;
 }
 
 /* map_idr_lock should have been held */
-static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map,
-					      bool uref)
+static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
 {
 	int refold;
 
-	refold = atomic_fetch_add_unless(&map->refcnt, 1, 0);
-
-	if (refold >= BPF_MAX_REFCNT) {
-		__bpf_map_put(map, false);
-		return ERR_PTR(-EBUSY);
-	}
-
+	refold = atomic64_fetch_add_unless(&map->refcnt, 1, 0);
 	if (!refold)
 		return ERR_PTR(-ENOENT);
-
 	if (uref)
-		atomic_inc(&map->usercnt);
+		atomic64_inc(&map->usercnt);
 
 	return map;
 }
 
-struct bpf_map *bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
+struct bpf_map *bpf_map_inc_not_zero(struct bpf_map *map)
 {
 	spin_lock_bh(&map_idr_lock);
-	map = __bpf_map_inc_not_zero(map, uref);
+	map = __bpf_map_inc_not_zero(map, false);
 	spin_unlock_bh(&map_idr_lock);
 
 	return map;
@@ -1454,6 +1444,9 @@ static struct bpf_prog *____bpf_prog_get(struct fd f)
 
 	return f.file->private_data;
 }
+
+/* prog's refcnt limit */
+#define BPF_MAX_REFCNT 32768
 
 struct bpf_prog *bpf_prog_add(struct bpf_prog *prog, int i)
 {
