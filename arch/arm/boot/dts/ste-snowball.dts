@@ -377,10 +377,6 @@
 		};
 
 		prcmu@80157000 {
-			cpufreq {
-				status = "okay";
-			};
-
 			ab8500 {
 				ab8500-gpio {
 					/*
