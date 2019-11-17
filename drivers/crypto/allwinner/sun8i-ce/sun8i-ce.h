@@ -103,8 +103,8 @@ struct ce_variant {
 };
 
 struct sginfo {
-	u32 addr;
-	u32 len;
+	__le32 addr;
+	__le32 len;
 } __packed;
 
 /*
@@ -112,18 +112,18 @@ struct sginfo {
  * The structure of this descriptor could be found in the datasheet
  */
 struct ce_task {
-	u32 t_id;
-	u32 t_common_ctl;
-	u32 t_sym_ctl;
-	u32 t_asym_ctl;
-	u32 t_key;
-	u32 t_iv;
-	u32 t_ctr;
-	u32 t_dlen;
+	__le32 t_id;
+	__le32 t_common_ctl;
+	__le32 t_sym_ctl;
+	__le32 t_asym_ctl;
+	__le32 t_key;
+	__le32 t_iv;
+	__le32 t_ctr;
+	__le32 t_dlen;
 	struct sginfo t_src[MAX_SG];
 	struct sginfo t_dst[MAX_SG];
-	u32 next;
-	u32 reserved[3];
+	__le32 next;
+	__le32 reserved[3];
 } __packed __aligned(8);
 
 /*

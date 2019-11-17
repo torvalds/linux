@@ -90,7 +90,9 @@ static int sun8i_ce_cipher(struct skcipher_request *areq)
 	struct ce_task *cet;
 	struct scatterlist *sg;
 	unsigned int todo, len, offset, ivsize;
+	dma_addr_t addr_iv = 0, addr_key = 0;
 	void *backup_iv = NULL;
+	u32 common, sym;
 	int flow, i;
 	int nr_sgs = 0;
 	int nr_sgd = 0;
@@ -115,28 +117,31 @@ static int sun8i_ce_cipher(struct skcipher_request *areq)
 	cet = chan->tl;
 	memset(cet, 0, sizeof(struct ce_task));
 
-	cet->t_id = flow;
-	cet->t_common_ctl = ce->variant->alg_cipher[algt->ce_algo_id];
-	cet->t_common_ctl |= rctx->op_dir | CE_COMM_INT;
-	cet->t_dlen = areq->cryptlen / 4;
+	cet->t_id = cpu_to_le32(flow);
+	common = ce->variant->alg_cipher[algt->ce_algo_id];
+	common |= rctx->op_dir | CE_COMM_INT;
+	cet->t_common_ctl = cpu_to_le32(common);
 	/* CTS and recent CE (H6) need length in bytes, in word otherwise */
 	if (ce->variant->has_t_dlen_in_bytes)
-		cet->t_dlen = areq->cryptlen;
+		cet->t_dlen = cpu_to_le32(areq->cryptlen);
+	else
+		cet->t_dlen = cpu_to_le32(areq->cryptlen / 4);
 
-	cet->t_sym_ctl = ce->variant->op_mode[algt->ce_blockmode];
+	sym = ce->variant->op_mode[algt->ce_blockmode];
 	len = op->keylen;
 	switch (len) {
 	case 128 / 8:
-		cet->t_sym_ctl |= CE_AES_128BITS;
+		sym |= CE_AES_128BITS;
 		break;
 	case 192 / 8:
-		cet->t_sym_ctl |= CE_AES_192BITS;
+		sym |= CE_AES_192BITS;
 		break;
 	case 256 / 8:
-		cet->t_sym_ctl |= CE_AES_256BITS;
+		sym |= CE_AES_256BITS;
 		break;
 	}
 
+	cet->t_sym_ctl = cpu_to_le32(sym);
 	cet->t_asym_ctl = 0;
 
 	chan->op_mode = ce->variant->op_mode[algt->ce_blockmode];
@@ -144,9 +149,9 @@ static int sun8i_ce_cipher(struct skcipher_request *areq)
 	chan->method = ce->variant->alg_cipher[algt->ce_algo_id];
 	chan->keylen = op->keylen;
 
-	cet->t_key = dma_map_single(ce->dev, op->key, op->keylen,
-				    DMA_TO_DEVICE);
-	if (dma_mapping_error(ce->dev, cet->t_key)) {
+	addr_key = dma_map_single(ce->dev, op->key, op->keylen, DMA_TO_DEVICE);
+	cet->t_key = cpu_to_le32(addr_key);
+	if (dma_mapping_error(ce->dev, addr_key)) {
 		dev_err(ce->dev, "Cannot DMA MAP KEY\n");
 		err = -EFAULT;
 		goto theend;
@@ -171,9 +176,10 @@ static int sun8i_ce_cipher(struct skcipher_request *areq)
 						 ivsize, 0);
 		}
 		memcpy(chan->bounce_iv, areq->iv, ivsize);
-		cet->t_iv = dma_map_single(ce->dev, chan->bounce_iv,
-					   chan->ivlen, DMA_TO_DEVICE);
-		if (dma_mapping_error(ce->dev, cet->t_iv)) {
+		addr_iv = dma_map_single(ce->dev, chan->bounce_iv, chan->ivlen,
+					 DMA_TO_DEVICE);
+		cet->t_iv = cpu_to_le32(addr_iv);
+		if (dma_mapping_error(ce->dev, addr_iv)) {
 			dev_err(ce->dev, "Cannot DMA MAP IV\n");
 			err = -ENOMEM;
 			goto theend_iv;
@@ -208,9 +214,9 @@ static int sun8i_ce_cipher(struct skcipher_request *areq)
 
 	len = areq->cryptlen;
 	for_each_sg(areq->src, sg, nr_sgs, i) {
-		cet->t_src[i].addr = sg_dma_address(sg);
+		cet->t_src[i].addr = cpu_to_le32(sg_dma_address(sg));
 		todo = min(len, sg_dma_len(sg));
-		cet->t_src[i].len = todo / 4;
+		cet->t_src[i].len = cpu_to_le32(todo / 4);
 		dev_dbg(ce->dev, "%s total=%u SG(%d %u off=%d) todo=%u\n", __func__,
 			areq->cryptlen, i, cet->t_src[i].len, sg->offset, todo);
 		len -= todo;
@@ -223,9 +229,9 @@ static int sun8i_ce_cipher(struct skcipher_request *areq)
 
 	len = areq->cryptlen;
 	for_each_sg(areq->dst, sg, nr_sgd, i) {
-		cet->t_dst[i].addr = sg_dma_address(sg);
+		cet->t_dst[i].addr = cpu_to_le32(sg_dma_address(sg));
 		todo = min(len, sg_dma_len(sg));
-		cet->t_dst[i].len = todo / 4;
+		cet->t_dst[i].len = cpu_to_le32(todo / 4);
 		dev_dbg(ce->dev, "%s total=%u SG(%d %u off=%d) todo=%u\n", __func__,
 			areq->cryptlen, i, cet->t_dst[i].len, sg->offset, todo);
 		len -= todo;
@@ -250,8 +256,8 @@ theend_sgs:
 
 theend_iv:
 	if (areq->iv && ivsize > 0) {
-		if (cet->t_iv)
-			dma_unmap_single(ce->dev, cet->t_iv, chan->ivlen,
+		if (addr_iv)
+			dma_unmap_single(ce->dev, addr_iv, chan->ivlen,
 					 DMA_TO_DEVICE);
 		offset = areq->cryptlen - ivsize;
 		if (rctx->op_dir & CE_DECRYPTION) {
@@ -265,7 +271,7 @@ theend_iv:
 	}
 
 theend_key:
-	dma_unmap_single(ce->dev, cet->t_key, op->keylen, DMA_TO_DEVICE);
+	dma_unmap_single(ce->dev, addr_key, op->keylen, DMA_TO_DEVICE);
 
 theend:
 	return err;
