@@ -568,6 +568,15 @@ static inline void snd_pcm_timer_notify(struct snd_pcm_substream *substream,
 #endif
 }
 
+static void snd_pcm_sync_stop(struct snd_pcm_substream *substream)
+{
+	if (substream->runtime->stop_operating) {
+		substream->runtime->stop_operating = false;
+		if (substream->ops->sync_stop)
+			substream->ops->sync_stop(substream);
+	}
+}
+
 /**
  * snd_pcm_hw_param_choose - choose a configuration defined by @params
  * @pcm: PCM instance
@@ -659,6 +668,8 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 #endif
 		if (atomic_read(&substream->mmap_count))
 			return -EBADFD;
+
+	snd_pcm_sync_stop(substream);
 
 	params->rmask = ~0U;
 	err = snd_pcm_hw_refine(substream, params);
@@ -788,6 +799,7 @@ static int snd_pcm_hw_free(struct snd_pcm_substream *substream)
 	snd_pcm_stream_unlock_irq(substream);
 	if (atomic_read(&substream->mmap_count))
 		return -EBADFD;
+	snd_pcm_sync_stop(substream);
 	if (substream->ops->hw_free)
 		result = substream->ops->hw_free(substream);
 	if (substream->managed_buffer_alloc)
@@ -1313,6 +1325,7 @@ static void snd_pcm_post_stop(struct snd_pcm_substream *substream, int state)
 		runtime->status->state = state;
 		snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MSTOP);
 	}
+	runtime->stop_operating = true;
 	wake_up(&runtime->sleep);
 	wake_up(&runtime->tsleep);
 }
@@ -1589,6 +1602,7 @@ static void snd_pcm_post_resume(struct snd_pcm_substream *substream, int state)
 	snd_pcm_trigger_tstamp(substream);
 	runtime->status->state = runtime->status->suspended_state;
 	snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MRESUME);
+	snd_pcm_sync_stop(substream);
 }
 
 static const struct action_ops snd_pcm_action_resume = {
@@ -1709,6 +1723,7 @@ static int snd_pcm_pre_prepare(struct snd_pcm_substream *substream,
 static int snd_pcm_do_prepare(struct snd_pcm_substream *substream, int state)
 {
 	int err;
+	snd_pcm_sync_stop(substream);
 	err = substream->ops->prepare(substream);
 	if (err < 0)
 		return err;

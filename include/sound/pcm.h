@@ -59,6 +59,7 @@ struct snd_pcm_ops {
 	int (*hw_free)(struct snd_pcm_substream *substream);
 	int (*prepare)(struct snd_pcm_substream *substream);
 	int (*trigger)(struct snd_pcm_substream *substream, int cmd);
+	int (*sync_stop)(struct snd_pcm_substream *substream);
 	snd_pcm_uframes_t (*pointer)(struct snd_pcm_substream *substream);
 	int (*get_time_info)(struct snd_pcm_substream *substream,
 			struct timespec *system_ts, struct timespec *audio_ts,
@@ -395,6 +396,7 @@ struct snd_pcm_runtime {
 	wait_queue_head_t sleep;	/* poll sleep */
 	wait_queue_head_t tsleep;	/* transfer sleep */
 	struct fasync_struct *fasync;
+	bool stop_operating;		/* sync_stop will be called */
 
 	/* -- private section -- */
 	void *private_data;
