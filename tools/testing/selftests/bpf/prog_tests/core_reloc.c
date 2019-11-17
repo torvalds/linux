@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include "progs/core_reloc_types.h"
+#include <sys/mman.h>
 
 #define STRUCT_TO_CHAR_PTR(struct_name) (const char *)&(struct struct_name)
 
@@ -453,8 +454,15 @@ struct data {
 	char out[256];
 };
 
+static size_t roundup_page(size_t sz)
+{
+	long page_size = sysconf(_SC_PAGE_SIZE);
+	return (sz + page_size - 1) / page_size * page_size;
+}
+
 void test_core_reloc(void)
 {
+	const size_t mmap_sz = roundup_page(sizeof(struct data));
 	struct bpf_object_load_attr load_attr = {};
 	struct core_reloc_test_case *test_case;
 	const char *tp_name, *probe_name;
@@ -463,8 +471,8 @@ void test_core_reloc(void)
 	struct bpf_map *data_map;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
-	const int zero = 0;
-	struct data data;
+	struct data *data;
+	void *mmap_data = NULL;
 
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
 		test_case = &test_cases[i];
@@ -476,8 +484,7 @@ void test_core_reloc(void)
 		);
 
 		obj = bpf_object__open_file(test_case->bpf_obj_file, &opts);
-		if (CHECK(IS_ERR_OR_NULL(obj), "obj_open",
-			  "failed to open '%s': %ld\n",
+		if (CHECK(IS_ERR(obj), "obj_open", "failed to open '%s': %ld\n",
 			  test_case->bpf_obj_file, PTR_ERR(obj)))
 			continue;
 
@@ -519,24 +526,22 @@ void test_core_reloc(void)
 		if (CHECK(!data_map, "find_data_map", "data map not found\n"))
 			goto cleanup;
 
-		memset(&data, 0, sizeof(data));
-		memcpy(data.in, test_case->input, test_case->input_len);
-
-		err = bpf_map_update_elem(bpf_map__fd(data_map),
-					  &zero, &data, 0);
-		if (CHECK(err, "update_data_map",
-			  "failed to update .data map: %d\n", err))
+		mmap_data = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
+				 MAP_SHARED, bpf_map__fd(data_map), 0);
+		if (CHECK(mmap_data == MAP_FAILED, "mmap",
+			  ".bss mmap failed: %d", errno)) {
+			mmap_data = NULL;
 			goto cleanup;
+		}
+		data = mmap_data;
+
+		memset(mmap_data, 0, sizeof(*data));
+		memcpy(data->in, test_case->input, test_case->input_len);
 
 		/* trigger test run */
 		usleep(1);
 
-		err = bpf_map_lookup_elem(bpf_map__fd(data_map), &zero, &data);
-		if (CHECK(err, "get_result",
-			  "failed to get output data: %d\n", err))
-			goto cleanup;
-
-		equal = memcmp(data.out, test_case->output,
+		equal = memcmp(data->out, test_case->output,
 			       test_case->output_len) == 0;
 		if (CHECK(!equal, "check_result",
 			  "input/output data don't match\n")) {
@@ -548,12 +553,16 @@ void test_core_reloc(void)
 			}
 			for (j = 0; j < test_case->output_len; j++) {
 				printf("output byte #%d: EXP 0x%02hhx GOT 0x%02hhx\n",
-				       j, test_case->output[j], data.out[j]);
+				       j, test_case->output[j], data->out[j]);
 			}
 			goto cleanup;
 		}
 
 cleanup:
+		if (mmap_data) {
+			CHECK_FAIL(munmap(mmap_data, mmap_sz));
+			mmap_data = NULL;
+		}
 		if (!IS_ERR_OR_NULL(link)) {
 			bpf_link__destroy(link);
 			link = NULL;
