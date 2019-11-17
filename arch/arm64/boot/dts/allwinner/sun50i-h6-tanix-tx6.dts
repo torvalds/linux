@@ -89,6 +89,7 @@
 };
 
 &r_ir {
+	linux,rc-map-name = "rc-tanix-tx5max";
 	status = "okay";
 };
 
