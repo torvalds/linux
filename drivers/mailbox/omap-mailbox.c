@@ -868,7 +868,7 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	dev_info(mdev->dev, "omap mailbox rev 0x%x\n", l);
 
 	ret = pm_runtime_put_sync(mdev->dev);
-	if (ret < 0)
+	if (ret < 0 && ret != -ENOSYS)
 		goto unregister;
 
 	devm_kfree(&pdev->dev, finfoblk);
