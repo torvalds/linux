@@ -662,6 +662,14 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		goto _error;
 
+	if (substream->managed_buffer_alloc) {
+		err = snd_pcm_lib_malloc_pages(substream,
+					       params_buffer_bytes(params));
+		if (err < 0)
+			goto _error;
+		runtime->buffer_changed = err > 0;
+	}
+
 	if (substream->ops->hw_params != NULL) {
 		err = substream->ops->hw_params(substream, params);
 		if (err < 0)
@@ -723,6 +731,8 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_set_state(substream, SNDRV_PCM_STATE_OPEN);
 	if (substream->ops->hw_free != NULL)
 		substream->ops->hw_free(substream);
+	if (substream->managed_buffer_alloc)
+		snd_pcm_lib_free_pages(substream);
 	return err;
 }
 
@@ -769,6 +779,8 @@ static int snd_pcm_hw_free(struct snd_pcm_substream *substream)
 		return -EBADFD;
 	if (substream->ops->hw_free)
 		result = substream->ops->hw_free(substream);
+	if (substream->managed_buffer_alloc)
+		snd_pcm_lib_free_pages(substream);
 	snd_pcm_set_state(substream, SNDRV_PCM_STATE_OPEN);
 	pm_qos_remove_request(&substream->latency_pm_qos_req);
 	return result;

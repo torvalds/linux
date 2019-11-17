@@ -414,6 +414,7 @@ struct snd_pcm_runtime {
 	size_t dma_bytes;		/* size of DMA area */
 
 	struct snd_dma_buffer *dma_buffer_p;	/* allocated buffer */
+	unsigned int buffer_changed:1;	/* buffer allocation changed; set only in managed mode */
 
 	/* -- audio timestamp config -- */
 	struct snd_pcm_audio_tstamp_config audio_tstamp_config;
@@ -475,6 +476,7 @@ struct snd_pcm_substream {
 #endif /* CONFIG_SND_VERBOSE_PROCFS */
 	/* misc flags */
 	unsigned int hw_opened: 1;
+	unsigned int managed_buffer_alloc:1;
 };
 
 #define SUBSTREAM_BUSY(substream) ((substream)->ref_count > 0)
@@ -1185,6 +1187,12 @@ void snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 					  size_t size, size_t max);
 int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size);
 int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream);
+
+void snd_pcm_set_managed_buffer(struct snd_pcm_substream *substream, int type,
+				struct device *data, size_t size, size_t max);
+void snd_pcm_set_managed_buffer_all(struct snd_pcm *pcm, int type,
+				    struct device *data,
+				    size_t size, size_t max);
 
 int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,
 				      size_t size, gfp_t gfp_flags);
