@@ -484,7 +484,7 @@ config UML_RANDOM
 	  /dev/hwrng and injects the entropy into /dev/random.
 
 config HW_RANDOM_KEYSTONE
-	depends on ARCH_KEYSTONE
+	depends on ARCH_KEYSTONE || COMPILE_TEST
 	default HW_RANDOM
 	tristate "TI Keystone NETCP SA Hardware random number generator"
 	help
