@@ -805,6 +805,7 @@ destructor and PCI entries. Example code is shown first, below.
                       return -EBUSY;
               }
               chip->irq = pci->irq;
+              card->sync_irq = chip->irq;
 
               /* (2) initialization of the chip hardware */
               .... /*   (not implemented in this document) */
@@ -965,6 +966,15 @@ usually like the following:
           return IRQ_HANDLED;
   }
 
+After requesting the IRQ, you can passed it to ``card->sync_irq``
+field:
+::
+
+          card->irq = chip->irq;
+
+This allows PCM core automatically performing
+:c:func:`synchronize_irq()` at the necessary timing like ``hw_free``.
+See the later section `sync_stop callback`_ for details.
 
 Now let's write the corresponding destructor for the resources above.
 The role of destructor is simple: disable the hardware (if already
@@ -2058,6 +2068,37 @@ flag set, and you cannot call functions which may sleep. The
 ``trigger`` callback should be as minimal as possible, just really
 triggering the DMA. The other stuff should be initialized
 ``hw_params`` and ``prepare`` callbacks properly beforehand.
+
+sync_stop callback
+~~~~~~~~~~~~~~~~~~
+
+::
+
+  static int snd_xxx_sync_stop(struct snd_pcm_substream *substream);
+
+This callback is optional, and NULL can be passed.  It's called after
+the PCM core stops the stream and changes the stream state
+``prepare``, ``hw_params`` or ``hw_free``.
+Since the IRQ handler might be still pending, we need to wait until
+the pending task finishes before moving to the next step; otherwise it
+might lead to a crash due to resource conflicts or access to the freed
+resources.  A typical behavior is to call a synchronization function
+like :c:func:`synchronize_irq()` here.
+
+For majority of drivers that need only a call of
+:c:func:`synchronize_irq()`, there is a simpler setup, too.
+While keeping NULL to ``sync_stop`` PCM callback, the driver can set
+``card->sync_irq`` field to store the valid interrupt number after
+requesting an IRQ, instead.   Then PCM core will look call
+:c:func:`synchronize_irq()` with the given IRQ appropriately.
+
+If the IRQ handler is released at the card destructor, you don't need
+to clear ``card->sync_irq``, as the card itself is being released.
+So, usually you'll need to add just a single line for assigning
+``card->sync_irq`` in the driver code unless the driver re-acquires
+the IRQ.  When the driver frees and re-acquires the IRQ dynamically
+(e.g. for suspend/resume), it needs to clear and re-set
+``card->sync_irq`` again appropriately.
 
 pointer callback
 ~~~~~~~~~~~~~~~~
