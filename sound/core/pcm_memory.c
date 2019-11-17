@@ -15,6 +15,7 @@
 #include <sound/pcm.h>
 #include <sound/info.h>
 #include <sound/initval.h>
+#include "pcm_local.h"
 
 static int preallocate_dma = 1;
 module_param(preallocate_dma, int, 0444);
