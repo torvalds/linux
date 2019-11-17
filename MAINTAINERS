@@ -3268,7 +3268,6 @@ S:	Maintained
 F:	drivers/cpufreq/bmips-cpufreq.c
 
 BROADCOM BMIPS MIPS ARCHITECTURE
-M:	Kevin Cernekee <cernekee@gmail.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-mips@vger.kernel.org
@@ -3745,7 +3744,6 @@ F:	drivers/crypto/cavium/cpt/
 
 CAVIUM THUNDERX2 ARM64 SOC
 M:	Robert Richter <rrichter@cavium.com>
-M:	Jayachandran C <jnair@caviumnetworks.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm64/boot/dts/cavium/thunder2-99xx*

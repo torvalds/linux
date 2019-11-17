@@ -61,6 +61,12 @@
 #include <net/genetlink.h>
 #include <net/netns/hash.h>
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 struct tipc_node;
 struct tipc_bearer;
 struct tipc_bc_base;
