@@ -21,6 +21,7 @@ struct maps {
 
 void maps__insert(struct maps *maps, struct map *map);
 void maps__remove(struct maps *maps, struct map *map);
+void __maps__remove(struct maps *maps, struct map *map);
 struct map *maps__find(struct maps *maps, u64 addr);
 struct map *maps__first(struct maps *maps);
 struct map *map__next(struct map *map);
@@ -37,7 +38,10 @@ struct map_groups {
 	struct maps	 maps;
 	struct machine	 *machine;
 	struct map	 *last_search_by_name;
+	struct map	 **maps_by_name;
 	refcount_t	 refcnt;
+	unsigned int	 nr_maps;
+	unsigned int	 nr_maps_allocated;
 #ifdef HAVE_LIBUNWIND_SUPPORT
 	void				*addr_space;
 	struct unwind_libunwind_ops	*unwind_libunwind_ops;
@@ -96,5 +100,7 @@ int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map, FILE 
 struct map *map_groups__find_by_name(struct map_groups *mg, const char *name);
 
 int map_groups__merge_in(struct map_groups *kmaps, struct map *new_map);
+
+void __map_groups__sort_by_name(struct map_groups *mg);
 
 #endif // __PERF_MAP_GROUPS_H

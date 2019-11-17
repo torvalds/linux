@@ -573,20 +573,63 @@ void map_groups__init(struct map_groups *mg, struct machine *machine)
 	maps__init(&mg->maps);
 	mg->machine = machine;
 	mg->last_search_by_name = NULL;
+	mg->nr_maps = 0;
+	mg->maps_by_name = NULL;
 	refcount_set(&mg->refcnt, 1);
+}
+
+static void __map_groups__free_maps_by_name(struct map_groups *mg)
+{
+	/*
+	 * Free everything to try to do it from the rbtree in the next search
+	 */
+	zfree(&mg->maps_by_name);
+	mg->nr_maps_allocated = 0;
 }
 
 void map_groups__insert(struct map_groups *mg, struct map *map)
 {
-	maps__insert(&mg->maps, map);
+	struct maps *maps = &mg->maps;
+
+	down_write(&maps->lock);
+	__maps__insert(maps, map);
+	++mg->nr_maps;
+
+	/*
+	 * If we already performed some search by name, then we need to add the just
+	 * inserted map and resort.
+	 */
+	if (mg->maps_by_name) {
+		if (mg->nr_maps > mg->nr_maps_allocated) {
+			int nr_allocate = mg->nr_maps * 2;
+			struct map **maps_by_name = realloc(mg->maps_by_name, nr_allocate * sizeof(map));
+
+			if (maps_by_name == NULL) {
+				__map_groups__free_maps_by_name(mg);
+				return;
+			}
+
+			mg->maps_by_name = maps_by_name;
+			mg->nr_maps_allocated = nr_allocate;
+		}
+		mg->maps_by_name[mg->nr_maps - 1] = map;
+		__map_groups__sort_by_name(mg);
+	}
+	up_write(&maps->lock);
 }
 
 void map_groups__remove(struct map_groups *mg, struct map *map)
 {
+	struct maps *maps = &mg->maps;
+	down_write(&maps->lock);
 	if (mg->last_search_by_name == map)
 		mg->last_search_by_name = NULL;
 
-	maps__remove(&mg->maps, map);
+	__maps__remove(maps, map);
+	--mg->nr_maps;
+	if (mg->maps_by_name)
+		__map_groups__free_maps_by_name(mg);
+	up_write(&maps->lock);
 }
 
 static void __maps__purge(struct maps *maps)
@@ -904,7 +947,7 @@ void maps__insert(struct maps *maps, struct map *map)
 	up_write(&maps->lock);
 }
 
-static void __maps__remove(struct maps *maps, struct map *map)
+void __maps__remove(struct maps *maps, struct map *map)
 {
 	rb_erase_init(&map->rb_node, &maps->entries);
 	map__put(map);

@@ -1760,6 +1760,56 @@ out:
 	return ret;
 }
 
+static int map__strcmp(const void *a, const void *b)
+{
+	const struct map *ma = *(const struct map **)a, *mb = *(const struct map **)b;
+	return strcmp(ma->dso->short_name, mb->dso->short_name);
+}
+
+static int map__strcmp_name(const void *name, const void *b)
+{
+	const struct map *map = *(const struct map **)b;
+	return strcmp(name, map->dso->short_name);
+}
+
+void __map_groups__sort_by_name(struct map_groups *mg)
+{
+	qsort(mg->maps_by_name, mg->nr_maps, sizeof(struct map *), map__strcmp);
+}
+
+static int map__groups__sort_by_name_from_rbtree(struct map_groups *mg)
+{
+	struct map *map;
+	struct map **maps_by_name = realloc(mg->maps_by_name, mg->nr_maps * sizeof(map));
+	int i = 0;
+
+	if (maps_by_name == NULL)
+		return -1;
+
+	mg->maps_by_name = maps_by_name;
+	mg->nr_maps_allocated = mg->nr_maps;
+
+	maps__for_each_entry(&mg->maps, map)
+		maps_by_name[i++] = map;
+
+	__map_groups__sort_by_name(mg);
+	return 0;
+}
+
+static struct map *__map_groups__find_by_name(struct map_groups *mg, const char *name)
+{
+	struct map **mapp;
+
+	if (mg->maps_by_name == NULL &&
+	    map__groups__sort_by_name_from_rbtree(mg))
+		return NULL;
+
+	mapp = bsearch(name, mg->maps_by_name, mg->nr_maps, sizeof(*mapp), map__strcmp_name);
+	if (mapp)
+		return *mapp;
+	return NULL;
+}
+
 struct map *map_groups__find_by_name(struct map_groups *mg, const char *name)
 {
 	struct maps *maps = &mg->maps;
@@ -1771,7 +1821,16 @@ struct map *map_groups__find_by_name(struct map_groups *mg, const char *name)
 		map = mg->last_search_by_name;
 		goto out_unlock;
 	}
+	/*
+	 * If we have mg->maps_by_name, then the name isn't in the rbtree,
+	 * as mg->maps_by_name mirrors the rbtree when lookups by name are
+	 * made.
+	 */
+	map = __map_groups__find_by_name(mg, name);
+	if (map || mg->maps_by_name != NULL)
+		goto out_unlock;
 
+	/* Fallback to traversing the rbtree... */
 	maps__for_each_entry(maps, map)
 		if (strcmp(map->dso->short_name, name) == 0) {
 			mg->last_search_by_name = map;
