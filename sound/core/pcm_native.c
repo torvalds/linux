@@ -574,6 +574,8 @@ static void snd_pcm_sync_stop(struct snd_pcm_substream *substream)
 		substream->runtime->stop_operating = false;
 		if (substream->ops->sync_stop)
 			substream->ops->sync_stop(substream);
+		else if (substream->pcm->card->sync_irq > 0)
+			synchronize_irq(substream->pcm->card->sync_irq);
 	}
 }
 
