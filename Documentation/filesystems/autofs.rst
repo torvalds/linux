@@ -49,9 +49,10 @@ extra properties as described in the next section.
 Objects can only be created by the automount daemon: symlinks are
 created with a regular `symlink` system call, while directories and
 mount traps are created with `mkdir`.  The determination of whether a
-directory should be a mount trap or not is quite ad hoc, largely for
-historical reasons, and is determined in part by the
-*direct*/*indirect*/*offset* mount options, and the *maxproto* mount option.
+directory should be a mount trap is based on a master map. This master
+map is consulted by autofs to determine which directories are mount
+points. Mount points can be *direct*/*indirect*/*offset*.
+On most systems, the default master map is located at */etc/auto.master*.
 
 If neither the *direct* or *offset* mount options are given (so the
 mount is considered to be *indirect*), then the root directory is
