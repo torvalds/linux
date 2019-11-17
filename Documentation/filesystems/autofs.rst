@@ -322,8 +322,7 @@ notification messages to this pipe for the daemon to respond to.
 For version 5, the format of the message is::
 
 	struct autofs_v5_packet {
-		int proto_version;		/* Protocol version */
-		int type;			/* Type of packet */
+		struct autofs_packet_hdr hdr;
 		autofs_wqt_t wait_queue_token;
 		__u32 dev;
 		__u64 ino;
@@ -334,6 +333,13 @@ For version 5, the format of the message is::
 		__u32 len;
 		char name[NAME_MAX+1];
         };
+
+And the format of the header is::
+
+	struct autofs_packet_hdr {
+		int proto_version;		/* Protocol version */
+		int type;			/* Type of packet */
+	};
 
 where the type is one of ::
 
@@ -395,8 +401,7 @@ The available ioctl commands are:
 	anything suitable to expire.  A pointer to a packet::
 
 		struct autofs_packet_expire_multi {
-			int proto_version;		/* Protocol version */
-			int type;			/* Type of packet */
+			struct autofs_packet_hdr hdr;
 			autofs_wqt_t wait_queue_token;
 			int len;
 			char name[NAME_MAX+1];
