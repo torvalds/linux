@@ -101,6 +101,7 @@ static int meson_cipher(struct skcipher_request *areq)
 	unsigned int keyivlen, ivsize, offset, tloffset;
 	dma_addr_t phykeyiv;
 	void *backup_iv = NULL, *bkeyiv;
+	__le32 v;
 
 	algt = container_of(alg, struct meson_alg_template, alg.skcipher);
 
@@ -165,11 +166,11 @@ static int meson_cipher(struct skcipher_request *areq)
 		desc = &mc->chanlist[flow].tl[tloffset];
 		memset(desc, 0, sizeof(struct meson_desc));
 		todo = min(keyivlen - eat, 16u);
-		desc->t_src = phykeyiv + i * 16;
-		desc->t_dst = i * 16;
-		desc->len = 16;
-		desc->mode = MODE_KEY;
-		desc->owner = 1;
+		desc->t_src = cpu_to_le32(phykeyiv + i * 16);
+		desc->t_dst = cpu_to_le32(i * 16);
+		v = (MODE_KEY << 20) | DESC_OWN | 16;
+		desc->t_status = cpu_to_le32(v);
+
 		eat += todo;
 		i++;
 		tloffset++;
@@ -208,18 +209,17 @@ static int meson_cipher(struct skcipher_request *areq)
 		desc = &mc->chanlist[flow].tl[tloffset];
 		memset(desc, 0, sizeof(struct meson_desc));
 
-		desc->t_src = sg_dma_address(src_sg);
-		desc->t_dst = sg_dma_address(dst_sg);
+		desc->t_src = cpu_to_le32(sg_dma_address(src_sg));
+		desc->t_dst = cpu_to_le32(sg_dma_address(dst_sg));
 		todo = min(len, sg_dma_len(src_sg));
-		desc->owner = 1;
-		desc->len = todo;
-		desc->mode = op->keymode;
-		desc->op_mode = algt->blockmode;
-		desc->enc = rctx->op_dir;
+		v = (op->keymode << 20) | DESC_OWN | todo | (algt->blockmode << 26);
+		if (rctx->op_dir)
+			v |= DESC_ENCRYPTION;
 		len -= todo;
 
 		if (!sg_next(src_sg))
-			desc->eoc = 1;
+			v |= DESC_LAST;
+		desc->t_status = cpu_to_le32(v);
 		tloffset++;
 		src_sg = sg_next(src_sg);
 		dst_sg = sg_next(dst_sg);

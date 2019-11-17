@@ -26,43 +26,34 @@
 
 #define MAXDESC 64
 
+#define DESC_LAST BIT(18)
+#define DESC_ENCRYPTION BIT(28)
+#define DESC_OWN BIT(31)
+
 /*
  * struct meson_desc - Descriptor for DMA operations
  * Note that without datasheet, some are unknown
- * @len:	length of data to operate
- * @irq:	Ignored by hardware
- * @eoc:	End of descriptor
- * @loop:	Unknown
- * @mode:	Type of algorithm (AES, SHA)
- * @begin:	Unknown
- * @end:	Unknown
- * @op_mode:	Blockmode (CBC, ECB)
- * @block:	Unknown
- * @error:	Unknown
- * @owner:	owner of the descriptor, 1 own by HW
+ * @t_status:	Descriptor of the cipher operation (see description below)
  * @t_src:	Physical address of data to read
  * @t_dst:	Physical address of data to write
+ * t_status is segmented like this:
+ * @len:	0-16	length of data to operate
+ * @irq:	17	Ignored by hardware
+ * @eoc:	18	End means the descriptor is the last
+ * @loop:	19	Unknown
+ * @mode:	20-23	Type of algorithm (AES, SHA)
+ * @begin:	24	Unknown
+ * @end:	25	Unknown
+ * @op_mode:	26-27	Blockmode (CBC, ECB)
+ * @enc:	28	0 means decryption, 1 is for encryption
+ * @block:	29	Unknown
+ * @error:	30	Unknown
+ * @owner:	31	owner of the descriptor, 1 own by HW
  */
 struct meson_desc {
-	union {
-		u32 t_status;
-		struct {
-			u32 len:17;
-			u32 irq:1;
-			u32 eoc:1;
-			u32 loop:1;
-			u32 mode:4;
-			u32 begin:1;
-			u32 end:1;
-			u32 op_mode:2;
-			u32 enc:1;
-			u32 block:1;
-			u32 error:1;
-			u32 owner:1;
-		};
-	};
-	u32 t_src;
-	u32 t_dst;
+	__le32 t_status;
+	__le32 t_src;
+	__le32 t_dst;
 };
 
 /*
