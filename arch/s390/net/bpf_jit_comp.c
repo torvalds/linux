@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/bpf.h>
 #include <linux/mm.h>
+#include <linux/kernel.h>
 #include <asm/cacheflush.h>
 #include <asm/dis.h>
 #include <asm/facility.h>
@@ -39,8 +40,10 @@ struct bpf_jit {
 	int size;		/* Size of program and literal pool */
 	int size_prg;		/* Size of program */
 	int prg;		/* Current position in program */
-	int lit_start;		/* Start of literal pool */
-	int lit;		/* Current position in literal pool */
+	int lit32_start;	/* Start of 32-bit literal pool */
+	int lit32;		/* Current position in 32-bit literal pool */
+	int lit64_start;	/* Start of 64-bit literal pool */
+	int lit64;		/* Current position in 64-bit literal pool */
 	int base_ip;		/* Base address for literal pool */
 	int exit_ip;		/* Address of exit */
 	int r1_thunk_ip;	/* Address of expoline thunk for 'br %r1' */
@@ -287,22 +290,22 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 #define EMIT_CONST_U32(val)					\
 ({								\
 	unsigned int ret;					\
-	ret = jit->lit - jit->base_ip;				\
+	ret = jit->lit32 - jit->base_ip;			\
 	jit->seen |= SEEN_LITERAL;				\
 	if (jit->prg_buf)					\
-		*(u32 *) (jit->prg_buf + jit->lit) = (u32) (val);\
-	jit->lit += 4;						\
+		*(u32 *)(jit->prg_buf + jit->lit32) = (u32)(val);\
+	jit->lit32 += 4;					\
 	ret;							\
 })
 
 #define EMIT_CONST_U64(val)					\
 ({								\
 	unsigned int ret;					\
-	ret = jit->lit - jit->base_ip;				\
+	ret = jit->lit64 - jit->base_ip;			\
 	jit->seen |= SEEN_LITERAL;				\
 	if (jit->prg_buf)					\
-		*(u64 *) (jit->prg_buf + jit->lit) = (u64) (val);\
-	jit->lit += 8;						\
+		*(u64 *)(jit->prg_buf + jit->lit64) = (u64)(val);\
+	jit->lit64 += 8;					\
 	ret;							\
 })
 
@@ -1430,9 +1433,10 @@ static int bpf_set_addr(struct bpf_jit *jit, int i)
 static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp,
 			bool extra_pass)
 {
-	int i, insn_count;
+	int i, insn_count, lit32_size, lit64_size;
 
-	jit->lit = jit->lit_start;
+	jit->lit32 = jit->lit32_start;
+	jit->lit64 = jit->lit64_start;
 	jit->prg = 0;
 
 	bpf_jit_prologue(jit, fp->aux->stack_depth);
@@ -1448,8 +1452,15 @@ static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp,
 	}
 	bpf_jit_epilogue(jit, fp->aux->stack_depth);
 
-	jit->lit_start = jit->prg;
-	jit->size = jit->lit;
+	lit32_size = jit->lit32 - jit->lit32_start;
+	lit64_size = jit->lit64 - jit->lit64_start;
+	jit->lit32_start = jit->prg;
+	if (lit32_size)
+		jit->lit32_start = ALIGN(jit->lit32_start, 4);
+	jit->lit64_start = jit->lit32_start + lit32_size;
+	if (lit64_size)
+		jit->lit64_start = ALIGN(jit->lit64_start, 8);
+	jit->size = jit->lit64_start + lit64_size;
 	jit->size_prg = jit->prg;
 	return 0;
 }
@@ -1535,7 +1546,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 		goto free_addrs;
 	}
 
-	header = bpf_jit_binary_alloc(jit.size, &jit.prg_buf, 2, jit_fill_hole);
+	header = bpf_jit_binary_alloc(jit.size, &jit.prg_buf, 8, jit_fill_hole);
 	if (!header) {
 		fp = orig_fp;
 		goto free_addrs;
