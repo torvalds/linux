@@ -498,9 +498,8 @@ int snd_soc_pcm_component_mmap(struct snd_pcm_substream *substream,
 	return -EINVAL;
 }
 
-int snd_soc_pcm_component_new(struct snd_pcm *pcm)
+int snd_soc_pcm_component_new(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
 	int ret;
@@ -516,13 +515,12 @@ int snd_soc_pcm_component_new(struct snd_pcm *pcm)
 	return 0;
 }
 
-void snd_soc_pcm_component_free(struct snd_pcm *pcm)
+void snd_soc_pcm_component_free(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
 
 	for_each_rtd_components(rtd, rtdcom, component)
 		if (component->driver->pcm_destruct)
-			component->driver->pcm_destruct(component, pcm);
+			component->driver->pcm_destruct(component, rtd->pcm);
 }

@@ -412,7 +412,7 @@ struct page *snd_soc_pcm_component_page(struct snd_pcm_substream *substream,
 					unsigned long offset);
 int snd_soc_pcm_component_mmap(struct snd_pcm_substream *substream,
 			       struct vm_area_struct *vma);
-int snd_soc_pcm_component_new(struct snd_pcm *pcm);
-void snd_soc_pcm_component_free(struct snd_pcm *pcm);
+int snd_soc_pcm_component_new(struct snd_soc_pcm_runtime *rtd);
+void snd_soc_pcm_component_free(struct snd_soc_pcm_runtime *rtd);
 
 #endif /* __SOC_COMPONENT_H */

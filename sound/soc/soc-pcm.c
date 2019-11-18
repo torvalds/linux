@@ -2898,7 +2898,7 @@ static void soc_pcm_private_free(struct snd_pcm *pcm)
 
 	/* need to sync the delayed work before releasing resources */
 	flush_delayed_work(&rtd->delayed_work);
-	snd_soc_pcm_component_free(pcm);
+	snd_soc_pcm_component_free(rtd);
 }
 
 /* create a new pcm */
@@ -3036,7 +3036,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	if (capture)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &rtd->ops);
 
-	ret = snd_soc_pcm_component_new(pcm);
+	ret = snd_soc_pcm_component_new(rtd);
 	if (ret < 0) {
 		dev_err(rtd->dev, "ASoC: pcm constructor failed: %d\n", ret);
 		return ret;
