@@ -17790,7 +17790,6 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 			     struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc_state *crtc_state;
 	struct intel_encoder *encoder;
 	struct intel_crtc *crtc;
 	intel_wakeref_t wakeref;
@@ -17823,7 +17822,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	 * waits, so we need vblank interrupts restored beforehand.
 	 */
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		crtc_state = to_intel_crtc_state(crtc->base.state);
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
 
 		drm_crtc_vblank_reset(&crtc->base);
 
@@ -17837,7 +17837,9 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 		intel_sanitize_encoder(encoder);
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		crtc_state = to_intel_crtc_state(crtc->base.state);
+		struct intel_crtc_state *crtc_state =
+			crtc_state = to_intel_crtc_state(crtc->base.state);
+
 		intel_sanitize_crtc(crtc, ctx);
 		intel_dump_pipe_config(crtc_state, NULL, "[setup_hw_state]");
 	}
@@ -17870,9 +17872,10 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	}
 
 	for_each_intel_crtc(dev, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
 		u64 put_domains;
 
-		crtc_state = to_intel_crtc_state(crtc->base.state);
 		put_domains = modeset_get_crtc_power_domains(crtc_state);
 		if (WARN_ON(put_domains))
 			modeset_put_power_domains(dev_priv, put_domains);
