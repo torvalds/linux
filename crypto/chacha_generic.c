@@ -37,18 +37,6 @@ static int chacha_stream_xor(struct skcipher_request *req,
 	return err;
 }
 
-static int crypto_chacha20_setkey(struct crypto_skcipher *tfm, const u8 *key,
-				  unsigned int keysize)
-{
-	return chacha_setkey(tfm, key, keysize, 20);
-}
-
-static int crypto_chacha12_setkey(struct crypto_skcipher *tfm, const u8 *key,
-				 unsigned int keysize)
-{
-	return chacha_setkey(tfm, key, keysize, 12);
-}
-
 static int crypto_chacha_crypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -91,7 +79,7 @@ static struct skcipher_alg algs[] = {
 		.max_keysize		= CHACHA_KEY_SIZE,
 		.ivsize			= CHACHA_IV_SIZE,
 		.chunksize		= CHACHA_BLOCK_SIZE,
-		.setkey			= crypto_chacha20_setkey,
+		.setkey			= chacha20_setkey,
 		.encrypt		= crypto_chacha_crypt,
 		.decrypt		= crypto_chacha_crypt,
 	}, {
@@ -106,7 +94,7 @@ static struct skcipher_alg algs[] = {
 		.max_keysize		= CHACHA_KEY_SIZE,
 		.ivsize			= XCHACHA_IV_SIZE,
 		.chunksize		= CHACHA_BLOCK_SIZE,
-		.setkey			= crypto_chacha20_setkey,
+		.setkey			= chacha20_setkey,
 		.encrypt		= crypto_xchacha_crypt,
 		.decrypt		= crypto_xchacha_crypt,
 	}, {
@@ -121,7 +109,7 @@ static struct skcipher_alg algs[] = {
 		.max_keysize		= CHACHA_KEY_SIZE,
 		.ivsize			= XCHACHA_IV_SIZE,
 		.chunksize		= CHACHA_BLOCK_SIZE,
-		.setkey			= crypto_chacha12_setkey,
+		.setkey			= chacha12_setkey,
 		.encrypt		= crypto_xchacha_crypt,
 		.decrypt		= crypto_xchacha_crypt,
 	}
