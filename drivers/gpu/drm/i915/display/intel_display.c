@@ -1838,6 +1838,7 @@ static void intel_crtc_vblank_on(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
+	assert_vblank_disabled(&crtc->base);
 	drm_crtc_set_max_vblank_count(&crtc->base,
 				      intel_crtc_max_vblank_count(crtc_state));
 	drm_crtc_vblank_on(&crtc->base);
@@ -6547,7 +6548,6 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (pipe_config->has_pch_encoder)
 		ironlake_pch_enable(state, pipe_config);
 
-	assert_vblank_disabled(crtc);
 	intel_crtc_vblank_on(pipe_config);
 
 	intel_encoders_enable(state, intel_crtc);
@@ -6713,7 +6713,6 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (pipe_config->has_pch_encoder)
 		lpt_pch_enable(state, pipe_config);
 
-	assert_vblank_disabled(crtc);
 	intel_crtc_vblank_on(pipe_config);
 
 	intel_encoders_enable(state, intel_crtc);
@@ -7089,7 +7088,6 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 	dev_priv->display.initial_watermarks(state, pipe_config);
 	intel_enable_pipe(pipe_config);
 
-	assert_vblank_disabled(crtc);
 	intel_crtc_vblank_on(pipe_config);
 
 	intel_encoders_enable(state, intel_crtc);
@@ -7149,7 +7147,6 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 		intel_update_watermarks(intel_crtc);
 	intel_enable_pipe(pipe_config);
 
-	assert_vblank_disabled(crtc);
 	intel_crtc_vblank_on(pipe_config);
 
 	intel_encoders_enable(state, intel_crtc);
