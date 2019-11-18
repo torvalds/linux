@@ -1060,14 +1060,15 @@ static void rtw_pci_io_unmapping(struct rtw_dev *rtwdev,
 static void rtw_dbi_write8(struct rtw_dev *rtwdev, u16 addr, u8 data)
 {
 	u16 write_addr;
-	u16 remainder = addr & 0x3;
+	u16 remainder = addr & ~(BITS_DBI_WREN | BITS_DBI_ADDR_MASK);
 	u8 flag;
-	u8 cnt = 20;
+	u8 cnt = RTW_PCI_WR_RETRY_CNT;
 
-	write_addr = ((addr & 0x0ffc) | (BIT(0) << (remainder + 12)));
+	write_addr = addr & BITS_DBI_ADDR_MASK;
+	write_addr |= u16_encode_bits(BIT(remainder), BITS_DBI_WREN);
 	rtw_write8(rtwdev, REG_DBI_WDATA_V1 + remainder, data);
 	rtw_write16(rtwdev, REG_DBI_FLAG_V1, write_addr);
-	rtw_write8(rtwdev, REG_DBI_FLAG_V1 + 2, 0x01);
+	rtw_write8(rtwdev, REG_DBI_FLAG_V1 + 2, BIT_DBI_WFLAG >> 16);
 
 	flag = rtw_read8(rtwdev, REG_DBI_FLAG_V1 + 2);
 	while (flag && (cnt != 0)) {
@@ -1083,19 +1084,17 @@ static void rtw_mdio_write(struct rtw_dev *rtwdev, u8 addr, u16 data, bool g1)
 {
 	u8 page;
 	u8 wflag;
-	u8 cnt;
+	u8 cnt = RTW_PCI_WR_RETRY_CNT;
 
 	rtw_write16(rtwdev, REG_MDIO_V1, data);
 
-	page = addr < 0x20 ? 0 : 1;
-	page += g1 ? 0 : 2;
-	rtw_write8(rtwdev, REG_PCIE_MIX_CFG, addr & 0x1f);
+	page = addr < RTW_PCI_MDIO_PG_SZ ? 0 : 1;
+	page += g1 ? RTW_PCI_MDIO_PG_OFFS_G1 : RTW_PCI_MDIO_PG_OFFS_G2;
+	rtw_write8(rtwdev, REG_PCIE_MIX_CFG, addr & BITS_MDIO_ADDR_MASK);
 	rtw_write8(rtwdev, REG_PCIE_MIX_CFG + 3, page);
-
 	rtw_write32_mask(rtwdev, REG_PCIE_MIX_CFG, BIT_MDIO_WFLAG_V1, 1);
-	wflag = rtw_read32_mask(rtwdev, REG_PCIE_MIX_CFG, BIT_MDIO_WFLAG_V1);
 
-	cnt = 20;
+	wflag = rtw_read32_mask(rtwdev, REG_PCIE_MIX_CFG, BIT_MDIO_WFLAG_V1);
 	while (wflag && (cnt != 0)) {
 		udelay(10);
 		wflag = rtw_read32_mask(rtwdev, REG_PCIE_MIX_CFG,
