@@ -160,10 +160,10 @@ struct clk *rockchip_clk_register_halfdiv(const char *name,
 					  u8 num_parents, void __iomem *base,
 					  int muxdiv_offset, u8 mux_shift,
 					  u8 mux_width, u8 mux_flags,
-					  u8 div_shift, u8 div_width,
-					  u8 div_flags, int gate_offset,
-					  u8 gate_shift, u8 gate_flags,
-					  unsigned long flags,
+					  int div_offset, u8 div_shift,
+					  u8 div_width, u8 div_flags,
+					  int gate_offset, u8 gate_shift,
+					  u8 gate_flags, unsigned long flags,
 					  spinlock_t *lock)
 {
 	struct clk_hw *hw = ERR_PTR(-ENOMEM);
@@ -205,7 +205,10 @@ struct clk *rockchip_clk_register_halfdiv(const char *name,
 			goto err_div;
 
 		div->flags = div_flags;
-		div->reg = base + muxdiv_offset;
+		if (div_offset)
+			div->reg = base + div_offset;
+		else
+			div->reg = base + muxdiv_offset;
 		div->shift = div_shift;
 		div->width = div_width;
 		div->lock = lock;
