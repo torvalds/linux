@@ -76,6 +76,7 @@
 #define GSMI_CMD_LOG_S0IX_RESUME	0x0b
 #define GSMI_CMD_CLEAR_CONFIG		0x20
 #define GSMI_CMD_HANDSHAKE_TYPE		0xC1
+#define GSMI_CMD_RESERVED		0xff
 
 /* Magic entry type for kernel events */
 #define GSMI_LOG_ENTRY_TYPE_KERNEL     0xDEAD
@@ -746,6 +747,7 @@ MODULE_DEVICE_TABLE(dmi, gsmi_dmi_table);
 static __init int gsmi_system_valid(void)
 {
 	u32 hash;
+	u16 cmd, result;
 
 	if (!dmi_check_system(gsmi_dmi_table))
 		return -ENODEV;
@@ -777,6 +779,23 @@ static __init int gsmi_system_valid(void)
 	/* check for valid SMI command port in ACPI FADT */
 	if (acpi_gbl_FADT.smi_command == 0) {
 		pr_info("gsmi: missing smi_command\n");
+		return -ENODEV;
+	}
+
+	/* Test the smihandler with a bogus command. If it leaves the
+	 * calling argument in %ax untouched, there is no handler for
+	 * GSMI commands.
+	 */
+	cmd = GSMI_CALLBACK | GSMI_CMD_RESERVED << 8;
+	asm volatile (
+		"outb %%al, %%dx\n\t"
+		: "=a" (result)
+		: "0" (cmd),
+		  "d" (acpi_gbl_FADT.smi_command)
+		: "memory", "cc"
+		);
+	if (cmd == result) {
+		pr_info("gsmi: no gsmi handler in firmware\n");
 		return -ENODEV;
 	}
 
