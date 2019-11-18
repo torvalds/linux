@@ -334,63 +334,6 @@ static int psp_v12_0_ring_destroy(struct psp_context *psp,
 	return ret;
 }
 
-static int psp_v12_0_cmd_submit(struct psp_context *psp,
-			       uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr,
-			       int index)
-{
-	unsigned int psp_write_ptr_reg = 0;
-	struct psp_gfx_rb_frame *write_frame = psp->km_ring.ring_mem;
-	struct psp_ring *ring = &psp->km_ring;
-	struct psp_gfx_rb_frame *ring_buffer_start = ring->ring_mem;
-	struct psp_gfx_rb_frame *ring_buffer_end = ring_buffer_start +
-		ring->ring_size / sizeof(struct psp_gfx_rb_frame) - 1;
-	struct amdgpu_device *adev = psp->adev;
-	uint32_t ring_size_dw = ring->ring_size / 4;
-	uint32_t rb_frame_size_dw = sizeof(struct psp_gfx_rb_frame) / 4;
-
-	/* KM (GPCOM) prepare write pointer */
-	if (psp_v12_0_support_vmr_ring(psp))
-		psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102);
-	else
-		psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
-
-	/* Update KM RB frame pointer to new frame */
-	/* write_frame ptr increments by size of rb_frame in bytes */
-	/* psp_write_ptr_reg increments by size of rb_frame in DWORDs */
-	if ((psp_write_ptr_reg % ring_size_dw) == 0)
-		write_frame = ring_buffer_start;
-	else
-		write_frame = ring_buffer_start + (psp_write_ptr_reg / rb_frame_size_dw);
-	/* Check invalid write_frame ptr address */
-	if ((write_frame < ring_buffer_start) || (ring_buffer_end < write_frame)) {
-		DRM_ERROR("ring_buffer_start = %p; ring_buffer_end = %p; write_frame = %p\n",
-			  ring_buffer_start, ring_buffer_end, write_frame);
-		DRM_ERROR("write_frame is pointing to address out of bounds\n");
-		return -EINVAL;
-	}
-
-	/* Initialize KM RB frame */
-	memset(write_frame, 0, sizeof(struct psp_gfx_rb_frame));
-
-	/* Update KM RB frame */
-	write_frame->cmd_buf_addr_hi = upper_32_bits(cmd_buf_mc_addr);
-	write_frame->cmd_buf_addr_lo = lower_32_bits(cmd_buf_mc_addr);
-	write_frame->fence_addr_hi = upper_32_bits(fence_mc_addr);
-	write_frame->fence_addr_lo = lower_32_bits(fence_mc_addr);
-	write_frame->fence_value = index;
-	amdgpu_asic_flush_hdp(adev, NULL);
-
-	/* Update the write Pointer in DWORDs */
-	psp_write_ptr_reg = (psp_write_ptr_reg + rb_frame_size_dw) % ring_size_dw;
-	if (psp_v12_0_support_vmr_ring(psp)) {
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, psp_write_ptr_reg);
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101, GFX_CTRL_CMD_ID_CONSUME_CMD);
-	} else
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, psp_write_ptr_reg);
-
-	return 0;
-}
-
 static int
 psp_v12_0_sram_map(struct amdgpu_device *adev,
 		  unsigned int *sram_offset, unsigned int *sram_addr_reg_offset,
@@ -579,7 +522,6 @@ static const struct psp_funcs psp_v12_0_funcs = {
 	.ring_create = psp_v12_0_ring_create,
 	.ring_stop = psp_v12_0_ring_stop,
 	.ring_destroy = psp_v12_0_ring_destroy,
-	.cmd_submit = psp_v12_0_cmd_submit,
 	.compare_sram_data = psp_v12_0_compare_sram_data,
 	.mode1_reset = psp_v12_0_mode1_reset,
 	.ring_get_wptr = psp_v12_0_ring_get_wptr,

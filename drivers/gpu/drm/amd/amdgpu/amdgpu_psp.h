@@ -94,9 +94,6 @@ struct psp_funcs
 			    enum psp_ring_type ring_type);
 	int (*ring_destroy)(struct psp_context *psp,
 			    enum psp_ring_type ring_type);
-	int (*cmd_submit)(struct psp_context *psp,
-			  uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr,
-			  int index);
 	bool (*compare_sram_data)(struct psp_context *psp,
 				  struct amdgpu_firmware_info *ucode,
 				  enum AMDGPU_UCODE_ID ucode_type);
@@ -302,8 +299,6 @@ struct amdgpu_psp_funcs {
 #define psp_ring_create(psp, type) (psp)->funcs->ring_create((psp), (type))
 #define psp_ring_stop(psp, type) (psp)->funcs->ring_stop((psp), (type))
 #define psp_ring_destroy(psp, type) ((psp)->funcs->ring_destroy((psp), (type)))
-#define psp_cmd_submit(psp, cmd_mc, fence_mc, index) \
-		(psp)->funcs->cmd_submit((psp), (cmd_mc), (fence_mc), (index))
 #define psp_compare_sram_data(psp, ucode, type) \
 		(psp)->funcs->compare_sram_data((psp), (ucode), (type))
 #define psp_init_microcode(psp) \
