@@ -12,6 +12,7 @@
 #include "cfg80211.h"
 #include "event.h"
 #include "util.h"
+#include "switchdev.h"
 
 #define QTNF_DMP_MAX_LEN 48
 #define QTNF_PRIMARY_VIF_IDX	0
@@ -866,6 +867,8 @@ struct net_device *qtnf_classify_skb(struct qtnf_bus *bus, struct sk_buff *skb)
 	}
 
 	__skb_trim(skb, skb->len - sizeof(*meta));
+	/* Firmware always handles packets that require flooding */
+	qtnfmac_switch_mark_skb_flooded(skb);
 
 out:
 	return ndev;
