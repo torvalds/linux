@@ -43,11 +43,11 @@
 #include <asm/vsyscall.h>
 
 /*
- * max_low_pfn_mapped: highest direct mapped pfn under 4GB
- * max_pfn_mapped:     highest direct mapped pfn over 4GB
+ * max_low_pfn_mapped: highest directly mapped pfn < 4 GB
+ * max_pfn_mapped:     highest directly mapped pfn > 4 GB
  *
  * The direct mapping only covers E820_TYPE_RAM regions, so the ranges and gaps are
- * represented by pfn_mapped
+ * represented by pfn_mapped[].
  */
 unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
@@ -57,14 +57,23 @@ RESERVE_BRK(dmi_alloc, 65536);
 #endif
 
 
-static __initdata unsigned long _brk_start = (unsigned long)__brk_base;
-unsigned long _brk_end = (unsigned long)__brk_base;
+/*
+ * Range of the BSS area. The size of the BSS area is determined
+ * at link time, with RESERVE_BRK*() facility reserving additional
+ * chunks.
+ */
+static __initdata
+unsigned long _brk_start = (unsigned long)__brk_base;
+unsigned long _brk_end   = (unsigned long)__brk_base;
 
 struct boot_params boot_params;
 
 /*
- * Machine setup..
+ * These are the four main kernel memory regions, we put them into
+ * the resource tree so that kdump tools and other debugging tools
+ * recover it:
  */
+
 static struct resource rodata_resource = {
 	.name	= "Kernel rodata",
 	.start	= 0,
@@ -95,16 +104,16 @@ static struct resource bss_resource = {
 
 
 #ifdef CONFIG_X86_32
-/* cpu data as detected by the assembly code in head_32.S */
+/* CPU data as detected by the assembly code in head_32.S */
 struct cpuinfo_x86 new_cpu_data;
 
-/* common cpu data for all cpus */
+/* Common CPU data for all CPUs */
 struct cpuinfo_x86 boot_cpu_data __read_mostly;
 EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned int def_to_bigsmp;
 
-/* for MCA, but anyone else can use it if they want */
+/* For MCA, but anyone else can use it if they want */
 unsigned int machine_id;
 unsigned int machine_submodel_id;
 unsigned int BIOS_revision;
@@ -390,15 +399,15 @@ static void __init memblock_x86_reserve_range_setup_data(void)
 /*
  * Keep the crash kernel below this limit.
  *
- * On 32 bits earlier kernels would limit the kernel to the low 512 MiB
+ * Earlier 32-bits kernels would limit the kernel to the low 512 MB range
  * due to mapping restrictions.
  *
- * On 64bit, kdump kernel need be restricted to be under 64TB, which is
+ * 64-bit kdump kernels need to be restricted to be under 64 TB, which is
  * the upper limit of system RAM in 4-level paging mode. Since the kdump
- * jumping could be from 5-level to 4-level, the jumping will fail if
- * kernel is put above 64TB, and there's no way to detect the paging mode
- * of the kernel which will be loaded for dumping during the 1st kernel
- * bootup.
+ * jump could be from 5-level paging to 4-level paging, the jump will fail if
+ * the kernel is put above 64 TB, and during the 1st kernel bootup there's
+ * no good way to detect the paging mode of the target kernel which will be
+ * loaded for dumping.
  */
 #ifdef CONFIG_X86_32
 # define CRASH_ADDR_LOW_MAX	SZ_512M
@@ -809,7 +818,7 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * Note: Quark X1000 CPUs advertise PGE incorrectly and require
 	 * a cr3 based tlb flush, so the following __flush_tlb_all()
-	 * will not flush anything because the cpu quirk which clears
+	 * will not flush anything because the CPU quirk which clears
 	 * X86_FEATURE_PGE has not been invoked yet. Though due to the
 	 * load_cr3() above the TLB has been flushed already. The
 	 * quirk is invoked before subsequent calls to __flush_tlb_all()
