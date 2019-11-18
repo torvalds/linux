@@ -66,6 +66,9 @@
 
 #include "dce/dce_i2c.h"
 
+#define CTX \
+	dc->ctx
+
 #define DC_LOGGER \
 	dc->ctx->logger
 
@@ -783,6 +786,33 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 	dc_release_state(current_ctx);
 }
 
+static void wait_for_no_pipes_pending(struct dc *dc, struct dc_state *context)
+{
+	int i;
+	int count = 0;
+	struct pipe_ctx *pipe;
+	PERF_TRACE();
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->plane_state)
+			continue;
+
+		/* Timeout 100 ms */
+		while (count < 100000) {
+			/* Must set to false to start with, due to OR in update function */
+			pipe->plane_state->status.is_flip_pending = false;
+			dc->hwss.update_pending_status(pipe);
+			if (!pipe->plane_state->status.is_flip_pending)
+				break;
+			udelay(1);
+			count++;
+		}
+		ASSERT(!pipe->plane_state->status.is_flip_pending);
+	}
+	PERF_TRACE();
+}
+
 /*******************************************************************************
  * Public functions
  ******************************************************************************/
@@ -1224,9 +1254,12 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
-	if (!dc->optimize_seamless_boot)
-			/* pplib is notified if disp_num changed */
-			dc->hwss.optimize_bandwidth(dc, context);
+	if (!dc->optimize_seamless_boot) {
+		/* Must wait for no flips to be pending before doing optimize bw */
+		wait_for_no_pipes_pending(dc, context);
+		/* pplib is notified if disp_num changed */
+		dc->hwss.optimize_bandwidth(dc, context);
+	}
 
 	for (i = 0; i < context->stream_count; i++)
 		context->streams[i]->mode_changed = false;
