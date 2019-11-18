@@ -273,11 +273,11 @@ struct drm_i915_display_funcs {
 	int (*compute_pipe_wm)(struct intel_crtc_state *crtc_state);
 	int (*compute_intermediate_wm)(struct intel_crtc_state *crtc_state);
 	void (*initial_watermarks)(struct intel_atomic_state *state,
-				   struct intel_crtc_state *crtc_state);
+				   struct intel_crtc *crtc);
 	void (*atomic_update_watermarks)(struct intel_atomic_state *state,
-					 struct intel_crtc_state *crtc_state);
+					 struct intel_crtc *crtc);
 	void (*optimize_watermarks)(struct intel_atomic_state *state,
-				    struct intel_crtc_state *crtc_state);
+				    struct intel_crtc *crtc);
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
 	void (*update_wm)(struct intel_crtc *crtc);
 	int (*modeset_calc_cdclk)(struct intel_atomic_state *state);

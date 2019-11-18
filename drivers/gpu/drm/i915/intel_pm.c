@@ -1528,10 +1528,11 @@ static void g4x_program_watermarks(struct drm_i915_private *dev_priv)
 }
 
 static void g4x_initial_watermarks(struct intel_atomic_state *state,
-				   struct intel_crtc_state *crtc_state)
+				   struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
 	crtc->wm.active.g4x = crtc_state->wm.g4x.intermediate;
@@ -1540,10 +1541,11 @@ static void g4x_initial_watermarks(struct intel_atomic_state *state,
 }
 
 static void g4x_optimize_watermarks(struct intel_atomic_state *state,
-				    struct intel_crtc_state *crtc_state)
+				    struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	if (!crtc_state->wm.need_postvbl_update)
 		return;
@@ -1923,11 +1925,12 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	(((value) << DSPARB_ ## plane ## _SHIFT_VLV) & DSPARB_ ## plane ## _MASK_VLV)
 
 static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
-				   struct intel_crtc_state *crtc_state)
+				   struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_uncore *uncore = &dev_priv->uncore;
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct vlv_fifo_state *fifo_state =
 		&crtc_state->wm.vlv.fifo_state;
 	int sprite0_start, sprite1_start, fifo_size;
@@ -2147,10 +2150,11 @@ static void vlv_program_watermarks(struct drm_i915_private *dev_priv)
 }
 
 static void vlv_initial_watermarks(struct intel_atomic_state *state,
-				   struct intel_crtc_state *crtc_state)
+				   struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
 	crtc->wm.active.vlv = crtc_state->wm.vlv.intermediate;
@@ -2159,10 +2163,11 @@ static void vlv_initial_watermarks(struct intel_atomic_state *state,
 }
 
 static void vlv_optimize_watermarks(struct intel_atomic_state *state,
-				    struct intel_crtc_state *crtc_state)
+				    struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	if (!crtc_state->wm.need_postvbl_update)
 		return;
@@ -5499,11 +5504,12 @@ skl_compute_wm(struct intel_atomic_state *state)
 }
 
 static void skl_atomic_update_crtc_wm(struct intel_atomic_state *state,
-				      struct intel_crtc_state *crtc_state)
+				      struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
 	enum pipe pipe = crtc->pipe;
 
 	if ((state->wm_results.dirty_pipes & BIT(crtc->pipe)) == 0)
@@ -5513,10 +5519,11 @@ static void skl_atomic_update_crtc_wm(struct intel_atomic_state *state,
 }
 
 static void skl_initial_wm(struct intel_atomic_state *state,
-			   struct intel_crtc_state *crtc_state)
+			   struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct skl_ddb_values *results = &state->wm_results;
 
 	if ((results->dirty_pipes & BIT(crtc->pipe)) == 0)
@@ -5525,7 +5532,7 @@ static void skl_initial_wm(struct intel_atomic_state *state,
 	mutex_lock(&dev_priv->wm.wm_mutex);
 
 	if (crtc_state->uapi.active_changed)
-		skl_atomic_update_crtc_wm(state, crtc_state);
+		skl_atomic_update_crtc_wm(state, crtc);
 
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
@@ -5581,10 +5588,11 @@ static void ilk_program_watermarks(struct drm_i915_private *dev_priv)
 }
 
 static void ilk_initial_watermarks(struct intel_atomic_state *state,
-				   struct intel_crtc_state *crtc_state)
+				   struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
 	crtc->wm.active.ilk = crtc_state->wm.ilk.intermediate;
@@ -5593,10 +5601,11 @@ static void ilk_initial_watermarks(struct intel_atomic_state *state,
 }
 
 static void ilk_optimize_watermarks(struct intel_atomic_state *state,
-				    struct intel_crtc_state *crtc_state)
+				    struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	if (!crtc_state->wm.need_postvbl_update)
 		return;
