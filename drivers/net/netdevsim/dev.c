@@ -708,6 +708,7 @@ nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev, unsigned int port_count)
 		goto err_debugfs_exit;
 
 	devlink_params_publish(devlink);
+	devlink_reload_enable(devlink);
 	return nsim_dev;
 
 err_debugfs_exit:
@@ -732,6 +733,7 @@ static void nsim_dev_destroy(struct nsim_dev *nsim_dev)
 {
 	struct devlink *devlink = priv_to_devlink(nsim_dev);
 
+	devlink_reload_disable(devlink);
 	nsim_bpf_dev_exit(nsim_dev);
 	nsim_dev_debugfs_exit(nsim_dev);
 	nsim_dev_traps_exit(devlink);
@@ -806,9 +808,11 @@ static void nsim_dev_port_del_all(struct nsim_dev *nsim_dev)
 {
 	struct nsim_dev_port *nsim_dev_port, *tmp;
 
+	mutex_lock(&nsim_dev->port_list_lock);
 	list_for_each_entry_safe(nsim_dev_port, tmp,
 				 &nsim_dev->port_list, list)
 		__nsim_dev_port_del(nsim_dev_port);
+	mutex_unlock(&nsim_dev->port_list_lock);
 }
 
 int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev)
@@ -822,14 +826,17 @@ int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev)
 		return PTR_ERR(nsim_dev);
 	dev_set_drvdata(&nsim_bus_dev->dev, nsim_dev);
 
+	mutex_lock(&nsim_dev->port_list_lock);
 	for (i = 0; i < nsim_bus_dev->port_count; i++) {
 		err = __nsim_dev_port_add(nsim_dev, i);
 		if (err)
 			goto err_port_del_all;
 	}
+	mutex_unlock(&nsim_dev->port_list_lock);
 	return 0;
 
 err_port_del_all:
+	mutex_unlock(&nsim_dev->port_list_lock);
 	nsim_dev_port_del_all(nsim_dev);
 	nsim_dev_destroy(nsim_dev);
 	return err;

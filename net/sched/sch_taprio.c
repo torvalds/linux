@@ -1152,7 +1152,7 @@ EXPORT_SYMBOL_GPL(taprio_offload_free);
  * offload state (PENDING, ACTIVE, INACTIVE) so it can be visible in dump().
  * This is left as TODO.
  */
-void taprio_offload_config_changed(struct taprio_sched *q)
+static void taprio_offload_config_changed(struct taprio_sched *q)
 {
 	struct sched_gate_list *oper, *admin;
 
@@ -1223,8 +1223,6 @@ static int taprio_enable_offload(struct net_device *dev,
 			       "Device failed to setup taprio offload");
 		goto done;
 	}
-
-	taprio_offload_config_changed(q);
 
 done:
 	taprio_offload_free(offload);
@@ -1341,6 +1339,10 @@ static int taprio_parse_clockid(struct Qdisc *sch, struct nlattr **tb,
 		NL_SET_ERR_MSG(extack, "Specifying a 'clockid' is mandatory");
 		goto out;
 	}
+
+	/* Everything went ok, return success. */
+	err = 0;
+
 out:
 	return err;
 }
@@ -1501,6 +1503,9 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 			call_rcu(&admin->rcu, taprio_free_sched_cb);
 
 		spin_unlock_irqrestore(&q->current_entry_lock, flags);
+
+		if (FULL_OFFLOAD_IS_ENABLED(taprio_flags))
+			taprio_offload_config_changed(q);
 	}
 
 	new_admin = NULL;

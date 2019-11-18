@@ -474,6 +474,7 @@ static noinline int compress_file_range(struct async_chunk *async_chunk)
 	u64 start = async_chunk->start;
 	u64 end = async_chunk->end;
 	u64 actual_end;
+	u64 i_size;
 	int ret = 0;
 	struct page **pages = NULL;
 	unsigned long nr_pages;
@@ -488,7 +489,19 @@ static noinline int compress_file_range(struct async_chunk *async_chunk)
 	inode_should_defrag(BTRFS_I(inode), start, end, end - start + 1,
 			SZ_16K);
 
-	actual_end = min_t(u64, i_size_read(inode), end + 1);
+	/*
+	 * We need to save i_size before now because it could change in between
+	 * us evaluating the size and assigning it.  This is because we lock and
+	 * unlock the page in truncate and fallocate, and then modify the i_size
+	 * later on.
+	 *
+	 * The barriers are to emulate READ_ONCE, remove that once i_size_read
+	 * does that for us.
+	 */
+	barrier();
+	i_size = i_size_read(inode);
+	barrier();
+	actual_end = min_t(u64, i_size, end + 1);
 again:
 	will_compress = 0;
 	nr_pages = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
@@ -2206,7 +2219,7 @@ again:
 
 	ClearPageChecked(page);
 	set_page_dirty(page);
-	btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE, false);
+	btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE);
 out:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, page_start, page_end,
 			     &cached_state);
@@ -4951,7 +4964,7 @@ again:
 	if (!page) {
 		btrfs_delalloc_release_space(inode, data_reserved,
 					     block_start, blocksize, true);
-		btrfs_delalloc_release_extents(BTRFS_I(inode), blocksize, true);
+		btrfs_delalloc_release_extents(BTRFS_I(inode), blocksize);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -5018,7 +5031,7 @@ out_unlock:
 	if (ret)
 		btrfs_delalloc_release_space(inode, data_reserved, block_start,
 					     blocksize, true);
-	btrfs_delalloc_release_extents(BTRFS_I(inode), blocksize, (ret != 0));
+	btrfs_delalloc_release_extents(BTRFS_I(inode), blocksize);
 	unlock_page(page);
 	put_page(page);
 out:
@@ -6305,13 +6318,16 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	u32 sizes[2];
 	int nitems = name ? 2 : 1;
 	unsigned long ptr;
+	unsigned int nofs_flag;
 	int ret;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 
+	nofs_flag = memalloc_nofs_save();
 	inode = new_inode(fs_info->sb);
+	memalloc_nofs_restore(nofs_flag);
 	if (!inode) {
 		btrfs_free_path(path);
 		return ERR_PTR(-ENOMEM);
@@ -8706,7 +8722,7 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		} else if (ret >= 0 && (size_t)ret < count)
 			btrfs_delalloc_release_space(inode, data_reserved,
 					offset, count - (size_t)ret, true);
-		btrfs_delalloc_release_extents(BTRFS_I(inode), count, false);
+		btrfs_delalloc_release_extents(BTRFS_I(inode), count);
 	}
 out:
 	if (wakeup)
@@ -9056,7 +9072,7 @@ again:
 	unlock_extent_cached(io_tree, page_start, page_end, &cached_state);
 
 	if (!ret2) {
-		btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE, true);
+		btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE);
 		sb_end_pagefault(inode->i_sb);
 		extent_changeset_free(data_reserved);
 		return VM_FAULT_LOCKED;
@@ -9065,7 +9081,7 @@ again:
 out_unlock:
 	unlock_page(page);
 out:
-	btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE, (ret != 0));
+	btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE);
 	btrfs_delalloc_release_space(inode, data_reserved, page_start,
 				     reserved_space, (ret != 0));
 out_noreserve:
@@ -9728,6 +9744,18 @@ out_fail:
 			commit_transaction = true;
 	}
 	if (commit_transaction) {
+		/*
+		 * We may have set commit_transaction when logging the new name
+		 * in the destination root, in which case we left the source
+		 * root context in the list of log contextes. So make sure we
+		 * remove it to avoid invalid memory accesses, since the context
+		 * was allocated in our stack frame.
+		 */
+		if (sync_log_root) {
+			mutex_lock(&root->log_mutex);
+			list_del_init(&ctx_root.list);
+			mutex_unlock(&root->log_mutex);
+		}
 		ret = btrfs_commit_transaction(trans);
 	} else {
 		int ret2;
@@ -9740,6 +9768,9 @@ out_notrans:
 		up_read(&fs_info->subvol_sem);
 	if (old_ino == BTRFS_FIRST_FREE_OBJECTID)
 		up_read(&fs_info->subvol_sem);
+
+	ASSERT(list_empty(&ctx_root.list));
+	ASSERT(list_empty(&ctx_dest.list));
 
 	return ret;
 }

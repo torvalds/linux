@@ -67,27 +67,30 @@ void __dump_page(struct page *page, const char *reason)
 	 */
 	mapcount = PageSlab(page) ? 0 : page_mapcount(page);
 
-	pr_warn("page:%px refcount:%d mapcount:%d mapping:%px index:%#lx",
-		  page, page_ref_count(page), mapcount,
-		  page->mapping, page_to_pgoff(page));
 	if (PageCompound(page))
-		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
-	pr_cont("\n");
-	if (PageAnon(page))
-		pr_warn("anon ");
-	else if (PageKsm(page))
-		pr_warn("ksm ");
+		pr_warn("page:%px refcount:%d mapcount:%d mapping:%px "
+			"index:%#lx compound_mapcount: %d\n",
+			page, page_ref_count(page), mapcount,
+			page->mapping, page_to_pgoff(page),
+			compound_mapcount(page));
+	else
+		pr_warn("page:%px refcount:%d mapcount:%d mapping:%px index:%#lx\n",
+			page, page_ref_count(page), mapcount,
+			page->mapping, page_to_pgoff(page));
+	if (PageKsm(page))
+		pr_warn("ksm flags: %#lx(%pGp)\n", page->flags, &page->flags);
+	else if (PageAnon(page))
+		pr_warn("anon flags: %#lx(%pGp)\n", page->flags, &page->flags);
 	else if (mapping) {
-		pr_warn("%ps ", mapping->a_ops);
 		if (mapping->host && mapping->host->i_dentry.first) {
 			struct dentry *dentry;
 			dentry = container_of(mapping->host->i_dentry.first, struct dentry, d_u.d_alias);
-			pr_warn("name:\"%pd\" ", dentry);
-		}
+			pr_warn("%ps name:\"%pd\"\n", mapping->a_ops, dentry);
+		} else
+			pr_warn("%ps\n", mapping->a_ops);
+		pr_warn("flags: %#lx(%pGp)\n", page->flags, &page->flags);
 	}
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
-
-	pr_warn("flags: %#lx(%pGp)\n", page->flags, &page->flags);
 
 hex_only:
 	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,

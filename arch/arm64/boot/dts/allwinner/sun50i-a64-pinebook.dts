@@ -104,6 +104,7 @@
 
 &ehci0 {
 	phys = <&usbphy 0>;
+	phy-names = "usb";
 	status = "okay";
 };
 
@@ -150,6 +151,7 @@
 
 &ohci0 {
 	phys = <&usbphy 0>;
+	phy-names = "usb";
 	status = "okay";
 };
 

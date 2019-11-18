@@ -78,6 +78,8 @@ int main(int argc, char *argv[])
 	struct ucall uc;
 	bool done = false;
 
+	nested_vmx_check_supported();
+
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, l1_guest_code);
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());

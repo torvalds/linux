@@ -1151,7 +1151,7 @@ static void udc_pop_fifo(struct lpc32xx_udc *udc, u8 *data, u32 bytes)
 	u32 *p32, tmp, cbytes;
 
 	/* Use optimal data transfer method based on source address and size */
-	switch (((u32) data) & 0x3) {
+	switch (((uintptr_t) data) & 0x3) {
 	case 0: /* 32-bit aligned */
 		p32 = (u32 *) data;
 		cbytes = (bytes & ~0x3);
@@ -1177,11 +1177,11 @@ static void udc_pop_fifo(struct lpc32xx_udc *udc, u8 *data, u32 bytes)
 			tmp = readl(USBD_RXDATA(udc->udp_baseaddr));
 
 			bl = bytes - n;
-			if (bl > 3)
-				bl = 3;
+			if (bl > 4)
+				bl = 4;
 
 			for (i = 0; i < bl; i++)
-				data[n + i] = (u8) ((tmp >> (n * 8)) & 0xFF);
+				data[n + i] = (u8) ((tmp >> (i * 8)) & 0xFF);
 		}
 		break;
 
@@ -1252,7 +1252,7 @@ static void udc_stuff_fifo(struct lpc32xx_udc *udc, u8 *data, u32 bytes)
 	u32 *p32, tmp, cbytes;
 
 	/* Use optimal data transfer method based on source address and size */
-	switch (((u32) data) & 0x3) {
+	switch (((uintptr_t) data) & 0x3) {
 	case 0: /* 32-bit aligned */
 		p32 = (u32 *) data;
 		cbytes = (bytes & ~0x3);

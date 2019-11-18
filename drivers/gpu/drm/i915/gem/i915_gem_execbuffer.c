@@ -296,7 +296,9 @@ static inline u64 gen8_noncanonical_addr(u64 address)
 
 static inline bool eb_use_cmdparser(const struct i915_execbuffer *eb)
 {
-	return intel_engine_needs_cmd_parser(eb->engine) && eb->batch_len;
+	return intel_engine_requires_cmd_parser(eb->engine) ||
+		(intel_engine_using_cmd_parser(eb->engine) &&
+		 eb->args->batch_len);
 }
 
 static int eb_create(struct i915_execbuffer *eb)
@@ -1955,39 +1957,93 @@ static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 	return 0;
 }
 
-static struct i915_vma *eb_parse(struct i915_execbuffer *eb, bool is_master)
+static struct i915_vma *
+shadow_batch_pin(struct i915_execbuffer *eb, struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = eb->i915;
+	struct i915_vma * const vma = *eb->vma;
+	struct i915_address_space *vm;
+	u64 flags;
+
+	/*
+	 * PPGTT backed shadow buffers must be mapped RO, to prevent
+	 * post-scan tampering
+	 */
+	if (CMDPARSER_USES_GGTT(dev_priv)) {
+		flags = PIN_GLOBAL;
+		vm = &dev_priv->ggtt.vm;
+	} else if (vma->vm->has_read_only) {
+		flags = PIN_USER;
+		vm = vma->vm;
+		i915_gem_object_set_readonly(obj);
+	} else {
+		DRM_DEBUG("Cannot prevent post-scan tampering without RO capable vm\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return i915_gem_object_pin(obj, vm, NULL, 0, 0, flags);
+}
+
+static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 {
 	struct intel_engine_pool_node *pool;
 	struct i915_vma *vma;
+	u64 batch_start;
+	u64 shadow_batch_start;
 	int err;
 
 	pool = intel_engine_pool_get(&eb->engine->pool, eb->batch_len);
 	if (IS_ERR(pool))
 		return ERR_CAST(pool);
 
-	err = intel_engine_cmd_parser(eb->engine,
+	vma = shadow_batch_pin(eb, pool->obj);
+	if (IS_ERR(vma))
+		goto err;
+
+	batch_start = gen8_canonical_addr(eb->batch->node.start) +
+		      eb->batch_start_offset;
+
+	shadow_batch_start = gen8_canonical_addr(vma->node.start);
+
+	err = intel_engine_cmd_parser(eb->gem_context,
+				      eb->engine,
 				      eb->batch->obj,
-				      pool->obj,
+				      batch_start,
 				      eb->batch_start_offset,
 				      eb->batch_len,
-				      is_master);
+				      pool->obj,
+				      shadow_batch_start);
+
 	if (err) {
-		if (err == -EACCES) /* unhandled chained batch */
+		i915_vma_unpin(vma);
+
+		/*
+		 * Unsafe GGTT-backed buffers can still be submitted safely
+		 * as non-secure.
+		 * For PPGTT backing however, we have no choice but to forcibly
+		 * reject unsafe buffers
+		 */
+		if (CMDPARSER_USES_GGTT(eb->i915) && (err == -EACCES))
+			/* Execute original buffer non-secure */
 			vma = NULL;
 		else
 			vma = ERR_PTR(err);
 		goto err;
 	}
 
-	vma = i915_gem_object_ggtt_pin(pool->obj, NULL, 0, 0, 0);
-	if (IS_ERR(vma))
-		goto err;
-
 	eb->vma[eb->buffer_count] = i915_vma_get(vma);
 	eb->flags[eb->buffer_count] =
 		__EXEC_OBJECT_HAS_PIN | __EXEC_OBJECT_HAS_REF;
 	vma->exec_flags = &eb->flags[eb->buffer_count];
 	eb->buffer_count++;
+
+	eb->batch_start_offset = 0;
+	eb->batch = vma;
+
+	if (CMDPARSER_USES_GGTT(eb->i915))
+		eb->batch_flags |= I915_DISPATCH_SECURE;
+
+	/* eb->batch_len unchanged */
 
 	vma->private = pool;
 	return vma;
@@ -2421,6 +2477,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		       struct drm_i915_gem_exec_object2 *exec,
 		       struct drm_syncobj **fences)
 {
+	struct drm_i915_private *i915 = to_i915(dev);
 	struct i915_execbuffer eb;
 	struct dma_fence *in_fence = NULL;
 	struct dma_fence *exec_fence = NULL;
@@ -2432,7 +2489,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	BUILD_BUG_ON(__EXEC_OBJECT_INTERNAL_FLAGS &
 		     ~__EXEC_OBJECT_UNKNOWN_FLAGS);
 
-	eb.i915 = to_i915(dev);
+	eb.i915 = i915;
 	eb.file = file;
 	eb.args = args;
 	if (DBG_FORCE_RELOC || !(args->flags & I915_EXEC_NO_RELOC))
@@ -2452,8 +2509,15 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 
 	eb.batch_flags = 0;
 	if (args->flags & I915_EXEC_SECURE) {
+		if (INTEL_GEN(i915) >= 11)
+			return -ENODEV;
+
+		/* Return -EPERM to trigger fallback code on old binaries. */
+		if (!HAS_SECURE_BATCHES(i915))
+			return -EPERM;
+
 		if (!drm_is_current_master(file) || !capable(CAP_SYS_ADMIN))
-		    return -EPERM;
+			return -EPERM;
 
 		eb.batch_flags |= I915_DISPATCH_SECURE;
 	}
@@ -2530,33 +2594,18 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		goto err_vma;
 	}
 
+	if (eb.batch_len == 0)
+		eb.batch_len = eb.batch->size - eb.batch_start_offset;
+
 	if (eb_use_cmdparser(&eb)) {
 		struct i915_vma *vma;
 
-		vma = eb_parse(&eb, drm_is_current_master(file));
+		vma = eb_parse(&eb);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto err_vma;
 		}
-
-		if (vma) {
-			/*
-			 * Batch parsed and accepted:
-			 *
-			 * Set the DISPATCH_SECURE bit to remove the NON_SECURE
-			 * bit from MI_BATCH_BUFFER_START commands issued in
-			 * the dispatch_execbuffer implementations. We
-			 * specifically don't want that set on batches the
-			 * command parser has accepted.
-			 */
-			eb.batch_flags |= I915_DISPATCH_SECURE;
-			eb.batch_start_offset = 0;
-			eb.batch = vma;
-		}
 	}
-
-	if (eb.batch_len == 0)
-		eb.batch_len = eb.batch->size - eb.batch_start_offset;
 
 	/*
 	 * snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure

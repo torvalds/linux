@@ -4415,7 +4415,7 @@ static void skb_set_err_queue(struct sk_buff *skb)
 int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
 {
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
-	    (unsigned int)sk->sk_rcvbuf)
+	    (unsigned int)READ_ONCE(sk->sk_rcvbuf))
 		return -ENOMEM;
 
 	skb_orphan(skb);
@@ -5477,12 +5477,14 @@ static void skb_mod_eth_type(struct sk_buff *skb, struct ethhdr *hdr,
  * @skb: buffer
  * @mpls_lse: MPLS label stack entry to push
  * @mpls_proto: ethertype of the new MPLS header (expects 0x8847 or 0x8848)
+ * @mac_len: length of the MAC header
  *
  * Expects skb->data at mac header.
  *
  * Returns 0 on success, -errno otherwise.
  */
-int skb_mpls_push(struct sk_buff *skb, __be32 mpls_lse, __be16 mpls_proto)
+int skb_mpls_push(struct sk_buff *skb, __be32 mpls_lse, __be16 mpls_proto,
+		  int mac_len)
 {
 	struct mpls_shim_hdr *lse;
 	int err;
@@ -5499,15 +5501,15 @@ int skb_mpls_push(struct sk_buff *skb, __be32 mpls_lse, __be16 mpls_proto)
 		return err;
 
 	if (!skb->inner_protocol) {
-		skb_set_inner_network_header(skb, skb->mac_len);
+		skb_set_inner_network_header(skb, mac_len);
 		skb_set_inner_protocol(skb, skb->protocol);
 	}
 
 	skb_push(skb, MPLS_HLEN);
 	memmove(skb_mac_header(skb) - MPLS_HLEN, skb_mac_header(skb),
-		skb->mac_len);
+		mac_len);
 	skb_reset_mac_header(skb);
-	skb_set_network_header(skb, skb->mac_len);
+	skb_set_network_header(skb, mac_len);
 
 	lse = mpls_hdr(skb);
 	lse->label_stack_entry = mpls_lse;
@@ -5526,29 +5528,30 @@ EXPORT_SYMBOL_GPL(skb_mpls_push);
  *
  * @skb: buffer
  * @next_proto: ethertype of header after popped MPLS header
+ * @mac_len: length of the MAC header
  *
  * Expects skb->data at mac header.
  *
  * Returns 0 on success, -errno otherwise.
  */
-int skb_mpls_pop(struct sk_buff *skb, __be16 next_proto)
+int skb_mpls_pop(struct sk_buff *skb, __be16 next_proto, int mac_len)
 {
 	int err;
 
 	if (unlikely(!eth_p_mpls(skb->protocol)))
-		return -EINVAL;
+		return 0;
 
-	err = skb_ensure_writable(skb, skb->mac_len + MPLS_HLEN);
+	err = skb_ensure_writable(skb, mac_len + MPLS_HLEN);
 	if (unlikely(err))
 		return err;
 
 	skb_postpull_rcsum(skb, mpls_hdr(skb), MPLS_HLEN);
 	memmove(skb_mac_header(skb) + MPLS_HLEN, skb_mac_header(skb),
-		skb->mac_len);
+		mac_len);
 
 	__skb_pull(skb, MPLS_HLEN);
 	skb_reset_mac_header(skb);
-	skb_set_network_header(skb, skb->mac_len);
+	skb_set_network_header(skb, mac_len);
 
 	if (skb->dev && skb->dev->type == ARPHRD_ETHER) {
 		struct ethhdr *hdr;
