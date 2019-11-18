@@ -66,14 +66,14 @@ __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 		__le64 lens[2];
 	} b;
 
-	chacha_crypt(chacha_state, b.block0, pad0, sizeof(b.block0), 20);
+	chacha20_crypt(chacha_state, b.block0, pad0, sizeof(b.block0));
 	poly1305_init(&poly1305_state, b.block0);
 
 	poly1305_update(&poly1305_state, ad, ad_len);
 	if (ad_len & 0xf)
 		poly1305_update(&poly1305_state, pad0, 0x10 - (ad_len & 0xf));
 
-	chacha_crypt(chacha_state, dst, src, src_len, 20);
+	chacha20_crypt(chacha_state, dst, src, src_len);
 
 	poly1305_update(&poly1305_state, dst, src_len);
 	if (src_len & 0xf)
@@ -140,7 +140,7 @@ __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 	if (unlikely(src_len < POLY1305_DIGEST_SIZE))
 		return false;
 
-	chacha_crypt(chacha_state, b.block0, pad0, sizeof(b.block0), 20);
+	chacha20_crypt(chacha_state, b.block0, pad0, sizeof(b.block0));
 	poly1305_init(&poly1305_state, b.block0);
 
 	poly1305_update(&poly1305_state, ad, ad_len);
@@ -160,7 +160,7 @@ __chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 
 	ret = crypto_memneq(b.mac, src + dst_len, POLY1305_DIGEST_SIZE);
 	if (likely(!ret))
-		chacha_crypt(chacha_state, dst, src, dst_len, 20);
+		chacha20_crypt(chacha_state, dst, src, dst_len);
 
 	memzero_explicit(&b, sizeof(b));
 
@@ -241,7 +241,7 @@ bool chacha20poly1305_crypt_sg_inplace(struct scatterlist *src,
 	b.iv[1] = cpu_to_le64(nonce);
 
 	chacha_init(chacha_state, b.k, (u8 *)b.iv);
-	chacha_crypt(chacha_state, b.block0, pad0, sizeof(b.block0), 20);
+	chacha20_crypt(chacha_state, b.block0, pad0, sizeof(b.block0));
 	poly1305_init(&poly1305_state, b.block0);
 
 	if (unlikely(ad_len)) {
@@ -278,14 +278,14 @@ bool chacha20poly1305_crypt_sg_inplace(struct scatterlist *src,
 
 			if (unlikely(length < sl))
 				l &= ~(CHACHA_BLOCK_SIZE - 1);
-			chacha_crypt(chacha_state, addr, addr, l, 20);
+			chacha20_crypt(chacha_state, addr, addr, l);
 			addr += l;
 			length -= l;
 		}
 
 		if (unlikely(length > 0)) {
-			chacha_crypt(chacha_state, b.chacha_stream, pad0,
-				     CHACHA_BLOCK_SIZE, 20);
+			chacha20_crypt(chacha_state, b.chacha_stream, pad0,
+				       CHACHA_BLOCK_SIZE);
 			crypto_xor(addr, b.chacha_stream, length);
 			partial = length;
 		}
