@@ -71,6 +71,7 @@ static void mock_device_release(struct drm_device *dev)
 	mock_fini_ggtt(&i915->ggtt);
 	destroy_workqueue(i915->wq);
 
+	intel_gt_driver_late_release(&i915->gt);
 	intel_memory_regions_driver_release(i915);
 
 	drm_mode_config_cleanup(&i915->drm);
@@ -204,6 +205,7 @@ err_engine:
 err_unlock:
 	destroy_workqueue(i915->wq);
 err_drv:
+	intel_gt_driver_late_release(&i915->gt);
 	intel_memory_regions_driver_release(i915);
 	drm_mode_config_cleanup(&i915->drm);
 	drm_dev_fini(&i915->drm);
