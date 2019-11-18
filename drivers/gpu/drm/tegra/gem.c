@@ -554,16 +554,6 @@ static int tegra_gem_prime_end_cpu_access(struct dma_buf *buf,
 	return 0;
 }
 
-static void *tegra_gem_prime_kmap(struct dma_buf *buf, unsigned long page)
-{
-	return NULL;
-}
-
-static void tegra_gem_prime_kunmap(struct dma_buf *buf, unsigned long page,
-				   void *addr)
-{
-}
-
 static int tegra_gem_prime_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
 {
 	struct drm_gem_object *gem = buf->priv;
@@ -594,8 +584,6 @@ static const struct dma_buf_ops tegra_gem_prime_dmabuf_ops = {
 	.release = tegra_gem_prime_release,
 	.begin_cpu_access = tegra_gem_prime_begin_cpu_access,
 	.end_cpu_access = tegra_gem_prime_end_cpu_access,
-	.map = tegra_gem_prime_kmap,
-	.unmap = tegra_gem_prime_kunmap,
 	.mmap = tegra_gem_prime_mmap,
 	.vmap = tegra_gem_prime_vmap,
 	.vunmap = tegra_gem_prime_vunmap,
