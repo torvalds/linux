@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * SiFive FU540 Platform DMA driver
  * Copyright (C) 2019 SiFive
  *
