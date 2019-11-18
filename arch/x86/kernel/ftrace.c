@@ -99,7 +99,12 @@ static int ftrace_verify_code(unsigned long ip, const char *old_code)
 	return 0;
 }
 
-static int
+/*
+ * Marked __ref because it calls text_poke_early() which is .init.text. That is
+ * ok because that call will happen early, during boot, when .init sections are
+ * still present.
+ */
+static int __ref
 ftrace_modify_code_direct(unsigned long ip, const char *old_code,
 			  const char *new_code)
 {
