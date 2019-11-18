@@ -471,12 +471,28 @@ static void rn_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 
 }
 
+static bool rn_are_clock_states_equal(struct dc_clocks *a,
+		struct dc_clocks *b)
+{
+	if (a->dispclk_khz != b->dispclk_khz)
+		return false;
+	else if (a->dppclk_khz != b->dppclk_khz)
+		return false;
+	else if (a->dcfclk_khz != b->dcfclk_khz)
+		return false;
+	else if (a->dcfclk_deep_sleep_khz != b->dcfclk_deep_sleep_khz)
+		return false;
+
+	return true;
+}
+
+
 static struct clk_mgr_funcs dcn21_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = rn_update_clocks,
 	.init_clocks = rn_init_clocks,
 	.enable_pme_wa = rn_enable_pme_wa,
-	/* .dump_clk_registers = rn_dump_clk_registers, */
+	.are_clock_states_equal = rn_are_clock_states_equal,
 	.notify_wm_ranges = rn_notify_wm_ranges
 };
 
