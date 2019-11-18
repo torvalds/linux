@@ -127,7 +127,7 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	return map;
 }
 
-void *bpf_map_area_alloc(size_t size, int numa_node)
+static void *__bpf_map_area_alloc(size_t size, int numa_node, bool mmapable)
 {
 	/* We really just want to fail instead of triggering OOM killer
 	 * under memory pressure, therefore we set __GFP_NORETRY to kmalloc,
@@ -142,16 +142,31 @@ void *bpf_map_area_alloc(size_t size, int numa_node)
 	const gfp_t flags = __GFP_NOWARN | __GFP_ZERO;
 	void *area;
 
-	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+	/* kmalloc()'ed memory can't be mmap()'ed */
+	if (!mmapable && size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
 		area = kmalloc_node(size, GFP_USER | __GFP_NORETRY | flags,
 				    numa_node);
 		if (area != NULL)
 			return area;
 	}
-
+	if (mmapable) {
+		BUG_ON(!PAGE_ALIGNED(size));
+		return vmalloc_user_node_flags(size, numa_node, GFP_KERNEL |
+					       __GFP_RETRY_MAYFAIL | flags);
+	}
 	return __vmalloc_node_flags_caller(size, numa_node,
 					   GFP_KERNEL | __GFP_RETRY_MAYFAIL |
 					   flags, __builtin_return_address(0));
+}
+
+void *bpf_map_area_alloc(size_t size, int numa_node)
+{
+	return __bpf_map_area_alloc(size, numa_node, false);
+}
+
+void *bpf_map_area_mmapable_alloc(size_t size, int numa_node)
+{
+	return __bpf_map_area_alloc(size, numa_node, true);
 }
 
 void bpf_map_area_free(void *area)
@@ -311,7 +326,7 @@ static void bpf_map_free_deferred(struct work_struct *work)
 
 static void bpf_map_put_uref(struct bpf_map *map)
 {
-	if (atomic_dec_and_test(&map->usercnt)) {
+	if (atomic64_dec_and_test(&map->usercnt)) {
 		if (map->ops->map_release_uref)
 			map->ops->map_release_uref(map);
 	}
@@ -322,7 +337,7 @@ static void bpf_map_put_uref(struct bpf_map *map)
  */
 static void __bpf_map_put(struct bpf_map *map, bool do_idr_lock)
 {
-	if (atomic_dec_and_test(&map->refcnt)) {
+	if (atomic64_dec_and_test(&map->refcnt)) {
 		/* bpf_map_free_id() must be called first */
 		bpf_map_free_id(map, do_idr_lock);
 		btf_put(map->btf);
@@ -425,6 +440,74 @@ static ssize_t bpf_dummy_write(struct file *filp, const char __user *buf,
 	return -EINVAL;
 }
 
+/* called for any extra memory-mapped regions (except initial) */
+static void bpf_map_mmap_open(struct vm_area_struct *vma)
+{
+	struct bpf_map *map = vma->vm_file->private_data;
+
+	bpf_map_inc_with_uref(map);
+
+	if (vma->vm_flags & VM_WRITE) {
+		mutex_lock(&map->freeze_mutex);
+		map->writecnt++;
+		mutex_unlock(&map->freeze_mutex);
+	}
+}
+
+/* called for all unmapped memory region (including initial) */
+static void bpf_map_mmap_close(struct vm_area_struct *vma)
+{
+	struct bpf_map *map = vma->vm_file->private_data;
+
+	if (vma->vm_flags & VM_WRITE) {
+		mutex_lock(&map->freeze_mutex);
+		map->writecnt--;
+		mutex_unlock(&map->freeze_mutex);
+	}
+
+	bpf_map_put_with_uref(map);
+}
+
+static const struct vm_operations_struct bpf_map_default_vmops = {
+	.open		= bpf_map_mmap_open,
+	.close		= bpf_map_mmap_close,
+};
+
+static int bpf_map_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct bpf_map *map = filp->private_data;
+	int err;
+
+	if (!map->ops->map_mmap || map_value_has_spin_lock(map))
+		return -ENOTSUPP;
+
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	mutex_lock(&map->freeze_mutex);
+
+	if ((vma->vm_flags & VM_WRITE) && map->frozen) {
+		err = -EPERM;
+		goto out;
+	}
+
+	/* set default open/close callbacks */
+	vma->vm_ops = &bpf_map_default_vmops;
+	vma->vm_private_data = map;
+
+	err = map->ops->map_mmap(map, vma);
+	if (err)
+		goto out;
+
+	bpf_map_inc_with_uref(map);
+
+	if (vma->vm_flags & VM_WRITE)
+		map->writecnt++;
+out:
+	mutex_unlock(&map->freeze_mutex);
+	return err;
+}
+
 const struct file_operations bpf_map_fops = {
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo	= bpf_map_show_fdinfo,
@@ -432,6 +515,7 @@ const struct file_operations bpf_map_fops = {
 	.release	= bpf_map_release,
 	.read		= bpf_dummy_read,
 	.write		= bpf_dummy_write,
+	.mmap		= bpf_map_mmap,
 };
 
 int bpf_map_new_fd(struct bpf_map *map, int flags)
@@ -575,8 +659,9 @@ static int map_create(union bpf_attr *attr)
 	if (err)
 		goto free_map;
 
-	atomic_set(&map->refcnt, 1);
-	atomic_set(&map->usercnt, 1);
+	atomic64_set(&map->refcnt, 1);
+	atomic64_set(&map->usercnt, 1);
+	mutex_init(&map->freeze_mutex);
 
 	if (attr->btf_key_type_id || attr->btf_value_type_id) {
 		struct btf *btf;
@@ -653,20 +738,18 @@ struct bpf_map *__bpf_map_get(struct fd f)
 	return f.file->private_data;
 }
 
-/* prog's and map's refcnt limit */
-#define BPF_MAX_REFCNT 32768
-
-struct bpf_map *bpf_map_inc(struct bpf_map *map, bool uref)
+void bpf_map_inc(struct bpf_map *map)
 {
-	if (atomic_inc_return(&map->refcnt) > BPF_MAX_REFCNT) {
-		atomic_dec(&map->refcnt);
-		return ERR_PTR(-EBUSY);
-	}
-	if (uref)
-		atomic_inc(&map->usercnt);
-	return map;
+	atomic64_inc(&map->refcnt);
 }
 EXPORT_SYMBOL_GPL(bpf_map_inc);
+
+void bpf_map_inc_with_uref(struct bpf_map *map)
+{
+	atomic64_inc(&map->refcnt);
+	atomic64_inc(&map->usercnt);
+}
+EXPORT_SYMBOL_GPL(bpf_map_inc_with_uref);
 
 struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 {
@@ -677,38 +760,30 @@ struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 	if (IS_ERR(map))
 		return map;
 
-	map = bpf_map_inc(map, true);
+	bpf_map_inc_with_uref(map);
 	fdput(f);
 
 	return map;
 }
 
 /* map_idr_lock should have been held */
-static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map,
-					      bool uref)
+static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
 {
 	int refold;
 
-	refold = atomic_fetch_add_unless(&map->refcnt, 1, 0);
-
-	if (refold >= BPF_MAX_REFCNT) {
-		__bpf_map_put(map, false);
-		return ERR_PTR(-EBUSY);
-	}
-
+	refold = atomic64_fetch_add_unless(&map->refcnt, 1, 0);
 	if (!refold)
 		return ERR_PTR(-ENOENT);
-
 	if (uref)
-		atomic_inc(&map->usercnt);
+		atomic64_inc(&map->usercnt);
 
 	return map;
 }
 
-struct bpf_map *bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
+struct bpf_map *bpf_map_inc_not_zero(struct bpf_map *map)
 {
 	spin_lock_bh(&map_idr_lock);
-	map = __bpf_map_inc_not_zero(map, uref);
+	map = __bpf_map_inc_not_zero(map, false);
 	spin_unlock_bh(&map_idr_lock);
 
 	return map;
@@ -1173,6 +1248,13 @@ static int map_freeze(const union bpf_attr *attr)
 	map = __bpf_map_get(f);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
+
+	mutex_lock(&map->freeze_mutex);
+
+	if (map->writecnt) {
+		err = -EBUSY;
+		goto err_put;
+	}
 	if (READ_ONCE(map->frozen)) {
 		err = -EBUSY;
 		goto err_put;
@@ -1184,6 +1266,7 @@ static int map_freeze(const union bpf_attr *attr)
 
 	WRITE_ONCE(map->frozen, true);
 err_put:
+	mutex_unlock(&map->freeze_mutex);
 	fdput(f);
 	return err;
 }
@@ -1349,7 +1432,7 @@ static void __bpf_prog_put_noref(struct bpf_prog *prog, bool deferred)
 
 static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
 {
-	if (atomic_dec_and_test(&prog->aux->refcnt)) {
+	if (atomic64_dec_and_test(&prog->aux->refcnt)) {
 		perf_event_bpf_event(prog, PERF_BPF_EVENT_PROG_UNLOAD, 0);
 		/* bpf_prog_free_id() must be called first */
 		bpf_prog_free_id(prog, do_idr_lock);
@@ -1455,13 +1538,9 @@ static struct bpf_prog *____bpf_prog_get(struct fd f)
 	return f.file->private_data;
 }
 
-struct bpf_prog *bpf_prog_add(struct bpf_prog *prog, int i)
+void bpf_prog_add(struct bpf_prog *prog, int i)
 {
-	if (atomic_add_return(i, &prog->aux->refcnt) > BPF_MAX_REFCNT) {
-		atomic_sub(i, &prog->aux->refcnt);
-		return ERR_PTR(-EBUSY);
-	}
-	return prog;
+	atomic64_add(i, &prog->aux->refcnt);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_add);
 
@@ -1472,13 +1551,13 @@ void bpf_prog_sub(struct bpf_prog *prog, int i)
 	 * path holds a reference to the program, thus atomic_sub() can
 	 * be safely used in such cases!
 	 */
-	WARN_ON(atomic_sub_return(i, &prog->aux->refcnt) == 0);
+	WARN_ON(atomic64_sub_return(i, &prog->aux->refcnt) == 0);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_sub);
 
-struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog)
+void bpf_prog_inc(struct bpf_prog *prog)
 {
-	return bpf_prog_add(prog, 1);
+	atomic64_inc(&prog->aux->refcnt);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_inc);
 
@@ -1487,12 +1566,7 @@ struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 {
 	int refold;
 
-	refold = atomic_fetch_add_unless(&prog->aux->refcnt, 1, 0);
-
-	if (refold >= BPF_MAX_REFCNT) {
-		__bpf_prog_put(prog, false);
-		return ERR_PTR(-EBUSY);
-	}
+	refold = atomic64_fetch_add_unless(&prog->aux->refcnt, 1, 0);
 
 	if (!refold)
 		return ERR_PTR(-ENOENT);
@@ -1530,7 +1604,7 @@ static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *attach_type,
 		goto out;
 	}
 
-	prog = bpf_prog_inc(prog);
+	bpf_prog_inc(prog);
 out:
 	fdput(f);
 	return prog;
@@ -1721,7 +1795,7 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 	prog->orig_prog = NULL;
 	prog->jited = 0;
 
-	atomic_set(&prog->aux->refcnt, 1);
+	atomic64_set(&prog->aux->refcnt, 1);
 	prog->gpl_compatible = is_gpl ? 1 : 0;
 
 	if (bpf_prog_is_dev_bound(prog->aux)) {

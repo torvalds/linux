@@ -1807,11 +1807,8 @@ static int setup_xdp(struct net_device *dev, struct bpf_prog *prog)
 	if (prog && !xdp_mtu_valid(priv, dev->mtu))
 		return -EINVAL;
 
-	if (prog) {
-		prog = bpf_prog_add(prog, priv->num_channels);
-		if (IS_ERR(prog))
-			return PTR_ERR(prog);
-	}
+	if (prog)
+		bpf_prog_add(prog, priv->num_channels);
 
 	up = netif_running(dev);
 	need_update = (!!priv->xdp_prog != !!prog);
