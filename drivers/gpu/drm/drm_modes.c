@@ -1771,10 +1771,8 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 
 	/* Try to locate the bpp and refresh specifiers, if any */
 	bpp_ptr = strchr(name, '-');
-	if (bpp_ptr) {
+	if (bpp_ptr)
 		bpp_off = bpp_ptr - name;
-		mode->bpp_specified = true;
-	}
 
 	refresh_ptr = strchr(name, '@');
 	if (refresh_ptr) {
@@ -1782,7 +1780,6 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 			return false;
 
 		refresh_off = refresh_ptr - name;
-		mode->refresh_specified = true;
 	}
 
 	/* Locate the start of named options */
@@ -1825,6 +1822,8 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 		ret = drm_mode_parse_cmdline_bpp(bpp_ptr, &bpp_end_ptr, mode);
 		if (ret)
 			return false;
+
+		mode->bpp_specified = true;
 	}
 
 	if (refresh_ptr) {
@@ -1832,6 +1831,8 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 						     &refresh_end_ptr, mode);
 		if (ret)
 			return false;
+
+		mode->refresh_specified = true;
 	}
 
 	/*
