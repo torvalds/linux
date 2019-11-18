@@ -4601,21 +4601,21 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	struct hwrm_cfa_ntuple_filter_alloc_output *resp;
 	struct flow_keys *keys = &fltr->fkeys;
 	struct bnxt_vnic_info *vnic;
-	u32 dst_ena = 0;
+	u32 flags = 0;
 	int rc = 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_NTUPLE_FILTER_ALLOC, -1, -1);
 	req.l2_filter_id = bp->vnic_info[0].fw_l2_filter_id[fltr->l2_fltr_idx];
 
-	if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX) {
-		dst_ena = CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_RFS_RING_TBL_IDX;
-		req.rfs_ring_tbl_idx = cpu_to_le16(fltr->rxq);
-		vnic = &bp->vnic_info[0];
+	if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2) {
+		flags = CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DEST_RFS_RING_IDX;
+		req.dst_id = cpu_to_le16(fltr->rxq);
 	} else {
 		vnic = &bp->vnic_info[fltr->rxq + 1];
+		req.dst_id = cpu_to_le16(vnic->fw_vnic_id);
 	}
-	req.dst_id = cpu_to_le16(vnic->fw_vnic_id);
-	req.enables = cpu_to_le32(BNXT_NTP_FLTR_FLAGS | dst_ena);
+	req.flags = cpu_to_le32(flags);
+	req.enables = cpu_to_le32(BNXT_NTP_FLTR_FLAGS);
 
 	req.ethertype = htons(ETH_P_IP);
 	memcpy(req.src_macaddr, fltr->src_mac_addr, ETH_ALEN);
@@ -7042,8 +7042,8 @@ static int bnxt_hwrm_cfa_adv_flow_mgnt_qcaps(struct bnxt *bp)
 
 	flags = le32_to_cpu(resp->flags);
 	if (flags &
-	    CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_RFS_RING_TBL_IDX_SUPPORTED)
-		bp->fw_cap |= BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX;
+	    CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_RFS_RING_TBL_IDX_V2_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2;
 
 hwrm_cfa_adv_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -9693,7 +9693,7 @@ static bool bnxt_can_reserve_rings(struct bnxt *bp)
 static bool bnxt_rfs_supported(struct bnxt *bp)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
-		if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX)
+		if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2)
 			return true;
 		return false;
 	}

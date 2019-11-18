@@ -12,11 +12,11 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.10.0"
+#define DRV_MODULE_VERSION	"1.10.1"
 
 #define DRV_VER_MAJ	1
 #define DRV_VER_MIN	10
-#define DRV_VER_UPD	0
+#define DRV_VER_UPD	1
 
 #include <linux/interrupt.h>
 #include <linux/rhashtable.h>
@@ -1666,7 +1666,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_ERROR_RECOVERY		0x00002000
 	#define BNXT_FW_CAP_PKG_VER			0x00004000
 	#define BNXT_FW_CAP_CFA_ADV_FLOW		0x00008000
-	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX	0x00010000
+	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2	0x00010000
 	#define BNXT_FW_CAP_PCIE_STATS_SUPPORTED	0x00020000
 	#define BNXT_FW_CAP_EXT_STATS_SUPPORTED		0x00040000
 	#define BNXT_FW_CAP_ERR_RECOVER_RELOAD		0x00100000
