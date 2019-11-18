@@ -304,7 +304,7 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 
 	intel_gt_chipset_flush(gt);
 
-	with_intel_runtime_pm(uncore->rpm, wakeref) {
+	with_intel_runtime_pm_if_in_use(uncore->rpm, wakeref) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&uncore->lock, flags);
