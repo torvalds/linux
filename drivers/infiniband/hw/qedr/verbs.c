@@ -683,7 +683,9 @@ static int qedr_copy_cq_uresp(struct qedr_dev *dev,
 
 	uresp.db_offset = db_offset;
 	uresp.icid = cq->icid;
-	uresp.db_rec_addr = rdma_user_mmap_get_offset(cq->q.db_mmap_entry);
+	if (cq->q.db_mmap_entry)
+		uresp.db_rec_addr =
+			rdma_user_mmap_get_offset(cq->q.db_mmap_entry);
 
 	rc = qedr_ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 	if (rc)
@@ -1012,7 +1014,7 @@ err1:
 	if (udata) {
 		qedr_free_pbl(dev, &cq->q.pbl_info, cq->q.pbl_tbl);
 		ib_umem_release(cq->q.umem);
-		if (ctx)
+		if (cq->q.db_mmap_entry)
 			rdma_user_mmap_entry_remove(cq->q.db_mmap_entry);
 	} else {
 		dev->ops->common->chain_free(dev->cdev, &cq->pbl);
@@ -1245,7 +1247,9 @@ static void qedr_copy_rq_uresp(struct qedr_dev *dev,
 	}
 
 	uresp->rq_icid = qp->icid;
-	uresp->rq_db_rec_addr = rdma_user_mmap_get_offset(qp->urq.db_mmap_entry);
+	if (qp->urq.db_mmap_entry)
+		uresp->rq_db_rec_addr =
+			rdma_user_mmap_get_offset(qp->urq.db_mmap_entry);
 }
 
 static void qedr_copy_sq_uresp(struct qedr_dev *dev,
@@ -1260,8 +1264,9 @@ static void qedr_copy_sq_uresp(struct qedr_dev *dev,
 	else
 		uresp->sq_icid = qp->icid + 1;
 
-	uresp->sq_db_rec_addr =
-		rdma_user_mmap_get_offset(qp->usq.db_mmap_entry);
+	if (qp->usq.db_mmap_entry)
+		uresp->sq_db_rec_addr =
+			rdma_user_mmap_get_offset(qp->usq.db_mmap_entry);
 }
 
 static int qedr_copy_qp_uresp(struct qedr_dev *dev,
