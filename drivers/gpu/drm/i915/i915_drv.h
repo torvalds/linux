@@ -290,10 +290,10 @@ struct drm_i915_display_funcs {
 					 struct intel_initial_plane_config *);
 	int (*crtc_compute_clock)(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state);
-	void (*crtc_enable)(struct intel_crtc_state *pipe_config,
-			    struct intel_atomic_state *old_state);
-	void (*crtc_disable)(struct intel_crtc_state *old_crtc_state,
-			     struct intel_atomic_state *old_state);
+	void (*crtc_enable)(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc);
+	void (*crtc_disable)(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc);
 	void (*commit_modeset_enables)(struct intel_atomic_state *state);
 	void (*commit_modeset_disables)(struct intel_atomic_state *state);
 	void (*audio_codec_enable)(struct intel_encoder *encoder,

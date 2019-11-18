@@ -6472,10 +6472,11 @@ static void intel_disable_primary_plane(const struct intel_crtc_state *crtc_stat
 	plane->disable_plane(plane, crtc_state);
 }
 
-static void ironlake_crtc_enable(struct intel_crtc_state *new_crtc_state,
-				 struct intel_atomic_state *state)
+static void ironlake_crtc_enable(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
@@ -6615,10 +6616,11 @@ static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(reg, val);
 }
 
-static void haswell_crtc_enable(struct intel_crtc_state *new_crtc_state,
-				struct intel_atomic_state *state)
+static void haswell_crtc_enable(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe, hsw_workaround_pipe;
 	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
@@ -6737,10 +6739,11 @@ static void ironlake_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 	}
 }
 
-static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
-				  struct intel_atomic_state *state)
+static void ironlake_crtc_disable(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
@@ -6793,10 +6796,11 @@ static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 }
 
-static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
-				 struct intel_atomic_state *state)
+static void haswell_crtc_disable(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 
@@ -7025,10 +7029,11 @@ static void modeset_put_power_domains(struct drm_i915_private *dev_priv,
 		intel_display_power_put_unchecked(dev_priv, domain);
 }
 
-static void valleyview_crtc_enable(struct intel_crtc_state *new_crtc_state,
-				   struct intel_atomic_state *state)
+static void valleyview_crtc_enable(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
@@ -7088,10 +7093,11 @@ static void i9xx_set_pll_dividers(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(FP1(crtc->pipe), crtc_state->dpll_hw_state.fp1);
 }
 
-static void i9xx_crtc_enable(struct intel_crtc_state *new_crtc_state,
-			     struct intel_atomic_state *state)
+static void i9xx_crtc_enable(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
@@ -7150,10 +7156,11 @@ static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 	I915_WRITE(PFIT_CONTROL, 0);
 }
 
-static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
-			      struct intel_atomic_state *state)
+static void i9xx_crtc_disable(struct intel_atomic_state *state,
+			      struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
+	struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
@@ -7239,7 +7246,8 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 
 	WARN_ON(IS_ERR(temp_crtc_state) || ret);
 
-	dev_priv->display.crtc_disable(temp_crtc_state, to_intel_atomic_state(state));
+	dev_priv->display.crtc_disable(to_intel_atomic_state(state),
+				       intel_crtc);
 
 	drm_atomic_state_put(state);
 
@@ -14345,7 +14353,7 @@ static void intel_update_crtc(struct intel_crtc *crtc,
 	if (modeset) {
 		intel_crtc_update_active_timings(new_crtc_state);
 
-		dev_priv->display.crtc_enable(new_crtc_state, state);
+		dev_priv->display.crtc_enable(state, crtc);
 
 		/* vblanks work again, re-enable pipe CRC. */
 		intel_crtc_enable_pipe_crc(crtc);
@@ -14416,7 +14424,7 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 	 */
 	intel_crtc_disable_pipe_crc(crtc);
 
-	dev_priv->display.crtc_disable(old_crtc_state, state);
+	dev_priv->display.crtc_disable(state, crtc);
 	crtc->active = false;
 	intel_fbc_disable(crtc);
 	intel_disable_shared_dpll(old_crtc_state);
@@ -14531,7 +14539,7 @@ static void intel_crtc_enable_trans_port_sync(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 
 	intel_crtc_update_active_timings(new_crtc_state);
-	dev_priv->display.crtc_enable(new_crtc_state, state);
+	dev_priv->display.crtc_enable(state, crtc);
 	intel_crtc_enable_pipe_crc(crtc);
 }
 
