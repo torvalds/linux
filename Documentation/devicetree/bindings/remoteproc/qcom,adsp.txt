@@ -67,6 +67,29 @@ on the Qualcomm ADSP Hexagon core.
 	Definition: reference to the px regulator to be held on behalf of the
 		    booting Hexagon core
 
+- power-domains:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to power-domains that match the power-domain-names
+
+- power-domain-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: The power-domains needed depend on the compatible string:
+	qcom,msm8974-adsp-pil:
+	qcom,msm8996-adsp-pil:
+		    must be "cx"
+	qcom,msm8996-slpi-pil:
+		    must be "ss_cx"
+	qcom,qcs404-adsp-pas:
+		    must be "lpi_cx"
+	qcom,qcs404-cdsp-pas:
+	qcom,qcs404-wcss-pas:
+		    must be "mx"
+	qcom,sdm845-adsp-pas:
+	qcom,sdm845-cdsp-pas:
+		    must be "cx", "load_state"
+
 - memory-region:
 	Usage: required
 	Value type: <phandle>
