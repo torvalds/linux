@@ -15,7 +15,7 @@ struct reset_control;
 struct snd_soc_component_driver;
 struct snd_soc_dai;
 struct snd_soc_dai_driver;
-struct snd_pcm_ops;
+
 struct snd_soc_pcm_runtime;
 
 #define AXG_FIFO_CH_MAX			128
@@ -75,8 +75,22 @@ struct axg_fifo_match_data {
 	struct snd_soc_dai_driver *dai_drv;
 };
 
-extern const struct snd_pcm_ops axg_fifo_pcm_ops;
-extern const struct snd_pcm_ops g12a_fifo_pcm_ops;
+int axg_fifo_pcm_open(struct snd_soc_component *component,
+		      struct snd_pcm_substream *ss);
+int axg_fifo_pcm_close(struct snd_soc_component *component,
+		       struct snd_pcm_substream *ss);
+int axg_fifo_pcm_hw_params(struct snd_soc_component *component,
+			   struct snd_pcm_substream *ss,
+			   struct snd_pcm_hw_params *params);
+int g12a_fifo_pcm_hw_params(struct snd_soc_component *component,
+			    struct snd_pcm_substream *ss,
+			    struct snd_pcm_hw_params *params);
+int axg_fifo_pcm_hw_free(struct snd_soc_component *component,
+			 struct snd_pcm_substream *ss);
+snd_pcm_uframes_t axg_fifo_pcm_pointer(struct snd_soc_component *component,
+				       struct snd_pcm_substream *ss);
+int axg_fifo_pcm_trigger(struct snd_soc_component *component,
+			 struct snd_pcm_substream *ss, int cmd);
 
 int axg_fifo_pcm_new(struct snd_soc_pcm_runtime *rtd, unsigned int type);
 int axg_fifo_probe(struct platform_device *pdev);

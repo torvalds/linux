@@ -460,6 +460,23 @@
 #define RT1011_TDM_I2S_DOCK_EN_1_MASK			(0x1 << 3)
 #define RT1011_TDM_I2S_DOCK_EN_1_SFT			3
 #define RT1011_TDM_I2S_DOCK_EN_1		(0x1 << 3)
+#define RT1011_TDM_ADCDAT1_DATA_LOCATION			(0x7 << 0)
+
+/* TDM1 Setting-3 (0x0118) */
+#define RT1011_TDM_I2S_RX_ADC1_1_MASK			(0x3 << 6)
+#define RT1011_TDM_I2S_RX_ADC2_1_MASK			(0x3 << 4)
+#define RT1011_TDM_I2S_RX_ADC3_1_MASK			(0x3 << 2)
+#define RT1011_TDM_I2S_RX_ADC4_1_MASK			(0x3 << 0)
+#define RT1011_TDM_I2S_RX_ADC1_1_LL			(0x2 << 6)
+#define RT1011_TDM_I2S_RX_ADC2_1_LL			(0x2 << 4)
+#define RT1011_TDM_I2S_RX_ADC3_1_LL			(0x2 << 2)
+#define RT1011_TDM_I2S_RX_ADC4_1_LL			(0x2 << 0)
+
+/* TDM1 Setting-4 (0x011a) */
+#define RT1011_TDM_I2S_TX_L_DAC1_1_MASK			(0x7 << 12)
+#define RT1011_TDM_I2S_TX_R_DAC1_1_MASK			(0x7 << 8)
+#define RT1011_TDM_I2S_TX_L_DAC1_1_SFT 12
+#define RT1011_TDM_I2S_TX_R_DAC1_1_SFT 8
 
 /* TDM2 Setting-2 (0x0120) */
 #define RT1011_TDM_I2S_DOCK_ADCDAT_LEN_2_MASK			(0x7 << 13)
@@ -585,6 +602,12 @@
 #define RT1011_STP_T0_EN_BIT		6
 #define RT1011_STP_T0_EN		(0x1 << 6)
 
+/* Cross Biquad Setting-1 (0x0702) */
+#define RT1011_MONO_LR_SEL_MASK			(0x3 << 5)
+#define RT1011_MONO_L_CHANNEL			(0x0 << 5)
+#define RT1011_MONO_R_CHANNEL			(0x1 << 5)
+#define RT1011_MONO_LR_MIX_CHANNEL			(0x2 << 5)
+
 /* ClassD Internal Setting-1 (0x1300) */
 #define RT1011_DRIVER_READY_SPK			(0x1 << 12)
 #define RT1011_DRIVER_READY_SPK_BIT		12
@@ -667,6 +690,7 @@ struct rt1011_priv {
 
 	int bq_drc_set;
 	unsigned int r0_reg, cali_done;
+	unsigned int r0_calib, temperature_calib;
 	int recv_spk_mode;
 };
 
