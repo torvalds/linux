@@ -8,6 +8,11 @@ source $lib_dir/lib.sh
 source $lib_dir/tc_common.sh
 source $lib_dir/devlink_lib.sh
 
+if [ "$DEVLINK_VIDDID" != "15b3:cf6c" ]; then
+	echo "SKIP: test is tailored for Mellanox Spectrum-2"
+	exit 1
+fi
+
 current_test=""
 
 cleanup()
