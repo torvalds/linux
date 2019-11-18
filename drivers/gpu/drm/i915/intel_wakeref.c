@@ -109,8 +109,17 @@ void __intel_wakeref_init(struct intel_wakeref *wf,
 
 int intel_wakeref_wait_for_idle(struct intel_wakeref *wf)
 {
-	return wait_var_event_killable(&wf->wakeref,
-				       !intel_wakeref_is_active(wf));
+	int err;
+
+	might_sleep();
+
+	err = wait_var_event_killable(&wf->wakeref,
+				      !intel_wakeref_is_active(wf));
+	if (err)
+		return err;
+
+	intel_wakeref_unlock_wait(wf);
+	return 0;
 }
 
 static void wakeref_auto_timeout(struct timer_list *t)
