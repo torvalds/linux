@@ -22,13 +22,6 @@ MODULE_PARM_DESC(slave_radar, "set 0 to disable radar detection in slave mode");
 
 static struct dentry *qtnf_debugfs_dir;
 
-struct qtnf_frame_meta_info {
-	u8 magic_s;
-	u8 ifidx;
-	u8 macid;
-	u8 magic_e;
-} __packed;
-
 struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid)
 {
 	struct qtnf_wmac *mac = NULL;
@@ -121,7 +114,7 @@ qtnf_netdev_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		return NETDEV_TX_OK;
 	}
 
-	return qtnf_bus_data_tx(mac->bus, skb);
+	return qtnf_bus_data_tx(mac->bus, skb, mac->macid, vif->vifid);
 }
 
 /* Netdev handler for getting stats.
@@ -481,6 +474,9 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	dev->tx_queue_len = 100;
 	dev->ethtool_ops = &qtnf_ethtool_ops;
 
+	if (mac->bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE)
+		dev->needed_tailroom = sizeof(struct qtnf_frame_meta_info);
+
 	qdev_vif = netdev_priv(dev);
 	*((void **)qdev_vif) = vif;
 
@@ -723,6 +719,10 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		goto error;
 	}
 
+	if ((bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) &&
+	    bus->bus_ops->data_tx_use_meta_set)
+		bus->bus_ops->data_tx_use_meta_set(bus, true);
+
 	if (bus->hw_info.num_mac > QTNF_MAX_MAC) {
 		pr_err("no support for number of MACs=%u\n",
 		       bus->hw_info.num_mac);
@@ -790,7 +790,8 @@ EXPORT_SYMBOL_GPL(qtnf_core_detach);
 
 static inline int qtnf_is_frame_meta_magic_valid(struct qtnf_frame_meta_info *m)
 {
-	return m->magic_s == 0xAB && m->magic_e == 0xBA;
+	return m->magic_s == HBM_FRAME_META_MAGIC_PATTERN_S &&
+		m->magic_e == HBM_FRAME_META_MAGIC_PATTERN_E;
 }
 
 struct net_device *qtnf_classify_skb(struct qtnf_bus *bus, struct sk_buff *skb)
