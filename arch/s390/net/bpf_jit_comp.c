@@ -287,26 +287,36 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 	REG_SET_SEEN(b1);					\
 })
 
-#define EMIT_CONST_U32(val)					\
+#define _EMIT_CONST_U32(val)					\
 ({								\
 	unsigned int ret;					\
-	ret = jit->lit32 - jit->base_ip;			\
-	jit->seen |= SEEN_LITERAL;				\
+	ret = jit->lit32;					\
 	if (jit->prg_buf)					\
 		*(u32 *)(jit->prg_buf + jit->lit32) = (u32)(val);\
 	jit->lit32 += 4;					\
 	ret;							\
 })
 
-#define EMIT_CONST_U64(val)					\
+#define EMIT_CONST_U32(val)					\
+({								\
+	jit->seen |= SEEN_LITERAL;				\
+	_EMIT_CONST_U32(val) - jit->base_ip;			\
+})
+
+#define _EMIT_CONST_U64(val)					\
 ({								\
 	unsigned int ret;					\
-	ret = jit->lit64 - jit->base_ip;			\
-	jit->seen |= SEEN_LITERAL;				\
+	ret = jit->lit64;					\
 	if (jit->prg_buf)					\
 		*(u64 *)(jit->prg_buf + jit->lit64) = (u64)(val);\
 	jit->lit64 += 8;					\
 	ret;							\
+})
+
+#define EMIT_CONST_U64(val)					\
+({								\
+	jit->seen |= SEEN_LITERAL;				\
+	_EMIT_CONST_U64(val) - jit->base_ip;			\
 })
 
 #define EMIT_ZERO(b1)						\
@@ -612,9 +622,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		u64 imm64;
 
 		imm64 = (u64)(u32) insn[0].imm | ((u64)(u32) insn[1].imm) << 32;
-		/* lg %dst,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0004, dst_reg, REG_0, REG_L,
-			      EMIT_CONST_U64(imm64));
+		/* lgrl %dst,imm */
+		EMIT6_PCREL_RILB(0xc4080000, dst_reg, _EMIT_CONST_U64(imm64));
 		insn_count = 2;
 		break;
 	}
@@ -1086,9 +1095,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 
 		REG_SET_SEEN(BPF_REG_5);
 		jit->seen |= SEEN_FUNC;
-		/* lg %w1,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0004, REG_W1, REG_0, REG_L,
-			      EMIT_CONST_U64(func));
+		/* lgrl %w1,func */
+		EMIT6_PCREL_RILB(0xc4080000, REG_W1, _EMIT_CONST_U64(func));
 		if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable) {
 			/* brasl %r14,__s390_indirect_jump_r1 */
 			EMIT6_PCREL_RILB(0xc0050000, REG_14, jit->r1_thunk_ip);
