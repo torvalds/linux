@@ -5474,9 +5474,9 @@ static void lpt_pch_enable(const struct intel_atomic_state *state,
 	lpt_enable_pch_transcoder(dev_priv, cpu_transcoder);
 }
 
-static void cpt_verify_modeset(struct drm_device *dev, enum pipe pipe)
+static void cpt_verify_modeset(struct drm_i915_private *dev_priv,
+			       enum pipe pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	i915_reg_t dslreg = PIPEDSL(pipe);
 	u32 temp;
 
@@ -6550,7 +6550,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_encoders_enable(state, intel_crtc);
 
 	if (HAS_PCH_CPT(dev_priv))
-		cpt_verify_modeset(dev, intel_crtc->pipe);
+		cpt_verify_modeset(dev_priv, pipe);
 
 	/*
 	 * Must wait for vblank to avoid spurious PCH FIFO underruns.
