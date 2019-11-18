@@ -389,3 +389,31 @@ void cpuidle_driver_unref(void)
 
 	spin_unlock(&cpuidle_driver_lock);
 }
+
+/**
+ * cpuidle_driver_state_disabled - Disable or enable an idle state
+ * @drv: cpuidle driver owning the state
+ * @idx: State index
+ * @disable: Whether or not to disable the state
+ */
+void cpuidle_driver_state_disabled(struct cpuidle_driver *drv, int idx,
+				 bool disable)
+{
+	unsigned int cpu;
+
+	mutex_lock(&cpuidle_lock);
+
+	for_each_cpu(cpu, drv->cpumask) {
+		struct cpuidle_device *dev = per_cpu(cpuidle_devices, cpu);
+
+		if (!dev)
+			continue;
+
+		if (disable)
+			dev->states_usage[idx].disable |= CPUIDLE_STATE_DISABLED_BY_DRIVER;
+		else
+			dev->states_usage[idx].disable &= ~CPUIDLE_STATE_DISABLED_BY_DRIVER;
+	}
+
+	mutex_unlock(&cpuidle_lock);
+}
