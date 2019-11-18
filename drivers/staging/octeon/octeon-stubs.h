@@ -1140,22 +1140,22 @@ union cvmx_npi_rsl_int_blocks {
 union cvmx_pko_command_word0 {
 	uint64_t u64;
 	struct {
-	        uint64_t total_bytes:16;
-	        uint64_t segs:6;
-	        uint64_t dontfree:1;
-	        uint64_t ignore_i:1;
-	        uint64_t ipoffp1:7;
-	        uint64_t gather:1;
-	        uint64_t rsp:1;
-	        uint64_t wqp:1;
-	        uint64_t n2:1;
-	        uint64_t le:1;
-	        uint64_t reg0:11;
-	        uint64_t subone0:1;
-	        uint64_t reg1:11;
-	        uint64_t subone1:1;
-	        uint64_t size0:2;
-	        uint64_t size1:2;
+		uint64_t total_bytes:16;
+		uint64_t segs:6;
+		uint64_t dontfree:1;
+		uint64_t ignore_i:1;
+		uint64_t ipoffp1:7;
+		uint64_t gather:1;
+		uint64_t rsp:1;
+		uint64_t wqp:1;
+		uint64_t n2:1;
+		uint64_t le:1;
+		uint64_t reg0:11;
+		uint64_t subone0:1;
+		uint64_t reg1:11;
+		uint64_t subone1:1;
+		uint64_t size0:2;
+		uint64_t size1:2;
 	} s;
 };
 
