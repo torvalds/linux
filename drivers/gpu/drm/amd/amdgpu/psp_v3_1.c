@@ -642,6 +642,31 @@ static bool psp_v3_1_support_vmr_ring(struct psp_context *psp)
 	return false;
 }
 
+static uint32_t psp_v3_1_ring_get_wptr(struct psp_context *psp)
+{
+	uint32_t data;
+	struct amdgpu_device *adev = psp->adev;
+
+	if (psp_v3_1_support_vmr_ring(psp))
+		data = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102);
+	else
+		data = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
+	return data;
+}
+
+static void psp_v3_1_ring_set_wptr(struct psp_context *psp, uint32_t value)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	if (psp_v3_1_support_vmr_ring(psp)) {
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, value);
+		/* send interrupt to PSP for SRIOV ring write pointer update */
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101,
+			GFX_CTRL_CMD_ID_CONSUME_CMD);
+	} else
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, value);
+}
+
 static const struct psp_funcs psp_v3_1_funcs = {
 	.init_microcode = psp_v3_1_init_microcode,
 	.bootloader_load_sysdrv = psp_v3_1_bootloader_load_sysdrv,
@@ -655,6 +680,8 @@ static const struct psp_funcs psp_v3_1_funcs = {
 	.smu_reload_quirk = psp_v3_1_smu_reload_quirk,
 	.mode1_reset = psp_v3_1_mode1_reset,
 	.support_vmr_ring = psp_v3_1_support_vmr_ring,
+	.ring_get_wptr = psp_v3_1_ring_get_wptr,
+	.ring_set_wptr = psp_v3_1_ring_set_wptr,
 };
 
 void psp_v3_1_set_psp_funcs(struct psp_context *psp)

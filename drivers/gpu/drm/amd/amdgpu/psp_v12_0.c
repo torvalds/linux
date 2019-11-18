@@ -547,6 +547,30 @@ static int psp_v12_0_mode1_reset(struct psp_context *psp)
 	return 0;
 }
 
+static uint32_t psp_v12_0_ring_get_wptr(struct psp_context *psp)
+{
+	uint32_t data;
+	struct amdgpu_device *adev = psp->adev;
+
+	if (psp_v12_0_support_vmr_ring(psp))
+		data = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102);
+	else
+		data = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
+
+	return data;
+}
+
+static void psp_v12_0_ring_set_wptr(struct psp_context *psp, uint32_t value)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	if (psp_v12_0_support_vmr_ring(psp)) {
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, value);
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101, GFX_CTRL_CMD_ID_CONSUME_CMD);
+	} else
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, value);
+}
+
 static const struct psp_funcs psp_v12_0_funcs = {
 	.init_microcode = psp_v12_0_init_microcode,
 	.bootloader_load_sysdrv = psp_v12_0_bootloader_load_sysdrv,
@@ -558,6 +582,8 @@ static const struct psp_funcs psp_v12_0_funcs = {
 	.cmd_submit = psp_v12_0_cmd_submit,
 	.compare_sram_data = psp_v12_0_compare_sram_data,
 	.mode1_reset = psp_v12_0_mode1_reset,
+	.ring_get_wptr = psp_v12_0_ring_get_wptr,
+	.ring_set_wptr = psp_v12_0_ring_set_wptr,
 };
 
 void psp_v12_0_set_psp_funcs(struct psp_context *psp)

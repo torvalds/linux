@@ -116,6 +116,8 @@ struct psp_funcs
 	int (*mem_training_init)(struct psp_context *psp);
 	void (*mem_training_fini)(struct psp_context *psp);
 	int (*mem_training)(struct psp_context *psp, uint32_t ops);
+	uint32_t (*ring_get_wptr)(struct psp_context *psp);
+	void (*ring_set_wptr)(struct psp_context *psp, uint32_t value);
 };
 
 #define AMDGPU_XGMI_MAX_CONNECTED_NODES		64
@@ -345,6 +347,9 @@ struct amdgpu_psp_funcs {
 #define psp_ras_cure_posion(psp, addr) \
 	((psp)->funcs->ras_cure_posion ? \
 	(psp)->funcs->ras_cure_posion(psp, (addr)) : -EINVAL)
+
+#define psp_ring_get_wptr(psp) (psp)->funcs->ring_get_wptr((psp))
+#define psp_ring_set_wptr(psp, value) (psp)->funcs->ring_set_wptr((psp), (value))
 
 extern const struct amd_ip_funcs psp_ip_funcs;
 

@@ -407,6 +407,20 @@ static int psp_v10_0_mode1_reset(struct psp_context *psp)
 	return -EINVAL;
 }
 
+static uint32_t psp_v10_0_ring_get_wptr(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	return RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
+}
+
+static void psp_v10_0_ring_set_wptr(struct psp_context *psp, uint32_t value)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, value);
+}
+
 static const struct psp_funcs psp_v10_0_funcs = {
 	.init_microcode = psp_v10_0_init_microcode,
 	.ring_init = psp_v10_0_ring_init,
@@ -416,6 +430,8 @@ static const struct psp_funcs psp_v10_0_funcs = {
 	.cmd_submit = psp_v10_0_cmd_submit,
 	.compare_sram_data = psp_v10_0_compare_sram_data,
 	.mode1_reset = psp_v10_0_mode1_reset,
+	.ring_get_wptr = psp_v10_0_ring_get_wptr,
+	.ring_set_wptr = psp_v10_0_ring_set_wptr,
 };
 
 void psp_v10_0_set_psp_funcs(struct psp_context *psp)
