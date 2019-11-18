@@ -10122,6 +10122,7 @@ static void bnxt_force_fw_reset(struct bnxt *bp)
 
 void bnxt_fw_exception(struct bnxt *bp)
 {
+	netdev_warn(bp->dev, "Detected firmware fatal condition, initiating reset\n");
 	set_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
 	bnxt_rtnl_lock_sp(bp);
 	bnxt_force_fw_reset(bp);
