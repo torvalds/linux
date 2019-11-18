@@ -7965,7 +7965,6 @@ void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
 	 */
 	put_page(page);
 }
-EXPORT_SYMBOL_GPL(kvm_vcpu_reload_apic_access_page);
 
 void __kvm_request_immediate_exit(struct kvm_vcpu *vcpu)
 {
