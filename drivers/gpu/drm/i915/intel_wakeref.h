@@ -152,6 +152,21 @@ intel_wakeref_unlock(struct intel_wakeref *wf)
 }
 
 /**
+ * intel_wakeref_unlock_wait: Wait until the active callback is complete
+ * @wf: the wakeref
+ *
+ * Waits for the active callback (under the @wf->mutex or another CPU) is
+ * complete.
+ */
+static inline void
+intel_wakeref_unlock_wait(struct intel_wakeref *wf)
+{
+	mutex_lock(&wf->mutex);
+	mutex_unlock(&wf->mutex);
+	flush_work(&wf->work);
+}
+
+/**
  * intel_wakeref_is_active: Query whether the wakeref is currently held
  * @wf: the wakeref
  *
