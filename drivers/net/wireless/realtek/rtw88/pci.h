@@ -20,6 +20,7 @@
 #define BIT_RST_TRXDMA_INTF	BIT(20)
 #define BIT_RX_TAG_EN		BIT(15)
 #define REG_DBI_WDATA_V1	0x03E8
+#define REG_DBI_RDATA_V1	0x03EC
 #define REG_DBI_FLAG_V1		0x03F0
 #define BIT_DBI_RFLAG		BIT(17)
 #define BIT_DBI_WFLAG		BIT(16)
@@ -34,6 +35,9 @@
 #define RTW_PCI_MDIO_PG_OFFS_G1	0
 #define RTW_PCI_MDIO_PG_OFFS_G2	2
 #define RTW_PCI_WR_RETRY_CNT	20
+
+#define RTK_PCIE_LINK_CFG	0x0719
+#define BIT_CLKREQ_SW_EN	BIT(4)
 
 #define BIT_PCI_BCNQ_FLAG	BIT(4)
 #define RTK_PCI_TXBD_DESA_BCNQ	0x308
@@ -200,6 +204,7 @@ struct rtw_pci {
 	u16 rx_tag;
 	struct rtw_pci_tx_ring tx_rings[RTK_MAX_TX_QUEUE_NUM];
 	struct rtw_pci_rx_ring rx_rings[RTK_MAX_RX_QUEUE_NUM];
+	u16 link_ctrl;
 
 	void __iomem *mmap;
 };

@@ -1081,6 +1081,30 @@ static void rtw_dbi_write8(struct rtw_dev *rtwdev, u16 addr, u8 data)
 	WARN(flag, "failed to write to DBI register, addr=0x%04x\n", addr);
 }
 
+static int rtw_dbi_read8(struct rtw_dev *rtwdev, u16 addr, u8 *value)
+{
+	u16 read_addr = addr & BITS_DBI_ADDR_MASK;
+	u8 flag;
+	u8 cnt;
+
+	rtw_write16(rtwdev, REG_DBI_FLAG_V1, read_addr);
+	rtw_write8(rtwdev, REG_DBI_FLAG_V1 + 2, BIT_DBI_RFLAG >> 16);
+
+	for (cnt = 0; cnt < RTW_PCI_WR_RETRY_CNT; cnt++) {
+		flag = rtw_read8(rtwdev, REG_DBI_FLAG_V1 + 2);
+		if (flag == 0) {
+			read_addr = REG_DBI_RDATA_V1 + (addr & 3);
+			*value = rtw_read8(rtwdev, read_addr);
+			return 0;
+		}
+
+		udelay(10);
+	}
+
+	WARN(1, "failed to read DBI register, addr=0x%04x\n", addr);
+	return -EIO;
+}
+
 static void rtw_mdio_write(struct rtw_dev *rtwdev, u8 addr, u16 data, bool g1)
 {
 	u8 page;
@@ -1105,6 +1129,60 @@ static void rtw_mdio_write(struct rtw_dev *rtwdev, u8 addr, u16 data, bool g1)
 	}
 
 	WARN(wflag, "failed to write to MDIO register, addr=0x%02x\n", addr);
+}
+
+static void rtw_pci_clkreq_set(struct rtw_dev *rtwdev, bool enable)
+{
+	u8 value;
+	int ret;
+
+	ret = rtw_dbi_read8(rtwdev, RTK_PCIE_LINK_CFG, &value);
+	if (ret) {
+		rtw_err(rtwdev, "failed to read CLKREQ_L1, ret=%d", ret);
+		return;
+	}
+
+	if (enable)
+		value |= BIT_CLKREQ_SW_EN;
+	else
+		value &= ~BIT_CLKREQ_SW_EN;
+
+	rtw_dbi_write8(rtwdev, RTK_PCIE_LINK_CFG, value);
+}
+
+static void rtw_pci_link_cfg(struct rtw_dev *rtwdev)
+{
+	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
+	u16 link_ctrl;
+	int ret;
+
+	/* Though there is standard PCIE configuration space to set the
+	 * link control register, but by Realtek's design, driver should
+	 * check if host supports CLKREQ/ASPM to enable the HW module.
+	 *
+	 * These functions are implemented by two HW modules associated,
+	 * one is responsible to access PCIE configuration space to
+	 * follow the host settings, and another is in charge of doing
+	 * CLKREQ/ASPM mechanisms, it is default disabled. Because sometimes
+	 * the host does not support it, and due to some reasons or wrong
+	 * settings (ex. CLKREQ# not Bi-Direction), it could lead to device
+	 * loss if HW misbehaves on the link.
+	 *
+	 * Hence it's designed that driver should first check the PCIE
+	 * configuration space is sync'ed and enabled, then driver can turn
+	 * on the other module that is actually working on the mechanism.
+	 */
+	ret = pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &link_ctrl);
+	if (ret) {
+		rtw_err(rtwdev, "failed to read PCI cap, ret=%d\n", ret);
+		return;
+	}
+
+	if (link_ctrl & PCI_EXP_LNKCTL_CLKREQ_EN)
+		rtw_pci_clkreq_set(rtwdev, true);
+
+	rtwpci->link_ctrl = link_ctrl;
 }
 
 static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
@@ -1145,6 +1223,8 @@ static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 		else
 			rtw_dbi_write8(rtwdev, offset, value);
 	}
+
+	rtw_pci_link_cfg(rtwdev);
 }
 
 static int rtw_pci_claim(struct rtw_dev *rtwdev, struct pci_dev *pdev)
