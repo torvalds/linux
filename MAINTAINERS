@@ -3261,7 +3261,6 @@ S:	Maintained
 F:	drivers/cpufreq/bmips-cpufreq.c
 
 BROADCOM BMIPS MIPS ARCHITECTURE
-M:	Kevin Cernekee <cernekee@gmail.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-mips@vger.kernel.org
@@ -8299,11 +8298,14 @@ F:	drivers/hid/intel-ish-hid/
 
 INTEL IOMMU (VT-d)
 M:	David Woodhouse <dwmw2@infradead.org>
+M:	Lu Baolu <baolu.lu@linux.intel.com>
 L:	iommu@lists.linux-foundation.org
-T:	git git://git.infradead.org/iommu-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
 S:	Supported
-F:	drivers/iommu/intel-iommu.c
+F:	drivers/iommu/dmar.c
+F:	drivers/iommu/intel*.[ch]
 F:	include/linux/intel-iommu.h
+F:	include/linux/intel-svm.h
 
 INTEL IOP-ADMA DMA DRIVER
 R:	Dan Williams <dan.j.williams@intel.com>
@@ -17337,12 +17339,6 @@ S:	Maintained
 F:	include/linux/vbox_utils.h
 F:	include/uapi/linux/vbox*.h
 F:	drivers/virt/vboxguest/
-
-VIRTUAL BOX SHARED FOLDER VFS DRIVER:
-M:	Hans de Goede <hdegoede@redhat.com>
-L:	linux-fsdevel@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/vboxsf/*
 
 VIRTUAL SERIO DEVICE DRIVER
 M:	Stephen Chandler Paul <thatslyude@gmail.com>

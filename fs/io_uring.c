@@ -326,6 +326,7 @@ struct io_kiocb {
 #define REQ_F_TIMEOUT		1024	/* timeout request */
 #define REQ_F_ISREG		2048	/* regular file */
 #define REQ_F_MUST_PUNT		4096	/* must be punted even for NONBLOCK */
+#define REQ_F_TIMEOUT_NOSEQ	8192	/* no timeout sequence */
 	u64			user_data;
 	u32			result;
 	u32			sequence;
@@ -453,9 +454,13 @@ static struct io_kiocb *io_get_timeout_req(struct io_ring_ctx *ctx)
 	struct io_kiocb *req;
 
 	req = list_first_entry_or_null(&ctx->timeout_list, struct io_kiocb, list);
-	if (req && !__io_sequence_defer(ctx, req)) {
-		list_del_init(&req->list);
-		return req;
+	if (req) {
+		if (req->flags & REQ_F_TIMEOUT_NOSEQ)
+			return NULL;
+		if (!__io_sequence_defer(ctx, req)) {
+			list_del_init(&req->list);
+			return req;
+		}
 	}
 
 	return NULL;
@@ -1225,7 +1230,7 @@ static int io_import_fixed(struct io_ring_ctx *ctx, int rw,
 		}
 	}
 
-	return 0;
+	return len;
 }
 
 static ssize_t io_import_iovec(struct io_ring_ctx *ctx, int rw,
@@ -1941,18 +1946,24 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (get_timespec64(&ts, u64_to_user_ptr(sqe->addr)))
 		return -EFAULT;
 
+	req->flags |= REQ_F_TIMEOUT;
+
 	/*
 	 * sqe->off holds how many events that need to occur for this
-	 * timeout event to be satisfied.
+	 * timeout event to be satisfied. If it isn't set, then this is
+	 * a pure timeout request, sequence isn't used.
 	 */
 	count = READ_ONCE(sqe->off);
-	if (!count)
-		count = 1;
+	if (!count) {
+		req->flags |= REQ_F_TIMEOUT_NOSEQ;
+		spin_lock_irq(&ctx->completion_lock);
+		entry = ctx->timeout_list.prev;
+		goto add;
+	}
 
 	req->sequence = ctx->cached_sq_head + count - 1;
 	/* reuse it to store the count */
 	req->submit.sequence = count;
-	req->flags |= REQ_F_TIMEOUT;
 
 	/*
 	 * Insertion sort, ensuring the first entry in the list is always
@@ -1963,6 +1974,9 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		struct io_kiocb *nxt = list_entry(entry, struct io_kiocb, list);
 		unsigned nxt_sq_head;
 		long long tmp, tmp_nxt;
+
+		if (nxt->flags & REQ_F_TIMEOUT_NOSEQ)
+			continue;
 
 		/*
 		 * Since cached_sq_head + count - 1 can overflow, use type long
@@ -1990,6 +2004,7 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		nxt->sequence++;
 	}
 	req->sequence -= span;
+add:
 	list_add(&req->list, entry);
 	spin_unlock_irq(&ctx->completion_lock);
 
@@ -2283,6 +2298,7 @@ static bool io_op_needs_file(const struct io_uring_sqe *sqe)
 	switch (op) {
 	case IORING_OP_NOP:
 	case IORING_OP_POLL_REMOVE:
+	case IORING_OP_TIMEOUT:
 		return false;
 	default:
 		return true;
