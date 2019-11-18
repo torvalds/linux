@@ -732,7 +732,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	if (!cq)
 		return -ENOMEM;
 
-	ret = hns_roce_ib_create_cq(cq, &cq_init_attr, NULL);
+	ret = hns_roce_create_cq(cq, &cq_init_attr, NULL);
 	if (ret) {
 		dev_err(dev, "Create cq for reserved loop qp failed!");
 		goto alloc_cq_failed;
@@ -868,7 +868,7 @@ alloc_pd_failed:
 	kfree(pd);
 
 alloc_mem_failed:
-	hns_roce_ib_destroy_cq(cq, NULL);
+	hns_roce_destroy_cq(cq, NULL);
 alloc_cq_failed:
 	kfree(cq);
 	return ret;
@@ -897,7 +897,7 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 				i, ret);
 	}
 
-	hns_roce_ib_destroy_cq(&free_mr->mr_free_cq->ib_cq, NULL);
+	hns_roce_destroy_cq(&free_mr->mr_free_cq->ib_cq, NULL);
 	kfree(&free_mr->mr_free_cq->ib_cq);
 	hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd, NULL);
 	kfree(&free_mr->mr_free_pd->ibpd);
@@ -3656,7 +3656,7 @@ static void hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	u32 cqe_cnt_cur;
 	int wait_time = 0;
 
-	hns_roce_free_cq(hr_dev, hr_cq);
+	hns_roce_free_cqc(hr_dev, hr_cq);
 
 	/*
 	 * Before freeing cq buffer, we need to ensure that the outstanding CQE

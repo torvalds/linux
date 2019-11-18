@@ -1240,12 +1240,11 @@ void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 __be32 send_ieth(const struct ib_send_wr *wr);
 int to_hr_qp_type(int qp_type);
 
-int hns_roce_ib_create_cq(struct ib_cq *ib_cq,
-			  const struct ib_cq_init_attr *attr,
-			  struct ib_udata *udata);
+int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
+		       struct ib_udata *udata);
 
-void hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
-void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq);
+void hns_roce_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
+void hns_roce_free_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq);
 
 int hns_roce_db_map_user(struct hns_roce_ucontext *context,
 			 struct ib_udata *udata, unsigned long virt,
