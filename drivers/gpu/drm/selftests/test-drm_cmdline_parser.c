@@ -992,6 +992,32 @@ static int drm_cmdline_test_invalid_option(void *ignored)
 	return 0;
 }
 
+static int drm_cmdline_test_bpp_extra_and_option(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("720x480-24e,rotate=180",
+							   &no_connector,
+							   &mode));
+	FAIL_ON(!mode.specified);
+	FAIL_ON(mode.xres != 720);
+	FAIL_ON(mode.yres != 480);
+	FAIL_ON(mode.rotation_reflection != DRM_MODE_ROTATE_180);
+
+	FAIL_ON(mode.refresh_specified);
+
+	FAIL_ON(!mode.bpp_specified);
+	FAIL_ON(mode.bpp != 24);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_ON);
+
+	return 0;
+}
+
 #include "drm_selftest.c"
 
 static int __init test_drm_cmdline_init(void)

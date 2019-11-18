@@ -1721,7 +1721,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	const char *bpp_ptr = NULL, *refresh_ptr = NULL, *extra_ptr = NULL;
 	const char *options_ptr = NULL;
 	char *bpp_end_ptr = NULL, *refresh_end_ptr = NULL;
-	int ret;
+	int i, len, ret;
 
 #ifdef CONFIG_FB
 	if (!mode_option)
@@ -1841,9 +1841,11 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	else if (refresh_ptr)
 		extra_ptr = refresh_end_ptr;
 
-	if (extra_ptr &&
-	    extra_ptr != options_ptr) {
-		int len = strlen(name) - (extra_ptr - name);
+	if (extra_ptr) {
+		if (options_ptr)
+			len = options_ptr - extra_ptr;
+		else
+			len = strlen(extra_ptr);
 
 		ret = drm_mode_parse_cmdline_extra(extra_ptr, len, false,
 						   connector, mode);
