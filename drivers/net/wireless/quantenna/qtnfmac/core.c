@@ -465,10 +465,8 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 
 	dev = alloc_netdev_mqs(sizeof(struct qtnf_vif *), name,
 			       name_assign_type, ether_setup, 1, 1);
-	if (!dev) {
-		vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	vif->netdev = dev;
 
@@ -491,7 +489,7 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	ret = register_netdevice(dev);
 	if (ret) {
 		free_netdev(dev);
-		vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
+		vif->netdev = NULL;
 	}
 
 	return ret;
@@ -588,19 +586,19 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 	ret = qtnf_cmd_send_get_phy_params(mac);
 	if (ret) {
 		pr_err("MAC%u: failed to get PHY settings\n", macid);
-		goto error;
+		goto error_del_vif;
 	}
 
 	ret = qtnf_mac_init_bands(mac);
 	if (ret) {
 		pr_err("MAC%u: failed to init bands\n", macid);
-		goto error;
+		goto error_del_vif;
 	}
 
 	ret = qtnf_wiphy_register(&bus->hw_info, mac);
 	if (ret) {
 		pr_err("MAC%u: wiphy registration failed\n", macid);
-		goto error;
+		goto error_del_vif;
 	}
 
 	mac->wiphy_registered = 1;
@@ -612,15 +610,16 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 
 	if (ret) {
 		pr_err("MAC%u: failed to attach netdev\n", macid);
-		vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
-		vif->netdev = NULL;
-		goto error;
+		goto error_del_vif;
 	}
 
 	pr_debug("MAC%u initialized\n", macid);
 
 	return 0;
 
+error_del_vif:
+	qtnf_cmd_send_del_intf(vif);
+	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
 error:
 	qtnf_core_mac_detach(bus, macid);
 	return ret;
