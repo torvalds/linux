@@ -68,8 +68,6 @@ struct host1x_bo_ops {
 	void (*unpin)(struct host1x_bo *bo, struct sg_table *sgt);
 	void *(*mmap)(struct host1x_bo *bo);
 	void (*munmap)(struct host1x_bo *bo, void *addr);
-	void *(*kmap)(struct host1x_bo *bo, unsigned int pagenum);
-	void (*kunmap)(struct host1x_bo *bo, unsigned int pagenum, void *addr);
 };
 
 struct host1x_bo {
@@ -111,17 +109,6 @@ static inline void *host1x_bo_mmap(struct host1x_bo *bo)
 static inline void host1x_bo_munmap(struct host1x_bo *bo, void *addr)
 {
 	bo->ops->munmap(bo, addr);
-}
-
-static inline void *host1x_bo_kmap(struct host1x_bo *bo, unsigned int pagenum)
-{
-	return bo->ops->kmap(bo, pagenum);
-}
-
-static inline void host1x_bo_kunmap(struct host1x_bo *bo,
-				    unsigned int pagenum, void *addr)
-{
-	bo->ops->kunmap(bo, pagenum, addr);
 }
 
 /*

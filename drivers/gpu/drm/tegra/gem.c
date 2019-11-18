@@ -65,32 +65,6 @@ static void tegra_bo_munmap(struct host1x_bo *bo, void *addr)
 		vunmap(addr);
 }
 
-static void *tegra_bo_kmap(struct host1x_bo *bo, unsigned int page)
-{
-	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-
-	if (obj->vaddr)
-		return obj->vaddr + page * PAGE_SIZE;
-	else if (obj->gem.import_attach)
-		return dma_buf_kmap(obj->gem.import_attach->dmabuf, page);
-	else
-		return vmap(obj->pages + page, 1, VM_MAP,
-			    pgprot_writecombine(PAGE_KERNEL));
-}
-
-static void tegra_bo_kunmap(struct host1x_bo *bo, unsigned int page,
-			    void *addr)
-{
-	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-
-	if (obj->vaddr)
-		return;
-	else if (obj->gem.import_attach)
-		dma_buf_kunmap(obj->gem.import_attach->dmabuf, page, addr);
-	else
-		vunmap(addr);
-}
-
 static struct host1x_bo *tegra_bo_get(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
@@ -107,8 +81,6 @@ static const struct host1x_bo_ops tegra_bo_ops = {
 	.unpin = tegra_bo_unpin,
 	.mmap = tegra_bo_mmap,
 	.munmap = tegra_bo_munmap,
-	.kmap = tegra_bo_kmap,
-	.kunmap = tegra_bo_kunmap,
 };
 
 static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
