@@ -1062,7 +1062,7 @@ static void rtw_dbi_write8(struct rtw_dev *rtwdev, u16 addr, u8 data)
 	u16 write_addr;
 	u16 remainder = addr & ~(BITS_DBI_WREN | BITS_DBI_ADDR_MASK);
 	u8 flag;
-	u8 cnt = RTW_PCI_WR_RETRY_CNT;
+	u8 cnt;
 
 	write_addr = addr & BITS_DBI_ADDR_MASK;
 	write_addr |= u16_encode_bits(BIT(remainder), BITS_DBI_WREN);
@@ -1070,21 +1070,22 @@ static void rtw_dbi_write8(struct rtw_dev *rtwdev, u16 addr, u8 data)
 	rtw_write16(rtwdev, REG_DBI_FLAG_V1, write_addr);
 	rtw_write8(rtwdev, REG_DBI_FLAG_V1 + 2, BIT_DBI_WFLAG >> 16);
 
-	flag = rtw_read8(rtwdev, REG_DBI_FLAG_V1 + 2);
-	while (flag && (cnt != 0)) {
-		udelay(10);
+	for (cnt = 0; cnt < RTW_PCI_WR_RETRY_CNT; cnt++) {
 		flag = rtw_read8(rtwdev, REG_DBI_FLAG_V1 + 2);
-		cnt--;
+		if (flag == 0)
+			return;
+
+		udelay(10);
 	}
 
-	WARN(flag, "DBI write fail\n");
+	WARN(flag, "failed to write to DBI register, addr=0x%04x\n", addr);
 }
 
 static void rtw_mdio_write(struct rtw_dev *rtwdev, u8 addr, u16 data, bool g1)
 {
 	u8 page;
 	u8 wflag;
-	u8 cnt = RTW_PCI_WR_RETRY_CNT;
+	u8 cnt;
 
 	rtw_write16(rtwdev, REG_MDIO_V1, data);
 
@@ -1094,15 +1095,16 @@ static void rtw_mdio_write(struct rtw_dev *rtwdev, u8 addr, u16 data, bool g1)
 	rtw_write8(rtwdev, REG_PCIE_MIX_CFG + 3, page);
 	rtw_write32_mask(rtwdev, REG_PCIE_MIX_CFG, BIT_MDIO_WFLAG_V1, 1);
 
-	wflag = rtw_read32_mask(rtwdev, REG_PCIE_MIX_CFG, BIT_MDIO_WFLAG_V1);
-	while (wflag && (cnt != 0)) {
-		udelay(10);
+	for (cnt = 0; cnt < RTW_PCI_WR_RETRY_CNT; cnt++) {
 		wflag = rtw_read32_mask(rtwdev, REG_PCIE_MIX_CFG,
 					BIT_MDIO_WFLAG_V1);
-		cnt--;
+		if (wflag == 0)
+			return;
+
+		udelay(10);
 	}
 
-	WARN(wflag, "MDIO write fail\n");
+	WARN(wflag, "failed to write to MDIO register, addr=0x%02x\n", addr);
 }
 
 static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
