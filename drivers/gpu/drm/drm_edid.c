@@ -3222,17 +3222,10 @@ static enum hdmi_picture_aspect drm_get_hdmi_aspect_ratio(const u8 video_code)
 /*
  * Calculate the alternate clock for HDMI modes (those from the HDMI vendor
  * specific block).
- *
- * It's almost like cea_mode_alternate_clock(), we just need to add an
- * exception for the VIC 4 mode (4096x2160@24Hz): no alternate clock for this
- * one.
  */
 static unsigned int
 hdmi_mode_alternate_clock(const struct drm_display_mode *hdmi_mode)
 {
-	if (hdmi_mode->vdisplay == 4096 && hdmi_mode->hdisplay == 2160)
-		return hdmi_mode->clock;
-
 	return cea_mode_alternate_clock(hdmi_mode);
 }
 
