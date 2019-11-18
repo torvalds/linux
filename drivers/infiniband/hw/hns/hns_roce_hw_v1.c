@@ -1990,7 +1990,7 @@ static void *get_sw_cqe(struct hns_roce_cq *hr_cq, int n)
 
 	/* Get cqe when Owner bit is Conversely with the MSB of cons_idx */
 	return (roce_get_bit(hr_cqe->cqe_byte_4, CQE_BYTE_4_OWNER_S) ^
-		!!(n & (hr_cq->ib_cq.cqe + 1))) ? hr_cqe : NULL;
+		!!(n & hr_cq->cq_depth)) ? hr_cqe : NULL;
 }
 
 static struct hns_roce_cqe *next_cqe_sw(struct hns_roce_cq *hr_cq)
@@ -2073,8 +2073,7 @@ static void hns_roce_v1_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 
 static void hns_roce_v1_write_cqc(struct hns_roce_dev *hr_dev,
 				  struct hns_roce_cq *hr_cq, void *mb_buf,
-				  u64 *mtts, dma_addr_t dma_handle, int nent,
-				  u32 vector)
+				  u64 *mtts, dma_addr_t dma_handle)
 {
 	struct hns_roce_cq_context *cq_context = NULL;
 	struct hns_roce_buf_list *tptr_buf;
@@ -2109,9 +2108,9 @@ static void hns_roce_v1_write_cqc(struct hns_roce_dev *hr_dev,
 	roce_set_field(cq_context->cqc_byte_12,
 		       CQ_CONTEXT_CQC_BYTE_12_CQ_CQE_SHIFT_M,
 		       CQ_CONTEXT_CQC_BYTE_12_CQ_CQE_SHIFT_S,
-		       ilog2((unsigned int)nent));
+		       ilog2(hr_cq->cq_depth));
 	roce_set_field(cq_context->cqc_byte_12, CQ_CONTEXT_CQC_BYTE_12_CEQN_M,
-		       CQ_CONTEXT_CQC_BYTE_12_CEQN_S, vector);
+		       CQ_CONTEXT_CQC_BYTE_12_CEQN_S, hr_cq->vector);
 
 	cq_context->cur_cqe_ba0_l = cpu_to_le32((u32)(mtts[0]));
 

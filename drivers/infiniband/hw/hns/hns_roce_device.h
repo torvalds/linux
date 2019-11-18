@@ -812,8 +812,8 @@ struct hns_roce_caps {
 	int		max_qp_init_rdma;
 	int		max_qp_dest_rdma;
 	int		num_cqs;
-	int		max_cqes;
-	int		min_cqes;
+	u32		max_cqes;
+	u32		min_cqes;
 	u32		min_wqes;
 	int		reserved_cqs;
 	int		reserved_srqs;
@@ -944,7 +944,7 @@ struct hns_roce_hw {
 	int (*mw_write_mtpt)(void *mb_buf, struct hns_roce_mw *mw);
 	void (*write_cqc)(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
-			  dma_addr_t dma_handle, int nent, u32 vector);
+			  dma_addr_t dma_handle);
 	int (*set_hem)(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_hem_table *table, int obj, int step_idx);
 	int (*clear_hem)(struct hns_roce_dev *hr_dev,

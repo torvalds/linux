@@ -2457,7 +2457,7 @@ static void *get_sw_cqe_v2(struct hns_roce_cq *hr_cq, int n)
 
 	/* Get cqe when Owner bit is Conversely with the MSB of cons_idx */
 	return (roce_get_bit(cqe->byte_4, V2_CQE_BYTE_4_OWNER_S) ^
-		!!(n & (hr_cq->ib_cq.cqe + 1))) ? cqe : NULL;
+		!!(n & hr_cq->cq_depth)) ? cqe : NULL;
 }
 
 static struct hns_roce_v2_cqe *next_cqe_sw_v2(struct hns_roce_cq *hr_cq)
@@ -2550,8 +2550,7 @@ static void hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 
 static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 				  struct hns_roce_cq *hr_cq, void *mb_buf,
-				  u64 *mtts, dma_addr_t dma_handle, int nent,
-				  u32 vector)
+				  u64 *mtts, dma_addr_t dma_handle)
 {
 	struct hns_roce_v2_cq_context *cq_context;
 
@@ -2563,9 +2562,10 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 	roce_set_field(cq_context->byte_4_pg_ceqn, V2_CQC_BYTE_4_ARM_ST_M,
 		       V2_CQC_BYTE_4_ARM_ST_S, REG_NXT_CEQE);
 	roce_set_field(cq_context->byte_4_pg_ceqn, V2_CQC_BYTE_4_SHIFT_M,
-		       V2_CQC_BYTE_4_SHIFT_S, ilog2((unsigned int)nent));
+		       V2_CQC_BYTE_4_SHIFT_S,
+		       ilog2(hr_cq->cq_depth));
 	roce_set_field(cq_context->byte_4_pg_ceqn, V2_CQC_BYTE_4_CEQN_M,
-		       V2_CQC_BYTE_4_CEQN_S, vector);
+		       V2_CQC_BYTE_4_CEQN_S, hr_cq->vector);
 
 	roce_set_field(cq_context->byte_8_cqn, V2_CQC_BYTE_8_CQN_M,
 		       V2_CQC_BYTE_8_CQN_S, hr_cq->cqn);
