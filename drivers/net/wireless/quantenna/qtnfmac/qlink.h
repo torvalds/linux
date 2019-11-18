@@ -1269,6 +1269,7 @@ struct qlink_event_mic_failure {
  * @QTN_TLV_ID_SCAN_SAMPLE_DURATION: total duration of sampling a single channel
  *	during a scan including off-channel dwell time and operating channel
  *	time.
+ * @QTN_TLV_ID_IFTYPE_DATA: supported band data.
  */
 enum qlink_tlv_id {
 	QTN_TLV_ID_FRAG_THRESH		= 0x0201,
@@ -1304,6 +1305,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_SCAN_DWELL_ACTIVE	= 0x0413,
 	QTN_TLV_ID_SCAN_DWELL_PASSIVE	= 0x0416,
 	QTN_TLV_ID_SCAN_SAMPLE_DURATION	= 0x0417,
+	QTN_TLV_ID_IFTYPE_DATA		= 0x0418,
 };
 
 struct qlink_tlv_hdr {
@@ -1463,6 +1465,39 @@ struct qlink_tlv_ie_set {
 	u8 type;
 	u8 flags;
 	u8 ie_data[0];
+} __packed;
+
+/**
+ * struct qlink_tlv_ext_ie - extension IE
+ *
+ * @eid_ext: element ID extension, one of &enum ieee80211_eid_ext.
+ * @ie_data: IEs data.
+ */
+struct qlink_tlv_ext_ie {
+	struct qlink_tlv_hdr hdr;
+	u8 eid_ext;
+	u8 ie_data[0];
+} __packed;
+
+#define IEEE80211_HE_PPE_THRES_MAX_LEN		25
+struct qlink_sband_iftype_data {
+	__le16 types_mask;
+	struct ieee80211_he_cap_elem he_cap_elem;
+	struct ieee80211_he_mcs_nss_supp he_mcs_nss_supp;
+	u8 ppe_thres[IEEE80211_HE_PPE_THRES_MAX_LEN];
+} __packed;
+
+/**
+ * struct qlink_tlv_iftype_data - data for QTN_TLV_ID_IFTYPE_DATA
+ *
+ * @n_iftype_data: number of entries in iftype_data.
+ * @iftype_data: interface type data entries.
+ */
+struct qlink_tlv_iftype_data {
+	struct qlink_tlv_hdr hdr;
+	u8 n_iftype_data;
+	u8 rsvd[3];
+	struct qlink_sband_iftype_data iftype_data[0];
 } __packed;
 
 struct qlink_chan_stats {
