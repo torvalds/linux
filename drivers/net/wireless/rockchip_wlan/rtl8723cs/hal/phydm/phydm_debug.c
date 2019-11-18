@@ -2304,6 +2304,13 @@ void phydm_basic_dbg_msg_linked(void *dm_void)
 			  (dbg_t->is_ldpc_pkt) ? "Y" : "N",
 			  (dbg_t->is_stbc_pkt) ? "Y" : "N");
 #endif
+
+#if (RTL8822C_SUPPORT)
+	/*Beamformed pkt*/
+	if (dm->support_ic_type == ODM_RTL8822C)
+		PHYDM_DBG(dm, DBG_CMN, "Beamformed=((%s))\n",
+			  (dm->is_beamformed) ? "Y" : "N");
+#endif
 }
 
 void phydm_dm_summary(void *dm_void, u8 macid)
@@ -4540,6 +4547,122 @@ void phydm_mp_dbg(void *dm_void, char input[][16], u32 *_used, char *output,
 	*_out_len = out_len;
 }
 
+#if (RTL8822C_SUPPORT)
+u16 phydm_get_agc_rf_gain(void *dm_void, boolean is_mod, u8 tab, u8 mp_gain_i)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u16 rf_gain = 0x0;
+
+	if (is_mod)
+		rf_gain = dm->agc_rf_gain[tab][mp_gain_i];
+	else
+		rf_gain = dm->agc_rf_gain_ori[tab][mp_gain_i];
+
+	return rf_gain;
+}
+#endif
+
+void phydm_get_rxagc_table_dbg(void *dm_void, char input[][16], u32 *_used,
+			       char *output, u32 *_out_len)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	char help[] = "-h";
+	u32 var1[10] = {0};
+	u32 used = *_used;
+	u32 out_len = *_out_len;
+	u8 tab = 0;
+	boolean is_modified = false;
+	u8 mp_gain = 0;
+	u16 rf_gain = 0;
+	u8 i = 0;
+
+#if (RTL8822C_SUPPORT)
+	if (!(dm->support_ic_type & ODM_RTL8822C))
+		return;
+
+	if ((strcmp(input[1], help) == 0)) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "get rxagc table : {0:ori, 1:modified} {table:0~15} {mp_gain_idx:0~63, all:0xff}\n");
+	} else {
+		for (i = 0; i < 3; i++) {
+			if (input[i + 1])
+				PHYDM_SSCANF(input[i + 1], DCMD_HEX, &var1[i]);
+		}
+
+		is_modified = (boolean)var1[0];
+		tab = (u8)var1[1];
+		mp_gain = (u8)var1[2];
+
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "agc_table_cnt:%d, is_agc_tab_pos_shift:%d, agc_table_shift:%d\n",
+			 dm->agc_table_cnt, dm->is_agc_tab_pos_shift,
+			 dm->agc_table_shift);
+
+		if (mp_gain == 0xff) {
+			for (i = 0; i < 64; i++) {
+				rf_gain = phydm_get_agc_rf_gain(dm, is_modified,
+								tab, i);
+
+				PDM_SNPF(out_len, used, output + used,
+					 out_len - used,
+					 "agc_table:%d, mp_gain_idx:0x%x, rf_gain_idx:0x%x\n",
+					 tab, i, rf_gain);
+			}
+		} else {
+			rf_gain = phydm_get_agc_rf_gain(dm, is_modified, tab,
+							mp_gain);
+
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "agc_table:%d, mp_gain_idx:0x%x, rf_gain_idx:0x%x\n",
+				 tab, mp_gain, rf_gain);
+		}
+	}
+#endif
+	*_used = used;
+	*_out_len = out_len;
+}
+
+void phydm_shift_rxagc_table_dbg(void *dm_void, char input[][16], u32 *_used,
+				 char *output, u32 *_out_len)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	char help[] = "-h";
+	u32 var1[10] = {0};
+	u32 used = *_used;
+	u32 out_len = *_out_len;
+	u8 i = 0;
+	u16 value_db = 0;
+
+#if (RTL8822C_SUPPORT)
+	if (!(dm->support_ic_type & ODM_RTL8822C))
+		return;
+
+	if ((strcmp(input[1], help) == 0)) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "shift rxagc table : {0:-, 1:+} {value(0~63, unit:2dB)}\n");
+	} else {
+		for (i = 0; i < 3; i++) {
+			if (input[i + 1])
+				PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL,
+					     &var1[i]);
+		}
+
+		if ((u8)var1[1] > 63) {
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "Do not enter the value larger than 63!\n");
+		} else {
+			phydm_shift_rxagc_table(dm, (boolean)var1[0],
+						(u8)var1[1]);
+
+			value_db = (u8)var1[1] << 1;
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "shift %s%d dB gain\n",
+				 (((boolean)var1[0]) ? "+" : "-"), value_db);
+		}
+	}
+#endif
+}
+
 #if RTL8814B_SUPPORT
 void phydm_spur_detect_dbg(void *dm_void, char input[][16], u32 *_used,
 			   char *output, u32 *_out_len)
@@ -4662,8 +4785,11 @@ enum PHYDM_CMD_ID {
 	PHYDM_ANAPAR,
 	PHYDM_BEAM_FORMING,
 #if RTL8814B_SUPPORT
-	PHYDM_SPUR_DETECT
+	PHYDM_SPUR_DETECT,
 #endif
+	PHYDM_GET_RXAGC,
+	PHYDM_SHIFT_RXAGC
+
 };
 
 struct phydm_command phy_dm_ary[] = {
@@ -4718,8 +4844,11 @@ struct phydm_command phy_dm_ary[] = {
 	{"anapar", PHYDM_ANAPAR},
 	{"bf", PHYDM_BEAM_FORMING},
 #if RTL8814B_SUPPORT
-	{"spur_detect", PHYDM_SPUR_DETECT}
+	{"spur_detect", PHYDM_SPUR_DETECT},
 #endif
+	{"get_rxagc", PHYDM_GET_RXAGC},
+	{"shift_rxagc", PHYDM_SHIFT_RXAGC}
+
 	};
 
 #endif /*@#ifdef CONFIG_PHYDM_DEBUG_FUNCTION*/
@@ -5070,6 +5199,12 @@ void phydm_cmd_parser(struct dm_struct *dm, char input[][MAX_ARGV],
 		phydm_spur_detect_dbg(dm, input, &used, output, &out_len);
 		break;
 #endif
+	case PHYDM_GET_RXAGC:
+		phydm_get_rxagc_table_dbg(dm, input, &used, output, &out_len);
+		break;
+	case PHYDM_SHIFT_RXAGC:
+		phydm_shift_rxagc_table_dbg(dm, input, &used, output, &out_len);
+		break;
 	default:
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "Do not support this command\n");

@@ -2852,13 +2852,26 @@ void phydm_mcc_igi_cal(void *dm_void)
 	phydm_mcc_igi_chk(dm);
 	igi_val0 = mcc_dm->mcc_rssi[0] - shift;
 	igi_val1 = mcc_dm->mcc_rssi[1] - shift;
+
+	if (igi_val0 < DIG_MIN_PERFORMANCE)
+		igi_val0 = DIG_MIN_PERFORMANCE;
+
+	if (igi_val1 < DIG_MIN_PERFORMANCE)
+		igi_val1 = DIG_MIN_PERFORMANCE;
+
+	switch (dm->ic_ip_series) {
 	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
-	phydm_fill_mcccmd(dm, 0, R_0x1d70, igi_val0, igi_val1);
-	phydm_fill_mcccmd(dm, 1, R_0x1d70 + 1, igi_val0, igi_val1);
-	#else
-	phydm_fill_mcccmd(dm, 0, 0xc50, igi_val0, igi_val1);
-	phydm_fill_mcccmd(dm, 1, 0xe50, igi_val0, igi_val1);
+	case PHYDM_IC_JGR3:
+		phydm_fill_mcccmd(dm, 0, R_0x1d70, igi_val0, igi_val1);
+		phydm_fill_mcccmd(dm, 1, R_0x1d70 + 1, igi_val0, igi_val1);
+		break;
 	#endif
+	default:
+		phydm_fill_mcccmd(dm, 0, R_0xc50, igi_val0, igi_val1);
+		phydm_fill_mcccmd(dm, 1, R_0xe50, igi_val0, igi_val1);
+		break;
+	}
+
 	PHYDM_DBG(dm, DBG_COMP_MCC, "RSSI_min: %d %d, MCC_igi: %d %d\n",
 		  mcc_dm->mcc_rssi[0], mcc_dm->mcc_rssi[1],
 		  mcc_dm->mcc_dm_val[0][0], mcc_dm->mcc_dm_val[0][1]);

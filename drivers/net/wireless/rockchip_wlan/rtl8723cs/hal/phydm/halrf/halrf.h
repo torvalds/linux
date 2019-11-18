@@ -66,12 +66,12 @@
 #define IQK_VER_8192F "0x01"
 #define IQK_VER_8723B "0x1e"
 #define IQK_VER_8812A "0x02"
-#define IQK_VER_8821A "0x01"
+#define IQK_VER_8821A "0x02"
 #elif (DM_ODM_SUPPORT_TYPE & (ODM_CE))
 #define IQK_VER_8188E "0x01"
 #define IQK_VER_8192E "0x01"
 #define IQK_VER_8192F "0x01"
-#define IQK_VER_8723B "0x1e"
+#define IQK_VER_8723B "0x1f"
 #define IQK_VER_8812A "0x01"
 #define IQK_VER_8821A "0x01"
 #elif (DM_ODM_SUPPORT_TYPE & (ODM_AP))
@@ -96,17 +96,17 @@
 #define IQK_VER_8710B "0x01"
 #define IQK_VER_8723D "0x02"
 #define IQK_VER_8822B "0x30"
-#define IQK_VER_8822C "0x0d"
+#define IQK_VER_8822C "0x12"
 #define IQK_VER_8821C "0x23"
 #define IQK_VER_8198F "0x09"
 #define IQK_VER_8814B "0x0b"
 #define IQK_VER_8812F "0x07"
 
 /*LCK version*/
-#define LCK_VER_8188E "0x01"
-#define LCK_VER_8192E "0x01"
+#define LCK_VER_8188E "0x02"
+#define LCK_VER_8192E "0x02"
 #define LCK_VER_8192F "0x01"
-#define LCK_VER_8723B "0x01"
+#define LCK_VER_8723B "0x02"
 #define LCK_VER_8812A "0x01"
 #define LCK_VER_8821A "0x01"
 #define LCK_VER_8814A "0x01"
@@ -170,7 +170,7 @@
 
 
 /*DACK version*/
-#define DACK_VER_8822C "0x8"
+#define DACK_VER_8822C "0xa"
 #define DACK_VER_8814B "0x3"
 
 /*Kfree tracking version*/
@@ -599,6 +599,8 @@ void halrf_dpk_track(void *dm_void);
 
 void halrf_dpk_reload(void *dm_void);
 
+void halrf_dpk_switch(void *dm_void, u8 enable);
+
 void halrf_dpk_info_rsvd_page(void *dm_void, u8 *buf, u32 *buf_size);
 
 /*Global function*/
@@ -683,4 +685,8 @@ void halrf_dack_dbg(void *dm_void);
 void halrf_iqk_info_rsvd_page(void *dm_void, u8 *buf, u32 *buf_size);
 
 void halrf_set_rfsupportability(void *dm_void);
+
+void halrf_dump_rfk_reg(void *dm_void, char input[][16], u32 *_used,
+			      char *output, u32 *_out_len);
+
 #endif /*__HALRF_H__*/

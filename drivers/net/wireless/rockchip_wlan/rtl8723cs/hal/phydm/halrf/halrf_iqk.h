@@ -50,6 +50,7 @@ struct dm_dack_info {
 	boolean dack_en;
 	u16 msbk_d[2][2][15];
 	u8 dck_d[2][2][2];
+	u16 biask_d[2][2];
 };
 
 struct dm_iqk_info {

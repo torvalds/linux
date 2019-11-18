@@ -95,6 +95,7 @@ const char *android_wifi_cmd_str[ANDROID_WIFI_CMD_MAX] = {
 /*	Private command for	P2P disable*/
 	"P2P_DISABLE",
 	"SET_AEK",
+	"EXT_AUTH_STATUS",
 	"DRIVER_VERSION"
 };
 
@@ -936,6 +937,13 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		break;
 #endif
 	
+		case ANDROID_WIFI_CMD_EXT_AUTH_STATUS: {
+		rtw_set_external_auth_status(padapter,
+			command + strlen("EXT_AUTH_STATUS "),
+			priv_cmd.total_len - strlen("EXT_AUTH_STATUS "));
+		break;
+	}
+
 	case ANDROID_WIFI_CMD_DRIVERVERSION: {
 		bytes_written = strlen(DRIVERVERSION);
 		snprintf(command, bytes_written + 1, DRIVERVERSION);

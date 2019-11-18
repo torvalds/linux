@@ -400,6 +400,7 @@ struct sta_info {
 	int wpa2_group_cipher;
 	int wpa_pairwise_cipher;
 	int wpa2_pairwise_cipher;
+	u32 akm_suite_type;
 
 	u8 bpairwise_key_installed;
 #ifdef CONFIG_RTW_80211R
@@ -478,6 +479,8 @@ struct sta_info {
 #endif
 
 #ifdef CONFIG_IOCTL_CFG80211
+	u8 *pauth_frame;
+	u32 auth_len;
 	u8 *passoc_req;
 	u32 assoc_req_len;
 #endif

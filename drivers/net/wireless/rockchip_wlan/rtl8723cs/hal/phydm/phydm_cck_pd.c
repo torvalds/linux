@@ -1039,6 +1039,9 @@ void phydm_cck_pd_init(void *dm_void)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_cckpd_struct *cckpd_t = &dm->dm_cckpd_table;
 
+	if (*dm->mp_mode)
+		return;
+
 	if (dm->support_ic_type & CCK_PD_IC_TYPE1)
 		cckpd_t->cckpd_hw_type = 1;
 	else if (dm->support_ic_type & CCK_PD_IC_TYPE2)

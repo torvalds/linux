@@ -454,7 +454,7 @@ void dump_mesh_networks(void *sel, _adapter *adapter);
 
 void rtw_mesh_adjust_chbw(u8 req_ch, u8 *req_bw, u8 *req_offset);
 
-int rtw_sae_check_frames(_adapter *adapter, const u8 *buf, u32 len, u8 tx);
+void rtw_mesh_sae_check_frames(_adapter *adapter, const u8 *buf, u32 len, u8 tx, u16 alg, u16 seq, u16 status);
 int rtw_mesh_check_frames_tx(_adapter *adapter, const u8 **buf, size_t *len);
 int rtw_mesh_check_frames_rx(_adapter *adapter, const u8 *buf, size_t len);
 

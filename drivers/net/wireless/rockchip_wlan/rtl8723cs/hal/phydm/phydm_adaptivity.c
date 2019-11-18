@@ -126,6 +126,31 @@ phydm_ap_num_check(void *dm_void)
 	}
 	return dis_adapt;
 }
+
+void phydm_set_l2h_th_ini_win(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+	 /*@ [New Format: JGR3]IGI-idx:45 = RSSI:35 = -65dBm*/
+	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
+		if (dm->support_ic_type & ODM_RTL8822C)
+			dm->th_l2h_ini = 45;
+		else if (dm->support_ic_type & ODM_RTL8814B)
+			dm->th_l2h_ini = 49;
+	} else if (dm->support_ic_type & ODM_IC_11AC_SERIES) {
+	 /*@ [Old Format] -11+base(50) = IGI_idx:39 = RSSI:29 = -71dBm*/
+		if (dm->support_ic_type & (ODM_RTL8821 | ODM_RTL8812)) {
+			dm->th_l2h_ini = -17;
+		} else {
+			if (*dm->band_type == ODM_BAND_5G)
+				dm->th_l2h_ini = -14;
+			else if (*dm->band_type == ODM_BAND_2_4G)
+				dm->th_l2h_ini = -9;
+		}
+	} else { /*ODM_IC_11N_SERIES*/
+		dm->th_l2h_ini = -9;
+	}
+}
 #endif
 
 void phydm_dig_up_bound_lmt_en(void *dm_void)
@@ -543,6 +568,8 @@ void phydm_adaptivity_info_init(void *dm_void, enum phydm_adapinfo cmn_info,
 	case PHYDM_ADAPINFO_AP_NUM_TH:
 		adaptivity->ap_num_th = (u8)value;
 		break;
+	case PHYDM_ADAPINFO_SWITCH_TH_L2H_INI_IN_BAND:
+		adaptivity->switch_th_l2h_ini_in_band = (u8)value;
 	default:
 		break;
 	}
@@ -576,7 +603,8 @@ void phydm_adaptivity_init(void *dm_void)
 #if (DM_ODM_SUPPORT_TYPE & (ODM_CE | ODM_WIN))
 
 	if (!dm->carrier_sense_enable) {
-		if (dm->th_l2h_ini == 0)
+		if (dm->th_l2h_ini == 0 &&
+		    !adaptivity->switch_th_l2h_ini_in_band)
 			phydm_set_l2h_th_ini(dm);
 	} else {
 		phydm_set_l2h_th_ini_carrier_sense(dm);
@@ -696,7 +724,12 @@ void phydm_adaptivity(void *dm_void)
 		odm_set_bb_reg(dm, R_0x800, BIT(10), 1); /*@ADC_mask disable*/
 		odm_set_bb_reg(dm, R_0x800, BIT(10), 0); /*@ADC_mask enable*/
 	}
-
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	if (!dm->carrier_sense_enable &&
+	    !adapt->debug_mode &&
+	    adapt->switch_th_l2h_ini_in_band)
+		phydm_set_l2h_th_ini_win(dm);
+#endif
 	if (!adapt->debug_mode)
 		phydm_check_adaptivity(dm); /*@Check adaptivity enable*/
 

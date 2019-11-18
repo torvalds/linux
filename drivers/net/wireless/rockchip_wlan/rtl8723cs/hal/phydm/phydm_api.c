@@ -2307,6 +2307,48 @@ u8 phydm_api_get_txagc(void *dm_void, enum rf_path path, u8 hw_rate)
 	return ret;
 }
 
+#if (RTL8822C_SUPPORT)
+void phydm_shift_rxagc_table(void *dm_void, boolean is_pos_shift, u8 sft)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8 i = 0;
+	u8 j = 0;
+	u32 reg = 0;
+	u16 max_rf_gain = 0;
+	u16 min_rf_gain = 0;
+
+	dm->is_agc_tab_pos_shift = is_pos_shift;
+	dm->agc_table_shift = sft;
+
+	for (i = 0; i <= dm->agc_table_cnt; i++) {
+		max_rf_gain = dm->agc_rf_gain_ori[i][0];
+		min_rf_gain = dm->agc_rf_gain_ori[i][63];
+
+		for (j = 0; j < 64; j++) {
+			if (is_pos_shift) {
+				if (j < sft)
+					reg = (max_rf_gain & 0x3ff);
+				else
+					reg = (dm->agc_rf_gain_ori[i][j - sft] &
+						 0x3ff);
+			} else {
+				if (j > 63 - sft)
+					reg = (min_rf_gain & 0x3ff);
+				else
+					reg = (dm->agc_rf_gain_ori[i][j + sft] &
+						 0x3ff);
+			}
+			dm->agc_rf_gain[i][j] = (u16)(reg & 0x3ff);
+
+			reg |= (j & 0x3f) << 16;/*mp_gain_idx*/
+			reg |= (i & 0xf) << 22;/*table*/
+			reg |= BIT(29) | BIT(28);/*write en*/
+			odm_set_bb_reg(dm, R_0x1d90, MASKDWORD, reg);
+		}
+	}
+}
+#endif
+
 boolean
 phydm_api_switch_bw_channel(void *dm_void, u8 ch, u8 pri_ch,
 			    enum channel_width bw)

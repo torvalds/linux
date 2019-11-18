@@ -208,6 +208,7 @@ RTL871X = rtl8822c
 _PHYDM_FILES += hal/phydm/$(RTL871X)/halhwimg8822c_bb.o\
 								hal/phydm/$(RTL871X)/phydm_hal_api8822c.o\
 								hal/phydm/$(RTL871X)/phydm_regconfig8822c.o\
+								hal/phydm/$(RTL871X)/phydm_rtl8822c.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_8822c.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_iqk_8822c.o\
 								hal/phydm/halrf/$(RTL871X)/halrf_tssi_8822c.o\

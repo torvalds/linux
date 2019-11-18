@@ -63,7 +63,8 @@ enum phydm_adapinfo {
 	PHYDM_ADAPINFO_TH_EDCCA_HL_DIFF,
 	PHYDM_ADAPINFO_AP_NUM_TH,
 	PHYDM_ADAPINFO_DOMAIN_CODE_2G,
-	PHYDM_ADAPINFO_DOMAIN_CODE_5G
+	PHYDM_ADAPINFO_DOMAIN_CODE_5G,
+	PHYDM_ADAPINFO_SWITCH_TH_L2H_INI_IN_BAND
 };
 
 enum phydm_mac_edcca_type {
@@ -100,6 +101,7 @@ struct phydm_adaptivity_struct {
 	u8			regulation_5g;
 	boolean			is_adapt_en;
 	boolean			edcca_en;
+	u8			switch_th_l2h_ini_in_band;
 };
 
 #ifdef PHYDM_SUPPORT_ADAPTIVITY

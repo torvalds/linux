@@ -4197,7 +4197,12 @@ static int SecIsInPMKIDList(_adapter *Adapter, u8 *bssid)
 
 }
 
-static int rtw_rsn_sync_pmkid(_adapter *adapter, u8 *ie, uint ie_len, int i_ent)
+int rtw_cached_pmkid(_adapter *Adapter, u8 *bssid)
+{
+	return SecIsInPMKIDList(Adapter, bssid);
+}
+
+int rtw_rsn_sync_pmkid(_adapter *adapter, u8 *ie, uint ie_len, int i_ent)
 {
 	struct security_priv *sec = &adapter->securitypriv;
 	struct rsne_info info;

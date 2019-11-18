@@ -1658,7 +1658,6 @@ u8 RecvOnePkt(PADAPTER padapter)
 	if (len) {
 		sdio_claim_host(func);
 		res = sd_recv_rxfifo(padapter, len, &precvbuf);
-
 		if (precvbuf) {
 			/* printk("Completed Recv One Pkt.\n"); */
 			sd_rxhandler(padapter, precvbuf);

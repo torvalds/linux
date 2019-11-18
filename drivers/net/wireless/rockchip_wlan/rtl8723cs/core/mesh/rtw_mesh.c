@@ -1178,33 +1178,12 @@ void rtw_mesh_adjust_chbw(u8 req_ch, u8 *req_bw, u8 *req_offset)
 	}
 }
 
-int rtw_sae_check_frames(_adapter *adapter, const u8 *buf, u32 len, u8 tx)
+void rtw_mesh_sae_check_frames(_adapter *adapter, const u8 *buf, u32 len, u8 tx, u16 alg, u16 seq, u16 status)
 {
-	const u8 *frame_body = buf + sizeof(struct rtw_ieee80211_hdr_3addr);
-	u16 alg;
-	u16 seq;
-	u16 status;
-	int ret = 0;
-
-	alg = RTW_GET_LE16(frame_body);
-	if (alg != 3)
-		goto exit;
-
-	seq = RTW_GET_LE16(frame_body + 2);
-	status = RTW_GET_LE16(frame_body + 4);
-
-	RTW_INFO("RTW_%s:AUTH alg:0x%04x, seq:0x%04x, status:0x%04x\n"
-		, (tx == _TRUE) ? "Tx" : "Rx", alg, seq, status);
-
-	ret = 1;
-
 #if CONFIG_RTW_MESH_PEER_BLACKLIST
 	if (tx && seq == 1)
 		rtw_mesh_plink_set_peer_conf_timeout(adapter, GetAddr1Ptr(buf));
 #endif
-
-exit:
-	return ret;
 }
 
 #if CONFIG_RTW_MPM_TX_IES_SYNC_BSS

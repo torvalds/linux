@@ -163,20 +163,16 @@ enum SCAN_STATE {
 	SCAN_PS_ANNC_WAIT = 2,
 	SCAN_ENTER = 3,
 	SCAN_PROCESS = 4,
-
 	/* backop */
 	SCAN_BACKING_OP = 5,
 	SCAN_BACK_OP = 6,
 	SCAN_LEAVING_OP = 7,
 	SCAN_LEAVE_OP = 8,
-
 	/* SW antenna diversity (before linked) */
 	SCAN_SW_ANTDIV_BL = 9,
-
 	/* legacy p2p */
 	SCAN_TO_P2P_LISTEN = 10,
 	SCAN_P2P_LISTEN = 11,
-
 	SCAN_COMPLETE = 12,
 	SCAN_STATE_MAX,
 };
@@ -679,6 +675,8 @@ void change_band_update_ie(_adapter *padapter, WLAN_BSSID_EX *pnetwork, u8 ch);
 
 void Set_MSR(_adapter *padapter, u8 type);
 
+void rtw_set_external_auth_status(_adapter *padapter, const void *data, int len);
+
 u8 rtw_get_oper_ch(_adapter *adapter);
 void rtw_set_oper_ch(_adapter *adapter, u8 ch);
 u8 rtw_get_oper_bw(_adapter *adapter);
@@ -1112,6 +1110,8 @@ u8 set_csa_hdl(_adapter *padapter, unsigned char *pbuf);	/* Kurt: Handling DFS c
 u8 tdls_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 run_in_thread_hdl(_adapter *padapter, u8 *pbuf);
 u8 rtw_getmacreg_hdl(_adapter *padapter, u8 *pbuf);
+
+int rtw_sae_preprocess(_adapter *adapter, const u8 *buf, u32 len, u8 tx);
 
 #define GEN_DRV_CMD_HANDLER(size, cmd)	{size, &cmd ## _hdl},
 #define GEN_MLME_EXT_HANDLER(size, cmd)	{size, cmd},

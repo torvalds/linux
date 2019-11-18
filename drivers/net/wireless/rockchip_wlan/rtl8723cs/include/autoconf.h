@@ -132,7 +132,7 @@
 #define CONFIG_SDIO_RX_COPY
 #define CONFIG_XMIT_THREAD_MODE
 /* #define CONFIG_SDIO_TX_ENABLE_AVAL_INT */
-
+/* #define CONFIG_RECV_THREAD_MODE */
 
 /*
  * Others

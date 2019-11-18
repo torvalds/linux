@@ -1197,7 +1197,8 @@ void _phy_mac_setting_calibration8703b(struct dm_struct *dm, u32 *mac_reg,
 	odm_write_1byte(dm, mac_reg[i], 0x3F);
 	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++)
 		odm_write_1byte(dm, mac_reg[i], (u8)(mac_backup[i] & (~BIT(3))));
-	odm_write_1byte(dm, mac_reg[i], (u8)(mac_backup[i] & (~BIT(5))));
+	/*remove 0x40[5]setting for coex reason*/
+	/*odm_write_1byte(dm, mac_reg[i], (u8)(mac_backup[i] & (~BIT(5))));*/
 }
 
 boolean

@@ -407,7 +407,24 @@ static void rtw_get_chbw_from_nl80211_channel_type(struct ieee80211_channel *cha
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)) */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
-u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset, u8 ht)
+bool rtw_cfg80211_allow_ch_switch_notify(_adapter *adapter)
+{
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0))
+	if ((!MLME_IS_AP(adapter))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
+		&& (!MLME_IS_ADHOC(adapter))
+		&& (!MLME_IS_ADHOC_MASTER(adapter))
+		&& (!MLME_IS_MESH(adapter))
+#elif defined(CONFIG_RTW_MESH)
+		&& (!MLME_IS_MESH(adapter))
+#endif
+		)
+		return 0;
+#endif
+	return 1;
+}
+u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset,
+	u8 ht, bool started)
 {
 	struct wiphy *wiphy = adapter_to_wiphy(adapter);
 	u8 ret = _SUCCESS;
@@ -419,11 +436,24 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset, u8 
 	if (ret != _SUCCESS)
 		goto exit;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
+	if (started) {
+		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0);
+		goto exit;
+	}
+#endif
+
+	if (!rtw_cfg80211_allow_ch_switch_notify(adapter))
+		goto exit;
+
 	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
 
 #else
 	int freq = rtw_ch2freq(ch);
 	enum nl80211_channel_type ctype;
+
+	if (!rtw_cfg80211_allow_ch_switch_notify(adapter))
+		goto exit;
 
 	if (!freq) {
 		ret = _FAIL;
@@ -537,6 +567,7 @@ static const struct ieee80211_txrx_stypes
 	[NL80211_IFTYPE_STATION] = {
 		.tx = 0xffff,
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		BIT(IEEE80211_STYPE_AUTH >> 4) |
 		BIT(IEEE80211_STYPE_PROBE_REQ >> 4)
 	},
 	[NL80211_IFTYPE_AP] = {
@@ -3262,6 +3293,21 @@ static int rtw_cfg80211_set_auth_type(struct security_priv *psecuritypriv,
 {
 	RTW_INFO("%s, nl80211_auth_type=%d\n", __func__, sme_auth_type);
 
+	if (NL80211_AUTHTYPE_MAX <= (int)MLME_AUTHTYPE_SAE) {
+		if (MLME_AUTHTYPE_SAE == psecuritypriv->auth_type) {
+			/* This case pre handle in
+			 * rtw_check_connect_sae_compat()
+			 */
+			psecuritypriv->auth_alg = WLAN_AUTH_SAE;
+			return 0;
+		}
+	} else if (sme_auth_type == (int)MLME_AUTHTYPE_SAE) {
+		psecuritypriv->auth_type = MLME_AUTHTYPE_SAE;
+		psecuritypriv->auth_alg = WLAN_AUTH_SAE;
+		return 0;
+	}
+
+	psecuritypriv->auth_type = sme_auth_type;
 
 	switch (sme_auth_type) {
 	case NL80211_AUTHTYPE_AUTOMATIC:
@@ -3290,6 +3336,7 @@ static int rtw_cfg80211_set_auth_type(struct security_priv *psecuritypriv,
 
 
 		break;
+
 	default:
 		psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 		/* return -ENOTSUPP; */
@@ -3388,7 +3435,9 @@ static int rtw_cfg80211_set_key_mgt(struct security_priv *psecuritypriv, u32 key
 		psecuritypriv->rsn_akm_suite_type = 4;
 	}
 #endif
-	else {
+	else if (key_mgt == WLAN_AKM_SUITE_SAE) {
+		psecuritypriv->rsn_akm_suite_type = 8;
+	} else {
 		RTW_INFO("Invalid key mgt: 0x%x\n", key_mgt);
 		/* return -EINVAL; */
 	}
@@ -3527,6 +3576,18 @@ static int rtw_cfg80211_set_wpa_ie(_adapter *padapter, u8 *pie, size_t ielen)
 			set_fwstate(&padapter->mlmepriv, WIFI_UNDER_WPS);
 		} else
 			_clr_fwstate_(&padapter->mlmepriv, WIFI_UNDER_WPS);
+	}
+
+	{/* handle owe_ie */
+		uint owe_ielen;
+		u8 *owe_ie;
+
+		owe_ie = rtw_get_owe_ie(buf, ielen, NULL, &owe_ielen);
+		if (owe_ie && owe_ielen > 0) {
+			RTW_INFO("got owe_ie, owe_ielen:%u\n", owe_ielen);
+			padapter->securitypriv.owe_ie_len = owe_ielen < MAX_OWE_IE_LEN ? owe_ielen : MAX_OWE_IE_LEN;
+			_rtw_memcpy(padapter->securitypriv.owe_ie, owe_ie, padapter->securitypriv.owe_ie_len);
+		}
 	}
 
 	#ifdef CONFIG_P2P
@@ -3757,6 +3818,38 @@ static int _rtw_disconnect(struct wiphy *wiphy, struct net_device *ndev)
 	return 0;
 }
 
+#if (KERNEL_VERSION(4, 17, 0) > LINUX_VERSION_CODE)
+static bool rtw_check_connect_sae_compat(struct cfg80211_connect_params *sme)
+{
+	struct rtw_ieee802_11_elems elems;
+	struct rsne_info info;
+	u8 AKM_SUITE_SAE[] = { 0x00, 0x0f, 0xac, 8 };
+	int i;
+
+	if (sme->auth_type != (int)MLME_AUTHTYPE_SHARED_KEY)
+		return false;
+
+	if (rtw_ieee802_11_parse_elems((u8 *)sme->ie, sme->ie_len, &elems, 0)
+	    == ParseFailed)
+		return false;
+
+	if (!elems.rsn_ie)
+		return false;
+
+	if (rtw_rsne_info_parse(elems.rsn_ie - 2, elems.rsn_ie_len + 2, &info) == _FAIL)
+		return false;
+
+	for (i = 0; i < info.akm_cnt; i++)
+		if (memcmp(info.akm_list + i * RSN_SELECTOR_LEN,
+			    AKM_SUITE_SAE, RSN_SELECTOR_LEN) == 0)
+			return true;
+
+	return false;
+}
+#else
+#define rtw_check_connect_sae_compat(sme)	false
+#endif
+
 static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 				struct cfg80211_connect_params *sme)
 {
@@ -3778,6 +3871,13 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	RTW_INFO("=>"FUNC_NDEV_FMT" - Start to Connection\n", FUNC_NDEV_ARG(ndev));
 	RTW_INFO("privacy=%d, key=%p, key_len=%d, key_idx=%d, auth_type=%d\n",
 		sme->privacy, sme->key, sme->key_len, sme->key_idx, sme->auth_type);
+
+	if (rtw_check_connect_sae_compat(sme)) {
+		sme->auth_type = MLME_AUTHTYPE_SAE;
+		psecuritypriv->auth_type = MLME_AUTHTYPE_SAE;
+		psecuritypriv->auth_alg = WLAN_AUTH_SAE;
+		RTW_INFO("%s set sme->auth_type for SAE compat\n", __FUNCTION__);
+	}
 
 	if (pwdev_priv->block == _TRUE) {
 		ret = -EBUSY;
@@ -3849,6 +3949,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
 	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open; /* open system */
 	psecuritypriv->ndisauthtype = Ndis802_11AuthModeOpen;
+	psecuritypriv->auth_alg = WLAN_AUTH_OPEN;
+	psecuritypriv->extauth_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 
 #ifdef CONFIG_WAPI_SUPPORT
 	padapter->wapiInfo.bWapiEnable = false;
@@ -4115,36 +4217,20 @@ static int cfg80211_rtw_set_power_mgmt(struct wiphy *wiphy,
 	return 0;
 }
 
-static int cfg80211_rtw_set_pmksa(struct wiphy *wiphy,
-				  struct net_device *ndev,
-				  struct cfg80211_pmksa *pmksa)
+static void _rtw_set_pmksa(struct net_device *ndev,
+	u8 *bssid, u8 *pmkid)
 {
-	u8	index, blInserted = _FALSE;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(ndev);
-	struct mlme_priv *mlme = &padapter->mlmepriv;
-	struct security_priv	*psecuritypriv = &padapter->securitypriv;
-	u8	strZeroMacAddress[ETH_ALEN] = { 0x00 };
-
-	RTW_INFO(FUNC_NDEV_FMT" "MAC_FMT" "KEY_FMT"\n", FUNC_NDEV_ARG(ndev)
-		, MAC_ARG(pmksa->bssid), KEY_ARG(pmksa->pmkid));
-
-	if (_rtw_memcmp((u8 *)pmksa->bssid, strZeroMacAddress, ETH_ALEN) == _TRUE)
-		return -EINVAL;
-
-	if (check_fwstate(mlme, _FW_LINKED) == _FALSE) {
-		RTW_INFO(FUNC_NDEV_FMT" not set pmksa cause not in linked state\n", FUNC_NDEV_ARG(ndev));
-		return -EINVAL;
-	}
-
-	blInserted = _FALSE;
+	struct security_priv *psecuritypriv = &padapter->securitypriv;
+	u8 index, blInserted = _FALSE;
 
 	/* overwrite PMKID */
 	for (index = 0 ; index < NUM_PMKID_CACHE; index++) {
-		if (_rtw_memcmp(psecuritypriv->PMKIDList[index].Bssid, (u8 *)pmksa->bssid, ETH_ALEN) == _TRUE) {
+		if (_rtw_memcmp(psecuritypriv->PMKIDList[index].Bssid, bssid, ETH_ALEN) == _TRUE) {
 			/* BSSID is matched, the same AP => rewrite with new PMKID. */
-			RTW_INFO(FUNC_NDEV_FMT" BSSID exists in the PMKList.\n", FUNC_NDEV_ARG(ndev));
+			RTW_INFO("BSSID("MAC_FMT") exists in the PMKList.\n", MAC_ARG(bssid));
 
-			_rtw_memcpy(psecuritypriv->PMKIDList[index].PMKID, (u8 *)pmksa->pmkid, WLAN_PMKID_LEN);
+			_rtw_memcpy(psecuritypriv->PMKIDList[index].PMKID, pmkid, WLAN_PMKID_LEN);
 			psecuritypriv->PMKIDList[index].bUsed = _TRUE;
 			psecuritypriv->PMKIDIndex = index + 1;
 			blInserted = _TRUE;
@@ -4154,16 +4240,47 @@ static int cfg80211_rtw_set_pmksa(struct wiphy *wiphy,
 
 	if (!blInserted) {
 		/* Find a new entry */
-		RTW_INFO(FUNC_NDEV_FMT" Use the new entry index = %d for this PMKID.\n",
-			FUNC_NDEV_ARG(ndev), psecuritypriv->PMKIDIndex);
+		RTW_INFO("Use the new entry index = %d for this PMKID.\n",
+			psecuritypriv->PMKIDIndex);
 
-		_rtw_memcpy(psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].Bssid, (u8 *)pmksa->bssid, ETH_ALEN);
-		_rtw_memcpy(psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].PMKID, (u8 *)pmksa->pmkid, WLAN_PMKID_LEN);
+		_rtw_memcpy(psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].Bssid, bssid, ETH_ALEN);
+		_rtw_memcpy(psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].PMKID, pmkid, WLAN_PMKID_LEN);
 
 		psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].bUsed = _TRUE;
 		psecuritypriv->PMKIDIndex++ ;
 		if (psecuritypriv->PMKIDIndex == 16)
 			psecuritypriv->PMKIDIndex = 0;
+	}
+}
+
+static int cfg80211_rtw_set_pmksa(struct wiphy *wiphy,
+				  struct net_device *ndev,
+				  struct cfg80211_pmksa *pmksa)
+{
+	u8	index, blInserted = _FALSE;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(ndev);
+	struct mlme_priv *mlme = &padapter->mlmepriv;
+	struct security_priv	*psecuritypriv = &padapter->securitypriv;
+	u8	strZeroMacAddress[ETH_ALEN] = { 0x00 };
+	bool sae_auth = rtw_sec_chk_auth_type(padapter, MLME_AUTHTYPE_SAE);
+
+	RTW_INFO(FUNC_NDEV_FMT" "MAC_FMT" "KEY_FMT"\n", FUNC_NDEV_ARG(ndev)
+		, MAC_ARG(pmksa->bssid), KEY_ARG(pmksa->pmkid));
+
+	if (_rtw_memcmp((u8 *)pmksa->bssid, strZeroMacAddress, ETH_ALEN) == _TRUE)
+		return -EINVAL;
+
+	if (check_fwstate(mlme, _FW_LINKED) == _FALSE && !sae_auth) {
+		RTW_INFO(FUNC_NDEV_FMT" not set pmksa cause not in linked state\n", FUNC_NDEV_ARG(ndev));
+		return -EINVAL;
+	}
+
+	_rtw_set_pmksa(ndev, (u8 *)pmksa->bssid, (u8 *)pmksa->pmkid);
+
+	if (sae_auth &&
+		(psecuritypriv->extauth_status == WLAN_STATUS_SUCCESS)) {
+		RTW_PRINT("SAE: auth success, start assoc\n");
+		start_clnt_assoc(padapter);
 	}
 
 	return 0;
@@ -4921,6 +5038,14 @@ static int cfg80211_rtw_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		ret = -ENOTSUPP;
 		goto exit;
 	}
+
+	/* Kernel < v5.x, the auth_type set as NL80211_AUTHTYPE_AUTOMATIC. if
+	 * the AKM SAE in the RSN IE, we have to update the auth_type for SAE in
+	 * rtw_check_beacon_data().
+	 *
+	 * we only update auth_type when rtw_check_beacon_data()
+	 */
+	/* rtw_cfg80211_set_auth_type(&adapter->securitypriv, settings->auth_type); */
 	rtw_mi_scan_abort(adapter, _TRUE);
 	rtw_mi_buddy_set_scan_deny(adapter, 300);
 	ret = rtw_add_beacon(adapter, settings->beacon.head, settings->beacon.head_len,
@@ -5963,6 +6088,50 @@ static int	cfg80211_rtw_assoc(struct wiphy *wiphy, struct net_device *ndev,
 */
 #endif /* CONFIG_AP_MODE */
 
+void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rframe)
+{
+	struct rtw_external_auth_params params;
+	struct wireless_dev *wdev = padapter->rtw_wdev;
+	struct net_device *netdev = wdev_to_ndev(wdev);
+	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
+	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
+
+	u8 frame[256] = { 0 };
+	uint frame_len = 24;
+	s32 freq = 0;
+
+	/* rframe, in this case is null point */
+
+	freq = rtw_ch2freq(pmlmeext->cur_channel);
+
+#if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
+	params.action = EXTERNAL_AUTH_START;
+	_rtw_memcpy(params.bssid, get_my_bssid(&pmlmeinfo->network), ETH_ALEN);
+	params.ssid.ssid_len = pmlmeinfo->network.Ssid.SsidLength;
+	_rtw_memcpy(params.ssid.ssid, pmlmeinfo->network.Ssid.Ssid,
+		pmlmeinfo->network.Ssid.SsidLength);
+	params.key_mgmt_suite = 0x8ac0f00;
+
+	cfg80211_external_auth_request(netdev,
+		(struct cfg80211_external_auth_params *)&params, GFP_ATOMIC);
+#elif (KERNEL_VERSION(2, 6, 37) <= LINUX_VERSION_CODE)
+	set_frame_sub_type(frame, WIFI_AUTH);
+
+	_rtw_memcpy(frame + 4, get_my_bssid(&pmlmeinfo->network), ETH_ALEN);
+	_rtw_memcpy(frame + 10, adapter_mac_addr(padapter), ETH_ALEN);
+	_rtw_memcpy(frame + 16, get_my_bssid(&pmlmeinfo->network), ETH_ALEN);
+	RTW_PUT_LE32((frame + 18), 0x8ac0f00);
+
+	if (pmlmeinfo->network.Ssid.SsidLength) {
+		*(frame + 23) = pmlmeinfo->network.Ssid.SsidLength;
+		_rtw_memcpy(frame + 24, pmlmeinfo->network.Ssid.Ssid,
+			pmlmeinfo->network.Ssid.SsidLength);
+		frame_len = 24 + pmlmeinfo->network.Ssid.SsidLength;
+	}
+	rtw_cfg80211_rx_mgmt(wdev, freq, 0, frame, frame_len, GFP_ATOMIC);
+#endif
+}
+
 void rtw_cfg80211_rx_probe_request(_adapter *adapter, union recv_frame *rframe)
 {
 	struct wireless_dev *wdev = adapter->rtw_wdev;
@@ -6176,10 +6345,9 @@ void rtw_cfg80211_rx_mframe(_adapter *adapter, union recv_frame *rframe, const c
 #endif
 
 	RTW_INFO("RTW_Rx:ch=%d(%d), ta="MAC_FMT"\n", ch, sch, MAC_ARG(get_addr2_ptr(frame)));
-	#ifdef CONFIG_RTW_MESH
-	if (!rtw_sae_check_frames(adapter, frame, frame_len, _FALSE))
-	#endif
-	{
+	if (!MLME_IS_MESH(adapter)
+		|| !rtw_sae_preprocess(adapter, frame, frame_len, _FALSE)
+	) {
 		if (msg)
 			RTW_INFO("RTW_Rx:%s\n", msg);
 		else
@@ -6450,6 +6618,7 @@ static s32 cfg80211_rtw_update_ft_ies(struct wiphy *wiphy,
 	return 0;
 }
 #endif
+
 
 inline void rtw_cfg80211_set_is_roch(_adapter *adapter, bool val)
 {
@@ -7200,8 +7369,14 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy,
 	}
 #ifdef CONFIG_RTW_MESH
 	else if (frame_styp == RTW_IEEE80211_STYPE_AUTH) {
+		int retval = 0;
 		RTW_INFO("RTW_Tx:tx_ch=%d, no_cck=%u, da="MAC_FMT"\n", tx_ch, no_cck, MAC_ARG(GetAddr1Ptr(buf)));
-		if (!rtw_sae_check_frames(padapter, buf, len, _TRUE))
+
+		retval = rtw_sae_preprocess(padapter, buf, len, _TRUE);
+		if (retval == 2)
+			goto exit;
+
+		if (!MLME_IS_MESH(padapter) || (retval == 0))
 			RTW_INFO("RTW_Tx:AUTH\n");
 		dump_limit = 1;
 		goto dump;
@@ -7356,12 +7531,27 @@ static void cfg80211_rtw_mgmt_frame_register(struct wiphy *wiphy,
 	return;
 
 	switch (frame_type) {
+
+	case IEEE80211_STYPE_AUTH: /* 0x00B0 */
+		if (reg > 0)
+			SET_CFG80211_REPORT_MGMT(pwdev_priv, IEEE80211_STYPE_AUTH, reg);
+		else
+			CLR_CFG80211_REPORT_MGMT(pwdev_priv, IEEE80211_STYPE_AUTH, reg);
+		break;
+#ifdef not_yet
 	case IEEE80211_STYPE_PROBE_REQ: /* 0x0040 */
-		SET_CFG80211_REPORT_MGMT(pwdev_priv, IEEE80211_STYPE_PROBE_REQ, reg);
+		if (reg > 0)
+			SET_CFG80211_REPORT_MGMT(pwdev_priv, IEEE80211_STYPE_PROBE_REQ, reg);
+		else
+			CLR_CFG80211_REPORT_MGMT(pwdev_priv, IEEE80211_STYPE_PROBE_REQ, reg);
 		break;
 	case IEEE80211_STYPE_ACTION: /* 0x00D0 */
-		SET_CFG80211_REPORT_MGMT(pwdev_priv, IEEE80211_STYPE_ACTION, reg);
+		if (reg > 0)
+			SET_CFG80211_REPORT_MGMT(pwdev_priv, IEEE80211_STYPE_ACTION, reg);
+		else
+			CLR_CFG80211_REPORT_MGMT(pwdev_priv, IEEE80211_STYPE_ACTION, reg);
 		break;
+#endif
 	default:
 		break;
 	}
@@ -9389,6 +9579,9 @@ static void rtw_cfg80211_preinit_wiphy(_adapter *adapter, struct wiphy *wiphy)
 		;
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0)) */
 #endif /* CONFIG_RTW_MESH */
+#if (KERNEL_VERSION(3, 8, 0) <= LINUX_VERSION_CODE)
+	wiphy->features |= NL80211_FEATURE_SAE;
+#endif
 }
 
 #ifdef CONFIG_RFKILL_POLL
@@ -9562,6 +9755,95 @@ int rtw_hostapd_acs_dump_survey(struct wiphy *wiphy, struct net_device *netdev, 
 }
 #endif /* defined(CONFIG_RTW_HOSTAPD_ACS) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33)) */
 
+
+#if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
+int cfg80211_rtw_external_auth(struct wiphy *wiphy, struct net_device *dev,
+	struct cfg80211_external_auth_params *params)
+{
+	PADAPTER padapter = (_adapter *)rtw_netdev_priv(dev);
+
+	RTW_INFO(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(dev));
+
+	rtw_cfg80211_external_auth_status(wiphy, dev,
+		(struct rtw_external_auth_params *)params);
+
+	return 0;
+}
+#endif
+
+void rtw_cfg80211_external_auth_status(struct wiphy *wiphy, struct net_device *dev,
+	struct rtw_external_auth_params *params)
+{
+	PADAPTER padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct security_priv *psecuritypriv = &padapter->securitypriv;
+	struct sta_priv *pstapriv = &padapter->stapriv;
+	struct sta_info	*psta = NULL;
+
+	u8 *buf = NULL;
+	u32 len = 0;
+	_irqL irqL;
+
+	RTW_INFO(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(dev));
+
+	RTW_INFO("SAE: action: %u, status: %u\n", params->action, params->status);
+	if (params->status == WLAN_STATUS_SUCCESS) {
+		RTW_INFO("bssid: "MAC_FMT"\n", MAC_ARG(params->bssid));
+		RTW_INFO("SSID: [%s]\n",
+			((params->ssid.ssid_len == 0) ? "" : (char *)params->ssid.ssid));
+		RTW_INFO("suite: 0x%08x\n", params->key_mgmt_suite);
+	}
+
+	psta = rtw_get_stainfo(pstapriv, params->bssid);
+	if (psta && (params->status == WLAN_STATUS_SUCCESS)) {
+		/* AP mode */
+		RTW_INFO("station match\n");
+		psta->state &= ~WIFI_FW_AUTH_NULL;
+		psta->state |= WIFI_FW_AUTH_SUCCESS;
+		psta->expire_to = padapter->stapriv.assoc_to;
+
+		if (params->pmkid != NULL) {
+			/* RTW_INFO_DUMP("PMKID:", params->pmkid, PMKID_LEN); */
+			_rtw_set_pmksa(dev, params->bssid, params->pmkid);
+		}
+		_enter_critical_bh(&psta->lock, &irqL);
+		if ((psta->auth_len != 0) && (psta->pauth_frame != NULL)) {
+			buf =  rtw_zmalloc(psta->auth_len);
+			if (buf) {
+				_rtw_memcpy(buf, psta->pauth_frame, psta->auth_len);
+				len = psta->auth_len;
+			}
+
+			rtw_mfree(psta->pauth_frame, psta->auth_len);
+			psta->pauth_frame = NULL;
+			psta->auth_len = 0;
+		}
+		_exit_critical_bh(&psta->lock, &irqL);
+
+		if (buf) {
+			struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
+			/* send the SAE auth Confirm */
+
+			rtw_ps_deny(padapter, PS_DENY_MGNT_TX);
+			if (_SUCCESS == rtw_pwr_wakeup(padapter)) {
+				rtw_mi_set_scan_deny(padapter, 1000);
+				rtw_mi_scan_abort(padapter, _TRUE);
+
+				RTW_INFO("SAE: Tx auth Confirm\n");
+				rtw_mgnt_tx_cmd(padapter, pmlmeext->cur_channel, 1, buf, len, 0, RTW_CMDF_DIRECTLY);
+
+			}
+			rtw_ps_deny_cancel(padapter, PS_DENY_MGNT_TX);
+
+				rtw_mfree(buf, len);
+				buf = NULL;
+				len = 0;
+			}
+	} else {
+		/* STA mode */
+		psecuritypriv->extauth_status = params->status;
+	}
+}
+
 static struct cfg80211_ops rtw_cfg80211_ops = {
 	.change_virtual_intf = cfg80211_rtw_change_iface,
 	.add_key = cfg80211_rtw_add_key,
@@ -9677,6 +9959,9 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 #endif
 #if defined(CONFIG_RTW_HOSTAPD_ACS) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33))
 	.dump_survey = rtw_hostapd_acs_dump_survey,
+#endif
+#if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE)
+	.external_auth = cfg80211_rtw_external_auth,
 #endif
 };
 

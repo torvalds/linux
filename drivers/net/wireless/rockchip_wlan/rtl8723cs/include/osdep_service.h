@@ -67,6 +67,8 @@
 	#define BIT(x)	(1 << (x))
 #endif
 
+#define CHECK_BIT(a, b) (!!((a) & (b)))
+
 #define BIT0	0x00000001
 #define BIT1	0x00000002
 #define BIT2	0x00000004

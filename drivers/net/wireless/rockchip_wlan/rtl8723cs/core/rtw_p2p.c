@@ -4397,7 +4397,7 @@ void process_p2p_ps_ie(PADAPTER padapter, u8 *IEs, u32 IELength)
 	u32 ies_len;
 	u8 *p2p_ie;
 	u32	p2p_ielen = 0;
-	u8	noa_attr[MAX_P2P_IE_LEN] = { 0x00 };/* NoA length should be n*(13) + 2 */
+	u8 *noa_attr; /* NoA length should be n*(13) + 2 */
 	u32	attr_contentlen = 0;
 
 	struct wifidirect_info	*pwdinfo = &(padapter->wdinfo);
@@ -4424,7 +4424,8 @@ void process_p2p_ps_ie(PADAPTER padapter, u8 *IEs, u32 IELength)
 	while (p2p_ie) {
 		find_p2p = _TRUE;
 		/* Get Notice of Absence IE. */
-		if (rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_NOA, noa_attr, &attr_contentlen)) {
+		noa_attr = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_NOA, NULL, &attr_contentlen);
+		if (noa_attr) {
 			find_p2p_ps = _TRUE;
 			noa_index = noa_attr[0];
 
@@ -4437,8 +4438,8 @@ void process_p2p_ps_ie(PADAPTER padapter, u8 *IEs, u32 IELength)
 				noa_offset = 2;
 				noa_num = 0;
 				/* NoA length should be n*(13) + 2 */
-				if (attr_contentlen > 2) {
-					while (noa_offset < attr_contentlen) {
+				if (attr_contentlen > 2 && (attr_contentlen - 2) % 13 == 0) {
+					while (noa_offset < attr_contentlen && noa_num < P2P_MAX_NOA_NUM) {
 						/* _rtw_memcpy(&wifidirect_info->noa_count[noa_num], &noa_attr[noa_offset], 1); */
 						pwdinfo->noa_count[noa_num] = noa_attr[noa_offset];
 						noa_offset += 1;

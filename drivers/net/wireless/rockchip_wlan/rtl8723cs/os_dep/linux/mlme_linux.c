@@ -129,6 +129,7 @@ void rtw_reset_securitypriv(_adapter *adapter)
 
 		adapter->securitypriv.ndisauthtype = Ndis802_11AuthModeOpen;
 		adapter->securitypriv.ndisencryptstatus = Ndis802_11WEPDisabled;
+		adapter->securitypriv.extauth_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 
 	} else { /* reset values in securitypriv */
 		/* if(adapter->mlmepriv.fw_state & WIFI_STATION_STATE) */
@@ -145,6 +146,7 @@ void rtw_reset_securitypriv(_adapter *adapter)
 		psec_priv->ndisauthtype = Ndis802_11AuthModeOpen;
 		psec_priv->ndisencryptstatus = Ndis802_11WEPDisabled;
 		/* } */
+		psec_priv->extauth_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 	}
 	/* add for CONFIG_IEEE80211W, none 11w also can use */
 	_exit_critical_bh(&adapter->security_key_mutex, &irqL);

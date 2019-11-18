@@ -175,6 +175,39 @@ enum dot11AuthAlgrthmNum {
 	dot11AuthAlgrthm_MaxNum
 };
 
+/**
+ * enum mlme_auth_type - AuthenticationType
+ *
+ * @MLME_AUTHTYPE_OPEN_SYSTEM: Open System authentication
+ * @MLME_AUTHTYPE_SHARED_KEY: Shared Key authentication (WEP only)
+ * @MLME_AUTHTYPE_FT: Fast BSS Transition (IEEE 802.11r)
+ * @MLME_AUTHTYPE_NETWORK_EAP: Network EAP (some Cisco APs and mainly LEAP)
+ * @MLME_AUTHTYPE_SAE: Simultaneous authentication of equals
+ * @MLME_AUTHTYPE_FILS_SK: Fast Initial Link Setup shared key
+ * @MLME_AUTHTYPE_FILS_SK_PFS: Fast Initial Link Setup shared key with PFS
+ * @MLME_AUTHTYPE_FILS_PK: Fast Initial Link Setup public key
+ * @__MLME_AUTHTYPE_NUM: internal
+ * @MLME_AUTHTYPE_MAX: maximum valid auth algorithm
+ * @MLME_AUTHTYPE_AUTOMATIC: determine automatically (if necessary by trying
+ *      multiple times); this is invalid in netlink -- leave out the attribute
+ *      for this on CONNECT commands.
+ */
+enum mlme_auth_type {
+	MLME_AUTHTYPE_OPEN_SYSTEM,
+	MLME_AUTHTYPE_SHARED_KEY,
+	MLME_AUTHTYPE_FT,
+	MLME_AUTHTYPE_NETWORK_EAP,
+	MLME_AUTHTYPE_SAE,
+	MLME_AUTHTYPE_FILS_SK,
+	MLME_AUTHTYPE_FILS_SK_PFS,
+	MLME_AUTHTYPE_FILS_PK,
+
+	/* keep last */
+	__MLME_AUTHTYPE_NUM,
+	MLME_AUTHTYPE_MAX = __MLME_AUTHTYPE_NUM - 1,
+	MLME_AUTHTYPE_AUTOMATIC
+};
+
 /* Scan type including active and passive scan. */
 typedef enum _RT_SCAN_TYPE {
 	SCAN_PASSIVE,
@@ -535,7 +568,7 @@ struct beacon_keys {
 	int encryp_protocol;
 	int pairwise_cipher;
 	int group_cipher;
-	int is_8021x;
+	u32 akm;
 };
 #ifdef CONFIG_RTW_80211R
 #define RTW_FT_ACTION_REQ_LMT	4
@@ -1167,7 +1200,8 @@ u32 rtw_scan_abort_timeout(_adapter *adapter, u32 timeout_ms);
 void rtw_scan_abort_no_wait(_adapter *adapter);
 void rtw_scan_abort(_adapter *adapter);
 u32 rtw_join_abort_timeout(_adapter *adapter, u32 timeout_ms);
-
+int rtw_cached_pmkid(_adapter *Adapter, u8 *bssid);
+int rtw_rsn_sync_pmkid(_adapter *adapter, u8 *ie, uint ie_len, int i_ent);
 extern int rtw_restruct_sec_ie(_adapter *adapter, u8 *out_ie);
 #ifdef CONFIG_WMMPS_STA
 void rtw_uapsd_use_default_setting(_adapter *padapter);

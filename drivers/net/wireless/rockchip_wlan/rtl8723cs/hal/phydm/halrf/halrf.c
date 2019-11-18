@@ -1454,10 +1454,8 @@ void halrf_segment_iqk_trigger(void *dm_void, boolean clear,
 		     *rf->is_carrier_suppresion)))
 			return;
 
-#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
 	if (!(rf->rf_supportability & HAL_RF_IQK))
 		return;
-#endif
 
 #if DISABLE_BB_RF
 	return;
@@ -2557,6 +2555,26 @@ void halrf_dpk_reload(void *dm_void)
 	}
 }
 
+void halrf_dpk_switch(void *dm_void, u8 enable)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct dm_dpk_info *dpk_info = &dm->dpk_info;
+	struct _hal_rf_ *rf = &dm->rf_table;
+
+	if (enable) {
+		rf->rf_supportability = rf->rf_supportability | HAL_RF_DPK;
+		dpk_info->is_dpk_enable = true;
+		halrf_dpk_enable_disable(dm);
+		halrf_dpk_trigger(dm);
+		halrf_set_dpk_track(dm, 1);
+	} else {
+		halrf_set_dpk_track(dm, 0);
+		dpk_info->is_dpk_enable = false;
+		halrf_dpk_enable_disable(dm);
+		rf->rf_supportability = rf->rf_supportability & ~HAL_RF_DPK;
+	}
+}
+
 void halrf_dpk_info_rsvd_page(void *dm_void, u8 *buf, u32 *buf_size)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
@@ -2802,6 +2820,86 @@ u8 halrf_get_tssi_codeword_for_txindex(void *dm_void)
 u32 halrf_tssi_get_de(void *dm_void, u8 path)
 {
 	return 0;
+}
+
+void _halrf_dump_subpage(void *dm_void, u32 *_used, char *output, u32 *_out_len, u8 page)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+	u32 used = *_used;
+	u32 out_len = *_out_len;
+	u32 addr;
+
+	PDM_SNPF(out_len, used, output + used, out_len - used,
+		 "\n===============[ Subpage_%d start]===============\n", page);
+
+	odm_set_bb_reg(dm, R_0x1b00, BIT(2) | BIT(1), page);
+
+	for (addr = 0x1b00; addr < 0x1c00; addr += 0x10) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 " 0x%x : 0x%08x  0x%08x  0x%08x  0x%08x\n", addr,
+			odm_get_bb_reg(dm, addr, MASKDWORD),
+			odm_get_bb_reg(dm, addr + 0x4, MASKDWORD),
+			odm_get_bb_reg(dm, addr + 0x8, MASKDWORD),
+			odm_get_bb_reg(dm, addr + 0xc, MASKDWORD));
+	}
+
+	*_used = used;
+	*_out_len = out_len;
+}
+
+void halrf_dump_rfk_reg(void *dm_void, char input[][16], u32 *_used,
+			      char *output, u32 *_out_len)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct _hal_rf_ *rf = &dm->rf_table;
+
+	char help[] = "-h";
+	u32 var1[10] = {0};
+	u32 used = *_used;
+	u32 out_len = *_out_len;
+	u32 reg_1b00, supportability;
+	u8 page;
+
+	if (!(dm->support_ic_type & (ODM_IC_11AC_SERIES |  ODM_IC_JGR3_SERIES))) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "CMD is Unsupported due to IC type!!!\n");
+		return;
+	} else if (rf->is_dpk_in_progress || dm->rf_calibrate_info.is_iqk_in_progress ||
+	    dm->is_psd_in_process || rf->is_tssi_in_progress) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "Bypass CMD due to RFK is doing!!!\n");
+		return;
+	}
+
+	supportability = rf->rf_supportability;
+
+	/*to avoid DPK track interruption*/
+	rf->rf_supportability = rf->rf_supportability & ~HAL_RF_DPK_TRACK;
+
+	reg_1b00 = odm_get_bb_reg(dm, R_0x1b00, MASKDWORD);
+
+	if (input[2])
+		PHYDM_SSCANF(input[2], DCMD_DECIMAL, &var1[0]);
+
+	if ((strcmp(input[2], help) == 0))
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "dump subpage {0:Page0, 1:Page1, 2:Page2, 3:Page3, 4:all}\n");
+	else if (var1[0] > 4)
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "Wrong subpage number!!\n");
+	else if (var1[0] == 4) {
+		for (page = 0; page < 4; page++)
+			_halrf_dump_subpage(dm, &used, output, &out_len, page);
+	} else
+		_halrf_dump_subpage(dm, &used, output, &out_len, (u8)var1[0]);
+
+	odm_set_bb_reg(dm, R_0x1b00, MASKDWORD, reg_1b00);
+
+	rf->rf_supportability = supportability;
+
+	*_used = used;
+	*_out_len = out_len;
 }
 
 /*Golbal function*/

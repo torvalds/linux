@@ -1104,7 +1104,7 @@ void mpt_SetRFPath_8723B(PADAPTER pAdapter)
 	}
 
 	switch (pAdapter->mppriv.antenna_tx) {
-		u8 i;
+		u8 p = 0, i = 0;
 	case ANTENNA_A: { /*/ Actually path S1  (Wi-Fi)*/
 		pMptCtx->mpt_rf_path = RF_PATH_A;
 		phy_set_bb_reg(pAdapter, rS0S1_PathSwitch, BIT9 | BIT8 | BIT7, 0x0);
@@ -1169,6 +1169,7 @@ void mpt_SetRFPath_8723B(PADAPTER pAdapter)
 void mpt_SetRFPath_8703B(PADAPTER pAdapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
+	u8 i = 0;
 	u32					ulAntennaTx, ulAntennaRx;
 	PMPT_CONTEXT		pMptCtx = &(pAdapter->mppriv.mpt_ctx);
 	struct dm_struct		*pDM_Odm = &pHalData->odmpriv;
@@ -1183,8 +1184,6 @@ void mpt_SetRFPath_8703B(PADAPTER pAdapter)
 	}
 
 	switch (pAdapter->mppriv.antenna_tx) {
-		u8 i;
-
 	case ANTENNA_A: { /* Actually path S1  (Wi-Fi) */
 		pMptCtx->mpt_rf_path = RF_PATH_A;
 		phy_set_bb_reg(pAdapter, rS0S1_PathSwitch, BIT9 | BIT8 | BIT7, 0x0);
@@ -1248,7 +1247,6 @@ void mpt_SetRFPath_8703B(PADAPTER pAdapter)
 void mpt_SetRFPath_8723D(PADAPTER pAdapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
-	u8	p = 0, i = 0;
 	u32	ulAntennaTx, ulAntennaRx, offset = 0, data = 0, val32 = 0;
 	PMPT_CONTEXT	pMptCtx = &(pAdapter->mppriv.mpt_ctx);
 	struct dm_struct	*pDM_Odm = &pHalData->odmpriv;

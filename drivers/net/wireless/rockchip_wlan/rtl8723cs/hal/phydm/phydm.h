@@ -669,8 +669,9 @@ struct	phydm_bt_info {
 
 struct	phydm_iot_center {
 	boolean			is_linked_cmw500;
-	u8			win_patch_id;		/*@Customer ID*/
-	u32			phydm_patch_id;
+	u8			win_patch_id;		/*Customer ID*/
+	boolean			patch_id_021f0800;
+	u32			phydm_patch_id;		/*temp for CCX IOT */
 
 };
 
@@ -803,6 +804,11 @@ struct dm_struct {
 	#if (RTL8822C_SUPPORT)
 	u8			txagc_buff[2][NUM_RATE_AC_2SS];
 	u32			bp_0x9b0;
+	u16			agc_rf_gain_ori[16][64];/*[table][mp_gain_idx]*/
+	u16			agc_rf_gain[16][64];/*[table][mp_gain_idx]*/
+	u8			agc_table_cnt;
+	boolean			is_agc_tab_pos_shift;
+	u8			agc_table_shift;
 	#endif
 /*@-----------HOOK BEFORE REG INIT-----------*/
 /*@===========================================================*/
@@ -1039,6 +1045,9 @@ struct dm_struct {
 	/*@-----------------------------------------------------------*/
 
 	boolean			bsomlenabled;	/* @D-SoML control */
+	u8			no_ndp_cnts;
+	u8			ndp_cnt_pre;
+	boolean			is_beamformed;
 	boolean			bhtstfdisabled;	/* @dynamic HTSTF gain control*/
 	u32			n_iqk_cnt;
 	u32			n_iqk_ok_cnt;
@@ -1400,6 +1409,9 @@ phydm_dc_cancellation(struct dm_struct *dm);
 
 void
 phydm_receiver_blocking(void *dm_void);
+
+void
+phydm_iot_patch_id_update(void *dm_void, u32 iot_idx, boolean en);
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
 void

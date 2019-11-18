@@ -168,6 +168,10 @@ phydm_api_set_txagc(void *dm_void, u32 power_index, enum rf_path path,
 
 u8 phydm_api_get_txagc(void *dm_void, enum rf_path path, u8 hw_rate);
 
+#if (RTL8822C_SUPPORT)
+void phydm_shift_rxagc_table(void *dm_void, boolean shift_up, u8 shift);
+#endif
+
 boolean
 phydm_api_switch_bw_channel(void *dm_void, u8 central_ch, u8 primary_ch_idx,
 			    enum channel_width bandwidth);

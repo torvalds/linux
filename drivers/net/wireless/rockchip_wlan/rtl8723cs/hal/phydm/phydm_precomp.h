@@ -474,11 +474,12 @@ rtw_phydm_cfg_phy_para(
 #if (RTL8822C_SUPPORT)
 	#include "rtl8822c/halhwimg8822c_bb.h"
 	#include "rtl8822c/phydm_regconfig8822c.h"
+	#include "rtl8822c/phydm_hal_api8822c.h"
+	#include "rtl8822c/version_rtl8822c.h"
+	#include "rtl8822c/phydm_rtl8822c.h"
 	#include "halrf/rtl8822c/halrf_8822c.h"
 	#include "halrf/rtl8822c/halhwimg8822c_rf.h"
 	#include "halrf/rtl8822c/version_rtl8822c_rf.h"
-	#include "rtl8822c/phydm_hal_api8822c.h"
-	#include "rtl8822c/version_rtl8822c.h"
 	#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
 	/* @struct HAL_DATA_TYPE */
 	#include <hal_data.h>

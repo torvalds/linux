@@ -149,6 +149,8 @@ enum halrf_CMD_ID {
 	HALRF_IQK_INFO,
 	HALRF_IQK,
 	HALRF_IQK_DEBUG,
+	HALRF_DPK,
+	HALRF_DUMP_RFK_REG,
 };
 
 struct halrf_command halrf_cmd_ary[] = {
@@ -159,6 +161,8 @@ struct halrf_command halrf_cmd_ary[] = {
 	{"iqk_info", HALRF_IQK_INFO},
 	{"iqk", HALRF_IQK},
 	{"iqk_dbg", HALRF_IQK_DEBUG},
+	{"dpk", HALRF_DPK},
+	{"dump_rfk_reg", HALRF_DUMP_RFK_REG},
 };
 
 void halrf_cmd_parser(void *dm_void, char input[][16], u32 *_used, char *output,
@@ -238,6 +242,14 @@ void halrf_cmd_parser(void *dm_void, char input[][16], u32 *_used, char *output,
 						output, &out_len);
 #endif
 		}
+		break;
+	case HALRF_DPK:
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "DPK Trigger\n");
+		halrf_dpk_trigger(dm);
+		break;
+	case HALRF_DUMP_RFK_REG:
+		halrf_dump_rfk_reg(dm, input, &used, output, &out_len);
 		break;
 	default:
 		break;

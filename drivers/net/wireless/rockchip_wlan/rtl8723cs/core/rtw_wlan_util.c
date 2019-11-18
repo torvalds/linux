@@ -2290,41 +2290,35 @@ int validate_beacon_len(u8 *pframe, u32 len)
 	return _TRUE;
 }
 
-
-u8 support_rate_ranges[] = {
-	IEEE80211_CCK_RATE_1MB,
-	IEEE80211_CCK_RATE_2MB,
-	IEEE80211_CCK_RATE_5MB,
-	IEEE80211_CCK_RATE_11MB,
-	IEEE80211_OFDM_RATE_6MB,
-	IEEE80211_OFDM_RATE_9MB,
-	IEEE80211_OFDM_RATE_12MB,
-	IEEE80211_OFDM_RATE_18MB,
-	IEEE80211_OFDM_RATE_24MB,
-	IEEE80211_OFDM_RATE_36MB,
-	IEEE80211_OFDM_RATE_48MB,
-	IEEE80211_OFDM_RATE_54MB,
-};
-
-inline bool match_ranges(u16 EID, u32 value)
+inline bool is_valid_rate(u8 rate)
 {
 	int i;
 	int nr_range;
-
-	switch (EID) {
-	case _EXT_SUPPORTEDRATES_IE_:
-	case _SUPPORTEDRATES_IE_:
-		nr_range = sizeof(support_rate_ranges)/sizeof(u8);
-		for (i = 0; i < nr_range; i++) {
-			/*	clear bit7 before searching.	*/
-			value &= ~BIT(7);
-			if (value == support_rate_ranges[i])
-				return _TRUE;
-		}
-		break;
-	default:
-		break;
+	u8 valid_rates[] = {
+		IEEE80211_CCK_RATE_1MB,
+		IEEE80211_CCK_RATE_2MB,
+		IEEE80211_CCK_RATE_5MB,
+		IEEE80211_CCK_RATE_11MB,
+		IEEE80211_OFDM_RATE_6MB,
+		IEEE80211_OFDM_RATE_9MB,
+		IEEE80211_OFDM_RATE_12MB,
+		IEEE80211_OFDM_RATE_18MB,
+		IEEE80211_PBCC_RATE_22MB,
+		IEEE80211_FREAK_RATE_22_5MB,
+		IEEE80211_OFDM_RATE_24MB,
+		IEEE80211_OFDM_RATE_36MB,
+		IEEE80211_OFDM_RATE_48MB,
+		IEEE80211_OFDM_RATE_54MB,
 	};
+
+	nr_range = sizeof(valid_rates) / sizeof(u8);
+	for (i = 0; i < nr_range; i++) {
+		/*	clear bit7 before searching.	*/
+		rate &= ~BIT(7);
+		if (rate == valid_rates[i])
+			return _TRUE;
+	}
+
 	return _FALSE;
 }
 
@@ -2341,16 +2335,14 @@ inline bool match_ranges(u16 EID, u32 value)
  */
 bool rtw_validate_value(u16 EID, u8 *p, u16 len)
 {
-	u8 rate;
 	u32 i, nr_val;
 
 	switch (EID) {
 	case _EXT_SUPPORTEDRATES_IE_:
 	case _SUPPORTEDRATES_IE_:
 		nr_val = len;
-		for (i=0; i<nr_val; i++) {
-			rate = *(p+i);
-			if (match_ranges(EID, rate) == _FALSE)
+		for (i = 0; i < nr_val; i++) {
+			if (is_valid_rate(*(p + i)) == _FALSE)
 				return _FALSE;
 		}
 		break;
@@ -2534,14 +2526,14 @@ int rtw_get_bcn_keys(ADAPTER *Adapter, u8 *pframe, u32 packet_len,
 		recv_beacon->encryp_protocol = ENCRYP_PROTOCOL_WPA2;
 		rtw_parse_wpa2_ie(elems.rsn_ie - 2, elems.rsn_ie_len + 2,
 			&recv_beacon->group_cipher, &recv_beacon->pairwise_cipher,
-				  &recv_beacon->is_8021x, NULL);
+				  &recv_beacon->akm, NULL);
 	}
 	/* checking WPA secon */
 	else if (elems.wpa_ie && elems.wpa_ie_len) {
 		recv_beacon->encryp_protocol = ENCRYP_PROTOCOL_WPA;
 		rtw_parse_wpa_ie(elems.wpa_ie - 2, elems.wpa_ie_len + 2,
 			&recv_beacon->group_cipher, &recv_beacon->pairwise_cipher,
-				 &recv_beacon->is_8021x);
+				 &recv_beacon->akm);
 	} else if (capability & BIT(4))
 		recv_beacon->encryp_protocol = ENCRYP_PROTOCOL_WEP;
 
@@ -2568,9 +2560,9 @@ void rtw_dump_bcn_keys(struct beacon_keys *recv_beacon)
 	RTW_INFO("%s: channel = %d\n", __func__, recv_beacon->bcn_channel);
 	RTW_INFO("%s: ht_cap = 0x%04x\n", __func__,	recv_beacon->ht_cap_info);
 	RTW_INFO("%s: ht_info_infos_0_sco = 0x%02x\n", __func__, recv_beacon->ht_info_infos_0_sco);
-	RTW_INFO("%s: sec=%d, group = %x, pair = %x, 8021X = %x\n", __func__,
-		 recv_beacon->encryp_protocol, recv_beacon->group_cipher,
-		 recv_beacon->pairwise_cipher, recv_beacon->is_8021x);
+	RTW_INFO("sec = %d, group = 0x%x, pair = 0x%x, akm = 0x%08x\n"
+		, recv_beacon->encryp_protocol, recv_beacon->group_cipher
+		, recv_beacon->pairwise_cipher, recv_beacon->akm);
 }
 #define DBG_BCN_CNT
 int rtw_check_bcn_info(ADAPTER *Adapter, u8 *pframe, u32 packet_len)

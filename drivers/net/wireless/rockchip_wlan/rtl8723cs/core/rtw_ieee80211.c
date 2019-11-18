@@ -33,14 +33,28 @@ u8 WPA_CIPHER_SUITE_CCMP[] = { 0x00, 0x50, 0xf2, 4 };
 u8 WPA_CIPHER_SUITE_WEP104[] = { 0x00, 0x50, 0xf2, 5 };
 
 u16 RSN_VERSION_BSD = 1;
-u8 RSN_AUTH_KEY_MGMT_UNSPEC_802_1X[] = { 0x00, 0x0f, 0xac, 1 };
-u8 RSN_AUTH_KEY_MGMT_PSK_OVER_802_1X[] = { 0x00, 0x0f, 0xac, 2 };
 u8 RSN_CIPHER_SUITE_NONE[] = { 0x00, 0x0f, 0xac, 0 };
 u8 RSN_CIPHER_SUITE_WEP40[] = { 0x00, 0x0f, 0xac, 1 };
 u8 RSN_CIPHER_SUITE_TKIP[] = { 0x00, 0x0f, 0xac, 2 };
 u8 RSN_CIPHER_SUITE_WRAP[] = { 0x00, 0x0f, 0xac, 3 };
 u8 RSN_CIPHER_SUITE_CCMP[] = { 0x00, 0x0f, 0xac, 4 };
 u8 RSN_CIPHER_SUITE_WEP104[] = { 0x00, 0x0f, 0xac, 5 };
+
+u8 WLAN_AKM_8021X[] = {0x00, 0x0f, 0xac, 1};
+u8 WLAN_AKM_PSK[] = {0x00, 0x0f, 0xac, 2};
+u8 WLAN_AKM_FT_8021X[] = {0x00, 0x0f, 0xac, 3};
+u8 WLAN_AKM_FT_PSK[] = {0x00, 0x0f, 0xac, 4};
+u8 WLAN_AKM_8021X_SHA256[] = {0x00, 0x0f, 0xac, 5};
+u8 WLAN_AKM_PSK_SHA256[] = {0x00, 0x0f, 0xac, 6};
+u8 WLAN_AKM_TDLS[] = {0x00, 0x0f, 0xac, 7};
+u8 WLAN_AKM_SAE[] = {0x00, 0x0f, 0xac, 8};
+u8 WLAN_AKM_FT_OVER_SAE[] = {0x00, 0x0f, 0xac, 9};
+u8 WLAN_AKM_8021X_SUITE_B[] = {0x00, 0x0f, 0xac, 11};
+u8 WLAN_AKM_8021X_SUITE_B_192[] = {0x00, 0x0f, 0xac, 12};
+u8 WLAN_AKM_FILS_SHA256[] = {0x00, 0x0f, 0xac, 14};
+u8 WLAN_AKM_FILS_SHA384[] = {0x00, 0x0f, 0xac, 15};
+u8 WLAN_AKM_FT_FILS_SHA256[] = {0x00, 0x0f, 0xac, 16};
+u8 WLAN_AKM_FT_FILS_SHA384[] = {0x00, 0x0f, 0xac, 17};
 /* -----------------------------------------------------------
  * for adhoc-master to generate ie and provide supported-rate to fw
  * ----------------------------------------------------------- */
@@ -681,8 +695,44 @@ int rtw_get_wpa2_cipher_suite(u8 *s)
 	return 0;
 }
 
+u32 rtw_get_akm_suite_bitmap(u8 *s)
+{
+	if (_rtw_memcmp(s, WLAN_AKM_8021X, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_8021X;
+	if (_rtw_memcmp(s, WLAN_AKM_PSK, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_PSK;
+	if (_rtw_memcmp(s, WLAN_AKM_FT_8021X, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_FT_8021X;
+	if (_rtw_memcmp(s, WLAN_AKM_FT_PSK, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_FT_PSK;
+	if (_rtw_memcmp(s, WLAN_AKM_8021X_SHA256, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_8021X_SHA256;
+	if (_rtw_memcmp(s, WLAN_AKM_PSK_SHA256, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_PSK_SHA256;
+	if (_rtw_memcmp(s, WLAN_AKM_TDLS, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_TDLS;
+	if (_rtw_memcmp(s, WLAN_AKM_SAE, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_SAE;
+	if (_rtw_memcmp(s, WLAN_AKM_FT_OVER_SAE, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_FT_OVER_SAE;
+	if (_rtw_memcmp(s, WLAN_AKM_8021X_SUITE_B, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_8021X_SUITE_B;
+	if (_rtw_memcmp(s, WLAN_AKM_8021X_SUITE_B_192, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_8021X_SUITE_B_192;
+	if (_rtw_memcmp(s, WLAN_AKM_FILS_SHA256, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_FILS_SHA256;
+	if (_rtw_memcmp(s, WLAN_AKM_FILS_SHA384, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_FILS_SHA384;
+	if (_rtw_memcmp(s, WLAN_AKM_FT_FILS_SHA256, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_FT_FILS_SHA256;
+	if (_rtw_memcmp(s, WLAN_AKM_FT_FILS_SHA384, RSN_SELECTOR_LEN) == _TRUE)
+		return WLAN_AKM_TYPE_FT_FILS_SHA384;
 
-int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x)
+	return 0;
+}
+
+int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
+		     int *pairwise_cipher, u32 *akm)
 {
 	int i, ret = _SUCCESS;
 	int left, count;
@@ -741,11 +791,11 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 		return _FAIL;
 	}
 
-	if (is_8021x) {
+	if (akm) {
 		if (left >= 6) {
 			pos += 2;
 			if (_rtw_memcmp(pos, SUITE_1X, 4) == 1) {
-				*is_8021x = 1;
+				*akm = WLAN_AKM_TYPE_8021X;
 			}
 		}
 	}
@@ -853,11 +903,11 @@ err:
 	return _FAIL;
 }
 
-int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x, u8 *mfp_opt)
+int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
+		      int *pairwise_cipher, u32 *akm, u8 *mfp_opt)
 {
 	struct rsne_info info;
 	int i, ret = _SUCCESS;
-	u8 SUITE_1X[4] = {0x00, 0x0f, 0xac, 0x01};
 
 	ret = rtw_rsne_info_parse(rsn_ie, rsn_ie_len, &info);
 	if (ret != _SUCCESS)
@@ -876,11 +926,10 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwi
 			*pairwise_cipher |= rtw_get_wpa2_cipher_suite(info.pcs_list + 4 * i);
 	}
 
-	if (is_8021x) {
-		*is_8021x = 0;
-		/* here only check the first AKM suite */
-		if (info.akm_cnt && _rtw_memcmp(SUITE_1X, info.akm_list, 4) == _TRUE)
-			*is_8021x = 1;
+	if (akm) {
+		*akm = 0;
+		for (i = 0; i < info.akm_cnt; i++)
+			*akm |= rtw_get_akm_suite_bitmap(info.akm_list + 4 * i);
 	}
 
 	if (mfp_opt) {
@@ -1161,6 +1210,60 @@ u8 *rtw_get_wps_attr_content(u8 *wps_ie, uint wps_ielen, u16 target_attr_id , u8
 
 	return NULL;
 }
+
+/* OWE */
+/**
+ * rtw_get_OWE_ie - Search OWE IE from a series of IEs
+ * @in_ie: Address of IEs to search
+ * @in_len: Length limit from in_ie
+ * @wps_ie: If not NULL and OWE IE is found, OWE IE will be copied to the buf starting from owe_ie
+ * @wps_ielen: If not NULL and OWE IE is found, will set to the length of the entire OWE IE
+ *
+ * Returns: The address of the OWE IE found, or NULL
+ */
+u8 *rtw_get_owe_ie(const u8 *in_ie, uint in_len, u8 *owe_ie, uint *owe_ielen)
+{
+	uint cnt;
+	const u8 *oweie_ptr = NULL;
+	u8 eid;
+
+	if (owe_ielen)
+		*owe_ielen = 0;
+
+	if (!in_ie) {
+		rtw_warn_on(1);
+		return (u8 *)oweie_ptr;
+	}
+
+	if (in_len <= 0)
+		return (u8 *)oweie_ptr;
+
+	cnt = 0;
+
+	while (cnt + 1 + 4 < in_len) {
+		eid = in_ie[cnt];
+
+		if (cnt + 1 + 4 >= MAX_IE_SZ) {
+			rtw_warn_on(1);
+			return NULL;
+		}
+
+		if ((eid == WLAN_EID_EXTENSION) && (in_ie[cnt + 2] == WLAN_EID_EXT_OWE_DH_PARAM)) {
+			oweie_ptr = in_ie + cnt;
+
+			if (owe_ie)
+				_rtw_memcpy(owe_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
+
+			if (owe_ielen)
+				*owe_ielen = in_ie[cnt + 1] + 2;
+
+			break;
+		} else
+			cnt += in_ie[cnt + 1] + 2;
+	}
+	return (u8 *)oweie_ptr;
+}
+
 
 static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 		struct rtw_ieee802_11_elems *elems,
