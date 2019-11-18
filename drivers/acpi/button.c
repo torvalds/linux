@@ -79,6 +79,19 @@ MODULE_DEVICE_TABLE(acpi, button_device_ids);
 static const struct dmi_system_id dmi_lid_quirks[] = {
 	{
 		/*
+		 * Acer Switch 10 SW5-012. _LID method messes with home and
+		 * power button GPIO IRQ settings causing an interrupt storm on
+		 * both GPIOs. This is unfixable without a DSDT override, so we
+		 * have to disable the lid-switch functionality altogether :|
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire SW5-012"),
+		},
+		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_DISABLED,
+	},
+	{
+		/*
 		 * Asus T200TA, _LID keeps reporting closed after every second
 		 * openening of the lid. Causing immediate re-suspend after
 		 * opening every other open. Using LID_INIT_OPEN fixes this.
