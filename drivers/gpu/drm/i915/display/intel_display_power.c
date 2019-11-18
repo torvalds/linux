@@ -4896,6 +4896,9 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 
 	power_domains->initializing = true;
 
+	/* Must happen before power domain init on VLV/CHV */
+	intel_update_rawclk(i915);
+
 	if (INTEL_GEN(i915) >= 11) {
 		icl_display_core_init(i915, resume);
 	} else if (IS_CANNONLAKE(i915)) {

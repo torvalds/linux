@@ -31,13 +31,16 @@
 #define PTP_ENABLE_FEATURE (1<<0)
 #define PTP_RISING_EDGE    (1<<1)
 #define PTP_FALLING_EDGE   (1<<2)
+#define PTP_STRICT_FLAGS   (1<<3)
+#define PTP_EXTTS_EDGES    (PTP_RISING_EDGE | PTP_FALLING_EDGE)
 
 /*
  * flag fields valid for the new PTP_EXTTS_REQUEST2 ioctl.
  */
 #define PTP_EXTTS_VALID_FLAGS	(PTP_ENABLE_FEATURE |	\
 				 PTP_RISING_EDGE |	\
-				 PTP_FALLING_EDGE)
+				 PTP_FALLING_EDGE |	\
+				 PTP_STRICT_FLAGS)
 
 /*
  * flag fields valid for the original PTP_EXTTS_REQUEST ioctl.
