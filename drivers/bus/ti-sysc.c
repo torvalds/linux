@@ -503,10 +503,8 @@ static int sysc_init_resets(struct sysc *ddata)
 {
 	ddata->rsts =
 		devm_reset_control_get_optional_shared(ddata->dev, "rstctrl");
-	if (IS_ERR(ddata->rsts))
-		return PTR_ERR(ddata->rsts);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(ddata->rsts);
 }
 
 /**
