@@ -1677,17 +1677,6 @@ static const char * const drm_named_modes_whitelist[] = {
 	"PAL",
 };
 
-static bool drm_named_mode_is_in_whitelist(const char *mode, unsigned int size)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(drm_named_modes_whitelist); i++)
-		if (!strncmp(mode, drm_named_modes_whitelist[i], size))
-			return true;
-
-	return false;
-}
-
 /**
  * drm_mode_parse_command_line_for_connector - parse command line modeline for connector
  * @mode_option: optional per connector mode option
@@ -1718,7 +1707,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 					       struct drm_cmdline_mode *mode)
 {
 	const char *name;
-	bool named_mode = false, parse_extras = false;
+	bool freestanding = false, parse_extras = false;
 	unsigned int bpp_off = 0, refresh_off = 0, options_off = 0;
 	unsigned int mode_end = 0;
 	const char *bpp_ptr = NULL, *refresh_ptr = NULL, *extra_ptr = NULL;
@@ -1738,49 +1727,14 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 
 	name = mode_option;
 
-	/*
-	 * This is a bit convoluted. To differentiate between the
-	 * named modes and poorly formatted resolutions, we need a
-	 * bunch of things:
-	 *   - We need to make sure that the first character (which
-	 *     would be our resolution in X) is a digit.
-	 *   - If not, then it's either a named mode or a force on/off.
-	 *     To distinguish between the two, we need to run the
-	 *     extra parsing function, and if not, then we consider it
-	 *     a named mode.
-	 *
-	 * If this isn't enough, we should add more heuristics here,
-	 * and matching unit-tests.
-	 */
-	if (!isdigit(name[0]) && name[0] != 'x') {
-		unsigned int namelen = strlen(name);
-
-		/*
-		 * Only the force on/off options can be in that case,
-		 * and they all take a single character.
-		 */
-		if (namelen == 1) {
-			ret = drm_mode_parse_cmdline_extra(name, namelen, true,
-							   connector, mode);
-			if (!ret)
-				return true;
-		}
-
-		named_mode = true;
-	}
-
 	/* Try to locate the bpp and refresh specifiers, if any */
 	bpp_ptr = strchr(name, '-');
 	if (bpp_ptr)
 		bpp_off = bpp_ptr - name;
 
 	refresh_ptr = strchr(name, '@');
-	if (refresh_ptr) {
-		if (named_mode)
-			return false;
-
+	if (refresh_ptr)
 		refresh_off = refresh_ptr - name;
-	}
 
 	/* Locate the start of named options */
 	options_ptr = strchr(name, ',');
@@ -1800,23 +1754,45 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 		parse_extras = true;
 	}
 
-	if (named_mode) {
-		if (mode_end + 1 > DRM_DISPLAY_MODE_LEN)
-			return false;
+	/* First check for a named mode */
+	for (i = 0; i < ARRAY_SIZE(drm_named_modes_whitelist); i++) {
+		ret = str_has_prefix(name, drm_named_modes_whitelist[i]);
+		if (ret == mode_end) {
+			if (refresh_ptr)
+				return false; /* named + refresh is invalid */
 
-		if (!drm_named_mode_is_in_whitelist(name, mode_end))
-			return false;
+			strcpy(mode->name, drm_named_modes_whitelist[i]);
+			mode->specified = true;
+			break;
+		}
+	}
 
-		strscpy(mode->name, name, mode_end + 1);
-	} else {
+	/* No named mode? Check for a normal mode argument, e.g. 1024x768 */
+	if (!mode->specified && isdigit(name[0])) {
 		ret = drm_mode_parse_cmdline_res_mode(name, mode_end,
 						      parse_extras,
 						      connector,
 						      mode);
 		if (ret)
 			return false;
+
+		mode->specified = true;
 	}
-	mode->specified = true;
+
+	/* No mode? Check for freestanding extras and/or options */
+	if (!mode->specified) {
+		unsigned int len = strlen(mode_option);
+
+		if (bpp_ptr || refresh_ptr)
+			return false; /* syntax error */
+
+		if (len == 1 || (len >= 2 && mode_option[1] == ','))
+			extra_ptr = mode_option;
+		else
+			options_ptr = mode_option - 1;
+
+		freestanding = true;
+	}
 
 	if (bpp_ptr) {
 		ret = drm_mode_parse_cmdline_bpp(bpp_ptr, &bpp_end_ptr, mode);
@@ -1852,7 +1828,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 		else
 			len = strlen(extra_ptr);
 
-		ret = drm_mode_parse_cmdline_extra(extra_ptr, len, false,
+		ret = drm_mode_parse_cmdline_extra(extra_ptr, len, freestanding,
 						   connector, mode);
 		if (ret)
 			return false;
@@ -1860,7 +1836,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 
 	if (options_ptr) {
 		ret = drm_mode_parse_cmdline_options(options_ptr + 1,
-						     false,
+						     freestanding,
 						     connector, mode);
 		if (ret)
 			return false;
