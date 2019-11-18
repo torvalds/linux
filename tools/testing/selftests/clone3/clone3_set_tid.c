@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
 		 */
 		test_clone3_set_tid(set_tid, 3, CLONE_NEWPID, 0, 42, true);
 
-		child_exit(ksft_cnt.ksft_pass);
+		child_exit(ksft_cnt.ksft_fail);
 	}
 
 	close(pipe_1[1]);
@@ -366,12 +366,8 @@ int main(int argc, char *argv[])
 	if (!WIFEXITED(status))
 		ksft_test_result_fail("Child error\n");
 
-	if (WEXITSTATUS(status))
-		/*
-		 * Update the number of total tests with the tests from the
-		 * child processes.
-		 */
-		ksft_cnt.ksft_pass = WEXITSTATUS(status);
+	ksft_cnt.ksft_pass += 4 - (ksft_cnt.ksft_fail - WEXITSTATUS(status));
+	ksft_cnt.ksft_fail = WEXITSTATUS(status);
 
 	if (ns3 == pid && ns2 == 42 && ns1 == 1)
 		ksft_test_result_pass(
