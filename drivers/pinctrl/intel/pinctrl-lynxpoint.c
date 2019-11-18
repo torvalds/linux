@@ -152,49 +152,6 @@ static void lp_gpio_free(struct gpio_chip *chip, unsigned int offset)
 	pm_runtime_put(lg->dev);
 }
 
-static int lp_irq_type(struct irq_data *d, unsigned int type)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct lp_gpio *lg = gpiochip_get_data(gc);
-	u32 hwirq = irqd_to_hwirq(d);
-	void __iomem *reg = lp_gpio_reg(&lg->chip, hwirq, LP_CONFIG1);
-	unsigned long flags;
-	u32 value;
-
-	if (hwirq >= lg->chip.ngpio)
-		return -EINVAL;
-
-	raw_spin_lock_irqsave(&lg->lock, flags);
-	value = ioread32(reg);
-
-	/* set both TRIG_SEL and INV bits to 0 for rising edge */
-	if (type & IRQ_TYPE_EDGE_RISING)
-		value &= ~(TRIG_SEL_BIT | INT_INV_BIT);
-
-	/* TRIG_SEL bit 0, INV bit 1 for falling edge */
-	if (type & IRQ_TYPE_EDGE_FALLING)
-		value = (value | INT_INV_BIT) & ~TRIG_SEL_BIT;
-
-	/* TRIG_SEL bit 1, INV bit 0 for level low */
-	if (type & IRQ_TYPE_LEVEL_LOW)
-		value = (value | TRIG_SEL_BIT) & ~INT_INV_BIT;
-
-	/* TRIG_SEL bit 1, INV bit 1 for level high */
-	if (type & IRQ_TYPE_LEVEL_HIGH)
-		value |= TRIG_SEL_BIT | INT_INV_BIT;
-
-	iowrite32(value, reg);
-
-	if (type & IRQ_TYPE_EDGE_BOTH)
-		irq_set_handler_locked(d, handle_edge_irq);
-	else if (type & IRQ_TYPE_LEVEL_MASK)
-		irq_set_handler_locked(d, handle_level_irq);
-
-	raw_spin_unlock_irqrestore(&lg->lock, flags);
-
-	return 0;
-}
-
 static int lp_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
@@ -311,13 +268,56 @@ static void lp_irq_disable(struct irq_data *d)
 	raw_spin_unlock_irqrestore(&lg->lock, flags);
 }
 
+static int lp_irq_set_type(struct irq_data *d, unsigned int type)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct lp_gpio *lg = gpiochip_get_data(gc);
+	u32 hwirq = irqd_to_hwirq(d);
+	void __iomem *reg = lp_gpio_reg(&lg->chip, hwirq, LP_CONFIG1);
+	unsigned long flags;
+	u32 value;
+
+	if (hwirq >= lg->chip.ngpio)
+		return -EINVAL;
+
+	raw_spin_lock_irqsave(&lg->lock, flags);
+	value = ioread32(reg);
+
+	/* set both TRIG_SEL and INV bits to 0 for rising edge */
+	if (type & IRQ_TYPE_EDGE_RISING)
+		value &= ~(TRIG_SEL_BIT | INT_INV_BIT);
+
+	/* TRIG_SEL bit 0, INV bit 1 for falling edge */
+	if (type & IRQ_TYPE_EDGE_FALLING)
+		value = (value | INT_INV_BIT) & ~TRIG_SEL_BIT;
+
+	/* TRIG_SEL bit 1, INV bit 0 for level low */
+	if (type & IRQ_TYPE_LEVEL_LOW)
+		value = (value | TRIG_SEL_BIT) & ~INT_INV_BIT;
+
+	/* TRIG_SEL bit 1, INV bit 1 for level high */
+	if (type & IRQ_TYPE_LEVEL_HIGH)
+		value |= TRIG_SEL_BIT | INT_INV_BIT;
+
+	iowrite32(value, reg);
+
+	if (type & IRQ_TYPE_EDGE_BOTH)
+		irq_set_handler_locked(d, handle_edge_irq);
+	else if (type & IRQ_TYPE_LEVEL_MASK)
+		irq_set_handler_locked(d, handle_level_irq);
+
+	raw_spin_unlock_irqrestore(&lg->lock, flags);
+
+	return 0;
+}
+
 static struct irq_chip lp_irqchip = {
 	.name = "LP-GPIO",
 	.irq_mask = lp_irq_mask,
 	.irq_unmask = lp_irq_unmask,
 	.irq_enable = lp_irq_enable,
 	.irq_disable = lp_irq_disable,
-	.irq_set_type = lp_irq_type,
+	.irq_set_type = lp_irq_set_type,
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 
