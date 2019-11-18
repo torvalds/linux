@@ -1747,11 +1747,6 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 
 	mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 
-#ifdef CONFIG_FB
-	if (!mode_option)
-		mode_option = fb_mode_option;
-#endif
-
 	if (!mode_option) {
 		mode->specified = false;
 		return false;
