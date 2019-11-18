@@ -2756,3 +2756,35 @@ out:
 	qtnf_bus_unlock(bus);
 	return ret;
 }
+
+int qtnf_cmd_netdev_changeupper(const struct qtnf_vif *vif, int br_domain)
+{
+	struct qtnf_bus *bus = vif->mac->bus;
+	struct sk_buff *cmd_skb;
+	struct qlink_cmd_ndev_changeupper *cmd;
+	int ret;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_NDEV_EVENT,
+					    sizeof(*cmd));
+	if (!cmd_skb)
+		return -ENOMEM;
+
+	pr_debug("[VIF%u.%u] set broadcast domain to %d\n",
+		 vif->mac->macid, vif->vifid, br_domain);
+
+	cmd = (struct qlink_cmd_ndev_changeupper *)cmd_skb->data;
+	cmd->nehdr.event = cpu_to_le16(QLINK_NDEV_EVENT_CHANGEUPPER);
+	cmd->upper_type = QLINK_NDEV_UPPER_TYPE_BRIDGE;
+	cmd->br_domain = cpu_to_le32(br_domain);
+
+	qtnf_bus_lock(bus);
+	ret = qtnf_cmd_send(bus, cmd_skb);
+	qtnf_bus_unlock(bus);
+
+	if (ret)
+		pr_err("[VIF%u.%u] failed to set broadcast domain\n",
+		       vif->mac->macid, vif->vifid);
+
+	return ret;
+}

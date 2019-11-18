@@ -248,6 +248,15 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		goto error_del_vif;
 	}
 
+	if (mac->bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) {
+		ret = qtnf_cmd_netdev_changeupper(vif, vif->netdev->ifindex);
+		if (ret) {
+			unregister_netdevice(vif->netdev);
+			vif->netdev = NULL;
+			goto error_del_vif;
+		}
+	}
+
 	vif->wdev.netdev = vif->netdev;
 	return &vif->wdev;
 

@@ -613,6 +613,12 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		goto error_del_vif;
 	}
 
+	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) {
+		ret = qtnf_cmd_netdev_changeupper(vif, vif->netdev->ifindex);
+		if (ret)
+			goto error;
+	}
+
 	pr_debug("MAC%u initialized\n", macid);
 
 	return 0;
@@ -623,6 +629,54 @@ error_del_vif:
 error:
 	qtnf_core_mac_detach(bus, macid);
 	return ret;
+}
+
+bool qtnf_netdev_is_qtn(const struct net_device *ndev)
+{
+	return ndev->netdev_ops == &qtnf_netdev_ops;
+}
+
+static int qtnf_core_netdevice_event(struct notifier_block *nb,
+				     unsigned long event, void *ptr)
+{
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	const struct netdev_notifier_changeupper_info *info;
+	struct qtnf_vif *vif;
+	int br_domain;
+	int ret = 0;
+
+	if (!qtnf_netdev_is_qtn(ndev))
+		return NOTIFY_DONE;
+
+	if (!net_eq(dev_net(ndev), &init_net))
+		return NOTIFY_OK;
+
+	vif = qtnf_netdev_get_priv(ndev);
+
+	switch (event) {
+	case NETDEV_CHANGEUPPER:
+		info = ptr;
+
+		if (!netif_is_bridge_master(info->upper_dev))
+			break;
+
+		pr_debug("[VIF%u.%u] change bridge: %s %s\n",
+			 vif->mac->macid, vif->vifid,
+			 netdev_name(info->upper_dev),
+			 info->linking ? "add" : "del");
+
+		if (info->linking)
+			br_domain = info->upper_dev->ifindex;
+		else
+			br_domain = ndev->ifindex;
+
+		ret = qtnf_cmd_netdev_changeupper(vif, br_domain);
+		break;
+	default:
+		break;
+	}
+
+	return notifier_from_errno(ret);
 }
 
 int qtnf_core_attach(struct qtnf_bus *bus)
@@ -685,6 +739,15 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		}
 	}
 
+	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) {
+		bus->netdev_nb.notifier_call = qtnf_core_netdevice_event;
+		ret = register_netdevice_notifier(&bus->netdev_nb);
+		if (ret) {
+			pr_err("failed to register netdev notifier: %d\n", ret);
+			goto error;
+		}
+	}
+
 	bus->fw_state = QTNF_FW_STATE_RUNNING;
 	return 0;
 
@@ -698,6 +761,7 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 {
 	unsigned int macid;
 
+	unregister_netdevice_notifier(&bus->netdev_nb);
 	qtnf_bus_data_rx_stop(bus);
 
 	for (macid = 0; macid < QTNF_MAX_MAC; macid++)

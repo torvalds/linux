@@ -59,6 +59,7 @@ struct qlink_msg_header {
  * @QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR: device supports MAC Address
  *	Randomization in probe requests.
  * @QLINK_HW_CAPAB_OBSS_SCAN: device can perform OBSS scanning.
+ * @QLINK_HW_CAPAB_HW_BRIDGE: device has hardware switch capabilities.
  */
 enum qlink_hw_capab {
 	QLINK_HW_CAPAB_REG_UPDATE		= BIT(0),
@@ -69,6 +70,7 @@ enum qlink_hw_capab {
 	QLINK_HW_CAPAB_OBSS_SCAN		= BIT(5),
 	QLINK_HW_CAPAB_SCAN_DWELL		= BIT(6),
 	QLINK_HW_CAPAB_SAE			= BIT(8),
+	QLINK_HW_CAPAB_HW_BRIDGE		= BIT(9),
 };
 
 enum qlink_iface_type {
@@ -219,6 +221,8 @@ struct qlink_sta_info_state {
  * @QLINK_CMD_START_CAC: start radar detection procedure on a specified channel.
  * @QLINK_CMD_TXPWR: get or set current channel transmit power for
  *	the specified MAC.
+ * @QLINK_CMD_NDEV_EVENT: signalizes changes made with a corresponding network
+ *	device.
  */
 enum qlink_cmd_type {
 	QLINK_CMD_FW_INIT		= 0x0001,
@@ -251,6 +255,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_DEL_STA		= 0x0052,
 	QLINK_CMD_SCAN			= 0x0053,
 	QLINK_CMD_CHAN_STATS		= 0x0054,
+	QLINK_CMD_NDEV_EVENT		= 0x0055,
 	QLINK_CMD_CONNECT		= 0x0060,
 	QLINK_CMD_DISCONNECT		= 0x0061,
 	QLINK_CMD_PM_SET		= 0x0062,
@@ -769,6 +774,42 @@ struct qlink_cmd_wowlan_set {
 	struct qlink_cmd chdr;
 	__le32 triggers;
 	u8 data[0];
+} __packed;
+
+enum qlink_ndev_event_type {
+	QLINK_NDEV_EVENT_CHANGEUPPER,
+};
+
+/**
+ * struct qlink_cmd_ndev_event - data for QLINK_CMD_NDEV_EVENT command
+ *
+ * @event: type of event, one of &enum qlink_ndev_event_type
+ */
+struct qlink_cmd_ndev_event {
+	struct qlink_cmd chdr;
+	__le16 event;
+	u8 rsvd[2];
+} __packed;
+
+enum qlink_ndev_upper_type {
+	QLINK_NDEV_UPPER_TYPE_NONE,
+	QLINK_NDEV_UPPER_TYPE_BRIDGE,
+};
+
+/**
+ * struct qlink_cmd_ndev_changeupper - data for QLINK_NDEV_EVENT_CHANGEUPPER
+ *
+ * @br_domain: layer 2 broadcast domain ID that ndev is a member of
+ * @upper_type: type of upper device, one of &enum qlink_ndev_upper_type
+ */
+struct qlink_cmd_ndev_changeupper {
+	struct qlink_cmd_ndev_event nehdr;
+	__le64 flags;
+	__le32 br_domain;
+	__le32 netspace_id;
+	__le16 vlanid;
+	u8 upper_type;
+	u8 rsvd[1];
 } __packed;
 
 /* QLINK Command Responses messages related definitions

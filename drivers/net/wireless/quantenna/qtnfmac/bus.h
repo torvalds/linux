@@ -54,6 +54,7 @@ struct qtnf_bus {
 	struct work_struct event_work;
 	struct mutex bus_lock; /* lock during command/event processing */
 	struct dentry *dbg_dir;
+	struct notifier_block netdev_nb;
 	/* bus private data */
 	char bus_priv[0] __aligned(sizeof(void *));
 };
