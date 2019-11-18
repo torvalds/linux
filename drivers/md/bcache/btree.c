@@ -528,32 +528,6 @@ static void btree_node_write_work(struct work_struct *w)
 	mutex_unlock(&b->write_lock);
 }
 
-/* return true if journal pin 'l' is newer than 'r' */
-static bool journal_pin_cmp(struct cache_set *c,
-			    atomic_t *l,
-			    atomic_t *r)
-{
-	int l_idx, r_idx, f_idx, b_idx;
-	bool ret = false;
-
-	l_idx = fifo_idx(&(c)->journal.pin, (l));
-	r_idx = fifo_idx(&(c)->journal.pin, (r));
-	f_idx = (c)->journal.pin.front;
-	b_idx = (c)->journal.pin.back;
-
-	if (l_idx > r_idx)
-		ret = true;
-	/* in case fifo back pointer is swapped */
-	if (b_idx < f_idx) {
-		if (l_idx <= b_idx && r_idx >= f_idx)
-			ret = true;
-		else if (l_idx >= f_idx && r_idx <= b_idx)
-			ret = false;
-	}
-
-	return ret;
-}
-
 static void bch_btree_leaf_dirty(struct btree *b, atomic_t *journal_ref)
 {
 	struct bset *i = btree_bset_last(b);
