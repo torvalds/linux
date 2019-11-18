@@ -1767,8 +1767,12 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 
 		rc = -EIO;
 		if (rx_err & RX_CMPL_ERRORS_BUFFER_ERROR_MASK) {
-			netdev_warn(bp->dev, "RX buffer error %x\n", rx_err);
-			bnxt_sched_reset(bp, rxr);
+			bnapi->cp_ring.rx_buf_errors++;
+			if (!(bp->flags & BNXT_FLAG_CHIP_P5)) {
+				netdev_warn(bp->dev, "RX buffer error %x\n",
+					    rx_err);
+				bnxt_sched_reset(bp, rxr);
+			}
 		}
 		goto next_rx_no_len;
 	}
