@@ -47,7 +47,7 @@
 struct lp_gpio {
 	struct gpio_chip	chip;
 	struct platform_device	*pdev;
-	spinlock_t		lock;
+	raw_spinlock_t		lock;
 	unsigned long		reg_base;
 };
 
@@ -144,7 +144,7 @@ static int lp_irq_type(struct irq_data *d, unsigned type)
 	if (hwirq >= lg->chip.ngpio)
 		return -EINVAL;
 
-	spin_lock_irqsave(&lg->lock, flags);
+	raw_spin_lock_irqsave(&lg->lock, flags);
 	value = inl(reg);
 
 	/* set both TRIG_SEL and INV bits to 0 for rising edge */
@@ -170,7 +170,7 @@ static int lp_irq_type(struct irq_data *d, unsigned type)
 	else if (type & IRQ_TYPE_LEVEL_MASK)
 		irq_set_handler_locked(d, handle_level_irq);
 
-	spin_unlock_irqrestore(&lg->lock, flags);
+	raw_spin_unlock_irqrestore(&lg->lock, flags);
 
 	return 0;
 }
@@ -187,14 +187,14 @@ static void lp_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	unsigned long reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
 	unsigned long flags;
 
-	spin_lock_irqsave(&lg->lock, flags);
+	raw_spin_lock_irqsave(&lg->lock, flags);
 
 	if (value)
 		outl(inl(reg) | OUT_LVL_BIT, reg);
 	else
 		outl(inl(reg) & ~OUT_LVL_BIT, reg);
 
-	spin_unlock_irqrestore(&lg->lock, flags);
+	raw_spin_unlock_irqrestore(&lg->lock, flags);
 }
 
 static int lp_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -203,9 +203,9 @@ static int lp_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	unsigned long reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
 	unsigned long flags;
 
-	spin_lock_irqsave(&lg->lock, flags);
+	raw_spin_lock_irqsave(&lg->lock, flags);
 	outl(inl(reg) | DIR_BIT, reg);
-	spin_unlock_irqrestore(&lg->lock, flags);
+	raw_spin_unlock_irqrestore(&lg->lock, flags);
 
 	return 0;
 }
@@ -219,9 +219,9 @@ static int lp_gpio_direction_output(struct gpio_chip *chip,
 
 	lp_gpio_set(chip, offset, value);
 
-	spin_lock_irqsave(&lg->lock, flags);
+	raw_spin_lock_irqsave(&lg->lock, flags);
 	outl(inl(reg) & ~DIR_BIT, reg);
-	spin_unlock_irqrestore(&lg->lock, flags);
+	raw_spin_unlock_irqrestore(&lg->lock, flags);
 
 	return 0;
 }
@@ -272,9 +272,9 @@ static void lp_irq_enable(struct irq_data *d)
 	unsigned long reg = lp_gpio_reg(&lg->chip, hwirq, LP_INT_ENABLE);
 	unsigned long flags;
 
-	spin_lock_irqsave(&lg->lock, flags);
+	raw_spin_lock_irqsave(&lg->lock, flags);
 	outl(inl(reg) | BIT(hwirq % 32), reg);
-	spin_unlock_irqrestore(&lg->lock, flags);
+	raw_spin_unlock_irqrestore(&lg->lock, flags);
 }
 
 static void lp_irq_disable(struct irq_data *d)
@@ -285,9 +285,9 @@ static void lp_irq_disable(struct irq_data *d)
 	unsigned long reg = lp_gpio_reg(&lg->chip, hwirq, LP_INT_ENABLE);
 	unsigned long flags;
 
-	spin_lock_irqsave(&lg->lock, flags);
+	raw_spin_lock_irqsave(&lg->lock, flags);
 	outl(inl(reg) & ~BIT(hwirq % 32), reg);
-	spin_unlock_irqrestore(&lg->lock, flags);
+	raw_spin_unlock_irqrestore(&lg->lock, flags);
 }
 
 static struct irq_chip lp_irqchip = {
@@ -351,7 +351,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	spin_lock_init(&lg->lock);
+	raw_spin_lock_init(&lg->lock);
 
 	gc = &lg->chip;
 	gc->label = dev_name(dev);
