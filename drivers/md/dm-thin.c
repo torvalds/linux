@@ -882,12 +882,15 @@ static void cell_defer_no_holder(struct thin_c *tc, struct dm_bio_prison_cell *c
 {
 	struct pool *pool = tc->pool;
 	unsigned long flags;
+	int has_work;
 
 	spin_lock_irqsave(&tc->lock, flags);
 	cell_release_no_holder(pool, cell, &tc->deferred_bio_list);
+	has_work = !bio_list_empty(&tc->deferred_bio_list);
 	spin_unlock_irqrestore(&tc->lock, flags);
 
-	wake_worker(pool);
+	if (has_work)
+		wake_worker(pool);
 }
 
 static void thin_defer_bio(struct thin_c *tc, struct bio *bio);
