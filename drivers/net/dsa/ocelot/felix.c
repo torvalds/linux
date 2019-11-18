@@ -286,7 +286,7 @@ static int felix_setup(struct dsa_switch *ds)
 	for (port = 0; port < ds->num_ports; port++) {
 		ocelot_init_port(ocelot, port);
 
-		if (port == dsa_upstream_port(ds, port))
+		if (dsa_is_cpu_port(ds, port))
 			ocelot_set_cpu_port(ocelot, port,
 					    OCELOT_TAG_PREFIX_NONE,
 					    OCELOT_TAG_PREFIX_LONG);
