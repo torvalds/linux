@@ -1305,6 +1305,7 @@ static void dcn20_update_dchubp_dpp(
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
+	bool viewport_changed = false;
 
 	if (pipe_ctx->update_flags.bits.dppclk)
 		dpp->funcs->dpp_dppclk_control(dpp, false, true);
@@ -1383,12 +1384,14 @@ static void dcn20_update_dchubp_dpp(
 
 	if (pipe_ctx->update_flags.bits.viewport ||
 			(context == dc->current_state && plane_state->update_flags.bits.scaling_change) ||
-			(context == dc->current_state && pipe_ctx->stream->update_flags.bits.scaling))
+			(context == dc->current_state && pipe_ctx->stream->update_flags.bits.scaling)) {
+
 		hubp->funcs->mem_program_viewport(
 			hubp,
 			&pipe_ctx->plane_res.scl_data.viewport,
-			&pipe_ctx->plane_res.scl_data.viewport_c,
-			plane_state->rotation);
+			&pipe_ctx->plane_res.scl_data.viewport_c);
+		viewport_changed = true;
+	}
 
 	/* Any updates are handled in dc interface, just need to apply existing for plane enable */
 	if ((pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed)
@@ -1441,8 +1444,13 @@ static void dcn20_update_dchubp_dpp(
 		hubp->power_gated = false;
 	}
 
+	if (hubp->funcs->apply_PLAT_54186_wa && viewport_changed)
+		hubp->funcs->apply_PLAT_54186_wa(hubp, &plane_state->address);
+
 	if (pipe_ctx->update_flags.bits.enable || plane_state->update_flags.bits.addr_update)
 		hws->funcs.update_plane_addr(dc, pipe_ctx);
+
+
 
 	if (pipe_ctx->update_flags.bits.enable)
 		hubp->funcs->set_blank(hubp, false);

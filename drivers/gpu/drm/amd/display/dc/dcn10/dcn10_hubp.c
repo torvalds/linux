@@ -810,8 +810,7 @@ static void hubp1_set_vm_context0_settings(struct hubp *hubp,
 void min_set_viewport(
 	struct hubp *hubp,
 	const struct rect *viewport,
-	const struct rect *viewport_c,
-	enum dc_rotation_angle rotation)
+	const struct rect *viewport_c)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
