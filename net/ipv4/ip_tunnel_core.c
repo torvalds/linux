@@ -526,7 +526,7 @@ static int ip_tun_fill_encap_opts_erspan(struct sk_buff *skb,
 		return -ENOMEM;
 
 	md = ip_tunnel_info_opts(tun_info);
-	if (nla_put_u32(skb, LWTUNNEL_IP_OPT_ERSPAN_VER, md->version))
+	if (nla_put_u8(skb, LWTUNNEL_IP_OPT_ERSPAN_VER, md->version))
 		goto err;
 
 	if (md->version == 1 &&
