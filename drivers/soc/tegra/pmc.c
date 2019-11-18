@@ -2804,7 +2804,7 @@ static const struct tegra_pmc_regs tegra186_pmc_regs = {
 	.dpd2_status = 0x80,
 	.rst_status = 0x70,
 	.rst_source_shift = 0x2,
-	.rst_source_mask = 0x3C,
+	.rst_source_mask = 0x3c,
 	.rst_level_shift = 0x0,
 	.rst_level_mask = 0x3,
 };
