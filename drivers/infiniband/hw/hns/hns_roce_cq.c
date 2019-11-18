@@ -101,9 +101,9 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev,
 	else
 		mtt_table = &hr_dev->mr_table.mtt_table;
 
-	mtts = hns_roce_table_find(hr_dev, mtt_table,
-				   hr_cq->hr_buf.hr_mtt.first_seg,
+	mtts = hns_roce_table_find(hr_dev, mtt_table, hr_cq->mtt.first_seg,
 				   &dma_handle);
+
 	if (!mtts) {
 		dev_err(dev, "Failed to find mtt for CQ buf.\n");
 		return -EINVAL;
@@ -207,45 +207,36 @@ static int hns_roce_ib_get_cq_umem(struct hns_roce_dev *hr_dev,
 				   struct hns_roce_ib_create_cq ucmd,
 				   struct ib_udata *udata)
 {
-	struct hns_roce_cq_buf *buf = &hr_cq->hr_buf;
+	struct hns_roce_buf *buf = &hr_cq->buf;
+	struct hns_roce_mtt *mtt = &hr_cq->mtt;
 	struct ib_umem **umem = &hr_cq->umem;
-	u32 page_shift;
 	u32 npages;
 	int ret;
 
-	*umem = ib_umem_get(udata, ucmd.buf_addr,
-			    hr_cq->cq_depth * hr_dev->caps.cq_entry_sz,
+	*umem = ib_umem_get(udata, ucmd.buf_addr, buf->size,
 			    IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(*umem))
 		return PTR_ERR(*umem);
 
 	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
-		buf->hr_mtt.mtt_type = MTT_TYPE_CQE;
+		mtt->mtt_type = MTT_TYPE_CQE;
 	else
-		buf->hr_mtt.mtt_type = MTT_TYPE_WQE;
+		mtt->mtt_type = MTT_TYPE_WQE;
 
-	if (hr_dev->caps.cqe_buf_pg_sz) {
-		npages = (ib_umem_page_count(*umem) +
-			(1 << hr_dev->caps.cqe_buf_pg_sz) - 1) /
-			(1 << hr_dev->caps.cqe_buf_pg_sz);
-		page_shift = PAGE_SHIFT + hr_dev->caps.cqe_buf_pg_sz;
-		ret = hns_roce_mtt_init(hr_dev, npages, page_shift,
-					&buf->hr_mtt);
-	} else {
-		ret = hns_roce_mtt_init(hr_dev, ib_umem_page_count(*umem),
-					PAGE_SHIFT, &buf->hr_mtt);
-	}
+	npages = DIV_ROUND_UP(ib_umem_page_count(*umem),
+			      1 << hr_dev->caps.cqe_buf_pg_sz);
+	ret = hns_roce_mtt_init(hr_dev, npages, buf->page_shift, mtt);
 	if (ret)
 		goto err_buf;
 
-	ret = hns_roce_ib_umem_write_mtt(hr_dev, &buf->hr_mtt, *umem);
+	ret = hns_roce_ib_umem_write_mtt(hr_dev, mtt, *umem);
 	if (ret)
 		goto err_mtt;
 
 	return 0;
 
 err_mtt:
-	hns_roce_mtt_cleanup(hr_dev, &buf->hr_mtt);
+	hns_roce_mtt_cleanup(hr_dev, mtt);
 
 err_buf:
 	ib_umem_release(*umem);
@@ -255,39 +246,36 @@ err_buf:
 static int hns_roce_ib_alloc_cq_buf(struct hns_roce_dev *hr_dev,
 				    struct hns_roce_cq *hr_cq)
 {
-	struct hns_roce_cq_buf *buf = &hr_cq->hr_buf;
-	u32 page_shift = PAGE_SHIFT + hr_dev->caps.cqe_buf_pg_sz;
-	u32 nent = hr_cq->cq_depth;
+	struct hns_roce_buf *buf = &hr_cq->buf;
+	struct hns_roce_mtt *mtt = &hr_cq->mtt;
 	int ret;
 
-	ret = hns_roce_buf_alloc(hr_dev, nent * hr_dev->caps.cq_entry_sz,
-				 (1 << page_shift) * 2, &buf->hr_buf,
-				 page_shift);
+	ret = hns_roce_buf_alloc(hr_dev, buf->size, (1 << buf->page_shift) * 2,
+				 buf, buf->page_shift);
 	if (ret)
 		goto out;
 
 	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
-		buf->hr_mtt.mtt_type = MTT_TYPE_CQE;
+		mtt->mtt_type = MTT_TYPE_CQE;
 	else
-		buf->hr_mtt.mtt_type = MTT_TYPE_WQE;
+		mtt->mtt_type = MTT_TYPE_WQE;
 
-	ret = hns_roce_mtt_init(hr_dev, buf->hr_buf.npages,
-				buf->hr_buf.page_shift, &buf->hr_mtt);
+	ret = hns_roce_mtt_init(hr_dev, buf->npages, buf->page_shift, mtt);
 	if (ret)
 		goto err_buf;
 
-	ret = hns_roce_buf_write_mtt(hr_dev, &buf->hr_mtt, &buf->hr_buf);
+	ret = hns_roce_buf_write_mtt(hr_dev, mtt, buf);
 	if (ret)
 		goto err_mtt;
 
 	return 0;
 
 err_mtt:
-	hns_roce_mtt_cleanup(hr_dev, &buf->hr_mtt);
+	hns_roce_mtt_cleanup(hr_dev, mtt);
 
 err_buf:
-	hns_roce_buf_free(hr_dev, nent * hr_dev->caps.cq_entry_sz,
-			  &buf->hr_buf);
+	hns_roce_buf_free(hr_dev, buf->size, buf);
+
 out:
 	return ret;
 }
@@ -295,8 +283,7 @@ out:
 static void hns_roce_ib_free_cq_buf(struct hns_roce_dev *hr_dev,
 				    struct hns_roce_cq *hr_cq)
 {
-	hns_roce_buf_free(hr_dev, hr_cq->cq_depth * hr_dev->caps.cq_entry_sz,
-			  &hr_cq->hr_buf.hr_buf);
+	hns_roce_buf_free(hr_dev, hr_cq->buf.size, &hr_cq->buf);
 }
 
 static int create_user_cq(struct hns_roce_dev *hr_dev,
@@ -337,7 +324,7 @@ static int create_user_cq(struct hns_roce_dev *hr_dev,
 	return 0;
 
 err_mtt:
-	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
+	hns_roce_mtt_cleanup(hr_dev, &hr_cq->mtt);
 	ib_umem_release(hr_cq->umem);
 
 	return ret;
@@ -390,14 +377,14 @@ static void destroy_user_cq(struct hns_roce_dev *hr_dev,
 	    (udata->outlen >= sizeof(*resp)))
 		hns_roce_db_unmap_user(context, &hr_cq->db);
 
-	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
+	hns_roce_mtt_cleanup(hr_dev, &hr_cq->mtt);
 	ib_umem_release(hr_cq->umem);
 }
 
 static void destroy_kernel_cq(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_cq *hr_cq)
 {
-	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
+	hns_roce_mtt_cleanup(hr_dev, &hr_cq->mtt);
 	hns_roce_ib_free_cq_buf(hr_dev, hr_cq);
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)
@@ -433,6 +420,8 @@ int hns_roce_ib_create_cq(struct ib_cq *ib_cq,
 	hr_cq->ib_cq.cqe = cq_entries - 1; /* used as cqe index */
 	hr_cq->cq_depth = cq_entries;
 	hr_cq->vector = vector;
+	hr_cq->buf.size = hr_cq->cq_depth * hr_dev->caps.cq_entry_sz;
+	hr_cq->buf.page_shift = PAGE_SHIFT + hr_dev->caps.cqe_buf_pg_sz;
 	spin_lock_init(&hr_cq->lock);
 
 	if (udata) {
@@ -502,7 +491,7 @@ void hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	}
 
 	hns_roce_free_cq(hr_dev, hr_cq);
-	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
+	hns_roce_mtt_cleanup(hr_dev, &hr_cq->mtt);
 
 	ib_umem_release(hr_cq->umem);
 	if (udata) {

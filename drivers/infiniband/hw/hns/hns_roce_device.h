@@ -448,6 +448,7 @@ struct hns_roce_buf {
 	struct hns_roce_buf_list	*page_list;
 	int				nbufs;
 	u32				npages;
+	u32				size;
 	int				page_shift;
 };
 
@@ -479,14 +480,10 @@ struct hns_roce_db {
 	int		order;
 };
 
-struct hns_roce_cq_buf {
-	struct hns_roce_buf hr_buf;
-	struct hns_roce_mtt hr_mtt;
-};
-
 struct hns_roce_cq {
 	struct ib_cq			ib_cq;
-	struct hns_roce_cq_buf		hr_buf;
+	struct hns_roce_buf		buf;
+	struct hns_roce_mtt		mtt;
 	struct hns_roce_db		db;
 	u8				db_en;
 	spinlock_t			lock;
