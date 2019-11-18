@@ -131,6 +131,7 @@ int main(int argc, char *argv[])
 
 	uid_t uid = getuid();
 
+	test_clone3_supported();
 	ksft_print_header();
 	ksft_set_plan(17);
 
