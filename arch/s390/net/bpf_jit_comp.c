@@ -372,6 +372,24 @@ static bool is_valid_ldisp(int disp)
 }
 
 /*
+ * Return whether the next 32-bit literal pool entry can be referenced using
+ * Long-Displacement Facility
+ */
+static bool can_use_ldisp_for_lit32(struct bpf_jit *jit)
+{
+	return is_valid_ldisp(jit->lit32 - jit->base_ip);
+}
+
+/*
+ * Return whether the next 64-bit literal pool entry can be referenced using
+ * Long-Displacement Facility
+ */
+static bool can_use_ldisp_for_lit64(struct bpf_jit *jit)
+{
+	return is_valid_ldisp(jit->lit64 - jit->base_ip);
+}
+
+/*
  * Fill whole space with illegal instructions
  */
 static void jit_fill_hole(void *area, unsigned int size)
@@ -752,9 +770,18 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		EMIT4_IMM(0xa7080000, REG_W0, 0);
 		/* lr %w1,%dst */
 		EMIT2(0x1800, REG_W1, dst_reg);
-		/* dl %w0,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0097, REG_W0, REG_0, REG_L,
-			      EMIT_CONST_U32(imm));
+		if (!is_first_pass(jit) && can_use_ldisp_for_lit32(jit)) {
+			/* dl %w0,<d(imm)>(%l) */
+			EMIT6_DISP_LH(0xe3000000, 0x0097, REG_W0, REG_0, REG_L,
+				      EMIT_CONST_U32(imm));
+		} else {
+			/* lgfrl %dst,imm */
+			EMIT6_PCREL_RILB(0xc40c0000, dst_reg,
+					 _EMIT_CONST_U32(imm));
+			jit->seen |= SEEN_LITERAL;
+			/* dlr %w0,%dst */
+			EMIT4(0xb9970000, REG_W0, dst_reg);
+		}
 		/* llgfr %dst,%rc */
 		EMIT4(0xb9160000, dst_reg, rc_reg);
 		if (insn_is_zext(&insn[1]))
@@ -776,9 +803,18 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		EMIT4_IMM(0xa7090000, REG_W0, 0);
 		/* lgr %w1,%dst */
 		EMIT4(0xb9040000, REG_W1, dst_reg);
-		/* dlg %w0,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0087, REG_W0, REG_0, REG_L,
-			      EMIT_CONST_U64(imm));
+		if (!is_first_pass(jit) && can_use_ldisp_for_lit64(jit)) {
+			/* dlg %w0,<d(imm)>(%l) */
+			EMIT6_DISP_LH(0xe3000000, 0x0087, REG_W0, REG_0, REG_L,
+				      EMIT_CONST_U64(imm));
+		} else {
+			/* lgrl %dst,imm */
+			EMIT6_PCREL_RILB(0xc4080000, dst_reg,
+					 _EMIT_CONST_U64(imm));
+			jit->seen |= SEEN_LITERAL;
+			/* dlgr %w0,%dst */
+			EMIT4(0xb9870000, REG_W0, dst_reg);
+		}
 		/* lgr %dst,%rc */
 		EMIT4(0xb9040000, dst_reg, rc_reg);
 		break;
@@ -801,9 +837,19 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_AND | BPF_K: /* dst = dst & imm */
-		/* ng %dst,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0080, dst_reg, REG_0, REG_L,
-			      EMIT_CONST_U64(imm));
+		if (!is_first_pass(jit) && can_use_ldisp_for_lit64(jit)) {
+			/* ng %dst,<d(imm)>(%l) */
+			EMIT6_DISP_LH(0xe3000000, 0x0080,
+				      dst_reg, REG_0, REG_L,
+				      EMIT_CONST_U64(imm));
+		} else {
+			/* lgrl %w0,imm */
+			EMIT6_PCREL_RILB(0xc4080000, REG_W0,
+					 _EMIT_CONST_U64(imm));
+			jit->seen |= SEEN_LITERAL;
+			/* ngr %dst,%w0 */
+			EMIT4(0xb9800000, dst_reg, REG_W0);
+		}
 		break;
 	/*
 	 * BPF_OR
@@ -823,9 +869,19 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_OR | BPF_K: /* dst = dst | imm */
-		/* og %dst,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0081, dst_reg, REG_0, REG_L,
-			      EMIT_CONST_U64(imm));
+		if (!is_first_pass(jit) && can_use_ldisp_for_lit64(jit)) {
+			/* og %dst,<d(imm)>(%l) */
+			EMIT6_DISP_LH(0xe3000000, 0x0081,
+				      dst_reg, REG_0, REG_L,
+				      EMIT_CONST_U64(imm));
+		} else {
+			/* lgrl %w0,imm */
+			EMIT6_PCREL_RILB(0xc4080000, REG_W0,
+					 _EMIT_CONST_U64(imm));
+			jit->seen |= SEEN_LITERAL;
+			/* ogr %dst,%w0 */
+			EMIT4(0xb9810000, dst_reg, REG_W0);
+		}
 		break;
 	/*
 	 * BPF_XOR
@@ -847,9 +903,19 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_XOR | BPF_K: /* dst = dst ^ imm */
-		/* xg %dst,<d(imm)>(%l) */
-		EMIT6_DISP_LH(0xe3000000, 0x0082, dst_reg, REG_0, REG_L,
-			      EMIT_CONST_U64(imm));
+		if (!is_first_pass(jit) && can_use_ldisp_for_lit64(jit)) {
+			/* xg %dst,<d(imm)>(%l) */
+			EMIT6_DISP_LH(0xe3000000, 0x0082,
+				      dst_reg, REG_0, REG_L,
+				      EMIT_CONST_U64(imm));
+		} else {
+			/* lgrl %w0,imm */
+			EMIT6_PCREL_RILB(0xc4080000, REG_W0,
+					 _EMIT_CONST_U64(imm));
+			jit->seen |= SEEN_LITERAL;
+			/* xgr %dst,%w0 */
+			EMIT4(0xb9820000, dst_reg, REG_W0);
+		}
 		break;
 	/*
 	 * BPF_LSH
