@@ -1568,11 +1568,34 @@ static int drm_mode_parse_cmdline_res_mode(const char *str, unsigned int length,
 	return 0;
 }
 
+static int drm_mode_parse_cmdline_int(const char *delim, unsigned int *int_ret)
+{
+	const char *value;
+	char *endp;
+
+	/*
+	 * delim must point to the '=', otherwise it is a syntax error and
+	 * if delim points to the terminating zero, then delim + 1 wil point
+	 * past the end of the string.
+	 */
+	if (*delim != '=')
+		return -EINVAL;
+
+	value = delim + 1;
+	*int_ret = simple_strtol(value, &endp, 10);
+
+	/* Make sure we have parsed something */
+	if (endp == value)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int drm_mode_parse_cmdline_options(char *str, size_t len,
 					  const struct drm_connector *connector,
 					  struct drm_cmdline_mode *mode)
 {
-	unsigned int rotation = 0;
+	unsigned int deg, margin, rotation = 0;
 	char *sep = str;
 
 	while ((sep = strchr(sep, ','))) {
@@ -1588,13 +1611,7 @@ static int drm_mode_parse_cmdline_options(char *str, size_t len,
 		}
 
 		if (!strncmp(option, "rotate", delim - option)) {
-			const char *value = delim + 1;
-			unsigned int deg;
-
-			deg = simple_strtol(value, &sep, 10);
-
-			/* Make sure we have parsed something */
-			if (sep == value)
+			if (drm_mode_parse_cmdline_int(delim, &deg))
 				return -EINVAL;
 
 			switch (deg) {
@@ -1619,57 +1636,32 @@ static int drm_mode_parse_cmdline_options(char *str, size_t len,
 			}
 		} else if (!strncmp(option, "reflect_x", delim - option)) {
 			rotation |= DRM_MODE_REFLECT_X;
-			sep = delim;
 		} else if (!strncmp(option, "reflect_y", delim - option)) {
 			rotation |= DRM_MODE_REFLECT_Y;
-			sep = delim;
 		} else if (!strncmp(option, "margin_right", delim - option)) {
-			const char *value = delim + 1;
-			unsigned int margin;
-
-			margin = simple_strtol(value, &sep, 10);
-
-			/* Make sure we have parsed something */
-			if (sep == value)
+			if (drm_mode_parse_cmdline_int(delim, &margin))
 				return -EINVAL;
 
 			mode->tv_margins.right = margin;
 		} else if (!strncmp(option, "margin_left", delim - option)) {
-			const char *value = delim + 1;
-			unsigned int margin;
-
-			margin = simple_strtol(value, &sep, 10);
-
-			/* Make sure we have parsed something */
-			if (sep == value)
+			if (drm_mode_parse_cmdline_int(delim, &margin))
 				return -EINVAL;
 
 			mode->tv_margins.left = margin;
 		} else if (!strncmp(option, "margin_top", delim - option)) {
-			const char *value = delim + 1;
-			unsigned int margin;
-
-			margin = simple_strtol(value, &sep, 10);
-
-			/* Make sure we have parsed something */
-			if (sep == value)
+			if (drm_mode_parse_cmdline_int(delim, &margin))
 				return -EINVAL;
 
 			mode->tv_margins.top = margin;
 		} else if (!strncmp(option, "margin_bottom", delim - option)) {
-			const char *value = delim + 1;
-			unsigned int margin;
-
-			margin = simple_strtol(value, &sep, 10);
-
-			/* Make sure we have parsed something */
-			if (sep == value)
+			if (drm_mode_parse_cmdline_int(delim, &margin))
 				return -EINVAL;
 
 			mode->tv_margins.bottom = margin;
 		} else {
 			return -EINVAL;
 		}
+		sep = delim;
 	}
 
 	mode->rotation_reflection = rotation;
