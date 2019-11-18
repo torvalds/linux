@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 		ksft_exit_fail_msg("pipe() failed\n");
 
 	ksft_print_header();
-	ksft_set_plan(27);
+	ksft_set_plan(29);
 
 	f = fopen("/proc/sys/kernel/pid_max", "r");
 	if (f == NULL)
@@ -290,6 +290,18 @@ int main(int argc, char *argv[])
 	/* Let's create a PID 1 */
 	ns_pid = fork();
 	if (ns_pid == 0) {
+		/*
+		 * This and the next test cases check that all pid-s are
+		 * released on error paths.
+		 */
+		set_tid[0] = 43;
+		set_tid[1] = -1;
+		test_clone3_set_tid(set_tid, 2, 0, -EINVAL, 0, 0);
+
+		set_tid[0] = 43;
+		set_tid[1] = pid;
+		test_clone3_set_tid(set_tid, 2, 0, 0, 43, 0);
+
 		ksft_print_msg("Child in PID namespace has PID %d\n", getpid());
 		set_tid[0] = 2;
 		test_clone3_set_tid(set_tid, 1, 0, 0, 2, 0);
@@ -366,7 +378,7 @@ int main(int argc, char *argv[])
 	if (!WIFEXITED(status))
 		ksft_test_result_fail("Child error\n");
 
-	ksft_cnt.ksft_pass += 4 - (ksft_cnt.ksft_fail - WEXITSTATUS(status));
+	ksft_cnt.ksft_pass += 6 - (ksft_cnt.ksft_fail - WEXITSTATUS(status));
 	ksft_cnt.ksft_fail = WEXITSTATUS(status);
 
 	if (ns3 == pid && ns2 == 42 && ns1 == 1)
