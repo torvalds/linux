@@ -1219,7 +1219,7 @@ static void configure_lttpr_mode(struct dc_link *link)
 	uint8_t repeater_id;
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
-	DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Non Transparent Mode\n", __func__);
+	DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
 	core_link_write_dpcd(link,
 			DP_PHY_REPEATER_MODE,
 			(uint8_t *)&repeater_mode,
@@ -1227,7 +1227,7 @@ static void configure_lttpr_mode(struct dc_link *link)
 
 	if (!link->is_lttpr_mode_transparent) {
 
-		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
+		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Non Transparent Mode\n", __func__);
 
 		repeater_mode = DP_PHY_REPEATER_MODE_NON_TRANSPARENT;
 		core_link_write_dpcd(link,
