@@ -353,6 +353,15 @@ static bool can_use_rel(struct bpf_jit *jit, int off)
 }
 
 /*
+ * Return whether given displacement can be encoded using
+ * Long-Displacement Facility
+ */
+static bool is_valid_ldisp(int disp)
+{
+	return disp >= -524288 && disp <= 524287;
+}
+
+/*
  * Fill whole space with illegal instructions
  */
 static void jit_fill_hole(void *area, unsigned int size)
@@ -476,9 +485,16 @@ static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
 	save_restore_regs(jit, REGS_SAVE, stack_depth);
 	/* Setup literal pool */
 	if (is_first_pass(jit) || (jit->seen & SEEN_LITERAL)) {
-		/* basr %r13,0 */
-		EMIT2(0x0d00, REG_L, REG_0);
-		jit->base_ip = jit->prg;
+		if (!is_first_pass(jit) &&
+		    is_valid_ldisp(jit->size - (jit->prg + 2))) {
+			/* basr %l,0 */
+			EMIT2(0x0d00, REG_L, REG_0);
+			jit->base_ip = jit->prg;
+		} else {
+			/* larl %l,lit32_start */
+			EMIT6_PCREL_RILB(0xc0000000, REG_L, jit->lit32_start);
+			jit->base_ip = jit->lit32_start;
+		}
 	}
 	/* Setup stack and backchain */
 	if (is_first_pass(jit) || (jit->seen & SEEN_STACK)) {
