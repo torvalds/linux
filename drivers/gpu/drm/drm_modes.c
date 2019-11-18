@@ -1591,15 +1591,15 @@ static int drm_mode_parse_cmdline_int(const char *delim, unsigned int *int_ret)
 	return 0;
 }
 
-static int drm_mode_parse_cmdline_options(char *str, size_t len,
+static int drm_mode_parse_cmdline_options(const char *str, size_t len,
 					  const struct drm_connector *connector,
 					  struct drm_cmdline_mode *mode)
 {
 	unsigned int deg, margin, rotation = 0;
-	char *sep = str;
+	const char *sep = str;
 
 	while ((sep = strchr(sep, ','))) {
-		char *delim, *option;
+		const char *delim, *option;
 
 		option = sep + 1;
 		delim = strchr(option, '=');
@@ -1718,8 +1718,8 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	bool named_mode = false, parse_extras = false;
 	unsigned int bpp_off = 0, refresh_off = 0, options_off = 0;
 	unsigned int mode_end = 0;
-	char *bpp_ptr = NULL, *refresh_ptr = NULL, *extra_ptr = NULL;
-	char *options_ptr = NULL;
+	const char *bpp_ptr = NULL, *refresh_ptr = NULL, *extra_ptr = NULL;
+	const char *options_ptr = NULL;
 	char *bpp_end_ptr = NULL, *refresh_end_ptr = NULL;
 	int ret;
 
