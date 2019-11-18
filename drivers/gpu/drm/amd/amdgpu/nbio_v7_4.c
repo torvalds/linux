@@ -92,10 +92,10 @@ static void nbio_v7_4_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 {
 	u32 reg, doorbell_range;
 
-	if (instance < 2)
+	if (instance < 2) {
 		reg = instance +
 			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
-	else
+	} else {
 		/*
 		 * These registers address of SDMA2~7 is not consecutive
 		 * from SDMA0~1. Need plus 4 dwords offset.
@@ -103,9 +103,19 @@ static void nbio_v7_4_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 		 *   BIF_SDMA0_DOORBELL_RANGE:  0x3bc0
 		 *   BIF_SDMA1_DOORBELL_RANGE:  0x3bc4
 		 *   BIF_SDMA2_DOORBELL_RANGE:  0x3bd8
++		 *   BIF_SDMA4_DOORBELL_RANGE:
++		 *     ARCTURUS:  0x3be0
++		 *     ALDEBARAN: 0x3be4
 		 */
-		reg = instance + 0x4 +
-			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
+		if (adev->asic_type == CHIP_ALDEBARAN && instance == 4)
+			reg = instance + 0x4 + 0x1 +
+				SOC15_REG_OFFSET(NBIO, 0,
+						 mmBIF_SDMA0_DOORBELL_RANGE);
+		else
+			reg = instance + 0x4 +
+				SOC15_REG_OFFSET(NBIO, 0,
+						 mmBIF_SDMA0_DOORBELL_RANGE);
+	}
 
 	doorbell_range = RREG32(reg);
 
