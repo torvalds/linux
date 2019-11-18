@@ -240,10 +240,6 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	u16 channel;
 	u32 freq;
 	u64 notify_timestamp;
-	u16 notify_capability;
-	u16 notify_interval;
-	u8 *notify_ie;
-	size_t notify_ielen;
 	s32 notify_signal;
 	u8 *buf = NULL, *pbuf;
 	size_t len, bssinf_len = 0;
@@ -323,12 +319,6 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
 	notify_timestamp = ktime_to_us(ktime_get_boottime());
-
-	notify_interval = le16_to_cpu(*(__le16 *)rtw_get_beacon_interval_from_ie(pnetwork->network.IEs));
-	notify_capability = le16_to_cpu(*(__le16 *)rtw_get_capability_from_ie(pnetwork->network.IEs));
-
-	notify_ie = pnetwork->network.IEs+_FIXED_IE_LENGTH_;
-	notify_ielen = pnetwork->network.IELength-_FIXED_IE_LENGTH_;
 
 	/* We've set wiphy's signal_type as CFG80211_SIGNAL_TYPE_MBM: signal strength in mBm (100*dBm) */
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true &&
