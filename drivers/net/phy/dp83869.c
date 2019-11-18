@@ -239,7 +239,7 @@ static int dp83869_configure_rgmii(struct phy_device *phydev,
 			       dp83869->io_impedance &
 			       DP83869_IO_MUX_CFG_IO_IMPEDANCE_CTRL);
 
-	return ret;
+	return 0;
 }
 
 static int dp83869_configure_mode(struct phy_device *phydev,
