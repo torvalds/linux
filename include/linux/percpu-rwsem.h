@@ -43,7 +43,6 @@ is_static struct percpu_rw_semaphore name = {				\
 	__DEFINE_PERCPU_RWSEM(name, static)
 
 extern bool __percpu_down_read(struct percpu_rw_semaphore *, bool);
-extern void __percpu_up_read(struct percpu_rw_semaphore *);
 
 static inline void percpu_down_read(struct percpu_rw_semaphore *sem)
 {
@@ -103,10 +102,22 @@ static inline void percpu_up_read(struct percpu_rw_semaphore *sem)
 	/*
 	 * Same as in percpu_down_read().
 	 */
-	if (likely(rcu_sync_is_idle(&sem->rss)))
+	if (likely(rcu_sync_is_idle(&sem->rss))) {
 		__this_cpu_dec(*sem->read_count);
-	else
-		__percpu_up_read(sem); /* Unconditional memory barrier */
+	} else {
+		/*
+		 * slowpath; reader will only ever wake a single blocked
+		 * writer.
+		 */
+		smp_mb(); /* B matches C */
+		/*
+		 * In other words, if they see our decrement (presumably to
+		 * aggregate zero, as that is the only time it matters) they
+		 * will also see our critical section.
+		 */
+		__this_cpu_dec(*sem->read_count);
+		rcuwait_wake_up(&sem->writer);
+	}
 	preempt_enable();
 }
 
