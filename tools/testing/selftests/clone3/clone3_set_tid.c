@@ -30,6 +30,13 @@
 static int pipe_1[2];
 static int pipe_2[2];
 
+static void child_exit(int ret)
+{
+	fflush(stdout);
+	fflush(stderr);
+	_exit(ret);
+}
+
 static int call_clone3_set_tid(pid_t *set_tid,
 			       size_t set_tid_size,
 			       int flags,
@@ -84,8 +91,8 @@ static int call_clone3_set_tid(pid_t *set_tid,
 		}
 
 		if (set_tid[0] != getpid())
-			_exit(EXIT_FAILURE);
-		_exit(exit_code);
+			child_exit(EXIT_FAILURE);
+		child_exit(exit_code);
 	}
 
 	if (expected_pid == 0 || expected_pid == pid) {
@@ -249,7 +256,7 @@ int main(int argc, char *argv[])
 	pid = fork();
 	if (pid == 0) {
 		ksft_print_msg("Child has PID %d\n", getpid());
-		_exit(EXIT_SUCCESS);
+		child_exit(EXIT_SUCCESS);
 	}
 	if (waitpid(pid, &status, 0) < 0)
 		ksft_exit_fail_msg("Waiting for child %d failed", pid);
@@ -309,7 +316,7 @@ int main(int argc, char *argv[])
 		 */
 		test_clone3_set_tid(set_tid, 3, CLONE_NEWPID, 0, 42, true);
 
-		_exit(ksft_cnt.ksft_pass);
+		child_exit(ksft_cnt.ksft_pass);
 	}
 
 	close(pipe_1[1]);
