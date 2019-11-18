@@ -6472,10 +6472,10 @@ static void intel_disable_primary_plane(const struct intel_crtc_state *crtc_stat
 	plane->disable_plane(plane, crtc_state);
 }
 
-static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
+static void ironlake_crtc_enable(struct intel_crtc_state *new_crtc_state,
 				 struct intel_atomic_state *state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
@@ -6495,55 +6495,54 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	if (pipe_config->has_pch_encoder)
-		intel_prepare_shared_dpll(pipe_config);
+	if (new_crtc_state->has_pch_encoder)
+		intel_prepare_shared_dpll(new_crtc_state);
 
-	if (intel_crtc_has_dp_encoder(pipe_config))
-		intel_dp_set_m_n(pipe_config, M1_N1);
+	if (intel_crtc_has_dp_encoder(new_crtc_state))
+		intel_dp_set_m_n(new_crtc_state, M1_N1);
 
-	intel_set_pipe_timings(pipe_config);
-	intel_set_pipe_src_size(pipe_config);
+	intel_set_pipe_timings(new_crtc_state);
+	intel_set_pipe_src_size(new_crtc_state);
 
-	if (pipe_config->has_pch_encoder) {
-		intel_cpu_transcoder_set_m_n(pipe_config,
-					     &pipe_config->fdi_m_n, NULL);
-	}
+	if (new_crtc_state->has_pch_encoder)
+		intel_cpu_transcoder_set_m_n(new_crtc_state,
+					     &new_crtc_state->fdi_m_n, NULL);
 
-	ironlake_set_pipeconf(pipe_config);
+	ironlake_set_pipeconf(new_crtc_state);
 
 	crtc->active = true;
 
 	intel_encoders_pre_enable(state, crtc);
 
-	if (pipe_config->has_pch_encoder) {
+	if (new_crtc_state->has_pch_encoder) {
 		/* Note: FDI PLL enabling _must_ be done before we enable the
 		 * cpu pipes, hence this is separate from all the other fdi/pch
 		 * enabling. */
-		ironlake_fdi_pll_enable(pipe_config);
+		ironlake_fdi_pll_enable(new_crtc_state);
 	} else {
 		assert_fdi_tx_disabled(dev_priv, pipe);
 		assert_fdi_rx_disabled(dev_priv, pipe);
 	}
 
-	ironlake_pfit_enable(pipe_config);
+	ironlake_pfit_enable(new_crtc_state);
 
 	/*
 	 * On ILK+ LUT must be loaded before the pipe is running but with
 	 * clocks enabled
 	 */
-	intel_color_load_luts(pipe_config);
-	intel_color_commit(pipe_config);
+	intel_color_load_luts(new_crtc_state);
+	intel_color_commit(new_crtc_state);
 	/* update DSPCNTR to configure gamma for pipe bottom color */
-	intel_disable_primary_plane(pipe_config);
+	intel_disable_primary_plane(new_crtc_state);
 
 	if (dev_priv->display.initial_watermarks)
 		dev_priv->display.initial_watermarks(state, crtc);
-	intel_enable_pipe(pipe_config);
+	intel_enable_pipe(new_crtc_state);
 
-	if (pipe_config->has_pch_encoder)
-		ironlake_pch_enable(state, pipe_config);
+	if (new_crtc_state->has_pch_encoder)
+		ironlake_pch_enable(state, new_crtc_state);
 
-	intel_crtc_vblank_on(pipe_config);
+	intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
 
@@ -6556,7 +6555,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	 * some interlaced HDMI modes. Let's do the double wait always
 	 * in case there are more corner cases we don't know about.
 	 */
-	if (pipe_config->has_pch_encoder) {
+	if (new_crtc_state->has_pch_encoder) {
 		intel_wait_for_vblank(dev_priv, pipe);
 		intel_wait_for_vblank(dev_priv, pipe);
 	}
@@ -6616,13 +6615,13 @@ static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(reg, val);
 }
 
-static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
+static void haswell_crtc_enable(struct intel_crtc_state *new_crtc_state,
 				struct intel_atomic_state *state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe, hsw_workaround_pipe;
-	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
+	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
 	bool psl_clkgate_wa;
 
 	if (WARN_ON(crtc->active))
@@ -6630,69 +6629,67 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_pre_pll_enable(state, crtc);
 
-	if (pipe_config->shared_dpll)
-		intel_enable_shared_dpll(pipe_config);
+	if (new_crtc_state->shared_dpll)
+		intel_enable_shared_dpll(new_crtc_state);
 
 	intel_encoders_pre_enable(state, crtc);
 
-	if (intel_crtc_has_dp_encoder(pipe_config))
-		intel_dp_set_m_n(pipe_config, M1_N1);
+	if (intel_crtc_has_dp_encoder(new_crtc_state))
+		intel_dp_set_m_n(new_crtc_state, M1_N1);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_set_pipe_timings(pipe_config);
+		intel_set_pipe_timings(new_crtc_state);
 
 	if (INTEL_GEN(dev_priv) >= 11)
-		icl_enable_trans_port_sync(pipe_config);
+		icl_enable_trans_port_sync(new_crtc_state);
 
-	intel_set_pipe_src_size(pipe_config);
+	intel_set_pipe_src_size(new_crtc_state);
 
 	if (cpu_transcoder != TRANSCODER_EDP &&
-	    !transcoder_is_dsi(cpu_transcoder)) {
+	    !transcoder_is_dsi(cpu_transcoder))
 		I915_WRITE(PIPE_MULT(cpu_transcoder),
-			   pipe_config->pixel_multiplier - 1);
-	}
+			   new_crtc_state->pixel_multiplier - 1);
 
-	if (pipe_config->has_pch_encoder) {
-		intel_cpu_transcoder_set_m_n(pipe_config,
-					     &pipe_config->fdi_m_n, NULL);
-	}
+	if (new_crtc_state->has_pch_encoder)
+		intel_cpu_transcoder_set_m_n(new_crtc_state,
+					     &new_crtc_state->fdi_m_n, NULL);
 
 	if (!transcoder_is_dsi(cpu_transcoder)) {
-		hsw_set_frame_start_delay(pipe_config);
-		haswell_set_pipeconf(pipe_config);
+		hsw_set_frame_start_delay(new_crtc_state);
+		haswell_set_pipeconf(new_crtc_state);
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
-		bdw_set_pipemisc(pipe_config);
+		bdw_set_pipemisc(new_crtc_state);
 
 	crtc->active = true;
 
 	/* Display WA #1180: WaDisableScalarClockGating: glk, cnl */
 	psl_clkgate_wa = (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
-			 pipe_config->pch_pfit.enabled;
+		new_crtc_state->pch_pfit.enabled;
 	if (psl_clkgate_wa)
 		glk_pipe_scaler_clock_gating_wa(dev_priv, pipe, true);
 
 	if (INTEL_GEN(dev_priv) >= 9)
-		skylake_pfit_enable(pipe_config);
+		skylake_pfit_enable(new_crtc_state);
 	else
-		ironlake_pfit_enable(pipe_config);
+		ironlake_pfit_enable(new_crtc_state);
 
 	/*
 	 * On ILK+ LUT must be loaded before the pipe is running but with
 	 * clocks enabled
 	 */
-	intel_color_load_luts(pipe_config);
-	intel_color_commit(pipe_config);
+	intel_color_load_luts(new_crtc_state);
+	intel_color_commit(new_crtc_state);
 	/* update DSPCNTR to configure gamma/csc for pipe bottom color */
 	if (INTEL_GEN(dev_priv) < 9)
-		intel_disable_primary_plane(pipe_config);
+		intel_disable_primary_plane(new_crtc_state);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_set_pipe_chicken(crtc);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_ddi_enable_transcoder_func(pipe_config);
+		intel_ddi_enable_transcoder_func(new_crtc_state);
 
 	if (dev_priv->display.initial_watermarks)
 		dev_priv->display.initial_watermarks(state, crtc);
@@ -6702,12 +6699,12 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
 	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_enable_pipe(pipe_config);
+		intel_enable_pipe(new_crtc_state);
 
-	if (pipe_config->has_pch_encoder)
-		lpt_pch_enable(state, pipe_config);
+	if (new_crtc_state->has_pch_encoder)
+		lpt_pch_enable(state, new_crtc_state);
 
-	intel_crtc_vblank_on(pipe_config);
+	intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
 
@@ -6718,7 +6715,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	/* If we change the relative order between pipe/planes enabling, we need
 	 * to change the workaround. */
-	hsw_workaround_pipe = pipe_config->hsw_workaround_pipe;
+	hsw_workaround_pipe = new_crtc_state->hsw_workaround_pipe;
 	if (IS_HASWELL(dev_priv) && hsw_workaround_pipe != INVALID_PIPE) {
 		intel_wait_for_vblank(dev_priv, hsw_workaround_pipe);
 		intel_wait_for_vblank(dev_priv, hsw_workaround_pipe);
@@ -7028,28 +7025,28 @@ static void modeset_put_power_domains(struct drm_i915_private *dev_priv,
 		intel_display_power_put_unchecked(dev_priv, domain);
 }
 
-static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
+static void valleyview_crtc_enable(struct intel_crtc_state *new_crtc_state,
 				   struct intel_atomic_state *state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
 	if (WARN_ON(crtc->active))
 		return;
 
-	if (intel_crtc_has_dp_encoder(pipe_config))
-		intel_dp_set_m_n(pipe_config, M1_N1);
+	if (intel_crtc_has_dp_encoder(new_crtc_state))
+		intel_dp_set_m_n(new_crtc_state, M1_N1);
 
-	intel_set_pipe_timings(pipe_config);
-	intel_set_pipe_src_size(pipe_config);
+	intel_set_pipe_timings(new_crtc_state);
+	intel_set_pipe_src_size(new_crtc_state);
 
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
 		I915_WRITE(CHV_BLEND(pipe), CHV_BLEND_LEGACY);
 		I915_WRITE(CHV_CANVAS(pipe), 0);
 	}
 
-	i9xx_set_pipeconf(pipe_config);
+	i9xx_set_pipeconf(new_crtc_state);
 
 	crtc->active = true;
 
@@ -7058,26 +7055,26 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_encoders_pre_pll_enable(state, crtc);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
-		chv_prepare_pll(crtc, pipe_config);
-		chv_enable_pll(crtc, pipe_config);
+		chv_prepare_pll(crtc, new_crtc_state);
+		chv_enable_pll(crtc, new_crtc_state);
 	} else {
-		vlv_prepare_pll(crtc, pipe_config);
-		vlv_enable_pll(crtc, pipe_config);
+		vlv_prepare_pll(crtc, new_crtc_state);
+		vlv_enable_pll(crtc, new_crtc_state);
 	}
 
 	intel_encoders_pre_enable(state, crtc);
 
-	i9xx_pfit_enable(pipe_config);
+	i9xx_pfit_enable(new_crtc_state);
 
-	intel_color_load_luts(pipe_config);
-	intel_color_commit(pipe_config);
+	intel_color_load_luts(new_crtc_state);
+	intel_color_commit(new_crtc_state);
 	/* update DSPCNTR to configure gamma for pipe bottom color */
-	intel_disable_primary_plane(pipe_config);
+	intel_disable_primary_plane(new_crtc_state);
 
 	dev_priv->display.initial_watermarks(state, crtc);
-	intel_enable_pipe(pipe_config);
+	intel_enable_pipe(new_crtc_state);
 
-	intel_crtc_vblank_on(pipe_config);
+	intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
 }
@@ -7091,25 +7088,25 @@ static void i9xx_set_pll_dividers(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(FP1(crtc->pipe), crtc_state->dpll_hw_state.fp1);
 }
 
-static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
+static void i9xx_crtc_enable(struct intel_crtc_state *new_crtc_state,
 			     struct intel_atomic_state *state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
 	if (WARN_ON(crtc->active))
 		return;
 
-	i9xx_set_pll_dividers(pipe_config);
+	i9xx_set_pll_dividers(new_crtc_state);
 
-	if (intel_crtc_has_dp_encoder(pipe_config))
-		intel_dp_set_m_n(pipe_config, M1_N1);
+	if (intel_crtc_has_dp_encoder(new_crtc_state))
+		intel_dp_set_m_n(new_crtc_state, M1_N1);
 
-	intel_set_pipe_timings(pipe_config);
-	intel_set_pipe_src_size(pipe_config);
+	intel_set_pipe_timings(new_crtc_state);
+	intel_set_pipe_src_size(new_crtc_state);
 
-	i9xx_set_pipeconf(pipe_config);
+	i9xx_set_pipeconf(new_crtc_state);
 
 	crtc->active = true;
 
@@ -7118,22 +7115,22 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_pre_enable(state, crtc);
 
-	i9xx_enable_pll(crtc, pipe_config);
+	i9xx_enable_pll(crtc, new_crtc_state);
 
-	i9xx_pfit_enable(pipe_config);
+	i9xx_pfit_enable(new_crtc_state);
 
-	intel_color_load_luts(pipe_config);
-	intel_color_commit(pipe_config);
+	intel_color_load_luts(new_crtc_state);
+	intel_color_commit(new_crtc_state);
 	/* update DSPCNTR to configure gamma for pipe bottom color */
-	intel_disable_primary_plane(pipe_config);
+	intel_disable_primary_plane(new_crtc_state);
 
 	if (dev_priv->display.initial_watermarks)
 		dev_priv->display.initial_watermarks(state, crtc);
 	else
 		intel_update_watermarks(crtc);
-	intel_enable_pipe(pipe_config);
+	intel_enable_pipe(new_crtc_state);
 
-	intel_crtc_vblank_on(pipe_config);
+	intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
 }
