@@ -1591,23 +1591,21 @@ static int drm_mode_parse_cmdline_int(const char *delim, unsigned int *int_ret)
 	return 0;
 }
 
-static int drm_mode_parse_cmdline_options(const char *str, size_t len,
+static int drm_mode_parse_cmdline_options(const char *str,
 					  const struct drm_connector *connector,
 					  struct drm_cmdline_mode *mode)
 {
 	unsigned int deg, margin, rotation = 0;
-	const char *sep = str;
+	const char *delim, *option, *sep;
 
-	while ((sep = strchr(sep, ','))) {
-		const char *delim, *option;
-
-		option = sep + 1;
+	option = str;
+	do {
 		delim = strchr(option, '=');
 		if (!delim) {
 			delim = strchr(option, ',');
 
 			if (!delim)
-				delim = str + len;
+				delim = option + strlen(option);
 		}
 
 		if (!strncmp(option, "rotate", delim - option)) {
@@ -1661,8 +1659,9 @@ static int drm_mode_parse_cmdline_options(const char *str, size_t len,
 		} else {
 			return -EINVAL;
 		}
-		sep = delim;
-	}
+		sep = strchr(delim, ',');
+		option = sep + 1;
+	} while (sep);
 
 	mode->rotation_reflection = rotation;
 
@@ -1855,9 +1854,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	}
 
 	if (options_ptr) {
-		int len = strlen(name) - (options_ptr - name);
-
-		ret = drm_mode_parse_cmdline_options(options_ptr, len,
+		ret = drm_mode_parse_cmdline_options(options_ptr + 1,
 						     connector, mode);
 		if (ret)
 			return false;
