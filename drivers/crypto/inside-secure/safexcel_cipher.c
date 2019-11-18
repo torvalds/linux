@@ -2532,10 +2532,7 @@ static int safexcel_aead_gcm_cra_init(struct crypto_tfm *tfm)
 	ctx->mode = CONTEXT_CONTROL_CRYPTO_MODE_XCM; /* override default */
 
 	ctx->hkaes = crypto_alloc_cipher("aes", 0, 0);
-	if (IS_ERR(ctx->hkaes))
-		return PTR_ERR(ctx->hkaes);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(ctx->hkaes);
 }
 
 static void safexcel_aead_gcm_cra_exit(struct crypto_tfm *tfm)
