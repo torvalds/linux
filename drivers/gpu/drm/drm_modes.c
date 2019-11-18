@@ -1794,6 +1794,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 		mode_end = refresh_off;
 	} else if (options_ptr) {
 		mode_end = options_off;
+		parse_extras = true;
 	} else {
 		mode_end = strlen(name);
 		parse_extras = true;
