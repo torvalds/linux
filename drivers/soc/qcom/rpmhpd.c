@@ -164,7 +164,25 @@ static const struct rpmhpd_desc sm8150_desc = {
 	.num_pds = ARRAY_SIZE(sm8150_rpmhpds),
 };
 
+/* SC7180 RPMH powerdomains */
+static struct rpmhpd *sc7180_rpmhpds[] = {
+	[SC7180_CX] = &sdm845_cx,
+	[SC7180_CX_AO] = &sdm845_cx_ao,
+	[SC7180_GFX] = &sdm845_gfx,
+	[SC7180_MX] = &sdm845_mx,
+	[SC7180_MX_AO] = &sdm845_mx_ao,
+	[SC7180_LMX] = &sdm845_lmx,
+	[SC7180_LCX] = &sdm845_lcx,
+	[SC7180_MSS] = &sdm845_mss,
+};
+
+static const struct rpmhpd_desc sc7180_desc = {
+	.rpmhpds = sc7180_rpmhpds,
+	.num_pds = ARRAY_SIZE(sc7180_rpmhpds),
+};
+
 static const struct of_device_id rpmhpd_match_table[] = {
+	{ .compatible = "qcom,sc7180-rpmhpd", .data = &sc7180_desc },
 	{ .compatible = "qcom,sdm845-rpmhpd", .data = &sdm845_desc },
 	{ .compatible = "qcom,sm8150-rpmhpd", .data = &sm8150_desc },
 	{ }
