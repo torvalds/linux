@@ -1391,25 +1391,25 @@ static const struct drm_display_mode edid_4k_modes[] = {
 		   3840, 4016, 4104, 4400, 0,
 		   2160, 2168, 2178, 2250, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
-	  .vrefresh = 30, },
+	  .vrefresh = 30, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
 	/* 2 - 3840x2160@25Hz */
 	{ DRM_MODE("3840x2160", DRM_MODE_TYPE_DRIVER, 297000,
 		   3840, 4896, 4984, 5280, 0,
 		   2160, 2168, 2178, 2250, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
-	  .vrefresh = 25, },
+	  .vrefresh = 25, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
 	/* 3 - 3840x2160@24Hz */
 	{ DRM_MODE("3840x2160", DRM_MODE_TYPE_DRIVER, 297000,
 		   3840, 5116, 5204, 5500, 0,
 		   2160, 2168, 2178, 2250, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
-	  .vrefresh = 24, },
+	  .vrefresh = 24, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
 	/* 4 - 4096x2160@24Hz (SMPTE) */
 	{ DRM_MODE("4096x2160", DRM_MODE_TYPE_DRIVER, 297000,
 		   4096, 5116, 5204, 5500, 0,
 		   2160, 2168, 2178, 2250, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
-	  .vrefresh = 24, },
+	  .vrefresh = 24, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_256_135, },
 };
 
 /*** DDC fetch and block validation ***/
@@ -3214,6 +3214,11 @@ static enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code)
 	return edid_cea_modes[video_code].picture_aspect_ratio;
 }
 
+static enum hdmi_picture_aspect drm_get_hdmi_aspect_ratio(const u8 video_code)
+{
+	return edid_4k_modes[video_code].picture_aspect_ratio;
+}
+
 /*
  * Calculate the alternate clock for HDMI modes (those from the HDMI vendor
  * specific block).
@@ -3239,6 +3244,9 @@ static u8 drm_match_hdmi_mode_clock_tolerance(const struct drm_display_mode *to_
 
 	if (!to_match->clock)
 		return 0;
+
+	if (to_match->picture_aspect_ratio)
+		match_flags |= DRM_MODE_MATCH_ASPECT_RATIO;
 
 	for (vic = 1; vic < ARRAY_SIZE(edid_4k_modes); vic++) {
 		const struct drm_display_mode *hdmi_mode = &edid_4k_modes[vic];
@@ -3274,6 +3282,9 @@ static u8 drm_match_hdmi_mode(const struct drm_display_mode *to_match)
 
 	if (!to_match->clock)
 		return 0;
+
+	if (to_match->picture_aspect_ratio)
+		match_flags |= DRM_MODE_MATCH_ASPECT_RATIO;
 
 	for (vic = 1; vic < ARRAY_SIZE(edid_4k_modes); vic++) {
 		const struct drm_display_mode *hdmi_mode = &edid_4k_modes[vic];
@@ -5222,6 +5233,7 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 					 const struct drm_display_mode *mode)
 {
 	enum hdmi_picture_aspect picture_aspect;
+	u8 vic, hdmi_vic;
 	int err;
 
 	if (!frame || !mode)
@@ -5234,7 +5246,8 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		frame->pixel_repeat = 1;
 
-	frame->video_code = drm_mode_cea_vic(connector, mode);
+	vic = drm_mode_cea_vic(connector, mode);
+	hdmi_vic = drm_mode_hdmi_vic(connector, mode);
 
 	frame->picture_aspect = HDMI_PICTURE_ASPECT_NONE;
 
@@ -5248,11 +5261,15 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 
 	/*
 	 * Populate picture aspect ratio from either
-	 * user input (if specified) or from the CEA mode list.
+	 * user input (if specified) or from the CEA/HDMI mode lists.
 	 */
 	picture_aspect = mode->picture_aspect_ratio;
-	if (picture_aspect == HDMI_PICTURE_ASPECT_NONE)
-		picture_aspect = drm_get_cea_aspect_ratio(frame->video_code);
+	if (picture_aspect == HDMI_PICTURE_ASPECT_NONE) {
+		if (vic)
+			picture_aspect = drm_get_cea_aspect_ratio(vic);
+		else if (hdmi_vic)
+			picture_aspect = drm_get_hdmi_aspect_ratio(hdmi_vic);
+	}
 
 	/*
 	 * The infoframe can't convey anything but none, 4:3
@@ -5260,12 +5277,20 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 	 * we can only satisfy it by specifying the right VIC.
 	 */
 	if (picture_aspect > HDMI_PICTURE_ASPECT_16_9) {
-		if (picture_aspect !=
-		    drm_get_cea_aspect_ratio(frame->video_code))
+		if (vic) {
+			if (picture_aspect != drm_get_cea_aspect_ratio(vic))
+				return -EINVAL;
+		} else if (hdmi_vic) {
+			if (picture_aspect != drm_get_hdmi_aspect_ratio(hdmi_vic))
+				return -EINVAL;
+		} else {
 			return -EINVAL;
+		}
+
 		picture_aspect = HDMI_PICTURE_ASPECT_NONE;
 	}
 
+	frame->video_code = vic;
 	frame->picture_aspect = picture_aspect;
 	frame->active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
 	frame->scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
