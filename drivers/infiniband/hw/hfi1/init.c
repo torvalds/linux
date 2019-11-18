@@ -1489,7 +1489,6 @@ static int __init hfi1_mod_init(void)
 		goto bail_dev;
 	}
 
-	hfi1_compute_tid_rdma_flow_wt();
 	/*
 	 * These must be called before the driver is registered with
 	 * the PCI subsystem.

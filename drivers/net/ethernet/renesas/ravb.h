@@ -955,6 +955,8 @@ enum RAVB_QUEUE {
 #define NUM_RX_QUEUE	2
 #define NUM_TX_QUEUE	2
 
+#define RX_BUF_SZ	(2048 - ETH_FCS_LEN + sizeof(__sum16))
+
 /* TX descriptors per packet */
 #define NUM_TX_DESC_GEN2	2
 #define NUM_TX_DESC_GEN3	1
@@ -1018,7 +1020,6 @@ struct ravb_private {
 	u32 dirty_rx[NUM_RX_QUEUE];	/* Producer ring indices */
 	u32 cur_tx[NUM_TX_QUEUE];
 	u32 dirty_tx[NUM_TX_QUEUE];
-	u32 rx_buf_sz;			/* Based on MTU+slack. */
 	struct napi_struct napi[NUM_RX_QUEUE];
 	struct work_struct work;
 	/* MII transceiver section. */

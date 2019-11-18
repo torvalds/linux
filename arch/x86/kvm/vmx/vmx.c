@@ -1268,6 +1268,18 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 	if (!pi_test_sn(pi_desc) && vcpu->cpu == cpu)
 		return;
 
+	/*
+	 * If the 'nv' field is POSTED_INTR_WAKEUP_VECTOR, do not change
+	 * PI.NDST: pi_post_block is the one expected to change PID.NDST and the
+	 * wakeup handler expects the vCPU to be on the blocked_vcpu_list that
+	 * matches PI.NDST. Otherwise, a vcpu may not be able to be woken up
+	 * correctly.
+	 */
+	if (pi_desc->nv == POSTED_INTR_WAKEUP_VECTOR || vcpu->cpu == cpu) {
+		pi_clear_sn(pi_desc);
+		goto after_clear_sn;
+	}
+
 	/* The full case.  */
 	do {
 		old.control = new.control = pi_desc->control;
@@ -1283,6 +1295,8 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 	} while (cmpxchg64(&pi_desc->control, old.control,
 			   new.control) != old.control);
 
+after_clear_sn:
+
 	/*
 	 * Clear SN before reading the bitmap.  The VT-d firmware
 	 * writes the bitmap and reads SN atomically (5.2.3 in the
@@ -1291,7 +1305,7 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 	 */
 	smp_mb__after_atomic();
 
-	if (!bitmap_empty((unsigned long *)pi_desc->pir, NR_VECTORS))
+	if (!pi_is_pir_empty(pi_desc))
 		pi_set_on(pi_desc);
 }
 
@@ -6137,7 +6151,7 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 	if (pi_test_on(&vmx->pi_desc)) {
 		pi_clear_on(&vmx->pi_desc);
 		/*
-		 * IOMMU can write to PIR.ON, so the barrier matters even on UP.
+		 * IOMMU can write to PID.ON, so the barrier matters even on UP.
 		 * But on x86 this is just a compiler barrier anyway.
 		 */
 		smp_mb__after_atomic();
@@ -6167,7 +6181,10 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 
 static bool vmx_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu)
 {
-	return pi_test_on(vcpu_to_pi_desc(vcpu));
+	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
+
+	return pi_test_on(pi_desc) ||
+		(pi_test_sn(pi_desc) && !pi_is_pir_empty(pi_desc));
 }
 
 static void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
