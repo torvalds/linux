@@ -377,4 +377,8 @@ int psp_rlc_autoload_start(struct psp_context *psp);
 extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
 int psp_reg_program(struct psp_context *psp, enum psp_reg_prog_id reg,
 		uint32_t value);
+int psp_ring_cmd_submit(struct psp_context *psp,
+			uint64_t cmd_buf_mc_addr,
+			uint64_t fence_mc_addr,
+			int index);
 #endif
