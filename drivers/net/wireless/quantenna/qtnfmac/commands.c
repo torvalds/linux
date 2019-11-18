@@ -1242,10 +1242,7 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 	mac_info = &mac->macinfo;
 
 	mac_info->bands_cap = resp_info->bands_cap;
-	memcpy(&mac_info->dev_mac, &resp_info->dev_mac,
-	       sizeof(mac_info->dev_mac));
-
-	ether_addr_copy(mac->macaddr, mac_info->dev_mac);
+	ether_addr_copy(mac->macaddr, resp_info->dev_mac);
 
 	vif = qtnf_mac_get_base_vif(mac);
 	if (vif)

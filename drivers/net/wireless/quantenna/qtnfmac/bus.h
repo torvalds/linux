@@ -67,6 +67,7 @@ struct qtnf_bus {
 	struct mutex bus_lock; /* lock during command/event processing */
 	struct dentry *dbg_dir;
 	struct notifier_block netdev_nb;
+	u8 hw_id[ETH_ALEN];
 	/* bus private data */
 	char bus_priv[0] __aligned(sizeof(void *));
 };

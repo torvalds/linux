@@ -204,6 +204,21 @@ static int qtnf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 	return ret;
 }
 
+static int qtnf_netdev_port_parent_id(struct net_device *ndev,
+				      struct netdev_phys_item_id *ppid)
+{
+	const struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
+	const struct qtnf_bus *bus = vif->mac->bus;
+
+	if (!(bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE))
+		return -EOPNOTSUPP;
+
+	ppid->id_len = sizeof(bus->hw_id);
+	memcpy(&ppid->id, bus->hw_id, ppid->id_len);
+
+	return 0;
+}
+
 /* Network device ops handlers */
 const struct net_device_ops qtnf_netdev_ops = {
 	.ndo_open = qtnf_netdev_open,
@@ -212,6 +227,7 @@ const struct net_device_ops qtnf_netdev_ops = {
 	.ndo_tx_timeout = qtnf_netdev_tx_timeout,
 	.ndo_get_stats64 = qtnf_netdev_get_stats64,
 	.ndo_set_mac_address = qtnf_netdev_set_mac_address,
+	.ndo_get_port_parent_id = qtnf_netdev_port_parent_id,
 };
 
 static int qtnf_mac_init_single_band(struct wiphy *wiphy,
@@ -564,6 +580,10 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		pr_err("MAC%u: failed to get info\n", macid);
 		goto error;
 	}
+
+	/* Use MAC address of the first active radio as a unique device ID */
+	if (is_zero_ether_addr(mac->bus->hw_id))
+		ether_addr_copy(mac->bus->hw_id, mac->macaddr);
 
 	vif = qtnf_mac_get_base_vif(mac);
 	if (!vif) {
