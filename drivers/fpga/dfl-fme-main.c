@@ -600,14 +600,16 @@ static int fme_open(struct inode *inode, struct file *filp)
 	if (WARN_ON(!pdata))
 		return -ENODEV;
 
-	ret = dfl_feature_dev_use_begin(pdata);
-	if (ret)
-		return ret;
+	mutex_lock(&pdata->lock);
+	ret = dfl_feature_dev_use_begin(pdata, filp->f_flags & O_EXCL);
+	if (!ret) {
+		dev_dbg(&fdev->dev, "Device File Opened %d Times\n",
+			dfl_feature_dev_use_count(pdata));
+		filp->private_data = pdata;
+	}
+	mutex_unlock(&pdata->lock);
 
-	dev_dbg(&fdev->dev, "Device File Open\n");
-	filp->private_data = pdata;
-
-	return 0;
+	return ret;
 }
 
 static int fme_release(struct inode *inode, struct file *filp)
@@ -616,7 +618,10 @@ static int fme_release(struct inode *inode, struct file *filp)
 	struct platform_device *pdev = pdata->dev;
 
 	dev_dbg(&pdev->dev, "Device File Release\n");
+
+	mutex_lock(&pdata->lock);
 	dfl_feature_dev_use_end(pdata);
+	mutex_unlock(&pdata->lock);
 
 	return 0;
 }
