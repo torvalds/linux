@@ -2892,15 +2892,6 @@ static int dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
 	return ret;
 }
 
-static void soc_pcm_private_free(struct snd_pcm *pcm)
-{
-	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
-
-	/* need to sync the delayed work before releasing resources */
-	flush_delayed_work(&rtd->delayed_work);
-	snd_soc_pcm_component_free(rtd);
-}
-
 /* create a new pcm */
 int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 {
@@ -3042,7 +3033,6 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		return ret;
 	}
 
-	pcm->private_free = soc_pcm_private_free;
 	pcm->no_device_suspend = true;
 out:
 	dev_info(rtd->card->dev, "%s <-> %s mapping ok\n",
