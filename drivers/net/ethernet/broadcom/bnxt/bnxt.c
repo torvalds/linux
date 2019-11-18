@@ -4278,6 +4278,11 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		/* Wait until hwrm response cmpl interrupt is processed */
 		while (bp->hwrm_intr_seq_id != (u16)~seq_id &&
 		       i++ < tmo_count) {
+			/* Abort the wait for completion if the FW health
+			 * check has failed.
+			 */
+			if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
+				return -EBUSY;
 			/* on first few passes, just barely sleep */
 			if (i < HWRM_SHORT_TIMEOUT_COUNTER)
 				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
@@ -4301,6 +4306,11 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 
 		/* Check if response len is updated */
 		for (i = 0; i < tmo_count; i++) {
+			/* Abort the wait for completion if the FW health
+			 * check has failed.
+			 */
+			if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
+				return -EBUSY;
 			len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
 			      HWRM_RESP_LEN_SFT;
 			if (len)
