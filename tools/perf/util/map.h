@@ -25,8 +25,8 @@ struct map {
 	};
 	u64			start;
 	u64			end;
-	bool			erange_warned;
-	u32			priv;
+	bool			erange_warned:1;
+	bool			priv:1;
 	u32			prot;
 	u32			flags;
 	u64			pgoff;
