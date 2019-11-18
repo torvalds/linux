@@ -257,6 +257,7 @@ static void wait_for_suspend(struct intel_gt *gt)
 		 * the gpu quiet.
 		 */
 		intel_gt_set_wedged(gt);
+		intel_gt_retire_requests(gt);
 	}
 
 	intel_gt_pm_wait_for_idle(gt);
