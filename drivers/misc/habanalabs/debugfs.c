@@ -528,6 +528,12 @@ static int engines_show(struct seq_file *s, void *data)
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
 
+	if (atomic_read(&hdev->in_reset)) {
+		dev_warn_ratelimited(hdev->dev,
+				"Can't check device idle during reset\n");
+		return 0;
+	}
+
 	hdev->asic_funcs->is_device_idle(hdev, NULL, s);
 
 	return 0;
@@ -640,6 +646,11 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 	u32 val;
 	ssize_t rc;
 
+	if (atomic_read(&hdev->in_reset)) {
+		dev_warn_ratelimited(hdev->dev, "Can't read during reset\n");
+		return 0;
+	}
+
 	if (*ppos)
 		return 0;
 
@@ -668,6 +679,11 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	u64 addr = entry->addr;
 	u32 value;
 	ssize_t rc;
+
+	if (atomic_read(&hdev->in_reset)) {
+		dev_warn_ratelimited(hdev->dev, "Can't write during reset\n");
+		return 0;
+	}
 
 	rc = kstrtouint_from_user(buf, count, 16, &value);
 	if (rc)
