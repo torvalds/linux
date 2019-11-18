@@ -28,7 +28,6 @@ struct map {
 	bool			erange_warned:1;
 	bool			priv:1;
 	u32			prot;
-	u32			flags;
 	u64			pgoff;
 	u64			reloc;
 	u32			maj, min; /* only valid for MMAP2 record */
@@ -42,6 +41,7 @@ struct map {
 
 	struct dso		*dso;
 	refcount_t		refcnt;
+	u32			flags;
 };
 
 struct kmap;
