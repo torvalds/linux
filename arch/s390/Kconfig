@@ -427,9 +427,6 @@ config COMPAT
 	  (and some other stuff like libraries and such) is needed for
 	  executing 31 bit applications.  It is safe to say "Y".
 
-config COMPAT_VDSO
-	def_bool COMPAT && !CC_IS_CLANG
-
 config SYSVIPC_COMPAT
 	def_bool y if COMPAT && SYSVIPC
 
