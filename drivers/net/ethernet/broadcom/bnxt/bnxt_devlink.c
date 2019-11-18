@@ -91,6 +91,7 @@ static int bnxt_fw_fatal_recover(struct devlink_health_reporter *reporter,
 	if (!priv_ctx)
 		return -EOPNOTSUPP;
 
+	bp->fw_health->fatal = true;
 	event = fw_reporter_ctx->sp_event;
 	if (event == BNXT_FW_RESET_NOTIFY_SP_EVENT)
 		bnxt_fw_reset(bp);
@@ -197,6 +198,26 @@ void bnxt_devlink_health_report(struct bnxt *bp, unsigned long event)
 				      &fw_reporter_ctx);
 		return;
 	}
+}
+
+void bnxt_dl_health_status_update(struct bnxt *bp, bool healthy)
+{
+	struct bnxt_fw_health *health = bp->fw_health;
+	u8 state;
+
+	if (healthy)
+		state = DEVLINK_HEALTH_REPORTER_STATE_HEALTHY;
+	else
+		state = DEVLINK_HEALTH_REPORTER_STATE_ERROR;
+
+	if (health->fatal)
+		devlink_health_reporter_state_update(health->fw_fatal_reporter,
+						     state);
+	else
+		devlink_health_reporter_state_update(health->fw_reset_reporter,
+						     state);
+
+	health->fatal = false;
 }
 
 static const struct devlink_ops bnxt_dl_ops = {

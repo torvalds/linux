@@ -1384,6 +1384,7 @@ struct bnxt_fw_health {
 	u32 last_fw_reset_cnt;
 	u8 enabled:1;
 	u8 master:1;
+	u8 fatal:1;
 	u8 tmr_multiplier;
 	u8 tmr_counter;
 	u8 fw_reset_seq_cnt;

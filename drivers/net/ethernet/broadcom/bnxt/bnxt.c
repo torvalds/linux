@@ -10750,6 +10750,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		smp_mb__before_atomic();
 		clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 		bnxt_ulp_start(bp, rc);
+		bnxt_dl_health_status_update(bp, true);
 		rtnl_unlock();
 		break;
 	}
@@ -10757,6 +10758,8 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 
 fw_reset_abort:
 	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+	if (bp->fw_reset_state != BNXT_FW_RESET_STATE_POLL_VF)
+		bnxt_dl_health_status_update(bp, false);
 	bp->fw_reset_state = 0;
 	rtnl_lock();
 	dev_close(bp->dev);
