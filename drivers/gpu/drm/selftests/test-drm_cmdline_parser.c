@@ -1092,6 +1092,28 @@ static int drm_cmdline_test_freestanding_force_e_and_options(void *ignored)
 	return 0;
 }
 
+static int drm_cmdline_test_panel_orientation(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("panel_orientation=upside_down",
+							   &no_connector,
+							   &mode));
+	FAIL_ON(mode.specified);
+	FAIL_ON(mode.refresh_specified);
+	FAIL_ON(mode.bpp_specified);
+
+	FAIL_ON(mode.panel_orientation != DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_UNSPECIFIED);
+
+	return 0;
+}
+
 #include "drm_selftest.c"
 
 static int __init test_drm_cmdline_init(void)

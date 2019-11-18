@@ -1591,6 +1591,33 @@ static int drm_mode_parse_cmdline_int(const char *delim, unsigned int *int_ret)
 	return 0;
 }
 
+static int drm_mode_parse_panel_orientation(const char *delim,
+					    struct drm_cmdline_mode *mode)
+{
+	const char *value;
+
+	if (*delim != '=')
+		return -EINVAL;
+
+	value = delim + 1;
+	delim = strchr(value, ',');
+	if (!delim)
+		delim = value + strlen(value);
+
+	if (!strncmp(value, "normal", delim - value))
+		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
+	else if (!strncmp(value, "upside_down", delim - value))
+		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
+	else if (!strncmp(value, "left_side_up", delim - value))
+		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_LEFT_UP;
+	else if (!strncmp(value, "right_side_up", delim - value))
+		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_RIGHT_UP;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
 static int drm_mode_parse_cmdline_options(const char *str,
 					  bool freestanding,
 					  const struct drm_connector *connector,
@@ -1657,6 +1684,9 @@ static int drm_mode_parse_cmdline_options(const char *str,
 				return -EINVAL;
 
 			mode->tv_margins.bottom = margin;
+		} else if (!strncmp(option, "panel_orientation", delim - option)) {
+			if (drm_mode_parse_panel_orientation(delim, mode))
+				return -EINVAL;
 		} else {
 			return -EINVAL;
 		}
@@ -1714,6 +1744,8 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	const char *options_ptr = NULL;
 	char *bpp_end_ptr = NULL, *refresh_end_ptr = NULL;
 	int i, len, ret;
+
+	mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 
 #ifdef CONFIG_FB
 	if (!mode_option)
