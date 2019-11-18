@@ -1,6 +1,5 @@
 /*
- * rockchip_rt5651_tc358749x.c  --  RK3399 machine driver with
- * RT5651/TC358749 codecs
+ * rockchip_rt5651.c  --  RK3399 machine driver with RT5651 codecs
  *
  * Copyright (c) 2016, ROCKCHIP CORPORATION.  All rights reserved.
  * Author: Xiaotan Luo <lxt@rock-chips.com>
