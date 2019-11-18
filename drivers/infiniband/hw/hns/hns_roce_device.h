@@ -488,9 +488,6 @@ struct hns_roce_cq {
 	u8				db_en;
 	spinlock_t			lock;
 	struct ib_umem			*umem;
-	void (*comp)(struct hns_roce_cq *cq);
-	void (*event)(struct hns_roce_cq *cq, enum hns_roce_event event_type);
-
 	u32				cq_depth;
 	u32				cons_index;
 	u32				*set_ci_db;

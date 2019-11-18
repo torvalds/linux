@@ -39,40 +39,6 @@
 #include <rdma/hns-abi.h>
 #include "hns_roce_common.h"
 
-static void hns_roce_ib_cq_comp(struct hns_roce_cq *hr_cq)
-{
-	struct ib_cq *ibcq = &hr_cq->ib_cq;
-
-	ibcq->comp_handler(ibcq, ibcq->cq_context);
-}
-
-static void hns_roce_ib_cq_event(struct hns_roce_cq *hr_cq,
-				 enum hns_roce_event event_type)
-{
-	struct hns_roce_dev *hr_dev;
-	struct ib_event event;
-	struct ib_cq *ibcq;
-
-	ibcq = &hr_cq->ib_cq;
-	hr_dev = to_hr_dev(ibcq->device);
-
-	if (event_type != HNS_ROCE_EVENT_TYPE_CQ_ID_INVALID &&
-	    event_type != HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR &&
-	    event_type != HNS_ROCE_EVENT_TYPE_CQ_OVERFLOW) {
-		dev_err(hr_dev->dev,
-			"hns_roce_ib: Unexpected event type 0x%x on CQ %06lx\n",
-			event_type, hr_cq->cqn);
-		return;
-	}
-
-	if (ibcq->event_handler) {
-		event.device = ibcq->device;
-		event.event = IB_EVENT_CQ_ERR;
-		event.element.cq = ibcq;
-		ibcq->event_handler(&event, ibcq->cq_context);
-	}
-}
-
 static int hns_roce_alloc_cqc(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_cq *hr_cq)
 {
@@ -434,10 +400,6 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 	if (!udata && hr_cq->tptr_addr)
 		*hr_cq->tptr_addr = 0;
 
-	/* Get created cq handler and carry out event */
-	hr_cq->comp = hns_roce_ib_cq_comp;
-	hr_cq->event = hns_roce_ib_cq_event;
-
 	if (udata) {
 		resp.cqn = hr_cq->cqn;
 		ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
@@ -491,38 +453,57 @@ void hns_roce_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)
 {
-	struct device *dev = hr_dev->dev;
-	struct hns_roce_cq *cq;
+	struct hns_roce_cq *hr_cq;
+	struct ib_cq *ibcq;
 
-	cq = xa_load(&hr_dev->cq_table.array, cqn & (hr_dev->caps.num_cqs - 1));
-	if (!cq) {
-		dev_warn(dev, "Completion event for bogus CQ 0x%08x\n", cqn);
+	hr_cq = xa_load(&hr_dev->cq_table.array,
+			cqn & (hr_dev->caps.num_cqs - 1));
+	if (!hr_cq) {
+		dev_warn(hr_dev->dev, "Completion event for bogus CQ 0x%06x\n",
+			 cqn);
 		return;
 	}
 
-	++cq->arm_sn;
-	cq->comp(cq);
+	++hr_cq->arm_sn;
+	ibcq = &hr_cq->ib_cq;
+	if (ibcq->comp_handler)
+		ibcq->comp_handler(ibcq, ibcq->cq_context);
 }
 
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 {
-	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
 	struct device *dev = hr_dev->dev;
-	struct hns_roce_cq *cq;
+	struct hns_roce_cq *hr_cq;
+	struct ib_event event;
+	struct ib_cq *ibcq;
 
-	cq = xa_load(&cq_table->array, cqn & (hr_dev->caps.num_cqs - 1));
-	if (cq)
-		atomic_inc(&cq->refcount);
-
-	if (!cq) {
-		dev_warn(dev, "Async event for bogus CQ %08x\n", cqn);
+	hr_cq = xa_load(&hr_dev->cq_table.array,
+			cqn & (hr_dev->caps.num_cqs - 1));
+	if (!hr_cq) {
+		dev_warn(dev, "Async event for bogus CQ 0x%06x\n", cqn);
 		return;
 	}
 
-	cq->event(cq, (enum hns_roce_event)event_type);
+	if (event_type != HNS_ROCE_EVENT_TYPE_CQ_ID_INVALID &&
+	    event_type != HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR &&
+	    event_type != HNS_ROCE_EVENT_TYPE_CQ_OVERFLOW) {
+		dev_err(dev, "Unexpected event type 0x%x on CQ 0x%06x\n",
+			event_type, cqn);
+		return;
+	}
 
-	if (atomic_dec_and_test(&cq->refcount))
-		complete(&cq->free);
+	atomic_inc(&hr_cq->refcount);
+
+	ibcq = &hr_cq->ib_cq;
+	if (ibcq->event_handler) {
+		event.device = ibcq->device;
+		event.element.cq = ibcq;
+		event.event = IB_EVENT_CQ_ERR;
+		ibcq->event_handler(&event, ibcq->cq_context);
+	}
+
+	if (atomic_dec_and_test(&hr_cq->refcount))
+		complete(&hr_cq->free);
 }
 
 int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev)
