@@ -1745,12 +1745,11 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	char *bpp_end_ptr = NULL, *refresh_end_ptr = NULL;
 	int i, len, ret;
 
+	memset(mode, 0, sizeof(*mode));
 	mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 
-	if (!mode_option) {
-		mode->specified = false;
+	if (!mode_option)
 		return false;
-	}
 
 	name = mode_option;
 
