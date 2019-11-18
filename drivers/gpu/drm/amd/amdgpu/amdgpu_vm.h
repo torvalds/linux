@@ -298,6 +298,8 @@ struct amdgpu_vm {
 	struct ttm_lru_bulk_move lru_bulk_move;
 	/* mark whether can do the bulk move */
 	bool			bulk_moveable;
+	/* Flag to indicate if VM is used for compute */
+	bool			is_compute_context;
 };
 
 struct amdgpu_vm_manager {
