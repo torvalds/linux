@@ -4441,7 +4441,8 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 	flags = FUNC_DRV_RGTR_REQ_FLAGS_16BIT_VER_MODE |
 		FUNC_DRV_RGTR_REQ_FLAGS_HOT_RESET_SUPPORT;
 	if (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)
-		flags |= FUNC_DRV_RGTR_REQ_FLAGS_ERROR_RECOVERY_SUPPORT;
+		flags |= FUNC_DRV_RGTR_REQ_FLAGS_ERROR_RECOVERY_SUPPORT |
+			 FUNC_DRV_RGTR_REQ_FLAGS_MASTER_SUPPORT;
 	req.flags = cpu_to_le32(flags);
 	req.ver_maj_8b = DRV_VER_MAJ;
 	req.ver_min_8b = DRV_VER_MIN;
