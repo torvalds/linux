@@ -52,8 +52,6 @@ struct bpf_jit {
 	int labels[1];		/* Labels for local jumps */
 };
 
-#define BPF_SIZE_MAX	0xffff	/* Max size for program (16 bit branches) */
-
 #define SEEN_MEM	BIT(0)		/* use mem[] for temporary storage */
 #define SEEN_LITERAL	BIT(1)		/* code uses literals */
 #define SEEN_FUNC	BIT(2)		/* calls C functions */
@@ -1631,11 +1629,6 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	/*
 	 * Final pass: Allocate and generate program
 	 */
-	if (jit.size >= BPF_SIZE_MAX) {
-		fp = orig_fp;
-		goto free_addrs;
-	}
-
 	header = bpf_jit_binary_alloc(jit.size, &jit.prg_buf, 8, jit_fill_hole);
 	if (!header) {
 		fp = orig_fp;
