@@ -1150,6 +1150,43 @@ static void rtw_pci_clkreq_set(struct rtw_dev *rtwdev, bool enable)
 	rtw_dbi_write8(rtwdev, RTK_PCIE_LINK_CFG, value);
 }
 
+static void rtw_pci_aspm_set(struct rtw_dev *rtwdev, bool enable)
+{
+	u8 value;
+	int ret;
+
+	ret = rtw_dbi_read8(rtwdev, RTK_PCIE_LINK_CFG, &value);
+	if (ret) {
+		rtw_err(rtwdev, "failed to read ASPM, ret=%d", ret);
+		return;
+	}
+
+	if (enable)
+		value |= BIT_L1_SW_EN;
+	else
+		value &= ~BIT_L1_SW_EN;
+
+	rtw_dbi_write8(rtwdev, RTK_PCIE_LINK_CFG, value);
+}
+
+static void rtw_pci_link_ps(struct rtw_dev *rtwdev, bool enter)
+{
+	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+
+	/* Like CLKREQ, ASPM is also implemented by two HW modules, and can
+	 * only be enabled when host supports it.
+	 *
+	 * And ASPM mechanism should be enabled when driver/firmware enters
+	 * power save mode, without having heavy traffic. Because we've
+	 * experienced some inter-operability issues that the link tends
+	 * to enter L1 state on the fly even when driver is having high
+	 * throughput. This is probably because the ASPM behavior slightly
+	 * varies from different SOC.
+	 */
+	if (rtwpci->link_ctrl & PCI_EXP_LNKCTL_ASPM_L1)
+		rtw_pci_aspm_set(rtwdev, enter);
+}
+
 static void rtw_pci_link_cfg(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
@@ -1292,6 +1329,7 @@ static struct rtw_hci_ops rtw_pci_ops = {
 	.start = rtw_pci_start,
 	.stop = rtw_pci_stop,
 	.deep_ps = rtw_pci_deep_ps,
+	.link_ps = rtw_pci_link_ps,
 
 	.read8 = rtw_pci_read8,
 	.read16 = rtw_pci_read16,
