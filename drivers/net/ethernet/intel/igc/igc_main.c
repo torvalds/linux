@@ -52,7 +52,6 @@ static const struct pci_device_id igc_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, igc_pci_tbl);
 
 /* forward declaration */
-static void igc_clean_tx_ring(struct igc_ring *tx_ring);
 static int igc_sw_init(struct igc_adapter *);
 static void igc_configure(struct igc_adapter *adapter);
 static void igc_power_down_link(struct igc_adapter *adapter);
@@ -177,43 +176,6 @@ static void igc_get_hw_control(struct igc_adapter *adapter)
 }
 
 /**
- * igc_free_tx_resources - Free Tx Resources per Queue
- * @tx_ring: Tx descriptor ring for a specific queue
- *
- * Free all transmit software resources
- */
-void igc_free_tx_resources(struct igc_ring *tx_ring)
-{
-	igc_clean_tx_ring(tx_ring);
-
-	vfree(tx_ring->tx_buffer_info);
-	tx_ring->tx_buffer_info = NULL;
-
-	/* if not set, then don't free */
-	if (!tx_ring->desc)
-		return;
-
-	dma_free_coherent(tx_ring->dev, tx_ring->size,
-			  tx_ring->desc, tx_ring->dma);
-
-	tx_ring->desc = NULL;
-}
-
-/**
- * igc_free_all_tx_resources - Free Tx Resources for All Queues
- * @adapter: board private structure
- *
- * Free all transmit software resources
- */
-static void igc_free_all_tx_resources(struct igc_adapter *adapter)
-{
-	int i;
-
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		igc_free_tx_resources(adapter->tx_ring[i]);
-}
-
-/**
  * igc_clean_tx_ring - Free Tx Buffers
  * @tx_ring: ring to be cleaned
  */
@@ -272,6 +234,43 @@ static void igc_clean_tx_ring(struct igc_ring *tx_ring)
 	/* reset next_to_use and next_to_clean */
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
+}
+
+/**
+ * igc_free_tx_resources - Free Tx Resources per Queue
+ * @tx_ring: Tx descriptor ring for a specific queue
+ *
+ * Free all transmit software resources
+ */
+void igc_free_tx_resources(struct igc_ring *tx_ring)
+{
+	igc_clean_tx_ring(tx_ring);
+
+	vfree(tx_ring->tx_buffer_info);
+	tx_ring->tx_buffer_info = NULL;
+
+	/* if not set, then don't free */
+	if (!tx_ring->desc)
+		return;
+
+	dma_free_coherent(tx_ring->dev, tx_ring->size,
+			  tx_ring->desc, tx_ring->dma);
+
+	tx_ring->desc = NULL;
+}
+
+/**
+ * igc_free_all_tx_resources - Free Tx Resources for All Queues
+ * @adapter: board private structure
+ *
+ * Free all transmit software resources
+ */
+static void igc_free_all_tx_resources(struct igc_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_tx_queues; i++)
+		igc_free_tx_resources(adapter->tx_ring[i]);
 }
 
 /**
