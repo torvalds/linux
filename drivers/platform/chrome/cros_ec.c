@@ -40,13 +40,23 @@ static irqreturn_t ec_irq_handler(int irq, void *data)
 	return IRQ_WAKE_THREAD;
 }
 
-static irqreturn_t ec_irq_thread(int irq, void *data)
+/**
+ * cros_ec_handle_event() - process and forward pending events on EC
+ * @ec_dev: Device with events to process.
+ *
+ * Call this function in a loop when the kernel is notified that the EC has
+ * pending events.
+ *
+ * Return: true if more events are still pending and this function should be
+ * called again.
+ */
+bool cros_ec_handle_event(struct cros_ec_device *ec_dev)
 {
-	struct cros_ec_device *ec_dev = data;
-	bool wake_event = true;
+	bool wake_event;
+	bool ec_has_more_events;
 	int ret;
 
-	ret = cros_ec_get_next_event(ec_dev, &wake_event);
+	ret = cros_ec_get_next_event(ec_dev, &wake_event, &ec_has_more_events);
 
 	/*
 	 * Signal only if wake host events or any interrupt if
@@ -59,6 +69,20 @@ static irqreturn_t ec_irq_thread(int irq, void *data)
 	if (ret > 0)
 		blocking_notifier_call_chain(&ec_dev->event_notifier,
 					     0, ec_dev);
+
+	return ec_has_more_events;
+}
+EXPORT_SYMBOL(cros_ec_handle_event);
+
+static irqreturn_t ec_irq_thread(int irq, void *data)
+{
+	struct cros_ec_device *ec_dev = data;
+	bool ec_has_more_events;
+
+	do {
+		ec_has_more_events = cros_ec_handle_event(ec_dev);
+	} while (ec_has_more_events);
+
 	return IRQ_HANDLED;
 }
 
@@ -274,7 +298,7 @@ EXPORT_SYMBOL(cros_ec_suspend);
 static void cros_ec_report_events_during_suspend(struct cros_ec_device *ec_dev)
 {
 	while (ec_dev->mkbp_event_supported &&
-	       cros_ec_get_next_event(ec_dev, NULL) > 0)
+	       cros_ec_get_next_event(ec_dev, NULL, NULL) > 0)
 		blocking_notifier_call_chain(&ec_dev->event_notifier,
 					     1, ec_dev);
 }

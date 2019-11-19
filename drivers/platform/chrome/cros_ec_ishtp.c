@@ -136,11 +136,11 @@ static void ish_evt_handler(struct work_struct *work)
 	struct ishtp_cl_data *client_data =
 		container_of(work, struct ishtp_cl_data, work_ec_evt);
 	struct cros_ec_device *ec_dev = client_data->ec_dev;
+	bool ec_has_more_events;
 
-	if (cros_ec_get_next_event(ec_dev, NULL) > 0) {
-		blocking_notifier_call_chain(&ec_dev->event_notifier,
-					     0, ec_dev);
-	}
+	do {
+		ec_has_more_events = cros_ec_handle_event(ec_dev);
+	} while (ec_has_more_events);
 }
 
 /**

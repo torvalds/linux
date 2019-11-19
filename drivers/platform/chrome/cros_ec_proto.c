@@ -456,7 +456,10 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 	if (ret < 0 || ver_mask == 0)
 		ec_dev->mkbp_event_supported = 0;
 	else
-		ec_dev->mkbp_event_supported = 1;
+		ec_dev->mkbp_event_supported = fls(ver_mask);
+
+	dev_dbg(ec_dev->dev, "MKBP support version %u\n",
+		ec_dev->mkbp_event_supported - 1);
 
 	/* Probe if host sleep v1 is supported for S0ix failure detection. */
 	ret = cros_ec_get_host_command_version_mask(ec_dev,
@@ -569,6 +572,7 @@ EXPORT_SYMBOL(cros_ec_cmd_xfer_status);
 
 static int get_next_event_xfer(struct cros_ec_device *ec_dev,
 			       struct cros_ec_command *msg,
+			       struct ec_response_get_next_event_v1 *event,
 			       int version, uint32_t size)
 {
 	int ret;
@@ -581,7 +585,7 @@ static int get_next_event_xfer(struct cros_ec_device *ec_dev,
 	ret = cros_ec_cmd_xfer(ec_dev, msg);
 	if (ret > 0) {
 		ec_dev->event_size = ret - 1;
-		memcpy(&ec_dev->event_data, msg->data, ret);
+		ec_dev->event_data = *event;
 	}
 
 	return ret;
@@ -589,30 +593,26 @@ static int get_next_event_xfer(struct cros_ec_device *ec_dev,
 
 static int get_next_event(struct cros_ec_device *ec_dev)
 {
-	u8 buffer[sizeof(struct cros_ec_command) + sizeof(ec_dev->event_data)];
-	struct cros_ec_command *msg = (struct cros_ec_command *)&buffer;
-	static int cmd_version = 1;
-	int ret;
+	struct {
+		struct cros_ec_command msg;
+		struct ec_response_get_next_event_v1 event;
+	} __packed buf;
+	struct cros_ec_command *msg = &buf.msg;
+	struct ec_response_get_next_event_v1 *event = &buf.event;
+	const int cmd_version = ec_dev->mkbp_event_supported - 1;
 
+	memset(msg, 0, sizeof(*msg));
 	if (ec_dev->suspended) {
 		dev_dbg(ec_dev->dev, "Device suspended.\n");
 		return -EHOSTDOWN;
 	}
 
-	if (cmd_version == 1) {
-		ret = get_next_event_xfer(ec_dev, msg, cmd_version,
-				sizeof(struct ec_response_get_next_event_v1));
-		if (ret < 0 || msg->result != EC_RES_INVALID_VERSION)
-			return ret;
-
-		/* Fallback to version 0 for future send attempts */
-		cmd_version = 0;
-	}
-
-	ret = get_next_event_xfer(ec_dev, msg, cmd_version,
+	if (cmd_version == 0)
+		return get_next_event_xfer(ec_dev, msg, event, 0,
 				  sizeof(struct ec_response_get_next_event));
 
-	return ret;
+	return get_next_event_xfer(ec_dev, msg, event, cmd_version,
+				sizeof(struct ec_response_get_next_event_v1));
 }
 
 static int get_keyboard_state_event(struct cros_ec_device *ec_dev)
@@ -639,31 +639,54 @@ static int get_keyboard_state_event(struct cros_ec_device *ec_dev)
  * @ec_dev: Device to fetch event from.
  * @wake_event: Pointer to a bool set to true upon return if the event might be
  *              treated as a wake event. Ignored if null.
+ * @has_more_events: Pointer to bool set to true if more than one event is
+ *              pending.
+ *              Some EC will set this flag to indicate cros_ec_get_next_event()
+ *              can be called multiple times in a row.
+ *              It is an optimization to prevent issuing a EC command for
+ *              nothing or wait for another interrupt from the EC to process
+ *              the next message.
+ *              Ignored if null.
  *
  * Return: negative error code on errors; 0 for no data; or else number of
  * bytes received (i.e., an event was retrieved successfully). Event types are
  * written out to @ec_dev->event_data.event_type on success.
  */
-int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event)
+int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
+			   bool *wake_event,
+			   bool *has_more_events)
 {
 	u8 event_type;
 	u32 host_event;
 	int ret;
 
-	if (!ec_dev->mkbp_event_supported) {
-		ret = get_keyboard_state_event(ec_dev);
-		if (ret <= 0)
-			return ret;
+	/*
+	 * Default value for wake_event.
+	 * Wake up on keyboard event, wake up for spurious interrupt or link
+	 * error to the EC.
+	 */
+	if (wake_event)
+		*wake_event = true;
 
-		if (wake_event)
-			*wake_event = true;
+	/*
+	 * Default value for has_more_events.
+	 * EC will raise another interrupt if AP does not process all events
+	 * anyway.
+	 */
+	if (has_more_events)
+		*has_more_events = false;
 
-		return ret;
-	}
+	if (!ec_dev->mkbp_event_supported)
+		return get_keyboard_state_event(ec_dev);
 
 	ret = get_next_event(ec_dev);
 	if (ret <= 0)
 		return ret;
+
+	if (has_more_events)
+		*has_more_events = ec_dev->event_data.event_type &
+			EC_MKBP_HAS_MORE_EVENTS;
+	ec_dev->event_data.event_type &= EC_MKBP_EVENT_TYPE_MASK;
 
 	if (wake_event) {
 		event_type = ec_dev->event_data.event_type;
@@ -679,9 +702,6 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event)
 		else if (host_event &&
 			 !(host_event & ec_dev->host_event_wake_mask))
 			*wake_event = false;
-		/* Consider all other events as wake events. */
-		else
-			*wake_event = true;
 	}
 
 	return ret;

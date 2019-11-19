@@ -116,7 +116,9 @@ struct cros_ec_command {
  *            code.
  * @pkt_xfer: Send packet to EC and get response.
  * @lock: One transaction at a time.
- * @mkbp_event_supported: True if this EC supports the MKBP event protocol.
+ * @mkbp_event_supported: 0 if MKBP not supported. Otherwise its value is
+ *                        the maximum supported version of the MKBP host event
+ *                        command + 1.
  * @host_sleep_v1: True if this EC supports the sleep v1 command.
  * @event_notifier: Interrupt event notifier for transport devices.
  * @event_data: Raw payload transferred with the MKBP event.
@@ -156,7 +158,7 @@ struct cros_ec_device {
 	int (*pkt_xfer)(struct cros_ec_device *ec,
 			struct cros_ec_command *msg);
 	struct mutex lock;
-	bool mkbp_event_supported;
+	u8 mkbp_event_supported;
 	bool host_sleep_v1;
 	struct blocking_notifier_head event_notifier;
 
@@ -205,13 +207,17 @@ int cros_ec_unregister(struct cros_ec_device *ec_dev);
 
 int cros_ec_query_all(struct cros_ec_device *ec_dev);
 
-int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event);
+int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
+			   bool *wake_event,
+			   bool *has_more_events);
 
 u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev);
 
 int cros_ec_check_features(struct cros_ec_dev *ec, int feature);
 
 int cros_ec_get_sensor_count(struct cros_ec_dev *ec);
+
+bool cros_ec_handle_event(struct cros_ec_device *ec_dev);
 
 /**
  * cros_ec_get_time_ns() - Return time in ns.
