@@ -63,8 +63,6 @@ static void igc_free_q_vectors(struct igc_adapter *adapter);
 static void igc_irq_disable(struct igc_adapter *adapter);
 static void igc_irq_enable(struct igc_adapter *adapter);
 static void igc_configure_msix(struct igc_adapter *adapter);
-static bool igc_alloc_mapped_page(struct igc_ring *rx_ring,
-				  struct igc_rx_buffer *bi);
 
 enum latency_range {
 	lowest_latency = 0,
@@ -1606,6 +1604,52 @@ static void igc_put_rx_buffer(struct igc_ring *rx_ring,
 	rx_buffer->page = NULL;
 }
 
+static inline unsigned int igc_rx_offset(struct igc_ring *rx_ring)
+{
+	return ring_uses_build_skb(rx_ring) ? IGC_SKB_PAD : 0;
+}
+
+static bool igc_alloc_mapped_page(struct igc_ring *rx_ring,
+				  struct igc_rx_buffer *bi)
+{
+	struct page *page = bi->page;
+	dma_addr_t dma;
+
+	/* since we are recycling buffers we should seldom need to alloc */
+	if (likely(page))
+		return true;
+
+	/* alloc new page for storage */
+	page = dev_alloc_pages(igc_rx_pg_order(rx_ring));
+	if (unlikely(!page)) {
+		rx_ring->rx_stats.alloc_failed++;
+		return false;
+	}
+
+	/* map page for use */
+	dma = dma_map_page_attrs(rx_ring->dev, page, 0,
+				 igc_rx_pg_size(rx_ring),
+				 DMA_FROM_DEVICE,
+				 IGC_RX_DMA_ATTR);
+
+	/* if mapping failed free memory back to system since
+	 * there isn't much point in holding memory we can't use
+	 */
+	if (dma_mapping_error(rx_ring->dev, dma)) {
+		__free_page(page);
+
+		rx_ring->rx_stats.alloc_failed++;
+		return false;
+	}
+
+	bi->dma = dma;
+	bi->page = page;
+	bi->page_offset = igc_rx_offset(rx_ring);
+	bi->pagecnt_bias = 1;
+
+	return true;
+}
+
 /**
  * igc_alloc_rx_buffers - Replace used receive buffers; packet split
  * @rx_ring: rx descriptor ring
@@ -1765,52 +1809,6 @@ static int igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 		igc_alloc_rx_buffers(rx_ring, cleaned_count);
 
 	return total_packets;
-}
-
-static inline unsigned int igc_rx_offset(struct igc_ring *rx_ring)
-{
-	return ring_uses_build_skb(rx_ring) ? IGC_SKB_PAD : 0;
-}
-
-static bool igc_alloc_mapped_page(struct igc_ring *rx_ring,
-				  struct igc_rx_buffer *bi)
-{
-	struct page *page = bi->page;
-	dma_addr_t dma;
-
-	/* since we are recycling buffers we should seldom need to alloc */
-	if (likely(page))
-		return true;
-
-	/* alloc new page for storage */
-	page = dev_alloc_pages(igc_rx_pg_order(rx_ring));
-	if (unlikely(!page)) {
-		rx_ring->rx_stats.alloc_failed++;
-		return false;
-	}
-
-	/* map page for use */
-	dma = dma_map_page_attrs(rx_ring->dev, page, 0,
-				 igc_rx_pg_size(rx_ring),
-				 DMA_FROM_DEVICE,
-				 IGC_RX_DMA_ATTR);
-
-	/* if mapping failed free memory back to system since
-	 * there isn't much point in holding memory we can't use
-	 */
-	if (dma_mapping_error(rx_ring->dev, dma)) {
-		__free_page(page);
-
-		rx_ring->rx_stats.alloc_failed++;
-		return false;
-	}
-
-	bi->dma = dma;
-	bi->page = page;
-	bi->page_offset = igc_rx_offset(rx_ring);
-	bi->pagecnt_bias = 1;
-
-	return true;
 }
 
 /**
