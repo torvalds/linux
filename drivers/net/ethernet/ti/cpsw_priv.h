@@ -383,6 +383,35 @@ struct addr_sync_ctx {
 	int flush;		/* flush flag */
 };
 
+#define CPSW_XMETA_OFFSET	ALIGN(sizeof(struct xdp_frame), sizeof(long))
+
+#define CPSW_XDP_CONSUMED		1
+#define CPSW_XDP_PASS			0
+
+struct __aligned(sizeof(long)) cpsw_meta_xdp {
+	struct net_device *ndev;
+	int ch;
+};
+
+/* The buf includes headroom compatible with both skb and xdpf */
+#define CPSW_HEADROOM_NA (max(XDP_PACKET_HEADROOM, NET_SKB_PAD) + NET_IP_ALIGN)
+#define CPSW_HEADROOM  ALIGN(CPSW_HEADROOM_NA, sizeof(long))
+
+static inline int cpsw_is_xdpf_handle(void *handle)
+{
+	return (unsigned long)handle & BIT(0);
+}
+
+static inline void *cpsw_xdpf_to_handle(struct xdp_frame *xdpf)
+{
+	return (void *)((unsigned long)xdpf | BIT(0));
+}
+
+static inline struct xdp_frame *cpsw_handle_to_xdpf(void *handle)
+{
+	return (struct xdp_frame *)((unsigned long)handle & ~BIT(0));
+}
+
 int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 		     int ale_ageout, phys_addr_t desc_mem_phys,
 		     int descs_pool_size);
@@ -393,6 +422,29 @@ void cpsw_intr_disable(struct cpsw_common *cpsw);
 void cpsw_tx_handler(void *token, int len, int status);
 int cpsw_create_xdp_rxqs(struct cpsw_common *cpsw);
 void cpsw_destroy_xdp_rxqs(struct cpsw_common *cpsw);
+int cpsw_ndo_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
+int cpsw_xdp_tx_frame(struct cpsw_priv *priv, struct xdp_frame *xdpf,
+		      struct page *page, int port);
+int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
+		 struct page *page, int port);
+irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id);
+irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id);
+int cpsw_tx_mq_poll(struct napi_struct *napi_tx, int budget);
+int cpsw_tx_poll(struct napi_struct *napi_tx, int budget);
+int cpsw_rx_mq_poll(struct napi_struct *napi_rx, int budget);
+int cpsw_rx_poll(struct napi_struct *napi_rx, int budget);
+void cpsw_rx_vlan_encap(struct sk_buff *skb);
+void soft_reset(const char *module, void __iomem *reg);
+void cpsw_set_slave_mac(struct cpsw_slave *slave, struct cpsw_priv *priv);
+void cpsw_ndo_tx_timeout(struct net_device *ndev);
+int cpsw_need_resplit(struct cpsw_common *cpsw);
+int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd);
+int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate);
+int cpsw_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
+		      void *type_data);
+bool cpsw_shp_is_off(struct cpsw_priv *priv);
+void cpsw_cbs_resume(struct cpsw_slave *slave, struct cpsw_priv *priv);
+void cpsw_mqprio_resume(struct cpsw_slave *slave, struct cpsw_priv *priv);
 
 /* ethtool */
 u32 cpsw_get_msglevel(struct net_device *ndev);
