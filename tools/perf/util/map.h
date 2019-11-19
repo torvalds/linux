@@ -18,6 +18,16 @@ struct map_groups;
 struct machine;
 struct evsel;
 
+/*
+ * Data about backing storage DSO, comes from PERF_RECORD_MMAP2 meta events
+ */
+struct dso_id {
+	u32	maj;
+	u32	min;
+	u64	ino;
+	u64	ino_generation;
+};
+
 struct map {
 	union {
 		struct rb_node	rb_node;
@@ -30,9 +40,6 @@ struct map {
 	u32			prot;
 	u64			pgoff;
 	u64			reloc;
-	u32			maj, min; /* only valid for MMAP2 record */
-	u64			ino;      /* only valid for MMAP2 record */
-	u64			ino_generation;/* only valid for MMAP2 record */
 
 	/* ip -> dso rip */
 	u64			(*map_ip)(struct map *, u64);
@@ -40,6 +47,7 @@ struct map {
 	u64			(*unmap_ip)(struct map *, u64);
 
 	struct dso		*dso;
+	struct dso_id		dso_id;
 	refcount_t		refcnt;
 	u32			flags;
 };

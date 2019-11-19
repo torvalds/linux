@@ -162,10 +162,10 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		vdso = is_vdso_map(filename);
 		no_dso = is_no_dso_memory(filename);
 
-		map->maj = d_maj;
-		map->min = d_min;
-		map->ino = ino;
-		map->ino_generation = ino_gen;
+		map->dso_id.maj = d_maj;
+		map->dso_id.min = d_min;
+		map->dso_id.ino = ino;
+		map->dso_id.ino_generation = ino_gen;
 		map->prot = prot;
 		map->flags = flags;
 		nsi = nsinfo__get(thread->nsinfo);
