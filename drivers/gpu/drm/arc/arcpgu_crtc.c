@@ -22,7 +22,7 @@
 
 static const u32 arc_pgu_supported_formats[] = {
 	DRM_FORMAT_RGB565,
-	DRM_FORMAT_RGB888,
+	DRM_FORMAT_XRGB8888,
 };
 
 static void arc_pgu_set_pxl_fmt(struct drm_crtc *crtc)
@@ -44,9 +44,9 @@ static void arc_pgu_set_pxl_fmt(struct drm_crtc *crtc)
 
 	reg_ctrl = arc_pgu_read(arcpgu, ARCPGU_REG_CTRL);
 	if (format == DRM_FORMAT_RGB565)
-		reg_ctrl &= ~ARCPGU_MODE_RGB888_MASK;
+		reg_ctrl &= ~ARCPGU_MODE_XRGB8888;
 	else
-		reg_ctrl |= ARCPGU_MODE_RGB888_MASK;
+		reg_ctrl |= ARCPGU_MODE_XRGB8888;
 	arc_pgu_write(arcpgu, ARCPGU_REG_CTRL, reg_ctrl);
 }
 
