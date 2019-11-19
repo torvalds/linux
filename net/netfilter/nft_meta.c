@@ -551,6 +551,10 @@ static int nft_meta_get_offload(struct nft_offload_ctx *ctx,
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_META, meta,
 				  ingress_ifindex, sizeof(__u32), reg);
 		break;
+	case NFT_META_IIFTYPE:
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_META, meta,
+				  ingress_iftype, sizeof(__u16), reg);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
