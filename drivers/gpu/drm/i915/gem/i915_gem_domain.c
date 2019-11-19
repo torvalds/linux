@@ -149,9 +149,17 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	GEM_BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_GTT) != 0);
 	obj->read_domains |= I915_GEM_DOMAIN_GTT;
 	if (write) {
+		struct i915_vma *vma;
+
 		obj->read_domains = I915_GEM_DOMAIN_GTT;
 		obj->write_domain = I915_GEM_DOMAIN_GTT;
 		obj->mm.dirty = true;
+
+		spin_lock(&obj->vma.lock);
+		for_each_ggtt_vma(vma, obj)
+			if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
+				i915_vma_set_ggtt_write(vma);
+		spin_unlock(&obj->vma.lock);
 	}
 
 	i915_gem_object_unpin_pages(obj);
