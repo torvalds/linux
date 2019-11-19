@@ -361,12 +361,23 @@ static struct nft_trans *nft_trans_rule_add(struct nft_ctx *ctx, int msg_type,
 
 static int nft_delrule(struct nft_ctx *ctx, struct nft_rule *rule)
 {
+	struct nft_flow_rule *flow;
 	struct nft_trans *trans;
 	int err;
 
 	trans = nft_trans_rule_add(ctx, NFT_MSG_DELRULE, rule);
 	if (trans == NULL)
 		return -ENOMEM;
+
+	if (ctx->chain->flags & NFT_CHAIN_HW_OFFLOAD) {
+		flow = nft_flow_rule_create(ctx->net, rule);
+		if (IS_ERR(flow)) {
+			nft_trans_destroy(trans);
+			return PTR_ERR(flow);
+		}
+
+		nft_trans_flow_rule(trans) = flow;
+	}
 
 	err = nf_tables_delrule_deactivate(ctx, rule);
 	if (err < 0) {
@@ -5964,16 +5975,22 @@ nft_flowtable_type_get(struct net *net, u8 family)
 	return ERR_PTR(-ENOENT);
 }
 
+static void nft_unregister_flowtable_hook(struct net *net,
+					  struct nft_flowtable *flowtable,
+					  struct nft_hook *hook)
+{
+	nf_unregister_net_hook(net, &hook->ops);
+	flowtable->data.type->setup(&flowtable->data, hook->ops.dev,
+				    FLOW_BLOCK_UNBIND);
+}
+
 static void nft_unregister_flowtable_net_hooks(struct net *net,
 					       struct nft_flowtable *flowtable)
 {
 	struct nft_hook *hook;
 
-	list_for_each_entry(hook, &flowtable->hook_list, list) {
-		nf_unregister_net_hook(net, &hook->ops);
-		flowtable->data.type->setup(&flowtable->data, hook->ops.dev,
-					    FLOW_BLOCK_UNBIND);
-	}
+	list_for_each_entry(hook, &flowtable->hook_list, list)
+		nft_unregister_flowtable_hook(net, flowtable, hook);
 }
 
 static int nft_register_flowtable_net_hooks(struct net *net,
@@ -5995,11 +6012,19 @@ static int nft_register_flowtable_net_hooks(struct net *net,
 			}
 		}
 
-		flowtable->data.type->setup(&flowtable->data, hook->ops.dev,
-					    FLOW_BLOCK_BIND);
-		err = nf_register_net_hook(net, &hook->ops);
+		err = flowtable->data.type->setup(&flowtable->data,
+						  hook->ops.dev,
+						  FLOW_BLOCK_BIND);
 		if (err < 0)
 			goto err_unregister_net_hooks;
+
+		err = nf_register_net_hook(net, &hook->ops);
+		if (err < 0) {
+			flowtable->data.type->setup(&flowtable->data,
+						    hook->ops.dev,
+						    FLOW_BLOCK_UNBIND);
+			goto err_unregister_net_hooks;
+		}
 
 		i++;
 	}
@@ -6011,9 +6036,7 @@ err_unregister_net_hooks:
 		if (i-- <= 0)
 			break;
 
-		nf_unregister_net_hook(net, &hook->ops);
-		flowtable->data.type->setup(&flowtable->data, hook->ops.dev,
-					    FLOW_BLOCK_UNBIND);
+		nft_unregister_flowtable_hook(net, flowtable, hook);
 		list_del_rcu(&hook->list);
 		kfree_rcu(hook, rcu);
 	}
@@ -6120,7 +6143,7 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 	return 0;
 err5:
 	list_for_each_entry_safe(hook, next, &flowtable->hook_list, list) {
-		nf_unregister_net_hook(net, &hook->ops);
+		nft_unregister_flowtable_hook(net, flowtable, hook);
 		list_del_rcu(&hook->list);
 		kfree_rcu(hook, rcu);
 	}
@@ -6465,7 +6488,7 @@ static void nft_flowtable_event(unsigned long event, struct net_device *dev,
 		if (hook->ops.dev != dev)
 			continue;
 
-		nf_unregister_net_hook(dev_net(dev), &hook->ops);
+		nft_unregister_flowtable_hook(dev_net(dev), flowtable, hook);
 		list_del_rcu(&hook->list);
 		kfree_rcu(hook, rcu);
 		break;

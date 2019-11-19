@@ -18,11 +18,11 @@ static DEFINE_MUTEX(flowtable_lock);
 static LIST_HEAD(flowtables);
 
 static void
-flow_offload_fill_dir(struct flow_offload *flow, struct nf_conn *ct,
+flow_offload_fill_dir(struct flow_offload *flow,
 		      enum flow_offload_tuple_dir dir)
 {
 	struct flow_offload_tuple *ft = &flow->tuplehash[dir].tuple;
-	struct nf_conntrack_tuple *ctt = &ct->tuplehash[dir].tuple;
+	struct nf_conntrack_tuple *ctt = &flow->ct->tuplehash[dir].tuple;
 
 	ft->dir = dir;
 
@@ -57,8 +57,8 @@ struct flow_offload *flow_offload_alloc(struct nf_conn *ct)
 
 	flow->ct = ct;
 
-	flow_offload_fill_dir(flow, ct, FLOW_OFFLOAD_DIR_ORIGINAL);
-	flow_offload_fill_dir(flow, ct, FLOW_OFFLOAD_DIR_REPLY);
+	flow_offload_fill_dir(flow, FLOW_OFFLOAD_DIR_ORIGINAL);
+	flow_offload_fill_dir(flow, FLOW_OFFLOAD_DIR_REPLY);
 
 	if (ct->status & IPS_SRC_NAT)
 		flow->flags |= FLOW_OFFLOAD_SNAT;
