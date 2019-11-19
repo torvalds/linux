@@ -187,133 +187,30 @@ struct cros_ec_platform {
 	u16 cmd_offset;
 };
 
-/**
- * cros_ec_suspend() - Handle a suspend operation for the ChromeOS EC device.
- * @ec_dev: Device to suspend.
- *
- * This can be called by drivers to handle a suspend event.
- *
- * Return: 0 on success or negative error code.
- */
 int cros_ec_suspend(struct cros_ec_device *ec_dev);
 
-/**
- * cros_ec_resume() - Handle a resume operation for the ChromeOS EC device.
- * @ec_dev: Device to resume.
- *
- * This can be called by drivers to handle a resume event.
- *
- * Return: 0 on success or negative error code.
- */
 int cros_ec_resume(struct cros_ec_device *ec_dev);
 
-/**
- * cros_ec_prepare_tx() - Prepare an outgoing message in the output buffer.
- * @ec_dev: Device to register.
- * @msg: Message to write.
- *
- * This is intended to be used by all ChromeOS EC drivers, but at present
- * only SPI uses it. Once LPC uses the same protocol it can start using it.
- * I2C could use it now, with a refactor of the existing code.
- *
- * Return: 0 on success or negative error code.
- */
 int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 		       struct cros_ec_command *msg);
 
-/**
- * cros_ec_check_result() - Check ec_msg->result.
- * @ec_dev: EC device.
- * @msg: Message to check.
- *
- * This is used by ChromeOS EC drivers to check the ec_msg->result for
- * errors and to warn about them.
- *
- * Return: 0 on success or negative error code.
- */
 int cros_ec_check_result(struct cros_ec_device *ec_dev,
 			 struct cros_ec_command *msg);
 
-/**
- * cros_ec_cmd_xfer() - Send a command to the ChromeOS EC.
- * @ec_dev: EC device.
- * @msg: Message to write.
- *
- * Call this to send a command to the ChromeOS EC.  This should be used
- * instead of calling the EC's cmd_xfer() callback directly.
- *
- * Return: 0 on success or negative error code.
- */
 int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 		     struct cros_ec_command *msg);
 
-/**
- * cros_ec_cmd_xfer_status() - Send a command to the ChromeOS EC.
- * @ec_dev: EC device.
- * @msg: Message to write.
- *
- * This function is identical to cros_ec_cmd_xfer, except it returns success
- * status only if both the command was transmitted successfully and the EC
- * replied with success status. It's not necessary to check msg->result when
- * using this function.
- *
- * Return: The number of bytes transferred on success or negative error code.
- */
 int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 			    struct cros_ec_command *msg);
 
-/**
- * cros_ec_register() - Register a new ChromeOS EC, using the provided info.
- * @ec_dev: Device to register.
- *
- * Before calling this, allocate a pointer to a new device and then fill
- * in all the fields up to the --private-- marker.
- *
- * Return: 0 on success or negative error code.
- */
 int cros_ec_register(struct cros_ec_device *ec_dev);
 
-/**
- * cros_ec_unregister() - Remove a ChromeOS EC.
- * @ec_dev: Device to unregister.
- *
- * Call this to deregister a ChromeOS EC, then clean up any private data.
- *
- * Return: 0 on success or negative error code.
- */
 int cros_ec_unregister(struct cros_ec_device *ec_dev);
 
-/**
- * cros_ec_query_all() -  Query the protocol version supported by the
- *         ChromeOS EC.
- * @ec_dev: Device to register.
- *
- * Return: 0 on success or negative error code.
- */
 int cros_ec_query_all(struct cros_ec_device *ec_dev);
 
-/**
- * cros_ec_get_next_event() - Fetch next event from the ChromeOS EC.
- * @ec_dev: Device to fetch event from.
- * @wake_event: Pointer to a bool set to true upon return if the event might be
- *              treated as a wake event. Ignored if null.
- *
- * Return: negative error code on errors; 0 for no data; or else number of
- * bytes received (i.e., an event was retrieved successfully). Event types are
- * written out to @ec_dev->event_data.event_type on success.
- */
 int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event);
 
-/**
- * cros_ec_get_host_event() - Return a mask of event set by the ChromeOS EC.
- * @ec_dev: Device to fetch event from.
- *
- * When MKBP is supported, when the EC raises an interrupt, we collect the
- * events raised and call the functions in the ec notifier. This function
- * is a helper to know which events are raised.
- *
- * Return: 0 on error or non-zero bitmask of one or more EC_HOST_EVENT_*.
- */
 u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev);
 
 #endif /* __LINUX_CROS_EC_PROTO_H */
