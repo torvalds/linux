@@ -53,7 +53,6 @@ MODULE_DEVICE_TABLE(pci, igc_pci_tbl);
 
 /* forward declaration */
 static int igc_sw_init(struct igc_adapter *);
-static void igc_configure(struct igc_adapter *adapter);
 static void igc_set_rx_mode(struct net_device *netdev);
 static void igc_write_itr(struct igc_q_vector *q_vector);
 static void igc_assign_vector(struct igc_q_vector *q_vector, int msix_vector);
@@ -1985,6 +1984,51 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 	return !!budget;
 }
 
+static void igc_nfc_filter_restore(struct igc_adapter *adapter)
+{
+	struct igc_nfc_filter *rule;
+
+	spin_lock(&adapter->nfc_lock);
+
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
+		igc_add_filter(adapter, rule);
+
+	spin_unlock(&adapter->nfc_lock);
+}
+
+/**
+ * igc_configure - configure the hardware for RX and TX
+ * @adapter: private board structure
+ */
+static void igc_configure(struct igc_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	int i = 0;
+
+	igc_get_hw_control(adapter);
+	igc_set_rx_mode(netdev);
+
+	igc_setup_tctl(adapter);
+	igc_setup_mrqc(adapter);
+	igc_setup_rctl(adapter);
+
+	igc_nfc_filter_restore(adapter);
+	igc_configure_tx(adapter);
+	igc_configure_rx(adapter);
+
+	igc_rx_fifo_flush_base(&adapter->hw);
+
+	/* call igc_desc_unused which always leaves
+	 * at least 1 descriptor unused to make sure
+	 * next_to_use != next_to_clean
+	 */
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		struct igc_ring *ring = adapter->rx_ring[i];
+
+		igc_alloc_rx_buffers(ring, igc_desc_unused(ring));
+	}
+}
+
 /**
  * igc_up - Open the interface and prepare it to handle traffic
  * @adapter: board private structure
@@ -2202,18 +2246,6 @@ static void igc_nfc_filter_exit(struct igc_adapter *adapter)
 
 	hlist_for_each_entry(rule, &adapter->cls_flower_list, nfc_node)
 		igc_erase_filter(adapter, rule);
-
-	spin_unlock(&adapter->nfc_lock);
-}
-
-static void igc_nfc_filter_restore(struct igc_adapter *adapter)
-{
-	struct igc_nfc_filter *rule;
-
-	spin_lock(&adapter->nfc_lock);
-
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
-		igc_add_filter(adapter, rule);
 
 	spin_unlock(&adapter->nfc_lock);
 }
@@ -2439,39 +2471,6 @@ igc_features_check(struct sk_buff *skb, struct net_device *dev,
 		features &= ~NETIF_F_TSO;
 
 	return features;
-}
-
-/**
- * igc_configure - configure the hardware for RX and TX
- * @adapter: private board structure
- */
-static void igc_configure(struct igc_adapter *adapter)
-{
-	struct net_device *netdev = adapter->netdev;
-	int i = 0;
-
-	igc_get_hw_control(adapter);
-	igc_set_rx_mode(netdev);
-
-	igc_setup_tctl(adapter);
-	igc_setup_mrqc(adapter);
-	igc_setup_rctl(adapter);
-
-	igc_nfc_filter_restore(adapter);
-	igc_configure_tx(adapter);
-	igc_configure_rx(adapter);
-
-	igc_rx_fifo_flush_base(&adapter->hw);
-
-	/* call igc_desc_unused which always leaves
-	 * at least 1 descriptor unused to make sure
-	 * next_to_use != next_to_clean
-	 */
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct igc_ring *ring = adapter->rx_ring[i];
-
-		igc_alloc_rx_buffers(ring, igc_desc_unused(ring));
-	}
 }
 
 /* If the filter to be added and an already existing filter express
