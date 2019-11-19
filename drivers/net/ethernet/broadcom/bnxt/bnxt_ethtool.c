@@ -173,6 +173,7 @@ static const char * const bnxt_ring_tpa2_stats_str[] = {
 
 static const char * const bnxt_ring_sw_stats_str[] = {
 	"rx_l4_csum_errors",
+	"rx_buf_errors",
 	"missed_irqs",
 };
 
@@ -552,6 +553,7 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		for (k = 0; k < stat_fields; j++, k++)
 			buf[j] = le64_to_cpu(hw_stats[k]);
 		buf[j++] = cpr->rx_l4_csum_errors;
+		buf[j++] = cpr->rx_buf_errors;
 		buf[j++] = cpr->missed_irqs;
 
 		bnxt_sw_func_stats[RX_TOTAL_DISCARDS].counter +=
@@ -1785,6 +1787,8 @@ static int bnxt_firmware_reset(struct net_device *dev,
 	case BNXT_FW_RESET_CHIP:
 		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP;
 		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
+		if (bp->fw_cap & BNXT_FW_CAP_HOT_RESET)
+			req.flags = FW_RESET_REQ_FLAGS_RESET_GRACEFUL;
 		break;
 	case BNXT_FW_RESET_AP:
 		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP;
@@ -2981,7 +2985,8 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 		return -EOPNOTSUPP;
 	}
 
-	if (pci_vfs_assigned(bp->pdev)) {
+	if (pci_vfs_assigned(bp->pdev) &&
+	    !(bp->fw_cap & BNXT_FW_CAP_HOT_RESET)) {
 		netdev_err(dev,
 			   "Reset not allowed when VFs are assigned to VMs\n");
 		return -EBUSY;
@@ -2994,7 +2999,9 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 
 		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_CHIP);
 		if (!rc) {
-			netdev_info(dev, "Reset request successful. Reload driver to complete reset\n");
+			netdev_info(dev, "Reset request successful.\n");
+			if (!(bp->fw_cap & BNXT_FW_CAP_HOT_RESET))
+				netdev_info(dev, "Reload driver to complete reset\n");
 			*flags = 0;
 		}
 	} else if (*flags == ETH_RESET_AP) {
@@ -3038,7 +3045,8 @@ static int bnxt_hwrm_dbg_dma_data(struct bnxt *bp, void *msg, int msg_len,
 	mutex_lock(&bp->hwrm_cmd_lock);
 	while (1) {
 		*seq_ptr = cpu_to_le16(seq);
-		rc = _hwrm_send_message(bp, msg, msg_len, HWRM_CMD_TIMEOUT);
+		rc = _hwrm_send_message(bp, msg, msg_len,
+					HWRM_COREDUMP_TIMEOUT);
 		if (rc)
 			break;
 
