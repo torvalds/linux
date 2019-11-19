@@ -6962,6 +6962,7 @@ static void nested_vmx_cr_fixed1_bits_update(struct kvm_vcpu *vcpu)
 	cr4_fixed1_update(X86_CR4_SMAP,       ebx, bit(X86_FEATURE_SMAP));
 	cr4_fixed1_update(X86_CR4_PKE,        ecx, bit(X86_FEATURE_PKU));
 	cr4_fixed1_update(X86_CR4_UMIP,       ecx, bit(X86_FEATURE_UMIP));
+	cr4_fixed1_update(X86_CR4_LA57,       ecx, bit(X86_FEATURE_LA57));
 
 #undef cr4_fixed1_update
 }
