@@ -754,10 +754,8 @@ u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs)
 
 void fadump_update_elfcore_header(char *bufp)
 {
-	struct elfhdr *elf;
 	struct elf_phdr *phdr;
 
-	elf = (struct elfhdr *)bufp;
 	bufp += sizeof(struct elfhdr);
 
 	/* First note is a place holder for cpu notes info. */
