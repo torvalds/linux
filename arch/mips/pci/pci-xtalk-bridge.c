@@ -306,16 +306,15 @@ static int bridge_set_affinity(struct irq_data *d, const struct cpumask *mask,
 	struct bridge_irq_chip_data *data = d->chip_data;
 	int bit = d->parent_data->hwirq;
 	int pin = d->hwirq;
-	nasid_t nasid;
 	int ret, cpu;
 
 	ret = irq_chip_set_affinity_parent(d, mask, force);
 	if (ret >= 0) {
 		cpu = cpumask_first_and(mask, cpu_online_mask);
-		nasid = cpu_to_node(cpu);
+		data->nasid = cpu_to_node(cpu);
 		bridge_write(data->bc, b_int_addr[pin].addr,
 			     (((data->bc->intr_addr >> 30) & 0x30000) |
-			      bit | (nasid << 8)));
+			      bit | (data->nasid << 8)));
 		bridge_read(data->bc, b_wid_tflush);
 	}
 	return ret;
