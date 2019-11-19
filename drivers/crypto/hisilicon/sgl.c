@@ -202,18 +202,21 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 	dma_addr_t curr_sgl_dma = 0;
 	struct acc_hw_sge *curr_hw_sge;
 	struct scatterlist *sg;
-	int i, ret, sg_n;
+	int i, sg_n, sg_n_mapped;
 
 	if (!dev || !sgl || !pool || !hw_sgl_dma)
 		return ERR_PTR(-EINVAL);
 
 	sg_n = sg_nents(sgl);
-	if (sg_n > pool->sge_nr)
+
+	sg_n_mapped = dma_map_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
+	if (!sg_n_mapped)
 		return ERR_PTR(-EINVAL);
 
-	ret = dma_map_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
-	if (!ret)
+	if (sg_n_mapped > pool->sge_nr) {
+		dma_unmap_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
 		return ERR_PTR(-EINVAL);
+	}
 
 	curr_hw_sgl = acc_get_sgl(pool, index, &curr_sgl_dma);
 	if (IS_ERR(curr_hw_sgl)) {
@@ -224,7 +227,7 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 	curr_hw_sgl->entry_length_in_sgl = cpu_to_le16(pool->sge_nr);
 	curr_hw_sge = curr_hw_sgl->sge_entries;
 
-	for_each_sg(sgl, sg, sg_n, i) {
+	for_each_sg(sgl, sg, sg_n_mapped, i) {
 		sg_map_to_hw_sg(sg, curr_hw_sge);
 		inc_hw_sgl_sge(curr_hw_sgl);
 		curr_hw_sge++;
