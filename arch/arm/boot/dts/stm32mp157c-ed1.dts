@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "stm32mp157.dtsi"
+#include "stm32mp15xc.dtsi"
 #include "stm32mp15-pinctrl.dtsi"
 #include "stm32mp15xxaa-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
