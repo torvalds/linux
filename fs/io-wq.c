@@ -328,9 +328,9 @@ static void __io_worker_busy(struct io_wqe *wqe, struct io_worker *worker,
 	 * If worker is moving from bound to unbound (or vice versa), then
 	 * ensure we update the running accounting.
 	 */
-	 worker_bound = (worker->flags & IO_WORKER_F_BOUND) != 0;
-	 work_bound = (work->flags & IO_WQ_WORK_UNBOUND) == 0;
-	 if (worker_bound != work_bound) {
+	worker_bound = (worker->flags & IO_WORKER_F_BOUND) != 0;
+	work_bound = (work->flags & IO_WQ_WORK_UNBOUND) == 0;
+	if (worker_bound != work_bound) {
 		io_wqe_dec_running(wqe, worker);
 		if (work_bound) {
 			worker->flags |= IO_WORKER_F_BOUND;
