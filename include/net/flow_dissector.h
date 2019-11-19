@@ -48,9 +48,12 @@ struct flow_dissector_key_tags {
 };
 
 struct flow_dissector_key_vlan {
-	u16	vlan_id:12,
-		vlan_dei:1,
-		vlan_priority:3;
+	union {
+		u16	vlan_id:12,
+			vlan_dei:1,
+			vlan_priority:3;
+		__be16	vlan_tci;
+	};
 	__be16	vlan_tpid;
 };
 
