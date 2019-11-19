@@ -36,6 +36,7 @@
 /* The size of a free page block in bytes */
 #define VIRTIO_BALLOON_HINT_BLOCK_BYTES \
 	(1 << (VIRTIO_BALLOON_HINT_BLOCK_ORDER + PAGE_SHIFT))
+#define VIRTIO_BALLOON_HINT_BLOCK_PAGES (1 << VIRTIO_BALLOON_HINT_BLOCK_ORDER)
 
 #ifdef CONFIG_BALLOON_COMPACTION
 static struct vfsmount *balloon_mnt;
@@ -776,11 +777,11 @@ static unsigned long shrink_free_pages(struct virtio_balloon *vb,
 	unsigned long blocks_to_free, blocks_freed;
 
 	pages_to_free = round_up(pages_to_free,
-				 1 << VIRTIO_BALLOON_HINT_BLOCK_ORDER);
-	blocks_to_free = pages_to_free >> VIRTIO_BALLOON_HINT_BLOCK_ORDER;
+				 VIRTIO_BALLOON_HINT_BLOCK_PAGES);
+	blocks_to_free = pages_to_free / VIRTIO_BALLOON_HINT_BLOCK_PAGES;
 	blocks_freed = return_free_pages_to_mm(vb, blocks_to_free);
 
-	return blocks_freed << VIRTIO_BALLOON_HINT_BLOCK_ORDER;
+	return blocks_freed * VIRTIO_BALLOON_HINT_BLOCK_PAGES;
 }
 
 static unsigned long leak_balloon_pages(struct virtio_balloon *vb,
@@ -837,7 +838,7 @@ static unsigned long virtio_balloon_shrinker_count(struct shrinker *shrinker,
 	unsigned long count;
 
 	count = vb->num_pages / VIRTIO_BALLOON_PAGES_PER_PAGE;
-	count += vb->num_free_page_blocks << VIRTIO_BALLOON_HINT_BLOCK_ORDER;
+	count += vb->num_free_page_blocks * VIRTIO_BALLOON_HINT_BLOCK_PAGES;
 
 	return count;
 }
