@@ -63,8 +63,8 @@
 #include "soc15_hw_ip.h"
 #include "vega10_ip_offset.h"
 #include "nbio/nbio_6_1_offset.h"
-#include "mmhub/mmhub_9_4_0_offset.h"
-#include "mmhub/mmhub_9_4_0_sh_mask.h"
+#include "mmhub/mmhub_1_0_offset.h"
+#include "mmhub/mmhub_1_0_sh_mask.h"
 #include "reg_helper.h"
 
 #include "dce100/dce100_resource.h"
