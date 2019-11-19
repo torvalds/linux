@@ -598,9 +598,6 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",cache_strategy=readahead");
 	} else if (sbi->cache_strategy == EROFS_ZIP_CACHE_READAROUND) {
 		seq_puts(seq, ",cache_strategy=readaround");
-	} else {
-		seq_puts(seq, ",cache_strategy=(unknown)");
-		DBG_BUGON(1);
 	}
 #endif
 	return 0;
