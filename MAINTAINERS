@@ -2859,7 +2859,6 @@ AXENTIA ARM DEVICES
 M:	Peter Rosin <peda@axentia.se>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	Documentation/devicetree/bindings/arm/axentia.txt
 F:	arch/arm/boot/dts/at91-linea.dtsi
 F:	arch/arm/boot/dts/at91-natte.dtsi
 F:	arch/arm/boot/dts/at91-nattis-2-natte-2.dts
