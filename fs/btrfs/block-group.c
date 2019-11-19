@@ -1582,34 +1582,43 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 	struct map_lookup *map;
 	u64 *buf;
 	u64 bytenr;
-	u64 length;
-	u64 stripe_nr;
-	u64 rmap_len;
-	int i, j, nr = 0;
+	u64 data_stripe_length;
+	u64 io_stripe_size;
+	int i, nr = 0;
+	int ret = 0;
 
 	em = btrfs_get_chunk_map(fs_info, chunk_start, 1);
 	if (IS_ERR(em))
 		return -EIO;
 
 	map = em->map_lookup;
-	length = em->len;
-	rmap_len = map->stripe_len;
+	data_stripe_length = em->len;
+	io_stripe_size = map->stripe_len;
 
 	if (map->type & BTRFS_BLOCK_GROUP_RAID10)
-		length = div_u64(length, map->num_stripes / map->sub_stripes);
+		data_stripe_length = div_u64(data_stripe_length,
+					     map->num_stripes / map->sub_stripes);
 	else if (map->type & BTRFS_BLOCK_GROUP_RAID0)
-		length = div_u64(length, map->num_stripes);
+		data_stripe_length = div_u64(data_stripe_length, map->num_stripes);
 	else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		length = div_u64(length, nr_data_stripes(map));
-		rmap_len = map->stripe_len * nr_data_stripes(map);
+		data_stripe_length = div_u64(data_stripe_length,
+					     nr_data_stripes(map));
+		io_stripe_size = map->stripe_len * nr_data_stripes(map);
 	}
 
 	buf = kcalloc(map->num_stripes, sizeof(u64), GFP_NOFS);
-	BUG_ON(!buf); /* -ENOMEM */
+	if (!buf) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	for (i = 0; i < map->num_stripes; i++) {
-		if (map->stripes[i].physical > physical ||
-		    map->stripes[i].physical + length <= physical)
+		bool already_inserted = false;
+		u64 stripe_nr;
+		int j;
+
+		if (!in_range(physical, map->stripes[i].physical,
+			      data_stripe_length))
 			continue;
 
 		stripe_nr = physical - map->stripes[i].physical;
@@ -1627,24 +1636,26 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 		 * instead of map->stripe_len
 		 */
 
-		bytenr = chunk_start + stripe_nr * rmap_len;
-		WARN_ON(nr >= map->num_stripes);
+		bytenr = chunk_start + stripe_nr * io_stripe_size;
+
+		/* Ensure we don't add duplicate addresses */
 		for (j = 0; j < nr; j++) {
-			if (buf[j] == bytenr)
+			if (buf[j] == bytenr) {
+				already_inserted = true;
 				break;
+			}
 		}
-		if (j == nr) {
-			WARN_ON(nr >= map->num_stripes);
+
+		if (!already_inserted)
 			buf[nr++] = bytenr;
-		}
 	}
 
 	*logical = buf;
 	*naddrs = nr;
-	*stripe_len = rmap_len;
-
+	*stripe_len = io_stripe_size;
+out:
 	free_extent_map(em);
-	return 0;
+	return ret;
 }
 
 static int exclude_super_stripes(struct btrfs_block_group *cache)
