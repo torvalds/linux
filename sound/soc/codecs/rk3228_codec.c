@@ -1,21 +1,8 @@
-/*
- * rk3228_codec.c  --  rk3228 ALSA Soc Audio driver
- *
- * Copyright (c) 2018, Fuzhou Rockchip Electronics Co., Ltd All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// rk3228_codec.c  --  rk3228 ALSA Soc Audio driver
+//
+// Copyright (c) 2018, Fuzhou Rockchip Electronics Co., Ltd All rights reserved.
 
 #include <linux/module.h>
 #include <linux/device.h>
@@ -64,9 +51,9 @@ static const struct reg_default rk3228_codec_reg_defaults[] = {
 	{ HPOUT_POP_CTRL, 0x11 },
 };
 
-static int rk3228_codec_reset(struct snd_soc_codec *codec)
+static int rk3228_codec_reset(struct snd_soc_component *component)
 {
-	struct rk3228_codec_priv *rk3228 = snd_soc_codec_get_drvdata(codec);
+	struct rk3228_codec_priv *rk3228 = snd_soc_component_get_drvdata(component);
 
 	regmap_write(rk3228->regmap, CODEC_RESET, 0);
 	mdelay(10);
@@ -75,11 +62,11 @@ static int rk3228_codec_reset(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rk3228_set_dai_fmt(struct snd_soc_dai *codec_dai,
+static int rk3228_set_dai_fmt(struct snd_soc_dai *dai,
 			      unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct rk3228_codec_priv *rk3228 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rk3228_codec_priv *rk3228 = snd_soc_component_get_drvdata(component);
 	unsigned int val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -128,8 +115,8 @@ static void rk3228_analog_output(struct rk3228_codec_priv *rk3228, int mute)
 
 static int rk3228_digital_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rk3228_codec_priv *rk3228 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rk3228_codec_priv *rk3228 = snd_soc_component_get_drvdata(component);
 	unsigned int val = 0;
 
 	if (mute)
@@ -142,9 +129,9 @@ static int rk3228_digital_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-static int rk3228_codec_power_on(struct snd_soc_codec *codec, int wait_ms)
+static int rk3228_codec_power_on(struct snd_soc_component *component, int wait_ms)
 {
-	struct rk3228_codec_priv *rk3228 = snd_soc_codec_get_drvdata(codec);
+	struct rk3228_codec_priv *rk3228 = snd_soc_component_get_drvdata(component);
 
 	regmap_update_bits(rk3228->regmap, DAC_PRECHARGE_CTRL,
 			   DAC_CHARGE_XCHARGE_MASK, DAC_CHARGE_PRECHARGE);
@@ -158,9 +145,9 @@ static int rk3228_codec_power_on(struct snd_soc_codec *codec, int wait_ms)
 	return 0;
 }
 
-static int rk3228_codec_power_off(struct snd_soc_codec *codec, int wait_ms)
+static int rk3228_codec_power_off(struct snd_soc_component *component, int wait_ms)
 {
-	struct rk3228_codec_priv *rk3228 = snd_soc_codec_get_drvdata(codec);
+	struct rk3228_codec_priv *rk3228 = snd_soc_component_get_drvdata(component);
 
 	regmap_update_bits(rk3228->regmap, DAC_PRECHARGE_CTRL,
 			   DAC_CHARGE_XCHARGE_MASK, DAC_CHARGE_DISCHARGE);
@@ -205,9 +192,9 @@ static struct rk3228_reg_msk_val playback_open_list[] = {
 
 #define PLAYBACK_OPEN_LIST_LEN ARRAY_SIZE(playback_open_list)
 
-static int rk3228_codec_open_playback(struct snd_soc_codec *codec)
+static int rk3228_codec_open_playback(struct snd_soc_component *component)
 {
-	struct rk3228_codec_priv *rk3228 = snd_soc_codec_get_drvdata(codec);
+	struct rk3228_codec_priv *rk3228 = snd_soc_component_get_drvdata(component);
 	int i = 0;
 
 	regmap_update_bits(rk3228->regmap, DAC_PRECHARGE_CTRL,
@@ -261,9 +248,9 @@ static struct rk3228_reg_msk_val playback_close_list[] = {
 
 #define PLAYBACK_CLOSE_LIST_LEN ARRAY_SIZE(playback_close_list)
 
-static int rk3228_codec_close_playback(struct snd_soc_codec *codec)
+static int rk3228_codec_close_playback(struct snd_soc_component *component)
 {
-	struct rk3228_codec_priv *rk3228 = snd_soc_codec_get_drvdata(codec);
+	struct rk3228_codec_priv *rk3228 = snd_soc_component_get_drvdata(component);
 	int i = 0;
 
 	rk3228_analog_output(rk3228, 0);
@@ -291,8 +278,8 @@ static int rk3228_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rk3228_codec_priv *rk3228 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rk3228_codec_priv *rk3228 = snd_soc_component_get_drvdata(component);
 	unsigned int val = 0;
 
 	switch (params_format(params)) {
@@ -323,17 +310,17 @@ static int rk3228_hw_params(struct snd_pcm_substream *substream,
 static int rk3228_pcm_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
-	return rk3228_codec_open_playback(codec);
+	return rk3228_codec_open_playback(component);
 }
 
 static void rk3228_pcm_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
-	rk3228_codec_close_playback(codec);
+	rk3228_codec_close_playback(component);
 }
 
 static struct snd_soc_dai_ops rk3228_dai_ops = {
@@ -372,23 +359,21 @@ static struct snd_soc_dai_driver rk3228_dai[] = {
 	},
 };
 
-static int rk3228_codec_probe(struct snd_soc_codec *codec)
+static int rk3228_codec_probe(struct snd_soc_component *component)
 {
-	rk3228_codec_reset(codec);
-	rk3228_codec_power_on(codec, 0);
+	rk3228_codec_reset(component);
+	rk3228_codec_power_on(component, 0);
 
 	return 0;
 }
 
-static int rk3228_codec_remove(struct snd_soc_codec *codec)
+static void rk3228_codec_remove(struct snd_soc_component *component)
 {
-	rk3228_codec_close_playback(codec);
-	rk3228_codec_power_off(codec, 0);
-
-	return 0;
+	rk3228_codec_close_playback(component);
+	rk3228_codec_power_off(component, 0);
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_rk3228 = {
+static struct snd_soc_component_driver soc_codec_dev_rk3228 = {
 	.probe = rk3228_codec_probe,
 	.remove = rk3228_codec_remove,
 };
@@ -511,9 +496,8 @@ static int rk3228_platform_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rk3228);
 
-	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_rk3228,
-				     rk3228_dai, ARRAY_SIZE(rk3228_dai));
-
+	ret = devm_snd_soc_register_component(&pdev->dev, &soc_codec_dev_rk3228,
+					      rk3228_dai, ARRAY_SIZE(rk3228_dai));
 	if (!ret)
 		return 0;
 
@@ -540,7 +524,6 @@ static int rk3228_platform_remove(struct platform_device *pdev)
 	if (!IS_ERR(rk3228->sclk))
 		clk_disable_unprepare(rk3228->sclk);
 
-	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 
