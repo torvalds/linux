@@ -53,7 +53,6 @@ MODULE_DEVICE_TABLE(pci, igc_pci_tbl);
 
 /* forward declaration */
 static int igc_sw_init(struct igc_adapter *);
-static void igc_write_itr(struct igc_q_vector *q_vector);
 
 enum latency_range {
 	lowest_latency = 0,
@@ -2931,6 +2930,22 @@ static irqreturn_t igc_msix_other(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void igc_write_itr(struct igc_q_vector *q_vector)
+{
+	u32 itr_val = q_vector->itr_val & IGC_QVECTOR_MASK;
+
+	if (!q_vector->set_itr)
+		return;
+
+	if (!itr_val)
+		itr_val = IGC_ITR_VAL_MASK;
+
+	itr_val |= IGC_EITR_CNT_IGNR;
+
+	writel(itr_val, q_vector->itr_register);
+	q_vector->set_itr = 0;
+}
+
 static irqreturn_t igc_msix_ring(int irq, void *data)
 {
 	struct igc_q_vector *q_vector = data;
@@ -4042,22 +4057,6 @@ static int igc_request_irq(struct igc_adapter *adapter)
 
 request_done:
 	return err;
-}
-
-static void igc_write_itr(struct igc_q_vector *q_vector)
-{
-	u32 itr_val = q_vector->itr_val & IGC_QVECTOR_MASK;
-
-	if (!q_vector->set_itr)
-		return;
-
-	if (!itr_val)
-		itr_val = IGC_ITR_VAL_MASK;
-
-	itr_val |= IGC_EITR_CNT_IGNR;
-
-	writel(itr_val, q_vector->itr_register);
-	q_vector->set_itr = 0;
 }
 
 /**
