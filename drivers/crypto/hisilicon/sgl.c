@@ -263,7 +263,3 @@ void hisi_acc_sg_buf_unmap(struct device *dev, struct scatterlist *sgl,
 	hw_sgl->entry_length_in_sgl = 0;
 }
 EXPORT_SYMBOL_GPL(hisi_acc_sg_buf_unmap);
-
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");
-MODULE_DESCRIPTION("HiSilicon Accelerator SGL support");
