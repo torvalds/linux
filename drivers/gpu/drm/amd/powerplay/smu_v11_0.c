@@ -37,6 +37,7 @@
 #include "soc15_common.h"
 #include "atom.h"
 #include "amd_pcie.h"
+#include "amdgpu_ras.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
