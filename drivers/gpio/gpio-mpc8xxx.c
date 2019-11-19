@@ -387,6 +387,9 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 
 	gc->to_irq = mpc8xxx_gpio_to_irq;
 
+	if (of_device_is_compatible(np, "fsl,qoriq-gpio"))
+		gc->write_reg(mpc8xxx_gc->regs + GPIO_IBE, 0xffffffff);
+
 	ret = gpiochip_add_data(gc, mpc8xxx_gc);
 	if (ret) {
 		pr_err("%pOF: GPIO chip registration failed with status %d\n",
