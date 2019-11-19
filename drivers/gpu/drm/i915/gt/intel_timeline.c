@@ -342,7 +342,7 @@ void intel_timeline_enter(struct intel_timeline *tl)
 	GEM_BUG_ON(!tl->active_count); /* overflow? */
 
 	spin_lock_irqsave(&timelines->lock, flags);
-	list_add(&tl->link, &timelines->active_list);
+	list_add_tail(&tl->link, &timelines->active_list);
 	spin_unlock_irqrestore(&timelines->lock, flags);
 }
 
