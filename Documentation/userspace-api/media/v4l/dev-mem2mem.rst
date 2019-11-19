@@ -46,4 +46,5 @@ devices are given in the following sections.
     :maxdepth: 1
 
     dev-decoder
+    dev-encoder
     dev-stateless-decoder
