@@ -113,7 +113,7 @@ static void rk3228_analog_output(struct rk3228_codec_priv *rk3228, int mute)
 		gpiod_set_value(rk3228->spk_en_gpio, mute);
 }
 
-static int rk3228_digital_mute(struct snd_soc_dai *dai, int mute)
+static int rk3228_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rk3228_codec_priv *rk3228 = snd_soc_component_get_drvdata(component);
@@ -326,9 +326,10 @@ static void rk3228_pcm_shutdown(struct snd_pcm_substream *substream,
 static struct snd_soc_dai_ops rk3228_dai_ops = {
 	.hw_params = rk3228_hw_params,
 	.set_fmt = rk3228_set_dai_fmt,
-	.digital_mute = rk3228_digital_mute,
+	.mute_stream = rk3228_digital_mute,
 	.startup = rk3228_pcm_startup,
 	.shutdown = rk3228_pcm_shutdown,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver rk3228_dai[] = {
