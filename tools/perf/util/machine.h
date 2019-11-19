@@ -11,6 +11,7 @@
 struct addr_location;
 struct branch_stack;
 struct dso;
+struct dso_id;
 struct evsel;
 struct perf_sample;
 struct symbol;
@@ -202,6 +203,7 @@ int machine__nr_cpus_avail(struct machine *machine);
 struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
 struct thread *machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
 
+struct dso *machine__findnew_dso_id(struct machine *machine, const char *filename, struct dso_id *id);
 struct dso *machine__findnew_dso(struct machine *machine, const char *filename);
 
 size_t machine__fprintf(struct machine *machine, FILE *fp);

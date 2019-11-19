@@ -2711,9 +2711,14 @@ out:
 	return addr_cpumode;
 }
 
+struct dso *machine__findnew_dso_id(struct machine *machine, const char *filename, struct dso_id *id)
+{
+	return dsos__findnew_id(&machine->dsos, filename, id);
+}
+
 struct dso *machine__findnew_dso(struct machine *machine, const char *filename)
 {
-	return dsos__findnew(&machine->dsos, filename);
+	return machine__findnew_dso_id(machine, filename, NULL);
 }
 
 char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp)

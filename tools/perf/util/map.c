@@ -161,12 +161,6 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		anon = is_anon_memory(filename, flags);
 		vdso = is_vdso_map(filename);
 		no_dso = is_no_dso_memory(filename);
-
-		if (id)
-			map->dso_id = *id;
-		else
-			map->dso_id.min = map->dso_id.ino = map->dso_id.ino_generation = 0;
-
 		map->prot = prot;
 		map->flags = flags;
 		nsi = nsinfo__get(thread->nsinfo);
@@ -196,7 +190,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			pgoff = 0;
 			dso = machine__findnew_vdso(machine, thread);
 		} else
-			dso = machine__findnew_dso(machine, filename);
+			dso = machine__findnew_dso_id(machine, filename, id);
 
 		if (dso == NULL)
 			goto out_delete;
