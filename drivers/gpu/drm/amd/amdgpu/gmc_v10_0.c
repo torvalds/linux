@@ -235,6 +235,29 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	const unsigned eng = 17;
 	unsigned int i;
 
+	spin_lock(&adev->gmc.invalidate_lock);
+	/*
+	 * It may lose gpuvm invalidate acknowldege state across power-gating
+	 * off cycle, add semaphore acquire before invalidation and semaphore
+	 * release after invalidation to avoid entering power gated state
+	 * to WA the Issue
+	 */
+
+	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
+	if (vmhub == AMDGPU_MMHUB_0 ||
+	    vmhub == AMDGPU_MMHUB_1) {
+		for (i = 0; i < adev->usec_timeout; i++) {
+			/* a read return value of 1 means semaphore acuqire */
+			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_sem + eng);
+			if (tmp & 0x1)
+				break;
+			udelay(1);
+		}
+
+		if (i >= adev->usec_timeout)
+			DRM_ERROR("Timeout waiting for sem acquire in VM flush!\n");
+	}
+
 	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
 
 	/*
@@ -253,6 +276,17 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 
 		udelay(1);
 	}
+
+	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
+	if (vmhub == AMDGPU_MMHUB_0 ||
+	    vmhub == AMDGPU_MMHUB_1)
+		/*
+		 * add semaphore release after invalidation,
+		 * write with 0 means semaphore release
+		 */
+		WREG32_NO_KIQ(hub->vm_inv_eng0_sem + eng, 0);
+
+	spin_unlock(&adev->gmc.invalidate_lock);
 
 	if (i < adev->usec_timeout)
 		return;
@@ -338,6 +372,20 @@ static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	uint32_t req = gmc_v10_0_get_invalidate_req(vmid, 0);
 	unsigned eng = ring->vm_inv_eng;
 
+	/*
+	 * It may lose gpuvm invalidate acknowldege state across power-gating
+	 * off cycle, add semaphore acquire before invalidation and semaphore
+	 * release after invalidation to avoid entering power gated state
+	 * to WA the Issue
+	 */
+
+	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
+	if (ring->funcs->vmhub == AMDGPU_MMHUB_0 ||
+	    ring->funcs->vmhub == AMDGPU_MMHUB_1)
+		/* a read return value of 1 means semaphore acuqire */
+		amdgpu_ring_emit_reg_wait(ring,
+					  hub->vm_inv_eng0_sem + eng, 0x1, 0x1);
+
 	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_lo32 + (2 * vmid),
 			      lower_32_bits(pd_addr));
 
@@ -347,6 +395,15 @@ static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	amdgpu_ring_emit_reg_write_reg_wait(ring, hub->vm_inv_eng0_req + eng,
 					    hub->vm_inv_eng0_ack + eng,
 					    req, 1 << vmid);
+
+	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
+	if (ring->funcs->vmhub == AMDGPU_MMHUB_0 ||
+	    ring->funcs->vmhub == AMDGPU_MMHUB_1)
+		/*
+		 * add semaphore release after invalidation,
+		 * write with 0 means semaphore release
+		 */
+		amdgpu_ring_emit_wreg(ring, hub->vm_inv_eng0_sem + eng, 0);
 
 	return pd_addr;
 }
