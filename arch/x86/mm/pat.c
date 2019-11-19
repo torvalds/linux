@@ -1179,10 +1179,10 @@ static int memtype_seq_show(struct seq_file *seq, void *v)
 {
 	struct memtype *print_entry = (struct memtype *)v;
 
-	seq_printf(seq, "%s @ 0x%Lx-0x%Lx\n",
-			cattr_name(print_entry->type),
+	seq_printf(seq, "PAT: [mem 0x%016Lx-0x%016Lx] %s\n",
 			print_entry->start,
-			print_entry->end);
+			print_entry->end,
+			cattr_name(print_entry->type));
 
 	kfree(print_entry);
 
