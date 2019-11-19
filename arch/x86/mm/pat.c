@@ -66,7 +66,11 @@ static bool __read_mostly pat_disabled = !IS_ENABLED(CONFIG_X86_PAT);
 static bool __read_mostly pat_initialized;
 static bool __read_mostly init_cm_done;
 
-void pat_disable(const char *reason)
+/*
+ * PAT support is enabled by default, but can be disabled for
+ * various user-requested or hardware-forced reasons:
+ */
+void pat_disable(const char *msg_reason)
 {
 	if (pat_disabled)
 		return;
@@ -77,12 +81,12 @@ void pat_disable(const char *reason)
 	}
 
 	pat_disabled = true;
-	pr_info("x86/PAT: %s\n", reason);
+	pr_info("x86/PAT: %s\n", msg_reason);
 }
 
 static int __init nopat(char *str)
 {
-	pat_disable("PAT support disabled.");
+	pat_disable("PAT support disabled via boot option.");
 	return 0;
 }
 early_param("nopat", nopat);
@@ -238,13 +242,13 @@ static void pat_bsp_init(u64 pat)
 	u64 tmp_pat;
 
 	if (!boot_cpu_has(X86_FEATURE_PAT)) {
-		pat_disable("PAT not supported by CPU.");
+		pat_disable("PAT not supported by the CPU.");
 		return;
 	}
 
 	rdmsrl(MSR_IA32_CR_PAT, tmp_pat);
 	if (!tmp_pat) {
-		pat_disable("PAT MSR is 0, disabled.");
+		pat_disable("PAT support disabled by the firmware.");
 		return;
 	}
 
@@ -314,7 +318,7 @@ void init_cache_modes(void)
 }
 
 /**
- * pat_init - Initialize PAT MSR and PAT table
+ * pat_init - Initialize the PAT MSR and PAT table on the current CPU
  *
  * This function initializes PAT MSR and PAT table with an OS-defined value
  * to enable additional cache attributes, WC, WT and WP.
@@ -327,6 +331,10 @@ void pat_init(void)
 {
 	u64 pat;
 	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+#ifndef CONFIG_X86_PAT
+	pr_info_once("x86/PAT: PAT support disabled because CONFIG_X86_PAT is disabled in the kernel.\n");
+#endif
 
 	if (pat_disabled)
 		return;
