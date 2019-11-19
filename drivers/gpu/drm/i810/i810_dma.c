@@ -30,13 +30,20 @@
  *
  */
 
-#include <drm/drmP.h>
-#include <drm/i810_drm.h>
-#include "i810_drv.h"
-#include <linux/interrupt.h>	/* For task queue support */
 #include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/pagemap.h>
+#include <linux/mman.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_print.h>
+#include <drm/i810_drm.h>
+
+#include "i810_drv.h"
 
 #define I810_BUF_FREE		2
 #define I810_BUF_CLIENT		1

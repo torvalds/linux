@@ -20,7 +20,7 @@ kernel which allows different filesystem implementations to coexist.
 
 VFS system calls open(2), stat(2), read(2), write(2), chmod(2) and so on
 are called from a process context.  Filesystem locking is described in
-the document Documentation/filesystems/Locking.
+the document Documentation/filesystems/locking.rst.
 
 
 Directory Entry Cache (dcache)

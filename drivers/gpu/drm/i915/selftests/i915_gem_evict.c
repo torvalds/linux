@@ -25,6 +25,7 @@
 #include "gem/i915_gem_pm.h"
 #include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
+#include "gt/intel_gt.h"
 
 #include "i915_selftest.h"
 
@@ -47,26 +48,29 @@ static int populate_ggtt(struct drm_i915_private *i915,
 {
 	unsigned long unbound, bound, count;
 	struct drm_i915_gem_object *obj;
-	u64 size;
 
 	count = 0;
-	for (size = 0;
-	     size + I915_GTT_PAGE_SIZE <= i915->ggtt.vm.total;
-	     size += I915_GTT_PAGE_SIZE) {
+	do {
 		struct i915_vma *vma;
 
 		obj = i915_gem_object_create_internal(i915, I915_GTT_PAGE_SIZE);
 		if (IS_ERR(obj))
 			return PTR_ERR(obj);
 
-		quirk_add(obj, objects);
-
 		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
-		if (IS_ERR(vma))
-			return PTR_ERR(vma);
+		if (IS_ERR(vma)) {
+			i915_gem_object_put(obj);
+			if (vma == ERR_PTR(-ENOSPC))
+				break;
 
+			return PTR_ERR(vma);
+		}
+
+		quirk_add(obj, objects);
 		count++;
-	}
+	} while (1);
+	pr_debug("Filled GGTT with %lu pages [%llu total]\n",
+		 count, i915->ggtt.vm.total / PAGE_SIZE);
 
 	bound = 0;
 	unbound = 0;
@@ -557,7 +561,7 @@ int i915_gem_evict_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_evict_contexts),
 	};
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	return i915_subtests(tests, i915);

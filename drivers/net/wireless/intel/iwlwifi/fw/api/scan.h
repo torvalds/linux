@@ -93,6 +93,8 @@ struct iwl_ssid_ie {
 #define IWL_SCAN_SHORT_BLACKLIST_LEN	16
 #define IWL_SCAN_MAX_PROFILES		11
 #define SCAN_OFFLOAD_PROBE_REQ_SIZE	512
+#define SCAN_NUM_BAND_PROBE_DATA_V_1	2
+#define SCAN_NUM_BAND_PROBE_DATA_V_2	3
 
 /* Default watchdog (in MS) for scheduled scan iteration */
 #define IWL_SCHED_SCAN_WATCHDOG cpu_to_le16(15000)
@@ -251,9 +253,22 @@ struct iwl_scan_probe_segment {
  * @common_data: last (and common) part of the probe
  * @buf: raw data block
  */
+struct iwl_scan_probe_req_v1 {
+	struct iwl_scan_probe_segment mac_header;
+	struct iwl_scan_probe_segment band_data[SCAN_NUM_BAND_PROBE_DATA_V_1];
+	struct iwl_scan_probe_segment common_data;
+	u8 buf[SCAN_OFFLOAD_PROBE_REQ_SIZE];
+} __packed;
+
+/* iwl_scan_probe_req - PROBE_REQUEST_FRAME_API_S_VER_v2
+ * @mac_header: first (and common) part of the probe
+ * @band_data: band specific data
+ * @common_data: last (and common) part of the probe
+ * @buf: raw data block
+ */
 struct iwl_scan_probe_req {
 	struct iwl_scan_probe_segment mac_header;
-	struct iwl_scan_probe_segment band_data[2];
+	struct iwl_scan_probe_segment band_data[SCAN_NUM_BAND_PROBE_DATA_V_2];
 	struct iwl_scan_probe_segment common_data;
 	u8 buf[SCAN_OFFLOAD_PROBE_REQ_SIZE];
 } __packed;
@@ -505,7 +520,7 @@ struct iwl_scan_dwell {
 } __packed;
 
 /**
- * struct iwl_scan_config
+ * struct iwl_scan_config_v1
  * @flags:			enum scan_config_flags
  * @tx_chains:			valid_tx antenna - ANT_* definitions
  * @rx_chains:			valid_rx antenna - ANT_* definitions
@@ -537,7 +552,7 @@ struct iwl_scan_config_v1 {
 #define SCAN_LB_LMAC_IDX 0
 #define SCAN_HB_LMAC_IDX 1
 
-struct iwl_scan_config {
+struct iwl_scan_config_v2 {
 	__le32 flags;
 	__le32 tx_chains;
 	__le32 rx_chains;
@@ -549,6 +564,24 @@ struct iwl_scan_config {
 	u8 bcast_sta_id;
 	u8 channel_flags;
 	u8 channel_array[];
+} __packed; /* SCAN_CONFIG_DB_CMD_API_S_2 */
+
+/**
+ * struct iwl_scan_config
+ * @enable_cam_mode: whether to enable CAM mode.
+ * @enable_promiscouos_mode: whether to enable promiscouos mode
+ * @bcast_sta_id: the index of the station in the fw
+ * @reserved: reserved
+ * @tx_chains: valid_tx antenna - ANT_* definitions
+ * @rx_chains: valid_rx antenna - ANT_* definitions
+ */
+struct iwl_scan_config {
+	u8 enable_cam_mode;
+	u8 enable_promiscouos_mode;
+	u8 bcast_sta_id;
+	u8 reserved;
+	__le32 tx_chains;
+	__le32 rx_chains;
 } __packed; /* SCAN_CONFIG_DB_CMD_API_S_3 */
 
 /**
@@ -608,15 +641,29 @@ enum iwl_umac_scan_general_flags2 {
  * struct iwl_scan_channel_cfg_umac
  * @flags:		bitmap - 0-19:	directed scan to i'th ssid.
  * @channel_num:	channel number 1-13 etc.
+ * @band:		band of channel: 0 for 2GHz, 1 for 5GHz
  * @iter_count:		repetition count for the channel.
  * @iter_interval:	interval between two scan iterations on one channel.
  */
-struct iwl_scan_channel_cfg_umac {
+struct  iwl_scan_channel_cfg_umac {
 	__le32 flags;
-	u8 channel_num;
-	u8 iter_count;
-	__le16 iter_interval;
-} __packed; /* SCAN_CHANNEL_CFG_S_VER2 */
+	/* Both versions are of the same size, so use a union without adjusting
+	 * the command size later
+	 */
+	union {
+		struct {
+			u8 channel_num;
+			u8 iter_count;
+			__le16 iter_interval;
+		} v1;  /* SCAN_CHANNEL_CFG_S_VER1 */
+		struct {
+			u8 channel_num;
+			u8 band;
+			u8 iter_count;
+			u8 iter_interval;
+		 } v2; /* SCAN_CHANNEL_CFG_S_VER2 */
+	};
+} __packed;
 
 /**
  * struct iwl_scan_umac_schedule
@@ -630,6 +677,16 @@ struct iwl_scan_umac_schedule {
 	u8 reserved;
 } __packed; /* SCAN_SCHED_PARAM_API_S_VER_1 */
 
+struct iwl_scan_req_umac_tail_v1 {
+	/* SCAN_PERIODIC_PARAMS_API_S_VER_1 */
+	struct iwl_scan_umac_schedule schedule[IWL_MAX_SCHED_SCAN_PLANS];
+	__le16 delay;
+	__le16 reserved;
+	/* SCAN_PROBE_PARAMS_API_S_VER_1 */
+	struct iwl_scan_probe_req_v1 preq;
+	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
+} __packed;
+
 /**
  * struct iwl_scan_req_umac_tail - the rest of the UMAC scan request command
  *      parameters following channels configuration array.
@@ -639,12 +696,12 @@ struct iwl_scan_umac_schedule {
  * @preq: probe request with IEs blocks
  * @direct_scan: list of SSIDs for directed active scan
  */
-struct iwl_scan_req_umac_tail {
+struct iwl_scan_req_umac_tail_v2 {
 	/* SCAN_PERIODIC_PARAMS_API_S_VER_1 */
 	struct iwl_scan_umac_schedule schedule[IWL_MAX_SCHED_SCAN_PLANS];
 	__le16 delay;
 	__le16 reserved;
-	/* SCAN_PROBE_PARAMS_API_S_VER_1 */
+	/* SCAN_PROBE_PARAMS_API_S_VER_2 */
 	struct iwl_scan_probe_req preq;
 	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
 } __packed;

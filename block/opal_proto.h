@@ -119,8 +119,6 @@ enum opal_uid {
 	OPAL_UID_HEXFF,
 };
 
-#define OPAL_METHOD_LENGTH 8
-
 /* Enum for indexing the OPALMETHOD array */
 enum opal_method {
 	OPAL_PROPERTIES,
@@ -167,7 +165,6 @@ enum opal_token {
 	OPAL_TABLE_LASTID = 0x0A,
 	OPAL_TABLE_MIN = 0x0B,
 	OPAL_TABLE_MAX = 0x0C,
-
 	/* authority table */
 	OPAL_PIN = 0x03,
 	/* locking tokens */
@@ -182,7 +179,7 @@ enum opal_token {
 	OPAL_LIFECYCLE = 0x06,
 	/* locking info table */
 	OPAL_MAXRANGES = 0x04,
-	 /* mbr control */
+	/* mbr control */
 	OPAL_MBRENABLE = 0x01,
 	OPAL_MBRDONE = 0x02,
 	/* properties */

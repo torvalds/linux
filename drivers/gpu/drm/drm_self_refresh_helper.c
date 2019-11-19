@@ -5,6 +5,7 @@
  * Authors:
  * Sean Paul <seanpaul@chromium.org>
  */
+#include <linux/average.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -50,11 +51,17 @@
  * atomic_check when &drm_crtc_state.self_refresh_active is true.
  */
 
+#define SELF_REFRESH_AVG_SEED_MS 200
+
+DECLARE_EWMA(psr_time, 4, 4)
+
 struct drm_self_refresh_data {
 	struct drm_crtc *crtc;
 	struct delayed_work entry_work;
-	struct drm_atomic_state *save_state;
-	unsigned int entry_delay_ms;
+
+	struct mutex avg_mutex;
+	struct ewma_psr_time entry_avg_ms;
+	struct ewma_psr_time exit_avg_ms;
 };
 
 static void drm_self_refresh_helper_entry_work(struct work_struct *work)
@@ -123,6 +130,48 @@ out_drop_locks:
 }
 
 /**
+ * drm_self_refresh_helper_update_avg_times - Updates a crtc's SR time averages
+ * @state: the state which has just been applied to hardware
+ * @commit_time_ms: the amount of time in ms that this commit took to complete
+ * @new_self_refresh_mask: bitmask of crtc's that have self_refresh_active in
+ *    new state
+ *
+ * Called after &drm_mode_config_funcs.atomic_commit_tail, this function will
+ * update the average entry/exit self refresh times on self refresh transitions.
+ * These averages will be used when calculating how long to delay before
+ * entering self refresh mode after activity.
+ */
+void
+drm_self_refresh_helper_update_avg_times(struct drm_atomic_state *state,
+					 unsigned int commit_time_ms,
+					 unsigned int new_self_refresh_mask)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	int i;
+
+	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
+		bool new_self_refresh_active = new_self_refresh_mask & BIT(i);
+		struct drm_self_refresh_data *sr_data = crtc->self_refresh_data;
+		struct ewma_psr_time *time;
+
+		if (old_crtc_state->self_refresh_active ==
+		    new_self_refresh_active)
+			continue;
+
+		if (new_self_refresh_active)
+			time = &sr_data->entry_avg_ms;
+		else
+			time = &sr_data->exit_avg_ms;
+
+		mutex_lock(&sr_data->avg_mutex);
+		ewma_psr_time_add(time, commit_time_ms);
+		mutex_unlock(&sr_data->avg_mutex);
+	}
+}
+EXPORT_SYMBOL(drm_self_refresh_helper_update_avg_times);
+
+/**
  * drm_self_refresh_helper_alter_state - Alters the atomic state for SR exit
  * @state: the state currently being checked
  *
@@ -153,6 +202,7 @@ void drm_self_refresh_helper_alter_state(struct drm_atomic_state *state)
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		struct drm_self_refresh_data *sr_data;
+		unsigned int delay;
 
 		/* Don't trigger the entry timer when we're already in SR */
 		if (crtc_state->self_refresh_active)
@@ -162,8 +212,13 @@ void drm_self_refresh_helper_alter_state(struct drm_atomic_state *state)
 		if (!sr_data)
 			continue;
 
+		mutex_lock(&sr_data->avg_mutex);
+		delay = (ewma_psr_time_read(&sr_data->entry_avg_ms) +
+			 ewma_psr_time_read(&sr_data->exit_avg_ms)) * 2;
+		mutex_unlock(&sr_data->avg_mutex);
+
 		mod_delayed_work(system_wq, &sr_data->entry_work,
-				 msecs_to_jiffies(sr_data->entry_delay_ms));
+				 msecs_to_jiffies(delay));
 	}
 }
 EXPORT_SYMBOL(drm_self_refresh_helper_alter_state);
@@ -171,12 +226,10 @@ EXPORT_SYMBOL(drm_self_refresh_helper_alter_state);
 /**
  * drm_self_refresh_helper_init - Initializes self refresh helpers for a crtc
  * @crtc: the crtc which supports self refresh supported displays
- * @entry_delay_ms: amount of inactivity to wait before entering self refresh
  *
  * Returns zero if successful or -errno on failure
  */
-int drm_self_refresh_helper_init(struct drm_crtc *crtc,
-				 unsigned int entry_delay_ms)
+int drm_self_refresh_helper_init(struct drm_crtc *crtc)
 {
 	struct drm_self_refresh_data *sr_data = crtc->self_refresh_data;
 
@@ -190,8 +243,18 @@ int drm_self_refresh_helper_init(struct drm_crtc *crtc,
 
 	INIT_DELAYED_WORK(&sr_data->entry_work,
 			  drm_self_refresh_helper_entry_work);
-	sr_data->entry_delay_ms = entry_delay_ms;
 	sr_data->crtc = crtc;
+	mutex_init(&sr_data->avg_mutex);
+	ewma_psr_time_init(&sr_data->entry_avg_ms);
+	ewma_psr_time_init(&sr_data->exit_avg_ms);
+
+	/*
+	 * Seed the averages so they're non-zero (and sufficiently large
+	 * for even poorly performing panels). As time goes on, this will be
+	 * averaged out and the values will trend to their true value.
+	 */
+	ewma_psr_time_add(&sr_data->entry_avg_ms, SELF_REFRESH_AVG_SEED_MS);
+	ewma_psr_time_add(&sr_data->exit_avg_ms, SELF_REFRESH_AVG_SEED_MS);
 
 	crtc->self_refresh_data = sr_data;
 	return 0;

@@ -316,24 +316,6 @@ radix_tree_iter_lookup(const struct radix_tree_root *root,
 }
 
 /**
- * radix_tree_iter_find - find a present entry
- * @root: radix tree root
- * @iter: iterator state
- * @index: start location
- *
- * This function returns the slot containing the entry with the lowest index
- * which is at least @index.  If @index is larger than any present entry, this
- * function returns NULL.  The @iter is updated to describe the entry found.
- */
-static inline void __rcu **
-radix_tree_iter_find(const struct radix_tree_root *root,
-			struct radix_tree_iter *iter, unsigned long index)
-{
-	radix_tree_iter_init(iter, index);
-	return radix_tree_next_chunk(root, iter, 0);
-}
-
-/**
  * radix_tree_iter_retry - retry this chunk of the iteration
  * @iter:	iterator state
  *

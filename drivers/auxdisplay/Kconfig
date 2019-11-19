@@ -97,7 +97,7 @@ config CFAG12864B
 	  say Y. You also need the ks0108 LCD Controller driver.
 
 	  For help about how to wire your LCD to the parallel port,
-	  check Documentation/auxdisplay/cfag12864b
+	  check Documentation/admin-guide/auxdisplay/cfag12864b.rst
 
 	  Depends on the x86 arch and the framebuffer support.
 

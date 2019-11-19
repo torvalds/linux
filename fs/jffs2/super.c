@@ -19,7 +19,8 @@
 #include <linux/fs.h>
 #include <linux/err.h>
 #include <linux/mount.h>
-#include <linux/parser.h>
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/jffs2.h>
 #include <linux/pagemap.h>
 #include <linux/mtd/super.h>
@@ -157,96 +158,75 @@ static const struct export_operations jffs2_export_ops = {
 /*
  * JFFS2 mount options.
  *
+ * Opt_source: The source device
  * Opt_override_compr: override default compressor
  * Opt_rp_size: size of reserved pool in KiB
- * Opt_err: just end of array marker
  */
 enum {
 	Opt_override_compr,
 	Opt_rp_size,
-	Opt_err,
 };
 
-static const match_table_t tokens = {
-	{Opt_override_compr, "compr=%s"},
-	{Opt_rp_size, "rp_size=%u"},
-	{Opt_err, NULL},
+static const struct fs_parameter_spec jffs2_param_specs[] = {
+	fsparam_enum	("compr",	Opt_override_compr),
+	fsparam_u32	("rp_size",	Opt_rp_size),
+	{}
 };
 
-static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
-{
-	substring_t args[MAX_OPT_ARGS];
-	char *p, *name;
-	unsigned int opt;
-
-	if (!data)
-		return 0;
-
-	while ((p = strsep(&data, ","))) {
-		int token;
-
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_override_compr:
-			name = match_strdup(&args[0]);
-
-			if (!name)
-				return -ENOMEM;
-			if (!strcmp(name, "none"))
-				c->mount_opts.compr = JFFS2_COMPR_MODE_NONE;
+static const struct fs_parameter_enum jffs2_param_enums[] = {
+	{ Opt_override_compr,	"none",	JFFS2_COMPR_MODE_NONE },
 #ifdef CONFIG_JFFS2_LZO
-			else if (!strcmp(name, "lzo"))
-				c->mount_opts.compr = JFFS2_COMPR_MODE_FORCELZO;
+	{ Opt_override_compr,	"lzo",	JFFS2_COMPR_MODE_FORCELZO },
 #endif
 #ifdef CONFIG_JFFS2_ZLIB
-			else if (!strcmp(name, "zlib"))
-				c->mount_opts.compr =
-						JFFS2_COMPR_MODE_FORCEZLIB;
+	{ Opt_override_compr,	"zlib",	JFFS2_COMPR_MODE_FORCEZLIB },
 #endif
-			else {
-				pr_err("Error: unknown compressor \"%s\"\n",
-				       name);
-				kfree(name);
-				return -EINVAL;
-			}
-			kfree(name);
-			c->mount_opts.override_compr = true;
-			break;
-		case Opt_rp_size:
-			if (match_int(&args[0], &opt))
-				return -EINVAL;
-			opt *= 1024;
-			if (opt > c->mtd->size) {
-				pr_warn("Too large reserve pool specified, max "
-					"is %llu KB\n", c->mtd->size / 1024);
-				return -EINVAL;
-			}
-			c->mount_opts.rp_size = opt;
-			break;
-		default:
-			pr_err("Error: unrecognized mount option '%s' or missing value\n",
-			       p);
-			return -EINVAL;
-		}
+	{}
+};
+
+const struct fs_parameter_description jffs2_fs_parameters = {
+	.name		= "jffs2",
+	.specs		= jffs2_param_specs,
+	.enums		= jffs2_param_enums,
+};
+
+static int jffs2_parse_param(struct fs_context *fc, struct fs_parameter *param)
+{
+	struct fs_parse_result result;
+	struct jffs2_sb_info *c = fc->s_fs_info;
+	int opt;
+
+	opt = fs_parse(fc, &jffs2_fs_parameters, param, &result);
+	if (opt < 0)
+		return opt;
+
+	switch (opt) {
+	case Opt_override_compr:
+		c->mount_opts.compr = result.uint_32;
+		c->mount_opts.override_compr = true;
+		break;
+	case Opt_rp_size:
+		if (result.uint_32 > UINT_MAX / 1024)
+			return invalf(fc, "jffs2: rp_size unrepresentable");
+		opt = result.uint_32 * 1024;
+		if (opt > c->mtd->size)
+			return invalf(fc, "jffs2: Too large reserve pool specified, max is %llu KB",
+				      c->mtd->size / 1024);
+		c->mount_opts.rp_size = opt;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static int jffs2_remount_fs(struct super_block *sb, int *flags, char *data)
+static int jffs2_reconfigure(struct fs_context *fc)
 {
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
-	int err;
+	struct super_block *sb = fc->root->d_sb;
 
 	sync_filesystem(sb);
-	err = jffs2_parse_options(c, data);
-	if (err)
-		return -EINVAL;
-
-	return jffs2_do_remount_fs(sb, flags, data);
+	return jffs2_do_remount_fs(sb, fc);
 }
 
 static const struct super_operations jffs2_super_operations =
@@ -255,7 +235,6 @@ static const struct super_operations jffs2_super_operations =
 	.free_inode =	jffs2_free_inode,
 	.put_super =	jffs2_put_super,
 	.statfs =	jffs2_statfs,
-	.remount_fs =	jffs2_remount_fs,
 	.evict_inode =	jffs2_evict_inode,
 	.dirty_inode =	jffs2_dirty_inode,
 	.show_options =	jffs2_show_options,
@@ -265,26 +244,16 @@ static const struct super_operations jffs2_super_operations =
 /*
  * fill in the superblock
  */
-static int jffs2_fill_super(struct super_block *sb, void *data, int silent)
+static int jffs2_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct jffs2_sb_info *c;
-	int ret;
+	struct jffs2_sb_info *c = sb->s_fs_info;
 
 	jffs2_dbg(1, "jffs2_get_sb_mtd():"
 		  " New superblock for device %d (\"%s\")\n",
 		  sb->s_mtd->index, sb->s_mtd->name);
 
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
-	if (!c)
-		return -ENOMEM;
-
 	c->mtd = sb->s_mtd;
 	c->os_priv = sb;
-	sb->s_fs_info = c;
-
-	ret = jffs2_parse_options(c, data);
-	if (ret)
-		return -EINVAL;
 
 	/* Initialize JFFS2 superblock locks, the further initialization will
 	 * be done later */
@@ -302,15 +271,37 @@ static int jffs2_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_JFFS2_FS_POSIX_ACL
 	sb->s_flags |= SB_POSIXACL;
 #endif
-	ret = jffs2_do_fill_super(sb, data, silent);
-	return ret;
+	return jffs2_do_fill_super(sb, fc);
 }
 
-static struct dentry *jffs2_mount(struct file_system_type *fs_type,
-			int flags, const char *dev_name,
-			void *data)
+static int jffs2_get_tree(struct fs_context *fc)
 {
-	return mount_mtd(fs_type, flags, dev_name, data, jffs2_fill_super);
+	return get_tree_mtd(fc, jffs2_fill_super);
+}
+
+static void jffs2_free_fc(struct fs_context *fc)
+{
+	kfree(fc->s_fs_info);
+}
+
+static const struct fs_context_operations jffs2_context_ops = {
+	.free		= jffs2_free_fc,
+	.parse_param	= jffs2_parse_param,
+	.get_tree	= jffs2_get_tree,
+	.reconfigure	= jffs2_reconfigure,
+};
+
+static int jffs2_init_fs_context(struct fs_context *fc)
+{
+	struct jffs2_sb_info *ctx;
+
+	ctx = kzalloc(sizeof(struct jffs2_sb_info), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	fc->s_fs_info = ctx;
+	fc->ops = &jffs2_context_ops;
+	return 0;
 }
 
 static void jffs2_put_super (struct super_block *sb)
@@ -347,7 +338,8 @@ static void jffs2_kill_sb(struct super_block *sb)
 static struct file_system_type jffs2_fs_type = {
 	.owner =	THIS_MODULE,
 	.name =		"jffs2",
-	.mount =	jffs2_mount,
+	.init_fs_context = jffs2_init_fs_context,
+	.parameters =	&jffs2_fs_parameters,
 	.kill_sb =	jffs2_kill_sb,
 };
 MODULE_ALIAS_FS("jffs2");

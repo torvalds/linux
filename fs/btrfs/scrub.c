@@ -18,6 +18,7 @@
 #include "check-integrity.h"
 #include "rcu-string.h"
 #include "raid56.h"
+#include "block-group.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all

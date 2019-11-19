@@ -59,7 +59,7 @@ enum {
 
 #define HNS_ROCE_HEM_CHUNK_LEN	\
 	 ((256 - sizeof(struct list_head) - 2 * sizeof(int)) /	 \
-	 (sizeof(struct scatterlist)))
+	 (sizeof(struct scatterlist) + sizeof(void *)))
 
 #define check_whether_bt_num_3(type, hop_num) \
 	(type < HEM_TYPE_MTT && hop_num == 2)
@@ -102,9 +102,9 @@ struct hns_roce_hem_mhop {
 	u32	buf_chunk_size;
 	u32	bt_chunk_size;
 	u32	ba_l0_num;
-	u32	l0_idx;/* level 0 base address table index */
-	u32	l1_idx;/* level 1 base address table index */
-	u32	l2_idx;/* level 2 base address table index */
+	u32	l0_idx; /* level 0 base address table index */
+	u32	l1_idx; /* level 1 base address table index */
+	u32	l2_idx; /* level 2 base address table index */
 };
 
 void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct hns_roce_hem *hem);

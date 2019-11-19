@@ -15,7 +15,7 @@ mlx5_core-y :=	main.o cmd.o debugfs.o fw.o eq.o uar.o pagealloc.o \
 		health.o mcg.o cq.o alloc.o qp.o port.o mr.o pd.o \
 		transobj.o vport.o sriov.o fs_cmd.o fs_core.o pci_irq.o \
 		fs_counters.o rl.o lag.o dev.o events.o wq.o lib/gid.o \
-		lib/devcom.o lib/pci_vsc.o diag/fs_tracepoint.o \
+		lib/devcom.o lib/pci_vsc.o lib/dm.o diag/fs_tracepoint.o \
 		diag/fw_tracer.o diag/crdump.o devlink.o
 
 #
@@ -23,8 +23,9 @@ mlx5_core-y :=	main.o cmd.o debugfs.o fw.o eq.o uar.o pagealloc.o \
 #
 mlx5_core-$(CONFIG_MLX5_CORE_EN) += en_main.o en_common.o en_fs.o en_ethtool.o \
 		en_tx.o en_rx.o en_dim.o en_txrx.o en/xdp.o en_stats.o \
-		en_selftest.o en/port.o en/monitor_stats.o en/reporter_tx.o \
-		en/params.o en/xsk/umem.o en/xsk/setup.o en/xsk/rx.o en/xsk/tx.o
+		en_selftest.o en/port.o en/monitor_stats.o en/health.o \
+		en/reporter_tx.o en/reporter_rx.o en/params.o en/xsk/umem.o \
+		en/xsk/setup.o en/xsk/rx.o en/xsk/tx.o
 
 #
 # Netdev extra
@@ -34,7 +35,8 @@ mlx5_core-$(CONFIG_MLX5_EN_RXNFC)    += en_fs_ethtool.o
 mlx5_core-$(CONFIG_MLX5_CORE_EN_DCB) += en_dcbnl.o en/port_buffer.o
 mlx5_core-$(CONFIG_MLX5_ESWITCH)     += en_rep.o en_tc.o en/tc_tun.o lib/port_tun.o lag_mp.o \
 					lib/geneve.o en/tc_tun_vxlan.o en/tc_tun_gre.o \
-					en/tc_tun_geneve.o
+					en/tc_tun_geneve.o diag/en_tc_tracepoint.o
+mlx5_core-$(CONFIG_PCI_HYPERV_INTERFACE) += en/hv_vhca_stats.o
 
 #
 # Core extra
@@ -44,6 +46,7 @@ mlx5_core-$(CONFIG_MLX5_ESWITCH)   += eswitch.o eswitch_offloads.o eswitch_offlo
 mlx5_core-$(CONFIG_MLX5_MPFS)      += lib/mpfs.o
 mlx5_core-$(CONFIG_VXLAN)          += lib/vxlan.o
 mlx5_core-$(CONFIG_PTP_1588_CLOCK) += lib/clock.o
+mlx5_core-$(CONFIG_PCI_HYPERV_INTERFACE) += lib/hv.o lib/hv_vhca.o
 
 #
 # Ipoib netdev
@@ -64,3 +67,10 @@ mlx5_core-$(CONFIG_MLX5_EN_IPSEC) += en_accel/ipsec.o en_accel/ipsec_rxtx.o \
 
 mlx5_core-$(CONFIG_MLX5_EN_TLS) += en_accel/tls.o en_accel/tls_rxtx.o en_accel/tls_stats.o \
 				   en_accel/ktls.o en_accel/ktls_tx.o
+
+mlx5_core-$(CONFIG_MLX5_SW_STEERING) += steering/dr_domain.o steering/dr_table.o \
+					steering/dr_matcher.o steering/dr_rule.o \
+					steering/dr_icm_pool.o steering/dr_crc32.o \
+					steering/dr_ste.o steering/dr_send.o \
+					steering/dr_cmd.o steering/dr_fw.o \
+					steering/dr_action.o steering/fs_dr.o

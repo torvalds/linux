@@ -5,6 +5,7 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 
 #include "msm_drv.h"
 #include "mdp4_kms.h"

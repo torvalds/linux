@@ -15,6 +15,7 @@ config RTLLIB_CRYPTO_CCMP
 	tristate "Support for rtllib CCMP crypto"
 	depends on RTLLIB
 	select CRYPTO_AES
+	select CRYPTO_CCM
 	default y
 	help
 	  CCMP crypto driver for rtllib.

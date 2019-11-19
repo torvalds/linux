@@ -638,8 +638,8 @@ group of pins would work something like this::
 	}
 
 	static int foo_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
-				unsigned ** const pins,
-				unsigned * const num_pins)
+				const unsigned ** pins,
+				unsigned * num_pins)
 	{
 		*pins = (unsigned *) foo_groups[selector].pins;
 		*num_pins = foo_groups[selector].num_pins;
@@ -705,7 +705,7 @@ group of pins would work something like this::
 	{
 		u8 regbit = (1 << selector + group);
 
-		writeb((readb(MUX)|regbit), MUX)
+		writeb((readb(MUX)|regbit), MUX);
 		return 0;
 	}
 

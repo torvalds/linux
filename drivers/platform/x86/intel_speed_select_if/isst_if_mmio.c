@@ -132,11 +132,9 @@ static void isst_if_remove(struct pci_dev *pdev)
 
 static int __maybe_unused isst_if_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct isst_if_device *punit_dev;
+	struct isst_if_device *punit_dev = dev_get_drvdata(device);
 	int i;
 
-	punit_dev = pci_get_drvdata(pdev);
 	for (i = 0; i < ARRAY_SIZE(punit_dev->range_0); ++i)
 		punit_dev->range_0[i] = readl(punit_dev->punit_mmio +
 						mmio_range[0].beg + 4 * i);
@@ -149,11 +147,9 @@ static int __maybe_unused isst_if_suspend(struct device *device)
 
 static int __maybe_unused isst_if_resume(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct isst_if_device *punit_dev;
+	struct isst_if_device *punit_dev = dev_get_drvdata(device);
 	int i;
 
-	punit_dev = pci_get_drvdata(pdev);
 	for (i = 0; i < ARRAY_SIZE(punit_dev->range_0); ++i)
 		writel(punit_dev->range_0[i], punit_dev->punit_mmio +
 						mmio_range[0].beg + 4 * i);

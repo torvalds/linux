@@ -376,12 +376,12 @@ static int set_msi_sid_cb(struct pci_dev *pdev, u16 alias, void *opaque)
 {
 	struct set_msi_sid_data *data = opaque;
 
+	if (data->count == 0 || PCI_BUS_NUM(alias) == PCI_BUS_NUM(data->alias))
+		data->busmatch_count++;
+
 	data->pdev = pdev;
 	data->alias = alias;
 	data->count++;
-
-	if (PCI_BUS_NUM(alias) == pdev->bus->number)
-		data->busmatch_count++;
 
 	return 0;
 }

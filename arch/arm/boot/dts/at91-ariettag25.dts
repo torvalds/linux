@@ -6,13 +6,10 @@
  */
 /dts-v1/;
 #include "at91sam9g25.dtsi"
+
 / {
 	model = "Acme Systems Arietta G25";
 	compatible = "acme,ariettag25", "atmel,at91sam9x5", "atmel,at91sam9";
-
-	aliases {
-		serial0 = &dbgu;
-	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
@@ -32,61 +29,58 @@
 		};
 	};
 
-	ahb {
-		apb {
-			mmc0: mmc@f0008000 {
-				pinctrl-0 = <
-				  &pinctrl_mmc0_slot0_clk_cmd_dat0
-				  &pinctrl_mmc0_slot0_dat1_3>;
-				status = "okay";
-
-				slot@0 {
-					reg = <0>;
-					bus-width = <4>;
-				};
-			};
-
-			tcb0: timer@f8008000 {
-				timer@0 {
-					compatible = "atmel,tcb-timer";
-					reg = <0>;
-				};
-
-				timer@1 {
-					compatible = "atmel,tcb-timer";
-					reg = <1>;
-				};
-			};
-
-			usb2: gadget@f803c000 {
-				status = "okay";
-			};
-
-			dbgu: serial@fffff200 {
-				status = "okay";
-			};
-
-			rtc@fffffeb0 {
-				status = "okay";
-			};
-		};
-
-		usb0: ohci@600000 {
-			status = "okay";
-			num-ports = <3>;
-		};
-
-		usb1: ehci@700000 {
-			status = "okay";
-		};
-	};
-
 	leds {
 		compatible = "gpio-leds";
+
 		arietta_led {
 			label = "arietta_led";
 			gpios = <&pioB 8 GPIO_ACTIVE_HIGH>; /* PB8 */
 			linux,default-trigger = "heartbeat";
 		};
 	};
+};
+
+&dbgu {
+	status = "okay";
+};
+
+&mmc0 {
+	pinctrl-0 = <
+		&pinctrl_mmc0_slot0_clk_cmd_dat0
+		&pinctrl_mmc0_slot0_dat1_3>;
+	status = "okay";
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
+	};
+};
+
+&rtc {
+	status = "okay";
+};
+
+&tcb0 {
+	timer@0 {
+		compatible = "atmel,tcb-timer";
+		reg = <0>;
+	};
+
+	timer@1 {
+		compatible = "atmel,tcb-timer";
+		reg = <1>;
+	};
+};
+
+&usb0 {
+	num-ports = <3>;
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+
+&usb2 {
+	status = "okay";
 };

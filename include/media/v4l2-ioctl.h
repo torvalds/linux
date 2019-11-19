@@ -602,6 +602,8 @@ struct v4l2_ioctl_ops {
 #define V4L2_DEV_DEBUG_STREAMING	0x08
 /* Log poll() */
 #define V4L2_DEV_DEBUG_POLL		0x10
+/* Log controls */
+#define V4L2_DEV_DEBUG_CTRL		0x20
 
 /*  Video standard functions  */
 

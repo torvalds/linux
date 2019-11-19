@@ -266,6 +266,7 @@ static blk_status_t bsg_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request *req = bd->rq;
 	struct bsg_set *bset =
 		container_of(q->tag_set, struct bsg_set, tag_set);
+	int sts = BLK_STS_IOERR;
 	int ret;
 
 	blk_mq_start_request(req);
@@ -274,14 +275,15 @@ static blk_status_t bsg_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_IOERR;
 
 	if (!bsg_prepare_job(dev, req))
-		return BLK_STS_IOERR;
+		goto out;
 
 	ret = bset->job_fn(blk_mq_rq_to_pdu(req));
-	if (ret)
-		return BLK_STS_IOERR;
+	if (!ret)
+		sts = BLK_STS_OK;
 
+out:
 	put_device(dev);
-	return BLK_STS_OK;
+	return sts;
 }
 
 /* called right after the request is allocated for the request_queue */

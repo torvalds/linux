@@ -89,7 +89,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 	u8 RSSI, total_rssi = 0;
 	bool isCCKrate = false;
 	u8 rf_rx_num = 0;
-	u8 cck_highpwr = 0;
 	u8 LNA_idx, VGA_idx;
 	PPHY_STATUS_RPT_8192CD_T pPhyStaRpt = (PPHY_STATUS_RPT_8192CD_T)pPhyStatus;
 
@@ -107,16 +106,10 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
 		/*  */
 
-		/* if (pHalData->eRFPowerState == eRfOn) */
-		cck_highpwr = pDM_Odm->bCckHighPower;
-		/* else */
-		/* cck_highpwr = false; */
-
 		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a ;
 
 		/* 2011.11.28 LukeLee: 88E use different LNA & VGA gain table */
 		/* The RSSI formula should be modified according to the gain table */
-		/* In 88E, cck_highpwr is always set to 1 */
 		LNA_idx = ((cck_agc_rpt & 0xE0)>>5);
 		VGA_idx = (cck_agc_rpt & 0x1F);
 		rx_pwr_all = odm_CCKRSSI_8723B(LNA_idx, VGA_idx);

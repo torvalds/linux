@@ -77,9 +77,6 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 	struct acpi_buffer element = { 0, NULL };
 	struct acpi_buffer trt_format = { sizeof("RRNNNNNN"), "RRNNNNNN" };
 
-	if (!acpi_has_method(handle, "_TRT"))
-		return -ENODEV;
-
 	status = acpi_evaluate_object(handle, "_TRT", NULL, &buffer);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
@@ -157,9 +154,6 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 	struct acpi_buffer element = { 0, NULL };
 	struct acpi_buffer art_format =	{
 		sizeof("RRNNNNNNNNNNN"), "RRNNNNNNNNNNN" };
-
-	if (!acpi_has_method(handle, "_ART"))
-		return -ENODEV;
 
 	status = acpi_evaluate_object(handle, "_ART", NULL, &buffer);
 	if (ACPI_FAILURE(status))

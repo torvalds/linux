@@ -34,7 +34,7 @@
 
 #include "i915_drv.h"
 #include "intel_connector.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_dvo.h"
 #include "intel_dvo_dev.h"
 #include "intel_gmbus.h"

@@ -473,22 +473,24 @@ qla24xx_read_flash_dword(struct qla_hw_data *ha, uint32_t addr, uint32_t *data)
 	return QLA_FUNCTION_TIMEOUT;
 }
 
-uint32_t *
+int
 qla24xx_read_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
     uint32_t dwords)
 {
 	ulong i;
+	int ret = QLA_SUCCESS;
 	struct qla_hw_data *ha = vha->hw;
 
 	/* Dword reads to flash. */
 	faddr =  flash_data_addr(ha, faddr);
 	for (i = 0; i < dwords; i++, faddr++, dwptr++) {
-		if (qla24xx_read_flash_dword(ha, faddr, dwptr))
+		ret = qla24xx_read_flash_dword(ha, faddr, dwptr);
+		if (ret != QLA_SUCCESS)
 			break;
 		cpu_to_le32s(dwptr);
 	}
 
-	return dwptr;
+	return ret;
 }
 
 static int
@@ -680,8 +682,8 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 
 	ha->flt_region_flt = flt_addr;
 	wptr = (uint16_t *)ha->flt;
-	qla24xx_read_flash_data(vha, (void *)flt, flt_addr,
-	    (sizeof(struct qla_flt_header) + FLT_REGIONS_SIZE) >> 2);
+	ha->isp_ops->read_optrom(vha, (void *)flt, flt_addr << 2,
+	    (sizeof(struct qla_flt_header) + FLT_REGIONS_SIZE));
 
 	if (le16_to_cpu(*wptr) == 0xffff)
 		goto no_flash_data;
@@ -948,11 +950,11 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *vha)
 	struct req_que *req = ha->req_q_map[0];
 	uint16_t cnt, chksum;
 	uint16_t *wptr = (void *)req->ring;
-	struct qla_fdt_layout *fdt = (void *)req->ring;
+	struct qla_fdt_layout *fdt = (struct qla_fdt_layout *)req->ring;
 	uint8_t	man_id, flash_id;
 	uint16_t mid = 0, fid = 0;
 
-	qla24xx_read_flash_data(vha, (void *)fdt, ha->flt_region_fdt,
+	ha->isp_ops->read_optrom(vha, fdt, ha->flt_region_fdt << 2,
 	    OPTROM_BURST_DWORDS);
 	if (le16_to_cpu(*wptr) == 0xffff)
 		goto no_flash_data;

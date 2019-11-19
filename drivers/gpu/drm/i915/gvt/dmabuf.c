@@ -491,14 +491,12 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 
 	obj->gvt_info = dmabuf_obj->info;
 
-	dmabuf = i915_gem_prime_export(dev, &obj->base, DRM_CLOEXEC | DRM_RDWR);
+	dmabuf = i915_gem_prime_export(&obj->base, DRM_CLOEXEC | DRM_RDWR);
 	if (IS_ERR(dmabuf)) {
 		gvt_vgpu_err("export dma-buf failed\n");
 		ret = PTR_ERR(dmabuf);
 		goto out_free_gem;
 	}
-
-	i915_gem_object_put(obj);
 
 	ret = dma_buf_fd(dmabuf, DRM_CLOEXEC | DRM_RDWR);
 	if (ret < 0) {
@@ -523,6 +521,8 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 		    dmabuf_fd,
 		    file_count(dmabuf->file),
 		    kref_read(&obj->base.refcount));
+
+	i915_gem_object_put(obj);
 
 	return dmabuf_fd;
 

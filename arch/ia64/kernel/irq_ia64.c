@@ -37,7 +37,6 @@
 #include <asm/intrinsics.h>
 #include <asm/io.h>
 #include <asm/hw_irq.h>
-#include <asm/machvec.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
@@ -53,7 +52,6 @@
 #define IRQ_USED		(1)
 #define IRQ_RSVD		(2)
 
-/* These can be overridden in platform_irq_init */
 int ia64_first_device_vector = IA64_DEF_FIRST_DEVICE_VECTOR;
 int ia64_last_device_vector = IA64_DEF_LAST_DEVICE_VECTOR;
 
@@ -250,7 +248,7 @@ void __setup_vector_irq(int cpu)
 	}
 }
 
-#if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG))
+#ifdef CONFIG_SMP
 
 static enum vector_domain_type {
 	VECTOR_DOMAIN_NONE,
@@ -314,7 +312,7 @@ void irq_complete_move(unsigned irq)
 	cpumask_and(&cleanup_mask, &cfg->old_domain, cpu_online_mask);
 	cfg->move_cleanup_count = cpumask_weight(&cleanup_mask);
 	for_each_cpu(i, &cleanup_mask)
-		platform_send_ipi(i, IA64_IRQ_MOVE_VECTOR, IA64_IPI_DM_INT, 0);
+		ia64_send_ipi(i, IA64_IRQ_MOVE_VECTOR, IA64_IPI_DM_INT, 0);
 	cfg->move_in_progress = 0;
 }
 
@@ -585,6 +583,7 @@ void ia64_process_pending_intr(void)
 static irqreturn_t dummy_handler (int irq, void *dev_id)
 {
 	BUG();
+	return IRQ_NONE;
 }
 
 static struct irqaction ipi_irqaction = {
@@ -634,21 +633,16 @@ ia64_native_register_ipi(void)
 void __init
 init_IRQ (void)
 {
-#ifdef CONFIG_ACPI
 	acpi_boot_init();
-#endif
 	ia64_register_ipi();
 	register_percpu_irq(IA64_SPURIOUS_INT_VECTOR, NULL);
 #ifdef CONFIG_SMP
-#if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG)
 	if (vector_domain_type != VECTOR_DOMAIN_NONE)
 		register_percpu_irq(IA64_IRQ_MOVE_VECTOR, &irq_move_irqaction);
-#endif
 #endif
 #ifdef CONFIG_PERFMON
 	pfm_init_percpu();
 #endif
-	platform_irq_init();
 }
 
 void

@@ -129,19 +129,6 @@
 #endif
 
 /*
- * When an interrupt happens on a CP0 register read instruction, CPU may
- * lock up or read corrupted values of CP0 registers after it enters
- * the exception handler.
- *
- * This workaround makes sure that we read a "safe" CP0 register as the
- * first thing in the exception handler, which breaks one of the
- * pre-conditions for this problem.
- */
-#ifndef R5432_CP0_INTERRUPT_WAR
-#error Check setting of R5432_CP0_INTERRUPT_WAR for your platform
-#endif
-
-/*
  * Workaround for the Sibyte M3 errata the text of which can be found at
  *
  *   http://sibyte.broadcom.com/hw/bcm1250/docs/pass2errata.txt

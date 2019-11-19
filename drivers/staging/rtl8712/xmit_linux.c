@@ -160,7 +160,7 @@ int r8712_xmit_entry(_pkt *pkt, struct  net_device *netdev)
 	if (!xmitframe)
 		goto _xmit_entry_drop;
 
-	if ((!r8712_update_attrib(adapter, pkt, &xmitframe->attrib)))
+	if (r8712_update_attrib(adapter, pkt, &xmitframe->attrib))
 		goto _xmit_entry_drop;
 
 	adapter->ledpriv.LedControlHandler(adapter, LED_CTL_TX);

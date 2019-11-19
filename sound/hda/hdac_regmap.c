@@ -21,6 +21,7 @@
 #include <sound/core.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_regmap.h>
+#include "local.h"
 
 static int codec_pm_lock(struct hdac_device *codec)
 {

@@ -2,6 +2,9 @@
 #ifndef _NF_REJECT_H
 #define _NF_REJECT_H
 
+#include <linux/types.h>
+#include <uapi/linux/in.h>
+
 static inline bool nf_reject_verify_csum(__u8 proto)
 {
 	/* Skip protocols that don't use 16-bit one's complement checksum

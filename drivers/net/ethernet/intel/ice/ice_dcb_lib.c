@@ -4,6 +4,48 @@
 #include "ice_dcb_lib.h"
 
 /**
+ * ice_vsi_cfg_netdev_tc - Setup the netdev TC configuration
+ * @vsi: the VSI being configured
+ * @ena_tc: TC map to be enabled
+ */
+void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc)
+{
+	struct net_device *netdev = vsi->netdev;
+	struct ice_pf *pf = vsi->back;
+	struct ice_dcbx_cfg *dcbcfg;
+	u8 netdev_tc;
+	int i;
+
+	if (!netdev)
+		return;
+
+	if (!ena_tc) {
+		netdev_reset_tc(netdev);
+		return;
+	}
+
+	if (netdev_set_num_tc(netdev, vsi->tc_cfg.numtc))
+		return;
+
+	dcbcfg = &pf->hw.port_info->local_dcbx_cfg;
+
+	ice_for_each_traffic_class(i)
+		if (vsi->tc_cfg.ena_tc & BIT(i))
+			netdev_set_tc_queue(netdev,
+					    vsi->tc_cfg.tc_info[i].netdev_tc,
+					    vsi->tc_cfg.tc_info[i].qcount_tx,
+					    vsi->tc_cfg.tc_info[i].qoffset);
+
+	for (i = 0; i < ICE_MAX_USER_PRIORITY; i++) {
+		u8 ets_tc = dcbcfg->etscfg.prio_table[i];
+
+		/* Get the mapped netdev TC# for the UP */
+		netdev_tc = vsi->tc_cfg.tc_info[ets_tc].netdev_tc;
+		netdev_set_prio_tc_map(netdev, i, netdev_tc);
+	}
+}
+
+/**
  * ice_dcb_get_ena_tc - return bitmap of enabled TCs
  * @dcbcfg: DCB config to evaluate for enabled TCs
  */
@@ -204,15 +246,86 @@ out:
 }
 
 /**
+ * ice_cfg_etsrec_defaults - Set default ETS recommended DCB config
+ * @pi: port information structure
+ */
+static void ice_cfg_etsrec_defaults(struct ice_port_info *pi)
+{
+	struct ice_dcbx_cfg *dcbcfg = &pi->local_dcbx_cfg;
+	u8 i;
+
+	/* Ensure ETS recommended DCB configuration is not already set */
+	if (dcbcfg->etsrec.maxtcs)
+		return;
+
+	/* In CEE mode, set the default to 1 TC */
+	dcbcfg->etsrec.maxtcs = 1;
+	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
+		dcbcfg->etsrec.tcbwtable[i] = i ? 0 : 100;
+		dcbcfg->etsrec.tsatable[i] = i ? ICE_IEEE_TSA_STRICT :
+						 ICE_IEEE_TSA_ETS;
+	}
+}
+
+/**
+ * ice_dcb_need_recfg - Check if DCB needs reconfig
+ * @pf: board private structure
+ * @old_cfg: current DCB config
+ * @new_cfg: new DCB config
+ */
+static bool
+ice_dcb_need_recfg(struct ice_pf *pf, struct ice_dcbx_cfg *old_cfg,
+		   struct ice_dcbx_cfg *new_cfg)
+{
+	bool need_reconfig = false;
+
+	/* Check if ETS configuration has changed */
+	if (memcmp(&new_cfg->etscfg, &old_cfg->etscfg,
+		   sizeof(new_cfg->etscfg))) {
+		/* If Priority Table has changed reconfig is needed */
+		if (memcmp(&new_cfg->etscfg.prio_table,
+			   &old_cfg->etscfg.prio_table,
+			   sizeof(new_cfg->etscfg.prio_table))) {
+			need_reconfig = true;
+			dev_dbg(&pf->pdev->dev, "ETS UP2TC changed.\n");
+		}
+
+		if (memcmp(&new_cfg->etscfg.tcbwtable,
+			   &old_cfg->etscfg.tcbwtable,
+			   sizeof(new_cfg->etscfg.tcbwtable)))
+			dev_dbg(&pf->pdev->dev, "ETS TC BW Table changed.\n");
+
+		if (memcmp(&new_cfg->etscfg.tsatable,
+			   &old_cfg->etscfg.tsatable,
+			   sizeof(new_cfg->etscfg.tsatable)))
+			dev_dbg(&pf->pdev->dev, "ETS TSA Table changed.\n");
+	}
+
+	/* Check if PFC configuration has changed */
+	if (memcmp(&new_cfg->pfc, &old_cfg->pfc, sizeof(new_cfg->pfc))) {
+		need_reconfig = true;
+		dev_dbg(&pf->pdev->dev, "PFC config change detected.\n");
+	}
+
+	/* Check if APP Table has changed */
+	if (memcmp(&new_cfg->app, &old_cfg->app, sizeof(new_cfg->app))) {
+		need_reconfig = true;
+		dev_dbg(&pf->pdev->dev, "APP Table change detected.\n");
+	}
+
+	dev_dbg(&pf->pdev->dev, "dcb need_reconfig=%d\n", need_reconfig);
+	return need_reconfig;
+}
+
+/**
  * ice_dcb_rebuild - rebuild DCB post reset
  * @pf: physical function instance
  */
 void ice_dcb_rebuild(struct ice_pf *pf)
 {
+	struct ice_dcbx_cfg *local_dcbx_cfg, *desired_dcbx_cfg, *prev_cfg;
 	struct ice_aqc_port_ets_elem buf = { 0 };
-	struct ice_dcbx_cfg *prev_cfg;
 	enum ice_status ret;
-	u8 willing;
 
 	ret = ice_query_port_ets(pf->hw.port_info, &buf, sizeof(buf), NULL);
 	if (ret) {
@@ -224,9 +337,15 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 	if (!test_bit(ICE_FLAG_DCB_ENA, pf->flags))
 		return;
 
+	local_dcbx_cfg = &pf->hw.port_info->local_dcbx_cfg;
+	desired_dcbx_cfg = &pf->hw.port_info->desired_dcbx_cfg;
+
 	/* Save current willing state and force FW to unwilling */
-	willing = pf->hw.port_info->local_dcbx_cfg.etscfg.willing;
-	pf->hw.port_info->local_dcbx_cfg.etscfg.willing = 0x0;
+	local_dcbx_cfg->etscfg.willing = 0x0;
+	local_dcbx_cfg->pfc.willing = 0x0;
+	local_dcbx_cfg->app_mode = ICE_DCBX_APPS_NON_WILLING;
+
+	ice_cfg_etsrec_defaults(pf->hw.port_info);
 	ret = ice_set_dcb_cfg(pf->hw.port_info);
 	if (ret) {
 		dev_err(&pf->pdev->dev, "Failed to set DCB to unwilling\n");
@@ -234,31 +353,37 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 	}
 
 	/* Retrieve DCB config and ensure same as current in SW */
-	prev_cfg = devm_kmemdup(&pf->pdev->dev,
-				&pf->hw.port_info->local_dcbx_cfg,
+	prev_cfg = devm_kmemdup(&pf->pdev->dev, local_dcbx_cfg,
 				sizeof(*prev_cfg), GFP_KERNEL);
 	if (!prev_cfg) {
 		dev_err(&pf->pdev->dev, "Failed to alloc space for DCB cfg\n");
 		goto dcb_error;
 	}
 
-	ice_init_dcb(&pf->hw);
-	if (memcmp(prev_cfg, &pf->hw.port_info->local_dcbx_cfg,
-		   sizeof(*prev_cfg))) {
+	ice_init_dcb(&pf->hw, true);
+	if (pf->hw.port_info->dcbx_status == ICE_DCBX_STATUS_DIS)
+		pf->hw.port_info->is_sw_lldp = true;
+	else
+		pf->hw.port_info->is_sw_lldp = false;
+
+	if (ice_dcb_need_recfg(pf, prev_cfg, local_dcbx_cfg)) {
 		/* difference in cfg detected - disable DCB till next MIB */
 		dev_err(&pf->pdev->dev, "Set local MIB not accurate\n");
-		devm_kfree(&pf->pdev->dev, prev_cfg);
 		goto dcb_error;
 	}
 
 	/* fetched config congruent to previous configuration */
 	devm_kfree(&pf->pdev->dev, prev_cfg);
 
-	/* Configuration replayed - reset willing state to previous */
-	pf->hw.port_info->local_dcbx_cfg.etscfg.willing = willing;
+	/* Set the local desired config */
+	if (local_dcbx_cfg->dcbx_mode == ICE_DCBX_MODE_CEE)
+		memcpy(local_dcbx_cfg, desired_dcbx_cfg,
+		       sizeof(*local_dcbx_cfg));
+
+	ice_cfg_etsrec_defaults(pf->hw.port_info);
 	ret = ice_set_dcb_cfg(pf->hw.port_info);
 	if (ret) {
-		dev_err(&pf->pdev->dev, "Fail restoring prev willing state\n");
+		dev_err(&pf->pdev->dev, "Failed to set desired config\n");
 		goto dcb_error;
 	}
 	dev_info(&pf->pdev->dev, "DCB restored after reset\n");
@@ -330,7 +455,7 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
 	memset(&pi->local_dcbx_cfg, 0, sizeof(*dcbcfg));
 
 	dcbcfg->etscfg.willing = 1;
-	dcbcfg->etscfg.maxtcs = 8;
+	dcbcfg->etscfg.maxtcs = hw->func_caps.common_cap.maxtc;
 	dcbcfg->etscfg.tcbwtable[0] = 100;
 	dcbcfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
 
@@ -339,7 +464,7 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
 	dcbcfg->etsrec.willing = 0;
 
 	dcbcfg->pfc.willing = 1;
-	dcbcfg->pfc.pfccap = IEEE_8021QAZ_MAX_TCS;
+	dcbcfg->pfc.pfccap = hw->func_caps.common_cap.maxtc;
 
 	dcbcfg->numapps = 1;
 	dcbcfg->app[0].selector = ICE_APP_SEL_ETHTYPE;
@@ -364,35 +489,24 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 	struct device *dev = &pf->pdev->dev;
 	struct ice_port_info *port_info;
 	struct ice_hw *hw = &pf->hw;
-	int sw_default = 0;
 	int err;
 
 	port_info = hw->port_info;
 
-	err = ice_init_dcb(hw);
+	err = ice_init_dcb(hw, false);
+	if (err && !port_info->is_sw_lldp) {
+		dev_err(&pf->pdev->dev, "Error initializing DCB %d\n", err);
+		goto dcb_init_err;
+	}
+
+	dev_info(&pf->pdev->dev,
+		 "DCB is enabled in the hardware, max number of TCs supported on this port are %d\n",
+		 pf->hw.func_caps.common_cap.maxtc);
 	if (err) {
-		/* FW LLDP is not active, default to SW DCBX/LLDP */
-		dev_info(&pf->pdev->dev, "FW LLDP is not active\n");
-		hw->port_info->dcbx_status = ICE_DCBX_STATUS_NOT_STARTED;
-		hw->port_info->is_sw_lldp = true;
-	}
-
-	if (port_info->dcbx_status == ICE_DCBX_STATUS_DIS)
-		dev_info(&pf->pdev->dev, "DCBX disabled\n");
-
-	/* LLDP disabled in FW */
-	if (port_info->is_sw_lldp) {
-		sw_default = 1;
-		dev_info(&pf->pdev->dev, "DCBx/LLDP in SW mode.\n");
-		clear_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
-	} else {
-		set_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
-	}
-
-	if (port_info->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED)
-		dev_info(&pf->pdev->dev, "DCBX not started\n");
-
-	if (sw_default) {
+		/* FW LLDP is disabled, activate SW DCBX/LLDP mode */
+		dev_info(&pf->pdev->dev,
+			 "FW LLDP is disabled, DCBx/LLDP in SW mode.\n");
+		clear_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
 		err = ice_dcb_sw_dflt_cfg(pf, locked);
 		if (err) {
 			dev_err(&pf->pdev->dev,
@@ -402,21 +516,18 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		}
 
 		pf->dcbx_cap = DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
-		set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
-		set_bit(ICE_FLAG_DCB_ENA, pf->flags);
 		return 0;
 	}
 
+	set_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
+
 	/* DCBX in FW and LLDP enabled in FW */
 	pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED | DCB_CAP_DCBX_VER_IEEE;
-
-	set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 
 	err = ice_dcb_init_cfg(pf, locked);
 	if (err)
 		goto dcb_init_err;
 
-	dev_info(&pf->pdev->dev, "DCBX offload supported\n");
 	return err;
 
 dcb_init_err:
@@ -432,30 +543,31 @@ void ice_update_dcb_stats(struct ice_pf *pf)
 {
 	struct ice_hw_port_stats *prev_ps, *cur_ps;
 	struct ice_hw *hw = &pf->hw;
-	u8 pf_id = hw->pf_id;
+	u8 port;
 	int i;
 
+	port = hw->port_info->lport;
 	prev_ps = &pf->stats_prev;
 	cur_ps = &pf->stats;
 
 	for (i = 0; i < 8; i++) {
-		ice_stat_update32(hw, GLPRT_PXOFFRXC(pf_id, i),
+		ice_stat_update32(hw, GLPRT_PXOFFRXC(port, i),
 				  pf->stat_prev_loaded,
 				  &prev_ps->priority_xoff_rx[i],
 				  &cur_ps->priority_xoff_rx[i]);
-		ice_stat_update32(hw, GLPRT_PXONRXC(pf_id, i),
+		ice_stat_update32(hw, GLPRT_PXONRXC(port, i),
 				  pf->stat_prev_loaded,
 				  &prev_ps->priority_xon_rx[i],
 				  &cur_ps->priority_xon_rx[i]);
-		ice_stat_update32(hw, GLPRT_PXONTXC(pf_id, i),
+		ice_stat_update32(hw, GLPRT_PXONTXC(port, i),
 				  pf->stat_prev_loaded,
 				  &prev_ps->priority_xon_tx[i],
 				  &cur_ps->priority_xon_tx[i]);
-		ice_stat_update32(hw, GLPRT_PXOFFTXC(pf_id, i),
+		ice_stat_update32(hw, GLPRT_PXOFFTXC(port, i),
 				  pf->stat_prev_loaded,
 				  &prev_ps->priority_xoff_tx[i],
 				  &cur_ps->priority_xoff_tx[i]);
-		ice_stat_update32(hw, GLPRT_RXON2OFFCNT(pf_id, i),
+		ice_stat_update32(hw, GLPRT_RXON2OFFCNT(port, i),
 				  pf->stat_prev_loaded,
 				  &prev_ps->priority_xon_2_xoff[i],
 				  &cur_ps->priority_xon_2_xoff[i]);
@@ -499,55 +611,6 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_ring *tx_ring,
 	}
 
 	return 0;
-}
-
-/**
- * ice_dcb_need_recfg - Check if DCB needs reconfig
- * @pf: board private structure
- * @old_cfg: current DCB config
- * @new_cfg: new DCB config
- */
-static bool ice_dcb_need_recfg(struct ice_pf *pf, struct ice_dcbx_cfg *old_cfg,
-			       struct ice_dcbx_cfg *new_cfg)
-{
-	bool need_reconfig = false;
-
-	/* Check if ETS configuration has changed */
-	if (memcmp(&new_cfg->etscfg, &old_cfg->etscfg,
-		   sizeof(new_cfg->etscfg))) {
-		/* If Priority Table has changed reconfig is needed */
-		if (memcmp(&new_cfg->etscfg.prio_table,
-			   &old_cfg->etscfg.prio_table,
-			   sizeof(new_cfg->etscfg.prio_table))) {
-			need_reconfig = true;
-			dev_dbg(&pf->pdev->dev, "ETS UP2TC changed.\n");
-		}
-
-		if (memcmp(&new_cfg->etscfg.tcbwtable,
-			   &old_cfg->etscfg.tcbwtable,
-			   sizeof(new_cfg->etscfg.tcbwtable)))
-			dev_dbg(&pf->pdev->dev, "ETS TC BW Table changed.\n");
-
-		if (memcmp(&new_cfg->etscfg.tsatable,
-			   &old_cfg->etscfg.tsatable,
-			   sizeof(new_cfg->etscfg.tsatable)))
-			dev_dbg(&pf->pdev->dev, "ETS TSA Table changed.\n");
-	}
-
-	/* Check if PFC configuration has changed */
-	if (memcmp(&new_cfg->pfc, &old_cfg->pfc, sizeof(new_cfg->pfc))) {
-		need_reconfig = true;
-		dev_dbg(&pf->pdev->dev, "PFC config change detected.\n");
-	}
-
-	/* Check if APP Table has changed */
-	if (memcmp(&new_cfg->app, &old_cfg->app, sizeof(new_cfg->app))) {
-		need_reconfig = true;
-		dev_dbg(&pf->pdev->dev, "APP Table change detected.\n");
-	}
-
-	dev_dbg(&pf->pdev->dev, "dcb need_reconfig=%d\n", need_reconfig);
-	return need_reconfig;
 }
 
 /**

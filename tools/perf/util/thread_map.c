@@ -28,34 +28,11 @@ static int filter(const struct dirent *dir)
 		return 1;
 }
 
-static void thread_map__reset(struct thread_map *map, int start, int nr)
+#define thread_map__alloc(__nr) perf_thread_map__realloc(NULL, __nr)
+
+struct perf_thread_map *thread_map__new_by_pid(pid_t pid)
 {
-	size_t size = (nr - start) * sizeof(map->map[0]);
-
-	memset(&map->map[start], 0, size);
-	map->err_thread = -1;
-}
-
-static struct thread_map *thread_map__realloc(struct thread_map *map, int nr)
-{
-	size_t size = sizeof(*map) + sizeof(map->map[0]) * nr;
-	int start = map ? map->nr : 0;
-
-	map = realloc(map, size);
-	/*
-	 * We only realloc to add more items, let's reset new items.
-	 */
-	if (map)
-		thread_map__reset(map, start, nr);
-
-	return map;
-}
-
-#define thread_map__alloc(__nr) thread_map__realloc(NULL, __nr)
-
-struct thread_map *thread_map__new_by_pid(pid_t pid)
-{
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 	char name[256];
 	int items;
 	struct dirent **namelist = NULL;
@@ -69,7 +46,7 @@ struct thread_map *thread_map__new_by_pid(pid_t pid)
 	threads = thread_map__alloc(items);
 	if (threads != NULL) {
 		for (i = 0; i < items; i++)
-			thread_map__set_pid(threads, i, atoi(namelist[i]->d_name));
+			perf_thread_map__set_pid(threads, i, atoi(namelist[i]->d_name));
 		threads->nr = items;
 		refcount_set(&threads->refcnt, 1);
 	}
@@ -81,12 +58,12 @@ struct thread_map *thread_map__new_by_pid(pid_t pid)
 	return threads;
 }
 
-struct thread_map *thread_map__new_by_tid(pid_t tid)
+struct perf_thread_map *thread_map__new_by_tid(pid_t tid)
 {
-	struct thread_map *threads = thread_map__alloc(1);
+	struct perf_thread_map *threads = thread_map__alloc(1);
 
 	if (threads != NULL) {
-		thread_map__set_pid(threads, 0, tid);
+		perf_thread_map__set_pid(threads, 0, tid);
 		threads->nr = 1;
 		refcount_set(&threads->refcnt, 1);
 	}
@@ -94,13 +71,13 @@ struct thread_map *thread_map__new_by_tid(pid_t tid)
 	return threads;
 }
 
-static struct thread_map *__thread_map__new_all_cpus(uid_t uid)
+static struct perf_thread_map *__thread_map__new_all_cpus(uid_t uid)
 {
 	DIR *proc;
 	int max_threads = 32, items, i;
 	char path[NAME_MAX + 1 + 6];
 	struct dirent *dirent, **namelist = NULL;
-	struct thread_map *threads = thread_map__alloc(max_threads);
+	struct perf_thread_map *threads = thread_map__alloc(max_threads);
 
 	if (threads == NULL)
 		goto out;
@@ -140,9 +117,9 @@ static struct thread_map *__thread_map__new_all_cpus(uid_t uid)
 		}
 
 		if (grow) {
-			struct thread_map *tmp;
+			struct perf_thread_map *tmp;
 
-			tmp = thread_map__realloc(threads, max_threads);
+			tmp = perf_thread_map__realloc(threads, max_threads);
 			if (tmp == NULL)
 				goto out_free_namelist;
 
@@ -150,8 +127,8 @@ static struct thread_map *__thread_map__new_all_cpus(uid_t uid)
 		}
 
 		for (i = 0; i < items; i++) {
-			thread_map__set_pid(threads, threads->nr + i,
-					    atoi(namelist[i]->d_name));
+			perf_thread_map__set_pid(threads, threads->nr + i,
+						    atoi(namelist[i]->d_name));
 		}
 
 		for (i = 0; i < items; i++)
@@ -180,17 +157,17 @@ out_free_closedir:
 	goto out_closedir;
 }
 
-struct thread_map *thread_map__new_all_cpus(void)
+struct perf_thread_map *thread_map__new_all_cpus(void)
 {
 	return __thread_map__new_all_cpus(UINT_MAX);
 }
 
-struct thread_map *thread_map__new_by_uid(uid_t uid)
+struct perf_thread_map *thread_map__new_by_uid(uid_t uid)
 {
 	return __thread_map__new_all_cpus(uid);
 }
 
-struct thread_map *thread_map__new(pid_t pid, pid_t tid, uid_t uid)
+struct perf_thread_map *thread_map__new(pid_t pid, pid_t tid, uid_t uid)
 {
 	if (pid != -1)
 		return thread_map__new_by_pid(pid);
@@ -201,9 +178,9 @@ struct thread_map *thread_map__new(pid_t pid, pid_t tid, uid_t uid)
 	return thread_map__new_by_tid(tid);
 }
 
-static struct thread_map *thread_map__new_by_pid_str(const char *pid_str)
+static struct perf_thread_map *thread_map__new_by_pid_str(const char *pid_str)
 {
-	struct thread_map *threads = NULL, *nt;
+	struct perf_thread_map *threads = NULL, *nt;
 	char name[256];
 	int items, total_tasks = 0;
 	struct dirent **namelist = NULL;
@@ -233,14 +210,14 @@ static struct thread_map *thread_map__new_by_pid_str(const char *pid_str)
 			goto out_free_threads;
 
 		total_tasks += items;
-		nt = thread_map__realloc(threads, total_tasks);
+		nt = perf_thread_map__realloc(threads, total_tasks);
 		if (nt == NULL)
 			goto out_free_namelist;
 
 		threads = nt;
 
 		for (i = 0; i < items; i++) {
-			thread_map__set_pid(threads, j++, atoi(namelist[i]->d_name));
+			perf_thread_map__set_pid(threads, j++, atoi(namelist[i]->d_name));
 			zfree(&namelist[i]);
 		}
 		threads->nr = total_tasks;
@@ -263,21 +240,9 @@ out_free_threads:
 	goto out;
 }
 
-struct thread_map *thread_map__new_dummy(void)
+struct perf_thread_map *thread_map__new_by_tid_str(const char *tid_str)
 {
-	struct thread_map *threads = thread_map__alloc(1);
-
-	if (threads != NULL) {
-		thread_map__set_pid(threads, 0, -1);
-		threads->nr = 1;
-		refcount_set(&threads->refcnt, 1);
-	}
-	return threads;
-}
-
-struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
-{
-	struct thread_map *threads = NULL, *nt;
+	struct perf_thread_map *threads = NULL, *nt;
 	int ntasks = 0;
 	pid_t tid, prev_tid = INT_MAX;
 	char *end_ptr;
@@ -287,7 +252,7 @@ struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 
 	/* perf-stat expects threads to be generated even if tid not given */
 	if (!tid_str)
-		return thread_map__new_dummy();
+		return perf_thread_map__new_dummy();
 
 	slist = strlist__new(tid_str, &slist_config);
 	if (!slist)
@@ -304,13 +269,13 @@ struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 			continue;
 
 		ntasks++;
-		nt = thread_map__realloc(threads, ntasks);
+		nt = perf_thread_map__realloc(threads, ntasks);
 
 		if (nt == NULL)
 			goto out_free_threads;
 
 		threads = nt;
-		thread_map__set_pid(threads, ntasks - 1, tid);
+		perf_thread_map__set_pid(threads, ntasks - 1, tid);
 		threads->nr = ntasks;
 	}
 out:
@@ -324,7 +289,7 @@ out_free_threads:
 	goto out;
 }
 
-struct thread_map *thread_map__new_str(const char *pid, const char *tid,
+struct perf_thread_map *thread_map__new_str(const char *pid, const char *tid,
 				       uid_t uid, bool all_threads)
 {
 	if (pid)
@@ -339,39 +304,13 @@ struct thread_map *thread_map__new_str(const char *pid, const char *tid,
 	return thread_map__new_by_tid_str(tid);
 }
 
-static void thread_map__delete(struct thread_map *threads)
-{
-	if (threads) {
-		int i;
-
-		WARN_ONCE(refcount_read(&threads->refcnt) != 0,
-			  "thread map refcnt unbalanced\n");
-		for (i = 0; i < threads->nr; i++)
-			free(thread_map__comm(threads, i));
-		free(threads);
-	}
-}
-
-struct thread_map *thread_map__get(struct thread_map *map)
-{
-	if (map)
-		refcount_inc(&map->refcnt);
-	return map;
-}
-
-void thread_map__put(struct thread_map *map)
-{
-	if (map && refcount_dec_and_test(&map->refcnt))
-		thread_map__delete(map);
-}
-
-size_t thread_map__fprintf(struct thread_map *threads, FILE *fp)
+size_t thread_map__fprintf(struct perf_thread_map *threads, FILE *fp)
 {
 	int i;
 	size_t printed = fprintf(fp, "%d thread%s: ",
 				 threads->nr, threads->nr > 1 ? "s" : "");
 	for (i = 0; i < threads->nr; ++i)
-		printed += fprintf(fp, "%s%d", i ? ", " : "", thread_map__pid(threads, i));
+		printed += fprintf(fp, "%s%d", i ? ", " : "", perf_thread_map__pid(threads, i));
 
 	return printed + fprintf(fp, "\n");
 }
@@ -400,9 +339,9 @@ static int get_comm(char **comm, pid_t pid)
 	return err;
 }
 
-static void comm_init(struct thread_map *map, int i)
+static void comm_init(struct perf_thread_map *map, int i)
 {
-	pid_t pid = thread_map__pid(map, i);
+	pid_t pid = perf_thread_map__pid(map, i);
 	char *comm = NULL;
 
 	/* dummy pid comm initialization */
@@ -421,7 +360,7 @@ static void comm_init(struct thread_map *map, int i)
 	map->map[i].comm = comm;
 }
 
-void thread_map__read_comms(struct thread_map *threads)
+void thread_map__read_comms(struct perf_thread_map *threads)
 {
 	int i;
 
@@ -429,24 +368,24 @@ void thread_map__read_comms(struct thread_map *threads)
 		comm_init(threads, i);
 }
 
-static void thread_map__copy_event(struct thread_map *threads,
-				   struct thread_map_event *event)
+static void thread_map__copy_event(struct perf_thread_map *threads,
+				   struct perf_record_thread_map *event)
 {
 	unsigned i;
 
 	threads->nr = (int) event->nr;
 
 	for (i = 0; i < event->nr; i++) {
-		thread_map__set_pid(threads, i, (pid_t) event->entries[i].pid);
+		perf_thread_map__set_pid(threads, i, (pid_t) event->entries[i].pid);
 		threads->map[i].comm = strndup(event->entries[i].comm, 16);
 	}
 
 	refcount_set(&threads->refcnt, 1);
 }
 
-struct thread_map *thread_map__new_event(struct thread_map_event *event)
+struct perf_thread_map *thread_map__new_event(struct perf_record_thread_map *event)
 {
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 
 	threads = thread_map__alloc(event->nr);
 	if (threads)
@@ -455,7 +394,7 @@ struct thread_map *thread_map__new_event(struct thread_map_event *event)
 	return threads;
 }
 
-bool thread_map__has(struct thread_map *threads, pid_t pid)
+bool thread_map__has(struct perf_thread_map *threads, pid_t pid)
 {
 	int i;
 
@@ -467,7 +406,7 @@ bool thread_map__has(struct thread_map *threads, pid_t pid)
 	return false;
 }
 
-int thread_map__remove(struct thread_map *threads, int idx)
+int thread_map__remove(struct perf_thread_map *threads, int idx)
 {
 	int i;
 

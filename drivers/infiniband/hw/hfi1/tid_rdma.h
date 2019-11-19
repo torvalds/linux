@@ -17,6 +17,7 @@
 #define TID_RDMA_MIN_SEGMENT_SIZE       BIT(18)   /* 256 KiB (for now) */
 #define TID_RDMA_MAX_SEGMENT_SIZE       BIT(18)   /* 256 KiB (for now) */
 #define TID_RDMA_MAX_PAGES              (BIT(18) >> PAGE_SHIFT)
+#define TID_RDMA_SEGMENT_SHIFT		18
 
 /*
  * Bit definitions for priv->s_flags.
@@ -273,8 +274,6 @@ static inline void hfi1_setup_tid_rdma_wqe(struct rvt_qp *qp,
 u32 hfi1_build_tid_rdma_write_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 				  struct ib_other_headers *ohdr,
 				  u32 *bth1, u32 *bth2, u32 *len);
-
-void hfi1_compute_tid_rdma_flow_wt(void);
 
 void hfi1_rc_rcv_tid_rdma_write_req(struct hfi1_packet *packet);
 

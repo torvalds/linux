@@ -120,7 +120,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		if (!page)
 			goto free_pages;
 		list_add_tail(&page->lru, &pages);
-		size_remaining -= PAGE_SIZE << compound_order(page);
+		size_remaining -= page_size(page);
 		max_order = compound_order(page);
 		i++;
 	}
@@ -133,7 +133,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 
 	sg = table->sgl;
 	list_for_each_entry_safe(page, tmp_page, &pages, lru) {
-		sg_set_page(sg, page, PAGE_SIZE << compound_order(page), 0);
+		sg_set_page(sg, page, page_size(page), 0);
 		sg = sg_next(sg);
 		list_del(&page->lru);
 	}

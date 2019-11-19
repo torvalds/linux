@@ -5,10 +5,12 @@
  * Copyright (c) 2014 The Chromium OS Authors
  */
 
-#include <drm/drmP.h>
-#include "udl_drv.h"
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
+
+#include <drm/drm_prime.h>
+
+#include "udl_drv.h"
 
 struct udl_drm_dmabuf_attachment {
 	struct sg_table sgt;
@@ -170,8 +172,7 @@ static const struct dma_buf_ops udl_dmabuf_ops = {
 	.release		= drm_gem_dmabuf_release,
 };
 
-struct dma_buf *udl_gem_prime_export(struct drm_device *dev,
-				     struct drm_gem_object *obj, int flags)
+struct dma_buf *udl_gem_prime_export(struct drm_gem_object *obj, int flags)
 {
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
@@ -180,7 +181,7 @@ struct dma_buf *udl_gem_prime_export(struct drm_device *dev,
 	exp_info.flags = flags;
 	exp_info.priv = obj;
 
-	return drm_gem_dmabuf_export(dev, &exp_info);
+	return drm_gem_dmabuf_export(obj->dev, &exp_info);
 }
 
 static int udl_prime_create(struct drm_device *dev,

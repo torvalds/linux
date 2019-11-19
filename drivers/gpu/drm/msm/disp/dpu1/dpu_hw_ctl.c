@@ -102,9 +102,6 @@ static inline void dpu_hw_ctl_update_pending_flush(struct dpu_hw_ctl *ctx,
 
 static u32 dpu_hw_ctl_get_pending_flush(struct dpu_hw_ctl *ctx)
 {
-	if (!ctx)
-		return 0x0;
-
 	return ctx->pending_flush_mask;
 }
 

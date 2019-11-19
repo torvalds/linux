@@ -17,6 +17,8 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 
+#include <drm/drm_fourcc.h>
+#include <drm/drm_print.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"

@@ -351,7 +351,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 
 	/*
 	 * Get dram timing and pass it to arm trust firmware,
-	 * the dram drvier in arm trust firmware will get these
+	 * the dram driver in arm trust firmware will get these
 	 * timing and to do dram initial.
 	 */
 	if (!of_get_ddr_timings(&data->timing, np)) {

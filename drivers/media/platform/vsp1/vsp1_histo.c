@@ -426,8 +426,6 @@ static int histo_v4l2_querycap(struct file *file, void *fh,
 			  | V4L2_CAP_VIDEO_CAPTURE_MPLANE
 			  | V4L2_CAP_VIDEO_OUTPUT_MPLANE
 			  | V4L2_CAP_META_CAPTURE;
-	cap->device_caps = V4L2_CAP_META_CAPTURE
-			 | V4L2_CAP_STREAMING;
 
 	strscpy(cap->driver, "vsp1", sizeof(cap->driver));
 	strscpy(cap->card, histo->video.name, sizeof(cap->card));
@@ -556,6 +554,7 @@ int vsp1_histogram_init(struct vsp1_device *vsp1, struct vsp1_histogram *histo,
 	histo->video.vfl_type = VFL_TYPE_GRABBER;
 	histo->video.release = video_device_release_empty;
 	histo->video.ioctl_ops = &histo_v4l2_ioctl_ops;
+	histo->video.device_caps = V4L2_CAP_META_CAPTURE | V4L2_CAP_STREAMING;
 
 	video_set_drvdata(&histo->video, histo);
 

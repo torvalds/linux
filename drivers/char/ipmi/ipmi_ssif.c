@@ -52,7 +52,6 @@
 #include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/time64.h>
-#include "ipmi_si_sm.h"
 #include "ipmi_dmi.h"
 
 #define DEVICE_NAME "ipmi_ssif"
@@ -1428,6 +1427,10 @@ static struct ssif_addr_info *ssif_info_find(unsigned short addr,
 restart:
 	list_for_each_entry(info, &ssif_infos, link) {
 		if (info->binfo.addr == addr) {
+			if (info->addr_src == SI_SMBIOS)
+				info->adapter_name = kstrdup(adapter_name,
+							     GFP_KERNEL);
+
 			if (info->adapter_name || adapter_name) {
 				if (!info->adapter_name != !adapter_name) {
 					/* One is NULL and one is not */
@@ -1603,6 +1606,60 @@ out_no_multi_part:
 #define GLOBAL_ENABLES_MASK (IPMI_BMC_EVT_MSG_BUFF | IPMI_BMC_RCV_MSG_INTR | \
 			     IPMI_BMC_EVT_MSG_INTR)
 
+static void ssif_remove_dup(struct i2c_client *client)
+{
+	struct ssif_info *ssif_info = i2c_get_clientdata(client);
+
+	ipmi_unregister_smi(ssif_info->intf);
+	kfree(ssif_info);
+}
+
+static int ssif_add_infos(struct i2c_client *client)
+{
+	struct ssif_addr_info *info;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	info->addr_src = SI_ACPI;
+	info->client = client;
+	info->adapter_name = kstrdup(client->adapter->name, GFP_KERNEL);
+	info->binfo.addr = client->addr;
+	list_add_tail(&info->link, &ssif_infos);
+	return 0;
+}
+
+/*
+ * Prefer ACPI over SMBIOS, if both are available.
+ * So if we get an ACPI interface and have already registered a SMBIOS
+ * interface at the same address, remove the SMBIOS and add the ACPI one.
+ */
+static int ssif_check_and_remove(struct i2c_client *client,
+			      struct ssif_info *ssif_info)
+{
+	struct ssif_addr_info *info;
+
+	list_for_each_entry(info, &ssif_infos, link) {
+		if (!info->client)
+			return 0;
+		if (!strcmp(info->adapter_name, client->adapter->name) &&
+		    info->binfo.addr == client->addr) {
+			if (info->addr_src == SI_ACPI)
+				return -EEXIST;
+
+			if (ssif_info->addr_source == SI_ACPI &&
+			    info->addr_src == SI_SMBIOS) {
+				dev_info(&client->dev,
+					 "Removing %s-specified SSIF interface in favor of ACPI\n",
+					 ipmi_addr_src_to_str(info->addr_src));
+				ssif_remove_dup(info->client);
+				return 0;
+			}
+		}
+	}
+	return 0;
+}
+
 static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	unsigned char     msg[3];
@@ -1614,13 +1671,17 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	u8		  slave_addr = 0;
 	struct ssif_addr_info *addr_info = NULL;
 
+	mutex_lock(&ssif_infos_mutex);
 	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
-	if (!resp)
+	if (!resp) {
+		mutex_unlock(&ssif_infos_mutex);
 		return -ENOMEM;
+	}
 
 	ssif_info = kzalloc(sizeof(*ssif_info), GFP_KERNEL);
 	if (!ssif_info) {
 		kfree(resp);
+		mutex_unlock(&ssif_infos_mutex);
 		return -ENOMEM;
 	}
 
@@ -1637,6 +1698,19 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			addr_info->client = client;
 			slave_addr = addr_info->slave_addr;
 		}
+	}
+
+	rv = ssif_check_and_remove(client, ssif_info);
+	/* If rv is 0 and addr source is not SI_ACPI, continue probing */
+	if (!rv && ssif_info->addr_source == SI_ACPI) {
+		rv = ssif_add_infos(client);
+		if (rv) {
+			dev_err(&client->dev, "Out of memory!, exiting ..\n");
+			goto out;
+		}
+	} else if (rv) {
+		dev_err(&client->dev, "Not probing, Interface already present\n");
+		goto out;
 	}
 
 	slave_addr = find_slave_address(client, slave_addr);
@@ -1851,6 +1925,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		kfree(ssif_info);
 	}
 	kfree(resp);
+	mutex_unlock(&ssif_infos_mutex);
 	return rv;
 
 out_remove_attr:

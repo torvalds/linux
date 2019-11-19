@@ -631,9 +631,12 @@ err_exit:
 
 int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev)
 {
-	unsigned int packet_filter = self->packet_filter;
+	const struct aq_hw_ops *hw_ops = self->aq_hw_ops;
+	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+	unsigned int packet_filter = ndev->flags;
 	struct netdev_hw_addr *ha = NULL;
 	unsigned int i = 0U;
+	int err = 0;
 
 	self->mc_list.count = 0;
 	if (netdev_uc_count(ndev) > AQ_HW_MULTICAST_ADDRESS_MAX) {
@@ -641,29 +644,28 @@ int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev)
 	} else {
 		netdev_for_each_uc_addr(ha, ndev) {
 			ether_addr_copy(self->mc_list.ar[i++], ha->addr);
-
-			if (i >= AQ_HW_MULTICAST_ADDRESS_MAX)
-				break;
 		}
 	}
 
-	if (i + netdev_mc_count(ndev) > AQ_HW_MULTICAST_ADDRESS_MAX) {
-		packet_filter |= IFF_ALLMULTI;
-	} else {
-		netdev_for_each_mc_addr(ha, ndev) {
-			ether_addr_copy(self->mc_list.ar[i++], ha->addr);
-
-			if (i >= AQ_HW_MULTICAST_ADDRESS_MAX)
-				break;
+	cfg->is_mc_list_enabled = !!(packet_filter & IFF_MULTICAST);
+	if (cfg->is_mc_list_enabled) {
+		if (i + netdev_mc_count(ndev) > AQ_HW_MULTICAST_ADDRESS_MAX) {
+			packet_filter |= IFF_ALLMULTI;
+		} else {
+			netdev_for_each_mc_addr(ha, ndev) {
+				ether_addr_copy(self->mc_list.ar[i++],
+						ha->addr);
+			}
 		}
 	}
 
 	if (i > 0 && i <= AQ_HW_MULTICAST_ADDRESS_MAX) {
-		packet_filter |= IFF_MULTICAST;
 		self->mc_list.count = i;
-		self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
-						       self->mc_list.ar,
-						       self->mc_list.count);
+		err = hw_ops->hw_multicast_list_set(self->aq_hw,
+						    self->mc_list.ar,
+						    self->mc_list.count);
+		if (err < 0)
+			return err;
 	}
 	return aq_nic_set_packet_filter(self, packet_filter);
 }

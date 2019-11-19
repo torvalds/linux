@@ -28,7 +28,8 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 
 	for (entry = start; entry < end; entry++, index++) {
 
-		u32 *from, len, cond, replacement;
+		u32 *from, cond, replacement;
+		s32 len;
 
 		from = (u32 *)((ulong)&entry->orig_offset + entry->orig_offset);
 		len = entry->len;
@@ -48,6 +49,8 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		if ((cond & ALT_COND_NO_DCACHE) && (cache_info.dc_size != 0))
 			continue;
 		if ((cond & ALT_COND_NO_ICACHE) && (cache_info.ic_size != 0))
+			continue;
+		if ((cond & ALT_COND_RUN_ON_QEMU) && !running_on_qemu)
 			continue;
 
 		/*
@@ -74,11 +77,19 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		if (replacement == INSN_NOP && len > 1)
 			replacement = 0xe8000002 + (len-2)*8; /* "b,n .+8" */
 
-		pr_debug("Do    %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",
-			index, cond, len, from, replacement);
+		pr_debug("ALTERNATIVE %3d: Cond %2x, Replace %2d instructions to 0x%08x @ 0x%px (%pS)\n",
+			index, cond, len, replacement, from, from);
 
-		/* Replace instruction */
-		*from = replacement;
+		if (len < 0) {
+			/* Replace multiple instruction by new code */
+			u32 *source;
+			len = -len;
+			source = (u32 *)((ulong)&entry->replacement + entry->replacement);
+			memcpy(from, source, 4 * len);
+		} else {
+			/* Replace by one instruction */
+			*from = replacement;
+		}
 		applied++;
 	}
 

@@ -397,7 +397,8 @@ struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size)
 	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, cb_size, &cb_handle,
 			HL_KERNEL_ASID_ID);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to allocate CB for KMD %d\n", rc);
+		dev_err(hdev->dev,
+			"Failed to allocate CB for the kernel driver %d\n", rc);
 		return NULL;
 	}
 

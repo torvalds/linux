@@ -230,31 +230,13 @@ static int maxim_thermocouple_probe(struct spi_device *spi)
 	data->spi = spi;
 	data->chip = chip;
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+	ret = devm_iio_triggered_buffer_setup(&spi->dev,
+				indio_dev, NULL,
 				maxim_thermocouple_trigger_handler, NULL);
 	if (ret)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_buffer;
-
-	return 0;
-
-error_unreg_buffer:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return ret;
-}
-
-static int maxim_thermocouple_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id maxim_thermocouple_id[] = {
@@ -277,7 +259,6 @@ static struct spi_driver maxim_thermocouple_driver = {
 		.of_match_table = maxim_thermocouple_of_match,
 	},
 	.probe		= maxim_thermocouple_probe,
-	.remove		= maxim_thermocouple_remove,
 	.id_table	= maxim_thermocouple_id,
 };
 module_spi_driver(maxim_thermocouple_driver);

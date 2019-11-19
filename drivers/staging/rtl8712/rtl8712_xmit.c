@@ -246,7 +246,7 @@ void r8712_do_queue_select(struct _adapter *padapter,
 }
 
 #ifdef CONFIG_R8712_TX_AGGR
-u8 r8712_construct_txaggr_cmd_desc(struct xmit_buf *pxmitbuf)
+void r8712_construct_txaggr_cmd_desc(struct xmit_buf *pxmitbuf)
 {
 	struct tx_desc *ptx_desc = (struct tx_desc *)pxmitbuf->pbuf;
 
@@ -260,11 +260,9 @@ u8 r8712_construct_txaggr_cmd_desc(struct xmit_buf *pxmitbuf)
 
 	/* dw1 */
 	ptx_desc->txdw1 |= cpu_to_le32((0x13 << QSEL_SHT) & 0x00001f00);
-
-	return _SUCCESS;
 }
 
-u8 r8712_construct_txaggr_cmd_hdr(struct xmit_buf *pxmitbuf)
+void r8712_construct_txaggr_cmd_hdr(struct xmit_buf *pxmitbuf)
 {
 	struct xmit_frame *pxmitframe = (struct xmit_frame *)
 		pxmitbuf->priv_data;
@@ -278,12 +276,10 @@ u8 r8712_construct_txaggr_cmd_hdr(struct xmit_buf *pxmitbuf)
 	pcmd_hdr->cmd_dw0 = cpu_to_le32((GEN_CMD_CODE(_AMSDU_TO_AMPDU) << 16) |
 					(pcmdpriv->cmd_seq << 24));
 	pcmdpriv->cmd_seq++;
-
-	return _SUCCESS;
 }
 
-u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
-			struct xmit_frame *pxmitframe)
+void r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
+			    struct xmit_frame *pxmitframe)
 {
 	struct _adapter *padapter = pxmitframe->padapter;
 	struct tx_desc *ptx_desc = (struct tx_desc *)pxmitbuf->pbuf;
@@ -319,13 +315,11 @@ u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 		((ptx_desc->txdw0 & 0x0000ffff) +
 			((TXDESC_SIZE + last_txcmdsz + padding_sz) &
 			 0x0000ffff)));
-
-	return _SUCCESS;
 }
 
 
-u8 r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
-			struct xmit_frame *pxmitframe)
+void r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
+			      struct xmit_frame *pxmitframe)
 {
 	/* linux complete context doesn't need to protect */
 	pxmitframe->pxmitbuf = pxmitbuf;
@@ -336,10 +330,8 @@ u8 r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
 	/*RTL8712_DMA_H2CCMD */
 	r8712_construct_txaggr_cmd_desc(pxmitbuf);
 	r8712_construct_txaggr_cmd_hdr(pxmitbuf);
-	if (r8712_append_mpdu_unit(pxmitbuf, pxmitframe) == _SUCCESS)
-		pxmitbuf->aggr_nr = 1;
-
-	return _SUCCESS;
+	r8712_append_mpdu_unit(pxmitbuf, pxmitframe);
+	pxmitbuf->aggr_nr = 1;
 }
 
 u16 r8712_xmitframe_aggr_next(struct xmit_buf *pxmitbuf,
@@ -351,18 +343,17 @@ u16 r8712_xmitframe_aggr_next(struct xmit_buf *pxmitbuf,
 	/* buffer addr assoc */
 	pxmitframe->buf_addr = pxmitbuf->pbuf + TXDESC_SIZE +
 		(((struct tx_desc *)pxmitbuf->pbuf)->txdw0 & 0x0000ffff);
-	if (r8712_append_mpdu_unit(pxmitbuf, pxmitframe) == _SUCCESS) {
-		r8712_free_xmitframe_ex(&pxmitframe->padapter->xmitpriv,
-					pxmitframe);
-		pxmitbuf->aggr_nr++;
-	}
+	r8712_append_mpdu_unit(pxmitbuf, pxmitframe);
+	r8712_free_xmitframe_ex(&pxmitframe->padapter->xmitpriv,
+				pxmitframe);
+	pxmitbuf->aggr_nr++;
 
 	return TXDESC_SIZE +
 		(((struct tx_desc *)pxmitbuf->pbuf)->txdw0 & 0x0000ffff);
 }
 
-u8 r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
-			struct xmit_frame *pxmitframe)
+void r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
+			    struct xmit_frame *pxmitframe)
 {
 	struct _adapter *padapter = pxmitframe->padapter;
 	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
@@ -399,8 +390,6 @@ u8 r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
 	}
 	r8712_write_port(pxmitframe->padapter, RTL8712_DMA_H2CCMD,
 			total_length + TXDESC_SIZE, (u8 *)pxmitframe);
-
-	return _SUCCESS;
 }
 
 #endif
@@ -737,20 +726,19 @@ static void dump_xframe(struct _adapter *padapter,
 	}
 }
 
-int r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe)
+void r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe)
 {
-	int res = _SUCCESS;
+	int res;
 
 	res = r8712_xmitframe_coalesce(padapter, pxmitframe->pkt, pxmitframe);
 	pxmitframe->pkt = NULL;
 	if (res == _SUCCESS)
 		dump_xframe(padapter, pxmitframe);
-	return res;
 }
 
 int r8712_xmit_enqueue(struct _adapter *padapter, struct xmit_frame *pxmitframe)
 {
-	if (r8712_xmit_classifier(padapter, pxmitframe) == _FAIL) {
+	if (r8712_xmit_classifier(padapter, pxmitframe)) {
 		pxmitframe->pkt = NULL;
 		return _FAIL;
 	}

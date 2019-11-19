@@ -8,7 +8,6 @@
 
 #include <linux/types.h>
 
-#include "i915_drv.h"
 #include "intel_display.h"
 
 struct drm_device;
@@ -49,11 +48,6 @@ static inline u8 icl_hdr_plane_mask(void)
 		BIT(PLANE_SPRITE0) | BIT(PLANE_SPRITE1);
 }
 
-static inline bool icl_is_hdr_plane(struct drm_i915_private *dev_priv,
-				    enum plane_id plane_id)
-{
-	return INTEL_GEN(dev_priv) >= 11 &&
-		icl_hdr_plane_mask() & BIT(plane_id);
-}
+bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id);
 
 #endif /* __INTEL_SPRITE_H__ */

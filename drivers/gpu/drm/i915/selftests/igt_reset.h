@@ -7,10 +7,12 @@
 #ifndef __I915_SELFTESTS_IGT_RESET_H__
 #define __I915_SELFTESTS_IGT_RESET_H__
 
-#include "../i915_drv.h"
+#include <linux/types.h>
 
-void igt_global_reset_lock(struct drm_i915_private *i915);
-void igt_global_reset_unlock(struct drm_i915_private *i915);
-bool igt_force_reset(struct drm_i915_private *i915);
+struct intel_gt;
+
+void igt_global_reset_lock(struct intel_gt *gt);
+void igt_global_reset_unlock(struct intel_gt *gt);
+bool igt_force_reset(struct intel_gt *gt);
 
 #endif

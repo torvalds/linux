@@ -12,8 +12,36 @@ and therefore may overwrite them.
 KSZ9021:
 
   All skew control options are specified in picoseconds. The minimum
-  value is 0, the maximum value is 3000, and it is incremented by 200ps
-  steps.
+  value is 0, the maximum value is 3000, and it can be specified in 200ps
+  steps, *but* these values are in not fact what you get because this chip's
+  skew values actually increase in 120ps steps, starting from -840ps. The
+  incorrect values came from an error in the original KSZ9021 datasheet
+  before it was corrected in revision 1.2 (Feb 2014), but it is too late to
+  change the driver now because of the many existing device trees that have
+  been created using values that go up in increments of 200.
+
+  The following table shows the actual skew delay you will get for each of the
+  possible devicetree values, and the number that will be programmed into the
+  corresponding pad skew register:
+
+  Device Tree Value	Delay	Pad Skew Register Value
+  -----------------------------------------------------
+	0   		-840ps		0000
+	200 		-720ps		0001
+	400 		-600ps		0010
+	600 		-480ps		0011
+	800 		-360ps		0100
+	1000		-240ps		0101
+	1200		-120ps		0110
+	1400		   0ps		0111
+	1600		 120ps		1000
+	1800		 240ps		1001
+	2000		 360ps		1010
+	2200		 480ps		1011
+	2400		 600ps		1100
+	2600		 720ps		1101
+	2800		 840ps		1110
+	3000		 960ps		1111
 
   Optional properties:
 

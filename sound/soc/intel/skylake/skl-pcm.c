@@ -116,7 +116,7 @@ static void skl_set_suspend_active(struct snd_pcm_substream *substream,
 {
 	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct snd_soc_dapm_widget *w;
-	struct skl *skl = bus_to_skl(bus);
+	struct skl_dev *skl = bus_to_skl(bus);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		w = dai->playback_widget;
@@ -132,7 +132,7 @@ static void skl_set_suspend_active(struct snd_pcm_substream *substream,
 int skl_pcm_host_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 {
 	struct hdac_bus *bus = dev_get_drvdata(dev);
-	struct skl *skl = bus_to_skl(bus);
+	struct skl_dev *skl = bus_to_skl(bus);
 	unsigned int format_val;
 	struct hdac_stream *hstream;
 	struct hdac_ext_stream *stream;
@@ -224,7 +224,7 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct skl_dma_params *dma_params;
-	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_dev *skl = get_skl_ctx(dai->dev);
 	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
@@ -271,7 +271,7 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_dev *skl = get_skl_ctx(dai->dev);
 	struct skl_module_cfg *mconfig;
 	int ret;
 
@@ -288,7 +288,7 @@ static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 		 mconfig->pipe->state == SKL_PIPE_CREATED ||
 		 mconfig->pipe->state == SKL_PIPE_PAUSED)) {
 
-		ret = skl_reset_pipe(skl->skl_sst, mconfig->pipe);
+		ret = skl_reset_pipe(skl, mconfig->pipe);
 
 		if (ret < 0)
 			return ret;
@@ -350,7 +350,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct skl_dma_params *dma_params = NULL;
-	struct skl *skl = bus_to_skl(bus);
+	struct skl_dev *skl = bus_to_skl(bus);
 	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
@@ -370,9 +370,9 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	 * CGCTL.MISCBDCGE if disabled by driver
 	 */
 	if (!strncmp(dai->name, "Reference Pin", 13) &&
-			skl->skl_sst->miscbdcg_disabled) {
-		skl->skl_sst->enable_miscbdcge(dai->dev, true);
-		skl->skl_sst->miscbdcg_disabled = false;
+			skl->miscbdcg_disabled) {
+		skl->enable_miscbdcge(dai->dev, true);
+		skl->miscbdcg_disabled = false;
 	}
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
@@ -387,7 +387,7 @@ static int skl_pcm_hw_free(struct snd_pcm_substream *substream,
 {
 	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
-	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_dev *skl = get_skl_ctx(dai->dev);
 	struct skl_module_cfg *mconfig;
 	int ret;
 
@@ -396,7 +396,7 @@ static int skl_pcm_hw_free(struct snd_pcm_substream *substream,
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
 
 	if (mconfig) {
-		ret = skl_reset_pipe(skl->skl_sst, mconfig->pipe);
+		ret = skl_reset_pipe(skl, mconfig->pipe);
 		if (ret < 0)
 			dev_err(dai->dev, "%s:Reset failed ret =%d",
 						__func__, ret);
@@ -471,8 +471,7 @@ static int skl_decoupled_trigger(struct snd_pcm_substream *substream,
 static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		struct snd_soc_dai *dai)
 {
-	struct skl *skl = get_skl_ctx(dai->dev);
-	struct skl_sst *ctx = skl->skl_sst;
+	struct skl_dev *skl = get_skl_ctx(dai->dev);
 	struct skl_module_cfg *mconfig;
 	struct hdac_bus *bus = get_bus_ctx(substream);
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
@@ -515,7 +514,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = skl_decoupled_trigger(substream, cmd);
 		if (ret < 0)
 			return ret;
-		return skl_run_pipe(ctx, mconfig->pipe);
+		return skl_run_pipe(skl, mconfig->pipe);
 		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -526,7 +525,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		 * there are no underrun/overrun in the case if there is a delay
 		 * between the two operations.
 		 */
-		ret = skl_stop_pipe(ctx, mconfig->pipe);
+		ret = skl_stop_pipe(skl, mconfig->pipe);
 		if (ret < 0)
 			return ret;
 
@@ -602,14 +601,14 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_dev *skl = get_skl_ctx(dai->dev);
 	struct skl_module_cfg *mconfig = NULL;
 
 	/* In case of XRUN recovery, reset the FW pipe to clean state */
 	mconfig = skl_tplg_be_get_cpr_module(dai, substream->stream);
 	if (mconfig && !mconfig->pipe->passthru &&
 		(substream->runtime->status->state == SNDRV_PCM_STATE_XRUN))
-		skl_reset_pipe(skl->skl_sst, mconfig->pipe);
+		skl_reset_pipe(skl, mconfig->pipe);
 
 	return 0;
 }
@@ -1301,7 +1300,7 @@ static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct snd_pcm *pcm = rtd->pcm;
 	unsigned int size;
-	struct skl *skl = bus_to_skl(bus);
+	struct skl_dev *skl = bus_to_skl(bus);
 
 	if (dai->driver->playback.channels_min ||
 		dai->driver->capture.channels_min) {
@@ -1318,9 +1317,9 @@ static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
+static int skl_get_module_info(struct skl_dev *skl,
+		struct skl_module_cfg *mconfig)
 {
-	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_module_inst_id *pin_id;
 	guid_t *uuid_mod, *uuid_tplg;
 	struct skl_module *skl_module;
@@ -1329,12 +1328,12 @@ static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
 
 	uuid_mod = (guid_t *)mconfig->guid;
 
-	if (list_empty(&ctx->uuid_list)) {
-		dev_err(ctx->dev, "Module list is empty\n");
+	if (list_empty(&skl->uuid_list)) {
+		dev_err(skl->dev, "Module list is empty\n");
 		return -EIO;
 	}
 
-	list_for_each_entry(module, &ctx->uuid_list, list) {
+	list_for_each_entry(module, &skl->uuid_list, list) {
 		if (guid_equal(uuid_mod, &module->uuid)) {
 			mconfig->id.module_id = module->id;
 			if (mconfig->module)
@@ -1361,7 +1360,7 @@ static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
 	if (skl->nr_modules && ret)
 		return ret;
 
-	list_for_each_entry(module, &ctx->uuid_list, list) {
+	list_for_each_entry(module, &skl->uuid_list, list) {
 		for (i = 0; i < MAX_IN_QUEUE; i++) {
 			pin_id = &mconfig->m_in_pin[i].id;
 			if (guid_equal(&pin_id->mod_uuid, &module->uuid))
@@ -1378,7 +1377,7 @@ static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
 	return 0;
 }
 
-static int skl_populate_modules(struct skl *skl)
+static int skl_populate_modules(struct skl_dev *skl)
 {
 	struct skl_pipeline *p;
 	struct skl_pipe_module *m;
@@ -1393,7 +1392,7 @@ static int skl_populate_modules(struct skl *skl)
 
 			ret = skl_get_module_info(skl, mconfig);
 			if (ret < 0) {
-				dev_err(skl->skl_sst->dev,
+				dev_err(skl->dev,
 					"query module info failed\n");
 				return ret;
 			}
@@ -1408,7 +1407,7 @@ static int skl_populate_modules(struct skl *skl)
 static int skl_platform_soc_probe(struct snd_soc_component *component)
 {
 	struct hdac_bus *bus = dev_get_drvdata(component->dev);
-	struct skl *skl = bus_to_skl(bus);
+	struct skl_dev *skl = bus_to_skl(bus);
 	const struct skl_dsp_ops *ops;
 	int ret;
 
@@ -1434,22 +1433,21 @@ static int skl_platform_soc_probe(struct snd_soc_component *component)
 		 * Disable dynamic clock and power gating during firmware
 		 * and library download
 		 */
-		skl->skl_sst->enable_miscbdcge(component->dev, false);
-		skl->skl_sst->clock_power_gating(component->dev, false);
+		skl->enable_miscbdcge(component->dev, false);
+		skl->clock_power_gating(component->dev, false);
 
-		ret = ops->init_fw(component->dev, skl->skl_sst);
-		skl->skl_sst->enable_miscbdcge(component->dev, true);
-		skl->skl_sst->clock_power_gating(component->dev, true);
+		ret = ops->init_fw(component->dev, skl);
+		skl->enable_miscbdcge(component->dev, true);
+		skl->clock_power_gating(component->dev, true);
 		if (ret < 0) {
 			dev_err(component->dev, "Failed to boot first fw: %d\n", ret);
 			return ret;
 		}
 		skl_populate_modules(skl);
-		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
-		skl_dsp_enable_notification(skl->skl_sst, false);
+		skl->update_d0i3c = skl_update_d0i3c;
 
 		if (skl->cfg.astate_cfg != NULL) {
-			skl_dsp_set_astate_cfg(skl->skl_sst,
+			skl_dsp_set_astate_cfg(skl,
 					skl->cfg.astate_cfg->count,
 					skl->cfg.astate_cfg);
 		}
@@ -1463,7 +1461,7 @@ static int skl_platform_soc_probe(struct snd_soc_component *component)
 static void skl_pcm_remove(struct snd_soc_component *component)
 {
 	struct hdac_bus *bus = dev_get_drvdata(component->dev);
-	struct skl *skl = bus_to_skl(bus);
+	struct skl_dev *skl = bus_to_skl(bus);
 
 	skl_tplg_exit(component, bus);
 
@@ -1486,7 +1484,7 @@ int skl_platform_register(struct device *dev)
 	struct snd_soc_dai_driver *dais;
 	int num_dais = ARRAY_SIZE(skl_platform_dai);
 	struct hdac_bus *bus = dev_get_drvdata(dev);
-	struct skl *skl = bus_to_skl(bus);
+	struct skl_dev *skl = bus_to_skl(bus);
 
 	skl->dais = kmemdup(skl_platform_dai, sizeof(skl_platform_dai),
 			    GFP_KERNEL);
@@ -1520,7 +1518,7 @@ err:
 int skl_platform_unregister(struct device *dev)
 {
 	struct hdac_bus *bus = dev_get_drvdata(dev);
-	struct skl *skl = bus_to_skl(bus);
+	struct skl_dev *skl = bus_to_skl(bus);
 	struct skl_module_deferred_bind *modules, *tmp;
 
 	if (!list_empty(&skl->bind_list)) {

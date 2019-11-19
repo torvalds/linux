@@ -41,10 +41,4 @@ static inline int tcf_sample_trunc_size(const struct tc_action *a)
 	return to_sample(a)->trunc_size;
 }
 
-static inline struct psample_group *
-tcf_sample_psample_group(const struct tc_action *a)
-{
-	return rcu_dereference_rtnl(to_sample(a)->psample_group);
-}
-
 #endif /* __NET_TC_SAMPLE_H */

@@ -421,7 +421,8 @@ static int r9a06g032_add_clk_domain(struct device *dev)
 		return -ENOMEM;
 
 	pd->name = np->name;
-	pd->flags = GENPD_FLAG_PM_CLK | GENPD_FLAG_ACTIVE_WAKEUP;
+	pd->flags = GENPD_FLAG_PM_CLK | GENPD_FLAG_ALWAYS_ON |
+		    GENPD_FLAG_ACTIVE_WAKEUP;
 	pd->attach_dev = r9a06g032_attach_dev;
 	pd->detach_dev = r9a06g032_detach_dev;
 	pm_genpd_init(pd, &pm_domain_always_on_gov, false);

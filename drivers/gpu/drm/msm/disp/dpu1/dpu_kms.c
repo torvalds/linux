@@ -7,10 +7,12 @@
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
-#include <drm/drm_crtc.h>
 #include <linux/debugfs.h>
-#include <linux/of_irq.h>
 #include <linux/dma-buf.h>
+#include <linux/of_irq.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_file.h>
 
 #include "msm_drv.h"
 #include "msm_mmu.h"
@@ -248,6 +250,32 @@ static void dpu_kms_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 	dpu_crtc_vblank(crtc, false);
 }
 
+static void dpu_kms_enable_commit(struct msm_kms *kms)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+	pm_runtime_get_sync(&dpu_kms->pdev->dev);
+}
+
+static void dpu_kms_disable_commit(struct msm_kms *kms)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+	pm_runtime_put_sync(&dpu_kms->pdev->dev);
+}
+
+static ktime_t dpu_kms_vsync_time(struct msm_kms *kms, struct drm_crtc *crtc)
+{
+	struct drm_encoder *encoder;
+
+	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask) {
+		ktime_t vsync_time;
+
+		if (dpu_encoder_vsync_time(encoder, &vsync_time) == 0)
+			return vsync_time;
+	}
+
+	return ktime_get();
+}
+
 static void dpu_kms_prepare_commit(struct msm_kms *kms,
 		struct drm_atomic_state *state)
 {
@@ -267,7 +295,6 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 	if (!dev || !dev->dev_private)
 		return;
 	priv = dev->dev_private;
-	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 
 	/* Call prepare_commit for all affected encoders */
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
@@ -275,6 +302,20 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 					  crtc_state->encoder_mask) {
 			dpu_encoder_prepare_commit(encoder);
 		}
+	}
+}
+
+static void dpu_kms_flush_commit(struct msm_kms *kms, unsigned crtc_mask)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+	struct drm_crtc *crtc;
+
+	for_each_crtc_mask(dpu_kms->dev, crtc, crtc_mask) {
+		if (!crtc->state->active)
+			continue;
+
+		trace_dpu_kms_commit(DRMID(crtc));
+		dpu_crtc_commit_kickoff(crtc);
 	}
 }
 
@@ -298,52 +339,18 @@ void dpu_kms_encoder_enable(struct drm_encoder *encoder)
 			continue;
 
 		trace_dpu_kms_enc_enable(DRMID(crtc));
-		dpu_crtc_commit_kickoff(crtc, false);
 	}
 }
 
-static void dpu_kms_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+static void dpu_kms_complete_commit(struct msm_kms *kms, unsigned crtc_mask)
 {
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	int i;
-
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		/* If modeset is required, kickoff is run in encoder_enable */
-		if (drm_atomic_crtc_needs_modeset(crtc_state))
-			continue;
-
-		if (crtc->state->active) {
-			trace_dpu_kms_commit(DRMID(crtc));
-			dpu_crtc_commit_kickoff(crtc,
-						state->legacy_cursor_update);
-		}
-	}
-}
-
-static void dpu_kms_complete_commit(struct msm_kms *kms,
-		struct drm_atomic_state *old_state)
-{
-	struct dpu_kms *dpu_kms;
-	struct msm_drm_private *priv;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state;
-	int i;
-
-	if (!kms || !old_state)
-		return;
-	dpu_kms = to_dpu_kms(kms);
-
-	if (!dpu_kms->dev || !dpu_kms->dev->dev_private)
-		return;
-	priv = dpu_kms->dev->dev_private;
 
 	DPU_ATRACE_BEGIN("kms_complete_commit");
 
-	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i)
-		dpu_crtc_complete_commit(crtc, old_crtc_state);
-
-	pm_runtime_put_sync(&dpu_kms->pdev->dev);
+	for_each_crtc_mask(dpu_kms->dev, crtc, crtc_mask)
+		dpu_crtc_complete_commit(crtc);
 
 	DPU_ATRACE_END("kms_complete_commit");
 }
@@ -387,6 +394,15 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 			break;
 		}
 	}
+}
+
+static void dpu_kms_wait_flush(struct msm_kms *kms, unsigned crtc_mask)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+	struct drm_crtc *crtc;
+
+	for_each_crtc_mask(dpu_kms->dev, crtc, crtc_mask)
+		dpu_kms_wait_for_commit_done(kms, crtc);
 }
 
 static int _dpu_kms_initialize_dsi(struct drm_device *dev,
@@ -489,11 +505,6 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 
 	int primary_planes_idx = 0, cursor_planes_idx = 0, i, ret;
 	int max_crtc_count;
-
-	if (!dpu_kms || !dpu_kms->dev || !dpu_kms->dev->dev) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return -EINVAL;
-	}
 
 	dev = dpu_kms->dev;
 	priv = dev->dev_private;
@@ -686,10 +697,13 @@ static const struct msm_kms_funcs kms_funcs = {
 	.irq_preinstall  = dpu_irq_preinstall,
 	.irq_uninstall   = dpu_irq_uninstall,
 	.irq             = dpu_irq,
+	.enable_commit   = dpu_kms_enable_commit,
+	.disable_commit  = dpu_kms_disable_commit,
+	.vsync_time      = dpu_kms_vsync_time,
 	.prepare_commit  = dpu_kms_prepare_commit,
-	.commit          = dpu_kms_commit,
+	.flush_commit    = dpu_kms_flush_commit,
+	.wait_flush      = dpu_kms_wait_flush,
 	.complete_commit = dpu_kms_complete_commit,
-	.wait_for_crtc_commit_done = dpu_kms_wait_for_commit_done,
 	.enable_vblank   = dpu_kms_enable_vblank,
 	.disable_vblank  = dpu_kms_disable_vblank,
 	.check_modified_format = dpu_format_check_modified_format,
@@ -799,6 +813,8 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		DPU_ERROR("invalid private data\n");
 		return rc;
 	}
+
+	atomic_set(&dpu_kms->bandwidth_ref, 0);
 
 	dpu_kms->mmio = msm_ioremap(dpu_kms->pdev, "mdp", "mdp");
 	if (IS_ERR(dpu_kms->mmio)) {

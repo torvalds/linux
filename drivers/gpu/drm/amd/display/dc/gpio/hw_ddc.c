@@ -28,6 +28,7 @@
 
 #include "dm_services.h"
 
+#include "include/gpio_interface.h"
 #include "include/gpio_types.h"
 #include "hw_gpio.h"
 #include "hw_ddc.h"
@@ -44,6 +45,8 @@
 	ddc->base.base.ctx
 #define REG(reg)\
 	(ddc->regs->reg)
+
+struct gpio;
 
 static void destruct(
 	struct hw_ddc *pin)
@@ -227,24 +230,29 @@ static void construct(
 	ddc->base.base.funcs = &funcs;
 }
 
-struct hw_gpio_pin *dal_hw_ddc_create(
+void dal_hw_ddc_init(
+	struct hw_ddc **hw_ddc,
 	struct dc_context *ctx,
 	enum gpio_id id,
 	uint32_t en)
 {
-	struct hw_ddc *pin;
-
 	if ((en < GPIO_DDC_LINE_MIN) || (en > GPIO_DDC_LINE_MAX)) {
 		ASSERT_CRITICAL(false);
-		return NULL;
+		*hw_ddc = NULL;
 	}
 
-	pin = kzalloc(sizeof(struct hw_ddc), GFP_KERNEL);
-	if (!pin) {
+	*hw_ddc = kzalloc(sizeof(struct hw_ddc), GFP_KERNEL);
+	if (!*hw_ddc) {
 		ASSERT_CRITICAL(false);
-		return NULL;
+		return;
 	}
 
-	construct(pin, id, en, ctx);
-	return &pin->base.base;
+	construct(*hw_ddc, id, en, ctx);
+}
+
+struct hw_gpio_pin *dal_hw_ddc_get_pin(struct gpio *gpio)
+{
+	struct hw_ddc *hw_ddc = dal_gpio_get_ddc(gpio);
+
+	return &hw_ddc->base.base;
 }

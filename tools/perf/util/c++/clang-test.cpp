@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "clang.h"
 #include "clang-c.h"
+extern "C" {
+#include "../util.h"
+}
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LLVMContext.h"
 
-#include <util-cxx.h>
 #include <tests/llvm.h>
 #include <string>
 

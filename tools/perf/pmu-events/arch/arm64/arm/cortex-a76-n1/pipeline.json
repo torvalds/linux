@@ -1,0 +1,14 @@
+[
+    {
+        "PublicDescription": "No operation issued because of the frontend. The counter counts on any cycle when there are no fetched instructions available to dispatch.",
+        "EventCode": "0x23",
+        "EventName": "STALL_FRONTEND",
+        "BriefDescription": "No operation issued because of the frontend."
+    },
+    {
+        "PublicDescription": "No operation issued because of the backend. The counter counts on any cycle fetched instructions are not dispatched due to resource constraints.",
+        "EventCode": "0x24",
+        "EventName": "STALL_BACKEND",
+        "BriefDescription": "No operation issued because of the backend."
+    }
+]

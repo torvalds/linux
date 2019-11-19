@@ -28,7 +28,7 @@
 #include <linux/kernel.h>
 
 #include "i915_drv.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_dsi.h"
 #include "intel_sideband.h"
 
@@ -246,11 +246,8 @@ void bxt_dsi_pll_disable(struct intel_encoder *encoder)
 	 * PLL lock should deassert within 200us.
 	 * Wait up to 1ms before timing out.
 	 */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    BXT_DSI_PLL_ENABLE,
-				    BXT_DSI_PLL_LOCKED,
-				    0,
-				    1))
+	if (intel_de_wait_for_clear(dev_priv, BXT_DSI_PLL_ENABLE,
+				    BXT_DSI_PLL_LOCKED, 1))
 		DRM_ERROR("Timeout waiting for PLL lock deassertion\n");
 }
 
@@ -530,11 +527,8 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 	I915_WRITE(BXT_DSI_PLL_ENABLE, val);
 
 	/* Timeout and fail if PLL not locked */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    BXT_DSI_PLL_ENABLE,
-				    BXT_DSI_PLL_LOCKED,
-				    BXT_DSI_PLL_LOCKED,
-				    1)) {
+	if (intel_de_wait_for_set(dev_priv, BXT_DSI_PLL_ENABLE,
+				  BXT_DSI_PLL_LOCKED, 1)) {
 		DRM_ERROR("Timed out waiting for DSI PLL to lock\n");
 		return;
 	}

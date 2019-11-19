@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- * Copyright (c) 2018, Sensor-Technik Wiedemann GmbH
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) 2018, Sensor-Technik Wiedemann GmbH
  * Copyright (c) 2018-2019, Vladimir Oltean <olteanv@gmail.com>
  */
 #ifndef _SJA1105_H
@@ -19,6 +19,8 @@
  * The passed parameter is in multiples of 1 ms.
  */
 #define SJA1105_AGEING_TIME_MS(ms)	((ms) / 10)
+
+#include "sja1105_tas.h"
 
 /* Keeps the different addresses between E/T and P/Q/R/S */
 struct sja1105_regs {
@@ -104,6 +106,7 @@ struct sja1105_private {
 	 */
 	struct mutex mgmt_lock;
 	struct sja1105_tagger_data tagger_data;
+	struct sja1105_tas_data tas_data;
 };
 
 #include "sja1105_dynamic_config.h"
@@ -119,6 +122,9 @@ typedef enum {
 	SPI_READ = 0,
 	SPI_WRITE = 1,
 } sja1105_spi_rw_mode_t;
+
+/* From sja1105_main.c */
+int sja1105_static_config_reload(struct sja1105_private *priv);
 
 /* From sja1105_spi.c */
 int sja1105_spi_send_packed_buf(const struct sja1105_private *priv,

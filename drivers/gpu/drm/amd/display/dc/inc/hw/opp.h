@@ -316,11 +316,6 @@ struct opp_funcs {
 	bool (*dpg_is_blanked)(
 			struct output_pixel_processor *opp);
 
-	void (*opp_convert_pti)(
-		struct output_pixel_processor *opp,
-		bool enable,
-		bool polarity);
-
 	void (*opp_dpg_set_blank_color)(
 			struct output_pixel_processor *opp,
 			const struct tg_color *color);

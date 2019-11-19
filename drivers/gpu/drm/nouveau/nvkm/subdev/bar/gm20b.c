@@ -26,7 +26,6 @@ gm20b_bar_func = {
 	.dtor = gf100_bar_dtor,
 	.oneinit = gf100_bar_oneinit,
 	.bar1.init = gf100_bar_bar1_init,
-	.bar1.fini = gf100_bar_bar1_fini,
 	.bar1.wait = gm107_bar_bar1_wait,
 	.bar1.vmm = gf100_bar_bar1_vmm,
 	.flush = g84_bar_flush,

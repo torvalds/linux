@@ -112,25 +112,6 @@ static const struct qcom_cc_desc lpass_qdsp6ss_sdm845_desc = {
 	.num_clks = ARRAY_SIZE(lpass_qdsp6ss_sdm845_clocks),
 };
 
-static int lpass_clocks_sdm845_probe(struct platform_device *pdev, int index,
-				     const struct qcom_cc_desc *desc)
-{
-	struct regmap *regmap;
-	struct resource *res;
-	void __iomem *base;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	regmap = devm_regmap_init_mmio(&pdev->dev, base, desc->config);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
-
-	return qcom_cc_really_probe(pdev, desc, regmap);
-}
-
 static int lpass_cc_sdm845_probe(struct platform_device *pdev)
 {
 	const struct qcom_cc_desc *desc;
@@ -139,14 +120,14 @@ static int lpass_cc_sdm845_probe(struct platform_device *pdev)
 	lpass_regmap_config.name = "cc";
 	desc = &lpass_cc_sdm845_desc;
 
-	ret = lpass_clocks_sdm845_probe(pdev, 0, desc);
+	ret = qcom_cc_probe_by_index(pdev, 0, desc);
 	if (ret)
 		return ret;
 
 	lpass_regmap_config.name = "qdsp6ss";
 	desc = &lpass_qdsp6ss_sdm845_desc;
 
-	return lpass_clocks_sdm845_probe(pdev, 1, desc);
+	return qcom_cc_probe_by_index(pdev, 1, desc);
 }
 
 static const struct of_device_id lpass_cc_sdm845_match_table[] = {

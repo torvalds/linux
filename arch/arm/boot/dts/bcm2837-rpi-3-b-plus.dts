@@ -15,6 +15,7 @@
 	};
 
 	memory@0 {
+		device_type = "memory";
 		reg = <0 0x40000000>;
 	};
 
@@ -124,6 +125,8 @@
 
 &hdmi {
 	hpd-gpios = <&gpio 28 GPIO_ACTIVE_LOW>;
+	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
+	status = "okay";
 };
 
 &pwm {

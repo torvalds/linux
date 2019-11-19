@@ -89,7 +89,6 @@ enum img_fmt {
  * @ybpp:      number of luminance bytes per pixel
  */
 struct camif_fmt {
-	char *name;
 	u32 fourcc;
 	u32 color;
 	u16 colplanes;

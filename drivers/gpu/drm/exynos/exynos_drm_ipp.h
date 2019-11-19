@@ -6,8 +6,6 @@
 #ifndef _EXYNOS_DRM_IPP_H_
 #define _EXYNOS_DRM_IPP_H_
 
-#include <drm/drmP.h>
-
 struct exynos_drm_ipp;
 struct exynos_drm_ipp_task;
 

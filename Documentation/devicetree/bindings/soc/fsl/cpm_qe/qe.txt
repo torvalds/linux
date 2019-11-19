@@ -18,7 +18,8 @@ Required properties:
 - reg : offset and length of the device registers.
 - bus-frequency : the clock frequency for QUICC Engine.
 - fsl,qe-num-riscs: define how many RISC engines the QE has.
-- fsl,qe-num-snums: define how many serial number(SNUM) the QE can use for the
+- fsl,qe-snums: This property has to be specified as '/bits/ 8' value,
+  defining the array of serial number (SNUM) values for the virtual
   threads.
 
 Optional properties:
@@ -34,6 +35,11 @@ Recommended properties
 - brg-frequency : the internal clock source frequency for baud-rate
   generators in Hz.
 
+Deprecated properties
+- fsl,qe-num-snums: define how many serial number(SNUM) the QE can use
+  for the threads. Use fsl,qe-snums instead to not only specify the
+  number of snums, but also their values.
+
 Example:
      qe@e0100000 {
 	#address-cells = <1>;
@@ -44,6 +50,11 @@ Example:
 	reg = <e0100000 480>;
 	brg-frequency = <0>;
 	bus-frequency = <179A7B00>;
+	fsl,qe-snums = /bits/ 8 <
+		0x04 0x05 0x0C 0x0D 0x14 0x15 0x1C 0x1D
+		0x24 0x25 0x2C 0x2D 0x34 0x35 0x88 0x89
+		0x98 0x99 0xA8 0xA9 0xB8 0xB9 0xC8 0xC9
+		0xD8 0xD9 0xE8 0xE9>;
      }
 
 * Multi-User RAM (MURAM)

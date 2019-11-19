@@ -594,7 +594,7 @@ static int write_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount)
 	return ecount;
 }
 
-static struct dvb_ca_en50221 en_templ = {
+static const struct dvb_ca_en50221 en_templ = {
 	.read_attribute_mem  = read_attribute_mem,
 	.write_attribute_mem = write_attribute_mem,
 	.read_cam_control    = read_cam_control,

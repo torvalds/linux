@@ -329,8 +329,8 @@ static int be_get_coalesce(struct net_device *netdev,
 	et->tx_coalesce_usecs_high = aic->max_eqd;
 	et->tx_coalesce_usecs_low = aic->min_eqd;
 
-	et->use_adaptive_rx_coalesce = aic->enable;
-	et->use_adaptive_tx_coalesce = aic->enable;
+	et->use_adaptive_rx_coalesce = adapter->aic_enabled;
+	et->use_adaptive_tx_coalesce = adapter->aic_enabled;
 
 	return 0;
 }
@@ -346,8 +346,9 @@ static int be_set_coalesce(struct net_device *netdev,
 	struct be_eq_obj *eqo;
 	int i;
 
+	adapter->aic_enabled = et->use_adaptive_rx_coalesce;
+
 	for_all_evt_queues(adapter, eqo, i) {
-		aic->enable = et->use_adaptive_rx_coalesce;
 		aic->max_eqd = min(et->rx_coalesce_usecs_high, BE_MAX_EQD);
 		aic->min_eqd = min(et->rx_coalesce_usecs_low, aic->max_eqd);
 		aic->et_eqd = min(et->rx_coalesce_usecs, aic->max_eqd);

@@ -19,7 +19,6 @@
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
-#include "../../../perf.h"
 #include "../../../util/trace-event.h"
 
 #ifndef PERL_UNUSED_VAR

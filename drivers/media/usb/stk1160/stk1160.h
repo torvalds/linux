@@ -102,7 +102,6 @@ struct stk1160_isoc_ctl {
 };
 
 struct stk1160_fmt {
-	char  *name;
 	u32   fourcc;          /* v4l2 format id */
 	int   depth;
 };

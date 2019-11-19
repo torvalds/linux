@@ -60,8 +60,7 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 				 "mipi-sdw-max-clock-frequency",
 				 &prop->max_clk_freq);
 
-	nval = fwnode_property_read_u32_array(link,
-			"mipi-sdw-clock-frequencies-supported", NULL, 0);
+	nval = fwnode_property_count_u32(link, "mipi-sdw-clock-frequencies-supported");
 	if (nval > 0) {
 		prop->num_clk_freq = nval;
 		prop->clk_freq = devm_kcalloc(bus->dev, prop->num_clk_freq,
@@ -87,8 +86,7 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 		}
 	}
 
-	nval = fwnode_property_read_u32_array(link,
-			"mipi-sdw-supported-clock-gears", NULL, 0);
+	nval = fwnode_property_count_u32(link, "mipi-sdw-supported-clock-gears");
 	if (nval > 0) {
 		prop->num_clk_gears = nval;
 		prop->clk_gears = devm_kcalloc(bus->dev, prop->num_clk_gears,
@@ -134,8 +132,7 @@ static int sdw_slave_read_dp0(struct sdw_slave *slave,
 	fwnode_property_read_u32(port, "mipi-sdw-port-min-wordlength",
 				 &dp0->min_word);
 
-	nval = fwnode_property_read_u32_array(port,
-			"mipi-sdw-port-wordlength-configs", NULL, 0);
+	nval = fwnode_property_count_u32(port, "mipi-sdw-port-wordlength-configs");
 	if (nval > 0) {
 
 		dp0->num_words = nval;
@@ -193,8 +190,7 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 		fwnode_property_read_u32(node, "mipi-sdw-port-min-wordlength",
 					 &dpn[i].min_word);
 
-		nval = fwnode_property_read_u32_array(node,
-				"mipi-sdw-port-wordlength-configs", NULL, 0);
+		nval = fwnode_property_count_u32(node, "mipi-sdw-port-wordlength-configs");
 		if (nval > 0) {
 			dpn[i].num_words = nval;
 			dpn[i].words = devm_kcalloc(&slave->dev,
@@ -233,8 +229,7 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 		fwnode_property_read_u32(node, "mipi-sdw-max-channel-number",
 					 &dpn[i].max_ch);
 
-		nval = fwnode_property_read_u32_array(node,
-				"mipi-sdw-channel-number-list", NULL, 0);
+		nval = fwnode_property_count_u32(node, "mipi-sdw-channel-number-list");
 		if (nval > 0) {
 			dpn[i].num_ch = nval;
 			dpn[i].ch = devm_kcalloc(&slave->dev, dpn[i].num_ch,
@@ -248,8 +243,7 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 					dpn[i].ch, dpn[i].num_ch);
 		}
 
-		nval = fwnode_property_read_u32_array(node,
-				"mipi-sdw-channel-combination-list", NULL, 0);
+		nval = fwnode_property_count_u32(node, "mipi-sdw-channel-combination-list");
 		if (nval > 0) {
 			dpn[i].num_ch_combinations = nval;
 			dpn[i].ch_combinations = devm_kcalloc(&slave->dev,

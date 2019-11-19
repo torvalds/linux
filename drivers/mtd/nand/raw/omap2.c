@@ -1501,7 +1501,7 @@ static int omap_elm_correct_data(struct nand_chip *chip, u_char *data,
 		}
 
 		/* Update number of correctable errors */
-		stat += err_vec[i].error_count;
+		stat = max_t(unsigned int, stat, err_vec[i].error_count);
 
 		/* Update page data with sector size */
 		data += ecc->size;

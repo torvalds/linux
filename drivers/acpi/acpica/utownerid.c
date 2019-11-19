@@ -38,7 +38,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 
 	if (*owner_id) {
 		ACPI_ERROR((AE_INFO,
-			    "Owner ID [0x%2.2X] already exists", *owner_id));
+			    "Owner ID [0x%3.3X] already exists", *owner_id));
 		return_ACPI_STATUS(AE_ALREADY_EXISTS);
 	}
 
@@ -88,14 +88,14 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 				/*
 				 * Construct encoded ID from the index and bit position
 				 *
-				 * Note: Last [j].k (bit 255) is never used and is marked
+				 * Note: Last [j].k (bit 4095) is never used and is marked
 				 * permanently allocated (prevents +1 overflow)
 				 */
 				*owner_id =
 				    (acpi_owner_id)((k + 1) + ACPI_MUL_32(j));
 
 				ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
-						  "Allocated OwnerId: %2.2X\n",
+						  "Allocated OwnerId: 0x%3.3X\n",
 						  (unsigned int)*owner_id));
 				goto exit;
 			}
@@ -116,7 +116,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 	 */
 	status = AE_OWNER_ID_LIMIT;
 	ACPI_ERROR((AE_INFO,
-		    "Could not allocate new OwnerId (255 max), AE_OWNER_ID_LIMIT"));
+		    "Could not allocate new OwnerId (4095 max), AE_OWNER_ID_LIMIT"));
 
 exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);
@@ -153,7 +153,7 @@ void acpi_ut_release_owner_id(acpi_owner_id *owner_id_ptr)
 	/* Zero is not a valid owner_ID */
 
 	if (owner_id == 0) {
-		ACPI_ERROR((AE_INFO, "Invalid OwnerId: 0x%2.2X", owner_id));
+		ACPI_ERROR((AE_INFO, "Invalid OwnerId: 0x%3.3X", owner_id));
 		return_VOID;
 	}
 
@@ -179,7 +179,7 @@ void acpi_ut_release_owner_id(acpi_owner_id *owner_id_ptr)
 		acpi_gbl_owner_id_mask[index] ^= bit;
 	} else {
 		ACPI_ERROR((AE_INFO,
-			    "Release of non-allocated OwnerId: 0x%2.2X",
+			    "Attempted release of non-allocated OwnerId: 0x%3.3X",
 			    owner_id + 1));
 	}
 

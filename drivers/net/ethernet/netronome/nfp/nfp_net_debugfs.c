@@ -159,19 +159,13 @@ void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir)
 	else
 		strcpy(name, "ctrl-vnic");
 	nn->debugfs_dir = debugfs_create_dir(name, ddir);
-	if (IS_ERR_OR_NULL(nn->debugfs_dir))
-		return;
 
 	/* Create queue debugging sub-tree */
 	queues = debugfs_create_dir("queue", nn->debugfs_dir);
-	if (IS_ERR_OR_NULL(queues))
-		return;
 
 	rx = debugfs_create_dir("rx", queues);
 	tx = debugfs_create_dir("tx", queues);
 	xdp = debugfs_create_dir("xdp", queues);
-	if (IS_ERR_OR_NULL(rx) || IS_ERR_OR_NULL(tx) || IS_ERR_OR_NULL(xdp))
-		return;
 
 	for (i = 0; i < min(nn->max_rx_rings, nn->max_r_vecs); i++) {
 		sprintf(name, "%d", i);
@@ -190,16 +184,7 @@ void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir)
 
 struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev)
 {
-	struct dentry *dev_dir;
-
-	if (IS_ERR_OR_NULL(nfp_dir))
-		return NULL;
-
-	dev_dir = debugfs_create_dir(pci_name(pdev), nfp_dir);
-	if (IS_ERR_OR_NULL(dev_dir))
-		return NULL;
-
-	return dev_dir;
+	return debugfs_create_dir(pci_name(pdev), nfp_dir);
 }
 
 void nfp_net_debugfs_dir_clean(struct dentry **dir)

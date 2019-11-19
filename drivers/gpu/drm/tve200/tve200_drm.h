@@ -13,6 +13,18 @@
 #ifndef _TVE200_DRM_H_
 #define _TVE200_DRM_H_
 
+#include <linux/irqreturn.h>
+
+#include <drm/drm_simple_kms_helper.h>
+
+struct clk;
+struct drm_bridge;
+struct drm_connector;
+struct drm_device;
+struct drm_file;
+struct drm_mode_create_dumb;
+struct drm_panel;
+
 /* Bits 2-31 are valid physical base addresses */
 #define TVE200_Y_FRAME_BASE_ADDR	0x00
 #define TVE200_U_FRAME_BASE_ADDR	0x04
@@ -88,9 +100,6 @@
 
 #define TVE200_CTRL_4			0x24
 #define TVE200_CTRL_4_RESET		BIT(0) /* triggers reset of TVE200 */
-
-#include <drm/drm_gem.h>
-#include <drm/drm_simple_kms_helper.h>
 
 struct tve200_drm_dev_private {
 	struct drm_device *drm;

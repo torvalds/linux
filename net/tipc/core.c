@@ -34,8 +34,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include "core.h"
 #include "name_table.h"
 #include "subscr.h"
@@ -82,6 +80,10 @@ static int __net_init tipc_init_net(struct net *net)
 	if (err)
 		goto out_bclink;
 
+	err = tipc_attach_loopback(net);
+	if (err)
+		goto out_bclink;
+
 	return 0;
 
 out_bclink:
@@ -94,6 +96,7 @@ out_sk_rht:
 
 static void __net_exit tipc_exit_net(struct net *net)
 {
+	tipc_detach_loopback(net);
 	tipc_net_stop(net);
 	tipc_bcast_stop(net);
 	tipc_nametbl_stop(net);

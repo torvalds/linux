@@ -382,7 +382,7 @@ hysdn_procconf_init(void)
 	}
 
 	printk(KERN_NOTICE "HYSDN: procfs initialised\n");
-	return (0);
+	return 0;
 }				/* hysdn_procconf_init */
 
 /*************************************************************************************/

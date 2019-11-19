@@ -176,7 +176,7 @@ struct ieee80211_crypto_ops *ieee80211_get_crypto_ops(const char *name)
 }
 
 
-static void *ieee80211_crypt_null_init(int keyidx) { return (void *) 1; }
+static void *ieee80211_crypt_null_init(int keyidx) { return (void *)1; }
 static void ieee80211_crypt_null_deinit(void *priv) {}
 
 static struct ieee80211_crypto_ops ieee80211_crypt_null = {

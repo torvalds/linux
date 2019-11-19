@@ -5,7 +5,7 @@ config HYSDN
 	help
 	  Say Y here if you have one of Hypercope's active PCI ISDN cards
 	  Champ, Ergo and Metro. You will then get a module called hysdn.
-	  Please read the file <file:Documentation/isdn/README.hysdn> for more
+	  Please read the file <file:Documentation/isdn/hysdn.rst> for more
 	  information.
 
 config HYSDN_CAPI

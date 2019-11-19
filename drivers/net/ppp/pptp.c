@@ -238,7 +238,7 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	skb_dst_drop(skb);
 	skb_dst_set(skb, &rt->dst);
 
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	skb->ip_summed = CHECKSUM_NONE;
 	ip_select_ident(net, skb, NULL);
@@ -358,7 +358,7 @@ static int pptp_rcv(struct sk_buff *skb)
 	po = lookup_chan(htons(header->call_id), iph->saddr);
 	if (po) {
 		skb_dst_drop(skb);
-		nf_reset(skb);
+		nf_reset_ct(skb);
 		return sk_receive_skb(sk_pppox(po), skb, 0);
 	}
 drop:

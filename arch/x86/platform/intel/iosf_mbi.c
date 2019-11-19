@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/capability.h>
 #include <linux/pm_qos.h>
+#include <linux/wait.h>
 
 #include <asm/iosf_mbi.h>
 
@@ -201,23 +202,45 @@ EXPORT_SYMBOL(iosf_mbi_available);
 #define PUNIT_SEMAPHORE_BIT		BIT(0)
 #define PUNIT_SEMAPHORE_ACQUIRE		BIT(1)
 
-static DEFINE_MUTEX(iosf_mbi_punit_mutex);
-static DEFINE_MUTEX(iosf_mbi_block_punit_i2c_access_count_mutex);
+static DEFINE_MUTEX(iosf_mbi_pmic_access_mutex);
 static BLOCKING_NOTIFIER_HEAD(iosf_mbi_pmic_bus_access_notifier);
-static u32 iosf_mbi_block_punit_i2c_access_count;
+static DECLARE_WAIT_QUEUE_HEAD(iosf_mbi_pmic_access_waitq);
+static u32 iosf_mbi_pmic_punit_access_count;
+static u32 iosf_mbi_pmic_i2c_access_count;
 static u32 iosf_mbi_sem_address;
 static unsigned long iosf_mbi_sem_acquired;
 static struct pm_qos_request iosf_mbi_pm_qos;
 
 void iosf_mbi_punit_acquire(void)
 {
-	mutex_lock(&iosf_mbi_punit_mutex);
+	/* Wait for any I2C PMIC accesses from in kernel drivers to finish. */
+	mutex_lock(&iosf_mbi_pmic_access_mutex);
+	while (iosf_mbi_pmic_i2c_access_count != 0) {
+		mutex_unlock(&iosf_mbi_pmic_access_mutex);
+		wait_event(iosf_mbi_pmic_access_waitq,
+			   iosf_mbi_pmic_i2c_access_count == 0);
+		mutex_lock(&iosf_mbi_pmic_access_mutex);
+	}
+	/*
+	 * We do not need to do anything to allow the PUNIT to safely access
+	 * the PMIC, other then block in kernel accesses to the PMIC.
+	 */
+	iosf_mbi_pmic_punit_access_count++;
+	mutex_unlock(&iosf_mbi_pmic_access_mutex);
 }
 EXPORT_SYMBOL(iosf_mbi_punit_acquire);
 
 void iosf_mbi_punit_release(void)
 {
-	mutex_unlock(&iosf_mbi_punit_mutex);
+	bool do_wakeup;
+
+	mutex_lock(&iosf_mbi_pmic_access_mutex);
+	iosf_mbi_pmic_punit_access_count--;
+	do_wakeup = iosf_mbi_pmic_punit_access_count == 0;
+	mutex_unlock(&iosf_mbi_pmic_access_mutex);
+
+	if (do_wakeup)
+		wake_up(&iosf_mbi_pmic_access_waitq);
 }
 EXPORT_SYMBOL(iosf_mbi_punit_release);
 
@@ -256,34 +279,32 @@ static void iosf_mbi_reset_semaphore(void)
  * already blocked P-Unit accesses because it wants them blocked over multiple
  * i2c-transfers, for e.g. read-modify-write of an I2C client register.
  *
- * The P-Unit accesses already being blocked is tracked through the
- * iosf_mbi_block_punit_i2c_access_count variable which is protected by the
- * iosf_mbi_block_punit_i2c_access_count_mutex this mutex is hold for the
- * entire duration of the function.
- *
- * If access is not blocked yet, this function takes the following steps:
+ * To allow safe PMIC i2c bus accesses this function takes the following steps:
  *
  * 1) Some code sends request to the P-Unit which make it access the PMIC
  *    I2C bus. Testing has shown that the P-Unit does not check its internal
  *    PMIC bus semaphore for these requests. Callers of these requests call
  *    iosf_mbi_punit_acquire()/_release() around their P-Unit accesses, these
- *    functions lock/unlock the iosf_mbi_punit_mutex.
- *    As the first step we lock the iosf_mbi_punit_mutex, to wait for any in
- *    flight requests to finish and to block any new requests.
+ *    functions increase/decrease iosf_mbi_pmic_punit_access_count, so first
+ *    we wait for iosf_mbi_pmic_punit_access_count to become 0.
  *
- * 2) Some code makes such P-Unit requests from atomic contexts where it
+ * 2) Check iosf_mbi_pmic_i2c_access_count, if access has already
+ *    been blocked by another caller, we only need to increment
+ *    iosf_mbi_pmic_i2c_access_count and we can skip the other steps.
+ *
+ * 3) Some code makes such P-Unit requests from atomic contexts where it
  *    cannot call iosf_mbi_punit_acquire() as that may sleep.
  *    As the second step we call a notifier chain which allows any code
  *    needing P-Unit resources from atomic context to acquire them before
  *    we take control over the PMIC I2C bus.
  *
- * 3) When CPU cores enter C6 or C7 the P-Unit needs to talk to the PMIC
+ * 4) When CPU cores enter C6 or C7 the P-Unit needs to talk to the PMIC
  *    if this happens while the kernel itself is accessing the PMIC I2C bus
  *    the SoC hangs.
  *    As the third step we call pm_qos_update_request() to disallow the CPU
  *    to enter C6 or C7.
  *
- * 4) The P-Unit has a PMIC bus semaphore which we can request to stop
+ * 5) The P-Unit has a PMIC bus semaphore which we can request to stop
  *    autonomous P-Unit tasks from accessing the PMIC I2C bus while we hold it.
  *    As the fourth and final step we request this semaphore and wait for our
  *    request to be acknowledged.
@@ -297,12 +318,18 @@ int iosf_mbi_block_punit_i2c_access(void)
 	if (WARN_ON(!mbi_pdev || !iosf_mbi_sem_address))
 		return -ENXIO;
 
-	mutex_lock(&iosf_mbi_block_punit_i2c_access_count_mutex);
+	mutex_lock(&iosf_mbi_pmic_access_mutex);
 
-	if (iosf_mbi_block_punit_i2c_access_count > 0)
+	while (iosf_mbi_pmic_punit_access_count != 0) {
+		mutex_unlock(&iosf_mbi_pmic_access_mutex);
+		wait_event(iosf_mbi_pmic_access_waitq,
+			   iosf_mbi_pmic_punit_access_count == 0);
+		mutex_lock(&iosf_mbi_pmic_access_mutex);
+	}
+
+	if (iosf_mbi_pmic_i2c_access_count > 0)
 		goto success;
 
-	mutex_lock(&iosf_mbi_punit_mutex);
 	blocking_notifier_call_chain(&iosf_mbi_pmic_bus_access_notifier,
 				     MBI_PMIC_BUS_ACCESS_BEGIN, NULL);
 
@@ -330,10 +357,6 @@ int iosf_mbi_block_punit_i2c_access(void)
 			iosf_mbi_sem_acquired = jiffies;
 			dev_dbg(&mbi_pdev->dev, "P-Unit semaphore acquired after %ums\n",
 				jiffies_to_msecs(jiffies - start));
-			/*
-			 * Success, keep iosf_mbi_punit_mutex locked till
-			 * iosf_mbi_unblock_punit_i2c_access() gets called.
-			 */
 			goto success;
 		}
 
@@ -344,15 +367,13 @@ int iosf_mbi_block_punit_i2c_access(void)
 	dev_err(&mbi_pdev->dev, "Error P-Unit semaphore timed out, resetting\n");
 error:
 	iosf_mbi_reset_semaphore();
-	mutex_unlock(&iosf_mbi_punit_mutex);
-
 	if (!iosf_mbi_get_sem(&sem))
 		dev_err(&mbi_pdev->dev, "P-Unit semaphore: %d\n", sem);
 success:
 	if (!WARN_ON(ret))
-		iosf_mbi_block_punit_i2c_access_count++;
+		iosf_mbi_pmic_i2c_access_count++;
 
-	mutex_unlock(&iosf_mbi_block_punit_i2c_access_count_mutex);
+	mutex_unlock(&iosf_mbi_pmic_access_mutex);
 
 	return ret;
 }
@@ -360,17 +381,20 @@ EXPORT_SYMBOL(iosf_mbi_block_punit_i2c_access);
 
 void iosf_mbi_unblock_punit_i2c_access(void)
 {
-	mutex_lock(&iosf_mbi_block_punit_i2c_access_count_mutex);
+	bool do_wakeup = false;
 
-	iosf_mbi_block_punit_i2c_access_count--;
-	if (iosf_mbi_block_punit_i2c_access_count == 0) {
+	mutex_lock(&iosf_mbi_pmic_access_mutex);
+	iosf_mbi_pmic_i2c_access_count--;
+	if (iosf_mbi_pmic_i2c_access_count == 0) {
 		iosf_mbi_reset_semaphore();
-		mutex_unlock(&iosf_mbi_punit_mutex);
 		dev_dbg(&mbi_pdev->dev, "punit semaphore held for %ums\n",
 			jiffies_to_msecs(jiffies - iosf_mbi_sem_acquired));
+		do_wakeup = true;
 	}
+	mutex_unlock(&iosf_mbi_pmic_access_mutex);
 
-	mutex_unlock(&iosf_mbi_block_punit_i2c_access_count_mutex);
+	if (do_wakeup)
+		wake_up(&iosf_mbi_pmic_access_waitq);
 }
 EXPORT_SYMBOL(iosf_mbi_unblock_punit_i2c_access);
 
@@ -379,10 +403,10 @@ int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb)
 	int ret;
 
 	/* Wait for the bus to go inactive before registering */
-	mutex_lock(&iosf_mbi_punit_mutex);
+	iosf_mbi_punit_acquire();
 	ret = blocking_notifier_chain_register(
 				&iosf_mbi_pmic_bus_access_notifier, nb);
-	mutex_unlock(&iosf_mbi_punit_mutex);
+	iosf_mbi_punit_release();
 
 	return ret;
 }
@@ -403,9 +427,9 @@ int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb)
 	int ret;
 
 	/* Wait for the bus to go inactive before unregistering */
-	mutex_lock(&iosf_mbi_punit_mutex);
+	iosf_mbi_punit_acquire();
 	ret = iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(nb);
-	mutex_unlock(&iosf_mbi_punit_mutex);
+	iosf_mbi_punit_release();
 
 	return ret;
 }
@@ -413,7 +437,7 @@ EXPORT_SYMBOL(iosf_mbi_unregister_pmic_bus_access_notifier);
 
 void iosf_mbi_assert_punit_acquired(void)
 {
-	WARN_ON(!mutex_is_locked(&iosf_mbi_punit_mutex));
+	WARN_ON(iosf_mbi_pmic_punit_access_count == 0);
 }
 EXPORT_SYMBOL(iosf_mbi_assert_punit_acquired);
 

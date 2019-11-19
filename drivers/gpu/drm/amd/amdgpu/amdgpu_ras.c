@@ -30,74 +30,6 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_atomfirmware.h"
 
-struct ras_ih_data {
-	/* interrupt bottom half */
-	struct work_struct ih_work;
-	int inuse;
-	/* IP callback */
-	ras_ih_cb cb;
-	/* full of entries */
-	unsigned char *ring;
-	unsigned int ring_size;
-	unsigned int element_size;
-	unsigned int aligned_element_size;
-	unsigned int rptr;
-	unsigned int wptr;
-};
-
-struct ras_fs_data {
-	char sysfs_name[32];
-	char debugfs_name[32];
-};
-
-struct ras_err_data {
-	unsigned long ue_count;
-	unsigned long ce_count;
-};
-
-struct ras_err_handler_data {
-	/* point to bad pages array */
-	struct {
-		unsigned long bp;
-		struct amdgpu_bo *bo;
-	} *bps;
-	/* the count of entries */
-	int count;
-	/* the space can place new entries */
-	int space_left;
-	/* last reserved entry's index + 1 */
-	int last_reserved;
-};
-
-struct ras_manager {
-	struct ras_common_if head;
-	/* reference count */
-	int use;
-	/* ras block link */
-	struct list_head node;
-	/* the device */
-	struct amdgpu_device *adev;
-	/* debugfs */
-	struct dentry *ent;
-	/* sysfs */
-	struct device_attribute sysfs_attr;
-	int attr_inuse;
-
-	/* fs node name */
-	struct ras_fs_data fs_data;
-
-	/* IH data */
-	struct ras_ih_data ih_data;
-
-	struct ras_err_data err_data;
-};
-
-struct ras_badpage {
-	unsigned int bp;
-	unsigned int size;
-	unsigned int flags;
-};
-
 const char *ras_error_string[] = {
 	"none",
 	"parity",
@@ -129,6 +61,9 @@ const char *ras_block_string[] = {
 #define AMDGPU_RAS_FLAG_INIT_BY_VBIOS		1
 #define AMDGPU_RAS_FLAG_INIT_NEED_RESET		2
 #define RAS_DEFAULT_FLAGS (AMDGPU_RAS_FLAG_INIT_BY_VBIOS)
+
+/* inject address is 52 bits */
+#define	RAS_UMC_INJECT_ADDR_LIMIT	(0x1ULL << 52)
 
 static int amdgpu_ras_reserve_vram(struct amdgpu_device *adev,
 		uint64_t offset, uint64_t size,
@@ -196,6 +131,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 	char err[9] = "ue";
 	int op = -1;
 	int block_id;
+	uint32_t sub_block;
 	u64 address, value;
 
 	if (*pos)
@@ -223,17 +159,23 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 			return -EINVAL;
 
 		data->head.block = block_id;
-		data->head.type = memcmp("ue", err, 2) == 0 ?
-			AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE :
-			AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE;
+		/* only ue and ce errors are supported */
+		if (!memcmp("ue", err, 2))
+			data->head.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		else if (!memcmp("ce", err, 2))
+			data->head.type = AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE;
+		else
+			return -EINVAL;
+
 		data->op = op;
 
 		if (op == 2) {
-			if (sscanf(str, "%*s %*s %*s %llu %llu",
-						&address, &value) != 2)
-				if (sscanf(str, "%*s %*s %*s 0x%llx 0x%llx",
-							&address, &value) != 2)
+			if (sscanf(str, "%*s %*s %*s %u %llu %llu",
+						&sub_block, &address, &value) != 3)
+				if (sscanf(str, "%*s %*s %*s 0x%x 0x%llx 0x%llx",
+							&sub_block, &address, &value) != 3)
 					return -EINVAL;
+			data->head.sub_block_index = sub_block;
 			data->inject.address = address;
 			data->inject.value = value;
 		}
@@ -278,7 +220,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  * write the struct to the control node.
  *
  * bash:
- * echo op block [error [address value]] > .../ras/ras_ctrl
+ * echo op block [error [sub_blcok address value]] > .../ras/ras_ctrl
  *	op: disable, enable, inject
  *		disable: only block is needed
  *		enable: block and error are needed
@@ -288,10 +230,11 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  *	error: ue, ce
  *		ue: multi_uncorrectable
  *		ce: single_correctable
+ *	sub_block: sub block index, pass 0 if there is no sub block
  *
  * here are some examples for bash commands,
- *	echo inject umc ue 0x0 0x0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
- *	echo inject umc ce 0 0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
+ *	echo inject umc ue 0x0 0x0 0x0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
+ *	echo inject umc ce 0 0 0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *	echo disable umc > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *
  * How to check the result?
@@ -310,7 +253,6 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
 	struct ras_debug_if data;
-	struct amdgpu_bo *bo;
 	int ret = 0;
 
 	ret = amdgpu_ras_debugfs_ctrl_parse_data(f, buf, size, pos, &data);
@@ -328,17 +270,14 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 		ret = amdgpu_ras_feature_enable(adev, &data.head, 1);
 		break;
 	case 2:
-		ret = amdgpu_ras_reserve_vram(adev,
-				data.inject.address, PAGE_SIZE, &bo);
-		if (ret) {
-			/* address was offset, now it is absolute.*/
-			data.inject.address += adev->gmc.vram_start;
-			if (data.inject.address > adev->gmc.vram_end)
-				break;
-		} else
-			data.inject.address = amdgpu_bo_gpu_offset(bo);
+		if ((data.inject.address >= adev->gmc.mc_vram_size) ||
+		    (data.inject.address >= RAS_UMC_INJECT_ADDR_LIMIT)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		/* data.inject.address is offset instead of absolute gpu address */
 		ret = amdgpu_ras_error_inject(adev, &data.inject);
-		amdgpu_ras_release_vram(adev, &bo);
 		break;
 	default:
 		ret = -EINVAL;
@@ -656,13 +595,45 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 		struct ras_query_if *info)
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &info->head);
+	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	if (!obj)
 		return -EINVAL;
-	/* TODO might read the register to read the count */
+
+	switch (info->head.block) {
+	case AMDGPU_RAS_BLOCK__UMC:
+		if (adev->umc.funcs->query_ras_error_count)
+			adev->umc.funcs->query_ras_error_count(adev, &err_data);
+		/* umc query_ras_error_address is also responsible for clearing
+		 * error status
+		 */
+		if (adev->umc.funcs->query_ras_error_address)
+			adev->umc.funcs->query_ras_error_address(adev, &err_data);
+		break;
+	case AMDGPU_RAS_BLOCK__GFX:
+		if (adev->gfx.funcs->query_ras_error_count)
+			adev->gfx.funcs->query_ras_error_count(adev, &err_data);
+		break;
+	case AMDGPU_RAS_BLOCK__MMHUB:
+		if (adev->mmhub_funcs->query_ras_error_count)
+			adev->mmhub_funcs->query_ras_error_count(adev, &err_data);
+		break;
+	default:
+		break;
+	}
+
+	obj->err_data.ue_count += err_data.ue_count;
+	obj->err_data.ce_count += err_data.ce_count;
 
 	info->ue_count = obj->err_data.ue_count;
 	info->ce_count = obj->err_data.ce_count;
+
+	if (err_data.ce_count)
+		dev_info(adev->dev, "%ld correctable errors detected in %s block\n",
+			 obj->err_data.ce_count, ras_block_str(info->head.block));
+	if (err_data.ue_count)
+		dev_info(adev->dev, "%ld uncorrectable errors detected in %s block\n",
+			 obj->err_data.ue_count, ras_block_str(info->head.block));
 
 	return 0;
 }
@@ -684,13 +655,23 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 	if (!obj)
 		return -EINVAL;
 
-	if (block_info.block_id != TA_RAS_BLOCK__UMC) {
+	switch (info->head.block) {
+	case AMDGPU_RAS_BLOCK__GFX:
+		if (adev->gfx.funcs->ras_error_inject)
+			ret = adev->gfx.funcs->ras_error_inject(adev, info);
+		else
+			ret = -EINVAL;
+		break;
+	case AMDGPU_RAS_BLOCK__UMC:
+	case AMDGPU_RAS_BLOCK__MMHUB:
+		ret = psp_ras_trigger_error(&adev->psp, &block_info);
+		break;
+	default:
 		DRM_INFO("%s error injection is not supported yet\n",
 			 ras_block_str(info->head.block));
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	ret = psp_ras_trigger_error(&adev->psp, &block_info);
 	if (ret)
 		DRM_ERROR("RAS ERROR: inject %s error failed ret %d\n",
 				ras_block_str(info->head.block),
@@ -707,7 +688,7 @@ int amdgpu_ras_error_cure(struct amdgpu_device *adev,
 }
 
 /* get the total error counts on all IPs */
-int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
+unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		bool is_ce)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -715,7 +696,7 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 	struct ras_err_data data = {0, 0};
 
 	if (!con)
-		return -EINVAL;
+		return 0;
 
 	list_for_each_entry(obj, &con->head, node) {
 		struct ras_query_if info = {
@@ -723,7 +704,7 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		};
 
 		if (amdgpu_ras_error_query(adev, &info))
-			return -EINVAL;
+			return 0;
 
 		data.ce_count += info.ce_count;
 		data.ue_count += info.ue_count;
@@ -812,32 +793,8 @@ static ssize_t amdgpu_ras_sysfs_features_read(struct device *dev,
 {
 	struct amdgpu_ras *con =
 		container_of(attr, struct amdgpu_ras, features_attr);
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
-	struct ras_common_if head;
-	int ras_block_count = AMDGPU_RAS_BLOCK_COUNT;
-	int i;
-	ssize_t s;
-	struct ras_manager *obj;
 
-	s = scnprintf(buf, PAGE_SIZE, "feature mask: 0x%x\n", con->features);
-
-	for (i = 0; i < ras_block_count; i++) {
-		head.block = i;
-
-		if (amdgpu_ras_is_feature_enabled(adev, &head)) {
-			obj = amdgpu_ras_find_obj(adev, &head);
-			s += scnprintf(&buf[s], PAGE_SIZE - s,
-					"%s: %s\n",
-					ras_block_str(i),
-					ras_err_str(obj->head.type));
-		} else
-			s += scnprintf(&buf[s], PAGE_SIZE - s,
-					"%s: disabled\n",
-					ras_block_str(i));
-	}
-
-	return s;
+	return scnprintf(buf, PAGE_SIZE, "feature mask: 0x%x\n", con->features);
 }
 
 static int amdgpu_ras_sysfs_create_feature_node(struct amdgpu_device *adev)
@@ -1054,6 +1011,7 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 	struct ras_ih_data *data = &obj->ih_data;
 	struct amdgpu_iv_entry entry;
 	int ret;
+	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	while (data->rptr != data->wptr) {
 		rmb();
@@ -1068,19 +1026,19 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 		 * from the callback to udpate the error type/count, etc
 		 */
 		if (data->cb) {
-			ret = data->cb(obj->adev, &entry);
+			ret = data->cb(obj->adev, &err_data, &entry);
 			/* ue will trigger an interrupt, and in that case
 			 * we need do a reset to recovery the whole system.
 			 * But leave IP do that recovery, here we just dispatch
 			 * the error.
 			 */
-			if (ret == AMDGPU_RAS_UE) {
-				obj->err_data.ue_count++;
+			if (ret == AMDGPU_RAS_SUCCESS) {
+				/* these counts could be left as 0 if
+				 * some blocks do not count error number
+				 */
+				obj->err_data.ue_count += err_data.ue_count;
+				obj->err_data.ce_count += err_data.ce_count;
 			}
-			/* Might need get ce count by register, but not all IP
-			 * saves ce count, some IP just use one bit or two bits
-			 * to indicate ce happened.
-			 */
 		}
 	}
 }
@@ -1576,6 +1534,10 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	if (amdgpu_ras_fs_init(adev))
 		goto fs_out;
+
+	/* ras init for each ras block */
+	if (adev->umc.funcs->ras_init)
+		adev->umc.funcs->ras_init(adev);
 
 	DRM_INFO("RAS INFO: ras initialized successfully, "
 			"hardware ability[%x] ras_mask[%x]\n",

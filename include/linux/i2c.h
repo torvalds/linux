@@ -473,7 +473,7 @@ extern struct i2c_client *
 devm_i2c_new_dummy_device(struct device *dev, struct i2c_adapter *adap, u16 address);
 
 extern struct i2c_client *
-i2c_new_secondary_device(struct i2c_client *client,
+i2c_new_ancillary_device(struct i2c_client *client,
 				const char *name,
 				u16 default_addr);
 
@@ -521,7 +521,7 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  *
  * The return codes from the @master_xfer{_atomic} fields should indicate the
  * type of error code that occurred during the transfer, as documented in the
- * Kernel Documentation file Documentation/i2c/fault-codes.
+ * Kernel Documentation file Documentation/i2c/fault-codes.rst.
  */
 struct i2c_algorithm {
 	/*

@@ -9,16 +9,18 @@
  * Copyright (C) 2011 Texas Instruments
  * Copyright (C) 2017 Eric Anholt
  */
+
 #include <linux/clk.h>
 #include <linux/version.h>
 #include <linux/dma-buf.h>
 #include <linux/of_graph.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_vblank.h>
 
 #include "tve200_drm.h"
 

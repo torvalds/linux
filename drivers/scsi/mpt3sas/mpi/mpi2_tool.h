@@ -7,7 +7,7 @@
  *         Title:  MPI diagnostic tool structures and definitions
  * Creation Date:  March 26, 2007
  *
- *   mpi2_tool.h Version:  02.00.15
+ *   mpi2_tool.h Version:  02.00.16
  *
  * Version History
  * ---------------
@@ -40,6 +40,7 @@
  *                     Tool Request Message.
  * 07-22-18  02.00.15  Added defines for new TOOLBOX_PCIE_LANE_MARGINING tool.
  *                     Added option for DeviceInfo field in ISTWI tool.
+ * 12-17-18  02.00.16  Shorten some defines to be compatible with DOS.
  * --------------------------------------------------------------------------
  */
 
@@ -230,11 +231,11 @@ typedef struct _MPI2_TOOLBOX_ISTWI_READ_WRITE_REQUEST {
 #define MPI2_TOOL_ISTWI_FLAG_PAGE_ADDR_MASK         (0x07)
 
 /*MPI26 TOOLBOX Request MsgFlags defines */
-#define MPI26_TOOLBOX_REQ_MSGFLAGS_ADDRESSING_MASK     (0x01)
+#define MPI26_TOOL_ISTWI_MSGFLG_ADDR_MASK           (0x01)
 /*Request uses Man Page 43 device index addressing */
-#define MPI26_TOOLBOX_REQ_MSGFLAGS_ADDRESSING_DEVINDEX (0x00)
+#define MPI26_TOOL_ISTWI_MSGFLG_ADDR_INDEX          (0x00)
 /*Request uses Man Page 43 device info struct addressing */
-#define MPI26_TOOLBOX_REQ_MSGFLAGS_ADDRESSING_DEVINFO  (0x01)
+#define MPI26_TOOL_ISTWI_MSGFLG_ADDR_INFO           (0x01)
 
 /*Toolbox ISTWI Read Write Tool reply message */
 typedef struct _MPI2_TOOLBOX_ISTWI_REPLY {
@@ -403,7 +404,7 @@ Mpi2ToolboxTextDisplayRequest_t,
  */
 
 /*Toolbox Backend Lane Margining Tool request message */
-typedef struct _MPI26_TOOLBOX_LANE_MARGINING_REQUEST {
+typedef struct _MPI26_TOOLBOX_LANE_MARGIN_REQUEST {
 	U8 Tool;			/*0x00 */
 	U8 Reserved1;			/*0x01 */
 	U8 ChainOffset;			/*0x02 */
@@ -434,7 +435,7 @@ typedef struct _MPI26_TOOLBOX_LANE_MARGINING_REQUEST {
 
 
 /*Toolbox Backend Lane Margining Tool reply message */
-typedef struct _MPI26_TOOLBOX_LANE_MARGINING_REPLY {
+typedef struct _MPI26_TOOLBOX_LANE_MARGIN_REPLY {
 	U8 Tool;			/*0x00 */
 	U8 Reserved1;			/*0x01 */
 	U8 MsgLength;			/*0x02 */

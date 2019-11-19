@@ -653,7 +653,7 @@ static bool config_parafile(struct adapter *adapt)
 
 bool rtl88eu_phy_bb_config(struct adapter *adapt)
 {
-	int rtstatus = true;
+	bool rtstatus;
 	u32 regval;
 	u8 crystal_cap;
 

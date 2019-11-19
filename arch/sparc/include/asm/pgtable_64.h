@@ -1078,7 +1078,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 }
 #define io_remap_pfn_range io_remap_pfn_range 
 
-static inline unsigned long untagged_addr(unsigned long start)
+static inline unsigned long __untagged_addr(unsigned long start)
 {
 	if (adi_capable()) {
 		long addr = start;
@@ -1098,7 +1098,8 @@ static inline unsigned long untagged_addr(unsigned long start)
 
 	return start;
 }
-#define untagged_addr untagged_addr
+#define untagged_addr(addr) \
+	((__typeof__(addr))(__untagged_addr((unsigned long)(addr))))
 
 static inline bool pte_access_permitted(pte_t pte, bool write)
 {
@@ -1135,7 +1136,6 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
 				   unsigned long);
 #define HAVE_ARCH_FB_UNMAPPED_AREA
 
-void pgtable_cache_init(void);
 void sun4v_register_fault_status(void);
 void sun4v_ktsb_register(void);
 void __init cheetah_ecache_flush_init(void);

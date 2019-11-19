@@ -70,6 +70,7 @@ static void __init cm_osc_setup(struct device_node *np,
 			return;
 		}
 		cm_base = of_iomap(parent, 0);
+		of_node_put(parent);
 		if (!cm_base) {
 			pr_err("could not remap core module base\n");
 			return;

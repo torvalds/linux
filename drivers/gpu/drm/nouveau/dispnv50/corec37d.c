@@ -82,7 +82,7 @@ corec37d_init(struct nv50_core *core)
 		for (i = 0; i < windows; i++) {
 			evo_mthd(push, 0x1000 + (i * 0x080), 3);
 			evo_data(push, i >> 1);
-			evo_data(push, 0x00000017);
+			evo_data(push, 0x0000001f);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x1010 + (i * 0x080), 1);
 			evo_data(push, 0x00127fff);

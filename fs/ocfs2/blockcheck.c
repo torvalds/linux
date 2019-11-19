@@ -231,14 +231,6 @@ static int blockcheck_u64_get(void *data, u64 *val)
 }
 DEFINE_SIMPLE_ATTRIBUTE(blockcheck_fops, blockcheck_u64_get, NULL, "%llu\n");
 
-static struct dentry *blockcheck_debugfs_create(const char *name,
-						struct dentry *parent,
-						u64 *value)
-{
-	return debugfs_create_file(name, S_IFREG | S_IRUSR, parent, value,
-				   &blockcheck_fops);
-}
-
 static void ocfs2_blockcheck_debug_remove(struct ocfs2_blockcheck_stats *stats)
 {
 	if (stats) {
@@ -250,16 +242,20 @@ static void ocfs2_blockcheck_debug_remove(struct ocfs2_blockcheck_stats *stats)
 static void ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
 					   struct dentry *parent)
 {
-	stats->b_debug_dir = debugfs_create_dir("blockcheck", parent);
+	struct dentry *dir;
 
-	blockcheck_debugfs_create("blocks_checked", stats->b_debug_dir,
-				  &stats->b_check_count);
+	dir = debugfs_create_dir("blockcheck", parent);
+	stats->b_debug_dir = dir;
 
-	blockcheck_debugfs_create("checksums_failed", stats->b_debug_dir,
-				  &stats->b_failure_count);
+	debugfs_create_file("blocks_checked", S_IFREG | S_IRUSR, dir,
+			    &stats->b_check_count, &blockcheck_fops);
 
-	blockcheck_debugfs_create("ecc_recoveries", stats->b_debug_dir,
-				  &stats->b_recover_count);
+	debugfs_create_file("checksums_failed", S_IFREG | S_IRUSR, dir,
+			    &stats->b_failure_count, &blockcheck_fops);
+
+	debugfs_create_file("ecc_recoveries", S_IFREG | S_IRUSR, dir,
+			    &stats->b_recover_count, &blockcheck_fops);
+
 }
 #else
 static inline void ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,

@@ -41,7 +41,6 @@
 		regulator-name = "VWLAN";
 		gpio = <&gpio2 3 GPIO_ACTIVE_HIGH>; /* gpio 35 */
 		enable-active-high;
-		regulator-boot-off;
 	};
 
 	leds {

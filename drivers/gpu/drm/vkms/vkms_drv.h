@@ -3,11 +3,11 @@
 #ifndef _VKMS_DRV_H_
 #define _VKMS_DRV_H_
 
-#include <drm/drmP.h>
+#include <linux/hrtimer.h>
+
 #include <drm/drm.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_encoder.h>
-#include <linux/hrtimer.h>
 
 #define XRES_MIN    20
 #define YRES_MIN    20
@@ -20,7 +20,7 @@
 
 extern bool enable_cursor;
 
-struct vkms_crc_data {
+struct vkms_composer {
 	struct drm_framebuffer fb;
 	struct drm_rect src, dst;
 	unsigned int offset;
@@ -31,23 +31,30 @@ struct vkms_crc_data {
 /**
  * vkms_plane_state - Driver specific plane state
  * @base: base plane state
- * @crc_data: data required for CRC computation
+ * @composer: data required for composing computation
  */
 struct vkms_plane_state {
 	struct drm_plane_state base;
-	struct vkms_crc_data *crc_data;
+	struct vkms_composer *composer;
 };
 
 /**
  * vkms_crtc_state - Driver specific CRTC state
  * @base: base CRTC state
- * @crc_work: work struct to compute and add CRC entries
+ * @composer_work: work struct to compose and add CRC entries
  * @n_frame_start: start frame number for computed CRC
  * @n_frame_end: end frame number for computed CRC
  */
 struct vkms_crtc_state {
 	struct drm_crtc_state base;
-	struct work_struct crc_work;
+	struct work_struct composer_work;
+
+	int num_active_planes;
+	/* stack of active planes for crc computation, should be in z order */
+	struct vkms_plane_state **active_planes;
+
+	/* below three are protected by vkms_output.composer_lock */
+	bool crc_pending;
 	u64 frame_start;
 	u64 frame_end;
 };
@@ -59,13 +66,16 @@ struct vkms_output {
 	struct hrtimer vblank_hrtimer;
 	ktime_t period_ns;
 	struct drm_pending_vblank_event *event;
-	bool crc_enabled;
-	/* ordered wq for crc_work */
-	struct workqueue_struct *crc_workq;
-	/* protects concurrent access to crc_data */
+	/* ordered wq for composer_work */
+	struct workqueue_struct *composer_workq;
+	/* protects concurrent access to composer */
 	spinlock_t lock;
-	/* protects concurrent access to crtc_state */
-	spinlock_t state_lock;
+
+	/* protected by @lock */
+	bool composer_enabled;
+	struct vkms_crtc_state *composer_state;
+
+	spinlock_t composer_lock;
 };
 
 struct vkms_device {
@@ -105,10 +115,10 @@ bool vkms_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 			       int *max_error, ktime_t *vblank_time,
 			       bool in_vblank_irq);
 
-int vkms_output_init(struct vkms_device *vkmsdev);
+int vkms_output_init(struct vkms_device *vkmsdev, int index);
 
 struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev,
-				  enum drm_plane_type type);
+				  enum drm_plane_type type, int index);
 
 /* Gem stuff */
 struct drm_gem_object *vkms_gem_create(struct drm_device *dev,
@@ -133,6 +143,8 @@ const char *const *vkms_get_crc_sources(struct drm_crtc *crtc,
 int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name);
 int vkms_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 			   size_t *values_cnt);
-void vkms_crc_work_handle(struct work_struct *work);
+
+/* Composer Support */
+void vkms_composer_worker(struct work_struct *work);
 
 #endif /* _VKMS_DRV_H_ */

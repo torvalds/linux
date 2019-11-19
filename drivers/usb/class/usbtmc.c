@@ -1836,17 +1836,14 @@ capability_attribute(device_capabilities);
 capability_attribute(usb488_interface_capabilities);
 capability_attribute(usb488_device_capabilities);
 
-static struct attribute *capability_attrs[] = {
+static struct attribute *usbtmc_attrs[] = {
 	&dev_attr_interface_capabilities.attr,
 	&dev_attr_device_capabilities.attr,
 	&dev_attr_usb488_interface_capabilities.attr,
 	&dev_attr_usb488_device_capabilities.attr,
 	NULL,
 };
-
-static const struct attribute_group capability_attr_grp = {
-	.attrs = capability_attrs,
-};
+ATTRIBUTE_GROUPS(usbtmc);
 
 static int usbtmc_ioctl_indicator_pulse(struct usbtmc_device_data *data)
 {
@@ -2386,9 +2383,6 @@ static int usbtmc_probe(struct usb_interface *intf,
 	retcode = get_capabilities(data);
 	if (retcode)
 		dev_err(&intf->dev, "can't read capabilities\n");
-	else
-		retcode = sysfs_create_group(&intf->dev.kobj,
-					     &capability_attr_grp);
 
 	if (data->iin_ep_present) {
 		/* allocate int urb */
@@ -2435,7 +2429,6 @@ static int usbtmc_probe(struct usb_interface *intf,
 	return 0;
 
 error_register:
-	sysfs_remove_group(&intf->dev.kobj, &capability_attr_grp);
 	usbtmc_free_int(data);
 err_put:
 	kref_put(&data->kref, usbtmc_delete);
@@ -2448,7 +2441,6 @@ static void usbtmc_disconnect(struct usb_interface *intf)
 	struct list_head *elem;
 
 	usb_deregister_dev(intf, &usbtmc_class);
-	sysfs_remove_group(&intf->dev.kobj, &capability_attr_grp);
 	mutex_lock(&data->io_mutex);
 	data->zombie = 1;
 	wake_up_interruptible_all(&data->waitq);
@@ -2554,6 +2546,7 @@ static struct usb_driver usbtmc_driver = {
 	.resume		= usbtmc_resume,
 	.pre_reset	= usbtmc_pre_reset,
 	.post_reset	= usbtmc_post_reset,
+	.dev_groups	= usbtmc_groups,
 };
 
 module_usb_driver(usbtmc_driver);

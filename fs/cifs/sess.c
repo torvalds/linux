@@ -698,7 +698,6 @@ sess_auth_lanman(struct sess_data *sess_data)
 	char *bcc_ptr;
 	struct cifs_ses *ses = sess_data->ses;
 	char lnm_session_key[CIFS_AUTH_RESP_SIZE];
-	__u32 capabilities;
 	__u16 bytes_remaining;
 
 	/* lanman 2 style sessionsetup */
@@ -709,7 +708,7 @@ sess_auth_lanman(struct sess_data *sess_data)
 
 	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
 	bcc_ptr = sess_data->iov[2].iov_base;
-	capabilities = cifs_ssetup_hdr(ses, pSMB);
+	(void)cifs_ssetup_hdr(ses, pSMB);
 
 	pSMB->req.hdr.Flags2 &= ~SMBFLG2_UNICODE;
 

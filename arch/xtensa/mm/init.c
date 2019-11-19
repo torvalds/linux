@@ -203,16 +203,6 @@ void __init mem_init(void)
 		(unsigned long)(__bss_stop - __bss_start) >> 10);
 }
 
-#ifdef CONFIG_BLK_DEV_INITRD
-extern int initrd_is_mapped;
-
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	if (initrd_is_mapped)
-		free_reserved_area((void *)start, (void *)end, -1, "initrd");
-}
-#endif
-
 static void __init parse_memmap_one(char *p)
 {
 	char *oldp;
