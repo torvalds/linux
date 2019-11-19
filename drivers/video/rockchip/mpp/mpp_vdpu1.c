@@ -216,10 +216,10 @@ static struct mpp_trans_info vdpu_v1_trans[] = {
 static void *vdpu_alloc_task(struct mpp_session *session,
 			     void __user *src, u32 size)
 {
+	u32 fmt;
+	int err;
 	u32 reg_len;
 	u32 extinf_len;
-	u32 fmt = 0;
-	int err = -EFAULT;
 	struct vdpu_task *task = NULL;
 	u32 dwsize = size / sizeof(u32);
 	struct mpp_dev *mpp = session->mpp;
@@ -243,7 +243,6 @@ static void *vdpu_alloc_task(struct mpp_session *session,
 
 	if (copy_from_user(task->reg, src, reg_len * 4)) {
 		mpp_err("error: copy_from_user failed in reg_init\n");
-		err = -EFAULT;
 		goto fail;
 	}
 
@@ -264,7 +263,6 @@ static void *vdpu_alloc_task(struct mpp_session *session,
 
 		if (err) {
 			mpp_err("copy_from_user failed when extra info\n");
-			err = -EFAULT;
 			goto fail;
 		}
 	}
@@ -301,10 +299,8 @@ static void *vdpu_alloc_task(struct mpp_session *session,
 
 		offset = offset >> 10 << 4;
 		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
-		if (IS_ERR(mem_region)) {
-			err = PTR_ERR(mem_region);
+		if (IS_ERR(mem_region))
 			goto fail;
-		}
 
 		iova = mem_region->iova;
 		mpp_debug(DEBUG_IOMMU, "DMV[%3d]: %3d => %pad + offset %10d\n",
@@ -325,7 +321,7 @@ static void *vdpu_alloc_task(struct mpp_session *session,
 fail:
 	mpp_task_finalize(session, &task->mpp_task);
 	kfree(task);
-	return ERR_PTR(err);
+	return NULL;
 }
 
 static int vdpu_prepare(struct mpp_dev *mpp,

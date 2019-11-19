@@ -600,11 +600,11 @@ done:
 static void *rkvdec_alloc_task(struct mpp_session *session,
 			       void __user *src, u32 size)
 {
+	u32 fmt;
+	int ret;
 	u32 reg_len;
-	u32 fmt = 0;
 	int pps_fd;
 	u32 pps_offset;
-	int ret = -EFAULT;
 	struct rkvdec_task *task = NULL;
 	u32 dwsize = size / sizeof(u32);
 	struct mpp_dev *mpp = session->mpp;
@@ -621,7 +621,6 @@ static void *rkvdec_alloc_task(struct mpp_session *session,
 	reg_len = min(task->hw_info->reg_num, dwsize);
 	if (copy_from_user(task->reg, src, reg_len * 4)) {
 		mpp_err("error: copy_from_user failed in reg_init\n");
-		ret = -EFAULT;
 		goto fail;
 	}
 
@@ -648,10 +647,8 @@ static void *rkvdec_alloc_task(struct mpp_session *session,
 
 		offset = offset >> 10 << 4;
 		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
-		if (IS_ERR(mem_region)) {
-			ret = PTR_ERR(mem_region);
+		if (IS_ERR(mem_region))
 			goto fail;
-		}
 
 		iova = mem_region->iova;
 		task->reg[RKVDEC_REG_VP9_REFCOLMV_BASE_INDEX] = iova + offset;
@@ -731,7 +728,7 @@ static void *rkvdec_alloc_task(struct mpp_session *session,
 fail:
 	mpp_task_finalize(session, &task->mpp_task);
 	kfree(task);
-	return ERR_PTR(ret);
+	return NULL;
 }
 
 static int rkvdec_prepare(struct mpp_dev *mpp,
