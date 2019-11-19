@@ -552,6 +552,21 @@ config LEDS_PWM
 	help
 	  This option enables support for pwm driven LEDs
 
+config LEDS_QTI_FLASH
+	tristate "Support for QTI Flash LEDs"
+	depends on LEDS_CLASS_FLASH
+	depends on MFD_SPMI_PMIC
+	select LEDS_TRIGGERS
+	help
+	  This driver supports flash LED peripheral that is present on
+	  some Qualcomm Technologies, Inc. PMICs (e.g. PM8350C).  It can
+	  configure the flash LED target current for several independent
+	  channels. It also supports various over current and over
+	  temperature mitigation features.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-qti-flash.
+
 config LEDS_REGULATOR
 	tristate "REGULATOR driven LED support"
 	depends on LEDS_CLASS
