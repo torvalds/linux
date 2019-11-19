@@ -504,6 +504,10 @@ void mmhub_v9_4_init(struct amdgpu_device *adev)
 			SOC15_REG_OFFSET(MMHUB, 0,
 			    mmVML2VC0_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32) +
 			    i * MMHUB_INSTANCE_REGISTER_OFFSET;
+		hub[i]->vm_inv_eng0_sem =
+			SOC15_REG_OFFSET(MMHUB, 0,
+					 mmVML2VC0_VM_INVALIDATE_ENG0_SEM) +
+					 i * MMHUB_INSTANCE_REGISTER_OFFSET;
 		hub[i]->vm_inv_eng0_req =
 			SOC15_REG_OFFSET(MMHUB, 0,
 					 mmVML2VC0_VM_INVALIDATE_ENG0_REQ) +
