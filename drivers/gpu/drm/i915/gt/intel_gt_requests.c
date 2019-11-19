@@ -110,9 +110,9 @@ static void retire_work_handler(struct work_struct *work)
 	struct intel_gt *gt =
 		container_of(work, typeof(*gt), requests.retire_work.work);
 
-	intel_gt_retire_requests(gt);
 	schedule_delayed_work(&gt->requests.retire_work,
 			      round_jiffies_up_relative(HZ));
+	intel_gt_retire_requests(gt);
 }
 
 void intel_gt_init_requests(struct intel_gt *gt)
