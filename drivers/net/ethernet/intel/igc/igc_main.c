@@ -56,7 +56,6 @@ static int igc_sw_init(struct igc_adapter *);
 static void igc_write_itr(struct igc_q_vector *q_vector);
 static void igc_assign_vector(struct igc_q_vector *q_vector, int msix_vector);
 static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx);
-static void igc_free_q_vectors(struct igc_adapter *adapter);
 
 enum latency_range {
 	lowest_latency = 0,
@@ -3119,19 +3118,6 @@ msi_only:
 }
 
 /**
- * igc_clear_interrupt_scheme - reset the device to a state of no interrupts
- * @adapter: Pointer to adapter structure
- *
- * This function resets the device so that it has 0 rx queues, tx queues, and
- * MSI-X interrupts allocated.
- */
-static void igc_clear_interrupt_scheme(struct igc_adapter *adapter)
-{
-	igc_free_q_vectors(adapter);
-	igc_reset_interrupt_capability(adapter);
-}
-
-/**
  * igc_free_q_vectors - Free memory allocated for interrupt vectors
  * @adapter: board private structure to initialize
  *
@@ -3151,6 +3137,19 @@ static void igc_free_q_vectors(struct igc_adapter *adapter)
 		igc_reset_q_vector(adapter, v_idx);
 		igc_free_q_vector(adapter, v_idx);
 	}
+}
+
+/**
+ * igc_clear_interrupt_scheme - reset the device to a state of no interrupts
+ * @adapter: Pointer to adapter structure
+ *
+ * This function resets the device so that it has 0 rx queues, tx queues, and
+ * MSI-X interrupts allocated.
+ */
+static void igc_clear_interrupt_scheme(struct igc_adapter *adapter)
+{
+	igc_free_q_vectors(adapter);
+	igc_reset_interrupt_capability(adapter);
 }
 
 /**
