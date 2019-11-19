@@ -3,8 +3,8 @@
 # Makefile for the linux kernel.
 #
 
-# Disable clang warning for using setjmp without setjmp.h header
-CFLAGS_crash.o		+= $(call cc-disable-warning, builtin-requires-header)
+# Avoid clang warnings around longjmp/setjmp declarations
+CFLAGS_crash.o += -ffreestanding
 
 obj-y				+= core.o crash.o core_$(BITS).o
 
