@@ -77,4 +77,6 @@ bool dc_dsc_compute_config(
 void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
 		struct dc_dsc_policy *policy);
 
+void dc_dsc_policy_set_max_target_bpp_limit(uint32_t limit);
+
 #endif

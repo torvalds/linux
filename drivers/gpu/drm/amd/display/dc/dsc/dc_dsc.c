@@ -29,6 +29,9 @@
 
 /* This module's internal functions */
 
+/* default DSC policy target bitrate limit is 16bpp */
+static uint32_t dsc_policy_max_target_bpp_limit = 16;
+
 static uint32_t dc_dsc_bandwidth_in_kbps_from_timing(
 	const struct dc_crtc_timing *timing)
 {
@@ -951,7 +954,12 @@ void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing, struct dc
 	default:
 		return;
 	}
-	/* internal upper limit to 16 bpp */
-	if (policy->max_target_bpp > 16)
-		policy->max_target_bpp = 16;
+	/* internal upper limit, default 16 bpp */
+	if (policy->max_target_bpp > dsc_policy_max_target_bpp_limit)
+		policy->max_target_bpp = dsc_policy_max_target_bpp_limit;
+}
+
+void dc_dsc_policy_set_max_target_bpp_limit(uint32_t limit)
+{
+	dsc_policy_max_target_bpp_limit = limit;
 }
