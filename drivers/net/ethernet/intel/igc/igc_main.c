@@ -59,7 +59,6 @@ static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx);
 static void igc_free_q_vectors(struct igc_adapter *adapter);
 static void igc_irq_disable(struct igc_adapter *adapter);
 static void igc_irq_enable(struct igc_adapter *adapter);
-static void igc_configure_msix(struct igc_adapter *adapter);
 
 enum latency_range {
 	lowest_latency = 0,
@@ -2201,6 +2200,50 @@ static void igc_configure(struct igc_adapter *adapter)
 }
 
 /**
+ * igc_configure_msix - Configure MSI-X hardware
+ * @adapter: Pointer to adapter structure
+ *
+ * igc_configure_msix sets up the hardware to properly
+ * generate MSI-X interrupts.
+ */
+static void igc_configure_msix(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int i, vector = 0;
+	u32 tmp;
+
+	adapter->eims_enable_mask = 0;
+
+	/* set vector for other causes, i.e. link changes */
+	switch (hw->mac.type) {
+	case igc_i225:
+		/* Turn on MSI-X capability first, or our settings
+		 * won't stick.  And it will take days to debug.
+		 */
+		wr32(IGC_GPIE, IGC_GPIE_MSIX_MODE |
+		     IGC_GPIE_PBA | IGC_GPIE_EIAME |
+		     IGC_GPIE_NSICR);
+
+		/* enable msix_other interrupt */
+		adapter->eims_other = BIT(vector);
+		tmp = (vector++ | IGC_IVAR_VALID) << 8;
+
+		wr32(IGC_IVAR_MISC, tmp);
+		break;
+	default:
+		/* do nothing, since nothing else supports MSI-X */
+		break;
+	} /* switch (hw->mac.type) */
+
+	adapter->eims_enable_mask |= adapter->eims_other;
+
+	for (i = 0; i < adapter->num_q_vectors; i++)
+		igc_assign_vector(adapter->q_vector[i], vector++);
+
+	wrfl();
+}
+
+/**
  * igc_up - Open the interface and prepare it to handle traffic
  * @adapter: board private structure
  */
@@ -2835,50 +2878,6 @@ static void igc_assign_vector(struct igc_q_vector *q_vector, int msix_vector)
 
 	/* configure q_vector to set itr on first interrupt */
 	q_vector->set_itr = 1;
-}
-
-/**
- * igc_configure_msix - Configure MSI-X hardware
- * @adapter: Pointer to adapter structure
- *
- * igc_configure_msix sets up the hardware to properly
- * generate MSI-X interrupts.
- */
-static void igc_configure_msix(struct igc_adapter *adapter)
-{
-	struct igc_hw *hw = &adapter->hw;
-	int i, vector = 0;
-	u32 tmp;
-
-	adapter->eims_enable_mask = 0;
-
-	/* set vector for other causes, i.e. link changes */
-	switch (hw->mac.type) {
-	case igc_i225:
-		/* Turn on MSI-X capability first, or our settings
-		 * won't stick.  And it will take days to debug.
-		 */
-		wr32(IGC_GPIE, IGC_GPIE_MSIX_MODE |
-		     IGC_GPIE_PBA | IGC_GPIE_EIAME |
-		     IGC_GPIE_NSICR);
-
-		/* enable msix_other interrupt */
-		adapter->eims_other = BIT(vector);
-		tmp = (vector++ | IGC_IVAR_VALID) << 8;
-
-		wr32(IGC_IVAR_MISC, tmp);
-		break;
-	default:
-		/* do nothing, since nothing else supports MSI-X */
-		break;
-	} /* switch (hw->mac.type) */
-
-	adapter->eims_enable_mask |= adapter->eims_other;
-
-	for (i = 0; i < adapter->num_q_vectors; i++)
-		igc_assign_vector(adapter->q_vector[i], vector++);
-
-	wrfl();
 }
 
 static irqreturn_t igc_msix_ring(int irq, void *data)
