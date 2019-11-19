@@ -39,3 +39,5 @@ selftest(hangcheck, intel_hangcheck_live_selftests)
 selftest(execlists, intel_execlists_live_selftests)
 selftest(guc, intel_guc_live_selftest)
 selftest(perf, i915_perf_live_selftests)
+/* Here be dragons: keep last to run last! */
+selftest(late_gt_pm, intel_gt_pm_late_selftests)

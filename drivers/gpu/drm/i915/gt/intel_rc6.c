@@ -783,3 +783,7 @@ u64 intel_rc6_residency_us(struct intel_rc6 *rc6, i915_reg_t reg)
 {
 	return DIV_ROUND_UP_ULL(intel_rc6_residency_ns(rc6, reg), 1000);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_rc6.c"
+#endif
