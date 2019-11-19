@@ -356,6 +356,10 @@ struct cpsw_common {
 	int				speed;
 	int				usage_count;
 	struct page_pool		*page_pool[CPSW_MAX_QUEUES];
+	u8 br_members;
+	struct net_device *hw_bridge_dev;
+	bool ale_bypass;
+	u8 base_mac[ETH_ALEN];
 };
 
 struct cpsw_priv {
@@ -376,6 +380,7 @@ struct cpsw_priv {
 
 	u32 emac_port;
 	struct cpsw_common *cpsw;
+	int offload_fwd_mark;
 };
 
 #define ndev_to_cpsw(ndev) (((struct cpsw_priv *)netdev_priv(ndev))->cpsw)
