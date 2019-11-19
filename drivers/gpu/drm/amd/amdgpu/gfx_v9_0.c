@@ -131,18 +131,6 @@ MODULE_FIRMWARE("amdgpu/renoir_rlc.bin");
 #define mmTCP_CHAN_STEER_5_ARCT								0x0b0c
 #define mmTCP_CHAN_STEER_5_ARCT_BASE_IDX							0
 
-struct ras_gfx_subblock_reg {
-	const char *name;
-	uint32_t hwip;
-	uint32_t inst;
-	uint32_t seg;
-	uint32_t reg_offset;
-	uint32_t sec_count_mask;
-	uint32_t sec_count_shift;
-	uint32_t ded_count_mask;
-	uint32_t ded_count_shift;
-};
-
 enum ta_ras_gfx_subblock {
 	/*CPC*/
 	TA_RAS_BLOCK__GFX_CPC_INDEX_START = 0,
@@ -5484,7 +5472,7 @@ static int gfx_v9_0_priv_inst_irq(struct amdgpu_device *adev,
 }
 
 
-static const struct ras_gfx_subblock_reg ras_subblock_regs[] = {
+static const struct soc15_ras_field_entry gc_ras_fields_vg20[] = {
 	{ "CPC_SCRATCH", SOC15_REG_ENTRY(GC, 0, mmCPC_EDC_SCRATCH_CNT),
 	  SOC15_REG_FIELD(CPC_EDC_SCRATCH_CNT, SEC_COUNT),
 	  SOC15_REG_FIELD(CPC_EDC_SCRATCH_CNT, DED_COUNT)
@@ -6143,29 +6131,29 @@ static int __get_ras_error_count(const struct soc15_reg_entry *reg,
 	uint32_t i;
 	uint32_t sec_cnt, ded_cnt;
 
-	for (i = 0; i < ARRAY_SIZE(ras_subblock_regs); i++) {
-		if(ras_subblock_regs[i].reg_offset != reg->reg_offset ||
-			ras_subblock_regs[i].seg != reg->seg ||
-			ras_subblock_regs[i].inst != reg->inst)
+	for (i = 0; i < ARRAY_SIZE(gc_ras_fields_vg20); i++) {
+		if(gc_ras_fields_vg20[i].reg_offset != reg->reg_offset ||
+			gc_ras_fields_vg20[i].seg != reg->seg ||
+			gc_ras_fields_vg20[i].inst != reg->inst)
 			continue;
 
 		sec_cnt = (value &
-				ras_subblock_regs[i].sec_count_mask) >>
-				ras_subblock_regs[i].sec_count_shift;
+				gc_ras_fields_vg20[i].sec_count_mask) >>
+				gc_ras_fields_vg20[i].sec_count_shift;
 		if (sec_cnt) {
 			DRM_INFO("GFX SubBlock %s, Instance[%d][%d], SEC %d\n",
-				ras_subblock_regs[i].name,
+				gc_ras_fields_vg20[i].name,
 				se_id, inst_id,
 				sec_cnt);
 			*sec_count += sec_cnt;
 		}
 
 		ded_cnt = (value &
-				ras_subblock_regs[i].ded_count_mask) >>
-				ras_subblock_regs[i].ded_count_shift;
+				gc_ras_fields_vg20[i].ded_count_mask) >>
+				gc_ras_fields_vg20[i].ded_count_shift;
 		if (ded_cnt) {
 			DRM_INFO("GFX SubBlock %s, Instance[%d][%d], DED %d\n",
-				ras_subblock_regs[i].name,
+				gc_ras_fields_vg20[i].name,
 				se_id, inst_id,
 				ded_cnt);
 			*ded_count += ded_cnt;
