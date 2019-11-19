@@ -942,12 +942,12 @@ static void io_fail_links(struct io_kiocb *req)
 		if ((req->flags & REQ_F_LINK_TIMEOUT) &&
 		    link->submit.sqe->opcode == IORING_OP_LINK_TIMEOUT) {
 			io_link_cancel_timeout(link);
-			req->flags &= ~REQ_F_LINK_TIMEOUT;
 		} else {
 			io_cqring_fill_event(link, -ECANCELED);
 			__io_double_put_req(link);
 		}
 		kfree(sqe_to_free);
+		req->flags &= ~REQ_F_LINK_TIMEOUT;
 	}
 
 	io_commit_cqring(ctx);
@@ -2837,9 +2837,10 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	 */
 	if (!list_empty(&req->list)) {
 		prev = list_entry(req->list.prev, struct io_kiocb, link_list);
-		if (refcount_inc_not_zero(&prev->refs))
+		if (refcount_inc_not_zero(&prev->refs)) {
 			list_del_init(&req->list);
-		else
+			prev->flags &= ~REQ_F_LINK_TIMEOUT;
+		} else
 			prev = NULL;
 	}
 
