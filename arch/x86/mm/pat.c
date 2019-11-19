@@ -61,10 +61,10 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "" fmt
 
-static bool __read_mostly boot_cpu_done;
+static bool __read_mostly pat_bp_initialized;
 static bool __read_mostly pat_disabled = !IS_ENABLED(CONFIG_X86_PAT);
-static bool __read_mostly pat_initialized;
-static bool __read_mostly init_cm_done;
+static bool __read_mostly pat_bp_enabled;
+static bool __read_mostly pat_cm_initialized;
 
 /*
  * PAT support is enabled by default, but can be disabled for
@@ -75,7 +75,7 @@ void pat_disable(const char *msg_reason)
 	if (pat_disabled)
 		return;
 
-	if (boot_cpu_done) {
+	if (pat_bp_initialized) {
 		WARN_ONCE(1, "x86/PAT: PAT cannot be disabled after initialization\n");
 		return;
 	}
@@ -93,7 +93,7 @@ early_param("nopat", nopat);
 
 bool pat_enabled(void)
 {
-	return pat_initialized;
+	return pat_bp_enabled;
 }
 EXPORT_SYMBOL_GPL(pat_enabled);
 
@@ -224,6 +224,8 @@ static void __init_cache_modes(u64 pat)
 	char pat_msg[33];
 	int i;
 
+	WARN_ON_ONCE(pat_cm_initialized);
+
 	pat_msg[32] = 0;
 	for (i = 7; i >= 0; i--) {
 		cache = pat_get_cache_mode((pat >> (i * 8)) & 7,
@@ -232,12 +234,12 @@ static void __init_cache_modes(u64 pat)
 	}
 	pr_info("x86/PAT: Configuration [0-7]: %s\n", pat_msg);
 
-	init_cm_done = true;
+	pat_cm_initialized = true;
 }
 
 #define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
 
-static void pat_bsp_init(u64 pat)
+static void pat_bp_init(u64 pat)
 {
 	u64 tmp_pat;
 
@@ -253,7 +255,7 @@ static void pat_bsp_init(u64 pat)
 	}
 
 	wrmsrl(MSR_IA32_CR_PAT, pat);
-	pat_initialized = true;
+	pat_bp_enabled = true;
 
 	__init_cache_modes(pat);
 }
@@ -275,7 +277,7 @@ void init_cache_modes(void)
 {
 	u64 pat = 0;
 
-	if (init_cm_done)
+	if (pat_cm_initialized)
 		return;
 
 	if (boot_cpu_has(X86_FEATURE_PAT)) {
@@ -395,9 +397,9 @@ void pat_init(void)
 		      PAT(4, WB) | PAT(5, WP) | PAT(6, UC_MINUS) | PAT(7, WT);
 	}
 
-	if (!boot_cpu_done) {
-		pat_bsp_init(pat);
-		boot_cpu_done = true;
+	if (!pat_bp_initialized) {
+		pat_bp_init(pat);
+		pat_bp_initialized = true;
 	} else {
 		pat_ap_init(pat);
 	}
