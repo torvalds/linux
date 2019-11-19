@@ -1801,19 +1801,30 @@ static void ingenic_set_bias(struct ingenic_pinctrl *jzpc,
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_PULL_DIS, !enabled);
 }
 
+static void ingenic_set_output_level(struct ingenic_pinctrl *jzpc,
+				     unsigned int pin, bool high)
+{
+	if (jzpc->version >= ID_JZ4770)
+		ingenic_config_pin(jzpc, pin, JZ4760_GPIO_PAT0, high);
+	else
+		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_DATA, high);
+}
+
 static int ingenic_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		unsigned long *configs, unsigned int num_configs)
 {
 	struct ingenic_pinctrl *jzpc = pinctrl_dev_get_drvdata(pctldev);
 	unsigned int idx = pin % PINS_PER_GPIO_CHIP;
 	unsigned int offt = pin / PINS_PER_GPIO_CHIP;
-	unsigned int cfg;
+	unsigned int cfg, arg;
+	int ret;
 
 	for (cfg = 0; cfg < num_configs; cfg++) {
 		switch (pinconf_to_config_param(configs[cfg])) {
 		case PIN_CONFIG_BIAS_DISABLE:
 		case PIN_CONFIG_BIAS_PULL_UP:
 		case PIN_CONFIG_BIAS_PULL_DOWN:
+		case PIN_CONFIG_OUTPUT:
 			continue;
 		default:
 			return -ENOTSUPP;
@@ -1821,6 +1832,8 @@ static int ingenic_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	}
 
 	for (cfg = 0; cfg < num_configs; cfg++) {
+		arg = pinconf_to_config_argument(configs[cfg]);
+
 		switch (pinconf_to_config_param(configs[cfg])) {
 		case PIN_CONFIG_BIAS_DISABLE:
 			dev_dbg(jzpc->dev, "disable pull-over for pin P%c%u\n",
@@ -1842,6 +1855,14 @@ static int ingenic_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			dev_dbg(jzpc->dev, "set pull-down for pin P%c%u\n",
 					'A' + offt, idx);
 			ingenic_set_bias(jzpc, pin, true);
+			break;
+
+		case PIN_CONFIG_OUTPUT:
+			ret = pinctrl_gpio_direction_output(pin);
+			if (ret)
+				return ret;
+
+			ingenic_set_output_level(jzpc, pin, arg);
 			break;
 
 		default:
