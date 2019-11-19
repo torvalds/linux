@@ -68,5 +68,6 @@ EXPORT_SYMBOL(__arch_copy_in_user)
 	.section .fixup,"ax"
 	.align	2
 9998:	sub	x0, end, dst			// bytes not copied
+	uaccess_disable_not_uao x3, x4
 	ret
 	.previous
