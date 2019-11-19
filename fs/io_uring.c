@@ -2958,6 +2958,8 @@ static void io_queue_sqe(struct io_kiocb *req)
 	if (ret) {
 		if (ret != -EIOCBQUEUED) {
 			io_cqring_add_event(req, ret);
+			if (req->flags & REQ_F_LINK)
+				req->flags |= REQ_F_FAIL_LINK;
 			io_double_put_req(req);
 		}
 	} else
@@ -2990,6 +2992,8 @@ static void io_queue_link_head(struct io_kiocb *req, struct io_kiocb *shadow)
 		if (ret != -EIOCBQUEUED) {
 err:
 			io_cqring_add_event(req, ret);
+			if (req->flags & REQ_F_LINK)
+				req->flags |= REQ_F_FAIL_LINK;
 			io_double_put_req(req);
 			if (shadow)
 				__io_free_req(shadow);
