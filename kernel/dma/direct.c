@@ -363,7 +363,7 @@ static inline bool dma_direct_possible(struct device *dev, dma_addr_t dma_addr,
 		size_t size)
 {
 	return swiotlb_force != SWIOTLB_FORCE &&
-		dma_capable(dev, dma_addr, size);
+		dma_capable(dev, dma_addr, size, true);
 }
 
 dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
@@ -412,7 +412,7 @@ dma_addr_t dma_direct_map_resource(struct device *dev, phys_addr_t paddr,
 {
 	dma_addr_t dma_addr = paddr;
 
-	if (unlikely(!dma_capable(dev, dma_addr, size))) {
+	if (unlikely(!dma_capable(dev, dma_addr, size, false))) {
 		report_addr(dev, dma_addr, size);
 		return DMA_MAPPING_ERROR;
 	}
