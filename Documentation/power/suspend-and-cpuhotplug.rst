@@ -106,8 +106,8 @@ execution during resume):
 * Release system_transition_mutex lock.
 
 
-It is to be noted here that the system_transition_mutex lock is acquired at the very
-beginning, when we are just starting out to suspend, and then released only
+It is to be noted here that the system_transition_mutex lock is acquired at the
+very beginning, when we are just starting out to suspend, and then released only
 after the entire cycle is complete (i.e., suspend + resume).
 
 ::
@@ -165,7 +165,8 @@ Important files and functions/entry points:
 
 - kernel/power/process.c : freeze_processes(), thaw_processes()
 - kernel/power/suspend.c : suspend_prepare(), suspend_enter(), suspend_finish()
-- kernel/cpu.c: cpu_[up|down](), _cpu_[up|down](), [disable|enable]_nonboot_cpus()
+- kernel/cpu.c: cpu_[up|down](), _cpu_[up|down](),
+  [disable|enable]_nonboot_cpus()
 
 
 
