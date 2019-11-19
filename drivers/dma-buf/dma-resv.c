@@ -100,7 +100,9 @@ static void dma_resv_list_free(struct dma_resv_list *list)
 static int __init dma_resv_lockdep(void)
 {
 	struct mm_struct *mm = mm_alloc();
+	struct ww_acquire_ctx ctx;
 	struct dma_resv obj;
+	int ret;
 
 	if (!mm)
 		return -ENOMEM;
@@ -108,10 +110,14 @@ static int __init dma_resv_lockdep(void)
 	dma_resv_init(&obj);
 
 	down_read(&mm->mmap_sem);
-	ww_mutex_lock(&obj.lock, NULL);
+	ww_acquire_init(&ctx, &reservation_ww_class);
+	ret = dma_resv_lock(&obj, &ctx);
+	if (ret == -EDEADLK)
+		dma_resv_lock_slow(&obj, &ctx);
 	fs_reclaim_acquire(GFP_KERNEL);
 	fs_reclaim_release(GFP_KERNEL);
 	ww_mutex_unlock(&obj.lock);
+	ww_acquire_fini(&ctx);
 	up_read(&mm->mmap_sem);
 	
 	mmput(mm);
