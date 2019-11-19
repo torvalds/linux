@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config HAVE_ARCH_KCSAN
+	bool
+
+menuconfig KCSAN
+	bool "KCSAN: watchpoint-based dynamic data race detector"
+	depends on HAVE_ARCH_KCSAN && !KASAN && STACKTRACE
+	default n
+	help
+	  Kernel Concurrency Sanitizer is a dynamic data race detector, which
+	  uses a watchpoint-based sampling approach to detect races. See
+	  <file:Documentation/dev-tools/kcsan.rst> for more details.
+
+if KCSAN
+
+config KCSAN_DEBUG
+	bool "Debugging of KCSAN internals"
+	default n
+
+config KCSAN_SELFTEST
+	bool "Perform short selftests on boot"
+	default y
+	help
+	  Run KCSAN selftests on boot. On test failure, causes kernel to panic.
+
+config KCSAN_EARLY_ENABLE
+	bool "Early enable during boot"
+	default y
+	help
+	  If KCSAN should be enabled globally as soon as possible. KCSAN can
+	  later be enabled/disabled via debugfs.
+
+config KCSAN_NUM_WATCHPOINTS
+	int "Number of available watchpoints"
+	default 64
+	help
+	  Total number of available watchpoints. An address range maps into a
+	  specific watchpoint slot as specified in kernel/kcsan/encoding.h.
+	  Although larger number of watchpoints may not be usable due to
+	  limited number of CPUs, a larger value helps to improve performance
+	  due to reducing cache-line contention. The chosen default is a
+	  conservative value; we should almost never observe "no_capacity"
+	  events (see /sys/kernel/debug/kcsan).
+
+config KCSAN_UDELAY_TASK
+	int "Delay in microseconds (for tasks)"
+	default 80
+	help
+	  For tasks, the microsecond delay after setting up a watchpoint.
+
+config KCSAN_UDELAY_INTERRUPT
+	int "Delay in microseconds (for interrupts)"
+	default 20
+	help
+	  For interrupts, the microsecond delay after setting up a watchpoint.
+	  Interrupts have tighter latency requirements, and their delay should
+	  be lower than for tasks.
+
+config KCSAN_DELAY_RANDOMIZE
+	bool "Randomize above delays"
+	default y
+	help
+	  If delays should be randomized, where the maximum is KCSAN_UDELAY_*.
+	  If false, the chosen delays are always KCSAN_UDELAY_* defined above.
+
+config KCSAN_SKIP_WATCH
+	int "Skip instructions before setting up watchpoint"
+	default 4000
+	help
+	  The number of per-CPU memory operations to skip, before another
+	  watchpoint is set up, i.e. one in KCSAN_WATCH_SKIP per-CPU
+	  memory operations are used to set up a watchpoint. A smaller value
+	  results in more aggressive race detection, whereas a larger value
+	  improves system performance at the cost of missing some races.
+
+config KCSAN_SKIP_WATCH_RANDOMIZE
+	bool "Randomize watchpoint instruction skip count"
+	default y
+	help
+	  If instruction skip count should be randomized, where the maximum is
+	  KCSAN_WATCH_SKIP. If false, the chosen value is always
+	  KCSAN_WATCH_SKIP.
+
+# Note that, while some of the below options could be turned into boot
+# parameters, to optimize for the common use-case, we avoid this because: (a)
+# it would impact performance (and we want to avoid static branch for all
+# {READ,WRITE}_ONCE, atomic_*, bitops, etc.), and (b) complicate the design
+# without real benefit. The main purpose of the below options are for use in
+# fuzzer configs to control reported data races, and are not expected to be
+# switched frequently by a user.
+
+config KCSAN_REPORT_RACE_UNKNOWN_ORIGIN
+	bool "Report races of unknown origin"
+	default y
+	help
+	  If KCSAN should report races where only one access is known, and the
+	  conflicting access is of unknown origin. This type of race is
+	  reported if it was only possible to infer a race due to a data value
+	  change while an access is being delayed on a watchpoint.
+
+config KCSAN_REPORT_VALUE_CHANGE_ONLY
+	bool "Only report races where watcher observed a data value change"
+	default y
+	help
+	  If enabled and a conflicting write is observed via watchpoint, but
+	  the data value of the memory location was observed to remain
+	  unchanged, do not report the data race.
+
+config KCSAN_IGNORE_ATOMICS
+	bool "Do not instrument marked atomic accesses"
+	default n
+	help
+	  If enabled, never instruments marked atomic accesses. This results in
+	  not reporting data races where one access is atomic and the other is
+	  a plain access.
+
+endif # KCSAN
