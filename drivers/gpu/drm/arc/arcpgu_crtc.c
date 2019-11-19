@@ -32,6 +32,7 @@ static void arc_pgu_set_pxl_fmt(struct drm_crtc *crtc)
 	uint32_t pixel_format = fb->format->format;
 	struct simplefb_format *format = NULL;
 	int i;
+	u32 reg_ctrl;
 
 	for (i = 0; i < ARRAY_SIZE(supported_formats); i++) {
 		if (supported_formats[i].fourcc == pixel_format)
@@ -41,11 +42,12 @@ static void arc_pgu_set_pxl_fmt(struct drm_crtc *crtc)
 	if (WARN_ON(!format))
 		return;
 
-	if (format->fourcc == DRM_FORMAT_RGB888)
-		arc_pgu_write(arcpgu, ARCPGU_REG_CTRL,
-			      arc_pgu_read(arcpgu, ARCPGU_REG_CTRL) |
-					   ARCPGU_MODE_RGB888_MASK);
-
+	reg_ctrl = arc_pgu_read(arcpgu, ARCPGU_REG_CTRL);
+	if (format->fourcc == DRM_FORMAT_RGB565)
+		reg_ctrl &= ~ARCPGU_MODE_RGB888_MASK;
+	else
+		reg_ctrl |= ARCPGU_MODE_RGB888_MASK;
+	arc_pgu_write(arcpgu, ARCPGU_REG_CTRL, reg_ctrl);
 }
 
 static const struct drm_crtc_funcs arc_pgu_crtc_funcs = {
