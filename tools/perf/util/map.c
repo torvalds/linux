@@ -144,8 +144,8 @@ void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 }
 
 struct map *map__new(struct machine *machine, u64 start, u64 len,
-		     u64 pgoff, u32 d_maj, u32 d_min, u64 ino,
-		     u64 ino_gen, u32 prot, u32 flags, char *filename,
+		     u64 pgoff, struct dso_id *id,
+		     u32 prot, u32 flags, char *filename,
 		     struct thread *thread)
 {
 	struct map *map = malloc(sizeof(*map));
@@ -162,10 +162,11 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		vdso = is_vdso_map(filename);
 		no_dso = is_no_dso_memory(filename);
 
-		map->dso_id.maj = d_maj;
-		map->dso_id.min = d_min;
-		map->dso_id.ino = ino;
-		map->dso_id.ino_generation = ino_gen;
+		if (id)
+			map->dso_id = *id;
+		else
+			map->dso_id.min = map->dso_id.ino = map->dso_id.ino_generation = 0;
+
 		map->prot = prot;
 		map->flags = flags;
 		nsi = nsinfo__get(thread->nsinfo);
