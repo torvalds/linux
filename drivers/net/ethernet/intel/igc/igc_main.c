@@ -54,7 +54,6 @@ MODULE_DEVICE_TABLE(pci, igc_pci_tbl);
 /* forward declaration */
 static int igc_sw_init(struct igc_adapter *);
 static void igc_configure(struct igc_adapter *adapter);
-static void igc_power_down_link(struct igc_adapter *adapter);
 static void igc_set_default_mac_filter(struct igc_adapter *adapter);
 static void igc_set_rx_mode(struct net_device *netdev);
 static void igc_write_itr(struct igc_q_vector *q_vector);
@@ -75,6 +74,16 @@ enum latency_range {
 	bulk_latency = 2,
 	latency_invalid = 255
 };
+
+/**
+ * igc_power_down_link - Power down the phy/serdes link
+ * @adapter: address of board private structure
+ */
+static void igc_power_down_link(struct igc_adapter *adapter)
+{
+	if (adapter->hw.phy.media_type == igc_media_type_copper)
+		igc_power_down_phy_copper_base(&adapter->hw);
+}
 
 void igc_reset(struct igc_adapter *adapter)
 {
@@ -125,16 +134,6 @@ static void igc_power_up_link(struct igc_adapter *adapter)
 		igc_power_up_phy_copper(&adapter->hw);
 
 	igc_setup_link(&adapter->hw);
-}
-
-/**
- * igc_power_down_link - Power down the phy link
- * @adapter: address of board private structure
- */
-static void igc_power_down_link(struct igc_adapter *adapter)
-{
-	if (adapter->hw.phy.media_type == igc_media_type_copper)
-		igc_power_down_phy_copper_base(&adapter->hw);
 }
 
 /**
