@@ -197,6 +197,16 @@ static int lp_gpio_direction_output(struct gpio_chip *chip, unsigned int offset,
 	return 0;
 }
 
+static int lp_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
+{
+	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
+
+	if (ioread32(reg) & DIR_BIT)
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
+}
+
 static void lp_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
@@ -391,6 +401,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->direction_output = lp_gpio_direction_output;
 	gc->get = lp_gpio_get;
 	gc->set = lp_gpio_set;
+	gc->get_direction = lp_gpio_get_direction;
 	gc->base = -1;
 	gc->ngpio = LP_NUM_GPIO;
 	gc->can_sleep = false;
