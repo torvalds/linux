@@ -69,6 +69,7 @@
 		mod-def0-gpio = <&gpiosb 3 GPIO_ACTIVE_LOW>;
 		tx-disable-gpio = <&gpiosb 4 GPIO_ACTIVE_HIGH>;
 		tx-fault-gpio = <&gpiosb 5 GPIO_ACTIVE_HIGH>;
+		maximum-power-milliwatt = <3000>;
 	};
 
 	sfp_eth1: sfp-eth1 {
@@ -78,6 +79,7 @@
 		mod-def0-gpio = <&gpiosb 8 GPIO_ACTIVE_LOW>;
 		tx-disable-gpio = <&gpiosb 9 GPIO_ACTIVE_HIGH>;
 		tx-fault-gpio = <&gpiosb 10 GPIO_ACTIVE_HIGH>;
+		maximum-power-milliwatt = <3000>;
 	};
 };
 
