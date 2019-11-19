@@ -57,8 +57,6 @@ static void igc_set_rx_mode(struct net_device *netdev);
 static void igc_write_itr(struct igc_q_vector *q_vector);
 static void igc_assign_vector(struct igc_q_vector *q_vector, int msix_vector);
 static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx);
-static void igc_set_interrupt_capability(struct igc_adapter *adapter,
-					 bool msix);
 static void igc_free_q_vectors(struct igc_adapter *adapter);
 static void igc_irq_disable(struct igc_adapter *adapter);
 static void igc_irq_enable(struct igc_adapter *adapter);
@@ -2999,6 +2997,76 @@ static void igc_reset_interrupt_capability(struct igc_adapter *adapter)
 }
 
 /**
+ * igc_set_interrupt_capability - set MSI or MSI-X if supported
+ * @adapter: Pointer to adapter structure
+ * @msix: boolean value for MSI-X capability
+ *
+ * Attempt to configure interrupts using the best available
+ * capabilities of the hardware and kernel.
+ */
+static void igc_set_interrupt_capability(struct igc_adapter *adapter,
+					 bool msix)
+{
+	int numvecs, i;
+	int err;
+
+	if (!msix)
+		goto msi_only;
+	adapter->flags |= IGC_FLAG_HAS_MSIX;
+
+	/* Number of supported queues. */
+	adapter->num_rx_queues = adapter->rss_queues;
+
+	adapter->num_tx_queues = adapter->rss_queues;
+
+	/* start with one vector for every Rx queue */
+	numvecs = adapter->num_rx_queues;
+
+	/* if Tx handler is separate add 1 for every Tx queue */
+	if (!(adapter->flags & IGC_FLAG_QUEUE_PAIRS))
+		numvecs += adapter->num_tx_queues;
+
+	/* store the number of vectors reserved for queues */
+	adapter->num_q_vectors = numvecs;
+
+	/* add 1 vector for link status interrupts */
+	numvecs++;
+
+	adapter->msix_entries = kcalloc(numvecs, sizeof(struct msix_entry),
+					GFP_KERNEL);
+
+	if (!adapter->msix_entries)
+		return;
+
+	/* populate entry values */
+	for (i = 0; i < numvecs; i++)
+		adapter->msix_entries[i].entry = i;
+
+	err = pci_enable_msix_range(adapter->pdev,
+				    adapter->msix_entries,
+				    numvecs,
+				    numvecs);
+	if (err > 0)
+		return;
+
+	kfree(adapter->msix_entries);
+	adapter->msix_entries = NULL;
+
+	igc_reset_interrupt_capability(adapter);
+
+msi_only:
+	adapter->flags &= ~IGC_FLAG_HAS_MSIX;
+
+	adapter->rss_queues = 1;
+	adapter->flags |= IGC_FLAG_QUEUE_PAIRS;
+	adapter->num_rx_queues = 1;
+	adapter->num_tx_queues = 1;
+	adapter->num_q_vectors = 1;
+	if (!pci_enable_msi(adapter->pdev))
+		adapter->flags |= IGC_FLAG_HAS_MSI;
+}
+
+/**
  * igc_clear_interrupt_scheme - reset the device to a state of no interrupts
  * @adapter: Pointer to adapter structure
  *
@@ -3628,76 +3696,6 @@ static int igc_poll(struct napi_struct *napi, int budget)
 		igc_ring_irq_enable(q_vector);
 
 	return min(work_done, budget - 1);
-}
-
-/**
- * igc_set_interrupt_capability - set MSI or MSI-X if supported
- * @adapter: Pointer to adapter structure
- * @msix: boolean value for MSI-X capability
- *
- * Attempt to configure interrupts using the best available
- * capabilities of the hardware and kernel.
- */
-static void igc_set_interrupt_capability(struct igc_adapter *adapter,
-					 bool msix)
-{
-	int numvecs, i;
-	int err;
-
-	if (!msix)
-		goto msi_only;
-	adapter->flags |= IGC_FLAG_HAS_MSIX;
-
-	/* Number of supported queues. */
-	adapter->num_rx_queues = adapter->rss_queues;
-
-	adapter->num_tx_queues = adapter->rss_queues;
-
-	/* start with one vector for every Rx queue */
-	numvecs = adapter->num_rx_queues;
-
-	/* if Tx handler is separate add 1 for every Tx queue */
-	if (!(adapter->flags & IGC_FLAG_QUEUE_PAIRS))
-		numvecs += adapter->num_tx_queues;
-
-	/* store the number of vectors reserved for queues */
-	adapter->num_q_vectors = numvecs;
-
-	/* add 1 vector for link status interrupts */
-	numvecs++;
-
-	adapter->msix_entries = kcalloc(numvecs, sizeof(struct msix_entry),
-					GFP_KERNEL);
-
-	if (!adapter->msix_entries)
-		return;
-
-	/* populate entry values */
-	for (i = 0; i < numvecs; i++)
-		adapter->msix_entries[i].entry = i;
-
-	err = pci_enable_msix_range(adapter->pdev,
-				    adapter->msix_entries,
-				    numvecs,
-				    numvecs);
-	if (err > 0)
-		return;
-
-	kfree(adapter->msix_entries);
-	adapter->msix_entries = NULL;
-
-	igc_reset_interrupt_capability(adapter);
-
-msi_only:
-	adapter->flags &= ~IGC_FLAG_HAS_MSIX;
-
-	adapter->rss_queues = 1;
-	adapter->flags |= IGC_FLAG_QUEUE_PAIRS;
-	adapter->num_rx_queues = 1;
-	adapter->num_tx_queues = 1;
-	adapter->num_q_vectors = 1;
-	if (!pci_enable_msi(adapter->pdev))
-		adapter->flags |= IGC_FLAG_HAS_MSI;
 }
 
 static void igc_add_ring(struct igc_ring *ring,
