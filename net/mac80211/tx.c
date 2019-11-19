@@ -3677,7 +3677,8 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_txq *ret = NULL;
-	struct txq_info *txqi = NULL;
+	struct txq_info *txqi = NULL, *head = NULL;
+	bool found_eligible_txq = false;
 
 	spin_lock_bh(&local->active_txq_lock[ac]);
 
@@ -3688,13 +3689,30 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 	if (!txqi)
 		goto out;
 
+	if (txqi == head) {
+		if (!found_eligible_txq)
+			goto out;
+		else
+			found_eligible_txq = false;
+	}
+
+	if (!head)
+		head = txqi;
+
 	if (txqi->txq.sta) {
 		struct sta_info *sta = container_of(txqi->txq.sta,
-						struct sta_info, sta);
+						    struct sta_info, sta);
+		bool aql_check = ieee80211_txq_airtime_check(hw, &txqi->txq);
+		s64 deficit = sta->airtime[txqi->txq.ac].deficit;
 
-		if (sta->airtime[txqi->txq.ac].deficit < 0) {
+		if (aql_check)
+			found_eligible_txq = true;
+
+		if (deficit < 0)
 			sta->airtime[txqi->txq.ac].deficit +=
 				sta->airtime_weight;
+
+		if (deficit < 0 || !aql_check) {
 			list_move_tail(&txqi->schedule_order,
 				       &local->active_txqs[txqi->txq.ac]);
 			goto begin;
@@ -3747,6 +3765,33 @@ void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
 	spin_unlock_bh(&local->active_txq_lock[txq->ac]);
 }
 EXPORT_SYMBOL(__ieee80211_schedule_txq);
+
+bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
+				 struct ieee80211_txq *txq)
+{
+	struct sta_info *sta;
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	if (!(local->airtime_flags & AIRTIME_USE_AQL))
+		return true;
+
+	if (!txq->sta)
+		return true;
+
+	sta = container_of(txq->sta, struct sta_info, sta);
+	if (atomic_read(&sta->airtime[txq->ac].aql_tx_pending) <
+	    sta->airtime[txq->ac].aql_limit_low)
+		return true;
+
+	if (atomic_read(&local->aql_total_pending_airtime) <
+	    local->aql_threshold &&
+	    atomic_read(&sta->airtime[txq->ac].aql_tx_pending) <
+	    sta->airtime[txq->ac].aql_limit_high)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(ieee80211_txq_airtime_check);
 
 bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
 				struct ieee80211_txq *txq)

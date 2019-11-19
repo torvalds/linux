@@ -410,6 +410,9 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		skb_queue_head_init(&sta->ps_tx_buf[i]);
 		skb_queue_head_init(&sta->tx_filtered[i]);
 		sta->airtime[i].deficit = sta->airtime_weight;
+		atomic_set(&sta->airtime[i].aql_tx_pending, 0);
+		sta->airtime[i].aql_limit_low = local->aql_txq_limit_low[i];
+		sta->airtime[i].aql_limit_high = local->aql_txq_limit_high[i];
 	}
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++)
@@ -1906,6 +1909,41 @@ void ieee80211_sta_register_airtime(struct ieee80211_sta *pubsta, u8 tid,
 	spin_unlock_bh(&local->active_txq_lock[ac]);
 }
 EXPORT_SYMBOL(ieee80211_sta_register_airtime);
+
+void ieee80211_sta_update_pending_airtime(struct ieee80211_local *local,
+					  struct sta_info *sta, u8 ac,
+					  u16 tx_airtime, bool tx_completed)
+{
+	int tx_pending;
+
+	if (!tx_completed) {
+		if (sta)
+			atomic_add(tx_airtime,
+				   &sta->airtime[ac].aql_tx_pending);
+
+		atomic_add(tx_airtime, &local->aql_total_pending_airtime);
+		return;
+	}
+
+	if (sta) {
+		tx_pending = atomic_sub_return(tx_airtime,
+					       &sta->airtime[ac].aql_tx_pending);
+		if (WARN_ONCE(tx_pending < 0,
+			      "STA %pM AC %d txq pending airtime underflow: %u, %u",
+			      sta->addr, ac, tx_pending, tx_airtime))
+			atomic_cmpxchg(&sta->airtime[ac].aql_tx_pending,
+				       tx_pending, 0);
+	}
+
+	tx_pending = atomic_sub_return(tx_airtime,
+				       &local->aql_total_pending_airtime);
+	if (WARN_ONCE(tx_pending < 0,
+		      "Device %s AC %d pending airtime underflow: %u, %u",
+		      wiphy_name(local->hw.wiphy), ac, tx_pending,
+		      tx_airtime))
+		atomic_cmpxchg(&local->aql_total_pending_airtime,
+			       tx_pending, 0);
+}
 
 int sta_info_move_state(struct sta_info *sta,
 			enum ieee80211_sta_state new_state)
