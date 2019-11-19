@@ -55,7 +55,6 @@ MODULE_DEVICE_TABLE(pci, igc_pci_tbl);
 static int igc_sw_init(struct igc_adapter *);
 static void igc_write_itr(struct igc_q_vector *q_vector);
 static void igc_assign_vector(struct igc_q_vector *q_vector, int msix_vector);
-static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx);
 
 enum latency_range {
 	lowest_latency = 0,
@@ -3118,6 +3117,26 @@ msi_only:
 }
 
 /**
+ * igc_free_q_vector - Free memory allocated for specific interrupt vector
+ * @adapter: board private structure to initialize
+ * @v_idx: Index of vector to be freed
+ *
+ * This function frees the memory allocated to the q_vector.
+ */
+static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx)
+{
+	struct igc_q_vector *q_vector = adapter->q_vector[v_idx];
+
+	adapter->q_vector[v_idx] = NULL;
+
+	/* igc_get_stats64() might access the rings on this vector,
+	 * we must wait a grace period before freeing it.
+	 */
+	if (q_vector)
+		kfree_rcu(q_vector, rcu);
+}
+
+/**
  * igc_free_q_vectors - Free memory allocated for interrupt vectors
  * @adapter: board private structure to initialize
  *
@@ -3150,26 +3169,6 @@ static void igc_clear_interrupt_scheme(struct igc_adapter *adapter)
 {
 	igc_free_q_vectors(adapter);
 	igc_reset_interrupt_capability(adapter);
-}
-
-/**
- * igc_free_q_vector - Free memory allocated for specific interrupt vector
- * @adapter: board private structure to initialize
- * @v_idx: Index of vector to be freed
- *
- * This function frees the memory allocated to the q_vector.
- */
-static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx)
-{
-	struct igc_q_vector *q_vector = adapter->q_vector[v_idx];
-
-	adapter->q_vector[v_idx] = NULL;
-
-	/* igc_get_stats64() might access the rings on this vector,
-	 * we must wait a grace period before freeing it.
-	 */
-	if (q_vector)
-		kfree_rcu(q_vector, rcu);
 }
 
 /* Need to wait a few seconds after link up to get diagnostic information from
