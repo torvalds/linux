@@ -44,7 +44,6 @@ config CRYPTO_DEV_HISI_ZIP
 	depends on ARM64 || (COMPILE_TEST && 64BIT)
 	depends on !CPU_BIG_ENDIAN || COMPILE_TEST
 	select CRYPTO_DEV_HISI_QM
-	select SG_SPLIT
 	help
 	  Support for HiSilicon ZIP Driver
 
