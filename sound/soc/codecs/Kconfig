@@ -150,6 +150,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM5102A
 	imply SND_SOC_PCM512x_I2C
 	imply SND_SOC_PCM512x_SPI
+	imply SND_SOC_RK1000
 	imply SND_SOC_RK312X
 	imply SND_SOC_RK3328
 	imply SND_SOC_RK817
@@ -1021,6 +1022,10 @@ config SND_SOC_PCM512x_SPI
 	depends on SPI_MASTER
 	select SND_SOC_PCM512x
 	select REGMAP_SPI
+
+config SND_SOC_RK1000
+	tristate "Rockchip RK1000 CODEC"
+	depends on MFD_RK1000
 
 config SND_SOC_RK312X
 	select REGMAP_MMIO

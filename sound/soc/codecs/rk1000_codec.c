@@ -200,7 +200,7 @@ static int rk1000_codec_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int dai_fmt;
 
 	dai_fmt = rtd->card->dai_link[0].dai_fmt;
-	iface = snd_soc_component_read32(component, ACCELCODEC_R09) & 0x1f3;
+	iface = snd_soc_component_read(component, ACCELCODEC_R09) & 0x1f3;
 	snd_soc_component_write(component, ACCELCODEC_R0C, 0x17);
 	snd_soc_component_write(component, ACCELCODEC_R04,
 				ASC_INT_MUTE_L | ASC_INT_MUTE_R |
@@ -217,7 +217,7 @@ static int rk1000_codec_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int rk1000_codec_mute(struct snd_soc_dai *dai, int mute)
+static int rk1000_codec_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rk1000_codec_priv *rk1000_codec;
@@ -276,7 +276,8 @@ static void pa_delayedwork(struct work_struct *work)
 static struct snd_soc_dai_ops rk1000_codec_ops = {
 	.hw_params = rk1000_codec_pcm_hw_params,
 	.set_fmt = rk1000_codec_set_dai_fmt,
-	.digital_mute = rk1000_codec_mute,
+	.mute_stream = rk1000_codec_mute,
+	.no_capture_mute = 1,
 };
 
 #define RK1000_CODEC_RATES SNDRV_PCM_RATE_8000_192000
@@ -355,13 +356,13 @@ static void rk1000_codec_reg_init(struct snd_soc_component *component)
 				ASC_DITHER_ENABLE | ASC_BCLKDIV_4);
 	/*2volume,input,output*/
 	digital_gain = VOLUME_OUTPUT;
-	if (snd_soc_component_read32(component, ACCELCODEC_R05) != 0x0f) {
+	if (snd_soc_component_read(component, ACCELCODEC_R05) != 0x0f) {
 		snd_soc_component_write(component, ACCELCODEC_R05,
 					(digital_gain >> 8) & 0xFF);
 		snd_soc_component_write(component, ACCELCODEC_R06, digital_gain & 0xFF);
 	}
 
-	if (snd_soc_component_read32(component, ACCELCODEC_R07) != 0x0f) {
+	if (snd_soc_component_read(component, ACCELCODEC_R07) != 0x0f) {
 		snd_soc_component_write(component, ACCELCODEC_R07,
 					(digital_gain >> 8) & 0xFF);
 		snd_soc_component_write(component, ACCELCODEC_R08, digital_gain & 0xFF);
