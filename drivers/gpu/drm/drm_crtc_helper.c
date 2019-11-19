@@ -48,6 +48,8 @@
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
+#include "drm_crtc_helper_internal.h"
+
 /**
  * DOC: overview
  *
