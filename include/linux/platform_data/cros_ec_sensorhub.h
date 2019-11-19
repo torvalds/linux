@@ -11,6 +11,14 @@
 #include <linux/platform_data/cros_ec_commands.h>
 
 /**
+ * struct cros_ec_sensor_platform - ChromeOS EC sensor platform information.
+ * @sensor_num: Id of the sensor, as reported by the EC.
+ */
+struct cros_ec_sensor_platform {
+	u8 sensor_num;
+};
+
+/**
  * struct cros_ec_sensorhub - Sensor Hub device data.
  *
  * @ec: Embedded Controller where the hub is located.
