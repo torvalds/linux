@@ -28,6 +28,8 @@ struct dso_id {
 	u64	ino_generation;
 };
 
+int dso_id__cmp(struct dso_id *a, struct dso_id *b);
+
 struct map {
 	union {
 		struct rb_node	rb_node;

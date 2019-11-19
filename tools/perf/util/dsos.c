@@ -2,12 +2,37 @@
 #include "debug.h"
 #include "dsos.h"
 #include "dso.h"
+#include "map.h"
 #include "vdso.h"
 #include "namespaces.h"
 #include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
 #include <symbol.h> // filename__read_build_id
+
+int dso_id__cmp(struct dso_id *a, struct dso_id *b)
+{
+	/*
+	 * The second is always dso->id, so zeroes if not set, assume passing
+	 * NULL for a means a zeroed id
+	 */
+	if (a == NULL)
+		return 0;
+
+	if (a->maj > b->maj) return -1;
+	if (a->maj < b->maj) return 1;
+
+	if (a->min > b->min) return -1;
+	if (a->min < b->min) return 1;
+
+	if (a->ino > b->ino) return -1;
+	if (a->ino < b->ino) return 1;
+
+	if (a->ino_generation > b->ino_generation) return -1;
+	if (a->ino_generation < b->ino_generation) return 1;
+
+	return 0;
+}
 
 bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 {

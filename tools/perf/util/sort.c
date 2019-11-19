@@ -1194,6 +1194,7 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	u64 l, r;
 	struct map *l_map, *r_map;
+	int rc;
 
 	if (!left->mem_info)  return -1;
 	if (!right->mem_info) return 1;
@@ -1212,18 +1213,9 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (!l_map) return -1;
 	if (!r_map) return 1;
 
-	if (l_map->dso_id.maj > r_map->dso_id.maj) return -1;
-	if (l_map->dso_id.maj < r_map->dso_id.maj) return 1;
-
-	if (l_map->dso_id.min > r_map->dso_id.min) return -1;
-	if (l_map->dso_id.min < r_map->dso_id.min) return 1;
-
-	if (l_map->dso_id.ino > r_map->dso_id.ino) return -1;
-	if (l_map->dso_id.ino < r_map->dso_id.ino) return 1;
-
-	if (l_map->dso_id.ino_generation > r_map->dso_id.ino_generation) return -1;
-	if (l_map->dso_id.ino_generation < r_map->dso_id.ino_generation) return 1;
-
+	rc = dso_id__cmp(&l_map->dso_id, &r_map->dso_id);
+	if (rc)
+		return rc;
 	/*
 	 * Addresses with no major/minor numbers are assumed to be
 	 * anonymous in userspace.  Sort those on pid then address.
