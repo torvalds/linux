@@ -269,7 +269,7 @@ struct dpu_qos_lut_entry {
  */
 struct dpu_qos_lut_tbl {
 	u32 nentry;
-	struct dpu_qos_lut_entry *entries;
+	const struct dpu_qos_lut_entry *entries;
 };
 
 /**
@@ -511,7 +511,7 @@ struct dpu_vbif_dynamic_ot_cfg {
  */
 struct dpu_vbif_dynamic_ot_tbl {
 	u32 count;
-	struct dpu_vbif_dynamic_ot_cfg *cfg;
+	const struct dpu_vbif_dynamic_ot_cfg *cfg;
 };
 
 /**
@@ -521,7 +521,7 @@ struct dpu_vbif_dynamic_ot_tbl {
  */
 struct dpu_vbif_qos_tbl {
 	u32 npriority_lvl;
-	u32 *priority_lvl;
+	const u32 *priority_lvl;
 };
 
 /**
@@ -653,25 +653,25 @@ struct dpu_mdss_cfg {
 	const struct dpu_caps *caps;
 
 	u32 mdp_count;
-	struct dpu_mdp_cfg *mdp;
+	const struct dpu_mdp_cfg *mdp;
 
 	u32 ctl_count;
-	struct dpu_ctl_cfg *ctl;
+	const struct dpu_ctl_cfg *ctl;
 
 	u32 sspp_count;
-	struct dpu_sspp_cfg *sspp;
+	const struct dpu_sspp_cfg *sspp;
 
 	u32 mixer_count;
-	struct dpu_lm_cfg *mixer;
+	const struct dpu_lm_cfg *mixer;
 
 	u32 pingpong_count;
-	struct dpu_pingpong_cfg *pingpong;
+	const struct dpu_pingpong_cfg *pingpong;
 
 	u32 intf_count;
-	struct dpu_intf_cfg *intf;
+	const struct dpu_intf_cfg *intf;
 
 	u32 vbif_count;
-	struct dpu_vbif_cfg *vbif;
+	const struct dpu_vbif_cfg *vbif;
 
 	u32 reg_dma_count;
 	struct dpu_reg_dma_cfg dma_cfg;
@@ -681,9 +681,9 @@ struct dpu_mdss_cfg {
 	/* Add additional block data structures here */
 
 	struct dpu_perf_cfg perf;
-	struct dpu_format_extended *dma_formats;
-	struct dpu_format_extended *cursor_formats;
-	struct dpu_format_extended *vig_formats;
+	const struct dpu_format_extended *dma_formats;
+	const struct dpu_format_extended *cursor_formats;
+	const struct dpu_format_extended *vig_formats;
 };
 
 struct dpu_mdss_hw_cfg_handler {

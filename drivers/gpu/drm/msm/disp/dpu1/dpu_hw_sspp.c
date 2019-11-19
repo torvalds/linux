@@ -666,7 +666,7 @@ static void _setup_layer_ops(struct dpu_hw_pipe *c,
 		c->ops.setup_cdp = dpu_hw_sspp_setup_cdp;
 }
 
-static struct dpu_sspp_cfg *_sspp_offset(enum dpu_sspp sspp,
+static const struct dpu_sspp_cfg *_sspp_offset(enum dpu_sspp sspp,
 		void __iomem *addr,
 		struct dpu_mdss_cfg *catalog,
 		struct dpu_hw_blk_reg_map *b)
@@ -696,7 +696,7 @@ struct dpu_hw_pipe *dpu_hw_sspp_init(enum dpu_sspp idx,
 		bool is_virtual_pipe)
 {
 	struct dpu_hw_pipe *hw_pipe;
-	struct dpu_sspp_cfg *cfg;
+	const struct dpu_sspp_cfg *cfg;
 
 	if (!addr || !catalog)
 		return ERR_PTR(-EINVAL);

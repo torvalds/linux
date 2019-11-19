@@ -373,7 +373,7 @@ struct dpu_hw_pipe {
 	struct dpu_hw_blk base;
 	struct dpu_hw_blk_reg_map hw;
 	struct dpu_mdss_cfg *catalog;
-	struct dpu_mdp_cfg *mdp;
+	const struct dpu_mdp_cfg *mdp;
 
 	/* Pipe */
 	enum dpu_sspp idx;

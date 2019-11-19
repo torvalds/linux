@@ -92,7 +92,7 @@ struct dpu_hw_intf {
  */
 struct dpu_hw_intf *dpu_hw_intf_init(enum dpu_intf idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m);
+		const struct dpu_mdss_cfg *m);
 
 /**
  * dpu_hw_intf_destroy(): Destroys INTF driver context

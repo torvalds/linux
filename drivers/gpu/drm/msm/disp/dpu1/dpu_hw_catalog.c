@@ -60,7 +60,7 @@ static const struct dpu_caps sdm845_dpu_caps = {
 	.has_idle_pc = true,
 };
 
-static struct dpu_mdp_cfg sdm845_mdp[] = {
+static const struct dpu_mdp_cfg sdm845_mdp[] = {
 	{
 	.name = "top_0", .id = MDP_TOP,
 	.base = 0x0, .len = 0x45C,
@@ -88,7 +88,7 @@ static struct dpu_mdp_cfg sdm845_mdp[] = {
 /*************************************************************
  * CTL sub blocks config
  *************************************************************/
-static struct dpu_ctl_cfg sdm845_ctl[] = {
+static const struct dpu_ctl_cfg sdm845_ctl[] = {
 	{
 	.name = "ctl_0", .id = CTL_0,
 	.base = 0x1000, .len = 0xE4,
@@ -184,7 +184,7 @@ static const struct dpu_sspp_sub_blks sdm845_dma_sblk_3 = _DMA_SBLK("11", 4);
 	.clk_ctrl = _clkctrl \
 	}
 
-static struct dpu_sspp_cfg sdm845_sspp[] = {
+static const struct dpu_sspp_cfg sdm845_sspp[] = {
 	SSPP_BLK("sspp_0", SSPP_VIG0, 0x4000, VIG_SDM845_MASK,
 		sdm845_vig_sblk_0, 0,  SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG0),
 	SSPP_BLK("sspp_1", SSPP_VIG1, 0x6000, VIG_SDM845_MASK,
@@ -225,7 +225,7 @@ static const struct dpu_lm_sub_blks sdm845_lm_sblk = {
 	.lm_pair_mask = (1 << _lmpair) \
 	}
 
-static struct dpu_lm_cfg sdm845_lm[] = {
+static const struct dpu_lm_cfg sdm845_lm[] = {
 	LM_BLK("lm_0", LM_0, 0x44000, PINGPONG_0, LM_1),
 	LM_BLK("lm_1", LM_1, 0x45000, PINGPONG_1, LM_0),
 	LM_BLK("lm_2", LM_2, 0x46000, PINGPONG_2, LM_5),
@@ -264,7 +264,7 @@ static const struct dpu_pingpong_sub_blks sdm845_pp_sblk = {
 	.sblk = &sdm845_pp_sblk \
 	}
 
-static struct dpu_pingpong_cfg sdm845_pp[] = {
+static const struct dpu_pingpong_cfg sdm845_pp[] = {
 	PP_BLK_TE("pingpong_0", PINGPONG_0, 0x70000),
 	PP_BLK_TE("pingpong_1", PINGPONG_1, 0x70800),
 	PP_BLK("pingpong_2", PINGPONG_2, 0x71000),
@@ -283,7 +283,7 @@ static struct dpu_pingpong_cfg sdm845_pp[] = {
 	.prog_fetch_lines_worst_case = 24 \
 	}
 
-static struct dpu_intf_cfg sdm845_intf[] = {
+static const struct dpu_intf_cfg sdm845_intf[] = {
 	INTF_BLK("intf_0", INTF_0, 0x6A000, INTF_DP, 0),
 	INTF_BLK("intf_1", INTF_1, 0x6A800, INTF_DSI, 0),
 	INTF_BLK("intf_2", INTF_2, 0x6B000, INTF_DSI, 1),
@@ -294,10 +294,10 @@ static struct dpu_intf_cfg sdm845_intf[] = {
  * VBIF sub blocks config
  *************************************************************/
 /* VBIF QOS remap */
-static u32 sdm845_rt_pri_lvl[] = {3, 3, 4, 4, 5, 5, 6, 6};
-static u32 sdm845_nrt_pri_lvl[] = {3, 3, 3, 3, 3, 3, 3, 3};
+static const u32 sdm845_rt_pri_lvl[] = {3, 3, 4, 4, 5, 5, 6, 6};
+static const u32 sdm845_nrt_pri_lvl[] = {3, 3, 3, 3, 3, 3, 3, 3};
 
-static struct dpu_vbif_cfg sdm845_vbif[] = {
+static const struct dpu_vbif_cfg sdm845_vbif[] = {
 	{
 	.name = "vbif_0", .id = VBIF_0,
 	.base = 0, .len = 0x1040,
@@ -316,7 +316,7 @@ static struct dpu_vbif_cfg sdm845_vbif[] = {
 	},
 };
 
-static struct dpu_reg_dma_cfg sdm845_regdma = {
+static const struct dpu_reg_dma_cfg sdm845_regdma = {
 	.base = 0x0, .version = 0x1, .trigger_sel_off = 0x119c
 };
 
@@ -325,7 +325,7 @@ static struct dpu_reg_dma_cfg sdm845_regdma = {
  *************************************************************/
 
 /* SSPP QOS LUTs */
-static struct dpu_qos_lut_entry sdm845_qos_linear[] = {
+static const struct dpu_qos_lut_entry sdm845_qos_linear[] = {
 	{.fl = 4, .lut = 0x357},
 	{.fl = 5, .lut = 0x3357},
 	{.fl = 6, .lut = 0x23357},
@@ -340,7 +340,7 @@ static struct dpu_qos_lut_entry sdm845_qos_linear[] = {
 	{.fl = 0, .lut = 0x11222222223357}
 };
 
-static struct dpu_qos_lut_entry sdm845_qos_macrotile[] = {
+static const struct dpu_qos_lut_entry sdm845_qos_macrotile[] = {
 	{.fl = 10, .lut = 0x344556677},
 	{.fl = 11, .lut = 0x3344556677},
 	{.fl = 12, .lut = 0x23344556677},
@@ -349,11 +349,11 @@ static struct dpu_qos_lut_entry sdm845_qos_macrotile[] = {
 	{.fl = 0, .lut = 0x112233344556677},
 };
 
-static struct dpu_qos_lut_entry sdm845_qos_nrt[] = {
+static const struct dpu_qos_lut_entry sdm845_qos_nrt[] = {
 	{.fl = 0, .lut = 0x0},
 };
 
-static struct dpu_perf_cfg sdm845_perf_data = {
+static const struct dpu_perf_cfg sdm845_perf_data = {
 	.max_bw_low = 6800000,
 	.max_bw_high = 6800000,
 	.min_core_ib = 2400000,
@@ -424,7 +424,7 @@ static void sdm845_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 	};
 }
 
-static struct dpu_mdss_hw_cfg_handler cfg_handler[] = {
+static const struct dpu_mdss_hw_cfg_handler cfg_handler[] = {
 	{ .hw_rev = DPU_HW_VER_400, .cfg_init = sdm845_cfg_init},
 	{ .hw_rev = DPU_HW_VER_401, .cfg_init = sdm845_cfg_init},
 };

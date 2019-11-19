@@ -56,8 +56,8 @@
 #define   INTF_FRAME_COUNT              0x0AC
 #define   INTF_LINE_COUNT               0x0B0
 
-static struct dpu_intf_cfg *_intf_offset(enum dpu_intf intf,
-		struct dpu_mdss_cfg *m,
+static const struct dpu_intf_cfg *_intf_offset(enum dpu_intf intf,
+		const struct dpu_mdss_cfg *m,
 		void __iomem *addr,
 		struct dpu_hw_blk_reg_map *b)
 {
@@ -260,10 +260,10 @@ static struct dpu_hw_blk_ops dpu_hw_ops;
 
 struct dpu_hw_intf *dpu_hw_intf_init(enum dpu_intf idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m)
+		const struct dpu_mdss_cfg *m)
 {
 	struct dpu_hw_intf *c;
-	struct dpu_intf_cfg *cfg;
+	const struct dpu_intf_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)

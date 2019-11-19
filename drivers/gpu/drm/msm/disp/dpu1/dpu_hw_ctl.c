@@ -28,8 +28,8 @@
 
 #define DPU_REG_RESET_TIMEOUT_US        2000
 
-static struct dpu_ctl_cfg *_ctl_offset(enum dpu_ctl ctl,
-		struct dpu_mdss_cfg *m,
+static const struct dpu_ctl_cfg *_ctl_offset(enum dpu_ctl ctl,
+		const struct dpu_mdss_cfg *m,
 		void __iomem *addr,
 		struct dpu_hw_blk_reg_map *b)
 {
@@ -476,10 +476,10 @@ static struct dpu_hw_blk_ops dpu_hw_ops;
 
 struct dpu_hw_ctl *dpu_hw_ctl_init(enum dpu_ctl idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m)
+		const struct dpu_mdss_cfg *m)
 {
 	struct dpu_hw_ctl *c;
-	struct dpu_ctl_cfg *cfg;
+	const struct dpu_ctl_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
