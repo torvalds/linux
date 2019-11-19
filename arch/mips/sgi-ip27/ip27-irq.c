@@ -73,6 +73,9 @@ static void setup_hub_mask(struct hub_irq_data *hd, const struct cpumask *mask)
 	int cpu;
 
 	cpu = cpumask_first_and(mask, cpu_online_mask);
+	if (cpu >= nr_cpu_ids)
+		cpu = cpumask_any(cpu_online_mask);
+
 	nasid = cpu_to_node(cpu);
 	hd->cpu = cpu;
 	if (!cputoslice(cpu)) {
@@ -139,6 +142,7 @@ static int hub_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	/* use CPU connected to nearest hub */
 	hub = hub_data(info->nasid);
 	setup_hub_mask(hd, &hub->h_cpus);
+	info->nasid = cpu_to_node(hd->cpu);
 
 	/* Make sure it's not already pending when we connect it. */
 	REMOTE_HUB_CLR_INTR(info->nasid, swlevel);
