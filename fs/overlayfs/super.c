@@ -1594,6 +1594,13 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 				   struct ovl_entry *oe)
 {
 	struct dentry *root;
+	struct ovl_path *lowerpath = &oe->lowerstack[0];
+	unsigned long ino = d_inode(lowerpath->dentry)->i_ino;
+	int fsid = lowerpath->layer->fsid;
+	struct ovl_inode_params oip = {
+		.upperdentry = upperdentry,
+		.lowerpath = lowerpath,
+	};
 
 	root = d_make_root(ovl_new_inode(sb, S_IFDIR, 0));
 	if (!root)
@@ -1602,6 +1609,9 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	root->d_fsdata = oe;
 
 	if (upperdentry) {
+		/* Root inode uses upper st_ino/i_ino */
+		ino = d_inode(upperdentry)->i_ino;
+		fsid = 0;
 		ovl_dentry_set_upper_alias(root);
 		if (ovl_is_impuredir(upperdentry))
 			ovl_set_flag(OVL_IMPURE, d_inode(root));
@@ -1611,8 +1621,7 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	ovl_set_flag(OVL_WHITEOUTS, d_inode(root));
 	ovl_dentry_set_flag(OVL_E_CONNECTED, root);
 	ovl_set_upperdata(d_inode(root));
-	ovl_inode_init(d_inode(root), upperdentry, ovl_dentry_lower(root),
-		       NULL);
+	ovl_inode_init(d_inode(root), &oip, ino, fsid);
 
 	return root;
 }

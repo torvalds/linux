@@ -561,8 +561,7 @@ static inline void ovl_lockdep_annotate_inode_mutex_key(struct inode *inode)
 #endif
 }
 
-static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
-			   unsigned long ino, int fsid)
+static void ovl_map_ino(struct inode *inode, unsigned long ino, int fsid)
 {
 	int xinobits = ovl_xino_bits(inode->i_sb);
 
@@ -572,10 +571,6 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
 	 * so inode number exposed via /proc/locks and a like will be
 	 * consistent with d_ino and st_ino values. An i_ino value inconsistent
 	 * with d_ino also causes nfsd readdirplus to fail.
-	 *
-	 * When called from ovl_create_object() => ovl_new_inode(), with
-	 * ino = 0, i_ino will be updated to consistent value later on in
-	 * ovl_get_inode() => ovl_fill_inode().
 	 */
 	if (ovl_same_dev(inode->i_sb)) {
 		inode->i_ino = ino;
@@ -584,6 +579,28 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
 	} else {
 		inode->i_ino = get_next_ino();
 	}
+}
+
+void ovl_inode_init(struct inode *inode, struct ovl_inode_params *oip,
+		    unsigned long ino, int fsid)
+{
+	struct inode *realinode;
+
+	if (oip->upperdentry)
+		OVL_I(inode)->__upperdentry = oip->upperdentry;
+	if (oip->lowerpath && oip->lowerpath->dentry)
+		OVL_I(inode)->lower = igrab(d_inode(oip->lowerpath->dentry));
+	if (oip->lowerdata)
+		OVL_I(inode)->lowerdata = igrab(d_inode(oip->lowerdata));
+
+	realinode = ovl_inode_real(inode);
+	ovl_copyattr(realinode, inode);
+	ovl_copyflags(realinode, inode);
+	ovl_map_ino(inode, ino, fsid);
+}
+
+static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
+{
 	inode->i_mode = mode;
 	inode->i_flags |= S_NOCMTIME;
 #ifdef CONFIG_FS_POSIX_ACL
@@ -721,7 +738,7 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev)
 
 	inode = new_inode(sb);
 	if (inode)
-		ovl_fill_inode(inode, mode, rdev, 0, 0);
+		ovl_fill_inode(inode, mode, rdev);
 
 	return inode;
 }
@@ -946,8 +963,8 @@ struct inode *ovl_get_inode(struct super_block *sb,
 		ino = realinode->i_ino;
 		fsid = lowerpath->layer->fsid;
 	}
-	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev, ino, fsid);
-	ovl_inode_init(inode, upperdentry, lowerdentry, oip->lowerdata);
+	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
+	ovl_inode_init(inode, oip, ino, fsid);
 
 	if (upperdentry && ovl_is_impuredir(upperdentry))
 		ovl_set_flag(OVL_IMPURE, inode);
