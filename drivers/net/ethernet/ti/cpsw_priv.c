@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
+#include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -422,6 +423,7 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 	struct cpsw_platform_data *data;
 	struct cpdma_params dma_params;
 	struct device *dev = cpsw->dev;
+	struct device_node *cpts_node;
 	void __iomem *cpts_regs;
 	int ret = 0, i;
 
@@ -516,11 +518,16 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 		return -ENOMEM;
 	}
 
-	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs, cpsw->dev->of_node);
+	cpts_node = of_get_child_by_name(cpsw->dev->of_node, "cpts");
+	if (!cpts_node)
+		cpts_node = cpsw->dev->of_node;
+
+	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs, cpts_node);
 	if (IS_ERR(cpsw->cpts)) {
 		ret = PTR_ERR(cpsw->cpts);
 		cpdma_ctlr_destroy(cpsw->dma);
 	}
+	of_node_put(cpts_node);
 
 	return ret;
 }

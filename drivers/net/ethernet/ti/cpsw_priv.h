@@ -54,6 +54,7 @@ do {								\
 
 #define HOST_PORT_NUM		0
 #define CPSW_ALE_PORTS_NUM	3
+#define CPSW_SLAVE_PORTS_NUM	2
 #define SLIVER_SIZE		0x40
 
 #define CPSW1_HOST_PORT_OFFSET	0x028
@@ -65,6 +66,7 @@ do {								\
 #define CPSW1_CPTS_OFFSET	0x500
 #define CPSW1_ALE_OFFSET	0x600
 #define CPSW1_SLIVER_OFFSET	0x700
+#define CPSW1_WR_OFFSET		0x900
 
 #define CPSW2_HOST_PORT_OFFSET	0x108
 #define CPSW2_SLAVE_OFFSET	0x200
@@ -76,6 +78,7 @@ do {								\
 #define CPSW2_ALE_OFFSET	0xd00
 #define CPSW2_SLIVER_OFFSET	0xd80
 #define CPSW2_BD_OFFSET		0x2000
+#define CPSW2_WR_OFFSET		0x1200
 
 #define CPDMA_RXTHRESH		0x0c0
 #define CPDMA_RXFREE		0x0e0
@@ -113,12 +116,15 @@ do {								\
 #define IRQ_NUM			2
 #define CPSW_MAX_QUEUES		8
 #define CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT 256
+#define CPSW_ALE_AGEOUT_DEFAULT		10 /* sec */
+#define CPSW_ALE_NUM_ENTRIES		1024
 #define CPSW_FIFO_QUEUE_TYPE_SHIFT	16
 #define CPSW_FIFO_SHAPE_EN_SHIFT	16
 #define CPSW_FIFO_RATE_EN_SHIFT		20
 #define CPSW_TC_NUM			4
 #define CPSW_FIFO_SHAPERS_NUM		(CPSW_TC_NUM - 1)
 #define CPSW_PCT_MASK			0x7f
+#define CPSW_BD_RAM_SIZE		0x2000
 
 #define CPSW_RX_VLAN_ENCAP_HDR_PRIO_SHIFT	29
 #define CPSW_RX_VLAN_ENCAP_HDR_PRIO_MSK		GENMASK(2, 0)
@@ -279,6 +285,7 @@ struct cpsw_slave_data {
 	u8		mac_addr[ETH_ALEN];
 	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
 	struct phy	*ifphy;
+	bool		disabled;
 };
 
 struct cpsw_platform_data {
@@ -286,9 +293,9 @@ struct cpsw_platform_data {
 	u32	ss_reg_ofs;	/* Subsystem control register offset */
 	u32	channels;	/* number of cpdma channels (symmetric) */
 	u32	slaves;		/* number of slave cpgmac ports */
-	u32	active_slave; /* time stamping, ethtool and SIOCGMIIPHY slave */
+	u32	active_slave;/* time stamping, ethtool and SIOCGMIIPHY slave */
 	u32	ale_entries;	/* ale table size */
-	u32	bd_ram_size;  /*buffer descriptor ram size */
+	u32	bd_ram_size;	/*buffer descriptor ram size */
 	u32	mac_control;	/* Mac control register */
 	u16	default_vlan;	/* Def VLAN for ALE lookup in VLAN aware mode*/
 	bool	dual_emac;	/* Enable Dual EMAC mode */
@@ -344,6 +351,7 @@ struct cpsw_common {
 	bool				tx_irq_disabled;
 	u32 irqs_table[IRQ_NUM];
 	struct cpts			*cpts;
+	struct devlink *devlink;
 	int				rx_ch_num, tx_ch_num;
 	int				speed;
 	int				usage_count;
