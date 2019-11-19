@@ -16,12 +16,12 @@ struct thread;
 
 struct maps {
 	struct rb_root      entries;
-	struct rb_root	    names;
 	struct rw_semaphore lock;
 };
 
 void maps__insert(struct maps *maps, struct map *map);
 void maps__remove(struct maps *maps, struct map *map);
+void __maps__remove(struct maps *maps, struct map *map);
 struct map *maps__find(struct maps *maps, u64 addr);
 struct map *maps__first(struct maps *maps);
 struct map *map__next(struct map *map);
@@ -33,19 +33,15 @@ struct map *map__next(struct map *map);
 	for (map = maps__first(maps), next = map__next(map); map; map = next, next = map__next(map))
 
 struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, struct map **mapp);
-struct map *maps__first_by_name(struct maps *maps);
-struct map *map__next_by_name(struct map *map);
-
-#define maps__for_each_entry_by_name(maps, map) \
-	for (map = maps__first_by_name(maps); map; map = map__next_by_name(map))
-
-#define maps__for_each_entry_by_name_safe(maps, map, next) \
-	for (map = maps__first_by_name(maps), next = map__next_by_name(map); map; map = next, next = map__next_by_name(map))
 
 struct map_groups {
 	struct maps	 maps;
 	struct machine	 *machine;
+	struct map	 *last_search_by_name;
+	struct map	 **maps_by_name;
 	refcount_t	 refcnt;
+	unsigned int	 nr_maps;
+	unsigned int	 nr_maps_allocated;
 #ifdef HAVE_LIBUNWIND_SUPPORT
 	void				*addr_space;
 	struct unwind_libunwind_ops	*unwind_libunwind_ops;
@@ -79,10 +75,7 @@ size_t map_groups__fprintf(struct map_groups *mg, FILE *fp);
 
 void map_groups__insert(struct map_groups *mg, struct map *map);
 
-static inline void map_groups__remove(struct map_groups *mg, struct map *map)
-{
-	maps__remove(&mg->maps, map);
-}
+void map_groups__remove(struct map_groups *mg, struct map *map);
 
 static inline struct map *map_groups__find(struct map_groups *mg, u64 addr)
 {
@@ -107,5 +100,7 @@ int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map, FILE 
 struct map *map_groups__find_by_name(struct map_groups *mg, const char *name);
 
 int map_groups__merge_in(struct map_groups *kmaps, struct map *new_map);
+
+void __map_groups__sort_by_name(struct map_groups *mg);
 
 #endif // __PERF_MAP_GROUPS_H
