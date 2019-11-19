@@ -1242,7 +1242,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 
 	/* Wait 2 * RA_TOV + 1 to be sure timeout function hasn't fired */
 	time_left = wait_for_completion_timeout(&io_req->abts_done,
-						(2 * rp->r_a_tov + 1) * HZ);
+					msecs_to_jiffies(2 * rp->r_a_tov + 1));
 	if (time_left)
 		BNX2FC_IO_DBG(io_req,
 			      "Timed out in eh_abort waiting for abts_done");
