@@ -255,12 +255,10 @@ static struct hash_bucket *get_hash_bucket(struct dma_debug_entry *entry,
  * Give up exclusive access to the hash bucket
  */
 static void put_hash_bucket(struct hash_bucket *bucket,
-			    unsigned long *flags)
+			    unsigned long flags)
 	__releases(&bucket->lock)
 {
-	unsigned long __flags = *flags;
-
-	spin_unlock_irqrestore(&bucket->lock, __flags);
+	spin_unlock_irqrestore(&bucket->lock, flags);
 }
 
 static bool exact_match(struct dma_debug_entry *a, struct dma_debug_entry *b)
@@ -359,7 +357,7 @@ static struct dma_debug_entry *bucket_find_contain(struct hash_bucket **bucket,
 		/*
 		 * Nothing found, go back a hash bucket
 		 */
-		put_hash_bucket(*bucket, flags);
+		put_hash_bucket(*bucket, *flags);
 		range          += (1 << HASH_FN_SHIFT);
 		index.dev_addr -= (1 << HASH_FN_SHIFT);
 		*bucket = get_hash_bucket(&index, flags);
@@ -609,7 +607,7 @@ static void add_dma_entry(struct dma_debug_entry *entry)
 
 	bucket = get_hash_bucket(entry, &flags);
 	hash_bucket_add(bucket, entry);
-	put_hash_bucket(bucket, &flags);
+	put_hash_bucket(bucket, flags);
 
 	rc = active_cacheline_insert(entry);
 	if (rc == -ENOMEM) {
@@ -1002,7 +1000,7 @@ static void check_unmap(struct dma_debug_entry *ref)
 
 	if (!entry) {
 		/* must drop lock before calling dma_mapping_error */
-		put_hash_bucket(bucket, &flags);
+		put_hash_bucket(bucket, flags);
 
 		if (dma_mapping_error(ref->dev, ref->dev_addr)) {
 			err_printk(ref->dev, NULL,
@@ -1084,7 +1082,7 @@ static void check_unmap(struct dma_debug_entry *ref)
 	hash_bucket_del(entry);
 	dma_entry_free(entry);
 
-	put_hash_bucket(bucket, &flags);
+	put_hash_bucket(bucket, flags);
 }
 
 static void check_for_stack(struct device *dev,
@@ -1204,7 +1202,7 @@ static void check_sync(struct device *dev,
 	}
 
 out:
-	put_hash_bucket(bucket, &flags);
+	put_hash_bucket(bucket, flags);
 }
 
 static void check_sg_segment(struct device *dev, struct scatterlist *sg)
@@ -1319,7 +1317,7 @@ void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 		}
 	}
 
-	put_hash_bucket(bucket, &flags);
+	put_hash_bucket(bucket, flags);
 }
 EXPORT_SYMBOL(debug_dma_mapping_error);
 
@@ -1392,7 +1390,7 @@ static int get_nr_mapped_entries(struct device *dev,
 
 	if (entry)
 		mapped_ents = entry->sg_mapped_ents;
-	put_hash_bucket(bucket, &flags);
+	put_hash_bucket(bucket, flags);
 
 	return mapped_ents;
 }
