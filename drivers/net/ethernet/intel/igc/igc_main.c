@@ -58,7 +58,6 @@ static void igc_assign_vector(struct igc_q_vector *q_vector, int msix_vector);
 static void igc_free_q_vector(struct igc_adapter *adapter, int v_idx);
 static void igc_free_q_vectors(struct igc_adapter *adapter);
 static void igc_irq_disable(struct igc_adapter *adapter);
-static void igc_irq_enable(struct igc_adapter *adapter);
 
 enum latency_range {
 	lowest_latency = 0,
@@ -2244,6 +2243,29 @@ static void igc_configure_msix(struct igc_adapter *adapter)
 }
 
 /**
+ * igc_irq_enable - Enable default interrupt generation settings
+ * @adapter: board private structure
+ */
+static void igc_irq_enable(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+
+	if (adapter->msix_entries) {
+		u32 ims = IGC_IMS_LSC | IGC_IMS_DOUTSYNC | IGC_IMS_DRSTA;
+		u32 regval = rd32(IGC_EIAC);
+
+		wr32(IGC_EIAC, regval | adapter->eims_enable_mask);
+		regval = rd32(IGC_EIAM);
+		wr32(IGC_EIAM, regval | adapter->eims_enable_mask);
+		wr32(IGC_EIMS, adapter->eims_enable_mask);
+		wr32(IGC_IMS, ims);
+	} else {
+		wr32(IGC_IMS, IMS_ENABLE_MASK | IGC_IMS_DRSTA);
+		wr32(IGC_IAM, IMS_ENABLE_MASK | IGC_IMS_DRSTA);
+	}
+}
+
+/**
  * igc_up - Open the interface and prepare it to handle traffic
  * @adapter: board private structure
  */
@@ -3969,29 +3991,6 @@ static void igc_irq_disable(struct igc_adapter *adapter)
 			synchronize_irq(adapter->msix_entries[vector++].vector);
 	} else {
 		synchronize_irq(adapter->pdev->irq);
-	}
-}
-
-/**
- * igc_irq_enable - Enable default interrupt generation settings
- * @adapter: board private structure
- */
-static void igc_irq_enable(struct igc_adapter *adapter)
-{
-	struct igc_hw *hw = &adapter->hw;
-
-	if (adapter->msix_entries) {
-		u32 ims = IGC_IMS_LSC | IGC_IMS_DOUTSYNC | IGC_IMS_DRSTA;
-		u32 regval = rd32(IGC_EIAC);
-
-		wr32(IGC_EIAC, regval | adapter->eims_enable_mask);
-		regval = rd32(IGC_EIAM);
-		wr32(IGC_EIAM, regval | adapter->eims_enable_mask);
-		wr32(IGC_EIMS, adapter->eims_enable_mask);
-		wr32(IGC_IMS, ims);
-	} else {
-		wr32(IGC_IMS, IMS_ENABLE_MASK | IGC_IMS_DRSTA);
-		wr32(IGC_IAM, IMS_ENABLE_MASK | IGC_IMS_DRSTA);
 	}
 }
 
