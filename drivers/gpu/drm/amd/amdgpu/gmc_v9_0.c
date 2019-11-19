@@ -658,6 +658,9 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		adev->mmhub.funcs = &mmhub_v1_0_funcs;
 		break;
+	case CHIP_ARCTURUS:
+		adev->mmhub.funcs = &mmhub_v9_4_funcs;
+		break;
 	default:
 		break;
 	}
