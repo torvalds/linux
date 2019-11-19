@@ -1977,13 +1977,30 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		break;
 	}
 
+	switch (c->processor_id & PRID_COMP_MASK) {
 	/*
-	 * The config0 register in the Xburst CPUs with a processor ID of
+	 * The config0 register in the XBurst CPUs with a processor ID of
+	 * PRID_COMP_INGENIC_D1 has an abandoned huge page tlb mode, this
+	 * mode is not compatible with the MIPS standard, it will cause
+	 * tlbmiss and into an infinite loop (line 21 in the tlb-funcs.S)
+	 * when starting the init process. After chip reset, the default
+	 * is HPTLB mode, Write 0xa9000000 to cp0 register 5 sel 4 to
+	 * switch back to VTLB mode to prevent getting stuck.
+	 */
+	case PRID_COMP_INGENIC_D1:
+		write_c0_page_ctrl(XBURST_PAGECTRL_HPTLB_DIS);
+		break;
+	/*
+	 * The config0 register in the XBurst CPUs with a processor ID of
 	 * PRID_COMP_INGENIC_D0 report themselves as MIPS32r2 compatible,
 	 * but they don't actually support this ISA.
 	 */
-	if ((c->processor_id & PRID_COMP_MASK) == PRID_COMP_INGENIC_D0)
+	case PRID_COMP_INGENIC_D0:
 		c->isa_level &= ~MIPS_CPU_ISA_M32R2;
+		break;
+	default:
+		break;
+	}
 }
 
 static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
