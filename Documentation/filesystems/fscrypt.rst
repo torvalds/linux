@@ -638,7 +638,8 @@ follows::
     struct fscrypt_add_key_arg {
             struct fscrypt_key_specifier key_spec;
             __u32 raw_size;
-            __u32 __reserved[9];
+            __u32 key_id;
+            __u32 __reserved[8];
             __u8 raw[];
     };
 
@@ -653,6 +654,12 @@ follows::
                     __u8 descriptor[FSCRYPT_KEY_DESCRIPTOR_SIZE];
                     __u8 identifier[FSCRYPT_KEY_IDENTIFIER_SIZE];
             } u;
+    };
+
+    struct fscrypt_provisioning_key_payload {
+            __u32 type;
+            __u32 __reserved;
+            __u8 raw[];
     };
 
 :c:type:`struct fscrypt_add_key_arg` must be zeroed, then initialized
@@ -677,9 +684,26 @@ as follows:
   ``Documentation/security/keys/core.rst``).
 
 - ``raw_size`` must be the size of the ``raw`` key provided, in bytes.
+  Alternatively, if ``key_id`` is nonzero, this field must be 0, since
+  in that case the size is implied by the specified Linux keyring key.
+
+- ``key_id`` is 0 if the raw key is given directly in the ``raw``
+  field.  Otherwise ``key_id`` is the ID of a Linux keyring key of
+  type "fscrypt-provisioning" whose payload is a :c:type:`struct
+  fscrypt_provisioning_key_payload` whose ``raw`` field contains the
+  raw key and whose ``type`` field matches ``key_spec.type``.  Since
+  ``raw`` is variable-length, the total size of this key's payload
+  must be ``sizeof(struct fscrypt_provisioning_key_payload)`` plus the
+  raw key size.  The process must have Search permission on this key.
+
+  Most users should leave this 0 and specify the raw key directly.
+  The support for specifying a Linux keyring key is intended mainly to
+  allow re-adding keys after a filesystem is unmounted and re-mounted,
+  without having to store the raw keys in userspace memory.
 
 - ``raw`` is a variable-length field which must contain the actual
-  key, ``raw_size`` bytes long.
+  key, ``raw_size`` bytes long.  Alternatively, if ``key_id`` is
+  nonzero, then this field is unused.
 
 For v2 policy keys, the kernel keeps track of which user (identified
 by effective user ID) added the key, and only allows the key to be
@@ -701,11 +725,16 @@ FS_IOC_ADD_ENCRYPTION_KEY can fail with the following errors:
 
 - ``EACCES``: FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR was specified, but the
   caller does not have the CAP_SYS_ADMIN capability in the initial
-  user namespace
+  user namespace; or the raw key was specified by Linux key ID but the
+  process lacks Search permission on the key.
 - ``EDQUOT``: the key quota for this user would be exceeded by adding
   the key
 - ``EINVAL``: invalid key size or key specifier type, or reserved bits
   were set
+- ``EKEYREJECTED``: the raw key was specified by Linux key ID, but the
+  key has the wrong type
+- ``ENOKEY``: the raw key was specified by Linux key ID, but no key
+  exists with that ID
 - ``ENOTTY``: this type of filesystem does not implement encryption
 - ``EOPNOTSUPP``: the kernel was not configured with encryption
   support for this filesystem, or the filesystem superblock has not
