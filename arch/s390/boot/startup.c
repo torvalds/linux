@@ -170,6 +170,11 @@ void startup_kernel(void)
 		handle_relocs(__kaslr_offset);
 
 	if (__kaslr_offset) {
+		/*
+		 * Save KASLR offset for early dumps, before vmcore_info is set.
+		 * Mark as uneven to distinguish from real vmcore_info pointer.
+		 */
+		S390_lowcore.vmcore_info = __kaslr_offset | 0x1UL;
 		/* Clear non-relocated kernel */
 		if (IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED))
 			memset(img, 0, vmlinux.image_size);
