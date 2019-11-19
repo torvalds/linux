@@ -2283,7 +2283,7 @@ static void ethofld_xmit(struct net_device *dev, struct sge_eosw_txq *eosw_txq)
 	case CXGB4_EO_STATE_CLOSED:
 	default:
 		return;
-	};
+	}
 
 	while (pktcount--) {
 		skb = eosw_txq_peek(eosw_txq);
