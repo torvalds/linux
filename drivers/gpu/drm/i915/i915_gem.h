@@ -30,6 +30,8 @@
 
 #include <drm/drm_drv.h>
 
+#include "i915_utils.h"
+
 struct drm_i915_private;
 
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
@@ -39,6 +41,7 @@ struct drm_i915_private;
 #define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
 		GEM_TRACE_ERR("%s:%d GEM_BUG_ON(%s)\n", \
 			      __func__, __LINE__, __stringify(condition)); \
+		GEM_TRACE_DUMP(); \
 		BUG(); \
 		} \
 	} while(0)
