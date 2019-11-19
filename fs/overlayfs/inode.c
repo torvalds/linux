@@ -571,9 +571,11 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
 	 * bits to encode layer), set the same value used for st_ino to i_ino,
 	 * so inode number exposed via /proc/locks and a like will be
 	 * consistent with d_ino and st_ino values. An i_ino value inconsistent
-	 * with d_ino also causes nfsd readdirplus to fail.  When called from
-	 * ovl_new_inode(), ino arg is 0, so i_ino will be updated to real
-	 * upper inode i_ino on ovl_inode_init() or ovl_inode_update().
+	 * with d_ino also causes nfsd readdirplus to fail.
+	 *
+	 * When called from ovl_create_object() => ovl_new_inode(), with
+	 * ino = 0, i_ino will be updated to consistent value later on in
+	 * ovl_get_inode() => ovl_fill_inode().
 	 */
 	if (ovl_same_dev(inode->i_sb)) {
 		inode->i_ino = ino;
