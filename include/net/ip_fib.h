@@ -311,6 +311,11 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 	return err;
 }
 
+static inline bool fib4_has_custom_rules(const struct net *net)
+{
+	return false;
+}
+
 static inline bool fib4_rule_default(const struct fib_rule *rule)
 {
 	return true;
@@ -376,6 +381,11 @@ out:
 	rcu_read_unlock();
 
 	return err;
+}
+
+static inline bool fib4_has_custom_rules(const struct net *net)
+{
+	return net->ipv4.fib_has_custom_rules;
 }
 
 bool fib4_rule_default(const struct fib_rule *rule);
