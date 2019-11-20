@@ -177,7 +177,8 @@ static int __engine_park(struct intel_wakeref *wf)
 
 	engine->execlists.no_priolist = false;
 
-	intel_gt_pm_put(engine->gt);
+	/* While gt calls i915_vma_parked(), we have to break the lock cycle */
+	intel_gt_pm_put_async(engine->gt);
 	return 0;
 }
 

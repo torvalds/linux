@@ -105,7 +105,6 @@ static int __gt_park(struct intel_wakeref *wf)
 static const struct intel_wakeref_ops wf_ops = {
 	.get = __gt_unpark,
 	.put = __gt_park,
-	.flags = INTEL_WAKEREF_PUT_ASYNC,
 };
 
 void intel_gt_pm_init_early(struct intel_gt *gt)

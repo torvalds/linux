@@ -54,7 +54,8 @@ int __intel_wakeref_get_first(struct intel_wakeref *wf)
 
 static void ____intel_wakeref_put_last(struct intel_wakeref *wf)
 {
-	if (!atomic_dec_and_test(&wf->count))
+	INTEL_WAKEREF_BUG_ON(atomic_read(&wf->count) <= 0);
+	if (unlikely(!atomic_dec_and_test(&wf->count)))
 		goto unlock;
 
 	/* ops->put() must reschedule its own release on error/deferral */
@@ -67,13 +68,12 @@ unlock:
 	mutex_unlock(&wf->mutex);
 }
 
-void __intel_wakeref_put_last(struct intel_wakeref *wf)
+void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags)
 {
 	INTEL_WAKEREF_BUG_ON(work_pending(&wf->work));
 
 	/* Assume we are not in process context and so cannot sleep. */
-	if (wf->ops->flags & INTEL_WAKEREF_PUT_ASYNC ||
-	    !mutex_trylock(&wf->mutex)) {
+	if (flags & INTEL_WAKEREF_PUT_ASYNC || !mutex_trylock(&wf->mutex)) {
 		schedule_work(&wf->work);
 		return;
 	}
