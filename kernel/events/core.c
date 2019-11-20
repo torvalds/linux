@@ -5825,13 +5825,7 @@ accounting:
 
 	user_locked = atomic_long_read(&user->locked_vm) + user_extra;
 
-	if (user_locked <= user_lock_limit) {
-		/* charge all to locked_vm */
-	} else if (atomic_long_read(&user->locked_vm) >= user_lock_limit) {
-		/* charge all to pinned_vm */
-		extra = user_extra;
-		user_extra = 0;
-	} else {
+	if (user_locked > user_lock_limit) {
 		/*
 		 * charge locked_vm until it hits user_lock_limit;
 		 * charge the rest from pinned_vm
