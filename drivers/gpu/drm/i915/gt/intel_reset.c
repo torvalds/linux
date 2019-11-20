@@ -1125,7 +1125,7 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 out:
 	intel_engine_cancel_stop_cs(engine);
 	reset_finish_engine(engine);
-	intel_engine_pm_put(engine);
+	intel_engine_pm_put_async(engine);
 	return ret;
 }
 

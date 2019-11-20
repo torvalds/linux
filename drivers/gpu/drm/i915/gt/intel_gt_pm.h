@@ -32,6 +32,11 @@ static inline void intel_gt_pm_put(struct intel_gt *gt)
 	intel_wakeref_put(&gt->wakeref);
 }
 
+static inline void intel_gt_pm_put_async(struct intel_gt *gt)
+{
+	intel_wakeref_put_async(&gt->wakeref);
+}
+
 static inline int intel_gt_pm_wait_for_idle(struct intel_gt *gt)
 {
 	return intel_wakeref_wait_for_idle(&gt->wakeref);

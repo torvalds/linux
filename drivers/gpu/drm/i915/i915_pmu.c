@@ -190,7 +190,7 @@ static u64 get_rc6(struct intel_gt *gt)
 	val = 0;
 	if (intel_gt_pm_get_if_awake(gt)) {
 		val = __get_rc6(gt);
-		intel_gt_pm_put(gt);
+		intel_gt_pm_put_async(gt);
 	}
 
 	spin_lock_irqsave(&pmu->lock, flags);
@@ -360,7 +360,7 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 skip:
 		if (unlikely(mmio_lock))
 			spin_unlock_irqrestore(mmio_lock, flags);
-		intel_engine_pm_put(engine);
+		intel_engine_pm_put_async(engine);
 	}
 }
 
@@ -398,7 +398,7 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 			if (stat)
 				val = intel_get_cagf(rps, stat);
 
-			intel_gt_pm_put(gt);
+			intel_gt_pm_put_async(gt);
 		}
 
 		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_ACT],
