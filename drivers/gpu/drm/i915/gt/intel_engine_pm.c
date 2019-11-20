@@ -73,8 +73,25 @@ static inline void __timeline_mark_unlock(struct intel_context *ce,
 
 #endif /* !IS_ENABLED(CONFIG_LOCKDEP) */
 
+static void
+__intel_timeline_enter_and_release_pm(struct intel_timeline *tl,
+				      struct intel_engine_cs *engine)
+{
+	struct intel_gt_timelines *timelines = &engine->gt->timelines;
+
+	spin_lock(&timelines->lock);
+
+	if (!atomic_fetch_inc(&tl->active_count))
+		list_add_tail(&tl->link, &timelines->active_list);
+
+	__intel_wakeref_defer_park(&engine->wakeref);
+
+	spin_unlock(&timelines->lock);
+}
+
 static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 {
+	struct intel_context *ce = engine->kernel_context;
 	struct i915_request *rq;
 	unsigned long flags;
 	bool result = true;
@@ -98,15 +115,30 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	 * This should hold true as we can only park the engine after
 	 * retiring the last request, thus all rings should be empty and
 	 * all timelines idle.
+	 *
+	 * For unlocking, there are 2 other parties and the GPU who have a
+	 * stake here.
+	 *
+	 * A new gpu user will be waiting on the engine-pm to start their
+	 * engine_unpark. New waiters are predicated on engine->wakeref.count
+	 * and so intel_wakeref_defer_park() acts like a mutex_unlock of the
+	 * engine->wakeref.
+	 *
+	 * The other party is intel_gt_retire_requests(), which is walking the
+	 * list of active timelines looking for completions. Meanwhile as soon
+	 * as we call __i915_request_queue(), the GPU may complete our request.
+	 * Ergo, if we put ourselves on the timelines.active_list
+	 * (se intel_timeline_enter()) before we increment the
+	 * engine->wakeref.count, we may see the request completion and retire
+	 * it causing an undeflow of the engine->wakeref.
 	 */
-	flags = __timeline_mark_lock(engine->kernel_context);
+	flags = __timeline_mark_lock(ce);
+	GEM_BUG_ON(atomic_read(&ce->timeline->active_count) < 0);
 
-	rq = __i915_request_create(engine->kernel_context, GFP_NOWAIT);
+	rq = __i915_request_create(ce, GFP_NOWAIT);
 	if (IS_ERR(rq))
 		/* Context switch failed, hope for the best! Maybe reset? */
 		goto out_unlock;
-
-	intel_timeline_enter(i915_request_timeline(rq));
 
 	/* Check again on the next retirement. */
 	engine->wakeref_serial = engine->serial + 1;
@@ -116,13 +148,14 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	rq->sched.attr.priority = I915_PRIORITY_BARRIER;
 	__i915_request_commit(rq);
 
-	/* Release our exclusive hold on the engine */
-	__intel_wakeref_defer_park(&engine->wakeref);
 	__i915_request_queue(rq, NULL);
+
+	/* Expose ourselves to intel_gt_retire_requests() and new submission */
+	__intel_timeline_enter_and_release_pm(ce->timeline, engine);
 
 	result = false;
 out_unlock:
-	__timeline_mark_unlock(engine->kernel_context, flags);
+	__timeline_mark_unlock(ce, flags);
 	return result;
 }
 
