@@ -727,6 +727,7 @@ int i915_gem_init_contexts(struct drm_i915_private *i915)
 void i915_gem_driver_release__contexts(struct drm_i915_private *i915)
 {
 	destroy_kernel_context(&i915->kernel_context);
+	flush_work(&i915->gem.contexts.free_work);
 }
 
 static int context_idr_cleanup(int id, void *p, void *data)
