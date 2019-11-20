@@ -993,11 +993,11 @@ static bool of_is_ancestor_of(struct device_node *test_ancestor,
 	while (child) {
 		if (child == test_ancestor) {
 			of_node_put(child);
-			return false;
+			return true;
 		}
 		child = of_get_next_parent(child);
 	}
-	return true;
+	return false;
 }
 
 /**
@@ -1043,7 +1043,7 @@ static int of_link_to_phandle(struct device *dev, struct device_node *sup_np,
 	 * descendant nodes. By definition, a child node can't be a functional
 	 * dependency for the parent node.
 	 */
-	if (!of_is_ancestor_of(dev->of_node, sup_np)) {
+	if (of_is_ancestor_of(dev->of_node, sup_np)) {
 		dev_dbg(dev, "Not linking to %pOFP - is descendant\n", sup_np);
 		of_node_put(sup_np);
 		return -EINVAL;
