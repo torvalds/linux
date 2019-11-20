@@ -331,46 +331,66 @@ const struct xfs_buf_ops xfs_da3_node_buf_ops = {
 	.verify_struct = xfs_da3_node_verify_struct,
 };
 
+static int
+xfs_da3_node_set_type(
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp)
+{
+	struct xfs_da_blkinfo	*info = bp->b_addr;
+
+	switch (be16_to_cpu(info->magic)) {
+	case XFS_DA_NODE_MAGIC:
+	case XFS_DA3_NODE_MAGIC:
+		xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DA_NODE_BUF);
+		return 0;
+	case XFS_ATTR_LEAF_MAGIC:
+	case XFS_ATTR3_LEAF_MAGIC:
+		xfs_trans_buf_set_type(tp, bp, XFS_BLFT_ATTR_LEAF_BUF);
+		return 0;
+	case XFS_DIR2_LEAFN_MAGIC:
+	case XFS_DIR3_LEAFN_MAGIC:
+		xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DIR_LEAFN_BUF);
+		return 0;
+	default:
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, tp->t_mountp,
+				info, sizeof(*info));
+		xfs_trans_brelse(tp, bp);
+		return -EFSCORRUPTED;
+	}
+}
+
 int
 xfs_da3_node_read(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
+	struct xfs_buf		**bpp,
+	int			whichfork)
+{
+	int			error;
+
+	error = xfs_da_read_buf(tp, dp, bno, -1, bpp, whichfork,
+			&xfs_da3_node_buf_ops);
+	if (error || !*bpp || !tp)
+		return error;
+	return xfs_da3_node_set_type(tp, *bpp);
+}
+
+int
+xfs_da3_node_read_mapped(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
 	xfs_daddr_t		mappedbno,
 	struct xfs_buf		**bpp,
-	int			which_fork)
+	int			whichfork)
 {
-	int			err;
+	int			error;
 
-	err = xfs_da_read_buf(tp, dp, bno, mappedbno, bpp,
-					which_fork, &xfs_da3_node_buf_ops);
-	if (!err && tp && *bpp) {
-		struct xfs_da_blkinfo	*info = (*bpp)->b_addr;
-		int			type;
-
-		switch (be16_to_cpu(info->magic)) {
-		case XFS_DA_NODE_MAGIC:
-		case XFS_DA3_NODE_MAGIC:
-			type = XFS_BLFT_DA_NODE_BUF;
-			break;
-		case XFS_ATTR_LEAF_MAGIC:
-		case XFS_ATTR3_LEAF_MAGIC:
-			type = XFS_BLFT_ATTR_LEAF_BUF;
-			break;
-		case XFS_DIR2_LEAFN_MAGIC:
-		case XFS_DIR3_LEAFN_MAGIC:
-			type = XFS_BLFT_DIR_LEAFN_BUF;
-			break;
-		default:
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
-					tp->t_mountp, info, sizeof(*info));
-			xfs_trans_brelse(tp, *bpp);
-			*bpp = NULL;
-			return -EFSCORRUPTED;
-		}
-		xfs_trans_buf_set_type(tp, *bpp, type);
-	}
-	return err;
+	error = xfs_da_read_buf(tp, dp, 0, mappedbno, bpp, whichfork,
+			&xfs_da3_node_buf_ops);
+	if (error || !*bpp || !tp)
+		return error;
+	return xfs_da3_node_set_type(tp, *bpp);
 }
 
 /*========================================================================
@@ -1166,8 +1186,7 @@ xfs_da3_root_join(
 	 */
 	child = be32_to_cpu(oldroothdr.btree[0].before);
 	ASSERT(child != 0);
-	error = xfs_da3_node_read(args->trans, dp, child, -1, &bp,
-					     args->whichfork);
+	error = xfs_da3_node_read(args->trans, dp, child, &bp, args->whichfork);
 	if (error)
 		return error;
 	xfs_da_blkinfo_onlychild_validate(bp->b_addr, oldroothdr.level);
@@ -1281,8 +1300,8 @@ xfs_da3_node_toosmall(
 			blkno = nodehdr.back;
 		if (blkno == 0)
 			continue;
-		error = xfs_da3_node_read(state->args->trans, dp,
-					blkno, -1, &bp, state->args->whichfork);
+		error = xfs_da3_node_read(state->args->trans, dp, blkno, &bp,
+				state->args->whichfork);
 		if (error)
 			return error;
 
@@ -1570,7 +1589,7 @@ xfs_da3_node_lookup_int(
 		 */
 		blk->blkno = blkno;
 		error = xfs_da3_node_read(args->trans, args->dp, blkno,
-					-1, &blk->bp, args->whichfork);
+					&blk->bp, args->whichfork);
 		if (error) {
 			blk->blkno = 0;
 			state->path.active--;
@@ -1804,7 +1823,7 @@ xfs_da3_blk_link(
 		if (old_info->back) {
 			error = xfs_da3_node_read(args->trans, dp,
 						be32_to_cpu(old_info->back),
-						-1, &bp, args->whichfork);
+						&bp, args->whichfork);
 			if (error)
 				return error;
 			ASSERT(bp != NULL);
@@ -1825,7 +1844,7 @@ xfs_da3_blk_link(
 		if (old_info->forw) {
 			error = xfs_da3_node_read(args->trans, dp,
 						be32_to_cpu(old_info->forw),
-						-1, &bp, args->whichfork);
+						&bp, args->whichfork);
 			if (error)
 				return error;
 			ASSERT(bp != NULL);
@@ -1884,7 +1903,7 @@ xfs_da3_blk_unlink(
 		if (drop_info->back) {
 			error = xfs_da3_node_read(args->trans, args->dp,
 						be32_to_cpu(drop_info->back),
-						-1, &bp, args->whichfork);
+						&bp, args->whichfork);
 			if (error)
 				return error;
 			ASSERT(bp != NULL);
@@ -1901,7 +1920,7 @@ xfs_da3_blk_unlink(
 		if (drop_info->forw) {
 			error = xfs_da3_node_read(args->trans, args->dp,
 						be32_to_cpu(drop_info->forw),
-						-1, &bp, args->whichfork);
+						&bp, args->whichfork);
 			if (error)
 				return error;
 			ASSERT(bp != NULL);
@@ -1985,7 +2004,7 @@ xfs_da3_path_shift(
 		/*
 		 * Read the next child block into a local buffer.
 		 */
-		error = xfs_da3_node_read(args->trans, dp, blkno, -1, &bp,
+		error = xfs_da3_node_read(args->trans, dp, blkno, &bp,
 					  args->whichfork);
 		if (error)
 			return error;
@@ -2263,7 +2282,7 @@ xfs_da3_swap_lastblock(
 	 * Read the last block in the btree space.
 	 */
 	last_blkno = (xfs_dablk_t)lastoff - args->geo->fsbcount;
-	error = xfs_da3_node_read(tp, dp, last_blkno, -1, &last_buf, w);
+	error = xfs_da3_node_read(tp, dp, last_blkno, &last_buf, w);
 	if (error)
 		return error;
 	/*
@@ -2300,7 +2319,7 @@ xfs_da3_swap_lastblock(
 	 * If the moved block has a left sibling, fix up the pointers.
 	 */
 	if ((sib_blkno = be32_to_cpu(dead_info->back))) {
-		error = xfs_da3_node_read(tp, dp, sib_blkno, -1, &sib_buf, w);
+		error = xfs_da3_node_read(tp, dp, sib_blkno, &sib_buf, w);
 		if (error)
 			goto done;
 		sib_info = sib_buf->b_addr;
@@ -2320,7 +2339,7 @@ xfs_da3_swap_lastblock(
 	 * If the moved block has a right sibling, fix up the pointers.
 	 */
 	if ((sib_blkno = be32_to_cpu(dead_info->forw))) {
-		error = xfs_da3_node_read(tp, dp, sib_blkno, -1, &sib_buf, w);
+		error = xfs_da3_node_read(tp, dp, sib_blkno, &sib_buf, w);
 		if (error)
 			goto done;
 		sib_info = sib_buf->b_addr;
@@ -2342,7 +2361,7 @@ xfs_da3_swap_lastblock(
 	 * Walk down the tree looking for the parent of the moved block.
 	 */
 	for (;;) {
-		error = xfs_da3_node_read(tp, dp, par_blkno, -1, &par_buf, w);
+		error = xfs_da3_node_read(tp, dp, par_blkno, &par_buf, w);
 		if (error)
 			goto done;
 		par_node = par_buf->b_addr;
@@ -2388,7 +2407,7 @@ xfs_da3_swap_lastblock(
 			error = -EFSCORRUPTED;
 			goto done;
 		}
-		error = xfs_da3_node_read(tp, dp, par_blkno, -1, &par_buf, w);
+		error = xfs_da3_node_read(tp, dp, par_blkno, &par_buf, w);
 		if (error)
 			goto done;
 		par_node = par_buf->b_addr;
