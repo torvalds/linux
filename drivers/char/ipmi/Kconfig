@@ -8,13 +8,13 @@ menuconfig IPMI_HANDLER
        depends on HAS_IOMEM
        select IPMI_DMI_DECODE if DMI
        help
-         This enables the central IPMI message handler, required for IPMI
+	 This enables the central IPMI message handler, required for IPMI
 	 to work.
 
-         IPMI is a standard for managing sensors (temperature,
-         voltage, etc.) in a system.
+	 IPMI is a standard for managing sensors (temperature,
+	 voltage, etc.) in a system.
 
-         See <file:Documentation/IPMI.txt> for more details on the driver.
+	 See <file:Documentation/IPMI.txt> for more details on the driver.
 
 	 If unsure, say N.
 
@@ -56,14 +56,14 @@ config IPMI_PANIC_STRING
 config IPMI_DEVICE_INTERFACE
        tristate 'Device interface for IPMI'
        help
-         This provides an IOCTL interface to the IPMI message handler so
+	 This provides an IOCTL interface to the IPMI message handler so
 	 userland processes may use IPMI.  It supports poll() and select().
 
 config IPMI_SI
        tristate 'IPMI System Interface handler'
        select IPMI_PLAT_DATA
        help
-         Provides a driver for System Interfaces (KCS, SMIC, BT).
+	 Provides a driver for System Interfaces (KCS, SMIC, BT).
 	 Currently, only KCS and SMIC are supported.  If
 	 you are using IPMI, you should probably say "y" here.
 
@@ -71,7 +71,7 @@ config IPMI_SSIF
        tristate 'IPMI SMBus handler (SSIF)'
        select I2C
        help
-         Provides a driver for a SMBus interface to a BMC, meaning that you
+	 Provides a driver for a SMBus interface to a BMC, meaning that you
 	 have a driver that must be accessed over an I2C bus instead of a
 	 standard interface.  This module requires I2C support.
 
@@ -79,17 +79,17 @@ config IPMI_POWERNV
        depends on PPC_POWERNV
        tristate 'POWERNV (OPAL firmware) IPMI interface'
        help
-         Provides a driver for OPAL firmware-based IPMI interfaces.
+	 Provides a driver for OPAL firmware-based IPMI interfaces.
 
 config IPMI_WATCHDOG
        tristate 'IPMI Watchdog Timer'
        help
-         This enables the IPMI watchdog timer.
+	 This enables the IPMI watchdog timer.
 
 config IPMI_POWEROFF
        tristate 'IPMI Poweroff'
        help
-         This enables a function to power off the system with IPMI if
+	 This enables a function to power off the system with IPMI if
 	 the IPMI management controller is capable of this.
 
 endif # IPMI_HANDLER
