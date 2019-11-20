@@ -932,20 +932,22 @@ static int rx_queue_add_kobject(struct net_device *dev, int index)
 	error = kobject_init_and_add(kobj, &rx_queue_ktype, NULL,
 				     "rx-%u", index);
 	if (error)
-		return error;
+		goto err;
 
 	dev_hold(queue->dev);
 
 	if (dev->sysfs_rx_queue_group) {
 		error = sysfs_create_group(kobj, dev->sysfs_rx_queue_group);
-		if (error) {
-			kobject_put(kobj);
-			return error;
-		}
+		if (error)
+			goto err;
 	}
 
 	kobject_uevent(kobj, KOBJ_ADD);
 
+	return error;
+
+err:
+	kobject_put(kobj);
 	return error;
 }
 #endif /* CONFIG_SYSFS */
@@ -1471,21 +1473,21 @@ static int netdev_queue_add_kobject(struct net_device *dev, int index)
 	error = kobject_init_and_add(kobj, &netdev_queue_ktype, NULL,
 				     "tx-%u", index);
 	if (error)
-		return error;
+		goto err;
 
 	dev_hold(queue->dev);
 
 #ifdef CONFIG_BQL
 	error = sysfs_create_group(kobj, &dql_group);
-	if (error) {
-		kobject_put(kobj);
-		return error;
-	}
+	if (error)
+		goto err;
 #endif
 
 	kobject_uevent(kobj, KOBJ_ADD);
 
-	return 0;
+err:
+	kobject_put(kobj);
+	return error;
 }
 #endif /* CONFIG_SYSFS */
 
