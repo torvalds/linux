@@ -9,7 +9,9 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 
@@ -59,9 +61,11 @@ struct pcm3168a_priv {
 	struct regulator_bulk_data supplies[PCM3168A_NUM_SUPPLIES];
 	struct regmap *regmap;
 	struct clk *scki;
+	struct gpio_desc *gpio_rst;
 	unsigned long sysclk;
 
 	struct pcm3168a_io_params io_params[2];
+	struct snd_soc_dai_driver dai_drv[2];
 };
 
 static const char *const pcm3168a_roll_off[] = { "Sharp", "Slow" };
@@ -314,6 +318,34 @@ static int pcm3168a_set_dai_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static void pcm3168a_update_fixup_pcm_stream(struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
+	u64 formats = SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_LE;
+	unsigned int channel_max = dai->id == PCM3168A_DAI_DAC ? 8 : 6;
+
+	if (pcm3168a->io_params[dai->id].fmt == PCM3168A_FMT_RIGHT_J) {
+		/* S16_LE is only supported in RIGHT_J mode */
+		formats |= SNDRV_PCM_FMTBIT_S16_LE;
+
+		/*
+		 * If multi DIN/DOUT is not selected, RIGHT_J can only support
+		 * two channels (no TDM support)
+		 */
+		if (pcm3168a->io_params[dai->id].tdm_slots != 2)
+			channel_max = 2;
+	}
+
+	if (dai->id == PCM3168A_DAI_DAC) {
+		dai->driver->playback.channels_max = channel_max;
+		dai->driver->playback.formats = formats;
+	} else {
+		dai->driver->capture.channels_max = channel_max;
+		dai->driver->capture.formats = formats;
+	}
+}
+
 static int pcm3168a_set_dai_fmt(struct snd_soc_dai *dai, unsigned int format)
 {
 	struct snd_soc_component *component = dai->component;
@@ -376,6 +408,8 @@ static int pcm3168a_set_dai_fmt(struct snd_soc_dai *dai, unsigned int format)
 
 	regmap_update_bits(pcm3168a->regmap, reg, mask, fmt << shift);
 
+	pcm3168a_update_fixup_pcm_stream(dai);
+
 	return 0;
 }
 
@@ -408,6 +442,8 @@ static int pcm3168a_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		io_params->tdm_mask = tx_mask;
 	else
 		io_params->tdm_mask = rx_mask;
+
+	pcm3168a_update_fixup_pcm_stream(dai);
 
 	return 0;
 }
@@ -530,63 +566,7 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int pcm3168a_startup(struct snd_pcm_substream *substream,
-			    struct snd_soc_dai *dai)
-{
-	struct snd_soc_component *component = dai->component;
-	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
-	unsigned int sample_min;
-	unsigned int channel_max;
-	unsigned int channel_maxs[] = {
-		8, /* DAC */
-		6  /* ADC */
-	};
-
-	/*
-	 * Available Data Bits
-	 *
-	 * RIGHT_J : 24 / 16
-	 * LEFT_J  : 24
-	 * I2S     : 24
-	 *
-	 * TDM available
-	 *
-	 * I2S
-	 * LEFT_J
-	 */
-	switch (pcm3168a->io_params[dai->id].fmt) {
-	case PCM3168A_FMT_RIGHT_J:
-		sample_min  = 16;
-		channel_max =  2;
-		break;
-	case PCM3168A_FMT_LEFT_J:
-	case PCM3168A_FMT_I2S:
-	case PCM3168A_FMT_DSP_A:
-	case PCM3168A_FMT_DSP_B:
-		sample_min  = 24;
-		channel_max = channel_maxs[dai->id];
-		break;
-	default:
-		sample_min  = 24;
-		channel_max =  2;
-	}
-
-	snd_pcm_hw_constraint_minmax(substream->runtime,
-				     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-				     sample_min, 32);
-
-	/* Allow all channels in multi DIN/DOUT mode */
-	if (pcm3168a->io_params[dai->id].tdm_slots == 2)
-		channel_max = channel_maxs[dai->id];
-
-	snd_pcm_hw_constraint_minmax(substream->runtime,
-				     SNDRV_PCM_HW_PARAM_CHANNELS,
-				     2, channel_max);
-
-	return 0;
-}
 static const struct snd_soc_dai_ops pcm3168a_dai_ops = {
-	.startup	= pcm3168a_startup,
 	.set_fmt	= pcm3168a_set_dai_fmt,
 	.set_sysclk	= pcm3168a_set_dai_sysclk,
 	.hw_params	= pcm3168a_hw_params,
@@ -666,6 +646,7 @@ static bool pcm3168a_readable_register(struct device *dev, unsigned int reg)
 static bool pcm3168a_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case PCM3168A_RST_SMODE:
 	case PCM3168A_DAC_ZERO:
 	case PCM3168A_ADC_OV:
 		return true;
@@ -725,6 +706,25 @@ int pcm3168a_probe(struct device *dev, struct regmap *regmap)
 
 	dev_set_drvdata(dev, pcm3168a);
 
+	/*
+	 * Request the reset (connected to RST pin) gpio line as non exclusive
+	 * as the same reset line might be connected to multiple pcm3168a codec
+	 *
+	 * The RST is low active, we want the GPIO line to be high initially, so
+	 * request the initial level to LOW which in practice means DEASSERTED:
+	 * The deasserted level of GPIO_ACTIVE_LOW is HIGH.
+	 */
+	pcm3168a->gpio_rst = devm_gpiod_get_optional(dev, "reset",
+						GPIOD_OUT_LOW |
+						GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+	if (IS_ERR(pcm3168a->gpio_rst)) {
+		ret = PTR_ERR(pcm3168a->gpio_rst);
+		if (ret != -EPROBE_DEFER )
+			dev_err(dev, "failed to acquire RST gpio: %d\n", ret);
+
+		return ret;
+	}
+
 	pcm3168a->scki = devm_clk_get(dev, "scki");
 	if (IS_ERR(pcm3168a->scki)) {
 		ret = PTR_ERR(pcm3168a->scki);
@@ -766,18 +766,28 @@ int pcm3168a_probe(struct device *dev, struct regmap *regmap)
 		goto err_regulator;
 	}
 
-	ret = pcm3168a_reset(pcm3168a);
-	if (ret) {
-		dev_err(dev, "Failed to reset device: %d\n", ret);
-		goto err_regulator;
+	if (pcm3168a->gpio_rst) {
+		/*
+		 * The device is taken out from reset via GPIO line, wait for
+		 * 3846 SCKI clock cycles for the internal reset de-assertion
+		 */
+		msleep(DIV_ROUND_UP(3846 * 1000, pcm3168a->sysclk));
+	} else {
+		ret = pcm3168a_reset(pcm3168a);
+		if (ret) {
+			dev_err(dev, "Failed to reset device: %d\n", ret);
+			goto err_regulator;
+		}
 	}
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
-	ret = devm_snd_soc_register_component(dev, &pcm3168a_driver, pcm3168a_dais,
-			ARRAY_SIZE(pcm3168a_dais));
+	memcpy(pcm3168a->dai_drv, pcm3168a_dais, sizeof(pcm3168a->dai_drv));
+	ret = devm_snd_soc_register_component(dev, &pcm3168a_driver,
+					      pcm3168a->dai_drv,
+					      ARRAY_SIZE(pcm3168a->dai_drv));
 	if (ret) {
 		dev_err(dev, "failed to register component: %d\n", ret);
 		goto err_regulator;
@@ -806,6 +816,15 @@ static void pcm3168a_disable(struct device *dev)
 
 void pcm3168a_remove(struct device *dev)
 {
+	struct pcm3168a_priv *pcm3168a = dev_get_drvdata(dev);
+
+	/*
+	 * The RST is low active, we want the GPIO line to be low when the
+	 * driver is removed, so set level to 1 which in practice means
+	 * ASSERTED:
+	 * The asserted level of GPIO_ACTIVE_LOW is LOW.
+	 */
+	gpiod_set_value_cansleep(pcm3168a->gpio_rst, 1);
 	pm_runtime_disable(dev);
 #ifndef CONFIG_PM
 	pcm3168a_disable(dev);
