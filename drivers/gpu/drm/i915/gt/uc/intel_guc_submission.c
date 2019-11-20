@@ -537,7 +537,7 @@ static void schedule_out(struct i915_request *rq)
 {
 	trace_i915_request_out(rq);
 
-	intel_gt_pm_put(rq->engine->gt);
+	intel_gt_pm_put_async(rq->engine->gt);
 	i915_request_put(rq);
 }
 
