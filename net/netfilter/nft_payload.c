@@ -182,6 +182,44 @@ static int nft_payload_offload_ll(struct nft_offload_ctx *ctx,
 		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_ETH_ADDRS, eth_addrs,
 				  dst, ETH_ALEN, reg);
 		break;
+	case offsetof(struct ethhdr, h_proto):
+		if (priv->len != sizeof(__be16))
+			return -EOPNOTSUPP;
+
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_BASIC, basic,
+				  n_proto, sizeof(__be16), reg);
+		nft_offload_set_dependency(ctx, NFT_OFFLOAD_DEP_NETWORK);
+		break;
+	case offsetof(struct vlan_ethhdr, h_vlan_TCI):
+		if (priv->len != sizeof(__be16))
+			return -EOPNOTSUPP;
+
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_VLAN, vlan,
+				  vlan_tci, sizeof(__be16), reg);
+		break;
+	case offsetof(struct vlan_ethhdr, h_vlan_encapsulated_proto):
+		if (priv->len != sizeof(__be16))
+			return -EOPNOTSUPP;
+
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_VLAN, vlan,
+				  vlan_tpid, sizeof(__be16), reg);
+		nft_offload_set_dependency(ctx, NFT_OFFLOAD_DEP_NETWORK);
+		break;
+	case offsetof(struct vlan_ethhdr, h_vlan_TCI) + sizeof(struct vlan_hdr):
+		if (priv->len != sizeof(__be16))
+			return -EOPNOTSUPP;
+
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_CVLAN, vlan,
+				  vlan_tci, sizeof(__be16), reg);
+		break;
+	case offsetof(struct vlan_ethhdr, h_vlan_encapsulated_proto) +
+							sizeof(struct vlan_hdr):
+		if (priv->len != sizeof(__be16))
+			return -EOPNOTSUPP;
+
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_CVLAN, vlan,
+				  vlan_tpid, sizeof(__be16), reg);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}

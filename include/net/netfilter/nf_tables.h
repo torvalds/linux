@@ -114,7 +114,7 @@ static inline void nft_reg_store8(u32 *dreg, u8 val)
 	*(u8 *)dreg = val;
 }
 
-static inline u8 nft_reg_load8(u32 *sreg)
+static inline u8 nft_reg_load8(const u32 *sreg)
 {
 	return *(u8 *)sreg;
 }
@@ -125,7 +125,7 @@ static inline void nft_reg_store16(u32 *dreg, u16 val)
 	*(u16 *)dreg = val;
 }
 
-static inline u16 nft_reg_load16(u32 *sreg)
+static inline u16 nft_reg_load16(const u32 *sreg)
 {
 	return *(u16 *)sreg;
 }
@@ -135,7 +135,7 @@ static inline void nft_reg_store64(u32 *dreg, u64 val)
 	put_unaligned(val, (u64 *)dreg);
 }
 
-static inline u64 nft_reg_load64(u32 *sreg)
+static inline u64 nft_reg_load64(const u32 *sreg)
 {
 	return get_unaligned((u64 *)sreg);
 }
