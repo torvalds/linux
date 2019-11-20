@@ -340,6 +340,7 @@ struct io_kiocb {
 #define REQ_F_NOWAIT		1	/* must not punt to workers */
 #define REQ_F_IOPOLL_COMPLETED	2	/* polled IO has completed */
 #define REQ_F_FIXED_FILE	4	/* ctx owns file */
+#define REQ_F_LINK_NEXT		8	/* already grabbed next link */
 #define REQ_F_IO_DRAIN		16	/* drain existing IO first */
 #define REQ_F_IO_DRAINED	32	/* drain done */
 #define REQ_F_LINK		64	/* linked sqes */
@@ -879,6 +880,10 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 	struct io_kiocb *nxt;
 	bool wake_ev = false;
 
+	/* Already got next link */
+	if (req->flags & REQ_F_LINK_NEXT)
+		return;
+
 	/*
 	 * The list should never be empty when we are called here. But could
 	 * potentially happen if the chain is messed up, check to be on the
@@ -915,6 +920,7 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 		break;
 	}
 
+	req->flags |= REQ_F_LINK_NEXT;
 	if (wake_ev)
 		io_cqring_ev_posted(ctx);
 }
@@ -951,12 +957,10 @@ static void io_fail_links(struct io_kiocb *req)
 	io_cqring_ev_posted(ctx);
 }
 
-static void io_free_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
+static void io_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
 {
-	if (likely(!(req->flags & REQ_F_LINK))) {
-		__io_free_req(req);
+	if (likely(!(req->flags & REQ_F_LINK)))
 		return;
-	}
 
 	/*
 	 * If LINK is set, we have dependent requests in this chain. If we
@@ -982,7 +986,11 @@ static void io_free_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
 	} else {
 		io_req_link_next(req, nxt);
 	}
+}
 
+static void io_free_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
+{
+	io_req_find_next(req, nxt);
 	__io_free_req(req);
 }
 
@@ -999,8 +1007,10 @@ static void io_put_req_find_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 {
 	struct io_kiocb *nxt = NULL;
 
+	io_req_find_next(req, &nxt);
+
 	if (refcount_dec_and_test(&req->refs))
-		io_free_req_find_next(req, &nxt);
+		__io_free_req(req);
 
 	if (nxt) {
 		if (nxtptr)
