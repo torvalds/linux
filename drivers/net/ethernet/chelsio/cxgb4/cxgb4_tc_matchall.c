@@ -4,6 +4,9 @@
 #include "cxgb4.h"
 #include "cxgb4_tc_matchall.h"
 #include "sched.h"
+#include "cxgb4_uld.h"
+#include "cxgb4_filter.h"
+#include "cxgb4_tc_flower.h"
 
 static int cxgb4_matchall_egress_validate(struct net_device *dev,
 					  struct tc_cls_matchall_offload *cls)
@@ -118,8 +121,85 @@ static void cxgb4_matchall_free_tc(struct net_device *dev)
 	tc_port_matchall->egress.state = CXGB4_MATCHALL_STATE_DISABLED;
 }
 
+static int cxgb4_matchall_alloc_filter(struct net_device *dev,
+				       struct tc_cls_matchall_offload *cls)
+{
+	struct netlink_ext_ack *extack = cls->common.extack;
+	struct cxgb4_tc_port_matchall *tc_port_matchall;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct ch_filter_specification *fs;
+	int ret, fidx;
+
+	/* Note that TC uses prio 0 to indicate stack to generate
+	 * automatic prio and hence doesn't pass prio 0 to driver.
+	 * However, the hardware TCAM index starts from 0. Hence, the
+	 * -1 here. 1 slot is enough to create a wildcard matchall
+	 * VIID rule.
+	 */
+	if (cls->common.prio <= adap->tids.nftids)
+		fidx = cls->common.prio - 1;
+	else
+		fidx = cxgb4_get_free_ftid(dev, PF_INET);
+
+	/* Only insert MATCHALL rule if its priority doesn't conflict
+	 * with existing rules in the LETCAM.
+	 */
+	if (fidx < 0 ||
+	    !cxgb4_filter_prio_in_range(dev, fidx, cls->common.prio)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "No free LETCAM index available");
+		return -ENOMEM;
+	}
+
+	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
+	fs = &tc_port_matchall->ingress.fs;
+	memset(fs, 0, sizeof(*fs));
+
+	fs->tc_prio = cls->common.prio;
+	fs->tc_cookie = cls->cookie;
+	fs->hitcnts = 1;
+
+	fs->val.pfvf_vld = 1;
+	fs->val.pf = adap->pf;
+	fs->val.vf = pi->vin;
+
+	cxgb4_process_flow_actions(dev, &cls->rule->action, fs);
+
+	ret = cxgb4_set_filter(dev, fidx, fs);
+	if (ret)
+		return ret;
+
+	tc_port_matchall->ingress.tid = fidx;
+	tc_port_matchall->ingress.state = CXGB4_MATCHALL_STATE_ENABLED;
+	return 0;
+}
+
+static int cxgb4_matchall_free_filter(struct net_device *dev)
+{
+	struct cxgb4_tc_port_matchall *tc_port_matchall;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	int ret;
+
+	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
+
+	ret = cxgb4_del_filter(dev, tc_port_matchall->ingress.tid,
+			       &tc_port_matchall->ingress.fs);
+	if (ret)
+		return ret;
+
+	tc_port_matchall->ingress.packets = 0;
+	tc_port_matchall->ingress.bytes = 0;
+	tc_port_matchall->ingress.last_used = 0;
+	tc_port_matchall->ingress.tid = 0;
+	tc_port_matchall->ingress.state = CXGB4_MATCHALL_STATE_DISABLED;
+	return 0;
+}
+
 int cxgb4_tc_matchall_replace(struct net_device *dev,
-			      struct tc_cls_matchall_offload *cls_matchall)
+			      struct tc_cls_matchall_offload *cls_matchall,
+			      bool ingress)
 {
 	struct netlink_ext_ack *extack = cls_matchall->common.extack;
 	struct cxgb4_tc_port_matchall *tc_port_matchall;
@@ -128,6 +208,22 @@ int cxgb4_tc_matchall_replace(struct net_device *dev,
 	int ret;
 
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
+	if (ingress) {
+		if (tc_port_matchall->ingress.state ==
+		    CXGB4_MATCHALL_STATE_ENABLED) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Only 1 Ingress MATCHALL can be offloaded");
+			return -ENOMEM;
+		}
+
+		ret = cxgb4_validate_flow_actions(dev,
+						  &cls_matchall->rule->action);
+		if (ret)
+			return ret;
+
+		return cxgb4_matchall_alloc_filter(dev, cls_matchall);
+	}
+
 	if (tc_port_matchall->egress.state == CXGB4_MATCHALL_STATE_ENABLED) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Only 1 Egress MATCHALL can be offloaded");
@@ -142,17 +238,59 @@ int cxgb4_tc_matchall_replace(struct net_device *dev,
 }
 
 int cxgb4_tc_matchall_destroy(struct net_device *dev,
-			      struct tc_cls_matchall_offload *cls_matchall)
+			      struct tc_cls_matchall_offload *cls_matchall,
+			      bool ingress)
 {
 	struct cxgb4_tc_port_matchall *tc_port_matchall;
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
 
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
+	if (ingress) {
+		if (cls_matchall->cookie !=
+		    tc_port_matchall->ingress.fs.tc_cookie)
+			return -ENOENT;
+
+		return cxgb4_matchall_free_filter(dev);
+	}
+
 	if (cls_matchall->cookie != tc_port_matchall->egress.cookie)
 		return -ENOENT;
 
 	cxgb4_matchall_free_tc(dev);
+	return 0;
+}
+
+int cxgb4_tc_matchall_stats(struct net_device *dev,
+			    struct tc_cls_matchall_offload *cls_matchall)
+{
+	struct cxgb4_tc_port_matchall *tc_port_matchall;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+	u64 packets, bytes;
+	int ret;
+
+	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
+	if (tc_port_matchall->ingress.state == CXGB4_MATCHALL_STATE_DISABLED)
+		return -ENOENT;
+
+	ret = cxgb4_get_filter_counters(dev, tc_port_matchall->ingress.tid,
+					&packets, &bytes,
+					tc_port_matchall->ingress.fs.hash);
+	if (ret)
+		return ret;
+
+	if (tc_port_matchall->ingress.packets != packets) {
+		flow_stats_update(&cls_matchall->stats,
+				  bytes - tc_port_matchall->ingress.bytes,
+				  packets - tc_port_matchall->ingress.packets,
+				  tc_port_matchall->ingress.last_used);
+
+		tc_port_matchall->ingress.packets = packets;
+		tc_port_matchall->ingress.bytes = bytes;
+		tc_port_matchall->ingress.last_used = jiffies;
+	}
+
 	return 0;
 }
 
@@ -165,6 +303,9 @@ static void cxgb4_matchall_disable_offload(struct net_device *dev)
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
 	if (tc_port_matchall->egress.state == CXGB4_MATCHALL_STATE_ENABLED)
 		cxgb4_matchall_free_tc(dev);
+
+	if (tc_port_matchall->ingress.state == CXGB4_MATCHALL_STATE_ENABLED)
+		cxgb4_matchall_free_filter(dev);
 }
 
 int cxgb4_init_tc_matchall(struct adapter *adap)

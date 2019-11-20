@@ -872,6 +872,12 @@ static void fill_default_mask(struct ch_filter_specification *fs)
 		fs->mask.tos |= ~0;
 	if (fs->val.proto && !fs->mask.proto)
 		fs->mask.proto |= ~0;
+	if (fs->val.pfvf_vld && !fs->mask.pfvf_vld)
+		fs->mask.pfvf_vld |= ~0;
+	if (fs->val.pf && !fs->mask.pf)
+		fs->mask.pf |= ~0;
+	if (fs->val.vf && !fs->mask.vf)
+		fs->mask.vf |= ~0;
 
 	for (i = 0; i < ARRAY_SIZE(fs->val.lip); i++) {
 		lip |= fs->val.lip[i];

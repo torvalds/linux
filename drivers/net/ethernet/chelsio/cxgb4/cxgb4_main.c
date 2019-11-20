@@ -3236,7 +3236,8 @@ static int cxgb_setup_tc_cls_u32(struct net_device *dev,
 }
 
 static int cxgb_setup_tc_matchall(struct net_device *dev,
-				  struct tc_cls_matchall_offload *cls_matchall)
+				  struct tc_cls_matchall_offload *cls_matchall,
+				  bool ingress)
 {
 	struct adapter *adap = netdev2adap(dev);
 
@@ -3245,9 +3246,13 @@ static int cxgb_setup_tc_matchall(struct net_device *dev,
 
 	switch (cls_matchall->command) {
 	case TC_CLSMATCHALL_REPLACE:
-		return cxgb4_tc_matchall_replace(dev, cls_matchall);
+		return cxgb4_tc_matchall_replace(dev, cls_matchall, ingress);
 	case TC_CLSMATCHALL_DESTROY:
-		return cxgb4_tc_matchall_destroy(dev, cls_matchall);
+		return cxgb4_tc_matchall_destroy(dev, cls_matchall, ingress);
+	case TC_CLSMATCHALL_STATS:
+		if (ingress)
+			return cxgb4_tc_matchall_stats(dev, cls_matchall);
+		break;
 	default:
 		break;
 	}
@@ -3277,6 +3282,8 @@ static int cxgb_setup_tc_block_ingress_cb(enum tc_setup_type type,
 		return cxgb_setup_tc_cls_u32(dev, type_data);
 	case TC_SETUP_CLSFLOWER:
 		return cxgb_setup_tc_flower(dev, type_data);
+	case TC_SETUP_CLSMATCHALL:
+		return cxgb_setup_tc_matchall(dev, type_data, true);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3301,7 +3308,7 @@ static int cxgb_setup_tc_block_egress_cb(enum tc_setup_type type,
 
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
-		return cxgb_setup_tc_matchall(dev, type_data);
+		return cxgb_setup_tc_matchall(dev, type_data, false);
 	default:
 		break;
 	}
