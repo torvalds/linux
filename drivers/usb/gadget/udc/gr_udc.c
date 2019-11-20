@@ -29,6 +29,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
+#include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/dma-mapping.h>
@@ -208,7 +209,7 @@ static void gr_dfs_create(struct gr_udc *dev)
 {
 	const char *name = "gr_udc_state";
 
-	dev->dfs_root = debugfs_create_dir(dev_name(dev->dev), NULL);
+	dev->dfs_root = debugfs_create_dir(dev_name(dev->dev), usb_debug_root);
 	debugfs_create_file(name, 0444, dev->dfs_root, dev, &gr_dfs_fops);
 }
 
