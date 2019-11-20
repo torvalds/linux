@@ -801,20 +801,41 @@
 		};
 	};
 
-	vpu_service: vpu-service@20020000 {
-		compatible = "rockchip,vpu_service";
-		reg = <0x20020000 0x800>;
-		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "irq_dec", "irq_enc";
-		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
-		reset-names = "video_a", "video_h";
+	mpp_srv: mpp-srv {
+		compatible = "rockchip,mpp-service";
+		rockchip,taskqueue-count = <2>;
+		status = "disabled";
+	};
+
+	vepu: vepu@20020000 {
+		compatible = "rockchip,vpu-encoder-v2";
+		reg = <0x20020000 0x400>;
+		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_enc";
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
-		power-domains = <&power RK3228_PD_VPU>;
-		rockchip,grf = <&grf>;
+		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
+		reset-names = "video_a", "video_h";
 		iommus = <&vpu_mmu>;
-		allocator = <1>;
+		power-domains = <&power RK3228_PD_VPU>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		status = "disabled";
+	};
+
+	vdpu: vdpu@20020400 {
+		compatible = "rockchip,vpu-decoder-v2";
+		reg = <0x20020400 0x400>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
+		reset-names = "video_a", "video_h";
+		iommus = <&vpu_mmu>;
+		power-domains = <&power RK3228_PD_VPU>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
 		status = "disabled";
 	};
 
@@ -823,15 +844,15 @@
 		reg = <0x20020800 0x40>;
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vpu_mmu";
-		clock-names = "aclk", "iface";
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk", "iface";
 		power-domains = <&power RK3228_PD_VPU>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
 
 	rkvdec: rkvdec@20030000 {
-		compatible = "rockchip,rkvdec";
+		compatible = "rockchip,rkv-decoder-v2";
 		reg = <0x20030000 0x400>;
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
@@ -844,12 +865,12 @@
 			<&cru SRST_RKVDEC_CABAC>, <&cru SRST_RKVDEC_CORE>;
 		reset-names = "video_a", "video_h", "niu_a", "niu_h",
 			"video_cabac", "video_core";
+		iommus = <&rkvdec_mmu>;
 		power-domains = <&power RK3228_PD_RKVDEC>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <1>;
 		operating-points-v2 = <&rkvdec_opp_table>;
 		#cooling-cells = <2>;
-		rockchip,grf = <&grf>;
-		iommus = <&rkvdec_mmu>;
-		allocator = <1>;
 		status = "disabled";
 
 		vcodec_power_model: vcodec_power_model {

@@ -299,6 +299,10 @@
 	status = "okay";
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
 &nandc {
 	status = "okay";
 };
@@ -541,7 +545,11 @@
 	status = "okay";
 };
 
-&vpu_service {
+&vdpu {
+	status = "okay";
+};
+
+&vepu {
 	status = "okay";
 };
 
