@@ -268,7 +268,7 @@ static void free_nested(struct kvm_vcpu *vcpu)
 	vmx->nested.cached_shadow_vmcs12 = NULL;
 	/* Unpin physical memory we referred to in the vmcs02 */
 	if (vmx->nested.apic_access_page) {
-		kvm_release_page_dirty(vmx->nested.apic_access_page);
+		kvm_release_page_clean(vmx->nested.apic_access_page);
 		vmx->nested.apic_access_page = NULL;
 	}
 	kvm_vcpu_unmap(vcpu, &vmx->nested.virtual_apic_map, true);
@@ -3070,7 +3070,7 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 		 * to it so we can release it later.
 		 */
 		if (vmx->nested.apic_access_page) { /* shouldn't happen */
-			kvm_release_page_dirty(vmx->nested.apic_access_page);
+			kvm_release_page_clean(vmx->nested.apic_access_page);
 			vmx->nested.apic_access_page = NULL;
 		}
 		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->apic_access_addr);
@@ -4267,7 +4267,7 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 
 	/* Unpin physical memory we referred to in vmcs02 */
 	if (vmx->nested.apic_access_page) {
-		kvm_release_page_dirty(vmx->nested.apic_access_page);
+		kvm_release_page_clean(vmx->nested.apic_access_page);
 		vmx->nested.apic_access_page = NULL;
 	}
 	kvm_vcpu_unmap(vcpu, &vmx->nested.virtual_apic_map, true);
