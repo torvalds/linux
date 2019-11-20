@@ -171,49 +171,51 @@ bch2_extent_can_insert(struct btree_trans *trans,
 {
 	struct btree_iter_level *l = &insert->iter->l[0];
 	struct btree_node_iter node_iter = l->iter;
-	enum bch_extent_overlap overlap;
 	struct bkey_packed *_k;
 	struct bkey unpacked;
-	struct bkey_s_c k;
 	int sectors;
 
-	/*
-	 * We avoid creating whiteouts whenever possible when deleting, but
-	 * those optimizations mean we may potentially insert two whiteouts
-	 * instead of one (when we overlap with the front of one extent and the
-	 * back of another):
-	 */
-	if (bkey_whiteout(&insert->k->k))
-		*u64s += BKEY_U64s;
+	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, l->b,
+						      KEY_TYPE_discard))) {
+		struct bkey_s_c k = bkey_disassemble(l->b, _k, &unpacked);
+		enum bch_extent_overlap overlap =
+			bch2_extent_overlap(&insert->k->k, k.k);
 
-	_k = bch2_btree_node_iter_peek_filter(&node_iter, l->b,
-					      KEY_TYPE_discard);
-	if (!_k)
-		return BTREE_INSERT_OK;
-
-	k = bkey_disassemble(l->b, _k, &unpacked);
-
-	overlap = bch2_extent_overlap(&insert->k->k, k.k);
-
-	/* account for having to split existing extent: */
-	if (overlap == BCH_EXTENT_OVERLAP_MIDDLE)
-		*u64s += _k->u64s;
-
-	if (overlap == BCH_EXTENT_OVERLAP_MIDDLE &&
-	    (sectors = bch2_bkey_sectors_compressed(k))) {
-		int flags = trans->flags & BTREE_INSERT_NOFAIL
-			? BCH_DISK_RESERVATION_NOFAIL : 0;
-
-		switch (bch2_disk_reservation_add(trans->c,
-				trans->disk_res,
-				sectors, flags)) {
-		case 0:
+		if (bkey_cmp(bkey_start_pos(k.k), insert->k->k.p) >= 0)
 			break;
-		case -ENOSPC:
-			return BTREE_INSERT_ENOSPC;
-		default:
-			BUG();
+
+		overlap = bch2_extent_overlap(&insert->k->k, k.k);
+
+		if (bkey_written(l->b, _k) &&
+		    overlap != BCH_EXTENT_OVERLAP_ALL)
+			*u64s += _k->u64s;
+
+		/* account for having to split existing extent: */
+		if (overlap == BCH_EXTENT_OVERLAP_MIDDLE)
+			*u64s += _k->u64s;
+
+		if (overlap == BCH_EXTENT_OVERLAP_MIDDLE &&
+		    (sectors = bch2_bkey_sectors_compressed(k))) {
+			int flags = trans->flags & BTREE_INSERT_NOFAIL
+				? BCH_DISK_RESERVATION_NOFAIL : 0;
+
+			switch (bch2_disk_reservation_add(trans->c,
+					trans->disk_res,
+					sectors, flags)) {
+			case 0:
+				break;
+			case -ENOSPC:
+				return BTREE_INSERT_ENOSPC;
+			default:
+				BUG();
+			}
 		}
+
+		if (overlap == BCH_EXTENT_OVERLAP_FRONT ||
+		    overlap == BCH_EXTENT_OVERLAP_MIDDLE)
+			break;
+
+		bch2_btree_node_iter_advance(&node_iter, l->b);
 	}
 
 	return BTREE_INSERT_OK;
@@ -285,101 +287,106 @@ static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 }
 
 static void
+extent_drop(struct bch_fs *c, struct btree_iter *iter,
+	    struct bkey_packed *_k, struct bkey_s k)
+{
+	struct btree_iter_level *l = &iter->l[0];
+
+	if (!bkey_whiteout(k.k))
+		btree_account_key_drop(l->b, _k);
+
+	k.k->size = 0;
+	k.k->type = KEY_TYPE_deleted;
+	k.k->needs_whiteout = false;
+
+	if (_k >= btree_bset_last(l->b)->start) {
+		unsigned u64s = _k->u64s;
+
+		bch2_bset_delete(l->b, _k, _k->u64s);
+		bch2_btree_node_iter_fix(iter, l->b, &l->iter, _k, u64s, 0);
+	} else {
+		extent_save(l->b, _k, k.k);
+		bch2_btree_iter_fix_key_modified(iter, l->b, _k);
+	}
+}
+
+static void
 extent_squash(struct bch_fs *c, struct btree_iter *iter,
 	      struct bkey_i *insert,
 	      struct bkey_packed *_k, struct bkey_s k,
 	      enum bch_extent_overlap overlap)
 {
 	struct btree_iter_level *l = &iter->l[0];
-	int u64s_delta;
+	struct bkey_on_stack tmp, split;
+
+	bkey_on_stack_init(&tmp);
+	bkey_on_stack_init(&split);
 
 	switch (overlap) {
 	case BCH_EXTENT_OVERLAP_FRONT:
-		/* insert overlaps with start of k: */
-		u64s_delta = bch2_cut_front_s(insert->k.p, k);
-		btree_keys_account_val_delta(l->b, _k, u64s_delta);
+		if (bkey_written(l->b, _k)) {
+			bkey_on_stack_reassemble(&tmp, c, k.s_c);
+			bch2_cut_front(insert->k.p, tmp.k);
 
-		EBUG_ON(bkey_deleted(k.k));
-		extent_save(l->b, _k, k.k);
-		bch2_btree_iter_fix_key_modified(iter, l->b, _k);
-		break;
-
-	case BCH_EXTENT_OVERLAP_BACK:
-		/* insert overlaps with end of k: */
-		u64s_delta = bch2_cut_back_s(bkey_start_pos(&insert->k), k);
-		btree_keys_account_val_delta(l->b, _k, u64s_delta);
-
-		EBUG_ON(bkey_deleted(k.k));
-		extent_save(l->b, _k, k.k);
-
-		/*
-		 * As the auxiliary tree is indexed by the end of the
-		 * key and we've just changed the end, update the
-		 * auxiliary tree.
-		 */
-		bch2_bset_fix_invalidated_key(l->b, _k);
-		bch2_btree_node_iter_fix(iter, l->b, &l->iter,
-					 _k, _k->u64s, _k->u64s);
-		break;
-
-	case BCH_EXTENT_OVERLAP_ALL: {
-		/* The insert key completely covers k, invalidate k */
-		if (!bkey_whiteout(k.k))
-			btree_account_key_drop(l->b, _k);
-
-		k.k->size = 0;
-		k.k->type = KEY_TYPE_deleted;
-
-		if (_k >= btree_bset_last(l->b)->start) {
-			unsigned u64s = _k->u64s;
-
-			bch2_bset_delete(l->b, _k, _k->u64s);
-			bch2_btree_node_iter_fix(iter, l->b, &l->iter,
-						 _k, u64s, 0);
+			extent_drop(c, iter, _k, k);
+			extent_bset_insert(c, iter, tmp.k);
 		} else {
+			btree_keys_account_val_delta(l->b, _k,
+				bch2_cut_front_s(insert->k.p, k));
+
+			extent_save(l->b, _k, k.k);
+			/*
+			 * No need to call bset_fix_invalidated_key, start of
+			 * extent changed but extents are indexed by where they
+			 * end
+			 */
+			bch2_btree_iter_fix_key_modified(iter, l->b, _k);
+		}
+		break;
+	case BCH_EXTENT_OVERLAP_BACK:
+		if (bkey_written(l->b, _k)) {
+			bkey_on_stack_reassemble(&tmp, c, k.s_c);
+			bch2_cut_back(bkey_start_pos(&insert->k), tmp.k);
+
+			extent_drop(c, iter, _k, k);
+			extent_bset_insert(c, iter, tmp.k);
+		} else {
+			btree_keys_account_val_delta(l->b, _k,
+				bch2_cut_back_s(bkey_start_pos(&insert->k), k));
+			extent_save(l->b, _k, k.k);
+
+			bch2_bset_fix_invalidated_key(l->b, _k);
+			bch2_btree_node_iter_fix(iter, l->b, &l->iter,
+						 _k, _k->u64s, _k->u64s);
+		}
+		break;
+	case BCH_EXTENT_OVERLAP_ALL:
+		extent_drop(c, iter, _k, k);
+		break;
+	case BCH_EXTENT_OVERLAP_MIDDLE:
+		bkey_on_stack_reassemble(&split, c, k.s_c);
+		bch2_cut_back(bkey_start_pos(&insert->k), split.k);
+
+		if (bkey_written(l->b, _k)) {
+			bkey_on_stack_reassemble(&tmp, c, k.s_c);
+			bch2_cut_front(insert->k.p, tmp.k);
+
+			extent_drop(c, iter, _k, k);
+			extent_bset_insert(c, iter, tmp.k);
+		} else {
+			btree_keys_account_val_delta(l->b, _k,
+				bch2_cut_front_s(insert->k.p, k));
+
 			extent_save(l->b, _k, k.k);
 			bch2_btree_iter_fix_key_modified(iter, l->b, _k);
 		}
 
-		break;
-	}
-	case BCH_EXTENT_OVERLAP_MIDDLE: {
-		struct bkey_on_stack split;
-
-		bkey_on_stack_init(&split);
-		bkey_on_stack_reassemble(&split, c, k.s_c);
-
-		/*
-		 * The insert key falls 'in the middle' of k
-		 * The insert key splits k in 3:
-		 * - start only in k, preserve
-		 * - middle common section, invalidate in k
-		 * - end only in k, preserve
-		 *
-		 * We update the old key to preserve the start,
-		 * insert will be the new common section,
-		 * we manually insert the end that we are preserving.
-		 *
-		 * modify k _before_ doing the insert (which will move
-		 * what k points to)
-		 */
-		split.k->k.needs_whiteout |= bkey_written(l->b, _k);
-
-		bch2_cut_back(bkey_start_pos(&insert->k), split.k);
-		BUG_ON(bkey_deleted(&split.k->k));
-
-		u64s_delta = bch2_cut_front_s(insert->k.p, k);
-		btree_keys_account_val_delta(l->b, _k, u64s_delta);
-
-		BUG_ON(bkey_deleted(k.k));
-		extent_save(l->b, _k, k.k);
-		bch2_btree_iter_fix_key_modified(iter, l->b, _k);
-
 		extent_bset_insert(c, iter, split.k);
-		bkey_on_stack_exit(&split, c);
 		break;
 	}
-	}
+
+	bkey_on_stack_exit(&split, c);
+	bkey_on_stack_exit(&tmp, c);
 }
 
 /**
@@ -429,10 +436,7 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 	struct bkey_i *insert	= insert_entry->k;
 	struct btree_iter_level *l = &iter->l[0];
 	struct btree_node_iter node_iter = l->iter;
-	bool deleting		= bkey_whiteout(&insert->k);
-	bool update_journal	= !deleting;
-	bool update_btree	= !deleting;
-	struct bkey_i whiteout	= *insert;
+	bool do_update		= !bkey_whiteout(&insert->k);
 	struct bkey_packed *_k;
 	struct bkey unpacked;
 
@@ -443,7 +447,6 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 	while ((_k = bch2_btree_node_iter_peek_filter(&l->iter, l->b,
 						      KEY_TYPE_discard))) {
 		struct bkey_s k = __bkey_disassemble(l->b, _k, &unpacked);
-		struct bpos cur_end = bpos_min(insert->k.p, k.k->p);
 		enum bch_extent_overlap overlap =
 			bch2_extent_overlap(&insert->k, k.k);
 
@@ -451,52 +454,18 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 			break;
 
 		if (!bkey_whiteout(k.k))
-			update_journal = true;
+			do_update = true;
 
-		if (!update_journal) {
+		if (!do_update) {
+			struct bpos cur_end = bpos_min(insert->k.p, k.k->p);
+
 			bch2_cut_front(cur_end, insert);
-			bch2_cut_front(cur_end, &whiteout);
 			bch2_btree_iter_set_pos_same_leaf(iter, cur_end);
-			goto next;
+		} else {
+			insert->k.needs_whiteout |= k.k->needs_whiteout;
+			extent_squash(c, iter, insert, _k, k, overlap);
 		}
 
-		/*
-		 * When deleting, if possible just do it by switching the type
-		 * of the key we're deleting, instead of creating and inserting
-		 * a new whiteout:
-		 */
-		if (deleting &&
-		    !update_btree &&
-		    !bkey_cmp(insert->k.p, k.k->p) &&
-		    !bkey_cmp(bkey_start_pos(&insert->k), bkey_start_pos(k.k))) {
-			if (!bkey_whiteout(k.k)) {
-				btree_account_key_drop(l->b, _k);
-				_k->type = KEY_TYPE_discard;
-				reserve_whiteout(l->b, _k);
-				bch2_btree_iter_fix_key_modified(iter,
-								 l->b, _k);
-			}
-			break;
-		}
-
-		if (k.k->needs_whiteout || bkey_written(l->b, _k)) {
-			insert->k.needs_whiteout = true;
-			update_btree = true;
-		}
-
-		if (update_btree &&
-		    overlap == BCH_EXTENT_OVERLAP_ALL &&
-		    bkey_whiteout(k.k) &&
-		    k.k->needs_whiteout) {
-			unreserve_whiteout(l->b, _k);
-			_k->needs_whiteout = false;
-		}
-
-		extent_squash(c, iter, insert, _k, k, overlap);
-
-		if (!update_btree)
-			bch2_cut_front(cur_end, insert);
-next:
 		node_iter = l->iter;
 
 		if (overlap == BCH_EXTENT_OVERLAP_FRONT ||
@@ -507,24 +476,12 @@ next:
 	l->iter = node_iter;
 	bch2_btree_iter_set_pos_same_leaf(iter, insert->k.p);
 
-	if (update_btree) {
-		if (deleting)
+	if (do_update) {
+		if (insert->k.type == KEY_TYPE_deleted)
 			insert->k.type = KEY_TYPE_discard;
 
-		EBUG_ON(bkey_deleted(&insert->k) || !insert->k.size);
-
 		extent_bset_insert(c, iter, insert);
-	}
-
-	if (update_journal) {
-		struct bkey_i *k = !deleting ? insert : &whiteout;
-
-		if (deleting)
-			k->k.type = KEY_TYPE_discard;
-
-		EBUG_ON(bkey_deleted(&k->k) || !k->k.size);
-
-		bch2_btree_journal_key(trans, iter, k);
+		bch2_btree_journal_key(trans, iter, insert);
 	}
 
 	bch2_cut_front(insert->k.p, insert);
