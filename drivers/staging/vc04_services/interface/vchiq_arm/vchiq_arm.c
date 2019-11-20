@@ -2081,7 +2081,7 @@ vchiq_dump(void *dump_context, const char *str, int len)
 		int copy_bytes;
 
 		if (context->offset > 0) {
-			int skip_bytes = min(len, (int)context->offset);
+			int skip_bytes = min_t(int, len, context->offset);
 
 			str += skip_bytes;
 			len -= skip_bytes;
@@ -2089,7 +2089,7 @@ vchiq_dump(void *dump_context, const char *str, int len)
 			if (context->offset > 0)
 				return;
 		}
-		copy_bytes = min(len, (int)(context->space - context->actual));
+		copy_bytes = min_t(int, len, context->space - context->actual);
 		if (copy_bytes == 0)
 			return;
 		if (copy_to_user(context->buf + context->actual, str,
