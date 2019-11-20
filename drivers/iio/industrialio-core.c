@@ -596,6 +596,8 @@ static ssize_t __iio_format_value(char *buf, size_t len, unsigned int type,
 		}
 		return l;
 	}
+	case IIO_VAL_CHAR:
+		return snprintf(buf, len, "%c", (char)vals[0]);
 	default:
 		return 0;
 	}
@@ -837,7 +839,8 @@ static ssize_t iio_write_channel_info(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret, fract_mult = 100000;
-	int integer, fract;
+	int integer, fract = 0;
+	bool is_char = false;
 
 	/* Assumes decimal - precision based on number of digits */
 	if (!indio_dev->info->write_raw)
@@ -855,13 +858,24 @@ static ssize_t iio_write_channel_info(struct device *dev,
 		case IIO_VAL_INT_PLUS_NANO:
 			fract_mult = 100000000;
 			break;
+		case IIO_VAL_CHAR:
+			is_char = true;
+			break;
 		default:
 			return -EINVAL;
 		}
 
-	ret = iio_str_to_fixpoint(buf, fract_mult, &integer, &fract);
-	if (ret)
-		return ret;
+	if (is_char) {
+		char ch;
+
+		if (sscanf(buf, "%c", &ch) != 1)
+			return -EINVAL;
+		integer = ch;
+	} else {
+		ret = iio_str_to_fixpoint(buf, fract_mult, &integer, &fract);
+		if (ret)
+			return ret;
+	}
 
 	ret = indio_dev->info->write_raw(indio_dev, this_attr->c,
 					 integer, fract, this_attr->address);
