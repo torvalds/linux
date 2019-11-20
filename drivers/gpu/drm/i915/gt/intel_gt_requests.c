@@ -49,8 +49,8 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 			continue;
 
 		intel_timeline_get(tl);
-		GEM_BUG_ON(!tl->active_count);
-		tl->active_count++; /* pin the list element */
+		GEM_BUG_ON(!atomic_read(&tl->active_count));
+		atomic_inc(&tl->active_count); /* pin the list element */
 		spin_unlock_irqrestore(&timelines->lock, flags);
 
 		if (timeout > 0) {
@@ -71,14 +71,14 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 
 		/* Resume iteration after dropping lock */
 		list_safe_reset_next(tl, tn, link);
-		if (!--tl->active_count)
+		if (atomic_dec_and_test(&tl->active_count))
 			list_del(&tl->link);
 
 		mutex_unlock(&tl->mutex);
 
 		/* Defer the final release to after the spinlock */
 		if (refcount_dec_and_test(&tl->kref.refcount)) {
-			GEM_BUG_ON(tl->active_count);
+			GEM_BUG_ON(atomic_read(&tl->active_count));
 			list_add(&tl->link, &free);
 		}
 	}
