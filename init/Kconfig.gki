@@ -50,6 +50,7 @@ config GKI_HIDDEN_GPIO_CONFIGS
 config GKI_HIDDEN_QCOM_CONFIGS
 	bool "Hidden QCOM configs needed for GKI"
 	select QCOM_SMEM_STATE
+	select PINCTRL_MSM if (PINCTRL && ARCH_QCOM)
 	help
 	  Dummy config option used to enable hidden QCOM configs.
 	  These are normally selected implicitely when a module
