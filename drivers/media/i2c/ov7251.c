@@ -6,6 +6,7 @@
  *
  * V0.0X01.0X01 add poweron function.
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
+ * V0.0X01.0X03 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -25,7 +26,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -86,7 +87,7 @@ struct regval {
 struct ov7251_mode {
 	u32 width;
 	u32 height;
-	u32 max_fps;
+	struct v4l2_fract max_fps;
 	u32 hts_def;
 	u32 vts_def;
 	u32 exp_def;
@@ -283,7 +284,10 @@ static const struct ov7251_mode supported_modes[] = {
 	{
 		.width = 640,
 		.height = 480,
-		.max_fps = 30,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.exp_def = 0x061c,
 		.hts_def = 0x03a0,
 		.vts_def = 0x06b8,
@@ -519,8 +523,7 @@ static int ov7251_g_frame_interval(struct v4l2_subdev *sd,
 	const struct ov7251_mode *mode = ov7251->cur_mode;
 
 	mutex_lock(&ov7251->mutex);
-	fi->interval.numerator = 10000;
-	fi->interval.denominator = mode->max_fps * 10000;
+	fi->interval = mode->max_fps;
 	mutex_unlock(&ov7251->mutex);
 
 	return 0;
@@ -793,6 +796,22 @@ static int ov7251_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
+static int ov7251_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(supported_modes))
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_Y10_1X10)
+		return -EINVAL;
+
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct dev_pm_ops ov7251_pm_ops = {
 	SET_RUNTIME_PM_OPS(ov7251_runtime_suspend,
 			   ov7251_runtime_resume, NULL)
@@ -820,6 +839,7 @@ static const struct v4l2_subdev_video_ops ov7251_video_ops = {
 static const struct v4l2_subdev_pad_ops ov7251_pad_ops = {
 	.enum_mbus_code = ov7251_enum_mbus_code,
 	.enum_frame_size = ov7251_enum_frame_sizes,
+	.enum_frame_interval = ov7251_enum_frame_interval,
 	.get_fmt = ov7251_get_fmt,
 	.set_fmt = ov7251_set_fmt,
 };

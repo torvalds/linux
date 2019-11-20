@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
+ * V0.0X01.0X03 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -35,7 +36,7 @@
 /* verify default register values */
 //#define CHECK_REG_VALUE
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x2)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x3)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -688,7 +689,8 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int on)
 	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
 				ov2680->cur_mode->width,
 				ov2680->cur_mode->height,
-				ov2680->cur_mode->max_fps.denominator);
+		DIV_ROUND_CLOSEST(ov2680->cur_mode->max_fps.denominator,
+		ov2680->cur_mode->max_fps.numerator));
 
 	mutex_lock(&ov2680->mutex);
 	on = !!on;
@@ -875,6 +877,24 @@ static int ov2680_power(struct v4l2_subdev *sd, int on)
 	return 0;
 }
 
+static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_pad_config *cfg,
+				      struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct ov2680 *ov2680 = to_ov2680(sd);
+
+	if (fie->index >= ov2680->cfg_num)
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+		return -EINVAL;
+
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct dev_pm_ops ov2680_pm_ops = {
 	SET_RUNTIME_PM_OPS(ov2680_runtime_suspend,
 			   ov2680_runtime_resume, NULL)
@@ -902,6 +922,7 @@ static const struct v4l2_subdev_video_ops ov2680_video_ops = {
 static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
 	.enum_mbus_code = ov2680_enum_mbus_code,
 	.enum_frame_size = ov2680_enum_frame_sizes,
+	.enum_frame_interval = ov2680_enum_frame_interval,
 	.get_fmt = ov2680_get_fmt,
 	.set_fmt = ov2680_set_fmt,
 };

@@ -5,6 +5,8 @@
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X01 add poweron function.
+ * V0.0X01.0X02 fix mclk issue when probe multiple camera.
+ * V0.0X01.0X03 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -25,7 +27,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1090,13 +1092,16 @@ static int __ov13850_power_on(struct ov13850 *ov13850)
 		if (ret < 0)
 			dev_err(dev, "could not set pins\n");
 	}
-
+	ret = clk_set_rate(ov13850->xvclk, OV13850_XVCLK_FREQ);
+	if (ret < 0)
+		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
+	if (clk_get_rate(ov13850->xvclk) != OV13850_XVCLK_FREQ)
+		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 	ret = clk_prepare_enable(ov13850->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
-
 	if (!IS_ERR(ov13850->reset_gpio))
 		gpiod_set_value_cansleep(ov13850->reset_gpio, 0);
 
@@ -1186,6 +1191,22 @@ static int ov13850_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
+static int ov13850_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(supported_modes))
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+		return -EINVAL;
+
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct dev_pm_ops ov13850_pm_ops = {
 	SET_RUNTIME_PM_OPS(ov13850_runtime_suspend,
 			   ov13850_runtime_resume, NULL)
@@ -1213,6 +1234,7 @@ static const struct v4l2_subdev_video_ops ov13850_video_ops = {
 static const struct v4l2_subdev_pad_ops ov13850_pad_ops = {
 	.enum_mbus_code = ov13850_enum_mbus_code,
 	.enum_frame_size = ov13850_enum_frame_sizes,
+	.enum_frame_interval = ov13850_enum_frame_interval,
 	.get_fmt = ov13850_get_fmt,
 	.set_fmt = ov13850_set_fmt,
 };
@@ -1440,13 +1462,6 @@ static int ov13850_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
-	ret = clk_set_rate(ov13850->xvclk, OV13850_XVCLK_FREQ);
-	if (ret < 0) {
-		dev_err(dev, "Failed to set xvclk rate (24MHz)\n");
-		return ret;
-	}
-	if (clk_get_rate(ov13850->xvclk) != OV13850_XVCLK_FREQ)
-		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 
 	ov13850->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ov13850->reset_gpio))

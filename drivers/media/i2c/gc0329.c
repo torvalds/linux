@@ -3,6 +3,7 @@
  * gc0329 sensor driver
  *
  * Copyright (C) 2018 Fuzhou Rockchip Electronics Co., Ltd.
+ * V0.0X01.0X01 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -34,7 +35,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
 #define DRIVER_NAME "gc0329"
 #define GC0329_PIXEL_RATE		(24 * 1000 * 1000)
 
@@ -54,7 +55,7 @@ struct sensor_register {
 struct gc0329_framesize {
 	u16 width;
 	u16 height;
-	u16 fps;
+	struct v4l2_fract max_fps;
 	const struct sensor_register *regs;
 };
 
@@ -362,13 +363,19 @@ static const struct gc0329_framesize gc0329_framesizes[] = {
 	{
 		.width		= 640,
 		.height		= 480,
-		.fps		= 14,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 140000,
+		},
 		.regs		= gc0329_vga_regs_14fps,
 	},
 	{
 		.width		= 640,
 		.height		= 480,
-		.fps		= 30,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.regs		= gc0329_vga_regs_30fps,
 	}
 };
@@ -595,7 +602,8 @@ static void __gc0329_try_frame_size_fps(struct v4l2_mbus_framefmt *mf,
 		for (i = 0; i < ARRAY_SIZE(gc0329_framesizes); i++) {
 			if (fsize->width == match->width &&
 				fsize->height == match->height &&
-				fps >= fsize->fps)
+				fps >= DIV_ROUND_CLOSEST(fsize->max_fps.denominator,
+				fsize->max_fps.numerator))
 				match = fsize;
 
 			fsize++;
@@ -837,8 +845,7 @@ static int gc0329_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc0329 *gc0329 = to_gc0329(sd);
 
 	mutex_lock(&gc0329->lock);
-	fi->interval.numerator = 10000;
-	fi->interval.denominator = gc0329->fps * 10000;
+	fi->interval = gc0329->frame_size->max_fps;
 	mutex_unlock(&gc0329->lock);
 
 	return 0;
@@ -875,6 +882,22 @@ unlock:
 	return ret;
 }
 
+static int gc0329_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(gc0329_framesizes))
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_YUYV8_2X8)
+		return -EINVAL;
+
+	fie->width = gc0329_framesizes[fie->index].width;
+	fie->height = gc0329_framesizes[fie->index].height;
+	fie->interval = gc0329_framesizes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct v4l2_subdev_core_ops gc0329_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
@@ -895,6 +918,7 @@ static const struct v4l2_subdev_video_ops gc0329_subdev_video_ops = {
 static const struct v4l2_subdev_pad_ops gc0329_subdev_pad_ops = {
 	.enum_mbus_code = gc0329_enum_mbus_code,
 	.enum_frame_size = gc0329_enum_frame_sizes,
+	.enum_frame_interval = gc0329_enum_frame_interval,
 	.get_fmt = gc0329_get_fmt,
 	.set_fmt = gc0329_set_fmt,
 };
@@ -1110,7 +1134,8 @@ static int gc0329_probe(struct i2c_client *client,
 	gc0329->frame_size = &gc0329_framesizes[0];
 	gc0329->format.width = gc0329_framesizes[0].width;
 	gc0329->format.height = gc0329_framesizes[0].height;
-	gc0329->fps = gc0329_framesizes[0].fps;
+	gc0329->fps = DIV_ROUND_CLOSEST(gc0329_framesizes[0].max_fps.denominator,
+				gc0329_framesizes[0].max_fps.numerator);
 
 	ret = gc0329_detect(gc0329);
 	if (ret < 0)

@@ -2,23 +2,8 @@
 /*
  * GC0312 CMOS Image Sensor driver
  *
- * Copyright (C) 2015 Texas Instruments, Inc.
- *
- * Benoit Parrot <bparrot@ti.com>
- * Lad, Prabhakar <prabhakar.csengg@gmail.com>
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
+ * V0.0X01.0X01 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -50,7 +35,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
 #define DRIVER_NAME "gc0312"
 #define GC0312_PIXEL_RATE		(96 * 1000 * 1000)
 
@@ -76,6 +61,7 @@ struct gc0312_framesize {
 	u16 width;
 	u16 height;
 	u16 max_exp_lines;
+	struct v4l2_fract max_fps;
 	const struct sensor_register *regs;
 };
 
@@ -474,6 +460,10 @@ static const struct gc0312_framesize gc0312_framesizes[] = {
 	{ /* VGA */
 		.width		= 640,
 		.height		= 480,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.regs		= gc0312_vga_regs,
 		.max_exp_lines	= 488,
 	}
@@ -913,6 +903,22 @@ static int gc0312_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int gc0312_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(gc0312_framesizes))
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_YUYV8_2X8)
+		return -EINVAL;
+
+	fie->width = gc0312_framesizes[fie->index].width;
+	fie->height = gc0312_framesizes[fie->index].height;
+	fie->interval = gc0312_framesizes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct v4l2_subdev_core_ops gc0312_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
@@ -931,6 +937,7 @@ static const struct v4l2_subdev_video_ops gc0312_subdev_video_ops = {
 static const struct v4l2_subdev_pad_ops gc0312_subdev_pad_ops = {
 	.enum_mbus_code = gc0312_enum_mbus_code,
 	.enum_frame_size = gc0312_enum_frame_sizes,
+	.enum_frame_interval = gc0312_enum_frame_interval,
 	.get_fmt = gc0312_get_fmt,
 	.set_fmt = gc0312_set_fmt,
 };

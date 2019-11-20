@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
+ * V0.0X01.0X01 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -26,7 +27,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
 
 #define CHIP_ID				0x2685
 #define OV2685_REG_CHIP_ID		0x300a
@@ -78,6 +79,7 @@ struct ov2685_mode {
 	u32 exp_def;
 	u32 hts_def;
 	u32 vts_def;
+	struct v4l2_fract max_fps;
 	const struct regval *reg_list;
 };
 
@@ -243,6 +245,10 @@ static const struct ov2685_mode supported_modes[] = {
 		.exp_def = 0x04ee,
 		.hts_def = 0x06a4,
 		.vts_def = 0x050e,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.reg_list = ov2685_1600x1200_regs,
 	},
 };
@@ -690,6 +696,22 @@ static int ov2685_set_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
+static int ov2685_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(supported_modes))
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+		return -EINVAL;
+
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+	return 0;
+}
+
 static struct v4l2_subdev_core_ops ov2685_core_ops = {
 	.s_power = ov2685_s_power,
 	.ioctl = ov2685_ioctl,
@@ -705,6 +727,7 @@ static struct v4l2_subdev_video_ops ov2685_video_ops = {
 static struct v4l2_subdev_pad_ops ov2685_pad_ops = {
 	.enum_mbus_code = ov2685_enum_mbus_code,
 	.enum_frame_size = ov2685_enum_frame_sizes,
+	.enum_frame_interval = ov2685_enum_frame_interval,
 	.get_fmt = ov2685_get_fmt,
 	.set_fmt = ov2685_set_fmt,
 };

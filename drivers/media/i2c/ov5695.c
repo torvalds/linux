@@ -5,6 +5,7 @@
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X01 add poweron function.
+ * V0.0X01.0X02 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -24,7 +25,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -98,7 +99,7 @@ struct regval {
 struct ov5695_mode {
 	u32 width;
 	u32 height;
-	u32 max_fps;
+	struct v4l2_fract max_fps;
 	u32 hts_def;
 	u32 vts_def;
 	u32 exp_def;
@@ -506,7 +507,10 @@ static const struct ov5695_mode supported_modes[] = {
 	{
 		.width = 2592,
 		.height = 1944,
-		.max_fps = 30,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.exp_def = 0x0450,
 		.hts_def = 0x02e4 * 4,
 		.vts_def = 0x07e8,
@@ -515,7 +519,10 @@ static const struct ov5695_mode supported_modes[] = {
 	{
 		.width = 1920,
 		.height = 1080,
-		.max_fps = 30,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.exp_def = 0x0450,
 		.hts_def = 0x02a0 * 4,
 		.vts_def = 0x08b8,
@@ -524,7 +531,10 @@ static const struct ov5695_mode supported_modes[] = {
 	{
 		.width = 1296,
 		.height = 972,
-		.max_fps = 60,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
 		.exp_def = 0x03e0,
 		.hts_def = 0x02e4 * 4,
 		.vts_def = 0x03f4,
@@ -533,7 +543,10 @@ static const struct ov5695_mode supported_modes[] = {
 	{
 		.width = 1280,
 		.height = 720,
-		.max_fps = 30,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.exp_def = 0x0450,
 		.hts_def = 0x02a0 * 4,
 		.vts_def = 0x08b8,
@@ -542,7 +555,10 @@ static const struct ov5695_mode supported_modes[] = {
 	{
 		.width = 640,
 		.height = 480,
-		.max_fps = 120,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 1200000,
+		},
 		.exp_def = 0x0450,
 		.hts_def = 0x02a0 * 4,
 		.vts_def = 0x022e,
@@ -824,8 +840,7 @@ static int ov5695_g_frame_interval(struct v4l2_subdev *sd,
 	const struct ov5695_mode *mode = ov5695->cur_mode;
 
 	mutex_lock(&ov5695->mutex);
-	fi->interval.numerator = 10000;
-	fi->interval.denominator = mode->max_fps * 10000;
+	fi->interval = mode->max_fps;
 	mutex_unlock(&ov5695->mutex);
 
 	return 0;
@@ -1104,6 +1119,22 @@ static int ov5695_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	return 0;
 }
 #endif
+
+static int ov5695_enum_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_pad_config *cfg,
+				      struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(supported_modes))
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+		return -EINVAL;
+
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+	return 0;
+}
 
 static const struct dev_pm_ops ov5695_pm_ops = {
 	SET_RUNTIME_PM_OPS(ov5695_runtime_suspend,

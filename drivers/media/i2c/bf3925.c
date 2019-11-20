@@ -2,23 +2,8 @@
 /*
  * BF3925 CMOS Image Sensor driver
  *
- * Copyright (C) 2015 Texas Instruments, Inc.
- *
- * Benoit Parrot <bparrot@ti.com>
- * Lad, Prabhakar <prabhakar.csengg@gmail.com>
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
+ * V0.0X01.0X01 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -52,7 +37,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
 #define DRIVER_NAME "bf3925"
 #define BF3925_PIXEL_RATE		(120 * 1000 * 1000)
 
@@ -77,7 +62,7 @@ struct sensor_register {
 struct bf3925_framesize {
 	u16 width;
 	u16 height;
-	u16 fps;
+	struct v4l2_fract max_fps;
 	u16 max_exp_lines;
 	const struct sensor_register *regs;
 };
@@ -597,17 +582,26 @@ static const struct bf3925_framesize bf3925_framesizes[] = {
 	{ /* SVGA */
 		.width		= 800,
 		.height		= 600,
-		.fps		= 15,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 150000,
+		},
 		.regs		= bf3925_svga_regs_15fps,
 	}, { /* SVGA */
 		.width		= 800,
 		.height		= 600,
-		.fps		= 30,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.regs		= bf3925_svga_regs_30fps,
 	}, { /* FULL */
 		.width		= 1600,
 		.height		= 1200,
-		.fps		= 15,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 150000,
+		},
 		.regs		= bf3925_full_regs,
 	}
 };
@@ -826,7 +820,8 @@ static void __bf3925_try_frame_size_fps(struct v4l2_mbus_framefmt *mf,
 		for (i = 0; i < ARRAY_SIZE(bf3925_framesizes); i++) {
 			if (fsize->width == match->width &&
 			    fsize->height == match->height &&
-			    fps >= fsize->fps)
+			    fps >= DIV_ROUND_CLOSEST(fsize->max_fps.denominator,
+				fsize->max_fps.numerator))
 				match = fsize;
 
 			fsize++;
@@ -895,10 +890,9 @@ static int bf3925_s_stream(struct v4l2_subdev *sd, int on)
 	struct bf3925 *bf3925 = to_bf3925(sd);
 	int ret = 0;
 
-	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
-				bf3925->frame_size->width,
-				bf3925->frame_size->height,
-				bf3925->frame_size->fps);
+	dev_info(&client->dev, "%s: on: %d, %dx%d\n", __func__, on,
+		bf3925->frame_size->width,
+		bf3925->frame_size->height);
 
 	mutex_lock(&bf3925->lock);
 
@@ -989,8 +983,7 @@ static int bf3925_g_frame_interval(struct v4l2_subdev *sd,
 	struct bf3925 *bf3925 = to_bf3925(sd);
 
 	mutex_lock(&bf3925->lock);
-	fi->interval.numerator = 10000;
-	fi->interval.denominator = bf3925->fps * 10000;
+	fi->interval = bf3925->frame_size->max_fps;
 	mutex_unlock(&bf3925->lock);
 
 	return 0;
@@ -1019,7 +1012,9 @@ static int bf3925_s_frame_interval(struct v4l2_subdev *sd,
 
 	if (bf3925->frame_size != size) {
 		dev_info(&client->dev, "%s match wxh@FPS is %dx%d@%d\n",
-			   __func__, size->width, size->height, size->fps);
+			__func__, size->width, size->height,
+			DIV_ROUND_CLOSEST(size->max_fps.denominator,
+					size->max_fps.numerator));
 		ret = bf3925_write_array(client, size->regs);
 		if (ret)
 			goto unlock;
@@ -1141,6 +1136,22 @@ static int bf3925_power(struct v4l2_subdev *sd, int on)
 	return 0;
 }
 
+static int bf3925_enum_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_pad_config *cfg,
+				      struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(bf3925_framesizes))
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_UYVY8_2X8)
+		return -EINVAL;
+
+	fie->width = bf3925_framesizes[fie->index].width;
+	fie->height = bf3925_framesizes[fie->index].height;
+	fie->interval = bf3925_framesizes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct v4l2_subdev_core_ops bf3925_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
@@ -1162,6 +1173,7 @@ static const struct v4l2_subdev_video_ops bf3925_subdev_video_ops = {
 static const struct v4l2_subdev_pad_ops bf3925_subdev_pad_ops = {
 	.enum_mbus_code = bf3925_enum_mbus_code,
 	.enum_frame_size = bf3925_enum_frame_sizes,
+	.enum_frame_interval = bf3925_enum_frame_interval,
 	.get_fmt = bf3925_get_fmt,
 	.set_fmt = bf3925_set_fmt,
 };
@@ -1406,7 +1418,8 @@ static int bf3925_probe(struct i2c_client *client,
 	bf3925->frame_size = &bf3925_framesizes[0];
 	bf3925->format.width = bf3925_framesizes[0].width;
 	bf3925->format.height = bf3925_framesizes[0].height;
-	bf3925->fps = bf3925_framesizes[0].fps;
+	bf3925->fps = DIV_ROUND_CLOSEST(bf3925_framesizes[0].max_fps.denominator,
+				bf3925_framesizes[0].max_fps.numerator);
 
 	ret = bf3925_detect(bf3925);
 	if (ret < 0)

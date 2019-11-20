@@ -3,6 +3,7 @@
  * gc2035 sensor driver
  *
  * Copyright (C) 2018 Fuzhou Rockchip Electronics Co., Ltd.
+ * V0.0X01.0X01 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -34,7 +35,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
 #define DRIVER_NAME "gc2035"
 #define GC2035_PIXEL_RATE		(70 * 1000 * 1000)
 
@@ -56,7 +57,7 @@ struct sensor_register {
 struct gc2035_framesize {
 	u16 width;
 	u16 height;
-	u16 fps;
+	struct v4l2_fract max_fps;
 	const struct sensor_register *regs;
 };
 
@@ -751,13 +752,19 @@ static const struct gc2035_framesize gc2035_framesizes[] = {
 	{
 		.width		= 800,
 		.height		= 600,
-		.fps		= 12,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 120000,
+		},
 		.regs		= gc2035_svga_regs,
 	},
 	{
 		.width		= 1600,
 		.height		= 1200,
-		.fps		= 6,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 60000,
+		},
 		.regs		= gc2035_full_regs,
 	}
 };
@@ -985,7 +992,8 @@ static void __gc2035_try_frame_size_fps(struct v4l2_mbus_framefmt *mf,
 		for (i = 0; i < ARRAY_SIZE(gc2035_framesizes); i++) {
 			if (fsize->width == match->width &&
 				fsize->height == match->height &&
-				fps >= fsize->fps)
+				fps >= DIV_ROUND_CLOSEST(fsize->max_fps.denominator,
+				fsize->max_fps.numerator))
 				match = fsize;
 
 			fsize++;
@@ -1158,8 +1166,7 @@ static int gc2035_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc2035 *gc2035 = to_gc2035(sd);
 
 	mutex_lock(&gc2035->lock);
-	fi->interval.numerator = 10000;
-	fi->interval.denominator = gc2035->fps * 10000;
+	fi->interval = gc2035->frame_size->max_fps;
 	mutex_unlock(&gc2035->lock);
 
 	return 0;
@@ -1266,6 +1273,22 @@ static long gc2035_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
+static int gc2035_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(gc2035_framesizes))
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_UYVY8_2X8)
+		return -EINVAL;
+
+	fie->width = gc2035_framesizes[fie->index].width;
+	fie->height = gc2035_framesizes[fie->index].height;
+	fie->interval = gc2035_framesizes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct v4l2_subdev_core_ops gc2035_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
@@ -1286,6 +1309,7 @@ static const struct v4l2_subdev_video_ops gc2035_subdev_video_ops = {
 static const struct v4l2_subdev_pad_ops gc2035_subdev_pad_ops = {
 	.enum_mbus_code = gc2035_enum_mbus_code,
 	.enum_frame_size = gc2035_enum_frame_sizes,
+	.enum_frame_interval = gc2035_enum_frame_interval,
 	.get_fmt = gc2035_get_fmt,
 	.set_fmt = gc2035_set_fmt,
 };
@@ -1502,7 +1526,8 @@ static int gc2035_probe(struct i2c_client *client,
 	gc2035->frame_size = &gc2035_framesizes[0];
 	gc2035->format.width = gc2035_framesizes[0].width;
 	gc2035->format.height = gc2035_framesizes[0].height;
-	gc2035->fps = gc2035_framesizes[0].fps;
+	gc2035->fps = DIV_ROUND_CLOSEST(gc2035_framesizes[0].max_fps.denominator,
+				gc2035_framesizes[0].max_fps.numerator);
 
 	ret = gc2035_detect(gc2035);
 	if (ret < 0)

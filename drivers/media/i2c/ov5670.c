@@ -7,6 +7,7 @@
  * V0.0X01.0X01 add poweron function.
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 add otp function.
+ * V0.0X01.0X03 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -38,7 +39,7 @@
 /* verify default register values */
 //#define CHECK_REG_VALUE
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1176,7 +1177,8 @@ static int ov5670_s_stream(struct v4l2_subdev *sd, int on)
 	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
 				ov5670->cur_mode->width,
 				ov5670->cur_mode->height,
-				ov5670->cur_mode->max_fps.denominator);
+		DIV_ROUND_CLOSEST(ov5670->cur_mode->max_fps.denominator,
+		ov5670->cur_mode->max_fps.numerator));
 
 	mutex_lock(&ov5670->mutex);
 	on = !!on;
@@ -1383,6 +1385,24 @@ static int ov5670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
+static int ov5670_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct ov5670 *ov5670 = to_ov5670(sd);
+
+	if (fie->index >= ov5670->cfg_num)
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+		return -EINVAL;
+
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct dev_pm_ops ov5670_pm_ops = {
 	SET_RUNTIME_PM_OPS(ov5670_runtime_suspend,
 			   ov5670_runtime_resume, NULL)
@@ -1410,6 +1430,7 @@ static const struct v4l2_subdev_video_ops ov5670_video_ops = {
 static const struct v4l2_subdev_pad_ops ov5670_pad_ops = {
 	.enum_mbus_code = ov5670_enum_mbus_code,
 	.enum_frame_size = ov5670_enum_frame_sizes,
+	.enum_frame_interval = ov5670_enum_frame_interval,
 	.get_fmt = ov5670_get_fmt,
 	.set_fmt = ov5670_set_fmt,
 };

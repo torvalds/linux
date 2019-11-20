@@ -3,6 +3,7 @@
  * gc0403 driver
  *
  * Copyright (C) 2019 Fuzhou Rockchip Electronics Co.,Ltd.
+ * V0.0X01.0X02 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -68,7 +69,7 @@
 #define GC0403_EXPOSURE_MIN		1
 
 #define GC0403_NAME			"gc0403"
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #define GC0403_XVCLK_FREQ		24000000
 #define GC0403_LINK_FREQ		96000000
@@ -93,7 +94,7 @@ struct regval {
 struct gc0403_mode {
 	u32 width;
 	u32 height;
-	u32 max_fps;
+	struct v4l2_fract max_fps;
 	u32 hts_def;
 	u32 vts_def;
 	u32 exp_def;
@@ -393,7 +394,10 @@ static const struct gc0403_mode supported_modes[] = {
 	{
 		.width = 640,
 		.height = 480,
-		.max_fps = 30,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.exp_def = 500,
 		.hts_def = 1362,
 		.vts_def = 586,
@@ -402,7 +406,10 @@ static const struct gc0403_mode supported_modes[] = {
 	{
 		.width = 768,
 		.height = 576,
-		.max_fps = 30,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.exp_def = 500,
 		.hts_def = 1206,
 		.vts_def = 663,
@@ -604,8 +611,7 @@ static int gc0403_g_frame_interval(struct v4l2_subdev *sd,
 	const struct gc0403_mode *mode = gc0403->cur_mode;
 
 	mutex_lock(&gc0403->mutex);
-	fi->interval.numerator = 10000;
-	fi->interval.denominator = mode->max_fps * 10000;
+	fi->interval = mode->max_fps;
 	mutex_unlock(&gc0403->mutex);
 
 	return 0;
@@ -870,6 +876,22 @@ static int gc0403_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
+static int gc0403_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(supported_modes))
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_SRGGB10_1X10)
+		return -EINVAL;
+
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct dev_pm_ops gc0403_pm_ops = {
 	SET_RUNTIME_PM_OPS(gc0403_runtime_suspend,
 			   gc0403_runtime_resume, NULL)
@@ -897,6 +919,7 @@ static const struct v4l2_subdev_video_ops gc0403_video_ops = {
 static const struct v4l2_subdev_pad_ops gc0403_pad_ops = {
 	.enum_mbus_code = gc0403_enum_mbus_code,
 	.enum_frame_size = gc0403_enum_frame_sizes,
+	.enum_frame_interval = gc0403_enum_frame_interval,
 	.get_fmt = gc0403_get_fmt,
 	.set_fmt = gc0403_set_fmt,
 };

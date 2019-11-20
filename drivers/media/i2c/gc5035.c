@@ -7,6 +7,7 @@
  * V0.0X01.0X01 init driver.
  * TODO: add OTP function.
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
+ * V0.0X01.0X03 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -31,7 +32,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1049,6 +1050,24 @@ static int sensor_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int gc5035_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct gc5035 *gc5035 = to_gc5035(sd);
+
+	if (fie->index >= gc5035->cfg_num)
+		return -EINVAL;
+
+	if (fie->code != MEDIA_BUS_FMT_SRGGB10_1X10)
+		return -EINVAL;
+
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct dev_pm_ops gc5035_pm_ops = {
 	SET_RUNTIME_PM_OPS(gc5035_runtime_suspend,
 			   gc5035_runtime_resume, NULL)
@@ -1077,6 +1096,7 @@ static const struct v4l2_subdev_video_ops gc5035_video_ops = {
 static const struct v4l2_subdev_pad_ops gc5035_pad_ops = {
 	.enum_mbus_code = gc5035_enum_mbus_code,
 	.enum_frame_size = gc5035_enum_frame_sizes,
+	.enum_frame_interval = gc5035_enum_frame_interval,
 	.get_fmt = gc5035_get_fmt,
 	.set_fmt = gc5035_set_fmt,
 };

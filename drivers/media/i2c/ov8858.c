@@ -4,6 +4,7 @@
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
  * v0.1.0x00 : 1. create file.
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
+ * V0.0X01.0X03 add enum_frame_interval function.
  */
 
 #include <linux/clk.h>
@@ -33,7 +34,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -2252,6 +2253,24 @@ static int ov8858_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
+static int ov8858_enum_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_pad_config *cfg,
+				      struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct ov8858 *ov8858 = to_ov8858(sd);
+
+	if (fie->index >= ov8858->cfg_num)
+		return -EINVAL;
+
+	if (fie->code != OV8858_MEDIA_BUS_FMT)
+		return -EINVAL;
+
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+	return 0;
+}
+
 static const struct dev_pm_ops ov8858_pm_ops = {
 	SET_RUNTIME_PM_OPS(ov8858_runtime_suspend,
 			   ov8858_runtime_resume, NULL)
@@ -2278,6 +2297,7 @@ static const struct v4l2_subdev_video_ops ov8858_video_ops = {
 static const struct v4l2_subdev_pad_ops ov8858_pad_ops = {
 	.enum_mbus_code = ov8858_enum_mbus_code,
 	.enum_frame_size = ov8858_enum_frame_sizes,
+	.enum_frame_interval = ov8858_enum_frame_interval,
 	.get_fmt = ov8858_get_fmt,
 	.set_fmt = ov8858_set_fmt,
 };
