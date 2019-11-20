@@ -23,6 +23,7 @@
 #define MAX31856_CR0_1SHOT         BIT(6)
 #define MAX31856_CR0_OCFAULT       BIT(4)
 #define MAX31856_CR0_OCFAULT_MASK  GENMASK(5, 4)
+#define MAX31856_CR0_FILTER_50HZ   BIT(0)
 #define MAX31856_TC_TYPE_MASK      GENMASK(3, 0)
 #define MAX31856_FAULT_OVUV        BIT(1)
 #define MAX31856_FAULT_OPEN        BIT(0)
@@ -63,6 +64,7 @@ static const struct iio_chan_spec max31856_channels[] = {
 struct max31856_data {
 	struct spi_device *spi;
 	u32 thermocouple_type;
+	bool filter_50hz;
 };
 
 static int max31856_read(struct max31856_data *data, u8 reg,
@@ -122,6 +124,11 @@ static int max31856_init(struct max31856_data *data)
 	/* Set Auto Conversion Mode */
 	reg_cr0_val &= ~MAX31856_CR0_1SHOT;
 	reg_cr0_val |= MAX31856_CR0_AUTOCONVERT;
+
+	if (data->filter_50hz)
+		reg_cr0_val |= MAX31856_CR0_FILTER_50HZ;
+	else
+		reg_cr0_val &= ~MAX31856_CR0_FILTER_50HZ;
 
 	return max31856_write(data, MAX31856_CR0_REG, reg_cr0_val);
 }
@@ -249,12 +256,54 @@ static ssize_t show_fault_oc(struct device *dev,
 	return show_fault(dev, MAX31856_FAULT_OPEN, buf);
 }
 
+static ssize_t show_filter(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct max31856_data *data = iio_priv(indio_dev);
+
+	return sprintf(buf, "%d\n", data->filter_50hz ? 50 : 60);
+}
+
+static ssize_t set_filter(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf,
+			  size_t len)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct max31856_data *data = iio_priv(indio_dev);
+	unsigned int freq;
+	int ret;
+
+	ret = kstrtouint(buf, 10, &freq);
+	if (ret)
+		return ret;
+
+	switch (freq) {
+	case 50:
+		data->filter_50hz = true;
+		break;
+	case 60:
+		data->filter_50hz = false;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	max31856_init(data);
+	return len;
+}
+
 static IIO_DEVICE_ATTR(fault_ovuv, 0444, show_fault_ovuv, NULL, 0);
 static IIO_DEVICE_ATTR(fault_oc, 0444, show_fault_oc, NULL, 0);
+static IIO_DEVICE_ATTR(in_temp_filter_notch_center_frequency, 0644,
+		       show_filter, set_filter, 0);
 
 static struct attribute *max31856_attributes[] = {
 	&iio_dev_attr_fault_ovuv.dev_attr.attr,
 	&iio_dev_attr_fault_oc.dev_attr.attr,
+	&iio_dev_attr_in_temp_filter_notch_center_frequency.dev_attr.attr,
 	NULL,
 };
 
@@ -280,6 +329,7 @@ static int max31856_probe(struct spi_device *spi)
 
 	data = iio_priv(indio_dev);
 	data->spi = spi;
+	data->filter_50hz = false;
 
 	spi_set_drvdata(spi, indio_dev);
 
