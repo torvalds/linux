@@ -42,7 +42,7 @@ struct intel_timeline {
 	 * from the intel_context caller plus internal atomicity.
 	 */
 	atomic_t pin_count;
-	unsigned int active_count;
+	atomic_t active_count;
 
 	const u32 *hwsp_seqno;
 	struct i915_vma *hwsp_ggtt;

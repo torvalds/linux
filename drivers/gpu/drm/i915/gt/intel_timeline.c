@@ -339,15 +339,33 @@ void intel_timeline_enter(struct intel_timeline *tl)
 	struct intel_gt_timelines *timelines = &tl->gt->timelines;
 	unsigned long flags;
 
+	/*
+	 * Pretend we are serialised by the timeline->mutex.
+	 *
+	 * While generally true, there are a few exceptions to the rule
+	 * for the engine->kernel_context being used to manage power
+	 * transitions. As the engine_park may be called from under any
+	 * timeline, it uses the power mutex as a global serialisation
+	 * lock to prevent any other request entering its timeline.
+	 *
+	 * The rule is generally tl->mutex, otherwise engine->wakeref.mutex.
+	 *
+	 * However, intel_gt_retire_request() does not know which engine
+	 * it is retiring along and so cannot partake in the engine-pm
+	 * barrier, and there we use the tl->active_count as a means to
+	 * pin the timeline in the active_list while the locks are dropped.
+	 * Ergo, as that is outside of the engine-pm barrier, we need to
+	 * use atomic to manipulate tl->active_count.
+	 */
 	lockdep_assert_held(&tl->mutex);
-
 	GEM_BUG_ON(!atomic_read(&tl->pin_count));
-	if (tl->active_count++)
+
+	if (atomic_add_unless(&tl->active_count, 1, 0))
 		return;
-	GEM_BUG_ON(!tl->active_count); /* overflow? */
 
 	spin_lock_irqsave(&timelines->lock, flags);
-	list_add(&tl->link, &timelines->active_list);
+	if (!atomic_fetch_inc(&tl->active_count))
+		list_add_tail(&tl->link, &timelines->active_list);
 	spin_unlock_irqrestore(&timelines->lock, flags);
 }
 
@@ -356,14 +374,16 @@ void intel_timeline_exit(struct intel_timeline *tl)
 	struct intel_gt_timelines *timelines = &tl->gt->timelines;
 	unsigned long flags;
 
+	/* See intel_timeline_enter() */
 	lockdep_assert_held(&tl->mutex);
 
-	GEM_BUG_ON(!tl->active_count);
-	if (--tl->active_count)
+	GEM_BUG_ON(!atomic_read(&tl->active_count));
+	if (atomic_add_unless(&tl->active_count, -1, 1))
 		return;
 
 	spin_lock_irqsave(&timelines->lock, flags);
-	list_del(&tl->link);
+	if (atomic_dec_and_test(&tl->active_count))
+		list_del(&tl->link);
 	spin_unlock_irqrestore(&timelines->lock, flags);
 
 	/*
