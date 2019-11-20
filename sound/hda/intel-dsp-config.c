@@ -221,6 +221,19 @@ static const struct config_entry config_table[] = {
 /* Cometlake-H */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_H)
 	{
+		.flags = FLAG_SOF,
+		.device = 0x06c8,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Dell laptop",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Dell"),
+				}
+			},
+			{}
+		}
+	},
+	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
 		.device = 0x06c8,
 	},
