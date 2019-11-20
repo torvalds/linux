@@ -543,6 +543,8 @@ int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid);
 int ocelot_hwstamp_get(struct ocelot *ocelot, int port, struct ifreq *ifr);
 int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr);
 int ocelot_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts);
+int ocelot_port_add_txtstamp_skb(struct ocelot_port *ocelot_port,
+				 struct sk_buff *skb);
 void ocelot_get_txtstamp(struct ocelot *ocelot);
 
 #endif

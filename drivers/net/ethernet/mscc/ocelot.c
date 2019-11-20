@@ -575,6 +575,32 @@ static int ocelot_gen_ifh(u32 *ifh, struct frame_info *info)
 	return 0;
 }
 
+int ocelot_port_add_txtstamp_skb(struct ocelot_port *ocelot_port,
+				 struct sk_buff *skb)
+{
+	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	struct ocelot *ocelot = ocelot_port->ocelot;
+
+	if (ocelot->ptp && shinfo->tx_flags & SKBTX_HW_TSTAMP &&
+	    ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
+		struct ocelot_skb *oskb =
+			kzalloc(sizeof(struct ocelot_skb), GFP_ATOMIC);
+
+		if (unlikely(!oskb))
+			return -ENOMEM;
+
+		shinfo->tx_flags |= SKBTX_IN_PROGRESS;
+
+		oskb->skb = skb;
+		oskb->id = ocelot_port->ts_id % 4;
+
+		list_add_tail(&oskb->head, &ocelot_port->skbs);
+		return 0;
+	}
+	return -ENODATA;
+}
+EXPORT_SYMBOL(ocelot_port_add_txtstamp_skb);
+
 static int ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
@@ -637,26 +663,11 @@ static int ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	if (ocelot->ptp && shinfo->tx_flags & SKBTX_HW_TSTAMP &&
-	    ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
-		struct ocelot_skb *oskb =
-			kzalloc(sizeof(struct ocelot_skb), GFP_ATOMIC);
-
-		if (unlikely(!oskb))
-			goto out;
-
-		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-
-		oskb->skb = skb;
-		oskb->id = ocelot_port->ts_id % 4;
+	if (!ocelot_port_add_txtstamp_skb(ocelot_port, skb)) {
 		ocelot_port->ts_id++;
-
-		list_add_tail(&oskb->head, &ocelot_port->skbs);
-
 		return NETDEV_TX_OK;
 	}
 
-out:
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
