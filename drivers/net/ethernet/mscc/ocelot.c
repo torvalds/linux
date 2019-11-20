@@ -1049,15 +1049,14 @@ static int ocelot_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
-static int ocelot_hwstamp_get(struct ocelot *ocelot, int port,
-			      struct ifreq *ifr)
+int ocelot_hwstamp_get(struct ocelot *ocelot, int port, struct ifreq *ifr)
 {
 	return copy_to_user(ifr->ifr_data, &ocelot->hwtstamp_config,
 			    sizeof(ocelot->hwtstamp_config)) ? -EFAULT : 0;
 }
+EXPORT_SYMBOL(ocelot_hwstamp_get);
 
-static int ocelot_hwstamp_set(struct ocelot *ocelot, int port,
-			      struct ifreq *ifr)
+int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct hwtstamp_config cfg;
@@ -1120,6 +1119,7 @@ static int ocelot_hwstamp_set(struct ocelot *ocelot, int port,
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
+EXPORT_SYMBOL(ocelot_hwstamp_set);
 
 static int ocelot_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
