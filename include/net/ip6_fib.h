@@ -502,6 +502,11 @@ static inline bool fib6_metric_locked(struct fib6_info *f6i, int metric)
 }
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
+static inline bool fib6_has_custom_rules(const struct net *net)
+{
+	return net->ipv6.fib6_has_custom_rules;
+}
+
 int fib6_rules_init(void);
 void fib6_rules_cleanup(void);
 bool fib6_rule_default(const struct fib_rule *rule);
@@ -527,6 +532,10 @@ static inline bool fib6_rules_early_flow_dissect(struct net *net,
 	return true;
 }
 #else
+static inline bool fib6_has_custom_rules(const struct net *net)
+{
+	return false;
+}
 static inline int               fib6_rules_init(void)
 {
 	return 0;
