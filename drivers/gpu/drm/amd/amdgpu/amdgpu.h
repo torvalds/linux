@@ -1185,8 +1185,8 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv);
 void amdgpu_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv);
 int amdgpu_device_ip_suspend(struct amdgpu_device *adev);
-int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon);
-int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon);
+int amdgpu_device_suspend(struct drm_device *dev, bool fbcon);
+int amdgpu_device_resume(struct drm_device *dev, bool fbcon);
 u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe);
 int amdgpu_enable_vblank_kms(struct drm_device *dev, unsigned int pipe);
 void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe);

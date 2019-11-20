@@ -1087,6 +1087,7 @@ static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
 static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
+	int r;
 
 	if (amdgpu_device_supports_boco(dev) && state == VGA_SWITCHEROO_OFF)
 		return;
@@ -1096,7 +1097,12 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		/* don't suspend or resume card normally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
-		amdgpu_device_resume(dev, true, true);
+		pci_set_power_state(dev->pdev, PCI_D0);
+		pci_restore_state(dev->pdev);
+		r = pci_enable_device(dev->pdev);
+		if (r)
+			DRM_WARN("pci_enable_device failed (%d)\n", r);
+		amdgpu_device_resume(dev, true);
 
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 		drm_kms_helper_poll_enable(dev);
@@ -1104,7 +1110,11 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		pr_info("amdgpu: switched off\n");
 		drm_kms_helper_poll_disable(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		amdgpu_device_suspend(dev, true, true);
+		amdgpu_device_suspend(dev, true);
+		pci_save_state(dev->pdev);
+		/* Shut down the device */
+		pci_disable_device(dev->pdev);
+		pci_set_power_state(dev->pdev, PCI_D3cold);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
@@ -3195,7 +3205,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
  * Returns 0 for success or an error on failure.
  * Called at driver suspend.
  */
-int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
+int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 {
 	struct amdgpu_device *adev;
 	struct drm_crtc *crtc;
@@ -3278,13 +3288,6 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	 */
 	amdgpu_bo_evict_vram(adev);
 
-	if (suspend) {
-		pci_save_state(dev->pdev);
-		/* Shut down the device */
-		pci_disable_device(dev->pdev);
-		pci_set_power_state(dev->pdev, PCI_D3hot);
-	}
-
 	return 0;
 }
 
@@ -3299,7 +3302,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
  * Returns 0 for success or an error on failure.
  * Called at driver resume.
  */
-int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
+int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 {
 	struct drm_connector *connector;
 	struct drm_connector_list_iter iter;
@@ -3309,14 +3312,6 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
-
-	if (resume) {
-		pci_set_power_state(dev->pdev, PCI_D0);
-		pci_restore_state(dev->pdev);
-		r = pci_enable_device(dev->pdev);
-		if (r)
-			return r;
-	}
 
 	/* post card */
 	if (amdgpu_device_need_post(adev)) {
