@@ -203,8 +203,7 @@ int	xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno);
 int	xfs_da_grow_inode_int(struct xfs_da_args *args, xfs_fileoff_t *bno,
 			      int count);
 int	xfs_da_get_buf(struct xfs_trans *trans, struct xfs_inode *dp,
-			      xfs_dablk_t bno, xfs_daddr_t mappedbno,
-			      struct xfs_buf **bp, int whichfork);
+		xfs_dablk_t bno, struct xfs_buf **bp, int whichfork);
 int	xfs_da_read_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 		xfs_dablk_t bno, unsigned int flags, struct xfs_buf **bpp,
 		int whichfork, const struct xfs_buf_ops *ops);

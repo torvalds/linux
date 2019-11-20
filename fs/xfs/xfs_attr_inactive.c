@@ -196,6 +196,7 @@ xfs_attr3_node_inactive(
 	struct xfs_buf		*bp,
 	int			level)
 {
+	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_da_blkinfo	*info;
 	xfs_dablk_t		child_fsb;
 	xfs_daddr_t		parent_blkno, child_blkno;
@@ -267,10 +268,16 @@ xfs_attr3_node_inactive(
 		/*
 		 * Remove the subsidiary block from the cache and from the log.
 		 */
-		error = xfs_da_get_buf(*trans, dp, 0, child_blkno, &child_bp,
-				       XFS_ATTR_FORK);
-		if (error)
+		child_bp = xfs_trans_get_buf(*trans, mp->m_ddev_targp,
+				child_blkno,
+				XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0);
+		if (!child_bp)
+			return -EIO;
+		error = bp->b_error;
+		if (error) {
+			xfs_trans_brelse(*trans, child_bp);
 			return error;
+		}
 		xfs_trans_binval(*trans, child_bp);
 
 		/*
@@ -311,6 +318,7 @@ xfs_attr3_root_inactive(
 	struct xfs_trans	**trans,
 	struct xfs_inode	*dp)
 {
+	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_da_blkinfo	*info;
 	struct xfs_buf		*bp;
 	xfs_daddr_t		blkno;
@@ -353,9 +361,15 @@ xfs_attr3_root_inactive(
 	/*
 	 * Invalidate the incore copy of the root block.
 	 */
-	error = xfs_da_get_buf(*trans, dp, 0, blkno, &bp, XFS_ATTR_FORK);
-	if (error)
+	bp = xfs_trans_get_buf(*trans, mp->m_ddev_targp, blkno,
+			XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0);
+	if (!bp)
+		return -EIO;
+	error = bp->b_error;
+	if (error) {
+		xfs_trans_brelse(*trans, bp);
 		return error;
+	}
 	xfs_trans_binval(*trans, bp);	/* remove from cache */
 	/*
 	 * Commit the invalidate and start the next transaction.

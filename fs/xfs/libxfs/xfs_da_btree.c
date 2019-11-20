@@ -429,7 +429,7 @@ xfs_da3_node_create(
 	trace_xfs_da_node_create(args);
 	ASSERT(level <= XFS_DA_NODE_MAXDEPTH);
 
-	error = xfs_da_get_buf(tp, dp, blkno, -1, &bp, whichfork);
+	error = xfs_da_get_buf(tp, dp, blkno, &bp, whichfork);
 	if (error)
 		return error;
 	bp->b_ops = &xfs_da3_node_buf_ops;
@@ -656,7 +656,7 @@ xfs_da3_root_split(
 
 	dp = args->dp;
 	tp = args->trans;
-	error = xfs_da_get_buf(tp, dp, blkno, -1, &bp, args->whichfork);
+	error = xfs_da_get_buf(tp, dp, blkno, &bp, args->whichfork);
 	if (error)
 		return error;
 	node = bp->b_addr;
@@ -2577,7 +2577,6 @@ xfs_da_get_buf(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
-	xfs_daddr_t		mappedbno,
 	struct xfs_buf		**bpp,
 	int			whichfork)
 {
@@ -2588,22 +2587,11 @@ xfs_da_get_buf(
 	int			error;
 
 	*bpp = NULL;
-
-	if (mappedbno >= 0) {
-		bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, mappedbno,
-				XFS_FSB_TO_BB(mp,
-					xfs_dabuf_nfsb(mp, whichfork)), 0);
-		goto done;
-	}
-
-	error = xfs_dabuf_map(dp, bno,
-			mappedbno == -1 ? XFS_DABUF_MAP_HOLE_OK : 0,
-			whichfork, &mapp, &nmap);
+	error = xfs_dabuf_map(dp, bno, 0, whichfork, &mapp, &nmap);
 	if (error || nmap == 0)
 		goto out_free;
 
 	bp = xfs_trans_get_buf_map(tp, mp->m_ddev_targp, mapp, nmap, 0);
-done:
 	error = bp ? bp->b_error : -EIO;
 	if (error) {
 		if (bp)
