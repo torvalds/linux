@@ -194,6 +194,9 @@ int	xfs_da3_node_read(struct xfs_trans *tp, struct xfs_inode *dp,
 /*
  * Utility routines.
  */
+
+#define XFS_DABUF_MAP_HOLE_OK	(1 << 0)
+
 int	xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno);
 int	xfs_da_grow_inode_int(struct xfs_da_args *args, xfs_fileoff_t *bno,
 			      int count);

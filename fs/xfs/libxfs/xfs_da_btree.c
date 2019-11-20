@@ -2460,19 +2460,11 @@ xfs_da_shrink_inode(
 	return error;
 }
 
-/*
- * Map the block we are given ready for reading. There are three possible return
- * values:
- *	-1 - will be returned if we land in a hole and mappedbno == -2 so the
- *	     caller knows not to execute a subsequent read.
- *	 0 - if we mapped the block successfully
- *	>0 - positive error number if there was an error.
- */
 static int
 xfs_dabuf_map(
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
-	xfs_daddr_t		mappedbno,
+	unsigned int		flags,
 	int			whichfork,
 	struct xfs_buf_map	**mapp,
 	int			*nmaps)
@@ -2527,7 +2519,7 @@ out_free_irecs:
 
 invalid_mapping:
 	/* Caller ok with no mapping. */
-	if (XFS_IS_CORRUPT(mp, mappedbno != -2)) {
+	if (XFS_IS_CORRUPT(mp, !(flags & XFS_DABUF_MAP_HOLE_OK))) {
 		error = -EFSCORRUPTED;
 		if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
 			xfs_alert(mp, "%s: bno %u inode %llu",
@@ -2575,13 +2567,11 @@ xfs_da_get_buf(
 		goto done;
 	}
 
-	error = xfs_dabuf_map(dp, bno, mappedbno, whichfork, &mapp, &nmap);
-	if (error) {
-		/* mapping a hole is not an error, but we don't continue */
-		if (error == -1)
-			error = 0;
+	error = xfs_dabuf_map(dp, bno,
+			mappedbno == -1 ? XFS_DABUF_MAP_HOLE_OK : 0,
+			whichfork, &mapp, &nmap);
+	if (error || nmap == 0)
 		goto out_free;
-	}
 
 	bp = xfs_trans_get_buf_map(tp, mp->m_ddev_targp, mapp, nmap, 0);
 done:
@@ -2630,13 +2620,11 @@ xfs_da_read_buf(
 		goto done;
 	}
 
-	error = xfs_dabuf_map(dp, bno, mappedbno, whichfork, &mapp, &nmap);
-	if (error) {
-		/* mapping a hole is not an error, but we don't continue */
-		if (error == -1)
-			error = 0;
+	error = xfs_dabuf_map(dp, bno,
+			mappedbno == -1 ? XFS_DABUF_MAP_HOLE_OK : 0,
+			whichfork, &mapp, &nmap);
+	if (error || !nmap)
 		goto out_free;
-	}
 
 	error = xfs_trans_read_buf_map(mp, tp, mp->m_ddev_targp, mapp, nmap, 0,
 			&bp, ops);
@@ -2677,14 +2665,11 @@ xfs_da_reada_buf(
 
 	mapp = &map;
 	nmap = 1;
-	error = xfs_dabuf_map(dp, bno, mappedbno, whichfork,
-				&mapp, &nmap);
-	if (error) {
-		/* mapping a hole is not an error, but we don't continue */
-		if (error == -1)
-			error = 0;
+	error = xfs_dabuf_map(dp, bno,
+			mappedbno == -1 ? XFS_DABUF_MAP_HOLE_OK : 0,
+			whichfork, &mapp, &nmap);
+	if (error || !nmap)
 		goto out_free;
-	}
 
 	mappedbno = mapp[0].bm_bn;
 	xfs_buf_readahead_map(dp->i_mount->m_ddev_targp, mapp, nmap, ops);
