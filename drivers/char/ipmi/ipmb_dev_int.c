@@ -151,16 +151,16 @@ static ssize_t ipmb_write(struct file *file, const char __user *buf,
 	return ret ? : count;
 }
 
-static unsigned int ipmb_poll(struct file *file, poll_table *wait)
+static __poll_t ipmb_poll(struct file *file, poll_table *wait)
 {
 	struct ipmb_dev *ipmb_dev = to_ipmb_dev(file);
-	unsigned int mask = POLLOUT;
+	__poll_t mask = EPOLLOUT;
 
 	mutex_lock(&ipmb_dev->file_mutex);
 	poll_wait(file, &ipmb_dev->wait_queue, wait);
 
 	if (atomic_read(&ipmb_dev->request_queue_len))
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 	mutex_unlock(&ipmb_dev->file_mutex);
 
 	return mask;
