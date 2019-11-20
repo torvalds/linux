@@ -636,12 +636,12 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 int cxgb4_tc_flower_replace(struct net_device *dev,
 			    struct flow_cls_offload *cls)
 {
+	struct netlink_ext_ack *extack = cls->common.extack;
 	struct adapter *adap = netdev2adap(dev);
 	struct ch_tc_flower_entry *ch_flower;
 	struct ch_filter_specification *fs;
 	struct filter_ctx ctx;
-	int fidx;
-	int ret;
+	int fidx, ret;
 
 	if (cxgb4_validate_flow_actions(dev, cls))
 		return -EOPNOTSUPP;
@@ -664,13 +664,34 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 	if (fs->hash) {
 		fidx = 0;
 	} else {
-		fidx = cxgb4_get_free_ftid(dev, fs->type ? PF_INET6 : PF_INET);
-		if (fidx < 0) {
-			netdev_err(dev, "%s: No fidx for offload.\n", __func__);
+		u8 inet_family;
+
+		inet_family = fs->type ? PF_INET6 : PF_INET;
+
+		/* Note that TC uses prio 0 to indicate stack to
+		 * generate automatic prio and hence doesn't pass prio
+		 * 0 to driver. However, the hardware TCAM index
+		 * starts from 0. Hence, the -1 here.
+		 */
+		if (cls->common.prio <= adap->tids.nftids)
+			fidx = cls->common.prio - 1;
+		else
+			fidx = cxgb4_get_free_ftid(dev, inet_family);
+
+		/* Only insert FLOWER rule if its priority doesn't
+		 * conflict with existing rules in the LETCAM.
+		 */
+		if (fidx < 0 ||
+		    !cxgb4_filter_prio_in_range(dev, fidx, cls->common.prio)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "No free LETCAM index available");
 			ret = -ENOMEM;
 			goto free_entry;
 		}
 	}
+
+	fs->tc_prio = cls->common.prio;
+	fs->tc_cookie = cls->cookie;
 
 	init_completion(&ctx.completion);
 	ret = __cxgb4_set_filter(dev, fidx, fs, &ctx);

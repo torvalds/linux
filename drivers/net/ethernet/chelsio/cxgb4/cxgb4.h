@@ -1286,8 +1286,11 @@ struct ch_filter_specification {
 	u16 nat_lport;		/* local port to use after NAT'ing */
 	u16 nat_fport;		/* foreign port to use after NAT'ing */
 
+	u32 tc_prio;		/* TC's filter priority index */
+	u64 tc_cookie;		/* Unique cookie identifying TC rules */
+
 	/* reservation for future additions */
-	u8 rsvd[24];
+	u8 rsvd[12];
 
 	/* Filter rule value/mask pairs.
 	 */
