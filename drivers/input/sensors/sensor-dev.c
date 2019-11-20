@@ -491,10 +491,10 @@ static int sensor_reset_rate(struct i2c_client *client, int rate)
 	dev_info(&client->dev, "set sensor poll time to %dms\n", rate);
 
 	/* work queue is always slow, we need more quickly to match hal rate */
-	if (sensor->pdata->poll_delay_ms == (rate - 2))
+	if (sensor->pdata->poll_delay_ms == (rate - 4))
 		return 0;
 
-	sensor->pdata->poll_delay_ms = rate - 2;
+	sensor->pdata->poll_delay_ms = rate - 4;
 
 	if (sensor->status_cur == SENSOR_ON) {
 		if (!sensor->pdata->irq_enable) {
