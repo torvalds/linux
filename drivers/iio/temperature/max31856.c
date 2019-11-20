@@ -6,6 +6,7 @@
  * Copyright (C) 2018-2019 Rockwell Collins
  */
 
+#include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
@@ -53,7 +54,8 @@ static const struct iio_chan_spec max31856_channels[] = {
 	{	/* Thermocouple Temperature */
 		.type = IIO_TEMP,
 		.info_mask_separate =
-			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_THERMOCOUPLE_TYPE),
 		.info_mask_shared_by_type =
 			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO)
 	},
@@ -73,6 +75,10 @@ struct max31856_data {
 	u32 thermocouple_type;
 	bool filter_50hz;
 	int averaging;
+};
+
+static const char max31856_tc_types[] = {
+	'B', 'E', 'J', 'K', 'N', 'R', 'S', 'T'
 };
 
 static int max31856_read(struct max31856_data *data, u8 reg,
@@ -232,12 +238,27 @@ static int max31856_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		*val = 1 << data->averaging;
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_THERMOCOUPLE_TYPE:
+		*val = max31856_tc_types[data->thermocouple_type];
+		return IIO_VAL_CHAR;
 	default:
 		ret = -EINVAL;
 		break;
 	}
 
 	return ret;
+}
+
+static int max31856_write_raw_get_fmt(struct iio_dev *indio_dev,
+				      struct iio_chan_spec const *chan,
+				      long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_THERMOCOUPLE_TYPE:
+		return IIO_VAL_CHAR;
+	default:
+		return IIO_VAL_INT;
+	}
 }
 
 static int max31856_write_raw(struct iio_dev *indio_dev,
@@ -259,7 +280,24 @@ static int max31856_write_raw(struct iio_dev *indio_dev,
 		data->averaging = msb;
 		max31856_init(data);
 		break;
+	case IIO_CHAN_INFO_THERMOCOUPLE_TYPE:
+	{
+		int tc_type = -1;
+		int i;
 
+		for (i = 0; i < ARRAY_SIZE(max31856_tc_types); i++) {
+			if (max31856_tc_types[i] == toupper(val)) {
+				tc_type = i;
+				break;
+			}
+		}
+		if (tc_type < 0)
+			return -EINVAL;
+
+		data->thermocouple_type = tc_type;
+		max31856_init(data);
+		break;
+	}
 	default:
 		return -EINVAL;
 	}
@@ -356,6 +394,7 @@ static const struct attribute_group max31856_group = {
 static const struct iio_info max31856_info = {
 	.read_raw = max31856_read_raw,
 	.write_raw = max31856_write_raw,
+	.write_raw_get_fmt = max31856_write_raw_get_fmt,
 	.attrs = &max31856_group,
 };
 
