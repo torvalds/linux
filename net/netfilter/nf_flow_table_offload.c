@@ -574,7 +574,7 @@ static int flow_offload_tuple_add(struct flow_offload_work *offload,
 	cls_flow.rule = flow_rule->rule;
 
 	list_for_each_entry(block_cb, &flowtable->flow_block.cb_list, list) {
-		err = block_cb->cb(TC_SETUP_FT, &cls_flow,
+		err = block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow,
 				   block_cb->cb_priv);
 		if (err < 0)
 			continue;
@@ -599,7 +599,7 @@ static void flow_offload_tuple_del(struct flow_offload_work *offload,
 			     &offload->flow->tuplehash[dir].tuple, &extack);
 
 	list_for_each_entry(block_cb, &flowtable->flow_block.cb_list, list)
-		block_cb->cb(TC_SETUP_FT, &cls_flow, block_cb->cb_priv);
+		block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow, block_cb->cb_priv);
 
 	offload->flow->flags |= FLOW_OFFLOAD_HW_DEAD;
 }
@@ -656,7 +656,7 @@ static void flow_offload_tuple_stats(struct flow_offload_work *offload,
 			     &offload->flow->tuplehash[dir].tuple, &extack);
 
 	list_for_each_entry(block_cb, &flowtable->flow_block.cb_list, list)
-		block_cb->cb(TC_SETUP_FT, &cls_flow, block_cb->cb_priv);
+		block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow, block_cb->cb_priv);
 	memcpy(stats, &cls_flow.stats, sizeof(*stats));
 }
 
