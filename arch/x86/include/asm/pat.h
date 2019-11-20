@@ -10,17 +10,17 @@ void pat_disable(const char *reason);
 extern void pat_init(void);
 extern void init_cache_modes(void);
 
-extern int reserve_memtype(u64 start, u64 end,
+extern int memtype_reserve(u64 start, u64 end,
 		enum page_cache_mode req_pcm, enum page_cache_mode *ret_pcm);
-extern int free_memtype(u64 start, u64 end);
+extern int memtype_free(u64 start, u64 end);
 
-extern int kernel_map_sync_memtype(u64 base, unsigned long size,
+extern int memtype_kernel_map_sync(u64 base, unsigned long size,
 		enum page_cache_mode pcm);
 
-int io_reserve_memtype(resource_size_t start, resource_size_t end,
+int memtype_reserve_io(resource_size_t start, resource_size_t end,
 			enum page_cache_mode *pcm);
 
-void io_free_memtype(resource_size_t start, resource_size_t end);
+void memtype_free_io(resource_size_t start, resource_size_t end);
 
 bool pat_pfn_immune_to_uc_mtrr(unsigned long pfn);
 

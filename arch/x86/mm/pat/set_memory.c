@@ -1801,7 +1801,7 @@ int set_memory_uc(unsigned long addr, int numpages)
 	/*
 	 * for now UC MINUS. see comments in ioremap()
 	 */
-	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
+	ret = memtype_reserve(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
 			      _PAGE_CACHE_MODE_UC_MINUS, NULL);
 	if (ret)
 		goto out_err;
@@ -1813,7 +1813,7 @@ int set_memory_uc(unsigned long addr, int numpages)
 	return 0;
 
 out_free:
-	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
+	memtype_free(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
 out_err:
 	return ret;
 }
@@ -1839,14 +1839,14 @@ int set_memory_wc(unsigned long addr, int numpages)
 {
 	int ret;
 
-	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
+	ret = memtype_reserve(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
 		_PAGE_CACHE_MODE_WC, NULL);
 	if (ret)
 		return ret;
 
 	ret = _set_memory_wc(addr, numpages);
 	if (ret)
-		free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
+		memtype_free(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
 
 	return ret;
 }
@@ -1873,7 +1873,7 @@ int set_memory_wb(unsigned long addr, int numpages)
 	if (ret)
 		return ret;
 
-	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
+	memtype_free(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
 	return 0;
 }
 EXPORT_SYMBOL(set_memory_wb);
@@ -2014,7 +2014,7 @@ static int _set_pages_array(struct page **pages, int numpages,
 			continue;
 		start = page_to_pfn(pages[i]) << PAGE_SHIFT;
 		end = start + PAGE_SIZE;
-		if (reserve_memtype(start, end, new_type, NULL))
+		if (memtype_reserve(start, end, new_type, NULL))
 			goto err_out;
 	}
 
@@ -2040,7 +2040,7 @@ err_out:
 			continue;
 		start = page_to_pfn(pages[i]) << PAGE_SHIFT;
 		end = start + PAGE_SIZE;
-		free_memtype(start, end);
+		memtype_free(start, end);
 	}
 	return -EINVAL;
 }
@@ -2089,7 +2089,7 @@ int set_pages_array_wb(struct page **pages, int numpages)
 			continue;
 		start = page_to_pfn(pages[i]) << PAGE_SHIFT;
 		end = start + PAGE_SIZE;
-		free_memtype(start, end);
+		memtype_free(start, end);
 	}
 
 	return 0;

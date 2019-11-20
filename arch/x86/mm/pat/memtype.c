@@ -575,7 +575,7 @@ static u64 sanitize_phys(u64 address)
  * available type in new_type in case of no error. In case of any error
  * it will return a negative return value.
  */
-int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
+int memtype_reserve(u64 start, u64 end, enum page_cache_mode req_type,
 		    enum page_cache_mode *new_type)
 {
 	struct memtype *entry_new;
@@ -638,7 +638,7 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
 
 	err = memtype_check_insert(entry_new, new_type);
 	if (err) {
-		pr_info("x86/PAT: reserve_memtype failed [mem %#010Lx-%#010Lx], track %s, req %s\n",
+		pr_info("x86/PAT: memtype_reserve failed [mem %#010Lx-%#010Lx], track %s, req %s\n",
 			start, end - 1,
 			cattr_name(entry_new->type), cattr_name(req_type));
 		kfree(entry_new);
@@ -649,14 +649,14 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
 
 	spin_unlock(&memtype_lock);
 
-	dprintk("reserve_memtype added [mem %#010Lx-%#010Lx], track %s, req %s, ret %s\n",
+	dprintk("memtype_reserve added [mem %#010Lx-%#010Lx], track %s, req %s, ret %s\n",
 		start, end - 1, cattr_name(entry_new->type), cattr_name(req_type),
 		new_type ? cattr_name(*new_type) : "-");
 
 	return err;
 }
 
-int free_memtype(u64 start, u64 end)
+int memtype_free(u64 start, u64 end)
 {
 	int is_range_ram;
 	struct memtype *entry_old;
@@ -689,7 +689,7 @@ int free_memtype(u64 start, u64 end)
 
 	kfree(entry_old);
 
-	dprintk("free_memtype request [mem %#010Lx-%#010Lx]\n", start, end - 1);
+	dprintk("memtype_free request [mem %#010Lx-%#010Lx]\n", start, end - 1);
 
 	return 0;
 }
@@ -752,7 +752,7 @@ bool pat_pfn_immune_to_uc_mtrr(unsigned long pfn)
 EXPORT_SYMBOL_GPL(pat_pfn_immune_to_uc_mtrr);
 
 /**
- * io_reserve_memtype - Request a memory type mapping for a region of memory
+ * memtype_reserve_io - Request a memory type mapping for a region of memory
  * @start: start (physical address) of the region
  * @end: end (physical address) of the region
  * @type: A pointer to memtype, with requested type. On success, requested
@@ -761,7 +761,7 @@ EXPORT_SYMBOL_GPL(pat_pfn_immune_to_uc_mtrr);
  * On success, returns 0
  * On failure, returns non-zero
  */
-int io_reserve_memtype(resource_size_t start, resource_size_t end,
+int memtype_reserve_io(resource_size_t start, resource_size_t end,
 			enum page_cache_mode *type)
 {
 	resource_size_t size = end - start;
@@ -771,47 +771,47 @@ int io_reserve_memtype(resource_size_t start, resource_size_t end,
 
 	WARN_ON_ONCE(iomem_map_sanity_check(start, size));
 
-	ret = reserve_memtype(start, end, req_type, &new_type);
+	ret = memtype_reserve(start, end, req_type, &new_type);
 	if (ret)
 		goto out_err;
 
 	if (!is_new_memtype_allowed(start, size, req_type, new_type))
 		goto out_free;
 
-	if (kernel_map_sync_memtype(start, size, new_type) < 0)
+	if (memtype_kernel_map_sync(start, size, new_type) < 0)
 		goto out_free;
 
 	*type = new_type;
 	return 0;
 
 out_free:
-	free_memtype(start, end);
+	memtype_free(start, end);
 	ret = -EBUSY;
 out_err:
 	return ret;
 }
 
 /**
- * io_free_memtype - Release a memory type mapping for a region of memory
+ * memtype_free_io - Release a memory type mapping for a region of memory
  * @start: start (physical address) of the region
  * @end: end (physical address) of the region
  */
-void io_free_memtype(resource_size_t start, resource_size_t end)
+void memtype_free_io(resource_size_t start, resource_size_t end)
 {
-	free_memtype(start, end);
+	memtype_free(start, end);
 }
 
 int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
 {
 	enum page_cache_mode type = _PAGE_CACHE_MODE_WC;
 
-	return io_reserve_memtype(start, start + size, &type);
+	return memtype_reserve_io(start, start + size, &type);
 }
 EXPORT_SYMBOL(arch_io_reserve_memtype_wc);
 
 void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 {
-	io_free_memtype(start, start + size);
+	memtype_free_io(start, start + size);
 }
 EXPORT_SYMBOL(arch_io_free_memtype_wc);
 
@@ -871,7 +871,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
  * Change the memory type for the physical address range in kernel identity
  * mapping space if that range is a part of identity map.
  */
-int kernel_map_sync_memtype(u64 base, unsigned long size,
+int memtype_kernel_map_sync(u64 base, unsigned long size,
 			    enum page_cache_mode pcm)
 {
 	unsigned long id_sz;
@@ -901,7 +901,7 @@ int kernel_map_sync_memtype(u64 base, unsigned long size,
 
 /*
  * Internal interface to reserve a range of physical memory with prot.
- * Reserved non RAM regions only and after successful reserve_memtype,
+ * Reserved non RAM regions only and after successful memtype_reserve,
  * this func also keeps identity mapping (if any) in sync with this new prot.
  */
 static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
@@ -938,14 +938,14 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 		return 0;
 	}
 
-	ret = reserve_memtype(paddr, paddr + size, want_pcm, &pcm);
+	ret = memtype_reserve(paddr, paddr + size, want_pcm, &pcm);
 	if (ret)
 		return ret;
 
 	if (pcm != want_pcm) {
 		if (strict_prot ||
 		    !is_new_memtype_allowed(paddr, size, want_pcm, pcm)) {
-			free_memtype(paddr, paddr + size);
+			memtype_free(paddr, paddr + size);
 			pr_err("x86/PAT: %s:%d map pfn expected mapping type %s for [mem %#010Lx-%#010Lx], got %s\n",
 			       current->comm, current->pid,
 			       cattr_name(want_pcm),
@@ -963,8 +963,8 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 				     cachemode2protval(pcm));
 	}
 
-	if (kernel_map_sync_memtype(paddr, size, pcm) < 0) {
-		free_memtype(paddr, paddr + size);
+	if (memtype_kernel_map_sync(paddr, size, pcm) < 0) {
+		memtype_free(paddr, paddr + size);
 		return -EINVAL;
 	}
 	return 0;
@@ -980,7 +980,7 @@ static void free_pfn_range(u64 paddr, unsigned long size)
 
 	is_ram = pat_pagerange_is_ram(paddr, paddr + size);
 	if (is_ram == 0)
-		free_memtype(paddr, paddr + size);
+		memtype_free(paddr, paddr + size);
 }
 
 /*
