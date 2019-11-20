@@ -1198,6 +1198,9 @@ static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
 	count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	align = (1 << order) - 1;
 
+	/* workaround for avoid va hole */
+	align = 0;
+
 	spin_lock_irqsave(&mapping->lock, flags);
 	for (i = 0; i < mapping->nr_bitmaps; i++) {
 		start = bitmap_find_next_zero_area(mapping->bitmaps[i],
