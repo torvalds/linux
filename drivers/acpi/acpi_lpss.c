@@ -99,6 +99,9 @@ struct lpss_private_data {
 	u32 prv_reg_ctx[LPSS_PRV_REG_COUNT];
 };
 
+/* Devices which need to be in D3 before lpss_iosf_enter_d3_state() proceeds */
+static u32 pmc_atom_d3_mask = 0xfe000ffe;
+
 /* LPSS run time quirks */
 static unsigned int lpss_quirks;
 
@@ -175,6 +178,21 @@ static void byt_pwm_setup(struct lpss_private_data *pdata)
 
 static void byt_i2c_setup(struct lpss_private_data *pdata)
 {
+	const char *uid_str = acpi_device_uid(pdata->adev);
+	acpi_handle handle = pdata->adev->handle;
+	unsigned long long shared_host = 0;
+	acpi_status status;
+	long uid = 0;
+
+	/* Expected to always be true, but better safe then sorry */
+	if (uid_str)
+		uid = simple_strtol(uid_str, NULL, 10);
+
+	/* Detect I2C bus shared with PUNIT and ignore its d3 status */
+	status = acpi_evaluate_integer(handle, "_SEM", NULL, &shared_host);
+	if (ACPI_SUCCESS(status) && shared_host && uid)
+		pmc_atom_d3_mask &= ~(BIT_LPSS2_F1_I2C1 << (uid - 1));
+
 	lpss_deassert_reset(pdata);
 
 	if (readl(pdata->mmio_base + pdata->dev_desc->prv_offset))
@@ -894,7 +912,7 @@ static void lpss_iosf_enter_d3_state(void)
 	 * Here we read the values related to LPSS power island, i.e. LPSS
 	 * devices, excluding both LPSS DMA controllers, along with SCC domain.
 	 */
-	u32 func_dis, d3_sts_0, pmc_status, pmc_mask = 0xfe000ffe;
+	u32 func_dis, d3_sts_0, pmc_status;
 	int ret;
 
 	ret = pmc_atom_read(PMC_FUNC_DIS, &func_dis);
@@ -912,7 +930,7 @@ static void lpss_iosf_enter_d3_state(void)
 	 * Shutdown both LPSS DMA controllers if and only if all other devices
 	 * are already in D3hot.
 	 */
-	pmc_status = (~(d3_sts_0 | func_dis)) & pmc_mask;
+	pmc_status = (~(d3_sts_0 | func_dis)) & pmc_atom_d3_mask;
 	if (pmc_status)
 		goto exit;
 

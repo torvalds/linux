@@ -904,7 +904,22 @@ enum ice_status ice_aq_q_shutdown(struct ice_hw *hw, bool unloading)
  * @timeout: the maximum time in ms that the driver may hold the resource
  * @cd: pointer to command details structure or NULL
  *
- * requests common resource using the admin queue commands (0x0008)
+ * Requests common resource using the admin queue commands (0x0008).
+ * When attempting to acquire the Global Config Lock, the driver can
+ * learn of three states:
+ *  1) ICE_SUCCESS -        acquired lock, and can perform download package
+ *  2) ICE_ERR_AQ_ERROR -   did not get lock, driver should fail to load
+ *  3) ICE_ERR_AQ_NO_WORK - did not get lock, but another driver has
+ *                          successfully downloaded the package; the driver does
+ *                          not have to download the package and can continue
+ *                          loading
+ *
+ * Note that if the caller is in an acquire lock, perform action, release lock
+ * phase of operation, it is possible that the FW may detect a timeout and issue
+ * a CORER. In this case, the driver will receive a CORER interrupt and will
+ * have to determine its cause. The calling thread that is handling this flow
+ * will likely get an error propagated back to it indicating the Download
+ * Package, Update Package or the Release Resource AQ commands timed out.
  */
 static enum ice_status
 ice_aq_req_res(struct ice_hw *hw, enum ice_aq_res_ids res,
@@ -922,13 +937,43 @@ ice_aq_req_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 	cmd_resp->res_id = cpu_to_le16(res);
 	cmd_resp->access_type = cpu_to_le16(access);
 	cmd_resp->res_number = cpu_to_le32(sdp_number);
+	cmd_resp->timeout = cpu_to_le32(*timeout);
+	*timeout = 0;
 
 	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+
 	/* The completion specifies the maximum time in ms that the driver
 	 * may hold the resource in the Timeout field.
-	 * If the resource is held by someone else, the command completes with
-	 * busy return value and the timeout field indicates the maximum time
-	 * the current owner of the resource has to free it.
+	 */
+
+	/* Global config lock response utilizes an additional status field.
+	 *
+	 * If the Global config lock resource is held by some other driver, the
+	 * command completes with ICE_AQ_RES_GLBL_IN_PROG in the status field
+	 * and the timeout field indicates the maximum time the current owner
+	 * of the resource has to free it.
+	 */
+	if (res == ICE_GLOBAL_CFG_LOCK_RES_ID) {
+		if (le16_to_cpu(cmd_resp->status) == ICE_AQ_RES_GLBL_SUCCESS) {
+			*timeout = le32_to_cpu(cmd_resp->timeout);
+			return 0;
+		} else if (le16_to_cpu(cmd_resp->status) ==
+			   ICE_AQ_RES_GLBL_IN_PROG) {
+			*timeout = le32_to_cpu(cmd_resp->timeout);
+			return ICE_ERR_AQ_ERROR;
+		} else if (le16_to_cpu(cmd_resp->status) ==
+			   ICE_AQ_RES_GLBL_DONE) {
+			return ICE_ERR_AQ_NO_WORK;
+		}
+
+		/* invalid FW response, force a timeout immediately */
+		*timeout = 0;
+		return ICE_ERR_AQ_ERROR;
+	}
+
+	/* If the resource is held by some other driver, the command completes
+	 * with a busy return value and the timeout field indicates the maximum
+	 * time the current owner of the resource has to free it.
 	 */
 	if (!status || hw->adminq.sq_last_status == ICE_AQ_RC_EBUSY)
 		*timeout = le32_to_cpu(cmd_resp->timeout);
@@ -967,30 +1012,28 @@ ice_aq_release_res(struct ice_hw *hw, enum ice_aq_res_ids res, u8 sdp_number,
  * @hw: pointer to the HW structure
  * @res: resource id
  * @access: access type (read or write)
+ * @timeout: timeout in milliseconds
  *
  * This function will attempt to acquire the ownership of a resource.
  */
 enum ice_status
 ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
-		enum ice_aq_res_access_type access)
+		enum ice_aq_res_access_type access, u32 timeout)
 {
 #define ICE_RES_POLLING_DELAY_MS	10
 	u32 delay = ICE_RES_POLLING_DELAY_MS;
+	u32 time_left = timeout;
 	enum ice_status status;
-	u32 time_left = 0;
-	u32 timeout;
 
 	status = ice_aq_req_res(hw, res, access, 0, &time_left, NULL);
 
-	/* An admin queue return code of ICE_AQ_RC_EEXIST means that another
-	 * driver has previously acquired the resource and performed any
-	 * necessary updates; in this case the caller does not obtain the
-	 * resource and has no further work to do.
+	/* A return code of ICE_ERR_AQ_NO_WORK means that another driver has
+	 * previously acquired the resource and performed any necessary updates;
+	 * in this case the caller does not obtain the resource and has no
+	 * further work to do.
 	 */
-	if (hw->adminq.sq_last_status == ICE_AQ_RC_EEXIST) {
-		status = ICE_ERR_AQ_NO_WORK;
+	if (status == ICE_ERR_AQ_NO_WORK)
 		goto ice_acquire_res_exit;
-	}
 
 	if (status)
 		ice_debug(hw, ICE_DBG_RES,
@@ -1003,11 +1046,9 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		timeout = (timeout > delay) ? timeout - delay : 0;
 		status = ice_aq_req_res(hw, res, access, 0, &time_left, NULL);
 
-		if (hw->adminq.sq_last_status == ICE_AQ_RC_EEXIST) {
+		if (status == ICE_ERR_AQ_NO_WORK)
 			/* lock free, but no work to do */
-			status = ICE_ERR_AQ_NO_WORK;
 			break;
-		}
 
 		if (!status)
 			/* lock acquired */

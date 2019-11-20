@@ -1830,18 +1830,30 @@ static u32 iwl_trans_pcie_read32(struct iwl_trans *trans, u32 ofs)
 	return readl(IWL_TRANS_GET_PCIE_TRANS(trans)->hw_base + ofs);
 }
 
+static u32 iwl_trans_pcie_prph_msk(struct iwl_trans *trans)
+{
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+		return 0x00FFFFFF;
+	else
+		return 0x000FFFFF;
+}
+
 static u32 iwl_trans_pcie_read_prph(struct iwl_trans *trans, u32 reg)
 {
+	u32 mask = iwl_trans_pcie_prph_msk(trans);
+
 	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_RADDR,
-			       ((reg & 0x000FFFFF) | (3 << 24)));
+			       ((reg & mask) | (3 << 24)));
 	return iwl_trans_pcie_read32(trans, HBUS_TARG_PRPH_RDAT);
 }
 
 static void iwl_trans_pcie_write_prph(struct iwl_trans *trans, u32 addr,
 				      u32 val)
 {
+	u32 mask = iwl_trans_pcie_prph_msk(trans);
+
 	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_WADDR,
-			       ((addr & 0x000FFFFF) | (3 << 24)));
+			       ((addr & mask) | (3 << 24)));
 	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_WDAT, val);
 }
 

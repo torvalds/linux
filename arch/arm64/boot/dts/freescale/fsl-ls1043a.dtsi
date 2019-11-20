@@ -284,7 +284,7 @@
 			interrupts = <0 43 0x4>;
 		};
 
-		qspi: quadspi@1550000 {
+		qspi: spi@1550000 {
 			compatible = "fsl,ls1043a-qspi", "fsl,ls1021a-qspi";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -382,7 +382,7 @@
 			ranges = <0x0 0x5 0x00000000 0x8000000>;
 		};
 
-		dspi0: dspi@2100000 {
+		dspi0: spi@2100000 {
 			compatible = "fsl,ls1043a-dspi", "fsl,ls1021a-v1.0-dspi";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -395,7 +395,7 @@
 			status = "disabled";
 		};
 
-		dspi1: dspi@2110000 {
+		dspi1: spi@2110000 {
 			compatible = "fsl,ls1043a-dspi", "fsl,ls1021a-v1.0-dspi";
 			#address-cells = <1>;
 			#size-cells = <0>;

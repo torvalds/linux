@@ -3277,7 +3277,7 @@ static void qla24xx_async_gpsc_sp_done(void *s, int res)
 			ql_dbg(ql_dbg_disc, vha, 0x2019,
 			    "GPSC command unsupported, disabling query.\n");
 			ha->flags.gpsc_supported = 0;
-			res = QLA_SUCCESS;
+			goto done;
 		}
 	} else {
 		switch (be16_to_cpu(ct_rsp->rsp.gpsc.speed)) {
@@ -3310,7 +3310,6 @@ static void qla24xx_async_gpsc_sp_done(void *s, int res)
 		    be16_to_cpu(ct_rsp->rsp.gpsc.speeds),
 		    be16_to_cpu(ct_rsp->rsp.gpsc.speed));
 	}
-done:
 	memset(&ea, 0, sizeof(ea));
 	ea.event = FCME_GPSC_DONE;
 	ea.rc = res;
@@ -3318,6 +3317,7 @@ done:
 	ea.sp = sp;
 	qla2x00_fcport_event_handler(vha, &ea);
 
+done:
 	sp->free(sp);
 }
 
@@ -3902,9 +3902,10 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 	fc_port_t *fcport;
 	u32 i, rc;
 	bool found;
-	struct fab_scan_rp *rp;
+	struct fab_scan_rp *rp, *trp;
 	unsigned long flags;
 	u8 recheck = 0;
+	u16 dup = 0, dup_cnt = 0;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "%s enter\n", __func__);
@@ -3935,6 +3936,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 
 	for (i = 0; i < vha->hw->max_fibre_devices; i++) {
 		u64 wwn;
+		int k;
 
 		rp = &vha->scan.l[i];
 		found = false;
@@ -3942,6 +3944,20 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		wwn = wwn_to_u64(rp->port_name);
 		if (wwn == 0)
 			continue;
+
+		/* Remove duplicate NPORT ID entries from switch data base */
+		for (k = i + 1; k < vha->hw->max_fibre_devices; k++) {
+			trp = &vha->scan.l[k];
+			if (rp->id.b24 == trp->id.b24) {
+				dup = 1;
+				dup_cnt++;
+				ql_dbg(ql_dbg_disc + ql_dbg_verbose,
+				    vha, 0xffff,
+				    "Detected duplicate NPORT ID from switch data base: ID %06x WWN %8phN WWN %8phN\n",
+				    rp->id.b24, rp->port_name, trp->port_name);
+				memset(trp, 0, sizeof(*trp));
+			}
+		}
 
 		if (!memcmp(rp->port_name, vha->port_name, WWN_SIZE))
 			continue;
@@ -3980,6 +3996,12 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			qla24xx_post_newsess_work(vha, &rp->id, rp->port_name,
 			    rp->node_name, NULL, rp->fc4type);
 		}
+	}
+
+	if (dup) {
+		ql_log(ql_log_warn, vha, 0xffff,
+		    "Detected %d duplicate NPORT ID(s) from switch data base\n",
+		    dup_cnt);
 	}
 
 	/*

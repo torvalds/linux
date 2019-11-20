@@ -692,7 +692,7 @@ static struct nvmem_device *nvmem_find(const char *name)
 	d = bus_find_device_by_name(&nvmem_bus_type, NULL, name);
 
 	if (!d)
-		return NULL;
+		return ERR_PTR(-ENOENT);
 
 	return to_nvmem_device(d);
 }

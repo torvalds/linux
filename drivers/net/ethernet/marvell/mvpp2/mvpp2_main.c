@@ -908,7 +908,7 @@ static void mvpp2_interrupts_unmask(void *arg)
 	u32 val;
 
 	val = MVPP2_CAUSE_MISC_SUM_MASK |
-		MVPP2_CAUSE_RXQ_OCCUP_DESC_ALL_MASK;
+		MVPP2_CAUSE_RXQ_OCCUP_DESC_ALL_MASK(port->priv->hw_version);
 	if (port->has_tx_irqs)
 		val |= MVPP2_CAUSE_TXQ_OCCUP_DESC_ALL_MASK;
 
@@ -928,7 +928,7 @@ mvpp2_shared_interrupt_mask_unmask(struct mvpp2_port *port, bool mask)
 	if (mask)
 		val = 0;
 	else
-		val = MVPP2_CAUSE_RXQ_OCCUP_DESC_ALL_MASK;
+		val = MVPP2_CAUSE_RXQ_OCCUP_DESC_ALL_MASK(MVPP22);
 
 	for (i = 0; i < port->nqvecs; i++) {
 		struct mvpp2_queue_vector *v = port->qvecs + i;
@@ -2901,7 +2901,7 @@ release:
 }
 
 /* Main tx processing */
-static int mvpp2_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t mvpp2_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 	struct mvpp2_tx_queue *txq, *aggr_txq;
@@ -3059,7 +3059,8 @@ static int mvpp2_poll(struct napi_struct *napi, int budget)
 	}
 
 	/* Process RX packets */
-	cause_rx = cause_rx_tx & MVPP2_CAUSE_RXQ_OCCUP_DESC_ALL_MASK;
+	cause_rx = cause_rx_tx &
+		   MVPP2_CAUSE_RXQ_OCCUP_DESC_ALL_MASK(port->priv->hw_version);
 	cause_rx <<= qv->first_rxq;
 	cause_rx |= qv->pending_cause_rx;
 	while (cause_rx && budget > 0) {

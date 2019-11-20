@@ -7,7 +7,7 @@
 
 #include "ice.h"
 
-#define DRV_VERSION	"ice-0.7.0-k"
+#define DRV_VERSION	"0.7.1-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
 const char ice_drv_ver[] = DRV_VERSION;
 static const char ice_driver_string[] = DRV_SUMMARY;
@@ -535,10 +535,13 @@ static void ice_reset_subtask(struct ice_pf *pf)
 		ice_prepare_for_reset(pf);
 
 		/* make sure we are ready to rebuild */
-		if (ice_check_reset(&pf->hw))
+		if (ice_check_reset(&pf->hw)) {
 			set_bit(__ICE_RESET_FAILED, pf->state);
-		else
+		} else {
+			/* done with reset. start rebuild */
+			pf->hw.reset_ongoing = false;
 			ice_rebuild(pf);
+		}
 		clear_bit(__ICE_RESET_RECOVERY_PENDING, pf->state);
 		goto unlock;
 	}
@@ -1757,7 +1760,8 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 		 * We also make note of which reset happened so that peer
 		 * devices/drivers can be informed.
 		 */
-		if (!test_bit(__ICE_RESET_RECOVERY_PENDING, pf->state)) {
+		if (!test_and_set_bit(__ICE_RESET_RECOVERY_PENDING,
+				      pf->state)) {
 			if (reset == ICE_RESET_CORER)
 				set_bit(__ICE_CORER_RECV, pf->state);
 			else if (reset == ICE_RESET_GLOBR)
@@ -1765,7 +1769,20 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 			else
 				set_bit(__ICE_EMPR_RECV, pf->state);
 
-			set_bit(__ICE_RESET_RECOVERY_PENDING, pf->state);
+			/* There are couple of different bits at play here.
+			 * hw->reset_ongoing indicates whether the hardware is
+			 * in reset. This is set to true when a reset interrupt
+			 * is received and set back to false after the driver
+			 * has determined that the hardware is out of reset.
+			 *
+			 * __ICE_RESET_RECOVERY_PENDING in pf->state indicates
+			 * that a post reset rebuild is required before the
+			 * driver is operational again. This is set above.
+			 *
+			 * As this is the start of the reset/rebuild cycle, set
+			 * both to indicate that.
+			 */
+			hw->reset_ongoing = true;
 		}
 	}
 
@@ -4188,7 +4205,14 @@ static int ice_vsi_stop_tx_rings(struct ice_vsi *vsi)
 	}
 	status = ice_dis_vsi_txq(vsi->port_info, vsi->num_txq, q_ids, q_teids,
 				 NULL);
-	if (status) {
+	/* if the disable queue command was exercised during an active reset
+	 * flow, ICE_ERR_RESET_ONGOING is returned. This is not an error as
+	 * the reset operation disables queues at the hardware level anyway.
+	 */
+	if (status == ICE_ERR_RESET_ONGOING) {
+		dev_dbg(&pf->pdev->dev,
+			"Reset in progress. LAN Tx queues already disabled\n");
+	} else if (status) {
 		dev_err(&pf->pdev->dev,
 			"Failed to disable LAN Tx queues, error: %d\n",
 			status);

@@ -151,7 +151,7 @@ static acpi_status sdw_intel_acpi_cb(acpi_handle handle, u32 level,
 	struct acpi_device *adev;
 
 	if (acpi_bus_get_device(handle, &adev)) {
-		dev_err(&adev->dev, "Couldn't find ACPI handle\n");
+		pr_err("%s: Couldn't find ACPI handle\n", __func__);
 		return AE_NOT_FOUND;
 	}
 

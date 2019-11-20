@@ -2487,7 +2487,8 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 		   status->freq, status->band, status->signal,
 		   status->rate_idx);
 
-	ieee80211_rx(ar->hw, skb);
+	ieee80211_rx_ni(ar->hw, skb);
+
 	return 0;
 }
 
@@ -4783,6 +4784,13 @@ ath10k_wmi_tpc_final_get_rate(struct ath10k *ar,
 			pream = -1;
 			break;
 		}
+	}
+
+	if (pream == -1) {
+		ath10k_warn(ar, "unknown wmi tpc final index and frequency: %u, %u\n",
+			    pream_idx, __le32_to_cpu(ev->chan_freq));
+		tpc = 0;
+		goto out;
 	}
 
 	if (pream == 4)

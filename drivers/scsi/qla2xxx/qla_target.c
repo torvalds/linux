@@ -4703,6 +4703,12 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 		sess = qlt_find_sess_invalidate_other(vha, wwn,
 		    port_id, loop_id, &conflict_sess);
 		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+	} else {
+		ql_dbg(ql_dbg_disc, vha, 0xffff,
+		    "%s %d Term INOT due to WWN=0 lid=%d, NportID %06X ",
+		    __func__, __LINE__, loop_id, port_id.b24);
+		qlt_send_term_imm_notif(vha, iocb, 1);
+		goto out;
 	}
 
 	if (IS_SW_RESV_ADDR(port_id)) {

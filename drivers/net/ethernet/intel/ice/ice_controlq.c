@@ -814,6 +814,9 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	u16 retval = 0;
 	u32 val = 0;
 
+	/* if reset is in progress return a soft error */
+	if (hw->reset_ongoing)
+		return ICE_ERR_RESET_ONGOING;
 	mutex_lock(&cq->sq_lock);
 
 	cq->sq_last_status = ICE_AQ_RC_OK;

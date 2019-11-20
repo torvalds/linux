@@ -174,7 +174,7 @@ scmi_perf_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 			dom_info->mult_factor =
 					(dom_info->sustained_freq_khz * 1000) /
 					dom_info->sustained_perf_level;
-		memcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
+		strlcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
 	}
 
 	scmi_xfer_put(handle, t);
