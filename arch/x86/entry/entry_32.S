@@ -213,54 +213,58 @@
 	 *
 	 * Be careful: we may have nonzero SS base due to ESPFIX.
 	 */
-	andl	$0x0000ffff, 3*4(%esp)
+	andl	$0x0000ffff, 4*4(%esp)
 
 #ifdef CONFIG_VM86
-	testl	$X86_EFLAGS_VM, 4*4(%esp)
+	testl	$X86_EFLAGS_VM, 5*4(%esp)
 	jnz	.Lfrom_usermode_no_fixup_\@
 #endif
-	testl	$USER_SEGMENT_RPL_MASK, 3*4(%esp)
+	testl	$USER_SEGMENT_RPL_MASK, 4*4(%esp)
 	jnz	.Lfrom_usermode_no_fixup_\@
 
-	orl	$CS_FROM_KERNEL, 3*4(%esp)
+	orl	$CS_FROM_KERNEL, 4*4(%esp)
 
 	/*
 	 * When we're here from kernel mode; the (exception) stack looks like:
 	 *
-	 *  5*4(%esp) - <previous context>
-	 *  4*4(%esp) - flags
-	 *  3*4(%esp) - cs
-	 *  2*4(%esp) - ip
-	 *  1*4(%esp) - orig_eax
-	 *  0*4(%esp) - gs / function
+	 *  6*4(%esp) - <previous context>
+	 *  5*4(%esp) - flags
+	 *  4*4(%esp) - cs
+	 *  3*4(%esp) - ip
+	 *  2*4(%esp) - orig_eax
+	 *  1*4(%esp) - gs / function
+	 *  0*4(%esp) - fs
 	 *
 	 * Lets build a 5 entry IRET frame after that, such that struct pt_regs
 	 * is complete and in particular regs->sp is correct. This gives us
-	 * the original 5 enties as gap:
+	 * the original 6 enties as gap:
 	 *
-	 * 12*4(%esp) - <previous context>
-	 * 11*4(%esp) - gap / flags
-	 * 10*4(%esp) - gap / cs
-	 *  9*4(%esp) - gap / ip
-	 *  8*4(%esp) - gap / orig_eax
-	 *  7*4(%esp) - gap / gs / function
-	 *  6*4(%esp) - ss
-	 *  5*4(%esp) - sp
-	 *  4*4(%esp) - flags
-	 *  3*4(%esp) - cs
-	 *  2*4(%esp) - ip
-	 *  1*4(%esp) - orig_eax
-	 *  0*4(%esp) - gs / function
+	 * 14*4(%esp) - <previous context>
+	 * 13*4(%esp) - gap / flags
+	 * 12*4(%esp) - gap / cs
+	 * 11*4(%esp) - gap / ip
+	 * 10*4(%esp) - gap / orig_eax
+	 *  9*4(%esp) - gap / gs / function
+	 *  8*4(%esp) - gap / fs
+	 *  7*4(%esp) - ss
+	 *  6*4(%esp) - sp
+	 *  5*4(%esp) - flags
+	 *  4*4(%esp) - cs
+	 *  3*4(%esp) - ip
+	 *  2*4(%esp) - orig_eax
+	 *  1*4(%esp) - gs / function
+	 *  0*4(%esp) - fs
 	 */
 
 	pushl	%ss		# ss
 	pushl	%esp		# sp (points at ss)
-	addl	$6*4, (%esp)	# point sp back at the previous context
-	pushl	6*4(%esp)	# flags
-	pushl	6*4(%esp)	# cs
-	pushl	6*4(%esp)	# ip
-	pushl	6*4(%esp)	# orig_eax
-	pushl	6*4(%esp)	# gs / function
+	addl	$7*4, (%esp)	# point sp back at the previous context
+	pushl	7*4(%esp)	# flags
+	pushl	7*4(%esp)	# cs
+	pushl	7*4(%esp)	# ip
+	pushl	7*4(%esp)	# orig_eax
+	pushl	7*4(%esp)	# gs / function
+	pushl	7*4(%esp)	# fs
 .Lfrom_usermode_no_fixup_\@:
 .endm
 
@@ -308,8 +312,8 @@
 .if \skip_gs == 0
 	PUSH_GS
 .endif
-	FIXUP_FRAME
 	pushl	%fs
+	FIXUP_FRAME
 	pushl	%es
 	pushl	%ds
 	pushl	\pt_regs_ax
