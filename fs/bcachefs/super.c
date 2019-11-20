@@ -1059,7 +1059,6 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 
 	writepoint_init(&ca->copygc_write_point, BCH_DATA_USER);
 
-	spin_lock_init(&ca->freelist_lock);
 	bch2_dev_copygc_init(ca);
 
 	INIT_WORK(&ca->io_error_work, bch2_io_error_work);

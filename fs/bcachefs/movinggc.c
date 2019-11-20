@@ -107,10 +107,10 @@ static bool have_copygc_reserve(struct bch_dev *ca)
 {
 	bool ret;
 
-	spin_lock(&ca->freelist_lock);
+	spin_lock(&ca->fs->freelist_lock);
 	ret = fifo_full(&ca->free[RESERVE_MOVINGGC]) ||
 		ca->allocator_state != ALLOCATOR_RUNNING;
-	spin_unlock(&ca->freelist_lock);
+	spin_unlock(&ca->fs->freelist_lock);
 
 	return ret;
 }

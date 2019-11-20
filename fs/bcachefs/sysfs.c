@@ -775,7 +775,7 @@ static ssize_t show_reserve_stats(struct bch_dev *ca, char *buf)
 	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	enum alloc_reserve i;
 
-	spin_lock(&ca->freelist_lock);
+	spin_lock(&ca->fs->freelist_lock);
 
 	pr_buf(&out, "free_inc:\t%zu\t%zu\n",
 	       fifo_used(&ca->free_inc),
@@ -786,7 +786,7 @@ static ssize_t show_reserve_stats(struct bch_dev *ca, char *buf)
 		       fifo_used(&ca->free[i]),
 		       ca->free[i].size);
 
-	spin_unlock(&ca->freelist_lock);
+	spin_unlock(&ca->fs->freelist_lock);
 
 	return out.pos - buf;
 }
