@@ -42,7 +42,7 @@ static void hdcp2_message_init(struct mod_hdcp *hdcp,
 	in->process.msg2_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE;
 	in->process.msg2_desc.msg_size = 0;
 	in->process.msg3_desc.msg_id = TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE;
-	in->process.msg3_desc.msg_id = 0;
+	in->process.msg3_desc.msg_size = 0;
 }
 enum mod_hdcp_status mod_hdcp_remove_display_topology(struct mod_hdcp *hdcp)
 {
