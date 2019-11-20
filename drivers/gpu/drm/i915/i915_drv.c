@@ -1052,7 +1052,7 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 	 */
 	dram_info->is_16gb_dimm = !IS_GEN9_LP(dev_priv);
 
-	if (INTEL_GEN(dev_priv) < 9)
+	if (INTEL_GEN(dev_priv) < 9 || !HAS_DISPLAY(dev_priv))
 		return;
 
 	if (IS_GEN9_LP(dev_priv))
