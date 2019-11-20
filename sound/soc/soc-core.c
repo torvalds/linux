@@ -1798,7 +1798,8 @@ int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 
 	board = dmi_get_system_info(DMI_BOARD_NAME);
 	if (board && is_dmi_valid(board)) {
-		append_dmi_string(card, board);
+		if (!product || strcasecmp(board, product))
+			append_dmi_string(card, board);
 	} else if (!product) {
 		/* fall back to using legacy name */
 		dev_warn(card->dev, "ASoC: no DMI board/product name!\n");
