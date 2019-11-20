@@ -201,7 +201,10 @@ struct sfp {
 	struct gpio_desc *gpio[GPIO_MAX];
 	int gpio_irq[GPIO_MAX];
 
+	bool need_poll;
+
 	struct mutex st_mutex;			/* Protects state */
+	unsigned int state_soft_mask;
 	unsigned int state;
 	struct delayed_work poll;
 	struct delayed_work timeout;
@@ -395,16 +398,6 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
 }
 
 /* Interface */
-static unsigned int sfp_get_state(struct sfp *sfp)
-{
-	return sfp->get_state(sfp);
-}
-
-static void sfp_set_state(struct sfp *sfp, unsigned int state)
-{
-	sfp->set_state(sfp, state);
-}
-
 static int sfp_read(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
 {
 	return sfp->read(sfp, a2, addr, buf, len);
@@ -413,6 +406,82 @@ static int sfp_read(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
 static int sfp_write(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
 {
 	return sfp->write(sfp, a2, addr, buf, len);
+}
+
+static unsigned int sfp_soft_get_state(struct sfp *sfp)
+{
+	unsigned int state = 0;
+	u8 status;
+
+	if (sfp_read(sfp, true, SFP_STATUS, &status, sizeof(status)) ==
+		     sizeof(status)) {
+		if (status & SFP_STATUS_RX_LOS)
+			state |= SFP_F_LOS;
+		if (status & SFP_STATUS_TX_FAULT)
+			state |= SFP_F_TX_FAULT;
+	}
+
+	return state & sfp->state_soft_mask;
+}
+
+static void sfp_soft_set_state(struct sfp *sfp, unsigned int state)
+{
+	u8 status;
+
+	if (sfp_read(sfp, true, SFP_STATUS, &status, sizeof(status)) ==
+		     sizeof(status)) {
+		if (state & SFP_F_TX_DISABLE)
+			status |= SFP_STATUS_TX_DISABLE_FORCE;
+		else
+			status &= ~SFP_STATUS_TX_DISABLE_FORCE;
+
+		sfp_write(sfp, true, SFP_STATUS, &status, sizeof(status));
+	}
+}
+
+static void sfp_soft_start_poll(struct sfp *sfp)
+{
+	const struct sfp_eeprom_id *id = &sfp->id;
+
+	sfp->state_soft_mask = 0;
+	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_DISABLE &&
+	    !sfp->gpio[GPIO_TX_DISABLE])
+		sfp->state_soft_mask |= SFP_F_TX_DISABLE;
+	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_FAULT &&
+	    !sfp->gpio[GPIO_TX_FAULT])
+		sfp->state_soft_mask |= SFP_F_TX_FAULT;
+	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_RX_LOS &&
+	    !sfp->gpio[GPIO_LOS])
+		sfp->state_soft_mask |= SFP_F_LOS;
+
+	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
+	    !sfp->need_poll)
+		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
+}
+
+static void sfp_soft_stop_poll(struct sfp *sfp)
+{
+	sfp->state_soft_mask = 0;
+}
+
+static unsigned int sfp_get_state(struct sfp *sfp)
+{
+	unsigned int state = sfp->get_state(sfp);
+
+	if (state & SFP_F_PRESENT &&
+	    sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT))
+		state |= sfp_soft_get_state(sfp);
+
+	return state;
+}
+
+static void sfp_set_state(struct sfp *sfp, unsigned int state)
+{
+	sfp->set_state(sfp, state);
+
+	if (state & SFP_F_PRESENT &&
+	    sfp->state_soft_mask & SFP_F_TX_DISABLE)
+		sfp_soft_set_state(sfp, state);
 }
 
 static unsigned int sfp_check(void *buf, size_t len)
@@ -1407,11 +1476,6 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
 	}
 }
 
-static void sfp_sm_mod_init(struct sfp *sfp)
-{
-	sfp_module_tx_enable(sfp);
-}
-
 static void sfp_sm_probe_for_phy(struct sfp *sfp)
 {
 	/* Setting the serdes link mode is guesswork: there's no
@@ -1574,7 +1638,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 		 (int)sizeof(id.ext.datecode), id.ext.datecode);
 
 	/* Check whether we support this module */
-	if (!sfp->type->module_supported(&sfp->id)) {
+	if (!sfp->type->module_supported(&id)) {
 		dev_err(sfp->dev,
 			"module is not supported - phys id 0x%02x 0x%02x\n",
 			sfp->id.base.phys_id, sfp->id.base.phys_ext_id);
@@ -1764,6 +1828,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		if (sfp->mod_phy)
 			sfp_sm_phy_detach(sfp);
 		sfp_module_tx_disable(sfp);
+		sfp_soft_stop_poll(sfp);
 		sfp_sm_next(sfp, SFP_S_DOWN, 0);
 		return;
 	}
@@ -1775,7 +1840,10 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		    sfp->sm_dev_state != SFP_DEV_UP)
 			break;
 
-		sfp_sm_mod_init(sfp);
+		if (!(sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE))
+			sfp_soft_start_poll(sfp);
+
+		sfp_module_tx_enable(sfp);
 
 		/* Initialise the fault clearance retries */
 		sfp->sm_retries = 5;
@@ -2031,7 +2099,10 @@ static void sfp_poll(struct work_struct *work)
 	struct sfp *sfp = container_of(work, struct sfp, poll.work);
 
 	sfp_check_state(sfp);
-	mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
+
+	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) ||
+	    sfp->need_poll)
+		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
 }
 
 static struct sfp *sfp_alloc(struct device *dev)
@@ -2076,7 +2147,6 @@ static int sfp_probe(struct platform_device *pdev)
 	const struct sff_data *sff;
 	struct i2c_adapter *i2c;
 	struct sfp *sfp;
-	bool poll = false;
 	int err, i;
 
 	sfp = sfp_alloc(&pdev->dev);
@@ -2183,7 +2253,7 @@ static int sfp_probe(struct platform_device *pdev)
 
 		sfp->gpio_irq[i] = gpiod_to_irq(sfp->gpio[i]);
 		if (!sfp->gpio_irq[i]) {
-			poll = true;
+			sfp->need_poll = true;
 			continue;
 		}
 
@@ -2195,11 +2265,11 @@ static int sfp_probe(struct platform_device *pdev)
 						dev_name(sfp->dev), sfp);
 		if (err) {
 			sfp->gpio_irq[i] = 0;
-			poll = true;
+			sfp->need_poll = true;
 		}
 	}
 
-	if (poll)
+	if (sfp->need_poll)
 		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
 
 	/* We could have an issue in cases no Tx disable pin is available or
