@@ -369,7 +369,7 @@ xfs_da3_node_read(
 {
 	int			error;
 
-	error = xfs_da_read_buf(tp, dp, bno, -1, bpp, whichfork,
+	error = xfs_da_read_buf(tp, dp, bno, 0, bpp, whichfork,
 			&xfs_da3_node_buf_ops);
 	if (error || !*bpp || !tp)
 		return error;
@@ -384,12 +384,22 @@ xfs_da3_node_read_mapped(
 	struct xfs_buf		**bpp,
 	int			whichfork)
 {
+	struct xfs_mount	*mp = dp->i_mount;
 	int			error;
 
-	error = xfs_da_read_buf(tp, dp, 0, mappedbno, bpp, whichfork,
-			&xfs_da3_node_buf_ops);
-	if (error || !*bpp || !tp)
+	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, mappedbno,
+			XFS_FSB_TO_BB(mp, xfs_dabuf_nfsb(mp, whichfork)), 0,
+			bpp, &xfs_da3_node_buf_ops);
+	if (error || !*bpp)
 		return error;
+
+	if (whichfork == XFS_ATTR_FORK)
+		xfs_buf_set_ref(*bpp, XFS_ATTR_BTREE_REF);
+	else
+		xfs_buf_set_ref(*bpp, XFS_DIR_BTREE_REF);
+
+	if (!tp)
+		return 0;
 	return xfs_da3_node_set_type(tp, *bpp);
 }
 
@@ -2618,7 +2628,7 @@ xfs_da_read_buf(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
-	xfs_daddr_t		mappedbno,
+	unsigned int		flags,
 	struct xfs_buf		**bpp,
 	int			whichfork,
 	const struct xfs_buf_ops *ops)
@@ -2630,24 +2640,12 @@ xfs_da_read_buf(
 	int			error;
 
 	*bpp = NULL;
-
-	if (mappedbno >= 0) {
-		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
-				mappedbno, XFS_FSB_TO_BB(mp,
-					xfs_dabuf_nfsb(mp, whichfork)),
-				0, &bp, ops);
-		goto done;
-	}
-
-	error = xfs_dabuf_map(dp, bno,
-			mappedbno == -1 ? XFS_DABUF_MAP_HOLE_OK : 0,
-			whichfork, &mapp, &nmap);
+	error = xfs_dabuf_map(dp, bno, flags, whichfork, &mapp, &nmap);
 	if (error || !nmap)
 		goto out_free;
 
 	error = xfs_trans_read_buf_map(mp, tp, mp->m_ddev_targp, mapp, nmap, 0,
 			&bp, ops);
-done:
 	if (error)
 		goto out_free;
 

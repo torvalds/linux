@@ -279,7 +279,7 @@ xfs_dir2_leaf_readbuf(
 	new_off = xfs_dir2_da_to_byte(geo, map.br_startoff);
 	if (new_off > *cur_off)
 		*cur_off = new_off;
-	error = xfs_dir3_data_read(args->trans, dp, map.br_startoff, -1, &bp);
+	error = xfs_dir3_data_read(args->trans, dp, map.br_startoff, 0, &bp);
 	if (error)
 		goto out;
 

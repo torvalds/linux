@@ -212,14 +212,14 @@ __xfs_dir3_free_read(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		fbno,
-	xfs_daddr_t		mappedbno,
+	unsigned int		flags,
 	struct xfs_buf		**bpp)
 {
 	xfs_failaddr_t		fa;
 	int			err;
 
-	err = xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
-				XFS_DATA_FORK, &xfs_dir3_free_buf_ops);
+	err = xfs_da_read_buf(tp, dp, fbno, flags, bpp, XFS_DATA_FORK,
+			&xfs_dir3_free_buf_ops);
 	if (err || !*bpp)
 		return err;
 
@@ -297,7 +297,7 @@ xfs_dir2_free_read(
 	xfs_dablk_t		fbno,
 	struct xfs_buf		**bpp)
 {
-	return __xfs_dir3_free_read(tp, dp, fbno, -1, bpp);
+	return __xfs_dir3_free_read(tp, dp, fbno, 0, bpp);
 }
 
 static int
@@ -307,7 +307,7 @@ xfs_dir2_free_try_read(
 	xfs_dablk_t		fbno,
 	struct xfs_buf		**bpp)
 {
-	return __xfs_dir3_free_read(tp, dp, fbno, -2, bpp);
+	return __xfs_dir3_free_read(tp, dp, fbno, XFS_DABUF_MAP_HOLE_OK, bpp);
 }
 
 static int
@@ -857,7 +857,7 @@ xfs_dir2_leafn_lookup_for_entry(
 				error = xfs_dir3_data_read(tp, dp,
 						xfs_dir2_db_to_da(args->geo,
 								  newdb),
-						-1, &curbp);
+						0, &curbp);
 				if (error)
 					return error;
 			}
@@ -1940,7 +1940,7 @@ xfs_dir2_node_addname_int(
 		/* Read the data block in. */
 		error = xfs_dir3_data_read(tp, dp,
 					   xfs_dir2_db_to_da(args->geo, dbno),
-					   -1, &dbp);
+					   0, &dbp);
 	}
 	if (error)
 		return error;
