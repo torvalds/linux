@@ -774,7 +774,7 @@ static void tcpm_init(struct fusb30x_chip *chip)
 	val = ~MASKB_M_GCRCSEND;
 	regmap_write(chip->regmap, FUSB_REG_MASKB, val);
 
-	tcpm_select_rp_value(chip, TYPEC_RP_1A5);
+	tcpm_select_rp_value(chip, TYPEC_RP_USB);
 	/* Interrupts Enable */
 	regmap_update_bits(chip->regmap, FUSB_REG_CONTROL0, CONTROL0_INT_MASK,
 			   ~CONTROL0_INT_MASK);
