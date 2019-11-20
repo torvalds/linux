@@ -2072,14 +2072,13 @@ out:
 *
 ***************************************************************************/
 
-void
-vchiq_dump(void *dump_context, const char *str, int len)
+int vchiq_dump(void *dump_context, const char *str, int len)
 {
 	struct dump_context *context = (struct dump_context *)dump_context;
 	int copy_bytes;
 
 	if (context->actual >= context->space)
-		return;
+		return 0;
 
 	if (context->offset > 0) {
 		int skip_bytes = min_t(int, len, context->offset);
@@ -2088,14 +2087,14 @@ vchiq_dump(void *dump_context, const char *str, int len)
 		len -= skip_bytes;
 		context->offset -= skip_bytes;
 		if (context->offset > 0)
-			return;
+			return 0;
 	}
 	copy_bytes = min_t(int, len, context->space - context->actual);
 	if (copy_bytes == 0)
-		return;
+		return 0;
 	if (copy_to_user(context->buf + context->actual, str,
 			 copy_bytes))
-		context->actual = -EFAULT;
+		return -EFAULT;
 	context->actual += copy_bytes;
 	len -= copy_bytes;
 
@@ -2109,8 +2108,9 @@ vchiq_dump(void *dump_context, const char *str, int len)
 
 		if (copy_to_user(context->buf + context->actual - 1,
 				 &cr, 1))
-			context->actual = -EFAULT;
+			return -EFAULT;
 	}
+	return 0;
 }
 
 /****************************************************************************
@@ -2119,8 +2119,7 @@ vchiq_dump(void *dump_context, const char *str, int len)
 *
 ***************************************************************************/
 
-void
-vchiq_dump_platform_instances(void *dump_context)
+int vchiq_dump_platform_instances(void *dump_context)
 {
 	struct vchiq_state *state = vchiq_get_state();
 	char buf[80];
@@ -2145,6 +2144,7 @@ vchiq_dump_platform_instances(void *dump_context)
 	for (i = 0; i < state->unused_service; i++) {
 		struct vchiq_service *service = state->services[i];
 		struct vchiq_instance *instance;
+		int err;
 
 		if (!service || service->base.callback != service_callback)
 			continue;
@@ -2162,9 +2162,12 @@ vchiq_dump_platform_instances(void *dump_context)
 			       instance->completion_remove,
 			       MAX_COMPLETIONS);
 
-		vchiq_dump(dump_context, buf, len + 1);
+		err = vchiq_dump(dump_context, buf, len + 1);
+		if (err)
+			return err;
 		instance->mark = 1;
 	}
+	return 0;
 }
 
 /****************************************************************************
@@ -2173,9 +2176,8 @@ vchiq_dump_platform_instances(void *dump_context)
 *
 ***************************************************************************/
 
-void
-vchiq_dump_platform_service_state(void *dump_context,
-				  struct vchiq_service *service)
+int vchiq_dump_platform_service_state(void *dump_context,
+				      struct vchiq_service *service)
 {
 	struct user_service *user_service =
 			(struct user_service *)service->base.userdata;
@@ -2196,7 +2198,7 @@ vchiq_dump_platform_service_state(void *dump_context,
 				" (dequeue pending)");
 	}
 
-	vchiq_dump(dump_context, buf, len + 1);
+	return vchiq_dump(dump_context, buf, len + 1);
 }
 
 /****************************************************************************
@@ -2210,13 +2212,16 @@ vchiq_read(struct file *file, char __user *buf,
 	size_t count, loff_t *ppos)
 {
 	struct dump_context context;
+	int err;
 
 	context.buf = buf;
 	context.actual = 0;
 	context.space = count;
 	context.offset = *ppos;
 
-	vchiq_dump_state(&context, &g_state);
+	err = vchiq_dump_state(&context, &g_state);
+	if (err)
+		return err;
 
 	*ppos += context.actual;
 
