@@ -27,6 +27,13 @@ config SAMPLE_FTRACE_DIRECT
 	  This builds an ftrace direct function example
 	  that hooks to wake_up_process and prints the parameters.
 
+config SAMPLE_TRACE_ARRAY
+        tristate "Build sample module for kernel access to Ftrace instancess"
+	depends on EVENT_TRACING && m
+	help
+	 This builds a module that demonstrates the use of various APIs to
+	 access Ftrace instances from within the kernel.
+
 config SAMPLE_KOBJECT
 	tristate "Build kobject examples"
 	help
