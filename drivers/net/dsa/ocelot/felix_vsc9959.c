@@ -282,6 +282,16 @@ static const u32 vsc9959_sys_regmap[] = {
 	REG_RESERVED(SYS_CM_DATA),
 };
 
+static const u32 vsc9959_ptp_regmap[] = {
+	REG(PTP_PIN_CFG,                   0x000000),
+	REG(PTP_PIN_TOD_SEC_MSB,           0x000004),
+	REG(PTP_PIN_TOD_SEC_LSB,           0x000008),
+	REG(PTP_PIN_TOD_NSEC,              0x00000c),
+	REG(PTP_CFG_MISC,                  0x0000a0),
+	REG(PTP_CLK_CFG_ADJ_CFG,           0x0000a4),
+	REG(PTP_CLK_CFG_ADJ_FREQ,          0x0000a8),
+};
+
 static const u32 vsc9959_gcb_regmap[] = {
 	REG(GCB_SOFT_RST,			0x000004),
 };
@@ -293,6 +303,7 @@ static const u32 *vsc9959_regmap[] = {
 	[REW]	= vsc9959_rew_regmap,
 	[SYS]	= vsc9959_sys_regmap,
 	[S2]	= vsc9959_s2_regmap,
+	[PTP]	= vsc9959_ptp_regmap,
 	[GCB]	= vsc9959_gcb_regmap,
 };
 
@@ -329,6 +340,11 @@ static struct resource vsc9959_target_io_res[] = {
 		.start	= 0x0060000,
 		.end	= 0x00603ff,
 		.name	= "s2",
+	},
+	[PTP] = {
+		.start	= 0x0090000,
+		.end	= 0x00900cb,
+		.name	= "ptp",
 	},
 	[GCB] = {
 		.start	= 0x0070000,
