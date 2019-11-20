@@ -151,7 +151,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH) {
 			flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 			dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-			dest[i].ft = esw->fdb_table.offloads.slow_fdb;
+			dest[i].ft = mlx5_esw_chains_get_tc_end_ft(esw);
 			i++;
 		} else if (attr->dest_chain) {
 			flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
@@ -275,6 +275,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	if (attr->outer_match_level != MLX5_MATCH_NONE)
 		spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 
+	flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 	rule = mlx5_add_flow_rules(fast_fdb, spec, &flow_act, dest, i);
 
 	if (IS_ERR(rule))

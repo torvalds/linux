@@ -16,6 +16,10 @@
 #define esw_chains_ht(esw) (esw_chains_priv(esw)->chains_ht)
 #define esw_prios_ht(esw) (esw_chains_priv(esw)->prios_ht)
 #define fdb_pool_left(esw) (esw_chains_priv(esw)->fdb_left)
+#define tc_slow_fdb(esw) ((esw)->fdb_table.offloads.slow_fdb)
+#define tc_end_fdb(esw) (esw_chains_priv(esw)->tc_end_fdb)
+#define fdb_ignore_flow_level_supported(esw) \
+	(MLX5_CAP_ESW_FLOWTABLE_FDB((esw)->dev, ignore_flow_level))
 
 #define ESW_OFFLOADS_NUM_GROUPS  4
 
@@ -39,6 +43,8 @@ struct mlx5_esw_chains_priv {
 	/* Protects above chains_ht and prios_ht */
 	struct mutex lock;
 
+	struct mlx5_flow_table *tc_end_fdb;
+
 	int fdb_left[ARRAY_SIZE(ESW_POOLS)];
 };
 
@@ -50,6 +56,7 @@ struct fdb_chain {
 	int ref;
 
 	struct mlx5_eswitch *esw;
+	struct list_head prios_list;
 };
 
 struct fdb_prio_key {
@@ -60,6 +67,7 @@ struct fdb_prio_key {
 
 struct fdb_prio {
 	struct rhash_head node;
+	struct list_head list;
 
 	struct fdb_prio_key key;
 
@@ -67,6 +75,9 @@ struct fdb_prio {
 
 	struct fdb_chain *fdb_chain;
 	struct mlx5_flow_table *fdb;
+	struct mlx5_flow_table *next_fdb;
+	struct mlx5_flow_group *miss_group;
+	struct mlx5_flow_handle *miss_rule;
 };
 
 static const struct rhashtable_params chain_params = {
@@ -93,6 +104,9 @@ u32 mlx5_esw_chains_get_chain_range(struct mlx5_eswitch *esw)
 	if (!mlx5_esw_chains_prios_supported(esw))
 		return 1;
 
+	if (fdb_ignore_flow_level_supported(esw))
+		return UINT_MAX - 1;
+
 	return FDB_TC_MAX_CHAIN;
 }
 
@@ -106,11 +120,17 @@ u32 mlx5_esw_chains_get_prio_range(struct mlx5_eswitch *esw)
 	if (!mlx5_esw_chains_prios_supported(esw))
 		return 1;
 
+	if (fdb_ignore_flow_level_supported(esw))
+		return UINT_MAX;
+
 	return FDB_TC_MAX_PRIO;
 }
 
 static unsigned int mlx5_esw_chains_get_level_range(struct mlx5_eswitch *esw)
 {
+	if (fdb_ignore_flow_level_supported(esw))
+		return UINT_MAX;
+
 	return FDB_TC_LEVELS_PER_PRIO;
 }
 
@@ -181,13 +201,40 @@ mlx5_esw_chains_create_fdb_table(struct mlx5_eswitch *esw,
 	sz = mlx5_esw_chains_get_avail_sz_from_pool(esw, POOL_NEXT_SIZE);
 	if (!sz)
 		return ERR_PTR(-ENOSPC);
-
 	ft_attr.max_fte = sz;
-	ft_attr.level = level;
-	ft_attr.prio = prio - 1;
-	ft_attr.autogroup.max_num_groups = ESW_OFFLOADS_NUM_GROUPS;
-	ns = mlx5_get_fdb_sub_ns(esw->dev, chain);
 
+	/* We use tc_slow_fdb(esw) as the table's next_ft till
+	 * ignore_flow_level is allowed on FT creation and not just for FTEs.
+	 * Instead caller should add an explicit miss rule if needed.
+	 */
+	ft_attr.next_ft = tc_slow_fdb(esw);
+
+	/* The root table(chain 0, prio 1, level 0) is required to be
+	 * connected to the previous prio (FDB_BYPASS_PATH if exists).
+	 * We always create it, as a managed table, in order to align with
+	 * fs_core logic.
+	 */
+	if (!fdb_ignore_flow_level_supported(esw) ||
+	    (chain == 0 && prio == 1 && level == 0)) {
+		ft_attr.level = level;
+		ft_attr.prio = prio - 1;
+		ns = mlx5_get_fdb_sub_ns(esw->dev, chain);
+	} else {
+		ft_attr.flags |= MLX5_FLOW_TABLE_UNMANAGED;
+		ft_attr.prio = FDB_TC_OFFLOAD;
+		/* Firmware doesn't allow us to create another level 0 table,
+		 * so we create all unmanaged tables as level 1.
+		 *
+		 * To connect them, we use explicit miss rules with
+		 * ignore_flow_level. Caller is responsible to create
+		 * these rules (if needed).
+		 */
+		ft_attr.level = 1;
+		ns = mlx5_get_flow_namespace(esw->dev, MLX5_FLOW_NAMESPACE_FDB);
+	}
+
+	ft_attr.autogroup.num_reserved_entries = 2;
+	ft_attr.autogroup.max_num_groups = ESW_OFFLOADS_NUM_GROUPS;
 	fdb = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(fdb)) {
 		esw_warn(esw->dev,
@@ -220,6 +267,7 @@ mlx5_esw_chains_create_fdb_chain(struct mlx5_eswitch *esw, u32 chain)
 
 	fdb_chain->esw = esw;
 	fdb_chain->chain = chain;
+	INIT_LIST_HEAD(&fdb_chain->prios_list);
 
 	err = rhashtable_insert_fast(&esw_chains_ht(esw), &fdb_chain->node,
 				     chain_params);
@@ -261,6 +309,79 @@ mlx5_esw_chains_get_fdb_chain(struct mlx5_eswitch *esw, u32 chain)
 	return fdb_chain;
 }
 
+static struct mlx5_flow_handle *
+mlx5_esw_chains_add_miss_rule(struct mlx5_flow_table *fdb,
+			      struct mlx5_flow_table *next_fdb)
+{
+	static const struct mlx5_flow_spec spec = {};
+	struct mlx5_flow_destination dest = {};
+	struct mlx5_flow_act act = {};
+
+	act.flags  = FLOW_ACT_IGNORE_FLOW_LEVEL | FLOW_ACT_NO_APPEND;
+	act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	dest.type  = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest.ft = next_fdb;
+
+	return mlx5_add_flow_rules(fdb, &spec, &act, &dest, 1);
+}
+
+static int
+mlx5_esw_chains_update_prio_prevs(struct fdb_prio *fdb_prio,
+				  struct mlx5_flow_table *next_fdb)
+{
+	struct mlx5_flow_handle *miss_rules[FDB_TC_LEVELS_PER_PRIO + 1] = {};
+	struct fdb_chain *fdb_chain = fdb_prio->fdb_chain;
+	struct fdb_prio *pos;
+	int n = 0, err;
+
+	if (fdb_prio->key.level)
+		return 0;
+
+	/* Iterate in reverse order until reaching the level 0 rule of
+	 * the previous priority, adding all the miss rules first, so we can
+	 * revert them if any of them fails.
+	 */
+	pos = fdb_prio;
+	list_for_each_entry_continue_reverse(pos,
+					     &fdb_chain->prios_list,
+					     list) {
+		miss_rules[n] = mlx5_esw_chains_add_miss_rule(pos->fdb,
+							      next_fdb);
+		if (IS_ERR(miss_rules[n])) {
+			err = PTR_ERR(miss_rules[n]);
+			goto err_prev_rule;
+		}
+
+		n++;
+		if (!pos->key.level)
+			break;
+	}
+
+	/* Success, delete old miss rules, and update the pointers. */
+	n = 0;
+	pos = fdb_prio;
+	list_for_each_entry_continue_reverse(pos,
+					     &fdb_chain->prios_list,
+					     list) {
+		mlx5_del_flow_rules(pos->miss_rule);
+
+		pos->miss_rule = miss_rules[n];
+		pos->next_fdb = next_fdb;
+
+		n++;
+		if (!pos->key.level)
+			break;
+	}
+
+	return 0;
+
+err_prev_rule:
+	while (--n >= 0)
+		mlx5_del_flow_rules(miss_rules[n]);
+
+	return err;
+}
+
 static void
 mlx5_esw_chains_put_fdb_chain(struct fdb_chain *fdb_chain)
 {
@@ -272,9 +393,15 @@ static struct fdb_prio *
 mlx5_esw_chains_create_fdb_prio(struct mlx5_eswitch *esw,
 				u32 chain, u32 prio, u32 level)
 {
+	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_flow_handle *miss_rule = NULL;
+	struct mlx5_flow_group *miss_group;
 	struct fdb_prio *fdb_prio = NULL;
+	struct mlx5_flow_table *next_fdb;
 	struct fdb_chain *fdb_chain;
 	struct mlx5_flow_table *fdb;
+	struct list_head *pos;
+	u32 *flow_group_in;
 	int err;
 
 	fdb_chain = mlx5_esw_chains_get_fdb_chain(esw, chain);
@@ -282,18 +409,65 @@ mlx5_esw_chains_create_fdb_prio(struct mlx5_eswitch *esw,
 		return ERR_CAST(fdb_chain);
 
 	fdb_prio = kvzalloc(sizeof(*fdb_prio), GFP_KERNEL);
-	if (!fdb_prio) {
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
+	if (!fdb_prio || !flow_group_in) {
 		err = -ENOMEM;
 		goto err_alloc;
 	}
 
-	fdb = mlx5_esw_chains_create_fdb_table(esw, fdb_chain->chain, prio,
-					       level);
+	/* Chain's prio list is sorted by prio and level.
+	 * And all levels of some prio point to the next prio's level 0.
+	 * Example list (prio, level):
+	 * (3,0)->(3,1)->(5,0)->(5,1)->(6,1)->(7,0)
+	 * In hardware, we will we have the following pointers:
+	 * (3,0) -> (5,0) -> (7,0) -> Slow path
+	 * (3,1) -> (5,0)
+	 * (5,1) -> (7,0)
+	 * (6,1) -> (7,0)
+	 */
+
+	/* Default miss for each chain: */
+	next_fdb = (chain == mlx5_esw_chains_get_ft_chain(esw)) ?
+		    tc_slow_fdb(esw) :
+		    tc_end_fdb(esw);
+	list_for_each(pos, &fdb_chain->prios_list) {
+		struct fdb_prio *p = list_entry(pos, struct fdb_prio, list);
+
+		/* exit on first pos that is larger */
+		if (prio < p->key.prio || (prio == p->key.prio &&
+					   level < p->key.level)) {
+			/* Get next level 0 table */
+			next_fdb = p->key.level == 0 ? p->fdb : p->next_fdb;
+			break;
+		}
+	}
+
+	fdb = mlx5_esw_chains_create_fdb_table(esw, chain, prio, level);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
 		goto err_create;
 	}
 
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index,
+		 fdb->max_fte - 2);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index,
+		 fdb->max_fte - 1);
+	miss_group = mlx5_create_flow_group(fdb, flow_group_in);
+	if (IS_ERR(miss_group)) {
+		err = PTR_ERR(miss_group);
+		goto err_group;
+	}
+
+	/* Add miss rule to next_fdb */
+	miss_rule = mlx5_esw_chains_add_miss_rule(fdb, next_fdb);
+	if (IS_ERR(miss_rule)) {
+		err = PTR_ERR(miss_rule);
+		goto err_miss_rule;
+	}
+
+	fdb_prio->miss_group = miss_group;
+	fdb_prio->miss_rule = miss_rule;
+	fdb_prio->next_fdb = next_fdb;
 	fdb_prio->fdb_chain = fdb_chain;
 	fdb_prio->key.chain = chain;
 	fdb_prio->key.prio = prio;
@@ -305,13 +479,30 @@ mlx5_esw_chains_create_fdb_prio(struct mlx5_eswitch *esw,
 	if (err)
 		goto err_insert;
 
+	list_add(&fdb_prio->list, pos->prev);
+
+	/* Table is ready, connect it */
+	err = mlx5_esw_chains_update_prio_prevs(fdb_prio, fdb);
+	if (err)
+		goto err_update;
+
+	kvfree(flow_group_in);
 	return fdb_prio;
 
+err_update:
+	list_del(&fdb_prio->list);
+	rhashtable_remove_fast(&esw_prios_ht(esw), &fdb_prio->node,
+			       prio_params);
 err_insert:
+	mlx5_del_flow_rules(miss_rule);
+err_miss_rule:
+	mlx5_destroy_flow_group(miss_group);
+err_group:
 	mlx5_esw_chains_destroy_fdb_table(esw, fdb);
 err_create:
-	kvfree(fdb_prio);
 err_alloc:
+	kvfree(fdb_prio);
+	kvfree(flow_group_in);
 	mlx5_esw_chains_put_fdb_chain(fdb_chain);
 	return ERR_PTR(err);
 }
@@ -322,8 +513,14 @@ mlx5_esw_chains_destroy_fdb_prio(struct mlx5_eswitch *esw,
 {
 	struct fdb_chain *fdb_chain = fdb_prio->fdb_chain;
 
+	WARN_ON(mlx5_esw_chains_update_prio_prevs(fdb_prio,
+						  fdb_prio->next_fdb));
+
+	list_del(&fdb_prio->list);
 	rhashtable_remove_fast(&esw_prios_ht(esw), &fdb_prio->node,
 			       prio_params);
+	mlx5_del_flow_rules(fdb_prio->miss_rule);
+	mlx5_destroy_flow_group(fdb_prio->miss_group);
 	mlx5_esw_chains_destroy_fdb_table(esw, fdb_prio->fdb);
 	mlx5_esw_chains_put_fdb_chain(fdb_chain);
 	kvfree(fdb_prio);
@@ -415,6 +612,12 @@ err_get_prio:
 		  chain, prio, level);
 }
 
+struct mlx5_flow_table *
+mlx5_esw_chains_get_tc_end_ft(struct mlx5_eswitch *esw)
+{
+	return tc_end_fdb(esw);
+}
+
 static int
 mlx5_esw_chains_init(struct mlx5_eswitch *esw)
 {
@@ -484,10 +687,20 @@ mlx5_esw_chains_open(struct mlx5_eswitch *esw)
 	struct mlx5_flow_table *ft;
 	int err;
 
-	/* Always open the root for fast path */
-	ft = mlx5_esw_chains_get_table(esw, 0, 1, 0);
+	/* Create tc_end_fdb(esw) which is the always created ft chain */
+	ft = mlx5_esw_chains_get_table(esw, mlx5_esw_chains_get_ft_chain(esw),
+				       1, 0);
 	if (IS_ERR(ft))
 		return PTR_ERR(ft);
+
+	tc_end_fdb(esw) = ft;
+
+	/* Always open the root for fast path */
+	ft = mlx5_esw_chains_get_table(esw, 0, 1, 0);
+	if (IS_ERR(ft)) {
+		err = PTR_ERR(ft);
+		goto level_0_err;
+	}
 
 	/* Open level 1 for split rules now if prios isn't supported  */
 	if (!mlx5_esw_chains_prios_supported(esw)) {
@@ -503,6 +716,8 @@ mlx5_esw_chains_open(struct mlx5_eswitch *esw)
 
 level_1_err:
 	mlx5_esw_chains_put_table(esw, 0, 1, 0);
+level_0_err:
+	mlx5_esw_chains_put_table(esw, mlx5_esw_chains_get_ft_chain(esw), 1, 0);
 	return err;
 }
 
@@ -512,6 +727,7 @@ mlx5_esw_chains_close(struct mlx5_eswitch *esw)
 	if (!mlx5_esw_chains_prios_supported(esw))
 		mlx5_esw_chains_put_table(esw, 0, 1, 1);
 	mlx5_esw_chains_put_table(esw, 0, 1, 0);
+	mlx5_esw_chains_put_table(esw, mlx5_esw_chains_get_ft_chain(esw), 1, 0);
 }
 
 int
