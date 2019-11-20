@@ -76,6 +76,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 	int left = ses->chan_max - ses->chan_count;
 	int i = 0;
 	int rc = 0;
+	int tries = 0;
 
 	if (left <= 0) {
 		cifs_dbg(FYI,
@@ -89,28 +90,39 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 		return 0;
 	}
 
-	/* ifaces are sorted by speed, try them in order */
-	for (i = 0; left > 0 && i < ses->iface_count; i++) {
+	/*
+	 * Keep connecting to same, fastest, iface for all channels as
+	 * long as its RSS. Try next fastest one if not RSS or channel
+	 * creation fails.
+	 */
+	while (left > 0) {
 		struct cifs_server_iface *iface;
 
-		iface = &ses->iface_list[i];
-		if (is_ses_using_iface(ses, iface) && !iface->rss_capable)
-			continue;
+		tries++;
+		if (tries > 3*ses->chan_max) {
+			cifs_dbg(FYI, "too many attempt at opening channels (%d channels left to open)\n",
+				 left);
+			break;
+		}
 
-		rc = cifs_ses_add_channel(ses, iface);
-		if (rc) {
-			cifs_dbg(FYI, "failed to open extra channel\n");
+		iface = &ses->iface_list[i];
+		if (is_ses_using_iface(ses, iface) && !iface->rss_capable) {
+			i = (i+1) % ses->iface_count;
 			continue;
 		}
 
-		cifs_dbg(FYI, "successfully opened new channel\n");
+		rc = cifs_ses_add_channel(ses, iface);
+		if (rc) {
+			cifs_dbg(FYI, "failed to open extra channel on iface#%d rc=%d\n",
+				 i, rc);
+			i = (i+1) % ses->iface_count;
+			continue;
+		}
+
+		cifs_dbg(FYI, "successfully opened new channel on iface#%d\n",
+			 i);
 		left--;
 	}
-
-	/*
-	 * TODO: if we still have channels left to open try to connect
-	 * to same RSS-capable iface multiple times
-	 */
 
 	return ses->chan_count - old_chan_count;
 }
