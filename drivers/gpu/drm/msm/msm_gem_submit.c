@@ -54,7 +54,6 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 
 	INIT_LIST_HEAD(&submit->node);
 	INIT_LIST_HEAD(&submit->bo_list);
-	ww_acquire_init(&submit->ticket, &reservation_ww_class);
 
 	return submit;
 }
@@ -390,8 +389,6 @@ static void submit_cleanup(struct msm_gem_submit *submit)
 		list_del_init(&msm_obj->submit_entry);
 		drm_gem_object_put(&msm_obj->base);
 	}
-
-	ww_acquire_fini(&submit->ticket);
 }
 
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
@@ -408,6 +405,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct msm_ringbuffer *ring;
 	int out_fence_fd = -1;
 	struct pid *pid = get_pid(task_pid(current));
+	bool has_ww_ticket = false;
 	unsigned i;
 	int ret, submitid;
 	if (!gpu)
@@ -489,6 +487,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
+	/* copy_*_user while holding a ww ticket upsets lockdep */
+	ww_acquire_init(&submit->ticket, &reservation_ww_class);
+	has_ww_ticket = true;
 	ret = submit_lock_objects(submit);
 	if (ret)
 		goto out;
@@ -588,6 +589,8 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 out:
 	submit_cleanup(submit);
+	if (has_ww_ticket)
+		ww_acquire_fini(&submit->ticket);
 	if (ret)
 		msm_gem_submit_free(submit);
 out_unlock:
