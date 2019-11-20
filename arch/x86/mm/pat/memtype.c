@@ -52,7 +52,7 @@
 #include <asm/mtrr.h>
 #include <asm/page.h>
 #include <asm/msr.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/io.h>
 
 #include "memtype.h"

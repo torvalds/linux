@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_X86_PAT_H
-#define _ASM_X86_PAT_H
+#ifndef _ASM_X86_MEMTYPE_H
+#define _ASM_X86_MEMTYPE_H
 
 #include <linux/types.h>
 #include <asm/pgtable_types.h>
@@ -24,4 +24,4 @@ void memtype_free_io(resource_size_t start, resource_size_t end);
 
 bool pat_pfn_immune_to_uc_mtrr(unsigned long pfn);
 
-#endif /* _ASM_X86_PAT_H */
+#endif /* _ASM_X86_MEMTYPE_H */

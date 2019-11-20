@@ -24,7 +24,7 @@
 #define _ASM_X86_MTRR_H
 
 #include <uapi/asm/mtrr.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 
 
 /*

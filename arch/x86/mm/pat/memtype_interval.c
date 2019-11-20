@@ -16,7 +16,7 @@
 #include <linux/gfp.h>
 
 #include <asm/pgtable.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 
 #include "memtype.h"
 
