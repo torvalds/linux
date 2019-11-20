@@ -570,6 +570,8 @@
 				clock-names = "ipg", "ahb", "per";
 				fsl,usbmisc = <&usbmisc 1>;
 				fsl,usbphy = <&usbphy1>;
+				phy_type = "serial";
+				dr_mode = "host";
 				status = "disabled";
 			};
 
