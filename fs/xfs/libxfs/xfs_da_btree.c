@@ -110,6 +110,13 @@ xfs_da_state_free(xfs_da_state_t *state)
 	kmem_cache_free(xfs_da_state_zone, state);
 }
 
+static inline int xfs_dabuf_nfsb(struct xfs_mount *mp, int whichfork)
+{
+	if (whichfork == XFS_DATA_FORK)
+		return mp->m_dir_geo->fsbcount;
+	return mp->m_attr_geo->fsbcount;
+}
+
 void
 xfs_da3_node_hdr_from_disk(
 	struct xfs_mount		*mp,
@@ -2539,7 +2546,7 @@ xfs_dabuf_map(
 	int			*nmaps)
 {
 	struct xfs_mount	*mp = dp->i_mount;
-	int			nfsb;
+	int			nfsb = xfs_dabuf_nfsb(mp, whichfork);
 	int			error = 0;
 	struct xfs_bmbt_irec	irec;
 	struct xfs_bmbt_irec	*irecs = &irec;
@@ -2548,35 +2555,13 @@ xfs_dabuf_map(
 	ASSERT(map && *map);
 	ASSERT(*nmaps == 1);
 
-	if (whichfork == XFS_DATA_FORK)
-		nfsb = mp->m_dir_geo->fsbcount;
-	else
-		nfsb = mp->m_attr_geo->fsbcount;
-
-	/*
-	 * Caller doesn't have a mapping.  -2 means don't complain
-	 * if we land in a hole.
-	 */
-	if (mappedbno == -1 || mappedbno == -2) {
-		/*
-		 * Optimize the one-block case.
-		 */
-		if (nfsb != 1)
-			irecs = kmem_zalloc(sizeof(irec) * nfsb,
-					    KM_NOFS);
-
-		nirecs = nfsb;
-		error = xfs_bmapi_read(dp, (xfs_fileoff_t)bno, nfsb, irecs,
-				       &nirecs, xfs_bmapi_aflag(whichfork));
-		if (error)
-			goto out;
-	} else {
-		irecs->br_startblock = XFS_DADDR_TO_FSB(mp, mappedbno);
-		irecs->br_startoff = (xfs_fileoff_t)bno;
-		irecs->br_blockcount = nfsb;
-		irecs->br_state = 0;
-		nirecs = 1;
-	}
+	if (nfsb != 1)
+		irecs = kmem_zalloc(sizeof(irec) * nfsb, KM_NOFS);
+	nirecs = nfsb;
+	error = xfs_bmapi_read(dp, (xfs_fileoff_t)bno, nfsb, irecs,
+			       &nirecs, xfs_bmapi_aflag(whichfork));
+	if (error)
+		goto out;
 
 	if (!xfs_da_map_covers_blocks(nirecs, irecs, bno, nfsb)) {
 		/* Caller ok with no mapping. */
@@ -2616,24 +2601,29 @@ out:
  */
 int
 xfs_da_get_buf(
-	struct xfs_trans	*trans,
+	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
 	xfs_daddr_t		mappedbno,
 	struct xfs_buf		**bpp,
 	int			whichfork)
 {
+	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp;
-	struct xfs_buf_map	map;
-	struct xfs_buf_map	*mapp;
-	int			nmap;
+	struct xfs_buf_map	map, *mapp = &map;
+	int			nmap = 1;
 	int			error;
 
 	*bpp = NULL;
-	mapp = &map;
-	nmap = 1;
-	error = xfs_dabuf_map(dp, bno, mappedbno, whichfork,
-				&mapp, &nmap);
+
+	if (mappedbno >= 0) {
+		bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, mappedbno,
+				XFS_FSB_TO_BB(mp,
+					xfs_dabuf_nfsb(mp, whichfork)), 0);
+		goto done;
+	}
+
+	error = xfs_dabuf_map(dp, bno, mappedbno, whichfork, &mapp, &nmap);
 	if (error) {
 		/* mapping a hole is not an error, but we don't continue */
 		if (error == -1)
@@ -2641,12 +2631,12 @@ xfs_da_get_buf(
 		goto out_free;
 	}
 
-	bp = xfs_trans_get_buf_map(trans, dp->i_mount->m_ddev_targp,
-				    mapp, nmap, 0);
+	bp = xfs_trans_get_buf_map(tp, mp->m_ddev_targp, mapp, nmap, 0);
+done:
 	error = bp ? bp->b_error : -EIO;
 	if (error) {
 		if (bp)
-			xfs_trans_brelse(trans, bp);
+			xfs_trans_brelse(tp, bp);
 		goto out_free;
 	}
 
@@ -2664,7 +2654,7 @@ out_free:
  */
 int
 xfs_da_read_buf(
-	struct xfs_trans	*trans,
+	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
 	xfs_daddr_t		mappedbno,
@@ -2672,17 +2662,23 @@ xfs_da_read_buf(
 	int			whichfork,
 	const struct xfs_buf_ops *ops)
 {
+	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp;
-	struct xfs_buf_map	map;
-	struct xfs_buf_map	*mapp;
-	int			nmap;
+	struct xfs_buf_map	map, *mapp = &map;
+	int			nmap = 1;
 	int			error;
 
 	*bpp = NULL;
-	mapp = &map;
-	nmap = 1;
-	error = xfs_dabuf_map(dp, bno, mappedbno, whichfork,
-				&mapp, &nmap);
+
+	if (mappedbno >= 0) {
+		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
+				mappedbno, XFS_FSB_TO_BB(mp,
+					xfs_dabuf_nfsb(mp, whichfork)),
+				0, &bp, ops);
+		goto done;
+	}
+
+	error = xfs_dabuf_map(dp, bno, mappedbno, whichfork, &mapp, &nmap);
 	if (error) {
 		/* mapping a hole is not an error, but we don't continue */
 		if (error == -1)
@@ -2690,9 +2686,9 @@ xfs_da_read_buf(
 		goto out_free;
 	}
 
-	error = xfs_trans_read_buf_map(dp->i_mount, trans,
-					dp->i_mount->m_ddev_targp,
-					mapp, nmap, 0, &bp, ops);
+	error = xfs_trans_read_buf_map(mp, tp, mp->m_ddev_targp, mapp, nmap, 0,
+			&bp, ops);
+done:
 	if (error)
 		goto out_free;
 
@@ -2723,6 +2719,9 @@ xfs_da_reada_buf(
 	struct xfs_buf_map	*mapp;
 	int			nmap;
 	int			error;
+
+	if (mappedbno >= 0)
+		return -EINVAL;
 
 	mapp = &map;
 	nmap = 1;
