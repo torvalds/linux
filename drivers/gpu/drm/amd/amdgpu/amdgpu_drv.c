@@ -1216,13 +1216,17 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 
 	ret = amdgpu_device_suspend(drm_dev, false, false);
 	if (amdgpu_device_supports_boco(drm_dev)) {
-		pci_save_state(pdev);
-		pci_disable_device(pdev);
-		pci_ignore_hotplug(pdev);
-		if (amdgpu_is_atpx_hybrid())
+		/* Only need to handle PCI state in the driver for ATPX
+		 * PCI core handles it for _PR3.
+		 */
+		if (amdgpu_is_atpx_hybrid()) {
+			pci_ignore_hotplug(pdev);
+		} else {
+			pci_save_state(pdev);
+			pci_disable_device(pdev);
+			pci_ignore_hotplug(pdev);
 			pci_set_power_state(pdev, PCI_D3cold);
-		else if (!amdgpu_has_atpx_dgpu_power_cntl())
-			pci_set_power_state(pdev, PCI_D3hot);
+		}
 		drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
 	} else if (amdgpu_device_supports_baco(drm_dev)) {
 		amdgpu_device_baco_enter(drm_dev);
@@ -1244,14 +1248,19 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 	if (amdgpu_device_supports_boco(drm_dev)) {
 		drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
-		if (amdgpu_is_atpx_hybrid() ||
-		    !amdgpu_has_atpx_dgpu_power_cntl())
+		/* Only need to handle PCI state in the driver for ATPX
+		 * PCI core handles it for _PR3.
+		 */
+		if (amdgpu_is_atpx_hybrid()) {
+			pci_set_master(pdev);
+		} else {
 			pci_set_power_state(pdev, PCI_D0);
-		pci_restore_state(pdev);
-		ret = pci_enable_device(pdev);
-		if (ret)
-			return ret;
-		pci_set_master(pdev);
+			pci_restore_state(pdev);
+			ret = pci_enable_device(pdev);
+			if (ret)
+				return ret;
+			pci_set_master(pdev);
+		}
 	} else if (amdgpu_device_supports_baco(drm_dev)) {
 		amdgpu_device_baco_exit(drm_dev);
 	}
