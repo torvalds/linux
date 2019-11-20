@@ -137,9 +137,11 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	u64 bypass, dest, src, qos_class;
+	u64 bypass, dest, src, qos_class, rew_op;
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index;
+	struct ocelot *ocelot = ds->priv;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u8 *injection;
 
 	if (unlikely(skb_cow_head(skb, OCELOT_TAG_LEN) < 0)) {
@@ -160,6 +162,16 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 	packing(injection, &dest,      68,  56, OCELOT_TAG_LEN, PACK, 0);
 	packing(injection, &src,       46,  43, OCELOT_TAG_LEN, PACK, 0);
 	packing(injection, &qos_class, 19,  17, OCELOT_TAG_LEN, PACK, 0);
+
+	if (ocelot->ptp && (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		rew_op = ocelot_port->ptp_cmd;
+		if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
+			rew_op |= (ocelot_port->ts_id  % 4) << 3;
+			ocelot_port->ts_id++;
+		}
+
+		packing(injection, &rew_op, 125, 117, OCELOT_TAG_LEN, PACK, 0);
+	}
 
 	return skb;
 }
