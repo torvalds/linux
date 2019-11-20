@@ -225,8 +225,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 			break;
 
 		if (src_k.k->type == KEY_TYPE_extent) {
-			bkey_on_stack_realloc(&new_src, c, src_k.k->u64s);
-			bkey_reassemble(new_src.k, src_k);
+			bkey_on_stack_reassemble(&new_src, c, src_k);
 			src_k = bkey_i_to_s_c(new_src.k);
 
 			bch2_cut_front(src_iter->pos,	new_src.k);

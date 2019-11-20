@@ -780,8 +780,7 @@ retry:
 		if (ret)
 			break;
 
-		bkey_on_stack_realloc(&sk, c, k.k->u64s);
-		bkey_reassemble(sk.k, k);
+		bkey_on_stack_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
 
 		offset_into_extent = iter->pos.offset -
@@ -2476,8 +2475,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 		    bkey_cmp(k.k->p, POS(inode->v.i_ino, offset >> 9)) <= 0)
 			break;
 reassemble:
-		bkey_on_stack_realloc(&copy, c, k.k->u64s);
-		bkey_reassemble(copy.k, k);
+		bkey_on_stack_reassemble(&copy, c, k);
 
 		if (insert &&
 		    bkey_cmp(bkey_start_pos(k.k), move_pos) < 0) {

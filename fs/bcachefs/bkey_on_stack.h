@@ -19,6 +19,14 @@ static inline void bkey_on_stack_realloc(struct bkey_on_stack *s,
 	}
 }
 
+static inline void bkey_on_stack_reassemble(struct bkey_on_stack *s,
+					    struct bch_fs *c,
+					    struct bkey_s_c k)
+{
+	bkey_on_stack_realloc(s, c, k.k->u64s);
+	bkey_reassemble(s->k, k);
+}
+
 static inline void bkey_on_stack_init(struct bkey_on_stack *s)
 {
 	s->k = (void *) s->onstack;

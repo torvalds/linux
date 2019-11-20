@@ -347,7 +347,7 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 		struct bkey_on_stack split;
 
 		bkey_on_stack_init(&split);
-		bkey_on_stack_realloc(&split, c, k.k->u64s);
+		bkey_on_stack_reassemble(&split, c, k.s_c);
 
 		/*
 		 * The insert key falls 'in the middle' of k
@@ -363,7 +363,6 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 		 * modify k _before_ doing the insert (which will move
 		 * what k points to)
 		 */
-		bkey_reassemble(split.k, k.s_c);
 		split.k->k.needs_whiteout |= bkey_written(l->b, _k);
 
 		bch2_cut_back(bkey_start_pos(&insert->k), split.k);

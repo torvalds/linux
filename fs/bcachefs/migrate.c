@@ -60,8 +60,7 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 			continue;
 		}
 
-		bkey_on_stack_realloc(&sk, c, k.k->u64s);
-		bkey_reassemble(sk.k, k);
+		bkey_on_stack_reassemble(&sk, c, k);
 
 		ret = drop_dev_ptrs(c, bkey_i_to_s(sk.k),
 				    dev_idx, flags, false);

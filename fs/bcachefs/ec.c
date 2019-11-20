@@ -807,8 +807,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 
 		dev = s->key.v.ptrs[idx].dev;
 
-		bkey_on_stack_realloc(&sk, c, k.k->u64s);
-		bkey_reassemble(sk.k, k);
+		bkey_on_stack_reassemble(&sk, c, k);
 		e = bkey_i_to_s_extent(sk.k);
 
 		extent_for_each_ptr(e, ptr) {

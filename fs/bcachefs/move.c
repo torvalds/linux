@@ -578,8 +578,7 @@ peek:
 		}
 
 		/* unlock before doing IO: */
-		bkey_on_stack_realloc(&sk, c, k.k->u64s);
-		bkey_reassemble(sk.k, k);
+		bkey_on_stack_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
 		bch2_trans_unlock(&trans);
 

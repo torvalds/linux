@@ -356,12 +356,11 @@ struct btree_nr_keys bch2_extent_sort_fix_overlapping(struct bch_fs *c,
 
 			extent_sort_sift(iter, b, _r - iter->data);
 		} else if (bkey_cmp(l.k->p, r.k->p) > 0) {
-			bkey_on_stack_realloc(&split, c, l.k->u64s);
 
 			/*
 			 * r wins, but it overlaps in the middle of l - split l:
 			 */
-			bkey_reassemble(split.k, l.s_c);
+			bkey_on_stack_reassemble(&split, c, l.s_c);
 			bch2_cut_back(bkey_start_pos(r.k), split.k);
 
 			bch2_cut_front_s(r.k->p, l);
