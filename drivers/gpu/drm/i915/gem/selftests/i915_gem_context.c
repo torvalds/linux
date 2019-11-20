@@ -73,25 +73,34 @@ static int live_nop_switch(void *arg)
 	}
 
 	for_each_uabi_engine(engine, i915) {
-		struct i915_request *rq;
+		struct i915_request *rq = NULL;
 		unsigned long end_time, prime;
 		ktime_t times[2] = {};
 
 		times[0] = ktime_get_raw();
 		for (n = 0; n < nctx; n++) {
-			rq = igt_request_alloc(ctx[n], engine);
-			if (IS_ERR(rq)) {
-				err = PTR_ERR(rq);
+			struct i915_request *this;
+
+			this = igt_request_alloc(ctx[n], engine);
+			if (IS_ERR(this)) {
+				err = PTR_ERR(this);
 				goto out_file;
 			}
-			i915_request_add(rq);
+			if (rq) {
+				i915_request_await_dma_fence(this, &rq->fence);
+				i915_request_put(rq);
+			}
+			rq = i915_request_get(this);
+			i915_request_add(this);
 		}
 		if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 			pr_err("Failed to populated %d contexts\n", nctx);
 			intel_gt_set_wedged(&i915->gt);
+			i915_request_put(rq);
 			err = -EIO;
 			goto out_file;
 		}
+		i915_request_put(rq);
 
 		times[1] = ktime_get_raw();
 
@@ -106,11 +115,19 @@ static int live_nop_switch(void *arg)
 		for_each_prime_number_from(prime, 2, 8192) {
 			times[1] = ktime_get_raw();
 
+			rq = NULL;
 			for (n = 0; n < prime; n++) {
-				rq = igt_request_alloc(ctx[n % nctx], engine);
-				if (IS_ERR(rq)) {
-					err = PTR_ERR(rq);
+				struct i915_request *this;
+
+				this = igt_request_alloc(ctx[n % nctx], engine);
+				if (IS_ERR(this)) {
+					err = PTR_ERR(this);
 					goto out_file;
+				}
+
+				if (rq) { /* Force submission order */
+					i915_request_await_dma_fence(this, &rq->fence);
+					i915_request_put(rq);
 				}
 
 				/*
@@ -127,14 +144,18 @@ static int live_nop_switch(void *arg)
 				 * for latency.
 				 */
 
-				i915_request_add(rq);
+				rq = i915_request_get(this);
+				i915_request_add(this);
 			}
+			GEM_BUG_ON(!rq);
 			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				pr_err("Switching between %ld contexts timed out\n",
 				       prime);
 				intel_gt_set_wedged(&i915->gt);
+				i915_request_put(rq);
 				break;
 			}
+			i915_request_put(rq);
 
 			times[1] = ktime_sub(ktime_get_raw(), times[1]);
 			if (prime == 2)
