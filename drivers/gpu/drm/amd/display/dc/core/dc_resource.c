@@ -940,11 +940,27 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 
 }
 
+static bool is_downscaled(const struct rect *src_rect, const struct rect *dst_rect)
+{
+        if (src_rect->width > dst_rect->width || src_rect->height > dst_rect->height)
+		return true;
+	return false;
+}
+
+static bool is_mpo(int layer_index)
+{
+	if (layer_index > 0)
+		return true;
+	return false;
+}
+
 static void calculate_integer_scaling(struct pipe_ctx *pipe_ctx)
 {
 	unsigned int integer_multiple = 1;
 
-	if (pipe_ctx->plane_state->scaling_quality.integer_scaling) {
+	if (pipe_ctx->plane_state->scaling_quality.integer_scaling &&
+	    !is_downscaled(&pipe_ctx->plane_state->src_rect, &pipe_ctx->plane_state->dst_rect) &&
+	    !is_mpo(pipe_ctx->plane_state->layer_index)) {
 		// calculate maximum # of replication of src onto addressable
 		integer_multiple = min(
 				pipe_ctx->stream->timing.h_addressable / pipe_ctx->stream->src.width,
