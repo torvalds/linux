@@ -2679,6 +2679,15 @@ static int __io_submit_sqe(struct io_kiocb *req, struct io_kiocb **nxt,
 	return 0;
 }
 
+static void io_link_work_cb(struct io_wq_work **workptr)
+{
+	struct io_wq_work *work = *workptr;
+	struct io_kiocb *link = work->data;
+
+	io_queue_linked_timeout(link);
+	work->func = io_wq_submit_work;
+}
+
 static void io_wq_submit_work(struct io_wq_work **workptr)
 {
 	struct io_wq_work *work = *workptr;
@@ -2725,8 +2734,11 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 
 		io_prep_async_work(nxt, &link);
 		*workptr = &nxt->work;
-		if (link)
-			io_queue_linked_timeout(link);
+		if (link) {
+			nxt->work.flags |= IO_WQ_WORK_CB;
+			nxt->work.func = io_link_work_cb;
+			nxt->work.data = link;
+		}
 	}
 }
 

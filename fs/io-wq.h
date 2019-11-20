@@ -11,6 +11,7 @@ enum {
 	IO_WQ_WORK_NEEDS_FILES	= 16,
 	IO_WQ_WORK_UNBOUND	= 32,
 	IO_WQ_WORK_INTERNAL	= 64,
+	IO_WQ_WORK_CB		= 128,
 
 	IO_WQ_HASH_SHIFT	= 24,	/* upper 8 bits are used for hash key */
 };
@@ -22,7 +23,10 @@ enum io_wq_cancel {
 };
 
 struct io_wq_work {
-	struct list_head list;
+	union {
+		struct list_head list;
+		void *data;
+	};
 	void (*func)(struct io_wq_work **);
 	unsigned flags;
 	struct files_struct *files;
