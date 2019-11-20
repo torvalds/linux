@@ -1412,6 +1412,9 @@ static int __init wait_for_devices(void)
 		struct net_device *dev;
 		int found = 0;
 
+		/* make sure deferred device probes are finished */
+		wait_for_device_probe();
+
 		rtnl_lock();
 		for_each_netdev(&init_net, dev) {
 			if (ic_is_init_dev(dev)) {
