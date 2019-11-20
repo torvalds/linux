@@ -264,6 +264,9 @@ static unsigned int icl_max_bw(struct drm_i915_private *dev_priv,
 
 void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	if (IS_GEN(dev_priv, 12))
 		icl_get_bw_info(dev_priv, &tgl_sa_info);
 	else if (IS_GEN(dev_priv, 11))
