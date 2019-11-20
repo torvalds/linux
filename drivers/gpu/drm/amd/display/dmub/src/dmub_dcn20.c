@@ -25,6 +25,7 @@
 
 #include "../inc/dmub_srv.h"
 #include "dmub_reg.h"
+#include "dmub_dcn20.h"
 
 #include "dcn/dcn_2_0_0_offset.h"
 #include "dcn/dcn_2_0_0_sh_mask.h"
@@ -33,6 +34,25 @@
 
 #define BASE_INNER(seg) DCN_BASE__INST0_SEG##seg
 #define CTX dmub
+#define REGS dmub->regs
+
+/* Registers. */
+
+const struct dmub_srv_common_regs dmub_srv_dcn20_regs = {
+#define DMUB_SR(reg) REG_OFFSET(reg),
+	{ DMUB_COMMON_REGS() },
+#undef DMUB_SR
+
+#define DMUB_SF(reg, field) FD_MASK(reg, field),
+	{ DMUB_COMMON_FIELDS() },
+#undef DMUB_SF
+
+#define DMUB_SF(reg, field) FD_SHIFT(reg, field),
+	{ DMUB_COMMON_FIELDS() },
+#undef DMUB_SF
+};
+
+/* Shared functions. */
 
 void dmub_dcn20_reset(struct dmub_srv *dmub)
 {
@@ -47,8 +67,9 @@ void dmub_dcn20_reset_release(struct dmub_srv *dmub)
 	REG_UPDATE(DMCUB_CNTL, DMCUB_SOFT_RESET, 0);
 }
 
-void dmub_dcn20_backdoor_load(struct dmub_srv *dmub, struct dmub_window *cw0,
-			      struct dmub_window *cw1)
+void dmub_dcn20_backdoor_load(struct dmub_srv *dmub,
+			      const struct dmub_window *cw0,
+			      const struct dmub_window *cw1)
 {
 	REG_UPDATE(DMCUB_SEC_CNTL, DMCUB_SEC_RESET, 1);
 	REG_UPDATE_2(DMCUB_MEM_CNTL, DMCUB_MEM_READ_SPACE, 0x4,

@@ -28,6 +28,10 @@
 
 #include "dmub_dcn20.h"
 
+/* Registers. */
+
+extern const struct dmub_srv_common_regs dmub_srv_dcn21_regs;
+
 /* Hardware functions. */
 
 void dmub_dcn21_backdoor_load(struct dmub_srv *dmub,

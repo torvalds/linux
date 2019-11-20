@@ -69,6 +69,8 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 	switch (asic) {
 	case DMUB_ASIC_DCN20:
 	case DMUB_ASIC_DCN21:
+		dmub->regs = &dmub_srv_dcn20_regs;
+
 		funcs->reset = dmub_dcn20_reset;
 		funcs->reset_release = dmub_dcn20_reset_release;
 		funcs->backdoor_load = dmub_dcn20_backdoor_load;
@@ -80,6 +82,8 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->is_hw_init = dmub_dcn20_is_hw_init;
 
 		if (asic == DMUB_ASIC_DCN21) {
+			dmub->regs = &dmub_srv_dcn21_regs;
+
 			funcs->backdoor_load = dmub_dcn21_backdoor_load;
 			funcs->setup_windows = dmub_dcn21_setup_windows;
 			funcs->is_auto_load_done = dmub_dcn21_is_auto_load_done;
