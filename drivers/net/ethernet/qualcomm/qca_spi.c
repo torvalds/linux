@@ -363,7 +363,7 @@ qcaspi_receive(struct qcaspi *qca)
 	netdev_dbg(net_dev, "qcaspi_receive: SPI_REG_RDBUF_BYTE_AVA: Value: %08x\n",
 		   available);
 
-	if (available > QCASPI_HW_BUF_LEN) {
+	if (available > QCASPI_HW_BUF_LEN + QCASPI_HW_PKT_LEN) {
 		/* This could only happen by interferences on the SPI line.
 		 * So retry later ...
 		 */
