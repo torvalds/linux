@@ -36,6 +36,7 @@
 #include "navi10_ppt.h"
 #include "smu_v11_0_pptable.h"
 #include "smu_v11_0_ppsmc.h"
+#include "nbio/nbio_7_4_sh_mask.h"
 
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
 
@@ -599,6 +600,7 @@ static int navi10_set_default_dpm_table(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
 	PPTable_t *driver_ppt = NULL;
+	int i;
 
 	driver_ppt = table_context->driver_pptable;
 
@@ -628,6 +630,11 @@ static int navi10_set_default_dpm_table(struct smu_context *smu)
 
 	dpm_context->dpm_tables.phy_table.min = driver_ppt->FreqTablePhyclk[0];
 	dpm_context->dpm_tables.phy_table.max = driver_ppt->FreqTablePhyclk[NUM_PHYCLK_DPM_LEVELS - 1];
+
+	for (i = 0; i < MAX_PCIE_CONF; i++) {
+		dpm_context->dpm_tables.pcie_table.pcie_gen[i] = driver_ppt->PcieGenSpeed[i];
+		dpm_context->dpm_tables.pcie_table.pcie_lane[i] = driver_ppt->PcieLaneCount[i];
+	}
 
 	return 0;
 }
@@ -691,13 +698,29 @@ static bool navi10_is_support_fine_grained_dpm(struct smu_context *smu, enum smu
 	return dpm_desc->SnapToDiscrete == 0 ? true : false;
 }
 
+static inline bool navi10_od_feature_is_supported(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODFEATURE_ID feature)
+{
+	return od_table->cap[feature];
+}
+
+
 static int navi10_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
+	uint16_t *curve_settings;
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t freq_values[3] = {0};
 	uint32_t mark_index = 0;
+	struct smu_table_context *table_context = &smu->smu_table;
+	uint32_t gen_speed, lane_width;
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	struct amdgpu_device *adev = smu->adev;
+	PPTable_t *pptable = (PPTable_t *)table_context->driver_pptable;
+	OverDriveTable_t *od_table =
+		(OverDriveTable_t *)table_context->overdrive_table;
+	struct smu_11_0_overdrive_table *od_settings = smu->od_settings;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -746,6 +769,69 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 						i == mark_index ? "*" : "");
 			}
 
+		}
+		break;
+	case SMU_PCIE:
+		gen_speed = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
+			     PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
+			>> PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
+		lane_width = (RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL) &
+			      PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK)
+			>> PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT;
+		for (i = 0; i < NUM_LINK_LEVELS; i++)
+			size += sprintf(buf + size, "%d: %s %s %dMhz %s\n", i,
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 0) ? "2.5GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 1) ? "5.0GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 2) ? "8.0GT/s," :
+					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 3) ? "16.0GT/s," : "",
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 1) ? "x1" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 2) ? "x2" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 3) ? "x4" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 4) ? "x8" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 5) ? "x12" :
+					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 6) ? "x16" : "",
+					pptable->LclkFreq[i],
+					(gen_speed == dpm_context->dpm_tables.pcie_table.pcie_gen[i]) &&
+					(lane_width == dpm_context->dpm_tables.pcie_table.pcie_lane[i]) ?
+					"*" : "");
+		break;
+	case SMU_OD_SCLK:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_LIMITS))
+			break;
+		size += sprintf(buf + size, "OD_SCLK:\n");
+		size += sprintf(buf + size, "0: %uMhz\n1: %uMhz\n", od_table->GfxclkFmin, od_table->GfxclkFmax);
+		break;
+	case SMU_OD_MCLK:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_UCLK_MAX))
+			break;
+		size += sprintf(buf + size, "OD_MCLK:\n");
+		size += sprintf(buf + size, "0: %uMHz\n", od_table->UclkFmax);
+		break;
+	case SMU_OD_VDDC_CURVE:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_CURVE))
+			break;
+		size += sprintf(buf + size, "OD_VDDC_CURVE:\n");
+		for (i = 0; i < 3; i++) {
+			switch (i) {
+			case 0:
+				curve_settings = &od_table->GfxclkFreq1;
+				break;
+			case 1:
+				curve_settings = &od_table->GfxclkFreq2;
+				break;
+			case 2:
+				curve_settings = &od_table->GfxclkFreq3;
+				break;
+			default:
+				break;
+			}
+			size += sprintf(buf + size, "%d: %uMHz @ %umV\n", i, curve_settings[0], curve_settings[1] / NAVI10_VOLTAGE_SCALE);
 		}
 		break;
 	default:
@@ -1582,17 +1668,22 @@ static int navi10_display_disable_memory_clock_switch(struct smu_context *smu,
 	return ret;
 }
 
+static uint32_t navi10_get_pptable_power_limit(struct smu_context *smu)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+	return pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
+}
+
 static int navi10_get_power_limit(struct smu_context *smu,
 				     uint32_t *limit,
-				     bool asic_default)
+				     bool cap)
 {
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	uint32_t asic_default_power_limit = 0;
 	int ret = 0;
 	int power_src;
 
-	if (!smu->default_power_limit ||
-	    !smu->power_limit) {
+	if (!smu->power_limit) {
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
 			power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
 			if (power_src < 0)
@@ -1615,17 +1706,11 @@ static int navi10_get_power_limit(struct smu_context *smu,
 				pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
 		}
 
-		if (smu->od_enabled) {
-			asic_default_power_limit *= (100 + smu->smu_table.TDPODLimit);
-			asic_default_power_limit /= 100;
-		}
-
-		smu->default_power_limit = asic_default_power_limit;
 		smu->power_limit = asic_default_power_limit;
 	}
 
-	if (asic_default)
-		*limit = smu->default_power_limit;
+	if (cap)
+		*limit = smu_v11_0_get_max_power_limit(smu);
 	else
 		*limit = smu->power_limit;
 
@@ -1640,6 +1725,9 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 	int ret, i;
 	uint32_t smu_pcie_arg;
 
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+
 	for (i = 0; i < NUM_LINK_LEVELS; i++) {
 		smu_pcie_arg = (i << 16) |
 			((pptable->PcieGenSpeed[i] <= pcie_gen_cap) ? (pptable->PcieGenSpeed[i] << 8) :
@@ -1648,11 +1736,249 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 		ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_OverridePcieParameters,
 					  smu_pcie_arg);
+
+		if (ret)
+			return ret;
+
+		if (pptable->PcieGenSpeed[i] > pcie_gen_cap)
+			dpm_context->dpm_tables.pcie_table.pcie_gen[i] = pcie_gen_cap;
+		if (pptable->PcieLaneCount[i] > pcie_width_cap)
+			dpm_context->dpm_tables.pcie_table.pcie_lane[i] = pcie_width_cap;
+	}
+
+	return 0;
+}
+
+static inline void navi10_dump_od_table(OverDriveTable_t *od_table) {
+	pr_debug("OD: Gfxclk: (%d, %d)\n", od_table->GfxclkFmin, od_table->GfxclkFmax);
+	pr_debug("OD: Gfx1: (%d, %d)\n", od_table->GfxclkFreq1, od_table->GfxclkVolt1);
+	pr_debug("OD: Gfx2: (%d, %d)\n", od_table->GfxclkFreq2, od_table->GfxclkVolt2);
+	pr_debug("OD: Gfx3: (%d, %d)\n", od_table->GfxclkFreq3, od_table->GfxclkVolt3);
+	pr_debug("OD: UclkFmax: %d\n", od_table->UclkFmax);
+	pr_debug("OD: OverDrivePct: %d\n", od_table->OverDrivePct);
+}
+
+static int navi10_od_setting_check_range(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODSETTING_ID setting, uint32_t value)
+{
+	if (value < od_table->min[setting]) {
+		pr_warn("OD setting (%d, %d) is less than the minimum allowed (%d)\n", setting, value, od_table->min[setting]);
+		return -EINVAL;
+	}
+	if (value > od_table->max[setting]) {
+		pr_warn("OD setting (%d, %d) is greater than the maximum allowed (%d)\n", setting, value, od_table->max[setting]);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int navi10_setup_od_limits(struct smu_context *smu) {
+	struct smu_11_0_overdrive_table *overdrive_table = NULL;
+	struct smu_11_0_powerplay_table *powerplay_table = NULL;
+
+	if (!smu->smu_table.power_play_table) {
+		pr_err("powerplay table uninitialized!\n");
+		return -ENOENT;
+	}
+	powerplay_table = (struct smu_11_0_powerplay_table *)smu->smu_table.power_play_table;
+	overdrive_table = &powerplay_table->overdrive_table;
+	if (!smu->od_settings) {
+		smu->od_settings = kmemdup(overdrive_table, sizeof(struct smu_11_0_overdrive_table), GFP_KERNEL);
+	} else {
+		memcpy(smu->od_settings, overdrive_table, sizeof(struct smu_11_0_overdrive_table));
+	}
+	return 0;
+}
+
+static int navi10_set_default_od_settings(struct smu_context *smu, bool initialize) {
+	OverDriveTable_t *od_table;
+	int ret = 0;
+
+	ret = smu_v11_0_set_default_od_settings(smu, initialize, sizeof(OverDriveTable_t));
+	if (ret)
+		return ret;
+
+	if (initialize) {
+		ret = navi10_setup_od_limits(smu);
+		if (ret) {
+			pr_err("Failed to retrieve board OD limits\n");
+			return ret;
+		}
+
+	}
+
+	od_table = (OverDriveTable_t *)smu->smu_table.overdrive_table;
+	if (od_table) {
+		navi10_dump_od_table(od_table);
 	}
 
 	return ret;
 }
 
+static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABLE_COMMAND type, long input[], uint32_t size) {
+	int i;
+	int ret = 0;
+	struct smu_table_context *table_context = &smu->smu_table;
+	OverDriveTable_t *od_table;
+	struct smu_11_0_overdrive_table *od_settings;
+	enum SMU_11_0_ODSETTING_ID freq_setting, voltage_setting;
+	uint16_t *freq_ptr, *voltage_ptr;
+	od_table = (OverDriveTable_t *)table_context->overdrive_table;
+
+	if (!smu->od_enabled) {
+		pr_warn("OverDrive is not enabled!\n");
+		return -EINVAL;
+	}
+
+	if (!smu->od_settings) {
+		pr_err("OD board limits are not set!\n");
+		return -ENOENT;
+	}
+
+	od_settings = smu->od_settings;
+
+	switch (type) {
+	case PP_OD_EDIT_SCLK_VDDC_TABLE:
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_LIMITS)) {
+			pr_warn("GFXCLK_LIMITS not supported!\n");
+			return -ENOTSUPP;
+		}
+		if (!table_context->overdrive_table) {
+			pr_err("Overdrive is not initialized\n");
+			return -EINVAL;
+		}
+		for (i = 0; i < size; i += 2) {
+			if (i + 2 > size) {
+				pr_info("invalid number of input parameters %d\n", size);
+				return -EINVAL;
+			}
+			switch (input[i]) {
+			case 0:
+				freq_setting = SMU_11_0_ODSETTING_GFXCLKFMIN;
+				freq_ptr = &od_table->GfxclkFmin;
+				if (input[i + 1] > od_table->GfxclkFmax) {
+					pr_info("GfxclkFmin (%ld) must be <= GfxclkFmax (%u)!\n",
+						input[i + 1],
+						od_table->GfxclkFmin);
+					return -EINVAL;
+				}
+				break;
+			case 1:
+				freq_setting = SMU_11_0_ODSETTING_GFXCLKFMAX;
+				freq_ptr = &od_table->GfxclkFmax;
+				if (input[i + 1] < od_table->GfxclkFmin) {
+					pr_info("GfxclkFmax (%ld) must be >= GfxclkFmin (%u)!\n",
+						input[i + 1],
+						od_table->GfxclkFmax);
+					return -EINVAL;
+				}
+				break;
+			default:
+				pr_info("Invalid SCLK_VDDC_TABLE index: %ld\n", input[i]);
+				pr_info("Supported indices: [0:min,1:max]\n");
+				return -EINVAL;
+			}
+			ret = navi10_od_setting_check_range(od_settings, freq_setting, input[i + 1]);
+			if (ret)
+				return ret;
+			*freq_ptr = input[i + 1];
+		}
+		break;
+	case PP_OD_EDIT_MCLK_VDDC_TABLE:
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_UCLK_MAX)) {
+			pr_warn("UCLK_MAX not supported!\n");
+			return -ENOTSUPP;
+		}
+		if (size < 2) {
+			pr_info("invalid number of parameters: %d\n", size);
+			return -EINVAL;
+		}
+		if (input[0] != 1) {
+			pr_info("Invalid MCLK_VDDC_TABLE index: %ld\n", input[0]);
+			pr_info("Supported indices: [1:max]\n");
+			return -EINVAL;
+		}
+		ret = navi10_od_setting_check_range(od_settings, SMU_11_0_ODSETTING_UCLKFMAX, input[1]);
+		if (ret)
+			return ret;
+		od_table->UclkFmax = input[1];
+		break;
+	case PP_OD_COMMIT_DPM_TABLE:
+		navi10_dump_od_table(od_table);
+		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, true);
+		if (ret) {
+			pr_err("Failed to import overdrive table!\n");
+			return ret;
+		}
+		// no lock needed because smu_od_edit_dpm_table has it
+		ret = smu_handle_task(smu, smu->smu_dpm.dpm_level,
+			AMD_PP_TASK_READJUST_POWER_STATE,
+			false);
+		if (ret) {
+			return ret;
+		}
+		break;
+	case PP_OD_EDIT_VDDC_CURVE:
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_CURVE)) {
+			pr_warn("GFXCLK_CURVE not supported!\n");
+			return -ENOTSUPP;
+		}
+		if (size < 3) {
+			pr_info("invalid number of parameters: %d\n", size);
+			return -EINVAL;
+		}
+		if (!od_table) {
+			pr_info("Overdrive is not initialized\n");
+			return -EINVAL;
+		}
+
+		switch (input[0]) {
+		case 0:
+			freq_setting = SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P1;
+			voltage_setting = SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P1;
+			freq_ptr = &od_table->GfxclkFreq1;
+			voltage_ptr = &od_table->GfxclkVolt1;
+			break;
+		case 1:
+			freq_setting = SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P2;
+			voltage_setting = SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P2;
+			freq_ptr = &od_table->GfxclkFreq2;
+			voltage_ptr = &od_table->GfxclkVolt2;
+			break;
+		case 2:
+			freq_setting = SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P3;
+			voltage_setting = SMU_11_0_ODSETTING_VDDGFXCURVEVOLTAGE_P3;
+			freq_ptr = &od_table->GfxclkFreq3;
+			voltage_ptr = &od_table->GfxclkVolt3;
+			break;
+		default:
+			pr_info("Invalid VDDC_CURVE index: %ld\n", input[0]);
+			pr_info("Supported indices: [0, 1, 2]\n");
+			return -EINVAL;
+		}
+		ret = navi10_od_setting_check_range(od_settings, freq_setting, input[1]);
+		if (ret)
+			return ret;
+		// Allow setting zero to disable the OverDrive VDDC curve
+		if (input[2] != 0) {
+			ret = navi10_od_setting_check_range(od_settings, voltage_setting, input[2]);
+			if (ret)
+				return ret;
+			*freq_ptr = input[1];
+			*voltage_ptr = ((uint16_t)input[2]) * NAVI10_VOLTAGE_SCALE;
+			pr_debug("OD: set curve %ld: (%d, %d)\n", input[0], *freq_ptr, *voltage_ptr);
+		} else {
+			// If setting 0, disable all voltage curve settings
+			od_table->GfxclkVolt1 = 0;
+			od_table->GfxclkVolt2 = 0;
+			od_table->GfxclkVolt3 = 0;
+		}
+		navi10_dump_od_table(od_table);
+		break;
+	default:
+		return -ENOSYS;
+	}
+	return ret;
+}
 
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
@@ -1742,6 +2068,9 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
+	.set_default_od_settings = navi10_set_default_od_settings,
+	.od_edit_dpm_table = navi10_od_edit_dpm_table,
+	.get_pptable_power_limit = navi10_get_pptable_power_limit,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
