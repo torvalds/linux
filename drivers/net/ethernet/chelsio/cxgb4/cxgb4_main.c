@@ -84,6 +84,7 @@
 #include "cxgb4_tc_u32.h"
 #include "cxgb4_tc_flower.h"
 #include "cxgb4_tc_mqprio.h"
+#include "cxgb4_tc_matchall.h"
 #include "cxgb4_ptp.h"
 #include "cxgb4_cudbg.h"
 
@@ -3234,8 +3235,28 @@ static int cxgb_setup_tc_cls_u32(struct net_device *dev,
 	}
 }
 
-static int cxgb_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
-				  void *cb_priv)
+static int cxgb_setup_tc_matchall(struct net_device *dev,
+				  struct tc_cls_matchall_offload *cls_matchall)
+{
+	struct adapter *adap = netdev2adap(dev);
+
+	if (!adap->tc_matchall)
+		return -ENOMEM;
+
+	switch (cls_matchall->command) {
+	case TC_CLSMATCHALL_REPLACE:
+		return cxgb4_tc_matchall_replace(dev, cls_matchall);
+	case TC_CLSMATCHALL_DESTROY:
+		return cxgb4_tc_matchall_destroy(dev, cls_matchall);
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int cxgb_setup_tc_block_ingress_cb(enum tc_setup_type type,
+					  void *type_data, void *cb_priv)
 {
 	struct net_device *dev = cb_priv;
 	struct port_info *pi = netdev2pinfo(dev);
@@ -3261,6 +3282,33 @@ static int cxgb_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
+static int cxgb_setup_tc_block_egress_cb(enum tc_setup_type type,
+					 void *type_data, void *cb_priv)
+{
+	struct net_device *dev = cb_priv;
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = netdev2adap(dev);
+
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE)) {
+		dev_err(adap->pdev_dev,
+			"Failed to setup tc on port %d. Link Down?\n",
+			pi->port_id);
+		return -EINVAL;
+	}
+
+	if (!tc_cls_can_offload_and_chain0(dev, type_data))
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSMATCHALL:
+		return cxgb_setup_tc_matchall(dev, type_data);
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static int cxgb_setup_tc_mqprio(struct net_device *dev,
 				struct tc_mqprio_qopt_offload *mqprio)
 {
@@ -3274,19 +3322,34 @@ static int cxgb_setup_tc_mqprio(struct net_device *dev,
 
 static LIST_HEAD(cxgb_block_cb_list);
 
+static int cxgb_setup_tc_block(struct net_device *dev,
+			       struct flow_block_offload *f)
+{
+	struct port_info *pi = netdev_priv(dev);
+	flow_setup_cb_t *cb;
+	bool ingress_only;
+
+	pi->tc_block_shared = f->block_shared;
+	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS) {
+		cb = cxgb_setup_tc_block_egress_cb;
+		ingress_only = false;
+	} else {
+		cb = cxgb_setup_tc_block_ingress_cb;
+		ingress_only = true;
+	}
+
+	return flow_block_cb_setup_simple(f, &cxgb_block_cb_list,
+					  cb, pi, dev, ingress_only);
+}
+
 static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			 void *type_data)
 {
-	struct port_info *pi = netdev2pinfo(dev);
-
 	switch (type) {
 	case TC_SETUP_QDISC_MQPRIO:
 		return cxgb_setup_tc_mqprio(dev, type_data);
 	case TC_SETUP_BLOCK:
-		return flow_block_cb_setup_simple(type_data,
-						  &cxgb_block_cb_list,
-						  cxgb_setup_tc_block_cb,
-						  pi, dev, true);
+		return cxgb_setup_tc_block(dev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -5741,6 +5804,7 @@ static void free_some_resources(struct adapter *adapter)
 	kvfree(adapter->srq);
 	t4_cleanup_sched(adapter);
 	kvfree(adapter->tids.tid_tab);
+	cxgb4_cleanup_tc_matchall(adapter);
 	cxgb4_cleanup_tc_mqprio(adapter);
 	cxgb4_cleanup_tc_flower(adapter);
 	cxgb4_cleanup_tc_u32(adapter);
@@ -6315,6 +6379,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (cxgb4_init_tc_mqprio(adapter))
 			dev_warn(&pdev->dev,
 				 "could not offload tc mqprio, continuing\n");
+
+		if (cxgb4_init_tc_matchall(adapter))
+			dev_warn(&pdev->dev,
+				 "could not offload tc matchall, continuing\n");
 	}
 
 	if (is_offload(adapter) || is_hashfilter(adapter)) {

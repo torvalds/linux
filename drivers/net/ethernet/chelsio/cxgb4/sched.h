@@ -52,6 +52,7 @@ enum {
 
 enum sched_fw_ops {
 	SCHED_FW_OP_ADD,
+	SCHED_FW_OP_DEL,
 };
 
 enum sched_bind_type {
