@@ -63,6 +63,7 @@ struct time_in_idle {
  * @policy: cpufreq policy.
  * @node: list_head to link all cpufreq_cooling_device together.
  * @idle_time: idle time stats
+ * @qos_req: PM QoS contraint to apply
  *
  * This structure is required for keeping information of each registered
  * cpufreq_cooling_device.
