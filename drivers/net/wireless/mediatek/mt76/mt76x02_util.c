@@ -357,6 +357,7 @@ int mt76x02_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	u16 tid = params->tid;
 	u16 ssn = params->ssn;
 	struct mt76_txq *mtxq;
+	int ret = 0;
 
 	if (!txq)
 		return -EINVAL;
@@ -386,7 +387,8 @@ int mt76x02_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		mtxq->agg_ssn = IEEE80211_SN_TO_SEQ(ssn);
-		return IEEE80211_AMPDU_TX_START_IMMEDIATE;
+		ret = IEEE80211_AMPDU_TX_START_IMMEDIATE;
+		break;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 		mtxq->aggr = false;
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
@@ -394,7 +396,7 @@ int mt76x02_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 	mutex_unlock(&dev->mt76.mutex);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76x02_ampdu_action);
 
