@@ -2764,7 +2764,19 @@ int ceph_get_caps(struct file *filp, int need, int want,
 		if (ret == -EAGAIN)
 			continue;
 		if (!ret) {
+			struct ceph_mds_client *mdsc = fsc->mdsc;
+			struct cap_wait cw;
 			DEFINE_WAIT_FUNC(wait, woken_wake_function);
+
+			cw.ino = inode->i_ino;
+			cw.tgid = current->tgid;
+			cw.need = need;
+			cw.want = want;
+
+			spin_lock(&mdsc->caps_list_lock);
+			list_add(&cw.list, &mdsc->cap_wait_list);
+			spin_unlock(&mdsc->caps_list_lock);
+
 			add_wait_queue(&ci->i_cap_wq, &wait);
 
 			flags |= NON_BLOCKING;
@@ -2778,6 +2790,11 @@ int ceph_get_caps(struct file *filp, int need, int want,
 			}
 
 			remove_wait_queue(&ci->i_cap_wq, &wait);
+
+			spin_lock(&mdsc->caps_list_lock);
+			list_del(&cw.list);
+			spin_unlock(&mdsc->caps_list_lock);
+
 			if (ret == -EAGAIN)
 				continue;
 		}
