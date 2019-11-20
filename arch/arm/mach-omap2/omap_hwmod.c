@@ -623,39 +623,6 @@ static int _enable_wakeup(struct omap_hwmod *oh, u32 *v)
 	return 0;
 }
 
-/**
- * _disable_wakeup: clear OCP_SYSCONFIG.ENAWAKEUP bit in the hardware
- * @oh: struct omap_hwmod *
- *
- * Prevent the hardware module @oh to send wakeups.  Returns -EINVAL
- * upon error or 0 upon success.
- */
-static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
-{
-	if (!oh->class->sysc ||
-	    !((oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP) ||
-	      (oh->class->sysc->idlemodes & SIDLE_SMART_WKUP) ||
-	      (oh->class->sysc->idlemodes & MSTANDBY_SMART_WKUP)))
-		return -EINVAL;
-
-	if (!oh->class->sysc->sysc_fields) {
-		WARN(1, "omap_hwmod: %s: offset struct for sysconfig not provided in class\n", oh->name);
-		return -EINVAL;
-	}
-
-	if (oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP)
-		*v &= ~(0x1 << oh->class->sysc->sysc_fields->enwkup_shift);
-
-	if (oh->class->sysc->idlemodes & SIDLE_SMART_WKUP)
-		_set_slave_idlemode(oh, HWMOD_IDLEMODE_SMART, v);
-	if (oh->class->sysc->idlemodes & MSTANDBY_SMART_WKUP)
-		_set_master_standbymode(oh, HWMOD_IDLEMODE_SMART, v);
-
-	/* XXX test pwrdm_get_wken for this hwmod's subsystem */
-
-	return 0;
-}
-
 static struct clockdomain *_get_clkdm(struct omap_hwmod *oh)
 {
 	struct clk_hw_omap *clk;
@@ -3866,70 +3833,6 @@ void __iomem *omap_hwmod_get_mpu_rt_va(struct omap_hwmod *oh)
  * XXX what about functions for drivers to save/restore ocp_sysconfig
  * for context save/restore operations?
  */
-
-/**
- * omap_hwmod_enable_wakeup - allow device to wake up the system
- * @oh: struct omap_hwmod *
- *
- * Sets the module OCP socket ENAWAKEUP bit to allow the module to
- * send wakeups to the PRCM, and enable I/O ring wakeup events for
- * this IP block if it has dynamic mux entries.  Eventually this
- * should set PRCM wakeup registers to cause the PRCM to receive
- * wakeup events from the module.  Does not set any wakeup routing
- * registers beyond this point - if the module is to wake up any other
- * module or subsystem, that must be set separately.  Called by
- * omap_device code.  Returns -EINVAL on error or 0 upon success.
- */
-int omap_hwmod_enable_wakeup(struct omap_hwmod *oh)
-{
-	unsigned long flags;
-	u32 v;
-
-	spin_lock_irqsave(&oh->_lock, flags);
-
-	if (oh->class->sysc &&
-	    (oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP)) {
-		v = oh->_sysc_cache;
-		_enable_wakeup(oh, &v);
-		_write_sysconfig(v, oh);
-	}
-
-	spin_unlock_irqrestore(&oh->_lock, flags);
-
-	return 0;
-}
-
-/**
- * omap_hwmod_disable_wakeup - prevent device from waking the system
- * @oh: struct omap_hwmod *
- *
- * Clears the module OCP socket ENAWAKEUP bit to prevent the module
- * from sending wakeups to the PRCM, and disable I/O ring wakeup
- * events for this IP block if it has dynamic mux entries.  Eventually
- * this should clear PRCM wakeup registers to cause the PRCM to ignore
- * wakeup events from the module.  Does not set any wakeup routing
- * registers beyond this point - if the module is to wake up any other
- * module or subsystem, that must be set separately.  Called by
- * omap_device code.  Returns -EINVAL on error or 0 upon success.
- */
-int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
-{
-	unsigned long flags;
-	u32 v;
-
-	spin_lock_irqsave(&oh->_lock, flags);
-
-	if (oh->class->sysc &&
-	    (oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP)) {
-		v = oh->_sysc_cache;
-		_disable_wakeup(oh, &v);
-		_write_sysconfig(v, oh);
-	}
-
-	spin_unlock_irqrestore(&oh->_lock, flags);
-
-	return 0;
-}
 
 /**
  * omap_hwmod_assert_hardreset - assert the HW reset line of submodules
