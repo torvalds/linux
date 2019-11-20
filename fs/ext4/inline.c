@@ -98,6 +98,7 @@ int ext4_get_max_inline_size(struct inode *inode)
 
 	error = ext4_get_inode_loc(inode, &iloc);
 	if (error) {
+		ext4_set_errno(inode->i_sb, -error);
 		ext4_error_inode(inode, __func__, __LINE__, 0,
 				 "can't get inode location %lu",
 				 inode->i_ino);
@@ -1761,6 +1762,7 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 
 	err = ext4_get_inode_loc(dir, &iloc);
 	if (err) {
+		ext4_set_errno(dir->i_sb, -err);
 		EXT4_ERROR_INODE(dir, "error %d getting inode %lu block",
 				 err, dir->i_ino);
 		return true;

@@ -367,6 +367,8 @@ static void __save_error_info(struct super_block *sb, const char *func,
 	ext4_update_tstamp(es, s_last_error_time);
 	strncpy(es->s_last_error_func, func, sizeof(es->s_last_error_func));
 	es->s_last_error_line = cpu_to_le32(line);
+	if (es->s_last_error_errcode == 0)
+		es->s_last_error_errcode = EXT4_ERR_EFSCORRUPTED;
 	if (!es->s_first_error_time) {
 		es->s_first_error_time = es->s_last_error_time;
 		es->s_first_error_time_hi = es->s_last_error_time_hi;
@@ -375,6 +377,7 @@ static void __save_error_info(struct super_block *sb, const char *func,
 		es->s_first_error_line = cpu_to_le32(line);
 		es->s_first_error_ino = es->s_last_error_ino;
 		es->s_first_error_block = es->s_last_error_block;
+		es->s_first_error_errcode = es->s_last_error_errcode;
 	}
 	/*
 	 * Start the daily error reporting function if it hasn't been
@@ -631,6 +634,66 @@ const char *ext4_decode_error(struct super_block *sb, int errno,
 	return errstr;
 }
 
+void ext4_set_errno(struct super_block *sb, int err)
+{
+	if (err < 0)
+		err = -err;
+
+	switch (err) {
+	case EIO:
+		err = EXT4_ERR_EIO;
+		break;
+	case ENOMEM:
+		err = EXT4_ERR_ENOMEM;
+		break;
+	case EFSBADCRC:
+		err = EXT4_ERR_EFSBADCRC;
+		break;
+	case EFSCORRUPTED:
+		err = EXT4_ERR_EFSCORRUPTED;
+		break;
+	case ENOSPC:
+		err = EXT4_ERR_ENOSPC;
+		break;
+	case ENOKEY:
+		err = EXT4_ERR_ENOKEY;
+		break;
+	case EROFS:
+		err = EXT4_ERR_EROFS;
+		break;
+	case EFBIG:
+		err = EXT4_ERR_EFBIG;
+		break;
+	case EEXIST:
+		err = EXT4_ERR_EEXIST;
+		break;
+	case ERANGE:
+		err = EXT4_ERR_ERANGE;
+		break;
+	case EOVERFLOW:
+		err = EXT4_ERR_EOVERFLOW;
+		break;
+	case EBUSY:
+		err = EXT4_ERR_EBUSY;
+		break;
+	case ENOTDIR:
+		err = EXT4_ERR_ENOTDIR;
+		break;
+	case ENOTEMPTY:
+		err = EXT4_ERR_ENOTEMPTY;
+		break;
+	case ESHUTDOWN:
+		err = EXT4_ERR_ESHUTDOWN;
+		break;
+	case EFAULT:
+		err = EXT4_ERR_EFAULT;
+		break;
+	default:
+		err = EXT4_ERR_UNKNOWN;
+	}
+	EXT4_SB(sb)->s_es->s_last_error_errcode = err;
+}
+
 /* __ext4_std_error decodes expected errors from journaling functions
  * automatically and invokes the appropriate error response.  */
 
@@ -655,6 +718,7 @@ void __ext4_std_error(struct super_block *sb, const char *function,
 		       sb->s_id, function, line, errstr);
 	}
 
+	ext4_set_errno(sb, -errno);
 	save_error_info(sb, function, line);
 	ext4_handle_error(sb);
 }
@@ -982,8 +1046,10 @@ static void ext4_put_super(struct super_block *sb)
 		aborted = is_journal_aborted(sbi->s_journal);
 		err = jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
-		if ((err < 0) && !aborted)
+		if ((err < 0) && !aborted) {
+			ext4_set_errno(sb, -err);
 			ext4_abort(sb, "Couldn't clean up the journal");
+		}
 	}
 
 	ext4_unregister_sysfs(sb);

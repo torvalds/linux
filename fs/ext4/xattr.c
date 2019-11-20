@@ -2879,9 +2879,11 @@ int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 		bh = ext4_sb_bread(inode->i_sb, EXT4_I(inode)->i_file_acl, REQ_PRIO);
 		if (IS_ERR(bh)) {
 			error = PTR_ERR(bh);
-			if (error == -EIO)
+			if (error == -EIO) {
+				ext4_set_errno(inode->i_sb, EIO);
 				EXT4_ERROR_INODE(inode, "block %llu read error",
 						 EXT4_I(inode)->i_file_acl);
+			}
 			bh = NULL;
 			goto cleanup;
 		}

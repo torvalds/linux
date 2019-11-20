@@ -271,6 +271,7 @@ void ext4_evict_inode(struct inode *inode)
 	if (inode->i_blocks) {
 		err = ext4_truncate(inode);
 		if (err) {
+			ext4_set_errno(inode->i_sb, -err);
 			ext4_error(inode->i_sb,
 				   "couldn't truncate inode %lu (err %d)",
 				   inode->i_ino, err);
@@ -2478,10 +2479,12 @@ update_disksize:
 			EXT4_I(inode)->i_disksize = disksize;
 		up_write(&EXT4_I(inode)->i_data_sem);
 		err2 = ext4_mark_inode_dirty(handle, inode);
-		if (err2)
+		if (err2) {
+			ext4_set_errno(inode->i_sb, -err2);
 			ext4_error(inode->i_sb,
 				   "Failed to mark inode %lu dirty",
 				   inode->i_ino);
+		}
 		if (!err)
 			err = err2;
 	}
@@ -4338,6 +4341,7 @@ make_io:
 		blk_finish_plug(&plug);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
+			ext4_set_errno(inode->i_sb, EIO);
 			EXT4_ERROR_INODE_BLOCK(inode, block,
 					       "unable to read itable block");
 			brelse(bh);
@@ -4552,6 +4556,7 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 	}
 
 	if (!ext4_inode_csum_verify(inode, raw_inode, ei)) {
+		ext4_set_errno(inode->i_sb, EFSBADCRC);
 		ext4_error_inode(inode, function, line, 0,
 				 "iget: checksum invalid");
 		ret = -EFSBADCRC;
@@ -5090,6 +5095,7 @@ int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 		if (wbc->sync_mode == WB_SYNC_ALL && !wbc->for_sync)
 			sync_dirty_buffer(iloc.bh);
 		if (buffer_req(iloc.bh) && !buffer_uptodate(iloc.bh)) {
+			ext4_set_errno(inode->i_sb, EIO);
 			EXT4_ERROR_INODE_BLOCK(inode, iloc.bh->b_blocknr,
 					 "IO error syncing inode");
 			err = -EIO;

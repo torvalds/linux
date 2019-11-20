@@ -506,6 +506,7 @@ int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 		return -EFSCORRUPTED;
 	wait_on_buffer(bh);
 	if (!buffer_uptodate(bh)) {
+		ext4_set_errno(sb, EIO);
 		ext4_error(sb, "Cannot read block bitmap - "
 			   "block_group = %u, block_bitmap = %llu",
 			   block_group, (unsigned long long) bh->b_blocknr);
