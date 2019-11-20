@@ -89,6 +89,28 @@ TRACE_EVENT(page_pool_state_hold,
 		  __entry->pool, __entry->page, __entry->pfn, __entry->hold)
 );
 
+TRACE_EVENT(page_pool_update_nid,
+
+	TP_PROTO(const struct page_pool *pool, int new_nid),
+
+	TP_ARGS(pool, new_nid),
+
+	TP_STRUCT__entry(
+		__field(const struct page_pool *, pool)
+		__field(int,			  pool_nid)
+		__field(int,			  new_nid)
+	),
+
+	TP_fast_assign(
+		__entry->pool		= pool;
+		__entry->pool_nid	= pool->p.nid;
+		__entry->new_nid	= new_nid;
+	),
+
+	TP_printk("page_pool=%p pool_nid=%d new_nid=%d",
+		  __entry->pool, __entry->pool_nid, __entry->new_nid)
+);
+
 #endif /* _TRACE_PAGE_POOL_H */
 
 /* This part must be outside protection */

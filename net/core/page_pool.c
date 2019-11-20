@@ -436,3 +436,11 @@ void page_pool_destroy(struct page_pool *pool)
 	schedule_delayed_work(&pool->release_dw, DEFER_TIME);
 }
 EXPORT_SYMBOL(page_pool_destroy);
+
+/* Caller must provide appropriate safe context, e.g. NAPI. */
+void page_pool_update_nid(struct page_pool *pool, int new_nid)
+{
+	trace_page_pool_update_nid(pool, new_nid);
+	pool->p.nid = new_nid;
+}
+EXPORT_SYMBOL(page_pool_update_nid);
