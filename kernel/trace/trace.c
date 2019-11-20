@@ -301,12 +301,24 @@ static void __trace_array_put(struct trace_array *this_tr)
 	this_tr->ref--;
 }
 
+/**
+ * trace_array_put - Decrement the reference counter for this trace array.
+ *
+ * NOTE: Use this when we no longer need the trace array returned by
+ * trace_array_get_by_name(). This ensures the trace array can be later
+ * destroyed.
+ *
+ */
 void trace_array_put(struct trace_array *this_tr)
 {
+	if (!this_tr)
+		return;
+
 	mutex_lock(&trace_types_lock);
 	__trace_array_put(this_tr);
 	mutex_unlock(&trace_types_lock);
 }
+EXPORT_SYMBOL_GPL(trace_array_put);
 
 int tracing_check_open_get_tr(struct trace_array *tr)
 {
@@ -8437,24 +8449,15 @@ static void update_tracer_options(struct trace_array *tr)
 	mutex_unlock(&trace_types_lock);
 }
 
-struct trace_array *trace_array_create(const char *name)
+static struct trace_array *trace_array_create(const char *name)
 {
 	struct trace_array *tr;
 	int ret;
 
-	mutex_lock(&event_mutex);
-	mutex_lock(&trace_types_lock);
-
-	ret = -EEXIST;
-	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
-		if (tr->name && strcmp(tr->name, name) == 0)
-			goto out_unlock;
-	}
-
 	ret = -ENOMEM;
 	tr = kzalloc(sizeof(*tr), GFP_KERNEL);
 	if (!tr)
-		goto out_unlock;
+		return ERR_PTR(ret);
 
 	tr->name = kstrdup(name, GFP_KERNEL);
 	if (!tr->name)
@@ -8499,8 +8502,8 @@ struct trace_array *trace_array_create(const char *name)
 
 	list_add(&tr->list, &ftrace_trace_arrays);
 
-	mutex_unlock(&trace_types_lock);
-	mutex_unlock(&event_mutex);
+	tr->ref++;
+
 
 	return tr;
 
@@ -8510,24 +8513,77 @@ struct trace_array *trace_array_create(const char *name)
 	kfree(tr->name);
 	kfree(tr);
 
- out_unlock:
-	mutex_unlock(&trace_types_lock);
-	mutex_unlock(&event_mutex);
-
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(trace_array_create);
 
 static int instance_mkdir(const char *name)
 {
-	return PTR_ERR_OR_ZERO(trace_array_create(name));
+	struct trace_array *tr;
+	int ret;
+
+	mutex_lock(&event_mutex);
+	mutex_lock(&trace_types_lock);
+
+	ret = -EEXIST;
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		if (tr->name && strcmp(tr->name, name) == 0)
+			goto out_unlock;
+	}
+
+	tr = trace_array_create(name);
+
+	ret = PTR_ERR_OR_ZERO(tr);
+
+out_unlock:
+	mutex_unlock(&trace_types_lock);
+	mutex_unlock(&event_mutex);
+	return ret;
 }
+
+/**
+ * trace_array_get_by_name - Create/Lookup a trace array, given its name.
+ * @name: The name of the trace array to be looked up/created.
+ *
+ * Returns pointer to trace array with given name.
+ * NULL, if it cannot be created.
+ *
+ * NOTE: This function increments the reference counter associated with the
+ * trace array returned. This makes sure it cannot be freed while in use.
+ * Use trace_array_put() once the trace array is no longer needed.
+ *
+ */
+struct trace_array *trace_array_get_by_name(const char *name)
+{
+	struct trace_array *tr;
+
+	mutex_lock(&event_mutex);
+	mutex_lock(&trace_types_lock);
+
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		if (tr->name && strcmp(tr->name, name) == 0)
+			goto out_unlock;
+	}
+
+	tr = trace_array_create(name);
+
+	if (IS_ERR(tr))
+		tr = NULL;
+out_unlock:
+	if (tr)
+		tr->ref++;
+
+	mutex_unlock(&trace_types_lock);
+	mutex_unlock(&event_mutex);
+	return tr;
+}
+EXPORT_SYMBOL_GPL(trace_array_get_by_name);
 
 static int __remove_instance(struct trace_array *tr)
 {
 	int i;
 
-	if (tr->ref || (tr->current_trace && tr->current_trace->ref))
+	/* Reference counter for a newly created trace array = 1. */
+	if (tr->ref > 1 || (tr->current_trace && tr->current_trace->ref))
 		return -EBUSY;
 
 	list_del(&tr->list);

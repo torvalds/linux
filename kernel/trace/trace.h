@@ -345,7 +345,6 @@ extern struct list_head ftrace_trace_arrays;
 extern struct mutex trace_types_lock;
 
 extern int trace_array_get(struct trace_array *tr);
-extern void trace_array_put(struct trace_array *tr);
 extern int tracing_check_open_get_tr(struct trace_array *tr);
 
 extern int tracing_set_time_stamp_abs(struct trace_array *tr, bool abs);

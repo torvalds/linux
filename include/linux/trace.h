@@ -29,7 +29,8 @@ struct trace_array;
 void trace_printk_init_buffers(void);
 int trace_array_printk(struct trace_array *tr, unsigned long ip,
 		const char *fmt, ...);
-struct trace_array *trace_array_create(const char *name);
+void trace_array_put(struct trace_array *tr);
+struct trace_array *trace_array_get_by_name(const char *name);
 int trace_array_destroy(struct trace_array *tr);
 #endif	/* CONFIG_TRACING */
 

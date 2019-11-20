@@ -827,7 +827,6 @@ int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ftrace_set_clr_event);
 
 /**
  * trace_set_clr_event - enable or disable an event
@@ -851,6 +850,32 @@ int trace_set_clr_event(const char *system, const char *event, int set)
 	return __ftrace_set_clr_event(tr, NULL, system, event, set);
 }
 EXPORT_SYMBOL_GPL(trace_set_clr_event);
+
+/**
+ * trace_array_set_clr_event - enable or disable an event for a trace array.
+ * @tr: concerned trace array.
+ * @system: system name to match (NULL for any system)
+ * @event: event name to match (NULL for all events, within system)
+ * @enable: true to enable, false to disable
+ *
+ * This is a way for other parts of the kernel to enable or disable
+ * event recording.
+ *
+ * Returns 0 on success, -EINVAL if the parameters do not match any
+ * registered events.
+ */
+int trace_array_set_clr_event(struct trace_array *tr, const char *system,
+		const char *event, bool enable)
+{
+	int set;
+
+	if (!tr)
+		return -ENOENT;
+
+	set = (enable == true) ? 1 : 0;
+	return __ftrace_set_clr_event(tr, NULL, system, event, set);
+}
+EXPORT_SYMBOL_GPL(trace_array_set_clr_event);
 
 /* 128 should be much more than enough */
 #define EVENT_BUF_SIZE		127
