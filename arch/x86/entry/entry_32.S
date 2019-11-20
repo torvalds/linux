@@ -210,6 +210,8 @@
 	/*
 	 * The high bits of the CS dword (__csh) are used for CS_FROM_*.
 	 * Clear them in case hardware didn't do this for us.
+	 *
+	 * Be careful: we may have nonzero SS base due to ESPFIX.
 	 */
 	andl	$0x0000ffff, 3*4(%esp)
 
@@ -263,6 +265,13 @@
 .endm
 
 .macro IRET_FRAME
+	/*
+	 * We're called with %ds, %es, %fs, and %gs from the interrupted
+	 * frame, so we shouldn't use them.  Also, we may be in ESPFIX
+	 * mode and therefore have a nonzero SS base and an offset ESP,
+	 * so any attempt to access the stack needs to use SS.  (except for
+	 * accesses through %esp, which automatically use SS.)
+	 */
 	testl $CS_FROM_KERNEL, 1*4(%esp)
 	jz .Lfinished_frame_\@
 
@@ -276,20 +285,20 @@
 	movl	5*4(%esp), %eax		# (modified) regs->sp
 
 	movl	4*4(%esp), %ecx		# flags
-	movl	%ecx, -4(%eax)
+	movl	%ecx, %ss:-1*4(%eax)
 
 	movl	3*4(%esp), %ecx		# cs
 	andl	$0x0000ffff, %ecx
-	movl	%ecx, -8(%eax)
+	movl	%ecx, %ss:-2*4(%eax)
 
 	movl	2*4(%esp), %ecx		# ip
-	movl	%ecx, -12(%eax)
+	movl	%ecx, %ss:-3*4(%eax)
 
 	movl	1*4(%esp), %ecx		# eax
-	movl	%ecx, -16(%eax)
+	movl	%ecx, %ss:-4*4(%eax)
 
 	popl	%ecx
-	lea	-16(%eax), %esp
+	lea	-4*4(%eax), %esp
 	popl	%eax
 .Lfinished_frame_\@:
 .endm
