@@ -198,7 +198,7 @@ void rtl_fw_write_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 			index += regno;
 			break;
 		case PHY_DELAY_MS:
-			mdelay(data);
+			msleep(data);
 			break;
 		}
 	}
