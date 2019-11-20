@@ -31,6 +31,9 @@
 #include "v10_structs.h"
 #include "mes_api_def.h"
 
+#define mmCP_MES_IC_OP_CNTL_Sienna_Cichlid               0x2820
+#define mmCP_MES_IC_OP_CNTL_Sienna_Cichlid_BASE_IDX      1
+
 MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_mes.bin");
 
@@ -490,15 +493,43 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmCP_MES_MDBOUND_LO, 0x3FFFF);
 
 	/* invalidate ICACHE */
-	data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid);
+		break;
+	default:
+		data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL);
+		break;
+	}
 	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 0);
 	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, INVALIDATE_CACHE, 1);
-	WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL, data);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid, data);
+		break;
+	default:
+		WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL, data);
+		break;
+	}
 
 	/* prime the ICACHE. */
-	data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid);
+		break;
+	default:
+		data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL);
+		break;
+	}
 	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 1);
-	WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL, data);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid, data);
+		break;
+	default:
+		WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL, data);
+		break;
+	}
 
 	nv_grbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
