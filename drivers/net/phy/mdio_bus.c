@@ -65,8 +65,7 @@ static int mdiobus_register_reset(struct mdio_device *mdiodev)
 		reset = devm_reset_control_get_exclusive(&mdiodev->dev,
 							 "phy");
 	if (IS_ERR(reset)) {
-		if (PTR_ERR(reset) == -ENOENT || PTR_ERR(reset) == -ENOSYS ||
-		    PTR_ERR(reset) == -ENOTSUPP)
+		if (PTR_ERR(reset) == -ENOENT || PTR_ERR(reset) == -ENOSYS)
 			reset = NULL;
 		else
 			return PTR_ERR(reset);
