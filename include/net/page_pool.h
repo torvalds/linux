@@ -34,8 +34,18 @@
 #include <linux/ptr_ring.h>
 #include <linux/dma-direction.h>
 
-#define PP_FLAG_DMA_MAP 1 /* Should page_pool do the DMA map/unmap */
-#define PP_FLAG_ALL	PP_FLAG_DMA_MAP
+#define PP_FLAG_DMA_MAP		BIT(0) /* Should page_pool do the DMA
+					* map/unmap
+					*/
+#define PP_FLAG_DMA_SYNC_DEV	BIT(1) /* If set all pages that the driver gets
+					* from page_pool will be
+					* DMA-synced-for-device according to
+					* the length provided by the device
+					* driver.
+					* Please note DMA-sync-for-CPU is still
+					* device driver responsibility
+					*/
+#define PP_FLAG_ALL		(PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV)
 
 /*
  * Fast allocation side cache array/stack
@@ -65,6 +75,8 @@ struct page_pool_params {
 	int		nid;  /* Numa node id to allocate from pages from */
 	struct device	*dev; /* device, for DMA pre-mapping purposes */
 	enum dma_data_direction dma_dir; /* DMA mapping direction */
+	unsigned int	max_len; /* max DMA sync memory size */
+	unsigned int	offset;  /* DMA addr offset */
 };
 
 struct page_pool {
@@ -151,8 +163,8 @@ static inline void page_pool_use_xdp_mem(struct page_pool *pool,
 #endif
 
 /* Never call this directly, use helpers below */
-void __page_pool_put_page(struct page_pool *pool,
-			  struct page *page, bool allow_direct);
+void __page_pool_put_page(struct page_pool *pool, struct page *page,
+			  unsigned int dma_sync_size, bool allow_direct);
 
 static inline void page_pool_put_page(struct page_pool *pool,
 				      struct page *page, bool allow_direct)
@@ -161,14 +173,14 @@ static inline void page_pool_put_page(struct page_pool *pool,
 	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
 	 */
 #ifdef CONFIG_PAGE_POOL
-	__page_pool_put_page(pool, page, allow_direct);
+	__page_pool_put_page(pool, page, -1, allow_direct);
 #endif
 }
 /* Very limited use-cases allow recycle direct */
 static inline void page_pool_recycle_direct(struct page_pool *pool,
 					    struct page *page)
 {
-	__page_pool_put_page(pool, page, true);
+	__page_pool_put_page(pool, page, -1, true);
 }
 
 /* Disconnects a page (from a page_pool).  API users can have a need
