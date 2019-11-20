@@ -2098,9 +2098,11 @@ vchiq_dump(void *dump_context, const char *str, int len)
 		context->actual += copy_bytes;
 		len -= copy_bytes;
 
-		/* If tne terminating NUL is included in the length, then it
-		** marks the end of a line and should be replaced with a
-		** carriage return. */
+		/*
+		 * If the terminating NUL is included in the length, then it
+		 * marks the end of a line and should be replaced with a
+		 * carriage return.
+		 */
 		if ((len == 0) && (str[copy_bytes - 1] == '\0')) {
 			char cr = '\n';
 
