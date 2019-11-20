@@ -198,8 +198,8 @@ static int igt_overcommit(void *arg)
 	quirk_add(obj, &objects);
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
-	if (!IS_ERR(vma) || PTR_ERR(vma) != -ENOSPC) {
-		pr_err("Failed to evict+insert, i915_gem_object_ggtt_pin returned err=%d\n", (int)PTR_ERR(vma));
+	if (vma != ERR_PTR(-ENOSPC)) {
+		pr_err("Failed to evict+insert, i915_gem_object_ggtt_pin returned err=%d\n", (int)PTR_ERR_OR_ZERO(vma));
 		err = -EINVAL;
 		goto cleanup;
 	}
