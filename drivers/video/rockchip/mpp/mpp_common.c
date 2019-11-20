@@ -1119,10 +1119,10 @@ int mpp_safe_unreset(struct reset_control *rst)
 
 int mpp_set_grf(struct mpp_grf_info *grf_info)
 {
-	if (grf_info->grf && grf_info->mode_val)
+	if (grf_info->grf && grf_info->val)
 		regmap_write(grf_info->grf,
-			     grf_info->mode_ctrl,
-			     grf_info->mode_val);
+			     grf_info->offset,
+			     grf_info->val);
 
 	return 0;
 }

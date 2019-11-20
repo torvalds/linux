@@ -468,8 +468,10 @@
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <1>;
-		vdpu1,grf = <&grf 0x0144 0x04000400>;
-		vepu1,grf = <&grf 0x0144 0x04000400>;
+		rockchip,grf = <&grf>;
+		rockchip,grf-offset = <0x0144>;
+		rockchip,grf-values = <0x04000400>, <0x04000400>;
+		rockchip,grf-names = "grf_vdpu1", "grf_vepu1";
 		status = "disabled";
 	};
 

@@ -72,8 +72,8 @@ struct mpp_request {
 };
 
 struct mpp_grf_info {
-	u32 mode_ctrl;
-	u32 mode_val;
+	u32 offset;
+	u32 val;
 	struct regmap *grf;
 };
 

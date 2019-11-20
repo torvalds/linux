@@ -25,6 +25,11 @@
 #define MPP_CLASS_NAME		"mpp_class"
 #define MPP_SERVICE_NAME	"mpp_service"
 
+#define MPP_REGISTER_GRF(np, X, x) {\
+	if (IS_ENABLED(CONFIG_ROCKCHIP_MPP_##X))\
+		mpp_init_grf(np, &srv->grf_infos[MPP_DRIVER_##X], x);\
+	}
+
 #define MPP_REGISTER_DRIVER(X, x) {\
 	if (IS_ENABLED(CONFIG_ROCKCHIP_MPP_##X))\
 		mpp_add_driver(MPP_DRIVER_##X, &rockchip_##x##_driver);\
@@ -38,18 +43,26 @@ static struct mpp_grf_info *mpp_grf_infos;
 static struct platform_driver **mpp_sub_drivers;
 
 static int mpp_init_grf(struct device_node *np,
-			const char *name,
-			struct mpp_grf_info *grf_info)
+			struct mpp_grf_info *grf_info,
+			const char *name)
 {
-	grf_info->grf = syscon_regmap_lookup_by_phandle(np, name);
-	if (IS_ERR_OR_NULL(grf_info->grf)) {
-		grf_info->grf = NULL;
-	} else {
-		of_property_read_u32_index(np, name, 1,
-					   &grf_info->mode_ctrl);
-		of_property_read_u32_index(np, name, 2,
-					   &grf_info->mode_val);
-	}
+	int index;
+	struct regmap *grf;
+
+	grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	if (IS_ERR_OR_NULL(grf_info->grf))
+		return -EINVAL;
+
+	of_property_read_u32(np, "rockchip,grf-offset", &grf_info->offset);
+
+	index = of_property_match_string(np, "rockchip,grf-names", name);
+	if (index < 0)
+		return -ENODATA;
+
+	of_property_read_u32_index(np, "rockchip,grf-values",
+				   index, &grf_info->val);
+
+	grf_info->grf = grf;
 
 	return 0;
 }
@@ -166,14 +179,14 @@ static int mpp_service_probe(struct platform_device *pdev)
 			srv->task_queues[i] = queue;
 		}
 	}
+	MPP_REGISTER_GRF(np, RKVDEC, "grf_rkvdec");
+	MPP_REGISTER_GRF(np, RKVENC, "grf_rkvenc");
+	MPP_REGISTER_GRF(np, VEPU1, "grf_vepu1");
+	MPP_REGISTER_GRF(np, VDPU1, "grf_vdpu1");
+	MPP_REGISTER_GRF(np, VEPU2, "grf_vepu2");
+	MPP_REGISTER_GRF(np, VDPU2, "grf_vdpu2");
+	MPP_REGISTER_GRF(np, VEPU22, "grf_vepu22");
 
-	mpp_init_grf(np, "rkvdec,grf", &srv->grf_infos[MPP_DRIVER_RKVDEC]);
-	mpp_init_grf(np, "rkvenc,grf", &srv->grf_infos[MPP_DRIVER_RKVENC]);
-	mpp_init_grf(np, "vdpu1,grf", &srv->grf_infos[MPP_DRIVER_VDPU1]);
-	mpp_init_grf(np, "vepu1,grf", &srv->grf_infos[MPP_DRIVER_VEPU1]);
-	mpp_init_grf(np, "vdpu2,grf", &srv->grf_infos[MPP_DRIVER_VDPU2]);
-	mpp_init_grf(np, "vepu2,grf", &srv->grf_infos[MPP_DRIVER_VEPU2]);
-	mpp_init_grf(np, "vepu22,grf", &srv->grf_infos[MPP_DRIVER_VEPU22]);
 	mpp_grf_infos = srv->grf_infos;
 
 	ret = mpp_register_service(srv, MPP_SERVICE_NAME);

@@ -1394,9 +1394,10 @@
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <1>;
-		rkvdec,grf = <&grf 0x410 0x80008000>;
-		vdpu2,grf  = <&grf 0x410 0x80000000>;
-		vepu2,grf  = <&grf 0x410 0x80000000>;
+		rockchip,grf = <&grf>;
+		rockchip,grf-offset = <0x0410>;
+		rockchip,grf-values = <0x80008000>, <0x80000000>, <0x80000000>;
+		rockchip,grf-names = "grf_rkvdec", "grf_vdpu2", "grf_vepu2";
 		status = "disabled";
 	};
 

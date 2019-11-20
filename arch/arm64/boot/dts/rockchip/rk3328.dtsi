@@ -735,8 +735,10 @@
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <3>;
-		vepu2,grf  = <&grf 0x040c 0x8000000>;
-		vepu22,grf = <&grf 0x040c 0x8000800>;
+		rockchip,grf = <&grf>;
+		rockchip,grf-offset = <0x040c>;
+		rockchip,grf-values = <0x8000000>, <0x8000800>;
+		rockchip,grf-names = "grf_vepu2", "grf_vepu22";
 		status = "disabled";
 	};
 
