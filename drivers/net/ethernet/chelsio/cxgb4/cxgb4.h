@@ -603,6 +603,8 @@ struct port_info {
 	u8 vivld;
 	u8 smt_idx;
 	u8 rx_cchan;
+
+	bool tc_block_shared;
 };
 
 struct dentry;
@@ -1101,6 +1103,9 @@ struct adapter {
 
 	/* TC MQPRIO offload */
 	struct cxgb4_tc_mqprio *tc_mqprio;
+
+	/* TC MATCHALL classifier offload */
+	struct cxgb4_tc_matchall *tc_matchall;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1130,6 +1135,7 @@ enum {
 
 enum {
 	SCHED_CLASS_LEVEL_CL_RL = 0,    /* class rate limiter */
+	SCHED_CLASS_LEVEL_CH_RL = 2,    /* channel rate limiter */
 };
 
 enum {
@@ -1280,8 +1286,11 @@ struct ch_filter_specification {
 	u16 nat_lport;		/* local port to use after NAT'ing */
 	u16 nat_fport;		/* foreign port to use after NAT'ing */
 
+	u32 tc_prio;		/* TC's filter priority index */
+	u64 tc_cookie;		/* Unique cookie identifying TC rules */
+
 	/* reservation for future additions */
-	u8 rsvd[24];
+	u8 rsvd[12];
 
 	/* Filter rule value/mask pairs.
 	 */
