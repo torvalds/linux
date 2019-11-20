@@ -8,6 +8,9 @@
  *	Ding Wei, leo.ding@rock-chips.com
  *
  */
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+#include <asm/dma-iommu.h>
+#endif
 #include <linux/dma-buf.h>
 #include <linux/dma-iommu.h>
 #include <linux/iommu.h>
@@ -161,6 +164,10 @@ mpp_dma_import_fd(struct mpp_dma_session *session, int fd)
 	struct dma_buf *dmabuf;
 	struct mpp_dma_buffer *buffer;
 	struct dma_buf_attachment *attach;
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+	struct dma_iommu_mapping *mapping;
+	struct iommu_group *group;
+#endif
 
 	if (!session)
 		return ERR_PTR(-EINVAL);
@@ -210,6 +217,24 @@ mpp_dma_import_fd(struct mpp_dma_session *session, int fd)
 		goto fail_map;
 	}
 
+	/*
+	 * On arm32-arch, group->default_domain should be NULL,
+	 * domain store in mapping created by arm32-arch.
+	 * we re-attach domain here
+	 */
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+	group = iommu_group_get(session->dev);
+	if (!iommu_group_default_domain(group)) {
+		mapping = to_dma_iommu_mapping(session->dev);
+		ret = iommu_attach_device(mapping->domain, session->dev);
+	}
+	iommu_group_put(group);
+	if (ret) {
+		dev_info(session->dev, "Failed to attach iommu device, ret = %d\n", ret);
+		goto fail_attachment;
+	}
+#endif
+
 	buffer->iova = sg_dma_address(sgt->sgl);
 	buffer->size = sg_dma_len(sgt->sgl);
 
@@ -229,6 +254,10 @@ mpp_dma_import_fd(struct mpp_dma_session *session, int fd)
 
 	return buffer;
 
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+fail_attachment:
+	dma_buf_unmap_attachment(buffer->attach, sgt, buffer->dir);
+#endif
 fail_map:
 	dma_buf_detach(buffer->dmabuf, attach);
 fail_attach:
