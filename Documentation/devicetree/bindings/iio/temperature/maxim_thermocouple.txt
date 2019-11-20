@@ -5,7 +5,10 @@ Maxim thermocouple support
 
 Required properties:
 
-	- compatible: must be "maxim,max31855" or "maxim,max6675"
+	- compatible: must be "maxim,max6675" or one of the following:
+	   "maxim,max31855k", "maxim,max31855j", "maxim,max31855n",
+	   "maxim,max31855s", "maxim,max31855t", "maxim,max31855e",
+	   "maxim,max31855r"; the generic "max,max31855" is deprecated.
 	- reg: SPI chip select number for the device
 	- spi-max-frequency: must be 4300000
 	- spi-cpha: must be defined for max6675 to enable SPI mode 1
@@ -15,7 +18,7 @@ Required properties:
 Example:
 
 	max31855@0 {
-		compatible = "maxim,max31855";
+		compatible = "maxim,max31855k";
 		reg = <0>;
 		spi-max-frequency = <4300000>;
 	};
