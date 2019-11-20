@@ -831,7 +831,6 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 {
 	struct intel_gt_timelines *timelines = &gt->timelines;
 	struct intel_timeline *tl;
-	unsigned long flags;
 	bool ok;
 
 	if (!test_bit(I915_WEDGED, &gt->reset.flags))
@@ -853,7 +852,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	 *
 	 * No more can be submitted until we reset the wedged bit.
 	 */
-	spin_lock_irqsave(&timelines->lock, flags);
+	spin_lock(&timelines->lock);
 	list_for_each_entry(tl, &timelines->active_list, link) {
 		struct dma_fence *fence;
 
@@ -861,7 +860,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		if (!fence)
 			continue;
 
-		spin_unlock_irqrestore(&timelines->lock, flags);
+		spin_unlock(&timelines->lock);
 
 		/*
 		 * All internal dependencies (i915_requests) will have
@@ -874,10 +873,10 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		dma_fence_put(fence);
 
 		/* Restart iteration after droping lock */
-		spin_lock_irqsave(&timelines->lock, flags);
+		spin_lock(&timelines->lock);
 		tl = list_entry(&timelines->active_list, typeof(*tl), link);
 	}
-	spin_unlock_irqrestore(&timelines->lock, flags);
+	spin_unlock(&timelines->lock);
 
 	/* We must reset pending GPU events before restoring our submission */
 	ok = !HAS_EXECLISTS(gt->i915); /* XXX better agnosticism desired */

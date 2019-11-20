@@ -332,7 +332,6 @@ int intel_timeline_pin(struct intel_timeline *tl)
 void intel_timeline_enter(struct intel_timeline *tl)
 {
 	struct intel_gt_timelines *timelines = &tl->gt->timelines;
-	unsigned long flags;
 
 	/*
 	 * Pretend we are serialised by the timeline->mutex.
@@ -358,16 +357,15 @@ void intel_timeline_enter(struct intel_timeline *tl)
 	if (atomic_add_unless(&tl->active_count, 1, 0))
 		return;
 
-	spin_lock_irqsave(&timelines->lock, flags);
+	spin_lock(&timelines->lock);
 	if (!atomic_fetch_inc(&tl->active_count))
 		list_add_tail(&tl->link, &timelines->active_list);
-	spin_unlock_irqrestore(&timelines->lock, flags);
+	spin_unlock(&timelines->lock);
 }
 
 void intel_timeline_exit(struct intel_timeline *tl)
 {
 	struct intel_gt_timelines *timelines = &tl->gt->timelines;
-	unsigned long flags;
 
 	/* See intel_timeline_enter() */
 	lockdep_assert_held(&tl->mutex);
@@ -376,10 +374,10 @@ void intel_timeline_exit(struct intel_timeline *tl)
 	if (atomic_add_unless(&tl->active_count, -1, 1))
 		return;
 
-	spin_lock_irqsave(&timelines->lock, flags);
+	spin_lock(&timelines->lock);
 	if (atomic_dec_and_test(&tl->active_count))
 		list_del(&tl->link);
-	spin_unlock_irqrestore(&timelines->lock, flags);
+	spin_unlock(&timelines->lock);
 
 	/*
 	 * Since this timeline is idle, all bariers upon which we were waiting
