@@ -681,6 +681,7 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 			}
 
 			isst_get_get_trl_from_msr(cpu, ctdp_level->trl_sse_active_cores);
+			isst_get_trl_bucket_info(cpu, &ctdp_level->buckets_info);
 			continue;
 		}
 
