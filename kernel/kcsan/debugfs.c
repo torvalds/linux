@@ -24,39 +24,31 @@ static atomic_long_t counters[KCSAN_COUNTER_COUNT];
  * whitelist or blacklist.
  */
 static struct {
-	unsigned long *addrs; /* array of addresses */
-	size_t size; /* current size */
-	int used; /* number of elements used */
-	bool sorted; /* if elements are sorted */
-	bool whitelist; /* if list is a blacklist or whitelist */
+	unsigned long	*addrs;		/* array of addresses */
+	size_t		size;		/* current size */
+	int		used;		/* number of elements used */
+	bool		sorted;		/* if elements are sorted */
+	bool		whitelist;	/* if list is a blacklist or whitelist */
 } report_filterlist = {
-	.addrs = NULL,
-	.size = 8, /* small initial size */
-	.used = 0,
-	.sorted = false,
-	.whitelist = false, /* default is blacklist */
+	.addrs		= NULL,
+	.size		= 8,		/* small initial size */
+	.used		= 0,
+	.sorted		= false,
+	.whitelist	= false,	/* default is blacklist */
 };
 static DEFINE_SPINLOCK(report_filterlist_lock);
 
 static const char *counter_to_name(enum kcsan_counter_id id)
 {
 	switch (id) {
-	case KCSAN_COUNTER_USED_WATCHPOINTS:
-		return "used_watchpoints";
-	case KCSAN_COUNTER_SETUP_WATCHPOINTS:
-		return "setup_watchpoints";
-	case KCSAN_COUNTER_DATA_RACES:
-		return "data_races";
-	case KCSAN_COUNTER_NO_CAPACITY:
-		return "no_capacity";
-	case KCSAN_COUNTER_REPORT_RACES:
-		return "report_races";
-	case KCSAN_COUNTER_RACES_UNKNOWN_ORIGIN:
-		return "races_unknown_origin";
-	case KCSAN_COUNTER_UNENCODABLE_ACCESSES:
-		return "unencodable_accesses";
-	case KCSAN_COUNTER_ENCODING_FALSE_POSITIVES:
-		return "encoding_false_positives";
+	case KCSAN_COUNTER_USED_WATCHPOINTS:		return "used_watchpoints";
+	case KCSAN_COUNTER_SETUP_WATCHPOINTS:		return "setup_watchpoints";
+	case KCSAN_COUNTER_DATA_RACES:			return "data_races";
+	case KCSAN_COUNTER_NO_CAPACITY:			return "no_capacity";
+	case KCSAN_COUNTER_REPORT_RACES:		return "report_races";
+	case KCSAN_COUNTER_RACES_UNKNOWN_ORIGIN:	return "races_unknown_origin";
+	case KCSAN_COUNTER_UNENCODABLE_ACCESSES:	return "unencodable_accesses";
+	case KCSAN_COUNTER_ENCODING_FALSE_POSITIVES:	return "encoding_false_positives";
 	case KCSAN_COUNTER_COUNT:
 		BUG();
 	}
@@ -116,7 +108,7 @@ bool kcsan_skip_report_debugfs(unsigned long func_addr)
 
 	if (!kallsyms_lookup_size_offset(func_addr, &symbolsize, &offset))
 		return false;
-	func_addr -= offset; /* get function start */
+	func_addr -= offset; /* Get function start */
 
 	spin_lock_irqsave(&report_filterlist_lock, flags);
 	if (report_filterlist.used == 0)
@@ -195,6 +187,7 @@ static ssize_t insert_report_filterlist(const char *func)
 
 out:
 	spin_unlock_irqrestore(&report_filterlist_lock, flags);
+
 	return ret;
 }
 
@@ -226,8 +219,8 @@ static int debugfs_open(struct inode *inode, struct file *file)
 	return single_open(file, show_info, NULL);
 }
 
-static ssize_t debugfs_write(struct file *file, const char __user *buf,
-			     size_t count, loff_t *off)
+static ssize_t
+debugfs_write(struct file *file, const char __user *buf, size_t count, loff_t *off)
 {
 	char kbuf[KSYM_NAME_LEN];
 	char *arg;
@@ -264,10 +257,13 @@ static ssize_t debugfs_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations debugfs_ops = { .read = seq_read,
-						    .open = debugfs_open,
-						    .write = debugfs_write,
-						    .release = single_release };
+static const struct file_operations debugfs_ops =
+{
+	.read	 = seq_read,
+	.open	 = debugfs_open,
+	.write	 = debugfs_write,
+	.release = single_release
+};
 
 void __init kcsan_debugfs_init(void)
 {

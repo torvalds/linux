@@ -10,7 +10,8 @@
 #include "kcsan.h"
 
 #define SLOT_RANGE PAGE_SIZE
-#define INVALID_WATCHPOINT 0
+
+#define INVALID_WATCHPOINT  0
 #define CONSUMED_WATCHPOINT 1
 
 /*
@@ -34,24 +35,24 @@
  * Both these are assumed to be very unlikely. However, in case it still happens
  * happens, the report logic will filter out the false positive (see report.c).
  */
-#define WATCHPOINT_ADDR_BITS (BITS_PER_LONG - 1 - WATCHPOINT_SIZE_BITS)
+#define WATCHPOINT_ADDR_BITS (BITS_PER_LONG-1 - WATCHPOINT_SIZE_BITS)
 
 /*
  * Masks to set/retrieve the encoded data.
  */
-#define WATCHPOINT_WRITE_MASK BIT(BITS_PER_LONG - 1)
+#define WATCHPOINT_WRITE_MASK BIT(BITS_PER_LONG-1)
 #define WATCHPOINT_SIZE_MASK                                                   \
-	GENMASK(BITS_PER_LONG - 2, BITS_PER_LONG - 2 - WATCHPOINT_SIZE_BITS)
+	GENMASK(BITS_PER_LONG-2, BITS_PER_LONG-2 - WATCHPOINT_SIZE_BITS)
 #define WATCHPOINT_ADDR_MASK                                                   \
-	GENMASK(BITS_PER_LONG - 3 - WATCHPOINT_SIZE_BITS, 0)
+	GENMASK(BITS_PER_LONG-3 - WATCHPOINT_SIZE_BITS, 0)
 
 static inline bool check_encodable(unsigned long addr, size_t size)
 {
 	return size <= MAX_ENCODABLE_SIZE;
 }
 
-static inline long encode_watchpoint(unsigned long addr, size_t size,
-				     bool is_write)
+static inline long
+encode_watchpoint(unsigned long addr, size_t size, bool is_write)
 {
 	return (long)((is_write ? WATCHPOINT_WRITE_MASK : 0) |
 		      (size << WATCHPOINT_ADDR_BITS) |
@@ -59,17 +60,17 @@ static inline long encode_watchpoint(unsigned long addr, size_t size,
 }
 
 static inline bool decode_watchpoint(long watchpoint,
-				     unsigned long *addr_masked, size_t *size,
+				     unsigned long *addr_masked,
+				     size_t *size,
 				     bool *is_write)
 {
 	if (watchpoint == INVALID_WATCHPOINT ||
 	    watchpoint == CONSUMED_WATCHPOINT)
 		return false;
 
-	*addr_masked = (unsigned long)watchpoint & WATCHPOINT_ADDR_MASK;
-	*size = ((unsigned long)watchpoint & WATCHPOINT_SIZE_MASK) >>
-		WATCHPOINT_ADDR_BITS;
-	*is_write = !!((unsigned long)watchpoint & WATCHPOINT_WRITE_MASK);
+	*addr_masked =    (unsigned long)watchpoint & WATCHPOINT_ADDR_MASK;
+	*size	     =   ((unsigned long)watchpoint & WATCHPOINT_SIZE_MASK) >> WATCHPOINT_ADDR_BITS;
+	*is_write    = !!((unsigned long)watchpoint & WATCHPOINT_WRITE_MASK);
 
 	return true;
 }

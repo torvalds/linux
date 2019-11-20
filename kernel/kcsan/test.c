@@ -34,7 +34,7 @@ static bool test_encode_decode(void)
 		if (WARN_ON(!check_encodable(addr, size)))
 			return false;
 
-		/* encode and decode */
+		/* Encode and decode */
 		{
 			const long encoded_watchpoint =
 				encode_watchpoint(addr, size, is_write);
@@ -42,7 +42,7 @@ static bool test_encode_decode(void)
 			size_t verif_size;
 			bool verif_is_write;
 
-			/* check special watchpoints */
+			/* Check special watchpoints */
 			if (WARN_ON(decode_watchpoint(
 				    INVALID_WATCHPOINT, &verif_masked_addr,
 				    &verif_size, &verif_is_write)))
@@ -52,7 +52,7 @@ static bool test_encode_decode(void)
 				    &verif_size, &verif_is_write)))
 				return false;
 
-			/* check decoding watchpoint returns same data */
+			/* Check decoding watchpoint returns same data */
 			if (WARN_ON(!decode_watchpoint(
 				    encoded_watchpoint, &verif_masked_addr,
 				    &verif_size, &verif_is_write)))

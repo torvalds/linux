@@ -72,14 +72,14 @@ enum kcsan_counter_id {
 /*
  * Increment/decrement counter with given id; avoid calling these in fast-path.
  */
-void kcsan_counter_inc(enum kcsan_counter_id id);
-void kcsan_counter_dec(enum kcsan_counter_id id);
+extern void kcsan_counter_inc(enum kcsan_counter_id id);
+extern void kcsan_counter_dec(enum kcsan_counter_id id);
 
 /*
  * Returns true if data races in the function symbol that maps to func_addr
  * (offsets are ignored) should *not* be reported.
  */
-bool kcsan_skip_report_debugfs(unsigned long func_addr);
+extern bool kcsan_skip_report_debugfs(unsigned long func_addr);
 
 enum kcsan_report_type {
 	/*
@@ -99,10 +99,11 @@ enum kcsan_report_type {
 	 */
 	KCSAN_REPORT_RACE_UNKNOWN_ORIGIN,
 };
+
 /*
  * Print a race report from thread that encountered the race.
  */
-void kcsan_report(const volatile void *ptr, size_t size, bool is_write,
-		  bool value_change, int cpu_id, enum kcsan_report_type type);
+extern void kcsan_report(const volatile void *ptr, size_t size, bool is_write,
+			 bool value_change, int cpu_id, enum kcsan_report_type type);
 
 #endif /* _KERNEL_KCSAN_KCSAN_H */

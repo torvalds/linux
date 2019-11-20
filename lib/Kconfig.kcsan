@@ -6,7 +6,6 @@ config HAVE_ARCH_KCSAN
 menuconfig KCSAN
 	bool "KCSAN: watchpoint-based dynamic data race detector"
 	depends on HAVE_ARCH_KCSAN && !KASAN && STACKTRACE
-	default n
 	help
 	  Kernel Concurrency Sanitizer is a dynamic data race detector, which
 	  uses a watchpoint-based sampling approach to detect races. See
@@ -16,13 +15,12 @@ if KCSAN
 
 config KCSAN_DEBUG
 	bool "Debugging of KCSAN internals"
-	default n
 
 config KCSAN_SELFTEST
 	bool "Perform short selftests on boot"
 	default y
 	help
-	  Run KCSAN selftests on boot. On test failure, causes kernel to panic.
+	  Run KCSAN selftests on boot. On test failure, causes the kernel to panic.
 
 config KCSAN_EARLY_ENABLE
 	bool "Early enable during boot"
@@ -62,7 +60,8 @@ config KCSAN_DELAY_RANDOMIZE
 	default y
 	help
 	  If delays should be randomized, where the maximum is KCSAN_UDELAY_*.
-	  If false, the chosen delays are always KCSAN_UDELAY_* defined above.
+	  If false, the chosen delays are always the KCSAN_UDELAY_* values
+	  as defined above.
 
 config KCSAN_SKIP_WATCH
 	int "Skip instructions before setting up watchpoint"
@@ -86,9 +85,9 @@ config KCSAN_SKIP_WATCH_RANDOMIZE
 # parameters, to optimize for the common use-case, we avoid this because: (a)
 # it would impact performance (and we want to avoid static branch for all
 # {READ,WRITE}_ONCE, atomic_*, bitops, etc.), and (b) complicate the design
-# without real benefit. The main purpose of the below options are for use in
-# fuzzer configs to control reported data races, and are not expected to be
-# switched frequently by a user.
+# without real benefit. The main purpose of the below options is for use in
+# fuzzer configs to control reported data races, and they are not expected
+# to be switched frequently by a user.
 
 config KCSAN_REPORT_RACE_UNKNOWN_ORIGIN
 	bool "Report races of unknown origin"
@@ -103,13 +102,12 @@ config KCSAN_REPORT_VALUE_CHANGE_ONLY
 	bool "Only report races where watcher observed a data value change"
 	default y
 	help
-	  If enabled and a conflicting write is observed via watchpoint, but
+	  If enabled and a conflicting write is observed via a watchpoint, but
 	  the data value of the memory location was observed to remain
 	  unchanged, do not report the data race.
 
 config KCSAN_IGNORE_ATOMICS
 	bool "Do not instrument marked atomic accesses"
-	default n
 	help
 	  If enabled, never instruments marked atomic accesses. This results in
 	  not reporting data races where one access is atomic and the other is

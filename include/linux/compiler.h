@@ -313,7 +313,7 @@ unsigned long read_word_at_a_time(const void *addr)
 #include <linux/kcsan.h>
 
 /*
- * data_race: macro to document that accesses in an expression may conflict with
+ * data_race(): macro to document that accesses in an expression may conflict with
  * other concurrent accesses resulting in data races, but the resulting
  * behaviour is deemed safe regardless.
  *

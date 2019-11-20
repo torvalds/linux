@@ -6,7 +6,7 @@
 #include <linux/jiffies.h>
 
 /*
- * Helper that returns true if access to ptr should be considered as an atomic
+ * Helper that returns true if access to @ptr should be considered an atomic
  * access, even though it is not explicitly atomic.
  *
  * List all volatile globals that have been observed in races, to suppress

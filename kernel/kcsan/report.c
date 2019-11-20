@@ -22,13 +22,13 @@
  * the reports, with reporting being in the slow-path.
  */
 static struct {
-	const volatile void *ptr;
-	size_t size;
-	bool is_write;
-	int task_pid;
-	int cpu_id;
-	unsigned long stack_entries[NUM_STACK_ENTRIES];
-	int num_stack_entries;
+	const volatile void	*ptr;
+	size_t			size;
+	bool			is_write;
+	int			task_pid;
+	int			cpu_id;
+	unsigned long		stack_entries[NUM_STACK_ENTRIES];
+	int			num_stack_entries;
 } other_info = { .ptr = NULL };
 
 /*
@@ -40,8 +40,8 @@ static DEFINE_SPINLOCK(report_lock);
 /*
  * Special rules to skip reporting.
  */
-static bool skip_report(bool is_write, bool value_change,
-			unsigned long top_frame)
+static bool
+skip_report(bool is_write, bool value_change, unsigned long top_frame)
 {
 	if (IS_ENABLED(CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY) && is_write &&
 	    !value_change) {
@@ -105,6 +105,7 @@ static int sym_strcmp(void *addr1, void *addr2)
 
 	snprintf(buf1, sizeof(buf1), "%pS", addr1);
 	snprintf(buf2, sizeof(buf2), "%pS", addr2);
+
 	return strncmp(buf1, buf2, sizeof(buf1));
 }
 
@@ -116,8 +117,7 @@ static bool print_report(const volatile void *ptr, size_t size, bool is_write,
 			 enum kcsan_report_type type)
 {
 	unsigned long stack_entries[NUM_STACK_ENTRIES] = { 0 };
-	int num_stack_entries =
-		stack_trace_save(stack_entries, NUM_STACK_ENTRIES, 1);
+	int num_stack_entries = stack_trace_save(stack_entries, NUM_STACK_ENTRIES, 1);
 	int skipnr = get_stack_skipnr(stack_entries, num_stack_entries);
 	int other_skipnr;
 
@@ -131,7 +131,7 @@ static bool print_report(const volatile void *ptr, size_t size, bool is_write,
 		other_skipnr = get_stack_skipnr(other_info.stack_entries,
 						other_info.num_stack_entries);
 
-		/* value_change is only known for the other thread */
+		/* @value_change is only known for the other thread */
 		if (skip_report(other_info.is_write, value_change,
 				other_info.stack_entries[other_skipnr]))
 			return false;
@@ -241,13 +241,12 @@ retry:
 		if (other_info.ptr != NULL)
 			break; /* still in use, retry */
 
-		other_info.ptr = ptr;
-		other_info.size = size;
-		other_info.is_write = is_write;
-		other_info.task_pid = in_task() ? task_pid_nr(current) : -1;
-		other_info.cpu_id = cpu_id;
-		other_info.num_stack_entries = stack_trace_save(
-			other_info.stack_entries, NUM_STACK_ENTRIES, 1);
+		other_info.ptr			= ptr;
+		other_info.size			= size;
+		other_info.is_write		= is_write;
+		other_info.task_pid		= in_task() ? task_pid_nr(current) : -1;
+		other_info.cpu_id		= cpu_id;
+		other_info.num_stack_entries	= stack_trace_save(other_info.stack_entries, NUM_STACK_ENTRIES, 1);
 
 		spin_unlock_irqrestore(&report_lock, *flags);
 
@@ -299,6 +298,7 @@ retry:
 	}
 
 	spin_unlock_irqrestore(&report_lock, *flags);
+
 	goto retry;
 }
 
@@ -309,9 +309,7 @@ void kcsan_report(const volatile void *ptr, size_t size, bool is_write,
 
 	kcsan_disable_current();
 	if (prepare_report(&flags, ptr, size, is_write, cpu_id, type)) {
-		if (print_report(ptr, size, is_write, value_change, cpu_id,
-				 type) &&
-		    panic_on_warn)
+		if (print_report(ptr, size, is_write, value_change, cpu_id, type) && panic_on_warn)
 			panic("panic_on_warn set ...\n");
 
 		release_report(&flags, type);

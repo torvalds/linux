@@ -19,10 +19,10 @@ bool kcsan_enabled;
 
 /* Per-CPU kcsan_ctx for interrupts */
 static DEFINE_PER_CPU(struct kcsan_ctx, kcsan_cpu_ctx) = {
-	.disable_count = 0,
-	.atomic_next = 0,
-	.atomic_nest_count = 0,
-	.in_flat_atomic = false,
+	.disable_count		= 0,
+	.atomic_next		= 0,
+	.atomic_nest_count	= 0,
+	.in_flat_atomic		= false,
 };
 
 /*
@@ -50,11 +50,11 @@ static DEFINE_PER_CPU(struct kcsan_ctx, kcsan_cpu_ctx) = {
  *   slot=9:  [10, 11,  9]
  *   slot=63: [64, 65, 63]
  */
-#define NUM_SLOTS (1 + 2 * KCSAN_CHECK_ADJACENT)
+#define NUM_SLOTS (1 + 2*KCSAN_CHECK_ADJACENT)
 #define SLOT_IDX(slot, i) (slot + ((i + KCSAN_CHECK_ADJACENT) % NUM_SLOTS))
 
 /*
- * SLOT_IDX_FAST is used in fast-path. Not first checking the address's primary
+ * SLOT_IDX_FAST is used in the fast-path. Not first checking the address's primary
  * slot (middle) is fine if we assume that data races occur rarely. The set of
  * indices {SLOT_IDX(slot, i) | i in [0, NUM_SLOTS)} is equivalent to
  * {SLOT_IDX_FAST(slot, i) | i in [0, NUM_SLOTS)}.
@@ -68,9 +68,9 @@ static DEFINE_PER_CPU(struct kcsan_ctx, kcsan_cpu_ctx) = {
  * zero-initialized state matches INVALID_WATCHPOINT.
  *
  * Add NUM_SLOTS-1 entries to account for overflow; this helps avoid having to
- * use more complicated SLOT_IDX_FAST calculation with modulo in fast-path.
+ * use more complicated SLOT_IDX_FAST calculation with modulo in the fast-path.
  */
-static atomic_long_t watchpoints[CONFIG_KCSAN_NUM_WATCHPOINTS + NUM_SLOTS - 1];
+static atomic_long_t watchpoints[CONFIG_KCSAN_NUM_WATCHPOINTS + NUM_SLOTS-1];
 
 /*
  * Instructions to skip watching counter, used in should_watch(). We use a
@@ -78,7 +78,8 @@ static atomic_long_t watchpoints[CONFIG_KCSAN_NUM_WATCHPOINTS + NUM_SLOTS - 1];
  */
 static DEFINE_PER_CPU(long, kcsan_skip);
 
-static inline atomic_long_t *find_watchpoint(unsigned long addr, size_t size,
+static inline atomic_long_t *find_watchpoint(unsigned long addr,
+					     size_t size,
 					     bool expect_write,
 					     long *encoded_watchpoint)
 {
@@ -110,8 +111,8 @@ static inline atomic_long_t *find_watchpoint(unsigned long addr, size_t size,
 	return NULL;
 }
 
-static inline atomic_long_t *insert_watchpoint(unsigned long addr, size_t size,
-					       bool is_write)
+static inline atomic_long_t *
+insert_watchpoint(unsigned long addr, size_t size, bool is_write)
 {
 	const int slot = watchpoint_slot(addr);
 	const long encoded_watchpoint = encode_watchpoint(addr, size, is_write);
@@ -120,21 +121,16 @@ static inline atomic_long_t *insert_watchpoint(unsigned long addr, size_t size,
 
 	/* Check slot index logic, ensuring we stay within array bounds. */
 	BUILD_BUG_ON(SLOT_IDX(0, 0) != KCSAN_CHECK_ADJACENT);
-	BUILD_BUG_ON(SLOT_IDX(0, KCSAN_CHECK_ADJACENT + 1) != 0);
-	BUILD_BUG_ON(SLOT_IDX(CONFIG_KCSAN_NUM_WATCHPOINTS - 1,
-			      KCSAN_CHECK_ADJACENT) !=
-		     ARRAY_SIZE(watchpoints) - 1);
-	BUILD_BUG_ON(SLOT_IDX(CONFIG_KCSAN_NUM_WATCHPOINTS - 1,
-			      KCSAN_CHECK_ADJACENT + 1) !=
-		     ARRAY_SIZE(watchpoints) - NUM_SLOTS);
+	BUILD_BUG_ON(SLOT_IDX(0, KCSAN_CHECK_ADJACENT+1) != 0);
+	BUILD_BUG_ON(SLOT_IDX(CONFIG_KCSAN_NUM_WATCHPOINTS-1, KCSAN_CHECK_ADJACENT) != ARRAY_SIZE(watchpoints)-1);
+	BUILD_BUG_ON(SLOT_IDX(CONFIG_KCSAN_NUM_WATCHPOINTS-1, KCSAN_CHECK_ADJACENT+1) != ARRAY_SIZE(watchpoints) - NUM_SLOTS);
 
 	for (i = 0; i < NUM_SLOTS; ++i) {
 		long expect_val = INVALID_WATCHPOINT;
 
 		/* Try to acquire this slot. */
 		watchpoint = &watchpoints[SLOT_IDX(slot, i)];
-		if (atomic_long_try_cmpxchg_relaxed(watchpoint, &expect_val,
-						    encoded_watchpoint))
+		if (atomic_long_try_cmpxchg_relaxed(watchpoint, &expect_val, encoded_watchpoint))
 			return watchpoint;
 	}
 
@@ -150,11 +146,10 @@ static inline atomic_long_t *insert_watchpoint(unsigned long addr, size_t size,
  *	2. the thread that set up the watchpoint already removed it;
  *	3. the watchpoint was removed and then re-used.
  */
-static inline bool try_consume_watchpoint(atomic_long_t *watchpoint,
-					  long encoded_watchpoint)
+static inline bool
+try_consume_watchpoint(atomic_long_t *watchpoint, long encoded_watchpoint)
 {
-	return atomic_long_try_cmpxchg_relaxed(watchpoint, &encoded_watchpoint,
-					       CONSUMED_WATCHPOINT);
+	return atomic_long_try_cmpxchg_relaxed(watchpoint, &encoded_watchpoint, CONSUMED_WATCHPOINT);
 }
 
 /*
@@ -162,14 +157,13 @@ static inline bool try_consume_watchpoint(atomic_long_t *watchpoint,
  */
 static inline bool remove_watchpoint(atomic_long_t *watchpoint)
 {
-	return atomic_long_xchg_relaxed(watchpoint, INVALID_WATCHPOINT) !=
-	       CONSUMED_WATCHPOINT;
+	return atomic_long_xchg_relaxed(watchpoint, INVALID_WATCHPOINT) != CONSUMED_WATCHPOINT;
 }
 
 static inline struct kcsan_ctx *get_ctx(void)
 {
 	/*
-	 * In interrupt, use raw_cpu_ptr to avoid unnecessary checks, that would
+	 * In interrupts, use raw_cpu_ptr to avoid unnecessary checks, that would
 	 * also result in calls that generate warnings in uaccess regions.
 	 */
 	return in_task() ? &current->kcsan_ctx : raw_cpu_ptr(&kcsan_cpu_ctx);
@@ -260,7 +254,8 @@ static inline unsigned int get_delay(void)
  */
 
 static noinline void kcsan_found_watchpoint(const volatile void *ptr,
-					    size_t size, bool is_write,
+					    size_t size,
+					    bool is_write,
 					    atomic_long_t *watchpoint,
 					    long encoded_watchpoint)
 {
@@ -296,8 +291,8 @@ static noinline void kcsan_found_watchpoint(const volatile void *ptr,
 	user_access_restore(flags);
 }
 
-static noinline void kcsan_setup_watchpoint(const volatile void *ptr,
-					    size_t size, bool is_write)
+static noinline void
+kcsan_setup_watchpoint(const volatile void *ptr, size_t size, bool is_write)
 {
 	atomic_long_t *watchpoint;
 	union {
@@ -346,8 +341,8 @@ static noinline void kcsan_setup_watchpoint(const volatile void *ptr,
 	watchpoint = insert_watchpoint((unsigned long)ptr, size, is_write);
 	if (watchpoint == NULL) {
 		/*
-		 * Out of capacity: the size of `watchpoints`, and the frequency
-		 * with which `should_watch()` returns true should be tweaked so
+		 * Out of capacity: the size of 'watchpoints', and the frequency
+		 * with which should_watch() returns true should be tweaked so
 		 * that this case happens very rarely.
 		 */
 		kcsan_counter_inc(KCSAN_COUNTER_NO_CAPACITY);

@@ -94,21 +94,14 @@ void kcsan_atomic_next(int n);
 
 #else /* CONFIG_KCSAN */
 
-static inline void kcsan_init(void) { }
-
-static inline void kcsan_disable_current(void) { }
-
-static inline void kcsan_enable_current(void) { }
-
-static inline void kcsan_nestable_atomic_begin(void) { }
-
-static inline void kcsan_nestable_atomic_end(void) { }
-
-static inline void kcsan_flat_atomic_begin(void) { }
-
-static inline void kcsan_flat_atomic_end(void) { }
-
-static inline void kcsan_atomic_next(int n) { }
+static inline void kcsan_init(void)			{ }
+static inline void kcsan_disable_current(void)		{ }
+static inline void kcsan_enable_current(void)		{ }
+static inline void kcsan_nestable_atomic_begin(void)	{ }
+static inline void kcsan_nestable_atomic_end(void)	{ }
+static inline void kcsan_flat_atomic_begin(void)	{ }
+static inline void kcsan_flat_atomic_end(void)		{ }
+static inline void kcsan_atomic_next(int n)		{ }
 
 #endif /* CONFIG_KCSAN */
 
