@@ -693,12 +693,16 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 {
 	struct gfs2_log_header *lh;
 	u32 hash, crc;
-	struct page *page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
+	struct page *page;
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 	struct timespec64 tv;
 	struct super_block *sb = sdp->sd_vfs;
 	u64 dblock;
 
+	if (gfs2_withdrawn(sdp))
+		goto out;
+
+	page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
 	lh = page_address(page);
 	clear_page(lh);
 
@@ -751,6 +755,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 
 	gfs2_log_write(sdp, page, sb->s_blocksize, 0, dblock);
 	gfs2_log_submit_bio(&sdp->sd_log_bio, REQ_OP_WRITE | op_flags);
+out:
 	log_flush_wait(sdp);
 }
 
