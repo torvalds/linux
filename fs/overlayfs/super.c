@@ -1770,9 +1770,15 @@ static int __init ovl_init(void)
 	if (ovl_inode_cachep == NULL)
 		return -ENOMEM;
 
-	err = register_filesystem(&ovl_fs_type);
-	if (err)
-		kmem_cache_destroy(ovl_inode_cachep);
+	err = ovl_aio_request_cache_init();
+	if (!err) {
+		err = register_filesystem(&ovl_fs_type);
+		if (!err)
+			return 0;
+
+		ovl_aio_request_cache_destroy();
+	}
+	kmem_cache_destroy(ovl_inode_cachep);
 
 	return err;
 }
@@ -1787,7 +1793,7 @@ static void __exit ovl_exit(void)
 	 */
 	rcu_barrier();
 	kmem_cache_destroy(ovl_inode_cachep);
-
+	ovl_aio_request_cache_destroy();
 }
 
 module_init(ovl_init);
