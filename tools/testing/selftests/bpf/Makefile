@@ -163,6 +163,12 @@ define CLANG_BPF_BUILD_RULE
 		-c $1 -o - || echo "BPF obj compilation failed") | 	\
 	$(LLC) -march=bpf -mcpu=probe $4 -filetype=obj -o $2
 endef
+# Similar to CLANG_BPF_BUILD_RULE, but with disabled alu32
+define CLANG_NOALU32_BPF_BUILD_RULE
+	($(CLANG) $3 -O2 -target bpf -emit-llvm				\
+		-c $1 -o - || echo "BPF obj compilation failed") | 	\
+	$(LLC) -march=bpf -mcpu=v2 $4 -filetype=obj -o $2
+endef
 # Similar to CLANG_BPF_BUILD_RULE, but using native Clang and bpf LLC
 define CLANG_NATIVE_BPF_BUILD_RULE
 	($(CLANG) $3 -O2 -emit-llvm					\
@@ -275,6 +281,7 @@ TRUNNER_BPF_LDFLAGS := -mattr=+alu32
 $(eval $(call DEFINE_TEST_RUNNER,test_progs))
 
 # Define test_progs-no_alu32 test runner.
+TRUNNER_BPF_BUILD_RULE := CLANG_NOALU32_BPF_BUILD_RULE
 TRUNNER_BPF_LDFLAGS :=
 $(eval $(call DEFINE_TEST_RUNNER,test_progs,no_alu32))
 
