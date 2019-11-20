@@ -661,7 +661,8 @@ out:
 	return NETDEV_TX_OK;
 }
 
-void ocelot_get_hwtimestamp(struct ocelot *ocelot, struct timespec64 *ts)
+static void ocelot_get_hwtimestamp(struct ocelot *ocelot,
+				   struct timespec64 *ts)
 {
 	unsigned long flags;
 	u32 val;
@@ -686,7 +687,64 @@ void ocelot_get_hwtimestamp(struct ocelot *ocelot, struct timespec64 *ts)
 
 	spin_unlock_irqrestore(&ocelot->ptp_clock_lock, flags);
 }
-EXPORT_SYMBOL(ocelot_get_hwtimestamp);
+
+void ocelot_get_txtstamp(struct ocelot *ocelot)
+{
+	int budget = OCELOT_PTP_QUEUE_SZ;
+
+	while (budget--) {
+		struct skb_shared_hwtstamps shhwtstamps;
+		struct list_head *pos, *tmp;
+		struct sk_buff *skb = NULL;
+		struct ocelot_skb *entry;
+		struct ocelot_port *port;
+		struct timespec64 ts;
+		u32 val, id, txport;
+
+		val = ocelot_read(ocelot, SYS_PTP_STATUS);
+
+		/* Check if a timestamp can be retrieved */
+		if (!(val & SYS_PTP_STATUS_PTP_MESS_VLD))
+			break;
+
+		WARN_ON(val & SYS_PTP_STATUS_PTP_OVFL);
+
+		/* Retrieve the ts ID and Tx port */
+		id = SYS_PTP_STATUS_PTP_MESS_ID_X(val);
+		txport = SYS_PTP_STATUS_PTP_MESS_TXPORT_X(val);
+
+		/* Retrieve its associated skb */
+		port = ocelot->ports[txport];
+
+		list_for_each_safe(pos, tmp, &port->skbs) {
+			entry = list_entry(pos, struct ocelot_skb, head);
+			if (entry->id != id)
+				continue;
+
+			skb = entry->skb;
+
+			list_del(pos);
+			kfree(entry);
+		}
+
+		/* Next ts */
+		ocelot_write(ocelot, SYS_PTP_NXT_PTP_NXT, SYS_PTP_NXT);
+
+		if (unlikely(!skb))
+			continue;
+
+		/* Get the h/w timestamp */
+		ocelot_get_hwtimestamp(ocelot, &ts);
+
+		/* Set the timestamp into the skb */
+		memset(&shhwtstamps, 0, sizeof(shhwtstamps));
+		shhwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
+		skb_tstamp_tx(skb, &shhwtstamps);
+
+		dev_kfree_skb_any(skb);
+	}
+}
+EXPORT_SYMBOL(ocelot_get_txtstamp);
 
 static int ocelot_mc_unsync(struct net_device *dev, const unsigned char *addr)
 {

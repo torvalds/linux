@@ -406,6 +406,13 @@ struct ocelot_ops {
 	int (*reset)(struct ocelot *ocelot);
 };
 
+struct ocelot_skb {
+	struct list_head head;
+	struct sk_buff *skb;
+	u8 id;
+};
+
+
 struct ocelot_port {
 	struct ocelot			*ocelot;
 
@@ -536,6 +543,6 @@ int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid);
 int ocelot_hwstamp_get(struct ocelot *ocelot, int port, struct ifreq *ifr);
 int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr);
 int ocelot_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts);
-void ocelot_get_hwtimestamp(struct ocelot *ocelot, struct timespec64 *ts);
+void ocelot_get_txtstamp(struct ocelot *ocelot);
 
 #endif

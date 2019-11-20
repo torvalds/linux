@@ -74,12 +74,6 @@ struct ocelot_port_private {
 	struct ocelot_port_tc tc;
 };
 
-struct ocelot_skb {
-	struct list_head head;
-	struct sk_buff *skb;
-	u8 id;
-};
-
 u32 ocelot_port_readl(struct ocelot_port *port, u32 reg);
 void ocelot_port_writel(struct ocelot_port *port, u32 val, u32 reg);
 
