@@ -314,7 +314,8 @@ xfs_dir2_leaf_readbuf(
 				break;
 			}
 			if (next_ra > *ra_blk) {
-				xfs_dir3_data_readahead(dp, next_ra, -2);
+				xfs_dir3_data_readahead(dp, next_ra,
+							XFS_DABUF_MAP_HOLE_OK);
 				*ra_blk = next_ra;
 			}
 			ra_want -= geo->fsbcount;

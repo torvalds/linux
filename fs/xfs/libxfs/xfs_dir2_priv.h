@@ -79,8 +79,8 @@ extern xfs_failaddr_t __xfs_dir3_data_check(struct xfs_inode *dp,
 		struct xfs_buf *bp);
 extern int xfs_dir3_data_read(struct xfs_trans *tp, struct xfs_inode *dp,
 		xfs_dablk_t bno, xfs_daddr_t mapped_bno, struct xfs_buf **bpp);
-extern int xfs_dir3_data_readahead(struct xfs_inode *dp, xfs_dablk_t bno,
-		xfs_daddr_t mapped_bno);
+int xfs_dir3_data_readahead(struct xfs_inode *dp, xfs_dablk_t bno,
+		unsigned int flags);
 
 extern struct xfs_dir2_data_free *
 xfs_dir2_data_freeinsert(struct xfs_dir2_data_hdr *hdr,

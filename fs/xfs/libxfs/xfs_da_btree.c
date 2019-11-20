@@ -2651,7 +2651,7 @@ int
 xfs_da_reada_buf(
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
-	xfs_daddr_t		mappedbno,
+	unsigned int		flags,
 	int			whichfork,
 	const struct xfs_buf_ops *ops)
 {
@@ -2660,18 +2660,12 @@ xfs_da_reada_buf(
 	int			nmap;
 	int			error;
 
-	if (mappedbno >= 0)
-		return -EINVAL;
-
 	mapp = &map;
 	nmap = 1;
-	error = xfs_dabuf_map(dp, bno,
-			mappedbno == -1 ? XFS_DABUF_MAP_HOLE_OK : 0,
-			whichfork, &mapp, &nmap);
+	error = xfs_dabuf_map(dp, bno, flags, whichfork, &mapp, &nmap);
 	if (error || !nmap)
 		goto out_free;
 
-	mappedbno = mapp[0].bm_bn;
 	xfs_buf_readahead_map(dp->i_mount->m_ddev_targp, mapp, nmap, ops);
 
 out_free:

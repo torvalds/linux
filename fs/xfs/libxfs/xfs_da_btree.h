@@ -208,8 +208,8 @@ int	xfs_da_read_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 			       struct xfs_buf **bpp, int whichfork,
 			       const struct xfs_buf_ops *ops);
 int	xfs_da_reada_buf(struct xfs_inode *dp, xfs_dablk_t bno,
-				xfs_daddr_t mapped_bno, int whichfork,
-				const struct xfs_buf_ops *ops);
+		unsigned int flags, int whichfork,
+		const struct xfs_buf_ops *ops);
 int	xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 					  struct xfs_buf *dead_buf);
 
