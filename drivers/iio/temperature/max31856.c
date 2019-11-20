@@ -12,6 +12,7 @@
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/util_macros.h>
 #include <dt-bindings/iio/temperature/thermocouple.h>
 /*
  * The MSB of the register value determines whether the following byte will
@@ -24,6 +25,8 @@
 #define MAX31856_CR0_OCFAULT       BIT(4)
 #define MAX31856_CR0_OCFAULT_MASK  GENMASK(5, 4)
 #define MAX31856_CR0_FILTER_50HZ   BIT(0)
+#define MAX31856_AVERAGING_MASK    GENMASK(6, 4)
+#define MAX31856_AVERAGING_SHIFT   4
 #define MAX31856_TC_TYPE_MASK      GENMASK(3, 0)
 #define MAX31856_FAULT_OVUV        BIT(1)
 #define MAX31856_FAULT_OPEN        BIT(0)
@@ -51,6 +54,8 @@ static const struct iio_chan_spec max31856_channels[] = {
 		.type = IIO_TEMP,
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_type =
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO)
 	},
 	{	/* Cold Junction Temperature */
 		.type = IIO_TEMP,
@@ -58,6 +63,8 @@ static const struct iio_chan_spec max31856_channels[] = {
 		.modified = 1,
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_type =
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO)
 	},
 };
 
@@ -65,6 +72,7 @@ struct max31856_data {
 	struct spi_device *spi;
 	u32 thermocouple_type;
 	bool filter_50hz;
+	int averaging;
 };
 
 static int max31856_read(struct max31856_data *data, u8 reg,
@@ -109,6 +117,10 @@ static int max31856_init(struct max31856_data *data)
 
 	reg_cr1_val &= ~MAX31856_TC_TYPE_MASK;
 	reg_cr1_val |= data->thermocouple_type;
+
+	reg_cr1_val &= ~MAX31856_AVERAGING_MASK;
+	reg_cr1_val |= data->averaging << MAX31856_AVERAGING_SHIFT;
+
 	ret = max31856_write(data, MAX31856_CR1_REG, reg_cr1_val);
 	if (ret)
 		return ret;
@@ -217,12 +229,42 @@ static int max31856_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_INT_PLUS_MICRO;
 		}
 		break;
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		*val = 1 << data->averaging;
+		return IIO_VAL_INT;
 	default:
 		ret = -EINVAL;
 		break;
 	}
 
 	return ret;
+}
+
+static int max31856_write_raw(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      int val, int val2, long mask)
+{
+	struct max31856_data *data = iio_priv(indio_dev);
+	int msb;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		if (val > 16 || val < 1)
+			return -EINVAL;
+		msb = fls(val) - 1;
+		/* Round up to next 2pow if needed */
+		if (BIT(msb) < val)
+			msb++;
+
+		data->averaging = msb;
+		max31856_init(data);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static ssize_t show_fault(struct device *dev, u8 faultbit, char *buf)
@@ -313,6 +355,7 @@ static const struct attribute_group max31856_group = {
 
 static const struct iio_info max31856_info = {
 	.read_raw = max31856_read_raw,
+	.write_raw = max31856_write_raw,
 	.attrs = &max31856_group,
 };
 
