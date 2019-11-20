@@ -320,6 +320,12 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	imxpd = dev_get_drvdata(dev);
 	memset(imxpd, 0, sizeof(*imxpd));
 
+	/* port@1 is the output port */
+	ret = drm_of_find_panel_or_bridge(np, 1, 0, &imxpd->panel,
+					  &imxpd->next_bridge);
+	if (ret && ret != -ENODEV)
+		return ret;
+
 	edidp = of_get_property(np, "edid", &imxpd->edid_len);
 	if (edidp)
 		imxpd->edid = kmemdup(edidp, imxpd->edid_len, GFP_KERNEL);
@@ -336,12 +342,6 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 			bus_format = MEDIA_BUS_FMT_RGB666_1X24_CPADHI;
 	}
 	imxpd->bus_format = bus_format;
-
-	/* port@1 is the output port */
-	ret = drm_of_find_panel_or_bridge(np, 1, 0, &imxpd->panel,
-					  &imxpd->next_bridge);
-	if (ret && ret != -ENODEV)
-		return ret;
 
 	imxpd->dev = dev;
 
