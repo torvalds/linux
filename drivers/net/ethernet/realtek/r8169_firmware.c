@@ -37,7 +37,7 @@ struct fw_info {
 	u8	chksum;
 } __packed;
 
-#define FW_OPCODE_SIZE	sizeof(typeof(*((struct rtl_fw_phy_action *)0)->code))
+#define FW_OPCODE_SIZE FIELD_SIZEOF(struct rtl_fw_phy_action, code[0])
 
 static bool rtl_fw_format_ok(struct rtl_fw *rtl_fw)
 {
