@@ -908,7 +908,7 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 		 * in this context instead of having to queue up new async work.
 		 */
 		if (nxt) {
-			if (nxtptr && io_wq_current_is_worker())
+			if (io_wq_current_is_worker())
 				*nxtptr = nxt;
 			else
 				io_queue_async_work(nxt);
@@ -986,8 +986,13 @@ static void io_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
 
 static void io_free_req(struct io_kiocb *req)
 {
-	io_req_find_next(req, NULL);
+	struct io_kiocb *nxt = NULL;
+
+	io_req_find_next(req, &nxt);
 	__io_free_req(req);
+
+	if (nxt)
+		io_queue_async_work(nxt);
 }
 
 /*
