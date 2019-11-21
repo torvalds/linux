@@ -1291,38 +1291,53 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 	}
 
 	for (port = execlists->pending; (rq = *port); port++) {
+		unsigned long flags;
+		bool ok = true;
+
 		if (ce == rq->hw_context) {
 			GEM_TRACE_ERR("Dup context:%llx in pending[%zd]\n",
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			return false;
 		}
-
 		ce = rq->hw_context;
+
+		/* Hold tightly onto the lock to prevent concurrent retires! */
+		spin_lock_irqsave_nested(&rq->lock, flags,
+					 SINGLE_DEPTH_NESTING);
+
 		if (i915_request_completed(rq))
-			continue;
+			goto unlock;
 
 		if (i915_active_is_idle(&ce->active) &&
 		    !i915_gem_context_is_kernel(ce->gem_context)) {
 			GEM_TRACE_ERR("Inactive context:%llx in pending[%zd]\n",
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
-			return false;
+			ok = false;
+			goto unlock;
 		}
 
 		if (!i915_vma_is_pinned(ce->state)) {
 			GEM_TRACE_ERR("Unpinned context:%llx in pending[%zd]\n",
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
-			return false;
+			ok = false;
+			goto unlock;
 		}
 
 		if (!i915_vma_is_pinned(ce->ring->vma)) {
 			GEM_TRACE_ERR("Unpinned ring:%llx in pending[%zd]\n",
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
-			return false;
+			ok = false;
+			goto unlock;
 		}
+
+unlock:
+		spin_unlock_irqrestore(&rq->lock, flags);
+		if (!ok)
+			return false;
 	}
 
 	return ce;
