@@ -3,8 +3,8 @@
         \renewcommand\thesection*
         \renewcommand\thesubsection*
 
-Korean translations
-===================
+한국어 번역
+===========
 
 .. toctree::
    :maxdepth: 1
