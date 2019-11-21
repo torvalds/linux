@@ -88,14 +88,6 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 	return num_modes;
 }
 
-static struct drm_encoder *imx_pd_connector_best_encoder(
-		struct drm_connector *connector)
-{
-	struct imx_parallel_display *imxpd = con_to_imxpd(connector);
-
-	return &imxpd->encoder;
-}
-
 static void imx_pd_bridge_enable(struct drm_bridge *bridge)
 {
 	struct imx_parallel_display *imxpd = bridge_to_imxpd(bridge);
@@ -254,7 +246,6 @@ static const struct drm_connector_funcs imx_pd_connector_funcs = {
 
 static const struct drm_connector_helper_funcs imx_pd_connector_helper_funcs = {
 	.get_modes = imx_pd_connector_get_modes,
-	.best_encoder = imx_pd_connector_best_encoder,
 };
 
 static const struct drm_bridge_funcs imx_pd_bridge_funcs = {
