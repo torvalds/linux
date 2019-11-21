@@ -1728,7 +1728,7 @@ int psp_ring_cmd_submit(struct psp_context *psp,
 			int index)
 {
 	unsigned int psp_write_ptr_reg = 0;
-	struct psp_gfx_rb_frame *write_frame = psp->km_ring.ring_mem;
+	struct psp_gfx_rb_frame *write_frame;
 	struct psp_ring *ring = &psp->km_ring;
 	struct psp_gfx_rb_frame *ring_buffer_start = ring->ring_mem;
 	struct psp_gfx_rb_frame *ring_buffer_end = ring_buffer_start +
