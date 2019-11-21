@@ -15,19 +15,19 @@ menuconfig DMADEVICES
 	  be empty in some cases.
 
 config DMADEVICES_DEBUG
-        bool "DMA Engine debugging"
-        depends on DMADEVICES != n
-        help
-          This is an option for use by developers; most people should
-          say N here.  This enables DMA engine core and driver debugging.
+	bool "DMA Engine debugging"
+	depends on DMADEVICES != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables DMA engine core and driver debugging.
 
 config DMADEVICES_VDEBUG
-        bool "DMA Engine verbose debugging"
-        depends on DMADEVICES_DEBUG != n
-        help
-          This is an option for use by developers; most people should
-          say N here.  This enables deeper (more verbose) debugging of
-          the DMA engine core and drivers.
+	bool "DMA Engine verbose debugging"
+	depends on DMADEVICES_DEBUG != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables deeper (more verbose) debugging of
+	  the DMA engine core and drivers.
 
 
 if DMADEVICES
@@ -215,28 +215,28 @@ config FSL_EDMA
 	  This module can be found on Freescale Vybrid and LS-1 SoCs.
 
 config FSL_QDMA
-       tristate "NXP Layerscape qDMA engine support"
-       depends on ARM || ARM64
-       select DMA_ENGINE
-       select DMA_VIRTUAL_CHANNELS
-       select DMA_ENGINE_RAID
-       select ASYNC_TX_ENABLE_CHANNEL_SWITCH
-       help
-         Support the NXP Layerscape qDMA engine with command queue and legacy mode.
-         Channel virtualization is supported through enqueuing of DMA jobs to,
-         or dequeuing DMA jobs from, different work queues.
-         This module can be found on NXP Layerscape SoCs.
+	tristate "NXP Layerscape qDMA engine support"
+	depends on ARM || ARM64
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	 Support the NXP Layerscape qDMA engine with command queue and legacy mode.
+	 Channel virtualization is supported through enqueuing of DMA jobs to,
+	 or dequeuing DMA jobs from, different work queues.
+	 This module can be found on NXP Layerscape SoCs.
 	  The qdma driver only work on  SoCs with a DPAA hardware block.
 
 config FSL_RAID
-        tristate "Freescale RAID engine Support"
-        depends on FSL_SOC && !ASYNC_TX_ENABLE_CHANNEL_SWITCH
-        select DMA_ENGINE
-        select DMA_ENGINE_RAID
-        ---help---
-          Enable support for Freescale RAID Engine. RAID Engine is
-          available on some QorIQ SoCs (like P5020/P5040). It has
-          the capability to offload memcpy, xor and pq computation
+	tristate "Freescale RAID engine Support"
+	depends on FSL_SOC && !ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	---help---
+	  Enable support for Freescale RAID Engine. RAID Engine is
+	  available on some QorIQ SoCs (like P5020/P5040). It has
+	  the capability to offload memcpy, xor and pq computation
 	  for raid5/6.
 
 config IMG_MDC_DMA
