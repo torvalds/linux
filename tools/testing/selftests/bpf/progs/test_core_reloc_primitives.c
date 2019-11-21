@@ -8,10 +8,10 @@
 
 char _license[] SEC("license") = "GPL";
 
-static volatile struct data {
+struct {
 	char in[256];
 	char out[256];
-} data;
+} data = {};
 
 enum core_reloc_primitives_enum {
 	A = 0,

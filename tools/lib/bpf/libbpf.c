@@ -1835,8 +1835,8 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		return -LIBBPF_ERRNO__RELOC;
 	}
 	if (!shdr_idx || shdr_idx >= SHN_LORESERVE) {
-		pr_warn("relocation: not yet supported relo for non-static global \'%s\' variable in special section (0x%x) found in insns[%d].code 0x%x\n",
-			name, shdr_idx, insn_idx, insn->code);
+		pr_warn("invalid relo for \'%s\' in special section 0x%x; forgot to initialize global var?..\n",
+			name, shdr_idx);
 		return -LIBBPF_ERRNO__RELOC;
 	}
 
@@ -1874,11 +1874,6 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 	/* global data map relocation */
 	if (!bpf_object__shndx_is_data(obj, shdr_idx)) {
 		pr_warn("bad data relo against section %u\n", shdr_idx);
-		return -LIBBPF_ERRNO__RELOC;
-	}
-	if (GELF_ST_BIND(sym->st_info) == STB_GLOBAL) {
-		pr_warn("relocation: not yet supported relo for non-static global \'%s\' variable found in insns[%d].code 0x%x\n",
-			name, insn_idx, insn->code);
 		return -LIBBPF_ERRNO__RELOC;
 	}
 	if (!obj->caps.global_data) {
