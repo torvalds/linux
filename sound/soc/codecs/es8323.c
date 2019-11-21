@@ -506,9 +506,9 @@ static int es8323_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	u8 adciface = 0;
 	u8 daciface = 0;
 
-	iface = snd_soc_component_read32(component, ES8323_IFACE);
-	adciface = snd_soc_component_read32(component, ES8323_ADC_IFACE);
-	daciface = snd_soc_component_read32(component, ES8323_DAC_IFACE);
+	iface = snd_soc_component_read(component, ES8323_IFACE);
+	adciface = snd_soc_component_read(component, ES8323_ADC_IFACE);
+	daciface = snd_soc_component_read(component, ES8323_DAC_IFACE);
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -601,9 +601,9 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
-	u16 srate = snd_soc_component_read32(component, ES8323_IFACE) & 0x80;
-	u16 adciface = snd_soc_component_read32(component, ES8323_ADC_IFACE) & 0xE3;
-	u16 daciface = snd_soc_component_read32(component, ES8323_DAC_IFACE) & 0xC7;
+	u16 srate = snd_soc_component_read(component, ES8323_IFACE) & 0x80;
+	u16 adciface = snd_soc_component_read(component, ES8323_ADC_IFACE) & 0xE3;
+	u16 daciface = snd_soc_component_read(component, ES8323_DAC_IFACE) & 0xC7;
 	int coeff;
 
 	coeff = get_coeff(es8323->sysclk, params_rate(params));
@@ -653,7 +653,7 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int es8323_mute(struct snd_soc_dai *dai, int mute)
+static int es8323_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_component *component = dai->component;
 	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
@@ -735,7 +735,8 @@ static struct snd_soc_dai_ops es8323_ops = {
 	.hw_params = es8323_pcm_hw_params,
 	.set_fmt = es8323_set_dai_fmt,
 	.set_sysclk = es8323_set_dai_sysclk,
-	.digital_mute = es8323_mute,
+	.mute_stream = es8323_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver es8323_dai = {
@@ -883,7 +884,8 @@ static const struct regmap_config es8323_regmap_config = {
 	.cache_type	= REGCACHE_RBTREE,
 	.reg_defaults	= es8323_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(es8323_reg_defaults),
-	.use_single_rw	= true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int es8323_i2c_probe(struct i2c_client *i2c,
