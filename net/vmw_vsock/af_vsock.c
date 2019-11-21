@@ -412,6 +412,7 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 	const struct vsock_transport *new_transport;
 	struct sock *sk = sk_vsock(vsk);
 	unsigned int remote_cid = vsk->remote_addr.svm_cid;
+	int ret;
 
 	switch (sk->sk_type) {
 	case SOCK_DGRAM:
@@ -443,9 +444,15 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 	if (!new_transport || !try_module_get(new_transport->module))
 		return -ENODEV;
 
+	ret = new_transport->init(vsk, psk);
+	if (ret) {
+		module_put(new_transport->module);
+		return ret;
+	}
+
 	vsk->transport = new_transport;
 
-	return vsk->transport->init(vsk, psk);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(vsock_assign_transport);
 
