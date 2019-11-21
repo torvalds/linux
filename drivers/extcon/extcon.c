@@ -1081,6 +1081,19 @@ void extcon_dev_free(struct extcon_dev *edev)
 }
 EXPORT_SYMBOL_GPL(extcon_dev_free);
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+static const char *extcon_get_link_name(struct extcon_dev *edev)
+{
+	const char *dot = strchr(edev->name, '.');
+	const char *name = dot + 1;
+
+	if (!dot || !name || !(*name))
+		name = edev->name;
+
+	return name;
+}
+#endif
+
 /**
  * extcon_dev_register() - Register an new extcon device
  * @edev:	the extcon device to be registered
@@ -1280,11 +1293,15 @@ int extcon_dev_register(struct extcon_dev *edev)
 	mutex_unlock(&extcon_dev_list_lock);
 
 #ifdef CONFIG_ARCH_ROCKCHIP
-	ret = sysfs_create_link(&edev->dev.class->p->subsys.kobj,
-				&edev->dev.kobj, edev->name);
-	if (ret)
-		dev_err(&edev->dev, "failed to create extcon %s link\n",
-			edev->name);
+	{
+		const char *name = extcon_get_link_name(edev);
+
+		ret = sysfs_create_link(&edev->dev.class->p->subsys.kobj,
+					&edev->dev.kobj, name);
+		if (ret)
+			dev_err(&edev->dev,
+				"failed to create extcon %s link\n", name);
+	}
 #endif
 
 	return 0;
@@ -1336,7 +1353,7 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 
 #ifdef CONFIG_ARCH_ROCKCHIP
 	sysfs_delete_link(&edev->dev.class->p->subsys.kobj,
-			  &edev->dev.kobj, edev->name);
+			  &edev->dev.kobj, extcon_get_link_name(edev));
 #endif
 
 	device_unregister(&edev->dev);
