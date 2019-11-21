@@ -550,7 +550,7 @@ int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 	return 0;
 }
 
-bool is_stream_irq(struct snd_sof_dev *sdev)
+bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	bool ret = true;

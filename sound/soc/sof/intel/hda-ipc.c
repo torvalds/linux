@@ -238,7 +238,7 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 }
 
 /* Check if it is an IPC and disable IPC interrupt if yes */
-bool check_ipc(struct snd_sof_dev *sdev)
+bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 {
 	bool ret = false;
 	u32 irq_status;

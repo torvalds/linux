@@ -406,7 +406,8 @@ irqreturn_t hda_dsp_interrupt_handler(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 
-	if (check_ipc(sdev) || is_stream_irq(sdev))
+	if (hda_dsp_check_ipc_irq(sdev) ||
+	    hda_dsp_check_stream_irq(sdev))
 		return IRQ_WAKE_THREAD;
 
 	return IRQ_NONE;
@@ -416,9 +417,9 @@ irqreturn_t hda_dsp_interrupt_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 
-	if (check_ipc(sdev))
+	if (hda_dsp_check_ipc_irq(sdev))
 		sof_ops(sdev)->irq_thread(irq, sdev);
-	if (is_stream_irq(sdev))
+	if (hda_dsp_check_stream_irq(sdev))
 		hda_dsp_stream_threaded_handler(irq, sdev);
 
 	return IRQ_HANDLED;
