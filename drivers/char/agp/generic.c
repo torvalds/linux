@@ -850,7 +850,6 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 {
 	char *table;
 	char *table_end;
-	int size;
 	int page_order;
 	int num_entries;
 	int i;
@@ -864,25 +863,22 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 	table = NULL;
 	i = bridge->aperture_size_idx;
 	temp = bridge->current_size;
-	size = page_order = num_entries = 0;
+	page_order = num_entries = 0;
 
 	if (bridge->driver->size_type != FIXED_APER_SIZE) {
 		do {
 			switch (bridge->driver->size_type) {
 			case U8_APER_SIZE:
-				size = A_SIZE_8(temp)->size;
 				page_order =
 				    A_SIZE_8(temp)->page_order;
 				num_entries =
 				    A_SIZE_8(temp)->num_entries;
 				break;
 			case U16_APER_SIZE:
-				size = A_SIZE_16(temp)->size;
 				page_order = A_SIZE_16(temp)->page_order;
 				num_entries = A_SIZE_16(temp)->num_entries;
 				break;
 			case U32_APER_SIZE:
-				size = A_SIZE_32(temp)->size;
 				page_order = A_SIZE_32(temp)->page_order;
 				num_entries = A_SIZE_32(temp)->num_entries;
 				break;
@@ -890,7 +886,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 			case FIXED_APER_SIZE:
 			case LVL2_APER_SIZE:
 			default:
-				size = page_order = num_entries = 0;
+				page_order = num_entries = 0;
 				break;
 			}
 
@@ -920,7 +916,6 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 			}
 		} while (!table && (i < bridge->driver->num_aperture_sizes));
 	} else {
-		size = ((struct aper_size_info_fixed *) temp)->size;
 		page_order = ((struct aper_size_info_fixed *) temp)->page_order;
 		num_entries = ((struct aper_size_info_fixed *) temp)->num_entries;
 		table = alloc_gatt_pages(page_order);
