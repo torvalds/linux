@@ -23,6 +23,7 @@
 #include <net/flow_dissector.h>
 #include <net/geneve.h>
 #include <net/vxlan.h>
+#include <net/erspan.h>
 
 #include <net/dst.h>
 #include <net/dst_metadata.h>
@@ -693,6 +694,7 @@ enc_opts_policy[TCA_FLOWER_KEY_ENC_OPTS_MAX + 1] = {
 		.strict_start_type = TCA_FLOWER_KEY_ENC_OPTS_VXLAN },
 	[TCA_FLOWER_KEY_ENC_OPTS_GENEVE]        = { .type = NLA_NESTED },
 	[TCA_FLOWER_KEY_ENC_OPTS_VXLAN]         = { .type = NLA_NESTED },
+	[TCA_FLOWER_KEY_ENC_OPTS_ERSPAN]        = { .type = NLA_NESTED },
 };
 
 static const struct nla_policy
@@ -706,6 +708,14 @@ geneve_opt_policy[TCA_FLOWER_KEY_ENC_OPT_GENEVE_MAX + 1] = {
 static const struct nla_policy
 vxlan_opt_policy[TCA_FLOWER_KEY_ENC_OPT_VXLAN_MAX + 1] = {
 	[TCA_FLOWER_KEY_ENC_OPT_VXLAN_GBP]         = { .type = NLA_U32 },
+};
+
+static const struct nla_policy
+erspan_opt_policy[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_MAX + 1] = {
+	[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_VER]        = { .type = NLA_U8 },
+	[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_INDEX]      = { .type = NLA_U32 },
+	[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_DIR]        = { .type = NLA_U8 },
+	[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_HWID]       = { .type = NLA_U8 },
 };
 
 static void fl_set_key_val(struct nlattr **tb,
@@ -972,6 +982,70 @@ static int fl_set_vxlan_opt(const struct nlattr *nla, struct fl_flow_key *key,
 	return sizeof(*md);
 }
 
+static int fl_set_erspan_opt(const struct nlattr *nla, struct fl_flow_key *key,
+			     int depth, int option_len,
+			     struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_MAX + 1];
+	struct erspan_metadata *md;
+	int err;
+
+	md = (struct erspan_metadata *)&key->enc_opts.data[key->enc_opts.len];
+	memset(md, 0xff, sizeof(*md));
+	md->version = 1;
+
+	if (!depth)
+		return sizeof(*md);
+
+	if (nla_type(nla) != TCA_FLOWER_KEY_ENC_OPTS_ERSPAN) {
+		NL_SET_ERR_MSG(extack, "Non-erspan option type for mask");
+		return -EINVAL;
+	}
+
+	err = nla_parse_nested(tb, TCA_FLOWER_KEY_ENC_OPT_ERSPAN_MAX, nla,
+			       erspan_opt_policy, extack);
+	if (err < 0)
+		return err;
+
+	if (!option_len && !tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_VER]) {
+		NL_SET_ERR_MSG(extack, "Missing tunnel key erspan option ver");
+		return -EINVAL;
+	}
+
+	if (tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_VER])
+		md->version = nla_get_u8(tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_VER]);
+
+	if (md->version == 1) {
+		if (!option_len && !tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_INDEX]) {
+			NL_SET_ERR_MSG(extack, "Missing tunnel key erspan option index");
+			return -EINVAL;
+		}
+		if (tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_INDEX]) {
+			nla = tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_INDEX];
+			md->u.index = nla_get_be32(nla);
+		}
+	} else if (md->version == 2) {
+		if (!option_len && (!tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_DIR] ||
+				    !tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_HWID])) {
+			NL_SET_ERR_MSG(extack, "Missing tunnel key erspan option dir or hwid");
+			return -EINVAL;
+		}
+		if (tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_DIR]) {
+			nla = tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_DIR];
+			md->u.md2.dir = nla_get_u8(nla);
+		}
+		if (tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_HWID]) {
+			nla = tb[TCA_FLOWER_KEY_ENC_OPT_ERSPAN_HWID];
+			set_hwid(&md->u.md2, nla_get_u8(nla));
+		}
+	} else {
+		NL_SET_ERR_MSG(extack, "Tunnel key erspan option ver is incorrect");
+		return -EINVAL;
+	}
+
+	return sizeof(*md);
+}
+
 static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			  struct fl_flow_key *mask,
 			  struct netlink_ext_ack *extack)
@@ -1056,6 +1130,39 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			option_len = fl_set_vxlan_opt(nla_opt_msk, mask,
 						      msk_depth, option_len,
 						      extack);
+			if (option_len < 0)
+				return option_len;
+
+			mask->enc_opts.len += option_len;
+			if (key->enc_opts.len != mask->enc_opts.len) {
+				NL_SET_ERR_MSG(extack, "Key and mask miss aligned");
+				return -EINVAL;
+			}
+
+			if (msk_depth)
+				nla_opt_msk = nla_next(nla_opt_msk, &msk_depth);
+			break;
+		case TCA_FLOWER_KEY_ENC_OPTS_ERSPAN:
+			if (key->enc_opts.dst_opt_type) {
+				NL_SET_ERR_MSG(extack, "Duplicate type for erspan options");
+				return -EINVAL;
+			}
+			option_len = 0;
+			key->enc_opts.dst_opt_type = TUNNEL_ERSPAN_OPT;
+			option_len = fl_set_erspan_opt(nla_opt_key, key,
+						       key_depth, option_len,
+						       extack);
+			if (option_len < 0)
+				return option_len;
+
+			key->enc_opts.len += option_len;
+			/* At the same time we need to parse through the mask
+			 * in order to verify exact and mask attribute lengths.
+			 */
+			mask->enc_opts.dst_opt_type = TUNNEL_ERSPAN_OPT;
+			option_len = fl_set_erspan_opt(nla_opt_msk, mask,
+						       msk_depth, option_len,
+						       extack);
 			if (option_len < 0)
 				return option_len;
 
@@ -2239,6 +2346,39 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int fl_dump_key_erspan_opt(struct sk_buff *skb,
+				  struct flow_dissector_key_enc_opts *enc_opts)
+{
+	struct erspan_metadata *md;
+	struct nlattr *nest;
+
+	nest = nla_nest_start_noflag(skb, TCA_FLOWER_KEY_ENC_OPTS_ERSPAN);
+	if (!nest)
+		goto nla_put_failure;
+
+	md = (struct erspan_metadata *)&enc_opts->data[0];
+	if (nla_put_u8(skb, TCA_FLOWER_KEY_ENC_OPT_ERSPAN_VER, md->version))
+		goto nla_put_failure;
+
+	if (md->version == 1 &&
+	    nla_put_be32(skb, TCA_FLOWER_KEY_ENC_OPT_ERSPAN_INDEX, md->u.index))
+		goto nla_put_failure;
+
+	if (md->version == 2 &&
+	    (nla_put_u8(skb, TCA_FLOWER_KEY_ENC_OPT_ERSPAN_DIR,
+			md->u.md2.dir) ||
+	     nla_put_u8(skb, TCA_FLOWER_KEY_ENC_OPT_ERSPAN_HWID,
+			get_hwid(&md->u.md2))))
+		goto nla_put_failure;
+
+	nla_nest_end(skb, nest);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
+}
+
 static int fl_dump_key_ct(struct sk_buff *skb,
 			  struct flow_dissector_key_ct *key,
 			  struct flow_dissector_key_ct *mask)
@@ -2294,6 +2434,11 @@ static int fl_dump_key_options(struct sk_buff *skb, int enc_opt_type,
 		break;
 	case TUNNEL_VXLAN_OPT:
 		err = fl_dump_key_vxlan_opt(skb, enc_opts);
+		if (err)
+			goto nla_put_failure;
+		break;
+	case TUNNEL_ERSPAN_OPT:
+		err = fl_dump_key_erspan_opt(skb, enc_opts);
 		if (err)
 			goto nla_put_failure;
 		break;
