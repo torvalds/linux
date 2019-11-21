@@ -4165,25 +4165,6 @@ again:
 	return ret;
 }
 
-static int __btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
-					u64 start, u64 len,
-					int pin, int delalloc)
-{
-	struct btrfs_block_group *cache;
-	int ret = 0;
-
-	cache = btrfs_lookup_block_group(fs_info, start);
-	if (!cache) {
-		btrfs_err(fs_info, "Unable to find block group for %llu",
-			  start);
-		return -ENOSPC;
-	}
-
-	ret = pin_down_extent(cache, start, len, 1);
-	btrfs_put_block_group(cache);
-	return ret;
-}
-
 int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 			       u64 start, u64 len, int delalloc)
 {
@@ -4191,7 +4172,8 @@ int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 
 	cache = btrfs_lookup_block_group(fs_info, start);
 	if (!cache) {
-		btrfs_err(fs_info, "unable to find block group for %llu", start);
+		btrfs_err(fs_info, "Unable to find block group for %llu",
+			  start);
 		return -ENOSPC;
 	}
 
@@ -4203,10 +4185,20 @@ int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-int btrfs_free_and_pin_reserved_extent(struct btrfs_fs_info *fs_info,
-				       u64 start, u64 len)
+int btrfs_pin_reserved_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len)
 {
-	return __btrfs_free_reserved_extent(fs_info, start, len, 1, 0);
+	struct btrfs_block_group *cache;
+	int ret = 0;
+
+	cache = btrfs_lookup_block_group(fs_info, start);
+	if (!cache) {
+		btrfs_err(fs_info, "unable to find block group for %llu", start);
+		return -ENOSPC;
+	}
+
+	ret = pin_down_extent(cache, start, len, 1);
+	btrfs_put_block_group(cache);
+	return ret;
 }
 
 static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
