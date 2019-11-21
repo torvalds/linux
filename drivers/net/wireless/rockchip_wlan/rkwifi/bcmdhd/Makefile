@@ -163,3 +163,7 @@ EXTRA_CFLAGS = $(DHDCFLAGS)
 ifeq ($(CONFIG_BCMDHD),m)
 EXTRA_LDFLAGS += --strip-debug
 endif
+
+EXTRA_CFLAGS += -Wno-parentheses-equality
+EXTRA_CFLAGS += -Wno-unused-const-variable
+EXTRA_CFLAGS += -Wno-non-literal-null-conversion

@@ -717,7 +717,7 @@ rtt_alloc_getset_buf(wl_proxd_method_t method, wl_proxd_session_id_t session_id,
 	wl_proxd_cmd_t cmdid, uint16 tlvs_bufsize, uint16 *p_out_bufsize)
 {
 	uint16 proxd_iovsize;
-	uint16 kflags;
+	gfp_t kflags;
 	wl_proxd_tlv_t *p_tlv;
 	wl_proxd_iov_t *p_proxd_iov = (wl_proxd_iov_t *) NULL;
 

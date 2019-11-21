@@ -98,7 +98,7 @@
 int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
 	struct net_device *dev, int event_id, const void  *data, int len)
 {
-	u16 kflags;
+	gfp_t kflags;
 	struct sk_buff *skb;
 
 	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
@@ -279,7 +279,7 @@ int
 wl_cfgvendor_send_hotlist_event(struct wiphy *wiphy,
 	struct net_device *dev, void  *data, int len, wl_vendor_event_t event)
 {
-	u16 kflags;
+	gfp_t kflags;
 	const void *ptr;
 	struct sk_buff *skb;
 	int malloc_len, total, iter_cnt_to_send, cnt;

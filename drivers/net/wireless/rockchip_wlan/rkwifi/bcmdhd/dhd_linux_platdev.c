@@ -567,7 +567,7 @@ static int wifi_ctrlfunc_register_drv(void)
 void wifi_ctrlfunc_unregister_drv(void)
 {
 #ifndef CONFIG_DTS
-	wifi_adapter_info_t *adapter;
+	wifi_adapter_info_t *adapter = NULL;
 #endif
 
 #if defined(CONFIG_DTS) && !defined(CUSTOMER_HW)
