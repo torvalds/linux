@@ -2594,8 +2594,8 @@ static int io_req_defer(struct io_kiocb *req)
 	return -EIOCBQUEUED;
 }
 
-static int __io_submit_sqe(struct io_kiocb *req, struct io_kiocb **nxt,
-			   bool force_nonblock)
+static int io_issue_sqe(struct io_kiocb *req, struct io_kiocb **nxt,
+			bool force_nonblock)
 {
 	int ret, opcode;
 	struct sqe_submit *s = &req->submit;
@@ -2702,7 +2702,7 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 		s->has_user = (work->flags & IO_WQ_WORK_HAS_MM) != 0;
 		s->in_async = true;
 		do {
-			ret = __io_submit_sqe(req, &nxt, false);
+			ret = io_issue_sqe(req, &nxt, false);
 			/*
 			 * We can get EAGAIN for polled IO even though we're
 			 * forcing a sync submission from here, since we can't
@@ -2913,7 +2913,7 @@ static void __io_queue_sqe(struct io_kiocb *req)
 	struct io_kiocb *nxt = io_prep_linked_timeout(req);
 	int ret;
 
-	ret = __io_submit_sqe(req, NULL, true);
+	ret = io_issue_sqe(req, NULL, true);
 
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
