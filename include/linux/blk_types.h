@@ -377,6 +377,7 @@ enum stat_group {
 	STAT_READ,
 	STAT_WRITE,
 	STAT_DISCARD,
+	STAT_FLUSH,
 
 	NR_STAT_GROUPS
 };
