@@ -185,6 +185,7 @@ static const struct dmi_system_id sof_sdw_rt711_rt1308_rt715_quirk_table[] = {
 		.callback = sof_rt711_rt1308_rt715_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude"),
 		},
 		.driver_data = (void *)(SOF_RT711_JD_SRC_JD2 |
 					SOF_SDW_MONO_SPK),
