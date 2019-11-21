@@ -325,7 +325,8 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 
 	edidp = of_get_property(np, "edid", &imxpd->edid_len);
 	if (edidp)
-		imxpd->edid = kmemdup(edidp, imxpd->edid_len, GFP_KERNEL);
+		imxpd->edid = devm_kmemdup(dev, edidp, imxpd->edid_len,
+					   GFP_KERNEL);
 
 	ret = of_property_read_string(np, "interface-pix-fmt", &fmt);
 	if (!ret) {
@@ -349,17 +350,8 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	return 0;
 }
 
-static void imx_pd_unbind(struct device *dev, struct device *master,
-	void *data)
-{
-	struct imx_parallel_display *imxpd = dev_get_drvdata(dev);
-
-	kfree(imxpd->edid);
-}
-
 static const struct component_ops imx_pd_ops = {
 	.bind	= imx_pd_bind,
-	.unbind	= imx_pd_unbind,
 };
 
 static int imx_pd_probe(struct platform_device *pdev)
