@@ -496,6 +496,9 @@ update:
 			tn->capabilities &= temp_node->capabilities;
 		}
 
+		tipc_bcast_toggle_rcast(net,
+					(tn->capabilities & TIPC_BCAST_RCAST));
+
 		goto exit;
 	}
 	n = kzalloc(sizeof(*n), GFP_ATOMIC);
@@ -557,6 +560,7 @@ update:
 	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
 		tn->capabilities &= temp_node->capabilities;
 	}
+	tipc_bcast_toggle_rcast(net, (tn->capabilities & TIPC_BCAST_RCAST));
 	trace_tipc_node_create(n, true, " ");
 exit:
 	spin_unlock_bh(&tn->node_list_lock);
@@ -740,7 +744,8 @@ static bool tipc_node_cleanup(struct tipc_node *peer)
 	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
 		tn->capabilities &= temp_node->capabilities;
 	}
-
+	tipc_bcast_toggle_rcast(peer->net,
+				(tn->capabilities & TIPC_BCAST_RCAST));
 	spin_unlock_bh(&tn->node_list_lock);
 	return deleted;
 }
@@ -2198,6 +2203,7 @@ int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
 		tn->capabilities &= temp_node->capabilities;
 	}
+	tipc_bcast_toggle_rcast(net, (tn->capabilities & TIPC_BCAST_RCAST));
 	err = 0;
 err_out:
 	tipc_node_put(peer);
