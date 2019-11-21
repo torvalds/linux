@@ -1087,8 +1087,9 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 	}
 
 	/* Put PE to the list */
+	mutex_lock(&phb->ioda.pe_list_mutex);
 	list_add_tail(&pe->list, &phb->ioda.pe_list);
-
+	mutex_unlock(&phb->ioda.pe_list_mutex);
 	return pe;
 }
 
@@ -3528,7 +3529,10 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 	struct pnv_phb *phb = pe->phb;
 	struct pnv_ioda_pe *slave, *tmp;
 
+	mutex_lock(&phb->ioda.pe_list_mutex);
 	list_del(&pe->list);
+	mutex_unlock(&phb->ioda.pe_list_mutex);
+
 	switch (phb->type) {
 	case PNV_PHB_IODA1:
 		pnv_pci_ioda1_release_pe_dma(pe);
