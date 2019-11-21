@@ -138,13 +138,15 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *k, int event)
 {
 	struct snd_sof_widget *swidget = w->dobj.private;
-	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_soc_component *scomp;
 	int stream = SNDRV_PCM_STREAM_CAPTURE;
 	struct snd_sof_pcm *spcm;
 	int ret = 0;
 
 	if (!swidget)
 		return 0;
+
+	scomp = swidget->scomp;
 
 	dev_dbg(scomp->dev, "received event %d for widget %s\n",
 		event, w->name);
