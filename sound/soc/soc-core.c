@@ -419,6 +419,9 @@ static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 
 	list_del(&rtd->list);
 
+	flush_delayed_work(&rtd->delayed_work);
+	snd_soc_pcm_component_free(rtd);
+
 	/*
 	 * we don't need to call kfree() for rtd->dev
 	 * see
@@ -1945,19 +1948,14 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card,
 {
 	struct snd_soc_dai_link *link, *_link;
 
-	/* This should be called before snd_card_free() */
-	soc_remove_link_components(card);
-
-	/* free the ALSA card at first; this syncs with pending operations */
-	if (card->snd_card) {
-		snd_card_free(card->snd_card);
-		card->snd_card = NULL;
-	}
+	if (card->snd_card)
+		snd_card_disconnect_sync(card->snd_card);
 
 	snd_soc_dapm_shutdown(card);
 
 	/* remove and free each DAI */
 	soc_remove_link_dais(card);
+	soc_remove_link_components(card);
 
 	for_each_card_links_safe(card, link, _link)
 		snd_soc_remove_dai_link(card, link);
@@ -1972,6 +1970,11 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card,
 	/* remove the card */
 	if (card_probed && card->remove)
 		card->remove(card);
+
+	if (card->snd_card) {
+		snd_card_free(card->snd_card);
+		card->snd_card = NULL;
+	}
 }
 
 static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
@@ -2104,6 +2107,19 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 			    card->long_name, card->name, 0);
 	soc_setup_card_name(card->snd_card->driver,
 			    card->driver_name, card->name, 1);
+
+	if (card->components) {
+		/* the current implementation of snd_component_add() accepts */
+		/* multiple components in the string separated by space, */
+		/* but the string collision (identical string) check might */
+		/* not work correctly */
+		ret = snd_component_add(card->snd_card, card->components);
+		if (ret < 0) {
+			dev_err(card->dev, "ASoC: %s snd_component_add() failed: %d\n",
+				card->name, ret);
+			goto probe_end;
+		}
+	}
 
 	if (card->late_probe) {
 		ret = card->late_probe(card);
