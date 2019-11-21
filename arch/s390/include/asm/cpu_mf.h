@@ -313,7 +313,7 @@ static inline unsigned long *trailer_entry_ptr(unsigned long v)
 	return (unsigned long *) ret;
 }
 
-/* Return if the entry in the sample data block table (sdbt)
+/* Return true if the entry in the sample data block table (sdbt)
  * is a link to the next sdbt */
 static inline int is_link_entry(unsigned long *s)
 {
