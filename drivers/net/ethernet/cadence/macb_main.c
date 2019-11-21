@@ -505,10 +505,10 @@ static void macb_validate(struct phylink_config *config,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static int macb_mac_link_state(struct phylink_config *config,
-			       struct phylink_link_state *state)
+static void macb_mac_pcs_get_state(struct phylink_config *config,
+				   struct phylink_link_state *state)
 {
-	return -EOPNOTSUPP;
+	state->link = 0;
 }
 
 static void macb_mac_an_restart(struct phylink_config *config)
@@ -604,7 +604,7 @@ static void macb_mac_link_up(struct phylink_config *config, unsigned int mode,
 
 static const struct phylink_mac_ops macb_phylink_ops = {
 	.validate = macb_validate,
-	.mac_link_state = macb_mac_link_state,
+	.mac_pcs_get_state = macb_mac_pcs_get_state,
 	.mac_an_restart = macb_mac_an_restart,
 	.mac_config = macb_mac_config,
 	.mac_link_down = macb_mac_link_down,

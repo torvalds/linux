@@ -357,9 +357,9 @@ static void phylink_mac_an_restart(struct phylink *pl)
 		pl->ops->mac_an_restart(pl->config);
 }
 
-static int phylink_get_mac_state(struct phylink *pl, struct phylink_link_state *state)
+static void phylink_mac_pcs_get_state(struct phylink *pl,
+				      struct phylink_link_state *state)
 {
-
 	linkmode_copy(state->advertising, pl->link_config.advertising);
 	linkmode_zero(state->lp_advertising);
 	state->interface = pl->link_config.interface;
@@ -370,7 +370,7 @@ static int phylink_get_mac_state(struct phylink *pl, struct phylink_link_state *
 	state->an_complete = 0;
 	state->link = 1;
 
-	return pl->ops->mac_link_state(pl->config, state);
+	pl->ops->mac_pcs_get_state(pl->config, state);
 }
 
 /* The fixed state is... fixed except for the link state,
@@ -493,7 +493,7 @@ static void phylink_resolve(struct work_struct *w)
 			break;
 
 		case MLO_AN_INBAND:
-			phylink_get_mac_state(pl, &link_state);
+			phylink_mac_pcs_get_state(pl, &link_state);
 
 			/* If we have a phy, the "up" state is the union of
 			 * both the PHY and the MAC */
@@ -1142,7 +1142,7 @@ int phylink_ethtool_ksettings_get(struct phylink *pl,
 		if (pl->phydev)
 			break;
 
-		phylink_get_mac_state(pl, &link_state);
+		phylink_mac_pcs_get_state(pl, &link_state);
 
 		/* The MAC is reporting the link results from its own PCS
 		 * layer via in-band status. Report these as the current
@@ -1561,10 +1561,7 @@ static int phylink_mii_read(struct phylink *pl, unsigned int phy_id,
 
 	case MLO_AN_INBAND:
 		if (phy_id == 0) {
-			val = phylink_get_mac_state(pl, &state);
-			if (val < 0)
-				return val;
-
+			phylink_mac_pcs_get_state(pl, &state);
 			val = phylink_mii_emul_read(reg, &state);
 		}
 		break;

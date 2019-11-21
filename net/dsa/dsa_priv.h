@@ -153,8 +153,8 @@ void dsa_port_link_unregister_of(struct dsa_port *dp);
 void dsa_port_phylink_validate(struct phylink_config *config,
 			       unsigned long *supported,
 			       struct phylink_link_state *state);
-int dsa_port_phylink_mac_link_state(struct phylink_config *config,
-				    struct phylink_link_state *state);
+void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,
+					struct phylink_link_state *state);
 void dsa_port_phylink_mac_config(struct phylink_config *config,
 				 unsigned int mode,
 				 const struct phylink_link_state *state);
