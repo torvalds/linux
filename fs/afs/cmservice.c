@@ -342,14 +342,14 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		if (call->count2 != call->count && call->count2 != 0)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_cb_count);
-		call->_iter = &call->iter;
-		iov_iter_discard(&call->iter, READ, call->count2 * 3 * 4);
+		call->iter = &call->def_iter;
+		iov_iter_discard(&call->def_iter, READ, call->count2 * 3 * 4);
 		call->unmarshall++;
 
 		/* Fall through */
 	case 4:
 		_debug("extract discard %zu/%u",
-		       iov_iter_count(&call->iter), call->count2 * 3 * 4);
+		       iov_iter_count(call->iter), call->count2 * 3 * 4);
 
 		ret = afs_extract_data(call, false);
 		if (ret < 0)

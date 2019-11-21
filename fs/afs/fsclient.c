@@ -323,7 +323,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 	int ret;
 
 	_enter("{%u,%zu/%llu}",
-	       call->unmarshall, iov_iter_count(call->_iter), req->actual_len);
+	       call->unmarshall, iov_iter_count(call->iter), req->actual_len);
 
 	switch (call->unmarshall) {
 	case 0:
@@ -363,14 +363,14 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		call->bvec[0].bv_len = size;
 		call->bvec[0].bv_offset = req->offset;
 		call->bvec[0].bv_page = req->pages[req->index];
-		iov_iter_bvec(&call->iter, READ, call->bvec, 1, size);
+		iov_iter_bvec(&call->def_iter, READ, call->bvec, 1, size);
 		ASSERTCMP(size, <=, PAGE_SIZE);
 		/* Fall through */
 
 		/* extract the returned data */
 	case 2:
 		_debug("extract data %zu/%llu",
-		       iov_iter_count(call->_iter), req->remain);
+		       iov_iter_count(call->iter), req->remain);
 
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -398,7 +398,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 
 	case 3:
 		_debug("extract discard %zu/%llu",
-		       iov_iter_count(call->_iter), req->actual_len - req->len);
+		       iov_iter_count(call->iter), req->actual_len - req->len);
 
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -1852,7 +1852,7 @@ static int afs_deliver_fs_get_capabilities(struct afs_call *call)
 	u32 count;
 	int ret;
 
-	_enter("{%u,%zu}", call->unmarshall, iov_iter_count(call->_iter));
+	_enter("{%u,%zu}", call->unmarshall, iov_iter_count(call->iter));
 
 	switch (call->unmarshall) {
 	case 0:
