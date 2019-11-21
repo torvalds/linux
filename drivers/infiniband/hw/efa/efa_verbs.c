@@ -70,9 +70,6 @@ static const char *const efa_stats_names[] = {
 #define EFA_CHUNK_USED_SIZE \
 	((EFA_PTRS_PER_CHUNK * EFA_CHUNK_PAYLOAD_PTR_SIZE) + EFA_CHUNK_PTR_SIZE)
 
-#define EFA_SUPPORTED_ACCESS_FLAGS \
-	(IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_READ)
-
 struct pbl_chunk {
 	dma_addr_t dma_addr;
 	u64 *buf;
@@ -142,6 +139,11 @@ to_emmap(struct rdma_user_mmap_entry *rdma_entry)
 	return container_of(rdma_entry, struct efa_user_mmap_entry, rdma_entry);
 }
 
+static inline bool is_rdma_read_cap(struct efa_dev *dev)
+{
+	return dev->dev_attr.device_caps & EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK;
+}
+
 #define field_avail(x, fld, sz) (offsetof(typeof(x), fld) + \
 				 FIELD_SIZEOF(typeof(x), fld) <= (sz))
 
@@ -201,12 +203,17 @@ int efa_query_device(struct ib_device *ibdev,
 				 dev_attr->max_rq_depth);
 	props->max_send_sge = dev_attr->max_sq_sge;
 	props->max_recv_sge = dev_attr->max_rq_sge;
+	props->max_sge_rd = dev_attr->max_wr_rdma_sge;
 
 	if (udata && udata->outlen) {
 		resp.max_sq_sge = dev_attr->max_sq_sge;
 		resp.max_rq_sge = dev_attr->max_rq_sge;
 		resp.max_sq_wr = dev_attr->max_sq_depth;
 		resp.max_rq_wr = dev_attr->max_rq_depth;
+		resp.max_rdma_size = dev_attr->max_rdma_size;
+
+		if (is_rdma_read_cap(dev))
+			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_RDMA_READ;
 
 		err = ib_copy_to_udata(udata, &resp,
 				       min(sizeof(resp), udata->outlen));
@@ -1345,6 +1352,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	struct efa_com_reg_mr_params params = {};
 	struct efa_com_reg_mr_result result = {};
 	struct pbl_context pbl;
+	int supp_access_flags;
 	unsigned int pg_sz;
 	struct efa_mr *mr;
 	int inline_size;
@@ -1358,10 +1366,14 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_out;
 	}
 
-	if (access_flags & ~EFA_SUPPORTED_ACCESS_FLAGS) {
+	supp_access_flags =
+		IB_ACCESS_LOCAL_WRITE |
+		(is_rdma_read_cap(dev) ? IB_ACCESS_REMOTE_READ : 0);
+
+	if (access_flags & ~supp_access_flags) {
 		ibdev_dbg(&dev->ibdev,
 			  "Unsupported access flags[%#x], supported[%#x]\n",
-			  access_flags, EFA_SUPPORTED_ACCESS_FLAGS);
+			  access_flags, supp_access_flags);
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}

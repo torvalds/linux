@@ -444,6 +444,8 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->phys_addr_width = resp.u.device_attr.phys_addr_width;
 	result->virt_addr_width = resp.u.device_attr.virt_addr_width;
 	result->db_bar = resp.u.device_attr.db_bar;
+	result->max_rdma_size = resp.u.device_attr.max_rdma_size;
+	result->device_caps = resp.u.device_attr.device_caps;
 
 	if (result->admin_api_version < 1) {
 		ibdev_err_ratelimited(
@@ -477,6 +479,7 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->max_ah = resp.u.queue_attr.max_ah;
 	result->max_llq_size = resp.u.queue_attr.max_llq_size;
 	result->sub_cqs_per_cq = resp.u.queue_attr.sub_cqs_per_cq;
+	result->max_wr_rdma_sge = resp.u.queue_attr.max_wr_rdma_sges;
 
 	err = efa_com_get_feature(edev, &resp, EFA_ADMIN_NETWORK_ATTR);
 	if (err) {

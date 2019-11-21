@@ -562,6 +562,16 @@ struct efa_admin_feature_device_attr_desc {
 
 	/* Indicates how many bits are used virtual address access */
 	u8 virt_addr_width;
+
+	/*
+	 * 0 : rdma_read - If set, RDMA Read is supported on
+	 *    TX queues
+	 * 31:1 : reserved - MBZ
+	 */
+	u32 device_caps;
+
+	/* Max RDMA transfer size in bytes */
+	u32 max_rdma_size;
 };
 
 struct efa_admin_feature_queue_attr_desc {
@@ -608,6 +618,9 @@ struct efa_admin_feature_queue_attr_desc {
 
 	/* The maximum size of LLQ in bytes */
 	u32 max_llq_size;
+
+	/* Maximum number of SGEs for a single RDMA read WQE */
+	u16 max_wr_rdma_sges;
 };
 
 struct efa_admin_feature_aenq_desc {
@@ -622,6 +635,7 @@ struct efa_admin_feature_network_attr_desc {
 	/* Raw address data in network byte order */
 	u8 addr[16];
 
+	/* max packet payload size in bytes */
 	u32 mtu;
 };
 
@@ -796,5 +810,8 @@ struct efa_admin_mmio_req_read_less_resp {
 
 /* get_set_feature_common_desc */
 #define EFA_ADMIN_GET_SET_FEATURE_COMMON_DESC_SELECT_MASK   GENMASK(1, 0)
+
+/* feature_device_attr_desc */
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK   BIT(0)
 
 #endif /* _EFA_ADMIN_CMDS_H_ */
