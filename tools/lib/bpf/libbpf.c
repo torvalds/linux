@@ -142,6 +142,8 @@ struct bpf_capabilities {
 	__u32 btf_func:1;
 	/* BTF_KIND_VAR and BTF_KIND_DATASEC support */
 	__u32 btf_datasec:1;
+	/* BPF_F_MMAPABLE is supported for arrays */
+	__u32 array_mmap:1;
 };
 
 /*
@@ -189,6 +191,7 @@ struct bpf_program {
 
 	enum bpf_attach_type expected_attach_type;
 	__u32 attach_btf_id;
+	__u32 attach_prog_fd;
 	void *func_info;
 	__u32 func_info_rec_size;
 	__u32 func_info_cnt;
@@ -229,6 +232,7 @@ struct bpf_map {
 	enum libbpf_map_type libbpf_type;
 	char *pin_path;
 	bool pinned;
+	bool reused;
 };
 
 struct bpf_secdata {
@@ -855,8 +859,6 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 		pr_warn("failed to alloc map name\n");
 		return -ENOMEM;
 	}
-	pr_debug("map '%s' (global data): at sec_idx %d, offset %zu.\n",
-		 map_name, map->sec_idx, map->sec_offset);
 
 	def = &map->def;
 	def->type = BPF_MAP_TYPE_ARRAY;
@@ -864,6 +866,12 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	def->value_size = data->d_size;
 	def->max_entries = 1;
 	def->map_flags = type == LIBBPF_MAP_RODATA ? BPF_F_RDONLY_PROG : 0;
+	if (obj->caps.array_mmap)
+		def->map_flags |= BPF_F_MMAPABLE;
+
+	pr_debug("map '%s' (global data): at sec_idx %d, offset %zu, flags %x.\n",
+		 map_name, map->sec_idx, map->sec_offset, def->map_flags);
+
 	if (data_buff) {
 		*data_buff = malloc(data->d_size);
 		if (!*data_buff) {
@@ -956,13 +964,13 @@ static int bpf_object__init_user_maps(struct bpf_object *obj, bool strict)
 	pr_debug("maps in %s: %d maps in %zd bytes\n",
 		 obj->path, nr_maps, data->d_size);
 
-	map_def_sz = data->d_size / nr_maps;
-	if (!data->d_size || (data->d_size % nr_maps) != 0) {
+	if (!data->d_size || nr_maps == 0 || (data->d_size % nr_maps) != 0) {
 		pr_warn("unable to determine map definition size "
 			"section %s, %d maps in %zd bytes\n",
 			obj->path, nr_maps, data->d_size);
 		return -EINVAL;
 	}
+	map_def_sz = data->d_size / nr_maps;
 
 	/* Fill obj->maps using data in "maps" section.  */
 	for (i = 0; i < nr_syms; i++) {
@@ -1862,9 +1870,13 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 				pr_warn("incorrect bpf_call opcode\n");
 				return -LIBBPF_ERRNO__RELOC;
 			}
+			if (sym.st_value % 8) {
+				pr_warn("bad call relo offset: %lu\n", sym.st_value);
+				return -LIBBPF_ERRNO__RELOC;
+			}
 			prog->reloc_desc[i].type = RELO_CALL;
 			prog->reloc_desc[i].insn_idx = insn_idx;
-			prog->reloc_desc[i].text_off = sym.st_value;
+			prog->reloc_desc[i].text_off = sym.st_value / 8;
 			obj->has_pseudo_calls = true;
 			continue;
 		}
@@ -1995,6 +2007,7 @@ int bpf_map__reuse_fd(struct bpf_map *map, int fd)
 	map->def.map_flags = info.map_flags;
 	map->btf_key_type_id = info.btf_key_type_id;
 	map->btf_value_type_id = info.btf_value_type_id;
+	map->reused = true;
 
 	return 0;
 
@@ -2158,6 +2171,27 @@ static int bpf_object__probe_btf_datasec(struct bpf_object *obj)
 	return 0;
 }
 
+static int bpf_object__probe_array_mmap(struct bpf_object *obj)
+{
+	struct bpf_create_map_attr attr = {
+		.map_type = BPF_MAP_TYPE_ARRAY,
+		.map_flags = BPF_F_MMAPABLE,
+		.key_size = sizeof(int),
+		.value_size = sizeof(int),
+		.max_entries = 1,
+	};
+	int fd;
+
+	fd = bpf_create_map_xattr(&attr);
+	if (fd >= 0) {
+		obj->caps.array_mmap = 1;
+		close(fd);
+		return 1;
+	}
+
+	return 0;
+}
+
 static int
 bpf_object__probe_caps(struct bpf_object *obj)
 {
@@ -2166,6 +2200,7 @@ bpf_object__probe_caps(struct bpf_object *obj)
 		bpf_object__probe_global_data,
 		bpf_object__probe_btf_func,
 		bpf_object__probe_btf_datasec,
+		bpf_object__probe_array_mmap,
 	};
 	int i, ret;
 
@@ -2470,8 +2505,8 @@ struct bpf_core_spec {
 	int raw_spec[BPF_CORE_SPEC_MAX_LEN];
 	/* raw spec length */
 	int raw_len;
-	/* field byte offset represented by spec */
-	__u32 offset;
+	/* field bit offset represented by spec */
+	__u32 bit_offset;
 };
 
 static bool str_is_empty(const char *s)
@@ -2482,8 +2517,8 @@ static bool str_is_empty(const char *s)
 /*
  * Turn bpf_field_reloc into a low- and high-level spec representation,
  * validating correctness along the way, as well as calculating resulting
- * field offset (in bytes), specified by accessor string. Low-level spec
- * captures every single level of nestedness, including traversing anonymous
+ * field bit offset, specified by accessor string. Low-level spec captures
+ * every single level of nestedness, including traversing anonymous
  * struct/union members. High-level one only captures semantically meaningful
  * "turning points": named fields and array indicies.
  * E.g., for this case:
@@ -2555,7 +2590,7 @@ static int bpf_core_spec_parse(const struct btf *btf,
 	sz = btf__resolve_size(btf, id);
 	if (sz < 0)
 		return sz;
-	spec->offset = access_idx * sz;
+	spec->bit_offset = access_idx * sz * 8;
 
 	for (i = 1; i < spec->raw_len; i++) {
 		t = skip_mods_and_typedefs(btf, id, &id);
@@ -2566,17 +2601,13 @@ static int bpf_core_spec_parse(const struct btf *btf,
 
 		if (btf_is_composite(t)) {
 			const struct btf_member *m;
-			__u32 offset;
+			__u32 bit_offset;
 
 			if (access_idx >= btf_vlen(t))
 				return -EINVAL;
-			if (btf_member_bitfield_size(t, access_idx))
-				return -EINVAL;
 
-			offset = btf_member_bit_offset(t, access_idx);
-			if (offset % 8)
-				return -EINVAL;
-			spec->offset += offset / 8;
+			bit_offset = btf_member_bit_offset(t, access_idx);
+			spec->bit_offset += bit_offset;
 
 			m = btf_members(t) + access_idx;
 			if (m->name_off) {
@@ -2605,7 +2636,7 @@ static int bpf_core_spec_parse(const struct btf *btf,
 			sz = btf__resolve_size(btf, id);
 			if (sz < 0)
 				return sz;
-			spec->offset += access_idx * sz;
+			spec->bit_offset += access_idx * sz * 8;
 		} else {
 			pr_warn("relo for [%u] %s (at idx %d) captures type [%d] of unexpected kind %d\n",
 				type_id, spec_str, i, id, btf_kind(t));
@@ -2706,12 +2737,14 @@ err_out:
 }
 
 /* Check two types for compatibility, skipping const/volatile/restrict and
- * typedefs, to ensure we are relocating offset to the compatible entities:
+ * typedefs, to ensure we are relocating compatible entities:
  *   - any two STRUCTs/UNIONs are compatible and can be mixed;
- *   - any two FWDs are compatible;
+ *   - any two FWDs are compatible, if their names match (modulo flavor suffix);
  *   - any two PTRs are always compatible;
+ *   - for ENUMs, names should be the same (ignoring flavor suffix) or at
+ *     least one of enums should be anonymous;
  *   - for ENUMs, check sizes, names are ignored;
- *   - for INT, size and bitness should match, signedness is ignored;
+ *   - for INT, size and signedness are ignored;
  *   - for ARRAY, dimensionality is ignored, element types are checked for
  *     compatibility recursively;
  *   - everything else shouldn't be ever a target of relocation.
@@ -2737,16 +2770,29 @@ recur:
 		return 0;
 
 	switch (btf_kind(local_type)) {
-	case BTF_KIND_FWD:
 	case BTF_KIND_PTR:
 		return 1;
-	case BTF_KIND_ENUM:
-		return local_type->size == targ_type->size;
+	case BTF_KIND_FWD:
+	case BTF_KIND_ENUM: {
+		const char *local_name, *targ_name;
+		size_t local_len, targ_len;
+
+		local_name = btf__name_by_offset(local_btf,
+						 local_type->name_off);
+		targ_name = btf__name_by_offset(targ_btf, targ_type->name_off);
+		local_len = bpf_core_essential_name_len(local_name);
+		targ_len = bpf_core_essential_name_len(targ_name);
+		/* one of them is anonymous or both w/ same flavor-less names */
+		return local_len == 0 || targ_len == 0 ||
+		       (local_len == targ_len &&
+			strncmp(local_name, targ_name, local_len) == 0);
+	}
 	case BTF_KIND_INT:
+		/* just reject deprecated bitfield-like integers; all other
+		 * integers are by default compatible between each other
+		 */
 		return btf_int_offset(local_type) == 0 &&
-		       btf_int_offset(targ_type) == 0 &&
-		       local_type->size == targ_type->size &&
-		       btf_int_bits(local_type) == btf_int_bits(targ_type);
+		       btf_int_offset(targ_type) == 0;
 	case BTF_KIND_ARRAY:
 		local_id = btf_array(local_type)->type;
 		targ_id = btf_array(targ_type)->type;
@@ -2762,7 +2808,7 @@ recur:
  * Given single high-level named field accessor in local type, find
  * corresponding high-level accessor for a target type. Along the way,
  * maintain low-level spec for target as well. Also keep updating target
- * offset.
+ * bit offset.
  *
  * Searching is performed through recursive exhaustive enumeration of all
  * fields of a struct/union. If there are any anonymous (embedded)
@@ -2801,21 +2847,16 @@ static int bpf_core_match_member(const struct btf *local_btf,
 	n = btf_vlen(targ_type);
 	m = btf_members(targ_type);
 	for (i = 0; i < n; i++, m++) {
-		__u32 offset;
+		__u32 bit_offset;
 
-		/* bitfield relocations not supported */
-		if (btf_member_bitfield_size(targ_type, i))
-			continue;
-		offset = btf_member_bit_offset(targ_type, i);
-		if (offset % 8)
-			continue;
+		bit_offset = btf_member_bit_offset(targ_type, i);
 
 		/* too deep struct/union/array nesting */
 		if (spec->raw_len == BPF_CORE_SPEC_MAX_LEN)
 			return -E2BIG;
 
 		/* speculate this member will be the good one */
-		spec->offset += offset / 8;
+		spec->bit_offset += bit_offset;
 		spec->raw_spec[spec->raw_len++] = i;
 
 		targ_name = btf__name_by_offset(targ_btf, m->name_off);
@@ -2844,7 +2885,7 @@ static int bpf_core_match_member(const struct btf *local_btf,
 			return found;
 		}
 		/* member turned out not to be what we looked for */
-		spec->offset -= offset / 8;
+		spec->bit_offset -= bit_offset;
 		spec->raw_len--;
 	}
 
@@ -2853,7 +2894,7 @@ static int bpf_core_match_member(const struct btf *local_btf,
 
 /*
  * Try to match local spec to a target type and, if successful, produce full
- * target spec (high-level, low-level + offset).
+ * target spec (high-level, low-level + bit offset).
  */
 static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 			       const struct btf *targ_btf, __u32 targ_id,
@@ -2916,11 +2957,118 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 			sz = btf__resolve_size(targ_btf, targ_id);
 			if (sz < 0)
 				return sz;
-			targ_spec->offset += local_acc->idx * sz;
+			targ_spec->bit_offset += local_acc->idx * sz * 8;
 		}
 	}
 
 	return 1;
+}
+
+static int bpf_core_calc_field_relo(const struct bpf_program *prog,
+				    const struct bpf_field_reloc *relo,
+				    const struct bpf_core_spec *spec,
+				    __u32 *val, bool *validate)
+{
+	const struct bpf_core_accessor *acc = &spec->spec[spec->len - 1];
+	const struct btf_type *t = btf__type_by_id(spec->btf, acc->type_id);
+	__u32 byte_off, byte_sz, bit_off, bit_sz;
+	const struct btf_member *m;
+	const struct btf_type *mt;
+	bool bitfield;
+	__s64 sz;
+
+	/* a[n] accessor needs special handling */
+	if (!acc->name) {
+		if (relo->kind == BPF_FIELD_BYTE_OFFSET) {
+			*val = spec->bit_offset / 8;
+		} else if (relo->kind == BPF_FIELD_BYTE_SIZE) {
+			sz = btf__resolve_size(spec->btf, acc->type_id);
+			if (sz < 0)
+				return -EINVAL;
+			*val = sz;
+		} else {
+			pr_warn("prog '%s': relo %d at insn #%d can't be applied to array access\n",
+				bpf_program__title(prog, false),
+				relo->kind, relo->insn_off / 8);
+			return -EINVAL;
+		}
+		if (validate)
+			*validate = true;
+		return 0;
+	}
+
+	m = btf_members(t) + acc->idx;
+	mt = skip_mods_and_typedefs(spec->btf, m->type, NULL);
+	bit_off = spec->bit_offset;
+	bit_sz = btf_member_bitfield_size(t, acc->idx);
+
+	bitfield = bit_sz > 0;
+	if (bitfield) {
+		byte_sz = mt->size;
+		byte_off = bit_off / 8 / byte_sz * byte_sz;
+		/* figure out smallest int size necessary for bitfield load */
+		while (bit_off + bit_sz - byte_off * 8 > byte_sz * 8) {
+			if (byte_sz >= 8) {
+				/* bitfield can't be read with 64-bit read */
+				pr_warn("prog '%s': relo %d at insn #%d can't be satisfied for bitfield\n",
+					bpf_program__title(prog, false),
+					relo->kind, relo->insn_off / 8);
+				return -E2BIG;
+			}
+			byte_sz *= 2;
+			byte_off = bit_off / 8 / byte_sz * byte_sz;
+		}
+	} else {
+		sz = btf__resolve_size(spec->btf, m->type);
+		if (sz < 0)
+			return -EINVAL;
+		byte_sz = sz;
+		byte_off = spec->bit_offset / 8;
+		bit_sz = byte_sz * 8;
+	}
+
+	/* for bitfields, all the relocatable aspects are ambiguous and we
+	 * might disagree with compiler, so turn off validation of expected
+	 * value, except for signedness
+	 */
+	if (validate)
+		*validate = !bitfield;
+
+	switch (relo->kind) {
+	case BPF_FIELD_BYTE_OFFSET:
+		*val = byte_off;
+		break;
+	case BPF_FIELD_BYTE_SIZE:
+		*val = byte_sz;
+		break;
+	case BPF_FIELD_SIGNED:
+		/* enums will be assumed unsigned */
+		*val = btf_is_enum(mt) ||
+		       (btf_int_encoding(mt) & BTF_INT_SIGNED);
+		if (validate)
+			*validate = true; /* signedness is never ambiguous */
+		break;
+	case BPF_FIELD_LSHIFT_U64:
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		*val = 64 - (bit_off + bit_sz - byte_off  * 8);
+#else
+		*val = (8 - byte_sz) * 8 + (bit_off - byte_off * 8);
+#endif
+		break;
+	case BPF_FIELD_RSHIFT_U64:
+		*val = 64 - bit_sz;
+		if (validate)
+			*validate = true; /* right shift is never ambiguous */
+		break;
+	case BPF_FIELD_EXISTS:
+	default:
+		pr_warn("prog '%s': unknown relo %d at insn #%d\n",
+			bpf_program__title(prog, false),
+			relo->kind, relo->insn_off / 8);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /*
@@ -2942,36 +3090,31 @@ static int bpf_core_reloc_insn(struct bpf_program *prog,
 			       const struct bpf_core_spec *local_spec,
 			       const struct bpf_core_spec *targ_spec)
 {
+	bool failed = false, validate = true;
 	__u32 orig_val, new_val;
 	struct bpf_insn *insn;
-	int insn_idx;
+	int insn_idx, err;
 	__u8 class;
 
 	if (relo->insn_off % sizeof(struct bpf_insn))
 		return -EINVAL;
 	insn_idx = relo->insn_off / sizeof(struct bpf_insn);
 
-	switch (relo->kind) {
-	case BPF_FIELD_BYTE_OFFSET:
-		orig_val = local_spec->offset;
-		if (targ_spec) {
-			new_val = targ_spec->offset;
-		} else {
-			pr_warn("prog '%s': patching insn #%d w/ failed reloc, imm %d -> %d\n",
-				bpf_program__title(prog, false), insn_idx,
-				orig_val, -1);
-			new_val = (__u32)-1;
-		}
-		break;
-	case BPF_FIELD_EXISTS:
+	if (relo->kind == BPF_FIELD_EXISTS) {
 		orig_val = 1; /* can't generate EXISTS relo w/o local field */
 		new_val = targ_spec ? 1 : 0;
-		break;
-	default:
-		pr_warn("prog '%s': unknown relo %d at insn #%d'\n",
-			bpf_program__title(prog, false),
-			relo->kind, insn_idx);
-		return -EINVAL;
+	} else if (!targ_spec) {
+		failed = true;
+		new_val = (__u32)-1;
+	} else {
+		err = bpf_core_calc_field_relo(prog, relo, local_spec,
+					       &orig_val, &validate);
+		if (err)
+			return err;
+		err = bpf_core_calc_field_relo(prog, relo, targ_spec,
+					       &new_val, NULL);
+		if (err)
+			return err;
 	}
 
 	insn = &prog->insns[insn_idx];
@@ -2980,12 +3123,17 @@ static int bpf_core_reloc_insn(struct bpf_program *prog,
 	if (class == BPF_ALU || class == BPF_ALU64) {
 		if (BPF_SRC(insn->code) != BPF_K)
 			return -EINVAL;
-		if (insn->imm != orig_val)
+		if (!failed && validate && insn->imm != orig_val) {
+			pr_warn("prog '%s': unexpected insn #%d value: got %u, exp %u -> %u\n",
+				bpf_program__title(prog, false), insn_idx,
+				insn->imm, orig_val, new_val);
 			return -EINVAL;
+		}
+		orig_val = insn->imm;
 		insn->imm = new_val;
-		pr_debug("prog '%s': patched insn #%d (ALU/ALU64) imm %d -> %d\n",
-			 bpf_program__title(prog, false),
-			 insn_idx, orig_val, new_val);
+		pr_debug("prog '%s': patched insn #%d (ALU/ALU64)%s imm %u -> %u\n",
+			 bpf_program__title(prog, false), insn_idx,
+			 failed ? " w/ failed reloc" : "", orig_val, new_val);
 	} else {
 		pr_warn("prog '%s': trying to relocate unrecognized insn #%d, code:%x, src:%x, dst:%x, off:%x, imm:%x\n",
 			bpf_program__title(prog, false),
@@ -3103,7 +3251,8 @@ static void bpf_core_dump_spec(int level, const struct bpf_core_spec *spec)
 		libbpf_print(level, "%d%s", spec->raw_spec[i],
 			     i == spec->raw_len - 1 ? " => " : ":");
 
-	libbpf_print(level, "%u @ &x", spec->offset);
+	libbpf_print(level, "%u.%u @ &x",
+		     spec->bit_offset / 8, spec->bit_offset % 8);
 
 	for (i = 0; i < spec->len; i++) {
 		if (spec->spec[i].name)
@@ -3217,7 +3366,8 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 		return -EINVAL;
 	}
 
-	pr_debug("prog '%s': relo #%d: spec is ", prog_name, relo_idx);
+	pr_debug("prog '%s': relo #%d: kind %d, spec is ", prog_name, relo_idx,
+		 relo->kind);
 	bpf_core_dump_spec(LIBBPF_DEBUG, &local_spec);
 	libbpf_print(LIBBPF_DEBUG, "\n");
 
@@ -3257,13 +3407,13 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 
 		if (j == 0) {
 			targ_spec = cand_spec;
-		} else if (cand_spec.offset != targ_spec.offset) {
+		} else if (cand_spec.bit_offset != targ_spec.bit_offset) {
 			/* if there are many candidates, they should all
-			 * resolve to the same offset
+			 * resolve to the same bit offset
 			 */
 			pr_warn("prog '%s': relo #%d: offset ambiguity: %u != %u\n",
-				prog_name, relo_idx, cand_spec.offset,
-				targ_spec.offset);
+				prog_name, relo_idx, cand_spec.bit_offset,
+				targ_spec.bit_offset);
 			return -EINVAL;
 		}
 
@@ -3408,6 +3558,7 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 			pr_warn("oom in prog realloc\n");
 			return -ENOMEM;
 		}
+		prog->insns = new_insn;
 
 		if (obj->btf_ext) {
 			err = bpf_program_reloc_btf_ext(prog, obj,
@@ -3419,7 +3570,6 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 
 		memcpy(new_insn + prog->insns_cnt, text->insns,
 		       text->insns_cnt * sizeof(*insn));
-		prog->insns = new_insn;
 		prog->main_prog_cnt = prog->insns_cnt;
 		prog->insns_cnt = new_cnt;
 		pr_debug("added %zd insn from %s to prog %s\n",
@@ -3427,7 +3577,7 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 			 prog->section_name);
 	}
 	insn = &prog->insns[relo->insn_idx];
-	insn->imm += prog->main_prog_cnt - relo->insn_idx;
+	insn->imm += relo->text_off + prog->main_prog_cnt - relo->insn_idx;
 	return 0;
 }
 
@@ -3566,8 +3716,13 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	load_attr.insns = insns;
 	load_attr.insns_cnt = insns_cnt;
 	load_attr.license = license;
-	load_attr.kern_version = kern_version;
-	load_attr.prog_ifindex = prog->prog_ifindex;
+	if (prog->type == BPF_PROG_TYPE_TRACING) {
+		load_attr.attach_prog_fd = prog->attach_prog_fd;
+		load_attr.attach_btf_id = prog->attach_btf_id;
+	} else {
+		load_attr.kern_version = kern_version;
+		load_attr.prog_ifindex = prog->prog_ifindex;
+	}
 	/* if .BTF.ext was loaded, kernel supports associated BTF for prog */
 	if (prog->obj->btf_ext)
 		btf_fd = bpf_object__btf_fd(prog->obj);
@@ -3582,7 +3737,6 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	load_attr.line_info_cnt = prog->line_info_cnt;
 	load_attr.log_level = prog->log_level;
 	load_attr.prog_flags = prog->prog_flags;
-	load_attr.attach_btf_id = prog->attach_btf_id;
 
 retry_load:
 	log_buf = malloc(log_buf_size);
@@ -3604,7 +3758,7 @@ retry_load:
 		free(log_buf);
 		goto retry_load;
 	}
-	ret = -LIBBPF_ERRNO__LOAD;
+	ret = -errno;
 	cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 	pr_warn("load bpf program failed: %s\n", cp);
 
@@ -3617,23 +3771,18 @@ retry_load:
 		pr_warn("Program too large (%zu insns), at most %d insns\n",
 			load_attr.insns_cnt, BPF_MAXINSNS);
 		ret = -LIBBPF_ERRNO__PROG2BIG;
-	} else {
+	} else if (load_attr.prog_type != BPF_PROG_TYPE_KPROBE) {
 		/* Wrong program type? */
-		if (load_attr.prog_type != BPF_PROG_TYPE_KPROBE) {
-			int fd;
+		int fd;
 
-			load_attr.prog_type = BPF_PROG_TYPE_KPROBE;
-			load_attr.expected_attach_type = 0;
-			fd = bpf_load_program_xattr(&load_attr, NULL, 0);
-			if (fd >= 0) {
-				close(fd);
-				ret = -LIBBPF_ERRNO__PROGTYPE;
-				goto out;
-			}
+		load_attr.prog_type = BPF_PROG_TYPE_KPROBE;
+		load_attr.expected_attach_type = 0;
+		fd = bpf_load_program_xattr(&load_attr, NULL, 0);
+		if (fd >= 0) {
+			close(fd);
+			ret = -LIBBPF_ERRNO__PROGTYPE;
+			goto out;
 		}
-
-		if (log_buf)
-			ret = -LIBBPF_ERRNO__KVER;
 	}
 
 out:
@@ -3744,8 +3893,9 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 	return 0;
 }
 
-static int libbpf_attach_btf_id_by_name(const char *name, __u32 *btf_id);
-
+static int libbpf_find_attach_btf_id(const char *name,
+				     enum bpf_attach_type attach_type,
+				     __u32 attach_prog_fd);
 static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		   struct bpf_object_open_opts *opts)
@@ -3756,6 +3906,7 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	const char *obj_name;
 	char tmp_name[64];
 	bool relaxed_maps;
+	__u32 attach_prog_fd;
 	int err;
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
@@ -3786,6 +3937,7 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	obj->relaxed_core_relocs = OPTS_GET(opts, relaxed_core_relocs, false);
 	relaxed_maps = OPTS_GET(opts, relaxed_maps, false);
 	pin_root_path = OPTS_GET(opts, pin_root_path, NULL);
+	attach_prog_fd = OPTS_GET(opts, attach_prog_fd, 0);
 
 	CHECK_ERR(bpf_object__elf_init(obj), err, out);
 	CHECK_ERR(bpf_object__check_endianness(obj), err, out);
@@ -3798,7 +3950,6 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	bpf_object__for_each_program(prog, obj) {
 		enum bpf_prog_type prog_type;
 		enum bpf_attach_type attach_type;
-		__u32 btf_id;
 
 		err = libbpf_prog_type_by_name(prog->section_name, &prog_type,
 					       &attach_type);
@@ -3811,10 +3962,13 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		bpf_program__set_type(prog, prog_type);
 		bpf_program__set_expected_attach_type(prog, attach_type);
 		if (prog_type == BPF_PROG_TYPE_TRACING) {
-			err = libbpf_attach_btf_id_by_name(prog->section_name, &btf_id);
-			if (err)
+			err = libbpf_find_attach_btf_id(prog->section_name,
+							attach_type,
+							attach_prog_fd);
+			if (err <= 0)
 				goto out;
-			prog->attach_btf_id = btf_id;
+			prog->attach_btf_id = err;
+			prog->attach_prog_fd = attach_prog_fd;
 		}
 	}
 
@@ -3911,7 +4065,7 @@ int bpf_object__unload(struct bpf_object *obj)
 int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 {
 	struct bpf_object *obj;
-	int err;
+	int err, i;
 
 	if (!attr)
 		return -EINVAL;
@@ -3932,6 +4086,11 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 
 	return 0;
 out:
+	/* unpin any maps that were auto-pinned during load */
+	for (i = 0; i < obj->nr_maps; i++)
+		if (obj->maps[i].pinned && !obj->maps[i].reused)
+			bpf_map__unpin(&obj->maps[i], NULL);
+
 	bpf_object__unload(obj);
 	pr_warn("failed to load object '%s'\n", obj->path);
 	return err;
@@ -4665,6 +4824,11 @@ int bpf_program__fd(const struct bpf_program *prog)
 	return bpf_program__nth_fd(prog, 0);
 }
 
+size_t bpf_program__size(const struct bpf_program *prog)
+{
+	return prog->insns_cnt * sizeof(struct bpf_insn);
+}
+
 int bpf_program__set_prep(struct bpf_program *prog, int nr_instances,
 			  bpf_program_prep_t prep)
 {
@@ -4813,6 +4977,10 @@ static const struct {
 	BPF_PROG_SEC("raw_tp/",			BPF_PROG_TYPE_RAW_TRACEPOINT),
 	BPF_PROG_BTF("tp_btf/",			BPF_PROG_TYPE_TRACING,
 						BPF_TRACE_RAW_TP),
+	BPF_PROG_BTF("fentry/",			BPF_PROG_TYPE_TRACING,
+						BPF_TRACE_FENTRY),
+	BPF_PROG_BTF("fexit/",			BPF_PROG_TYPE_TRACING,
+						BPF_TRACE_FEXIT),
 	BPF_PROG_SEC("xdp",			BPF_PROG_TYPE_XDP),
 	BPF_PROG_SEC("perf_event",		BPF_PROG_TYPE_PERF_EVENT),
 	BPF_PROG_SEC("lwt_in",			BPF_PROG_TYPE_LWT_IN),
@@ -4930,43 +5098,94 @@ int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 }
 
 #define BTF_PREFIX "btf_trace_"
-static int libbpf_attach_btf_id_by_name(const char *name, __u32 *btf_id)
+int libbpf_find_vmlinux_btf_id(const char *name,
+			       enum bpf_attach_type attach_type)
 {
 	struct btf *btf = bpf_core_find_kernel_btf();
-	char raw_tp_btf_name[128] = BTF_PREFIX;
-	char *dst = raw_tp_btf_name + sizeof(BTF_PREFIX) - 1;
-	int ret, i, err = -EINVAL;
+	char raw_tp_btf[128] = BTF_PREFIX;
+	char *dst = raw_tp_btf + sizeof(BTF_PREFIX) - 1;
+	const char *btf_name;
+	int err = -EINVAL;
+	u32 kind;
 
 	if (IS_ERR(btf)) {
 		pr_warn("vmlinux BTF is not found\n");
 		return -EINVAL;
 	}
 
-	if (!name)
+	if (attach_type == BPF_TRACE_RAW_TP) {
+		/* prepend "btf_trace_" prefix per kernel convention */
+		strncat(dst, name, sizeof(raw_tp_btf) - sizeof(BTF_PREFIX));
+		btf_name = raw_tp_btf;
+		kind = BTF_KIND_TYPEDEF;
+	} else {
+		btf_name = name;
+		kind = BTF_KIND_FUNC;
+	}
+	err = btf__find_by_name_kind(btf, btf_name, kind);
+	btf__free(btf);
+	return err;
+}
+
+static int libbpf_find_prog_btf_id(const char *name, __u32 attach_prog_fd)
+{
+	struct bpf_prog_info_linear *info_linear;
+	struct bpf_prog_info *info;
+	struct btf *btf = NULL;
+	int err = -EINVAL;
+
+	info_linear = bpf_program__get_prog_info_linear(attach_prog_fd, 0);
+	if (IS_ERR_OR_NULL(info_linear)) {
+		pr_warn("failed get_prog_info_linear for FD %d\n",
+			attach_prog_fd);
+		return -EINVAL;
+	}
+	info = &info_linear->info;
+	if (!info->btf_id) {
+		pr_warn("The target program doesn't have BTF\n");
 		goto out;
+	}
+	if (btf__get_from_id(info->btf_id, &btf)) {
+		pr_warn("Failed to get BTF of the program\n");
+		goto out;
+	}
+	err = btf__find_by_name_kind(btf, name, BTF_KIND_FUNC);
+	btf__free(btf);
+	if (err <= 0) {
+		pr_warn("%s is not found in prog's BTF\n", name);
+		goto out;
+	}
+out:
+	free(info_linear);
+	return err;
+}
+
+static int libbpf_find_attach_btf_id(const char *name,
+				     enum bpf_attach_type attach_type,
+				     __u32 attach_prog_fd)
+{
+	int i, err;
+
+	if (!name)
+		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
 		if (!section_names[i].is_attach_btf)
 			continue;
 		if (strncmp(name, section_names[i].sec, section_names[i].len))
 			continue;
-		/* prepend "btf_trace_" prefix per kernel convention */
-		strncat(dst, name + section_names[i].len,
-			sizeof(raw_tp_btf_name) - sizeof(BTF_PREFIX));
-		ret = btf__find_by_name(btf, raw_tp_btf_name);
-		if (ret <= 0) {
-			pr_warn("%s is not found in vmlinux BTF\n", dst);
-			goto out;
-		}
-		*btf_id = ret;
-		err = 0;
-		goto out;
+		if (attach_prog_fd)
+			err = libbpf_find_prog_btf_id(name + section_names[i].len,
+						      attach_prog_fd);
+		else
+			err = libbpf_find_vmlinux_btf_id(name + section_names[i].len,
+							 attach_type);
+		if (err <= 0)
+			pr_warn("%s is not found in vmlinux BTF\n", name);
+		return err;
 	}
 	pr_warn("failed to identify btf_id based on ELF section name '%s'\n", name);
-	err = -ESRCH;
-out:
-	btf__free(btf);
-	return err;
+	return -ESRCH;
 }
 
 int libbpf_attach_type_by_name(const char *name,
@@ -5587,6 +5806,37 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 		free(link);
 		pr_warn("program '%s': failed to attach to raw tracepoint '%s': %s\n",
 			bpf_program__title(prog, false), tp_name,
+			libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
+		return ERR_PTR(pfd);
+	}
+	link->fd = pfd;
+	return (struct bpf_link *)link;
+}
+
+struct bpf_link *bpf_program__attach_trace(struct bpf_program *prog)
+{
+	char errmsg[STRERR_BUFSIZE];
+	struct bpf_link_fd *link;
+	int prog_fd, pfd;
+
+	prog_fd = bpf_program__fd(prog);
+	if (prog_fd < 0) {
+		pr_warn("program '%s': can't attach before loaded\n",
+			bpf_program__title(prog, false));
+		return ERR_PTR(-EINVAL);
+	}
+
+	link = malloc(sizeof(*link));
+	if (!link)
+		return ERR_PTR(-ENOMEM);
+	link->link.destroy = &bpf_link__destroy_fd;
+
+	pfd = bpf_raw_tracepoint_open(NULL, prog_fd);
+	if (pfd < 0) {
+		pfd = -errno;
+		free(link);
+		pr_warn("program '%s': failed to attach to trace: %s\n",
+			bpf_program__title(prog, false),
 			libbpf_strerror_r(pfd, errmsg, sizeof(errmsg)));
 		return ERR_PTR(pfd);
 	}

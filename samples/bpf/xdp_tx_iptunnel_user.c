@@ -268,7 +268,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	if (!prog_fd) {
-		printf("load_bpf_file: %s\n", strerror(errno));
+		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
 		return 1;
 	}
 

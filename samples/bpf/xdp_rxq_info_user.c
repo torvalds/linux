@@ -51,8 +51,8 @@ static const struct option long_options[] = {
 	{"sec",		required_argument,	NULL, 's' },
 	{"no-separators", no_argument,		NULL, 'z' },
 	{"action",	required_argument,	NULL, 'a' },
-	{"readmem", 	no_argument,		NULL, 'r' },
-	{"swapmac", 	no_argument,		NULL, 'm' },
+	{"readmem",	no_argument,		NULL, 'r' },
+	{"swapmac",	no_argument,		NULL, 'm' },
 	{"force",	no_argument,		NULL, 'F' },
 	{0, 0, NULL,  0 }
 };
@@ -499,7 +499,7 @@ int main(int argc, char **argv)
 	map_fd = bpf_map__fd(map);
 
 	if (!prog_fd) {
-		fprintf(stderr, "ERR: load_bpf_file: %s\n", strerror(errno));
+		fprintf(stderr, "ERR: bpf_prog_load_xattr: %s\n", strerror(errno));
 		return EXIT_FAIL;
 	}
 

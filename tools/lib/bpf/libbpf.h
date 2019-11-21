@@ -108,8 +108,9 @@ struct bpf_object_open_opts {
 	 * auto-pinned to that path on load; defaults to "/sys/fs/bpf".
 	 */
 	const char *pin_root_path;
+	__u32 attach_prog_fd;
 };
-#define bpf_object_open_opts__last_field pin_root_path
+#define bpf_object_open_opts__last_field attach_prog_fd
 
 LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
 LIBBPF_API struct bpf_object *
@@ -188,6 +189,8 @@ libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			 enum bpf_attach_type *expected_attach_type);
 LIBBPF_API int libbpf_attach_type_by_name(const char *name,
 					  enum bpf_attach_type *attach_type);
+LIBBPF_API int libbpf_find_vmlinux_btf_id(const char *name,
+					  enum bpf_attach_type attach_type);
 
 /* Accessors of bpf_program */
 struct bpf_program;
@@ -213,6 +216,9 @@ LIBBPF_API void bpf_program__set_ifindex(struct bpf_program *prog,
 
 LIBBPF_API const char *bpf_program__title(const struct bpf_program *prog,
 					  bool needs_copy);
+
+/* returns program size in bytes */
+LIBBPF_API size_t bpf_program__size(const struct bpf_program *prog);
 
 LIBBPF_API int bpf_program__load(struct bpf_program *prog, char *license,
 				 __u32 kern_version);
@@ -248,6 +254,8 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 				   const char *tp_name);
 
+LIBBPF_API struct bpf_link *
+bpf_program__attach_trace(struct bpf_program *prog);
 struct bpf_insn;
 
 /*
@@ -427,8 +435,18 @@ LIBBPF_API int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 LIBBPF_API int bpf_prog_load(const char *file, enum bpf_prog_type type,
 			     struct bpf_object **pobj, int *prog_fd);
 
+struct xdp_link_info {
+	__u32 prog_id;
+	__u32 drv_prog_id;
+	__u32 hw_prog_id;
+	__u32 skb_prog_id;
+	__u8 attach_mode;
+};
+
 LIBBPF_API int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
 LIBBPF_API int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags);
+LIBBPF_API int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
+				     size_t info_size, __u32 flags);
 
 struct perf_buffer;
 

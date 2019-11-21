@@ -28,12 +28,12 @@
 /* volatile to prevent compiler optimizations */
 static volatile __u32 max_pcktsz = MAX_PCKT_SIZE;
 
-struct bpf_map_def SEC("maps") icmpcnt = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u64),
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, __u32);
+	__type(value, __u64);
+	__uint(max_entries, 1);
+} icmpcnt SEC(".maps");
 
 static __always_inline void count_icmp(void)
 {

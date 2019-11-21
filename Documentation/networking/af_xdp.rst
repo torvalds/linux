@@ -295,7 +295,7 @@ round-robin example of distributing packets is shown below:
    {
 	rr = (rr + 1) & (MAX_SOCKS - 1);
 
-	return bpf_redirect_map(&xsks_map, rr, 0);
+	return bpf_redirect_map(&xsks_map, rr, XDP_DROP);
    }
 
 Note, that since there is only a single set of FILL and COMPLETION
@@ -303,6 +303,12 @@ rings, and they are single producer, single consumer rings, you need
 to make sure that multiple processes or threads do not use these rings
 concurrently. There are no synchronization primitives in the
 libbpf code that protects multiple users at this point in time.
+
+Libbpf uses this mode if you create more than one socket tied to the
+same umem. However, note that you need to supply the
+XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD libbpf_flag with the
+xsk_socket__create calls and load your own XDP program as there is no
+built in one in libbpf that will route the traffic for you.
 
 XDP_USE_NEED_WAKEUP bind flag
 -----------------------------
@@ -355,10 +361,22 @@ to set the size of at least one of the RX and TX rings. If you set
 both, you will be able to both receive and send traffic from your
 application, but if you only want to do one of them, you can save
 resources by only setting up one of them. Both the FILL ring and the
-COMPLETION ring are mandatory if you have a UMEM tied to your socket,
-which is the normal case. But if the XDP_SHARED_UMEM flag is used, any
-socket after the first one does not have a UMEM and should in that
-case not have any FILL or COMPLETION rings created.
+COMPLETION ring are mandatory as you need to have a UMEM tied to your
+socket. But if the XDP_SHARED_UMEM flag is used, any socket after the
+first one does not have a UMEM and should in that case not have any
+FILL or COMPLETION rings created as the ones from the shared umem will
+be used. Note, that the rings are single-producer single-consumer, so
+do not try to access them from multiple processes at the same
+time. See the XDP_SHARED_UMEM section.
+
+In libbpf, you can create Rx-only and Tx-only sockets by supplying
+NULL to the rx and tx arguments, respectively, to the
+xsk_socket__create function.
+
+If you create a Tx-only socket, we recommend that you do not put any
+packets on the fill ring. If you do this, drivers might think you are
+going to receive something when you in fact will not, and this can
+negatively impact performance.
 
 XDP_UMEM_REG setsockopt
 -----------------------

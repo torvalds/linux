@@ -23,7 +23,7 @@
 #include "disasm.h"
 
 static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
-#define BPF_PROG_TYPE(_id, _name) \
+#define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
 	[_id] = & _name ## _verifier_ops,
 #define BPF_MAP_TYPE(_id, _ops)
 #include <linux/bpf_types.h>
@@ -3970,6 +3970,9 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	/* only increment it after check_reg_arg() finished */
 	state->curframe++;
 
+	if (btf_check_func_arg_match(env, subprog))
+		return -EINVAL;
+
 	/* and go analyze first insn of the callee */
 	*insn_idx = target_insn;
 
@@ -4147,11 +4150,9 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 	meta.func_id = func_id;
 	/* check args */
 	for (i = 0; i < 5; i++) {
-		if (fn->arg_type[i] == ARG_PTR_TO_BTF_ID) {
-			if (!fn->btf_id[i])
-				fn->btf_id[i] = btf_resolve_helper_id(&env->log, fn->func, i);
-			meta.btf_id = fn->btf_id[i];
-		}
+		err = btf_resolve_helper_id(&env->log, fn, i);
+		if (err > 0)
+			meta.btf_id = err;
 		err = check_func_arg(env, BPF_REG_1 + i, fn->arg_type[i], &meta);
 		if (err)
 			return err;
@@ -6566,6 +6567,7 @@ static int check_btf_func(struct bpf_verifier_env *env,
 	u32 i, nfuncs, urec_size, min_size;
 	u32 krec_size = sizeof(struct bpf_func_info);
 	struct bpf_func_info *krecord;
+	struct bpf_func_info_aux *info_aux = NULL;
 	const struct btf_type *type;
 	struct bpf_prog *prog;
 	const struct btf *btf;
@@ -6599,6 +6601,9 @@ static int check_btf_func(struct bpf_verifier_env *env,
 	krecord = kvcalloc(nfuncs, krec_size, GFP_KERNEL | __GFP_NOWARN);
 	if (!krecord)
 		return -ENOMEM;
+	info_aux = kcalloc(nfuncs, sizeof(*info_aux), GFP_KERNEL | __GFP_NOWARN);
+	if (!info_aux)
+		goto err_free;
 
 	for (i = 0; i < nfuncs; i++) {
 		ret = bpf_check_uarg_tail_zero(urecord, krec_size, urec_size);
@@ -6650,29 +6655,31 @@ static int check_btf_func(struct bpf_verifier_env *env,
 			ret = -EINVAL;
 			goto err_free;
 		}
-
 		prev_offset = krecord[i].insn_off;
 		urecord += urec_size;
 	}
 
 	prog->aux->func_info = krecord;
 	prog->aux->func_info_cnt = nfuncs;
+	prog->aux->func_info_aux = info_aux;
 	return 0;
 
 err_free:
 	kvfree(krecord);
+	kfree(info_aux);
 	return ret;
 }
 
 static void adjust_btf_func(struct bpf_verifier_env *env)
 {
+	struct bpf_prog_aux *aux = env->prog->aux;
 	int i;
 
-	if (!env->prog->aux->func_info)
+	if (!aux->func_info)
 		return;
 
 	for (i = 0; i < env->subprog_cnt; i++)
-		env->prog->aux->func_info[i].insn_off = env->subprog_info[i].start;
+		aux->func_info[i].insn_off = env->subprog_info[i].start;
 }
 
 #define MIN_BPF_LINEINFO_SIZE	(offsetof(struct bpf_line_info, line_col) + \
@@ -7653,6 +7660,9 @@ static int do_check(struct bpf_verifier_env *env)
 			0 /* frameno */,
 			0 /* subprogno, zero == main subprog */);
 
+	if (btf_check_func_arg_match(env, 0))
+		return -EINVAL;
+
 	for (;;) {
 		struct bpf_insn *insn;
 		u8 class;
@@ -8169,11 +8179,7 @@ static int replace_map_fd_with_map_ptr(struct bpf_verifier_env *env)
 			 * will be used by the valid program until it's unloaded
 			 * and all maps are released in free_used_maps()
 			 */
-			map = bpf_map_inc(map, false);
-			if (IS_ERR(map)) {
-				fdput(f);
-				return PTR_ERR(map);
-			}
+			bpf_map_inc(map);
 
 			aux->map_index = env->used_map_cnt;
 			env->used_maps[env->used_map_cnt++] = map;
@@ -9380,10 +9386,17 @@ static void print_verification_stats(struct bpf_verifier_env *env)
 static int check_attach_btf_id(struct bpf_verifier_env *env)
 {
 	struct bpf_prog *prog = env->prog;
+	struct bpf_prog *tgt_prog = prog->aux->linked_prog;
 	u32 btf_id = prog->aux->attach_btf_id;
 	const char prefix[] = "btf_trace_";
+	int ret = 0, subprog = -1, i;
+	struct bpf_trampoline *tr;
 	const struct btf_type *t;
+	bool conservative = true;
 	const char *tname;
+	struct btf *btf;
+	long addr;
+	u64 key;
 
 	if (prog->type != BPF_PROG_TYPE_TRACING)
 		return 0;
@@ -9392,19 +9405,47 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 		verbose(env, "Tracing programs must provide btf_id\n");
 		return -EINVAL;
 	}
-	t = btf_type_by_id(btf_vmlinux, btf_id);
+	btf = bpf_prog_get_target_btf(prog);
+	if (!btf) {
+		verbose(env,
+			"FENTRY/FEXIT program can only be attached to another program annotated with BTF\n");
+		return -EINVAL;
+	}
+	t = btf_type_by_id(btf, btf_id);
 	if (!t) {
 		verbose(env, "attach_btf_id %u is invalid\n", btf_id);
 		return -EINVAL;
 	}
-	tname = btf_name_by_offset(btf_vmlinux, t->name_off);
+	tname = btf_name_by_offset(btf, t->name_off);
 	if (!tname) {
 		verbose(env, "attach_btf_id %u doesn't have a name\n", btf_id);
 		return -EINVAL;
 	}
+	if (tgt_prog) {
+		struct bpf_prog_aux *aux = tgt_prog->aux;
+
+		for (i = 0; i < aux->func_info_cnt; i++)
+			if (aux->func_info[i].type_id == btf_id) {
+				subprog = i;
+				break;
+			}
+		if (subprog == -1) {
+			verbose(env, "Subprog %s doesn't exist\n", tname);
+			return -EINVAL;
+		}
+		conservative = aux->func_info_aux[subprog].unreliable;
+		key = ((u64)aux->id) << 32 | btf_id;
+	} else {
+		key = btf_id;
+	}
 
 	switch (prog->expected_attach_type) {
 	case BPF_TRACE_RAW_TP:
+		if (tgt_prog) {
+			verbose(env,
+				"Only FENTRY/FEXIT progs are attachable to another BPF prog\n");
+			return -EINVAL;
+		}
 		if (!btf_type_is_typedef(t)) {
 			verbose(env, "attach_btf_id %u is not a typedef\n",
 				btf_id);
@@ -9416,11 +9457,11 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 			return -EINVAL;
 		}
 		tname += sizeof(prefix) - 1;
-		t = btf_type_by_id(btf_vmlinux, t->type);
+		t = btf_type_by_id(btf, t->type);
 		if (!btf_type_is_ptr(t))
 			/* should never happen in valid vmlinux build */
 			return -EINVAL;
-		t = btf_type_by_id(btf_vmlinux, t->type);
+		t = btf_type_by_id(btf, t->type);
 		if (!btf_type_is_func_proto(t))
 			/* should never happen in valid vmlinux build */
 			return -EINVAL;
@@ -9432,6 +9473,66 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 		prog->aux->attach_func_proto = t;
 		prog->aux->attach_btf_trace = true;
 		return 0;
+	case BPF_TRACE_FENTRY:
+	case BPF_TRACE_FEXIT:
+		if (!btf_type_is_func(t)) {
+			verbose(env, "attach_btf_id %u is not a function\n",
+				btf_id);
+			return -EINVAL;
+		}
+		t = btf_type_by_id(btf, t->type);
+		if (!btf_type_is_func_proto(t))
+			return -EINVAL;
+		tr = bpf_trampoline_lookup(key);
+		if (!tr)
+			return -ENOMEM;
+		prog->aux->attach_func_name = tname;
+		/* t is either vmlinux type or another program's type */
+		prog->aux->attach_func_proto = t;
+		mutex_lock(&tr->mutex);
+		if (tr->func.addr) {
+			prog->aux->trampoline = tr;
+			goto out;
+		}
+		if (tgt_prog && conservative) {
+			prog->aux->attach_func_proto = NULL;
+			t = NULL;
+		}
+		ret = btf_distill_func_proto(&env->log, btf, t,
+					     tname, &tr->func.model);
+		if (ret < 0)
+			goto out;
+		if (tgt_prog) {
+			if (!tgt_prog->jited) {
+				/* for now */
+				verbose(env, "Can trace only JITed BPF progs\n");
+				ret = -EINVAL;
+				goto out;
+			}
+			if (tgt_prog->type == BPF_PROG_TYPE_TRACING) {
+				/* prevent cycles */
+				verbose(env, "Cannot recursively attach\n");
+				ret = -EINVAL;
+				goto out;
+			}
+			addr = (long) tgt_prog->aux->func[subprog]->bpf_func;
+		} else {
+			addr = kallsyms_lookup_name(tname);
+			if (!addr) {
+				verbose(env,
+					"The address of function %s cannot be found\n",
+					tname);
+				ret = -ENOENT;
+				goto out;
+			}
+		}
+		tr->func.addr = (void *)addr;
+		prog->aux->trampoline = tr;
+out:
+		mutex_unlock(&tr->mutex);
+		if (ret)
+			bpf_trampoline_put(tr);
+		return ret;
 	default:
 		return -EINVAL;
 	}

@@ -3816,7 +3816,7 @@ static const struct bpf_func_proto bpf_skb_event_output_proto = {
 	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
 };
 
-static u32 bpf_skb_output_btf_ids[5];
+static int bpf_skb_output_btf_ids[5];
 const struct bpf_func_proto bpf_skb_output_proto = {
 	.func		= bpf_skb_event_output,
 	.gpl_only	= true,
@@ -8684,16 +8684,6 @@ out:
 }
 
 #ifdef CONFIG_INET
-struct sk_reuseport_kern {
-	struct sk_buff *skb;
-	struct sock *sk;
-	struct sock *selected_sk;
-	void *data_end;
-	u32 hash;
-	u32 reuseport_id;
-	bool bind_inany;
-};
-
 static void bpf_init_reuseport_kern(struct sk_reuseport_kern *reuse_kern,
 				    struct sock_reuseport *reuse,
 				    struct sock *sk, struct sk_buff *skb,

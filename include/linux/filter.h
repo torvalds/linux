@@ -515,10 +515,12 @@ struct sock_fprog_kern {
 	struct sock_filter	*filter;
 };
 
+/* Some arches need doubleword alignment for their instructions and/or data */
+#define BPF_IMAGE_ALIGNMENT 8
+
 struct bpf_binary_header {
 	u32 pages;
-	/* Some arches need word alignment for their instructions */
-	u8 image[] __aligned(4);
+	u8 image[] __aligned(BPF_IMAGE_ALIGNMENT);
 };
 
 struct bpf_prog {

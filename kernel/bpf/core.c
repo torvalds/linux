@@ -31,6 +31,7 @@
 #include <linux/rcupdate.h>
 #include <linux/perf_event.h>
 #include <linux/extable.h>
+#include <linux/log2.h>
 #include <asm/unaligned.h>
 
 /* Registers */
@@ -815,6 +816,9 @@ bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 	struct bpf_binary_header *hdr;
 	u32 size, hole, start, pages;
 
+	WARN_ON_ONCE(!is_power_of_2(alignment) ||
+		     alignment > BPF_IMAGE_ALIGNMENT);
+
 	/* Most of BPF filters are really small, but if some of them
 	 * fill a page, allow at least 128 extra bytes to insert a
 	 * random section of illegal instructions.
@@ -1569,7 +1573,7 @@ out:
 #undef LDST
 #define LDX_PROBE(SIZEOP, SIZE)							\
 	LDX_PROBE_MEM_##SIZEOP:							\
-		bpf_probe_read_kernel(&DST, SIZE, (const void *)(long) SRC);	\
+		bpf_probe_read_kernel(&DST, SIZE, (const void *)(long) (SRC + insn->off));	\
 		CONT;
 	LDX_PROBE(B,  1)
 	LDX_PROBE(H,  2)
@@ -2011,6 +2015,7 @@ static void bpf_prog_free_deferred(struct work_struct *work)
 	if (aux->prog->has_callchain_buf)
 		put_callchain_buffers();
 #endif
+	bpf_trampoline_put(aux->trampoline);
 	for (i = 0; i < aux->func_cnt; i++)
 		bpf_jit_free(aux->func[i]);
 	if (aux->func_cnt) {
@@ -2026,6 +2031,8 @@ void bpf_prog_free(struct bpf_prog *fp)
 {
 	struct bpf_prog_aux *aux = fp->aux;
 
+	if (aux->linked_prog)
+		bpf_prog_put(aux->linked_prog);
 	INIT_WORK(&aux->work, bpf_prog_free_deferred);
 	schedule_work(&aux->work);
 }
@@ -2138,6 +2145,12 @@ int __weak skb_copy_bits(const struct sk_buff *skb, int offset, void *to,
 			 int len)
 {
 	return -EFAULT;
+}
+
+int __weak bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
+			      void *addr1, void *addr2)
+{
+	return -ENOTSUPP;
 }
 
 DEFINE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
