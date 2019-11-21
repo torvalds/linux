@@ -1,16 +1,12 @@
-/*
- * es8323.c -- es8323 ALSA SoC audio driver
- *
- * Copyright (c) 2016 Rockchip Electronics Co. Ltd.
- *
- * Author: Mark Brown <will@everset-semi.com>
- * Author: Jianqun Xu <jay.xu@rock-chips.com>
- * Author: Nickey Yang <nickey.yang@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// es8323.c -- es8323 ALSA SoC audio driver
+//
+// Copyright (c) 2016 Rockchip Electronics Co. Ltd.
+//
+// Author: Mark Brown <will@everset-semi.com>
+// Author: Jianqun Xu <jay.xu@rock-chips.com>
+// Author: Nickey Yang <nickey.yang@rock-chips.com>
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -35,36 +31,60 @@
 #include <linux/irq.h>
 #include "es8323.h"
 
-#define INVALID_GPIO -1
-
 #define ES8323_CODEC_SET_SPK	1
 #define ES8323_CODEC_SET_HP	2
 
 #define es8323_DEF_VOL	0x1b
 
-static int es8323_set_bias_level(struct snd_soc_codec *codec,
+static int es8323_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level);
 
-/*
- * es8323 register cache
- * We can't read the es8323 register space when we
- * are using 2 wire for device control, so we cache them instead.
- */
-static u16 es8323_reg[] = {
-	0x06, 0x1C, 0xC3, 0xFC,	/*  0 */
-	0xC0, 0x00, 0x00, 0x7C,	/*  4 */
-	0x80, 0x00, 0x00, 0x06,	/*  8 */
-	0x00, 0x06, 0x30, 0x30,	/* 12 */
-	0xC0, 0xC0, 0x38, 0xB0,	/* 16 */
-	0x32, 0x06, 0x00, 0x00,	/* 20 */
-	0x06, 0x30, 0xC0, 0xC0,	/* 24 */
-	0x08, 0x06, 0x1F, 0xF7,	/* 28 */
-	0xFD, 0xFF, 0x1F, 0xF7,	/* 32 */
-	0xFD, 0xFF, 0x00, 0x38,	/* 36 */
-	0x38, 0x38, 0x38, 0x38,	/* 40 */
-	0x38, 0x00, 0x00, 0x00,	/* 44 */
-	0x00, 0x00, 0x00, 0x00,	/* 48 */
-	0x00, 0x00, 0x00, 0x00,	/* 52 */
+static struct reg_default es8323_reg_defaults[] = {
+	{ 0x00, 0x06 },
+	{ 0x01, 0x1c },
+	{ 0x02, 0xc3 },
+	{ 0x03, 0xfc },
+	{ 0x04, 0xc0 },
+	{ 0x05, 0x00 },
+	{ 0x06, 0x00 },
+	{ 0x07, 0x7c },
+	{ 0x08, 0x80 },
+	{ 0x09, 0x00 },
+	{ 0x0a, 0x00 },
+	{ 0x0b, 0x06 },
+	{ 0x0c, 0x00 },
+	{ 0x0d, 0x06 },
+	{ 0x0e, 0x30 },
+	{ 0x0f, 0x30 },
+	{ 0x10, 0xc0 },
+	{ 0x11, 0xc0 },
+	{ 0x12, 0x38 },
+	{ 0x13, 0xb0 },
+	{ 0x14, 0x32 },
+	{ 0x15, 0x06 },
+	{ 0x16, 0x00 },
+	{ 0x17, 0x00 },
+	{ 0x18, 0x06 },
+	{ 0x19, 0x30 },
+	{ 0x1a, 0xc0 },
+	{ 0x1b, 0xc0 },
+	{ 0x1c, 0x08 },
+	{ 0x1d, 0x06 },
+	{ 0x1e, 0x1f },
+	{ 0x1f, 0xf7 },
+	{ 0x20, 0xfd },
+	{ 0x21, 0xff },
+	{ 0x22, 0x1f },
+	{ 0x23, 0xf7 },
+	{ 0x24, 0xfd },
+	{ 0x25, 0xff },
+	{ 0x26, 0x00 },
+	{ 0x27, 0x38 },
+	{ 0x28, 0x38 },
+	{ 0x29, 0x38 },
+	{ 0x2a, 0x38 },
+	{ 0x2b, 0x38 },
+	{ 0x2c, 0x38 },
 };
 
 /* codec private data */
@@ -72,104 +92,83 @@ struct es8323_priv {
 	unsigned int sysclk;
 	struct clk *mclk;
 	struct snd_pcm_hw_constraint_list *sysclk_constraints;
+	struct snd_soc_component *component;
+	struct regmap *regmap;
 
-	int spk_ctl_gpio;
-	int hp_det_gpio;
+	struct gpio_desc *spk_ctl_gpio;
+	struct gpio_desc *hp_det_gpio;
 
 	bool muted;
-	bool hp_inserted;
-	bool spk_gpio_level;
-	bool hp_det_level;
 };
 
-static struct es8323_priv *es8323_private;
-static int es8323_set_gpio(int gpio, bool level)
+static int es8323_set_gpio(struct es8323_priv *es8323, int gpio, bool level)
 {
-	struct es8323_priv *es8323 = es8323_private;
-
-	if (!es8323) {
-		return 0;
-	}
-
-	if ((gpio & ES8323_CODEC_SET_SPK) && es8323
-	    && es8323->spk_ctl_gpio != INVALID_GPIO) {
-		gpio_set_value(es8323->spk_ctl_gpio, level);
-	}
+	if ((gpio & ES8323_CODEC_SET_SPK) && es8323->spk_ctl_gpio)
+		gpiod_set_value(es8323->spk_ctl_gpio, level);
 
 	return 0;
 }
 
 static irqreturn_t hp_det_irq_handler(int irq, void *dev_id)
 {
-	struct es8323_priv *es8323 = es8323_private;
-
-	if (gpio_get_value(es8323->hp_det_gpio))
-		es8323->hp_inserted = 0;
-	else
-		es8323->hp_inserted = 1;
+	struct es8323_priv *es8323 = dev_id;
 
 	if (es8323->muted == 0) {
-		if (es8323->hp_det_level != es8323->hp_inserted)
-			es8323_set_gpio(ES8323_CODEC_SET_SPK, !es8323->spk_gpio_level);
+		if (gpiod_get_value(es8323->hp_det_gpio))
+			es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 0);
 		else
-			es8323_set_gpio(ES8323_CODEC_SET_SPK, es8323->spk_gpio_level);
+			es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 1);
 	}
 	return IRQ_HANDLED;
 }
 
-static unsigned int es8323_read_reg_cache(struct snd_soc_codec *codec,
-					  unsigned int reg)
+static int es8323_reset(struct snd_soc_component *component)
 {
-	if (reg >= ARRAY_SIZE(es8323_reg))
-		return -1;
-	return es8323_reg[reg];
+	snd_soc_component_write(component, ES8323_CONTROL1, 0x80);
+	return snd_soc_component_write(component, ES8323_CONTROL1, 0x00);
 }
 
-static int es8323_write(struct snd_soc_codec *codec, unsigned int reg,
-			unsigned int value)
-{
-	u8 data[2];
-	int ret;
-
-	data[0] = reg;
-	data[1] = value & 0x00ff;
-
-	if (reg < ARRAY_SIZE(es8323_reg))
-		es8323_reg[reg] = value;
-	ret = codec->hw_write(codec->control_data, data, 2);
-	if (ret == 2)
-		return 0;
-	if (ret < 0)
-		return ret;
-	else
-		return -EIO;
-}
-
-static int es8323_reset(struct snd_soc_codec *codec)
-{
-	snd_soc_write(codec, ES8323_CONTROL1, 0x80);
-	return snd_soc_write(codec, ES8323_CONTROL1, 0x00);
-}
-
-static const char *es8323_line_texts[] = {
+static const char * const es8323_line_texts[] = {
 	"Line 1", "Line 2", "PGA"
 };
 
 static const unsigned int es8323_line_values[] = {
 	0, 1, 3
 };
-static const char *es8323_pga_sel[] = { "Line 1", "Line 2", "Differential" };
-static const char *stereo_3d_txt[] =
-    { "No 3D  ", "Level 1", "Level 2", "Level 3", "Level 4", "Level 5",
-"Level 6", "Level 7" };
-static const char *alc_func_txt[] = { "Off", "Right", "Left", "Stereo" };
-static const char *ng_type_txt[] = { "Constant PGA Gain", "Mute ADC Output" };
-static const char *deemph_txt[] = { "None", "32Khz", "44.1Khz", "48Khz" };
-static const char *adcpol_txt[] =
-    { "Normal", "L Invert", "R Invert", "L + R Invert" };
-static const char *es8323_mono_mux[] =
-    { "Stereo", "Mono (Left)", "Mono (Right)" };
-static const char *es8323_diff_sel[] = { "Line 1", "Line 2" };
+
+static const char * const es8323_pga_sel[] = {
+	"Line 1", "Line 2", "Differential"
+};
+
+static const char * const stereo_3d_txt[] = {
+	"No 3D  ", "Level 1", "Level 2",
+	"Level 3", "Level 4", "Level 5",
+	"Level 6", "Level 7"
+};
+
+static const char * const alc_func_txt[] = {
+	"Off", "Right", "Left", "Stereo"
+};
+
+static const char * const ng_type_txt[] = {
+	"Constant PGA Gain", "Mute ADC Output"
+};
+
+static const char * const deemph_txt[] = {
+	"None", "32Khz", "44.1Khz", "48Khz"
+};
+
+static const char * const adcpol_txt[] = {
+	"Normal", "L Invert", "R Invert", "L + R Invert"
+};
+
+static const char * const es8323_mono_mux[] = {
+	"Stereo", "Mono (Left)", "Mono (Right)"
+};
+
+static const char * const es8323_diff_sel[] = {
+	"Line 1", "Line 2"
+};
 
 static const struct soc_enum es8323_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(ES8323_DACCONTROL16, 3, 7, ARRAY_SIZE(es8323_line_texts), es8323_line_texts, es8323_line_values),	/* LLINE */
@@ -315,7 +314,6 @@ static const struct snd_soc_dapm_widget es8323_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
-
 	{"Left Line Mux", "NULL", "LINPUT1"},
 	{"Left Line Mux", "NULL", "LINPUT2"},
 	{"Left Line Mux", "NULL", "Left PGA Mux"},
@@ -476,8 +474,8 @@ static struct snd_pcm_hw_constraint_list constraints_12 = {
 static int es8323_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct es8323_priv *es8323 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
 
 	switch (freq) {
 	case 11289600:
@@ -507,14 +505,14 @@ static int es8323_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 static int es8323_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	u8 iface = 0;
 	u8 adciface = 0;
 	u8 daciface = 0;
 
-	iface = snd_soc_read(codec, ES8323_IFACE);
-	adciface = snd_soc_read(codec, ES8323_ADC_IFACE);
-	daciface = snd_soc_read(codec, ES8323_DAC_IFACE);
+	iface = snd_soc_component_read32(component, ES8323_IFACE);
+	adciface = snd_soc_component_read32(component, ES8323_ADC_IFACE);
+	daciface = snd_soc_component_read32(component, ES8323_DAC_IFACE);
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -572,9 +570,9 @@ static int es8323_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, ES8323_IFACE, iface);
-	snd_soc_write(codec, ES8323_ADC_IFACE, adciface);
-	snd_soc_write(codec, ES8323_DAC_IFACE, daciface);
+	snd_soc_component_write(component, ES8323_IFACE, iface);
+	snd_soc_component_write(component, ES8323_ADC_IFACE, adciface);
+	snd_soc_component_write(component, ES8323_DAC_IFACE, daciface);
 
 	return 0;
 }
@@ -582,14 +580,14 @@ static int es8323_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 static int es8323_pcm_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct es8323_priv *es8323 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
 
 	/* The set of sample rates that can be supported depends on the
 	 * MCLK supplied to the CODEC - enforce this.
 	 */
 	if (!es8323->sysclk) {
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"No MCLK configured, call set_sysclk() on init\n");
 		return -EINVAL;
 	}
@@ -605,12 +603,11 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
-	struct es8323_priv *es8323 = snd_soc_codec_get_drvdata(codec);
-	u16 srate = snd_soc_read(codec, ES8323_IFACE) & 0x80;
-	u16 adciface = snd_soc_read(codec, ES8323_ADC_IFACE) & 0xE3;
-	u16 daciface = snd_soc_read(codec, ES8323_DAC_IFACE) & 0xC7;
+	struct snd_soc_component *component = dai->component;
+	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
+	u16 srate = snd_soc_component_read32(component, ES8323_IFACE) & 0x80;
+	u16 adciface = snd_soc_component_read32(component, ES8323_ADC_IFACE) & 0xE3;
+	u16 daciface = snd_soc_component_read32(component, ES8323_DAC_IFACE) & 0xC7;
 	int coeff;
 
 	coeff = get_coeff(es8323->sysclk, params_rate(params));
@@ -619,7 +616,7 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 		srate |= 0x40;
 	}
 	if (coeff < 0) {
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"Unable to configure sample rate %dHz with %dHz MCLK\n",
 			params_rate(params), es8323->sysclk);
 		return coeff;
@@ -644,17 +641,17 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* set iface & srate */
-	snd_soc_write(codec, ES8323_DAC_IFACE, daciface);
-	snd_soc_write(codec, ES8323_ADC_IFACE, adciface);
+	snd_soc_component_write(component, ES8323_DAC_IFACE, daciface);
+	snd_soc_component_write(component, ES8323_ADC_IFACE, adciface);
 
 	if (coeff >= 0) {
-		snd_soc_write(codec, ES8323_IFACE, srate);
-		snd_soc_write(codec, ES8323_ADCCONTROL5,
-			      coeff_div[coeff].sr | (coeff_div[coeff].
-						     usb) << 4);
-		snd_soc_write(codec, ES8323_DACCONTROL2,
-			      coeff_div[coeff].sr | (coeff_div[coeff].
-						     usb) << 4);
+		snd_soc_component_write(component, ES8323_IFACE, srate);
+		snd_soc_component_write(component, ES8323_ADCCONTROL5,
+					coeff_div[coeff].sr |
+					coeff_div[coeff].usb << 4);
+		snd_soc_component_write(component, ES8323_DACCONTROL2,
+					coeff_div[coeff].sr |
+					coeff_div[coeff].usb << 4);
 	}
 
 	return 0;
@@ -662,70 +659,71 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 
 static int es8323_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct es8323_priv *es8323 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
 
 	es8323->muted = mute;
 	if (mute) {
-		es8323_set_gpio(ES8323_CODEC_SET_SPK, !es8323->spk_gpio_level);
+		es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 0);
 		usleep_range(18000, 20000);
-		snd_soc_write(codec, ES8323_DACCONTROL3, 0x06);
+		snd_soc_component_write(component, ES8323_DACCONTROL3, 0x06);
 	} else {
-		snd_soc_write(codec, ES8323_DACCONTROL3, 0x02);
-		snd_soc_write(codec, 0x30, es8323_DEF_VOL);
-		snd_soc_write(codec, 0x31, es8323_DEF_VOL);
+		snd_soc_component_write(component, ES8323_DACCONTROL3, 0x02);
+		snd_soc_component_write(component, 0x30, es8323_DEF_VOL);
+		snd_soc_component_write(component, 0x31, es8323_DEF_VOL);
 		msleep(50);
-		if (!es8323->hp_inserted)
-			es8323_set_gpio(ES8323_CODEC_SET_SPK, es8323->spk_gpio_level);
+		if (!gpiod_get_value(es8323->hp_det_gpio))
+			es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 1);
 		usleep_range(18000, 20000);
 	}
 	return 0;
 }
 
-static int es8323_set_bias_level(struct snd_soc_codec *codec,
+static int es8323_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
-	struct es8323_priv *es8323 = snd_soc_codec_get_drvdata(codec);
+	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
 	int ret;
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		dev_dbg(codec->dev, "%s on\n", __func__);
+		dev_dbg(component->dev, "%s on\n", __func__);
 		break;
 	case SND_SOC_BIAS_PREPARE:
-		dev_dbg(codec->dev, "%s prepare\n", __func__);
+		dev_dbg(component->dev, "%s prepare\n", __func__);
 		if (IS_ERR(es8323->mclk))
 			break;
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
 			clk_disable_unprepare(es8323->mclk);
 		} else {
 			ret = clk_prepare_enable(es8323->mclk);
 			if (ret)
 				return ret;
 		}
-		snd_soc_write(codec, ES8323_ANAVOLMANAG, 0x7C);
-		snd_soc_write(codec, ES8323_CHIPLOPOW1, 0x00);
-		snd_soc_write(codec, ES8323_CHIPLOPOW2, 0x00);
-		snd_soc_write(codec, ES8323_CHIPPOWER, 0x00);
-		snd_soc_write(codec, ES8323_ADCPOWER, 0x59);
+		snd_soc_component_write(component, ES8323_ANAVOLMANAG, 0x7C);
+		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0x00);
+		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0x00);
+		snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
+		snd_soc_component_write(component, ES8323_ADCPOWER, 0x59);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		dev_dbg(codec->dev, "%s standby\n", __func__);
-		snd_soc_write(codec, ES8323_ANAVOLMANAG, 0x7C);
-		snd_soc_write(codec, ES8323_CHIPLOPOW1, 0x00);
-		snd_soc_write(codec, ES8323_CHIPLOPOW2, 0x00);
-		snd_soc_write(codec, ES8323_CHIPPOWER, 0x00);
-		snd_soc_write(codec, ES8323_ADCPOWER, 0x59);
+		dev_dbg(component->dev, "%s standby\n", __func__);
+		snd_soc_component_write(component, ES8323_ANAVOLMANAG, 0x7C);
+		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0x00);
+		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0x00);
+		snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
+		snd_soc_component_write(component, ES8323_ADCPOWER, 0x59);
 		break;
 	case SND_SOC_BIAS_OFF:
 		if (es8323->mclk)
 			clk_disable_unprepare(es8323->mclk);
-		dev_dbg(codec->dev, "%s off\n", __func__);
-		snd_soc_write(codec, ES8323_ADCPOWER, 0xFF);
-		snd_soc_write(codec, ES8323_DACPOWER, 0xC0);
-		snd_soc_write(codec, ES8323_CHIPLOPOW1, 0xFF);
-		snd_soc_write(codec, ES8323_CHIPLOPOW2, 0xFF);
-		snd_soc_write(codec, ES8323_CHIPPOWER, 0xFF);
-		snd_soc_write(codec, ES8323_ANAVOLMANAG, 0x7B);
+		dev_dbg(component->dev, "%s off\n", __func__);
+		snd_soc_component_write(component, ES8323_ADCPOWER, 0xFF);
+		snd_soc_component_write(component, ES8323_DACPOWER, 0xC0);
+		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0xFF);
+		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0xFF);
+		snd_soc_component_write(component, ES8323_CHIPPOWER, 0xFF);
+		snd_soc_component_write(component, ES8323_ANAVOLMANAG, 0x7B);
 		break;
 	}
 	return 0;
@@ -764,135 +762,127 @@ static struct snd_soc_dai_driver es8323_dai = {
 	.symmetric_rates = 1,
 };
 
-static int es8323_suspend(struct snd_soc_codec *codec)
+static int es8323_suspend(struct snd_soc_component *component)
 {
-	snd_soc_write(codec, 0x19, 0x06);
-	snd_soc_write(codec, 0x30, 0x00);
-	snd_soc_write(codec, 0x31, 0x00);
-	snd_soc_write(codec, ES8323_ADCPOWER, 0xFF);
-	snd_soc_write(codec, ES8323_DACPOWER, 0xc0);
-	snd_soc_write(codec, ES8323_CHIPPOWER, 0xF3);
-	snd_soc_write(codec, 0x00, 0x00);
-	snd_soc_write(codec, 0x01, 0x58);
-	snd_soc_write(codec, 0x2b, 0x9c);
+	snd_soc_component_write(component, 0x19, 0x06);
+	snd_soc_component_write(component, 0x30, 0x00);
+	snd_soc_component_write(component, 0x31, 0x00);
+	snd_soc_component_write(component, ES8323_ADCPOWER, 0xFF);
+	snd_soc_component_write(component, ES8323_DACPOWER, 0xc0);
+	snd_soc_component_write(component, ES8323_CHIPPOWER, 0xF3);
+	snd_soc_component_write(component, 0x00, 0x00);
+	snd_soc_component_write(component, 0x01, 0x58);
+	snd_soc_component_write(component, 0x2b, 0x9c);
 	usleep_range(18000, 20000);
 	return 0;
 }
 
-static int es8323_resume(struct snd_soc_codec *codec)
+static int es8323_resume(struct snd_soc_component *component)
 {
-	snd_soc_write(codec, 0x2b, 0x80);
-	snd_soc_write(codec, 0x01, 0x50);
-	snd_soc_write(codec, 0x00, 0x32);
-	snd_soc_write(codec, ES8323_CHIPPOWER, 0x00);
-	snd_soc_write(codec, ES8323_DACPOWER, 0x0c);
-	snd_soc_write(codec, ES8323_ADCPOWER, 0x59);
-	snd_soc_write(codec, 0x31, es8323_DEF_VOL);
-	snd_soc_write(codec, 0x30, es8323_DEF_VOL);
-	snd_soc_write(codec, 0x19, 0x02);
+	snd_soc_component_write(component, 0x2b, 0x80);
+	snd_soc_component_write(component, 0x01, 0x50);
+	snd_soc_component_write(component, 0x00, 0x32);
+	snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
+	snd_soc_component_write(component, ES8323_DACPOWER, 0x0c);
+	snd_soc_component_write(component, ES8323_ADCPOWER, 0x59);
+	snd_soc_component_write(component, 0x31, es8323_DEF_VOL);
+	snd_soc_component_write(component, 0x30, es8323_DEF_VOL);
+	snd_soc_component_write(component, 0x19, 0x02);
 	return 0;
 }
 
-static struct snd_soc_codec *es8323_codec;
-static int es8323_probe(struct snd_soc_codec *codec)
+static int es8323_probe(struct snd_soc_component *component)
 {
-	struct es8323_priv *es8323 = snd_soc_codec_get_drvdata(codec);
+	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
 	int ret = 0;
 
-	if (codec == NULL) {
-		dev_err(codec->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
-	es8323->mclk = devm_clk_get(codec->dev, "mclk");
+	es8323->mclk = devm_clk_get(component->dev, "mclk");
 	if (IS_ERR(es8323->mclk)) {
-		dev_err(codec->dev, "%s mclk is missing or invalid\n", __func__);
+		dev_err(component->dev, "%s mclk is missing or invalid\n", __func__);
 		return PTR_ERR(es8323->mclk);
 	}
 	ret = clk_prepare_enable(es8323->mclk);
 	if (ret)
 		return ret;
 
-	codec->hw_write = (hw_write_t) i2c_master_send;
-	codec->control_data = container_of(codec->dev, struct i2c_client, dev);
-
-	es8323_codec = codec;
-	ret = es8323_reset(codec);
+	ret = es8323_reset(component);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset\n");
+		dev_err(component->dev, "Failed to issue reset\n");
 		return ret;
 	}
 	usleep_range(18000, 20000);
-	snd_soc_write(codec, 0x02, 0xf3);
-	snd_soc_write(codec, 0x2B, 0x80);
-	snd_soc_write(codec, 0x08, 0x00);	/* ES8388 salve */
-	snd_soc_write(codec, 0x00, 0x35);
-	snd_soc_write(codec, 0x01, 0x50);	/* PLAYBACK & RECORD Mode,EnRefr=1 */
-	snd_soc_write(codec, 0x03, 0x59);	/* pdn_ana=0,ibiasgen_pdn=0 */
-	snd_soc_write(codec, 0x05, 0x00);	/* pdn_ana=0,ibiasgen_pdn=0 */
-	snd_soc_write(codec, 0x06, 0x00);	/* pdn_ana=0,ibiasgen_pdn=0 */
-	snd_soc_write(codec, 0x07, 0x7c);
-	snd_soc_write(codec, 0x09, 0x88);	/* ADC L/R PGA =  +24dB */
-	snd_soc_write(codec, 0x0a, 0xf0);	/* ADC INPUT=LIN2/RIN2 */
-	snd_soc_write(codec, 0x0b, 0x82);	/* ADC INPUT=LIN2/RIN2 */
-	snd_soc_write(codec, 0x0C, 0x4c);	/* I2S-24BIT */
-	snd_soc_write(codec, 0x0d, 0x02);	/* MCLK/LRCK=256 */
-	snd_soc_write(codec, 0x10, 0x00);	/* ADC Left Volume=0db */
-	snd_soc_write(codec, 0x11, 0x00);	/* ADC Right Volume=0db */
-	snd_soc_write(codec, 0x12, 0xea);	/* ALC stereo MAXGAIN: 35.5dB,  MINGAIN: +6dB (Record Volume increased!) */
-	snd_soc_write(codec, 0x13, 0xc0);
-	snd_soc_write(codec, 0x14, 0x05);
-	snd_soc_write(codec, 0x15, 0x06);
-	snd_soc_write(codec, 0x16, 0x53);
-	snd_soc_write(codec, 0x17, 0x18);	/* I2S-16BIT */
-	snd_soc_write(codec, 0x18, 0x02);
-	snd_soc_write(codec, 0x1A, 0x0A);	/* DAC VOLUME=0DB */
-	snd_soc_write(codec, 0x1B, 0x0A);
-	snd_soc_write(codec, 0x26, 0x12);	/* Left DAC TO Left IXER */
-	snd_soc_write(codec, 0x27, 0xb8);	/* Left DAC TO Left MIXER */
-	snd_soc_write(codec, 0x28, 0x38);
-	snd_soc_write(codec, 0x29, 0x38);
-	snd_soc_write(codec, 0x2A, 0xb8);
-	snd_soc_write(codec, 0x02, 0x00);	/* START DLL and state-machine,START DSM */
-	snd_soc_write(codec, 0x19, 0x02);	/* SOFT RAMP RATE=32LRCKS/STEP,Enable ZERO-CROSS CHECK,DAC MUTE */
-	snd_soc_write(codec, 0x04, 0x0c);	/* pdn_ana=0,ibiasgen_pdn=0 */
+	snd_soc_component_write(component, 0x02, 0xf3);
+	snd_soc_component_write(component, 0x2B, 0x80);
+	snd_soc_component_write(component, 0x08, 0x00);	/* ES8388 salve */
+	snd_soc_component_write(component, 0x00, 0x35);
+	snd_soc_component_write(component, 0x01, 0x50);	/* PLAYBACK & RECORD Mode,EnRefr=1 */
+	snd_soc_component_write(component, 0x03, 0x59);	/* pdn_ana=0,ibiasgen_pdn=0 */
+	snd_soc_component_write(component, 0x05, 0x00);	/* pdn_ana=0,ibiasgen_pdn=0 */
+	snd_soc_component_write(component, 0x06, 0x00);	/* pdn_ana=0,ibiasgen_pdn=0 */
+	snd_soc_component_write(component, 0x07, 0x7c);
+	snd_soc_component_write(component, 0x09, 0x88);	/* ADC L/R PGA =  +24dB */
+	snd_soc_component_write(component, 0x0a, 0xf0);	/* ADC INPUT=LIN2/RIN2 */
+	snd_soc_component_write(component, 0x0b, 0x82);	/* ADC INPUT=LIN2/RIN2 */
+	snd_soc_component_write(component, 0x0C, 0x4c);	/* I2S-24BIT */
+	snd_soc_component_write(component, 0x0d, 0x02);	/* MCLK/LRCK=256 */
+	snd_soc_component_write(component, 0x10, 0x00);	/* ADC Left Volume=0db */
+	snd_soc_component_write(component, 0x11, 0x00);	/* ADC Right Volume=0db */
+	snd_soc_component_write(component, 0x12, 0xea);	/* ALC stereo MAXGAIN: 35.5dB,  MINGAIN: +6dB (Record Volume increased!) */
+	snd_soc_component_write(component, 0x13, 0xc0);
+	snd_soc_component_write(component, 0x14, 0x05);
+	snd_soc_component_write(component, 0x15, 0x06);
+	snd_soc_component_write(component, 0x16, 0x53);
+	snd_soc_component_write(component, 0x17, 0x18);	/* I2S-16BIT */
+	snd_soc_component_write(component, 0x18, 0x02);
+	snd_soc_component_write(component, 0x1A, 0x0A);	/* DAC VOLUME=0DB */
+	snd_soc_component_write(component, 0x1B, 0x0A);
+	snd_soc_component_write(component, 0x26, 0x12);	/* Left DAC TO Left IXER */
+	snd_soc_component_write(component, 0x27, 0xb8);	/* Left DAC TO Left MIXER */
+	snd_soc_component_write(component, 0x28, 0x38);
+	snd_soc_component_write(component, 0x29, 0x38);
+	snd_soc_component_write(component, 0x2A, 0xb8);
+	snd_soc_component_write(component, 0x02, 0x00);	/* START DLL and state-machine,START DSM */
+	snd_soc_component_write(component, 0x19, 0x02);	/* SOFT RAMP RATE=32LRCKS/STEP,Enable ZERO-CROSS CHECK,DAC MUTE */
+	snd_soc_component_write(component, 0x04, 0x0c);	/* pdn_ana=0,ibiasgen_pdn=0 */
 	usleep_range(18000, 20000);
-	snd_soc_write(codec, 0x2e, 0x00);
-	snd_soc_write(codec, 0x2f, 0x00);
-	snd_soc_write(codec, 0x30, 0x08);
-	snd_soc_write(codec, 0x31, 0x08);
+	snd_soc_component_write(component, 0x2e, 0x00);
+	snd_soc_component_write(component, 0x2f, 0x00);
+	snd_soc_component_write(component, 0x30, 0x08);
+	snd_soc_component_write(component, 0x31, 0x08);
 	usleep_range(18000, 20000);
-	snd_soc_write(codec, 0x30, 0x0f);
-	snd_soc_write(codec, 0x31, 0x0f);
+	snd_soc_component_write(component, 0x30, 0x0f);
+	snd_soc_component_write(component, 0x31, 0x0f);
 	usleep_range(18000, 20000);
-	snd_soc_write(codec, 0x30, 0x18);
-	snd_soc_write(codec, 0x31, 0x18);
+	snd_soc_component_write(component, 0x30, 0x18);
+	snd_soc_component_write(component, 0x31, 0x18);
 	usleep_range(18000, 20000);
-	snd_soc_write(codec, 0x04, 0x2c);	/* pdn_ana=0,ibiasgen_pdn=0 */
+	snd_soc_component_write(component, 0x04, 0x2c);	/* pdn_ana=0,ibiasgen_pdn=0 */
 
-	es8323_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	es8323_set_bias_level(component, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
 
-static int es8323_remove(struct snd_soc_codec *codec)
+static void es8323_remove(struct snd_soc_component *component)
 {
-	es8323_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
+	es8323_set_bias_level(component, SND_SOC_BIAS_OFF);
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_es8323 = {
+static const struct snd_soc_component_driver soc_codec_dev_es8323 = {
 	.probe = es8323_probe,
 	.remove = es8323_remove,
 	.suspend = es8323_suspend,
 	.resume = es8323_resume,
 	.set_bias_level = es8323_set_bias_level,
-	.reg_cache_size = ARRAY_SIZE(es8323_reg),
-	.reg_word_size = sizeof(u16),
-	.reg_cache_default = es8323_reg,
-	.reg_cache_step = 1,
-	.read = es8323_read_reg_cache,
-	.write = es8323_write,
+};
 
+static const struct regmap_config es8323_regmap_config = {
+	.reg_bits	= 8,
+	.val_bits	= 8,
+	.max_register	= ES8323_DACCONTROL30,
+	.cache_type	= REGCACHE_RBTREE,
+	.reg_defaults	= es8323_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(es8323_reg_defaults),
+	.use_single_rw	= true,
 };
 
 static int es8323_i2c_probe(struct i2c_client *i2c,
@@ -901,7 +891,6 @@ static int es8323_i2c_probe(struct i2c_client *i2c,
 	struct es8323_priv *es8323;
 	int ret = -1;
 	int hp_irq = 0;
-	enum of_gpio_flags flags;
 	struct i2c_adapter *adapter = to_i2c_adapter(i2c->dev.parent);
 	char reg;
 
@@ -912,8 +901,12 @@ static int es8323_i2c_probe(struct i2c_client *i2c,
 	}
 
 	es8323 = devm_kzalloc(&i2c->dev, sizeof(struct es8323_priv), GFP_KERNEL);
-	if (es8323 == NULL)
+	if (!es8323)
 		return -ENOMEM;
+
+	es8323->regmap = devm_regmap_init_i2c(i2c, &es8323_regmap_config);
+	if (IS_ERR(es8323->regmap))
+		return PTR_ERR(es8323->regmap);
 
 	i2c_set_clientdata(i2c, es8323);
 
@@ -924,53 +917,34 @@ static int es8323_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	es8323_private = es8323;
-	es8323->spk_ctl_gpio = of_get_named_gpio_flags(i2c->dev.of_node, "spk-con-gpio", 0, &flags);
-	if (es8323->spk_ctl_gpio < 0) {
-		dev_info(&i2c->dev, "Can not read property spk_ctl_gpio\n");
-		es8323->spk_ctl_gpio = INVALID_GPIO;
-	} else {
-		es8323->spk_gpio_level = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
-		ret = devm_gpio_request_one(&i2c->dev, es8323->spk_ctl_gpio, GPIOF_DIR_OUT, NULL);
-		if (ret != 0) {
-			dev_err(&i2c->dev, "Failed to request spk_ctl_gpio\n");
+	es8323->spk_ctl_gpio = devm_gpiod_get_optional(&i2c->dev,
+						       "spk-con-gpio",
+						       GPIOD_OUT_LOW);
+	if (IS_ERR(es8323->spk_ctl_gpio))
+		return PTR_ERR(es8323->spk_ctl_gpio);
+
+	es8323->hp_det_gpio = devm_gpiod_get_optional(&i2c->dev, "hp-det-gpio", GPIOD_IN);
+	if (IS_ERR(es8323->hp_det_gpio))
+		return PTR_ERR(es8323->hp_det_gpio);
+
+	hp_irq = gpiod_to_irq(es8323->hp_det_gpio);
+
+	if (hp_irq) {
+		ret = devm_request_threaded_irq(&i2c->dev, hp_irq, NULL,
+						hp_det_irq_handler,
+						IRQ_TYPE_EDGE_BOTH |
+						IRQF_ONESHOT,
+						"ES8323", es8323);
+		if (ret < 0) {
+			dev_err(&i2c->dev, "request_irq failed: %d\n", ret);
 			return ret;
 		}
-		es8323_set_gpio(ES8323_CODEC_SET_SPK, !es8323->spk_gpio_level);
 	}
 
-	es8323->hp_det_gpio = of_get_named_gpio_flags(i2c->dev.of_node, "hp-det-gpio", 0, &flags);
-	if (es8323->hp_det_gpio < 0) {
-		dev_info(&i2c->dev, "Can not read property hp_det_gpio\n");
-		es8323->hp_det_gpio = INVALID_GPIO;
-	} else {
-		es8323->hp_det_level = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
-		ret = devm_gpio_request_one(&i2c->dev, es8323->hp_det_gpio, GPIOF_IN, NULL);
-		if (ret != 0) {
-			dev_err(&i2c->dev, "Failed to request hp_det_gpio\n");
-			return ret;
-		}
-		hp_irq = gpio_to_irq(es8323->hp_det_gpio);
-
-		if (hp_irq) {
-			ret = devm_request_threaded_irq(&i2c->dev, hp_irq, NULL, hp_det_irq_handler,
-					IRQ_TYPE_EDGE_BOTH | IRQF_ONESHOT,"ES8323", NULL);
-			if (ret < 0) {
-				dev_err(&i2c->dev, "request_irq failed: %d\n", ret);
-				return ret;
-			}
-		}
-	}
-	ret = snd_soc_register_codec(&i2c->dev,
-				     &soc_codec_dev_es8323,
-				     &es8323_dai, 1);
+	ret = devm_snd_soc_register_component(&i2c->dev,
+					      &soc_codec_dev_es8323,
+					      &es8323_dai, 1);
 	return ret;
-}
-
-static int es8323_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
 }
 
 static const struct i2c_device_id es8323_i2c_id[] = {
@@ -982,20 +956,21 @@ MODULE_DEVICE_TABLE(i2c, es8323_i2c_id);
 
 void es8323_i2c_shutdown(struct i2c_client *client)
 {
-	struct es8323_priv *es8323 = es8323_private;
+	struct es8323_priv *es8323 = i2c_get_clientdata(client);
+	struct snd_soc_component *component = es8323->component;
 
-	es8323_set_gpio(ES8323_CODEC_SET_SPK, !es8323->spk_gpio_level);
+	es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 0);
 	mdelay(20);
-	snd_soc_write(es8323_codec, ES8323_CONTROL2, 0x58);
-	snd_soc_write(es8323_codec, ES8323_CONTROL1, 0x32);
-	snd_soc_write(es8323_codec, ES8323_CHIPPOWER, 0xf3);
-	snd_soc_write(es8323_codec, ES8323_DACPOWER, 0xc0);
+	snd_soc_component_write(component, ES8323_CONTROL2, 0x58);
+	snd_soc_component_write(component, ES8323_CONTROL1, 0x32);
+	snd_soc_component_write(component, ES8323_CHIPPOWER, 0xf3);
+	snd_soc_component_write(component, ES8323_DACPOWER, 0xc0);
 	mdelay(50);
-	snd_soc_write(es8323_codec, ES8323_DACCONTROL26, 0x00);
-	snd_soc_write(es8323_codec, ES8323_DACCONTROL27, 0x00);
+	snd_soc_component_write(component, ES8323_DACCONTROL26, 0x00);
+	snd_soc_component_write(component, ES8323_DACCONTROL27, 0x00);
 	mdelay(50);
-	snd_soc_write(es8323_codec, ES8323_CONTROL1, 0x30);
-	snd_soc_write(es8323_codec, ES8323_CONTROL1, 0x34);
+	snd_soc_component_write(component, ES8323_CONTROL1, 0x30);
+	snd_soc_component_write(component, ES8323_CONTROL1, 0x34);
 }
 
 static const struct of_device_id es8323_of_match[] = {
@@ -1011,7 +986,6 @@ static struct i2c_driver es8323_i2c_driver = {
 		},
 	.shutdown = es8323_i2c_shutdown,
 	.probe = es8323_i2c_probe,
-	.remove = es8323_i2c_remove,
 	.id_table = es8323_i2c_id,
 };
 module_i2c_driver(es8323_i2c_driver);
