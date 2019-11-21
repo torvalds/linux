@@ -482,6 +482,10 @@
 	power-domains = <&pwrc PWRC_SM1_VPU_ID>;
 };
 
+&vdec {
+	compatible = "amlogic,sm1-vdec";
+};
+
 &vpu {
 	power-domains = <&pwrc PWRC_SM1_VPU_ID>;
 };
