@@ -13,29 +13,29 @@ config WLAN_VENDOR_ATMEL
 if WLAN_VENDOR_ATMEL
 
 config ATMEL
-      tristate "Atmel at76c50x chipset  802.11b support"
-      depends on CFG80211 && (PCI || PCMCIA)
-      select WIRELESS_EXT
-      select WEXT_PRIV
-      select FW_LOADER
-      select CRC32
-       ---help---
-	A driver 802.11b wireless cards based on the Atmel fast-vnet
-	chips. This driver supports standard Linux wireless extensions.
+	tristate "Atmel at76c50x chipset  802.11b support"
+	depends on CFG80211 && (PCI || PCMCIA)
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	select FW_LOADER
+	select CRC32
+	---help---
+	  A driver 802.11b wireless cards based on the Atmel fast-vnet
+	  chips. This driver supports standard Linux wireless extensions.
 
-	Many  cards based on this chipset do not have flash memory
-	and need their firmware loaded at start-up. If yours is
-	one of these, you will need to provide a firmware image
-	to be loaded into the card by the driver. The Atmel
-	firmware package can be downloaded from
-	<http://www.thekelleys.org.uk/atmel>
+	  Many  cards based on this chipset do not have flash memory
+	  and need their firmware loaded at start-up. If yours is
+	  one of these, you will need to provide a firmware image
+	  to be loaded into the card by the driver. The Atmel
+	  firmware package can be downloaded from
+	  <http://www.thekelleys.org.uk/atmel>
 
 config PCI_ATMEL
-      tristate "Atmel at76c506 PCI cards"
-      depends on ATMEL && PCI
-       ---help---
-	Enable support for PCI and mini-PCI cards containing the
-	Atmel at76c506 chip.
+	tristate "Atmel at76c506 PCI cards"
+	depends on ATMEL && PCI
+	---help---
+	  Enable support for PCI and mini-PCI cards containing the
+	  Atmel at76c506 chip.
 
 config PCMCIA_ATMEL
 	tristate "Atmel at76c502/at76c504 PCMCIA cards"
