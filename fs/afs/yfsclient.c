@@ -605,7 +605,7 @@ int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
 	call->key = fc->key;
 	call->out_scb = scb;
 	call->out_volsync = NULL;
-	call->read_request = req;
+	call->read_request = afs_get_read(req);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -616,7 +616,6 @@ int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
 	bp = xdr_encode_u64(bp, req->len);
 	yfs_check_req(call, bp);
 
-	refcount_inc(&req->usage);
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
 	afs_set_fc_call(call, fc);

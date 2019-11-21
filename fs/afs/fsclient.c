@@ -490,7 +490,7 @@ static int afs_fs_fetch_data64(struct afs_fs_cursor *fc,
 	call->key = fc->key;
 	call->out_scb = scb;
 	call->out_volsync = NULL;
-	call->read_request = req;
+	call->read_request = afs_get_read(req);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -503,7 +503,6 @@ static int afs_fs_fetch_data64(struct afs_fs_cursor *fc,
 	bp[6] = 0;
 	bp[7] = htonl(lower_32_bits(req->len));
 
-	refcount_inc(&req->usage);
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
 	afs_set_fc_call(call, fc);
@@ -540,7 +539,7 @@ int afs_fs_fetch_data(struct afs_fs_cursor *fc,
 	call->key = fc->key;
 	call->out_scb = scb;
 	call->out_volsync = NULL;
-	call->read_request = req;
+	call->read_request = afs_get_read(req);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -551,7 +550,6 @@ int afs_fs_fetch_data(struct afs_fs_cursor *fc,
 	bp[4] = htonl(lower_32_bits(req->pos));
 	bp[5] = htonl(lower_32_bits(req->len));
 
-	refcount_inc(&req->usage);
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
 	afs_set_fc_call(call, fc);

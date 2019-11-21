@@ -934,6 +934,12 @@ extern int afs_fetch_data(struct afs_vnode *, struct key *, struct afs_read *);
 extern int afs_page_filler(void *, struct page *);
 extern void afs_put_read(struct afs_read *);
 
+static inline struct afs_read *afs_get_read(struct afs_read *req)
+{
+	refcount_inc(&req->usage);
+	return req;
+}
+
 /*
  * flock.c
  */
