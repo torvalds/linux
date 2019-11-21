@@ -8,10 +8,10 @@
 
 char _license[] SEC("license") = "GPL";
 
-static volatile struct data {
+struct {
 	char in[256];
 	char out[256];
-} data;
+} data = {};
 
 struct core_reloc_kernel_output {
 	int valid[10];
