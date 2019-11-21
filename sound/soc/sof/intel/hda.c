@@ -402,7 +402,7 @@ static const struct sof_intel_dsp_desc
 	return chip_info;
 }
 
-irqreturn_t hda_dsp_interrupt_handler(int irq, void *context)
+static irqreturn_t hda_dsp_interrupt_handler(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 
@@ -413,7 +413,7 @@ irqreturn_t hda_dsp_interrupt_handler(int irq, void *context)
 	return IRQ_NONE;
 }
 
-irqreturn_t hda_dsp_interrupt_thread(int irq, void *context)
+static irqreturn_t hda_dsp_interrupt_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 
