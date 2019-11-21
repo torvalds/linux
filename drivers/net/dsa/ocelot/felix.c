@@ -3,6 +3,7 @@
  */
 #include <uapi/linux/if_bridge.h>
 #include <soc/mscc/ocelot.h>
+#include <linux/packing.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/of.h>
@@ -303,6 +304,62 @@ static void felix_teardown(struct dsa_switch *ds)
 	ocelot_deinit(ocelot);
 }
 
+static int felix_hwtstamp_get(struct dsa_switch *ds, int port,
+			      struct ifreq *ifr)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_hwstamp_get(ocelot, port, ifr);
+}
+
+static int felix_hwtstamp_set(struct dsa_switch *ds, int port,
+			      struct ifreq *ifr)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_hwstamp_set(ocelot, port, ifr);
+}
+
+static bool felix_rxtstamp(struct dsa_switch *ds, int port,
+			   struct sk_buff *skb, unsigned int type)
+{
+	struct skb_shared_hwtstamps *shhwtstamps;
+	struct ocelot *ocelot = ds->priv;
+	u8 *extraction = skb->data - ETH_HLEN - OCELOT_TAG_LEN;
+	u32 tstamp_lo, tstamp_hi;
+	struct timespec64 ts;
+	u64 tstamp, val;
+
+	ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
+	tstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
+
+	packing(extraction, &val,  116, 85, OCELOT_TAG_LEN, UNPACK, 0);
+	tstamp_lo = (u32)val;
+
+	tstamp_hi = tstamp >> 32;
+	if ((tstamp & 0xffffffff) < tstamp_lo)
+		tstamp_hi--;
+
+	tstamp = ((u64)tstamp_hi << 32) | tstamp_lo;
+
+	shhwtstamps = skb_hwtstamps(skb);
+	memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
+	shhwtstamps->hwtstamp = tstamp;
+	return false;
+}
+
+bool felix_txtstamp(struct dsa_switch *ds, int port,
+		    struct sk_buff *clone, unsigned int type)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+	if (!ocelot_port_add_txtstamp_skb(ocelot_port, clone))
+		return true;
+
+	return false;
+}
+
 static const struct dsa_switch_ops felix_switch_ops = {
 	.get_tag_protocol	= felix_get_tag_protocol,
 	.setup			= felix_setup,
@@ -325,11 +382,32 @@ static const struct dsa_switch_ops felix_switch_ops = {
 	.port_vlan_filtering	= felix_vlan_filtering,
 	.port_vlan_add		= felix_vlan_add,
 	.port_vlan_del		= felix_vlan_del,
+	.port_hwtstamp_get	= felix_hwtstamp_get,
+	.port_hwtstamp_set	= felix_hwtstamp_set,
+	.port_rxtstamp		= felix_rxtstamp,
+	.port_txtstamp		= felix_txtstamp,
 };
 
 static struct felix_info *felix_instance_tbl[] = {
 	[FELIX_INSTANCE_VSC9959] = &felix_info_vsc9959,
 };
+
+static irqreturn_t felix_irq_handler(int irq, void *data)
+{
+	struct ocelot *ocelot = (struct ocelot *)data;
+
+	/* The INTB interrupt is used for both PTP TX timestamp interrupt
+	 * and preemption status change interrupt on each port.
+	 *
+	 * - Get txtstamp if have
+	 * - TODO: handle preemption. Without handling it, driver may get
+	 *   interrupt storm.
+	 */
+
+	ocelot_get_txtstamp(ocelot);
+
+	return IRQ_HANDLED;
+}
 
 static int felix_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *id)
@@ -372,6 +450,16 @@ static int felix_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
+	err = devm_request_threaded_irq(&pdev->dev, pdev->irq, NULL,
+					&felix_irq_handler, IRQF_ONESHOT,
+					"felix-intb", ocelot);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to request irq\n");
+		goto err_alloc_irq;
+	}
+
+	ocelot->ptp = 1;
+
 	ds = kzalloc(sizeof(struct dsa_switch), GFP_KERNEL);
 	if (!ds) {
 		err = -ENOMEM;
@@ -396,6 +484,7 @@ static int felix_pci_probe(struct pci_dev *pdev,
 err_register_ds:
 	kfree(ds);
 err_alloc_ds:
+err_alloc_irq:
 err_alloc_felix:
 	kfree(felix);
 err_dma:
