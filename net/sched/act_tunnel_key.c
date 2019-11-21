@@ -11,6 +11,7 @@
 #include <linux/rtnetlink.h>
 #include <net/geneve.h>
 #include <net/vxlan.h>
+#include <net/erspan.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
@@ -58,6 +59,7 @@ enc_opts_policy[TCA_TUNNEL_KEY_ENC_OPTS_MAX + 1] = {
 		.strict_start_type = TCA_TUNNEL_KEY_ENC_OPTS_VXLAN },
 	[TCA_TUNNEL_KEY_ENC_OPTS_GENEVE]	= { .type = NLA_NESTED },
 	[TCA_TUNNEL_KEY_ENC_OPTS_VXLAN]		= { .type = NLA_NESTED },
+	[TCA_TUNNEL_KEY_ENC_OPTS_ERSPAN]	= { .type = NLA_NESTED },
 };
 
 static const struct nla_policy
@@ -71,6 +73,14 @@ geneve_opt_policy[TCA_TUNNEL_KEY_ENC_OPT_GENEVE_MAX + 1] = {
 static const struct nla_policy
 vxlan_opt_policy[TCA_TUNNEL_KEY_ENC_OPT_VXLAN_MAX + 1] = {
 	[TCA_TUNNEL_KEY_ENC_OPT_VXLAN_GBP]	   = { .type = NLA_U32 },
+};
+
+static const struct nla_policy
+erspan_opt_policy[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_MAX + 1] = {
+	[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_VER]	   = { .type = NLA_U8 },
+	[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_INDEX]	   = { .type = NLA_U32 },
+	[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_DIR]	   = { .type = NLA_U8 },
+	[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_HWID]	   = { .type = NLA_U8 },
 };
 
 static int
@@ -151,6 +161,59 @@ tunnel_key_copy_vxlan_opt(const struct nlattr *nla, void *dst, int dst_len,
 	return sizeof(struct vxlan_metadata);
 }
 
+static int
+tunnel_key_copy_erspan_opt(const struct nlattr *nla, void *dst, int dst_len,
+			   struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_MAX + 1];
+	int err;
+	u8 ver;
+
+	err = nla_parse_nested(tb, TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_MAX, nla,
+			       erspan_opt_policy, extack);
+	if (err < 0)
+		return err;
+
+	if (!tb[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_VER]) {
+		NL_SET_ERR_MSG(extack, "Missing tunnel key erspan option ver");
+		return -EINVAL;
+	}
+
+	ver = nla_get_u8(tb[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_VER]);
+	if (ver == 1) {
+		if (!tb[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_INDEX]) {
+			NL_SET_ERR_MSG(extack, "Missing tunnel key erspan option index");
+			return -EINVAL;
+		}
+	} else if (ver == 2) {
+		if (!tb[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_DIR] ||
+		    !tb[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_HWID]) {
+			NL_SET_ERR_MSG(extack, "Missing tunnel key erspan option dir or hwid");
+			return -EINVAL;
+		}
+	} else {
+		NL_SET_ERR_MSG(extack, "Tunnel key erspan option ver is incorrect");
+		return -EINVAL;
+	}
+
+	if (dst) {
+		struct erspan_metadata *md = dst;
+
+		md->version = ver;
+		if (ver == 1) {
+			nla = tb[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_INDEX];
+			md->u.index = nla_get_be32(nla);
+		} else {
+			nla = tb[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_DIR];
+			md->u.md2.dir = nla_get_u8(nla);
+			nla = tb[TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_HWID];
+			set_hwid(&md->u.md2, nla_get_u8(nla));
+		}
+	}
+
+	return sizeof(struct erspan_metadata);
+}
+
 static int tunnel_key_copy_opts(const struct nlattr *nla, u8 *dst,
 				int dst_len, struct netlink_ext_ack *extack)
 {
@@ -192,6 +255,18 @@ static int tunnel_key_copy_opts(const struct nlattr *nla, u8 *dst,
 			opts_len += opt_len;
 			type = TUNNEL_VXLAN_OPT;
 			break;
+		case TCA_TUNNEL_KEY_ENC_OPTS_ERSPAN:
+			if (type) {
+				NL_SET_ERR_MSG(extack, "Duplicate type for erspan options");
+				return -EINVAL;
+			}
+			opt_len = tunnel_key_copy_erspan_opt(attr, dst,
+							     dst_len, extack);
+			if (opt_len < 0)
+				return opt_len;
+			opts_len += opt_len;
+			type = TUNNEL_ERSPAN_OPT;
+			break;
 		}
 	}
 
@@ -230,6 +305,14 @@ static int tunnel_key_opts_set(struct nlattr *nla, struct ip_tunnel_info *info,
 	case TCA_TUNNEL_KEY_ENC_OPTS_VXLAN:
 #if IS_ENABLED(CONFIG_INET)
 		info->key.tun_flags |= TUNNEL_VXLAN_OPT;
+		return tunnel_key_copy_opts(nla, ip_tunnel_info_opts(info),
+					    opts_len, extack);
+#else
+		return -EAFNOSUPPORT;
+#endif
+	case TCA_TUNNEL_KEY_ENC_OPTS_ERSPAN:
+#if IS_ENABLED(CONFIG_INET)
+		info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
 		return tunnel_key_copy_opts(nla, ip_tunnel_info_opts(info),
 					    opts_len, extack);
 #else
@@ -530,6 +613,37 @@ static int tunnel_key_vxlan_opts_dump(struct sk_buff *skb,
 	return 0;
 }
 
+static int tunnel_key_erspan_opts_dump(struct sk_buff *skb,
+				       const struct ip_tunnel_info *info)
+{
+	struct erspan_metadata *md = (struct erspan_metadata *)(info + 1);
+	struct nlattr *start;
+
+	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_ERSPAN);
+	if (!start)
+		return -EMSGSIZE;
+
+	if (nla_put_u8(skb, TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_VER, md->version))
+		goto err;
+
+	if (md->version == 1 &&
+	    nla_put_be32(skb, TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_INDEX, md->u.index))
+		goto err;
+
+	if (md->version == 2 &&
+	    (nla_put_u8(skb, TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_DIR,
+			md->u.md2.dir) ||
+	     nla_put_u8(skb, TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_HWID,
+			get_hwid(&md->u.md2))))
+		goto err;
+
+	nla_nest_end(skb, start);
+	return 0;
+err:
+	nla_nest_cancel(skb, start);
+	return -EMSGSIZE;
+}
+
 static int tunnel_key_opts_dump(struct sk_buff *skb,
 				const struct ip_tunnel_info *info)
 {
@@ -549,6 +663,10 @@ static int tunnel_key_opts_dump(struct sk_buff *skb,
 			goto err_out;
 	} else if (info->key.tun_flags & TUNNEL_VXLAN_OPT) {
 		err = tunnel_key_vxlan_opts_dump(skb, info);
+		if (err)
+			goto err_out;
+	} else if (info->key.tun_flags & TUNNEL_ERSPAN_OPT) {
+		err = tunnel_key_erspan_opts_dump(skb, info);
 		if (err)
 			goto err_out;
 	} else {
