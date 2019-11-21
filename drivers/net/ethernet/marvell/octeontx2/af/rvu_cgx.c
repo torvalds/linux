@@ -608,6 +608,8 @@ int rvu_cgx_nix_cuml_stats(struct rvu *rvu, void *cgxd, int lmac_id,
 	u16 pcifunc;
 	int pf, lf;
 
+	*stat = 0;
+
 	if (!cgxd || !rvu)
 		return -EINVAL;
 
@@ -624,7 +626,6 @@ int rvu_cgx_nix_cuml_stats(struct rvu *rvu, void *cgxd, int lmac_id,
 		return 0;
 	block = &rvu->hw->block[blkaddr];
 
-	*stat = 0;
 	for (lf = 0; lf < block->lf.max; lf++) {
 		/* Check if a lf is attached to this PF or one of its VFs */
 		if (!((block->fn_map[lf] & ~RVU_PFVF_FUNC_MASK) == (pcifunc &
