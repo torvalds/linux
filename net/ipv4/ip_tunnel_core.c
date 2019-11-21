@@ -215,6 +215,7 @@ void ip_tunnel_get_stats64(struct net_device *dev,
 EXPORT_SYMBOL_GPL(ip_tunnel_get_stats64);
 
 static const struct nla_policy ip_tun_policy[LWTUNNEL_IP_MAX + 1] = {
+	[LWTUNNEL_IP_UNSPEC]	= { .strict_start_type = LWTUNNEL_IP_OPTS },
 	[LWTUNNEL_IP_ID]	= { .type = NLA_U64 },
 	[LWTUNNEL_IP_DST]	= { .type = NLA_U32 },
 	[LWTUNNEL_IP_SRC]	= { .type = NLA_U32 },
@@ -700,12 +701,14 @@ static const struct lwtunnel_encap_ops ip_tun_lwt_ops = {
 };
 
 static const struct nla_policy ip6_tun_policy[LWTUNNEL_IP6_MAX + 1] = {
+	[LWTUNNEL_IP6_UNSPEC]	= { .strict_start_type = LWTUNNEL_IP6_OPTS },
 	[LWTUNNEL_IP6_ID]		= { .type = NLA_U64 },
 	[LWTUNNEL_IP6_DST]		= { .len = sizeof(struct in6_addr) },
 	[LWTUNNEL_IP6_SRC]		= { .len = sizeof(struct in6_addr) },
 	[LWTUNNEL_IP6_HOPLIMIT]		= { .type = NLA_U8 },
 	[LWTUNNEL_IP6_TC]		= { .type = NLA_U8 },
 	[LWTUNNEL_IP6_FLAGS]		= { .type = NLA_U16 },
+	[LWTUNNEL_IP6_OPTS]		= { .type = NLA_NESTED },
 };
 
 static int ip6_tun_build_state(struct nlattr *attr,
