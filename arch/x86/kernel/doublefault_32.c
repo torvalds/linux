@@ -10,8 +10,6 @@
 #include <asm/processor.h>
 #include <asm/desc.h>
 
-#ifdef CONFIG_X86_32
-
 #define DOUBLEFAULT_STACKSIZE (1024)
 static unsigned long doublefault_stack[DOUBLEFAULT_STACKSIZE];
 #define STACK_START (unsigned long)(doublefault_stack+DOUBLEFAULT_STACKSIZE)
@@ -71,5 +69,3 @@ struct x86_hw_tss doublefault_tss __cacheline_aligned = {
 
 	.__cr3		= __pa_nodebug(swapper_pg_dir),
 };
-
-#endif
