@@ -1461,6 +1461,8 @@ out:
 		}
 #endif
 		goto failure;
+	} else if (fib6_requires_src(rt)) {
+		fib6_routes_require_src_inc(info->nl_net);
 	}
 	return err;
 
@@ -1933,6 +1935,8 @@ int fib6_del(struct fib6_info *rt, struct nl_info *info)
 		struct fib6_info *cur = rcu_dereference_protected(*rtp,
 					lockdep_is_held(&table->tb6_lock));
 		if (rt == cur) {
+			if (fib6_requires_src(cur))
+				fib6_routes_require_src_dec(info->nl_net);
 			fib6_del_route(table, fn, rtp, info);
 			return 0;
 		}

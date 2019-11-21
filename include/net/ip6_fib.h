@@ -90,7 +90,32 @@ struct fib6_gc_args {
 
 #ifndef CONFIG_IPV6_SUBTREES
 #define FIB6_SUBTREE(fn)	NULL
+
+static inline bool fib6_routes_require_src(const struct net *net)
+{
+	return false;
+}
+
+static inline void fib6_routes_require_src_inc(struct net *net) {}
+static inline void fib6_routes_require_src_dec(struct net *net) {}
+
 #else
+
+static inline bool fib6_routes_require_src(const struct net *net)
+{
+	return net->ipv6.fib6_routes_require_src > 0;
+}
+
+static inline void fib6_routes_require_src_inc(struct net *net)
+{
+	net->ipv6.fib6_routes_require_src++;
+}
+
+static inline void fib6_routes_require_src_dec(struct net *net)
+{
+	net->ipv6.fib6_routes_require_src--;
+}
+
 #define FIB6_SUBTREE(fn)	(rcu_dereference_protected((fn)->subtree, 1))
 #endif
 
@@ -210,6 +235,11 @@ struct fib6_result {
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 {
 	return ((struct rt6_info *)dst)->rt6i_idev;
+}
+
+static inline bool fib6_requires_src(const struct fib6_info *rt)
+{
+	return rt->fib6_src.plen > 0;
 }
 
 static inline void fib6_clean_expires(struct fib6_info *f6i)
@@ -502,6 +532,11 @@ static inline bool fib6_metric_locked(struct fib6_info *f6i, int metric)
 }
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
+static inline bool fib6_has_custom_rules(const struct net *net)
+{
+	return net->ipv6.fib6_has_custom_rules;
+}
+
 int fib6_rules_init(void);
 void fib6_rules_cleanup(void);
 bool fib6_rule_default(const struct fib_rule *rule);
@@ -527,6 +562,10 @@ static inline bool fib6_rules_early_flow_dissect(struct net *net,
 	return true;
 }
 #else
+static inline bool fib6_has_custom_rules(const struct net *net)
+{
+	return false;
+}
 static inline int               fib6_rules_init(void)
 {
 	return 0;
