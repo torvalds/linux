@@ -22,6 +22,7 @@
 #include <net/ip.h>
 #include <net/flow_dissector.h>
 #include <net/geneve.h>
+#include <net/vxlan.h>
 
 #include <net/dst.h>
 #include <net/dst_metadata.h>
@@ -688,7 +689,10 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 
 static const struct nla_policy
 enc_opts_policy[TCA_FLOWER_KEY_ENC_OPTS_MAX + 1] = {
+	[TCA_FLOWER_KEY_ENC_OPTS_UNSPEC]        = {
+		.strict_start_type = TCA_FLOWER_KEY_ENC_OPTS_VXLAN },
 	[TCA_FLOWER_KEY_ENC_OPTS_GENEVE]        = { .type = NLA_NESTED },
+	[TCA_FLOWER_KEY_ENC_OPTS_VXLAN]         = { .type = NLA_NESTED },
 };
 
 static const struct nla_policy
@@ -697,6 +701,11 @@ geneve_opt_policy[TCA_FLOWER_KEY_ENC_OPT_GENEVE_MAX + 1] = {
 	[TCA_FLOWER_KEY_ENC_OPT_GENEVE_TYPE]       = { .type = NLA_U8 },
 	[TCA_FLOWER_KEY_ENC_OPT_GENEVE_DATA]       = { .type = NLA_BINARY,
 						       .len = 128 },
+};
+
+static const struct nla_policy
+vxlan_opt_policy[TCA_FLOWER_KEY_ENC_OPT_VXLAN_MAX + 1] = {
+	[TCA_FLOWER_KEY_ENC_OPT_VXLAN_GBP]         = { .type = NLA_U32 },
 };
 
 static void fl_set_key_val(struct nlattr **tb,
@@ -928,6 +937,41 @@ static int fl_set_geneve_opt(const struct nlattr *nla, struct fl_flow_key *key,
 	return sizeof(struct geneve_opt) + data_len;
 }
 
+static int fl_set_vxlan_opt(const struct nlattr *nla, struct fl_flow_key *key,
+			    int depth, int option_len,
+			    struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[TCA_FLOWER_KEY_ENC_OPT_VXLAN_MAX + 1];
+	struct vxlan_metadata *md;
+	int err;
+
+	md = (struct vxlan_metadata *)&key->enc_opts.data[key->enc_opts.len];
+	memset(md, 0xff, sizeof(*md));
+
+	if (!depth)
+		return sizeof(*md);
+
+	if (nla_type(nla) != TCA_FLOWER_KEY_ENC_OPTS_VXLAN) {
+		NL_SET_ERR_MSG(extack, "Non-vxlan option type for mask");
+		return -EINVAL;
+	}
+
+	err = nla_parse_nested(tb, TCA_FLOWER_KEY_ENC_OPT_VXLAN_MAX, nla,
+			       vxlan_opt_policy, extack);
+	if (err < 0)
+		return err;
+
+	if (!option_len && !tb[TCA_FLOWER_KEY_ENC_OPT_VXLAN_GBP]) {
+		NL_SET_ERR_MSG(extack, "Missing tunnel key vxlan option gbp");
+		return -EINVAL;
+	}
+
+	if (tb[TCA_FLOWER_KEY_ENC_OPT_VXLAN_GBP])
+		md->gbp = nla_get_u32(tb[TCA_FLOWER_KEY_ENC_OPT_VXLAN_GBP]);
+
+	return sizeof(*md);
+}
+
 static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			  struct fl_flow_key *mask,
 			  struct netlink_ext_ack *extack)
@@ -958,6 +1002,11 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			  nla_len(tb[TCA_FLOWER_KEY_ENC_OPTS]), key_depth) {
 		switch (nla_type(nla_opt_key)) {
 		case TCA_FLOWER_KEY_ENC_OPTS_GENEVE:
+			if (key->enc_opts.dst_opt_type &&
+			    key->enc_opts.dst_opt_type != TUNNEL_GENEVE_OPT) {
+				NL_SET_ERR_MSG(extack, "Duplicate type for geneve options");
+				return -EINVAL;
+			}
 			option_len = 0;
 			key->enc_opts.dst_opt_type = TUNNEL_GENEVE_OPT;
 			option_len = fl_set_geneve_opt(nla_opt_key, key,
@@ -974,6 +1023,39 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			option_len = fl_set_geneve_opt(nla_opt_msk, mask,
 						       msk_depth, option_len,
 						       extack);
+			if (option_len < 0)
+				return option_len;
+
+			mask->enc_opts.len += option_len;
+			if (key->enc_opts.len != mask->enc_opts.len) {
+				NL_SET_ERR_MSG(extack, "Key and mask miss aligned");
+				return -EINVAL;
+			}
+
+			if (msk_depth)
+				nla_opt_msk = nla_next(nla_opt_msk, &msk_depth);
+			break;
+		case TCA_FLOWER_KEY_ENC_OPTS_VXLAN:
+			if (key->enc_opts.dst_opt_type) {
+				NL_SET_ERR_MSG(extack, "Duplicate type for vxlan options");
+				return -EINVAL;
+			}
+			option_len = 0;
+			key->enc_opts.dst_opt_type = TUNNEL_VXLAN_OPT;
+			option_len = fl_set_vxlan_opt(nla_opt_key, key,
+						      key_depth, option_len,
+						      extack);
+			if (option_len < 0)
+				return option_len;
+
+			key->enc_opts.len += option_len;
+			/* At the same time we need to parse through the mask
+			 * in order to verify exact and mask attribute lengths.
+			 */
+			mask->enc_opts.dst_opt_type = TUNNEL_VXLAN_OPT;
+			option_len = fl_set_vxlan_opt(nla_opt_msk, mask,
+						      msk_depth, option_len,
+						      extack);
 			if (option_len < 0)
 				return option_len;
 
@@ -2135,6 +2217,28 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int fl_dump_key_vxlan_opt(struct sk_buff *skb,
+				 struct flow_dissector_key_enc_opts *enc_opts)
+{
+	struct vxlan_metadata *md;
+	struct nlattr *nest;
+
+	nest = nla_nest_start_noflag(skb, TCA_FLOWER_KEY_ENC_OPTS_VXLAN);
+	if (!nest)
+		goto nla_put_failure;
+
+	md = (struct vxlan_metadata *)&enc_opts->data[0];
+	if (nla_put_u32(skb, TCA_FLOWER_KEY_ENC_OPT_VXLAN_GBP, md->gbp))
+		goto nla_put_failure;
+
+	nla_nest_end(skb, nest);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
+}
+
 static int fl_dump_key_ct(struct sk_buff *skb,
 			  struct flow_dissector_key_ct *key,
 			  struct flow_dissector_key_ct *mask)
@@ -2185,6 +2289,11 @@ static int fl_dump_key_options(struct sk_buff *skb, int enc_opt_type,
 	switch (enc_opts->dst_opt_type) {
 	case TUNNEL_GENEVE_OPT:
 		err = fl_dump_key_geneve_opt(skb, enc_opts);
+		if (err)
+			goto nla_put_failure;
+		break;
+	case TUNNEL_VXLAN_OPT:
+		err = fl_dump_key_vxlan_opt(skb, enc_opts);
 		if (err)
 			goto nla_put_failure;
 		break;
