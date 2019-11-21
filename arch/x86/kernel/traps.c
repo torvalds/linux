@@ -411,15 +411,9 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 		handle_stack_overflow("kernel stack overflow (double-fault)", regs, cr2);
 #endif
 
-#ifdef CONFIG_DOUBLEFAULT
-	df_debug(regs, error_code);
-#endif
-	/*
-	 * This is always a kernel trap and never fixable (and thus must
-	 * never return).
-	 */
-	for (;;)
-		die(str, regs, error_code);
+	pr_emerg("PANIC: double fault, error_code: 0x%lx\n", error_code);
+	show_regs(regs);
+	panic("Machine halted.");
 }
 #endif
 
