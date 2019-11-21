@@ -556,8 +556,8 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	ghes_pvt = pvt;
 	spin_unlock_irqrestore(&ghes_lock, flags);
 
-	/* only increment on success */
-	refcount_inc(&ghes_refcount);
+	/* only set on success */
+	refcount_set(&ghes_refcount, 1);
 
 unlock:
 	mutex_unlock(&ghes_reg_mutex);
