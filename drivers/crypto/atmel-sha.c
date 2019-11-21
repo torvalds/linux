@@ -2608,32 +2608,16 @@ err_sha_1_256_algs:
 	return err;
 }
 
-static bool atmel_sha_filter(struct dma_chan *chan, void *slave)
-{
-	struct at_dma_slave	*sl = slave;
-
-	if (sl && sl->dma_dev == chan->device->dev) {
-		chan->private = sl;
-		return true;
-	} else {
-		return false;
-	}
-}
-
 static int atmel_sha_dma_init(struct atmel_sha_dev *dd,
 				struct crypto_platform_data *pdata)
 {
-	dma_cap_mask_t mask_in;
+	dd->dma_lch_in.chan = dma_request_chan(dd->dev, "tx");
+	if (IS_ERR(dd->dma_lch_in.chan)) {
+		int ret = PTR_ERR(dd->dma_lch_in.chan);
 
-	/* Try to grab DMA channel */
-	dma_cap_zero(mask_in);
-	dma_cap_set(DMA_SLAVE, mask_in);
-
-	dd->dma_lch_in.chan = dma_request_slave_channel_compat(mask_in,
-			atmel_sha_filter, &pdata->dma_slave->rxdata, dd->dev, "tx");
-	if (!dd->dma_lch_in.chan) {
-		dev_warn(dd->dev, "no DMA channel available\n");
-		return -ENODEV;
+		if (ret != -EPROBE_DEFER)
+			dev_warn(dd->dev, "no DMA channel available\n");
+		return ret;
 	}
 
 	dd->dma_lch_in.dma_conf.direction = DMA_MEM_TO_DEV;
@@ -2722,12 +2706,6 @@ static struct crypto_platform_data *atmel_sha_of_init(struct platform_device *pd
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	pdata->dma_slave = devm_kzalloc(&pdev->dev,
-					sizeof(*(pdata->dma_slave)),
-					GFP_KERNEL);
-	if (!pdata->dma_slave)
 		return ERR_PTR(-ENOMEM);
 
 	return pdata;
@@ -2823,10 +2801,7 @@ static int atmel_sha_probe(struct platform_device *pdev)
 				goto iclk_unprepare;
 			}
 		}
-		if (!pdata->dma_slave) {
-			err = -ENXIO;
-			goto iclk_unprepare;
-		}
+
 		err = atmel_sha_dma_init(sha_dd, pdata);
 		if (err)
 			goto err_sha_dma;
