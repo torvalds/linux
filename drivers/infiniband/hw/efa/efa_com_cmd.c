@@ -423,28 +423,6 @@ static int efa_com_get_feature(struct efa_com_dev *edev,
 	return efa_com_get_feature_ex(edev, get_resp, feature_id, 0, 0);
 }
 
-int efa_com_get_network_attr(struct efa_com_dev *edev,
-			     struct efa_com_get_network_attr_result *result)
-{
-	struct efa_admin_get_feature_resp resp;
-	int err;
-
-	err = efa_com_get_feature(edev, &resp,
-				  EFA_ADMIN_NETWORK_ATTR);
-	if (err) {
-		ibdev_err_ratelimited(edev->efa_dev,
-				      "Failed to get network attributes %d\n",
-				      err);
-		return err;
-	}
-
-	memcpy(result->addr, resp.u.network_attr.addr,
-	       sizeof(resp.u.network_attr.addr));
-	result->mtu = resp.u.network_attr.mtu;
-
-	return 0;
-}
-
 int efa_com_get_device_attr(struct efa_com_dev *edev,
 			    struct efa_com_get_device_attr_result *result)
 {
@@ -500,6 +478,18 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->max_ah = resp.u.queue_attr.max_ah;
 	result->max_llq_size = resp.u.queue_attr.max_llq_size;
 	result->sub_cqs_per_cq = resp.u.queue_attr.sub_cqs_per_cq;
+
+	err = efa_com_get_feature(edev, &resp, EFA_ADMIN_NETWORK_ATTR);
+	if (err) {
+		ibdev_err_ratelimited(edev->efa_dev,
+				      "Failed to get network attributes %d\n",
+				      err);
+		return err;
+	}
+
+	memcpy(result->addr, resp.u.network_attr.addr,
+	       sizeof(resp.u.network_attr.addr));
+	result->mtu = resp.u.network_attr.mtu;
 
 	return 0;
 }

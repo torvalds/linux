@@ -60,8 +60,6 @@ struct efa_dev {
 	u64 mem_bar_len;
 	u64 db_bar_addr;
 	u64 db_bar_len;
-	u8 addr[EFA_GID_SIZE];
-	u32 mtu;
 
 	int admin_msix_vector_idx;
 	struct efa_irq admin_irq;
