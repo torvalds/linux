@@ -1,14 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
-* ES8396.h  --  ES8396 ALSA SoC Audio Codec
-**
-* Authors:
-*
-* Based on alc5632.h by Arnaud Patard
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*/
+ * ES8396.h  --  ES8396 ALSA SoC Audio Codec
+ *
+ * Based on alc5632.h by Arnaud Patard
+ */
 
 #ifndef _ES8396_H
 #define _ES8396_H
