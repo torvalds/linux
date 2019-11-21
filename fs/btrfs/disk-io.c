@@ -3089,7 +3089,7 @@ int __cold open_ctree(struct super_block *sb,
 		goto fail_block_groups;
 	}
 
-	ret = btrfs_sysfs_add_device(fs_devices);
+	ret = btrfs_sysfs_add_devices_kobj(fs_devices);
 	if (ret) {
 		btrfs_err(fs_info, "failed to init sysfs device interface: %d",
 				ret);

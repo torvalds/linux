@@ -995,7 +995,7 @@ int btrfs_sysfs_rm_device_link(struct btrfs_fs_devices *fs_devices,
 	return 0;
 }
 
-int btrfs_sysfs_add_device(struct btrfs_fs_devices *fs_devs)
+int btrfs_sysfs_add_devices_kobj(struct btrfs_fs_devices *fs_devs)
 {
 	if (!fs_devs->devices_kobj)
 		fs_devs->devices_kobj = kobject_create_and_add("devices",
