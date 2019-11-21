@@ -175,6 +175,11 @@ enum {
 	VCPU_SREG_LDTR,
 };
 
+enum exit_fastpath_completion {
+	EXIT_FASTPATH_NONE,
+	EXIT_FASTPATH_SKIP_EMUL_INS,
+};
+
 #include <asm/kvm_emulate.h>
 
 #define KVM_NR_MEM_OBJS 40
@@ -1095,7 +1100,8 @@ struct kvm_x86_ops {
 	void (*tlb_flush_gva)(struct kvm_vcpu *vcpu, gva_t addr);
 
 	void (*run)(struct kvm_vcpu *vcpu);
-	int (*handle_exit)(struct kvm_vcpu *vcpu);
+	int (*handle_exit)(struct kvm_vcpu *vcpu,
+		enum exit_fastpath_completion exit_fastpath);
 	int (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
 	void (*set_interrupt_shadow)(struct kvm_vcpu *vcpu, int mask);
 	u32 (*get_interrupt_shadow)(struct kvm_vcpu *vcpu);
@@ -1145,7 +1151,8 @@ struct kvm_x86_ops {
 	int (*check_intercept)(struct kvm_vcpu *vcpu,
 			       struct x86_instruction_info *info,
 			       enum x86_intercept_stage stage);
-	void (*handle_exit_irqoff)(struct kvm_vcpu *vcpu);
+	void (*handle_exit_irqoff)(struct kvm_vcpu *vcpu,
+		enum exit_fastpath_completion *exit_fastpath);
 	bool (*mpx_supported)(void);
 	bool (*xsaves_supported)(void);
 	bool (*umip_emulated)(void);

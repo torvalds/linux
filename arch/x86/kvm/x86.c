@@ -1526,6 +1526,49 @@ int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
 EXPORT_SYMBOL_GPL(kvm_emulate_wrmsr);
 
 /*
+ * The fast path for frequent and performance sensitive wrmsr emulation,
+ * i.e. the sending of IPI, sending IPI early in the VM-Exit flow reduces
+ * the latency of virtual IPI by avoiding the expensive bits of transitioning
+ * from guest to host, e.g. reacquiring KVM's SRCU lock. In contrast to the
+ * other cases which must be called after interrupts are enabled on the host.
+ */
+static int handle_fastpath_set_x2apic_icr_irqoff(struct kvm_vcpu *vcpu, u64 data)
+{
+	if (lapic_in_kernel(vcpu) && apic_x2apic_mode(vcpu->arch.apic) &&
+		((data & APIC_DEST_MASK) == APIC_DEST_PHYSICAL) &&
+		((data & APIC_MODE_MASK) == APIC_DM_FIXED)) {
+
+		kvm_lapic_set_reg(vcpu->arch.apic, APIC_ICR2, (u32)(data >> 32));
+		return kvm_lapic_reg_write(vcpu->arch.apic, APIC_ICR, (u32)data);
+	}
+
+	return 1;
+}
+
+enum exit_fastpath_completion handle_fastpath_set_msr_irqoff(struct kvm_vcpu *vcpu)
+{
+	u32 msr = kvm_rcx_read(vcpu);
+	u64 data = kvm_read_edx_eax(vcpu);
+	int ret = 0;
+
+	switch (msr) {
+	case APIC_BASE_MSR + (APIC_ICR >> 4):
+		ret = handle_fastpath_set_x2apic_icr_irqoff(vcpu, data);
+		break;
+	default:
+		return EXIT_FASTPATH_NONE;
+	}
+
+	if (!ret) {
+		trace_kvm_msr_write(msr, data);
+		return EXIT_FASTPATH_SKIP_EMUL_INS;
+	}
+
+	return EXIT_FASTPATH_NONE;
+}
+EXPORT_SYMBOL_GPL(handle_fastpath_set_msr_irqoff);
+
+/*
  * Adapt set_msr() to msr_io()'s calling convention
  */
 static int do_get_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
@@ -7995,6 +8038,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	bool req_int_win =
 		dm_request_for_irq_injection(vcpu) &&
 		kvm_cpu_accept_dm_intr(vcpu);
+	enum exit_fastpath_completion exit_fastpath = EXIT_FASTPATH_NONE;
 
 	bool req_immediate_exit = false;
 
@@ -8241,7 +8285,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 	smp_wmb();
 
-	kvm_x86_ops->handle_exit_irqoff(vcpu);
+	kvm_x86_ops->handle_exit_irqoff(vcpu, &exit_fastpath);
 
 	/*
 	 * Consume any pending interrupts, including the possible source of
@@ -8285,7 +8329,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		kvm_lapic_sync_from_vapic(vcpu);
 
 	vcpu->arch.gpa_available = false;
-	r = kvm_x86_ops->handle_exit(vcpu);
+	r = kvm_x86_ops->handle_exit(vcpu, exit_fastpath);
 	return r;
 
 cancel_injection:
