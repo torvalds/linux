@@ -748,15 +748,19 @@ static int live_busywait_preempt(void *arg)
 		*cs++ = 0;
 
 		intel_ring_advance(lo, cs);
+
+		i915_request_get(lo);
 		i915_request_add(lo);
 
 		if (wait_for(READ_ONCE(*map), 10)) {
+			i915_request_put(lo);
 			err = -ETIMEDOUT;
 			goto err_vma;
 		}
 
 		/* Low priority request should be busywaiting now */
 		if (i915_request_wait(lo, 0, 1) != -ETIME) {
+			i915_request_put(lo);
 			pr_err("%s: Busywaiting request did not!\n",
 			       engine->name);
 			err = -EIO;
@@ -766,6 +770,7 @@ static int live_busywait_preempt(void *arg)
 		hi = igt_request_alloc(ctx_hi, engine);
 		if (IS_ERR(hi)) {
 			err = PTR_ERR(hi);
+			i915_request_put(lo);
 			goto err_vma;
 		}
 
@@ -773,6 +778,7 @@ static int live_busywait_preempt(void *arg)
 		if (IS_ERR(cs)) {
 			err = PTR_ERR(cs);
 			i915_request_add(hi);
+			i915_request_put(lo);
 			goto err_vma;
 		}
 
@@ -793,11 +799,13 @@ static int live_busywait_preempt(void *arg)
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
 			GEM_TRACE_DUMP();
 
+			i915_request_put(lo);
 			intel_gt_set_wedged(gt);
 			err = -EIO;
 			goto err_vma;
 		}
 		GEM_BUG_ON(READ_ONCE(*map));
+		i915_request_put(lo);
 
 		if (igt_live_test_end(&t)) {
 			err = -EIO;
@@ -1665,6 +1673,7 @@ static int live_suppress_wait_preempt(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct preempt_client client[4];
+	struct i915_request *rq[ARRAY_SIZE(client)] = {};
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err = -ENOMEM;
@@ -1698,7 +1707,6 @@ static int live_suppress_wait_preempt(void *arg)
 			continue;
 
 		for (depth = 0; depth < ARRAY_SIZE(client); depth++) {
-			struct i915_request *rq[ARRAY_SIZE(client)];
 			struct i915_request *dummy;
 
 			engine->execlists.preempt_hang.count = 0;
@@ -1708,18 +1716,22 @@ static int live_suppress_wait_preempt(void *arg)
 				goto err_client_3;
 
 			for (i = 0; i < ARRAY_SIZE(client); i++) {
-				rq[i] = spinner_create_request(&client[i].spin,
-							       client[i].ctx, engine,
-							       MI_NOOP);
-				if (IS_ERR(rq[i])) {
-					err = PTR_ERR(rq[i]);
+				struct i915_request *this;
+
+				this = spinner_create_request(&client[i].spin,
+							      client[i].ctx, engine,
+							      MI_NOOP);
+				if (IS_ERR(this)) {
+					err = PTR_ERR(this);
 					goto err_wedged;
 				}
 
 				/* Disable NEWCLIENT promotion */
-				__i915_active_fence_set(&i915_request_timeline(rq[i])->last_request,
+				__i915_active_fence_set(&i915_request_timeline(this)->last_request,
 							&dummy->fence);
-				i915_request_add(rq[i]);
+
+				rq[i] = i915_request_get(this);
+				i915_request_add(this);
 			}
 
 			dummy_request_free(dummy);
@@ -1740,8 +1752,11 @@ static int live_suppress_wait_preempt(void *arg)
 				goto err_wedged;
 			}
 
-			for (i = 0; i < ARRAY_SIZE(client); i++)
+			for (i = 0; i < ARRAY_SIZE(client); i++) {
 				igt_spinner_end(&client[i].spin);
+				i915_request_put(rq[i]);
+				rq[i] = NULL;
+			}
 
 			if (igt_flush_test(gt->i915))
 				goto err_wedged;
@@ -1769,8 +1784,10 @@ err_client_0:
 	return err;
 
 err_wedged:
-	for (i = 0; i < ARRAY_SIZE(client); i++)
+	for (i = 0; i < ARRAY_SIZE(client); i++) {
 		igt_spinner_end(&client[i].spin);
+		i915_request_put(rq[i]);
+	}
 	intel_gt_set_wedged(gt);
 	err = -EIO;
 	goto err_client_3;
@@ -1815,6 +1832,8 @@ static int live_chain_preempt(void *arg)
 					    MI_ARB_CHECK);
 		if (IS_ERR(rq))
 			goto err_wedged;
+
+		i915_request_get(rq);
 		i915_request_add(rq);
 
 		ring_size = rq->wa_tail - rq->head;
@@ -1827,8 +1846,10 @@ static int live_chain_preempt(void *arg)
 		igt_spinner_end(&lo.spin);
 		if (i915_request_wait(rq, 0, HZ / 2) < 0) {
 			pr_err("Timed out waiting to flush %s\n", engine->name);
+			i915_request_put(rq);
 			goto err_wedged;
 		}
+		i915_request_put(rq);
 
 		if (igt_live_test_begin(&t, gt->i915, __func__, engine->name)) {
 			err = -EIO;
@@ -1862,6 +1883,8 @@ static int live_chain_preempt(void *arg)
 			rq = igt_request_alloc(hi.ctx, engine);
 			if (IS_ERR(rq))
 				goto err_wedged;
+
+			i915_request_get(rq);
 			i915_request_add(rq);
 			engine->schedule(rq, &attr);
 
@@ -1874,14 +1897,19 @@ static int live_chain_preempt(void *arg)
 				       count);
 				intel_engine_dump(engine, &p,
 						  "%s\n", engine->name);
+				i915_request_put(rq);
 				goto err_wedged;
 			}
 			igt_spinner_end(&lo.spin);
+			i915_request_put(rq);
 
 			rq = igt_request_alloc(lo.ctx, engine);
 			if (IS_ERR(rq))
 				goto err_wedged;
+
+			i915_request_get(rq);
 			i915_request_add(rq);
+
 			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				struct drm_printer p =
 					drm_info_printer(gt->i915->drm.dev);
@@ -1890,8 +1918,11 @@ static int live_chain_preempt(void *arg)
 				       count);
 				intel_engine_dump(engine, &p,
 						  "%s\n", engine->name);
+
+				i915_request_put(rq);
 				goto err_wedged;
 			}
+			i915_request_put(rq);
 		}
 
 		if (igt_live_test_end(&t)) {
@@ -2586,7 +2617,7 @@ static int nop_virtual_engine(struct intel_gt *gt,
 #define CHAIN BIT(0)
 {
 	IGT_TIMEOUT(end_time);
-	struct i915_request *request[16];
+	struct i915_request *request[16] = {};
 	struct i915_gem_context *ctx[16];
 	struct intel_context *ve[16];
 	unsigned long n, prime, nc;
@@ -2632,27 +2663,35 @@ static int nop_virtual_engine(struct intel_gt *gt,
 		if (flags & CHAIN) {
 			for (nc = 0; nc < nctx; nc++) {
 				for (n = 0; n < prime; n++) {
-					request[nc] =
-						i915_request_create(ve[nc]);
-					if (IS_ERR(request[nc])) {
-						err = PTR_ERR(request[nc]);
+					struct i915_request *rq;
+
+					rq = i915_request_create(ve[nc]);
+					if (IS_ERR(rq)) {
+						err = PTR_ERR(rq);
 						goto out;
 					}
 
-					i915_request_add(request[nc]);
+					if (request[nc])
+						i915_request_put(request[nc]);
+					request[nc] = i915_request_get(rq);
+					i915_request_add(rq);
 				}
 			}
 		} else {
 			for (n = 0; n < prime; n++) {
 				for (nc = 0; nc < nctx; nc++) {
-					request[nc] =
-						i915_request_create(ve[nc]);
-					if (IS_ERR(request[nc])) {
-						err = PTR_ERR(request[nc]);
+					struct i915_request *rq;
+
+					rq = i915_request_create(ve[nc]);
+					if (IS_ERR(rq)) {
+						err = PTR_ERR(rq);
 						goto out;
 					}
 
-					i915_request_add(request[nc]);
+					if (request[nc])
+						i915_request_put(request[nc]);
+					request[nc] = i915_request_get(rq);
+					i915_request_add(rq);
 				}
 			}
 		}
@@ -2678,6 +2717,11 @@ static int nop_virtual_engine(struct intel_gt *gt,
 		if (prime == 1)
 			times[0] = times[1];
 
+		for (nc = 0; nc < nctx; nc++) {
+			i915_request_put(request[nc]);
+			request[nc] = NULL;
+		}
+
 		if (__igt_timeout(end_time, NULL))
 			break;
 	}
@@ -2695,6 +2739,7 @@ out:
 		err = -EIO;
 
 	for (nc = 0; nc < nctx; nc++) {
+		i915_request_put(request[nc]);
 		intel_context_unpin(ve[nc]);
 		intel_context_put(ve[nc]);
 		kernel_context_close(ctx[nc]);
