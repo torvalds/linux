@@ -30,8 +30,6 @@
 #include <linux/agp_backend.h>
 #include <uapi/linux/agpgart.h>
 
-#define AGPGART_MINOR 175
-
 struct agp_info {
 	struct agp_version version;	/* version of the driver        */
 	u32 bridge_id;		/* bridge vendor/device         */
