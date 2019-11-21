@@ -6460,7 +6460,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	u32 if_fam;
 
 	phba->sli4_hba.num_present_cpu = lpfc_present_cpu;
-	phba->sli4_hba.num_possible_cpu = num_possible_cpus();
+	phba->sli4_hba.num_possible_cpu = cpumask_last(cpu_possible_mask) + 1;
 	phba->sli4_hba.curr_disp_cpu = 0;
 	lpfc_cpumask_of_node_init(phba);
 
