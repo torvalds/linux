@@ -2297,7 +2297,7 @@ static void set_avi_info_frame(
 		if (color_space == COLOR_SPACE_SRGB ||
 			color_space == COLOR_SPACE_2020_RGB_FULLRANGE) {
 			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
-			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_FULL_RANGE;
+			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 		} else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
 					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE) {
 			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
