@@ -38,7 +38,7 @@ static DEFINE_MUTEX(tunnel_mutex);
 
 int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
 {
-	struct device_node *parent = np;
+	struct device_node *node = np;
 	u32 bdfn;
 	u64 phbid;
 	int ret;
@@ -48,25 +48,29 @@ int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
 		return -ENXIO;
 
 	bdfn = ((bdfn & 0x00ffff00) >> 8);
-	while ((parent = of_get_parent(parent))) {
-		if (!PCI_DN(parent)) {
-			of_node_put(parent);
+	for (node = np; node; node = of_get_parent(node)) {
+		if (!PCI_DN(node)) {
+			of_node_put(node);
 			break;
 		}
 
-		if (!of_device_is_compatible(parent, "ibm,ioda2-phb") &&
-		    !of_device_is_compatible(parent, "ibm,ioda3-phb")) {
-			of_node_put(parent);
+		if (!of_device_is_compatible(node, "ibm,ioda2-phb") &&
+		    !of_device_is_compatible(node, "ibm,ioda3-phb") &&
+		    !of_device_is_compatible(node, "ibm,ioda2-npu2-opencapi-phb")) {
+			of_node_put(node);
 			continue;
 		}
 
-		ret = of_property_read_u64(parent, "ibm,opal-phbid", &phbid);
+		ret = of_property_read_u64(node, "ibm,opal-phbid", &phbid);
 		if (ret) {
-			of_node_put(parent);
+			of_node_put(node);
 			return -ENXIO;
 		}
 
-		*id = PCI_SLOT_ID(phbid, bdfn);
+		if (of_device_is_compatible(node, "ibm,ioda2-npu2-opencapi-phb"))
+			*id = PCI_PHB_SLOT_ID(phbid);
+		else
+			*id = PCI_SLOT_ID(phbid, bdfn);
 		return 0;
 	}
 
