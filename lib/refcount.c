@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Out-of-line refcount functions common to all refcount implementations.
+ * Out-of-line refcount functions.
  */
 
 #include <linux/mutex.h>

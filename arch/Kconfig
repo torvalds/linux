@@ -892,27 +892,6 @@ config STRICT_MODULE_RWX
 config ARCH_HAS_PHYS_TO_DMA
 	bool
 
-config ARCH_HAS_REFCOUNT
-	bool
-	help
-	  An architecture selects this when it has implemented refcount_t
-	  using open coded assembly primitives that provide an optimized
-	  refcount_t implementation, possibly at the expense of some full
-	  refcount state checks of CONFIG_REFCOUNT_FULL=y.
-
-	  The refcount overflow check behavior, however, must be retained.
-	  Catching overflows is the primary security concern for protecting
-	  against bugs in reference counts.
-
-config REFCOUNT_FULL
-	bool "Perform full reference count validation at the expense of speed"
-	help
-	  Enabling this switches the refcounting infrastructure from a fast
-	  unchecked atomic_t implementation to a fully state checked
-	  implementation, which can be (slightly) slower but provides protections
-	  against various use-after-free conditions that can be used in
-	  security flaw exploits.
-
 config HAVE_ARCH_COMPILER_H
 	bool
 	help
