@@ -758,6 +758,12 @@ static int psp_ras_terminate(struct psp_context *psp)
 {
 	int ret;
 
+	/*
+	 * TODO: bypass the terminate in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
 	if (!psp->ras.ras_initialized)
 		return 0;
 
@@ -778,6 +784,12 @@ static int psp_ras_terminate(struct psp_context *psp)
 static int psp_ras_initialize(struct psp_context *psp)
 {
 	int ret;
+
+	/*
+	 * TODO: bypass the initialize in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
 
 	if (!psp->adev->psp.ta_ras_ucode_size ||
 	    !psp->adev->psp.ta_ras_start_addr) {
@@ -874,6 +886,12 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 {
 	int ret;
 
+	/*
+	 * TODO: bypass the initialize in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
 	if (!psp->adev->psp.ta_hdcp_ucode_size ||
 	    !psp->adev->psp.ta_hdcp_start_addr) {
 		dev_warn(psp->adev->dev, "HDCP: hdcp ta ucode is not available\n");
@@ -961,6 +979,12 @@ int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 static int psp_hdcp_terminate(struct psp_context *psp)
 {
 	int ret;
+
+	/*
+	 * TODO: bypass the terminate in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
 
 	if (!psp->hdcp_context.hdcp_initialized)
 		return 0;
@@ -1053,6 +1077,12 @@ static int psp_dtm_initialize(struct psp_context *psp)
 {
 	int ret;
 
+	/*
+	 * TODO: bypass the initialize in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
 	if (!psp->adev->psp.ta_dtm_ucode_size ||
 	    !psp->adev->psp.ta_dtm_start_addr) {
 		dev_warn(psp->adev->dev, "DTM: dtm ta ucode is not available\n");
@@ -1110,6 +1140,12 @@ int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 static int psp_dtm_terminate(struct psp_context *psp)
 {
 	int ret;
+
+	/*
+	 * TODO: bypass the terminate in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
 
 	if (!psp->dtm_context.dtm_initialized)
 		return 0;
