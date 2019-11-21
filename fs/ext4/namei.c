@@ -109,7 +109,10 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 	struct ext4_dir_entry *dirent;
 	int is_dx_block = 0;
 
-	bh = ext4_bread(NULL, inode, block, 0);
+	if (ext4_simulate_fail(inode->i_sb, EXT4_SIM_DIRBLOCK_EIO))
+		bh = ERR_PTR(-EIO);
+	else
+		bh = ext4_bread(NULL, inode, block, 0);
 	if (IS_ERR(bh)) {
 		__ext4_warning(inode->i_sb, func, line,
 			       "inode #%lu: lblock %lu: comm %s: "
@@ -153,7 +156,8 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 	 * caller is sure it should be an index block.
 	 */
 	if (is_dx_block && type == INDEX) {
-		if (ext4_dx_csum_verify(inode, dirent))
+		if (ext4_dx_csum_verify(inode, dirent) &&
+		    !ext4_simulate_fail(inode->i_sb, EXT4_SIM_DIRBLOCK_CRC))
 			set_buffer_verified(bh);
 		else {
 			ext4_set_errno(inode->i_sb, EFSBADCRC);
@@ -164,7 +168,8 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 		}
 	}
 	if (!is_dx_block) {
-		if (ext4_dirblock_csum_verify(inode, bh))
+		if (ext4_dirblock_csum_verify(inode, bh) &&
+		    !ext4_simulate_fail(inode->i_sb, EXT4_SIM_DIRBLOCK_CRC))
 			set_buffer_verified(bh);
 		else {
 			ext4_set_errno(inode->i_sb, EFSBADCRC);
