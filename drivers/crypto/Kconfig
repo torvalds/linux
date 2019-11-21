@@ -248,15 +248,15 @@ config CRYPTO_DEV_MARVELL_CESA
 	  This driver supports CPU offload through DMA transfers.
 
 config CRYPTO_DEV_NIAGARA2
-       tristate "Niagara2 Stream Processing Unit driver"
-       select CRYPTO_LIB_DES
-       select CRYPTO_SKCIPHER
-       select CRYPTO_HASH
-       select CRYPTO_MD5
-       select CRYPTO_SHA1
-       select CRYPTO_SHA256
-       depends on SPARC64
-       help
+	tristate "Niagara2 Stream Processing Unit driver"
+	select CRYPTO_LIB_DES
+	select CRYPTO_SKCIPHER
+	select CRYPTO_HASH
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	depends on SPARC64
+	help
 	  Each core of a Niagara2 processor contains a Stream
 	  Processing Unit, which itself contains several cryptographic
 	  sub-units.  One set provides the Modular Arithmetic Unit,
@@ -357,7 +357,7 @@ config CRYPTO_DEV_OMAP
 	depends on ARCH_OMAP2PLUS
 	help
 	  OMAP processors have various crypto HW accelerators. Select this if
-          you want to use the OMAP modules for any of the crypto algorithms.
+	  you want to use the OMAP modules for any of the crypto algorithms.
 
 if CRYPTO_DEV_OMAP
 
@@ -639,7 +639,7 @@ config CRYPTO_DEV_QCOM_RNG
 	  Generator hardware found on Qualcomm SoCs.
 
 	  To compile this driver as a module, choose M here. The
-          module will be called qcom-rng. If unsure, say N.
+	  module will be called qcom-rng. If unsure, say N.
 
 config CRYPTO_DEV_VMX
 	bool "Support for VMX cryptographic acceleration instructions"
