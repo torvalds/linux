@@ -268,7 +268,7 @@ static int snd_sh_dac_pcm(struct snd_sh_dac *chip, int device)
 
 	/* buffer size=48K */
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					  snd_dma_continuous_data(GFP_KERNEL),
+					      NULL,
 							48 * 1024,
 							48 * 1024);
 

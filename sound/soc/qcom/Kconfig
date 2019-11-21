@@ -3,8 +3,8 @@ config SND_SOC_QCOM
 	tristate "ASoC support for QCOM platforms"
 	depends on ARCH_QCOM || COMPILE_TEST
 	help
-          Say Y or M if you want to add support to use audio devices
-          in Qualcomm Technologies SOC-based platforms.
+	  Say Y or M if you want to add support to use audio devices
+	  in Qualcomm Technologies SOC-based platforms.
 
 config SND_SOC_LPASS_CPU
 	tristate
@@ -30,17 +30,17 @@ config SND_SOC_STORM
 	select SND_SOC_LPASS_IPQ806X
 	select SND_SOC_MAX98357A
 	help
-          Say Y or M if you want add support for SoC audio on the
-          Qualcomm Technologies IPQ806X-based Storm board.
+	  Say Y or M if you want add support for SoC audio on the
+	  Qualcomm Technologies IPQ806X-based Storm board.
 
 config SND_SOC_APQ8016_SBC
 	tristate "SoC Audio support for APQ8016 SBC platforms"
 	depends on SND_SOC_QCOM
 	select SND_SOC_LPASS_APQ8016
 	help
-          Support for Qualcomm Technologies LPASS audio block in
-          APQ8016 SOC-based systems.
-          Say Y if you want to use audio devices on MI2S.
+	  Support for Qualcomm Technologies LPASS audio block in
+	  APQ8016 SOC-based systems.
+	  Say Y if you want to use audio devices on MI2S.
 
 config SND_SOC_QCOM_COMMON
 	tristate
@@ -93,9 +93,9 @@ config SND_SOC_MSM8996
 	select SND_SOC_QDSP6
 	select SND_SOC_QCOM_COMMON
 	help
-          Support for Qualcomm Technologies LPASS audio block in
-          APQ8096 SoC-based systems.
-          Say Y if you want to use audio device on this SoCs
+	  Support for Qualcomm Technologies LPASS audio block in
+	  APQ8096 SoC-based systems.
+	  Say Y if you want to use audio device on this SoCs
 
 config SND_SOC_SDM845
 	tristate "SoC Machine driver for SDM845 boards"

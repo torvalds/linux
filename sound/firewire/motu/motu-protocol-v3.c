@@ -104,6 +104,8 @@ static int v3_get_clock_source(struct snd_motu *motu,
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
 	} else if (val == 0x01) {
 		*src = SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC;
+	} else if (val == 0x02) {
+		*src = SND_MOTU_CLOCK_SOURCE_SPH;
 	} else if (val == 0x10) {
 		*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
 	} else if (val == 0x18 || val == 0x19) {
@@ -187,7 +189,7 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 			pcm_chunks[1] += 2;
 		}
 	} else {
-		if (flags & SND_MOTU_SPEC_RX_SEPARETED_MAIN) {
+		if (flags & SND_MOTU_SPEC_RX_SEPARATED_MAIN) {
 			pcm_chunks[0] += 2;
 			pcm_chunks[1] += 2;
 		}

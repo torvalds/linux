@@ -15,6 +15,7 @@
 #include <sound/pcm.h>
 #include <sound/info.h>
 #include <sound/initval.h>
+#include "pcm_local.h"
 
 static int preallocate_dma = 1;
 module_param(preallocate_dma, int, 0444);
@@ -193,9 +194,15 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 /*
  * pre-allocate the buffer and create a proc file for the substream
  */
-static void snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
-					  size_t size, size_t max)
+static void preallocate_pages(struct snd_pcm_substream *substream,
+			      int type, struct device *data,
+			      size_t size, size_t max, bool managed)
 {
+	if (snd_BUG_ON(substream->dma_buffer.dev.type))
+		return;
+
+	substream->dma_buffer.dev.type = type;
+	substream->dma_buffer.dev.dev = data;
 
 	if (size > 0 && preallocate_dma && substream->number < maximum_substreams)
 		preallocate_pcm_pages(substream, size);
@@ -203,9 +210,25 @@ static void snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
 	if (substream->dma_buffer.bytes > 0)
 		substream->buffer_bytes_max = substream->dma_buffer.bytes;
 	substream->dma_max = max;
-	preallocate_info_init(substream);
+	if (max > 0)
+		preallocate_info_init(substream);
+	if (managed)
+		substream->managed_buffer_alloc = 1;
 }
 
+static void preallocate_pages_for_all(struct snd_pcm *pcm, int type,
+				      void *data, size_t size, size_t max,
+				      bool managed)
+{
+	struct snd_pcm_substream *substream;
+	int stream;
+
+	for (stream = 0; stream < 2; stream++)
+		for (substream = pcm->streams[stream].substream; substream;
+		     substream = substream->next)
+			preallocate_pages(substream, type, data, size, max,
+					  managed);
+}
 
 /**
  * snd_pcm_lib_preallocate_pages - pre-allocation for the given DMA type
@@ -221,9 +244,7 @@ void snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
 				  int type, struct device *data,
 				  size_t size, size_t max)
 {
-	substream->dma_buffer.dev.type = type;
-	substream->dma_buffer.dev.dev = data;
-	snd_pcm_lib_preallocate_pages1(substream, size, max);
+	preallocate_pages(substream, type, data, size, max, false);
 }
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages);
 
@@ -242,17 +263,57 @@ void snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 					  int type, void *data,
 					  size_t size, size_t max)
 {
-	struct snd_pcm_substream *substream;
-	int stream;
-
-	for (stream = 0; stream < 2; stream++)
-		for (substream = pcm->streams[stream].substream; substream; substream = substream->next)
-			snd_pcm_lib_preallocate_pages(substream, type, data, size, max);
+	preallocate_pages_for_all(pcm, type, data, size, max, false);
 }
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);
 
-#ifdef CONFIG_SND_DMA_SGBUF
 /**
+ * snd_pcm_set_managed_buffer - set up buffer management for a substream
+ * @substream: the pcm substream instance
+ * @type: DMA type (SNDRV_DMA_TYPE_*)
+ * @data: DMA type dependent data
+ * @size: the requested pre-allocation size in bytes
+ * @max: the max. allowed pre-allocation size
+ *
+ * Do pre-allocation for the given DMA buffer type, and set the managed
+ * buffer allocation mode to the given substream.
+ * In this mode, PCM core will allocate a buffer automatically before PCM
+ * hw_params ops call, and release the buffer after PCM hw_free ops call
+ * as well, so that the driver doesn't need to invoke the allocation and
+ * the release explicitly in its callback.
+ * When a buffer is actually allocated before the PCM hw_params call, it
+ * turns on the runtime buffer_changed flag for drivers changing their h/w
+ * parameters accordingly.
+ */
+void snd_pcm_set_managed_buffer(struct snd_pcm_substream *substream, int type,
+				struct device *data, size_t size, size_t max)
+{
+	preallocate_pages(substream, type, data, size, max, true);
+}
+EXPORT_SYMBOL(snd_pcm_set_managed_buffer);
+
+/**
+ * snd_pcm_set_managed_buffer_all - set up buffer management for all substreams
+ *	for all substreams
+ * @pcm: the pcm instance
+ * @type: DMA type (SNDRV_DMA_TYPE_*)
+ * @data: DMA type dependent data
+ * @size: the requested pre-allocation size in bytes
+ * @max: the max. allowed pre-allocation size
+ *
+ * Do pre-allocation to all substreams of the given pcm for the specified DMA
+ * type and size, and set the managed_buffer_alloc flag to each substream.
+ */
+void snd_pcm_set_managed_buffer_all(struct snd_pcm *pcm, int type,
+				    struct device *data,
+				    size_t size, size_t max)
+{
+	preallocate_pages_for_all(pcm, type, data, size, max, true);
+}
+EXPORT_SYMBOL(snd_pcm_set_managed_buffer_all);
+
+#ifdef CONFIG_SND_DMA_SGBUF
+/*
  * snd_pcm_sgbuf_ops_page - get the page struct at the given offset
  * @substream: the pcm substream instance
  * @offset: the buffer offset
@@ -270,7 +331,6 @@ struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigne
 		return NULL;
 	return sgbuf->page_table[idx];
 }
-EXPORT_SYMBOL(snd_pcm_sgbuf_ops_page);
 #endif /* CONFIG_SND_DMA_SGBUF */
 
 /**

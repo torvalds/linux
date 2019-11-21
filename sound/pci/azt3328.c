@@ -2135,8 +2135,8 @@ snd_azf3328_pcm(struct snd_azf3328 *chip)
 	chip->pcm[AZF_CODEC_CAPTURE] = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						snd_dma_pci_data(chip->pci),
-							64*1024, 64*1024);
+					      &chip->pci->dev,
+					      64*1024, 64*1024);
 
 	err = snd_pcm_new(chip->card, "AZF3328 I2S OUT", AZF_PCMDEV_I2S_OUT,
 								1, 0, &pcm);
@@ -2151,8 +2151,8 @@ snd_azf3328_pcm(struct snd_azf3328 *chip)
 	chip->pcm[AZF_CODEC_I2S_OUT] = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						snd_dma_pci_data(chip->pci),
-							64*1024, 64*1024);
+					      &chip->pci->dev,
+					      64*1024, 64*1024);
 
 	return 0;
 }

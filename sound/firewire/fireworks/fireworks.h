@@ -207,7 +207,9 @@ int snd_efw_command_get_sampling_rate(struct snd_efw *efw, unsigned int *rate);
 int snd_efw_command_set_sampling_rate(struct snd_efw *efw, unsigned int rate);
 
 int snd_efw_stream_init_duplex(struct snd_efw *efw);
-int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate);
+int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate,
+				  unsigned int frames_per_period,
+				  unsigned int frames_per_buffer);
 int snd_efw_stream_start_duplex(struct snd_efw *efw);
 void snd_efw_stream_stop_duplex(struct snd_efw *efw);
 void snd_efw_stream_update_duplex(struct snd_efw *efw);
