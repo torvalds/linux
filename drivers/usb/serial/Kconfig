@@ -269,16 +269,16 @@ config USB_SERIAL_F8153X
 
 
 config USB_SERIAL_GARMIN
-       tristate "USB Garmin GPS driver"
-       help
-	 Say Y here if you want to connect to your Garmin GPS.
-	 Should work with most Garmin GPS devices which have a native USB port.
+	tristate "USB Garmin GPS driver"
+	help
+	  Say Y here if you want to connect to your Garmin GPS.
+	  Should work with most Garmin GPS devices which have a native USB port.
 
-	 See <http://sourceforge.net/projects/garmin-gps> for the latest
-	 version of the driver.
+	  See <http://sourceforge.net/projects/garmin-gps> for the latest
+	  version of the driver.
 
-	 To compile this driver as a module, choose M here: the
-	 module will be called garmin_gps.
+	  To compile this driver as a module, choose M here: the
+	  module will be called garmin_gps.
 
 config USB_SERIAL_IPW
 	tristate "USB IPWireless (3G UMTS TDD) Driver"
