@@ -1467,7 +1467,10 @@ out:
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA5
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA6
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA7
-		    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G))
+                    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G
+	            || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL
+	            || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM
+	            || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM))
 			/*skip ucode loading in SRIOV VF */
 			continue;
 
