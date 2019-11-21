@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/bug.h>
+#include <linux/sched.h>
 #include <asm/page.h>
 #include <asm/gmap.h>
 
@@ -91,6 +92,19 @@ struct uv_cb_cfs {
 	u64 paddr;
 } __packed __aligned(8);
 
+/*
+ * A common UV call struct for calls that take no payload
+ * Examples:
+ * Destroy cpu/config
+ * Verify
+ */
+struct uv_cb_nodata {
+	struct uv_cb_header header;
+	u64 reserved08[2];
+	u64 handle;
+	u64 reserved20[4];
+} __packed __aligned(8);
+
 struct uv_cb_share {
 	struct uv_cb_header header;
 	u64 reserved08[3];
@@ -98,19 +112,60 @@ struct uv_cb_share {
 	u64 reserved28;
 } __packed __aligned(8);
 
-static inline int uv_call(unsigned long r1, unsigned long r2)
+static inline int __uv_call(unsigned long r1, unsigned long r2)
 {
 	int cc;
 
 	asm volatile(
-		"0:	.insn rrf,0xB9A40000,%[r1],%[r2],0,0\n"
-		"		brc	3,0b\n"
-		"		ipm	%[cc]\n"
-		"		srl	%[cc],28\n"
+		"	.insn rrf,0xB9A40000,%[r1],%[r2],0,0\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
 		: [cc] "=d" (cc)
 		: [r1] "a" (r1), [r2] "a" (r2)
 		: "memory", "cc");
 	return cc;
+}
+
+static inline int uv_call(unsigned long r1, unsigned long r2)
+{
+	int cc;
+
+	do {
+		cc = __uv_call(r1, r2);
+	} while (cc > 1);
+	return cc;
+}
+
+/* Low level uv_call that avoids stalls for long running busy conditions  */
+static inline int uv_call_sched(unsigned long r1, unsigned long r2)
+{
+	int cc;
+
+	do {
+		cc = __uv_call(r1, r2);
+		cond_resched();
+	} while (cc > 1);
+	return cc;
+}
+
+/*
+ * special variant of uv_call that only transports the cpu or guest
+ * handle and the command, like destroy or verify.
+ */
+static inline int uv_cmd_nodata(u64 handle, u16 cmd, u16 *rc, u16 *rrc)
+{
+	struct uv_cb_nodata uvcb = {
+		.header.cmd = cmd,
+		.header.len = sizeof(uvcb),
+		.handle = handle,
+	};
+	int cc;
+
+	WARN(!handle, "No handle provided to Ultravisor call cmd %x\n", cmd);
+	cc = uv_call_sched(0, (u64)&uvcb);
+	*rc = uvcb.header.rc;
+	*rrc = uvcb.header.rrc;
+	return cc ? -EINVAL : 0;
 }
 
 struct uv_info {
