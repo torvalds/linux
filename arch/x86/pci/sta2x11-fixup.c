@@ -143,7 +143,7 @@ static void sta2x11_map_ep(struct pci_dev *pdev)
 
 	dev->dma_pfn_offset = PFN_DOWN(-amba_base);
 
-	dev->bus_dma_mask = max_amba_addr;
+	dev->bus_dma_limit = max_amba_addr;
 	pci_set_consistent_dma_mask(pdev, max_amba_addr);
 	pci_set_dma_mask(pdev, max_amba_addr);
 
