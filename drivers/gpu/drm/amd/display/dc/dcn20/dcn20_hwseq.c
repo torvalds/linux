@@ -1740,7 +1740,6 @@ bool dcn20_update_bandwidth(
 
 void dcn20_enable_writeback(
 		struct dc *dc,
-		const struct dc_stream_status *stream_status,
 		struct dc_writeback_info *wb_info,
 		struct dc_state *context)
 {
@@ -1754,8 +1753,7 @@ void dcn20_enable_writeback(
 	mcif_wb = dc->res_pool->mcif_wb[wb_info->dwb_pipe_inst];
 
 	/* set the OPTC source mux */
-	ASSERT(stream_status->primary_otg_inst < MAX_PIPES);
-	optc = dc->res_pool->timing_generators[stream_status->primary_otg_inst];
+	optc = dc->res_pool->timing_generators[dwb->otg_inst];
 	optc->funcs->set_dwb_source(optc, wb_info->dwb_pipe_inst);
 	/* set MCIF_WB buffer and arbitration configuration */
 	mcif_wb->funcs->config_mcif_buf(mcif_wb, &wb_info->mcif_buf_params, wb_info->dwb_params.dest_height);

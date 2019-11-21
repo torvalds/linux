@@ -149,15 +149,17 @@ struct hw_sequencer_funcs {
 
 	/* Writeback Related */
 	void (*update_writeback)(struct dc *dc,
-			const struct dc_stream_status *stream_status,
 			struct dc_writeback_info *wb_info,
 			struct dc_state *context);
 	void (*enable_writeback)(struct dc *dc,
-			const struct dc_stream_status *stream_status,
 			struct dc_writeback_info *wb_info,
 			struct dc_state *context);
 	void (*disable_writeback)(struct dc *dc,
 			unsigned int dwb_pipe_inst);
+
+	bool (*mmhubbub_warmup)(struct dc *dc,
+			unsigned int num_dwb,
+			struct dc_writeback_info *wb_info);
 
 	/* Clock Related */
 	enum dc_status (*set_clock)(struct dc *dc,

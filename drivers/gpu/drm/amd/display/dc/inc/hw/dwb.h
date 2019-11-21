@@ -113,7 +113,8 @@ struct dwbc {
 	int wb_src_plane_inst;/*hubp, mpcc, inst*/
 	bool update_privacymask;
 	uint32_t mask_id;
-
+        int otg_inst;
+        bool mvc_cfg;
 };
 
 struct dwbc_funcs {
