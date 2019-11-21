@@ -88,6 +88,8 @@ struct snd_soc_component_driver {
 		       struct snd_pcm_substream *substream);
 	int (*trigger)(struct snd_soc_component *component,
 		       struct snd_pcm_substream *substream, int cmd);
+	int (*sync_stop)(struct snd_soc_component *component,
+			 struct snd_pcm_substream *substream);
 	snd_pcm_uframes_t (*pointer)(struct snd_soc_component *component,
 				     struct snd_pcm_substream *substream);
 	int (*get_time_info)(struct snd_soc_component *component,
@@ -405,6 +407,7 @@ int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream);
 int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,
 				unsigned int cmd, void *arg);
+int snd_soc_pcm_component_sync_stop(struct snd_pcm_substream *substream);
 int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
 				    int channel, unsigned long pos,
 				    void __user *buf, unsigned long bytes);
