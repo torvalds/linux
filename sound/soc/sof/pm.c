@@ -17,6 +17,8 @@ static int sof_send_pm_ctx_ipc(struct snd_sof_dev *sdev, int cmd)
 	struct sof_ipc_pm_ctx pm_ctx;
 	struct sof_ipc_reply reply;
 
+	dev_err(sdev->dev, "%s\n", __func__);
+
 	memset(&pm_ctx, 0, sizeof(pm_ctx));
 
 	/* configure ctx save ipc message */
