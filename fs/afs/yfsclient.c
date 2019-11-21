@@ -441,7 +441,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 	int ret;
 
 	_enter("{%u,%zu/%llu}",
-	       call->unmarshall, iov_iter_count(&call->iter), req->actual_len);
+	       call->unmarshall, iov_iter_count(call->_iter), req->actual_len);
 
 	switch (call->unmarshall) {
 	case 0:
@@ -483,7 +483,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 		/* extract the returned data */
 	case 2:
 		_debug("extract data %zu/%llu",
-		       iov_iter_count(&call->iter), req->remain);
+		       iov_iter_count(call->_iter), req->remain);
 
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -511,7 +511,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 
 	case 3:
 		_debug("extract discard %zu/%llu",
-		       iov_iter_count(&call->iter), req->actual_len - req->len);
+		       iov_iter_count(call->_iter), req->actual_len - req->len);
 
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
