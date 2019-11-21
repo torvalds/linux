@@ -613,6 +613,11 @@ static struct platform_driver imx8mq_clk_driver = {
 	.probe = imx8mq_clocks_probe,
 	.driver = {
 		.name = "imx8mq-ccm",
+		/*
+		 * Disable bind attributes: clocks are not removed and
+		 * reloading the driver will crash or break devices.
+		 */
+		.suppress_bind_attrs = true,
 		.of_match_table = of_match_ptr(imx8mq_clk_of_match),
 	},
 };
