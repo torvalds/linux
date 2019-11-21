@@ -118,10 +118,10 @@ void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
 			 binary_assert->left_text,
 			 binary_assert->operation,
 			 binary_assert->right_text);
-	string_stream_add(stream, "\t\t%s == %pK\n",
+	string_stream_add(stream, "\t\t%s == %px\n",
 			 binary_assert->left_text,
 			 binary_assert->left_value);
-	string_stream_add(stream, "\t\t%s == %pK",
+	string_stream_add(stream, "\t\t%s == %px",
 			 binary_assert->right_text,
 			 binary_assert->right_value);
 	kunit_assert_print_msg(assert, stream);
