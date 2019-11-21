@@ -566,7 +566,13 @@ static int pnv_php_disable_slot(struct hotplug_slot *slot)
 	struct pnv_php_slot *php_slot = to_pnv_php_slot(slot);
 	int ret;
 
-	if (php_slot->state != PNV_PHP_STATE_POPULATED)
+	/*
+	 * Allow to disable a slot already in the registered state to
+	 * cover cases where the slot couldn't be enabled and never
+	 * reached the populated state
+	 */
+	if (php_slot->state != PNV_PHP_STATE_POPULATED &&
+	    php_slot->state != PNV_PHP_STATE_REGISTERED)
 		return 0;
 
 	/* Remove all devices behind the slot */
