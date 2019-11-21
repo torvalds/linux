@@ -2484,7 +2484,11 @@ __gen11_irq_handler(struct drm_i915_private * const i915,
 		 * GEN11_DISPLAY_INT_CTL has same format as GEN8_MASTER_IRQ
 		 * for the display related bits.
 		 */
+		raw_reg_write(regs, GEN11_DISPLAY_INT_CTL, 0x0);
 		gen8_de_irq_handler(i915, disp_ctl);
+		raw_reg_write(regs, GEN11_DISPLAY_INT_CTL,
+			      GEN11_DISPLAY_IRQ_ENABLE);
+
 		enable_rpm_wakeref_asserts(&i915->runtime_pm);
 	}
 
