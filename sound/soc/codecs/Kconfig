@@ -75,6 +75,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
 	select SND_SOC_DMIC if GPIOLIB
+	select SND_SOC_DUMMY_CODEC
 	select SND_SOC_ES8316 if I2C
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
@@ -582,6 +583,9 @@ config SND_SOC_DA9055
 
 config SND_SOC_DMIC
 	tristate
+
+config SND_SOC_DUMMY_CODEC
+	tristate "Dummy CODEC"
 
 config SND_SOC_HDMI_CODEC
 	tristate
