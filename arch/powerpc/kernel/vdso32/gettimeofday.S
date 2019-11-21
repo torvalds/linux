@@ -190,7 +190,7 @@ V_FUNCTION_BEGIN(__kernel_time)
 	bl	__get_datapage@local
 	mr	r9, r3			/* datapage ptr in r9 */
 
-	lwz	r3,STAMP_XTIME_SEC+LOWPART(r9)
+	lwz	r3,STAMP_XTIME_SEC+LOPART(r9)
 
 	cmplwi	r11,0			/* check if t is NULL */
 	beq	2f
@@ -266,7 +266,7 @@ __do_get_tspec:
 	 * as a 32.32 fixed-point number in r3 and r4.
 	 * Load & add the xtime stamp.
 	 */
-	lwz	r5,STAMP_XTIME_SEC+LOWPART(r9)
+	lwz	r5,STAMP_XTIME_SEC+LOPART(r9)
 	lwz	r6,STAMP_SEC_FRAC(r9)
 	addc	r4,r4,r6
 	adde	r3,r3,r5
