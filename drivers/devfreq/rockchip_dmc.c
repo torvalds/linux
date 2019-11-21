@@ -586,7 +586,8 @@ static const char * const rk3128_dts_timing[] = {
 	"lpddr2_drv",
 	"phy_lpddr2_clk_drv",
 	"phy_lpddr2_cmd_drv",
-	"phy_lpddr2_dqs_drv"
+	"phy_lpddr2_dqs_drv",
+	"ddr_2t",
 };
 
 struct rk3128_ddr_dts_config_timing {
@@ -611,6 +612,7 @@ struct rk3128_ddr_dts_config_timing {
 	u32 phy_lpddr2_cmd_drv;
 	u32 phy_lpddr2_dqs_drv;
 	u32 available;
+	u32 ddr_2t;
 };
 
 static const char * const rk3228_dts_timing[] = {
