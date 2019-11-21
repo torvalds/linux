@@ -474,7 +474,6 @@ drop:
 }
 
 static const struct nla_policy ct_policy[TCA_CT_MAX + 1] = {
-	[TCA_CT_UNSPEC] = { .strict_start_type = TCA_CT_UNSPEC + 1 },
 	[TCA_CT_ACTION] = { .type = NLA_U16 },
 	[TCA_CT_PARMS] = { .type = NLA_EXACT_LEN, .len = sizeof(struct tc_ct) },
 	[TCA_CT_ZONE] = { .type = NLA_U16 },
