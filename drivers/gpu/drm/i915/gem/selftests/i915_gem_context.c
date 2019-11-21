@@ -1168,8 +1168,7 @@ out:
 		igt_spinner_end(spin);
 
 	if ((flags & TEST_IDLE) && ret == 0) {
-		ret = intel_gt_wait_for_idle(ce->engine->gt,
-					     MAX_SCHEDULE_TIMEOUT);
+		ret = igt_flush_test(ce->engine->i915);
 		if (ret)
 			return ret;
 
