@@ -4179,14 +4179,7 @@ static int __btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 		return -ENOSPC;
 	}
 
-	if (pin)
-		pin_down_extent(cache, start, len, 1);
-	else {
-		btrfs_add_free_space(cache, start, len);
-		btrfs_free_reserved_bytes(cache, len, delalloc);
-		trace_btrfs_reserved_extent_free(fs_info, start, len);
-	}
-
+	ret = pin_down_extent(cache, start, len, 1);
 	btrfs_put_block_group(cache);
 	return ret;
 }
@@ -4194,7 +4187,20 @@ static int __btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 			       u64 start, u64 len, int delalloc)
 {
-	return __btrfs_free_reserved_extent(fs_info, start, len, 0, delalloc);
+	struct btrfs_block_group *cache;
+
+	cache = btrfs_lookup_block_group(fs_info, start);
+	if (!cache) {
+		btrfs_err(fs_info, "unable to find block group for %llu", start);
+		return -ENOSPC;
+	}
+
+	btrfs_add_free_space(cache, start, len);
+	btrfs_free_reserved_bytes(cache, len, delalloc);
+	trace_btrfs_reserved_extent_free(fs_info, start, len);
+
+	btrfs_put_block_group(cache);
+	return 0;
 }
 
 int btrfs_free_and_pin_reserved_extent(struct btrfs_fs_info *fs_info,
