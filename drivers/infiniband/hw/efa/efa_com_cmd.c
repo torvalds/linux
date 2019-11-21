@@ -230,8 +230,7 @@ int efa_com_register_mr(struct efa_com_dev *edev,
 	mr_cmd.flags |= params->page_shift &
 		EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT_MASK;
 	mr_cmd.iova = params->iova;
-	mr_cmd.permissions |= params->permissions &
-			      EFA_ADMIN_REG_MR_CMD_LOCAL_WRITE_ENABLE_MASK;
+	mr_cmd.permissions = params->permissions;
 
 	if (params->inline_pbl) {
 		memcpy(mr_cmd.pbl.inline_pbl_array,
