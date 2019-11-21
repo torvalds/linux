@@ -2475,9 +2475,9 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 			rc = tcon->ses->server->ops->flush(xid, tcon, &wfile->fid);
 			cifsFileInfo_put(wfile);
 			if (rc)
-				return rc;
+				goto cifs_setattr_exit;
 		} else if (rc != -EBADF)
-			return rc;
+			goto cifs_setattr_exit;
 		else
 			rc = 0;
 	}

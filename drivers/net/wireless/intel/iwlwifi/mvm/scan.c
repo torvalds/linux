@@ -1137,11 +1137,11 @@ static void iwl_mvm_fill_scan_config_v1(struct iwl_mvm *mvm, void *config,
 	iwl_mvm_fill_channels(mvm, cfg->channel_array, max_channels);
 }
 
-static void iwl_mvm_fill_scan_config(struct iwl_mvm *mvm, void *config,
-				     u32 flags, u8 channel_flags,
-				     u32 max_channels)
+static void iwl_mvm_fill_scan_config_v2(struct iwl_mvm *mvm, void *config,
+					u32 flags, u8 channel_flags,
+					u32 max_channels)
 {
-	struct iwl_scan_config *cfg = config;
+	struct iwl_scan_config_v2 *cfg = config;
 
 	cfg->flags = cpu_to_le32(flags);
 	cfg->tx_chains = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
@@ -1185,7 +1185,7 @@ static void iwl_mvm_fill_scan_config(struct iwl_mvm *mvm, void *config,
 	iwl_mvm_fill_channels(mvm, cfg->channel_array, max_channels);
 }
 
-int iwl_mvm_config_scan(struct iwl_mvm *mvm)
+static int iwl_mvm_legacy_config_scan(struct iwl_mvm *mvm)
 {
 	void *cfg;
 	int ret, cmd_size;
@@ -1217,7 +1217,7 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	}
 
 	if (iwl_mvm_cdb_scan_api(mvm))
-		cmd_size = sizeof(struct iwl_scan_config);
+		cmd_size = sizeof(struct iwl_scan_config_v2);
 	else
 		cmd_size = sizeof(struct iwl_scan_config_v1);
 	cmd_size += num_channels;
@@ -1254,8 +1254,8 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 			flags |= (iwl_mvm_is_scan_fragmented(hb_type)) ?
 				 SCAN_CONFIG_FLAG_SET_LMAC2_FRAGMENTED :
 				 SCAN_CONFIG_FLAG_CLEAR_LMAC2_FRAGMENTED;
-		iwl_mvm_fill_scan_config(mvm, cfg, flags, channel_flags,
-					 num_channels);
+		iwl_mvm_fill_scan_config_v2(mvm, cfg, flags, channel_flags,
+					    num_channels);
 	} else {
 		iwl_mvm_fill_scan_config_v1(mvm, cfg, flags, channel_flags,
 					    num_channels);
@@ -1275,6 +1275,30 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 
 	kfree(cfg);
 	return ret;
+}
+
+int iwl_mvm_config_scan(struct iwl_mvm *mvm)
+{
+	struct iwl_scan_config cfg;
+	struct iwl_host_cmd cmd = {
+		.id = iwl_cmd_id(SCAN_CFG_CMD, IWL_ALWAYS_LONG_GROUP, 0),
+		.len[0] = sizeof(cfg),
+		.data[0] = &cfg,
+		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+	};
+
+	if (!iwl_mvm_is_reduced_config_scan_supported(mvm))
+		return iwl_mvm_legacy_config_scan(mvm);
+
+	memset(&cfg, 0, sizeof(cfg));
+
+	cfg.bcast_sta_id = mvm->aux_sta.sta_id;
+	cfg.tx_chains = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
+	cfg.rx_chains = cpu_to_le32(iwl_mvm_scan_rx_ant(mvm));
+
+	IWL_DEBUG_SCAN(mvm, "Sending UMAC scan config\n");
+
+	return iwl_mvm_send_cmd(mvm, &cmd);
 }
 
 static int iwl_mvm_scan_uid_by_status(struct iwl_mvm *mvm, int status)

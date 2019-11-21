@@ -145,6 +145,7 @@ struct hdmi_spec {
 	struct snd_array pins; /* struct hdmi_spec_per_pin */
 	struct hdmi_pcm pcm_rec[16];
 	struct mutex pcm_lock;
+	struct mutex bind_lock; /* for audio component binding */
 	/* pcm_bitmap means which pcms have been assigned to pins*/
 	unsigned long pcm_bitmap;
 	int pcm_used;	/* counter of pcm_rec[] */
@@ -2258,7 +2259,7 @@ static int generic_hdmi_init(struct hda_codec *codec)
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx;
 
-	mutex_lock(&spec->pcm_lock);
+	mutex_lock(&spec->bind_lock);
 	spec->use_jack_detect = !codec->jackpoll_interval;
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
@@ -2275,7 +2276,7 @@ static int generic_hdmi_init(struct hda_codec *codec)
 			snd_hda_jack_detect_enable_callback(codec, pin_nid,
 							    jack_callback);
 	}
-	mutex_unlock(&spec->pcm_lock);
+	mutex_unlock(&spec->bind_lock);
 	return 0;
 }
 
@@ -2382,6 +2383,7 @@ static int alloc_generic_hdmi(struct hda_codec *codec)
 	spec->ops = generic_standard_hdmi_ops;
 	spec->dev_num = 1;	/* initialize to 1 */
 	mutex_init(&spec->pcm_lock);
+	mutex_init(&spec->bind_lock);
 	snd_hdac_register_chmap_ops(&codec->core, &spec->chmap);
 
 	spec->chmap.ops.get_chmap = hdmi_get_chmap;
@@ -2451,7 +2453,7 @@ static void generic_acomp_notifier_set(struct drm_audio_component *acomp,
 	int i;
 
 	spec = container_of(acomp->audio_ops, struct hdmi_spec, drm_audio_ops);
-	mutex_lock(&spec->pcm_lock);
+	mutex_lock(&spec->bind_lock);
 	spec->use_acomp_notifier = use_acomp;
 	spec->codec->relaxed_resume = use_acomp;
 	/* reprogram each jack detection logic depending on the notifier */
@@ -2461,7 +2463,7 @@ static void generic_acomp_notifier_set(struct drm_audio_component *acomp,
 					      get_pin(spec, i)->pin_nid,
 					      use_acomp);
 	}
-	mutex_unlock(&spec->pcm_lock);
+	mutex_unlock(&spec->bind_lock);
 }
 
 /* enable / disable the notifier via master bind / unbind */
@@ -2848,6 +2850,18 @@ static int patch_i915_icl_hdmi(struct hda_codec *codec)
 
 	return intel_hsw_common_init(codec, 0x02, map, ARRAY_SIZE(map));
 }
+
+static int patch_i915_tgl_hdmi(struct hda_codec *codec)
+{
+	/*
+	 * pin to port mapping table where the value indicate the pin number and
+	 * the index indicate the port number with 1 base.
+	 */
+	static const int map[] = {0x4, 0x6, 0x8, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
+
+	return intel_hsw_common_init(codec, 0x02, map, ARRAY_SIZE(map));
+}
+
 
 /* Intel Baytrail and Braswell; with eld notifier */
 static int patch_i915_byt_hdmi(struct hda_codec *codec)
@@ -4151,6 +4165,7 @@ HDA_CODEC_ENTRY(0x8086280b, "Kabylake HDMI",	patch_i915_hsw_hdmi),
 HDA_CODEC_ENTRY(0x8086280c, "Cannonlake HDMI",	patch_i915_glk_hdmi),
 HDA_CODEC_ENTRY(0x8086280d, "Geminilake HDMI",	patch_i915_glk_hdmi),
 HDA_CODEC_ENTRY(0x8086280f, "Icelake HDMI",	patch_i915_icl_hdmi),
+HDA_CODEC_ENTRY(0x80862812, "Tigerlake HDMI",	patch_i915_tgl_hdmi),
 HDA_CODEC_ENTRY(0x80862880, "CedarTrail HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862882, "Valleyview2 HDMI",	patch_i915_byt_hdmi),
 HDA_CODEC_ENTRY(0x80862883, "Braswell HDMI",	patch_i915_byt_hdmi),

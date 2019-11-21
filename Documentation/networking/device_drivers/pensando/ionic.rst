@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
-==========================================================
-Linux* Driver for the Pensando(R) Ethernet adapter family
-==========================================================
+========================================================
+Linux Driver for the Pensando(R) Ethernet adapter family
+========================================================
 
 Pensando Linux Ethernet driver.
 Copyright(c) 2019 Pensando Systems, Inc

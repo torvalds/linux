@@ -310,9 +310,12 @@ struct kvm_rmap_head {
 struct kvm_mmu_page {
 	struct list_head link;
 	struct hlist_node hash_link;
+	struct list_head lpage_disallowed_link;
+
 	bool unsync;
 	u8 mmu_valid_gen;
 	bool mmio_cached;
+	bool lpage_disallowed; /* Can't be replaced by an equiv large page */
 
 	/*
 	 * The following two entries are used to key the shadow page in the
@@ -877,6 +880,7 @@ struct kvm_arch {
 	 */
 	struct list_head active_mmu_pages;
 	struct list_head zapped_obsolete_pages;
+	struct list_head lpage_disallowed_mmu_pages;
 	struct kvm_page_track_notifier_node mmu_sp_tracker;
 	struct kvm_page_track_notifier_head track_notifier_head;
 
@@ -951,6 +955,7 @@ struct kvm_arch {
 	bool exception_payload_enabled;
 
 	struct kvm_pmu_event_filter *pmu_event_filter;
+	struct task_struct *nx_lpage_recovery_thread;
 };
 
 struct kvm_vm_stat {
@@ -964,6 +969,7 @@ struct kvm_vm_stat {
 	ulong mmu_unsync;
 	ulong remote_tlb_flush;
 	ulong lpages;
+	ulong nx_lpage_splits;
 	ulong max_mmu_page_hash_collisions;
 };
 
@@ -1206,7 +1212,7 @@ struct kvm_x86_ops {
 	int (*set_nested_state)(struct kvm_vcpu *vcpu,
 				struct kvm_nested_state __user *user_kvm_nested_state,
 				struct kvm_nested_state *kvm_state);
-	void (*get_vmcs12_pages)(struct kvm_vcpu *vcpu);
+	bool (*get_vmcs12_pages)(struct kvm_vcpu *vcpu);
 
 	int (*smi_allowed)(struct kvm_vcpu *vcpu);
 	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
@@ -1368,6 +1374,7 @@ int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,
 
 void kvm_enable_efer_bits(u64);
 bool kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer);
+int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data, bool host_initiated);
 int kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data);
 int kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data);
 int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu);

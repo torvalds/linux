@@ -448,6 +448,7 @@ const u32 vmx_msr_index[] = {
 	MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR,
 #endif
 	MSR_EFER, MSR_TSC_AUX, MSR_STAR,
+	MSR_IA32_TSX_CTRL,
 };
 
 #if IS_ENABLED(CONFIG_HYPERV)
@@ -634,6 +635,23 @@ struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr)
 	if (i >= 0)
 		return &vmx->guest_msrs[i];
 	return NULL;
+}
+
+static int vmx_set_guest_msr(struct vcpu_vmx *vmx, struct shared_msr_entry *msr, u64 data)
+{
+	int ret = 0;
+
+	u64 old_msr_data = msr->data;
+	msr->data = data;
+	if (msr - vmx->guest_msrs < vmx->save_nmsrs) {
+		preempt_disable();
+		ret = kvm_set_shared_msr(msr->index, msr->data,
+					 msr->mask);
+		preempt_enable();
+		if (ret)
+			msr->data = old_msr_data;
+	}
+	return ret;
 }
 
 void loaded_vmcs_init(struct loaded_vmcs *loaded_vmcs)
@@ -967,17 +985,9 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 	u64 guest_efer = vmx->vcpu.arch.efer;
 	u64 ignore_bits = 0;
 
-	if (!enable_ept) {
-		/*
-		 * NX is needed to handle CR0.WP=1, CR4.SMEP=1.  Testing
-		 * host CPUID is more efficient than testing guest CPUID
-		 * or CR4.  Host SMEP is anyway a requirement for guest SMEP.
-		 */
-		if (boot_cpu_has(X86_FEATURE_SMEP))
-			guest_efer |= EFER_NX;
-		else if (!(guest_efer & EFER_NX))
-			ignore_bits |= EFER_NX;
-	}
+	/* Shadow paging assumes NX to be available.  */
+	if (!enable_ept)
+		guest_efer |= EFER_NX;
 
 	/*
 	 * LMA and LME handled by hardware; SCE meaningless outside long mode.
@@ -1274,6 +1284,18 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 	if (!pi_test_sn(pi_desc) && vcpu->cpu == cpu)
 		return;
 
+	/*
+	 * If the 'nv' field is POSTED_INTR_WAKEUP_VECTOR, do not change
+	 * PI.NDST: pi_post_block is the one expected to change PID.NDST and the
+	 * wakeup handler expects the vCPU to be on the blocked_vcpu_list that
+	 * matches PI.NDST. Otherwise, a vcpu may not be able to be woken up
+	 * correctly.
+	 */
+	if (pi_desc->nv == POSTED_INTR_WAKEUP_VECTOR || vcpu->cpu == cpu) {
+		pi_clear_sn(pi_desc);
+		goto after_clear_sn;
+	}
+
 	/* The full case.  */
 	do {
 		old.control = new.control = pi_desc->control;
@@ -1289,6 +1311,8 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 	} while (cmpxchg64(&pi_desc->control, old.control,
 			   new.control) != old.control);
 
+after_clear_sn:
+
 	/*
 	 * Clear SN before reading the bitmap.  The VT-d firmware
 	 * writes the bitmap and reads SN atomically (5.2.3 in the
@@ -1297,7 +1321,7 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 	 */
 	smp_mb__after_atomic();
 
-	if (!bitmap_empty((unsigned long *)pi_desc->pir, NR_VECTORS))
+	if (!pi_is_pir_empty(pi_desc))
 		pi_set_on(pi_desc);
 }
 
@@ -1684,6 +1708,9 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 	index = __find_msr_index(vmx, MSR_TSC_AUX);
 	if (index >= 0 && guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDTSCP))
 		move_msr_up(vmx, index, save_nmsrs++);
+	index = __find_msr_index(vmx, MSR_IA32_TSX_CTRL);
+	if (index >= 0)
+		move_msr_up(vmx, index, save_nmsrs++);
 
 	vmx->save_nmsrs = save_nmsrs;
 	vmx->guest_msrs_ready = false;
@@ -1783,6 +1810,11 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 #endif
 	case MSR_EFER:
 		return kvm_get_msr_common(vcpu, msr_info);
+	case MSR_IA32_TSX_CTRL:
+		if (!msr_info->host_initiated &&
+		    !(vcpu->arch.arch_capabilities & ARCH_CAP_TSX_CTRL_MSR))
+			return 1;
+		goto find_shared_msr;
 	case MSR_IA32_UMWAIT_CONTROL:
 		if (!msr_info->host_initiated && !vmx_has_waitpkg(vmx))
 			return 1;
@@ -1877,8 +1909,9 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!msr_info->host_initiated &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP))
 			return 1;
-		/* Else, falls through */
+		goto find_shared_msr;
 	default:
+	find_shared_msr:
 		msr = find_msr_entry(vmx, msr_info->index);
 		if (msr) {
 			msr_info->data = msr->data;
@@ -1994,6 +2027,13 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 					      MSR_IA32_SPEC_CTRL,
 					      MSR_TYPE_RW);
 		break;
+	case MSR_IA32_TSX_CTRL:
+		if (!msr_info->host_initiated &&
+		    !(vcpu->arch.arch_capabilities & ARCH_CAP_TSX_CTRL_MSR))
+			return 1;
+		if (data & ~(TSX_CTRL_RTM_DISABLE | TSX_CTRL_CPUID_CLEAR))
+			return 1;
+		goto find_shared_msr;
 	case MSR_IA32_PRED_CMD:
 		if (!msr_info->host_initiated &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_SPEC_CTRL))
@@ -2126,23 +2166,15 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		/* Check reserved bit, higher 32 bits should be zero */
 		if ((data >> 32) != 0)
 			return 1;
-		/* Else, falls through */
+		goto find_shared_msr;
+
 	default:
+	find_shared_msr:
 		msr = find_msr_entry(vmx, msr_index);
-		if (msr) {
-			u64 old_msr_data = msr->data;
-			msr->data = data;
-			if (msr - vmx->guest_msrs < vmx->save_nmsrs) {
-				preempt_disable();
-				ret = kvm_set_shared_msr(msr->index, msr->data,
-							 msr->mask);
-				preempt_enable();
-				if (ret)
-					msr->data = old_msr_data;
-			}
-			break;
-		}
-		ret = kvm_set_msr_common(vcpu, msr_info);
+		if (msr)
+			ret = vmx_set_guest_msr(vmx, msr, data);
+		else
+			ret = kvm_set_msr_common(vcpu, msr_info);
 	}
 
 	return ret;
@@ -6105,7 +6137,7 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 	if (pi_test_on(&vmx->pi_desc)) {
 		pi_clear_on(&vmx->pi_desc);
 		/*
-		 * IOMMU can write to PIR.ON, so the barrier matters even on UP.
+		 * IOMMU can write to PID.ON, so the barrier matters even on UP.
 		 * But on x86 this is just a compiler barrier anyway.
 		 */
 		smp_mb__after_atomic();
@@ -6135,7 +6167,10 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 
 static bool vmx_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu)
 {
-	return pi_test_on(vcpu_to_pi_desc(vcpu));
+	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
+
+	return pi_test_on(pi_desc) ||
+		(pi_test_sn(pi_desc) && !pi_is_pir_empty(pi_desc));
 }
 
 static void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
@@ -6712,9 +6747,22 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 			continue;
 		if (wrmsr_safe(index, data_low, data_high) < 0)
 			continue;
+
 		vmx->guest_msrs[j].index = i;
 		vmx->guest_msrs[j].data = 0;
-		vmx->guest_msrs[j].mask = -1ull;
+		switch (index) {
+		case MSR_IA32_TSX_CTRL:
+			/*
+			 * No need to pass TSX_CTRL_CPUID_CLEAR through, so
+			 * let's avoid changing CPUID bits under the host
+			 * kernel's feet.
+			 */
+			vmx->guest_msrs[j].mask = ~(u64)TSX_CTRL_CPUID_CLEAR;
+			break;
+		default:
+			vmx->guest_msrs[j].mask = -1ull;
+			break;
+		}
 		++vmx->nmsrs;
 	}
 
@@ -7080,6 +7128,15 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	if (boot_cpu_has(X86_FEATURE_INTEL_PT) &&
 			guest_cpuid_has(vcpu, X86_FEATURE_INTEL_PT))
 		update_intel_pt_cfg(vcpu);
+
+	if (boot_cpu_has(X86_FEATURE_RTM)) {
+		struct shared_msr_entry *msr;
+		msr = find_msr_entry(vmx, MSR_IA32_TSX_CTRL);
+		if (msr) {
+			bool enabled = guest_cpuid_has(vcpu, X86_FEATURE_RTM);
+			vmx_set_guest_msr(vmx, msr, enabled ? 0 : TSX_CTRL_RTM_DISABLE);
+		}
+	}
 }
 
 static void vmx_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)

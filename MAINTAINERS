@@ -2323,11 +2323,13 @@ F:	drivers/edac/altera_edac.
 
 ARM/SPREADTRUM SoC SUPPORT
 M:	Orson Zhai <orsonzhai@gmail.com>
-M:	Baolin Wang <baolin.wang@linaro.org>
+M:	Baolin Wang <baolin.wang7@gmail.com>
 M:	Chunyan Zhang <zhang.lyra@gmail.com>
 S:	Maintained
 F:	arch/arm64/boot/dts/sprd
 N:	sprd
+N:	sc27xx
+N:	sc2731
 
 ARM/STI ARCHITECTURE
 M:	Patrice Chotard <patrice.chotard@st.com>
@@ -3051,6 +3053,7 @@ M:	Daniel Borkmann <daniel@iogearbox.net>
 R:	Martin KaFai Lau <kafai@fb.com>
 R:	Song Liu <songliubraving@fb.com>
 R:	Yonghong Song <yhs@fb.com>
+R:	Andrii Nakryiko <andriin@fb.com>
 L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf.git
@@ -3096,7 +3099,7 @@ S:	Supported
 F:	arch/arm64/net/
 
 BPF JIT for MIPS (32-BIT AND 64-BIT)
-M:	Paul Burton <paul.burton@mips.com>
+M:	Paul Burton <paulburton@kernel.org>
 L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
 S:	Maintained
@@ -3183,7 +3186,7 @@ N:	bcm216*
 N:	kona
 F:	arch/arm/mach-bcm/
 
-BROADCOM BCM2835 ARM ARCHITECTURE
+BROADCOM BCM2711/BCM2835 ARM ARCHITECTURE
 M:	Eric Anholt <eric@anholt.net>
 M:	Stefan Wahren <wahrenst@gmx.net>
 L:	bcm-kernel-feedback-list@broadcom.com
@@ -3191,6 +3194,7 @@ L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/anholt/linux
 S:	Maintained
+N:	bcm2711
 N:	bcm2835
 F:	drivers/staging/vc04_services
 
@@ -3237,8 +3241,6 @@ S:	Maintained
 F:	drivers/usb/gadget/udc/bcm63xx_udc.*
 
 BROADCOM BCM7XXX ARM ARCHITECTURE
-M:	Brian Norris <computersforpeace@gmail.com>
-M:	Gregory Fong <gregory.0xf0@gmail.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 M:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -3736,7 +3738,6 @@ F:	drivers/crypto/cavium/cpt/
 
 CAVIUM THUNDERX2 ARM64 SOC
 M:	Robert Richter <rrichter@cavium.com>
-M:	Jayachandran C <jnair@caviumnetworks.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm64/boot/dts/cavium/thunder2-99xx*
@@ -8001,7 +8002,7 @@ S:	Maintained
 F:	drivers/usb/atm/ueagle-atm.c
 
 IMGTEC ASCII LCD DRIVER
-M:	Paul Burton <paul.burton@mips.com>
+M:	Paul Burton <paulburton@kernel.org>
 S:	Maintained
 F:	Documentation/devicetree/bindings/auxdisplay/img-ascii-lcd.txt
 F:	drivers/auxdisplay/img-ascii-lcd.c
@@ -10518,8 +10519,12 @@ F:	mm/memblock.c
 F:	Documentation/core-api/boot-time-mm.rst
 
 MEMORY MANAGEMENT
+M:	Andrew Morton <akpm@linux-foundation.org>
 L:	linux-mm@kvack.org
 W:	http://www.linux-mm.org
+T:	quilt https://ozlabs.org/~akpm/mmotm/
+T:	quilt https://ozlabs.org/~akpm/mmots/
+T:	git git://github.com/hnaz/linux-mm.git
 S:	Maintained
 F:	include/linux/mm.h
 F:	include/linux/gfp.h
@@ -10828,7 +10833,7 @@ F:	drivers/usb/image/microtek.*
 
 MIPS
 M:	Ralf Baechle <ralf@linux-mips.org>
-M:	Paul Burton <paul.burton@mips.com>
+M:	Paul Burton <paulburton@kernel.org>
 M:	James Hogan <jhogan@kernel.org>
 L:	linux-mips@vger.kernel.org
 W:	http://www.linux-mips.org/
@@ -10842,7 +10847,7 @@ F:	arch/mips/
 F:	drivers/platform/mips/
 
 MIPS BOSTON DEVELOPMENT BOARD
-M:	Paul Burton <paul.burton@mips.com>
+M:	Paul Burton <paulburton@kernel.org>
 L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/clock/img,boston-clock.txt
@@ -10852,7 +10857,7 @@ F:	drivers/clk/imgtec/clk-boston.c
 F:	include/dt-bindings/clock/boston-clock.h
 
 MIPS GENERIC PLATFORM
-M:	Paul Burton <paul.burton@mips.com>
+M:	Paul Burton <paulburton@kernel.org>
 L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/power/mti,mips-cpc.txt
@@ -11407,7 +11412,6 @@ F:	include/trace/events/tcp.h
 NETWORKING [TLS]
 M:	Boris Pismenny <borisp@mellanox.com>
 M:	Aviad Yehezkel <aviadye@mellanox.com>
-M:	Dave Watson <davejwatson@fb.com>
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Jakub Kicinski <jakub.kicinski@netronome.com>
@@ -13905,7 +13909,7 @@ F:	drivers/mtd/nand/raw/r852.h
 
 RISC-V ARCHITECTURE
 M:	Paul Walmsley <paul.walmsley@sifive.com>
-M:	Palmer Dabbelt <palmer@sifive.com>
+M:	Palmer Dabbelt <palmer@dabbelt.com>
 M:	Albert Ou <aou@eecs.berkeley.edu>
 L:	linux-riscv@lists.infradead.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/riscv/linux.git
@@ -14782,7 +14786,7 @@ F:	drivers/media/usb/siano/
 F:	drivers/media/mmc/siano/
 
 SIFIVE DRIVERS
-M:	Palmer Dabbelt <palmer@sifive.com>
+M:	Palmer Dabbelt <palmer@dabbelt.com>
 M:	Paul Walmsley <paul.walmsley@sifive.com>
 L:	linux-riscv@lists.infradead.org
 T:	git git://github.com/sifive/riscv-linux.git
@@ -14792,7 +14796,7 @@ N:	sifive
 
 SIFIVE FU540 SYSTEM-ON-CHIP
 M:	Paul Walmsley <paul.walmsley@sifive.com>
-M:	Palmer Dabbelt <palmer@sifive.com>
+M:	Palmer Dabbelt <palmer@dabbelt.com>
 L:	linux-riscv@lists.infradead.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pjw/sifive.git
 S:	Supported
@@ -17334,6 +17338,12 @@ F:	include/linux/vbox_utils.h
 F:	include/uapi/linux/vbox*.h
 F:	drivers/virt/vboxguest/
 
+VIRTUAL BOX SHARED FOLDER VFS DRIVER:
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-fsdevel@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/vboxsf/*
+
 VIRTUAL SERIO DEVICE DRIVER
 M:	Stephen Chandler Paul <thatslyude@gmail.com>
 S:	Maintained
@@ -18034,6 +18044,7 @@ F:	Documentation/vm/zsmalloc.rst
 ZSWAP COMPRESSED SWAP CACHING
 M:	Seth Jennings <sjenning@redhat.com>
 M:	Dan Streetman <ddstreet@ieee.org>
+M:	Vitaly Wool <vitaly.wool@konsulko.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/zswap.c
