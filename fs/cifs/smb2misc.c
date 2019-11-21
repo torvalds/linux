@@ -743,36 +743,67 @@ smb2_cancelled_close_fid(struct work_struct *work)
 	kfree(cancelled);
 }
 
+/* Caller should already has an extra reference to @tcon */
+static int
+__smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
+			      __u64 volatile_fid)
+{
+	struct close_cancelled_open *cancelled;
+
+	cancelled = kzalloc(sizeof(*cancelled), GFP_KERNEL);
+	if (!cancelled)
+		return -ENOMEM;
+
+	cancelled->fid.persistent_fid = persistent_fid;
+	cancelled->fid.volatile_fid = volatile_fid;
+	cancelled->tcon = tcon;
+	INIT_WORK(&cancelled->work, smb2_cancelled_close_fid);
+	WARN_ON(queue_work(cifsiod_wq, &cancelled->work) == false);
+
+	return 0;
+}
+
+int
+smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
+			    __u64 volatile_fid)
+{
+	int rc;
+
+	cifs_dbg(FYI, "%s: tc_count=%d\n", __func__, tcon->tc_count);
+	spin_lock(&cifs_tcp_ses_lock);
+	tcon->tc_count++;
+	spin_unlock(&cifs_tcp_ses_lock);
+
+	rc = __smb2_handle_cancelled_close(tcon, persistent_fid, volatile_fid);
+	if (rc)
+		cifs_put_tcon(tcon);
+
+	return rc;
+}
+
 int
 smb2_handle_cancelled_mid(char *buffer, struct TCP_Server_Info *server)
 {
 	struct smb2_sync_hdr *sync_hdr = (struct smb2_sync_hdr *)buffer;
 	struct smb2_create_rsp *rsp = (struct smb2_create_rsp *)buffer;
 	struct cifs_tcon *tcon;
-	struct close_cancelled_open *cancelled;
+	int rc;
 
 	if (sync_hdr->Command != SMB2_CREATE ||
 	    sync_hdr->Status != STATUS_SUCCESS)
 		return 0;
 
-	cancelled = kzalloc(sizeof(*cancelled), GFP_KERNEL);
-	if (!cancelled)
-		return -ENOMEM;
-
 	tcon = smb2_find_smb_tcon(server, sync_hdr->SessionId,
 				  sync_hdr->TreeId);
-	if (!tcon) {
-		kfree(cancelled);
+	if (!tcon)
 		return -ENOENT;
-	}
 
-	cancelled->fid.persistent_fid = rsp->PersistentFileId;
-	cancelled->fid.volatile_fid = rsp->VolatileFileId;
-	cancelled->tcon = tcon;
-	INIT_WORK(&cancelled->work, smb2_cancelled_close_fid);
-	queue_work(cifsiod_wq, &cancelled->work);
+	rc = __smb2_handle_cancelled_close(tcon, rsp->PersistentFileId,
+					   rsp->VolatileFileId);
+	if (rc)
+		cifs_put_tcon(tcon);
 
-	return 0;
+	return rc;
 }
 
 /**
