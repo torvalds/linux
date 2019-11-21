@@ -442,7 +442,7 @@ static int classd_event(struct snd_soc_dapm_widget *w,
 		/* power up class d */
 		pr_debug("SND_SOC_DAPM_PRE_PMU = 0x%x\n", event);
 		/* read the clock configure */
-		regv1 = snd_soc_component_read32(component, ES8396_CLK_CTRL_REG08);
+		regv1 = snd_soc_component_read(component, ES8396_CLK_CTRL_REG08);
 		regv1 &= 0xcf;
 		/* enable class d clock */
 		snd_soc_component_write(component, ES8396_CLK_CTRL_REG08, regv1);
@@ -452,7 +452,7 @@ static int classd_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component, ES8396_DAC_REF_PWR_CTRL_REG6E,
 					      0xff, 0x34);
 
-		regv2 = snd_soc_component_read32(component, ES8396_SPK_CTRL_1_REG3C);
+		regv2 = snd_soc_component_read(component, ES8396_SPK_CTRL_1_REG3C);
 		/* set speaker ldo level */
 		if (es8396_valid_spkldo(es8396->spk_ldo_lvl) == false) {
 			pr_err("speaker LDO Level error.\n");
@@ -473,7 +473,7 @@ static int classd_event(struct snd_soc_dapm_widget *w,
 
 		snd_soc_component_write(component, ES8396_SPK_CTRL_2_REG3D, 0x10);
 
-		regv1 = snd_soc_component_read32(component, ES8396_SPK_MIXER_REG26);
+		regv1 = snd_soc_component_read(component, ES8396_SPK_MIXER_REG26);
 		/* clear pdnspkl_biasgen, clear pdnspkr_biasgen */
 		regv1 &= 0xee;
 		snd_soc_component_write(component, ES8396_SPK_MIXER_REG26, regv1);
@@ -484,19 +484,19 @@ static int classd_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_write(component, ES8396_DAC_LDAC_VOL_REG6A, 0x00);
 		snd_soc_component_write(component, ES8396_DAC_RDAC_VOL_REG6B, 0x00);
 
-		regv1 = snd_soc_component_read32(component, ES8396_HP_MIXER_BOOST_REG2B);
+		regv1 = snd_soc_component_read(component, ES8396_HP_MIXER_BOOST_REG2B);
 		regv1 &= 0xcc;
 		snd_soc_component_write(component, ES8396_HP_MIXER_BOOST_REG2B, regv1);
 
-		regv1 = snd_soc_component_read32(component, ES8396_CPHP_CTRL_3_REG44);
+		regv1 = snd_soc_component_read(component, ES8396_CPHP_CTRL_3_REG44);
 		regv1 &= 0xcc;
 		snd_soc_component_write(component, ES8396_CPHP_CTRL_3_REG44, regv1);
 
-		regv1 = snd_soc_component_read32(component, ES8396_CPHP_CTRL_1_REG42);
+		regv1 = snd_soc_component_read(component, ES8396_CPHP_CTRL_1_REG42);
 		regv1 &= 0xdf;
 		snd_soc_component_write(component, ES8396_CPHP_CTRL_1_REG42, regv1);
 
-		regv1 = snd_soc_component_read32(component, ES8396_CPHP_CTRL_2_REG43);
+		regv1 = snd_soc_component_read(component, ES8396_CPHP_CTRL_2_REG43);
 		regv1 &= 0x7f;
 		snd_soc_component_write(component, ES8396_CPHP_CTRL_2_REG43, regv1);
 		es8396->output_device_selected = 0;
@@ -509,22 +509,22 @@ static int classd_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:	/* prepare power down */
 		pr_debug("SND_SOC_DAPM_PRE_PMD = 0x%x\n", event);
 		/* read the clock configure */
-		regv1 = snd_soc_component_read32(component, ES8396_CLK_CTRL_REG08);
+		regv1 = snd_soc_component_read(component, ES8396_CLK_CTRL_REG08);
 		regv1 |= 0x10;
 		/* stop class d clock */
 		snd_soc_component_write(component, ES8396_CLK_CTRL_REG08, regv1);
 		/* dac csm startup, dac digital still on */
 		/* snd_soc_component_update_bits(w->component, ES8396_DAC_CSM_REG66,
 				       0x01, 0x01); */
-		regv1 = snd_soc_component_read32(component, ES8396_SPK_EN_VOL_REG3B);
+		regv1 = snd_soc_component_read(component, ES8396_SPK_EN_VOL_REG3B);
 		regv1 &= 0x77;
 		/* clear enspk_l,enspk_r */
 		snd_soc_component_write(component, ES8396_SPK_EN_VOL_REG3B, regv1);
 
-		regv1 = snd_soc_component_read32(component, ES8396_SPK_CTRL_SRC_REG3A);
+		regv1 = snd_soc_component_read(component, ES8396_SPK_CTRL_SRC_REG3A);
 		regv1 |= 0x44;	/* set pdnspkl_biasgen, set pdnspkr_biasgen */
 		snd_soc_component_write(component, ES8396_SPK_CTRL_SRC_REG3A, regv1);
-		regv1 = snd_soc_component_read32(component, ES8396_SPK_MIXER_REG26);
+		regv1 = snd_soc_component_read(component, ES8396_SPK_MIXER_REG26);
 		/* clear pdnspkl_biasgen, clear pdnspkr_biasgen */
 		regv1 |= 0x11;
 		snd_soc_component_write(component, ES8396_SPK_MIXER_REG26, regv1);
@@ -560,7 +560,7 @@ static int micbias_event(struct snd_soc_dapm_widget *w,
 			snd_soc_component_write(component, ES8396_SYS_MICBIAS_CTRL_REG74,
 						regv);
 		}
-		regv = snd_soc_component_read32(component, ES8396_ALRCK_GPIO_SEL_REG15);
+		regv = snd_soc_component_read(component, ES8396_ALRCK_GPIO_SEL_REG15);
 		if (es8396->dmic_amic == MIC_DMIC) {
 			regv &= 0xf0;	/* enable DMIC CLK */
 			regv |= 0x0A;
@@ -570,7 +570,7 @@ static int micbias_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_write(component, ES8396_ALRCK_GPIO_SEL_REG15, regv);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		regv = snd_soc_component_read32(component, ES8396_ALRCK_GPIO_SEL_REG15);
+		regv = snd_soc_component_read(component, ES8396_ALRCK_GPIO_SEL_REG15);
 		regv &= 0xf0;	/* disable DMIC CLK */
 		snd_soc_component_write(component, ES8396_ALRCK_GPIO_SEL_REG15, regv);
 		break;
@@ -618,7 +618,7 @@ static int adc_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_write(component, ES8396_SYS_MIC_IBIAS_EN_REG75, 0x02);
 
 		/* axMixer Gain boost */
-		regv = snd_soc_component_read32(component, ES8396_AX_MIXER_BOOST_REG2F);
+		regv = snd_soc_component_read(component, ES8396_AX_MIXER_BOOST_REG2F);
 		regv |= 0x88;
 		snd_soc_component_write(component, ES8396_AX_MIXER_BOOST_REG2F, regv);
 		/* axmixer vol = +12db */
@@ -627,7 +627,7 @@ static int adc_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_write(component, ES8396_AX_MIXER_REF_LP_REG31, 0x02);
 
 		/* MNMixer Gain boost */
-		regv = snd_soc_component_read32(component, ES8396_MN_MIXER_BOOST_REG37);
+		regv = snd_soc_component_read(component, ES8396_MN_MIXER_BOOST_REG37);
 		regv |= 0x88;
 		snd_soc_component_write(component, ES8396_MN_MIXER_BOOST_REG37, regv);
 		/* mnmixer vol = +12db */
@@ -700,12 +700,12 @@ static int hpamp_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component, ES8396_DAC_REF_PWR_CTRL_REG6E,
 					      0xC0, 0xC0);
 		/* read the clock configure */
-		regv = snd_soc_component_read32(component, ES8396_CLK_CTRL_REG08);
+		regv = snd_soc_component_read(component, ES8396_CLK_CTRL_REG08);
 		regv |= 0x20;
 		/* stop charge pump clock */
 		snd_soc_component_write(component, ES8396_CLK_CTRL_REG08, regv);
 
-		regv = snd_soc_component_read32(component, ES8396_HP_MIXER_BOOST_REG2B);
+		regv = snd_soc_component_read(component, ES8396_HP_MIXER_BOOST_REG2B);
 		regv |= 0x11;
 		snd_soc_component_write(component, ES8396_HP_MIXER_BOOST_REG2B, regv);
 		break;
@@ -1967,7 +1967,7 @@ static int es8396_set_pll(struct snd_soc_dai *dai, int pll_id,
 		/* Allow no source specification when stopping */
 		if (freq_out)
 			return -EINVAL;
-		reg = snd_soc_component_read32(component, ES8396_CLK_SRC_SEL_REG01);
+		reg = snd_soc_component_read(component, ES8396_CLK_SRC_SEL_REG01);
 		reg &= 0xF0;
 		if (source == 0)
 			reg |= 0x01;	/* clksrc2= 0, clksrc1 = 1 */
@@ -1975,29 +1975,29 @@ static int es8396_set_pll(struct snd_soc_dai *dai, int pll_id,
 			reg |= 0x09;	/* clksrc2= 1, clksrc1 = 1 */
 
 		snd_soc_component_write(component, ES8396_CLK_SRC_SEL_REG01, reg);
-		reg = snd_soc_component_read32(component, ES8396_CLK_CTRL_REG08);
+		reg = snd_soc_component_read(component, ES8396_CLK_CTRL_REG08);
 		reg |= 0x0F;
 		snd_soc_component_write(component, ES8396_CLK_CTRL_REG08, reg);
 		pr_debug("ES8396 PLL No Clock source\n");
 		break;
 	case ES8396_PLL_SRC_FRM_MCLK:
-		reg = snd_soc_component_read32(component, ES8396_CLK_SRC_SEL_REG01);
+		reg = snd_soc_component_read(component, ES8396_CLK_SRC_SEL_REG01);
 		reg &= 0xF3;
 		reg |= 0x04;	/* clksrc2= mclk */
 		/* use clk2 for pll clk source */
 		snd_soc_component_write(component, ES8396_CLK_SRC_SEL_REG01, reg);
-		reg = snd_soc_component_read32(component, ES8396_CLK_CTRL_REG08);
+		reg = snd_soc_component_read(component, ES8396_CLK_CTRL_REG08);
 		reg |= 0x0F;
 		snd_soc_component_write(component, ES8396_CLK_CTRL_REG08, reg);
 		pr_debug("ES8396 PLL Clock Source from MCLK pin\n");
 		break;
 	case ES8396_PLL_SRC_FRM_BCLK:
-		reg = snd_soc_component_read32(component, ES8396_CLK_SRC_SEL_REG01);
+		reg = snd_soc_component_read(component, ES8396_CLK_SRC_SEL_REG01);
 		reg &= 0xF3;
 		reg |= 0x0c;	/* clksrc2= bclk, */
 		/* use clk2 for pll clk source */
 		snd_soc_component_write(component, ES8396_CLK_SRC_SEL_REG01, reg);
-		reg = snd_soc_component_read32(component, ES8396_CLK_CTRL_REG08);
+		reg = snd_soc_component_read(component, ES8396_CLK_CTRL_REG08);
 		reg |= 0x0F;
 		snd_soc_component_write(component, ES8396_CLK_CTRL_REG08, reg);
 		pr_debug("ES8396 PLL Clock Source from BCLK signal\n");
@@ -2116,13 +2116,13 @@ static int es8396_set_dai_sysclk(struct snd_soc_dai *dai,
 	switch (clk_id) {
 	/* the clock source form MCLK pin, don't use PLL */
 	case ES8396_CLKID_MCLK:
-		reg = snd_soc_component_read32(component, ES8396_CLK_SRC_SEL_REG01);
+		reg = snd_soc_component_read(component, ES8396_CLK_SRC_SEL_REG01);
 		reg &= 0xFC;
 		reg |= 0x00;	/* clksrc1= mclk */
 		snd_soc_component_write(component, ES8396_CLK_SRC_SEL_REG01, reg);
 
 		/* always use clk1 */
-		reg = snd_soc_component_read32(component, ES8396_CLK_CTRL_REG08);
+		reg = snd_soc_component_read(component, ES8396_CLK_CTRL_REG08);
 		reg &= 0xf0;
 		snd_soc_component_write(component, ES8396_CLK_CTRL_REG08, reg);
 
@@ -2158,12 +2158,12 @@ static int es8396_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 	/* the clock source form internal BCLK signal, don't use PLL */
 	case ES8396_CLKID_BCLK:
-		reg = snd_soc_component_read32(component, ES8396_CLK_SRC_SEL_REG01);
+		reg = snd_soc_component_read(component, ES8396_CLK_SRC_SEL_REG01);
 		reg &= 0xFC;
 		reg |= 0x03;	/* clksrc1= bclk */
 		snd_soc_component_write(component, ES8396_CLK_SRC_SEL_REG01, reg);
 		/* always use clk1 */
-		reg = snd_soc_component_read32(component, ES8396_CLK_CTRL_REG08);
+		reg = snd_soc_component_read(component, ES8396_CLK_CTRL_REG08);
 		reg &= 0xf0;
 		snd_soc_component_write(component, ES8396_CLK_CTRL_REG08, reg);
 
@@ -2301,16 +2301,16 @@ static int es8396_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	switch (id) {
 	case ES8396_SDP1:
-		spc = snd_soc_component_read32(component, ES8396_SDP1_IN_FMT_REG1F) & 0x3f;
-		mmcc = snd_soc_component_read32(component, ES8396_SDP_1_MS_REG12);
+		spc = snd_soc_component_read(component, ES8396_SDP1_IN_FMT_REG1F) & 0x3f;
+		mmcc = snd_soc_component_read(component, ES8396_SDP_1_MS_REG12);
 		break;
 	case ES8396_SDP2:
-		spc = snd_soc_component_read32(component, ES8396_SDP2_IN_FMT_REG22) & 0x3f;
-		mmcc = snd_soc_component_read32(component, ES8396_SDP_2_MS_REG13);
+		spc = snd_soc_component_read(component, ES8396_SDP2_IN_FMT_REG22) & 0x3f;
+		mmcc = snd_soc_component_read(component, ES8396_SDP_2_MS_REG13);
 		break;
 	case ES8396_SDP3:
-		spc = snd_soc_component_read32(component, ES8396_SDP3_IN_FMT_REG24) & 0x3f;
-		mmcc = snd_soc_component_read32(component, ES8396_SDP_3_MS_REG14);
+		spc = snd_soc_component_read(component, ES8396_SDP3_IN_FMT_REG24) & 0x3f;
+		mmcc = snd_soc_component_read(component, ES8396_SDP_3_MS_REG14);
 		break;
 	default:
 		return -EINVAL;
@@ -2398,10 +2398,10 @@ static int es8396_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	switch (id) {
 	case ES8396_SDP1:
-		bdiv = snd_soc_component_read32(component, ES8396_BCLK_DIV_M2_REG0F);
+		bdiv = snd_soc_component_read(component, ES8396_BCLK_DIV_M2_REG0F);
 		bdiv &= 0xe0;
 		bdiv |= es8396_mclk_coeffs[mclk_coeff].bclkdiv;
-		lrdiv = snd_soc_component_read32(component, ES8396_LRCK_DIV_M4_REG11);
+		lrdiv = snd_soc_component_read(component, ES8396_LRCK_DIV_M4_REG11);
 		lrdiv &= 0xe0;
 		lrdiv |= 0x22;	/* es8396_mclk_coeffs[mclk_coeff].lrcdiv; */
 		snd_soc_component_write(component, ES8396_BCLK_DIV_M2_REG0F, bdiv);
@@ -2412,10 +2412,10 @@ static int es8396_pcm_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case ES8396_SDP2:
 	case ES8396_SDP3:
-		bdiv = snd_soc_component_read32(component, ES8396_BCLK_DIV_M1_REG0E);
+		bdiv = snd_soc_component_read(component, ES8396_BCLK_DIV_M1_REG0E);
 		bdiv &= 0xe0;
 		bdiv |= es8396_mclk_coeffs[mclk_coeff].bclkdiv;
-		lrdiv = snd_soc_component_read32(component, ES8396_LRCK_DIV_M3_REG10);
+		lrdiv = snd_soc_component_read(component, ES8396_LRCK_DIV_M3_REG10);
 		lrdiv &= 0xe0;
 		lrdiv |= es8396_mclk_coeffs[mclk_coeff].lrcdiv;
 		snd_soc_component_write(component, ES8396_BCLK_DIV_M1_REG0E, bdiv);
@@ -2511,7 +2511,7 @@ static int es8396_pcm_startup(struct snd_pcm_substream *substream,
 	int i;
 
 	pr_debug(">>>>>>>>es8396_pcm_startup\n");
-	ret = snd_soc_component_read32(component, ES8396_ADC_CSM_REG53);
+	ret = snd_soc_component_read(component, ES8396_ADC_CSM_REG53);
 	pr_debug("ES8396_ADC_CSM_REG53===0x%x\n", ret);
 	/*
 	 * set the clock source to MCLK pin
@@ -2571,7 +2571,7 @@ static int es8396_pcm_startup(struct snd_pcm_substream *substream,
 		snd_soc_component_write(component, ES8396_SYS_MIC_IBIAS_EN_REG75, 0x02);
 
 		/* axMixer Gain boost */
-		regv = snd_soc_component_read32(component, ES8396_AX_MIXER_BOOST_REG2F);
+		regv = snd_soc_component_read(component, ES8396_AX_MIXER_BOOST_REG2F);
 		regv |= 0x88;
 		snd_soc_component_write(component, ES8396_AX_MIXER_BOOST_REG2F, regv);
 		/* axmixer vol = +12db */
@@ -2580,7 +2580,7 @@ static int es8396_pcm_startup(struct snd_pcm_substream *substream,
 		snd_soc_component_write(component, ES8396_AX_MIXER_REF_LP_REG31, 0x02);
 		snd_soc_component_write(component, 0x33, 0);
 		/* MNMixer Gain boost */
-		regv = snd_soc_component_read32(component, ES8396_MN_MIXER_BOOST_REG37);
+		regv = snd_soc_component_read(component, ES8396_MN_MIXER_BOOST_REG37);
 		regv |= 0x88;
 		snd_soc_component_write(component, ES8396_MN_MIXER_BOOST_REG37, regv);
 		/* mnmixer vol = +12db */
@@ -2697,7 +2697,7 @@ static int es8396_voice_startup(struct snd_pcm_substream *substream,
 		snd_soc_component_write(component, ES8396_SYS_MIC_IBIAS_EN_REG75, 0x02);
 
 		/* axMixer Gain boost */
-		regv = snd_soc_component_read32(component, ES8396_AX_MIXER_BOOST_REG2F);
+		regv = snd_soc_component_read(component, ES8396_AX_MIXER_BOOST_REG2F);
 		regv |= 0x88;
 		snd_soc_component_write(component, ES8396_AX_MIXER_BOOST_REG2F, regv);
 		/* axmixer vol = +12db */
@@ -2706,7 +2706,7 @@ static int es8396_voice_startup(struct snd_pcm_substream *substream,
 		snd_soc_component_write(component, ES8396_AX_MIXER_REF_LP_REG31, 0x02);
 		snd_soc_component_write(component, 0x33, 0);
 		/* MNMixer Gain boost */
-		regv = snd_soc_component_read32(component, ES8396_MN_MIXER_BOOST_REG37);
+		regv = snd_soc_component_read(component, ES8396_MN_MIXER_BOOST_REG37);
 		regv |= 0x88;
 		snd_soc_component_write(component, ES8396_MN_MIXER_BOOST_REG37, regv);
 		/* mnmixer vol = +12db */
@@ -2757,7 +2757,7 @@ static void es8396_voice_shutdown(struct snd_pcm_substream *substream,
 /*
  * Only mute SDP IN(for dac)
  */
-static int es8396_aif1_mute(struct snd_soc_dai *codec_dai, int mute)
+static int es8396_aif1_mute(struct snd_soc_dai *codec_dai, int mute, int stream)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	struct es8396_private *es8396 = snd_soc_component_get_drvdata(component);
@@ -2779,7 +2779,7 @@ static int es8396_aif1_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
-static int es8396_aif2_mute(struct snd_soc_dai *codec_dai, int mute)
+static int es8396_aif2_mute(struct snd_soc_dai *codec_dai, int mute, int stream)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	struct es8396_private *es8396 = snd_soc_component_get_drvdata(component);
@@ -2812,9 +2812,10 @@ static const struct snd_soc_dai_ops es8396_aif1_dai_ops = {
 	.set_sysclk = es8396_set_dai_sysclk,
 	.set_fmt = es8396_set_dai_fmt,
 	.hw_params = es8396_pcm_hw_params,
-	.digital_mute = es8396_aif1_mute,
+	.mute_stream = es8396_aif1_mute,
 	.set_pll = es8396_set_pll,
 	.set_tristate = es8396_set_tristate,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops es8396_aif2_dai_ops = {
@@ -2823,8 +2824,9 @@ static const struct snd_soc_dai_ops es8396_aif2_dai_ops = {
 	.set_sysclk = es8396_set_dai_sysclk,
 	.set_fmt = es8396_set_dai_fmt,
 	.hw_params = es8396_pcm_hw_params,
-	.digital_mute = es8396_aif2_mute,
+	.mute_stream = es8396_aif2_mute,
 	.set_pll = es8396_set_pll,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver es8396_dai[] = {
@@ -2889,7 +2891,7 @@ static int es8396_probe(struct snd_soc_component *component)
 	ret = clk_prepare_enable(es8396->mclk_clock);
 	if (ret)
 		return ret;
-	regv = snd_soc_component_read32(component, ES8396_PLL_K2_REG05);
+	regv = snd_soc_component_read(component, ES8396_PLL_K2_REG05);
 
 	if (regv == 0x00) {
 		/*
