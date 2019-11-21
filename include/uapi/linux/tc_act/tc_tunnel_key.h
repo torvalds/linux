@@ -50,6 +50,10 @@ enum {
 						 * TCA_TUNNEL_KEY_ENC_OPTS_
 						 * attributes
 						 */
+	TCA_TUNNEL_KEY_ENC_OPTS_VXLAN,		/* Nested
+						 * TCA_TUNNEL_KEY_ENC_OPTS_
+						 * attributes
+						 */
 	__TCA_TUNNEL_KEY_ENC_OPTS_MAX,
 };
 
@@ -66,5 +70,14 @@ enum {
 
 #define TCA_TUNNEL_KEY_ENC_OPT_GENEVE_MAX \
 	(__TCA_TUNNEL_KEY_ENC_OPT_GENEVE_MAX - 1)
+
+enum {
+	TCA_TUNNEL_KEY_ENC_OPT_VXLAN_UNSPEC,
+	TCA_TUNNEL_KEY_ENC_OPT_VXLAN_GBP,		/* u32 */
+	__TCA_TUNNEL_KEY_ENC_OPT_VXLAN_MAX,
+};
+
+#define TCA_TUNNEL_KEY_ENC_OPT_VXLAN_MAX \
+	(__TCA_TUNNEL_KEY_ENC_OPT_VXLAN_MAX - 1)
 
 #endif
