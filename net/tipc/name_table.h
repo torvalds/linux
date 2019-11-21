@@ -58,6 +58,7 @@ struct tipc_group;
  * @node: network address of publishing socket's node
  * @port: publishing port
  * @key: publication key, unique across the cluster
+ * @id: publication id
  * @binding_node: all publications from the same node which bound this one
  * - Remote publications: in node->publ_list
  *   Used by node/name distr to withdraw publications when node is lost
@@ -69,6 +70,7 @@ struct tipc_group;
  *   Used by closest_first and multicast receive lookup algorithms
  * @all_publ: all publications identical to this one, whatever node and scope
  *   Used by round-robin lookup algorithm
+ * @list: to form a list of publications in temporal order
  * @rcu: RCU callback head used for deferred freeing
  */
 struct publication {
@@ -79,10 +81,12 @@ struct publication {
 	u32 node;
 	u32 port;
 	u32 key;
+	u32 id;
 	struct list_head binding_node;
 	struct list_head binding_sock;
 	struct list_head local_publ;
 	struct list_head all_publ;
+	struct list_head list;
 	struct rcu_head rcu;
 };
 
