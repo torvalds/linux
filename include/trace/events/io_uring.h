@@ -163,35 +163,35 @@ TRACE_EVENT(io_uring_queue_async_work,
 );
 
 /**
- * io_uring_defer_list - called before the io_uring work added into defer_list
+ * io_uring_defer - called when an io_uring request is deferred
  *
  * @ctx:	pointer to a ring context structure
  * @req:	pointer to a deferred request
- * @shadow: whether request is shadow or not
+ * @user_data:	user data associated with the request
  *
  * Allows to track deferred requests, to get an insight about what requests are
  * not started immediately.
  */
 TRACE_EVENT(io_uring_defer,
 
-	TP_PROTO(void *ctx, void *req, bool shadow),
+	TP_PROTO(void *ctx, void *req, unsigned long long user_data),
 
-	TP_ARGS(ctx, req, shadow),
+	TP_ARGS(ctx, req, user_data),
 
 	TP_STRUCT__entry (
 		__field(  void *,	ctx		)
 		__field(  void *,	req		)
-		__field(  bool,		shadow	)
+		__field(  unsigned long long, data	)
 	),
 
 	TP_fast_assign(
 		__entry->ctx	= ctx;
 		__entry->req	= req;
-		__entry->shadow	= shadow;
+		__entry->data	= user_data;
 	),
 
-	TP_printk("ring %p, request %p%s", __entry->ctx, __entry->req,
-			  __entry->shadow ? ", shadow": "")
+	TP_printk("ring %p, request %p user_data %llu", __entry->ctx,
+			__entry->req, __entry->data)
 );
 
 /**

@@ -2588,7 +2588,7 @@ static int io_req_defer(struct io_kiocb *req)
 	req->flags |= REQ_F_FREE_SQE;
 	req->submit.sqe = sqe_copy;
 
-	trace_io_uring_defer(ctx, req, false);
+	trace_io_uring_defer(ctx, req, req->user_data);
 	list_add_tail(&req->list, &ctx->defer_list);
 	spin_unlock_irq(&ctx->completion_lock);
 	return -EIOCBQUEUED;
