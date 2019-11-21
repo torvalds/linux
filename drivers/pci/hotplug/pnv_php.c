@@ -1009,6 +1009,8 @@ static int __init pnv_php_init(void)
 	for_each_compatible_node(dn, NULL, "ibm,ioda3-phb")
 		pnv_php_register(dn);
 
+	for_each_compatible_node(dn, NULL, "ibm,ioda2-npu2-opencapi-phb")
+		pnv_php_register_one(dn); /* slot directly under the PHB */
 	return 0;
 }
 
@@ -1021,6 +1023,9 @@ static void __exit pnv_php_exit(void)
 
 	for_each_compatible_node(dn, NULL, "ibm,ioda3-phb")
 		pnv_php_unregister(dn);
+
+	for_each_compatible_node(dn, NULL, "ibm,ioda2-npu2-opencapi-phb")
+		pnv_php_unregister_one(dn); /* slot directly under the PHB */
 }
 
 module_init(pnv_php_init);
