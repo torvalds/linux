@@ -120,9 +120,9 @@ config USB_FOTG210_UDC
 	   dynamically linked module called "fotg210_udc".
 
 config USB_GR_UDC
-       tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
-       depends on HAS_DMA
-       help
+	tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
+	depends on HAS_DMA
+	help
 	  Select this to support Aeroflex Gaisler GRUSBDC cores from the GRLIB
 	  VHDL IP core library.
 
