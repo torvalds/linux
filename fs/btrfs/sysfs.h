@@ -19,7 +19,6 @@ int btrfs_sysfs_add_device_link(struct btrfs_fs_devices *fs_devices,
 int btrfs_sysfs_rm_device_link(struct btrfs_fs_devices *fs_devices,
                 struct btrfs_device *one_device);
 int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs);
-int btrfs_sysfs_add_devices_kobj(struct btrfs_fs_devices *fs_devs);
 void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs);
 void btrfs_sysfs_update_sprout_fsid(struct btrfs_fs_devices *fs_devices,
 				    const u8 *fsid);
