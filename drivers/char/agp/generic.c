@@ -207,6 +207,7 @@ EXPORT_SYMBOL(agp_free_memory);
 /**
  *	agp_allocate_memory  -  allocate a group of pages of a certain type.
  *
+ *	@bridge: an agp_bridge_data struct allocated for the AGP host bridge.
  *	@page_count:	size_t argument of the number of pages
  *	@type:	u32 argument of the type of memory to be allocated.
  *
@@ -355,6 +356,7 @@ EXPORT_SYMBOL_GPL(agp_num_entries);
 /**
  *	agp_copy_info  -  copy bridge state information
  *
+ *	@bridge: an agp_bridge_data struct allocated for the AGP host bridge.
  *	@info:		agp_kern_info pointer.  The caller should insure that this pointer is valid.
  *
  *	This function copies information about the agp bridge device and the state of
@@ -1277,6 +1279,7 @@ EXPORT_SYMBOL(agp_generic_destroy_page);
 /**
  * agp_enable  -  initialise the agp point-to-point connection.
  *
+ * @bridge: an agp_bridge_data struct allocated for the AGP host bridge.
  * @mode:	agp mode register value to configure with.
  */
 void agp_enable(struct agp_bridge_data *bridge, u32 mode)
