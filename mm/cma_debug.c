@@ -183,7 +183,7 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
 	debugfs_create_file("maxchunk", 0444, tmp, cma, &cma_maxchunk_fops);
 
 	u32s = DIV_ROUND_UP(cma_bitmap_maxno(cma), BITS_PER_BYTE * sizeof(u32));
-	debugfs_create_u32_array("bitmap", 0444, tmp, (u32 *)cma->bitmap, u32s);
+	debugfs_create_u32_array_hex("bitmap", 0444, tmp, (u32 *)cma->bitmap, u32s);
 }
 
 static int __init cma_debugfs_init(void)
