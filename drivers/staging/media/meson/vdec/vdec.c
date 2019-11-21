@@ -960,6 +960,8 @@ static const struct of_device_id vdec_dt_match[] = {
 	  .data = &vdec_platform_gxl },
 	{ .compatible = "amlogic,g12a-vdec",
 	  .data = &vdec_platform_g12a },
+	{ .compatible = "amlogic,sm1-vdec",
+	  .data = &vdec_platform_sm1 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, vdec_dt_match);
@@ -1010,7 +1012,8 @@ static int vdec_probe(struct platform_device *pdev)
 	of_id = of_match_node(vdec_dt_match, dev->of_node);
 	core->platform = of_id->data;
 
-	if (core->platform->revision == VDEC_REVISION_G12A) {
+	if (core->platform->revision == VDEC_REVISION_G12A ||
+	    core->platform->revision == VDEC_REVISION_SM1) {
 		core->vdec_hevcf_clk = devm_clk_get(dev, "vdec_hevcf");
 		if (IS_ERR(core->vdec_hevcf_clk))
 			return -EPROBE_DEFER;
