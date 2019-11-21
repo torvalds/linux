@@ -984,15 +984,10 @@ static void io_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
 	}
 }
 
-static void io_free_req_find_next(struct io_kiocb *req, struct io_kiocb **nxt)
-{
-	io_req_find_next(req, nxt);
-	__io_free_req(req);
-}
-
 static void io_free_req(struct io_kiocb *req)
 {
-	io_free_req_find_next(req, NULL);
+	io_req_find_next(req, NULL);
+	__io_free_req(req);
 }
 
 /*
