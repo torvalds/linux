@@ -743,12 +743,12 @@ struct TCP_Server_Info {
 	/* Total size of this PDU. Only valid from cifs_demultiplex_thread */
 	unsigned int pdu_size;
 	unsigned int total_read; /* total amount of data read in this pass */
+	atomic_t in_send; /* requests trying to send */
+	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
 #ifdef CONFIG_CIFS_FSCACHE
 	struct fscache_cookie   *fscache; /* client index cache cookie */
 #endif
 #ifdef CONFIG_CIFS_STATS2
-	atomic_t in_send; /* requests trying to send */
-	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
 	atomic_t num_cmds[NUMBER_OF_SMB2_COMMANDS]; /* total requests by cmd */
 	atomic_t smb2slowcmd[NUMBER_OF_SMB2_COMMANDS]; /* count resps > 1 sec */
 	__u64 time_per_cmd[NUMBER_OF_SMB2_COMMANDS]; /* total time per cmd */
@@ -1606,8 +1606,6 @@ struct close_cancelled_open {
 
 /*	Make code in transport.c a little cleaner by moving
 	update of optional stats into function below */
-#ifdef CONFIG_CIFS_STATS2
-
 static inline void cifs_in_send_inc(struct TCP_Server_Info *server)
 {
 	atomic_inc(&server->in_send);
@@ -1628,26 +1626,12 @@ static inline void cifs_num_waiters_dec(struct TCP_Server_Info *server)
 	atomic_dec(&server->num_waiters);
 }
 
+#ifdef CONFIG_CIFS_STATS2
 static inline void cifs_save_when_sent(struct mid_q_entry *mid)
 {
 	mid->when_sent = jiffies;
 }
 #else
-static inline void cifs_in_send_inc(struct TCP_Server_Info *server)
-{
-}
-static inline void cifs_in_send_dec(struct TCP_Server_Info *server)
-{
-}
-
-static inline void cifs_num_waiters_inc(struct TCP_Server_Info *server)
-{
-}
-
-static inline void cifs_num_waiters_dec(struct TCP_Server_Info *server)
-{
-}
-
 static inline void cifs_save_when_sent(struct mid_q_entry *mid)
 {
 }
