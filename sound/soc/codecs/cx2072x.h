@@ -1,15 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ALSA SoC CX2072x Solana codec driver
  *
  * Copyright:   (C) 2016 Conexant Systems, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *************************************************************************
- *  Modified Date:  7/11/16
- *  File Version:   4.4.20
- ************************************************************************/
+ */
 
 #define NUM_OF_DAI 1
 #define CX2072X_MCLK_PLL 1
@@ -190,7 +184,7 @@ enum cx2072x_jack_types {
 	CX_JACK_NOKIE_HEADSET = 0x0003,
 };
 
-int cx2072x_hs_jack_report(struct snd_soc_codec *codec);
+int cx2072x_hs_jack_report(struct snd_soc_component *component);
 
 enum REG_SAMPLE_SIZE {
 	SAMPLE_SIZE_8_BITS = 0,
