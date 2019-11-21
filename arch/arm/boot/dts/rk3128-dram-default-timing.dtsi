@@ -68,5 +68,6 @@
 		phy_lpddr2_clk_drv = <PHY_RON_44ohm>;
 		phy_lpddr2_cmd_drv = <PHY_RON_44ohm>;
 		phy_lpddr2_dqs_drv = <PHY_RON_44ohm>;
+		ddr_2t = <0>;
 	};
 };
