@@ -990,21 +990,13 @@ static void io_free_req(struct io_kiocb *req)
  * Drop reference to request, return next in chain (if there is one) if this
  * was the last reference to this request.
  */
+__attribute__((nonnull))
 static void io_put_req_find_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 {
-	struct io_kiocb *nxt = NULL;
-
-	io_req_find_next(req, &nxt);
+	io_req_find_next(req, nxtptr);
 
 	if (refcount_dec_and_test(&req->refs))
 		__io_free_req(req);
-
-	if (nxt) {
-		if (nxtptr)
-			*nxtptr = nxt;
-		else
-			io_queue_async_work(nxt);
-	}
 }
 
 static void io_put_req(struct io_kiocb *req)
@@ -1488,7 +1480,7 @@ static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
 static void kiocb_done(struct kiocb *kiocb, ssize_t ret, struct io_kiocb **nxt,
 		       bool in_async)
 {
-	if (in_async && ret >= 0 && nxt && kiocb->ki_complete == io_complete_rw)
+	if (in_async && ret >= 0 && kiocb->ki_complete == io_complete_rw)
 		*nxt = __io_complete_rw(kiocb, ret);
 	else
 		io_rw_done(kiocb, ret);
@@ -2585,6 +2577,7 @@ static int io_req_defer(struct io_kiocb *req)
 	return -EIOCBQUEUED;
 }
 
+__attribute__((nonnull))
 static int io_issue_sqe(struct io_kiocb *req, struct io_kiocb **nxt,
 			bool force_nonblock)
 {
@@ -2901,10 +2894,13 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 
 static void __io_queue_sqe(struct io_kiocb *req)
 {
-	struct io_kiocb *nxt = io_prep_linked_timeout(req);
+	struct io_kiocb *linked_timeout = io_prep_linked_timeout(req);
+	struct io_kiocb *nxt = NULL;
 	int ret;
 
-	ret = io_issue_sqe(req, NULL, true);
+	ret = io_issue_sqe(req, &nxt, true);
+	if (nxt)
+		io_queue_async_work(nxt);
 
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
@@ -2940,11 +2936,11 @@ err:
 	/* drop submission reference */
 	io_put_req(req);
 
-	if (nxt) {
+	if (linked_timeout) {
 		if (!ret)
-			io_queue_linked_timeout(nxt);
+			io_queue_linked_timeout(linked_timeout);
 		else
-			io_put_req(nxt);
+			io_put_req(linked_timeout);
 	}
 
 	/* and drop final reference, if we failed */
