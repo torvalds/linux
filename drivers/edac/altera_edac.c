@@ -560,6 +560,7 @@ static const struct regmap_config s10_sdram_regmap_cfg = {
 	.reg_write = s10_protected_reg_write,
 	.use_single_read = true,
 	.use_single_write = true,
+	.fast_io = true,
 };
 
 /************** </Stratix10 EDAC Memory Controller Functions> ***********/
