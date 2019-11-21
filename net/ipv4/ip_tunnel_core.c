@@ -321,6 +321,7 @@ static int ip_tun_parse_opts_erspan(struct nlattr *attr,
 {
 	struct nlattr *tb[LWTUNNEL_IP_OPT_ERSPAN_MAX + 1];
 	int err;
+	u8 ver;
 
 	err = nla_parse_nested(tb, LWTUNNEL_IP_OPT_ERSPAN_MAX, attr,
 			       erspan_opt_policy, extack);
@@ -330,24 +331,31 @@ static int ip_tun_parse_opts_erspan(struct nlattr *attr,
 	if (!tb[LWTUNNEL_IP_OPT_ERSPAN_VER])
 		return -EINVAL;
 
+	ver = nla_get_u8(tb[LWTUNNEL_IP_OPT_ERSPAN_VER]);
+	if (ver == 1) {
+		if (!tb[LWTUNNEL_IP_OPT_ERSPAN_INDEX])
+			return -EINVAL;
+	} else if (ver == 2) {
+		if (!tb[LWTUNNEL_IP_OPT_ERSPAN_DIR] ||
+		    !tb[LWTUNNEL_IP_OPT_ERSPAN_HWID])
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
+
 	if (info) {
 		struct erspan_metadata *md =
 			ip_tunnel_info_opts(info) + opts_len;
 
-		attr = tb[LWTUNNEL_IP_OPT_ERSPAN_VER];
-		md->version = nla_get_u8(attr);
-
-		if (md->version == 1 && tb[LWTUNNEL_IP_OPT_ERSPAN_INDEX]) {
+		md->version = ver;
+		if (ver == 1) {
 			attr = tb[LWTUNNEL_IP_OPT_ERSPAN_INDEX];
 			md->u.index = nla_get_be32(attr);
-		} else if (md->version == 2 && tb[LWTUNNEL_IP_OPT_ERSPAN_DIR] &&
-			   tb[LWTUNNEL_IP_OPT_ERSPAN_HWID]) {
+		} else {
 			attr = tb[LWTUNNEL_IP_OPT_ERSPAN_DIR];
 			md->u.md2.dir = nla_get_u8(attr);
 			attr = tb[LWTUNNEL_IP_OPT_ERSPAN_HWID];
 			set_hwid(&md->u.md2, nla_get_u8(attr));
-		} else {
-			return -EINVAL;
 		}
 
 		info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
