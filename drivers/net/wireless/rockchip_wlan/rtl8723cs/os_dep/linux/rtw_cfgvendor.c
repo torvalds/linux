@@ -171,7 +171,7 @@ struct sk_buff *rtw_cfg80211_vendor_event_alloc(
 int rtw_cfgvendor_send_async_event(struct wiphy *wiphy,
 	   struct net_device *dev, int event_id, const void  *data, int len)
 {
-	u16 kflags;
+	gfp_t kflags;
 	struct sk_buff *skb;
 
 	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
