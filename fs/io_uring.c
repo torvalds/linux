@@ -186,6 +186,7 @@ struct io_ring_ctx {
 		bool			compat;
 		bool			account_mem;
 		bool			cq_overflow_flushed;
+		bool			drain_next;
 
 		/*
 		 * Ring buffer of indices into array of io_uring_sqe, which is
@@ -346,7 +347,7 @@ struct io_kiocb {
 #define REQ_F_LINK		64	/* linked sqes */
 #define REQ_F_LINK_TIMEOUT	128	/* has linked timeout */
 #define REQ_F_FAIL_LINK		256	/* fail rest of links */
-#define REQ_F_SHADOW_DRAIN	512	/* link-drain shadow req */
+#define REQ_F_DRAIN_LINK	512	/* link should be fully drained */
 #define REQ_F_TIMEOUT		1024	/* timeout request */
 #define REQ_F_ISREG		2048	/* regular file */
 #define REQ_F_MUST_PUNT		4096	/* must be punted even for NONBLOCK */
@@ -620,11 +621,6 @@ static void io_commit_cqring(struct io_ring_ctx *ctx)
 	__io_commit_cqring(ctx);
 
 	while ((req = io_get_deferred_req(ctx)) != NULL) {
-		if (req->flags & REQ_F_SHADOW_DRAIN) {
-			/* Just for drain, free it. */
-			__io_free_req(req);
-			continue;
-		}
 		req->flags |= REQ_F_IO_DRAINED;
 		io_queue_async_work(req);
 	}
@@ -2973,6 +2969,12 @@ static void io_queue_sqe(struct io_kiocb *req)
 {
 	int ret;
 
+	if (unlikely(req->ctx->drain_next)) {
+		req->flags |= REQ_F_IO_DRAIN;
+		req->ctx->drain_next = false;
+	}
+	req->ctx->drain_next = (req->flags & REQ_F_DRAIN_LINK);
+
 	ret = io_req_defer(req);
 	if (ret) {
 		if (ret != -EIOCBQUEUED) {
@@ -2985,56 +2987,15 @@ static void io_queue_sqe(struct io_kiocb *req)
 		__io_queue_sqe(req);
 }
 
-static void io_queue_link_head(struct io_kiocb *req, struct io_kiocb *shadow)
+static inline void io_queue_link_head(struct io_kiocb *req)
 {
-	int ret;
-	int need_submit = false;
-	struct io_ring_ctx *ctx = req->ctx;
-
 	if (unlikely(req->flags & REQ_F_FAIL_LINK)) {
-		ret = -ECANCELED;
-		goto err;
-	}
-	if (!shadow) {
+		io_cqring_add_event(req, -ECANCELED);
+		io_double_put_req(req);
+	} else
 		io_queue_sqe(req);
-		return;
-	}
-
-	/*
-	 * Mark the first IO in link list as DRAIN, let all the following
-	 * IOs enter the defer list. all IO needs to be completed before link
-	 * list.
-	 */
-	req->flags |= REQ_F_IO_DRAIN;
-	ret = io_req_defer(req);
-	if (ret) {
-		if (ret != -EIOCBQUEUED) {
-err:
-			io_cqring_add_event(req, ret);
-			if (req->flags & REQ_F_LINK)
-				req->flags |= REQ_F_FAIL_LINK;
-			io_double_put_req(req);
-			if (shadow)
-				__io_free_req(shadow);
-			return;
-		}
-	} else {
-		/*
-		 * If ret == 0 means that all IOs in front of link io are
-		 * running done. let's queue link head.
-		 */
-		need_submit = true;
-	}
-
-	/* Insert shadow req to defer_list, blocking next IOs */
-	spin_lock_irq(&ctx->completion_lock);
-	trace_io_uring_defer(ctx, shadow, true);
-	list_add_tail(&shadow->list, &ctx->defer_list);
-	spin_unlock_irq(&ctx->completion_lock);
-
-	if (need_submit)
-		__io_queue_sqe(req);
 }
+
 
 #define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK)
 
@@ -3071,6 +3032,9 @@ err_req:
 	if (*link) {
 		struct io_kiocb *prev = *link;
 		struct io_uring_sqe *sqe_copy;
+
+		if (s->sqe->flags & IOSQE_IO_DRAIN)
+			(*link)->flags |= REQ_F_DRAIN_LINK | REQ_F_IO_DRAIN;
 
 		if (READ_ONCE(s->sqe->opcode) == IORING_OP_LINK_TIMEOUT) {
 			ret = io_timeout_setup(req);
@@ -3190,7 +3154,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 {
 	struct io_submit_state state, *statep = NULL;
 	struct io_kiocb *link = NULL;
-	struct io_kiocb *shadow_req = NULL;
 	int i, submitted = 0;
 	bool mm_fault = false;
 
@@ -3229,18 +3192,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 
 		sqe_flags = req->submit.sqe->flags;
 
-		if (link && (sqe_flags & IOSQE_IO_DRAIN)) {
-			if (!shadow_req) {
-				shadow_req = io_get_req(ctx, NULL);
-				if (unlikely(!shadow_req))
-					goto out;
-				shadow_req->flags |= (REQ_F_IO_DRAIN | REQ_F_SHADOW_DRAIN);
-				refcount_dec(&shadow_req->refs);
-			}
-			shadow_req->sequence = req->submit.sequence;
-		}
-
-out:
 		req->submit.ring_file = ring_file;
 		req->submit.ring_fd = ring_fd;
 		req->submit.has_user = *mm != NULL;
@@ -3256,14 +3207,13 @@ out:
 		 * that's the end of the chain. Submit the previous link.
 		 */
 		if (!(sqe_flags & IOSQE_IO_LINK) && link) {
-			io_queue_link_head(link, shadow_req);
+			io_queue_link_head(link);
 			link = NULL;
-			shadow_req = NULL;
 		}
 	}
 
 	if (link)
-		io_queue_link_head(link, shadow_req);
+		io_queue_link_head(link);
 	if (statep)
 		io_submit_state_end(&state);
 
