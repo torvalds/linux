@@ -2,6 +2,7 @@
 #include <test_progs.h>
 #include "progs/core_reloc_types.h"
 #include <sys/mman.h>
+#include <sys/syscall.h>
 
 #define STRUCT_TO_CHAR_PTR(struct_name) (const char *)&(struct struct_name)
 
@@ -452,6 +453,7 @@ static struct core_reloc_test_case test_cases[] = {
 struct data {
 	char in[256];
 	char out[256];
+	uint64_t my_pid_tgid;
 };
 
 static size_t roundup_page(size_t sz)
@@ -471,8 +473,11 @@ void test_core_reloc(void)
 	struct bpf_map *data_map;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
+	uint64_t my_pid_tgid;
 	struct data *data;
 	void *mmap_data = NULL;
+
+	my_pid_tgid = getpid() | ((uint64_t)syscall(SYS_gettid) << 32);
 
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
 		test_case = &test_cases[i];
@@ -517,11 +522,6 @@ void test_core_reloc(void)
 				goto cleanup;
 		}
 
-		link = bpf_program__attach_raw_tracepoint(prog, tp_name);
-		if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n",
-			  PTR_ERR(link)))
-			goto cleanup;
-
 		data_map = bpf_object__find_map_by_name(obj, "test_cor.bss");
 		if (CHECK(!data_map, "find_data_map", "data map not found\n"))
 			goto cleanup;
@@ -537,6 +537,12 @@ void test_core_reloc(void)
 
 		memset(mmap_data, 0, sizeof(*data));
 		memcpy(data->in, test_case->input, test_case->input_len);
+		data->my_pid_tgid = my_pid_tgid;
+
+		link = bpf_program__attach_raw_tracepoint(prog, tp_name);
+		if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n",
+			  PTR_ERR(link)))
+			goto cleanup;
 
 		/* trigger test run */
 		usleep(1);
