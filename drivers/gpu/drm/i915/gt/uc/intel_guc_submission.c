@@ -529,7 +529,7 @@ static struct i915_request *schedule_in(struct i915_request *rq, int idx)
 	 * required if we generalise the inflight tracking.
 	 */
 
-	intel_gt_pm_get(rq->engine->gt);
+	__intel_gt_pm_get(rq->engine->gt);
 	return i915_request_get(rq);
 }
 
