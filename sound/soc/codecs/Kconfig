@@ -89,6 +89,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_DA732X
 	imply SND_SOC_DA9055
 	imply SND_SOC_DMIC
+	imply SND_SOC_DUMMY_CODEC
 	imply SND_SOC_ES8316
 	imply SND_SOC_ES8328_SPI
 	imply SND_SOC_ES8328_I2C
@@ -765,6 +766,9 @@ config SND_SOC_DMIC
 	help
 	  Enable support for the Generic Digital Microphone CODEC.
 	  Select this if your sound card has DMICs.
+
+config SND_SOC_DUMMY_CODEC
+	tristate "Dummy CODEC"
 
 config SND_SOC_HDMI_CODEC
 	tristate
