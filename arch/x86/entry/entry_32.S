@@ -1537,6 +1537,48 @@ SYM_CODE_START(debug)
 	jmp	common_exception
 SYM_CODE_END(debug)
 
+#ifdef CONFIG_DOUBLEFAULT
+SYM_CODE_START(double_fault)
+1:
+	/*
+	 * This is a task gate handler, not an interrupt gate handler.
+	 * The error code is on the stack, but the stack is otherwise
+	 * empty.  Interrupts are off.  Our state is sane with the following
+	 * exceptions:
+	 *
+	 *  - CR0.TS is set.  "TS" literally means "task switched".
+	 *  - EFLAGS.NT is set because we're a "nested task".
+	 *  - The doublefault TSS has back_link set and has been marked busy.
+	 *  - TR points to the doublefault TSS and the normal TSS is busy.
+	 *  - CR3 is the normal kernel PGD.  This would be delightful, except
+	 *    that the CPU didn't bother to save the old CR3 anywhere.  This
+	 *    would make it very awkward to return back to the context we came
+	 *    from.
+	 *
+	 * The rest of EFLAGS is sanitized for us, so we don't need to
+	 * worry about AC or DF.
+	 *
+	 * Don't even bother popping the error code.  It's always zero,
+	 * and ignoring it makes us a bit more robust against buggy
+	 * hypervisor task gate implementations.
+	 *
+	 * We will manually undo the task switch instead of doing a
+	 * task-switching IRET.
+	 */
+
+	clts				/* clear CR0.TS */
+	pushl	$X86_EFLAGS_FIXED
+	popfl				/* clear EFLAGS.NT */
+
+	call	doublefault_shim
+
+	/* We don't support returning, so we have no IRET here. */
+1:
+	hlt
+	jmp 1b
+SYM_CODE_END(double_fault)
+#endif
+
 /*
  * NMI is doubly nasty.  It can happen on the first instruction of
  * entry_SYSENTER_32 (just like #DB), but it can also interrupt the beginning
