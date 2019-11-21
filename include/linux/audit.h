@@ -159,7 +159,6 @@ extern void		    audit_log_key(struct audit_buffer *ab,
 extern void		    audit_log_link_denied(const char *operation);
 extern void		    audit_log_lost(const char *message);
 
-extern void audit_log_task(struct audit_buffer *ab);
 extern int audit_log_task_context(struct audit_buffer *ab);
 extern void audit_log_task_info(struct audit_buffer *ab);
 
@@ -219,8 +218,6 @@ static inline void audit_log_d_path(struct audit_buffer *ab,
 static inline void audit_log_key(struct audit_buffer *ab, char *key)
 { }
 static inline void audit_log_link_denied(const char *string)
-{ }
-static inline void audit_log_task(struct audit_buffer *ab)
 { }
 static inline int audit_log_task_context(struct audit_buffer *ab)
 {
@@ -360,6 +357,8 @@ static inline void audit_ptrace(struct task_struct *t)
 	if (unlikely(!audit_dummy_context()))
 		__audit_ptrace(t);
 }
+
+extern void audit_log_task(struct audit_buffer *ab);
 
 				/* Private API (for audit.c only) */
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
@@ -647,6 +646,9 @@ static inline void audit_ntp_log(const struct audit_ntp_data *ad)
 { }
 
 static inline void audit_ptrace(struct task_struct *t)
+{ }
+
+static inline void audit_log_task(struct audit_buffer *ab)
 { }
 #define audit_n_rules 0
 #define audit_signals 0
