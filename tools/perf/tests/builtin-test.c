@@ -260,6 +260,11 @@ static struct test generic_tests[] = {
 		.func = test__cpu_map_print,
 	},
 	{
+		.desc = "Merge cpu map",
+		.func = test__cpu_map_merge,
+	},
+
+	{
 		.desc = "Probe SDT events",
 		.func = test__sdt_event,
 	},
