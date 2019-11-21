@@ -464,11 +464,6 @@ static int imx_ldb_register(struct drm_device *drm,
 	return 0;
 }
 
-enum {
-	LVDS_BIT_MAP_SPWG,
-	LVDS_BIT_MAP_JEIDA
-};
-
 struct imx_ldb_bit_mapping {
 	u32 bus_format;
 	u32 datawidth;
