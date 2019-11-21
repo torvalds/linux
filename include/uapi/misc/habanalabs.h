@@ -88,13 +88,19 @@ enum hl_device_status {
  *                         internal engine.
  * HL_INFO_DEVICE_STATUS - Retrieve the device's status. This opcode doesn't
  *                         require an open context.
- * HL_INFO_DEVICE_UTILIZATION - Retrieve the total utilization of the device
- *                              over the last period specified by the user.
- *                              The period can be between 100ms to 1s, in
- *                              resolution of 100ms. The return value is a
- *                              percentage of the utilization rate.
+ * HL_INFO_DEVICE_UTILIZATION  - Retrieve the total utilization of the device
+ *                               over the last period specified by the user.
+ *                               The period can be between 100ms to 1s, in
+ *                               resolution of 100ms. The return value is a
+ *                               percentage of the utilization rate.
  * HL_INFO_HW_EVENTS_AGGREGATE - Receive an array describing how many times each
  *                               event occurred since the driver was loaded.
+ * HL_INFO_CLK_RATE            - Retrieve the current and maximum clock rate
+ *                               of the device in MHz. The maximum clock rate is
+ *                               configurable via sysfs parameter
+ * HL_INFO_RESET_COUNT   - Retrieve the counts of the soft and hard reset
+ *                         operations performed on the device since the last
+ *                         time the driver was loaded.
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -103,8 +109,11 @@ enum hl_device_status {
 #define HL_INFO_DEVICE_STATUS		4
 #define HL_INFO_DEVICE_UTILIZATION	6
 #define HL_INFO_HW_EVENTS_AGGREGATE	7
+#define HL_INFO_CLK_RATE		8
+#define HL_INFO_RESET_COUNT		9
 
 #define HL_INFO_VERSION_MAX_LEN	128
+#define HL_INFO_CARD_NAME_MAX_LEN	16
 
 struct hl_info_hw_ip_info {
 	__u64 sram_base_address;
@@ -123,6 +132,7 @@ struct hl_info_hw_ip_info {
 	__u8 dram_enabled;
 	__u8 pad[2];
 	__u8 armcp_version[HL_INFO_VERSION_MAX_LEN];
+	__u8 card_name[HL_INFO_CARD_NAME_MAX_LEN];
 };
 
 struct hl_info_dram_usage {
@@ -147,6 +157,16 @@ struct hl_info_device_status {
 struct hl_info_device_utilization {
 	__u32 utilization;
 	__u32 pad;
+};
+
+struct hl_info_clk_rate {
+	__u32 cur_clk_rate_mhz;
+	__u32 max_clk_rate_mhz;
+};
+
+struct hl_info_reset_count {
+	__u32 hard_reset_cnt;
+	__u32 soft_reset_cnt;
 };
 
 struct hl_info_args {
@@ -181,13 +201,15 @@ struct hl_info_args {
 /* Opcode to destroy previously created command buffer */
 #define HL_CB_OP_DESTROY	1
 
+#define HL_MAX_CB_SIZE		0x200000	/* 2MB */
+
 struct hl_cb_in {
 	/* Handle of CB or 0 if we want to create one */
 	__u64 cb_handle;
 	/* HL_CB_OP_* */
 	__u32 op;
-	/* Size of CB. Maximum size is 2MB. The minimum size that will be
-	 * allocated, regardless of this parameter's value, is PAGE_SIZE
+	/* Size of CB. Maximum size is HL_MAX_CB_SIZE. The minimum size that
+	 * will be allocated, regardless of this parameter's value, is PAGE_SIZE
 	 */
 	__u32 cb_size;
 	/* Context ID - Currently not in use */
@@ -233,6 +255,8 @@ struct hl_cs_chunk {
 
 #define HL_CS_STATUS_SUCCESS		0
 
+#define HL_MAX_JOBS_PER_CS		512
+
 struct hl_cs_in {
 	/* this holds address of array of hl_cs_chunk for restore phase */
 	__u64 chunks_restore;
@@ -242,9 +266,13 @@ struct hl_cs_in {
 	 * Currently not in use
 	 */
 	__u64 chunks_store;
-	/* Number of chunks in restore phase array */
+	/* Number of chunks in restore phase array. Maximum number is
+	 * HL_MAX_JOBS_PER_CS
+	 */
 	__u32 num_chunks_restore;
-	/* Number of chunks in execution array */
+	/* Number of chunks in execution array. Maximum number is
+	 * HL_MAX_JOBS_PER_CS
+	 */
 	__u32 num_chunks_execute;
 	/* Number of chunks in restore phase array - Currently not in use */
 	__u32 num_chunks_store;
@@ -589,7 +617,7 @@ struct hl_debug_args {
  *
  * The user can call this IOCTL with a handle it received from the CS IOCTL
  * to wait until the handle's CS has finished executing. The user will wait
- * inside the kernel until the CS has finished or until the user-requeusted
+ * inside the kernel until the CS has finished or until the user-requested
  * timeout has expired.
  *
  * The return value of the IOCTL is a standard Linux error code. The possible

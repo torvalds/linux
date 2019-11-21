@@ -42,12 +42,10 @@ static void hpriv_release(struct kref *ref)
 {
 	struct hl_fpriv *hpriv;
 	struct hl_device *hdev;
-	struct hl_ctx *ctx;
 
 	hpriv = container_of(ref, struct hl_fpriv, refcount);
 
 	hdev = hpriv->hdev;
-	ctx = hpriv->ctx;
 
 	put_pid(hpriv->taskpid);
 
@@ -889,12 +887,18 @@ again:
 	/* Go over all the queues, release all CS and their jobs */
 	hl_cs_rollback_all(hdev);
 
-	/* Kill processes here after CS rollback. This is because the process
-	 * can't really exit until all its CSs are done, which is what we
-	 * do in cs rollback
-	 */
-	if (from_hard_reset_thread)
+	if (hard_reset) {
+		/* Kill processes here after CS rollback. This is because the
+		 * process can't really exit until all its CSs are done, which
+		 * is what we do in cs rollback
+		 */
 		device_kill_open_processes(hdev);
+
+		/* Flush the Event queue workers to make sure no other thread is
+		 * reading or writing to registers during the reset
+		 */
+		flush_workqueue(hdev->eq_wq);
+	}
 
 	/* Release kernel context */
 	if ((hard_reset) && (hl_ctx_put(hdev->kernel_ctx) == 1))
