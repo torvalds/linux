@@ -188,7 +188,7 @@ static void pnv_ioda_free_pe(struct pnv_ioda_pe *pe)
 	unsigned int pe_num = pe->pe_number;
 
 	WARN_ON(pe->pdev);
-	WARN_ON(pe->npucomp); /* NPUs are not supposed to be freed */
+	WARN_ON(pe->npucomp); /* NPUs for nvlink are not supposed to be freed */
 	kfree(pe->npucomp);
 	memset(pe, 0, sizeof(struct pnv_ioda_pe));
 	clear_bit(pe_num, phb->ioda.pe_alloc);
@@ -777,6 +777,34 @@ static int pnv_ioda_set_peltv(struct pnv_phb *phb,
 	return 0;
 }
 
+static void pnv_ioda_unset_peltv(struct pnv_phb *phb,
+				 struct pnv_ioda_pe *pe,
+				 struct pci_dev *parent)
+{
+	int64_t rc;
+
+	while (parent) {
+		struct pci_dn *pdn = pci_get_pdn(parent);
+
+		if (pdn && pdn->pe_number != IODA_INVALID_PE) {
+			rc = opal_pci_set_peltv(phb->opal_id, pdn->pe_number,
+						pe->pe_number,
+						OPAL_REMOVE_PE_FROM_DOMAIN);
+			/* XXX What to do in case of error ? */
+		}
+		parent = parent->bus->self;
+	}
+
+	opal_pci_eeh_freeze_clear(phb->opal_id, pe->pe_number,
+				  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+
+	/* Disassociate PE in PELT */
+	rc = opal_pci_set_peltv(phb->opal_id, pe->pe_number,
+				pe->pe_number, OPAL_REMOVE_PE_FROM_DOMAIN);
+	if (rc)
+		pe_warn(pe, "OPAL error %lld remove self from PELTV\n", rc);
+}
+
 static int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 {
 	struct pci_dev *parent;
@@ -827,25 +855,13 @@ static int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 	for (rid = pe->rid; rid < rid_end; rid++)
 		phb->ioda.pe_rmap[rid] = IODA_INVALID_PE;
 
-	/* Release from all parents PELT-V */
-	while (parent) {
-		struct pci_dn *pdn = pci_get_pdn(parent);
-		if (pdn && pdn->pe_number != IODA_INVALID_PE) {
-			rc = opal_pci_set_peltv(phb->opal_id, pdn->pe_number,
-						pe->pe_number, OPAL_REMOVE_PE_FROM_DOMAIN);
-			/* XXX What to do in case of error ? */
-		}
-		parent = parent->bus->self;
-	}
+	/*
+	 * Release from all parents PELT-V. NPUs don't have a PELTV
+	 * table
+	 */
+	if (phb->type != PNV_PHB_NPU_NVLINK && phb->type != PNV_PHB_NPU_OCAPI)
+		pnv_ioda_unset_peltv(phb, pe, parent);
 
-	opal_pci_eeh_freeze_clear(phb->opal_id, pe->pe_number,
-				  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
-
-	/* Disassociate PE in PELT */
-	rc = opal_pci_set_peltv(phb->opal_id, pe->pe_number,
-				pe->pe_number, OPAL_REMOVE_PE_FROM_DOMAIN);
-	if (rc)
-		pe_warn(pe, "OPAL error %lld remove self from PELTV\n", rc);
 	rc = opal_pci_set_pe(phb->opal_id, pe->pe_number, pe->rid,
 			     bcomp, dcomp, fcomp, OPAL_UNMAP_PE);
 	if (rc)
@@ -1075,6 +1091,7 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 	pe->pbus = NULL;
 	pe->mve_number = -1;
 	pe->rid = dev->bus->number << 8 | pdn->devfn;
+	pe->device_count++;
 
 	pe_info(pe, "Associated device to PE\n");
 
@@ -1239,6 +1256,7 @@ static struct pnv_ioda_pe *pnv_ioda_setup_npu_PE(struct pci_dev *npu_pdev)
 			rid = npu_pdev->bus->number << 8 | npu_pdn->devfn;
 			npu_pdn->pe_number = pe_num;
 			phb->ioda.pe_rmap[rid] = pe->pe_number;
+			pe->device_count++;
 
 			/* Map the PE to this link */
 			rc = opal_pci_set_pe(phb->opal_id, pe_num, rid,
@@ -3555,6 +3573,8 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 	case PNV_PHB_IODA2:
 		pnv_pci_ioda2_release_pe_dma(pe);
 		break;
+	case PNV_PHB_NPU_OCAPI:
+		break;
 	default:
 		WARN_ON(1);
 	}
@@ -3656,6 +3676,7 @@ static const struct pci_controller_ops pnv_npu_ioda_controller_ops = {
 
 static const struct pci_controller_ops pnv_npu_ocapi_ioda_controller_ops = {
 	.enable_device_hook	= pnv_ocapi_enable_device_hook,
+	.release_device		= pnv_pci_release_device,
 	.window_alignment	= pnv_pci_window_alignment,
 	.reset_secondary_bus	= pnv_pci_reset_secondary_bus,
 	.shutdown		= pnv_pci_ioda_shutdown,
