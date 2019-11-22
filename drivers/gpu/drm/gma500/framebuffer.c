@@ -153,8 +153,6 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
 
-	if (!psbfb->addr_space)
-		psbfb->addr_space = vma->vm_file->f_mapping;
 	/*
 	 * If this is a GEM object then info->screen_base is the virtual
 	 * kernel remapping of the object. FIXME: Review if this is
