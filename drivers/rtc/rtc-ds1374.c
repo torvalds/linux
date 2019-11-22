@@ -439,14 +439,13 @@ static void ds1374_wdt_ping(void)
 
 static void ds1374_wdt_disable(void)
 {
-	int ret = -ENOIOCTLCMD;
 	int cr;
 
 	cr = i2c_smbus_read_byte_data(save_client, DS1374_REG_CR);
 	/* Disable watchdog timer */
 	cr &= ~DS1374_REG_CR_WACE;
 
-	ret = i2c_smbus_write_byte_data(save_client, DS1374_REG_CR, cr);
+	i2c_smbus_write_byte_data(save_client, DS1374_REG_CR, cr);
 }
 
 /*
