@@ -47,6 +47,7 @@ struct mpp_dma_session {
 };
 
 struct mpp_iommu_info {
+	struct device	*dev;
 	struct iommu_domain *domain;
 	struct iommu_group *group;
 };
@@ -61,7 +62,8 @@ int mpp_dma_free(struct mpp_dma_session *session,
 		 struct mpp_dma_buffer *buffer);
 
 struct mpp_dma_buffer *
-mpp_dma_import_fd(struct mpp_dma_session *session, int fd);
+mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
+		  struct mpp_dma_session *session, int fd);
 int mpp_dma_release(struct mpp_dma_session *session,
 		    struct mpp_dma_buffer *buffer);
 int mpp_dma_release_fd(struct mpp_dma_session *session, int fd);

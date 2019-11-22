@@ -156,18 +156,15 @@ int mpp_dma_free(struct mpp_dma_session *session,
 	return 0;
 }
 
-struct mpp_dma_buffer *
-mpp_dma_import_fd(struct mpp_dma_session *session, int fd)
+struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
+					 struct mpp_dma_session *session,
+					 int fd)
 {
 	int ret = 0;
 	struct sg_table *sgt;
 	struct dma_buf *dmabuf;
 	struct mpp_dma_buffer *buffer;
 	struct dma_buf_attachment *attach;
-#ifdef CONFIG_ARM_DMA_USE_IOMMU
-	struct dma_iommu_mapping *mapping;
-	struct iommu_group *group;
-#endif
 
 	if (!session)
 		return ERR_PTR(-EINVAL);
@@ -217,23 +214,11 @@ mpp_dma_import_fd(struct mpp_dma_session *session, int fd)
 		goto fail_map;
 	}
 
-	/*
-	 * On arm32-arch, group->default_domain should be NULL,
-	 * domain store in mapping created by arm32-arch.
-	 * we re-attach domain here
-	 */
-#ifdef CONFIG_ARM_DMA_USE_IOMMU
-	group = iommu_group_get(session->dev);
-	if (!iommu_group_default_domain(group)) {
-		mapping = to_dma_iommu_mapping(session->dev);
-		ret = iommu_attach_device(mapping->domain, session->dev);
-	}
-	iommu_group_put(group);
+	ret = mpp_iommu_attach(iommu_info);
 	if (ret) {
-		dev_info(session->dev, "Failed to attach iommu device, ret = %d\n", ret);
+		dev_err(session->dev, "mpp_iommu_attach failed\n");
 		goto fail_attachment;
 	}
-#endif
 
 	buffer->iova = sg_dma_address(sgt->sgl);
 	buffer->size = sg_dma_len(sgt->sgl);
@@ -254,10 +239,8 @@ mpp_dma_import_fd(struct mpp_dma_session *session, int fd)
 
 	return buffer;
 
-#ifdef CONFIG_ARM_DMA_USE_IOMMU
 fail_attachment:
 	dma_buf_unmap_attachment(buffer->attach, sgt, buffer->dir);
-#endif
 fail_map:
 	dma_buf_detach(buffer->dmabuf, attach);
 fail_attach:
@@ -380,14 +363,18 @@ int mpp_iommu_attach(struct mpp_iommu_info *info)
 struct mpp_iommu_info *
 mpp_iommu_probe(struct device *dev)
 {
-	struct mpp_iommu_info *info = NULL;
 	int ret = 0;
+	struct mpp_iommu_info *info = NULL;
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+	struct dma_iommu_mapping *mapping;
+#endif
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		ret = -ENOMEM;
 		goto err;
 	}
+	info->dev = dev;
 
 	info->group = iommu_group_get(dev);
 	if (!info->group) {
@@ -395,10 +382,24 @@ mpp_iommu_probe(struct device *dev)
 		goto err_free_info;
 	}
 
-	info->domain = iommu_get_domain_for_dev(dev);
+	/*
+	 * On arm32-arch, group->default_domain should be NULL,
+	 * domain store in mapping created by arm32-arch.
+	 * we re-attach domain here
+	 */
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+	if (!iommu_group_default_domain(info->group)) {
+		mapping = to_dma_iommu_mapping(dev);
+		WARN_ON(!mapping);
+		info->domain = mapping->domain;
+	}
+#endif
 	if (!info->domain) {
-		ret = -EINVAL;
-		goto err_put_group;
+		info->domain = iommu_get_domain_for_dev(dev);
+		if (!info->domain) {
+			ret = -EINVAL;
+			goto err_put_group;
+		}
 	}
 
 	return info;
@@ -413,6 +414,12 @@ err:
 
 int mpp_iommu_remove(struct mpp_iommu_info *info)
 {
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+	struct dma_iommu_mapping *mapping;
+
+	mapping = to_dma_iommu_mapping(info->dev);
+	arm_iommu_release_mapping(mapping);
+#endif
 	iommu_group_put(info->group);
 	kfree(info);
 

@@ -150,7 +150,7 @@ mpp_fd_to_mem_region(struct mpp_dev *mpp,
 		return ERR_PTR(-EINVAL);
 
 	down_read(&mpp->rw_sem);
-	buffer = mpp_dma_import_fd(dma, fd);
+	buffer = mpp_dma_import_fd(mpp->iommu_info, dma, fd);
 	up_read(&mpp->rw_sem);
 	if (IS_ERR_OR_NULL(buffer)) {
 		mpp_err("can't import dma-buf %d\n", fd);
@@ -1065,6 +1065,8 @@ int mpp_dev_remove(struct mpp_dev *mpp)
 {
 	if (mpp->hw_ops->exit)
 		mpp->hw_ops->exit(mpp);
+
+	mpp_iommu_remove(mpp->iommu_info);
 
 	if (mpp->workq) {
 		destroy_workqueue(mpp->workq);
