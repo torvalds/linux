@@ -78,7 +78,7 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct drm_framebuffer *fb = &fbdev->fb;
+	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
 	struct drm_device *dev = fb->dev;
 	struct gtt_range *gtt = to_gtt_range(fb->obj[0]);
 
@@ -146,7 +146,7 @@ static const struct vm_operations_struct psbfb_vm_ops = {
 static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct drm_framebuffer *fb = &fbdev->fb;
+	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
 
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
@@ -304,7 +304,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	struct drm_device *dev = fbdev->psb_fb_helper.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
-	struct drm_framebuffer *fb = &fbdev->fb;
+	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	int size;
 	int ret;
@@ -377,9 +377,11 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
-	ret = psb_framebuffer_init(dev, fb, &mode_cmd, &backing->gem);
-	if (ret)
+	fb = psb_framebuffer_create(dev, &mode_cmd, &backing->gem);
+	if (IS_ERR(fb)) {
+		ret = PTR_ERR(fb);
 		goto out;
+	}
 
 	fbdev->psb_fb_helper.fb = fb;
 
@@ -481,7 +483,7 @@ static const struct drm_fb_helper_funcs psb_fb_helper_funcs = {
 
 static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 {
-	struct drm_framebuffer *fb = &fbdev->fb;
+	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
 
 	drm_fb_helper_unregister_fbi(&fbdev->psb_fb_helper);
 
@@ -491,6 +493,8 @@ static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 
 	if (fb->obj[0])
 		drm_gem_object_put_unlocked(fb->obj[0]);
+	kfree(fb);
+
 	return 0;
 }
 

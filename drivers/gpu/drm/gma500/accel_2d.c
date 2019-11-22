@@ -227,8 +227,8 @@ static void psbfb_copyarea_accel(struct fb_info *info,
 				 const struct fb_copyarea *a)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct drm_device *dev = fbdev->fb.dev;
 	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
+	struct drm_device *dev = fb->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	uint32_t offset;
 	uint32_t stride;
@@ -309,7 +309,8 @@ void psbfb_copyarea(struct fb_info *info,
 int psbfb_sync(struct fb_info *info)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct drm_device *dev = fbdev->fb.dev;
+	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
+	struct drm_device *dev = fb->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long _end = jiffies + HZ;
 	int busy = 0;

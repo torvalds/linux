@@ -15,7 +15,6 @@
 
 struct psb_fbdev {
 	struct drm_fb_helper psb_fb_helper; /* must be first */
-	struct drm_framebuffer fb;
 };
 
 extern int gma_connector_clones(struct drm_device *dev, int type_mask);
