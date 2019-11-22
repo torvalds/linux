@@ -76,7 +76,7 @@ bool unwind_next_frame(struct unwind_state *state)
 			/* No back-chain, look for a pt_regs structure */
 			sp = state->sp + STACK_FRAME_OVERHEAD;
 			if (!on_stack(info, sp, sizeof(struct pt_regs)))
-				goto out_stop;
+				goto out_err;
 			regs = (struct pt_regs *) sp;
 			if (READ_ONCE_NOCHECK(regs->psw.mask) & PSW_MASK_PSTATE)
 				goto out_stop;
