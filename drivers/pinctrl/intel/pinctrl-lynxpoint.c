@@ -218,14 +218,24 @@ static void lp_gpio_irq_handler(struct irq_desc *desc)
 		for_each_set_bit(pin, &pending, 32) {
 			unsigned int irq;
 
-			/* Clear before handling so we don't lose an edge */
-			iowrite32(BIT(pin), reg);
-
 			irq = irq_find_mapping(lg->chip.irq.domain, base + pin);
 			generic_handle_irq(irq);
 		}
 	}
 	chip->irq_eoi(data);
+}
+
+static void lp_irq_ack(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct lp_gpio *lg = gpiochip_get_data(gc);
+	u32 hwirq = irqd_to_hwirq(d);
+	void __iomem *reg = lp_gpio_reg(&lg->chip, hwirq, LP_INT_STAT);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&lg->lock, flags);
+	iowrite32(BIT(hwirq % 32), reg);
+	raw_spin_unlock_irqrestore(&lg->lock, flags);
 }
 
 static void lp_irq_unmask(struct irq_data *d)
@@ -313,6 +323,7 @@ static int lp_irq_set_type(struct irq_data *d, unsigned int type)
 
 static struct irq_chip lp_irqchip = {
 	.name = "LP-GPIO",
+	.irq_ack = lp_irq_ack,
 	.irq_mask = lp_irq_mask,
 	.irq_unmask = lp_irq_unmask,
 	.irq_enable = lp_irq_enable,
