@@ -209,7 +209,7 @@ static struct fb_ops psbfb_unaccel_ops = {
 static int psb_framebuffer_init(struct drm_device *dev,
 					struct drm_framebuffer *fb,
 					const struct drm_mode_fb_cmd2 *mode_cmd,
-					struct gtt_range *gt)
+					struct drm_gem_object *obj)
 {
 	const struct drm_format_info *info;
 	int ret;
@@ -226,7 +226,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 
 	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
-	fb->obj[0] = &gt->gem;
+	fb->obj[0] = obj;
 	ret = drm_framebuffer_init(dev, fb, &psb_fb_funcs);
 	if (ret) {
 		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
@@ -250,7 +250,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *psb_framebuffer_create
 			(struct drm_device *dev,
 			 const struct drm_mode_fb_cmd2 *mode_cmd,
-			 struct gtt_range *gt)
+			 struct drm_gem_object *obj)
 {
 	struct drm_framebuffer *fb;
 	int ret;
@@ -259,7 +259,7 @@ static struct drm_framebuffer *psb_framebuffer_create
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
-	ret = psb_framebuffer_init(dev, fb, mode_cmd, gt);
+	ret = psb_framebuffer_init(dev, fb, mode_cmd, obj);
 	if (ret) {
 		kfree(fb);
 		return ERR_PTR(ret);
@@ -377,7 +377,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
-	ret = psb_framebuffer_init(dev, fb, &mode_cmd, backing);
+	ret = psb_framebuffer_init(dev, fb, &mode_cmd, &backing->gem);
 	if (ret)
 		goto out;
 
@@ -432,7 +432,6 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 			(struct drm_device *dev, struct drm_file *filp,
 			 const struct drm_mode_fb_cmd2 *cmd)
 {
-	struct gtt_range *r;
 	struct drm_gem_object *obj;
 
 	/*
@@ -444,8 +443,7 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 		return ERR_PTR(-ENOENT);
 
 	/* Let the core code do all the work */
-	r = container_of(obj, struct gtt_range, gem);
-	return psb_framebuffer_create(dev, cmd, r);
+	return psb_framebuffer_create(dev, cmd, obj);
 }
 
 static int psbfb_probe(struct drm_fb_helper *helper,
