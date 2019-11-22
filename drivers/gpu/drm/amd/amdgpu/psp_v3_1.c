@@ -179,7 +179,7 @@ static bool psp_v3_1_match_version(struct amdgpu_device *adev, uint32_t ver)
 	 * Double check if the latest four legacy versions.
 	 * If yes, it is still the right version.
 	 */
-	for (i = 0; i < sizeof(sos_old_versions) / sizeof(uint32_t); i++) {
+	for (i = 0; i < ARRAY_SIZE(sos_old_versions); i++) {
 		if (sos_old_versions[i] == adev->psp.sos_fw_version)
 			return true;
 	}
