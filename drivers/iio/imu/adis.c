@@ -26,7 +26,14 @@
 #define ADIS_MSC_CTRL_DATA_RDY_DIO2	BIT(0)
 #define ADIS_GLOB_CMD_SW_RESET		BIT(7)
 
-int adis_write_reg(struct adis *adis, unsigned int reg,
+/**
+ * __adis_write_reg() - write N bytes to register (unlocked version)
+ * @adis: The adis device
+ * @reg: The address of the lower of the two registers
+ * @value: The value to write to device (up to 4 bytes)
+ * @size: The size of the @value (in bytes)
+ */
+int __adis_write_reg(struct adis *adis, unsigned int reg,
 	unsigned int value, unsigned int size)
 {
 	unsigned int page = reg / ADIS_PAGE_SIZE;
@@ -70,8 +77,6 @@ int adis_write_reg(struct adis *adis, unsigned int reg,
 		},
 	};
 
-	mutex_lock(&adis->state_lock);
-
 	spi_message_init(&msg);
 
 	if (adis->current_page != page) {
@@ -96,8 +101,7 @@ int adis_write_reg(struct adis *adis, unsigned int reg,
 		adis->tx[3] = value & 0xff;
 		break;
 	default:
-		ret = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	xfers[size].cs_change = 0;
@@ -113,20 +117,18 @@ int adis_write_reg(struct adis *adis, unsigned int reg,
 		adis->current_page = page;
 	}
 
-out_unlock:
-	mutex_unlock(&adis->state_lock);
-
 	return ret;
 }
-EXPORT_SYMBOL_GPL(adis_write_reg);
+EXPORT_SYMBOL_GPL(__adis_write_reg);
 
 /**
- * adis_read_reg() - read 2 bytes from a 16-bit register
+ * __adis_read_reg() - read N bytes from register (unlocked version)
  * @adis: The adis device
  * @reg: The address of the lower of the two registers
  * @val: The value read back from the device
+ * @size: The size of the @val buffer
  */
-int adis_read_reg(struct adis *adis, unsigned int reg,
+int __adis_read_reg(struct adis *adis, unsigned int reg,
 	unsigned int *val, unsigned int size)
 {
 	unsigned int page = reg / ADIS_PAGE_SIZE;
@@ -166,7 +168,6 @@ int adis_read_reg(struct adis *adis, unsigned int reg,
 		},
 	};
 
-	mutex_lock(&adis->state_lock);
 	spi_message_init(&msg);
 
 	if (adis->current_page != page) {
@@ -188,15 +189,14 @@ int adis_read_reg(struct adis *adis, unsigned int reg,
 		spi_message_add_tail(&xfers[3], &msg);
 		break;
 	default:
-		ret = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	ret = spi_sync(adis->spi, &msg);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Failed to read register 0x%02X: %d\n",
 				reg, ret);
-		goto out_unlock;
+		return ret;
 	} else {
 		adis->current_page = page;
 	}
@@ -210,12 +210,9 @@ int adis_read_reg(struct adis *adis, unsigned int reg,
 		break;
 	}
 
-out_unlock:
-	mutex_unlock(&adis->state_lock);
-
 	return ret;
 }
-EXPORT_SYMBOL_GPL(adis_read_reg);
+EXPORT_SYMBOL_GPL(__adis_read_reg);
 
 #ifdef CONFIG_DEBUG_FS
 
