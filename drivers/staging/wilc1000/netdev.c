@@ -96,21 +96,18 @@ void wilc_mac_indicate(struct wilc *wilc)
 
 static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 {
-	u8 *bssid, *bssid1;
 	struct net_device *ndev = NULL;
 	struct wilc_vif *vif;
-
-	bssid = mac_header + 10;
-	bssid1 = mac_header + 4;
+	struct ieee80211_hdr *h = (struct ieee80211_hdr *)mac_header;
 
 	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
 		if (vif->mode == WILC_STATION_MODE)
-			if (ether_addr_equal_unaligned(bssid, vif->bssid)) {
+			if (ether_addr_equal_unaligned(h->addr2, vif->bssid)) {
 				ndev = vif->ndev;
 				goto out;
 			}
 		if (vif->mode == WILC_AP_MODE)
-			if (ether_addr_equal_unaligned(bssid1, vif->bssid)) {
+			if (ether_addr_equal_unaligned(h->addr1, vif->bssid)) {
 				ndev = vif->ndev;
 				goto out;
 			}
