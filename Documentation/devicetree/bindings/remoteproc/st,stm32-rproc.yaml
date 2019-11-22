@@ -50,6 +50,8 @@ properties:
     description: Should contain the WWDG1 watchdog reset interrupt
     maxItems: 1
 
+  wakeup-source: true
+
   mboxes:
     description:
       This property is required only if the rpmsg/virtio functionality is used.
