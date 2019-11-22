@@ -30,7 +30,7 @@
 #define HELPER_NAME "sip"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Christian Hentschel <chentschel@arnet.com.ar>");
+MODULE_AUTHOR("Christian Hentschel <chentschel@gmail.com>");
 MODULE_DESCRIPTION("SIP connection tracking helper");
 MODULE_ALIAS("ip_conntrack_sip");
 MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
