@@ -634,7 +634,7 @@ static void apply_tx_lanes(struct hfi1_pportdata *ppd, u8 field_id,
 			   u32 config_data, const char *message)
 {
 	u8 i;
-	int ret = HCMD_SUCCESS;
+	int ret;
 
 	for (i = 0; i < 4; i++) {
 		ret = load_8051_config(ppd->dd, field_id, i, config_data);
