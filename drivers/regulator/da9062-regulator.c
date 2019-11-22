@@ -108,7 +108,7 @@ static unsigned int da9062_map_buck_mode(unsigned int mode)
 	case DA9063_BUCK_MODE_AUTO:
 		return REGULATOR_MODE_NORMAL;
 	default:
-		return -EINVAL;
+		return REGULATOR_MODE_INVALID;
 	}
 }
 
