@@ -7,6 +7,7 @@
 #include <linux/compiler.h>
 #include <linux/fs.h>
 #include <linux/iomap.h>
+#include "trace.h"
 
 /*
  * Execute a iomap write on a segment of the mapping that spans a
@@ -28,6 +29,8 @@ iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
 	loff_t written = 0, ret;
 	u64 end;
 
+	trace_iomap_apply(inode, pos, length, flags, ops, actor, _RET_IP_);
+
 	/*
 	 * Need to map a range from start position for length bytes. This can
 	 * span multiple pages - it is only guaranteed to return a range of a
@@ -47,6 +50,10 @@ iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
 		return -EIO;
 	if (WARN_ON(iomap.length == 0))
 		return -EIO;
+
+	trace_iomap_apply_dstmap(inode, &iomap);
+	if (srcmap.type != IOMAP_HOLE)
+		trace_iomap_apply_srcmap(inode, &srcmap);
 
 	/*
 	 * Cut down the length to the one actually provided by the filesystem,

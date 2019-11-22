@@ -80,6 +80,109 @@ DEFINE_PAGE_EVENT(iomap_writepage);
 DEFINE_PAGE_EVENT(iomap_releasepage);
 DEFINE_PAGE_EVENT(iomap_invalidatepage);
 
+#define IOMAP_TYPE_STRINGS \
+	{ IOMAP_HOLE,		"HOLE" }, \
+	{ IOMAP_DELALLOC,	"DELALLOC" }, \
+	{ IOMAP_MAPPED,		"MAPPED" }, \
+	{ IOMAP_UNWRITTEN,	"UNWRITTEN" }, \
+	{ IOMAP_INLINE,		"INLINE" }
+
+#define IOMAP_FLAGS_STRINGS \
+	{ IOMAP_WRITE,		"WRITE" }, \
+	{ IOMAP_ZERO,		"ZERO" }, \
+	{ IOMAP_REPORT,		"REPORT" }, \
+	{ IOMAP_FAULT,		"FAULT" }, \
+	{ IOMAP_DIRECT,		"DIRECT" }, \
+	{ IOMAP_NOWAIT,		"NOWAIT" }
+
+#define IOMAP_F_FLAGS_STRINGS \
+	{ IOMAP_F_NEW,		"NEW" }, \
+	{ IOMAP_F_DIRTY,	"DIRTY" }, \
+	{ IOMAP_F_SHARED,	"SHARED" }, \
+	{ IOMAP_F_MERGED,	"MERGED" }, \
+	{ IOMAP_F_BUFFER_HEAD,	"BH" }, \
+	{ IOMAP_F_SIZE_CHANGED,	"SIZE_CHANGED" }
+
+DECLARE_EVENT_CLASS(iomap_class,
+	TP_PROTO(struct inode *inode, struct iomap *iomap),
+	TP_ARGS(inode, iomap),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(u64, ino)
+		__field(u64, addr)
+		__field(loff_t, offset)
+		__field(u64, length)
+		__field(u16, type)
+		__field(u16, flags)
+		__field(dev_t, bdev)
+	),
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->ino = inode->i_ino;
+		__entry->addr = iomap->addr;
+		__entry->offset = iomap->offset;
+		__entry->length = iomap->length;
+		__entry->type = iomap->type;
+		__entry->flags = iomap->flags;
+		__entry->bdev = iomap->bdev ? iomap->bdev->bd_dev : 0;
+	),
+	TP_printk("dev %d:%d ino 0x%llx bdev %d:%d addr %lld offset %lld "
+		  "length %llu type %s flags %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  MAJOR(__entry->bdev), MINOR(__entry->bdev),
+		  __entry->addr,
+		  __entry->offset,
+		  __entry->length,
+		  __print_symbolic(__entry->type, IOMAP_TYPE_STRINGS),
+		  __print_flags(__entry->flags, "|", IOMAP_F_FLAGS_STRINGS))
+)
+
+#define DEFINE_IOMAP_EVENT(name)		\
+DEFINE_EVENT(iomap_class, name,	\
+	TP_PROTO(struct inode *inode, struct iomap *iomap), \
+	TP_ARGS(inode, iomap))
+DEFINE_IOMAP_EVENT(iomap_apply_dstmap);
+DEFINE_IOMAP_EVENT(iomap_apply_srcmap);
+
+TRACE_EVENT(iomap_apply,
+	TP_PROTO(struct inode *inode, loff_t pos, loff_t length,
+		unsigned int flags, const void *ops, void *actor,
+		unsigned long caller),
+	TP_ARGS(inode, pos, length, flags, ops, actor, caller),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(u64, ino)
+		__field(loff_t, pos)
+		__field(loff_t, length)
+		__field(unsigned int, flags)
+		__field(const void *, ops)
+		__field(void *, actor)
+		__field(unsigned long, caller)
+	),
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->ino = inode->i_ino;
+		__entry->pos = pos;
+		__entry->length = length;
+		__entry->flags = flags;
+		__entry->ops = ops;
+		__entry->actor = actor;
+		__entry->caller = caller;
+	),
+	TP_printk("dev %d:%d ino 0x%llx pos %lld length %lld flags %s (0x%x) "
+		  "ops %ps caller %pS actor %ps",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		   __entry->ino,
+		   __entry->pos,
+		   __entry->length,
+		   __print_flags(__entry->flags, "|", IOMAP_FLAGS_STRINGS),
+		   __entry->flags,
+		   __entry->ops,
+		   (void *)__entry->caller,
+		   __entry->actor)
+);
+
 #endif /* _IOMAP_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH
