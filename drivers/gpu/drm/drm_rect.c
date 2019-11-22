@@ -59,6 +59,9 @@ static u32 clip_scaled(u32 src, u32 dst, u32 clip)
 	if (dst == 0)
 		return 0;
 
+	/* Only clip what we have. Keeps the result bounded. */
+	clip = min(clip, dst);
+
 	tmp = mul_u32_u32(src, dst - clip);
 
 	/*
@@ -94,7 +97,7 @@ bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
 		u32 new_src_w = clip_scaled(drm_rect_width(src),
 					    drm_rect_width(dst), diff);
 
-		src->x1 = clamp_t(int64_t, src->x2 - new_src_w, INT_MIN, INT_MAX);
+		src->x1 = src->x2 - new_src_w;
 		dst->x1 = clip->x1;
 	}
 	diff = clip->y1 - dst->y1;
@@ -102,7 +105,7 @@ bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
 		u32 new_src_h = clip_scaled(drm_rect_height(src),
 					    drm_rect_height(dst), diff);
 
-		src->y1 = clamp_t(int64_t, src->y2 - new_src_h, INT_MIN, INT_MAX);
+		src->y1 = src->y2 - new_src_h;
 		dst->y1 = clip->y1;
 	}
 	diff = dst->x2 - clip->x2;
@@ -110,7 +113,7 @@ bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
 		u32 new_src_w = clip_scaled(drm_rect_width(src),
 					    drm_rect_width(dst), diff);
 
-		src->x2 = clamp_t(int64_t, src->x1 + new_src_w, INT_MIN, INT_MAX);
+		src->x2 = src->x1 + new_src_w;
 		dst->x2 = clip->x2;
 	}
 	diff = dst->y2 - clip->y2;
@@ -118,7 +121,7 @@ bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
 		u32 new_src_h = clip_scaled(drm_rect_height(src),
 					    drm_rect_height(dst), diff);
 
-		src->y2 = clamp_t(int64_t, src->y1 + new_src_h, INT_MIN, INT_MAX);
+		src->y2 = src->y1 + new_src_h;
 		dst->y2 = clip->y2;
 	}
 
