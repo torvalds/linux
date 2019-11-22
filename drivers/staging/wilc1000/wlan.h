@@ -197,6 +197,7 @@
 #define IS_MANAGMEMENT_CALLBACK	0x080
 #define IS_MGMT_STATUS_SUCCES	0x040
 
+#define WILC_WID_TYPE		GENMASK(15, 12)
 /********************************************
  *
  *      Tx/Rx Queue Structure

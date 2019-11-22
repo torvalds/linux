@@ -4,6 +4,7 @@
  * All rights reserved.
  */
 
+#include <linux/bitfield.h>
 #include "wlan_if.h"
 #include "wlan.h"
 #include "wlan_cfg.h"
@@ -132,7 +133,6 @@ static int wilc_wlan_cfg_set_bin(u8 *frame, u32 offset, u16 id, u8 *b, u32 size)
  *
  ********************************************/
 
-#define GET_WID_TYPE(wid)		(((wid) >> 12) & 0x7)
 static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info, int size)
 {
 	u16 wid;
@@ -142,7 +142,7 @@ static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info, int size)
 		i = 0;
 		wid = get_unaligned_le16(info);
 
-		switch (GET_WID_TYPE(wid)) {
+		switch (FIELD_GET(WILC_WID_TYPE, wid)) {
 		case WID_CHAR:
 			do {
 				if (wl->cfg.b[i].id == WID_NIL)
@@ -244,7 +244,7 @@ static void wilc_wlan_parse_info_frame(struct wilc *wl, u8 *info)
 
 int wilc_wlan_cfg_set_wid(u8 *frame, u32 offset, u16 id, u8 *buf, int size)
 {
-	u8 type = (id >> 12) & 0xf;
+	u8 type = FIELD_GET(WILC_WID_TYPE, id);
 	int ret = 0;
 
 	switch (type) {
@@ -290,7 +290,7 @@ int wilc_wlan_cfg_get_wid(u8 *frame, u32 offset, u16 id)
 int wilc_wlan_cfg_get_val(struct wilc *wl, u16 wid, u8 *buffer,
 			  u32 buffer_size)
 {
-	u32 type = (wid >> 12) & 0xf;
+	u8 type = FIELD_GET(WILC_WID_TYPE, wid);
 	int i, ret = 0;
 
 	i = 0;
