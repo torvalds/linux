@@ -43,7 +43,7 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 	int ret = 0;
 	char *bt;
 
-	bt = kmalloc(BT_BUF_SIZE, GFP_KERNEL);
+	bt = kmalloc(BT_BUF_SIZE, GFP_ATOMIC);
 	if (!bt) {
 		pr_err("failed to allocate backtrace buffer\n");
 		return -ENOMEM;
@@ -98,11 +98,12 @@ struct unwindme {
 };
 
 /* Values of unwindme.flags. */
-#define UWM_DEFAULT	0x0
-#define UWM_THREAD	0x1	/* Unwind a separate task. */
-#define UWM_REGS	0x2	/* Pass regs to test_unwind(). */
-#define UWM_SP		0x4	/* Pass sp to test_unwind(). */
-#define UWM_CALLER	0x8	/* Unwind starting from caller. */
+#define UWM_DEFAULT		0x0
+#define UWM_THREAD		0x1	/* Unwind a separate task. */
+#define UWM_REGS		0x2	/* Pass regs to test_unwind(). */
+#define UWM_SP			0x4	/* Pass sp to test_unwind(). */
+#define UWM_CALLER		0x8	/* Unwind starting from caller. */
+#define UWM_SWITCH_STACK	0x10	/* Use CALL_ON_STACK. */
 
 static __always_inline unsigned long get_psw_addr(void)
 {
@@ -146,7 +147,16 @@ static noinline int unwindme_func3(struct unwindme *u)
 /* This function must appear in the backtrace. */
 static noinline int unwindme_func2(struct unwindme *u)
 {
-	return unwindme_func3(u);
+	int rc;
+
+	if (u->flags & UWM_SWITCH_STACK) {
+		preempt_disable();
+		rc = CALL_ON_STACK(unwindme_func3, S390_lowcore.nodat_stack, 1, u);
+		preempt_enable();
+		return rc;
+	} else {
+		return unwindme_func3(u);
+	}
 }
 
 /* This function must follow unwindme_func2 in the backtrace. */
@@ -215,9 +225,11 @@ do {									\
 	TEST(UWM_DEFAULT);
 	TEST(UWM_SP);
 	TEST(UWM_REGS);
+	TEST(UWM_SWITCH_STACK);
 	TEST(UWM_SP | UWM_REGS);
 	TEST(UWM_CALLER | UWM_SP);
 	TEST(UWM_CALLER | UWM_SP | UWM_REGS);
+	TEST(UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK);
 	TEST(UWM_THREAD);
 	TEST(UWM_THREAD | UWM_SP);
 	TEST(UWM_THREAD | UWM_CALLER | UWM_SP);
