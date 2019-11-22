@@ -188,7 +188,7 @@ static void free_capture_list(struct i915_request *request)
 {
 	struct i915_capture_list *capture;
 
-	capture = request->capture_list;
+	capture = fetch_and_zero(&request->capture_list);
 	while (capture) {
 		struct i915_capture_list *next = capture->next;
 
@@ -214,7 +214,7 @@ static void remove_from_engine(struct i915_request *rq)
 		spin_lock(&engine->active.lock);
 		locked = engine;
 	}
-	list_del(&rq->sched.link);
+	list_del_init(&rq->sched.link);
 	spin_unlock_irq(&locked->active.lock);
 }
 
@@ -586,6 +586,21 @@ out:
 	return kmem_cache_alloc(global.slab_requests, gfp);
 }
 
+static void __i915_request_ctor(void *arg)
+{
+	struct i915_request *rq = arg;
+
+	spin_lock_init(&rq->lock);
+	i915_sched_node_init(&rq->sched);
+	i915_sw_fence_init(&rq->submit, submit_notify);
+	i915_sw_fence_init(&rq->semaphore, semaphore_notify);
+
+	rq->file_priv = NULL;
+	rq->capture_list = NULL;
+
+	INIT_LIST_HEAD(&rq->execute_cb);
+}
+
 struct i915_request *
 __i915_request_create(struct intel_context *ce, gfp_t gfp)
 {
@@ -648,6 +663,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->engine = ce->engine;
 	rq->ring = ce->ring;
 	rq->execution_mask = ce->engine->mask;
+	rq->flags = 0;
 
 	rcu_assign_pointer(rq->timeline, tl);
 	rq->hwsp_seqno = tl->hwsp_seqno;
@@ -655,23 +671,20 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 
 	rq->rcustate = get_state_synchronize_rcu(); /* acts as smp_mb() */
 
-	spin_lock_init(&rq->lock);
 	dma_fence_init(&rq->fence, &i915_fence_ops, &rq->lock,
 		       tl->fence_context, seqno);
 
 	/* We bump the ref for the fence chain */
-	i915_sw_fence_init(&i915_request_get(rq)->submit, submit_notify);
-	i915_sw_fence_init(&i915_request_get(rq)->semaphore, semaphore_notify);
+	i915_sw_fence_reinit(&i915_request_get(rq)->submit);
+	i915_sw_fence_reinit(&i915_request_get(rq)->semaphore);
 
-	i915_sched_node_init(&rq->sched);
+	i915_sched_node_reinit(&rq->sched);
 
-	/* No zalloc, must clear what we need by hand */
-	rq->file_priv = NULL;
+	/* No zalloc, everything must be cleared after use */
 	rq->batch = NULL;
-	rq->capture_list = NULL;
-	rq->flags = 0;
-
-	INIT_LIST_HEAD(&rq->execute_cb);
+	GEM_BUG_ON(rq->file_priv);
+	GEM_BUG_ON(rq->capture_list);
+	GEM_BUG_ON(!list_empty(&rq->execute_cb));
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
@@ -1533,10 +1546,14 @@ static struct i915_global_request global = { {
 
 int __init i915_global_request_init(void)
 {
-	global.slab_requests = KMEM_CACHE(i915_request,
-					  SLAB_HWCACHE_ALIGN |
-					  SLAB_RECLAIM_ACCOUNT |
-					  SLAB_TYPESAFE_BY_RCU);
+	global.slab_requests =
+		kmem_cache_create("i915_request",
+				  sizeof(struct i915_request),
+				  __alignof__(struct i915_request),
+				  SLAB_HWCACHE_ALIGN |
+				  SLAB_RECLAIM_ACCOUNT |
+				  SLAB_TYPESAFE_BY_RCU,
+				  __i915_request_ctor);
 	if (!global.slab_requests)
 		return -ENOMEM;
 

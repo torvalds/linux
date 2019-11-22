@@ -12,6 +12,12 @@
 #include "i915_sw_fence.h"
 #include "i915_selftest.h"
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
+#define I915_SW_FENCE_BUG_ON(expr) BUG_ON(expr)
+#else
+#define I915_SW_FENCE_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
+#endif
+
 #define I915_SW_FENCE_FLAG_ALLOC BIT(3) /* after WQ_FLAG_* for safety */
 
 static DEFINE_SPINLOCK(i915_sw_fence_lock);
@@ -218,13 +224,21 @@ void __i915_sw_fence_init(struct i915_sw_fence *fence,
 {
 	BUG_ON(!fn || (unsigned long)fn & ~I915_SW_FENCE_MASK);
 
+	__init_waitqueue_head(&fence->wait, name, key);
+	fence->flags = (unsigned long)fn;
+
+	i915_sw_fence_reinit(fence);
+}
+
+void i915_sw_fence_reinit(struct i915_sw_fence *fence)
+{
 	debug_fence_init(fence);
 
-	__init_waitqueue_head(&fence->wait, name, key);
 	atomic_set(&fence->pending, 1);
 	fence->error = 0;
 
-	fence->flags = (unsigned long)fn;
+	I915_SW_FENCE_BUG_ON(!fence->flags);
+	I915_SW_FENCE_BUG_ON(!list_empty(&fence->wait.head));
 }
 
 void i915_sw_fence_commit(struct i915_sw_fence *fence)
