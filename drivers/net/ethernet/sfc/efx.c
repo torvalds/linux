@@ -1969,6 +1969,8 @@ static int efx_probe_filters(struct efx_nic *efx)
 				     ++i)
 					channel->rps_flow_id[i] =
 						RPS_FLOW_ID_INVALID;
+			channel->rfs_expire_index = 0;
+			channel->rfs_filter_count = 0;
 		}
 
 		if (!success) {
@@ -1978,8 +1980,6 @@ static int efx_probe_filters(struct efx_nic *efx)
 			rc = -ENOMEM;
 			goto out_unlock;
 		}
-
-		efx->rps_expire_index = efx->rps_expire_channel = 0;
 	}
 #endif
 out_unlock:
@@ -1993,8 +1993,10 @@ static void efx_remove_filters(struct efx_nic *efx)
 #ifdef CONFIG_RFS_ACCEL
 	struct efx_channel *channel;
 
-	efx_for_each_channel(channel, efx)
+	efx_for_each_channel(channel, efx) {
+		flush_work(&channel->filter_work);
 		kfree(channel->rps_flow_id);
+	}
 #endif
 	down_write(&efx->filter_sem);
 	efx->type->filter_table_remove(efx);

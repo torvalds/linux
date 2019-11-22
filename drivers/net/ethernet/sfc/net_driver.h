@@ -439,6 +439,11 @@ enum efx_sync_events_state {
  * @event_test_cpu: Last CPU to handle interrupt or test event for this channel
  * @irq_count: Number of IRQs since last adaptive moderation decision
  * @irq_mod_score: IRQ moderation score
+ * @rfs_filter_count: number of accelerated RFS filters currently in place;
+ *	equals the count of @rps_flow_id slots filled
+ * @rfs_last_expiry: value of jiffies last time some accelerated RFS filters
+ *	were checked for expiry
+ * @rfs_expire_index: next accelerated RFS filter ID to check for expiry
  * @filter_work: Work item for efx_filter_rfs_expire()
  * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
  *      indexed by filter ID
@@ -489,7 +494,9 @@ struct efx_channel {
 	unsigned int irq_count;
 	unsigned int irq_mod_score;
 #ifdef CONFIG_RFS_ACCEL
-	unsigned int rfs_filters_added;
+	unsigned int rfs_filter_count;
+	unsigned int rfs_last_expiry;
+	unsigned int rfs_expire_index;
 	struct work_struct filter_work;
 #define RPS_FLOW_ID_INVALID 0xFFFFFFFF
 	u32 *rps_flow_id;
@@ -923,9 +930,6 @@ struct efx_async_filter_insertion {
  * @filter_sem: Filter table rw_semaphore, protects existence of @filter_state
  * @filter_state: Architecture-dependent filter table state
  * @rps_mutex: Protects RPS state of all channels
- * @rps_expire_channel: Next channel to check for expiry
- * @rps_expire_index: Next index to check for expiry in
- *	@rps_expire_channel's @rps_flow_id
  * @rps_slot_map: bitmap of in-flight entries in @rps_slot
  * @rps_slot: array of ARFS insertion requests for efx_filter_rfs_work()
  * @rps_hash_lock: Protects ARFS filter mapping state (@rps_hash_table and
@@ -1096,8 +1100,6 @@ struct efx_nic {
 	void *filter_state;
 #ifdef CONFIG_RFS_ACCEL
 	struct mutex rps_mutex;
-	unsigned int rps_expire_channel;
-	unsigned int rps_expire_index;
 	unsigned long rps_slot_map;
 	struct efx_async_filter_insertion rps_slot[EFX_RPS_MAX_IN_FLIGHT];
 	spinlock_t rps_hash_lock;
