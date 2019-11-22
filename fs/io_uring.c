@@ -654,7 +654,8 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 		eventfd_signal(ctx->cq_ev_fd, 1);
 }
 
-static void io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
+/* Returns true if there are no backlogged entries after the flush */
+static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 {
 	struct io_rings *rings = ctx->rings;
 	struct io_uring_cqe *cqe;
@@ -664,10 +665,10 @@ static void io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 
 	if (!force) {
 		if (list_empty_careful(&ctx->cq_overflow_list))
-			return;
+			return true;
 		if ((ctx->cached_cq_tail - READ_ONCE(rings->cq.head) ==
 		    rings->cq_ring_entries))
-			return;
+			return false;
 	}
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
@@ -676,6 +677,7 @@ static void io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 	if (force)
 		ctx->cq_overflow_flushed = true;
 
+	cqe = NULL;
 	while (!list_empty(&ctx->cq_overflow_list)) {
 		cqe = io_get_cqring(ctx);
 		if (!cqe && !force)
@@ -703,6 +705,8 @@ static void io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 		list_del(&req->list);
 		io_put_req(req);
 	}
+
+	return cqe != NULL;
 }
 
 static void io_cqring_fill_event(struct io_kiocb *req, long res)
@@ -3144,10 +3148,10 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 	int i, submitted = 0;
 	bool mm_fault = false;
 
-	if (!list_empty(&ctx->cq_overflow_list)) {
-		io_cqring_overflow_flush(ctx, false);
+	/* if we have a backlog and couldn't flush it all, return BUSY */
+	if (!list_empty(&ctx->cq_overflow_list) &&
+	    !io_cqring_overflow_flush(ctx, false))
 		return -EBUSY;
-	}
 
 	if (nr > IO_PLUG_THRESHOLD) {
 		io_submit_state_start(&state, ctx, nr);
