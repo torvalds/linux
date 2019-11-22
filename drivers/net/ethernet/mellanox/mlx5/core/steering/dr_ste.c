@@ -560,18 +560,6 @@ bool mlx5dr_ste_not_used_ste(struct mlx5dr_ste *ste)
 	return !refcount_read(&ste->refcount);
 }
 
-static u16 get_bits_per_mask(u16 byte_mask)
-{
-	u16 bits = 0;
-
-	while (byte_mask) {
-		byte_mask = byte_mask & (byte_mask - 1);
-		bits++;
-	}
-
-	return bits;
-}
-
 /* Init one ste as a pattern for ste data array */
 void mlx5dr_ste_set_formatted_ste(u16 gvmi,
 				  struct mlx5dr_domain_rx_tx *nic_dmn,
@@ -620,19 +608,11 @@ int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 	struct mlx5dr_ste_htbl *next_htbl;
 
 	if (!mlx5dr_ste_is_last_in_rule(nic_matcher, ste->ste_chain_location)) {
-		u32 bits_in_mask;
 		u8 next_lu_type;
 		u16 byte_mask;
 
 		next_lu_type = MLX5_GET(ste_general, hw_ste, next_lu_type);
 		byte_mask = MLX5_GET(ste_general, hw_ste, byte_mask);
-
-		/* Don't allocate table more than required,
-		 * the size of the table defined via the byte_mask, so no need
-		 * to allocate more than that.
-		 */
-		bits_in_mask = get_bits_per_mask(byte_mask) * BITS_PER_BYTE;
-		log_table_size = min(log_table_size, bits_in_mask);
 
 		next_htbl = mlx5dr_ste_htbl_alloc(dmn->ste_icm_pool,
 						  log_table_size,
@@ -671,7 +651,7 @@ static void dr_ste_set_ctrl(struct mlx5dr_ste_htbl *htbl)
 
 	htbl->ctrl.may_grow = true;
 
-	if (htbl->chunk_size == DR_CHUNK_SIZE_MAX - 1)
+	if (htbl->chunk_size == DR_CHUNK_SIZE_MAX - 1 || !htbl->byte_mask)
 		htbl->ctrl.may_grow = false;
 
 	/* Threshold is 50%, one is added to table of size 1 */

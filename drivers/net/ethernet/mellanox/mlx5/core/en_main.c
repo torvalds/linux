@@ -4252,9 +4252,12 @@ static netdev_features_t mlx5e_tunnel_features_check(struct mlx5e_priv *priv,
 
 	switch (proto) {
 	case IPPROTO_GRE:
+		return features;
 	case IPPROTO_IPIP:
 	case IPPROTO_IPV6:
-		return features;
+		if (mlx5e_tunnel_proto_supported(priv->mdev, IPPROTO_IPIP))
+			return features;
+		break;
 	case IPPROTO_UDP:
 		udph = udp_hdr(skb);
 		port = be16_to_cpu(udph->dest);

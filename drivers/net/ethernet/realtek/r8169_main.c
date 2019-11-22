@@ -7179,8 +7179,11 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->gso_max_segs = RTL_GSO_MAX_SEGS_V1;
 	}
 
-	/* RTL8168e-vl has a HW issue with TSO */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_34) {
+	/* RTL8168e-vl and one RTL8168c variant are known to have a
+	 * HW issue with TSO.
+	 */
+	if (tp->mac_version == RTL_GIGA_MAC_VER_34 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_22) {
 		dev->vlan_features &= ~(NETIF_F_ALL_TSO | NETIF_F_SG);
 		dev->hw_features &= ~(NETIF_F_ALL_TSO | NETIF_F_SG);
 		dev->features &= ~(NETIF_F_ALL_TSO | NETIF_F_SG);

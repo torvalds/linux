@@ -595,6 +595,18 @@ static void dr_rule_clean_rule_members(struct mlx5dr_rule *rule,
 	}
 }
 
+static u16 dr_get_bits_per_mask(u16 byte_mask)
+{
+	u16 bits = 0;
+
+	while (byte_mask) {
+		byte_mask = byte_mask & (byte_mask - 1);
+		bits++;
+	}
+
+	return bits;
+}
+
 static bool dr_rule_need_enlarge_hash(struct mlx5dr_ste_htbl *htbl,
 				      struct mlx5dr_domain *dmn,
 				      struct mlx5dr_domain_rx_tx *nic_dmn)
@@ -605,6 +617,9 @@ static bool dr_rule_need_enlarge_hash(struct mlx5dr_ste_htbl *htbl,
 		return false;
 
 	if (!ctrl->may_grow)
+		return false;
+
+	if (dr_get_bits_per_mask(htbl->byte_mask) * BITS_PER_BYTE <= htbl->chunk_size)
 		return false;
 
 	if (ctrl->num_of_collisions >= ctrl->increase_threshold &&
