@@ -475,6 +475,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(dead_battery),
 	POWER_SUPPLY_ATTR(voltage_fifo),
 	POWER_SUPPLY_ATTR(cc_uah),
+	POWER_SUPPLY_ATTR(operating_freq),
 	/* Capacity Estimation */
 	POWER_SUPPLY_ATTR(batt_ce_ctrl),
 	POWER_SUPPLY_ATTR(batt_ce_full),
