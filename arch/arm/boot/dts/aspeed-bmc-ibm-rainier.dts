@@ -258,9 +258,9 @@
 		};
 	};
 
-	pca0: pca9552@60 {
+	pca0: pca9552@61 {
 		compatible = "nxp,pca9552";
-		reg = <0x60>;
+		reg = <0x61>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
