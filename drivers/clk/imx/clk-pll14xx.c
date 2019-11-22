@@ -67,6 +67,13 @@ struct imx_pll14xx_clk imx_1443x_pll = {
 	.rate_count = ARRAY_SIZE(imx_pll1443x_tbl),
 };
 
+struct imx_pll14xx_clk imx_1443x_dram_pll = {
+	.type = PLL_1443X,
+	.rate_table = imx_pll1443x_tbl,
+	.rate_count = ARRAY_SIZE(imx_pll1443x_tbl),
+	.flags = CLK_GET_RATE_NOCACHE,
+};
+
 struct imx_pll14xx_clk imx_1416x_pll = {
 	.type = PLL_1416X,
 	.rate_table = imx_pll1416x_tbl,
