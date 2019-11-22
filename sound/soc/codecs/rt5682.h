@@ -1096,6 +1096,9 @@
 #define RT5682_IL_IRQ_MASK			(0x1 << 7)
 #define RT5682_IL_IRQ_DIS			(0x0 << 7)
 #define RT5682_IL_IRQ_EN			(0x1 << 7)
+#define RT5682_IL_IRQ_TYPE_MASK			(0x1 << 4)
+#define RT5682_IL_IRQ_LEV			(0x0 << 4)
+#define RT5682_IL_IRQ_PUL			(0x1 << 4)
 
 /* GPIO Control 1 (0x00c0) */
 #define RT5682_GP1_PIN_MASK			(0x3 << 14)
