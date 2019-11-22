@@ -36,6 +36,12 @@ static bool update_stack_info(struct unwind_state *state, unsigned long sp)
 	return true;
 }
 
+static inline bool is_task_pt_regs(struct unwind_state *state,
+				   struct pt_regs *regs)
+{
+	return task_pt_regs(state->task) == regs;
+}
+
 bool unwind_next_frame(struct unwind_state *state)
 {
 	struct stack_info *info = &state->stack_info;
@@ -69,7 +75,7 @@ bool unwind_next_frame(struct unwind_state *state)
 			if (!on_stack(info, sp, sizeof(struct pt_regs)))
 				goto out_err;
 			regs = (struct pt_regs *) sp;
-			if (READ_ONCE_NOCHECK(regs->psw.mask) & PSW_MASK_PSTATE)
+			if (is_task_pt_regs(state, regs))
 				goto out_stop;
 			ip = READ_ONCE_NOCHECK(regs->psw.addr);
 			sp = READ_ONCE_NOCHECK(regs->gprs[15]);
