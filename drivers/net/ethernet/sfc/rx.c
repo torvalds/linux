@@ -1032,6 +1032,26 @@ static void efx_filter_rfs_work(struct work_struct *data)
 				   req->spec.rem_host, ntohs(req->spec.rem_port),
 				   req->spec.loc_host, ntohs(req->spec.loc_port),
 				   req->rxq_index, req->flow_id, rc, arfs_id);
+	} else {
+		if (req->spec.ether_type == htons(ETH_P_IP))
+			netif_dbg(efx, rx_status, efx->net_dev,
+				  "failed to steer %s %pI4:%u:%pI4:%u to queue %u [flow %u rc %d id %u]\n",
+				  (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
+				  req->spec.rem_host, ntohs(req->spec.rem_port),
+				  req->spec.loc_host, ntohs(req->spec.loc_port),
+				  req->rxq_index, req->flow_id, rc, arfs_id);
+		else
+			netif_dbg(efx, rx_status, efx->net_dev,
+				  "failed to steer %s [%pI6]:%u:[%pI6]:%u to queue %u [flow %u rc %d id %u]\n",
+				  (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
+				  req->spec.rem_host, ntohs(req->spec.rem_port),
+				  req->spec.loc_host, ntohs(req->spec.loc_port),
+				  req->rxq_index, req->flow_id, rc, arfs_id);
+		/* We're overloading the NIC's filter tables, so let's do a
+		 * chunk of extra expiry work.
+		 */
+		__efx_filter_rfs_expire(channel, min(channel->rfs_filter_count,
+						     100u));
 	}
 
 	/* Release references */
@@ -1170,11 +1190,11 @@ bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota)
 		if (++index == size)
 			index = 0;
 		/* If we were called with a quota that exceeds the total number
-		 * of filters in the table (which should never happen), ensure
-		 * that we don't loop forever - stop when we've examined every
-		 * row of the table.
+		 * of filters in the table (which shouldn't happen, but could
+		 * if two callers race), ensure that we don't loop forever -
+		 * stop when we've examined every row of the table.
 		 */
-		if (WARN_ON(index == start && quota))
+		if (index == start)
 			break;
 	}
 
