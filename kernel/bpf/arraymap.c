@@ -671,10 +671,38 @@ static void prog_array_map_seq_show_elem(struct bpf_map *map, void *key,
 	rcu_read_unlock();
 }
 
+static struct bpf_map *prog_array_map_alloc(union bpf_attr *attr)
+{
+	struct bpf_array_aux *aux;
+	struct bpf_map *map;
+
+	aux = kzalloc(sizeof(*aux), GFP_KERNEL);
+	if (!aux)
+		return ERR_PTR(-ENOMEM);
+
+	map = array_map_alloc(attr);
+	if (IS_ERR(map)) {
+		kfree(aux);
+		return map;
+	}
+
+	container_of(map, struct bpf_array, map)->aux = aux;
+	return map;
+}
+
+static void prog_array_map_free(struct bpf_map *map)
+{
+	struct bpf_array_aux *aux;
+
+	aux = container_of(map, struct bpf_array, map)->aux;
+	kfree(aux);
+	fd_array_map_free(map);
+}
+
 const struct bpf_map_ops prog_array_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
-	.map_alloc = array_map_alloc,
-	.map_free = fd_array_map_free,
+	.map_alloc = prog_array_map_alloc,
+	.map_free = prog_array_map_free,
 	.map_get_next_key = array_map_get_next_key,
 	.map_lookup_elem = fd_array_map_lookup_elem,
 	.map_delete_elem = fd_array_map_delete_elem,
