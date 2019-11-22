@@ -23,9 +23,6 @@
  *
  */
 
-#include <linux/mm.h>
-#include <linux/slab.h>
-
 #include "dc.h"
 #include "opp.h"
 #include "color_gamma.h"
