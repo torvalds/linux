@@ -1684,9 +1684,11 @@ static void try_to_generate_entropy(void)
 
 	stack.now = random_get_entropy();
 
+#ifndef CONFIG_ARCH_ROCKCHIP
 	/* Slow counter - or none. Don't even bother */
 	if (stack.now == random_get_entropy())
 		return;
+#endif
 
 	timer_setup_on_stack(&stack.timer, entropy_timer, 0);
 	while (!crng_ready()) {
@@ -1716,6 +1718,10 @@ int wait_for_random_bytes(void)
 {
 	if (likely(crng_ready()))
 		return 0;
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+	try_to_generate_entropy();
+#endif
 
 	do {
 		int ret;
