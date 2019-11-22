@@ -890,29 +890,6 @@ int wilc_wlan_start(struct wilc *wilc)
 	if (wilc->io_type == WILC_HIF_SDIO && wilc->dev_irq_num)
 		reg |= WILC_HAVE_SDIO_IRQ_GPIO;
 
-#ifdef WILC_DISABLE_PMU
-#else
-	reg |= WILC_HAVE_USE_PMU;
-#endif
-
-#ifdef WILC_SLEEP_CLK_SRC_XO
-	reg |= WILC_HAVE_SLEEP_CLK_SRC_XO;
-#elif defined WILC_SLEEP_CLK_SRC_RTC
-	reg |= WILC_HAVE_SLEEP_CLK_SRC_RTC;
-#endif
-
-#ifdef WILC_EXT_PA_INV_TX_RX
-	reg |= WILC_HAVE_EXT_PA_INV_TX_RX;
-#endif
-	reg |= WILC_HAVE_USE_IRQ_AS_HOST_WAKE;
-	reg |= WILC_HAVE_LEGACY_RF_SETTINGS;
-#ifdef XTAL_24
-	reg |= WILC_HAVE_XTAL_24;
-#endif
-#ifdef DISABLE_WILC_UART
-	reg |= WILC_HAVE_DISABLE_WILC_UART;
-#endif
-
 	ret = wilc->hif_func->hif_write_reg(wilc, WILC_GP_REG_1, reg);
 	if (!ret) {
 		release_bus(wilc, WILC_BUS_RELEASE_ONLY);
