@@ -198,9 +198,10 @@ fi
 
 CONFIGFRAG=${KVM}/configs/${TORTURE_SUITE}; export CONFIGFRAG
 
+defaultconfigs="`tr '\012' ' ' < $CONFIGFRAG/CFLIST`"
 if test -z "$configs"
 then
-	configs="`cat $CONFIGFRAG/CFLIST`"
+	configs=$defaultconfigs
 fi
 
 if test -z "$resdir"
@@ -209,7 +210,7 @@ then
 fi
 
 # Create a file of test-name/#cpus pairs, sorted by decreasing #cpus.
-touch $T/cfgcpu
+configs_derep=
 for CF in $configs
 do
 	case $CF in
@@ -222,15 +223,21 @@ do
 		CF1=$CF
 		;;
 	esac
+	for ((cur_rep=0;cur_rep<$config_reps;cur_rep++))
+	do
+		configs_derep="$configs_derep $CF1"
+	done
+done
+touch $T/cfgcpu
+configs_derep="`echo $configs_derep | sed -e "s/\<CFLIST\>/$defaultconfigs/g"`"
+for CF1 in $configs_derep
+do
 	if test -f "$CONFIGFRAG/$CF1"
 	then
 		cpu_count=`configNR_CPUS.sh $CONFIGFRAG/$CF1`
 		cpu_count=`configfrag_boot_cpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
 		cpu_count=`configfrag_boot_maxcpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
-		for ((cur_rep=0;cur_rep<$config_reps;cur_rep++))
-		do
-			echo $CF1 $cpu_count >> $T/cfgcpu
-		done
+		echo $CF1 $cpu_count >> $T/cfgcpu
 	else
 		echo "The --configs file $CF1 does not exist, terminating."
 		exit 1
