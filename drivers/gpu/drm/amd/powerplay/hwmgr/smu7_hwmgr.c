@@ -4943,7 +4943,7 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 			title[0], title[1], title[2], title[3],
 			title[4], title[5], title[6], title[7]);
 
-	len = sizeof(smu7_profiling) / sizeof(struct profile_mode_setting);
+	len = ARRAY_SIZE(smu7_profiling);
 
 	for (i = 0; i < len; i++) {
 		if (i == hwmgr->power_profile_mode) {
