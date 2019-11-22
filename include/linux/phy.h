@@ -1160,7 +1160,6 @@ void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies);
 void phy_mac_interrupt(struct phy_device *phydev);
 void phy_start_machine(struct phy_device *phydev);
 void phy_stop_machine(struct phy_device *phydev);
-int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 void phy_ethtool_ksettings_get(struct phy_device *phydev,
 			       struct ethtool_link_ksettings *cmd);
 int phy_ethtool_ksettings_set(struct phy_device *phydev,

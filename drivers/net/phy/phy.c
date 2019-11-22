@@ -253,66 +253,6 @@ static void phy_sanitize_settings(struct phy_device *phydev)
 	}
 }
 
-/**
- * phy_ethtool_sset - generic ethtool sset function, handles all the details
- * @phydev: target phy_device struct
- * @cmd: ethtool_cmd
- *
- * A few notes about parameter checking:
- *
- * - We don't set port or transceiver, so we don't care what they
- *   were set to.
- * - phy_start_aneg() will make sure forced settings are sane, and
- *   choose the next best ones from the ones selected, so we don't
- *   care if ethtool tries to give us bad values.
- */
-int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
-{
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
-	u32 speed = ethtool_cmd_speed(cmd);
-
-	if (cmd->phy_address != phydev->mdio.addr)
-		return -EINVAL;
-
-	/* We make sure that we don't pass unsupported values in to the PHY */
-	ethtool_convert_legacy_u32_to_link_mode(advertising, cmd->advertising);
-	linkmode_and(advertising, advertising, phydev->supported);
-
-	/* Verify the settings we care about. */
-	if (cmd->autoneg != AUTONEG_ENABLE && cmd->autoneg != AUTONEG_DISABLE)
-		return -EINVAL;
-
-	if (cmd->autoneg == AUTONEG_ENABLE && cmd->advertising == 0)
-		return -EINVAL;
-
-	if (cmd->autoneg == AUTONEG_DISABLE &&
-	    ((speed != SPEED_1000 &&
-	      speed != SPEED_100 &&
-	      speed != SPEED_10) ||
-	     (cmd->duplex != DUPLEX_HALF &&
-	      cmd->duplex != DUPLEX_FULL)))
-		return -EINVAL;
-
-	phydev->autoneg = cmd->autoneg;
-
-	phydev->speed = speed;
-
-	linkmode_copy(phydev->advertising, advertising);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-			 phydev->advertising, AUTONEG_ENABLE == cmd->autoneg);
-
-	phydev->duplex = cmd->duplex;
-
-	phydev->mdix_ctrl = cmd->eth_tp_mdix_ctrl;
-
-	/* Restart the PHY */
-	phy_start_aneg(phydev);
-
-	return 0;
-}
-EXPORT_SYMBOL(phy_ethtool_sset);
-
 int phy_ethtool_ksettings_set(struct phy_device *phydev,
 			      const struct ethtool_link_ksettings *cmd)
 {
