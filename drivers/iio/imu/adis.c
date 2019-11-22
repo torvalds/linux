@@ -277,18 +277,18 @@ out_unlock:
 EXPORT_SYMBOL(adis_enable_irq);
 
 /**
- * adis_check_status() - Check the device for error conditions
+ * __adis_check_status() - Check the device for error conditions (unlocked)
  * @adis: The adis device
  *
  * Returns 0 on success, a negative error code otherwise
  */
-int adis_check_status(struct adis *adis)
+int __adis_check_status(struct adis *adis)
 {
 	uint16_t status;
 	int ret;
 	int i;
 
-	ret = adis_read_reg_16(adis, adis->data->diag_stat_reg, &status);
+	ret = __adis_read_reg_16(adis, adis->data->diag_stat_reg, &status);
 	if (ret)
 		return ret;
 
@@ -306,7 +306,7 @@ int adis_check_status(struct adis *adis)
 
 	return -EIO;
 }
-EXPORT_SYMBOL_GPL(adis_check_status);
+EXPORT_SYMBOL_GPL(__adis_check_status);
 
 /**
  * adis_reset() - Reset the device

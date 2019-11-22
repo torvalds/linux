@@ -267,7 +267,18 @@ static inline int adis_read_reg_32(struct adis *adis, unsigned int reg,
 }
 
 int adis_enable_irq(struct adis *adis, bool enable);
-int adis_check_status(struct adis *adis);
+int __adis_check_status(struct adis *adis);
+
+static inline int adis_check_status(struct adis *adis)
+{
+	int ret;
+
+	mutex_lock(&adis->state_lock);
+	ret = __adis_check_status(adis);
+	mutex_unlock(&adis->state_lock);
+
+	return ret;
+}
 
 int adis_initial_startup(struct adis *adis);
 
