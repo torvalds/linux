@@ -4442,6 +4442,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	case KVM_SET_NESTED_STATE: {
 		struct kvm_nested_state __user *user_kvm_nested_state = argp;
 		struct kvm_nested_state kvm_state;
+		int idx;
 
 		r = -EINVAL;
 		if (!kvm_x86_ops->set_nested_state)
@@ -4465,7 +4466,9 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		    && !(kvm_state.flags & KVM_STATE_NESTED_GUEST_MODE))
 			break;
 
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = kvm_x86_ops->set_nested_state(vcpu, user_kvm_nested_state, &kvm_state);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		break;
 	}
 	case KVM_GET_SUPPORTED_HV_CPUID: {
