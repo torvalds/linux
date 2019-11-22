@@ -78,9 +78,9 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct psb_framebuffer *psbfb = &fbdev->pfb;
-	struct drm_device *dev = psbfb->base.dev;
-	struct gtt_range *gtt = to_gtt_range(psbfb->base.obj[0]);
+	struct drm_framebuffer *fb = &fbdev->fb;
+	struct drm_device *dev = fb->dev;
+	struct gtt_range *gtt = to_gtt_range(fb->obj[0]);
 
 	/*
 	 *	We have to poke our nose in here. The core fb code assumes
@@ -99,10 +99,10 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
 static vm_fault_t psbfb_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
-	struct psb_framebuffer *psbfb = vma->vm_private_data;
-	struct drm_device *dev = psbfb->base.dev;
+	struct drm_framebuffer *fb = vma->vm_private_data;
+	struct drm_device *dev = fb->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct gtt_range *gtt = to_gtt_range(psbfb->base.obj[0]);
+	struct gtt_range *gtt = to_gtt_range(fb->obj[0]);
 	int page_num;
 	int i;
 	unsigned long address;
@@ -146,7 +146,7 @@ static const struct vm_operations_struct psbfb_vm_ops = {
 static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct psb_framebuffer *psbfb = &fbdev->pfb;
+	struct drm_framebuffer *fb = &fbdev->fb;
 
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
@@ -159,7 +159,7 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	 * suitable for our mmap work
 	 */
 	vma->vm_ops = &psbfb_vm_ops;
-	vma->vm_private_data = (void *)psbfb;
+	vma->vm_private_data = (void *)fb;
 	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP;
 	return 0;
 }
@@ -207,7 +207,7 @@ static struct fb_ops psbfb_unaccel_ops = {
  *	0 on success or an error code if we fail.
  */
 static int psb_framebuffer_init(struct drm_device *dev,
-					struct psb_framebuffer *fb,
+					struct drm_framebuffer *fb,
 					const struct drm_mode_fb_cmd2 *mode_cmd,
 					struct gtt_range *gt)
 {
@@ -225,9 +225,9 @@ static int psb_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
 
-	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
-	fb->base.obj[0] = &gt->gem;
-	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
+	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
+	fb->obj[0] = &gt->gem;
+	ret = drm_framebuffer_init(dev, fb, &psb_fb_funcs);
 	if (ret) {
 		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
 		return ret;
@@ -252,7 +252,7 @@ static struct drm_framebuffer *psb_framebuffer_create
 			 const struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct gtt_range *gt)
 {
-	struct psb_framebuffer *fb;
+	struct drm_framebuffer *fb;
 	int ret;
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
@@ -264,7 +264,7 @@ static struct drm_framebuffer *psb_framebuffer_create
 		kfree(fb);
 		return ERR_PTR(ret);
 	}
-	return &fb->base;
+	return fb;
 }
 
 /**
@@ -304,8 +304,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	struct drm_device *dev = fbdev->psb_fb_helper.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
-	struct drm_framebuffer *fb;
-	struct psb_framebuffer *psbfb = &fbdev->pfb;
+	struct drm_framebuffer *fb = &fbdev->fb;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	int size;
 	int ret;
@@ -378,11 +377,9 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
-	ret = psb_framebuffer_init(dev, psbfb, &mode_cmd, backing);
+	ret = psb_framebuffer_init(dev, fb, &mode_cmd, backing);
 	if (ret)
 		goto out;
-
-	fb = &psbfb->base;
 
 	fbdev->psb_fb_helper.fb = fb;
 
@@ -415,8 +412,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	dev_dbg(dev->dev, "allocated %dx%d fb\n",
-					psbfb->base.width, psbfb->base.height);
+	dev_dbg(dev->dev, "allocated %dx%d fb\n", fb->width, fb->height);
 
 	return 0;
 out:
@@ -487,16 +483,16 @@ static const struct drm_fb_helper_funcs psb_fb_helper_funcs = {
 
 static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 {
-	struct psb_framebuffer *psbfb = &fbdev->pfb;
+	struct drm_framebuffer *fb = &fbdev->fb;
 
 	drm_fb_helper_unregister_fbi(&fbdev->psb_fb_helper);
 
 	drm_fb_helper_fini(&fbdev->psb_fb_helper);
-	drm_framebuffer_unregister_private(&psbfb->base);
-	drm_framebuffer_cleanup(&psbfb->base);
+	drm_framebuffer_unregister_private(fb);
+	drm_framebuffer_cleanup(fb);
 
-	if (psbfb->base.obj[0])
-		drm_gem_object_put_unlocked(psbfb->base.obj[0]);
+	if (fb->obj[0])
+		drm_gem_object_put_unlocked(fb->obj[0]);
 	return 0;
 }
 
