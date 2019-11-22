@@ -702,7 +702,6 @@ static ssize_t wdt_read(struct file *file, char __user *buf,
 
 /**
  *	wdt_ioctl:
- *	@inode: inode of the device
  *	@file: file handle to the device
  *	@cmd: watchdog command
  *	@arg: argument pointer
