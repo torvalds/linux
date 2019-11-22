@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* SIP extension for NAT alteration.
  *
- * (C) 2005 by Christian Hentschel <chentschel@arnet.com.ar>
+ * (C) 2005 by Christian Hentschel <chentschel@gmail.com>
  * based on RR's ip_nat_ftp.c and other modules.
  * (C) 2007 United Security Providers
  * (C) 2007, 2008, 2011, 2012 Patrick McHardy <kaber@trash.net>
@@ -24,7 +24,7 @@
 #define NAT_HELPER_NAME "sip"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Christian Hentschel <chentschel@arnet.com.ar>");
+MODULE_AUTHOR("Christian Hentschel <chentschel@gmail.com>");
 MODULE_DESCRIPTION("SIP NAT helper");
 MODULE_ALIAS_NF_NAT_HELPER(NAT_HELPER_NAME);
 
