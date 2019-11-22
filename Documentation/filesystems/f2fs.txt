@@ -297,6 +297,9 @@ Files in /sys/fs/f2fs/<devname>
 			      reclaim the prefree segments to free segments.
 			      By default, 5% over total # of segments.
 
+ main_blkaddr                 This value gives the first block address of
+			      MAIN area in the partition.
+
  max_small_discards	      This parameter controls the number of discard
 			      commands that consist small blocks less than 2MB.
 			      The candidates to be discarded are cached until
