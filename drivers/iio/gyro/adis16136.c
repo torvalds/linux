@@ -185,12 +185,12 @@ static int adis16136_set_freq(struct adis16136 *adis16136, unsigned int freq)
 	return adis_write_reg_16(&adis16136->adis, ADIS16136_REG_SMPL_PRD, t);
 }
 
-static int adis16136_get_freq(struct adis16136 *adis16136, unsigned int *freq)
+static int __adis16136_get_freq(struct adis16136 *adis16136, unsigned int *freq)
 {
 	uint16_t t;
 	int ret;
 
-	ret = adis_read_reg_16(&adis16136->adis, ADIS16136_REG_SMPL_PRD, &t);
+	ret = __adis_read_reg_16(&adis16136->adis, ADIS16136_REG_SMPL_PRD, &t);
 	if (ret)
 		return ret;
 
@@ -224,10 +224,13 @@ static ssize_t adis16136_read_frequency(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
+	struct mutex *slock = &adis16136->adis.state_lock;
 	unsigned int freq;
 	int ret;
 
-	ret = adis16136_get_freq(adis16136, &freq);
+	mutex_lock(slock);
+	ret = __adis16136_get_freq(adis16136, &freq);
+	mutex_unlock(slock);
 	if (ret)
 		return ret;
 
@@ -252,42 +255,50 @@ static const unsigned adis16136_3db_divisors[] = {
 static int adis16136_set_filter(struct iio_dev *indio_dev, int val)
 {
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
+	struct mutex *slock = &adis16136->adis.state_lock;
 	unsigned int freq;
 	int i, ret;
 
-	ret = adis16136_get_freq(adis16136, &freq);
+	mutex_lock(slock);
+	ret = __adis16136_get_freq(adis16136, &freq);
 	if (ret)
-		return ret;
+		goto out_unlock;
 
 	for (i = ARRAY_SIZE(adis16136_3db_divisors) - 1; i >= 1; i--) {
 		if (freq / adis16136_3db_divisors[i] >= val)
 			break;
 	}
 
-	return adis_write_reg_16(&adis16136->adis, ADIS16136_REG_AVG_CNT, i);
+	ret = __adis_write_reg_16(&adis16136->adis, ADIS16136_REG_AVG_CNT, i);
+out_unlock:
+	mutex_unlock(slock);
+
+	return ret;
 }
 
 static int adis16136_get_filter(struct iio_dev *indio_dev, int *val)
 {
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
+	struct mutex *slock = &adis16136->adis.state_lock;
 	unsigned int freq;
 	uint16_t val16;
 	int ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(slock);
 
-	ret = adis_read_reg_16(&adis16136->adis, ADIS16136_REG_AVG_CNT, &val16);
+	ret = __adis_read_reg_16(&adis16136->adis, ADIS16136_REG_AVG_CNT,
+				 &val16);
 	if (ret)
 		goto err_unlock;
 
-	ret = adis16136_get_freq(adis16136, &freq);
+	ret = __adis16136_get_freq(adis16136, &freq);
 	if (ret)
 		goto err_unlock;
 
 	*val = freq / adis16136_3db_divisors[val16 & 0x07];
 
 err_unlock:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(slock);
 
 	return ret ? ret : IIO_VAL_INT;
 }
