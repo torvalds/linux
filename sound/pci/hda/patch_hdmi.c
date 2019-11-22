@@ -2361,8 +2361,8 @@ static void generic_hdmi_free(struct hda_codec *codec)
 		snd_hdac_acomp_exit(&codec->bus->core);
 	} else if (codec_has_acomp(codec)) {
 		snd_hdac_acomp_register_notifier(&codec->bus->core, NULL);
-		codec->relaxed_resume = 0;
 	}
+	codec->relaxed_resume = 0;
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
