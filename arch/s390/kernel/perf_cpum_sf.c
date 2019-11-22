@@ -602,13 +602,6 @@ static void hw_init_period(struct hw_perf_event *hwc, u64 period)
 	local64_set(&hwc->period_left, hwc->sample_period);
 }
 
-static void hw_reset_registers(struct hw_perf_event *hwc,
-			       unsigned long *sdbt_origin)
-{
-	/* (Re)set to first sample-data-block-table */
-	TEAR_REG(hwc) = (unsigned long) sdbt_origin;
-}
-
 static unsigned long hw_limit_rate(const struct hws_qsi_info_block *si,
 				   unsigned long rate)
 {
@@ -1879,7 +1872,7 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 	if (!SAMPL_DIAG_MODE(&event->hw)) {
 		cpuhw->lsctl.tear = (unsigned long) cpuhw->sfb.sdbt;
 		cpuhw->lsctl.dear = *(unsigned long *) cpuhw->sfb.sdbt;
-		hw_reset_registers(&event->hw, cpuhw->sfb.sdbt);
+		TEAR_REG(&event->hw) = (unsigned long) cpuhw->sfb.sdbt;
 	}
 
 	/* Ensure sampling functions are in the disabled state.  If disabled,
