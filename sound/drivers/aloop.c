@@ -302,15 +302,16 @@ static int loopback_snd_timer_close_cable(struct loopback_pcm *dpcm)
 	if (!cable->snd_timer.instance)
 		return 0;
 
-	/* wait till drain tasklet has finished if requested */
-	tasklet_kill(&cable->snd_timer.event_tasklet);
-
 	/* will only be called from free_cable() when other stream was
 	 * already closed. Other stream cannot be reopened as long as
 	 * loopback->cable_lock is locked. Therefore no need to lock
 	 * cable->lock;
 	 */
 	snd_timer_close(cable->snd_timer.instance);
+
+	/* wait till drain tasklet has finished if requested */
+	tasklet_kill(&cable->snd_timer.event_tasklet);
+
 	snd_timer_instance_free(cable->snd_timer.instance);
 	memset(&cable->snd_timer, 0, sizeof(cable->snd_timer));
 
