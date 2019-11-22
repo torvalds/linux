@@ -50,6 +50,10 @@ properties:
     description: startup time in microseconds
     $ref: /schemas/types.yaml#/definitions/uint32
 
+  off-on-delay-us:
+    description: off delay time in microseconds
+    $ref: /schemas/types.yaml#/definitions/uint32
+
   enable-active-high:
     description:
       Polarity of GPIO is Active high. If this property is missing,

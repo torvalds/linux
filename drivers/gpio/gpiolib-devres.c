@@ -185,12 +185,11 @@ struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
 EXPORT_SYMBOL_GPL(devm_gpiod_get_from_of_node);
 
 /**
- * devm_fwnode_get_index_gpiod_from_child - get a GPIO descriptor from a
- *					    device's child node
+ * devm_fwnode_gpiod_get_index - get a GPIO descriptor from a given node
  * @dev:	GPIO consumer
+ * @fwnode:	firmware node containing GPIO reference
  * @con_id:	function within the GPIO consumer
  * @index:	index of the GPIO to obtain in the consumer
- * @child:	firmware node (child of @dev)
  * @flags:	GPIO initialization flags
  * @label:	label to attach to the requested GPIO
  *
@@ -200,35 +199,21 @@ EXPORT_SYMBOL_GPL(devm_gpiod_get_from_of_node);
  * On successful request the GPIO pin is configured in accordance with
  * provided @flags.
  */
-struct gpio_desc *devm_fwnode_get_index_gpiod_from_child(struct device *dev,
-						const char *con_id, int index,
-						struct fwnode_handle *child,
-						enum gpiod_flags flags,
-						const char *label)
+struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
+					      struct fwnode_handle *fwnode,
+					      const char *con_id, int index,
+					      enum gpiod_flags flags,
+					      const char *label)
 {
-	char prop_name[32]; /* 32 is max size of property name */
 	struct gpio_desc **dr;
 	struct gpio_desc *desc;
-	unsigned int i;
 
 	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
 			  GFP_KERNEL);
 	if (!dr)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
-		if (con_id)
-			snprintf(prop_name, sizeof(prop_name), "%s-%s",
-					    con_id, gpio_suffixes[i]);
-		else
-			snprintf(prop_name, sizeof(prop_name), "%s",
-					    gpio_suffixes[i]);
-
-		desc = fwnode_get_named_gpiod(child, prop_name, index, flags,
-					      label);
-		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
-			break;
-	}
+	desc = fwnode_gpiod_get_index(fwnode, con_id, index, flags, label);
 	if (IS_ERR(desc)) {
 		devres_free(dr);
 		return desc;
@@ -239,7 +224,7 @@ struct gpio_desc *devm_fwnode_get_index_gpiod_from_child(struct device *dev,
 
 	return desc;
 }
-EXPORT_SYMBOL_GPL(devm_fwnode_get_index_gpiod_from_child);
+EXPORT_SYMBOL_GPL(devm_fwnode_gpiod_get_index);
 
 /**
  * devm_gpiod_get_index_optional - Resource-managed gpiod_get_index_optional()

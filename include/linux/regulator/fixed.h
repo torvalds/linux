@@ -36,6 +36,7 @@ struct fixed_voltage_config {
 	const char *input_supply;
 	int microvolts;
 	unsigned startup_delay;
+	unsigned int off_on_delay;
 	unsigned enabled_at_boot:1;
 	struct regulator_init_data *init_data;
 };
