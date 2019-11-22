@@ -923,6 +923,11 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 			sidtab_destroy(s);
 			goto out;
 		}
+		rc = context_add_hash(p, &c->context[0]);
+		if (rc) {
+			sidtab_destroy(s);
+			goto out;
+		}
 
 		rc = sidtab_set_initial(s, c->sid[0], &c->context[0]);
 		if (rc) {
