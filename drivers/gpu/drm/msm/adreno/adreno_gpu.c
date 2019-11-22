@@ -887,9 +887,20 @@ static int adreno_get_pwrlevels(struct device *dev,
 	DBG("fast_rate=%u, slow_rate=27000000", gpu->fast_rate);
 
 	/* Check for an interconnect path for the bus */
-	gpu->icc_path = of_icc_get(dev, NULL);
+	gpu->icc_path = of_icc_get(dev, "gfx-mem");
+	if (!gpu->icc_path) {
+		/*
+		 * Keep compatbility with device trees that don't have an
+		 * interconnect-names property.
+		 */
+		gpu->icc_path = of_icc_get(dev, NULL);
+	}
 	if (IS_ERR(gpu->icc_path))
 		gpu->icc_path = NULL;
+
+	gpu->ocmem_icc_path = of_icc_get(dev, "ocmem");
+	if (IS_ERR(gpu->ocmem_icc_path))
+		gpu->ocmem_icc_path = NULL;
 
 	return 0;
 }
@@ -977,6 +988,7 @@ void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
 		release_firmware(adreno_gpu->fw[i]);
 
 	icc_put(gpu->icc_path);
+	icc_put(gpu->ocmem_icc_path);
 
 	msm_gpu_cleanup(&adreno_gpu->base);
 }
