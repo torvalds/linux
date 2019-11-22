@@ -1117,6 +1117,11 @@ static inline bool mlx5_core_is_pf(const struct mlx5_core_dev *dev)
 	return dev->coredev_type == MLX5_COREDEV_PF;
 }
 
+static inline bool mlx5_core_is_vf(const struct mlx5_core_dev *dev)
+{
+	return dev->coredev_type == MLX5_COREDEV_VF;
+}
+
 static inline bool mlx5_core_is_ecpf(struct mlx5_core_dev *dev)
 {
 	return dev->caps.embedded_cpu;
@@ -1181,5 +1186,16 @@ static inline int mlx5_core_native_port_num(struct mlx5_core_dev *dev)
 enum {
 	MLX5_TRIGGERED_CMD_COMP = (u64)1 << 32,
 };
+
+static inline bool mlx5_is_roce_enabled(struct mlx5_core_dev *dev)
+{
+	struct devlink *devlink = priv_to_devlink(dev);
+	union devlink_param_value val;
+
+	devlink_param_driverinit_value_get(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
+					   &val);
+	return val.vbool;
+}
 
 #endif /* MLX5_DRIVER_H */

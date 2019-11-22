@@ -1314,6 +1314,9 @@ int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
 			      u8 port, int state);
 int mlx5_ib_get_vf_stats(struct ib_device *device, int vf,
 			 u8 port, struct ifla_vf_stats *stats);
+int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
+			struct ifla_vf_guid *node_guid,
+			struct ifla_vf_guid *port_guid);
 int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
 			u64 guid, int type);
 
