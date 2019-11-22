@@ -145,7 +145,7 @@ static void byt_dump(struct snd_sof_dev *sdev, u32 flags)
 	struct sof_ipc_dsp_oops_xtensa xoops;
 	struct sof_ipc_panic_info panic_info;
 	u32 stack[BYT_STACK_DUMP_SIZE];
-	u32 status, panic;
+	u32 status, panic, imrd, imrx;
 
 	/* now try generic SOF status messages */
 	status = snd_sof_dsp_read(sdev, BYT_DSP_BAR, SHIM_IPCD);
@@ -154,6 +154,27 @@ static void byt_dump(struct snd_sof_dev *sdev, u32 flags)
 			  BYT_STACK_DUMP_SIZE);
 	snd_sof_get_status(sdev, status, panic, &xoops, &panic_info, stack,
 			   BYT_STACK_DUMP_SIZE);
+
+	/* provide some context for firmware debug */
+	imrx = snd_sof_dsp_read(sdev, BYT_DSP_BAR, SHIM_IMRX);
+	imrd = snd_sof_dsp_read(sdev, BYT_DSP_BAR, SHIM_IMRD);
+	dev_err(sdev->dev,
+		"error: ipc host -> DSP: pending %s complete %s raw 0x%8.8x\n",
+		(panic & SHIM_IPCX_BUSY) ? "yes" : "no",
+		(panic & SHIM_IPCX_DONE) ? "yes" : "no", panic);
+	dev_err(sdev->dev,
+		"error: mask host: pending %s complete %s raw 0x%8.8x\n",
+		(imrx & SHIM_IMRX_BUSY) ? "yes" : "no",
+		(imrx & SHIM_IMRX_DONE) ? "yes" : "no", imrx);
+	dev_err(sdev->dev,
+		"error: ipc DSP -> host: pending %s complete %s raw 0x%8.8x\n",
+		(status & SHIM_IPCD_BUSY) ? "yes" : "no",
+		(status & SHIM_IPCD_DONE) ? "yes" : "no", status);
+	dev_err(sdev->dev,
+		"error: mask DSP: pending %s complete %s raw 0x%8.8x\n",
+		(imrd & SHIM_IMRD_BUSY) ? "yes" : "no",
+		(imrd & SHIM_IMRD_DONE) ? "yes" : "no", imrd);
+
 }
 
 /*
@@ -511,6 +532,13 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 	/* DAI drivers */
 	.drv = byt_dai,
 	.num_drv = 3, /* we have only 3 SSPs on byt*/
+
+	/* ALSA HW info flags */
+	.hw_info =	SNDRV_PCM_INFO_MMAP |
+			SNDRV_PCM_INFO_MMAP_VALID |
+			SNDRV_PCM_INFO_INTERLEAVED |
+			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_BATCH,
 };
 EXPORT_SYMBOL(sof_tng_ops);
 
@@ -672,6 +700,13 @@ const struct snd_sof_dsp_ops sof_byt_ops = {
 	/* DAI drivers */
 	.drv = byt_dai,
 	.num_drv = 3, /* we have only 3 SSPs on byt*/
+
+	/* ALSA HW info flags */
+	.hw_info =	SNDRV_PCM_INFO_MMAP |
+			SNDRV_PCM_INFO_MMAP_VALID |
+			SNDRV_PCM_INFO_INTERLEAVED |
+			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_BATCH,
 };
 EXPORT_SYMBOL(sof_byt_ops);
 
@@ -732,6 +767,13 @@ const struct snd_sof_dsp_ops sof_cht_ops = {
 	.drv = byt_dai,
 	/* all 6 SSPs may be available for cherrytrail */
 	.num_drv = ARRAY_SIZE(byt_dai),
+
+	/* ALSA HW info flags */
+	.hw_info =	SNDRV_PCM_INFO_MMAP |
+			SNDRV_PCM_INFO_MMAP_VALID |
+			SNDRV_PCM_INFO_INTERLEAVED |
+			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_BATCH,
 };
 EXPORT_SYMBOL(sof_cht_ops);
 

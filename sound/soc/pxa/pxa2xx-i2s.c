@@ -360,9 +360,17 @@ static struct snd_soc_dai_driver pxa_i2s_dai = {
 
 static const struct snd_soc_component_driver pxa_i2s_component = {
 	.name		= "pxa-i2s",
-	.ops		= &pxa2xx_pcm_ops,
-	.pcm_new	= pxa2xx_soc_pcm_new,
-	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
+	.pcm_construct	= pxa2xx_soc_pcm_new,
+	.pcm_destruct	= pxa2xx_soc_pcm_free,
+	.open		= pxa2xx_soc_pcm_open,
+	.close		= pxa2xx_soc_pcm_close,
+	.ioctl		= snd_soc_pcm_lib_ioctl,
+	.hw_params	= pxa2xx_soc_pcm_hw_params,
+	.hw_free	= pxa2xx_soc_pcm_hw_free,
+	.prepare	= pxa2xx_soc_pcm_prepare,
+	.trigger	= pxa2xx_soc_pcm_trigger,
+	.pointer	= pxa2xx_soc_pcm_pointer,
+	.mmap		= pxa2xx_soc_pcm_mmap,
 };
 
 static int pxa2xx_i2s_drv_probe(struct platform_device *pdev)
