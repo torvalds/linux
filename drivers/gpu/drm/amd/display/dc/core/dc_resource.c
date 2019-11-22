@@ -1910,8 +1910,26 @@ static int acquire_resource_from_hw_enabled_state(
 		pipe_ctx->plane_res.dpp = pool->dpps[tg_inst];
 		pipe_ctx->stream_res.opp = pool->opps[tg_inst];
 
-		if (pool->dpps[tg_inst])
+		if (pool->dpps[tg_inst]) {
 			pipe_ctx->plane_res.mpcc_inst = pool->dpps[tg_inst]->inst;
+
+			// Read DPP->MPCC->OPP Pipe from HW State
+			if (pool->mpc->funcs->read_mpcc_state) {
+				struct mpcc_state s = {0};
+
+				pool->mpc->funcs->read_mpcc_state(pool->mpc, pipe_ctx->plane_res.mpcc_inst, &s);
+
+				if (s.dpp_id < MAX_MPCC)
+					pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].dpp_id = s.dpp_id;
+
+				if (s.bot_mpcc_id < MAX_MPCC)
+					pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].mpcc_bot =
+							&pool->mpc->mpcc_array[s.bot_mpcc_id];
+
+				if (s.opp_id < MAX_OPP)
+					pipe_ctx->stream_res.opp->mpc_tree_params.opp_id = s.opp_id;
+			}
+		}
 		pipe_ctx->pipe_idx = tg_inst;
 
 		pipe_ctx->stream = stream;

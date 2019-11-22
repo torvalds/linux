@@ -51,4 +51,8 @@ void dcn2_get_clock(struct clk_mgr *clk_mgr,
 			struct dc_clock_config *clock_cfg);
 
 void dcn20_update_clocks_update_dentist(struct clk_mgr_internal *clk_mgr);
+
+void dcn2_read_clocks_from_hw_dentist(struct clk_mgr *clk_mgr_base);
+
+
 #endif //__DCN20_CLK_MGR_H__

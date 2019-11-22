@@ -835,6 +835,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 			full_pipe_count,
 			dc->res_pool->stream_enc_count);
 
+	dc->optimize_seamless_boot_streams = 0;
 	dc->caps.max_links = dc->link_count;
 	dc->caps.max_audios = dc->res_pool->audio_count;
 	dc->caps.linear_pitch_alignment = 64;
@@ -1178,10 +1179,10 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	for (i = 0; i < context->stream_count; i++) {
 		if (context->streams[i]->apply_seamless_boot_optimization)
-			dc->optimize_seamless_boot = true;
+			dc->optimize_seamless_boot_streams++;
 	}
 
-	if (!dc->optimize_seamless_boot)
+	if (dc->optimize_seamless_boot_streams == 0)
 		dc->hwss.prepare_bandwidth(dc, context);
 
 	/* re-program planes for existing stream, in case we need to
@@ -1254,7 +1255,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
-	if (!dc->optimize_seamless_boot) {
+	if (dc->optimize_seamless_boot_streams == 0) {
 		/* Must wait for no flips to be pending before doing optimize bw */
 		wait_for_no_pipes_pending(dc, context);
 		/* pplib is notified if disp_num changed */
@@ -1300,7 +1301,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	int i;
 	struct dc_state *context = dc->current_state;
 
-	if (!dc->optimized_required || dc->optimize_seamless_boot)
+	if (!dc->optimized_required || dc->optimize_seamless_boot_streams > 0)
 		return true;
 
 	post_surface_trace(dc);
@@ -2084,7 +2085,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 					dc->hwss.optimize_bandwidth(dc, dc->current_state);
 				} else {
-					if (!dc->optimize_seamless_boot)
+					if (dc->optimize_seamless_boot_streams == 0)
 						dc->hwss.prepare_bandwidth(dc, dc->current_state);
 
 					core_link_enable_stream(dc->current_state, pipe_ctx);
@@ -2125,7 +2126,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
 
-	if (dc->optimize_seamless_boot && surface_count > 0) {
+	if (dc->optimize_seamless_boot_streams > 0 && surface_count > 0) {
 		/* Optimize seamless boot flag keeps clocks and watermarks high until
 		 * first flip. After first flip, optimization is required to lower
 		 * bandwidth. Important to note that it is expected UEFI will
@@ -2134,12 +2135,14 @@ static void commit_planes_for_stream(struct dc *dc,
 		 */
 		if (stream->apply_seamless_boot_optimization) {
 			stream->apply_seamless_boot_optimization = false;
-			dc->optimize_seamless_boot = false;
-			dc->optimized_required = true;
+			dc->optimize_seamless_boot_streams--;
+
+			if (dc->optimize_seamless_boot_streams == 0)
+				dc->optimized_required = true;
 		}
 	}
 
-	if (update_type == UPDATE_TYPE_FULL && !dc->optimize_seamless_boot) {
+	if (update_type == UPDATE_TYPE_FULL && dc->optimize_seamless_boot_streams == 0) {
 		dc->hwss.prepare_bandwidth(dc, context);
 		context_clock_trace(dc, context);
 	}
