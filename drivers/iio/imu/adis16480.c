@@ -947,14 +947,14 @@ static int adis16480_enable_irq(struct adis *adis, bool enable)
 	uint16_t val;
 	int ret;
 
-	ret = adis_read_reg_16(adis, ADIS16480_REG_FNCTIO_CTRL, &val);
+	ret = __adis_read_reg_16(adis, ADIS16480_REG_FNCTIO_CTRL, &val);
 	if (ret)
 		return ret;
 
 	val &= ~ADIS16480_DRDY_EN_MSK;
 	val |= ADIS16480_DRDY_EN(enable);
 
-	return adis_write_reg_16(adis, ADIS16480_REG_FNCTIO_CTRL, val);
+	return __adis_write_reg_16(adis, ADIS16480_REG_FNCTIO_CTRL, val);
 }
 
 static int adis16480_initial_setup(struct iio_dev *indio_dev)

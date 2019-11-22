@@ -250,12 +250,16 @@ int adis_enable_irq(struct adis *adis, bool enable)
 	int ret = 0;
 	uint16_t msc;
 
-	if (adis->data->enable_irq)
-		return adis->data->enable_irq(adis, enable);
+	mutex_lock(&adis->state_lock);
 
-	ret = adis_read_reg_16(adis, adis->data->msc_ctrl_reg, &msc);
+	if (adis->data->enable_irq) {
+		ret = adis->data->enable_irq(adis, enable);
+		goto out_unlock;
+	}
+
+	ret = __adis_read_reg_16(adis, adis->data->msc_ctrl_reg, &msc);
 	if (ret)
-		goto error_ret;
+		goto out_unlock;
 
 	msc |= ADIS_MSC_CTRL_DATA_RDY_POL_HIGH;
 	msc &= ~ADIS_MSC_CTRL_DATA_RDY_DIO2;
@@ -264,9 +268,10 @@ int adis_enable_irq(struct adis *adis, bool enable)
 	else
 		msc &= ~ADIS_MSC_CTRL_DATA_RDY_EN;
 
-	ret = adis_write_reg_16(adis, adis->data->msc_ctrl_reg, msc);
+	ret = __adis_write_reg_16(adis, adis->data->msc_ctrl_reg, msc);
 
-error_ret:
+out_unlock:
+	mutex_unlock(&adis->state_lock);
 	return ret;
 }
 EXPORT_SYMBOL(adis_enable_irq);
