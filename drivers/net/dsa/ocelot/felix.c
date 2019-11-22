@@ -348,8 +348,8 @@ static bool felix_rxtstamp(struct dsa_switch *ds, int port,
 	return false;
 }
 
-bool felix_txtstamp(struct dsa_switch *ds, int port,
-		    struct sk_buff *clone, unsigned int type)
+static bool felix_txtstamp(struct dsa_switch *ds, int port,
+			   struct sk_buff *clone, unsigned int type)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
