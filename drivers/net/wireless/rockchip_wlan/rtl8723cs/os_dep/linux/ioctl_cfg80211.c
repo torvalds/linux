@@ -3873,7 +3873,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 		sme->privacy, sme->key, sme->key_len, sme->key_idx, sme->auth_type);
 
 	if (rtw_check_connect_sae_compat(sme)) {
-		sme->auth_type = MLME_AUTHTYPE_SAE;
+		sme->auth_type = NL80211_AUTHTYPE_SAE;
 		psecuritypriv->auth_type = MLME_AUTHTYPE_SAE;
 		psecuritypriv->auth_alg = WLAN_AUTH_SAE;
 		RTW_INFO("%s set sme->auth_type for SAE compat\n", __FUNCTION__);
