@@ -21,9 +21,9 @@
 
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 
-#include "framebuffer.h"
 #include "psb_drv.h"
 #include "psb_reg.h"
 
@@ -226,8 +226,8 @@ static int psb_accel_2d_copy(struct drm_psb_private *dev_priv,
 static void psbfb_copyarea_accel(struct fb_info *info,
 				 const struct fb_copyarea *a)
 {
-	struct psb_fbdev *fbdev = info->par;
-	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
 	struct drm_device *dev = fb->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	uint32_t offset;
@@ -308,8 +308,8 @@ void psbfb_copyarea(struct fb_info *info,
  */
 int psbfb_sync(struct fb_info *info)
 {
-	struct psb_fbdev *fbdev = info->par;
-	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
 	struct drm_device *dev = fb->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long _end = jiffies + HZ;

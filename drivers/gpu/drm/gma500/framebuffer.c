@@ -40,8 +40,8 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
-	struct psb_fbdev *fbdev = info->par;
-	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
 	uint32_t v;
 
 	if (!fb)
@@ -77,8 +77,8 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	struct psb_fbdev *fbdev = info->par;
-	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
 	struct drm_device *dev = fb->dev;
 	struct gtt_range *gtt = to_gtt_range(fb->obj[0]);
 
@@ -145,8 +145,8 @@ static const struct vm_operations_struct psbfb_vm_ops = {
 
 static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
-	struct psb_fbdev *fbdev = info->par;
-	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
 
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
@@ -298,10 +298,10 @@ static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
  *
  *	Create a framebuffer to the specifications provided
  */
-static int psbfb_create(struct psb_fbdev *fbdev,
+static int psbfb_create(struct drm_fb_helper *fb_helper,
 				struct drm_fb_helper_surface_size *sizes)
 {
-	struct drm_device *dev = fbdev->psb_fb_helper.dev;
+	struct drm_device *dev = fb_helper->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
@@ -369,7 +369,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	memset(dev_priv->vram_addr + backing->offset, 0, size);
 
-	info = drm_fb_helper_alloc_fbi(&fbdev->psb_fb_helper);
+	info = drm_fb_helper_alloc_fbi(fb_helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
 		goto out;
@@ -383,7 +383,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		goto out;
 	}
 
-	fbdev->psb_fb_helper.fb = fb;
+	fb_helper->fb = fb;
 
 	if (dev_priv->ops->accel_2d && pitch_lines > 8)	/* 2D engine */
 		info->fbops = &psbfb_ops;
@@ -407,7 +407,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
 	}
 
-	drm_fb_helper_fill_info(info, &fbdev->psb_fb_helper, sizes);
+	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
 	info->fix.mmio_start = pci_resource_start(dev->pdev, 0);
 	info->fix.mmio_len = pci_resource_len(dev->pdev, 0);
@@ -448,12 +448,10 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 	return psb_framebuffer_create(dev, cmd, obj);
 }
 
-static int psbfb_probe(struct drm_fb_helper *helper,
+static int psbfb_probe(struct drm_fb_helper *fb_helper,
 				struct drm_fb_helper_surface_size *sizes)
 {
-	struct psb_fbdev *psb_fbdev =
-		container_of(helper, struct psb_fbdev, psb_fb_helper);
-	struct drm_device *dev = psb_fbdev->psb_fb_helper.dev;
+	struct drm_device *dev = fb_helper->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned int fb_size;
 	int bytespp;
@@ -474,20 +472,21 @@ static int psbfb_probe(struct drm_fb_helper *helper,
                 sizes->surface_depth = 16;
         }
 
-	return psbfb_create(psb_fbdev, sizes);
+	return psbfb_create(fb_helper, sizes);
 }
 
 static const struct drm_fb_helper_funcs psb_fb_helper_funcs = {
 	.fb_probe = psbfb_probe,
 };
 
-static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
+static int psb_fbdev_destroy(struct drm_device *dev,
+			     struct drm_fb_helper *fb_helper)
 {
-	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
+	struct drm_framebuffer *fb = fb_helper->fb;
 
-	drm_fb_helper_unregister_fbi(&fbdev->psb_fb_helper);
+	drm_fb_helper_unregister_fbi(fb_helper);
 
-	drm_fb_helper_fini(&fbdev->psb_fb_helper);
+	drm_fb_helper_fini(fb_helper);
 	drm_framebuffer_unregister_private(fb);
 	drm_framebuffer_cleanup(fb);
 
@@ -500,42 +499,41 @@ static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 
 int psb_fbdev_init(struct drm_device *dev)
 {
-	struct psb_fbdev *fbdev;
+	struct drm_fb_helper *fb_helper;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
 
-	fbdev = kzalloc(sizeof(struct psb_fbdev), GFP_KERNEL);
-	if (!fbdev) {
+	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
+	if (!fb_helper) {
 		dev_err(dev->dev, "no memory\n");
 		return -ENOMEM;
 	}
 
-	dev_priv->fbdev = fbdev;
+	dev_priv->fb_helper = fb_helper;
 
-	drm_fb_helper_prepare(dev, &fbdev->psb_fb_helper, &psb_fb_helper_funcs);
+	drm_fb_helper_prepare(dev, fb_helper, &psb_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, &fbdev->psb_fb_helper,
-				 INTELFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(dev, fb_helper, INTELFB_CONN_LIMIT);
 	if (ret)
 		goto free;
 
-	ret = drm_fb_helper_single_add_all_connectors(&fbdev->psb_fb_helper);
+	ret = drm_fb_helper_single_add_all_connectors(fb_helper);
 	if (ret)
 		goto fini;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(dev);
 
-	ret = drm_fb_helper_initial_config(&fbdev->psb_fb_helper, 32);
+	ret = drm_fb_helper_initial_config(fb_helper, 32);
 	if (ret)
 		goto fini;
 
 	return 0;
 
 fini:
-	drm_fb_helper_fini(&fbdev->psb_fb_helper);
+	drm_fb_helper_fini(fb_helper);
 free:
-	kfree(fbdev);
+	kfree(fb_helper);
 	return ret;
 }
 
@@ -543,12 +541,12 @@ static void psb_fbdev_fini(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (!dev_priv->fbdev)
+	if (!dev_priv->fb_helper)
 		return;
 
-	psb_fbdev_destroy(dev, dev_priv->fbdev);
-	kfree(dev_priv->fbdev);
-	dev_priv->fbdev = NULL;
+	psb_fbdev_destroy(dev, dev_priv->fb_helper);
+	kfree(dev_priv->fb_helper);
+	dev_priv->fb_helper = NULL;
 }
 
 static const struct drm_mode_config_funcs psb_mode_funcs = {

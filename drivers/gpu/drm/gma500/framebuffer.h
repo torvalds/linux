@@ -9,13 +9,7 @@
 #ifndef _FRAMEBUFFER_H_
 #define _FRAMEBUFFER_H_
 
-#include <drm/drm_fb_helper.h>
-
 #include "psb_drv.h"
-
-struct psb_fbdev {
-	struct drm_fb_helper psb_fb_helper; /* must be first */
-};
 
 extern int gma_connector_clones(struct drm_device *dev, int type_mask);
 
