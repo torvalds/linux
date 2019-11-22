@@ -3940,7 +3940,7 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	if (!OPTS_VALID(opts, bpf_object_open_opts))
 		return ERR_PTR(-EINVAL);
 
-	obj_name = OPTS_GET(opts, object_name, path);
+	obj_name = OPTS_GET(opts, object_name, NULL);
 	if (obj_buf) {
 		if (!obj_name) {
 			snprintf(tmp_name, sizeof(tmp_name), "%lx-%lx",
