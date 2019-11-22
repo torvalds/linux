@@ -772,6 +772,7 @@ struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
 	u8 dbqt;                    /* SGE Doorbell Queue Timer in use */
 	unsigned int dbqtimerix;    /* SGE Doorbell Queue Timer Index */
 	unsigned long tso;          /* # of TSO requests */
+	unsigned long uso;          /* # of USO requests */
 	unsigned long tx_cso;       /* # of Tx checksum offloads */
 	unsigned long vlan_ins;     /* # of Tx VLAN insertions */
 	unsigned long mapping_err;  /* # of I/O MMU packet mapping errors */

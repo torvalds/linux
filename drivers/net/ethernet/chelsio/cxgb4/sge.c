@@ -734,6 +734,8 @@ static inline int is_eth_imm(const struct sk_buff *skb, unsigned int chip_ver)
 	    chip_ver > CHELSIO_T5) {
 		hdrlen = sizeof(struct cpl_tx_tnl_lso);
 		hdrlen += sizeof(struct cpl_tx_pkt_core);
+	} else if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		return 0;
 	} else {
 		hdrlen = skb_shinfo(skb)->gso_size ?
 			 sizeof(struct cpl_tx_pkt_lso_core) : 0;
@@ -775,12 +777,20 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb,
 	 */
 	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1);
 	if (skb_shinfo(skb)->gso_size) {
-		if (skb->encapsulation && chip_ver > CHELSIO_T5)
+		if (skb->encapsulation && chip_ver > CHELSIO_T5) {
 			hdrlen = sizeof(struct fw_eth_tx_pkt_wr) +
 				 sizeof(struct cpl_tx_tnl_lso);
-		else
+		} else if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+			u32 pkt_hdrlen;
+
+			pkt_hdrlen = eth_get_headlen(skb->dev, skb->data,
+						     skb_headlen(skb));
+			hdrlen = sizeof(struct fw_eth_tx_eo_wr) +
+				 round_up(pkt_hdrlen, 16);
+		} else {
 			hdrlen = sizeof(struct fw_eth_tx_pkt_wr) +
 				 sizeof(struct cpl_tx_pkt_lso_core);
+		}
 
 		hdrlen += sizeof(struct cpl_tx_pkt_core);
 		flits += (hdrlen / sizeof(__be64));
@@ -1345,6 +1355,25 @@ static inline int cxgb4_validate_skb(struct sk_buff *skb,
 	return 0;
 }
 
+static void *write_eo_udp_wr(struct sk_buff *skb, struct fw_eth_tx_eo_wr *wr,
+			     u32 hdr_len)
+{
+	wr->u.udpseg.type = FW_ETH_TX_EO_TYPE_UDPSEG;
+	wr->u.udpseg.ethlen = skb_network_offset(skb);
+	wr->u.udpseg.iplen = cpu_to_be16(skb_network_header_len(skb));
+	wr->u.udpseg.udplen = sizeof(struct udphdr);
+	wr->u.udpseg.rtplen = 0;
+	wr->u.udpseg.r4 = 0;
+	if (skb_shinfo(skb)->gso_size)
+		wr->u.udpseg.mss = cpu_to_be16(skb_shinfo(skb)->gso_size);
+	else
+		wr->u.udpseg.mss = cpu_to_be16(skb->len - hdr_len);
+	wr->u.udpseg.schedpktsize = wr->u.udpseg.mss;
+	wr->u.udpseg.plen = cpu_to_be32(skb->len - hdr_len);
+
+	return (void *)(wr + 1);
+}
+
 /**
  *	cxgb4_eth_xmit - add a packet to an Ethernet Tx queue
  *	@skb: the packet
@@ -1357,14 +1386,15 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	enum cpl_tx_tnl_lso_type tnl_type = TX_TNL_TYPE_OPAQUE;
 	bool ptp_enabled = is_ptp_enabled(skb, dev);
 	unsigned int last_desc, flits, ndesc;
+	u32 wr_mid, ctrl0, op, sgl_off = 0;
 	const struct skb_shared_info *ssi;
+	int len, qidx, credits, ret, left;
 	struct tx_sw_desc *sgl_sdesc;
+	struct fw_eth_tx_eo_wr *eowr;
 	struct fw_eth_tx_pkt_wr *wr;
 	struct cpl_tx_pkt_core *cpl;
-	int len, qidx, credits, ret;
 	const struct port_info *pi;
 	bool immediate = false;
-	u32 wr_mid, ctrl0, op;
 	u64 cntrl, *end, *sgl;
 	struct sge_eth_txq *q;
 	unsigned int chip_ver;
@@ -1469,13 +1499,17 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	wr = (void *)&q->q.desc[q->q.pidx];
+	eowr = (void *)&q->q.desc[q->q.pidx];
 	wr->equiq_to_len16 = htonl(wr_mid);
 	wr->r3 = cpu_to_be64(0);
-	end = (u64 *)wr + flits;
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+		end = (u64 *)eowr + flits;
+	else
+		end = (u64 *)wr + flits;
 
 	len = immediate ? skb->len : 0;
 	len += sizeof(*cpl);
-	if (ssi->gso_size) {
+	if (ssi->gso_size && !(ssi->gso_type & SKB_GSO_UDP_L4)) {
 		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
 		struct cpl_tx_tnl_lso *tnl_lso = (void *)(wr + 1);
 
@@ -1507,19 +1541,28 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 			cntrl = hwcsum(adap->params.chip, skb);
 		}
 		sgl = (u64 *)(cpl + 1); /* sgl start here */
-		if (unlikely((u8 *)sgl >= (u8 *)q->q.stat)) {
-			/* If current position is already at the end of the
-			 * txq, reset the current to point to start of the queue
-			 * and update the end ptr as well.
-			 */
-			if (sgl == (u64 *)q->q.stat) {
-				int left = (u8 *)end - (u8 *)q->q.stat;
-
-				end = (void *)q->q.desc + left;
-				sgl = (void *)q->q.desc;
-			}
-		}
 		q->tso++;
+		q->tx_cso += ssi->gso_segs;
+	} else if (ssi->gso_size) {
+		u64 *start;
+		u32 hdrlen;
+
+		hdrlen = eth_get_headlen(dev, skb->data, skb_headlen(skb));
+		len += hdrlen;
+		wr->op_immdlen = cpu_to_be32(FW_WR_OP_V(FW_ETH_TX_EO_WR) |
+					     FW_ETH_TX_EO_WR_IMMDLEN_V(len));
+		cpl = write_eo_udp_wr(skb, eowr, hdrlen);
+		cntrl = hwcsum(adap->params.chip, skb);
+
+		start = (u64 *)(cpl + 1);
+		sgl = (u64 *)inline_tx_skb_header(skb, &q->q, (void *)start,
+						  hdrlen);
+		if (unlikely(start > sgl)) {
+			left = (u8 *)end - (u8 *)q->q.stat;
+			end = (void *)q->q.desc + left;
+		}
+		sgl_off = hdrlen;
+		q->uso++;
 		q->tx_cso += ssi->gso_segs;
 	} else {
 		if (ptp_enabled)
@@ -1535,6 +1578,16 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 				TXPKT_IPCSUM_DIS_F;
 			q->tx_cso++;
 		}
+	}
+
+	if (unlikely((u8 *)sgl >= (u8 *)q->q.stat)) {
+		/* If current position is already at the end of the
+		 * txq, reset the current to point to start of the queue
+		 * and update the end ptr as well.
+		 */
+		left = (u8 *)end - (u8 *)q->q.stat;
+		end = (void *)q->q.desc + left;
+		sgl = (void *)q->q.desc;
 	}
 
 	if (skb_vlan_tag_present(skb)) {
@@ -1566,7 +1619,7 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		cxgb4_inline_tx_skb(skb, &q->q, sgl);
 		dev_consume_skb_any(skb);
 	} else {
-		cxgb4_write_sgl(skb, &q->q, (void *)sgl, end, 0,
+		cxgb4_write_sgl(skb, &q->q, (void *)sgl, end, sgl_off,
 				sgl_sdesc->addr);
 		skb_orphan(skb);
 		sgl_sdesc->skb = skb;
@@ -2024,7 +2077,8 @@ static inline u8 ethofld_calc_tx_flits(struct adapter *adap,
 	u32 wrlen;
 
 	wrlen = sizeof(struct fw_eth_tx_eo_wr) + sizeof(struct cpl_tx_pkt_core);
-	if (skb_shinfo(skb)->gso_size)
+	if (skb_shinfo(skb)->gso_size &&
+	    !(skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4))
 		wrlen += sizeof(struct cpl_tx_pkt_lso_core);
 
 	wrlen += roundup(hdr_len, 16);
@@ -2032,10 +2086,14 @@ static inline u8 ethofld_calc_tx_flits(struct adapter *adap,
 	/* Packet headers + WR + CPLs */
 	flits = DIV_ROUND_UP(wrlen, 8);
 
-	if (skb_shinfo(skb)->nr_frags > 0)
-		nsgl = sgl_len(skb_shinfo(skb)->nr_frags);
-	else if (skb->len - hdr_len)
+	if (skb_shinfo(skb)->nr_frags > 0) {
+		if (skb_headlen(skb) - hdr_len)
+			nsgl = sgl_len(skb_shinfo(skb)->nr_frags + 1);
+		else
+			nsgl = sgl_len(skb_shinfo(skb)->nr_frags);
+	} else if (skb->len - hdr_len) {
 		nsgl = sgl_len(1);
+	}
 
 	return flits + nsgl;
 }
@@ -2049,16 +2107,16 @@ static inline void *write_eo_wr(struct adapter *adap,
 	struct cpl_tx_pkt_core *cpl;
 	u32 immd_len, wrlen16;
 	bool compl = false;
+	u8 ver, proto;
+
+	ver = ip_hdr(skb)->version;
+	proto = (ver == 6) ? ipv6_hdr(skb)->nexthdr : ip_hdr(skb)->protocol;
 
 	wrlen16 = DIV_ROUND_UP(wrlen, 16);
 	immd_len = sizeof(struct cpl_tx_pkt_core);
-	if (skb_shinfo(skb)->gso_size) {
-		if (skb->encapsulation &&
-		    CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5)
-			immd_len += sizeof(struct cpl_tx_tnl_lso);
-		else
-			immd_len += sizeof(struct cpl_tx_pkt_lso_core);
-	}
+	if (skb_shinfo(skb)->gso_size &&
+	    !(skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4))
+		immd_len += sizeof(struct cpl_tx_pkt_lso_core);
 	immd_len += hdr_len;
 
 	if (!eosw_txq->ncompl ||
@@ -2074,23 +2132,27 @@ static inline void *write_eo_wr(struct adapter *adap,
 	wr->equiq_to_len16 = cpu_to_be32(FW_WR_LEN16_V(wrlen16) |
 					 FW_WR_FLOWID_V(eosw_txq->hwtid));
 	wr->r3 = 0;
-	wr->u.tcpseg.type = FW_ETH_TX_EO_TYPE_TCPSEG;
-	wr->u.tcpseg.ethlen = skb_network_offset(skb);
-	wr->u.tcpseg.iplen = cpu_to_be16(skb_network_header_len(skb));
-	wr->u.tcpseg.tcplen = tcp_hdrlen(skb);
-	wr->u.tcpseg.tsclk_tsoff = 0;
-	wr->u.tcpseg.r4 = 0;
-	wr->u.tcpseg.r5 = 0;
-	wr->u.tcpseg.plen = cpu_to_be32(skb->len - hdr_len);
-
-	if (ssi->gso_size) {
-		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
-
-		wr->u.tcpseg.mss = cpu_to_be16(ssi->gso_size);
-		cpl = write_tso_wr(adap, skb, lso);
+	if (proto == IPPROTO_UDP) {
+		cpl = write_eo_udp_wr(skb, wr, hdr_len);
 	} else {
-		wr->u.tcpseg.mss = cpu_to_be16(0xffff);
-		cpl = (void *)(wr + 1);
+		wr->u.tcpseg.type = FW_ETH_TX_EO_TYPE_TCPSEG;
+		wr->u.tcpseg.ethlen = skb_network_offset(skb);
+		wr->u.tcpseg.iplen = cpu_to_be16(skb_network_header_len(skb));
+		wr->u.tcpseg.tcplen = tcp_hdrlen(skb);
+		wr->u.tcpseg.tsclk_tsoff = 0;
+		wr->u.tcpseg.r4 = 0;
+		wr->u.tcpseg.r5 = 0;
+		wr->u.tcpseg.plen = cpu_to_be32(skb->len - hdr_len);
+
+		if (ssi->gso_size) {
+			struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
+
+			wr->u.tcpseg.mss = cpu_to_be16(ssi->gso_size);
+			cpl = write_tso_wr(adap, skb, lso);
+		} else {
+			wr->u.tcpseg.mss = cpu_to_be16(0xffff);
+			cpl = (void *)(wr + 1);
+		}
 	}
 
 	eosw_txq->cred -= wrlen16;
@@ -4312,7 +4374,10 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	txq->q.q_type = CXGB4_TXQ_ETH;
 	init_txq(adap, &txq->q, FW_EQ_ETH_CMD_EQID_G(ntohl(c.eqid_pkd)));
 	txq->txq = netdevq;
-	txq->tso = txq->tx_cso = txq->vlan_ins = 0;
+	txq->tso = 0;
+	txq->uso = 0;
+	txq->tx_cso = 0;
+	txq->vlan_ins = 0;
 	txq->mapping_err = 0;
 	txq->dbqt = dbqt;
 

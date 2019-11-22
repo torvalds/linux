@@ -2748,6 +2748,7 @@ do { \
 		RL("RxDrops:", stats.rx_drops);
 		RL("RxBadPkts:", stats.bad_rx_pkts);
 		TL("TSO:", tso);
+		TL("USO:", uso);
 		TL("TxCSO:", tx_cso);
 		TL("VLANins:", vlan_ins);
 		TL("TxQFull:", q.stops);

@@ -91,6 +91,7 @@ static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"rx_bg3_frames_trunc    ",
 
 	"tso                    ",
+	"uso                    ",
 	"tx_csum_offload        ",
 	"rx_csum_good           ",
 	"vlan_extractions       ",
@@ -220,6 +221,7 @@ static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
  */
 struct queue_port_stats {
 	u64 tso;
+	u64 uso;
 	u64 tx_csum;
 	u64 rx_csum;
 	u64 vlan_ex;
@@ -247,6 +249,7 @@ static void collect_sge_port_stats(const struct adapter *adap,
 	memset(s, 0, sizeof(*s));
 	for (i = 0; i < p->nqsets; i++, rx++, tx++) {
 		s->tso += tx->tso;
+		s->uso += tx->uso;
 		s->tx_csum += tx->tx_cso;
 		s->rx_csum += rx->stats.rx_cso;
 		s->vlan_ex += rx->stats.vlan_ex;

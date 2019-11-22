@@ -1136,11 +1136,17 @@ static u16 cxgb_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 	if (dev->num_tc) {
 		struct port_info *pi = netdev2pinfo(dev);
+		u8 ver, proto;
+
+		ver = ip_hdr(skb)->version;
+		proto = (ver == 6) ? ipv6_hdr(skb)->nexthdr :
+				     ip_hdr(skb)->protocol;
 
 		/* Send unsupported traffic pattern to normal NIC queues. */
 		txq = netdev_pick_tx(dev, skb, sb_dev);
 		if (xfrm_offload(skb) || is_ptp_enabled(skb, dev) ||
-		    ip_hdr(skb)->protocol != IPPROTO_TCP)
+		    skb->encapsulation ||
+		    (proto != IPPROTO_TCP && proto != IPPROTO_UDP))
 			txq = txq % pi->nqsets;
 
 		return txq;
@@ -5838,7 +5844,8 @@ static void free_some_resources(struct adapter *adapter)
 		t4_fw_bye(adapter, adapter->pf);
 }
 
-#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
+#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN | \
+		   NETIF_F_GSO_UDP_L4)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
 		   NETIF_F_GRO | NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 #define SEGMENT_SIZE 128
