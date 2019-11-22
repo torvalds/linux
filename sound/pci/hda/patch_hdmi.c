@@ -2361,8 +2361,8 @@ static void generic_hdmi_free(struct hda_codec *codec)
 		snd_hdac_acomp_exit(&codec->bus->core);
 	} else if (codec_has_acomp(codec)) {
 		snd_hdac_acomp_register_notifier(&codec->bus->core, NULL);
-		codec->relaxed_resume = 0;
 	}
+	codec->relaxed_resume = 0;
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
@@ -3573,8 +3573,6 @@ static int patch_nvhdmi_legacy(struct hda_codec *codec)
 	spec->chmap.ops.chmap_validate = nvhdmi_chmap_validate;
 
 	codec->link_down_at_suspend = 1;
-
-	generic_acomp_init(codec, &nvhdmi_audio_ops, nvhdmi_port2pin);
 
 	return 0;
 }
