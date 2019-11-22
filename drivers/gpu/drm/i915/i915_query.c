@@ -103,15 +103,18 @@ query_engine_info(struct drm_i915_private *i915,
 	struct drm_i915_engine_info __user *info_ptr;
 	struct drm_i915_query_engine_info query;
 	struct drm_i915_engine_info info = { };
+	unsigned int num_uabi_engines = 0;
 	struct intel_engine_cs *engine;
 	int len, ret;
 
 	if (query_item->flags)
 		return -EINVAL;
 
+	for_each_uabi_engine(engine, i915)
+		num_uabi_engines++;
+
 	len = sizeof(struct drm_i915_query_engine_info) +
-	      RUNTIME_INFO(i915)->num_engines *
-	      sizeof(struct drm_i915_engine_info);
+	      num_uabi_engines * sizeof(struct drm_i915_engine_info);
 
 	ret = copy_query_item(&query, sizeof(query), len, query_item);
 	if (ret != 0)
