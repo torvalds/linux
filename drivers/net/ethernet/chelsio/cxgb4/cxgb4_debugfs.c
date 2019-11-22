@@ -2797,6 +2797,7 @@ do { \
 		RL("RxAN", stats.an);
 		RL("RxNoMem", stats.nomem);
 		TL("TSO:", tso);
+		TL("USO:", uso);
 		TL("TxCSO:", tx_cso);
 		TL("VLANins:", vlan_ins);
 		TL("TxQFull:", q.stops);

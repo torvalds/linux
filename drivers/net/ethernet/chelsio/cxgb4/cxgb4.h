@@ -850,6 +850,7 @@ struct sge_eohw_txq {
 	struct sge_txq q; /* HW Txq */
 	struct adapter *adap; /* Backpointer to adapter */
 	unsigned long tso; /* # of TSO requests */
+	unsigned long uso; /* # of USO requests */
 	unsigned long tx_cso; /* # of Tx checksum offloads */
 	unsigned long vlan_ins; /* # of Tx VLAN insertions */
 	unsigned long mapping_err; /* # of I/O MMU packet mapping errors */

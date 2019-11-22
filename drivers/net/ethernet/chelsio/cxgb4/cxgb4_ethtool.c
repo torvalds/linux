@@ -242,9 +242,10 @@ static void collect_sge_port_stats(const struct adapter *adap,
 				   const struct port_info *p,
 				   struct queue_port_stats *s)
 {
-	int i;
 	const struct sge_eth_txq *tx = &adap->sge.ethtxq[p->first_qset];
 	const struct sge_eth_rxq *rx = &adap->sge.ethrxq[p->first_qset];
+	struct sge_eohw_txq *eohw_tx;
+	unsigned int i;
 
 	memset(s, 0, sizeof(*s));
 	for (i = 0; i < p->nqsets; i++, rx++, tx++) {
@@ -256,6 +257,16 @@ static void collect_sge_port_stats(const struct adapter *adap,
 		s->vlan_ins += tx->vlan_ins;
 		s->gro_pkts += rx->stats.lro_pkts;
 		s->gro_merged += rx->stats.lro_merged;
+	}
+
+	if (adap->sge.eohw_txq) {
+		eohw_tx = &adap->sge.eohw_txq[p->first_qset];
+		for (i = 0; i < p->nqsets; i++, eohw_tx++) {
+			s->tso += eohw_tx->tso;
+			s->uso += eohw_tx->uso;
+			s->tx_csum += eohw_tx->tx_cso;
+			s->vlan_ins += eohw_tx->vlan_ins;
+		}
 	}
 }
 

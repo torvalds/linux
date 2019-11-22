@@ -2262,6 +2262,19 @@ write_wr_headers:
 				d->addr);
 	}
 
+	if (skb_shinfo(skb)->gso_size) {
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+			eohw_txq->uso++;
+		else
+			eohw_txq->tso++;
+		eohw_txq->tx_cso += skb_shinfo(skb)->gso_segs;
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		eohw_txq->tx_cso++;
+	}
+
+	if (skb_vlan_tag_present(skb))
+		eohw_txq->vlan_ins++;
+
 	txq_advance(&eohw_txq->q, ndesc);
 	cxgb4_ring_tx_db(adap, &eohw_txq->q, ndesc);
 	eosw_txq_advance_index(&eosw_txq->last_pidx, 1, eosw_txq->ndesc);
@@ -4546,6 +4559,7 @@ int t4_sge_alloc_ethofld_txq(struct adapter *adap, struct sge_eohw_txq *txq,
 	spin_lock_init(&txq->lock);
 	txq->adap = adap;
 	txq->tso = 0;
+	txq->uso = 0;
 	txq->tx_cso = 0;
 	txq->vlan_ins = 0;
 	txq->mapping_err = 0;
