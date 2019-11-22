@@ -1816,6 +1816,7 @@ vm_fault_t vmf_insert_mixed_prot(struct vm_area_struct *vma, unsigned long addr,
 {
 	return __vm_insert_mixed(vma, addr, pfn, pgprot, false);
 }
+EXPORT_SYMBOL(vmf_insert_mixed_prot);
 
 vm_fault_t vmf_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
 		pfn_t pfn)
