@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/wait.h>
+#include <asm/irq.h>
+#include <asm/delay.h>
 
 #define BT_BUF_SIZE (PAGE_SIZE * 4)
 
@@ -100,10 +102,14 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 /* State of the task being unwound. */
 struct unwindme {
 	int flags;
+	int ret;
+	struct task_struct *task;
 	struct completion task_ready;
 	wait_queue_head_t task_wq;
 	unsigned long sp;
 };
+
+static struct unwindme *unwindme;
 
 /* Values of unwindme.flags. */
 #define UWM_DEFAULT		0x0
@@ -112,6 +118,7 @@ struct unwindme {
 #define UWM_SP			0x4	/* Pass sp to test_unwind(). */
 #define UWM_CALLER		0x8	/* Unwind starting from caller. */
 #define UWM_SWITCH_STACK	0x10	/* Use CALL_ON_STACK. */
+#define UWM_IRQ			0x20	/* Unwind from irq context. */
 
 static __always_inline unsigned long get_psw_addr(void)
 {
@@ -173,6 +180,34 @@ static noinline int unwindme_func1(void *u)
 	return unwindme_func2((struct unwindme *)u);
 }
 
+static void unwindme_irq_handler(struct ext_code ext_code,
+				       unsigned int param32,
+				       unsigned long param64)
+{
+	struct unwindme *u = READ_ONCE(unwindme);
+
+	if (u && u->task == current) {
+		unwindme = NULL;
+		u->task = NULL;
+		u->ret = unwindme_func1(u);
+	}
+}
+
+static int test_unwind_irq(struct unwindme *u)
+{
+	preempt_disable();
+	if (register_external_irq(EXT_IRQ_CLK_COMP, unwindme_irq_handler)) {
+		pr_info("Couldn't reqister external interrupt handler");
+		return -1;
+	}
+	u->task = current;
+	unwindme = u;
+	udelay(1);
+	unregister_external_irq(EXT_IRQ_CLK_COMP, unwindme_irq_handler);
+	preempt_enable();
+	return u->ret;
+}
+
 /* Spawns a task and passes it to test_unwind(). */
 static int test_unwind_task(struct unwindme *u)
 {
@@ -211,6 +246,8 @@ static int test_unwind_flags(int flags)
 	u.flags = flags;
 	if (u.flags & UWM_THREAD)
 		return test_unwind_task(&u);
+	else if (u.flags & UWM_IRQ)
+		return test_unwind_irq(&u);
 	else
 		return unwindme_func1(&u);
 }
@@ -241,6 +278,14 @@ do {									\
 	TEST(UWM_THREAD);
 	TEST(UWM_THREAD | UWM_SP);
 	TEST(UWM_THREAD | UWM_CALLER | UWM_SP);
+	TEST(UWM_IRQ);
+	TEST(UWM_IRQ | UWM_SWITCH_STACK);
+	TEST(UWM_IRQ | UWM_SP);
+	TEST(UWM_IRQ | UWM_REGS);
+	TEST(UWM_IRQ | UWM_SP | UWM_REGS);
+	TEST(UWM_IRQ | UWM_CALLER | UWM_SP);
+	TEST(UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS);
+	TEST(UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK);
 #undef TEST
 
 	return ret;
