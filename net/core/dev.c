@@ -5586,7 +5586,7 @@ static struct list_head *gro_list_prepare(struct napi_struct *napi,
 		diffs = (unsigned long)p->dev ^ (unsigned long)skb->dev;
 		diffs |= skb_vlan_tag_present(p) ^ skb_vlan_tag_present(skb);
 		if (skb_vlan_tag_present(p))
-			diffs |= p->vlan_tci ^ skb->vlan_tci;
+			diffs |= skb_vlan_tag_get(p) ^ skb_vlan_tag_get(skb);
 		diffs |= skb_metadata_dst_cmp(p, skb);
 		diffs |= skb_metadata_differs(p, skb);
 		if (maclen == ETH_HLEN)
