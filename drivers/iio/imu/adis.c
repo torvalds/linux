@@ -404,15 +404,15 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 	unsigned int uval;
 	int ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&adis->state_lock);
 
-	ret = adis_read_reg(adis, chan->address, &uval,
+	ret = __adis_read_reg(adis, chan->address, &uval,
 			chan->scan_type.storagebits / 8);
 	if (ret)
 		goto err_unlock;
 
 	if (uval & error_mask) {
-		ret = adis_check_status(adis);
+		ret = __adis_check_status(adis);
 		if (ret)
 			goto err_unlock;
 	}
@@ -424,7 +424,7 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 
 	ret = IIO_VAL_INT;
 err_unlock:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&adis->state_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(adis_single_conversion);
