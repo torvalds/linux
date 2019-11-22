@@ -952,8 +952,7 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 			 * buffer extents
 			 */
 			sfb_account_overflows(cpuhw, hwc);
-			if (sfb_has_pending_allocs(&cpuhw->sfb, hwc))
-				extend_sampling_buffer(&cpuhw->sfb, hwc);
+			extend_sampling_buffer(&cpuhw->sfb, hwc);
 		}
 		/* Rate may be adjusted with ioctl() */
 		cpuhw->lsctl.interval = SAMPL_RATE(&cpuhw->event->hw);
