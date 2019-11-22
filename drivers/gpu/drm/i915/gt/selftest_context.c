@@ -48,20 +48,22 @@ static int context_sync(struct intel_context *ce)
 
 	mutex_lock(&tl->mutex);
 	do {
-		struct dma_fence *fence;
+		struct i915_request *rq;
 		long timeout;
 
-		fence = i915_active_fence_get(&tl->last_request);
-		if (!fence)
+		if (list_empty(&tl->requests))
 			break;
 
-		timeout = dma_fence_wait_timeout(fence, false, HZ / 10);
+		rq = list_last_entry(&tl->requests, typeof(*rq), link);
+		i915_request_get(rq);
+
+		timeout = i915_request_wait(rq, 0, HZ / 10);
 		if (timeout < 0)
 			err = timeout;
 		else
-			i915_request_retire_upto(to_request(fence));
+			i915_request_retire_upto(rq);
 
-		dma_fence_put(fence);
+		i915_request_put(rq);
 	} while (!err);
 	mutex_unlock(&tl->mutex);
 
@@ -273,6 +275,7 @@ out_engine:
 	if (err)
 		goto err;
 
+	/* Wait for the barrier and in the process wait for engine to park */
 	err = context_sync(engine->kernel_context);
 	if (err)
 		goto err;
@@ -281,6 +284,8 @@ out_engine:
 		pr_err("context is still active!");
 		err = -EINVAL;
 	}
+
+	intel_engine_pm_flush(engine);
 
 	if (intel_engine_pm_is_awake(engine)) {
 		struct drm_printer p = drm_debug_printer(__func__);
