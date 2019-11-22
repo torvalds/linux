@@ -61,7 +61,8 @@ static inline void unwind_start(struct unwind_state *state,
 				struct pt_regs *regs,
 				unsigned long sp)
 {
-	sp = sp ? : get_stack_pointer(task, regs);
+	task = task ?: current;
+	sp = sp ?: get_stack_pointer(task, regs);
 	__unwind_start(state, task, regs, sp);
 }
 
