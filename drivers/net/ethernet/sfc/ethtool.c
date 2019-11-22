@@ -56,6 +56,9 @@ static u64 efx_get_atomic_stat(void *field)
 #define EFX_ETHTOOL_UINT_CHANNEL_STAT(field)			\
 	EFX_ETHTOOL_STAT(field, channel, n_##field,		\
 			 unsigned int, efx_get_uint_stat)
+#define EFX_ETHTOOL_UINT_CHANNEL_STAT_NO_N(field)		\
+	EFX_ETHTOOL_STAT(field, channel, field,			\
+			 unsigned int, efx_get_uint_stat)
 
 #define EFX_ETHTOOL_UINT_TXQ_STAT(field)			\
 	EFX_ETHTOOL_STAT(tx_##field, tx_queue, field,		\
@@ -87,6 +90,9 @@ static const struct efx_sw_stat_desc efx_sw_stat_desc[] = {
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_xdp_bad_drops),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_xdp_tx),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_xdp_redirect),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT_NO_N(rfs_filter_count),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rfs_succeeded),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rfs_failed),
 };
 
 #define EFX_ETHTOOL_SW_STAT_COUNT ARRAY_SIZE(efx_sw_stat_desc)

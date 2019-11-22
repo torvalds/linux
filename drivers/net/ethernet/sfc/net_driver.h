@@ -444,6 +444,8 @@ enum efx_sync_events_state {
  * @rfs_last_expiry: value of jiffies last time some accelerated RFS filters
  *	were checked for expiry
  * @rfs_expire_index: next accelerated RFS filter ID to check for expiry
+ * @n_rfs_succeeded: number of successful accelerated RFS filter insertions
+ * @n_rfs_failed; number of failed accelerated RFS filter insertions
  * @filter_work: Work item for efx_filter_rfs_expire()
  * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
  *      indexed by filter ID
@@ -497,6 +499,8 @@ struct efx_channel {
 	unsigned int rfs_filter_count;
 	unsigned int rfs_last_expiry;
 	unsigned int rfs_expire_index;
+	unsigned int n_rfs_succeeded;
+	unsigned int n_rfs_failed;
 	struct work_struct filter_work;
 #define RPS_FLOW_ID_INVALID 0xFFFFFFFF
 	u32 *rps_flow_id;

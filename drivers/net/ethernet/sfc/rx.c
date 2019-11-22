@@ -1032,6 +1032,7 @@ static void efx_filter_rfs_work(struct work_struct *data)
 				   req->spec.rem_host, ntohs(req->spec.rem_port),
 				   req->spec.loc_host, ntohs(req->spec.loc_port),
 				   req->rxq_index, req->flow_id, rc, arfs_id);
+		channel->n_rfs_succeeded++;
 	} else {
 		if (req->spec.ether_type == htons(ETH_P_IP))
 			netif_dbg(efx, rx_status, efx->net_dev,
@@ -1047,6 +1048,7 @@ static void efx_filter_rfs_work(struct work_struct *data)
 				  req->spec.rem_host, ntohs(req->spec.rem_port),
 				  req->spec.loc_host, ntohs(req->spec.loc_port),
 				  req->rxq_index, req->flow_id, rc, arfs_id);
+		channel->n_rfs_failed++;
 		/* We're overloading the NIC's filter tables, so let's do a
 		 * chunk of extra expiry work.
 		 */
