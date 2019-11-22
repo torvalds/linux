@@ -437,8 +437,6 @@
 			no delay (0).
 			Format: integer
 
-	bootmem_debug	[KNL] Enable bootmem allocator debug messages.
-
 	bert_disable	[ACPI]
 			Disable BERT OS support on buggy BIOSes.
 
