@@ -1783,41 +1783,41 @@ static bool dcn21_resource_construct(
 		if ((pipe_fuses & (1 << i)) != 0)
 			continue;
 
-		pool->base.hubps[i] = dcn21_hubp_create(ctx, i);
-		if (pool->base.hubps[i] == NULL) {
+		pool->base.hubps[j] = dcn21_hubp_create(ctx, i);
+		if (pool->base.hubps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create memory input!\n");
 			goto create_fail;
 		}
 
-		pool->base.ipps[i] = dcn21_ipp_create(ctx, i);
-		if (pool->base.ipps[i] == NULL) {
+		pool->base.ipps[j] = dcn21_ipp_create(ctx, i);
+		if (pool->base.ipps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create input pixel processor!\n");
 			goto create_fail;
 		}
 
-		pool->base.dpps[i] = dcn21_dpp_create(ctx, i);
-		if (pool->base.dpps[i] == NULL) {
+		pool->base.dpps[j] = dcn21_dpp_create(ctx, i);
+		if (pool->base.dpps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create dpps!\n");
 			goto create_fail;
 		}
 
-		pool->base.opps[i] = dcn21_opp_create(ctx, i);
-		if (pool->base.opps[i] == NULL) {
+		pool->base.opps[j] = dcn21_opp_create(ctx, i);
+		if (pool->base.opps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create output pixel processor!\n");
 			goto create_fail;
 		}
 
-		pool->base.timing_generators[i] = dcn21_timing_generator_create(
+		pool->base.timing_generators[j] = dcn21_timing_generator_create(
 				ctx, i);
-		if (pool->base.timing_generators[i] == NULL) {
+		if (pool->base.timing_generators[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error("DC: failed to create tg!\n");
 			goto create_fail;
