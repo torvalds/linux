@@ -501,7 +501,7 @@ struct efx_channel {
 	unsigned int rfs_expire_index;
 	unsigned int n_rfs_succeeded;
 	unsigned int n_rfs_failed;
-	struct work_struct filter_work;
+	struct delayed_work filter_work;
 #define RPS_FLOW_ID_INVALID 0xFFFFFFFF
 	u32 *rps_flow_id;
 #endif

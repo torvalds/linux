@@ -355,7 +355,7 @@ static int efx_poll(struct napi_struct *napi, int budget)
 
 #ifdef CONFIG_RFS_ACCEL
 		/* Perhaps expire some ARFS filters */
-		schedule_work(&channel->filter_work);
+		mod_delayed_work(system_wq, &channel->filter_work, 0);
 #endif
 
 		/* There is no race here; although napi_disable() will
@@ -487,7 +487,7 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 	}
 
 #ifdef CONFIG_RFS_ACCEL
-	INIT_WORK(&channel->filter_work, efx_filter_rfs_expire);
+	INIT_DELAYED_WORK(&channel->filter_work, efx_filter_rfs_expire);
 #endif
 
 	rx_queue = &channel->rx_queue;
@@ -533,7 +533,7 @@ efx_copy_channel(const struct efx_channel *old_channel)
 	memset(&rx_queue->rxd, 0, sizeof(rx_queue->rxd));
 	timer_setup(&rx_queue->slow_fill, efx_rx_slow_fill, 0);
 #ifdef CONFIG_RFS_ACCEL
-	INIT_WORK(&channel->filter_work, efx_filter_rfs_expire);
+	INIT_DELAYED_WORK(&channel->filter_work, efx_filter_rfs_expire);
 #endif
 
 	return channel;
@@ -1994,7 +1994,7 @@ static void efx_remove_filters(struct efx_nic *efx)
 	struct efx_channel *channel;
 
 	efx_for_each_channel(channel, efx) {
-		flush_work(&channel->filter_work);
+		cancel_delayed_work_sync(&channel->filter_work);
 		kfree(channel->rps_flow_id);
 	}
 #endif
