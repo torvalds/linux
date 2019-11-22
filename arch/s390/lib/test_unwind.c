@@ -71,6 +71,10 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 	}
 
 	/* Check the results. */
+	if (unwind_error(&state)) {
+		pr_err("unwind error\n");
+		ret = -EINVAL;
+	}
 	if (!seen_func2_func1) {
 		pr_err("unwindme_func2 and unwindme_func1 not found\n");
 		ret = -EINVAL;
