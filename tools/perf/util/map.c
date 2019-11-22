@@ -433,51 +433,6 @@ int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 	return ret;
 }
 
-int map__fprintf_srccode(struct map *map, u64 addr,
-			 FILE *fp,
-			 struct srccode_state *state)
-{
-	char *srcfile;
-	int ret = 0;
-	unsigned line;
-	int len;
-	char *srccode;
-
-	if (!map || !map->dso)
-		return 0;
-	srcfile = get_srcline_split(map->dso,
-				    map__rip_2objdump(map, addr),
-				    &line);
-	if (!srcfile)
-		return 0;
-
-	/* Avoid redundant printing */
-	if (state &&
-	    state->srcfile &&
-	    !strcmp(state->srcfile, srcfile) &&
-	    state->line == line) {
-		free(srcfile);
-		return 0;
-	}
-
-	srccode = find_sourceline(srcfile, line, &len);
-	if (!srccode)
-		goto out_free_line;
-
-	ret = fprintf(fp, "|%-8d %.*s", line, len, srccode);
-
-	if (state) {
-		state->srcfile = srcfile;
-		state->line = line;
-	}
-	return ret;
-
-out_free_line:
-	free(srcfile);
-	return ret;
-}
-
-
 void srccode_state_free(struct srccode_state *state)
 {
 	zfree(&state->srcfile);
