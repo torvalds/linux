@@ -3587,12 +3587,23 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+			goto out;
 		} else {
-			ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+			ql_dbg(ql_dbg_disc, vha, 0xffff,
 			    "%s: Fabric scan failed for %d retries.\n",
 			    __func__, vha->scan.scan_retry);
+			/*
+			 * Unable to scan any rports. logout loop below
+			 * will unregister all sessions.
+			 */
+			list_for_each_entry(fcport, &vha->vp_fcports, list) {
+				if ((fcport->flags & FCF_FABRIC_DEVICE) != 0) {
+					fcport->scan_state = QLA_FCPORT_SCAN;
+					fcport->logout_on_delete = 0;
+				}
+			}
+			goto login_logout;
 		}
-		goto out;
 	}
 	vha->scan.scan_retry = 0;
 
@@ -3670,6 +3681,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		    dup_cnt);
 	}
 
+login_logout:
 	/*
 	 * Logout all previous fabric dev marked lost, except FCP2 devices.
 	 */
