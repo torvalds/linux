@@ -2270,6 +2270,9 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	 * isn't always enough to find the interface to use; for proper
 	 * VLAN/WDS support we will need a different mechanism (which
 	 * likely isn't going to be monitor interfaces).
+	 *
+	 * This is necessary, for example, for old hostapd versions that
+	 * don't use nl80211-based management TX/RX.
 	 */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
