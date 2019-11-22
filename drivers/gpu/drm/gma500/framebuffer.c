@@ -383,7 +383,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		goto out;
 
 	fb = &psbfb->base;
-	psbfb->fbdev = info;
 
 	fbdev->psb_fb_helper.fb = fb;
 

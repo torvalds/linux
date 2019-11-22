@@ -15,7 +15,6 @@
 
 struct psb_framebuffer {
 	struct drm_framebuffer base;
-	struct fb_info *fbdev;
 };
 
 struct psb_fbdev {
