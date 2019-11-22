@@ -45,6 +45,7 @@ Hardware Monitoring Kernel Drivers
    coretemp
    da9052
    da9055
+   dell-smm-hwmon
    dme1737
    ds1621
    ds620
