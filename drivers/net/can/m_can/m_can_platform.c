@@ -107,7 +107,7 @@ static int m_can_plat_probe(struct platform_device *pdev)
 
 	mcan_class->is_peripheral = false;
 
-	platform_set_drvdata(pdev, mcan_class->dev);
+	platform_set_drvdata(pdev, mcan_class->net);
 
 	m_can_init_ram(mcan_class);
 
@@ -165,8 +165,6 @@ static int __maybe_unused m_can_runtime_resume(struct device *dev)
 	err = clk_prepare_enable(mcan_class->cclk);
 	if (err)
 		clk_disable_unprepare(mcan_class->hclk);
-
-	m_can_class_resume(dev);
 
 	return err;
 }
