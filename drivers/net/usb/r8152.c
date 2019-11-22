@@ -4552,10 +4552,10 @@ static int rtl8152_pre_reset(struct usb_interface *intf)
 
 	netif_stop_queue(netdev);
 	tasklet_disable(&tp->tx_tl);
-	napi_disable(&tp->napi);
 	clear_bit(WORK_ENABLE, &tp->flags);
 	usb_kill_urb(tp->intr_urb);
 	cancel_delayed_work_sync(&tp->schedule);
+	napi_disable(&tp->napi);
 	if (netif_carrier_ok(netdev)) {
 		mutex_lock(&tp->control);
 		tp->rtl_ops.disable(tp);
@@ -4673,7 +4673,7 @@ static int rtl8152_system_resume(struct r8152 *tp)
 
 	netif_device_attach(netdev);
 
-	if (netif_running(netdev) && netdev->flags & IFF_UP) {
+	if (netif_running(netdev) && (netdev->flags & IFF_UP)) {
 		tp->rtl_ops.up(tp);
 		netif_carrier_off(netdev);
 		set_bit(WORK_ENABLE, &tp->flags);
@@ -5244,9 +5244,15 @@ static int rtl8152_set_tunable(struct net_device *netdev,
 		}
 
 		if (tp->rx_copybreak != val) {
-			napi_disable(&tp->napi);
-			tp->rx_copybreak = val;
-			napi_enable(&tp->napi);
+			if (netdev->flags & IFF_UP) {
+				mutex_lock(&tp->control);
+				napi_disable(&tp->napi);
+				tp->rx_copybreak = val;
+				napi_enable(&tp->napi);
+				mutex_unlock(&tp->control);
+			} else {
+				tp->rx_copybreak = val;
+			}
 		}
 		break;
 	default:
@@ -5274,9 +5280,15 @@ static int rtl8152_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 
 	if (tp->rx_pending != ring->rx_pending) {
-		napi_disable(&tp->napi);
-		tp->rx_pending = ring->rx_pending;
-		napi_enable(&tp->napi);
+		if (netdev->flags & IFF_UP) {
+			mutex_lock(&tp->control);
+			napi_disable(&tp->napi);
+			tp->rx_pending = ring->rx_pending;
+			napi_enable(&tp->napi);
+			mutex_unlock(&tp->control);
+		} else {
+			tp->rx_pending = ring->rx_pending;
+		}
 	}
 
 	return 0;
