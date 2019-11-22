@@ -261,7 +261,7 @@ static int
 ds1685_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct ds1685_priv *rtc = dev_get_drvdata(dev);
-	u8 ctrlb, century;
+	u8 century;
 	u8 seconds, minutes, hours, wday, mday, month, years;
 
 	/* Fetch the time info from the RTC registers. */
@@ -274,7 +274,6 @@ ds1685_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	month   = rtc->read(rtc, RTC_MONTH);
 	years   = rtc->read(rtc, RTC_YEAR);
 	century = rtc->read(rtc, RTC_CENTURY);
-	ctrlb   = rtc->read(rtc, RTC_CTRL_B);
 	ds1685_rtc_end_data_access(rtc);
 
 	/* bcd2bin if needed, perform fixups, and store to rtc_time. */
@@ -755,7 +754,7 @@ static int
 ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct ds1685_priv *rtc = dev_get_drvdata(dev);
-	u8 ctrla, ctrlb, ctrlc, ctrld, ctrl4a, ctrl4b, ssn[8];
+	u8 ctrla, ctrlb, ctrld, ctrl4a, ctrl4b, ssn[8];
 	char *model;
 
 	/* Read all the relevant data from the control registers. */
@@ -763,7 +762,6 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	ds1685_rtc_get_ssn(rtc, ssn);
 	ctrla = rtc->read(rtc, RTC_CTRL_A);
 	ctrlb = rtc->read(rtc, RTC_CTRL_B);
-	ctrlc = rtc->read(rtc, RTC_CTRL_C);
 	ctrld = rtc->read(rtc, RTC_CTRL_D);
 	ctrl4a = rtc->read(rtc, RTC_EXT_CTRL_4A);
 	ctrl4b = rtc->read(rtc, RTC_EXT_CTRL_4B);
