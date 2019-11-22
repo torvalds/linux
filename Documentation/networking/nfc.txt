@@ -103,14 +103,14 @@ it's closed.
 LOW-LEVEL DATA EXCHANGE:
 
 The userspace must use PF_NFC sockets to perform any data communication with
-targets. All NFC sockets use AF_NFC:
+targets. All NFC sockets use AF_NFC::
 
-struct sockaddr_nfc {
-       sa_family_t sa_family;
-       __u32 dev_idx;
-       __u32 target_idx;
-       __u32 nfc_protocol;
-};
+        struct sockaddr_nfc {
+               sa_family_t sa_family;
+               __u32 dev_idx;
+               __u32 target_idx;
+               __u32 nfc_protocol;
+        };
 
 To establish a connection with one target, the user must create an
 NFC_SOCKPROTO_RAW socket and call the 'connect' syscall with the sockaddr_nfc
