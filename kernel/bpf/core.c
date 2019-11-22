@@ -2050,11 +2050,16 @@ static void bpf_free_cgroup_storage(struct bpf_prog_aux *aux)
 
 static void bpf_free_used_maps(struct bpf_prog_aux *aux)
 {
+	struct bpf_map *map;
 	int i;
 
 	bpf_free_cgroup_storage(aux);
-	for (i = 0; i < aux->used_map_cnt; i++)
-		bpf_map_put(aux->used_maps[i]);
+	for (i = 0; i < aux->used_map_cnt; i++) {
+		map = aux->used_maps[i];
+		if (map->ops->map_poke_untrack)
+			map->ops->map_poke_untrack(map, aux);
+		bpf_map_put(map);
+	}
 	kfree(aux->used_maps);
 }
 
