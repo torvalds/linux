@@ -35,7 +35,6 @@ struct unwind_state {
 	struct task_struct *task;
 	struct pt_regs *regs;
 	unsigned long sp, ip;
-	bool reuse_sp;
 	int graph_idx;
 	bool reliable;
 	bool error;

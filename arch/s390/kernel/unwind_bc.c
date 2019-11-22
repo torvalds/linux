@@ -46,16 +46,7 @@ bool unwind_next_frame(struct unwind_state *state)
 
 	regs = state->regs;
 	if (unlikely(regs)) {
-		if (state->reuse_sp) {
-			sp = state->sp;
-			state->reuse_sp = false;
-		} else {
-			sp = READ_ONCE_NOCHECK(regs->gprs[15]);
-			if (unlikely(outside_of_stack(state, sp))) {
-				if (!update_stack_info(state, sp))
-					goto out_err;
-			}
-		}
+		sp = state->sp;
 		sf = (struct stack_frame *) sp;
 		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
 		reliable = false;
@@ -81,6 +72,11 @@ bool unwind_next_frame(struct unwind_state *state)
 			if (READ_ONCE_NOCHECK(regs->psw.mask) & PSW_MASK_PSTATE)
 				goto out_stop;
 			ip = READ_ONCE_NOCHECK(regs->psw.addr);
+			sp = READ_ONCE_NOCHECK(regs->gprs[15]);
+			if (unlikely(outside_of_stack(state, sp))) {
+				if (!update_stack_info(state, sp))
+					goto out_err;
+			}
 			reliable = true;
 		}
 	}
@@ -107,7 +103,7 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 {
 	struct stack_info *info = &state->stack_info;
 	unsigned long *mask = &state->stack_mask;
-	bool reliable, reuse_sp;
+	bool reliable;
 	struct stack_frame *sf;
 	unsigned long ip;
 
@@ -134,12 +130,10 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	if (regs) {
 		ip = READ_ONCE_NOCHECK(regs->psw.addr);
 		reliable = true;
-		reuse_sp = true;
 	} else {
 		sf = (struct stack_frame *) sp;
 		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
 		reliable = false;
-		reuse_sp = false;
 	}
 
 	ip = ftrace_graph_ret_addr(state->task, &state->graph_idx, ip, NULL);
@@ -148,6 +142,5 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	state->sp = sp;
 	state->ip = ip;
 	state->reliable = reliable;
-	state->reuse_sp = reuse_sp;
 }
 EXPORT_SYMBOL_GPL(__unwind_start);
