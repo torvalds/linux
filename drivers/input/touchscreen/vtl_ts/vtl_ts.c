@@ -49,7 +49,6 @@
 static DECLARE_WAIT_QUEUE_HEAD(waiter);
 //static struct task_struct *ts_thread = NULL;
 static unsigned char thread_syn_flag =0;
-static volatile unsigned char thread_running_flag =0;
 
 
 // ****************************************************************************
