@@ -1344,9 +1344,12 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx)
 	if (!tty->port)
 		tty->port = driver->ports[idx];
 
-	WARN_RATELIMIT(!tty->port,
-			"%s: %s driver does not set tty->port. This will crash the kernel later. Fix the driver!\n",
-			__func__, tty->driver->name);
+	if (WARN_RATELIMIT(!tty->port,
+			"%s: %s driver does not set tty->port. This would crash the kernel. Fix the driver!\n",
+			__func__, tty->driver->name)) {
+		retval = -EINVAL;
+		goto err_release_lock;
+	}
 
 	retval = tty_ldisc_lock(tty, 5 * HZ);
 	if (retval)
