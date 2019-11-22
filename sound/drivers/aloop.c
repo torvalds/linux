@@ -1107,20 +1107,18 @@ static int loopback_snd_timer_open(struct loopback_pcm *dpcm)
 	struct snd_timer_instance *timeri;
 	struct loopback_cable *cable = dpcm->cable;
 
-	spin_lock_irq(&cable->lock);
-
 	/* check if timer was already opened. It is only opened once
 	 * per playback and capture subdevice (aka cable).
 	 */
 	if (cable->snd_timer.instance)
-		goto unlock;
+		goto exit;
 
 	err = loopback_parse_timer_id(dpcm->loopback->timer_source, &tid);
 	if (err < 0) {
 		pcm_err(dpcm->substream->pcm,
 			"Parsing timer source \'%s\' failed with %d",
 			dpcm->loopback->timer_source, err);
-		goto unlock;
+		goto exit;
 	}
 
 	cable->snd_timer.stream = dpcm->substream->stream;
@@ -1129,7 +1127,7 @@ static int loopback_snd_timer_open(struct loopback_pcm *dpcm)
 	timeri = snd_timer_instance_new(dpcm->loopback->card->id);
 	if (!timeri) {
 		err = -ENOMEM;
-		goto unlock;
+		goto exit;
 	}
 	/* The callback has to be called from another tasklet. If
 	 * SNDRV_TIMER_IFLG_FAST is specified it will be called from the
@@ -1148,10 +1146,9 @@ static int loopback_snd_timer_open(struct loopback_pcm *dpcm)
 	tasklet_init(&cable->snd_timer.event_tasklet,
 		     loopback_snd_timer_tasklet, (unsigned long)timeri);
 
-	/* snd_timer_close() and snd_timer_open() should not be called with
-	 * locked spinlock because both functions can block on a mutex. The
-	 * mutex loopback->cable_lock is kept locked. Therefore snd_timer_open()
-	 * cannot be called a second time by the other device of the same cable.
+	/* The mutex loopback->cable_lock is kept locked.
+	 * Therefore snd_timer_open() cannot be called a second time
+	 * by the other device of the same cable.
 	 * Therefore the following issue cannot happen:
 	 * [proc1] Call loopback_timer_open() ->
 	 *	   Unlock cable->lock for snd_timer_close/open() call
@@ -1160,9 +1157,7 @@ static int loopback_snd_timer_open(struct loopback_pcm *dpcm)
 	 * [proc1] Call snd_timer_open() and overwrite running timer
 	 *	   instance
 	 */
-	spin_unlock_irq(&cable->lock);
 	err = snd_timer_open(timeri, &cable->snd_timer.id, current->pid);
-	spin_lock_irq(&cable->lock);
 	if (err < 0) {
 		pcm_err(dpcm->substream->pcm,
 			"snd_timer_open (%d,%d,%d) failed with %d",
@@ -1171,14 +1166,12 @@ static int loopback_snd_timer_open(struct loopback_pcm *dpcm)
 			cable->snd_timer.id.subdevice,
 			err);
 		snd_timer_instance_free(timeri);
-		goto unlock;
+		goto exit;
 	}
 
 	cable->snd_timer.instance = timeri;
 
-unlock:
-	spin_unlock_irq(&cable->lock);
-
+exit:
 	return err;
 }
 
