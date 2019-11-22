@@ -3081,14 +3081,59 @@ static int bond_virtual_engine(struct intel_gt *gt,
 	struct i915_gem_context *ctx;
 	struct i915_request *rq[16];
 	enum intel_engine_id id;
+	struct igt_spinner spin;
 	unsigned long n;
 	int err;
 
+	/*
+	 * A set of bonded requests is intended to be run concurrently
+	 * across a number of engines. We use one request per-engine
+	 * and a magic fence to schedule each of the bonded requests
+	 * at the same time. A consequence of our current scheduler is that
+	 * we only move requests to the HW ready queue when the request
+	 * becomes ready, that is when all of its prerequisite fences have
+	 * been signaled. As one of those fences is the master submit fence,
+	 * there is a delay on all secondary fences as the HW may be
+	 * currently busy. Equally, as all the requests are independent,
+	 * they may have other fences that delay individual request
+	 * submission to HW. Ergo, we do not guarantee that all requests are
+	 * immediately submitted to HW at the same time, just that if the
+	 * rules are abided by, they are ready at the same time as the
+	 * first is submitted. Userspace can embed semaphores in its batch
+	 * to ensure parallel execution of its phases as it requires.
+	 * Though naturally it gets requested that perhaps the scheduler should
+	 * take care of parallel execution, even across preemption events on
+	 * different HW. (The proper answer is of course "lalalala".)
+	 *
+	 * With the submit-fence, we have identified three possible phases
+	 * of synchronisation depending on the master fence: queued (not
+	 * ready), executing, and signaled. The first two are quite simple
+	 * and checked below. However, the signaled master fence handling is
+	 * contentious. Currently we do not distinguish between a signaled
+	 * fence and an expired fence, as once signaled it does not convey
+	 * any information about the previous execution. It may even be freed
+	 * and hence checking later it may not exist at all. Ergo we currently
+	 * do not apply the bonding constraint for an already signaled fence,
+	 * as our expectation is that it should not constrain the secondaries
+	 * and is outside of the scope of the bonded request API (i.e. all
+	 * userspace requests are meant to be running in parallel). As
+	 * it imposes no constraint, and is effectively a no-op, we do not
+	 * check below as normal execution flows are checked extensively above.
+	 *
+	 * XXX Is the degenerate handling of signaled submit fences the
+	 * expected behaviour for userpace?
+	 */
+
 	GEM_BUG_ON(nsibling >= ARRAY_SIZE(rq) - 1);
 
-	ctx = kernel_context(gt->i915);
-	if (!ctx)
+	if (igt_spinner_init(&spin, gt))
 		return -ENOMEM;
+
+	ctx = kernel_context(gt->i915);
+	if (!ctx) {
+		err = -ENOMEM;
+		goto err_spin;
+	}
 
 	err = 0;
 	rq[0] = ERR_PTR(-ENOMEM);
@@ -3100,7 +3145,7 @@ static int bond_virtual_engine(struct intel_gt *gt,
 
 		memset_p((void *)rq, ERR_PTR(-EINVAL), ARRAY_SIZE(rq));
 
-		rq[0] = igt_request_alloc(ctx, master);
+		rq[0] = spinner_create_request(&spin, ctx, master, MI_NOOP);
 		if (IS_ERR(rq[0])) {
 			err = PTR_ERR(rq[0]);
 			goto out;
@@ -3113,9 +3158,16 @@ static int bond_virtual_engine(struct intel_gt *gt,
 							       &fence,
 							       GFP_KERNEL);
 		}
+
 		i915_request_add(rq[0]);
 		if (err < 0)
 			goto out;
+
+		if (!(flags & BOND_SCHEDULE) &&
+		    !igt_wait_for_spinner(&spin, rq[0])) {
+			err = -EIO;
+			goto out;
+		}
 
 		for (n = 0; n < nsibling; n++) {
 			struct intel_context *ve;
@@ -3164,6 +3216,8 @@ static int bond_virtual_engine(struct intel_gt *gt,
 			}
 		}
 		onstack_fence_fini(&fence);
+		intel_engine_flush_submission(master);
+		igt_spinner_end(&spin);
 
 		if (i915_request_wait(rq[0], 0, HZ / 10) < 0) {
 			pr_err("Master request did not execute (on %s)!\n",
@@ -3201,6 +3255,8 @@ out:
 		err = -EIO;
 
 	kernel_context_close(ctx);
+err_spin:
+	igt_spinner_fini(&spin);
 	return err;
 }
 
