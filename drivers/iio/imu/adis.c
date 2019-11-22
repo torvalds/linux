@@ -309,23 +309,23 @@ int __adis_check_status(struct adis *adis)
 EXPORT_SYMBOL_GPL(__adis_check_status);
 
 /**
- * adis_reset() - Reset the device
+ * __adis_reset() - Reset the device (unlocked version)
  * @adis: The adis device
  *
  * Returns 0 on success, a negative error code otherwise
  */
-int adis_reset(struct adis *adis)
+int __adis_reset(struct adis *adis)
 {
 	int ret;
 
-	ret = adis_write_reg_8(adis, adis->data->glob_cmd_reg,
+	ret = __adis_write_reg_8(adis, adis->data->glob_cmd_reg,
 			ADIS_GLOB_CMD_SW_RESET);
 	if (ret)
 		dev_err(&adis->spi->dev, "Failed to reset device: %d\n", ret);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(adis_reset);
+EXPORT_SYMBOL_GPL(__adis_reset);
 
 static int adis_self_test(struct adis *adis)
 {

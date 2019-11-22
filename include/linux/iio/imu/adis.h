@@ -73,7 +73,24 @@ struct adis {
 
 int adis_init(struct adis *adis, struct iio_dev *indio_dev,
 	struct spi_device *spi, const struct adis_data *data);
-int adis_reset(struct adis *adis);
+int __adis_reset(struct adis *adis);
+
+/**
+ * adis_reset() - Reset the device
+ * @adis: The adis device
+ *
+ * Returns 0 on success, a negative error code otherwise
+ */
+static inline int adis_reset(struct adis *adis)
+{
+	int ret;
+
+	mutex_lock(&adis->state_lock);
+	ret = __adis_reset(adis);
+	mutex_unlock(&adis->state_lock);
+
+	return ret;
+}
 
 int __adis_write_reg(struct adis *adis, unsigned int reg,
 	unsigned int val, unsigned int size);
