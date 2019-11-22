@@ -458,8 +458,8 @@ int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
 		return -EINVAL;
 
 	rcu_read_lock();
-	record = rhashtable_lookup_fast(&bpf->maps_neutral, &map_id,
-					nfp_bpf_maps_neutral_params);
+	record = rhashtable_lookup(&bpf->maps_neutral, &map_id,
+				   nfp_bpf_maps_neutral_params);
 	if (!record || map_id_full > U32_MAX) {
 		rcu_read_unlock();
 		cmsg_warn(bpf, "perf event: map id %lld (0x%llx) not recognized, dropping event\n",
