@@ -1249,13 +1249,6 @@ config GPIO_MAX77650
 	  GPIO driver for MAX77650/77651 PMIC from Maxim Semiconductor.
 	  These chips have a single pin that can be configured as GPIO.
 
-config GPIO_MSIC
-	bool "Intel MSIC mixed signal gpio support"
-	depends on (X86 || COMPILE_TEST) && MFD_INTEL_MSIC
-	help
-	  Enable support for GPIO on intel MSIC controllers found in
-	  intel MID devices
-
 config GPIO_PALMAS
 	bool "TI PALMAS series PMICs GPIO"
 	depends on MFD_PALMAS
