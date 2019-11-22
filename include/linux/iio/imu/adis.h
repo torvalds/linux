@@ -61,7 +61,7 @@ struct adis {
 	const struct adis_data	*data;
 	struct adis_burst	*burst;
 
-	struct mutex		txrx_lock;
+	struct mutex		state_lock;
 	struct spi_message	msg;
 	struct spi_transfer	*xfer;
 	unsigned int		current_page;
