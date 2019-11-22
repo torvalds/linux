@@ -494,6 +494,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	master->dev.of_node = dev->of_node;
 	master->dev.fwnode = dev->fwnode;
 	master->flags = SPI_MASTER_GPIO_SS;
+	master->auto_runtime_pm = true;
 
 	if (dws->set_cs)
 		master->set_cs = dws->set_cs;
