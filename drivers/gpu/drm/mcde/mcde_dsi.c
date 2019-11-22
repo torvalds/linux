@@ -246,25 +246,25 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 	if (txlen > 0) {
 		val = 0;
 		for (i = 0; i < 4 && i < txlen; i++)
-			val |= tx[i] << (i & 3) * 8;
+			val |= tx[i] << (i * 8);
 	}
 	writel(val, d->regs + DSI_DIRECT_CMD_WRDAT0);
 	if (txlen > 4) {
 		val = 0;
 		for (i = 0; i < 4 && (i + 4) < txlen; i++)
-			val |= tx[i + 4] << (i & 3) * 8;
+			val |= tx[i + 4] << (i * 8);
 		writel(val, d->regs + DSI_DIRECT_CMD_WRDAT1);
 	}
 	if (txlen > 8) {
 		val = 0;
 		for (i = 0; i < 4 && (i + 8) < txlen; i++)
-			val |= tx[i + 8] << (i & 3) * 8;
+			val |= tx[i + 8] << (i * 8);
 		writel(val, d->regs + DSI_DIRECT_CMD_WRDAT2);
 	}
 	if (txlen > 12) {
 		val = 0;
 		for (i = 0; i < 4 && (i + 12) < txlen; i++)
-			val |= tx[i + 12] << (i & 3) * 8;
+			val |= tx[i + 12] << (i * 8);
 		writel(val, d->regs + DSI_DIRECT_CMD_WRDAT3);
 	}
 
