@@ -331,7 +331,7 @@ static int adis_self_test(struct adis *adis)
 {
 	int ret;
 
-	ret = adis_write_reg_16(adis, adis->data->msc_ctrl_reg,
+	ret = __adis_write_reg_16(adis, adis->data->msc_ctrl_reg,
 			adis->data->self_test_mask);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Failed to initiate self test: %d\n",
@@ -341,10 +341,10 @@ static int adis_self_test(struct adis *adis)
 
 	msleep(adis->data->startup_delay);
 
-	ret = adis_check_status(adis);
+	ret = __adis_check_status(adis);
 
 	if (adis->data->self_test_no_autoclear)
-		adis_write_reg_16(adis, adis->data->msc_ctrl_reg, 0x00);
+		__adis_write_reg_16(adis, adis->data->msc_ctrl_reg, 0x00);
 
 	return ret;
 }
@@ -362,19 +362,23 @@ int adis_initial_startup(struct adis *adis)
 {
 	int ret;
 
+	mutex_lock(&adis->state_lock);
+
 	ret = adis_self_test(adis);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Self-test failed, trying reset.\n");
-		adis_reset(adis);
+		__adis_reset(adis);
 		msleep(adis->data->startup_delay);
 		ret = adis_self_test(adis);
 		if (ret) {
 			dev_err(&adis->spi->dev, "Second self-test failed, giving up.\n");
-			return ret;
+			goto out_unlock;
 		}
 	}
 
-	return 0;
+out_unlock:
+	mutex_unlock(&adis->state_lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(adis_initial_startup);
 
