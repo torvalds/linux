@@ -453,6 +453,10 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 	if (hdmi->max_tmdsclk <= 340000 && mode->clock > 340000 &&
 	    !drm_mode_is_420(&connector->display_info, mode))
 		return MODE_BAD;
+
+	if (hdmi->phy)
+		phy_set_bus_width(hdmi->phy, 8);
+
 	/*
 	 * ensure all drm display mode can work, if someone want support more
 	 * resolutions, please limit the possible_crtc, only connect to
