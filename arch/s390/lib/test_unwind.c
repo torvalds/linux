@@ -56,11 +56,19 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 		unsigned long addr = unwind_get_return_address(&state);
 		char sym[KSYM_SYMBOL_LEN];
 
-		if (!addr || frame_count == max_frames)
+		if (frame_count++ == max_frames)
 			break;
+		if (state.reliable && !addr) {
+			pr_err("unwind state reliable but addr is 0\n");
+			return -EINVAL;
+		}
 		sprint_symbol(sym, addr);
 		if (bt_pos < BT_BUF_SIZE) {
-			bt_pos += snprintf(bt + bt_pos, BT_BUF_SIZE - bt_pos, "%s\n", sym);
+			bt_pos += snprintf(bt + bt_pos, BT_BUF_SIZE - bt_pos,
+					   state.reliable ? " [%-7s%px] %pSR\n" :
+							    "([%-7s%px] %pSR)\n",
+					   stack_type_name(state.stack_info.type),
+					   (void *)state.sp, (void *)state.ip);
 			if (bt_pos >= BT_BUF_SIZE)
 				pr_err("backtrace buffer is too small\n");
 		}

@@ -38,6 +38,7 @@ const char *stack_type_name(enum stack_type type)
 		return "unknown";
 	}
 }
+EXPORT_SYMBOL_GPL(stack_type_name);
 
 static inline bool in_stack(unsigned long sp, struct stack_info *info,
 			    enum stack_type type, unsigned long low,
