@@ -1039,7 +1039,7 @@ ds1685_rtc_sysfs_serial_show(struct device *dev,
 }
 static DEVICE_ATTR(serial, S_IRUGO, ds1685_rtc_sysfs_serial_show, NULL);
 
-/**
+/*
  * struct ds1685_rtc_sysfs_misc_attrs - list for misc RTC features.
  */
 static struct attribute*
@@ -1050,7 +1050,7 @@ ds1685_rtc_sysfs_misc_attrs[] = {
 	NULL,
 };
 
-/**
+/*
  * struct ds1685_rtc_sysfs_misc_grp - attr group for misc RTC features.
  */
 static const struct attribute_group
@@ -1355,7 +1355,7 @@ ds1685_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/**
+/*
  * ds1685_rtc_driver - rtc driver properties.
  */
 static struct platform_driver ds1685_rtc_driver = {
