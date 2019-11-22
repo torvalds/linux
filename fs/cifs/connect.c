@@ -391,7 +391,7 @@ static inline int reconn_set_ipaddr(struct TCP_Server_Info *server)
 #ifdef CONFIG_CIFS_DFS_UPCALL
 struct super_cb_data {
 	struct TCP_Server_Info *server;
-	struct cifs_sb_info *cifs_sb;
+	struct super_block *sb;
 };
 
 /* These functions must be called with server->srv_mutex held */
@@ -402,25 +402,39 @@ static void super_cb(struct super_block *sb, void *arg)
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
 
-	if (d->cifs_sb)
+	if (d->sb)
 		return;
 
 	cifs_sb = CIFS_SB(sb);
 	tcon = cifs_sb_master_tcon(cifs_sb);
 	if (tcon->ses->server == d->server)
-		d->cifs_sb = cifs_sb;
+		d->sb = sb;
 }
 
-static inline struct cifs_sb_info *
-find_super_by_tcp(struct TCP_Server_Info *server)
+static struct super_block *get_tcp_super(struct TCP_Server_Info *server)
 {
 	struct super_cb_data d = {
 		.server = server,
-		.cifs_sb = NULL,
+		.sb = NULL,
 	};
 
 	iterate_supers_type(&cifs_fs_type, super_cb, &d);
-	return d.cifs_sb ? d.cifs_sb : ERR_PTR(-ENOENT);
+
+	if (unlikely(!d.sb))
+		return ERR_PTR(-ENOENT);
+	/*
+	 * Grab an active reference in order to prevent automounts (DFS links)
+	 * of expiring and then freeing up our cifs superblock pointer while
+	 * we're doing failover.
+	 */
+	cifs_sb_active(d.sb);
+	return d.sb;
+}
+
+static inline void put_tcp_super(struct super_block *sb)
+{
+	if (!IS_ERR_OR_NULL(sb))
+		cifs_sb_deactive(sb);
 }
 
 static void reconn_inval_dfs_target(struct TCP_Server_Info *server,
@@ -484,6 +498,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	struct mid_q_entry *mid_entry;
 	struct list_head retry_list;
 #ifdef CONFIG_CIFS_DFS_UPCALL
+	struct super_block *sb = NULL;
 	struct cifs_sb_info *cifs_sb = NULL;
 	struct dfs_cache_tgt_list tgt_list = {0};
 	struct dfs_cache_tgt_iterator *tgt_it = NULL;
@@ -493,13 +508,15 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	server->nr_targets = 1;
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	spin_unlock(&GlobalMid_Lock);
-	cifs_sb = find_super_by_tcp(server);
-	if (IS_ERR(cifs_sb)) {
-		rc = PTR_ERR(cifs_sb);
+	sb = get_tcp_super(server);
+	if (IS_ERR(sb)) {
+		rc = PTR_ERR(sb);
 		cifs_dbg(FYI, "%s: will not do DFS failover: rc = %d\n",
 			 __func__, rc);
-		cifs_sb = NULL;
+		sb = NULL;
 	} else {
+		cifs_sb = CIFS_SB(sb);
+
 		rc = reconn_setup_dfs_targets(cifs_sb, &tgt_list, &tgt_it);
 		if (rc && (rc != -EOPNOTSUPP)) {
 			cifs_server_dbg(VFS, "%s: no target servers for DFS failover\n",
@@ -516,6 +533,10 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		/* the demux thread will exit normally
 		next time through the loop */
 		spin_unlock(&GlobalMid_Lock);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+		dfs_cache_free_tgts(&tgt_list);
+		put_tcp_super(sb);
+#endif
 		return rc;
 	} else
 		server->tcpStatus = CifsNeedReconnect;
@@ -642,7 +663,10 @@ cifs_reconnect(struct TCP_Server_Info *server)
 				 __func__, rc);
 		}
 		dfs_cache_free_tgts(&tgt_list);
+
 	}
+
+	put_tcp_super(sb);
 #endif
 	if (server->tcpStatus == CifsNeedNegotiate)
 		mod_delayed_work(cifsiod_wq, &server->echo, 0);
