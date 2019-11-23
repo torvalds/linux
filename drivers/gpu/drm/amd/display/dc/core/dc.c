@@ -1962,13 +1962,13 @@ static void copy_stream_update_to_stream(struct dc *dc,
 			if (!dc->res_pool->funcs->validate_bandwidth(dc, dsc_validate_context, true)) {
 				stream->timing.dsc_cfg = old_dsc_cfg;
 				stream->timing.flags.DSC = old_dsc_enabled;
-				update->dsc_config = false;
+				update->dsc_config = NULL;
 			}
 
 			dc_release_state(dsc_validate_context);
 		} else {
 			DC_ERROR("Failed to allocate new validate context for DSC change\n");
-			update->dsc_config = false;
+			update->dsc_config = NULL;
 		}
 	}
 }
