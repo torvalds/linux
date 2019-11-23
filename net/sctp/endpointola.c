@@ -110,6 +110,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	/* Remember who we are attached to.  */
 	ep->base.sk = sk;
+	ep->base.net = sock_net(sk);
 	sock_hold(ep->base.sk);
 
 	return ep;
