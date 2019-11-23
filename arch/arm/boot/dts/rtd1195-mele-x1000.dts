@@ -19,9 +19,9 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@0 {
+	memory@a800 {
 		device_type = "memory";
-		reg = <0x00000000 0x18000000>, /* up to r-bus */
+		reg = <0x0000a800 0x17ff5800>, /* boot ROM to r-bus */
 		      <0x18070000 0x00090000>, /* r-bus to NOR flash */
 		      <0x19100000 0x26f00000>; /* NOR flash to 1 GiB */
 	};
