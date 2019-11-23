@@ -940,48 +940,6 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 
 }
 
-static bool is_downscaled(const struct rect *src_rect, const struct rect *dst_rect)
-{
-        if (src_rect->width > dst_rect->width || src_rect->height > dst_rect->height)
-		return true;
-	return false;
-}
-
-static bool is_mpo(int layer_index)
-{
-	if (layer_index > 0)
-		return true;
-	return false;
-}
-
-static void calculate_integer_scaling(struct pipe_ctx *pipe_ctx)
-{
-	unsigned int integer_multiple = 1;
-
-	if (pipe_ctx->plane_state->scaling_quality.integer_scaling &&
-	    !is_downscaled(&pipe_ctx->plane_state->src_rect, &pipe_ctx->plane_state->dst_rect) &&
-	    !is_mpo(pipe_ctx->plane_state->layer_index)) {
-		// calculate maximum # of replication of src onto addressable
-		integer_multiple = min(
-				pipe_ctx->stream->timing.h_addressable / pipe_ctx->stream->src.width,
-				pipe_ctx->stream->timing.v_addressable  / pipe_ctx->stream->src.height);
-
-		//scale dst
-		pipe_ctx->stream->dst.width  = integer_multiple * pipe_ctx->stream->src.width;
-		pipe_ctx->stream->dst.height = integer_multiple * pipe_ctx->stream->src.height;
-
-		//center dst onto addressable
-		pipe_ctx->stream->dst.x = (pipe_ctx->stream->timing.h_addressable - pipe_ctx->stream->dst.width)/2;
-		pipe_ctx->stream->dst.y = (pipe_ctx->stream->timing.v_addressable - pipe_ctx->stream->dst.height)/2;
-
-		//We are guaranteed that we are scaling in integer ratio
-		pipe_ctx->plane_state->scaling_quality.v_taps = 1;
-		pipe_ctx->plane_state->scaling_quality.h_taps = 1;
-		pipe_ctx->plane_state->scaling_quality.v_taps_c = 1;
-		pipe_ctx->plane_state->scaling_quality.h_taps_c = 1;
-	}
-}
-
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
@@ -994,8 +952,6 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	 */
 	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
 			pipe_ctx->plane_state->format);
-
-	calculate_integer_scaling(pipe_ctx);
 
 	calculate_scaling_ratios(pipe_ctx);
 
