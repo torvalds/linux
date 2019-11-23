@@ -735,7 +735,12 @@ struct tx_desc {
 	__be64 flit[8];
 };
 
-struct tx_sw_desc;
+struct ulptx_sgl;
+
+struct tx_sw_desc {
+	struct sk_buff *skb; /* SKB to free after getting completion */
+	dma_addr_t addr[MAX_SKB_FRAGS + 1]; /* DMA mapped addresses */
+};
 
 struct sge_txq {
 	unsigned int  in_use;       /* # of in-use Tx descriptors */
@@ -767,6 +772,7 @@ struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
 	u8 dbqt;                    /* SGE Doorbell Queue Timer in use */
 	unsigned int dbqtimerix;    /* SGE Doorbell Queue Timer Index */
 	unsigned long tso;          /* # of TSO requests */
+	unsigned long uso;          /* # of USO requests */
 	unsigned long tx_cso;       /* # of Tx checksum offloads */
 	unsigned long vlan_ins;     /* # of Tx VLAN insertions */
 	unsigned long mapping_err;  /* # of I/O MMU packet mapping errors */
@@ -814,15 +820,10 @@ enum sge_eosw_state {
 	CXGB4_EO_STATE_FLOWC_CLOSE_REPLY, /* Waiting for FLOWC close reply */
 };
 
-struct sge_eosw_desc {
-	struct sk_buff *skb; /* SKB to free after getting completion */
-	dma_addr_t addr[MAX_SKB_FRAGS + 1]; /* DMA mapped addresses */
-};
-
 struct sge_eosw_txq {
 	spinlock_t lock; /* Per queue lock to synchronize completions */
 	enum sge_eosw_state state; /* Current ETHOFLD State */
-	struct sge_eosw_desc *desc; /* Descriptor ring to hold packets */
+	struct tx_sw_desc *desc; /* Descriptor ring to hold packets */
 	u32 ndesc; /* Number of descriptors */
 	u32 pidx; /* Current Producer Index */
 	u32 last_pidx; /* Last successfully transmitted Producer Index */
@@ -849,6 +850,7 @@ struct sge_eohw_txq {
 	struct sge_txq q; /* HW Txq */
 	struct adapter *adap; /* Backpointer to adapter */
 	unsigned long tso; /* # of TSO requests */
+	unsigned long uso; /* # of USO requests */
 	unsigned long tx_cso; /* # of Tx checksum offloads */
 	unsigned long vlan_ins; /* # of Tx VLAN insertions */
 	unsigned long mapping_err; /* # of I/O MMU packet mapping errors */
@@ -1149,11 +1151,6 @@ enum {
 
 enum {
 	SCHED_CLASS_RATEMODE_ABS = 1,   /* Kb/s */
-};
-
-struct tx_sw_desc {                /* SW state per Tx descriptor */
-	struct sk_buff *skb;
-	struct ulptx_sgl *sgl;
 };
 
 /* Support for "sched_queue" command to allow one or more NIC TX Queues

@@ -70,7 +70,7 @@ static int cxgb4_init_eosw_txq(struct net_device *dev,
 			       u32 eotid, u32 hwqid)
 {
 	struct adapter *adap = netdev2adap(dev);
-	struct sge_eosw_desc *ring;
+	struct tx_sw_desc *ring;
 
 	memset(eosw_txq, 0, sizeof(*eosw_txq));
 
