@@ -4354,12 +4354,12 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 
 	r = kvm_arch_hardware_setup();
 	if (r < 0)
-		goto out_free_0a;
+		goto out_free_1;
 
 	for_each_online_cpu(cpu) {
 		smp_call_function_single(cpu, check_processor_compat, &r, 1);
 		if (r < 0)
-			goto out_free_1;
+			goto out_free_2;
 	}
 
 	r = cpuhp_setup_state_nocalls(CPUHP_AP_KVM_STARTING, "kvm/cpu:starting",
@@ -4416,9 +4416,8 @@ out_free_3:
 	unregister_reboot_notifier(&kvm_reboot_notifier);
 	cpuhp_remove_state_nocalls(CPUHP_AP_KVM_STARTING);
 out_free_2:
-out_free_1:
 	kvm_arch_hardware_unsetup();
-out_free_0a:
+out_free_1:
 	free_cpumask_var(cpus_hardware_enabled);
 out_free_0:
 	kvm_irqfd_exit();
