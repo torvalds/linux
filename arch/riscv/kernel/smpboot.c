@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/mm.h>
+#include <asm/clint.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
@@ -136,6 +137,9 @@ void __init smp_cpus_done(unsigned int max_cpus)
 asmlinkage __visible void __init smp_callin(void)
 {
 	struct mm_struct *mm = &init_mm;
+
+	if (!IS_ENABLED(CONFIG_RISCV_SBI))
+		clint_clear_ipi(cpuid_to_hartid_map(smp_processor_id()));
 
 	/* All kernel threads share the same mm context.  */
 	mmgrab(mm);

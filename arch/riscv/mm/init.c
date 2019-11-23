@@ -26,6 +26,7 @@ unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
 EXPORT_SYMBOL(empty_zero_page);
 
 extern char _start[];
+void *dtb_early_va;
 
 static void __init zone_sizes_init(void)
 {
@@ -40,7 +41,7 @@ static void __init zone_sizes_init(void)
 	free_area_init_nodes(max_zone_pfns);
 }
 
-void setup_zero_page(void)
+static void setup_zero_page(void)
 {
 	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 }
@@ -142,12 +143,12 @@ void __init setup_bootmem(void)
 	}
 }
 
+#ifdef CONFIG_MMU
 unsigned long va_pa_offset;
 EXPORT_SYMBOL(va_pa_offset);
 unsigned long pfn_base;
 EXPORT_SYMBOL(pfn_base);
 
-void *dtb_early_va;
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned_bss;
 pgd_t trampoline_pg_dir[PTRS_PER_PGD] __page_aligned_bss;
 pte_t fixmap_pte[PTRS_PER_PTE] __page_aligned_bss;
@@ -444,6 +445,16 @@ static void __init setup_vm_final(void)
 	csr_write(CSR_SATP, PFN_DOWN(__pa(swapper_pg_dir)) | SATP_MODE);
 	local_flush_tlb_all();
 }
+#else
+asmlinkage void __init setup_vm(uintptr_t dtb_pa)
+{
+	dtb_early_va = (void *)dtb_pa;
+}
+
+static inline void setup_vm_final(void)
+{
+}
+#endif /* CONFIG_MMU */
 
 void __init paging_init(void)
 {
