@@ -1825,30 +1825,44 @@ SYSCALL_DEFINE3(accept, int, fd, struct sockaddr __user *, upeer_sockaddr,
  *	include the -EINPROGRESS status for such sockets.
  */
 
-int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
+int __sys_connect_file(struct file *file, struct sockaddr __user *uservaddr,
+		       int addrlen, int file_flags)
 {
 	struct socket *sock;
 	struct sockaddr_storage address;
-	int err, fput_needed;
+	int err;
 
-	sock = sockfd_lookup_light(fd, &err, &fput_needed);
+	sock = sock_from_file(file, &err);
 	if (!sock)
 		goto out;
 	err = move_addr_to_kernel(uservaddr, addrlen, &address);
 	if (err < 0)
-		goto out_put;
+		goto out;
 
 	err =
 	    security_socket_connect(sock, (struct sockaddr *)&address, addrlen);
 	if (err)
-		goto out_put;
+		goto out;
 
 	err = sock->ops->connect(sock, (struct sockaddr *)&address, addrlen,
-				 sock->file->f_flags);
-out_put:
-	fput_light(sock->file, fput_needed);
+				 sock->file->f_flags | file_flags);
 out:
 	return err;
+}
+
+int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
+{
+	int ret = -EBADF;
+	struct fd f;
+
+	f = fdget(fd);
+	if (f.file) {
+		ret = __sys_connect_file(f.file, uservaddr, addrlen, 0);
+		if (f.flags)
+			fput(f.file);
+	}
+
+	return ret;
 }
 
 SYSCALL_DEFINE3(connect, int, fd, struct sockaddr __user *, uservaddr,
