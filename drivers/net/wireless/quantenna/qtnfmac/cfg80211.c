@@ -238,22 +238,29 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		pr_err("VIF%u.%u: FW reported bad MAC: %pM\n",
 		       mac->macid, vif->vifid, vif->mac_addr);
 		ret = -EINVAL;
-		goto err_mac;
+		goto error_del_vif;
 	}
 
 	ret = qtnf_core_net_attach(mac, vif, name, name_assign_t);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to attach netdev\n", mac->macid,
 		       vif->vifid);
-		goto err_net;
+		goto error_del_vif;
+	}
+
+	if (mac->bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) {
+		ret = qtnf_cmd_netdev_changeupper(vif, vif->netdev->ifindex);
+		if (ret) {
+			unregister_netdevice(vif->netdev);
+			vif->netdev = NULL;
+			goto error_del_vif;
+		}
 	}
 
 	vif->wdev.netdev = vif->netdev;
 	return &vif->wdev;
 
-err_net:
-	vif->netdev = NULL;
-err_mac:
+error_del_vif:
 	qtnf_cmd_send_del_intf(vif);
 err_cmd:
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;

@@ -497,7 +497,8 @@ static int qtnf_tx_queue_ready(struct qtnf_pcie_topaz_state *ts)
 	return 1;
 }
 
-static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
+static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb,
+			     unsigned int macid, unsigned int vifid)
 {
 	struct qtnf_pcie_topaz_state *ts = (void *)get_bus_priv(bus);
 	struct qtnf_pcie_bus_priv *priv = &ts->base;
@@ -740,7 +741,7 @@ static void qtnf_pcie_data_rx_stop(struct qtnf_bus *bus)
 	napi_disable(&bus->mux_napi);
 }
 
-static const struct qtnf_bus_ops qtnf_pcie_topaz_bus_ops = {
+static struct qtnf_bus_ops qtnf_pcie_topaz_bus_ops = {
 	/* control path methods */
 	.control_tx	= qtnf_pcie_control_tx,
 

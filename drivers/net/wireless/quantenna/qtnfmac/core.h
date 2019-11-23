@@ -74,7 +74,6 @@ struct qtnf_vif {
 
 struct qtnf_mac_info {
 	u8 bands_cap;
-	u8 dev_mac[ETH_ALEN];
 	u8 num_tx_chain;
 	u8 num_rx_chain;
 	u16 max_ap_assoc_sta;
@@ -153,6 +152,7 @@ void qtnf_virtual_intf_cleanup(struct net_device *ndev);
 void qtnf_netdev_updown(struct net_device *ndev, bool up);
 void qtnf_scan_done(struct qtnf_wmac *mac, bool aborted);
 struct dentry *qtnf_get_debugfs_dir(void);
+bool qtnf_netdev_is_qtn(const struct net_device *ndev);
 
 static inline struct qtnf_vif *qtnf_netdev_get_priv(struct net_device *dev)
 {

@@ -355,6 +355,15 @@ static const struct wiphy_iftype_ext_capab he_iftypes_ext_capa[] = {
 	},
 };
 
+static int
+iwl_mvm_op_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	*tx_ant = iwl_mvm_get_valid_tx_ant(mvm);
+	*rx_ant = iwl_mvm_get_valid_rx_ant(mvm);
+	return 0;
+}
+
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 {
 	struct ieee80211_hw *hw = mvm->hw;
@@ -733,6 +742,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (mvm->cfg->vht_mu_mimo_supported)
 		wiphy_ext_feature_set(hw->wiphy,
 				      NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER);
+
+	hw->wiphy->available_antennas_tx = iwl_mvm_get_valid_tx_ant(mvm);
+	hw->wiphy->available_antennas_rx = iwl_mvm_get_valid_rx_ant(mvm);
 
 	ret = ieee80211_register_hw(mvm->hw);
 	if (ret) {
@@ -5028,6 +5040,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.wake_tx_queue = iwl_mvm_mac_wake_tx_queue,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
+	.get_antenna = iwl_mvm_op_get_antenna,
 	.start = iwl_mvm_mac_start,
 	.reconfig_complete = iwl_mvm_mac_reconfig_complete,
 	.stop = iwl_mvm_mac_stop,

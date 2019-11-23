@@ -532,7 +532,7 @@ static int qtnf_tx_queue_ready(struct qtnf_pcie_pearl_state *ps)
 	return 1;
 }
 
-static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
+static int qtnf_pcie_skb_send(struct qtnf_bus *bus, struct sk_buff *skb)
 {
 	struct qtnf_pcie_pearl_state *ps = get_bus_priv(bus);
 	struct qtnf_pcie_bus_priv *priv = &ps->base;
@@ -606,6 +606,38 @@ tx_done:
 	qtnf_pearl_data_tx_reclaim(ps);
 
 	return NETDEV_TX_OK;
+}
+
+static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb,
+			     unsigned int macid, unsigned int vifid)
+{
+	return qtnf_pcie_skb_send(bus, skb);
+}
+
+static int qtnf_pcie_data_tx_meta(struct qtnf_bus *bus, struct sk_buff *skb,
+				  unsigned int macid, unsigned int vifid)
+{
+	struct qtnf_frame_meta_info *meta;
+	int tail_need = sizeof(*meta) - skb_tailroom(skb);
+	int ret;
+
+	if (tail_need > 0 && pskb_expand_head(skb, 0, tail_need, GFP_ATOMIC)) {
+		skb->dev->stats.tx_dropped++;
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
+	}
+
+	meta = skb_put(skb, sizeof(*meta));
+	meta->magic_s = HBM_FRAME_META_MAGIC_PATTERN_S;
+	meta->magic_e = HBM_FRAME_META_MAGIC_PATTERN_E;
+	meta->macid = macid;
+	meta->ifidx = vifid;
+
+	ret = qtnf_pcie_skb_send(bus, skb);
+	if (unlikely(ret == NETDEV_TX_BUSY))
+		__skb_trim(skb, skb->len - sizeof(*meta));
+
+	return ret;
 }
 
 static irqreturn_t qtnf_pcie_pearl_interrupt(int irq, void *data)
@@ -796,13 +828,22 @@ static void qtnf_pcie_data_rx_stop(struct qtnf_bus *bus)
 	qtnf_disable_hdp_irqs(ps);
 }
 
-static const struct qtnf_bus_ops qtnf_pcie_pearl_bus_ops = {
+static void qtnf_pearl_tx_use_meta_info_set(struct qtnf_bus *bus, bool use_meta)
+{
+	if (use_meta)
+		bus->bus_ops->data_tx = qtnf_pcie_data_tx_meta;
+	else
+		bus->bus_ops->data_tx = qtnf_pcie_data_tx;
+}
+
+static struct qtnf_bus_ops qtnf_pcie_pearl_bus_ops = {
 	/* control path methods */
 	.control_tx	= qtnf_pcie_control_tx,
 
 	/* data path methods */
 	.data_tx		= qtnf_pcie_data_tx,
 	.data_tx_timeout	= qtnf_pcie_data_tx_timeout,
+	.data_tx_use_meta_set	= qtnf_pearl_tx_use_meta_info_set,
 	.data_rx_start		= qtnf_pcie_data_rx_start,
 	.data_rx_stop		= qtnf_pcie_data_rx_stop,
 };
@@ -905,7 +946,7 @@ static int qtnf_ep_fw_send(struct pci_dev *pdev, uint32_t size,
 	memcpy(pdata, pblk, len);
 	hdr->crc = cpu_to_le32(~crc32(0, pdata, len));
 
-	ret = qtnf_pcie_data_tx(bus, skb);
+	ret = qtnf_pcie_skb_send(bus, skb);
 
 	return (ret == NETDEV_TX_OK) ? len : 0;
 }

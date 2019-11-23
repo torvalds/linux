@@ -81,6 +81,7 @@ struct mt76x02_dev {
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
 	spinlock_t txstatus_fifo_lock;
+	u32 tx_airtime;
 
 	struct sk_buff *rx_head;
 
@@ -91,8 +92,6 @@ struct mt76x02_dev {
 	struct work_struct pre_tbtt_work;
 
 	const struct mt76x02_beacon_ops *beacon_ops;
-
-	u32 aggr_stats[32];
 
 	struct sk_buff *beacons[8];
 	u8 beacon_data_mask;

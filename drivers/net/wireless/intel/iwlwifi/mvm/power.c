@@ -370,8 +370,6 @@ static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 	if (dtimper >= 10)
 		return;
 
-	/* TODO: check that multicast wake lock is off */
-
 	if (host_awake) {
 		if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_LP)
 			return;

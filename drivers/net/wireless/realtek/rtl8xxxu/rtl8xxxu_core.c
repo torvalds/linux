@@ -5393,18 +5393,13 @@ static void rtl8xxxu_c2hcmd_callback(struct work_struct *work)
 {
 	struct rtl8xxxu_priv *priv;
 	struct rtl8723bu_c2h *c2h;
-	struct ieee80211_vif *vif;
-	struct device *dev;
 	struct sk_buff *skb = NULL;
 	unsigned long flags;
-	int len;
 	u8 bt_info = 0;
 	struct rtl8xxxu_btcoex *btcoex;
 
 	priv = container_of(work, struct rtl8xxxu_priv, c2hcmd_work);
-	vif = priv->vif;
 	btcoex = &priv->bt_coex;
-	dev = &priv->udev->dev;
 
 	if (priv->rf_paths > 1)
 		goto out;
@@ -5415,7 +5410,6 @@ static void rtl8xxxu_c2hcmd_callback(struct work_struct *work)
 		spin_unlock_irqrestore(&priv->c2hcmd_lock, flags);
 
 		c2h = (struct rtl8723bu_c2h *)skb->data;
-		len = skb->len - 2;
 
 		switch (c2h->id) {
 		case C2H_8723B_BT_INFO:

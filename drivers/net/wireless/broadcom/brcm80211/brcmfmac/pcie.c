@@ -1425,6 +1425,8 @@ static int brcmf_pcie_reset(struct device *dev)
 	struct brcmf_fw_request *fwreq;
 	int err;
 
+	brcmf_pcie_intr_disable(devinfo);
+
 	brcmf_pcie_bus_console_read(devinfo, true);
 
 	brcmf_detach(dev);

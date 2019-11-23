@@ -75,5 +75,6 @@ int qtnf_cmd_set_tx_power(const struct qtnf_vif *vif,
 			  enum nl80211_tx_power_setting type, int mbm);
 int qtnf_cmd_send_wowlan_set(const struct qtnf_vif *vif,
 			     const struct cfg80211_wowlan *wowl);
+int qtnf_cmd_netdev_changeupper(const struct qtnf_vif *vif, int br_domain);
 
 #endif /* QLINK_COMMANDS_H_ */

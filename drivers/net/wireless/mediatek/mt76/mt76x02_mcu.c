@@ -114,7 +114,7 @@ int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type, u32 param)
 		.id = cpu_to_le32(type),
 		.value = cpu_to_le32(param),
 	};
-	bool is_mt76x2e = mt76_is_mmio(dev) && is_mt76x2(dev);
+	bool is_mt76x2e = mt76_is_mmio(&dev->mt76) && is_mt76x2(dev);
 	int ret;
 
 	if (is_mt76x2e)

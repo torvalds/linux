@@ -343,6 +343,7 @@ EXPORT_SYMBOL_GPL(mt76x02_dma_disable);
 
 void mt76x02_mac_start(struct mt76x02_dev *dev)
 {
+	mt76x02_mac_reset_counters(dev);
 	mt76x02_dma_enable(dev);
 	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 	mt76_wr(dev, MT_MAC_SYS_CTRL,

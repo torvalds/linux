@@ -322,7 +322,7 @@ static void iwl_pcie_rxmq_restock(struct iwl_trans *trans,
 		WARN_ON(rxb->page_dma & DMA_BIT_MASK(12));
 		/* Point to Rx buffer via next RBD in circular buffer */
 		iwl_pcie_restock_bd(trans, rxq, rxb);
-		rxq->write = (rxq->write + 1) & MQ_RX_TABLE_MASK;
+		rxq->write = (rxq->write + 1) & (rxq->queue_size - 1);
 		rxq->free_count--;
 	}
 	spin_unlock(&rxq->lock);
@@ -793,7 +793,7 @@ err:
 	return -ENOMEM;
 }
 
-int iwl_pcie_rx_alloc(struct iwl_trans *trans)
+static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
@@ -1024,7 +1024,7 @@ int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-int _iwl_pcie_rx_init(struct iwl_trans *trans)
+static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rxq *def_rxq;

@@ -41,6 +41,25 @@ static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 	return &sta->vif->sta.wcid;
 }
 
+void mt7615_mac_reset_counters(struct mt7615_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < 4; i++)
+		mt76_rr(dev, MT_TX_AGG_CNT(i));
+
+	memset(dev->mt76.aggr_stats, 0, sizeof(dev->mt76.aggr_stats));
+
+	/* TODO: add DBDC support */
+
+	/* reset airtime counters */
+	mt76_rr(dev, MT_MIB_SDR9(0));
+	mt76_rr(dev, MT_MIB_SDR36(0));
+	mt76_rr(dev, MT_MIB_SDR37(0));
+	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
+	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
+}
+
 int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
@@ -62,6 +81,16 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	idx = FIELD_GET(MT_RXD2_NORMAL_WLAN_IDX, rxd2);
 	status->wcid = mt7615_rx_get_wcid(dev, idx, unicast);
 
+	if (status->wcid) {
+		struct mt7615_sta *msta;
+
+		msta = container_of(status->wcid, struct mt7615_sta, wcid);
+		spin_lock_bh(&dev->sta_poll_lock);
+		if (list_empty(&msta->poll_list))
+			list_add_tail(&msta->poll_list, &dev->sta_poll_list);
+		spin_unlock_bh(&dev->sta_poll_lock);
+	}
+
 	/* TODO: properly support DBDC */
 	status->freq = dev->mt76.chandef.chan->center_freq;
 	status->band = dev->mt76.chandef.chan->band;
@@ -81,6 +110,20 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 		status->flag |= RX_FLAG_DECRYPTED;
 		status->flag |= RX_FLAG_IV_STRIPPED;
 		status->flag |= RX_FLAG_MMIC_STRIPPED | RX_FLAG_MIC_STRIPPED;
+	}
+
+	if (!(rxd2 & (MT_RXD2_NORMAL_NON_AMPDU_SUB |
+		      MT_RXD2_NORMAL_NON_AMPDU))) {
+		status->flag |= RX_FLAG_AMPDU_DETAILS;
+
+		/* all subframes of an A-MPDU have the same timestamp */
+		if (dev->rx_ampdu_ts != rxd[12]) {
+			if (!++dev->mt76.ampdu_ref)
+				dev->mt76.ampdu_ref++;
+		}
+		dev->rx_ampdu_ts = rxd[12];
+
+		status->ampdu_ref = dev->mt76.ampdu_ref;
 	}
 
 	remove_pad = rxd1 & MT_RXD1_NORMAL_HDR_OFFSET;
@@ -460,6 +503,91 @@ static u32 mt7615_mac_wtbl_addr(int wcid)
 	return MT_WTBL_BASE + wcid * MT_WTBL_ENTRY_SIZE;
 }
 
+bool mt7615_mac_wtbl_update(struct mt7615_dev *dev, int idx, u32 mask)
+{
+	mt76_rmw(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_WLAN_IDX,
+		 FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, idx) | mask);
+
+	return mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY,
+			 0, 5000);
+}
+
+void mt7615_mac_sta_poll(struct mt7615_dev *dev)
+{
+	static const u8 ac_to_tid[4] = {
+		[IEEE80211_AC_BE] = 0,
+		[IEEE80211_AC_BK] = 1,
+		[IEEE80211_AC_VI] = 4,
+		[IEEE80211_AC_VO] = 6
+	};
+	static const u8 hw_queue_map[] = {
+		[IEEE80211_AC_BK] = 0,
+		[IEEE80211_AC_BE] = 1,
+		[IEEE80211_AC_VI] = 2,
+		[IEEE80211_AC_VO] = 3,
+	};
+	struct ieee80211_sta *sta;
+	struct mt7615_sta *msta;
+	u32 addr, tx_time[4], rx_time[4];
+	int i;
+
+	rcu_read_lock();
+
+	while (true) {
+		bool clear = false;
+
+		spin_lock_bh(&dev->sta_poll_lock);
+		if (list_empty(&dev->sta_poll_list)) {
+			spin_unlock_bh(&dev->sta_poll_lock);
+			break;
+		}
+		msta = list_first_entry(&dev->sta_poll_list,
+					struct mt7615_sta, poll_list);
+		list_del_init(&msta->poll_list);
+		spin_unlock_bh(&dev->sta_poll_lock);
+
+		addr = mt7615_mac_wtbl_addr(msta->wcid.idx) + 19 * 4;
+
+		for (i = 0; i < 4; i++, addr += 8) {
+			u32 tx_last = msta->airtime_ac[i];
+			u32 rx_last = msta->airtime_ac[i + 4];
+
+			msta->airtime_ac[i] = mt76_rr(dev, addr);
+			msta->airtime_ac[i + 4] = mt76_rr(dev, addr + 4);
+			tx_time[i] = msta->airtime_ac[i] - tx_last;
+			rx_time[i] = msta->airtime_ac[i + 4] - rx_last;
+
+			if ((tx_last | rx_last) & BIT(30))
+				clear = true;
+		}
+
+		if (clear) {
+			mt7615_mac_wtbl_update(dev, msta->wcid.idx,
+					       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
+			memset(msta->airtime_ac, 0, sizeof(msta->airtime_ac));
+		}
+
+		if (!msta->wcid.sta)
+			continue;
+
+		sta = container_of((void *)msta, struct ieee80211_sta,
+				   drv_priv);
+		for (i = 0; i < 4; i++) {
+			u32 tx_cur = tx_time[i];
+			u32 rx_cur = rx_time[hw_queue_map[i]];
+			u8 tid = ac_to_tid[i];
+
+			if (!tx_cur && !rx_cur)
+				continue;
+
+			ieee80211_sta_register_airtime(sta, tid, tx_cur,
+						       rx_cur);
+		}
+	}
+
+	rcu_read_unlock();
+}
+
 void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *probe_rate,
 			  struct ieee80211_tx_rate *rates)
@@ -692,11 +820,8 @@ mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 	mt76_wr(dev, MT_WTBL_RICR0, w0);
 	mt76_wr(dev, MT_WTBL_RICR1, w1);
 
-	mt76_wr(dev, MT_WTBL_UPDATE,
-		FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, wcid->idx) |
-		MT_WTBL_UPDATE_RXINFO_UPDATE);
-
-	if (!mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000))
+	if (!mt7615_mac_wtbl_update(dev, wcid->idx,
+				    MT_WTBL_UPDATE_RXINFO_UPDATE))
 		return -ETIMEDOUT;
 
 	return 0;
@@ -914,8 +1039,10 @@ static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,
 		if (idx && (cur_rate->idx != info->status.rates[i].idx ||
 			    cur_rate->flags != info->status.rates[i].flags)) {
 			i++;
-			if (i == ARRAY_SIZE(info->status.rates))
+			if (i == ARRAY_SIZE(info->status.rates)) {
+				i--;
 				break;
+			}
 
 			info->status.rates[i] = *cur_rate;
 			info->status.rates[i].count = 0;
@@ -1025,6 +1152,11 @@ void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 
 	msta = container_of(wcid, struct mt7615_sta, wcid);
 	sta = wcid_to_sta(wcid);
+
+	spin_lock_bh(&dev->sta_poll_lock);
+	if (list_empty(&msta->poll_list))
+		list_add_tail(&msta->poll_list, &dev->sta_poll_list);
+	spin_unlock_bh(&dev->sta_poll_lock);
 
 	if (mt7615_mac_add_txs_skb(dev, msta, pid, txs_data))
 		goto out;
@@ -1239,37 +1371,48 @@ void mt7615_update_channel(struct mt76_dev *mdev)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	struct mt76_channel_state *state;
-	ktime_t cur_time;
-	u32 busy;
+	u64 busy_time, tx_time, rx_time, obss_time;
 
-	if (!test_bit(MT76_STATE_RUNNING, &mdev->state))
-		return;
-
-	state = mt76_channel_state(mdev, mdev->chandef.chan);
 	/* TODO: add DBDC support */
-	busy = mt76_get_field(dev, MT_MIB_SDR16(0), MT_MIB_BUSY_MASK);
+	busy_time = mt76_get_field(dev, MT_MIB_SDR9(0),
+				   MT_MIB_SDR9_BUSY_MASK);
+	tx_time = mt76_get_field(dev, MT_MIB_SDR36(0),
+				 MT_MIB_SDR36_TXTIME_MASK);
+	rx_time = mt76_get_field(dev, MT_MIB_SDR37(0),
+				 MT_MIB_SDR37_RXTIME_MASK);
+	obss_time = mt76_get_field(dev, MT_WF_RMAC_MIB_TIME5,
+				   MT_MIB_OBSSTIME_MASK);
 
-	spin_lock_bh(&mdev->cc_lock);
-	cur_time = ktime_get_boottime();
-	state->cc_busy += busy;
-	state->cc_active += ktime_to_us(ktime_sub(cur_time,
-						  mdev->survey_time));
-	mdev->survey_time = cur_time;
-	spin_unlock_bh(&mdev->cc_lock);
+	state = mdev->chan_state;
+	state->cc_busy += busy_time;
+	state->cc_tx += tx_time;
+	state->cc_rx += rx_time + obss_time;
+	state->cc_bss_rx += rx_time;
+
+	/* reset obss airtime */
+	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
 }
 
 void mt7615_mac_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev;
+	int i, idx;
 
 	dev = (struct mt7615_dev *)container_of(work, struct mt76_dev,
 						mac_work.work);
 
 	mutex_lock(&dev->mt76.mutex);
-	mt7615_update_channel(&dev->mt76);
+	mt76_update_survey(&dev->mt76);
 	if (++dev->mac_work_count == 5) {
 		mt7615_mac_scs_check(dev);
 		dev->mac_work_count = 0;
+	}
+
+	for (i = 0, idx = 0; i < 4; i++) {
+		u32 val = mt76_rr(dev, MT_TX_AGG_CNT(i));
+
+		dev->mt76.aggr_stats[idx++] += val & 0xffff;
+		dev->mt76.aggr_stats[idx++] += val >> 16;
 	}
 	mutex_unlock(&dev->mt76.mutex);
 

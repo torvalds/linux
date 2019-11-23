@@ -409,7 +409,6 @@ struct iwl_fw_mon_regs {
  * @mac_addr_from_csr: read HW address from CSR registers
  * @features: hw features, any combination of feature_whitelist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
- * @max_rx_agg_size: max RX aggregation size of the ADDBA request/response
  * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
  * @max_ht_ampdu_factor: the exponent of the max length of A-MPDU that the
  *	station can receive in HT
@@ -481,7 +480,6 @@ struct iwl_cfg {
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
 	u8 nvm_hw_section_num;
-	u8 max_rx_agg_size;
 	u8 max_tx_agg_size;
 	u8 max_ht_ampdu_exponent;
 	u8 max_vht_ampdu_exponent;

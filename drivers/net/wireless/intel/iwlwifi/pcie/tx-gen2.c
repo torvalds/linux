@@ -333,7 +333,8 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 			goto out_err;
 		}
 		iwl_pcie_gen2_set_tb(trans, tfd, tb_phys, tb_len);
-		trace_iwlwifi_dev_tx_tb(trans->dev, skb, start_hdr, tb_len);
+		trace_iwlwifi_dev_tx_tb(trans->dev, skb, start_hdr,
+					tb_phys, tb_len);
 		/* add this subframe's headers' length to the tx_cmd */
 		le16_add_cpu(&tx_cmd->len, hdr_page->pos - subf_hdrs_start);
 
@@ -351,7 +352,7 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 			}
 			iwl_pcie_gen2_set_tb(trans, tfd, tb_phys, tb_len);
 			trace_iwlwifi_dev_tx_tb(trans->dev, skb, tso.data,
-						tb_len);
+						tb_phys, tb_len);
 
 			data_left -= tb_len;
 			tso_build_data(skb, &tso, tb_len);
@@ -441,9 +442,8 @@ static int iwl_pcie_gen2_tx_add_frags(struct iwl_trans *trans,
 			return -ENOMEM;
 		tb_idx = iwl_pcie_gen2_set_tb(trans, tfd, tb_phys,
 					      skb_frag_size(frag));
-		trace_iwlwifi_dev_tx_tb(trans->dev, skb,
-					skb_frag_address(frag),
-					skb_frag_size(frag));
+		trace_iwlwifi_dev_tx_tb(trans->dev, skb, skb_frag_address(frag),
+					tb_phys, skb_frag_size(frag));
 		if (tb_idx < 0)
 			return tb_idx;
 
@@ -468,6 +468,7 @@ iwl_tfh_tfd *iwl_pcie_gen2_build_tx(struct iwl_trans *trans,
 	dma_addr_t tb_phys;
 	int len, tb1_len, tb2_len;
 	void *tb1_addr;
+	struct sk_buff *frag;
 
 	tb_phys = iwl_pcie_get_first_tb_dma(txq, idx);
 
@@ -508,13 +509,24 @@ iwl_tfh_tfd *iwl_pcie_gen2_build_tx(struct iwl_trans *trans,
 		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
 			goto out_err;
 		iwl_pcie_gen2_set_tb(trans, tfd, tb_phys, tb2_len);
-		trace_iwlwifi_dev_tx_tb(trans->dev, skb,
-					skb->data + hdr_len,
-					tb2_len);
+		trace_iwlwifi_dev_tx_tb(trans->dev, skb, skb->data + hdr_len,
+					tb_phys, tb2_len);
 	}
 
 	if (iwl_pcie_gen2_tx_add_frags(trans, skb, tfd, out_meta))
 		goto out_err;
+
+	skb_walk_frags(skb, frag) {
+		tb_phys = dma_map_single(trans->dev, frag->data,
+					 skb_headlen(frag), DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
+			goto out_err;
+		iwl_pcie_gen2_set_tb(trans, tfd, tb_phys, skb_headlen(frag));
+		trace_iwlwifi_dev_tx_tb(trans->dev, skb, frag->data,
+					tb_phys, skb_headlen(frag));
+		if (iwl_pcie_gen2_tx_add_frags(trans, frag, tfd, out_meta))
+			goto out_err;
+	}
 
 	return tfd;
 

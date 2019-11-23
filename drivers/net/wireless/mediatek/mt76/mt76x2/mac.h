@@ -12,7 +12,6 @@ struct mt76x02_dev;
 struct mt76x2_sta;
 struct mt76x02_vif;
 
-int mt76x2_mac_start(struct mt76x02_dev *dev);
 void mt76x2_mac_stop(struct mt76x02_dev *dev, bool force);
 
 static inline void mt76x2_mac_resume(struct mt76x02_dev *dev)
