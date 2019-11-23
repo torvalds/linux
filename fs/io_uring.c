@@ -550,6 +550,7 @@ static inline bool io_prep_async_work(struct io_kiocb *req,
 		case IORING_OP_RECVMSG:
 		case IORING_OP_ACCEPT:
 		case IORING_OP_POLL_ADD:
+		case IORING_OP_CONNECT:
 			/*
 			 * We know REQ_F_ISREG is not set on some of these
 			 * opcodes, but this enables us to keep the check in
@@ -1974,6 +1975,38 @@ static int io_accept(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 #endif
 }
 
+static int io_connect(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+		      struct io_kiocb **nxt, bool force_nonblock)
+{
+#if defined(CONFIG_NET)
+	struct sockaddr __user *addr;
+	unsigned file_flags;
+	int addr_len, ret;
+
+	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
+		return -EINVAL;
+	if (sqe->ioprio || sqe->len || sqe->buf_index || sqe->rw_flags)
+		return -EINVAL;
+
+	addr = (struct sockaddr __user *) (unsigned long) READ_ONCE(sqe->addr);
+	addr_len = READ_ONCE(sqe->addr2);
+	file_flags = force_nonblock ? O_NONBLOCK : 0;
+
+	ret = __sys_connect_file(req->file, addr, addr_len, file_flags);
+	if (ret == -EAGAIN && force_nonblock)
+		return -EAGAIN;
+	if (ret == -ERESTARTSYS)
+		ret = -EINTR;
+	if (ret < 0 && (req->flags & REQ_F_LINK))
+		req->flags |= REQ_F_FAIL_LINK;
+	io_cqring_add_event(req, ret);
+	io_put_req_find_next(req, nxt);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
 static inline void io_poll_remove_req(struct io_kiocb *req)
 {
 	if (!RB_EMPTY_NODE(&req->rb_node)) {
@@ -2636,6 +2669,9 @@ static int io_issue_sqe(struct io_kiocb *req, struct io_kiocb **nxt,
 		break;
 	case IORING_OP_ACCEPT:
 		ret = io_accept(req, s->sqe, nxt, force_nonblock);
+		break;
+	case IORING_OP_CONNECT:
+		ret = io_connect(req, s->sqe, nxt, force_nonblock);
 		break;
 	case IORING_OP_ASYNC_CANCEL:
 		ret = io_async_cancel(req, s->sqe, nxt);
