@@ -889,7 +889,7 @@ config SENSORS_MAX197
 	  will be called max197.
 
 config SENSORS_MAX31722
-tristate "MAX31722 temperature sensor"
+	tristate "MAX31722 temperature sensor"
 	depends on SPI
 	help
 	  Support for the Maxim Integrated MAX31722/MAX31723 digital
@@ -897,6 +897,16 @@ tristate "MAX31722 temperature sensor"
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max31722.
+
+config SENSORS_MAX31730
+	tristate "MAX31730 temperature sensor"
+	depends on I2C
+	help
+	  Support for the Maxim Integrated MAX31730 3-Channel Remote
+	  Temperature Sensor.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max31730.
 
 config SENSORS_MAX6621
 	tristate "Maxim MAX6621 sensor chip"
