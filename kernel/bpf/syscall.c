@@ -23,7 +23,6 @@
 #include <linux/timekeeping.h>
 #include <linux/ctype.h>
 #include <linux/nospec.h>
-#include <linux/audit.h>
 #include <uapi/linux/btf.h>
 
 #define IS_FD_ARRAY(map) ((map)->map_type == BPF_MAP_TYPE_PROG_ARRAY || \
@@ -1322,34 +1321,6 @@ static void free_used_maps(struct bpf_prog_aux *aux)
 	kfree(aux->used_maps);
 }
 
-enum bpf_event {
-	BPF_EVENT_LOAD,
-	BPF_EVENT_UNLOAD,
-};
-
-static const char * const bpf_event_audit_str[] = {
-	[BPF_EVENT_LOAD]   = "LOAD",
-	[BPF_EVENT_UNLOAD] = "UNLOAD",
-};
-
-static void bpf_audit_prog(const struct bpf_prog *prog, enum bpf_event event)
-{
-	bool has_task_context = event == BPF_EVENT_LOAD;
-	struct audit_buffer *ab;
-
-	if (audit_enabled == AUDIT_OFF)
-		return;
-	ab = audit_log_start(audit_context(), GFP_ATOMIC, AUDIT_BPF);
-	if (unlikely(!ab))
-		return;
-	if (has_task_context)
-		audit_log_task(ab);
-	audit_log_format(ab, "%sprog-id=%u event=%s",
-			 has_task_context ? " " : "",
-			 prog->aux->id, bpf_event_audit_str[event]);
-	audit_log_end(ab);
-}
-
 int __bpf_prog_charge(struct user_struct *user, u32 pages)
 {
 	unsigned long memlock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
@@ -1466,7 +1437,6 @@ static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
 {
 	if (atomic64_dec_and_test(&prog->aux->refcnt)) {
 		perf_event_bpf_event(prog, PERF_BPF_EVENT_PROG_UNLOAD, 0);
-		bpf_audit_prog(prog, BPF_EVENT_UNLOAD);
 		/* bpf_prog_free_id() must be called first */
 		bpf_prog_free_id(prog, do_idr_lock);
 		__bpf_prog_put_noref(prog, true);
@@ -1876,7 +1846,6 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 	 */
 	bpf_prog_kallsyms_add(prog);
 	perf_event_bpf_event(prog, PERF_BPF_EVENT_PROG_LOAD, 0);
-	bpf_audit_prog(prog, BPF_EVENT_LOAD);
 
 	err = bpf_prog_new_fd(prog);
 	if (err < 0)
