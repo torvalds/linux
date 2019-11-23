@@ -46,6 +46,15 @@ config REGULATOR_FIXED_VOLTAGE
 	  useful for systems which use a combination of software
 	  managed regulators and simple non-configurable regulators.
 
+config REGULATOR_QTI_FIXED_VOLTAGE
+	tristate "QTI fixed voltage regulator support"
+	help
+	  This driver provides support for fixed voltage regulators which are
+	  controlled via a GPIO.  It also supports proxy consumer voting and
+	  debug features utilized on Qualcomm Technologies, Inc. boards.  Use
+	  this driver in place of the fixed voltage regulator driver if these
+	  additional features are required.
+
 config REGULATOR_VIRTUAL_CONSUMER
 	tristate "Virtual regulator consumer support"
 	help
