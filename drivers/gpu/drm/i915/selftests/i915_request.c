@@ -1214,10 +1214,12 @@ static int live_parallel_engines(void *arg)
 		return -ENOMEM;
 
 	for (fn = func; !err && *fn; fn++) {
+		char name[KSYM_NAME_LEN];
 		struct igt_live_test t;
 		unsigned int idx;
 
-		err = igt_live_test_begin(&t, i915, __func__, "");
+		snprintf(name, sizeof(name), "%pS", fn);
+		err = igt_live_test_begin(&t, i915, __func__, name);
 		if (err)
 			break;
 
