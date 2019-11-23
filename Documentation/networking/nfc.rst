@@ -1,3 +1,4 @@
+===================
 Linux NFC subsystem
 ===================
 
@@ -8,7 +9,7 @@ This document covers the architecture overview, the device driver interface
 description and the userspace interface description.
 
 Architecture overview
----------------------
+=====================
 
 The NFC subsystem is responsible for:
       - NFC adapters management;
@@ -25,33 +26,34 @@ The control operations are available to userspace via generic netlink.
 The low-level data exchange interface is provided by the new socket family
 PF_NFC. The NFC_SOCKPROTO_RAW performs raw communication with NFC targets.
 
+.. code-block:: none
 
-             +--------------------------------------+
-             |              USER SPACE              |
-             +--------------------------------------+
-                 ^                       ^
-                 | low-level             | control
-                 | data exchange         | operations
-                 |                       |
-                 |                       v
-                 |                  +-----------+
-                 | AF_NFC           |  netlink  |
-                 | socket           +-----------+
-                 | raw                   ^
-                 |                       |
-                 v                       v
-             +---------+            +-----------+
-             | rawsock | <--------> |   core    |
-             +---------+            +-----------+
-                                         ^
-                                         |
-                                         v
-                                    +-----------+
-                                    |  driver   |
-                                    +-----------+
+        +--------------------------------------+
+        |              USER SPACE              |
+        +--------------------------------------+
+            ^                       ^
+            | low-level             | control
+            | data exchange         | operations
+            |                       |
+            |                       v
+            |                  +-----------+
+            | AF_NFC           |  netlink  |
+            | socket           +-----------+
+            | raw                   ^
+            |                       |
+            v                       v
+        +---------+            +-----------+
+        | rawsock | <--------> |   core    |
+        +---------+            +-----------+
+                                    ^
+                                    |
+                                    v
+                               +-----------+
+                               |  driver   |
+                               +-----------+
 
 Device Driver Interface
------------------------
+=======================
 
 When registering on the NFC subsystem, the device driver must inform the core
 of the set of supported NFC protocols and the set of ops callbacks. The ops
@@ -64,7 +66,7 @@ callbacks that must be implemented are the following:
 * data_exchange - send data and receive the response (transceive operation)
 
 Userspace interface
---------------------
+===================
 
 The userspace interface is divided in control operations and low-level data
 exchange operation.
@@ -82,7 +84,7 @@ The operations are composed by commands and events, all listed below:
 * NFC_EVENT_DEVICE_ADDED - reports an NFC device addition
 * NFC_EVENT_DEVICE_REMOVED - reports an NFC device removal
 * NFC_EVENT_TARGETS_FOUND - reports START_POLL results when 1 or more targets
-are found
+  are found
 
 The user must call START_POLL to poll for NFC targets, passing the desired NFC
 protocols through NFC_ATTR_PROTOCOLS attribute. The device remains in polling
@@ -101,14 +103,14 @@ it's closed.
 LOW-LEVEL DATA EXCHANGE:
 
 The userspace must use PF_NFC sockets to perform any data communication with
-targets. All NFC sockets use AF_NFC:
+targets. All NFC sockets use AF_NFC::
 
-struct sockaddr_nfc {
-       sa_family_t sa_family;
-       __u32 dev_idx;
-       __u32 target_idx;
-       __u32 nfc_protocol;
-};
+        struct sockaddr_nfc {
+               sa_family_t sa_family;
+               __u32 dev_idx;
+               __u32 target_idx;
+               __u32 nfc_protocol;
+        };
 
 To establish a connection with one target, the user must create an
 NFC_SOCKPROTO_RAW socket and call the 'connect' syscall with the sockaddr_nfc

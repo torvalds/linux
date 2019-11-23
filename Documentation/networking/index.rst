@@ -33,6 +33,7 @@ Contents:
    scaling
    tls
    tls-offload
+   nfc
 
 .. only::  subproject and html
 
