@@ -34,7 +34,6 @@
 
 struct xgene_rtc_dev {
 	struct rtc_device *rtc;
-	struct device *dev;
 	void __iomem *csr_base;
 	struct clk *clk;
 	unsigned int irq_wake;
@@ -144,7 +143,6 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, pdata);
-	pdata->dev = &pdev->dev;
 
 	pdata->csr_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->csr_base))
