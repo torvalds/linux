@@ -3,6 +3,7 @@
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
 #include "bpf_tracing.h"
+#include "bpf_trace_helpers.h"
 
 SEC("kprobe/__set_task_comm")
 int prog1(struct pt_regs *ctx)
@@ -22,20 +23,15 @@ int prog3(struct bpf_raw_tracepoint_args *ctx)
 	return 0;
 }
 
-struct __set_task_comm_args {
-	struct task_struct *tsk;
-	const char *buf;
-	ku8 exec;
-};
-
-SEC("fentry/__set_task_comm")
-int prog4(struct __set_task_comm_args *ctx)
+struct task_struct;
+BPF_TRACE_3("fentry/__set_task_comm", prog4,
+	    struct task_struct *, tsk, const char *, buf, __u8, exec)
 {
 	return 0;
 }
 
-SEC("fexit/__set_task_comm")
-int prog5(struct __set_task_comm_args *ctx)
+BPF_TRACE_3("fexit/__set_task_comm", prog5,
+	    struct task_struct *, tsk, const char *, buf, __u8, exec)
 {
 	return 0;
 }
