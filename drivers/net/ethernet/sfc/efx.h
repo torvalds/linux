@@ -166,15 +166,20 @@ static inline s32 efx_filter_get_rx_ids(struct efx_nic *efx,
 #ifdef CONFIG_RFS_ACCEL
 int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		   u16 rxq_index, u32 flow_id);
-bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned quota);
+bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota);
 static inline void efx_filter_rfs_expire(struct work_struct *data)
 {
-	struct efx_channel *channel = container_of(data, struct efx_channel,
-						   filter_work);
+	struct delayed_work *dwork = to_delayed_work(data);
+	struct efx_channel *channel;
+	unsigned int time, quota;
 
-	if (channel->rfs_filters_added >= 60 &&
-	    __efx_filter_rfs_expire(channel->efx, 100))
-		channel->rfs_filters_added -= 60;
+	channel = container_of(dwork, struct efx_channel, filter_work);
+	time = jiffies - channel->rfs_last_expiry;
+	quota = channel->rfs_filter_count * time / (30 * HZ);
+	if (quota > 20 && __efx_filter_rfs_expire(channel, min(channel->rfs_filter_count, quota)))
+		channel->rfs_last_expiry += time;
+	/* Ensure we do more work eventually even if NAPI poll is not happening */
+	schedule_delayed_work(dwork, 30 * HZ);
 }
 #define efx_filter_rfs_enabled() 1
 #else

@@ -4202,11 +4202,15 @@ static int efx_ef10_filter_push(struct efx_nic *efx,
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_EXT_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_FILTER_OP_EXT_OUT_LEN);
+	size_t outlen;
 	int rc;
 
 	efx_ef10_filter_push_prep(efx, spec, inbuf, *handle, ctx, replacing);
-	rc = efx_mcdi_rpc(efx, MC_CMD_FILTER_OP, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), NULL);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FILTER_OP, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), &outlen);
+	if (rc && spec->priority != EFX_FILTER_PRI_HINT)
+		efx_mcdi_display_error(efx, MC_CMD_FILTER_OP, sizeof(inbuf),
+				       outbuf, outlen, rc);
 	if (rc == 0)
 		*handle = MCDI_QWORD(outbuf, FILTER_OP_OUT_HANDLE);
 	if (rc == -ENOSPC)
