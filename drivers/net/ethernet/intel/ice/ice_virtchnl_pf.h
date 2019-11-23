@@ -122,6 +122,9 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena);
 int ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector);
 
 void ice_set_vf_state_qs_dis(struct ice_vf *vf);
+int
+ice_get_vf_stats(struct net_device *netdev, int vf_id,
+		 struct ifla_vf_stats *vf_stats);
 #else /* CONFIG_PCI_IOV */
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
@@ -193,6 +196,14 @@ ice_calc_vf_reg_idx(struct ice_vf __always_unused *vf,
 		    struct ice_q_vector __always_unused *q_vector)
 {
 	return 0;
+}
+
+static inline int
+ice_get_vf_stats(struct net_device __always_unused *netdev,
+		 int __always_unused vf_id,
+		 struct ifla_vf_stats __always_unused *vf_stats)
+{
+	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_PCI_IOV */
 #endif /* _ICE_VIRTCHNL_PF_H_ */

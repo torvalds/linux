@@ -179,7 +179,7 @@ static u8 ice_dcbnl_setdcbx(struct net_device *netdev, u8 mode)
 	else
 		pf->hw.port_info->local_dcbx_cfg.dcbx_mode = ICE_DCBX_MODE_IEEE;
 
-	dev_info(&pf->pdev->dev, "DCBx mode = 0x%x\n", mode);
+	dev_info(ice_pf_to_dev(pf), "DCBx mode = 0x%x\n", mode);
 	return ICE_DCB_HW_CHG_RST;
 }
 
@@ -297,7 +297,7 @@ ice_dcbnl_get_pfc_cfg(struct net_device *netdev, int prio, u8 *setting)
 		return;
 
 	*setting = (pi->local_dcbx_cfg.pfc.pfcena >> prio) & 0x1;
-	dev_dbg(&pf->pdev->dev,
+	dev_dbg(ice_pf_to_dev(pf),
 		"Get PFC Config up=%d, setting=%d, pfcenable=0x%x\n",
 		prio, *setting, pi->local_dcbx_cfg.pfc.pfcena);
 }
@@ -328,7 +328,7 @@ static void ice_dcbnl_set_pfc_cfg(struct net_device *netdev, int prio, u8 set)
 	else
 		new_cfg->pfc.pfcena &= ~BIT(prio);
 
-	dev_dbg(&pf->pdev->dev, "Set PFC config UP:%d set:%d pfcena:0x%x\n",
+	dev_dbg(ice_pf_to_dev(pf), "Set PFC config UP:%d set:%d pfcena:0x%x\n",
 		prio, set, new_cfg->pfc.pfcena);
 }
 
@@ -359,7 +359,7 @@ static u8 ice_dcbnl_getstate(struct net_device *netdev)
 
 	state = test_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 
-	dev_dbg(&pf->pdev->dev, "DCB enabled state = %d\n", state);
+	dev_dbg(ice_pf_to_dev(pf), "DCB enabled state = %d\n", state);
 	return state;
 }
 
@@ -418,7 +418,7 @@ ice_dcbnl_get_pg_tc_cfg_tx(struct net_device *netdev, int prio,
 		return;
 
 	*pgid = pi->local_dcbx_cfg.etscfg.prio_table[prio];
-	dev_dbg(&pf->pdev->dev,
+	dev_dbg(ice_pf_to_dev(pf),
 		"Get PG config prio=%d tc=%d\n", prio, *pgid);
 }
 
@@ -479,7 +479,7 @@ ice_dcbnl_get_pg_bwg_cfg_tx(struct net_device *netdev, int pgid, u8 *bw_pct)
 		return;
 
 	*bw_pct = pi->local_dcbx_cfg.etscfg.tcbwtable[pgid];
-	dev_dbg(&pf->pdev->dev, "Get PG BW config tc=%d bw_pct=%d\n",
+	dev_dbg(ice_pf_to_dev(pf), "Get PG BW config tc=%d bw_pct=%d\n",
 		pgid, *bw_pct);
 }
 
@@ -597,7 +597,7 @@ static u8 ice_dcbnl_get_cap(struct net_device *netdev, int capid, u8 *cap)
 		break;
 	}
 
-	dev_dbg(&pf->pdev->dev, "DCBX Get Capability cap=%d capval=0x%x\n",
+	dev_dbg(ice_pf_to_dev(pf), "DCBX Get Capability cap=%d capval=0x%x\n",
 		capid, *cap);
 	return 0;
 }

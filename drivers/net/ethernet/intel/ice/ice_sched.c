@@ -798,8 +798,7 @@ void ice_sched_cleanup_all(struct ice_hw *hw)
 		hw->layer_info = NULL;
 	}
 
-	if (hw->port_info)
-		ice_sched_clear_port(hw->port_info);
+	ice_sched_clear_port(hw->port_info);
 
 	hw->num_tx_sched_layers = 0;
 	hw->num_tx_sched_phys_layers = 0;

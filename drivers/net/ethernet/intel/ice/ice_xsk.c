@@ -331,7 +331,7 @@ static int ice_xsk_umem_dma_map(struct ice_vsi *vsi, struct xdp_umem *umem)
 	struct device *dev;
 	unsigned int i;
 
-	dev = &pf->pdev->dev;
+	dev = ice_pf_to_dev(pf);
 	for (i = 0; i < umem->npgs; i++) {
 		dma_addr_t dma = dma_map_page_attrs(dev, umem->pgs[i], 0,
 						    PAGE_SIZE,
@@ -369,7 +369,7 @@ static void ice_xsk_umem_dma_unmap(struct ice_vsi *vsi, struct xdp_umem *umem)
 	struct device *dev;
 	unsigned int i;
 
-	dev = &pf->pdev->dev;
+	dev = ice_pf_to_dev(pf);
 	for (i = 0; i < umem->npgs; i++) {
 		dma_unmap_page_attrs(dev, umem->pages[i].dma, PAGE_SIZE,
 				     DMA_BIDIRECTIONAL, ICE_RX_DMA_ATTR);
