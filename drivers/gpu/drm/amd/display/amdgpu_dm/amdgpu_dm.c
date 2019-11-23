@@ -688,7 +688,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	 */
 	if (adev->flags & AMD_IS_APU &&
 	    adev->asic_type >= CHIP_CARRIZO &&
-	    adev->asic_type <= CHIP_RAVEN)
+	    adev->asic_type < CHIP_RAVEN)
 		init_data.flags.gpu_vm_support = true;
 
 	if (amdgpu_dc_feature_mask & DC_FBC_MASK)

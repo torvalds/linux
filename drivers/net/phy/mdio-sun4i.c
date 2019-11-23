@@ -145,8 +145,11 @@ err_out_free_mdiobus:
 static int sun4i_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = platform_get_drvdata(pdev);
+	struct sun4i_mdio_data *data = bus->priv;
 
 	mdiobus_unregister(bus);
+	if (data->regulator)
+		regulator_disable(data->regulator);
 	mdiobus_free(bus);
 
 	return 0;

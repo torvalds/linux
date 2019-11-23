@@ -103,6 +103,8 @@ node_create(struct intel_engine_pool *pool, size_t sz)
 		return ERR_CAST(obj);
 	}
 
+	i915_gem_object_set_readonly(obj);
+
 	node->obj = obj;
 	return node;
 }
