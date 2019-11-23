@@ -41,7 +41,6 @@
 struct st_rtc {
 	struct rtc_device *rtc_dev;
 	struct rtc_wkalrm alarm;
-	struct resource *res;
 	struct clk *clk;
 	unsigned long clkrate;
 	void __iomem *ioaddr;
