@@ -803,7 +803,7 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	if (hash_info)
+	if (hash_info && (net->features & NETIF_F_RXHASH))
 		skb_set_hash(skb, *hash_info, PKT_HASH_TYPE_L4);
 
 	if (vlan) {
