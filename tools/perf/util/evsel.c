@@ -846,6 +846,11 @@ static void apply_config_terms(struct evsel *evsel,
 		case PERF_EVSEL__CONFIG_TERM_AUX_OUTPUT:
 			attr->aux_output = term->val.aux_output ? 1 : 0;
 			break;
+		case PERF_EVSEL__CONFIG_TERM_AUX_SAMPLE_SIZE:
+			/* Already applied by auxtrace */
+			break;
+		case PERF_EVSEL__CONFIG_TERM_CFG_CHG:
+			break;
 		default:
 			break;
 		}
@@ -903,6 +908,19 @@ static bool is_dummy_event(struct evsel *evsel)
 {
 	return (evsel->core.attr.type == PERF_TYPE_SOFTWARE) &&
 	       (evsel->core.attr.config == PERF_COUNT_SW_DUMMY);
+}
+
+struct perf_evsel_config_term *__perf_evsel__get_config_term(struct evsel *evsel,
+							     enum evsel_term_type type)
+{
+	struct perf_evsel_config_term *term, *found_term = NULL;
+
+	list_for_each_entry(term, &evsel->config_terms, list) {
+		if (term->type == type)
+			found_term = term;
+	}
+
+	return found_term;
 }
 
 /*
@@ -2207,6 +2225,19 @@ int perf_evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 	if (type & PERF_SAMPLE_PHYS_ADDR) {
 		data->phys_addr = *array;
 		array++;
+	}
+
+	if (type & PERF_SAMPLE_AUX) {
+		OVERFLOW_CHECK_u64(array);
+		sz = *array++;
+
+		OVERFLOW_CHECK(array, sz, max_size);
+		/* Undo swap of data */
+		if (swapped)
+			mem_bswap_64((char *)array, sz);
+		data->aux_sample.size = sz;
+		data->aux_sample.data = (char *)array;
+		array = (void *)array + sz;
 	}
 
 	return 0;

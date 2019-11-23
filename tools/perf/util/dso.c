@@ -1149,7 +1149,7 @@ struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
 	return dso;
 }
 
-void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
+static void dso__set_long_name_id(struct dso *dso, const char *name, struct dso_id *id, bool name_allocated)
 {
 	struct rb_root *root = dso->root;
 
@@ -1162,8 +1162,8 @@ void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
 	if (root) {
 		rb_erase(&dso->rb_node, root);
 		/*
-		 * __dsos__findnew_link_by_longname() isn't guaranteed to add it
-		 * back, so a clean removal is required here.
+		 * __dsos__findnew_link_by_longname_id() isn't guaranteed to
+		 * add it back, so a clean removal is required here.
 		 */
 		RB_CLEAR_NODE(&dso->rb_node);
 		dso->root = NULL;
@@ -1174,7 +1174,12 @@ void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
 	dso->long_name_allocated = name_allocated;
 
 	if (root)
-		__dsos__findnew_link_by_longname(root, dso, NULL);
+		__dsos__findnew_link_by_longname_id(root, dso, NULL, id);
+}
+
+void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
+{
+	dso__set_long_name_id(dso, name, NULL, name_allocated);
 }
 
 void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
@@ -1215,13 +1220,15 @@ void dso__set_sorted_by_name(struct dso *dso)
 	dso->sorted_by_name = true;
 }
 
-struct dso *dso__new(const char *name)
+struct dso *dso__new_id(const char *name, struct dso_id *id)
 {
 	struct dso *dso = calloc(1, sizeof(*dso) + strlen(name) + 1);
 
 	if (dso != NULL) {
 		strcpy(dso->name, name);
-		dso__set_long_name(dso, dso->name, false);
+		if (id)
+			dso->id = *id;
+		dso__set_long_name_id(dso, dso->name, id, false);
 		dso__set_short_name(dso, dso->name, false);
 		dso->symbols = dso->symbol_names = RB_ROOT_CACHED;
 		dso->data.cache = RB_ROOT;
@@ -1250,6 +1257,11 @@ struct dso *dso__new(const char *name)
 	}
 
 	return dso;
+}
+
+struct dso *dso__new(const char *name)
+{
+	return dso__new_id(name, NULL);
 }
 
 void dso__delete(struct dso *dso)

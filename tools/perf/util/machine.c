@@ -1651,6 +1651,12 @@ int machine__process_mmap2_event(struct machine *machine,
 {
 	struct thread *thread;
 	struct map *map;
+	struct dso_id dso_id = {
+		.maj = event->mmap2.maj,
+		.min = event->mmap2.min,
+		.ino = event->mmap2.ino,
+		.ino_generation = event->mmap2.ino_generation,
+	};
 	int ret = 0;
 
 	if (dump_trace)
@@ -1671,10 +1677,7 @@ int machine__process_mmap2_event(struct machine *machine,
 
 	map = map__new(machine, event->mmap2.start,
 			event->mmap2.len, event->mmap2.pgoff,
-			event->mmap2.maj,
-			event->mmap2.min, event->mmap2.ino,
-			event->mmap2.ino_generation,
-			event->mmap2.prot,
+			&dso_id, event->mmap2.prot,
 			event->mmap2.flags,
 			event->mmap2.filename, thread);
 
@@ -1727,9 +1730,7 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 
 	map = map__new(machine, event->mmap.start,
 			event->mmap.len, event->mmap.pgoff,
-			0, 0, 0, 0, prot, 0,
-			event->mmap.filename,
-			thread);
+			NULL, prot, 0, event->mmap.filename, thread);
 
 	if (map == NULL)
 		goto out_problem_map;
@@ -2710,9 +2711,14 @@ out:
 	return addr_cpumode;
 }
 
+struct dso *machine__findnew_dso_id(struct machine *machine, const char *filename, struct dso_id *id)
+{
+	return dsos__findnew_id(&machine->dsos, filename, id);
+}
+
 struct dso *machine__findnew_dso(struct machine *machine, const char *filename)
 {
-	return dsos__findnew(&machine->dsos, filename);
+	return machine__findnew_dso_id(machine, filename, NULL);
 }
 
 char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp)
