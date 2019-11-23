@@ -4,8 +4,8 @@
  * Copyright (c) 2018  Jim Wilson (jimw@sifive.com)
  */
 
-#ifndef _ASM_FUTEX_H
-#define _ASM_FUTEX_H
+#ifndef _ASM_RISCV_FUTEX_H
+#define _ASM_RISCV_FUTEX_H
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
@@ -112,4 +112,4 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	return ret;
 }
 
-#endif /* _ASM_FUTEX_H */
+#endif /* _ASM_RISCV_FUTEX_H */

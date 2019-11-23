@@ -5,8 +5,8 @@
  * Copyright (C) 2012 ARM Ltd.
  * Copyright (C) 2017 SiFive
  */
-#ifndef __ASM_HWCAP_H
-#define __ASM_HWCAP_H
+#ifndef _ASM_RISCV_HWCAP_H
+#define _ASM_RISCV_HWCAP_H
 
 #include <uapi/asm/hwcap.h>
 
@@ -23,4 +23,5 @@ enum {
 
 extern unsigned long elf_hwcap;
 #endif
-#endif
+
+#endif /* _ASM_RISCV_HWCAP_H */
