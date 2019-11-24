@@ -1614,8 +1614,25 @@ static int
 mlxsw_sp_netdevice_ipip_ul_vrf_event(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_ipip_entry *ipip_entry,
 				     struct net_device *ul_dev,
+				     bool *demote_this,
 				     struct netlink_ext_ack *extack)
 {
+	u32 ul_tb_id = l3mdev_fib_table(ul_dev) ? : RT_TABLE_MAIN;
+	enum mlxsw_sp_l3proto ul_proto;
+	union mlxsw_sp_l3addr saddr;
+
+	/* Moving underlay to a different VRF might cause local address
+	 * conflict, and the conflicting tunnels need to be demoted.
+	 */
+	ul_proto = mlxsw_sp->router->ipip_ops_arr[ipip_entry->ipipt]->ul_proto;
+	saddr = mlxsw_sp_ipip_netdev_saddr(ul_proto, ipip_entry->ol_dev);
+	if (mlxsw_sp_ipip_demote_tunnel_by_saddr(mlxsw_sp, ul_proto,
+						 saddr, ul_tb_id,
+						 ipip_entry)) {
+		*demote_this = true;
+		return 0;
+	}
+
 	return __mlxsw_sp_ipip_entry_update_tunnel(mlxsw_sp, ipip_entry,
 						   true, true, false, extack);
 }
@@ -1766,6 +1783,7 @@ static int
 __mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_ipip_entry *ipip_entry,
 				   struct net_device *ul_dev,
+				   bool *demote_this,
 				   unsigned long event,
 				   struct netdev_notifier_info *info)
 {
@@ -1780,6 +1798,7 @@ __mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
 			return mlxsw_sp_netdevice_ipip_ul_vrf_event(mlxsw_sp,
 								    ipip_entry,
 								    ul_dev,
+								    demote_this,
 								    extack);
 		break;
 
@@ -1806,12 +1825,30 @@ mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
 	while ((ipip_entry = mlxsw_sp_ipip_entry_find_by_ul_dev(mlxsw_sp,
 								ul_dev,
 								ipip_entry))) {
+		struct mlxsw_sp_ipip_entry *prev;
+		bool demote_this = false;
+
 		err = __mlxsw_sp_netdevice_ipip_ul_event(mlxsw_sp, ipip_entry,
-							 ul_dev, event, info);
+							 ul_dev, &demote_this,
+							 event, info);
 		if (err) {
 			mlxsw_sp_ipip_demote_tunnel_by_ul_netdev(mlxsw_sp,
 								 ul_dev);
 			return err;
+		}
+
+		if (demote_this) {
+			if (list_is_first(&ipip_entry->ipip_list_node,
+					  &mlxsw_sp->router->ipip_list))
+				prev = NULL;
+			else
+				/* This can't be cached from previous iteration,
+				 * because that entry could be gone now.
+				 */
+				prev = list_prev_entry(ipip_entry,
+						       ipip_list_node);
+			mlxsw_sp_ipip_entry_demote_tunnel(mlxsw_sp, ipip_entry);
+			ipip_entry = prev;
 		}
 	}
 
