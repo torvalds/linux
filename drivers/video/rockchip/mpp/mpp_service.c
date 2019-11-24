@@ -46,23 +46,32 @@ static int mpp_init_grf(struct device_node *np,
 			struct mpp_grf_info *grf_info,
 			const char *name)
 {
+	int ret;
 	int index;
+	u32 grf_offset = 0;
+	u32 grf_value = 0;
 	struct regmap *grf;
 
 	grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-	if (IS_ERR_OR_NULL(grf_info->grf))
+	if (IS_ERR_OR_NULL(grf))
 		return -EINVAL;
 
-	of_property_read_u32(np, "rockchip,grf-offset", &grf_info->offset);
+	ret = of_property_read_u32(np, "rockchip,grf-offset", &grf_offset);
+	if (ret)
+		return -ENODATA;
 
 	index = of_property_match_string(np, "rockchip,grf-names", name);
 	if (index < 0)
 		return -ENODATA;
 
-	of_property_read_u32_index(np, "rockchip,grf-values",
-				   index, &grf_info->val);
+	ret = of_property_read_u32_index(np, "rockchip,grf-values",
+				   index, &grf_value);
+	if (ret)
+		return -ENODATA;
 
 	grf_info->grf = grf;
+	grf_info->offset = grf_offset;
+	grf_info->val = grf_value;
 
 	return 0;
 }
