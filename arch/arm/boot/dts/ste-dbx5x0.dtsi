@@ -109,7 +109,7 @@
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "stericsson,db8500";
+		compatible = "stericsson,db8500", "simple-bus";
 		interrupt-parent = <&intc>;
 		ranges;
 
