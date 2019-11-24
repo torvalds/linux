@@ -8419,7 +8419,8 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 
 	bp->flags &= ~BNXT_FLAG_EEE_CAP;
 	if (bp->test_info)
-		bp->test_info->flags &= ~BNXT_TEST_FL_EXT_LPBK;
+		bp->test_info->flags &= ~(BNXT_TEST_FL_EXT_LPBK |
+					  BNXT_TEST_FL_AN_PHY_LPBK);
 	if (bp->hwrm_spec_code < 0x10201)
 		return 0;
 
@@ -8444,6 +8445,10 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_EXTERNAL_LPBK_SUPPORTED) {
 		if (bp->test_info)
 			bp->test_info->flags |= BNXT_TEST_FL_EXT_LPBK;
+	}
+	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_AUTONEG_LPBK_SUPPORTED) {
+		if (bp->test_info)
+			bp->test_info->flags |= BNXT_TEST_FL_AN_PHY_LPBK;
 	}
 	if (resp->supported_speeds_auto_mode)
 		link_info->support_auto_speeds =
