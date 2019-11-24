@@ -11934,8 +11934,7 @@ static int bnxt_resume(struct device *device)
 		goto resume_exit;
 	}
 	pci_set_master(bp->pdev);
-	if (bnxt_hwrm_ver_get(bp) ||
-	    bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, false)) {
+	if (bnxt_hwrm_ver_get(bp)) {
 		rc = -ENODEV;
 		goto resume_exit;
 	}
@@ -11944,6 +11943,15 @@ static int bnxt_resume(struct device *device)
 		rc = -EBUSY;
 		goto resume_exit;
 	}
+
+	if (BNXT_NEW_RM(bp))
+		bnxt_hwrm_func_resc_qcaps(bp, false);
+
+	if (bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, false)) {
+		rc = -ENODEV;
+		goto resume_exit;
+	}
+
 	bnxt_get_wol_settings(bp);
 	if (netif_running(dev)) {
 		rc = bnxt_open(dev);
