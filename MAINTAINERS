@@ -3188,8 +3188,7 @@ N:	kona
 F:	arch/arm/mach-bcm/
 
 BROADCOM BCM2711/BCM2835 ARM ARCHITECTURE
-M:	Eric Anholt <eric@anholt.net>
-M:	Stefan Wahren <wahrenst@gmx.net>
+M:	Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
 L:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
