@@ -11921,6 +11921,7 @@ static int bnxt_suspend(struct device *device)
 		rc = bnxt_close(dev);
 	}
 	bnxt_hwrm_func_drv_unrgtr(bp);
+	pci_disable_device(bp->pdev);
 	rtnl_unlock();
 	return rc;
 }
@@ -11932,6 +11933,13 @@ static int bnxt_resume(struct device *device)
 	int rc = 0;
 
 	rtnl_lock();
+	rc = pci_enable_device(bp->pdev);
+	if (rc) {
+		netdev_err(dev, "Cannot re-enable PCI device during resume, err = %d\n",
+			   rc);
+		goto resume_exit;
+	}
+	pci_set_master(bp->pdev);
 	if (bnxt_hwrm_ver_get(bp) || bnxt_hwrm_func_drv_rgtr(bp)) {
 		rc = -ENODEV;
 		goto resume_exit;
