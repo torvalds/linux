@@ -8456,6 +8456,10 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 		if (bp->test_info)
 			bp->test_info->flags |= BNXT_TEST_FL_AN_PHY_LPBK;
 	}
+	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_SHARED_PHY_CFG_SUPPORTED) {
+		if (BNXT_PF(bp))
+			bp->fw_cap |= BNXT_FW_CAP_SHARED_PORT_CFG;
+	}
 	if (resp->supported_speeds_auto_mode)
 		link_info->support_auto_speeds =
 			le16_to_cpu(resp->supported_speeds_auto_mode);
@@ -8570,7 +8574,7 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
-	if (!BNXT_SINGLE_PF(bp))
+	if (!BNXT_PHY_CFG_ABLE(bp))
 		return 0;
 
 	diff = link_info->support_auto_speeds ^ link_info->advertising;
