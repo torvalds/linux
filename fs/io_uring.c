@@ -1622,8 +1622,18 @@ static ssize_t loop_rw_iter(int rw, struct file *file, struct kiocb *kiocb,
 		return -EAGAIN;
 
 	while (iov_iter_count(iter)) {
-		struct iovec iovec = iov_iter_iovec(iter);
+		struct iovec iovec;
 		ssize_t nr;
+
+		if (!iov_iter_is_bvec(iter)) {
+			iovec = iov_iter_iovec(iter);
+		} else {
+			/* fixed buffers import bvec */
+			iovec.iov_base = kmap(iter->bvec->bv_page)
+						+ iter->iov_offset;
+			iovec.iov_len = min(iter->count,
+					iter->bvec->bv_len - iter->iov_offset);
+		}
 
 		if (rw == READ) {
 			nr = file->f_op->read(file, iovec.iov_base,
@@ -1632,6 +1642,9 @@ static ssize_t loop_rw_iter(int rw, struct file *file, struct kiocb *kiocb,
 			nr = file->f_op->write(file, iovec.iov_base,
 					       iovec.iov_len, &kiocb->ki_pos);
 		}
+
+		if (iov_iter_is_bvec(iter))
+			kunmap(iter->bvec->bv_page);
 
 		if (nr < 0) {
 			if (!ret)
