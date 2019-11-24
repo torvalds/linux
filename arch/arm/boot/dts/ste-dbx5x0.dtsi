@@ -340,7 +340,7 @@
 		};
 
 		rtc@80154000 {
-			compatible = "arm,rtc-pl031", "arm,primecell";
+			compatible = "arm,pl031", "arm,primecell";
 			reg = <0x80154000 0x1000>;
 			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 
