@@ -188,7 +188,7 @@ static int hwmon_thermal_add_sensor(struct device *dev, int index)
 
 static int hwmon_attr_base(enum hwmon_sensor_types type)
 {
-	if (type == hwmon_in)
+	if (type == hwmon_in || type == hwmon_intrusion)
 		return 0;
 	return 1;
 }
@@ -474,6 +474,11 @@ static const char * const hwmon_pwm_attr_templates[] = {
 	[hwmon_pwm_freq] = "pwm%d_freq",
 };
 
+static const char * const hwmon_intrusion_attr_templates[] = {
+	[hwmon_intrusion_alarm] = "intrusion%d_alarm",
+	[hwmon_intrusion_beep]  = "intrusion%d_beep",
+};
+
 static const char * const *__templates[] = {
 	[hwmon_chip] = hwmon_chip_attrs,
 	[hwmon_temp] = hwmon_temp_attr_templates,
@@ -484,6 +489,7 @@ static const char * const *__templates[] = {
 	[hwmon_humidity] = hwmon_humidity_attr_templates,
 	[hwmon_fan] = hwmon_fan_attr_templates,
 	[hwmon_pwm] = hwmon_pwm_attr_templates,
+	[hwmon_intrusion] = hwmon_intrusion_attr_templates,
 };
 
 static const int __templates_size[] = {
@@ -496,6 +502,7 @@ static const int __templates_size[] = {
 	[hwmon_humidity] = ARRAY_SIZE(hwmon_humidity_attr_templates),
 	[hwmon_fan] = ARRAY_SIZE(hwmon_fan_attr_templates),
 	[hwmon_pwm] = ARRAY_SIZE(hwmon_pwm_attr_templates),
+	[hwmon_intrusion] = ARRAY_SIZE(hwmon_intrusion_attr_templates),
 };
 
 static int hwmon_num_channel_attrs(const struct hwmon_channel_info *info)

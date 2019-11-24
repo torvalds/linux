@@ -27,6 +27,7 @@ enum hwmon_sensor_types {
 	hwmon_humidity,
 	hwmon_fan,
 	hwmon_pwm,
+	hwmon_intrusion,
 	hwmon_max,
 };
 
@@ -305,6 +306,13 @@ enum hwmon_pwm_attributes {
 #define HWMON_PWM_ENABLE		BIT(hwmon_pwm_enable)
 #define HWMON_PWM_MODE			BIT(hwmon_pwm_mode)
 #define HWMON_PWM_FREQ			BIT(hwmon_pwm_freq)
+
+enum hwmon_intrusion_attributes {
+	hwmon_intrusion_alarm,
+	hwmon_intrusion_beep,
+};
+#define HWMON_INTRUSION_ALARM		BIT(hwmon_intrusion_alarm)
+#define HWMON_INTRUSION_BEEP		BIT(hwmon_intrusion_beep)
 
 /**
  * struct hwmon_ops - hwmon device operations
