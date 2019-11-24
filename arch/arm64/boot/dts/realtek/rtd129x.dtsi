@@ -63,70 +63,31 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x98000000 0x200000>;
 
-			reset1: reset-controller@0 {
-				compatible = "snps,dw-low-reset";
-				reg = <0x0 0x4>;
-				#reset-cells = <1>;
-			};
-
-			reset2: reset-controller@4 {
-				compatible = "snps,dw-low-reset";
-				reg = <0x4 0x4>;
-				#reset-cells = <1>;
-			};
-
-			reset3: reset-controller@8 {
-				compatible = "snps,dw-low-reset";
-				reg = <0x8 0x4>;
-				#reset-cells = <1>;
-			};
-
-			reset4: reset-controller@50 {
-				compatible = "snps,dw-low-reset";
-				reg = <0x50 0x4>;
-				#reset-cells = <1>;
-			};
-
-			iso_reset: reset-controller@7088 {
-				compatible = "snps,dw-low-reset";
-				reg = <0x7088 0x4>;
-				#reset-cells = <1>;
-			};
-
-			wdt: watchdog@7680 {
-				compatible = "realtek,rtd1295-watchdog";
-				reg = <0x7680 0x100>;
-				clocks = <&osc27M>;
-			};
-
-			uart0: serial@7800 {
-				compatible = "snps,dw-apb-uart";
-				reg = <0x7800 0x400>;
-				reg-shift = <2>;
+			crt: syscon@0 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x0 0x1800>;
 				reg-io-width = <4>;
-				clock-frequency = <27000000>;
-				resets = <&iso_reset RTD1295_ISO_RSTN_UR0>;
-				status = "disabled";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x0 0x1800>;
 			};
 
-			uart1: serial@1b200 {
-				compatible = "snps,dw-apb-uart";
-				reg = <0x1b200 0x100>;
-				reg-shift = <2>;
+			iso: syscon@7000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x7000 0x1000>;
 				reg-io-width = <4>;
-				clock-frequency = <432000000>;
-				resets = <&reset2 RTD1295_RSTN_UR1>;
-				status = "disabled";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x7000 0x1000>;
 			};
 
-			uart2: serial@1b400 {
-				compatible = "snps,dw-apb-uart";
-				reg = <0x1b400 0x100>;
-				reg-shift = <2>;
+			misc: syscon@1b000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x1b000 0x1000>;
 				reg-io-width = <4>;
-				clock-frequency = <432000000>;
-				resets = <&reset2 RTD1295_RSTN_UR2>;
-				status = "disabled";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1b000 0x1000>;
 			};
 		};
 
@@ -140,5 +101,77 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 		};
+	};
+};
+
+&crt {
+	reset1: reset-controller@0 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x0 0x4>;
+		#reset-cells = <1>;
+	};
+
+	reset2: reset-controller@4 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x4 0x4>;
+		#reset-cells = <1>;
+	};
+
+	reset3: reset-controller@8 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x8 0x4>;
+		#reset-cells = <1>;
+	};
+
+	reset4: reset-controller@50 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x50 0x4>;
+		#reset-cells = <1>;
+	};
+};
+
+&iso {
+	iso_reset: reset-controller@88 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x88 0x4>;
+		#reset-cells = <1>;
+	};
+
+	wdt: watchdog@680 {
+		compatible = "realtek,rtd1295-watchdog";
+		reg = <0x680 0x100>;
+		clocks = <&osc27M>;
+	};
+
+	uart0: serial@800 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x800 0x400>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <27000000>;
+		resets = <&iso_reset RTD1295_ISO_RSTN_UR0>;
+		status = "disabled";
+	};
+};
+
+&misc {
+	uart1: serial@200 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x200 0x100>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <432000000>;
+		resets = <&reset2 RTD1295_RSTN_UR1>;
+		status = "disabled";
+	};
+
+	uart2: serial@400 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x400 0x100>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <432000000>;
+		resets = <&reset2 RTD1295_RSTN_UR2>;
+		status = "disabled";
 	};
 };
