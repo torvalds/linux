@@ -4221,7 +4221,6 @@ mlxsw_sp_fib_entry_ralue_pack(char *ralue_pl,
 
 static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
 {
-	u32 adj_discard_index = mlxsw_sp->router->adj_discard_index;
 	enum mlxsw_reg_ratr_trap_action trap_action;
 	char ratr_pl[MLXSW_REG_RATR_LEN];
 	int err;
@@ -4236,8 +4235,8 @@ static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
 
 	trap_action = MLXSW_REG_RATR_TRAP_ACTION_DISCARD_ERRORS;
 	mlxsw_reg_ratr_pack(ratr_pl, MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY, true,
-			    MLXSW_REG_RATR_TYPE_ETHERNET, adj_discard_index,
-			    rif_index);
+			    MLXSW_REG_RATR_TYPE_ETHERNET,
+			    mlxsw_sp->router->adj_discard_index, rif_index);
 	mlxsw_reg_ratr_trap_action_set(ratr_pl, trap_action);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ratr), ratr_pl);
 	if (err)
