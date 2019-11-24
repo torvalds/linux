@@ -14,6 +14,25 @@
 #include "bnxt.h"
 #include "bnxt_vfr.h"
 #include "bnxt_devlink.h"
+#include "bnxt_ethtool.h"
+
+static int
+bnxt_dl_flash_update(struct devlink *dl, const char *filename,
+		     const char *region, struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+
+	if (region)
+		return -EOPNOTSUPP;
+
+	if (!BNXT_PF(bp)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "flash update not supported from a VF");
+		return -EPERM;
+	}
+
+	return bnxt_flash_package_from_file(bp->dev, filename, 0);
+}
 
 static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 				     struct devlink_fmsg *fmsg,
@@ -225,6 +244,7 @@ static const struct devlink_ops bnxt_dl_ops = {
 	.eswitch_mode_set = bnxt_dl_eswitch_mode_set,
 	.eswitch_mode_get = bnxt_dl_eswitch_mode_get,
 #endif /* CONFIG_BNXT_SRIOV */
+	.flash_update	  = bnxt_dl_flash_update,
 };
 
 enum bnxt_dl_param_id {

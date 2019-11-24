@@ -250,10 +250,12 @@ static const u16 bnxt_vf_req_snif[] = {
 
 static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE,
+	ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD,
 	ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED,
 	ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE,
+	ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY,
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY,
 };
@@ -1968,6 +1970,10 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		set_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT, &bp->sp_event);
 	}
 	/* fall through */
+	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CHANGE:
+	case ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE:
+		set_bit(BNXT_LINK_CFG_CHANGE_SP_EVENT, &bp->sp_event);
+		/* fall through */
 	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 		set_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event);
 		break;
@@ -2688,6 +2694,9 @@ static int bnxt_alloc_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 		if (!rmem->pg_arr[i])
 			return -ENOMEM;
 
+		if (rmem->init_val)
+			memset(rmem->pg_arr[i], rmem->init_val,
+			       rmem->page_size);
 		if (rmem->nr_pages > 1 || rmem->depth > 0) {
 			if (i == rmem->nr_pages - 2 &&
 			    (rmem->flags & BNXT_RMEM_RING_PTE_FLAG))
@@ -4394,53 +4403,22 @@ int hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 msg_len,
 	return rc;
 }
 
-int bnxt_hwrm_func_rgtr_async_events(struct bnxt *bp, unsigned long *bmap,
-				     int bmap_size)
-{
-	struct hwrm_func_drv_rgtr_input req = {0};
-	DECLARE_BITMAP(async_events_bmap, 256);
-	u32 *events = (u32 *)async_events_bmap;
-	int i;
-
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_RGTR, -1, -1);
-
-	req.enables =
-		cpu_to_le32(FUNC_DRV_RGTR_REQ_ENABLES_ASYNC_EVENT_FWD);
-
-	memset(async_events_bmap, 0, sizeof(async_events_bmap));
-	for (i = 0; i < ARRAY_SIZE(bnxt_async_events_arr); i++) {
-		u16 event_id = bnxt_async_events_arr[i];
-
-		if (event_id == ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY &&
-		    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
-			continue;
-		__set_bit(bnxt_async_events_arr[i], async_events_bmap);
-	}
-	if (bmap && bmap_size) {
-		for (i = 0; i < bmap_size; i++) {
-			if (test_bit(i, bmap))
-				__set_bit(i, async_events_bmap);
-		}
-	}
-
-	for (i = 0; i < 8; i++)
-		req.async_event_fwd[i] |= cpu_to_le32(events[i]);
-
-	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-}
-
-static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
+int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap, int bmap_size,
+			    bool async_only)
 {
 	struct hwrm_func_drv_rgtr_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_func_drv_rgtr_input req = {0};
+	DECLARE_BITMAP(async_events_bmap, 256);
+	u32 *events = (u32 *)async_events_bmap;
 	u32 flags;
-	int rc;
+	int rc, i;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_RGTR, -1, -1);
 
 	req.enables =
 		cpu_to_le32(FUNC_DRV_RGTR_REQ_ENABLES_OS_TYPE |
-			    FUNC_DRV_RGTR_REQ_ENABLES_VER);
+			    FUNC_DRV_RGTR_REQ_ENABLES_VER |
+			    FUNC_DRV_RGTR_REQ_ENABLES_ASYNC_EVENT_FWD);
 
 	req.os_type = cpu_to_le16(FUNC_DRV_RGTR_REQ_OS_TYPE_LINUX);
 	flags = FUNC_DRV_RGTR_REQ_FLAGS_16BIT_VER_MODE |
@@ -4481,11 +4459,36 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 		req.flags |= cpu_to_le32(
 			FUNC_DRV_RGTR_REQ_FLAGS_FLOW_HANDLE_64BIT_MODE);
 
+	memset(async_events_bmap, 0, sizeof(async_events_bmap));
+	for (i = 0; i < ARRAY_SIZE(bnxt_async_events_arr); i++) {
+		u16 event_id = bnxt_async_events_arr[i];
+
+		if (event_id == ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY &&
+		    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
+			continue;
+		__set_bit(bnxt_async_events_arr[i], async_events_bmap);
+	}
+	if (bmap && bmap_size) {
+		for (i = 0; i < bmap_size; i++) {
+			if (test_bit(i, bmap))
+				__set_bit(i, async_events_bmap);
+		}
+	}
+	for (i = 0; i < 8; i++)
+		req.async_event_fwd[i] |= cpu_to_le32(events[i]);
+
+	if (async_only)
+		req.enables =
+			cpu_to_le32(FUNC_DRV_RGTR_REQ_ENABLES_ASYNC_EVENT_FWD);
+
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (!rc && (resp->flags &
-		    cpu_to_le32(FUNC_DRV_RGTR_RESP_FLAGS_IF_CHANGE_SUPPORTED)))
-		bp->fw_cap |= BNXT_FW_CAP_IF_CHANGE;
+	if (!rc) {
+		set_bit(BNXT_STATE_DRV_REGISTERED, &bp->state);
+		if (resp->flags &
+		    cpu_to_le32(FUNC_DRV_RGTR_RESP_FLAGS_IF_CHANGE_SUPPORTED))
+			bp->fw_cap |= BNXT_FW_CAP_IF_CHANGE;
+	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
@@ -4493,6 +4496,9 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 static int bnxt_hwrm_func_drv_unrgtr(struct bnxt *bp)
 {
 	struct hwrm_func_drv_unrgtr_input req = {0};
+
+	if (!test_and_clear_bit(BNXT_STATE_DRV_REGISTERED, &bp->state))
+		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_UNRGTR, -1, -1);
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
@@ -6490,6 +6496,7 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 			le16_to_cpu(resp->mrav_num_entries_units);
 		ctx->tim_entry_size = le16_to_cpu(resp->tim_entry_size);
 		ctx->tim_max_entries = le32_to_cpu(resp->tim_max_entries);
+		ctx->ctx_kind_initializer = resp->ctx_kind_initializer;
 	} else {
 		rc = 0;
 	}
@@ -6644,7 +6651,7 @@ static int bnxt_alloc_ctx_mem_blk(struct bnxt *bp,
 
 static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 				  struct bnxt_ctx_pg_info *ctx_pg, u32 mem_size,
-				  u8 depth)
+				  u8 depth, bool use_init_val)
 {
 	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
 	int rc;
@@ -6682,6 +6689,8 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 			rmem->pg_tbl_map = ctx_pg->ctx_dma_arr[i];
 			rmem->depth = 1;
 			rmem->nr_pages = MAX_CTX_PAGES;
+			if (use_init_val)
+				rmem->init_val = bp->ctx->ctx_kind_initializer;
 			if (i == (nr_tbls - 1)) {
 				int rem = ctx_pg->nr_pages % MAX_CTX_PAGES;
 
@@ -6696,6 +6705,8 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 		rmem->nr_pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
 		if (rmem->nr_pages > 1 || depth)
 			rmem->depth = 1;
+		if (use_init_val)
+			rmem->init_val = bp->ctx->ctx_kind_initializer;
 		rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg);
 	}
 	return rc;
@@ -6786,21 +6797,21 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	ctx_pg->entries = ctx->qp_min_qp1_entries + ctx->qp_max_l2_entries +
 			  extra_qps;
 	mem_size = ctx->qp_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
 	if (rc)
 		return rc;
 
 	ctx_pg = &ctx->srq_mem;
 	ctx_pg->entries = ctx->srq_max_l2_entries + extra_srqs;
 	mem_size = ctx->srq_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
 	if (rc)
 		return rc;
 
 	ctx_pg = &ctx->cq_mem;
 	ctx_pg->entries = ctx->cq_max_l2_entries + extra_qps * 2;
 	mem_size = ctx->cq_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
 	if (rc)
 		return rc;
 
@@ -6808,14 +6819,14 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	ctx_pg->entries = ctx->vnic_max_vnic_entries +
 			  ctx->vnic_max_ring_table_entries;
 	mem_size = ctx->vnic_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, true);
 	if (rc)
 		return rc;
 
 	ctx_pg = &ctx->stat_mem;
 	ctx_pg->entries = ctx->stat_max_entries;
 	mem_size = ctx->stat_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, true);
 	if (rc)
 		return rc;
 
@@ -6831,7 +6842,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	num_ah = 1024 * 128;
 	ctx_pg->entries = num_mr + num_ah;
 	mem_size = ctx->mrav_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 2);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 2, true);
 	if (rc)
 		return rc;
 	ena = FUNC_BACKING_STORE_CFG_REQ_ENABLES_MRAV;
@@ -6843,7 +6854,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	ctx_pg = &ctx->tim_mem;
 	ctx_pg->entries = ctx->qp_mem.entries;
 	mem_size = ctx->tim_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1);
+	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, false);
 	if (rc)
 		return rc;
 	ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TIM;
@@ -6857,7 +6868,7 @@ skip_rdma:
 		ctx_pg = ctx->tqm_mem[i];
 		ctx_pg->entries = entries;
 		mem_size = ctx->tqm_entry_size * entries;
-		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1);
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, false);
 		if (rc)
 			return rc;
 		ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TQM_SP << i;
@@ -8414,7 +8425,8 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 
 	bp->flags &= ~BNXT_FLAG_EEE_CAP;
 	if (bp->test_info)
-		bp->test_info->flags &= ~BNXT_TEST_FL_EXT_LPBK;
+		bp->test_info->flags &= ~(BNXT_TEST_FL_EXT_LPBK |
+					  BNXT_TEST_FL_AN_PHY_LPBK);
 	if (bp->hwrm_spec_code < 0x10201)
 		return 0;
 
@@ -8439,6 +8451,14 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_EXTERNAL_LPBK_SUPPORTED) {
 		if (bp->test_info)
 			bp->test_info->flags |= BNXT_TEST_FL_EXT_LPBK;
+	}
+	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_AUTONEG_LPBK_SUPPORTED) {
+		if (bp->test_info)
+			bp->test_info->flags |= BNXT_TEST_FL_AN_PHY_LPBK;
+	}
+	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_SHARED_PHY_CFG_SUPPORTED) {
+		if (BNXT_PF(bp))
+			bp->fw_cap |= BNXT_FW_CAP_SHARED_PORT_CFG;
 	}
 	if (resp->supported_speeds_auto_mode)
 		link_info->support_auto_speeds =
@@ -8554,7 +8574,7 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
-	if (!BNXT_SINGLE_PF(bp))
+	if (!BNXT_PHY_CFG_ABLE(bp))
 		return 0;
 
 	diff = link_info->support_auto_speeds ^ link_info->advertising;
@@ -10239,6 +10259,31 @@ static void bnxt_chk_missed_irq(struct bnxt *bp)
 
 static void bnxt_cfg_ntp_filters(struct bnxt *);
 
+static void bnxt_init_ethtool_link_settings(struct bnxt *bp)
+{
+	struct bnxt_link_info *link_info = &bp->link_info;
+
+	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
+		link_info->autoneg = BNXT_AUTONEG_SPEED;
+		if (bp->hwrm_spec_code >= 0x10201) {
+			if (link_info->auto_pause_setting &
+			    PORT_PHY_CFG_REQ_AUTO_PAUSE_AUTONEG_PAUSE)
+				link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+		} else {
+			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+		}
+		link_info->advertising = link_info->auto_link_speeds;
+	} else {
+		link_info->req_link_speed = link_info->force_link_speed;
+		link_info->req_duplex = link_info->duplex_setting;
+	}
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
+		link_info->req_flow_ctrl =
+			link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH;
+	else
+		link_info->req_flow_ctrl = link_info->force_pause_setting;
+}
+
 static void bnxt_sp_task(struct work_struct *work)
 {
 	struct bnxt *bp = container_of(work, struct bnxt, sp_task);
@@ -10288,6 +10333,10 @@ static void bnxt_sp_task(struct work_struct *work)
 		if (test_and_clear_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT,
 				       &bp->sp_event))
 			bnxt_hwrm_phy_qcaps(bp);
+
+		if (test_and_clear_bit(BNXT_LINK_CFG_CHANGE_SP_EVENT,
+				       &bp->sp_event))
+			bnxt_init_ethtool_link_settings(bp);
 
 		rc = bnxt_update_link(bp, true);
 		mutex_unlock(&bp->link_lock);
@@ -10484,11 +10533,7 @@ static int bnxt_fw_init_one_p2(struct bnxt *bp)
 		netdev_warn(bp->dev, "hwrm query error recovery failure rc: %d\n",
 			    rc);
 
-	rc = bnxt_hwrm_func_drv_rgtr(bp);
-	if (rc)
-		return -ENODEV;
-
-	rc = bnxt_hwrm_func_rgtr_async_events(bp, NULL, 0);
+	rc = bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, false);
 	if (rc)
 		return -ENODEV;
 
@@ -11405,26 +11450,7 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 	if (!fw_dflt)
 		return 0;
 
-	/*initialize the ethool setting copy with NVM settings */
-	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
-		link_info->autoneg = BNXT_AUTONEG_SPEED;
-		if (bp->hwrm_spec_code >= 0x10201) {
-			if (link_info->auto_pause_setting &
-			    PORT_PHY_CFG_REQ_AUTO_PAUSE_AUTONEG_PAUSE)
-				link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
-		} else {
-			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
-		}
-		link_info->advertising = link_info->auto_link_speeds;
-	} else {
-		link_info->req_link_speed = link_info->force_link_speed;
-		link_info->req_duplex = link_info->duplex_setting;
-	}
-	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
-		link_info->req_flow_ctrl =
-			link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH;
-	else
-		link_info->req_flow_ctrl = link_info->force_pause_setting;
+	bnxt_init_ethtool_link_settings(bp);
 	return 0;
 }
 
@@ -11864,6 +11890,7 @@ init_err_cleanup_tc:
 	bnxt_clear_int_mode(bp);
 
 init_err_pci_clean:
+	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_short_cmd_req(bp);
 	bnxt_free_hwrm_resources(bp);
 	bnxt_free_ctx_mem(bp);
@@ -11921,6 +11948,10 @@ static int bnxt_suspend(struct device *device)
 		rc = bnxt_close(dev);
 	}
 	bnxt_hwrm_func_drv_unrgtr(bp);
+	pci_disable_device(bp->pdev);
+	bnxt_free_ctx_mem(bp);
+	kfree(bp->ctx);
+	bp->ctx = NULL;
 	rtnl_unlock();
 	return rc;
 }
@@ -11932,7 +11963,14 @@ static int bnxt_resume(struct device *device)
 	int rc = 0;
 
 	rtnl_lock();
-	if (bnxt_hwrm_ver_get(bp) || bnxt_hwrm_func_drv_rgtr(bp)) {
+	rc = pci_enable_device(bp->pdev);
+	if (rc) {
+		netdev_err(dev, "Cannot re-enable PCI device during resume, err = %d\n",
+			   rc);
+		goto resume_exit;
+	}
+	pci_set_master(bp->pdev);
+	if (bnxt_hwrm_ver_get(bp)) {
 		rc = -ENODEV;
 		goto resume_exit;
 	}
@@ -11941,6 +11979,26 @@ static int bnxt_resume(struct device *device)
 		rc = -EBUSY;
 		goto resume_exit;
 	}
+
+	if (bnxt_hwrm_queue_qportcfg(bp)) {
+		rc = -ENODEV;
+		goto resume_exit;
+	}
+
+	if (bp->hwrm_spec_code >= 0x10803) {
+		if (bnxt_alloc_ctx_mem(bp)) {
+			rc = -ENODEV;
+			goto resume_exit;
+		}
+	}
+	if (BNXT_NEW_RM(bp))
+		bnxt_hwrm_func_resc_qcaps(bp, false);
+
+	if (bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, false)) {
+		rc = -ENODEV;
+		goto resume_exit;
+	}
+
 	bnxt_get_wol_settings(bp);
 	if (netif_running(dev)) {
 		rc = bnxt_open(dev);
