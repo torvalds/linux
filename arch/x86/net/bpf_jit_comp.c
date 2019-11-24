@@ -269,76 +269,42 @@ static int __bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 				void *old_addr, void *new_addr,
 				const bool text_live)
 {
-	int (*emit_patch_fn)(u8 **pprog, void *func, void *ip);
 	const u8 *nop_insn = ideal_nops[NOP_ATOMIC5];
-	u8 old_insn[X86_PATCH_SIZE] = {};
-	u8 new_insn[X86_PATCH_SIZE] = {};
+	u8 old_insn[X86_PATCH_SIZE];
+	u8 new_insn[X86_PATCH_SIZE];
 	u8 *prog;
 	int ret;
 
-	switch (t) {
-	case BPF_MOD_NOP_TO_CALL ... BPF_MOD_CALL_TO_NOP:
-		emit_patch_fn = emit_call;
-		break;
-	case BPF_MOD_NOP_TO_JUMP ... BPF_MOD_JUMP_TO_NOP:
-		emit_patch_fn = emit_jump;
-		break;
-	default:
-		return -ENOTSUPP;
+	memcpy(old_insn, nop_insn, X86_PATCH_SIZE);
+	if (old_addr) {
+		prog = old_insn;
+		ret = t == BPF_MOD_CALL ?
+		      emit_call(&prog, old_addr, ip) :
+		      emit_jump(&prog, old_addr, ip);
+		if (ret)
+			return ret;
 	}
 
-	switch (t) {
-	case BPF_MOD_NOP_TO_CALL:
-	case BPF_MOD_NOP_TO_JUMP:
-		if (!old_addr && new_addr) {
-			memcpy(old_insn, nop_insn, X86_PATCH_SIZE);
-
-			prog = new_insn;
-			ret = emit_patch_fn(&prog, new_addr, ip);
-			if (ret)
-				return ret;
-			break;
-		}
-		return -ENXIO;
-	case BPF_MOD_CALL_TO_CALL:
-	case BPF_MOD_JUMP_TO_JUMP:
-		if (old_addr && new_addr) {
-			prog = old_insn;
-			ret = emit_patch_fn(&prog, old_addr, ip);
-			if (ret)
-				return ret;
-
-			prog = new_insn;
-			ret = emit_patch_fn(&prog, new_addr, ip);
-			if (ret)
-				return ret;
-			break;
-		}
-		return -ENXIO;
-	case BPF_MOD_CALL_TO_NOP:
-	case BPF_MOD_JUMP_TO_NOP:
-		if (old_addr && !new_addr) {
-			memcpy(new_insn, nop_insn, X86_PATCH_SIZE);
-
-			prog = old_insn;
-			ret = emit_patch_fn(&prog, old_addr, ip);
-			if (ret)
-				return ret;
-			break;
-		}
-		return -ENXIO;
-	default:
-		return -ENOTSUPP;
+	memcpy(new_insn, nop_insn, X86_PATCH_SIZE);
+	if (new_addr) {
+		prog = new_insn;
+		ret = t == BPF_MOD_CALL ?
+		      emit_call(&prog, new_addr, ip) :
+		      emit_jump(&prog, new_addr, ip);
+		if (ret)
+			return ret;
 	}
 
 	ret = -EBUSY;
 	mutex_lock(&text_mutex);
 	if (memcmp(ip, old_insn, X86_PATCH_SIZE))
 		goto out;
-	if (text_live)
-		text_poke_bp(ip, new_insn, X86_PATCH_SIZE, NULL);
-	else
-		memcpy(ip, new_insn, X86_PATCH_SIZE);
+	if (memcmp(ip, new_insn, X86_PATCH_SIZE)) {
+		if (text_live)
+			text_poke_bp(ip, new_insn, X86_PATCH_SIZE, NULL);
+		else
+			memcpy(ip, new_insn, X86_PATCH_SIZE);
+	}
 	ret = 0;
 out:
 	mutex_unlock(&text_mutex);
@@ -465,7 +431,6 @@ static void emit_bpf_tail_call_direct(struct bpf_jit_poke_descriptor *poke,
 
 static void bpf_tail_call_direct_fixup(struct bpf_prog *prog)
 {
-	static const enum bpf_text_poke_type type = BPF_MOD_NOP_TO_JUMP;
 	struct bpf_jit_poke_descriptor *poke;
 	struct bpf_array *array;
 	struct bpf_prog *target;
@@ -490,7 +455,7 @@ static void bpf_tail_call_direct_fixup(struct bpf_prog *prog)
 			 * read-only. Both modifications on the given image
 			 * are under text_mutex to avoid interference.
 			 */
-			ret = __bpf_arch_text_poke(poke->ip, type, NULL,
+			ret = __bpf_arch_text_poke(poke->ip, BPF_MOD_JUMP, NULL,
 						   (u8 *)target->bpf_func +
 						   poke->adj_off, false);
 			BUG_ON(ret < 0);

@@ -77,7 +77,7 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 	int err;
 
 	if (fentry_cnt + fexit_cnt == 0) {
-		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_CALL_TO_NOP,
+		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_CALL,
 					 old_image, NULL);
 		tr->selector = 0;
 		goto out;
@@ -105,12 +105,12 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 
 	if (tr->selector)
 		/* progs already running at this address */
-		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_CALL_TO_CALL,
+		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_CALL,
 					 old_image, new_image);
 	else
 		/* first time registering */
-		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_NOP_TO_CALL,
-					 NULL, new_image);
+		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_CALL, NULL,
+					 new_image);
 	if (err)
 		goto out;
 	tr->selector++;

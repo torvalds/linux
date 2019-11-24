@@ -746,18 +746,8 @@ static void prog_array_map_poke_run(struct bpf_map *map, u32 key,
 				    struct bpf_prog *old,
 				    struct bpf_prog *new)
 {
-	enum bpf_text_poke_type type;
 	struct prog_poke_elem *elem;
 	struct bpf_array_aux *aux;
-
-	if (!old && new)
-		type = BPF_MOD_NOP_TO_JUMP;
-	else if (old && !new)
-		type = BPF_MOD_JUMP_TO_NOP;
-	else if (old && new)
-		type = BPF_MOD_JUMP_TO_JUMP;
-	else
-		return;
 
 	aux = container_of(map, struct bpf_array, map)->aux;
 	WARN_ON_ONCE(!mutex_is_locked(&aux->poke_mutex));
@@ -806,7 +796,7 @@ static void prog_array_map_poke_run(struct bpf_map *map, u32 key,
 			    poke->tail_call.key != key)
 				continue;
 
-			ret = bpf_arch_text_poke(poke->ip, type,
+			ret = bpf_arch_text_poke(poke->ip, BPF_MOD_JUMP,
 						 old ? (u8 *)old->bpf_func +
 						 poke->adj_off : NULL,
 						 new ? (u8 *)new->bpf_func +
