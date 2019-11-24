@@ -250,10 +250,12 @@ static const u16 bnxt_vf_req_snif[] = {
 
 static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE,
+	ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD,
 	ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED,
 	ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE,
+	ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY,
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY,
 };
@@ -1968,6 +1970,10 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		set_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT, &bp->sp_event);
 	}
 	/* fall through */
+	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CHANGE:
+	case ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE:
+		set_bit(BNXT_LINK_CFG_CHANGE_SP_EVENT, &bp->sp_event);
+		/* fall through */
 	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 		set_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event);
 		break;
@@ -10323,6 +10329,10 @@ static void bnxt_sp_task(struct work_struct *work)
 		if (test_and_clear_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT,
 				       &bp->sp_event))
 			bnxt_hwrm_phy_qcaps(bp);
+
+		if (test_and_clear_bit(BNXT_LINK_CFG_CHANGE_SP_EVENT,
+				       &bp->sp_event))
+			bnxt_init_ethtool_link_settings(bp);
 
 		rc = bnxt_update_link(bp, true);
 		mutex_unlock(&bp->link_lock);
