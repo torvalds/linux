@@ -16,12 +16,12 @@
 
 extern struct kmem_cache *pgtable_cache;
 
-static inline void __pgd_populate(pgd_t *pgd, pud_t *pud)
+static inline void __p4d_populate(p4d_t *p4d, pud_t *pud)
 {
-	pgd_set(pgd, pud);
+	p4d_set(p4d, pud);
 }
 
-#define pgd_populate(MM, PGD, PUD)	__pgd_populate(PGD, PUD)
+#define p4d_populate(MM, P4D, PUD)	__p4d_populate(P4D, PUD)
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {

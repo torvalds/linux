@@ -530,7 +530,8 @@ void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 				paddr = kaddr & mask;
 			else {
 				pgd_t *pgdp = pgd_offset_k(kaddr);
-				pud_t *pudp = pud_offset(pgdp, kaddr);
+				p4d_t *p4dp = p4d_offset(pgdp, kaddr);
+				pud_t *pudp = pud_offset(p4dp, kaddr);
 				pmd_t *pmdp = pmd_offset(pudp, kaddr);
 				pte_t *ptep = pte_offset_kernel(pmdp, kaddr);
 
@@ -1653,6 +1654,7 @@ static unsigned long max_phys_bits = 40;
 bool kern_addr_valid(unsigned long addr)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -1674,7 +1676,11 @@ bool kern_addr_valid(unsigned long addr)
 	if (pgd_none(*pgd))
 		return 0;
 
-	pud = pud_offset(pgd, addr);
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none(*p4d))
+		return 0;
+
+	pud = pud_offset(p4d, addr);
 	if (pud_none(*pud))
 		return 0;
 
@@ -1800,6 +1806,7 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 	while (vstart < vend) {
 		unsigned long this_end, paddr = __pa(vstart);
 		pgd_t *pgd = pgd_offset_k(vstart);
+		p4d_t *p4d;
 		pud_t *pud;
 		pmd_t *pmd;
 		pte_t *pte;
@@ -1814,7 +1821,20 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 			alloc_bytes += PAGE_SIZE;
 			pgd_populate(&init_mm, pgd, new);
 		}
-		pud = pud_offset(pgd, vstart);
+
+		p4d = p4d_offset(pgd, vstart);
+		if (p4d_none(*p4d)) {
+			pud_t *new;
+
+			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
+						  PAGE_SIZE);
+			if (!new)
+				goto err_alloc;
+			alloc_bytes += PAGE_SIZE;
+			p4d_populate(&init_mm, p4d, new);
+		}
+
+		pud = pud_offset(p4d, vstart);
 		if (pud_none(*pud)) {
 			pmd_t *new;
 
@@ -2612,13 +2632,18 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
 	for (; vstart < vend; vstart += PMD_SIZE) {
 		pgd_t *pgd = vmemmap_pgd_populate(vstart, node);
 		unsigned long pte;
+		p4d_t *p4d;
 		pud_t *pud;
 		pmd_t *pmd;
 
 		if (!pgd)
 			return -ENOMEM;
 
-		pud = vmemmap_pud_populate(pgd, vstart, node);
+		p4d = vmemmap_p4d_populate(pgd, vstart, node);
+		if (!p4d)
+			return -ENOMEM;
+
+		pud = vmemmap_pud_populate(p4d, vstart, node);
 		if (!pud)
 			return -ENOMEM;
 
