@@ -958,8 +958,8 @@ static int cramfs_get_tree(struct fs_context *fc)
 
 	if (IS_ENABLED(CONFIG_CRAMFS_MTD)) {
 		ret = get_tree_mtd(fc, cramfs_mtd_fill_super);
-		if (ret < 0)
-			return ret;
+		if (!ret)
+			return 0;
 	}
 	if (IS_ENABLED(CONFIG_CRAMFS_BLOCKDEV))
 		ret = get_tree_bdev(fc, cramfs_blkdev_fill_super);
