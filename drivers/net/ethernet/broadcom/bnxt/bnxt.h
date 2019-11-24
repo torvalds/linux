@@ -1996,8 +1996,8 @@ int _hwrm_send_message(struct bnxt *, void *, u32, int);
 int _hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 len, int timeout);
 int hwrm_send_message(struct bnxt *, void *, u32, int);
 int hwrm_send_message_silent(struct bnxt *, void *, u32, int);
-int bnxt_hwrm_func_rgtr_async_events(struct bnxt *bp, unsigned long *bmap,
-				     int bmap_size);
+int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap,
+			    int bmap_size, bool async_only);
 int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id);
 int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings);
 int bnxt_nq_rings_in_use(struct bnxt *bp);

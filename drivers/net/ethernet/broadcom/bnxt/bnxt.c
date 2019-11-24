@@ -4394,53 +4394,22 @@ int hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 msg_len,
 	return rc;
 }
 
-int bnxt_hwrm_func_rgtr_async_events(struct bnxt *bp, unsigned long *bmap,
-				     int bmap_size)
-{
-	struct hwrm_func_drv_rgtr_input req = {0};
-	DECLARE_BITMAP(async_events_bmap, 256);
-	u32 *events = (u32 *)async_events_bmap;
-	int i;
-
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_RGTR, -1, -1);
-
-	req.enables =
-		cpu_to_le32(FUNC_DRV_RGTR_REQ_ENABLES_ASYNC_EVENT_FWD);
-
-	memset(async_events_bmap, 0, sizeof(async_events_bmap));
-	for (i = 0; i < ARRAY_SIZE(bnxt_async_events_arr); i++) {
-		u16 event_id = bnxt_async_events_arr[i];
-
-		if (event_id == ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY &&
-		    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
-			continue;
-		__set_bit(bnxt_async_events_arr[i], async_events_bmap);
-	}
-	if (bmap && bmap_size) {
-		for (i = 0; i < bmap_size; i++) {
-			if (test_bit(i, bmap))
-				__set_bit(i, async_events_bmap);
-		}
-	}
-
-	for (i = 0; i < 8; i++)
-		req.async_event_fwd[i] |= cpu_to_le32(events[i]);
-
-	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-}
-
-static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
+int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap, int bmap_size,
+			    bool async_only)
 {
 	struct hwrm_func_drv_rgtr_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_func_drv_rgtr_input req = {0};
+	DECLARE_BITMAP(async_events_bmap, 256);
+	u32 *events = (u32 *)async_events_bmap;
 	u32 flags;
-	int rc;
+	int rc, i;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_RGTR, -1, -1);
 
 	req.enables =
 		cpu_to_le32(FUNC_DRV_RGTR_REQ_ENABLES_OS_TYPE |
-			    FUNC_DRV_RGTR_REQ_ENABLES_VER);
+			    FUNC_DRV_RGTR_REQ_ENABLES_VER |
+			    FUNC_DRV_RGTR_REQ_ENABLES_ASYNC_EVENT_FWD);
 
 	req.os_type = cpu_to_le16(FUNC_DRV_RGTR_REQ_OS_TYPE_LINUX);
 	flags = FUNC_DRV_RGTR_REQ_FLAGS_16BIT_VER_MODE |
@@ -4480,6 +4449,28 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 	if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE)
 		req.flags |= cpu_to_le32(
 			FUNC_DRV_RGTR_REQ_FLAGS_FLOW_HANDLE_64BIT_MODE);
+
+	memset(async_events_bmap, 0, sizeof(async_events_bmap));
+	for (i = 0; i < ARRAY_SIZE(bnxt_async_events_arr); i++) {
+		u16 event_id = bnxt_async_events_arr[i];
+
+		if (event_id == ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY &&
+		    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
+			continue;
+		__set_bit(bnxt_async_events_arr[i], async_events_bmap);
+	}
+	if (bmap && bmap_size) {
+		for (i = 0; i < bmap_size; i++) {
+			if (test_bit(i, bmap))
+				__set_bit(i, async_events_bmap);
+		}
+	}
+	for (i = 0; i < 8; i++)
+		req.async_event_fwd[i] |= cpu_to_le32(events[i]);
+
+	if (async_only)
+		req.enables =
+			cpu_to_le32(FUNC_DRV_RGTR_REQ_ENABLES_ASYNC_EVENT_FWD);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
@@ -10490,11 +10481,7 @@ static int bnxt_fw_init_one_p2(struct bnxt *bp)
 		netdev_warn(bp->dev, "hwrm query error recovery failure rc: %d\n",
 			    rc);
 
-	rc = bnxt_hwrm_func_drv_rgtr(bp);
-	if (rc)
-		return -ENODEV;
-
-	rc = bnxt_hwrm_func_rgtr_async_events(bp, NULL, 0);
+	rc = bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, false);
 	if (rc)
 		return -ENODEV;
 
@@ -11947,7 +11934,8 @@ static int bnxt_resume(struct device *device)
 		goto resume_exit;
 	}
 	pci_set_master(bp->pdev);
-	if (bnxt_hwrm_ver_get(bp) || bnxt_hwrm_func_drv_rgtr(bp)) {
+	if (bnxt_hwrm_ver_get(bp) ||
+	    bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, false)) {
 		rc = -ENODEV;
 		goto resume_exit;
 	}

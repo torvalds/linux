@@ -81,7 +81,7 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev, int ulp_id)
 		edev->en_ops->bnxt_free_msix(edev, ulp_id);
 
 	if (ulp->max_async_event_id)
-		bnxt_hwrm_func_rgtr_async_events(bp, NULL, 0);
+		bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, true);
 
 	RCU_INIT_POINTER(ulp->ulp_ops, NULL);
 	synchronize_rcu();
@@ -441,7 +441,7 @@ static int bnxt_register_async_events(struct bnxt_en_dev *edev, int ulp_id,
 	/* Make sure bnxt_ulp_async_events() sees this order */
 	smp_wmb();
 	ulp->max_async_event_id = max_id;
-	bnxt_hwrm_func_rgtr_async_events(bp, events_bmap, max_id + 1);
+	bnxt_hwrm_func_drv_rgtr(bp, events_bmap, max_id + 1, true);
 	return 0;
 }
 
