@@ -95,7 +95,7 @@ struct nvme_fc_fcp_op {
 
 struct nvme_fcp_op_w_sgl {
 	struct nvme_fc_fcp_op	op;
-	struct scatterlist	sgl[SG_CHUNK_SIZE];
+	struct scatterlist	sgl[NVME_INLINE_SG_CNT];
 	uint8_t			priv[0];
 };
 
@@ -2141,7 +2141,7 @@ nvme_fc_map_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 	freq->sg_table.sgl = freq->first_sgl;
 	ret = sg_alloc_table_chained(&freq->sg_table,
 			blk_rq_nr_phys_segments(rq), freq->sg_table.sgl,
-			SG_CHUNK_SIZE);
+			NVME_INLINE_SG_CNT);
 	if (ret)
 		return -ENOMEM;
 
@@ -2150,7 +2150,7 @@ nvme_fc_map_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 	freq->sg_cnt = fc_dma_map_sg(ctrl->lport->dev, freq->sg_table.sgl,
 				op->nents, rq_dma_dir(rq));
 	if (unlikely(freq->sg_cnt <= 0)) {
-		sg_free_table_chained(&freq->sg_table, SG_CHUNK_SIZE);
+		sg_free_table_chained(&freq->sg_table, NVME_INLINE_SG_CNT);
 		freq->sg_cnt = 0;
 		return -EFAULT;
 	}
@@ -2173,7 +2173,7 @@ nvme_fc_unmap_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 	fc_dma_unmap_sg(ctrl->lport->dev, freq->sg_table.sgl, op->nents,
 			rq_dma_dir(rq));
 
-	sg_free_table_chained(&freq->sg_table, SG_CHUNK_SIZE);
+	sg_free_table_chained(&freq->sg_table, NVME_INLINE_SG_CNT);
 
 	freq->sg_cnt = 0;
 }
