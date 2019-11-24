@@ -2000,8 +2000,8 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 	return rc;
 }
 
-static int bnxt_flash_package_from_file(struct net_device *dev,
-					char *filename, u32 install_type)
+int bnxt_flash_package_from_file(struct net_device *dev, const char *filename,
+				 u32 install_type)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct hwrm_nvm_install_update_output *resp = bp->hwrm_cmd_resp_addr;
