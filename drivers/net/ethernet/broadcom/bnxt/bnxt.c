@@ -4483,9 +4483,12 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-	if (!rc && (resp->flags &
-		    cpu_to_le32(FUNC_DRV_RGTR_RESP_FLAGS_IF_CHANGE_SUPPORTED)))
-		bp->fw_cap |= BNXT_FW_CAP_IF_CHANGE;
+	if (!rc) {
+		set_bit(BNXT_STATE_DRV_REGISTERED, &bp->state);
+		if (resp->flags &
+		    cpu_to_le32(FUNC_DRV_RGTR_RESP_FLAGS_IF_CHANGE_SUPPORTED))
+			bp->fw_cap |= BNXT_FW_CAP_IF_CHANGE;
+	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
@@ -4493,6 +4496,9 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 static int bnxt_hwrm_func_drv_unrgtr(struct bnxt *bp)
 {
 	struct hwrm_func_drv_unrgtr_input req = {0};
+
+	if (!test_and_clear_bit(BNXT_STATE_DRV_REGISTERED, &bp->state))
+		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_UNRGTR, -1, -1);
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
@@ -11864,6 +11870,7 @@ init_err_cleanup_tc:
 	bnxt_clear_int_mode(bp);
 
 init_err_pci_clean:
+	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_short_cmd_req(bp);
 	bnxt_free_hwrm_resources(bp);
 	bnxt_free_ctx_mem(bp);
