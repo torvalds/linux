@@ -10249,6 +10249,31 @@ static void bnxt_chk_missed_irq(struct bnxt *bp)
 
 static void bnxt_cfg_ntp_filters(struct bnxt *);
 
+static void bnxt_init_ethtool_link_settings(struct bnxt *bp)
+{
+	struct bnxt_link_info *link_info = &bp->link_info;
+
+	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
+		link_info->autoneg = BNXT_AUTONEG_SPEED;
+		if (bp->hwrm_spec_code >= 0x10201) {
+			if (link_info->auto_pause_setting &
+			    PORT_PHY_CFG_REQ_AUTO_PAUSE_AUTONEG_PAUSE)
+				link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+		} else {
+			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+		}
+		link_info->advertising = link_info->auto_link_speeds;
+	} else {
+		link_info->req_link_speed = link_info->force_link_speed;
+		link_info->req_duplex = link_info->duplex_setting;
+	}
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
+		link_info->req_flow_ctrl =
+			link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH;
+	else
+		link_info->req_flow_ctrl = link_info->force_pause_setting;
+}
+
 static void bnxt_sp_task(struct work_struct *work)
 {
 	struct bnxt *bp = container_of(work, struct bnxt, sp_task);
@@ -11411,26 +11436,7 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 	if (!fw_dflt)
 		return 0;
 
-	/*initialize the ethool setting copy with NVM settings */
-	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
-		link_info->autoneg = BNXT_AUTONEG_SPEED;
-		if (bp->hwrm_spec_code >= 0x10201) {
-			if (link_info->auto_pause_setting &
-			    PORT_PHY_CFG_REQ_AUTO_PAUSE_AUTONEG_PAUSE)
-				link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
-		} else {
-			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
-		}
-		link_info->advertising = link_info->auto_link_speeds;
-	} else {
-		link_info->req_link_speed = link_info->force_link_speed;
-		link_info->req_duplex = link_info->duplex_setting;
-	}
-	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
-		link_info->req_flow_ctrl =
-			link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH;
-	else
-		link_info->req_flow_ctrl = link_info->force_pause_setting;
+	bnxt_init_ethtool_link_settings(bp);
 	return 0;
 }
 
