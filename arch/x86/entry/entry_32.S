@@ -1090,7 +1090,6 @@ SYM_FUNC_START(entry_INT80_32)
 restore_all:
 	TRACE_IRQS_IRET
 	SWITCH_TO_ENTRY_STACK
-.Lrestore_all_notrace:
 	CHECK_AND_APPLY_ESPFIX
 .Lrestore_nocheck:
 	/* Switch back to user CR3 */
