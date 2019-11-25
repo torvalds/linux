@@ -27,6 +27,7 @@
 #define UV_RETURN			0xF11C
 #define UV_ESM				0xF110
 #define UV_REGISTER_MEM_SLOT		0xF120
+#define UV_UNREGISTER_MEM_SLOT		0xF124
 #define UV_PAGE_IN			0xF128
 #define UV_PAGE_OUT			0xF12C
 #define UV_SHARE_PAGE			0xF130

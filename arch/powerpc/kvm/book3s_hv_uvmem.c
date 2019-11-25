@@ -250,6 +250,43 @@ unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
 }
 
 /*
+ * Drop device pages that we maintain for the secure guest
+ *
+ * We first mark the pages to be skipped from UV_PAGE_OUT when there
+ * is HV side fault on these pages. Next we *get* these pages, forcing
+ * fault on them, do fault time migration to replace the device PTEs in
+ * QEMU page table with normal PTEs from newly allocated pages.
+ */
+void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *free,
+			     struct kvm *kvm)
+{
+	int i;
+	struct kvmppc_uvmem_page_pvt *pvt;
+	unsigned long pfn, uvmem_pfn;
+	unsigned long gfn = free->base_gfn;
+
+	for (i = free->npages; i; --i, ++gfn) {
+		struct page *uvmem_page;
+
+		mutex_lock(&kvm->arch.uvmem_lock);
+		if (!kvmppc_gfn_is_uvmem_pfn(gfn, kvm, &uvmem_pfn)) {
+			mutex_unlock(&kvm->arch.uvmem_lock);
+			continue;
+		}
+
+		uvmem_page = pfn_to_page(uvmem_pfn);
+		pvt = uvmem_page->zone_device_data;
+		pvt->skip_page_out = true;
+		mutex_unlock(&kvm->arch.uvmem_lock);
+
+		pfn = gfn_to_pfn(kvm, gfn);
+		if (is_error_noslot_pfn(pfn))
+			continue;
+		kvm_release_pfn_clean(pfn);
+	}
+}
+
+/*
  * Get a free device PFN from the pool
  *
  * Called when a normal page is moved to secure memory (UV_PAGE_IN). Device
