@@ -27,6 +27,10 @@
  * various states of availability.
  */
 LIST_HEAD(opp_tables);
+
+/* OPP tables with uninitialized required OPPs */
+LIST_HEAD(lazy_opp_tables);
+
 /* Lock to allow exclusive modification to the device and opp lists */
 DEFINE_MUTEX(opp_table_lock);
 /* Flag indicating that opp_tables list is being updated at the moment */
@@ -162,6 +166,10 @@ unsigned int dev_pm_opp_get_required_pstate(struct dev_pm_opp *opp,
 		pr_err("%s: Invalid parameters\n", __func__);
 		return 0;
 	}
+
+	/* required-opps not fully initialized yet */
+	if (lazy_linking_pending(opp->opp_table))
+		return 0;
 
 	return opp->required_opps[index]->pstate;
 }
@@ -885,6 +893,10 @@ static int _set_required_opps(struct device *dev,
 	if (!required_opp_tables)
 		return 0;
 
+	/* required-opps not fully initialized yet */
+	if (lazy_linking_pending(opp_table))
+		return -EBUSY;
+
 	/* Single genpd case */
 	if (!genpd_virt_devs)
 		return _set_required_opp(dev, dev, opp, 0);
@@ -1181,6 +1193,7 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 	mutex_init(&opp_table->lock);
 	mutex_init(&opp_table->genpd_virt_dev_lock);
 	INIT_LIST_HEAD(&opp_table->dev_list);
+	INIT_LIST_HEAD(&opp_table->lazy);
 
 	/* Mark regulator count uninitialized */
 	opp_table->regulator_count = -1;
@@ -1632,6 +1645,21 @@ static int _opp_is_duplicate(struct device *dev, struct dev_pm_opp *new_opp,
 	return 0;
 }
 
+void _required_opps_available(struct dev_pm_opp *opp, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		if (opp->required_opps[i]->available)
+			continue;
+
+		opp->available = false;
+		pr_warn("%s: OPP not supported by required OPP %pOF (%lu)\n",
+			 __func__, opp->required_opps[i]->np, opp->rate);
+		return;
+	}
+}
+
 /*
  * Returns:
  * 0: On success. And appropriate error message for duplicate OPPs.
@@ -1646,7 +1674,6 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 	     struct opp_table *opp_table, bool rate_not_available)
 {
 	struct list_head *head;
-	unsigned int i;
 	int ret;
 
 	mutex_lock(&opp_table->lock);
@@ -1672,15 +1699,11 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 			 __func__, new_opp->rate);
 	}
 
-	for (i = 0; i < opp_table->required_opp_count; i++) {
-		if (new_opp->required_opps[i]->available)
-			continue;
+	/* required-opps not fully initialized yet */
+	if (lazy_linking_pending(opp_table))
+		return 0;
 
-		new_opp->available = false;
-		dev_warn(dev, "%s: OPP not supported by required OPP %pOF (%lu)\n",
-			 __func__, new_opp->required_opps[i]->np, new_opp->rate);
-		break;
-	}
+	_required_opps_available(new_opp, opp_table->required_opp_count);
 
 	return 0;
 }
@@ -2387,6 +2410,10 @@ int dev_pm_opp_xlate_performance_state(struct opp_table *src_table,
 	 */
 	if (!src_table || !src_table->required_opp_count)
 		return pstate;
+
+	/* required-opps not fully initialized yet */
+	if (lazy_linking_pending(src_table))
+		return -EBUSY;
 
 	for (i = 0; i < src_table->required_opp_count; i++) {
 		if (src_table->required_opp_tables[i]->np == dst_table->np)

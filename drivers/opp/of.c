@@ -144,7 +144,7 @@ static void _opp_table_free_required_tables(struct opp_table *opp_table)
 
 	for (i = 0; i < opp_table->required_opp_count; i++) {
 		if (IS_ERR_OR_NULL(required_opp_tables[i]))
-			break;
+			continue;
 
 		dev_pm_opp_put_opp_table(required_opp_tables[i]);
 	}
@@ -153,6 +153,7 @@ static void _opp_table_free_required_tables(struct opp_table *opp_table)
 
 	opp_table->required_opp_count = 0;
 	opp_table->required_opp_tables = NULL;
+	list_del(&opp_table->lazy);
 }
 
 /*
@@ -165,6 +166,7 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 {
 	struct opp_table **required_opp_tables;
 	struct device_node *required_np, *np;
+	bool lazy = false;
 	int count, i;
 
 	/* Traversing the first OPP node is all we need */
@@ -195,8 +197,10 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 		required_opp_tables[i] = _find_table_of_opp_np(required_np);
 		of_node_put(required_np);
 
-		if (IS_ERR(required_opp_tables[i]))
-			goto free_required_tables;
+		if (IS_ERR(required_opp_tables[i])) {
+			lazy = true;
+			continue;
+		}
 
 		/*
 		 * We only support genpd's OPPs in the "required-opps" for now,
@@ -209,6 +213,10 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 			goto free_required_tables;
 		}
 	}
+
+	/* Let's do the linking later on */
+	if (lazy)
+		list_add(&opp_table->lazy, &lazy_opp_tables);
 
 	goto put_np;
 
@@ -278,14 +286,14 @@ void _of_opp_free_required_opps(struct opp_table *opp_table,
 
 	for (i = 0; i < opp_table->required_opp_count; i++) {
 		if (!required_opps[i])
-			break;
+			continue;
 
 		/* Put the reference back */
 		dev_pm_opp_put(required_opps[i]);
 	}
 
-	kfree(required_opps);
 	opp->required_opps = NULL;
+	kfree(required_opps);
 }
 
 /* Populate all required OPPs which are part of "required-opps" list */
@@ -308,6 +316,10 @@ static int _of_opp_alloc_required_opps(struct opp_table *opp_table,
 
 	for (i = 0; i < count; i++) {
 		required_table = opp_table->required_opp_tables[i];
+
+		/* Required table not added yet, we will link later */
+		if (IS_ERR_OR_NULL(required_table))
+			continue;
 
 		np = of_parse_required_opp(opp->np, i);
 		if (unlikely(!np)) {
@@ -332,6 +344,104 @@ free_required_opps:
 	_of_opp_free_required_opps(opp_table, opp);
 
 	return ret;
+}
+
+/* Link required OPPs for an individual OPP */
+static int lazy_link_required_opps(struct opp_table *opp_table,
+				   struct opp_table *new_table, int index)
+{
+	struct device_node *required_np;
+	struct dev_pm_opp *opp;
+
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		required_np = of_parse_required_opp(opp->np, index);
+		if (unlikely(!required_np))
+			return -ENODEV;
+
+		opp->required_opps[index] = _find_opp_of_np(new_table, required_np);
+		of_node_put(required_np);
+
+		if (!opp->required_opps[index]) {
+			pr_err("%s: Unable to find required OPP node: %pOF (%d)\n",
+			       __func__, opp->np, index);
+			return -ENODEV;
+		}
+	}
+
+	return 0;
+}
+
+/* Link required OPPs for all OPPs of the newly added OPP table */
+static void lazy_link_required_opp_table(struct opp_table *new_table)
+{
+	struct opp_table *opp_table, *temp, **required_opp_tables;
+	struct device_node *required_np, *opp_np, *required_table_np;
+	struct dev_pm_opp *opp;
+	int i, ret;
+
+	/*
+	 * We only support genpd's OPPs in the "required-opps" for now,
+	 * as we don't know much about other cases.
+	 */
+	if (!new_table->is_genpd)
+		return;
+
+	mutex_lock(&opp_table_lock);
+
+	list_for_each_entry_safe(opp_table, temp, &lazy_opp_tables, lazy) {
+		bool lazy = false;
+
+		/* opp_np can't be invalid here */
+		opp_np = of_get_next_available_child(opp_table->np, NULL);
+
+		for (i = 0; i < opp_table->required_opp_count; i++) {
+			required_opp_tables = opp_table->required_opp_tables;
+
+			/* Required opp-table is already parsed */
+			if (!IS_ERR(required_opp_tables[i]))
+				continue;
+
+			/* required_np can't be invalid here */
+			required_np = of_parse_required_opp(opp_np, i);
+			required_table_np = of_get_parent(required_np);
+
+			of_node_put(required_table_np);
+			of_node_put(required_np);
+
+			/*
+			 * Newly added table isn't the required opp-table for
+			 * opp_table.
+			 */
+			if (required_table_np != new_table->np) {
+				lazy = true;
+				continue;
+			}
+
+			required_opp_tables[i] = new_table;
+			_get_opp_table_kref(new_table);
+
+			/* Link OPPs now */
+			ret = lazy_link_required_opps(opp_table, new_table, i);
+			if (ret) {
+				/* The OPPs will be marked unusable */
+				lazy = false;
+				break;
+			}
+		}
+
+		of_node_put(opp_np);
+
+		/* All required opp-tables found, remove from lazy list */
+		if (!lazy) {
+			list_del(&opp_table->lazy);
+			INIT_LIST_HEAD(&opp_table->lazy);
+
+			list_for_each_entry(opp, &opp_table->opp_list, node)
+				_required_opps_available(opp, opp_table->required_opp_count);
+		}
+	}
+
+	mutex_unlock(&opp_table_lock);
 }
 
 static int _bandwidth_supported(struct device *dev, struct opp_table *opp_table)
@@ -888,6 +998,8 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 			break;
 		}
 	}
+
+	lazy_link_required_opp_table(opp_table);
 
 	return 0;
 
