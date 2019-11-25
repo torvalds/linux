@@ -198,9 +198,6 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 	return 0;
 }
 
-static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
-		struct ras_common_if *head);
-
 /**
  * DOC: AMDGPU RAS debugfs control interface
  *
@@ -445,7 +442,7 @@ static struct ras_manager *amdgpu_ras_create_obj(struct amdgpu_device *adev,
 }
 
 /* return an obj equal to head, or the first when head is NULL */
-static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
+struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
 		struct ras_common_if *head)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);

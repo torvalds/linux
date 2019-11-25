@@ -611,6 +611,9 @@ int amdgpu_ras_interrupt_remove_handler(struct amdgpu_device *adev,
 int amdgpu_ras_interrupt_dispatch(struct amdgpu_device *adev,
 		struct ras_dispatch_if *info);
 
+struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
+		struct ras_common_if *head);
+
 extern atomic_t amdgpu_ras_in_intr;
 
 static inline bool amdgpu_ras_intr_triggered(void)
