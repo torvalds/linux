@@ -1604,15 +1604,16 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct intel_pinctrl_soc_data *soc_data = NULL;
 	const struct intel_pinctrl_soc_data **soc_table;
+	struct device *dev = &pdev->dev;
 	struct acpi_device *acpi_dev;
 	struct byt_gpio *vg;
 	int i, ret;
 
-	acpi_dev = ACPI_COMPANION(&pdev->dev);
+	acpi_dev = ACPI_COMPANION(dev);
 	if (!acpi_dev)
 		return -ENODEV;
 
-	soc_table = (const struct intel_pinctrl_soc_data **)device_get_match_data(&pdev->dev);
+	soc_table = (const struct intel_pinctrl_soc_data **)device_get_match_data(dev);
 
 	for (i = 0; soc_table[i]; i++) {
 		if (!strcmp(acpi_dev->pnp.unique_id, soc_table[i]->uid)) {
@@ -1624,25 +1625,25 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 	if (!soc_data)
 		return -ENODEV;
 
-	vg = devm_kzalloc(&pdev->dev, sizeof(*vg), GFP_KERNEL);
+	vg = devm_kzalloc(dev, sizeof(*vg), GFP_KERNEL);
 	if (!vg)
 		return -ENOMEM;
 
-	vg->dev = &pdev->dev;
+	vg->dev = dev;
 	ret = byt_set_soc_data(vg, soc_data);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to set soc data\n");
+		dev_err(dev, "failed to set soc data\n");
 		return ret;
 	}
 
 	vg->pctl_desc		= byt_pinctrl_desc;
-	vg->pctl_desc.name	= dev_name(&pdev->dev);
+	vg->pctl_desc.name	= dev_name(dev);
 	vg->pctl_desc.pins	= vg->soc_data->pins;
 	vg->pctl_desc.npins	= vg->soc_data->npins;
 
-	vg->pctl_dev = devm_pinctrl_register(&pdev->dev, &vg->pctl_desc, vg);
+	vg->pctl_dev = devm_pinctrl_register(dev, &vg->pctl_desc, vg);
 	if (IS_ERR(vg->pctl_dev)) {
-		dev_err(&pdev->dev, "failed to register pinctrl driver\n");
+		dev_err(dev, "failed to register pinctrl driver\n");
 		return PTR_ERR(vg->pctl_dev);
 	}
 
@@ -1651,7 +1652,7 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 		return ret;
 
 	platform_set_drvdata(pdev, vg);
-	pm_runtime_enable(&pdev->dev);
+	pm_runtime_enable(dev);
 
 	return 0;
 }
