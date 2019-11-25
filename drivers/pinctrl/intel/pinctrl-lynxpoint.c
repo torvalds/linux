@@ -38,7 +38,9 @@
 #define TRIG_SEL_BIT	BIT(4) /* 0: Edge, 1: Level */
 #define INT_INV_BIT	BIT(3) /* Invert interrupt triggering */
 #define DIR_BIT		BIT(2) /* 0: Output, 1: Input */
-#define USE_SEL_BIT	BIT(0) /* 0: Native, 1: GPIO */
+#define USE_SEL_MASK	GENMASK(1, 0)	/* 0: Native, 1: GPIO, ... */
+#define USE_SEL_NATIVE	(0 << 0)
+#define USE_SEL_GPIO	(1 << 0)
 
 /* LP_CONFIG2 reg bits */
 #define GPINDIS_BIT	BIT(2) /* disable input sensing */
@@ -111,7 +113,7 @@ static int lp_gpio_request(struct gpio_chip *chip, unsigned offset)
 		return -EBUSY;
 	}
 	/* Fail if pin is in alternate function mode (not GPIO mode) */
-	if (!(inl(reg) & USE_SEL_BIT))
+	if ((inl(reg) & USE_SEL_MASK) != USE_SEL_GPIO)
 		return -ENODEV;
 
 	/* enable input sensing */
