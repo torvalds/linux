@@ -53,7 +53,6 @@ static int qcom_hfpll_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	struct clk_hfpll *h;
 	struct clk_init_data init = {
-		.parent_names = (const char *[]){ "xo" },
 		.num_parents = 1,
 		.ops = &clk_ops_hfpll,
 		/*
@@ -65,6 +64,7 @@ static int qcom_hfpll_probe(struct platform_device *pdev)
 		.flags = CLK_IGNORE_UNUSED,
 	};
 	int ret;
+	struct clk_parent_data pdata = { .index = 0 };
 
 	h = devm_kzalloc(dev, sizeof(*h), GFP_KERNEL);
 	if (!h)
@@ -82,6 +82,8 @@ static int qcom_hfpll_probe(struct platform_device *pdev)
 	if (of_property_read_string_index(dev->of_node, "clock-output-names",
 					  0, &init.name))
 		return -ENODEV;
+
+	init.parent_data = &pdata;
 
 	h->d = &hdata;
 	h->clkr.hw.init = &init;
