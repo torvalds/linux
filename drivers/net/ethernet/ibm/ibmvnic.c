@@ -159,6 +159,40 @@ static long h_reg_sub_crq(unsigned long unit_address, unsigned long token,
 	return rc;
 }
 
+/**
+ * ibmvnic_wait_for_completion - Check device state and wait for completion
+ * @adapter: private device data
+ * @comp_done: completion structure to wait for
+ * @timeout: time to wait in milliseconds
+ *
+ * Wait for a completion signal or until the timeout limit is reached
+ * while checking that the device is still active.
+ */
+static int ibmvnic_wait_for_completion(struct ibmvnic_adapter *adapter,
+				       struct completion *comp_done,
+				       unsigned long timeout)
+{
+	struct net_device *netdev;
+	unsigned long div_timeout;
+	u8 retry;
+
+	netdev = adapter->netdev;
+	retry = 5;
+	div_timeout = msecs_to_jiffies(timeout / retry);
+	while (true) {
+		if (!adapter->crq.active) {
+			netdev_err(netdev, "Device down!\n");
+			return -ENODEV;
+		}
+		if (retry--)
+			break;
+		if (wait_for_completion_timeout(comp_done, div_timeout))
+			return 0;
+	}
+	netdev_err(netdev, "Operation timed out.\n");
+	return -ETIMEDOUT;
+}
+
 static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 				struct ibmvnic_long_term_buff *ltb, int size)
 {
@@ -183,7 +217,15 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 		dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
 		return rc;
 	}
-	wait_for_completion(&adapter->fw_done);
+
+	rc = ibmvnic_wait_for_completion(adapter, &adapter->fw_done, 10000);
+	if (rc) {
+		dev_err(dev,
+			"Long term map request aborted or timed out,rc = %d\n",
+			rc);
+		dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
+		return rc;
+	}
 
 	if (adapter->fw_done_rc) {
 		dev_err(dev, "Couldn't map long term buffer,rc = %d\n",
@@ -211,6 +253,7 @@ static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 static int reset_long_term_buff(struct ibmvnic_adapter *adapter,
 				struct ibmvnic_long_term_buff *ltb)
 {
+	struct device *dev = &adapter->vdev->dev;
 	int rc;
 
 	memset(ltb->buff, 0, ltb->size);
@@ -219,10 +262,16 @@ static int reset_long_term_buff(struct ibmvnic_adapter *adapter,
 	rc = send_request_map(adapter, ltb->addr, ltb->size, ltb->map_id);
 	if (rc)
 		return rc;
-	wait_for_completion(&adapter->fw_done);
+
+	rc = ibmvnic_wait_for_completion(adapter, &adapter->fw_done, 10000);
+	if (rc) {
+		dev_info(dev,
+			 "Reset failed, long term map request timed out or aborted\n");
+		return rc;
+	}
 
 	if (adapter->fw_done_rc) {
-		dev_info(&adapter->vdev->dev,
+		dev_info(dev,
 			 "Reset failed, attempting to free and reallocate buffer\n");
 		free_long_term_buff(adapter, ltb);
 		return alloc_long_term_buff(adapter, ltb, ltb->size);
@@ -949,7 +998,12 @@ static int ibmvnic_get_vpd(struct ibmvnic_adapter *adapter)
 	rc = ibmvnic_send_crq(adapter, &crq);
 	if (rc)
 		return rc;
-	wait_for_completion(&adapter->fw_done);
+
+	rc = ibmvnic_wait_for_completion(adapter, &adapter->fw_done, 10000);
+	if (rc) {
+		dev_err(dev, "Could not retrieve VPD size, rc = %d\n", rc);
+		return rc;
+	}
 
 	if (!adapter->vpd->len)
 		return -ENODATA;
@@ -987,7 +1041,14 @@ static int ibmvnic_get_vpd(struct ibmvnic_adapter *adapter)
 		adapter->vpd->buff = NULL;
 		return rc;
 	}
-	wait_for_completion(&adapter->fw_done);
+
+	rc = ibmvnic_wait_for_completion(adapter, &adapter->fw_done, 10000);
+	if (rc) {
+		dev_err(dev, "Unable to retrieve VPD, rc = %d\n", rc);
+		kfree(adapter->vpd->buff);
+		adapter->vpd->buff = NULL;
+		return rc;
+	}
 
 	return 0;
 }
@@ -1696,9 +1757,9 @@ static int __ibmvnic_set_mac(struct net_device *netdev, u8 *dev_addr)
 		goto err;
 	}
 
-	wait_for_completion(&adapter->fw_done);
+	rc = ibmvnic_wait_for_completion(adapter, &adapter->fw_done, 10000);
 	/* netdev->dev_addr is changed in handle_change_mac_rsp function */
-	if (adapter->fw_done_rc) {
+	if (rc || adapter->fw_done_rc) {
 		rc = -EIO;
 		goto err;
 	}
@@ -2319,9 +2380,16 @@ static int wait_for_reset(struct ibmvnic_adapter *adapter)
 	reinit_completion(&adapter->reset_done);
 	adapter->wait_for_reset = true;
 	rc = ibmvnic_reset(adapter, VNIC_RESET_CHANGE_PARAM);
-	if (rc)
-		return rc;
-	wait_for_completion(&adapter->reset_done);
+
+	if (rc) {
+		ret = rc;
+		goto out;
+	}
+	rc = ibmvnic_wait_for_completion(adapter, &adapter->reset_done, 60000);
+	if (rc) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	ret = 0;
 	if (adapter->reset_done_rc) {
@@ -2335,10 +2403,18 @@ static int wait_for_reset(struct ibmvnic_adapter *adapter)
 		reinit_completion(&adapter->reset_done);
 		adapter->wait_for_reset = true;
 		rc = ibmvnic_reset(adapter, VNIC_RESET_CHANGE_PARAM);
-		if (rc)
-			return ret;
-		wait_for_completion(&adapter->reset_done);
+		if (rc) {
+			ret = rc;
+			goto out;
+		}
+		rc = ibmvnic_wait_for_completion(adapter, &adapter->reset_done,
+						 60000);
+		if (rc) {
+			ret = -ENODEV;
+			goto out;
+		}
 	}
+out:
 	adapter->wait_for_reset = false;
 
 	return ret;
@@ -2607,7 +2683,9 @@ static void ibmvnic_get_ethtool_stats(struct net_device *dev,
 	rc = ibmvnic_send_crq(adapter, &crq);
 	if (rc)
 		return;
-	wait_for_completion(&adapter->stats_done);
+	rc = ibmvnic_wait_for_completion(adapter, &adapter->stats_done, 10000);
+	if (rc)
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(ibmvnic_stats); i++)
 		data[i] = be64_to_cpu(IBMVNIC_GET_STAT(adapter,
@@ -4412,7 +4490,11 @@ static int send_query_phys_parms(struct ibmvnic_adapter *adapter)
 	rc = ibmvnic_send_crq(adapter, &crq);
 	if (rc)
 		return rc;
-	wait_for_completion(&adapter->fw_done);
+
+	rc = ibmvnic_wait_for_completion(adapter, &adapter->fw_done, 10000);
+	if (rc)
+		return rc;
+
 	return adapter->fw_done_rc ? -EIO : 0;
 }
 
