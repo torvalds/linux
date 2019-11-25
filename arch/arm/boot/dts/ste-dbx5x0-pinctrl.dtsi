@@ -8,7 +8,7 @@
 &pinctrl {
 	/* Settings for all UART default and sleep states */
 	uart0 {
-		uart0_default_mode: uart0_default {
+		u0_a_1_default: u0_a_1_default {
 			default_mux {
 				function = "u0";
 				groups = "u0_a_1";
@@ -23,7 +23,7 @@
 			};
 		};
 
-		uart0_sleep_mode: uart0_sleep {
+		u0_a_1_sleep: u0_a_1_sleep {
 			sleep_cfg1 {
 				pins = "GPIO0_AJ5", "GPIO2_AH4"; /* CTS+RXD */
 				ste,config = <&slpm_in_wkup_pdis>;
@@ -40,7 +40,7 @@
 	};
 
 	uart1 {
-		uart1_default_mode: uart1_default {
+		u1rxtx_a_1_default: u1rxtx_a_1_default {
 			default_mux {
 				function = "u1";
 				groups = "u1rxtx_a_1";
@@ -55,7 +55,7 @@
 			};
 		};
 
-		uart1_sleep_mode: uart1_sleep {
+		u1rxtx_a_1_sleep: u1rxtx_a_1_sleep {
 			sleep_cfg1 {
 				pins = "GPIO4_AH6"; /* RXD */
 				ste,config = <&slpm_in_wkup_pdis>;
@@ -68,7 +68,7 @@
 	};
 
 	uart2 {
-		uart2_default_mode: uart2_default {
+		u2rxtx_c_1_default: u2rxtx_c_1_default {
 			default_mux {
 				function = "u2";
 				groups = "u2rxtx_c_1";
@@ -83,7 +83,7 @@
 			};
 		};
 
-		uart2_sleep_mode: uart2_sleep {
+		u2rxtx_c_1_sleep: u2rxtx_c_1_sleep {
 			sleep_cfg1 {
 				pins = "GPIO29_W2"; /* RXD */
 				ste,config = <&in_wkup_pdis>;
@@ -97,7 +97,7 @@
 
 	/* Settings for all I2C default and sleep states */
 	i2c0 {
-		i2c0_default_mode: i2c_default {
+		i2c0_a_1_default: i2c0_a_1_default {
 			default_mux {
 				function = "i2c0";
 				groups = "i2c0_a_1";
@@ -108,7 +108,7 @@
 			};
 		};
 
-		i2c0_sleep_mode: i2c_sleep {
+		i2c0_a_1_sleep: i2c0_a_1_sleep {
 			sleep_cfg1 {
 				pins = "GPIO147_C15", "GPIO148_B16"; /* SDA/SCL */
 				ste,config = <&slpm_in_wkup_pdis>;
@@ -117,7 +117,7 @@
 	};
 
 	i2c1 {
-		i2c1_default_mode: i2c_default {
+		i2c1_b_2_default: i2c1_b_2_default {
 			default_mux {
 				function = "i2c1";
 				groups = "i2c1_b_2";
@@ -128,7 +128,7 @@
 			};
 		};
 
-		i2c1_sleep_mode: i2c_sleep {
+		i2c1_b_2_sleep: i2c1_b_2_sleep {
 			sleep_cfg1 {
 				pins = "GPIO16_AD3", "GPIO17_AD4"; /* SDA/SCL */
 				ste,config = <&slpm_in_wkup_pdis>;
@@ -137,7 +137,7 @@
 	};
 
 	i2c2 {
-		i2c2_default_mode: i2c_default {
+		i2c2_b_2_default: i2c2_b_2_default {
 			default_mux {
 				function = "i2c2";
 				groups = "i2c2_b_2";
@@ -148,7 +148,7 @@
 			};
 		};
 
-		i2c2_sleep_mode: i2c_sleep {
+		i2c2_b_2_sleep: i2c2_b_2_sleep {
 			sleep_cfg1 {
 				pins = "GPIO10_AF5", "GPIO11_AG4"; /* SDA/SCL */
 				ste,config = <&slpm_in_wkup_pdis>;
@@ -157,7 +157,7 @@
 	};
 
 	i2c3 {
-		i2c3_default_mode: i2c_default {
+		i2c3_c_2_default: i2c3_c_2_default {
 			default_mux {
 				function = "i2c3";
 				groups = "i2c3_c_2";
@@ -168,7 +168,7 @@
 			};
 		};
 
-		i2c3_sleep_mode: i2c_sleep {
+		i2c3_c_2_sleep: i2c3_c_2_sleep {
 			sleep_cfg1 {
 				pins = "GPIO229_AG7", "GPIO230_AF7"; /* SDA/SCL */
 				ste,config = <&slpm_in_wkup_pdis>;
@@ -181,7 +181,7 @@
 	 * enable I2C4 and UART1 at the same time.
 	 */
 	i2c4 {
-		i2c4_default_mode: i2c_default {
+		i2c4_b_1_default: i2c4_b_1_default {
 			default_mux {
 				function = "i2c4";
 				groups = "i2c4_b_1";
@@ -192,7 +192,7 @@
 			};
 		};
 
-		i2c4_sleep_mode: i2c_sleep {
+		i2c4_b_1_sleep: i2c4_b_1_sleep {
 			sleep_cfg1 {
 				pins = "GPIO4_AH6", "GPIO5_AG6"; /* SDA/SCL */
 				ste,config = <&slpm_in_wkup_pdis>;
@@ -203,7 +203,7 @@
 	/* Settings for all MMC/SD/SDIO default and sleep states */
 	sdi0 {
 		/* This is the external SD card slot, 4 bits wide */
-		sdi0_default_mode: sdi0_default {
+		mc0_a_1_default: mc0_a_1_default {
 			default_mux {
 				function = "mc0";
 				groups = "mc0_a_1";
@@ -234,7 +234,7 @@
 			};
 		};
 
-		sdi0_sleep_mode: sdi0_sleep {
+		mc0_a_1_sleep: mc0_a_1_sleep {
 			sleep_cfg1 {
 				pins =
 				"GPIO18_AC2", /* CMDDIR */
@@ -261,7 +261,7 @@
 
 	sdi1 {
 		/* This is the WLAN SDIO 4 bits wide */
-		sdi1_default_mode: sdi1_default {
+		mc1_a_1_default: mc1_a_1_default {
 			default_mux {
 				function = "mc1";
 				groups = "mc1_a_1";
@@ -285,7 +285,7 @@
 			};
 		};
 
-		sdi1_sleep_mode: sdi1_sleep {
+		mc1_a_1_sleep: mc1_a_1_sleep {
 			sleep_cfg1 {
 				pins = "GPIO208_AH16"; /* CLK */
 				ste,config = <&slpm_out_lo_wkup_pdis>;
@@ -305,7 +305,7 @@
 
 	sdi2 {
 		/* This is the eMMC 8 bits wide, usually PoP eMMC */
-		sdi2_default_mode: sdi2_default {
+		mc2_a_1_default: mc2_a_1_default {
 			default_mux {
 				function = "mc2";
 				groups = "mc2_a_1";
@@ -333,7 +333,7 @@
 			};
 		};
 
-		sdi2_sleep_mode: sdi2_sleep {
+		mc2_a_1_sleep: mc2_a_1_sleep {
 			sleep_cfg1 {
 				pins = "GPIO128_A5"; /* CLK */
 				ste,config = <&out_lo_wkup_pdis>;
@@ -361,7 +361,7 @@
 
 	sdi4 {
 		/* This is the eMMC 8 bits wide, usually PCB-mounted eMMC */
-		sdi4_default_mode: sdi4_default {
+		mc4_a_1_default: mc4_a_1_default {
 			default_mux {
 				function = "mc4";
 				groups = "mc4_a_1";
@@ -389,7 +389,7 @@
 			};
 		};
 
-		sdi4_sleep_mode: sdi4_sleep {
+		mc4_a_1_sleep: mc4_a_1_sleep {
 			sleep_cfg1 {
 				pins = "GPIO203_AE23"; /* CLK */
 				ste,config = <&out_lo_wkup_pdis>;
@@ -416,7 +416,7 @@
 	 * cannot be muxed onto any pins.
 	 */
 	msp0 {
-		msp0_default_mode: msp0_default {
+		msp0txrxtfstck_a_1_default: msp0txrxtfstck_a_1_default {
 			default_msp0_mux {
 				function = "msp0";
 				groups = "msp0txrx_a_1", "msp0tfstck_a_1";
@@ -433,7 +433,7 @@
 	};
 
 	msp1 {
-		msp1_default_mode: msp1_default {
+		msp1txrx_a_1_default: msp1txrx_a_1_default {
 			default_mux {
 				function = "msp1";
 				groups = "msp1txrx_a_1", "msp1_a_1";
@@ -453,7 +453,7 @@
 	};
 
 	msp2 {
-		msp2_default_mode: msp2_default {
+		msp2_a_1_default: msp2_a_1_default {
 			/* MSP2 usually used for HDMI audio */
 			default_mux {
 				function = "msp2";
@@ -474,7 +474,7 @@
 	};
 
 	musb {
-		musb_default_mode: musb_default {
+		usb_a_1_default: usb_a_1_default {
 			default_mux {
 				function = "usb";
 				groups = "usb_a_1";
@@ -500,7 +500,7 @@
 			};
 		};
 
-		musb_sleep_mode: musb_sleep {
+		usb_a_1_sleep: usb_a_1_sleep {
 			sleep_cfg1 {
 				pins =
 				"GPIO256_AF28", /* NXT */
