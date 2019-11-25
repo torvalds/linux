@@ -185,6 +185,8 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PSICFGR0_SIVC(bmp)	(((bmp) & 0xff) << 24) /* VLAN_TYPE */
 
 #define ENETC_PTCCBSR0(n)	(0x1110 + (n) * 8) /* n = 0 to 7*/
+#define ENETC_CBSE		BIT(31)
+#define ENETC_CBS_BW_MASK	GENMASK(6, 0)
 #define ENETC_PTCCBSR1(n)	(0x1114 + (n) * 8) /* n = 0 to 7*/
 #define ENETC_RSSHASH_KEY_SIZE	40
 #define ENETC_PRSSK(n)		(0x1410 + (n) * 4) /* n = [0..9] */
@@ -602,6 +604,8 @@ struct enetc_cbd {
 	u8 _res;
 	u8 status_flags;
 };
+
+#define ENETC_CLK  400000000ULL
 
 /* port time gating control register */
 #define ENETC_QBV_PTGCR_OFFSET		0x11a00

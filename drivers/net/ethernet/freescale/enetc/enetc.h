@@ -255,7 +255,9 @@ int enetc_send_cmd(struct enetc_si *si, struct enetc_cbd *cbd);
 #ifdef CONFIG_FSL_ENETC_QOS
 int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data);
 void enetc_sched_speed_set(struct net_device *ndev);
+int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data);
 #else
 #define enetc_setup_tc_taprio(ndev, type_data) -EOPNOTSUPP
 #define enetc_sched_speed_set(ndev) (void)0
+#define enetc_setup_tc_cbs(ndev, type_data) -EOPNOTSUPP
 #endif

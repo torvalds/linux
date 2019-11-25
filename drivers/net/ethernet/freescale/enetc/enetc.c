@@ -1496,6 +1496,8 @@ int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		return enetc_setup_tc_mqprio(ndev, type_data);
 	case TC_SETUP_QDISC_TAPRIO:
 		return enetc_setup_tc_taprio(ndev, type_data);
+	case TC_SETUP_QDISC_CBS:
+		return enetc_setup_tc_cbs(ndev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

@@ -4,6 +4,7 @@
 #include "enetc.h"
 
 #include <net/pkt_sched.h>
+#include <linux/math64.h>
 
 static u16 enetc_get_max_gcl_len(struct enetc_hw *hw)
 {
@@ -169,4 +170,131 @@ int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data)
 					   taprio->enable ? 0 : i);
 
 	return err;
+}
+
+static u32 enetc_get_cbs_enable(struct enetc_hw *hw, u8 tc)
+{
+	return enetc_port_rd(hw, ENETC_PTCCBSR0(tc)) & ENETC_CBSE;
+}
+
+static u8 enetc_get_cbs_bw(struct enetc_hw *hw, u8 tc)
+{
+	return enetc_port_rd(hw, ENETC_PTCCBSR0(tc)) & ENETC_CBS_BW_MASK;
+}
+
+int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct tc_cbs_qopt_offload *cbs = type_data;
+	u32 port_transmit_rate = priv->speed;
+	u8 tc_nums = netdev_get_num_tc(ndev);
+	struct enetc_si *si = priv->si;
+	u32 hi_credit_bit, hi_credit_reg;
+	u32 max_interference_size;
+	u32 port_frame_max_size;
+	u32 tc_max_sized_frame;
+	u8 tc = cbs->queue;
+	u8 prio_top, prio_next;
+	int bw_sum = 0;
+	u8 bw;
+
+	prio_top = netdev_get_prio_tc_map(ndev, tc_nums - 1);
+	prio_next = netdev_get_prio_tc_map(ndev, tc_nums - 2);
+
+	/* Support highest prio and second prio tc in cbs mode */
+	if (tc != prio_top && tc != prio_next)
+		return -EOPNOTSUPP;
+
+	if (!cbs->enable) {
+		/* Make sure the other TC that are numerically
+		 * lower than this TC have been disabled.
+		 */
+		if (tc == prio_top &&
+		    enetc_get_cbs_enable(&si->hw, prio_next)) {
+			dev_err(&ndev->dev,
+				"Disable TC%d before disable TC%d\n",
+				prio_next, tc);
+			return -EINVAL;
+		}
+
+		enetc_port_wr(&si->hw, ENETC_PTCCBSR1(tc), 0);
+		enetc_port_wr(&si->hw, ENETC_PTCCBSR0(tc), 0);
+
+		return 0;
+	}
+
+	if (cbs->idleslope - cbs->sendslope != port_transmit_rate * 1000L ||
+	    cbs->idleslope < 0 || cbs->sendslope > 0)
+		return -EOPNOTSUPP;
+
+	port_frame_max_size = ndev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
+
+	bw = cbs->idleslope / (port_transmit_rate * 10UL);
+
+	/* Make sure the other TC that are numerically
+	 * higher than this TC have been enabled.
+	 */
+	if (tc == prio_next) {
+		if (!enetc_get_cbs_enable(&si->hw, prio_top)) {
+			dev_err(&ndev->dev,
+				"Enable TC%d first before enable TC%d\n",
+				prio_top, prio_next);
+			return -EINVAL;
+		}
+		bw_sum += enetc_get_cbs_bw(&si->hw, prio_top);
+	}
+
+	if (bw_sum + bw >= 100) {
+		dev_err(&ndev->dev,
+			"The sum of all CBS Bandwidth can't exceed 100\n");
+		return -EINVAL;
+	}
+
+	tc_max_sized_frame = enetc_port_rd(&si->hw, ENETC_PTCMSDUR(tc));
+
+	/* For top prio TC, the max_interfrence_size is maxSizedFrame.
+	 *
+	 * For next prio TC, the max_interfrence_size is calculated as below:
+	 *
+	 *      max_interference_size = M0 + Ma + Ra * M0 / (R0 - Ra)
+	 *
+	 *	- RA: idleSlope for AVB Class A
+	 *	- R0: port transmit rate
+	 *	- M0: maximum sized frame for the port
+	 *	- MA: maximum sized frame for AVB Class A
+	 */
+
+	if (tc == prio_top) {
+		max_interference_size = port_frame_max_size * 8;
+	} else {
+		u32 m0, ma, r0, ra;
+
+		m0 = port_frame_max_size * 8;
+		ma = enetc_port_rd(&si->hw, ENETC_PTCMSDUR(prio_top)) * 8;
+		ra = enetc_get_cbs_bw(&si->hw, prio_top) *
+			port_transmit_rate * 10000ULL;
+		r0 = port_transmit_rate * 1000000ULL;
+		max_interference_size = m0 + ma +
+			(u32)div_u64((u64)ra * m0, r0 - ra);
+	}
+
+	/* hiCredit bits calculate by:
+	 *
+	 * maxSizedFrame * (idleSlope/portTxRate)
+	 */
+	hi_credit_bit = max_interference_size * bw / 100;
+
+	/* hiCredit bits to hiCredit register need to calculated as:
+	 *
+	 * (enetClockFrequency / portTransmitRate) * 100
+	 */
+	hi_credit_reg = (u32)div_u64((ENETC_CLK * 100ULL) * hi_credit_bit,
+				     port_transmit_rate * 1000000ULL);
+
+	enetc_port_wr(&si->hw, ENETC_PTCCBSR1(tc), hi_credit_reg);
+
+	/* Set bw register and enable this traffic class */
+	enetc_port_wr(&si->hw, ENETC_PTCCBSR0(tc), bw | ENETC_CBSE);
+
+	return 0;
 }
