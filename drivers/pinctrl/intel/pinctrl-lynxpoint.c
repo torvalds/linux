@@ -118,12 +118,6 @@ static int lp_gpio_request(struct gpio_chip *chip, unsigned int offset)
 
 	pm_runtime_get(lg->dev); /* should we put if failed */
 
-	/* Fail if BIOS reserved pin for ACPI use */
-	if (lp_gpio_acpi_use(lg, offset)) {
-		dev_err(lg->dev, "gpio %d reserved for ACPI\n", offset);
-		return -EBUSY;
-	}
-
 	/*
 	 * Reconfigure pin to GPIO mode if needed and issue a warning,
 	 * since we expect firmware to configure it properly.
@@ -279,6 +273,12 @@ static int lp_irq_set_type(struct irq_data *d, unsigned int type)
 
 	if (hwirq >= lg->chip.ngpio)
 		return -EINVAL;
+
+	/* Fail if BIOS reserved pin for ACPI use */
+	if (lp_gpio_acpi_use(lg, hwirq)) {
+		dev_err(lg->dev, "pin %u can't be used as IRQ\n", hwirq);
+		return -EBUSY;
+	}
 
 	raw_spin_lock_irqsave(&lg->lock, flags);
 	value = ioread32(reg);
