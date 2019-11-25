@@ -280,6 +280,14 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	phys_enc->hw_intf->ops.setup_timing_gen(phys_enc->hw_intf,
 			&timing_params, fmt);
 	phys_enc->hw_ctl->ops.setup_intf_cfg(phys_enc->hw_ctl, &intf_cfg);
+
+	/* setup which pp blk will connect to this intf */
+	if (phys_enc->hw_intf->ops.bind_pingpong_blk)
+		phys_enc->hw_intf->ops.bind_pingpong_blk(
+				phys_enc->hw_intf,
+				true,
+				phys_enc->hw_pp->idx);
+
 	spin_unlock_irqrestore(phys_enc->enc_spinlock, lock_flags);
 
 	programmable_fetch_config(phys_enc, &timing_params);
@@ -435,6 +443,7 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 {
 	struct dpu_hw_ctl *ctl;
 	u32 flush_mask = 0;
+	u32 intf_flush_mask = 0;
 
 	ctl = phys_enc->hw_ctl;
 
@@ -459,10 +468,18 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 	ctl->ops.get_bitmask_intf(ctl, &flush_mask, phys_enc->hw_intf->idx);
 	ctl->ops.update_pending_flush(ctl, flush_mask);
 
+	if (ctl->ops.get_bitmask_active_intf)
+		ctl->ops.get_bitmask_active_intf(ctl, &intf_flush_mask,
+			phys_enc->hw_intf->idx);
+
+	if (ctl->ops.update_pending_intf_flush)
+		ctl->ops.update_pending_intf_flush(ctl, intf_flush_mask);
+
 skip_flush:
 	DPU_DEBUG_VIDENC(phys_enc,
-			 "update pending flush ctl %d flush_mask %x\n",
-			 ctl->idx - CTL_0, flush_mask);
+		"update pending flush ctl %d flush_mask 0%x intf_mask 0x%x\n",
+		ctl->idx - CTL_0, flush_mask, intf_flush_mask);
+
 
 	/* ctl_flush & timing engine enable will be triggered by framework */
 	if (phys_enc->enable_state == DPU_ENC_DISABLED)

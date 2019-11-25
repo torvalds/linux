@@ -374,6 +374,7 @@ static struct dpu_pingpong_cfg sc7180_pp[] = {
 	{\
 	.name = _name, .id = _id, \
 	.base = _base, .len = 0x280, \
+	.features = BIT(DPU_CTL_ACTIVE_CFG), \
 	.type = _type, \
 	.controller_id = _ctrl_id, \
 	.prog_fetch_lines_worst_case = 24 \

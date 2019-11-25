@@ -52,6 +52,8 @@ struct intf_status {
  * @ enable_timing: enable/disable timing engine
  * @ get_status: returns if timing engine is enabled or not
  * @ get_line_count: reads current vertical line counter
+ * @bind_pingpong_blk: enable/disable the connection with pingpong which will
+ *                     feed pixels to this interface
  */
 struct dpu_hw_intf_ops {
 	void (*setup_timing_gen)(struct dpu_hw_intf *intf,
@@ -68,6 +70,10 @@ struct dpu_hw_intf_ops {
 			struct intf_status *status);
 
 	u32 (*get_line_count)(struct dpu_hw_intf *intf);
+
+	void (*bind_pingpong_blk)(struct dpu_hw_intf *intf,
+			bool enable,
+			const enum dpu_pingpong pp);
 };
 
 struct dpu_hw_intf {
