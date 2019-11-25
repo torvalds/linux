@@ -14,6 +14,19 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	/* This stablilizes the device enumeration */
+	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;
+		spi3 = &spi3;
+	};
+
 	chosen {
 	};
 
@@ -638,7 +651,7 @@
 			};
 		};
 
-		i2c@80004000 {
+		i2c0: i2c@80004000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80004000 0x1000>;
 			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
@@ -655,7 +668,7 @@
 			status = "disabled";
 		};
 
-		i2c@80122000 {
+		i2c1: i2c@80122000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80122000 0x1000>;
 			interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
@@ -673,7 +686,7 @@
 			status = "disabled";
 		};
 
-		i2c@80128000 {
+		i2c2: i2c@80128000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80128000 0x1000>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
@@ -691,7 +704,7 @@
 			status = "disabled";
 		};
 
-		i2c@80110000 {
+		i2c3: i2c@80110000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80110000 0x1000>;
 			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
@@ -709,7 +722,7 @@
 			status = "disabled";
 		};
 
-		i2c@8012a000 {
+		i2c4: i2c@8012a000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x8012a000 0x1000>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
@@ -727,7 +740,7 @@
 			status = "disabled";
 		};
 
-		spi@80002000 {
+		ssp0: spi@80002000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80002000 0x1000>;
 			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
@@ -743,7 +756,7 @@
 			status = "disabled";
 		};
 
-		spi@80003000 {
+		ssp1: spi@80003000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80003000 0x1000>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
@@ -759,7 +772,7 @@
 			status = "disabled";
 		};
 
-		spi@8011a000 {
+		spi0: spi@8011a000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x8011a000 0x1000>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
@@ -776,7 +789,7 @@
 			status = "disabled";
 		};
 
-		spi@80112000 {
+		spi1: spi@80112000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80112000 0x1000>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
@@ -793,7 +806,7 @@
 			status = "disabled";
 		};
 
-		spi@80111000 {
+		spi2: spi@80111000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80111000 0x1000>;
 			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
@@ -810,7 +823,7 @@
 			status = "disabled";
 		};
 
-		spi@80129000 {
+		spi3: spi@80129000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80129000 0x1000>;
 			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
