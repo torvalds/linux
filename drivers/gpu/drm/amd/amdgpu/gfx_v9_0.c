@@ -704,6 +704,7 @@ static const struct soc15_reg_golden golden_settings_gc_9_4_1_arct[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_4_ARCT, 0x3fffffff, 0xb90f5b1),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_5_ARCT, 0x3ff, 0x135),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSQ_CONFIG, 0xffffffff, 0x011A0000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSQ_FIFO_SIZES, 0xffffffff, 0x00000f00),
 };
 
 static const u32 GFX_RLC_SRM_INDEX_CNTL_ADDR_OFFSETS[] =
@@ -1051,8 +1052,13 @@ static void gfx_v9_0_check_if_need_gfxoff(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		break;
 	case CHIP_RAVEN:
-		if (!(adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
-			&&((adev->gfx.rlc_fw_version != 106 &&
+		/* Disable GFXOFF on original raven.  There are combinations
+		 * of sbios and platforms that are not stable.
+		 */
+		if (!(adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8))
+			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		else if (!(adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
+			 &&((adev->gfx.rlc_fw_version != 106 &&
 			     adev->gfx.rlc_fw_version < 531) ||
 			    (adev->gfx.rlc_fw_version == 53815) ||
 			    (adev->gfx.rlc_feature_version < 1) ||

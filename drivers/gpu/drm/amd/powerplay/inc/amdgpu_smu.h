@@ -390,6 +390,7 @@ struct smu_context
 
 	uint32_t smc_if_version;
 
+	bool uploading_custom_pp_table;
 };
 
 struct i2c_adapter;

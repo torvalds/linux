@@ -3109,9 +3109,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	int r;
 
 	DRM_INFO("amdgpu: finishing device.\n");
-	adev->shutdown = true;
-
 	flush_delayed_work(&adev->delayed_init_work);
+	adev->shutdown = true;
 
 	/* disable all interrupts */
 	amdgpu_irq_disable_all(adev);
@@ -3130,7 +3129,6 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 		adev->firmware.gpu_info_fw = NULL;
 	}
 	adev->accel_working = false;
-	cancel_delayed_work_sync(&adev->delayed_init_work);
 	/* free i2c buses */
 	if (!amdgpu_device_has_dc_support(adev))
 		amdgpu_i2c_fini(adev);

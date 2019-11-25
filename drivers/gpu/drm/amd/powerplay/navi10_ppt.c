@@ -859,6 +859,12 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 	case SMU_UCLK:
 	case SMU_DCEFCLK:
 	case SMU_FCLK:
+		/* There is only 2 levels for fine grained DPM */
+		if (navi10_is_support_fine_grained_dpm(smu, clk_type)) {
+			soft_max_level = (soft_max_level >= 1 ? 1 : 0);
+			soft_min_level = (soft_min_level >= 1 ? 1 : 0);
+		}
+
 		ret = smu_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
 		if (ret)
 			return size;
@@ -1980,6 +1986,17 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 	return ret;
 }
 
+static int navi10_run_btc(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_RunBtc);
+	if (ret)
+		pr_err("RunBtc failed!\n");
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -2071,6 +2088,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.set_default_od_settings = navi10_set_default_od_settings,
 	.od_edit_dpm_table = navi10_od_edit_dpm_table,
 	.get_pptable_power_limit = navi10_get_pptable_power_limit,
+	.run_btc = navi10_run_btc,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
