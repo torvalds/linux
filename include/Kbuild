@@ -1027,6 +1027,7 @@ header-test-			+= trace/events/fsi_master_gpio.h
 header-test-			+= trace/events/huge_memory.h
 header-test-			+= trace/events/ib_mad.h
 header-test-			+= trace/events/ib_umad.h
+header-test-			+= trace/events/io_uring.h
 header-test-			+= trace/events/iscsi.h
 header-test-			+= trace/events/jbd2.h
 header-test-			+= trace/events/kvm.h
