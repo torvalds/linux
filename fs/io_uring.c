@@ -1490,9 +1490,9 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret, struct io_kiocb **nxt,
 		io_rw_done(kiocb, ret);
 }
 
-static int io_import_fixed(struct io_ring_ctx *ctx, int rw,
-			   const struct io_uring_sqe *sqe,
-			   struct iov_iter *iter)
+static ssize_t io_import_fixed(struct io_ring_ctx *ctx, int rw,
+			       const struct io_uring_sqe *sqe,
+			       struct iov_iter *iter)
 {
 	size_t len = READ_ONCE(sqe->len);
 	struct io_mapped_ubuf *imu;
@@ -1581,11 +1581,9 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 	 * flag.
 	 */
 	opcode = READ_ONCE(sqe->opcode);
-	if (opcode == IORING_OP_READ_FIXED ||
-	    opcode == IORING_OP_WRITE_FIXED) {
-		ssize_t ret = io_import_fixed(req->ctx, rw, sqe, iter);
+	if (opcode == IORING_OP_READ_FIXED || opcode == IORING_OP_WRITE_FIXED) {
 		*iovec = NULL;
-		return ret;
+		return io_import_fixed(req->ctx, rw, sqe, iter);
 	}
 
 	if (!req->has_user)
