@@ -2038,11 +2038,21 @@ static char *ath11k_print_get_tid(struct ieee80211_hdr *hdr, char *out,
 static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *napi,
 				      struct sk_buff *msdu)
 {
+	static const struct ieee80211_radiotap_he known = {
+		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN),
+		.data2 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN),
+	};
 	struct ieee80211_rx_status *status;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)msdu->data;
+	struct ieee80211_radiotap_he *he = NULL;
 	char tid[32];
 
 	status = IEEE80211_SKB_RXCB(msdu);
+	if (status->encoding == RX_ENC_HE) {
+		he = skb_push(msdu, sizeof(known));
+		memcpy(he, &known, sizeof(known));
+		status->flag |= RX_FLAG_RADIOTAP_HE;
+	}
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_DATA,
 		   "rx skb %pK len %u peer %pM %s %s sn %u %s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
