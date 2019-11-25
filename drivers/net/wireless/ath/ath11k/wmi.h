@@ -2445,6 +2445,7 @@ struct channel_param {
 	    is_chan_passive:1,
 	    allow_ht:1,
 	    allow_vht:1,
+	    allow_he:1,
 	    set_agile:1;
 	u32 phy_mode;
 	u32 cfreq1;
@@ -3334,7 +3335,10 @@ struct wmi_vdev_install_key_arg {
 
 #define WMI_MAX_SUPPORTED_RATES			128
 #define WMI_HOST_MAX_HECAP_PHY_SIZE		3
-#define WMI_HOST_MAX_HE_RATE_SET		1
+#define WMI_HOST_MAX_HE_RATE_SET		3
+#define WMI_HECAP_TXRX_MCS_NSS_IDX_80		0
+#define WMI_HECAP_TXRX_MCS_NSS_IDX_160		1
+#define WMI_HECAP_TXRX_MCS_NSS_IDX_80_80	2
 
 struct wmi_rate_set_arg {
 	u32 num_rates;

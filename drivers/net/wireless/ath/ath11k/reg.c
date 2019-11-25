@@ -141,6 +141,7 @@ int ath11k_reg_update_chan_list(struct ath11k *ar)
 			/* TODO: Set to true/false based on some condition? */
 			ch->allow_ht = true;
 			ch->allow_vht = true;
+			ch->allow_he = true;
 
 			ch->dfs_set =
 				!!(channel->flags & IEEE80211_CHAN_RADAR);
