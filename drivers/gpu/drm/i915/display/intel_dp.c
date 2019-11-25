@@ -2308,6 +2308,17 @@ bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
 	}
 }
 
+static bool intel_dp_port_has_audio(struct drm_i915_private *dev_priv,
+				    enum port port)
+{
+	if (IS_G4X(dev_priv))
+		return false;
+	if (INTEL_GEN(dev_priv) < 12 && port == PORT_A)
+		return false;
+
+	return true;
+}
+
 int
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
@@ -2341,7 +2352,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		return ret;
 
 	pipe_config->has_drrs = false;
-	if (IS_G4X(dev_priv) || port == PORT_A)
+	if (!intel_dp_port_has_audio(dev_priv, port))
 		pipe_config->has_audio = false;
 	else if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
 		pipe_config->has_audio = intel_dp->has_audio;
