@@ -3595,6 +3595,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/media/cdns,*.txt
 F:	drivers/media/platform/cadence/cdns-csi2*
 
+CADENCE NAND DRIVER
+M:	Piotr Sroka <piotrs@cadence.com>
+L:	linux-mtd@lists.infradead.org
+S:	Maintained
+F:	drivers/mtd/nand/raw/cadence-nand-controller.c
+F:	Documentation/devicetree/bindings/mtd/cadence-nand-controller.txt
+
 CADET FM/AM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
@@ -10537,15 +10544,13 @@ F:	include/linux/vmalloc.h
 F:	mm/
 
 MEMORY TECHNOLOGY DEVICES (MTD)
-M:	David Woodhouse <dwmw2@infradead.org>
-M:	Brian Norris <computersforpeace@gmail.com>
-M:	Marek Vasut <marek.vasut@gmail.com>
 M:	Miquel Raynal <miquel.raynal@bootlin.com>
 M:	Richard Weinberger <richard@nod.at>
 M:	Vignesh Raghavendra <vigneshr@ti.com>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
+C:	irc://irc.oftc.net/mtd
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mtd/linux.git mtd/fixes
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mtd/linux.git mtd/next
 S:	Maintained
@@ -15296,7 +15301,6 @@ F:	arch/arm/boot/dts/spear*
 F:	arch/arm/mach-spear/
 
 SPI NOR SUBSYSTEM
-M:	Marek Vasut <marek.vasut@gmail.com>
 M:	Tudor Ambarus <tudor.ambarus@microchip.com>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
@@ -16593,10 +16597,9 @@ F:	drivers/media/pci/tw686x/
 
 UBI FILE SYSTEM (UBIFS)
 M:	Richard Weinberger <richard@nod.at>
-M:	Artem Bityutskiy <dedekind1@gmail.com>
-M:	Adrian Hunter <adrian.hunter@intel.com>
 L:	linux-mtd@lists.infradead.org
-T:	git git://git.infradead.org/ubifs-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rw/ubifs.git next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rw/ubifs.git fixes
 W:	http://www.linux-mtd.infradead.org/doc/ubifs.html
 S:	Supported
 F:	Documentation/filesystems/ubifs.txt
@@ -16711,11 +16714,11 @@ S:	Maintained
 F:	drivers/scsi/ufs/ufs-mediatek*
 
 UNSORTED BLOCK IMAGES (UBI)
-M:	Artem Bityutskiy <dedekind1@gmail.com>
 M:	Richard Weinberger <richard@nod.at>
 W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
-T:	git git://git.infradead.org/ubifs-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rw/ubifs.git next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rw/ubifs.git fixes
 S:	Supported
 F:	drivers/mtd/ubi/
 F:	include/linux/mtd/ubi.h
