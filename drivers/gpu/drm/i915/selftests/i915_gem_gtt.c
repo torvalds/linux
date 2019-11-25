@@ -212,10 +212,12 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			 unsigned long end_time)
 {
 	I915_RND_STATE(seed_prng);
+	struct i915_vma *mock_vma;
 	unsigned int size;
-	struct i915_vma mock_vma;
 
-	memset(&mock_vma, 0, sizeof(struct i915_vma));
+	mock_vma = kzalloc(sizeof(*mock_vma), GFP_KERNEL);
+	if (!mock_vma)
+		return -ENOMEM;
 
 	/* Keep creating larger objects until one cannot fit into the hole */
 	for (size = 12; (hole_end - hole_start) >> size; size++) {
@@ -239,8 +241,10 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			if (order)
 				break;
 		} while (count >>= 1);
-		if (!count)
+		if (!count) {
+			kfree(mock_vma);
 			return -ENOMEM;
+		}
 		GEM_BUG_ON(!order);
 
 		GEM_BUG_ON(count * BIT_ULL(size) > vm->total);
@@ -283,12 +287,12 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			    vm->allocate_va_range(vm, addr, BIT_ULL(size)))
 				break;
 
-			mock_vma.pages = obj->mm.pages;
-			mock_vma.node.size = BIT_ULL(size);
-			mock_vma.node.start = addr;
+			mock_vma->pages = obj->mm.pages;
+			mock_vma->node.size = BIT_ULL(size);
+			mock_vma->node.start = addr;
 
 			with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-				vm->insert_entries(vm, &mock_vma,
+				vm->insert_entries(vm, mock_vma,
 						   I915_CACHE_NONE, 0);
 		}
 		count = n;
@@ -311,6 +315,7 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 		cleanup_freed_objects(i915);
 	}
 
+	kfree(mock_vma);
 	return 0;
 }
 
