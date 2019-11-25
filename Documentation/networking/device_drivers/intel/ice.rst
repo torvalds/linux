@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
-===================================================================
-Linux* Base Driver for the Intel(R) Ethernet Connection E800 Series
-===================================================================
+==================================================================
+Linux Base Driver for the Intel(R) Ethernet Connection E800 Series
+==================================================================
 
 Intel ice Linux driver.
 Copyright(c) 2018 Intel Corporation.

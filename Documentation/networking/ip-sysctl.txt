@@ -207,8 +207,8 @@ TCP variables:
 
 somaxconn - INTEGER
 	Limit of socket listen() backlog, known in userspace as SOMAXCONN.
-	Defaults to 128.  See also tcp_max_syn_backlog for additional tuning
-	for TCP sockets.
+	Defaults to 4096. (Was 128 before linux-5.4)
+	See also tcp_max_syn_backlog for additional tuning for TCP sockets.
 
 tcp_abort_on_overflow - BOOLEAN
 	If listening service is too slow to accept new connections,
@@ -408,11 +408,14 @@ tcp_max_orphans - INTEGER
 	up to ~64K of unswappable memory.
 
 tcp_max_syn_backlog - INTEGER
-	Maximal number of remembered connection requests, which have not
-	received an acknowledgment from connecting client.
+	Maximal number of remembered connection requests (SYN_RECV),
+	which have not received an acknowledgment from connecting client.
+	This is a per-listener limit.
 	The minimal value is 128 for low memory machines, and it will
 	increase in proportion to the memory of machine.
 	If server suffers from overload, try increasing this number.
+	Remember to also check /proc/sys/net/core/somaxconn
+	A SYN_RECV request socket consumes about 304 bytes of memory.
 
 tcp_max_tw_buckets - INTEGER
 	Maximal number of timewait sockets held by system simultaneously.

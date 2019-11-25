@@ -572,7 +572,7 @@ mlx5_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
 		return -ENOMEM;
 	err = mlx5_crdump_collect(dev, cr_data);
 	if (err)
-		return err;
+		goto free_data;
 
 	if (priv_ctx) {
 		struct mlx5_fw_reporter_ctx *fw_reporter_ctx = priv_ctx;

@@ -1311,12 +1311,12 @@ static bool sysctl_is_valid_access(int off, int size, enum bpf_access_type type,
 		return false;
 
 	switch (off) {
-	case offsetof(struct bpf_sysctl, write):
+	case bpf_ctx_range(struct bpf_sysctl, write):
 		if (type != BPF_READ)
 			return false;
 		bpf_ctx_record_field_size(info, size_default);
 		return bpf_ctx_narrow_access_ok(off, size, size_default);
-	case offsetof(struct bpf_sysctl, file_pos):
+	case bpf_ctx_range(struct bpf_sysctl, file_pos):
 		if (type == BPF_READ) {
 			bpf_ctx_record_field_size(info, size_default);
 			return bpf_ctx_narrow_access_ok(off, size, size_default);

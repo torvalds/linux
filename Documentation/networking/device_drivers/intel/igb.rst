@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
-===========================================================
-Linux* Base Driver for Intel(R) Ethernet Network Connection
-===========================================================
+==========================================================
+Linux Base Driver for Intel(R) Ethernet Network Connection
+==========================================================
 
 Intel Gigabit Linux driver.
 Copyright(c) 1999-2018 Intel Corporation.
@@ -129,9 +129,9 @@ version is required for this functionality. Download it at:
 https://www.kernel.org/pub/software/network/ethtool/
 
 
-Enabling Wake on LAN* (WoL)
----------------------------
-WoL is configured through the ethtool* utility.
+Enabling Wake on LAN (WoL)
+--------------------------
+WoL is configured through the ethtool utility.
 
 WoL will be enabled on the system during the next shut down or reboot. For
 this driver version, in order to enable WoL, the igb driver must be loaded

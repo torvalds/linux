@@ -106,7 +106,7 @@ static int dsa_8021q_restore_pvid(struct dsa_switch *ds, int port)
 	slave = ds->ports[port].slave;
 
 	err = br_vlan_get_pvid(slave, &pvid);
-	if (err < 0)
+	if (!pvid || err < 0)
 		/* There is no pvid on the bridge for this port, which is
 		 * perfectly valid. Nothing to restore, bye-bye!
 		 */

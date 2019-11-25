@@ -393,6 +393,10 @@ bool cm_helper_translate_curve_to_hw_format(
 	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
 	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
 
+	rgb_resulted[hw_points].red = rgb_resulted[hw_points - 1].red;
+	rgb_resulted[hw_points].green = rgb_resulted[hw_points - 1].green;
+	rgb_resulted[hw_points].blue = rgb_resulted[hw_points - 1].blue;
+
 	// All 3 color channels have same x
 	corner_points[0].red.x = dc_fixpt_pow(dc_fixpt_from_int(2),
 					     dc_fixpt_from_int(region_start));
@@ -464,13 +468,6 @@ bool cm_helper_translate_curve_to_hw_format(
 
 	i = 1;
 	while (i != hw_points + 1) {
-		if (dc_fixpt_lt(rgb_plus_1->red, rgb->red))
-			rgb_plus_1->red = rgb->red;
-		if (dc_fixpt_lt(rgb_plus_1->green, rgb->green))
-			rgb_plus_1->green = rgb->green;
-		if (dc_fixpt_lt(rgb_plus_1->blue, rgb->blue))
-			rgb_plus_1->blue = rgb->blue;
-
 		rgb->delta_red   = dc_fixpt_sub(rgb_plus_1->red,   rgb->red);
 		rgb->delta_green = dc_fixpt_sub(rgb_plus_1->green, rgb->green);
 		rgb->delta_blue  = dc_fixpt_sub(rgb_plus_1->blue,  rgb->blue);
@@ -562,6 +559,10 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
 	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
 
+	rgb_resulted[hw_points].red = rgb_resulted[hw_points - 1].red;
+	rgb_resulted[hw_points].green = rgb_resulted[hw_points - 1].green;
+	rgb_resulted[hw_points].blue = rgb_resulted[hw_points - 1].blue;
+
 	corner_points[0].red.x = dc_fixpt_pow(dc_fixpt_from_int(2),
 					     dc_fixpt_from_int(region_start));
 	corner_points[0].green.x = corner_points[0].red.x;
@@ -624,13 +625,6 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 
 	i = 1;
 	while (i != hw_points + 1) {
-		if (dc_fixpt_lt(rgb_plus_1->red, rgb->red))
-			rgb_plus_1->red = rgb->red;
-		if (dc_fixpt_lt(rgb_plus_1->green, rgb->green))
-			rgb_plus_1->green = rgb->green;
-		if (dc_fixpt_lt(rgb_plus_1->blue, rgb->blue))
-			rgb_plus_1->blue = rgb->blue;
-
 		rgb->delta_red   = dc_fixpt_sub(rgb_plus_1->red,   rgb->red);
 		rgb->delta_green = dc_fixpt_sub(rgb_plus_1->green, rgb->green);
 		rgb->delta_blue  = dc_fixpt_sub(rgb_plus_1->blue,  rgb->blue);

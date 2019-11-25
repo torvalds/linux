@@ -38,6 +38,7 @@ Core utilities
    protection-keys
    ../RCU/index
    gcc-plugins
+   symbol-namespaces
 
 
 Interfaces for kernel debugging

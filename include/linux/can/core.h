@@ -65,5 +65,6 @@ extern void can_rx_unregister(struct net *net, struct net_device *dev,
 			      void *data);
 
 extern int can_send(struct sk_buff *skb, int loop);
+void can_sock_destruct(struct sock *sk);
 
 #endif /* !_CAN_CORE_H */

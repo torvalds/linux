@@ -89,6 +89,22 @@ To build, save output files in a separate directory with KBUILD_OUTPUT ::
 
   $ export KBUILD_OUTPUT=/tmp/kselftest; make TARGETS="size timers" kselftest
 
+Additionally you can use the "SKIP_TARGETS" variable on the make command
+line to specify one or more targets to exclude from the TARGETS list.
+
+To run all tests but a single subsystem::
+
+  $ make -C tools/testing/selftests SKIP_TARGETS=ptrace run_tests
+
+You can specify multiple tests to skip::
+
+  $  make SKIP_TARGETS="size timers" kselftest
+
+You can also specify a restricted list of tests to run together with a
+dedicated skiplist::
+
+  $  make TARGETS="bpf breakpoints size timers" SKIP_TARGETS=bpf kselftest
+
 See the top-level tools/testing/selftests/Makefile for the list of all
 possible targets.
 

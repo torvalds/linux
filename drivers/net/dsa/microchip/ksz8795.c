@@ -1224,10 +1224,6 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 {
 	int i;
 
-	mutex_init(&dev->stats_mutex);
-	mutex_init(&dev->alu_mutex);
-	mutex_init(&dev->vlan_mutex);
-
 	dev->ds->ops = &ksz8795_switch_ops;
 
 	for (i = 0; i < ARRAY_SIZE(ksz8795_switch_chips); i++) {

@@ -527,6 +527,16 @@ static struct kmemleak_object *find_and_get_object(unsigned long ptr, int alias)
 }
 
 /*
+ * Remove an object from the object_tree_root and object_list. Must be called
+ * with the kmemleak_lock held _if_ kmemleak is still enabled.
+ */
+static void __remove_object(struct kmemleak_object *object)
+{
+	rb_erase(&object->rb_node, &object_tree_root);
+	list_del_rcu(&object->object_list);
+}
+
+/*
  * Look up an object in the object search tree and remove it from both
  * object_tree_root and object_list. The returned object's use_count should be
  * at least 1, as initially set by create_object().
@@ -538,10 +548,8 @@ static struct kmemleak_object *find_and_remove_object(unsigned long ptr, int ali
 
 	write_lock_irqsave(&kmemleak_lock, flags);
 	object = lookup_object(ptr, alias);
-	if (object) {
-		rb_erase(&object->rb_node, &object_tree_root);
-		list_del_rcu(&object->object_list);
-	}
+	if (object)
+		__remove_object(object);
 	write_unlock_irqrestore(&kmemleak_lock, flags);
 
 	return object;
@@ -1834,12 +1842,16 @@ static const struct file_operations kmemleak_fops = {
 
 static void __kmemleak_do_cleanup(void)
 {
-	struct kmemleak_object *object;
+	struct kmemleak_object *object, *tmp;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(object, &object_list, object_list)
-		delete_object_full(object->pointer);
-	rcu_read_unlock();
+	/*
+	 * Kmemleak has already been disabled, no need for RCU list traversal
+	 * or kmemleak_lock held.
+	 */
+	list_for_each_entry_safe(object, tmp, &object_list, object_list) {
+		__remove_object(object);
+		__delete_object(object);
+	}
 }
 
 /*

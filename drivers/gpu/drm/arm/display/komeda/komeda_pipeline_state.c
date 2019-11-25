@@ -564,8 +564,8 @@ komeda_splitter_validate(struct komeda_splitter *splitter,
 	}
 
 	if (!in_range(&splitter->vsize, dflow->in_h)) {
-		DRM_DEBUG_ATOMIC("split in_in: %d exceed the acceptable range.\n",
-				 dflow->in_w);
+		DRM_DEBUG_ATOMIC("split in_h: %d exceeds the acceptable range.\n",
+				 dflow->in_h);
 		return -EINVAL;
 	}
 

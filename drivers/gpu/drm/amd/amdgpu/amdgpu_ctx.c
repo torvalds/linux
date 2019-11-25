@@ -604,8 +604,11 @@ void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 			continue;
 		}
 
-		for (i = 0; i < num_entities; i++)
+		for (i = 0; i < num_entities; i++) {
+			mutex_lock(&ctx->adev->lock_reset);
 			drm_sched_entity_fini(&ctx->entities[0][i].entity);
+			mutex_unlock(&ctx->adev->lock_reset);
+		}
 	}
 }
 
