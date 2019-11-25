@@ -438,8 +438,9 @@ static void _rtl92de_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 
 bool rtl92de_rx_query_desc(struct ieee80211_hw *hw,	struct rtl_stats *stats,
 		struct ieee80211_rx_status *rx_status,
-		u8 *pdesc, struct sk_buff *skb)
+		u8 *pdesc8, struct sk_buff *skb)
 {
+	__le32 *pdesc = (__le32 *)pdesc8;
 	struct rx_fwinfo_92d *p_drvinfo;
 	u32 phystatus = get_rx_desc_physt(pdesc);
 
@@ -489,8 +490,10 @@ bool rtl92de_rx_query_desc(struct ieee80211_hw *hw,	struct rtl_stats *stats,
 }
 
 static void _rtl92de_insert_emcontent(struct rtl_tcb_desc *ptcb_desc,
-				      u8 *virtualaddress)
+				      u8 *virtualaddress8)
 {
+	__le32 *virtualaddress = (__le32 *)virtualaddress8;
+
 	memset(virtualaddress, 0, 8);
 
 	set_earlymode_pktnum(virtualaddress, ptcb_desc->empkt_num);
@@ -503,7 +506,7 @@ static void _rtl92de_insert_emcontent(struct rtl_tcb_desc *ptcb_desc,
 }
 
 void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
-			  struct ieee80211_hdr *hdr, u8 *pdesc_tx,
+			  struct ieee80211_hdr *hdr, u8 *pdesc8,
 			  u8 *pbd_desc_tx, struct ieee80211_tx_info *info,
 			  struct ieee80211_sta *sta,
 			  struct sk_buff *skb,
@@ -514,7 +517,7 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	u8 *pdesc = pdesc_tx;
+	__le32 *pdesc = (__le32 *)pdesc8;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
 	unsigned int buf_len = 0;
@@ -549,7 +552,7 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 			 "DMA mapping error\n");
 		return;
 	}
-	CLEAR_PCI_TX_DESC_CONTENT(pdesc, sizeof(struct tx_desc_92d));
+	clear_pci_tx_desc_content(pdesc, sizeof(struct tx_desc_92d));
 	if (ieee80211_is_nullfunc(fc) || ieee80211_is_ctl(fc)) {
 		firstseg = true;
 		lastseg = true;
@@ -690,7 +693,7 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 }
 
 void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc, bool firstseg,
+			     u8 *pdesc8, bool firstseg,
 			     bool lastseg, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -702,13 +705,14 @@ void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw,
 		    skb->data, skb->len, PCI_DMA_TODEVICE);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	__le16 fc = hdr->frame_control;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
 			 "DMA mapping error\n");
 		return;
 	}
-	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE);
+	clear_pci_tx_desc_content(pdesc, TX_DESC_SIZE);
 	if (firstseg)
 		set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
 	/* 5G have no CCK rate
@@ -746,9 +750,11 @@ void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	set_tx_desc_own(pdesc, 1);
 }
 
-void rtl92de_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
+void rtl92de_set_desc(struct ieee80211_hw *hw, u8 *pdesc8, bool istx,
 		      u8 desc_name, u8 *val)
 {
+	__le32  *pdesc = (__le32 *)pdesc8;
+
 	if (istx) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
@@ -787,8 +793,9 @@ void rtl92de_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 }
 
 u64 rtl92de_get_desc(struct ieee80211_hw *hw,
-		     u8 *p_desc, bool istx, u8 desc_name)
+		     u8 *p_desc8, bool istx, u8 desc_name)
 {
+	__le32 *p_desc = (__le32 *)p_desc8;
 	u32 ret = 0;
 
 	if (istx) {
