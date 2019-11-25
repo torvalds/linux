@@ -73,6 +73,9 @@ const struct isc_format controller_formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_GREY,
 	},
+	{
+		.fourcc		= V4L2_PIX_FMT_Y10,
+	},
 };
 
 /* This is a list of formats that the ISC can receive as *input* */
@@ -164,6 +167,12 @@ struct isc_format formats_list[] = {
 		.mbus_code	= MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
 	},
+	{
+		.fourcc		= V4L2_PIX_FMT_Y10,
+		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
+		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
+	},
+
 };
 
 /* Gamma table with gamma 1/2.2 */
@@ -210,6 +219,10 @@ const u32 isc_gamma_table[GAMMA_MAX + 1][GAMMA_ENTRIES] = {
 
 #define ISC_IS_FORMAT_RAW(mbus_code) \
 	(((mbus_code) & 0xf000) == 0x3000)
+
+#define ISC_IS_FORMAT_GREY(mbus_code) \
+	(((mbus_code) == MEDIA_BUS_FMT_Y10_1X10) | \
+	(((mbus_code) == MEDIA_BUS_FMT_Y8_1X8)))
 
 static inline void isc_update_awb_ctrls(struct isc_device *isc)
 {
@@ -1003,6 +1016,7 @@ static int isc_try_validate_formats(struct isc_device *isc)
 		rgb = true;
 		break;
 	case V4L2_PIX_FMT_GREY:
+	case V4L2_PIX_FMT_Y10:
 		ret = 0;
 		grey = true;
 		break;
@@ -1010,15 +1024,18 @@ static int isc_try_validate_formats(struct isc_device *isc)
 	/* any other different formats are not supported */
 		ret = -EINVAL;
 	}
-
-	/* we cannot output RAW/Grey if we do not receive RAW */
-	if ((bayer || grey) &&
-	    !ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code))
-		return -EINVAL;
-
 	v4l2_dbg(1, debug, &isc->v4l2_dev,
 		 "Format validation, requested rgb=%u, yuv=%u, grey=%u, bayer=%u\n",
 		 rgb, yuv, grey, bayer);
+
+	/* we cannot output RAW if we do not receive RAW */
+	if ((bayer) && !ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code))
+		return -EINVAL;
+
+	/* we cannot output GREY if we do not receive RAW/GREY */
+	if (grey && !ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code) &&
+	    !ISC_IS_FORMAT_GREY(isc->try_config.sd_format->mbus_code))
+		return -EINVAL;
 
 	return ret;
 }
@@ -1106,6 +1123,12 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED8;
 		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
 		isc->try_config.bpp = 8;
+		break;
+	case V4L2_PIX_FMT_Y10:
+		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_DATY10;
+		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED16;
+		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
+		isc->try_config.bpp = 16;
 		break;
 	default:
 		return -EINVAL;
