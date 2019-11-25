@@ -882,7 +882,7 @@ static inline int sctp_hash_cmp(struct rhashtable_compare_arg *arg,
 	if (!sctp_transport_hold(t))
 		return err;
 
-	if (!net_eq(sock_net(t->asoc->base.sk), x->net))
+	if (!net_eq(t->asoc->base.net, x->net))
 		goto out;
 	if (x->lport != htons(t->asoc->base.bind_addr.port))
 		goto out;
@@ -897,7 +897,7 @@ static inline __u32 sctp_hash_obj(const void *data, u32 len, u32 seed)
 {
 	const struct sctp_transport *t = data;
 
-	return sctp_hashfn(sock_net(t->asoc->base.sk),
+	return sctp_hashfn(t->asoc->base.net,
 			   htons(t->asoc->base.bind_addr.port),
 			   &t->ipaddr, seed);
 }
