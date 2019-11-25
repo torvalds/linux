@@ -427,8 +427,9 @@ static int max1027_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
-	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
-					 &max1027_trigger_handler, NULL);
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+					&iio_pollfunc_store_time,
+					&max1027_trigger_handler, NULL);
 	if (ret < 0) {
 		dev_err(&indio_dev->dev, "Failed to setup buffer\n");
 		return ret;
@@ -439,7 +440,7 @@ static int max1027_probe(struct spi_device *spi)
 	if (st->trig == NULL) {
 		ret = -ENOMEM;
 		dev_err(&indio_dev->dev, "Failed to allocate iio trigger\n");
-		goto fail_trigger_alloc;
+		return ret;
 	}
 
 	st->trig->ops = &max1027_trigger_ops;
@@ -454,7 +455,7 @@ static int max1027_probe(struct spi_device *spi)
 					spi->dev.driver->name, st->trig);
 	if (ret < 0) {
 		dev_err(&indio_dev->dev, "Failed to allocate IRQ.\n");
-		goto fail_dev_register;
+		return ret;
 	}
 
 	/* Disable averaging */
@@ -462,34 +463,10 @@ static int max1027_probe(struct spi_device *spi)
 	ret = spi_write(st->spi, &st->reg, 1);
 	if (ret < 0) {
 		dev_err(&indio_dev->dev, "Failed to configure averaging register\n");
-		goto fail_dev_register;
+		return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&indio_dev->dev, "Failed to register iio device\n");
-		goto fail_dev_register;
-	}
-
-	return 0;
-
-fail_dev_register:
-fail_trigger_alloc:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return ret;
-}
-
-static int max1027_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	pr_debug("%s: remove(spi = 0x%p)\n", __func__, spi);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static struct spi_driver max1027_driver = {
@@ -498,7 +475,6 @@ static struct spi_driver max1027_driver = {
 		.of_match_table = of_match_ptr(max1027_adc_dt_ids),
 	},
 	.probe		= max1027_probe,
-	.remove		= max1027_remove,
 	.id_table	= max1027_id,
 };
 module_spi_driver(max1027_driver);

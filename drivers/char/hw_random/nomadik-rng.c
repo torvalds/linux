@@ -57,7 +57,7 @@ static int nmk_rng_probe(struct amba_device *dev, const struct amba_id *id)
 	if (!base)
 		goto out_release;
 	nmk_rng.priv = (unsigned long)base;
-	ret = hwrng_register(&nmk_rng);
+	ret = devm_hwrng_register(&dev->dev, &nmk_rng);
 	if (ret)
 		goto out_release;
 	return 0;
@@ -71,7 +71,6 @@ out_clk:
 
 static int nmk_rng_remove(struct amba_device *dev)
 {
-	hwrng_unregister(&nmk_rng);
 	amba_release_regions(dev);
 	clk_disable(rng_clk);
 	return 0;

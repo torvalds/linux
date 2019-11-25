@@ -5,13 +5,13 @@
  * Refactored from builtin-top.c, see that files for further copyright notes.
  */
 
-#include "cpumap.h"
 #include "event.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "parse-events.h"
 #include "symbol.h"
 #include "top.h"
+#include "../perf.h"
 #include <inttypes.h>
 
 #define SNPRINTF(buf, size, fmt, args...) \
@@ -70,10 +70,10 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 			       esamples_percent);
 	}
 
-	if (top->evlist->nr_entries == 1) {
-		struct perf_evsel *first = perf_evlist__first(top->evlist);
+	if (top->evlist->core.nr_entries == 1) {
+		struct evsel *first = evlist__first(top->evlist);
 		ret += SNPRINTF(bf + ret, size - ret, "%" PRIu64 "%s ",
-				(uint64_t)first->attr.sample_period,
+				(uint64_t)first->core.attr.sample_period,
 				opts->freq ? "Hz" : "");
 	}
 
@@ -95,15 +95,15 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 
 	if (target->cpu_list)
 		ret += SNPRINTF(bf + ret, size - ret, ", CPU%s: %s)",
-				top->evlist->cpus->nr > 1 ? "s" : "",
+				top->evlist->core.cpus->nr > 1 ? "s" : "",
 				target->cpu_list);
 	else {
 		if (target->tid)
 			ret += SNPRINTF(bf + ret, size - ret, ")");
 		else
 			ret += SNPRINTF(bf + ret, size - ret, ", %d CPU%s)",
-					top->evlist->cpus->nr,
-					top->evlist->cpus->nr > 1 ? "s" : "");
+					top->evlist->core.cpus->nr,
+					top->evlist->core.cpus->nr > 1 ? "s" : "");
 	}
 
 	perf_top__reset_sample_counters(top);

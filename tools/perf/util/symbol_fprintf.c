@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#include "dso.h"
 #include "map.h"
 #include "symbol.h"
 

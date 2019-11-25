@@ -13,4 +13,7 @@ obj-y += cacheflush.o
 obj-y += context.o
 obj-y += sifive_l2_cache.o
 
+ifeq ($(CONFIG_MMU),y)
+obj-$(CONFIG_SMP) += tlbflush.o
+endif
 obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o

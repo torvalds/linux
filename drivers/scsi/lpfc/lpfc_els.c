@@ -1052,16 +1052,17 @@ stop_rr_fcf_flogi:
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
 			goto out;
 
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
+				 "0150 FLOGI failure Status:x%x/x%x "
+				 "xri x%x TMO:x%x\n",
+				 irsp->ulpStatus, irsp->un.ulpWord[4],
+				 cmdiocb->sli4_xritag, irsp->ulpTimeout);
+
 		/* If this is not a loop open failure, bail out */
 		if (!(irsp->ulpStatus == IOSTAT_LOCAL_REJECT &&
 		      ((irsp->un.ulpWord[4] & IOERR_PARAM_MASK) ==
 					IOERR_LOOP_OPEN_FAILURE)))
 			goto flogifail;
-
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
-				 "0150 FLOGI failure Status:x%x/x%x xri x%x TMO:x%x\n",
-				 irsp->ulpStatus, irsp->un.ulpWord[4],
-				 cmdiocb->sli4_xritag, irsp->ulpTimeout);
 
 		/* FLOGI failed, so there is no fabric */
 		spin_lock_irq(shost->host_lock);
@@ -1203,6 +1204,39 @@ flogifail:
 		lpfc_issue_clear_la(phba, vport);
 	}
 out:
+	lpfc_els_free_iocb(phba, cmdiocb);
+}
+
+/**
+ * lpfc_cmpl_els_link_down - Completion callback function for ELS command
+ *                           aborted during a link down
+ * @phba: pointer to lpfc hba data structure.
+ * @cmdiocb: pointer to lpfc command iocb data structure.
+ * @rspiocb: pointer to lpfc response iocb data structure.
+ *
+ */
+static void
+lpfc_cmpl_els_link_down(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+			struct lpfc_iocbq *rspiocb)
+{
+	IOCB_t *irsp;
+	uint32_t *pcmd;
+	uint32_t cmd;
+
+	pcmd = (uint32_t *)(((struct lpfc_dmabuf *)cmdiocb->context2)->virt);
+	cmd = *pcmd;
+	irsp = &rspiocb->iocb;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"6445 ELS completes after LINK_DOWN: "
+			" Status %x/%x cmd x%x flg x%x\n",
+			irsp->ulpStatus, irsp->un.ulpWord[4], cmd,
+			cmdiocb->iocb_flag);
+
+	if (cmdiocb->iocb_flag & LPFC_IO_FABRIC) {
+		cmdiocb->iocb_flag &= ~LPFC_IO_FABRIC;
+		atomic_dec(&phba->fabric_iocb_count);
+	}
 	lpfc_els_free_iocb(phba, cmdiocb);
 }
 
@@ -2107,7 +2141,7 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 		    !(vport->fc_flag & FC_OFFLINE_MODE)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "4110 Issue PLOGI x%x deferred "
-					 "on NPort x%x rpi x%x Data: %p\n",
+					 "on NPort x%x rpi x%x Data: x%px\n",
 					 ndlp->nlp_defer_did, ndlp->nlp_DID,
 					 ndlp->nlp_rpi, ndlp);
 
@@ -2401,6 +2435,10 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		npr_nvme = (struct lpfc_nvme_prli *)pcmd;
 		bf_set(prli_type_code, npr_nvme, PRLI_NVME_TYPE);
 		bf_set(prli_estabImagePair, npr_nvme, 0);  /* Should be 0 */
+		if (phba->nsler) {
+			bf_set(prli_nsler, npr_nvme, 1);
+			bf_set(prli_conf, npr_nvme, 1);
+		}
 
 		/* Only initiators request first burst. */
 		if ((phba->cfg_nvme_enable_fb) &&
@@ -4203,7 +4241,7 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mempool_free(pmb, phba->mbox_mem_pool);
 	if (ndlp) {
 		lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-				 "0006 rpi%x DID:%x flg:%x %d map:%x %p\n",
+				 "0006 rpi%x DID:%x flg:%x %d map:%x x%px\n",
 				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 				 kref_read(&ndlp->kref),
 				 ndlp->nlp_usg_map, ndlp);
@@ -5634,16 +5672,16 @@ lpfc_rdp_res_attach_port_names(struct fc_rdp_port_name_desc *desc,
 	desc->tag = cpu_to_be32(RDP_PORT_NAMES_DESC_TAG);
 	if (vport->fc_flag & FC_FABRIC) {
 		memcpy(desc->port_names.wwnn, &vport->fabric_nodename,
-				sizeof(desc->port_names.wwnn));
+		       sizeof(desc->port_names.wwnn));
 
 		memcpy(desc->port_names.wwpn, &vport->fabric_portname,
-				sizeof(desc->port_names.wwpn));
+		       sizeof(desc->port_names.wwpn));
 	} else {  /* Point to Point */
 		memcpy(desc->port_names.wwnn, &ndlp->nlp_nodename,
-				sizeof(desc->port_names.wwnn));
+		       sizeof(desc->port_names.wwnn));
 
-		memcpy(desc->port_names.wwnn, &ndlp->nlp_portname,
-				sizeof(desc->port_names.wwpn));
+		memcpy(desc->port_names.wwpn, &ndlp->nlp_portname,
+		       sizeof(desc->port_names.wwpn));
 	}
 
 	desc->length = cpu_to_be32(sizeof(desc->port_names));
@@ -6327,7 +6365,11 @@ lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 			continue;
 		}
 
-		if (ndlp->nlp_fc4_type & NLP_FC4_NVME)
+		/* Check to see if we need to NVME rescan this target
+		 * remoteport.
+		 */
+		if (ndlp->nlp_fc4_type & NLP_FC4_NVME &&
+		    ndlp->nlp_type & (NLP_NVME_TARGET | NLP_NVME_DISCOVERY))
 			lpfc_nvme_rescan_port(vport, ndlp);
 
 		lpfc_disc_state_machine(vport, ndlp, NULL,
@@ -6441,7 +6483,11 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 				 *lp, vport->fc_flag, payload_len);
 		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
 
-		if (ndlp->nlp_fc4_type & NLP_FC4_NVME)
+		/* Check to see if we need to NVME rescan this target
+		 * remoteport.
+		 */
+		if (ndlp->nlp_fc4_type & NLP_FC4_NVME &&
+		    ndlp->nlp_type & (NLP_NVME_TARGET | NLP_NVME_DISCOVERY))
 			lpfc_nvme_rescan_port(vport, ndlp);
 		return 0;
 	}
@@ -7960,18 +8006,40 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_lock(&pring->ring_lock);
 
+	/* First we need to issue aborts to outstanding cmds on txcmpl */
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
 		if (piocb->iocb_flag & LPFC_IO_LIBDFC)
 			continue;
 
 		if (piocb->vport != vport)
 			continue;
-		list_add_tail(&piocb->dlist, &abort_list);
+
+		/* On the ELS ring we can have ELS_REQUESTs or
+		 * GEN_REQUESTs waiting for a response.
+		 */
+		cmd = &piocb->iocb;
+		if (cmd->ulpCommand == CMD_ELS_REQUEST64_CR) {
+			list_add_tail(&piocb->dlist, &abort_list);
+
+			/* If the link is down when flushing ELS commands
+			 * the firmware will not complete them till after
+			 * the link comes back up. This may confuse
+			 * discovery for the new link up, so we need to
+			 * change the compl routine to just clean up the iocb
+			 * and avoid any retry logic.
+			 */
+			if (phba->link_state == LPFC_LINK_DOWN)
+				piocb->iocb_cmpl = lpfc_cmpl_els_link_down;
+		}
+		if (cmd->ulpCommand == CMD_GEN_REQUEST64_CR)
+			list_add_tail(&piocb->dlist, &abort_list);
 	}
+
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_unlock(&pring->ring_lock);
 	spin_unlock_irq(&phba->hbalock);
-	/* Abort each iocb on the aborted list and remove the dlist links. */
+
+	/* Abort each txcmpl iocb on aborted list and remove the dlist links. */
 	list_for_each_entry_safe(piocb, tmp_iocb, &abort_list, dlist) {
 		spin_lock_irq(&phba->hbalock);
 		list_del_init(&piocb->dlist);
@@ -7987,6 +8055,9 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_lock(&pring->ring_lock);
 
+	/* No need to abort the txq list,
+	 * just queue them up for lpfc_sli_cancel_iocbs
+	 */
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txq, list) {
 		cmd = &piocb->iocb;
 
@@ -8007,11 +8078,22 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 		list_del_init(&piocb->list);
 		list_add_tail(&piocb->list, &abort_list);
 	}
+
+	/* The same holds true for any FLOGI/FDISC on the fabric_iocb_list */
+	if (vport == phba->pport) {
+		list_for_each_entry_safe(piocb, tmp_iocb,
+					 &phba->fabric_iocb_list, list) {
+			cmd = &piocb->iocb;
+			list_del_init(&piocb->list);
+			list_add_tail(&piocb->list, &abort_list);
+		}
+	}
+
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_unlock(&pring->ring_lock);
 	spin_unlock_irq(&phba->hbalock);
 
-	/* Cancell all the IOCBs from the completions list */
+	/* Cancel all the IOCBs from the completions list */
 	lpfc_sli_cancel_iocbs(phba, &abort_list,
 			      IOSTAT_LOCAL_REJECT, IOERR_SLI_ABORTED);
 

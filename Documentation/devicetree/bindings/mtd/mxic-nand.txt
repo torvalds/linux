@@ -1,0 +1,36 @@
+Macronix Raw NAND Controller Device Tree Bindings
+-------------------------------------------------
+
+Required properties:
+- compatible: should be "mxic,multi-itfc-v009-nand-controller"
+- reg: should contain 1 entry for the registers
+- #address-cells: should be set to 1
+- #size-cells: should be set to 0
+- interrupts: interrupt line connected to this raw NAND controller
+- clock-names: should contain "ps", "send" and "send_dly"
+- clocks: should contain 3 phandles for the "ps", "send" and
+	 "send_dly" clocks
+
+Children nodes:
+- children nodes represent the available NAND chips.
+
+See Documentation/devicetree/bindings/mtd/nand-controller.yaml
+for more details on generic bindings.
+
+Example:
+
+	nand: nand-controller@43c30000 {
+		compatible = "mxic,multi-itfc-v009-nand-controller";
+		reg = <0x43c30000 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <GIC_SPI 0x1d IRQ_TYPE_EDGE_RISING>;
+		clocks = <&clkwizard 0>, <&clkwizard 1>, <&clkc 15>;
+		clock-names = "send", "send_dly", "ps";
+
+		nand@0 {
+			reg = <0>;
+			nand-ecc-mode = "soft";
+			nand-ecc-algo = "bch";
+		};
+	};

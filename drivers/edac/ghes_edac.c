@@ -68,7 +68,7 @@ struct memdev_dmi_entry {
 
 struct ghes_edac_dimm_fill {
 	struct mem_ctl_info *mci;
-	unsigned count;
+	unsigned int count;
 };
 
 static void ghes_edac_count_dimms(const struct dmi_header *dh, void *arg)
@@ -553,7 +553,11 @@ void ghes_edac_unregister(struct ghes *ghes)
 	if (!ghes_pvt)
 		return;
 
+	if (atomic_dec_return(&ghes_init))
+		return;
+
 	mci = ghes_pvt->mci;
+	ghes_pvt = NULL;
 	edac_mc_del_mc(mci->pdev);
 	edac_mc_free(mci);
 }

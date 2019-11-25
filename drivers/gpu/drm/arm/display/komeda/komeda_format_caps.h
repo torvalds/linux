@@ -97,6 +97,9 @@ const struct komeda_format_caps *
 komeda_get_format_caps(struct komeda_format_caps_table *table,
 		       u32 fourcc, u64 modifier);
 
+u32 komeda_get_afbc_format_bpp(const struct drm_format_info *info,
+			       u64 modifier);
+
 u32 *komeda_get_layer_fourcc_list(struct komeda_format_caps_table *table,
 				  u32 layer_type, u32 *n_fmts);
 

@@ -43,7 +43,6 @@
 #define cpu_has_vint		0
 #define cpu_has_vtag_icache	0
 #define cpu_has_watch		1
-#define cpu_has_local_ebase	0
 
 #ifdef CONFIG_CPU_LOONGSON3
 #define cpu_has_wsbh		1

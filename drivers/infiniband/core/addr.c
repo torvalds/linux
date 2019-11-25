@@ -183,7 +183,7 @@ static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
 
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
-	rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, GFP_KERNEL);
+	rdma_nl_multicast(&init_net, skb, RDMA_NL_GROUP_LS, GFP_KERNEL);
 
 	/* Make the request retry, so when we get the response from userspace
 	 * we will have something.
@@ -352,7 +352,7 @@ static bool has_gateway(const struct dst_entry *dst, sa_family_t family)
 
 	if (family == AF_INET) {
 		rt = container_of(dst, struct rtable, dst);
-		return rt->rt_gw_family == AF_INET;
+		return rt->rt_uses_gateway;
 	}
 
 	rt6 = container_of(dst, struct rt6_info, dst);

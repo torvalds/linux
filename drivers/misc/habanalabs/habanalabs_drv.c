@@ -95,41 +95,9 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		return -ENXIO;
 	}
 
-	mutex_lock(&hdev->fd_open_cnt_lock);
-
-	if (hl_device_disabled_or_in_reset(hdev)) {
-		dev_err_ratelimited(hdev->dev,
-			"Can't open %s because it is disabled or in reset\n",
-			dev_name(hdev->dev));
-		mutex_unlock(&hdev->fd_open_cnt_lock);
-		return -EPERM;
-	}
-
-	if (hdev->in_debug) {
-		dev_err_ratelimited(hdev->dev,
-			"Can't open %s because it is being debugged by another user\n",
-			dev_name(hdev->dev));
-		mutex_unlock(&hdev->fd_open_cnt_lock);
-		return -EPERM;
-	}
-
-	if (atomic_read(&hdev->fd_open_cnt)) {
-		dev_info_ratelimited(hdev->dev,
-			"Can't open %s because another user is working on it\n",
-			dev_name(hdev->dev));
-		mutex_unlock(&hdev->fd_open_cnt_lock);
-		return -EBUSY;
-	}
-
-	atomic_inc(&hdev->fd_open_cnt);
-
-	mutex_unlock(&hdev->fd_open_cnt_lock);
-
 	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv) {
-		rc = -ENOMEM;
-		goto close_device;
-	}
+	if (!hpriv)
+		return -ENOMEM;
 
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
@@ -141,34 +109,113 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	hl_cb_mgr_init(&hpriv->cb_mgr);
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
 
-	rc = hl_ctx_create(hdev, hpriv);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to open FD (CTX fail)\n");
+	hpriv->taskpid = find_get_pid(current->pid);
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	if (hl_device_disabled_or_in_reset(hdev)) {
+		dev_err_ratelimited(hdev->dev,
+			"Can't open %s because it is disabled or in reset\n",
+			dev_name(hdev->dev));
+		rc = -EPERM;
 		goto out_err;
 	}
 
-	hpriv->taskpid = find_get_pid(current->pid);
+	if (hdev->in_debug) {
+		dev_err_ratelimited(hdev->dev,
+			"Can't open %s because it is being debugged by another user\n",
+			dev_name(hdev->dev));
+		rc = -EPERM;
+		goto out_err;
+	}
 
-	/*
-	 * Device is IDLE at this point so it is legal to change PLLs. There
-	 * is no need to check anything because if the PLL is already HIGH, the
-	 * set function will return without doing anything
+	if (hdev->compute_ctx) {
+		dev_dbg_ratelimited(hdev->dev,
+			"Can't open %s because another user is working on it\n",
+			dev_name(hdev->dev));
+		rc = -EBUSY;
+		goto out_err;
+	}
+
+	rc = hl_ctx_create(hdev, hpriv);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to create context %d\n", rc);
+		goto out_err;
+	}
+
+	/* Device is IDLE at this point so it is legal to change PLLs.
+	 * There is no need to check anything because if the PLL is
+	 * already HIGH, the set function will return without doing
+	 * anything
 	 */
 	hl_device_set_frequency(hdev, PLL_HIGH);
+
+	list_add(&hpriv->dev_node, &hdev->fpriv_list);
+	mutex_unlock(&hdev->fpriv_list_lock);
 
 	hl_debugfs_add_file(hpriv);
 
 	return 0;
 
 out_err:
-	filp->private_data = NULL;
-	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
-	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
-	mutex_destroy(&hpriv->restore_phase_mutex);
-	kfree(hpriv);
+	mutex_unlock(&hdev->fpriv_list_lock);
 
-close_device:
-	atomic_dec(&hdev->fd_open_cnt);
+	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
+	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
+	filp->private_data = NULL;
+	mutex_destroy(&hpriv->restore_phase_mutex);
+	put_pid(hpriv->taskpid);
+
+	kfree(hpriv);
+	return rc;
+}
+
+int hl_device_open_ctrl(struct inode *inode, struct file *filp)
+{
+	struct hl_device *hdev;
+	struct hl_fpriv *hpriv;
+	int rc;
+
+	mutex_lock(&hl_devs_idr_lock);
+	hdev = idr_find(&hl_devs_idr, iminor(inode));
+	mutex_unlock(&hl_devs_idr_lock);
+
+	if (!hdev) {
+		pr_err("Couldn't find device %d:%d\n",
+			imajor(inode), iminor(inode));
+		return -ENXIO;
+	}
+
+	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
+	if (!hpriv)
+		return -ENOMEM;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	if (hl_device_disabled_or_in_reset(hdev)) {
+		dev_err_ratelimited(hdev->dev_ctrl,
+			"Can't open %s because it is disabled or in reset\n",
+			dev_name(hdev->dev_ctrl));
+		rc = -EPERM;
+		goto out_err;
+	}
+
+	list_add(&hpriv->dev_node, &hdev->fpriv_list);
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	hpriv->hdev = hdev;
+	filp->private_data = hpriv;
+	hpriv->filp = filp;
+	hpriv->is_control = true;
+	nonseekable_open(inode, filp);
+
+	hpriv->taskpid = find_get_pid(current->pid);
+
+	return 0;
+
+out_err:
+	mutex_unlock(&hdev->fpriv_list_lock);
+	kfree(hpriv);
 	return rc;
 }
 
@@ -199,7 +246,7 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		enum hl_asic_type asic_type, int minor)
 {
 	struct hl_device *hdev;
-	int rc;
+	int rc, main_id, ctrl_id = 0;
 
 	*dev = NULL;
 
@@ -240,33 +287,34 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 
 	mutex_lock(&hl_devs_idr_lock);
 
-	if (minor == -1) {
-		rc = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS,
+	/* Always save 2 numbers, 1 for main device and 1 for control.
+	 * They must be consecutive
+	 */
+	main_id = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS,
 				GFP_KERNEL);
-	} else {
-		void *old_idr = idr_replace(&hl_devs_idr, hdev, minor);
 
-		if (IS_ERR_VALUE(old_idr)) {
-			rc = PTR_ERR(old_idr);
-			pr_err("Error %d when trying to replace minor %d\n",
-				rc, minor);
-			mutex_unlock(&hl_devs_idr_lock);
-			goto free_hdev;
-		}
-		rc = minor;
-	}
+	if (main_id >= 0)
+		ctrl_id = idr_alloc(&hl_devs_idr, hdev, main_id + 1,
+					main_id + 2, GFP_KERNEL);
 
 	mutex_unlock(&hl_devs_idr_lock);
 
-	if (rc < 0) {
-		if (rc == -ENOSPC) {
+	if ((main_id < 0) || (ctrl_id < 0)) {
+		if ((main_id == -ENOSPC) || (ctrl_id == -ENOSPC))
 			pr_err("too many devices in the system\n");
-			rc = -EBUSY;
+
+		if (main_id >= 0) {
+			mutex_lock(&hl_devs_idr_lock);
+			idr_remove(&hl_devs_idr, main_id);
+			mutex_unlock(&hl_devs_idr_lock);
 		}
+
+		rc = -EBUSY;
 		goto free_hdev;
 	}
 
-	hdev->id = rc;
+	hdev->id = main_id;
+	hdev->id_control = ctrl_id;
 
 	*dev = hdev;
 
@@ -288,6 +336,7 @@ void destroy_hdev(struct hl_device *hdev)
 	/* Remove device from the device list */
 	mutex_lock(&hl_devs_idr_lock);
 	idr_remove(&hl_devs_idr, hdev->id);
+	idr_remove(&hl_devs_idr, hdev->id_control);
 	mutex_unlock(&hl_devs_idr_lock);
 
 	kfree(hdev);
@@ -295,8 +344,7 @@ void destroy_hdev(struct hl_device *hdev)
 
 static int hl_pmops_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct hl_device *hdev = pci_get_drvdata(pdev);
+	struct hl_device *hdev = dev_get_drvdata(dev);
 
 	pr_debug("Going to suspend PCI device\n");
 
@@ -310,8 +358,7 @@ static int hl_pmops_suspend(struct device *dev)
 
 static int hl_pmops_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct hl_device *hdev = pci_get_drvdata(pdev);
+	struct hl_device *hdev = dev_get_drvdata(dev);
 
 	pr_debug("Going to resume PCI device\n");
 

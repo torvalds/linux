@@ -24,6 +24,7 @@
 
 #define MMC_GMAC4_OFFSET		0x700
 #define MMC_GMAC3_X_OFFSET		0x100
+#define MMC_XGMAC_OFFSET		0x800
 
 struct stmmac_counters {
 	unsigned int mmc_tx_octetcount_gb;
@@ -116,6 +117,14 @@ struct stmmac_counters {
 	unsigned int mmc_rx_tcp_err_octets;
 	unsigned int mmc_rx_icmp_gd_octets;
 	unsigned int mmc_rx_icmp_err_octets;
+
+	/* FPE */
+	unsigned int mmc_tx_fpe_fragment_cntr;
+	unsigned int mmc_tx_hold_req_cntr;
+	unsigned int mmc_rx_packet_assembly_err_cntr;
+	unsigned int mmc_rx_packet_smd_err_cntr;
+	unsigned int mmc_rx_packet_assembly_ok_cntr;
+	unsigned int mmc_rx_fpe_fragment_cntr;
 };
 
 #endif /* __MMC_H__ */

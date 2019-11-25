@@ -142,7 +142,7 @@ loading the adm1021 module, then things are good.
 If nothing happens when loading the adm1021 module, and you are certain
 that your specific Xeon processor model includes compatible sensors, you
 will have to explicitly instantiate the sensor chips from user-space. See
-method 4 in Documentation/i2c/instantiating-devices. Possible slave
+method 4 in Documentation/i2c/instantiating-devices.rst. Possible slave
 addresses are 0x18, 0x1a, 0x29, 0x2b, 0x4c, or 0x4e. It is likely that
 only temp2 will be correct and temp1 will have to be ignored.
 

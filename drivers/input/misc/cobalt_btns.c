@@ -4,7 +4,8 @@
  *
  *  Copyright (C) 2007-2008  Yoichi Yuasa <yuasa@linux-mips.org>
  */
-#include <linux/input-polldev.h>
+#include <linux/input.h>
+#include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -26,16 +27,14 @@ static const unsigned short cobalt_map[] = {
 };
 
 struct buttons_dev {
-	struct input_polled_dev *poll_dev;
 	unsigned short keymap[ARRAY_SIZE(cobalt_map)];
 	int count[ARRAY_SIZE(cobalt_map)];
 	void __iomem *reg;
 };
 
-static void handle_buttons(struct input_polled_dev *dev)
+static void handle_buttons(struct input_dev *input)
 {
-	struct buttons_dev *bdev = dev->private;
-	struct input_dev *input = dev->input;
+	struct buttons_dev *bdev = input_get_drvdata(input);
 	uint32_t status;
 	int i;
 
@@ -62,29 +61,33 @@ static void handle_buttons(struct input_polled_dev *dev)
 static int cobalt_buttons_probe(struct platform_device *pdev)
 {
 	struct buttons_dev *bdev;
-	struct input_polled_dev *poll_dev;
 	struct input_dev *input;
 	struct resource *res;
 	int error, i;
 
-	bdev = kzalloc(sizeof(struct buttons_dev), GFP_KERNEL);
-	poll_dev = input_allocate_polled_device();
-	if (!bdev || !poll_dev) {
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	bdev = devm_kzalloc(&pdev->dev, sizeof(*bdev), GFP_KERNEL);
+	if (!bdev)
+		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EBUSY;
+
+	bdev->reg = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (!bdev->reg)
+		return -ENOMEM;
 
 	memcpy(bdev->keymap, cobalt_map, sizeof(bdev->keymap));
 
-	poll_dev->private = bdev;
-	poll_dev->poll = handle_buttons;
-	poll_dev->poll_interval = BUTTONS_POLL_INTERVAL;
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input)
+		return -ENOMEM;
 
-	input = poll_dev->input;
+	input_set_drvdata(input, bdev);
+
 	input->name = "Cobalt buttons";
 	input->phys = "cobalt/input0";
 	input->id.bustype = BUS_HOST;
-	input->dev.parent = &pdev->dev;
 
 	input->keycode = bdev->keymap;
 	input->keycodemax = ARRAY_SIZE(bdev->keymap);
@@ -96,39 +99,16 @@ static int cobalt_buttons_probe(struct platform_device *pdev)
 		__set_bit(bdev->keymap[i], input->keybit);
 	__clear_bit(KEY_RESERVED, input->keybit);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		error = -EBUSY;
-		goto err_free_mem;
-	}
 
-	bdev->poll_dev = poll_dev;
-	bdev->reg = ioremap(res->start, resource_size(res));
-	dev_set_drvdata(&pdev->dev, bdev);
-
-	error = input_register_polled_device(poll_dev);
+	error = input_setup_polling(input, handle_buttons);
 	if (error)
-		goto err_iounmap;
+		return error;
 
-	return 0;
+	input_set_poll_interval(input, BUTTONS_POLL_INTERVAL);
 
- err_iounmap:
-	iounmap(bdev->reg);
- err_free_mem:
-	input_free_polled_device(poll_dev);
-	kfree(bdev);
-	return error;
-}
-
-static int cobalt_buttons_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct buttons_dev *bdev = dev_get_drvdata(dev);
-
-	input_unregister_polled_device(bdev->poll_dev);
-	input_free_polled_device(bdev->poll_dev);
-	iounmap(bdev->reg);
-	kfree(bdev);
+	error = input_register_device(input);
+	if (error)
+		return error;
 
 	return 0;
 }
@@ -141,7 +121,6 @@ MODULE_ALIAS("platform:Cobalt buttons");
 
 static struct platform_driver cobalt_buttons_driver = {
 	.probe	= cobalt_buttons_probe,
-	.remove	= cobalt_buttons_remove,
 	.driver	= {
 		.name	= "Cobalt buttons",
 	},

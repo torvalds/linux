@@ -145,8 +145,8 @@ int rtw_free_recvframe(struct recv_frame *precvframe,
 
 int _rtw_enqueue_recvframe(struct recv_frame *precvframe, struct __queue *queue)
 {
-	list_del_init(&(precvframe->list));
-	list_add_tail(&(precvframe->list), get_list_head(queue));
+	list_del_init(&precvframe->list);
+	list_add_tail(&precvframe->list, get_list_head(queue));
 
 	return _SUCCESS;
 }
@@ -219,7 +219,7 @@ static int recvframe_chkmic(struct adapter *adapter,
 	struct	security_priv	*psecuritypriv = &adapter->securitypriv;
 
 	struct mlme_ext_priv	*pmlmeext = &adapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 
 	stainfo = rtw_get_stainfo(&adapter->stapriv, &prxattrib->ta[0]);
 
@@ -1373,11 +1373,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 		/* append  to first fragment frame's tail (if privacy frame, pull the ICV) */
 		skb_trim(prframe->pkt, prframe->pkt->len - prframe->attrib.icv_len);
 
-		/* memcpy */
-		memcpy(skb_tail_pointer(prframe->pkt), pnfhdr->pkt->data,
-		       pnfhdr->pkt->len);
-
-		skb_put(prframe->pkt, pnfhdr->pkt->len);
+		skb_put_data(prframe->pkt, pnfhdr->pkt->data, pnfhdr->pkt->len);
 
 		prframe->attrib.icv_len = pnfhdr->attrib.icv_len;
 		plist = plist->next;
@@ -1500,7 +1496,7 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 	struct rx_pkt_attrib *pattrib;
 	struct sk_buff *sub_skb, *subframes[MAX_SUBFRAME_COUNT];
 	struct recv_priv *precvpriv = &padapter->recvpriv;
-	struct __queue *pfree_recv_queue = &(precvpriv->free_recv_queue);
+	struct __queue *pfree_recv_queue = &precvpriv->free_recv_queue;
 
 	nr_subframes = 0;
 	pattrib = &prframe->attrib;

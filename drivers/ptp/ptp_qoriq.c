@@ -507,6 +507,8 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 		ptp_qoriq->regs.etts_regs = base + ETTS_REGS_OFFSET;
 	}
 
+	spin_lock_init(&ptp_qoriq->lock);
+
 	ktime_get_real_ts64(&now);
 	ptp_qoriq_settime(&ptp_qoriq->caps, &now);
 
@@ -514,7 +516,6 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 	  (ptp_qoriq->tclk_period & TCLK_PERIOD_MASK) << TCLK_PERIOD_SHIFT |
 	  (ptp_qoriq->cksel & CKSEL_MASK) << CKSEL_SHIFT;
 
-	spin_lock_init(&ptp_qoriq->lock);
 	spin_lock_irqsave(&ptp_qoriq->lock, flags);
 
 	regs = &ptp_qoriq->regs;

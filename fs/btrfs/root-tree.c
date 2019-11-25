@@ -533,7 +533,7 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 			return ret;
 	}
 
-	num_bytes = btrfs_calc_trans_metadata_size(fs_info, items);
+	num_bytes = btrfs_calc_insert_metadata_size(fs_info, items);
 	rsv->space_info = btrfs_find_space_info(fs_info,
 					    BTRFS_BLOCK_GROUP_METADATA);
 	ret = btrfs_block_rsv_add(root, rsv, num_bytes,

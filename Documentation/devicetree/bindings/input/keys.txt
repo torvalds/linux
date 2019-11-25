@@ -1,8 +1,0 @@
-General Keys Properties:
-
-Optional properties for Keys:
-- power-off-time-sec: Duration in seconds which the key should be kept
-	pressed for device to power off automatically. Device with key pressed
-	shutdown feature can specify this property.
-- linux,keycodes: Specifies the numeric keycode values to be used for
-	reporting key presses.

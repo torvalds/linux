@@ -9,9 +9,10 @@ ifeq ("$(origin O)", "command line")
 endif
 
 turbostat : turbostat.c
-override CFLAGS +=	-Wall -I../../../include
+override CFLAGS +=	-O2 -Wall -I../../../include
 override CFLAGS +=	-DMSRHEADER='"../../../../arch/x86/include/asm/msr-index.h"'
 override CFLAGS +=	-DINTEL_FAMILY_HEADER='"../../../../arch/x86/include/asm/intel-family.h"'
+override CFLAGS +=	-D_FORTIFY_SOURCE=2
 
 %: %.c
 	@mkdir -p $(BUILD_OUTPUT)

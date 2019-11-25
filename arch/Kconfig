@@ -18,6 +18,9 @@ config KEXEC_CORE
 	select CRASH_CORE
 	bool
 
+config KEXEC_ELF
+	bool
+
 config HAVE_IMA_KEXEC
 	bool
 
@@ -103,7 +106,7 @@ config STATIC_KEYS_SELFTEST
 config OPTPROBES
 	def_bool y
 	depends on KPROBES && HAVE_OPTPROBES
-	select TASKS_RCU if PREEMPT
+	select TASKS_RCU if PREEMPTION
 
 config KPROBES_ON_FTRACE
 	def_bool y
@@ -288,6 +291,13 @@ config ARCH_32BIT_OFF_T
 	  is the requirement for modern ABIs. Some existing architectures
 	  still support 32-bit off_t. This option is enabled for all such
 	  architectures explicitly.
+
+config HAVE_ASM_MODVERSIONS
+	bool
+	help
+	  This symbol should be selected by an architecure if it provides
+	  <asm/asm-prototypes.h> to support the module versioning for symbols
+	  exported from assembly code.
 
 config HAVE_REGS_AND_STACK_ACCESS_API
 	bool
@@ -696,6 +706,17 @@ config HAVE_ARCH_COMPAT_MMAP_BASES
 	  and vice-versa 32-bit applications to call 64-bit mmap().
 	  Required for applications doing different bitness syscalls.
 
+# This allows to use a set of generic functions to determine mmap base
+# address by giving priority to top-down scheme only if the process
+# is not in legacy mode (compat task, unlimited stack size or
+# sysctl_legacy_va_layout).
+# Architecture that selects this option can provide its own version of:
+# - STACK_RND_MASK
+config ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
+	bool
+	depends on MMU
+	select ARCH_HAS_ELF_RANDOMIZE
+
 config HAVE_COPY_THREAD_TLS
 	bool
 	help
@@ -789,9 +810,6 @@ config COMPAT_32BIT_TIME
 	  This enables 32 bit time_t support in addition to 64 bit time_t support.
 	  This is relevant on all 32-bit architectures, and 64-bit architectures
 	  as part of compat syscall handling.
-
-config ARCH_NO_COHERENT_DMA_MMAP
-	bool
 
 config ARCH_NO_PREEMPT
 	bool
@@ -924,6 +942,23 @@ config LOCK_EVENT_COUNTS
 	  in the system with minimal performance impact. This reduces
 	  the chance of application behavior change because of timing
 	  differences. The counts are reported via debugfs.
+
+# Select if the architecture has support for applying RELR relocations.
+config ARCH_HAS_RELR
+	bool
+
+config RELR
+	bool "Use RELR relocation packing"
+	depends on ARCH_HAS_RELR && TOOLS_SUPPORT_RELR
+	default y
+	help
+	  Store the kernel's dynamic relocations in the RELR relocation packing
+	  format. Requires a compatible linker (LLD supports this feature), as
+	  well as compatible NM and OBJCOPY utilities (llvm-nm and llvm-objcopy
+	  are compatible).
+
+config ARCH_HAS_MEM_ENCRYPT
+	bool
 
 source "kernel/gcov/Kconfig"
 

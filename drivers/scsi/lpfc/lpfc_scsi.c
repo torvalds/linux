@@ -53,8 +53,6 @@
 #define LPFC_RESET_WAIT  2
 #define LPFC_ABORT_WAIT  2
 
-int _dump_buf_done = 1;
-
 static char *dif_op_str[] = {
 	"PROT_NORMAL",
 	"PROT_READ_INSERT",
@@ -88,63 +86,6 @@ static void
 lpfc_release_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_io_buf *psb);
 static int
 lpfc_prot_group_type(struct lpfc_hba *phba, struct scsi_cmnd *sc);
-
-static void
-lpfc_debug_save_data(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
-{
-	void *src, *dst;
-	struct scatterlist *sgde = scsi_sglist(cmnd);
-
-	if (!_dump_buf_data) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9050 BLKGRD: ERROR %s _dump_buf_data is NULL\n",
-				__func__);
-		return;
-	}
-
-
-	if (!sgde) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9051 BLKGRD: ERROR: data scatterlist is null\n");
-		return;
-	}
-
-	dst = (void *) _dump_buf_data;
-	while (sgde) {
-		src = sg_virt(sgde);
-		memcpy(dst, src, sgde->length);
-		dst += sgde->length;
-		sgde = sg_next(sgde);
-	}
-}
-
-static void
-lpfc_debug_save_dif(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
-{
-	void *src, *dst;
-	struct scatterlist *sgde = scsi_prot_sglist(cmnd);
-
-	if (!_dump_buf_dif) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9052 BLKGRD: ERROR %s _dump_buf_data is NULL\n",
-				__func__);
-		return;
-	}
-
-	if (!sgde) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9053 BLKGRD: ERROR: prot scatterlist is null\n");
-		return;
-	}
-
-	dst = _dump_buf_dif;
-	while (sgde) {
-		src = sg_virt(sgde);
-		memcpy(dst, src, sgde->length);
-		dst += sgde->length;
-		sgde = sg_next(sgde);
-	}
-}
 
 static inline unsigned
 lpfc_cmd_blksize(struct scsi_cmnd *sc)
@@ -537,29 +478,32 @@ lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *vport)
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 		qp = &phba->sli4_hba.hdwq[idx];
 
-		spin_lock(&qp->abts_scsi_buf_list_lock);
+		spin_lock(&qp->abts_io_buf_list_lock);
 		list_for_each_entry_safe(psb, next_psb,
-					 &qp->lpfc_abts_scsi_buf_list, list) {
+					 &qp->lpfc_abts_io_buf_list, list) {
+			if (psb->cur_iocbq.iocb_flag == LPFC_IO_NVME)
+				continue;
+
 			if (psb->rdata && psb->rdata->pnode &&
 			    psb->rdata->pnode->vport == vport)
 				psb->rdata = NULL;
 		}
-		spin_unlock(&qp->abts_scsi_buf_list_lock);
+		spin_unlock(&qp->abts_io_buf_list_lock);
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 }
 
 /**
- * lpfc_sli4_fcp_xri_aborted - Fast-path process of fcp xri abort
+ * lpfc_sli4_io_xri_aborted - Fast-path process of fcp xri abort
  * @phba: pointer to lpfc hba data structure.
  * @axri: pointer to the fcp xri abort wcqe structure.
  *
  * This routine is invoked by the worker thread to process a SLI4 fast-path
- * FCP aborted xri.
+ * FCP or NVME aborted xri.
  **/
 void
-lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
-			  struct sli4_wcqe_xri_aborted *axri, int idx)
+lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
+			 struct sli4_wcqe_xri_aborted *axri, int idx)
 {
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
@@ -577,16 +521,23 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 
 	qp = &phba->sli4_hba.hdwq[idx];
 	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&qp->abts_scsi_buf_list_lock);
+	spin_lock(&qp->abts_io_buf_list_lock);
 	list_for_each_entry_safe(psb, next_psb,
-		&qp->lpfc_abts_scsi_buf_list, list) {
+		&qp->lpfc_abts_io_buf_list, list) {
 		if (psb->cur_iocbq.sli4_xritag == xri) {
-			list_del(&psb->list);
-			qp->abts_scsi_io_bufs--;
+			list_del_init(&psb->list);
 			psb->exch_busy = 0;
 			psb->status = IOSTAT_SUCCESS;
-			spin_unlock(
-				&qp->abts_scsi_buf_list_lock);
+			if (psb->cur_iocbq.iocb_flag == LPFC_IO_NVME) {
+				qp->abts_nvme_io_bufs--;
+				spin_unlock(&qp->abts_io_buf_list_lock);
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
+				lpfc_sli4_nvme_xri_aborted(phba, axri, psb);
+				return;
+			}
+			qp->abts_scsi_io_bufs--;
+			spin_unlock(&qp->abts_io_buf_list_lock);
+
 			if (psb->rdata && psb->rdata->pnode)
 				ndlp = psb->rdata->pnode;
 			else
@@ -605,12 +556,12 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 			return;
 		}
 	}
-	spin_unlock(&qp->abts_scsi_buf_list_lock);
+	spin_unlock(&qp->abts_io_buf_list_lock);
 	for (i = 1; i <= phba->sli.last_iotag; i++) {
 		iocbq = phba->sli.iocbq_lookup[i];
 
-		if (!(iocbq->iocb_flag &  LPFC_IO_FCP) ||
-			(iocbq->iocb_flag & LPFC_IO_LIBDFC))
+		if (!(iocbq->iocb_flag & LPFC_IO_FCP) ||
+		    (iocbq->iocb_flag & LPFC_IO_LIBDFC))
 			continue;
 		if (iocbq->sli4_xritag != xri)
 			continue;
@@ -685,8 +636,9 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	IOCB_t *iocb;
 	dma_addr_t pdma_phys_fcp_rsp;
 	dma_addr_t pdma_phys_fcp_cmd;
-	uint32_t sgl_size, cpu, idx;
+	uint32_t cpu, idx;
 	int tag;
+	struct fcp_cmd_rsp_buf *tmp = NULL;
 
 	cpu = raw_smp_processor_id();
 	if (cmnd && phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_HDWQ) {
@@ -704,9 +656,6 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		return NULL;
 	}
 
-	sgl_size = phba->cfg_sg_dma_buf_size -
-		(sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp));
-
 	/* Setup key fields in buffer that may have been changed
 	 * if other protocols used this buffer.
 	 */
@@ -721,9 +670,12 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	lpfc_cmd->prot_data_type = 0;
 #endif
-	lpfc_cmd->fcp_cmnd = (lpfc_cmd->data + sgl_size);
-	lpfc_cmd->fcp_rsp = (struct fcp_rsp *)((uint8_t *)lpfc_cmd->fcp_cmnd +
-				sizeof(struct fcp_cmnd));
+	tmp = lpfc_get_cmd_rsp_buf_per_hdwq(phba, lpfc_cmd);
+	if (!tmp)
+		return NULL;
+
+	lpfc_cmd->fcp_cmnd = tmp->fcp_cmnd;
+	lpfc_cmd->fcp_rsp = tmp->fcp_rsp;
 
 	/*
 	 * The first two SGEs are the FCP_CMD and FCP_RSP.
@@ -731,7 +683,7 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	 * first two and leave the rest for queuecommand.
 	 */
 	sgl = (struct sli4_sge *)lpfc_cmd->dma_sgl;
-	pdma_phys_fcp_cmd = (lpfc_cmd->dma_handle + sgl_size);
+	pdma_phys_fcp_cmd = tmp->fcp_cmd_rsp_dma_handle;
 	sgl->addr_hi = cpu_to_le32(putPaddrHigh(pdma_phys_fcp_cmd));
 	sgl->addr_lo = cpu_to_le32(putPaddrLow(pdma_phys_fcp_cmd));
 	sgl->word2 = le32_to_cpu(sgl->word2);
@@ -835,11 +787,11 @@ lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *psb)
 
 	qp = psb->hdwq;
 	if (psb->exch_busy) {
-		spin_lock_irqsave(&qp->abts_scsi_buf_list_lock, iflag);
+		spin_lock_irqsave(&qp->abts_io_buf_list_lock, iflag);
 		psb->pCmd = NULL;
-		list_add_tail(&psb->list, &qp->lpfc_abts_scsi_buf_list);
+		list_add_tail(&psb->list, &qp->lpfc_abts_io_buf_list);
 		qp->abts_scsi_io_bufs++;
-		spin_unlock_irqrestore(&qp->abts_scsi_buf_list_lock, iflag);
+		spin_unlock_irqrestore(&qp->abts_io_buf_list_lock, iflag);
 	} else {
 		lpfc_release_io_buf(phba, (struct lpfc_io_buf *)psb, qp);
 	}
@@ -918,9 +870,10 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 			       "dma_map_sg.  Config %d, seg_cnt %d\n",
 			       __func__, phba->cfg_sg_seg_cnt,
 			       lpfc_cmd->seg_cnt);
+			WARN_ON_ONCE(lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt);
 			lpfc_cmd->seg_cnt = 0;
 			scsi_dma_unmap(scsi_cmnd);
-			return 1;
+			return 2;
 		}
 
 		/*
@@ -1774,7 +1727,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 	if (!sgpe || !sgde) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-				"9020 Invalid s/g entry: data=0x%p prot=0x%p\n",
+				"9020 Invalid s/g entry: data=x%px prot=x%px\n",
 				sgpe, sgde);
 		return 0;
 	}
@@ -1989,7 +1942,8 @@ out:
  **/
 static int
 lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
-		struct sli4_sge *sgl, int datasegcnt)
+		struct sli4_sge *sgl, int datasegcnt,
+		struct lpfc_io_buf *lpfc_cmd)
 {
 	struct scatterlist *sgde = NULL; /* s/g data entry */
 	struct sli4_sge_diseed *diseed = NULL;
@@ -2003,6 +1957,9 @@ lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	uint32_t checking = 1;
 	uint32_t dma_len;
 	uint32_t dma_offset = 0;
+	struct sli4_hybrid_sgl *sgl_xtra = NULL;
+	int j;
+	bool lsp_just_set = false;
 
 	status  = lpfc_sc_to_bg_opcodes(phba, sc, &txop, &rxop);
 	if (status)
@@ -2062,23 +2019,64 @@ lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	sgl++;
 
 	/* assumption: caller has already run dma_map_sg on command data */
-	scsi_for_each_sg(sc, sgde, datasegcnt, i) {
-		physaddr = sg_dma_address(sgde);
-		dma_len = sg_dma_len(sgde);
-		sgl->addr_lo = cpu_to_le32(putPaddrLow(physaddr));
-		sgl->addr_hi = cpu_to_le32(putPaddrHigh(physaddr));
-		if ((i + 1) == datasegcnt)
-			bf_set(lpfc_sli4_sge_last, sgl, 1);
-		else
-			bf_set(lpfc_sli4_sge_last, sgl, 0);
-		bf_set(lpfc_sli4_sge_offset, sgl, dma_offset);
-		bf_set(lpfc_sli4_sge_type, sgl, LPFC_SGE_TYPE_DATA);
+	sgde = scsi_sglist(sc);
+	j = 3;
+	for (i = 0; i < datasegcnt; i++) {
+		/* clear it */
+		sgl->word2 = 0;
 
-		sgl->sge_len = cpu_to_le32(dma_len);
-		dma_offset += dma_len;
+		/* do we need to expand the segment */
+		if (!lsp_just_set && !((j + 1) % phba->border_sge_num) &&
+		    ((datasegcnt - 1) != i)) {
+			/* set LSP type */
+			bf_set(lpfc_sli4_sge_type, sgl, LPFC_SGE_TYPE_LSP);
 
-		sgl++;
-		num_sge++;
+			sgl_xtra = lpfc_get_sgl_per_hdwq(phba, lpfc_cmd);
+
+			if (unlikely(!sgl_xtra)) {
+				lpfc_cmd->seg_cnt = 0;
+				return 0;
+			}
+			sgl->addr_lo = cpu_to_le32(putPaddrLow(
+						sgl_xtra->dma_phys_sgl));
+			sgl->addr_hi = cpu_to_le32(putPaddrHigh(
+						sgl_xtra->dma_phys_sgl));
+
+		} else {
+			bf_set(lpfc_sli4_sge_type, sgl, LPFC_SGE_TYPE_DATA);
+		}
+
+		if (!(bf_get(lpfc_sli4_sge_type, sgl) & LPFC_SGE_TYPE_LSP)) {
+			if ((datasegcnt - 1) == i)
+				bf_set(lpfc_sli4_sge_last, sgl, 1);
+			physaddr = sg_dma_address(sgde);
+			dma_len = sg_dma_len(sgde);
+			sgl->addr_lo = cpu_to_le32(putPaddrLow(physaddr));
+			sgl->addr_hi = cpu_to_le32(putPaddrHigh(physaddr));
+
+			bf_set(lpfc_sli4_sge_offset, sgl, dma_offset);
+			sgl->word2 = cpu_to_le32(sgl->word2);
+			sgl->sge_len = cpu_to_le32(dma_len);
+
+			dma_offset += dma_len;
+			sgde = sg_next(sgde);
+
+			sgl++;
+			num_sge++;
+			lsp_just_set = false;
+
+		} else {
+			sgl->word2 = cpu_to_le32(sgl->word2);
+			sgl->sge_len = cpu_to_le32(phba->cfg_sg_dma_buf_size);
+
+			sgl = (struct sli4_sge *)sgl_xtra->dma_sgl;
+			i = i - 1;
+
+			lsp_just_set = true;
+		}
+
+		j++;
+
 	}
 
 out:
@@ -2124,7 +2122,8 @@ out:
  **/
 static int
 lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
-		struct sli4_sge *sgl, int datacnt, int protcnt)
+		struct sli4_sge *sgl, int datacnt, int protcnt,
+		struct lpfc_io_buf *lpfc_cmd)
 {
 	struct scatterlist *sgde = NULL; /* s/g data entry */
 	struct scatterlist *sgpe = NULL; /* s/g prot entry */
@@ -2146,14 +2145,15 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 #endif
 	uint32_t checking = 1;
 	uint32_t dma_offset = 0;
-	int num_sge = 0;
+	int num_sge = 0, j = 2;
+	struct sli4_hybrid_sgl *sgl_xtra = NULL;
 
 	sgpe = scsi_prot_sglist(sc);
 	sgde = scsi_sglist(sc);
 
 	if (!sgpe || !sgde) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-				"9082 Invalid s/g entry: data=0x%p prot=0x%p\n",
+				"9082 Invalid s/g entry: data=x%px prot=x%px\n",
 				sgpe, sgde);
 		return 0;
 	}
@@ -2179,8 +2179,36 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	split_offset = 0;
 	do {
 		/* Check to see if we ran out of space */
-		if (num_sge >= (phba->cfg_total_seg_cnt - 2))
+		if ((num_sge >= (phba->cfg_total_seg_cnt - 2)) &&
+		    !(phba->cfg_xpsgl))
 			return num_sge + 3;
+
+		/* DISEED and DIF have to be together */
+		if (!((j + 1) % phba->border_sge_num) ||
+		    !((j + 2) % phba->border_sge_num) ||
+		    !((j + 3) % phba->border_sge_num)) {
+			sgl->word2 = 0;
+
+			/* set LSP type */
+			bf_set(lpfc_sli4_sge_type, sgl, LPFC_SGE_TYPE_LSP);
+
+			sgl_xtra = lpfc_get_sgl_per_hdwq(phba, lpfc_cmd);
+
+			if (unlikely(!sgl_xtra)) {
+				goto out;
+			} else {
+				sgl->addr_lo = cpu_to_le32(putPaddrLow(
+						sgl_xtra->dma_phys_sgl));
+				sgl->addr_hi = cpu_to_le32(putPaddrHigh(
+						       sgl_xtra->dma_phys_sgl));
+			}
+
+			sgl->word2 = cpu_to_le32(sgl->word2);
+			sgl->sge_len = cpu_to_le32(phba->cfg_sg_dma_buf_size);
+
+			sgl = (struct sli4_sge *)sgl_xtra->dma_sgl;
+			j = 0;
+		}
 
 		/* setup DISEED with what we have */
 		diseed = (struct sli4_sge_diseed *) sgl;
@@ -2228,7 +2256,9 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 		/* advance sgl and increment bde count */
 		num_sge++;
+
 		sgl++;
+		j++;
 
 		/* setup the first BDE that points to protection buffer */
 		protphysaddr = sg_dma_address(sgpe) + protgroup_offset;
@@ -2243,6 +2273,7 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		sgl->addr_hi = le32_to_cpu(putPaddrHigh(protphysaddr));
 		sgl->addr_lo = le32_to_cpu(putPaddrLow(protphysaddr));
 		sgl->word2 = cpu_to_le32(sgl->word2);
+		sgl->sge_len = 0;
 
 		protgrp_blks = protgroup_len / 8;
 		protgrp_bytes = protgrp_blks * blksize;
@@ -2263,9 +2294,14 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		/* setup SGE's for data blocks associated with DIF data */
 		pgdone = 0;
 		subtotal = 0; /* total bytes processed for current prot grp */
+
+		sgl++;
+		j++;
+
 		while (!pgdone) {
 			/* Check to see if we ran out of space */
-			if (num_sge >= phba->cfg_total_seg_cnt)
+			if ((num_sge >= phba->cfg_total_seg_cnt) &&
+			    !phba->cfg_xpsgl)
 				return num_sge + 1;
 
 			if (!sgde) {
@@ -2274,60 +2310,101 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 						__func__);
 				return 0;
 			}
-			sgl++;
-			dataphysaddr = sg_dma_address(sgde) + split_offset;
 
-			remainder = sg_dma_len(sgde) - split_offset;
+			if (!((j + 1) % phba->border_sge_num)) {
+				sgl->word2 = 0;
 
-			if ((subtotal + remainder) <= protgrp_bytes) {
-				/* we can use this whole buffer */
-				dma_len = remainder;
-				split_offset = 0;
+				/* set LSP type */
+				bf_set(lpfc_sli4_sge_type, sgl,
+				       LPFC_SGE_TYPE_LSP);
 
-				if ((subtotal + remainder) == protgrp_bytes)
-					pgdone = 1;
+				sgl_xtra = lpfc_get_sgl_per_hdwq(phba,
+								 lpfc_cmd);
+
+				if (unlikely(!sgl_xtra)) {
+					goto out;
+				} else {
+					sgl->addr_lo = cpu_to_le32(
+					  putPaddrLow(sgl_xtra->dma_phys_sgl));
+					sgl->addr_hi = cpu_to_le32(
+					  putPaddrHigh(sgl_xtra->dma_phys_sgl));
+				}
+
+				sgl->word2 = cpu_to_le32(sgl->word2);
+				sgl->sge_len = cpu_to_le32(
+						     phba->cfg_sg_dma_buf_size);
+
+				sgl = (struct sli4_sge *)sgl_xtra->dma_sgl;
 			} else {
-				/* must split this buffer with next prot grp */
-				dma_len = protgrp_bytes - subtotal;
-				split_offset += dma_len;
+				dataphysaddr = sg_dma_address(sgde) +
+								   split_offset;
+
+				remainder = sg_dma_len(sgde) - split_offset;
+
+				if ((subtotal + remainder) <= protgrp_bytes) {
+					/* we can use this whole buffer */
+					dma_len = remainder;
+					split_offset = 0;
+
+					if ((subtotal + remainder) ==
+								  protgrp_bytes)
+						pgdone = 1;
+				} else {
+					/* must split this buffer with next
+					 * prot grp
+					 */
+					dma_len = protgrp_bytes - subtotal;
+					split_offset += dma_len;
+				}
+
+				subtotal += dma_len;
+
+				sgl->word2 = 0;
+				sgl->addr_lo = cpu_to_le32(putPaddrLow(
+								 dataphysaddr));
+				sgl->addr_hi = cpu_to_le32(putPaddrHigh(
+								 dataphysaddr));
+				bf_set(lpfc_sli4_sge_last, sgl, 0);
+				bf_set(lpfc_sli4_sge_offset, sgl, dma_offset);
+				bf_set(lpfc_sli4_sge_type, sgl,
+				       LPFC_SGE_TYPE_DATA);
+
+				sgl->sge_len = cpu_to_le32(dma_len);
+				dma_offset += dma_len;
+
+				num_sge++;
+				curr_data++;
+
+				if (split_offset) {
+					sgl++;
+					j++;
+					break;
+				}
+
+				/* Move to the next s/g segment if possible */
+				sgde = sg_next(sgde);
+
+				sgl++;
 			}
 
-			subtotal += dma_len;
-
-			sgl->addr_lo = cpu_to_le32(putPaddrLow(dataphysaddr));
-			sgl->addr_hi = cpu_to_le32(putPaddrHigh(dataphysaddr));
-			bf_set(lpfc_sli4_sge_last, sgl, 0);
-			bf_set(lpfc_sli4_sge_offset, sgl, dma_offset);
-			bf_set(lpfc_sli4_sge_type, sgl, LPFC_SGE_TYPE_DATA);
-
-			sgl->sge_len = cpu_to_le32(dma_len);
-			dma_offset += dma_len;
-
-			num_sge++;
-			curr_data++;
-
-			if (split_offset)
-				break;
-
-			/* Move to the next s/g segment if possible */
-			sgde = sg_next(sgde);
+			j++;
 		}
 
 		if (protgroup_offset) {
 			/* update the reference tag */
 			reftag += protgrp_blks;
-			sgl++;
 			continue;
 		}
 
 		/* are we done ? */
 		if (curr_prot == protcnt) {
+			/* mark the last SGL */
+			sgl--;
 			bf_set(lpfc_sli4_sge_last, sgl, 1);
 			alldone = 1;
 		} else if (curr_prot < protcnt) {
 			/* advance to next prot buffer */
 			sgpe = sg_next(sgpe);
-			sgl++;
 
 			/* update the reference tag */
 			reftag += protgrp_blks;
@@ -2430,7 +2507,10 @@ lpfc_bg_scsi_adjust_dl(struct lpfc_hba *phba,
  *
  * This is the protection/DIF aware version of
  * lpfc_scsi_prep_dma_buf(). It may be a good idea to combine the
- * two functions eventually, but for now, it's here
+ * two functions eventually, but for now, it's here.
+ * RETURNS 0 - SUCCESS,
+ *         1 - Failed DMA map, retry.
+ *         2 - Invalid scsi cmd or prot-type. Do not rety.
  **/
 static int
 lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
@@ -2444,6 +2524,7 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 	int datasegcnt, protsegcnt, datadir = scsi_cmnd->sc_data_direction;
 	int prot_group_type = 0;
 	int fcpdl;
+	int ret = 1;
 	struct lpfc_vport *vport = phba->pport;
 
 	/*
@@ -2467,8 +2548,11 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 		lpfc_cmd->seg_cnt = datasegcnt;
 
 		/* First check if data segment count from SCSI Layer is good */
-		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt)
+		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
+			WARN_ON_ONCE(lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt);
+			ret = 2;
 			goto err;
+		}
 
 		prot_group_type = lpfc_prot_group_type(phba, scsi_cmnd);
 
@@ -2476,14 +2560,18 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 		case LPFC_PG_TYPE_NO_DIF:
 
 			/* Here we need to add a PDE5 and PDE6 to the count */
-			if ((lpfc_cmd->seg_cnt + 2) > phba->cfg_total_seg_cnt)
+			if ((lpfc_cmd->seg_cnt + 2) > phba->cfg_total_seg_cnt) {
+				ret = 2;
 				goto err;
+			}
 
 			num_bde = lpfc_bg_setup_bpl(phba, scsi_cmnd, bpl,
 					datasegcnt);
 			/* we should have 2 or more entries in buffer list */
-			if (num_bde < 2)
+			if (num_bde < 2) {
+				ret = 2;
 				goto err;
+			}
 			break;
 
 		case LPFC_PG_TYPE_DIF_BUF:
@@ -2507,15 +2595,19 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 			 * protection data segment.
 			 */
 			if ((lpfc_cmd->prot_seg_cnt * 4) >
-			    (phba->cfg_total_seg_cnt - 2))
+			    (phba->cfg_total_seg_cnt - 2)) {
+				ret = 2;
 				goto err;
+			}
 
 			num_bde = lpfc_bg_setup_bpl_prot(phba, scsi_cmnd, bpl,
 					datasegcnt, protsegcnt);
 			/* we should have 3 or more entries in buffer list */
 			if ((num_bde < 3) ||
-			    (num_bde > phba->cfg_total_seg_cnt))
+			    (num_bde > phba->cfg_total_seg_cnt)) {
+				ret = 2;
 				goto err;
+			}
 			break;
 
 		case LPFC_PG_TYPE_INVALID:
@@ -2526,7 +2618,7 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
 					"9022 Unexpected protection group %i\n",
 					prot_group_type);
-			return 1;
+			return 2;
 		}
 	}
 
@@ -2576,7 +2668,7 @@ err:
 
 	lpfc_cmd->seg_cnt = 0;
 	lpfc_cmd->prot_seg_cnt = 0;
-	return 1;
+	return ret;
 }
 
 /*
@@ -2809,26 +2901,6 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd,
 	uint32_t bgstat = bgf->bgstat;
 	uint64_t failing_sector = 0;
 
-	spin_lock(&_dump_buf_lock);
-	if (!_dump_buf_done) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,  "9070 BLKGRD: Saving"
-			" Data for %u blocks to debugfs\n",
-				(cmd->cmnd[7] << 8 | cmd->cmnd[8]));
-		lpfc_debug_save_data(phba, cmd);
-
-		/* If we have a prot sgl, save the DIF buffer */
-		if (lpfc_prot_group_type(phba, cmd) ==
-				LPFC_PG_TYPE_DIF_BUF) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9071 BLKGRD: "
-				"Saving DIF for %u blocks to debugfs\n",
-				(cmd->cmnd[7] << 8 | cmd->cmnd[8]));
-			lpfc_debug_save_dif(phba, cmd);
-		}
-
-		_dump_buf_done = 1;
-	}
-	spin_unlock(&_dump_buf_lock);
-
 	if (lpfc_bgs_get_invalid_prof(bgstat)) {
 		cmd->result = DID_ERROR << 16;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
@@ -2962,7 +3034,8 @@ out:
  * field of @lpfc_cmd for device with SLI-4 interface spec.
  *
  * Return codes:
- *	1 - Error
+ *	2 - Error - Do not retry
+ *	1 - Error - Retry
  *	0 - Success
  **/
 static int
@@ -2978,8 +3051,10 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 	uint32_t num_bde = 0;
 	uint32_t dma_len;
 	uint32_t dma_offset = 0;
-	int nseg;
+	int nseg, i, j;
 	struct ulp_bde64 *bde;
+	bool lsp_just_set = false;
+	struct sli4_hybrid_sgl *sgl_xtra = NULL;
 
 	/*
 	 * There are three possibilities here - use scatter-gather segment, use
@@ -3006,15 +3081,17 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 		sgl += 1;
 		first_data_sgl = sgl;
 		lpfc_cmd->seg_cnt = nseg;
-		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
+		if (!phba->cfg_xpsgl &&
+		    lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9074 BLKGRD:"
 				" %s: Too many sg segments from "
 				"dma_map_sg.  Config %d, seg_cnt %d\n",
 				__func__, phba->cfg_sg_seg_cnt,
 			       lpfc_cmd->seg_cnt);
+			WARN_ON_ONCE(lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt);
 			lpfc_cmd->seg_cnt = 0;
 			scsi_dma_unmap(scsi_cmnd);
-			return 1;
+			return 2;
 		}
 
 		/*
@@ -3026,22 +3103,80 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 		 * the IOCB. If it can't then the BDEs get added to a BPL as it
 		 * does for SLI-2 mode.
 		 */
-		scsi_for_each_sg(scsi_cmnd, sgel, nseg, num_bde) {
-			physaddr = sg_dma_address(sgel);
-			dma_len = sg_dma_len(sgel);
-			sgl->addr_lo = cpu_to_le32(putPaddrLow(physaddr));
-			sgl->addr_hi = cpu_to_le32(putPaddrHigh(physaddr));
-			sgl->word2 = le32_to_cpu(sgl->word2);
-			if ((num_bde + 1) == nseg)
+
+		/* for tracking segment boundaries */
+		sgel = scsi_sglist(scsi_cmnd);
+		j = 2;
+		for (i = 0; i < nseg; i++) {
+			sgl->word2 = 0;
+			if ((num_bde + 1) == nseg) {
 				bf_set(lpfc_sli4_sge_last, sgl, 1);
-			else
+				bf_set(lpfc_sli4_sge_type, sgl,
+				       LPFC_SGE_TYPE_DATA);
+			} else {
 				bf_set(lpfc_sli4_sge_last, sgl, 0);
-			bf_set(lpfc_sli4_sge_offset, sgl, dma_offset);
-			bf_set(lpfc_sli4_sge_type, sgl, LPFC_SGE_TYPE_DATA);
-			sgl->word2 = cpu_to_le32(sgl->word2);
-			sgl->sge_len = cpu_to_le32(dma_len);
-			dma_offset += dma_len;
-			sgl++;
+
+				/* do we need to expand the segment */
+				if (!lsp_just_set &&
+				    !((j + 1) % phba->border_sge_num) &&
+				    ((nseg - 1) != i)) {
+					/* set LSP type */
+					bf_set(lpfc_sli4_sge_type, sgl,
+					       LPFC_SGE_TYPE_LSP);
+
+					sgl_xtra = lpfc_get_sgl_per_hdwq(
+							phba, lpfc_cmd);
+
+					if (unlikely(!sgl_xtra)) {
+						lpfc_cmd->seg_cnt = 0;
+						scsi_dma_unmap(scsi_cmnd);
+						return 1;
+					}
+					sgl->addr_lo = cpu_to_le32(putPaddrLow(
+						       sgl_xtra->dma_phys_sgl));
+					sgl->addr_hi = cpu_to_le32(putPaddrHigh(
+						       sgl_xtra->dma_phys_sgl));
+
+				} else {
+					bf_set(lpfc_sli4_sge_type, sgl,
+					       LPFC_SGE_TYPE_DATA);
+				}
+			}
+
+			if (!(bf_get(lpfc_sli4_sge_type, sgl) &
+				     LPFC_SGE_TYPE_LSP)) {
+				if ((nseg - 1) == i)
+					bf_set(lpfc_sli4_sge_last, sgl, 1);
+
+				physaddr = sg_dma_address(sgel);
+				dma_len = sg_dma_len(sgel);
+				sgl->addr_lo = cpu_to_le32(putPaddrLow(
+							   physaddr));
+				sgl->addr_hi = cpu_to_le32(putPaddrHigh(
+							   physaddr));
+
+				bf_set(lpfc_sli4_sge_offset, sgl, dma_offset);
+				sgl->word2 = cpu_to_le32(sgl->word2);
+				sgl->sge_len = cpu_to_le32(dma_len);
+
+				dma_offset += dma_len;
+				sgel = sg_next(sgel);
+
+				sgl++;
+				lsp_just_set = false;
+
+			} else {
+				sgl->word2 = cpu_to_le32(sgl->word2);
+				sgl->sge_len = cpu_to_le32(
+						     phba->cfg_sg_dma_buf_size);
+
+				sgl = (struct sli4_sge *)sgl_xtra->dma_sgl;
+				i = i - 1;
+
+				lsp_just_set = true;
+			}
+
+			j++;
 		}
 		/*
 		 * Setup the first Payload BDE. For FCoE we just key off
@@ -3110,6 +3245,10 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
  * This is the protection/DIF aware version of
  * lpfc_scsi_prep_dma_buf(). It may be a good idea to combine the
  * two functions eventually, but for now, it's here
+ * Return codes:
+ *	2 - Error - Do not retry
+ *	1 - Error - Retry
+ *	0 - Success
  **/
 static int
 lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
@@ -3123,6 +3262,7 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	int datasegcnt, protsegcnt, datadir = scsi_cmnd->sc_data_direction;
 	int prot_group_type = 0;
 	int fcpdl;
+	int ret = 1;
 	struct lpfc_vport *vport = phba->pport;
 
 	/*
@@ -3152,23 +3292,33 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 		lpfc_cmd->seg_cnt = datasegcnt;
 
 		/* First check if data segment count from SCSI Layer is good */
-		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt)
+		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt &&
+		    !phba->cfg_xpsgl) {
+			WARN_ON_ONCE(lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt);
+			ret = 2;
 			goto err;
+		}
 
 		prot_group_type = lpfc_prot_group_type(phba, scsi_cmnd);
 
 		switch (prot_group_type) {
 		case LPFC_PG_TYPE_NO_DIF:
 			/* Here we need to add a DISEED to the count */
-			if ((lpfc_cmd->seg_cnt + 1) > phba->cfg_total_seg_cnt)
+			if (((lpfc_cmd->seg_cnt + 1) >
+					phba->cfg_total_seg_cnt) &&
+			    !phba->cfg_xpsgl) {
+				ret = 2;
 				goto err;
+			}
 
 			num_sge = lpfc_bg_setup_sgl(phba, scsi_cmnd, sgl,
-					datasegcnt);
+					datasegcnt, lpfc_cmd);
 
 			/* we should have 2 or more entries in buffer list */
-			if (num_sge < 2)
+			if (num_sge < 2) {
+				ret = 2;
 				goto err;
+			}
 			break;
 
 		case LPFC_PG_TYPE_DIF_BUF:
@@ -3190,17 +3340,23 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 			 * There is a minimun of 3 SGEs used for every
 			 * protection data segment.
 			 */
-			if ((lpfc_cmd->prot_seg_cnt * 3) >
-			    (phba->cfg_total_seg_cnt - 2))
+			if (((lpfc_cmd->prot_seg_cnt * 3) >
+					(phba->cfg_total_seg_cnt - 2)) &&
+			    !phba->cfg_xpsgl) {
+				ret = 2;
 				goto err;
+			}
 
 			num_sge = lpfc_bg_setup_sgl_prot(phba, scsi_cmnd, sgl,
-					datasegcnt, protsegcnt);
+					datasegcnt, protsegcnt, lpfc_cmd);
 
 			/* we should have 3 or more entries in buffer list */
-			if ((num_sge < 3) ||
-			    (num_sge > phba->cfg_total_seg_cnt))
+			if (num_sge < 3 ||
+			    (num_sge > phba->cfg_total_seg_cnt &&
+			     !phba->cfg_xpsgl)) {
+				ret = 2;
 				goto err;
+			}
 			break;
 
 		case LPFC_PG_TYPE_INVALID:
@@ -3211,7 +3367,7 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
 					"9083 Unexpected protection group %i\n",
 					prot_group_type);
-			return 1;
+			return 2;
 		}
 	}
 
@@ -3273,7 +3429,7 @@ err:
 
 	lpfc_cmd->seg_cnt = 0;
 	lpfc_cmd->prot_seg_cnt = 0;
-	return 1;
+	return ret;
 }
 
 /**
@@ -3839,7 +3995,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		uint32_t *lp = (uint32_t *)cmd->sense_buffer;
 
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
-				 "0710 Iodone <%d/%llu> cmd %p, error "
+				 "0710 Iodone <%d/%llu> cmd x%px, error "
 				 "x%x SNS x%x x%x Data: x%x x%x\n",
 				 cmd->device->id, cmd->device->lun, cmd,
 				 cmd->result, *lp, *(lp + 3), cmd->retries,
@@ -4454,8 +4610,12 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		err = lpfc_scsi_prep_dma_buf(phba, lpfc_cmd);
 	}
 
-	if (err)
+	if (err == 2) {
+		cmnd->result = DID_ERROR << 16;
+		goto out_fail_command_release_buf;
+	} else if (err) {
 		goto out_host_busy_free_buf;
+	}
 
 	lpfc_scsi_prep_cmnd(vport, lpfc_cmd, ndlp);
 
@@ -4526,6 +4686,9 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
  out_tgt_busy:
 	return SCSI_MLQUEUE_TARGET_BUSY;
 
+ out_fail_command_release_buf:
+	lpfc_release_scsi_buf(phba, lpfc_cmd);
+
  out_fail_command:
 	cmnd->scsi_done(cmnd);
 	return 0;
@@ -4568,7 +4731,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	/* driver queued commands are in process of being flushed */
-	if (phba->hba_flag & HBA_FCP_IOQ_FLUSH) {
+	if (phba->hba_flag & HBA_IOQ_FLUSH) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			"3168 SCSI Layer abort requested I/O has been "
 			"flushed by LLD.\n");
@@ -4589,7 +4752,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	iocb = &lpfc_cmd->cur_iocbq;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		pring_s4 = phba->sli4_hba.hdwq[iocb->hba_wqidx].fcp_wq->pring;
+		pring_s4 = phba->sli4_hba.hdwq[iocb->hba_wqidx].io_wq->pring;
 		if (!pring_s4) {
 			ret = FAILED;
 			goto out_unlock_buf;
@@ -4956,7 +5119,7 @@ lpfc_chk_tgt_mapped(struct lpfc_vport *vport, struct scsi_cmnd *cmnd)
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 	if (!rdata) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
-			"0797 Tgt Map rport failure: rdata x%p\n", rdata);
+			"0797 Tgt Map rport failure: rdata x%px\n", rdata);
 		return FAILED;
 	}
 	pnode = rdata->pnode;
@@ -5054,7 +5217,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 	if (!rdata || !rdata->pnode) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-				 "0798 Device Reset rdata failure: rdata x%p\n",
+				 "0798 Device Reset rdata failure: rdata x%px\n",
 				 rdata);
 		return FAILED;
 	}
@@ -5066,7 +5229,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	status = lpfc_chk_tgt_mapped(vport, cmnd);
 	if (status == FAILED) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-			"0721 Device Reset rport failure: rdata x%p\n", rdata);
+			"0721 Device Reset rport failure: rdata x%px\n", rdata);
 		return FAILED;
 	}
 
@@ -5125,7 +5288,7 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 	if (!rdata || !rdata->pnode) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-				 "0799 Target Reset rdata failure: rdata x%p\n",
+				 "0799 Target Reset rdata failure: rdata x%px\n",
 				 rdata);
 		return FAILED;
 	}
@@ -5137,7 +5300,7 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 	status = lpfc_chk_tgt_mapped(vport, cmnd);
 	if (status == FAILED) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-			"0722 Target Reset rport failure: rdata x%p\n", rdata);
+			"0722 Target Reset rport failure: rdata x%px\n", rdata);
 		if (pnode) {
 			spin_lock_irq(shost->host_lock);
 			pnode->nlp_flag &= ~NLP_NPR_ADISC;
@@ -5295,18 +5458,20 @@ lpfc_host_reset_handler(struct scsi_cmnd *cmnd)
 	lpfc_offline(phba);
 	rc = lpfc_sli_brdrestart(phba);
 	if (rc)
-		ret = FAILED;
+		goto error;
+
 	rc = lpfc_online(phba);
 	if (rc)
-		ret = FAILED;
+		goto error;
+
 	lpfc_unblock_mgmt_io(phba);
 
-	if (ret == FAILED) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-				 "3323 Failed host reset, bring it offline\n");
-		lpfc_sli4_offline_eratt(phba);
-	}
 	return ret;
+error:
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			 "3323 Failed host reset\n");
+	lpfc_unblock_mgmt_io(phba);
+	return FAILED;
 }
 
 /**
@@ -5870,7 +6035,7 @@ struct scsi_host_template lpfc_template_no_hr = {
 	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
 	.cmd_per_lun		= LPFC_CMD_PER_LUN,
 	.shost_attrs		= lpfc_hba_attrs,
-	.max_sectors		= 0xFFFF,
+	.max_sectors		= 0xFFFFFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
 	.change_queue_depth	= scsi_change_queue_depth,
 	.track_queue_depth	= 1,

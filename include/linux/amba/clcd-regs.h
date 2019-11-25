@@ -42,6 +42,7 @@
 #define TIM2_PCD_LO_MASK	GENMASK(4, 0)
 #define TIM2_PCD_LO_BITS	5
 #define TIM2_CLKSEL		(1 << 5)
+#define TIM2_ACB_MASK		GENMASK(10, 6)
 #define TIM2_IVS		(1 << 11)
 #define TIM2_IHS		(1 << 12)
 #define TIM2_IPC		(1 << 13)

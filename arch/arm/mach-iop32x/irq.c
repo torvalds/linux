@@ -13,8 +13,9 @@
 #include <linux/list.h>
 #include <asm/mach/irq.h>
 #include <asm/irq.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
+
+#include "hardware.h"
 
 static u32 iop32x_mask;
 

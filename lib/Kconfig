@@ -555,11 +555,10 @@ config SIGNATURE
 	  Implementation is done using GnuPG MPI library
 
 config DIMLIB
-	bool "DIM library"
-	default y
+	bool
 	help
 	  Dynamic Interrupt Moderation library.
-	  Implements an algorithm for dynamically change CQ modertion values
+	  Implements an algorithm for dynamically changing CQ moderation values
 	  according to run time performance.
 
 #
@@ -631,6 +630,9 @@ config SBITMAP
 config PARMAN
 	tristate "parman" if COMPILE_TEST
 
+config OBJAGG
+	tristate "objagg" if COMPILE_TEST
+
 config STRING_SELFTEST
 	tristate "Test string functions"
 
@@ -653,6 +655,3 @@ config GENERIC_LIB_CMPDI2
 
 config GENERIC_LIB_UCMPDI2
 	bool
-
-config OBJAGG
-	tristate "objagg" if COMPILE_TEST

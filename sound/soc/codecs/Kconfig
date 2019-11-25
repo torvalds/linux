@@ -51,7 +51,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_BT_SCO
 	select SND_SOC_BD28623
 	select SND_SOC_CQ0093VC
-	select SND_SOC_CROS_EC_CODEC if MFD_CROS_EC
+	select SND_SOC_CROS_EC_CODEC if CROS_EC
 	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS35L33 if I2C
 	select SND_SOC_CS35L34 if I2C
@@ -70,10 +70,12 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS43130 if I2C
 	select SND_SOC_CS4341 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CS4349 if I2C
+	select SND_SOC_CS47L15 if MFD_CS47L15
 	select SND_SOC_CS47L24 if MFD_CS47L24
 	select SND_SOC_CS47L35 if MFD_CS47L35
 	select SND_SOC_CS47L85 if MFD_CS47L85
 	select SND_SOC_CS47L90 if MFD_CS47L90
+	select SND_SOC_CS47L92 if MFD_CS47L92
 	select SND_SOC_CS53L30 if I2C
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_CX2072X if I2C
@@ -197,6 +199,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TS3A227E if I2C
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_TWL6040 if TWL6040_CORE
+	select SND_SOC_UDA1334 if GPIOLIB
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
 	select SND_SOC_WCD9335 if SLIMBUS
@@ -474,7 +477,7 @@ config SND_SOC_CQ0093VC
 
 config SND_SOC_CROS_EC_CODEC
 	tristate "codec driver for ChromeOS EC"
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	help
 	  If you say yes here you will get support for the
 	  ChromeOS Embedded Controller's Audio Codec.
@@ -581,6 +584,9 @@ config SND_SOC_CS4349
 	tristate "Cirrus Logic CS4349 CODEC"
 	depends on I2C
 
+config SND_SOC_CS47L15
+	tristate
+
 config SND_SOC_CS47L24
 	tristate
 
@@ -591,6 +597,9 @@ config SND_SOC_CS47L85
 	tristate
 
 config SND_SOC_CS47L90
+	tristate
+
+config SND_SOC_CS47L92
 	tristate
 
 # Cirrus Logic Quad-Channel ADC
@@ -722,12 +731,16 @@ config SND_SOC_LOCHNAGAR_SC
 
 config SND_SOC_MADERA
 	tristate
+	default y if SND_SOC_CS47L15=y
 	default y if SND_SOC_CS47L35=y
 	default y if SND_SOC_CS47L85=y
 	default y if SND_SOC_CS47L90=y
+	default y if SND_SOC_CS47L92=y
+	default m if SND_SOC_CS47L15=m
 	default m if SND_SOC_CS47L35=m
 	default m if SND_SOC_CS47L85=m
 	default m if SND_SOC_CS47L90=m
+	default m if SND_SOC_CS47L92=m
 
 config SND_SOC_MAX98088
 	tristate "Maxim MAX98088/9 Low-Power, Stereo Audio Codec"
@@ -1194,6 +1207,14 @@ config SND_SOC_TWL4030
 
 config SND_SOC_TWL6040
 	tristate
+
+config SND_SOC_UDA1334
+	tristate "NXP UDA1334 DAC"
+	depends on GPIOLIB
+	help
+	  The UDA1334 is an NXP audio codec, supports the I2S-bus data format
+	  and has basic features such as de-emphasis (at 44.1 kHz sampling
+	  rate) and mute.
 
 config SND_SOC_UDA134X
        tristate

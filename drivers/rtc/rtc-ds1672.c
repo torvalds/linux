@@ -128,9 +128,6 @@ static int ds1672_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
-
 	i2c_set_clientdata(client, rtc);
 
 	return 0;

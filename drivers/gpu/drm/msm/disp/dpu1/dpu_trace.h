@@ -392,7 +392,7 @@ TRACE_EVENT(dpu_enc_rc,
 		__entry->rc_state = rc_state;
 		__assign_str(stage_str, stage);
 	),
-	TP_printk("%s: id:%u, sw_event:%d, idle_pc_supported:%s, rc_state:%d\n",
+	TP_printk("%s: id:%u, sw_event:%d, idle_pc_supported:%s, rc_state:%d",
 		  __get_str(stage_str), __entry->drm_id, __entry->sw_event,
 		  __entry->idle_pc_supported ? "true" : "false",
 		  __entry->rc_state)

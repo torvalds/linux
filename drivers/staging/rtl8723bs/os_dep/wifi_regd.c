@@ -33,11 +33,6 @@
 	REG_RULE(2467 - 10, 2472 + 10, 40, 0, 20,	\
 	NL80211_RRF_PASSIVE_SCAN)
 
-/* 2G chan 14, PASSIVS SCAN, NO OFDM (B only) */
-#define RTW_2GHZ_CH14	\
-	REG_RULE(2484 - 10, 2484 + 10, 40, 0, 20,	\
-	NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_OFDM)
-
 static const struct ieee80211_regdomain rtw_regdom_rd = {
 	.n_reg_rules = 3,
 	.alpha2 = "99",

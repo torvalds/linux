@@ -124,7 +124,7 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
 	unsigned int freq, diff, best_freq = 0, diff_min = ~0;
-	int i, ret;
+	int i;
 
 	/* tested only on R-Car Gen2+ currently; may work for others */
 	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
@@ -153,9 +153,9 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 		}
 	}
 
-	ret = clk_set_rate(priv->clk, best_freq);
+	clk_set_rate(priv->clk, best_freq);
 
-	return ret == 0 ? best_freq : clk_get_rate(priv->clk);
+	return clk_get_rate(priv->clk);
 }
 
 static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
@@ -166,10 +166,13 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 
-	if (new_clock == 0)
+	if (new_clock == 0) {
+		host->mmc->actual_clock = 0;
 		goto out;
+	}
 
-	clock = renesas_sdhi_clk_update(host, new_clock) / 512;
+	host->mmc->actual_clock = renesas_sdhi_clk_update(host, new_clock);
+	clock = host->mmc->actual_clock / 512;
 
 	for (clk = 0x80000080; new_clock >= (clock << 1); clk >>= 1)
 		clock <<= 1;
@@ -643,8 +646,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	struct tmio_mmc_dma *dma_priv;
 	struct tmio_mmc_host *host;
 	struct renesas_sdhi *priv;
+	int num_irqs, irq, ret, i;
 	struct resource *res;
-	int irq, ret, i;
 	u16 ver;
 
 	of_data = of_device_get_match_data(&pdev->dev);
@@ -774,8 +777,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	/* All SDHI have SDIO status bits which must be 1 */
 	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_SETBITS;
 
-	pm_runtime_enable(&pdev->dev);
-
 	ret = renesas_sdhi_clk_enable(host);
 	if (ret)
 		goto efree;
@@ -824,22 +825,29 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		host->hs400_complete = renesas_sdhi_hs400_complete;
 	}
 
-	i = 0;
-	while (1) {
+	num_irqs = platform_irq_count(pdev);
+	if (num_irqs < 0) {
+		ret = num_irqs;
+		goto eirq;
+	}
+
+	/* There must be at least one IRQ source */
+	if (!num_irqs) {
+		ret = -ENXIO;
+		goto eirq;
+	}
+
+	for (i = 0; i < num_irqs; i++) {
 		irq = platform_get_irq(pdev, i);
-		if (irq < 0)
-			break;
-		i++;
+		if (irq < 0) {
+			ret = irq;
+			goto eirq;
+		}
+
 		ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_irq, 0,
 				       dev_name(&pdev->dev), host);
 		if (ret)
 			goto eirq;
-	}
-
-	/* There must be at least one IRQ source */
-	if (!i) {
-		ret = irq;
-		goto eirq;
 	}
 
 	dev_info(&pdev->dev, "%s base at 0x%08lx max clock rate %u MHz\n",
@@ -856,8 +864,6 @@ edisclk:
 efree:
 	tmio_mmc_host_free(host);
 
-	pm_runtime_disable(&pdev->dev);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(renesas_sdhi_probe);
@@ -868,8 +874,6 @@ int renesas_sdhi_remove(struct platform_device *pdev)
 
 	tmio_mmc_host_remove(host);
 	renesas_sdhi_clk_disable(host);
-
-	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }

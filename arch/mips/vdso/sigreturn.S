@@ -4,7 +4,7 @@
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
-#include "vdso.h"
+#include <asm/vdso/vdso.h>
 
 #include <uapi/asm/unistd.h>
 

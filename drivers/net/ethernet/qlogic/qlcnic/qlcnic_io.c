@@ -581,7 +581,7 @@ static int qlcnic_map_tx_skb(struct pci_dev *pdev, struct sk_buff *skb,
 			     struct qlcnic_cmd_buffer *pbuf)
 {
 	struct qlcnic_skb_frag *nf;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	int i, nr_frags;
 	dma_addr_t map;
 

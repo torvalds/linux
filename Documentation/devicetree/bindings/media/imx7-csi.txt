@@ -9,7 +9,7 @@ to connect directly to external CMOS image sensors.
 
 Required properties:
 
-- compatible    : "fsl,imx7-csi";
+- compatible    : "fsl,imx7-csi" or "fsl,imx6ul-csi";
 - reg           : base address and length of the register set for the device;
 - interrupts    : should contain CSI interrupt;
 - clocks        : list of clock specifiers, see

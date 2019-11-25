@@ -711,6 +711,35 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf,
 }
 
 /**
+ * i40e_get_settings_link_up_fec - Get the FEC mode encoding from mask
+ * @req_fec_info: mask request FEC info
+ * @ks: ethtool ksettings to fill in
+ **/
+static void i40e_get_settings_link_up_fec(u8 req_fec_info,
+					  struct ethtool_link_ksettings *ks)
+{
+	ethtool_link_ksettings_add_link_mode(ks, supported, FEC_NONE);
+	ethtool_link_ksettings_add_link_mode(ks, supported, FEC_RS);
+	ethtool_link_ksettings_add_link_mode(ks, supported, FEC_BASER);
+
+	if (I40E_AQ_SET_FEC_REQUEST_RS & req_fec_info) {
+		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_RS);
+	} else if (I40E_AQ_SET_FEC_REQUEST_KR & req_fec_info) {
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     FEC_BASER);
+	} else {
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     FEC_NONE);
+		if (I40E_AQ_SET_FEC_AUTO & req_fec_info) {
+			ethtool_link_ksettings_add_link_mode(ks, advertising,
+							     FEC_RS);
+			ethtool_link_ksettings_add_link_mode(ks, advertising,
+							     FEC_BASER);
+		}
+	}
+}
+
+/**
  * i40e_get_settings_link_up - Get the Link settings for when link is up
  * @hw: hw structure
  * @ks: ethtool ksettings to fill in
@@ -769,13 +798,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 						     25000baseSR_Full);
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
 						     25000baseSR_Full);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_NONE);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_RS);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_BASER);
-		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_NONE);
-		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_RS);
-		ethtool_link_ksettings_add_link_mode(ks, advertising,
-						     FEC_BASER);
+		i40e_get_settings_link_up_fec(hw_link_info->req_fec_info, ks);
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     10000baseSR_Full);
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
@@ -892,9 +915,6 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 						     40000baseKR4_Full);
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     25000baseKR_Full);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_NONE);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_RS);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_BASER);
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     20000baseKR2_Full);
 		ethtool_link_ksettings_add_link_mode(ks, supported,
@@ -908,10 +928,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 						     40000baseKR4_Full);
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
 						     25000baseKR_Full);
-		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_NONE);
-		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_RS);
-		ethtool_link_ksettings_add_link_mode(ks, advertising,
-						     FEC_BASER);
+		i40e_get_settings_link_up_fec(hw_link_info->req_fec_info, ks);
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
 						     20000baseKR2_Full);
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
@@ -929,13 +946,8 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 						     25000baseCR_Full);
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
 						     25000baseCR_Full);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_NONE);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_RS);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_BASER);
-		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_NONE);
-		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_RS);
-		ethtool_link_ksettings_add_link_mode(ks, advertising,
-						     FEC_BASER);
+		i40e_get_settings_link_up_fec(hw_link_info->req_fec_info, ks);
+
 		break;
 	case I40E_PHY_TYPE_25GBASE_AOC:
 	case I40E_PHY_TYPE_25GBASE_ACC:
@@ -945,13 +957,8 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 						     25000baseCR_Full);
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
 						     25000baseCR_Full);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_NONE);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_RS);
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_BASER);
-		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_NONE);
-		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_RS);
-		ethtool_link_ksettings_add_link_mode(ks, advertising,
-						     FEC_BASER);
+		i40e_get_settings_link_up_fec(hw_link_info->req_fec_info, ks);
+
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     10000baseCR_Full);
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
@@ -2250,7 +2257,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
-	struct i40e_veb *veb = pf->veb[pf->lan_veb];
+	struct i40e_veb *veb = NULL;
 	unsigned int i;
 	bool veb_stats;
 	u64 *p = data;
@@ -2273,7 +2280,13 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 		goto check_data_pointer;
 
 	veb_stats = ((pf->lan_veb != I40E_NO_VEB) &&
+		     (pf->lan_veb < I40E_MAX_VEB) &&
 		     (pf->flags & I40E_FLAG_VEB_STATS_ENABLED));
+
+	if (veb_stats) {
+		veb = pf->veb[pf->lan_veb];
+		i40e_update_veb_stats(veb);
+	}
 
 	/* If veb stats aren't enabled, pass NULL instead of the veb so that
 	 * we initialize stats to zero and update the data pointer
@@ -2329,7 +2342,7 @@ static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 	}
 
 	if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
-		return;
+		goto check_data_pointer;
 
 	i40e_add_stat_strings(&data, i40e_gstrings_veb_stats);
 
@@ -2341,6 +2354,7 @@ static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++)
 		i40e_add_stat_strings(&data, i40e_gstrings_pfc_stats, i);
 
+check_data_pointer:
 	WARN_ONCE(data - p != i40e_get_stats_count(netdev) * ETH_GSTRING_LEN,
 		  "stat strings count mismatch!");
 }
@@ -5121,6 +5135,12 @@ static int i40e_get_module_info(struct net_device *netdev,
 			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
 		} else if (sff8472_comp == 0x00) {
 			/* Module is not SFF-8472 compliant */
+			modinfo->type = ETH_MODULE_SFF_8079;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		} else if (!(sff8472_swap & I40E_MODULE_SFF_DDM_IMPLEMENTED)) {
+			/* Module is SFF-8472 compliant but doesn't implement
+			 * Digital Diagnostic Monitoring (DDM).
+			 */
 			modinfo->type = ETH_MODULE_SFF_8079;
 			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
 		} else {

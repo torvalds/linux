@@ -296,7 +296,7 @@
 			 <&cpg_clocks R8A7779_CLK_S>,
 			 <&scif_clk>;
 		clock-names = "fck", "brg_int", "scif_clk";
-		power-domains = <&cpg_clocks>;
+		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
 		status = "disabled";
 	};
 
@@ -309,7 +309,7 @@
 			 <&cpg_clocks R8A7779_CLK_S>,
 			 <&scif_clk>;
 		clock-names = "fck", "brg_int", "scif_clk";
-		power-domains = <&cpg_clocks>;
+		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
 		status = "disabled";
 	};
 

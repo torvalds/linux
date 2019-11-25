@@ -1251,10 +1251,8 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 		return PTR_ERR(sdc->base);
 
 	sdc->irq = platform_get_irq(pdev, 0);
-	if (sdc->irq < 0) {
-		dev_err(&pdev->dev, "Cannot claim IRQ\n");
+	if (sdc->irq < 0)
 		return sdc->irq;
-	}
 
 	sdc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sdc->clk)) {

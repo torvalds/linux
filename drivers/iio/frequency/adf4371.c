@@ -276,11 +276,11 @@ static int adf4371_set_freq(struct adf4371_state *st, unsigned long long freq,
 	st->buf[0] = st->integer >> 8;
 	st->buf[1] = 0x40; /* REG12 default */
 	st->buf[2] = 0x00;
-	st->buf[3] = st->fract2 & 0xFF;
-	st->buf[4] = st->fract2 >> 7;
-	st->buf[5] = st->fract2 >> 15;
+	st->buf[3] = st->fract1 & 0xFF;
+	st->buf[4] = st->fract1 >> 8;
+	st->buf[5] = st->fract1 >> 16;
 	st->buf[6] = ADF4371_FRAC2WORD_L(st->fract2 & 0x7F) |
-		     ADF4371_FRAC1WORD(st->fract1 >> 23);
+		     ADF4371_FRAC1WORD(st->fract1 >> 24);
 	st->buf[7] = ADF4371_FRAC2WORD_H(st->fract2 >> 7);
 	st->buf[8] = st->mod2 & 0xFF;
 	st->buf[9] = ADF4371_MOD2WORD(st->mod2 >> 8);

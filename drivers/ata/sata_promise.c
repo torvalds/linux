@@ -1230,10 +1230,7 @@ static int pdc_ata_init_one(struct pci_dev *pdev,
 	/* initialize adapter */
 	pdc_host_init(host);
 
-	rc = dma_set_mask(&pdev->dev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-	rc = dma_set_coherent_mask(&pdev->dev, ATA_DMA_MASK);
+	rc = dma_set_mask_and_coherent(&pdev->dev, ATA_DMA_MASK);
 	if (rc)
 		return rc;
 

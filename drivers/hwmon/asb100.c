@@ -706,21 +706,21 @@ static int asb100_detect_subclients(struct i2c_client *client)
 		goto ERROR_SC_2;
 	}
 
-	data->lm75[0] = i2c_new_dummy(adapter, sc_addr[0]);
-	if (!data->lm75[0]) {
+	data->lm75[0] = i2c_new_dummy_device(adapter, sc_addr[0]);
+	if (IS_ERR(data->lm75[0])) {
 		dev_err(&client->dev,
 			"subclient %d registration at address 0x%x failed.\n",
 			1, sc_addr[0]);
-		err = -ENOMEM;
+		err = PTR_ERR(data->lm75[0]);
 		goto ERROR_SC_2;
 	}
 
-	data->lm75[1] = i2c_new_dummy(adapter, sc_addr[1]);
-	if (!data->lm75[1]) {
+	data->lm75[1] = i2c_new_dummy_device(adapter, sc_addr[1]);
+	if (IS_ERR(data->lm75[1])) {
 		dev_err(&client->dev,
 			"subclient %d registration at address 0x%x failed.\n",
 			2, sc_addr[1]);
-		err = -ENOMEM;
+		err = PTR_ERR(data->lm75[1]);
 		goto ERROR_SC_3;
 	}
 

@@ -37,6 +37,9 @@ setup()
 	ns1_exec ip link set lo up
 
 	ns1_exec sysctl -w net.ipv4.tcp_syncookies=2
+	ns1_exec sysctl -w net.ipv4.tcp_window_scaling=0
+	ns1_exec sysctl -w net.ipv4.tcp_timestamps=0
+	ns1_exec sysctl -w net.ipv4.tcp_sack=0
 
 	wait_for_ip 127.0.0.1
 	wait_for_ip ::1

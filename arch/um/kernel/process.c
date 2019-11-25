@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright 2003 PathScale, Inc.
- * Licensed under the GPL
  */
 
 #include <linux/stddef.h>
@@ -210,15 +210,23 @@ static void time_travel_sleep(unsigned long long duration)
 	if (time_travel_mode != TT_MODE_INFCPU)
 		os_timer_disable();
 
-	if (time_travel_timer_mode != TT_TMR_DISABLED ||
+	while (time_travel_timer_mode == TT_TMR_PERIODIC &&
+	       time_travel_timer_expiry < time_travel_time)
+		time_travel_set_timer_expiry(time_travel_timer_expiry +
+					     time_travel_timer_interval);
+
+	if (time_travel_timer_mode != TT_TMR_DISABLED &&
 	    time_travel_timer_expiry < next) {
 		if (time_travel_timer_mode == TT_TMR_ONESHOT)
-			time_travel_set_timer(TT_TMR_DISABLED, 0);
+			time_travel_set_timer_mode(TT_TMR_DISABLED);
 		/*
-		 * time_travel_time will be adjusted in the timer
-		 * IRQ handler so it works even when the signal
-		 * comes from the OS timer
+		 * In basic mode, time_travel_time will be adjusted in
+		 * the timer IRQ handler so it works even when the signal
+		 * comes from the OS timer, see there.
 		 */
+		if (time_travel_mode != TT_MODE_BASIC)
+			time_travel_set_time(time_travel_timer_expiry);
+
 		deliver_alarm();
 	} else {
 		time_travel_set_time(next);

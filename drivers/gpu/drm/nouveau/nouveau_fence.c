@@ -24,10 +24,9 @@
  *
  */
 
-#include <drm/drmP.h>
-
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
+#include <linux/sched/signal.h>
 #include <trace/events/dma_fence.h>
 
 #include <nvif/cl826e.h>
@@ -335,20 +334,20 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan, bool e
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
 	struct dma_fence *fence;
-	struct reservation_object *resv = nvbo->bo.resv;
-	struct reservation_object_list *fobj;
+	struct dma_resv *resv = nvbo->bo.base.resv;
+	struct dma_resv_list *fobj;
 	struct nouveau_fence *f;
 	int ret = 0, i;
 
 	if (!exclusive) {
-		ret = reservation_object_reserve_shared(resv, 1);
+		ret = dma_resv_reserve_shared(resv, 1);
 
 		if (ret)
 			return ret;
 	}
 
-	fobj = reservation_object_get_list(resv);
-	fence = reservation_object_get_excl(resv);
+	fobj = dma_resv_get_list(resv);
+	fence = dma_resv_get_excl(resv);
 
 	if (fence && (!exclusive || !fobj || !fobj->shared_count)) {
 		struct nouveau_channel *prev = NULL;
@@ -377,7 +376,7 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan, bool e
 		bool must_wait = true;
 
 		fence = rcu_dereference_protected(fobj->shared[i],
-						reservation_object_held(resv));
+						dma_resv_held(resv));
 
 		f = nouveau_local_fence(fence, chan->drm);
 		if (f) {

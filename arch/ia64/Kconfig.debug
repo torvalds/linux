@@ -14,7 +14,7 @@ config IA64_GRANULE_16MB
 
 config IA64_GRANULE_64MB
 	bool "64MB"
-	depends on !(IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_SGI_SN2)
+	depends on BROKEN
 
 endchoice
 

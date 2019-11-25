@@ -342,7 +342,7 @@ int line6_read_data(struct usb_line6 *line6, unsigned address, void *data,
 	if (address > 0xffff || datalen > 0xff)
 		return -EINVAL;
 
-	len = kmalloc(sizeof(*len), GFP_KERNEL);
+	len = kmalloc(1, GFP_KERNEL);
 	if (!len)
 		return -ENOMEM;
 
@@ -418,7 +418,7 @@ int line6_write_data(struct usb_line6 *line6, unsigned address, void *data,
 	if (address > 0xffff || datalen > 0xffff)
 		return -EINVAL;
 
-	status = kmalloc(sizeof(*status), GFP_KERNEL);
+	status = kmalloc(1, GFP_KERNEL);
 	if (!status)
 		return -ENOMEM;
 

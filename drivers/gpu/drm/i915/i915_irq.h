@@ -6,15 +6,27 @@
 #ifndef __I915_IRQ_H__
 #define __I915_IRQ_H__
 
+#include <linux/ktime.h>
 #include <linux/types.h>
 
-#include "i915_drv.h"
+#include "display/intel_display.h"
+#include "i915_reg.h"
 
+struct drm_crtc;
+struct drm_device;
+struct drm_display_mode;
 struct drm_i915_private;
 struct intel_crtc;
+struct intel_crtc;
+struct intel_gt;
+struct intel_guc;
+struct intel_uncore;
 
-extern void intel_irq_init(struct drm_i915_private *dev_priv);
-extern void intel_irq_fini(struct drm_i915_private *dev_priv);
+void gen11_rps_irq_handler(struct intel_gt *gt, u32 pm_iir);
+void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
+
+void intel_irq_init(struct drm_i915_private *dev_priv);
+void intel_irq_fini(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);
 void intel_irq_uninstall(struct drm_i915_private *dev_priv);
 
@@ -77,41 +89,89 @@ ibx_disable_display_interrupt(struct drm_i915_private *dev_priv, u32 bits)
 
 void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
 void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
-void gen6_mask_pm_irq(struct drm_i915_private *dev_priv, u32 mask);
-void gen6_unmask_pm_irq(struct drm_i915_private *dev_priv, u32 mask);
 void gen11_reset_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
-
-static inline u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915,
-					    u32 mask)
-{
-	return mask & ~i915->gt_pm.rps.pm_intrmsk_mbz;
-}
+u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915, u32 mask);
 
 void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv);
-static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * We only use drm_irq_uninstall() at unload and VT switch, so
-	 * this is the only thing we need to check.
-	 */
-	return dev_priv->runtime_pm.irqs_enabled;
-}
+bool intel_irqs_enabled(struct drm_i915_private *dev_priv);
+void intel_synchronize_irq(struct drm_i915_private *i915);
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);
 void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);
-void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv);
-void gen9_enable_guc_interrupts(struct drm_i915_private *dev_priv);
-void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv);
-void gen11_reset_guc_interrupts(struct drm_i915_private *i915);
-void gen11_enable_guc_interrupts(struct drm_i915_private *i915);
-void gen11_disable_guc_interrupts(struct drm_i915_private *i915);
+void gen9_reset_guc_interrupts(struct intel_guc *guc);
+void gen9_enable_guc_interrupts(struct intel_guc *guc);
+void gen9_disable_guc_interrupts(struct intel_guc *guc);
+void gen11_reset_guc_interrupts(struct intel_guc *guc);
+void gen11_enable_guc_interrupts(struct intel_guc *guc);
+void gen11_disable_guc_interrupts(struct intel_guc *guc);
+
+bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+			      bool in_vblank_irq, int *vpos, int *hpos,
+			      ktime_t *stime, ktime_t *etime,
+			      const struct drm_display_mode *mode);
+
+u32 i915_get_vblank_counter(struct drm_crtc *crtc);
+u32 g4x_get_vblank_counter(struct drm_crtc *crtc);
+
+int i8xx_enable_vblank(struct drm_crtc *crtc);
+int i945gm_enable_vblank(struct drm_crtc *crtc);
+int i965_enable_vblank(struct drm_crtc *crtc);
+int ilk_enable_vblank(struct drm_crtc *crtc);
+int bdw_enable_vblank(struct drm_crtc *crtc);
+void i8xx_disable_vblank(struct drm_crtc *crtc);
+void i945gm_disable_vblank(struct drm_crtc *crtc);
+void i965_disable_vblank(struct drm_crtc *crtc);
+void ilk_disable_vblank(struct drm_crtc *crtc);
+void bdw_disable_vblank(struct drm_crtc *crtc);
+
+void gen2_irq_reset(struct intel_uncore *uncore);
+void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
+		    i915_reg_t iir, i915_reg_t ier);
+
+void gen2_irq_init(struct intel_uncore *uncore,
+		   u32 imr_val, u32 ier_val);
+void gen3_irq_init(struct intel_uncore *uncore,
+		   i915_reg_t imr, u32 imr_val,
+		   i915_reg_t ier, u32 ier_val,
+		   i915_reg_t iir);
+
+#define GEN8_IRQ_RESET_NDX(uncore, type, which) \
+({ \
+	unsigned int which_ = which; \
+	gen3_irq_reset((uncore), GEN8_##type##_IMR(which_), \
+		       GEN8_##type##_IIR(which_), GEN8_##type##_IER(which_)); \
+})
+
+#define GEN3_IRQ_RESET(uncore, type) \
+	gen3_irq_reset((uncore), type##IMR, type##IIR, type##IER)
+
+#define GEN2_IRQ_RESET(uncore) \
+	gen2_irq_reset(uncore)
+
+#define GEN8_IRQ_INIT_NDX(uncore, type, which, imr_val, ier_val) \
+({ \
+	unsigned int which_ = which; \
+	gen3_irq_init((uncore), \
+		      GEN8_##type##_IMR(which_), imr_val, \
+		      GEN8_##type##_IER(which_), ier_val, \
+		      GEN8_##type##_IIR(which_)); \
+})
+
+#define GEN3_IRQ_INIT(uncore, type, imr_val, ier_val) \
+	gen3_irq_init((uncore), \
+		      type##IMR, imr_val, \
+		      type##IER, ier_val, \
+		      type##IIR)
+
+#define GEN2_IRQ_INIT(uncore, imr_val, ier_val) \
+	gen2_irq_init((uncore), imr_val, ier_val)
 
 #endif /* __I915_IRQ_H__ */

@@ -243,10 +243,10 @@ static int hp03_probe(struct i2c_client *client,
 	 * which has it's dedicated I2C address and contains
 	 * the calibration constants for the sensor.
 	 */
-	priv->eeprom_client = i2c_new_dummy(client->adapter, HP03_EEPROM_ADDR);
-	if (!priv->eeprom_client) {
+	priv->eeprom_client = i2c_new_dummy_device(client->adapter, HP03_EEPROM_ADDR);
+	if (IS_ERR(priv->eeprom_client)) {
 		dev_err(dev, "New EEPROM I2C device failed\n");
-		return -ENODEV;
+		return PTR_ERR(priv->eeprom_client);
 	}
 
 	priv->eeprom_regmap = regmap_init_i2c(priv->eeprom_client,

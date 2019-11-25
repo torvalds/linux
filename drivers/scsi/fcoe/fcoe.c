@@ -1250,15 +1250,21 @@ static int __init fcoe_if_init(void)
 	/* attach to scsi transport */
 	fcoe_nport_scsi_transport =
 		fc_attach_transport(&fcoe_nport_fc_functions);
+	if (!fcoe_nport_scsi_transport)
+		goto err;
+
 	fcoe_vport_scsi_transport =
 		fc_attach_transport(&fcoe_vport_fc_functions);
-
-	if (!fcoe_nport_scsi_transport) {
-		printk(KERN_ERR "fcoe: Failed to attach to the FC transport\n");
-		return -ENODEV;
-	}
+	if (!fcoe_vport_scsi_transport)
+		goto err_vport;
 
 	return 0;
+
+err_vport:
+	fc_release_transport(fcoe_nport_scsi_transport);
+err:
+	printk(KERN_ERR "fcoe: Failed to attach to the FC transport\n");
+	return -ENODEV;
 }
 
 /**
@@ -1522,8 +1528,7 @@ static int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 			return -ENOMEM;
 		}
 		frag = &skb_shinfo(skb)->frags[skb_shinfo(skb)->nr_frags - 1];
-		cp = kmap_atomic(skb_frag_page(frag))
-			+ frag->page_offset;
+		cp = kmap_atomic(skb_frag_page(frag)) + skb_frag_off(frag);
 	} else {
 		cp = skb_put(skb, tlen);
 	}
@@ -1618,7 +1623,6 @@ static inline int fcoe_filter_frames(struct fc_lport *lport,
 	else
 		fr_flags(fp) |= FCPHF_CRC_UNCHECKED;
 
-	fh = (struct fc_frame_header *) skb_transport_header(skb);
 	fh = fc_frame_header_get(fp);
 	if (fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA && fh->fh_type == FC_TYPE_FCP)
 		return 0;

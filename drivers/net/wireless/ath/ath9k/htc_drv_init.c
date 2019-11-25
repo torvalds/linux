@@ -463,7 +463,7 @@ static void ath9k_enable_rmw_buffer(void *hw_priv)
 	atomic_inc(&priv->wmi->m_rmw_cnt);
 }
 
-static u32 ath9k_reg_rmw_single(void *hw_priv,
+static void ath9k_reg_rmw_single(void *hw_priv,
 				 u32 reg_offset, u32 set, u32 clr)
 {
 	struct ath_hw *ah = hw_priv;
@@ -471,7 +471,6 @@ static u32 ath9k_reg_rmw_single(void *hw_priv,
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
 	struct register_rmw buf, buf_ret;
 	int ret;
-	u32 val = 0;
 
 	buf.reg = cpu_to_be32(reg_offset);
 	buf.set = cpu_to_be32(set);
@@ -485,7 +484,6 @@ static u32 ath9k_reg_rmw_single(void *hw_priv,
 		ath_dbg(common, WMI, "REGISTER RMW FAILED:(0x%04x, %d)\n",
 			reg_offset, ret);
 	}
-	return val;
 }
 
 static u32 ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 clr)

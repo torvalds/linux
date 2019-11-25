@@ -25,7 +25,7 @@
  *
  */
 
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_dvo_dev.h"
 
 #define CH7017_TV_DISPLAY_MODE		0x00

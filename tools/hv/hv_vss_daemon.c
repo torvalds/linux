@@ -42,7 +42,7 @@ static int vss_do_freeze(char *dir, unsigned int cmd)
 	 * If a partition is mounted more than once, only the first
 	 * FREEZE/THAW can succeed and the later ones will get
 	 * EBUSY/EINVAL respectively: there could be 2 cases:
-	 * 1) a user may mount the same partition to differnt directories
+	 * 1) a user may mount the same partition to different directories
 	 *  by mistake or on purpose;
 	 * 2) The subvolume of btrfs appears to have the same partition
 	 * mounted more than once.
@@ -218,6 +218,8 @@ int main(int argc, char *argv[])
 			daemonize = 0;
 			break;
 		case 'h':
+			print_usage(argv);
+			exit(0);
 		default:
 			print_usage(argv);
 			exit(EXIT_FAILURE);

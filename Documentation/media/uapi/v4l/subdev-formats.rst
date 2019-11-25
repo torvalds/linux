@@ -85,6 +85,14 @@ formats in memory (a raw Bayer image won't be magically converted to
 JPEG just by storing it to memory), there is no one-to-one
 correspondence between them.
 
+The media bus pixel codes document parallel formats. Should the pixel data be
+transported over a serial bus, the media bus pixel code that describes a
+parallel format that transfers a sample on a single clock cycle is used. For
+instance, both MEDIA_BUS_FMT_BGR888_1X24 and MEDIA_BUS_FMT_BGR888_3X8 are used
+on parallel busses for transferring an 8 bits per sample BGR data, whereas on
+serial busses the data in this format is only referred to using
+MEDIA_BUS_FMT_BGR888_1X24. This is because there is effectively only a single
+way to transport that format on the serial busses.
 
 Packed RGB Formats
 ^^^^^^^^^^^^^^^^^^
@@ -1305,6 +1313,113 @@ The following tables list existing packed RGB formats.
       - g\ :sub:`6`
       - g\ :sub:`5`
       - g\ :sub:`4`
+    * .. _MEDIA-BUS-FMT-RGB888-3X8:
+
+      - MEDIA_BUS_FMT_RGB888_3X8
+      - 0x101c
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      - r\ :sub:`7`
+      - r\ :sub:`6`
+      - r\ :sub:`5`
+      - r\ :sub:`4`
+      - r\ :sub:`3`
+      - r\ :sub:`2`
+      - r\ :sub:`1`
+      - r\ :sub:`0`
+    * -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      - g\ :sub:`7`
+      - g\ :sub:`6`
+      - g\ :sub:`5`
+      - g\ :sub:`4`
+      - g\ :sub:`3`
+      - g\ :sub:`2`
+      - g\ :sub:`1`
+      - g\ :sub:`0`
+    * -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      - b\ :sub:`7`
+      - b\ :sub:`6`
+      - b\ :sub:`5`
+      - b\ :sub:`4`
+      - b\ :sub:`3`
+      - b\ :sub:`2`
+      - b\ :sub:`1`
+      - b\ :sub:`0`
     * .. _MEDIA-BUS-FMT-ARGB888-1X32:
 
       - MEDIA_BUS_FMT_ARGB888_1X32

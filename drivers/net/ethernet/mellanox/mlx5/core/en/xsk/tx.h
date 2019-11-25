@@ -5,11 +5,23 @@
 #define __MLX5_EN_XSK_TX_H__
 
 #include "en.h"
+#include <net/xdp_sock.h>
 
 /* TX data path */
 
-int mlx5e_xsk_async_xmit(struct net_device *dev, u32 qid);
+int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags);
 
 bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget);
+
+static inline void mlx5e_xsk_update_tx_wakeup(struct mlx5e_xdpsq *sq)
+{
+	if (!xsk_umem_uses_need_wakeup(sq->umem))
+		return;
+
+	if (sq->pc != sq->cc)
+		xsk_clear_tx_need_wakeup(sq->umem);
+	else
+		xsk_set_tx_need_wakeup(sq->umem);
+}
 
 #endif /* __MLX5_EN_XSK_TX_H__ */

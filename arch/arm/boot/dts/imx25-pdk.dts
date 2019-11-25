@@ -76,8 +76,8 @@
 		bits-per-pixel = <16>;
 		fsl,pcr = <0xfa208b80>;
 		bus-width = <18>;
-		native-mode = <&wvga_timings>;
 		display-timings {
+			native-mode = <&wvga_timings>;
 			wvga_timings: 640x480 {
 				hactive = <640>;
 				vactive = <480>;

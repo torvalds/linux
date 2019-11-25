@@ -62,7 +62,6 @@ typedef pte_t *pte_addr_t;
  */
 #define pgprot_noncached(prot)	(prot)
 #define pgprot_writecombine(prot) (prot)
-#define pgprot_dmacoherent(prot) (prot)
 #define pgprot_device(prot)	(prot)
 
 
@@ -70,11 +69,6 @@ typedef pte_t *pte_addr_t;
  * These would be in other places but having them here reduces the diffs.
  */
 extern unsigned int kobjsize(const void *objp);
-
-/*
- * No page table caches to initialise.
- */
-#define pgtable_cache_init()	do { } while (0)
 
 /*
  * All 32bit addresses are effectively valid for vmalloc...

@@ -217,7 +217,7 @@ static const struct file_operations fdtv_ca_fops = {
 	.llseek		= noop_llseek,
 };
 
-static struct dvb_device fdtv_ca = {
+static const struct dvb_device fdtv_ca = {
 	.users		= 1,
 	.readers	= 1,
 	.writers	= 1,

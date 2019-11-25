@@ -722,9 +722,9 @@ static int mn88443x_probe(struct i2c_client *client,
 	 * Chip has two I2C addresses for each satellite/terrestrial system.
 	 * ISDB-T uses address ISDB-S + 4, so we register a dummy client.
 	 */
-	chip->client_t = i2c_new_dummy(client->adapter, client->addr + 4);
-	if (!chip->client_t)
-		return -ENODEV;
+	chip->client_t = i2c_new_dummy_device(client->adapter, client->addr + 4);
+	if (IS_ERR(chip->client_t))
+		return PTR_ERR(chip->client_t);
 
 	chip->regmap_t = devm_regmap_init_i2c(chip->client_t, &regmap_config);
 	if (IS_ERR(chip->regmap_t)) {

@@ -348,10 +348,7 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		.vlan = vlan,
 	};
 
-	if (!dp->bridge_dev || br_vlan_enabled(dp->bridge_dev))
-		return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
-
-	return 0;
+	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
 }
 
 int dsa_port_vlan_del(struct dsa_port *dp,
@@ -363,10 +360,7 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 		.vlan = vlan,
 	};
 
-	if (!dp->bridge_dev || br_vlan_enabled(dp->bridge_dev))
-		return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
-
-	return 0;
+	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
 }
 
 int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags)
@@ -382,8 +376,8 @@ int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags)
 
 	trans.ph_prepare = true;
 	err = dsa_port_vlan_add(dp, &vlan, &trans);
-	if (err == -EOPNOTSUPP)
-		return 0;
+	if (err)
+		return err;
 
 	trans.ph_prepare = false;
 	return dsa_port_vlan_add(dp, &vlan, &trans);
@@ -538,10 +532,6 @@ static int dsa_port_setup_phy_of(struct dsa_port *dp, bool enable)
 		return PTR_ERR(phydev);
 
 	if (enable) {
-		err = genphy_config_init(phydev);
-		if (err < 0)
-			goto err_put_dev;
-
 		err = genphy_resume(phydev);
 		if (err < 0)
 			goto err_put_dev;
@@ -589,7 +579,6 @@ static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 		mode = PHY_INTERFACE_MODE_NA;
 	phydev->interface = mode;
 
-	genphy_config_init(phydev);
 	genphy_read_status(phydev);
 
 	if (ds->ops->adjust_link)

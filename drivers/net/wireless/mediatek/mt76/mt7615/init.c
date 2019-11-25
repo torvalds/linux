@@ -20,10 +20,24 @@ static void mt7615_phy_init(struct mt7615_dev *dev)
 
 static void mt7615_mac_init(struct mt7615_dev *dev)
 {
-	/* enable band 0 clk */
-	mt76_rmw(dev, MT_CFG_CCR,
-		 MT_CFG_CCR_MAC_D0_1X_GC_EN | MT_CFG_CCR_MAC_D0_2X_GC_EN,
-		 MT_CFG_CCR_MAC_D0_1X_GC_EN | MT_CFG_CCR_MAC_D0_2X_GC_EN);
+	u32 val;
+
+	/* enable band 0/1 clk */
+	mt76_set(dev, MT_CFG_CCR,
+		 MT_CFG_CCR_MAC_D0_1X_GC_EN | MT_CFG_CCR_MAC_D0_2X_GC_EN |
+		 MT_CFG_CCR_MAC_D1_1X_GC_EN | MT_CFG_CCR_MAC_D1_2X_GC_EN);
+
+	val = mt76_rmw(dev, MT_TMAC_TRCR0,
+		       MT_TMAC_TRCR_CCA_SEL | MT_TMAC_TRCR_SEC_CCA_SEL,
+		       FIELD_PREP(MT_TMAC_TRCR_CCA_SEL, 2) |
+		       FIELD_PREP(MT_TMAC_TRCR_SEC_CCA_SEL, 0));
+	mt76_wr(dev, MT_TMAC_TRCR1, val);
+
+	val = MT_AGG_ACR_PKT_TIME_EN | MT_AGG_ACR_NO_BA_AR_RULE |
+	      FIELD_PREP(MT_AGG_ACR_CFEND_RATE, 0x49) | /* 24M */
+	      FIELD_PREP(MT_AGG_ACR_BAR_RATE, 0x4b); /* 6M */
+	mt76_wr(dev, MT_AGG_ACR0, val);
+	mt76_wr(dev, MT_AGG_ACR1, val);
 
 	mt76_rmw_field(dev, MT_TMAC_CTCR0,
 		       MT_TMAC_CTCR0_INS_DDLMT_REFTIME, 0x3f);
@@ -36,6 +50,7 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 		 MT_TMAC_CTCR0_INS_DDLMT_EN);
 
 	mt7615_mcu_set_rts_thresh(dev, 0x92b);
+	mt7615_mac_set_scs(dev, false);
 
 	mt76_rmw(dev, MT_AGG_SCR, MT_AGG_SCR_NLNAV_MID_PTEC_DIS,
 		 MT_AGG_SCR_NLNAV_MID_PTEC_DIS);
@@ -45,11 +60,19 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 	mt76_wr(dev, MT_DMA_DCR0, MT_DMA_DCR0_RX_VEC_DROP |
 		FIELD_PREP(MT_DMA_DCR0_MAX_RX_LEN, 3072));
 
-	mt76_wr(dev, MT_AGG_ARUCR, FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 7));
+	mt76_wr(dev, MT_AGG_ARUCR,
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 7) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(2), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(3), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(4), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(5), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(6), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(7), 1));
+
 	mt76_wr(dev, MT_AGG_ARDCR,
-		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 0) |
-		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1),
-			   max_t(int, 0, MT7615_RATE_RETRY - 2)) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), MT7615_RATE_RETRY - 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1), MT7615_RATE_RETRY - 1) |
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(2), MT7615_RATE_RETRY - 1) |
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(3), MT7615_RATE_RETRY - 1) |
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(4), MT7615_RATE_RETRY - 1) |
@@ -58,8 +81,7 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(7), MT7615_RATE_RETRY - 1));
 
 	mt76_wr(dev, MT_AGG_ARCR,
-		(MT_AGG_ARCR_INIT_RATE1 |
-		 FIELD_PREP(MT_AGG_ARCR_RTS_RATE_THR, 2) |
+		(FIELD_PREP(MT_AGG_ARCR_RTS_RATE_THR, 2) |
 		 MT_AGG_ARCR_RATE_DOWN_RATIO_EN |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_DOWN_RATIO, 1) |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_UP_EXTRA_TH, 4)));
@@ -155,17 +177,6 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	}
 };
 
-static int mt7615_init_debugfs(struct mt7615_dev *dev)
-{
-	struct dentry *dir;
-
-	dir = mt76_register_debugfs(&dev->mt76);
-	if (!dir)
-		return -ENOMEM;
-
-	return 0;
-}
-
 static void
 mt7615_init_txpower(struct mt7615_dev *dev,
 		    struct ieee80211_supported_band *sband)
@@ -208,6 +219,30 @@ mt7615_init_txpower(struct mt7615_dev *dev,
 	}
 }
 
+static void
+mt7615_regd_notifier(struct wiphy *wiphy,
+		     struct regulatory_request *request)
+{
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct mt7615_dev *dev = hw->priv;
+	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+
+	if (request->dfs_region == dev->mt76.region)
+		return;
+
+	dev->mt76.region = request->dfs_region;
+
+	if (!(chandef->chan->flags & IEEE80211_CHAN_RADAR))
+		return;
+
+	mt7615_dfs_stop_radar_detector(dev);
+	if (request->dfs_region == NL80211_DFS_UNSET)
+		mt7615_mcu_rdd_cmd(dev, RDD_CAC_END, MT_HW_RDD0,
+				   MT_RX_SEL0, 0);
+	else
+		mt7615_dfs_start_radar_detector(dev);
+}
+
 int mt7615_register_device(struct mt7615_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
@@ -230,6 +265,8 @@ int mt7615_register_device(struct mt7615_dev *dev)
 
 	wiphy->iface_combinations = if_comb;
 	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+	wiphy->reg_notifier = mt7615_regd_notifier;
+	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 	ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
 	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
@@ -243,6 +280,7 @@ int mt7615_register_device(struct mt7615_dev *dev)
 			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
 	dev->mt76.chainmask = 0x404;
 	dev->mt76.antenna_mask = 0xf;
+	dev->dfs_state = -1;
 
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 #ifdef CONFIG_MAC80211_MESH

@@ -10,8 +10,8 @@
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/greybus.h>
 #include "firmware.h"
-#include "greybus.h"
 
 /* Estimated minimum buffer size, actual size can be smaller than this */
 #define MIN_FETCH_SIZE		512

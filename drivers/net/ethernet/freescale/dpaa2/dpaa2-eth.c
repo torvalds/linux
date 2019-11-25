@@ -1208,9 +1208,39 @@ static void disable_ch_napi(struct dpaa2_eth_priv *priv)
 	}
 }
 
+static void dpaa2_eth_set_rx_taildrop(struct dpaa2_eth_priv *priv, bool enable)
+{
+	struct dpni_taildrop td = {0};
+	int i, err;
+
+	if (priv->rx_td_enabled == enable)
+		return;
+
+	td.enable = enable;
+	td.threshold = DPAA2_ETH_TAILDROP_THRESH;
+
+	for (i = 0; i < priv->num_fqs; i++) {
+		if (priv->fq[i].type != DPAA2_RX_FQ)
+			continue;
+		err = dpni_set_taildrop(priv->mc_io, 0, priv->mc_token,
+					DPNI_CP_QUEUE, DPNI_QUEUE_RX, 0,
+					priv->fq[i].flowid, &td);
+		if (err) {
+			netdev_err(priv->net_dev,
+				   "dpni_set_taildrop() failed\n");
+			break;
+		}
+	}
+
+	priv->rx_td_enabled = enable;
+}
+
+static void update_tx_fqids(struct dpaa2_eth_priv *priv);
+
 static int link_state_update(struct dpaa2_eth_priv *priv)
 {
 	struct dpni_link_state state = {0};
+	bool tx_pause;
 	int err;
 
 	err = dpni_get_link_state(priv->mc_io, 0, priv->mc_token, &state);
@@ -1220,12 +1250,20 @@ static int link_state_update(struct dpaa2_eth_priv *priv)
 		return err;
 	}
 
+	/* If Tx pause frame settings have changed, we need to update
+	 * Rx FQ taildrop configuration as well. We configure taildrop
+	 * only when pause frame generation is disabled.
+	 */
+	tx_pause = !!(state.options & DPNI_LINK_OPT_PAUSE) ^
+		   !!(state.options & DPNI_LINK_OPT_ASYM_PAUSE);
+	dpaa2_eth_set_rx_taildrop(priv, !tx_pause);
+
 	/* Chech link state; speed / duplex changes are not treated yet */
 	if (priv->link_state.up == state.up)
-		return 0;
+		goto out;
 
-	priv->link_state = state;
 	if (state.up) {
+		update_tx_fqids(priv);
 		netif_carrier_on(priv->net_dev);
 		netif_tx_start_all_queues(priv->net_dev);
 	} else {
@@ -1235,6 +1273,9 @@ static int link_state_update(struct dpaa2_eth_priv *priv)
 
 	netdev_info(priv->net_dev, "Link Event: state %s\n",
 		    state.up ? "up" : "down");
+
+out:
+	priv->link_state = state;
 
 	return 0;
 }
@@ -1310,7 +1351,7 @@ static u32 ingress_fq_count(struct dpaa2_eth_priv *priv)
 	return total;
 }
 
-static void wait_for_fq_empty(struct dpaa2_eth_priv *priv)
+static void wait_for_ingress_fq_empty(struct dpaa2_eth_priv *priv)
 {
 	int retries = 10;
 	u32 pending;
@@ -1320,6 +1361,31 @@ static void wait_for_fq_empty(struct dpaa2_eth_priv *priv)
 		if (pending)
 			msleep(100);
 	} while (pending && --retries);
+}
+
+#define DPNI_TX_PENDING_VER_MAJOR	7
+#define DPNI_TX_PENDING_VER_MINOR	13
+static void wait_for_egress_fq_empty(struct dpaa2_eth_priv *priv)
+{
+	union dpni_statistics stats;
+	int retries = 10;
+	int err;
+
+	if (dpaa2_eth_cmp_dpni_ver(priv, DPNI_TX_PENDING_VER_MAJOR,
+				   DPNI_TX_PENDING_VER_MINOR) < 0)
+		goto out;
+
+	do {
+		err = dpni_get_statistics(priv->mc_io, 0, priv->mc_token, 6,
+					  &stats);
+		if (err)
+			goto out;
+		if (stats.page_6.tx_pending_frames == 0)
+			return;
+	} while (--retries);
+
+out:
+	msleep(500);
 }
 
 static int dpaa2_eth_stop(struct net_device *net_dev)
@@ -1341,7 +1407,7 @@ static int dpaa2_eth_stop(struct net_device *net_dev)
 	 * on WRIOP. After it finishes, wait until all remaining frames on Rx
 	 * and Tx conf queues are consumed on NAPI poll.
 	 */
-	msleep(500);
+	wait_for_egress_fq_empty(priv);
 
 	do {
 		dpni_disable(priv->mc_io, 0, priv->mc_token);
@@ -1357,7 +1423,7 @@ static int dpaa2_eth_stop(struct net_device *net_dev)
 		 */
 	}
 
-	wait_for_fq_empty(priv);
+	wait_for_ingress_fq_empty(priv);
 	disable_ch_napi(priv);
 
 	/* Empty the buffer pool */
@@ -2443,6 +2509,74 @@ static void set_enqueue_mode(struct dpaa2_eth_priv *priv)
 		priv->enqueue = dpaa2_eth_enqueue_fq;
 }
 
+static int set_pause(struct dpaa2_eth_priv *priv)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpni_link_cfg link_cfg = {0};
+	int err;
+
+	/* Get the default link options so we don't override other flags */
+	err = dpni_get_link_cfg(priv->mc_io, 0, priv->mc_token, &link_cfg);
+	if (err) {
+		dev_err(dev, "dpni_get_link_cfg() failed\n");
+		return err;
+	}
+
+	/* By default, enable both Rx and Tx pause frames */
+	link_cfg.options |= DPNI_LINK_OPT_PAUSE;
+	link_cfg.options &= ~DPNI_LINK_OPT_ASYM_PAUSE;
+	err = dpni_set_link_cfg(priv->mc_io, 0, priv->mc_token, &link_cfg);
+	if (err) {
+		dev_err(dev, "dpni_set_link_cfg() failed\n");
+		return err;
+	}
+
+	priv->link_state.options = link_cfg.options;
+
+	return 0;
+}
+
+static void update_tx_fqids(struct dpaa2_eth_priv *priv)
+{
+	struct dpni_queue_id qid = {0};
+	struct dpaa2_eth_fq *fq;
+	struct dpni_queue queue;
+	int i, j, err;
+
+	/* We only use Tx FQIDs for FQID-based enqueue, so check
+	 * if DPNI version supports it before updating FQIDs
+	 */
+	if (dpaa2_eth_cmp_dpni_ver(priv, DPNI_ENQUEUE_FQID_VER_MAJOR,
+				   DPNI_ENQUEUE_FQID_VER_MINOR) < 0)
+		return;
+
+	for (i = 0; i < priv->num_fqs; i++) {
+		fq = &priv->fq[i];
+		if (fq->type != DPAA2_TX_CONF_FQ)
+			continue;
+		for (j = 0; j < dpaa2_eth_tc_count(priv); j++) {
+			err = dpni_get_queue(priv->mc_io, 0, priv->mc_token,
+					     DPNI_QUEUE_TX, j, fq->flowid,
+					     &queue, &qid);
+			if (err)
+				goto out_err;
+
+			fq->tx_fqid[j] = qid.fqid;
+			if (fq->tx_fqid[j] == 0)
+				goto out_err;
+		}
+	}
+
+	priv->enqueue = dpaa2_eth_enqueue_fq;
+
+	return;
+
+out_err:
+	netdev_info(priv->net_dev,
+		    "Error reading Tx FQID, fallback to QDID-based enqueue\n");
+	priv->enqueue = dpaa2_eth_enqueue_qd;
+}
+
 /* Configure the DPNI object this interface is associated with */
 static int setup_dpni(struct fsl_mc_device *ls_dev)
 {
@@ -2498,6 +2632,13 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 
 	set_enqueue_mode(priv);
 
+	/* Enable pause frame support */
+	if (dpaa2_eth_has_pause_support(priv)) {
+		err = set_pause(priv);
+		if (err)
+			goto close;
+	}
+
 	priv->cls_rules = devm_kzalloc(dev, sizeof(struct dpaa2_eth_cls_rule) *
 				       dpaa2_eth_fs_count(priv), GFP_KERNEL);
 	if (!priv->cls_rules)
@@ -2529,7 +2670,6 @@ static int setup_rx_flow(struct dpaa2_eth_priv *priv,
 	struct device *dev = priv->net_dev->dev.parent;
 	struct dpni_queue queue;
 	struct dpni_queue_id qid;
-	struct dpni_taildrop td;
 	int err;
 
 	err = dpni_get_queue(priv->mc_io, 0, priv->mc_token,
@@ -2551,15 +2691,6 @@ static int setup_rx_flow(struct dpaa2_eth_priv *priv,
 			     &queue);
 	if (err) {
 		dev_err(dev, "dpni_set_queue(RX) failed\n");
-		return err;
-	}
-
-	td.enable = 1;
-	td.threshold = DPAA2_ETH_TAILDROP_THRESH;
-	err = dpni_set_taildrop(priv->mc_io, 0, priv->mc_token, DPNI_CP_QUEUE,
-				DPNI_QUEUE_RX, 0, fq->flowid, &td);
-	if (err) {
-		dev_err(dev, "dpni_set_threshold() failed\n");
 		return err;
 	}
 
@@ -3219,6 +3350,9 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 	if (status & DPNI_IRQ_EVENT_LINK_CHANGED)
 		link_state_update(netdev_priv(net_dev));
 
+	if (status & DPNI_IRQ_EVENT_ENDPOINT_CHANGED)
+		set_mac_addr(netdev_priv(net_dev));
+
 	return IRQ_HANDLED;
 }
 
@@ -3244,7 +3378,8 @@ static int setup_irqs(struct fsl_mc_device *ls_dev)
 	}
 
 	err = dpni_set_irq_mask(ls_dev->mc_io, 0, ls_dev->mc_handle,
-				DPNI_IRQ_INDEX, DPNI_IRQ_EVENT_LINK_CHANGED);
+				DPNI_IRQ_INDEX, DPNI_IRQ_EVENT_LINK_CHANGED |
+				DPNI_IRQ_EVENT_ENDPOINT_CHANGED);
 	if (err < 0) {
 		dev_err(&ls_dev->dev, "dpni_set_irq_mask(): %d\n", err);
 		goto free_irq;

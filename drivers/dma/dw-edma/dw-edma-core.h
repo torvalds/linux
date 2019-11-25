@@ -50,7 +50,7 @@ struct dw_edma_burst {
 
 struct dw_edma_region {
 	phys_addr_t			paddr;
-	dma_addr_t			vaddr;
+	void				__iomem *vaddr;
 	size_t				sz;
 };
 

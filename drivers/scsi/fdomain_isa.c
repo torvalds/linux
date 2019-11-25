@@ -131,8 +131,7 @@ static int fdomain_isa_match(struct device *dev, unsigned int ndev)
 	if (!request_region(base, FDOMAIN_REGION_SIZE, "fdomain_isa"))
 		return 0;
 
-	irq = irqs[(inb(base + REG_CFG1) & 0x0e) >> 1];
-
+	irq = irqs[(inb(base + REG_CFG1) & CFG1_IRQ_MASK) >> 1];
 
 	if (sig)
 		this_id = sig->this_id;
@@ -164,7 +163,7 @@ static int fdomain_isa_param_match(struct device *dev, unsigned int ndev)
 	}
 
 	if (irq_ <= 0)
-		irq_ = irqs[(inb(io[ndev] + REG_CFG1) & 0x0e) >> 1];
+		irq_ = irqs[(inb(io[ndev] + REG_CFG1) & CFG1_IRQ_MASK) >> 1];
 
 	sh = fdomain_create(io[ndev], irq_, scsi_id[ndev], dev);
 	if (!sh) {

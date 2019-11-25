@@ -593,7 +593,7 @@ static u32 acpi_db_get_line(char *input_buffer)
 	     input_buffer)) {
 		acpi_os_printf
 		    ("Buffer overflow while parsing input line (max %u characters)\n",
-		     sizeof(acpi_gbl_db_parsed_buf));
+		     (u32)sizeof(acpi_gbl_db_parsed_buf));
 		return (0);
 	}
 
@@ -853,24 +853,24 @@ acpi_db_command_dispatch(char *input_buffer,
 
 		if (param_count == 0) {
 			acpi_os_printf
-			    ("Current debug level for file output is:    %8.8lX\n",
+			    ("Current debug level for file output is:    %8.8X\n",
 			     acpi_gbl_db_debug_level);
 			acpi_os_printf
-			    ("Current debug level for console output is: %8.8lX\n",
+			    ("Current debug level for console output is: %8.8X\n",
 			     acpi_gbl_db_console_debug_level);
 		} else if (param_count == 2) {
 			temp = acpi_gbl_db_console_debug_level;
 			acpi_gbl_db_console_debug_level =
 			    strtoul(acpi_gbl_db_args[1], NULL, 16);
 			acpi_os_printf
-			    ("Debug Level for console output was %8.8lX, now %8.8lX\n",
+			    ("Debug Level for console output was %8.8X, now %8.8X\n",
 			     temp, acpi_gbl_db_console_debug_level);
 		} else {
 			temp = acpi_gbl_db_debug_level;
 			acpi_gbl_db_debug_level =
 			    strtoul(acpi_gbl_db_args[1], NULL, 16);
 			acpi_os_printf
-			    ("Debug Level for file output was %8.8lX, now %8.8lX\n",
+			    ("Debug Level for file output was %8.8X, now %8.8X\n",
 			     temp, acpi_gbl_db_debug_level);
 		}
 		break;

@@ -24,6 +24,7 @@ struct k_clock {
 	int	(*timer_try_to_cancel)(struct k_itimer *timr);
 	void	(*timer_arm)(struct k_itimer *timr, ktime_t expires,
 			     bool absolute, bool sigev_none);
+	void	(*timer_wait_running)(struct k_itimer *timr);
 };
 
 extern const struct k_clock clock_posix_cpu;

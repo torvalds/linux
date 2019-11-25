@@ -1119,8 +1119,7 @@ tx_birq(struct bchannel *bch)
 	if (bch->tx_skb && bch->tx_idx < bch->tx_skb->len)
 		hfcpci_fill_fifo(bch);
 	else {
-		if (bch->tx_skb)
-			dev_kfree_skb(bch->tx_skb);
+		dev_kfree_skb(bch->tx_skb);
 		if (get_next_bframe(bch))
 			hfcpci_fill_fifo(bch);
 	}
@@ -1132,8 +1131,7 @@ tx_dirq(struct dchannel *dch)
 	if (dch->tx_skb && dch->tx_idx < dch->tx_skb->len)
 		hfcpci_fill_dfifo(dch->hw);
 	else {
-		if (dch->tx_skb)
-			dev_kfree_skb(dch->tx_skb);
+		dev_kfree_skb(dch->tx_skb);
 		if (get_next_dframe(dch))
 			hfcpci_fill_dfifo(dch->hw);
 	}

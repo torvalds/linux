@@ -6,8 +6,8 @@
 #ifndef _MT76X0_PHY_H_
 #define _MT76X0_PHY_H_
 
-#define RF_G_BAND 	0x0100
-#define RF_A_BAND 	0x0200
+#define RF_G_BAND	0x0100
+#define RF_A_BAND	0x0200
 #define RF_A_BAND_LB	0x0400
 #define RF_A_BAND_MB	0x0800
 #define RF_A_BAND_HB	0x1000
@@ -18,9 +18,9 @@
 #define RF_BW_10        4
 #define RF_BW_80        8
 
-#define MT_RF(bank, reg) ((bank) << 16 | (reg))
-#define MT_RF_BANK(offset) (offset >> 16)
-#define MT_RF_REG(offset) (offset & 0xff)
+#define MT_RF(bank, reg)		((bank) << 16 | (reg))
+#define MT_RF_BANK(offset)		((offset) >> 16)
+#define MT_RF_REG(offset)		((offset) & 0xff)
 
 #define MT_RF_VCO_BP_CLOSE_LOOP		BIT(3)
 #define MT_RF_VCO_BP_CLOSE_LOOP_MASK	GENMASK(3, 0)

@@ -22,7 +22,6 @@
 
 #include <linux/types.h>
 #include <asm/bootinfo-atari.h>
-#include <asm/raw_io.h>
 #include <asm/kmap.h>
 
 extern u_long atari_mch_cookie;
@@ -132,14 +131,6 @@ extern struct atari_hw_present atari_hw_present;
  */
 
 
-#define atari_readb   raw_inb
-#define atari_writeb  raw_outb
-
-#define atari_inb_p   raw_inb
-#define atari_outb_p  raw_outb
-
-
-
 #include <linux/mm.h>
 #include <asm/cacheflush.h>
 
@@ -170,7 +161,7 @@ static inline void dma_cache_maintenance( unsigned long paddr,
 #define TT_HIGH 6
 
 #define SHF_BAS (0xffff8200)
-struct SHIFTER
+struct SHIFTER_ST
  {
 	u_char pad1;
 	u_char bas_hi;
@@ -187,7 +178,7 @@ struct SHIFTER
 	u_char pad7;
 	u_char bas_lo;
  };
-# define shifter ((*(volatile struct SHIFTER *)SHF_BAS))
+# define shifter_st ((*(volatile struct SHIFTER_ST *)SHF_BAS))
 
 #define SHF_FBAS (0xffff820e)
 struct SHIFTER_F030

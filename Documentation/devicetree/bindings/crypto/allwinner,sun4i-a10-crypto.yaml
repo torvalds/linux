@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/allwinner,sun4i-a10-crypto.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A10 Security System Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <maxime.ripard@bootlin.com>
+
+properties:
+  compatible:
+    oneOf:
+      - const: allwinner,sun4i-a10-crypto
+      - items:
+        - const: allwinner,sun5i-a13-crypto
+        - const: allwinner,sun4i-a10-crypto
+      - items:
+        - const: allwinner,sun6i-a31-crypto
+        - const: allwinner,sun4i-a10-crypto
+      - items:
+        - const: allwinner,sun7i-a20-crypto
+        - const: allwinner,sun4i-a10-crypto
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Bus Clock
+      - description: Module Clock
+
+  clock-names:
+    items:
+      - const: ahb
+      - const: mod
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    const: ahb
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: allwinner,sun6i-a31-crypto
+
+then:
+  required:
+    - resets
+    - reset-names
+
+additionalProperties: false
+
+examples:
+  - |
+    crypto: crypto-engine@1c15000 {
+      compatible = "allwinner,sun4i-a10-crypto";
+      reg = <0x01c15000 0x1000>;
+      interrupts = <86>;
+      clocks = <&ahb_gates 5>, <&ss_clk>;
+      clock-names = "ahb", "mod";
+    };
+
+...

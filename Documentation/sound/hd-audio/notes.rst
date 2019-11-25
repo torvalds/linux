@@ -66,6 +66,11 @@ by comparing both LPIB and position-buffer values.
 ``position_fix=4`` is another combination available for all controllers,
 and uses LPIB for the playback and the position-buffer for the capture
 streams.
+``position_fix=5`` is specific to Intel platforms, so far, for Skylake
+and onward.  It applies the delay calculation for the precise position
+reporting.
+``position_fix=6`` is to correct the position with the fixed FIFO
+size, mainly targeted for the recent AMD controllers.
 0 is the default value for all other
 controllers, the automatic check and fallback to LPIB as described in
 the above.  If you get a problem of repeated sounds, this option might

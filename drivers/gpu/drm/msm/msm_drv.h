@@ -25,7 +25,6 @@
 #include <linux/sizes.h>
 #include <linux/kthread.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
@@ -222,8 +221,12 @@ struct msm_format {
 	uint32_t pixel_format;
 };
 
+struct msm_pending_timer;
+
 int msm_atomic_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *new_state);
+void msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
+		struct msm_kms *kms, int crtc_idx);
 void msm_atomic_commit_tail(struct drm_atomic_state *state);
 struct drm_atomic_state *msm_atomic_state_alloc(struct drm_device *dev);
 void msm_atomic_state_clear(struct drm_atomic_state *state);
@@ -399,7 +402,6 @@ static inline void msm_perf_debugfs_cleanup(struct msm_drm_private *priv) {}
 #endif
 
 struct clk *msm_clk_get(struct platform_device *pdev, const char *name);
-int msm_clk_bulk_get(struct device *dev, struct clk_bulk_data **bulk);
 
 struct clk *msm_clk_bulk_get_clock(struct clk_bulk_data *bulk, int count,
 	const char *name);

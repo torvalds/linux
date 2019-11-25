@@ -280,6 +280,9 @@ static int udf_setattr(struct dentry *dentry, struct iattr *attr)
 			return error;
 	}
 
+	if (attr->ia_valid & ATTR_MODE)
+		udf_update_extra_perms(inode, attr->ia_mode);
+
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
 	return 0;

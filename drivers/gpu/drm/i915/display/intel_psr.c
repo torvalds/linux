@@ -26,7 +26,7 @@
 #include "display/intel_dp.h"
 
 #include "i915_drv.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
 
@@ -825,8 +825,8 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	}
 
 	/* Wait till PSR is idle */
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    psr_status, psr_status_mask, 0, 2000))
+	if (intel_de_wait_for_clear(dev_priv, psr_status,
+				    psr_status_mask, 2000))
 		DRM_ERROR("Timed out waiting PSR idle state\n");
 
 	/* Disable PSR on Sink */
@@ -988,7 +988,7 @@ static bool __psr_wait_for_idle_locked(struct drm_i915_private *dev_priv)
 
 	mutex_unlock(&dev_priv->psr.lock);
 
-	err = intel_wait_for_register(&dev_priv->uncore, reg, mask, 0, 50);
+	err = intel_de_wait_for_clear(dev_priv, reg, mask, 50);
 	if (err)
 		DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
 

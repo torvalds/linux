@@ -8,15 +8,19 @@
  */
 
 #include <linux/clk.h>
+#include <linux/mfd/atmel-hlcdc.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
-#include <linux/pinctrl/consumer.h>
-
-#include <drm/drm_crtc.h>
-#include <drm/drm_probe_helper.h>
-#include <drm/drmP.h>
 
 #include <video/videomode.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "atmel_hlcdc_dc.h"
 

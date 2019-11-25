@@ -457,6 +457,11 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 							   val);
 				change_autoneg = true;
 				break;
+			case MII_CTRL1000:
+				mii_ctrl1000_mod_linkmode_adv_t(phydev->advertising,
+							        val);
+				change_autoneg = true;
+				break;
 			default:
 				/* do nothing */
 				break;
@@ -507,7 +512,7 @@ static int phy_config_aneg(struct phy_device *phydev)
 	 * allowed to call genphy_config_aneg()
 	 */
 	if (phydev->is_c45 && !(phydev->c45_ids.devices_in_package & BIT(0)))
-		return -EOPNOTSUPP;
+		return genphy_c45_config_aneg(phydev);
 
 	return genphy_config_aneg(phydev);
 }
@@ -524,6 +529,12 @@ static int phy_check_link_status(struct phy_device *phydev)
 	int err;
 
 	WARN_ON(!mutex_is_locked(&phydev->lock));
+
+	/* Keep previous state if loopback is enabled because some PHYs
+	 * report that Link is Down when loopback is enabled.
+	 */
+	if (phydev->loopback_enabled)
+		return 0;
 
 	err = phy_read_status(phydev);
 	if (err)
@@ -560,9 +571,6 @@ int phy_start_aneg(struct phy_device *phydev)
 
 	if (AUTONEG_DISABLE == phydev->autoneg)
 		phy_sanitize_settings(phydev);
-
-	/* Invalidate LP advertising flags */
-	linkmode_zero(phydev->lp_advertising);
 
 	err = phy_config_aneg(phydev);
 	if (err < 0)
@@ -608,38 +616,21 @@ static int phy_poll_aneg_done(struct phy_device *phydev)
  */
 int phy_speed_down(struct phy_device *phydev, bool sync)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_old);
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_tmp);
 	int ret;
 
 	if (phydev->autoneg != AUTONEG_ENABLE)
 		return 0;
 
-	linkmode_copy(adv_old, phydev->advertising);
-	linkmode_copy(adv, phydev->lp_advertising);
-	linkmode_and(adv, adv, phydev->supported);
+	linkmode_copy(adv_tmp, phydev->advertising);
 
-	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, adv) ||
-	    linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, adv)) {
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-				   phydev->advertising);
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-				   phydev->advertising);
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-				   phydev->advertising);
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				   phydev->advertising);
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-				     adv) ||
-		   linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-				     adv)) {
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-				   phydev->advertising);
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				   phydev->advertising);
-	}
+	ret = phy_speed_down_core(phydev);
+	if (ret)
+		return ret;
 
-	if (linkmode_equal(phydev->advertising, adv_old))
+	linkmode_copy(phydev->adv_old, adv_tmp);
+
+	if (linkmode_equal(phydev->advertising, adv_tmp))
 		return 0;
 
 	ret = phy_config_aneg(phydev);
@@ -658,30 +649,19 @@ EXPORT_SYMBOL_GPL(phy_speed_down);
  */
 int phy_speed_up(struct phy_device *phydev)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(all_speeds) = { 0, };
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(not_speeds);
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_old);
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(speeds);
-
-	linkmode_copy(adv_old, phydev->advertising);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_tmp);
 
 	if (phydev->autoneg != AUTONEG_ENABLE)
 		return 0;
 
-	linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, all_speeds);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, all_speeds);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, all_speeds);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, all_speeds);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT, all_speeds);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, all_speeds);
+	if (linkmode_empty(phydev->adv_old))
+		return 0;
 
-	linkmode_andnot(not_speeds, adv_old, all_speeds);
-	linkmode_copy(supported, phydev->supported);
-	linkmode_and(speeds, supported, all_speeds);
-	linkmode_or(phydev->advertising, not_speeds, speeds);
+	linkmode_copy(adv_tmp, phydev->advertising);
+	linkmode_copy(phydev->advertising, phydev->adv_old);
+	linkmode_zero(phydev->adv_old);
 
-	if (linkmode_equal(phydev->advertising, adv_old))
+	if (linkmode_equal(phydev->advertising, adv_tmp))
 		return 0;
 
 	return phy_config_aneg(phydev);
@@ -939,8 +919,8 @@ void phy_state_machine(struct work_struct *work)
 		if (phydev->link) {
 			phydev->link = 0;
 			phy_link_down(phydev, true);
-			do_suspend = true;
 		}
+		do_suspend = true;
 		break;
 	}
 

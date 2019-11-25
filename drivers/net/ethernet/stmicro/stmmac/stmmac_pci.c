@@ -9,6 +9,7 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#include <linux/clk-provider.h>
 #include <linux/pci.h>
 #include <linux/dmi.h>
 
@@ -63,6 +64,7 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 	plat->has_gmac = 1;
 	plat->force_sf_dma_mode = 1;
 
+	plat->mdio_bus_data->needs_reset = true;
 	plat->mdio_bus_data->phy_mask = 0;
 
 	/* Set default value for multicast hash bins */
@@ -105,6 +107,166 @@ static int stmmac_default_data(struct pci_dev *pdev,
 
 static const struct stmmac_pci_info stmmac_pci_info = {
 	.setup = stmmac_default_data,
+};
+
+static int intel_mgbe_common_data(struct pci_dev *pdev,
+				  struct plat_stmmacenet_data *plat)
+{
+	int i;
+
+	plat->clk_csr = 5;
+	plat->has_gmac = 0;
+	plat->has_gmac4 = 1;
+	plat->force_sf_dma_mode = 0;
+	plat->tso_en = 1;
+
+	plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
+
+	for (i = 0; i < plat->rx_queues_to_use; i++) {
+		plat->rx_queues_cfg[i].mode_to_use = MTL_QUEUE_DCB;
+		plat->rx_queues_cfg[i].chan = i;
+
+		/* Disable Priority config by default */
+		plat->rx_queues_cfg[i].use_prio = false;
+
+		/* Disable RX queues routing by default */
+		plat->rx_queues_cfg[i].pkt_route = 0x0;
+	}
+
+	for (i = 0; i < plat->tx_queues_to_use; i++) {
+		plat->tx_queues_cfg[i].mode_to_use = MTL_QUEUE_DCB;
+
+		/* Disable Priority config by default */
+		plat->tx_queues_cfg[i].use_prio = false;
+	}
+
+	/* FIFO size is 4096 bytes for 1 tx/rx queue */
+	plat->tx_fifo_size = plat->tx_queues_to_use * 4096;
+	plat->rx_fifo_size = plat->rx_queues_to_use * 4096;
+
+	plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WRR;
+	plat->tx_queues_cfg[0].weight = 0x09;
+	plat->tx_queues_cfg[1].weight = 0x0A;
+	plat->tx_queues_cfg[2].weight = 0x0B;
+	plat->tx_queues_cfg[3].weight = 0x0C;
+	plat->tx_queues_cfg[4].weight = 0x0D;
+	plat->tx_queues_cfg[5].weight = 0x0E;
+	plat->tx_queues_cfg[6].weight = 0x0F;
+	plat->tx_queues_cfg[7].weight = 0x10;
+
+	plat->mdio_bus_data->phy_mask = 0;
+
+	plat->dma_cfg->pbl = 32;
+	plat->dma_cfg->pblx8 = true;
+	plat->dma_cfg->fixed_burst = 0;
+	plat->dma_cfg->mixed_burst = 0;
+	plat->dma_cfg->aal = 0;
+
+	plat->axi = devm_kzalloc(&pdev->dev, sizeof(*plat->axi),
+				 GFP_KERNEL);
+	if (!plat->axi)
+		return -ENOMEM;
+
+	plat->axi->axi_lpi_en = 0;
+	plat->axi->axi_xit_frm = 0;
+	plat->axi->axi_wr_osr_lmt = 1;
+	plat->axi->axi_rd_osr_lmt = 1;
+	plat->axi->axi_blen[0] = 4;
+	plat->axi->axi_blen[1] = 8;
+	plat->axi->axi_blen[2] = 16;
+
+	plat->ptp_max_adj = plat->clk_ptp_rate;
+
+	/* Set system clock */
+	plat->stmmac_clk = clk_register_fixed_rate(&pdev->dev,
+						   "stmmac-clk", NULL, 0,
+						   plat->clk_ptp_rate);
+
+	if (IS_ERR(plat->stmmac_clk)) {
+		dev_warn(&pdev->dev, "Fail to register stmmac-clk\n");
+		plat->stmmac_clk = NULL;
+	}
+	clk_prepare_enable(plat->stmmac_clk);
+
+	/* Set default value for multicast hash bins */
+	plat->multicast_filter_bins = HASH_TABLE_SIZE;
+
+	/* Set default value for unicast filter entries */
+	plat->unicast_filter_entries = 1;
+
+	/* Set the maxmtu to a default of JUMBO_LEN */
+	plat->maxmtu = JUMBO_LEN;
+
+	return 0;
+}
+
+static int ehl_common_data(struct pci_dev *pdev,
+			   struct plat_stmmacenet_data *plat)
+{
+	int ret;
+
+	plat->rx_queues_to_use = 8;
+	plat->tx_queues_to_use = 8;
+	plat->clk_ptp_rate = 200000000;
+	ret = intel_mgbe_common_data(pdev, plat);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int ehl_sgmii_data(struct pci_dev *pdev,
+			  struct plat_stmmacenet_data *plat)
+{
+	plat->bus_id = 1;
+	plat->phy_addr = 0;
+	plat->interface = PHY_INTERFACE_MODE_SGMII;
+	return ehl_common_data(pdev, plat);
+}
+
+static struct stmmac_pci_info ehl_sgmii1g_pci_info = {
+	.setup = ehl_sgmii_data,
+};
+
+static int ehl_rgmii_data(struct pci_dev *pdev,
+			  struct plat_stmmacenet_data *plat)
+{
+	plat->bus_id = 1;
+	plat->phy_addr = 0;
+	plat->interface = PHY_INTERFACE_MODE_RGMII;
+	return ehl_common_data(pdev, plat);
+}
+
+static struct stmmac_pci_info ehl_rgmii1g_pci_info = {
+	.setup = ehl_rgmii_data,
+};
+
+static int tgl_common_data(struct pci_dev *pdev,
+			   struct plat_stmmacenet_data *plat)
+{
+	int ret;
+
+	plat->rx_queues_to_use = 6;
+	plat->tx_queues_to_use = 4;
+	plat->clk_ptp_rate = 200000000;
+	ret = intel_mgbe_common_data(pdev, plat);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int tgl_sgmii_data(struct pci_dev *pdev,
+			  struct plat_stmmacenet_data *plat)
+{
+	plat->bus_id = 1;
+	plat->phy_addr = 0;
+	plat->interface = PHY_INTERFACE_MODE_SGMII;
+	return tgl_common_data(pdev, plat);
+}
+
+static struct stmmac_pci_info tgl_sgmii1g_pci_info = {
+	.setup = tgl_sgmii_data,
 };
 
 static const struct stmmac_pci_func_data galileo_stmmac_func_data[] = {
@@ -213,6 +375,75 @@ static const struct stmmac_pci_info quark_pci_info = {
 	.setup = quark_default_data,
 };
 
+static int snps_gmac5_default_data(struct pci_dev *pdev,
+				   struct plat_stmmacenet_data *plat)
+{
+	int i;
+
+	plat->clk_csr = 5;
+	plat->has_gmac4 = 1;
+	plat->force_sf_dma_mode = 1;
+	plat->tso_en = 1;
+	plat->pmt = 1;
+
+	plat->mdio_bus_data->phy_mask = 0;
+
+	/* Set default value for multicast hash bins */
+	plat->multicast_filter_bins = HASH_TABLE_SIZE;
+
+	/* Set default value for unicast filter entries */
+	plat->unicast_filter_entries = 1;
+
+	/* Set the maxmtu to a default of JUMBO_LEN */
+	plat->maxmtu = JUMBO_LEN;
+
+	/* Set default number of RX and TX queues to use */
+	plat->tx_queues_to_use = 4;
+	plat->rx_queues_to_use = 4;
+
+	plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WRR;
+	for (i = 0; i < plat->tx_queues_to_use; i++) {
+		plat->tx_queues_cfg[i].use_prio = false;
+		plat->tx_queues_cfg[i].mode_to_use = MTL_QUEUE_DCB;
+		plat->tx_queues_cfg[i].weight = 25;
+	}
+
+	plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
+	for (i = 0; i < plat->rx_queues_to_use; i++) {
+		plat->rx_queues_cfg[i].use_prio = false;
+		plat->rx_queues_cfg[i].mode_to_use = MTL_QUEUE_DCB;
+		plat->rx_queues_cfg[i].pkt_route = 0x0;
+		plat->rx_queues_cfg[i].chan = i;
+	}
+
+	plat->bus_id = 1;
+	plat->phy_addr = -1;
+	plat->interface = PHY_INTERFACE_MODE_GMII;
+
+	plat->dma_cfg->pbl = 32;
+	plat->dma_cfg->pblx8 = true;
+
+	/* Axi Configuration */
+	plat->axi = devm_kzalloc(&pdev->dev, sizeof(*plat->axi), GFP_KERNEL);
+	if (!plat->axi)
+		return -ENOMEM;
+
+	plat->axi->axi_wr_osr_lmt = 31;
+	plat->axi->axi_rd_osr_lmt = 31;
+
+	plat->axi->axi_fb = false;
+	plat->axi->axi_blen[0] = 4;
+	plat->axi->axi_blen[1] = 8;
+	plat->axi->axi_blen[2] = 16;
+	plat->axi->axi_blen[3] = 32;
+
+	return 0;
+}
+
+static const struct stmmac_pci_info snps_gmac5_pci_info = {
+	.setup = snps_gmac5_default_data,
+};
+
 /**
  * stmmac_pci_probe
  *
@@ -292,9 +523,14 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
  */
 static void stmmac_pci_remove(struct pci_dev *pdev)
 {
+	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
 	int i;
 
 	stmmac_dvr_remove(&pdev->dev);
+
+	if (priv->plat->stmmac_clk)
+		clk_unregister_fixed_rate(priv->plat->stmmac_clk);
 
 	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
 		if (pci_resource_len(pdev, i) == 0)
@@ -348,6 +584,10 @@ static SIMPLE_DEV_PM_OPS(stmmac_pm_ops, stmmac_pci_suspend, stmmac_pci_resume);
 
 #define STMMAC_QUARK_ID  0x0937
 #define STMMAC_DEVICE_ID 0x1108
+#define STMMAC_EHL_RGMII1G_ID	0x4b30
+#define STMMAC_EHL_SGMII1G_ID	0x4b31
+#define STMMAC_TGL_SGMII1G_ID	0xa0ac
+#define STMMAC_GMAC5_ID		0x7102
 
 #define STMMAC_DEVICE(vendor_id, dev_id, info)	{	\
 	PCI_VDEVICE(vendor_id, dev_id),			\
@@ -358,6 +598,10 @@ static const struct pci_device_id stmmac_id_table[] = {
 	STMMAC_DEVICE(STMMAC, STMMAC_DEVICE_ID, stmmac_pci_info),
 	STMMAC_DEVICE(STMICRO, PCI_DEVICE_ID_STMICRO_MAC, stmmac_pci_info),
 	STMMAC_DEVICE(INTEL, STMMAC_QUARK_ID, quark_pci_info),
+	STMMAC_DEVICE(INTEL, STMMAC_EHL_RGMII1G_ID, ehl_rgmii1g_pci_info),
+	STMMAC_DEVICE(INTEL, STMMAC_EHL_SGMII1G_ID, ehl_sgmii1g_pci_info),
+	STMMAC_DEVICE(INTEL, STMMAC_TGL_SGMII1G_ID, tgl_sgmii1g_pci_info),
+	STMMAC_DEVICE(SYNOPSYS, STMMAC_GMAC5_ID, snps_gmac5_pci_info),
 	{}
 };
 

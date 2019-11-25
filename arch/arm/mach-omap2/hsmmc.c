@@ -32,10 +32,8 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 	char *hc_name;
 
 	hc_name = kzalloc(HSMMC_NAME_LEN + 1, GFP_KERNEL);
-	if (!hc_name) {
-		kfree(hc_name);
+	if (!hc_name)
 		return -ENOMEM;
-	}
 
 	snprintf(hc_name, (HSMMC_NAME_LEN + 1), "mmc%islot%i", c->mmc, 1);
 	mmc->name = hc_name;

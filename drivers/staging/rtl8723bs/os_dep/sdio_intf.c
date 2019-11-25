@@ -371,7 +371,7 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 
 	rtw_hal_chip_configure(padapter);
 
-	hal_btcoex_Initialize(padapter);
+	hal_btcoex_Initialize((void *) padapter);
 
 	/* 3 6. read efuse/eeprom data */
 	rtw_hal_read_chip_info(padapter);
@@ -620,12 +620,10 @@ static int __init rtw_drv_entry(void)
 #endif /*  BTCOEXVERSION */
 
 	sdio_drvpriv.drv_registered = true;
-	rtw_drv_proc_init();
 
 	ret = sdio_register_driver(&sdio_drvpriv.r871xs_drv);
 	if (ret != 0) {
 		sdio_drvpriv.drv_registered = false;
-		rtw_drv_proc_deinit();
 		rtw_ndev_notifier_unregister();
 		DBG_871X("%s: register driver failed!!(%d)\n", __func__, ret);
 		goto exit;
@@ -646,7 +644,6 @@ static void __exit rtw_drv_halt(void)
 
 	sdio_unregister_driver(&sdio_drvpriv.r871xs_drv);
 
-	rtw_drv_proc_deinit();
 	rtw_ndev_notifier_unregister();
 
 	DBG_871X_LEVEL(_drv_always_, "module exit success\n");

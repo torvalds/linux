@@ -27,7 +27,9 @@ config DRM_AMDGPU_CIK
 config DRM_AMDGPU_USERPTR
 	bool "Always enable userptr write support"
 	depends on DRM_AMDGPU
-	depends on HMM_MIRROR
+	depends on MMU
+	select HMM_MIRROR
+	select MMU_NOTIFIER
 	help
 	  This option selects CONFIG_HMM and CONFIG_HMM_MIRROR if it
 	  isn't already selected to enabled full userptr support.

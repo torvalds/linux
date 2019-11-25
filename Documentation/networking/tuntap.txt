@@ -204,8 +204,8 @@ Ethernet device, which instead of receiving packets from a physical
 media, receives them from user space program and instead of sending 
 packets via physical media sends them to the user space program. 
 
-Let's say that you configured IPX on the tap0, then whenever 
-the kernel sends an IPX packet to tap0, it is passed to the application
+Let's say that you configured IPv6 on the tap0, then whenever
+the kernel sends an IPv6 packet to tap0, it is passed to the application
 (VTun for example). The application encrypts, compresses and sends it to 
 the other side over TCP or UDP. The application on the other side decompresses
 and decrypts the data received and writes the packet to the TAP device, 

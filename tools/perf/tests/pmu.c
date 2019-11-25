@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "parse-events.h"
 #include "pmu.h"
-#include "util.h"
 #include "tests.h"
 #include <errno.h>
 #include <stdio.h>

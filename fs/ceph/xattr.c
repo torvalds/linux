@@ -20,7 +20,8 @@ static int __remove_xattr(struct ceph_inode_info *ci,
 
 static bool ceph_is_valid_xattr(const char *name)
 {
-	return !strncmp(name, XATTR_CEPH_PREFIX, XATTR_CEPH_PREFIX_LEN) ||
+	return !strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) ||
+	       !strncmp(name, XATTR_CEPH_PREFIX, XATTR_CEPH_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
 }
@@ -754,12 +755,15 @@ static int __get_required_blob_size(struct ceph_inode_info *ci, int name_size,
 
 /*
  * If there are dirty xattrs, reencode xattrs into the prealloc_blob
- * and swap into place.
+ * and swap into place.  It returns the old i_xattrs.blob (or NULL) so
+ * that it can be freed by the caller as the i_ceph_lock is likely to be
+ * held.
  */
-void __ceph_build_xattrs_blob(struct ceph_inode_info *ci)
+struct ceph_buffer *__ceph_build_xattrs_blob(struct ceph_inode_info *ci)
 {
 	struct rb_node *p;
 	struct ceph_inode_xattr *xattr = NULL;
+	struct ceph_buffer *old_blob = NULL;
 	void *dest;
 
 	dout("__build_xattrs_blob %p\n", &ci->vfs_inode);
@@ -790,12 +794,14 @@ void __ceph_build_xattrs_blob(struct ceph_inode_info *ci)
 			dest - ci->i_xattrs.prealloc_blob->vec.iov_base;
 
 		if (ci->i_xattrs.blob)
-			ceph_buffer_put(ci->i_xattrs.blob);
+			old_blob = ci->i_xattrs.blob;
 		ci->i_xattrs.blob = ci->i_xattrs.prealloc_blob;
 		ci->i_xattrs.prealloc_blob = NULL;
 		ci->i_xattrs.dirty = false;
 		ci->i_xattrs.version++;
 	}
+
+	return old_blob;
 }
 
 static inline int __get_request_mask(struct inode *in) {
@@ -887,7 +893,8 @@ ssize_t __ceph_getxattr(struct inode *inode, const char *name, void *value,
 	memcpy(value, xattr->val, xattr->val_len);
 
 	if (current->journal_info &&
-	    !strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN))
+	    !strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) &&
+	    security_ismaclabel(name + XATTR_SECURITY_PREFIX_LEN))
 		ci->i_ceph_flags |= CEPH_I_SEC_INITED;
 out:
 	spin_unlock(&ci->i_ceph_lock);
@@ -898,11 +905,9 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 {
 	struct inode *inode = d_inode(dentry);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_vxattr *vxattrs = ceph_inode_vxattrs(inode);
 	bool len_only = (size == 0);
 	u32 namelen;
 	int err;
-	int i;
 
 	spin_lock(&ci->i_ceph_lock);
 	dout("listxattr %p ver=%lld index_ver=%lld\n", inode,
@@ -930,33 +935,6 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 		}
 		names = __copy_xattr_names(ci, names);
 		size -= namelen;
-	}
-
-
-	/* virtual xattr names, too */
-	if (vxattrs) {
-		for (i = 0; vxattrs[i].name; i++) {
-			size_t this_len;
-
-			if (vxattrs[i].flags & VXATTR_FLAG_HIDDEN)
-				continue;
-			if (vxattrs[i].exists_cb && !vxattrs[i].exists_cb(ci))
-				continue;
-
-			this_len = strlen(vxattrs[i].name) + 1;
-			namelen += this_len;
-			if (len_only)
-				continue;
-
-			if (this_len > size) {
-				err = -ERANGE;
-				goto out;
-			}
-
-			memcpy(names, vxattrs[i].name, this_len);
-			names += this_len;
-			size -= this_len;
-		}
 	}
 	err = namelen;
 out:
@@ -1036,6 +1014,7 @@ int __ceph_setxattr(struct inode *inode, const char *name,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_cap_flush *prealloc_cf = NULL;
+	struct ceph_buffer *old_blob = NULL;
 	int issued;
 	int err;
 	int dirty = 0;
@@ -1109,13 +1088,15 @@ retry:
 		struct ceph_buffer *blob;
 
 		spin_unlock(&ci->i_ceph_lock);
-		dout(" preaallocating new blob size=%d\n", required_blob_size);
+		ceph_buffer_put(old_blob); /* Shouldn't be required */
+		dout(" pre-allocating new blob size=%d\n", required_blob_size);
 		blob = ceph_buffer_new(required_blob_size, GFP_NOFS);
 		if (!blob)
 			goto do_sync_unlocked;
 		spin_lock(&ci->i_ceph_lock);
+		/* prealloc_blob can't be released while holding i_ceph_lock */
 		if (ci->i_xattrs.prealloc_blob)
-			ceph_buffer_put(ci->i_xattrs.prealloc_blob);
+			old_blob = ci->i_xattrs.prealloc_blob;
 		ci->i_xattrs.prealloc_blob = blob;
 		goto retry;
 	}
@@ -1131,6 +1112,7 @@ retry:
 	}
 
 	spin_unlock(&ci->i_ceph_lock);
+	ceph_buffer_put(old_blob);
 	if (lock_snap_rwsem)
 		up_read(&mdsc->snap_rwsem);
 	if (dirty)
@@ -1284,42 +1266,8 @@ out:
 		ceph_pagelist_release(pagelist);
 	return err;
 }
-
-void ceph_security_invalidate_secctx(struct inode *inode)
-{
-	security_inode_invalidate_secctx(inode);
-}
-
-static int ceph_xattr_set_security_label(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
-				    const char *key, const void *buf,
-				    size_t buflen, int flags)
-{
-	if (security_ismaclabel(key)) {
-		const char *name = xattr_full_name(handler, key);
-		return __ceph_setxattr(inode, name, buf, buflen, flags);
-	}
-	return  -EOPNOTSUPP;
-}
-
-static int ceph_xattr_get_security_label(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
-				    const char *key, void *buf, size_t buflen)
-{
-	if (security_ismaclabel(key)) {
-		const char *name = xattr_full_name(handler, key);
-		return __ceph_getxattr(inode, name, buf, buflen);
-	}
-	return  -EOPNOTSUPP;
-}
-
-static const struct xattr_handler ceph_security_label_handler = {
-	.prefix = XATTR_SECURITY_PREFIX,
-	.get    = ceph_xattr_get_security_label,
-	.set    = ceph_xattr_set_security_label,
-};
-#endif
-#endif
+#endif /* CONFIG_CEPH_FS_SECURITY_LABEL */
+#endif /* CONFIG_SECURITY */
 
 void ceph_release_acl_sec_ctx(struct ceph_acl_sec_ctx *as_ctx)
 {
@@ -1342,9 +1290,6 @@ const struct xattr_handler *ceph_xattr_handlers[] = {
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	&posix_acl_access_xattr_handler,
 	&posix_acl_default_xattr_handler,
-#endif
-#ifdef CONFIG_CEPH_FS_SECURITY_LABEL
-	&ceph_security_label_handler,
 #endif
 	&ceph_other_xattr_handler,
 	NULL,

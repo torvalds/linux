@@ -32,8 +32,7 @@ extern int gfs2_dir_add(struct inode *inode, const struct qstr *filename,
 			const struct gfs2_inode *ip, struct gfs2_diradd *da);
 static inline void gfs2_dir_no_add(struct gfs2_diradd *da)
 {
-	if (da->bh)
-		brelse(da->bh);
+	brelse(da->bh);
 	da->bh = NULL;
 }
 extern int gfs2_dir_del(struct gfs2_inode *dip, const struct dentry *dentry);

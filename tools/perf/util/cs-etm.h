@@ -8,8 +8,9 @@
 #define INCLUDE__UTIL_PERF_CS_ETM_H__
 
 #include "util/event.h"
-#include "util/session.h"
 #include <linux/bits.h>
+
+struct perf_session;
 
 /* Versionning header in case things need tro change in the future.  That way
  * decoding of old snapshot is still possible.

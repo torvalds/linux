@@ -89,6 +89,7 @@ static const struct link_encoder_funcs dcn10_lnk_enc_funcs = {
 	.disable_hpd = dcn10_link_encoder_disable_hpd,
 	.is_dig_enabled = dcn10_is_dig_enabled,
 	.get_dig_frontend = dcn10_get_dig_frontend,
+	.get_dig_mode = dcn10_get_dig_mode,
 	.destroy = dcn10_link_encoder_destroy
 };
 
@@ -446,6 +447,46 @@ static uint8_t get_frontend_source(
 	}
 }
 
+unsigned int dcn10_get_dig_frontend(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	int32_t value;
+	enum engine_id result;
+
+	REG_GET(DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, &value);
+
+	switch (value) {
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGA:
+		result = ENGINE_ID_DIGA;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGB:
+		result = ENGINE_ID_DIGB;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGC:
+		result = ENGINE_ID_DIGC;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGD:
+		result = ENGINE_ID_DIGD;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGE:
+		result = ENGINE_ID_DIGE;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGF:
+		result = ENGINE_ID_DIGF;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGG:
+		result = ENGINE_ID_DIGG;
+		break;
+	default:
+		// invalid source select DIG
+		ASSERT(false);
+		result = ENGINE_ID_UNKNOWN;
+	}
+
+	return result;
+
+}
+
 void enc1_configure_encoder(
 	struct dcn10_link_encoder *enc10,
 	const struct dc_link_settings *link_settings)
@@ -498,15 +539,6 @@ bool dcn10_is_dig_enabled(struct link_encoder *enc)
 	uint32_t value;
 
 	REG_GET(DIG_BE_EN_CNTL, DIG_ENABLE, &value);
-	return value;
-}
-
-unsigned int dcn10_get_dig_frontend(struct link_encoder *enc)
-{
-	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-	uint32_t value;
-
-	REG_GET(DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, &value);
 	return value;
 }
 
@@ -1366,3 +1398,25 @@ void dcn10_aux_initialize(struct dcn10_link_encoder *enc10)
 	AUX_REG_UPDATE(AUX_DPHY_RX_CONTROL0,
 			AUX_RX_RECEIVE_WINDOW, 0);
 }
+
+enum signal_type dcn10_get_dig_mode(
+	struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t value;
+	REG_GET(DIG_BE_CNTL, DIG_MODE, &value);
+	switch (value) {
+	case 1:
+		return SIGNAL_TYPE_DISPLAY_PORT;
+	case 2:
+		return SIGNAL_TYPE_DVI_SINGLE_LINK;
+	case 3:
+		return SIGNAL_TYPE_HDMI_TYPE_A;
+	case 5:
+		return SIGNAL_TYPE_DISPLAY_PORT_MST;
+	default:
+		return SIGNAL_TYPE_NONE;
+	}
+	return SIGNAL_TYPE_NONE;
+}
+

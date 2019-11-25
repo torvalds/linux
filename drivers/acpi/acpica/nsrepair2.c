@@ -126,7 +126,7 @@ static const struct acpi_repair_info acpi_ns_repairable_names[] = {
 
 #define ACPI_FDE_FIELD_COUNT        5
 #define ACPI_FDE_BYTE_BUFFER_SIZE   5
-#define ACPI_FDE_DWORD_BUFFER_SIZE  (ACPI_FDE_FIELD_COUNT * sizeof (u32))
+#define ACPI_FDE_DWORD_BUFFER_SIZE  (ACPI_FDE_FIELD_COUNT * (u32) sizeof (u32))
 
 /******************************************************************************
  *

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "misc.h"
 #include "ctree.h"
 #include "block-rsv.h"
 #include "space-info.h"
-#include "math.h"
 #include "transaction.h"
 
 static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
@@ -54,8 +54,9 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 			spin_unlock(&dest->lock);
 		}
 		if (num_bytes)
-			btrfs_space_info_add_old_bytes(fs_info, space_info,
-						       num_bytes);
+			btrfs_space_info_free_bytes_may_use(fs_info,
+							    space_info,
+							    num_bytes);
 	}
 	if (qgroup_to_release_ret)
 		*qgroup_to_release_ret = qgroup_to_release;
@@ -258,6 +259,7 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	struct btrfs_space_info *sinfo = block_rsv->space_info;
 	u64 num_bytes;
+	unsigned min_items;
 
 	/*
 	 * The global block rsv is based on the size of the extent tree, the
@@ -267,7 +269,26 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	num_bytes = btrfs_root_used(&fs_info->extent_root->root_item) +
 		btrfs_root_used(&fs_info->csum_root->root_item) +
 		btrfs_root_used(&fs_info->tree_root->root_item);
-	num_bytes = max_t(u64, num_bytes, SZ_16M);
+
+	/*
+	 * We at a minimum are going to modify the csum root, the tree root, and
+	 * the extent root.
+	 */
+	min_items = 3;
+
+	/*
+	 * But we also want to reserve enough space so we can do the fallback
+	 * global reserve for an unlink, which is an additional 5 items (see the
+	 * comment in __unlink_start_trans for what we're modifying.)
+	 *
+	 * But we also need space for the delayed ref updates from the unlink,
+	 * so its 10, 5 for the actual operation, and 5 for the delayed ref
+	 * updates.
+	 */
+	min_items += 10;
+
+	num_bytes = max_t(u64, num_bytes,
+			  btrfs_calc_insert_metadata_size(fs_info, min_items));
 
 	spin_lock(&sinfo->lock);
 	spin_lock(&block_rsv->lock);
@@ -275,25 +296,16 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	block_rsv->size = min_t(u64, num_bytes, SZ_512M);
 
 	if (block_rsv->reserved < block_rsv->size) {
-		num_bytes = btrfs_space_info_used(sinfo, true);
-		if (sinfo->total_bytes > num_bytes) {
-			num_bytes = sinfo->total_bytes - num_bytes;
-			num_bytes = min(num_bytes,
-					block_rsv->size - block_rsv->reserved);
-			block_rsv->reserved += num_bytes;
-			btrfs_space_info_update_bytes_may_use(fs_info, sinfo,
-							      num_bytes);
-			trace_btrfs_space_reservation(fs_info, "space_info",
-						      sinfo->flags, num_bytes,
-						      1);
-		}
+		num_bytes = block_rsv->size - block_rsv->reserved;
+		block_rsv->reserved += num_bytes;
+		btrfs_space_info_update_bytes_may_use(fs_info, sinfo,
+						      num_bytes);
 	} else if (block_rsv->reserved > block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
 		btrfs_space_info_update_bytes_may_use(fs_info, sinfo,
 						      -num_bytes);
-		trace_btrfs_space_reservation(fs_info, "space_info",
-				      sinfo->flags, num_bytes, 0);
 		block_rsv->reserved = block_rsv->size;
+		btrfs_try_granting_tickets(fs_info, sinfo);
 	}
 
 	if (block_rsv->reserved == block_rsv->size)

@@ -168,7 +168,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		soft_margin = new_margin;
 		reload = soft_margin * (mem_fclk_21285 / 256);
 		watchdog_ping();
-		/* Fall */
+		/* Fall through */
 	case WDIOC_GETTIMEOUT:
 		ret = put_user(soft_margin, int_arg);
 		break;

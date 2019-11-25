@@ -23,7 +23,7 @@ devices capable of tracking identifiable contacts (type B), the protocol
 describes how to send updates for individual contacts via event slots.
 
 .. note::
-   MT potocol type A is obsolete, all kernel drivers have been
+   MT protocol type A is obsolete, all kernel drivers have been
    converted to use type B.
 
 Protocol Usage

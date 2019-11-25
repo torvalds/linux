@@ -4,6 +4,7 @@
 
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <net/ipv6.h>
+#include <net/netfilter/nf_tables.h>
 
 static inline void nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 					struct sk_buff *skb)

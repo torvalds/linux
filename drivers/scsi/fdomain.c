@@ -166,7 +166,7 @@ static int fdomain_test_loopback(int base)
 
 static void fdomain_reset(int base)
 {
-	outb(1, base + REG_BCTL);
+	outb(BCTL_RST, base + REG_BCTL);
 	mdelay(20);
 	outb(0, base + REG_BCTL);
 	mdelay(1150);
@@ -306,7 +306,7 @@ static void fdomain_work(struct work_struct *work)
 	status = inb(fd->base + REG_BSTAT);
 
 	if (status & BSTAT_REQ) {
-		switch (status & 0x0e) {
+		switch (status & (BSTAT_MSG | BSTAT_CMD | BSTAT_IO)) {
 		case BSTAT_CMD:	/* COMMAND OUT */
 			outb(cmd->cmnd[cmd->SCp.sent_command++],
 			     fd->base + REG_SCSI_DATA);
@@ -331,7 +331,7 @@ static void fdomain_work(struct work_struct *work)
 		case BSTAT_MSG | BSTAT_CMD:	/* MESSAGE OUT */
 			outb(MESSAGE_REJECT, fd->base + REG_SCSI_DATA);
 			break;
-		case BSTAT_MSG | BSTAT_IO | BSTAT_CMD:	/* MESSAGE IN */
+		case BSTAT_MSG | BSTAT_CMD | BSTAT_IO:	/* MESSAGE IN */
 			cmd->SCp.Message = inb(fd->base + REG_SCSI_DATA);
 			if (!cmd->SCp.Message)
 				++done;

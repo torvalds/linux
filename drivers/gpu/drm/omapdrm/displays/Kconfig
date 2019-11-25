@@ -29,42 +29,4 @@ config DRM_OMAP_PANEL_DSI_CM
 	help
 	  Driver for generic DSI command mode panels.
 
-config DRM_OMAP_PANEL_SONY_ACX565AKM
-	tristate "ACX565AKM Panel"
-	depends on SPI && BACKLIGHT_CLASS_DEVICE
-	help
-	  This is the LCD panel used on Nokia N900
-
-config DRM_OMAP_PANEL_LGPHILIPS_LB035Q02
-	tristate "LG.Philips LB035Q02 LCD Panel"
-	depends on SPI
-	help
-	  LCD Panel used on the Gumstix Overo Palo35
-
-config DRM_OMAP_PANEL_SHARP_LS037V7DW01
-        tristate "Sharp LS037V7DW01 LCD Panel"
-        depends on BACKLIGHT_CLASS_DEVICE
-        help
-          LCD Panel used in TI's SDP3430 and EVM boards
-
-config DRM_OMAP_PANEL_TPO_TD028TTEC1
-        tristate "TPO TD028TTEC1 LCD Panel"
-        depends on SPI
-        help
-          LCD panel used in Openmoko.
-
-config DRM_OMAP_PANEL_TPO_TD043MTEA1
-        tristate "TPO TD043MTEA1 LCD Panel"
-        depends on SPI
-        help
-          LCD Panel used in OMAP3 Pandora
-
-config DRM_OMAP_PANEL_NEC_NL8048HL11
-	tristate "NEC NL8048HL11 Panel"
-	depends on SPI
-	depends on BACKLIGHT_CLASS_DEVICE
-	help
-		This NEC NL8048HL11 panel is TFT LCD used in the
-		Zoom2/3/3630 sdp boards.
-
 endmenu

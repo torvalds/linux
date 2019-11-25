@@ -291,5 +291,12 @@ struct drm_connector;
 bool drm_hdcp_check_ksvs_revoked(struct drm_device *dev,
 				 u8 *ksvs, u32 ksv_count);
 int drm_connector_attach_content_protection_property(
-		struct drm_connector *connector);
+		struct drm_connector *connector, bool hdcp_content_type);
+void drm_hdcp_update_content_protection(struct drm_connector *connector,
+					u64 val);
+
+/* Content Type classification for HDCP2.2 vs others */
+#define DRM_MODE_HDCP_CONTENT_TYPE0		0
+#define DRM_MODE_HDCP_CONTENT_TYPE1		1
+
 #endif

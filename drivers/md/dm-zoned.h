@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2017 Western Digital Corporation or its affiliates.
  *
@@ -56,6 +57,8 @@ struct dmz_dev {
 
 	unsigned int		nr_zones;
 
+	unsigned int		flags;
+
 	sector_t		zone_nr_sectors;
 	unsigned int		zone_nr_sectors_shift;
 
@@ -66,6 +69,9 @@ struct dmz_dev {
 #define dmz_bio_chunk(dev, bio)	((bio)->bi_iter.bi_sector >> \
 				 (dev)->zone_nr_sectors_shift)
 #define dmz_chunk_block(dev, b)	((b) & ((dev)->zone_nr_blocks - 1))
+
+/* Device flags. */
+#define DMZ_BDEV_DYING		(1 << 0)
 
 /*
  * Zone descriptor.
@@ -244,5 +250,10 @@ void dmz_suspend_reclaim(struct dmz_reclaim *zrc);
 void dmz_resume_reclaim(struct dmz_reclaim *zrc);
 void dmz_reclaim_bio_acc(struct dmz_reclaim *zrc);
 void dmz_schedule_reclaim(struct dmz_reclaim *zrc);
+
+/*
+ * Functions defined in dm-zoned-target.c
+ */
+bool dmz_bdev_is_dying(struct dmz_dev *dmz_dev);
 
 #endif /* DM_ZONED_H */

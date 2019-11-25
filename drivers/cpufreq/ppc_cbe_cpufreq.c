@@ -110,6 +110,13 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 #endif
 
 	policy->freq_table = cbe_freqs;
+	cbe_cpufreq_pmi_policy_init(policy);
+	return 0;
+}
+
+static int cbe_cpufreq_cpu_exit(struct cpufreq_policy *policy)
+{
+	cbe_cpufreq_pmi_policy_exit(policy);
 	return 0;
 }
 
@@ -129,6 +136,7 @@ static struct cpufreq_driver cbe_cpufreq_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= cbe_cpufreq_target,
 	.init		= cbe_cpufreq_cpu_init,
+	.exit		= cbe_cpufreq_cpu_exit,
 	.name		= "cbe-cpufreq",
 	.flags		= CPUFREQ_CONST_LOOPS,
 };
@@ -139,15 +147,24 @@ static struct cpufreq_driver cbe_cpufreq_driver = {
 
 static int __init cbe_cpufreq_init(void)
 {
+	int ret;
+
 	if (!machine_is(cell))
 		return -ENODEV;
 
-	return cpufreq_register_driver(&cbe_cpufreq_driver);
+	cbe_cpufreq_pmi_init();
+
+	ret = cpufreq_register_driver(&cbe_cpufreq_driver);
+	if (ret)
+		cbe_cpufreq_pmi_exit();
+
+	return ret;
 }
 
 static void __exit cbe_cpufreq_exit(void)
 {
 	cpufreq_unregister_driver(&cbe_cpufreq_driver);
+	cbe_cpufreq_pmi_exit();
 }
 
 module_init(cbe_cpufreq_init);

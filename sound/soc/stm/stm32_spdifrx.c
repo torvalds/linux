@@ -909,10 +909,8 @@ static int stm32_spdifrx_parse_of(struct platform_device *pdev,
 	}
 
 	spdifrx->irq = platform_get_irq(pdev, 0);
-	if (spdifrx->irq < 0) {
-		dev_err(&pdev->dev, "No irq for node %s\n", pdev->name);
+	if (spdifrx->irq < 0)
 		return spdifrx->irq;
-	}
 
 	return 0;
 }

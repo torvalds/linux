@@ -5,8 +5,6 @@
  * Copyright (c) 2003-2007 Cavium Networks
  */
 
-#include <asm/octeon/cvmx-fau.h>
-
 void cvm_oct_poll_controller(struct net_device *dev);
 void cvm_oct_rx_initialize(void);
 void cvm_oct_rx_shutdown(void);

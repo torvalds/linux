@@ -125,7 +125,7 @@ xchk_setup_fscounters(
 	struct xchk_fscounters	*fsc;
 	int			error;
 
-	sc->buf = kmem_zalloc(sizeof(struct xchk_fscounters), KM_SLEEP);
+	sc->buf = kmem_zalloc(sizeof(struct xchk_fscounters), 0);
 	if (!sc->buf)
 		return -ENOMEM;
 	fsc = sc->buf;

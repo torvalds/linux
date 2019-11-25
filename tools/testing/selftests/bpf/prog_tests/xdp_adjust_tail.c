@@ -10,10 +10,8 @@ void test_xdp_adjust_tail(void)
 	int err, prog_fd;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
-	if (err) {
-		error_cnt++;
+	if (CHECK_FAIL(err))
 		return;
-	}
 
 	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),
 				buf, &size, &retval, &duration);

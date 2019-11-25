@@ -188,8 +188,6 @@
 					interrupts = <14>;
 					clocks = <&v2m_oscclk1>, <&v2m_clk24mhz>;
 					clock-names = "clcdclk", "apb_pclk";
-					/* 800x600 16bpp @36MHz works fine */
-					max-memory-bandwidth = <54000000>;
 					memory-region = <&vram>;
 
 					port {

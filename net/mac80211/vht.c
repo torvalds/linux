@@ -4,7 +4,7 @@
  *
  * Portions of this file
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -347,6 +347,14 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
 
 	if (cap_width == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ ||
 	    cap_width == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+		return IEEE80211_STA_RX_BW_160;
+
+	/*
+	 * If this is non-zero, then it does support 160 MHz after all,
+	 * in one form or the other. We don't distinguish here (or even
+	 * above) between 160 and 80+80 yet.
+	 */
+	if (vht_cap->cap & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK)
 		return IEEE80211_STA_RX_BW_160;
 
 	return IEEE80211_STA_RX_BW_80;

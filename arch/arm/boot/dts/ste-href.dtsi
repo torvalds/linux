@@ -234,10 +234,6 @@
 						regulator-name = "V-TVOUT";
 					};
 
-					ab8500_ldo_usb_reg: ab8500_ldo_usb {
-						regulator-name = "dummy";
-					};
-
 					ab8500_ldo_audio_reg: ab8500_ldo_audio {
 						regulator-name = "V-AUD";
 					};

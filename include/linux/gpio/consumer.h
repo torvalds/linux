@@ -170,27 +170,21 @@ struct gpio_desc *gpio_to_desc(unsigned gpio);
 int desc_to_gpio(const struct gpio_desc *desc);
 
 /* Child properties interface */
-struct device_node;
 struct fwnode_handle;
 
-struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
-					 const char *propname, int index,
-					 enum gpiod_flags dflags,
-					 const char *label);
-struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
-					      struct device_node *node,
-					      const char *propname, int index,
-					      enum gpiod_flags dflags,
-					      const char *label);
 struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 					 const char *propname, int index,
 					 enum gpiod_flags dflags,
 					 const char *label);
-struct gpio_desc *devm_fwnode_get_index_gpiod_from_child(struct device *dev,
-						const char *con_id, int index,
-						struct fwnode_handle *child,
-						enum gpiod_flags flags,
-						const char *label);
+struct gpio_desc *fwnode_gpiod_get_index(struct fwnode_handle *fwnode,
+					 const char *con_id, int index,
+					 enum gpiod_flags flags,
+					 const char *label);
+struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
+					      struct fwnode_handle *child,
+					      const char *con_id, int index,
+					      enum gpiod_flags flags,
+					      const char *label);
 
 #else /* CONFIG_GPIOLIB */
 
@@ -530,27 +524,7 @@ static inline int desc_to_gpio(const struct gpio_desc *desc)
 }
 
 /* Child properties interface */
-struct device_node;
 struct fwnode_handle;
-
-static inline
-struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
-					 const char *propname, int index,
-					 enum gpiod_flags dflags,
-					 const char *label)
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-static inline
-struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
-					      struct device_node *node,
-					      const char *propname, int index,
-					      enum gpiod_flags dflags,
-					      const char *label)
-{
-	return ERR_PTR(-ENOSYS);
-}
 
 static inline
 struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
@@ -562,16 +536,47 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 }
 
 static inline
+struct gpio_desc *fwnode_gpiod_get_index(struct fwnode_handle *fwnode,
+					 const char *con_id, int index,
+					 enum gpiod_flags flags,
+					 const char *label)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline
+struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
+					      struct fwnode_handle *fwnode,
+					      const char *con_id, int index,
+					      enum gpiod_flags flags,
+					      const char *label)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+#endif /* CONFIG_GPIOLIB */
+
+static inline
+struct gpio_desc *devm_fwnode_gpiod_get(struct device *dev,
+					struct fwnode_handle *fwnode,
+					const char *con_id,
+					enum gpiod_flags flags,
+					const char *label)
+{
+	return devm_fwnode_gpiod_get_index(dev, fwnode, con_id, 0,
+					   flags, label);
+}
+
+static inline
 struct gpio_desc *devm_fwnode_get_index_gpiod_from_child(struct device *dev,
 						const char *con_id, int index,
 						struct fwnode_handle *child,
 						enum gpiod_flags flags,
 						const char *label)
 {
-	return ERR_PTR(-ENOSYS);
+	return devm_fwnode_gpiod_get_index(dev, child, con_id, index,
+					   flags, label);
 }
-
-#endif /* CONFIG_GPIOLIB */
 
 static inline
 struct gpio_desc *devm_fwnode_get_gpiod_from_child(struct device *dev,
@@ -580,9 +585,113 @@ struct gpio_desc *devm_fwnode_get_gpiod_from_child(struct device *dev,
 						   enum gpiod_flags flags,
 						   const char *label)
 {
-	return devm_fwnode_get_index_gpiod_from_child(dev, con_id, 0, child,
-						      flags, label);
+	return devm_fwnode_gpiod_get_index(dev, child, con_id, 0, flags, label);
 }
+
+#if IS_ENABLED(CONFIG_GPIOLIB) && IS_ENABLED(CONFIG_OF_GPIO)
+struct device_node;
+
+struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+					 const char *propname, int index,
+					 enum gpiod_flags dflags,
+					 const char *label);
+
+#else  /* CONFIG_GPIOLIB && CONFIG_OF_GPIO */
+
+struct device_node;
+
+static inline
+struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+					 const char *propname, int index,
+					 enum gpiod_flags dflags,
+					 const char *label)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+#endif /* CONFIG_GPIOLIB && CONFIG_OF_GPIO */
+
+#ifdef CONFIG_GPIOLIB
+struct device_node;
+
+struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
+					      struct device_node *node,
+					      const char *propname, int index,
+					      enum gpiod_flags dflags,
+					      const char *label);
+
+#else  /* CONFIG_GPIOLIB */
+
+struct device_node;
+
+static inline
+struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
+					      struct device_node *node,
+					      const char *propname, int index,
+					      enum gpiod_flags dflags,
+					      const char *label)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+#endif /* CONFIG_GPIOLIB */
+
+struct acpi_gpio_params {
+	unsigned int crs_entry_index;
+	unsigned int line_index;
+	bool active_low;
+};
+
+struct acpi_gpio_mapping {
+	const char *name;
+	const struct acpi_gpio_params *data;
+	unsigned int size;
+
+/* Ignore IoRestriction field */
+#define ACPI_GPIO_QUIRK_NO_IO_RESTRICTION	BIT(0)
+/*
+ * When ACPI GPIO mapping table is in use the index parameter inside it
+ * refers to the GPIO resource in _CRS method. That index has no
+ * distinction of actual type of the resource. When consumer wants to
+ * get GpioIo type explicitly, this quirk may be used.
+ */
+#define ACPI_GPIO_QUIRK_ONLY_GPIOIO		BIT(1)
+
+	unsigned int quirks;
+};
+
+#if IS_ENABLED(CONFIG_GPIOLIB) && IS_ENABLED(CONFIG_ACPI)
+
+struct acpi_device;
+
+int acpi_dev_add_driver_gpios(struct acpi_device *adev,
+			      const struct acpi_gpio_mapping *gpios);
+void acpi_dev_remove_driver_gpios(struct acpi_device *adev);
+
+int devm_acpi_dev_add_driver_gpios(struct device *dev,
+				   const struct acpi_gpio_mapping *gpios);
+void devm_acpi_dev_remove_driver_gpios(struct device *dev);
+
+#else  /* CONFIG_GPIOLIB && CONFIG_ACPI */
+
+struct acpi_device;
+
+static inline int acpi_dev_add_driver_gpios(struct acpi_device *adev,
+			      const struct acpi_gpio_mapping *gpios)
+{
+	return -ENXIO;
+}
+static inline void acpi_dev_remove_driver_gpios(struct acpi_device *adev) {}
+
+static inline int devm_acpi_dev_add_driver_gpios(struct device *dev,
+			      const struct acpi_gpio_mapping *gpios)
+{
+	return -ENXIO;
+}
+static inline void devm_acpi_dev_remove_driver_gpios(struct device *dev) {}
+
+#endif /* CONFIG_GPIOLIB && CONFIG_ACPI */
+
 
 #if IS_ENABLED(CONFIG_GPIOLIB) && IS_ENABLED(CONFIG_GPIO_SYSFS)
 

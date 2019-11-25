@@ -6,6 +6,7 @@
 # When adding new entries keep the list in alphabetical order
 obj-$(CONFIG_AD5272) += ad5272.o
 obj-$(CONFIG_DS1803) += ds1803.o
+obj-$(CONFIG_MAX5432) += max5432.o
 obj-$(CONFIG_MAX5481) += max5481.o
 obj-$(CONFIG_MAX5487) += max5487.o
 obj-$(CONFIG_MCP4018) += mcp4018.o

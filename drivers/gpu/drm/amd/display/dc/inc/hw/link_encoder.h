@@ -183,6 +183,9 @@ struct link_encoder_funcs {
 
 	bool (*fec_is_active)(struct link_encoder *enc);
 #endif
+	bool (*is_in_alt_mode) (struct link_encoder *enc);
+	enum signal_type (*get_dig_mode)(
+		struct link_encoder *enc);
 };
 
 #endif /* LINK_ENCODER_H_ */

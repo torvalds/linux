@@ -120,7 +120,12 @@ void dma_wbinv_range(unsigned long start, unsigned long end)
 	cache_op_range(start, end, DATA_CACHE|CACHE_CLR|CACHE_INV, 1);
 }
 
+void dma_inv_range(unsigned long start, unsigned long end)
+{
+	cache_op_range(start, end, DATA_CACHE|CACHE_CLR|CACHE_INV, 1);
+}
+
 void dma_wb_range(unsigned long start, unsigned long end)
 {
-	cache_op_range(start, end, DATA_CACHE|CACHE_INV, 1);
+	cache_op_range(start, end, DATA_CACHE|CACHE_CLR|CACHE_INV, 1);
 }

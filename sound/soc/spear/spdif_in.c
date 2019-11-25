@@ -202,12 +202,11 @@ static int spdif_in_probe(struct platform_device *pdev)
 {
 	struct spdif_in_dev *host;
 	struct spear_spdif_platform_data *pdata;
-	struct resource *res, *res_fifo;
+	struct resource *res_fifo;
 	void __iomem *io_base;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	io_base = devm_ioremap_resource(&pdev->dev, res);
+	io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
 

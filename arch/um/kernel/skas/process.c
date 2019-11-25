@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <linux/init.h>
@@ -19,7 +19,7 @@ static int __init start_kernel_proc(void *unused)
 {
 	int pid;
 
-	block_signals();
+	block_signals_trace();
 	pid = os_getpid();
 
 	cpu_tasks[0].pid = pid;

@@ -1754,8 +1754,6 @@ static struct rbd_img_request *rbd_img_request_create(
 	mutex_init(&img_request->state_mutex);
 	kref_init(&img_request->kref);
 
-	dout("%s: rbd_dev %p %s -> img %p\n", __func__, rbd_dev,
-	     obj_op_name(op_type), img_request);
 	return img_request;
 }
 
@@ -2944,6 +2942,9 @@ static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req)
 	__set_bit(IMG_REQ_CHILD, &child_img_req->flags);
 	child_img_req->obj_request = obj_req;
 
+	dout("%s child_img_req %p for obj_req %p\n", __func__, child_img_req,
+	     obj_req);
+
 	if (!rbd_img_is_write(img_req)) {
 		switch (img_req->data_type) {
 		case OBJ_REQUEST_BIO:
@@ -3038,6 +3039,17 @@ again:
 		}
 		return true;
 	case RBD_OBJ_READ_PARENT:
+		/*
+		 * The parent image is read only up to the overlap -- zero-fill
+		 * from the overlap to the end of the request.
+		 */
+		if (!*result) {
+			u32 obj_overlap = rbd_obj_img_extents_bytes(obj_req);
+
+			if (obj_overlap < obj_req->ex.oe_len)
+				rbd_obj_zero_range(obj_req, obj_overlap,
+					    obj_req->ex.oe_len - obj_overlap);
+		}
 		return true;
 	default:
 		BUG();
@@ -4866,6 +4878,9 @@ static void rbd_queue_workfn(struct work_struct *work)
 	img_request->rq = rq;
 	snapc = NULL; /* img_request consumes a ref */
 
+	dout("%s rbd_dev %p img_req %p %s %llu~%llu\n", __func__, rbd_dev,
+	     img_request, obj_op_name(op_type), offset, length);
+
 	if (op_type == OBJ_OP_DISCARD || op_type == OBJ_OP_ZEROOUT)
 		result = rbd_img_fill_nodata(img_request, offset, length);
 	else
@@ -5658,17 +5673,20 @@ static int rbd_dev_v2_image_size(struct rbd_device *rbd_dev)
 
 static int rbd_dev_v2_object_prefix(struct rbd_device *rbd_dev)
 {
+	size_t size;
 	void *reply_buf;
 	int ret;
 	void *p;
 
-	reply_buf = kzalloc(RBD_OBJ_PREFIX_LEN_MAX, GFP_KERNEL);
+	/* Response will be an encoded string, which includes a length */
+	size = sizeof(__le32) + RBD_OBJ_PREFIX_LEN_MAX;
+	reply_buf = kzalloc(size, GFP_KERNEL);
 	if (!reply_buf)
 		return -ENOMEM;
 
 	ret = rbd_obj_method_sync(rbd_dev, &rbd_dev->header_oid,
 				  &rbd_dev->header_oloc, "get_object_prefix",
-				  NULL, 0, reply_buf, RBD_OBJ_PREFIX_LEN_MAX);
+				  NULL, 0, reply_buf, size);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		goto out;
@@ -6621,10 +6639,13 @@ static int rbd_add_acquire_lock(struct rbd_device *rbd_dev)
 	queue_delayed_work(rbd_dev->task_wq, &rbd_dev->lock_dwork, 0);
 	ret = wait_for_completion_killable_timeout(&rbd_dev->acquire_wait,
 			    ceph_timeout_jiffies(rbd_dev->opts->lock_timeout));
-	if (ret > 0)
+	if (ret > 0) {
 		ret = rbd_dev->acquire_err;
-	else if (!ret)
-		ret = -ETIMEDOUT;
+	} else {
+		cancel_delayed_work_sync(&rbd_dev->lock_dwork);
+		if (!ret)
+			ret = -ETIMEDOUT;
+	}
 
 	if (ret) {
 		rbd_warn(rbd_dev, "failed to acquire exclusive lock: %ld", ret);
@@ -6685,7 +6706,6 @@ static int rbd_dev_image_id(struct rbd_device *rbd_dev)
 	dout("rbd id object name is %s\n", oid.name);
 
 	/* Response will be an encoded string, which includes a length */
-
 	size = sizeof (__le32) + RBD_IMAGE_ID_LEN_MAX;
 	response = kzalloc(size, GFP_NOIO);
 	if (!response) {
@@ -6697,7 +6717,7 @@ static int rbd_dev_image_id(struct rbd_device *rbd_dev)
 
 	ret = rbd_obj_method_sync(rbd_dev, &oid, &rbd_dev->header_oloc,
 				  "get_id", NULL, 0,
-				  response, RBD_IMAGE_ID_LEN_MAX);
+				  response, size);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret == -ENOENT) {
 		image_id = kstrdup("", GFP_KERNEL);

@@ -118,20 +118,6 @@ static void egpio_handler(struct irq_desc *desc)
 	}
 }
 
-int htc_egpio_get_wakeup_irq(struct device *dev)
-{
-	struct egpio_info *ei = dev_get_drvdata(dev);
-
-	/* Read current pins. */
-	u16 readval = egpio_readw(ei, ei->ack_register);
-	/* Ack/unmask interrupts. */
-	ack_irqs(ei);
-	/* Return first set pin. */
-	readval &= ei->irqs_enabled;
-	return ei->irq_start + ffs(readval) - 1;
-}
-EXPORT_SYMBOL(htc_egpio_get_wakeup_irq);
-
 static inline int egpio_pos(struct egpio_info *ei, int bit)
 {
 	return bit >> ei->reg_shift;

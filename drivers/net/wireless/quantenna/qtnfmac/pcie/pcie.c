@@ -430,7 +430,7 @@ static int qtnf_pcie_suspend(struct device *dev)
 	struct qtnf_pcie_bus_priv *priv;
 	struct qtnf_bus *bus;
 
-	bus = pci_get_drvdata(to_pci_dev(dev));
+	bus = dev_get_drvdata(dev);
 	if (!bus)
 		return -EFAULT;
 
@@ -443,7 +443,7 @@ static int qtnf_pcie_resume(struct device *dev)
 	struct qtnf_pcie_bus_priv *priv;
 	struct qtnf_bus *bus;
 
-	bus = pci_get_drvdata(to_pci_dev(dev));
+	bus = dev_get_drvdata(dev);
 	if (!bus)
 		return -EFAULT;
 

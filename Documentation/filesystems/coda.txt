@@ -421,14 +421,14 @@ kernel support.
 
 
   The CodaCred structure defines a variety of user and group ids as
-  they are set for the calling process. The vuid_t and guid_t are 32 bit
+  they are set for the calling process. The vuid_t and vgid_t are 32 bit
   unsigned integers.  It also defines group membership in an array.  On
   Unix the CodaCred has proven sufficient to implement good security
   semantics for Coda but the structure may have to undergo modification
   for the Windows environment when these mature.
 
   struct CodaCred {
-      vuid_t cr_uid, cr_euid, cr_suid, cr_fsuid; /* Real, effective, set, fs uid*/
+      vuid_t cr_uid, cr_euid, cr_suid, cr_fsuid; /* Real, effective, set, fs uid */
       vgid_t cr_gid, cr_egid, cr_sgid, cr_fsgid; /* same for groups */
       vgid_t cr_groups[NGROUPS];        /* Group membership for caller */
   };

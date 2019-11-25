@@ -247,6 +247,12 @@ static inline bool vmx_xsaves_supported(void)
 		SECONDARY_EXEC_XSAVES;
 }
 
+static inline bool vmx_waitpkg_supported(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
+}
+
 static inline bool cpu_has_vmx_tsc_scaling(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &

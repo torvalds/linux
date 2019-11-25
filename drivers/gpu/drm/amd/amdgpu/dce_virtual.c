@@ -454,13 +454,8 @@ static int dce_virtual_hw_init(void *handle)
 #endif
 		/* no DCE */
 		break;
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-	case CHIP_NAVI10:
-		break;
 	default:
-		DRM_ERROR("Virtual display unsupported ASIC type: 0x%X\n", adev->asic_type);
+		break;
 	}
 	return 0;
 }

@@ -6,28 +6,11 @@
 #include "pci.h"
 #include <linux/export.h>
 
-static const u8 MAX_PGPKT_SIZE = 9;
 static const u8 PGPKT_DATA_SIZE = 8;
 static const int EFUSE_MAX_SIZE = 512;
 
 #define START_ADDRESS		0x1000
 #define REG_MCUFWDL		0x0080
-
-static const struct efuse_map RTL8712_SDIO_EFUSE_TABLE[] = {
-	{0, 0, 0, 2},
-	{0, 1, 0, 2},
-	{0, 2, 0, 2},
-	{1, 0, 0, 1},
-	{1, 0, 1, 1},
-	{1, 1, 0, 1},
-	{1, 1, 1, 3},
-	{1, 3, 0, 17},
-	{3, 3, 1, 48},
-	{10, 0, 0, 6},
-	{10, 3, 0, 1},
-	{10, 3, 1, 1},
-	{11, 0, 0, 28}
-};
 
 static const struct rtl_efuse_ops efuse_ops = {
 	.efuse_onebyte_read = efuse_one_byte_read,

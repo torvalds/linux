@@ -651,7 +651,8 @@ static void sun8i_dwmac_set_filter(struct mac_device_info *hw,
 			}
 		}
 	} else {
-		netdev_info(dev, "Too many address, switching to promiscuous\n");
+		if (!(readl(ioaddr + EMAC_RX_FRM_FLT) & EMAC_FRM_FLT_RXALL))
+			netdev_info(dev, "Too many address, switching to promiscuous\n");
 		v = EMAC_FRM_FLT_RXALL;
 	}
 
@@ -873,7 +874,12 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 	int ret;
 	u32 reg, val;
 
-	regmap_field_read(gmac->regmap_field, &val);
+	ret = regmap_field_read(gmac->regmap_field, &val);
+	if (ret) {
+		dev_err(priv->device, "Fail to read from regmap field.\n");
+		return ret;
+	}
+
 	reg = gmac->variant->default_syscon_value;
 	if (reg != val)
 		dev_warn(priv->device,

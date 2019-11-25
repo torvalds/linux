@@ -59,4 +59,21 @@ static inline struct ip_tunnel_info *tcf_tunnel_info(const struct tc_action *a)
 	return NULL;
 #endif
 }
+
+static inline struct ip_tunnel_info *
+tcf_tunnel_info_copy(const struct tc_action *a)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	struct ip_tunnel_info *tun = tcf_tunnel_info(a);
+
+	if (tun) {
+		size_t tun_size = sizeof(*tun) + tun->options_len;
+		struct ip_tunnel_info *tun_copy = kmemdup(tun, tun_size,
+							  GFP_KERNEL);
+
+		return tun_copy;
+	}
+#endif
+	return NULL;
+}
 #endif /* __NET_TC_TUNNEL_KEY_H */

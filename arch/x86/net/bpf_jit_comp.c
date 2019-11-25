@@ -390,8 +390,9 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 
 	emit_prologue(&prog, bpf_prog->aux->stack_depth,
 		      bpf_prog_was_classic(bpf_prog));
+	addrs[0] = prog - temp;
 
-	for (i = 0; i < insn_cnt; i++, insn++) {
+	for (i = 1; i <= insn_cnt; i++, insn++) {
 		const s32 imm32 = insn->imm;
 		u32 dst_reg = insn->dst_reg;
 		u32 src_reg = insn->src_reg;
@@ -1105,7 +1106,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		extra_pass = true;
 		goto skip_init_addrs;
 	}
-	addrs = kmalloc_array(prog->len, sizeof(*addrs), GFP_KERNEL);
+	addrs = kmalloc_array(prog->len + 1, sizeof(*addrs), GFP_KERNEL);
 	if (!addrs) {
 		prog = orig_prog;
 		goto out_addrs;
@@ -1115,7 +1116,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	 * Before first pass, make a rough estimation of addrs[]
 	 * each BPF instruction is translated to less than 64 bytes
 	 */
-	for (proglen = 0, i = 0; i < prog->len; i++) {
+	for (proglen = 0, i = 0; i <= prog->len; i++) {
 		proglen += 64;
 		addrs[i] = proglen;
 	}
@@ -1180,7 +1181,7 @@ out_image:
 
 	if (!image || !prog->is_func || extra_pass) {
 		if (image)
-			bpf_prog_fill_jited_linfo(prog, addrs);
+			bpf_prog_fill_jited_linfo(prog, addrs + 1);
 out_addrs:
 		kfree(addrs);
 		kfree(jit_data);

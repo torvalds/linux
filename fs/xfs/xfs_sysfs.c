@@ -63,19 +63,6 @@ static const struct sysfs_ops xfs_sysfs_ops = {
 	.store = xfs_sysfs_object_store,
 };
 
-/*
- * xfs_mount kobject. The mp kobject also serves as the per-mount parent object
- * that is identified by the fsname under sysfs.
- */
-
-static inline struct xfs_mount *
-to_mp(struct kobject *kobject)
-{
-	struct xfs_kobj *kobj = to_kobj(kobject);
-
-	return container_of(kobj, struct xfs_mount, m_kobj);
-}
-
 static struct attribute *xfs_mp_attrs[] = {
 	NULL,
 };

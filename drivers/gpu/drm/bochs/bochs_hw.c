@@ -2,6 +2,10 @@
 /*
  */
 
+#include <linux/pci.h>
+
+#include <drm/drm_fourcc.h>
+
 #include "bochs.h"
 
 /* ---------------------------------------------------------------------- */

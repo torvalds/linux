@@ -271,6 +271,12 @@ struct rds_ext_header_rdma_dest {
 #define	RDS_MSG_RX_END		2
 #define	RDS_MSG_RX_CMSG		3
 
+/* The following values are whitelisted for usercopy */
+struct rds_inc_usercopy {
+	rds_rdma_cookie_t	rdma_cookie;
+	ktime_t			rx_tstamp;
+};
+
 struct rds_incoming {
 	refcount_t		i_refcount;
 	struct list_head	i_item;
@@ -280,8 +286,7 @@ struct rds_incoming {
 	unsigned long		i_rx_jiffies;
 	struct in6_addr		i_saddr;
 
-	rds_rdma_cookie_t	i_rdma_cookie;
-	ktime_t			i_rx_tstamp;
+	struct rds_inc_usercopy i_usercopy;
 	u64			i_rx_lat_trace[RDS_RX_MAX_TRACES];
 };
 
@@ -717,7 +722,7 @@ struct rds_statistics {
 	uint64_t	s_cong_send_blocked;
 	uint64_t	s_recv_bytes_added_to_socket;
 	uint64_t	s_recv_bytes_removed_from_socket;
-
+	uint64_t	s_send_stuck_rm;
 };
 
 /* af_rds.c */

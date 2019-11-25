@@ -34,7 +34,7 @@
 	THUNK trace_hardirqs_off_thunk,trace_hardirqs_off_caller,1
 #endif
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	THUNK ___preempt_schedule, preempt_schedule
 	THUNK ___preempt_schedule_notrace, preempt_schedule_notrace
 	EXPORT_SYMBOL(___preempt_schedule)

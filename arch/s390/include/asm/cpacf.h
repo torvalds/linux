@@ -93,6 +93,10 @@
 #define CPACF_KIMD_SHA_1	0x01
 #define CPACF_KIMD_SHA_256	0x02
 #define CPACF_KIMD_SHA_512	0x03
+#define CPACF_KIMD_SHA3_224	0x20
+#define CPACF_KIMD_SHA3_256	0x21
+#define CPACF_KIMD_SHA3_384	0x22
+#define CPACF_KIMD_SHA3_512	0x23
 #define CPACF_KIMD_GHASH	0x41
 
 /*
@@ -103,6 +107,10 @@
 #define CPACF_KLMD_SHA_1	0x01
 #define CPACF_KLMD_SHA_256	0x02
 #define CPACF_KLMD_SHA_512	0x03
+#define CPACF_KLMD_SHA3_224	0x20
+#define CPACF_KLMD_SHA3_256	0x21
+#define CPACF_KLMD_SHA3_384	0x22
+#define CPACF_KLMD_SHA3_512	0x23
 
 /*
  * function codes for the KMAC (COMPUTE MESSAGE AUTHENTICATION CODE)
@@ -163,7 +171,7 @@ typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
  *
  * Returns 1 if @func is available for @opcode, 0 otherwise
  */
-static inline void __cpacf_query(unsigned int opcode, cpacf_mask_t *mask)
+static __always_inline void __cpacf_query(unsigned int opcode, cpacf_mask_t *mask)
 {
 	register unsigned long r0 asm("0") = 0;	/* query function */
 	register unsigned long r1 asm("1") = (unsigned long) mask;

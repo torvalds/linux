@@ -10,9 +10,10 @@
 #include <linux/crypto.h>
 #include <linux/cryptouser.h>
 #include <linux/sched.h>
-#include <net/netlink.h>
 #include <linux/security.h>
+#include <net/netlink.h>
 #include <net/net_namespace.h>
+#include <net/sock.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/internal/rng.h>
 #include <crypto/akcipher.h>
@@ -24,9 +25,6 @@
 #define null_terminated(x)	(strnlen(x, sizeof(x)) < sizeof(x))
 
 static DEFINE_MUTEX(crypto_cfg_mutex);
-
-/* The crypto netlink socket */
-struct sock *crypto_nlsk;
 
 struct crypto_dump_info {
 	struct sk_buff *in_skb;
@@ -186,6 +184,7 @@ out:
 static int crypto_report(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 			 struct nlattr **attrs)
 {
+	struct net *net = sock_net(in_skb->sk);
 	struct crypto_user_alg *p = nlmsg_data(in_nlh);
 	struct crypto_alg *alg;
 	struct sk_buff *skb;
@@ -217,7 +216,7 @@ drop_alg:
 	if (err)
 		return err;
 
-	return nlmsg_unicast(crypto_nlsk, skb, NETLINK_CB(in_skb).portid);
+	return nlmsg_unicast(net->crypto_nlsk, skb, NETLINK_CB(in_skb).portid);
 }
 
 static int crypto_dump_report(struct sk_buff *skb, struct netlink_callback *cb)
@@ -420,6 +419,7 @@ static const struct crypto_link {
 static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 			       struct netlink_ext_ack *extack)
 {
+	struct net *net = sock_net(skb->sk);
 	struct nlattr *attrs[CRYPTOCFGA_MAX+1];
 	const struct crypto_link *link;
 	int type, err;
@@ -450,7 +450,7 @@ static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 				.done = link->done,
 				.min_dump_alloc = min(dump_alloc, 65535UL),
 			};
-			err = netlink_dump_start(crypto_nlsk, skb, nlh, &c);
+			err = netlink_dump_start(net->crypto_nlsk, skb, nlh, &c);
 		}
 
 		return err;
@@ -474,22 +474,35 @@ static void crypto_netlink_rcv(struct sk_buff *skb)
 	mutex_unlock(&crypto_cfg_mutex);
 }
 
-static int __init crypto_user_init(void)
+static int __net_init crypto_netlink_init(struct net *net)
 {
 	struct netlink_kernel_cfg cfg = {
 		.input	= crypto_netlink_rcv,
 	};
 
-	crypto_nlsk = netlink_kernel_create(&init_net, NETLINK_CRYPTO, &cfg);
-	if (!crypto_nlsk)
-		return -ENOMEM;
+	net->crypto_nlsk = netlink_kernel_create(net, NETLINK_CRYPTO, &cfg);
+	return net->crypto_nlsk == NULL ? -ENOMEM : 0;
+}
 
-	return 0;
+static void __net_exit crypto_netlink_exit(struct net *net)
+{
+	netlink_kernel_release(net->crypto_nlsk);
+	net->crypto_nlsk = NULL;
+}
+
+static struct pernet_operations crypto_netlink_net_ops = {
+	.init = crypto_netlink_init,
+	.exit = crypto_netlink_exit,
+};
+
+static int __init crypto_user_init(void)
+{
+	return register_pernet_subsys(&crypto_netlink_net_ops);
 }
 
 static void __exit crypto_user_exit(void)
 {
-	netlink_kernel_release(crypto_nlsk);
+	unregister_pernet_subsys(&crypto_netlink_net_ops);
 }
 
 module_init(crypto_user_init);

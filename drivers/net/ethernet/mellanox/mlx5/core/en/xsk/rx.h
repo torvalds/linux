@@ -5,6 +5,7 @@
 #define __MLX5_EN_XSK_RX_H__
 
 #include "en.h"
+#include <net/xdp_sock.h>
 
 /* RX data path */
 
@@ -23,5 +24,18 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 					      struct mlx5_cqe64 *cqe,
 					      struct mlx5e_wqe_frag_info *wi,
 					      u32 cqe_bcnt);
+
+static inline bool mlx5e_xsk_update_rx_wakeup(struct mlx5e_rq *rq, bool alloc_err)
+{
+	if (!xsk_umem_uses_need_wakeup(rq->umem))
+		return alloc_err;
+
+	if (unlikely(alloc_err))
+		xsk_set_rx_need_wakeup(rq->umem);
+	else
+		xsk_clear_rx_need_wakeup(rq->umem);
+
+	return false;
+}
 
 #endif /* __MLX5_EN_XSK_RX_H__ */

@@ -3,11 +3,7 @@ static struct resword {
 	const char *name;
 	int token;
 } keywords[] = {
-	{ "EXPORT_SYMBOL", EXPORT_SYMBOL_KEYW },
-	{ "EXPORT_SYMBOL_GPL", EXPORT_SYMBOL_KEYW },
-	{ "EXPORT_SYMBOL_GPL_FUTURE", EXPORT_SYMBOL_KEYW },
-	{ "EXPORT_UNUSED_SYMBOL", EXPORT_SYMBOL_KEYW },
-	{ "EXPORT_UNUSED_SYMBOL_GPL", EXPORT_SYMBOL_KEYW },
+	{ "__GENKSYMS_EXPORT_SYMBOL", EXPORT_SYMBOL_KEYW },
 	{ "__asm", ASM_KEYW },
 	{ "__asm__", ASM_KEYW },
 	{ "__attribute", ATTRIBUTE_KEYW },

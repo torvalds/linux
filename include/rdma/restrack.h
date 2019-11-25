@@ -105,8 +105,7 @@ struct rdma_restrack_entry {
 };
 
 int rdma_restrack_count(struct ib_device *dev,
-			enum rdma_restrack_type type,
-			struct pid_namespace *ns);
+			enum rdma_restrack_type type);
 
 void rdma_restrack_kadd(struct rdma_restrack_entry *res);
 void rdma_restrack_uadd(struct rdma_restrack_entry *res);

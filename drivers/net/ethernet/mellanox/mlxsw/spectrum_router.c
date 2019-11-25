@@ -2943,7 +2943,7 @@ static u32 mlxsw_sp_nexthop_group_hash_obj(const void *data, u32 len, u32 seed)
 		val = nh_grp->count;
 		for (i = 0; i < nh_grp->count; i++) {
 			nh = &nh_grp->nexthops[i];
-			val ^= nh->ifindex;
+			val ^= jhash(&nh->ifindex, sizeof(nh->ifindex), seed);
 		}
 		return jhash(&val, sizeof(val), seed);
 	default:
@@ -2961,7 +2961,7 @@ mlxsw_sp_nexthop6_group_hash(struct mlxsw_sp_fib6_entry *fib6_entry, u32 seed)
 
 	list_for_each_entry(mlxsw_sp_rt6, &fib6_entry->rt6_list, list) {
 		dev = mlxsw_sp_rt6->rt->fib6_nh->fib_nh_dev;
-		val ^= dev->ifindex;
+		val ^= jhash(&dev->ifindex, sizeof(dev->ifindex), seed);
 	}
 
 	return jhash(&val, sizeof(val), seed);

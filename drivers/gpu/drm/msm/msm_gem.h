@@ -8,7 +8,7 @@
 #define __MSM_GEM_H__
 
 #include <linux/kref.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include "msm_drv.h"
 
 /* Additional internal-use only BO flags: */

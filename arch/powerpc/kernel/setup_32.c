@@ -206,6 +206,6 @@ __init void initialize_cache_info(void)
 	dcache_bsize = cur_cpu_spec->dcache_bsize;
 	icache_bsize = cur_cpu_spec->icache_bsize;
 	ucache_bsize = 0;
-	if (cpu_has_feature(CPU_FTR_UNIFIED_ID_CACHE))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601) || IS_ENABLED(CONFIG_E200))
 		ucache_bsize = icache_bsize = dcache_bsize;
 }

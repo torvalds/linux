@@ -400,10 +400,8 @@ static int efm32_spi_probe(struct platform_device *pdev)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0) {
-		dev_err(&pdev->dev, "failed to get rx irq (%d)\n", ret);
+	if (ret <= 0)
 		goto err;
-	}
 
 	ddata->rxirq = ret;
 

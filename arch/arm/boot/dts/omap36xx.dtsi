@@ -139,6 +139,34 @@
 				interrupts = <18>;
 			};
 		};
+
+		/*
+		 * Note that the sysconfig register layout is a subset of the
+		 * "ti,sysc-omap4" type register with just sidle and midle bits
+		 * available while omap34xx has "ti,sysc-omap2" type sysconfig.
+		 */
+		sgx_module: target-module@50000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x5000fe00 0x4>,
+			      <0x5000fe10 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&sgx_fck>, <&sgx_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x50000000 0x2000000>;
+
+			/*
+			 * Closed source PowerVR driver, no child device
+			 * binding or driver in mainline
+			 */
+		};
 	};
 
 	thermal_zones: thermal-zones {

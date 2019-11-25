@@ -286,7 +286,7 @@ hysdn_net_create(hysdn_card *card)
 
 	if (card->debug_flags & LOG_NET_INIT)
 		hysdn_addlog(card, "network device created");
-	return (0);		/* and return success */
+	return 0;		/* and return success */
 }				/* hysdn_net_create */
 
 /***************************************************************************/

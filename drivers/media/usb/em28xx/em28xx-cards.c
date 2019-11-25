@@ -3566,13 +3566,12 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 static int em28xx_duplicate_dev(struct em28xx *dev)
 {
 	int nr;
-	struct em28xx *sec_dev = kzalloc(sizeof(*sec_dev), GFP_KERNEL);
+	struct em28xx *sec_dev = kmemdup(dev, sizeof(*sec_dev), GFP_KERNEL);
 
 	if (!sec_dev) {
 		dev->dev_next = NULL;
 		return -ENOMEM;
 	}
-	memcpy(sec_dev, dev, sizeof(*sec_dev));
 	/* Check to see next free device and mark as used */
 	do {
 		nr = find_first_zero_bit(em28xx_devused, EM28XX_MAXBOARDS);
@@ -4020,7 +4019,6 @@ static void em28xx_usb_disconnect(struct usb_interface *intf)
 		dev->dev_next->disconnected = 1;
 		dev_info(&dev->intf->dev, "Disconnecting %s\n",
 			 dev->dev_next->name);
-		flush_request_modules(dev->dev_next);
 	}
 
 	dev->disconnected = 1;

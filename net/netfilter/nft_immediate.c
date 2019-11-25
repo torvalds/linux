@@ -125,16 +125,12 @@ static int nft_immediate_validate(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static int nft_immediate_offload(struct nft_offload_ctx *ctx,
-				 struct nft_flow_rule *flow,
-				 const struct nft_expr *expr)
+static int nft_immediate_offload_verdict(struct nft_offload_ctx *ctx,
+					 struct nft_flow_rule *flow,
+					 const struct nft_immediate_expr *priv)
 {
-	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
 	struct flow_action_entry *entry;
 	const struct nft_data *data;
-
-	if (priv->dreg != NFT_REG_VERDICT)
-		return -EOPNOTSUPP;
 
 	entry = &flow->rule->action.entries[ctx->num_actions++];
 
@@ -149,6 +145,20 @@ static int nft_immediate_offload(struct nft_offload_ctx *ctx,
 	default:
 		return -EOPNOTSUPP;
 	}
+
+	return 0;
+}
+
+static int nft_immediate_offload(struct nft_offload_ctx *ctx,
+				 struct nft_flow_rule *flow,
+				 const struct nft_expr *expr)
+{
+	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
+
+	if (priv->dreg == NFT_REG_VERDICT)
+		return nft_immediate_offload_verdict(ctx, flow, priv);
+
+	memcpy(&ctx->regs[priv->dreg].data, &priv->data, sizeof(priv->data));
 
 	return 0;
 }

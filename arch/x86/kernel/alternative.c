@@ -713,7 +713,7 @@ void __init alternative_instructions(void)
 	 * Don't stop machine check exceptions while patching.
 	 * MCEs only happen when something got corrupted and in this
 	 * case we must do something about the corruption.
-	 * Ignoring it is worse than a unlikely patching race.
+	 * Ignoring it is worse than an unlikely patching race.
 	 * Also machine checks tend to be broadcast and if one CPU
 	 * goes into machine check the others follow quickly, so we don't
 	 * expect a machine check to cause undue problems during to code
@@ -753,8 +753,8 @@ void __init alternative_instructions(void)
  * When you use this code to patch more than one byte of an instruction
  * you need to make sure that other CPUs cannot execute this code in parallel.
  * Also no thread must be currently preempted in the middle of these
- * instructions. And on the local CPU you need to be protected again NMI or MCE
- * handlers seeing an inconsistent instruction while you patch.
+ * instructions. And on the local CPU you need to be protected against NMI or
+ * MCE handlers seeing an inconsistent instruction while you patch.
  */
 void __init_or_module text_poke_early(void *addr, const void *opcode,
 				      size_t len)

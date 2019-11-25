@@ -325,6 +325,17 @@ got_block:
 	newblock = bit + (block_group << (sb->s_blocksize_bits + 3)) -
 		(sizeof(struct spaceBitmapDesc) << 3);
 
+	if (newblock >= sbi->s_partmaps[partition].s_partition_len) {
+		/*
+		 * Ran off the end of the bitmap, and bits following are
+		 * non-compliant (not all zero)
+		 */
+		udf_err(sb, "bitmap for partition %d corrupted (block %u marked"
+			" as free, partition length is %u)\n", partition,
+			newblock, sbi->s_partmaps[partition].s_partition_len);
+		goto error_return;
+	}
+
 	if (!udf_clear_bit(bit, bh->b_data)) {
 		udf_debug("bit already cleared for block %d\n", bit);
 		goto repeat;

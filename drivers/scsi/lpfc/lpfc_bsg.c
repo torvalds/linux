@@ -1040,7 +1040,7 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 				if (!dmabuf) {
 					lpfc_printf_log(phba, KERN_ERR,
 						LOG_LIBDFC, "2616 No dmabuf "
-						"found for iocbq 0x%p\n",
+						"found for iocbq x%px\n",
 						iocbq);
 					kfree(evt_dat->data);
 					kfree(evt_dat);
@@ -1276,9 +1276,7 @@ lpfc_bsg_hba_set_event(struct bsg_job *job)
 	return 0; /* call job done later */
 
 job_error:
-	if (dd_data != NULL)
-		kfree(dd_data);
-
+	kfree(dd_data);
 	job->dd_data = NULL;
 	return rc;
 }
@@ -1571,7 +1569,6 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 		"2722 Xmit CT response on exchange x%x Data: x%x x%x x%x\n",
 		icmd->ulpContext, icmd->ulpIoTag, tag, phba->link_state);
 
-	ctiocb->iocb_cmpl = NULL;
 	ctiocb->iocb_flag |= LPFC_IO_LIBDFC;
 	ctiocb->vport = phba->pport;
 	ctiocb->context1 = dd_data;
@@ -5451,7 +5448,9 @@ ras_job_error:
 	bsg_reply->result = rc;
 
 	/* complete the job back to userspace */
-	bsg_job_done(job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
+	if (!rc)
+		bsg_job_done(job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
 	return rc;
 }
 
@@ -5530,8 +5529,9 @@ ras_job_error:
 	bsg_reply->result = rc;
 
 	/* complete the job back to userspace */
-	bsg_job_done(job, bsg_reply->result,
-		       bsg_reply->reply_payload_rcv_len);
+	if (!rc)
+		bsg_job_done(job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
 
 	return rc;
 }
@@ -5591,7 +5591,9 @@ ras_job_error:
 	bsg_reply->result = rc;
 
 	/* complete the job back to userspace */
-	bsg_job_done(job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
+	if (!rc)
+		bsg_job_done(job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
 
 	return rc;
 }
@@ -5673,7 +5675,9 @@ lpfc_bsg_get_ras_fwlog(struct bsg_job *job)
 
 ras_job_error:
 	bsg_reply->result = rc;
-	bsg_job_done(job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
+	if (!rc)
+		bsg_job_done(job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
 
 	return rc;
 }
@@ -5744,8 +5748,9 @@ lpfc_get_trunk_info(struct bsg_job *job)
 				phba->sli4_hba.link_state.logical_speed / 1000;
 job_error:
 	bsg_reply->result = rc;
-	bsg_job_done(job, bsg_reply->result,
-		       bsg_reply->reply_payload_rcv_len);
+	if (!rc)
+		bsg_job_done(job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
 	return rc;
 
 }

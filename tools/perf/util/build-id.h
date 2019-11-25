@@ -24,7 +24,7 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 			     bool is_debug);
 
 int build_id__mark_dso_hit(struct perf_tool *tool, union perf_event *event,
-			   struct perf_sample *sample, struct perf_evsel *evsel,
+			   struct perf_sample *sample, struct evsel *evsel,
 			   struct machine *machine);
 
 int dsos__hit_all(struct perf_session *session);

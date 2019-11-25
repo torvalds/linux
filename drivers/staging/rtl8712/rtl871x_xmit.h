@@ -41,7 +41,7 @@ do { \
 	pattrib_iv[0] = txpn._byte_.TSC0;\
 	pattrib_iv[1] = txpn._byte_.TSC1;\
 	pattrib_iv[2] = txpn._byte_.TSC2;\
-	pattrib_iv[3] = ((keyidx & 0x3)<<6);\
+	pattrib_iv[3] = ((keyidx & 0x3) << 6);\
 	txpn.val = (txpn.val == 0xffffff) ? 0 : (txpn.val+1);\
 } while (0)
 
@@ -249,8 +249,8 @@ struct	xmit_priv {
 	uint free_xmitbuf_cnt;
 };
 
-int r8712_free_xmitbuf(struct xmit_priv *pxmitpriv,
-		       struct xmit_buf *pxmitbuf);
+void r8712_free_xmitbuf(struct xmit_priv *pxmitpriv,
+			struct xmit_buf *pxmitbuf);
 struct xmit_buf *r8712_alloc_xmitbuf(struct xmit_priv *pxmitpriv);
 void r8712_update_protection(struct _adapter *padapter, u8 *ie, uint ie_len);
 struct xmit_frame *r8712_alloc_xmitframe(struct xmit_priv *pxmitpriv);
@@ -258,25 +258,25 @@ void r8712_free_xmitframe(struct xmit_priv *pxmitpriv,
 			  struct xmit_frame *pxmitframe);
 void r8712_free_xmitframe_queue(struct xmit_priv *pxmitpriv,
 				struct  __queue *pframequeue);
-sint r8712_xmit_classifier(struct _adapter *padapter,
-			    struct xmit_frame *pxmitframe);
+int r8712_xmit_classifier(struct _adapter *padapter,
+			  struct xmit_frame *pxmitframe);
 sint r8712_xmitframe_coalesce(struct _adapter *padapter, _pkt *pkt,
 			      struct xmit_frame *pxmitframe);
 sint _r8712_init_hw_txqueue(struct hw_txqueue *phw_txqueue, u8 ac_tag);
 void _r8712_init_sta_xmit_priv(struct sta_xmit_priv *psta_xmitpriv);
-sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
-			 struct pkt_attrib *pattrib);
+int r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
+			struct pkt_attrib *pattrib);
 int r8712_txframes_sta_ac_pending(struct _adapter *padapter,
 				  struct pkt_attrib *pattrib);
-sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
-			   struct _adapter *padapter);
+int _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
+			  struct _adapter *padapter);
 void _free_xmit_priv(struct xmit_priv *pxmitpriv);
 void r8712_free_xmitframe_ex(struct xmit_priv *pxmitpriv,
 			     struct xmit_frame *pxmitframe);
 int r8712_pre_xmit(struct _adapter *padapter, struct xmit_frame *pxmitframe);
 int r8712_xmit_enqueue(struct _adapter *padapter,
 		       struct xmit_frame *pxmitframe);
-int r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe);
+void r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe);
 void r8712_xmit_bh(void *priv);
 
 void xmitframe_xmitbuf_attach(struct xmit_frame *pxmitframe,

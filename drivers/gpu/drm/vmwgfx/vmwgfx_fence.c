@@ -25,7 +25,8 @@
  *
  **************************************************************************/
 
-#include <drm/drmP.h>
+#include <linux/sched/signal.h>
+
 #include "vmwgfx_drv.h"
 
 #define VMW_FENCE_WRAP (1 << 31)
@@ -183,6 +184,9 @@ static long vmw_fence_wait(struct dma_fence *f, bool intr, signed long timeout)
 	vmw_seqno_waiter_add(dev_priv);
 
 	spin_lock(f->lock);
+
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &f->flags))
+		goto out;
 
 	if (intr && signal_pending(current)) {
 		ret = -ERESTARTSYS;

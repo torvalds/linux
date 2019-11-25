@@ -334,7 +334,6 @@ config JOYSTICK_MAPLE
 config JOYSTICK_PSXPAD_SPI
 	tristate "PlayStation 1/2 joypads via SPI interface"
 	depends on SPI
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you wish to connect PlayStation 1/2 joypads
 	  via SPI interface.

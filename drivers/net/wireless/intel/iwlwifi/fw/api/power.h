@@ -450,6 +450,18 @@ struct iwl_geo_tx_power_profiles_resp {
 } __packed; /* GEO_TX_POWER_LIMIT_RESP */
 
 /**
+ * struct iwl_ppag_table_cmd - struct for PER_PLATFORM_ANT_GAIN_CMD cmd.
+ * @enabled: 1 if PPAG is enabled, 0 otherwise
+ * @gain: table of antenna gain values per chain and sub-band
+ * @reserved: reserved
+ */
+struct iwl_ppag_table_cmd {
+	__le32 enabled;
+	s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+	s8 reserved[2];
+} __packed; /* PER_PLATFORM_ANT_GAIN_CMD */
+
+/**
  * struct iwl_beacon_filter_cmd
  * REPLY_BEACON_FILTERING_CMD = 0xd2 (command)
  * @bf_energy_delta: Used for RSSI filtering, if in 'normal' state. Send beacon

@@ -28,8 +28,8 @@
 #include <linux/kfifo.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "gbphy.h"
 
 #define GB_NUM_MINORS	16	/* 16 is more than enough */

@@ -12,10 +12,10 @@
 
 	display: display {
 		model = "Chimei-LW700AT9003";
-		native-mode = <&timing0>;
 		bits-per-pixel = <16>;  /* non-standard but required */
 		fsl,pcr = <0xfae80083>;	/* non-standard but required */
 		display-timings {
+			native-mode = <&timing0>;
 			timing0: 800x480 {
 				clock-frequency = <33000033>;
 				hactive = <800>;

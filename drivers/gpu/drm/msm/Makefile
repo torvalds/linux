@@ -75,6 +75,7 @@ msm-y := \
 	disp/dpu1/dpu_rm.o \
 	disp/dpu1/dpu_vbif.o \
 	msm_atomic.o \
+	msm_atomic_tracepoints.o \
 	msm_debugfs.o \
 	msm_drv.o \
 	msm_fb.o \

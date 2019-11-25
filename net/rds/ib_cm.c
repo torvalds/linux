@@ -152,6 +152,9 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		  RDS_PROTOCOL_MINOR(conn->c_version),
 		  ic->i_flowctl ? ", flow control" : "");
 
+	/* receive sl from the peer */
+	ic->i_sl = ic->i_cm_id->route.path_rec->sl;
+
 	atomic_set(&ic->i_cq_quiesce, 0);
 
 	/* Init rings and fill recv. this needs to wait until protocol

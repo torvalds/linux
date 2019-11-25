@@ -1597,11 +1597,6 @@ static int zd_ep_regs_out_msg(struct usb_device *udev, void *data, int len,
 	}
 }
 
-static int usb_int_regs_length(unsigned int count)
-{
-	return sizeof(struct usb_int_regs) + count * sizeof(struct reg_data);
-}
-
 static void prepare_read_regs_int(struct zd_usb *usb,
 				  struct usb_req_read_regs *req,
 				  unsigned int count)
@@ -1636,10 +1631,10 @@ static bool check_read_regs(struct zd_usb *usb, struct usb_req_read_regs *req,
 	/* The created block size seems to be larger than expected.
 	 * However results appear to be correct.
 	 */
-	if (rr->length < usb_int_regs_length(count)) {
+	if (rr->length < struct_size(regs, regs, count)) {
 		dev_dbg_f(zd_usb_dev(usb),
-			 "error: actual length %d less than expected %d\n",
-			 rr->length, usb_int_regs_length(count));
+			 "error: actual length %d less than expected %zu\n",
+			 rr->length, struct_size(regs, regs, count));
 		return false;
 	}
 

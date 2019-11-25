@@ -93,7 +93,7 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 		return -EOPNOTSUPP;
 	}
 
-	if (flow->common.prio != (1 << 16)) {
+	if (flow->common.prio != 1) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload requires highest priority");
 		return -EOPNOTSUPP;
 	}

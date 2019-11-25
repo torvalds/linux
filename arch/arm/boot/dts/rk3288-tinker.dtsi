@@ -47,13 +47,13 @@
 		compatible = "gpio-leds";
 
 		act-led {
-			gpios=<&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger="mmc0";
+			gpios = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "mmc0";
 		};
 
 		heartbeat-led {
-			gpios=<&gpio1 RK_PD1 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger="heartbeat";
+			gpios = <&gpio1 RK_PD1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
 		};
 
 		pwr-led {
@@ -443,7 +443,7 @@
 
 &saradc {
 	vref-supply = <&vcc18_ldo1>;
-	status ="okay";
+	status = "okay";
 };
 
 &sdmmc {
@@ -516,7 +516,7 @@
 };
 
 &usb_otg {
-	status= "okay";
+	status = "okay";
 };
 
 &vopb {

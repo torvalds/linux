@@ -302,4 +302,32 @@ struct mt7615_tx_free {
 #define MT_TXS6_F1_RCPI_1		GENMASK(15, 8)
 #define MT_TXS6_F1_RCPI_0		GENMASK(7, 0)
 
+enum mt7615_cipher_type {
+	MT_CIPHER_NONE,
+	MT_CIPHER_WEP40,
+	MT_CIPHER_TKIP,
+	MT_CIPHER_TKIP_NO_MIC,
+	MT_CIPHER_AES_CCMP,
+	MT_CIPHER_WEP104,
+	MT_CIPHER_BIP_CMAC_128,
+	MT_CIPHER_WEP128,
+	MT_CIPHER_WAPI,
+	MT_CIPHER_CCMP_256 = 10,
+	MT_CIPHER_GCMP,
+	MT_CIPHER_GCMP_256,
+};
+
+static inline struct mt7615_txp *
+mt7615_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+{
+	u8 *txwi;
+
+	if (!t)
+		return NULL;
+
+	txwi = mt76_get_txwi_ptr(dev, t);
+
+	return (struct mt7615_txp *)(txwi + MT_TXD_SIZE);
+}
+
 #endif

@@ -99,7 +99,7 @@ int ipmi_si_port_setup(struct si_sm_io *io)
 	 */
 	for (idx = 0; idx < io->io_size; idx++) {
 		if (request_region(addr + idx * io->regspacing,
-				   io->regsize, DEVICE_NAME) == NULL) {
+				   io->regsize, SI_DEVICE_NAME) == NULL) {
 			/* Undo allocations */
 			while (idx--)
 				release_region(addr + idx * io->regspacing,

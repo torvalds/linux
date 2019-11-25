@@ -459,6 +459,7 @@ static void sas_discover_domain(struct work_struct *work)
 		pr_notice("ATA device seen but CONFIG_SCSI_SAS_ATA=N so cannot attach\n");
 		/* Fall through */
 #endif
+		/* Fall through - only for the #else condition above. */
 	default:
 		error = -ENXIO;
 		pr_err("unhandled device %d\n", dev->dev_type);

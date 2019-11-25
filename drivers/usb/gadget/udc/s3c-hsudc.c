@@ -1311,10 +1311,8 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	s3c_hsudc_setup_ep(hsudc);
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "unable to obtain IRQ number\n");
+	if (ret < 0)
 		goto err_res;
-	}
 	hsudc->irq = ret;
 
 	ret = devm_request_irq(&pdev->dev, hsudc->irq, s3c_hsudc_irq, 0,

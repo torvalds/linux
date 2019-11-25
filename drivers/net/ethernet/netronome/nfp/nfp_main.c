@@ -352,7 +352,7 @@ nfp_net_fw_request(struct pci_dev *pdev, struct nfp_pf *pf, const char *name)
 
 	err = request_firmware_direct(&fw, name, &pdev->dev);
 	nfp_info(pf->cpp, "  %s: %s\n",
-		 name, err ? "not found" : "found, loading...");
+		 name, err ? "not found" : "found");
 	if (err)
 		return NULL;
 
@@ -430,8 +430,35 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 	return nfp_net_fw_request(pdev, pf, fw_name);
 }
 
+static int
+nfp_get_fw_policy_value(struct pci_dev *pdev, struct nfp_nsp *nsp,
+			const char *key, const char *default_val, int max_val,
+			int *value)
+{
+	char hwinfo[64];
+	long hi_val;
+	int err;
+
+	snprintf(hwinfo, sizeof(hwinfo), key);
+	err = nfp_nsp_hwinfo_lookup_optional(nsp, hwinfo, sizeof(hwinfo),
+					     default_val);
+	if (err)
+		return err;
+
+	err = kstrtol(hwinfo, 0, &hi_val);
+	if (err || hi_val < 0 || hi_val > max_val) {
+		dev_warn(&pdev->dev,
+			 "Invalid value '%s' from '%s', ignoring\n",
+			 hwinfo, key);
+		err = kstrtol(default_val, 0, &hi_val);
+	}
+
+	*value = hi_val;
+	return err;
+}
+
 /**
- * nfp_net_fw_load() - Load the firmware image
+ * nfp_fw_load() - Load the firmware image
  * @pdev:       PCI Device structure
  * @pf:		NFP PF Device structure
  * @nsp:	NFP SP handle
@@ -441,44 +468,107 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 static int
 nfp_fw_load(struct pci_dev *pdev, struct nfp_pf *pf, struct nfp_nsp *nsp)
 {
-	const struct firmware *fw;
+	bool do_reset, fw_loaded = false;
+	const struct firmware *fw = NULL;
+	int err, reset, policy, ifcs = 0;
+	char *token, *ptr;
+	char hwinfo[64];
 	u16 interface;
-	int err;
+
+	snprintf(hwinfo, sizeof(hwinfo), "abi_drv_load_ifc");
+	err = nfp_nsp_hwinfo_lookup_optional(nsp, hwinfo, sizeof(hwinfo),
+					     NFP_NSP_DRV_LOAD_IFC_DEFAULT);
+	if (err)
+		return err;
 
 	interface = nfp_cpp_interface(pf->cpp);
-	if (NFP_CPP_INTERFACE_UNIT_of(interface) != 0) {
-		/* Only Unit 0 should reset or load firmware */
+	ptr = hwinfo;
+	while ((token = strsep(&ptr, ","))) {
+		unsigned long interface_hi;
+
+		err = kstrtoul(token, 0, &interface_hi);
+		if (err) {
+			dev_err(&pdev->dev,
+				"Failed to parse interface '%s': %d\n",
+				token, err);
+			return err;
+		}
+
+		ifcs++;
+		if (interface == interface_hi)
+			break;
+	}
+
+	if (!token) {
 		dev_info(&pdev->dev, "Firmware will be loaded by partner\n");
 		return 0;
 	}
 
+	err = nfp_get_fw_policy_value(pdev, nsp, "abi_drv_reset",
+				      NFP_NSP_DRV_RESET_DEFAULT,
+				      NFP_NSP_DRV_RESET_NEVER, &reset);
+	if (err)
+		return err;
+
+	err = nfp_get_fw_policy_value(pdev, nsp, "app_fw_from_flash",
+				      NFP_NSP_APP_FW_LOAD_DEFAULT,
+				      NFP_NSP_APP_FW_LOAD_PREF, &policy);
+	if (err)
+		return err;
+
 	fw = nfp_net_fw_find(pdev, pf);
-	if (!fw) {
-		if (nfp_nsp_has_stored_fw_load(nsp))
-			nfp_nsp_load_stored_fw(nsp);
-		return 0;
+	do_reset = reset == NFP_NSP_DRV_RESET_ALWAYS ||
+		   (fw && reset == NFP_NSP_DRV_RESET_DISK);
+
+	if (do_reset) {
+		dev_info(&pdev->dev, "Soft-resetting the NFP\n");
+		err = nfp_nsp_device_soft_reset(nsp);
+		if (err < 0) {
+			dev_err(&pdev->dev,
+				"Failed to soft reset the NFP: %d\n", err);
+			goto exit_release_fw;
+		}
 	}
 
-	dev_info(&pdev->dev, "Soft-reset, loading FW image\n");
-	err = nfp_nsp_device_soft_reset(nsp);
-	if (err < 0) {
-		dev_err(&pdev->dev, "Failed to soft reset the NFP: %d\n",
-			err);
-		goto exit_release_fw;
-	}
+	if (fw && policy != NFP_NSP_APP_FW_LOAD_FLASH) {
+		if (nfp_nsp_has_fw_loaded(nsp) && nfp_nsp_fw_loaded(nsp))
+			goto exit_release_fw;
 
-	err = nfp_nsp_load_fw(nsp, fw);
-	if (err < 0) {
-		dev_err(&pdev->dev, "FW loading failed: %d\n", err);
-		goto exit_release_fw;
-	}
+		err = nfp_nsp_load_fw(nsp, fw);
+		if (err < 0) {
+			dev_err(&pdev->dev, "FW loading failed: %d\n",
+				err);
+			goto exit_release_fw;
+		}
+		dev_info(&pdev->dev, "Finished loading FW image\n");
+		fw_loaded = true;
+	} else if (policy != NFP_NSP_APP_FW_LOAD_DISK &&
+		   nfp_nsp_has_stored_fw_load(nsp)) {
 
-	dev_info(&pdev->dev, "Finished loading FW image\n");
+		/* Don't propagate this error to stick with legacy driver
+		 * behavior, failure will be detected later during init.
+		 */
+		if (!nfp_nsp_load_stored_fw(nsp))
+			dev_info(&pdev->dev, "Finished loading stored FW image\n");
+
+		/* Don't flag the fw_loaded in this case since other devices
+		 * may reuse the firmware when configured this way
+		 */
+	} else {
+		dev_warn(&pdev->dev, "Didn't load firmware, please update flash or reconfigure card\n");
+	}
 
 exit_release_fw:
 	release_firmware(fw);
 
-	return err < 0 ? err : 1;
+	/* We don't want to unload firmware when other devices may still be
+	 * dependent on it, which could be the case if there are multiple
+	 * devices that could load firmware.
+	 */
+	if (fw_loaded && ifcs == 1)
+		pf->unload_fw_on_remove = true;
+
+	return err < 0 ? err : fw_loaded;
 }
 
 static void
@@ -704,7 +794,7 @@ err_net_remove:
 err_fw_unload:
 	kfree(pf->rtbl);
 	nfp_mip_close(pf->mip);
-	if (pf->fw_loaded)
+	if (pf->unload_fw_on_remove)
 		nfp_fw_unload(pf);
 	kfree(pf->eth_tbl);
 	kfree(pf->nspi);
@@ -744,7 +834,7 @@ static void __nfp_pci_shutdown(struct pci_dev *pdev, bool unload_fw)
 	vfree(pf->dumpspec);
 	kfree(pf->rtbl);
 	nfp_mip_close(pf->mip);
-	if (unload_fw && pf->fw_loaded)
+	if (unload_fw && pf->unload_fw_on_remove)
 		nfp_fw_unload(pf);
 
 	destroy_workqueue(pf->wq);
@@ -815,6 +905,8 @@ static void __exit nfp_main_exit(void)
 module_init(nfp_main_init);
 module_exit(nfp_main_exit);
 
+MODULE_FIRMWARE("netronome/nic_AMDA0058-0011_2x40.nffw");
+MODULE_FIRMWARE("netronome/nic_AMDA0058-0012_2x40.nffw");
 MODULE_FIRMWARE("netronome/nic_AMDA0081-0001_1x40.nffw");
 MODULE_FIRMWARE("netronome/nic_AMDA0081-0001_4x10.nffw");
 MODULE_FIRMWARE("netronome/nic_AMDA0096-0001_2x10.nffw");

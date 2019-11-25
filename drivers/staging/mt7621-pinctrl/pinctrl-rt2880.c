@@ -358,12 +358,15 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 		gpiobase = of_get_property(np, "ralink,gpio-base", NULL);
 		if (!ngpio || !gpiobase) {
 			dev_err(&pdev->dev, "failed to load chip info\n");
+			of_node_put(np);
 			return -EINVAL;
 		}
 
 		range = devm_kzalloc(p->dev, sizeof(*range), GFP_KERNEL);
-		if (!range)
+		if (!range) {
+			of_node_put(np);
 			return -ENOMEM;
+		}
 		range->name = "pio";
 		range->npins = __be32_to_cpu(*ngpio);
 		range->base = __be32_to_cpu(*gpiobase);

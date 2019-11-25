@@ -281,7 +281,7 @@
 	flash: m25p80@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "m25p64";
+		compatible = "jedec,spi-nor";
 		spi-max-frequency = <30000000>;
 		m25p,fast-read;
 		reg = <0>;

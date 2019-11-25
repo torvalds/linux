@@ -57,5 +57,7 @@ int vega20_get_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
 		uint8_t *table, uint16_t workload_type);
 int vega20_set_pptable_driver_address(struct pp_hwmgr *hwmgr);
 
+bool vega20_is_smc_ram_running(struct pp_hwmgr *hwmgr);
+
 #endif
 

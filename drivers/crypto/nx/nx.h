@@ -9,9 +9,6 @@
 #define NX_STRING	"IBM Power7+ Nest Accelerator Crypto Driver"
 #define NX_VERSION	"1.0"
 
-static const char nx_driver_string[] = NX_STRING;
-static const char nx_driver_version[] = NX_VERSION;
-
 /* a scatterlist in the format PHYP is expecting */
 struct nx_sg {
 	u64 addr;

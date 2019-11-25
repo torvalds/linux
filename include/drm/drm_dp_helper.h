@@ -1309,6 +1309,10 @@ struct drm_dp_aux {
 	 * @cec: struct containing fields used for CEC-Tunneling-over-AUX.
 	 */
 	struct drm_dp_aux_cec cec;
+	/**
+	 * @is_remote: Is this AUX CH actually using sideband messaging.
+	 */
+	bool is_remote;
 };
 
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,

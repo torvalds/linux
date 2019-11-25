@@ -40,15 +40,15 @@ struct can_bittiming {
 };
 
 /*
- * CAN harware-dependent bit-timing constant
+ * CAN hardware-dependent bit-timing constant
  *
  * Used for calculating and checking bit-timing parameters
  */
 struct can_bittiming_const {
 	char name[16];		/* Name of the CAN controller hardware */
-	__u32 tseg1_min;	/* Time segement 1 = prop_seg + phase_seg1 */
+	__u32 tseg1_min;	/* Time segment 1 = prop_seg + phase_seg1 */
 	__u32 tseg1_max;
-	__u32 tseg2_min;	/* Time segement 2 = phase_seg2 */
+	__u32 tseg2_min;	/* Time segment 2 = phase_seg2 */
 	__u32 tseg2_max;
 	__u32 sjw_max;		/* Synchronisation jump width */
 	__u32 brp_min;		/* Bit-rate prescaler */

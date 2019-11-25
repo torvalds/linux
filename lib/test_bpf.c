@@ -867,7 +867,7 @@ static struct bpf_test tests[] = {
 		},
 		CLASSIC,
 		{ },
-		{ { 4, 10 ^ 300 }, { 20, 10 ^ 300 } },
+		{ { 4, 0xA ^ 300 }, { 20, 0xA ^ 300 } },
 	},
 	{
 		"SPILL_FILL",

@@ -562,3 +562,13 @@ Description:	Umwait control
 			  or C0.2 state. The time is an unsigned 32-bit number.
 			  Note that a value of zero means there is no limit.
 			  Low order two bits must be zero.
+
+What:		/sys/devices/system/cpu/svm
+Date:		August 2019
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+		Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Description:	Secure Virtual Machine
+
+		If 1, it means the system is using the Protected Execution
+		Facility in POWER9 and newer processors. i.e., it is a Secure
+		Virtual Machine.

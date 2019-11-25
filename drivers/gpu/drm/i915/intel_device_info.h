@@ -78,6 +78,8 @@ enum intel_platform {
 	/* gen11 */
 	INTEL_ICELAKE,
 	INTEL_ELKHARTLAKE,
+	/* gen12 */
+	INTEL_TIGERLAKE,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -110,7 +112,8 @@ enum intel_ppgtt_type {
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
 	func(has_fpga_dbg); \
-	func(has_guc); \
+	func(has_global_mocs); \
+	func(has_gt_uc); \
 	func(has_l3_dpf); \
 	func(has_llc); \
 	func(has_logical_ring_contexts); \
@@ -136,6 +139,7 @@ enum intel_ppgtt_type {
 	func(has_gmch); \
 	func(has_hotplug); \
 	func(has_ipc); \
+	func(has_modular_fia); \
 	func(has_overlay); \
 	func(has_psr); \
 	func(overlay_needs_physical); \

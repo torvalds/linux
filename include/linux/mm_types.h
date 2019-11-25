@@ -25,7 +25,6 @@
 
 struct address_space;
 struct mem_cgroup;
-struct hmm;
 
 /*
  * Each physical page in the system has a struct page associated with
@@ -139,6 +138,7 @@ struct page {
 		struct {	/* Second tail page of compound page */
 			unsigned long _compound_pad_1;	/* compound_head */
 			unsigned long _compound_pad_2;
+			/* For both global and memcg */
 			struct list_head deferred_list;
 		};
 		struct {	/* Page table pages */
@@ -159,7 +159,16 @@ struct page {
 			/** @pgmap: Points to the hosting device page map. */
 			struct dev_pagemap *pgmap;
 			void *zone_device_data;
-			unsigned long _zd_pad_1;	/* uses mapping */
+			/*
+			 * ZONE_DEVICE private pages are counted as being
+			 * mapped so the next 3 words hold the mapping, index,
+			 * and private fields from the source anonymous or
+			 * page cache page while the page is migrated to device
+			 * private memory.
+			 * ZONE_DEVICE MEMORY_DEVICE_FS_DAX pages also
+			 * use the mapping, index, and private fields when
+			 * pmem backed DAX files are mapped.
+			 */
 		};
 
 		/** @rcu_head: You can use this to free a page by RCU. */
@@ -374,6 +383,16 @@ struct mm_struct {
 		unsigned long highest_vm_end;	/* highest vma end address */
 		pgd_t * pgd;
 
+#ifdef CONFIG_MEMBARRIER
+		/**
+		 * @membarrier_state: Flags controlling membarrier behavior.
+		 *
+		 * This field is close to @pgd to hopefully fit in the same
+		 * cache-line, which needs to be touched by switch_mm().
+		 */
+		atomic_t membarrier_state;
+#endif
+
 		/**
 		 * @mm_users: The number of users including userspace.
 		 *
@@ -443,9 +462,7 @@ struct mm_struct {
 		unsigned long flags; /* Must use atomic bitops to access */
 
 		struct core_state *core_state; /* coredumping support */
-#ifdef CONFIG_MEMBARRIER
-		atomic_t membarrier_state;
-#endif
+
 #ifdef CONFIG_AIO
 		spinlock_t			ioctx_lock;
 		struct kioctx_table __rcu	*ioctx_table;
@@ -502,11 +519,6 @@ struct mm_struct {
 		atomic_long_t hugetlb_usage;
 #endif
 		struct work_struct async_put_work;
-
-#ifdef CONFIG_HMM_MIRROR
-		/* HMM needs to track a few things per mm */
-		struct hmm *hmm;
-#endif
 	} __randomize_layout;
 
 	/*

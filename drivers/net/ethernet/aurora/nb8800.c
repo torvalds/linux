@@ -1351,10 +1351,8 @@ static int nb8800_probe(struct platform_device *pdev)
 		ops = match->data;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "No IRQ\n");
+	if (irq <= 0)
 		return -EINVAL;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);

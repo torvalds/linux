@@ -311,11 +311,13 @@ static const struct key_entry dell_wmi_keymap_type_0011[] = {
 	{ KE_IGNORE, 0xfff1, { KEY_RESERVED } },
 
 	/* Keyboard backlight level changed */
-	{ KE_IGNORE, 0x01e1, { KEY_RESERVED } },
-	{ KE_IGNORE, 0x02ea, { KEY_RESERVED } },
-	{ KE_IGNORE, 0x02eb, { KEY_RESERVED } },
-	{ KE_IGNORE, 0x02ec, { KEY_RESERVED } },
-	{ KE_IGNORE, 0x02f6, { KEY_RESERVED } },
+	{ KE_IGNORE, KBD_LED_OFF_TOKEN,      { KEY_RESERVED } },
+	{ KE_IGNORE, KBD_LED_ON_TOKEN,       { KEY_RESERVED } },
+	{ KE_IGNORE, KBD_LED_AUTO_TOKEN,     { KEY_RESERVED } },
+	{ KE_IGNORE, KBD_LED_AUTO_25_TOKEN,  { KEY_RESERVED } },
+	{ KE_IGNORE, KBD_LED_AUTO_50_TOKEN,  { KEY_RESERVED } },
+	{ KE_IGNORE, KBD_LED_AUTO_75_TOKEN,  { KEY_RESERVED } },
+	{ KE_IGNORE, KBD_LED_AUTO_100_TOKEN, { KEY_RESERVED } },
 };
 
 static void dell_wmi_process_key(struct wmi_device *wdev, int type, int code)

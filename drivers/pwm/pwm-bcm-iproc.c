@@ -115,7 +115,7 @@ static void iproc_pwmc_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 }
 
 static int iproc_pwmc_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			    struct pwm_state *state)
+			    const struct pwm_state *state)
 {
 	unsigned long prescale = IPROC_PWM_PRESCALE_MIN;
 	struct iproc_pwmc *ip = to_iproc_pwmc(chip);

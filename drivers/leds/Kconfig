@@ -74,8 +74,11 @@ config LEDS_APU
 	depends on LEDS_CLASS
 	depends on X86 && DMI
 	help
-	  This driver makes the PC Engines APU/APU2/APU3 front panel LEDs
+	  This driver makes the PC Engines APU1 front panel LEDs
 	  accessible from userspace programs through the LED subsystem.
+
+	  If you're looking for APU2/3, use the pcengines-apu2 driver.
+	  (symbol CONFIG_PCENGINES_APU2)
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-apu.
@@ -587,6 +590,7 @@ config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on LEDS_CLASS
 	depends on MACH_KIRKWOOD
+	depends on OF_GPIO
 	default y
 	help
 	  This option enables support for LEDs found on the LaCie 2Big

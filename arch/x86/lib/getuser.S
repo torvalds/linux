@@ -115,7 +115,7 @@ ENDPROC(__get_user_8)
 EXPORT_SYMBOL(__get_user_8)
 
 
-bad_get_user_clac:
+.Lbad_get_user_clac:
 	ASM_CLAC
 bad_get_user:
 	xor %edx,%edx
@@ -123,7 +123,7 @@ bad_get_user:
 	ret
 
 #ifdef CONFIG_X86_32
-bad_get_user_8_clac:
+.Lbad_get_user_8_clac:
 	ASM_CLAC
 bad_get_user_8:
 	xor %edx,%edx
@@ -132,12 +132,12 @@ bad_get_user_8:
 	ret
 #endif
 
-	_ASM_EXTABLE_UA(1b, bad_get_user_clac)
-	_ASM_EXTABLE_UA(2b, bad_get_user_clac)
-	_ASM_EXTABLE_UA(3b, bad_get_user_clac)
+	_ASM_EXTABLE_UA(1b, .Lbad_get_user_clac)
+	_ASM_EXTABLE_UA(2b, .Lbad_get_user_clac)
+	_ASM_EXTABLE_UA(3b, .Lbad_get_user_clac)
 #ifdef CONFIG_X86_64
-	_ASM_EXTABLE_UA(4b, bad_get_user_clac)
+	_ASM_EXTABLE_UA(4b, .Lbad_get_user_clac)
 #else
-	_ASM_EXTABLE_UA(4b, bad_get_user_8_clac)
-	_ASM_EXTABLE_UA(5b, bad_get_user_8_clac)
+	_ASM_EXTABLE_UA(4b, .Lbad_get_user_8_clac)
+	_ASM_EXTABLE_UA(5b, .Lbad_get_user_8_clac)
 #endif

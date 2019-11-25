@@ -324,7 +324,7 @@ config NET_SCH_CAKE
 	tristate "Common Applications Kept Enhanced (CAKE)"
 	help
 	  Say Y here if you want to use the Common Applications Kept Enhanced
-          (CAKE) queue management algorithm.
+	  (CAKE) queue management algorithm.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called sch_cake.
@@ -730,8 +730,8 @@ config NET_CLS_ACT
 
 config NET_ACT_POLICE
 	tristate "Traffic Policing"
-        depends on NET_CLS_ACT
-        ---help---
+	depends on NET_CLS_ACT
+	---help---
 	  Say Y here if you want to do traffic policing, i.e. strict
 	  bandwidth limiting. This action replaces the existing policing
 	  module.
@@ -740,9 +740,9 @@ config NET_ACT_POLICE
 	  module will be called act_police.
 
 config NET_ACT_GACT
-        tristate "Generic actions"
-        depends on NET_CLS_ACT
-        ---help---
+	tristate "Generic actions"
+	depends on NET_CLS_ACT
+	---help---
 	  Say Y here to take generic actions such as dropping and
 	  accepting packets.
 
@@ -750,15 +750,15 @@ config NET_ACT_GACT
 	  module will be called act_gact.
 
 config GACT_PROB
-        bool "Probability support"
-        depends on NET_ACT_GACT
-        ---help---
+	bool "Probability support"
+	depends on NET_ACT_GACT
+	---help---
 	  Say Y here to use the generic action randomly or deterministically.
 
 config NET_ACT_MIRRED
-        tristate "Redirecting and Mirroring"
-        depends on NET_CLS_ACT
-        ---help---
+	tristate "Redirecting and Mirroring"
+	depends on NET_CLS_ACT
+	---help---
 	  Say Y here to allow packets to be mirrored or redirected to
 	  other devices.
 
@@ -766,10 +766,10 @@ config NET_ACT_MIRRED
 	  module will be called act_mirred.
 
 config NET_ACT_SAMPLE
-        tristate "Traffic Sampling"
-        depends on NET_CLS_ACT
-        select PSAMPLE
-        ---help---
+	tristate "Traffic Sampling"
+	depends on NET_CLS_ACT
+	select PSAMPLE
+	---help---
 	  Say Y here to allow packet sampling tc action. The packet sample
 	  action consists of statistically choosing packets and sampling
 	  them using the psample module.
@@ -778,9 +778,9 @@ config NET_ACT_SAMPLE
 	  module will be called act_sample.
 
 config NET_ACT_IPT
-        tristate "IPtables targets"
-        depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
-        ---help---
+	tristate "IPtables targets"
+	depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+	---help---
 	  Say Y here to be able to invoke iptables targets after successful
 	  classification.
 
@@ -788,9 +788,9 @@ config NET_ACT_IPT
 	  module will be called act_ipt.
 
 config NET_ACT_NAT
-        tristate "Stateless NAT"
-        depends on NET_CLS_ACT
-        ---help---
+	tristate "Stateless NAT"
+	depends on NET_CLS_ACT
+	---help---
 	  Say Y here to do stateless NAT on IPv4 packets.  You should use
 	  netfilter for NAT unless you know what you are doing.
 
@@ -798,18 +798,18 @@ config NET_ACT_NAT
 	  module will be called act_nat.
 
 config NET_ACT_PEDIT
-        tristate "Packet Editing"
-        depends on NET_CLS_ACT
-        ---help---
+	tristate "Packet Editing"
+	depends on NET_CLS_ACT
+	---help---
 	  Say Y here if you want to mangle the content of packets.
 
 	  To compile this code as a module, choose M here: the
 	  module will be called act_pedit.
 
 config NET_ACT_SIMP
-        tristate "Simple Example (Debug)"
-        depends on NET_CLS_ACT
-        ---help---
+	tristate "Simple Example (Debug)"
+	depends on NET_CLS_ACT
+	---help---
 	  Say Y here to add a simple action for demonstration purposes.
 	  It is meant as an example and for debugging purposes. It will
 	  print a configured policy string followed by the packet count
@@ -821,9 +821,9 @@ config NET_ACT_SIMP
 	  module will be called act_simple.
 
 config NET_ACT_SKBEDIT
-        tristate "SKB Editing"
-        depends on NET_CLS_ACT
-        ---help---
+	tristate "SKB Editing"
+	depends on NET_CLS_ACT
+	---help---
 	  Say Y here to change skb priority or queue_mapping settings.
 
 	  If unsure, say N.
@@ -832,10 +832,10 @@ config NET_ACT_SKBEDIT
 	  module will be called act_skbedit.
 
 config NET_ACT_CSUM
-        tristate "Checksum Updating"
-        depends on NET_CLS_ACT && INET
-        select LIBCRC32C
-        ---help---
+	tristate "Checksum Updating"
+	depends on NET_CLS_ACT && INET
+	select LIBCRC32C
+	---help---
 	  Say Y here to update some common checksum after some direct
 	  packet alterations.
 
@@ -854,9 +854,9 @@ config NET_ACT_MPLS
 	  module will be called act_mpls.
 
 config NET_ACT_VLAN
-        tristate "Vlan manipulation"
-        depends on NET_CLS_ACT
-        ---help---
+	tristate "Vlan manipulation"
+	depends on NET_CLS_ACT
+	---help---
 	  Say Y here to push or pop vlan headers.
 
 	  If unsure, say N.
@@ -865,9 +865,9 @@ config NET_ACT_VLAN
 	  module will be called act_vlan.
 
 config NET_ACT_BPF
-        tristate "BPF based action"
-        depends on NET_CLS_ACT
-        ---help---
+	tristate "BPF based action"
+	depends on NET_CLS_ACT
+	---help---
 	  Say Y here to execute BPF code on packets. The BPF code will decide
 	  if the packet should be dropped or not.
 
@@ -877,10 +877,10 @@ config NET_ACT_BPF
 	  module will be called act_bpf.
 
 config NET_ACT_CONNMARK
-        tristate "Netfilter Connection Mark Retriever"
-        depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
-        depends on NF_CONNTRACK && NF_CONNTRACK_MARK
-        ---help---
+	tristate "Netfilter Connection Mark Retriever"
+	depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+	depends on NF_CONNTRACK && NF_CONNTRACK_MARK
+	---help---
 	  Say Y here to allow retrieving of conn mark
 
 	  If unsure, say N.
@@ -889,10 +889,10 @@ config NET_ACT_CONNMARK
 	  module will be called act_connmark.
 
 config NET_ACT_CTINFO
-        tristate "Netfilter Connection Mark Actions"
-        depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
-        depends on NF_CONNTRACK && NF_CONNTRACK_MARK
-        help
+	tristate "Netfilter Connection Mark Actions"
+	depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+	depends on NF_CONNTRACK && NF_CONNTRACK_MARK
+	help
 	  Say Y here to allow transfer of a connmark stored information.
 	  Current actions transfer connmark stored DSCP into
 	  ipv4/v6 diffserv and/or to transfer connmark to packet
@@ -906,21 +906,21 @@ config NET_ACT_CTINFO
 	  module will be called act_ctinfo.
 
 config NET_ACT_SKBMOD
-        tristate "skb data modification action"
-        depends on NET_CLS_ACT
-        ---help---
-         Say Y here to allow modification of skb data
+	tristate "skb data modification action"
+	depends on NET_CLS_ACT
+	---help---
+	 Say Y here to allow modification of skb data
 
-         If unsure, say N.
+	 If unsure, say N.
 
-         To compile this code as a module, choose M here: the
-         module will be called act_skbmod.
+	 To compile this code as a module, choose M here: the
+	 module will be called act_skbmod.
 
 config NET_ACT_IFE
-        tristate "Inter-FE action based on IETF ForCES InterFE LFB"
-        depends on NET_CLS_ACT
-        select NET_IFE
-        ---help---
+	tristate "Inter-FE action based on IETF ForCES InterFE LFB"
+	depends on NET_CLS_ACT
+	select NET_IFE
+	---help---
 	  Say Y here to allow for sourcing and terminating metadata
 	  For details refer to netdev01 paper:
 	  "Distributing Linux Traffic Control Classifier-Action Subsystem"
@@ -930,9 +930,9 @@ config NET_ACT_IFE
 	  module will be called act_ife.
 
 config NET_ACT_TUNNEL_KEY
-        tristate "IP tunnel metadata manipulation"
-        depends on NET_CLS_ACT
-        ---help---
+	tristate "IP tunnel metadata manipulation"
+	depends on NET_CLS_ACT
+	---help---
 	  Say Y here to set/release ip tunnel metadata.
 
 	  If unsure, say N.
@@ -941,9 +941,9 @@ config NET_ACT_TUNNEL_KEY
 	  module will be called act_tunnel_key.
 
 config NET_ACT_CT
-        tristate "connection tracking tc action"
-        depends on NET_CLS_ACT && NF_CONNTRACK && NF_NAT
-        help
+	tristate "connection tracking tc action"
+	depends on NET_CLS_ACT && NF_CONNTRACK && NF_NAT
+	help
 	  Say Y here to allow sending the packets to conntrack module.
 
 	  If unsure, say N.
@@ -952,16 +952,28 @@ config NET_ACT_CT
 	  module will be called act_ct.
 
 config NET_IFE_SKBMARK
-        tristate "Support to encoding decoding skb mark on IFE action"
-        depends on NET_ACT_IFE
+	tristate "Support to encoding decoding skb mark on IFE action"
+	depends on NET_ACT_IFE
 
 config NET_IFE_SKBPRIO
-        tristate "Support to encoding decoding skb prio on IFE action"
-        depends on NET_ACT_IFE
+	tristate "Support to encoding decoding skb prio on IFE action"
+	depends on NET_ACT_IFE
 
 config NET_IFE_SKBTCINDEX
-        tristate "Support to encoding decoding skb tcindex on IFE action"
-        depends on NET_ACT_IFE
+	tristate "Support to encoding decoding skb tcindex on IFE action"
+	depends on NET_ACT_IFE
+
+config NET_TC_SKB_EXT
+	bool "TC recirculation support"
+	depends on NET_CLS_ACT
+	select SKB_EXTENSIONS
+
+	help
+	  Say Y here to allow tc chain misses to continue in OvS datapath in
+	  the correct recirc_id, and hardware chain misses to continue in
+	  the correct chain in tc software datapath.
+
+	  Say N here if you won't be using tc<->ovs offload or tc chains offload.
 
 endif # NET_SCHED
 

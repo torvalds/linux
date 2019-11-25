@@ -131,7 +131,6 @@ enum i40e_state_t {
 	__I40E_PF_RESET_REQUESTED,
 	__I40E_CORE_RESET_REQUESTED,
 	__I40E_GLOBAL_RESET_REQUESTED,
-	__I40E_EMP_RESET_REQUESTED,
 	__I40E_EMP_RESET_INTR_RECEIVED,
 	__I40E_SUSPENDED,
 	__I40E_PTP_TX_IN_PROGRESS,
@@ -244,11 +243,11 @@ struct i40e_fdir_filter {
 	u32 fd_id;
 };
 
-#define I40E_CLOUD_FIELD_OMAC	0x01
-#define I40E_CLOUD_FIELD_IMAC	0x02
-#define I40E_CLOUD_FIELD_IVLAN	0x04
-#define I40E_CLOUD_FIELD_TEN_ID	0x08
-#define I40E_CLOUD_FIELD_IIP	0x10
+#define I40E_CLOUD_FIELD_OMAC		BIT(0)
+#define I40E_CLOUD_FIELD_IMAC		BIT(1)
+#define I40E_CLOUD_FIELD_IVLAN		BIT(2)
+#define I40E_CLOUD_FIELD_TEN_ID		BIT(3)
+#define I40E_CLOUD_FIELD_IIP		BIT(4)
 
 #define I40E_CLOUD_FILTER_FLAGS_OMAC	I40E_CLOUD_FIELD_OMAC
 #define I40E_CLOUD_FILTER_FLAGS_IMAC	I40E_CLOUD_FIELD_IMAC
@@ -1021,6 +1020,7 @@ i40e_find_vsi_by_type(struct i40e_pf *pf, u16 type)
 	return NULL;
 }
 void i40e_update_stats(struct i40e_vsi *vsi);
+void i40e_update_veb_stats(struct i40e_veb *veb);
 void i40e_update_eth_stats(struct i40e_vsi *vsi);
 struct rtnl_link_stats64 *i40e_get_vsi_stats_struct(struct i40e_vsi *vsi);
 int i40e_fetch_switch_configuration(struct i40e_pf *pf,

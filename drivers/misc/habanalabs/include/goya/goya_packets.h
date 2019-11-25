@@ -52,6 +52,19 @@ enum goya_dma_direction {
 #define GOYA_PKT_CTL_MB_SHIFT		31
 #define GOYA_PKT_CTL_MB_MASK		0x80000000
 
+/* All packets have, at least, an 8-byte header, which contains
+ * the packet type. The kernel driver uses the packet header for packet
+ * validation and to perform any necessary required preparation before
+ * sending them off to the hardware.
+ */
+struct goya_packet {
+	__le64 header;
+	/* The rest of the packet data follows. Use the corresponding
+	 * packet_XXX struct to deference the data, based on packet type
+	 */
+	u8 contents[0];
+};
+
 struct packet_nop {
 	__le32 reserved;
 	__le32 ctl;

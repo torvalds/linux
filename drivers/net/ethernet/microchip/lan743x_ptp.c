@@ -963,8 +963,7 @@ void lan743x_ptp_close(struct lan743x_adapter *adapter)
 		index++) {
 		struct sk_buff *skb = ptp->tx_ts_skb_queue[index];
 
-		if (skb)
-			dev_kfree_skb(skb);
+		dev_kfree_skb(skb);
 		ptp->tx_ts_skb_queue[index] = NULL;
 		ptp->tx_ts_seconds_queue[index] = 0;
 		ptp->tx_ts_nseconds_queue[index] = 0;

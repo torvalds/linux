@@ -273,7 +273,7 @@ static int fill_sg_in(struct scatterlist *sg_in,
 
 		__skb_frag_ref(frag);
 		sg_set_page(sg_in + i, skb_frag_page(frag),
-			    skb_frag_size(frag), frag->page_offset);
+			    skb_frag_size(frag), skb_frag_off(frag));
 
 		remaining -= skb_frag_size(frag);
 

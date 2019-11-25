@@ -231,7 +231,7 @@ bool init_firmware(struct net_device *dev)
 		rst_opt = OPT_FIRMWARE_RESET;
 		starting_state = FW_INIT_STEP2_DATA;
 	} else {
-		 RT_TRACE(COMP_FIRMWARE, "PlatformInitFirmware: undefined firmware state\n");
+		RT_TRACE(COMP_FIRMWARE, "PlatformInitFirmware: undefined firmware state\n");
 	}
 
 	/*

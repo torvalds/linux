@@ -233,6 +233,8 @@ static bool is_legacy_obj_event_num(u16 event_num)
 	case MLX5_EVENT_TYPE_SRQ_CATAS_ERROR:
 	case MLX5_EVENT_TYPE_DCT_DRAINED:
 	case MLX5_EVENT_TYPE_COMP:
+	case MLX5_EVENT_TYPE_DCT_KEY_VIOLATION:
+	case MLX5_EVENT_TYPE_XRQ_ERROR:
 		return true;
 	default:
 		return false;
@@ -315,8 +317,10 @@ static u16 get_event_obj_type(unsigned long event_type, struct mlx5_eqe *eqe)
 	case MLX5_EVENT_TYPE_SRQ_CATAS_ERROR:
 		return eqe->data.qp_srq.type;
 	case MLX5_EVENT_TYPE_CQ_ERROR:
+	case MLX5_EVENT_TYPE_XRQ_ERROR:
 		return 0;
 	case MLX5_EVENT_TYPE_DCT_DRAINED:
+	case MLX5_EVENT_TYPE_DCT_KEY_VIOLATION:
 		return MLX5_EVENT_QUEUE_TYPE_DCT;
 	default:
 		return MLX5_GET(affiliated_event_header, &eqe->data, obj_type);
@@ -542,6 +546,8 @@ static u64 devx_get_obj_id(const void *in)
 		break;
 	case MLX5_CMD_OP_ARM_XRQ:
 	case MLX5_CMD_OP_SET_XRQ_DC_PARAMS_ENTRY:
+	case MLX5_CMD_OP_RELEASE_XRQ_ERROR:
+	case MLX5_CMD_OP_MODIFY_XRQ:
 		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_XRQ,
 					MLX5_GET(arm_xrq_in, in, xrqn));
 		break;
@@ -776,6 +782,14 @@ static bool devx_is_obj_create_cmd(const void *in, u16 *opcode)
 			return true;
 		return false;
 	}
+	case MLX5_CMD_OP_CREATE_PSV:
+	{
+		u8 num_psv = MLX5_GET(create_psv_in, in, num_psv);
+
+		if (num_psv == 1)
+			return true;
+		return false;
+	}
 	default:
 		return false;
 	}
@@ -810,6 +824,8 @@ static bool devx_is_obj_modify_cmd(const void *in)
 	case MLX5_CMD_OP_ARM_DCT_FOR_KEY_VIOLATION:
 	case MLX5_CMD_OP_ARM_XRQ:
 	case MLX5_CMD_OP_SET_XRQ_DC_PARAMS_ENTRY:
+	case MLX5_CMD_OP_RELEASE_XRQ_ERROR:
+	case MLX5_CMD_OP_MODIFY_XRQ:
 		return true;
 	case MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY:
 	{
@@ -922,6 +938,7 @@ static bool devx_is_general_cmd(void *in, struct mlx5_ib_dev *dev)
 	case MLX5_CMD_OP_QUERY_CONG_STATUS:
 	case MLX5_CMD_OP_QUERY_CONG_PARAMS:
 	case MLX5_CMD_OP_QUERY_CONG_STATISTICS:
+	case MLX5_CMD_OP_QUERY_LAG:
 		return true;
 	default:
 		return false;
@@ -1215,6 +1232,12 @@ static void devx_obj_build_destroy_cmd(void *in, void *out, void *din,
 	case MLX5_CMD_OP_ALLOC_XRCD:
 		MLX5_SET(general_obj_in_cmd_hdr, din, opcode, MLX5_CMD_OP_DEALLOC_XRCD);
 		break;
+	case MLX5_CMD_OP_CREATE_PSV:
+		MLX5_SET(general_obj_in_cmd_hdr, din, opcode,
+			 MLX5_CMD_OP_DESTROY_PSV);
+		MLX5_SET(destroy_psv_in, din, psvn,
+			 MLX5_GET(create_psv_out, out, psv0_index));
+		break;
 	default:
 		/* The entry must match to one of the devx_is_obj_create_cmd */
 		WARN_ON(true);
@@ -1275,29 +1298,6 @@ static int devx_handle_mkey_create(struct mlx5_ib_dev *dev,
 	return 0;
 }
 
-static void devx_free_indirect_mkey(struct rcu_head *rcu)
-{
-	kfree(container_of(rcu, struct devx_obj, devx_mr.rcu));
-}
-
-/* This function to delete from the radix tree needs to be called before
- * destroying the underlying mkey. Otherwise a race might occur in case that
- * other thread will get the same mkey before this one will be deleted,
- * in that case it will fail via inserting to the tree its own data.
- *
- * Note:
- * An error in the destroy is not expected unless there is some other indirect
- * mkey which points to this one. In a kernel cleanup flow it will be just
- * destroyed in the iterative destruction call. In a user flow, in case
- * the application didn't close in the expected order it's its own problem,
- * the mkey won't be part of the tree, in both cases the kernel is safe.
- */
-static void devx_cleanup_mkey(struct devx_obj *obj)
-{
-	xa_erase(&obj->ib_dev->mdev->priv.mkey_table,
-		 mlx5_base_mkey(obj->devx_mr.mmkey.key));
-}
-
 static void devx_cleanup_subscription(struct mlx5_ib_dev *dev,
 				      struct devx_event_subscription *sub)
 {
@@ -1339,8 +1339,16 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	int ret;
 
 	dev = mlx5_udata_to_mdev(&attrs->driver_udata);
-	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
-		devx_cleanup_mkey(obj);
+	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY) {
+		/*
+		 * The pagefault_single_data_segment() does commands against
+		 * the mmkey, we must wait for that to stop before freeing the
+		 * mkey, as another allocation could get the same mkey #.
+		 */
+		xa_erase(&obj->ib_dev->mdev->priv.mkey_table,
+			 mlx5_base_mkey(obj->devx_mr.mmkey.key));
+		synchronize_srcu(&dev->mr_srcu);
+	}
 
 	if (obj->flags & DEVX_OBJ_FLAGS_DCT)
 		ret = mlx5_core_destroy_dct(obj->ib_dev->mdev, &obj->core_dct);
@@ -1358,12 +1366,6 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	list_for_each_entry_safe(sub_entry, tmp, &obj->event_sub, obj_list)
 		devx_cleanup_subscription(dev, sub_entry);
 	mutex_unlock(&devx_event_table->event_xa_lock);
-
-	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY) {
-		call_srcu(&dev->mr_srcu, &obj->devx_mr.rcu,
-			  devx_free_indirect_mkey);
-		return ret;
-	}
 
 	kfree(obj);
 	return ret;
@@ -1468,26 +1470,21 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 				   &obj_id);
 	WARN_ON(obj->dinlen > MLX5_MAX_DESTROY_INBOX_SIZE_DW * sizeof(u32));
 
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT, cmd_out, cmd_out_len);
+	if (err)
+		goto obj_destroy;
+
+	if (opcode == MLX5_CMD_OP_CREATE_GENERAL_OBJECT)
+		obj_type = MLX5_GET(general_obj_in_cmd_hdr, cmd_in, obj_type);
+	obj->obj_id = get_enc_obj_id(opcode | obj_type << 16, obj_id);
+
 	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY) {
 		err = devx_handle_mkey_indirect(obj, dev, cmd_in, cmd_out);
 		if (err)
 			goto obj_destroy;
 	}
-
-	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT, cmd_out, cmd_out_len);
-	if (err)
-		goto err_copy;
-
-	if (opcode == MLX5_CMD_OP_CREATE_GENERAL_OBJECT)
-		obj_type = MLX5_GET(general_obj_in_cmd_hdr, cmd_in, obj_type);
-
-	obj->obj_id = get_enc_obj_id(opcode | obj_type << 16, obj_id);
-
 	return 0;
 
-err_copy:
-	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
-		devx_cleanup_mkey(obj);
 obj_destroy:
 	if (obj->flags & DEVX_OBJ_FLAGS_DCT)
 		mlx5_core_destroy_dct(obj->ib_dev->mdev, &obj->core_dct);
@@ -2026,7 +2023,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_SUBSCRIBE_EVENT)(
 			event_sub->eventfd =
 				eventfd_ctx_fdget(redirect_fd);
 
-			if (IS_ERR(event_sub)) {
+			if (IS_ERR(event_sub->eventfd)) {
 				err = PTR_ERR(event_sub->eventfd);
 				event_sub->eventfd = NULL;
 				goto err;
@@ -2285,7 +2282,11 @@ static u32 devx_get_obj_id_from_event(unsigned long event_type, void *data)
 	case MLX5_EVENT_TYPE_WQ_ACCESS_ERROR:
 		obj_id = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
 		break;
+	case MLX5_EVENT_TYPE_XRQ_ERROR:
+		obj_id = be32_to_cpu(eqe->data.xrq_err.type_xrqn) & 0xffffff;
+		break;
 	case MLX5_EVENT_TYPE_DCT_DRAINED:
+	case MLX5_EVENT_TYPE_DCT_KEY_VIOLATION:
 		obj_id = be32_to_cpu(eqe->data.dct.dctn) & 0xffffff;
 		break;
 	case MLX5_EVENT_TYPE_CQ_ERROR:
@@ -2644,12 +2645,13 @@ static int devx_async_event_close(struct inode *inode, struct file *filp)
 	struct devx_async_event_file *ev_file = filp->private_data;
 	struct devx_event_subscription *event_sub, *event_sub_tmp;
 	struct devx_async_event_data *entry, *tmp;
+	struct mlx5_ib_dev *dev = ev_file->dev;
 
-	mutex_lock(&ev_file->dev->devx_event_table.event_xa_lock);
+	mutex_lock(&dev->devx_event_table.event_xa_lock);
 	/* delete the subscriptions which are related to this FD */
 	list_for_each_entry_safe(event_sub, event_sub_tmp,
 				 &ev_file->subscribed_events_list, file_list) {
-		devx_cleanup_subscription(ev_file->dev, event_sub);
+		devx_cleanup_subscription(dev, event_sub);
 		if (event_sub->eventfd)
 			eventfd_ctx_put(event_sub->eventfd);
 
@@ -2658,7 +2660,7 @@ static int devx_async_event_close(struct inode *inode, struct file *filp)
 		kfree_rcu(event_sub, rcu);
 	}
 
-	mutex_unlock(&ev_file->dev->devx_event_table.event_xa_lock);
+	mutex_unlock(&dev->devx_event_table.event_xa_lock);
 
 	/* free the pending events allocation */
 	if (!ev_file->omit_data) {
@@ -2670,7 +2672,7 @@ static int devx_async_event_close(struct inode *inode, struct file *filp)
 	}
 
 	uverbs_close_fd(filp);
-	put_device(&ev_file->dev->ib_dev.dev);
+	put_device(&dev->ib_dev.dev);
 	return 0;
 }
 

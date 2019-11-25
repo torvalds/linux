@@ -289,9 +289,16 @@ struct arm64_cpu_capabilities {
 	u16 type;
 	bool (*matches)(const struct arm64_cpu_capabilities *caps, int scope);
 	/*
-	 * Take the appropriate actions to enable this capability for this CPU.
-	 * For each successfully booted CPU, this method is called for each
-	 * globally detected capability.
+	 * Take the appropriate actions to configure this capability
+	 * for this CPU. If the capability is detected by the kernel
+	 * this will be called on all the CPUs in the system,
+	 * including the hotplugged CPUs, regardless of whether the
+	 * capability is available on that specific CPU. This is
+	 * useful for some capabilities (e.g, working around CPU
+	 * errata), where all the CPUs must take some action (e.g,
+	 * changing system control/configuration). Thus, if an action
+	 * is required only if the CPU has the capability, then the
+	 * routine must check it before taking any action.
 	 */
 	void (*cpu_enable)(const struct arm64_cpu_capabilities *cap);
 	union {
@@ -361,21 +368,6 @@ cpucap_multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry,
 			return true;
 
 	return false;
-}
-
-/*
- * Take appropriate action for all matching entries in the shared capability
- * entry.
- */
-static inline void
-cpucap_multi_entry_cap_cpu_enable(const struct arm64_cpu_capabilities *entry)
-{
-	const struct arm64_cpu_capabilities *caps;
-
-	for (caps = entry->match_list; caps->matches; caps++)
-		if (caps->matches(caps, SCOPE_LOCAL_CPU) &&
-		    caps->cpu_enable)
-			caps->cpu_enable(caps);
 }
 
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);

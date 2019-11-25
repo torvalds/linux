@@ -27,11 +27,6 @@ void rtw_os_indicate_connect(struct adapter *adapter)
 	netif_carrier_on(adapter->pnetdev);
 }
 
-void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted)
-{
-	indicate_wx_scan_complete_event(padapter);
-}
-
 static struct rt_pmkid_list backup_pmkid[NUM_PMKID_CACHE];
 
 void rtw_reset_securitypriv(struct adapter *adapter)

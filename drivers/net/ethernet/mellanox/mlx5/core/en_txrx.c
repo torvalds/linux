@@ -33,6 +33,7 @@
 #include <linux/irq.h>
 #include "en.h"
 #include "en/xdp.h"
+#include "en/xsk/rx.h"
 #include "en/xsk/tx.h"
 
 static inline bool mlx5e_channel_no_affinity_change(struct mlx5e_channel *c)
@@ -81,6 +82,29 @@ void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
 }
 
+static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskrq)
+{
+	bool busy_xsk = false, xsk_rx_alloc_err;
+
+	/* Handle the race between the application querying need_wakeup and the
+	 * driver setting it:
+	 * 1. Update need_wakeup both before and after the TX. If it goes to
+	 * "yes", it can only happen with the first update.
+	 * 2. If the application queried need_wakeup before we set it, the
+	 * packets will be transmitted anyway, even w/o a wakeup.
+	 * 3. Give a chance to clear need_wakeup after new packets were queued
+	 * for TX.
+	 */
+	mlx5e_xsk_update_tx_wakeup(xsksq);
+	busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
+	mlx5e_xsk_update_tx_wakeup(xsksq);
+
+	xsk_rx_alloc_err = xskrq->post_wqes(xskrq);
+	busy_xsk |= mlx5e_xsk_update_rx_wakeup(xskrq, xsk_rx_alloc_err);
+
+	return busy_xsk;
+}
+
 int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
@@ -122,8 +146,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	if (xsk_open) {
 		mlx5e_poll_ico_cq(&c->xskicosq.cq);
 		busy |= mlx5e_poll_xdpsq_cq(&xsksq->cq);
-		busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
-		busy_xsk |= xskrq->post_wqes(xskrq);
+		busy_xsk |= mlx5e_napi_xsk_post(xsksq, xskrq);
 	}
 
 	busy |= busy_xsk;

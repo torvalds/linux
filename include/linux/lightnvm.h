@@ -88,8 +88,7 @@ typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, u8 *);
 typedef int (nvm_op_set_bb_fn)(struct nvm_dev *, struct ppa_addr *, int, int);
 typedef int (nvm_get_chk_meta_fn)(struct nvm_dev *, sector_t, int,
 							struct nvm_chk_meta *);
-typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
-typedef int (nvm_submit_io_sync_fn)(struct nvm_dev *, struct nvm_rq *);
+typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *, void *);
 typedef void *(nvm_create_dma_pool_fn)(struct nvm_dev *, char *, int);
 typedef void (nvm_destroy_dma_pool_fn)(void *);
 typedef void *(nvm_dev_dma_alloc_fn)(struct nvm_dev *, void *, gfp_t,
@@ -104,7 +103,6 @@ struct nvm_dev_ops {
 	nvm_get_chk_meta_fn	*get_chk_meta;
 
 	nvm_submit_io_fn	*submit_io;
-	nvm_submit_io_sync_fn	*submit_io_sync;
 
 	nvm_create_dma_pool_fn	*create_dma_pool;
 	nvm_destroy_dma_pool_fn	*destroy_dma_pool;
@@ -682,8 +680,8 @@ extern int nvm_get_chunk_meta(struct nvm_tgt_dev *, struct ppa_addr,
 			      int, struct nvm_chk_meta *);
 extern int nvm_set_chunk_meta(struct nvm_tgt_dev *, struct ppa_addr *,
 			      int, int);
-extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
-extern int nvm_submit_io_sync(struct nvm_tgt_dev *, struct nvm_rq *);
+extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *, void *);
+extern int nvm_submit_io_sync(struct nvm_tgt_dev *, struct nvm_rq *, void *);
 extern void nvm_end_io(struct nvm_rq *);
 
 #else /* CONFIG_NVM */

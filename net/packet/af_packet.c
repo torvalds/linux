@@ -1821,7 +1821,7 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,
 	skb_dst_drop(skb);
 
 	/* drop conntrack reference */
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	spkt = &PACKET_SKB_CB(skb)->sa.pkt;
 
@@ -2121,7 +2121,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb_dst_drop(skb);
 
 	/* drop conntrack reference */
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	spin_lock(&sk->sk_receive_queue.lock);
 	po->stats.stats1.tp_packets++;
@@ -2618,6 +2618,13 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 
 	mutex_lock(&po->pg_vec_lock);
 
+	/* packet_sendmsg() check on tx_ring.pg_vec was lockless,
+	 * we need to confirm it under protection of pg_vec_lock.
+	 */
+	if (unlikely(!po->tx_ring.pg_vec)) {
+		err = -EBUSY;
+		goto out;
+	}
 	if (likely(saddr == NULL)) {
 		dev	= packet_cached_dev_get(po);
 		proto	= po->num;

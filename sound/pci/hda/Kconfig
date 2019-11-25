@@ -12,6 +12,7 @@ config SND_HDA_INTEL
 	tristate "HD Audio PCI"
 	depends on SND_PCI
 	select SND_HDA
+	select SND_INTEL_NHLT if ACPI
 	help
 	  Say Y here to include support for Intel "High Definition
 	  Audio" (Azalia) and its compatible devices.
@@ -22,10 +23,20 @@ config SND_HDA_INTEL
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hda-intel.
 
+config SND_HDA_INTEL_DETECT_DMIC
+	bool "DMIC detection and probe abort"
+	depends on SND_HDA_INTEL
+	help
+	  Say Y to detect digital microphones on SKL+ devices. DMICs
+	  cannot be handled by the HDaudio legacy driver and are
+	  currently only supported by the SOF driver.
+	  If unsure say N.
+
 config SND_HDA_TEGRA
 	tristate "NVIDIA Tegra HD Audio"
 	depends on ARCH_TEGRA
 	select SND_HDA
+	select SND_HDA_ALIGNED_MMIO
 	help
 	  Say Y here to support the HDA controller present in NVIDIA
 	  Tegra SoCs

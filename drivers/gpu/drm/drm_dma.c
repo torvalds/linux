@@ -1,4 +1,4 @@
-/**
+/*
  * \file drm_dma.c
  * DMA IOCTL and function support
  *

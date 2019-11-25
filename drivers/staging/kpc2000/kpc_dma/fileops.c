@@ -146,15 +146,15 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 			card_addr += desc->DescByteCount;
 
 			dma_addr  = sg_dma_address(sg) + (p * 0x80000);
-			desc->DescSystemAddrLS = (dma_addr & 0x00000000FFFFFFFF) >>  0;
-			desc->DescSystemAddrMS = (dma_addr & 0xFFFFFFFF00000000) >> 32;
+			desc->DescSystemAddrLS = (dma_addr & 0x00000000FFFFFFFFUL) >>  0;
+			desc->DescSystemAddrMS = (dma_addr & 0xFFFFFFFF00000000UL) >> 32;
 
 			user_ctl = acd->priv->user_ctl;
 			if (i == acd->mapped_entry_count-1 && p == pcnt-1) {
 				user_ctl = acd->priv->user_ctl_last;
 			}
-			desc->DescUserControlLS = (user_ctl & 0x00000000FFFFFFFF) >>  0;
-			desc->DescUserControlMS = (user_ctl & 0xFFFFFFFF00000000) >> 32;
+			desc->DescUserControlLS = (user_ctl & 0x00000000FFFFFFFFUL) >>  0;
+			desc->DescUserControlMS = (user_ctl & 0xFFFFFFFF00000000UL) >> 32;
 
 			if (i == acd->mapped_entry_count-1 && p == pcnt-1)
 				desc->acd = acd;

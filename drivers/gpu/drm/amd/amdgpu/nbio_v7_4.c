@@ -31,6 +31,25 @@
 
 #define smnNBIF_MGCG_CTRL_LCLK	0x1013a21c
 
+/*
+ * These are nbio v7_4_1 registers mask. Temporarily define these here since
+ * nbio v7_4_1 header is incomplete.
+ */
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG0_MASK	0x00001000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG1_MASK	0x00002000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG2_MASK	0x00004000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG3_MASK	0x00008000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG4_MASK	0x00010000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG5_MASK	0x00020000L
+
+#define mmBIF_MMSCH1_DOORBELL_RANGE                     0x01dc
+#define mmBIF_MMSCH1_DOORBELL_RANGE_BASE_IDX            2
+//BIF_MMSCH1_DOORBELL_RANGE
+#define BIF_MMSCH1_DOORBELL_RANGE__OFFSET__SHIFT        0x2
+#define BIF_MMSCH1_DOORBELL_RANGE__SIZE__SHIFT          0x10
+#define BIF_MMSCH1_DOORBELL_RANGE__OFFSET_MASK          0x00000FFCL
+#define BIF_MMSCH1_DOORBELL_RANGE__SIZE_MASK            0x001F0000L
+
 static void nbio_v7_4_remap_hdp_registers(struct amdgpu_device *adev)
 {
 	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_MEM_FLUSH_CNTL,
@@ -75,16 +94,56 @@ static u32 nbio_v7_4_get_memsize(struct amdgpu_device *adev)
 static void nbio_v7_4_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
 			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
-	u32 reg = instance == 0 ? SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE) :
-			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA1_DOORBELL_RANGE);
+	u32 reg, doorbell_range;
 
-	u32 doorbell_range = RREG32(reg);
+	if (instance < 2)
+		reg = instance +
+			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
+	else
+		/*
+		 * These registers address of SDMA2~7 is not consecutive
+		 * from SDMA0~1. Need plus 4 dwords offset.
+		 *
+		 *   BIF_SDMA0_DOORBELL_RANGE:  0x3bc0
+		 *   BIF_SDMA1_DOORBELL_RANGE:  0x3bc4
+		 *   BIF_SDMA2_DOORBELL_RANGE:  0x3bd8
+		 */
+		reg = instance + 0x4 +
+			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
+
+	doorbell_range = RREG32(reg);
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, OFFSET, doorbell_index);
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, doorbell_size);
 	} else
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 0);
+
+	WREG32(reg, doorbell_range);
+}
+
+static void nbio_v7_4_vcn_doorbell_range(struct amdgpu_device *adev, bool use_doorbell,
+					 int doorbell_index, int instance)
+{
+	u32 reg;
+	u32 doorbell_range;
+
+	if (instance)
+		reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH1_DOORBELL_RANGE);
+	else
+		reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH0_DOORBELL_RANGE);
+
+	doorbell_range = RREG32(reg);
+
+	if (use_doorbell) {
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       BIF_MMSCH0_DOORBELL_RANGE, OFFSET,
+					       doorbell_index);
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       BIF_MMSCH0_DOORBELL_RANGE, SIZE, 8);
+	} else
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       BIF_MMSCH0_DOORBELL_RANGE, SIZE, 0);
 
 	WREG32(reg, doorbell_range);
 }
@@ -220,6 +279,12 @@ static const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg = {
 	.ref_and_mask_cp9 = GPU_HDP_FLUSH_DONE__CP9_MASK,
 	.ref_and_mask_sdma0 = GPU_HDP_FLUSH_DONE__SDMA0_MASK,
 	.ref_and_mask_sdma1 = GPU_HDP_FLUSH_DONE__SDMA1_MASK,
+	.ref_and_mask_sdma2 = GPU_HDP_FLUSH_DONE__RSVD_ENG0_MASK,
+	.ref_and_mask_sdma3 = GPU_HDP_FLUSH_DONE__RSVD_ENG1_MASK,
+	.ref_and_mask_sdma4 = GPU_HDP_FLUSH_DONE__RSVD_ENG2_MASK,
+	.ref_and_mask_sdma5 = GPU_HDP_FLUSH_DONE__RSVD_ENG3_MASK,
+	.ref_and_mask_sdma6 = GPU_HDP_FLUSH_DONE__RSVD_ENG4_MASK,
+	.ref_and_mask_sdma7 = GPU_HDP_FLUSH_DONE__RSVD_ENG5_MASK,
 };
 
 static void nbio_v7_4_detect_hw_virt(struct amdgpu_device *adev)
@@ -261,6 +326,7 @@ const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.hdp_flush = nbio_v7_4_hdp_flush,
 	.get_memsize = nbio_v7_4_get_memsize,
 	.sdma_doorbell_range = nbio_v7_4_sdma_doorbell_range,
+	.vcn_doorbell_range = nbio_v7_4_vcn_doorbell_range,
 	.enable_doorbell_aperture = nbio_v7_4_enable_doorbell_aperture,
 	.enable_doorbell_selfring_aperture = nbio_v7_4_enable_doorbell_selfring_aperture,
 	.ih_doorbell_range = nbio_v7_4_ih_doorbell_range,

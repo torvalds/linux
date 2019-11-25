@@ -36,8 +36,8 @@ synproxy_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 			opts.options |= XT_SYNPROXY_OPT_ECN;
 
 		opts.options &= info->options;
-		opts.mss_encode = opts.mss;
-		opts.mss = info->mss;
+		opts.mss_encode = opts.mss_option;
+		opts.mss_option = info->mss;
 		if (opts.options & XT_SYNPROXY_OPT_TIMESTAMP)
 			synproxy_init_timestamp_cookie(info, &opts);
 		else

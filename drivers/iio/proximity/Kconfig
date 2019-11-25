@@ -62,7 +62,7 @@ config RFD77402
 	tristate "RFD77402 ToF sensor"
 	depends on I2C
 	help
-	  Say Y to build a driver for the RFD77420 Time-of-Flight (distance)
+	  Say Y to build a driver for the RFD77402 Time-of-Flight (distance)
 	  sensor module with I2C interface.
 
 	  To compile this driver as a module, choose M here: the

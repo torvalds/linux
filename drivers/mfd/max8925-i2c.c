@@ -176,18 +176,18 @@ static int max8925_probe(struct i2c_client *client,
 	dev_set_drvdata(chip->dev, chip);
 	mutex_init(&chip->io_lock);
 
-	chip->rtc = i2c_new_dummy(chip->i2c->adapter, RTC_I2C_ADDR);
-	if (!chip->rtc) {
+	chip->rtc = i2c_new_dummy_device(chip->i2c->adapter, RTC_I2C_ADDR);
+	if (IS_ERR(chip->rtc)) {
 		dev_err(chip->dev, "Failed to allocate I2C device for RTC\n");
-		return -ENODEV;
+		return PTR_ERR(chip->rtc);
 	}
 	i2c_set_clientdata(chip->rtc, chip);
 
-	chip->adc = i2c_new_dummy(chip->i2c->adapter, ADC_I2C_ADDR);
-	if (!chip->adc) {
+	chip->adc = i2c_new_dummy_device(chip->i2c->adapter, ADC_I2C_ADDR);
+	if (IS_ERR(chip->adc)) {
 		dev_err(chip->dev, "Failed to allocate I2C device for ADC\n");
 		i2c_unregister_device(chip->rtc);
-		return -ENODEV;
+		return PTR_ERR(chip->adc);
 	}
 	i2c_set_clientdata(chip->adc, chip);
 

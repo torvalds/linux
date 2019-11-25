@@ -19,8 +19,8 @@
 #include <linux/irq.h>
 #include <linux/suspend.h>
 #include <linux/time.h>
+#include <linux/greybus.h>
 #include "arche_platform.h"
-#include "greybus.h"
 
 #if IS_ENABLED(CONFIG_USB_HSIC_USB3613)
 #include <linux/usb/usb3613.h>

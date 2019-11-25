@@ -1253,7 +1253,7 @@ static int arizona_extcon_get_micd_configs(struct device *dev,
 	int i, j;
 	u32 *vals;
 
-	nconfs = device_property_read_u32_array(arizona->dev, prop, NULL, 0);
+	nconfs = device_property_count_u32(arizona->dev, prop);
 	if (nconfs <= 0)
 		return 0;
 

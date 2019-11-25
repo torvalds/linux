@@ -66,6 +66,9 @@ static void request_key_auth_describe(const struct key *key,
 {
 	struct request_key_auth *rka = dereference_key_rcu(key);
 
+	if (!rka)
+		return;
+
 	seq_puts(m, "key:");
 	seq_puts(m, key->description);
 	if (key_is_positive(key))
@@ -82,6 +85,9 @@ static long request_key_auth_read(const struct key *key,
 	struct request_key_auth *rka = dereference_key_locked(key);
 	size_t datalen;
 	long ret;
+
+	if (!rka)
+		return -EKEYREVOKED;
 
 	datalen = rka->callout_len;
 	ret = datalen;

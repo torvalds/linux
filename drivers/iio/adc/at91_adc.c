@@ -1179,10 +1179,8 @@ static int at91_adc_probe(struct platform_device *pdev)
 	idev->info = &at91_adc_info;
 
 	st->irq = platform_get_irq(pdev, 0);
-	if (st->irq < 0) {
-		dev_err(&pdev->dev, "No IRQ ID is designated\n");
+	if (st->irq < 0)
 		return -ENODEV;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 

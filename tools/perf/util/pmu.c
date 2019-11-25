@@ -3,6 +3,7 @@
 #include <linux/compiler.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
+#include <subcmd/pager.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -15,13 +16,14 @@
 #include <api/fs/fs.h>
 #include <locale.h>
 #include <regex.h>
+#include <perf/cpumap.h>
+#include "debug.h"
 #include "pmu.h"
 #include "parse-events.h"
-#include "cpumap.h"
 #include "header.h"
 #include "pmu-events/pmu-events.h"
-#include "cache.h"
 #include "string2.h"
+#include "strbuf.h"
 
 struct perf_pmu_format {
 	char *name;
@@ -99,7 +101,7 @@ static int pmu_format(const char *name, struct list_head *format)
 	return 0;
 }
 
-static int convert_scale(const char *scale, char **end, double *sval)
+int perf_pmu__convert_scale(const char *scale, char **end, double *sval)
 {
 	char *lc;
 	int ret = 0;
@@ -162,7 +164,7 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	else
 		scale[sret] = '\0';
 
-	ret = convert_scale(scale, NULL, &alias->scale);
+	ret = perf_pmu__convert_scale(scale, NULL, &alias->scale);
 error:
 	close(fd);
 	return ret;
@@ -370,7 +372,7 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 				desc ? strdup(desc) : NULL;
 	alias->topic = topic ? strdup(topic) : NULL;
 	if (unit) {
-		if (convert_scale(unit, &unit, &alias->scale) < 0)
+		if (perf_pmu__convert_scale(unit, &unit, &alias->scale) < 0)
 			return -1;
 		snprintf(alias->unit, sizeof(alias->unit), "%s", unit);
 	}
@@ -572,16 +574,16 @@ static void pmu_read_sysfs(void)
 	closedir(dir);
 }
 
-static struct cpu_map *__pmu_cpumask(const char *path)
+static struct perf_cpu_map *__pmu_cpumask(const char *path)
 {
 	FILE *file;
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 
 	file = fopen(path, "r");
 	if (!file)
 		return NULL;
 
-	cpus = cpu_map__read(file);
+	cpus = perf_cpu_map__read(file);
 	fclose(file);
 	return cpus;
 }
@@ -593,10 +595,10 @@ static struct cpu_map *__pmu_cpumask(const char *path)
 #define CPUS_TEMPLATE_UNCORE	"%s/bus/event_source/devices/%s/cpumask"
 #define CPUS_TEMPLATE_CPU	"%s/bus/event_source/devices/%s/cpus"
 
-static struct cpu_map *pmu_cpumask(const char *name)
+static struct perf_cpu_map *pmu_cpumask(const char *name)
 {
 	char path[PATH_MAX];
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 	const char *sysfs = sysfs__mountpoint();
 	const char *templates[] = {
 		CPUS_TEMPLATE_UNCORE,
@@ -621,12 +623,12 @@ static struct cpu_map *pmu_cpumask(const char *name)
 static bool pmu_is_uncore(const char *name)
 {
 	char path[PATH_MAX];
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 	const char *sysfs = sysfs__mountpoint();
 
 	snprintf(path, PATH_MAX, CPUS_TEMPLATE_UNCORE, sysfs, name);
 	cpus = __pmu_cpumask(path);
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 
 	return !!cpus;
 }

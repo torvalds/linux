@@ -2,6 +2,9 @@
 #define _NF_CONNTRACK_COUNT_H
 
 #include <linux/list.h>
+#include <linux/spinlock.h>
+#include <net/netfilter/nf_conntrack_tuple.h>
+#include <net/netfilter/nf_conntrack_zones.h>
 
 struct nf_conncount_data;
 

@@ -4,14 +4,17 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
-#include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/consumer.h>
-#include <linux/backlight.h>
 #include <linux/gpio/consumer.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
+
 #include <video/display_timing.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
-#include <drm/drm_atomic_helper.h>
+
+#include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_probe_helper.h>
 
 #include "tilcdc_drv.h"
@@ -160,14 +163,6 @@ static int panel_connector_get_modes(struct drm_connector *connector)
 	return i;
 }
 
-static int panel_connector_mode_valid(struct drm_connector *connector,
-		  struct drm_display_mode *mode)
-{
-	struct tilcdc_drm_private *priv = connector->dev->dev_private;
-	/* our only constraints are what the crtc can generate: */
-	return tilcdc_crtc_mode_valid(priv->crtc, mode);
-}
-
 static struct drm_encoder *panel_connector_best_encoder(
 		struct drm_connector *connector)
 {
@@ -185,7 +180,6 @@ static const struct drm_connector_funcs panel_connector_funcs = {
 
 static const struct drm_connector_helper_funcs panel_connector_helper_funcs = {
 	.get_modes          = panel_connector_get_modes,
-	.mode_valid         = panel_connector_mode_valid,
 	.best_encoder       = panel_connector_best_encoder,
 };
 

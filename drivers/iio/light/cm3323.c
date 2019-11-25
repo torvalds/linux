@@ -101,15 +101,16 @@ static int cm3323_init(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static void cm3323_disable(struct iio_dev *indio_dev)
+static void cm3323_disable(void *data)
 {
 	int ret;
-	struct cm3323_data *data = iio_priv(indio_dev);
+	struct iio_dev *indio_dev = data;
+	struct cm3323_data *cm_data = iio_priv(indio_dev);
 
-	ret = i2c_smbus_write_word_data(data->client, CM3323_CMD_CONF,
+	ret = i2c_smbus_write_word_data(cm_data->client, CM3323_CMD_CONF,
 					CM3323_CONF_SD_BIT);
 	if (ret < 0)
-		dev_err(&data->client->dev, "Error writing reg_conf\n");
+		dev_err(&cm_data->client->dev, "Error writing reg_conf\n");
 }
 
 static int cm3323_set_it_bits(struct cm3323_data *data, int val, int val2)
@@ -243,26 +244,11 @@ static int cm3323_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to register iio dev\n");
-		goto err_init;
-	}
+	ret = devm_add_action_or_reset(&client->dev, cm3323_disable, indio_dev);
+	if (ret < 0)
+		return ret;
 
-	return 0;
-err_init:
-	cm3323_disable(indio_dev);
-	return ret;
-}
-
-static int cm3323_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	cm3323_disable(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id cm3323_id[] = {
@@ -276,7 +262,6 @@ static struct i2c_driver cm3323_driver = {
 		.name = CM3323_DRV_NAME,
 	},
 	.probe		= cm3323_probe,
-	.remove		= cm3323_remove,
 	.id_table	= cm3323_id,
 };
 

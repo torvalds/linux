@@ -2673,7 +2673,6 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	/* Get the IRQ */
 	aes_dd->irq = platform_get_irq(pdev,  0);
 	if (aes_dd->irq < 0) {
-		dev_err(dev, "no IRQ resource info\n");
 		err = aes_dd->irq;
 		goto res_err;
 	}

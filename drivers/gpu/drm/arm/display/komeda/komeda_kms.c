@@ -14,6 +14,7 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_irq.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "komeda_dev.h"
@@ -55,16 +56,13 @@ static irqreturn_t komeda_kms_irq_handler(int irq, void *data)
 }
 
 static struct drm_driver komeda_kms_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
-			   DRIVER_PRIME | DRIVER_HAVE_IRQ,
+	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.lastclose			= drm_fb_helper_lastclose,
 	.gem_free_object_unlocked	= drm_gem_cma_free_object,
 	.gem_vm_ops			= &drm_gem_cma_vm_ops,
 	.dumb_create			= komeda_gem_cma_dumb_create,
 	.prime_handle_to_fd		= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle		= drm_gem_prime_fd_to_handle,
-	.gem_prime_export		= drm_gem_prime_export,
-	.gem_prime_import		= drm_gem_prime_import,
 	.gem_prime_get_sg_table		= drm_gem_cma_prime_get_sg_table,
 	.gem_prime_import_sg_table	= drm_gem_cma_prime_import_sg_table,
 	.gem_prime_vmap			= drm_gem_cma_prime_vmap,
@@ -84,7 +82,8 @@ static void komeda_kms_commit_tail(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
-	drm_atomic_helper_commit_planes(dev, old_state, 0);
+	drm_atomic_helper_commit_planes(dev, old_state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
 
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
@@ -146,7 +145,6 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(crtc_st);
 	struct komeda_plane_state *kplane_st;
 	struct drm_plane_state *plane_st;
-	struct drm_framebuffer *fb;
 	struct drm_plane *plane;
 	struct list_head zorder_list;
 	int order = 0, err;
@@ -172,7 +170,6 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 
 	list_for_each_entry(kplane_st, &zorder_list, zlist_node) {
 		plane_st = &kplane_st->base;
-		fb = plane_st->fb;
 		plane = plane_st->plane;
 
 		plane_st->normalized_zpos = order++;
@@ -205,7 +202,7 @@ static int komeda_kms_check(struct drm_device *dev,
 			    struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_st, *new_crtc_st;
+	struct drm_crtc_state *new_crtc_st;
 	int i, err;
 
 	err = drm_atomic_helper_check_modeset(dev, state);
@@ -216,7 +213,7 @@ static int komeda_kms_check(struct drm_device *dev,
 	 * so need to add all affected_planes (even unchanged) to
 	 * drm_atomic_state.
 	 */
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_st, new_crtc_st, i) {
+	for_each_new_crtc_in_state(state, crtc, new_crtc_st, i) {
 		err = drm_atomic_add_affected_planes(state, crtc);
 		if (err)
 			return err;
@@ -307,24 +304,33 @@ struct komeda_kms_dev *komeda_kms_attach(struct komeda_dev *mdev)
 			       komeda_kms_irq_handler, IRQF_SHARED,
 			       drm->driver->name, drm);
 	if (err)
-		goto cleanup_mode_config;
+		goto free_component_binding;
 
 	err = mdev->funcs->enable_irq(mdev);
 	if (err)
-		goto cleanup_mode_config;
+		goto free_component_binding;
 
 	drm->irq_enabled = true;
 
+	drm_kms_helper_poll_init(drm);
+
 	err = drm_dev_register(drm, 0);
 	if (err)
-		goto cleanup_mode_config;
+		goto free_interrupts;
 
 	return kms;
 
-cleanup_mode_config:
+free_interrupts:
+	drm_kms_helper_poll_fini(drm);
 	drm->irq_enabled = false;
+	mdev->funcs->disable_irq(mdev);
+free_component_binding:
+	component_unbind_all(mdev->dev, drm);
+cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
 	komeda_kms_cleanup_private_objs(kms);
+	drm->dev_private = NULL;
+	drm_dev_put(drm);
 free_kms:
 	kfree(kms);
 	return ERR_PTR(err);
@@ -335,12 +341,14 @@ void komeda_kms_detach(struct komeda_kms_dev *kms)
 	struct drm_device *drm = &kms->base;
 	struct komeda_dev *mdev = drm->dev_private;
 
+	drm_dev_unregister(drm);
+	drm_kms_helper_poll_fini(drm);
+	drm_atomic_helper_shutdown(drm);
 	drm->irq_enabled = false;
 	mdev->funcs->disable_irq(mdev);
-	drm_dev_unregister(drm);
 	component_unbind_all(mdev->dev, drm);
-	komeda_kms_cleanup_private_objs(kms);
 	drm_mode_config_cleanup(drm);
+	komeda_kms_cleanup_private_objs(kms);
 	drm->dev_private = NULL;
 	drm_dev_put(drm);
 }

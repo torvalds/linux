@@ -126,18 +126,6 @@ config INTEL_MID_PTI
 	  an Intel Atom (non-netbook) mobile device containing a MIPI
 	  P1149.7 standard implementation.
 
-config SGI_IOC4
-	tristate "SGI IOC4 Base IO support"
-	depends on PCI
-	---help---
-	  This option enables basic support for the IOC4 chip on certain
-	  SGI IO controller cards (IO9, IO10, and PCI-RT).  This option
-	  does not enable any specific functions on such a card, but provides
-	  necessary infrastructure for other drivers to utilize.
-
-	  If you have an SGI Altix with an IOC4-based card say Y.
-	  Otherwise say N.
-
 config TIFM_CORE
 	tristate "TI Flash Media interface support"
 	depends on PCI
@@ -200,9 +188,8 @@ config ENCLOSURE_SERVICES
 config SGI_XP
 	tristate "Support communication between SGI SSIs"
 	depends on NET
-	depends on (IA64_GENERIC || IA64_SGI_SN2 || IA64_SGI_UV || X86_UV) && SMP
-	select IA64_UNCACHED_ALLOCATOR if IA64_GENERIC || IA64_SGI_SN2
-	select GENERIC_ALLOCATOR if IA64_GENERIC || IA64_SGI_SN2
+	depends on (IA64_SGI_UV || X86_UV) && SMP
+	depends on X86_64 || BROKEN
 	select SGI_GRU if X86_64 && SMP
 	---help---
 	  An SGI machine can be divided into multiple Single System
@@ -375,15 +362,6 @@ config DS1682
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1682.
 
-config SPEAR13XX_PCIE_GADGET
-	bool "PCIe gadget support for SPEAr13XX platform"
-	depends on ARCH_SPEAR13XX && BROKEN
-	help
-	 This option enables gadget support for PCIe controller. If
-	 board file defines any controller as PCIe endpoint then a sysfs
-	 entry will be created for that controller. User can use these
-	 sysfs node to configure PCIe EP as per his requirements.
-
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
 	depends on VMWARE_VMCI && X86 && HYPERVISOR_GUEST
@@ -465,6 +443,7 @@ config PCI_ENDPOINT_TEST
 
 config XILINX_SDFEC
 	tristate "Xilinx SDFEC 16"
+	depends on HAS_IOMEM
 	help
 	  This option enables support for the Xilinx SDFEC (Soft Decision
 	  Forward Error Correction) driver. This enables a char driver

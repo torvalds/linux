@@ -750,12 +750,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	ld	r15,PACATOC(r13)
 	ld	r14,interrupt_base_book3e@got(r15)
 	ld	r15,__end_interrupts@got(r15)
-#else
-	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
-	LOAD_REG_IMMEDIATE(r15,__end_interrupts)
-#endif
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
+#else
+	LOAD_REG_IMMEDIATE_SYM(r14, r15, interrupt_base_book3e)
+	cmpld	cr0, r10, r14
+	LOAD_REG_IMMEDIATE_SYM(r14, r15, __end_interrupts)
+	cmpld	cr1, r10, r14
+#endif
 	blt+	cr0,1f
 	bge+	cr1,1f
 
@@ -820,12 +822,14 @@ kernel_dbg_exc:
 	ld	r15,PACATOC(r13)
 	ld	r14,interrupt_base_book3e@got(r15)
 	ld	r15,__end_interrupts@got(r15)
-#else
-	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
-	LOAD_REG_IMMEDIATE(r15,__end_interrupts)
-#endif
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
+#else
+	LOAD_REG_IMMEDIATE_SYM(r14, r15, interrupt_base_book3e)
+	cmpld	cr0, r10, r14
+	LOAD_REG_IMMEDIATE_SYM(r14, r15,__end_interrupts)
+	cmpld	cr1, r10, r14
+#endif
 	blt+	cr0,1f
 	bge+	cr1,1f
 
@@ -1449,7 +1453,7 @@ a2_tlbinit_code_start:
 a2_tlbinit_after_linear_map:
 
 	/* Now we branch the new virtual address mapped by this entry */
-	LOAD_REG_IMMEDIATE(r3,1f)
+	LOAD_REG_IMMEDIATE_SYM(r3, r5, 1f)
 	mtctr	r3
 	bctr
 

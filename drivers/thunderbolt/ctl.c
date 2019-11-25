@@ -930,6 +930,23 @@ struct tb_cfg_result tb_cfg_write_raw(struct tb_ctl *ctl, const void *buffer,
 	return res;
 }
 
+static int tb_cfg_get_error(struct tb_ctl *ctl, enum tb_cfg_space space,
+			    const struct tb_cfg_result *res)
+{
+	/*
+	 * For unimplemented ports access to port config space may return
+	 * TB_CFG_ERROR_INVALID_CONFIG_SPACE (alternatively their type is
+	 * set to TB_TYPE_INACTIVE). In the former case return -ENODEV so
+	 * that the caller can mark the port as disabled.
+	 */
+	if (space == TB_CFG_PORT &&
+	    res->tb_error == TB_CFG_ERROR_INVALID_CONFIG_SPACE)
+		return -ENODEV;
+
+	tb_cfg_print_error(ctl, res);
+	return -EIO;
+}
+
 int tb_cfg_read(struct tb_ctl *ctl, void *buffer, u64 route, u32 port,
 		enum tb_cfg_space space, u32 offset, u32 length)
 {
@@ -942,8 +959,7 @@ int tb_cfg_read(struct tb_ctl *ctl, void *buffer, u64 route, u32 port,
 
 	case 1:
 		/* Thunderbolt error, tb_error holds the actual number */
-		tb_cfg_print_error(ctl, &res);
-		return -EIO;
+		return tb_cfg_get_error(ctl, space, &res);
 
 	case -ETIMEDOUT:
 		tb_ctl_warn(ctl, "timeout reading config space %u from %#x\n",
@@ -969,8 +985,7 @@ int tb_cfg_write(struct tb_ctl *ctl, const void *buffer, u64 route, u32 port,
 
 	case 1:
 		/* Thunderbolt error, tb_error holds the actual number */
-		tb_cfg_print_error(ctl, &res);
-		return -EIO;
+		return tb_cfg_get_error(ctl, space, &res);
 
 	case -ETIMEDOUT:
 		tb_ctl_warn(ctl, "timeout writing config space %u to %#x\n",

@@ -24,6 +24,10 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support if it is available for your platform.
 
+config DRM_MIPI_DBI
+	tristate
+	depends on DRM
+
 config DRM_MIPI_DSI
 	bool
 	depends on DRM
@@ -336,7 +340,7 @@ source "drivers/gpu/drm/mxsfb/Kconfig"
 
 source "drivers/gpu/drm/meson/Kconfig"
 
-source "drivers/gpu/drm/tinydrm/Kconfig"
+source "drivers/gpu/drm/tiny/Kconfig"
 
 source "drivers/gpu/drm/pl111/Kconfig"
 

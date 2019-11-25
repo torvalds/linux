@@ -249,10 +249,8 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 	int ret;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "platform_get_irq(pdev, 0) error: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	irq_data = irq_get_irq_data(irq);
 	if (!irq_data) {

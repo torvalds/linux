@@ -132,7 +132,6 @@ void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 	if (!nfit_res)
 		return devm_memremap_pages(dev, pgmap);
 
-	pgmap->dev = dev;
 	if (!pgmap->ref) {
 		if (pgmap->ops && (pgmap->ops->kill || pgmap->ops->cleanup))
 			return ERR_PTR(-EINVAL);

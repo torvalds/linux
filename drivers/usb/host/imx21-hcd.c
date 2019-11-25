@@ -1771,7 +1771,7 @@ static const struct hc_driver imx21_hc_driver = {
 	.product_desc = "IMX21 USB Host Controller",
 	.hcd_priv_size = sizeof(struct imx21),
 
-	.flags = HCD_USB11,
+	.flags = HCD_DMA | HCD_USB11,
 	.irq = imx21_irq,
 
 	.reset = imx21_hc_reset,
@@ -1836,10 +1836,8 @@ static int imx21_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	hcd = usb_create_hcd(&imx21_hc_driver,
 		&pdev->dev, dev_name(&pdev->dev));

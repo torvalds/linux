@@ -33,7 +33,7 @@
 
 #include "i915_drv.h"
 #include "intel_connector.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_hdcp.h"
 
 int intel_connector_init(struct intel_connector *connector)
@@ -118,7 +118,7 @@ int intel_connector_register(struct drm_connector *connector)
 	if (ret)
 		goto err;
 
-	if (i915_inject_load_failure()) {
+	if (i915_inject_probe_failure(to_i915(connector->dev))) {
 		ret = -EFAULT;
 		goto err_backlight;
 	}

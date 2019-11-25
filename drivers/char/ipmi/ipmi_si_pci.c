@@ -150,7 +150,7 @@ static const struct pci_device_id ipmi_pci_devices[] = {
 MODULE_DEVICE_TABLE(pci, ipmi_pci_devices);
 
 static struct pci_driver ipmi_pci_driver = {
-	.name =         DEVICE_NAME,
+	.name =         SI_DEVICE_NAME,
 	.id_table =     ipmi_pci_devices,
 	.probe =        ipmi_pci_probe,
 	.remove =       ipmi_pci_remove,

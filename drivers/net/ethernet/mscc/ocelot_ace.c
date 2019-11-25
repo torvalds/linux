@@ -317,7 +317,7 @@ static void is2_action_set(struct vcap_data *data,
 		break;
 	case OCELOT_ACL_ACTION_TRAP:
 		VCAP_ACT_SET(PORT_MASK, 0x0);
-		VCAP_ACT_SET(MASK_MODE, 0x0);
+		VCAP_ACT_SET(MASK_MODE, 0x1);
 		VCAP_ACT_SET(POLICE_ENA, 0x0);
 		VCAP_ACT_SET(POLICE_IDX, 0x0);
 		VCAP_ACT_SET(CPU_QU_NUM, 0x0);

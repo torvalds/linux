@@ -326,6 +326,7 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 		return;
 
 	reg = of_iomap(pnode, 0);
+	of_node_put(pnode);
 	if (!reg)
 		return;
 

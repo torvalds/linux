@@ -14,6 +14,8 @@
 #ifndef __MESON_VENC_H
 #define __MESON_VENC_H
 
+struct drm_display_mode;
+
 enum {
 	MESON_VENC_MODE_NONE = 0,
 	MESON_VENC_MODE_CVBS_PAL,

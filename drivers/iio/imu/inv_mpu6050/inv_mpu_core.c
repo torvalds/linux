@@ -1137,10 +1137,9 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	if (result)
 		return result;
 
-	result = devm_add_action(dev, inv_mpu_core_disable_regulator_action,
+	result = devm_add_action_or_reset(dev, inv_mpu_core_disable_regulator_action,
 				 st);
 	if (result) {
-		inv_mpu_core_disable_regulator_action(st);
 		dev_err(dev, "Failed to setup regulator cleanup action %d\n",
 			result);
 		return result;

@@ -596,11 +596,6 @@ static int snd_ac97_put_volsw(struct snd_kcontrol *kcontrol,
 	return err;
 }
 
-static const struct snd_kcontrol_new snd_ac97_controls_master_mono[2] = {
-AC97_SINGLE("Master Mono Playback Switch", AC97_MASTER_MONO, 15, 1, 1),
-AC97_SINGLE("Master Mono Playback Volume", AC97_MASTER_MONO, 0, 31, 1)
-};
-
 static const struct snd_kcontrol_new snd_ac97_controls_tone[2] = {
 AC97_SINGLE("Tone Control - Bass", AC97_MASTER_TONE, 8, 15, 1),
 AC97_SINGLE("Tone Control - Treble", AC97_MASTER_TONE, 0, 15, 1)

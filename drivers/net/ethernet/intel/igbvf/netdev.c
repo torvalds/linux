@@ -2174,7 +2174,7 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 		goto dma_error;
 
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
-		const struct skb_frag_struct *frag;
+		const skb_frag_t *frag;
 
 		count++;
 		i++;

@@ -553,7 +553,6 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 
 	tty = tty_port_tty_get(&port->port);
 	if (tty == NULL) {
-		word_count = byte_count >> 1;
 		while (byte_count > 1) {
 			inw(base);
 			byte_count -= 2;

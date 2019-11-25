@@ -23,6 +23,7 @@
 #include "i915_drv.h"
 
 #include "intel_engine.h"
+#include "intel_gt.h"
 #include "intel_mocs.h"
 #include "intel_lrc.h"
 
@@ -61,6 +62,10 @@ struct drm_i915_mocs_table {
 #define GEN11_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
 
 /* (e)LLC caching options */
+/*
+ * Note: LE_0_PAGETABLE works only up to Gen11; for newer gens it means
+ * the same as LE_UC
+ */
 #define LE_0_PAGETABLE		_LE_CACHEABILITY(0)
 #define LE_1_UC			_LE_CACHEABILITY(1)
 #define LE_2_WT			_LE_CACHEABILITY(2)
@@ -99,8 +104,9 @@ struct drm_i915_mocs_table {
  * of bspec.
  *
  * Entries not part of the following tables are undefined as far as
- * userspace is concerned and shouldn't be relied upon.  For the time
- * being they will be initialized to PTE.
+ * userspace is concerned and shouldn't be relied upon.  For Gen < 12
+ * they will be initialized to PTE. Gen >= 12 onwards don't have a setting for
+ * PTE and will be initialized to an invalid value.
  *
  * The last two entries are reserved by the hardware. For ICL+ they
  * should be initialized according to bspec and never used, for older
@@ -136,14 +142,7 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 };
 
 #define GEN11_MOCS_ENTRIES \
-	/* Base - Uncached (Deprecated) */ \
-	MOCS_ENTRY(I915_MOCS_UNCACHED, \
-		   LE_1_UC | LE_TC_1_LLC, \
-		   L3_1_UC), \
-	/* Base - L3 + LeCC:PAT (Deprecated) */ \
-	MOCS_ENTRY(I915_MOCS_PTE, \
-		   LE_0_PAGETABLE | LE_TC_1_LLC, \
-		   L3_3_WB), \
+	/* Entries 0 and 1 are defined per-platform */ \
 	/* Base - L3 + LLC */ \
 	MOCS_ENTRY(2, \
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
@@ -241,49 +240,86 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
 		   L3_1_UC)
 
+static const struct drm_i915_mocs_entry tigerlake_mocs_table[] = {
+	/* Base - Error (Reserved for Non-Use) */
+	MOCS_ENTRY(0, 0x0, 0x0),
+	/* Base - Reserved */
+	MOCS_ENTRY(1, 0x0, 0x0),
+
+	GEN11_MOCS_ENTRIES,
+
+	/* Implicitly enable L1 - HDC:L1 + L3 + LLC */
+	MOCS_ENTRY(48,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_3_WB),
+	/* Implicitly enable L1 - HDC:L1 + L3 */
+	MOCS_ENTRY(49,
+		   LE_1_UC | LE_TC_1_LLC,
+		   L3_3_WB),
+	/* Implicitly enable L1 - HDC:L1 + LLC */
+	MOCS_ENTRY(50,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_1_UC),
+	/* Implicitly enable L1 - HDC:L1 */
+	MOCS_ENTRY(51,
+		   LE_1_UC | LE_TC_1_LLC,
+		   L3_1_UC),
+	/* HW Special Case (CCS) */
+	MOCS_ENTRY(60,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_1_UC),
+	/* HW Special Case (Displayable) */
+	MOCS_ENTRY(61,
+		   LE_1_UC | LE_TC_1_LLC | LE_SCF(1),
+		   L3_3_WB),
+};
+
 static const struct drm_i915_mocs_entry icelake_mocs_table[] = {
+	/* Base - Uncached (Deprecated) */
+	MOCS_ENTRY(I915_MOCS_UNCACHED,
+		   LE_1_UC | LE_TC_1_LLC,
+		   L3_1_UC),
+	/* Base - L3 + LeCC:PAT (Deprecated) */
+	MOCS_ENTRY(I915_MOCS_PTE,
+		   LE_0_PAGETABLE | LE_TC_1_LLC,
+		   L3_3_WB),
+
 	GEN11_MOCS_ENTRIES
 };
 
-/**
- * get_mocs_settings()
- * @dev_priv:	i915 device.
- * @table:      Output table that will be made to point at appropriate
- *	      MOCS values for the device.
- *
- * This function will return the values of the MOCS table that needs to
- * be programmed for the platform. It will return the values that need
- * to be programmed and if they need to be programmed.
- *
- * Return: true if there are applicable MOCS settings for the device.
- */
-static bool get_mocs_settings(struct drm_i915_private *dev_priv,
+static bool get_mocs_settings(struct intel_gt *gt,
 			      struct drm_i915_mocs_table *table)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	bool result = false;
 
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (INTEL_GEN(i915) >= 12) {
+		table->size  = ARRAY_SIZE(tigerlake_mocs_table);
+		table->table = tigerlake_mocs_table;
+		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
+		result = true;
+	} else if (IS_GEN(i915, 11)) {
 		table->size  = ARRAY_SIZE(icelake_mocs_table);
 		table->table = icelake_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
 		result = true;
-	} else if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
+	} else if (IS_GEN9_BC(i915) || IS_CANNONLAKE(i915)) {
 		table->size  = ARRAY_SIZE(skylake_mocs_table);
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->table = skylake_mocs_table;
 		result = true;
-	} else if (IS_GEN9_LP(dev_priv)) {
+	} else if (IS_GEN9_LP(i915)) {
 		table->size  = ARRAY_SIZE(broxton_mocs_table);
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->table = broxton_mocs_table;
 		result = true;
 	} else {
-		WARN_ONCE(INTEL_GEN(dev_priv) >= 9,
+		WARN_ONCE(INTEL_GEN(i915) >= 9,
 			  "Platform that should have a MOCS table does not.\n");
 	}
 
 	/* WaDisableSkipCaching:skl,bxt,kbl,glk */
-	if (IS_GEN(dev_priv, 9)) {
+	if (IS_GEN(i915, 9)) {
 		int i;
 
 		for (i = 0; i < table->size; i++)
@@ -338,12 +374,20 @@ static u32 get_entry_control(const struct drm_i915_mocs_table *table,
  */
 void intel_mocs_init_engine(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct intel_gt *gt = engine->gt;
+	struct intel_uncore *uncore = gt->uncore;
 	struct drm_i915_mocs_table table;
 	unsigned int index;
 	u32 unused_value;
 
-	if (!get_mocs_settings(dev_priv, &table))
+	/* Platforms with global MOCS do not need per-engine initialization. */
+	if (HAS_GLOBAL_MOCS_REGISTERS(gt->i915))
+		return;
+
+	/* Called under a blanket forcewake */
+	assert_forcewakes_active(uncore, FORCEWAKE_ALL);
+
+	if (!get_mocs_settings(gt, &table))
 		return;
 
 	/* Set unused values to PTE */
@@ -352,24 +396,48 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
 	for (index = 0; index < table.size; index++) {
 		u32 value = get_entry_control(&table, index);
 
-		I915_WRITE(mocs_register(engine->id, index), value);
+		intel_uncore_write_fw(uncore,
+				      mocs_register(engine->id, index),
+				      value);
 	}
 
 	/* All remaining entries are also unused */
 	for (; index < table.n_entries; index++)
-		I915_WRITE(mocs_register(engine->id, index), unused_value);
+		intel_uncore_write_fw(uncore,
+				      mocs_register(engine->id, index),
+				      unused_value);
 }
 
-/**
- * emit_mocs_control_table() - emit the mocs control table
- * @rq:	Request to set up the MOCS table for.
- * @table:	The values to program into the control regs.
- *
- * This function simply emits a MI_LOAD_REGISTER_IMM command for the
- * given table starting at the given address.
- *
- * Return: 0 on success, otherwise the error status.
- */
+static void intel_mocs_init_global(struct intel_gt *gt)
+{
+	struct intel_uncore *uncore = gt->uncore;
+	struct drm_i915_mocs_table table;
+	unsigned int index;
+
+	GEM_BUG_ON(!HAS_GLOBAL_MOCS_REGISTERS(gt->i915));
+
+	if (!get_mocs_settings(gt, &table))
+		return;
+
+	if (GEM_DEBUG_WARN_ON(table.size > table.n_entries))
+		return;
+
+	for (index = 0; index < table.size; index++)
+		intel_uncore_write(uncore,
+				   GEN12_GLOBAL_MOCS(index),
+				   table.table[index].control_value);
+
+	/*
+	 * Ok, now set the unused entries to the invalid entry (index 0). These
+	 * entries are officially undefined and no contract for the contents and
+	 * settings is given for these entries.
+	 */
+	for (; index < table.n_entries; index++)
+		intel_uncore_write(uncore,
+				   GEN12_GLOBAL_MOCS(index),
+				   table.table[0].control_value);
+}
+
 static int emit_mocs_control_table(struct i915_request *rq,
 				   const struct drm_i915_mocs_table *table)
 {
@@ -429,17 +497,6 @@ static inline u32 l3cc_combine(const struct drm_i915_mocs_table *table,
 	return low | high << 16;
 }
 
-/**
- * emit_mocs_l3cc_table() - emit the mocs control table
- * @rq:	Request to set up the MOCS table for.
- * @table:	The values to program into the control regs.
- *
- * This function simply emits a MI_LOAD_REGISTER_IMM command for the
- * given table starting at the given address. This register set is
- * programmed in pairs.
- *
- * Return: 0 on success, otherwise the error status.
- */
 static int emit_mocs_l3cc_table(struct i915_request *rq,
 				const struct drm_i915_mocs_table *table)
 {
@@ -488,27 +545,14 @@ static int emit_mocs_l3cc_table(struct i915_request *rq,
 	return 0;
 }
 
-/**
- * intel_mocs_init_l3cc_table() - program the mocs control table
- * @dev_priv:      i915 device private
- *
- * This function simply programs the mocs registers for the given table
- * starting at the given address. This register set is  programmed in pairs.
- *
- * These registers may get programmed more than once, it is simpler to
- * re-program 32 registers than maintain the state of when they were programmed.
- * We are always reprogramming with the same values and this only on context
- * start.
- *
- * Return: Nothing.
- */
-void intel_mocs_init_l3cc_table(struct drm_i915_private *dev_priv)
+static void intel_mocs_init_l3cc_table(struct intel_gt *gt)
 {
+	struct intel_uncore *uncore = gt->uncore;
 	struct drm_i915_mocs_table table;
 	unsigned int i;
 	u16 unused_value;
 
-	if (!get_mocs_settings(dev_priv, &table))
+	if (!get_mocs_settings(gt, &table))
 		return;
 
 	/* Set unused values to PTE */
@@ -518,28 +562,32 @@ void intel_mocs_init_l3cc_table(struct drm_i915_private *dev_priv)
 		u16 low = get_entry_l3cc(&table, 2 * i);
 		u16 high = get_entry_l3cc(&table, 2 * i + 1);
 
-		I915_WRITE(GEN9_LNCFCMOCS(i),
-			   l3cc_combine(&table, low, high));
+		intel_uncore_write(uncore,
+				   GEN9_LNCFCMOCS(i),
+				   l3cc_combine(&table, low, high));
 	}
 
 	/* Odd table size - 1 left over */
 	if (table.size & 0x01) {
 		u16 low = get_entry_l3cc(&table, 2 * i);
 
-		I915_WRITE(GEN9_LNCFCMOCS(i),
-			   l3cc_combine(&table, low, unused_value));
+		intel_uncore_write(uncore,
+				   GEN9_LNCFCMOCS(i),
+				   l3cc_combine(&table, low, unused_value));
 		i++;
 	}
 
 	/* All remaining entries are also unused */
 	for (; i < table.n_entries / 2; i++)
-		I915_WRITE(GEN9_LNCFCMOCS(i),
-			   l3cc_combine(&table, unused_value, unused_value));
+		intel_uncore_write(uncore,
+				   GEN9_LNCFCMOCS(i),
+				   l3cc_combine(&table, unused_value,
+						unused_value));
 }
 
 /**
- * intel_rcs_context_init_mocs() - program the MOCS register.
- * @rq:	Request to set up the MOCS tables for.
+ * intel_mocs_emit() - program the MOCS register.
+ * @rq:	Request to use to set up the MOCS tables.
  *
  * This function will emit a batch buffer with the values required for
  * programming the MOCS register values for all the currently supported
@@ -553,12 +601,16 @@ void intel_mocs_init_l3cc_table(struct drm_i915_private *dev_priv)
  *
  * Return: 0 on success, otherwise the error status.
  */
-int intel_rcs_context_init_mocs(struct i915_request *rq)
+int intel_mocs_emit(struct i915_request *rq)
 {
 	struct drm_i915_mocs_table t;
 	int ret;
 
-	if (get_mocs_settings(rq->i915, &t)) {
+	if (HAS_GLOBAL_MOCS_REGISTERS(rq->i915) ||
+	    rq->engine->class != RENDER_CLASS)
+		return 0;
+
+	if (get_mocs_settings(rq->engine->gt, &t)) {
 		/* Program the RCS control registers */
 		ret = emit_mocs_control_table(rq, &t);
 		if (ret)
@@ -571,4 +623,12 @@ int intel_rcs_context_init_mocs(struct i915_request *rq)
 	}
 
 	return 0;
+}
+
+void intel_mocs_init(struct intel_gt *gt)
+{
+	intel_mocs_init_l3cc_table(gt);
+
+	if (HAS_GLOBAL_MOCS_REGISTERS(gt->i915))
+		intel_mocs_init_global(gt);
 }

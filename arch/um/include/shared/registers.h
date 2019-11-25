@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2004 PathScale, Inc
- * Licensed under the GPL
  */
 
 #ifndef __REGISTERS_H

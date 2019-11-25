@@ -204,18 +204,17 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 	 * coherent with the kernels mapping.
 	 */
 	if (!PageHighMem(page)) {
-		size_t page_size = PAGE_SIZE << compound_order(page);
-		__cpuc_flush_dcache_area(page_address(page), page_size);
+		__cpuc_flush_dcache_area(page_address(page), page_size(page));
 	} else {
 		unsigned long i;
 		if (cache_is_vipt_nonaliasing()) {
-			for (i = 0; i < (1 << compound_order(page)); i++) {
+			for (i = 0; i < compound_nr(page); i++) {
 				void *addr = kmap_atomic(page + i);
 				__cpuc_flush_dcache_area(addr, PAGE_SIZE);
 				kunmap_atomic(addr);
 			}
 		} else {
-			for (i = 0; i < (1 << compound_order(page)); i++) {
+			for (i = 0; i < compound_nr(page); i++) {
 				void *addr = kmap_high_get(page + i);
 				if (addr) {
 					__cpuc_flush_dcache_area(addr, PAGE_SIZE);

@@ -24,9 +24,10 @@
 #ifndef _I915_VGPU_H_
 #define _I915_VGPU_H_
 
+#include "i915_drv.h"
 #include "i915_pvinfo.h"
 
-void i915_check_vgpu(struct drm_i915_private *dev_priv);
+void i915_detect_vgpu(struct drm_i915_private *dev_priv);
 
 bool intel_vgpu_has_full_ppgtt(struct drm_i915_private *dev_priv);
 
@@ -42,7 +43,7 @@ intel_vgpu_has_huge_gtt(struct drm_i915_private *dev_priv)
 	return dev_priv->vgpu.caps & VGT_CAPS_HUGE_GTT;
 }
 
-int intel_vgt_balloon(struct drm_i915_private *dev_priv);
-void intel_vgt_deballoon(struct drm_i915_private *dev_priv);
+int intel_vgt_balloon(struct i915_ggtt *ggtt);
+void intel_vgt_deballoon(struct i915_ggtt *ggtt);
 
 #endif /* _I915_VGPU_H_ */

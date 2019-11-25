@@ -1690,7 +1690,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 
 		if (RBRQ_HBUF_ERR(he_dev->rbrq_head)) {
 			hprintk("HBUF_ERR!  (cid 0x%x)\n", cid);
-				atomic_inc(&vcc->stats->rx_drop);
+			atomic_inc(&vcc->stats->rx_drop);
 			goto return_host_buffers;
 		}
 
@@ -2580,10 +2580,9 @@ he_send(struct atm_vcc *vcc, struct sk_buff *skb)
 			slot = 0;
 		}
 
-		tpd->iovec[slot].addr = dma_map_single(&he_dev->pci_dev->dev,
-			(void *) page_address(frag->page) + frag->page_offset,
-				frag->size, DMA_TO_DEVICE);
-		tpd->iovec[slot].len = frag->size;
+		tpd->iovec[slot].addr = skb_frag_dma_map(&he_dev->pci_dev->dev,
+				frag, 0, skb_frag_size(frag), DMA_TO_DEVICE);
+		tpd->iovec[slot].len = skb_frag_size(frag);
 		++slot;
 
 	}

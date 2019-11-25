@@ -87,7 +87,12 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 	case CHIP_RAVEN:
 		kfd2kgd = amdgpu_amdkfd_gfx_9_0_get_functions();
 		break;
+	case CHIP_ARCTURUS:
+		kfd2kgd = amdgpu_amdkfd_arcturus_get_functions();
+		break;
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
+	case CHIP_NAVI12:
 		kfd2kgd = amdgpu_amdkfd_gfx_10_0_get_functions();
 		break;
 	default:
@@ -651,8 +656,12 @@ void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
-	if (adev->powerplay.pp_funcs &&
-	    adev->powerplay.pp_funcs->switch_power_profile)
+	if (is_support_sw_smu(adev))
+		smu_switch_power_profile(&adev->smu,
+					 PP_SMC_POWER_PROFILE_COMPUTE,
+					 !idle);
+	else if (adev->powerplay.pp_funcs &&
+		 adev->powerplay.pp_funcs->switch_power_profile)
 		amdgpu_dpm_switch_power_profile(adev,
 						PP_SMC_POWER_PROFILE_COMPUTE,
 						!idle);
@@ -711,6 +720,11 @@ struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void)
 }
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)
+{
+	return NULL;
+}
+
+struct kfd2kgd_calls *amdgpu_amdkfd_arcturus_get_functions(void)
 {
 	return NULL;
 }

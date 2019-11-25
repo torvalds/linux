@@ -30,6 +30,7 @@
 enum fixed_addresses {
 	/* Support writing RO kernel text via kprobes, jump labels, etc. */
 	FIX_TEXT_POKE0,
+	FIX_TEXT_KEXEC,
 	FIX_BITMAP_COUNT
 };
 

@@ -509,8 +509,7 @@ HDLC_irq_xpr(struct bchannel *bch)
 	if (bch->tx_skb && bch->tx_idx < bch->tx_skb->len) {
 		hdlc_fill_fifo(bch);
 	} else {
-		if (bch->tx_skb)
-			dev_kfree_skb(bch->tx_skb);
+		dev_kfree_skb(bch->tx_skb);
 		if (get_next_bframe(bch)) {
 			hdlc_fill_fifo(bch);
 			test_and_clear_bit(FLG_TX_EMPTY, &bch->Flags);

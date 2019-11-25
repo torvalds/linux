@@ -1297,7 +1297,6 @@ static void sh_msiof_release_dma(struct sh_msiof_spi_priv *p)
 
 static int sh_msiof_spi_probe(struct platform_device *pdev)
 {
-	struct resource	*r;
 	struct spi_controller *ctlr;
 	const struct sh_msiof_chipdata *chipdata;
 	struct sh_msiof_spi_info *info;
@@ -1346,13 +1345,11 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
 	i = platform_get_irq(pdev, 0);
 	if (i < 0) {
-		dev_err(&pdev->dev, "cannot get IRQ\n");
 		ret = i;
 		goto err1;
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	p->mapbase = devm_ioremap_resource(&pdev->dev, r);
+	p->mapbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(p->mapbase)) {
 		ret = PTR_ERR(p->mapbase);
 		goto err1;

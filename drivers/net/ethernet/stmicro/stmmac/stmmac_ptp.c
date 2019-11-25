@@ -164,7 +164,7 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 /* structure describing a PTP hardware clock */
 static struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.owner = THIS_MODULE,
-	.name = "stmmac_ptp_clock",
+	.name = "stmmac ptp",
 	.max_adj = 62500000,
 	.n_alarm = 0,
 	.n_ext_ts = 0,
@@ -193,6 +193,9 @@ void stmmac_ptp_register(struct stmmac_priv *priv)
 			break;
 		priv->pps[i].available = true;
 	}
+
+	if (priv->plat->ptp_max_adj)
+		stmmac_ptp_clock_ops.max_adj = priv->plat->ptp_max_adj;
 
 	stmmac_ptp_clock_ops.n_per_out = priv->dma_cap.pps_out_num;
 

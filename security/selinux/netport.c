@@ -137,9 +137,9 @@ static void sel_netport_insert(struct sel_netport *port)
  */
 static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
 {
-	int ret = -ENOMEM;
+	int ret;
 	struct sel_netport *port;
-	struct sel_netport *new = NULL;
+	struct sel_netport *new;
 
 	spin_lock_bh(&sel_netport_lock);
 	port = sel_netport_find(protocol, pnum);
@@ -148,25 +148,23 @@ static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
 		spin_unlock_bh(&sel_netport_lock);
 		return 0;
 	}
-	new = kzalloc(sizeof(*new), GFP_ATOMIC);
-	if (new == NULL)
-		goto out;
+
 	ret = security_port_sid(&selinux_state, protocol, pnum, sid);
 	if (ret != 0)
 		goto out;
-
-	new->psec.port = pnum;
-	new->psec.protocol = protocol;
-	new->psec.sid = *sid;
-	sel_netport_insert(new);
+	new = kzalloc(sizeof(*new), GFP_ATOMIC);
+	if (new) {
+		new->psec.port = pnum;
+		new->psec.protocol = protocol;
+		new->psec.sid = *sid;
+		sel_netport_insert(new);
+	}
 
 out:
 	spin_unlock_bh(&sel_netport_lock);
-	if (unlikely(ret)) {
+	if (unlikely(ret))
 		pr_warn("SELinux: failure in %s(), unable to determine network port label\n",
 			__func__);
-		kfree(new);
-	}
 	return ret;
 }
 

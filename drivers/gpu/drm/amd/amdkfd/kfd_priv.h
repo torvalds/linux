@@ -195,6 +195,7 @@ struct kfd_event_interrupt_class {
 
 struct kfd_device_info {
 	enum amd_asic_type asic_family;
+	const char *asic_name;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	unsigned int max_no_of_hqd;
@@ -685,9 +686,6 @@ struct kfd_process {
 
 	/* We want to receive a notification when the mm_struct is destroyed */
 	struct mmu_notifier mmu_notifier;
-
-	/* Use for delayed freeing of kfd_process structure */
-	struct rcu_head	rcu;
 
 	unsigned int pasid;
 	unsigned int doorbell_index;

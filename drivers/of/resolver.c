@@ -206,16 +206,22 @@ static int adjust_local_phandle_references(struct device_node *local_fixups,
 	for_each_child_of_node(local_fixups, child) {
 
 		for_each_child_of_node(overlay, overlay_child)
-			if (!node_name_cmp(child, overlay_child))
+			if (!node_name_cmp(child, overlay_child)) {
+				of_node_put(overlay_child);
 				break;
+			}
 
-		if (!overlay_child)
+		if (!overlay_child) {
+			of_node_put(child);
 			return -EINVAL;
+		}
 
 		err = adjust_local_phandle_references(child, overlay_child,
 				phandle_delta);
-		if (err)
+		if (err) {
+			of_node_put(child);
 			return err;
+		}
 	}
 
 	return 0;

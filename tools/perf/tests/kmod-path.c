@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include "tests.h"
 #include "dso.h"
 #include "debug.h"
+#include "event.h"
 
 static int test(const char *path, bool alloc_name, bool kmod,
 		int comp, const char *name)

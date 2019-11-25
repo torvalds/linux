@@ -33,6 +33,8 @@
 #if !defined(OPA_PORT_INFO_H)
 #define OPA_PORT_INFO_H
 
+#include <rdma/opa_smi.h>
+
 #define OPA_PORT_LINK_MODE_NOP	0		/* No change */
 #define OPA_PORT_LINK_MODE_OPA	4		/* Port mode is OPA */
 

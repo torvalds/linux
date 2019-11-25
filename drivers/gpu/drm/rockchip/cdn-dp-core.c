@@ -4,23 +4,22 @@
  * Author: Chris Zhong <zyw@rock-chips.com>
  */
 
-#include <drm/drmP.h>
+#include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/extcon.h>
+#include <linux/firmware.h>
+#include <linux/mfd/syscon.h>
+#include <linux/phy/phy.h>
+#include <linux/regmap.h>
+#include <linux/reset.h>
+
+#include <sound/hdmi-codec.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
-
-#include <linux/clk.h>
-#include <linux/component.h>
-#include <linux/extcon.h>
-#include <linux/firmware.h>
-#include <linux/regmap.h>
-#include <linux/reset.h>
-#include <linux/mfd/syscon.h>
-#include <linux/phy/phy.h>
-
-#include <sound/hdmi-codec.h>
 
 #include "cdn-dp-core.h"
 #include "cdn-dp-reg.h"

@@ -6,11 +6,13 @@
 #ifndef __MESON_REGISTERS_H
 #define __MESON_REGISTERS_H
 
+#include <linux/io.h>
+
 /* Shift all registers by 2 */
 #define _REG(reg)	((reg) << 2)
 
 #define writel_bits_relaxed(mask, val, addr) \
-	writel_relaxed((readl_relaxed(addr) & ~(mask)) | (val), addr)
+	writel_relaxed((readl_relaxed(addr) & ~(mask)) | ((val) & (mask)), addr)
 
 /* vpp2 */
 #define VPP2_DUMMY_DATA 0x1900
@@ -136,11 +138,19 @@
 #define VIU_ADDR_START 0x1a00
 #define VIU_ADDR_END 0x1aff
 #define VIU_SW_RESET 0x1a01
+#define		VIU_SW_RESET_OSD1               BIT(0)
 #define VIU_MISC_CTRL0 0x1a06
+#define		VIU_CTRL0_VD1_AFBC_MASK         0x170000
 #define VIU_MISC_CTRL1 0x1a07
 #define D2D3_INTF_LENGTH 0x1a08
 #define D2D3_INTF_CTRL0 0x1a09
 #define VIU_OSD1_CTRL_STAT 0x1a10
+#define		VIU_OSD1_OSD_BLK_ENABLE         BIT(0)
+#define		VIU_OSD1_POSTBLD_SRC_VD1        (1 << 8)
+#define		VIU_OSD1_POSTBLD_SRC_VD2        (2 << 8)
+#define		VIU_OSD1_POSTBLD_SRC_OSD1       (3 << 8)
+#define		VIU_OSD1_POSTBLD_SRC_OSD2       (4 << 8)
+#define		VIU_OSD1_OSD_ENABLE             BIT(21)
 #define VIU_OSD1_CTRL_STAT2 0x1a2d
 #define VIU_OSD1_COLOR_ADDR 0x1a11
 #define VIU_OSD1_COLOR 0x1a12
@@ -229,6 +239,12 @@
 #define VIU_OSD3_PROT_CTRL 0x3d9e
 #define VIU_OSD3_MALI_UNPACK_CTRL 0x3d9f
 #define VIU_OSD3_DIMM_CTRL 0x3da0
+
+#define VIU_OSD_DDR_PRIORITY_URGENT      BIT(0)
+#define VIU_OSD_HOLD_FIFO_LINES(lines)   ((lines & 0x1f) << 5)
+#define VIU_OSD_FIFO_DEPTH_VAL(val)      ((val & 0x7f) << 12)
+#define VIU_OSD_WORDS_PER_BURST(words)   (((words & 0x4) >> 1) << 22)
+#define VIU_OSD_FIFO_LIMITS(size)        ((size & 0xf) << 24)
 
 #define VD1_IF0_GEN_REG 0x1a50
 #define VD1_IF0_CANVAS0 0x1a51
@@ -339,6 +355,7 @@
 #define VPP_LINE_IN_LENGTH 0x1d01
 #define VPP_PIC_IN_HEIGHT 0x1d02
 #define VPP_SCALE_COEF_IDX 0x1d03
+#define		VPP_SCALE_HORIZONTAL_COEF       BIT(8)
 #define VPP_SCALE_COEF 0x1d04
 #define VPP_VSC_REGION12_STARTP 0x1d05
 #define VPP_VSC_REGION34_STARTP 0x1d06
@@ -360,6 +377,12 @@
 #define VPP_HSC_REGION4_PHASE_SLOPE 0x1d17
 #define VPP_HSC_PHASE_CTRL 0x1d18
 #define VPP_SC_MISC 0x1d19
+#define		VPP_SC_VD_EN_ENABLE             BIT(15)
+#define		VPP_SC_TOP_EN_ENABLE            BIT(16)
+#define		VPP_SC_HSC_EN_ENABLE            BIT(17)
+#define		VPP_SC_VSC_EN_ENABLE            BIT(18)
+#define		VPP_VSC_BANK_LENGTH(length)     (length & 0x7)
+#define		VPP_HSC_BANK_LENGTH(length)     ((length & 0x7) << 8)
 #define VPP_PREBLEND_VD1_H_START_END 0x1d1a
 #define VPP_PREBLEND_VD1_V_START_END 0x1d1b
 #define VPP_POSTBLEND_VD1_H_START_END 0x1d1c
@@ -369,24 +392,28 @@
 #define VPP_PREBLEND_H_SIZE 0x1d20
 #define VPP_POSTBLEND_H_SIZE 0x1d21
 #define VPP_HOLD_LINES 0x1d22
+#define		VPP_POSTBLEND_HOLD_LINES(lines) (lines & 0xf)
+#define		VPP_PREBLEND_HOLD_LINES(lines)  ((lines & 0xf) << 8)
 #define VPP_BLEND_ONECOLOR_CTRL 0x1d23
 #define VPP_PREBLEND_CURRENT_XY 0x1d24
 #define VPP_POSTBLEND_CURRENT_XY 0x1d25
 #define VPP_MISC 0x1d26
-#define		VPP_PREBLEND_ENABLE	BIT(6)
-#define		VPP_POSTBLEND_ENABLE	BIT(7)
-#define		VPP_OSD2_ALPHA_PREMULT	BIT(8)
-#define		VPP_OSD1_ALPHA_PREMULT	BIT(9)
-#define		VPP_VD1_POSTBLEND	BIT(10)
-#define		VPP_VD2_POSTBLEND	BIT(11)
-#define		VPP_OSD1_POSTBLEND	BIT(12)
-#define		VPP_OSD2_POSTBLEND	BIT(13)
-#define		VPP_VD1_PREBLEND	BIT(14)
-#define		VPP_VD2_PREBLEND	BIT(15)
-#define		VPP_OSD1_PREBLEND	BIT(16)
-#define		VPP_OSD2_PREBLEND	BIT(17)
-#define		VPP_COLOR_MNG_ENABLE	BIT(28)
+#define		VPP_PREBLEND_ENABLE             BIT(6)
+#define		VPP_POSTBLEND_ENABLE            BIT(7)
+#define		VPP_OSD2_ALPHA_PREMULT          BIT(8)
+#define		VPP_OSD1_ALPHA_PREMULT          BIT(9)
+#define		VPP_VD1_POSTBLEND               BIT(10)
+#define		VPP_VD2_POSTBLEND               BIT(11)
+#define		VPP_OSD1_POSTBLEND              BIT(12)
+#define		VPP_OSD2_POSTBLEND              BIT(13)
+#define		VPP_VD1_PREBLEND                BIT(14)
+#define		VPP_VD2_PREBLEND                BIT(15)
+#define		VPP_OSD1_PREBLEND               BIT(16)
+#define		VPP_OSD2_PREBLEND               BIT(17)
+#define		VPP_COLOR_MNG_ENABLE            BIT(28)
 #define VPP_OFIFO_SIZE 0x1d27
+#define		VPP_OFIFO_SIZE_MASK             GENMASK(13, 0)
+#define		VPP_OFIFO_SIZE_DEFAULT          (0xfff << 20 | 0x1000)
 #define VPP_FIFO_STATUS 0x1d28
 #define VPP_SMOKE_CTRL 0x1d29
 #define VPP_SMOKE1_VAL 0x1d2a
@@ -402,6 +429,8 @@
 #define VPP_HSC_PHASE_CTRL1 0x1d34
 #define VPP_HSC_INI_PAT_CTRL 0x1d35
 #define VPP_VADJ_CTRL 0x1d40
+#define		VPP_MINUS_BLACK_LVL_VADJ1_ENABLE BIT(1)
+
 #define VPP_VADJ1_Y 0x1d41
 #define VPP_VADJ1_MA_MB 0x1d42
 #define VPP_VADJ1_MC_MD 0x1d43
@@ -461,6 +490,7 @@
 #define VPP_PEAKING_VGAIN 0x1d92
 #define VPP_PEAKING_NLP_1 0x1d93
 #define VPP_DOLBY_CTRL 0x1d93
+#define VPP_PPS_DUMMY_DATA_MODE (1 << 17)
 #define VPP_PEAKING_NLP_2 0x1d94
 #define VPP_PEAKING_NLP_3 0x1d95
 #define VPP_PEAKING_NLP_4 0x1d96
@@ -591,6 +621,7 @@
 #define OSD34_SCI_WH_M1 0x3d29
 #define OSD34_SCO_H_START_END 0x3d2a
 #define OSD34_SCO_V_START_END 0x3d2b
+
 /* viu2 */
 #define VIU2_ADDR_START 0x1e00
 #define VIU2_ADDR_END 0x1eff
@@ -704,6 +735,25 @@
 #define VENC_UPSAMPLE_CTRL0 0x1b64
 #define VENC_UPSAMPLE_CTRL1 0x1b65
 #define VENC_UPSAMPLE_CTRL2 0x1b66
+#define		VENC_UPSAMPLE_CTRL_F0_2_CLK_RATIO        BIT(0)
+#define		VENC_UPSAMPLE_CTRL_F1_EN                 BIT(5)
+#define		VENC_UPSAMPLE_CTRL_F1_UPSAMPLE_EN        BIT(6)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_HIGH_LUMA   (0x0 << 12)
+#define		VENC_UPSAMPLE_CTRL_CVBS                  (0x1 << 12)
+#define		VENC_UPSAMPLE_CTRL_S_VIDEO_LUMA          (0x2 << 12)
+#define		VENC_UPSAMPLE_CTRL_S_VIDEO_CHROMA        (0x3 << 12)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_PB          (0x4 << 12)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_PR          (0x5 << 12)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_R           (0x6 << 12)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_G           (0x7 << 12)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_B           (0x8 << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_Y         (0x9 << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_PB        (0xa << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_PR        (0xb << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_R         (0xc << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_G         (0xd << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_B         (0xe << 12)
+#define		VENC_UPSAMPLE_CTRL_VDAC_TEST_VALUE       (0xf << 12)
 #define TCON_INVERT_CTL 0x1b67
 #define VENC_VIDEO_PROG_MODE 0x1b68
 #define VENC_ENCI_LINE 0x1b69
@@ -712,6 +762,7 @@
 #define VENC_ENCP_PIXEL 0x1b6c
 #define VENC_STATA 0x1b6d
 #define VENC_INTCTRL 0x1b6e
+#define		VENC_INTCTRL_ENCI_LNRST_INT_EN  BIT(1)
 #define VENC_INTFLAG 0x1b6f
 #define VENC_VIDEO_TST_EN 0x1b70
 #define VENC_VIDEO_TST_MDSEL 0x1b71
@@ -722,6 +773,7 @@
 #define VENC_VIDEO_TST_CLRBAR_WIDTH 0x1b76
 #define VENC_VIDEO_TST_VDCNT_STSET 0x1b77
 #define VENC_VDAC_DACSEL0 0x1b78
+#define		VENC_VDAC_SEL_ATV_DMD           BIT(5)
 #define VENC_VDAC_DACSEL1 0x1b79
 #define VENC_VDAC_DACSEL2 0x1b7a
 #define VENC_VDAC_DACSEL3 0x1b7b
@@ -742,6 +794,7 @@
 #define VENC_VDAC_DAC5_GAINCTRL 0x1bfa
 #define VENC_VDAC_DAC5_OFFSET 0x1bfb
 #define VENC_VDAC_FIFO_CTRL 0x1bfc
+#define		VENC_VDAC_FIFO_EN_ENCI_ENABLE   BIT(13)
 #define ENCL_TCON_INVERT_CTL 0x1bfd
 #define ENCP_VIDEO_EN 0x1b80
 #define ENCP_VIDEO_SYNC_MODE 0x1b81
@@ -757,6 +810,7 @@
 #define ENCP_VIDEO_SYNC_OFFST 0x1b8b
 #define ENCP_VIDEO_MACV_OFFST 0x1b8c
 #define ENCP_VIDEO_MODE 0x1b8d
+#define		ENCP_VIDEO_MODE_DE_V_HIGH       BIT(14)
 #define ENCP_VIDEO_MODE_ADV 0x1b8e
 #define ENCP_DBG_PX_RST 0x1b90
 #define ENCP_DBG_LN_RST 0x1b91
@@ -835,6 +889,11 @@
 #define C656_FS_LNED 0x1be7
 #define ENCI_VIDEO_MODE 0x1b00
 #define ENCI_VIDEO_MODE_ADV 0x1b01
+#define		ENCI_VIDEO_MODE_ADV_DMXMD(val)          (val & 0x3)
+#define		ENCI_VIDEO_MODE_ADV_VBICTL_LINE_17_22   BIT(2)
+#define		ENCI_VIDEO_MODE_ADV_YBW_MEDIUM          (0 << 4)
+#define		ENCI_VIDEO_MODE_ADV_YBW_LOW             (0x1 << 4)
+#define		ENCI_VIDEO_MODE_ADV_YBW_HIGH            (0x2 << 4)
 #define ENCI_VIDEO_FSC_ADJ 0x1b02
 #define ENCI_VIDEO_BRIGHT 0x1b03
 #define ENCI_VIDEO_CONT 0x1b04
@@ -905,13 +964,17 @@
 #define ENCI_DBG_MAXPX 0x1b4c
 #define ENCI_DBG_MAXLN 0x1b4d
 #define ENCI_MACV_MAX_AMP 0x1b50
+#define		ENCI_MACV_MAX_AMP_ENABLE_CHANGE BIT(15)
+#define		ENCI_MACV_MAX_AMP_VAL(val)      (val & 0x83ff)
 #define ENCI_MACV_PULSE_LO 0x1b51
 #define ENCI_MACV_PULSE_HI 0x1b52
 #define ENCI_MACV_BKP_MAX 0x1b53
 #define ENCI_CFILT_CTRL 0x1b54
+#define		ENCI_CFILT_CMPT_SEL_HIGH        BIT(1)
 #define ENCI_CFILT7 0x1b55
 #define ENCI_YC_DELAY 0x1b56
 #define ENCI_VIDEO_EN 0x1b57
+#define		ENCI_VIDEO_EN_ENABLE            BIT(0)
 #define ENCI_DVI_HSO_BEGIN 0x1c00
 #define ENCI_DVI_HSO_END 0x1c01
 #define ENCI_DVI_VSO_BLINE_EVN 0x1c02
@@ -923,6 +986,10 @@
 #define ENCI_DVI_VSO_END_EVN 0x1c08
 #define ENCI_DVI_VSO_END_ODD 0x1c09
 #define ENCI_CFILT_CTRL2 0x1c0a
+#define		ENCI_CFILT_CMPT_CR_DLY(delay)   (delay & 0xf)
+#define		ENCI_CFILT_CMPT_CB_DLY(delay)   ((delay & 0xf) << 4)
+#define		ENCI_CFILT_CVBS_CR_DLY(delay)   ((delay & 0xf) << 8)
+#define		ENCI_CFILT_CVBS_CB_DLY(delay)   ((delay & 0xf) << 12)
 #define ENCI_DACSEL_0 0x1c0b
 #define ENCI_DACSEL_1 0x1c0c
 #define ENCP_DACSEL_0 0x1c0d
@@ -937,6 +1004,8 @@
 #define ENCI_TST_CLRBAR_WIDTH 0x1c16
 #define ENCI_TST_VDCNT_STSET 0x1c17
 #define ENCI_VFIFO2VD_CTL 0x1c18
+#define		ENCI_VFIFO2VD_CTL_ENABLE        BIT(0)
+#define		ENCI_VFIFO2VD_CTL_VD_SEL(val)   ((val & 0xff) << 8)
 #define ENCI_VFIFO2VD_PIXEL_START 0x1c19
 #define ENCI_VFIFO2VD_PIXEL_END 0x1c1a
 #define ENCI_VFIFO2VD_LINE_TOP_START 0x1c1b
@@ -999,6 +1068,7 @@
 #define VENC_VDAC_DAC5_FILT_CTRL0 0x1c56
 #define VENC_VDAC_DAC5_FILT_CTRL1 0x1c57
 #define VENC_VDAC_DAC0_FILT_CTRL0 0x1c58
+#define		VENC_VDAC_DAC0_FILT_CTRL0_EN    BIT(0)
 #define VENC_VDAC_DAC0_FILT_CTRL1 0x1c59
 #define VENC_VDAC_DAC1_FILT_CTRL0 0x1c5a
 #define VENC_VDAC_DAC1_FILT_CTRL1 0x1c5b
@@ -1404,6 +1474,18 @@
 #define		VIU2_SEL_VENC_ENCP	(2 << 2)
 #define		VIU2_SEL_VENC_ENCT	(3 << 2)
 #define VPU_HDMI_SETTING 0x271b
+#define		VPU_HDMI_ENCI_DATA_TO_HDMI      BIT(0)
+#define		VPU_HDMI_ENCP_DATA_TO_HDMI      BIT(1)
+#define		VPU_HDMI_INV_HSYNC              BIT(2)
+#define		VPU_HDMI_INV_VSYNC              BIT(3)
+#define		VPU_HDMI_OUTPUT_CRYCB           (0 << 5)
+#define		VPU_HDMI_OUTPUT_YCBCR           (1 << 5)
+#define		VPU_HDMI_OUTPUT_YCRCB           (2 << 5)
+#define		VPU_HDMI_OUTPUT_CBCRY           (3 << 5)
+#define		VPU_HDMI_OUTPUT_CBYCR           (4 << 5)
+#define		VPU_HDMI_OUTPUT_CRCBY           (5 << 5)
+#define		VPU_HDMI_WR_RATE(rate)          (((rate & 0x1f) - 1) << 8)
+#define		VPU_HDMI_RD_RATE(rate)          (((rate & 0x1f) - 1) << 12)
 #define ENCI_INFO_READ 0x271c
 #define ENCP_INFO_READ 0x271d
 #define ENCT_INFO_READ 0x271e
@@ -1480,6 +1562,7 @@
 #define VPU_RDARB_MODE_L1C2 0x2799
 #define VPU_RDARB_MODE_L2C1 0x279d
 #define VPU_WRARB_MODE_L2C1 0x27a2
+#define		VPU_RDARB_SLAVE_TO_MASTER_PORT(dc, port) (port << (16 + dc))
 
 /* osd super scale */
 #define OSDSR_HV_SIZEIN 0x3130
@@ -1521,7 +1604,6 @@
 #define OSD1_AFBCD_STATUS 0x31a8
 #define OSD1_AFBCD_PIXEL_HSCOPE 0x31a9
 #define OSD1_AFBCD_PIXEL_VSCOPE 0x31aa
-#define VIU_MISC_CTRL1 0x1a07
 
 /* add for gxm and 962e dv core2 */
 #define DOLBY_CORE2A_SWAP_CTRL1	0x3434
@@ -1536,8 +1618,6 @@
 #define VPU_MAFBC_COMMAND 0x3a05
 #define VPU_MAFBC_STATUS 0x3a06
 #define VPU_MAFBC_SURFACE_CFG 0x3a07
-
-/* osd afbc on g12a */
 #define VPU_MAFBC_HEADER_BUF_ADDR_LOW_S0 0x3a10
 #define VPU_MAFBC_HEADER_BUF_ADDR_HIGH_S0 0x3a11
 #define VPU_MAFBC_FORMAT_SPECIFIER_S0 0x3a12
@@ -1595,10 +1675,18 @@
 #define VPU_MAFBC_PREFETCH_CFG_S3 0x3a7c
 
 #define DOLBY_PATH_CTRL 0x1a0c
+#define		DOLBY_BYPASS_EN(val)            (val & 0xf)
 #define OSD_PATH_MISC_CTRL 0x1a0e
 #define MALI_AFBCD_TOP_CTRL 0x1a0f
 
 #define VIU_OSD_BLEND_CTRL 0x39b0
+#define		VIU_OSD_BLEND_REORDER(dest, src)      ((src) << (dest * 4))
+#define		VIU_OSD_BLEND_DIN_EN(bits)            ((bits & 0xf) << 20)
+#define		VIU_OSD_BLEND1_DIN3_BYPASS_TO_DOUT1   BIT(24)
+#define		VIU_OSD_BLEND1_DOUT_BYPASS_TO_BLEND2  BIT(25)
+#define		VIU_OSD_BLEND_DIN0_BYPASS_TO_DOUT0    BIT(26)
+#define		VIU_OSD_BLEND_BLEN2_PREMULT_EN(input) ((input & 0x3) << 27)
+#define		VIU_OSD_BLEND_HOLD_LINES(lines)       ((lines & 0x7) << 29)
 #define VIU_OSD_BLEND_CTRL1 0x39c0
 #define VIU_OSD_BLEND_DIN0_SCOPE_H 0x39b1
 #define VIU_OSD_BLEND_DIN0_SCOPE_V 0x39b2
@@ -1628,13 +1716,27 @@
 #define VPP_SLEEP_CTRL 0x1dfa
 #define VD1_BLEND_SRC_CTRL 0x1dfb
 #define VD2_BLEND_SRC_CTRL 0x1dfc
+#define		VD_BLEND_PREBLD_SRC_VD1         (1 << 0)
+#define		VD_BLEND_PREBLD_SRC_VD2         (2 << 0)
+#define		VD_BLEND_PREBLD_SRC_OSD1        (3 << 0)
+#define		VD_BLEND_PREBLD_SRC_OSD2        (4 << 0)
+#define		VD_BLEND_PREBLD_PREMULT_EN      BIT(4)
+#define		VD_BLEND_POSTBLD_SRC_VD1        (1 << 8)
+#define		VD_BLEND_POSTBLD_SRC_VD2        (2 << 8)
+#define		VD_BLEND_POSTBLD_SRC_OSD1       (3 << 8)
+#define		VD_BLEND_POSTBLD_SRC_OSD2       (4 << 8)
+#define		VD_BLEND_POSTBLD_PREMULT_EN     BIT(16)
 #define OSD1_BLEND_SRC_CTRL 0x1dfd
 #define OSD2_BLEND_SRC_CTRL 0x1dfe
+#define		OSD_BLEND_POSTBLD_SRC_VD1       (1 << 8)
+#define		OSD_BLEND_POSTBLD_SRC_VD2       (2 << 8)
+#define		OSD_BLEND_POSTBLD_SRC_OSD1      (3 << 8)
+#define		OSD_BLEND_POSTBLD_SRC_OSD2      (4 << 8)
+#define		OSD_BLEND_PATH_SEL_ENABLE       BIT(20)
 
 #define VPP_POST_BLEND_BLEND_DUMMY_DATA 0x3968
 #define VPP_POST_BLEND_DUMMY_ALPHA 0x3969
 #define VPP_RDARB_MODE 0x3978
 #define VPP_RDARB_REQEN_SLV 0x3979
-#define VPU_RDARB_MODE_L2C1 0x279d
 
 #endif /* __MESON_REGISTERS_H */

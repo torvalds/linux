@@ -63,10 +63,25 @@ static inline bool vcpu_is_preempted(long cpu)
 #endif
 
 #ifdef CONFIG_PARAVIRT
+/*
+ * virt_spin_lock_key - enables (by default) the virt_spin_lock() hijack.
+ *
+ * Native (and PV wanting native due to vCPU pinning) should disable this key.
+ * It is done in this backwards fashion to only have a single direction change,
+ * which removes ordering between native_pv_spin_init() and HV setup.
+ */
 DECLARE_STATIC_KEY_TRUE(virt_spin_lock_key);
 
 void native_pv_lock_init(void) __init;
 
+/*
+ * Shortcut for the queued_spin_lock_slowpath() function that allows
+ * virt to hijack it.
+ *
+ * Returns:
+ *   true - lock has been negotiated, all done;
+ *   false - queued_spin_lock_slowpath() will do its thing.
+ */
 #define virt_spin_lock virt_spin_lock
 static inline bool virt_spin_lock(struct qspinlock *lock)
 {

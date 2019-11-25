@@ -28,9 +28,10 @@
 #ifndef _VMWGFX_VALIDATION_H_
 #define _VMWGFX_VALIDATION_H_
 
-#include <drm/drm_hashtab.h>
 #include <linux/list.h>
 #include <linux/ww_mutex.h>
+
+#include <drm/drm_hashtab.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
 #define VMW_RES_DIRTY_NONE 0

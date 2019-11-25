@@ -79,7 +79,7 @@ Usage Notes
 
 This driver does not probe for devices, since there is no register which
 can be safely used to identify the chip. You will have to instantiate
-the devices explicitly. Please see Documentation/i2c/instantiating-devices for
+the devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 
 WARNING: Do not access chip registers using the i2cdump command, and do not use

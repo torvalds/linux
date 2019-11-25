@@ -1124,6 +1124,7 @@ static const struct ethtool_ops bcmgenet_ethtool_ops = {
 	.set_coalesce		= bcmgenet_set_coalesce,
 	.get_link_ksettings	= bcmgenet_get_link_ksettings,
 	.set_link_ksettings	= bcmgenet_set_link_ksettings,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 /* Power down the unimac, based on mode. */
@@ -2017,6 +2018,8 @@ static void bcmgenet_link_intr_enable(struct bcmgenet_priv *priv)
 	 */
 	if (priv->internal_phy) {
 		int0_enable |= UMAC_IRQ_LINK_EVENT;
+		if (GENET_IS_V1(priv) || GENET_IS_V2(priv) || GENET_IS_V3(priv))
+			int0_enable |= UMAC_IRQ_PHY_DET_R;
 	} else if (priv->ext_phy) {
 		int0_enable |= UMAC_IRQ_LINK_EVENT;
 	} else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
@@ -2515,19 +2518,14 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 {
 	struct netdev_queue *txq;
-	struct sk_buff *skb;
-	struct enet_cb *cb;
 	int i;
 
 	bcmgenet_fini_rx_napi(priv);
 	bcmgenet_fini_tx_napi(priv);
 
-	for (i = 0; i < priv->num_tx_bds; i++) {
-		cb = priv->tx_cbs + i;
-		skb = bcmgenet_free_tx_cb(&priv->pdev->dev, cb);
-		if (skb)
-			dev_kfree_skb(skb);
-	}
+	for (i = 0; i < priv->num_tx_bds; i++)
+		dev_kfree_skb(bcmgenet_free_tx_cb(&priv->pdev->dev,
+						  priv->tx_cbs + i));
 
 	for (i = 0; i < priv->hw_params->tx_queues; i++) {
 		txq = netdev_get_tx_queue(priv->dev, priv->tx_rings[i].queue);
@@ -2615,11 +2613,14 @@ static void bcmgenet_irq_task(struct work_struct *work)
 	priv->irq0_stat = 0;
 	spin_unlock_irq(&priv->lock);
 
+	if (status & UMAC_IRQ_PHY_DET_R &&
+	    priv->dev->phydev->autoneg != AUTONEG_ENABLE)
+		phy_init_hw(priv->dev->phydev);
+
 	/* Link UP/DOWN event */
-	if (status & UMAC_IRQ_LINK_EVENT) {
-		priv->dev->phydev->link = !!(status & UMAC_IRQ_LINK_UP);
+	if (status & UMAC_IRQ_LINK_EVENT)
 		phy_mac_interrupt(priv->dev->phydev);
-	}
+
 }
 
 /* bcmgenet_isr1: handle Rx and Tx priority queues */
@@ -2714,7 +2715,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 	}
 
 	/* all other interested interrupts handled in bottom half */
-	status &= UMAC_IRQ_LINK_EVENT;
+	status &= (UMAC_IRQ_LINK_EVENT | UMAC_IRQ_PHY_DET_R);
 	if (status) {
 		/* Save irq status for bottom-half processing. */
 		spin_lock_irqsave(&priv->lock, flags);
@@ -2878,6 +2879,12 @@ static int bcmgenet_open(struct net_device *dev)
 	if (priv->internal_phy)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
+	ret = bcmgenet_mii_connect(dev);
+	if (ret) {
+		netdev_err(dev, "failed to connect to PHY\n");
+		goto err_clk_disable;
+	}
+
 	/* take MAC out of reset */
 	bcmgenet_umac_reset(priv);
 
@@ -2886,6 +2893,12 @@ static int bcmgenet_open(struct net_device *dev)
 	/* Make sure we reflect the value of CRC_CMD_FWD */
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 	priv->crc_fwd_en = !!(reg & CMD_CRC_FWD);
+
+	ret = bcmgenet_mii_config(dev, true);
+	if (ret) {
+		netdev_err(dev, "unsupported PHY\n");
+		goto err_disconnect_phy;
+	}
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
@@ -2902,7 +2915,7 @@ static int bcmgenet_open(struct net_device *dev)
 	ret = bcmgenet_init_dma(priv);
 	if (ret) {
 		netdev_err(dev, "failed to initialize DMA\n");
-		goto err_clk_disable;
+		goto err_disconnect_phy;
 	}
 
 	/* Always enable ring 16 - descriptor ring */
@@ -2925,25 +2938,19 @@ static int bcmgenet_open(struct net_device *dev)
 		goto err_irq0;
 	}
 
-	ret = bcmgenet_mii_probe(dev);
-	if (ret) {
-		netdev_err(dev, "failed to connect to PHY\n");
-		goto err_irq1;
-	}
-
 	bcmgenet_netif_start(dev);
 
 	netif_tx_start_all_queues(dev);
 
 	return 0;
 
-err_irq1:
-	free_irq(priv->irq1, priv);
 err_irq0:
 	free_irq(priv->irq0, priv);
 err_fini_dma:
 	bcmgenet_dma_teardown(priv);
 	bcmgenet_fini_dma(priv);
+err_disconnect_phy:
+	phy_disconnect(dev->phydev);
 err_clk_disable:
 	if (priv->internal_phy)
 		bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
@@ -3437,7 +3444,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	struct bcmgenet_priv *priv;
 	struct net_device *dev;
 	const void *macaddr;
-	struct resource *r;
 	unsigned int i;
 	int err = -EIO;
 	const char *phy_mode_str;
@@ -3477,8 +3483,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		macaddr = pd->mac_address;
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, r);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
 		err = PTR_ERR(priv->base);
 		goto err;
@@ -3626,6 +3631,8 @@ static int bcmgenet_resume(struct device *d)
 	if (priv->internal_phy)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
+	phy_init_hw(dev->phydev);
+
 	bcmgenet_umac_reset(priv);
 
 	init_umac(priv);
@@ -3633,8 +3640,6 @@ static int bcmgenet_resume(struct device *d)
 	/* From WOL-enabled suspend, switch to regular clock */
 	if (priv->wolopts)
 		clk_disable_unprepare(priv->clk_wol);
-
-	phy_init_hw(dev->phydev);
 
 	/* Speed settings must be restored */
 	bcmgenet_mii_config(priv->dev, false);

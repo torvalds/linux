@@ -10,139 +10,192 @@
 
 #include "vimc-common.h"
 
-static const __u32 vimc_mbus_list[] = {
-	MEDIA_BUS_FMT_FIXED,
-	MEDIA_BUS_FMT_RGB444_1X12,
-	MEDIA_BUS_FMT_RGB444_2X8_PADHI_BE,
-	MEDIA_BUS_FMT_RGB444_2X8_PADHI_LE,
-	MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE,
-	MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE,
-	MEDIA_BUS_FMT_RGB565_1X16,
-	MEDIA_BUS_FMT_BGR565_2X8_BE,
-	MEDIA_BUS_FMT_BGR565_2X8_LE,
-	MEDIA_BUS_FMT_RGB565_2X8_BE,
-	MEDIA_BUS_FMT_RGB565_2X8_LE,
-	MEDIA_BUS_FMT_RGB666_1X18,
-	MEDIA_BUS_FMT_RBG888_1X24,
-	MEDIA_BUS_FMT_RGB666_1X24_CPADHI,
-	MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
-	MEDIA_BUS_FMT_BGR888_1X24,
-	MEDIA_BUS_FMT_GBR888_1X24,
-	MEDIA_BUS_FMT_RGB888_1X24,
-	MEDIA_BUS_FMT_RGB888_2X12_BE,
-	MEDIA_BUS_FMT_RGB888_2X12_LE,
-	MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
-	MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
-	MEDIA_BUS_FMT_ARGB8888_1X32,
-	MEDIA_BUS_FMT_RGB888_1X32_PADHI,
-	MEDIA_BUS_FMT_RGB101010_1X30,
-	MEDIA_BUS_FMT_RGB121212_1X36,
-	MEDIA_BUS_FMT_RGB161616_1X48,
-	MEDIA_BUS_FMT_Y8_1X8,
-	MEDIA_BUS_FMT_UV8_1X8,
-	MEDIA_BUS_FMT_UYVY8_1_5X8,
-	MEDIA_BUS_FMT_VYUY8_1_5X8,
-	MEDIA_BUS_FMT_YUYV8_1_5X8,
-	MEDIA_BUS_FMT_YVYU8_1_5X8,
-	MEDIA_BUS_FMT_UYVY8_2X8,
-	MEDIA_BUS_FMT_VYUY8_2X8,
-	MEDIA_BUS_FMT_YUYV8_2X8,
-	MEDIA_BUS_FMT_YVYU8_2X8,
-	MEDIA_BUS_FMT_Y10_1X10,
-	MEDIA_BUS_FMT_Y10_2X8_PADHI_LE,
-	MEDIA_BUS_FMT_UYVY10_2X10,
-	MEDIA_BUS_FMT_VYUY10_2X10,
-	MEDIA_BUS_FMT_YUYV10_2X10,
-	MEDIA_BUS_FMT_YVYU10_2X10,
-	MEDIA_BUS_FMT_Y12_1X12,
-	MEDIA_BUS_FMT_UYVY12_2X12,
-	MEDIA_BUS_FMT_VYUY12_2X12,
-	MEDIA_BUS_FMT_YUYV12_2X12,
-	MEDIA_BUS_FMT_YVYU12_2X12,
-	MEDIA_BUS_FMT_UYVY8_1X16,
-	MEDIA_BUS_FMT_VYUY8_1X16,
-	MEDIA_BUS_FMT_YUYV8_1X16,
-	MEDIA_BUS_FMT_YVYU8_1X16,
-	MEDIA_BUS_FMT_YDYUYDYV8_1X16,
-	MEDIA_BUS_FMT_UYVY10_1X20,
-	MEDIA_BUS_FMT_VYUY10_1X20,
-	MEDIA_BUS_FMT_YUYV10_1X20,
-	MEDIA_BUS_FMT_YVYU10_1X20,
-	MEDIA_BUS_FMT_VUY8_1X24,
-	MEDIA_BUS_FMT_YUV8_1X24,
-	MEDIA_BUS_FMT_UYYVYY8_0_5X24,
-	MEDIA_BUS_FMT_UYVY12_1X24,
-	MEDIA_BUS_FMT_VYUY12_1X24,
-	MEDIA_BUS_FMT_YUYV12_1X24,
-	MEDIA_BUS_FMT_YVYU12_1X24,
-	MEDIA_BUS_FMT_YUV10_1X30,
-	MEDIA_BUS_FMT_UYYVYY10_0_5X30,
-	MEDIA_BUS_FMT_AYUV8_1X32,
-	MEDIA_BUS_FMT_UYYVYY12_0_5X36,
-	MEDIA_BUS_FMT_YUV12_1X36,
-	MEDIA_BUS_FMT_YUV16_1X48,
-	MEDIA_BUS_FMT_UYYVYY16_0_5X48,
-	MEDIA_BUS_FMT_SBGGR8_1X8,
-	MEDIA_BUS_FMT_SGBRG8_1X8,
-	MEDIA_BUS_FMT_SGRBG8_1X8,
-	MEDIA_BUS_FMT_SRGGB8_1X8,
-	MEDIA_BUS_FMT_SBGGR10_ALAW8_1X8,
-	MEDIA_BUS_FMT_SGBRG10_ALAW8_1X8,
-	MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8,
-	MEDIA_BUS_FMT_SRGGB10_ALAW8_1X8,
-	MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8,
-	MEDIA_BUS_FMT_SGBRG10_DPCM8_1X8,
-	MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
-	MEDIA_BUS_FMT_SRGGB10_DPCM8_1X8,
-	MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_BE,
-	MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE,
-	MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_BE,
-	MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_LE,
-	MEDIA_BUS_FMT_SBGGR10_1X10,
-	MEDIA_BUS_FMT_SGBRG10_1X10,
-	MEDIA_BUS_FMT_SGRBG10_1X10,
-	MEDIA_BUS_FMT_SRGGB10_1X10,
-	MEDIA_BUS_FMT_SBGGR12_1X12,
-	MEDIA_BUS_FMT_SGBRG12_1X12,
-	MEDIA_BUS_FMT_SGRBG12_1X12,
-	MEDIA_BUS_FMT_SRGGB12_1X12,
-	MEDIA_BUS_FMT_SBGGR14_1X14,
-	MEDIA_BUS_FMT_SGBRG14_1X14,
-	MEDIA_BUS_FMT_SGRBG14_1X14,
-	MEDIA_BUS_FMT_SRGGB14_1X14,
-	MEDIA_BUS_FMT_SBGGR16_1X16,
-	MEDIA_BUS_FMT_SGBRG16_1X16,
-	MEDIA_BUS_FMT_SGRBG16_1X16,
-	MEDIA_BUS_FMT_SRGGB16_1X16,
-	MEDIA_BUS_FMT_JPEG_1X8,
-	MEDIA_BUS_FMT_S5C_UYVY_JPEG_1X8,
-	MEDIA_BUS_FMT_AHSV8888_1X32,
+/*
+ * NOTE: non-bayer formats need to come first (necessary for enum_mbus_code
+ * in the scaler)
+ */
+static const struct vimc_pix_map vimc_pix_map_list[] = {
+	/* TODO: add all missing formats */
+
+	/* RGB formats */
+	{
+		.code = MEDIA_BUS_FMT_BGR888_1X24,
+		.pixelformat = V4L2_PIX_FMT_BGR24,
+		.bpp = 3,
+		.bayer = false,
+	},
+	{
+		.code = MEDIA_BUS_FMT_RGB888_1X24,
+		.pixelformat = V4L2_PIX_FMT_RGB24,
+		.bpp = 3,
+		.bayer = false,
+	},
+	{
+		.code = MEDIA_BUS_FMT_ARGB8888_1X32,
+		.pixelformat = V4L2_PIX_FMT_ARGB32,
+		.bpp = 4,
+		.bayer = false,
+	},
+
+	/* Bayer formats */
+	{
+		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SBGGR8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGBRG8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SGBRG8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SGRBG8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SRGGB8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SRGGB8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.pixelformat = V4L2_PIX_FMT_SBGGR10,
+		.bpp = 2,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.pixelformat = V4L2_PIX_FMT_SGBRG10,
+		.bpp = 2,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
+		.pixelformat = V4L2_PIX_FMT_SGRBG10,
+		.bpp = 2,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.pixelformat = V4L2_PIX_FMT_SRGGB10,
+		.bpp = 2,
+		.bayer = true,
+	},
+
+	/* 10bit raw bayer a-law compressed to 8 bits */
+	{
+		.code = MEDIA_BUS_FMT_SBGGR10_ALAW8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SBGGR10ALAW8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGBRG10_ALAW8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SGBRG10ALAW8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SGRBG10ALAW8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SRGGB10_ALAW8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SRGGB10ALAW8,
+		.bpp = 1,
+		.bayer = true,
+	},
+
+	/* 10bit raw bayer DPCM compressed to 8 bits */
+	{
+		.code = MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SBGGR10DPCM8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGBRG10_DPCM8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SGBRG10DPCM8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SGRBG10DPCM8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SRGGB10_DPCM8_1X8,
+		.pixelformat = V4L2_PIX_FMT_SRGGB10DPCM8,
+		.bpp = 1,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.pixelformat = V4L2_PIX_FMT_SBGGR12,
+		.bpp = 2,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.pixelformat = V4L2_PIX_FMT_SGBRG12,
+		.bpp = 2,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
+		.pixelformat = V4L2_PIX_FMT_SGRBG12,
+		.bpp = 2,
+		.bayer = true,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.pixelformat = V4L2_PIX_FMT_SRGGB12,
+		.bpp = 2,
+		.bayer = true,
+	},
 };
 
-/* Helper function to check mbus codes */
-bool vimc_mbus_code_supported(__u32 code)
+const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i)
+{
+	if (i >= ARRAY_SIZE(vimc_pix_map_list))
+		return NULL;
+
+	return &vimc_pix_map_list[i];
+}
+EXPORT_SYMBOL_GPL(vimc_pix_map_by_index);
+
+const struct vimc_pix_map *vimc_pix_map_by_code(u32 code)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(vimc_mbus_list); i++)
-		if (code == vimc_mbus_list[i])
-			return true;
-	return false;
+	for (i = 0; i < ARRAY_SIZE(vimc_pix_map_list); i++) {
+		if (vimc_pix_map_list[i].code == code)
+			return &vimc_pix_map_list[i];
+	}
+	return NULL;
 }
-EXPORT_SYMBOL_GPL(vimc_mbus_code_supported);
+EXPORT_SYMBOL_GPL(vimc_pix_map_by_code);
 
-/* Helper function to enumerate mbus codes */
-int vimc_enum_mbus_code(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
-			struct v4l2_subdev_mbus_code_enum *code)
+const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat)
 {
-	if (code->index >= ARRAY_SIZE(vimc_mbus_list))
-		return -EINVAL;
+	unsigned int i;
 
-	code->code = vimc_mbus_list[code->index];
-	return 0;
+	for (i = 0; i < ARRAY_SIZE(vimc_pix_map_list); i++) {
+		if (vimc_pix_map_list[i].pixelformat == pixelformat)
+			return &vimc_pix_map_list[i];
+	}
+	return NULL;
 }
-EXPORT_SYMBOL_GPL(vimc_enum_mbus_code);
+EXPORT_SYMBOL_GPL(vimc_pix_map_by_pixelformat);
 
 /* Helper function to allocate and initialize pads */
 struct media_pad *vimc_pads_init(u16 num_pads, const unsigned long *pads_flag)
@@ -214,13 +267,15 @@ static int vimc_get_mbus_format(struct media_pad *pad,
 							 struct video_device,
 							 entity);
 		struct vimc_ent_device *ved = video_get_drvdata(vdev);
+		const struct vimc_pix_map *vpix;
 		struct v4l2_pix_format vdev_fmt;
 
 		if (!ved->vdev_get_format)
 			return -ENOIOCTLCMD;
 
 		ved->vdev_get_format(ved, &vdev_fmt);
-		v4l2_fill_mbus_format(&fmt->format, &vdev_fmt, 0);
+		vpix = vimc_pix_map_by_pixelformat(vdev_fmt.pixelformat);
+		v4l2_fill_mbus_format(&fmt->format, &vdev_fmt, vpix->code);
 	} else {
 		return -EINVAL;
 	}
@@ -260,12 +315,8 @@ int vimc_link_validate(struct media_link *link)
 	/* The width, height and code must match. */
 	if (source_fmt.format.width != sink_fmt.format.width
 	    || source_fmt.format.height != sink_fmt.format.height
-	    || (source_fmt.format.code && sink_fmt.format.code &&
-		source_fmt.format.code != sink_fmt.format.code)) {
-		pr_err("vimc: format doesn't match in link %s->%s\n",
-			link->source->entity->name, link->sink->entity->name);
+	    || source_fmt.format.code != sink_fmt.format.code)
 		return -EPIPE;
-	}
 
 	/*
 	 * The field order must match, or the sink field order must be NONE

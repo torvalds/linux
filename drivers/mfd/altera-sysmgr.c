@@ -88,16 +88,6 @@ static struct regmap_config altr_sysmgr_regmap_cfg = {
 };
 
 /**
- * sysmgr_match_phandle
- * Matching function used by driver_find_device().
- * Return: True if match is found, otherwise false.
- */
-static int sysmgr_match_phandle(struct device *dev, const void *data)
-{
-	return dev->of_node == (const struct device_node *)data;
-}
-
-/**
  * altr_sysmgr_regmap_lookup_by_phandle
  * Find the sysmgr previous configured in probe() and return regmap property.
  * Return: regmap if found or error if not found.
@@ -117,8 +107,8 @@ struct regmap *altr_sysmgr_regmap_lookup_by_phandle(struct device_node *np,
 	if (!sysmgr_np)
 		return ERR_PTR(-ENODEV);
 
-	dev = driver_find_device(&altr_sysmgr_driver.driver, NULL,
-				 (void *)sysmgr_np, sysmgr_match_phandle);
+	dev = driver_find_device_by_of_node(&altr_sysmgr_driver.driver,
+					    (void *)sysmgr_np);
 	of_node_put(sysmgr_np);
 	if (!dev)
 		return ERR_PTR(-EPROBE_DEFER);

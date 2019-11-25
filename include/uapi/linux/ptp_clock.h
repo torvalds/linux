@@ -25,10 +25,42 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-/* PTP_xxx bits, for the flags field within the request structures. */
+/*
+ * Bits of the ptp_extts_request.flags field:
+ */
 #define PTP_ENABLE_FEATURE (1<<0)
 #define PTP_RISING_EDGE    (1<<1)
 #define PTP_FALLING_EDGE   (1<<2)
+
+/*
+ * flag fields valid for the new PTP_EXTTS_REQUEST2 ioctl.
+ */
+#define PTP_EXTTS_VALID_FLAGS	(PTP_ENABLE_FEATURE |	\
+				 PTP_RISING_EDGE |	\
+				 PTP_FALLING_EDGE)
+
+/*
+ * flag fields valid for the original PTP_EXTTS_REQUEST ioctl.
+ * DO NOT ADD NEW FLAGS HERE.
+ */
+#define PTP_EXTTS_V1_VALID_FLAGS	(PTP_ENABLE_FEATURE |	\
+					 PTP_RISING_EDGE |	\
+					 PTP_FALLING_EDGE)
+
+/*
+ * Bits of the ptp_perout_request.flags field:
+ */
+#define PTP_PEROUT_ONE_SHOT (1<<0)
+
+/*
+ * flag fields valid for the new PTP_PEROUT_REQUEST2 ioctl.
+ */
+#define PTP_PEROUT_VALID_FLAGS	(PTP_PEROUT_ONE_SHOT)
+
+/*
+ * No flags are valid for the original PTP_PEROUT_REQUEST ioctl
+ */
+#define PTP_PEROUT_V1_VALID_FLAGS	(0)
 
 /*
  * struct ptp_clock_time - represents a time value
@@ -67,7 +99,7 @@ struct ptp_perout_request {
 	struct ptp_clock_time start;  /* Absolute start time. */
 	struct ptp_clock_time period; /* Desired period, zero means disable. */
 	unsigned int index;           /* Which channel to configure. */
-	unsigned int flags;           /* Reserved for future use. */
+	unsigned int flags;
 	unsigned int rsv[4];          /* Reserved for future use. */
 };
 
@@ -148,6 +180,18 @@ struct ptp_pin_desc {
 	_IOWR(PTP_CLK_MAGIC, 8, struct ptp_sys_offset_precise)
 #define PTP_SYS_OFFSET_EXTENDED \
 	_IOWR(PTP_CLK_MAGIC, 9, struct ptp_sys_offset_extended)
+
+#define PTP_CLOCK_GETCAPS2  _IOR(PTP_CLK_MAGIC, 10, struct ptp_clock_caps)
+#define PTP_EXTTS_REQUEST2  _IOW(PTP_CLK_MAGIC, 11, struct ptp_extts_request)
+#define PTP_PEROUT_REQUEST2 _IOW(PTP_CLK_MAGIC, 12, struct ptp_perout_request)
+#define PTP_ENABLE_PPS2     _IOW(PTP_CLK_MAGIC, 13, int)
+#define PTP_SYS_OFFSET2     _IOW(PTP_CLK_MAGIC, 14, struct ptp_sys_offset)
+#define PTP_PIN_GETFUNC2    _IOWR(PTP_CLK_MAGIC, 15, struct ptp_pin_desc)
+#define PTP_PIN_SETFUNC2    _IOW(PTP_CLK_MAGIC, 16, struct ptp_pin_desc)
+#define PTP_SYS_OFFSET_PRECISE2 \
+	_IOWR(PTP_CLK_MAGIC, 17, struct ptp_sys_offset_precise)
+#define PTP_SYS_OFFSET_EXTENDED2 \
+	_IOWR(PTP_CLK_MAGIC, 18, struct ptp_sys_offset_extended)
 
 struct ptp_extts_event {
 	struct ptp_clock_time t; /* Time event occured. */

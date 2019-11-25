@@ -446,8 +446,7 @@ static int mms114_probe(struct i2c_client *client,
 	data->client = client;
 	data->input_dev = input_dev;
 
-	/* FIXME: switch to device_get_match_data() when available */
-	match_data = of_device_get_match_data(&client->dev);
+	match_data = device_get_match_data(&client->dev);
 	if (!match_data)
 		return -EINVAL;
 

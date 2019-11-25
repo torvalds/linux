@@ -2255,14 +2255,6 @@
 			renesas,fcp = <&fcpvb0>;
 		};
 
-		fcpvb0: fcp@fe96f000 {
-			compatible = "renesas,fcpv";
-			reg = <0 0xfe96f000 0 0x200>;
-			clocks = <&cpg CPG_MOD 607>;
-			power-domains = <&sysc R8A77965_PD_A3VP>;
-			resets = <&cpg 607>;
-		};
-
 		vspi0: vsp@fe9a0000 {
 			compatible = "renesas,vsp2";
 			reg = <0 0xfe9a0000 0 0x8000>;
@@ -2272,14 +2264,6 @@
 			resets = <&cpg 631>;
 
 			renesas,fcp = <&fcpvi0>;
-		};
-
-		fcpvi0: fcp@fe9af000 {
-			compatible = "renesas,fcpv";
-			reg = <0 0xfe9af000 0 0x200>;
-			clocks = <&cpg CPG_MOD 611>;
-			power-domains = <&sysc R8A77965_PD_A3VP>;
-			resets = <&cpg 611>;
 		};
 
 		vspd0: vsp@fea20000 {
@@ -2293,14 +2277,6 @@
 			renesas,fcp = <&fcpvd0>;
 		};
 
-		fcpvd0: fcp@fea27000 {
-			compatible = "renesas,fcpv";
-			reg = <0 0xfea27000 0 0x200>;
-			clocks = <&cpg CPG_MOD 603>;
-			power-domains = <&sysc R8A77965_PD_ALWAYS_ON>;
-			resets = <&cpg 603>;
-		};
-
 		vspd1: vsp@fea28000 {
 			compatible = "renesas,vsp2";
 			reg = <0 0xfea28000 0 0x5000>;
@@ -2312,12 +2288,36 @@
 			renesas,fcp = <&fcpvd1>;
 		};
 
+		fcpvb0: fcp@fe96f000 {
+			compatible = "renesas,fcpv";
+			reg = <0 0xfe96f000 0 0x200>;
+			clocks = <&cpg CPG_MOD 607>;
+			power-domains = <&sysc R8A77965_PD_A3VP>;
+			resets = <&cpg 607>;
+		};
+
+		fcpvd0: fcp@fea27000 {
+			compatible = "renesas,fcpv";
+			reg = <0 0xfea27000 0 0x200>;
+			clocks = <&cpg CPG_MOD 603>;
+			power-domains = <&sysc R8A77965_PD_ALWAYS_ON>;
+			resets = <&cpg 603>;
+		};
+
 		fcpvd1: fcp@fea2f000 {
 			compatible = "renesas,fcpv";
 			reg = <0 0xfea2f000 0 0x200>;
 			clocks = <&cpg CPG_MOD 602>;
 			power-domains = <&sysc R8A77965_PD_ALWAYS_ON>;
 			resets = <&cpg 602>;
+		};
+
+		fcpvi0: fcp@fe9af000 {
+			compatible = "renesas,fcpv";
+			reg = <0 0xfe9af000 0 0x200>;
+			clocks = <&cpg CPG_MOD 611>;
+			power-domains = <&sysc R8A77965_PD_A3VP>;
+			resets = <&cpg 611>;
 		};
 
 		csi20: csi2@fea80000 {
@@ -2469,7 +2469,7 @@
 			clock-names = "du.0", "du.1", "du.3";
 			status = "disabled";
 
-			vsps = <&vspd0 0 &vspd1 0 &vspd0 1>;
+			vsps = <&vspd0 0>, <&vspd1 0>, <&vspd0 1>;
 
 			ports {
 				#address-cells = <1>;

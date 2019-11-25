@@ -122,11 +122,12 @@ void mlx5_query_min_inline(struct mlx5_core_dev *mdev,
 			   u8 *min_inline_mode)
 {
 	switch (MLX5_CAP_ETH(mdev, wqe_inline_mode)) {
+	case MLX5_CAP_INLINE_MODE_VPORT_CONTEXT:
+		if (!mlx5_query_nic_vport_min_inline(mdev, 0, min_inline_mode))
+			break;
+		/* fall through */
 	case MLX5_CAP_INLINE_MODE_L2:
 		*min_inline_mode = MLX5_INLINE_MODE_L2;
-		break;
-	case MLX5_CAP_INLINE_MODE_VPORT_CONTEXT:
-		mlx5_query_nic_vport_min_inline(mdev, 0, min_inline_mode);
 		break;
 	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
 		*min_inline_mode = MLX5_INLINE_MODE_NONE;

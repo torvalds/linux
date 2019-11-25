@@ -736,7 +736,7 @@ static int __init coretemp_init(void)
 
 	err = platform_driver_register(&coretemp_driver);
 	if (err)
-		return err;
+		goto outzone;
 
 	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "hwmon/coretemp:online",
 				coretemp_cpu_online, coretemp_cpu_offline);
@@ -747,6 +747,7 @@ static int __init coretemp_init(void)
 
 outdrv:
 	platform_driver_unregister(&coretemp_driver);
+outzone:
 	kfree(zone_devices);
 	return err;
 }

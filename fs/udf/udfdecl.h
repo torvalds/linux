@@ -31,16 +31,8 @@ extern __printf(3, 4) void _udf_warn(struct super_block *sb,
 #define udf_info(fmt, ...)					\
 	pr_info("INFO " fmt, ##__VA_ARGS__)
 
-#undef UDFFS_DEBUG
-
-#ifdef UDFFS_DEBUG
 #define udf_debug(fmt, ...)					\
-	printk(KERN_DEBUG pr_fmt("%s:%d:%s: " fmt),		\
-	       __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-#else
-#define udf_debug(fmt, ...)					\
-	no_printk(fmt, ##__VA_ARGS__)
-#endif
+	pr_debug("%s:%d:%s: " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
 #define udf_fixed_to_variable(x) ( ( ( (x) >> 5 ) * 39 ) + ( (x) & 0x0000001F ) )
 #define udf_variable_to_fixed(x) ( ( ( (x) / 39 ) << 5 ) + ( (x) % 39 ) )
@@ -178,6 +170,7 @@ extern int8_t udf_next_aext(struct inode *, struct extent_position *,
 			    struct kernel_lb_addr *, uint32_t *, int);
 extern int8_t udf_current_aext(struct inode *, struct extent_position *,
 			       struct kernel_lb_addr *, uint32_t *, int);
+extern void udf_update_extra_perms(struct inode *inode, umode_t mode);
 
 /* misc.c */
 extern struct buffer_head *udf_tgetblk(struct super_block *sb,

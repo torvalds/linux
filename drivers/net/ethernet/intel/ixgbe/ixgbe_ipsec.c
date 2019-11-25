@@ -960,11 +960,9 @@ int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 	return 0;
 
 err_aead:
-	memset(xs->aead, 0, sizeof(*xs->aead));
-	kfree(xs->aead);
+	kzfree(xs->aead);
 err_xs:
-	memset(xs, 0, sizeof(*xs));
-	kfree(xs);
+	kzfree(xs);
 err_out:
 	msgbuf[1] = err;
 	return err;
@@ -1049,8 +1047,7 @@ int ixgbe_ipsec_vf_del_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 	ixgbe_ipsec_del_sa(xs);
 
 	/* remove the xs that was made-up in the add request */
-	memset(xs, 0, sizeof(*xs));
-	kfree(xs);
+	kzfree(xs);
 
 	return 0;
 }

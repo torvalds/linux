@@ -4413,7 +4413,7 @@ static void ipw2100_kill_works(struct ipw2100_priv *priv)
 
 static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
 {
-	int i, j, err = -EINVAL;
+	int i, j, err;
 	void *v;
 	dma_addr_t p;
 

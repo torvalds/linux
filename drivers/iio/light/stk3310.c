@@ -679,9 +679,18 @@ static const struct acpi_device_id stk3310_acpi_id[] = {
 
 MODULE_DEVICE_TABLE(acpi, stk3310_acpi_id);
 
+static const struct of_device_id stk3310_of_match[] = {
+	{ .compatible = "sensortek,stk3310", },
+	{ .compatible = "sensortek,stk3311", },
+	{ .compatible = "sensortek,stk3335", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, stk3310_of_match);
+
 static struct i2c_driver stk3310_driver = {
 	.driver = {
 		.name = "stk3310",
+		.of_match_table = stk3310_of_match,
 		.pm = STK3310_PM_OPS,
 		.acpi_match_table = ACPI_PTR(stk3310_acpi_id),
 	},

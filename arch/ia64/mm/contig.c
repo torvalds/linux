@@ -108,7 +108,6 @@ setup_per_cpu_areas(void)
 	struct pcpu_group_info *gi;
 	unsigned int cpu;
 	ssize_t static_size, reserved_size, dyn_size;
-	int rc;
 
 	ai = pcpu_alloc_alloc_info(1, num_possible_cpus());
 	if (!ai)
@@ -134,10 +133,7 @@ setup_per_cpu_areas(void)
 	ai->atom_size		= PAGE_SIZE;
 	ai->alloc_size		= PERCPU_PAGE_SIZE;
 
-	rc = pcpu_setup_first_chunk(ai, __per_cpu_start + __per_cpu_offset[0]);
-	if (rc)
-		panic("failed to setup percpu area (err=%d)", rc);
-
+	pcpu_setup_first_chunk(ai, __per_cpu_start + __per_cpu_offset[0]);
 	pcpu_free_alloc_info(ai);
 }
 #else

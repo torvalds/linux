@@ -305,8 +305,6 @@ void dpaa2_io_service_deregister(struct dpaa2_io *service,
 	list_del(&ctx->node);
 	spin_unlock_irqrestore(&d->lock_notifications, irqflags);
 
-	if (dev)
-		device_link_remove(dev, d->dev);
 }
 EXPORT_SYMBOL_GPL(dpaa2_io_service_deregister);
 

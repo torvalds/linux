@@ -32,17 +32,6 @@ Their connections are modeled using the OF graph bindings specified in
 - video port 0 for the VOP input, the remote endpoint maybe vopb or vopl
 - video port 1 for either a panel or subsequent encoder
 
-the lvds panel described by
-	Documentation/devicetree/bindings/display/panel/simple-panel.txt
-
-Panel required properties:
-- ports for remote LVDS output
-
-Panel optional properties:
-- data-mapping: should be "vesa-24","jeida-24" or "jeida-18".
-This describes decribed by:
-	Documentation/devicetree/bindings/display/panel/panel-lvds.txt
-
 Example:
 
 lvds_panel: lvds-panel {

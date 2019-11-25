@@ -169,6 +169,14 @@ typedef struct xfs_bmbt_irec
 	xfs_exntst_t	br_state;	/* extent state */
 } xfs_bmbt_irec_t;
 
+/* per-AG block reservation types */
+enum xfs_ag_resv_type {
+	XFS_AG_RESV_NONE = 0,
+	XFS_AG_RESV_AGFL,
+	XFS_AG_RESV_METADATA,
+	XFS_AG_RESV_RMAPBT,
+};
+
 /*
  * Type verifier functions
  */

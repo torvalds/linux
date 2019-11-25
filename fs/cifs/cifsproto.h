@@ -137,7 +137,11 @@ extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *, bool);
 extern int cifs_get_writable_file(struct cifsInodeInfo *cifs_inode,
 				  bool fsuid_only,
 				  struct cifsFileInfo **ret_file);
+extern int cifs_get_writable_path(struct cifs_tcon *tcon, const char *name,
+				  struct cifsFileInfo **ret_file);
 extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *, bool);
+extern int cifs_get_readable_path(struct cifs_tcon *tcon, const char *name,
+				  struct cifsFileInfo **ret_file);
 extern unsigned int smbCalcSize(void *buf, struct TCP_Server_Info *server);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
 			struct TCP_Server_Info *server);
@@ -166,6 +170,7 @@ extern int cifs_unlock_range(struct cifsFileInfo *cfile,
 			     struct file_lock *flock, const unsigned int xid);
 extern int cifs_push_mandatory_locks(struct cifsFileInfo *cfile);
 
+extern void cifs_down_write(struct rw_semaphore *sem);
 extern struct cifsFileInfo *cifs_new_fileinfo(struct cifs_fid *fid,
 					      struct file *file,
 					      struct tcon_link *tlink,
@@ -197,6 +202,7 @@ extern int cifs_rename_pending_delete(const char *full_path,
 				      const unsigned int xid);
 extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
+			      bool get_mode_from_special_sid,
 			      const char *path, const struct cifs_fid *pfid);
 extern int id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64,
 					kuid_t, kgid_t);
@@ -367,7 +373,8 @@ extern int CIFSSMBUnixSetPathInfo(const unsigned int xid,
 				  const struct nls_table *nls_codepage,
 				  int remap);
 
-extern int CIFSSMBMkDir(const unsigned int xid, struct cifs_tcon *tcon,
+extern int CIFSSMBMkDir(const unsigned int xid, struct inode *inode,
+			umode_t mode, struct cifs_tcon *tcon,
 			const char *name, struct cifs_sb_info *cifs_sb);
 extern int CIFSSMBRmDir(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *name, struct cifs_sb_info *cifs_sb);
@@ -579,6 +586,7 @@ extern void rqst_page_get_length(struct smb_rqst *rqst, unsigned int page,
 				unsigned int *len, unsigned int *offset);
 
 void extract_unc_hostname(const char *unc, const char **h, size_t *len);
+int copy_path_name(char *dst, const char *src);
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,

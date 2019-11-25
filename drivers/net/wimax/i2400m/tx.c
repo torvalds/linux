@@ -654,8 +654,7 @@ void i2400m_tx_close(struct i2400m *i2400m)
 	padding = aligned_size - tx_msg_moved->size;
 	if (padding > 0) {
 		pad_buf = i2400m_tx_fifo_push(i2400m, padding, 0, 0);
-		if (unlikely(WARN_ON(pad_buf == NULL
-				     || pad_buf == TAIL_FULL))) {
+		if (WARN_ON(pad_buf == NULL || pad_buf == TAIL_FULL)) {
 			/* This should not happen -- append should verify
 			 * there is always space left at least to append
 			 * tx_block_size */

@@ -8,11 +8,14 @@
 #include <linux/kfifo.h>
 #include <linux/io.h>
 #include <linux/workqueue.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_mm.h>
 
 struct armada_crtc;
 struct armada_gem_object;
 struct clk;
+struct drm_display_mode;
 struct drm_fb_helper;
 
 static inline void

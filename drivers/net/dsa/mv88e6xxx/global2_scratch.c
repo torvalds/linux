@@ -37,7 +37,8 @@ static int mv88e6xxx_g2_scratch_write(struct mv88e6xxx_chip *chip, int reg,
 {
 	u16 value = (reg << 8) | data;
 
-	return mv88e6xxx_g2_update(chip, MV88E6XXX_G2_SCRATCH_MISC_MISC, value);
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_SCRATCH_MISC_MISC,
+				  MV88E6XXX_G2_SCRATCH_MISC_UPDATE | value);
 }
 
 /**

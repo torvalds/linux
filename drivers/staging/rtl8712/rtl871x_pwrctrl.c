@@ -184,19 +184,19 @@ void r8712_init_pwrctrl_priv(struct _adapter *padapter)
  * will raise the cpwm to be greater than or equal to P2.
  * Calling Context: Passive
  * Return Value:
- * _SUCCESS: r8712_cmd_thread can issue cmds to firmware afterwards.
- * _FAIL: r8712_cmd_thread can not do anything.
+ * 0:	    r8712_cmd_thread can issue cmds to firmware afterwards.
+ * -EINVAL: r8712_cmd_thread can not do anything.
  */
-sint r8712_register_cmd_alive(struct _adapter *padapter)
+int r8712_register_cmd_alive(struct _adapter *padapter)
 {
-	uint res = _SUCCESS;
+	int res = 0;
 	struct pwrctrl_priv *pwrctrl = &padapter->pwrctrlpriv;
 
 	mutex_lock(&pwrctrl->mutex_lock);
 	register_task_alive(pwrctrl, CMD_ALIVE);
 	if (pwrctrl->cpwm < PS_STATE_S2) {
 		r8712_set_rpwm(padapter, PS_STATE_S3);
-		res = _FAIL;
+		res = -EINVAL;
 	}
 	mutex_unlock(&pwrctrl->mutex_lock);
 	return res;

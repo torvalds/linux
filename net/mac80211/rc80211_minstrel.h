@@ -95,6 +95,7 @@ struct minstrel_sta_info {
 struct minstrel_priv {
 	struct ieee80211_hw *hw;
 	bool has_mrr;
+	u32 sample_switch;
 	unsigned int cw_min;
 	unsigned int cw_max;
 	unsigned int max_retry;

@@ -202,63 +202,62 @@ static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port;
+	enum phy phy;
 	u32 tmp;
 	int lane;
 
-	for_each_dsi_port(port, intel_dsi->ports) {
-
+	for_each_dsi_phy(phy, intel_dsi->phys) {
 		/*
 		 * Program voltage swing and pre-emphasis level values as per
 		 * table in BSPEC under DDI buffer programing
 		 */
-		tmp = I915_READ(ICL_PORT_TX_DW5_LN0(port));
+		tmp = I915_READ(ICL_PORT_TX_DW5_LN0(phy));
 		tmp &= ~(SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK);
 		tmp |= SCALING_MODE_SEL(0x2);
 		tmp |= TAP2_DISABLE | TAP3_DISABLE;
 		tmp |= RTERM_SELECT(0x6);
-		I915_WRITE(ICL_PORT_TX_DW5_GRP(port), tmp);
+		I915_WRITE(ICL_PORT_TX_DW5_GRP(phy), tmp);
 
-		tmp = I915_READ(ICL_PORT_TX_DW5_AUX(port));
+		tmp = I915_READ(ICL_PORT_TX_DW5_AUX(phy));
 		tmp &= ~(SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK);
 		tmp |= SCALING_MODE_SEL(0x2);
 		tmp |= TAP2_DISABLE | TAP3_DISABLE;
 		tmp |= RTERM_SELECT(0x6);
-		I915_WRITE(ICL_PORT_TX_DW5_AUX(port), tmp);
+		I915_WRITE(ICL_PORT_TX_DW5_AUX(phy), tmp);
 
-		tmp = I915_READ(ICL_PORT_TX_DW2_LN0(port));
+		tmp = I915_READ(ICL_PORT_TX_DW2_LN0(phy));
 		tmp &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
 			 RCOMP_SCALAR_MASK);
 		tmp |= SWING_SEL_UPPER(0x2);
 		tmp |= SWING_SEL_LOWER(0x2);
 		tmp |= RCOMP_SCALAR(0x98);
-		I915_WRITE(ICL_PORT_TX_DW2_GRP(port), tmp);
+		I915_WRITE(ICL_PORT_TX_DW2_GRP(phy), tmp);
 
-		tmp = I915_READ(ICL_PORT_TX_DW2_AUX(port));
+		tmp = I915_READ(ICL_PORT_TX_DW2_AUX(phy));
 		tmp &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
 			 RCOMP_SCALAR_MASK);
 		tmp |= SWING_SEL_UPPER(0x2);
 		tmp |= SWING_SEL_LOWER(0x2);
 		tmp |= RCOMP_SCALAR(0x98);
-		I915_WRITE(ICL_PORT_TX_DW2_AUX(port), tmp);
+		I915_WRITE(ICL_PORT_TX_DW2_AUX(phy), tmp);
 
-		tmp = I915_READ(ICL_PORT_TX_DW4_AUX(port));
+		tmp = I915_READ(ICL_PORT_TX_DW4_AUX(phy));
 		tmp &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 			 CURSOR_COEFF_MASK);
 		tmp |= POST_CURSOR_1(0x0);
 		tmp |= POST_CURSOR_2(0x0);
 		tmp |= CURSOR_COEFF(0x3f);
-		I915_WRITE(ICL_PORT_TX_DW4_AUX(port), tmp);
+		I915_WRITE(ICL_PORT_TX_DW4_AUX(phy), tmp);
 
 		for (lane = 0; lane <= 3; lane++) {
 			/* Bspec: must not use GRP register for write */
-			tmp = I915_READ(ICL_PORT_TX_DW4_LN(lane, port));
+			tmp = I915_READ(ICL_PORT_TX_DW4_LN(lane, phy));
 			tmp &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 				 CURSOR_COEFF_MASK);
 			tmp |= POST_CURSOR_1(0x0);
 			tmp |= POST_CURSOR_2(0x0);
 			tmp |= CURSOR_COEFF(0x3f);
-			I915_WRITE(ICL_PORT_TX_DW4_LN(lane, port), tmp);
+			I915_WRITE(ICL_PORT_TX_DW4_LN(lane, phy), tmp);
 		}
 	}
 }
@@ -364,10 +363,10 @@ static void gen11_dsi_power_up_lanes(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port;
+	enum phy phy;
 
-	for_each_dsi_port(port, intel_dsi->ports)
-		intel_combo_phy_power_up_lanes(dev_priv, port, true,
+	for_each_dsi_phy(phy, intel_dsi->phys)
+		intel_combo_phy_power_up_lanes(dev_priv, phy, true,
 					       intel_dsi->lane_count, false);
 }
 
@@ -375,34 +374,47 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port;
+	enum phy phy;
 	u32 tmp;
 	int lane;
 
 	/* Step 4b(i) set loadgen select for transmit and aux lanes */
-	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp = I915_READ(ICL_PORT_TX_DW4_AUX(port));
+	for_each_dsi_phy(phy, intel_dsi->phys) {
+		tmp = I915_READ(ICL_PORT_TX_DW4_AUX(phy));
 		tmp &= ~LOADGEN_SELECT;
-		I915_WRITE(ICL_PORT_TX_DW4_AUX(port), tmp);
+		I915_WRITE(ICL_PORT_TX_DW4_AUX(phy), tmp);
 		for (lane = 0; lane <= 3; lane++) {
-			tmp = I915_READ(ICL_PORT_TX_DW4_LN(lane, port));
+			tmp = I915_READ(ICL_PORT_TX_DW4_LN(lane, phy));
 			tmp &= ~LOADGEN_SELECT;
 			if (lane != 2)
 				tmp |= LOADGEN_SELECT;
-			I915_WRITE(ICL_PORT_TX_DW4_LN(lane, port), tmp);
+			I915_WRITE(ICL_PORT_TX_DW4_LN(lane, phy), tmp);
 		}
 	}
 
 	/* Step 4b(ii) set latency optimization for transmit and aux lanes */
-	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp = I915_READ(ICL_PORT_TX_DW2_AUX(port));
+	for_each_dsi_phy(phy, intel_dsi->phys) {
+		tmp = I915_READ(ICL_PORT_TX_DW2_AUX(phy));
 		tmp &= ~FRC_LATENCY_OPTIM_MASK;
 		tmp |= FRC_LATENCY_OPTIM_VAL(0x5);
-		I915_WRITE(ICL_PORT_TX_DW2_AUX(port), tmp);
-		tmp = I915_READ(ICL_PORT_TX_DW2_LN0(port));
+		I915_WRITE(ICL_PORT_TX_DW2_AUX(phy), tmp);
+		tmp = I915_READ(ICL_PORT_TX_DW2_LN0(phy));
 		tmp &= ~FRC_LATENCY_OPTIM_MASK;
 		tmp |= FRC_LATENCY_OPTIM_VAL(0x5);
-		I915_WRITE(ICL_PORT_TX_DW2_GRP(port), tmp);
+		I915_WRITE(ICL_PORT_TX_DW2_GRP(phy), tmp);
+
+		/* For EHL, TGL, set latency optimization for PCS_DW1 lanes */
+		if (IS_ELKHARTLAKE(dev_priv) || (INTEL_GEN(dev_priv) >= 12)) {
+			tmp = I915_READ(ICL_PORT_PCS_DW1_AUX(phy));
+			tmp &= ~LATENCY_OPTIM_MASK;
+			tmp |= LATENCY_OPTIM_VAL(0);
+			I915_WRITE(ICL_PORT_PCS_DW1_AUX(phy), tmp);
+
+			tmp = I915_READ(ICL_PORT_PCS_DW1_LN0(phy));
+			tmp &= ~LATENCY_OPTIM_MASK;
+			tmp |= LATENCY_OPTIM_VAL(0x1);
+			I915_WRITE(ICL_PORT_PCS_DW1_GRP(phy), tmp);
+		}
 	}
 
 }
@@ -412,16 +424,16 @@ static void gen11_dsi_voltage_swing_program_seq(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	u32 tmp;
-	enum port port;
+	enum phy phy;
 
 	/* clear common keeper enable bit */
-	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp = I915_READ(ICL_PORT_PCS_DW1_LN0(port));
+	for_each_dsi_phy(phy, intel_dsi->phys) {
+		tmp = I915_READ(ICL_PORT_PCS_DW1_LN0(phy));
 		tmp &= ~COMMON_KEEPER_EN;
-		I915_WRITE(ICL_PORT_PCS_DW1_GRP(port), tmp);
-		tmp = I915_READ(ICL_PORT_PCS_DW1_AUX(port));
+		I915_WRITE(ICL_PORT_PCS_DW1_GRP(phy), tmp);
+		tmp = I915_READ(ICL_PORT_PCS_DW1_AUX(phy));
 		tmp &= ~COMMON_KEEPER_EN;
-		I915_WRITE(ICL_PORT_PCS_DW1_AUX(port), tmp);
+		I915_WRITE(ICL_PORT_PCS_DW1_AUX(phy), tmp);
 	}
 
 	/*
@@ -429,33 +441,33 @@ static void gen11_dsi_voltage_swing_program_seq(struct intel_encoder *encoder)
 	 * Note: loadgen select program is done
 	 * as part of lane phy sequence configuration
 	 */
-	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp = I915_READ(ICL_PORT_CL_DW5(port));
+	for_each_dsi_phy(phy, intel_dsi->phys) {
+		tmp = I915_READ(ICL_PORT_CL_DW5(phy));
 		tmp |= SUS_CLOCK_CONFIG;
-		I915_WRITE(ICL_PORT_CL_DW5(port), tmp);
+		I915_WRITE(ICL_PORT_CL_DW5(phy), tmp);
 	}
 
 	/* Clear training enable to change swing values */
-	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp = I915_READ(ICL_PORT_TX_DW5_LN0(port));
+	for_each_dsi_phy(phy, intel_dsi->phys) {
+		tmp = I915_READ(ICL_PORT_TX_DW5_LN0(phy));
 		tmp &= ~TX_TRAINING_EN;
-		I915_WRITE(ICL_PORT_TX_DW5_GRP(port), tmp);
-		tmp = I915_READ(ICL_PORT_TX_DW5_AUX(port));
+		I915_WRITE(ICL_PORT_TX_DW5_GRP(phy), tmp);
+		tmp = I915_READ(ICL_PORT_TX_DW5_AUX(phy));
 		tmp &= ~TX_TRAINING_EN;
-		I915_WRITE(ICL_PORT_TX_DW5_AUX(port), tmp);
+		I915_WRITE(ICL_PORT_TX_DW5_AUX(phy), tmp);
 	}
 
 	/* Program swing and de-emphasis */
 	dsi_program_swing_and_deemphasis(encoder);
 
 	/* Set training enable to trigger update */
-	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp = I915_READ(ICL_PORT_TX_DW5_LN0(port));
+	for_each_dsi_phy(phy, intel_dsi->phys) {
+		tmp = I915_READ(ICL_PORT_TX_DW5_LN0(phy));
 		tmp |= TX_TRAINING_EN;
-		I915_WRITE(ICL_PORT_TX_DW5_GRP(port), tmp);
-		tmp = I915_READ(ICL_PORT_TX_DW5_AUX(port));
+		I915_WRITE(ICL_PORT_TX_DW5_GRP(phy), tmp);
+		tmp = I915_READ(ICL_PORT_TX_DW5_AUX(phy));
 		tmp |= TX_TRAINING_EN;
-		I915_WRITE(ICL_PORT_TX_DW5_AUX(port), tmp);
+		I915_WRITE(ICL_PORT_TX_DW5_AUX(phy), tmp);
 	}
 }
 
@@ -484,6 +496,7 @@ static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	u32 tmp;
 	enum port port;
+	enum phy phy;
 
 	/* Program T-INIT master registers */
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -517,18 +530,28 @@ static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
 	 * a value '0' inside TA_PARAM_REGISTERS otherwise
 	 * leave all fields at HW default values.
 	 */
-	if (intel_dsi_bitrate(intel_dsi) <= 800000) {
-		for_each_dsi_port(port, intel_dsi->ports) {
-			tmp = I915_READ(DPHY_TA_TIMING_PARAM(port));
-			tmp &= ~TA_SURE_MASK;
-			tmp |= TA_SURE_OVERRIDE | TA_SURE(0);
-			I915_WRITE(DPHY_TA_TIMING_PARAM(port), tmp);
+	if (IS_GEN(dev_priv, 11)) {
+		if (intel_dsi_bitrate(intel_dsi) <= 800000) {
+			for_each_dsi_port(port, intel_dsi->ports) {
+				tmp = I915_READ(DPHY_TA_TIMING_PARAM(port));
+				tmp &= ~TA_SURE_MASK;
+				tmp |= TA_SURE_OVERRIDE | TA_SURE(0);
+				I915_WRITE(DPHY_TA_TIMING_PARAM(port), tmp);
 
-			/* shadow register inside display core */
-			tmp = I915_READ(DSI_TA_TIMING_PARAM(port));
-			tmp &= ~TA_SURE_MASK;
-			tmp |= TA_SURE_OVERRIDE | TA_SURE(0);
-			I915_WRITE(DSI_TA_TIMING_PARAM(port), tmp);
+				/* shadow register inside display core */
+				tmp = I915_READ(DSI_TA_TIMING_PARAM(port));
+				tmp &= ~TA_SURE_MASK;
+				tmp |= TA_SURE_OVERRIDE | TA_SURE(0);
+				I915_WRITE(DSI_TA_TIMING_PARAM(port), tmp);
+			}
+		}
+	}
+
+	if (IS_ELKHARTLAKE(dev_priv)) {
+		for_each_dsi_phy(phy, intel_dsi->phys) {
+			tmp = I915_READ(ICL_DPHY_CHKN(phy));
+			tmp |= ICL_DPHY_CHKN_AFE_OVER_PPI_STRAP;
+			I915_WRITE(ICL_DPHY_CHKN(phy), tmp);
 		}
 	}
 }
@@ -538,15 +561,14 @@ static void gen11_dsi_gate_clocks(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	u32 tmp;
-	enum port port;
+	enum phy phy;
 
 	mutex_lock(&dev_priv->dpll_lock);
-	tmp = I915_READ(DPCLKA_CFGCR0_ICL);
-	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp |= DPCLKA_CFGCR0_DDI_CLK_OFF(port);
-	}
+	tmp = I915_READ(ICL_DPCLKA_CFGCR0);
+	for_each_dsi_phy(phy, intel_dsi->phys)
+		tmp |= ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 
-	I915_WRITE(DPCLKA_CFGCR0_ICL, tmp);
+	I915_WRITE(ICL_DPCLKA_CFGCR0, tmp);
 	mutex_unlock(&dev_priv->dpll_lock);
 }
 
@@ -555,15 +577,14 @@ static void gen11_dsi_ungate_clocks(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	u32 tmp;
-	enum port port;
+	enum phy phy;
 
 	mutex_lock(&dev_priv->dpll_lock);
-	tmp = I915_READ(DPCLKA_CFGCR0_ICL);
-	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp &= ~DPCLKA_CFGCR0_DDI_CLK_OFF(port);
-	}
+	tmp = I915_READ(ICL_DPCLKA_CFGCR0);
+	for_each_dsi_phy(phy, intel_dsi->phys)
+		tmp &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 
-	I915_WRITE(DPCLKA_CFGCR0_ICL, tmp);
+	I915_WRITE(ICL_DPCLKA_CFGCR0, tmp);
 	mutex_unlock(&dev_priv->dpll_lock);
 }
 
@@ -573,24 +594,27 @@ static void gen11_dsi_map_pll(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
-	enum port port;
+	enum phy phy;
 	u32 val;
 
 	mutex_lock(&dev_priv->dpll_lock);
 
-	val = I915_READ(DPCLKA_CFGCR0_ICL);
-	for_each_dsi_port(port, intel_dsi->ports) {
-		val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
-		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port);
+	val = I915_READ(ICL_DPCLKA_CFGCR0);
+	for_each_dsi_phy(phy, intel_dsi->phys) {
+		val &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
+		val |= ICL_DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, phy);
 	}
-	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+	I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 
-	for_each_dsi_port(port, intel_dsi->ports) {
-		val &= ~DPCLKA_CFGCR0_DDI_CLK_OFF(port);
+	for_each_dsi_phy(phy, intel_dsi->phys) {
+		if (INTEL_GEN(dev_priv) >= 12)
+			val |= ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
+		else
+			val &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 	}
-	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+	I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 
-	POSTING_READ(DPCLKA_CFGCR0_ICL);
+	POSTING_READ(ICL_DPCLKA_CFGCR0);
 
 	mutex_unlock(&dev_priv->dpll_lock);
 }
@@ -659,6 +683,11 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		case MIPI_DSI_FMT_RGB888:
 			tmp |= PIX_FMT_RGB888;
 			break;
+		}
+
+		if (INTEL_GEN(dev_priv) >= 12) {
+			if (is_vid_mode(intel_dsi))
+				tmp |= BLANKING_PACKET_ENABLE;
 		}
 
 		/* program DSI operation mode */
@@ -744,7 +773,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	enum transcoder dsi_trans;
 	/* horizontal timings */
 	u16 htotal, hactive, hsync_start, hsync_end, hsync_size;
-	u16 hfront_porch, hback_porch;
+	u16 hback_porch;
 	/* vertical timings */
 	u16 vtotal, vactive, vsync_start, vsync_end, vsync_shift;
 
@@ -753,8 +782,6 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	hsync_start = adjusted_mode->crtc_hsync_start;
 	hsync_end = adjusted_mode->crtc_hsync_end;
 	hsync_size  = hsync_end - hsync_start;
-	hfront_porch = (adjusted_mode->crtc_hsync_start -
-			adjusted_mode->crtc_hdisplay);
 	hback_porch = (adjusted_mode->crtc_htotal -
 		       adjusted_mode->crtc_hsync_end);
 	vactive = adjusted_mode->crtc_vdisplay;
@@ -845,6 +872,15 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 		I915_WRITE(VSYNCSHIFT(dsi_trans), vsync_shift);
 	}
+
+	/* program TRANS_VBLANK register, should be same as vtotal programmed */
+	if (INTEL_GEN(dev_priv) >= 12) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			dsi_trans = dsi_port_to_transcoder(port);
+			I915_WRITE(VBLANK(dsi_trans),
+				   (vactive - 1) | ((vtotal - 1) << 16));
+		}
+	}
 }
 
 static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
@@ -862,10 +898,8 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 		I915_WRITE(PIPECONF(dsi_trans), tmp);
 
 		/* wait for transcoder to be enabled */
-		if (intel_wait_for_register(&dev_priv->uncore,
-					    PIPECONF(dsi_trans),
-					    I965_PIPECONF_ACTIVE,
-					    I965_PIPECONF_ACTIVE, 10))
+		if (intel_de_wait_for_set(dev_priv, PIPECONF(dsi_trans),
+					  I965_PIPECONF_ACTIVE, 10))
 			DRM_ERROR("DSI transcoder not enabled\n");
 	}
 }
@@ -923,6 +957,8 @@ static void
 gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	/* step 4a: power up all lanes of the DDI used by DSI */
 	gen11_dsi_power_up_lanes(encoder);
 
@@ -945,7 +981,8 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 	gen11_dsi_configure_transcoder(encoder, pipe_config);
 
 	/* Step 4l: Gate DDI clocks */
-	gen11_dsi_gate_clocks(encoder);
+	if (IS_GEN(dev_priv, 11))
+		gen11_dsi_gate_clocks(encoder);
 }
 
 static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
@@ -1041,9 +1078,8 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 		I915_WRITE(PIPECONF(dsi_trans), tmp);
 
 		/* wait for transcoder to be disabled */
-		if (intel_wait_for_register(&dev_priv->uncore,
-					    PIPECONF(dsi_trans),
-					    I965_PIPECONF_ACTIVE, 0, 50))
+		if (intel_de_wait_for_clear(dev_priv, PIPECONF(dsi_trans),
+					    I965_PIPECONF_ACTIVE, 50))
 			DRM_ERROR("DSI trancoder not disabled\n");
 	}
 }
@@ -1487,6 +1523,26 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 	intel_dsi_log_params(intel_dsi);
 }
 
+static void icl_dsi_add_properties(struct intel_connector *connector)
+{
+	u32 allowed_scalers;
+
+	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) |
+			   BIT(DRM_MODE_SCALE_FULLSCREEN) |
+			   BIT(DRM_MODE_SCALE_CENTER);
+
+	drm_connector_attach_scaling_mode_property(&connector->base,
+						   allowed_scalers);
+
+	connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
+
+	connector->base.display_info.panel_orientation =
+			intel_dsi_get_panel_orientation(connector);
+	drm_connector_init_panel_orientation_property(&connector->base,
+				connector->panel.fixed_mode->hdisplay,
+				connector->panel.fixed_mode->vdisplay);
+}
+
 void icl_dsi_init(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
@@ -1580,6 +1636,8 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	icl_dphy_param_init(intel_dsi);
+
+	icl_dsi_add_properties(intel_connector);
 	return;
 
 err:

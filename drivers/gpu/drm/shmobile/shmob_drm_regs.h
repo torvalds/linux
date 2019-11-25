@@ -11,6 +11,9 @@
 #define __SHMOB_DRM_REGS_H__
 
 #include <linux/io.h>
+#include <linux/jiffies.h>
+
+#include "shmob_drm_drv.h"
 
 /* Register definitions */
 #define LDDCKPAT1R		0x400

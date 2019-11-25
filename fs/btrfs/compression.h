@@ -156,12 +156,9 @@ struct btrfs_compress_op {
 			  unsigned long start_byte,
 			  size_t srclen, size_t destlen);
 
-	/*
-	 * This bounds the level set by the user to be within range of a
-	 * particular compression type.  It returns the level that will be used
-	 * if the level is out of bounds or the default if 0 is passed in.
-	 */
-	unsigned int (*set_level)(unsigned int level);
+	/* Maximum level supported by the compression algorithm */
+	unsigned int max_level;
+	unsigned int default_level;
 };
 
 /* The heuristic workspaces are managed via the 0th workspace manager */
@@ -174,6 +171,8 @@ extern const struct btrfs_compress_op btrfs_zstd_compress;
 
 const char* btrfs_compress_type2str(enum btrfs_compression_type type);
 bool btrfs_compress_is_valid_type(const char *str, size_t len);
+
+unsigned int btrfs_compress_set_level(int type, unsigned level);
 
 int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
 

@@ -13,33 +13,10 @@ sector_t interval_end(struct rb_node *node)
 	return this->end;
 }
 
-/**
- * compute_subtree_last  -  compute end of @node
- *
- * The end of an interval is the highest (start + (size >> 9)) value of this
- * node and of its children.  Called for @node and its parents whenever the end
- * may have changed.
- */
-static inline sector_t
-compute_subtree_last(struct drbd_interval *node)
-{
-	sector_t max = node->sector + (node->size >> 9);
+#define NODE_END(node) ((node)->sector + ((node)->size >> 9))
 
-	if (node->rb.rb_left) {
-		sector_t left = interval_end(node->rb.rb_left);
-		if (left > max)
-			max = left;
-	}
-	if (node->rb.rb_right) {
-		sector_t right = interval_end(node->rb.rb_right);
-		if (right > max)
-			max = right;
-	}
-	return max;
-}
-
-RB_DECLARE_CALLBACKS(static, augment_callbacks, struct drbd_interval, rb,
-		     sector_t, end, compute_subtree_last);
+RB_DECLARE_CALLBACKS_MAX(static, augment_callbacks,
+			 struct drbd_interval, rb, sector_t, end, NODE_END);
 
 /**
  * drbd_insert_interval  -  insert a new interval into a tree

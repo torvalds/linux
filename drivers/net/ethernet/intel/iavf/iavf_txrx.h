@@ -462,7 +462,7 @@ bool __iavf_chk_linearize(struct sk_buff *skb);
  **/
 static inline int iavf_xmit_descriptor_count(struct sk_buff *skb)
 {
-	const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
+	const skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	int count = 0, size = skb_headlen(skb);
 

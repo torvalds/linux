@@ -28,8 +28,8 @@ u8 r8712_set_802_11_authentication_mode(struct _adapter *pdapter,
 
 u8 r8712_set_802_11_bssid(struct _adapter *padapter, u8 *bssid);
 
-u8 r8712_set_802_11_add_wep(struct _adapter *padapter,
-			    struct NDIS_802_11_WEP *wep);
+int r8712_set_802_11_add_wep(struct _adapter *padapter,
+			     struct NDIS_802_11_WEP *wep);
 
 u8 r8712_set_802_11_disassociate(struct _adapter *padapter);
 

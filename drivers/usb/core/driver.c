@@ -892,6 +892,7 @@ int usb_register_device_driver(struct usb_device_driver *new_udriver,
 	new_udriver->drvwrap.driver.probe = usb_probe_device;
 	new_udriver->drvwrap.driver.remove = usb_unbind_device;
 	new_udriver->drvwrap.driver.owner = owner;
+	new_udriver->drvwrap.driver.dev_groups = new_udriver->dev_groups;
 
 	retval = driver_register(&new_udriver->drvwrap.driver);
 
@@ -954,6 +955,7 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
 	new_driver->drvwrap.driver.remove = usb_unbind_interface;
 	new_driver->drvwrap.driver.owner = owner;
 	new_driver->drvwrap.driver.mod_name = mod_name;
+	new_driver->drvwrap.driver.dev_groups = new_driver->dev_groups;
 	spin_lock_init(&new_driver->dynids.lock);
 	INIT_LIST_HEAD(&new_driver->dynids.list);
 

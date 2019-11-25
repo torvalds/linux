@@ -5248,15 +5248,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	/* Default to 54g Auto */
 	/* Advertise and use shortslot (-1/0/1 Auto/Off/On) */
 	s8 shortslot = BRCMS_SHORTSLOT_AUTO;
-	bool shortslot_restrict = false; /* Restrict association to stations
-					  * that support shortslot
-					  */
 	bool ofdm_basic = false;	/* Make 6, 12, and 24 basic rates */
-	/* Advertise and use short preambles (-1/0/1 Auto/Off/On) */
-	int preamble = BRCMS_PLCP_LONG;
-	bool preamble_restrict = false;	/* Restrict association to stations
-					 * that support short preambles
-					 */
 	struct brcms_band *band;
 
 	/* if N-support is enabled, allow Gmode set as long as requested
@@ -5297,16 +5289,11 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 
 	case GMODE_ONLY:
 		ofdm_basic = true;
-		preamble = BRCMS_PLCP_SHORT;
-		preamble_restrict = true;
 		break;
 
 	case GMODE_PERFORMANCE:
 		shortslot = BRCMS_SHORTSLOT_ON;
-		shortslot_restrict = true;
 		ofdm_basic = true;
-		preamble = BRCMS_PLCP_SHORT;
-		preamble_restrict = true;
 		break;
 
 	default:

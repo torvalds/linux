@@ -12,7 +12,6 @@ config PPC_POWERNV
 	select EPAPR_BOOT
 	select PPC_INDIRECT_PIO
 	select PPC_UDBG_16550
-	select PPC_SCOM
 	select ARCH_RANDOM
 	select CPU_FREQ
 	select PPC_DOORBELL
@@ -47,3 +46,7 @@ config PPC_VAS
 	  VAS adapters are found in POWER9 based systems.
 
 	  If unsure, say N.
+
+config SCOM_DEBUGFS
+	bool "Expose SCOM controllers via debugfs"
+	depends on DEBUG_FS

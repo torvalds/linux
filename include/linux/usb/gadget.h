@@ -291,6 +291,9 @@ struct usb_dcd_config_params {
 #define USB_DEFAULT_U1_DEV_EXIT_LAT	0x01	/* Less then 1 microsec */
 	__le16 bU2DevExitLat;	/* U2 Device exit Latency */
 #define USB_DEFAULT_U2_DEV_EXIT_LAT	0x1F4	/* Less then 500 microsec */
+	__u8 besl_baseline;	/* Recommended baseline BESL (0-15) */
+	__u8 besl_deep;		/* Recommended deep BESL (0-15) */
+#define USB_DEFAULT_BESL_UNSPECIFIED	0xFF	/* No recommended value */
 };
 
 

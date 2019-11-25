@@ -161,9 +161,6 @@
 /* Blackfin bf5xx */
 #define PORT_BFIN	75
 
-/* Micrel KS8695 */
-#define PORT_KS8695	76
-
 /* Broadcom SB1250, etc. SOC */
 #define PORT_SB1250_DUART	77
 
@@ -289,5 +286,11 @@
 
 /* SiFive UART */
 #define PORT_SIFIVE_V0	120
+
+/* Sunix UART */
+#define PORT_SUNIX	121
+
+/* Freescale Linflex UART */
+#define PORT_LINFLEXUART	122
 
 #endif /* _UAPILINUX_SERIAL_CORE_H */

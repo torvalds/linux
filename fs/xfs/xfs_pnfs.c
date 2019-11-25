@@ -32,7 +32,7 @@ xfs_break_leased_layouts(
 	struct xfs_inode	*ip = XFS_I(inode);
 	int			error;
 
-	while ((error = break_layout(inode, false) == -EWOULDBLOCK)) {
+	while ((error = break_layout(inode, false)) == -EWOULDBLOCK) {
 		xfs_iunlock(ip, *iolock);
 		*did_unlock = true;
 		error = break_layout(inode, true);

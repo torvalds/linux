@@ -71,7 +71,7 @@ static bool offset_to_id(
 {
 	switch (offset) {
 	/* GENERIC */
-	case REG(DC_GENERICA):
+	case REG(DC_GPIO_GENERIC_A):
 		*id = GPIO_ID_GENERIC;
 		switch (mask) {
 		case DC_GPIO_GENERIC_A__DC_GPIO_GENERICA_A_MASK:

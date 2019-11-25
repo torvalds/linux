@@ -116,9 +116,6 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	if (!ctx->u.aes.key_len)
 		return -EINVAL;
 
-	if (req->nbytes & (AES_BLOCK_SIZE - 1))
-		return -EINVAL;
-
 	if (!req->info)
 		return -EINVAL;
 

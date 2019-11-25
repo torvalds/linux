@@ -25,6 +25,7 @@ struct dust_device {
 	unsigned long long badblock_count;
 	spinlock_t dust_lock;
 	unsigned int blksz;
+	int sect_per_block_shift;
 	unsigned int sect_per_block;
 	sector_t start;
 	bool fail_read_on_bb:1;
@@ -79,7 +80,7 @@ static int dust_remove_block(struct dust_device *dd, unsigned long long block)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dd->dust_lock, flags);
-	bblock = dust_rb_search(&dd->badblocklist, block * dd->sect_per_block);
+	bblock = dust_rb_search(&dd->badblocklist, block);
 
 	if (bblock == NULL) {
 		if (!dd->quiet_mode) {
@@ -113,7 +114,7 @@ static int dust_add_block(struct dust_device *dd, unsigned long long block)
 	}
 
 	spin_lock_irqsave(&dd->dust_lock, flags);
-	bblock->bb = block * dd->sect_per_block;
+	bblock->bb = block;
 	if (!dust_rb_insert(&dd->badblocklist, bblock)) {
 		if (!dd->quiet_mode) {
 			DMERR("%s: block %llu already in badblocklist",
@@ -138,7 +139,7 @@ static int dust_query_block(struct dust_device *dd, unsigned long long block)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dd->dust_lock, flags);
-	bblock = dust_rb_search(&dd->badblocklist, block * dd->sect_per_block);
+	bblock = dust_rb_search(&dd->badblocklist, block);
 	if (bblock != NULL)
 		DMINFO("%s: block %llu found in badblocklist", __func__, block);
 	else
@@ -165,6 +166,7 @@ static int dust_map_read(struct dust_device *dd, sector_t thisblock,
 	int ret = DM_MAPIO_REMAPPED;
 
 	if (fail_read_on_bb) {
+		thisblock >>= dd->sect_per_block_shift;
 		spin_lock_irqsave(&dd->dust_lock, flags);
 		ret = __dust_map_read(dd, thisblock);
 		spin_unlock_irqrestore(&dd->dust_lock, flags);
@@ -195,6 +197,7 @@ static int dust_map_write(struct dust_device *dd, sector_t thisblock,
 	unsigned long flags;
 
 	if (fail_read_on_bb) {
+		thisblock >>= dd->sect_per_block_shift;
 		spin_lock_irqsave(&dd->dust_lock, flags);
 		__dust_map_write(dd, thisblock);
 		spin_unlock_irqrestore(&dd->dust_lock, flags);
@@ -330,6 +333,8 @@ static int dust_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	dd->sect_per_block = sect_per_block;
 	dd->blksz = blksz;
 	dd->start = tmp;
+
+	dd->sect_per_block_shift = __ffs(sect_per_block);
 
 	/*
 	 * Whether to fail a read on a "bad" block.

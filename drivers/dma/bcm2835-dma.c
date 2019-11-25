@@ -37,10 +37,19 @@
 #define BCM2835_DMA_MAX_DMA_CHAN_SUPPORTED 14
 #define BCM2835_DMA_CHAN_NAME_SIZE 8
 
+/**
+ * struct bcm2835_dmadev - BCM2835 DMA controller
+ * @ddev: DMA device
+ * @base: base address of register map
+ * @dma_parms: DMA parameters (to convey 1 GByte max segment size to clients)
+ * @zero_page: bus address of zero page (to detect transactions copying from
+ *	zero page and avoid accessing memory if so)
+ */
 struct bcm2835_dmadev {
 	struct dma_device ddev;
 	void __iomem *base;
 	struct device_dma_parameters dma_parms;
+	dma_addr_t zero_page;
 };
 
 struct bcm2835_dma_cb {
@@ -687,11 +696,12 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 	size_t period_len, enum dma_transfer_direction direction,
 	unsigned long flags)
 {
+	struct bcm2835_dmadev *od = to_bcm2835_dma_dev(chan->device);
 	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
 	struct bcm2835_desc *d;
 	dma_addr_t src, dst;
 	u32 info = BCM2835_DMA_WAIT_RESP;
-	u32 extra = BCM2835_DMA_INT_EN;
+	u32 extra = 0;
 	size_t max_len = bcm2835_dma_max_frame_length(c);
 	size_t frames;
 
@@ -706,6 +716,11 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 			"%s: bad buffer length (= 0)\n", __func__);
 		return NULL;
 	}
+
+	if (flags & DMA_PREP_INTERRUPT)
+		extra |= BCM2835_DMA_INT_EN;
+	else
+		period_len = buf_len;
 
 	/*
 	 * warn if buf_len is not a multiple of period_len - this may leed
@@ -732,6 +747,10 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 		dst = c->cfg.dst_addr;
 		src = buf_addr;
 		info |= BCM2835_DMA_D_DREQ | BCM2835_DMA_S_INC;
+
+		/* non-lite channels can write zeroes w/o accessing memory */
+		if (buf_addr == od->zero_page && !c->is_lite_channel)
+			info |= BCM2835_DMA_S_IGNORE;
 	}
 
 	/* calculate number of frames */
@@ -778,7 +797,10 @@ static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 
 	/* stop DMA activity */
 	if (c->desc) {
-		vchan_terminate_vdesc(&c->desc->vd);
+		if (c->desc->vd.tx.flags & DMA_PREP_INTERRUPT)
+			vchan_terminate_vdesc(&c->desc->vd);
+		else
+			vchan_vdesc_fini(&c->desc->vd);
 		c->desc = NULL;
 		bcm2835_dma_abort(c);
 	}
@@ -831,6 +853,9 @@ static void bcm2835_dma_free(struct bcm2835_dmadev *od)
 		list_del(&c->vc.chan.device_node);
 		tasklet_kill(&c->vc.task);
 	}
+
+	dma_unmap_page_attrs(od->ddev.dev, od->zero_page, PAGE_SIZE,
+			     DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
 }
 
 static const struct of_device_id bcm2835_dma_of_match[] = {
@@ -871,8 +896,10 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 
 	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	if (rc)
+	if (rc) {
+		dev_err(&pdev->dev, "Unable to set DMA mask\n");
 		return rc;
+	}
 
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
@@ -907,10 +934,19 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 	od->ddev.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV) |
 			      BIT(DMA_MEM_TO_MEM);
 	od->ddev.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+	od->ddev.descriptor_reuse = true;
 	od->ddev.dev = &pdev->dev;
 	INIT_LIST_HEAD(&od->ddev.channels);
 
 	platform_set_drvdata(pdev, od);
+
+	od->zero_page = dma_map_page_attrs(od->ddev.dev, ZERO_PAGE(0), 0,
+					   PAGE_SIZE, DMA_TO_DEVICE,
+					   DMA_ATTR_SKIP_CPU_SYNC);
+	if (dma_mapping_error(od->ddev.dev, od->zero_page)) {
+		dev_err(&pdev->dev, "Failed to map zero page\n");
+		return -ENOMEM;
+	}
 
 	/* Request DMA channel mask from device tree */
 	if (of_property_read_u32(pdev->dev.of_node,

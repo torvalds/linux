@@ -2787,8 +2787,13 @@ xfs_ialloc_setup_geometry(
 	igeo->inobt_maxlevels = xfs_btree_compute_maxlevels(igeo->inobt_mnr,
 			inodes);
 
-	/* Set the maximum inode count for this filesystem. */
-	if (sbp->sb_imax_pct) {
+	/*
+	 * Set the maximum inode count for this filesystem, being careful not
+	 * to use obviously garbage sb_inopblog/sb_inopblock values.  Regular
+	 * users should never get here due to failing sb verification, but
+	 * certain users (xfs_db) need to be usable even with corrupt metadata.
+	 */
+	if (sbp->sb_imax_pct && igeo->ialloc_blks) {
 		/*
 		 * Make sure the maximum inode count is a multiple
 		 * of the units we allocate inodes in.

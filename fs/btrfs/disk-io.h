@@ -45,8 +45,6 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 				      u64 parent_transid, int level,
 				      struct btrfs_key *first_key);
 void readahead_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr);
-int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
-			 int mirror_num, struct extent_buffer **eb);
 struct extent_buffer *btrfs_find_create_tree_block(
 						struct btrfs_fs_info *fs_info,
 						u64 bytenr);

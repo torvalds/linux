@@ -6,18 +6,20 @@
 #include <linux/iopoll.h>
 #include <linux/of.h>
 
-#include "enetc_pf.h"
+#include "enetc_mdio.h"
 
-struct enetc_mdio_regs {
-	u32	mdio_cfg;	/* MDIO configuration and status */
-	u32	mdio_ctl;	/* MDIO control */
-	u32	mdio_data;	/* MDIO data */
-	u32	mdio_addr;	/* MDIO address */
-};
+#define	ENETC_MDIO_REG_OFFSET	0x1c00
+#define	ENETC_MDIO_CFG	0x0	/* MDIO configuration and status */
+#define	ENETC_MDIO_CTL	0x4	/* MDIO control */
+#define	ENETC_MDIO_DATA	0x8	/* MDIO data */
+#define	ENETC_MDIO_ADDR	0xc	/* MDIO address */
 
-#define bus_to_enetc_regs(bus)	(struct enetc_mdio_regs __iomem *)((bus)->priv)
+#define enetc_mdio_rd(hw, off) \
+	enetc_port_rd(hw, ENETC_##off + ENETC_MDIO_REG_OFFSET)
+#define enetc_mdio_wr(hw, off, val) \
+	enetc_port_wr(hw, ENETC_##off + ENETC_MDIO_REG_OFFSET, val)
+#define enetc_mdio_rd_reg(off)	enetc_mdio_rd(hw, off)
 
-#define ENETC_MDIO_REG_OFFSET	0x1c00
 #define ENETC_MDC_DIV		258
 
 #define MDIO_CFG_CLKDIV(x)	((((x) >> 1) & 0xff) << 8)
@@ -33,18 +35,18 @@ struct enetc_mdio_regs {
 #define MDIO_DATA(x)		((x) & 0xffff)
 
 #define TIMEOUT	1000
-static int enetc_mdio_wait_complete(struct enetc_mdio_regs __iomem *regs)
+static int enetc_mdio_wait_complete(struct enetc_hw *hw)
 {
 	u32 val;
 
-	return readx_poll_timeout(enetc_rd_reg, &regs->mdio_cfg, val,
+	return readx_poll_timeout(enetc_mdio_rd_reg, MDIO_CFG, val,
 				  !(val & MDIO_CFG_BSY), 10, 10 * TIMEOUT);
 }
 
-static int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum,
-			    u16 value)
+int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 value)
 {
-	struct enetc_mdio_regs __iomem *regs = bus_to_enetc_regs(bus);
+	struct enetc_mdio_priv *mdio_priv = bus->priv;
+	struct enetc_hw *hw = mdio_priv->hw;
 	u32 mdio_ctl, mdio_cfg;
 	u16 dev_addr;
 	int ret;
@@ -59,38 +61,39 @@ static int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum,
 		mdio_cfg &= ~MDIO_CFG_ENC45;
 	}
 
-	enetc_wr_reg(&regs->mdio_cfg, mdio_cfg);
+	enetc_mdio_wr(hw, MDIO_CFG, mdio_cfg);
 
-	ret = enetc_mdio_wait_complete(regs);
+	ret = enetc_mdio_wait_complete(hw);
 	if (ret)
 		return ret;
 
 	/* set port and dev addr */
 	mdio_ctl = MDIO_CTL_PORT_ADDR(phy_id) | MDIO_CTL_DEV_ADDR(dev_addr);
-	enetc_wr_reg(&regs->mdio_ctl, mdio_ctl);
+	enetc_mdio_wr(hw, MDIO_CTL, mdio_ctl);
 
 	/* set the register address */
 	if (regnum & MII_ADDR_C45) {
-		enetc_wr_reg(&regs->mdio_addr, regnum & 0xffff);
+		enetc_mdio_wr(hw, MDIO_ADDR, regnum & 0xffff);
 
-		ret = enetc_mdio_wait_complete(regs);
+		ret = enetc_mdio_wait_complete(hw);
 		if (ret)
 			return ret;
 	}
 
 	/* write the value */
-	enetc_wr_reg(&regs->mdio_data, MDIO_DATA(value));
+	enetc_mdio_wr(hw, MDIO_DATA, MDIO_DATA(value));
 
-	ret = enetc_mdio_wait_complete(regs);
+	ret = enetc_mdio_wait_complete(hw);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
+int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 {
-	struct enetc_mdio_regs __iomem *regs = bus_to_enetc_regs(bus);
+	struct enetc_mdio_priv *mdio_priv = bus->priv;
+	struct enetc_hw *hw = mdio_priv->hw;
 	u32 mdio_ctl, mdio_cfg;
 	u16 dev_addr, value;
 	int ret;
@@ -104,41 +107,41 @@ static int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 		mdio_cfg &= ~MDIO_CFG_ENC45;
 	}
 
-	enetc_wr_reg(&regs->mdio_cfg, mdio_cfg);
+	enetc_mdio_wr(hw, MDIO_CFG, mdio_cfg);
 
-	ret = enetc_mdio_wait_complete(regs);
+	ret = enetc_mdio_wait_complete(hw);
 	if (ret)
 		return ret;
 
 	/* set port and device addr */
 	mdio_ctl = MDIO_CTL_PORT_ADDR(phy_id) | MDIO_CTL_DEV_ADDR(dev_addr);
-	enetc_wr_reg(&regs->mdio_ctl, mdio_ctl);
+	enetc_mdio_wr(hw, MDIO_CTL, mdio_ctl);
 
 	/* set the register address */
 	if (regnum & MII_ADDR_C45) {
-		enetc_wr_reg(&regs->mdio_addr, regnum & 0xffff);
+		enetc_mdio_wr(hw, MDIO_ADDR, regnum & 0xffff);
 
-		ret = enetc_mdio_wait_complete(regs);
+		ret = enetc_mdio_wait_complete(hw);
 		if (ret)
 			return ret;
 	}
 
 	/* initiate the read */
-	enetc_wr_reg(&regs->mdio_ctl, mdio_ctl | MDIO_CTL_READ);
+	enetc_mdio_wr(hw, MDIO_CTL, mdio_ctl | MDIO_CTL_READ);
 
-	ret = enetc_mdio_wait_complete(regs);
+	ret = enetc_mdio_wait_complete(hw);
 	if (ret)
 		return ret;
 
 	/* return all Fs if nothing was there */
-	if (enetc_rd_reg(&regs->mdio_cfg) & MDIO_CFG_RD_ER) {
+	if (enetc_mdio_rd(hw, MDIO_CFG) & MDIO_CFG_RD_ER) {
 		dev_dbg(&bus->dev,
 			"Error while reading PHY%d reg at %d.%hhu\n",
 			phy_id, dev_addr, regnum);
 		return 0xffff;
 	}
 
-	value = enetc_rd_reg(&regs->mdio_data) & 0xffff;
+	value = enetc_mdio_rd(hw, MDIO_DATA) & 0xffff;
 
 	return value;
 }
@@ -146,12 +149,12 @@ static int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 int enetc_mdio_probe(struct enetc_pf *pf)
 {
 	struct device *dev = &pf->si->pdev->dev;
-	struct enetc_mdio_regs __iomem *regs;
+	struct enetc_mdio_priv *mdio_priv;
 	struct device_node *np;
 	struct mii_bus *bus;
-	int ret;
+	int err;
 
-	bus = mdiobus_alloc_size(sizeof(regs));
+	bus = devm_mdiobus_alloc_size(dev, sizeof(*mdio_priv));
 	if (!bus)
 		return -ENOMEM;
 
@@ -159,41 +162,31 @@ int enetc_mdio_probe(struct enetc_pf *pf)
 	bus->read = enetc_mdio_read;
 	bus->write = enetc_mdio_write;
 	bus->parent = dev;
+	mdio_priv = bus->priv;
+	mdio_priv->hw = &pf->si->hw;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", dev_name(dev));
-
-	/* store the enetc mdio base address for this bus */
-	regs = pf->si->hw.port + ENETC_MDIO_REG_OFFSET;
-	bus->priv = regs;
 
 	np = of_get_child_by_name(dev->of_node, "mdio");
 	if (!np) {
 		dev_err(dev, "MDIO node missing\n");
-		ret = -EINVAL;
-		goto err_registration;
+		return -EINVAL;
 	}
 
-	ret = of_mdiobus_register(bus, np);
-	if (ret) {
+	err = of_mdiobus_register(bus, np);
+	if (err) {
 		of_node_put(np);
 		dev_err(dev, "cannot register MDIO bus\n");
-		goto err_registration;
+		return err;
 	}
 
 	of_node_put(np);
 	pf->mdio = bus;
 
 	return 0;
-
-err_registration:
-	mdiobus_free(bus);
-
-	return ret;
 }
 
 void enetc_mdio_remove(struct enetc_pf *pf)
 {
-	if (pf->mdio) {
+	if (pf->mdio)
 		mdiobus_unregister(pf->mdio);
-		mdiobus_free(pf->mdio);
-	}
 }

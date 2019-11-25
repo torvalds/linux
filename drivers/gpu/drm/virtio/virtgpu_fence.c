@@ -23,8 +23,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <trace/events/dma_fence.h>
+
 #include "virtgpu_drv.h"
 
 static const char *virtio_get_driver_name(struct dma_fence *f)

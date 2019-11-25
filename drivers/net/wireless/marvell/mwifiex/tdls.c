@@ -731,7 +731,6 @@ mwifiex_construct_tdls_action_frame(struct mwifiex_private *priv,
 				    u16 status_code, struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt;
-	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	int ret;
 	u16 capab;
 	struct ieee80211_ht_cap *ht_cap;
@@ -765,7 +764,7 @@ mwifiex_construct_tdls_action_frame(struct mwifiex_private *priv,
 		memmove(pos + ETH_ALEN, &mgmt->u.action.category,
 			sizeof(mgmt->u.action.u.tdls_discover_resp));
 		/* init address 4 */
-		memcpy(pos, bc_addr, ETH_ALEN);
+		eth_broadcast_addr(pos);
 
 		ret = mwifiex_tdls_append_rates_ie(priv, skb);
 		if (ret) {

@@ -991,32 +991,7 @@ static int iwch_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 static int iwch_query_port(struct ib_device *ibdev,
 			   u8 port, struct ib_port_attr *props)
 {
-	struct iwch_dev *dev;
-	struct net_device *netdev;
-	struct in_device *inetdev;
-
 	pr_debug("%s ibdev %p\n", __func__, ibdev);
-
-	dev = to_iwch_dev(ibdev);
-	netdev = dev->rdev.port_info.lldevs[port-1];
-
-	/* props being zeroed by the caller, avoid zeroing it here */
-	props->max_mtu = IB_MTU_4096;
-	props->active_mtu = ib_mtu_int_to_enum(netdev->mtu);
-
-	if (!netif_carrier_ok(netdev))
-		props->state = IB_PORT_DOWN;
-	else {
-		inetdev = in_dev_get(netdev);
-		if (inetdev) {
-			if (inetdev->ifa_list)
-				props->state = IB_PORT_ACTIVE;
-			else
-				props->state = IB_PORT_INIT;
-			in_dev_put(inetdev);
-		} else
-			props->state = IB_PORT_INIT;
-	}
 
 	props->port_cap_flags =
 	    IB_PORT_CM_SUP |
@@ -1273,8 +1248,24 @@ static const struct ib_device_ops iwch_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, iwch_ucontext, ibucontext),
 };
 
+static int set_netdevs(struct ib_device *ib_dev, struct cxio_rdev *rdev)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < rdev->port_info.nports; i++) {
+		ret = ib_device_set_netdev(ib_dev, rdev->port_info.lldevs[i],
+					   i + 1);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 int iwch_register_device(struct iwch_dev *dev)
 {
+	int err;
+
 	pr_debug("%s iwch_dev %p\n", __func__, dev);
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
@@ -1315,6 +1306,10 @@ int iwch_register_device(struct iwch_dev *dev)
 
 	rdma_set_device_sysfs_group(&dev->ibdev, &iwch_attr_group);
 	ib_set_device_ops(&dev->ibdev, &iwch_dev_ops);
+	err = set_netdevs(&dev->ibdev, &dev->rdev);
+	if (err)
+		return err;
+
 	return ib_register_device(&dev->ibdev, "cxgb3_%d");
 }
 

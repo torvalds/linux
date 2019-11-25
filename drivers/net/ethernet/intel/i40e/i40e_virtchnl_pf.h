@@ -99,6 +99,7 @@ struct i40e_vf {
 	unsigned int tx_rate;	/* Tx bandwidth limit in Mbps */
 	bool link_forced;
 	bool link_up;		/* only valid if VF link is forced */
+	bool queues_enabled;	/* true if the VF queues are enabled */
 	bool spoofchk;
 	u16 num_mac;
 	u16 num_vlan;

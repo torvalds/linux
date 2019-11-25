@@ -11,7 +11,6 @@
 #include <linux/host1x.h>
 
 #include <drm/drm.h>
-#include <drm/drmP.h>
 #include <drm/drm_gem.h>
 
 #define TEGRA_BO_BOTTOM_UP (1 << 0)
@@ -70,8 +69,7 @@ extern const struct vm_operations_struct tegra_bo_vm_ops;
 int __tegra_gem_mmap(struct drm_gem_object *gem, struct vm_area_struct *vma);
 int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma);
 
-struct dma_buf *tegra_gem_prime_export(struct drm_device *drm,
-				       struct drm_gem_object *gem,
+struct dma_buf *tegra_gem_prime_export(struct drm_gem_object *gem,
 				       int flags);
 struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,
 					      struct dma_buf *buf);

@@ -488,8 +488,10 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 		if (of_property_read_u32(child, "reg", &val)) {
 			ret = mxs_pinctrl_parse_group(pdev, child,
 						      idxg++, NULL);
-			if (ret)
+			if (ret) {
+				of_node_put(child);
 				return ret;
+			}
 			continue;
 		}
 
@@ -499,15 +501,19 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 						 f->ngroups,
 						 sizeof(*f->groups),
 						 GFP_KERNEL);
-			if (!f->groups)
+			if (!f->groups) {
+				of_node_put(child);
 				return -ENOMEM;
+			}
 			fn = child->name;
 			i = 0;
 		}
 		ret = mxs_pinctrl_parse_group(pdev, child, idxg++,
 					      &f->groups[i++]);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			return ret;
+		}
 	}
 
 	return 0;

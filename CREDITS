@@ -751,7 +751,7 @@ S: Santa Cruz, California
 S: USA
 
 N: Luis Correia
-E: lfcorreia@users.sf.net
+E: luisfcorreia@gmail.com
 D: Ralink rt2x00 WLAN driver
 S: Belas, Portugal
 
@@ -1636,6 +1636,10 @@ D: Some other hacks to get different kinds of programs to work for linux
 S: Panoramastrasse 18
 S: D-69126 Heidelberg
 S: Germany
+
+N: Simon Horman
+M: horms@verge.net.au
+D: Renesas ARM/ARM64 SoC maintainer
 
 N: Christopher Horn
 E: chorn@warwick.net

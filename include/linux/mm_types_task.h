@@ -36,6 +36,10 @@ struct vmacache {
 	struct vm_area_struct *vmas[VMACACHE_SIZE];
 };
 
+/*
+ * When updating this, please also update struct resident_page_types[] in
+ * kernel/fork.c
+ */
 enum {
 	MM_FILEPAGES,	/* Resident file mapping pages */
 	MM_ANONPAGES,	/* Resident anonymous pages */

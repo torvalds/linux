@@ -172,14 +172,14 @@ static void free_vgpu_fence(struct intel_vgpu *vgpu)
 
 	intel_runtime_pm_get(&dev_priv->runtime_pm);
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
+	mutex_lock(&dev_priv->ggtt.vm.mutex);
 	_clear_vgpu_fence(vgpu);
 	for (i = 0; i < vgpu_fence_sz(vgpu); i++) {
 		reg = vgpu->fence.regs[i];
 		i915_unreserve_fence(reg);
 		vgpu->fence.regs[i] = NULL;
 	}
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	mutex_unlock(&dev_priv->ggtt.vm.mutex);
 
 	intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
 }
@@ -195,7 +195,7 @@ static int alloc_vgpu_fence(struct intel_vgpu *vgpu)
 	intel_runtime_pm_get(rpm);
 
 	/* Request fences from host */
-	mutex_lock(&dev_priv->drm.struct_mutex);
+	mutex_lock(&dev_priv->ggtt.vm.mutex);
 
 	for (i = 0; i < vgpu_fence_sz(vgpu); i++) {
 		reg = i915_reserve_fence(dev_priv);
@@ -207,7 +207,7 @@ static int alloc_vgpu_fence(struct intel_vgpu *vgpu)
 
 	_clear_vgpu_fence(vgpu);
 
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	mutex_unlock(&dev_priv->ggtt.vm.mutex);
 	intel_runtime_pm_put_unchecked(rpm);
 	return 0;
 out_free_fence:
@@ -220,7 +220,7 @@ out_free_fence:
 		i915_unreserve_fence(reg);
 		vgpu->fence.regs[i] = NULL;
 	}
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	mutex_unlock(&dev_priv->ggtt.vm.mutex);
 	intel_runtime_pm_put_unchecked(rpm);
 	return -ENOSPC;
 }

@@ -139,7 +139,7 @@ static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
 	if (!page_hcg || page_hcg != h_cg)
 		goto out;
 
-	nr_pages = 1 << compound_order(page);
+	nr_pages = compound_nr(page);
 	if (!parent) {
 		parent = root_h_cgroup;
 		/* root has no limit */

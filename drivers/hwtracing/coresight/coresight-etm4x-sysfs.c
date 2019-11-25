@@ -296,11 +296,8 @@ static ssize_t mode_store(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	config->mode = val & ETMv4_MODE_ALL;
-
-	if (config->mode & ETM_MODE_EXCLUDE)
-		etm4_set_mode_exclude(drvdata, true);
-	else
-		etm4_set_mode_exclude(drvdata, false);
+	etm4_set_mode_exclude(drvdata,
+			      config->mode & ETM_MODE_EXCLUDE ? true : false);
 
 	if (drvdata->instrp0 == true) {
 		/* start by clearing instruction P0 field */
@@ -999,10 +996,8 @@ static ssize_t addr_range_store(struct device *dev,
 	 * Program include or exclude control bits for vinst or vdata
 	 * whenever we change addr comparators to ETM_ADDR_TYPE_RANGE
 	 */
-	if (config->mode & ETM_MODE_EXCLUDE)
-		etm4_set_mode_exclude(drvdata, true);
-	else
-		etm4_set_mode_exclude(drvdata, false);
+	etm4_set_mode_exclude(drvdata,
+			      config->mode & ETM_MODE_EXCLUDE ? true : false);
 
 	spin_unlock(&drvdata->spinlock);
 	return size;

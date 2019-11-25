@@ -28,7 +28,6 @@
 #include "cm2_44xx.h"
 #include "prm44xx.h"
 #include "prm-regbits-44xx.h"
-#include "wd_timer.h"
 
 /* Base offset for all OMAP4 interrupts external to MPUSS */
 #define OMAP44XX_IRQ_GIC_START	32
@@ -271,29 +270,6 @@ static struct omap_hwmod omap44xx_aess_hwmod = {
 			.context_offs = OMAP4_RM_ABE_AESS_CONTEXT_OFFSET,
 			.lostcontext_mask = OMAP4430_LOSTCONTEXT_DFF_MASK,
 			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
- * 'c2c' class
- * chip 2 chip interface used to plug the ape soc (omap) with an external modem
- * soc
- */
-
-static struct omap_hwmod_class omap44xx_c2c_hwmod_class = {
-	.name	= "c2c",
-};
-
-/* c2c */
-static struct omap_hwmod omap44xx_c2c_hwmod = {
-	.name		= "c2c",
-	.class		= &omap44xx_c2c_hwmod_class,
-	.clkdm_name	= "d2d_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_D2D_SAD2D_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_D2D_SAD2D_CONTEXT_OFFSET,
 		},
 	},
 };
@@ -1081,41 +1057,6 @@ static struct omap_hwmod omap44xx_gpmc_hwmod = {
 			.clkctrl_offs = OMAP4_CM_L3_2_GPMC_CLKCTRL_OFFSET,
 			.context_offs = OMAP4_RM_L3_2_GPMC_CONTEXT_OFFSET,
 			.modulemode   = MODULEMODE_HWCTRL,
-		},
-	},
-};
-
-/*
- * 'gpu' class
- * 2d/3d graphics accelerator
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_gpu_sysc = {
-	.rev_offs	= 0x1fc00,
-	.sysc_offs	= 0x1fc10,
-	.sysc_flags	= (SYSC_HAS_MIDLEMODE | SYSC_HAS_SIDLEMODE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP | MSTANDBY_FORCE | MSTANDBY_NO |
-			   MSTANDBY_SMART | MSTANDBY_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class omap44xx_gpu_hwmod_class = {
-	.name	= "gpu",
-	.sysc	= &omap44xx_gpu_sysc,
-};
-
-/* gpu */
-static struct omap_hwmod omap44xx_gpu_hwmod = {
-	.name		= "gpu",
-	.class		= &omap44xx_gpu_hwmod_class,
-	.clkdm_name	= "l3_gfx_clkdm",
-	.main_clk	= "sgx_clk_mux",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_GFX_GFX_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_GFX_GFX_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -2434,61 +2375,6 @@ static struct omap_hwmod omap44xx_usb_tll_hs_hwmod = {
 };
 
 /*
- * 'wd_timer' class
- * 32-bit watchdog upward counter that generates a pulse on the reset pin on
- * overflow condition
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_wd_timer_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_EMUFREE | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap44xx_wd_timer_hwmod_class = {
-	.name		= "wd_timer",
-	.sysc		= &omap44xx_wd_timer_sysc,
-	.pre_shutdown	= &omap2_wd_timer_disable,
-	.reset		= &omap2_wd_timer_reset,
-};
-
-/* wd_timer2 */
-static struct omap_hwmod omap44xx_wd_timer2_hwmod = {
-	.name		= "wd_timer2",
-	.class		= &omap44xx_wd_timer_hwmod_class,
-	.clkdm_name	= "l4_wkup_clkdm",
-	.main_clk	= "sys_32k_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_WKUP_WDT2_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_WKUP_WDT2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* wd_timer3 */
-static struct omap_hwmod omap44xx_wd_timer3_hwmod = {
-	.name		= "wd_timer3",
-	.class		= &omap44xx_wd_timer_hwmod_class,
-	.clkdm_name	= "abe_clkdm",
-	.main_clk	= "sys_32k_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM1_ABE_WDT3_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_ABE_WDT3_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-
-/*
  * interfaces
  */
 
@@ -2591,14 +2477,6 @@ static struct omap_hwmod_ocp_if omap44xx_dma_system__l3_main_2 = {
 /* fdif -> l3_main_2 */
 static struct omap_hwmod_ocp_if omap44xx_fdif__l3_main_2 = {
 	.master		= &omap44xx_fdif_hwmod,
-	.slave		= &omap44xx_l3_main_2_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* gpu -> l3_main_2 */
-static struct omap_hwmod_ocp_if omap44xx_gpu__l3_main_2 = {
-	.master		= &omap44xx_gpu_hwmod,
 	.slave		= &omap44xx_l3_main_2_hwmod,
 	.clk		= "l3_div_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
@@ -2786,14 +2664,6 @@ static struct omap_hwmod_ocp_if __maybe_unused omap44xx_l4_abe__aess_dma = {
 	.slave		= &omap44xx_aess_hwmod,
 	.clk		= "ocp_abe_iclk",
 	.user		= OCP_USER_SDMA,
-};
-
-/* l3_main_2 -> c2c */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__c2c = {
-	.master		= &omap44xx_l3_main_2_hwmod,
-	.slave		= &omap44xx_c2c_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 /* l4_wkup -> counter_32k */
@@ -3024,14 +2894,6 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__fdif = {
 static struct omap_hwmod_ocp_if omap44xx_l3_main_2__gpmc = {
 	.master		= &omap44xx_l3_main_2_hwmod,
 	.slave		= &omap44xx_gpmc_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l3_main_2 -> gpu */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__gpu = {
-	.master		= &omap44xx_l3_main_2_hwmod,
-	.slave		= &omap44xx_gpu_hwmod,
 	.clk		= "l3_div_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
@@ -3396,30 +3258,6 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__usb_tll_hs = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_wkup -> wd_timer2 */
-static struct omap_hwmod_ocp_if omap44xx_l4_wkup__wd_timer2 = {
-	.master		= &omap44xx_l4_wkup_hwmod,
-	.slave		= &omap44xx_wd_timer2_hwmod,
-	.clk		= "l4_wkup_clk_mux_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_abe -> wd_timer3 */
-static struct omap_hwmod_ocp_if omap44xx_l4_abe__wd_timer3 = {
-	.master		= &omap44xx_l4_abe_hwmod,
-	.slave		= &omap44xx_wd_timer3_hwmod,
-	.clk		= "ocp_abe_iclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4_abe -> wd_timer3 (dma) */
-static struct omap_hwmod_ocp_if omap44xx_l4_abe__wd_timer3_dma = {
-	.master		= &omap44xx_l4_abe_hwmod,
-	.slave		= &omap44xx_wd_timer3_hwmod,
-	.clk		= "ocp_abe_iclk",
-	.user		= OCP_USER_SDMA,
-};
-
 /* mpu -> emif1 */
 static struct omap_hwmod_ocp_if omap44xx_mpu__emif1 = {
 	.master		= &omap44xx_mpu_hwmod,
@@ -3450,7 +3288,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_debugss__l3_main_2,
 	&omap44xx_dma_system__l3_main_2,
 	&omap44xx_fdif__l3_main_2,
-	&omap44xx_gpu__l3_main_2,
 	&omap44xx_hsi__l3_main_2,
 	&omap44xx_ipu__l3_main_2,
 	&omap44xx_iss__l3_main_2,
@@ -3474,7 +3311,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__ocp_wp_noc,
 	&omap44xx_l4_abe__aess,
 	&omap44xx_l4_abe__aess_dma,
-	&omap44xx_l3_main_2__c2c,
 	&omap44xx_l4_wkup__counter_32k,
 	&omap44xx_l4_cfg__ctrl_module_core,
 	&omap44xx_l4_cfg__ctrl_module_pad_core,
@@ -3503,7 +3339,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_per__elm,
 	&omap44xx_l4_cfg__fdif,
 	&omap44xx_l3_main_2__gpmc,
-	&omap44xx_l3_main_2__gpu,
 	&omap44xx_l4_per__hdq1w,
 	&omap44xx_l4_cfg__hsi,
 	&omap44xx_l3_main_2__ipu,
@@ -3551,9 +3386,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__usb_host_hs,
 	&omap44xx_l4_cfg__usb_otg_hs,
 	&omap44xx_l4_cfg__usb_tll_hs,
-	&omap44xx_l4_wkup__wd_timer2,
-	&omap44xx_l4_abe__wd_timer3,
-	&omap44xx_l4_abe__wd_timer3_dma,
 	&omap44xx_mpu__emif1,
 	&omap44xx_mpu__emif2,
 	&omap44xx_l3_main_2__aes1,

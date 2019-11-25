@@ -110,7 +110,7 @@ static void greth_print_tx_packet(struct sk_buff *skb)
 
 		print_hex_dump(KERN_DEBUG, "TX: ", DUMP_PREFIX_OFFSET, 16, 1,
 			       skb_frag_address(&skb_shinfo(skb)->frags[i]),
-			       skb_shinfo(skb)->frags[i].size, true);
+			       skb_frag_size(&skb_shinfo(skb)->frags[i]), true);
 	}
 }
 

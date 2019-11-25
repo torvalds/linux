@@ -126,15 +126,6 @@ struct cc_cpp_req {
 struct cc_crypto_req {
 	void (*user_cb)(struct device *dev, void *req, int err);
 	void *user_arg;
-	dma_addr_t ivgen_dma_addr[CC_MAX_IVGEN_DMA_ADDRESSES];
-	/* For the first 'ivgen_dma_addr_len' addresses of this array,
-	 * generated IV would be placed in it by send_request().
-	 * Same generated IV for all addresses!
-	 */
-	/* Amount of 'ivgen_dma_addr' elements to be filled. */
-	unsigned int ivgen_dma_addr_len;
-	/* The generated IV size required, 8/16 B allowed. */
-	unsigned int ivgen_size;
 	struct completion seq_compl; /* request completion */
 	struct cc_cpp_req cpp;
 };
@@ -158,7 +149,6 @@ struct cc_drvdata {
 	void *aead_handle;
 	void *request_mgr_handle;
 	void *fips_handle;
-	void *ivgen_handle;
 	void *sram_mgr_handle;
 	void *debugfs;
 	struct clk *clk;

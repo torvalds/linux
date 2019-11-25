@@ -83,6 +83,68 @@ base907c_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	asyw->xlut.i.load = head907d_olut_load;
 }
 
+static inline u32
+csc_drm_to_base(u64 in)
+{
+	/* base takes a 19-bit 2's complement value in S3.16 format */
+	bool sign = in & BIT_ULL(63);
+	u32 integer = (in >> 32) & 0x7fffffff;
+	u32 fraction = in & 0xffffffff;
+
+	if (integer >= 4) {
+		return (1 << 18) - (sign ? 0 : 1);
+	} else {
+		u32 ret = (integer << 16) | (fraction >> 16);
+		if (sign)
+			ret = -ret;
+		return ret & GENMASK(18, 0);
+	}
+}
+
+void
+base907c_csc(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
+	     const struct drm_color_ctm *ctm)
+{
+	int i, j;
+
+	for (j = 0; j < 3; j++) {
+		for (i = 0; i < 4; i++) {
+			u32 *val = &asyw->csc.matrix[j * 4 + i];
+			/* DRM does not support constant offset, while
+			 * HW CSC does. Skip it. */
+			if (i == 3) {
+				*val = 0;
+			} else {
+				*val = csc_drm_to_base(ctm->matrix[j * 3 + i]);
+			}
+		}
+	}
+}
+
+static void
+base907c_csc_clr(struct nv50_wndw *wndw)
+{
+	u32 *push;
+	if ((push = evo_wait(&wndw->wndw, 2))) {
+		evo_mthd(push, 0x0140, 1);
+		evo_data(push, 0x00000000);
+		evo_kick(push, &wndw->wndw);
+	}
+}
+
+static void
+base907c_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	u32 *push, i;
+	if ((push = evo_wait(&wndw->wndw, 13))) {
+		evo_mthd(push, 0x0140, 12);
+		evo_data(push, asyw->csc.matrix[0] | 0x80000000);
+		for (i = 1; i < 12; i++)
+			evo_data(push, asyw->csc.matrix[i]);
+		evo_kick(push, &wndw->wndw);
+	}
+}
+
 const struct nv50_wndw_func
 base907c = {
 	.acquire = base507c_acquire,
@@ -94,6 +156,9 @@ base907c = {
 	.ntfy_clr = base507c_ntfy_clr,
 	.ntfy_wait_begun = base507c_ntfy_wait_begun,
 	.ilut = base907c_ilut,
+	.csc = base907c_csc,
+	.csc_set = base907c_csc_set,
+	.csc_clr = base907c_csc_clr,
 	.olut_core = true,
 	.xlut_set = base907c_xlut_set,
 	.xlut_clr = base907c_xlut_clr,

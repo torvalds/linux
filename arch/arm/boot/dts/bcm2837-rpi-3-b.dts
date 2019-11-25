@@ -15,6 +15,7 @@
 	};
 
 	memory@0 {
+		device_type = "memory";
 		reg = <0 0x40000000>;
 	};
 
@@ -125,6 +126,8 @@
 
 &hdmi {
 	hpd-gpios = <&expgpio 4 GPIO_ACTIVE_LOW>;
+	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
+	status = "okay";
 };
 
 /* uart0 communicates with the BT module */

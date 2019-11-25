@@ -1109,7 +1109,11 @@
 #define IH_CID_REMAP_DATA__CLIENT_ID_REMAP_MASK                                                               0x00FF0000L
 //IH_CHICKEN
 #define IH_CHICKEN__ACTIVE_FCN_ID_PROT_ENABLE__SHIFT                                                          0x0
+#define IH_CHICKEN__MC_SPACE_FBPA_ENABLE__SHIFT                                                               0x3
+#define IH_CHICKEN__MC_SPACE_GPA_ENABLE__SHIFT                                                                0x4
 #define IH_CHICKEN__ACTIVE_FCN_ID_PROT_ENABLE_MASK                                                            0x00000001L
+#define IH_CHICKEN__MC_SPACE_FBPA_ENABLE_MASK                                                                 0x00000008L
+#define IH_CHICKEN__MC_SPACE_GPA_ENABLE_MASK                                                                  0x00000010L
 //IH_MMHUB_CNTL
 #define IH_MMHUB_CNTL__UNITID__SHIFT                                                                          0x0
 #define IH_MMHUB_CNTL__IV_TLVL__SHIFT                                                                         0x8

@@ -659,7 +659,7 @@ static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
 	for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
 		const skb_frag_t *fragp = &skb_shinfo(skb)->frags[frag];
 
-		if (skb_frag_size(fragp) <= 8 && fragp->page_offset & 7)
+		if (skb_frag_size(fragp) <= 8 && skb_frag_off(fragp) & 7)
 			return 1;
 	}
 

@@ -817,7 +817,6 @@ static int a3700_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *of_node = dev->of_node;
-	struct resource *res;
 	struct spi_master *master;
 	struct a3700_spi *spi;
 	u32 num_cs = 0;
@@ -855,8 +854,7 @@ static int a3700_spi_probe(struct platform_device *pdev)
 
 	spi->master = master;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	spi->base = devm_ioremap_resource(dev, res);
+	spi->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(spi->base)) {
 		ret = PTR_ERR(spi->base);
 		goto error;
@@ -864,7 +862,6 @@ static int a3700_spi_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "could not get irq: %d\n", irq);
 		ret = -ENXIO;
 		goto error;
 	}

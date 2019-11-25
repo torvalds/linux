@@ -1581,12 +1581,6 @@ static int isp116x_probe(struct platform_device *pdev)
 	irq = ires->start;
 	irqflags = ires->flags & IRQF_TRIGGER_MASK;
 
-	if (pdev->dev.dma_mask) {
-		DBG("DMA not supported\n");
-		ret = -EINVAL;
-		goto err1;
-	}
-
 	if (!request_mem_region(addr->start, 2, hcd_name)) {
 		ret = -EBUSY;
 		goto err1;

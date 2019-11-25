@@ -3,10 +3,12 @@
  * Copyright (C) 2012 Russell King
  *  Rewritten from the dovefb driver, and Armada510 manuals.
  */
-#include <drm/drmP.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
+
 #include "armada_crtc.h"
 #include "armada_drm.h"
 #include "armada_fb.h"

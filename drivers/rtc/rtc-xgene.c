@@ -157,10 +157,8 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(pdata->rtc);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
+	if (irq < 0)
 		return irq;
-	}
 	ret = devm_request_irq(&pdev->dev, irq, xgene_rtc_interrupt, 0,
 			       dev_name(&pdev->dev), pdata);
 	if (ret) {

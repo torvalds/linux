@@ -14,7 +14,6 @@
 #include <net/sock.h>
 #include <net/addrconf.h>
 #include <net/ipv6.h>
-#include <net/if_inet6.h>
 #include <net/genetlink.h>
 
 #include "internal.h"
@@ -978,9 +977,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 	case ncsi_dev_state_config_ev:
 	case ncsi_dev_state_config_sma:
 	case ncsi_dev_state_config_ebf:
-#if IS_ENABLED(CONFIG_IPV6)
-	case ncsi_dev_state_config_egmf:
-#endif
+	case ncsi_dev_state_config_dgmf:
 	case ncsi_dev_state_config_ecnt:
 	case ncsi_dev_state_config_ec:
 	case ncsi_dev_state_config_ae:
@@ -1033,23 +1030,23 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		} else if (nd->state == ncsi_dev_state_config_ebf) {
 			nca.type = NCSI_PKT_CMD_EBF;
 			nca.dwords[0] = nc->caps[NCSI_CAP_BC].cap;
+			/* if multicast global filtering is supported then
+			 * disable it so that all multicast packet will be
+			 * forwarded to management controller
+			 */
+			if (nc->caps[NCSI_CAP_GENERIC].cap &
+			    NCSI_CAP_GENERIC_MC)
+				nd->state = ncsi_dev_state_config_dgmf;
+			else if (ncsi_channel_is_tx(ndp, nc))
+				nd->state = ncsi_dev_state_config_ecnt;
+			else
+				nd->state = ncsi_dev_state_config_ec;
+		} else if (nd->state == ncsi_dev_state_config_dgmf) {
+			nca.type = NCSI_PKT_CMD_DGMF;
 			if (ncsi_channel_is_tx(ndp, nc))
 				nd->state = ncsi_dev_state_config_ecnt;
 			else
 				nd->state = ncsi_dev_state_config_ec;
-#if IS_ENABLED(CONFIG_IPV6)
-			if (ndp->inet6_addr_num > 0 &&
-			    (nc->caps[NCSI_CAP_GENERIC].cap &
-			     NCSI_CAP_GENERIC_MC))
-				nd->state = ncsi_dev_state_config_egmf;
-		} else if (nd->state == ncsi_dev_state_config_egmf) {
-			nca.type = NCSI_PKT_CMD_EGMF;
-			nca.dwords[0] = nc->caps[NCSI_CAP_MC].cap;
-			if (ncsi_channel_is_tx(ndp, nc))
-				nd->state = ncsi_dev_state_config_ecnt;
-			else
-				nd->state = ncsi_dev_state_config_ec;
-#endif /* CONFIG_IPV6 */
 		} else if (nd->state == ncsi_dev_state_config_ecnt) {
 			if (np->preferred_channel &&
 			    nc != np->preferred_channel)
@@ -1483,70 +1480,6 @@ out:
 	return -ENODEV;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
-static int ncsi_inet6addr_event(struct notifier_block *this,
-				unsigned long event, void *data)
-{
-	struct inet6_ifaddr *ifa = data;
-	struct net_device *dev = ifa->idev->dev;
-	struct ncsi_dev *nd = ncsi_find_dev(dev);
-	struct ncsi_dev_priv *ndp = nd ? TO_NCSI_DEV_PRIV(nd) : NULL;
-	struct ncsi_package *np;
-	struct ncsi_channel *nc;
-	struct ncsi_cmd_arg nca;
-	bool action;
-	int ret;
-
-	if (!ndp || (ipv6_addr_type(&ifa->addr) &
-	    (IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK)))
-		return NOTIFY_OK;
-
-	switch (event) {
-	case NETDEV_UP:
-		action = (++ndp->inet6_addr_num) == 1;
-		nca.type = NCSI_PKT_CMD_EGMF;
-		break;
-	case NETDEV_DOWN:
-		action = (--ndp->inet6_addr_num == 0);
-		nca.type = NCSI_PKT_CMD_DGMF;
-		break;
-	default:
-		return NOTIFY_OK;
-	}
-
-	/* We might not have active channel or packages. The IPv6
-	 * required multicast will be enabled when active channel
-	 * or packages are chosen.
-	 */
-	np = ndp->active_package;
-	nc = ndp->active_channel;
-	if (!action || !np || !nc)
-		return NOTIFY_OK;
-
-	/* We needn't enable or disable it if the function isn't supported */
-	if (!(nc->caps[NCSI_CAP_GENERIC].cap & NCSI_CAP_GENERIC_MC))
-		return NOTIFY_OK;
-
-	nca.ndp = ndp;
-	nca.req_flags = 0;
-	nca.package = np->id;
-	nca.channel = nc->id;
-	nca.dwords[0] = nc->caps[NCSI_CAP_MC].cap;
-	ret = ncsi_xmit_cmd(&nca);
-	if (ret) {
-		netdev_warn(dev, "Fail to %s global multicast filter (%d)\n",
-			    (event == NETDEV_UP) ? "enable" : "disable", ret);
-		return NOTIFY_DONE;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block ncsi_inet6addr_notifier = {
-	.notifier_call = ncsi_inet6addr_event,
-};
-#endif /* CONFIG_IPV6 */
-
 static int ncsi_kick_channels(struct ncsi_dev_priv *ndp)
 {
 	struct ncsi_dev *nd = &ndp->ndev;
@@ -1725,11 +1658,6 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	}
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
-#if IS_ENABLED(CONFIG_IPV6)
-	ndp->inet6_addr_num = 0;
-	if (list_empty(&ncsi_dev_list))
-		register_inet6addr_notifier(&ncsi_inet6addr_notifier);
-#endif
 	list_add_tail_rcu(&ndp->node, &ncsi_dev_list);
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
 
@@ -1896,10 +1824,6 @@ void ncsi_unregister_dev(struct ncsi_dev *nd)
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
 	list_del_rcu(&ndp->node);
-#if IS_ENABLED(CONFIG_IPV6)
-	if (list_empty(&ncsi_dev_list))
-		unregister_inet6addr_notifier(&ncsi_inet6addr_notifier);
-#endif
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
 
 	ncsi_unregister_netlink(nd->dev);

@@ -1219,47 +1219,58 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 	      (MCI_CMDCRCFAIL|MCI_CMDTIMEOUT|MCI_CMDSENT|MCI_CMDRESPEND)))
 		return;
 
-	/*
-	 * ST Micro variant: handle busy detection.
-	 */
+	/* Handle busy detection on DAT0 if the variant supports it. */
 	if (busy_resp && host->variant->busy_detect) {
 
-		/* We are busy with a command, return */
-		if (host->busy_status &&
-		    (status & host->variant->busy_detect_flag))
-			return;
-
 		/*
-		 * We were not busy, but we now got a busy response on
-		 * something that was not an error, and we double-check
-		 * that the special busy status bit is still set before
-		 * proceeding.
+		 * Before unmasking for the busy end IRQ, confirm that the
+		 * command was sent successfully. To keep track of having a
+		 * command in-progress, waiting for busy signaling to end,
+		 * store the status in host->busy_status.
+		 *
+		 * Note that, the card may need a couple of clock cycles before
+		 * it starts signaling busy on DAT0, hence re-read the
+		 * MMCISTATUS register here, to allow the busy bit to be set.
+		 * Potentially we may even need to poll the register for a
+		 * while, to allow it to be set, but tests indicates that it
+		 * isn't needed.
 		 */
 		if (!host->busy_status &&
 		    !(status & (MCI_CMDCRCFAIL|MCI_CMDTIMEOUT)) &&
 		    (readl(base + MMCISTATUS) & host->variant->busy_detect_flag)) {
 
-			/* Clear the busy start IRQ */
-			writel(host->variant->busy_detect_mask,
-			       host->base + MMCICLEAR);
-
-			/* Unmask the busy end IRQ */
 			writel(readl(base + MMCIMASK0) |
 			       host->variant->busy_detect_mask,
 			       base + MMCIMASK0);
-			/*
-			 * Now cache the last response status code (until
-			 * the busy bit goes low), and return.
-			 */
+
 			host->busy_status =
 				status & (MCI_CMDSENT|MCI_CMDRESPEND);
 			return;
 		}
 
 		/*
-		 * At this point we are not busy with a command, we have
-		 * not received a new busy request, clear and mask the busy
-		 * end IRQ and fall through to process the IRQ.
+		 * If there is a command in-progress that has been successfully
+		 * sent, then bail out if busy status is set and wait for the
+		 * busy end IRQ.
+		 *
+		 * Note that, the HW triggers an IRQ on both edges while
+		 * monitoring DAT0 for busy completion, but there is only one
+		 * status bit in MMCISTATUS for the busy state. Therefore
+		 * both the start and the end interrupts needs to be cleared,
+		 * one after the other. So, clear the busy start IRQ here.
+		 */
+		if (host->busy_status &&
+		    (status & host->variant->busy_detect_flag)) {
+			writel(host->variant->busy_detect_mask,
+			       host->base + MMCICLEAR);
+			return;
+		}
+
+		/*
+		 * If there is a command in-progress that has been successfully
+		 * sent and the busy bit isn't set, it means we have received
+		 * the busy end IRQ. Clear and mask the IRQ, then continue to
+		 * process the command.
 		 */
 		if (host->busy_status) {
 
@@ -1505,14 +1516,8 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 		}
 
 		/*
-		 * We intentionally clear the MCI_ST_CARDBUSY IRQ (if it's
-		 * enabled) in mmci_cmd_irq() function where ST Micro busy
-		 * detection variant is handled. Considering the HW seems to be
-		 * triggering the IRQ on both edges while monitoring DAT0 for
-		 * busy completion and that same status bit is used to monitor
-		 * start and end of busy detection, special care must be taken
-		 * to make sure that both start and end interrupts are always
-		 * cleared one after the other.
+		 * Busy detection is managed by mmci_cmd_irq(), including to
+		 * clear the corresponding IRQ.
 		 */
 		status &= readl(host->base + MMCIMASK0);
 		if (host->variant->busy_detect)

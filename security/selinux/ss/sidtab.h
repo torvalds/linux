@@ -40,8 +40,8 @@ union sidtab_entry_inner {
 #define SIDTAB_LEAF_ENTRIES \
 	(SIDTAB_NODE_ALLOC_SIZE / sizeof(struct sidtab_entry_leaf))
 
-#define SIDTAB_MAX_BITS 31 /* limited to INT_MAX due to atomic_t range */
-#define SIDTAB_MAX (((u32)1 << SIDTAB_MAX_BITS) - 1)
+#define SIDTAB_MAX_BITS 32
+#define SIDTAB_MAX U32_MAX
 /* ensure enough tree levels for SIDTAB_MAX entries */
 #define SIDTAB_MAX_LEVEL \
 	DIV_ROUND_UP(SIDTAB_MAX_BITS - size_to_shift(SIDTAB_LEAF_ENTRIES), \
@@ -69,13 +69,22 @@ struct sidtab_convert_params {
 #define SIDTAB_RCACHE_SIZE 3
 
 struct sidtab {
+	/*
+	 * lock-free read access only for as many items as a prior read of
+	 * 'count'
+	 */
 	union sidtab_entry_inner roots[SIDTAB_MAX_LEVEL + 1];
-	atomic_t count;
+	/*
+	 * access atomically via {READ|WRITE}_ONCE(); only increment under
+	 * spinlock
+	 */
+	u32 count;
+	/* access only under spinlock */
 	struct sidtab_convert_params *convert;
 	spinlock_t lock;
 
-	/* reverse lookup cache */
-	atomic_t rcache[SIDTAB_RCACHE_SIZE];
+	/* reverse lookup cache - access atomically via {READ|WRITE}_ONCE() */
+	u32 rcache[SIDTAB_RCACHE_SIZE];
 
 	/* index == SID - 1 (no entry for SECSID_NULL) */
 	struct sidtab_isid_entry isids[SECINITSID_NUM];
