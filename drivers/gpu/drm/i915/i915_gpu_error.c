@@ -1045,7 +1045,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 
 			s = kmap(page);
 			ret = compress_page(compress, s, dst);
-			kunmap(s);
+			kunmap(page);
 
 			drm_clflush_pages(&page, 1);
 
