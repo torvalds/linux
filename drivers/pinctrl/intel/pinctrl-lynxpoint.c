@@ -98,18 +98,28 @@ static void __iomem *lp_gpio_reg(struct gpio_chip *chip, unsigned int offset,
 	return lg->regs + reg + reg_offset;
 }
 
+static bool lp_gpio_acpi_use(struct lp_gpio *lg, unsigned int pin)
+{
+	void __iomem *acpi_use;
+
+	acpi_use = lp_gpio_reg(&lg->chip, pin, LP_ACPI_OWNED);
+	if (!acpi_use)
+		return true;
+
+	return !(ioread32(acpi_use) & BIT(pin % 32));
+}
+
 static int lp_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
 	struct lp_gpio *lg = gpiochip_get_data(chip);
 	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
 	void __iomem *conf2 = lp_gpio_reg(chip, offset, LP_CONFIG2);
-	void __iomem *acpi_use = lp_gpio_reg(chip, offset, LP_ACPI_OWNED);
 	u32 value;
 
 	pm_runtime_get(lg->dev); /* should we put if failed */
 
 	/* Fail if BIOS reserved pin for ACPI use */
-	if (!(ioread32(acpi_use) & BIT(offset % 32))) {
+	if (lp_gpio_acpi_use(lg, offset)) {
 		dev_err(lg->dev, "gpio %d reserved for ACPI\n", offset);
 		return -EBUSY;
 	}
