@@ -169,82 +169,55 @@ enum rtl8188e_h2c_cmd {
 	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __value)
 
 
-#define SET_H2CCMD_PWRMODE_PARM_MODE(__ph2ccmd, __val)			\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
-#define SET_H2CCMD_PWRMODE_PARM_RLBM(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 4, __value)
-#define SET_H2CCMD_PWRMODE_PARM_SMART_PS(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 4, 4, __value)
-#define SET_H2CCMD_PWRMODE_PARM_AWAKE_INTERVAL(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __value)
-#define SET_H2CCMD_PWRMODE_PARM_ALL_QUEUE_UAPSD(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __value)
-#define SET_H2CCMD_PWRMODE_PARM_PWR_STATE(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+4, 0, 8, __value)
-#define GET_88E_H2CCMD_PWRMODE_PARM_MODE(__cmd)			\
-	LE_BITS_TO_1BYTE(__cmd, 0, 8)
+static inline void set_h2ccmd_pwrmode_parm_mode(u8 *__ph2ccmd, u8 __val)
+{
+	*(u8 *)(__ph2ccmd) = __val;
+}
+
+static inline void set_h2ccmd_pwrmode_parm_rlbm(u8 *__cmd, u8 __value)
+{
+	u8p_replace_bits(__cmd + 1, __value, GENMASK(3, 0));
+}
+
+static inline void set_h2ccmd_pwrmode_parm_smart_ps(u8 *__cmd, u8 __value)
+{
+	u8p_replace_bits(__cmd + 1, __value, GENMASK(7, 4));
+}
+
+static inline void set_h2ccmd_pwrmode_parm_awake_interval(u8 *__cmd, u8 __value)
+{
+	*(u8 *)(__cmd + 2) = __value;
+}
+
+static inline void set_h2ccmd_pwrmode_parm_all_queue_uapsd(u8 *__cmd,
+							   u8 __value)
+{
+	*(u8 *)(__cmd + 3) = __value;
+}
+
+static inline void set_h2ccmd_pwrmode_parm_pwr_state(u8 *__cmd, u8 __value)
+{
+	*(u8 *)(__cmd + 4) = __value;
+}
 
 #define SET_H2CCMD_JOINBSSRPT_PARM_OPMODE(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
+	*(u8 *)(__ph2ccmd) = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_PROBE_RSP(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
+	*(u8 *)(__ph2ccmd) = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_PSPOLL(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+1, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 1) = __val;
 #define SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__ph2ccmd, __val)		\
-	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
+	*(u8 *)(__ph2ccmd + 2) = __val;
 
 /* AP_OFFLOAD */
 #define SET_H2CCMD_AP_OFFLOAD_ON(__cmd, __value)			\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 8, __value)
+	*(u8 *)__cmd = __value;
 #define SET_H2CCMD_AP_OFFLOAD_HIDDEN(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 8, __value)
+	*(u8 *)(__cmd + 1) = __value;
 #define SET_H2CCMD_AP_OFFLOAD_DENYANY(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __value)
+	*(u8 *)(__cmd + 2) = __value;
 #define SET_H2CCMD_AP_OFFLOAD_WAKEUP_EVT_RPT(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __value)
-
-/* Keep Alive Control*/
-#define SET_88E_H2CCMD_KEEP_ALIVE_ENABLE(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 1, __value)
-#define SET_88E_H2CCMD_KEEP_ALIVE_ACCPEPT_USER_DEFINED(__cmd, __value) \
-	SET_BITS_TO_LE_1BYTE(__cmd, 1, 1, __value)
-#define SET_88E_H2CCMD_KEEP_ALIVE_PERIOD(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 8, __value)
-
-/*REMOTE_WAKE_CTRL */
-#define SET_88E_H2CCMD_REMOTE_WAKE_CTRL_EN(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 1, __value)
-#if (USE_OLD_WOWLAN_DEBUG_FW == 0)
-#define SET_88E_H2CCMD_REMOTE_WAKE_CTRL_ARP_OFFLOAD_EN(__cmd, __value) \
-	SET_BITS_TO_LE_1BYTE(__cmd, 1, 1, __value)
-#define SET_88E_H2CCMD_REMOTE_WAKE_CTRL_NDP_OFFLOAD_EN(__cmd, __value) \
-	SET_BITS_TO_LE_1BYTE(__cmd, 2, 1, __value)
-#define SET_88E_H2CCMD_REMOTE_WAKE_CTRL_GTK_OFFLOAD_EN(__cmd, __value) \
-	SET_BITS_TO_LE_1BYTE(__cmd, 3, 1, __value)
-#else
-#define SET_88E_H2_REM_WAKE_ENC_ALG(__cmd, __value)		\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 8, __value)
-#define SET_88E_H2CCMD_REMOTE_WAKE_CTRL_GROUP_ENC_ALG(__cmd, __value) \
-	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __value)
-#endif
-
-/* GTK_OFFLOAD */
-#define SET_88E_H2CCMD_AOAC_GLOBAL_INFO_PAIRWISE_ENC_ALG(__cmd, __value) \
-	SET_BITS_TO_LE_1BYTE(__cmd, 0, 8, __value)
-#define SET_88E_H2CCMD_AOAC_GLOBAL_INFO_GROUP_ENC_ALG(__cmd, __value) \
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 8, __value)
-
-/* AOAC_RSVDPAGE_LOC */
-#define SET_88E_H2CCMD_AOAC_RSVD_LOC_REM_WAKE_CTRL_INFO(__cmd, __value) \
-	SET_BITS_TO_LE_1BYTE((__cmd), 0, 8, __value)
-#define SET_88E_H2CCMD_AOAC_RSVDPAGE_LOC_ARP_RSP(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+1, 0, 8, __value)
-#define SET_88E_H2CCMD_AOAC_RSVDPAGE_LOC_NEIGHBOR_ADV(__cmd, __value) \
-	SET_BITS_TO_LE_1BYTE((__cmd)+2, 0, 8, __value)
-#define SET_88E_H2CCMD_AOAC_RSVDPAGE_LOC_GTK_RSP(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __value)
-#define SET_88E_H2CCMD_AOAC_RSVDPAGE_LOC_GTK_INFO(__cmd, __value)	\
-	SET_BITS_TO_LE_1BYTE((__cmd)+4, 0, 8, __value)
+	*(u8 *)(__cmd + 3) = __value;
 
 int rtl88e_download_fw(struct ieee80211_hw *hw,
 		       bool buse_wake_on_wlan_fw);
