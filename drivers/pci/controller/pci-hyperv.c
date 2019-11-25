@@ -2902,9 +2902,27 @@ static int hv_pci_probe(struct hv_device *hdev,
 	 * hv_pcibus_device contains the hypercall arguments for retargeting in
 	 * hv_irq_unmask(). Those must not cross a page boundary.
 	 */
-	BUILD_BUG_ON(sizeof(*hbus) > PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(*hbus) > HV_HYP_PAGE_SIZE);
 
-	hbus = (struct hv_pcibus_device *)get_zeroed_page(GFP_KERNEL);
+	/*
+	 * With the recent 59bb47985c1d ("mm, sl[aou]b: guarantee natural
+	 * alignment for kmalloc(power-of-two)"), kzalloc() is able to allocate
+	 * a 4KB buffer that is guaranteed to be 4KB-aligned. Here the size and
+	 * alignment of hbus is important because hbus's field
+	 * retarget_msi_interrupt_params must not cross a 4KB page boundary.
+	 *
+	 * Here we prefer kzalloc to get_zeroed_page(), because a buffer
+	 * allocated by the latter is not tracked and scanned by kmemleak, and
+	 * hence kmemleak reports the pointer contained in the hbus buffer
+	 * (i.e. the hpdev struct, which is created in new_pcichild_device() and
+	 * is tracked by hbus->children) as memory leak (false positive).
+	 *
+	 * If the kernel doesn't have 59bb47985c1d, get_zeroed_page() *must* be
+	 * used to allocate the hbus buffer and we can avoid the kmemleak false
+	 * positive by using kmemleak_alloc() and kmemleak_free() to ask
+	 * kmemleak to track and scan the hbus buffer.
+	 */
+	hbus = (struct hv_pcibus_device *)kzalloc(HV_HYP_PAGE_SIZE, GFP_KERNEL);
 	if (!hbus)
 		return -ENOMEM;
 	hbus->state = hv_pcibus_init;
@@ -3133,7 +3151,7 @@ static int hv_pci_remove(struct hv_device *hdev)
 
 	hv_put_dom_num(hbus->sysdata.domain);
 
-	free_page((unsigned long)hbus);
+	kfree(hbus);
 	return ret;
 }
 
