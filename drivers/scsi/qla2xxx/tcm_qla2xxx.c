@@ -246,6 +246,8 @@ static void tcm_qla2xxx_complete_mcmd(struct work_struct *work)
  */
 static void tcm_qla2xxx_free_mcmd(struct qla_tgt_mgmt_cmd *mcmd)
 {
+	if (!mcmd)
+		return;
 	INIT_WORK(&mcmd->free_work, tcm_qla2xxx_complete_mcmd);
 	queue_work(tcm_qla2xxx_free_wq, &mcmd->free_work);
 }
