@@ -974,9 +974,7 @@ void io_wq_flush(struct io_wq *wq)
 	}
 }
 
-struct io_wq *io_wq_create(unsigned bounded, struct mm_struct *mm,
-			   struct user_struct *user, get_work_fn *get_work,
-			   put_work_fn *put_work)
+struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 {
 	int ret = -ENOMEM, i, node;
 	struct io_wq *wq;
@@ -992,11 +990,11 @@ struct io_wq *io_wq_create(unsigned bounded, struct mm_struct *mm,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	wq->get_work = get_work;
-	wq->put_work = put_work;
+	wq->get_work = data->get_work;
+	wq->put_work = data->put_work;
 
 	/* caller must already hold a reference to this */
-	wq->user = user;
+	wq->user = data->user;
 
 	i = 0;
 	for_each_online_node(node) {
@@ -1009,7 +1007,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct mm_struct *mm,
 		wqe->node = node;
 		wqe->acct[IO_WQ_ACCT_BOUND].max_workers = bounded;
 		atomic_set(&wqe->acct[IO_WQ_ACCT_BOUND].nr_running, 0);
-		if (user) {
+		if (wq->user) {
 			wqe->acct[IO_WQ_ACCT_UNBOUND].max_workers =
 					task_rlimit(current, RLIMIT_NPROC);
 		}
@@ -1031,7 +1029,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct mm_struct *mm,
 		goto err;
 
 	/* caller must have already done mmgrab() on this mm */
-	wq->mm = mm;
+	wq->mm = data->mm;
 
 	wq->manager = kthread_create(io_wq_manager, wq, "io_wq_manager");
 	if (!IS_ERR(wq->manager)) {

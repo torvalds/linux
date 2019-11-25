@@ -3962,6 +3962,7 @@ static void io_get_work(struct io_wq_work *work)
 static int io_sq_offload_start(struct io_ring_ctx *ctx,
 			       struct io_uring_params *p)
 {
+	struct io_wq_data data;
 	unsigned concurrency;
 	int ret;
 
@@ -4006,10 +4007,14 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 		goto err;
 	}
 
+	data.mm = ctx->sqo_mm;
+	data.user = ctx->user;
+	data.get_work = io_get_work;
+	data.put_work = io_put_work;
+
 	/* Do QD, or 4 * CPUS, whatever is smallest */
 	concurrency = min(ctx->sq_entries, 4 * num_online_cpus());
-	ctx->io_wq = io_wq_create(concurrency, ctx->sqo_mm, ctx->user,
-					io_get_work, io_put_work);
+	ctx->io_wq = io_wq_create(concurrency, &data);
 	if (IS_ERR(ctx->io_wq)) {
 		ret = PTR_ERR(ctx->io_wq);
 		ctx->io_wq = NULL;

@@ -42,9 +42,15 @@ struct io_wq_work {
 typedef void (get_work_fn)(struct io_wq_work *);
 typedef void (put_work_fn)(struct io_wq_work *);
 
-struct io_wq *io_wq_create(unsigned bounded, struct mm_struct *mm,
-				struct user_struct *user,
-				get_work_fn *get_work, put_work_fn *put_work);
+struct io_wq_data {
+	struct mm_struct *mm;
+	struct user_struct *user;
+
+	get_work_fn *get_work;
+	put_work_fn *put_work;
+};
+
+struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data);
 void io_wq_destroy(struct io_wq *wq);
 
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work);
