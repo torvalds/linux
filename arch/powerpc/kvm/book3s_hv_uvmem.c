@@ -69,6 +69,17 @@
  * Shared pages: Whenever guest shares a secure page, UV will split and
  * remap the 2MB page if required and issue H_SVM_PAGE_IN with 64K page size.
  *
+ * HV invalidating a page: When a regular page belonging to secure
+ * guest gets unmapped, HV informs UV with UV_PAGE_INVAL of 64K
+ * page size. Using 64K page size is correct here because any non-secure
+ * page will essentially be of 64K page size. Splitting by UV during sharing
+ * and page-out ensures this.
+ *
+ * Page fault handling: When HV handles page fault of a page belonging
+ * to secure guest, it sends that to UV with a 64K UV_PAGE_IN request.
+ * Using 64K size is correct here too as UV would have split the 2MB page
+ * into 64k mappings and would have done page-outs earlier.
+ *
  * In summary, the current secure pages handling code in HV assumes
  * 64K page size and in fact fails any page-in/page-out requests of
  * non-64K size upfront. If and when UV starts supporting multiple
@@ -628,6 +639,27 @@ out:
 	up_read(&kvm->mm->mmap_sem);
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	return ret;
+}
+
+int kvmppc_send_page_to_uv(struct kvm *kvm, unsigned long gfn)
+{
+	unsigned long pfn;
+	int ret = U_SUCCESS;
+
+	pfn = gfn_to_pfn(kvm, gfn);
+	if (is_error_noslot_pfn(pfn))
+		return -EFAULT;
+
+	mutex_lock(&kvm->arch.uvmem_lock);
+	if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, NULL))
+		goto out;
+
+	ret = uv_page_in(kvm->arch.lpid, pfn << PAGE_SHIFT, gfn << PAGE_SHIFT,
+			 0, PAGE_SHIFT);
+out:
+	kvm_release_pfn_clean(pfn);
+	mutex_unlock(&kvm->arch.uvmem_lock);
+	return (ret == U_SUCCESS) ? RESUME_GUEST : -EFAULT;
 }
 
 static u64 kvmppc_get_secmem_size(void)

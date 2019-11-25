@@ -18,6 +18,7 @@ unsigned long kvmppc_h_svm_page_out(struct kvm *kvm,
 				    unsigned long page_shift);
 unsigned long kvmppc_h_svm_init_start(struct kvm *kvm);
 unsigned long kvmppc_h_svm_init_done(struct kvm *kvm);
+int kvmppc_send_page_to_uv(struct kvm *kvm, unsigned long gfn);
 #else
 static inline int kvmppc_uvmem_init(void)
 {
@@ -57,6 +58,11 @@ static inline unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
 static inline unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
 {
 	return H_UNSUPPORTED;
+}
+
+static inline int kvmppc_send_page_to_uv(struct kvm *kvm, unsigned long gfn)
+{
+	return -EFAULT;
 }
 #endif /* CONFIG_PPC_UV */
 #endif /* __ASM_KVM_BOOK3S_UVMEM_H__ */
