@@ -8,10 +8,11 @@
 
 char _license[] SEC("license") = "GPL";
 
-static volatile struct data {
+struct {
 	char in[256];
 	char out[256];
-} data;
+	uint64_t my_pid_tgid;
+} data = {};
 
 struct core_reloc_kernel_output {
 	int valid[10];
@@ -37,6 +38,9 @@ int test_core_kernel(void *ctx)
 	uint64_t pid_tgid = bpf_get_current_pid_tgid();
 	uint32_t real_tgid = (uint32_t)pid_tgid;
 	int pid, tgid;
+
+	if (data.my_pid_tgid != pid_tgid)
+		return 0;
 
 	if (CORE_READ(&pid, &task->pid) ||
 	    CORE_READ(&tgid, &task->tgid))

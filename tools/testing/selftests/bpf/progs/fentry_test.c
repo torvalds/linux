@@ -2,89 +2,53 @@
 /* Copyright (c) 2019 Facebook */
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
+#include "bpf_trace_helpers.h"
 
 char _license[] SEC("license") = "GPL";
 
-struct test1 {
-	ks32 a;
-};
 static volatile __u64 test1_result;
-SEC("fentry/bpf_fentry_test1")
-int test1(struct test1 *ctx)
+BPF_TRACE_1("fentry/bpf_fentry_test1", test1, int, a)
 {
-	test1_result = ctx->a == 1;
+	test1_result = a == 1;
 	return 0;
 }
 
-struct test2 {
-	ks32 a;
-	ku64 b;
-};
 static volatile __u64 test2_result;
-SEC("fentry/bpf_fentry_test2")
-int test2(struct test2 *ctx)
+BPF_TRACE_2("fentry/bpf_fentry_test2", test2, int, a, __u64, b)
 {
-	test2_result = ctx->a == 2 && ctx->b == 3;
+	test2_result = a == 2 && b == 3;
 	return 0;
 }
 
-struct test3 {
-	ks8 a;
-	ks32 b;
-	ku64 c;
-};
 static volatile __u64 test3_result;
-SEC("fentry/bpf_fentry_test3")
-int test3(struct test3 *ctx)
+BPF_TRACE_3("fentry/bpf_fentry_test3", test3, char, a, int, b, __u64, c)
 {
-	test3_result = ctx->a == 4 && ctx->b == 5 && ctx->c == 6;
+	test3_result = a == 4 && b == 5 && c == 6;
 	return 0;
 }
 
-struct test4 {
-	void *a;
-	ks8 b;
-	ks32 c;
-	ku64 d;
-};
 static volatile __u64 test4_result;
-SEC("fentry/bpf_fentry_test4")
-int test4(struct test4 *ctx)
+BPF_TRACE_4("fentry/bpf_fentry_test4", test4,
+	    void *, a, char, b, int, c, __u64, d)
 {
-	test4_result = ctx->a == (void *)7 && ctx->b == 8 && ctx->c == 9 &&
-		ctx->d == 10;
+	test4_result = a == (void *)7 && b == 8 && c == 9 && d == 10;
 	return 0;
 }
 
-struct test5 {
-	ku64 a;
-	void *b;
-	ks16 c;
-	ks32 d;
-	ku64 e;
-};
 static volatile __u64 test5_result;
-SEC("fentry/bpf_fentry_test5")
-int test5(struct test5 *ctx)
+BPF_TRACE_5("fentry/bpf_fentry_test5", test5,
+	    __u64, a, void *, b, short, c, int, d, __u64, e)
 {
-	test5_result = ctx->a == 11 && ctx->b == (void *)12 && ctx->c == 13 &&
-		ctx->d == 14 && ctx->e == 15;
+	test5_result = a == 11 && b == (void *)12 && c == 13 && d == 14 &&
+		e == 15;
 	return 0;
 }
 
-struct test6 {
-	ku64 a;
-	void *b;
-	ks16 c;
-	ks32 d;
-	void *e;
-	ks64 f;
-};
 static volatile __u64 test6_result;
-SEC("fentry/bpf_fentry_test6")
-int test6(struct test6 *ctx)
+BPF_TRACE_6("fentry/bpf_fentry_test6", test6,
+	    __u64, a, void *, b, short, c, int, d, void *, e, __u64, f)
 {
-	test6_result = ctx->a == 16 && ctx->b == (void *)17 && ctx->c == 18 &&
-		ctx->d == 19 && ctx->e == (void *)20 && ctx->f == 21;
+	test6_result = a == 16 && b == (void *)17 && c == 18 && d == 19 &&
+		e == (void *)20 && f == 21;
 	return 0;
 }

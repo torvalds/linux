@@ -428,15 +428,15 @@ exit_close:
 static bool is_btf_raw(const char *file)
 {
 	__u16 magic = 0;
-	int fd;
+	int fd, nb_read;
 
 	fd = open(file, O_RDONLY);
 	if (fd < 0)
 		return false;
 
-	read(fd, &magic, sizeof(magic));
+	nb_read = read(fd, &magic, sizeof(magic));
 	close(fd);
-	return magic == BTF_MAGIC;
+	return nb_read == sizeof(magic) && magic == BTF_MAGIC;
 }
 
 static int do_dump(int argc, char **argv)

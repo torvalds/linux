@@ -44,17 +44,4 @@ enum libbpf_pin_type {
 	LIBBPF_PIN_BY_NAME,
 };
 
-/* The following types should be used by BPF_PROG_TYPE_TRACING program to
- * access kernel function arguments. BPF trampoline and raw tracepoints
- * typecast arguments to 'unsigned long long'.
- */
-typedef int __attribute__((aligned(8))) ks32;
-typedef char __attribute__((aligned(8))) ks8;
-typedef short __attribute__((aligned(8))) ks16;
-typedef long long __attribute__((aligned(8))) ks64;
-typedef unsigned int __attribute__((aligned(8))) ku32;
-typedef unsigned char __attribute__((aligned(8))) ku8;
-typedef unsigned short __attribute__((aligned(8))) ku16;
-typedef unsigned long long __attribute__((aligned(8))) ku64;
-
 #endif

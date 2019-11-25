@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
+#include "bpf_trace_helpers.h"
 
 char _license[] SEC("license") = "GPL";
 struct {
@@ -47,28 +48,18 @@ struct sk_buff {
 	char cb[48];
 };
 
-/* copy arguments from
- * include/trace/events/skb.h:
- * TRACE_EVENT(kfree_skb,
- *         TP_PROTO(struct sk_buff *skb, void *location),
- *
- * into struct below:
- */
-struct trace_kfree_skb {
-	struct sk_buff *skb;
-	void *location;
-};
-
 struct meta {
 	int ifindex;
 	__u32 cb32_0;
 	__u8 cb8_0;
 };
 
-SEC("tp_btf/kfree_skb")
-int trace_kfree_skb(struct trace_kfree_skb *ctx)
+/* TRACE_EVENT(kfree_skb,
+ *         TP_PROTO(struct sk_buff *skb, void *location),
+ */
+BPF_TRACE_2("tp_btf/kfree_skb", trace_kfree_skb,
+	    struct sk_buff *, skb, void *, location)
 {
-	struct sk_buff *skb = ctx->skb;
 	struct net_device *dev;
 	struct callback_head *ptr;
 	void *func;
@@ -123,17 +114,10 @@ static volatile struct {
 	bool fexit_test_ok;
 } result;
 
-struct eth_type_trans_args {
-	struct sk_buff *skb;
-	struct net_device *dev;
-	unsigned short protocol; /* return value available to fexit progs */
-};
-
-SEC("fentry/eth_type_trans")
-int fentry_eth_type_trans(struct eth_type_trans_args *ctx)
+BPF_TRACE_3("fentry/eth_type_trans", fentry_eth_type_trans,
+	    struct sk_buff *, skb, struct net_device *, dev,
+	    unsigned short, protocol)
 {
-	struct sk_buff *skb = ctx->skb;
-	struct net_device *dev = ctx->dev;
 	int len, ifindex;
 
 	__builtin_preserve_access_index(({
@@ -148,11 +132,10 @@ int fentry_eth_type_trans(struct eth_type_trans_args *ctx)
 	return 0;
 }
 
-SEC("fexit/eth_type_trans")
-int fexit_eth_type_trans(struct eth_type_trans_args *ctx)
+BPF_TRACE_3("fexit/eth_type_trans", fexit_eth_type_trans,
+	    struct sk_buff *, skb, struct net_device *, dev,
+	    unsigned short, protocol)
 {
-	struct sk_buff *skb = ctx->skb;
-	struct net_device *dev = ctx->dev;
 	int len, ifindex;
 
 	__builtin_preserve_access_index(({
@@ -163,7 +146,7 @@ int fexit_eth_type_trans(struct eth_type_trans_args *ctx)
 	/* fexit sees packet without L2 header that eth_type_trans should have
 	 * consumed.
 	 */
-	if (len != 60 || ctx->protocol != bpf_htons(0x86dd) || ifindex != 1)
+	if (len != 60 || protocol != bpf_htons(0x86dd) || ifindex != 1)
 		return 0;
 	result.fexit_test_ok = true;
 	return 0;

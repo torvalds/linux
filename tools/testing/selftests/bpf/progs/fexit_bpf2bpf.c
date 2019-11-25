@@ -2,46 +2,37 @@
 /* Copyright (c) 2019 Facebook */
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
+#include "bpf_trace_helpers.h"
 
 struct sk_buff {
 	unsigned int len;
 };
 
-struct args {
-	struct sk_buff *skb;
-	ks32 ret;
-};
 static volatile __u64 test_result;
-SEC("fexit/test_pkt_access")
-int test_main(struct args *ctx)
+BPF_TRACE_2("fexit/test_pkt_access", test_main,
+	    struct sk_buff *, skb, int, ret)
 {
-	struct sk_buff *skb = ctx->skb;
 	int len;
 
 	__builtin_preserve_access_index(({
 		len = skb->len;
 	}));
-	if (len != 74 || ctx->ret != 0)
+	if (len != 74 || ret != 0)
 		return 0;
 	test_result = 1;
 	return 0;
 }
 
-struct args_subprog1 {
-	struct sk_buff *skb;
-	ks32 ret;
-};
 static volatile __u64 test_result_subprog1;
-SEC("fexit/test_pkt_access_subprog1")
-int test_subprog1(struct args_subprog1 *ctx)
+BPF_TRACE_2("fexit/test_pkt_access_subprog1", test_subprog1,
+	    struct sk_buff *, skb, int, ret)
 {
-	struct sk_buff *skb = ctx->skb;
 	int len;
 
 	__builtin_preserve_access_index(({
 		len = skb->len;
 	}));
-	if (len != 74 || ctx->ret != 148)
+	if (len != 74 || ret != 148)
 		return 0;
 	test_result_subprog1 = 1;
 	return 0;
@@ -62,8 +53,8 @@ int test_subprog1(struct args_subprog1 *ctx)
  * instead of accurate types.
  */
 struct args_subprog2 {
-	ku64 args[5];
-	ku64 ret;
+	__u64 args[5];
+	__u64 ret;
 };
 static volatile __u64 test_result_subprog2;
 SEC("fexit/test_pkt_access_subprog2")

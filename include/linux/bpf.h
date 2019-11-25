@@ -22,6 +22,7 @@ struct bpf_verifier_env;
 struct bpf_verifier_log;
 struct perf_event;
 struct bpf_prog;
+struct bpf_prog_aux;
 struct bpf_map;
 struct sock;
 struct seq_file;
@@ -63,6 +64,12 @@ struct bpf_map_ops {
 			     const struct btf *btf,
 			     const struct btf_type *key_type,
 			     const struct btf_type *value_type);
+
+	/* Prog poke tracking helpers. */
+	int (*map_poke_track)(struct bpf_map *map, struct bpf_prog_aux *aux);
+	void (*map_poke_untrack)(struct bpf_map *map, struct bpf_prog_aux *aux);
+	void (*map_poke_run)(struct bpf_map *map, u32 key, struct bpf_prog *old,
+			     struct bpf_prog *new);
 
 	/* Direct value access helpers. */
 	int (*map_direct_value_addr)(const struct bpf_map *map,
@@ -488,6 +495,24 @@ struct bpf_func_info_aux {
 	bool unreliable;
 };
 
+enum bpf_jit_poke_reason {
+	BPF_POKE_REASON_TAIL_CALL,
+};
+
+/* Descriptor of pokes pointing /into/ the JITed image. */
+struct bpf_jit_poke_descriptor {
+	void *ip;
+	union {
+		struct {
+			struct bpf_map *map;
+			u32 key;
+		} tail_call;
+	};
+	bool ip_stable;
+	u8 adj_off;
+	u16 reason;
+};
+
 struct bpf_prog_aux {
 	atomic64_t refcnt;
 	u32 used_map_cnt;
@@ -513,6 +538,8 @@ struct bpf_prog_aux {
 	const char *attach_func_name;
 	struct bpf_prog **func;
 	void *jit_data; /* JIT specific data. arch dependent */
+	struct bpf_jit_poke_descriptor *poke_tab;
+	u32 size_poke_tab;
 	struct latch_tree_node ksym_tnode;
 	struct list_head ksym_lnode;
 	const struct bpf_prog_ops *ops;
@@ -560,17 +587,26 @@ struct bpf_prog_aux {
 	};
 };
 
+struct bpf_array_aux {
+	/* 'Ownership' of prog array is claimed by the first program that
+	 * is going to use this map or by the first program which FD is
+	 * stored in the map to make sure that all callers and callees have
+	 * the same prog type and JITed flag.
+	 */
+	enum bpf_prog_type type;
+	bool jited;
+	/* Programs with direct jumps into programs part of this array. */
+	struct list_head poke_progs;
+	struct bpf_map *map;
+	struct mutex poke_mutex;
+	struct work_struct work;
+};
+
 struct bpf_array {
 	struct bpf_map map;
 	u32 elem_size;
 	u32 index_mask;
-	/* 'ownership' of prog_array is claimed by the first program that
-	 * is going to use this map or by the first program which FD is stored
-	 * in the map to make sure that all callers and callees have the same
-	 * prog_type and JITed flag
-	 */
-	enum bpf_prog_type owner_prog_type;
-	bool owner_jited;
+	struct bpf_array_aux *aux;
 	union {
 		char value[0] __aligned(8);
 		void *ptrs[0] __aligned(8);
@@ -1031,6 +1067,10 @@ static inline int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 {
 	return -ENOTSUPP;
 }
+
+static inline void bpf_map_put(struct bpf_map *map)
+{
+}
 #endif /* CONFIG_BPF_SYSCALL */
 
 static inline struct bpf_prog *bpf_prog_get_type(u32 ufd,
@@ -1284,10 +1324,10 @@ static inline u32 bpf_xdp_sock_convert_ctx_access(enum bpf_access_type type,
 #endif /* CONFIG_INET */
 
 enum bpf_text_poke_type {
-	BPF_MOD_NOP_TO_CALL,
-	BPF_MOD_CALL_TO_CALL,
-	BPF_MOD_CALL_TO_NOP,
+	BPF_MOD_CALL,
+	BPF_MOD_JUMP,
 };
+
 int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 		       void *addr1, void *addr2);
 
