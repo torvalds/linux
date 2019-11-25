@@ -2857,15 +2857,21 @@ static int init_percpu_info(struct f2fs_sb_info *sbi)
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
+static int f2fs_report_zone_cb(struct blk_zone *zone, unsigned int idx,
+			       void *data)
+{
+	struct f2fs_dev_info *dev = data;
+
+	if (zone->type != BLK_ZONE_TYPE_CONVENTIONAL)
+		set_bit(idx, dev->blkz_seq);
+	return 0;
+}
+
 static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
 {
 	struct block_device *bdev = FDEV(devi).bdev;
 	sector_t nr_sectors = bdev->bd_part->nr_sects;
-	sector_t sector = 0;
-	struct blk_zone *zones;
-	unsigned int i, nr_zones;
-	unsigned int n = 0;
-	int err = -EIO;
+	int ret;
 
 	if (!f2fs_sb_has_blkzoned(sbi))
 		return 0;
@@ -2890,38 +2896,13 @@ static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
 	if (!FDEV(devi).blkz_seq)
 		return -ENOMEM;
 
-#define F2FS_REPORT_NR_ZONES   4096
-
-	zones = f2fs_kzalloc(sbi,
-			     array_size(F2FS_REPORT_NR_ZONES,
-					sizeof(struct blk_zone)),
-			     GFP_KERNEL);
-	if (!zones)
-		return -ENOMEM;
-
 	/* Get block zones type */
-	while (zones && sector < nr_sectors) {
+	ret = blkdev_report_zones(bdev, 0, BLK_ALL_ZONES, f2fs_report_zone_cb,
+				  &FDEV(devi));
+	if (ret < 0)
+		return ret;
 
-		nr_zones = F2FS_REPORT_NR_ZONES;
-		err = blkdev_report_zones(bdev, sector, zones, &nr_zones);
-		if (err)
-			break;
-		if (!nr_zones) {
-			err = -EIO;
-			break;
-		}
-
-		for (i = 0; i < nr_zones; i++) {
-			if (zones[i].type != BLK_ZONE_TYPE_CONVENTIONAL)
-				set_bit(n, FDEV(devi).blkz_seq);
-			sector += zones[i].len;
-			n++;
-		}
-	}
-
-	kvfree(zones);
-
-	return err;
+	return 0;
 }
 #endif
 

@@ -851,11 +851,7 @@ static inline int blk_partition_remap(struct bio *bio)
 	if (unlikely(bio_check_ro(bio, p)))
 		goto out;
 
-	/*
-	 * Zone management bios do not have a sector count but they do have
-	 * a start sector filled out and need to be remapped.
-	 */
-	if (bio_sectors(bio) || op_is_zone_mgmt(bio_op(bio))) {
+	if (bio_sectors(bio)) {
 		if (bio_check_eod(bio, part_nr_sects_read(p)))
 			goto out;
 		bio->bi_iter.bi_sector += p->start_sect;
