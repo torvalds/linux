@@ -177,6 +177,11 @@ bitmap_flush_interval:number
 	The bitmap flush interval in milliseconds. The metadata buffers
 	are synchronized when this interval expires.
 
+fix_padding
+	Use a smaller padding of the tag area that is more
+	space-efficient. If this option is not present, large padding is
+	used - that is for compatibility with older kernels.
+
 
 The journal mode (D/J), buffer_sectors, journal_watermark, commit_time can
 be changed when reloading the target (load an inactive table and swap the
