@@ -34,13 +34,13 @@ jobs:
         - make coccicheck MODE=report M=sound/soc/sof
     - name: "BUILD SOF Kernel x86_64"
       script:
-        - export ARCH=x86_64
+        - export ARCH=x86_64 KCFLAGS="-Wall -Werror"
         - make defconfig
         - scripts/kconfig/merge_config.sh .config kconfig/base-defconfig kconfig/sof-defconfig
         - make modules_prepare
-        - KCFLAGS="-Wall -Werror" make -j`getconf _NPROCESSORS_ONLN` M=sound/soc/sof W=1
-        - KCFLAGS="-Wall -Werror" make -j`getconf _NPROCESSORS_ONLN`
-        - make bindeb-pkg -j`getconf _NPROCESSORS_ONLN`
+        - make -j`getconf _NPROCESSORS_ONLN` M=sound/soc/sof W=1
+        - make -j`getconf _NPROCESSORS_ONLN`
+        - make -j`getconf _NPROCESSORS_ONLN` bindeb-pkg
     - name: "BUILD SST Kernel x86_64"
       script:
         - export ARCH=x86_64
