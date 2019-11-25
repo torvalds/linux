@@ -1549,7 +1549,7 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid, bool polled)
 	result = adapter_alloc_sq(dev, qid, nvmeq);
 	if (result < 0)
 		return result;
-	else if (result)
+	if (result)
 		goto release_cq;
 
 	nvmeq->cq_vector = vector;
