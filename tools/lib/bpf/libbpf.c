@@ -5128,7 +5128,7 @@ int libbpf_find_vmlinux_btf_id(const char *name,
 	char *dst = raw_tp_btf + sizeof(BTF_PREFIX) - 1;
 	const char *btf_name;
 	int err = -EINVAL;
-	u32 kind;
+	__u32 kind;
 
 	if (IS_ERR(btf)) {
 		pr_warn("vmlinux BTF is not found\n");
