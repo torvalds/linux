@@ -133,11 +133,10 @@ fi
 qemu_args="-enable-kvm -nographic $qemu_args"
 cpu_count=`configNR_CPUS.sh $resdir/ConfigFragment`
 cpu_count=`configfrag_boot_cpus "$boot_args" "$config_template" "$cpu_count"`
-vcpus=`identify_qemu_vcpus`
-if test $cpu_count -gt $vcpus
+if test "$cpu_count" -gt "$TORTURE_ALLOTED_CPUS"
 then
-	echo CPU count limited from $cpu_count to $vcpus | tee -a $resdir/Warnings
-	cpu_count=$vcpus
+	echo CPU count limited from $cpu_count to $TORTURE_ALLOTED_CPUS | tee -a $resdir/Warnings
+	cpu_count=$TORTURE_ALLOTED_CPUS
 fi
 qemu_args="`specify_qemu_cpus "$QEMU" "$qemu_args" "$cpu_count"`"
 
