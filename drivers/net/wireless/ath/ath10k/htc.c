@@ -800,8 +800,8 @@ setup:
 						&ep->ul_pipe_id,
 						&ep->dl_pipe_id);
 	if (status) {
-		ath10k_warn(ar, "unsupported HTC service id: %d\n",
-			    ep->service_id);
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "unsupported HTC service id: %d\n",
+			   ep->service_id);
 		return status;
 	}
 
@@ -878,8 +878,8 @@ static bool ath10k_htc_pktlog_svc_supported(struct ath10k *ar)
 						&ul_pipe_id,
 						&dl_pipe_id);
 	if (status) {
-		ath10k_warn(ar, "unsupported HTC service id: %d\n",
-			    ATH10K_HTC_SVC_ID_HTT_LOG_MSG);
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "unsupported HTC pktlog service id: %d\n",
+			   ATH10K_HTC_SVC_ID_HTT_LOG_MSG);
 
 		return false;
 	}
