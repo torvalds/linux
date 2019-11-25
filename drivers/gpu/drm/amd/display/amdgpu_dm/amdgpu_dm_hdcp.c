@@ -225,6 +225,9 @@ static void event_property_validate(struct work_struct *work)
 	struct mod_hdcp_display_query query;
 	struct amdgpu_dm_connector *aconnector = hdcp_work->aconnector;
 
+	if (!aconnector)
+		return;
+
 	mutex_lock(&hdcp_work->mutex);
 
 	query.encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
