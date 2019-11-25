@@ -18,7 +18,9 @@ Provide an introduction to how the subsystem operates. While MAINTAINERS
 tells the contributor where to send patches for which files, it does not
 convey other subsystem-local infrastructure and mechanisms that aid
 development.
+
 Example questions to consider:
+
 - Are there notifications when patches are applied to the local tree, or
   merged upstream?
 - Does the subsystem have a patchwork instance? Are patchwork state
@@ -55,6 +57,7 @@ be settled in soaking in linux-next in advance of the merge window
 opening. Clarify for the submitter the key dates (in terms rc release
 week) that patches might considered for merging and when patches need to
 wait for the next -rc. At a minimum:
+
 - Last -rc for new feature submissions:
   New feature submissions targeting the next merge window should have
   their first posting for consideration before this point. Patches that
@@ -72,6 +75,7 @@ wait for the next -rc. At a minimum:
   resubmit for the following merge window.
 
 Optional:
+
 - First -rc at which the development baseline branch, listed in the
   overview section, should be considered ready for new submissions.
 
@@ -85,3 +89,14 @@ section can also indicate a preferred style of update like, resend the
 full series, or privately send a reminder email. This section might also
 list how review works for this code area and methods to get feedback
 that are not directly from the maintainer.
+
+Existing profiles
+-----------------
+
+For now, existing maintainer profiles are listed here; we will likely want
+to do something different in the near future.
+
+.. toctree::
+   :maxdepth: 1
+
+   ../nvdimm/maintainer-entry-profile
