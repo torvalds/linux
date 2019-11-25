@@ -65,6 +65,32 @@
 				ste,config = <&slpm_out_wkup_pdis>;
 			};
 		};
+
+		u1ctsrts_a_1_default: u1ctsrts_a_1_default {
+			default_mux {
+				function = "u1";
+				groups = "u1ctsrts_a_1";
+			};
+			default_cfg1 {
+				pins = "GPIO6_AF6"; /* CTS */
+				ste,config = <&in_pu>;
+			};
+			default_cfg2 {
+				pins = "GPIO7_AG5"; /* RTS */
+				ste,config = <&out_hi>;
+			};
+		};
+
+		u1ctsrts_a_1_sleep: u1ctsrts_a_1_sleep {
+			sleep_cfg1 {
+				pins = "GPIO6_AF6"; /* CTS */
+				ste,config = <&slpm_in_wkup_pdis>;
+			};
+			sleep_cfg2 {
+				pins = "GPIO7_AG5"; /* RTS */
+				ste,config = <&slpm_out_hi_wkup_pdis>;
+			};
+		};
 	};
 
 	uart2 {
