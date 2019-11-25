@@ -60,7 +60,12 @@ enum dce_environment {
 	DCE_ENV_FPGA_MAXIMUS,
 	/* Emulation on real HW or on FPGA. Used by Diagnostics, enforces
 	 * requirements of Diagnostics team. */
-	DCE_ENV_DIAG
+	DCE_ENV_DIAG,
+	/*
+	 * Guest VM system, DC HW may exist but is not virtualized and
+	 * should not be used.  SW support for VDI only.
+	 */
+	DCE_ENV_VIRTUAL_HW
 };
 
 /* Note: use these macro definitions instead of direct comparison! */

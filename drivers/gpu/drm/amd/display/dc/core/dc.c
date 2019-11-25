@@ -582,6 +582,40 @@ static void dc_destruct(struct dc *dc)
 
 }
 
+static bool dc_construct_ctx(struct dc *dc,
+		const struct dc_init_data *init_params)
+{
+	struct dc_context *dc_ctx;
+	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
+
+	dc_ctx = kzalloc(sizeof(*dc_ctx), GFP_KERNEL);
+	if (!dc_ctx)
+		return false;
+
+	dc_ctx->cgs_device = init_params->cgs_device;
+	dc_ctx->driver_context = init_params->driver;
+	dc_ctx->dc = dc;
+	dc_ctx->asic_id = init_params->asic_id;
+	dc_ctx->dc_sink_id_count = 0;
+	dc_ctx->dc_stream_id_count = 0;
+	dc_ctx->dce_environment = init_params->dce_environment;
+
+	/* Create logger */
+
+	dc_version = resource_parse_asic_id(init_params->asic_id);
+	dc_ctx->dce_version = dc_version;
+
+	dc_ctx->perf_trace = dc_perf_trace_create();
+	if (!dc_ctx->perf_trace) {
+		ASSERT_CRITICAL(false);
+		return false;
+	}
+
+	dc->ctx = dc_ctx;
+
+	return true;
+}
+
 static bool dc_construct(struct dc *dc,
 		const struct dc_init_data *init_params)
 {
@@ -593,7 +627,6 @@ static bool dc_construct(struct dc *dc,
 	struct dcn_ip_params *dcn_ip;
 #endif
 
-	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
 	dc->config = init_params->flags;
 
 	// Allocate memory for the vm_helper
@@ -639,26 +672,12 @@ static bool dc_construct(struct dc *dc,
 	dc->soc_bounding_box = init_params->soc_bounding_box;
 #endif
 
-	dc_ctx = kzalloc(sizeof(*dc_ctx), GFP_KERNEL);
-	if (!dc_ctx) {
+	if (!dc_construct_ctx(dc, init_params)) {
 		dm_error("%s: failed to create ctx\n", __func__);
 		goto fail;
 	}
 
-	dc_ctx->cgs_device = init_params->cgs_device;
-	dc_ctx->driver_context = init_params->driver;
-	dc_ctx->dc = dc;
-	dc_ctx->asic_id = init_params->asic_id;
-	dc_ctx->dc_sink_id_count = 0;
-	dc_ctx->dc_stream_id_count = 0;
-	dc->ctx = dc_ctx;
-
-	/* Create logger */
-
-	dc_ctx->dce_environment = init_params->dce_environment;
-
-	dc_version = resource_parse_asic_id(init_params->asic_id);
-	dc_ctx->dce_version = dc_version;
+        dc_ctx = dc->ctx;
 
 	/* Resource should construct all asic specific resources.
 	 * This should be the only place where we need to parse the asic id
@@ -673,7 +692,7 @@ static bool dc_construct(struct dc *dc,
 		bp_init_data.bios = init_params->asic_id.atombios_base_address;
 
 		dc_ctx->dc_bios = dal_bios_parser_create(
-				&bp_init_data, dc_version);
+				&bp_init_data, dc_ctx->dce_version);
 
 		if (!dc_ctx->dc_bios) {
 			ASSERT_CRITICAL(false);
@@ -681,17 +700,13 @@ static bool dc_construct(struct dc *dc,
 		}
 
 		dc_ctx->created_bios = true;
-		}
-
-	dc_ctx->perf_trace = dc_perf_trace_create();
-	if (!dc_ctx->perf_trace) {
-		ASSERT_CRITICAL(false);
-		goto fail;
 	}
+
+
 
 	/* Create GPIO service */
 	dc_ctx->gpio_service = dal_gpio_service_create(
-			dc_version,
+			dc_ctx->dce_version,
 			dc_ctx->dce_environment,
 			dc_ctx);
 
@@ -700,7 +715,7 @@ static bool dc_construct(struct dc *dc,
 		goto fail;
 	}
 
-	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_version);
+	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_ctx->dce_version);
 	if (!dc->res_pool)
 		goto fail;
 
@@ -731,8 +746,6 @@ static bool dc_construct(struct dc *dc,
 	return true;
 
 fail:
-
-	dc_destruct(dc);
 	return false;
 }
 
@@ -825,28 +838,37 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	if (NULL == dc)
 		goto alloc_fail;
 
-	if (false == dc_construct(dc, init_params))
-		goto construct_fail;
+	if (init_params->dce_environment == DCE_ENV_VIRTUAL_HW) {
+		if (false == dc_construct_ctx(dc, init_params)) {
+			dc_destruct(dc);
+			goto construct_fail;
+		}
+	} else {
+		if (false == dc_construct(dc, init_params)) {
+			dc_destruct(dc);
+			goto construct_fail;
+		}
 
-	full_pipe_count = dc->res_pool->pipe_count;
-	if (dc->res_pool->underlay_pipe_index != NO_UNDERLAY_PIPE)
-		full_pipe_count--;
-	dc->caps.max_streams = min(
-			full_pipe_count,
-			dc->res_pool->stream_enc_count);
+		full_pipe_count = dc->res_pool->pipe_count;
+		if (dc->res_pool->underlay_pipe_index != NO_UNDERLAY_PIPE)
+			full_pipe_count--;
+		dc->caps.max_streams = min(
+				full_pipe_count,
+				dc->res_pool->stream_enc_count);
 
-	dc->optimize_seamless_boot_streams = 0;
-	dc->caps.max_links = dc->link_count;
-	dc->caps.max_audios = dc->res_pool->audio_count;
-	dc->caps.linear_pitch_alignment = 64;
+		dc->optimize_seamless_boot_streams = 0;
+		dc->caps.max_links = dc->link_count;
+		dc->caps.max_audios = dc->res_pool->audio_count;
+		dc->caps.linear_pitch_alignment = 64;
 
-	dc->caps.max_dp_protocol_version = DP_VERSION_1_4;
+		dc->caps.max_dp_protocol_version = DP_VERSION_1_4;
+
+		if (dc->res_pool->dmcu != NULL)
+			dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
+	}
 
 	/* Populate versioning information */
 	dc->versions.dc_ver = DC_VER;
-
-	if (dc->res_pool->dmcu != NULL)
-		dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
 
 	dc->build_id = DC_BUILD_ID;
 
@@ -865,7 +887,8 @@ alloc_fail:
 
 void dc_hardware_init(struct dc *dc)
 {
-	dc->hwss.init_hw(dc);
+	if (dc->ctx->dce_environment != DCE_ENV_VIRTUAL_HW)
+		dc->hwss.init_hw(dc);
 }
 
 void dc_init_callbacks(struct dc *dc,
