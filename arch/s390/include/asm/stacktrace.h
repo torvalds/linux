@@ -112,12 +112,12 @@ struct stack_frame {
 									\
 	asm volatile(							\
 		"	la	%[_prev],0(15)\n"			\
-		"	la	15,0(%[_stack])\n"			\
+		"	lg	15,%[_stack]\n"				\
 		"	stg	%[_frame],%[_bc](15)\n"			\
 		"	brasl	14,%[_fn]\n"				\
 		"	la	15,0(%[_prev])\n"			\
 		: [_prev] "=&a" (prev), CALL_FMT_##nr			\
-		  [_stack] "a" (stack),					\
+		  [_stack] "R" (stack),					\
 		  [_bc] "i" (offsetof(struct stack_frame, back_chain)),	\
 		  [_frame] "d" (frame),					\
 		  [_fn] "X" (fn) : CALL_CLOBBER_##nr);			\
