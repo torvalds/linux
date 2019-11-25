@@ -282,6 +282,7 @@ void intel_timeline_fini(struct intel_timeline *timeline)
 {
 	GEM_BUG_ON(atomic_read(&timeline->pin_count));
 	GEM_BUG_ON(!list_empty(&timeline->requests));
+	GEM_BUG_ON(timeline->retire);
 
 	if (timeline->hwsp_cacheline)
 		cacheline_free(timeline->hwsp_cacheline);
