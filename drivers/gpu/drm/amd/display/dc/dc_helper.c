@@ -485,7 +485,12 @@ void generic_reg_wait(const struct dc_context *ctx,
 		return;
 	}
 
-	/* something is terribly wrong if time out is > 200ms. (5Hz) */
+	/*
+	 * Something is terribly wrong if time out is > 3000ms.
+	 * 3000ms is the maximum time needed for SMU to pass values back.
+	 * This value comes from experiments.
+	 *
+	 */
 	ASSERT(delay_between_poll_us * time_out_num_tries <= 3000000);
 
 	for (i = 0; i <= time_out_num_tries; i++) {
