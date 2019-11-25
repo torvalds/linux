@@ -543,7 +543,6 @@
 			};
 
 			otg_switch: OTG_SWITCH {
-				regulator-boot-on;
 				regulator-name = "otg_switch";
 			};
 		};
