@@ -58,12 +58,4 @@ alternative_else_nop_endif
 	.endm
 #endif
 
-/*
- * Remove the address tag from a virtual address, if present.
- */
-	.macro	untagged_addr, dst, addr
-	sbfx	\dst, \addr, #0, #56
-	and	\dst, \dst, \addr
-	.endm
-
 #endif

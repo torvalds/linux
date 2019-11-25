@@ -1,0 +1,3 @@
+mangle_*
+fake_sigreturn_*
+!*.[ch]
