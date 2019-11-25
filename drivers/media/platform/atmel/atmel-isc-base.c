@@ -1210,6 +1210,37 @@ static int isc_try_configure_pipeline(struct isc_device *isc)
 	return 0;
 }
 
+static void isc_try_fse(struct isc_device *isc,
+			struct v4l2_subdev_pad_config *pad_cfg)
+{
+	int ret;
+	struct v4l2_subdev_frame_size_enum fse = {};
+
+	/*
+	 * If we do not know yet which format the subdev is using, we cannot
+	 * do anything.
+	 */
+	if (!isc->try_config.sd_format)
+		return;
+
+	fse.code = isc->try_config.sd_format->mbus_code;
+	fse.which = V4L2_SUBDEV_FORMAT_TRY;
+
+	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, enum_frame_size,
+			       pad_cfg, &fse);
+	/*
+	 * Attempt to obtain format size from subdev. If not available,
+	 * just use the maximum ISC can receive.
+	 */
+	if (ret) {
+		pad_cfg->try_crop.width = ISC_MAX_SUPPORT_WIDTH;
+		pad_cfg->try_crop.height = ISC_MAX_SUPPORT_HEIGHT;
+	} else {
+		pad_cfg->try_crop.width = fse.max_width;
+		pad_cfg->try_crop.height = fse.max_height;
+	}
+}
+
 static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 			u32 *code)
 {
@@ -1312,6 +1343,9 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	ret = isc_try_configure_pipeline(isc);
 	if (ret)
 		goto isc_try_fmt_err;
+
+	/* Obtain frame sizes if possible to have crop requirements ready */
+	isc_try_fse(isc, &pad_cfg);
 
 	v4l2_fill_mbus_format(&format.format, pixfmt, mbus_code);
 	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, set_fmt,
