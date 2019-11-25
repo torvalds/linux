@@ -19,7 +19,10 @@
  * available in the platform for running secure guests is hotplugged.
  * Whenever a page belonging to the guest becomes secure, a page from this
  * private device memory is used to represent and track that secure page
- * on the HV side.
+ * on the HV side. Some pages (like virtio buffers, VPA pages etc) are
+ * shared between UV and HV. However such pages aren't represented by
+ * device private memory and mappings to shared memory exist in both
+ * UV and HV page tables.
  */
 
 /*
@@ -63,6 +66,9 @@
  * UV splits and remaps the 2MB page if necessary and copies out the
  * required 64K page contents.
  *
+ * Shared pages: Whenever guest shares a secure page, UV will split and
+ * remap the 2MB page if required and issue H_SVM_PAGE_IN with 64K page size.
+ *
  * In summary, the current secure pages handling code in HV assumes
  * 64K page size and in fact fails any page-in/page-out requests of
  * non-64K size upfront. If and when UV starts supporting multiple
@@ -93,6 +99,7 @@ struct kvmppc_uvmem_slot {
 struct kvmppc_uvmem_page_pvt {
 	struct kvm *kvm;
 	unsigned long gpa;
+	bool skip_page_out;
 };
 
 int kvmppc_uvmem_slot_init(struct kvm *kvm, const struct kvm_memory_slot *slot)
@@ -345,7 +352,63 @@ out_finalize:
 }
 
 /*
+ * Shares the page with HV, thus making it a normal page.
+ *
+ * - If the page is already secure, then provision a new page and share
+ * - If the page is a normal page, share the existing page
+ *
+ * In the former case, uses dev_pagemap_ops.migrate_to_ram handler
+ * to unmap the device page from QEMU's page tables.
+ */
+static unsigned long
+kvmppc_share_page(struct kvm *kvm, unsigned long gpa, unsigned long page_shift)
+{
+
+	int ret = H_PARAMETER;
+	struct page *uvmem_page;
+	struct kvmppc_uvmem_page_pvt *pvt;
+	unsigned long pfn;
+	unsigned long gfn = gpa >> page_shift;
+	int srcu_idx;
+	unsigned long uvmem_pfn;
+
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+	mutex_lock(&kvm->arch.uvmem_lock);
+	if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, &uvmem_pfn)) {
+		uvmem_page = pfn_to_page(uvmem_pfn);
+		pvt = uvmem_page->zone_device_data;
+		pvt->skip_page_out = true;
+	}
+
+retry:
+	mutex_unlock(&kvm->arch.uvmem_lock);
+	pfn = gfn_to_pfn(kvm, gfn);
+	if (is_error_noslot_pfn(pfn))
+		goto out;
+
+	mutex_lock(&kvm->arch.uvmem_lock);
+	if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, &uvmem_pfn)) {
+		uvmem_page = pfn_to_page(uvmem_pfn);
+		pvt = uvmem_page->zone_device_data;
+		pvt->skip_page_out = true;
+		kvm_release_pfn_clean(pfn);
+		goto retry;
+	}
+
+	if (!uv_page_in(kvm->arch.lpid, pfn << page_shift, gpa, 0, page_shift))
+		ret = H_SUCCESS;
+	kvm_release_pfn_clean(pfn);
+	mutex_unlock(&kvm->arch.uvmem_lock);
+out:
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+	return ret;
+}
+
+/*
  * H_SVM_PAGE_IN: Move page from normal memory to secure memory.
+ *
+ * H_PAGE_IN_SHARED flag makes the page shared which means that the same
+ * memory in is visible from both UV and HV.
  */
 unsigned long
 kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
@@ -364,8 +427,11 @@ kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
 	if (page_shift != PAGE_SHIFT)
 		return H_P3;
 
-	if (flags)
+	if (flags & ~H_PAGE_IN_SHARED)
 		return H_P2;
+
+	if (flags & H_PAGE_IN_SHARED)
+		return kvmppc_share_page(kvm, gpa, page_shift);
 
 	ret = H_PARAMETER;
 	srcu_idx = srcu_read_lock(&kvm->srcu);
@@ -411,6 +477,7 @@ kvmppc_svm_page_out(struct vm_area_struct *vma, unsigned long start,
 	unsigned long src_pfn, dst_pfn = 0;
 	struct migrate_vma mig;
 	struct page *dpage, *spage;
+	struct kvmppc_uvmem_page_pvt *pvt;
 	unsigned long pfn;
 	int ret = U_SUCCESS;
 
@@ -444,10 +511,20 @@ kvmppc_svm_page_out(struct vm_area_struct *vma, unsigned long start,
 	}
 
 	lock_page(dpage);
+	pvt = spage->zone_device_data;
 	pfn = page_to_pfn(dpage);
 
-	ret = uv_page_out(kvm->arch.lpid, pfn << page_shift,
-			  gpa, 0, page_shift);
+	/*
+	 * This function is used in two cases:
+	 * - When HV touches a secure page, for which we do UV_PAGE_OUT
+	 * - When a secure page is converted to shared page, we *get*
+	 *   the page to essentially unmap the device page. In this
+	 *   case we skip page-out.
+	 */
+	if (!pvt->skip_page_out)
+		ret = uv_page_out(kvm->arch.lpid, pfn << page_shift,
+				  gpa, 0, page_shift);
+
 	if (ret == U_SUCCESS)
 		*mig.dst = migrate_pfn(pfn) | MIGRATE_PFN_LOCKED;
 	else {
