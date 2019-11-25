@@ -257,6 +257,47 @@
 				ste,config = <&slpm_out_lo_wkup_pdis>;
 			};
 		};
+
+		mc0_a_2_default: mc0_a_2_default {
+			default_mux {
+				function = "mc0";
+				groups = "mc0_a_2";
+			};
+			default_cfg1 {
+				pins = "GPIO22_AA3"; /* FBCLK */
+				ste,config = <&in_nopull>;
+			};
+			default_cfg2 {
+				pins = "GPIO23_AA4"; /* CLK */
+				ste,config = <&out_lo>;
+			};
+			default_cfg3 {
+				pins =
+				"GPIO24_AB2", /* CMD */
+				"GPIO25_Y4", /* DAT0 */
+				"GPIO26_Y2", /* DAT1 */
+				"GPIO27_AA2", /* DAT2 */
+				"GPIO28_AA1"; /* DAT3 */
+				ste,config = <&in_pu>;
+			};
+		};
+
+		mc0_a_2_sleep: mc0_a_2_sleep {
+			sleep_cfg1 {
+				pins =
+				"GPIO22_AA3", /* FBCLK */
+				"GPIO24_AB2", /* CMD */
+				"GPIO25_Y4", /* DAT0 */
+				"GPIO26_Y2", /* DAT1 */
+				"GPIO27_AA2", /* DAT2 */
+				"GPIO28_AA1"; /* DAT3 */
+				ste,config = <&slpm_in_wkup_pdis>;
+			};
+			sleep_cfg2 {
+				pins = "GPIO23_AA4"; /* CLK */
+				ste,config = <&slpm_out_lo_wkup_pdis>;
+			};
+		};
 	};
 
 	sdi1 {
@@ -293,6 +334,42 @@
 			sleep_cfg2 {
 				pins =
 				"GPIO209_AG15", /* FBCLK */
+				"GPIO210_AJ15", /* CMD */
+				"GPIO211_AG14", /* DAT0 */
+				"GPIO212_AF13", /* DAT1 */
+				"GPIO213_AG13", /* DAT2 */
+				"GPIO214_AH15"; /* DAT3 */
+				ste,config = <&slpm_in_wkup_pdis>;
+			};
+		};
+
+		mc1_a_2_default: mc1_a_2_default {
+			default_mux {
+				function = "mc1";
+				groups = "mc1_a_2";
+			};
+			default_cfg1 {
+				pins = "GPIO208_AH16"; /* CLK */
+				ste,config = <&out_lo>;
+			};
+			default_cfg2 {
+				pins =
+				"GPIO210_AJ15", /* CMD */
+				"GPIO211_AG14", /* DAT0 */
+				"GPIO212_AF13", /* DAT1 */
+				"GPIO213_AG13", /* DAT2 */
+				"GPIO214_AH15"; /* DAT3 */
+				ste,config = <&in_pu>;
+			};
+		};
+
+		mc1_a_2_sleep: mc1_a_2_sleep {
+			sleep_cfg1 {
+				pins = "GPIO208_AH16"; /* CLK */
+				ste,config = <&slpm_out_lo_wkup_pdis>;
+			};
+			sleep_cfg2 {
+				pins =
 				"GPIO210_AJ15", /* CMD */
 				"GPIO211_AG14", /* DAT0 */
 				"GPIO212_AF13", /* DAT1 */
