@@ -25,7 +25,7 @@ config DRM_I915_HEARTBEAT_INTERVAL
 
 config DRM_I915_PREEMPT_TIMEOUT
 	int "Preempt timeout (ms, jiffy granularity)"
-	default 100 # milliseconds
+	default 640 # milliseconds
 	help
 	  How long to wait (in milliseconds) for a preemption event to occur
 	  when submitting a new context via execlists. If the current context
