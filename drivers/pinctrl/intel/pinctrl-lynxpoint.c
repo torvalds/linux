@@ -325,7 +325,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	struct resource *io_rc, *irq_rc;
 	struct device *dev = &pdev->dev;
 	unsigned long reg_len;
-	int ret = -ENODEV;
+	int ret;
 
 	lg = devm_kzalloc(dev, sizeof(struct lp_gpio), GFP_KERNEL);
 	if (!lg)
