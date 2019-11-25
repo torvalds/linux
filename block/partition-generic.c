@@ -442,12 +442,14 @@ static bool disk_unlock_native_capacity(struct gendisk *disk)
 	}
 }
 
-static int drop_partitions(struct gendisk *disk, struct block_device *bdev)
+int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev)
 {
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 	int res;
 
+	if (!disk_part_scan_enabled(disk))
+		return 0;
 	if (bdev->bd_part_count || bdev->bd_super)
 		return -EBUSY;
 	res = invalidate_partition(disk, 0);
@@ -462,148 +464,124 @@ static int drop_partitions(struct gendisk *disk, struct block_device *bdev)
 	return 0;
 }
 
-int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
+static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
+		struct parsed_partitions *state, int p)
 {
-	struct parsed_partitions *state = NULL;
+	sector_t size = state->parts[p].size;
+	sector_t from = state->parts[p].from;
 	struct hd_struct *part;
-	int p, highest, res;
-rescan:
-	if (state && !IS_ERR(state)) {
-		free_partitions(state);
-		state = NULL;
+
+	if (!size)
+		return true;
+
+	if (from >= get_capacity(disk)) {
+		printk(KERN_WARNING
+		       "%s: p%d start %llu is beyond EOD, ",
+		       disk->disk_name, p, (unsigned long long) from);
+		if (disk_unlock_native_capacity(disk))
+			return false;
+		return true;
 	}
 
-	res = drop_partitions(disk, bdev);
-	if (res)
-		return res;
+	if (from + size > get_capacity(disk)) {
+		printk(KERN_WARNING
+		       "%s: p%d size %llu extends beyond EOD, ",
+		       disk->disk_name, p, (unsigned long long) size);
 
-	if (disk->fops->revalidate_disk)
-		disk->fops->revalidate_disk(disk);
-	check_disk_size_change(disk, bdev, true);
-	bdev->bd_invalidated = 0;
-	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
+		if (disk_unlock_native_capacity(disk))
+			return false;
+
+		/*
+		 * We can not ignore partitions of broken tables created by for
+		 * example camera firmware, but we limit them to the end of the
+		 * disk to avoid creating invalid block devices.
+		 */
+		size = get_capacity(disk) - from;
+	}
+
+	part = add_partition(disk, p, from, size, state->parts[p].flags,
+			     &state->parts[p].info);
+	if (IS_ERR(part)) {
+		printk(KERN_ERR " %s: p%d could not be added: %ld\n",
+		       disk->disk_name, p, -PTR_ERR(part));
+		return true;
+	}
+
+#ifdef CONFIG_BLK_DEV_MD
+	if (state->parts[p].flags & ADDPART_FLAG_RAID)
+		md_autodetect_dev(part_to_dev(part)->devt);
+#endif
+	return true;
+}
+
+int blk_add_partitions(struct gendisk *disk, struct block_device *bdev)
+{
+	struct parsed_partitions *state;
+	int ret = -EAGAIN, p, highest;
+
+	if (!disk_part_scan_enabled(disk))
+		return 0;
+
+	state = check_partition(disk, bdev);
+	if (!state)
 		return 0;
 	if (IS_ERR(state)) {
 		/*
-		 * I/O error reading the partition table.  If any
-		 * partition code tried to read beyond EOD, retry
-		 * after unlocking native capacity.
+		 * I/O error reading the partition table.  If we tried to read
+		 * beyond EOD, retry after unlocking the native capacity.
 		 */
 		if (PTR_ERR(state) == -ENOSPC) {
 			printk(KERN_WARNING "%s: partition table beyond EOD, ",
 			       disk->disk_name);
 			if (disk_unlock_native_capacity(disk))
-				goto rescan;
+				return -EAGAIN;
 		}
 		return -EIO;
 	}
 
-	/* Partitions are not supported on zoned block devices */
+	/*
+	 * Partitions are not supported on zoned block devices.
+	 */
 	if (bdev_is_zoned(bdev)) {
 		pr_warn("%s: ignoring partition table on zoned block device\n",
 			disk->disk_name);
-		goto out;
+		ret = 0;
+		goto out_free_state;
 	}
 
 	/*
-	 * If any partition code tried to read beyond EOD, try
-	 * unlocking native capacity even if partition table is
-	 * successfully read as we could be missing some partitions.
+	 * If we read beyond EOD, try unlocking native capacity even if the
+	 * partition table was successfully read as we could be missing some
+	 * partitions.
 	 */
 	if (state->access_beyond_eod) {
 		printk(KERN_WARNING
 		       "%s: partition table partially beyond EOD, ",
 		       disk->disk_name);
 		if (disk_unlock_native_capacity(disk))
-			goto rescan;
+			goto out_free_state;
 	}
 
 	/* tell userspace that the media / partition table may have changed */
 	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
 
-	/* Detect the highest partition number and preallocate
-	 * disk->part_tbl.  This is an optimization and not strictly
-	 * necessary.
+	/*
+	 * Detect the highest partition number and preallocate disk->part_tbl.
+	 * This is an optimization and not strictly necessary.
 	 */
 	for (p = 1, highest = 0; p < state->limit; p++)
 		if (state->parts[p].size)
 			highest = p;
-
 	disk_expand_part_tbl(disk, highest);
 
-	/* add partitions */
-	for (p = 1; p < state->limit; p++) {
-		sector_t size, from;
+	for (p = 1; p < state->limit; p++)
+		if (!blk_add_partition(disk, bdev, state, p))
+			goto out_free_state;
 
-		size = state->parts[p].size;
-		if (!size)
-			continue;
-
-		from = state->parts[p].from;
-		if (from >= get_capacity(disk)) {
-			printk(KERN_WARNING
-			       "%s: p%d start %llu is beyond EOD, ",
-			       disk->disk_name, p, (unsigned long long) from);
-			if (disk_unlock_native_capacity(disk))
-				goto rescan;
-			continue;
-		}
-
-		if (from + size > get_capacity(disk)) {
-			printk(KERN_WARNING
-			       "%s: p%d size %llu extends beyond EOD, ",
-			       disk->disk_name, p, (unsigned long long) size);
-
-			if (disk_unlock_native_capacity(disk)) {
-				/* free state and restart */
-				goto rescan;
-			} else {
-				/*
-				 * we can not ignore partitions of broken tables
-				 * created by for example camera firmware, but
-				 * we limit them to the end of the disk to avoid
-				 * creating invalid block devices
-				 */
-				size = get_capacity(disk) - from;
-			}
-		}
-
-		part = add_partition(disk, p, from, size,
-				     state->parts[p].flags,
-				     &state->parts[p].info);
-		if (IS_ERR(part)) {
-			printk(KERN_ERR " %s: p%d could not be added: %ld\n",
-			       disk->disk_name, p, -PTR_ERR(part));
-			continue;
-		}
-#ifdef CONFIG_BLK_DEV_MD
-		if (state->parts[p].flags & ADDPART_FLAG_RAID)
-			md_autodetect_dev(part_to_dev(part)->devt);
-#endif
-	}
-out:
+	ret = 0;
+out_free_state:
 	free_partitions(state);
-	return 0;
-}
-
-int invalidate_partitions(struct gendisk *disk, struct block_device *bdev)
-{
-	int res;
-
-	if (!bdev->bd_invalidated)
-		return 0;
-
-	res = drop_partitions(disk, bdev);
-	if (res)
-		return res;
-
-	set_capacity(disk, 0);
-	check_disk_size_change(disk, bdev, false);
-	bdev->bd_invalidated = 0;
-	/* tell userspace that the media / partition table may have changed */
-	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
-
-	return 0;
+	return ret;
 }
 
 unsigned char *read_dev_sector(struct block_device *bdev, sector_t n, Sector *p)
