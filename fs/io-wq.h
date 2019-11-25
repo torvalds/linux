@@ -45,6 +45,7 @@ typedef void (put_work_fn)(struct io_wq_work *);
 struct io_wq_data {
 	struct mm_struct *mm;
 	struct user_struct *user;
+	struct cred *creds;
 
 	get_work_fn *get_work;
 	put_work_fn *put_work;
