@@ -125,6 +125,4 @@ source "drivers/staging/exfat/Kconfig"
 
 source "drivers/staging/qlge/Kconfig"
 
-source "drivers/staging/vboxsf/Kconfig"
-
 endif # STAGING

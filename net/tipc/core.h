@@ -60,6 +60,12 @@
 #include <linux/rhashtable.h>
 #include <net/genetlink.h>
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 struct tipc_node;
 struct tipc_bearer;
 struct tipc_bc_base;

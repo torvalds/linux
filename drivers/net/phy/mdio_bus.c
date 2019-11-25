@@ -64,11 +64,12 @@ static int mdiobus_register_reset(struct mdio_device *mdiodev)
 	if (mdiodev->dev.of_node)
 		reset = devm_reset_control_get_exclusive(&mdiodev->dev,
 							 "phy");
-	if (PTR_ERR(reset) == -ENOENT ||
-	    PTR_ERR(reset) == -ENOTSUPP)
-		reset = NULL;
-	else if (IS_ERR(reset))
-		return PTR_ERR(reset);
+	if (IS_ERR(reset)) {
+		if (PTR_ERR(reset) == -ENOENT || PTR_ERR(reset) == -ENOSYS)
+			reset = NULL;
+		else
+			return PTR_ERR(reset);
+	}
 
 	mdiodev->reset_ctrl = reset;
 

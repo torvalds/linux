@@ -112,14 +112,16 @@ sanitization_single_dev_mcast_group_test()
 	RET=0
 
 	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add name dummy1 up type dummy
 
 	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789 \
-		dev $swp2 group 239.0.0.1
+		dev dummy1 group 239.0.0.1
 
 	sanitization_single_dev_test_fail
 
 	ip link del dev vxlan0
+	ip link del dev dummy1
 	ip link del dev br0
 
 	log_test "vxlan device with a multicast group"
@@ -181,13 +183,15 @@ sanitization_single_dev_local_interface_test()
 	RET=0
 
 	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add name dummy1 up type dummy
 
 	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 198.51.100.1 dstport 4789 dev $swp2
+		ttl 20 tos inherit local 198.51.100.1 dstport 4789 dev dummy1
 
 	sanitization_single_dev_test_fail
 
 	ip link del dev vxlan0
+	ip link del dev dummy1
 	ip link del dev br0
 
 	log_test "vxlan device with local interface"
