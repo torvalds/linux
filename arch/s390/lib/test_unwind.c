@@ -10,6 +10,7 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/kprobes.h>
 #include <linux/wait.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
@@ -119,6 +120,7 @@ static struct unwindme *unwindme;
 #define UWM_CALLER		0x8	/* Unwind starting from caller. */
 #define UWM_SWITCH_STACK	0x10	/* Use CALL_ON_STACK. */
 #define UWM_IRQ			0x20	/* Unwind from irq context. */
+#define UWM_PGM			0x40	/* Unwind from program check handler. */
 
 static __always_inline unsigned long get_psw_addr(void)
 {
@@ -130,6 +132,17 @@ static __always_inline unsigned long get_psw_addr(void)
 	return psw_addr;
 }
 
+#ifdef CONFIG_KPROBES
+static int pgm_pre_handler(struct kprobe *p, struct pt_regs *regs)
+{
+	struct unwindme *u = unwindme;
+
+	u->ret = test_unwind(NULL, (u->flags & UWM_REGS) ? regs : NULL,
+			     (u->flags & UWM_SP) ? u->sp : 0);
+	return 0;
+}
+#endif
+
 /* This function may or may not appear in the backtrace. */
 static noinline int unwindme_func4(struct unwindme *u)
 {
@@ -140,6 +153,34 @@ static noinline int unwindme_func4(struct unwindme *u)
 		wait_event(u->task_wq, kthread_should_park());
 		kthread_parkme();
 		return 0;
+#ifdef CONFIG_KPROBES
+	} else if (u->flags & UWM_PGM) {
+		struct kprobe kp;
+		int ret;
+
+		unwindme = u;
+		memset(&kp, 0, sizeof(kp));
+		kp.symbol_name = "do_report_trap";
+		kp.pre_handler = pgm_pre_handler;
+		ret = register_kprobe(&kp);
+		if (ret < 0) {
+			pr_err("register_kprobe failed %d\n", ret);
+			return -EINVAL;
+		}
+
+		/*
+		 * trigger specification exception
+		 */
+		asm volatile(
+			"	mvcl	%%r1,%%r1\n"
+			"0:	nopr	%%r7\n"
+			EX_TABLE(0b, 0b)
+			:);
+
+		unregister_kprobe(&kp);
+		unwindme = NULL;
+		return u->ret;
+#endif
 	} else {
 		struct pt_regs regs;
 
@@ -286,6 +327,12 @@ do {									\
 	TEST(UWM_IRQ | UWM_CALLER | UWM_SP);
 	TEST(UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS);
 	TEST(UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK);
+#ifdef CONFIG_KPROBES
+	TEST(UWM_PGM);
+	TEST(UWM_PGM | UWM_SP);
+	TEST(UWM_PGM | UWM_REGS);
+	TEST(UWM_PGM | UWM_SP | UWM_REGS);
+#endif
 #undef TEST
 
 	return ret;
