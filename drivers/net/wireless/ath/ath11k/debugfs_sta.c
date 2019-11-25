@@ -192,7 +192,7 @@ void ath11k_update_per_peer_stats_from_txcompl(struct ath11k *ar,
 	}
 
 	arsta->txrate.nss = arsta->last_txrate.nss;
-	arsta->txrate.bw = ts->bw;
+	arsta->txrate.bw = ath11k_mac_bw_to_mac80211_bw(ts->bw);
 
 	ath11k_accumulate_per_peer_tx_stats(arsta, peer_stats, rate_idx);
 	spin_unlock_bh(&ab->base_lock);

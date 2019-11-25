@@ -156,6 +156,28 @@ static const u32 ath11k_smps_map[] = {
 	[WLAN_HT_CAP_SM_PS_DISABLED] = WMI_PEER_SMPS_PS_NONE,
 };
 
+u8 ath11k_mac_bw_to_mac80211_bw(u8 bw)
+{
+	u8 ret = 0;
+
+	switch (bw) {
+	case ATH11K_BW_20:
+		ret = RATE_INFO_BW_20;
+		break;
+	case ATH11K_BW_40:
+		ret = RATE_INFO_BW_40;
+		break;
+	case ATH11K_BW_80:
+		ret = RATE_INFO_BW_80;
+		break;
+	case ATH11K_BW_160:
+		ret = RATE_INFO_BW_160;
+		break;
+	}
+
+	return ret;
+}
+
 int ath11k_mac_hw_ratecode_to_legacy_rate(u8 hw_rc, u8 preamble, u8 *rateidx,
 					  u16 *rate)
 {

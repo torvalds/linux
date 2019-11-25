@@ -987,28 +987,6 @@ int ath11k_dp_htt_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 	return 0;
 }
 
-static u8 ath11k_bw_to_mac80211_bw(u8 bw)
-{
-	u8 ret = 0;
-
-	switch (bw) {
-	case ATH11K_BW_20:
-		ret = RATE_INFO_BW_20;
-		break;
-	case ATH11K_BW_40:
-		ret = RATE_INFO_BW_40;
-		break;
-	case ATH11K_BW_80:
-		ret = RATE_INFO_BW_80;
-		break;
-	case ATH11K_BW_160:
-		ret = RATE_INFO_BW_160;
-		break;
-	}
-
-	return ret;
-}
-
 static u32 ath11k_bw_to_mac80211_bwflags(u8 bw)
 {
 	u32 bwflags = 0;
@@ -1157,7 +1135,7 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	}
 
 	arsta->txrate.nss = nss;
-	arsta->txrate.bw = ath11k_bw_to_mac80211_bw(bw);
+	arsta->txrate.bw = ath11k_mac_bw_to_mac80211_bw(bw);
 	arsta->tx_info.status.rates[0].flags |= ath11k_bw_to_mac80211_bwflags(bw);
 
 	memcpy(&arsta->last_txrate, &arsta->txrate, sizeof(struct rate_info));
@@ -1934,7 +1912,7 @@ static void ath11k_dp_rx_h_rate(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 		rx_status->rate_idx = rate_mcs + (8 * (nss - 1));
 		if (sgi)
 			rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
-		rx_status->bw = ath11k_bw_to_mac80211_bw(bw);
+		rx_status->bw = ath11k_mac_bw_to_mac80211_bw(bw);
 		break;
 	case RX_MSDU_START_PKT_TYPE_11AC:
 		rx_status->encoding = RX_ENC_VHT;
@@ -1948,7 +1926,7 @@ static void ath11k_dp_rx_h_rate(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 		rx_status->nss = nss;
 		if (sgi)
 			rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
-		rx_status->bw = ath11k_bw_to_mac80211_bw(bw);
+		rx_status->bw = ath11k_mac_bw_to_mac80211_bw(bw);
 		break;
 	case RX_MSDU_START_PKT_TYPE_11AX:
 		rx_status->rate_idx = rate_mcs;
@@ -1960,7 +1938,7 @@ static void ath11k_dp_rx_h_rate(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 		}
 		rx_status->encoding = RX_ENC_HE;
 		rx_status->nss = nss;
-		rx_status->bw = ath11k_bw_to_mac80211_bw(bw);
+		rx_status->bw = ath11k_mac_bw_to_mac80211_bw(bw);
 		break;
 	}
 }
