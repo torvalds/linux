@@ -772,6 +772,13 @@ static unsigned long shrink_free_pages(struct virtio_balloon *vb,
 	return blocks_freed << VIRTIO_BALLOON_FREE_PAGE_ORDER;
 }
 
+static unsigned long leak_balloon_pages(struct virtio_balloon *vb,
+                                          unsigned long pages_to_free)
+{
+	return leak_balloon(vb, pages_to_free * VIRTIO_BALLOON_PAGES_PER_PAGE) /
+		VIRTIO_BALLOON_PAGES_PER_PAGE;
+}
+
 static unsigned long shrink_balloon_pages(struct virtio_balloon *vb,
 					  unsigned long pages_to_free)
 {
@@ -782,11 +789,10 @@ static unsigned long shrink_balloon_pages(struct virtio_balloon *vb,
 	 * VIRTIO_BALLOON_ARRAY_PFNS_MAX balloon pages, so we call it
 	 * multiple times to deflate pages till reaching pages_to_free.
 	 */
-	while (vb->num_pages && pages_to_free) {
-		pages_freed += leak_balloon(vb, pages_to_free) /
-					VIRTIO_BALLOON_PAGES_PER_PAGE;
-		pages_to_free -= pages_freed;
-	}
+	while (vb->num_pages && pages_freed < pages_to_free)
+		pages_freed += leak_balloon_pages(vb,
+						  pages_to_free - pages_freed);
+
 	update_balloon_size(vb);
 
 	return pages_freed;
@@ -799,7 +805,7 @@ static unsigned long virtio_balloon_shrinker_scan(struct shrinker *shrinker,
 	struct virtio_balloon *vb = container_of(shrinker,
 					struct virtio_balloon, shrinker);
 
-	pages_to_free = sc->nr_to_scan * VIRTIO_BALLOON_PAGES_PER_PAGE;
+	pages_to_free = sc->nr_to_scan;
 
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
 		pages_freed = shrink_free_pages(vb, pages_to_free);
@@ -820,7 +826,7 @@ static unsigned long virtio_balloon_shrinker_count(struct shrinker *shrinker,
 	unsigned long count;
 
 	count = vb->num_pages / VIRTIO_BALLOON_PAGES_PER_PAGE;
-	count += vb->num_free_page_blocks >> VIRTIO_BALLOON_FREE_PAGE_ORDER;
+	count += vb->num_free_page_blocks << VIRTIO_BALLOON_FREE_PAGE_ORDER;
 
 	return count;
 }

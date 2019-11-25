@@ -601,6 +601,8 @@ static int phylink_register_sfp(struct phylink *pl,
  * Create a new phylink instance, and parse the link parameters found in @np.
  * This will parse in-band modes, fixed-link or SFP configuration.
  *
+ * Note: the rtnl lock must not be held when calling this function.
+ *
  * Returns a pointer to a &struct phylink, or an error-pointer value. Users
  * must use IS_ERR() to check for errors from this function.
  */
@@ -678,6 +680,8 @@ EXPORT_SYMBOL_GPL(phylink_create);
  *
  * Destroy a phylink instance. Any PHY that has been attached must have been
  * cleaned up via phylink_disconnect_phy() prior to calling this function.
+ *
+ * Note: the rtnl lock must not be held when calling this function.
  */
 void phylink_destroy(struct phylink *pl)
 {
@@ -1254,7 +1258,13 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	pl->link_config.duplex = our_kset.base.duplex;
 	pl->link_config.an_enabled = our_kset.base.autoneg != AUTONEG_DISABLE;
 
-	if (!test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state)) {
+	/* If we have a PHY, phylib will call our link state function if the
+	 * mode has changed, which will trigger a resolve and update the MAC
+	 * configuration. For a fixed link, this isn't able to change any
+	 * parameters, which just leaves inband mode.
+	 */
+	if (pl->link_an_mode == MLO_AN_INBAND &&
+	    !test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state)) {
 		phylink_mac_config(pl, &pl->link_config);
 		phylink_mac_an_restart(pl);
 	}
@@ -1334,15 +1344,16 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 	if (pause->tx_pause)
 		config->pause |= MLO_PAUSE_TX;
 
-	if (!test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state)) {
+	/* If we have a PHY, phylib will call our link state function if the
+	 * mode has changed, which will trigger a resolve and update the MAC
+	 * configuration.
+	 */
+	if (pl->phydev) {
+		phy_set_asym_pause(pl->phydev, pause->rx_pause,
+				   pause->tx_pause);
+	} else if (!test_bit(PHYLINK_DISABLE_STOPPED,
+			     &pl->phylink_disable_state)) {
 		switch (pl->link_an_mode) {
-		case MLO_AN_PHY:
-			/* Silently mark the carrier down, and then trigger a resolve */
-			if (pl->netdev)
-				netif_carrier_off(pl->netdev);
-			phylink_run_resolve(pl);
-			break;
-
 		case MLO_AN_FIXED:
 			/* Should we allow fixed links to change against the config? */
 			phylink_resolve_flow(pl, config);
