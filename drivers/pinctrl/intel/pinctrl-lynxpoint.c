@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * GPIO controller driver for Intel Lynxpoint PCH chipset>
- * Copyright (c) 2012, Intel Corporation.
+ * Intel Lynxpoint PCH pinctrl/GPIO driver
  *
- * Author: Mathias Nyman <mathias.nyman@linux.intel.com>
+ * Copyright (c) 2012, 2019, Intel Corporation
+ * Authors: Mathias Nyman <mathias.nyman@linux.intel.com>
+ *          Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  */
 
 #include <linux/acpi.h>
@@ -968,6 +969,7 @@ subsys_initcall(lp_gpio_init);
 module_exit(lp_gpio_exit);
 
 MODULE_AUTHOR("Mathias Nyman (Intel)");
-MODULE_DESCRIPTION("GPIO interface for Intel Lynxpoint");
+MODULE_AUTHOR("Andy Shevchenko (Intel)");
+MODULE_DESCRIPTION("Intel Lynxpoint pinctrl driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:lp_gpio");
