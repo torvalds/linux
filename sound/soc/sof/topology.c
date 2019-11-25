@@ -3130,7 +3130,9 @@ found:
 	case SOF_DAI_INTEL_SSP:
 	case SOF_DAI_INTEL_DMIC:
 	case SOF_DAI_INTEL_ALH:
-		/* no resource needs to be released for SSP, DMIC and ALH */
+	case SOF_DAI_IMX_SAI:
+	case SOF_DAI_IMX_ESAI:
+		/* no resource needs to be released for all cases above */
 		break;
 	case SOF_DAI_INTEL_HDA:
 		ret = sof_link_hda_unload(sdev, link);
