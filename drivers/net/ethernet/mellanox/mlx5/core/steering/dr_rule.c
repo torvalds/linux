@@ -638,6 +638,9 @@ static int dr_rule_add_member(struct mlx5dr_rule_rx_tx *nic_rule,
 	if (!rule_mem)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&rule_mem->list);
+	INIT_LIST_HEAD(&rule_mem->use_ste_list);
+
 	rule_mem->ste = ste;
 	list_add_tail(&rule_mem->list, &nic_rule->rule_members_list);
 
