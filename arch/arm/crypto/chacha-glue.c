@@ -285,11 +285,13 @@ static struct skcipher_alg neon_algs[] = {
 
 static int __init chacha_simd_mod_init(void)
 {
-	int err;
+	int err = 0;
 
-	err = crypto_register_skciphers(arm_algs, ARRAY_SIZE(arm_algs));
-	if (err)
-		return err;
+	if (IS_REACHABLE(CONFIG_CRYPTO_BLKCIPHER)) {
+		err = crypto_register_skciphers(arm_algs, ARRAY_SIZE(arm_algs));
+		if (err)
+			return err;
+	}
 
 	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && (elf_hwcap & HWCAP_NEON)) {
 		int i;
@@ -309,18 +311,22 @@ static int __init chacha_simd_mod_init(void)
 			static_branch_enable(&use_neon);
 		}
 
-		err = crypto_register_skciphers(neon_algs, ARRAY_SIZE(neon_algs));
-		if (err)
-			crypto_unregister_skciphers(arm_algs, ARRAY_SIZE(arm_algs));
+		if (IS_REACHABLE(CONFIG_CRYPTO_BLKCIPHER)) {
+			err = crypto_register_skciphers(neon_algs, ARRAY_SIZE(neon_algs));
+			if (err)
+				crypto_unregister_skciphers(arm_algs, ARRAY_SIZE(arm_algs));
+		}
 	}
 	return err;
 }
 
 static void __exit chacha_simd_mod_fini(void)
 {
-	crypto_unregister_skciphers(arm_algs, ARRAY_SIZE(arm_algs));
-	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && (elf_hwcap & HWCAP_NEON))
-		crypto_unregister_skciphers(neon_algs, ARRAY_SIZE(neon_algs));
+	if (IS_REACHABLE(CONFIG_CRYPTO_BLKCIPHER)) {
+		crypto_unregister_skciphers(arm_algs, ARRAY_SIZE(arm_algs));
+		if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && (elf_hwcap & HWCAP_NEON))
+			crypto_unregister_skciphers(neon_algs, ARRAY_SIZE(neon_algs));
+	}
 }
 
 module_init(chacha_simd_mod_init);

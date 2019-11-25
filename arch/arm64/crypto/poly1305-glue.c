@@ -219,12 +219,13 @@ static int __init neon_poly1305_mod_init(void)
 
 	static_branch_enable(&have_neon);
 
-	return crypto_register_shash(&neon_poly1305_alg);
+	return IS_REACHABLE(CONFIG_CRYPTO_HASH) ?
+		crypto_register_shash(&neon_poly1305_alg) : 0;
 }
 
 static void __exit neon_poly1305_mod_exit(void)
 {
-	if (elf_hwcap & HWCAP_ASIMD)
+	if (IS_REACHABLE(CONFIG_CRYPTO_HASH) && (elf_hwcap & HWCAP_ASIMD))
 		crypto_unregister_shash(&neon_poly1305_alg);
 }
 
