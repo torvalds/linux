@@ -25,9 +25,9 @@
 		spi1 = &spi1;
 		spi2 = &spi2;
 		spi3 = &spi3;
-		serial0 = &ux500_serial0;
-		serial1 = &ux500_serial1;
-		serial2 = &ux500_serial2;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		serial2 = &serial2;
 	};
 
 	chosen {
@@ -843,7 +843,7 @@
 			status = "disabled";
 		};
 
-		ux500_serial0: uart@80120000 {
+		serial0: uart@80120000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80120000 0x1000>;
 			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
@@ -858,7 +858,7 @@
 			status = "disabled";
 		};
 
-		ux500_serial1: uart@80121000 {
+		serial1: uart@80121000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80121000 0x1000>;
 			interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
@@ -873,7 +873,7 @@
 			status = "disabled";
 		};
 
-		ux500_serial2: uart@80007000 {
+		serial2: uart@80007000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80007000 0x1000>;
 			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
