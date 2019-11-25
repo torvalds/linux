@@ -297,10 +297,33 @@ static int lp_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static void lp_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
+			    unsigned int pin)
+{
+	struct intel_pinctrl *lg = pinctrl_dev_get_drvdata(pctldev);
+	void __iomem *reg = lp_gpio_reg(&lg->chip, pin, LP_CONFIG1);
+	void __iomem *conf2 = lp_gpio_reg(&lg->chip, pin, LP_CONFIG2);
+	u32 value, mode;
+
+	value = ioread32(reg);
+
+	mode = value & USE_SEL_MASK;
+	if (mode == USE_SEL_GPIO)
+		seq_puts(s, "GPIO ");
+	else
+		seq_printf(s, "mode %d ", mode);
+
+	seq_printf(s, "0x%08x 0x%08x", value, ioread32(conf2));
+
+	if (lp_gpio_acpi_use(lg, pin))
+		seq_puts(s, " [ACPI]");
+}
+
 static const struct pinctrl_ops lptlp_pinctrl_ops = {
 	.get_groups_count	= lp_get_groups_count,
 	.get_group_name		= lp_get_group_name,
 	.get_group_pins		= lp_get_group_pins,
+	.pin_dbg_show		= lp_pin_dbg_show,
 };
 
 static int lp_get_functions_count(struct pinctrl_dev *pctldev)
