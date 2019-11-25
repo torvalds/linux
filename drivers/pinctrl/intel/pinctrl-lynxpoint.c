@@ -577,43 +577,6 @@ static const struct pinctrl_desc lptlp_pinctrl_desc = {
 	.owner		= THIS_MODULE,
 };
 
-static int lp_gpio_request(struct gpio_chip *chip, unsigned int offset)
-{
-	struct intel_pinctrl *lg = gpiochip_get_data(chip);
-	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
-	void __iomem *conf2 = lp_gpio_reg(chip, offset, LP_CONFIG2);
-	u32 value;
-
-	pm_runtime_get(lg->dev); /* should we put if failed */
-
-	/*
-	 * Reconfigure pin to GPIO mode if needed and issue a warning,
-	 * since we expect firmware to configure it properly.
-	 */
-	value = ioread32(reg);
-	if ((value & USE_SEL_MASK) != USE_SEL_GPIO) {
-		iowrite32((value & USE_SEL_MASK) | USE_SEL_GPIO, reg);
-		dev_warn(lg->dev, FW_BUG "pin %u forcibly reconfigured as GPIO\n", offset);
-	}
-
-	/* enable input sensing */
-	iowrite32(ioread32(conf2) & ~GPINDIS_BIT, conf2);
-
-
-	return 0;
-}
-
-static void lp_gpio_free(struct gpio_chip *chip, unsigned int offset)
-{
-	struct intel_pinctrl *lg = gpiochip_get_data(chip);
-	void __iomem *conf2 = lp_gpio_reg(chip, offset, LP_CONFIG2);
-
-	/* disable input sensing */
-	iowrite32(ioread32(conf2) | GPINDIS_BIT, conf2);
-
-	pm_runtime_put(lg->dev);
-}
-
 static int lp_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
@@ -638,31 +601,15 @@ static void lp_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 
 static int lp_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 {
-	struct intel_pinctrl *lg = gpiochip_get_data(chip);
-	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&lg->lock, flags);
-	iowrite32(ioread32(reg) | DIR_BIT, reg);
-	raw_spin_unlock_irqrestore(&lg->lock, flags);
-
-	return 0;
+	return pinctrl_gpio_direction_input(chip->base + offset);
 }
 
 static int lp_gpio_direction_output(struct gpio_chip *chip, unsigned int offset,
 				    int value)
 {
-	struct intel_pinctrl *lg = gpiochip_get_data(chip);
-	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
-	unsigned long flags;
-
 	lp_gpio_set(chip, offset, value);
 
-	raw_spin_lock_irqsave(&lg->lock, flags);
-	iowrite32(ioread32(reg) & ~DIR_BIT, reg);
-	raw_spin_unlock_irqrestore(&lg->lock, flags);
-
-	return 0;
+	return pinctrl_gpio_direction_output(chip->base + offset);
 }
 
 static int lp_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
@@ -874,6 +821,12 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	lg->pctldesc.pins      = lg->soc->pins;
 	lg->pctldesc.npins     = lg->soc->npins;
 
+	lg->pctldev = devm_pinctrl_register(dev, &lg->pctldesc, lg);
+	if (IS_ERR(lg->pctldev)) {
+		dev_err(dev, "failed to register pinctrl driver\n");
+		return PTR_ERR(lg->pctldev);
+	}
+
 	platform_set_drvdata(pdev, lg);
 
 	io_rc = platform_get_resource(pdev, IORESOURCE_IO, 0);
@@ -902,8 +855,8 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc = &lg->chip;
 	gc->label = dev_name(dev);
 	gc->owner = THIS_MODULE;
-	gc->request = lp_gpio_request;
-	gc->free = lp_gpio_free;
+	gc->request = gpiochip_generic_request;
+	gc->free = gpiochip_generic_free;
 	gc->direction_input = lp_gpio_direction_input;
 	gc->direction_output = lp_gpio_direction_output;
 	gc->get = lp_gpio_get;
