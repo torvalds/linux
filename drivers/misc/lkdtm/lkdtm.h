@@ -28,6 +28,9 @@ void lkdtm_CORRUPT_USER_DS(void);
 void lkdtm_STACK_GUARD_PAGE_LEADING(void);
 void lkdtm_STACK_GUARD_PAGE_TRAILING(void);
 void lkdtm_UNSET_SMEP(void);
+#ifdef CONFIG_X86_32
+void lkdtm_DOUBLE_FAULT(void);
+#endif
 
 /* lkdtm_heap.c */
 void __init lkdtm_heap_init(void);
