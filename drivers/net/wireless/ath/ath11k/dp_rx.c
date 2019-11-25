@@ -1349,12 +1349,6 @@ static int ath11k_dp_rx_msdu_coalesce(struct ath11k *ar,
 	int rem_len;
 	int buf_len;
 
-	if (!rxcb->is_continuation) {
-		skb_put(first, HAL_RX_DESC_SIZE + l3pad_bytes + msdu_len);
-		skb_pull(first, HAL_RX_DESC_SIZE + l3pad_bytes);
-		return 0;
-	}
-
 	if (WARN_ON_ONCE(msdu_len <= (DP_RX_BUFFER_SIZE -
 			 (HAL_RX_DESC_SIZE + l3pad_bytes)))) {
 		skb_put(first, HAL_RX_DESC_SIZE + l3pad_bytes + msdu_len);
