@@ -38,6 +38,7 @@ import sys
 import subprocess
 
 allowed_warnings = set([
+    "atags_to_fdt.c:109", # arch/arm/boot/compressed/atags_to_fdt.c:109:5: warning: stack frame size of 4416 bytes in function 'atags_to_fdt' [-Wframe-larger-than=]
  ])
 
 # Capture the name of the object file, can find it.
