@@ -506,7 +506,9 @@ static int igt_lmem_write_cpu(void *arg)
 	}
 
 	/* Put the pages into a known state -- from the gpu for added fun */
+	intel_engine_pm_get(engine);
 	err = i915_gem_object_fill_blt(obj, engine->kernel_context, 0xdeadbeaf);
+	intel_engine_pm_put(engine);
 	if (err)
 		goto out_unpin;
 

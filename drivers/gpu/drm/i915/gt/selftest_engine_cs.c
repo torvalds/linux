@@ -132,14 +132,18 @@ static int perf_mi_bb_start(void *arg)
 		u32 cycles[COUNT];
 		int i;
 
+		intel_engine_pm_get(engine);
+
 		batch = create_empty_batch(ce);
 		if (IS_ERR(batch)) {
 			err = PTR_ERR(batch);
+			intel_engine_pm_put(engine);
 			break;
 		}
 
 		err = i915_vma_sync(batch);
 		if (err) {
+			intel_engine_pm_put(engine);
 			i915_vma_put(batch);
 			break;
 		}
@@ -180,6 +184,7 @@ out:
 			cycles[i] = rq->hwsp_seqno[3] - rq->hwsp_seqno[2];
 		}
 		i915_vma_put(batch);
+		intel_engine_pm_put(engine);
 		if (err)
 			break;
 
@@ -251,15 +256,19 @@ static int perf_mi_noop(void *arg)
 		u32 cycles[COUNT];
 		int i;
 
+		intel_engine_pm_get(engine);
+
 		base = create_empty_batch(ce);
 		if (IS_ERR(base)) {
 			err = PTR_ERR(base);
+			intel_engine_pm_put(engine);
 			break;
 		}
 
 		err = i915_vma_sync(base);
 		if (err) {
 			i915_vma_put(base);
+			intel_engine_pm_put(engine);
 			break;
 		}
 
@@ -267,6 +276,7 @@ static int perf_mi_noop(void *arg)
 		if (IS_ERR(nop)) {
 			err = PTR_ERR(nop);
 			i915_vma_put(base);
+			intel_engine_pm_put(engine);
 			break;
 		}
 
@@ -274,6 +284,7 @@ static int perf_mi_noop(void *arg)
 		if (err) {
 			i915_vma_put(nop);
 			i915_vma_put(base);
+			intel_engine_pm_put(engine);
 			break;
 		}
 
@@ -327,6 +338,7 @@ out:
 		}
 		i915_vma_put(nop);
 		i915_vma_put(base);
+		intel_engine_pm_put(engine);
 		if (err)
 			break;
 

@@ -41,6 +41,7 @@ static int __perf_fill_blt(struct drm_i915_gem_object *obj)
 		if (!engine)
 			return 0;
 
+		intel_engine_pm_get(engine);
 		for (pass = 0; pass < ARRAY_SIZE(t); pass++) {
 			struct intel_context *ce = engine->kernel_context;
 			ktime_t t0, t1;
@@ -49,17 +50,20 @@ static int __perf_fill_blt(struct drm_i915_gem_object *obj)
 
 			err = i915_gem_object_fill_blt(obj, ce, 0);
 			if (err)
-				return err;
+				break;
 
 			err = i915_gem_object_wait(obj,
 						   I915_WAIT_ALL,
 						   MAX_SCHEDULE_TIMEOUT);
 			if (err)
-				return err;
+				break;
 
 			t1 = ktime_get();
 			t[pass] = ktime_sub(t1, t0);
 		}
+		intel_engine_pm_put(engine);
+		if (err)
+			return err;
 
 		sort(t, ARRAY_SIZE(t), sizeof(*t), wrap_ktime_compare, NULL);
 		pr_info("%s: blt %zd KiB fill: %lld MiB/s\n",
@@ -109,6 +113,7 @@ static int __perf_copy_blt(struct drm_i915_gem_object *src,
 		struct intel_engine_cs *engine;
 		ktime_t t[5];
 		int pass;
+		int err = 0;
 
 		engine = intel_engine_lookup_user(i915,
 						  I915_ENGINE_CLASS_COPY,
@@ -116,26 +121,29 @@ static int __perf_copy_blt(struct drm_i915_gem_object *src,
 		if (!engine)
 			return 0;
 
+		intel_engine_pm_get(engine);
 		for (pass = 0; pass < ARRAY_SIZE(t); pass++) {
 			struct intel_context *ce = engine->kernel_context;
 			ktime_t t0, t1;
-			int err;
 
 			t0 = ktime_get();
 
 			err = i915_gem_object_copy_blt(src, dst, ce);
 			if (err)
-				return err;
+				break;
 
 			err = i915_gem_object_wait(dst,
 						   I915_WAIT_ALL,
 						   MAX_SCHEDULE_TIMEOUT);
 			if (err)
-				return err;
+				break;
 
 			t1 = ktime_get();
 			t[pass] = ktime_sub(t1, t0);
 		}
+		intel_engine_pm_put(engine);
+		if (err)
+			return err;
 
 		sort(t, ARRAY_SIZE(t), sizeof(*t), wrap_ktime_compare, NULL);
 		pr_info("%s: blt %zd KiB copy: %lld MiB/s\n",

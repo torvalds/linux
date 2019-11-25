@@ -6,6 +6,7 @@
 
 #include <linux/prime_numbers.h>
 
+#include "gt/intel_engine_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "huge_gem_object.h"
@@ -536,7 +537,7 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 		if (err)
 			return err;
 
-		rq = i915_request_create(engine->kernel_context);
+		rq = intel_engine_create_kernel_request(engine);
 		if (IS_ERR(rq)) {
 			i915_vma_unpin(vma);
 			return PTR_ERR(rq);

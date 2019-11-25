@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "intel_context.h"
+#include "intel_engine_pm.h"
 #include "intel_gt.h"
 #include "intel_ring.h"
 #include "intel_workarounds.h"
@@ -1582,7 +1583,9 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
+	intel_engine_pm_get(ce->engine);
 	rq = intel_context_create_request(ce);
+	intel_engine_pm_put(ce->engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_vma;

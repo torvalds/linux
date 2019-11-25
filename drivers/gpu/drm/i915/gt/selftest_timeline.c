@@ -458,7 +458,7 @@ tl_write(struct intel_timeline *tl, struct intel_engine_cs *engine, u32 value)
 		goto out;
 	}
 
-	rq = i915_request_create(engine->kernel_context);
+	rq = intel_engine_create_kernel_request(engine);
 	if (IS_ERR(rq))
 		goto out_unpin;
 
@@ -675,9 +675,7 @@ static int live_hwsp_wrap(void *arg)
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
-		intel_engine_pm_get(engine);
-		rq = i915_request_create(engine->kernel_context);
-		intel_engine_pm_put(engine);
+		rq = intel_engine_create_kernel_request(engine);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto out;

@@ -1968,7 +1968,9 @@ static int emit_oa_config(struct i915_perf_stream *stream,
 	if (err)
 		goto err_vma_put;
 
+	intel_engine_pm_get(ce->engine);
 	rq = i915_request_create(ce);
+	intel_engine_pm_put(ce->engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_vma_unpin;
@@ -2165,7 +2167,7 @@ static int gen8_modify_context(struct intel_context *ce,
 
 	lockdep_assert_held(&ce->pin_mutex);
 
-	rq = i915_request_create(ce->engine->kernel_context);
+	rq = intel_engine_create_kernel_request(ce->engine);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 

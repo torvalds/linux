@@ -7,6 +7,7 @@
 #include <linux/prime_numbers.h>
 
 #include "gem/i915_gem_pm.h"
+#include "gt/intel_engine_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
 #include "gt/intel_reset.h"
@@ -1190,9 +1191,11 @@ __sseu_test(const char *name,
 	struct igt_spinner *spin = NULL;
 	int ret;
 
+	intel_engine_pm_get(ce->engine);
+
 	ret = __sseu_prepare(name, flags, ce, &spin);
 	if (ret)
-		return ret;
+		goto out_pm;
 
 	ret = intel_context_reconfigure_sseu(ce, sseu);
 	if (ret)
@@ -1207,6 +1210,8 @@ out_spin:
 		igt_spinner_fini(spin);
 		kfree(spin);
 	}
+out_pm:
+	intel_engine_pm_put(ce->engine);
 	return ret;
 }
 

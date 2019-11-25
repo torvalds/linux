@@ -27,6 +27,7 @@
 #include "gem/i915_gem_pm.h"
 #include "gem/selftests/mock_context.h"
 
+#include "gt/intel_engine_pm.h"
 #include "gt/intel_gt.h"
 
 #include "i915_random.h"
@@ -541,6 +542,7 @@ static int live_nop_request(void *arg)
 		if (err)
 			return err;
 
+		intel_engine_pm_get(engine);
 		for_each_prime_number_from(prime, 1, 8192) {
 			struct i915_request *request = NULL;
 
@@ -579,6 +581,7 @@ static int live_nop_request(void *arg)
 			if (__igt_timeout(end_time, NULL))
 				break;
 		}
+		intel_engine_pm_put(engine);
 
 		err = igt_live_test_end(&t);
 		if (err)
@@ -693,10 +696,13 @@ static int live_empty_request(void *arg)
 		if (err)
 			goto out_batch;
 
+		intel_engine_pm_get(engine);
+
 		/* Warmup / preload */
 		request = empty_request(engine, batch);
 		if (IS_ERR(request)) {
 			err = PTR_ERR(request);
+			intel_engine_pm_put(engine);
 			goto out_batch;
 		}
 		i915_request_wait(request, 0, MAX_SCHEDULE_TIMEOUT);
@@ -709,6 +715,7 @@ static int live_empty_request(void *arg)
 				request = empty_request(engine, batch);
 				if (IS_ERR(request)) {
 					err = PTR_ERR(request);
+					intel_engine_pm_put(engine);
 					goto out_batch;
 				}
 			}
@@ -722,6 +729,7 @@ static int live_empty_request(void *arg)
 				break;
 		}
 		i915_request_put(request);
+		intel_engine_pm_put(engine);
 
 		err = igt_live_test_end(&t);
 		if (err)
@@ -846,7 +854,7 @@ static int live_all_engines(void *arg)
 
 	idx = 0;
 	for_each_uabi_engine(engine, i915) {
-		request[idx] = i915_request_create(engine->kernel_context);
+		request[idx] = intel_engine_create_kernel_request(engine);
 		if (IS_ERR(request[idx])) {
 			err = PTR_ERR(request[idx]);
 			pr_err("%s: Request allocation failed with err=%d\n",
@@ -963,7 +971,7 @@ static int live_sequential_engines(void *arg)
 			goto out_free;
 		}
 
-		request[idx] = i915_request_create(engine->kernel_context);
+		request[idx] = intel_engine_create_kernel_request(engine);
 		if (IS_ERR(request[idx])) {
 			err = PTR_ERR(request[idx]);
 			pr_err("%s: Request allocation failed for %s with err=%d\n",
@@ -1068,15 +1076,19 @@ static int __live_parallel_engine1(void *arg)
 	struct intel_engine_cs *engine = arg;
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
+	int err = 0;
 
 	count = 0;
+	intel_engine_pm_get(engine);
 	do {
 		struct i915_request *rq;
-		int err;
 
 		rq = i915_request_create(engine->kernel_context);
-		if (IS_ERR(rq))
-			return PTR_ERR(rq);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			if (err)
+				break;
+		}
 
 		i915_request_get(rq);
 		i915_request_add(rq);
@@ -1086,13 +1098,14 @@ static int __live_parallel_engine1(void *arg)
 			err = -ETIME;
 		i915_request_put(rq);
 		if (err)
-			return err;
+			break;
 
 		count++;
 	} while (!__igt_timeout(end_time, NULL));
+	intel_engine_pm_put(engine);
 
 	pr_info("%s: %lu request + sync\n", engine->name, count);
-	return 0;
+	return err;
 }
 
 static int __live_parallel_engineN(void *arg)
@@ -1100,21 +1113,26 @@ static int __live_parallel_engineN(void *arg)
 	struct intel_engine_cs *engine = arg;
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
+	int err = 0;
 
 	count = 0;
+	intel_engine_pm_get(engine);
 	do {
 		struct i915_request *rq;
 
 		rq = i915_request_create(engine->kernel_context);
-		if (IS_ERR(rq))
-			return PTR_ERR(rq);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			break;
+		}
 
 		i915_request_add(rq);
 		count++;
 	} while (!__igt_timeout(end_time, NULL));
+	intel_engine_pm_put(engine);
 
 	pr_info("%s: %lu requests\n", engine->name, count);
-	return 0;
+	return err;
 }
 
 static bool wake_all(struct drm_i915_private *i915)
@@ -1158,9 +1176,11 @@ static int __live_parallel_spin(void *arg)
 		return -ENOMEM;
 	}
 
+	intel_engine_pm_get(engine);
 	rq = igt_spinner_create_request(&spin,
 					engine->kernel_context,
 					MI_NOOP); /* no preemption */
+	intel_engine_pm_put(engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		if (err == -ENODEV)

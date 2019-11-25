@@ -70,6 +70,7 @@
 #include <drm/i915_drm.h>
 
 #include "gt/intel_engine_heartbeat.h"
+#include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_lrc_reg.h"
 #include "gt/intel_ring.h"
@@ -1265,7 +1266,7 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 	if (!intel_context_is_pinned(ce))
 		return 0;
 
-	rq = i915_request_create(ce->engine->kernel_context);
+	rq = intel_engine_create_kernel_request(ce->engine);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 

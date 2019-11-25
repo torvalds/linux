@@ -121,7 +121,7 @@ static int __live_context_size(struct intel_engine_cs *engine,
 		goto err_unpin;
 
 	/* Force the context switch */
-	rq = i915_request_create(engine->kernel_context);
+	rq = intel_engine_create_kernel_request(engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;

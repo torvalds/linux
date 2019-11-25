@@ -348,7 +348,7 @@ release_queue(struct intel_engine_cs *engine,
 	struct i915_request *rq;
 	u32 *cs;
 
-	rq = i915_request_create(engine->kernel_context);
+	rq = intel_engine_create_kernel_request(engine);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
@@ -497,7 +497,7 @@ static struct i915_request *nop_request(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq;
 
-	rq = i915_request_create(engine->kernel_context);
+	rq = intel_engine_create_kernel_request(engine);
 	if (IS_ERR(rq))
 		return rq;
 
@@ -3698,7 +3698,7 @@ static int gpr_make_dirty(struct intel_engine_cs *engine)
 	u32 *cs;
 	int n;
 
-	rq = i915_request_create(engine->kernel_context);
+	rq = intel_engine_create_kernel_request(engine);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 

@@ -215,18 +215,26 @@ out_rpm:
 int intel_engine_flush_barriers(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq;
+	int err = 0;
 
 	if (llist_empty(&engine->barrier_tasks))
 		return 0;
 
+	if (!intel_engine_pm_get_if_awake(engine))
+		return 0;
+
 	rq = i915_request_create(engine->kernel_context);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto out_rpm;
+	}
 
 	idle_pulse(engine, rq);
 	i915_request_add(rq);
 
-	return 0;
+out_rpm:
+	intel_engine_pm_put(engine);
+	return err;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

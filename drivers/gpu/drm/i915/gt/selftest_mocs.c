@@ -261,7 +261,9 @@ static int live_mocs_kernel(void *arg)
 		return err;
 
 	for_each_engine(engine, gt, id) {
+		intel_engine_pm_get(engine);
 		err = check_mocs_engine(&mocs, engine->kernel_context);
+		intel_engine_pm_put(engine);
 		if (err)
 			break;
 	}

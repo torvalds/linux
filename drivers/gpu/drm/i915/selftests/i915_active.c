@@ -99,7 +99,7 @@ __live_active_setup(struct drm_i915_private *i915)
 	for_each_uabi_engine(engine, i915) {
 		struct i915_request *rq;
 
-		rq = i915_request_create(engine->kernel_context);
+		rq = intel_engine_create_kernel_request(engine);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			break;
