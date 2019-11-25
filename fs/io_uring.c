@@ -309,6 +309,7 @@ struct io_timeout_data {
 	struct hrtimer			timer;
 	struct timespec64		ts;
 	enum hrtimer_mode		mode;
+	u32				seq_offset;
 };
 
 struct io_timeout {
@@ -2473,8 +2474,7 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	}
 
 	req->sequence = ctx->cached_sq_head + count - 1;
-	/* reuse it to store the count */
-	req->submit.sequence = count;
+	req->timeout.data->seq_offset = count;
 
 	/*
 	 * Insertion sort, ensuring the first entry in the list is always
@@ -2485,6 +2485,7 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		struct io_kiocb *nxt = list_entry(entry, struct io_kiocb, list);
 		unsigned nxt_sq_head;
 		long long tmp, tmp_nxt;
+		u32 nxt_offset = nxt->timeout.data->seq_offset;
 
 		if (nxt->flags & REQ_F_TIMEOUT_NOSEQ)
 			continue;
@@ -2494,8 +2495,8 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		 * long to store it.
 		 */
 		tmp = (long long)ctx->cached_sq_head + count - 1;
-		nxt_sq_head = nxt->sequence - nxt->submit.sequence + 1;
-		tmp_nxt = (long long)nxt_sq_head + nxt->submit.sequence - 1;
+		nxt_sq_head = nxt->sequence - nxt_offset + 1;
+		tmp_nxt = (long long)nxt_sq_head + nxt_offset - 1;
 
 		/*
 		 * cached_sq_head may overflow, and it will never overflow twice
