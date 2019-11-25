@@ -713,8 +713,10 @@ static ssize_t fuse_async_req_send(struct fuse_conn *fc,
 
 	ia->ap.args.end = fuse_aio_complete_req;
 	err = fuse_simple_background(fc, &ia->ap.args, GFP_KERNEL);
+	if (err)
+		fuse_aio_complete_req(fc, &ia->ap.args, err);
 
-	return err ?: num_bytes;
+	return num_bytes;
 }
 
 static ssize_t fuse_send_read(struct fuse_io_args *ia, loff_t pos, size_t count,
