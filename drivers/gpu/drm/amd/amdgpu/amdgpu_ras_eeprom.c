@@ -27,7 +27,8 @@
 #include <linux/bits.h>
 #include "smu_v11_0_i2c.h"
 
-#define EEPROM_I2C_TARGET_ADDR 0xA0
+#define EEPROM_I2C_TARGET_ADDR_ARCTURUS  0xA8
+#define EEPROM_I2C_TARGET_ADDR_VEGA20    0xA0
 
 /*
  * The 2 macros bellow represent the actual size in bytes that
@@ -83,7 +84,7 @@ static int __update_table_header(struct amdgpu_ras_eeprom_control *control,
 {
 	int ret = 0;
 	struct i2c_msg msg = {
-			.addr	= EEPROM_I2C_TARGET_ADDR,
+			.addr	= 0,
 			.flags	= 0,
 			.len	= EEPROM_ADDRESS_SIZE + EEPROM_TABLE_HEADER_SIZE,
 			.buf	= buff,
@@ -92,6 +93,8 @@ static int __update_table_header(struct amdgpu_ras_eeprom_control *control,
 
 	*(uint16_t *)buff = EEPROM_HDR_START;
 	__encode_table_header_to_buff(&control->tbl_hdr, buff + EEPROM_ADDRESS_SIZE);
+
+	msg.addr = control->i2c_address;
 
 	ret = i2c_transfer(&control->eeprom_accessor, &msg, 1);
 	if (ret < 1)
@@ -203,7 +206,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 	unsigned char buff[EEPROM_ADDRESS_SIZE + EEPROM_TABLE_HEADER_SIZE] = { 0 };
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
 	struct i2c_msg msg = {
-			.addr	= EEPROM_I2C_TARGET_ADDR,
+			.addr	= 0,
 			.flags	= I2C_M_RD,
 			.len	= EEPROM_ADDRESS_SIZE + EEPROM_TABLE_HEADER_SIZE,
 			.buf	= buff,
@@ -213,10 +216,12 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
+		control->i2c_address = EEPROM_I2C_TARGET_ADDR_VEGA20;
 		ret = smu_v11_0_i2c_eeprom_control_init(&control->eeprom_accessor);
 		break;
 
 	case CHIP_ARCTURUS:
+		control->i2c_address = EEPROM_I2C_TARGET_ADDR_ARCTURUS;
 		ret = smu_i2c_eeprom_init(&adev->smu, &control->eeprom_accessor);
 		break;
 
@@ -228,6 +233,8 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 		DRM_ERROR("Failed to init I2C controller, ret:%d", ret);
 		return ret;
 	}
+
+	msg.addr = control->i2c_address;
 
 	/* Read/Create table header from EEPROM address 0 */
 	ret = i2c_transfer(&control->eeprom_accessor, &msg, 1);
@@ -408,8 +415,8 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 		 * Update bits 16,17 of EEPROM address in I2C address by setting them
 		 * to bits 1,2 of Device address byte
 		 */
-		msg->addr = EEPROM_I2C_TARGET_ADDR |
-			       ((control->next_addr & EEPROM_ADDR_MSB_MASK) >> 15);
+		msg->addr = control->i2c_address |
+			        ((control->next_addr & EEPROM_ADDR_MSB_MASK) >> 15);
 		msg->flags	= write ? 0 : I2C_M_RD;
 		msg->len	= EEPROM_ADDRESS_SIZE + EEPROM_TABLE_RECORD_SIZE;
 		msg->buf	= buff;
