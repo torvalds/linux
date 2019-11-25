@@ -15,7 +15,7 @@ struct intel_qgv_point {
 };
 
 struct intel_qgv_info {
-	struct intel_qgv_point points[3];
+	struct intel_qgv_point points[I915_NUM_QGV_POINTS];
 	u8 num_points;
 	u8 num_channels;
 	u8 t_bl;
@@ -276,17 +276,29 @@ void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 static unsigned int intel_max_data_rate(struct drm_i915_private *dev_priv,
 					int num_planes)
 {
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (INTEL_GEN(dev_priv) >= 11) {
+		/*
+		 * Any bw group has same amount of QGV points
+		 */
+		const struct intel_bw_info *bi =
+			&dev_priv->max_bw[0];
+		unsigned int min_bw = UINT_MAX;
+		int i;
+
 		/*
 		 * FIXME with SAGV disabled maybe we can assume
 		 * point 1 will always be used? Seems to match
 		 * the behaviour observed in the wild.
 		 */
-		return min3(icl_max_bw(dev_priv, num_planes, 0),
-			    icl_max_bw(dev_priv, num_planes, 1),
-			    icl_max_bw(dev_priv, num_planes, 2));
-	else
+		for (i = 0; i < bi->num_qgv_points; i++) {
+			unsigned int bw = icl_max_bw(dev_priv, num_planes, i);
+
+			min_bw = min(bw, min_bw);
+		}
+		return min_bw;
+	} else {
 		return UINT_MAX;
+	}
 }
 
 static unsigned int intel_bw_crtc_num_active_planes(const struct intel_crtc_state *crtc_state)
