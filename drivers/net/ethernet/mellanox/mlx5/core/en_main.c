@@ -2942,16 +2942,10 @@ static void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 				       mlx5e_fp_preactivate preactivate)
 {
 	struct net_device *netdev = priv->netdev;
-	int new_num_txqs;
 	int carrier_ok;
-
-	new_num_txqs = new_chs->num * new_chs->params.num_tc;
 
 	carrier_ok = netif_carrier_ok(netdev);
 	netif_carrier_off(netdev);
-
-	if (new_num_txqs < netdev->real_num_tx_queues)
-		netif_set_real_num_tx_queues(netdev, new_num_txqs);
 
 	mlx5e_deactivate_priv_channels(priv);
 	mlx5e_close_channels(&priv->channels);
