@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  */
 
 #define DRIVER_NAME "msm_sharedmem"
@@ -66,21 +66,33 @@ static int sharedmem_mmap(struct uio_info *info, struct vm_area_struct *vma)
 }
 
 /* Setup the shared ram permissions.
- * This function currently supports the mpss client only.
+ * This function currently supports the mpss and nav clients only.
  */
-static void setup_shared_ram_perms(u32 client_id, phys_addr_t addr, u32 size)
+static void setup_shared_ram_perms(u32 client_id, phys_addr_t addr, u32 size,
+				   bool vm_nav_path)
 {
 	int ret;
 	u32 source_vmlist[1] = {VMID_HLOS};
-	int dest_vmids[2] = {VMID_HLOS, VMID_MSS_MSA};
-	int dest_perms[2] = {PERM_READ|PERM_WRITE,
-			     PERM_READ|PERM_WRITE};
 
 	if (client_id != MPSS_RMTS_CLIENT_ID)
 		return;
 
-	ret = hyp_assign_phys(addr, size, source_vmlist, 1, dest_vmids,
-				dest_perms, 2);
+	if (vm_nav_path) {
+		int dest_vmids[3] = {VMID_HLOS, VMID_MSS_MSA, VMID_NAV};
+		int dest_perms[3] = {PERM_READ|PERM_WRITE,
+				     PERM_READ|PERM_WRITE,
+					PERM_READ|PERM_WRITE};
+
+		ret = hyp_assign_phys(addr, size, source_vmlist, 1, dest_vmids,
+					dest_perms, 3);
+	} else {
+		int dest_vmids[2] = {VMID_HLOS, VMID_MSS_MSA};
+		int dest_perms[2] = {PERM_READ|PERM_WRITE,
+				     PERM_READ|PERM_WRITE};
+
+		ret = hyp_assign_phys(addr, size, source_vmlist, 1, dest_vmids,
+					dest_perms, 2);
+	}
 	if (ret != 0) {
 		if (ret == -EINVAL)
 			pr_warn("hyp_assign_phys is not supported!\n");
@@ -102,6 +114,7 @@ static int msm_sharedmem_probe(struct platform_device *pdev)
 	phys_addr_t shared_mem_pyhsical = 0;
 	bool is_addr_dynamic = false;
 	bool guard_memory = false;
+	bool vm_nav_path = false;
 
 	/* Get the addresses from platform-data */
 	if (!pdev->dev.of_node) {
@@ -159,8 +172,16 @@ static int msm_sharedmem_probe(struct platform_device *pdev)
 			shared_mem_pyhsical += SZ_4K;
 	}
 
+	/*
+	 * If this dtsi property is set, then the shared memory region
+	 * will be given access to vm-nav-path also.
+	 */
+	vm_nav_path = of_property_read_bool(pdev->dev.of_node,
+			"qcom,vm-nav-path");
+
 	/* Set up the permissions for the shared ram that was allocated. */
-	setup_shared_ram_perms(client_id, shared_mem_pyhsical, shared_mem_size);
+	setup_shared_ram_perms(client_id, shared_mem_pyhsical, shared_mem_size,
+				vm_nav_path);
 
 	/* Setup device */
 	info->mmap = sharedmem_mmap; /* Custom mmap function. */
