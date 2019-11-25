@@ -216,15 +216,6 @@ int sbitmap_get_shallow(struct sbitmap *sb, unsigned int alloc_hint,
  */
 bool sbitmap_any_bit_set(const struct sbitmap *sb);
 
-/**
- * sbitmap_any_bit_clear() - Check for an unset bit in a &struct
- * sbitmap.
- * @sb: Bitmap to check.
- *
- * Return: true if any bit in the bitmap is clear, false otherwise.
- */
-bool sbitmap_any_bit_clear(const struct sbitmap *sb);
-
 #define SB_NR_TO_INDEX(sb, bitnr) ((bitnr) >> (sb)->shift)
 #define SB_NR_TO_BIT(sb, bitnr) ((bitnr) & ((1U << (sb)->shift) - 1U))
 

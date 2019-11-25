@@ -41,12 +41,22 @@ discard I/Os    requests      number of discard I/Os processed
 discard merges  requests      number of discard I/Os merged with in-queue I/O
 discard sectors sectors       number of sectors discarded
 discard ticks   milliseconds  total wait time for discard requests
+flush I/Os      requests      number of flush I/Os processed
+flush ticks     milliseconds  total wait time for flush requests
 =============== ============= =================================================
 
 read I/Os, write I/Os, discard I/0s
 ===================================
 
 These values increment when an I/O request completes.
+
+flush I/Os
+==========
+
+These values increment when an flush I/O request completes.
+
+Block layer combines flush requests and executes at most one at a time.
+This counts flush requests executed by disk. Not tracked for partitions.
 
 read merges, write merges, discard merges
 =========================================
@@ -62,8 +72,8 @@ discarded from this block device.  The "sectors" in question are the
 standard UNIX 512-byte sectors, not any device- or filesystem-specific
 block size.  The counters are incremented when the I/O completes.
 
-read ticks, write ticks, discard ticks
-======================================
+read ticks, write ticks, discard ticks, flush ticks
+===================================================
 
 These values count the number of milliseconds that I/O requests have
 waited on this block device.  If there are multiple I/O requests waiting,

@@ -242,14 +242,11 @@ int blk_dev_init(void);
  * Contribute to IO statistics IFF:
  *
  *	a) it's attached to a gendisk, and
- *	b) the queue had IO stats enabled when this request was started, and
- *	c) it's a file system request
+ *	b) the queue had IO stats enabled when this request was started
  */
 static inline bool blk_do_io_stat(struct request *rq)
 {
-	return rq->rq_disk &&
-	       (rq->rq_flags & RQF_IO_STAT) &&
-		!blk_rq_is_passthrough(rq);
+	return rq->rq_disk && (rq->rq_flags & RQF_IO_STAT);
 }
 
 static inline void req_set_nomerge(struct request_queue *q, struct request *req)
