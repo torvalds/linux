@@ -297,7 +297,7 @@ static unsigned int alarm_setitimer(unsigned int seconds)
 	 * better return too much than too little anyway
 	 */
 	if ((!it_old.it_value.tv_sec && it_old.it_value.tv_nsec) ||
-	      it_old.it_value.tv_nsec >= 500000)
+	      it_old.it_value.tv_nsec >= (NSEC_PER_SEC / 2))
 		it_old.it_value.tv_sec++;
 
 	return it_old.it_value.tv_sec;
