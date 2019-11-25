@@ -104,6 +104,7 @@ static int lp_gpio_request(struct gpio_chip *chip, unsigned offset)
 	unsigned long reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
 	unsigned long conf2 = lp_gpio_reg(chip, offset, LP_CONFIG2);
 	unsigned long acpi_use = lp_gpio_reg(chip, offset, LP_ACPI_OWNED);
+	u32 value;
 
 	pm_runtime_get(&lg->pdev->dev); /* should we put if failed */
 
@@ -112,9 +113,16 @@ static int lp_gpio_request(struct gpio_chip *chip, unsigned offset)
 		dev_err(&lg->pdev->dev, "gpio %d reserved for ACPI\n", offset);
 		return -EBUSY;
 	}
-	/* Fail if pin is in alternate function mode (not GPIO mode) */
-	if ((inl(reg) & USE_SEL_MASK) != USE_SEL_GPIO)
-		return -ENODEV;
+
+	/*
+	 * Reconfigure pin to GPIO mode if needed and issue a warning,
+	 * since we expect firmware to configure it properly.
+	 */
+	value = inl(reg);
+	if ((value & USE_SEL_MASK) != USE_SEL_GPIO) {
+		outl((value & USE_SEL_MASK) | USE_SEL_GPIO, reg);
+		dev_warn(&lg->pdev->dev, FW_BUG "pin %u forcibly reconfigured as GPIO\n", offset);
+	}
 
 	/* enable input sensing */
 	outl(inl(conf2) & ~GPINDIS_BIT, conf2);
