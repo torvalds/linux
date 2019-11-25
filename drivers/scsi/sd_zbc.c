@@ -207,13 +207,17 @@ static inline sector_t sd_zbc_zone_sectors(struct scsi_disk *sdkp)
 }
 
 /**
- * sd_zbc_setup_reset_cmnd - Prepare a RESET WRITE POINTER scsi command.
+ * sd_zbc_setup_zone_mgmt_cmnd - Prepare a zone ZBC_OUT command. The operations
+ *			can be RESET WRITE POINTER, OPEN, CLOSE or FINISH.
  * @cmd: the command to setup
- * @all: Reset all zones control.
+ * @op: Operation to be performed
+ * @all: All zones control
  *
- * Called from sd_init_command() for a REQ_OP_ZONE_RESET request.
+ * Called from sd_init_command() for REQ_OP_ZONE_RESET, REQ_OP_ZONE_RESET_ALL,
+ * REQ_OP_ZONE_OPEN, REQ_OP_ZONE_CLOSE or REQ_OP_ZONE_FINISH requests.
  */
-blk_status_t sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd, bool all)
+blk_status_t sd_zbc_setup_zone_mgmt_cmnd(struct scsi_cmnd *cmd,
+					 unsigned char op, bool all)
 {
 	struct request *rq = cmd->request;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
@@ -234,7 +238,7 @@ blk_status_t sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd, bool all)
 	cmd->cmd_len = 16;
 	memset(cmd->cmnd, 0, cmd->cmd_len);
 	cmd->cmnd[0] = ZBC_OUT;
-	cmd->cmnd[1] = ZO_RESET_WRITE_POINTER;
+	cmd->cmnd[1] = op;
 	if (all)
 		cmd->cmnd[14] = 0x1;
 	else
@@ -263,14 +267,14 @@ void sd_zbc_complete(struct scsi_cmnd *cmd, unsigned int good_bytes,
 	int result = cmd->result;
 	struct request *rq = cmd->request;
 
-	if (req_op(rq) == REQ_OP_ZONE_RESET &&
+	if (op_is_zone_mgmt(req_op(rq)) &&
 	    result &&
 	    sshdr->sense_key == ILLEGAL_REQUEST &&
 	    sshdr->asc == 0x24) {
 		/*
-		 * INVALID FIELD IN CDB error: reset of a conventional
-		 * zone was attempted. Nothing to worry about, so be
-		 * quiet about the error.
+		 * INVALID FIELD IN CDB error: a zone management command was
+		 * attempted on a conventional zone. Nothing to worry about,
+		 * so be quiet about the error.
 		 */
 		rq->rq_flags |= RQF_QUIET;
 	}
