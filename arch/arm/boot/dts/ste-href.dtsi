@@ -39,18 +39,21 @@
 			pinctrl-names = "default","sleep";
 			pinctrl-0 = <&i2c0_a_1_default>;
 			pinctrl-1 = <&i2c0_a_1_sleep>;
+			status = "okay";
 		};
 
 		i2c@80122000 {
 			pinctrl-names = "default","sleep";
 			pinctrl-0 = <&i2c1_b_2_default>;
 			pinctrl-1 = <&i2c1_b_2_sleep>;
+			status = "okay";
 		};
 
 		i2c@80128000 {
 			pinctrl-names = "default","sleep";
 			pinctrl-0 = <&i2c2_b_2_default>;
 			pinctrl-1 = <&i2c2_b_2_sleep>;
+			status = "okay";
 			lp5521@33 {
 				compatible = "national,lp5521";
 				reg = <0x33>;
@@ -98,6 +101,7 @@
 			pinctrl-names = "default","sleep";
 			pinctrl-0 = <&i2c3_c_2_default>;
 			pinctrl-1 = <&i2c3_c_2_sleep>;
+			status = "okay";
 		};
 
 		/* ST6G3244ME level translator for 1.8/2.9 V */

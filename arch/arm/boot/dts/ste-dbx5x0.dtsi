@@ -651,6 +651,8 @@
 			clocks = <&prcc_kclk 3 3>, <&prcc_pclk 3 3>;
 			clock-names = "i2cclk", "apb_pclk";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		i2c@80122000 {
@@ -667,6 +669,8 @@
 			clocks = <&prcc_kclk 1 2>, <&prcc_pclk 1 2>;
 			clock-names = "i2cclk", "apb_pclk";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		i2c@80128000 {
@@ -683,6 +687,8 @@
 			clocks = <&prcc_kclk 1 6>, <&prcc_pclk 1 6>;
 			clock-names = "i2cclk", "apb_pclk";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		i2c@80110000 {
@@ -699,6 +705,8 @@
 			clocks = <&prcc_kclk 2 0>, <&prcc_pclk 2 0>;
 			clock-names = "i2cclk", "apb_pclk";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		i2c@8012a000 {
@@ -715,6 +723,8 @@
 			clocks = <&prcc_kclk 1 9>, <&prcc_pclk 1 10>;
 			clock-names = "i2cclk", "apb_pclk";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		spi@80002000 {
@@ -729,6 +739,8 @@
 			       <&dma 8 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		spi@80003000 {
@@ -743,6 +755,8 @@
 			       <&dma 9 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		spi@8011a000 {
@@ -758,6 +772,8 @@
 			       <&dma 0 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		spi@80112000 {
@@ -773,6 +789,8 @@
 			       <&dma 35 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		spi@80111000 {
@@ -788,6 +806,8 @@
 			       <&dma 33 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		spi@80129000 {
@@ -803,6 +823,8 @@
 			       <&dma 40 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
 		ux500_serial0: uart@80120000 {

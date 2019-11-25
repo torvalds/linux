@@ -307,18 +307,21 @@
 			pinctrl-names = "default","sleep";
 			pinctrl-0 = <&i2c0_a_1_default>;
 			pinctrl-1 = <&i2c0_a_1_sleep>;
+			status = "okay";
 		};
 
 		i2c@80122000 {
 			pinctrl-names = "default","sleep";
 			pinctrl-0 = <&i2c1_b_2_default>;
 			pinctrl-1 = <&i2c1_b_2_sleep>;
+			status = "okay";
 		};
 
 		i2c@80128000 {
 			pinctrl-names = "default","sleep";
 			pinctrl-0 = <&i2c2_b_2_default>;
 			pinctrl-1 = <&i2c2_b_2_sleep>;
+			status = "okay";
 			lsm303dlh@18 {
 				/* Accelerometer */
 				compatible = "st,lsm303dlh-accel";
@@ -369,11 +372,13 @@
 			pinctrl-names = "default","sleep";
 			pinctrl-0 = <&i2c3_c_2_default>;
 			pinctrl-1 = <&i2c3_c_2_sleep>;
+			status = "okay";
 		};
 
 		spi@80002000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&ssp0_snowball_mode>;
+			status = "okay";
 		};
 
 		prcmu@80157000 {
