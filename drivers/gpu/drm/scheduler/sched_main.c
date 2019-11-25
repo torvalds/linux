@@ -284,10 +284,21 @@ static void drm_sched_job_timedout(struct work_struct *work)
 	unsigned long flags;
 
 	sched = container_of(work, struct drm_gpu_scheduler, work_tdr.work);
+
+	/* Protects against concurrent deletion in drm_sched_get_cleanup_job */
+	spin_lock_irqsave(&sched->job_list_lock, flags);
 	job = list_first_entry_or_null(&sched->ring_mirror_list,
 				       struct drm_sched_job, node);
 
 	if (job) {
+		/*
+		 * Remove the bad job so it cannot be freed by concurrent
+		 * drm_sched_cleanup_jobs. It will be reinserted back after sched->thread
+		 * is parked at which point it's safe.
+		 */
+		list_del_init(&job->node);
+		spin_unlock_irqrestore(&sched->job_list_lock, flags);
+
 		job->sched->ops->timedout_job(job);
 
 		/*
@@ -298,6 +309,8 @@ static void drm_sched_job_timedout(struct work_struct *work)
 			job->sched->ops->free_job(job);
 			sched->free_guilty = false;
 		}
+	} else {
+		spin_unlock_irqrestore(&sched->job_list_lock, flags);
 	}
 
 	spin_lock_irqsave(&sched->job_list_lock, flags);
@@ -368,6 +381,20 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 	unsigned long flags;
 
 	kthread_park(sched->thread);
+
+	/*
+	 * Reinsert back the bad job here - now it's safe as
+	 * drm_sched_get_cleanup_job cannot race against us and release the
+	 * bad job at this point - we parked (waited for) any in progress
+	 * (earlier) cleanups and drm_sched_get_cleanup_job will not be called
+	 * now until the scheduler thread is unparked.
+	 */
+	if (bad && bad->sched == sched)
+		/*
+		 * Add at the head of the queue to reflect it was the earliest
+		 * job extracted.
+		 */
+		list_add(&bad->node, &sched->ring_mirror_list);
 
 	/*
 	 * Iterate the job list from later to  earlier one and either deactive
