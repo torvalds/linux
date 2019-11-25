@@ -230,14 +230,10 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 				    "nothing to do in IPC IRQ thread\n");
 	}
 
-	/* re-enable IPC interrupt */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
-				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
-
 	return IRQ_HANDLED;
 }
 
-/* Check if it is an IPC and disable IPC interrupt if yes */
+/* Check if an IPC IRQ occurred */
 bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 {
 	bool ret = false;
@@ -256,10 +252,7 @@ bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 
 	/* IPC message ? */
 	if (irq_status & HDA_DSP_ADSPIS_IPC) {
-		/* disable IPC interrupt */
-		snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
-						 HDA_DSP_REG_ADSPIC,
-						 HDA_DSP_ADSPIC_IPC, 0);
+		sdev->irq_event |= SOF_HDA_IRQ_IPC;
 		ret = true;
 	}
 

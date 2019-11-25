@@ -553,7 +553,7 @@ int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	bool ret = true;
+	bool ret = false;
 	u32 status;
 
 	/* The function can be called at irq thread, so use spin_lock_irq */
@@ -562,9 +562,11 @@ bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 	status = snd_hdac_chip_readl(bus, INTSTS);
 	dev_vdbg(bus->dev, "stream irq, INTSTS status: 0x%x\n", status);
 
-	/* Register inaccessible, ignore it.*/
-	if (status == 0xffffffff)
-		ret = false;
+	/* if Register inaccessible, ignore it.*/
+	if (status != 0xffffffff) {
+		sdev->irq_event |= SOF_HDA_IRQ_STREAM;
+		ret = true;
+	}
 
 	spin_unlock_irq(&bus->reg_lock);
 

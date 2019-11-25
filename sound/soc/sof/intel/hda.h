@@ -389,6 +389,11 @@ struct sof_intel_dsp_bdl {
 #define SOF_HDA_PLAYBACK		0
 #define SOF_HDA_CAPTURE			1
 
+/* flags to memorize IPC source (not hardware-defined) */
+#define SOF_HDA_IRQ_IPC		BIT(0)
+#define SOF_HDA_IRQ_STREAM	BIT(1)
+#define SOF_HDA_IRQ_SDW		BIT(2)
+
 /* represents DSP HDA controller frontend - i.e. host facing control */
 struct sof_intel_hda_dev {
 
