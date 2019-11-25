@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Written by: Neil Brown
 Please see MAINTAINERS file for where to send questions.
 
@@ -181,7 +183,7 @@ Kernel config options:
     worried about backward compatibility with kernels that have the redirect_dir
     feature and follow redirects even if turned off.
 
-Module options (can also be changed through /sys/module/overlay/parameters/*):
+Module options (can also be changed through /sys/module/overlay/parameters/):
 
 - "redirect_dir=BOOL":
     See OVERLAY_FS_REDIRECT_DIR kernel config option above.
@@ -263,7 +265,7 @@ top, lower2 the middle and lower3 the bottom layer.
 
 
 Metadata only copy up
---------------------
+---------------------
 
 When metadata only copy up feature is enabled, overlayfs will only copy
 up metadata (as opposed to whole file), when a metadata specific operation
@@ -286,10 +288,10 @@ pointed by REDIRECT. This should not be possible on local system as setting
 "trusted." xattrs will require CAP_SYS_ADMIN. But it should be possible
 for untrusted layers like from a pen drive.
 
-Note: redirect_dir={off|nofollow|follow(*)} conflicts with metacopy=on, and
+Note: redirect_dir={off|nofollow|follow[*]} conflicts with metacopy=on, and
 results in an error.
 
-(*) redirect_dir=follow only conflicts with metacopy=on if upperdir=... is
+[*] redirect_dir=follow only conflicts with metacopy=on if upperdir=... is
 given.
 
 Sharing and copying layers
