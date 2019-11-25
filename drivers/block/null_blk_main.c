@@ -227,7 +227,7 @@ static ssize_t nullb_device_uint_attr_store(unsigned int *val,
 	int result;
 
 	result = kstrtouint(page, 0, &tmp);
-	if (result)
+	if (result < 0)
 		return result;
 
 	*val = tmp;
@@ -241,7 +241,7 @@ static ssize_t nullb_device_ulong_attr_store(unsigned long *val,
 	unsigned long tmp;
 
 	result = kstrtoul(page, 0, &tmp);
-	if (result)
+	if (result < 0)
 		return result;
 
 	*val = tmp;
@@ -255,7 +255,7 @@ static ssize_t nullb_device_bool_attr_store(bool *val, const char *page,
 	int result;
 
 	result = kstrtobool(page,  &tmp);
-	if (result)
+	if (result < 0)
 		return result;
 
 	*val = tmp;
@@ -263,7 +263,7 @@ static ssize_t nullb_device_bool_attr_store(bool *val, const char *page,
 }
 
 /* The following macro should only be used with TYPE = {uint, ulong, bool}. */
-#define NULLB_DEVICE_ATTR(NAME, TYPE)						\
+#define NULLB_DEVICE_ATTR(NAME, TYPE, APPLY)					\
 static ssize_t									\
 nullb_device_##NAME##_show(struct config_item *item, char *page)		\
 {										\
@@ -274,31 +274,57 @@ static ssize_t									\
 nullb_device_##NAME##_store(struct config_item *item, const char *page,		\
 			    size_t count)					\
 {										\
-	if (test_bit(NULLB_DEV_FL_CONFIGURED, &to_nullb_device(item)->flags))	\
-		return -EBUSY;							\
-	return nullb_device_##TYPE##_attr_store(				\
-			&to_nullb_device(item)->NAME, page, count);		\
+	int (*apply_fn)(struct nullb_device *dev, TYPE new_value) = APPLY;	\
+	struct nullb_device *dev = to_nullb_device(item);			\
+	TYPE new_value;								\
+	int ret;								\
+										\
+	ret = nullb_device_##TYPE##_attr_store(&new_value, page, count);	\
+	if (ret < 0)								\
+		return ret;							\
+	if (apply_fn)								\
+		ret = apply_fn(dev, new_value);					\
+	else if (test_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags)) 		\
+		ret = -EBUSY;							\
+	if (ret < 0)								\
+		return ret;							\
+	dev->NAME = new_value;							\
+	return count;								\
 }										\
 CONFIGFS_ATTR(nullb_device_, NAME);
 
-NULLB_DEVICE_ATTR(size, ulong);
-NULLB_DEVICE_ATTR(completion_nsec, ulong);
-NULLB_DEVICE_ATTR(submit_queues, uint);
-NULLB_DEVICE_ATTR(home_node, uint);
-NULLB_DEVICE_ATTR(queue_mode, uint);
-NULLB_DEVICE_ATTR(blocksize, uint);
-NULLB_DEVICE_ATTR(irqmode, uint);
-NULLB_DEVICE_ATTR(hw_queue_depth, uint);
-NULLB_DEVICE_ATTR(index, uint);
-NULLB_DEVICE_ATTR(blocking, bool);
-NULLB_DEVICE_ATTR(use_per_node_hctx, bool);
-NULLB_DEVICE_ATTR(memory_backed, bool);
-NULLB_DEVICE_ATTR(discard, bool);
-NULLB_DEVICE_ATTR(mbps, uint);
-NULLB_DEVICE_ATTR(cache_size, ulong);
-NULLB_DEVICE_ATTR(zoned, bool);
-NULLB_DEVICE_ATTR(zone_size, ulong);
-NULLB_DEVICE_ATTR(zone_nr_conv, uint);
+static int nullb_apply_submit_queues(struct nullb_device *dev,
+				     unsigned int submit_queues)
+{
+	struct nullb *nullb = dev->nullb;
+	struct blk_mq_tag_set *set;
+
+	if (!nullb)
+		return 0;
+
+	set = nullb->tag_set;
+	blk_mq_update_nr_hw_queues(set, submit_queues);
+	return set->nr_hw_queues == submit_queues ? 0 : -ENOMEM;
+}
+
+NULLB_DEVICE_ATTR(size, ulong, NULL);
+NULLB_DEVICE_ATTR(completion_nsec, ulong, NULL);
+NULLB_DEVICE_ATTR(submit_queues, uint, nullb_apply_submit_queues);
+NULLB_DEVICE_ATTR(home_node, uint, NULL);
+NULLB_DEVICE_ATTR(queue_mode, uint, NULL);
+NULLB_DEVICE_ATTR(blocksize, uint, NULL);
+NULLB_DEVICE_ATTR(irqmode, uint, NULL);
+NULLB_DEVICE_ATTR(hw_queue_depth, uint, NULL);
+NULLB_DEVICE_ATTR(index, uint, NULL);
+NULLB_DEVICE_ATTR(blocking, bool, NULL);
+NULLB_DEVICE_ATTR(use_per_node_hctx, bool, NULL);
+NULLB_DEVICE_ATTR(memory_backed, bool, NULL);
+NULLB_DEVICE_ATTR(discard, bool, NULL);
+NULLB_DEVICE_ATTR(mbps, uint, NULL);
+NULLB_DEVICE_ATTR(cache_size, ulong, NULL);
+NULLB_DEVICE_ATTR(zoned, bool, NULL);
+NULLB_DEVICE_ATTR(zone_size, ulong, NULL);
+NULLB_DEVICE_ATTR(zone_nr_conv, uint, NULL);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
@@ -996,6 +1022,16 @@ next:
 	return 0;
 }
 
+static void nullb_fill_pattern(struct nullb *nullb, struct page *page,
+			       unsigned int len, unsigned int off)
+{
+	void *dst;
+
+	dst = kmap_atomic(page);
+	memset(dst + off, 0xFF, len);
+	kunmap_atomic(dst);
+}
+
 static void null_handle_discard(struct nullb *nullb, sector_t sector, size_t n)
 {
 	size_t temp;
@@ -1036,10 +1072,24 @@ static int null_transfer(struct nullb *nullb, struct page *page,
 	unsigned int len, unsigned int off, bool is_write, sector_t sector,
 	bool is_fua)
 {
+	struct nullb_device *dev = nullb->dev;
+	unsigned int valid_len = len;
 	int err = 0;
 
 	if (!is_write) {
-		err = copy_from_nullb(nullb, page, off, sector, len);
+		if (dev->zoned)
+			valid_len = null_zone_valid_read_len(nullb,
+				sector, len);
+
+		if (valid_len) {
+			err = copy_from_nullb(nullb, page, off,
+				sector, valid_len);
+			off += valid_len;
+			len -= valid_len;
+		}
+
+		if (len)
+			nullb_fill_pattern(nullb, page, len, off);
 		flush_dcache_page(page);
 	} else {
 		flush_dcache_page(page);
