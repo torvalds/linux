@@ -126,6 +126,14 @@ static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(GEN9_CLKGATE_DIS_0, I915_READ(GEN9_CLKGATE_DIS_0) |
 		   PWM1_GATING_DIS | PWM2_GATING_DIS);
+
+	/*
+	 * Lower the display internal timeout.
+	 * This is needed to avoid any hard hangs when DSI port PLL
+	 * is off and a MMIO access is attempted by any privilege
+	 * application, using batch buffers or any other means.
+	 */
+	I915_WRITE(RM_TIMEOUT, MMIO_TIMEOUT_US(950));
 }
 
 static void glk_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -8544,6 +8552,100 @@ static void intel_init_emon(struct drm_i915_private *dev_priv)
 	dev_priv->ips.corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
+static bool i915_rc6_ctx_corrupted(struct drm_i915_private *dev_priv)
+{
+	return !I915_READ(GEN8_RC6_CTX_INFO);
+}
+
+static void i915_rc6_ctx_wa_init(struct drm_i915_private *i915)
+{
+	if (!NEEDS_RC6_CTX_CORRUPTION_WA(i915))
+		return;
+
+	if (i915_rc6_ctx_corrupted(i915)) {
+		DRM_INFO("RC6 context corrupted, disabling runtime power management\n");
+		i915->gt_pm.rc6.ctx_corrupted = true;
+		i915->gt_pm.rc6.ctx_corrupted_wakeref =
+			intel_runtime_pm_get(&i915->runtime_pm);
+	}
+}
+
+static void i915_rc6_ctx_wa_cleanup(struct drm_i915_private *i915)
+{
+	if (i915->gt_pm.rc6.ctx_corrupted) {
+		intel_runtime_pm_put(&i915->runtime_pm,
+				     i915->gt_pm.rc6.ctx_corrupted_wakeref);
+		i915->gt_pm.rc6.ctx_corrupted = false;
+	}
+}
+
+/**
+ * i915_rc6_ctx_wa_suspend - system suspend sequence for the RC6 CTX WA
+ * @i915: i915 device
+ *
+ * Perform any steps needed to clean up the RC6 CTX WA before system suspend.
+ */
+void i915_rc6_ctx_wa_suspend(struct drm_i915_private *i915)
+{
+	if (i915->gt_pm.rc6.ctx_corrupted)
+		intel_runtime_pm_put(&i915->runtime_pm,
+				     i915->gt_pm.rc6.ctx_corrupted_wakeref);
+}
+
+/**
+ * i915_rc6_ctx_wa_resume - system resume sequence for the RC6 CTX WA
+ * @i915: i915 device
+ *
+ * Perform any steps needed to re-init the RC6 CTX WA after system resume.
+ */
+void i915_rc6_ctx_wa_resume(struct drm_i915_private *i915)
+{
+	if (!i915->gt_pm.rc6.ctx_corrupted)
+		return;
+
+	if (i915_rc6_ctx_corrupted(i915)) {
+		i915->gt_pm.rc6.ctx_corrupted_wakeref =
+			intel_runtime_pm_get(&i915->runtime_pm);
+		return;
+	}
+
+	DRM_INFO("RC6 context restored, re-enabling runtime power management\n");
+	i915->gt_pm.rc6.ctx_corrupted = false;
+}
+
+static void intel_disable_rc6(struct drm_i915_private *dev_priv);
+
+/**
+ * i915_rc6_ctx_wa_check - check for a new RC6 CTX corruption
+ * @i915: i915 device
+ *
+ * Check if an RC6 CTX corruption has happened since the last check and if so
+ * disable RC6 and runtime power management.
+ *
+ * Return false if no context corruption has happened since the last call of
+ * this function, true otherwise.
+*/
+bool i915_rc6_ctx_wa_check(struct drm_i915_private *i915)
+{
+	if (!NEEDS_RC6_CTX_CORRUPTION_WA(i915))
+		return false;
+
+	if (i915->gt_pm.rc6.ctx_corrupted)
+		return false;
+
+	if (!i915_rc6_ctx_corrupted(i915))
+		return false;
+
+	DRM_NOTE("RC6 context corruption, disabling runtime power management\n");
+
+	intel_disable_rc6(i915);
+	i915->gt_pm.rc6.ctx_corrupted = true;
+	i915->gt_pm.rc6.ctx_corrupted_wakeref =
+		intel_runtime_pm_get_noresume(&i915->runtime_pm);
+
+	return true;
+}
+
 void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 {
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
@@ -8556,6 +8658,8 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 		DRM_INFO("RC6 disabled, disabling runtime PM support\n");
 		pm_runtime_get(&dev_priv->drm.pdev->dev);
 	}
+
+	i915_rc6_ctx_wa_init(dev_priv);
 
 	/* Initialize RPS limits (for userspace) */
 	if (IS_CHERRYVIEW(dev_priv))
@@ -8595,6 +8699,8 @@ void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 	if (IS_VALLEYVIEW(dev_priv))
 		valleyview_cleanup_gt_powersave(dev_priv);
 
+	i915_rc6_ctx_wa_cleanup(dev_priv);
+
 	if (!HAS_RC6(dev_priv))
 		pm_runtime_put(&dev_priv->drm.pdev->dev);
 }
@@ -8623,7 +8729,7 @@ static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)
 	i915->gt_pm.llc_pstate.enabled = false;
 }
 
-static void intel_disable_rc6(struct drm_i915_private *dev_priv)
+static void __intel_disable_rc6(struct drm_i915_private *dev_priv)
 {
 	lockdep_assert_held(&dev_priv->gt_pm.rps.lock);
 
@@ -8640,6 +8746,15 @@ static void intel_disable_rc6(struct drm_i915_private *dev_priv)
 		gen6_disable_rc6(dev_priv);
 
 	dev_priv->gt_pm.rc6.enabled = false;
+}
+
+static void intel_disable_rc6(struct drm_i915_private *dev_priv)
+{
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
+
+	mutex_lock(&rps->lock);
+	__intel_disable_rc6(dev_priv);
+	mutex_unlock(&rps->lock);
 }
 
 static void intel_disable_rps(struct drm_i915_private *dev_priv)
@@ -8667,7 +8782,7 @@ void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->gt_pm.rps.lock);
 
-	intel_disable_rc6(dev_priv);
+	__intel_disable_rc6(dev_priv);
 	intel_disable_rps(dev_priv);
 	if (HAS_LLC(dev_priv))
 		intel_disable_llc_pstate(dev_priv);
@@ -8692,6 +8807,9 @@ static void intel_enable_rc6(struct drm_i915_private *dev_priv)
 	lockdep_assert_held(&dev_priv->gt_pm.rps.lock);
 
 	if (dev_priv->gt_pm.rc6.enabled)
+		return;
+
+	if (dev_priv->gt_pm.rc6.ctx_corrupted)
 		return;
 
 	if (IS_CHERRYVIEW(dev_priv))

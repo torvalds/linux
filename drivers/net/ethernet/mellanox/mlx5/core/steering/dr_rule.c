@@ -1096,6 +1096,8 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 	if (htbl)
 		mlx5dr_htbl_put(htbl);
 
+	kfree(hw_ste_arr);
+
 	return 0;
 
 free_ste:

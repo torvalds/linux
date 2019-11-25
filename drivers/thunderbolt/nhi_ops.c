@@ -80,7 +80,6 @@ static void icl_nhi_lc_mailbox_cmd(struct tb_nhi *nhi, enum icl_lc_mailbox_cmd c
 {
 	u32 data;
 
-	pci_read_config_dword(nhi->pdev, VS_CAP_19, &data);
 	data = (cmd << VS_CAP_19_CMD_SHIFT) & VS_CAP_19_CMD_MASK;
 	pci_write_config_dword(nhi->pdev, VS_CAP_19, data | VS_CAP_19_VALID);
 }

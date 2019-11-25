@@ -134,12 +134,13 @@ static int nft_bitwise_offload(struct nft_offload_ctx *ctx,
                                const struct nft_expr *expr)
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
+	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
 
 	if (memcmp(&priv->xor, &zero, sizeof(priv->xor)) ||
-	    priv->sreg != priv->dreg)
+	    priv->sreg != priv->dreg || priv->len != reg->len)
 		return -EOPNOTSUPP;
 
-	memcpy(&ctx->regs[priv->dreg].mask, &priv->mask, sizeof(priv->mask));
+	memcpy(&reg->mask, &priv->mask, sizeof(priv->mask));
 
 	return 0;
 }

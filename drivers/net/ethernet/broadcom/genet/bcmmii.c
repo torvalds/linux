@@ -173,46 +173,6 @@ static void bcmgenet_moca_phy_setup(struct bcmgenet_priv *priv)
 					  bcmgenet_fixed_phy_link_update);
 }
 
-int bcmgenet_mii_connect(struct net_device *dev)
-{
-	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device_node *dn = priv->pdev->dev.of_node;
-	struct phy_device *phydev;
-	u32 phy_flags = 0;
-	int ret;
-
-	/* Communicate the integrated PHY revision */
-	if (priv->internal_phy)
-		phy_flags = priv->gphy_rev;
-
-	/* Initialize link state variables that bcmgenet_mii_setup() uses */
-	priv->old_link = -1;
-	priv->old_speed = -1;
-	priv->old_duplex = -1;
-	priv->old_pause = -1;
-
-	if (dn) {
-		phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup,
-					phy_flags, priv->phy_interface);
-		if (!phydev) {
-			pr_err("could not attach to PHY\n");
-			return -ENODEV;
-		}
-	} else {
-		phydev = dev->phydev;
-		phydev->dev_flags = phy_flags;
-
-		ret = phy_connect_direct(dev, phydev, bcmgenet_mii_setup,
-					 priv->phy_interface);
-		if (ret) {
-			pr_err("could not attach to PHY\n");
-			return -ENODEV;
-		}
-	}
-
-	return 0;
-}
-
 int bcmgenet_mii_config(struct net_device *dev, bool init)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
@@ -221,7 +181,37 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 	const char *phy_name = NULL;
 	u32 id_mode_dis = 0;
 	u32 port_ctrl;
+	int bmcr = -1;
+	int ret;
 	u32 reg;
+
+	/* MAC clocking workaround during reset of umac state machines */
+	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
+	if (reg & CMD_SW_RESET) {
+		/* An MII PHY must be isolated to prevent TXC contention */
+		if (priv->phy_interface == PHY_INTERFACE_MODE_MII) {
+			ret = phy_read(phydev, MII_BMCR);
+			if (ret >= 0) {
+				bmcr = ret;
+				ret = phy_write(phydev, MII_BMCR,
+						bmcr | BMCR_ISOLATE);
+			}
+			if (ret) {
+				netdev_err(dev, "failed to isolate PHY\n");
+				return ret;
+			}
+		}
+		/* Switch MAC clocking to RGMII generated clock */
+		bcmgenet_sys_writel(priv, PORT_MODE_EXT_GPHY, SYS_PORT_CTRL);
+		/* Ensure 5 clks with Rx disabled
+		 * followed by 5 clks with Reset asserted
+		 */
+		udelay(4);
+		reg &= ~(CMD_SW_RESET | CMD_LCL_LOOP_EN);
+		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+		/* Ensure 5 more clocks before Rx is enabled */
+		udelay(2);
+	}
 
 	priv->ext_phy = !priv->internal_phy &&
 			(priv->phy_interface != PHY_INTERFACE_MODE_MOCA);
@@ -254,6 +244,9 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		phy_set_max_speed(phydev, SPEED_100);
 		bcmgenet_sys_writel(priv,
 				    PORT_MODE_EXT_EPHY, SYS_PORT_CTRL);
+		/* Restore the MII PHY after isolation */
+		if (bmcr >= 0)
+			phy_write(phydev, MII_BMCR, bmcr);
 		break;
 
 	case PHY_INTERFACE_MODE_REVMII:
@@ -306,20 +299,70 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
 	}
 
-	if (init) {
-		linkmode_copy(phydev->advertising, phydev->supported);
-
-		/* The internal PHY has its link interrupts routed to the
-		 * Ethernet MAC ISRs. On GENETv5 there is a hardware issue
-		 * that prevents the signaling of link UP interrupts when
-		 * the link operates at 10Mbps, so fallback to polling for
-		 * those versions of GENET.
-		 */
-		if (priv->internal_phy && !GENET_IS_V5(priv))
-			phydev->irq = PHY_IGNORE_INTERRUPT;
-
+	if (init)
 		dev_info(kdev, "configuring instance for %s\n", phy_name);
+
+	return 0;
+}
+
+int bcmgenet_mii_probe(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	struct device_node *dn = priv->pdev->dev.of_node;
+	struct phy_device *phydev;
+	u32 phy_flags = 0;
+	int ret;
+
+	/* Communicate the integrated PHY revision */
+	if (priv->internal_phy)
+		phy_flags = priv->gphy_rev;
+
+	/* Initialize link state variables that bcmgenet_mii_setup() uses */
+	priv->old_link = -1;
+	priv->old_speed = -1;
+	priv->old_duplex = -1;
+	priv->old_pause = -1;
+
+	if (dn) {
+		phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup,
+					phy_flags, priv->phy_interface);
+		if (!phydev) {
+			pr_err("could not attach to PHY\n");
+			return -ENODEV;
+		}
+	} else {
+		phydev = dev->phydev;
+		phydev->dev_flags = phy_flags;
+
+		ret = phy_connect_direct(dev, phydev, bcmgenet_mii_setup,
+					 priv->phy_interface);
+		if (ret) {
+			pr_err("could not attach to PHY\n");
+			return -ENODEV;
+		}
 	}
+
+	/* Configure port multiplexer based on what the probed PHY device since
+	 * reading the 'max-speed' property determines the maximum supported
+	 * PHY speed which is needed for bcmgenet_mii_config() to configure
+	 * things appropriately.
+	 */
+	ret = bcmgenet_mii_config(dev, true);
+	if (ret) {
+		phy_disconnect(dev->phydev);
+		return ret;
+	}
+
+	linkmode_copy(phydev->advertising, phydev->supported);
+
+	/* The internal PHY has its link interrupts routed to the
+	 * Ethernet MAC ISRs. On GENETv5 there is a hardware issue
+	 * that prevents the signaling of link UP interrupts when
+	 * the link operates at 10Mbps, so fallback to polling for
+	 * those versions of GENET.
+	 */
+	if (priv->internal_phy && !GENET_IS_V5(priv))
+		dev->phydev->irq = PHY_IGNORE_INTERRUPT;
 
 	return 0;
 }

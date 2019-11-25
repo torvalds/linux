@@ -2119,11 +2119,12 @@ int cgroup_do_get_tree(struct fs_context *fc)
 
 		nsdentry = kernfs_node_dentry(cgrp->kn, sb);
 		dput(fc->root);
-		fc->root = nsdentry;
 		if (IS_ERR(nsdentry)) {
-			ret = PTR_ERR(nsdentry);
 			deactivate_locked_super(sb);
+			ret = PTR_ERR(nsdentry);
+			nsdentry = NULL;
 		}
+		fc->root = nsdentry;
 	}
 
 	if (!ctx->kfc.new_sb_created)

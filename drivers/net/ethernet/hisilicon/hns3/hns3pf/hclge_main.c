@@ -3587,12 +3587,28 @@ static int hclge_set_rst_done(struct hclge_dev *hdev)
 {
 	struct hclge_pf_rst_done_cmd *req;
 	struct hclge_desc desc;
+	int ret;
 
 	req = (struct hclge_pf_rst_done_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PF_RST_DONE, false);
 	req->pf_rst_done |= HCLGE_PF_RESET_DONE_BIT;
 
-	return hclge_cmd_send(&hdev->hw, &desc, 1);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	/* To be compatible with the old firmware, which does not support
+	 * command HCLGE_OPC_PF_RST_DONE, just print a warning and
+	 * return success
+	 */
+	if (ret == -EOPNOTSUPP) {
+		dev_warn(&hdev->pdev->dev,
+			 "current firmware does not support command(0x%x)!\n",
+			 HCLGE_OPC_PF_RST_DONE);
+		return 0;
+	} else if (ret) {
+		dev_err(&hdev->pdev->dev, "assert PF reset done fail %d!\n",
+			ret);
+	}
+
+	return ret;
 }
 
 static int hclge_reset_prepare_up(struct hclge_dev *hdev)
@@ -6247,11 +6263,23 @@ static int hclge_config_switch_param(struct hclge_dev *hdev, int vfid,
 
 	func_id = hclge_get_port_number(HOST_PORT, 0, vfid, 0);
 	req = (struct hclge_mac_vlan_switch_cmd *)desc.data;
+
+	/* read current config parameter */
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_SWITCH_PARAM,
-				   false);
+				   true);
 	req->roce_sel = HCLGE_MAC_VLAN_NIC_SEL;
 	req->func_id = cpu_to_le32(func_id);
-	req->switch_param = switch_param;
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"read mac vlan switch parameter fail, ret = %d\n", ret);
+		return ret;
+	}
+
+	/* modify and write new config parameter */
+	hclge_cmd_reuse_desc(&desc, false);
+	req->switch_param = (req->switch_param & param_mask) | switch_param;
 	req->param_mask = param_mask;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);

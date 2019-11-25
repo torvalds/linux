@@ -362,9 +362,8 @@ static void mrfld_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(irqchip, desc);
 }
 
-static int mrfld_irq_init_hw(struct gpio_chip *chip)
+static void mrfld_irq_init_hw(struct mrfld_gpio *priv)
 {
-	struct mrfld_gpio *priv = gpiochip_get_data(chip);
 	void __iomem *reg;
 	unsigned int base;
 
@@ -376,8 +375,6 @@ static int mrfld_irq_init_hw(struct gpio_chip *chip)
 		reg = gpio_reg(&priv->chip, base, GFER);
 		writel(0, reg);
 	}
-
-	return 0;
 }
 
 static const char *mrfld_gpio_get_pinctrl_dev_name(struct mrfld_gpio *priv)
@@ -400,7 +397,6 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 {
 	const struct mrfld_gpio_pinrange *range;
 	const char *pinctrl_dev_name;
-	struct gpio_irq_chip *girq;
 	struct mrfld_gpio *priv;
 	u32 gpio_base, irq_base;
 	void __iomem *base;
@@ -448,21 +444,6 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 
 	raw_spin_lock_init(&priv->lock);
 
-	girq = &priv->chip.irq;
-	girq->chip = &mrfld_irqchip;
-	girq->init_hw = mrfld_irq_init_hw;
-	girq->parent_handler = mrfld_irq_handler;
-	girq->num_parents = 1;
-	girq->parents = devm_kcalloc(&pdev->dev, girq->num_parents,
-				     sizeof(*girq->parents),
-				     GFP_KERNEL);
-	if (!girq->parents)
-		return -ENOMEM;
-	girq->parents[0] = pdev->irq;
-	girq->first = irq_base;
-	girq->default_type = IRQ_TYPE_NONE;
-	girq->handler = handle_bad_irq;
-
 	pci_set_drvdata(pdev, priv);
 	retval = devm_gpiochip_add_data(&pdev->dev, &priv->chip, priv);
 	if (retval) {
@@ -483,6 +464,18 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 			return retval;
 		}
 	}
+
+	retval = gpiochip_irqchip_add(&priv->chip, &mrfld_irqchip, irq_base,
+				      handle_bad_irq, IRQ_TYPE_NONE);
+	if (retval) {
+		dev_err(&pdev->dev, "could not connect irqchip to gpiochip\n");
+		return retval;
+	}
+
+	mrfld_irq_init_hw(priv);
+
+	gpiochip_set_chained_irqchip(&priv->chip, &mrfld_irqchip, pdev->irq,
+				     mrfld_irq_handler);
 
 	return 0;
 }

@@ -364,9 +364,6 @@ static int i915_driver_modeset_probe(struct drm_device *dev)
 	if (ret)
 		goto cleanup_vga_client;
 
-	/* must happen before intel_power_domains_init_hw() on VLV/CHV */
-	intel_update_rawclk(dev_priv);
-
 	intel_power_domains_init_hw(dev_priv, false);
 
 	intel_csr_ucode_init(dev_priv);
@@ -1850,6 +1847,8 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	i915_gem_suspend_late(dev_priv);
 
+	i915_rc6_ctx_wa_suspend(dev_priv);
+
 	intel_uncore_suspend(&dev_priv->uncore);
 
 	intel_power_domains_suspend(dev_priv,
@@ -2052,6 +2051,8 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	intel_sanitize_gt_powersave(dev_priv);
 
 	intel_power_domains_resume(dev_priv);
+
+	i915_rc6_ctx_wa_resume(dev_priv);
 
 	intel_gt_sanitize(&dev_priv->gt, true);
 
