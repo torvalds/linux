@@ -22,18 +22,19 @@
 
 #define VCPU_ID 5
 
+#define UCALL_PIO_PORT ((uint16_t)0x1000)
+
+/*
+ * ucall is embedded here to protect against compiler reshuffling registers
+ * before calling a function. In this test we only need to get KVM_EXIT_IO
+ * vmexit and preserve RBX, no additional information is needed.
+ */
 void guest_code(void)
 {
-	/*
-	 * use a callee-save register, otherwise the compiler
-	 * saves it around the call to GUEST_SYNC.
-	 */
-	register u32 stage asm("rbx");
-	for (;;) {
-		GUEST_SYNC(0);
-		stage++;
-		asm volatile ("" : : "r" (stage));
-	}
+	asm volatile("1: in %[port], %%al\n"
+		     "add $0x1, %%rbx\n"
+		     "jmp 1b"
+		     : : [port] "d" (UCALL_PIO_PORT) : "rax", "rbx");
 }
 
 static void compare_regs(struct kvm_regs *left, struct kvm_regs *right)

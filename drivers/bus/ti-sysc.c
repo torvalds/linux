@@ -74,6 +74,7 @@ static const char * const clock_names[SYSC_MAX_CLOCKS] = {
  * @clk_disable_quirk: module specific clock disable quirk
  * @reset_done_quirk: module specific reset done quirk
  * @module_enable_quirk: module specific enable quirk
+ * @module_disable_quirk: module specific disable quirk
  */
 struct sysc {
 	struct device *dev;
@@ -100,6 +101,7 @@ struct sysc {
 	void (*clk_disable_quirk)(struct sysc *sysc);
 	void (*reset_done_quirk)(struct sysc *sysc);
 	void (*module_enable_quirk)(struct sysc *sysc);
+	void (*module_disable_quirk)(struct sysc *sysc);
 };
 
 static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
@@ -959,6 +961,9 @@ static int sysc_disable_module(struct device *dev)
 	if (ddata->offsets[SYSC_SYSCONFIG] == -ENODEV)
 		return 0;
 
+	if (ddata->module_disable_quirk)
+		ddata->module_disable_quirk(ddata);
+
 	regbits = ddata->cap->regbits;
 	reg = sysc_read(ddata, ddata->offsets[SYSC_SYSCONFIG]);
 
@@ -1248,6 +1253,9 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 		   SYSC_MODULE_QUIRK_SGX),
 	SYSC_QUIRK("wdt", 0, 0, 0x10, 0x14, 0x502a0500, 0xfffff0f0,
 		   SYSC_MODULE_QUIRK_WDT),
+	/* Watchdog on am3 and am4 */
+	SYSC_QUIRK("wdt", 0x44e35000, 0, 0x10, 0x14, 0x502a0500, 0xfffff0f0,
+		   SYSC_MODULE_QUIRK_WDT | SYSC_QUIRK_SWSUP_SIDLE),
 
 #ifdef DEBUG
 	SYSC_QUIRK("adc", 0, 0, 0x10, -1, 0x47300001, 0xffffffff, 0),
@@ -1440,14 +1448,14 @@ static void sysc_reset_done_quirk_wdt(struct sysc *ddata)
 				   !(val & 0x10), 100,
 				   MAX_MODULE_SOFTRESET_WAIT);
 	if (error)
-		dev_warn(ddata->dev, "wdt disable spr failed\n");
+		dev_warn(ddata->dev, "wdt disable step1 failed\n");
 
-	sysc_write(ddata, wps, 0x5555);
+	sysc_write(ddata, spr, 0x5555);
 	error = readl_poll_timeout(ddata->module_va + wps, val,
 				   !(val & 0x10), 100,
 				   MAX_MODULE_SOFTRESET_WAIT);
 	if (error)
-		dev_warn(ddata->dev, "wdt disable wps failed\n");
+		dev_warn(ddata->dev, "wdt disable step2 failed\n");
 }
 
 static void sysc_init_module_quirks(struct sysc *ddata)
@@ -1471,8 +1479,10 @@ static void sysc_init_module_quirks(struct sysc *ddata)
 	if (ddata->cfg.quirks & SYSC_MODULE_QUIRK_SGX)
 		ddata->module_enable_quirk = sysc_module_enable_quirk_sgx;
 
-	if (ddata->cfg.quirks & SYSC_MODULE_QUIRK_WDT)
+	if (ddata->cfg.quirks & SYSC_MODULE_QUIRK_WDT) {
 		ddata->reset_done_quirk = sysc_reset_done_quirk_wdt;
+		ddata->module_disable_quirk = sysc_reset_done_quirk_wdt;
+	}
 }
 
 static int sysc_clockdomain_init(struct sysc *ddata)

@@ -106,6 +106,7 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 	struct kvmppc_xive *xive = dev->private;
 	struct kvmppc_xive_vcpu *xc = NULL;
 	int rc;
+	u32 vp_id;
 
 	pr_devel("native_connect_vcpu(server=%d)\n", server_num);
 
@@ -124,7 +125,8 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 
 	mutex_lock(&xive->lock);
 
-	if (kvmppc_xive_find_server(vcpu->kvm, server_num)) {
+	vp_id = kvmppc_xive_vp(xive, server_num);
+	if (kvmppc_xive_vp_in_use(xive->kvm, vp_id)) {
 		pr_devel("Duplicate !\n");
 		rc = -EEXIST;
 		goto bail;
@@ -141,7 +143,7 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 	xc->vcpu = vcpu;
 	xc->server_num = server_num;
 
-	xc->vp_id = kvmppc_xive_vp(xive, server_num);
+	xc->vp_id = vp_id;
 	xc->valid = true;
 	vcpu->arch.irq_type = KVMPPC_IRQ_XIVE;
 

@@ -150,6 +150,11 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 
 	/* get runtime PCM params using widget's stream name */
 	spcm = snd_sof_find_spcm_name(sdev, swidget->widget->sname);
+	if (!spcm) {
+		dev_err(sdev->dev, "error: cannot find PCM for %s\n",
+			swidget->widget->name);
+		return -EINVAL;
+	}
 
 	/* process events */
 	switch (event) {
@@ -937,18 +942,22 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	struct sof_ipc_ctrl_data *cdata;
 	int tlv[TLV_ITEMS];
 	unsigned int i;
-	int ret;
+	int ret = 0;
 
 	/* validate topology data */
-	if (le32_to_cpu(mc->num_channels) > SND_SOC_TPLG_MAX_CHAN)
-		return -EINVAL;
+	if (le32_to_cpu(mc->num_channels) > SND_SOC_TPLG_MAX_CHAN) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	/* init the volume get/put data */
 	scontrol->size = struct_size(scontrol->control_data, chanv,
 				     le32_to_cpu(mc->num_channels));
 	scontrol->control_data = kzalloc(scontrol->size, GFP_KERNEL);
-	if (!scontrol->control_data)
-		return -ENOMEM;
+	if (!scontrol->control_data) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	scontrol->comp_id = sdev->next_comp_id;
 	scontrol->min_volume_step = le32_to_cpu(mc->min);
@@ -958,7 +967,7 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	/* set cmd for mixer control */
 	if (le32_to_cpu(mc->max) == 1) {
 		scontrol->cmd = SOF_CTRL_CMD_SWITCH;
-		goto out;
+		goto skip;
 	}
 
 	scontrol->cmd = SOF_CTRL_CMD_VOLUME;
@@ -966,14 +975,15 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	/* extract tlv data */
 	if (get_tlv_data(kc->tlv.p, tlv) < 0) {
 		dev_err(sdev->dev, "error: invalid TLV data\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_free;
 	}
 
 	/* set up volume table */
 	ret = set_up_volume_table(scontrol, tlv, le32_to_cpu(mc->max) + 1);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: setting up volume table\n");
-		return ret;
+		goto out_free;
 	}
 
 	/* set default volume values to 0dB in control */
@@ -983,7 +993,7 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 		cdata->chanv[i].value = VOL_ZERO_DB;
 	}
 
-out:
+skip:
 	/* set up possible led control from mixer private data */
 	ret = sof_parse_tokens(scomp, &scontrol->led_ctl, led_tokens,
 			       ARRAY_SIZE(led_tokens), mc->priv.array,
@@ -991,13 +1001,21 @@ out:
 	if (ret != 0) {
 		dev_err(sdev->dev, "error: parse led tokens failed %d\n",
 			le32_to_cpu(mc->priv.size));
-		return ret;
+		goto out_free_table;
 	}
 
 	dev_dbg(sdev->dev, "tplg: load kcontrol index %d chans %d\n",
 		scontrol->comp_id, scontrol->num_channels);
 
-	return 0;
+	return ret;
+
+out_free_table:
+	if (le32_to_cpu(mc->max) > 1)
+		kfree(scontrol->volume_table);
+out_free:
+	kfree(scontrol->control_data);
+out:
+	return ret;
 }
 
 static int sof_control_load_enum(struct snd_soc_component *scomp,
@@ -1042,6 +1060,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 		container_of(hdr, struct snd_soc_tplg_bytes_control, hdr);
 	struct soc_bytes_ext *sbe = (struct soc_bytes_ext *)kc->private_value;
 	int max_size = sbe->max;
+	int ret = 0;
 
 	/* init the get/put bytes data */
 	scontrol->size = sizeof(struct sof_ipc_ctrl_data) +
@@ -1050,13 +1069,16 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 	if (scontrol->size > max_size) {
 		dev_err(sdev->dev, "err: bytes data size %d exceeds max %d.\n",
 			scontrol->size, max_size);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	scontrol->control_data = kzalloc(max_size, GFP_KERNEL);
 	cdata = scontrol->control_data;
-	if (!scontrol->control_data)
-		return -ENOMEM;
+	if (!scontrol->control_data) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	scontrol->comp_id = sdev->next_comp_id;
 	scontrol->cmd = SOF_CTRL_CMD_BINARY;
@@ -1071,23 +1093,32 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 		if (cdata->data->magic != SOF_ABI_MAGIC) {
 			dev_err(sdev->dev, "error: Wrong ABI magic 0x%08x.\n",
 				cdata->data->magic);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out_free;
 		}
 		if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION,
 						 cdata->data->abi)) {
 			dev_err(sdev->dev,
 				"error: Incompatible ABI version 0x%08x.\n",
 				cdata->data->abi);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out_free;
 		}
 		if (cdata->data->size + sizeof(const struct sof_abi_hdr) !=
 		    le32_to_cpu(control->priv.size)) {
 			dev_err(sdev->dev,
 				"error: Conflict in bytes vs. priv size.\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out_free;
 		}
 	}
-	return 0;
+
+	return ret;
+
+out_free:
+	kfree(scontrol->control_data);
+out:
+	return ret;
 }
 
 /* external kcontrol init - used for any driver specific init */
@@ -1143,6 +1174,11 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 			 hdr->ops.get, hdr->ops.put, hdr->ops.info);
 		kfree(scontrol);
 		return 0;
+	}
+
+	if (ret < 0) {
+		kfree(scontrol);
+		return ret;
 	}
 
 	dobj->private = scontrol;

@@ -101,7 +101,7 @@ static int create_link(struct config_item *parent_item,
 	}
 	target_sd->s_links++;
 	spin_unlock(&configfs_dirent_lock);
-	ret = configfs_get_target_path(item, item, body);
+	ret = configfs_get_target_path(parent_item, item, body);
 	if (!ret)
 		ret = configfs_create_link(target_sd, parent_item->ci_dentry,
 					   dentry, body);

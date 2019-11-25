@@ -33,7 +33,7 @@ Required properties:
 	"dma_ck": dma_bus clock for data transfer by DMA,
 	"xhci_ck": controller clock
 
- - phys : see usb-hcd.txt in the current directory
+ - phys : see usb-hcd.yaml in the current directory
 
 Optional properties:
  - wakeup-source : enable USB remote wakeup;
@@ -53,7 +53,7 @@ Optional properties:
 	See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
  - imod-interval-ns: default interrupt moderation interval is 5000ns
 
-additionally the properties from usb-hcd.txt (in the current directory) are
+additionally the properties from usb-hcd.yaml (in the current directory) are
 supported.
 
 Example:

@@ -556,11 +556,11 @@ static int panfrost_probe(struct platform_device *pdev)
 	return 0;
 
 err_out2:
+	pm_runtime_disable(pfdev->dev);
 	panfrost_devfreq_fini(pfdev);
 err_out1:
 	panfrost_device_fini(pfdev);
 err_out0:
-	pm_runtime_disable(pfdev->dev);
 	drm_dev_put(ddev);
 	return err;
 }

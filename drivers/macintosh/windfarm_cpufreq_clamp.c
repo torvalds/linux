@@ -18,7 +18,7 @@
 
 static int clamped;
 static struct wf_control *clamp_control;
-static struct dev_pm_qos_request qos_req;
+static struct freq_qos_request qos_req;
 static unsigned int min_freq, max_freq;
 
 static int clamp_set(struct wf_control *ct, s32 value)
@@ -35,7 +35,7 @@ static int clamp_set(struct wf_control *ct, s32 value)
 	}
 	clamped = value;
 
-	return dev_pm_qos_update_request(&qos_req, freq);
+	return freq_qos_update_request(&qos_req, freq);
 }
 
 static int clamp_get(struct wf_control *ct, s32 *value)
@@ -77,38 +77,44 @@ static int __init wf_cpufreq_clamp_init(void)
 
 	min_freq = policy->cpuinfo.min_freq;
 	max_freq = policy->cpuinfo.max_freq;
+
+	ret = freq_qos_add_request(&policy->constraints, &qos_req, FREQ_QOS_MAX,
+				   max_freq);
+
 	cpufreq_cpu_put(policy);
+
+	if (ret < 0) {
+		pr_err("%s: Failed to add freq constraint (%d)\n", __func__,
+		       ret);
+		return ret;
+	}
 
 	dev = get_cpu_device(0);
 	if (unlikely(!dev)) {
 		pr_warn("%s: No cpu device for cpu0\n", __func__);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto fail;
 	}
 
 	clamp = kmalloc(sizeof(struct wf_control), GFP_KERNEL);
-	if (clamp == NULL)
-		return -ENOMEM;
-
-	ret = dev_pm_qos_add_request(dev, &qos_req, DEV_PM_QOS_MAX_FREQUENCY,
-				     max_freq);
-	if (ret < 0) {
-		pr_err("%s: Failed to add freq constraint (%d)\n", __func__,
-		       ret);
-		goto free;
+	if (clamp == NULL) {
+		ret = -ENOMEM;
+		goto fail;
 	}
 
 	clamp->ops = &clamp_ops;
 	clamp->name = "cpufreq-clamp";
 	ret = wf_register_control(clamp);
 	if (ret)
-		goto fail;
+		goto free;
+
 	clamp_control = clamp;
 	return 0;
- fail:
-	dev_pm_qos_remove_request(&qos_req);
 
  free:
 	kfree(clamp);
+ fail:
+	freq_qos_remove_request(&qos_req);
 	return ret;
 }
 
@@ -116,7 +122,7 @@ static void __exit wf_cpufreq_clamp_exit(void)
 {
 	if (clamp_control) {
 		wf_unregister_control(clamp_control);
-		dev_pm_qos_remove_request(&qos_req);
+		freq_qos_remove_request(&qos_req);
 	}
 }
 

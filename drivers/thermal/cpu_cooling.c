@@ -88,7 +88,7 @@ struct cpufreq_cooling_device {
 	struct cpufreq_policy *policy;
 	struct list_head node;
 	struct time_in_idle *idle_time;
-	struct dev_pm_qos_request qos_req;
+	struct freq_qos_request qos_req;
 };
 
 static DEFINE_IDA(cpufreq_ida);
@@ -331,7 +331,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 	cpufreq_cdev->cpufreq_state = state;
 
-	return dev_pm_qos_update_request(&cpufreq_cdev->qos_req,
+	return freq_qos_update_request(&cpufreq_cdev->qos_req,
 				cpufreq_cdev->freq_table[state].frequency);
 }
 
@@ -615,9 +615,9 @@ __cpufreq_cooling_register(struct device_node *np,
 		cooling_ops = &cpufreq_cooling_ops;
 	}
 
-	ret = dev_pm_qos_add_request(dev, &cpufreq_cdev->qos_req,
-				     DEV_PM_QOS_MAX_FREQUENCY,
-				     cpufreq_cdev->freq_table[0].frequency);
+	ret = freq_qos_add_request(&policy->constraints,
+				   &cpufreq_cdev->qos_req, FREQ_QOS_MAX,
+				   cpufreq_cdev->freq_table[0].frequency);
 	if (ret < 0) {
 		pr_err("%s: Failed to add freq constraint (%d)\n", __func__,
 		       ret);
@@ -637,7 +637,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	return cdev;
 
 remove_qos_req:
-	dev_pm_qos_remove_request(&cpufreq_cdev->qos_req);
+	freq_qos_remove_request(&cpufreq_cdev->qos_req);
 remove_ida:
 	ida_simple_remove(&cpufreq_ida, cpufreq_cdev->id);
 free_table:
@@ -736,7 +736,7 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	mutex_unlock(&cooling_list_lock);
 
 	thermal_cooling_device_unregister(cdev);
-	dev_pm_qos_remove_request(&cpufreq_cdev->qos_req);
+	freq_qos_remove_request(&cpufreq_cdev->qos_req);
 	ida_simple_remove(&cpufreq_ida, cpufreq_cdev->id);
 	kfree(cpufreq_cdev->idle_time);
 	kfree(cpufreq_cdev->freq_table);

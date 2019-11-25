@@ -865,7 +865,6 @@ static int vrf_dev_init(struct net_device *dev)
 
 	/* similarly, oper state is irrelevant; set to up to avoid confusion */
 	dev->operstate = IF_OPER_UP;
-	netdev_lockdep_set_classes(dev);
 	return 0;
 
 out_rth:

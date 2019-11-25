@@ -1356,9 +1356,6 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
 
-	/* Reset the ethernet controller */
-	__lpc_eth_reset(pldat);
-
 	/* then shut everything down to save power */
 	__lpc_eth_shutdown(pldat);
 

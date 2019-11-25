@@ -57,6 +57,7 @@ static int xhci_create_intel_xhci_sw_pdev(struct xhci_hcd *xhci, u32 cap_offset)
 		ret = platform_device_add_properties(pdev, role_switch_props);
 		if (ret) {
 			dev_err(dev, "failed to register device properties\n");
+			platform_device_put(pdev);
 			return ret;
 		}
 	}

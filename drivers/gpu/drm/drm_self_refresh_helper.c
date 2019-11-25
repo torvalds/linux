@@ -133,29 +133,33 @@ out_drop_locks:
  * drm_self_refresh_helper_update_avg_times - Updates a crtc's SR time averages
  * @state: the state which has just been applied to hardware
  * @commit_time_ms: the amount of time in ms that this commit took to complete
+ * @new_self_refresh_mask: bitmask of crtc's that have self_refresh_active in
+ *    new state
  *
  * Called after &drm_mode_config_funcs.atomic_commit_tail, this function will
  * update the average entry/exit self refresh times on self refresh transitions.
  * These averages will be used when calculating how long to delay before
  * entering self refresh mode after activity.
  */
-void drm_self_refresh_helper_update_avg_times(struct drm_atomic_state *state,
-					      unsigned int commit_time_ms)
+void
+drm_self_refresh_helper_update_avg_times(struct drm_atomic_state *state,
+					 unsigned int commit_time_ms,
+					 unsigned int new_self_refresh_mask)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_crtc_state *old_crtc_state;
 	int i;
 
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
-				      new_crtc_state, i) {
+	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
+		bool new_self_refresh_active = new_self_refresh_mask & BIT(i);
 		struct drm_self_refresh_data *sr_data = crtc->self_refresh_data;
 		struct ewma_psr_time *time;
 
 		if (old_crtc_state->self_refresh_active ==
-		    new_crtc_state->self_refresh_active)
+		    new_self_refresh_active)
 			continue;
 
-		if (new_crtc_state->self_refresh_active)
+		if (new_self_refresh_active)
 			time = &sr_data->entry_avg_ms;
 		else
 			time = &sr_data->exit_avg_ms;

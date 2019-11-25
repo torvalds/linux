@@ -404,6 +404,9 @@ bool resource_are_streams_timing_synchronizable(
 	if (stream1->view_format != stream2->view_format)
 		return false;
 
+	if (stream1->ignore_msa_timing_param || stream2->ignore_msa_timing_param)
+		return false;
+
 	return true;
 }
 static bool is_dp_and_hdmi_sharable(
@@ -1538,6 +1541,9 @@ bool dc_is_stream_unchanged(
 {
 
 	if (!are_stream_backends_same(old_stream, stream))
+		return false;
+
+	if (old_stream->ignore_msa_timing_param != stream->ignore_msa_timing_param)
 		return false;
 
 	return true;

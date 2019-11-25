@@ -108,7 +108,7 @@ begin:
 
 static u32 fq_flow_idx(struct fq *fq, struct sk_buff *skb)
 {
-	u32 hash = skb_get_hash_perturb(skb, fq->perturbation);
+	u32 hash = skb_get_hash_perturb(skb, &fq->perturbation);
 
 	return reciprocal_scale(hash, fq->flows_cnt);
 }
@@ -308,12 +308,12 @@ static int fq_init(struct fq *fq, int flows_cnt)
 	INIT_LIST_HEAD(&fq->backlogs);
 	spin_lock_init(&fq->lock);
 	fq->flows_cnt = max_t(u32, flows_cnt, 1);
-	fq->perturbation = prandom_u32();
+	get_random_bytes(&fq->perturbation, sizeof(fq->perturbation));
 	fq->quantum = 300;
 	fq->limit = 8192;
 	fq->memory_limit = 16 << 20; /* 16 MBytes */
 
-	fq->flows = kcalloc(fq->flows_cnt, sizeof(fq->flows[0]), GFP_KERNEL);
+	fq->flows = kvcalloc(fq->flows_cnt, sizeof(fq->flows[0]), GFP_KERNEL);
 	if (!fq->flows)
 		return -ENOMEM;
 
@@ -331,7 +331,7 @@ static void fq_reset(struct fq *fq,
 	for (i = 0; i < fq->flows_cnt; i++)
 		fq_flow_reset(fq, &fq->flows[i], free_func);
 
-	kfree(fq->flows);
+	kvfree(fq->flows);
 	fq->flows = NULL;
 }
 

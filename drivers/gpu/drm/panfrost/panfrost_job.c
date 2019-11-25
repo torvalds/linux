@@ -381,13 +381,19 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 		job_read(pfdev, JS_TAIL_LO(js)),
 		sched_job);
 
-	mutex_lock(&pfdev->reset_lock);
+	if (!mutex_trylock(&pfdev->reset_lock))
+		return;
 
-	for (i = 0; i < NUM_JOB_SLOTS; i++)
-		drm_sched_stop(&pfdev->js->queue[i].sched, sched_job);
+	for (i = 0; i < NUM_JOB_SLOTS; i++) {
+		struct drm_gpu_scheduler *sched = &pfdev->js->queue[i].sched;
 
-	if (sched_job)
-		drm_sched_increase_karma(sched_job);
+		drm_sched_stop(sched, sched_job);
+		if (js != i)
+			/* Ensure any timeouts on other slots have finished */
+			cancel_delayed_work_sync(&sched->work_tdr);
+	}
+
+	drm_sched_increase_karma(sched_job);
 
 	spin_lock_irqsave(&pfdev->js->job_lock, flags);
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {

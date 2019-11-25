@@ -328,6 +328,10 @@
 	pinctrl-0 = <&pinctrl_pwm3>;
 };
 
+&snvs_pwrkey {
+	status = "okay";
+};
+
 &ssi2 {
 	status = "okay";
 };

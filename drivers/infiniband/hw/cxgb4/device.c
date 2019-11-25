@@ -242,10 +242,13 @@ static void set_ep_sin6_addrs(struct c4iw_ep *ep,
 	}
 }
 
-static int dump_qp(struct c4iw_qp *qp, struct c4iw_debugfs_data *qpd)
+static int dump_qp(unsigned long id, struct c4iw_qp *qp,
+		   struct c4iw_debugfs_data *qpd)
 {
 	int space;
 	int cc;
+	if (id != qp->wq.sq.qid)
+		return 0;
 
 	space = qpd->bufsize - qpd->pos - 1;
 	if (space == 0)
@@ -350,7 +353,7 @@ static int qp_open(struct inode *inode, struct file *file)
 
 	xa_lock_irq(&qpd->devp->qps);
 	xa_for_each(&qpd->devp->qps, index, qp)
-		dump_qp(qp, qpd);
+		dump_qp(index, qp, qpd);
 	xa_unlock_irq(&qpd->devp->qps);
 
 	qpd->buf[qpd->pos++] = 0;

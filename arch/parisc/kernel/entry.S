@@ -2125,7 +2125,7 @@ ftrace_regs_caller:
 	copy	%rp, %r26
 	LDREG	-FTRACE_FRAME_SIZE-PT_SZ_ALGN(%sp), %r25
 	ldo	-8(%r25), %r25
-	copy	%r3, %arg2
+	ldo	-FTRACE_FRAME_SIZE(%r1), %arg2
 	b,l	ftrace_function_trampoline, %rp
 	copy	%r1, %arg3 /* struct pt_regs */
 

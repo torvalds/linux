@@ -419,6 +419,9 @@ static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 
 	list_del(&rtd->list);
 
+	flush_delayed_work(&rtd->delayed_work);
+	snd_soc_pcm_component_free(rtd);
+
 	/*
 	 * we don't need to call kfree() for rtd->dev
 	 * see
@@ -953,19 +956,6 @@ struct snd_soc_dai_link *snd_soc_find_dai_link(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(snd_soc_find_dai_link);
 
-static bool soc_is_dai_link_bound(struct snd_soc_card *card,
-		struct snd_soc_dai_link *dai_link)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	for_each_card_rtds(card, rtd) {
-		if (rtd->dai_link == dai_link)
-			return true;
-	}
-
-	return false;
-}
-
 static int soc_dai_link_sanity_check(struct snd_soc_card *card,
 				     struct snd_soc_dai_link *link)
 {
@@ -1062,34 +1052,68 @@ static int soc_dai_link_sanity_check(struct snd_soc_card *card,
 	return 0;
 }
 
-static void soc_unbind_dai_link(struct snd_soc_card *card,
-				struct snd_soc_dai_link *dai_link)
+/**
+ * snd_soc_remove_dai_link - Remove a DAI link from the list
+ * @card: The ASoC card that owns the link
+ * @dai_link: The DAI link to remove
+ *
+ * This function removes a DAI link from the ASoC card's link list.
+ *
+ * For DAI links previously added by topology, topology should
+ * remove them by using the dobj embedded in the link.
+ */
+void snd_soc_remove_dai_link(struct snd_soc_card *card,
+			     struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
+
+	lockdep_assert_held(&client_mutex);
+
+	/*
+	 * Notify the machine driver for extra destruction
+	 */
+	if (card->remove_dai_link)
+		card->remove_dai_link(card, dai_link);
+
+	list_del(&dai_link->list);
 
 	rtd = snd_soc_get_pcm_runtime(card, dai_link->name);
 	if (rtd)
 		soc_free_pcm_runtime(rtd);
 }
+EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
 
-static int soc_bind_dai_link(struct snd_soc_card *card,
-	struct snd_soc_dai_link *dai_link)
+/**
+ * snd_soc_add_dai_link - Add a DAI link dynamically
+ * @card: The ASoC card to which the DAI link is added
+ * @dai_link: The new DAI link to add
+ *
+ * This function adds a DAI link to the ASoC card's link list.
+ *
+ * Note: Topology can use this API to add DAI links when probing the
+ * topology component. And machine drivers can still define static
+ * DAI links in dai_link array.
+ */
+int snd_soc_add_dai_link(struct snd_soc_card *card,
+			 struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link_component *codec, *platform;
 	struct snd_soc_component *component;
 	int i, ret;
 
+	lockdep_assert_held(&client_mutex);
+
+	/*
+	 * Notify the machine driver for extra initialization
+	 */
+	if (card->add_dai_link)
+		card->add_dai_link(card, dai_link);
+
 	if (dai_link->ignore)
 		return 0;
 
 	dev_dbg(card->dev, "ASoC: binding %s\n", dai_link->name);
-
-	if (soc_is_dai_link_bound(card, dai_link)) {
-		dev_dbg(card->dev, "ASoC: dai link %s already bound\n",
-			dai_link->name);
-		return 0;
-	}
 
 	ret = soc_dai_link_sanity_check(card, dai_link);
 	if (ret < 0)
@@ -1134,12 +1158,16 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 		}
 	}
 
+	/* see for_each_card_links */
+	list_add_tail(&dai_link->list, &card->dai_link_list);
+
 	return 0;
 
 _err_defer:
 	soc_free_pcm_runtime(rtd);
 	return -EPROBE_DEFER;
 }
+EXPORT_SYMBOL_GPL(snd_soc_add_dai_link);
 
 static void soc_set_of_name_prefix(struct snd_soc_component *component)
 {
@@ -1176,8 +1204,16 @@ static void soc_set_name_prefix(struct snd_soc_card *card,
 	soc_set_of_name_prefix(component);
 }
 
-static void soc_cleanup_component(struct snd_soc_component *component)
+static void soc_remove_component(struct snd_soc_component *component,
+				 int probed)
 {
+
+	if (!component->card)
+		return;
+
+	if (probed)
+		snd_soc_component_remove(component);
+
 	/* For framework level robustness */
 	snd_soc_component_set_jack(component, NULL, NULL);
 
@@ -1188,22 +1224,13 @@ static void soc_cleanup_component(struct snd_soc_component *component)
 	snd_soc_component_module_put_when_remove(component);
 }
 
-static void soc_remove_component(struct snd_soc_component *component)
-{
-	if (!component->card)
-		return;
-
-	snd_soc_component_remove(component);
-
-	soc_cleanup_component(component);
-}
-
 static int soc_probe_component(struct snd_soc_card *card,
 			       struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_component_get_dapm(component);
 	struct snd_soc_dai *dai;
+	int probed = 0;
 	int ret;
 
 	if (!strcmp(component->name, "snd-soc-dummy"))
@@ -1259,6 +1286,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 	     dapm->bias_level != SND_SOC_BIAS_OFF,
 	     "codec %s can not start from non-off bias with idle_bias_off==1\n",
 	     component->name);
+	probed = 1;
 
 	/* machine specific init */
 	if (component->init) {
@@ -1287,7 +1315,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 
 err_probe:
 	if (ret < 0)
-		soc_cleanup_component(component);
+		soc_remove_component(component, probed);
 
 	return ret;
 }
@@ -1389,7 +1417,7 @@ static void soc_remove_link_components(struct snd_soc_card *card)
 				if (component->driver->remove_order != order)
 					continue;
 
-				soc_remove_component(component);
+				soc_remove_component(component, 1);
 			}
 		}
 	}
@@ -1429,68 +1457,6 @@ void snd_soc_disconnect_sync(struct device *dev)
 	snd_card_disconnect_sync(component->card->snd_card);
 }
 EXPORT_SYMBOL_GPL(snd_soc_disconnect_sync);
-
-/**
- * snd_soc_add_dai_link - Add a DAI link dynamically
- * @card: The ASoC card to which the DAI link is added
- * @dai_link: The new DAI link to add
- *
- * This function adds a DAI link to the ASoC card's link list.
- *
- * Note: Topology can use this API to add DAI links when probing the
- * topology component. And machine drivers can still define static
- * DAI links in dai_link array.
- */
-int snd_soc_add_dai_link(struct snd_soc_card *card,
-		struct snd_soc_dai_link *dai_link)
-{
-	int ret;
-
-	lockdep_assert_held(&client_mutex);
-
-	/*
-	 * Notify the machine driver for extra initialization
-	 */
-	if (card->add_dai_link)
-		card->add_dai_link(card, dai_link);
-
-	ret = soc_bind_dai_link(card, dai_link);
-	if (ret < 0)
-		return ret;
-
-	/* see for_each_card_links */
-	list_add_tail(&dai_link->list, &card->dai_link_list);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_add_dai_link);
-
-/**
- * snd_soc_remove_dai_link - Remove a DAI link from the list
- * @card: The ASoC card that owns the link
- * @dai_link: The DAI link to remove
- *
- * This function removes a DAI link from the ASoC card's link list.
- *
- * For DAI links previously added by topology, topology should
- * remove them by using the dobj embedded in the link.
- */
-void snd_soc_remove_dai_link(struct snd_soc_card *card,
-			     struct snd_soc_dai_link *dai_link)
-{
-	lockdep_assert_held(&client_mutex);
-
-	/*
-	 * Notify the machine driver for extra destruction
-	 */
-	if (card->remove_dai_link)
-		card->remove_dai_link(card, dai_link);
-
-	list_del(&dai_link->list);
-
-	soc_unbind_dai_link(card, dai_link);
-}
-EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
 
 static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 				struct snd_soc_pcm_runtime *rtd)
@@ -1616,21 +1582,18 @@ static int soc_bind_aux_dev(struct snd_soc_card *card)
 
 static int soc_probe_aux_devices(struct snd_soc_card *card)
 {
-	struct snd_soc_component *comp;
+	struct snd_soc_component *component;
 	int order;
 	int ret;
 
 	for_each_comp_order(order) {
-		for_each_card_auxs(card, comp) {
-			if (comp->driver->probe_order == order) {
-				ret = soc_probe_component(card,	comp);
-				if (ret < 0) {
-					dev_err(card->dev,
-						"ASoC: failed to probe aux component %s %d\n",
-						comp->name, ret);
-					return ret;
-				}
-			}
+		for_each_card_auxs(card, component) {
+			if (component->driver->probe_order != order)
+				continue;
+
+			ret = soc_probe_component(card,	component);
+			if (ret < 0)
+				return ret;
 		}
 	}
 
@@ -1645,7 +1608,7 @@ static void soc_remove_aux_devices(struct snd_soc_card *card)
 	for_each_comp_order(order) {
 		for_each_card_auxs_safe(card, comp, _comp) {
 			if (comp->driver->remove_order == order)
-				soc_remove_component(comp);
+				soc_remove_component(comp, 1);
 		}
 	}
 }
@@ -1755,6 +1718,23 @@ static int is_dmi_valid(const char *field)
 	return 1;
 }
 
+/*
+ * Append a string to card->dmi_longname with character cleanups.
+ */
+static void append_dmi_string(struct snd_soc_card *card, const char *str)
+{
+	char *dst = card->dmi_longname;
+	size_t dst_len = sizeof(card->dmi_longname);
+	size_t len;
+
+	len = strlen(dst);
+	snprintf(dst + len, dst_len - len, "-%s", str);
+
+	len++;	/* skip the separator "-" */
+	if (len < dst_len)
+		cleanup_dmi_name(dst + len);
+}
+
 /**
  * snd_soc_set_dmi_name() - Register DMI names to card
  * @card: The card to register DMI names
@@ -1789,61 +1769,37 @@ static int is_dmi_valid(const char *field)
 int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 {
 	const char *vendor, *product, *product_version, *board;
-	size_t longname_buf_size = sizeof(card->snd_card->longname);
-	size_t len;
 
 	if (card->long_name)
 		return 0; /* long name already set by driver or from DMI */
 
-	/* make up dmi long name as: vendor.product.version.board */
+	/* make up dmi long name as: vendor-product-version-board */
 	vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
 	if (!vendor || !is_dmi_valid(vendor)) {
 		dev_warn(card->dev, "ASoC: no DMI vendor name!\n");
 		return 0;
 	}
 
-	snprintf(card->dmi_longname, sizeof(card->snd_card->longname),
-			 "%s", vendor);
+	snprintf(card->dmi_longname, sizeof(card->dmi_longname), "%s", vendor);
 	cleanup_dmi_name(card->dmi_longname);
 
 	product = dmi_get_system_info(DMI_PRODUCT_NAME);
 	if (product && is_dmi_valid(product)) {
-		len = strlen(card->dmi_longname);
-		snprintf(card->dmi_longname + len,
-			 longname_buf_size - len,
-			 "-%s", product);
-
-		len++;	/* skip the separator "-" */
-		if (len < longname_buf_size)
-			cleanup_dmi_name(card->dmi_longname + len);
+		append_dmi_string(card, product);
 
 		/*
 		 * some vendors like Lenovo may only put a self-explanatory
 		 * name in the product version field
 		 */
 		product_version = dmi_get_system_info(DMI_PRODUCT_VERSION);
-		if (product_version && is_dmi_valid(product_version)) {
-			len = strlen(card->dmi_longname);
-			snprintf(card->dmi_longname + len,
-				 longname_buf_size - len,
-				 "-%s", product_version);
-
-			len++;
-			if (len < longname_buf_size)
-				cleanup_dmi_name(card->dmi_longname + len);
-		}
+		if (product_version && is_dmi_valid(product_version))
+			append_dmi_string(card, product_version);
 	}
 
 	board = dmi_get_system_info(DMI_BOARD_NAME);
 	if (board && is_dmi_valid(board)) {
-		len = strlen(card->dmi_longname);
-		snprintf(card->dmi_longname + len,
-			 longname_buf_size - len,
-			 "-%s", board);
-
-		len++;
-		if (len < longname_buf_size)
-			cleanup_dmi_name(card->dmi_longname + len);
+		if (!product || strcasecmp(board, product))
+			append_dmi_string(card, board);
 	} else if (!product) {
 		/* fall back to using legacy name */
 		dev_warn(card->dev, "ASoC: no DMI board/product name!\n");
@@ -1851,16 +1807,8 @@ int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 	}
 
 	/* Add flavour to dmi long name */
-	if (flavour) {
-		len = strlen(card->dmi_longname);
-		snprintf(card->dmi_longname + len,
-			 longname_buf_size - len,
-			 "-%s", flavour);
-
-		len++;
-		if (len < longname_buf_size)
-			cleanup_dmi_name(card->dmi_longname + len);
-	}
+	if (flavour)
+		append_dmi_string(card, flavour);
 
 	/* set the card long name */
 	card->long_name = card->dmi_longname;
@@ -1980,21 +1928,19 @@ static void __soc_setup_card_name(char *name, int len,
 	}
 }
 
-static void soc_cleanup_card_resources(struct snd_soc_card *card)
+static void soc_cleanup_card_resources(struct snd_soc_card *card,
+				       int card_probed)
 {
 	struct snd_soc_dai_link *link, *_link;
 
-	/* This should be called before snd_card_free() */
-	soc_remove_link_components(card);
+	if (card->snd_card)
+		snd_card_disconnect_sync(card->snd_card);
 
-	/* free the ALSA card at first; this syncs with pending operations */
-	if (card->snd_card) {
-		snd_card_free(card->snd_card);
-		card->snd_card = NULL;
-	}
+	snd_soc_dapm_shutdown(card);
 
 	/* remove and free each DAI */
 	soc_remove_link_dais(card);
+	soc_remove_link_components(card);
 
 	for_each_card_links_safe(card, link, _link)
 		snd_soc_remove_dai_link(card, link);
@@ -2007,15 +1953,37 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 	soc_cleanup_card_debugfs(card);
 
 	/* remove the card */
-	if (card->remove)
+	if (card_probed && card->remove)
 		card->remove(card);
+
+	if (card->snd_card) {
+		snd_card_free(card->snd_card);
+		card->snd_card = NULL;
+	}
 }
 
-static int snd_soc_instantiate_card(struct snd_soc_card *card)
+static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
+{
+	if (card->instantiated) {
+		int card_probed = 1;
+
+		card->instantiated = false;
+		snd_soc_flush_all_delayed_work(card);
+
+		soc_cleanup_card_resources(card, card_probed);
+		if (!unregister)
+			list_add(&card->list, &unbind_card_list);
+	} else {
+		if (unregister)
+			list_del(&card->list);
+	}
+}
+
+static int snd_soc_bind_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link *dai_link;
-	int ret, i;
+	int ret, i, card_probed = 0;
 
 	mutex_lock(&client_mutex);
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
@@ -2067,6 +2035,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		ret = card->probe(card);
 		if (ret < 0)
 			goto probe_end;
+		card_probed = 1;
 	}
 
 	/* probe all components used by DAI links on this card */
@@ -2079,8 +2048,11 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 
 	/* probe auxiliary components */
 	ret = soc_probe_aux_devices(card);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(card->dev,
+			"ASoC: failed to probe aux component %d\n", ret);
 		goto probe_end;
+	}
 
 	/* probe all DAI links on this card */
 	ret = soc_probe_link_dais(card);
@@ -2121,6 +2093,19 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	soc_setup_card_name(card->snd_card->driver,
 			    card->driver_name, card->name, 1);
 
+	if (card->components) {
+		/* the current implementation of snd_component_add() accepts */
+		/* multiple components in the string separated by space, */
+		/* but the string collision (identical string) check might */
+		/* not work correctly */
+		ret = snd_component_add(card->snd_card, card->components);
+		if (ret < 0) {
+			dev_err(card->dev, "ASoC: %s snd_component_add() failed: %d\n",
+				card->name, ret);
+			goto probe_end;
+		}
+	}
+
 	if (card->late_probe) {
 		ret = card->late_probe(card);
 		if (ret < 0) {
@@ -2129,6 +2114,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 			goto probe_end;
 		}
 	}
+	card_probed = 1;
 
 	snd_soc_dapm_new_widgets(card);
 
@@ -2143,9 +2129,22 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
 
+	/* deactivate pins to sleep state */
+	for_each_card_rtds(card, rtd) {
+		struct snd_soc_dai *dai;
+
+		for_each_rtd_codec_dai(rtd, i, dai) {
+			if (!dai->active)
+				pinctrl_pm_select_sleep_state(dai->dev);
+		}
+
+		if (!rtd->cpu_dai->active)
+			pinctrl_pm_select_sleep_state(rtd->cpu_dai->dev);
+	}
+
 probe_end:
 	if (ret < 0)
-		soc_cleanup_card_resources(card);
+		soc_cleanup_card_resources(card, card_probed);
 
 	mutex_unlock(&card->mutex);
 	mutex_unlock(&client_mutex);
@@ -2375,33 +2374,6 @@ int snd_soc_add_dai_controls(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_dai_controls);
 
-static int snd_soc_bind_card(struct snd_soc_card *card)
-{
-	struct snd_soc_pcm_runtime *rtd;
-	int ret;
-
-	ret = snd_soc_instantiate_card(card);
-	if (ret != 0)
-		return ret;
-
-	/* deactivate pins to sleep state */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-		struct snd_soc_dai *codec_dai;
-		int j;
-
-		for_each_rtd_codec_dai(rtd, j, codec_dai) {
-			if (!codec_dai->active)
-				pinctrl_pm_select_sleep_state(codec_dai->dev);
-		}
-
-		if (!cpu_dai->active)
-			pinctrl_pm_select_sleep_state(cpu_dai->dev);
-	}
-
-	return ret;
-}
-
 /**
  * snd_soc_register_card - Register a card with the ASoC core
  *
@@ -2435,22 +2407,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	return snd_soc_bind_card(card);
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_card);
-
-static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
-{
-	if (card->instantiated) {
-		card->instantiated = false;
-		snd_soc_dapm_shutdown(card);
-		snd_soc_flush_all_delayed_work(card);
-
-		soc_cleanup_card_resources(card);
-		if (!unregister)
-			list_add(&card->list, &unbind_card_list);
-	} else {
-		if (unregister)
-			list_del(&card->list);
-	}
-}
 
 /**
  * snd_soc_unregister_card - Unregister a card with the ASoC core
@@ -2530,21 +2486,33 @@ static inline char *fmt_multiple_name(struct device *dev,
 	return devm_kstrdup(dev, dai_drv->name, GFP_KERNEL);
 }
 
-static void soc_del_dai(struct snd_soc_dai *dai)
+void snd_soc_unregister_dai(struct snd_soc_dai *dai)
 {
 	dev_dbg(dai->dev, "ASoC: Unregistered DAI '%s'\n", dai->name);
 	list_del(&dai->list);
 }
+EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
 
-/* Create a DAI and add it to the component's DAI list */
-static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
-	struct snd_soc_dai_driver *dai_drv,
-	bool legacy_dai_naming)
+/**
+ * snd_soc_register_dai - Register a DAI dynamically & create its widgets
+ *
+ * @component: The component the DAIs are registered for
+ * @dai_drv: DAI driver to use for the DAI
+ *
+ * Topology can use this API to register DAIs when probing a component.
+ * These DAIs's widgets will be freed in the card cleanup and the DAIs
+ * will be freed in the component cleanup.
+ */
+struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
+					 struct snd_soc_dai_driver *dai_drv,
+					 bool legacy_dai_naming)
 {
 	struct device *dev = component->dev;
 	struct snd_soc_dai *dai;
 
 	dev_dbg(dev, "ASoC: dynamically register DAI %s\n", dev_name(dev));
+
+	lockdep_assert_held(&client_mutex);
 
 	dai = devm_kzalloc(dev, sizeof(*dai), GFP_KERNEL);
 	if (dai == NULL)
@@ -2584,35 +2552,6 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
 	return dai;
 }
-
-void snd_soc_unregister_dai(struct snd_soc_dai *dai)
-{
-	soc_del_dai(dai);
-}
-EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
-
-/**
- * snd_soc_register_dai - Register a DAI dynamically & create its widgets
- *
- * @component: The component the DAIs are registered for
- * @dai_drv: DAI driver to use for the DAI
- *
- * Topology can use this API to register DAIs when probing a component.
- * These DAIs's widgets will be freed in the card cleanup and the DAIs
- * will be freed in the component cleanup.
- */
-struct snd_soc_dai *snd_soc_register_dai(struct snd_soc_component *component,
-					 struct snd_soc_dai_driver *dai_drv,
-					 bool legacy_dai_naming)
-{
-	struct device *dev = component->dev;
-
-	dev_dbg(dev, "ASoC: dai register %s\n", dai_drv->name);
-
-	lockdep_assert_held(&client_mutex);
-	return soc_add_dai(component, dai_drv, legacy_dai_naming);
-}
-EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 
 /**
  * snd_soc_unregister_dai - Unregister DAIs from the ASoC core

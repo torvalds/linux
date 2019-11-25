@@ -33,6 +33,7 @@ static int nf_br_ip_fragment(struct net *net, struct sock *sk,
 {
 	int frag_max_size = BR_INPUT_SKB_CB(skb)->frag_max_size;
 	unsigned int hlen, ll_rs, mtu;
+	ktime_t tstamp = skb->tstamp;
 	struct ip_frag_state state;
 	struct iphdr *iph;
 	int err;
@@ -80,6 +81,7 @@ static int nf_br_ip_fragment(struct net *net, struct sock *sk,
 			if (iter.frag)
 				ip_fraglist_prepare(skb, &iter);
 
+			skb->tstamp = tstamp;
 			err = output(net, sk, data, skb);
 			if (err || !iter.frag)
 				break;
@@ -93,7 +95,7 @@ slow_path:
 	 * This may also be a clone skbuff, we could preserve the geometry for
 	 * the copies but probably not worth the effort.
 	 */
-	ip_frag_init(skb, hlen, ll_rs, frag_max_size, &state);
+	ip_frag_init(skb, hlen, ll_rs, frag_max_size, false, &state);
 
 	while (state.left > 0) {
 		struct sk_buff *skb2;
@@ -104,6 +106,7 @@ slow_path:
 			goto blackhole;
 		}
 
+		skb2->tstamp = tstamp;
 		err = output(net, sk, data, skb2);
 		if (err)
 			goto blackhole;
