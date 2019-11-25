@@ -1026,18 +1026,10 @@ static int isc_try_validate_formats(struct isc_device *isc)
 /*
  * Configures the RLP and DMA modules, depending on the output format
  * configured for the ISC.
- * If direct_dump == true, just dump raw data 8 bits.
+ * If direct_dump == true, just dump raw data 8/16 bits depending on format.
  */
 static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 {
-	if (direct_dump) {
-		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_DAT8;
-		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED8;
-		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
-		isc->try_config.bpp = 16;
-		return 0;
-	}
-
 	switch (isc->try_config.fourcc) {
 	case V4L2_PIX_FMT_SBGGR8:
 	case V4L2_PIX_FMT_SGBRG8:
@@ -1118,6 +1110,14 @@ static int isc_try_configure_rlp_dma(struct isc_device *isc, bool direct_dump)
 	default:
 		return -EINVAL;
 	}
+
+	if (direct_dump) {
+		isc->try_config.rlp_cfg_mode = ISC_RLP_CFG_MODE_DAT8;
+		isc->try_config.dcfg_imode = ISC_DCFG_IMODE_PACKED8;
+		isc->try_config.dctrl_dview = ISC_DCTRL_DVIEW_PACKED;
+		return 0;
+	}
+
 	return 0;
 }
 
