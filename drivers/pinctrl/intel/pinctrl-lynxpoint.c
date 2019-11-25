@@ -327,7 +327,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	unsigned long reg_len;
 	int ret;
 
-	lg = devm_kzalloc(dev, sizeof(struct lp_gpio), GFP_KERNEL);
+	lg = devm_kzalloc(dev, sizeof(*lg), GFP_KERNEL);
 	if (!lg)
 		return -ENOMEM;
 
