@@ -67,6 +67,7 @@ static const struct dpu_caps sdm845_dpu_caps = {
 	.has_src_split = true,
 	.has_dim_layer = true,
 	.has_idle_pc = true,
+	.has_3d_merge = true,
 };
 
 static const struct dpu_caps sc7180_dpu_caps = {

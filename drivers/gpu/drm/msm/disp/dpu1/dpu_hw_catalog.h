@@ -287,6 +287,7 @@ struct dpu_qos_lut_tbl {
  * @has_src_split      source split feature status
  * @has_dim_layer      dim layer feature status
  * @has_idle_pc        indicate if idle power collapse feature is supported
+ * @has_3d_merge       indicate if 3D merge is supported
  */
 struct dpu_caps {
 	u32 max_mixer_width;
@@ -297,6 +298,7 @@ struct dpu_caps {
 	bool has_src_split;
 	bool has_dim_layer;
 	bool has_idle_pc;
+	bool has_3d_merge;
 };
 
 /**
