@@ -74,16 +74,33 @@ static inline void __timeline_mark_unlock(struct intel_context *ce,
 #endif /* !IS_ENABLED(CONFIG_LOCKDEP) */
 
 static void
-__intel_timeline_enter_and_release_pm(struct intel_timeline *tl,
-				      struct intel_engine_cs *engine)
+__queue_and_release_pm(struct i915_request *rq,
+		       struct intel_timeline *tl,
+		       struct intel_engine_cs *engine)
 {
 	struct intel_gt_timelines *timelines = &engine->gt->timelines;
 
+	GEM_TRACE("%s\n", engine->name);
+
+	/*
+	 * We have to serialise all potential retirement paths with our
+	 * submission, as we don't want to underflow either the
+	 * engine->wakeref.counter or our timeline->active_count.
+	 *
+	 * Equally, we cannot allow a new submission to start until
+	 * after we finish queueing, nor could we allow that submitter
+	 * to retire us before we are ready!
+	 */
 	spin_lock(&timelines->lock);
 
+	/* Let intel_gt_retire_requests() retire us (acquired under lock) */
 	if (!atomic_fetch_inc(&tl->active_count))
 		list_add_tail(&tl->link, &timelines->active_list);
 
+	/* Hand the request over to HW and so engine_retire() */
+	__i915_request_queue(rq, NULL);
+
+	/* Let new submissions commence (and maybe retire this timeline) */
 	__intel_wakeref_defer_park(&engine->wakeref);
 
 	spin_unlock(&timelines->lock);
@@ -148,10 +165,8 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	rq->sched.attr.priority = I915_PRIORITY_BARRIER;
 	__i915_request_commit(rq);
 
-	__i915_request_queue(rq, NULL);
-
-	/* Expose ourselves to intel_gt_retire_requests() and new submission */
-	__intel_timeline_enter_and_release_pm(ce->timeline, engine);
+	/* Expose ourselves to the world */
+	__queue_and_release_pm(rq, ce->timeline, engine);
 
 	result = false;
 out_unlock:
