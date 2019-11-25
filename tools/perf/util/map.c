@@ -568,6 +568,12 @@ void map_groups__insert(struct map_groups *mg, struct map *map)
 	up_write(&maps->lock);
 }
 
+static void __maps__remove(struct maps *maps, struct map *map)
+{
+	rb_erase_init(&map->rb_node, &maps->entries);
+	map__put(map);
+}
+
 void map_groups__remove(struct map_groups *mg, struct map *map)
 {
 	struct maps *maps = &mg->maps;
@@ -654,8 +660,8 @@ static bool map__contains_symbol(struct map *map, struct symbol *sym)
 	return ip >= map->start && ip < map->end;
 }
 
-struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
-					 struct map **mapp)
+static struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
+						struct map **mapp)
 {
 	struct symbol *sym;
 	struct map *pos;
@@ -888,26 +894,6 @@ static void __maps__insert(struct maps *maps, struct map *map)
 	rb_link_node(&map->rb_node, parent, p);
 	rb_insert_color(&map->rb_node, &maps->entries);
 	map__get(map);
-}
-
-void maps__insert(struct maps *maps, struct map *map)
-{
-	down_write(&maps->lock);
-	__maps__insert(maps, map);
-	up_write(&maps->lock);
-}
-
-void __maps__remove(struct maps *maps, struct map *map)
-{
-	rb_erase_init(&map->rb_node, &maps->entries);
-	map__put(map);
-}
-
-void maps__remove(struct maps *maps, struct map *map)
-{
-	down_write(&maps->lock);
-	__maps__remove(maps, map);
-	up_write(&maps->lock);
 }
 
 struct map *maps__find(struct maps *maps, u64 ip)

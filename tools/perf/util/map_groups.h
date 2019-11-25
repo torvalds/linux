@@ -19,9 +19,6 @@ struct maps {
 	struct rw_semaphore lock;
 };
 
-void maps__insert(struct maps *maps, struct map *map);
-void maps__remove(struct maps *maps, struct map *map);
-void __maps__remove(struct maps *maps, struct map *map);
 struct map *maps__find(struct maps *maps, u64 addr);
 struct map *maps__first(struct maps *maps);
 struct map *map__next(struct map *map);
@@ -31,8 +28,6 @@ struct map *map__next(struct map *map);
 
 #define maps__for_each_entry_safe(maps, map, next) \
 	for (map = maps__first(maps), next = map__next(map); map; map = next, next = map__next(map))
-
-struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, struct map **mapp);
 
 struct map_groups {
 	struct maps	 maps;
