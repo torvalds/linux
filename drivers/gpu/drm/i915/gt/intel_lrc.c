@@ -1943,6 +1943,9 @@ cancel_port_requests(struct intel_engine_execlists * const execlists)
 		execlists_schedule_out(rq);
 	memset(execlists->pending, 0, sizeof(execlists->pending));
 
+	/* Mark the end of active before we overwrite *active */
+	WRITE_ONCE(execlists->active, execlists->pending);
+
 	for (port = execlists->active; (rq = *port); port++)
 		execlists_schedule_out(rq);
 	execlists->active =
@@ -2099,23 +2102,27 @@ static void process_csb(struct intel_engine_cs *engine)
 		else
 			promote = gen8_csb_parse(execlists, buf + 2 * head);
 		if (promote) {
+			struct i915_request * const *old = execlists->active;
+
+			/* Point active to the new ELSP; prevent overwriting */
+			WRITE_ONCE(execlists->active, execlists->pending);
+			set_timeslice(engine);
+
 			if (!inject_preempt_hang(execlists))
 				ring_set_paused(engine, 0);
 
 			/* cancel old inflight, prepare for switch */
-			trace_ports(execlists, "preempted", execlists->active);
-			while (*execlists->active)
-				execlists_schedule_out(*execlists->active++);
+			trace_ports(execlists, "preempted", old);
+			while (*old)
+				execlists_schedule_out(*old++);
 
 			/* switch pending to inflight */
 			GEM_BUG_ON(!assert_pending_valid(execlists, "promote"));
-			execlists->active =
-				memcpy(execlists->inflight,
-				       execlists->pending,
-				       execlists_num_ports(execlists) *
-				       sizeof(*execlists->pending));
-
-			set_timeslice(engine);
+			WRITE_ONCE(execlists->active,
+				   memcpy(execlists->inflight,
+					  execlists->pending,
+					  execlists_num_ports(execlists) *
+					  sizeof(*execlists->pending)));
 
 			WRITE_ONCE(execlists->pending[0], NULL);
 		} else {
