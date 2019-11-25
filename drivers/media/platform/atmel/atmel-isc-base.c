@@ -1437,6 +1437,7 @@ static int isc_enum_framesizes(struct file *file, void *fh,
 {
 	struct isc_device *isc = video_drvdata(file);
 	struct v4l2_subdev_frame_size_enum fse = {
+		.code = isc->config.sd_format->mbus_code,
 		.index = fsize->index,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
@@ -1459,8 +1460,6 @@ static int isc_enum_framesizes(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	fse.code = isc->config.sd_format->mbus_code;
-
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 	fsize->discrete.width = fse.max_width;
 	fsize->discrete.height = fse.max_height;
@@ -1473,6 +1472,7 @@ static int isc_enum_frameintervals(struct file *file, void *fh,
 {
 	struct isc_device *isc = video_drvdata(file);
 	struct v4l2_subdev_frame_interval_enum fie = {
+		.code = isc->config.sd_format->mbus_code,
 		.index = fival->index,
 		.width = fival->width,
 		.height = fival->height,
@@ -1497,7 +1497,6 @@ static int isc_enum_frameintervals(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	fie.code = isc->config.sd_format->mbus_code;
 	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 	fival->discrete = fie.interval;
 
