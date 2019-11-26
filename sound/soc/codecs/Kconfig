@@ -1058,6 +1058,12 @@ config SND_SOC_RT5677_SPI
 config SND_SOC_RT5682
 	tristate
 
+config SND_SOC_RT5682_SDW
+	tristate "Realtek RT5682 Codec - SDW"
+	depends on SOUNDWIRE
+	select SND_SOC_RT5682
+	select REGMAP_SOUNDWIRE
+
 config SND_SOC_RT700
 	tristate
 
