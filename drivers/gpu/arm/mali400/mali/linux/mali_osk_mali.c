@@ -217,19 +217,11 @@ uintptr_t _mali_osk_resource_base_address(void)
 	struct resource *reg_res = NULL;
 	uintptr_t ret = 0;
 
-	// reg_res = platform_get_resource(mali_platform_device, IORESOURCE_MEM, 0);
-    /* 
-     * rk_ext : to use dts_for_mali_ko_befor_r5p0-01rel0. 
-     * 关于下面的 "1" : 
-     *      dts_for_mali_ko_befor_r5p0-01rel0 中,
-     *      base_addr 定义在 reg 的 第二个 (index 为 "1") 的 item.
-     */
-	reg_res = platform_get_resource(mali_platform_device, IORESOURCE_MEM, 1);
+	reg_res = platform_get_resource(mali_platform_device, IORESOURCE_MEM, 0);
 
 	if (NULL != reg_res) {
 		ret = reg_res->start;
 	}
-    // D_HEX( (unsigned int)ret);
 
 	return ret;
 }
