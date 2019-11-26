@@ -690,59 +690,61 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 	adev->gfx.ce_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
 	adev->gfx.ce_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc.bin", chip_name);
-	err = request_firmware(&adev->gfx.rlc_fw, fw_name, adev->dev);
-	if (err)
-		goto out;
-	err = amdgpu_ucode_validate(adev->gfx.rlc_fw);
-	rlc_hdr = (const struct rlc_firmware_header_v2_0 *)adev->gfx.rlc_fw->data;
-	version_major = le16_to_cpu(rlc_hdr->header.header_version_major);
-	version_minor = le16_to_cpu(rlc_hdr->header.header_version_minor);
-	if (version_major == 2 && version_minor == 1)
-		adev->gfx.rlc.is_rlc_v2_1 = true;
+	if (!amdgpu_sriov_vf(adev)) {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc.bin", chip_name);
+		err = request_firmware(&adev->gfx.rlc_fw, fw_name, adev->dev);
+		if (err)
+			goto out;
+		err = amdgpu_ucode_validate(adev->gfx.rlc_fw);
+		rlc_hdr = (const struct rlc_firmware_header_v2_0 *)adev->gfx.rlc_fw->data;
+		version_major = le16_to_cpu(rlc_hdr->header.header_version_major);
+		version_minor = le16_to_cpu(rlc_hdr->header.header_version_minor);
+		if (version_major == 2 && version_minor == 1)
+			adev->gfx.rlc.is_rlc_v2_1 = true;
 
-	adev->gfx.rlc_fw_version = le32_to_cpu(rlc_hdr->header.ucode_version);
-	adev->gfx.rlc_feature_version = le32_to_cpu(rlc_hdr->ucode_feature_version);
-	adev->gfx.rlc.save_and_restore_offset =
+		adev->gfx.rlc_fw_version = le32_to_cpu(rlc_hdr->header.ucode_version);
+		adev->gfx.rlc_feature_version = le32_to_cpu(rlc_hdr->ucode_feature_version);
+		adev->gfx.rlc.save_and_restore_offset =
 			le32_to_cpu(rlc_hdr->save_and_restore_offset);
-	adev->gfx.rlc.clear_state_descriptor_offset =
+		adev->gfx.rlc.clear_state_descriptor_offset =
 			le32_to_cpu(rlc_hdr->clear_state_descriptor_offset);
-	adev->gfx.rlc.avail_scratch_ram_locations =
+		adev->gfx.rlc.avail_scratch_ram_locations =
 			le32_to_cpu(rlc_hdr->avail_scratch_ram_locations);
-	adev->gfx.rlc.reg_restore_list_size =
+		adev->gfx.rlc.reg_restore_list_size =
 			le32_to_cpu(rlc_hdr->reg_restore_list_size);
-	adev->gfx.rlc.reg_list_format_start =
+		adev->gfx.rlc.reg_list_format_start =
 			le32_to_cpu(rlc_hdr->reg_list_format_start);
-	adev->gfx.rlc.reg_list_format_separate_start =
+		adev->gfx.rlc.reg_list_format_separate_start =
 			le32_to_cpu(rlc_hdr->reg_list_format_separate_start);
-	adev->gfx.rlc.starting_offsets_start =
+		adev->gfx.rlc.starting_offsets_start =
 			le32_to_cpu(rlc_hdr->starting_offsets_start);
-	adev->gfx.rlc.reg_list_format_size_bytes =
+		adev->gfx.rlc.reg_list_format_size_bytes =
 			le32_to_cpu(rlc_hdr->reg_list_format_size_bytes);
-	adev->gfx.rlc.reg_list_size_bytes =
+		adev->gfx.rlc.reg_list_size_bytes =
 			le32_to_cpu(rlc_hdr->reg_list_size_bytes);
-	adev->gfx.rlc.register_list_format =
+		adev->gfx.rlc.register_list_format =
 			kmalloc(adev->gfx.rlc.reg_list_format_size_bytes +
-				adev->gfx.rlc.reg_list_size_bytes, GFP_KERNEL);
-	if (!adev->gfx.rlc.register_list_format) {
-		err = -ENOMEM;
-		goto out;
+					adev->gfx.rlc.reg_list_size_bytes, GFP_KERNEL);
+		if (!adev->gfx.rlc.register_list_format) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		tmp = (unsigned int *)((uintptr_t)rlc_hdr +
+							   le32_to_cpu(rlc_hdr->reg_list_format_array_offset_bytes));
+		for (i = 0 ; i < (rlc_hdr->reg_list_format_size_bytes >> 2); i++)
+			adev->gfx.rlc.register_list_format[i] =	le32_to_cpu(tmp[i]);
+
+		adev->gfx.rlc.register_restore = adev->gfx.rlc.register_list_format + i;
+
+		tmp = (unsigned int *)((uintptr_t)rlc_hdr +
+							   le32_to_cpu(rlc_hdr->reg_list_array_offset_bytes));
+		for (i = 0 ; i < (rlc_hdr->reg_list_size_bytes >> 2); i++)
+			adev->gfx.rlc.register_restore[i] = le32_to_cpu(tmp[i]);
+
+		if (adev->gfx.rlc.is_rlc_v2_1)
+			gfx_v10_0_init_rlc_ext_microcode(adev);
 	}
-
-	tmp = (unsigned int *)((uintptr_t)rlc_hdr +
-			le32_to_cpu(rlc_hdr->reg_list_format_array_offset_bytes));
-	for (i = 0 ; i < (rlc_hdr->reg_list_format_size_bytes >> 2); i++)
-		adev->gfx.rlc.register_list_format[i] =	le32_to_cpu(tmp[i]);
-
-	adev->gfx.rlc.register_restore = adev->gfx.rlc.register_list_format + i;
-
-	tmp = (unsigned int *)((uintptr_t)rlc_hdr +
-			le32_to_cpu(rlc_hdr->reg_list_array_offset_bytes));
-	for (i = 0 ; i < (rlc_hdr->reg_list_size_bytes >> 2); i++)
-		adev->gfx.rlc.register_restore[i] = le32_to_cpu(tmp[i]);
-
-	if (adev->gfx.rlc.is_rlc_v2_1)
-		gfx_v10_0_init_rlc_ext_microcode(adev);
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec%s.bin", chip_name, wks);
 	err = request_firmware(&adev->gfx.mec_fw, fw_name, adev->dev);
