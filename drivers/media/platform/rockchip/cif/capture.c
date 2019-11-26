@@ -846,7 +846,6 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 	/* stop the sub device*/
 	sd = dev->active_sensor->sd;
 	v4l2_subdev_call(sd, video, s_stream, 0);
-	v4l2_subdev_call(sd, core, s_power, 0);
 
 	/* release buffers */
 	if (stream->curr_buf) {
@@ -1069,17 +1068,13 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	/* start sub-devices */
 	sd = dev->active_sensor->sd;
-	ret = v4l2_subdev_call(sd, core, s_power, 1);
-	if (ret < 0 && ret != -ENOIOCTLCMD)
-		goto stop_stream;
+
 	ret = v4l2_subdev_call(sd, video, s_stream, 1);
 	if (ret < 0)
-		goto subdev_poweroff;
+		goto stop_stream;
 
 	return 0;
 
-subdev_poweroff:
-	v4l2_subdev_call(sd, core, s_power, 0);
 stop_stream:
 	rkcif_stream_stop(stream);
 runtime_put:
@@ -1238,7 +1233,7 @@ static int rkcif_fh_open(struct file *filp)
 	struct video_device *vdev = video_devdata(filp);
 	struct rkcif_stream *stream = to_rkcif_stream(vdev);
 	struct rkcif_device *cifdev = stream->cifdev;
-
+	int ret;
 	/* Make sure active sensor is valid before .set_fmt() */
 	cifdev->active_sensor = get_active_sensor(stream);
 	if (!cifdev->active_sensor) {
@@ -1251,13 +1246,36 @@ static int rkcif_fh_open(struct file *filp)
 	 * to reset cif once we hold buffers after buf queued
 	 */
 	rkcif_soft_reset(cifdev);
+	ret = v4l2_fh_open(filp);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&stream->vdev.entity, 1);
+		if (ret < 0)
+			vb2_fop_release(filp);
+	}
 
-	return v4l2_fh_open(filp);
+	return ret;
+}
+
+static int rkcif_fop_release(struct file *file)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct rkcif_stream *stream = to_rkcif_stream(vdev);
+	struct rkcif_device *cifdev = stream->cifdev;
+	int ret;
+
+	ret = vb2_fop_release(file);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&stream->vdev.entity, 0);
+		if (ret < 0)
+			v4l2_err(&cifdev->v4l2_dev,
+				"set pipeline power failed %d\n", ret);
+	}
+	return ret;
 }
 
 static const struct v4l2_file_operations rkcif_fops = {
 	.open = rkcif_fh_open,
-	.release = vb2_fop_release,
+	.release = rkcif_fop_release,
 	.unlocked_ioctl = video_ioctl2,
 	.poll = vb2_fop_poll,
 	.mmap = vb2_fop_mmap,
