@@ -135,7 +135,7 @@ static void ti_edac_setup_dimm(struct mem_ctl_info *mci, u32 type)
 	u32 val;
 	u32 memsize;
 
-	dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers, 0, 0, 0);
+	dimm = edac_get_dimm(mci, 0, 0, 0);
 
 	val = ti_edac_readl(edac, EMIF_SDRAM_CONFIG);
 

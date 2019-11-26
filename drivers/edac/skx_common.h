@@ -64,6 +64,7 @@ struct skx_dev {
 		u8 src_id, node_id;
 		struct skx_channel {
 			struct pci_dev	*cdev;
+			struct pci_dev	*edev;
 			struct skx_dimm {
 				u8 close_pg;
 				u8 bank_xor_enable;
@@ -113,10 +114,11 @@ struct decoded_addr {
 
 typedef int (*get_dimm_config_f)(struct mem_ctl_info *mci);
 typedef bool (*skx_decode_f)(struct decoded_addr *res);
+typedef void (*skx_show_retry_log_f)(struct decoded_addr *res, char *msg, int len);
 
 int __init skx_adxl_get(void);
 void __exit skx_adxl_put(void);
-void skx_set_decode(skx_decode_f decode);
+void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log);
 
 int skx_get_src_id(struct skx_dev *d, int off, u8 *id);
 int skx_get_node_id(struct skx_dev *d, u8 *id);
