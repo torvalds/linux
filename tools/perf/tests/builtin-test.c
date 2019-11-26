@@ -297,8 +297,8 @@ static struct test generic_tests[] = {
 		.func = test__time_utils,
 	},
 	{
-		.desc = "map_groups__merge_in",
-		.func = test__map_groups__merge_in,
+		.desc = "maps__merge_in",
+		.func = test__maps__merge_in,
 	},
 	{
 		.func = NULL,
