@@ -7781,7 +7781,7 @@ F:	drivers/i2c/i2c-stub.c
 
 I3C SUBSYSTEM
 M:	Boris Brezillon <bbrezillon@kernel.org>
-L:	linux-i3c@lists.infradead.org
+L:	linux-i3c@lists.infradead.org (moderated for non-subscribers)
 C:	irc://chat.freenode.net/linux-i3c
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/i3c/linux.git
 S:	Maintained
@@ -7796,6 +7796,12 @@ M:	Vitor Soares <vitor.soares@synopsys.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/i3c/snps,dw-i3c-master.txt
 F:	drivers/i3c/master/dw*
+
+I3C DRIVER FOR CADENCE I3C MASTER IP
+M:      Przemysław Gaj <pgaj@cadence.com>
+S:      Maintained
+F:      Documentation/devicetree/bindings/i3c/cdns,i3c-master.txt
+F:      drivers/i3c/master/i3c-master-cdns.c
 
 IA64 (Itanium) PLATFORM
 M:	Tony Luck <tony.luck@intel.com>
