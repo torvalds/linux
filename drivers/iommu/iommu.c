@@ -312,8 +312,8 @@ int iommu_insert_resv_region(struct iommu_resv_region *new,
 	list_for_each_entry_safe(iter, tmp, regions, list) {
 		phys_addr_t top_end, iter_end = iter->start + iter->length - 1;
 
-		/* no merge needed on elements of different types than @nr */
-		if (iter->type != nr->type) {
+		/* no merge needed on elements of different types than @new */
+		if (iter->type != new->type) {
 			list_move_tail(&iter->list, &stack);
 			continue;
 		}
