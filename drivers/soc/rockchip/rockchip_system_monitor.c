@@ -592,6 +592,12 @@ static int monitor_device_parse_status_config(struct device_node *np,
 				   &info->video_4k_freq);
 	ret &= of_property_read_u32(np, "rockchip,reboot-freq",
 				    &info->reboot_freq);
+	if (info->devp->type == MONITOR_TPYE_CPU) {
+		if (!info->reboot_freq) {
+			info->reboot_freq = CPU_REBOOT_FREQ;
+			ret = 0;
+		}
+	}
 
 	return ret;
 }
@@ -1227,8 +1233,6 @@ static void rockchip_system_status_cpu_limit_freq(struct monitor_dev_info *info,
 	int cpu;
 
 	if (status & SYS_STATUS_REBOOT) {
-		if (!info->reboot_freq)
-			info->reboot_freq = CPU_REBOOT_FREQ;
 		info->status_min_limit = info->reboot_freq;
 		info->status_max_limit = info->reboot_freq;
 		info->is_status_freq_fixed = true;
