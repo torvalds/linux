@@ -864,7 +864,7 @@
 	};
 
 	rkvdec: rkvdec@20030000 {
-		compatible = "rockchip,rkv-decoder-v2";
+		compatible = "rockchip,rkv-decoder-v1";
 		reg = <0x20030000 0x400>;
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
