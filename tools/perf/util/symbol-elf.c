@@ -9,7 +9,7 @@
 
 #include "dso.h"
 #include "map.h"
-#include "map_groups.h"
+#include "maps.h"
 #include "symbol.h"
 #include "symsrc.h"
 #include "demangle-java.h"

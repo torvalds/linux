@@ -28,7 +28,7 @@
 #include "dso.h"
 #include "color.h"
 #include "map.h"
-#include "map_groups.h"
+#include "maps.h"
 #include "symbol.h"
 #include <api/fs/fs.h>
 #include "trace-event.h"	/* For __maybe_unused */

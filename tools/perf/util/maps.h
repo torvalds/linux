@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __PERF_MAP_GROUPS_H
-#define __PERF_MAP_GROUPS_H
+#ifndef __PERF_MAPS_H
+#define __PERF_MAPS_H
 
 #include <linux/refcount.h>
 #include <linux/rbtree.h>
@@ -84,4 +84,4 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map);
 
 void __maps__sort_by_name(struct maps *maps);
 
-#endif // __PERF_MAP_GROUPS_H
+#endif // __PERF_MAPS_H

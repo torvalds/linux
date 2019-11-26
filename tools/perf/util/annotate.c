@@ -23,7 +23,7 @@
 #include "dso.h"
 #include "env.h"
 #include "map.h"
-#include "map_groups.h"
+#include "maps.h"
 #include "symbol.h"
 #include "srcline.h"
 #include "units.h"

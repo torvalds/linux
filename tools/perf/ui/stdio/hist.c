@@ -8,7 +8,7 @@
 #include "../../util/event.h"
 #include "../../util/hist.h"
 #include "../../util/map.h"
-#include "../../util/map_groups.h"
+#include "../../util/maps.h"
 #include "../../util/symbol.h"
 #include "../../util/sort.h"
 #include "../../util/evsel.h"

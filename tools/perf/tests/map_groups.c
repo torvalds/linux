@@ -3,7 +3,7 @@
 #include <linux/kernel.h>
 #include "tests.h"
 #include "map.h"
-#include "map_groups.h"
+#include "maps.h"
 #include "dso.h"
 #include "debug.h"
 
