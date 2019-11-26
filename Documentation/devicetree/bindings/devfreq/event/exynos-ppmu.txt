@@ -10,13 +10,22 @@ The Exynos PPMU driver uses the devfreq-event class to provide event data
 to various devfreq devices. The devfreq devices would use the event data when
 derterming the current state of each IP.
 
-Required properties:
+Required properties for PPMU device:
 - compatible: Should be "samsung,exynos-ppmu" or "samsung,exynos-ppmu-v2.
 - reg: physical base address of each PPMU and length of memory mapped region.
 
-Optional properties:
+Optional properties for PPMU device:
 - clock-names : the name of clock used by the PPMU, "ppmu"
 - clocks : phandles for clock specified in "clock-names" property
+
+Required properties for 'events' child node of PPMU device:
+- event-name : the unique event name among PPMU device
+Optional properties for 'events' child node of PPMU device:
+- event-data-type : Define the type of data which shell be counted
+by the counter. You can check include/dt-bindings/pmu/exynos_ppmu.h for
+all possible type, i.e. count read requests, count write data in bytes,
+etc. This field is optional and when it is missing, the driver code
+will use default data type.
 
 Example1 : PPMUv1 nodes in exynos3250.dtsi are listed below.
 
@@ -145,3 +154,16 @@ Example3 : PPMUv2 nodes in exynos5433.dtsi are listed below.
 			reg = <0x104d0000 0x2000>;
 			status = "disabled";
 		};
+
+Example4 : 'event-data-type' in exynos4412-ppmu-common.dtsi are listed below.
+
+	&ppmu_dmc0 {
+		status = "okay";
+		events {
+			ppmu_dmc0_3: ppmu-event3-dmc0 {
+			event-name = "ppmu-event3-dmc0";
+			event-data-type = <(PPMU_RO_DATA_CNT |
+					PPMU_WO_DATA_CNT)>;
+			};
+		};
+	};
