@@ -80,7 +80,7 @@ obj-$(CONFIG_KGDB)		+= kgdb.o
 obj-$(CONFIG_PROC_FS)		+= proc.o
 obj-$(CONFIG_MAGIC_SYSRQ)	+= sysrq.o
 
-obj-$(CONFIG_64BIT)		+= cpu-bugs64.o
+obj-$(CONFIG_CPU_R4X00_BUGS64)	+= r4k-bugs64.o
 
 obj-$(CONFIG_I8253)		+= i8253.o
 

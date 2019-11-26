@@ -564,6 +564,7 @@ static void kvm_mips_emul_free_gva_pt(pgd_t *pgd)
 	/* Don't free host kernel page tables copied from init_mm.pgd */
 	const unsigned long end = 0x80000000;
 	unsigned long pgd_va, pud_va, pmd_va;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -576,7 +577,8 @@ static void kvm_mips_emul_free_gva_pt(pgd_t *pgd)
 		pgd_va = (unsigned long)i << PGDIR_SHIFT;
 		if (pgd_va >= end)
 			break;
-		pud = pud_offset(pgd + i, 0);
+		p4d = p4d_offset(pgd, 0);
+		pud = pud_offset(p4d + i, 0);
 		for (j = 0; j < PTRS_PER_PUD; j++) {
 			if (pud_none(pud[j]))
 				continue;

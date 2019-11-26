@@ -189,6 +189,7 @@ static int __init debugfs_fpuemu(void)
 {
 	struct dentry *fpuemu_debugfs_base_dir;
 	struct dentry *fpuemu_debugfs_inst_dir;
+	char name[32];
 
 	fpuemu_debugfs_base_dir = debugfs_create_dir("fpuemustats",
 						     mips_debugfs_dir);
@@ -225,8 +226,6 @@ do {									\
 
 #define FPU_STAT_CREATE_EX(m)						\
 do {									\
-	char name[32];							\
-									\
 	adjust_instruction_counter_name(name, #m);			\
 									\
 	debugfs_create_file(name, 0444, fpuemu_debugfs_inst_dir,	\

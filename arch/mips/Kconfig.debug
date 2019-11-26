@@ -32,7 +32,6 @@ config USE_GENERIC_EARLY_PRINTK_8250
 
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
-	default n
 	help
 	  For most systems, it is firmware or second stage bootloader that
 	  by default specifies the kernel command line options.  However,
@@ -53,7 +52,6 @@ config CMDLINE_BOOL
 config CMDLINE
 	string "Default kernel command string"
 	depends on CMDLINE_BOOL
-	default ""
 	help
 	  On some platforms, there is currently no way for the boot loader to
 	  pass arguments to the kernel.  For these platforms, and for the cases
@@ -68,7 +66,6 @@ config CMDLINE
 
 config CMDLINE_OVERRIDE
 	bool "Built-in command line overrides firmware arguments"
-	default n
 	depends on CMDLINE_BOOL
 	help
 	  By setting this option to 'Y' you will have your kernel ignore

@@ -32,10 +32,6 @@ static struct smatch mach_table[] = {
 		.liname		= "SGI Indy",
 		.flags		= PROM_FLAG_ARCS,
 	}, {
-		.arcname	= "SGI-IP27",
-		.liname		= "SGI Origin",
-		.flags		= PROM_FLAG_ARCS,
-	}, {
 		.arcname	= "SGI-IP28",
 		.liname		= "SGI IP28",
 		.flags		= PROM_FLAG_ARCS,
@@ -87,6 +83,11 @@ const char *get_system_type(void)
 	return system_type;
 }
 
+static pcomponent * __init ArcGetChild(pcomponent *Current)
+{
+	return (pcomponent *) ARC_CALL1(child_component, Current);
+}
+
 void __init prom_identify_arch(void)
 {
 	pcomponent *p;
@@ -98,13 +99,7 @@ void __init prom_identify_arch(void)
 	 */
 	p = ArcGetChild(PROM_NULL_COMPONENT);
 	if (p == NULL) {
-#ifdef CONFIG_SGI_IP27
-		/* IP27 PROM misbehaves, seems to not implement ARC
-		   GetChild().	So we just assume it's an IP27.	 */
-		iname = "SGI-IP27";
-#else
 		iname = "Unknown";
-#endif
 	} else
 		iname = (char *) (long) p->iname;
 

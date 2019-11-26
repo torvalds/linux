@@ -27,38 +27,19 @@
 #include <asm/sn/sn0/hubio.h>
 #include <asm/sn/sn0/ip27.h>
 
+#include "ip27-common.h"
+
 /*
  * Takes as first input the PROM assigned cpu id, and the kernel
  * assigned cpu id as the second.
  */
-static void alloc_cpupda(cpuid_t cpu, int cpunum)
+static void alloc_cpupda(nasid_t nasid, cpuid_t cpu, int cpunum)
 {
-	cnodeid_t node = get_cpu_cnode(cpu);
-	nasid_t nasid = COMPACT_TO_NASID_NODEID(node);
-
 	cputonasid(cpunum) = nasid;
-	sn_cpu_info[cpunum].p_nodeid = node;
 	cputoslice(cpunum) = get_cpu_slice(cpu);
 }
 
-static nasid_t get_actual_nasid(lboard_t *brd)
-{
-	klhub_t *hub;
-
-	if (!brd)
-		return INVALID_NASID;
-
-	/* find out if we are a completely disabled brd. */
-	hub  = (klhub_t *)find_first_component(brd, KLSTRUCT_HUB);
-	if (!hub)
-		return INVALID_NASID;
-	if (!(hub->hub_info.flags & KLINFO_ENABLE))	/* disabled node brd */
-		return hub->hub_info.physid;
-	else
-		return brd->brd_nasid;
-}
-
-static int do_cpumask(cnodeid_t cnode, nasid_t nasid, int highest)
+static int do_cpumask(nasid_t nasid, int highest)
 {
 	static int tot_cpus_found = 0;
 	lboard_t *brd;
@@ -72,16 +53,13 @@ static int do_cpumask(cnodeid_t cnode, nasid_t nasid, int highest)
 		acpu = (klcpu_t *)find_first_component(brd, KLSTRUCT_CPU);
 		while (acpu) {
 			cpuid = acpu->cpu_info.virtid;
-			/* cnode is not valid for completely disabled brds */
-			if (get_actual_nasid(brd) == brd->brd_nasid)
-				cpuid_to_compact_node[cpuid] = cnode;
-			if (cpuid > highest)
-				highest = cpuid;
 			/* Only let it join in if it's marked enabled */
 			if ((acpu->cpu_info.flags & KLINFO_ENABLE) &&
 			    (tot_cpus_found != NR_CPUS)) {
+				if (cpuid > highest)
+					highest = cpuid;
 				set_cpu_possible(cpuid, true);
-				alloc_cpupda(cpuid, tot_cpus_found);
+				alloc_cpupda(nasid, cpuid, tot_cpus_found);
 				cpus_found++;
 				tot_cpus_found++;
 			}
@@ -103,29 +81,13 @@ void cpu_node_probe(void)
 	int i, highest = 0;
 	gda_t *gdap = GDA;
 
-	/*
-	 * Initialize the arrays to invalid nodeid (-1)
-	 */
-	for (i = 0; i < MAX_COMPACT_NODES; i++)
-		compact_to_nasid_node[i] = INVALID_NASID;
-	for (i = 0; i < MAX_NASIDS; i++)
-		nasid_to_compact_node[i] = INVALID_CNODEID;
-	for (i = 0; i < MAXCPUS; i++)
-		cpuid_to_compact_node[i] = INVALID_CNODEID;
-
-	/*
-	 * MCD - this whole "compact node" stuff can probably be dropped,
-	 * as we can handle sparse numbering now
-	 */
 	nodes_clear(node_online_map);
-	for (i = 0; i < MAX_COMPACT_NODES; i++) {
+	for (i = 0; i < MAX_NUMNODES; i++) {
 		nasid_t nasid = gdap->g_nasidtable[i];
 		if (nasid == INVALID_NASID)
 			break;
-		compact_to_nasid_node[i] = nasid;
-		nasid_to_compact_node[nasid] = i;
-		node_set_online(num_online_nodes());
-		highest = do_cpumask(i, nasid, highest);
+		node_set_online(nasid);
+		highest = do_cpumask(nasid, highest);
 	}
 
 	printk("Discovered %d cpus on %d nodes\n", highest + 1, num_online_nodes());
@@ -162,11 +124,10 @@ static void ip27_send_ipi_single(int destid, unsigned int action)
 	irq += cputoslice(destid);
 
 	/*
-	 * Convert the compact hub number to the NASID to get the correct
-	 * part of the address space.  Then set the interrupt bit associated
-	 * with the CPU we want to send the interrupt to.
+	 * Set the interrupt bit associated with the CPU we want to
+	 * send the interrupt to.
 	 */
-	REMOTE_HUB_SEND_INTR(COMPACT_TO_NASID_NODEID(cpu_to_node(destid)), irq);
+	REMOTE_HUB_SEND_INTR(cpu_to_node(destid), irq);
 }
 
 static void ip27_send_ipi_mask(const struct cpumask *mask, unsigned int action)
@@ -184,8 +145,6 @@ static void ip27_init_cpu(void)
 
 static void ip27_smp_finish(void)
 {
-	extern void hub_rt_clock_event_init(void);
-
 	hub_rt_clock_event_init();
 	local_irq_enable();
 }
@@ -208,23 +167,20 @@ static int ip27_boot_secondary(int cpu, struct task_struct *idle)
 
 static void __init ip27_smp_setup(void)
 {
-	cnodeid_t	cnode;
+	nasid_t nasid;
 
-	for_each_online_node(cnode) {
-		if (cnode == 0)
+	for_each_online_node(nasid) {
+		if (nasid == 0)
 			continue;
-		intr_clear_all(COMPACT_TO_NASID_NODEID(cnode));
+		intr_clear_all(nasid);
 	}
 
 	replicate_kernel_text();
 
 	/*
-	 * Assumption to be fixed: we're always booted on logical / physical
-	 * processor 0.	 While we're always running on logical processor 0
-	 * this still means this is physical processor zero; it might for
-	 * example be disabled in the firmware.
+	 * PROM sets up system, that boot cpu is always first CPU on nasid 0
 	 */
-	alloc_cpupda(0, 0);
+	alloc_cpupda(0, 0, 0);
 }
 
 static void __init ip27_prepare_cpus(unsigned int max_cpus)

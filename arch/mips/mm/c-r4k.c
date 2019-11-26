@@ -271,12 +271,14 @@ static inline void tx49_blast_icache32(void)
 	/* I'm in even chunk.  blast odd chunks */
 	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start + 0x400; addr < end; addr += 0x400 * 2)
-			cache32_unroll32(addr|ws, Index_Invalidate_I);
+			cache_unroll(32, kernel_cache, Index_Invalidate_I,
+				     addr | ws, 32);
 	CACHE32_UNROLL32_ALIGN;
 	/* I'm in odd chunk.  blast even chunks */
 	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start; addr < end; addr += 0x400 * 2)
-			cache32_unroll32(addr|ws, Index_Invalidate_I);
+			cache_unroll(32, kernel_cache, Index_Invalidate_I,
+				     addr | ws, 32);
 }
 
 static inline void blast_icache32_r4600_v1_page_indexed(unsigned long page)
@@ -302,12 +304,14 @@ static inline void tx49_blast_icache32_page_indexed(unsigned long page)
 	/* I'm in even chunk.  blast odd chunks */
 	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start + 0x400; addr < end; addr += 0x400 * 2)
-			cache32_unroll32(addr|ws, Index_Invalidate_I);
+			cache_unroll(32, kernel_cache, Index_Invalidate_I,
+				     addr | ws, 32);
 	CACHE32_UNROLL32_ALIGN;
 	/* I'm in odd chunk.  blast even chunks */
 	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start; addr < end; addr += 0x400 * 2)
-			cache32_unroll32(addr|ws, Index_Invalidate_I);
+			cache_unroll(32, kernel_cache, Index_Invalidate_I,
+				     addr | ws, 32);
 }
 
 static void (* r4k_blast_icache_page)(unsigned long addr);
@@ -320,7 +324,7 @@ static void r4k_blast_icache_page_setup(void)
 		r4k_blast_icache_page = (void *)cache_noop;
 	else if (ic_lsize == 16)
 		r4k_blast_icache_page = blast_icache16_page;
-	else if (ic_lsize == 32 && current_cpu_type() == CPU_LOONGSON2)
+	else if (ic_lsize == 32 && current_cpu_type() == CPU_LOONGSON2EF)
 		r4k_blast_icache_page = loongson2_blast_icache32_page;
 	else if (ic_lsize == 32)
 		r4k_blast_icache_page = blast_icache32_page;
@@ -369,7 +373,7 @@ static void r4k_blast_icache_page_indexed_setup(void)
 		else if (TX49XX_ICACHE_INDEX_INV_WAR)
 			r4k_blast_icache_page_indexed =
 				tx49_blast_icache32_page_indexed;
-		else if (current_cpu_type() == CPU_LOONGSON2)
+		else if (current_cpu_type() == CPU_LOONGSON2EF)
 			r4k_blast_icache_page_indexed =
 				loongson2_blast_icache32_page_indexed;
 		else
@@ -395,7 +399,7 @@ static void r4k_blast_icache_setup(void)
 			r4k_blast_icache = blast_r4600_v1_icache32;
 		else if (TX49XX_ICACHE_INDEX_INV_WAR)
 			r4k_blast_icache = tx49_blast_icache32;
-		else if (current_cpu_type() == CPU_LOONGSON2)
+		else if (current_cpu_type() == CPU_LOONGSON2EF)
 			r4k_blast_icache = loongson2_blast_icache32;
 		else
 			r4k_blast_icache = blast_icache32;
@@ -465,7 +469,7 @@ static void r4k_blast_scache_node_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
-	if (current_cpu_type() != CPU_LOONGSON3)
+	if (current_cpu_type() != CPU_LOONGSON64)
 		r4k_blast_scache_node = (void *)cache_noop;
 	else if (sc_lsize == 16)
 		r4k_blast_scache_node = blast_scache16_node;
@@ -480,7 +484,7 @@ static void r4k_blast_scache_node_setup(void)
 static inline void local_r4k___flush_cache_all(void * args)
 {
 	switch (current_cpu_type()) {
-	case CPU_LOONGSON2:
+	case CPU_LOONGSON2EF:
 	case CPU_R4000SC:
 	case CPU_R4000MC:
 	case CPU_R4400SC:
@@ -497,7 +501,7 @@ static inline void local_r4k___flush_cache_all(void * args)
 		r4k_blast_scache();
 		break;
 
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON64:
 		/* Use get_ebase_cpunum() for both NUMA=y/n */
 		r4k_blast_scache_node(get_ebase_cpunum() >> 2);
 		break;
@@ -650,6 +654,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	struct mm_struct *mm = vma->vm_mm;
 	int map_coherent = 0;
 	pgd_t *pgdp;
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
@@ -664,7 +669,8 @@ static inline void local_r4k_flush_cache_page(void *args)
 
 	addr &= PAGE_MASK;
 	pgdp = pgd_offset(mm, addr);
-	pudp = pud_offset(pgdp, addr);
+	p4dp = p4d_offset(pgdp, addr);
+	pudp = pud_offset(p4dp, addr);
 	pmdp = pmd_offset(pudp, addr);
 	ptep = pte_offset(pmdp, addr);
 
@@ -770,7 +776,7 @@ static inline void __local_r4k_flush_icache_range(unsigned long start,
 		r4k_blast_icache();
 	else {
 		switch (boot_cpu_type()) {
-		case CPU_LOONGSON2:
+		case CPU_LOONGSON2EF:
 			protected_loongson2_blast_icache_range(start, end);
 			break;
 
@@ -863,7 +869,7 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	preempt_disable();
 	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size) {
-			if (current_cpu_type() != CPU_LOONGSON3)
+			if (current_cpu_type() != CPU_LOONGSON64)
 				r4k_blast_scache();
 			else
 				r4k_blast_scache_node(pa_to_nid(addr));
@@ -904,7 +910,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 	preempt_disable();
 	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size) {
-			if (current_cpu_type() != CPU_LOONGSON3)
+			if (current_cpu_type() != CPU_LOONGSON64)
 				r4k_blast_scache();
 			else
 				r4k_blast_scache_node(pa_to_nid(addr));
@@ -1224,7 +1230,7 @@ static void probe_pcache(void)
 		c->options |= MIPS_CPU_PREFETCH;
 		break;
 
-	case CPU_LOONGSON2:
+	case CPU_LOONGSON2EF:
 		icache_size = 1 << (12 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
 		if (prid & 0x3)
@@ -1242,7 +1248,7 @@ static void probe_pcache(void)
 		c->dcache.waybit = 0;
 		break;
 
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON64:
 		config1 = read_c0_config1();
 		lsize = (config1 >> 19) & 7;
 		if (lsize)
@@ -1267,7 +1273,8 @@ static void probe_pcache(void)
 					  c->dcache.ways *
 					  c->dcache.linesz;
 		c->dcache.waybit = 0;
-		if ((prid & PRID_REV_MASK) >= PRID_REV_LOONGSON3A_R2_0)
+		if ((c->processor_id & (PRID_IMP_MASK | PRID_REV_MASK)) >=
+				(PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0))
 			c->options |= MIPS_CPU_PREFETCH;
 		break;
 
@@ -1452,7 +1459,7 @@ static void probe_pcache(void)
 		c->dcache.flags &= ~MIPS_CACHE_ALIASES;
 		break;
 
-	case CPU_LOONGSON2:
+	case CPU_LOONGSON2EF:
 		/*
 		 * LOONGSON2 has 4 way icache, but when using indexed cache op,
 		 * one op will act on all 4 ways
@@ -1478,7 +1485,7 @@ static void probe_vcache(void)
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config2, lsize;
 
-	if (current_cpu_type() != CPU_LOONGSON3)
+	if (current_cpu_type() != CPU_LOONGSON64)
 		return;
 
 	config2 = read_c0_config2();
@@ -1653,11 +1660,11 @@ static void setup_scache(void)
 #endif
 		return;
 
-	case CPU_LOONGSON2:
+	case CPU_LOONGSON2EF:
 		loongson2_sc_init();
 		return;
 
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON64:
 		loongson3_sc_init();
 		return;
 
@@ -1926,7 +1933,7 @@ void r4k_cache_init(void)
 		/* Optimization: an L2 flush implicitly flushes the L1 */
 		current_cpu_data.options |= MIPS_CPU_INCLUSIVE_CACHES;
 		break;
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON64:
 		/* Loongson-3 maintains cache coherency by hardware */
 		__flush_cache_all	= cache_noop;
 		__flush_cache_vmap	= cache_noop;

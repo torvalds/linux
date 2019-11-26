@@ -279,7 +279,7 @@ EXPORT_SYMBOL(csum_partial)
 #endif
 
 	/* odd buffer alignment? */
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_LOONGSON3)
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_LOONGSON64)
 	.set	push
 	.set	arch=mips32r2
 	wsbh	v1, sum
@@ -732,7 +732,7 @@ EXPORT_SYMBOL(csum_partial)
 	addu	sum, v1
 #endif
 
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_LOONGSON3)
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_LOONGSON64)
 	.set	push
 	.set	arch=mips32r2
 	wsbh	v1, sum

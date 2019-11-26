@@ -14,6 +14,9 @@
 
 archscripts: scripts_basic
 	$(Q)$(MAKE) $(build)=arch/mips/tools elf-entry
+ifeq ($(CONFIG_CPU_LOONGSON3_WORKAROUNDS),y)
+	$(Q)$(MAKE) $(build)=arch/mips/tools loongson3-llsc-check
+endif
 	$(Q)$(MAKE) $(build)=arch/mips/boot/tools relocs
 
 KBUILD_DEFCONFIG := 32r2el_defconfig

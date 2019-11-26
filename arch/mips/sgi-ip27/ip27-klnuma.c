@@ -38,13 +38,13 @@ void __init setup_replication_mask(void)
 #error Kernel replication works with mapped kernel support. No calias support.
 #endif
 	{
-		cnodeid_t	cnode;
+		nasid_t nasid;
 
-		for_each_online_node(cnode) {
-			if (cnode == 0)
+		for_each_online_node(nasid) {
+			if (nasid == 0)
 				continue;
 			/* Advertise that we have a copy of the kernel */
-			cpumask_set_cpu(cnode, &ktext_repmask);
+			cpumask_set_cpu(nasid, &ktext_repmask);
 		}
 	}
 #endif
@@ -85,7 +85,6 @@ static __init void copy_kernel(nasid_t dest_nasid)
 
 void __init replicate_kernel_text(void)
 {
-	cnodeid_t cnode;
 	nasid_t client_nasid;
 	nasid_t server_nasid;
 
@@ -94,13 +93,12 @@ void __init replicate_kernel_text(void)
 	/* Record where the master node should get its kernel text */
 	set_ktext_source(master_nasid, master_nasid);
 
-	for_each_online_node(cnode) {
-		if (cnode == 0)
+	for_each_online_node(client_nasid) {
+		if (client_nasid == 0)
 			continue;
-		client_nasid = COMPACT_TO_NASID_NODEID(cnode);
 
 		/* Check if this node should get a copy of the kernel */
-		if (cpumask_test_cpu(cnode, &ktext_repmask)) {
+		if (cpumask_test_cpu(client_nasid, &ktext_repmask)) {
 			server_nasid = client_nasid;
 			copy_kernel(server_nasid);
 		}
@@ -115,17 +113,16 @@ void __init replicate_kernel_text(void)
  * data structures on the first couple of pages of the first slot of each
  * node. If this is the case, getfirstfree(node) > getslotstart(node, 0).
  */
-unsigned long node_getfirstfree(cnodeid_t cnode)
+unsigned long node_getfirstfree(nasid_t nasid)
 {
 	unsigned long loadbase = REP_BASE;
-	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
 	unsigned long offset;
 
 #ifdef CONFIG_MAPPED_KERNEL
 	loadbase += 16777216;
 #endif
 	offset = PAGE_ALIGN((unsigned long)(&_end)) - loadbase;
-	if ((cnode == 0) || (cpumask_test_cpu(cnode, &ktext_repmask)))
+	if ((nasid == 0) || (cpumask_test_cpu(nasid, &ktext_repmask)))
 		return TO_NODE(nasid, offset) >> PAGE_SHIFT;
 	else
 		return KDM_TO_PHYS(PAGE_ALIGN(SYMMON_STK_ADDR(nasid, 0))) >> PAGE_SHIFT;

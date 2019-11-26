@@ -25,10 +25,9 @@ static int force_fire_and_forget = 1;
  * @size:	size of the PIO mapping
  *
  **/
-unsigned long hub_pio_map(cnodeid_t cnode, xwidgetnum_t widget,
+unsigned long hub_pio_map(nasid_t nasid, xwidgetnum_t widget,
 			  unsigned long xtalk_addr, size_t size)
 {
-	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
 	unsigned i;
 
 	/* use small-window mapping if possible */
@@ -44,7 +43,7 @@ unsigned long hub_pio_map(cnodeid_t cnode, xwidgetnum_t widget,
 
 	xtalk_addr &= ~(BWIN_SIZE-1);
 	for (i = 0; i < HUB_NUM_BIG_WINDOW; i++) {
-		if (test_and_set_bit(i, hub_data(cnode)->h_bigwin_used))
+		if (test_and_set_bit(i, hub_data(nasid)->h_bigwin_used))
 			continue;
 
 		/*
@@ -171,13 +170,12 @@ static void hub_set_piomode(nasid_t nasid)
  *
  * @hub:	hubinfo structure for our hub
  */
-void hub_pio_init(cnodeid_t cnode)
+void hub_pio_init(nasid_t nasid)
 {
-	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
 	unsigned i;
 
 	/* initialize big window piomaps for this hub */
-	bitmap_zero(hub_data(cnode)->h_bigwin_used, HUB_NUM_BIG_WINDOW);
+	bitmap_zero(hub_data(nasid)->h_bigwin_used, HUB_NUM_BIG_WINDOW);
 	for (i = 0; i < HUB_NUM_BIG_WINDOW; i++)
 		IIO_ITTE_DISABLE(nasid, i);
 
