@@ -280,10 +280,8 @@ static int arcturus_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER
 		return -EINVAL;
 
 	mapping = arcturus_workload_map[profile];
-	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU power source: %d\n", profile);
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
-	}
 
 	return mapping.map_to;
 }
