@@ -145,33 +145,33 @@ static void byt_dump(struct snd_sof_dev *sdev, u32 flags)
 	struct sof_ipc_dsp_oops_xtensa xoops;
 	struct sof_ipc_panic_info panic_info;
 	u32 stack[BYT_STACK_DUMP_SIZE];
-	u32 status, panic, imrd, imrx;
+	u64 status, panic, imrd, imrx;
 
 	/* now try generic SOF status messages */
-	status = snd_sof_dsp_read(sdev, BYT_DSP_BAR, SHIM_IPCD);
-	panic = snd_sof_dsp_read(sdev, BYT_DSP_BAR, SHIM_IPCX);
+	status = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_IPCD);
+	panic = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_IPCX);
 	byt_get_registers(sdev, &xoops, &panic_info, stack,
 			  BYT_STACK_DUMP_SIZE);
 	snd_sof_get_status(sdev, status, panic, &xoops, &panic_info, stack,
 			   BYT_STACK_DUMP_SIZE);
 
 	/* provide some context for firmware debug */
-	imrx = snd_sof_dsp_read(sdev, BYT_DSP_BAR, SHIM_IMRX);
-	imrd = snd_sof_dsp_read(sdev, BYT_DSP_BAR, SHIM_IMRD);
+	imrx = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_IMRX);
+	imrd = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_IMRD);
 	dev_err(sdev->dev,
-		"error: ipc host -> DSP: pending %s complete %s raw 0x%8.8x\n",
+		"error: ipc host -> DSP: pending %s complete %s raw 0x%llx\n",
 		(panic & SHIM_IPCX_BUSY) ? "yes" : "no",
 		(panic & SHIM_IPCX_DONE) ? "yes" : "no", panic);
 	dev_err(sdev->dev,
-		"error: mask host: pending %s complete %s raw 0x%8.8x\n",
+		"error: mask host: pending %s complete %s raw 0x%llx\n",
 		(imrx & SHIM_IMRX_BUSY) ? "yes" : "no",
 		(imrx & SHIM_IMRX_DONE) ? "yes" : "no", imrx);
 	dev_err(sdev->dev,
-		"error: ipc DSP -> host: pending %s complete %s raw 0x%8.8x\n",
+		"error: ipc DSP -> host: pending %s complete %s raw 0x%llx\n",
 		(status & SHIM_IPCD_BUSY) ? "yes" : "no",
 		(status & SHIM_IPCD_DONE) ? "yes" : "no", status);
 	dev_err(sdev->dev,
-		"error: mask DSP: pending %s complete %s raw 0x%8.8x\n",
+		"error: mask DSP: pending %s complete %s raw 0x%llx\n",
 		(imrd & SHIM_IMRD_BUSY) ? "yes" : "no",
 		(imrd & SHIM_IMRD_DONE) ? "yes" : "no", imrd);
 
