@@ -651,9 +651,11 @@ struct mlx5e_channel {
 	/* AF_XDP zero-copy */
 	struct mlx5e_rq            xskrq;
 	struct mlx5e_xdpsq         xsksq;
-	struct mlx5e_icosq         xskicosq;
-	/* xskicosq can be accessed from any CPU - the spinlock protects it. */
-	spinlock_t                 xskicosq_lock;
+
+	/* Async ICOSQ */
+	struct mlx5e_icosq         async_icosq;
+	/* async_icosq can be accessed from any CPU - the spinlock protects it. */
+	spinlock_t                 async_icosq_lock;
 
 	/* data path - accessed per napi poll */
 	struct irq_desc *irq_desc;

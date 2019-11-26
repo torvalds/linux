@@ -26,19 +26,19 @@ int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 		return -ENXIO;
 
 	if (!napi_if_scheduled_mark_missed(&c->napi)) {
-		/* To avoid WQE overrun, don't post a NOP if XSKICOSQ is not
+		/* To avoid WQE overrun, don't post a NOP if async_icosq is not
 		 * active and not polled by NAPI. Return 0, because the upcoming
 		 * activate will trigger the IRQ for us.
 		 */
-		if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &c->xskicosq.state)))
+		if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &c->async_icosq.state)))
 			return 0;
 
-		if (test_and_set_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->xskicosq.state))
+		if (test_and_set_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->async_icosq.state))
 			return 0;
 
-		spin_lock(&c->xskicosq_lock);
-		mlx5e_trigger_irq(&c->xskicosq);
-		spin_unlock(&c->xskicosq_lock);
+		spin_lock(&c->async_icosq_lock);
+		mlx5e_trigger_irq(&c->async_icosq);
+		spin_unlock(&c->async_icosq_lock);
 	}
 
 	return 0;
