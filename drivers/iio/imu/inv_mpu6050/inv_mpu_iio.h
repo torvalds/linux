@@ -109,6 +109,7 @@ struct inv_mpu6050_chip_config {
  *  @reg:   register map of the chip.
  *  @config:    configuration of the chip.
  *  @fifo_size:	size of the FIFO in bytes.
+ *  @temp:	offset and scale to apply to raw temperature.
  */
 struct inv_mpu6050_hw {
 	u8 whoami;
@@ -116,6 +117,10 @@ struct inv_mpu6050_hw {
 	const struct inv_mpu6050_reg_map *reg;
 	const struct inv_mpu6050_chip_config *config;
 	size_t fifo_size;
+	struct {
+		int offset;
+		int scale;
+	} temp;
 };
 
 /*
@@ -224,16 +229,19 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_REG_UP_TIME_MIN          5000
 #define INV_MPU6050_REG_UP_TIME_MAX          10000
 
-#define INV_MPU6050_TEMP_OFFSET	             12421
-#define INV_MPU6050_TEMP_SCALE               2941
+#define INV_MPU6050_TEMP_OFFSET	             12420
+#define INV_MPU6050_TEMP_SCALE               2941176
 #define INV_MPU6050_MAX_GYRO_FS_PARAM        3
 #define INV_MPU6050_MAX_ACCL_FS_PARAM        3
 #define INV_MPU6050_THREE_AXIS               3
 #define INV_MPU6050_GYRO_CONFIG_FSR_SHIFT    3
 #define INV_MPU6050_ACCL_CONFIG_FSR_SHIFT    3
 
-#define INV_ICM20602_TEMP_OFFSET	     8170
-#define INV_ICM20602_TEMP_SCALE		     3060
+#define INV_MPU6500_TEMP_OFFSET              7011
+#define INV_MPU6500_TEMP_SCALE               2995178
+
+#define INV_ICM20608_TEMP_OFFSET	     8170
+#define INV_ICM20608_TEMP_SCALE		     3059976
 
 /* 6 + 6 round up and plus 8 */
 #define INV_MPU6050_OUTPUT_DATA_SIZE         24
