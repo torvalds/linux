@@ -75,10 +75,10 @@ static void key_type_inline_data_to_text(struct printbuf *out, struct bch_fs *c,
 	pr_buf(out, "(%zu bytes)", bkey_val_bytes(k.k));
 }
 
-static const struct bkey_ops bch2_bkey_ops_inline_data = {
-	.key_invalid	= key_type_inline_data_invalid,
-	.val_to_text	= key_type_inline_data_to_text,
-};
+#define bch2_bkey_ops_inline_data (struct bkey_ops) {	\
+	.key_invalid	= key_type_inline_data_invalid,	\
+	.val_to_text	= key_type_inline_data_to_text,	\
+}
 
 static const struct bkey_ops bch2_bkey_ops[] = {
 #define x(name, nr) [KEY_TYPE_##name]	= bch2_bkey_ops_##name,
