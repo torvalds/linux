@@ -80,13 +80,14 @@ mt76_eeprom_override(struct mt76_dev *dev)
 	const u8 *mac;
 
 	if (!np)
-		return;
+		goto out;
 
 	mac = of_get_mac_address(np);
 	if (!IS_ERR(mac))
 		ether_addr_copy(dev->macaddr, mac);
 #endif
 
+out:
 	if (!is_valid_ether_addr(dev->macaddr)) {
 		eth_random_addr(dev->macaddr);
 		dev_info(dev->dev,
