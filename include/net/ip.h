@@ -339,7 +339,7 @@ static inline u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_o
 void inet_get_local_port_range(struct net *net, int *low, int *high);
 
 #ifdef CONFIG_SYSCTL
-static inline bool inet_is_local_reserved_port(struct net *net, int port)
+static inline bool inet_is_local_reserved_port(struct net *net, unsigned short port)
 {
 	if (!net->ipv4.sysctl_local_reserved_ports)
 		return false;
@@ -357,7 +357,7 @@ static inline bool inet_port_requires_bind_service(struct net *net, unsigned sho
 }
 
 #else
-static inline bool inet_is_local_reserved_port(struct net *net, int port)
+static inline bool inet_is_local_reserved_port(struct net *net, unsigned short port)
 {
 	return false;
 }
