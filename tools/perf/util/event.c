@@ -457,7 +457,7 @@ int perf_event__process(struct perf_tool *tool __maybe_unused,
 struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 			     struct addr_location *al)
 {
-	struct maps *mg = thread->mg;
+	struct maps *mg = thread->maps;
 	struct machine *machine = mg->machine;
 	bool load_map = false;
 
@@ -523,7 +523,7 @@ struct map *thread__find_map_fb(struct thread *thread, u8 cpumode, u64 addr,
 				struct addr_location *al)
 {
 	struct map *map = thread__find_map(thread, cpumode, addr, al);
-	struct machine *machine = thread->mg->machine;
+	struct machine *machine = thread->maps->machine;
 	u8 addr_cpumode = machine__addr_cpumode(machine, cpumode, addr);
 
 	if (map || addr_cpumode == cpumode)

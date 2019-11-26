@@ -819,7 +819,7 @@ out:
  */
 int maps__clone(struct thread *thread, struct maps *parent)
 {
-	struct maps *mg = thread->mg;
+	struct maps *mg = thread->maps;
 	int err = -ENOMEM;
 	struct map *map;
 

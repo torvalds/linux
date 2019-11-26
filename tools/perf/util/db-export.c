@@ -251,7 +251,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		 */
 		al.sym = node->ms.sym;
 		al.map = node->ms.map;
-		al.mg  = thread->mg;
+		al.mg  = thread->maps;
 		al.addr = node->ip;
 
 		if (al.map && !al.sym)

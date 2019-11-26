@@ -200,7 +200,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	struct unwind_info *ui, ui_buf = {
 		.sample		= data,
 		.thread		= thread,
-		.machine	= thread->mg->machine,
+		.machine	= thread->maps->machine,
 		.cb		= cb,
 		.arg		= arg,
 		.max_stack	= max_stack,

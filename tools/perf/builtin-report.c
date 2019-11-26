@@ -790,7 +790,7 @@ static void task__print_level(struct task *task, FILE *fp, int level)
 
 	fprintf(fp, "%s\n", thread__comm_str(thread));
 
-	maps__fprintf_task(thread->mg, comm_indent, fp);
+	maps__fprintf_task(thread->maps, comm_indent, fp);
 
 	if (!list_empty(&task->children)) {
 		list_for_each_entry(child, &task->children, list)

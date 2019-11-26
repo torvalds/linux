@@ -412,28 +412,28 @@ static void machine__update_thread_pid(struct machine *machine,
 	if (!leader)
 		goto out_err;
 
-	if (!leader->mg)
-		leader->mg = maps__new(machine);
+	if (!leader->maps)
+		leader->maps = maps__new(machine);
 
-	if (!leader->mg)
+	if (!leader->maps)
 		goto out_err;
 
-	if (th->mg == leader->mg)
+	if (th->maps == leader->maps)
 		return;
 
-	if (th->mg) {
+	if (th->maps) {
 		/*
 		 * Maps are created from MMAP events which provide the pid and
 		 * tid.  Consequently there never should be any maps on a thread
 		 * with an unknown pid.  Just print an error if there are.
 		 */
-		if (!maps__empty(th->mg))
+		if (!maps__empty(th->maps))
 			pr_err("Discarding thread maps for %d:%d\n",
 			       th->pid_, th->tid);
-		maps__put(th->mg);
+		maps__put(th->maps);
 	}
 
-	th->mg = maps__get(leader->mg);
+	th->maps = maps__get(leader->maps);
 out_put:
 	thread__put(leader);
 	return;

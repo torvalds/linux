@@ -660,7 +660,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	 */
 	if (max_stack - 1 > 0) {
 		WARN_ONCE(!ui->thread, "WARNING: ui->thread is NULL");
-		addr_space = ui->thread->mg->addr_space;
+		addr_space = ui->thread->maps->addr_space;
 
 		if (addr_space == NULL)
 			return -1;
@@ -709,7 +709,7 @@ static int _unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	struct unwind_info ui = {
 		.sample       = data,
 		.thread       = thread,
-		.machine      = thread->mg->machine,
+		.machine      = thread->maps->machine,
 	};
 
 	if (!data->user_regs.regs)

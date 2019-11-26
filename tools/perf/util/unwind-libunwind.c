@@ -82,7 +82,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			 struct thread *thread,
 			 struct perf_sample *data, int max_stack)
 {
-	if (thread->mg->unwind_libunwind_ops)
-		return thread->mg->unwind_libunwind_ops->get_entries(cb, arg, thread, data, max_stack);
+	if (thread->maps->unwind_libunwind_ops)
+		return thread->maps->unwind_libunwind_ops->get_entries(cb, arg, thread, data, max_stack);
 	return 0;
 }
