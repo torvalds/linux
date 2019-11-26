@@ -8,7 +8,7 @@
 /dts-v1/;
 #include "ste-db8500.dtsi"
 #include "ste-hrefv60plus.dtsi"
-#include "ste-href-tvk1281618.dtsi"
+#include "ste-href-tvk1281618-r2.dtsi"
 
 / {
 	model = "ST-Ericsson HREF (v60+) and TVK1281618 UIB";
