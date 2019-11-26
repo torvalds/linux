@@ -230,6 +230,7 @@
 			/*system status		freq(KHz)*/
 			SYS_STATUS_NORMAL	456000
 			SYS_STATUS_SUSPEND	200000
+			SYS_STATUS_REBOOT	396000
 		>;
 		auto-min-freq = <300000>;
 		auto-freq-en = <0>;
