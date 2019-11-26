@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel CrystalCove PMIC operation region driver
+ * Intel Bay Trail Crystal Cove PMIC operation region driver
  *
  * Copyright (C) 2014 Intel Corporation. All rights reserved.
  */
@@ -295,7 +295,7 @@ static int intel_crc_pmic_opregion_probe(struct platform_device *pdev)
 static struct platform_driver intel_crc_pmic_opregion_driver = {
 	.probe = intel_crc_pmic_opregion_probe,
 	.driver = {
-		.name = "crystal_cove_pmic",
+		.name = "byt_crystal_cove_pmic",
 	},
 };
 builtin_platform_driver(intel_crc_pmic_opregion_driver);

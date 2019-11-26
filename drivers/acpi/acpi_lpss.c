@@ -10,6 +10,7 @@
 #include <linux/acpi.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
+#include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
@@ -463,6 +464,18 @@ struct lpss_device_links {
 	const char *consumer_hid;
 	const char *consumer_uid;
 	u32 flags;
+	const struct dmi_system_id *dep_missing_ids;
+};
+
+/* Please keep this list sorted alphabetically by vendor and model */
+static const struct dmi_system_id i2c1_dep_missing_dmi_ids[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "T200TA"),
+		},
+	},
+	{}
 };
 
 /*
@@ -473,9 +486,17 @@ struct lpss_device_links {
  * the supplier is not enumerated until after the consumer is probed.
  */
 static const struct lpss_device_links lpss_device_links[] = {
+	/* CHT External sdcard slot controller depends on PMIC I2C ctrl */
 	{"808622C1", "7", "80860F14", "3", DL_FLAG_PM_RUNTIME},
+	/* CHT iGPU depends on PMIC I2C controller */
 	{"808622C1", "7", "LNXVIDEO", NULL, DL_FLAG_PM_RUNTIME},
+	/* BYT iGPU depends on the Embedded Controller I2C controller (UID 1) */
+	{"80860F41", "1", "LNXVIDEO", NULL, DL_FLAG_PM_RUNTIME,
+	 i2c1_dep_missing_dmi_ids},
+	/* BYT CR iGPU depends on PMIC I2C controller (UID 5 on CR) */
 	{"80860F41", "5", "LNXVIDEO", NULL, DL_FLAG_PM_RUNTIME},
+	/* BYT iGPU depends on PMIC I2C controller (UID 7 on non CR) */
+	{"80860F41", "7", "LNXVIDEO", NULL, DL_FLAG_PM_RUNTIME},
 };
 
 static bool hid_uid_match(struct acpi_device *adev,
@@ -570,7 +591,8 @@ static void acpi_lpss_link_consumer(struct device *dev1,
 	if (!dev2)
 		return;
 
-	if (acpi_lpss_dep(ACPI_COMPANION(dev2), ACPI_HANDLE(dev1)))
+	if ((link->dep_missing_ids && dmi_check_system(link->dep_missing_ids))
+	    || acpi_lpss_dep(ACPI_COMPANION(dev2), ACPI_HANDLE(dev1)))
 		device_link_add(dev2, dev1, link->flags);
 
 	put_device(dev2);
@@ -585,7 +607,8 @@ static void acpi_lpss_link_supplier(struct device *dev1,
 	if (!dev2)
 		return;
 
-	if (acpi_lpss_dep(ACPI_COMPANION(dev1), ACPI_HANDLE(dev2)))
+	if ((link->dep_missing_ids && dmi_check_system(link->dep_missing_ids))
+	    || acpi_lpss_dep(ACPI_COMPANION(dev1), ACPI_HANDLE(dev2)))
 		device_link_add(dev1, dev2, link->flags);
 
 	put_device(dev2);

@@ -109,7 +109,8 @@ obj-$(CONFIG_ACPI_APEI)		+= apei/
 obj-$(CONFIG_ACPI_EXTLOG)	+= acpi_extlog.o
 
 obj-$(CONFIG_PMIC_OPREGION)	+= pmic/intel_pmic.o
-obj-$(CONFIG_CRC_PMIC_OPREGION) += pmic/intel_pmic_crc.o
+obj-$(CONFIG_BYTCRC_PMIC_OPREGION) += pmic/intel_pmic_bytcrc.o
+obj-$(CONFIG_CHTCRC_PMIC_OPREGION) += pmic/intel_pmic_chtcrc.o
 obj-$(CONFIG_XPOWER_PMIC_OPREGION) += pmic/intel_pmic_xpower.o
 obj-$(CONFIG_BXT_WC_PMIC_OPREGION) += pmic/intel_pmic_bxtwc.o
 obj-$(CONFIG_CHT_WC_PMIC_OPREGION) += pmic/intel_pmic_chtwc.o

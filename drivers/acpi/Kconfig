@@ -513,11 +513,19 @@ menuconfig PMIC_OPREGION
 	  PMIC chip.
 
 if PMIC_OPREGION
-config CRC_PMIC_OPREGION
-	bool "ACPI operation region support for CrystalCove PMIC"
+config BYTCRC_PMIC_OPREGION
+	bool "ACPI operation region support for Bay Trail Crystal Cove PMIC"
 	depends on INTEL_SOC_PMIC
 	help
-	  This config adds ACPI operation region support for CrystalCove PMIC.
+	  This config adds ACPI operation region support for the Bay Trail
+	  version of the Crystal Cove PMIC.
+
+config CHTCRC_PMIC_OPREGION
+	bool "ACPI operation region support for Cherry Trail Crystal Cove PMIC"
+	depends on INTEL_SOC_PMIC
+	help
+	  This config adds ACPI operation region support for the Cherry Trail
+	  version of the Crystal Cove PMIC.
 
 config XPOWER_PMIC_OPREGION
 	bool "ACPI operation region support for XPower AXP288 PMIC"
