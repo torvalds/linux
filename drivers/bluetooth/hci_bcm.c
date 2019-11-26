@@ -122,6 +122,7 @@ struct bcm_device {
 	bool			is_suspended;
 #endif
 	bool			no_early_set_baudrate;
+	u8			pcm_int_params[5];
 };
 
 /* generic bcm uart resources */
@@ -592,6 +593,16 @@ static int bcm_setup(struct hci_uart *hu)
 		err = bcm_set_baudrate(hu, speed);
 		if (!err)
 			host_set_baudrate(hu, speed);
+	}
+
+	/* PCM parameters if provided */
+	if (bcm->dev && bcm->dev->pcm_int_params[0] != 0xff) {
+		struct bcm_set_pcm_int_params params;
+
+		btbcm_read_pcm_int_params(hu->hdev, &params);
+
+		memcpy(&params, bcm->dev->pcm_int_params, 5);
+		btbcm_write_pcm_int_params(hu->hdev, &params);
 	}
 
 finalize:
@@ -1131,6 +1142,8 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 static int bcm_of_probe(struct bcm_device *bdev)
 {
 	device_property_read_u32(bdev->dev, "max-speed", &bdev->oper_speed);
+	device_property_read_u8_array(bdev->dev, "brcm,bt-pcm-int-params",
+				      bdev->pcm_int_params, 5);
 	return 0;
 }
 
@@ -1145,6 +1158,9 @@ static int bcm_probe(struct platform_device *pdev)
 
 	dev->dev = &pdev->dev;
 	dev->irq = platform_get_irq(pdev, 0);
+
+	/* Initialize routing field to an unused value */
+	dev->pcm_int_params[0] = 0xff;
 
 	if (has_acpi_companion(&pdev->dev)) {
 		ret = bcm_acpi_probe(dev);
@@ -1405,6 +1421,9 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 #endif
 	bcmdev->serdev_hu.serdev = serdev;
 	serdev_device_set_drvdata(serdev, bcmdev);
+
+	/* Initialize routing field to an unused value */
+	bcmdev->pcm_int_params[0] = 0xff;
 
 	if (has_acpi_companion(&serdev->dev))
 		err = bcm_acpi_probe(bcmdev);
