@@ -7,7 +7,7 @@
 #include "omap3-devkit8000-common.dtsi"
 / {
 	model = "TimLL OMAP3 Devkit8000";
-	compatible = "timll,omap3-devkit8000", "ti,omap3";
+	compatible = "timll,omap3-devkit8000", "ti,omap3430", "ti,omap3";
 
 	aliases {
 		display1 = &dvi0;
