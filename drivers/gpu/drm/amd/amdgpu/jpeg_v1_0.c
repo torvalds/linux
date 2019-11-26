@@ -522,7 +522,8 @@ void jpeg_v1_0_start(struct amdgpu_device *adev, int mode)
 		WREG32_SOC15(JPEG, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_HIGH, upper_32_bits(ring->gpu_addr));
 		WREG32_SOC15(JPEG, 0, mmUVD_JRBC_RB_RPTR, 0);
 		WREG32_SOC15(JPEG, 0, mmUVD_JRBC_RB_WPTR, 0);
-	}	WREG32_SOC15(JPEG, 0, mmUVD_JRBC_RB_CNTL, UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
+		WREG32_SOC15(JPEG, 0, mmUVD_JRBC_RB_CNTL, UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
+	}
 
 	/* initialize wptr */
 	ring->wptr = RREG32_SOC15(JPEG, 0, mmUVD_JRBC_RB_WPTR);
