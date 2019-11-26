@@ -33,8 +33,8 @@ static inline bool on_stack(struct stack_info *info,
 	return addr >= info->begin && addr + len <= info->end;
 }
 
-static inline unsigned long get_stack_pointer(struct task_struct *task,
-					      struct pt_regs *regs)
+static __always_inline unsigned long get_stack_pointer(struct task_struct *task,
+						       struct pt_regs *regs)
 {
 	if (regs)
 		return (unsigned long) kernel_stack_pointer(regs);
