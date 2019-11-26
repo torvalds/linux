@@ -970,8 +970,8 @@ config NR_CPUS_RANGE_END
 config NR_CPUS_RANGE_END
 	int
 	depends on X86_64
-	default 8192 if  SMP && ( MAXSMP ||  CPUMASK_OFFSTACK)
-	default  512 if  SMP && (!MAXSMP && !CPUMASK_OFFSTACK)
+	default 8192 if  SMP && CPUMASK_OFFSTACK
+	default  512 if  SMP && !CPUMASK_OFFSTACK
 	default    1 if !SMP
 
 config NR_CPUS_DEFAULT
@@ -1721,7 +1721,7 @@ config X86_RESERVE_LOW
 config MATH_EMULATION
 	bool
 	depends on MODIFY_LDT_SYSCALL
-	prompt "Math emulation" if X86_32
+	prompt "Math emulation" if X86_32 && (M486SX || MELAN)
 	---help---
 	  Linux can emulate a math coprocessor (used for floating point
 	  operations) if you don't have one. 486DX and Pentium processors have
@@ -1850,16 +1850,16 @@ config X86_SMAP
 
 	  If unsure, say Y.
 
-config X86_INTEL_UMIP
+config X86_UMIP
 	def_bool y
-	depends on CPU_SUP_INTEL
-	prompt "Intel User Mode Instruction Prevention" if EXPERT
+	depends on CPU_SUP_INTEL || CPU_SUP_AMD
+	prompt "User Mode Instruction Prevention" if EXPERT
 	---help---
-	  The User Mode Instruction Prevention (UMIP) is a security
-	  feature in newer Intel processors. If enabled, a general
-	  protection fault is issued if the SGDT, SLDT, SIDT, SMSW
-	  or STR instructions are executed in user mode. These instructions
-	  unnecessarily expose information about the hardware state.
+	  User Mode Instruction Prevention (UMIP) is a security feature in
+	  some x86 processors. If enabled, a general protection fault is
+	  issued if the SGDT, SLDT, SIDT, SMSW or STR instructions are
+	  executed in user mode. These instructions unnecessarily expose
+	  information about the hardware state.
 
 	  The vast majority of applications do not use these instructions.
 	  For the very few that do, software emulation is provided in

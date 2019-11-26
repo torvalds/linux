@@ -1,6 +1,6 @@
 /*
- * umip.c Emulation for instruction protected by the Intel User-Mode
- * Instruction Prevention feature
+ * umip.c Emulation for instruction protected by the User-Mode Instruction
+ * Prevention feature
  *
  * Copyright (c) 2017, Intel Corporation.
  * Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
@@ -18,10 +18,10 @@
 
 /** DOC: Emulation for User-Mode Instruction Prevention (UMIP)
  *
- * The feature User-Mode Instruction Prevention present in recent Intel
- * processor prevents a group of instructions (SGDT, SIDT, SLDT, SMSW and STR)
- * from being executed with CPL > 0. Otherwise, a general protection fault is
- * issued.
+ * User-Mode Instruction Prevention is a security feature present in recent
+ * x86 processors that, when enabled, prevents a group of instructions (SGDT,
+ * SIDT, SLDT, SMSW and STR) from being run in user mode by issuing a general
+ * protection fault if the instruction is executed with CPL > 0.
  *
  * Rather than relaying to the user space the general protection fault caused by
  * the UMIP-protected instructions (in the form of a SIGSEGV signal), it can be
