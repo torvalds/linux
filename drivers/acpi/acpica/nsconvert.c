@@ -486,5 +486,5 @@ acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
 error_exit:
 	ACPI_FREE(name);
 	*return_object = new_object;
-	return (AE_OK);
+	return (status);
 }
