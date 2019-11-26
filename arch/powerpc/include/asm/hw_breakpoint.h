@@ -34,7 +34,11 @@ struct arch_hw_breakpoint {
 #define HW_BRK_TYPE_PRIV_ALL	(HW_BRK_TYPE_USER | HW_BRK_TYPE_KERNEL | \
 				 HW_BRK_TYPE_HYP)
 
+#ifdef CONFIG_PPC_8xx
+#define HW_BREAKPOINT_ALIGN 0x3
+#else
 #define HW_BREAKPOINT_ALIGN 0x7
+#endif
 
 #define DABR_MAX_LEN	8
 #define DAWR_MAX_LEN	512
