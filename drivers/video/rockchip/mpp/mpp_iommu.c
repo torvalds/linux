@@ -213,16 +213,8 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 		ret = PTR_ERR(sgt);
 		goto fail_map;
 	}
-
-	ret = mpp_iommu_attach(iommu_info);
-	if (ret) {
-		dev_err(session->dev, "mpp_iommu_attach failed\n");
-		goto fail_attachment;
-	}
-
 	buffer->iova = sg_dma_address(sgt->sgl);
 	buffer->size = sg_dma_len(sgt->sgl);
-
 	buffer->attach = attach;
 	buffer->sgt = sgt;
 	buffer->session = session;
@@ -239,8 +231,6 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 
 	return buffer;
 
-fail_attachment:
-	dma_buf_unmap_attachment(buffer->attach, sgt, buffer->dir);
 fail_map:
 	dma_buf_detach(buffer->dmabuf, attach);
 fail_attach:

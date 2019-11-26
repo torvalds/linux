@@ -320,6 +320,8 @@ static int mpp_dev_abort(struct mpp_dev *mpp)
 static int mpp_task_run(struct mpp_dev *mpp,
 			struct mpp_task *task)
 {
+	int ret;
+
 	mpp_debug_enter();
 
 	/*
@@ -327,6 +329,16 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	 * working in current hardware
 	 */
 	mpp_set_grf(mpp->grf_info);
+	/*
+	 * for iommu share hardware, should attach to ensure
+	 * working in current device
+	 */
+	ret = mpp_iommu_attach(mpp->iommu_info);
+	if (ret) {
+		dev_err(mpp->dev, "mpp_iommu_attach failed\n");
+		return -ENODATA;
+	}
+
 	mpp_power_on(mpp);
 	mpp_time_record(task);
 	mpp_debug(DEBUG_TASK_INFO, "pid %d, start hw %s\n",
