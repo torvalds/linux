@@ -1826,8 +1826,8 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			track->textures[i].use_pitch = 1;
 		} else {
 			track->textures[i].use_pitch = 0;
-			track->textures[i].width = 1 << ((idx_value >> RADEON_TXFORMAT_WIDTH_SHIFT) & RADEON_TXFORMAT_WIDTH_MASK);
-			track->textures[i].height = 1 << ((idx_value >> RADEON_TXFORMAT_HEIGHT_SHIFT) & RADEON_TXFORMAT_HEIGHT_MASK);
+			track->textures[i].width = 1 << ((idx_value & RADEON_TXFORMAT_WIDTH_MASK) >> RADEON_TXFORMAT_WIDTH_SHIFT);
+			track->textures[i].height = 1 << ((idx_value & RADEON_TXFORMAT_HEIGHT_MASK) >> RADEON_TXFORMAT_HEIGHT_SHIFT);
 		}
 		if (idx_value & RADEON_TXFORMAT_CUBIC_MAP_ENABLE)
 			track->textures[i].tex_coord_type = 2;
