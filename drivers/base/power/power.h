@@ -117,6 +117,13 @@ static inline bool device_pm_initialized(struct device *dev)
 	return dev->power.in_dpm_list;
 }
 
+/* drivers/base/power/wakeup_stats.c */
+extern int wakeup_source_sysfs_add(struct device *parent,
+				   struct wakeup_source *ws);
+extern void wakeup_source_sysfs_remove(struct wakeup_source *ws);
+
+extern int pm_wakeup_source_sysfs_add(struct device *parent);
+
 #else /* !CONFIG_PM_SLEEP */
 
 static inline void device_pm_sleep_init(struct device *dev) {}
@@ -141,6 +148,11 @@ static inline bool device_pm_initialized(struct device *dev)
 	return device_is_registered(dev);
 }
 
+static inline int pm_wakeup_source_sysfs_add(struct device *parent)
+{
+	return 0;
+}
+
 #endif /* !CONFIG_PM_SLEEP */
 
 static inline void device_pm_init(struct device *dev)
@@ -149,21 +161,3 @@ static inline void device_pm_init(struct device *dev)
 	device_pm_sleep_init(dev);
 	pm_runtime_init(dev);
 }
-
-#ifdef CONFIG_PM_SLEEP
-
-/* drivers/base/power/wakeup_stats.c */
-extern int wakeup_source_sysfs_add(struct device *parent,
-				   struct wakeup_source *ws);
-extern void wakeup_source_sysfs_remove(struct wakeup_source *ws);
-
-extern int pm_wakeup_source_sysfs_add(struct device *parent);
-
-#else /* !CONFIG_PM_SLEEP */
-
-static inline int pm_wakeup_source_sysfs_add(struct device *parent)
-{
-	return 0;
-}
-
-#endif /* CONFIG_PM_SLEEP */
