@@ -1433,6 +1433,14 @@ static int dwc3_probe(struct platform_device *pdev)
 	dwc->regs	= regs;
 	dwc->regs_size	= resource_size(&dwc_res);
 
+	dwc->reset = devm_reset_control_get_optional_shared(dev, NULL);
+	if (IS_ERR(dwc->reset))
+		return PTR_ERR(dwc->reset);
+
+	ret = reset_control_deassert(dwc->reset);
+	if (ret)
+		return ret;
+
 	if (!dwc3_core_is_valid(dwc)) {
 		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
 		return -ENODEV;
@@ -1440,16 +1448,12 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	dwc3_get_properties(dwc);
 
-	dwc->reset = devm_reset_control_get_optional_shared(dev, NULL);
-	if (IS_ERR(dwc->reset))
-		return PTR_ERR(dwc->reset);
-
 	if (dev->of_node) {
 		dwc->num_clks = ARRAY_SIZE(dwc3_core_clks);
 
 		ret = clk_bulk_get(dev, dwc->num_clks, dwc->clks);
 		if (ret == -EPROBE_DEFER)
-			return ret;
+			goto assert_reset;
 		/*
 		 * Clocks are optional, but new DT platforms should support all
 		 * clocks as required by the DT-binding.
@@ -1458,13 +1462,9 @@ static int dwc3_probe(struct platform_device *pdev)
 			dwc->num_clks = 0;
 	}
 
-	ret = reset_control_deassert(dwc->reset);
-	if (ret)
-		goto put_clks;
-
 	ret = clk_bulk_prepare(dwc->num_clks, dwc->clks);
 	if (ret)
-		goto assert_reset;
+		goto put_clks;
 
 	ret = clk_bulk_enable(dwc->num_clks, dwc->clks);
 	if (ret)
@@ -1538,10 +1538,10 @@ err1:
 	clk_bulk_disable(dwc->num_clks, dwc->clks);
 unprepare_clks:
 	clk_bulk_unprepare(dwc->num_clks, dwc->clks);
-assert_reset:
-	reset_control_assert(dwc->reset);
 put_clks:
 	clk_bulk_put(dwc->num_clks, dwc->clks);
+assert_reset:
+	reset_control_assert(dwc->reset);
 
 	return ret;
 }
