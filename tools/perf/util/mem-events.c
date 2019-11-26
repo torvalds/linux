@@ -410,7 +410,7 @@ do {				\
 		return -1;
 	}
 
-	if (!mi->daddr.map || !mi->iaddr.map) {
+	if (!mi->daddr.ms.map || !mi->iaddr.ms.map) {
 		stats->nomap++;
 		return -1;
 	}

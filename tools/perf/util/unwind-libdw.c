@@ -80,9 +80,10 @@ static int entry(u64 ip, struct unwind_info *ui)
 	if (__report_module(&al, ip, ui))
 		return -1;
 
-	e->ip  = ip;
-	e->map = al.map;
-	e->sym = al.sym;
+	e->ip	  = ip;
+	e->ms.mg  = al.mg;
+	e->ms.map = al.map;
+	e->ms.sym = al.sym;
 
 	pr_debug("unwind: %s:ip = 0x%" PRIx64 " (0x%" PRIx64 ")\n",
 		 al.sym ? al.sym->name : "''",

@@ -1,113 +1,113 @@
 [
     {
-        "ArchStdEvent": "L1D_CACHE_RD",
+        "ArchStdEvent": "L1D_CACHE_RD"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_WR",
+        "ArchStdEvent": "L1D_CACHE_WR"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_REFILL_RD",
+        "ArchStdEvent": "L1D_CACHE_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_REFILL_WR",
+        "ArchStdEvent": "L1D_CACHE_REFILL_WR"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_REFILL_INNER",
+        "ArchStdEvent": "L1D_CACHE_REFILL_INNER"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_REFILL_OUTER",
+        "ArchStdEvent": "L1D_CACHE_REFILL_OUTER"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_WB_VICTIM",
+        "ArchStdEvent": "L1D_CACHE_WB_VICTIM"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_WB_CLEAN",
+        "ArchStdEvent": "L1D_CACHE_WB_CLEAN"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_INVAL",
+        "ArchStdEvent": "L1D_CACHE_INVAL"
     },
     {
-        "ArchStdEvent": "L1D_TLB_REFILL_RD",
+        "ArchStdEvent": "L1D_TLB_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L1D_TLB_REFILL_WR",
+        "ArchStdEvent": "L1D_TLB_REFILL_WR"
     },
     {
-        "ArchStdEvent": "L1D_TLB_RD",
+        "ArchStdEvent": "L1D_TLB_RD"
     },
     {
-        "ArchStdEvent": "L1D_TLB_WR",
+        "ArchStdEvent": "L1D_TLB_WR"
     },
     {
-        "ArchStdEvent": "L2D_TLB_REFILL_RD",
+        "ArchStdEvent": "L2D_TLB_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L2D_TLB_REFILL_WR",
+        "ArchStdEvent": "L2D_TLB_REFILL_WR"
     },
     {
-        "ArchStdEvent": "L2D_TLB_RD",
+        "ArchStdEvent": "L2D_TLB_RD"
     },
     {
-        "ArchStdEvent": "L2D_TLB_WR",
+        "ArchStdEvent": "L2D_TLB_WR"
     },
     {
-        "ArchStdEvent": "BUS_ACCESS_RD",
+        "ArchStdEvent": "BUS_ACCESS_RD"
     },
     {
-        "ArchStdEvent": "BUS_ACCESS_WR",
+        "ArchStdEvent": "BUS_ACCESS_WR"
     },
     {
-        "ArchStdEvent": "MEM_ACCESS_RD",
+        "ArchStdEvent": "MEM_ACCESS_RD"
     },
     {
-        "ArchStdEvent": "MEM_ACCESS_WR",
+        "ArchStdEvent": "MEM_ACCESS_WR"
     },
     {
-        "ArchStdEvent": "UNALIGNED_LD_SPEC",
+        "ArchStdEvent": "UNALIGNED_LD_SPEC"
     },
     {
-        "ArchStdEvent": "UNALIGNED_ST_SPEC",
+        "ArchStdEvent": "UNALIGNED_ST_SPEC"
     },
     {
-        "ArchStdEvent": "UNALIGNED_LDST_SPEC",
+        "ArchStdEvent": "UNALIGNED_LDST_SPEC"
     },
     {
-        "ArchStdEvent": "EXC_UNDEF",
+        "ArchStdEvent": "EXC_UNDEF"
     },
     {
-        "ArchStdEvent": "EXC_SVC",
+        "ArchStdEvent": "EXC_SVC"
     },
     {
-        "ArchStdEvent": "EXC_PABORT",
+        "ArchStdEvent": "EXC_PABORT"
     },
     {
-        "ArchStdEvent": "EXC_DABORT",
+        "ArchStdEvent": "EXC_DABORT"
     },
     {
-        "ArchStdEvent": "EXC_IRQ",
+        "ArchStdEvent": "EXC_IRQ"
     },
     {
-        "ArchStdEvent": "EXC_FIQ",
+        "ArchStdEvent": "EXC_FIQ"
     },
     {
-        "ArchStdEvent": "EXC_SMC",
+        "ArchStdEvent": "EXC_SMC"
     },
     {
-        "ArchStdEvent": "EXC_HVC",
+        "ArchStdEvent": "EXC_HVC"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_PABORT",
+        "ArchStdEvent": "EXC_TRAP_PABORT"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_DABORT",
+        "ArchStdEvent": "EXC_TRAP_DABORT"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_OTHER",
+        "ArchStdEvent": "EXC_TRAP_OTHER"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_IRQ",
+        "ArchStdEvent": "EXC_TRAP_IRQ"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_FIQ",
+        "ArchStdEvent": "EXC_TRAP_FIQ"
     }
 ]

@@ -1,42 +1,42 @@
 [
     {
-        "ArchStdEvent": "L1D_CACHE_RD",
+        "ArchStdEvent": "L1D_CACHE_RD"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_WR",
+        "ArchStdEvent": "L1D_CACHE_WR"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_REFILL_RD",
+        "ArchStdEvent": "L1D_CACHE_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_INVAL",
+        "ArchStdEvent": "L1D_CACHE_INVAL"
     },
     {
-        "ArchStdEvent": "L1D_TLB_REFILL_RD",
+        "ArchStdEvent": "L1D_TLB_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L1D_TLB_REFILL_WR",
+        "ArchStdEvent": "L1D_TLB_REFILL_WR"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_RD",
+        "ArchStdEvent": "L2D_CACHE_RD"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_WR",
+        "ArchStdEvent": "L2D_CACHE_WR"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_REFILL_RD",
+        "ArchStdEvent": "L2D_CACHE_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_REFILL_WR",
+        "ArchStdEvent": "L2D_CACHE_REFILL_WR"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_WB_VICTIM",
+        "ArchStdEvent": "L2D_CACHE_WB_VICTIM"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_WB_CLEAN",
+        "ArchStdEvent": "L2D_CACHE_WB_CLEAN"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_INVAL",
+        "ArchStdEvent": "L2D_CACHE_INVAL"
     },
     {
         "PublicDescription": "Level 1 instruction cache refill",
@@ -187,5 +187,5 @@
         "EventCode": "0x116",
         "EventName": "PAGE_WALK_L2_STAGE2_HIT",
         "BriefDescription": "Page walk, L2 stage-2 hit"
-    },
+    }
 ]

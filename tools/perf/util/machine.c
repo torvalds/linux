@@ -42,6 +42,11 @@
 
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock);
 
+static struct dso *machine__kernel_dso(struct machine *machine)
+{
+	return machine->vmlinux_map->dso;
+}
+
 static void dsos__init(struct dsos *dsos)
 {
 	INIT_LIST_HEAD(&dsos->head);
@@ -767,44 +772,15 @@ int machine__process_ksymbol(struct machine *machine __maybe_unused,
 	return machine__process_ksymbol_register(machine, event, sample);
 }
 
-static void dso__adjust_kmod_long_name(struct dso *dso, const char *filename)
-{
-	const char *dup_filename;
-
-	if (!filename || !dso || !dso->long_name)
-		return;
-	if (dso->long_name[0] != '[')
-		return;
-	if (!strchr(filename, '/'))
-		return;
-
-	dup_filename = strdup(filename);
-	if (!dup_filename)
-		return;
-
-	dso__set_long_name(dso, dup_filename, true);
-}
-
-struct map *machine__findnew_module_map(struct machine *machine, u64 start,
-					const char *filename)
+static struct map *machine__addnew_module_map(struct machine *machine, u64 start,
+					      const char *filename)
 {
 	struct map *map = NULL;
-	struct dso *dso = NULL;
 	struct kmod_path m;
+	struct dso *dso;
 
 	if (kmod_path__parse_name(&m, filename))
 		return NULL;
-
-	map = map_groups__find_by_name(&machine->kmaps, m.name);
-	if (map) {
-		/*
-		 * If the map's dso is an offline module, give dso__load()
-		 * a chance to find the file path of that module by fixing
-		 * long_name.
-		 */
-		dso__adjust_kmod_long_name(map->dso, filename);
-		goto out;
-	}
 
 	dso = machine__findnew_module_dso(machine, &m, filename);
 	if (dso == NULL)
@@ -861,7 +837,7 @@ size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp)
 {
 	int i;
 	size_t printed = 0;
-	struct dso *kdso = machine__kernel_map(machine)->dso;
+	struct dso *kdso = machine__kernel_dso(machine);
 
 	if (kdso->has_build_id) {
 		char filename[PATH_MAX];
@@ -1057,7 +1033,7 @@ int machine__map_x86_64_entry_trampolines(struct machine *machine,
 	 * In the vmlinux case, pgoff is a virtual address which must now be
 	 * mapped to a vmlinux offset.
 	 */
-	for (map = maps__first(maps); map; map = map__next(map)) {
+	maps__for_each_entry(maps, map) {
 		struct kmap *kmap = __map__kmap(map);
 		struct map *dest_map;
 
@@ -1404,7 +1380,7 @@ static int machine__create_module(void *arg, const char *name, u64 start,
 	if (arch__fix_module_text_start(&start, &size, name) < 0)
 		return -1;
 
-	map = machine__findnew_module_map(machine, start, name);
+	map = machine__addnew_module_map(machine, start, name);
 	if (map == NULL)
 		return -1;
 	map->end = start + size;
@@ -1543,8 +1519,7 @@ static bool perf_event__is_extra_kernel_mmap(struct machine *machine,
 static int machine__process_extra_kernel_map(struct machine *machine,
 					     union perf_event *event)
 {
-	struct map *kernel_map = machine__kernel_map(machine);
-	struct dso *kernel = kernel_map ? kernel_map->dso : NULL;
+	struct dso *kernel = machine__kernel_dso(machine);
 	struct extra_kernel_map xm = {
 		.start = event->mmap.start,
 		.end   = event->mmap.start + event->mmap.len,
@@ -1580,8 +1555,8 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 				strlen(machine->mmap_name) - 1) == 0;
 	if (event->mmap.filename[0] == '/' ||
 	    (!is_kernel_mmap && event->mmap.filename[0] == '[')) {
-		map = machine__findnew_module_map(machine, event->mmap.start,
-						  event->mmap.filename);
+		map = machine__addnew_module_map(machine, event->mmap.start,
+						 event->mmap.filename);
 		if (map == NULL)
 			goto out_problem;
 
@@ -1676,6 +1651,12 @@ int machine__process_mmap2_event(struct machine *machine,
 {
 	struct thread *thread;
 	struct map *map;
+	struct dso_id dso_id = {
+		.maj = event->mmap2.maj,
+		.min = event->mmap2.min,
+		.ino = event->mmap2.ino,
+		.ino_generation = event->mmap2.ino_generation,
+	};
 	int ret = 0;
 
 	if (dump_trace)
@@ -1696,10 +1677,7 @@ int machine__process_mmap2_event(struct machine *machine,
 
 	map = map__new(machine, event->mmap2.start,
 			event->mmap2.len, event->mmap2.pgoff,
-			event->mmap2.maj,
-			event->mmap2.min, event->mmap2.ino,
-			event->mmap2.ino_generation,
-			event->mmap2.prot,
+			&dso_id, event->mmap2.prot,
 			event->mmap2.flags,
 			event->mmap2.filename, thread);
 
@@ -1752,9 +1730,7 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 
 	map = map__new(machine, event->mmap.start,
 			event->mmap.len, event->mmap.pgoff,
-			0, 0, 0, 0, prot, 0,
-			event->mmap.filename,
-			thread);
+			NULL, prot, 0, event->mmap.filename, thread);
 
 	if (map == NULL)
 		goto out_problem_map;
@@ -1964,8 +1940,9 @@ static void ip__resolve_ams(struct thread *thread,
 
 	ams->addr = ip;
 	ams->al_addr = al.addr;
-	ams->sym = al.sym;
-	ams->map = al.map;
+	ams->ms.mg  = al.mg;
+	ams->ms.sym = al.sym;
+	ams->ms.map = al.map;
 	ams->phys_addr = 0;
 }
 
@@ -1981,8 +1958,9 @@ static void ip__resolve_data(struct thread *thread,
 
 	ams->addr = addr;
 	ams->al_addr = al.addr;
-	ams->sym = al.sym;
-	ams->map = al.map;
+	ams->ms.mg  = al.mg;
+	ams->ms.sym = al.sym;
+	ams->ms.map = al.map;
 	ams->phys_addr = phys_addr;
 }
 
@@ -2002,8 +1980,9 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 	return mi;
 }
 
-static char *callchain_srcline(struct map *map, struct symbol *sym, u64 ip)
+static char *callchain_srcline(struct map_symbol *ms, u64 ip)
 {
+	struct map *map = ms->map;
 	char *srcline = NULL;
 
 	if (!map || callchain_param.key == CCKEY_FUNCTION)
@@ -2015,7 +1994,7 @@ static char *callchain_srcline(struct map *map, struct symbol *sym, u64 ip)
 		bool show_addr = callchain_param.key == CCKEY_ADDRESS;
 
 		srcline = get_srcline(map->dso, map__rip_2objdump(map, ip),
-				      sym, show_sym, show_addr, ip);
+				      ms->sym, show_sym, show_addr, ip);
 		srcline__tree_insert(&map->dso->srclines, ip, srcline);
 	}
 
@@ -2038,6 +2017,7 @@ static int add_callchain_ip(struct thread *thread,
 			    struct iterations *iter,
 			    u64 branch_from)
 {
+	struct map_symbol ms;
 	struct addr_location al;
 	int nr_loop_iter = 0;
 	u64 iter_cycles = 0;
@@ -2095,8 +2075,11 @@ static int add_callchain_ip(struct thread *thread,
 		iter_cycles = iter->cycles;
 	}
 
-	srcline = callchain_srcline(al.map, al.sym, al.addr);
-	return callchain_cursor_append(cursor, ip, al.map, al.sym,
+	ms.mg  = al.mg;
+	ms.map = al.map;
+	ms.sym = al.sym;
+	srcline = callchain_srcline(&ms, al.addr);
+	return callchain_cursor_append(cursor, ip, &ms,
 				       branch, flags, nr_loop_iter,
 				       iter_cycles, branch_from, srcline);
 }
@@ -2403,7 +2386,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	}
 
 check_calls:
-	if (callchain_param.order != ORDER_CALLEE) {
+	if (chain && callchain_param.order != ORDER_CALLEE) {
 		err = find_prev_cpumode(chain, thread, cursor, parent, root_al,
 					&cpumode, chain->nr - first_call);
 		if (err)
@@ -2444,9 +2427,10 @@ check_calls:
 	return 0;
 }
 
-static int append_inlines(struct callchain_cursor *cursor,
-			  struct map *map, struct symbol *sym, u64 ip)
+static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms, u64 ip)
 {
+	struct symbol *sym = ms->sym;
+	struct map *map = ms->map;
 	struct inline_node *inline_node;
 	struct inline_list *ilist;
 	u64 addr;
@@ -2467,8 +2451,11 @@ static int append_inlines(struct callchain_cursor *cursor,
 	}
 
 	list_for_each_entry(ilist, &inline_node->val, list) {
-		ret = callchain_cursor_append(cursor, ip, map,
-					      ilist->symbol, false,
+		struct map_symbol ilist_ms = {
+			.map = map,
+			.sym = ilist->symbol,
+		};
+		ret = callchain_cursor_append(cursor, ip, &ilist_ms, false,
 					      NULL, 0, 0, 0, ilist->srcline);
 
 		if (ret != 0)
@@ -2484,22 +2471,21 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 	const char *srcline = NULL;
 	u64 addr = entry->ip;
 
-	if (symbol_conf.hide_unresolved && entry->sym == NULL)
+	if (symbol_conf.hide_unresolved && entry->ms.sym == NULL)
 		return 0;
 
-	if (append_inlines(cursor, entry->map, entry->sym, entry->ip) == 0)
+	if (append_inlines(cursor, &entry->ms, entry->ip) == 0)
 		return 0;
 
 	/*
 	 * Convert entry->ip from a virtual address to an offset in
 	 * its corresponding binary.
 	 */
-	if (entry->map)
-		addr = map__map_ip(entry->map, entry->ip);
+	if (entry->ms.map)
+		addr = map__map_ip(entry->ms.map, entry->ip);
 
-	srcline = callchain_srcline(entry->map, entry->sym, addr);
-	return callchain_cursor_append(cursor, entry->ip,
-				       entry->map, entry->sym,
+	srcline = callchain_srcline(&entry->ms, addr);
+	return callchain_cursor_append(cursor, entry->ip, &entry->ms,
 				       false, NULL, 0, 0, 0, srcline);
 }
 
@@ -2725,9 +2711,14 @@ out:
 	return addr_cpumode;
 }
 
+struct dso *machine__findnew_dso_id(struct machine *machine, const char *filename, struct dso_id *id)
+{
+	return dsos__findnew_id(&machine->dsos, filename, id);
+}
+
 struct dso *machine__findnew_dso(struct machine *machine, const char *filename)
 {
-	return dsos__findnew(&machine->dsos, filename);
+	return machine__findnew_dso_id(machine, filename, NULL);
 }
 
 char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp)

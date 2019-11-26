@@ -95,6 +95,11 @@ OPTIONS
         diff.compute config option.  See COMPARISON METHODS section for
         more info.
 
+--cycles-hist::
+	Report a histogram and the standard deviation for cycles data.
+	It can help us to judge if the reported cycles data is noisy or
+	not. This option should be used with '-c cycles'.
+
 -p::
 --period::
         Show period values for both compared hist entries.

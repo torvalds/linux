@@ -4,17 +4,15 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include "util/map_symbol.h"
 
-struct map;
 struct map_groups;
 struct perf_sample;
-struct symbol;
 struct thread;
 
 struct unwind_entry {
-	struct map	*map;
-	struct symbol	*sym;
-	u64		ip;
+	struct map_symbol ms;
+	u64		  ip;
 };
 
 typedef int (*unwind_entry_cb_t)(struct unwind_entry *entry, void *arg);

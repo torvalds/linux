@@ -26,6 +26,7 @@ int cmd_list(int argc, const char **argv)
 	int i;
 	bool raw_dump = false;
 	bool long_desc_flag = false;
+	bool deprecated = false;
 	struct option list_options[] = {
 		OPT_BOOLEAN(0, "raw-dump", &raw_dump, "Dump raw events"),
 		OPT_BOOLEAN('d', "desc", &desc_flag,
@@ -34,6 +35,8 @@ int cmd_list(int argc, const char **argv)
 			    "Print longer event descriptions."),
 		OPT_BOOLEAN(0, "details", &details_flag,
 			    "Print information on the perf event names and expressions used internally by events."),
+		OPT_BOOLEAN(0, "deprecated", &deprecated,
+			    "Print deprecated events."),
 		OPT_INCR(0, "debug", &verbose,
 			     "Enable debugging output"),
 		OPT_END()
@@ -55,7 +58,7 @@ int cmd_list(int argc, const char **argv)
 
 	if (argc == 0) {
 		print_events(NULL, raw_dump, !desc_flag, long_desc_flag,
-				details_flag);
+				details_flag, deprecated);
 		return 0;
 	}
 
@@ -78,7 +81,8 @@ int cmd_list(int argc, const char **argv)
 			print_hwcache_events(NULL, raw_dump);
 		else if (strcmp(argv[i], "pmu") == 0)
 			print_pmu_events(NULL, raw_dump, !desc_flag,
-						long_desc_flag, details_flag);
+						long_desc_flag, details_flag,
+						deprecated);
 		else if (strcmp(argv[i], "sdt") == 0)
 			print_sdt_events(NULL, NULL, raw_dump);
 		else if (strcmp(argv[i], "metric") == 0 || strcmp(argv[i], "metrics") == 0)
@@ -91,7 +95,8 @@ int cmd_list(int argc, const char **argv)
 			if (sep == NULL) {
 				print_events(argv[i], raw_dump, !desc_flag,
 							long_desc_flag,
-							details_flag);
+							details_flag,
+							deprecated);
 				continue;
 			}
 			sep_idx = sep - argv[i];
@@ -117,7 +122,8 @@ int cmd_list(int argc, const char **argv)
 			print_hwcache_events(s, raw_dump);
 			print_pmu_events(s, raw_dump, !desc_flag,
 						long_desc_flag,
-						details_flag);
+						details_flag,
+						deprecated);
 			print_tracepoint_events(NULL, s, raw_dump);
 			print_sdt_events(NULL, s, raw_dump);
 			metricgroup__print(true, true, s, raw_dump, details_flag);

@@ -21,7 +21,6 @@ LIBPERF_0.0.1 {
 		perf_evsel__delete;
 		perf_evsel__enable;
 		perf_evsel__disable;
-		perf_evsel__init;
 		perf_evsel__open;
 		perf_evsel__close;
 		perf_evsel__read;
@@ -34,12 +33,19 @@ LIBPERF_0.0.1 {
 		perf_evlist__close;
 		perf_evlist__enable;
 		perf_evlist__disable;
-		perf_evlist__init;
 		perf_evlist__add;
 		perf_evlist__remove;
 		perf_evlist__next;
 		perf_evlist__set_maps;
 		perf_evlist__poll;
+		perf_evlist__mmap;
+		perf_evlist__munmap;
+		perf_evlist__filter_pollfd;
+		perf_evlist__next_mmap;
+		perf_mmap__consume;
+		perf_mmap__read_init;
+		perf_mmap__read_done;
+		perf_mmap__read_event;
 	local:
 		*;
 };
