@@ -73,7 +73,7 @@ int test__dwarf_unwind(struct test *test, int subtest);
 int test__expr(struct test *test, int subtest);
 int test__hists_filter(struct test *test, int subtest);
 int test__mmap_thread_lookup(struct test *test, int subtest);
-int test__thread_mg_share(struct test *test, int subtest);
+int test__thread_maps_share(struct test *test, int subtest);
 int test__hists_output(struct test *test, int subtest);
 int test__hists_cumulate(struct test *test, int subtest);
 int test__switch_tracking(struct test *test, int subtest);

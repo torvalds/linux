@@ -4,7 +4,7 @@
 #include "thread.h"
 #include "debug.h"
 
-int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_unused)
+int test__thread_maps_share(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct machines machines;
 	struct machine *machine;
@@ -16,7 +16,7 @@ int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_
 
 	/* other process */
 	struct thread *other, *other_leader;
-	struct maps *other_mg;
+	struct maps *other_maps;
 
 	/*
 	 * This test create 2 processes abstractions (struct thread)
@@ -45,14 +45,14 @@ int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_
 	maps = leader->maps;
 	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&maps->refcnt), 4);
 
-	/* test the map groups pointer is shared */
-	TEST_ASSERT_VAL("map groups don't match", maps == t1->maps);
-	TEST_ASSERT_VAL("map groups don't match", maps == t2->maps);
-	TEST_ASSERT_VAL("map groups don't match", maps == t3->maps);
+	/* test the maps pointer is shared */
+	TEST_ASSERT_VAL("maps don't match", maps == t1->maps);
+	TEST_ASSERT_VAL("maps don't match", maps == t2->maps);
+	TEST_ASSERT_VAL("maps don't match", maps == t3->maps);
 
 	/*
 	 * Verify the other leader was created by previous call.
-	 * It should have shared map groups with no change in
+	 * It should have shared maps with no change in
 	 * refcnt.
 	 */
 	other_leader = machine__find_thread(machine, 4, 4);
@@ -70,10 +70,10 @@ int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_
 	machine__remove_thread(machine, other);
 	machine__remove_thread(machine, other_leader);
 
-	other_mg = other->maps;
-	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&other_mg->refcnt), 2);
+	other_maps = other->maps;
+	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&other_maps->refcnt), 2);
 
-	TEST_ASSERT_VAL("map groups don't match", other_mg == other_leader->maps);
+	TEST_ASSERT_VAL("maps don't match", other_maps == other_leader->maps);
 
 	/* release thread group */
 	thread__put(leader);
@@ -89,7 +89,7 @@ int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_
 
 	/* release other group  */
 	thread__put(other_leader);
-	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&other_mg->refcnt), 1);
+	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&other_maps->refcnt), 1);
 
 	thread__put(other);
 
