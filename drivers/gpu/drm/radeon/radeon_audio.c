@@ -288,7 +288,7 @@ static void radeon_audio_interface_init(struct radeon_device *rdev)
 	} else {
 		rdev->audio.funcs = &r600_funcs;
 		rdev->audio.hdmi_funcs = &r600_hdmi_funcs;
-		rdev->audio.dp_funcs = 0;
+		rdev->audio.dp_funcs = NULL;
 	}
 }
 
