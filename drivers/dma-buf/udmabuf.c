@@ -93,26 +93,10 @@ static void release_udmabuf(struct dma_buf *buf)
 	kfree(ubuf);
 }
 
-static void *kmap_udmabuf(struct dma_buf *buf, unsigned long page_num)
-{
-	struct udmabuf *ubuf = buf->priv;
-	struct page *page = ubuf->pages[page_num];
-
-	return kmap(page);
-}
-
-static void kunmap_udmabuf(struct dma_buf *buf, unsigned long page_num,
-			   void *vaddr)
-{
-	kunmap(vaddr);
-}
-
 static const struct dma_buf_ops udmabuf_ops = {
 	.map_dma_buf	  = map_udmabuf,
 	.unmap_dma_buf	  = unmap_udmabuf,
 	.release	  = release_udmabuf,
-	.map		  = kmap_udmabuf,
-	.unmap		  = kunmap_udmabuf,
 	.mmap		  = mmap_udmabuf,
 };
 
