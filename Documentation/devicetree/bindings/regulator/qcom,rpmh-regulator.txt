@@ -28,6 +28,8 @@ Supported regulator node names:
 	PM8150L:	smps1 - smps8, ldo1 - ldo11, bob, flash, rgb
 	PM8998:		smps1 - smps13, ldo1 - ldo28, lvs1 - lvs2
 	PMI8998:	bob
+	PM6150:         smps1 - smps5, ldo1 - ldo19
+	PM6150L:        smps1 - smps8, ldo1 - ldo11, bob
 
 ========================
 First Level Nodes - PMIC
@@ -43,6 +45,8 @@ First Level Nodes - PMIC
 		    "qcom,pm8150l-rpmh-regulators"
 		    "qcom,pm8998-rpmh-regulators"
 		    "qcom,pmi8998-rpmh-regulators"
+		    "qcom,pm6150-rpmh-regulators"
+		    "qcom,pm6150l-rpmh-regulators"
 
 - qcom,pmic-id
 	Usage:      required
