@@ -4554,6 +4554,8 @@ static int gfx_v7_0_hw_init(void *handle)
 
 	gfx_v7_0_constants_init(adev);
 
+	/* init CSB */
+	adev->gfx.rlc.funcs->get_csb_buffer(adev, adev->gfx.rlc.cs_ptr);
 	/* init rlc */
 	r = adev->gfx.rlc.funcs->resume(adev);
 	if (r)
