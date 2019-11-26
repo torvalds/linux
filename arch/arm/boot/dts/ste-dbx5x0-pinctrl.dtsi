@@ -130,7 +130,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO147_C15", "GPIO148_B16"; /* SDA/SCL */
-				ste,config = <&in_pu>;
+				ste,config = <&in_nopull>;
 			};
 		};
 
@@ -150,7 +150,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO16_AD3", "GPIO17_AD4"; /* SDA/SCL */
-				ste,config = <&in_pu>;
+				ste,config = <&in_nopull>;
 			};
 		};
 
@@ -170,7 +170,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO10_AF5", "GPIO11_AG4"; /* SDA/SCL */
-				ste,config = <&in_pu>;
+				ste,config = <&in_nopull>;
 			};
 		};
 
@@ -190,7 +190,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO229_AG7", "GPIO230_AF7"; /* SDA/SCL */
-				ste,config = <&in_pu>;
+				ste,config = <&in_nopull>;
 			};
 		};
 
@@ -214,7 +214,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO4_AH6", "GPIO5_AG6"; /* SDA/SCL */
-				ste,config = <&in_pu>;
+				ste,config = <&in_nopull>;
 			};
 		};
 
