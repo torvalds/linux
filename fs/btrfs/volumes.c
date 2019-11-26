@@ -1069,9 +1069,6 @@ static void btrfs_close_one_device(struct btrfs_device *device)
 	struct btrfs_device *new_device;
 	struct rcu_string *name;
 
-	if (device->bdev)
-		fs_devices->open_devices--;
-
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state) &&
 	    device->devid != BTRFS_DEV_REPLACE_DEVID) {
 		list_del_init(&device->dev_alloc_list);
@@ -1082,6 +1079,8 @@ static void btrfs_close_one_device(struct btrfs_device *device)
 		fs_devices->missing_devices--;
 
 	btrfs_close_bdev(device);
+	if (device->bdev)
+		fs_devices->open_devices--;
 
 	new_device = btrfs_alloc_device(NULL, &device->devid,
 					device->uuid);
