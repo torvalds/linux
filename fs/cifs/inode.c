@@ -967,7 +967,8 @@ handle_mnt_opt:
 		}
 	} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
 		rc = cifs_acl_to_fattr(cifs_sb, &fattr, *inode, false,
-				       full_path, fid);		if (rc) {
+				       full_path, fid);
+		if (rc) {
 			cifs_dbg(FYI, "%s: Getting ACL failed with error: %d\n",
 				 __func__, rc);
 			goto out;
