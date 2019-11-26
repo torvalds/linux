@@ -1925,12 +1925,17 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 	return vbt;
 }
 
-static struct vbt_header *copy_vbt(void __iomem *oprom, size_t size)
+static struct vbt_header *oprom_get_vbt(struct drm_i915_private *dev_priv)
 {
-	void __iomem *p = NULL;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	void __iomem *p = NULL, *oprom;
 	struct vbt_header *vbt;
 	u16 vbt_size;
-	size_t i;
+	size_t i, size;
+
+	oprom = pci_map_rom(pdev, &size);
+	if (!oprom)
+		return NULL;
 
 	/* Scour memory looking for the VBT signature. */
 	for (i = 0; i + 4 < size; i++) {
@@ -1943,33 +1948,37 @@ static struct vbt_header *copy_vbt(void __iomem *oprom, size_t size)
 	}
 
 	if (!p)
-		return NULL;
+		goto err_unmap_oprom;
 
 	if (sizeof(struct vbt_header) > size) {
 		DRM_DEBUG_DRIVER("VBT header incomplete\n");
-		return NULL;
+		goto err_unmap_oprom;
 	}
 
 	vbt_size = ioread16(p + offsetof(struct vbt_header, vbt_size));
 	if (vbt_size > size) {
 		DRM_DEBUG_DRIVER("VBT incomplete (vbt_size overflows)\n");
-		return NULL;
+		goto err_unmap_oprom;
 	}
 
 	/* The rest will be validated by intel_bios_is_valid_vbt() */
 	vbt = kmalloc(vbt_size, GFP_KERNEL);
 	if (!vbt)
-		return NULL;
+		goto err_unmap_oprom;
 
 	memcpy_fromio(vbt, p, vbt_size);
 
 	if (!intel_bios_is_valid_vbt(vbt, vbt_size))
 		goto err_free_vbt;
 
+	pci_unmap_rom(pdev, oprom);
+
 	return vbt;
 
 err_free_vbt:
 	kfree(vbt);
+err_unmap_oprom:
+	pci_unmap_rom(pdev, oprom);
 
 	return NULL;
 }
@@ -1984,10 +1993,9 @@ err_free_vbt:
  */
 void intel_bios_init(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
 	const struct vbt_header *vbt = dev_priv->opregion.vbt;
+	struct vbt_header *oprom_vbt = NULL;
 	const struct bdb_header *bdb;
-	u8 __iomem *oprom = NULL;
 
 	INIT_LIST_HEAD(&dev_priv->vbt.display_devices);
 
@@ -2000,15 +2008,11 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 
 	/* If the OpRegion does not have VBT, look in PCI ROM. */
 	if (!vbt) {
-		size_t size;
-
-		oprom = pci_map_rom(pdev, &size);
-		if (!oprom)
+		oprom_vbt = oprom_get_vbt(dev_priv);
+		if (!oprom_vbt)
 			goto out;
 
-		vbt = copy_vbt(oprom, size);
-		if (!vbt)
-			goto out;
+		vbt = oprom_vbt;
 
 		DRM_DEBUG_KMS("Found valid VBT in PCI ROM\n");
 	}
@@ -2042,11 +2046,7 @@ out:
 		init_vbt_missing_defaults(dev_priv);
 	}
 
-	if (oprom)
-		pci_unmap_rom(pdev, oprom);
-
-	if (vbt != dev_priv->opregion.vbt)
-		kfree(vbt);
+	kfree(oprom_vbt);
 }
 
 /**
