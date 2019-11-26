@@ -113,18 +113,21 @@ EXPORT_SYMBOL_GPL(get_governor_parent_kobj);
 
 static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu, u64 *wall)
 {
-	u64 idle_time;
+	struct kernel_cpustat kcpustat;
 	u64 cur_wall_time;
+	u64 idle_time;
 	u64 busy_time;
 
 	cur_wall_time = jiffies64_to_nsecs(get_jiffies_64());
 
-	busy_time = kcpustat_cpu(cpu).cpustat[CPUTIME_USER];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SYSTEM];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_IRQ];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SOFTIRQ];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_STEAL];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
+	kcpustat_cpu_fetch(&kcpustat, cpu);
+
+	busy_time = kcpustat.cpustat[CPUTIME_USER];
+	busy_time += kcpustat.cpustat[CPUTIME_SYSTEM];
+	busy_time += kcpustat.cpustat[CPUTIME_IRQ];
+	busy_time += kcpustat.cpustat[CPUTIME_SOFTIRQ];
+	busy_time += kcpustat.cpustat[CPUTIME_STEAL];
+	busy_time += kcpustat.cpustat[CPUTIME_NICE];
 
 	idle_time = cur_wall_time - busy_time;
 	if (wall)
