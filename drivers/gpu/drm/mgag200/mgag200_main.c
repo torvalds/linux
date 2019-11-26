@@ -94,6 +94,7 @@ static int mgag200_device_init(struct drm_device *dev,
 	struct mga_device *mdev = dev->dev_private;
 	int ret, option;
 
+	mdev->flags = mgag200_flags_from_driver_data(flags);
 	mdev->type = mgag200_type_from_driver_data(flags);
 
 	/* Hardcode the number of CRTCs to 1 */
