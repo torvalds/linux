@@ -8,12 +8,18 @@
  * the applicable attributes with the node's interfaces.
  */
 
+#define pr_fmt(fmt) "acpi/hmat: " fmt
+#define dev_fmt(fmt) "acpi/hmat: " fmt
+
 #include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/mm.h>
+#include <linux/platform_device.h>
 #include <linux/list_sort.h>
+#include <linux/memregion.h>
 #include <linux/memory.h>
 #include <linux/mutex.h>
 #include <linux/node.h>
@@ -49,6 +55,7 @@ struct memory_target {
 	struct list_head node;
 	unsigned int memory_pxm;
 	unsigned int processor_pxm;
+	struct resource memregions;
 	struct node_hmem_attrs hmem_attrs;
 	struct list_head caches;
 	struct node_cache_attrs cache_attrs;
@@ -104,22 +111,36 @@ static __init void alloc_memory_initiator(unsigned int cpu_pxm)
 	list_add_tail(&initiator->node, &initiators);
 }
 
-static __init void alloc_memory_target(unsigned int mem_pxm)
+static __init void alloc_memory_target(unsigned int mem_pxm,
+		resource_size_t start, resource_size_t len)
 {
 	struct memory_target *target;
 
 	target = find_mem_target(mem_pxm);
-	if (target)
-		return;
+	if (!target) {
+		target = kzalloc(sizeof(*target), GFP_KERNEL);
+		if (!target)
+			return;
+		target->memory_pxm = mem_pxm;
+		target->processor_pxm = PXM_INVAL;
+		target->memregions = (struct resource) {
+			.name	= "ACPI mem",
+			.start	= 0,
+			.end	= -1,
+			.flags	= IORESOURCE_MEM,
+		};
+		list_add_tail(&target->node, &targets);
+		INIT_LIST_HEAD(&target->caches);
+	}
 
-	target = kzalloc(sizeof(*target), GFP_KERNEL);
-	if (!target)
-		return;
-
-	target->memory_pxm = mem_pxm;
-	target->processor_pxm = PXM_INVAL;
-	list_add_tail(&target->node, &targets);
-	INIT_LIST_HEAD(&target->caches);
+	/*
+	 * There are potentially multiple ranges per PXM, so record each
+	 * in the per-target memregions resource tree.
+	 */
+	if (!__request_region(&target->memregions, start, len, "memory target",
+				IORESOURCE_MEM))
+		pr_warn("failed to reserve %#llx - %#llx in pxm: %d\n",
+				start, start + len, mem_pxm);
 }
 
 static __init const char *hmat_data_type(u8 type)
@@ -272,7 +293,7 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 	u8 type, mem_hier;
 
 	if (hmat_loc->header.length < sizeof(*hmat_loc)) {
-		pr_notice("HMAT: Unexpected locality header length: %d\n",
+		pr_notice("HMAT: Unexpected locality header length: %u\n",
 			 hmat_loc->header.length);
 		return -EINVAL;
 	}
@@ -284,12 +305,12 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 	total_size = sizeof(*hmat_loc) + sizeof(*entries) * ipds * tpds +
 		     sizeof(*inits) * ipds + sizeof(*targs) * tpds;
 	if (hmat_loc->header.length < total_size) {
-		pr_notice("HMAT: Unexpected locality header length:%d, minimum required:%d\n",
+		pr_notice("HMAT: Unexpected locality header length:%u, minimum required:%u\n",
 			 hmat_loc->header.length, total_size);
 		return -EINVAL;
 	}
 
-	pr_info("HMAT: Locality: Flags:%02x Type:%s Initiator Domains:%d Target Domains:%d Base:%lld\n",
+	pr_info("HMAT: Locality: Flags:%02x Type:%s Initiator Domains:%u Target Domains:%u Base:%lld\n",
 		hmat_loc->flags, hmat_data_type(type), ipds, tpds,
 		hmat_loc->entry_base_unit);
 
@@ -302,7 +323,7 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 			value = hmat_normalize(entries[init * tpds + targ],
 					       hmat_loc->entry_base_unit,
 					       type);
-			pr_info("  Initiator-Target[%d-%d]:%d%s\n",
+			pr_info("  Initiator-Target[%u-%u]:%u%s\n",
 				inits[init], targs[targ], value,
 				hmat_data_type_suffix(type));
 
@@ -329,13 +350,13 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
 	u32 attrs;
 
 	if (cache->header.length < sizeof(*cache)) {
-		pr_notice("HMAT: Unexpected cache header length: %d\n",
+		pr_notice("HMAT: Unexpected cache header length: %u\n",
 			 cache->header.length);
 		return -EINVAL;
 	}
 
 	attrs = cache->cache_attributes;
-	pr_info("HMAT: Cache: Domain:%d Size:%llu Attrs:%08x SMBIOS Handles:%d\n",
+	pr_info("HMAT: Cache: Domain:%u Size:%llu Attrs:%08x SMBIOS Handles:%d\n",
 		cache->memory_PD, cache->cache_size, attrs,
 		cache->number_of_SMBIOShandles);
 
@@ -390,17 +411,17 @@ static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *heade
 	struct memory_target *target = NULL;
 
 	if (p->header.length != sizeof(*p)) {
-		pr_notice("HMAT: Unexpected address range header length: %d\n",
+		pr_notice("HMAT: Unexpected address range header length: %u\n",
 			 p->header.length);
 		return -EINVAL;
 	}
 
 	if (hmat_revision == 1)
-		pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%d Memory Domain:%d\n",
+		pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%u Memory Domain:%u\n",
 			p->reserved3, p->reserved4, p->flags, p->processor_PD,
 			p->memory_PD);
 	else
-		pr_info("HMAT: Memory Flags:%04x Processor Domain:%d Memory Domain:%d\n",
+		pr_info("HMAT: Memory Flags:%04x Processor Domain:%u Memory Domain:%u\n",
 			p->flags, p->processor_PD, p->memory_PD);
 
 	if (p->flags & ACPI_HMAT_MEMORY_PD_VALID && hmat_revision == 1) {
@@ -417,7 +438,7 @@ static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *heade
 			pr_debug("HMAT: Invalid Processor Domain\n");
 			return -EINVAL;
 		}
-		target->processor_pxm = p_node;
+		target->processor_pxm = p->processor_PD;
 	}
 
 	return 0;
@@ -452,7 +473,7 @@ static __init int srat_parse_mem_affinity(union acpi_subtable_headers *header,
 		return -EINVAL;
 	if (!(ma->flags & ACPI_SRAT_MEM_ENABLED))
 		return 0;
-	alloc_memory_target(ma->proximity_domain);
+	alloc_memory_target(ma->proximity_domain, ma->base_address, ma->length);
 	return 0;
 }
 
@@ -613,9 +634,90 @@ static void hmat_register_target_perf(struct memory_target *target)
 	node_set_perf_attrs(mem_nid, &target->hmem_attrs, 0);
 }
 
+static void hmat_register_target_device(struct memory_target *target,
+		struct resource *r)
+{
+	/* define a clean / non-busy resource for the platform device */
+	struct resource res = {
+		.start = r->start,
+		.end = r->end,
+		.flags = IORESOURCE_MEM,
+	};
+	struct platform_device *pdev;
+	struct memregion_info info;
+	int rc, id;
+
+	rc = region_intersects(res.start, resource_size(&res), IORESOURCE_MEM,
+			IORES_DESC_SOFT_RESERVED);
+	if (rc != REGION_INTERSECTS)
+		return;
+
+	id = memregion_alloc(GFP_KERNEL);
+	if (id < 0) {
+		pr_err("memregion allocation failure for %pr\n", &res);
+		return;
+	}
+
+	pdev = platform_device_alloc("hmem", id);
+	if (!pdev) {
+		pr_err("hmem device allocation failure for %pr\n", &res);
+		goto out_pdev;
+	}
+
+	pdev->dev.numa_node = acpi_map_pxm_to_online_node(target->memory_pxm);
+	info = (struct memregion_info) {
+		.target_node = acpi_map_pxm_to_node(target->memory_pxm),
+	};
+	rc = platform_device_add_data(pdev, &info, sizeof(info));
+	if (rc < 0) {
+		pr_err("hmem memregion_info allocation failure for %pr\n", &res);
+		goto out_pdev;
+	}
+
+	rc = platform_device_add_resources(pdev, &res, 1);
+	if (rc < 0) {
+		pr_err("hmem resource allocation failure for %pr\n", &res);
+		goto out_resource;
+	}
+
+	rc = platform_device_add(pdev);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "device add failed for %pr\n", &res);
+		goto out_resource;
+	}
+
+	return;
+
+out_resource:
+	put_device(&pdev->dev);
+out_pdev:
+	memregion_free(id);
+}
+
+static void hmat_register_target_devices(struct memory_target *target)
+{
+	struct resource *res;
+
+	/*
+	 * Do not bother creating devices if no driver is available to
+	 * consume them.
+	 */
+	if (!IS_ENABLED(CONFIG_DEV_DAX_HMEM))
+		return;
+
+	for (res = target->memregions.child; res; res = res->sibling)
+		hmat_register_target_device(target, res);
+}
+
 static void hmat_register_target(struct memory_target *target)
 {
 	int nid = pxm_to_node(target->memory_pxm);
+
+	/*
+	 * Devices may belong to either an offline or online
+	 * node, so unconditionally add them.
+	 */
+	hmat_register_target_devices(target);
 
 	/*
 	 * Skip offline nodes. This can happen when memory
@@ -677,11 +779,21 @@ static __init void hmat_free_structures(void)
 	struct target_cache *tcache, *cnext;
 
 	list_for_each_entry_safe(target, tnext, &targets, node) {
+		struct resource *res, *res_next;
+
 		list_for_each_entry_safe(tcache, cnext, &target->caches, node) {
 			list_del(&tcache->node);
 			kfree(tcache);
 		}
+
 		list_del(&target->node);
+		res = target->memregions.child;
+		while (res) {
+			res_next = res->sibling;
+			__release_region(&target->memregions, res->start,
+					resource_size(res));
+			res = res_next;
+		}
 		kfree(target);
 	}
 
@@ -748,4 +860,4 @@ out_put:
 	acpi_put_table(tbl);
 	return 0;
 }
-subsys_initcall(hmat_init);
+device_initcall(hmat_init);
