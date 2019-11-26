@@ -84,7 +84,7 @@ enum {
 struct io_wqe {
 	struct {
 		spinlock_t lock;
-		struct list_head work_list;
+		struct io_wq_work_list work_list;
 		unsigned long hash_map;
 		unsigned flags;
 	} ____cacheline_aligned_in_smp;
@@ -236,7 +236,8 @@ static void io_worker_exit(struct io_worker *worker)
 static inline bool io_wqe_run_queue(struct io_wqe *wqe)
 	__must_hold(wqe->lock)
 {
-	if (!list_empty(&wqe->work_list) && !(wqe->flags & IO_WQE_FLAG_STALLED))
+	if (!wq_list_empty(&wqe->work_list) &&
+	    !(wqe->flags & IO_WQE_FLAG_STALLED))
 		return true;
 	return false;
 }
@@ -375,12 +376,15 @@ static bool __io_worker_idle(struct io_wqe *wqe, struct io_worker *worker)
 static struct io_wq_work *io_get_next_work(struct io_wqe *wqe, unsigned *hash)
 	__must_hold(wqe->lock)
 {
+	struct io_wq_work_node *node, *prev;
 	struct io_wq_work *work;
 
-	list_for_each_entry(work, &wqe->work_list, list) {
+	wq_list_for_each(node, prev, &wqe->work_list) {
+		work = container_of(node, struct io_wq_work, list);
+
 		/* not hashed, can run anytime */
 		if (!(work->flags & IO_WQ_WORK_HASHED)) {
-			list_del(&work->list);
+			wq_node_del(&wqe->work_list, node, prev);
 			return work;
 		}
 
@@ -388,7 +392,7 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe, unsigned *hash)
 		*hash = work->flags >> IO_WQ_HASH_SHIFT;
 		if (!(wqe->hash_map & BIT_ULL(*hash))) {
 			wqe->hash_map |= BIT_ULL(*hash);
-			list_del(&work->list);
+			wq_node_del(&wqe->work_list, node, prev);
 			return work;
 		}
 	}
@@ -416,7 +420,7 @@ static void io_worker_handle_work(struct io_worker *worker)
 		work = io_get_next_work(wqe, &hash);
 		if (work)
 			__io_worker_busy(wqe, worker, work);
-		else if (!list_empty(&wqe->work_list))
+		else if (!wq_list_empty(&wqe->work_list))
 			wqe->flags |= IO_WQE_FLAG_STALLED;
 
 		spin_unlock_irq(&wqe->lock);
@@ -526,7 +530,7 @@ static int io_wqe_worker(void *data)
 
 	if (test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
 		spin_lock_irq(&wqe->lock);
-		if (!list_empty(&wqe->work_list))
+		if (!wq_list_empty(&wqe->work_list))
 			io_worker_handle_work(worker);
 		else
 			spin_unlock_irq(&wqe->lock);
@@ -714,7 +718,7 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 	}
 
 	spin_lock_irqsave(&wqe->lock, flags);
-	list_add_tail(&work->list, &wqe->work_list);
+	wq_list_add_tail(&work->list, &wqe->work_list);
 	wqe->flags &= ~IO_WQE_FLAG_STALLED;
 	spin_unlock_irqrestore(&wqe->lock, flags);
 
@@ -829,14 +833,17 @@ static enum io_wq_cancel io_wqe_cancel_cb_work(struct io_wqe *wqe,
 		.cancel = cancel,
 		.caller_data = cancel_data,
 	};
+	struct io_wq_work_node *node, *prev;
 	struct io_wq_work *work;
 	unsigned long flags;
 	bool found = false;
 
 	spin_lock_irqsave(&wqe->lock, flags);
-	list_for_each_entry(work, &wqe->work_list, list) {
+	wq_list_for_each(node, prev, &wqe->work_list) {
+		work = container_of(node, struct io_wq_work, list);
+
 		if (cancel(work, cancel_data)) {
-			list_del(&work->list);
+			wq_node_del(&wqe->work_list, node, prev);
 			found = true;
 			break;
 		}
@@ -894,6 +901,7 @@ static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
 					    struct io_wq_work *cwork)
 {
+	struct io_wq_work_node *node, *prev;
 	struct io_wq_work *work;
 	unsigned long flags;
 	bool found = false;
@@ -906,9 +914,11 @@ static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
 	 * no completion will be posted for it.
 	 */
 	spin_lock_irqsave(&wqe->lock, flags);
-	list_for_each_entry(work, &wqe->work_list, list) {
+	wq_list_for_each(node, prev, &wqe->work_list) {
+		work = container_of(node, struct io_wq_work, list);
+
 		if (work == cwork) {
-			list_del(&work->list);
+			wq_node_del(&wqe->work_list, node, prev);
 			found = true;
 			break;
 		}
@@ -1023,7 +1033,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 		wqe->node = node;
 		wqe->wq = wq;
 		spin_lock_init(&wqe->lock);
-		INIT_LIST_HEAD(&wqe->work_list);
+		INIT_WQ_LIST(&wqe->work_list);
 		INIT_HLIST_NULLS_HEAD(&wqe->free_list, 0);
 		INIT_HLIST_NULLS_HEAD(&wqe->busy_list, 1);
 		INIT_LIST_HEAD(&wqe->all_list);
