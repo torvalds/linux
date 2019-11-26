@@ -6,8 +6,7 @@
  */
 
 /dts-v1/;
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/interrupt-controller/irq.h>
+#include "ste-db8500.dtsi"
 #include "ste-hrefv60plus.dtsi"
 #include "ste-href-stuib.dtsi"
 

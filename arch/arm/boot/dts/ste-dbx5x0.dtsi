@@ -52,11 +52,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0x300>;
-			/* cpufreq controls */
-			operating-points = <998400 0
-					    800000 0
-					    400000 0
-					    200000 0>;
 			clocks = <&prcmu_clk PRCMU_ARMSS>;
 			clock-names = "cpu";
 			clock-latency = <20000>;

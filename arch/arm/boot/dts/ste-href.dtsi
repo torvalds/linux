@@ -4,7 +4,6 @@
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "ste-dbx5x0.dtsi"
 #include "ste-href-family-pinctrl.dtsi"
 
 / {
