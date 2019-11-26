@@ -11,7 +11,6 @@
 #include <dt-bindings/sensor-dev.h>
 #include "rk3126.dtsi"
 #include "rk312x-android.dtsi"
-#include "rk3126-m88-cif-sensor.dtsi"
 
 / {
 	model = "Rockchip RK3126 bnd-m88 board";
@@ -222,12 +221,24 @@
 	status = "okay";
 };
 
-&cif {
+&cif_new {
 	status = "okay";
-};
 
-&cif_sensor {
-	status = "okay";
+	ports {
+		port@0 {
+			cif_in_fcam: endpoint@0 {
+				remote-endpoint =  <&gc0312_out>;
+				vsync-active = <0>;
+				hsync-active = <1>;
+			};
+
+			cif_in_bcam: endpoint@1 {
+				remote-endpoint = <&gc2035_out>;
+				vsync-active = <1>;
+				hsync-active = <1>;
+			};
+		};
+	};
 };
 
 &cpu0 {
@@ -430,6 +441,52 @@
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3300000>;
 				};
+			};
+		};
+	};
+
+	gc0312@21 {
+		compatible = "galaxycore,gc0312";
+		reg = <0x21>;
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		avdd-supply = <&vcc28_cif>;
+		dovdd-supply = <&vcc18_cif>;
+		dvdd-supply = <&vcc18_cif>;
+
+		pwdn-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			gc0312_out: endpoint {
+				remote-endpoint = <&cif_in_fcam>;
+			};
+		};
+	};
+
+	gc2035@3c {
+		compatible = "galaxycore,gc2035";
+		reg = <0x3c>;
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		avdd-supply = <&vcc28_cif>;
+		dovdd-supply = <&vcc18_cif>;
+		dvdd-supply = <&vcc18_cif>;
+
+		//pwdn-gpios = <&rk816 0 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			gc2035_out: endpoint {
+				remote-endpoint = <&cif_in_bcam>;
 			};
 		};
 	};
