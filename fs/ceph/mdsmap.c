@@ -13,22 +13,24 @@
 
 #include "super.h"
 
+#define CEPH_MDS_IS_READY(i, ignore_laggy) \
+	(m->m_info[i].state > 0 && (ignore_laggy ? true : !m->m_info[i].laggy))
 
-/*
- * choose a random mds that is "up" (i.e. has a state > 0), or -1.
- */
-int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
+static int __mdsmap_get_random_mds(struct ceph_mdsmap *m, bool ignore_laggy)
 {
 	int n = 0;
 	int i, j;
 
-	/* special case for one mds */
+	/*
+	 * special case for one mds, no matter it is laggy or
+	 * not we have no choice
+	 */
 	if (1 == m->m_num_mds && m->m_info[0].state > 0)
 		return 0;
 
 	/* count */
 	for (i = 0; i < m->m_num_mds; i++)
-		if (m->m_info[i].state > 0)
+		if (CEPH_MDS_IS_READY(i, ignore_laggy))
 			n++;
 	if (n == 0)
 		return -1;
@@ -36,13 +38,27 @@ int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 	/* pick */
 	n = prandom_u32() % n;
 	for (j = 0, i = 0; i < m->m_num_mds; i++) {
-		if (m->m_info[i].state > 0)
+		if (CEPH_MDS_IS_READY(i, ignore_laggy))
 			j++;
 		if (j > n)
 			break;
 	}
 
 	return i;
+}
+
+/*
+ * choose a random mds that is "up" (i.e. has a state > 0), or -1.
+ */
+int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
+{
+	int mds;
+
+	mds = __mdsmap_get_random_mds(m, false);
+	if (mds == m->m_num_mds || mds == -1)
+		mds = __mdsmap_get_random_mds(m, true);
+
+	return mds == m->m_num_mds ? -1 : mds;
 }
 
 #define __decode_and_drop_type(p, end, type, bad)		\
