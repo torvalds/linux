@@ -113,6 +113,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	int err;
 	u8 mdsmap_v, mdsmap_cv;
 	u16 mdsmap_ev;
+	u32 possible_max_rank;
 
 	m = kzalloc(sizeof(*m), GFP_NOFS);
 	if (!m)
@@ -138,14 +139,30 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	m->m_session_autoclose = ceph_decode_32(p);
 	m->m_max_file_size = ceph_decode_64(p);
 	m->m_max_mds = ceph_decode_32(p);
-	m->m_num_mds = m->m_max_mds;
+
+	/*
+	 * pick out the active nodes as the m_num_mds, the m_num_mds
+	 * maybe larger than m_max_mds when decreasing the max_mds in
+	 * cluster side, in other case it should less than or equal
+	 * to m_max_mds.
+	 */
+	m->m_num_mds = n = ceph_decode_32(p);
+	m->m_num_active_mds = m->m_num_mds;
+
+	/*
+	 * the possible max rank, it maybe larger than the m->m_num_mds,
+	 * for example if the mds_max == 2 in the cluster, when the MDS(0)
+	 * was laggy and being replaced by a new MDS, we will temporarily
+	 * receive a new mds map with n_num_mds == 1 and the active MDS(1),
+	 * and the mds rank >= m->m_num_mds.
+	 */
+	possible_max_rank = max((u32)m->m_num_mds, m->m_max_mds);
 
 	m->m_info = kcalloc(m->m_num_mds, sizeof(*m->m_info), GFP_NOFS);
 	if (!m->m_info)
 		goto nomem;
 
 	/* pick out active nodes from mds_info (state > 0) */
-	n = ceph_decode_32(p);
 	for (i = 0; i < n; i++) {
 		u64 global_id;
 		u32 namelen;
@@ -215,18 +232,15 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		     ceph_mds_state_name(state),
 		     laggy ? "(laggy)" : "");
 
-		if (mds < 0 || state <= 0)
+		if (mds < 0 || mds >= possible_max_rank) {
+			pr_warn("mdsmap_decode got incorrect mds(%d)\n", mds);
 			continue;
+		}
 
-		if (mds >= m->m_num_mds) {
-			int new_num = max(mds + 1, m->m_num_mds * 2);
-			void *new_m_info = krealloc(m->m_info,
-						new_num * sizeof(*m->m_info),
-						GFP_NOFS | __GFP_ZERO);
-			if (!new_m_info)
-				goto nomem;
-			m->m_info = new_m_info;
-			m->m_num_mds = new_num;
+		if (state <= 0) {
+			pr_warn("mdsmap_decode got incorrect state(%s)\n",
+				ceph_mds_state_name(state));
+			continue;
 		}
 
 		info = &m->m_info[mds];
@@ -246,14 +260,6 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		} else {
 			info->export_targets = NULL;
 		}
-	}
-	if (m->m_num_mds > m->m_max_mds) {
-		/* find max up mds */
-		for (i = m->m_num_mds; i >= m->m_max_mds; i--) {
-			if (i == 0 || m->m_info[i-1].state > 0)
-				break;
-		}
-		m->m_num_mds = i;
 	}
 
 	/* pg_pools */
@@ -396,7 +402,7 @@ bool ceph_mdsmap_is_cluster_available(struct ceph_mdsmap *m)
 		return false;
 	if (m->m_damaged)
 		return false;
-	if (m->m_num_laggy > 0)
+	if (m->m_num_laggy == m->m_num_active_mds)
 		return false;
 	for (i = 0; i < m->m_num_mds; i++) {
 		if (m->m_info[i].state == CEPH_MDS_STATE_ACTIVE)

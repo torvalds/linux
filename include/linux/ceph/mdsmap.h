@@ -25,8 +25,9 @@ struct ceph_mdsmap {
 	u32 m_session_timeout;          /* seconds */
 	u32 m_session_autoclose;        /* seconds */
 	u64 m_max_file_size;
-	u32 m_max_mds;                  /* size of m_addr, m_state arrays */
-	int m_num_mds;
+	u32 m_max_mds;			/* expected up:active mds number */
+	int m_num_active_mds;		/* actual up:active mds number */
+	int m_num_mds;                  /* size of m_info array */
 	struct ceph_mds_info *m_info;
 
 	/* which object pools file data can be stored in */
