@@ -238,8 +238,7 @@ static inline bool vcpu_match_mmio_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 	return false;
 }
 
-static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu,
-					       enum kvm_reg reg)
+static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu, int reg)
 {
 	unsigned long val = kvm_register_read(vcpu, reg);
 
@@ -247,8 +246,7 @@ static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu,
 }
 
 static inline void kvm_register_writel(struct kvm_vcpu *vcpu,
-				       enum kvm_reg reg,
-				       unsigned long val)
+				       int reg, unsigned long val)
 {
 	if (!is_64_bit_mode(vcpu))
 		val = (u32)val;
@@ -258,6 +256,11 @@ static inline void kvm_register_writel(struct kvm_vcpu *vcpu,
 static inline bool kvm_check_has_quirk(struct kvm *kvm, u64 quirk)
 {
 	return !(kvm->arch.disabled_quirks & quirk);
+}
+
+static inline bool kvm_vcpu_latch_init(struct kvm_vcpu *vcpu)
+{
+	return is_smm(vcpu) || kvm_x86_ops->apic_init_signal_blocked(vcpu);
 }
 
 void kvm_set_pending_timer(struct kvm_vcpu *vcpu);
@@ -366,7 +369,7 @@ static inline bool kvm_pat_valid(u64 data)
 	return (data | ((data & 0x0202020202020202ull) << 1)) == data;
 }
 
-void kvm_load_guest_xcr0(struct kvm_vcpu *vcpu);
-void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu);
+void kvm_load_guest_xsave_state(struct kvm_vcpu *vcpu);
+void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu);
 
 #endif

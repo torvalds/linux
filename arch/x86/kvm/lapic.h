@@ -226,6 +226,9 @@ bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);
 
 void kvm_wait_lapic_expire(struct kvm_vcpu *vcpu);
 
+void kvm_bitmap_or_dest_vcpus(struct kvm *kvm, struct kvm_lapic_irq *irq,
+			      unsigned long *vcpu_bitmap);
+
 bool kvm_intr_is_single_vcpu_fast(struct kvm *kvm, struct kvm_lapic_irq *irq,
 			struct kvm_vcpu **dest_vcpu);
 int kvm_vector_to_index(u32 vector, u32 dest_vcpus,

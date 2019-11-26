@@ -317,7 +317,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	if (ret >= 0)
 		list_add_rcu(&stt->list, &kvm->arch.spapr_tce_tables);
 	else
-		kvm_put_kvm(kvm);
+		kvm_put_kvm_no_destroy(kvm);
 
 	mutex_unlock(&kvm->lock);
 
