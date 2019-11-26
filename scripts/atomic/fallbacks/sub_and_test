@@ -8,7 +8,7 @@ cat <<EOF
  * true if the result is zero, or false for all
  * other cases.
  */
-static inline bool
+static __always_inline bool
 ${atomic}_sub_and_test(${int} i, ${atomic}_t *v)
 {
 	return ${atomic}_sub_return(i, v) == 0;

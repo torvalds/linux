@@ -149,6 +149,8 @@ cat << EOF
 #ifndef _LINUX_ATOMIC_FALLBACK_H
 #define _LINUX_ATOMIC_FALLBACK_H
 
+#include <linux/compiler.h>
+
 EOF
 
 for xchg in "xchg" "cmpxchg" "cmpxchg64"; do

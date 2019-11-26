@@ -7,7 +7,7 @@ cat <<EOF
  * returns true if the result is 0, or false for all other
  * cases.
  */
-static inline bool
+static __always_inline bool
 ${atomic}_dec_and_test(${atomic}_t *v)
 {
 	return ${atomic}_dec_return(v) == 0;

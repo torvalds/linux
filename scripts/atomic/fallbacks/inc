@@ -1,5 +1,5 @@
 cat <<EOF
-static inline ${ret}
+static __always_inline ${ret}
 ${atomic}_${pfx}inc${sfx}${order}(${atomic}_t *v)
 {
 	${retstmt}${atomic}_${pfx}add${sfx}${order}(1, v);

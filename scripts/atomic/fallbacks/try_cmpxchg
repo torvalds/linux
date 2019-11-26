@@ -1,5 +1,5 @@
 cat <<EOF
-static inline bool
+static __always_inline bool
 ${atomic}_try_cmpxchg${order}(${atomic}_t *v, ${int} *old, ${int} new)
 {
 	${int} r, o = *old;
