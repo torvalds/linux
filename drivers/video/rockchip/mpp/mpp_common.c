@@ -806,6 +806,15 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	} else {
 		mpp_set_grf(mpp->grf_info);
 	}
+	/*
+	 * for iommu share hardware, should attach to ensure
+	 * working in current device
+	 */
+	ret = mpp_iommu_attach(mpp->iommu_info);
+	if (ret) {
+		dev_err(mpp->dev, "mpp_iommu_attach failed\n");
+		return -ENODATA;
+	}
 
 	mpp_power_on(mpp);
 	mpp_debug_func(DEBUG_TASK_INFO, "pid %d run %s\n",

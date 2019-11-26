@@ -388,6 +388,9 @@ int mpp_iommu_attach(struct mpp_iommu_info *info)
 	if (!info)
 		return 0;
 
+	if (info->domain == iommu_get_domain_for_dev(info->dev))
+		return 0;
+
 	return iommu_attach_group(info->domain, info->group);
 }
 
