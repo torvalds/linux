@@ -8,7 +8,7 @@ cat << EOF
  * Atomically adds @a to @v, if @v was not already @u.
  * Returns true if the addition was done.
  */
-static inline bool
+static __always_inline bool
 ${atomic}_add_unless(${atomic}_t *v, ${int} a, ${int} u)
 {
 	return ${atomic}_fetch_add_unless(v, a, u) != u;

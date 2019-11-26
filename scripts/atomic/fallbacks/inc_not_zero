@@ -6,7 +6,7 @@ cat <<EOF
  * Atomically increments @v by 1, if @v is non-zero.
  * Returns true if the increment was done.
  */
-static inline bool
+static __always_inline bool
 ${atomic}_inc_not_zero(${atomic}_t *v)
 {
 	return ${atomic}_add_unless(v, 1, 0);

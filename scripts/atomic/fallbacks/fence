@@ -1,5 +1,5 @@
 cat <<EOF
-static inline ${ret}
+static __always_inline ${ret}
 ${atomic}_${pfx}${name}${sfx}(${params})
 {
 	${ret} ret;
