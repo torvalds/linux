@@ -24,6 +24,7 @@
 #include <asm/stackprotector.h>
 #include <asm/perf_event.h>
 #include <asm/mmu_context.h>
+#include <asm/doublefault.h>
 #include <asm/archrandom.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
@@ -1814,8 +1815,6 @@ static inline void tss_setup_ist(struct tss_struct *tss)
 	tss->x86_tss.ist[IST_INDEX_MCE] = __this_cpu_ist_top_va(MCE);
 }
 
-static inline void gdt_setup_doublefault_tss(int cpu) { }
-
 #else /* CONFIG_X86_64 */
 
 static inline void setup_getcpu(int cpu) { }
@@ -1827,13 +1826,6 @@ static inline void ucode_cpu_init(int cpu)
 
 static inline void tss_setup_ist(struct tss_struct *tss) { }
 
-static inline void gdt_setup_doublefault_tss(int cpu)
-{
-#ifdef CONFIG_DOUBLEFAULT
-	/* Set up the doublefault TSS pointer in the GDT */
-	__set_tss_desc(cpu, GDT_ENTRY_DOUBLEFAULT_TSS, &doublefault_tss);
-#endif
-}
 #endif /* !CONFIG_X86_64 */
 
 static inline void tss_setup_io_bitmap(struct tss_struct *tss)
@@ -1923,7 +1915,7 @@ void cpu_init(void)
 	clear_all_debug_regs();
 	dbg_restore_debug_regs();
 
-	gdt_setup_doublefault_tss(cpu);
+	doublefault_init_cpu_tss();
 
 	fpu__init_cpu();
 
