@@ -1268,7 +1268,7 @@ static int mlx5e_rep_setup_ft_cb(enum tc_setup_type type, void *type_data,
 		 * reserved ft chain.
 		 */
 		memcpy(&cls_flower, f, sizeof(*f));
-		cls_flower.common.chain_index = FDB_FT_CHAIN;
+		cls_flower.common.chain_index = mlx5_eswitch_get_ft_chain(esw);
 		err = mlx5e_rep_setup_tc_cls_flower(priv, &cls_flower, flags);
 		memcpy(&f->stats, &cls_flower.stats, sizeof(f->stats));
 		return err;

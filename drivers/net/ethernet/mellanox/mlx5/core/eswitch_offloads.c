@@ -80,6 +80,11 @@ u32 mlx5_eswitch_get_chain_range(struct mlx5_eswitch *esw)
 	return 0;
 }
 
+u32 mlx5_eswitch_get_ft_chain(struct mlx5_eswitch *esw)
+{
+	return mlx5_eswitch_get_chain_range(esw) + 1;
+}
+
 u16 mlx5_eswitch_get_prio_range(struct mlx5_eswitch *esw)
 {
 	if (esw->fdb_table.flags & ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED)

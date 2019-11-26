@@ -364,6 +364,9 @@ mlx5_eswitch_get_prio_range(struct mlx5_eswitch *esw);
 u32
 mlx5_eswitch_get_chain_range(struct mlx5_eswitch *esw);
 
+unsigned int
+mlx5_eswitch_get_ft_chain(struct mlx5_eswitch *esw);
+
 struct mlx5_flow_handle *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, u16 vport,
 				  struct mlx5_flow_destination *dest);
