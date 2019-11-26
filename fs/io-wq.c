@@ -580,7 +580,7 @@ static bool create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 	struct io_wqe_acct *acct =&wqe->acct[index];
 	struct io_worker *worker;
 
-	worker = kcalloc_node(1, sizeof(*worker), GFP_KERNEL, wqe->node);
+	worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, wqe->node);
 	if (!worker)
 		return false;
 
@@ -988,7 +988,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	int ret = -ENOMEM, i, node;
 	struct io_wq *wq;
 
-	wq = kcalloc(1, sizeof(*wq), GFP_KERNEL);
+	wq = kzalloc(sizeof(*wq), GFP_KERNEL);
 	if (!wq)
 		return ERR_PTR(-ENOMEM);
 
@@ -1010,7 +1010,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	for_each_online_node(node) {
 		struct io_wqe *wqe;
 
-		wqe = kcalloc_node(1, sizeof(struct io_wqe), GFP_KERNEL, node);
+		wqe = kzalloc_node(sizeof(struct io_wqe), GFP_KERNEL, node);
 		if (!wqe)
 			break;
 		wq->wqes[i] = wqe;
