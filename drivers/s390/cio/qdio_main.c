@@ -131,7 +131,7 @@ again:
 	case 96:
 		/* not all buffers processed */
 		qperf_inc(q, eqbs_partial);
-		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS part:%02x",
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "EQBS part:%02x",
 			tmp_count);
 		return count - tmp_count;
 	case 97:
@@ -423,9 +423,6 @@ static inline void account_sbals(struct qdio_q *q, unsigned int count)
 static void process_buffer_error(struct qdio_q *q, unsigned int start,
 				 int count)
 {
-	unsigned char state = (q->is_input_q) ? SLSB_P_INPUT_NOT_INIT :
-					SLSB_P_OUTPUT_NOT_INIT;
-
 	q->qdio_error = QDIO_ERROR_SLSB_STATE;
 
 	/* special handling for no target buffer empty */
@@ -433,7 +430,7 @@ static void process_buffer_error(struct qdio_q *q, unsigned int start,
 	    q->sbal[start]->element[15].sflags == 0x10) {
 		qperf_inc(q, target_full);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x", start);
-		goto set;
+		return;
 	}
 
 	DBF_ERROR("%4x BUF ERROR", SCH_NO(q));
@@ -442,13 +439,6 @@ static void process_buffer_error(struct qdio_q *q, unsigned int start,
 	DBF_ERROR("F14:%2x F15:%2x",
 		  q->sbal[start]->element[14].sflags,
 		  q->sbal[start]->element[15].sflags);
-
-set:
-	/*
-	 * Interrupts may be avoided as long as the error is present
-	 * so change the buffer state immediately to avoid starvation.
-	 */
-	set_buf_states(q, start, state, count);
 }
 
 static inline void inbound_primed(struct qdio_q *q, unsigned int start,
@@ -530,6 +520,11 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 		return count;
 	case SLSB_P_INPUT_ERROR:
 		process_buffer_error(q, start, count);
+		/*
+		 * Interrupts may be avoided as long as the error is present
+		 * so change the buffer state immediately to avoid starvation.
+		 */
+		set_buf_states(q, start, SLSB_P_INPUT_NOT_INIT, count);
 		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -963,7 +958,7 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 			/* skip if polling is enabled or already in work */
 			if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
 				     &q->u.in.queue_irq_state)) {
-				qperf_inc(q, int_discarded);
+				QDIO_PERF_STAT_INC(irq_ptr, int_discarded);
 				continue;
 			}
 			q->u.in.queue_start_poll(q->irq_ptr->cdev, q->nr,
@@ -1162,7 +1157,7 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	 */
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 
-	tiqdio_remove_input_queues(irq_ptr);
+	tiqdio_remove_device(irq_ptr);
 	qdio_shutdown_queues(cdev);
 	qdio_shutdown_debug_entries(irq_ptr);
 
@@ -1284,6 +1279,7 @@ int qdio_allocate(struct qdio_initialize *init_data)
 			     init_data->no_output_qs))
 		goto out_rel;
 
+	INIT_LIST_HEAD(&irq_ptr->entry);
 	init_data->cdev->private->qdio_data = irq_ptr;
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
 	return 0;
@@ -1428,7 +1424,7 @@ int qdio_activate(struct ccw_device *cdev)
 	}
 
 	if (is_thinint_irq(irq_ptr))
-		tiqdio_add_input_queues(irq_ptr);
+		tiqdio_add_device(irq_ptr);
 
 	/* wait for subchannel to become active */
 	msleep(5);

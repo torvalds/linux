@@ -70,7 +70,7 @@ void notrace s390_kernel_write(void *dst, const void *src, size_t size)
 	spin_unlock_irqrestore(&s390_kernel_write_lock, flags);
 }
 
-static int __memcpy_real(void *dest, void *src, size_t count)
+static int __no_sanitize_address __memcpy_real(void *dest, void *src, size_t count)
 {
 	register unsigned long _dest asm("2") = (unsigned long) dest;
 	register unsigned long _len1 asm("3") = (unsigned long) count;
@@ -91,19 +91,23 @@ static int __memcpy_real(void *dest, void *src, size_t count)
 	return rc;
 }
 
-static unsigned long _memcpy_real(unsigned long dest, unsigned long src,
-				  unsigned long count)
+static unsigned long __no_sanitize_address _memcpy_real(unsigned long dest,
+							unsigned long src,
+							unsigned long count)
 {
 	int irqs_disabled, rc;
 	unsigned long flags;
 
 	if (!count)
 		return 0;
-	flags = __arch_local_irq_stnsm(0xf8UL);
+	flags = arch_local_irq_save();
 	irqs_disabled = arch_irqs_disabled_flags(flags);
 	if (!irqs_disabled)
 		trace_hardirqs_off();
+	__arch_local_irq_stnsm(0xf8); // disable DAT
 	rc = __memcpy_real((void *) dest, (void *) src, (size_t) count);
+	if (flags & PSW_MASK_DAT)
+		__arch_local_irq_stosm(0x04); // enable DAT
 	if (!irqs_disabled)
 		trace_hardirqs_on();
 	__arch_local_irq_ssm(flags);

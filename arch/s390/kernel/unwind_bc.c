@@ -85,12 +85,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		}
 	}
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	/* Decode any ftrace redirection */
-	if (ip == (unsigned long) return_to_handler)
-		ip = ftrace_graph_ret_addr(state->task, &state->graph_idx,
-					   ip, (void *) sp);
-#endif
+	ip = ftrace_graph_ret_addr(state->task, &state->graph_idx, ip, (void *) sp);
 
 	/* Update unwind state */
 	state->sp = sp;
@@ -147,12 +142,7 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		reuse_sp = false;
 	}
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	/* Decode any ftrace redirection */
-	if (ip == (unsigned long) return_to_handler)
-		ip = ftrace_graph_ret_addr(state->task, &state->graph_idx,
-					   ip, NULL);
-#endif
+	ip = ftrace_graph_ret_addr(state->task, &state->graph_idx, ip, NULL);
 
 	/* Update unwind state */
 	state->sp = sp;

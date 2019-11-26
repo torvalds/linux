@@ -246,8 +246,8 @@ choice
 
 config MARCH_Z900
 	bool "IBM zSeries model z800 and z900"
-	depends on !CC_IS_CLANG
 	select HAVE_MARCH_Z900_FEATURES
+	depends on $(cc-option,-march=z900)
 	help
 	  Select this to enable optimizations for model z800/z900 (2064 and
 	  2066 series). This will enable some optimizations that are not
@@ -255,8 +255,8 @@ config MARCH_Z900
 
 config MARCH_Z990
 	bool "IBM zSeries model z890 and z990"
-	depends on !CC_IS_CLANG
 	select HAVE_MARCH_Z990_FEATURES
+	depends on $(cc-option,-march=z990)
 	help
 	  Select this to enable optimizations for model z890/z990 (2084 and
 	  2086 series). The kernel will be slightly faster but will not work
@@ -264,8 +264,8 @@ config MARCH_Z990
 
 config MARCH_Z9_109
 	bool "IBM System z9"
-	depends on !CC_IS_CLANG
 	select HAVE_MARCH_Z9_109_FEATURES
+	depends on $(cc-option,-march=z9-109)
 	help
 	  Select this to enable optimizations for IBM System z9 (2094 and
 	  2096 series). The kernel will be slightly faster but will not work
@@ -274,6 +274,7 @@ config MARCH_Z9_109
 config MARCH_Z10
 	bool "IBM System z10"
 	select HAVE_MARCH_Z10_FEATURES
+	depends on $(cc-option,-march=z10)
 	help
 	  Select this to enable optimizations for IBM System z10 (2097 and
 	  2098 series). The kernel will be slightly faster but will not work
@@ -282,6 +283,7 @@ config MARCH_Z10
 config MARCH_Z196
 	bool "IBM zEnterprise 114 and 196"
 	select HAVE_MARCH_Z196_FEATURES
+	depends on $(cc-option,-march=z196)
 	help
 	  Select this to enable optimizations for IBM zEnterprise 114 and 196
 	  (2818 and 2817 series). The kernel will be slightly faster but will
@@ -290,6 +292,7 @@ config MARCH_Z196
 config MARCH_ZEC12
 	bool "IBM zBC12 and zEC12"
 	select HAVE_MARCH_ZEC12_FEATURES
+	depends on $(cc-option,-march=zEC12)
 	help
 	  Select this to enable optimizations for IBM zBC12 and zEC12 (2828 and
 	  2827 series). The kernel will be slightly faster but will not work on
@@ -298,6 +301,7 @@ config MARCH_ZEC12
 config MARCH_Z13
 	bool "IBM z13s and z13"
 	select HAVE_MARCH_Z13_FEATURES
+	depends on $(cc-option,-march=z13)
 	help
 	  Select this to enable optimizations for IBM z13s and z13 (2965 and
 	  2964 series). The kernel will be slightly faster but will not work on
@@ -306,6 +310,7 @@ config MARCH_Z13
 config MARCH_Z14
 	bool "IBM z14 ZR1 and z14"
 	select HAVE_MARCH_Z14_FEATURES
+	depends on $(cc-option,-march=z14)
 	help
 	  Select this to enable optimizations for IBM z14 ZR1 and z14 (3907
 	  and 3906 series). The kernel will be slightly faster but will not
@@ -314,6 +319,7 @@ config MARCH_Z14
 config MARCH_Z15
 	bool "IBM z15"
 	select HAVE_MARCH_Z15_FEATURES
+	depends on $(cc-option,-march=z15)
 	help
 	  Select this to enable optimizations for IBM z15 (8562
 	  and 8561 series). The kernel will be slightly faster but will not
@@ -367,33 +373,39 @@ config TUNE_DEFAULT
 
 config TUNE_Z900
 	bool "IBM zSeries model z800 and z900"
-	depends on !CC_IS_CLANG
+	depends on $(cc-option,-mtune=z900)
 
 config TUNE_Z990
 	bool "IBM zSeries model z890 and z990"
-	depends on !CC_IS_CLANG
+	depends on $(cc-option,-mtune=z990)
 
 config TUNE_Z9_109
 	bool "IBM System z9"
-	depends on !CC_IS_CLANG
+	depends on $(cc-option,-mtune=z9-109)
 
 config TUNE_Z10
 	bool "IBM System z10"
+	depends on $(cc-option,-mtune=z10)
 
 config TUNE_Z196
 	bool "IBM zEnterprise 114 and 196"
+	depends on $(cc-option,-mtune=z196)
 
 config TUNE_ZEC12
 	bool "IBM zBC12 and zEC12"
+	depends on $(cc-option,-mtune=zEC12)
 
 config TUNE_Z13
-	bool "IBM z13"
+	bool "IBM z13s and z13"
+	depends on $(cc-option,-mtune=z13)
 
 config TUNE_Z14
-	bool "IBM z14"
+	bool "IBM z14 ZR1 and z14"
+	depends on $(cc-option,-mtune=z14)
 
 config TUNE_Z15
 	bool "IBM z15"
+	depends on $(cc-option,-mtune=z15)
 
 endchoice
 
