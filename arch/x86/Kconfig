@@ -932,36 +932,6 @@ config GART_IOMMU
 
 	  If unsure, say Y.
 
-config CALGARY_IOMMU
-	bool "IBM Calgary IOMMU support"
-	select IOMMU_HELPER
-	select SWIOTLB
-	depends on X86_64 && PCI
-	---help---
-	  Support for hardware IOMMUs in IBM's xSeries x366 and x460
-	  systems. Needed to run systems with more than 3GB of memory
-	  properly with 32-bit PCI devices that do not support DAC
-	  (Double Address Cycle). Calgary also supports bus level
-	  isolation, where all DMAs pass through the IOMMU.  This
-	  prevents them from going anywhere except their intended
-	  destination. This catches hard-to-find kernel bugs and
-	  mis-behaving drivers and devices that do not use the DMA-API
-	  properly to set up their DMA buffers.  The IOMMU can be
-	  turned off at boot time with the iommu=off parameter.
-	  Normally the kernel will make the right choice by itself.
-	  If unsure, say Y.
-
-config CALGARY_IOMMU_ENABLED_BY_DEFAULT
-	def_bool y
-	prompt "Should Calgary be enabled by default?"
-	depends on CALGARY_IOMMU
-	---help---
-	  Should Calgary be enabled by default? if you choose 'y', Calgary
-	  will be used (if it exists). If you choose 'n', Calgary will not be
-	  used even if it exists. If you choose 'n' and would like to use
-	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
-	  If unsure, say Y.
-
 config MAXSMP
 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
 	depends on X86_64 && SMP && DEBUG_KERNEL

@@ -3649,16 +3649,6 @@ L:	cake@lists.bufferbloat.net (moderated for non-subscribers)
 S:	Maintained
 F:	net/sched/sch_cake.c
 
-CALGARY x86-64 IOMMU
-M:	Muli Ben-Yehuda <mulix@mulix.org>
-M:	Jon Mason <jdmason@kudzu.us>
-L:	iommu@lists.linux-foundation.org
-S:	Maintained
-F:	arch/x86/kernel/pci-calgary_64.c
-F:	arch/x86/kernel/tce_64.c
-F:	arch/x86/include/asm/calgary.h
-F:	arch/x86/include/asm/tce.h
-
 CAN NETWORK DRIVERS
 M:	Wolfgang Grandegger <wg@grandegger.com>
 M:	Marc Kleine-Budde <mkl@pengutronix.de>
