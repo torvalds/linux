@@ -329,23 +329,9 @@
 		#clock-cells = <0>;
 	};
 
-	gpu: gpu@0x10091000 {
+	gpu: gpu@10091000 {
 		compatible = "arm,mali400";
-		reg = <0x10091000 0x200>,
-		      <0x10090000 0x100>,
-		      <0x10093000 0x100>,
-		      <0x10098000 0x1100>,
-		      <0x10094000 0x100>,
-		      <0x1009A000 0x1100>,
-		      <0x10095000 0x100>;
-
-		reg-names = "Mali_L2",
-			    "Mali_GP",
-			    "Mali_GP_MMU",
-			    "Mali_PP0",
-			    "Mali_PP0_MMU",
-			    "Mali_PP1",
-			    "Mali_PP1_MMU";
+		reg = <0x10091000 0x10000>;
 
 		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
