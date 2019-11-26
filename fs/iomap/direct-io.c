@@ -405,7 +405,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = file_inode(iocb->ki_filp);
 	size_t count = iov_iter_count(iter);
-	loff_t pos = iocb->ki_pos, start = pos;
+	loff_t pos = iocb->ki_pos;
 	loff_t end = iocb->ki_pos + count - 1, ret = 0;
 	unsigned int flags = IOMAP_DIRECT;
 	struct blk_plug plug;
@@ -461,14 +461,14 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	}
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (filemap_range_has_page(mapping, start, end)) {
+		if (filemap_range_has_page(mapping, pos, end)) {
 			ret = -EAGAIN;
 			goto out_free_dio;
 		}
 		flags |= IOMAP_NOWAIT;
 	}
 
-	ret = filemap_write_and_wait_range(mapping, start, end);
+	ret = filemap_write_and_wait_range(mapping, pos, end);
 	if (ret)
 		goto out_free_dio;
 
@@ -479,7 +479,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	 * pretty crazy thing to do, so we don't support it 100%.
 	 */
 	ret = invalidate_inode_pages2_range(mapping,
-			start >> PAGE_SHIFT, end >> PAGE_SHIFT);
+			pos >> PAGE_SHIFT, end >> PAGE_SHIFT);
 	if (ret)
 		dio_warn_stale_pagecache(iocb->ki_filp);
 	ret = 0;
