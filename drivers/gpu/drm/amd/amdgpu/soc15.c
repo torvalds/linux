@@ -557,7 +557,8 @@ static int soc15_mode2_reset(struct amdgpu_device *adev)
 static enum amd_reset_method
 soc15_asic_reset_method(struct amdgpu_device *adev)
 {
-	bool baco_reset;
+	bool baco_reset = false;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
@@ -571,18 +572,15 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		if (adev->psp.sos_fw_version >= 0x80067)
 			soc15_asic_get_baco_capability(adev, &baco_reset);
-		else
-			baco_reset = false;
-		if (baco_reset) {
-			struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, 0);
-			struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-			if (hive || (ras && ras->supported))
-				baco_reset = false;
-		}
+		/*
+		 * 1. PMFW version > 0x284300: all cases use baco
+		 * 2. PMFW version <= 0x284300: only sGPU w/o RAS use baco
+		 */
+		if ((ras && ras->supported) && adev->pm.fw_version <= 0x283400)
+			baco_reset = false;
 		break;
 	default:
-		baco_reset = false;
 		break;
 	}
 
